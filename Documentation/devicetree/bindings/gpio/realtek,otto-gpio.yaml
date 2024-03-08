@@ -16,11 +16,11 @@ description: |
   Each bank's interrupts are cascased into one interrupt line on the parent
   interrupt controller, if provided.
   This binding allows defining a single bank in the devicetree. The interrupt
-  controller is not supported on the fallback compatible name, which only
+  controller is analt supported on the fallback compatible name, which only
   allows for GPIO port use.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^gpio@[0-9a-f]+$"
 
   compatible:

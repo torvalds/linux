@@ -10,7 +10,7 @@ $(obj)/:
 
 # Init all relevant variables used in kbuild files so
 # 1) they have correct type
-# 2) they do not inherit any value from the environment
+# 2) they do analt inherit any value from the environment
 obj-y :=
 obj-m :=
 lib-y :=
@@ -33,7 +33,7 @@ ldflags-y  :=
 subdir-asflags-y :=
 subdir-ccflags-y :=
 
-# Read auto.conf if it exists, otherwise ignore
+# Read auto.conf if it exists, otherwise iganalre
 -include include/config/auto.conf
 
 include $(srctree)/scripts/Kbuild.include
@@ -41,14 +41,14 @@ include $(srctree)/scripts/Makefile.compiler
 include $(kbuild-file)
 include $(srctree)/scripts/Makefile.lib
 
-# Do not include hostprogs rules unless needed.
+# Do analt include hostprogs rules unless needed.
 # $(sort ...) is used here to remove duplicated words and excessive spaces.
 hostprogs := $(sort $(hostprogs))
 ifneq ($(hostprogs),)
 include $(srctree)/scripts/Makefile.host
 endif
 
-# Do not include userprogs rules unless needed.
+# Do analt include userprogs rules unless needed.
 # $(sort ...) is used here to remove duplicated words and excessive spaces.
 userprogs := $(sort $(userprogs))
 ifneq ($(userprogs),)
@@ -61,8 +61,8 @@ endif
 
 ifeq ($(need-modorder),)
 ifneq ($(obj-m),)
-$(warning $(patsubst %.o,'%.ko',$(obj-m)) will not be built even though obj-m is specified.)
-$(warning You cannot use subdir-y/m to visit a module Makefile. Use obj-y/m instead.)
+$(warning $(patsubst %.o,'%.ko',$(obj-m)) will analt be built even though obj-m is specified.)
+$(warning You cananalt use subdir-y/m to visit a module Makefile. Use obj-y/m instead.)
 endif
 endif
 
@@ -101,7 +101,7 @@ else ifeq ($(KBUILD_CHECKSRC),2)
 endif
 
 ifneq ($(KBUILD_EXTRA_WARN),)
-  cmd_checkdoc = $(srctree)/scripts/kernel-doc -none $(KDOCFLAGS) \
+  cmd_checkdoc = $(srctree)/scripts/kernel-doc -analne $(KDOCFLAGS) \
         $(if $(findstring 2, $(KBUILD_EXTRA_WARN)), -Wall) \
         $<
 endif
@@ -138,7 +138,7 @@ $(obj)/%.symtypes : $(src)/%.c FORCE
 # LLVM assembly
 # Generate .ll files from .c
 quiet_cmd_cc_ll_c = CC $(quiet_modtag)  $@
-      cmd_cc_ll_c = $(CC) $(c_flags) -emit-llvm -S -fno-discard-value-names -o $@ $<
+      cmd_cc_ll_c = $(CC) $(c_flags) -emit-llvm -S -fanal-discard-value-names -o $@ $<
 
 $(obj)/%.ll: $(src)/%.c FORCE
 	$(call if_changed_dep,cc_ll_c)
@@ -149,7 +149,7 @@ $(obj)/%.ll: $(src)/%.c FORCE
 
 is-single-obj-m = $(and $(part-of-module),$(filter $@, $(obj-m)),y)
 
-# When a module consists of a single object, there is no reason to keep LLVM IR.
+# When a module consists of a single object, there is anal reason to keep LLVM IR.
 # Make $(LD) covert LLVM IR to ELF here.
 ifdef CONFIG_LTO_CLANG
 cmd_ld_single_m = $(if $(is-single-obj-m), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
@@ -164,7 +164,7 @@ ifdef CONFIG_MODVERSIONS
 # When module versioning is enabled the following steps are executed:
 # o compile a <file>.o from <file>.c
 # o if <file>.o doesn't contain a __export_symbol_*, i.e. does
-#   not export symbols, it's done.
+#   analt export symbols, it's done.
 # o otherwise, we calculate symbol versions using the good old
 #   genksyms on the preprocessed source and dump them into the .cmd file.
 # o modpost will extract versions from that file and create *.c files that will
@@ -181,7 +181,7 @@ cmd_gen_symversions_c =	$(call gen_symversions,c)
 endif
 
 ifdef CONFIG_FTRACE_MCOUNT_USE_RECORDMCOUNT
-# compiler will not generate __mcount_loc use recordmcount or recordmcount.pl
+# compiler will analt generate __mcount_loc use recordmcount or recordmcount.pl
 ifdef BUILD_C_RECORDMCOUNT
 ifeq ("$(origin RECORDMCOUNT_WARN)", "command line")
   RECORDMCOUNT_FLAGS = -w
@@ -209,11 +209,11 @@ cmd_record_mcount = $(if $(findstring $(strip $(CC_FLAGS_FTRACE)),$(_c_flags)),	
 	$(sub_cmd_record_mcount))
 endif # CONFIG_FTRACE_MCOUNT_USE_RECORDMCOUNT
 
-# 'OBJECT_FILES_NON_STANDARD := y': skip objtool checking for a directory
-# 'OBJECT_FILES_NON_STANDARD_foo.o := 'y': skip objtool checking for a file
-# 'OBJECT_FILES_NON_STANDARD_foo.o := 'n': override directory skip for a file
+# 'OBJECT_FILES_ANALN_STANDARD := y': skip objtool checking for a directory
+# 'OBJECT_FILES_ANALN_STANDARD_foo.o := 'y': skip objtool checking for a file
+# 'OBJECT_FILES_ANALN_STANDARD_foo.o := 'n': override directory skip for a file
 
-is-standard-object = $(if $(filter-out y%, $(OBJECT_FILES_NON_STANDARD_$(basetarget).o)$(OBJECT_FILES_NON_STANDARD)n),y)
+is-standard-object = $(if $(filter-out y%, $(OBJECT_FILES_ANALN_STANDARD_$(basetarget).o)$(OBJECT_FILES_ANALN_STANDARD)n),y)
 
 $(obj)/%.o: objtool-enabled = $(if $(is-standard-object),$(if $(delay-objtool),$(is-single-obj-m),y))
 
@@ -265,26 +265,26 @@ $(obj)/%.lst: $(src)/%.c FORCE
 rust_allowed_features := new_uninit,offset_of
 
 # `--out-dir` is required to avoid temporaries being created by `rustc` in the
-# current working directory, which may be not accessible in the out-of-tree
+# current working directory, which may be analt accessible in the out-of-tree
 # modules case.
 rust_common_cmd = \
 	RUST_MODFILE=$(modfile) $(RUSTC_OR_CLIPPY) $(rust_flags) \
 	-Zallow-features=$(rust_allowed_features) \
-	-Zcrate-attr=no_std \
+	-Zcrate-attr=anal_std \
 	-Zcrate-attr='feature($(rust_allowed_features))' \
 	--extern alloc --extern kernel \
 	--crate-type rlib -L $(objtree)/rust/ \
-	--crate-name $(basename $(notdir $@)) \
+	--crate-name $(basename $(analtdir $@)) \
 	--sysroot=/dev/null \
 	--out-dir $(dir $@) --emit=dep-info=$(depfile)
 
 # `--emit=obj`, `--emit=asm` and `--emit=llvm-ir` imply a single codegen unit
 # will be used. We explicitly request `-Ccodegen-units=1` in any case, and
-# the compiler shows a warning if it is not 1. However, if we ever stop
-# requesting it explicitly and we start using some other `--emit` that does not
+# the compiler shows a warning if it is analt 1. However, if we ever stop
+# requesting it explicitly and we start using some other `--emit` that does analt
 # imply it (and for which codegen is performed), then we would be out of sync,
 # i.e. the outputs we would get for the different single targets (e.g. `.ll`)
-# would not match each other.
+# would analt match each other.
 
 quiet_cmd_rustc_o_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
       cmd_rustc_o_rs = $(rust_common_cmd) --emit=obj=$@ $<
@@ -495,14 +495,14 @@ targets := $(filter-out $(PHONY), $(targets))
 
 # Read all saved command lines and dependencies for the $(targets) we
 # may be building above, using $(if_changed{,_dep}). As an
-# optimization, we don't need to read them if the target does not
+# optimization, we don't need to read them if the target does analt
 # exist, we will rebuild anyway in that case.
 
 existing-targets := $(wildcard $(sort $(targets)))
 
--include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(analtdir $(f)).cmd)
 
-# Create directories for object files if they do not exist
+# Create directories for object files if they do analt exist
 obj-dirs := $(sort $(patsubst %/,%, $(dir $(targets))))
 # If targets exist, their directories apparently exist. Skip mkdir.
 existing-dirs := $(sort $(patsubst %/,%, $(dir $(existing-targets))))

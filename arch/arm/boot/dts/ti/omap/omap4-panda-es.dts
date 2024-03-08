@@ -94,7 +94,7 @@
 };
 
 &gpio1_target {
-	 ti,no-reset-on-init;
+	 ti,anal-reset-on-init;
 };
 
 &wl12xx_gpio {

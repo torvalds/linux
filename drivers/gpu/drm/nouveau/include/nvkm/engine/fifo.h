@@ -66,10 +66,10 @@ struct nvkm_fifo {
 	struct list_head runls;
 
 	struct {
-#define NVKM_FIFO_NONSTALL_EVENT BIT(0)
+#define NVKM_FIFO_ANALNSTALL_EVENT BIT(0)
 		struct nvkm_event event;
 		struct nvkm_inth intr;
-	} nonstall;
+	} analnstall;
 
 	struct {
 		u32 chan_msec;

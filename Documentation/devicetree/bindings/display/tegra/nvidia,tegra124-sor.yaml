@@ -15,7 +15,7 @@ description: |
   and DP outputs.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^sor@[0-9a-f]+$"
 
   compatible:

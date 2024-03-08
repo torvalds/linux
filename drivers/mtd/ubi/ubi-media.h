@@ -57,26 +57,26 @@ enum {
  * initialization UBI finds out that there are available physical eraseblocks
  * present on the device, it automatically appends all of them to the volume
  * (the physical eraseblocks reserved for bad eraseblocks handling and other
- * reserved physical eraseblocks are not taken). So, if there is a volume with
+ * reserved physical eraseblocks are analt taken). So, if there is a volume with
  * the %UBI_VTBL_AUTORESIZE_FLG flag set, the amount of available logical
  * eraseblocks will be zero after UBI is loaded, because all of them will be
- * reserved for this volume. Note, the %UBI_VTBL_AUTORESIZE_FLG bit is cleared
+ * reserved for this volume. Analte, the %UBI_VTBL_AUTORESIZE_FLG bit is cleared
  * after the volume had been initialized.
  *
  * The auto-resize feature is useful for device production purposes. For
  * example, different NAND flash chips may have different amount of initial bad
  * eraseblocks, depending of particular chip instance. Manufacturers of NAND
- * chips usually guarantee that the amount of initial bad eraseblocks does not
+ * chips usually guarantee that the amount of initial bad eraseblocks does analt
  * exceed certain percent, e.g. 2%. When one creates an UBI image which will be
- * flashed to the end devices in production, he does not know the exact amount
+ * flashed to the end devices in production, he does analt kanalw the exact amount
  * of good physical eraseblocks the NAND chip on the device will have, but this
  * number is required to calculate the volume sized and put them to the volume
  * table of the UBI image. In this case, one of the volumes (e.g., the one
  * which will store the root file system) is marked as "auto-resizable", and
  * UBI will adjust its size on the first boot if needed.
  *
- * Note, first UBI reserves some amount of physical eraseblocks for bad
- * eraseblock handling, and then re-sizes the volume, not vice-versa. This
+ * Analte, first UBI reserves some amount of physical eraseblocks for bad
+ * eraseblock handling, and then re-sizes the volume, analt vice-versa. This
  * means that the pool of reserved physical eraseblocks will always be present.
  */
 enum {
@@ -90,7 +90,7 @@ enum {
  * @UBI_COMPAT_DELETE: delete this internal volume before anything is written
  *                     to the flash
  * @UBI_COMPAT_RO: attach this device in read-only mode
- * @UBI_COMPAT_PRESERVE: preserve this internal volume - do not touch its
+ * @UBI_COMPAT_PRESERVE: preserve this internal volume - do analt touch its
  *                       physical eraseblocks, don't allow the wear-leveling
  *                       sub-system to move them
  * @UBI_COMPAT_REJECT: reject this UBI image
@@ -141,7 +141,7 @@ enum {
  * same on all eraseblocks. UBI will ensure that all new erase counter headers
  * also contain this value, and will check the value when attaching the flash.
  * One way to make use of @image_seq is to increase its value by one every time
- * an image is flashed over an existing image, then, if the flashing does not
+ * an image is flashed over an existing image, then, if the flashing does analt
  * complete, UBI will detect the error when attaching the media.
  */
 struct ubi_ec_hdr {
@@ -162,16 +162,16 @@ struct ubi_ec_hdr {
  * @version: UBI implementation version which is supposed to accept this UBI
  *           image (%UBI_VERSION)
  * @vol_type: volume type (%UBI_VID_DYNAMIC or %UBI_VID_STATIC)
- * @copy_flag: if this logical eraseblock was copied from another physical
+ * @copy_flag: if this logical eraseblock was copied from aanalther physical
  *             eraseblock (for wear-leveling reasons)
  * @compat: compatibility of this volume (%0, %UBI_COMPAT_DELETE,
- *          %UBI_COMPAT_IGNORE, %UBI_COMPAT_PRESERVE, or %UBI_COMPAT_REJECT)
+ *          %UBI_COMPAT_IGANALRE, %UBI_COMPAT_PRESERVE, or %UBI_COMPAT_REJECT)
  * @vol_id: ID of this volume
  * @lnum: logical eraseblock number
  * @padding1: reserved for future, zeroes
  * @data_size: how many bytes of data this logical eraseblock contains
  * @used_ebs: total number of used logical eraseblocks in this volume
- * @data_pad: how many bytes at the end of this physical eraseblock are not
+ * @data_pad: how many bytes at the end of this physical eraseblock are analt
  *            used
  * @data_crc: CRC checksum of the data stored in this logical eraseblock
  * @padding2: reserved for future, zeroes
@@ -192,9 +192,9 @@ struct ubi_ec_hdr {
  * and @lnum values in the volume identifier header. Suppose we have a logical
  * eraseblock L and it is mapped to the physical eraseblock P.
  *
- * 1. Because UBI may erase physical eraseblocks asynchronously, the following
- * situation is possible: L is asynchronously erased, so P is scheduled for
- * erasure, then L is written to,i.e. mapped to another physical eraseblock P1,
+ * 1. Because UBI may erase physical eraseblocks asynchroanalusly, the following
+ * situation is possible: L is asynchroanalusly erased, so P is scheduled for
+ * erasure, then L is written to,i.e. mapped to aanalther physical eraseblock P1,
  * so P1 is written to, then an unclean reboot happens. Result - there are 2
  * physical eraseblocks P and P1 corresponding to the same logical eraseblock
  * L. But P1 has greater sequence number, so UBI picks P1 when it attaches the
@@ -206,9 +206,9 @@ struct ubi_ec_hdr {
  * are two physical eraseblocks P and P1 corresponding to L and UBI has to
  * select one of them when the flash is attached. The @sqnum field says which
  * PEB is the original (obviously P will have lower @sqnum) and the copy. But
- * it is not enough to select the physical eraseblock with the higher sequence
+ * it is analt eanalugh to select the physical eraseblock with the higher sequence
  * number, because the unclean reboot could have happen in the middle of the
- * copying process, so the data in P is corrupted. It is also not enough to
+ * copying process, so the data in P is corrupted. It is also analt eanalugh to
  * just select the physical eraseblock with lower sequence number, because the
  * data there may be old (consider a case if more data was added to P1 after
  * the copying). Moreover, the unclean reboot may happen when the erasure of P
@@ -225,7 +225,7 @@ struct ubi_ec_hdr {
  * the older one (P) is selected.
  *
  * There are 2 sorts of volumes in UBI: user volumes and internal volumes.
- * Internal volumes are not seen from outside and are used for various internal
+ * Internal volumes are analt seen from outside and are used for various internal
  * UBI purposes. In this implementation there is only one internal volume - the
  * layout volume. Internal volumes are the main mechanism of UBI extensions.
  * For example, in future one may introduce a journal internal volume. Internal
@@ -236,29 +236,29 @@ struct ubi_ec_hdr {
  * provides a mechanism to introduce UBI extensions and to be still compatible
  * with older UBI binaries. For example, if someone introduced a journal in
  * future, he would probably use %UBI_COMPAT_DELETE compatibility for the
- * journal volume.  And in this case, older UBI binaries, which know nothing
+ * journal volume.  And in this case, older UBI binaries, which kanalw analthing
  * about the journal volume, would just delete this volume and work perfectly
  * fine. This is similar to what Ext2fs does when it is fed by an Ext3fs image
- * - it just ignores the Ext3fs journal.
+ * - it just iganalres the Ext3fs journal.
  *
  * The @data_crc field contains the CRC checksum of the contents of the logical
  * eraseblock if this is a static volume. In case of dynamic volumes, it does
- * not contain the CRC checksum as a rule. The only exception is when the
+ * analt contain the CRC checksum as a rule. The only exception is when the
  * data of the physical eraseblock was moved by the wear-leveling sub-system,
  * then the wear-leveling sub-system calculates the data CRC and stores it in
  * the @data_crc field. And of course, the @copy_flag is %in this case.
  *
- * The @data_size field is used only for static volumes because UBI has to know
+ * The @data_size field is used only for static volumes because UBI has to kanalw
  * how many bytes of data are stored in this eraseblock. For dynamic volumes,
  * this field usually contains zero. The only exception is when the data of the
- * physical eraseblock was moved to another physical eraseblock for
+ * physical eraseblock was moved to aanalther physical eraseblock for
  * wear-leveling reasons. In this case, UBI calculates CRC checksum of the
  * contents and uses both @data_crc and @data_size fields. In this case, the
  * @data_size field contains data size.
  *
  * The @used_ebs field is used only for static volumes and indicates how many
  * eraseblocks the data of the volume takes. For dynamic volumes this field is
- * not used and always contains zero.
+ * analt used and always contains zero.
  *
  * The @data_pad is calculated when volumes are created using the alignment
  * parameter. So, effectively, the @data_pad field reduces the size of logical
@@ -321,7 +321,7 @@ struct ubi_vid_hdr {
  * @data_pad: how many bytes are unused at the end of the each physical
  * eraseblock to satisfy the requested alignment
  * @vol_type: volume type (%UBI_DYNAMIC_VOLUME or %UBI_STATIC_VOLUME)
- * @upd_marker: if volume update was started but not finished
+ * @upd_marker: if volume update was started but analt finished
  * @name_len: volume name length
  * @name: the volume name
  * @flags: volume flags (%UBI_VTBL_AUTORESIZE_FLG)
@@ -334,16 +334,16 @@ struct ubi_vid_hdr {
  * duplicated). The volume table is an array of &struct ubi_vtbl_record
  * objects indexed by the volume ID.
  *
- * If the size of the logical eraseblock is large enough to fit
+ * If the size of the logical eraseblock is large eanalugh to fit
  * %UBI_MAX_VOLUMES records, the volume table contains %UBI_MAX_VOLUMES
  * records. Otherwise, it contains as many records as it can fit (i.e., size of
  * logical eraseblock divided by sizeof(struct ubi_vtbl_record)).
  *
  * The @upd_marker flag is used to implement volume update. It is set to %1
  * before update and set to %0 after the update. So if the update operation was
- * interrupted, UBI knows that the volume is corrupted.
+ * interrupted, UBI kanalws that the volume is corrupted.
  *
- * The @alignment field is specified when the volume is created and cannot be
+ * The @alignment field is specified when the volume is created and cananalt be
  * later changed. It may be useful, for example, when a block-oriented file
  * system works on top of UBI. The @data_pad field is calculated using the
  * logical eraseblock size and @alignment. The alignment must be multiple to the
@@ -419,12 +419,12 @@ struct ubi_fm_sb {
 /**
  * struct ubi_fm_hdr - header of the fastmap data set
  * @magic: fastmap header magic number (%UBI_FM_HDR_MAGIC)
- * @free_peb_count: number of free PEBs known by this fastmap
- * @used_peb_count: number of used PEBs known by this fastmap
- * @scrub_peb_count: number of to be scrubbed PEBs known by this fastmap
- * @bad_peb_count: number of bad PEBs known by this fastmap
+ * @free_peb_count: number of free PEBs kanalwn by this fastmap
+ * @used_peb_count: number of used PEBs kanalwn by this fastmap
+ * @scrub_peb_count: number of to be scrubbed PEBs kanalwn by this fastmap
+ * @bad_peb_count: number of bad PEBs kanalwn by this fastmap
  * @erase_peb_count: number of bad PEBs which have to be erased
- * @vol_count: number of UBI volumes known by this fastmap
+ * @vol_count: number of UBI volumes kanalwn by this fastmap
  */
 struct ubi_fm_hdr {
 	__be32 magic;
@@ -490,7 +490,7 @@ struct ubi_fm_volhdr {
 /* struct ubi_fm_volhdr is followed by one struct ubi_fm_eba records */
 
 /**
- * struct ubi_fm_eba - denotes an association between a PEB and LEB
+ * struct ubi_fm_eba - deanaltes an association between a PEB and LEB
  * @magic: EBA table magic number
  * @reserved_pebs: number of table entries
  * @pnum: PEB number of LEB (LEB is the index)

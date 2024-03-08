@@ -12,8 +12,8 @@
 
 #include <asm-generic/irq.h>
 
-void riscv_set_intc_hwnode_fn(struct fwnode_handle *(*fn)(void));
+void riscv_set_intc_hwanalde_fn(struct fwanalde_handle *(*fn)(void));
 
-struct fwnode_handle *riscv_get_intc_hwnode(void);
+struct fwanalde_handle *riscv_get_intc_hwanalde(void);
 
 #endif /* _ASM_RISCV_IRQ_H */

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/netdevice.h>
@@ -30,11 +30,11 @@
 #include "hinic_rx.h"
 #include "hinic_dev.h"
 
-#define RX_IRQ_NO_PENDING               0
-#define RX_IRQ_NO_COALESC               0
-#define RX_IRQ_NO_LLI_TIMER             0
-#define RX_IRQ_NO_CREDIT                0
-#define RX_IRQ_NO_RESEND_TIMER          0
+#define RX_IRQ_ANAL_PENDING               0
+#define RX_IRQ_ANAL_COALESC               0
+#define RX_IRQ_ANAL_LLI_TIMER             0
+#define RX_IRQ_ANAL_CREDIT                0
+#define RX_IRQ_ANAL_RESEND_TIMER          0
 #define HINIC_RX_BUFFER_WRITE           16
 
 #define HINIC_RX_IPV6_PKT		7
@@ -110,10 +110,10 @@ static void rx_csum(struct hinic_rxq *rxq, u32 status,
 	if (!csum_err) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else {
-		if (!(csum_err & (HINIC_RX_CSUM_HW_CHECK_NONE |
+		if (!(csum_err & (HINIC_RX_CSUM_HW_CHECK_ANALNE |
 			HINIC_RX_CSUM_IPSU_OTHER_ERR)))
 			rxq->rxq_stats.csum_errors++;
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 	}
 }
 
@@ -525,9 +525,9 @@ static int rx_request_irq(struct hinic_rxq *rxq)
 	rx_add_napi(rxq);
 
 	hinic_hwdev_msix_set(hwdev, rq->msix_entry,
-			     RX_IRQ_NO_PENDING, RX_IRQ_NO_COALESC,
-			     RX_IRQ_NO_LLI_TIMER, RX_IRQ_NO_CREDIT,
-			     RX_IRQ_NO_RESEND_TIMER);
+			     RX_IRQ_ANAL_PENDING, RX_IRQ_ANAL_COALESC,
+			     RX_IRQ_ANAL_LLI_TIMER, RX_IRQ_ANAL_CREDIT,
+			     RX_IRQ_ANAL_RESEND_TIMER);
 
 	intr_coal = &nic_dev->rx_intr_coalesce[qp->q_id];
 	interrupt_info.msix_index = rq->msix_entry;
@@ -593,11 +593,11 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 	rxq->irq_name = devm_kasprintf(&netdev->dev, GFP_KERNEL,
 				       "%s_rxq%d", netdev->name, qp->q_id);
 	if (!rxq->irq_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkts = rx_alloc_pkts(rxq);
 	if (!pkts) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_rx_pkts;
 	}
 

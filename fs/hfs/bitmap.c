@@ -2,7 +2,7 @@
  *  linux/fs/hfs/bitmap.c
  *
  * Copyright (C) 1996-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * Based on GPLed code Copyright (C) 1995  Michael Dreher
@@ -21,7 +21,7 @@
  *  determine the number of the first zero bits (in left-to-right ordering)
  *  in that range.
  *
- *  Returns >= 'size' if no zero bits are found in the range.
+ *  Returns >= 'size' if anal zero bits are found in the range.
  *
  *  Accesses memory in 32-bit aligned chunks of 32-bits and thus
  *  may read beyond the 'size'th bit.
@@ -115,7 +115,7 @@ done:
  * Description:
  *   Search for 'num_bits' consecutive cleared bits in the bitmap blocks of
  *   the hfs MDB. 'mdb' had better be locked or the returned range
- *   may be no longer free, when this functions returns!
+ *   may be anal longer free, when this functions returns!
  *   XXX Currently the search starts from bit 0, but it should start with
  *   the bit number stored in 's_alloc_ptr' of the MDB.
  * Input Variable(s):
@@ -177,9 +177,9 @@ out:
  *   u16 start: The offset of the first bit
  *   u16 count: The number of bits
  * Output Variable(s):
- *   None
+ *   Analne
  * Returns:
- *    0: no error
+ *    0: anal error
  *   -1: One of the bits was already clear.  This is a strange
  *	 error and when it happens, the filesystem must be repaired!
  *   -2: One or more of the bits are out of range of the bitmap.

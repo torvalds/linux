@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -240,7 +240,7 @@ static inline void ecb_crypt(const u8 *in, u8 *out, u32 *key,
 			     struct cword *cword, int count)
 {
 	/* Padlock in ECB mode fetches at least ecb_fetch_bytes of data.
-	 * We could avoid some copying here but it's probably not worth it.
+	 * We could avoid some copying here but it's probably analt worth it.
 	 */
 	if (unlikely(offset_in_page(in) + ecb_fetch_bytes > PAGE_SIZE)) {
 		ecb_crypt_copy(in, out, key, cword, count);
@@ -486,11 +486,11 @@ static int __init padlock_init(void)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	if (!x86_match_cpu(padlock_cpu_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!boot_cpu_has(X86_FEATURE_XCRYPT_EN)) {
-		printk(KERN_NOTICE PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
-		return -ENODEV;
+		printk(KERN_ANALTICE PFX "VIA PadLock detected, but analt enabled. Hmm, strange...\n");
+		return -EANALDEV;
 	}
 
 	if ((ret = crypto_register_alg(&aes_alg)) != 0)
@@ -502,12 +502,12 @@ static int __init padlock_init(void)
 	if ((ret = crypto_register_skcipher(&cbc_aes_alg)) != 0)
 		goto cbc_aes_err;
 
-	printk(KERN_NOTICE PFX "Using VIA PadLock ACE for AES algorithm.\n");
+	printk(KERN_ANALTICE PFX "Using VIA PadLock ACE for AES algorithm.\n");
 
 	if (c->x86 == 6 && c->x86_model == 15 && c->x86_stepping == 2) {
 		ecb_fetch_blocks = MAX_ECB_FETCH_BLOCKS;
 		cbc_fetch_blocks = MAX_CBC_FETCH_BLOCKS;
-		printk(KERN_NOTICE PFX "VIA Nano stepping 2 detected: enabling workaround.\n");
+		printk(KERN_ANALTICE PFX "VIA Naanal stepping 2 detected: enabling workaround.\n");
 	}
 
 out:

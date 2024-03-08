@@ -363,7 +363,7 @@ static uint32_t gk208_grgpc_code[] = {
 	0x1efd01e4,
 	0x0018fe05,
 	0x00051f7e,
-/* 0x0477: main_not_ctx_xfer */
+/* 0x0477: main_analt_ctx_xfer */
 	0x94da0ef4,
 	0xf5f010ef,
 	0x02f87e01,
@@ -384,7 +384,7 @@ static uint32_t gk208_grgpc_code[] = {
 	0x00047e00,
 	0x40010e00,
 	0x0ef61d00,
-/* 0x04c3: ih_no_fifo */
+/* 0x04c3: ih_anal_fifo */
 	0x4004bd00,
 	0x0af60100,
 	0xfc04bd00,
@@ -416,7 +416,7 @@ static uint32_t gk208_grgpc_code[] = {
 	0xf6028100,
 	0x04bd000f,
 	0x7e0711f4,
-/* 0x052f: ctx_xfer_not_load */
+/* 0x052f: ctx_xfer_analt_load */
 	0x7e0004f9,
 	0xbd000216,
 	0x47fc8024,

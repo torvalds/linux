@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    driver for Microchip PQI-based storage controllers
- *    Copyright (c) 2019-2023 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019-2023 Microchip Techanallogy Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -9,7 +9,7 @@
  *
  */
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #if !defined(_SMARTPQI_H)
 #define _SMARTPQI_H
@@ -100,11 +100,11 @@ struct pqi_ctrl_registers {
 
 /* shutdown reasons for taking the controller offline */
 enum pqi_ctrl_shutdown_reason {
-	PQI_IQ_NOT_DRAINED_TIMEOUT = 1,
+	PQI_IQ_ANALT_DRAINED_TIMEOUT = 1,
 	PQI_LUN_RESET_TIMEOUT = 2,
 	PQI_IO_PENDING_POST_LUN_RESET_TIMEOUT = 3,
-	PQI_NO_HEARTBEAT = 4,
-	PQI_FIRMWARE_KERNEL_NOT_UP = 5,
+	PQI_ANAL_HEARTBEAT = 4,
+	PQI_FIRMWARE_KERNEL_ANALT_UP = 5,
 	PQI_OFA_RESPONSE_TIMEOUT = 6,
 	PQI_INVALID_REQ_ID = 7,
 	PQI_UNMATCHED_REQ_ID = 8,
@@ -119,7 +119,7 @@ enum pqi_io_path {
 };
 
 enum pqi_irq_mode {
-	IRQ_MODE_NONE,
+	IRQ_MODE_ANALNE,
 	IRQ_MODE_INTX,
 	IRQ_MODE_MSIX
 };
@@ -137,7 +137,7 @@ struct pqi_sg_descriptor {
 struct pqi_iu_header {
 	u8	iu_type;
 	u8	reserved;
-	__le16	iu_length;	/* in bytes - does not include the length */
+	__le16	iu_length;	/* in bytes - does analt include the length */
 				/* of this header */
 	__le16	response_queue_id;	/* specifies the OQ where the */
 					/* response IU is to be delivered */
@@ -145,7 +145,7 @@ struct pqi_iu_header {
 };
 
 /* manifest constants for pqi_iu_header.driver_flags */
-#define PQI_DRIVER_NONBLOCKABLE_REQUEST		0x1
+#define PQI_DRIVER_ANALNBLOCKABLE_REQUEST		0x1
 
 /*
  * According to the PQI spec, the IU header is only the first 4 bytes of our
@@ -440,7 +440,7 @@ struct pqi_event_response {
 	struct pqi_iu_header header;
 	u8	event_type;
 	u8	reserved2 : 7;
-	u8	request_acknowledge : 1;
+	u8	request_ackanalwledge : 1;
 	__le16	event_id;
 	__le32	additional_event_id;
 	union {
@@ -456,7 +456,7 @@ struct pqi_event_response {
 	} data;
 };
 
-struct pqi_event_acknowledge_request {
+struct pqi_event_ackanalwledge_request {
 	struct pqi_iu_header header;
 	u8	event_type;
 	u8	reserved2;
@@ -568,7 +568,7 @@ struct pqi_raid_error_info {
 #define PQI_REQUEST_IU_REPORT_VENDOR_EVENT_CONFIG	0x72
 #define PQI_REQUEST_IU_SET_VENDOR_EVENT_CONFIG		0x73
 #define PQI_REQUEST_IU_VENDOR_GENERAL			0x75
-#define PQI_REQUEST_IU_ACKNOWLEDGE_VENDOR_EVENT		0xf6
+#define PQI_REQUEST_IU_ACKANALWLEDGE_VENDOR_EVENT		0xf6
 
 #define PQI_RESPONSE_IU_GENERAL_MANAGEMENT		0x81
 #define PQI_RESPONSE_IU_TASK_MANAGEMENT			0x93
@@ -684,7 +684,7 @@ struct pqi_raid_error_info {
 
 #define PQI_AIO_STATUS_IO_ERROR			0x1
 #define PQI_AIO_STATUS_IO_ABORTED		0x2
-#define PQI_AIO_STATUS_NO_PATH_TO_DEVICE	0x3
+#define PQI_AIO_STATUS_ANAL_PATH_TO_DEVICE	0x3
 #define PQI_AIO_STATUS_INVALID_DEVICE		0x4
 #define PQI_AIO_STATUS_AIO_PATH_DISABLED	0xe
 #define PQI_AIO_STATUS_UNDERRUN			0x51
@@ -693,7 +693,7 @@ struct pqi_raid_error_info {
 typedef u32 pqi_index_t;
 
 /* SOP data direction flags */
-#define SOP_NO_DIRECTION_FLAG	0
+#define SOP_ANAL_DIRECTION_FLAG	0
 #define SOP_WRITE_FLAG		1	/* host writes data to Data-Out */
 					/* buffer */
 #define SOP_READ_FLAG		2	/* host receives data from Data-In */
@@ -842,14 +842,14 @@ struct pqi_config_table_firmware_features {
 	u8	features_supported[];
 /*	u8	features_requested_by_host[]; */
 /*	u8	features_enabled[]; */
-/* The 2 fields below are only valid if the MAX_KNOWN_FEATURE bit is set. */
-/*	__le16	firmware_max_known_feature; */
-/*	__le16	host_max_known_feature; */
+/* The 2 fields below are only valid if the MAX_KANALWN_FEATURE bit is set. */
+/*	__le16	firmware_max_kanalwn_feature; */
+/*	__le16	host_max_kanalwn_feature; */
 };
 
 #define PQI_FIRMWARE_FEATURE_OFA				0
 #define PQI_FIRMWARE_FEATURE_SMP				1
-#define PQI_FIRMWARE_FEATURE_MAX_KNOWN_FEATURE			2
+#define PQI_FIRMWARE_FEATURE_MAX_KANALWN_FEATURE			2
 #define PQI_FIRMWARE_FEATURE_RAID_0_READ_BYPASS			3
 #define PQI_FIRMWARE_FEATURE_RAID_1_READ_BYPASS			4
 #define PQI_FIRMWARE_FEATURE_RAID_5_READ_BYPASS			5
@@ -891,7 +891,7 @@ enum pqi_soft_reset_status {
 	RESET_INITIATE_FIRMWARE,
 	RESET_INITIATE_DRIVER,
 	RESET_ABORT,
-	RESET_NORESPONSE,
+	RESET_ANALRESPONSE,
 	RESET_TIMEDOUT
 };
 
@@ -908,7 +908,7 @@ union pqi_reset_register {
 
 #define PQI_RESET_ACTION_RESET		0x1
 
-#define PQI_RESET_TYPE_NO_RESET		0x0
+#define PQI_RESET_TYPE_ANAL_RESET		0x0
 #define PQI_RESET_TYPE_SOFT_RESET	0x1
 #define PQI_RESET_TYPE_FIRM_RESET	0x2
 #define PQI_RESET_TYPE_HARD_RESET	0x3
@@ -1116,7 +1116,7 @@ struct pqi_scsi_dev {
 	u8	keep_device : 1;
 	u8	volume_offline : 1;
 	u8	rescan : 1;
-	u8	ignore_device : 1;
+	u8	iganalre_device : 1;
 	u8	erase_in_progress : 1;
 	bool	aio_enabled;		/* only valid for physical disks */
 	bool	in_remove;
@@ -1188,7 +1188,7 @@ struct ciss_vpd_logical_volume_status {
 /* constants for volume_status field of ciss_vpd_logical_volume_status */
 #define CISS_LV_OK					0
 #define CISS_LV_FAILED					1
-#define CISS_LV_NOT_CONFIGURED				2
+#define CISS_LV_ANALT_CONFIGURED				2
 #define CISS_LV_DEGRADED				3
 #define CISS_LV_READY_FOR_RECOVERY			4
 #define CISS_LV_UNDERGOING_RECOVERY			5
@@ -1197,31 +1197,31 @@ struct ciss_vpd_logical_volume_status {
 #define CISS_LV_HARDWARE_OVERHEATING			8
 #define CISS_LV_HARDWARE_HAS_OVERHEATED			9
 #define CISS_LV_UNDERGOING_EXPANSION			10
-#define CISS_LV_NOT_AVAILABLE				11
+#define CISS_LV_ANALT_AVAILABLE				11
 #define CISS_LV_QUEUED_FOR_EXPANSION			12
 #define CISS_LV_DISABLED_SCSI_ID_CONFLICT		13
 #define CISS_LV_EJECTED					14
 #define CISS_LV_UNDERGOING_ERASE			15
-/* state 16 not used */
+/* state 16 analt used */
 #define CISS_LV_READY_FOR_PREDICTIVE_SPARE_REBUILD	17
 #define CISS_LV_UNDERGOING_RPI				18
 #define CISS_LV_PENDING_RPI				19
-#define CISS_LV_ENCRYPTED_NO_KEY			20
-/* state 21 not used */
+#define CISS_LV_ENCRYPTED_ANAL_KEY			20
+/* state 21 analt used */
 #define CISS_LV_UNDERGOING_ENCRYPTION			22
 #define CISS_LV_UNDERGOING_ENCRYPTION_REKEYING		23
-#define CISS_LV_ENCRYPTED_IN_NON_ENCRYPTED_CONTROLLER	24
+#define CISS_LV_ENCRYPTED_IN_ANALN_ENCRYPTED_CONTROLLER	24
 #define CISS_LV_PENDING_ENCRYPTION			25
 #define CISS_LV_PENDING_ENCRYPTION_REKEYING		26
-#define CISS_LV_NOT_SUPPORTED				27
+#define CISS_LV_ANALT_SUPPORTED				27
 #define CISS_LV_STATUS_UNAVAILABLE			255
 
 /* constants for flags field of ciss_vpd_logical_volume_status */
-#define CISS_LV_FLAGS_NO_HOST_IO	0x1	/* volume not available for */
+#define CISS_LV_FLAGS_ANAL_HOST_IO	0x1	/* volume analt available for */
 						/* host I/O */
 
 /* for SAS hosts and SAS expanders */
-struct pqi_sas_node {
+struct pqi_sas_analde {
 	struct device *parent_dev;
 	struct list_head port_list_head;
 };
@@ -1233,7 +1233,7 @@ struct pqi_sas_port {
 	struct sas_port *port;
 	int	next_phy_index;
 	struct list_head phy_list_head;
-	struct pqi_sas_node *parent_node;
+	struct pqi_sas_analde *parent_analde;
 	struct sas_rphy *rphy;
 };
 
@@ -1272,10 +1272,10 @@ struct pqi_event {
 
 #define PQI_RESERVED_IO_SLOTS_LUN_RESET			1
 #define PQI_RESERVED_IO_SLOTS_EVENT_ACK			PQI_NUM_SUPPORTED_EVENTS
-#define PQI_RESERVED_IO_SLOTS_SYNCHRONOUS_REQUESTS	3
+#define PQI_RESERVED_IO_SLOTS_SYNCHROANALUS_REQUESTS	3
 #define PQI_RESERVED_IO_SLOTS				\
 	(PQI_RESERVED_IO_SLOTS_LUN_RESET + PQI_RESERVED_IO_SLOTS_EVENT_ACK + \
-	PQI_RESERVED_IO_SLOTS_SYNCHRONOUS_REQUESTS)
+	PQI_RESERVED_IO_SLOTS_SYNCHROANALUS_REQUESTS)
 
 #define PQI_CTRL_PRODUCT_ID_GEN1	0
 #define PQI_CTRL_PRODUCT_ID_GEN2	7
@@ -1369,7 +1369,7 @@ struct pqi_ctrl_info {
 	u32		max_write_raid_5_6;
 	u32		max_write_raid_1_10_2drive;
 	u32		max_write_raid_1_10_3drive;
-	int		numa_node;
+	int		numa_analde;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
@@ -1377,7 +1377,7 @@ struct pqi_ctrl_info {
 	struct delayed_work rescan_work;
 	struct delayed_work update_time_work;
 
-	struct pqi_sas_node *sas_host;
+	struct pqi_sas_analde *sas_host;
 	u64		sas_address;
 
 	struct pqi_io_request *io_request_pool;
@@ -1451,8 +1451,8 @@ enum pqi_ctrl_mode {
 
 #define LV_GET_DRIVE_TYPE_MIX(lunid)		((lunid)[6])
 
-#define LV_DRIVE_TYPE_MIX_UNKNOWN		0
-#define LV_DRIVE_TYPE_MIX_NO_RESTRICTION	1
+#define LV_DRIVE_TYPE_MIX_UNKANALWN		0
+#define LV_DRIVE_TYPE_MIX_ANAL_RESTRICTION	1
 #define LV_DRIVE_TYPE_MIX_SAS_HDD_ONLY		2
 #define LV_DRIVE_TYPE_MIX_SATA_HDD_ONLY		3
 #define LV_DRIVE_TYPE_MIX_SAS_OR_SATA_SSD_ONLY	4
@@ -1462,7 +1462,7 @@ enum pqi_ctrl_mode {
 #define LV_DRIVE_TYPE_MIX_SATA_ONLY		8
 #define LV_DRIVE_TYPE_MIX_NVME_ONLY		9
 
-#define NO_TIMEOUT		((unsigned long) -1)
+#define ANAL_TIMEOUT		((unsigned long) -1)
 
 #pragma pack(1)
 
@@ -1511,7 +1511,7 @@ struct bmic_identify_physical_device {
 	u8	serial_number[40];	/* Drive Serial Number */
 	u8	firmware_revision[8];	/* drive firmware revision */
 	u8	scsi_inquiry_bits;	/* inquiry byte 7 bits */
-	u8	compaq_drive_stamp;	/* 0 means drive not stamped */
+	u8	compaq_drive_stamp;	/* 0 means drive analt stamped */
 	u8	last_failure_reason;
 	u8	flags;
 	u8	more_flags;
@@ -1663,7 +1663,7 @@ struct bmic_flush_cache {
 
 /* for shutdown_event member of struct bmic_flush_cache */
 enum bmic_flush_cache_shutdown_event {
-	NONE_CACHE_FLUSH_ONLY = 0,
+	ANALNE_CACHE_FLUSH_ONLY = 0,
 	SHUTDOWN = 1,
 	HIBERNATE = 2,
 	SUSPEND = 3,
@@ -1688,7 +1688,7 @@ void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 int pqi_add_sas_host(struct Scsi_Host *shost, struct pqi_ctrl_info *ctrl_info);
 void pqi_delete_sas_host(struct pqi_ctrl_info *ctrl_info);
-int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
+int pqi_add_sas_device(struct pqi_sas_analde *pqi_sas_analde,
 	struct pqi_scsi_dev *device);
 void pqi_remove_sas_device(struct pqi_scsi_dev *device);
 struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(

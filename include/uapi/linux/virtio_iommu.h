@@ -55,9 +55,9 @@ struct virtio_iommu_config {
 #define VIRTIO_IOMMU_S_DEVERR			0x03
 #define VIRTIO_IOMMU_S_INVAL			0x04
 #define VIRTIO_IOMMU_S_RANGE			0x05
-#define VIRTIO_IOMMU_S_NOENT			0x06
+#define VIRTIO_IOMMU_S_ANALENT			0x06
 #define VIRTIO_IOMMU_S_FAULT			0x07
-#define VIRTIO_IOMMU_S_NOMEM			0x08
+#define VIRTIO_IOMMU_S_ANALMEM			0x08
 
 struct virtio_iommu_req_head {
 	__u8					type;
@@ -115,7 +115,7 @@ struct virtio_iommu_req_unmap {
 	struct virtio_iommu_req_tail		tail;
 };
 
-#define VIRTIO_IOMMU_PROBE_T_NONE		0
+#define VIRTIO_IOMMU_PROBE_T_ANALNE		0
 #define VIRTIO_IOMMU_PROBE_T_RESV_MEM		1
 
 #define VIRTIO_IOMMU_PROBE_T_MASK		0xfff
@@ -144,13 +144,13 @@ struct virtio_iommu_req_probe {
 	__u8					properties[];
 
 	/*
-	 * Tail follows the variable-length properties array. No padding,
+	 * Tail follows the variable-length properties array. Anal padding,
 	 * property lengths are all aligned on 8 bytes.
 	 */
 };
 
 /* Fault types */
-#define VIRTIO_IOMMU_FAULT_R_UNKNOWN		0
+#define VIRTIO_IOMMU_FAULT_R_UNKANALWN		0
 #define VIRTIO_IOMMU_FAULT_R_DOMAIN		1
 #define VIRTIO_IOMMU_FAULT_R_MAPPING		2
 

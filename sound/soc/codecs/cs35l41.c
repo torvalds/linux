@@ -331,20 +331,20 @@ static const struct snd_kcontrol_new cs35l41_aud_controls[] = {
 	SOC_SINGLE_TLV("Analog PCM Volume", CS35L41_AMP_GAIN_CTRL, 5, 0x14, 0,
 		       amp_gain_tlv),
 	SOC_ENUM("PCM Soft Ramp", pcm_sft_ramp),
-	SOC_SINGLE("HW Noise Gate Enable", CS35L41_NG_CFG, 8, 63, 0),
-	SOC_SINGLE("HW Noise Gate Delay", CS35L41_NG_CFG, 4, 7, 0),
-	SOC_SINGLE("HW Noise Gate Threshold", CS35L41_NG_CFG, 0, 7, 0),
-	SOC_SINGLE("Aux Noise Gate CH1 Switch",
+	SOC_SINGLE("HW Analise Gate Enable", CS35L41_NG_CFG, 8, 63, 0),
+	SOC_SINGLE("HW Analise Gate Delay", CS35L41_NG_CFG, 4, 7, 0),
+	SOC_SINGLE("HW Analise Gate Threshold", CS35L41_NG_CFG, 0, 7, 0),
+	SOC_SINGLE("Aux Analise Gate CH1 Switch",
 		   CS35L41_MIXER_NGATE_CH1_CFG, 16, 1, 0),
-	SOC_SINGLE("Aux Noise Gate CH1 Entry Delay",
+	SOC_SINGLE("Aux Analise Gate CH1 Entry Delay",
 		   CS35L41_MIXER_NGATE_CH1_CFG, 8, 15, 0),
-	SOC_SINGLE("Aux Noise Gate CH1 Threshold",
+	SOC_SINGLE("Aux Analise Gate CH1 Threshold",
 		   CS35L41_MIXER_NGATE_CH1_CFG, 0, 7, 0),
-	SOC_SINGLE("Aux Noise Gate CH2 Entry Delay",
+	SOC_SINGLE("Aux Analise Gate CH2 Entry Delay",
 		   CS35L41_MIXER_NGATE_CH2_CFG, 8, 15, 0),
-	SOC_SINGLE("Aux Noise Gate CH2 Switch",
+	SOC_SINGLE("Aux Analise Gate CH2 Switch",
 		   CS35L41_MIXER_NGATE_CH2_CFG, 16, 1, 0),
-	SOC_SINGLE("Aux Noise Gate CH2 Threshold",
+	SOC_SINGLE("Aux Analise Gate CH2 Threshold",
 		   CS35L41_MIXER_NGATE_CH2_CFG, 0, 7, 0),
 	SOC_SINGLE("SCLK Force Switch", CS35L41_SP_FORMAT, CS35L41_SCLK_FRC_SHIFT, 1, 0),
 	SOC_SINGLE("LRCLK Force Switch", CS35L41_SP_FORMAT, CS35L41_LRCLK_FRC_SHIFT, 1, 0),
@@ -393,10 +393,10 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 		dev_err(cs35l41->dev,
 			"pm_runtime_resume_and_get failed in %s: %d\n",
 			__func__, ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
-	ret = IRQ_NONE;
+	ret = IRQ_ANALNE;
 
 	for (i = 0; i < ARRAY_SIZE(status); i++) {
 		regmap_read(cs35l41->regmap,
@@ -539,10 +539,10 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
-	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_ANALPM, 0, 0,
 			      cs35l41_dsp_preload_ev,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			       cs35l41_dsp_audio_ev,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
@@ -567,11 +567,11 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("VBSTMON", CS35L41_PWR_CTRL2, 9, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("TEMPMON", CS35L41_PWR_CTRL2, 10, 0, NULL, 0),
 
-	SND_SOC_DAPM_ADC("VMON ADC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("IMON ADC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("VPMON ADC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("VBSTMON ADC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("TEMPMON ADC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("VMON ADC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("IMON ADC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("VPMON ADC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("VBSTMON ADC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("TEMPMON ADC", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_ADC("CLASS H", NULL, CS35L41_PWR_CTRL3, 4, 0),
 
@@ -579,14 +579,14 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 			       cs35l41_main_amp_event,
 			       SND_SOC_DAPM_POST_PMD |	SND_SOC_DAPM_PRE_PMU),
 
-	SND_SOC_DAPM_MUX("ASP TX1 Source", SND_SOC_NOPM, 0, 0, &asp_tx1_mux),
-	SND_SOC_DAPM_MUX("ASP TX2 Source", SND_SOC_NOPM, 0, 0, &asp_tx2_mux),
-	SND_SOC_DAPM_MUX("ASP TX3 Source", SND_SOC_NOPM, 0, 0, &asp_tx3_mux),
-	SND_SOC_DAPM_MUX("ASP TX4 Source", SND_SOC_NOPM, 0, 0, &asp_tx4_mux),
-	SND_SOC_DAPM_MUX("DSP RX1 Source", SND_SOC_NOPM, 0, 0, &dsp_rx1_mux),
-	SND_SOC_DAPM_MUX("DSP RX2 Source", SND_SOC_NOPM, 0, 0, &dsp_rx2_mux),
-	SND_SOC_DAPM_MUX("PCM Source", SND_SOC_NOPM, 0, 0, &pcm_source_mux),
-	SND_SOC_DAPM_SWITCH("DRE", SND_SOC_NOPM, 0, 0, &dre_ctrl),
+	SND_SOC_DAPM_MUX("ASP TX1 Source", SND_SOC_ANALPM, 0, 0, &asp_tx1_mux),
+	SND_SOC_DAPM_MUX("ASP TX2 Source", SND_SOC_ANALPM, 0, 0, &asp_tx2_mux),
+	SND_SOC_DAPM_MUX("ASP TX3 Source", SND_SOC_ANALPM, 0, 0, &asp_tx3_mux),
+	SND_SOC_DAPM_MUX("ASP TX4 Source", SND_SOC_ANALPM, 0, 0, &asp_tx4_mux),
+	SND_SOC_DAPM_MUX("DSP RX1 Source", SND_SOC_ANALPM, 0, 0, &dsp_rx1_mux),
+	SND_SOC_DAPM_MUX("DSP RX2 Source", SND_SOC_ANALPM, 0, 0, &dsp_rx2_mux),
+	SND_SOC_DAPM_MUX("PCM Source", SND_SOC_ANALPM, 0, 0, &pcm_source_mux),
+	SND_SOC_DAPM_SWITCH("DRE", SND_SOC_ANALPM, 0, 0, &dre_ctrl),
 };
 
 static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
@@ -921,7 +921,7 @@ static int cs35l41_set_pdata(struct cs35l41_private *cs35l41)
 	if (!hw_cfg->valid)
 		return -EINVAL;
 
-	if (hw_cfg->bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH)
+	if (hw_cfg->bst_type == CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH)
 		return -EINVAL;
 
 	/* Required */
@@ -989,14 +989,14 @@ static struct snd_soc_dai_driver cs35l41_dai[] = {
 			.stream_name = "AMP Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS35L41_RX_FORMATS,
 		},
 		.capture = {
 			.stream_name = "AMP Capture",
 			.channels_min = 1,
 			.channels_max = 4,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS35L41_TX_FORMATS,
 		},
 		.ops = &cs35l41_ops,
@@ -1032,7 +1032,7 @@ static int cs35l41_handle_pdata(struct device *dev, struct cs35l41_hw_cfg *hw_cf
 	 * leaving those systems with deprecated _DSD properties.
 	 * To correctly configure those systems add shared-boost-active and shared-boost-passive
 	 * properties mapped to the correct value in boost-type.
-	 * These two are not DT properties and should not be used in new systems designs.
+	 * These two are analt DT properties and should analt be used in new systems designs.
 	 */
 	if (device_property_read_bool(dev, "cirrus,shared-boost-active")) {
 		hw_cfg->bst_type = CS35L41_SHD_BOOST_ACTV;
@@ -1050,7 +1050,7 @@ static int cs35l41_handle_pdata(struct device *dev, struct cs35l41_hw_cfg *hw_cf
 	else
 		hw_cfg->bst_ipk = -1;
 
-	ret = device_property_read_u32(dev, "cirrus,boost-ind-nanohenry", &val);
+	ret = device_property_read_u32(dev, "cirrus,boost-ind-naanalhenry", &val);
 	if (ret >= 0)
 		hw_cfg->bst_ind = val;
 	else
@@ -1151,14 +1151,14 @@ static int cs35l41_acpi_get_name(struct cs35l41_private *cs35l41)
 	acpi_handle handle = ACPI_HANDLE(cs35l41->dev);
 	const char *sub;
 
-	/* If there is no ACPI_HANDLE, there is no ACPI for this system, return 0 */
+	/* If there is anal ACPI_HANDLE, there is anal ACPI for this system, return 0 */
 	if (!handle)
 		return 0;
 
 	sub = acpi_get_subsystem_id(handle);
 	if (IS_ERR(sub)) {
 		/* If bad ACPI, return 0 and fallback to legacy firmware path, otherwise fail */
-		if (PTR_ERR(sub) == -ENODATA)
+		if (PTR_ERR(sub) == -EANALDATA)
 			return 0;
 		else
 			return PTR_ERR(sub);
@@ -1258,7 +1258,7 @@ int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *
 	if (regid != chipid_match) {
 		dev_err(cs35l41->dev, "CS35L41 Device ID (%X). Expected ID %X\n",
 			regid, chipid_match);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -1312,7 +1312,7 @@ int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *
 	pm_runtime_use_autosuspend(cs35l41->dev);
 	pm_runtime_mark_last_busy(cs35l41->dev);
 	pm_runtime_set_active(cs35l41->dev);
-	pm_runtime_get_noresume(cs35l41->dev);
+	pm_runtime_get_analresume(cs35l41->dev);
 	pm_runtime_enable(cs35l41->dev);
 
 	ret = devm_snd_soc_register_component(cs35l41->dev,
@@ -1333,7 +1333,7 @@ int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *
 err_pm:
 	pm_runtime_dont_use_autosuspend(cs35l41->dev);
 	pm_runtime_disable(cs35l41->dev);
-	pm_runtime_put_noidle(cs35l41->dev);
+	pm_runtime_put_analidle(cs35l41->dev);
 
 	wm_adsp2_remove(&cs35l41->dsp);
 err:
@@ -1360,7 +1360,7 @@ void cs35l41_remove(struct cs35l41_private *cs35l41)
 	wm_adsp2_remove(&cs35l41->dsp);
 	cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type);
 
-	pm_runtime_put_noidle(cs35l41->dev);
+	pm_runtime_put_analidle(cs35l41->dev);
 
 	regulator_bulk_disable(CS35L41_NUM_SUPPLIES, cs35l41->supplies);
 	gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
@@ -1423,7 +1423,7 @@ static int cs35l41_sys_suspend(struct device *dev)
 	return 0;
 }
 
-static int cs35l41_sys_suspend_noirq(struct device *dev)
+static int cs35l41_sys_suspend_analirq(struct device *dev)
 {
 	struct cs35l41_private *cs35l41 = dev_get_drvdata(dev);
 
@@ -1433,7 +1433,7 @@ static int cs35l41_sys_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int cs35l41_sys_resume_noirq(struct device *dev)
+static int cs35l41_sys_resume_analirq(struct device *dev)
 {
 	struct cs35l41_private *cs35l41 = dev_get_drvdata(dev);
 
@@ -1457,7 +1457,7 @@ EXPORT_GPL_DEV_PM_OPS(cs35l41_pm_ops) = {
 	RUNTIME_PM_OPS(cs35l41_runtime_suspend, cs35l41_runtime_resume, NULL)
 
 	SYSTEM_SLEEP_PM_OPS(cs35l41_sys_suspend, cs35l41_sys_resume)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l41_sys_suspend_noirq, cs35l41_sys_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(cs35l41_sys_suspend_analirq, cs35l41_sys_resume_analirq)
 };
 
 MODULE_DESCRIPTION("ASoC CS35L41 driver");

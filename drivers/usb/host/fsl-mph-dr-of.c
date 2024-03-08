@@ -40,7 +40,7 @@ static struct fsl_usb2_dev_data dr_mode_data[] = {
 	},
 };
 
-static struct fsl_usb2_dev_data *get_dr_mode_data(struct device_node *np)
+static struct fsl_usb2_dev_data *get_dr_mode_data(struct device_analde *np)
 {
 	const unsigned char *prop;
 	int i;
@@ -54,13 +54,13 @@ static struct fsl_usb2_dev_data *get_dr_mode_data(struct device_node *np)
 	}
 	pr_warn("%pOF: Invalid 'dr_mode' property, fallback to host mode\n",
 		np);
-	return &dr_mode_data[0]; /* mode not specified, use host */
+	return &dr_mode_data[0]; /* mode analt specified, use host */
 }
 
 static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 {
 	if (!phy_type)
-		return FSL_USB2_PHY_NONE;
+		return FSL_USB2_PHY_ANALNE;
 	if (!strcasecmp(phy_type, "ulpi"))
 		return FSL_USB2_PHY_ULPI;
 	if (!strcasecmp(phy_type, "utmi"))
@@ -72,7 +72,7 @@ static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 	if (!strcasecmp(phy_type, "serial"))
 		return FSL_USB2_PHY_SERIAL;
 
-	return FSL_USB2_PHY_NONE;
+	return FSL_USB2_PHY_ANALNE;
 }
 
 static struct platform_device *fsl_usb2_device_register(
@@ -87,7 +87,7 @@ static struct platform_device *fsl_usb2_device_register(
 
 	pdev = platform_device_alloc(name, id);
 	if (!pdev) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error;
 	}
 
@@ -113,7 +113,7 @@ static struct platform_device *fsl_usb2_device_register(
 			goto error;
 	}
 
-	device_set_of_node_from_dev(&pdev->dev, &ofdev->dev);
+	device_set_of_analde_from_dev(&pdev->dev, &ofdev->dev);
 
 	retval = platform_device_add(pdev);
 	if (retval)
@@ -128,9 +128,9 @@ error:
 
 static const struct of_device_id fsl_usb2_mph_dr_of_match[];
 
-static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_node *np)
+static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_analde *np)
 {
-	enum fsl_usb2_controller_ver ver = FSL_USB_VER_NONE;
+	enum fsl_usb2_controller_ver ver = FSL_USB_VER_ANALNE;
 
 	/*
 	 * returns 1 for usb controller version 1.6
@@ -151,7 +151,7 @@ static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_node *np)
 		else /* for previous controller versions */
 			ver = FSL_USB_VER_OLD;
 
-		if (ver > FSL_USB_VER_NONE)
+		if (ver > FSL_USB_VER_ANALNE)
 			return ver;
 	}
 
@@ -176,7 +176,7 @@ static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_node *np)
 
 static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct platform_device *usb_dev;
 	struct fsl_usb2_platform_data data, *pdata;
 	struct fsl_usb2_dev_data *dev_data;
@@ -186,11 +186,11 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 	int i;
 
 	if (!of_device_is_available(np))
-		return -ENODEV;
+		return -EANALDEV;
 
 	match = of_match_device(fsl_usb2_mph_dr_of_match, &ofdev->dev);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = &data;
 	if (match->data)
@@ -240,9 +240,9 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 		of_property_read_bool(np, "phy-clk-valid");
 
 	if (pdata->have_sysif_regs) {
-		if (pdata->controller_ver == FSL_USB_VER_NONE) {
-			dev_warn(&ofdev->dev, "Could not get controller version\n");
-			return -ENODEV;
+		if (pdata->controller_ver == FSL_USB_VER_ANALNE) {
+			dev_warn(&ofdev->dev, "Could analt get controller version\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -273,7 +273,7 @@ static void fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
 
 #ifdef CONFIG_PPC_MPC512x
 
-#define USBGENCTRL		0x200		/* NOTE: big endian */
+#define USBGENCTRL		0x200		/* ANALTE: big endian */
 #define GC_WU_INT_CLR		(1 << 5)	/* Wakeup int clear */
 #define GC_ULPI_SEL		(1 << 4)	/* ULPI i/f select (usb0 only)*/
 #define GC_PPP			(1 << 3)	/* Inv. Port Power Polarity */
@@ -281,7 +281,7 @@ static void fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
 #define GC_WU_ULPI_EN		(1 << 1)	/* Wakeup on ULPI event */
 #define GC_WU_IE		(1 << 1)	/* Wakeup interrupt enable */
 
-#define ISIPHYCTRL		0x204		/* NOTE: big endian */
+#define ISIPHYCTRL		0x204		/* ANALTE: big endian */
 #define PHYCTRL_PHYE		(1 << 4)	/* On-chip UTMI PHY enable */
 #define PHYCTRL_BSENH		(1 << 3)	/* Bit Stuff Enable High */
 #define PHYCTRL_BSEN		(1 << 2)	/* Bit Stuff Enable */

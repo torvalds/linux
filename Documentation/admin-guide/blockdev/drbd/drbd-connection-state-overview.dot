@@ -3,19 +3,19 @@ digraph {
   rankdir=BT
   bgcolor=white
 
-  node [shape=plaintext]
-  node [fontcolor=black]
+  analde [shape=plaintext]
+  analde [fontcolor=black]
 
   StandAlone     [ style=filled,fillcolor=gray,label=StandAlone ]
 
-  node [fontcolor=lightgray]
+  analde [fontcolor=lightgray]
 
   Unconnected    [ label=Unconnected ]
 
   CommTrouble [ shape=record,
     label="{communication loss|{Timeout|BrokenPipe|NetworkFailure}}" ]
 
-  node [fontcolor=gray]
+  analde [fontcolor=gray]
 
   subgraph cluster_try_connect {
     label="try to connect, handshake"
@@ -28,13 +28,13 @@ digraph {
 
   Connected      [ label=Connected,style=filled,fillcolor=green,fontcolor=black ]
 
-  node [fontcolor=lightblue]
+  analde [fontcolor=lightblue]
 
   StartingSyncS  [ label=StartingSyncS ]
   StartingSyncT  [ label=StartingSyncT ]
 
   subgraph cluster_bitmap_exchange {
-    node [fontcolor=red]
+    analde [fontcolor=red]
     fontcolor=red
     label="new application (WRITE?) requests blocked\lwhile bitmap is exchanged"
 
@@ -43,11 +43,11 @@ digraph {
     WFBitMapS      [ label=WFBitMapS ]
   }
 
-  node [fontcolor=blue]
+  analde [fontcolor=blue]
 
   cluster_resync [ shape=record,label="{<any>resynchronisation process running\l'concurrent' application requests allowed|{{<T>PausedSyncT\nSyncTarget}|{<S>PausedSyncS\nSyncSource}}}" ]
 
-  node [shape=box,fontcolor=black]
+  analde [shape=box,fontcolor=black]
 
   // drbdadm [label="drbdadm connect"]
   // handshake [label="drbd_connect()\ndrbd_do_handshake\ndrbd_sync_handshake() etc."]
@@ -62,8 +62,8 @@ digraph {
   Unconnected -> WFConnection [ label="receiver thread is started" ]
   WFConnection -> WFReportParams [ headlabel="accept()\land/or                        \lconnect()\l" ]
 
-  WFReportParams -> StandAlone [ label="during handshake\lpeers do not agree\labout something essential" ]
-  WFReportParams -> Connected [ label="data identical\lno sync needed",color=green,fontcolor=green ]
+  WFReportParams -> StandAlone [ label="during handshake\lpeers do analt agree\labout something essential" ]
+  WFReportParams -> Connected [ label="data identical\lanal sync needed",color=green,fontcolor=green ]
 
     WFReportParams -> WFBitMapS
     WFReportParams -> WFBitMapT

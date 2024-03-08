@@ -7,13 +7,13 @@
 #
 #
 
-# Sanitizer runtimes are unavailable and cannot be linked here.
+# Sanitizer runtimes are unavailable and cananalt be linked here.
 KASAN_SANITIZE			:= n
 KCSAN_SANITIZE			:= n
 KMSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
+OBJECT_FILES_ANALN_STANDARD	:= y
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is analt linked in.
 KCOV_INSTRUMENT		:= n
 
 always-y := realmode.bin realmode.relocs
@@ -75,6 +75,6 @@ $(obj)/realmode.relocs: $(obj)/realmode.elf FORCE
 KBUILD_CFLAGS	:= $(REALMODE_CFLAGS) -D_SETUP -D_WAKEUP \
 		   -I$(srctree)/arch/x86/boot
 KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
-KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS	+= -fanal-asynchroanalus-unwind-tables
 GCOV_PROFILE := n
 UBSAN_SANITIZE := n

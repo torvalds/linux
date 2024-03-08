@@ -104,7 +104,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	int ret;
 
 	/*
-	 * bits_per_word cannot be configured in platform data
+	 * bits_per_word cananalt be configured in platform data
 	 */
 	spi->bits_per_word = 8;
 
@@ -120,7 +120,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 
 	chip = devm_kzalloc(&spi->dev, sizeof(*chip) + nregs, GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->gpiod_oe = devm_gpiod_get_optional(&spi->dev, "enable",
 						 GPIOD_OUT_LOW);

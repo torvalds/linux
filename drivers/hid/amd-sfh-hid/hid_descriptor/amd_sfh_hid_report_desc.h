@@ -36,10 +36,10 @@ static const u8 accel3_report_descriptor[] = {
 0x75, 8,	  /* HID report size(8) */
 0x95, 1,          /* HID report count(1) */
 0xA1, 0x02,	  /* HID collection(logical) */
-0x0A, 0x40, 0x08, /* Sensor property report state no events sel */
+0x0A, 0x40, 0x08, /* Sensor property report state anal events sel */
 0x0A, 0x41, 0x08, /* Sensor property report state all events sel */
 0x0A, 0x42, 0x08, /* Sensor property report state threshold events sel */
-0x0A, 0x43, 0x08, /* Sensor property report state no events wake sel */
+0x0A, 0x43, 0x08, /* Sensor property report state anal events wake sel */
 0x0A, 0x44, 0x08, /* Sensor property report state all events wake sel */
 0x0A, 0x45, 0x08, /* Sensor property report state threshold events wake sel */
 0xB1, 0x00,	  /* HID feature (Data_Arr_Abs) */
@@ -64,10 +64,10 @@ static const u8 accel3_report_descriptor[] = {
 0x75, 8,	  /* HID report size(8) */
 0x95, 1,	  /* HID report count(1) */
 0xA1, 0x02,	  /* HID collection(logical) */
-0x0A, 0x00, 0x08, /* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08, /* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08, /* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08, /* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08, /* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08, /* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08, /* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08, /* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08, /* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08, /* HID usage sensor state error sel */
@@ -119,10 +119,10 @@ static const u8 accel3_report_descriptor[] = {
 0x75, 8,		 /* HID report size(8) */
 0x95, 1,		 /* HID report count (1) */
 0xA1, 0x02,		 /* HID end collection (logical) */
-0x0A, 0x00, 0x08,	 /* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08,	 /* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08,	 /* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08,	 /* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08,	 /* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08,	 /* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08,	 /* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08,	 /* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08,	 /* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08,	 /* HID usage sensor state error sel */
@@ -134,7 +134,7 @@ static const u8 accel3_report_descriptor[] = {
 0x75, 8,		 /* HID report size(8) */
 0x95, 1,		 /* HID report count (1) */
 0xA1, 0x02,		 /* HID end collection (logical) */
-0x0A, 0x10, 0x08,	 /* HID usage sensor event unknown sel */
+0x0A, 0x10, 0x08,	 /* HID usage sensor event unkanalwn sel */
 0x0A, 0x11, 0x08,	 /* HID usage sensor event state changed sel */
 0x0A, 0x12, 0x08,	 /* HID usage sensor event property changed sel */
 0x0A, 0x13, 0x08,	 /* HID usage sensor event data updated sel */
@@ -203,10 +203,10 @@ static const u8 gyro3_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count(1) */
 0xA1, 0x02,		/* HID collection(logical) */
-0x0A, 0x40, 0x08,	/* Sensor reporting state no events sel */
+0x0A, 0x40, 0x08,	/* Sensor reporting state anal events sel */
 0x0A, 0x41, 0x08,	/* Sensor reporting state all events sel */
 0x0A, 0x42, 0x08,	/* Sensor reporting state threshold events sel */
-0x0A, 0x43, 0x08,	/* Sensor reporting state no events wake sel */
+0x0A, 0x43, 0x08,	/* Sensor reporting state anal events wake sel */
 0x0A, 0x44, 0x08,	/* Sensor reporting state all events wake sel */
 0x0A, 0x45, 0x08,	/* Sensor reporting state threshold events wake sel */
 0xB1, 0x00,		/* HID feature (Data_Arr_Abs) */
@@ -231,10 +231,10 @@ static const u8 gyro3_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count(1) */
 0xA1, 0x02,		/* HID collection(logical) */
-0x0A, 0x00, 0x08,	/* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08,	/* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08,	/* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08,	/* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08,	/* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08,	/* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08,	/* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08,	/* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08,	/* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08,	/* HID usage sensor state error sel */
@@ -286,10 +286,10 @@ static const u8 gyro3_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count (1) */
 0xA1, 0x02,		/* HID end collection (logical) */
-0x0A, 0x00, 0x08,	/* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08,	/* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08,	/* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08,	/* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08,	/* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08,	/* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08,	/* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08,	/* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08,	/* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08,	/* HID usage sensor state error sel */
@@ -301,7 +301,7 @@ static const u8 gyro3_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count (1) */
 0xA1, 0x02,		/* HID end collection (logical) */
-0x0A, 0x10, 0x08,	/* HID usage sensor event unknown sel */
+0x0A, 0x10, 0x08,	/* HID usage sensor event unkanalwn sel */
 0x0A, 0x11, 0x08,	/* HID usage sensor event state changed sel */
 0x0A, 0x12, 0x08,	/* HID usage sensor event property changed sel */
 0x0A, 0x13, 0x08,	/* HID usage sensor event data updated sel */
@@ -364,10 +364,10 @@ static const u8 comp3_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count(1) */
 0xA1, 0x02,		/* HID collection(logical) */
-0x0A, 0x40, 0x08,	/* Sensor reporting state no events sel */
+0x0A, 0x40, 0x08,	/* Sensor reporting state anal events sel */
 0x0A, 0x41, 0x08,	/* Sensor reporting state all events sel */
 0x0A, 0x42, 0x08,	/* Sensor reporting state threshold events sel */
-0x0A, 0x43, 0x08,	/* Sensor reporting state no events wake sel */
+0x0A, 0x43, 0x08,	/* Sensor reporting state anal events wake sel */
 0x0A, 0x44, 0x08,	/* Sensor reporting state all events wake sel */
 0x0A, 0x45, 0x08,	/* Sensor reporting state threshold events wake sel */
 0xB1, 0x00,		/* HID feature (Data_Arr_Abs) */
@@ -392,10 +392,10 @@ static const u8 comp3_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count(1) */
 0xA1, 0x02,		/* HID collection(logical) */
-0x0A, 0x00, 0x08,       /* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08,       /* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08,       /* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08,       /* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08,       /* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08,       /* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08,       /* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08,       /* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08,       /* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08,       /* HID usage sensor state error sel */
@@ -459,10 +459,10 @@ static const u8 comp3_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count (1) */
 0xA1, 0x02,		/* HID end collection (logical) */
-0x0A, 0x00, 0x08,	/* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08,	/* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08,	/* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08,	/* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08,	/* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08,	/* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08,	/* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08,	/* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08,	/* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08,	/* HID usage sensor state error sel */
@@ -474,7 +474,7 @@ static const u8 comp3_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count (1) */
 0xA1, 0x02,		/* HID end collection (logical) */
-0x0A, 0x10, 0x08,	/* HID usage sensor event unknown sel */
+0x0A, 0x10, 0x08,	/* HID usage sensor event unkanalwn sel */
 0x0A, 0x11, 0x08,	/* HID usage sensor event state changed sel */
 0x0A, 0x12, 0x08,	/* HID usage sensor event property changed sel */
 0x0A, 0x13, 0x08,	/* HID usage sensor event data updated sel */
@@ -537,10 +537,10 @@ static const u8 als_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count(1) */
 0xA1, 0x02,		/* HID collection(logical) */
-0x0A, 0x40, 0x08,	/* Sensor reporting state no events sel */
+0x0A, 0x40, 0x08,	/* Sensor reporting state anal events sel */
 0x0A, 0x41, 0x08,	/* Sensor reporting state all events sel */
 0x0A, 0x42, 0x08,	/* Sensor reporting state threshold events sel */
-0x0A, 0x43, 0x08,	/* Sensor reporting state no events wake sel */
+0x0A, 0x43, 0x08,	/* Sensor reporting state anal events wake sel */
 0x0A, 0x44, 0x08,	/* Sensor reporting state all events wake sel */
 0x0A, 0x45, 0x08,	/* Sensor reporting state threshold events wake sel */
 0xB1, 0x00,		/* HID feature (Data_Arr_Abs) */
@@ -565,10 +565,10 @@ static const u8 als_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count(1) */
 0xA1, 0x02,		/* HID collection(logical) */
-0x0A, 0x00, 0x08,	/* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08,	/* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08,	/* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08,	/* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08,	/* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08,	/* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08,	/* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08,	/* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08,	/* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08,	/* HID usage sensor state error sel */
@@ -611,10 +611,10 @@ static const u8 als_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count (1) */
 0xA1, 0x02,		/* HID end collection (logical) */
-0x0A, 0x00, 0x08,	/* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08,	/* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08,	/* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08,	/* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08,	/* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08,	/* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08,	/* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08,	/* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08,	/* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08,	/* HID usage sensor state error sel */
@@ -626,7 +626,7 @@ static const u8 als_report_descriptor[] = {
 0x75, 8,		/* HID report size(8) */
 0x95, 1,		/* HID report count (1) */
 0xA1, 0x02,		/* HID end collection (logical) */
-0x0A, 0x10, 0x08,	/* HID usage sensor event unknown sel */
+0x0A, 0x10, 0x08,	/* HID usage sensor event unkanalwn sel */
 0x0A, 0x11, 0x08,	/* HID usage sensor event state changed sel */
 0x0A, 0x12, 0x08,	/* HID usage sensor event property changed sel */
 0x0A, 0x13, 0x08,	/* HID usage sensor event data updated sel */
@@ -691,10 +691,10 @@ static const u8 hpd_report_descriptor[] = {
 0x75, 8,	  /* HID report size(8) */
 0x95, 1,          /* HID report count(1) */
 0xA1, 0x02,	  /* HID collection(logical) */
-0x0A, 0x40, 0x08, /* Sensor property report state no events sel */
+0x0A, 0x40, 0x08, /* Sensor property report state anal events sel */
 0x0A, 0x41, 0x08, /* Sensor property report state all events sel */
 0x0A, 0x42, 0x08, /* Sensor property report state threshold events sel */
-0x0A, 0x43, 0x08, /* Sensor property report state no events wake sel */
+0x0A, 0x43, 0x08, /* Sensor property report state anal events wake sel */
 0x0A, 0x44, 0x08, /* Sensor property report state all events wake sel */
 0x0A, 0x45, 0x08, /* Sensor property report state threshold events wake sel */
 0xB1, 0x00,	  /* HID feature (Data_Arr_Abs) */
@@ -719,10 +719,10 @@ static const u8 hpd_report_descriptor[] = {
 0x75, 8,	  /* HID report size(8) */
 0x95, 1,	  /* HID report count(1) */
 0xA1, 0x02,	  /* HID collection(logical) */
-0x0A, 0x00, 0x08, /* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08, /* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08, /* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08, /* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08, /* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08, /* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08, /* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08, /* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08, /* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08, /* HID usage sensor state error sel */
@@ -745,10 +745,10 @@ static const u8 hpd_report_descriptor[] = {
 0x75, 8,		 /* HID report size(8) */
 0x95, 1,		 /* HID report count (1) */
 0xA1, 0x02,		 /* HID end collection (logical) */
-0x0A, 0x00, 0x08,	 /* HID usage sensor state unknown sel */
+0x0A, 0x00, 0x08,	 /* HID usage sensor state unkanalwn sel */
 0x0A, 0x01, 0x08,	 /* HID usage sensor state ready sel */
-0x0A, 0x02, 0x08,	 /* HID usage sensor state not available sel */
-0x0A, 0x03, 0x08,	 /* HID usage sensor state no data sel */
+0x0A, 0x02, 0x08,	 /* HID usage sensor state analt available sel */
+0x0A, 0x03, 0x08,	 /* HID usage sensor state anal data sel */
 0x0A, 0x04, 0x08,	 /* HID usage sensor state initializing sel */
 0x0A, 0x05, 0x08,	 /* HID usage sensor state access denied sel */
 0x0A, 0x06, 0x08,	 /* HID usage sensor state error sel */
@@ -760,7 +760,7 @@ static const u8 hpd_report_descriptor[] = {
 0x75, 8,		 /* HID report size(8) */
 0x95, 1,		 /* HID report count (1) */
 0xA1, 0x02,		 /* HID end collection (logical) */
-0x0A, 0x10, 0x08,	 /* HID usage sensor event unknown sel */
+0x0A, 0x10, 0x08,	 /* HID usage sensor event unkanalwn sel */
 0x0A, 0x11, 0x08,	 /* HID usage sensor event state changed sel */
 0x0A, 0x12, 0x08,	 /* HID usage sensor event property changed sel */
 0x0A, 0x13, 0x08,	 /* HID usage sensor event data updated sel */

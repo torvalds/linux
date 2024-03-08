@@ -43,8 +43,8 @@
 	pinctrl-0 = <&pinctrl_usdhc3_wl>;
 	vmmc-supply = <&reg_wl_en>;
 	bus-width = <4>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	status = "disabled";
 
 	brmcf: wifi@1 {

@@ -49,7 +49,7 @@
 #define USB3_MODE				BIT(0) /* enables USB3 mode */
 #define DP_MODE					BIT(1) /* enables DP mode */
 
-/* QPHY_PCS_AUTONOMOUS_MODE_CTRL register bits */
+/* QPHY_PCS_AUTOANALMOUS_MODE_CTRL register bits */
 #define ARCVR_DTCT_EN				BIT(0)
 #define ALFPS_DTCT_EN				BIT(1)
 #define ARCVR_DTCT_EVENT_SEL			BIT(4)
@@ -92,7 +92,7 @@ enum qphy_reg_layout {
 	QPHY_SW_RESET,
 	QPHY_START_CTRL,
 	QPHY_PCS_STATUS,
-	QPHY_PCS_AUTONOMOUS_MODE_CTRL,
+	QPHY_PCS_AUTOANALMOUS_MODE_CTRL,
 	QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR,
 	QPHY_PCS_POWER_DOWN_CONTROL,
 	/* Keep last to ensure regs_layout arrays are properly initialized */
@@ -103,7 +103,7 @@ static const unsigned int qmp_v3_usb3phy_regs_layout[QPHY_LAYOUT_SIZE] = {
 	[QPHY_SW_RESET]			= QPHY_V3_PCS_SW_RESET,
 	[QPHY_START_CTRL]		= QPHY_V3_PCS_START_CONTROL,
 	[QPHY_PCS_STATUS]		= QPHY_V3_PCS_PCS_STATUS,
-	[QPHY_PCS_AUTONOMOUS_MODE_CTRL]	= QPHY_V3_PCS_AUTONOMOUS_MODE_CTRL,
+	[QPHY_PCS_AUTOANALMOUS_MODE_CTRL]	= QPHY_V3_PCS_AUTOANALMOUS_MODE_CTRL,
 	[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR] = QPHY_V3_PCS_LFPS_RXTERM_IRQ_CLEAR,
 	[QPHY_PCS_POWER_DOWN_CONTROL]	= QPHY_V3_PCS_POWER_DOWN_CONTROL,
 };
@@ -115,7 +115,7 @@ static const unsigned int qmp_v4_usb3phy_regs_layout[QPHY_LAYOUT_SIZE] = {
 	[QPHY_PCS_POWER_DOWN_CONTROL]	= QPHY_V4_PCS_POWER_DOWN_CONTROL,
 
 	/* In PCS_USB */
-	[QPHY_PCS_AUTONOMOUS_MODE_CTRL]	= QPHY_V4_PCS_USB3_AUTONOMOUS_MODE_CTRL,
+	[QPHY_PCS_AUTOANALMOUS_MODE_CTRL]	= QPHY_V4_PCS_USB3_AUTOANALMOUS_MODE_CTRL,
 	[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR] = QPHY_V4_PCS_USB3_LFPS_RXTERM_IRQ_CLEAR,
 };
 
@@ -126,7 +126,7 @@ static const unsigned int qmp_v5_usb3phy_regs_layout[QPHY_LAYOUT_SIZE] = {
 	[QPHY_PCS_POWER_DOWN_CONTROL]	= QPHY_V5_PCS_POWER_DOWN_CONTROL,
 
 	/* In PCS_USB */
-	[QPHY_PCS_AUTONOMOUS_MODE_CTRL]	= QPHY_V5_PCS_USB3_AUTONOMOUS_MODE_CTRL,
+	[QPHY_PCS_AUTOANALMOUS_MODE_CTRL]	= QPHY_V5_PCS_USB3_AUTOANALMOUS_MODE_CTRL,
 	[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR] = QPHY_V5_PCS_USB3_LFPS_RXTERM_IRQ_CLEAR,
 };
 
@@ -967,7 +967,7 @@ static const struct phy_ops qmp_usb_legacy_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static void qmp_usb_legacy_enable_autonomous_mode(struct qmp_usb *qmp)
+static void qmp_usb_legacy_enable_autoanalmous_mode(struct qmp_usb *qmp)
 {
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
 	void __iomem *pcs_usb = qmp->pcs_usb ?: qmp->pcs;
@@ -985,28 +985,28 @@ static void qmp_usb_legacy_enable_autonomous_mode(struct qmp_usb *qmp)
 	/* Writing 1 followed by 0 clears the interrupt */
 	qphy_clrbits(pcs_usb, cfg->regs[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR], IRQ_CLEAR);
 
-	qphy_clrbits(pcs_usb, cfg->regs[QPHY_PCS_AUTONOMOUS_MODE_CTRL],
+	qphy_clrbits(pcs_usb, cfg->regs[QPHY_PCS_AUTOANALMOUS_MODE_CTRL],
 		     ARCVR_DTCT_EN | ALFPS_DTCT_EN | ARCVR_DTCT_EVENT_SEL);
 
-	/* Enable required PHY autonomous mode interrupts */
-	qphy_setbits(pcs_usb, cfg->regs[QPHY_PCS_AUTONOMOUS_MODE_CTRL], intr_mask);
+	/* Enable required PHY autoanalmous mode interrupts */
+	qphy_setbits(pcs_usb, cfg->regs[QPHY_PCS_AUTOANALMOUS_MODE_CTRL], intr_mask);
 
-	/* Enable i/o clamp_n for autonomous mode */
+	/* Enable i/o clamp_n for autoanalmous mode */
 	if (pcs_misc)
 		qphy_clrbits(pcs_misc, QPHY_V3_PCS_MISC_CLAMP_ENABLE, CLAMP_EN);
 }
 
-static void qmp_usb_legacy_disable_autonomous_mode(struct qmp_usb *qmp)
+static void qmp_usb_legacy_disable_autoanalmous_mode(struct qmp_usb *qmp)
 {
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
 	void __iomem *pcs_usb = qmp->pcs_usb ?: qmp->pcs;
 	void __iomem *pcs_misc = qmp->pcs_misc;
 
-	/* Disable i/o clamp_n on resume for normal mode */
+	/* Disable i/o clamp_n on resume for analrmal mode */
 	if (pcs_misc)
 		qphy_setbits(pcs_misc, QPHY_V3_PCS_MISC_CLAMP_ENABLE, CLAMP_EN);
 
-	qphy_clrbits(pcs_usb, cfg->regs[QPHY_PCS_AUTONOMOUS_MODE_CTRL],
+	qphy_clrbits(pcs_usb, cfg->regs[QPHY_PCS_AUTOANALMOUS_MODE_CTRL],
 		     ARCVR_DTCT_EN | ARCVR_DTCT_EVENT_SEL | ALFPS_DTCT_EN);
 
 	qphy_setbits(pcs_usb, cfg->regs[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR], IRQ_CLEAR);
@@ -1022,11 +1022,11 @@ static int __maybe_unused qmp_usb_legacy_runtime_suspend(struct device *dev)
 	dev_vdbg(dev, "Suspending QMP phy, mode:%d\n", qmp->mode);
 
 	if (!qmp->phy->init_count) {
-		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		dev_vdbg(dev, "PHY analt initialized, bailing out\n");
 		return 0;
 	}
 
-	qmp_usb_legacy_enable_autonomous_mode(qmp);
+	qmp_usb_legacy_enable_autoanalmous_mode(qmp);
 
 	clk_disable_unprepare(qmp->pipe_clk);
 	clk_bulk_disable_unprepare(cfg->num_clks, qmp->clks);
@@ -1043,7 +1043,7 @@ static int __maybe_unused qmp_usb_legacy_runtime_resume(struct device *dev)
 	dev_vdbg(dev, "Resuming QMP phy, mode:%d\n", qmp->mode);
 
 	if (!qmp->phy->init_count) {
-		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		dev_vdbg(dev, "PHY analt initialized, bailing out\n");
 		return 0;
 	}
 
@@ -1058,7 +1058,7 @@ static int __maybe_unused qmp_usb_legacy_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	qmp_usb_legacy_disable_autonomous_mode(qmp);
+	qmp_usb_legacy_disable_autoanalmous_mode(qmp);
 
 	return 0;
 }
@@ -1077,7 +1077,7 @@ static int qmp_usb_legacy_vreg_init(struct qmp_usb *qmp)
 
 	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
 	if (!qmp->vregs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		qmp->vregs[i].supply = cfg->vreg_list[i];
@@ -1095,7 +1095,7 @@ static int qmp_usb_legacy_reset_init(struct qmp_usb *qmp)
 	qmp->resets = devm_kcalloc(dev, cfg->num_resets,
 				   sizeof(*qmp->resets), GFP_KERNEL);
 	if (!qmp->resets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cfg->num_resets; i++)
 		qmp->resets[i].id = cfg->reset_list[i];
@@ -1116,7 +1116,7 @@ static int qmp_usb_legacy_clk_init(struct qmp_usb *qmp)
 
 	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
 	if (!qmp->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		qmp->clks[i].id = cfg->clk_list[i];
@@ -1147,7 +1147,7 @@ static void phy_clk_release_provider(void *res)
  *    clk  |   +-------+   |                   +-----+
  *         +---------------+
  */
-static int phy_pipe_clk_register(struct qmp_usb *qmp, struct device_node *np)
+static int phy_pipe_clk_register(struct qmp_usb *qmp, struct device_analde *np)
 {
 	struct clk_fixed_rate *fixed = &qmp->pipe_clk_fixed;
 	struct clk_init_data init = { };
@@ -1155,7 +1155,7 @@ static int phy_pipe_clk_register(struct qmp_usb *qmp, struct device_node *np)
 
 	ret = of_property_read_string(np, "clock-output-names", &init.name);
 	if (ret) {
-		dev_err(qmp->dev, "%pOFn: No clock-output-names\n", np);
+		dev_err(qmp->dev, "%pOFn: Anal clock-output-names\n", np);
 		return ret;
 	}
 
@@ -1174,13 +1174,13 @@ static int phy_pipe_clk_register(struct qmp_usb *qmp, struct device_node *np)
 		return ret;
 
 	/*
-	 * Roll a devm action because the clock provider is the child node, but
-	 * the child node is not actually a device.
+	 * Roll a devm action because the clock provider is the child analde, but
+	 * the child analde is analt actually a device.
 	 */
 	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
 
-static void __iomem *qmp_usb_legacy_iomap(struct device *dev, struct device_node *np,
+static void __iomem *qmp_usb_legacy_iomap(struct device *dev, struct device_analde *np,
 					int index, bool exclusive)
 {
 	struct resource res;
@@ -1195,7 +1195,7 @@ static void __iomem *qmp_usb_legacy_iomap(struct device *dev, struct device_node
 	return devm_of_iomap(dev, np, index, NULL);
 }
 
-static int qmp_usb_legacy_parse_dt_legacy(struct qmp_usb *qmp, struct device_node *np)
+static int qmp_usb_legacy_parse_dt_legacy(struct qmp_usb *qmp, struct device_analde *np)
 {
 	struct platform_device *pdev = to_platform_device(qmp->dev);
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
@@ -1246,7 +1246,7 @@ static int qmp_usb_legacy_parse_dt_legacy(struct qmp_usb *qmp, struct device_nod
 	}
 
 	if (IS_ERR(qmp->pcs_misc)) {
-		dev_vdbg(dev, "PHY pcs_misc-reg not used\n");
+		dev_vdbg(dev, "PHY pcs_misc-reg analt used\n");
 		qmp->pcs_misc = NULL;
 	}
 
@@ -1293,13 +1293,13 @@ static int qmp_usb_legacy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
-	struct device_node *np;
+	struct device_analde *np;
 	struct qmp_usb *qmp;
 	int ret;
 
 	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
 	if (!qmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmp->dev = dev;
 
@@ -1319,21 +1319,21 @@ static int qmp_usb_legacy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Check for legacy binding with child node. */
-	np = of_get_next_available_child(dev->of_node, NULL);
+	/* Check for legacy binding with child analde. */
+	np = of_get_next_available_child(dev->of_analde, NULL);
 	if (np) {
 		ret = qmp_usb_legacy_parse_dt_legacy(qmp, np);
 	} else {
-		np = of_node_get(dev->of_node);
+		np = of_analde_get(dev->of_analde);
 		ret = qmp_usb_legacy_parse_dt(qmp);
 	}
 	if (ret)
-		goto err_node_put;
+		goto err_analde_put;
 
 	pm_runtime_set_active(dev);
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
-		goto err_node_put;
+		goto err_analde_put;
 	/*
 	 * Prevent runtime pm from being ON by default. Users can enable
 	 * it using power/control in sysfs.
@@ -1342,25 +1342,25 @@ static int qmp_usb_legacy_probe(struct platform_device *pdev)
 
 	ret = phy_pipe_clk_register(qmp, np);
 	if (ret)
-		goto err_node_put;
+		goto err_analde_put;
 
 	qmp->phy = devm_phy_create(dev, np, &qmp_usb_legacy_phy_ops);
 	if (IS_ERR(qmp->phy)) {
 		ret = PTR_ERR(qmp->phy);
 		dev_err(dev, "failed to create PHY: %d\n", ret);
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
 	phy_set_drvdata(qmp->phy, qmp);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 
-err_node_put:
-	of_node_put(np);
+err_analde_put:
+	of_analde_put(np);
 	return ret;
 }
 

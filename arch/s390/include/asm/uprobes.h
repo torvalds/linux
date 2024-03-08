@@ -9,7 +9,7 @@
 #ifndef _ASM_UPROBES_H
 #define _ASM_UPROBES_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 typedef u16 uprobe_opcode_t;
 

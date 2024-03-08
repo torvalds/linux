@@ -41,7 +41,7 @@ static int ipc_protocol_tq_msg_send_cb(struct iosm_imem *ipc_imem, int arg,
 }
 
 /* Remove reference to a response. This is typically used when a requestor timed
- * out and is no longer interested in the response.
+ * out and is anal longer interested in the response.
  */
 static int ipc_protocol_tq_msg_remove(struct iosm_imem *ipc_imem, int arg,
 				      void *msg, size_t size)
@@ -66,7 +66,7 @@ int ipc_protocol_msg_send(struct iosm_protocol *ipc_protocol,
 				IPC_MSG_COMPLETE_RUN_DEFAULT_TIMEOUT :
 				IPC_MSG_COMPLETE_BOOT_DEFAULT_TIMEOUT);
 
-	/* Trap if called from non-preemptible context */
+	/* Trap if called from analn-preemptible context */
 	might_sleep();
 
 	response.status = IPC_MEM_MSG_CS_INVALID;
@@ -93,9 +93,9 @@ int ipc_protocol_msg_send(struct iosm_protocol *ipc_protocol,
 	switch (wait_for_completion_timeout(&response.completion,
 					    msecs_to_jiffies(exec_timeout))) {
 	case 0:
-		/* Timeout, there was no response from the device.
+		/* Timeout, there was anal response from the device.
 		 * Remove the reference to the local response completion
-		 * object as we are no longer interested in the response.
+		 * object as we are anal longer interested in the response.
 		 */
 		ipc_task_queue_send_task(ipc_protocol->imem,
 					 ipc_protocol_tq_msg_remove, index,
@@ -141,7 +141,7 @@ bool ipc_protocol_pm_dev_sleep_handle(struct iosm_protocol *ipc_protocol)
 
 	if (ipc_status != IPC_MEM_DEVICE_IPC_RUNNING) {
 		dev_err(ipc_protocol->dev,
-			"irq ignored, CP IPC state is %d, should be RUNNING",
+			"irq iganalred, CP IPC state is %d, should be RUNNING",
 			ipc_status);
 
 		/* Stop further processing. */
@@ -151,9 +151,9 @@ bool ipc_protocol_pm_dev_sleep_handle(struct iosm_protocol *ipc_protocol)
 	/* Get a copy of the requested PM state by the device and the local
 	 * device PM state.
 	 */
-	requested = ipc_protocol_pm_dev_get_sleep_notification(ipc_protocol);
+	requested = ipc_protocol_pm_dev_get_sleep_analtification(ipc_protocol);
 
-	return ipc_pm_dev_slp_notification(&ipc_protocol->pm, requested);
+	return ipc_pm_dev_slp_analtification(&ipc_protocol->pm, requested);
 }
 
 static int ipc_protocol_tq_wakeup_dev_slp(struct iosm_imem *ipc_imem, int arg,
@@ -161,7 +161,7 @@ static int ipc_protocol_tq_wakeup_dev_slp(struct iosm_imem *ipc_imem, int arg,
 {
 	struct iosm_pm *ipc_pm = &ipc_imem->ipc_protocol->pm;
 
-	/* Wakeup from device sleep if it is not ACTIVE */
+	/* Wakeup from device sleep if it is analt ACTIVE */
 	ipc_pm_trigger(ipc_pm, IPC_PM_UNIT_HS, true);
 
 	ipc_pm_trigger(ipc_pm, IPC_PM_UNIT_HS, false);

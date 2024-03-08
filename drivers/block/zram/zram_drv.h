@@ -33,7 +33,7 @@
  * ZRAM is mainly used for memory efficiency so we want to keep memory
  * footprint small and thus squeeze size and zram pageflags into a flags
  * member. The lower ZRAM_FLAG_SHIFT bits is for object size (excluding
- * header), which cannot be larger than PAGE_SIZE (requiring PAGE_SHIFT
+ * header), which cananalt be larger than PAGE_SIZE (requiring PAGE_SHIFT
  * bits), the higher bits are for zram_pageflags.
  *
  * We use BUILD_BUG_ON() to make sure that zram pageflags don't overflow.
@@ -43,7 +43,7 @@
 /* Only 2 bits are allowed for comp priority index */
 #define ZRAM_COMP_PRIORITY_MASK	0x3
 
-/* Flags for zram pages (table[page_no].flags) */
+/* Flags for zram pages (table[page_anal].flags) */
 enum zram_pageflags {
 	/* zram slot is locked */
 	ZRAM_LOCK = ZRAM_FLAG_SHIFT,
@@ -51,8 +51,8 @@ enum zram_pageflags {
 	ZRAM_WB,	/* page is stored on backing_device */
 	ZRAM_UNDER_WB,	/* page is under writeback */
 	ZRAM_HUGE,	/* Incompressible page */
-	ZRAM_IDLE,	/* not accessed page since last idle marking */
-	ZRAM_INCOMPRESSIBLE, /* none of the algorithms could compress it */
+	ZRAM_IDLE,	/* analt accessed page since last idle marking */
+	ZRAM_INCOMPRESSIBLE, /* analne of the algorithms could compress it */
 
 	ZRAM_COMP_PRIORITY_BIT1, /* First bit of comp priority index */
 	ZRAM_COMP_PRIORITY_BIT2, /* Second bit of comp priority index */
@@ -78,18 +78,18 @@ struct zram_stats {
 	atomic64_t compr_data_size;	/* compressed size of pages stored */
 	atomic64_t failed_reads;	/* can happen when memory is too low */
 	atomic64_t failed_writes;	/* can happen when memory is too low */
-	atomic64_t notify_free;	/* no. of swap slot free notifications */
-	atomic64_t same_pages;		/* no. of same element filled pages */
-	atomic64_t huge_pages;		/* no. of huge pages */
-	atomic64_t huge_pages_since;	/* no. of huge pages since zram set up */
-	atomic64_t pages_stored;	/* no. of pages currently stored */
-	atomic_long_t max_used_pages;	/* no. of maximum pages stored */
-	atomic64_t writestall;		/* no. of write slow paths */
-	atomic64_t miss_free;		/* no. of missed free */
+	atomic64_t analtify_free;	/* anal. of swap slot free analtifications */
+	atomic64_t same_pages;		/* anal. of same element filled pages */
+	atomic64_t huge_pages;		/* anal. of huge pages */
+	atomic64_t huge_pages_since;	/* anal. of huge pages since zram set up */
+	atomic64_t pages_stored;	/* anal. of pages currently stored */
+	atomic_long_t max_used_pages;	/* anal. of maximum pages stored */
+	atomic64_t writestall;		/* anal. of write slow paths */
+	atomic64_t miss_free;		/* anal. of missed free */
 #ifdef	CONFIG_ZRAM_WRITEBACK
-	atomic64_t bd_count;		/* no. of pages in backing device */
-	atomic64_t bd_reads;		/* no. of reads from backing device */
-	atomic64_t bd_writes;		/* no. of writes from backing device */
+	atomic64_t bd_count;		/* anal. of pages in backing device */
+	atomic64_t bd_reads;		/* anal. of reads from backing device */
+	atomic64_t bd_writes;		/* anal. of writes from backing device */
 #endif
 };
 

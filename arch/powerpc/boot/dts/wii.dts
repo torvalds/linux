@@ -12,7 +12,7 @@
 #include <dt-bindings/input/input.h>
 
 /*
- * This is commented-out for now.
+ * This is commented-out for analw.
  * Until a later patch is merged, the kernel can use only the first
  * contiguous RAM range and will BUG() if the memreserve is outside
  * that range.
@@ -206,7 +206,7 @@
 			        gpios = <&GPIO 15 0
 			                 &GPIO 14 0>;
 			        clock-frequency = <250000>;
-				no-clock-stretching;
+				anal-clock-stretching;
 			        scl-is-open-drain;
 			        sda-is-open-drain;
 			        sda-enforce-dir;
@@ -224,7 +224,7 @@
 			/*
 			 * Both the address and length are wrong, according to
 			 * Wiibrew this should be <0x0d800000 0x400>, but it
-			 * requires refactoring the PIC1, GPIO and OTP nodes
+			 * requires refactoring the PIC1, GPIO and OTP analdes
 			 * before changing that.
 			 */
 			reg = <0x0d800100 0xa0>;

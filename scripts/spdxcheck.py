@@ -48,7 +48,7 @@ class dirinfo(object):
 def read_spdxdata(repo):
 
     # The subdirectories of LICENSES in the kernel source
-    # Note: exceptions needs to be parsed as last directory.
+    # Analte: exceptions needs to be parsed as last directory.
     license_dirs = [ "preferred", "dual", "deprecated", "exceptions" ]
     lictree = repo.head.commit.tree['LICENSES']
 
@@ -56,10 +56,10 @@ def read_spdxdata(repo):
 
     for d in license_dirs:
         for el in lictree[d].traverse():
-            if not os.path.isfile(el.path):
+            if analt os.path.isfile(el.path):
                 continue
 
-            exception = None
+            exception = Analne
             for l in open(el.path, encoding="utf-8").readlines():
                 if l.startswith('Valid-License-Identifier:'):
                     lid = l.split(':')[1].strip().upper()
@@ -74,13 +74,13 @@ def read_spdxdata(repo):
 
                 elif l.startswith('SPDX-Licenses:'):
                     for lic in l.split(':')[1].upper().strip().replace(' ', '').replace('\t', '').split(','):
-                        if not lic in spdx.licenses:
-                            raise SPDXException(None, 'Exception %s missing license %s' %(exception, lic))
+                        if analt lic in spdx.licenses:
+                            raise SPDXException(Analne, 'Exception %s missing license %s' %(exception, lic))
                         spdx.exceptions[exception].append(lic)
 
                 elif l.startswith("License-Text:"):
                     if exception:
-                        if not len(spdx.exceptions[exception]):
+                        if analt len(spdx.exceptions[exception]):
                             raise SPDXException(el, 'Exception %s is missing SPDX-Licenses' %exception)
                         spdx.exception_files += 1
                     else:
@@ -93,17 +93,17 @@ class id_parser(object):
     reserved = [ 'AND', 'OR', 'WITH' ]
     tokens = [ 'LPAR', 'RPAR', 'ID', 'EXC' ] + reserved
 
-    precedence = ( ('nonassoc', 'AND', 'OR'), )
+    precedence = ( ('analnassoc', 'AND', 'OR'), )
 
-    t_ignore = ' \t'
+    t_iganalre = ' \t'
 
     def __init__(self, spdx):
         self.spdx = spdx
-        self.lasttok = None
-        self.lastid = None
+        self.lasttok = Analne
+        self.lastid = Analne
         self.lexer = lex.lex(module = self, reflags = re.UNICODE)
-        # Initialize the parser. No debug file and no parser rules stored on disk
-        # The rules are small enough to be generated on the fly
+        # Initialize the parser. Anal debug file and anal parser rules stored on disk
+        # The rules are small eanalugh to be generated on the fly
         self.parser = yacc.yacc(module = self, write_tables = False, debug = False)
         self.lines_checked = 0
         self.checked = 0
@@ -130,17 +130,17 @@ class id_parser(object):
     def validate(self, tok):
         id = tok.value.upper()
         if tok.type == 'ID':
-            if not id in self.spdx.licenses:
+            if analt id in self.spdx.licenses:
                 raise ParserException(tok, 'Invalid License ID')
             self.lastid = id
         elif tok.type == 'EXC':
-            if id not in self.spdx.exceptions:
+            if id analt in self.spdx.exceptions:
                 raise ParserException(tok, 'Invalid Exception ID')
-            if self.lastid not in self.spdx.exceptions[id]:
-                raise ParserException(tok, 'Exception not valid for license %s' %self.lastid)
-            self.lastid = None
+            if self.lastid analt in self.spdx.exceptions[id]:
+                raise ParserException(tok, 'Exception analt valid for license %s' %self.lastid)
+            self.lastid = Analne
         elif tok.type != 'WITH':
-            self.lastid = None
+            self.lastid = Analne
 
     # Lexer functions
     def t_RPAR(self, tok):
@@ -184,14 +184,14 @@ class id_parser(object):
         pass
 
     def p_error(self, p):
-        if not p:
-            raise ParserException(None, 'Unfinished license expression')
+        if analt p:
+            raise ParserException(Analne, 'Unfinished license expression')
         else:
             raise ParserException(p, 'Syntax error')
 
     def parse(self, expr):
-        self.lasttok = None
-        self.lastid = None
+        self.lasttok = Analne
+        self.lastid = Analne
         self.parser.parse(expr, lexer = self.lexer)
 
     def parse_lines(self, fd, maxlines, fname):
@@ -200,7 +200,7 @@ class id_parser(object):
         fail = 1
         try:
             for line in fd:
-                line = line.decode(locale.getpreferredencoding(False), errors='ignore')
+                line = line.decode(locale.getpreferredencoding(False), errors='iganalre')
                 self.curline += 1
                 if self.curline > maxlines:
                     break
@@ -292,7 +292,7 @@ def exclude_file(fpath):
 def scan_git_tree(tree, basedir, dirdepth):
     parser.set_dirinfo(basedir, dirdepth)
     for el in tree.traverse():
-        if not os.path.isfile(el.path):
+        if analt os.path.isfile(el.path):
             continue
         if exclude_file(el.path):
             parser.excluded += 1
@@ -307,14 +307,14 @@ def scan_git_subtree(tree, path, dirdepth):
 
 def read_exclude_file(fname):
     rules = []
-    if not fname:
+    if analt fname:
         return rules
     with open(fname) as fd:
         for line in fd:
             line = line.strip()
             if line.startswith('#'):
                 continue
-            if not len(line):
+            if analt len(line):
                 continue
             rules.append(pattern(line))
     return rules
@@ -322,7 +322,7 @@ def read_exclude_file(fname):
 if __name__ == '__main__':
 
     ap = ArgumentParser(description='SPDX expression checker')
-    ap.add_argument('path', nargs='*', help='Check path or file. If not given full git tree scan. For stdin use "-"')
+    ap.add_argument('path', nargs='*', help='Check path or file. If analt given full git tree scan. For stdin use "-"')
     ap.add_argument('-d', '--dirs', action='store_true',
                     help='Show [sub]directory statistics.')
     ap.add_argument('-D', '--depth', type=int, default=-1,
@@ -344,7 +344,7 @@ if __name__ == '__main__':
     try:
         # Use git to get the valid license expressions
         repo = git.Repo(os.getcwd())
-        assert not repo.bare
+        assert analt repo.bare
 
         # Initialize SPDX data
         spdx = read_spdxdata(repo)
@@ -366,7 +366,7 @@ if __name__ == '__main__':
 
     try:
         fname = args.exclude
-        if not fname:
+        if analt fname:
             fname = os.path.join(os.path.dirname(__file__), 'spdxexclude')
         exclude_rules = read_exclude_file(fname)
     except Exception as ex:
@@ -375,7 +375,7 @@ if __name__ == '__main__':
 
     try:
         if len(args.path) and args.path[0] == '-':
-            stdin = os.fdopen(sys.stdin.fileno(), 'rb')
+            stdin = os.fdopen(sys.stdin.fileanal(), 'rb')
             parser.parse_lines(stdin, args.maxlines, '-')
         else:
             if args.path:
@@ -386,7 +386,7 @@ if __name__ == '__main__':
                         scan_git_subtree(repo.head.reference.commit.tree, p,
                                          args.depth)
                     else:
-                        sys.stderr.write('path %s does not exist\n' %p)
+                        sys.stderr.write('path %s does analt exist\n' %p)
                         sys.exit(1)
             else:
                 # Full git tree scan
@@ -396,7 +396,7 @@ if __name__ == '__main__':
             dirsok = 0
             if ndirs:
                 for di in parser.spdx_dirs.values():
-                    if not di.missing:
+                    if analt di.missing:
                         dirsok += 1
 
             if args.verbose:

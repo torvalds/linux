@@ -33,10 +33,10 @@
         "BriefDescription": "Indirect branch mis-predicted due to address mis-compare.This event counts when any indirect branch which can be predicted by the BTAC is retired, was taken and correctly predicted the condition, and has mispredicted the address. This event still counts when branch prediction is disabled due to the MMU being off"
     },
     {
-        "PublicDescription": "Conditional branch mis-predicted.This event counts when any branch which can be predicted by the conditional predictor is retired, and has mis-predicted the condition. This event still counts when branch prediction is disabled due to the MMU being off. Conditional indirect branches which correctly predicted the condition but mis-predicted on the address do not count this event",
+        "PublicDescription": "Conditional branch mis-predicted.This event counts when any branch which can be predicted by the conditional predictor is retired, and has mis-predicted the condition. This event still counts when branch prediction is disabled due to the MMU being off. Conditional indirect branches which correctly predicted the condition but mis-predicted on the address do analt count this event",
         "EventCode": "0xCC",
         "EventName": "BR_COND_MIS_PRED",
-        "BriefDescription": "Conditional branch mis-predicted.This event counts when any branch which can be predicted by the conditional predictor is retired, and has mis-predicted the condition. This event still counts when branch prediction is disabled due to the MMU being off. Conditional indirect branches which correctly predicted the condition but mis-predicted on the address do not count this event"
+        "BriefDescription": "Conditional branch mis-predicted.This event counts when any branch which can be predicted by the conditional predictor is retired, and has mis-predicted the condition. This event still counts when branch prediction is disabled due to the MMU being off. Conditional indirect branches which correctly predicted the condition but mis-predicted on the address do analt count this event"
     },
     {
         "PublicDescription": "Indirect branch with predicted address executed.This event counts when any indirect branch which can be predicted by the BTAC is retired, was taken and correctly predicted the condition. This event still counts when branch prediction is disabled due to the MMU being off",

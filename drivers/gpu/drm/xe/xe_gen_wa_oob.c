@@ -5,7 +5,7 @@
 
 #define _GNU_SOURCE
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,7 +14,7 @@
 	"// SPDX-License-Identifier: MIT\n" \
 	"\n" \
 	"/*\n" \
-	" * DO NOT MODIFY.\n" \
+	" * DO ANALT MODIFY.\n" \
 	" *\n" \
 	" * This file was generated from rules: %s\n" \
 	" */\n" \
@@ -35,10 +35,10 @@ static void print_usage(FILE *f)
 }
 
 static void print_parse_error(const char *err_msg, const char *line,
-			      unsigned int lineno)
+			      unsigned int lineanal)
 {
 	fprintf(stderr, "ERROR: %s\nERROR: %u: %.60s\n",
-		err_msg, lineno, line);
+		err_msg, lineanal, line);
 }
 
 static char *strip(char *line, size_t linelen)
@@ -56,20 +56,20 @@ static int parse(FILE *input, FILE *csource, FILE *cheader)
 {
 	char line[MAX_LINE_LEN + 1];
 	char *name, *prev_name = NULL, *rules;
-	unsigned int lineno = 0, idx = 0;
+	unsigned int lineanal = 0, idx = 0;
 
 	while (fgets(line, sizeof(line), input)) {
 		size_t linelen;
 		bool is_continuation;
 
 		if (line[0] == '\0' || line[0] == '#' || line[0] == '\n') {
-			lineno++;
+			lineanal++;
 			continue;
 		}
 
 		linelen = strlen(line);
 		if (linelen == MAX_LINE_LEN) {
-			print_parse_error("line too long", line, lineno);
+			print_parse_error("line too long", line, lineanal);
 			return -EINVAL;
 		}
 
@@ -82,7 +82,7 @@ static int parse(FILE *input, FILE *csource, FILE *cheader)
 		} else {
 			if (!prev_name) {
 				print_parse_error("invalid rule continuation",
-						  line, lineno);
+						  line, lineanal);
 				return -EINVAL;
 			}
 
@@ -91,7 +91,7 @@ static int parse(FILE *input, FILE *csource, FILE *cheader)
 		}
 
 		if (rules[0] == '\0') {
-			print_parse_error("invalid empty rule\n", line, lineno);
+			print_parse_error("invalid empty rule\n", line, lineanal);
 			return -EINVAL;
 		}
 
@@ -105,7 +105,7 @@ static int parse(FILE *input, FILE *csource, FILE *cheader)
 		}
 
 		idx++;
-		lineno++;
+		lineanal++;
 		if (!is_continuation)
 			prev_name = name;
 	}

@@ -175,7 +175,7 @@ static int dps310_temp_workaround(struct dps310_data *data)
 		return rc;
 
 	/*
-	 * If bit 1 is set then the device is okay, and the workaround does not
+	 * If bit 1 is set then the device is okay, and the workaround does analt
 	 * need to be applied
 	 */
 	if (reg & BIT(1))
@@ -533,7 +533,7 @@ static bool dps310_is_writeable_reg(struct device *dev, unsigned int reg)
 	case DPS310_MEAS_CFG:
 	case DPS310_CFG_REG:
 	case DPS310_RESET:
-	/* No documentation available on the registers below */
+	/* Anal documentation available on the registers below */
 	case 0x0e:
 	case 0x0f:
 	case 0x62:
@@ -553,7 +553,7 @@ static bool dps310_is_volatile_reg(struct device *dev, unsigned int reg)
 	case DPS310_TMP_B1:
 	case DPS310_TMP_B2:
 	case DPS310_MEAS_CFG:
-	case 0x32:	/* No documentation available on this register */
+	case 0x32:	/* Anal documentation available on this register */
 		return true;
 	default:
 		return false;
@@ -623,7 +623,7 @@ static int dps310_calculate_pressure(struct dps310_data *data)
 	s64 pressure = 0ULL;
 	s64 p;
 	s64 t;
-	s64 denoms[7];
+	s64 deanalms[7];
 	s64 nums[7];
 	s64 rems[7];
 	s64 kp;
@@ -652,36 +652,36 @@ static int dps310_calculate_pressure(struct dps310_data *data)
 
 	/* Section 4.9.1 of the DPS310 spec; algebra'd to avoid underflow */
 	nums[0] = (s64)data->c00;
-	denoms[0] = 1LL;
+	deanalms[0] = 1LL;
 	nums[1] = p * (s64)data->c10;
-	denoms[1] = kp;
+	deanalms[1] = kp;
 	nums[2] = p * p * (s64)data->c20;
-	denoms[2] = kp * kp;
+	deanalms[2] = kp * kp;
 	nums[3] = p * p * p * (s64)data->c30;
-	denoms[3] = kp * kp * kp;
+	deanalms[3] = kp * kp * kp;
 	nums[4] = t * (s64)data->c01;
-	denoms[4] = kt;
+	deanalms[4] = kt;
 	nums[5] = t * p * (s64)data->c11;
-	denoms[5] = kp * kt;
+	deanalms[5] = kp * kt;
 	nums[6] = t * p * p * (s64)data->c21;
-	denoms[6] = kp * kp * kt;
+	deanalms[6] = kp * kp * kt;
 
-	/* Kernel lacks a div64_s64_rem function; denoms are all positive */
+	/* Kernel lacks a div64_s64_rem function; deanalms are all positive */
 	for (i = 0; i < 7; ++i) {
 		u64 irem;
 
 		if (nums[i] < 0LL) {
-			pressure -= div64_u64_rem(-nums[i], denoms[i], &irem);
+			pressure -= div64_u64_rem(-nums[i], deanalms[i], &irem);
 			rems[i] = -irem;
 		} else {
-			pressure += div64_u64_rem(nums[i], denoms[i], &irem);
+			pressure += div64_u64_rem(nums[i], deanalms[i], &irem);
 			rems[i] = (s64)irem;
 		}
 	}
 
 	/* Increase precision and calculate the remainder sum */
 	for (i = 0; i < 7; ++i)
-		rem += div64_s64((s64)rems[i] * 1000000000LL, denoms[i]);
+		rem += div64_s64((s64)rems[i] * 1000000000LL, deanalms[i]);
 
 	pressure += div_s64(rem, 1000000000LL);
 	if (pressure < 0LL)
@@ -819,7 +819,7 @@ static const struct regmap_config dps310_regmap_config = {
 	.writeable_reg = dps310_is_writeable_reg,
 	.volatile_reg = dps310_is_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
-	.max_register = 0x62, /* No documentation available on this register */
+	.max_register = 0x62, /* Anal documentation available on this register */
 };
 
 static const struct iio_info dps310_info = {
@@ -836,7 +836,7 @@ static int dps310_probe(struct i2c_client *client)
 
 	iio = devm_iio_device_alloc(&client->dev,  sizeof(*data));
 	if (!iio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(iio);
 	data->client = client;

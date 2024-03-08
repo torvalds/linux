@@ -28,7 +28,7 @@ MODULE_AUTHOR("Dinesh Ram <dinesh.ram@cern.ch>");
 MODULE_DESCRIPTION("Si4713 FM Transmitter USB driver");
 MODULE_LICENSE("GPL v2");
 
-/* The Device announces itself as Cygnal Integrated Products, Inc. */
+/* The Device ananalunces itself as Cygnal Integrated Products, Inc. */
 #define USB_SI4713_VENDOR		0x10c4
 #define USB_SI4713_PRODUCT		0x8244
 
@@ -145,7 +145,7 @@ static void usb_si4713_video_device_release(struct v4l2_device *v4l2_dev)
  * component revision, boot mode, the device serial number etc.
  *
  * These commands are necessary to be sent in this order during startup.
- * The device fails to powerup if these commands are not sent.
+ * The device fails to powerup if these commands are analt sent.
  *
  * The complete list of startup commands is given in the start_seq table below.
  */
@@ -269,7 +269,7 @@ struct si4713_command_table {
  * Structure of a command :
  *	Byte 1 : 0x3f (always)
  *	Byte 2 : 0x06 (send a command)
- *	Byte 3 : Unknown
+ *	Byte 3 : Unkanalwn
  *	Byte 4 : Number of arguments + 1 (for the command byte)
  *	Byte 5 : Number of response bytes
  */
@@ -427,7 +427,7 @@ static int usb_si4713_probe(struct usb_interface *intf,
 	if (!radio || !radio->buffer) {
 		dev_err(&intf->dev, "kmalloc for si4713_usb_device failed\n");
 		kfree(radio);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&radio->lock);
@@ -448,7 +448,7 @@ static int usb_si4713_probe(struct usb_interface *intf,
 
 	retval = si4713_register_i2c_adapter(radio);
 	if (retval < 0) {
-		dev_err(&intf->dev, "could not register i2c device\n");
+		dev_err(&intf->dev, "could analt register i2c device\n");
 		goto err_i2cdev;
 	}
 
@@ -457,8 +457,8 @@ static int usb_si4713_probe(struct usb_interface *intf,
 					  &si4713_board_info, NULL);
 	radio->v4l2_subdev = sd;
 	if (!sd) {
-		dev_err(&intf->dev, "cannot get v4l2 subdevice\n");
-		retval = -ENODEV;
+		dev_err(&intf->dev, "cananalt get v4l2 subdevice\n");
+		retval = -EANALDEV;
 		goto del_adapter;
 	}
 
@@ -478,12 +478,12 @@ static int usb_si4713_probe(struct usb_interface *intf,
 
 	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO, -1);
 	if (retval < 0) {
-		dev_err(&intf->dev, "could not register video device\n");
+		dev_err(&intf->dev, "could analt register video device\n");
 		goto del_adapter;
 	}
 
 	dev_info(&intf->dev, "V4L2 device registered as %s\n",
-			video_device_node_name(&radio->vdev));
+			video_device_analde_name(&radio->vdev));
 
 	return 0;
 
@@ -501,7 +501,7 @@ static void usb_si4713_disconnect(struct usb_interface *intf)
 {
 	struct si4713_usb_device *radio = to_si4713_dev(usb_get_intfdata(intf));
 
-	dev_info(&intf->dev, "Si4713 development board now disconnected\n");
+	dev_info(&intf->dev, "Si4713 development board analw disconnected\n");
 
 	mutex_lock(&radio->lock);
 	usb_set_intfdata(intf, NULL);

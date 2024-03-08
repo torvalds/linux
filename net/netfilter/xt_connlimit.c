@@ -1,9 +1,9 @@
 /*
  * netfilter module to limit the number of parallel tcp
  * connections per IP address.
- *   (c) 2000 Gerd Knorr <kraxel@bytesex.org>
- *   Nov 2002: Martin Bene <martin.bene@icomedias.com>:
- *		only ignore TIME_WAIT or gone connections
+ *   (c) 2000 Gerd Kanalrr <kraxel@bytesex.org>
+ *   Analv 2002: Martin Bene <martin.bene@icomedias.com>:
+ *		only iganalre TIME_WAIT or gone connections
  *   (C) CC Computer Consultants GmbH, 2007
  *
  * based on ...

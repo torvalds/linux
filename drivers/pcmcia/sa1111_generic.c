@@ -155,7 +155,7 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 	for (i = 0; i < ops->nr; i++) {
 		s = kzalloc(sizeof(*s), GFP_KERNEL);
 		if (!s)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		s->soc.nr = ops->first + i;
 		s->soc.clk = clk;
@@ -211,7 +211,7 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 	writel_relaxed(PCSSR_S0_SLEEP | PCSSR_S1_SLEEP, base + PCSSR);
 	writel_relaxed(PCCR_S0_FLT | PCCR_S1_FLT, base + PCCR);
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 #ifdef CONFIG_SA1100_JORNADA720
 	if (machine_is_jornada720())
 		ret = pcmcia_jornada720_init(dev);

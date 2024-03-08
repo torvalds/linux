@@ -14,7 +14,7 @@ static int hns3_dcbnl_ieee_getets(struct net_device *ndev, struct ieee_ets *ets)
 	if (h->kinfo.dcb_ops->ieee_getets)
 		return h->kinfo.dcb_ops->ieee_getets(h, ets);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hns3_dcbnl_ieee_setets(struct net_device *ndev, struct ieee_ets *ets)
@@ -27,7 +27,7 @@ static int hns3_dcbnl_ieee_setets(struct net_device *ndev, struct ieee_ets *ets)
 	if (h->kinfo.dcb_ops->ieee_setets)
 		return h->kinfo.dcb_ops->ieee_setets(h, ets);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hns3_dcbnl_ieee_getpfc(struct net_device *ndev, struct ieee_pfc *pfc)
@@ -40,7 +40,7 @@ static int hns3_dcbnl_ieee_getpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 	if (h->kinfo.dcb_ops->ieee_getpfc)
 		return h->kinfo.dcb_ops->ieee_getpfc(h, pfc);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hns3_dcbnl_ieee_setpfc(struct net_device *ndev, struct ieee_pfc *pfc)
@@ -53,7 +53,7 @@ static int hns3_dcbnl_ieee_setpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 	if (h->kinfo.dcb_ops->ieee_setpfc)
 		return h->kinfo.dcb_ops->ieee_setpfc(h, pfc);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hns3_dcbnl_ieee_setapp(struct net_device *ndev, struct dcb_app *app)
@@ -66,7 +66,7 @@ static int hns3_dcbnl_ieee_setapp(struct net_device *ndev, struct dcb_app *app)
 	if (h->kinfo.dcb_ops->ieee_setapp)
 		return h->kinfo.dcb_ops->ieee_setapp(h, app);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hns3_dcbnl_ieee_delapp(struct net_device *ndev, struct dcb_app *app)
@@ -79,7 +79,7 @@ static int hns3_dcbnl_ieee_delapp(struct net_device *ndev, struct dcb_app *app)
 	if (h->kinfo.dcb_ops->ieee_setapp)
 		return h->kinfo.dcb_ops->ieee_delapp(h, app);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* DCBX configuration */

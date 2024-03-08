@@ -60,7 +60,7 @@ properties:
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      The phandle of the syscon node for the GRF register.
+      The phandle of the syscon analde for the GRF register.
       Required property on RK3288.
 
   "#sound-dai-cells":

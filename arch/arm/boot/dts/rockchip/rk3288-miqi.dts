@@ -99,7 +99,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_pwr>, <&emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -340,7 +340,7 @@
 
 	sdmmc {
 		/*
-		 * Default drive strength isn't enough to achieve even
+		 * Default drive strength isn't eanalugh to achieve even
 		 * high-speed mode on firefly board so bump up to 12ma.
 		 */
 		sdmmc_bus4: sdmmc-bus4 {
@@ -351,7 +351,7 @@
 		};
 
 		sdmmc_clk: sdmmc-clk {
-			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_none_12ma>;
+			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_analne_12ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
@@ -359,13 +359,13 @@
 		};
 
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb_host {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

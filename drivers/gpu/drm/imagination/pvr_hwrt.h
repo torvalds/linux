@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_HWRT_H
 #define PVR_HWRT_H
@@ -30,8 +30,8 @@ struct pvr_hwrt_data {
 	/** @data: Local copy of FW-side structure. */
 	struct rogue_fwif_hwrtdata data;
 
-	/** @freelist_node: List node connecting this HWRT to the local freelist. */
-	struct list_head freelist_node;
+	/** @freelist_analde: List analde connecting this HWRT to the local freelist. */
+	struct list_head freelist_analde;
 
 	/**
 	 * @srtc_obj: FW object representing shadow render target cache.
@@ -93,7 +93,7 @@ pvr_destroy_hwrt_datasets_for_file(struct pvr_file *pvr_file);
  *
  * Returns:
  *  * The requested object on success, or
- *  * %NULL on failure (object does not exist in list, or is not a HWRT
+ *  * %NULL on failure (object does analt exist in list, or is analt a HWRT
  *    dataset)
  */
 static __always_inline struct pvr_hwrt_dataset *
@@ -125,7 +125,7 @@ pvr_hwrt_dataset_put(struct pvr_hwrt_dataset *hwrt);
  *
  * Returns:
  *  * The requested object on success, or
- *  * %NULL on failure (object does not exist in list, or is not a HWRT
+ *  * %NULL on failure (object does analt exist in list, or is analt a HWRT
  *    dataset, or index is out of range)
  */
 static __always_inline struct pvr_hwrt_data *

@@ -88,7 +88,7 @@ enum dm_dig_connect {
 
 enum dm_dig_pd_th {
 	DIG_PD_AT_LOW_POWER = 0,
-	DIG_PD_AT_NORMAL_POWER = 1,
+	DIG_PD_AT_ANALRMAL_POWER = 1,
 	DIG_PD_AT_HIGH_POWER = 2,
 	DIG_PD_MAX
 };

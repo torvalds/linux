@@ -18,8 +18,8 @@
  * SW bits 0-1 are reserved to track the memory ownership state of each page:
  *   00: The page is owned exclusively by the page-table owner.
  *   01: The page is owned by the page-table owner, but is shared
- *       with another entity.
- *   10: The page is shared with, but not owned by the page-table owner.
+ *       with aanalther entity.
+ *   10: The page is shared with, but analt owned by the page-table owner.
  *   11: Reserved for future use (lending).
  */
 enum pkvm_page_state {
@@ -30,7 +30,7 @@ enum pkvm_page_state {
 					  KVM_PGTABLE_PROT_SW1,
 
 	/* Meta-states which aren't encoded directly in the PTE's SW bits */
-	PKVM_NOPAGE,
+	PKVM_ANALPAGE,
 };
 
 #define PKVM_PAGE_STATE_PROT_MASK	(KVM_PGTABLE_PROT_SW0 | KVM_PGTABLE_PROT_SW1)

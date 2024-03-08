@@ -32,7 +32,7 @@ struct task_struct *idle_thread_get(unsigned int cpu)
 	struct task_struct *tsk = per_cpu(idle_threads, cpu);
 
 	if (!tsk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	return tsk;
 }
 
@@ -45,7 +45,7 @@ void __init idle_thread_set_boot_cpu(void)
  * idle_init - Initialize the idle thread for a cpu
  * @cpu:	The cpu for which the idle thread should be initialized
  *
- * Creates the thread if it does not exist.
+ * Creates the thread if it does analt exist.
  */
 static __always_inline void idle_init(unsigned int cpu)
 {
@@ -88,7 +88,7 @@ struct smpboot_thread_data {
 };
 
 enum {
-	HP_THREAD_NONE = 0,
+	HP_THREAD_ANALNE = 0,
 	HP_THREAD_ACTIVE,
 	HP_THREAD_PARKED,
 };
@@ -115,7 +115,7 @@ static int smpboot_thread_fn(void *data)
 			__set_current_state(TASK_RUNNING);
 			preempt_enable();
 			/* cleanup must mirror setup */
-			if (ht->cleanup && td->status != HP_THREAD_NONE)
+			if (ht->cleanup && td->status != HP_THREAD_ANALNE)
 				ht->cleanup(td->cpu, cpu_online(td->cpu));
 			kfree(td);
 			return 0;
@@ -138,7 +138,7 @@ static int smpboot_thread_fn(void *data)
 
 		/* Check for state change setup */
 		switch (td->status) {
-		case HP_THREAD_NONE:
+		case HP_THREAD_ANALNE:
 			__set_current_state(TASK_RUNNING);
 			preempt_enable();
 			if (ht->setup)
@@ -156,7 +156,7 @@ static int smpboot_thread_fn(void *data)
 		}
 
 		if (!ht->thread_should_run(td->cpu)) {
-			preempt_enable_no_resched();
+			preempt_enable_anal_resched();
 			schedule();
 		} else {
 			__set_current_state(TASK_RUNNING);
@@ -175,9 +175,9 @@ __smpboot_create_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
 	if (tsk)
 		return 0;
 
-	td = kzalloc_node(sizeof(*td), GFP_KERNEL, cpu_to_node(cpu));
+	td = kzalloc_analde(sizeof(*td), GFP_KERNEL, cpu_to_analde(cpu));
 	if (!td)
-		return -ENOMEM;
+		return -EANALMEM;
 	td->cpu = cpu;
 	td->ht = ht;
 

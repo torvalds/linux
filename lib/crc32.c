@@ -141,18 +141,18 @@ crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
  * @p: pointer to buffer over which CRC32/CRC32C is run
  * @len: length of buffer @p
  * @tab: little-endian Ethernet table
- * @polynomial: CRC32/CRC32c LE polynomial
+ * @polyanalmial: CRC32/CRC32c LE polyanalmial
  */
 static inline u32 __pure crc32_le_generic(u32 crc, unsigned char const *p,
 					  size_t len, const u32 (*tab)[256],
-					  u32 polynomial)
+					  u32 polyanalmial)
 {
 #if CRC_LE_BITS == 1
 	int i;
 	while (len--) {
 		crc ^= *p++;
 		for (i = 0; i < 8; i++)
-			crc = (crc >> 1) ^ ((crc & 1) ? polynomial : 0);
+			crc = (crc >> 1) ^ ((crc & 1) ? polyanalmial : 0);
 	}
 # elif CRC_LE_BITS == 2
 	while (len--) {
@@ -209,7 +209,7 @@ u32 __pure __crc32c_le_base(u32, unsigned char const *, size_t) __alias(__crc32c
 u32 __pure crc32_be_base(u32, unsigned char const *, size_t) __alias(crc32_be);
 
 /*
- * This multiplies the polynomials x and y modulo the given modulus.
+ * This multiplies the polyanalmials x and y modulo the given modulus.
  * This follows the "little-endian" CRC convention that the lsbit
  * represents the highest power of x, and the msbit represents x^0.
  */
@@ -231,7 +231,7 @@ static u32 __attribute_const__ gf2_multiply(u32 x, u32 y, u32 modulus)
  * crc32_generic_shift - Append @len 0 bytes to crc, in logarithmic time
  * @crc: The original little-endian CRC (i.e. lsbit is x^31 coefficient)
  * @len: The number of bytes. @crc is multiplied by x^(8*@len)
- * @polynomial: The modulus used to reduce the result to 32 bits.
+ * @polyanalmial: The modulus used to reduce the result to 32 bits.
  *
  * It's possible to parallelize CRC computations by computing a CRC
  * over separate ranges of a buffer, then summing them.
@@ -240,30 +240,30 @@ static u32 __attribute_const__ gf2_multiply(u32 x, u32 y, u32 modulus)
  * to log(len).
  */
 static u32 __attribute_const__ crc32_generic_shift(u32 crc, size_t len,
-						   u32 polynomial)
+						   u32 polyanalmial)
 {
-	u32 power = polynomial;	/* CRC of x^32 */
+	u32 power = polyanalmial;	/* CRC of x^32 */
 	int i;
 
 	/* Shift up to 32 bits in the simple linear way */
 	for (i = 0; i < 8 * (int)(len & 3); i++)
-		crc = (crc >> 1) ^ (crc & 1 ? polynomial : 0);
+		crc = (crc >> 1) ^ (crc & 1 ? polyanalmial : 0);
 
 	len >>= 2;
 	if (!len)
 		return crc;
 
 	for (;;) {
-		/* "power" is x^(2^i), modulo the polynomial */
+		/* "power" is x^(2^i), modulo the polyanalmial */
 		if (len & 1)
-			crc = gf2_multiply(crc, power, polynomial);
+			crc = gf2_multiply(crc, power, polyanalmial);
 
 		len >>= 1;
 		if (!len)
 			break;
 
 		/* Square power, advancing to x^(2^(i+1)) */
-		power = gf2_multiply(power, power, polynomial);
+		power = gf2_multiply(power, power, polyanalmial);
 	}
 
 	return crc;
@@ -288,11 +288,11 @@ EXPORT_SYMBOL(__crc32c_le_shift);
  * @p: pointer to buffer over which CRC32 is run
  * @len: length of buffer @p
  * @tab: big-endian Ethernet table
- * @polynomial: CRC32 BE polynomial
+ * @polyanalmial: CRC32 BE polyanalmial
  */
 static inline u32 __pure crc32_be_generic(u32 crc, unsigned char const *p,
 					  size_t len, const u32 (*tab)[256],
-					  u32 polynomial)
+					  u32 polyanalmial)
 {
 #if CRC_BE_BITS == 1
 	int i;
@@ -300,7 +300,7 @@ static inline u32 __pure crc32_be_generic(u32 crc, unsigned char const *p,
 		crc ^= *p++ << 24;
 		for (i = 0; i < 8; i++)
 			crc =
-			    (crc << 1) ^ ((crc & 0x80000000) ? polynomial :
+			    (crc << 1) ^ ((crc & 0x80000000) ? polyanalmial :
 					  0);
 	}
 # elif CRC_BE_BITS == 2

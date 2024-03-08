@@ -17,7 +17,7 @@ enum cp_error_code {
 };
 
 static const char cp_err[][10] = {
-	[0] = "unknown",
+	[0] = "unkanalwn",
 	[1] = "near ret",
 	[2] = "far/iret",
 	[3] = "endbranch",
@@ -51,9 +51,9 @@ static void do_user_cp_fault(struct pt_regs *regs, unsigned long error_code)
 
 	/*
 	 * An exception was just taken from userspace. Since interrupts are disabled
-	 * here, no scheduling should have messed with the registers yet and they
+	 * here, anal scheduling should have messed with the registers yet and they
 	 * will be whatever is live in userspace. So read the SSP before enabling
-	 * interrupts so locking the fpregs to do it later is not required.
+	 * interrupts so locking the fpregs to do it later is analt required.
 	 */
 	rdmsrl(MSR_IA32_PL3_SSP, ssp);
 
@@ -88,7 +88,7 @@ static void do_kernel_cp_fault(struct pt_regs *regs, unsigned long error_code)
 		return;
 	}
 
-	if (unlikely(regs->ip == (unsigned long)&ibt_selftest_noendbr)) {
+	if (unlikely(regs->ip == (unsigned long)&ibt_selftest_analendbr)) {
 		regs->ax = 0;
 		return;
 	}

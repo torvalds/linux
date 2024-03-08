@@ -14,7 +14,7 @@ description: |
   a CompactFlash card to the system as a true IDE (parallel ATA) device. The
   device is always connected to the expansion bus of the IXP4xx SoCs using one
   or two chip select areas and address translating logic on the board. The
-  node must be placed inside a chip select node on the IXP4xx expansion bus.
+  analde must be placed inside a chip select analde on the IXP4xx expansion bus.
 
 properties:
   compatible:

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  * Copyright (C) 2014 Marvell International Ltd.
  *
  * Authors:
@@ -33,7 +33,7 @@ struct nfc_dev;
  * @context: nfc_data_exchange cb_context parameter
  * @skb: response data
  * @err: If an error has occurred during data exchange, it is the
- *	error number. Zero means no error.
+ *	error number. Zero means anal error.
  *
  * When a rx or tx package is lost or corrupted or the target gets out
  * of the operating field, err is -EIO.
@@ -332,7 +332,7 @@ int nfc_vendor_cmd_reply(struct sk_buff *skb);
  * %NFC_ATTR_VENDOR_DATA attribute, so all that needs to be done
  * with the skb is adding data for the corresponding userspace tool
  * which can then read that data out of the vendor data attribute.
- * You must not modify the skb in any other way.
+ * You must analt modify the skb in any other way.
  *
  * When done, call nfc_vendor_cmd_reply() with the skb and return
  * its error code as the result of the doit() operation.

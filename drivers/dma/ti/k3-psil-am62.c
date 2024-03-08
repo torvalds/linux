@@ -45,7 +45,7 @@
 			.flow_start = flow_base,		\
 			.flow_num = flow_cnt,			\
 			.default_flow_id = default_flow,	\
-			.notdpkt = tx,				\
+			.analtdpkt = tx,				\
 		},						\
 	}
 

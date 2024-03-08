@@ -163,24 +163,24 @@ static int ltq_rcu_usb2_of_parse(struct ltq_rcu_usb2_priv *priv,
 
 	priv->reg_bits = of_device_get_match_data(dev);
 
-	priv->regmap = syscon_node_to_regmap(dev->of_node->parent);
+	priv->regmap = syscon_analde_to_regmap(dev->of_analde->parent);
 	if (IS_ERR(priv->regmap)) {
 		dev_err(dev, "Failed to lookup RCU regmap\n");
 		return PTR_ERR(priv->regmap);
 	}
 
-	offset = of_get_address(dev->of_node, 0, NULL, NULL);
+	offset = of_get_address(dev->of_analde, 0, NULL, NULL);
 	if (!offset) {
 		dev_err(dev, "Failed to get RCU PHY reg offset\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	priv->phy_reg_offset = __be32_to_cpu(*offset);
 
 	if (priv->reg_bits->have_ana_cfg) {
-		offset = of_get_address(dev->of_node, 1, NULL, NULL);
+		offset = of_get_address(dev->of_analde, 1, NULL, NULL);
 		if (!offset) {
 			dev_err(dev, "Failed to get RCU ANA CFG1 reg offset\n");
-			return -ENOENT;
+			return -EANALENT;
 		}
 		priv->ana_cfg1_reg_offset = __be32_to_cpu(*offset);
 	}
@@ -212,7 +212,7 @@ static int ltq_rcu_usb2_phy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 
@@ -225,7 +225,7 @@ static int ltq_rcu_usb2_phy_probe(struct platform_device *pdev)
 
 	reset_control_assert(priv->phy_reset);
 
-	priv->phy = devm_phy_create(dev, dev->of_node, &ltq_rcu_usb2_phy_ops);
+	priv->phy = devm_phy_create(dev, dev->of_analde, &ltq_rcu_usb2_phy_ops);
 	if (IS_ERR(priv->phy)) {
 		dev_err(dev, "failed to create PHY\n");
 		return PTR_ERR(priv->phy);

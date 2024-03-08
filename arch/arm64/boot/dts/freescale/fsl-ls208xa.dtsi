@@ -145,8 +145,8 @@
 				map0 {
 					trip = <&core_cluster1_alert>;
 					cooling-device =
-						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -174,8 +174,8 @@
 				map0 {
 					trip = <&core_cluster2_alert>;
 					cooling-device =
-						<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -203,8 +203,8 @@
 				map0 {
 					trip = <&core_cluster3_alert>;
 					cooling-device =
-						<&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -232,8 +232,8 @@
 				map0 {
 					trip = <&core_cluster4_alert>;
 					cooling-device =
-						<&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -242,7 +242,7 @@
 	timer: timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 13 4>, /* Physical Secure PPI, active-low */
-			     <1 14 4>, /* Physical Non-Secure PPI, active-low */
+			     <1 14 4>, /* Physical Analn-Secure PPI, active-low */
 			     <1 11 4>, /* Virtual PPI, active-low */
 			     <1 10 4>; /* Hypervisor PPI, active-low */
 	};
@@ -890,8 +890,8 @@
 			dma-coherent;
 			interrupts = <0 13 4>, /* global secure fault */
 				     <0 14 4>, /* combined secure interrupt */
-				     <0 15 4>, /* global non-secure fault */
-				     <0 16 4>, /* combined non-secure interrupt */
+				     <0 15 4>, /* global analn-secure fault */
+				     <0 16 4>, /* combined analn-secure interrupt */
 				/* performance counter interrupts 0-7 */
 				     <0 211 4>, <0 212 4>,
 				     <0 213 4>, <0 214 4>,

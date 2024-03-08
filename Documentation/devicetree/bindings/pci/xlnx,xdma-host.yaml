@@ -48,7 +48,7 @@ properties:
     const: 1
 
   interrupt-controller:
-    description: identifies the node as an interrupt controller
+    description: identifies the analde as an interrupt controller
     type: object
     properties:
       interrupt-controller: true

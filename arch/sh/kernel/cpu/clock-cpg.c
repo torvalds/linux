@@ -27,7 +27,7 @@ static struct clk cpu_clk = {
 };
 
 /*
- * The ordering of these clocks matters, do not change it.
+ * The ordering of these clocks matters, do analt change it.
  */
 static struct clk *onchip_clocks[] = {
 	&master_clk,

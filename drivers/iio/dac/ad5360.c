@@ -32,7 +32,7 @@
 #define AD5360_CMD_SPECIAL_FUNCTION		0x0
 
 /* Special function register addresses */
-#define AD5360_REG_SF_NOP			0x0
+#define AD5360_REG_SF_ANALP			0x0
 #define AD5360_REG_SF_CTRL			0x1
 #define AD5360_REG_SF_OFS(x)			(0x2 + (x))
 #define AD5360_REG_SF_READBACK			0x5
@@ -443,7 +443,7 @@ static int ad5360_alloc_channels(struct iio_dev *indio_dev)
 			   sizeof(struct iio_chan_spec), GFP_KERNEL);
 
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < st->chip_info->num_channels; ++i) {
 		channels[i] = st->chip_info->channel_template;
@@ -467,7 +467,7 @@ static int ad5360_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
-		return  -ENOMEM;
+		return  -EANALMEM;
 	}
 
 	st = iio_priv(indio_dev);

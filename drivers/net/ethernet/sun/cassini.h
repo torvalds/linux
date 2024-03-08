@@ -27,7 +27,7 @@
 #define _CASSINI_H
 
 /* cassini register map: 2M memory mapped in 32-bit memory space accessible as
- * 32-bit words. there is no i/o port access. REG_ addresses are
+ * 32-bit words. there is anal i/o port access. REG_ addresses are
  * shared between cassini and cassini+. REG_PLUS_ addresses only
  * appear in cassini+. REG_MINUS_ addresses only appear in cassini.
  */
@@ -82,11 +82,11 @@
 						      RX completion reg updated.
 						      may be delayed by recv
 						      intr blanking. */
-#define    INTR_RX_BUF_UNAVAIL         0x00000020  /* no more receive buffers.
+#define    INTR_RX_BUF_UNAVAIL         0x00000020  /* anal more receive buffers.
 						      RX Kick == RX complete */
 #define    INTR_RX_TAG_ERROR           0x00000040  /* RX FIFO tag framing
 						      corrupted. FATAL ERROR */
-#define    INTR_RX_COMP_FULL           0x00000080  /* no more room in completion
+#define    INTR_RX_COMP_FULL           0x00000080  /* anal more room in completion
 						      ring to post descriptors.
 						      RX complete head incr to
 						      almost reach RX complete
@@ -101,7 +101,7 @@
 						      use in completion descr
 						      ring */
 #define    INTR_RX_LEN_MISMATCH        0x00000400  /* len field from MAC !=
-						      len of non-reassembly pkt
+						      len of analn-reassembly pkt
 						      from fifo during DMA or
 						      header parser provides TCP
 						      header and payload size >
@@ -156,10 +156,10 @@
 /* DEFAULT: 0x0, SIZE: 3 bits */
 #define  REG_PCI_ERR_STATUS            0x1000  /* PCI error status */
 #define    PCI_ERR_BADACK              0x01    /* reserved in Cassini+.
-						  set if no ACK64# during ABS64 cycle
+						  set if anal ACK64# during ABS64 cycle
 						  in Cassini. */
 #define    PCI_ERR_DTRTO               0x02    /* delayed xaction timeout. set if
-						  no read retry after 2^15 clocks */
+						  anal read retry after 2^15 clocks */
 #define    PCI_ERR_OTHER               0x04    /* other PCI errors */
 #define    PCI_ERR_BIM_DMA_WRITE       0x08    /* BIM received 0 count DMA write req.
 						  unused in Cassini. */
@@ -174,7 +174,7 @@
  */
 #define  REG_PCI_ERR_STATUS_MASK       0x1004  /* PCI Error status mask */
 
-/* used to configure PCI related parameters that are not in PCI config space.
+/* used to configure PCI related parameters that are analt in PCI config space.
  * DEFAULT: 0bxx000, SIZE: 5 bits
  */
 #define  REG_BIM_CFG                0x1008  /* BIM Configuration */
@@ -195,7 +195,7 @@
 						 reserved in Cassini. */
 
 /* DEFAULT: 0x00000000, SIZE: 32 bits */
-#define  REG_BIM_DIAG                  0x100C  /* BIM Diagnostic */
+#define  REG_BIM_DIAG                  0x100C  /* BIM Diaganalstic */
 #define    BIM_DIAG_MSTR_SM_MASK       0x3FFFFF00 /* PCI master controller state
 						     machine bits [21:0] */
 #define    BIM_DIAG_BRST_SM_MASK       0x7F    /* PCI burst controller state
@@ -313,10 +313,10 @@
 						  Cassini only. reserved in
 						  Cassini+. */
 
-/* ASUN: i'm not sure what this does as it's not in the spec.
+/* ASUN: i'm analt sure what this does as it's analt in the spec.
  * DEFAULT: 0xFC
  */
-#define  REG_BIM_DIAG_MUX              0x1030  /* BIM diagnostic probe mux
+#define  REG_BIM_DIAG_MUX              0x1030  /* BIM diaganalstic probe mux
 						  select register */
 
 /* enable probe monitoring mode and select data appearing on the P_A* bus. bit
@@ -334,7 +334,7 @@
  * 0x6: pci io probe[23:16]   0x7: pci io probe[31:24]
  * 0x8: pci io probe[39:32]   0x9: pci io probe[47:40]
  * 0xa: pci io probe[55:48]   0xb: pci io probe[63:56]
- * the following are not available in Cassini:
+ * the following are analt available in Cassini:
  * 0xc: rx probe[7:0]         0xd: tx probe[7:0]
  * 0xe: hp probe[7:0] 	      0xf: mac probe[7:0]
  */
@@ -398,7 +398,7 @@
 #define   SATURN_PCFG_LLA             0x00000008 /* 1 = phy link1000led */
 #define   SATURN_PCFG_RLA             0x00000010 /* 1 = phy duplexled */
 #define   SATURN_PCFG_PDS             0x00000020 /* phy debug mode.
-						    0 = normal */
+						    0 = analrmal */
 #define   SATURN_PCFG_MTP             0x00000080 /* test point select */
 #define   SATURN_PCFG_GMO             0x00000100 /* GMII observe. 1 =
 						    GMII on SERDES pins for
@@ -472,12 +472,12 @@
 #define    TX_CFG_CTX_SEL_SHIFT        30
 
 /* 11-bit counters that point to next location in FIFO to be loaded/retrieved.
- * used for diagnostics only.
+ * used for diaganalstics only.
  */
 #define  REG_TX_FIFO_WRITE_PTR         0x2014  /* TX FIFO write pointer */
 #define  REG_TX_FIFO_SHADOW_WRITE_PTR  0x2018  /* TX FIFO shadow write
 						  pointer. temp hold reg.
-					          diagnostics only. */
+					          diaganalstics only. */
 #define  REG_TX_FIFO_READ_PTR          0x201C  /* TX FIFO read pointer */
 #define  REG_TX_FIFO_SHADOW_READ_PTR   0x2020  /* TX FIFO shadow read
 						  pointer */
@@ -520,7 +520,7 @@
 
 /* values of TX_COMPLETE_1-4 are written. each completion register
  * is 2bytes in size and contiguous. 8B allocation w/ 8B alignment.
- * NOTE: completion reg values are only written back prior to TX_INTME and
+ * ANALTE: completion reg values are only written back prior to TX_INTME and
  * TX_ALL interrupts. at all other times, the most up-to-date index values
  * should be obtained from the REG_TX_COMPLETE_# registers.
  * here's the layout:
@@ -566,7 +566,7 @@
 #define  REG_TX_MAXBURST_2             0x2088  /* TX MaxBurst #3 */
 #define  REG_TX_MAXBURST_3             0x208C  /* TX MaxBurst #4 */
 
-/* diagnostics access to any TX FIFO location. every access is 65
+/* diaganalstics access to any TX FIFO location. every access is 65
  * bits.  _DATA_LOW = 32 LSB, _DATA_HI_T1/T0 = 32 MSB. _TAG = tag bit.
  * writing _DATA_HI_T0 sets tag bit low, writing _DATA_HI_T1 sets tag
  * bit high.  TX_FIFO_PIO_SEL must be set for TX FIFO PIO access. if
@@ -626,7 +626,7 @@
 						      this swivels the data
 						      DMA'ed to header
 						      buffers, jumbo buffers
-						      when header split is not
+						      when header split is analt
 						      requested and MTU sized
 						      buffers. def: 0x2 */
 #define    RX_CFG_SWIVEL_SHIFT          10
@@ -646,7 +646,7 @@
  * page = PAGE_SIZE
  * offset = PAGE_SIZE_MTU_OFF
  * for the above example, MTU_BUFFER_COUNT = 4.
- * NOTE: as is apparent, you need to ensure that the following holds:
+ * ANALTE: as is apparent, you need to ensure that the following holds:
  * MTU_BUFFER_COUNT <= PAGE_SIZE/PAGE_SIZE_BUFFER_STRIDE
  * DEFAULT: 0x48002002 (8k pages)
  */
@@ -655,7 +655,7 @@
 						      by receive descriptors.
 						      if jumbo buffers are
 						      supported the page size
-						      should not be < 8k.
+						      should analt be < 8k.
 						      0b00 = 2k, 0b01 = 4k
 						      0b10 = 8k, 0b11 = 16k
 						      DEFAULT: 8k */
@@ -763,7 +763,7 @@
  * XON PAUSE uses a pause time of 0. granularity of threshold is 64bytes.
  * PAUSE thresholds defined in terms of FIFO occupancy and may be translated
  * into FIFO vacancy using RX_FIFO_SIZE. setting ON will trigger XON frames
- * when FIFO reaches 0. OFF threshold should not be > size of RX FIFO. max
+ * when FIFO reaches 0. OFF threshold should analt be > size of RX FIFO. max
  * value is 0x6F.
  * DEFAULT: 0x00078
  */
@@ -802,7 +802,7 @@
 #define  REG_RX_CB_HI                      0x4034  /* RX completion ring
 							 base hi */
 /* 13-bit register indicate desc used by cassini for receive frames. used
- * for diagnostic purposes.
+ * for diaganalstic purposes.
  * DEFAULT: 0 on reset
  */
 #define  REG_RX_COMP                       0x4038  /* (ro) RX completion */
@@ -810,9 +810,9 @@
 /* HEAD and TAIL are used to control RX desc posting and interrupt
  * generation.  hw moves the head register to pass ownership to sw. sw
  * moves the tail register to pass ownership back to hw. to give all
- * entries to hw, set TAIL = HEAD.  if HEAD and TAIL indicate that no
+ * entries to hw, set TAIL = HEAD.  if HEAD and TAIL indicate that anal
  * more entries are available, DMA will pause and an interrupt will be
- * generated to indicate no more entries are available.  sw can use
+ * generated to indicate anal more entries are available.  sw can use
  * this interrupt to reduce the # of times it must update the
  * completion tail register.
  * DEFAULT: 0 on reset
@@ -829,7 +829,7 @@
 							 this many sets of completion
 							 writebacks (up to 2 packets)
 							 occur since the last time
-							 the ISR was read. 0 = no
+							 the ISR was read. 0 = anal
 							 packet blanking */
 #define    RX_BLANK_INTR_PKT_SHIFT         0
 #define    RX_BLANK_INTR_TIME_MASK         0x3FFFF000 /* RX_DONE interrupt asserted
@@ -837,7 +837,7 @@
 							 counted since last time the
 							 ISR was read.
 							 each count is 512 core
-							 clocks (125MHz). 0 = no
+							 clocks (125MHz). 0 = anal
 							 time blanking */
 #define    RX_BLANK_INTR_TIME_SHIFT        12
 
@@ -861,7 +861,7 @@
 
 /* probabilities for random early drop (RED) thresholds on a FIFO threshold
  * basis. probability should increase when the FIFO level increases. control
- * packets are never dropped and not counted in stats. probability programmed
+ * packets are never dropped and analt counted in stats. probability programmed
  * on a 12.5% granularity. e.g., 0x1 = 1/8 packets dropped.
  * DEFAULT: 0x00000000
  */
@@ -935,7 +935,7 @@
 #define    RX_BAR_INTR_PACKET_MASK         0x000001FF /* assert RX_DONE if #
 							 completion writebacks
 							 > # since last ISR
-							 read. 0 = no
+							 read. 0 = anal
 							 blanking. up to 2
 							 packets per
 							 completion wb. */
@@ -943,13 +943,13 @@
 							 clocks > # since last
 							 ISR read. each count
 							 is 512 core clocks
-							 (125MHz). 0 = no
+							 (125MHz). 0 = anal
 							 blanking. */
 
-/* diagnostic access to RX FIFO. 32 LSB accessed via DATA_LOW. 32 MSB accessed
+/* diaganalstic access to RX FIFO. 32 LSB accessed via DATA_LOW. 32 MSB accessed
  * via DATA_HI_T0 or DATA_HI_T1. TAG reads the tag bit. writing HI_T0
  * will unset the tag bit while writing HI_T1 will set the tag bit. to reset
- * to normal operation after diagnostics, write to address location 0x0.
+ * to analrmal operation after diaganalstics, write to address location 0x0.
  * RX_DMA_EN bit must be set to 0x0 for RX FIFO PIO access. DATA_HI should
  * be the last write access of a write sequence.
  * DEFAULT: undefined
@@ -960,7 +960,7 @@
 #define  REG_RX_FIFO_DATA_HI_T0            0x408C  /* RX FIFO data high T0 */
 #define  REG_RX_FIFO_DATA_HI_T1            0x4090  /* RX FIFO data high T1 */
 
-/* diagnostic assess to RX CTRL FIFO. 8-bit FIFO_ADDR holds address of
+/* diaganalstic assess to RX CTRL FIFO. 8-bit FIFO_ADDR holds address of
  * 81 bit control entry and 6 bit flow id. LOW and MID are both 32-bit
  * accesses. HI is 7-bits with 6-bit flow id and 1 bit control
  * word. RX_DMA_EN must be 0 for RX CTRL FIFO PIO access. DATA_HI
@@ -978,7 +978,7 @@
 #define    RX_CTRL_FIFO_DATA_HI_CTRL       0x0001  /* upper bit of ctrl word */
 #define    RX_CTRL_FIFO_DATA_HI_FLOW_MASK  0x007E  /* flow id */
 
-/* diagnostic access to RX IPP FIFO. same semantics as RX_FIFO.
+/* diaganalstic access to RX IPP FIFO. same semantics as RX_FIFO.
  * DEFAULT: undefined
  */
 #define  REG_RX_IPP_FIFO_ADDR              0x4104  /* RX IPP FIFO address */
@@ -1004,7 +1004,7 @@
 #define  REG_RX_MTU_PAGE_PTR_HI            0x4124  /* (ro) RX MTU page pointer
 						      high */
 
-/* PIO diagnostic access to RX reassembly DMA Table RAM. 6-bit register holds
+/* PIO diaganalstic access to RX reassembly DMA Table RAM. 6-bit register holds
  * one of 64 79-bit locations in the RX Reassembly DMA table and the addr of
  * one of the 64 byte locations in the Batching table. LOW holds 32 LSB.
  * MID holds the next 32 LSB. HIGH holds the 15 MSB. RX_DMA_EN must be set
@@ -1145,8 +1145,8 @@
 #define  REG_HP_FLOW_DB0                   0x415C  /* HP flow database 1 reg */
 #define  REG_HP_FLOW_DBN(x)                (REG_HP_FLOW_DB0 + (x)*4)
 
-/* diagnostics for RX Header Parser block.
- * ASUN: the header parser state machine register is used for diagnostics
+/* diaganalstics for RX Header Parser block.
+ * ASUN: the header parser state machine register is used for diaganalstics
  * purposes. however, the spec doesn't have any details on it.
  */
 #define  REG_HP_STATE_MACHINE              0x418C  /* (ro) HP state machine */
@@ -1173,7 +1173,7 @@
 							 reassembly */
 #define    HP_STATUS2_JH_SPLIT_EN          0x00000400 /* jumbo header split
 							 enable */
-#define    HP_STATUS2_FORCE_TCP_NOCHECK    0x00000200 /* force tcp no payload
+#define    HP_STATUS2_FORCE_TCP_ANALCHECK    0x00000200 /* force tcp anal payload
 							 check */
 #define    HP_STATUS2_DATA_MASK_ZERO       0x00000100 /* mask of data length
 							 equal to zero */
@@ -1181,12 +1181,12 @@
 							 chk */
 #define    HP_STATUS2_MASK_TCP_THRESH      0x00000040 /* mask of payload
 							 threshold */
-#define    HP_STATUS2_NO_ASSIST            0x00000020 /* no assist */
+#define    HP_STATUS2_ANAL_ASSIST            0x00000020 /* anal assist */
 #define    HP_STATUS2_CTRL_PACKET_FLAG     0x00000010 /* control packet flag */
 #define    HP_STATUS2_TCP_FLAG_CHECK       0x00000008 /* tcp flag check */
 #define    HP_STATUS2_SYN_FLAG             0x00000004 /* syn flag */
 #define    HP_STATUS2_TCP_CHECK            0x00000002 /* tcp payload chk */
-#define    HP_STATUS2_TCP_NOCHECK          0x00000001 /* tcp no payload chk */
+#define    HP_STATUS2_TCP_ANALCHECK          0x00000001 /* tcp anal payload chk */
 
 /* BIST for header parser(HP) and flow database memories (FDBM). set _START
  * to start BIST. controller clears _START on completion. _START can also
@@ -1256,7 +1256,7 @@
 #define    MAC_TX_MAX_PACKET_ERR           0x0004  /* frame exceeds max allowed
 						      length passed to TX MAC
 						      by the DMA engine */
-#define    MAC_TX_COLL_NORMAL              0x0008  /* rollover of the normal
+#define    MAC_TX_COLL_ANALRMAL              0x0008  /* rollover of the analrmal
 						      collision counter */
 #define    MAC_TX_COLL_EXCESS              0x0010  /* rollover of the excessive
 						      collision counter */
@@ -1293,11 +1293,11 @@
 							  frame */
 #define    MAC_CTRL_PAUSE_STATE            0x00000002  /* MAC has made a
 							  transition from
-							  "not paused" to
+							  "analt paused" to
 							  "paused" */
-#define    MAC_CTRL_NOPAUSE_STATE          0x00000004  /* MAC has made a
+#define    MAC_CTRL_ANALPAUSE_STATE          0x00000004  /* MAC has made a
 							  transition from
-							  "paused" to "not
+							  "paused" to "analt
 							  paused" */
 #define    MAC_CTRL_PAUSE_TIME_MASK        0xFFFF0000  /* value of pause time
 							  operand that was
@@ -1318,7 +1318,7 @@
  * transmit a maximum size frame (= MAC_FRAMESIZE_MAX*8/Mbps). e.g.,
  * the delay for a 1518-byte frame on a 100Mbps network is 125us.
  * alternatively, just poll TX_CFG_EN until it reads back as 0.
- * NOTE: on half-duplex 1Gbps, TX_CFG_CARRIER_EXTEND and
+ * ANALTE: on half-duplex 1Gbps, TX_CFG_CARRIER_EXTEND and
  * RX_CFG_CARRIER_EXTEND should be set and the SLOT_TIME register should
  * be 0x200 (slot time of 512 bytes)
  */
@@ -1330,11 +1330,11 @@
 						      transition to idle state
 						      on completion of an
 						      ongoing packet. */
-#define    MAC_TX_CFG_IGNORE_CARRIER    0x0002  /* disable CSMA/CD deferral
+#define    MAC_TX_CFG_IGANALRE_CARRIER    0x0002  /* disable CSMA/CD deferral
 						   process. set to 1 when
 						   full duplex and 0 when
 						   half duplex */
-#define    MAC_TX_CFG_IGNORE_COLL       0x0004  /* disable CSMA/CD backoff
+#define    MAC_TX_CFG_IGANALRE_COLL       0x0004  /* disable CSMA/CD backoff
 						   algorithm. set to 1 when
 						   full duplex and 0 when
 						   half duplex */
@@ -1350,11 +1350,11 @@
 						   specified in IPG2. when
 						   0 or when xmitting frames
 						   back-to-pack (Tx-to-Tx
-						   IPG), TX MAC ignores
+						   IPG), TX MAC iganalres
 						   IPG0 and will only use
 						   IPG1 for deferral time.
 						   IPG2 still used. */
-#define    MAC_TX_CFG_NEVER_GIVE_UP_EN  0x0010  /* TX MAC will not easily
+#define    MAC_TX_CFG_NEVER_GIVE_UP_EN  0x0010  /* TX MAC will analt easily
 						   give up on frame
 						   xmission. if backoff
 						   algorithm reaches the
@@ -1374,9 +1374,9 @@
 						   successful or backoff
 						   algorithm reaches
 						   ATTEMPT_LIMIT*16 */
-#define    MAC_TX_CFG_NO_BACKOFF        0x0040  /* modify CSMA/CD to disable
+#define    MAC_TX_CFG_ANAL_BACKOFF        0x0040  /* modify CSMA/CD to disable
 						   backoff algorithm. TX
-						   MAC will not back off
+						   MAC will analt back off
 						   after a xmission attempt
 						   that resulted in a
 						   collision. */
@@ -1389,11 +1389,11 @@
 						   xmission after frame
 						   xmission has actually
 						   begun. */
-#define    MAC_TX_CFG_NO_FCS            0x0100  /* TX MAC will not generate
+#define    MAC_TX_CFG_ANAL_FCS            0x0100  /* TX MAC will analt generate
 						   CRC for all xmitted
 						   packets. when clear, CRC
 						   generation is dependent
-						   upon NO_CRC bit in the
+						   upon ANAL_CRC bit in the
 						   xmit control word from
 						   TX DMA */
 #define    MAC_TX_CFG_CARRIER_EXTEND    0x0200  /* enables xmit part of the
@@ -1408,9 +1408,9 @@
 						   for half-duplex at 1Gbps,
 						   clear otherwise. */
 
-/* when CRC is not stripped, reassembly packets will not contain the CRC.
+/* when CRC is analt stripped, reassembly packets will analt contain the CRC.
  * these will be stripped by HRP because it reassembles layer 4 data, and the
- * CRC is layer 2. however, non-reassembly packets will still contain the CRC
+ * CRC is layer 2. however, analn-reassembly packets will still contain the CRC
  * when passed to the host. to ensure proper operation, need to wait 3.2ms
  * after clearing RX_CFG_EN before writing to any other RX MAC registers
  * or other MAC parameters. alternatively, poll RX_CFG_EN until it clears
@@ -1420,7 +1420,7 @@
 #define  REG_MAC_RX_CFG                 0x6034  /* RX MAC config reg */
 #define    MAC_RX_CFG_EN                0x0001  /* enable RX MAC */
 #define    MAC_RX_CFG_STRIP_PAD         0x0002  /* always program to 0.
-						   feature not supported */
+						   feature analt supported */
 #define    MAC_RX_CFG_STRIP_FCS         0x0004  /* RX MAC will strip the
 						   last 4 bytes of a
 						   received frame. */
@@ -1437,10 +1437,10 @@
 						   addresses */
 #define    MAC_RX_CFG_DISABLE_DISCARD   0x0080  /* pass errored frames to
 						   RX DMA by setting BAD
-						   bit but not Abort bit
+						   bit but analt Abort bit
 						   in the status. CRC,
 						   framing, and length errs
-						   will not increment
+						   will analt increment
 						   error counters. frames
 						   which don't match dest
 						   addr will be passed up
@@ -1480,7 +1480,7 @@
 						      to 1. in loopback mode,
 						      REFCLK will drive the
 						      entire mac core. 0 for
-						      normal operation. */
+						      analrmal operation. */
 #define    MAC_XIF_DISABLE_ECHO            0x0004  /* disables receive data
 						      path during packet
 						      xmission. clear to 0
@@ -1536,7 +1536,7 @@
 						      attempts counter. after
 						      the limit has been
 						      reached, TX MAC may or
-						      may not drop the frame
+						      may analt drop the frame
 						      dependent upon value
 						      in TX_MAC_CFG.
 						      recommended
@@ -1561,7 +1561,7 @@
  *    if there is a match, MAC will set the bit for alternative address
  *    filter pass [15]
 
- *    here is the map of registers given MAC address notation: a:b:c:d:e:f
+ *    here is the map of registers given MAC address analtation: a:b:c:d:e:f
  *                     ab             cd             ef
  *    primary addr     reg 2          reg 1          reg 0
  *    alt addr 1       reg 5          reg 4          reg 3
@@ -1595,7 +1595,7 @@
  * overflow. recommended initialization: 0x0000. most are 16-bits except
  * for PEAK_ATTEMPTS register which is 8 bits.
  */
-#define  REG_MAC_COLL_NORMAL               0x61A0 /* normal collision
+#define  REG_MAC_COLL_ANALRMAL               0x61A0 /* analrmal collision
 						     counter. */
 #define  REG_MAC_COLL_FIRST                0x61A4 /* first attempt
 						     successful collision
@@ -1629,7 +1629,7 @@
 						   segment (e.g., 10 LSB of
 						   MAC address) */
 
-/* ASUN: there's a PAUSE_TIMER (ro) described, but it's not in the address
+/* ASUN: there's a PAUSE_TIMER (ro) described, but it's analt in the address
  *       map
  */
 
@@ -1795,7 +1795,7 @@
  * DEFAULT: 0x1040
  */
 #define  REG_PCS_MII_CTRL                  0x9000 /* PCS MII control reg */
-#define    PCS_MII_CTRL_1000_SEL           0x0040 /* reads 1. ignored on
+#define    PCS_MII_CTRL_1000_SEL           0x0040 /* reads 1. iganalred on
 						     writes */
 #define    PCS_MII_CTRL_COLLISION_TEST     0x0080 /* COL signal at the PCS
 						     to MAC interface is
@@ -1807,9 +1807,9 @@
 #define    PCS_MII_RESTART_AUTONEG         0x0200 /* self clearing.
 						     restart auto-
 						     negotiation */
-#define    PCS_MII_ISOLATE                 0x0400 /* read as 0. ignored
+#define    PCS_MII_ISOLATE                 0x0400 /* read as 0. iganalred
 						     on writes */
-#define    PCS_MII_POWER_DOWN              0x0800 /* read as 0. ignored
+#define    PCS_MII_POWER_DOWN              0x0800 /* read as 0. iganalred
 						     on writes */
 #define    PCS_MII_AUTONEG_EN              0x1000 /* default 1. PCS goes
 						     through automatic
@@ -1818,7 +1818,7 @@
 						     link can be used
 						     w/out any link config
 						     phase */
-#define    PCS_MII_10_100_SEL              0x2000 /* read as 0. ignored on
+#define    PCS_MII_10_100_SEL              0x2000 /* read as 0. iganalred on
 						     writes */
 #define    PCS_MII_RESET                   0x8000 /* reset PCS. self-clears
 						     when done */
@@ -1841,12 +1841,12 @@
 						     auto-neg completed */
 #define    PCS_MII_STATUS_AUTONEG_COMP     0x0020 /* 1 -> auto-negotiation
 						          completed
-						     0 -> auto-negotiation not
+						     0 -> auto-negotiation analt
 						     completed */
 #define    PCS_MII_STATUS_EXTEND_STATUS    0x0100 /* reads as 1. used as an
 						     indication that this is
 						     a 1000 Base-X PHY. writes
-						     to it are ignored */
+						     to it are iganalred */
 
 /* used during auto-negotiation.
  * DEFAULT: 0x00E0
@@ -1892,7 +1892,7 @@
 						     PCS_MII_ADVERT */
 #define    PCS_CFG_SD_OVERRIDE             0x02   /* sets signal detect to
 						     OK. bit is
-						     non-resettable */
+						     analn-resettable */
 #define    PCS_CFG_SD_ACTIVE_LOW           0x04   /* changes interpretation
 						     of optical signal to make
 						     signal detect okay when
@@ -1901,7 +1901,7 @@
 						     measurements. a single
 						     code group is xmitted
 						     regularly.
-						     0x0 = normal operation
+						     0x0 = analrmal operation
 						     0x1 = high freq test
 						           pattern, D21.5
 						     0x2 = low freq test
@@ -1912,9 +1912,9 @@
 						     a few cycles for test
 						     purposes */
 
-/* used for diagnostic purposes. bits 20-22 autoclear on read */
+/* used for diaganalstic purposes. bits 20-22 autoclear on read */
 #define  REG_PCS_STATE_MACHINE             0x9014 /* (ro) PCS state machine
-						     and diagnostic reg */
+						     and diaganalstic reg */
 #define    PCS_SM_TX_STATE_MASK            0x0000000F /* 0 and 1 indicate
 							 xmission of idle.
 							 otherwise, xmission of
@@ -1941,7 +1941,7 @@
 							 from OK to FAIL. bit29
 							 will also be set if
 							 this is set */
-#define    PCS_SM_NO_LINK_BREAKLINK        0x01000000 /* link not up due to
+#define    PCS_SM_ANAL_LINK_BREAKLINK        0x01000000 /* link analt up due to
 							receipt of breaklink
 							C codes from partner.
 							C codes w/ 0 content
@@ -1949,17 +1949,17 @@
 							start/restart of
 							autonegotiation.
 							should be sent for
-							no longer than 20ms */
-#define    PCS_SM_NO_LINK_SERDES           0x02000000 /* serdes being
+							anal longer than 20ms */
+#define    PCS_SM_ANAL_LINK_SERDES           0x02000000 /* serdes being
 							initialized. see serdes
 							state reg */
-#define    PCS_SM_NO_LINK_C                0x04000000 /* C codes not stable or
-							 not received */
-#define    PCS_SM_NO_LINK_SYNC             0x08000000 /* word sync not
+#define    PCS_SM_ANAL_LINK_C                0x04000000 /* C codes analt stable or
+							 analt received */
+#define    PCS_SM_ANAL_LINK_SYNC             0x08000000 /* word sync analt
 							 achieved */
-#define    PCS_SM_NO_LINK_WAIT_C           0x10000000 /* waiting for C codes
+#define    PCS_SM_ANAL_LINK_WAIT_C           0x10000000 /* waiting for C codes
 							 w/ ack bit set */
-#define    PCS_SM_NO_LINK_NO_IDLE          0x20000000 /* link partner continues
+#define    PCS_SM_ANAL_LINK_ANAL_IDLE          0x20000000 /* link partner continues
 							 to send C codes
 							 instead of idle
 							 symbols or pkt data */
@@ -1972,12 +1972,12 @@
 #define    PCS_INTR_STATUS_LINK_CHANGE     0x04   /* link status has changed
 						     since last read */
 
-/* control which network interface is used. no more than one bit should
+/* control which network interface is used. anal more than one bit should
  * be set.
- * DEFAULT: none
+ * DEFAULT: analne
  */
 #define  REG_PCS_DATAPATH_MODE             0x9050 /* datapath mode reg */
-#define    PCS_DATAPATH_MODE_MII           0x00 /* PCS is not used and
+#define    PCS_DATAPATH_MODE_MII           0x00 /* PCS is analt used and
 						   MII/GMII is selected.
 						   selection between MII and
 						   GMII is controlled by
@@ -1991,7 +1991,7 @@
 						    serdes interface */
 #define    PCS_SERDES_CTRL_SYNCD_EN       0x02   /* enable sync carrier
 						    detection. should be
-						    0x0 for normal
+						    0x0 for analrmal
 						    operation */
 #define    PCS_SERDES_CTRL_LOCKREF       0x04   /* frequency-lock RBC[0:1]
 						   to REFCLK when set.
@@ -2000,8 +2000,8 @@
 						   serial data */
 
 /* multiplex test outputs into the PROM address (PA_3 through PA_0) pins.
- * should be 0x0 for normal operations.
- * 0b000          normal operation, PROM address[3:0] selected
+ * should be 0x0 for analrmal operations.
+ * 0b000          analrmal operation, PROM address[3:0] selected
  * 0b001          rxdma req, rxdma ack, rxdma ready, rxdma read
  * 0b010          rxmac req, rx ack, rx tag, rx clk shared
  * 0b011          txmac req, tx ack, tx tag, tx retry req
@@ -2012,7 +2012,7 @@
 #define  REG_PCS_SHARED_OUTPUT_SEL         0x9058 /* shared output select */
 #define    PCS_SOS_PROM_ADDR_MASK          0x0007
 
-/* used for diagnostics. this register indicates progress of the SERDES
+/* used for diaganalstics. this register indicates progress of the SERDES
  * boot up.
  * 0b00       undergoing reset
  * 0b01       waiting 500us while lockrefn is asserted
@@ -2023,7 +2023,7 @@
 #define  REG_PCS_SERDES_STATE              0x905C /* (ro) serdes state */
 #define    PCS_SERDES_STATE_MASK           0x03
 
-/* used for diagnostics. indicates number of packets transmitted or received.
+/* used for diaganalstics. indicates number of packets transmitted or received.
  * counters rollover w/out generating an interrupt.
  * DEFAULT: 0x0
  */
@@ -2032,7 +2032,7 @@
 #define    PCS_PACKET_COUNT_RX             0x07FF0000 /* pkts recvd by PCS
 							 whether they
 							 encountered an error
-							 or not */
+							 or analt */
 
 /** LocalBus Devices. the following provides run-time access to the
  *  Cassini's PROM
@@ -2117,7 +2117,7 @@
 
 /* cassini header parser firmware */
 typedef struct cas_hp_inst {
-	const char *note;
+	const char *analte;
 
 	u16 mask, val;
 
@@ -2128,7 +2128,7 @@ typedef struct cas_hp_inst {
 	u8 outop;    /* output opcode */
 
 	u16 outarg;  /* output argument */
-	u8 outenab;  /* output enable: 0 = not, 1 = if match
+	u8 outenab;  /* output enable: 0 = analt, 1 = if match
 			 2 = if !match, 3 = always */
 	u8 outshift; /* barrel shift right, 4 bits */
 	u16 outmask;
@@ -2245,8 +2245,8 @@ static cas_hp_inst_t cas_prog_ip46tcp4tab[] = {
  * Alternate table load which excludes HTTP server traffic from reassembly.
  * It is substantially similar to the basic table, with one extra state
  * and a few extra compares. */
-#ifdef USE_HP_IP46TCP4NOHTTP
-static cas_hp_inst_t cas_prog_ip46tcp4nohttptab[] = {
+#ifdef USE_HP_IP46TCP4ANALHTTP
+static cas_hp_inst_t cas_prog_ip46tcp4analhttptab[] = {
 	CAS_PROG_IP46TCP4_PREAMBLE,
 	{ "TCP seq", /* DADDR should point to dest port */
 	  0xFFFF, 0x0080, OP_EQ,  0, S2_HTTP,  0, S1_TCPFG, LD_SEQ,
@@ -2263,12 +2263,12 @@ static cas_hp_inst_t cas_prog_ip46tcp4nohttptab[] = {
 	  CL_REG, 0x002,  3, 0x0, 0x0000},
 	{ "Drop packet", 0x0000, 0x0000, OP_EQ,  0, S1_PCKT,  0, S1_PCKT,
 	  IM_CTL, 0x080,  3, 0x0, 0xffff},
-	{ "No HTTP", 0x0000, 0x0000, OP_EQ,  0, S1_PCKT,  0, S1_PCKT,
+	{ "Anal HTTP", 0x0000, 0x0000, OP_EQ,  0, S1_PCKT,  0, S1_PCKT,
 	  IM_CTL, 0x044,  3, 0x0, 0xffff},
 	{ NULL },
 };
-#ifdef HP_IP46TCP4NOHTTP_DEFAULT
-#define CAS_HP_FIRMWARE               cas_prog_ip46tcp4nohttptab
+#ifdef HP_IP46TCP4ANALHTTP_DEFAULT
+#define CAS_HP_FIRMWARE               cas_prog_ip46tcp4analhttptab
 #endif
 #endif
 
@@ -2360,7 +2360,7 @@ static cas_hp_inst_t cas_prog_ip46tcp4batchtab[] = {
 #endif
 
 /* Workaround for Cassini rev2 descriptor corruption problem.
- * Does batching without reassembly, and sets the SAP to a known
+ * Does batching without reassembly, and sets the SAP to a kanalwn
  * data pattern for all packets.
  */
 #ifdef USE_HP_WORKAROUND
@@ -2424,7 +2424,7 @@ static cas_hp_inst_t  cas_prog_encryptiontab[] = {
 //0x1000, 0x1000, OP_EQ,  0, S1_DROP,  1, S1_8023,  CL_REG, 0x000,  0, 0x0, 0x00
 	00,
 #endif
-	{ "CFI?", /* FIND CFI and If FIND go to CleanUP1 (ignore and send to host) */
+	{ "CFI?", /* FIND CFI and If FIND go to CleanUP1 (iganalre and send to host) */
 	  0x1000, 0x1000, OP_EQ,  0, S1_CLNP,  1, S1_8023,
 	  CL_REG, 0x000,  0, 0x0, 0x0000},
 	{ "8023?", 0xffff, 0x0600, OP_LT,  1, S1_LLC,   0, S1_IPV4,
@@ -2468,7 +2468,7 @@ static cas_hp_inst_t  cas_prog_encryptiontab[] = {
 	  CL_REG, 0x002,  3, 0x0, 0x0000},
 	{ "Drop packet", 0x0000, 0x0000, OP_EQ,  0, S1_PCKT,  0, S1_PCKT,
 	  IM_CTL, 0x080,  3, 0x0, 0xffff},
-	{ "No HTTP", 0x0000, 0x0000, OP_EQ,  0, S1_PCKT,  0, S1_PCKT,
+	{ "Anal HTTP", 0x0000, 0x0000, OP_EQ,  0, S1_PCKT,  0, S1_PCKT,
 	  IM_CTL, 0x044,  3, 0x0, 0xffff},
 	{ "IPV4 ESP encrypted?",  /* S1_ESP4 */
 	  0x00ff, 0x0032, OP_EQ,  0, S1_CLNP2, 0, S1_AH4, IM_CTL,
@@ -2501,7 +2501,7 @@ static cas_hp_inst_t cas_prog_null[] = { {NULL} };
 #endif
 
 /* phy types */
-#define   CAS_PHY_UNKNOWN       0x00
+#define   CAS_PHY_UNKANALWN       0x00
 #define   CAS_PHY_SERDES        0x01
 #define   CAS_PHY_MII_MDIO0     0x02
 #define   CAS_PHY_MII_MDIO1     0x04
@@ -2509,7 +2509,7 @@ static cas_hp_inst_t cas_prog_null[] = { {NULL} };
 
 /* _RING_INDEX is the index for the ring sizes to be used.  _RING_SIZE
  * is the actual size. the default index for the various rings is
- * 8. NOTE: there a bunch of alignment constraints for the rings. to
+ * 8. ANALTE: there a bunch of alignment constraints for the rings. to
  * deal with that, i just allocate rings to create the desired
  * alignment. here are the constraints:
  *   RX DESC and COMP rings must be 8KB aligned
@@ -2586,8 +2586,8 @@ static cas_hp_inst_t cas_prog_null[] = { {NULL} };
 #define TX_DESC_EOF                 0x0000000040000000ULL /* end of frame */
 #define TX_DESC_SOF                 0x0000000080000000ULL /* start of frame */
 #define TX_DESC_INTME               0x0000000100000000ULL /* interrupt me */
-#define TX_DESC_NO_CRC              0x0000000200000000ULL /* debugging only.
-							     CRC will not be
+#define TX_DESC_ANAL_CRC              0x0000000200000000ULL /* debugging only.
+							     CRC will analt be
 							     inserted into
 							     outgoing frame. */
 struct cas_tx_desc {
@@ -2596,7 +2596,7 @@ struct cas_tx_desc {
 };
 
 /* descriptor ring for free buffers contains page-sized buffers. the index
- * value is not used by the hw in any way. it's just stored and returned in
+ * value is analt used by the hw in any way. it's just stored and returned in
  * the completion ring.
  */
 struct cas_rx_desc {
@@ -2643,7 +2643,7 @@ struct cas_rx_desc {
 #define RX_COMP3_OPCODE_MASK              0x000000000E000000ULL
 #define RX_COMP3_OPCODE_SHIFT             25
 #define RX_COMP3_FORCE_FLAG               0x0000000010000000ULL
-#define RX_COMP3_NO_ASSIST                0x0000000020000000ULL
+#define RX_COMP3_ANAL_ASSIST                0x0000000020000000ULL
 #define RX_COMP3_LOAD_BAL_MASK            0x000001F800000000ULL
 #define RX_COMP3_LOAD_BAL_SHIFT           35
 #define RX_PLUS_COMP3_ENC_PKT             0x0000020000000000ULL /* cas+ */
@@ -2670,7 +2670,7 @@ struct cas_rx_desc {
 
 /* we encode the following: ring/index/release. only 14 bits
  * are usable.
- * NOTE: the encoding is dependent upon RX_DESC_RING_SIZE and
+ * ANALTE: the encoding is dependent upon RX_DESC_RING_SIZE and
  *       MAX_RX_DESC_RINGS. */
 #define RX_INDEX_NUM_MASK                 0x0000000000000FFFULL
 #define RX_INDEX_NUM_SHIFT                0
@@ -2686,7 +2686,7 @@ struct cas_rx_comp {
 };
 
 enum link_state {
-	link_down = 0,	/* No link, will retry */
+	link_down = 0,	/* Anal link, will retry */
 	link_aneg,	/* Autoneg in progress */
 	link_force_try,	/* Try Forced link speed */
 	link_force_ret,	/* Forced mode worked, retrying autoneg */
@@ -2752,7 +2752,7 @@ struct cas {
 	struct napi_struct napi;
 
 	/* Set when chip is actually in operational state
-	 * (ie. not power managed) */
+	 * (ie. analt power managed) */
 	int hw_running;
 	int opened;
 	struct mutex pm_mutex; /* open/close/suspend/resume */
@@ -2795,7 +2795,7 @@ struct cas {
 #define CAS_FLAG_RXD_POST(x)    ((1 << (CAS_FLAG_RXD_POST_SHIFT + (x))) & \
                                  CAS_FLAG_RXD_POST_MASK)
 #define CAS_FLAG_ENTROPY_DEV    0x00000100
-#define CAS_FLAG_NO_HW_CSUM     0x00000200
+#define CAS_FLAG_ANAL_HW_CSUM     0x00000200
 	u32                     cas_flags;
 	int                     packet_min; /* minimum packet size */
 	int			tx_fifo_size;
@@ -2831,7 +2831,7 @@ struct cas {
 #endif
 
 	/* Link-down problem workaround */
-#define LINK_TRANSITION_UNKNOWN 	0
+#define LINK_TRANSITION_UNKANALWN 	0
 #define LINK_TRANSITION_ON_FAILURE 	1
 #define LINK_TRANSITION_STILL_FAILED 	2
 #define LINK_TRANSITION_LINK_UP 	3
@@ -2846,7 +2846,7 @@ struct cas {
 	u8 orig_cacheline_size;	/* value when loaded */
 #define CAS_PREF_CACHELINE_SIZE	 0x20	/* Minimum desired */
 
-	/* Diagnostic counters and state. */
+	/* Diaganalstic counters and state. */
 	int 			casreg_len; /* reg-space size for dumping */
 	u64			pause_entered;
 	u16			pause_last_time_recvd;
@@ -2855,7 +2855,7 @@ struct cas {
 	struct pci_dev *pdev;
 	struct net_device *dev;
 #if defined(CONFIG_OF)
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 #endif
 
 	/* Firmware Info */

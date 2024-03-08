@@ -58,7 +58,7 @@
 /* Fixed interface to on-board Marvell 8897 Wi-Fi/Bluetooth/NFC chip. */
 &sdhci0 {
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

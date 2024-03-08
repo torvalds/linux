@@ -20,7 +20,7 @@ Required Properties :
 
 - pclk-sample: Clock polarity of the endpoint.
 
-For further reading on port node refer to Documentation/devicetree/bindings/
+For further reading on port analde refer to Documentation/devicetree/bindings/
 media/video-interfaces.txt.
 
 Example:

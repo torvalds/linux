@@ -194,7 +194,7 @@ static const struct reg_default cs47l24_reg_default[] = {
 	{ 0x00000062, 0x01FF },    /* R98    - Sample Rate Sequence Select 2 */
 	{ 0x00000063, 0x01FF },    /* R99    - Sample Rate Sequence Select 3 */
 	{ 0x00000064, 0x01FF },    /* R100   - Sample Rate Sequence Select 4 */
-	{ 0x00000070, 0x0000 },    /* R112   - Comfort Noise Generator */
+	{ 0x00000070, 0x0000 },    /* R112   - Comfort Analise Generator */
 	{ 0x00000090, 0x0000 },    /* R144   - Haptics Control 1 */
 	{ 0x00000091, 0x7FFF },    /* R145   - Haptics Control 2 */
 	{ 0x00000092, 0x0000 },    /* R146   - Haptics phase 1 intensity */
@@ -274,15 +274,15 @@ static const struct reg_default cs47l24_reg_default[] = {
 	{ 0x00000410, 0x0080 },    /* R1040  - Output Path Config 1L */
 	{ 0x00000411, 0x0180 },    /* R1041  - DAC Digital Volume 1L */
 	{ 0x00000412, 0x0081 },    /* R1042  - DAC Volume Limit 1L */
-	{ 0x00000413, 0x0001 },    /* R1043  - Noise Gate Select 1L */
+	{ 0x00000413, 0x0001 },    /* R1043  - Analise Gate Select 1L */
 	{ 0x00000415, 0x0180 },    /* R1045  - DAC Digital Volume 1R */
 	{ 0x00000416, 0x0081 },    /* R1046  - DAC Volume Limit 1R */
-	{ 0x00000417, 0x0002 },    /* R1047  - Noise Gate Select 1R */
+	{ 0x00000417, 0x0002 },    /* R1047  - Analise Gate Select 1R */
 	{ 0x00000429, 0x0180 },    /* R1065  - DAC Digital Volume 4L */
 	{ 0x0000042A, 0x0081 },    /* R1066  - Out Volume 4L */
-	{ 0x0000042B, 0x0040 },    /* R1067  - Noise Gate Select 4L */
+	{ 0x0000042B, 0x0040 },    /* R1067  - Analise Gate Select 4L */
 	{ 0x00000450, 0x0000 },    /* R1104  - DAC AEC Control 1 */
-	{ 0x00000458, 0x0000 },    /* R1112  - Noise Gate Control */
+	{ 0x00000458, 0x0000 },    /* R1112  - Analise Gate Control */
 	{ 0x000004A0, 0x3480 },    /* R1184  - HP1 Short Circuit Ctrl */
 	{ 0x00000500, 0x000C },    /* R1280  - AIF1 BCLK Ctrl */
 	{ 0x00000501, 0x0008 },    /* R1281  - AIF1 Tx Pin Ctrl */
@@ -817,7 +817,7 @@ static bool cs47l24_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_2:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_3:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_4:
-	case ARIZONA_COMFORT_NOISE_GENERATOR:
+	case ARIZONA_COMFORT_ANALISE_GENERATOR:
 	case ARIZONA_HAPTICS_CONTROL_1:
 	case ARIZONA_HAPTICS_CONTROL_2:
 	case ARIZONA_HAPTICS_PHASE_1_INTENSITY:
@@ -908,15 +908,15 @@ static bool cs47l24_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_OUTPUT_PATH_CONFIG_1L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1L:
 	case ARIZONA_DAC_VOLUME_LIMIT_1L:
-	case ARIZONA_NOISE_GATE_SELECT_1L:
+	case ARIZONA_ANALISE_GATE_SELECT_1L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1R:
 	case ARIZONA_DAC_VOLUME_LIMIT_1R:
-	case ARIZONA_NOISE_GATE_SELECT_1R:
+	case ARIZONA_ANALISE_GATE_SELECT_1R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_4L:
 	case ARIZONA_OUT_VOLUME_4L:
-	case ARIZONA_NOISE_GATE_SELECT_4L:
+	case ARIZONA_ANALISE_GATE_SELECT_4L:
 	case ARIZONA_DAC_AEC_CONTROL_1:
-	case ARIZONA_NOISE_GATE_CONTROL:
+	case ARIZONA_ANALISE_GATE_CONTROL:
 	case ARIZONA_HP1_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:

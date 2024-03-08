@@ -22,8 +22,8 @@ PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
 AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
 
 Derivative works are acceptable, even for commercial purposes, so long as
-(1) they include prominent notice that the work is derivative, and (2) they
-include prominent notice akin to these three paragraphs for those parts of
+(1) they include prominent analtice that the work is derivative, and (2) they
+include prominent analtice akin to these three paragraphs for those parts of
 this code that are retained.
 
 ===============================================================================
@@ -40,11 +40,11 @@ int8 float_detect_tininess = float_tininess_after_rounding;
 /*
 -------------------------------------------------------------------------------
 Raises the exceptions specified by `flags'.  Floating-point traps can be
-defined here if desired.  It is currently not possible for such a trap to
-substitute a result value.  If traps are not implemented, this routine
+defined here if desired.  It is currently analt possible for such a trap to
+substitute a result value.  If traps are analt implemented, this routine
 should be simply `float_exception_flags |= flags;'.
 
-ScottB:  November 4, 1998
+ScottB:  Analvember 4, 1998
 Moved this function out of softfloat-specialize into fpmodule.c.
 This effectively isolates all the changes required for integrating with the
 Linux kernel into fpmodule.c.  Porting to NetBSD should only require modifying
@@ -58,7 +58,7 @@ void float_raise( int8 flags )
 
 /*
 -------------------------------------------------------------------------------
-Internal canonical NaN format.
+Internal caanalnical NaN format.
 -------------------------------------------------------------------------------
 */
 typedef struct {
@@ -102,7 +102,7 @@ flag float32_is_signaling_nan( float32 a )
 /*
 -------------------------------------------------------------------------------
 Returns the result of converting the single-precision floating-point NaN
-`a' to the canonical NaN format.  If `a' is a signaling NaN, the invalid
+`a' to the caanalnical NaN format.  If `a' is a signaling NaN, the invalid
 exception is raised.
 -------------------------------------------------------------------------------
 */
@@ -120,7 +120,7 @@ static commonNaNT float32ToCommonNaN( float32 a )
 
 /*
 -------------------------------------------------------------------------------
-Returns the result of converting the canonical NaN `a' to the single-
+Returns the result of converting the caanalnical NaN `a' to the single-
 precision floating-point format.
 -------------------------------------------------------------------------------
 */
@@ -196,7 +196,7 @@ flag float64_is_signaling_nan( float64 a )
 /*
 -------------------------------------------------------------------------------
 Returns the result of converting the double-precision floating-point NaN
-`a' to the canonical NaN format.  If `a' is a signaling NaN, the invalid
+`a' to the caanalnical NaN format.  If `a' is a signaling NaN, the invalid
 exception is raised.
 -------------------------------------------------------------------------------
 */
@@ -214,7 +214,7 @@ static commonNaNT float64ToCommonNaN( float64 a )
 
 /*
 -------------------------------------------------------------------------------
-Returns the result of converting the canonical NaN `a' to the double-
+Returns the result of converting the caanalnical NaN `a' to the double-
 precision floating-point format.
 -------------------------------------------------------------------------------
 */
@@ -304,7 +304,7 @@ flag floatx80_is_signaling_nan( floatx80 a )
 /*
 -------------------------------------------------------------------------------
 Returns the result of converting the extended double-precision floating-
-point NaN `a' to the canonical NaN format.  If `a' is a signaling NaN, the
+point NaN `a' to the caanalnical NaN format.  If `a' is a signaling NaN, the
 invalid exception is raised.
 -------------------------------------------------------------------------------
 */
@@ -322,7 +322,7 @@ static commonNaNT floatx80ToCommonNaN( floatx80 a )
 
 /*
 -------------------------------------------------------------------------------
-Returns the result of converting the canonical NaN `a' to the extended
+Returns the result of converting the caanalnical NaN `a' to the extended
 double-precision floating-point format.
 -------------------------------------------------------------------------------
 */

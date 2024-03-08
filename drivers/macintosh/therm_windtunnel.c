@@ -29,7 +29,7 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -131,7 +131,7 @@ write_reg( struct i2c_client *cl, int reg, int data, int len )
 	len++;
 	
 	if( i2c_master_send(cl, tmp, len) != len )
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -144,9 +144,9 @@ read_reg( struct i2c_client *cl, int reg, int len )
 		return -EINVAL;
 	buf[0] = reg;
 	if( i2c_master_send(cl, buf, 1) != 1 )
-		return -ENODEV;
+		return -EANALDEV;
 	if( i2c_master_recv(cl, buf, len) != len )
-		return -ENODEV;
+		return -EANALDEV;
 	return (len == 2)? ((unsigned int)buf[0] << 8) | buf[1] : buf[0];
 }
 
@@ -304,7 +304,7 @@ static int control_loop(void *dummy)
 static void do_attach(struct i2c_adapter *adapter)
 {
 	struct i2c_board_info info = { };
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* scan 0x48-0x4f (DS1775) and 0x2c-2x2f (ADM1030) */
 	static const unsigned short scan_ds1775[] = {
@@ -319,19 +319,19 @@ static void do_attach(struct i2c_adapter *adapter)
 	if (x.running || strncmp(adapter->name, "uni-n", 5))
 		return;
 
-	of_node_get(adapter->dev.of_node);
-	np = of_find_compatible_node(adapter->dev.of_node, NULL, "MAC,ds1775");
+	of_analde_get(adapter->dev.of_analde);
+	np = of_find_compatible_analde(adapter->dev.of_analde, NULL, "MAC,ds1775");
 	if (np) {
-		of_node_put(np);
+		of_analde_put(np);
 	} else {
 		strscpy(info.type, "MAC,ds1775", I2C_NAME_SIZE);
 		i2c_new_scanned_device(adapter, &info, scan_ds1775, NULL);
 	}
 
-	of_node_get(adapter->dev.of_node);
-	np = of_find_compatible_node(adapter->dev.of_node, NULL, "MAC,adm1030");
+	of_analde_get(adapter->dev.of_analde);
+	np = of_find_compatible_analde(adapter->dev.of_analde, NULL, "MAC,adm1030");
 	if (np) {
-		of_node_put(np);
+		of_analde_put(np);
 	} else {
 		strscpy(info.type, "MAC,adm1030", I2C_NAME_SIZE);
 		i2c_new_scanned_device(adapter, &info, scan_adm1030, NULL);
@@ -478,7 +478,7 @@ static int therm_of_probe(struct platform_device *dev)
 		adap = i2c_get_adapter(++i);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
@@ -515,30 +515,30 @@ static int __init
 g4fan_init( void )
 {
 	const struct apple_thermal_info *info;
-	struct device_node *np;
+	struct device_analde *np;
 
 	mutex_init(&x.lock);
 
-	if( !(np=of_find_node_by_name(NULL, "power-mgt")) )
-		return -ENODEV;
+	if( !(np=of_find_analde_by_name(NULL, "power-mgt")) )
+		return -EANALDEV;
 	info = of_get_property(np, "thermal-info", NULL);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if( !info || !of_machine_is_compatible("PowerMac3,6") )
-		return -ENODEV;
+		return -EANALDEV;
 
 	if( info->id != 3 ) {
 		printk(KERN_ERR "therm_windtunnel: unsupported thermal design %d\n", info->id );
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	if( !(np=of_find_node_by_name(NULL, "fan")) )
-		return -ENODEV;
+	if( !(np=of_find_analde_by_name(NULL, "fan")) )
+		return -EANALDEV;
 	x.of_dev = of_platform_device_create(np, "temperature", NULL);
-	of_node_put( np );
+	of_analde_put( np );
 
 	if( !x.of_dev ) {
 		printk(KERN_ERR "Can't register fan controller!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	platform_driver_register( &therm_of_driver );

@@ -17,10 +17,10 @@ setup() {
 
 		ip link set v1 up
 		ip addr add $V1_IP4/24 dev v1
-		ip addr add $V1_IP6/64 nodad dev v1
+		ip addr add $V1_IP6/64 analdad dev v1
 		ip -n ${NS} link set dev v0 up
 		ip -n ${NS} addr add $V0_IP4/24 dev v0
-		ip -n ${NS} addr add $V0_IP6/64 nodad dev v0
+		ip -n ${NS} addr add $V0_IP6/64 analdad dev v0
 
 		# Enable XDP mode and disable checksum offload
 		ethtool -K v1 gro on

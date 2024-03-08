@@ -433,7 +433,7 @@ static void read_in_urb_mode3(struct snd_usb_caiaqdev *cdev,
 	struct device *dev = caiaqdev_to_dev(cdev);
 	int stream, i;
 
-	/* paranoia check */
+	/* paraanalia check */
 	if (iso->actual_length % (BYTES_PER_SAMPLE_USB * CHANNELS_PER_STREAM))
 		return;
 
@@ -707,14 +707,14 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 
 	urbs = kmalloc_array(N_URBS, sizeof(*urbs), GFP_KERNEL);
 	if (!urbs) {
-		*ret = -ENOMEM;
+		*ret = -EANALMEM;
 		return NULL;
 	}
 
 	for (i = 0; i < N_URBS; i++) {
 		urbs[i] = usb_alloc_urb(FRAMES_PER_URB, GFP_KERNEL);
 		if (!urbs[i]) {
-			*ret = -ENOMEM;
+			*ret = -EANALMEM;
 			return urbs;
 		}
 
@@ -722,7 +722,7 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 			kmalloc_array(BYTES_PER_FRAME, FRAMES_PER_URB,
 				      GFP_KERNEL);
 		if (!urbs[i]->transfer_buffer) {
-			*ret = -ENOMEM;
+			*ret = -EANALMEM;
 			return urbs;
 		}
 
@@ -841,7 +841,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 					GFP_KERNEL);
 
 	if (!cdev->data_cb_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->outurb_active_mask = 0;
 	BUILD_BUG_ON(N_URBS > (sizeof(cdev->outurb_active_mask) * 8));

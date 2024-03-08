@@ -12,8 +12,8 @@ Optional properties:
                  voltage for the TSIREF pin. Must be provided when the
 			     touchscreen pins are used for ADC purposes.
 
-Sub-nodes:
-- regulators : Contain the regulator nodes. The DA9052/53 regulators are
+Sub-analdes:
+- regulators : Contain the regulator analdes. The DA9052/53 regulators are
   bound using their names as listed below:
 
     buck1     : regulator BUCK CORE

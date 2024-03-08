@@ -30,7 +30,7 @@
  * dpaa2_caam_priv - driver private data
  * @dpseci_id: DPSECI object unique ID
  * @major_ver: DPSECI major version
- * @minor_ver: DPSECI minor version
+ * @mianalr_ver: DPSECI mianalr version
  * @dpseci_attr: DPSECI attributes
  * @sec_attr: SEC engine attributes
  * @rx_queue_attr: array of Rx queue attributes
@@ -47,7 +47,7 @@ struct dpaa2_caam_priv {
 	int dpsec_id;
 
 	u16 major_ver;
-	u16 minor_ver;
+	u16 mianalr_ver;
 
 	struct dpseci_attr dpseci_attr;
 	struct dpseci_sec_attr sec_attr;
@@ -74,7 +74,7 @@ struct dpaa2_caam_priv {
  * @req_fqid: (virtual) request (Tx / enqueue) FQID
  * @rsp_fqid: (virtual) response (Rx / dequeue) FQID
  * @prio: internal queue number - index for dpaa2_caam_priv.*_queue_attr
- * @nctx: notification context of response FQ
+ * @nctx: analtification context of response FQ
  * @store: where dequeued frames are stored
  * @priv: backpointer to dpaa2_caam_priv
  * @dpio: portal used for data path operations
@@ -85,7 +85,7 @@ struct dpaa2_caam_priv_per_cpu {
 	int req_fqid;
 	int rsp_fqid;
 	int prio;
-	struct dpaa2_io_notification_ctx nctx;
+	struct dpaa2_io_analtification_ctx nctx;
 	struct dpaa2_io_store *store;
 	struct dpaa2_caam_priv *priv;
 	struct dpaa2_io *dpio;

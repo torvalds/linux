@@ -27,9 +27,9 @@
  * by @hw; if the usecount is 1, the clockdomain will be "enabled."
  * Only needed for clocks that don't use omap2_dflt_clk_enable() as
  * their enable function pointer.  Passes along the return value of
- * clkdm_clk_enable(), -EINVAL if @hw is not associated with a
+ * clkdm_clk_enable(), -EINVAL if @hw is analt associated with a
  * clockdomain, or 0 if clock framework-based clockdomain control is
- * not implemented.
+ * analt implemented.
  */
 int omap2_clkops_enable_clkdm(struct clk_hw *hw)
 {
@@ -39,7 +39,7 @@ int omap2_clkops_enable_clkdm(struct clk_hw *hw)
 	clk = to_clk_hw_omap(hw);
 
 	if (unlikely(!clk->clkdm)) {
-		pr_err("%s: %s: no clkdm set ?!\n", __func__,
+		pr_err("%s: %s: anal clkdm set ?!\n", __func__,
 		       clk_hw_get_name(hw));
 		return -EINVAL;
 	}
@@ -51,7 +51,7 @@ int omap2_clkops_enable_clkdm(struct clk_hw *hw)
 	}
 
 	ret = ti_clk_ll_ops->clkdm_clk_enable(clk->clkdm, hw->clk);
-	WARN(ret, "%s: could not enable %s's clockdomain %s: %d\n",
+	WARN(ret, "%s: could analt enable %s's clockdomain %s: %d\n",
 	     __func__, clk_hw_get_name(hw), clk->clkdm_name, ret);
 
 	return ret;
@@ -64,7 +64,7 @@ int omap2_clkops_enable_clkdm(struct clk_hw *hw)
  * Decrement the usecount of the clockdomain of the clock pointed to
  * by @hw; if the usecount is 0, the clockdomain will be "disabled."
  * Only needed for clocks that don't use omap2_dflt_clk_disable() as their
- * disable function pointer.  No return value.
+ * disable function pointer.  Anal return value.
  */
 void omap2_clkops_disable_clkdm(struct clk_hw *hw)
 {
@@ -73,7 +73,7 @@ void omap2_clkops_disable_clkdm(struct clk_hw *hw)
 	clk = to_clk_hw_omap(hw);
 
 	if (unlikely(!clk->clkdm)) {
-		pr_err("%s: %s: no clkdm set ?!\n", __func__,
+		pr_err("%s: %s: anal clkdm set ?!\n", __func__,
 		       clk_hw_get_name(hw));
 		return;
 	}
@@ -112,28 +112,28 @@ int omap2_init_clk_clkdm(struct clk_hw *hw)
 			 clk_name, clk->clkdm_name);
 		clk->clkdm = clkdm;
 	} else {
-		pr_debug("clock: could not associate clk %s to clkdm %s\n",
+		pr_debug("clock: could analt associate clk %s to clkdm %s\n",
 			 clk_name, clk->clkdm_name);
 	}
 
 	return 0;
 }
 
-static void __init of_ti_clockdomain_setup(struct device_node *node)
+static void __init of_ti_clockdomain_setup(struct device_analde *analde)
 {
 	struct clk *clk;
 	struct clk_hw *clk_hw;
-	const char *clkdm_name = ti_dt_clk_name(node);
+	const char *clkdm_name = ti_dt_clk_name(analde);
 	int i;
 	unsigned int num_clks;
 
-	num_clks = of_clk_get_parent_count(node);
+	num_clks = of_clk_get_parent_count(analde);
 
 	for (i = 0; i < num_clks; i++) {
-		clk = of_clk_get(node, i);
+		clk = of_clk_get(analde, i);
 		if (IS_ERR(clk)) {
 			pr_err("%s: Failed get %pOF' clock nr %d (%ld)\n",
-			       __func__, node, i, PTR_ERR(clk));
+			       __func__, analde, i, PTR_ERR(clk));
 			continue;
 		}
 		clk_hw = __clk_get_hw(clk);
@@ -157,16 +157,16 @@ static const struct of_device_id ti_clkdm_match_table[] __initconst = {
 /**
  * ti_dt_clockdomains_setup - setup device tree clockdomains
  *
- * Initializes clockdomain nodes for a SoC. This parses through all the
- * nodes with compatible = "ti,clockdomain", and add the clockdomain
+ * Initializes clockdomain analdes for a SoC. This parses through all the
+ * analdes with compatible = "ti,clockdomain", and add the clockdomain
  * info for all the clocks listed under these. This function shall be
  * called after rest of the DT clock init has completed and all
- * clock nodes have been registered.
+ * clock analdes have been registered.
  */
 void __init ti_dt_clockdomains_setup(void)
 {
-	struct device_node *np;
-	for_each_matching_node(np, ti_clkdm_match_table) {
+	struct device_analde *np;
+	for_each_matching_analde(np, ti_clkdm_match_table) {
 		of_ti_clockdomain_setup(np);
 	}
 }

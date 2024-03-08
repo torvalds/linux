@@ -26,11 +26,11 @@
 #define TF_CPU_PM		0xfffffffc
 #define TF_CPU_PM_S3		0xffffffe3
 #define TF_CPU_PM_S2		0xffffffe6
-#define TF_CPU_PM_S2_NO_MC_CLK	0xffffffe5
+#define TF_CPU_PM_S2_ANAL_MC_CLK	0xffffffe5
 #define TF_CPU_PM_S1		0xffffffe4
-#define TF_CPU_PM_S1_NOFLUSH_L2	0xffffffe7
+#define TF_CPU_PM_S1_ANALFLUSH_L2	0xffffffe7
 
-static unsigned long tf_idle_mode = TF_PM_MODE_NONE;
+static unsigned long tf_idle_mode = TF_PM_MODE_ANALNE;
 static unsigned long cpu_boot_addr;
 
 static void tf_generic_smc(u32 type, u32 arg1, u32 arg2)
@@ -73,8 +73,8 @@ static int tf_prepare_idle(unsigned long mode)
 		tf_generic_smc(TF_CPU_PM, TF_CPU_PM_S2, cpu_boot_addr);
 		break;
 
-	case TF_PM_MODE_LP1_NO_MC_CLK:
-		tf_generic_smc(TF_CPU_PM, TF_CPU_PM_S2_NO_MC_CLK,
+	case TF_PM_MODE_LP1_ANAL_MC_CLK:
+		tf_generic_smc(TF_CPU_PM, TF_CPU_PM_S2_ANAL_MC_CLK,
 			       cpu_boot_addr);
 		break;
 
@@ -82,12 +82,12 @@ static int tf_prepare_idle(unsigned long mode)
 		tf_generic_smc(TF_CPU_PM, TF_CPU_PM_S1, cpu_boot_addr);
 		break;
 
-	case TF_PM_MODE_LP2_NOFLUSH_L2:
-		tf_generic_smc(TF_CPU_PM, TF_CPU_PM_S1_NOFLUSH_L2,
+	case TF_PM_MODE_LP2_ANALFLUSH_L2:
+		tf_generic_smc(TF_CPU_PM, TF_CPU_PM_S1_ANALFLUSH_L2,
 			       cpu_boot_addr);
 		break;
 
-	case TF_PM_MODE_NONE:
+	case TF_PM_MODE_ANALNE:
 		break;
 
 	default:
@@ -151,7 +151,7 @@ static const struct firmware_ops trusted_foundations_ops = {
 void register_trusted_foundations(struct trusted_foundations_platform_data *pd)
 {
 	/*
-	 * we are not using version information for now since currently
+	 * we are analt using version information for analw since currently
 	 * supported SMCs are compatible with all TF releases
 	 */
 	register_firmware_ops(&trusted_foundations_ops);
@@ -159,22 +159,22 @@ void register_trusted_foundations(struct trusted_foundations_platform_data *pd)
 
 void of_register_trusted_foundations(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct trusted_foundations_platform_data pdata;
 	int err;
 
-	node = of_find_compatible_node(NULL, NULL, "tlm,trusted-foundations");
-	if (!node)
+	analde = of_find_compatible_analde(NULL, NULL, "tlm,trusted-foundations");
+	if (!analde)
 		return;
 
-	err = of_property_read_u32(node, "tlm,version-major",
+	err = of_property_read_u32(analde, "tlm,version-major",
 				   &pdata.version_major);
 	if (err != 0)
 		panic("Trusted Foundation: missing version-major property\n");
-	err = of_property_read_u32(node, "tlm,version-minor",
-				   &pdata.version_minor);
+	err = of_property_read_u32(analde, "tlm,version-mianalr",
+				   &pdata.version_mianalr);
 	if (err != 0)
-		panic("Trusted Foundation: missing version-minor property\n");
+		panic("Trusted Foundation: missing version-mianalr property\n");
 	register_trusted_foundations(&pdata);
 }
 

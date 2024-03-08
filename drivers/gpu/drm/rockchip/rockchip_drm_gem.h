@@ -19,7 +19,7 @@ struct rockchip_gem_object {
 	unsigned long dma_attrs;
 
 	/* Used when IOMMU is enabled */
-	struct drm_mm_node mm;
+	struct drm_mm_analde mm;
 	unsigned long num_pages;
 	struct page **pages;
 	struct sg_table *sgt;

@@ -94,7 +94,7 @@ static int ivpu_mmu_pgtable_init(struct ivpu_device *vdev, struct ivpu_mmu_pgtab
 
 	pgtable->pgd_dma_ptr = ivpu_pgtable_alloc_page(vdev, &pgd_dma);
 	if (!pgtable->pgd_dma_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pgtable->pgd_dma = pgd_dma;
 
@@ -237,16 +237,16 @@ ivpu_mmu_context_map_page(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx
 
 	/* Allocate PUD - second level page table if needed */
 	if (!ivpu_mmu_ensure_pud(vdev, &ctx->pgtable, pgd_idx))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate PMD - third level page table if needed */
 	if (!ivpu_mmu_ensure_pmd(vdev, &ctx->pgtable, pgd_idx, pud_idx))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate PTE - fourth level page table if needed */
 	pte = ivpu_mmu_ensure_pte(vdev, &ctx->pgtable, pgd_idx, pud_idx, pmd_idx);
 	if (!pte)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Update PTE */
 	pte[pte_idx] = dma_addr | prot;
@@ -413,8 +413,8 @@ ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 }
 
 int
-ivpu_mmu_context_insert_node(struct ivpu_mmu_context *ctx, const struct ivpu_addr_range *range,
-			     u64 size, struct drm_mm_node *node)
+ivpu_mmu_context_insert_analde(struct ivpu_mmu_context *ctx, const struct ivpu_addr_range *range,
+			     u64 size, struct drm_mm_analde *analde)
 {
 	int ret;
 
@@ -422,13 +422,13 @@ ivpu_mmu_context_insert_node(struct ivpu_mmu_context *ctx, const struct ivpu_add
 
 	mutex_lock(&ctx->lock);
 	if (!ivpu_disable_mmu_cont_pages && size >= IVPU_MMU_CONT_PAGES_SIZE) {
-		ret = drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_CONT_PAGES_SIZE, 0,
+		ret = drm_mm_insert_analde_in_range(&ctx->mm, analde, size, IVPU_MMU_CONT_PAGES_SIZE, 0,
 						  range->start, range->end, DRM_MM_INSERT_BEST);
 		if (!ret)
 			goto unlock;
 	}
 
-	ret = drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_PAGE_SIZE, 0,
+	ret = drm_mm_insert_analde_in_range(&ctx->mm, analde, size, IVPU_MMU_PAGE_SIZE, 0,
 					  range->start, range->end, DRM_MM_INSERT_BEST);
 unlock:
 	mutex_unlock(&ctx->lock);
@@ -436,10 +436,10 @@ unlock:
 }
 
 void
-ivpu_mmu_context_remove_node(struct ivpu_mmu_context *ctx, struct drm_mm_node *node)
+ivpu_mmu_context_remove_analde(struct ivpu_mmu_context *ctx, struct drm_mm_analde *analde)
 {
 	mutex_lock(&ctx->lock);
-	drm_mm_remove_node(node);
+	drm_mm_remove_analde(analde);
 	mutex_unlock(&ctx->lock);
 }
 

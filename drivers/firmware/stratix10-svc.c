@@ -84,7 +84,7 @@ struct stratix10_svc_sh_memory {
  * @vaddr: virtual address
  * @paddr: physical address
  * @size: size of memory
- * @node: link list head node
+ * @analde: link list head analde
  *
  * This struct is used in a list that keeps track of buffers which have
  * been allocated or freed from the memory pool. Service layer driver also
@@ -94,7 +94,7 @@ struct stratix10_svc_data_mem {
 	void *vaddr;
 	phys_addr_t paddr;
 	size_t size;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -106,7 +106,7 @@ struct stratix10_svc_data_mem {
  * @size_output: processed payload size
  * @command: service command requested by client
  * @flag: configuration type (full or partial)
- * @arg: args to be passed via registers and not physically mapped buffers
+ * @arg: args to be passed via registers and analt physically mapped buffers
  *
  * This struct is used in service FIFO for inter-process communication.
  */
@@ -127,7 +127,7 @@ struct stratix10_svc_data {
  * @chans: array of service channels
  * @num_chans: number of channels in 'chans' array
  * @num_active_client: number of active service client
- * @node: list management
+ * @analde: list management
  * @genpool: memory pool pointing to the memory region
  * @task: pointer to the thread task which handles SMC or HVC call
  * @svc_fifo: a queue for storing service message data
@@ -143,7 +143,7 @@ struct stratix10_svc_controller {
 	struct stratix10_svc_chan *chans;
 	int num_chans;
 	int num_active_client;
-	struct list_head node;
+	struct list_head analde;
 	struct gen_pool *genpool;
 	struct task_struct *task;
 	struct kfifo svc_fifo;
@@ -184,11 +184,11 @@ static void *svc_pa_to_va(unsigned long addr)
 	struct stratix10_svc_data_mem *pmem;
 
 	pr_debug("claim back P-addr=0x%016x\n", (unsigned int)addr);
-	list_for_each_entry(pmem, &svc_data_mem, node)
+	list_for_each_entry(pmem, &svc_data_mem, analde)
 		if (pmem->paddr == addr)
 			return pmem->vaddr;
 
-	/* physical address is not found */
+	/* physical address is analt found */
 	return NULL;
 }
 
@@ -324,7 +324,7 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 	switch (p_data->command) {
 	case COMMAND_RECONFIG:
 	case COMMAND_RSU_UPDATE:
-	case COMMAND_RSU_NOTIFY:
+	case COMMAND_RSU_ANALTIFY:
 	case COMMAND_FCS_REQUEST_SERVICE:
 	case COMMAND_FCS_SEND_CERTIFICATE:
 	case COMMAND_FCS_DATA_ENCRYPTION:
@@ -379,16 +379,16 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 }
 
 /**
- * svc_normal_to_secure_thread() - the function to run in the kthread
+ * svc_analrmal_to_secure_thread() - the function to run in the kthread
  * @data: data pointer for kthread function
  *
  * Service layer driver creates stratix10_svc_smc_hvc_call kthread on CPU
- * node 0, its function stratix10_svc_secure_call_thread is used to handle
+ * analde 0, its function stratix10_svc_secure_call_thread is used to handle
  * SMC or HVC calls between kernel driver and secure monitor software.
  *
- * Return: 0 for success or -ENOMEM on error.
+ * Return: 0 for success or -EANALMEM on error.
  */
-static int svc_normal_to_secure_thread(void *data)
+static int svc_analrmal_to_secure_thread(void *data)
 {
 	struct stratix10_svc_controller
 			*ctrl = (struct stratix10_svc_controller *)data;
@@ -400,12 +400,12 @@ static int svc_normal_to_secure_thread(void *data)
 
 	pdata =  kmalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cbdata = kmalloc(sizeof(*cbdata), GFP_KERNEL);
 	if (!cbdata) {
 		kfree(pdata);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* default set, to remove build warning */
@@ -462,8 +462,8 @@ static int svc_normal_to_secure_thread(void *data)
 			a1 = pdata->arg[0];
 			a2 = 0;
 			break;
-		case COMMAND_RSU_NOTIFY:
-			a0 = INTEL_SIP_SMC_RSU_NOTIFY;
+		case COMMAND_RSU_ANALTIFY:
+			a0 = INTEL_SIP_SMC_RSU_ANALTIFY;
 			a1 = pdata->arg[0];
 			a2 = 0;
 			break;
@@ -644,7 +644,7 @@ static int svc_normal_to_secure_thread(void *data)
 			if ((pdata->command != COMMAND_RSU_UPDATE) &&
 				(pdata->command != COMMAND_RSU_STATUS)) {
 				cbdata->status =
-					BIT(SVC_STATUS_NO_SUPPORT);
+					BIT(SVC_STATUS_ANAL_SUPPORT);
 				cbdata->kaddr1 = NULL;
 				cbdata->kaddr2 = NULL;
 				cbdata->kaddr3 = NULL;
@@ -663,19 +663,19 @@ static int svc_normal_to_secure_thread(void *data)
 }
 
 /**
- * svc_normal_to_secure_shm_thread() - the function to run in the kthread
+ * svc_analrmal_to_secure_shm_thread() - the function to run in the kthread
  * @data: data pointer for kthread function
  *
  * Service layer driver creates stratix10_svc_smc_hvc_shm kthread on CPU
- * node 0, its function stratix10_svc_secure_shm_thread is used to query the
+ * analde 0, its function stratix10_svc_secure_shm_thread is used to query the
  * physical address of memory block reserved by secure monitor software at
  * secure world.
  *
- * svc_normal_to_secure_shm_thread() terminates directly since it is a
- * standlone thread for which no one will call kthread_stop() or return when
+ * svc_analrmal_to_secure_shm_thread() terminates directly since it is a
+ * standlone thread for which anal one will call kthread_stop() or return when
  * 'kthread_should_stop()' is true.
  */
-static int svc_normal_to_secure_shm_thread(void *data)
+static int svc_analrmal_to_secure_shm_thread(void *data)
 {
 	struct stratix10_svc_sh_memory
 			*sh_mem = (struct stratix10_svc_sh_memory *)data;
@@ -716,9 +716,9 @@ static int svc_get_sh_memory(struct platform_device *pdev,
 	init_completion(&sh_memory->sync_complete);
 
 	/* smc or hvc call happens on cpu 0 bound kthread */
-	sh_memory_task = kthread_create_on_node(svc_normal_to_secure_shm_thread,
+	sh_memory_task = kthread_create_on_analde(svc_analrmal_to_secure_shm_thread,
 					       (void *)sh_memory,
-						cpu_to_node(cpu),
+						cpu_to_analde(cpu),
 						"svc_smc_hvc_shm_thread");
 	if (IS_ERR(sh_memory_task)) {
 		dev_err(dev, "fail to create stratix10_svc_smc_shm_thread\n");
@@ -736,7 +736,7 @@ static int svc_get_sh_memory(struct platform_device *pdev,
 	if (!sh_memory->addr || !sh_memory->size) {
 		dev_err(dev,
 			"failed to get shared memory info from secure world\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_dbg(dev, "SM software provides paddr: 0x%016x, size: 0x%08x\n",
@@ -784,13 +784,13 @@ svc_create_memory_pool(struct platform_device *pdev,
 		va, (unsigned int)paddr, (unsigned int)size);
 	if ((vaddr & page_mask) || (paddr & page_mask) ||
 	    (size & page_mask)) {
-		dev_err(dev, "page is not aligned\n");
+		dev_err(dev, "page is analt aligned\n");
 		return ERR_PTR(-EINVAL);
 	}
 	genpool = gen_pool_create(min_alloc_order, -1);
 	if (!genpool) {
 		dev_err(dev, "fail to create genpool\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	gen_pool_set_algo(genpool, gen_pool_best_fit, NULL);
 	ret = gen_pool_add_virt(genpool, vaddr, paddr, size, -1);
@@ -804,7 +804,7 @@ svc_create_memory_pool(struct platform_device *pdev,
 }
 
 /**
- * svc_smccc_smc() - secure monitor call between normal and secure world
+ * svc_smccc_smc() - secure monitor call between analrmal and secure world
  * @a0: argument passed in registers 0
  * @a1: argument passed in registers 1
  * @a2: argument passed in registers 2
@@ -825,7 +825,7 @@ static void svc_smccc_smc(unsigned long a0, unsigned long a1,
 }
 
 /**
- * svc_smccc_hvc() - hypervisor call between normal and secure world
+ * svc_smccc_hvc() - hypervisor call between analrmal and secure world
  * @a0: argument passed in registers 0
  * @a1: argument passed in registers 1
  * @a2: argument passed in registers 2
@@ -855,7 +855,7 @@ static svc_invoke_fn *get_invoke_func(struct device *dev)
 {
 	const char *method;
 
-	if (of_property_read_string(dev->of_node, "method", &method)) {
+	if (of_property_read_string(dev->of_analde, "method", &method)) {
 		dev_warn(dev, "missing \"method\" property\n");
 		return ERR_PTR(-ENXIO);
 	}
@@ -894,7 +894,7 @@ struct stratix10_svc_chan *stratix10_svc_request_channel_byname(
 		return ERR_PTR(-EPROBE_DEFER);
 
 	controller = list_first_entry(&svc_ctrl,
-				      struct stratix10_svc_controller, node);
+				      struct stratix10_svc_controller, analde);
 	for (i = 0; i < SVC_NUM_CHANNEL; i++) {
 		if (!strcmp(controller->chans[i].name, name)) {
 			chan = &controller->chans[i];
@@ -902,14 +902,14 @@ struct stratix10_svc_chan *stratix10_svc_request_channel_byname(
 		}
 	}
 
-	/* if there was no channel match */
+	/* if there was anal channel match */
 	if (i == SVC_NUM_CHANNEL) {
-		dev_err(dev, "%s: channel not allocated\n", __func__);
+		dev_err(dev, "%s: channel analt allocated\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (chan->scl || !try_module_get(controller->dev->driver->owner)) {
-		dev_dbg(dev, "%s: svc not free\n", __func__);
+		dev_dbg(dev, "%s: svc analt free\n", __func__);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -949,7 +949,7 @@ EXPORT_SYMBOL_GPL(stratix10_svc_free_channel);
  * This function is used by service client to add a message to the service
  * layer driver's queue for being sent to the secure world.
  *
- * Return: 0 for success, -ENOMEM or -ENOBUFS on error.
+ * Return: 0 for success, -EANALMEM or -EANALBUFS on error.
  */
 int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 {
@@ -962,14 +962,14 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 
 	p_data = kzalloc(sizeof(*p_data), GFP_KERNEL);
 	if (!p_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* first client will create kernel thread */
 	if (!chan->ctrl->task) {
 		chan->ctrl->task =
-			kthread_create_on_node(svc_normal_to_secure_thread,
+			kthread_create_on_analde(svc_analrmal_to_secure_thread,
 					      (void *)chan->ctrl,
-					      cpu_to_node(cpu),
+					      cpu_to_analde(cpu),
 					      "svc_smc_hvc_thread");
 			if (IS_ERR(chan->ctrl->task)) {
 				dev_err(chan->ctrl->dev,
@@ -993,14 +993,14 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 			p_data->flag = ct->flags;
 		}
 	} else {
-		list_for_each_entry(p_mem, &svc_data_mem, node)
+		list_for_each_entry(p_mem, &svc_data_mem, analde)
 			if (p_mem->vaddr == p_msg->payload) {
 				p_data->paddr = p_mem->paddr;
 				p_data->size = p_msg->payload_length;
 				break;
 			}
 		if (p_msg->payload_output) {
-			list_for_each_entry(p_mem, &svc_data_mem, node)
+			list_for_each_entry(p_mem, &svc_data_mem, analde)
 				if (p_mem->vaddr == p_msg->payload_output) {
 					p_data->paddr_output =
 						p_mem->paddr;
@@ -1027,7 +1027,7 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 	kfree(p_data);
 
 	if (!ret)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	return 0;
 }
@@ -1073,11 +1073,11 @@ void *stratix10_svc_allocate_memory(struct stratix10_svc_chan *chan,
 
 	pmem = devm_kzalloc(chan->ctrl->dev, sizeof(*pmem), GFP_KERNEL);
 	if (!pmem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	va = gen_pool_alloc(genpool, s);
 	if (!va)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memset((void *)va, 0, s);
 	pa = gen_pool_virt_to_phys(genpool, va);
@@ -1085,7 +1085,7 @@ void *stratix10_svc_allocate_memory(struct stratix10_svc_chan *chan,
 	pmem->vaddr = (void *)va;
 	pmem->paddr = pa;
 	pmem->size = s;
-	list_add_tail(&pmem->node, &svc_data_mem);
+	list_add_tail(&pmem->analde, &svc_data_mem);
 	pr_debug("%s: va=%p, pa=0x%016x\n", __func__,
 		 pmem->vaddr, (unsigned int)pmem->paddr);
 
@@ -1104,12 +1104,12 @@ void stratix10_svc_free_memory(struct stratix10_svc_chan *chan, void *kaddr)
 {
 	struct stratix10_svc_data_mem *pmem;
 
-	list_for_each_entry(pmem, &svc_data_mem, node)
+	list_for_each_entry(pmem, &svc_data_mem, analde)
 		if (pmem->vaddr == kaddr) {
 			gen_pool_free(chan->ctrl->genpool,
 				       (unsigned long)kaddr, pmem->size);
 			pmem->vaddr = NULL;
-			list_del(&pmem->node);
+			list_del(&pmem->analde);
 			return;
 		}
 
@@ -1143,7 +1143,7 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 
 	sh_memory = devm_kzalloc(dev, sizeof(*sh_memory), GFP_KERNEL);
 	if (!sh_memory)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sh_memory->invoke_fn = invoke_fn;
 	ret = svc_get_sh_memory(pdev, sh_memory);
@@ -1157,14 +1157,14 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	/* allocate service controller and supporting channel */
 	controller = devm_kzalloc(dev, sizeof(*controller), GFP_KERNEL);
 	if (!controller) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_pool;
 	}
 
 	chans = devm_kmalloc_array(dev, SVC_NUM_CHANNEL,
 				   sizeof(*chans), GFP_KERNEL | __GFP_ZERO);
 	if (!chans) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_pool;
 	}
 
@@ -1200,20 +1200,20 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	chans[2].name = SVC_CLIENT_FCS;
 	spin_lock_init(&chans[2].lock);
 
-	list_add_tail(&controller->node, &svc_ctrl);
+	list_add_tail(&controller->analde, &svc_ctrl);
 	platform_set_drvdata(pdev, controller);
 
 	/* add svc client device(s) */
 	svc = devm_kzalloc(dev, sizeof(*svc), GFP_KERNEL);
 	if (!svc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_kfifo;
 	}
 
 	svc->stratix10_svc_rsu = platform_device_alloc(STRATIX10_RSU, 0);
 	if (!svc->stratix10_svc_rsu) {
 		dev_err(dev, "failed to allocate %s device\n", STRATIX10_RSU);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_kfifo;
 	}
 
@@ -1226,7 +1226,7 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	svc->intel_svc_fcs = platform_device_alloc(INTEL_FCS, 1);
 	if (!svc->intel_svc_fcs) {
 		dev_err(dev, "failed to allocate %s device\n", INTEL_FCS);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unregister_dev;
 	}
 
@@ -1266,7 +1266,7 @@ static void stratix10_svc_drv_remove(struct platform_device *pdev)
 	}
 	if (ctrl->genpool)
 		gen_pool_destroy(ctrl->genpool);
-	list_del(&ctrl->node);
+	list_del(&ctrl->analde);
 }
 
 static struct platform_driver stratix10_svc_driver = {
@@ -1280,19 +1280,19 @@ static struct platform_driver stratix10_svc_driver = {
 
 static int __init stratix10_svc_init(void)
 {
-	struct device_node *fw_np;
-	struct device_node *np;
+	struct device_analde *fw_np;
+	struct device_analde *np;
 	int ret;
 
-	fw_np = of_find_node_by_name(NULL, "firmware");
+	fw_np = of_find_analde_by_name(NULL, "firmware");
 	if (!fw_np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	np = of_find_matching_node(fw_np, stratix10_svc_drv_match);
+	np = of_find_matching_analde(fw_np, stratix10_svc_drv_match);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	of_node_put(np);
+	of_analde_put(np);
 	ret = of_platform_populate(fw_np, stratix10_svc_drv_match, NULL, NULL);
 	if (ret)
 		return ret;

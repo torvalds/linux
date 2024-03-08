@@ -71,7 +71,7 @@ EXPORT_SYMBOL_GPL(kvmppc_gsb_free);
  * Returns a pointer to the amount of space requested within the buffer and
  * increments the count of elements in the buffer.
  *
- * Does not check if there is enough space in the buffer.
+ * Does analt check if there is eanalugh space in the buffer.
  */
 void *kvmppc_gsb_put(struct kvmppc_gs_buff *gsb, size_t size)
 {
@@ -259,7 +259,7 @@ int __kvmppc_gse_put(struct kvmppc_gs_buff *gsb, u16 iden, u16 size,
 
 	total_size = sizeof(*gse) + size;
 	if (total_size + kvmppc_gsb_len(gsb) > kvmppc_gsb_capacity(gsb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (kvmppc_gsid_size(iden) != size)
 		return -EINVAL;

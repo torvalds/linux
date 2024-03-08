@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Marvell Berlin reset driver
  *
@@ -68,21 +68,21 @@ static int berlin_reset_xlate(struct reset_controller_dev *rcdev,
 
 static int berlin2_reset_probe(struct platform_device *pdev)
 {
-	struct device_node *parent_np = of_get_parent(pdev->dev.of_node);
+	struct device_analde *parent_np = of_get_parent(pdev->dev.of_analde);
 	struct berlin_reset_priv *priv;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	priv->regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
 	priv->rcdev.owner = THIS_MODULE;
 	priv->rcdev.ops = &berlin_reset_ops;
-	priv->rcdev.of_node = pdev->dev.of_node;
+	priv->rcdev.of_analde = pdev->dev.of_analde;
 	priv->rcdev.of_reset_n_cells = 2;
 	priv->rcdev.of_xlate = berlin_reset_xlate;
 

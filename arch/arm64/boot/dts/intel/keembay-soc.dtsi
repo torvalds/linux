@@ -62,7 +62,7 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		/* Secure, non-secure, virtual, and hypervisor */
+		/* Secure, analn-secure, virtual, and hypervisor */
 		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>,

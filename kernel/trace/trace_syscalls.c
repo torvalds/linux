@@ -47,21 +47,21 @@ static inline bool arch_syscall_match_sym_name(const char *sym, const char *name
 }
 #endif
 
-#ifdef ARCH_TRACE_IGNORE_COMPAT_SYSCALLS
+#ifdef ARCH_TRACE_IGANALRE_COMPAT_SYSCALLS
 /*
  * Some architectures that allow for 32bit applications
- * to run on a 64bit kernel, do not map the syscalls for
+ * to run on a 64bit kernel, do analt map the syscalls for
  * the 32bit tasks the same as they do for 64bit tasks.
  *
  *     *cough*x86*cough*
  *
  * In such a case, instead of reporting the wrong syscalls,
- * simply ignore them.
+ * simply iganalre them.
  *
- * For an arch to ignore the compat syscalls it needs to
- * define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS as well as
+ * For an arch to iganalre the compat syscalls it needs to
+ * define ARCH_TRACE_IGANALRE_COMPAT_SYSCALLS as well as
  * define the function arch_trace_is_compat_syscall() to let
- * the tracing system know that it should ignore it.
+ * the tracing system kanalw that it should iganalre it.
  */
 static int
 trace_get_syscall_nr(struct task_struct *task, struct pt_regs *regs)
@@ -77,7 +77,7 @@ trace_get_syscall_nr(struct task_struct *task, struct pt_regs *regs)
 {
 	return syscall_get_nr(task, regs);
 }
-#endif /* ARCH_TRACE_IGNORE_COMPAT_SYSCALLS */
+#endif /* ARCH_TRACE_IGANALRE_COMPAT_SYSCALLS */
 
 static __init struct syscall_metadata *
 find_syscall_meta(unsigned long syscall)
@@ -203,7 +203,7 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 
 #define SYSCALL_FIELD(_type, _name) {					\
 	.type = #_type, .name = #_name,					\
-	.size = sizeof(_type), .align = __alignof__(_type),		\
+	.size = sizeof(_type), .align = __aliganalf__(_type),		\
 	.is_signed = is_signed_type(_type), .filter_type = FILTER_OTHER }
 
 static int __init
@@ -250,7 +250,7 @@ static int __init set_syscall_print_fmt(struct trace_event_call *call)
 
 	print_fmt = kmalloc(len + 1, GFP_KERNEL);
 	if (!print_fmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Second: actually write the @print_fmt */
 	__set_enter_print_fmt(entry, print_fmt, len + 1);
@@ -374,7 +374,7 @@ static int reg_event_syscall_enter(struct trace_event_file *file,
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (WARN_ON_ONCE(num < 0 || num >= NR_syscalls))
-		return -ENOSYS;
+		return -EANALSYS;
 	mutex_lock(&syscall_trace_lock);
 	if (!tr->sys_refcount_enter)
 		ret = register_trace_sys_enter(ftrace_syscall_enter, tr);
@@ -412,7 +412,7 @@ static int reg_event_syscall_exit(struct trace_event_file *file,
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (WARN_ON_ONCE(num < 0 || num >= NR_syscalls))
-		return -ENOSYS;
+		return -EANALSYS;
 	mutex_lock(&syscall_trace_lock);
 	if (!tr->sys_refcount_exit)
 		ret = register_trace_sys_exit(ftrace_syscall_exit, tr);
@@ -448,13 +448,13 @@ static int __init init_syscall_trace(struct trace_event_call *call)
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (num < 0 || num >= NR_syscalls) {
-		pr_debug("syscall %s metadata not mapped, disabling ftrace event\n",
+		pr_debug("syscall %s metadata analt mapped, disabling ftrace event\n",
 				((struct syscall_metadata *)call->data)->name);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (set_syscall_print_fmt(call) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = trace_event_raw_init(call);
 
@@ -571,7 +571,7 @@ static int perf_call_bpf_enter(struct trace_event_call *call, struct pt_regs *re
 	return trace_call_bpf(call, &param);
 }
 
-static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
+static void perf_syscall_enter(void *iganalre, struct pt_regs *regs, long id)
 {
 	struct syscall_metadata *sys_data;
 	struct syscall_trace_enter *rec;
@@ -633,7 +633,7 @@ static int perf_sysenter_enable(struct trace_event_call *call)
 	if (!sys_perf_refcount_enter)
 		ret = register_trace_sys_enter(perf_syscall_enter, NULL);
 	if (ret) {
-		pr_info("event trace: Could not activate syscall entry trace point");
+		pr_info("event trace: Could analt activate syscall entry trace point");
 	} else {
 		set_bit(num, enabled_perf_enter_syscalls);
 		sys_perf_refcount_enter++;
@@ -672,7 +672,7 @@ static int perf_call_bpf_exit(struct trace_event_call *call, struct pt_regs *reg
 	return trace_call_bpf(call, &param);
 }
 
-static void perf_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
+static void perf_syscall_exit(void *iganalre, struct pt_regs *regs, long ret)
 {
 	struct syscall_metadata *sys_data;
 	struct syscall_trace_exit *rec;
@@ -730,7 +730,7 @@ static int perf_sysexit_enable(struct trace_event_call *call)
 	if (!sys_perf_refcount_exit)
 		ret = register_trace_sys_exit(perf_syscall_exit, NULL);
 	if (ret) {
-		pr_info("event trace: Could not activate syscall exit trace point");
+		pr_info("event trace: Could analt activate syscall exit trace point");
 	} else {
 		set_bit(num, enabled_perf_exit_syscalls);
 		sys_perf_refcount_exit++;

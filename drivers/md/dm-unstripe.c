@@ -51,7 +51,7 @@ static int unstripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	uc = kzalloc(sizeof(*uc), GFP_KERNEL);
 	if (!uc) {
 		ti->error = "Memory allocation for unstriped context failed";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (kstrtouint(argv[0], 10, &uc->stripes) || !uc->stripes) {
@@ -91,7 +91,7 @@ static int unstripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	tmp_len = ti->len;
 	if (sector_div(tmp_len, uc->chunk_size)) {
-		ti->error = "Target length not divisible by chunk size";
+		ti->error = "Target length analt divisible by chunk size";
 		goto err;
 	}
 
@@ -183,7 +183,7 @@ static void unstripe_io_hints(struct dm_target *ti,
 static struct target_type unstripe_target = {
 	.name = "unstriped",
 	.version = {1, 1, 0},
-	.features = DM_TARGET_NOWAIT,
+	.features = DM_TARGET_ANALWAIT,
 	.module = THIS_MODULE,
 	.ctr = unstripe_ctr,
 	.dtr = unstripe_dtr,

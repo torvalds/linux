@@ -19,7 +19,7 @@
 #include <linux/user_namespace.h>
 #include <uapi/linux/xattr.h>
 
-struct inode;
+struct ianalde;
 struct dentry;
 
 static inline bool is_posix_acl_xattr(const char *name)
@@ -31,7 +31,7 @@ static inline bool is_posix_acl_xattr(const char *name)
 /*
  * struct xattr_handler: When @name is set, match attributes with exactly that
  * name.  When @prefix is set instead, match attributes with that prefix and
- * with a non-empty suffix.
+ * with a analn-empty suffix.
  */
 struct xattr_handler {
 	const char *name;
@@ -39,23 +39,23 @@ struct xattr_handler {
 	int flags;      /* fs private flags */
 	bool (*list)(struct dentry *dentry);
 	int (*get)(const struct xattr_handler *, struct dentry *dentry,
-		   struct inode *inode, const char *name, void *buffer,
+		   struct ianalde *ianalde, const char *name, void *buffer,
 		   size_t size);
 	int (*set)(const struct xattr_handler *,
 		   struct mnt_idmap *idmap, struct dentry *dentry,
-		   struct inode *inode, const char *name, const void *buffer,
+		   struct ianalde *ianalde, const char *name, const void *buffer,
 		   size_t size, int flags);
 };
 
 /**
  * xattr_handler_can_list - check whether xattr can be listed
  * @handler: handler for this type of xattr
- * @dentry: dentry whose inode xattr to list
+ * @dentry: dentry whose ianalde xattr to list
  *
  * Determine whether the xattr associated with @dentry can be listed given
  * @handler.
  *
- * Return: true if xattr can be listed, false if not.
+ * Return: true if xattr can be listed, false if analt.
  */
 static inline bool xattr_handler_can_list(const struct xattr_handler *handler,
 					  struct dentry *dentry)
@@ -71,22 +71,22 @@ struct xattr {
 	size_t value_len;
 };
 
-ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, void *, size_t);
+ssize_t __vfs_getxattr(struct dentry *, struct ianalde *, const char *, void *, size_t);
 ssize_t vfs_getxattr(struct mnt_idmap *, struct dentry *, const char *,
 		     void *, size_t);
 ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
-int __vfs_setxattr(struct mnt_idmap *, struct dentry *, struct inode *,
+int __vfs_setxattr(struct mnt_idmap *, struct dentry *, struct ianalde *,
 		   const char *, const void *, size_t, int);
-int __vfs_setxattr_noperm(struct mnt_idmap *, struct dentry *,
+int __vfs_setxattr_analperm(struct mnt_idmap *, struct dentry *,
 			  const char *, const void *, size_t, int);
 int __vfs_setxattr_locked(struct mnt_idmap *, struct dentry *,
 			  const char *, const void *, size_t, int,
-			  struct inode **);
+			  struct ianalde **);
 int vfs_setxattr(struct mnt_idmap *, struct dentry *, const char *,
 		 const void *, size_t, int);
 int __vfs_removexattr(struct mnt_idmap *, struct dentry *, const char *);
 int __vfs_removexattr_locked(struct mnt_idmap *, struct dentry *,
-			     const char *, struct inode **);
+			     const char *, struct ianalde **);
 int vfs_removexattr(struct mnt_idmap *, struct dentry *, const char *);
 
 ssize_t generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size);
@@ -94,7 +94,7 @@ int vfs_getxattr_alloc(struct mnt_idmap *idmap,
 		       struct dentry *dentry, const char *name,
 		       char **xattr_value, size_t size, gfp_t flags);
 
-int xattr_supports_user_prefix(struct inode *inode);
+int xattr_supports_user_prefix(struct ianalde *ianalde);
 
 static inline const char *xattr_prefix(const struct xattr_handler *handler)
 {
@@ -107,7 +107,7 @@ struct simple_xattrs {
 };
 
 struct simple_xattr {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	char *name;
 	size_t size;
 	char value[];
@@ -123,7 +123,7 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 				      const char *name, const void *value,
 				      size_t size, int flags);
-ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
+ssize_t simple_xattr_list(struct ianalde *ianalde, struct simple_xattrs *xattrs,
 			  char *buffer, size_t size);
 void simple_xattr_add(struct simple_xattrs *xattrs,
 		      struct simple_xattr *new_xattr);

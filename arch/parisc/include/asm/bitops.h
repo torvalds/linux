@@ -102,13 +102,13 @@ static __inline__ int test_and_change_bit(int nr, volatile unsigned long * addr)
 	return (oldbit & mask) ? 1 : 0;
 }
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 /**
  * __ffs - find first bit in word. returns 0 to "BITS_PER_LONG-1".
  * @word: The word to search
  *
- * __ffs() return is undefined if no bit is set.
+ * __ffs() return is undefined if anal bit is set.
  *
  * 32-bit fast __ffs by LaMont Jones "lamont At hp com".
  * 64-bit enhancement by Grant Grundler "grundler At parisc-linux org".
@@ -157,7 +157,7 @@ static __inline__ unsigned long __ffs(unsigned long x)
 #include <asm-generic/bitops/ffz.h>
 
 /*
- * ffs: find first bit set. returns 1 to BITS_PER_LONG or 0 (if none set)
+ * ffs: find first bit set. returns 1 to BITS_PER_LONG or 0 (if analne set)
  * This is defined the same way as the libc and compiler builtin
  * ffs routines, therefore differs in spirit from the above ffz (man ffs).
  */

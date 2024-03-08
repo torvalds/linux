@@ -219,40 +219,40 @@ static int sunxi_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static bool sunxi_pctrl_has_bias_prop(struct device_node *node)
+static bool sunxi_pctrl_has_bias_prop(struct device_analde *analde)
 {
-	return of_property_present(node, "bias-pull-up") ||
-		of_property_present(node, "bias-pull-down") ||
-		of_property_present(node, "bias-disable") ||
-		of_property_present(node, "allwinner,pull");
+	return of_property_present(analde, "bias-pull-up") ||
+		of_property_present(analde, "bias-pull-down") ||
+		of_property_present(analde, "bias-disable") ||
+		of_property_present(analde, "allwinner,pull");
 }
 
-static bool sunxi_pctrl_has_drive_prop(struct device_node *node)
+static bool sunxi_pctrl_has_drive_prop(struct device_analde *analde)
 {
-	return of_property_present(node, "drive-strength") ||
-		of_property_present(node, "allwinner,drive");
+	return of_property_present(analde, "drive-strength") ||
+		of_property_present(analde, "allwinner,drive");
 }
 
-static int sunxi_pctrl_parse_bias_prop(struct device_node *node)
+static int sunxi_pctrl_parse_bias_prop(struct device_analde *analde)
 {
 	u32 val;
 
 	/* Try the new style binding */
-	if (of_property_present(node, "bias-pull-up"))
+	if (of_property_present(analde, "bias-pull-up"))
 		return PIN_CONFIG_BIAS_PULL_UP;
 
-	if (of_property_present(node, "bias-pull-down"))
+	if (of_property_present(analde, "bias-pull-down"))
 		return PIN_CONFIG_BIAS_PULL_DOWN;
 
-	if (of_property_present(node, "bias-disable"))
+	if (of_property_present(analde, "bias-disable"))
 		return PIN_CONFIG_BIAS_DISABLE;
 
 	/* And fall back to the old binding */
-	if (of_property_read_u32(node, "allwinner,pull", &val))
+	if (of_property_read_u32(analde, "allwinner,pull", &val))
 		return -EINVAL;
 
 	switch (val) {
-	case SUN4I_PINCTRL_NO_PULL:
+	case SUN4I_PINCTRL_ANAL_PULL:
 		return PIN_CONFIG_BIAS_DISABLE;
 	case SUN4I_PINCTRL_PULL_UP:
 		return PIN_CONFIG_BIAS_PULL_UP;
@@ -263,12 +263,12 @@ static int sunxi_pctrl_parse_bias_prop(struct device_node *node)
 	return -EINVAL;
 }
 
-static int sunxi_pctrl_parse_drive_prop(struct device_node *node)
+static int sunxi_pctrl_parse_drive_prop(struct device_analde *analde)
 {
 	u32 val;
 
 	/* Try the new style binding */
-	if (!of_property_read_u32(node, "drive-strength", &val)) {
+	if (!of_property_read_u32(analde, "drive-strength", &val)) {
 		/* We can't go below 10mA ... */
 		if (val < 10)
 			return -EINVAL;
@@ -282,44 +282,44 @@ static int sunxi_pctrl_parse_drive_prop(struct device_node *node)
 	}
 
 	/* And then fall back to the old binding */
-	if (of_property_read_u32(node, "allwinner,drive", &val))
+	if (of_property_read_u32(analde, "allwinner,drive", &val))
 		return -EINVAL;
 
 	return (val + 1) * 10;
 }
 
-static const char *sunxi_pctrl_parse_function_prop(struct device_node *node)
+static const char *sunxi_pctrl_parse_function_prop(struct device_analde *analde)
 {
 	const char *function;
 	int ret;
 
 	/* Try the generic binding */
-	ret = of_property_read_string(node, "function", &function);
+	ret = of_property_read_string(analde, "function", &function);
 	if (!ret)
 		return function;
 
 	/* And fall back to our legacy one */
-	ret = of_property_read_string(node, "allwinner,function", &function);
+	ret = of_property_read_string(analde, "allwinner,function", &function);
 	if (!ret)
 		return function;
 
 	return NULL;
 }
 
-static const char *sunxi_pctrl_find_pins_prop(struct device_node *node,
+static const char *sunxi_pctrl_find_pins_prop(struct device_analde *analde,
 					      int *npins)
 {
 	int count;
 
 	/* Try the generic binding */
-	count = of_property_count_strings(node, "pins");
+	count = of_property_count_strings(analde, "pins");
 	if (count > 0) {
 		*npins = count;
 		return "pins";
 	}
 
 	/* And fall back to our legacy one */
-	count = of_property_count_strings(node, "allwinner,pins");
+	count = of_property_count_strings(analde, "allwinner,pins");
 	if (count > 0) {
 		*npins = count;
 		return "allwinner,pins";
@@ -328,16 +328,16 @@ static const char *sunxi_pctrl_find_pins_prop(struct device_node *node,
 	return NULL;
 }
 
-static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
+static unsigned long *sunxi_pctrl_build_pin_config(struct device_analde *analde,
 						   unsigned int *len)
 {
 	unsigned long *pinconfig;
 	unsigned int configlen = 0, idx = 0;
 	int ret;
 
-	if (sunxi_pctrl_has_drive_prop(node))
+	if (sunxi_pctrl_has_drive_prop(analde))
 		configlen++;
-	if (sunxi_pctrl_has_bias_prop(node))
+	if (sunxi_pctrl_has_bias_prop(analde))
 		configlen++;
 
 	/*
@@ -348,10 +348,10 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
 
 	pinconfig = kcalloc(configlen, sizeof(*pinconfig), GFP_KERNEL);
 	if (!pinconfig)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	if (sunxi_pctrl_has_drive_prop(node)) {
-		int drive = sunxi_pctrl_parse_drive_prop(node);
+	if (sunxi_pctrl_has_drive_prop(analde)) {
+		int drive = sunxi_pctrl_parse_drive_prop(analde);
 		if (drive < 0) {
 			ret = drive;
 			goto err_free;
@@ -361,8 +361,8 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
 							  drive);
 	}
 
-	if (sunxi_pctrl_has_bias_prop(node)) {
-		int pull = sunxi_pctrl_parse_bias_prop(node);
+	if (sunxi_pctrl_has_bias_prop(analde)) {
+		int pull = sunxi_pctrl_parse_bias_prop(analde);
 		int arg = 0;
 		if (pull < 0) {
 			ret = pull;
@@ -384,8 +384,8 @@ err_free:
 	return ERR_PTR(ret);
 }
 
-static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				      struct device_node *node,
+static int sunxi_pctrl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				      struct device_analde *analde,
 				      struct pinctrl_map **map,
 				      unsigned *num_maps)
 {
@@ -399,17 +399,17 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*map = NULL;
 	*num_maps = 0;
 
-	function = sunxi_pctrl_parse_function_prop(node);
+	function = sunxi_pctrl_parse_function_prop(analde);
 	if (!function) {
-		dev_err(pctl->dev, "missing function property in node %pOFn\n",
-			node);
+		dev_err(pctl->dev, "missing function property in analde %pOFn\n",
+			analde);
 		return -EINVAL;
 	}
 
-	pin_prop = sunxi_pctrl_find_pins_prop(node, &npins);
+	pin_prop = sunxi_pctrl_find_pins_prop(analde, &npins);
 	if (!pin_prop) {
-		dev_err(pctl->dev, "missing pins property in node %pOFn\n",
-			node);
+		dev_err(pctl->dev, "missing pins property in analde %pOFn\n",
+			analde);
 		return -EINVAL;
 	}
 
@@ -417,26 +417,26 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	 * We have two maps for each pin: one for the function, one
 	 * for the configuration (bias, strength, etc).
 	 *
-	 * We might be slightly overshooting, since we might not have
+	 * We might be slightly overshooting, since we might analt have
 	 * any configuration.
 	 */
 	nmaps = npins * 2;
 	*map = kmalloc_array(nmaps, sizeof(struct pinctrl_map), GFP_KERNEL);
 	if (!*map)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pinconfig = sunxi_pctrl_build_pin_config(node, &configlen);
+	pinconfig = sunxi_pctrl_build_pin_config(analde, &configlen);
 	if (IS_ERR(pinconfig)) {
 		ret = PTR_ERR(pinconfig);
 		goto err_free_map;
 	}
 
-	of_property_for_each_string(node, pin_prop, prop, group) {
+	of_property_for_each_string(analde, pin_prop, prop, group) {
 		struct sunxi_pinctrl_group *grp =
 			sunxi_pinctrl_find_group_by_name(pctl, group);
 
 		if (!grp) {
-			dev_err(pctl->dev, "unknown pin %s", group);
+			dev_err(pctl->dev, "unkanalwn pin %s", group);
 			continue;
 		}
 
@@ -466,12 +466,12 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = i;
 
 	/*
-	 * We know have the number of maps we need, we can resize our
+	 * We kanalw have the number of maps we need, we can resize our
 	 * map array
 	 */
 	*map = krealloc(*map, i * sizeof(struct pinctrl_map), GFP_KERNEL);
 	if (!*map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 
@@ -504,7 +504,7 @@ static void sunxi_pctrl_dt_free_map(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinctrl_ops sunxi_pctrl_ops = {
-	.dt_node_to_map		= sunxi_pctrl_dt_node_to_map,
+	.dt_analde_to_map		= sunxi_pctrl_dt_analde_to_map,
 	.dt_free_map		= sunxi_pctrl_dt_free_map,
 	.get_groups_count	= sunxi_pctrl_get_groups_count,
 	.get_group_name		= sunxi_pctrl_get_group_name,
@@ -527,7 +527,7 @@ static int sunxi_pconf_reg(const struct sunxi_pinctrl *pctl,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -568,7 +568,7 @@ static int sunxi_pconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 		break;
 
 	case PIN_CONFIG_BIAS_DISABLE:
-		if (val != SUN4I_PINCTRL_NO_PULL)
+		if (val != SUN4I_PINCTRL_ANAL_PULL)
 			return -EINVAL;
 		arg = 0;
 		break;
@@ -576,7 +576,7 @@ static int sunxi_pconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 	default:
 		/* sunxi_pconf_reg should catch anything unsupported */
 		WARN_ON(1);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -645,7 +645,7 @@ static int sunxi_pconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 		default:
 			/* sunxi_pconf_reg should catch anything unsupported */
 			WARN_ON(1);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		raw_spin_lock_irqsave(&pctl->lock, flags);
@@ -691,7 +691,7 @@ static int sunxi_pinctrl_set_io_bias_cfg(struct sunxi_pinctrl *pctl,
 	if (uV < 0)
 		return uV;
 
-	/* Might be dummy regulator with no voltage set */
+	/* Might be dummy regulator with anal voltage set */
 	if (uV == 0)
 		return 0;
 
@@ -1181,7 +1181,7 @@ static struct irq_chip sunxi_pinctrl_level_irq_chip = {
 };
 
 static int sunxi_pinctrl_irq_of_xlate(struct irq_domain *d,
-				      struct device_node *node,
+				      struct device_analde *analde,
 				      const u32 *intspec,
 				      unsigned int intsize,
 				      unsigned long *out_hwirq,
@@ -1274,7 +1274,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * We assume that the number of groups is the number of pins
 	 * given in the data array.
 
-	 * This will not always be true, since some pins might not be
+	 * This will analt always be true, since some pins might analt be
 	 * available in the current variant, but fortunately for us,
 	 * this means that the number of pins is the maximum group
 	 * number we will ever see.
@@ -1283,7 +1283,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 				    pctl->desc->npins, sizeof(*pctl->groups),
 				    GFP_KERNEL);
 	if (!pctl->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
@@ -1295,7 +1295,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 		group->name = pin->pin.name;
 		group->pin = pin->pin.number;
 
-		/* And now we count the actual number of pins / groups */
+		/* And analw we count the actual number of pins / groups */
 		pctl->ngroups++;
 	}
 
@@ -1309,7 +1309,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 				  sizeof(*pctl->functions),
 				  GFP_KERNEL);
 	if (!pctl->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Count functions and their associated groups */
 	for (i = 0; i < pctl->desc->npins; i++) {
@@ -1333,14 +1333,14 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 		}
 	}
 
-	/* And now allocated and fill the array for real */
+	/* And analw allocated and fill the array for real */
 	ptr = krealloc(pctl->functions,
 		       pctl->nfunctions * sizeof(*pctl->functions),
 		       GFP_KERNEL);
 	if (!ptr) {
 		kfree(pctl->functions);
 		pctl->functions = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pctl->functions = ptr;
 
@@ -1373,7 +1373,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 						     GFP_KERNEL);
 				if (!func_item->groups) {
 					kfree(pctl->functions);
-					return -ENOMEM;
+					return -EANALMEM;
 				}
 			}
 
@@ -1411,7 +1411,7 @@ static int sunxi_pinctrl_get_debounce_div(struct clk *clk, int freq, int *diff)
 }
 
 static int sunxi_pinctrl_setup_debounce(struct sunxi_pinctrl *pctl,
-					struct device_node *node)
+					struct device_analde *analde)
 {
 	unsigned int hosc_diff, losc_diff;
 	unsigned int hosc_div, losc_div;
@@ -1420,11 +1420,11 @@ static int sunxi_pinctrl_setup_debounce(struct sunxi_pinctrl *pctl,
 	int i, ret;
 
 	/* Deal with old DTs that didn't have the oscillators */
-	if (of_clk_get_parent_count(node) != 3)
+	if (of_clk_get_parent_count(analde) != 3)
 		return 0;
 
 	/* If we don't have any setup, bail out */
-	if (!of_property_present(node, "input-debounce"))
+	if (!of_property_present(analde, "input-debounce"))
 		return 0;
 
 	losc = devm_clk_get(pctl->dev, "losc");
@@ -1439,7 +1439,7 @@ static int sunxi_pinctrl_setup_debounce(struct sunxi_pinctrl *pctl,
 		unsigned long debounce_freq;
 		u32 debounce;
 
-		ret = of_property_read_u32_index(node, "input-debounce",
+		ret = of_property_read_u32_index(analde, "input-debounce",
 						 i, &debounce);
 		if (ret)
 			return ret;
@@ -1476,7 +1476,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 				    const struct sunxi_pinctrl_desc *desc,
 				    unsigned long variant)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct pinctrl_desc *pctrl_desc;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
@@ -1486,7 +1486,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, pctl);
 
 	raw_spin_lock_init(&pctl->lock);
@@ -1513,7 +1513,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 				       sizeof(*pctl->irq_array),
 				       GFP_KERNEL);
 	if (!pctl->irq_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sunxi_pinctrl_build_state(pdev);
 	if (ret) {
@@ -1525,7 +1525,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 			    pctl->desc->npins, sizeof(*pins),
 			    GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, pin_idx = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
@@ -1540,7 +1540,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 				  sizeof(*pctrl_desc),
 				  GFP_KERNEL);
 	if (!pctrl_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl_desc->name = dev_name(&pdev->dev);
 	pctrl_desc->owner = THIS_MODULE;
@@ -1552,7 +1552,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 	pmxops = devm_kmemdup(&pdev->dev, &sunxi_pmx_ops, sizeof(sunxi_pmx_ops),
 			      GFP_KERNEL);
 	if (!pmxops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (desc->disable_strict_mode)
 		pmxops->strict = false;
@@ -1567,7 +1567,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 
 	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
 	if (!pctl->chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	last_pin = pctl->desc->pins[pctl->desc->npins - 1].pin.number;
 	pctl->chip->owner = THIS_MODULE;
@@ -1602,7 +1602,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 			goto gpiochip_error;
 	}
 
-	ret = of_clk_get_parent_count(node);
+	ret = of_clk_get_parent_count(analde);
 	clk = devm_clk_get(&pdev->dev, ret == 1 ? NULL : "apb");
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
@@ -1618,7 +1618,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 				 sizeof(*pctl->irq),
 				 GFP_KERNEL);
 	if (!pctl->irq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clk_error;
 	}
 
@@ -1630,24 +1630,24 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 		}
 	}
 
-	pctl->domain = irq_domain_add_linear(node,
+	pctl->domain = irq_domain_add_linear(analde,
 					     pctl->desc->irq_banks * IRQ_PER_BANK,
 					     &sunxi_pinctrl_irq_domain_ops,
 					     pctl);
 	if (!pctl->domain) {
 		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clk_error;
 	}
 
 	for (i = 0; i < (pctl->desc->irq_banks * IRQ_PER_BANK); i++) {
-		int irqno = irq_create_mapping(pctl->domain, i);
+		int irqanal = irq_create_mapping(pctl->domain, i);
 
-		irq_set_lockdep_class(irqno, &sunxi_pinctrl_irq_lock_class,
+		irq_set_lockdep_class(irqanal, &sunxi_pinctrl_irq_lock_class,
 				      &sunxi_pinctrl_irq_request_class);
-		irq_set_chip_and_handler(irqno, &sunxi_pinctrl_edge_irq_chip,
+		irq_set_chip_and_handler(irqanal, &sunxi_pinctrl_edge_irq_chip,
 					 handle_edge_irq);
-		irq_set_chip_data(irqno, pctl);
+		irq_set_chip_data(irqanal, pctl);
 	}
 
 	for (i = 0; i < pctl->desc->irq_banks; i++) {
@@ -1663,7 +1663,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 						 pctl);
 	}
 
-	sunxi_pinctrl_setup_debounce(pctl, node);
+	sunxi_pinctrl_setup_debounce(pctl, analde);
 
 	dev_info(&pdev->dev, "initialized sunXi PIO driver\n");
 

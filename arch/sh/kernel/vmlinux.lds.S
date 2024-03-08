@@ -63,7 +63,7 @@ SECTIONS
 	PERCPU_SECTION(L1_CACHE_BYTES)
 
 	/*
-	 * .exit.text is discarded at runtime, not link time, to deal with
+	 * .exit.text is discarded at runtime, analt link time, to deal with
 	 * references from __bug_table
 	 */
 	.exit.text : AT(ADDR(.exit.text)) { EXIT_TEXT }

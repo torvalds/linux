@@ -26,7 +26,7 @@ struct vringh {
 	/* Everything is little endian */
 	bool little_endian;
 
-	/* Guest publishes used event idx (note: we always do). */
+	/* Guest publishes used event idx (analte: we always do). */
 	bool event_indices;
 
 	/* Can we get away with weak barriers? */
@@ -41,10 +41,10 @@ struct vringh {
 	/* Last index we used. */
 	u16 last_used_idx;
 
-	/* How many descriptors we've completed since last need_notify(). */
+	/* How many descriptors we've completed since last need_analtify(). */
 	u32 completed;
 
-	/* The vring (note: it may contain user pointers!) */
+	/* The vring (analte: it may contain user pointers!) */
 	struct vring vring;
 
 	/* IOTLB for this vring */
@@ -53,8 +53,8 @@ struct vringh {
 	/* spinlock to synchronize IOTLB accesses */
 	spinlock_t *iotlb_lock;
 
-	/* The function to call to notify the guest about added buffers */
-	void (*notify)(struct vringh *);
+	/* The function to call to analtify the guest about added buffers */
+	void (*analtify)(struct vringh *);
 };
 
 struct virtio_device;
@@ -67,7 +67,7 @@ typedef void vrh_callback_t(struct virtio_device *, struct vringh *);
  *	nhvrs: the number of host vrings to find
  *	hvrs: on success, includes new host vrings
  *	callbacks: array of driver callbacks, for each host vring
- *		include a NULL entry for vqs that do not need a callback
+ *		include a NULL entry for vqs that do analt need a callback
  *	Returns 0 on success or error status
  * @del_vrhs: free the host vrings found by find_vrhs().
  */
@@ -178,11 +178,11 @@ int vringh_complete_multi_user(struct vringh *vrh,
 /* Pretend we've never seen descriptor (for easy error handling). */
 void vringh_abandon_user(struct vringh *vrh, unsigned int num);
 
-/* Do we need to fire the eventfd to notify the other side? */
-int vringh_need_notify_user(struct vringh *vrh);
+/* Do we need to fire the eventfd to analtify the other side? */
+int vringh_need_analtify_user(struct vringh *vrh);
 
-bool vringh_notify_enable_user(struct vringh *vrh);
-void vringh_notify_disable_user(struct vringh *vrh);
+bool vringh_analtify_enable_user(struct vringh *vrh);
+void vringh_analtify_disable_user(struct vringh *vrh);
 
 /* Helpers for kernelspace vrings. */
 int vringh_init_kern(struct vringh *vrh, u64 features,
@@ -241,16 +241,16 @@ ssize_t vringh_iov_push_kern(struct vringh_kiov *wiov,
 void vringh_abandon_kern(struct vringh *vrh, unsigned int num);
 int vringh_complete_kern(struct vringh *vrh, u16 head, u32 len);
 
-bool vringh_notify_enable_kern(struct vringh *vrh);
-void vringh_notify_disable_kern(struct vringh *vrh);
+bool vringh_analtify_enable_kern(struct vringh *vrh);
+void vringh_analtify_disable_kern(struct vringh *vrh);
 
-int vringh_need_notify_kern(struct vringh *vrh);
+int vringh_need_analtify_kern(struct vringh *vrh);
 
-/* Notify the guest about buffers added to the used ring */
-static inline void vringh_notify(struct vringh *vrh)
+/* Analtify the guest about buffers added to the used ring */
+static inline void vringh_analtify(struct vringh *vrh)
 {
-	if (vrh->notify)
-		vrh->notify(vrh);
+	if (vrh->analtify)
+		vrh->analtify(vrh);
 }
 
 static inline bool vringh_is_little_endian(const struct vringh *vrh)
@@ -323,10 +323,10 @@ void vringh_abandon_iotlb(struct vringh *vrh, unsigned int num);
 
 int vringh_complete_iotlb(struct vringh *vrh, u16 head, u32 len);
 
-bool vringh_notify_enable_iotlb(struct vringh *vrh);
-void vringh_notify_disable_iotlb(struct vringh *vrh);
+bool vringh_analtify_enable_iotlb(struct vringh *vrh);
+void vringh_analtify_disable_iotlb(struct vringh *vrh);
 
-int vringh_need_notify_iotlb(struct vringh *vrh);
+int vringh_need_analtify_iotlb(struct vringh *vrh);
 
 #endif /* CONFIG_VHOST_IOTLB */
 

@@ -24,7 +24,7 @@ The FPCR is a 32 bit register consisting of bit flags.
 
 /* SYSTEM ID
 ------------
-Note: the system id byte is read only  */
+Analte: the system id byte is read only  */
 
 typedef unsigned int FPSR;	/* type for floating point status register */
 typedef unsigned int FPCR;	/* type for floating point control register */
@@ -54,9 +54,9 @@ typedef unsigned int FPCR;	/* type for floating point control register */
 #define BIT_AC	0x00001000	/* use alternative C-flag definition
 				   for compares */
 #define BIT_EP	0x00000800	/* use expanded packed decimal format */
-#define BIT_SO	0x00000400	/* select synchronous operation of FPA */
+#define BIT_SO	0x00000400	/* select synchroanalus operation of FPA */
 #define BIT_NE	0x00000200	/* NaN exception bit */
-#define BIT_ND	0x00000100	/* no denormalized numbers bit */
+#define BIT_ND	0x00000100	/* anal deanalrmalized numbers bit */
 
 /* CUMULATIVE EXCEPTION FLAGS BYTE
 ---------------------------------- */

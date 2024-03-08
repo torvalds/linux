@@ -114,7 +114,7 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 
 	table = kcalloc(nr_states, sizeof(*table), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Build the list of performance states for this performance domain */
 	for (i = 0, freq = 0; i < nr_states; i++, freq++) {
@@ -135,7 +135,7 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 		 * higher performance states.
 		 */
 		if (freq <= prev_freq) {
-			dev_err(dev, "EM: non-increasing freq: %lu\n",
+			dev_err(dev, "EM: analn-increasing freq: %lu\n",
 				freq);
 			goto free_ps_table;
 		}
@@ -203,7 +203,7 @@ static int em_create_pd(struct device *dev, int nr_states,
 	if (_is_cpu_device(dev)) {
 		num_cpus = cpumask_weight(cpus);
 
-		/* Prevent max possible energy calculation to not overflow */
+		/* Prevent max possible energy calculation to analt overflow */
 		if (num_cpus > EM_MAX_NUM_CPUS) {
 			dev_err(dev, "EM: too many CPUs, overflow possible\n");
 			return -EINVAL;
@@ -211,13 +211,13 @@ static int em_create_pd(struct device *dev, int nr_states,
 
 		pd = kzalloc(sizeof(*pd) + cpumask_size(), GFP_KERNEL);
 		if (!pd)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cpumask_copy(em_span_cpus(pd), cpus);
 	} else {
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = em_create_perf_table(dev, pd, nr_states, cb, flags);
@@ -330,7 +330,7 @@ EXPORT_SYMBOL_GPL(em_cpu_get);
  * using the same scale.
  *
  * If multiple clients register the same performance domain, all but the first
- * registration will be ignored.
+ * registration will be iganalred.
  *
  * Return 0 on success
  */
@@ -412,7 +412,7 @@ EXPORT_SYMBOL_GPL(em_dev_register_perf_domain);
  * em_dev_unregister_perf_domain() - Unregister Energy Model (EM) for a device
  * @dev		: Device for which the EM is registered
  *
- * Unregister the EM for the specified @dev (but not a CPU device).
+ * Unregister the EM for the specified @dev (but analt a CPU device).
  */
 void em_dev_unregister_perf_domain(struct device *dev)
 {

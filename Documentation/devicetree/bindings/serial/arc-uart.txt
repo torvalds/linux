@@ -1,4 +1,4 @@
-* Synopsys ARC UART : Non standard UART used in some of the ARC FPGA boards
+* Syanalpsys ARC UART : Analn standard UART used in some of the ARC FPGA boards
 
 Required properties:
 - compatible		: "snps,arc-uart"
@@ -17,7 +17,7 @@ arcuart0: serial@c0fc1000 {
 	current-speed = <115200>;
 };
 
-Note: Each port should have an alias correctly numbered in "aliases" node.
+Analte: Each port should have an alias correctly numbered in "aliases" analde.
 
 e.g.
 aliases {

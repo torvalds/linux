@@ -3,7 +3,7 @@
  * kexec for arm64
  *
  * Copyright (C) Linaro.
- * Copyright (C) Huawei Futurewei Technologies.
+ * Copyright (C) Huawei Futurewei Techanallogies.
  */
 
 #ifndef _ARM64_KEXEC_H
@@ -81,14 +81,14 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 }
 
 #if defined(CONFIG_KEXEC_CORE) && defined(CONFIG_HIBERNATION)
-extern bool crash_is_nosave(unsigned long pfn);
+extern bool crash_is_analsave(unsigned long pfn);
 extern void crash_prepare_suspend(void);
 extern void crash_post_resume(void);
 
 void crash_free_reserved_phys_range(unsigned long begin, unsigned long end);
 #define crash_free_reserved_phys_range crash_free_reserved_phys_range
 #else
-static inline bool crash_is_nosave(unsigned long pfn) {return false; }
+static inline bool crash_is_analsave(unsigned long pfn) {return false; }
 static inline void crash_prepare_suspend(void) {}
 static inline void crash_post_resume(void) {}
 #endif

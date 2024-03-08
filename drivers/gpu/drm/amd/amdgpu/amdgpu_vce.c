@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -99,7 +99,7 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 {
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
-	unsigned int ucode_version, version_major, version_minor, binary_id;
+	unsigned int ucode_version, version_major, version_mianalr, binary_id;
 	int i, r;
 
 	switch (adev->asic_type) {
@@ -170,11 +170,11 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 
 	ucode_version = le32_to_cpu(hdr->ucode_version);
 	version_major = (ucode_version >> 20) & 0xfff;
-	version_minor = (ucode_version >> 8) & 0xfff;
+	version_mianalr = (ucode_version >> 8) & 0xfff;
 	binary_id = ucode_version & 0xff;
 	DRM_INFO("Found VCE firmware Version: %d.%d Binary ID: %d\n",
-		version_major, version_minor, binary_id);
-	adev->vce.fw_version = ((version_major << 24) | (version_minor << 16) |
+		version_major, version_mianalr, binary_id);
+	adev->vce.fw_version = ((version_major << 24) | (version_mianalr << 16) |
 				(binary_id << 8));
 
 	r = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
@@ -240,7 +240,7 @@ int amdgpu_vce_entity_init(struct amdgpu_device *adev, struct amdgpu_ring *ring)
 		struct drm_gpu_scheduler *sched = &ring->sched;
 		int r;
 
-		r = drm_sched_entity_init(&adev->vce.entity, DRM_SCHED_PRIORITY_NORMAL,
+		r = drm_sched_entity_init(&adev->vce.entity, DRM_SCHED_PRIORITY_ANALRMAL,
 					  &sched, 1, NULL);
 		if (r != 0) {
 			DRM_ERROR("Failed setting up VCE run queue.\n");
@@ -327,7 +327,7 @@ int amdgpu_vce_resume(struct amdgpu_device *adev)
  *
  * @work: pointer to work structure
  *
- * power of VCE when it's not used any more
+ * power of VCE when it's analt used any more
  */
 static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 {
@@ -554,11 +554,11 @@ static int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	ib->ptr[ib->length_dw++] = 0x00000020; /* len */
 	ib->ptr[ib->length_dw++] = 0x00000002; /* task info */
-	ib->ptr[ib->length_dw++] = 0xffffffff; /* next task info, set to 0xffffffff if no */
+	ib->ptr[ib->length_dw++] = 0xffffffff; /* next task info, set to 0xffffffff if anal */
 	ib->ptr[ib->length_dw++] = 0x00000001; /* destroy session */
 	ib->ptr[ib->length_dw++] = 0x00000000;
 	ib->ptr[ib->length_dw++] = 0x00000000;
-	ib->ptr[ib->length_dw++] = 0xffffffff; /* feedback is not needed, set to 0xffffffff and firmware will not output feedback */
+	ib->ptr[ib->length_dw++] = 0xffffffff; /* feedback is analt needed, set to 0xffffffff and firmware will analt output feedback */
 	ib->ptr[ib->length_dw++] = 0x00000000;
 
 	ib->ptr[ib->length_dw++] = 0x00000008; /* len */
@@ -585,7 +585,7 @@ err:
 }
 
 /**
- * amdgpu_vce_validate_bo - make sure not to cross 4GB boundary
+ * amdgpu_vce_validate_bo - make sure analt to cross 4GB boundary
  *
  * @p: cs parser
  * @ib: indirect buffer to use
@@ -594,7 +594,7 @@ err:
  * @size: minimum size
  * @index: bs/fb index
  *
- * Make sure that no BO cross a 4GB boundary.
+ * Make sure that anal BO cross a 4GB boundary.
  */
 static int amdgpu_vce_validate_bo(struct amdgpu_cs_parser *p,
 				  struct amdgpu_ib *ib, int lo, int hi,
@@ -694,7 +694,7 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, struct amdgpu_ib *ib,
  * @allocated: allocated a new handle?
  *
  * Validates the handle and return the found session index or -EINVAL
- * we don't have another free session index.
+ * we don't have aanalther free session index.
  */
 static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
 				      uint32_t handle, uint32_t *allocated)
@@ -712,7 +712,7 @@ static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
 		}
 	}
 
-	/* handle not found try to alloc a new one */
+	/* handle analt found try to alloc a new one */
 	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
 		if (!atomic_cmpxchg(&p->adev->vce.handles[i], 0, handle)) {
 			p->adev->vce.filp[i] = p->filp;
@@ -722,7 +722,7 @@ static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
 		}
 	}
 
-	DRM_ERROR("No more free VCE handles!\n");
+	DRM_ERROR("Anal more free VCE handles!\n");
 	return -EINVAL;
 }
 
@@ -935,7 +935,7 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p,
 		}
 
 		if (session_idx == -1) {
-			DRM_ERROR("no session command at start of IB\n");
+			DRM_ERROR("anal session command at start of IB\n");
 			r = -EINVAL;
 			goto out;
 		}
@@ -945,12 +945,12 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p,
 
 	if (allocated & ~created) {
 		DRM_ERROR("New session without create command!\n");
-		r = -ENOENT;
+		r = -EANALENT;
 	}
 
 out:
 	if (!r) {
-		/* No error, free all destroyed handle slots */
+		/* Anal error, free all destroyed handle slots */
 		tmp = destroyed;
 	} else {
 		/* Error during parsing, free all allocated handle slots */
@@ -1026,7 +1026,7 @@ int amdgpu_vce_ring_parse_cs_vm(struct amdgpu_cs_parser *p,
 		}
 
 		if (session_idx == -1) {
-			DRM_ERROR("no session command at start of IB\n");
+			DRM_ERROR("anal session command at start of IB\n");
 			r = -EINVAL;
 			goto out;
 		}
@@ -1036,12 +1036,12 @@ int amdgpu_vce_ring_parse_cs_vm(struct amdgpu_cs_parser *p,
 
 	if (allocated & ~created) {
 		DRM_ERROR("New session without create command!\n");
-		r = -ENOENT;
+		r = -EANALENT;
 	}
 
 out:
 	if (!r) {
-		/* No error, free all destroyed handle slots */
+		/* Anal error, free all destroyed handle slots */
 		tmp = destroyed;
 		amdgpu_ib_free(p->adev, ib, NULL);
 	} else {
@@ -1148,7 +1148,7 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct dma_fence *fence = NULL;
 	long r;
 
-	/* skip vce ring1/2 ib test for now, since it's not reliable */
+	/* skip vce ring1/2 ib test for analw, since it's analt reliable */
 	if (ring != &ring->adev->vce.ring[0])
 		return 0;
 

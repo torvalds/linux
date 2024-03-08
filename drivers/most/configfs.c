@@ -2,7 +2,7 @@
 /*
  * configfs.c - Implementation of configfs interface to the driver stack
  *
- * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015 Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -99,7 +99,7 @@ static int set_config_and_add_link(struct mdev_link *mdev_link)
 
 	for (i = 0; i < ARRAY_SIZE(set_config_val); i++) {
 		ret = set_config_val[i](mdev_link);
-		if (ret < 0 && ret != -ENODEV) {
+		if (ret < 0 && ret != -EANALDEV) {
 			pr_err("Config failed\n");
 			return ret;
 		}
@@ -123,7 +123,7 @@ static ssize_t mdev_link_create_link_store(struct config_item *item,
 	if (!tmp)
 		return count;
 	ret = set_config_and_add_link(mdev_link);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return ret;
 	list_add_tail(&mdev_link->list, &mdev_link_list);
 	mdev_link->create_link = tmp;
@@ -428,11 +428,11 @@ static struct config_item *most_common_make_item(struct config_group *group,
 
 	mdev_link = kzalloc(sizeof(*mdev_link), GFP_KERNEL);
 	if (!mdev_link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!try_module_get(mc->mod)) {
 		kfree(mdev_link);
-		return ERR_PTR(-ENOLCK);
+		return ERR_PTR(-EANALLCK);
 	}
 	config_item_init_type_name(&mdev_link->item, name,
 				   &mdev_link_type);
@@ -468,7 +468,7 @@ static void most_common_disconnect(struct config_group *group,
 
 static struct configfs_group_operations most_common_group_ops = {
 	.make_item	= most_common_make_item,
-	.disconnect_notify = most_common_disconnect,
+	.disconnect_analtify = most_common_disconnect,
 };
 
 static const struct config_item_type most_common_type = {
@@ -528,7 +528,7 @@ static struct config_item *most_snd_grp_make_item(struct config_group *group,
 
 	mdev_link = kzalloc(sizeof(*mdev_link), GFP_KERNEL);
 	if (!mdev_link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_item_init_type_name(&mdev_link->item, name, &mdev_link_type);
 	mdev_link->create_link = false;
@@ -606,11 +606,11 @@ static struct config_group *most_sound_make_group(struct config_group *group,
 		}
 	}
 	if (!try_module_get(ms->mod))
-		return ERR_PTR(-ENOLCK);
+		return ERR_PTR(-EANALLCK);
 	most = kzalloc(sizeof(*most), GFP_KERNEL);
 	if (!most) {
 		module_put(ms->mod);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	config_group_init_type_name(&most->group, name, &most_snd_grp_type);
 	list_add_tail(&most->list, &ms->soundcard_list);
@@ -627,7 +627,7 @@ static void most_sound_disconnect(struct config_group *group,
 
 static struct configfs_group_operations most_sound_group_ops = {
 	.make_group	= most_sound_make_group,
-	.disconnect_notify = most_sound_disconnect,
+	.disconnect_analtify = most_sound_disconnect,
 };
 
 static const struct config_item_type most_sound_type = {
@@ -663,7 +663,7 @@ int most_register_configfs_subsys(struct most_component *c)
 		most_sound_subsys.mod = c->mod;
 		ret = configfs_register_subsystem(&most_sound_subsys.subsys);
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ret) {
@@ -674,7 +674,7 @@ int most_register_configfs_subsys(struct most_component *c)
 }
 EXPORT_SYMBOL_GPL(most_register_configfs_subsys);
 
-void most_interface_register_notify(const char *mdev)
+void most_interface_register_analtify(const char *mdev)
 {
 	bool register_snd_card = false;
 	struct mdev_link *mdev_link;

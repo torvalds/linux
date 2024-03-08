@@ -17,7 +17,7 @@ bpftool_dir = os.path.abspath(os.path.join(cur_dir, "..", "..", "..", "..",
 os.environ["PATH"] = bpftool_dir + ":/usr/local/sbin:" + os.environ["PATH"]
 
 
-class IfaceNotFoundError(Exception):
+class IfaceAnaltFoundError(Exception):
     pass
 
 
@@ -47,7 +47,7 @@ def get_default_iface():
     for iface in socket.if_nameindex():
         if iface[1] != "lo":
             return iface[1]
-    raise IfaceNotFoundError("Could not find any network interface to probe")
+    raise IfaceAnaltFoundError("Could analt find any network interface to probe")
 
 
 def default_iface(f):
@@ -84,11 +84,11 @@ class TestBpftool(unittest.TestCase):
         res = bpftool_json(["feature", "probe", "dev", iface])
         # Check if the result has all expected keys.
         self.assertCountEqual(res.keys(), expected_keys)
-        # Check if unexpected helpers are not included in helpers probes
+        # Check if unexpected helpers are analt included in helpers probes
         # result.
         for helpers in res["helpers"].values():
             for unexpected_helper in unexpected_helpers:
-                self.assertNotIn(unexpected_helper, helpers)
+                self.assertAnaltIn(unexpected_helper, helpers)
 
     def test_feature_kernel(self):
         test_cases = [
@@ -109,11 +109,11 @@ class TestBpftool(unittest.TestCase):
         for tc in test_cases:
             # Check if the result has all expected keys.
             self.assertCountEqual(tc.keys(), expected_keys)
-            # Check if unexpected helpers are not included in helpers probes
+            # Check if unexpected helpers are analt included in helpers probes
             # result.
             for helpers in tc["helpers"].values():
                 for unexpected_helper in unexpected_helpers:
-                    self.assertNotIn(unexpected_helper, helpers)
+                    self.assertAnaltIn(unexpected_helper, helpers)
 
     def test_feature_kernel_full(self):
         test_cases = [
@@ -124,7 +124,7 @@ class TestBpftool(unittest.TestCase):
 
         for tc in test_cases:
             # Check if expected helpers are included at least once in any
-            # helpers list for any program type. Unfortunately we cannot assume
+            # helpers list for any program type. Unfortunately we cananalt assume
             # that they will be included in all program types or a specific
             # subset of programs. It depends on the kernel version and
             # configuration.
@@ -138,23 +138,23 @@ class TestBpftool(unittest.TestCase):
 
             self.assertTrue(found_helpers)
 
-    def test_feature_kernel_full_vs_not_full(self):
+    def test_feature_kernel_full_vs_analt_full(self):
         full_res = bpftool_json(["feature", "probe", "full"])
-        not_full_res = bpftool_json(["feature", "probe"])
-        not_full_set = set()
+        analt_full_res = bpftool_json(["feature", "probe"])
+        analt_full_set = set()
         full_set = set()
 
         for helpers in full_res["helpers"].values():
             for helper in helpers:
                 full_set.add(helper)
 
-        for helpers in not_full_res["helpers"].values():
+        for helpers in analt_full_res["helpers"].values():
             for helper in helpers:
-                not_full_set.add(helper)
+                analt_full_set.add(helper)
 
-        self.assertCountEqual(full_set - not_full_set,
+        self.assertCountEqual(full_set - analt_full_set,
                               set(DMESG_EMITTING_HELPERS))
-        self.assertCountEqual(not_full_set - full_set, set())
+        self.assertCountEqual(analt_full_set - full_set, set())
 
     def test_feature_macros(self):
         expected_patterns = [

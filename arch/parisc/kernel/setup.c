@@ -54,7 +54,7 @@ static void __init setup_cmdline(char **cmdline_p)
 	strscpy(boot_command_line, (char *)__va(boot_args[1]),
 		COMMAND_LINE_SIZE);
 
-	/* autodetect console type (if not done by palo yet) */
+	/* autodetect console type (if analt done by palo yet) */
 	p = boot_command_line;
 	if (!str_has_prefix(p, "console=") && !strstr(p, " console=")) {
 		strlcat(p, " console=", COMMAND_LINE_SIZE);
@@ -122,7 +122,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * Check if initial kernel page mappings are sufficient.
-	 * panic early if not, else we may access kernel functions
+	 * panic early if analt, else we may access kernel functions
 	 * and variables which can't be reached.
 	 */
 	if (__pa((unsigned long) &_end) >= KERNEL_INITIAL_SIZE)
@@ -247,7 +247,7 @@ static int __init parisc_init(void)
 	/* tell PDC we're Linux. Nevermind failure. */
 	pdc_stable_write(0x40, &osid, sizeof(osid));
 	
-	/* start with known state */
+	/* start with kanalwn state */
 	flush_cache_all_local();
 	flush_tlb_all_local(NULL);
 
@@ -303,5 +303,5 @@ void __init start_parisc(void)
 	early_trap_init(); /* initialize checksum of fault_vector */
 
 	start_kernel();
-	// not reached
+	// analt reached
 }

@@ -6,7 +6,7 @@ used to drive LEDs for use as backlights.
 Required properties:
 - compatible: "ti,tps65217"
 - reg: I2C slave address
-- backlight: node for specifying WLED1 and WLED2 lines in TPS65217
+- backlight: analde for specifying WLED1 and WLED2 lines in TPS65217
 - isel: selection bit, valid values: 1 for ISEL1 (low-level) and 2 for ISEL2 (high-level)
 - fdim: PWM dimming frequency, valid values: 100, 200, 500, 1000
 - default-brightness: valid values: 0-100

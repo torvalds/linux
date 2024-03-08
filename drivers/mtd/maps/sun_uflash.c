@@ -2,7 +2,7 @@
 /* sun_uflash.c - Driver for user-programmable flash on
  *                Sun Microsystems SME boardsets.
  *
- * This driver does NOT provide access to the OBP-flash for
+ * This driver does ANALT provide access to the OBP-flash for
  * safety reasons-- use <linux>/drivers/sbus/char/flash.c instead.
  *
  * Copyright (c) 2001 Eric Brower (ebrower@usa.net)
@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -47,23 +47,23 @@ struct map_info uflash_map_templ = {
 	.bankwidth =	UFLASH_BUSWIDTH,
 };
 
-int uflash_devinit(struct platform_device *op, struct device_node *dp)
+int uflash_devinit(struct platform_device *op, struct device_analde *dp)
 {
 	struct uflash_dev *up;
 
 	if (op->resource[1].flags) {
-		/* Non-CFI userflash device-- once I find one we
+		/* Analn-CFI userflash device-- once I find one we
 		 * can work on supporting it.
 		 */
 		printk(KERN_ERR PFX "Unsupported device at %pOF, 0x%llx\n",
 		       dp, (unsigned long long)op->resource[0].start);
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	up = kzalloc(sizeof(struct uflash_dev), GFP_KERNEL);
 	if (!up)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* copy defaults and tweak parameters */
 	memcpy(&up->map, &uflash_map_templ, sizeof(uflash_map_templ));
@@ -107,13 +107,13 @@ int uflash_devinit(struct platform_device *op, struct device_node *dp)
 
 static int uflash_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 
 	/* Flashprom must have the "user" property in order to
 	 * be used by this driver.
 	 */
 	if (!of_property_read_bool(dp, "user"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return uflash_devinit(op, dp);
 }

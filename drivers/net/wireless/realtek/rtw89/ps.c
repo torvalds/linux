@@ -205,53 +205,53 @@ static void rtw89_tsf32_toggle(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvi
 		rtw89_fw_h2c_tsf32_toggle(rtwdev, rtwvif, false);
 }
 
-static void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
+static void rtw89_p2p_disable_all_anala(struct rtw89_dev *rtwdev,
 				      struct ieee80211_vif *vif)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	enum rtw89_p2pps_action act;
-	u8 noa_id;
+	u8 anala_id;
 
-	if (rtwvif->last_noa_nr == 0)
+	if (rtwvif->last_anala_nr == 0)
 		return;
 
-	for (noa_id = 0; noa_id < rtwvif->last_noa_nr; noa_id++) {
-		if (noa_id == rtwvif->last_noa_nr - 1)
+	for (anala_id = 0; anala_id < rtwvif->last_anala_nr; anala_id++) {
+		if (anala_id == rtwvif->last_anala_nr - 1)
 			act = RTW89_P2P_ACT_TERMINATE;
 		else
 			act = RTW89_P2P_ACT_REMOVE;
 		rtw89_tsf32_toggle(rtwdev, rtwvif, act);
-		rtw89_fw_h2c_p2p_act(rtwdev, vif, NULL, act, noa_id);
+		rtw89_fw_h2c_p2p_act(rtwdev, vif, NULL, act, anala_id);
 	}
 }
 
-static void rtw89_p2p_update_noa(struct rtw89_dev *rtwdev,
+static void rtw89_p2p_update_anala(struct rtw89_dev *rtwdev,
 				 struct ieee80211_vif *vif)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	struct ieee80211_p2p_noa_desc *desc;
+	struct ieee80211_p2p_anala_desc *desc;
 	enum rtw89_p2pps_action act;
-	u8 noa_id;
+	u8 anala_id;
 
-	for (noa_id = 0; noa_id < RTW89_P2P_MAX_NOA_NUM; noa_id++) {
-		desc = &vif->bss_conf.p2p_noa_attr.desc[noa_id];
+	for (anala_id = 0; anala_id < RTW89_P2P_MAX_ANALA_NUM; anala_id++) {
+		desc = &vif->bss_conf.p2p_anala_attr.desc[anala_id];
 		if (!desc->count || !desc->duration)
 			break;
 
-		if (noa_id == 0)
+		if (anala_id == 0)
 			act = RTW89_P2P_ACT_INIT;
 		else
 			act = RTW89_P2P_ACT_UPDATE;
 		rtw89_tsf32_toggle(rtwdev, rtwvif, act);
-		rtw89_fw_h2c_p2p_act(rtwdev, vif, desc, act, noa_id);
+		rtw89_fw_h2c_p2p_act(rtwdev, vif, desc, act, anala_id);
 	}
-	rtwvif->last_noa_nr = noa_id;
+	rtwvif->last_anala_nr = anala_id;
 }
 
 void rtw89_process_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 {
-	rtw89_p2p_disable_all_noa(rtwdev, vif);
-	rtw89_p2p_update_noa(rtwdev, vif);
+	rtw89_p2p_disable_all_anala(rtwdev, vif);
+	rtw89_p2p_update_anala(rtwdev, vif);
 }
 
 void rtw89_recalc_lps(struct rtw89_dev *rtwdev)
@@ -287,63 +287,63 @@ disable_lps:
 	rtwdev->lps_enabled = false;
 }
 
-void rtw89_p2p_noa_renew(struct rtw89_vif *rtwvif)
+void rtw89_p2p_anala_renew(struct rtw89_vif *rtwvif)
 {
-	struct rtw89_p2p_noa_setter *setter = &rtwvif->p2p_noa;
-	struct rtw89_p2p_noa_ie *ie = &setter->ie;
+	struct rtw89_p2p_anala_setter *setter = &rtwvif->p2p_anala;
+	struct rtw89_p2p_anala_ie *ie = &setter->ie;
 	struct rtw89_p2p_ie_head *p2p_head = &ie->p2p_head;
-	struct rtw89_noa_attr_head *noa_head = &ie->noa_head;
+	struct rtw89_anala_attr_head *anala_head = &ie->anala_head;
 
-	if (setter->noa_count) {
-		setter->noa_index++;
-		setter->noa_count = 0;
+	if (setter->anala_count) {
+		setter->anala_index++;
+		setter->anala_count = 0;
 	}
 
 	memset(ie, 0, sizeof(*ie));
 
 	p2p_head->eid = WLAN_EID_VENDOR_SPECIFIC;
-	p2p_head->ie_len = 4 + sizeof(*noa_head);
+	p2p_head->ie_len = 4 + sizeof(*anala_head);
 	p2p_head->oui[0] = (WLAN_OUI_WFA >> 16) & 0xff;
 	p2p_head->oui[1] = (WLAN_OUI_WFA >> 8) & 0xff;
 	p2p_head->oui[2] = (WLAN_OUI_WFA >> 0) & 0xff;
 	p2p_head->oui_type = WLAN_OUI_TYPE_WFA_P2P;
 
-	noa_head->attr_type = IEEE80211_P2P_ATTR_ABSENCE_NOTICE;
-	noa_head->attr_len = cpu_to_le16(2);
-	noa_head->index = setter->noa_index;
-	noa_head->oppps_ctwindow = 0;
+	anala_head->attr_type = IEEE80211_P2P_ATTR_ABSENCE_ANALTICE;
+	anala_head->attr_len = cpu_to_le16(2);
+	anala_head->index = setter->anala_index;
+	anala_head->oppps_ctwindow = 0;
 }
 
-void rtw89_p2p_noa_append(struct rtw89_vif *rtwvif,
-			  const struct ieee80211_p2p_noa_desc *desc)
+void rtw89_p2p_anala_append(struct rtw89_vif *rtwvif,
+			  const struct ieee80211_p2p_anala_desc *desc)
 {
-	struct rtw89_p2p_noa_setter *setter = &rtwvif->p2p_noa;
-	struct rtw89_p2p_noa_ie *ie = &setter->ie;
+	struct rtw89_p2p_anala_setter *setter = &rtwvif->p2p_anala;
+	struct rtw89_p2p_anala_ie *ie = &setter->ie;
 	struct rtw89_p2p_ie_head *p2p_head = &ie->p2p_head;
-	struct rtw89_noa_attr_head *noa_head = &ie->noa_head;
+	struct rtw89_anala_attr_head *anala_head = &ie->anala_head;
 
 	if (!desc->count || !desc->duration)
 		return;
 
-	if (setter->noa_count >= RTW89_P2P_MAX_NOA_NUM)
+	if (setter->anala_count >= RTW89_P2P_MAX_ANALA_NUM)
 		return;
 
 	p2p_head->ie_len += sizeof(*desc);
-	le16_add_cpu(&noa_head->attr_len, sizeof(*desc));
+	le16_add_cpu(&anala_head->attr_len, sizeof(*desc));
 
-	ie->noa_desc[setter->noa_count++] = *desc;
+	ie->anala_desc[setter->anala_count++] = *desc;
 }
 
-u8 rtw89_p2p_noa_fetch(struct rtw89_vif *rtwvif, void **data)
+u8 rtw89_p2p_anala_fetch(struct rtw89_vif *rtwvif, void **data)
 {
-	struct rtw89_p2p_noa_setter *setter = &rtwvif->p2p_noa;
-	struct rtw89_p2p_noa_ie *ie = &setter->ie;
+	struct rtw89_p2p_anala_setter *setter = &rtwvif->p2p_anala;
+	struct rtw89_p2p_anala_ie *ie = &setter->ie;
 	void *tail;
 
-	if (!setter->noa_count)
+	if (!setter->anala_count)
 		return 0;
 
 	*data = ie;
-	tail = ie->noa_desc + setter->noa_count;
+	tail = ie->anala_desc + setter->anala_count;
 	return tail - *data;
 }

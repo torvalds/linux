@@ -30,7 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /*
@@ -108,7 +108,7 @@ static void max6642_init_client(struct max6642_data *data,
 				MAX6642_REG_R_REMOTE_HIGH);
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int max6642_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -116,18 +116,18 @@ static int max6642_detect(struct i2c_client *client,
 	u8 reg_config, reg_status, man_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* identification */
 	man_id = i2c_smbus_read_byte_data(client, MAX6642_REG_R_MAN_ID);
 	if (man_id != 0x4D)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* sanity check */
 	if (i2c_smbus_read_byte_data(client, 0x04) != 0x4D
 	    || i2c_smbus_read_byte_data(client, 0x06) != 0x4D
 	    || i2c_smbus_read_byte_data(client, 0xff) != 0x4D)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * We read the config and status register, the 4 lower bits in the
@@ -136,17 +136,17 @@ static int max6642_detect(struct i2c_client *client,
 	 */
 	reg_config = i2c_smbus_read_byte_data(client, MAX6642_REG_R_CONFIG);
 	if ((reg_config & 0x0f) != 0x00)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* in between, another round of sanity checks */
+	/* in between, aanalther round of sanity checks */
 	if (i2c_smbus_read_byte_data(client, 0x04) != reg_config
 	    || i2c_smbus_read_byte_data(client, 0x06) != reg_config
 	    || i2c_smbus_read_byte_data(client, 0xff) != reg_config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg_status = i2c_smbus_read_byte_data(client, MAX6642_REG_R_STATUS);
 	if ((reg_status & 0x2b) != 0x00)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "max6642", I2C_NAME_SIZE);
 
@@ -272,7 +272,7 @@ static int max6642_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct max6642_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -304,7 +304,7 @@ static struct i2c_driver max6642_driver = {
 	.probe		= max6642_probe,
 	.id_table	= max6642_id,
 	.detect		= max6642_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(max6642_driver);

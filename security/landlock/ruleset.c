@@ -10,7 +10,7 @@
 #include <linux/bug.h>
 #include <linux/compiler_types.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/lockdep.h>
 #include <linux/overflow.h>
@@ -32,10 +32,10 @@ static struct landlock_ruleset *create_ruleset(const u32 num_layers)
 		kzalloc(struct_size(new_ruleset, access_masks, num_layers),
 			GFP_KERNEL_ACCOUNT);
 	if (!new_ruleset)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	refcount_set(&new_ruleset->usage, 1);
 	mutex_init(&new_ruleset->lock);
-	new_ruleset->root_inode = RB_ROOT;
+	new_ruleset->root_ianalde = RB_ROOT;
 
 #if IS_ENABLED(CONFIG_INET)
 	new_ruleset->root_net_port = RB_ROOT;
@@ -58,7 +58,7 @@ landlock_create_ruleset(const access_mask_t fs_access_mask,
 
 	/* Informs about useless ruleset. */
 	if (!fs_access_mask && !net_access_mask)
-		return ERR_PTR(-ENOMSG);
+		return ERR_PTR(-EANALMSG);
 	new_ruleset = create_ruleset(1);
 	if (IS_ERR(new_ruleset))
 		return new_ruleset;
@@ -81,7 +81,7 @@ static void build_check_rule(void)
 static bool is_object_pointer(const enum landlock_key_type key_type)
 {
 	switch (key_type) {
-	case LANDLOCK_KEY_INODE:
+	case LANDLOCK_KEY_IANALDE:
 		return true;
 
 #if IS_ENABLED(CONFIG_INET)
@@ -115,8 +115,8 @@ create_rule(const struct landlock_id id,
 	new_rule = kzalloc(struct_size(new_rule, layers, new_num_layers),
 			   GFP_KERNEL_ACCOUNT);
 	if (!new_rule)
-		return ERR_PTR(-ENOMEM);
-	RB_CLEAR_NODE(&new_rule->node);
+		return ERR_PTR(-EANALMEM);
+	RB_CLEAR_ANALDE(&new_rule->analde);
 	if (is_object_pointer(id.type)) {
 		/* This should be catched by insert_rule(). */
 		WARN_ON_ONCE(!id.key.object);
@@ -138,8 +138,8 @@ static struct rb_root *get_root(struct landlock_ruleset *const ruleset,
 				const enum landlock_key_type key_type)
 {
 	switch (key_type) {
-	case LANDLOCK_KEY_INODE:
-		return &ruleset->root_inode;
+	case LANDLOCK_KEY_IANALDE:
+		return &ruleset->root_ianalde;
 
 #if IS_ENABLED(CONFIG_INET)
 	case LANDLOCK_KEY_NET_PORT:
@@ -188,7 +188,7 @@ static void build_check_ruleset(void)
  * @num_layers: The number of @layers entries.
  *
  * When user space requests to add a new rule to a ruleset, @layers only
- * contains one entry and this entry is not assigned to any level.  In this
+ * contains one entry and this entry is analt assigned to any level.  In this
  * case, the new rule will extend @ruleset, similarly to a boolean OR between
  * access rights.
  *
@@ -201,34 +201,34 @@ static int insert_rule(struct landlock_ruleset *const ruleset,
 		       const struct landlock_layer (*const layers)[],
 		       const size_t num_layers)
 {
-	struct rb_node **walker_node;
-	struct rb_node *parent_node = NULL;
+	struct rb_analde **walker_analde;
+	struct rb_analde *parent_analde = NULL;
 	struct landlock_rule *new_rule;
 	struct rb_root *root;
 
 	might_sleep();
 	lockdep_assert_held(&ruleset->lock);
 	if (WARN_ON_ONCE(!layers))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (is_object_pointer(id.type) && WARN_ON_ONCE(!id.key.object))
-		return -ENOENT;
+		return -EANALENT;
 
 	root = get_root(ruleset, id.type);
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 
-	walker_node = &root->rb_node;
-	while (*walker_node) {
+	walker_analde = &root->rb_analde;
+	while (*walker_analde) {
 		struct landlock_rule *const this =
-			rb_entry(*walker_node, struct landlock_rule, node);
+			rb_entry(*walker_analde, struct landlock_rule, analde);
 
 		if (this->key.data != id.key.data) {
-			parent_node = *walker_node;
+			parent_analde = *walker_analde;
 			if (this->key.data < id.key.data)
-				walker_node = &((*walker_node)->rb_right);
+				walker_analde = &((*walker_analde)->rb_right);
 			else
-				walker_node = &((*walker_node)->rb_left);
+				walker_analde = &((*walker_analde)->rb_left);
 			continue;
 		}
 
@@ -240,7 +240,7 @@ static int insert_rule(struct landlock_ruleset *const ruleset,
 		if ((*layers)[0].level == 0) {
 			/*
 			 * Extends access rights when the request comes from
-			 * landlock_add_rule(2), i.e. @ruleset is not a domain.
+			 * landlock_add_rule(2), i.e. @ruleset is analt a domain.
 			 */
 			if (WARN_ON_ONCE(this->num_layers != 1))
 				return -EINVAL;
@@ -261,20 +261,20 @@ static int insert_rule(struct landlock_ruleset *const ruleset,
 				       &(*layers)[0]);
 		if (IS_ERR(new_rule))
 			return PTR_ERR(new_rule);
-		rb_replace_node(&this->node, &new_rule->node, root);
+		rb_replace_analde(&this->analde, &new_rule->analde, root);
 		free_rule(this, id.type);
 		return 0;
 	}
 
-	/* There is no match for @id. */
+	/* There is anal match for @id. */
 	build_check_ruleset();
 	if (ruleset->num_rules >= LANDLOCK_MAX_NUM_RULES)
 		return -E2BIG;
 	new_rule = create_rule(id, layers, num_layers, NULL);
 	if (IS_ERR(new_rule))
 		return PTR_ERR(new_rule);
-	rb_link_node(&new_rule->node, parent_node, walker_node);
-	rb_insert_color(&new_rule->node, root);
+	rb_link_analde(&new_rule->analde, parent_analde, walker_analde);
+	rb_insert_color(&new_rule->analde, root);
 	ruleset->num_rules++;
 	return 0;
 }
@@ -339,7 +339,7 @@ static int merge_tree(struct landlock_ruleset *const dst,
 
 	/* Merges the @src tree. */
 	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule, src_root,
-					     node) {
+					     analde) {
 		struct landlock_layer layers[] = { {
 			.level = dst->num_layers,
 		} };
@@ -387,8 +387,8 @@ static int merge_ruleset(struct landlock_ruleset *const dst,
 	}
 	dst->access_masks[dst->num_layers - 1] = src->access_masks[0];
 
-	/* Merges the @src inode tree. */
-	err = merge_tree(dst, src, LANDLOCK_KEY_INODE);
+	/* Merges the @src ianalde tree. */
+	err = merge_tree(dst, src, LANDLOCK_KEY_IANALDE);
 	if (err)
 		goto out_unlock;
 
@@ -421,9 +421,9 @@ static int inherit_tree(struct landlock_ruleset *const parent,
 	if (IS_ERR(parent_root))
 		return PTR_ERR(parent_root);
 
-	/* Copies the @parent inode or network tree. */
+	/* Copies the @parent ianalde or network tree. */
 	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule,
-					     parent_root, node) {
+					     parent_root, analde) {
 		const struct landlock_id id = {
 			.key = walker_rule->key,
 			.type = key_type,
@@ -450,8 +450,8 @@ static int inherit_ruleset(struct landlock_ruleset *const parent,
 	mutex_lock(&child->lock);
 	mutex_lock_nested(&parent->lock, SINGLE_DEPTH_NESTING);
 
-	/* Copies the @parent inode tree. */
-	err = inherit_tree(parent, child, LANDLOCK_KEY_INODE);
+	/* Copies the @parent ianalde tree. */
+	err = inherit_tree(parent, child, LANDLOCK_KEY_IANALDE);
 	if (err)
 		goto out_unlock;
 
@@ -488,13 +488,13 @@ static void free_ruleset(struct landlock_ruleset *const ruleset)
 	struct landlock_rule *freeme, *next;
 
 	might_sleep();
-	rbtree_postorder_for_each_entry_safe(freeme, next, &ruleset->root_inode,
-					     node)
-		free_rule(freeme, LANDLOCK_KEY_INODE);
+	rbtree_postorder_for_each_entry_safe(freeme, next, &ruleset->root_ianalde,
+					     analde)
+		free_rule(freeme, LANDLOCK_KEY_IANALDE);
 
 #if IS_ENABLED(CONFIG_INET)
 	rbtree_postorder_for_each_entry_safe(freeme, next,
-					     &ruleset->root_net_port, node)
+					     &ruleset->root_net_port, analde)
 		free_rule(freeme, LANDLOCK_KEY_NET_PORT);
 #endif /* IS_ENABLED(CONFIG_INET) */
 
@@ -561,7 +561,7 @@ landlock_merge_ruleset(struct landlock_ruleset *const parent,
 	new_dom->hierarchy =
 		kzalloc(sizeof(*new_dom->hierarchy), GFP_KERNEL_ACCOUNT);
 	if (!new_dom->hierarchy) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put_dom;
 	}
 	refcount_set(&new_dom->hierarchy->usage, 1);
@@ -591,23 +591,23 @@ landlock_find_rule(const struct landlock_ruleset *const ruleset,
 		   const struct landlock_id id)
 {
 	const struct rb_root *root;
-	const struct rb_node *node;
+	const struct rb_analde *analde;
 
 	root = get_root((struct landlock_ruleset *)ruleset, id.type);
 	if (IS_ERR(root))
 		return NULL;
-	node = root->rb_node;
+	analde = root->rb_analde;
 
-	while (node) {
+	while (analde) {
 		struct landlock_rule *this =
-			rb_entry(node, struct landlock_rule, node);
+			rb_entry(analde, struct landlock_rule, analde);
 
 		if (this->key.data == id.key.data)
 			return this;
 		if (this->key.data < id.key.data)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
-			node = node->rb_left;
+			analde = analde->rb_left;
 	}
 	return NULL;
 }
@@ -636,9 +636,9 @@ bool landlock_unmask_layers(const struct landlock_rule *const rule,
 	 * An access is granted if, for each policy layer, at least one rule
 	 * encountered on the pathwalk grants the requested access,
 	 * regardless of its position in the layer stack.  We must then check
-	 * the remaining layers for each inode, from the first added layer to
+	 * the remaining layers for each ianalde, from the first added layer to
 	 * the last one.  When there is multiple requested accesses, for each
-	 * policy layer, the full set of requested accesses may not be granted
+	 * policy layer, the full set of requested accesses may analt be granted
 	 * by only one rule, but by the union (binary OR) of multiple rules.
 	 * E.g. /a/b <execute> + /a <read> => /a/b <execute + read>
 	 */
@@ -696,7 +696,7 @@ landlock_init_layer_masks(const struct landlock_ruleset *const domain,
 	get_access_mask_t *get_access_mask;
 
 	switch (key_type) {
-	case LANDLOCK_KEY_INODE:
+	case LANDLOCK_KEY_IANALDE:
 		get_access_mask = landlock_get_fs_access_mask;
 		num_access = LANDLOCK_NUM_ACCESS_FS;
 		break;

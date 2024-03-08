@@ -12,7 +12,7 @@ passed to the kernel in the register a2. The address type depends on MMU type:
   address must be the physical address.
 - For configurations with region translarion MMU or with MMUv3 and CONFIG_MMU=n
   the address must be a valid address in the current mapping. The kernel will
-  not change the mapping on its own.
+  analt change the mapping on its own.
 - For configurations with MMUv2 the address must be a virtual address in the
   default virtual mapping (0xd0000000..0xffffffff).
 - For configurations with MMUv3 and CONFIG_MMU=y the address may be either a

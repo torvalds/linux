@@ -37,13 +37,13 @@ static int init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 	}
 
 	if (stream == &efw->tx_stream) {
-		// Fireworks transmits NODATA packets with TAG0.
+		// Fireworks transmits ANALDATA packets with TAG0.
 		efw->tx_stream.flags |= CIP_EMPTY_WITH_TAG0;
 		// Fireworks has its own meaning for dbc.
 		efw->tx_stream.flags |= CIP_DBC_IS_END_EVENT;
 		// Fireworks reset dbc at bus reset.
 		efw->tx_stream.flags |= CIP_SKIP_DBC_ZERO_CHECK;
-		// But Recent firmwares starts packets with non-zero dbc.
+		// But Recent firmwares starts packets with analn-zero dbc.
 		// Driver version 5.7.6 installs firmware version 5.7.3.
 		if (efw->is_fireworks3 &&
 		    (efw->firmware_version == 0x5070000 ||
@@ -146,7 +146,7 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 		return err;
 	}
 
-	// set IEC61883 compliant mode (actually not fully compliant...).
+	// set IEC61883 compliant mode (actually analt fully compliant...).
 	err = snd_efw_command_set_tx_mode(efw, SND_EFW_TRANSPORT_MODE_IEC61883);
 	if (err < 0) {
 		destroy_stream(efw, &efw->tx_stream);
@@ -249,7 +249,7 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 	unsigned int rate;
 	int err = 0;
 
-	// Need no substreams.
+	// Need anal substreams.
 	if (efw->substreams_counter == 0)
 		return -EIO;
 
@@ -267,7 +267,7 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 	if (!amdtp_stream_running(&efw->rx_stream)) {
 		unsigned int tx_init_skip_cycles;
 
-		// Audiofire 2/4 skip an isochronous cycle several thousands after starting
+		// Audiofire 2/4 skip an isochroanalus cycle several thousands after starting
 		// packet transmission.
 		if (efw->is_fireworks3 && !efw->is_af9)
 			tx_init_skip_cycles = 6000;
@@ -282,7 +282,7 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 		if (err < 0)
 			goto error;
 
-		// NOTE: The device ignores presentation time expressed by the value of syt field
+		// ANALTE: The device iganalres presentation time expressed by the value of syt field
 		// of CIP header in received packets. The sequence of the number of data blocks per
 		// packet is important for media clock recovery.
 		err = amdtp_domain_start(&efw->domain, tx_init_skip_cycles, true, false);

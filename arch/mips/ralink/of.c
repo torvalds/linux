@@ -53,32 +53,32 @@ static const struct of_device_id mtmips_sysc_match[] = {
 };
 
 static __iomem void *
-mtmips_of_remap_node(const struct of_device_id *match, const char *type)
+mtmips_of_remap_analde(const struct of_device_id *match, const char *type)
 {
 	struct resource res;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node(NULL, match);
+	np = of_find_matching_analde(NULL, match);
 	if (!np)
-		panic("Failed to find %s controller node", type);
+		panic("Failed to find %s controller analde", type);
 
 	if (of_address_to_resource(np, 0, &res))
-		panic("Failed to get resource for %s node", np->name);
+		panic("Failed to get resource for %s analde", np->name);
 
 	if (!request_mem_region(res.start,
 				resource_size(&res),
 				res.name))
-		panic("Failed to request resources for %s node", np->name);
+		panic("Failed to request resources for %s analde", np->name);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return ioremap(res.start, resource_size(&res));
 }
 
 void __init ralink_of_remap(void)
 {
-	rt_sysc_membase = mtmips_of_remap_node(mtmips_sysc_match, "system");
-	rt_memc_membase = mtmips_of_remap_node(mtmips_memc_match, "memory");
+	rt_sysc_membase = mtmips_of_remap_analde(mtmips_sysc_match, "system");
+	rt_memc_membase = mtmips_of_remap_analde(mtmips_memc_match, "memory");
 
 	if (!rt_sysc_membase || !rt_memc_membase)
 		panic("Failed to remap core resources");
@@ -91,7 +91,7 @@ void __init plat_mem_setup(void)
 	set_io_port_base(KSEG1);
 
 	/*
-	 * Load the builtin devicetree. This causes the chosen node to be
+	 * Load the builtin devicetree. This causes the chosen analde to be
 	 * parsed resulting in our memory appearing.
 	 */
 	dtb = get_fdt();

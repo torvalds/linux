@@ -73,7 +73,7 @@ static void max77650_gpio_set_value(struct gpio_chip *gc,
 	rv = regmap_update_bits(chip->map, MAX77650_REG_CNFG_GPIO,
 				MAX77650_GPIO_OUTVAL_MASK, regval);
 	if (rv)
-		dev_err(gc->parent, "cannot set GPIO value: %d\n", rv);
+		dev_err(gc->parent, "cananalt set GPIO value: %d\n", rv);
 }
 
 static int max77650_gpio_get_value(struct gpio_chip *gc,
@@ -126,7 +126,7 @@ static int max77650_gpio_set_config(struct gpio_chip *gc,
 					  MAX77650_GPIO_DEBOUNCE_MASK,
 					  MAX77650_GPIO_DEBOUNCE);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -149,11 +149,11 @@ static int max77650_gpio_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->map = dev_get_regmap(parent, NULL);
 	if (!chip->map)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip->irq = platform_get_irq_byname(pdev, "GPI");
 	if (chip->irq < 0)

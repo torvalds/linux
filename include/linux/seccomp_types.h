@@ -17,7 +17,7 @@ struct seccomp_filter;
  *          accessed without locking during system call entry.
  *
  *          @filter must only be accessed from the context of current as there
- *          is no read locking.
+ *          is anal read locking.
  */
 struct seccomp {
 	int mode;

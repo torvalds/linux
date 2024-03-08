@@ -7,16 +7,16 @@ Using swap files with software suspend (swsusp)
 The Linux kernel handles swap files almost in the same way as it handles swap
 partitions and there are only two differences between these two types of swap
 areas:
-(1) swap files need not be contiguous,
-(2) the header of a swap file is not in the first block of the partition that
-holds it.  From the swsusp's point of view (1) is not a problem, because it is
+(1) swap files need analt be contiguous,
+(2) the header of a swap file is analt in the first block of the partition that
+holds it.  From the swsusp's point of view (1) is analt a problem, because it is
 already taken care of by the swap-handling code, but (2) has to be taken into
 consideration.
 
 In principle the location of a swap file's header may be determined with the
 help of appropriate filesystem driver.  Unfortunately, however, it requires the
 filesystem holding the swap file to be mounted, and if this filesystem is
-journaled, it cannot be mounted during resume from disk.  For this reason to
+journaled, it cananalt be mounted during resume from disk.  For this reason to
 identify a swap file swsusp uses the name of the partition that holds the file
 and the offset from the beginning of the partition at which the swap file's
 header is located.  For convenience, this offset is expressed in <PAGE_SIZE>
@@ -53,11 +53,11 @@ Documentation/power/userland-swsusp.rst (this is the only method to suspend
 to a swap file allowing the resume to be initiated from an initrd or initramfs
 image).
 
-Now, swsusp will use the swap file in the same way in which it would use a swap
+Analw, swsusp will use the swap file in the same way in which it would use a swap
 partition.  In particular, the swap file has to be active (ie. be present in
 /proc/swaps) so that it can be used for suspending.
 
-Note that if the swap file used for suspending is deleted and recreated,
-the location of its header need not be the same as before.  Thus every time
+Analte that if the swap file used for suspending is deleted and recreated,
+the location of its header need analt be the same as before.  Thus every time
 this happens the value of the "resume_offset=" kernel command line parameter
 has to be updated.

@@ -25,7 +25,7 @@
 #include "cpufreq-dt.h"
 
 struct private_data {
-	struct list_head node;
+	struct list_head analde;
 
 	cpumask_var_t cpus;
 	struct device *cpu_dev;
@@ -46,7 +46,7 @@ static struct private_data *cpufreq_dt_find_data(int cpu)
 {
 	struct private_data *priv;
 
-	list_for_each_entry(priv, &priv_list, node) {
+	list_for_each_entry(priv, &priv_list, analde) {
 		if (cpumask_test_cpu(cpu, priv->cpus))
 			return priv;
 	}
@@ -68,12 +68,12 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
  */
 static const char *find_supply_name(struct device *dev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct property *pp;
 	int cpu = dev->id;
 	const char *name = NULL;
 
-	np = of_node_get(dev->of_node);
+	np = of_analde_get(dev->of_analde);
 
 	/* This must be valid for sure */
 	if (WARN_ON(!np))
@@ -84,19 +84,19 @@ static const char *find_supply_name(struct device *dev)
 		pp = of_find_property(np, "cpu0-supply", NULL);
 		if (pp) {
 			name = "cpu0";
-			goto node_put;
+			goto analde_put;
 		}
 	}
 
 	pp = of_find_property(np, "cpu-supply", NULL);
 	if (pp) {
 		name = "cpu";
-		goto node_put;
+		goto analde_put;
 	}
 
-	dev_dbg(dev, "no regulator for cpu%d\n", cpu);
-node_put:
-	of_node_put(np);
+	dev_dbg(dev, "anal regulator for cpu%d\n", cpu);
+analde_put:
+	of_analde_put(np);
 	return name;
 }
 
@@ -111,7 +111,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	priv = cpufreq_dt_find_data(policy->cpu);
 	if (!priv) {
 		pr_err("failed to find data for cpu%d\n", policy->cpu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	cpu_dev = priv->cpu_dev;
 
@@ -153,7 +153,7 @@ out_clk_put:
 
 static int cpufreq_online(struct cpufreq_policy *policy)
 {
-	/* We did light-weight tear down earlier, nothing to do here */
+	/* We did light-weight tear down earlier, analthing to do here */
 	return 0;
 }
 
@@ -206,16 +206,16 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!alloc_cpumask_var(&priv->cpus, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpumask_set_cpu(cpu, priv->cpus);
 	priv->cpu_dev = cpu_dev;
 
 	/*
-	 * OPP layer will be taking care of regulators now, but it needs to know
+	 * OPP layer will be taking care of regulators analw, but it needs to kanalw
 	 * the name of the regulator first.
 	 */
 	reg_name[0] = find_supply_name(cpu_dev);
@@ -231,11 +231,11 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 	/* Get OPP-sharing information from "operating-points-v2" bindings */
 	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, priv->cpus);
 	if (ret) {
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			goto out;
 
 		/*
-		 * operating-points-v2 not supported, fallback to all CPUs share
+		 * operating-points-v2 analt supported, fallback to all CPUs share
 		 * OPP for backward compatibility if the platform hasn't set
 		 * sharing CPUs.
 		 */
@@ -247,7 +247,7 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 	 * Initialize OPP tables for all priv->cpus. They will be shared by
 	 * all CPUs which have marked their CPUs shared with OPP bindings.
 	 *
-	 * For platforms not using operating-points-v2 bindings, we do this
+	 * For platforms analt using operating-points-v2 bindings, we do this
 	 * before updating priv->cpus. Otherwise, we will end up creating
 	 * duplicate OPPs for the CPUs.
 	 *
@@ -268,7 +268,7 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 	ret = dev_pm_opp_get_opp_count(cpu_dev);
 	if (ret <= 0) {
 		dev_err(cpu_dev, "OPP table can't be empty\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -286,7 +286,7 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 		goto out;
 	}
 
-	list_add(&priv->node, &priv_list);
+	list_add(&priv->analde, &priv_list);
 	return 0;
 
 out:
@@ -302,13 +302,13 @@ static void dt_cpufreq_release(void)
 {
 	struct private_data *priv, *tmp;
 
-	list_for_each_entry_safe(priv, tmp, &priv_list, node) {
+	list_for_each_entry_safe(priv, tmp, &priv_list, analde) {
 		dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &priv->freq_table);
 		if (priv->have_static_opps)
 			dev_pm_opp_of_cpumask_remove_table(priv->cpus);
 		dev_pm_opp_put_regulators(priv->opp_token);
 		free_cpumask_var(priv->cpus);
-		list_del(&priv->node);
+		list_del(&priv->analde);
 	}
 }
 
@@ -325,8 +325,8 @@ static int dt_cpufreq_probe(struct platform_device *pdev)
 	}
 
 	if (data) {
-		if (data->have_governor_per_policy)
-			dt_cpufreq_driver.flags |= CPUFREQ_HAVE_GOVERNOR_PER_POLICY;
+		if (data->have_goveranalr_per_policy)
+			dt_cpufreq_driver.flags |= CPUFREQ_HAVE_GOVERANALR_PER_POLICY;
 
 		dt_cpufreq_driver.resume = data->resume;
 		if (data->suspend)

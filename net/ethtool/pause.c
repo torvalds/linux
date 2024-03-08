@@ -60,7 +60,7 @@ static int pause_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_pauseparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ethtool_stats_init((u64 *)&data->pausestat,
 			   sizeof(data->pausestat) / 8);
@@ -74,9 +74,9 @@ static int pause_prepare_data(const struct ethnl_req_info *req_base,
 	     src == ETHTOOL_MAC_STATS_SRC_PMAC) &&
 	    !__ethtool_dev_mm_supported(dev)) {
 		NL_SET_ERR_MSG_MOD(info->extack,
-				   "Device does not support MAC merge layer");
+				   "Device does analt support MAC merge layer");
 		ethnl_ops_complete(dev);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dev->ethtool_ops->get_pauseparam(dev, &data->pauseparam);
@@ -106,7 +106,7 @@ static int pause_reply_size(const struct ethnl_req_info *req_base,
 static int ethtool_put_stat(struct sk_buff *skb, u64 val, u16 attrtype,
 			    u16 padtype)
 {
-	if (val == ETHTOOL_STAT_NOT_SET)
+	if (val == ETHTOOL_STAT_ANALT_SET)
 		return 0;
 	if (nla_put_u64_64bit(skb, attrtype, val, padtype))
 		return -EMSGSIZE;
@@ -176,7 +176,7 @@ ethnl_set_pause_validate(struct ethnl_req_info *req_info,
 {
 	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
 
-	return ops->get_pauseparam && ops->set_pauseparam ? 1 : -EOPNOTSUPP;
+	return ops->get_pauseparam && ops->set_pauseparam ? 1 : -EOPANALTSUPP;
 }
 
 static int

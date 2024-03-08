@@ -110,7 +110,7 @@ static const struct twl_clks_data twl6032_clks[] = {
 		.init = {
 			.name = "clk32kg",
 			.ops = &twl6032_clks_ops,
-			.flags = CLK_IGNORE_UNUSED,
+			.flags = CLK_IGANALRE_UNUSED,
 		},
 		.base = 0x8C,
 	},
@@ -118,7 +118,7 @@ static const struct twl_clks_data twl6032_clks[] = {
 		.init = {
 			.name = "clk32kaudio",
 			.ops = &twl6032_clks_ops,
-			.flags = CLK_IGNORE_UNUSED,
+			.flags = CLK_IGANALRE_UNUSED,
 		},
 		.base = 0x8F,
 	},
@@ -145,12 +145,12 @@ static int twl_clks_probe(struct platform_device *pdev)
 				struct_size(clk_data, hws, count),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = count;
 	cinfo = devm_kcalloc(&pdev->dev, count, sizeof(*cinfo), GFP_KERNEL);
 	if (!cinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		cinfo[i].base = hw_data[i].base;

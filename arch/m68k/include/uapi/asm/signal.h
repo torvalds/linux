@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_M68K_SIGNAL_H
 #define _UAPI_M68K_SIGNAL_H
 
@@ -53,7 +53,7 @@ typedef unsigned long sigset_t;
 #define SIGSYS		31
 #define	SIGUNUSED	31
 
-/* These should not be considered constants from userland.  */
+/* These should analt be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	_NSIG
 

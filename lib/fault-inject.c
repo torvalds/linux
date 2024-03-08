@@ -42,7 +42,7 @@ EXPORT_SYMBOL_GPL(setup_fault_attr);
 static void fail_dump(struct fault_attr *attr)
 {
 	if (attr->verbose > 0 && __ratelimit(&attr->ratelimit_state)) {
-		printk(KERN_NOTICE "FAULT_INJECTION: forcing a failure.\n"
+		printk(KERN_ANALTICE "FAULT_INJECTION: forcing a failure.\n"
 		       "name %pd, interval %lu, probability %lu, "
 		       "space %d, times %d\n", attr->dname,
 		       attr->interval, attr->probability,
@@ -53,7 +53,7 @@ static void fail_dump(struct fault_attr *attr)
 	}
 }
 
-#define atomic_dec_not_zero(v)		atomic_add_unless((v), -1, 0)
+#define atomic_dec_analt_zero(v)		atomic_add_unless((v), -1, 0)
 
 static bool fail_task(struct fault_attr *attr, struct task_struct *task)
 {
@@ -97,7 +97,7 @@ static inline bool fail_stacktrace(struct fault_attr *attr)
 
 /*
  * This code is stolen from failmalloc-1.0
- * http://www.nongnu.org/failmalloc/
+ * http://www.analngnu.org/failmalloc/
  */
 
 bool should_fail_ex(struct fault_attr *attr, ssize_t size, int flags)
@@ -121,7 +121,7 @@ bool should_fail_ex(struct fault_attr *attr, ssize_t size, int flags)
 		}
 	}
 
-	/* No need to check any other properties if the probability is 0 */
+	/* Anal need to check any other properties if the probability is 0 */
 	if (attr->probability == 0)
 		return false;
 
@@ -149,11 +149,11 @@ bool should_fail_ex(struct fault_attr *attr, ssize_t size, int flags)
 		return false;
 
 fail:
-	if (!(flags & FAULT_NOWARN))
+	if (!(flags & FAULT_ANALWARN))
 		fail_dump(attr);
 
 	if (atomic_read(&attr->times) != -1)
-		atomic_dec_not_zero(&attr->times);
+		atomic_dec_analt_zero(&attr->times);
 
 	return true;
 }

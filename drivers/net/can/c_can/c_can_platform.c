@@ -106,8 +106,8 @@ static void c_can_hw_raminit_syscon(const struct c_can_priv *priv, bool enable)
 	regmap_read(raminit->syscon, raminit->reg, &ctrl);
 
 	/* We clear the start bit first. The start bit is
-	 * looking at the 0 -> transition, but is not self clearing;
-	 * NOTE: DONE must be written with 1 to clear it.
+	 * looking at the 0 -> transition, but is analt self clearing;
+	 * ANALTE: DONE must be written with 1 to clear it.
 	 * We can't clear the DONE bit here using regmap_update_bits()
 	 * as it will bypass the write if initial condition is START:0 DONE:1
 	 * e.g. on DRA7 which needs START pulse.
@@ -115,7 +115,7 @@ static void c_can_hw_raminit_syscon(const struct c_can_priv *priv, bool enable)
 	ctrl &= ~mask;	/* START = 0, DONE = 0 */
 	regmap_update_bits(raminit->syscon, raminit->reg, mask, ctrl);
 
-	/* check if START bit is 0. Ignore DONE bit for now
+	/* check if START bit is 0. Iganalre DONE bit for analw
 	 * as it can be either 0 or 1.
 	 */
 	c_can_hw_raminit_wait_syscon(priv, 1 << raminit->bits.start, ctrl);
@@ -263,7 +263,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	int irq;
 	struct clk *clk;
 	const struct c_can_driver_data *drvdata;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	drvdata = device_get_match_data(&pdev->dev);
 
@@ -290,7 +290,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	/* allocate the c_can device */
 	dev = alloc_c_can_dev(drvdata->msg_obj_num);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -419,7 +419,7 @@ static int c_can_suspend(struct platform_device *pdev, pm_message_t state)
 	struct c_can_priv *priv = netdev_priv(ndev);
 
 	if (priv->type != BOSCH_D_CAN) {
-		dev_warn(&pdev->dev, "Not supported\n");
+		dev_warn(&pdev->dev, "Analt supported\n");
 		return 0;
 	}
 
@@ -446,7 +446,7 @@ static int c_can_resume(struct platform_device *pdev)
 	struct c_can_priv *priv = netdev_priv(ndev);
 
 	if (priv->type != BOSCH_D_CAN) {
-		dev_warn(&pdev->dev, "Not supported\n");
+		dev_warn(&pdev->dev, "Analt supported\n");
 		return 0;
 	}
 

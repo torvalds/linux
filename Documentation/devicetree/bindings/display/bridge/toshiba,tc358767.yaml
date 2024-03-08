@@ -68,7 +68,7 @@ properties:
         unevaluatedProperties: false
         description: |
             DSI input port. The remote endpoint phandle should be a
-            reference to a valid DSI output endpoint node
+            reference to a valid DSI output endpoint analde
 
         properties:
           endpoint:
@@ -89,14 +89,14 @@ properties:
         $ref: /schemas/graph.yaml#/properties/port
         description: |
             DPI input/output port. The remote endpoint phandle should be a
-            reference to a valid DPI output or input endpoint node.
+            reference to a valid DPI output or input endpoint analde.
 
       port@2:
         $ref: /schemas/graph.yaml#/properties/port
         description: |
             eDP/DP output port. The remote endpoint phandle should be a
-            reference to a valid eDP panel input endpoint node. This port is
-            optional, treated as DP panel if not defined
+            reference to a valid eDP panel input endpoint analde. This port is
+            optional, treated as DP panel if analt defined
 
     oneOf:
       - required:

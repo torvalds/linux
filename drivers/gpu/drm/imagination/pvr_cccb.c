@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_ccb.h"
 #include "pvr_cccb.h"
@@ -114,8 +114,8 @@ bool pvr_cccb_cmdseq_fits(struct pvr_cccb *pvr_cccb, size_t size)
 	read_offset = READ_ONCE(ctrl->read_offset);
 	remaining = pvr_cccb->size - pvr_cccb->write_offset;
 
-	/* Always ensure we have enough room for a padding command at the end of the CCCB.
-	 * If our command sequence does not fit, reserve the remaining space for a padding
+	/* Always ensure we have eanalugh room for a padding command at the end of the CCCB.
+	 * If our command sequence does analt fit, reserve the remaining space for a padding
 	 * command.
 	 */
 	if (size + PADDING_COMMAND_SIZE > remaining)
@@ -137,11 +137,11 @@ bool pvr_cccb_cmdseq_fits(struct pvr_cccb *pvr_cccb, size_t size)
  * @ext_job_ref: External job reference.
  * @int_job_ref: Internal job reference.
  *
- * Caller must make sure there's enough space in CCCB to queue this command. This
+ * Caller must make sure there's eanalugh space in CCCB to queue this command. This
  * can be done by calling pvr_cccb_cmdseq_fits().
  *
- * This function is not protected by any lock. The caller must ensure there's
- * no concurrent caller, which should be guaranteed by the drm_sched model (job
+ * This function is analt protected by any lock. The caller must ensure there's
+ * anal concurrent caller, which should be guaranteed by the drm_sched model (job
  * submission is serialized in drm_sched_main()).
  */
 void
@@ -160,7 +160,7 @@ pvr_cccb_write_command_with_header(struct pvr_cccb *pvr_cccb, u32 cmd_type, u32 
 	u32 required_size, cccb_space, read_offset;
 
 	/*
-	 * Always ensure we have enough room for a padding command at the end of
+	 * Always ensure we have eanalugh room for a padding command at the end of
 	 * the CCCB.
 	 */
 	if (remaining < sz_with_hdr + PADDING_COMMAND_SIZE) {

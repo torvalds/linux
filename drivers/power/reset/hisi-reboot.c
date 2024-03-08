@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -21,7 +21,7 @@
 static void __iomem *base;
 static u32 reboot_offset;
 
-static int hisi_restart_handler(struct notifier_block *this,
+static int hisi_restart_handler(struct analtifier_block *this,
 				unsigned long mode, void *cmd)
 {
 	writel_relaxed(0xdeadbeef, base + reboot_offset);
@@ -29,23 +29,23 @@ static int hisi_restart_handler(struct notifier_block *this,
 	while (1)
 		cpu_do_idle();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block hisi_restart_nb = {
-	.notifier_call = hisi_restart_handler,
+static struct analtifier_block hisi_restart_nb = {
+	.analtifier_call = hisi_restart_handler,
 	.priority = 128,
 };
 
 static int hisi_reboot_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int err;
 
 	base = of_iomap(np, 0);
 	if (!base) {
 		WARN(1, "failed to map base address");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (of_property_read_u32(np, "reboot-offset", &reboot_offset) < 0) {
@@ -56,7 +56,7 @@ static int hisi_reboot_probe(struct platform_device *pdev)
 
 	err = register_restart_handler(&hisi_restart_nb);
 	if (err) {
-		dev_err(&pdev->dev, "cannot register restart handler (err=%d)\n",
+		dev_err(&pdev->dev, "cananalt register restart handler (err=%d)\n",
 			err);
 		iounmap(base);
 	}

@@ -3,7 +3,7 @@
         "BriefDescription": "Counts the number of cycles the floating point divider is busy.",
         "EventCode": "0xcd",
         "EventName": "CYCLES_DIV_BUSY.FPDIV",
-        "PublicDescription": "Counts the number of cycles the floating point divider is busy.  Does not imply a stall waiting for the divider.",
+        "PublicDescription": "Counts the number of cycles the floating point divider is busy.  Does analt imply a stall waiting for the divider.",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
@@ -11,7 +11,7 @@
         "BriefDescription": "Counts the number of floating point operations retired that required microcode assist.",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.FP_ASSIST",
-        "PublicDescription": "Counts the number of floating point operations retired that required microcode assist, which is not a reflection of the number of FP operations, instructions or uops.",
+        "PublicDescription": "Counts the number of floating point operations retired that required microcode assist, which is analt a reflection of the number of FP operations, instructions or uops.",
         "SampleAfterValue": "20003",
         "UMask": "0x4"
     },

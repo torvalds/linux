@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Devicetree for the Samsung XCover 2 GT-S7710 also known as Skomer.
+ * Devicetree for the Samsung XCover 2 GT-S7710 also kanalwn as Skomer.
  */
 
 /dts-v1/;
@@ -226,7 +226,7 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <50000000>;
 			bus-width = <4>;
-			non-removable;
+			analn-removable;
 			cap-sd-highspeed;
 			vmmc-supply = <&wlan_en>;
 			pinctrl-names = "default", "sleep";
@@ -255,11 +255,11 @@
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <100000000>;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
-			no-sdio;
-			no-sd;
+			anal-sdio;
+			anal-sd;
 			/* From datasheet page 26 figure 9: 300 ms set-up time for 4GB */
 			post-power-on-delay-ms = <300>;
 			vmmc-supply = <&ldo_3v3_reg>;
@@ -277,7 +277,7 @@
 			pinctrl-1 = <&u0_a_1_sleep>;
 			status = "okay";
 
-			/* FIXME: not quite working yet, probably needs regulators */
+			/* FIXME: analt quite working yet, probably needs regulators */
 			bluetooth {
 				/* BCM4334B0 actually */
 				compatible = "brcm,bcm4330-bt";
@@ -302,7 +302,7 @@
 				/* GPS_RSTN on GPIO209 */
 				reset-gpios = <&gpio6 17 GPIO_ACTIVE_LOW>;
 				/* GPS_ON_OFF on GPIO86 */
-				sirf,onoff-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+				sirf,oanalff-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
 				/* GPS_1V8 (VSMPS2) */
 				vcc-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
@@ -457,7 +457,7 @@
 				interrupt-parent = <&gpio6>;
 				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 
-				/* VDD is "digital supply" nominally 1.71-3.6V */
+				/* VDD is "digital supply" analminally 1.71-3.6V */
 				vdd-supply = <&ab8500_ldo_aux2_reg>;
 				/* VCPIN is "analog supply", 2.7-3.6 V */
 				vcpin-supply = <&ab8500_ldo_aux2_reg>;
@@ -475,7 +475,7 @@
 			dsi@a0351000 {
 				panel {
 					/* NT35510-based Hydis HVA40WV1 */
-					compatible = "hydis,hva40wv1", "novatek,nt35510";
+					compatible = "hydis,hva40wv1", "analvatek,nt35510";
 					reg = <0>;
 					/* v_lcd_3v0 2.3-4.8V */
 					vdd-supply = <&ab8500_ldo_aux4_reg>;
@@ -521,7 +521,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO68_E1"; /* VSI0 */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 	};
@@ -535,7 +535,7 @@
 				 * on "PBA" which I guess is "prototype board A".
 				 */
 				pins = "GPIO93_B7";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 			skomer_cfg2 {
 				pins = "GPIO139_C9";
@@ -611,7 +611,7 @@
 		gp2ap002_skomer_default: gp2ap002_skomer {
 			skomer_cfg1 {
 				pins = "GPIO146_D13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -620,7 +620,7 @@
 		i2c_gpio_0_default: i2c_gpio_0 {
 			skomer_cfg1 {
 				pins = "GPIO143_D12", "GPIO144_B13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -629,7 +629,7 @@
 		i2c_gpio_1_default: i2c_gpio_1 {
 			skomer_cfg1 {
 				pins = "GPIO151_B17", "GPIO152_D16";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -655,7 +655,7 @@
 			};
 			skomer_cfg2 {
 				pins = "GPIO97_D9";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -672,7 +672,7 @@
 		tma140_skomer_default: tma140_skomer {
 			skomer_cfg1 {
 				pins = "GPIO218_AH11";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};

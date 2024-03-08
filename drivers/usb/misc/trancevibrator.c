@@ -7,7 +7,7 @@
 
 /* Standard include files */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -88,7 +88,7 @@ static int tv_probe(struct usb_interface *interface,
 
 	dev = kzalloc(sizeof(struct trancevibrator), GFP_KERNEL);
 	if (!dev) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error;
 	}
 

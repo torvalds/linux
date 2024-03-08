@@ -52,12 +52,12 @@ struct nfsd3_createargs {
 	__be32 *		verf;
 };
 
-struct nfsd3_mknodargs {
+struct nfsd3_mkanaldargs {
 	struct svc_fh		fh;
 	char *			name;
 	unsigned int		len;
 	__u32			ftype;
-	__u32			major, minor;
+	__u32			major, mianalr;
 	struct iattr		attrs;
 };
 
@@ -119,7 +119,7 @@ struct nfsd3_attrstat {
 	struct kstat            stat;
 };
 
-/* LOOKUP, CREATE, MKDIR, SYMLINK, MKNOD */
+/* LOOKUP, CREATE, MKDIR, SYMLINK, MKANALD */
 struct nfsd3_diropres  {
 	__be32			status;
 	struct svc_fh		dirfh;
@@ -207,7 +207,7 @@ struct nfsd3_pathconfres {
 	__be32			status;
 	__u32			p_link_max;
 	__u32			p_name_max;
-	__u32			p_no_trunc;
+	__u32			p_anal_trunc;
 	__u32			p_chown_restricted;
 	__u32			p_case_insensitive;
 	__u32			p_case_preserving;
@@ -273,7 +273,7 @@ bool nfs3svc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfs3svc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfs3svc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfs3svc_decode_mkanaldargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfs3svc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfs3svc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
@@ -302,9 +302,9 @@ void nfs3svc_release_fhandle2(struct svc_rqst *);
 
 void nfs3svc_encode_cookie3(struct nfsd3_readdirres *resp, u64 offset);
 int nfs3svc_encode_entry3(void *data, const char *name, int namlen,
-			  loff_t offset, u64 ino, unsigned int d_type);
+			  loff_t offset, u64 ianal, unsigned int d_type);
 int nfs3svc_encode_entryplus3(void *data, const char *name, int namlen,
-			      loff_t offset, u64 ino, unsigned int d_type);
+			      loff_t offset, u64 ianal, unsigned int d_type);
 /* Helper functions for NFSv3 ACL code */
 bool svcxdr_decode_nfs_fh3(struct xdr_stream *xdr, struct svc_fh *fhp);
 bool svcxdr_encode_nfsstat3(struct xdr_stream *xdr, __be32 status);

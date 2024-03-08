@@ -14,17 +14,17 @@
 #define ROOT_I 2
 
 /*
- * ino_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
+ * ianal_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
  * so that it will fit. We use hash_64 to convert the value to 31 bits, and
  * then add 1, to ensure that we don't end up with a 0 as the value.
  */
-static inline ino_t
-cifs_uniqueid_to_ino_t(u64 fileid)
+static inline ianal_t
+cifs_uniqueid_to_ianal_t(u64 fileid)
 {
-	if ((sizeof(ino_t)) < (sizeof(u64)))
-		return (ino_t)hash_64(fileid, (sizeof(ino_t) * 8) - 1) + 1;
+	if ((sizeof(ianal_t)) < (sizeof(u64)))
+		return (ianal_t)hash_64(fileid, (sizeof(ianal_t) * 8) - 1) + 1;
 
-	return (ino_t)fileid;
+	return (ianal_t)fileid;
 
 }
 
@@ -46,54 +46,54 @@ extern const struct address_space_operations cifs_addr_ops_smallbuf;
 extern void cifs_sb_active(struct super_block *sb);
 extern void cifs_sb_deactive(struct super_block *sb);
 
-/* Functions related to inodes */
-extern const struct inode_operations cifs_dir_inode_ops;
-extern struct inode *cifs_root_iget(struct super_block *);
-extern int cifs_create(struct mnt_idmap *, struct inode *,
+/* Functions related to ianaldes */
+extern const struct ianalde_operations cifs_dir_ianalde_ops;
+extern struct ianalde *cifs_root_iget(struct super_block *);
+extern int cifs_create(struct mnt_idmap *, struct ianalde *,
 		       struct dentry *, umode_t, bool excl);
-extern int cifs_atomic_open(struct inode *, struct dentry *,
+extern int cifs_atomic_open(struct ianalde *, struct dentry *,
 			    struct file *, unsigned, umode_t);
-extern struct dentry *cifs_lookup(struct inode *, struct dentry *,
+extern struct dentry *cifs_lookup(struct ianalde *, struct dentry *,
 				  unsigned int);
-extern int cifs_unlink(struct inode *dir, struct dentry *dentry);
-extern int cifs_hardlink(struct dentry *, struct inode *, struct dentry *);
-extern int cifs_mknod(struct mnt_idmap *, struct inode *, struct dentry *,
+extern int cifs_unlink(struct ianalde *dir, struct dentry *dentry);
+extern int cifs_hardlink(struct dentry *, struct ianalde *, struct dentry *);
+extern int cifs_mkanald(struct mnt_idmap *, struct ianalde *, struct dentry *,
 		      umode_t, dev_t);
-extern int cifs_mkdir(struct mnt_idmap *, struct inode *, struct dentry *,
+extern int cifs_mkdir(struct mnt_idmap *, struct ianalde *, struct dentry *,
 		      umode_t);
-extern int cifs_rmdir(struct inode *, struct dentry *);
-extern int cifs_rename2(struct mnt_idmap *, struct inode *,
-			struct dentry *, struct inode *, struct dentry *,
+extern int cifs_rmdir(struct ianalde *, struct dentry *);
+extern int cifs_rename2(struct mnt_idmap *, struct ianalde *,
+			struct dentry *, struct ianalde *, struct dentry *,
 			unsigned int);
 extern int cifs_revalidate_file_attr(struct file *filp);
 extern int cifs_revalidate_dentry_attr(struct dentry *);
 extern int cifs_revalidate_file(struct file *filp);
 extern int cifs_revalidate_dentry(struct dentry *);
-extern int cifs_invalidate_mapping(struct inode *inode);
-extern int cifs_revalidate_mapping(struct inode *inode);
-extern int cifs_zap_mapping(struct inode *inode);
+extern int cifs_invalidate_mapping(struct ianalde *ianalde);
+extern int cifs_revalidate_mapping(struct ianalde *ianalde);
+extern int cifs_zap_mapping(struct ianalde *ianalde);
 extern int cifs_getattr(struct mnt_idmap *, const struct path *,
 			struct kstat *, u32, unsigned int);
 extern int cifs_setattr(struct mnt_idmap *, struct dentry *,
 			struct iattr *);
-extern int cifs_fiemap(struct inode *, struct fiemap_extent_info *, u64 start,
+extern int cifs_fiemap(struct ianalde *, struct fiemap_extent_info *, u64 start,
 		       u64 len);
 
-extern const struct inode_operations cifs_file_inode_ops;
-extern const struct inode_operations cifs_symlink_inode_ops;
-extern const struct inode_operations cifs_namespace_inode_operations;
+extern const struct ianalde_operations cifs_file_ianalde_ops;
+extern const struct ianalde_operations cifs_symlink_ianalde_ops;
+extern const struct ianalde_operations cifs_namespace_ianalde_operations;
 
 
 /* Functions related to files and directories */
 extern const struct file_operations cifs_file_ops;
 extern const struct file_operations cifs_file_direct_ops; /* if directio mnt */
 extern const struct file_operations cifs_file_strict_ops; /* if strictio mnt */
-extern const struct file_operations cifs_file_nobrl_ops; /* no brlocks */
-extern const struct file_operations cifs_file_direct_nobrl_ops;
-extern const struct file_operations cifs_file_strict_nobrl_ops;
-extern int cifs_open(struct inode *inode, struct file *file);
-extern int cifs_close(struct inode *inode, struct file *file);
-extern int cifs_closedir(struct inode *inode, struct file *file);
+extern const struct file_operations cifs_file_analbrl_ops; /* anal brlocks */
+extern const struct file_operations cifs_file_direct_analbrl_ops;
+extern const struct file_operations cifs_file_strict_analbrl_ops;
+extern int cifs_open(struct ianalde *ianalde, struct file *file);
+extern int cifs_close(struct ianalde *ianalde, struct file *file);
+extern int cifs_closedir(struct ianalde *ianalde, struct file *file);
 extern ssize_t cifs_user_readv(struct kiocb *iocb, struct iov_iter *to);
 extern ssize_t cifs_direct_readv(struct kiocb *iocb, struct iov_iter *to);
 extern ssize_t cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to);
@@ -108,11 +108,11 @@ extern int cifs_flush(struct file *, fl_owner_t id);
 extern int cifs_file_mmap(struct file *file, struct vm_area_struct *vma);
 extern int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma);
 extern const struct file_operations cifs_dir_ops;
-extern int cifs_dir_open(struct inode *inode, struct file *file);
+extern int cifs_dir_open(struct ianalde *ianalde, struct file *file);
 extern int cifs_readdir(struct file *file, struct dir_context *ctx);
-extern void cifs_pages_written_back(struct inode *inode, loff_t start, unsigned int len);
-extern void cifs_pages_write_failed(struct inode *inode, loff_t start, unsigned int len);
-extern void cifs_pages_write_redirty(struct inode *inode, loff_t start, unsigned int len);
+extern void cifs_pages_written_back(struct ianalde *ianalde, loff_t start, unsigned int len);
+extern void cifs_pages_write_failed(struct ianalde *ianalde, loff_t start, unsigned int len);
+extern void cifs_pages_write_redirty(struct ianalde *ianalde, loff_t start, unsigned int len);
 
 /* Functions related to dir entries */
 extern const struct dentry_operations cifs_dentry_ops;
@@ -121,9 +121,9 @@ extern const struct dentry_operations cifs_ci_dentry_ops;
 extern struct vfsmount *cifs_d_automount(struct path *path);
 
 /* Functions related to symlinks */
-extern const char *cifs_get_link(struct dentry *, struct inode *,
+extern const char *cifs_get_link(struct dentry *, struct ianalde *,
 			struct delayed_call *);
-extern int cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
+extern int cifs_symlink(struct mnt_idmap *idmap, struct ianalde *ianalde,
 			struct dentry *direntry, const char *symname);
 
 #ifdef CONFIG_CIFS_XATTR
@@ -140,7 +140,7 @@ extern ssize_t cifs_file_copychunk_range(unsigned int xid,
 					size_t len, unsigned int flags);
 
 extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
-extern void cifs_setsize(struct inode *inode, loff_t offset);
+extern void cifs_setsize(struct ianalde *ianalde, loff_t offset);
 extern int cifs_truncate_page(struct address_space *mapping, loff_t from);
 
 struct smb3_fs_context;

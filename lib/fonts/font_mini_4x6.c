@@ -5,8 +5,8 @@
  * Use 'perl -x mini_4x6.c < mini_4x6.c > new_version.c' to regenerate
  * binary data.
  *
- * Created by Kenneth Albanowski.
- * No rights reserved, released to the public domain.
+ * Created by Kenneth Albaanalwski.
+ * Anal rights reserved, released to the public domain.
  *
  * Version 1.0
  */
@@ -33,7 +33,7 @@ s{((0x)?[0-9a-fA-F]+)(.*\[([\*\ ]{4})\])}{
 __END__;
 */
 
-/* Note: binary data consists of one byte for each row of each character top
+/* Analte: binary data consists of one byte for each row of each character top
    to bottom, character 0 to character 255, six bytes per character. Each
    byte contains the same four character bits in both nybbles.
    MSBit to LSBit = left to right.

@@ -103,7 +103,7 @@ static int rtl821x_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get_optional_enabled(dev, NULL);
 	if (IS_ERR(priv->clk))
@@ -115,7 +115,7 @@ static int rtl821x_probe(struct phy_device *phydev)
 		return ret;
 
 	priv->phycr1 = ret & (RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF);
-	if (of_property_read_bool(dev->of_node, "realtek,aldps-enable"))
+	if (of_property_read_bool(dev->of_analde, "realtek,aldps-enable"))
 		priv->phycr1 |= RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF;
 
 	priv->has_phycr2 = !(phy_id == RTL_8211FVD_PHYID);
@@ -125,7 +125,7 @@ static int rtl821x_probe(struct phy_device *phydev)
 			return ret;
 
 		priv->phycr2 = ret & RTL8211F_CLKOUT_EN;
-		if (of_property_read_bool(dev->of_node, "realtek,clkout-disable"))
+		if (of_property_read_bool(dev->of_analde, "realtek,clkout-disable"))
 			priv->phycr2 &= ~RTL8211F_CLKOUT_EN;
 	}
 
@@ -260,11 +260,11 @@ static irqreturn_t rtl8201_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, RTL8201F_ISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & RTL8201F_ISR_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -278,17 +278,17 @@ static irqreturn_t rtl821x_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, RTL821x_INSR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	irq_enabled = phy_read(phydev, RTL821x_INER);
 	if (irq_enabled < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & irq_enabled))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -302,11 +302,11 @@ static irqreturn_t rtl8211f_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read_paged(phydev, 0xa43, RTL8211F_INSR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & RTL8211F_INER_LINK_STATUS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -321,7 +321,7 @@ static int rtl8211_config_aneg(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	/* Quirk was copied from vendor driver. Unfortunately it includes no
+	/* Quirk was copied from vendor driver. Unfortunately it includes anal
 	 * description of the magic numbers.
 	 */
 	if (phydev->speed == SPEED_100 && phydev->autoneg == AUTONEG_DISABLE) {
@@ -604,7 +604,7 @@ static int rtlgen_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 		ret = __phy_read(phydev, 0x11);
 		rtl821x_write_page(phydev, 0);
 	} else {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -620,7 +620,7 @@ static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 		ret = __phy_write(phydev, 0x10, val);
 		rtl821x_write_page(phydev, 0);
 	} else {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -630,7 +630,7 @@ static int rtl822x_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 {
 	int ret = rtlgen_read_mmd(phydev, devnum, regnum);
 
-	if (ret != -EOPNOTSUPP)
+	if (ret != -EOPANALTSUPP)
 		return ret;
 
 	if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE2) {
@@ -655,7 +655,7 @@ static int rtl822x_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 {
 	int ret = rtlgen_write_mmd(phydev, devnum, regnum, val);
 
-	if (ret != -EOPNOTSUPP)
+	if (ret != -EOPANALTSUPP)
 		return ret;
 
 	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2) {
@@ -757,7 +757,7 @@ static int rtlgen_resume(struct phy_device *phydev)
 {
 	int ret = genphy_resume(phydev);
 
-	/* Internal PHY's from RTL8168h up may not be instantly ready */
+	/* Internal PHY's from RTL8168h up may analt be instantly ready */
 	msleep(20);
 
 	return ret;
@@ -783,12 +783,12 @@ static int rtl9000a_config_aneg(struct phy_device *phydev)
 		break;
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 		break;
-	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNKANALWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
 		return 0;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = phy_modify_changed(phydev, MII_CTRL1000, CTL1000_AS_MASTER, ctl);
@@ -802,8 +802,8 @@ static int rtl9000a_read_status(struct phy_device *phydev)
 {
 	int ret;
 
-	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
-	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKANALWN;
+	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKANALWN;
 
 	ret = genphy_update_link(phydev);
 	if (ret)
@@ -868,11 +868,11 @@ static irqreturn_t rtl9000a_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, RTL8211F_INSR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & RTL8211F_INER_LINK_STATUS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -1058,8 +1058,8 @@ static struct phy_driver realtek_drvs[] = {
 		 * irq is requested and ACKed by reading the status register,
 		 * which is done by the irqchip code.
 		 */
-		.config_intr	= genphy_no_config_intr,
-		.handle_interrupt = genphy_handle_interrupt_no_ack,
+		.config_intr	= genphy_anal_config_intr,
+		.handle_interrupt = genphy_handle_interrupt_anal_ack,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	}, {
@@ -1079,8 +1079,8 @@ static struct phy_driver realtek_drvs[] = {
 		PHY_ID_MATCH_EXACT(0x001cc942),
 		.name		= "RTL8365MB-VC Gigabit Ethernet",
 		/* Interrupt handling analogous to RTL8366RB */
-		.config_intr	= genphy_no_config_intr,
-		.handle_interrupt = genphy_handle_interrupt_no_ack,
+		.config_intr	= genphy_anal_config_intr,
+		.handle_interrupt = genphy_handle_interrupt_anal_ack,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	},

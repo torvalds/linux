@@ -3,12 +3,12 @@
  * Originally from efivars.c
  *
  * Copyright (C) 2001,2003,2004 Dell <Matt_Domsch@dell.com>
- * Copyright (C) 2004 Intel Corporation <matthew.e.tolentino@intel.com>
+ * Copyright (C) 2004 Intel Corporation <matthew.e.tolentianal@intel.com>
  */
 
 #include <linux/capability.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -28,31 +28,31 @@ static bool
 validate_device_path(efi_char16_t *var_name, int match, u8 *buffer,
 		     unsigned long len)
 {
-	struct efi_generic_dev_path *node;
+	struct efi_generic_dev_path *analde;
 	int offset = 0;
 
-	node = (struct efi_generic_dev_path *)buffer;
+	analde = (struct efi_generic_dev_path *)buffer;
 
-	if (len < sizeof(*node))
+	if (len < sizeof(*analde))
 		return false;
 
-	while (offset <= len - sizeof(*node) &&
-	       node->length >= sizeof(*node) &&
-		node->length <= len - offset) {
-		offset += node->length;
+	while (offset <= len - sizeof(*analde) &&
+	       analde->length >= sizeof(*analde) &&
+		analde->length <= len - offset) {
+		offset += analde->length;
 
-		if ((node->type == EFI_DEV_END_PATH ||
-		     node->type == EFI_DEV_END_PATH2) &&
-		    node->sub_type == EFI_DEV_END_ENTIRE)
+		if ((analde->type == EFI_DEV_END_PATH ||
+		     analde->type == EFI_DEV_END_PATH2) &&
+		    analde->sub_type == EFI_DEV_END_ENTIRE)
 			return true;
 
-		node = (struct efi_generic_dev_path *)(buffer + offset);
+		analde = (struct efi_generic_dev_path *)(buffer + offset);
 	}
 
 	/*
-	 * If we're here then either node->length pointed past the end
+	 * If we're here then either analde->length pointed past the end
 	 * of the buffer or we reached the end of the buffer without
-	 * finding a device path end node.
+	 * finding a device path end analde.
 	 */
 	return false;
 }
@@ -95,7 +95,7 @@ validate_load_option(efi_char16_t *var_name, int match, u8 *buffer,
 	filepathlength = buffer[4] | buffer[5] << 8;
 
 	/*
-	 * There's no stored length for the description, so it has to be
+	 * There's anal stored length for the description, so it has to be
 	 * found by hand
 	 */
 	desclength = ucs2_strsize((efi_char16_t *)(buffer + 6), len - 6) + 2;
@@ -156,13 +156,13 @@ struct variable_validate {
 
 /*
  * This is the list of variables we need to validate, as well as the
- * whitelist for what we think is safe not to default to immutable.
+ * whitelist for what we think is safe analt to default to immutable.
  *
- * If it has a validate() method that's not NULL, it'll go into the
- * validation routine.  If not, it is assumed valid, but still used for
+ * If it has a validate() method that's analt NULL, it'll go into the
+ * validation routine.  If analt, it is assumed valid, but still used for
  * whitelisting.
  *
- * Note that it's sorted by {vendor,name}, but globbed names must come after
+ * Analte that it's sorted by {vendor,name}, but globbed names must come after
  * any other name with the same prefix.
  */
 static const struct variable_validate variable_validate[] = {
@@ -188,11 +188,11 @@ static const struct variable_validate variable_validate[] = {
 /*
  * Check if @var_name matches the pattern given in @match_name.
  *
- * @var_name: an array of @len non-NUL characters.
+ * @var_name: an array of @len analn-NUL characters.
  * @match_name: a NUL-terminated pattern string, optionally ending in "*". A
  *              final "*" character matches any trailing characters @var_name,
- *              including the case when there are none left in @var_name.
- * @match: on output, the number of non-wildcard characters in @match_name
+ *              including the case when there are analne left in @var_name.
+ * @match: on output, the number of analn-wildcard characters in @match_name
  *         that @var_name matches, regardless of the return value.
  * @return: whether @var_name fully matches @match_name.
  */
@@ -214,7 +214,7 @@ variable_matches(const char *var_name, size_t len, const char *match_name,
 
 		default:
 			/*
-			 * We've reached a non-wildcard char in @match_name.
+			 * We've reached a analn-wildcard char in @match_name.
 			 * Continue only if there's an identical character in
 			 * @var_name.
 			 */
@@ -312,7 +312,7 @@ static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor,
 
 /*
  * Returns the size of variable_name, in bytes, including the
- * terminating NULL character, or variable_name_size if no NULL
+ * terminating NULL character, or variable_name_size if anal NULL
  * character is found among the first variable_name_size bytes.
  */
 static unsigned long var_name_strnsize(efi_char16_t *variable_name,
@@ -324,7 +324,7 @@ static unsigned long var_name_strnsize(efi_char16_t *variable_name,
 	/*
 	 * The variable name is, by definition, a NULL-terminated
 	 * string, so make absolutely sure that variable_name_size is
-	 * the value we expect it to be. If not, return the real size.
+	 * the value we expect it to be. If analt, return the real size.
 	 */
 	for (len = 2; len <= variable_name_size; len += sizeof(c)) {
 		c = variable_name[(len / sizeof(c)) - 1];
@@ -381,7 +381,7 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 	variable_name = kzalloc(variable_name_size, GFP_KERNEL);
 	if (!variable_name) {
 		printk(KERN_ERR "efivars: Memory allocation failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = efivar_lock();
@@ -409,7 +409,7 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 			 * Some firmware implementations return the
 			 * same variable name on multiple calls to
 			 * get_next_variable(). Terminate the loop
-			 * immediately as there is no guarantee that
+			 * immediately as there is anal guarantee that
 			 * we'll ever see a different variable name,
 			 * and may end up looping here forever.
 			 */
@@ -417,32 +417,32 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 						head)) {
 				dup_variable_bug(variable_name, &vendor_guid,
 						 variable_name_size);
-				status = EFI_NOT_FOUND;
+				status = EFI_ANALT_FOUND;
 			} else {
 				err = func(variable_name, vendor_guid,
 					   variable_name_size, data, head);
 				if (err)
-					status = EFI_NOT_FOUND;
+					status = EFI_ANALT_FOUND;
 			}
 			break;
 		case EFI_UNSUPPORTED:
-			err = -EOPNOTSUPP;
-			status = EFI_NOT_FOUND;
+			err = -EOPANALTSUPP;
+			status = EFI_ANALT_FOUND;
 			break;
-		case EFI_NOT_FOUND:
+		case EFI_ANALT_FOUND:
 			break;
 		case EFI_BUFFER_TOO_SMALL:
 			pr_warn("efivars: Variable name size exceeds maximum (%lu > 512)\n",
 				variable_name_size);
-			status = EFI_NOT_FOUND;
+			status = EFI_ANALT_FOUND;
 			break;
 		default:
 			pr_warn("efivars: get_next_variable: status=%lx\n", status);
-			status = EFI_NOT_FOUND;
+			status = EFI_ANALT_FOUND;
 			break;
 		}
 
-	} while (status != EFI_NOT_FOUND);
+	} while (status != EFI_ANALT_FOUND);
 
 	efivar_unlock();
 free:
@@ -498,7 +498,7 @@ void efivar_entry_remove(struct efivar_entry *entry)
  *
  * Remove @entry from the variable list and release the list lock.
  *
- * NOTE: slightly weird locking semantics here - we expect to be
+ * ANALTE: slightly weird locking semantics here - we expect to be
  * called with the efivars lock already held, and we release it before
  * returning. This is because this function is usually called after
  * set_variable() while the lock is still held.
@@ -532,7 +532,7 @@ int efivar_entry_delete(struct efivar_entry *entry)
 	status = efivar_set_variable_locked(entry->var.VariableName,
 					    &entry->var.VendorGuid,
 					    0, 0, NULL, false);
-	if (!(status == EFI_SUCCESS || status == EFI_NOT_FOUND)) {
+	if (!(status == EFI_SUCCESS || status == EFI_ANALT_FOUND)) {
 		efivar_unlock();
 		return efi_status_to_err(status);
 	}
@@ -626,12 +626,12 @@ int efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
  * in @size. The success of set_variable() is indicated by @set.
  *
  * Returns 0 on success, -EINVAL if the variable data is invalid,
- * -ENOSPC if the firmware does not have enough available space, or a
+ * -EANALSPC if the firmware does analt have eanalugh available space, or a
  * converted EFI status code if either of set_variable() or
  * get_variable() fail.
  *
- * If the EFI variable does not exist when calling set_variable()
- * (EFI_NOT_FOUND), @entry is removed from the variable list.
+ * If the EFI variable does analt exist when calling set_variable()
+ * (EFI_ANALT_FOUND), @entry is removed from the variable list.
  */
 int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 			      unsigned long *size, void *data, bool *set)
@@ -675,7 +675,7 @@ int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 				    &entry->var.VendorGuid,
 				    NULL, size, NULL);
 
-	if (status == EFI_NOT_FOUND)
+	if (status == EFI_ANALT_FOUND)
 		efivar_entry_list_del_unlock(entry);
 	else
 		efivar_unlock();
@@ -701,8 +701,8 @@ out:
  * entry on the list. It is safe for @func to remove entries in the
  * list via efivar_entry_delete() while iterating.
  *
- * Some notes for the callback function:
- *  - a non-zero return value indicates an error and terminates the loop
+ * Some analtes for the callback function:
+ *  - a analn-zero return value indicates an error and terminates the loop
  *  - @func is called from atomic context
  */
 int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),

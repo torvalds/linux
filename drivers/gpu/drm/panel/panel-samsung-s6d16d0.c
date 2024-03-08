@@ -22,7 +22,7 @@ struct s6d16d0 {
 };
 
 /*
- * The timings are not very helpful as the display is used in
+ * The timings are analt very helpful as the display is used in
  * command mode.
  */
 static const struct drm_display_mode samsung_s6d16d0_mode = {
@@ -168,7 +168,7 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 
 	s6 = devm_kzalloc(dev, sizeof(struct s6d16d0), GFP_KERNEL);
 	if (!s6)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, s6);
 	s6->dev = dev;
@@ -178,13 +178,13 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 	dsi->hs_rate = 420160000;
 	dsi->lp_rate = 19200000;
 	/*
-	 * This display uses command mode so no MIPI_DSI_MODE_VIDEO
+	 * This display uses command mode so anal MIPI_DSI_MODE_VIDEO
 	 * or MIPI_DSI_MODE_VIDEO_SYNC_PULSE
 	 *
-	 * As we only send commands we do not need to be continuously
+	 * As we only send commands we do analt need to be continuously
 	 * clocked.
 	 */
-	dsi->mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	dsi->mode_flags = MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	s6->supply = devm_regulator_get(dev, "vdd1");
 	if (IS_ERR(s6->supply))

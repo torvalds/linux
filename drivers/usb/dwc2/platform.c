@@ -54,7 +54,7 @@ static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
 	enum usb_dr_mode mode;
 
 	hsotg->dr_mode = usb_get_dr_mode(hsotg->dev);
-	if (hsotg->dr_mode == USB_DR_MODE_UNKNOWN)
+	if (hsotg->dr_mode == USB_DR_MODE_UNKANALWN)
 		hsotg->dr_mode = USB_DR_MODE_OTG;
 
 	mode = hsotg->dr_mode;
@@ -62,14 +62,14 @@ static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
 	if (dwc2_hw_is_device(hsotg)) {
 		if (IS_ENABLED(CONFIG_USB_DWC2_HOST)) {
 			dev_err(hsotg->dev,
-				"Controller does not support host mode.\n");
+				"Controller does analt support host mode.\n");
 			return -EINVAL;
 		}
 		mode = USB_DR_MODE_PERIPHERAL;
 	} else if (dwc2_hw_is_host(hsotg)) {
 		if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL)) {
 			dev_err(hsotg->dev,
-				"Controller does not support device mode.\n");
+				"Controller does analt support device mode.\n");
 			return -EINVAL;
 		}
 		mode = USB_DR_MODE_HOST;
@@ -242,8 +242,8 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 	if (IS_ERR(hsotg->phy)) {
 		ret = PTR_ERR(hsotg->phy);
 		switch (ret) {
-		case -ENODEV:
-		case -ENOSYS:
+		case -EANALDEV:
+		case -EANALSYS:
 			hsotg->phy = NULL;
 			break;
 		default:
@@ -256,7 +256,7 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 		if (IS_ERR(hsotg->uphy)) {
 			ret = PTR_ERR(hsotg->uphy);
 			switch (ret) {
-			case -ENODEV:
+			case -EANALDEV:
 			case -ENXIO:
 				hsotg->uphy = NULL;
 				break;
@@ -271,12 +271,12 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 	/* Clock */
 	hsotg->clk = devm_clk_get_optional(hsotg->dev, "otg");
 	if (IS_ERR(hsotg->clk))
-		return dev_err_probe(hsotg->dev, PTR_ERR(hsotg->clk), "cannot get otg clock\n");
+		return dev_err_probe(hsotg->dev, PTR_ERR(hsotg->clk), "cananalt get otg clock\n");
 
 	hsotg->utmi_clk = devm_clk_get_optional(hsotg->dev, "utmi");
 	if (IS_ERR(hsotg->utmi_clk))
 		return dev_err_probe(hsotg->dev, PTR_ERR(hsotg->utmi_clk),
-				     "cannot get utmi clock\n");
+				     "cananalt get utmi clock\n");
 
 	/* Regulators */
 	for (i = 0; i < ARRAY_SIZE(hsotg->supplies); i++)
@@ -297,7 +297,7 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
  * @dev: Platform device
  *
  * This routine is called, for example, when the rmmod command is executed. The
- * device may or may not be electrically present. If it is present, the driver
+ * device may or may analt be electrically present. If it is present, the driver
  * stops device processing. Any resources used on behalf of this device are
  * freed.
  */
@@ -330,7 +330,7 @@ static void dwc2_driver_remove(struct platform_device *dev)
 	}
 
 	/* Exit clock gating when driver is removed. */
-	if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_NONE &&
+	if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_ANALNE &&
 	    hsotg->bus_suspended) {
 		if (dwc2_is_device_mode(hsotg))
 			dwc2_gadget_exit_clock_gating(hsotg, 0);
@@ -412,7 +412,7 @@ int dwc2_check_core_version(struct dwc2_hsotg *hsotg)
 	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_HS_IOT_ID) {
 		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n",
 			hw->snpsid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(hsotg->dev, "Core Release: %1x.%1x%1x%1x (snpsid=%x)\n",
@@ -441,7 +441,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
 	if (!hsotg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsotg->dev = &dev->dev;
 
@@ -485,7 +485,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	if (IS_ERR(hsotg->vbus_supply)) {
 		retval = PTR_ERR(hsotg->vbus_supply);
 		hsotg->vbus_supply = NULL;
-		if (retval != -ENODEV)
+		if (retval != -EANALDEV)
 			return retval;
 	}
 
@@ -500,7 +500,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		goto error;
 
 	hsotg->need_phy_for_wake =
-		of_property_read_bool(dev->dev.of_node,
+		of_property_read_bool(dev->dev.of_analde,
 				      "snps,need-phy-for-wake");
 
 	/*
@@ -526,7 +526,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	/*
 	 * For OTG cores, set the force mode bits to reflect the value
-	 * of dr_mode. Force mode bits should not be touched at any
+	 * of dr_mode. Force mode bits should analt be touched at any
 	 * other time after this.
 	 */
 	dwc2_force_dr_mode(hsotg);
@@ -581,7 +581,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		device_set_wakeup_capable(&dev->dev, true);
 
 	hsotg->reset_phy_on_wake =
-		of_property_read_bool(dev->dev.of_node,
+		of_property_read_bool(dev->dev.of_analde,
 				      "snps,reset-phy-on-wake");
 	if (hsotg->reset_phy_on_wake && !hsotg->phy) {
 		dev_warn(hsotg->dev,

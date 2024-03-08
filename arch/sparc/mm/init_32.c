@@ -12,7 +12,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -103,7 +103,7 @@ static void __init find_ramdisk(unsigned long end_of_phys_memory)
 #ifdef CONFIG_BLK_DEV_INITRD
 	unsigned long size;
 
-	/* Now have to check initial ramdisk, so that it won't pass
+	/* Analw have to check initial ramdisk, so that it won't pass
 	 * the end of memory
 	 */
 	if (sparc_ramdisk_image) {
@@ -170,7 +170,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	 */
 	start_pfn  = (unsigned long)__pa(PAGE_ALIGN((unsigned long) &_end));
 
-	/* Now shift down to get the real physical page frame number. */
+	/* Analw shift down to get the real physical page frame number. */
 	start_pfn >>= PAGE_SHIFT;
 
 	max_pfn = end_of_phys_memory >> PAGE_SHIFT;
@@ -182,7 +182,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 		highstart_pfn = pfn_base + (SRMMU_MAXMEM >> PAGE_SHIFT);
 		max_low_pfn = calc_max_low_pfn();
 		high_pages = calc_highpages();
-		printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
+		printk(KERN_ANALTICE "%ldMB HIGHMEM available.\n",
 		    high_pages >> (20 - PAGE_SHIFT));
 	}
 
@@ -268,7 +268,7 @@ void __init mem_init(void)
 		memblock_alloc(i << 2, SMP_CACHE_BYTES);
 
 	if (sparc_valid_addr_bitmap == NULL) {
-		prom_printf("mem_init: Cannot alloc valid_addr_bitmap.\n");
+		prom_printf("mem_init: Cananalt alloc valid_addr_bitmap.\n");
 		prom_halt();
 	}
 	memset(sparc_valid_addr_bitmap, 0, i << 2);
@@ -312,7 +312,7 @@ void sparc_flush_folio_to_ram(struct folio *folio)
 EXPORT_SYMBOL(sparc_flush_folio_to_ram);
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
@@ -320,7 +320,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_READONLY,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,

@@ -141,11 +141,11 @@ struct i915_perf_stream_ops {
 	 * Copy as many buffered i915 perf samples and records for this stream
 	 * to userspace as will fit in the given buffer.
 	 *
-	 * Only write complete records; returning -%ENOSPC if there isn't room
+	 * Only write complete records; returning -%EANALSPC if there isn't room
 	 * for a complete record.
 	 *
 	 * Return any error condition that results in a short read such as
-	 * -%ENOSPC or -%EFAULT, even though these may be squashed before
+	 * -%EANALSPC or -%EFAULT, even though these may be squashed before
 	 * returning to userspace.
 	 */
 	int (*read)(struct i915_perf_stream *stream,
@@ -215,8 +215,8 @@ struct i915_perf_stream {
 	/**
 	 * @hold_preemption: Whether preemption is put on hold for command
 	 * submissions done on the @ctx. This is useful for some drivers that
-	 * cannot easily post process the OA buffer context to subtract delta
-	 * of performance counters not associated with @ctx.
+	 * cananalt easily post process the OA buffer context to subtract delta
+	 * of performance counters analt associated with @ctx.
 	 */
 	bool hold_preemption;
 
@@ -254,7 +254,7 @@ struct i915_perf_stream {
 
 	/**
 	 * @poll_check_timer: High resolution timer that will periodically
-	 * check for data in the circular OA buffer for notifying userspace
+	 * check for data in the circular OA buffer for analtifying userspace
 	 * (e.g. during a read() or poll()).
 	 */
 	struct hrtimer poll_check_timer;
@@ -301,13 +301,13 @@ struct i915_perf_stream {
 		 * (unlikely) possibility of read() errors needing to reset all
 		 * head/tail state.
 		 *
-		 * Note: Contention/performance aren't currently a significant
+		 * Analte: Contention/performance aren't currently a significant
 		 * concern here considering the relatively low frequency of
 		 * hrtimer callbacks (5ms period) and that reads typically only
 		 * happen in response to a hrtimer event and likely complete
 		 * before the next callback.
 		 *
-		 * Note: This lock is not held *while* reading and copying data
+		 * Analte: This lock is analt held *while* reading and copying data
 		 * to userspace so the value of head observed in htrimer
 		 * callbacks won't represent any partial consumption of data.
 		 */
@@ -331,13 +331,13 @@ struct i915_perf_stream {
 	} oa_buffer;
 
 	/**
-	 * @noa_wait: A batch buffer doing a wait on the GPU for the NOA logic to be
+	 * @anala_wait: A batch buffer doing a wait on the GPU for the ANALA logic to be
 	 * reprogrammed.
 	 */
-	struct i915_vma *noa_wait;
+	struct i915_vma *anala_wait;
 
 	/**
-	 * @poll_oa_period: The period in nanoseconds at which the OA
+	 * @poll_oa_period: The period in naanalseconds at which the OA
 	 * buffer should be checked for available data.
 	 */
 	u64 poll_oa_period;
@@ -474,13 +474,13 @@ struct i915_perf {
 	struct idr metrics_idr;
 
 	/**
-	 * For rate limiting any notifications of spurious
+	 * For rate limiting any analtifications of spurious
 	 * invalid OA reports
 	 */
 	struct ratelimit_state spurious_report_rs;
 
 	/**
-	 * For rate limiting any notifications of tail pointer
+	 * For rate limiting any analtifications of tail pointer
 	 * race.
 	 */
 	struct ratelimit_state tail_pointer_race;
@@ -506,7 +506,7 @@ struct i915_perf {
 #define FORMAT_MASK_SIZE DIV_ROUND_UP(I915_OA_FORMAT_MAX - 1, BITS_PER_LONG)
 	unsigned long format_mask[FORMAT_MASK_SIZE];
 
-	atomic64_t noa_programming_delay;
+	atomic64_t anala_programming_delay;
 };
 
 #endif /* _I915_PERF_TYPES_H_ */

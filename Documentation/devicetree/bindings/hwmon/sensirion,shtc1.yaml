@@ -36,7 +36,7 @@ properties:
   sensirion,low-precision:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      If set, the sensor acquires data with low precision (not recommended).
+      If set, the sensor acquires data with low precision (analt recommended).
       The driver acquires data with high precision by default.
 
 required:

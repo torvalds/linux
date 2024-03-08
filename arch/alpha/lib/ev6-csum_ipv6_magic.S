@@ -13,11 +13,11 @@
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling analtation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
- * Try not to change the actual algorithm if possible for consistency.
+ * Try analt to change the actual algorithm if possible for consistency.
  * Determining actual stalls (other than slotting) doesn't appear to be easy to do.
  *
  * unsigned short csum_ipv6_magic(struct in6_addr *saddr,
@@ -68,7 +68,7 @@ csum_ipv6_magic:
 
 	and	$16,7,$6	# E : src misalignment
 	ldq_u	$5,15($16)	# L : Latency: 3
-	zapnot	$20,15,$20	# U : zero extend incoming csum
+	zapanalt	$20,15,$20	# U : zero extend incoming csum
 	ldq_u	$2,0($17)	# L : U L U L : Latency: 3
 
 	extql	$0,$6,$0	# U :
@@ -103,11 +103,11 @@ csum_ipv6_magic:
 
 	cmpult	$20,$0,$0	# E :
 	addq	$20,$1,$20	# E :
-	zapnot	$18,0xa,$18	# U : 00000000DD00BB00
+	zapanalt	$18,0xa,$18	# U : 00000000DD00BB00
 	zap	$4,0xa,$4	# U : U U L L : 0000000000CC00AA
 
 	or	$18,$4,$18	# E : 00000000DDCCBBAA
-	nop			# E :
+	analp			# E :
 	cmpult	$20,$1,$1	# E :
 	addq	$20,$2,$20	# E : U L U L
 
@@ -128,24 +128,24 @@ csum_ipv6_magic:
 		/* (1 cycle stall on $18, 2 cycles on $20) */
 
 	addq	$0,$20,$0	# E :
-	zapnot	$0,15,$1	# U : Start folding output (1 cycle stall on $0)
-	nop			# E :
+	zapanalt	$0,15,$1	# U : Start folding output (1 cycle stall on $0)
+	analp			# E :
 	srl	$0,32,$0	# U : U L U L : (1 cycle stall on $0)
 
 	addq	$1,$0,$1	# E : Finished generating ulong
 	extwl	$1,2,$2		# U : ushort[1] (1 cycle stall on $1)
-	zapnot	$1,3,$0		# U : ushort[0] (1 cycle stall on $1)
+	zapanalt	$1,3,$0		# U : ushort[0] (1 cycle stall on $1)
 	extwl	$1,4,$1		# U : ushort[2] (1 cycle stall on $1)
 
 	addq	$0,$2,$0	# E
 	addq	$0,$1,$3	# E : Finished generating uint
 		/* (1 cycle stall on $0) */
 	extwl	$3,2,$1		# U : ushort[1] (1 cycle stall on $3)
-	nop			# E : L U L U
+	analp			# E : L U L U
 
 	addq	$1,$3,$0	# E : Final carry
-	not	$0,$4		# E : complement (1 cycle stall on $0)
-	zapnot	$4,3,$0		# U : clear upper garbage bits
+	analt	$0,$4		# E : complement (1 cycle stall on $0)
+	zapanalt	$4,3,$0		# U : clear upper garbage bits
 		/* (1 cycle stall on $4) */
 	ret			# L0 : L U L U
 

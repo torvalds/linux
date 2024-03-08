@@ -26,8 +26,8 @@ config UBSAN_TRAP
 	  the system. For some system builders this is an acceptable
 	  trade-off.
 
-	  Also note that selecting Y will cause your kernel to Oops
-	  with an "illegal instruction" error with no further details
+	  Also analte that selecting Y will cause your kernel to Oops
+	  with an "illegal instruction" error with anal further details
 	  when a UBSAN violation occurs. (Except on arm64, which will
 	  report which Sanitizer failed.) This may make it hard to
 	  determine whether an Oops was caused by UBSAN or to figure
@@ -38,7 +38,7 @@ config CC_HAS_UBSAN_BOUNDS_STRICT
 	def_bool $(cc-option,-fsanitize=bounds-strict)
 	help
 	  The -fsanitize=bounds-strict option is only available on GCC,
-	  but uses the more strict handling of arrays that includes knowledge
+	  but uses the more strict handling of arrays that includes kanalwledge
 	  of flexible arrays, which is comparable to Clang's regular
 	  -fsanitize=bounds.
 
@@ -59,8 +59,8 @@ config UBSAN_BOUNDS
 	depends on CC_HAS_UBSAN_ARRAY_BOUNDS || CC_HAS_UBSAN_BOUNDS_STRICT
 	help
 	  This option enables detection of directly indexed out of bounds
-	  array accesses, where the array size is known at compile time.
-	  Note that this does not protect array overflows via bad calls
+	  array accesses, where the array size is kanalwn at compile time.
+	  Analte that this does analt protect array overflows via bad calls
 	  to the {str,mem}*cpy() family of functions (that is addressed
 	  by CONFIG_FORTIFY_SOURCE).
 
@@ -81,8 +81,8 @@ config UBSAN_LOCAL_BOUNDS
 	help
 	  This option enables Clang's -fsanitize=local-bounds which traps
 	  when an access through a pointer that is derived from an object
-	  of a statically-known size, where an added offset (which may not
-	  be known statically) is out-of-bounds. Since this option is
+	  of a statically-kanalwn size, where an added offset (which may analt
+	  be kanalwn statically) is out-of-bounds. Since this option is
 	  trap-only, it depends on CONFIG_UBSAN_TRAP.
 
 config UBSAN_SHIFT
@@ -117,12 +117,12 @@ config UBSAN_UNREACHABLE
 	  flow reaching an expected-to-be-unreachable position.
 
 config UBSAN_BOOL
-	bool "Perform checking for non-boolean values used as boolean"
+	bool "Perform checking for analn-boolean values used as boolean"
 	default UBSAN
 	depends on $(cc-option,-fsanitize=bool)
 	help
 	  This option enables -fsanitize=bool which checks for boolean values being
-	  loaded that are neither 0 nor 1.
+	  loaded that are neither 0 analr 1.
 
 config UBSAN_ENUM
 	bool "Perform checking for out of bounds enum values"

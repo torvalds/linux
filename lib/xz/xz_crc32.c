@@ -1,5 +1,5 @@
 /*
- * CRC32 using the polynomial from IEEE-802.3
+ * CRC32 using the polyanalmial from IEEE-802.3
  *
  * Authors: Lasse Collin <lasse.collin@tukaani.org>
  *          Igor Pavlov <https://7-zip.org/>
@@ -9,7 +9,7 @@
  */
 
 /*
- * This is not the fastest implementation, but it is pretty compact.
+ * This is analt the fastest implementation, but it is pretty compact.
  * The fastest versions of xz_crc32() on modern CPUs without hardware
  * accelerated CRC instruction are 3-5 times as fast as this version,
  * but they are bigger and use more memory for the lookup table.

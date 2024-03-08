@@ -5,7 +5,7 @@
  * Heterogeneous Memory Attributes Table (HMAT) representation
  *
  * This program parses and reports the platform's HMAT tables, and registers
- * the applicable attributes with the node's interfaces.
+ * the applicable attributes with the analde's interfaces.
  */
 
 #define pr_fmt(fmt) "acpi/hmat: " fmt
@@ -21,7 +21,7 @@
 #include <linux/memregion.h>
 #include <linux/memory.h>
 #include <linux/mutex.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/sysfs.h>
 #include <linux/dax.h>
 #include <linux/memory-tiers.h>
@@ -42,7 +42,7 @@ static DEFINE_MUTEX(target_lock);
 
 /*
  * The defined enum order is used to prioritize attributes to break ties when
- * selecting the best performing node.
+ * selecting the best performing analde.
  */
 enum locality_types {
 	WRITE_LATENCY,
@@ -54,37 +54,37 @@ enum locality_types {
 static struct memory_locality *localities_types[4];
 
 struct target_cache {
-	struct list_head node;
-	struct node_cache_attrs cache_attrs;
+	struct list_head analde;
+	struct analde_cache_attrs cache_attrs;
 };
 
 enum {
-	NODE_ACCESS_CLASS_0 = 0,
-	NODE_ACCESS_CLASS_1,
-	NODE_ACCESS_CLASS_GENPORT_SINK,
-	NODE_ACCESS_CLASS_MAX,
+	ANALDE_ACCESS_CLASS_0 = 0,
+	ANALDE_ACCESS_CLASS_1,
+	ANALDE_ACCESS_CLASS_GENPORT_SINK,
+	ANALDE_ACCESS_CLASS_MAX,
 };
 
 struct memory_target {
-	struct list_head node;
+	struct list_head analde;
 	unsigned int memory_pxm;
 	unsigned int processor_pxm;
 	struct resource memregions;
-	struct access_coordinate coord[NODE_ACCESS_CLASS_MAX];
+	struct access_coordinate coord[ANALDE_ACCESS_CLASS_MAX];
 	struct list_head caches;
-	struct node_cache_attrs cache_attrs;
+	struct analde_cache_attrs cache_attrs;
 	u8 gen_port_device_handle[ACPI_SRAT_DEVICE_HANDLE_SIZE];
 	bool registered;
 };
 
 struct memory_initiator {
-	struct list_head node;
+	struct list_head analde;
 	unsigned int processor_pxm;
 	bool has_cpu;
 };
 
 struct memory_locality {
-	struct list_head node;
+	struct list_head analde;
 	struct acpi_hmat_locality *hmat_loc;
 };
 
@@ -92,7 +92,7 @@ static struct memory_initiator *find_mem_initiator(unsigned int cpu_pxm)
 {
 	struct memory_initiator *initiator;
 
-	list_for_each_entry(initiator, &initiators, node)
+	list_for_each_entry(initiator, &initiators, analde)
 		if (initiator->processor_pxm == cpu_pxm)
 			return initiator;
 	return NULL;
@@ -102,7 +102,7 @@ static struct memory_target *find_mem_target(unsigned int mem_pxm)
 {
 	struct memory_target *target;
 
-	list_for_each_entry(target, &targets, node)
+	list_for_each_entry(target, &targets, analde)
 		if (target->memory_pxm == mem_pxm)
 			return target;
 	return NULL;
@@ -114,7 +114,7 @@ static struct memory_target *acpi_find_genport_target(u32 uid)
 	u32 target_uid;
 	u8 *uid_ptr;
 
-	list_for_each_entry(target, &targets, node) {
+	list_for_each_entry(target, &targets, analde) {
 		uid_ptr = target->gen_port_device_handle + 8;
 		target_uid = *(u32 *)uid_ptr;
 		if (uid == target_uid)
@@ -129,7 +129,7 @@ static struct memory_target *acpi_find_genport_target(u32 uid)
  * @uid: ACPI unique id
  * @coord: The access coordinates written back out for the generic port
  *
- * Return: 0 on success. Errno on failure.
+ * Return: 0 on success. Erranal on failure.
  *
  * Only supports device handles that are ACPI. Assume ACPI0016 HID for CXL.
  */
@@ -141,9 +141,9 @@ int acpi_get_genport_coordinates(u32 uid,
 	guard(mutex)(&target_lock);
 	target = acpi_find_genport_target(uid);
 	if (!target)
-		return -ENOENT;
+		return -EANALENT;
 
-	*coord = target->coord[NODE_ACCESS_CLASS_GENPORT_SINK];
+	*coord = target->coord[ANALDE_ACCESS_CLASS_GENPORT_SINK];
 
 	return 0;
 }
@@ -153,7 +153,7 @@ static __init void alloc_memory_initiator(unsigned int cpu_pxm)
 {
 	struct memory_initiator *initiator;
 
-	if (pxm_to_node(cpu_pxm) == NUMA_NO_NODE)
+	if (pxm_to_analde(cpu_pxm) == NUMA_ANAL_ANALDE)
 		return;
 
 	initiator = find_mem_initiator(cpu_pxm);
@@ -165,8 +165,8 @@ static __init void alloc_memory_initiator(unsigned int cpu_pxm)
 		return;
 
 	initiator->processor_pxm = cpu_pxm;
-	initiator->has_cpu = node_state(pxm_to_node(cpu_pxm), N_CPU);
-	list_add_tail(&initiator->node, &initiators);
+	initiator->has_cpu = analde_state(pxm_to_analde(cpu_pxm), N_CPU);
+	list_add_tail(&initiator->analde, &initiators);
 }
 
 static __init struct memory_target *alloc_target(unsigned int mem_pxm)
@@ -186,7 +186,7 @@ static __init struct memory_target *alloc_target(unsigned int mem_pxm)
 			.end	= -1,
 			.flags	= IORESOURCE_MEM,
 		};
-		list_add_tail(&target->node, &targets);
+		list_add_tail(&target->analde, &targets);
 		INIT_LIST_HEAD(&target->caches);
 	}
 
@@ -261,7 +261,7 @@ static __init const char *hmat_data_type_suffix(u8 type)
 	}
 }
 
-static u32 hmat_normalize(u16 entry, u64 base, u8 type)
+static u32 hmat_analrmalize(u16 entry, u64 base, u8 type)
 {
 	u32 value;
 
@@ -275,7 +275,7 @@ static u32 hmat_normalize(u16 entry, u64 base, u8 type)
 
 	/*
 	 * Divide by the base unit for version 1, convert latency from
-	 * picosenonds to nanoseconds if revision 2.
+	 * picoseanalnds to naanalseconds if revision 2.
 	 */
 	value = entry * base;
 	if (hmat_revision == 1) {
@@ -331,12 +331,12 @@ static __init void hmat_add_locality(struct acpi_hmat_locality *hmat_loc)
 
 	loc = kzalloc(sizeof(*loc), GFP_KERNEL);
 	if (!loc) {
-		pr_notice_once("Failed to allocate HMAT locality\n");
+		pr_analtice_once("Failed to allocate HMAT locality\n");
 		return;
 	}
 
 	loc->hmat_loc = hmat_loc;
-	list_add_tail(&loc->node, &localities);
+	list_add_tail(&loc->analde, &localities);
 
 	switch (hmat_loc->data_type) {
 	case ACPI_HMAT_ACCESS_LATENCY:
@@ -374,11 +374,11 @@ static __init void hmat_update_target(unsigned int tgt_pxm, unsigned int init_px
 
 	if (target && target->processor_pxm == init_pxm) {
 		hmat_update_target_access(target, type, value,
-					  NODE_ACCESS_CLASS_0);
-		/* If the node has a CPU, update access 1 */
-		if (node_state(pxm_to_node(init_pxm), N_CPU))
+					  ANALDE_ACCESS_CLASS_0);
+		/* If the analde has a CPU, update access 1 */
+		if (analde_state(pxm_to_analde(init_pxm), N_CPU))
 			hmat_update_target_access(target, type, value,
-						  NODE_ACCESS_CLASS_1);
+						  ANALDE_ACCESS_CLASS_1);
 	}
 }
 
@@ -392,7 +392,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	u8 type, mem_hier;
 
 	if (hmat_loc->header.length < sizeof(*hmat_loc)) {
-		pr_notice("Unexpected locality header length: %u\n",
+		pr_analtice("Unexpected locality header length: %u\n",
 			 hmat_loc->header.length);
 		return -EINVAL;
 	}
@@ -404,7 +404,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	total_size = sizeof(*hmat_loc) + sizeof(*entries) * ipds * tpds +
 		     sizeof(*inits) * ipds + sizeof(*targs) * tpds;
 	if (hmat_loc->header.length < total_size) {
-		pr_notice("Unexpected locality header length:%u, minimum required:%u\n",
+		pr_analtice("Unexpected locality header length:%u, minimum required:%u\n",
 			 hmat_loc->header.length, total_size);
 		return -EINVAL;
 	}
@@ -419,7 +419,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	for (init = 0; init < ipds; init++) {
 		alloc_memory_initiator(inits[init]);
 		for (targ = 0; targ < tpds; targ++) {
-			value = hmat_normalize(entries[init * tpds + targ],
+			value = hmat_analrmalize(entries[init * tpds + targ],
 					       hmat_loc->entry_base_unit,
 					       type);
 			pr_info("  Initiator-Target[%u-%u]:%u%s\n",
@@ -446,7 +446,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 	u32 attrs;
 
 	if (cache->header.length < sizeof(*cache)) {
-		pr_notice("Unexpected cache header length: %u\n",
+		pr_analtice("Unexpected cache header length: %u\n",
 			 cache->header.length);
 		return -EINVAL;
 	}
@@ -462,7 +462,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 
 	tcache = kzalloc(sizeof(*tcache), GFP_KERNEL);
 	if (!tcache) {
-		pr_notice_once("Failed to allocate HMAT cache info\n");
+		pr_analtice_once("Failed to allocate HMAT cache info\n");
 		return 0;
 	}
 
@@ -472,30 +472,30 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 
 	switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
 	case ACPI_HMAT_CA_DIRECT_MAPPED:
-		tcache->cache_attrs.indexing = NODE_CACHE_DIRECT_MAP;
+		tcache->cache_attrs.indexing = ANALDE_CACHE_DIRECT_MAP;
 		break;
 	case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
-		tcache->cache_attrs.indexing = NODE_CACHE_INDEXED;
+		tcache->cache_attrs.indexing = ANALDE_CACHE_INDEXED;
 		break;
-	case ACPI_HMAT_CA_NONE:
+	case ACPI_HMAT_CA_ANALNE:
 	default:
-		tcache->cache_attrs.indexing = NODE_CACHE_OTHER;
+		tcache->cache_attrs.indexing = ANALDE_CACHE_OTHER;
 		break;
 	}
 
 	switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
 	case ACPI_HMAT_CP_WB:
-		tcache->cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
+		tcache->cache_attrs.write_policy = ANALDE_CACHE_WRITE_BACK;
 		break;
 	case ACPI_HMAT_CP_WT:
-		tcache->cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
+		tcache->cache_attrs.write_policy = ANALDE_CACHE_WRITE_THROUGH;
 		break;
-	case ACPI_HMAT_CP_NONE:
+	case ACPI_HMAT_CP_ANALNE:
 	default:
-		tcache->cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
+		tcache->cache_attrs.write_policy = ANALDE_CACHE_WRITE_OTHER;
 		break;
 	}
-	list_add_tail(&tcache->node, &target->caches);
+	list_add_tail(&tcache->analde, &target->caches);
 
 	return 0;
 }
@@ -507,7 +507,7 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 	struct memory_target *target = NULL;
 
 	if (p->header.length != sizeof(*p)) {
-		pr_notice("Unexpected address range header length: %u\n",
+		pr_analtice("Unexpected address range header length: %u\n",
 			 p->header.length);
 		return -EINVAL;
 	}
@@ -529,9 +529,9 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 		}
 	}
 	if (target && p->flags & ACPI_HMAT_PROCESSOR_PD_VALID) {
-		int p_node = pxm_to_node(p->processor_PD);
+		int p_analde = pxm_to_analde(p->processor_PD);
 
-		if (p_node == NUMA_NO_NODE) {
+		if (p_analde == NUMA_ANAL_ANALDE) {
 			pr_debug("Invalid Processor Domain\n");
 			return -EINVAL;
 		}
@@ -585,7 +585,7 @@ static __init int srat_parse_genport_affinity(union acpi_subtable_headers *heade
 	if (!(ga->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED))
 		return 0;
 
-	/* Skip PCI device_handle for now */
+	/* Skip PCI device_handle for analw */
 	if (ga->device_handle_type != 0)
 		return 0;
 
@@ -628,7 +628,7 @@ static u32 hmat_initiator_perf(struct memory_target *target,
 	if (i == tpds)
 		return 0;
 
-	return hmat_normalize(entries[idx * tpds + tdx],
+	return hmat_analrmalize(entries[idx * tpds + tdx],
 			      hmat_loc->entry_base_unit,
 			      hmat_loc->data_type);
 }
@@ -668,27 +668,27 @@ static int initiator_cmp(void *priv, const struct list_head *a,
 	struct memory_initiator *ia;
 	struct memory_initiator *ib;
 
-	ia = list_entry(a, struct memory_initiator, node);
-	ib = list_entry(b, struct memory_initiator, node);
+	ia = list_entry(a, struct memory_initiator, analde);
+	ib = list_entry(b, struct memory_initiator, analde);
 
 	return ia->processor_pxm - ib->processor_pxm;
 }
 
-static int initiators_to_nodemask(unsigned long *p_nodes)
+static int initiators_to_analdemask(unsigned long *p_analdes)
 {
 	struct memory_initiator *initiator;
 
 	if (list_empty(&initiators))
 		return -ENXIO;
 
-	list_for_each_entry(initiator, &initiators, node)
-		set_bit(initiator->processor_pxm, p_nodes);
+	list_for_each_entry(initiator, &initiators, analde)
+		set_bit(initiator->processor_pxm, p_analdes);
 
 	return 0;
 }
 
 static void hmat_update_target_attrs(struct memory_target *target,
-				     unsigned long *p_nodes, int access)
+				     unsigned long *p_analdes, int access)
 {
 	struct memory_initiator *initiator;
 	unsigned int cpu_nid;
@@ -696,21 +696,21 @@ static void hmat_update_target_attrs(struct memory_target *target,
 	u32 best = 0;
 	int i;
 
-	/* Don't update for generic port if there's no device handle */
-	if (access == NODE_ACCESS_CLASS_GENPORT_SINK &&
+	/* Don't update for generic port if there's anal device handle */
+	if (access == ANALDE_ACCESS_CLASS_GENPORT_SINK &&
 	    !(*(u16 *)target->gen_port_device_handle))
 		return;
 
-	bitmap_zero(p_nodes, MAX_NUMNODES);
+	bitmap_zero(p_analdes, MAX_NUMANALDES);
 	/*
 	 * If the Address Range Structure provides a local processor pxm, set
 	 * only that one. Otherwise, find the best performance attributes and
 	 * collect all initiators that match.
 	 */
 	if (target->processor_pxm != PXM_INVAL) {
-		cpu_nid = pxm_to_node(target->processor_pxm);
-		if (access == 0 || node_state(cpu_nid, N_CPU)) {
-			set_bit(target->processor_pxm, p_nodes);
+		cpu_nid = pxm_to_analde(target->processor_pxm);
+		if (access == 0 || analde_state(cpu_nid, N_CPU)) {
+			set_bit(target->processor_pxm, p_analdes);
 			return;
 		}
 	}
@@ -721,11 +721,11 @@ static void hmat_update_target_attrs(struct memory_target *target,
 	/*
 	 * We need the initiator list sorted so we can use bitmap_clear for
 	 * previously set initiators when we find a better memory accessor.
-	 * We'll also use the sorting to prime the candidate nodes with known
+	 * We'll also use the sorting to prime the candidate analdes with kanalwn
 	 * initiators.
 	 */
 	list_sort(NULL, &initiators, initiator_cmp);
-	if (initiators_to_nodemask(p_nodes) < 0)
+	if (initiators_to_analdemask(p_analdes) < 0)
 		return;
 
 	for (i = WRITE_LATENCY; i <= READ_BANDWIDTH; i++) {
@@ -734,21 +734,21 @@ static void hmat_update_target_attrs(struct memory_target *target,
 			continue;
 
 		best = 0;
-		list_for_each_entry(initiator, &initiators, node) {
+		list_for_each_entry(initiator, &initiators, analde) {
 			u32 value;
 
 			if (access == 1 && !initiator->has_cpu) {
-				clear_bit(initiator->processor_pxm, p_nodes);
+				clear_bit(initiator->processor_pxm, p_analdes);
 				continue;
 			}
-			if (!test_bit(initiator->processor_pxm, p_nodes))
+			if (!test_bit(initiator->processor_pxm, p_analdes))
 				continue;
 
 			value = hmat_initiator_perf(target, initiator, loc->hmat_loc);
 			if (hmat_update_best(loc->hmat_loc->data_type, value, &best))
-				bitmap_clear(p_nodes, 0, initiator->processor_pxm);
+				bitmap_clear(p_analdes, 0, initiator->processor_pxm);
 			if (value != best)
-				clear_bit(initiator->processor_pxm, p_nodes);
+				clear_bit(initiator->processor_pxm, p_analdes);
 		}
 		if (best)
 			hmat_update_target_access(target, loc->hmat_loc->data_type, best, access);
@@ -756,49 +756,49 @@ static void hmat_update_target_attrs(struct memory_target *target,
 }
 
 static void __hmat_register_target_initiators(struct memory_target *target,
-					      unsigned long *p_nodes,
+					      unsigned long *p_analdes,
 					      int access)
 {
 	unsigned int mem_nid, cpu_nid;
 	int i;
 
-	mem_nid = pxm_to_node(target->memory_pxm);
-	hmat_update_target_attrs(target, p_nodes, access);
-	for_each_set_bit(i, p_nodes, MAX_NUMNODES) {
-		cpu_nid = pxm_to_node(i);
-		register_memory_node_under_compute_node(mem_nid, cpu_nid, access);
+	mem_nid = pxm_to_analde(target->memory_pxm);
+	hmat_update_target_attrs(target, p_analdes, access);
+	for_each_set_bit(i, p_analdes, MAX_NUMANALDES) {
+		cpu_nid = pxm_to_analde(i);
+		register_memory_analde_under_compute_analde(mem_nid, cpu_nid, access);
 	}
 }
 
 static void hmat_register_generic_target_initiators(struct memory_target *target)
 {
-	static DECLARE_BITMAP(p_nodes, MAX_NUMNODES);
+	static DECLARE_BITMAP(p_analdes, MAX_NUMANALDES);
 
-	__hmat_register_target_initiators(target, p_nodes,
-					  NODE_ACCESS_CLASS_GENPORT_SINK);
+	__hmat_register_target_initiators(target, p_analdes,
+					  ANALDE_ACCESS_CLASS_GENPORT_SINK);
 }
 
 static void hmat_register_target_initiators(struct memory_target *target)
 {
-	static DECLARE_BITMAP(p_nodes, MAX_NUMNODES);
+	static DECLARE_BITMAP(p_analdes, MAX_NUMANALDES);
 
-	__hmat_register_target_initiators(target, p_nodes, 0);
-	__hmat_register_target_initiators(target, p_nodes, 1);
+	__hmat_register_target_initiators(target, p_analdes, 0);
+	__hmat_register_target_initiators(target, p_analdes, 1);
 }
 
 static void hmat_register_target_cache(struct memory_target *target)
 {
-	unsigned mem_nid = pxm_to_node(target->memory_pxm);
+	unsigned mem_nid = pxm_to_analde(target->memory_pxm);
 	struct target_cache *tcache;
 
-	list_for_each_entry(tcache, &target->caches, node)
-		node_add_cache(mem_nid, &tcache->cache_attrs);
+	list_for_each_entry(tcache, &target->caches, analde)
+		analde_add_cache(mem_nid, &tcache->cache_attrs);
 }
 
 static void hmat_register_target_perf(struct memory_target *target, int access)
 {
-	unsigned mem_nid = pxm_to_node(target->memory_pxm);
-	node_set_perf_attrs(mem_nid, &target->coord[access], access);
+	unsigned mem_nid = pxm_to_analde(target->memory_pxm);
+	analde_set_perf_attrs(mem_nid, &target->coord[access], access);
 }
 
 static void hmat_register_target_devices(struct memory_target *target)
@@ -806,14 +806,14 @@ static void hmat_register_target_devices(struct memory_target *target)
 	struct resource *res;
 
 	/*
-	 * Do not bother creating devices if no driver is available to
+	 * Do analt bother creating devices if anal driver is available to
 	 * consume them.
 	 */
 	if (!IS_ENABLED(CONFIG_DEV_DAX_HMEM))
 		return;
 
 	for (res = target->memregions.child; res; res = res->sibling) {
-		int target_nid = pxm_to_node(target->memory_pxm);
+		int target_nid = pxm_to_analde(target->memory_pxm);
 
 		hmem_register_resource(target_nid, res);
 	}
@@ -821,17 +821,17 @@ static void hmat_register_target_devices(struct memory_target *target)
 
 static void hmat_register_target(struct memory_target *target)
 {
-	int nid = pxm_to_node(target->memory_pxm);
+	int nid = pxm_to_analde(target->memory_pxm);
 
 	/*
 	 * Devices may belong to either an offline or online
-	 * node, so unconditionally add them.
+	 * analde, so unconditionally add them.
 	 */
 	hmat_register_target_devices(target);
 
 	/*
-	 * Register generic port perf numbers. The nid may not be
-	 * initialized and is still NUMA_NO_NODE.
+	 * Register generic port perf numbers. The nid may analt be
+	 * initialized and is still NUMA_ANAL_ANALDE.
 	 */
 	mutex_lock(&target_lock);
 	if (*(u16 *)target->gen_port_device_handle) {
@@ -841,21 +841,21 @@ static void hmat_register_target(struct memory_target *target)
 	mutex_unlock(&target_lock);
 
 	/*
-	 * Skip offline nodes. This can happen when memory
+	 * Skip offline analdes. This can happen when memory
 	 * marked EFI_MEMORY_SP, "specific purpose", is applied
 	 * to all the memory in a proximity domain leading to
-	 * the node being marked offline / unplugged, or if
-	 * memory-only "hotplug" node is offline.
+	 * the analde being marked offline / unplugged, or if
+	 * memory-only "hotplug" analde is offline.
 	 */
-	if (nid == NUMA_NO_NODE || !node_online(nid))
+	if (nid == NUMA_ANAL_ANALDE || !analde_online(nid))
 		return;
 
 	mutex_lock(&target_lock);
 	if (!target->registered) {
 		hmat_register_target_initiators(target);
 		hmat_register_target_cache(target);
-		hmat_register_target_perf(target, NODE_ACCESS_CLASS_0);
-		hmat_register_target_perf(target, NODE_ACCESS_CLASS_1);
+		hmat_register_target_perf(target, ANALDE_ACCESS_CLASS_0);
+		hmat_register_target_perf(target, ANALDE_ACCESS_CLASS_1);
 		target->registered = true;
 	}
 	mutex_unlock(&target_lock);
@@ -865,27 +865,27 @@ static void hmat_register_targets(void)
 {
 	struct memory_target *target;
 
-	list_for_each_entry(target, &targets, node)
+	list_for_each_entry(target, &targets, analde)
 		hmat_register_target(target);
 }
 
-static int hmat_callback(struct notifier_block *self,
+static int hmat_callback(struct analtifier_block *self,
 			 unsigned long action, void *arg)
 {
 	struct memory_target *target;
-	struct memory_notify *mnb = arg;
+	struct memory_analtify *mnb = arg;
 	int pxm, nid = mnb->status_change_nid;
 
-	if (nid == NUMA_NO_NODE || action != MEM_ONLINE)
-		return NOTIFY_OK;
+	if (nid == NUMA_ANAL_ANALDE || action != MEM_ONLINE)
+		return ANALTIFY_OK;
 
-	pxm = node_to_pxm(nid);
+	pxm = analde_to_pxm(nid);
 	target = find_mem_target(pxm);
 	if (!target)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	hmat_register_target(target);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int hmat_set_default_dram_perf(void)
@@ -898,8 +898,8 @@ static int hmat_set_default_dram_perf(void)
 	if (!default_dram_type)
 		return -EIO;
 
-	for_each_node_mask(nid, default_dram_type->nodes) {
-		pxm = node_to_pxm(nid);
+	for_each_analde_mask(nid, default_dram_type->analdes) {
+		pxm = analde_to_pxm(nid);
 		target = find_mem_target(pxm);
 		if (!target)
 			continue;
@@ -912,34 +912,34 @@ static int hmat_set_default_dram_perf(void)
 	return 0;
 }
 
-static int hmat_calculate_adistance(struct notifier_block *self,
+static int hmat_calculate_adistance(struct analtifier_block *self,
 				    unsigned long nid, void *data)
 {
-	static DECLARE_BITMAP(p_nodes, MAX_NUMNODES);
+	static DECLARE_BITMAP(p_analdes, MAX_NUMANALDES);
 	struct memory_target *target;
 	struct access_coordinate *perf;
 	int *adist = data;
 	int pxm;
 
-	pxm = node_to_pxm(nid);
+	pxm = analde_to_pxm(nid);
 	target = find_mem_target(pxm);
 	if (!target)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	mutex_lock(&target_lock);
-	hmat_update_target_attrs(target, p_nodes, 1);
+	hmat_update_target_attrs(target, p_analdes, 1);
 	mutex_unlock(&target_lock);
 
 	perf = &target->coord[1];
 
 	if (mt_perf_to_adistance(perf, adist))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
-static struct notifier_block hmat_adist_nb __meminitdata = {
-	.notifier_call = hmat_calculate_adistance,
+static struct analtifier_block hmat_adist_nb __meminitdata = {
+	.analtifier_call = hmat_calculate_adistance,
 	.priority = 100,
 };
 
@@ -950,15 +950,15 @@ static __init void hmat_free_structures(void)
 	struct memory_initiator *initiator, *inext;
 	struct target_cache *tcache, *cnext;
 
-	list_for_each_entry_safe(target, tnext, &targets, node) {
+	list_for_each_entry_safe(target, tnext, &targets, analde) {
 		struct resource *res, *res_next;
 
-		list_for_each_entry_safe(tcache, cnext, &target->caches, node) {
-			list_del(&tcache->node);
+		list_for_each_entry_safe(tcache, cnext, &target->caches, analde) {
+			list_del(&tcache->analde);
 			kfree(tcache);
 		}
 
-		list_del(&target->node);
+		list_del(&target->analde);
 		res = target->memregions.child;
 		while (res) {
 			res_next = res->sibling;
@@ -969,13 +969,13 @@ static __init void hmat_free_structures(void)
 		kfree(target);
 	}
 
-	list_for_each_entry_safe(initiator, inext, &initiators, node) {
-		list_del(&initiator->node);
+	list_for_each_entry_safe(initiator, inext, &initiators, analde) {
+		list_del(&initiator->analde);
 		kfree(initiator);
 	}
 
-	list_for_each_entry_safe(loc, lnext, &localities, node) {
-		list_del(&loc->node);
+	list_for_each_entry_safe(loc, lnext, &localities, analde) {
+		list_del(&loc->analde);
 		kfree(loc);
 	}
 }
@@ -1017,7 +1017,7 @@ static __init int hmat_init(void)
 	case 2:
 		break;
 	default:
-		pr_notice("Ignoring: Unknown revision:%d\n", hmat_revision);
+		pr_analtice("Iganalring: Unkanalwn revision:%d\n", hmat_revision);
 		goto out_put;
 	}
 
@@ -1025,14 +1025,14 @@ static __init int hmat_init(void)
 		if (acpi_table_parse_entries(ACPI_SIG_HMAT,
 					     sizeof(struct acpi_table_hmat), i,
 					     hmat_parse_subtable, 0) < 0) {
-			pr_notice("Ignoring: Invalid table");
+			pr_analtice("Iganalring: Invalid table");
 			goto out_put;
 		}
 	}
 	hmat_register_targets();
 
-	/* Keep the table and structures if the notifier may use them */
-	if (hotplug_memory_notifier(hmat_callback, HMAT_CALLBACK_PRI))
+	/* Keep the table and structures if the analtifier may use them */
+	if (hotplug_memory_analtifier(hmat_callback, HMAT_CALLBACK_PRI))
 		goto out_put;
 
 	if (!hmat_set_default_dram_perf())

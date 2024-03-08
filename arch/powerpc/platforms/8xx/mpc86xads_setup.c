@@ -92,23 +92,23 @@ static void __init init_ioports(void)
 
 static void __init mpc86xads_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 __iomem *bcsr_io;
 
 	cpm_reset();
 	init_ioports();
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc866ads-bcsr");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,mpc866ads-bcsr");
 	if (!np) {
-		printk(KERN_CRIT "Could not find fsl,mpc866ads-bcsr node\n");
+		printk(KERN_CRIT "Could analt find fsl,mpc866ads-bcsr analde\n");
 		return;
 	}
 
 	bcsr_io = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (bcsr_io == NULL) {
-		printk(KERN_CRIT "Could not remap BCSR\n");
+		printk(KERN_CRIT "Could analt remap BCSR\n");
 		return;
 	}
 

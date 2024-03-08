@@ -38,10 +38,10 @@
 
 /**
  * enum fip_state - internal state of FCoE controller.
- * @FIP_ST_DISABLED: 	controller has been disabled or not yet enabled.
+ * @FIP_ST_DISABLED: 	controller has been disabled or analt yet enabled.
  * @FIP_ST_LINK_WAIT:	the physical link is down or unusable.
- * @FIP_ST_AUTO:	determining whether to use FIP or non-FIP mode.
- * @FIP_ST_NON_FIP:	non-FIP mode selected.
+ * @FIP_ST_AUTO:	determining whether to use FIP or analn-FIP mode.
+ * @FIP_ST_ANALN_FIP:	analn-FIP mode selected.
  * @FIP_ST_ENABLED:	FIP mode selected.
  * @FIP_ST_VNMP_START:	VN2VN multipath mode start, wait
  * @FIP_ST_VNMP_PROBE1:	VN2VN sent first probe, listening
@@ -53,7 +53,7 @@ enum fip_state {
 	FIP_ST_DISABLED,
 	FIP_ST_LINK_WAIT,
 	FIP_ST_AUTO,
-	FIP_ST_NON_FIP,
+	FIP_ST_ANALN_FIP,
 	FIP_ST_ENABLED,
 	FIP_ST_VNMP_START,
 	FIP_ST_VNMP_PROBE1,
@@ -65,18 +65,18 @@ enum fip_state {
 /*
  * Modes:
  * The mode is the state that is to be entered after link up.
- * It must not change after fcoe_ctlr_init() sets it.
+ * It must analt change after fcoe_ctlr_init() sets it.
  */
 enum fip_mode {
 	FIP_MODE_AUTO,
-	FIP_MODE_NON_FIP,
+	FIP_MODE_ANALN_FIP,
 	FIP_MODE_FABRIC,
 	FIP_MODE_VN2VN,
 };
 
 /**
  * struct fcoe_ctlr - FCoE Controller and FIP state
- * @state:	   internal FIP state for network link and FIP or non-FIP mode.
+ * @state:	   internal FIP state for network link and FIP or analn-FIP mode.
  * @mode:	   LLD-selected mode.
  * @lp:		   &fc_lport: libfc local port.
  * @sel_fcf:	   currently selected FCF, or NULL.
@@ -222,12 +222,12 @@ struct fcoe_fcf {
 
 /**
  * struct fcoe_rport - VN2VN remote port
- * @time:	time of create or last beacon packet received from node
- * @fcoe_len:	max FCoE frame size, not including VLAN or Ethernet headers
+ * @time:	time of create or last beacon packet received from analde
+ * @fcoe_len:	max FCoE frame size, analt including VLAN or Ethernet headers
  * @flags:	flags from probe or claim
  * @login_count: number of unsuccessful rport logins to this port
- * @enode_mac:	E_Node control MAC address
- * @vn_mac:	VN_Node assigned MAC address for data
+ * @eanalde_mac:	E_Analde control MAC address
+ * @vn_mac:	VN_Analde assigned MAC address for data
  */
 struct fcoe_rport {
 	struct fc_rport_priv rdata;
@@ -235,7 +235,7 @@ struct fcoe_rport {
 	u16 fcoe_len;
 	u16 flags;
 	u8 login_count;
-	u8 enode_mac[ETH_ALEN];
+	u8 eanalde_mac[ETH_ALEN];
 	u8 vn_mac[ETH_ALEN];
 };
 
@@ -276,7 +276,7 @@ static inline bool is_fip_mode(struct fcoe_ctlr *fip)
 
 /* helper for FCoE SW HBA drivers, can include subven and subdev if needed. The
  * modpost would use pci_device_id table to auto-generate formatted module alias
- * into the corresponding .mod.c file, but there may or may not be a pci device
+ * into the corresponding .mod.c file, but there may or may analt be a pci device
  * id table for FCoE drivers so we use the following helper for build the fcoe
  * driver module alias.
  */
@@ -294,7 +294,7 @@ static inline bool is_fip_mode(struct fcoe_ctlr *fip)
  * @list:	list linkage to all attached transports
  * @match:	handler to allow the transport driver to match up a given netdev
  * @alloc:      handler to allocate per-instance FCoE structures
- *		(no discovery or login)
+ *		(anal discovery or login)
  * @create:	handler to sysfs entry of create for FCoE instances
  * @destroy:    handler to delete per-instance FCoE structures
  *		(frees all memory)

@@ -82,9 +82,9 @@ static int hfi1_caps_set(const char *val, const struct kernel_param *kp)
 	/* Get the changed bits (except the locked bit) */
 	diff = value ^ (cap_mask & ~HFI1_CAP_LOCKED_SMASK);
 
-	/* Remove any bits that are not allowed to change after driver load */
+	/* Remove any bits that are analt allowed to change after driver load */
 	if (HFI1_CAP_LOCKED() && (diff & ~write_mask)) {
-		pr_warn("Ignoring non-writable capability bits %#lx\n",
+		pr_warn("Iganalring analn-writable capability bits %#lx\n",
 			diff & ~write_mask);
 		diff &= write_mask;
 	}
@@ -150,7 +150,7 @@ int hfi1_count_active_units(void)
 }
 
 /*
- * Get address of eager buffer from it's index (allocated in chunks, not
+ * Get address of eager buffer from it's index (allocated in chunks, analt
  * contiguous).
  */
 static inline void *get_egrbuf(const struct hfi1_ctxtdata *rcd, u64 rhf,
@@ -290,7 +290,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 				hfi1_rc_hdrerr(rcd, packet, qp);
 				break;
 			default:
-				/* For now don't handle any other QP types */
+				/* For analw don't handle any other QP types */
 				break;
 			}
 
@@ -379,7 +379,7 @@ static inline void init_packet(struct hfi1_ctxtdata *rcd,
 	packet->numpkt = 0;
 }
 
-/* We support only two types - 9B and 16B for now */
+/* We support only two types - 9B and 16B for analw */
 static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
 	[HFI1_PKT_TYPE_9B] = &return_cnp,
 	[HFI1_PKT_TYPE_16B] = &return_cnp_16B
@@ -391,12 +391,12 @@ static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
  * @pkt: The packet itself.
  * @prescan: Is the caller the RXQ prescan
  *
- * Process the packet's FECN or BECN bits. By now, the packet
+ * Process the packet's FECN or BECN bits. By analw, the packet
  * has already been evaluated whether processing of those bit should
  * be done.
  * The significance of the @prescan argument is that if the caller
  * is the RXQ prescan, a CNP will be send out instead of waiting for the
- * normal packet processing to send an ACK with BECN set (or a CNP).
+ * analrmal packet processing to send an ACK with BECN set (or a CNP).
  */
 bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool prescan)
@@ -409,7 +409,7 @@ bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	u16 pkey;
 	u32 rlid, slid, dlid = 0;
 	u8 hdr_type, sc, svc_type, opcode;
-	bool is_mcast = false, ignore_fecn = false, do_cnp = false,
+	bool is_mcast = false, iganalre_fecn = false, do_cnp = false,
 		fecn, becn;
 
 	/* can be called from prescan */
@@ -463,20 +463,20 @@ bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 		return false;
 	}
 
-	ignore_fecn = is_mcast || (opcode == IB_OPCODE_CNP) ||
-		(opcode == IB_OPCODE_RC_ACKNOWLEDGE);
+	iganalre_fecn = is_mcast || (opcode == IB_OPCODE_CNP) ||
+		(opcode == IB_OPCODE_RC_ACKANALWLEDGE);
 	/*
-	 * ACKNOWLEDGE packets do not get a CNP but this will be
-	 * guarded by ignore_fecn above.
+	 * ACKANALWLEDGE packets do analt get a CNP but this will be
+	 * guarded by iganalre_fecn above.
 	 */
 	do_cnp = prescan ||
 		(opcode >= IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST &&
-		 opcode <= IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE) ||
+		 opcode <= IB_OPCODE_RC_ATOMIC_ACKANALWLEDGE) ||
 		opcode == TID_OP(READ_RESP) ||
 		opcode == TID_OP(ACK);
 
 	/* Call appropriate CNP handler */
-	if (!ignore_fecn && do_cnp && fecn)
+	if (!iganalre_fecn && do_cnp && fecn)
 		hfi1_handle_cnp_tbl[hdr_type](ibp, qp, rqpn, pkey,
 					      dlid, rlid, sc, grh);
 
@@ -486,7 +486,7 @@ bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 
 		process_becn(ppd, sl, rlid, lqpn, rqpn, svc_type);
 	}
-	return !ignore_fecn && fecn;
+	return !iganalre_fecn && fecn;
 }
 
 struct ps_mdata {
@@ -513,7 +513,7 @@ static inline void init_ps_mdata(struct ps_mdata *mdata,
 		if (rcd->ctxt == HFI1_CTRL_CTXT)
 			mdata->ps_seq = hfi1_seq_cnt(rcd);
 		else
-			mdata->ps_seq = 0; /* not used with DMA_RTAIL */
+			mdata->ps_seq = 0; /* analt used with DMA_RTAIL */
 	} else {
 		mdata->ps_tail = 0; /* used only with DMA_RTAIL*/
 		mdata->ps_seq = hfi1_seq_cnt(rcd);
@@ -556,11 +556,11 @@ static inline void update_ps_mdata(struct ps_mdata *mdata,
 
 /*
  * prescan_rxq - search through the receive queue looking for packets
- * containing Excplicit Congestion Notifications (FECNs, or BECNs).
- * When an ECN is found, process the Congestion Notification, and toggle
+ * containing Excplicit Congestion Analtifications (FECNs, or BECNs).
+ * When an ECN is found, process the Congestion Analtification, and toggle
  * it off.
  * This is declared as a macro to allow quick checking of the port to avoid
- * the overhead of a function call if not enabled.
+ * the overhead of a function call if analt enabled.
  */
 #define prescan_rxq(rcd, packet) \
 	do { \
@@ -662,7 +662,7 @@ static void process_rcv_qp_work(struct hfi1_packet *packet)
 	}
 }
 
-static noinline int max_packet_exceeded(struct hfi1_packet *packet, int thread)
+static analinline int max_packet_exceeded(struct hfi1_packet *packet, int thread)
 {
 	if (thread) {
 		if ((packet->numpkt & (MAX_PKT_RECV_THREAD - 1)) == 0)
@@ -685,7 +685,7 @@ static inline int check_max_packet(struct hfi1_packet *packet, int thread)
 	return ret;
 }
 
-static noinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
+static analinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 {
 	int ret;
 
@@ -768,7 +768,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 	 * should be able to trust that etype won't be beyond
 	 * the range of valid indexes. If so something is really
 	 * wrong and we can probably just let things come
-	 * crashing down. There is no need to eat another
+	 * crashing down. There is anal need to eat aanalther
 	 * comparison in this performance critical code.
 	 */
 	packet->rcd->rhf_rcv_function_map[packet->etype](packet);
@@ -791,7 +791,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 static inline void process_rcv_update(int last, struct hfi1_packet *packet)
 {
 	/*
-	 * Update head regs etc., every 16 packets, if not last pkt,
+	 * Update head regs etc., every 16 packets, if analt last pkt,
 	 * to help prevent rcvhdrq overflows, when many packets
 	 * are processed and queue is nearly full.
 	 * Don't request an interrupt for intermediate updates.
@@ -807,7 +807,7 @@ static inline void process_rcv_update(int last, struct hfi1_packet *packet)
 static inline void finish_packet(struct hfi1_packet *packet)
 {
 	/*
-	 * Nothing we need to free for the packet.
+	 * Analthing we need to free for the packet.
 	 *
 	 * The only thing we need to do is a final update and call for an
 	 * interrupt
@@ -847,9 +847,9 @@ bail:
 }
 
 /*
- * Handle receive interrupts when using the no dma rtail option.
+ * Handle receive interrupts when using the anal dma rtail option.
  */
-int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread)
+int handle_receive_interrupt_analdma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 {
 	int last = RCV_PKT_OK;
 	struct hfi1_packet packet;
@@ -1089,7 +1089,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 bail:
 	/*
 	 * Always write head at end, and setup rcv interrupt, even
-	 * if no packets were processed.
+	 * if anal packets were processed.
 	 */
 	finish_packet(&packet);
 	return last;
@@ -1146,7 +1146,7 @@ int handle_receive_interrupt_napi_sp(struct hfi1_ctxtdata *rcd, int budget)
 bail:
 	/*
 	 * Always write head at end, and setup rcv interrupt, even
-	 * if no packets were processed.
+	 * if anal packets were processed.
 	 */
 	finish_packet(&packet);
 	return packet.numpkt;
@@ -1154,8 +1154,8 @@ bail:
 
 /*
  * We may discover in the interrupt that the hardware link state has
- * changed from ARMED to ACTIVE (due to the arrival of a non-SC15 packet),
- * and we need to update the driver's notion of the link state.  We cannot
+ * changed from ARMED to ACTIVE (due to the arrival of a analn-SC15 packet),
+ * and we need to update the driver's analtion of the link state.  We cananalt
  * run set_link_state from interrupt context, so we queue this function on
  * a workqueue.
  *
@@ -1177,8 +1177,8 @@ void receive_interrupt_work(struct work_struct *work)
 	struct hfi1_ctxtdata *rcd;
 	u16 i;
 
-	/* Received non-SC15 packet implies neighbor_normal */
-	ppd->neighbor_normal = 1;
+	/* Received analn-SC15 packet implies neighbor_analrmal */
+	ppd->neighbor_analrmal = 1;
 	set_link_state(ppd, HLS_UP_ACTIVE);
 
 	/*
@@ -1232,7 +1232,7 @@ u16 enum_to_mtu(int mtu)
  * @ppd: the per port data
  *
  * We can handle "any" incoming size, the issue here is whether we
- * need to restrict our outgoing size.  We do not deal with what happens
+ * need to restrict our outgoing size.  We do analt deal with what happens
  * to programs that are already running when the size changes.
  */
 int set_mtu(struct hfi1_pportdata *ppd)
@@ -1256,14 +1256,14 @@ int set_mtu(struct hfi1_pportdata *ppd)
 
 	if (drain)
 		/*
-		 * MTU is specified per-VL. To ensure that no packet gets
+		 * MTU is specified per-VL. To ensure that anal packet gets
 		 * stuck (due, e.g., to the MTU for the packet's VL being
 		 * reduced), empty the per-VL FIFOs before adjusting MTU.
 		 */
 		ret = stop_drain_data_vls(dd);
 
 	if (ret) {
-		dd_dev_err(dd, "%s: cannot stop/drain VLs - refusing to change per-VL MTUs\n",
+		dd_dev_err(dd, "%s: cananalt stop/drain VLs - refusing to change per-VL MTUs\n",
 			   __func__);
 		goto err;
 	}
@@ -1309,7 +1309,7 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 		smp_wmb();
 	}
 
-	/* Hand control of the LED to the DC for normal operation */
+	/* Hand control of the LED to the DC for analrmal operation */
 	write_csr(dd, DCC_CFG_LED_CNTRL, 0);
 }
 
@@ -1338,7 +1338,7 @@ static void run_led_override(struct timer_list *t)
 /*
  * To have the LED blink in a particular pattern, provide timeon and timeoff
  * in milliseconds.
- * To turn off custom blinking and return to normal operation, use
+ * To turn off custom blinking and return to analrmal operation, use
  * shutdown_led_override()
  */
 void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
@@ -1355,7 +1355,7 @@ void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
 	ppd->led_override_phase = 1;
 
 	/*
-	 * If the timer has not already been started, do so. Use a "quick"
+	 * If the timer has analt already been started, do so. Use a "quick"
 	 * timeout so the handler will be called soon to look at our request.
 	 */
 	if (!timer_pending(&ppd->led_override_timer)) {
@@ -1372,10 +1372,10 @@ void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
  * hfi1_reset_device - reset the chip if possible
  * @unit: the device to reset
  *
- * Whether or not reset is successful, we attempt to re-initialize the chip
+ * Whether or analt reset is successful, we attempt to re-initialize the chip
  * (that is, much like a driver unload/reload).  We clear the INITTED flag
  * so that the various entry points will fail until we reinitialize.  For
- * now, we only allow this if no user contexts are open that use chip resources
+ * analw, we only allow this if anal user contexts are open that use chip resources
  */
 int hfi1_reset_device(int unit)
 {
@@ -1385,7 +1385,7 @@ int hfi1_reset_device(int unit)
 	int pidx;
 
 	if (!dd) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto bail;
 	}
 
@@ -1393,13 +1393,13 @@ int hfi1_reset_device(int unit)
 
 	if (!dd->kregbase1 || !(dd->flags & HFI1_PRESENT)) {
 		dd_dev_info(dd,
-			    "Invalid unit number %u or not initialized or not present\n",
+			    "Invalid unit number %u or analt initialized or analt present\n",
 			    unit);
 		ret = -ENXIO;
 		goto bail;
 	}
 
-	/* If there are any user/vnic contexts, we cannot reset */
+	/* If there are any user/vnic contexts, we cananalt reset */
 	mutex_lock(&hfi1_mutex);
 	if (dd->rcd)
 		if (hfi1_stats.sps_ctxts) {
@@ -1445,7 +1445,7 @@ static int hfi1_bypass_ingress_pkt_check(struct hfi1_packet *packet)
 {
 	struct hfi1_pportdata *ppd = packet->rcd->ppd;
 
-	/* slid and dlid cannot be 0 */
+	/* slid and dlid cananalt be 0 */
 	if ((!packet->slid) || (!packet->dlid))
 		return -EINVAL;
 
@@ -1457,7 +1457,7 @@ static int hfi1_bypass_ingress_pkt_check(struct hfi1_packet *packet)
 			return -EINVAL;
 	}
 
-	/* No multicast packets with SC15 */
+	/* Anal multicast packets with SC15 */
 	if ((hfi1_is_16B_mcast(packet->dlid)) && (packet->sc == 0xF))
 		return -EINVAL;
 
@@ -1657,12 +1657,12 @@ static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
 	qpnum = ib_bth_get_qpn(packet->ohdr);
 	netdev = hfi1_netdev_get_data(rcd->dd, qpnum);
 	if (!netdev)
-		goto drop_no_nd;
+		goto drop_anal_nd;
 
 	trace_input_ibhdr(rcd->dd, packet, !!(rhf_dc_info(packet->rhf)));
 	trace_ctxt_rsm_hist(rcd->ctxt);
 
-	/* handle congestion notifications */
+	/* handle congestion analtifications */
 	do_work = hfi1_may_ecn(packet);
 	if (unlikely(do_work)) {
 		do_cnp = (packet->opcode != IB_OPCODE_CNP);
@@ -1698,7 +1698,7 @@ static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
 
 drop:
 	++netdev->stats.rx_dropped;
-drop_no_nd:
+drop_anal_nd:
 	ibp = rcd_to_iport(packet->rcd);
 	++ibp->rvp.n_pkt_drops;
 }
@@ -1743,7 +1743,7 @@ static void process_receive_bypass(struct hfi1_packet *packet)
 		hfi1_16B_rcv(packet);
 	} else {
 		dd_dev_err(dd,
-			   "Bypass packets other than 16B are not supported in normal operation. Dropping\n");
+			   "Bypass packets other than 16B are analt supported in analrmal operation. Dropping\n");
 		incr_cntr64(&dd->sw_rcv_bypass_packet_errors);
 		if (!(dd->err_info_rcvport.status_and_code &
 		      OPA_EI_STATUS_SMASK)) {
@@ -1829,7 +1829,7 @@ void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd)
 	seq_printf(s, "Rcd %u: RcvHdr cnt %u entsize %u %s ctrl 0x%08llx status 0x%08llx, head %llu tail %llu  sw head %u\n",
 		   rcd->ctxt, get_hdrq_cnt(rcd), get_hdrqentsize(rcd),
 		   get_dma_rtail_setting(rcd) ?
-		   "dma_rtail" : "nodma_rtail",
+		   "dma_rtail" : "analdma_rtail",
 		   read_kctxt_csr(rcd->dd, rcd->ctxt, RCV_CTXT_CTRL),
 		   read_kctxt_csr(rcd->dd, rcd->ctxt, RCV_CTXT_STATUS),
 		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_HEAD) &
@@ -1882,7 +1882,7 @@ next:
 	}
 }
 
-const rhf_rcv_function_ptr normal_rhf_rcv_functions[] = {
+const rhf_rcv_function_ptr analrmal_rhf_rcv_functions[] = {
 	[RHF_RCV_TYPE_EXPECTED] = kdeth_process_expected,
 	[RHF_RCV_TYPE_EAGER] = kdeth_process_eager,
 	[RHF_RCV_TYPE_IB] = process_receive_ib,

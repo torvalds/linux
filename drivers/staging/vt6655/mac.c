@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose:  MAC routines
@@ -88,7 +88,7 @@ static void vt6655_mac_clear_stck_ds(void __iomem *iobase)
  *      reg_offset - Offset of MAC Register
  *      mask       - Test bits
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if all test bits Off; otherwise false
  *
@@ -111,9 +111,9 @@ static bool vt6655_mac_is_reg_bits_off(struct vnt_private *priv,
  *      io_base    - Base Address for MAC
  *      retry_limit - Retry Limit
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void vt6655_mac_set_short_retry_limit(struct vnt_private *priv, unsigned char retry_limit)
@@ -132,9 +132,9 @@ void vt6655_mac_set_short_retry_limit(struct vnt_private *priv, unsigned char re
  *      io_base    - Base Address for MAC
  *      byRetryLimit- Retry Limit
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void MACvSetLongRetryLimit(struct vnt_private *priv,
@@ -154,9 +154,9 @@ void MACvSetLongRetryLimit(struct vnt_private *priv,
  *      io_base        - Base Address for MAC
  *      loopback_mode  - Loopback Mode
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 static void vt6655_mac_set_loopback_mode(struct vnt_private *priv, u8 loopback_mode)
@@ -178,7 +178,7 @@ static void vt6655_mac_set_loopback_mode(struct vnt_private *priv, u8 loopback_m
  *  Out:
  *      cxt_buf   - Context buffer
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 static void vt6655_mac_save_context(struct vnt_private *priv, u8 *cxt_buf)
@@ -206,9 +206,9 @@ static void vt6655_mac_save_context(struct vnt_private *priv, u8 *cxt_buf)
  *      io_base    - Base Address for MAC
  *      cxt_buf   - Context buffer
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 static void vt6655_mac_restore_context(struct vnt_private *priv, u8 *cxt_buf)
@@ -257,7 +257,7 @@ static void vt6655_mac_restore_context(struct vnt_private *priv, u8 *cxt_buf)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if Reset Success; otherwise false
  *
@@ -288,7 +288,7 @@ bool MACbSoftwareReset(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if success; otherwise false
  *
@@ -317,7 +317,7 @@ static void vt6655_mac_save_soft_reset(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if success; otherwise false
  *
@@ -371,7 +371,7 @@ static bool vt6655_mac_safe_rx_off(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if success; otherwise false
  *
@@ -427,7 +427,7 @@ static bool vt6655_mac_safe_tx_off(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if success; otherwise false
  *
@@ -462,7 +462,7 @@ static bool vt6655_mac_safe_stop(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if success; otherwise false
  *
@@ -475,10 +475,10 @@ bool MACbShutdown(struct vnt_private *priv)
 	vt6655_mac_set_loopback_mode(priv, MAC_LB_INTERNAL);
 	/* stop the adapter */
 	if (!vt6655_mac_safe_stop(priv)) {
-		vt6655_mac_set_loopback_mode(priv, MAC_LB_NONE);
+		vt6655_mac_set_loopback_mode(priv, MAC_LB_ANALNE);
 		return false;
 	}
-	vt6655_mac_set_loopback_mode(priv, MAC_LB_NONE);
+	vt6655_mac_set_loopback_mode(priv, MAC_LB_ANALNE);
 	return true;
 }
 
@@ -490,9 +490,9 @@ bool MACbShutdown(struct vnt_private *priv)
  *  In:
  *      io_base    - Base Address for MAC
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void MACvInitialize(struct vnt_private *priv)
@@ -522,9 +522,9 @@ void MACvInitialize(struct vnt_private *priv)
  *      io_base        - Base Address for MAC
  *      curr_desc_addr  - Descriptor Address
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void vt6655_mac_set_curr_rx_0_desc_addr(struct vnt_private *priv, u32 curr_desc_addr)
@@ -556,9 +556,9 @@ void vt6655_mac_set_curr_rx_0_desc_addr(struct vnt_private *priv, u32 curr_desc_
  *      io_base        - Base Address for MAC
  *      curr_desc_addr  - Descriptor Address
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void vt6655_mac_set_curr_rx_1_desc_addr(struct vnt_private *priv, u32 curr_desc_addr)
@@ -590,9 +590,9 @@ void vt6655_mac_set_curr_rx_1_desc_addr(struct vnt_private *priv, u32 curr_desc_
  *      io_base        - Base Address for MAC
  *      curr_desc_addr  - Descriptor Address
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 static void vt6655_mac_set_curr_tx_0_desc_addr_ex(struct vnt_private *priv, u32 curr_desc_addr)
@@ -624,9 +624,9 @@ static void vt6655_mac_set_curr_tx_0_desc_addr_ex(struct vnt_private *priv, u32 
  *      io_base        - Base Address for MAC
  *      curr_desc_addr  - Descriptor Address
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 /* TxDMA1 = AC0DMA */
@@ -668,9 +668,9 @@ void vt6655_mac_set_curr_tx_desc_addr(int tx_type, struct vnt_private *priv, u32
  *      io_base    - Base Address for MAC
  *      uDelay      - Delay time (timer resolution is 4 us)
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void MACvTimer0MicroSDelay(struct vnt_private *priv, unsigned int uDelay)
@@ -704,9 +704,9 @@ void MACvTimer0MicroSDelay(struct vnt_private *priv, unsigned int uDelay)
  *      io_base    - Base Address for MAC
  *      uDelay      - Delay time
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void MACvOneShotTimer1MicroSec(struct vnt_private *priv,
@@ -763,9 +763,9 @@ bool MACbPSWakeup(struct vnt_private *priv)
  *      io_base        - Base Address for MAC
  *
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 
@@ -832,9 +832,9 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
  *      io_base        - Base Address for MAC
  *
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void MACvDisableKeyEntry(struct vnt_private *priv, unsigned int uEntryIdx)

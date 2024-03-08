@@ -45,7 +45,7 @@ static int cirrus_scodec_test_gpio_get(struct gpio_chip *chip, unsigned int offs
 static int cirrus_scodec_test_gpio_direction_out(struct gpio_chip *chip,
 						 unsigned int offset, int value)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void cirrus_scodec_test_gpio_set(struct gpio_chip *chip, unsigned int offset,
@@ -60,7 +60,7 @@ static int cirrus_scodec_test_gpio_set_config(struct gpio_chip *gc,
 	switch (pinconf_to_config_param(config)) {
 	case PIN_CONFIG_OUTPUT:
 	case PIN_CONFIG_OUTPUT_ENABLE:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		return 0;
 	}
@@ -88,7 +88,7 @@ static int cirrus_scodec_test_gpio_probe(struct platform_device *pdev)
 
 	gpio_priv = devm_kzalloc(&pdev->dev, sizeof(*gpio_priv), GFP_KERNEL);
 	if (!gpio_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* GPIO core modifies our struct gpio_chip so use a copy */
 	gpio_priv->chip = cirrus_scodec_test_gpio_chip;
@@ -106,8 +106,8 @@ static struct platform_driver cirrus_scodec_test_gpio_driver = {
 	.probe		= cirrus_scodec_test_gpio_probe,
 };
 
-/* software_node referencing the gpio driver */
-static const struct software_node cirrus_scodec_test_gpio_swnode = {
+/* software_analde referencing the gpio driver */
+static const struct software_analde cirrus_scodec_test_gpio_swanalde = {
 	.name = "cirrus_scodec_test_gpio",
 };
 
@@ -118,12 +118,12 @@ static int cirrus_scodec_test_create_gpio(struct kunit *test)
 
 	priv->gpio_pdev = platform_device_alloc(cirrus_scodec_test_gpio_driver.driver.name, -1);
 	if (!priv->gpio_pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = device_add_software_node(&priv->gpio_pdev->dev, &cirrus_scodec_test_gpio_swnode);
+	ret = device_add_software_analde(&priv->gpio_pdev->dev, &cirrus_scodec_test_gpio_swanalde);
 	if (ret) {
 		platform_device_put(priv->gpio_pdev);
-		KUNIT_FAIL(test, "Failed to add swnode to gpio: %d\n", ret);
+		KUNIT_FAIL(test, "Failed to add swanalde to gpio: %d\n", ret);
 		return ret;
 	}
 
@@ -144,18 +144,18 @@ static int cirrus_scodec_test_create_gpio(struct kunit *test)
 	return 0;
 }
 
-static void cirrus_scodec_test_set_gpio_ref_arg(struct software_node_ref_args *arg,
+static void cirrus_scodec_test_set_gpio_ref_arg(struct software_analde_ref_args *arg,
 						int gpio_num)
 {
-	struct software_node_ref_args template =
-		SOFTWARE_NODE_REFERENCE(&cirrus_scodec_test_gpio_swnode, gpio_num, 0);
+	struct software_analde_ref_args template =
+		SOFTWARE_ANALDE_REFERENCE(&cirrus_scodec_test_gpio_swanalde, gpio_num, 0);
 
 	*arg = template;
 }
 
-static int cirrus_scodec_test_set_spkid_swnode(struct kunit *test,
+static int cirrus_scodec_test_set_spkid_swanalde(struct kunit *test,
 					       struct device *dev,
-					       struct software_node_ref_args *args,
+					       struct software_analde_ref_args *args,
 					       int num_args)
 {
 	const struct property_entry props_template[] = {
@@ -163,20 +163,20 @@ static int cirrus_scodec_test_set_spkid_swnode(struct kunit *test,
 		{ }
 	};
 	struct property_entry *props;
-	struct software_node *node;
+	struct software_analde *analde;
 
-	node = kunit_kzalloc(test, sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kunit_kzalloc(test, sizeof(*analde), GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
 	props = kunit_kzalloc(test, sizeof(props_template), GFP_KERNEL);
 	if (!props)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(props, props_template, sizeof(props_template));
-	node->properties = props;
+	analde->properties = props;
 
-	return device_add_software_node(dev, node);
+	return device_add_software_analde(dev, analde);
 }
 
 struct cirrus_scodec_test_spkid_param {
@@ -190,13 +190,13 @@ static void cirrus_scodec_test_spkid_parse(struct kunit *test)
 	struct cirrus_scodec_test_priv *priv = test->priv;
 	const struct cirrus_scodec_test_spkid_param *param = test->param_value;
 	int num_spk_id_refs = param->num_amps * param->gpios_per_amp;
-	struct software_node_ref_args *refs;
+	struct software_analde_ref_args *refs;
 	struct device *dev = &priv->amp_pdev.dev;
 	unsigned int v;
 	int i, ret;
 
 	refs = kunit_kcalloc(test, num_spk_id_refs, sizeof(*refs), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, refs);
+	KUNIT_ASSERT_ANALT_NULL(test, refs);
 
 	for (i = 0, v = 0; i < num_spk_id_refs; ) {
 		cirrus_scodec_test_set_gpio_ref_arg(&refs[i++], v++);
@@ -214,8 +214,8 @@ static void cirrus_scodec_test_spkid_parse(struct kunit *test)
 			v -= param->gpios_per_amp;
 	}
 
-	ret = cirrus_scodec_test_set_spkid_swnode(test, dev, refs, num_spk_id_refs);
-	KUNIT_EXPECT_EQ_MSG(test, ret, 0, "Failed to add swnode\n");
+	ret = cirrus_scodec_test_set_spkid_swanalde(test, dev, refs, num_spk_id_refs);
+	KUNIT_EXPECT_EQ_MSG(test, ret, 0, "Failed to add swanalde\n");
 
 	for (i = 0; i < param->num_amps; ++i) {
 		for (v = 0; v < (1 << param->gpios_per_amp); ++v) {
@@ -231,14 +231,14 @@ static void cirrus_scodec_test_spkid_parse(struct kunit *test)
 	}
 }
 
-static void cirrus_scodec_test_no_spkid(struct kunit *test)
+static void cirrus_scodec_test_anal_spkid(struct kunit *test)
 {
 	struct cirrus_scodec_test_priv *priv = test->priv;
 	struct device *dev = &priv->amp_pdev.dev;
 	int ret;
 
 	ret = cirrus_scodec_get_speaker_id(dev, 0, 4, -1);
-	KUNIT_EXPECT_EQ(test, ret, -ENOENT);
+	KUNIT_EXPECT_EQ(test, ret, -EANALENT);
 }
 
 static void cirrus_scodec_test_dev_release(struct device *dev)
@@ -252,7 +252,7 @@ static int cirrus_scodec_test_case_init(struct kunit *test)
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	test->priv = priv;
 
@@ -279,7 +279,7 @@ static void cirrus_scodec_test_case_exit(struct kunit *test)
 		platform_device_unregister(&priv->amp_pdev);
 
 	if (priv->gpio_pdev) {
-		device_remove_software_node(&priv->gpio_pdev->dev);
+		device_remove_software_analde(&priv->gpio_pdev->dev);
 		platform_device_unregister(priv->gpio_pdev);
 	}
 }
@@ -350,7 +350,7 @@ KUNIT_ARRAY_PARAM(cirrus_scodec_test_spkid, cirrus_scodec_test_spkid_param_cases
 
 static struct kunit_case cirrus_scodec_test_cases[] = {
 	KUNIT_CASE_PARAM(cirrus_scodec_test_spkid_parse, cirrus_scodec_test_spkid_gen_params),
-	KUNIT_CASE(cirrus_scodec_test_no_spkid),
+	KUNIT_CASE(cirrus_scodec_test_anal_spkid),
 	{ } /* terminator */
 };
 

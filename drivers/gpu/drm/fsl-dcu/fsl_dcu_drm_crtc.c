@@ -72,14 +72,14 @@ static void fsl_dcu_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	clk_prepare_enable(fsl_dev->pix_clk);
 	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
 			   DCU_MODE_DCU_MODE_MASK,
-			   DCU_MODE_DCU_MODE(DCU_MODE_NORMAL));
+			   DCU_MODE_DCU_MODE(DCU_MODE_ANALRMAL));
 	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
 		     DCU_UPDATE_MODE_READREG);
 
 	drm_crtc_vblank_on(crtc);
 }
 
-static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void fsl_dcu_drm_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
@@ -129,7 +129,7 @@ static const struct drm_crtc_helper_funcs fsl_dcu_drm_crtc_helper_funcs = {
 	.atomic_disable = fsl_dcu_drm_crtc_atomic_disable,
 	.atomic_flush = fsl_dcu_drm_crtc_atomic_flush,
 	.atomic_enable = fsl_dcu_drm_crtc_atomic_enable,
-	.mode_set_nofb = fsl_dcu_drm_crtc_mode_set_nofb,
+	.mode_set_analfb = fsl_dcu_drm_crtc_mode_set_analfb,
 };
 
 static int fsl_dcu_drm_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -177,7 +177,7 @@ int fsl_dcu_drm_crtc_create(struct fsl_dcu_drm_device *fsl_dev)
 
 	primary = fsl_dcu_drm_primary_create_plane(fsl_dev->drm);
 	if (!primary)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = drm_crtc_init_with_planes(fsl_dev->drm, crtc, primary, NULL,
 					&fsl_dcu_drm_crtc_funcs, NULL);

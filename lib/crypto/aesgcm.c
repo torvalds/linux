@@ -20,7 +20,7 @@ static void aesgcm_encrypt_block(const struct crypto_aes_ctx *ctx, void *dst,
 
 	/*
 	 * In AES-GCM, both the GHASH key derivation and the CTR mode
-	 * encryption operate on known plaintext, making them susceptible to
+	 * encryption operate on kanalwn plaintext, making them susceptible to
 	 * timing attacks on the encryption key. The AES library already
 	 * mitigates this risk to some extent by pulling the entire S-box into
 	 * the caches before doing any substitutions, but this strategy is more
@@ -41,7 +41,7 @@ static void aesgcm_encrypt_block(const struct crypto_aes_ctx *ctx, void *dst,
  * @authsize:	The size in bytes of the GCM authentication tag
  *
  * Returns: 0 on success, or -EINVAL if @keysize or @authsize contain values
- * that are not permitted by the GCM specification.
+ * that are analt permitted by the GCM specification.
  */
 int aesgcm_expandkey(struct aesgcm_ctx *ctx, const u8 *key,
 		     unsigned int keysize, unsigned int authsize)
@@ -113,11 +113,11 @@ static void aesgcm_crypt(const struct aesgcm_ctx *ctx, u8 *dst, const u8 *src,
 
 	while (len > 0) {
 		/*
-		 * The counter increment below must not result in overflow or
+		 * The counter increment below must analt result in overflow or
 		 * carry into the next 32-bit word, as this could result in
 		 * inadvertent IV reuse, which must be avoided at all cost for
 		 * stream ciphers such as AES-CTR. Given the range of 'int
-		 * len', this cannot happen, so no explicit test is necessary.
+		 * len', this cananalt happen, so anal explicit test is necessary.
 		 */
 		ctr[3] = cpu_to_be32(n++);
 		aesgcm_encrypt_block(&ctx->aes_ctx, buf, ctr);
@@ -173,7 +173,7 @@ EXPORT_SYMBOL(aesgcm_encrypt);
  *		tag is stored.
  *
  * Returns: true on success, or false if the ciphertext failed authentication.
- * On failure, no plaintext will be returned.
+ * On failure, anal plaintext will be returned.
  */
 bool __must_check aesgcm_decrypt(const struct aesgcm_ctx *ctx, u8 *dst,
 				 const u8 *src, int crypt_len, const u8 *assoc,
@@ -702,7 +702,7 @@ static int __init libaesgcm_init(void)
 		if (aesgcm_expandkey(&ctx, aesgcm_tv[i].key, aesgcm_tv[i].klen,
 				     aesgcm_tv[i].clen - plen)) {
 			pr_err("aesgcm_expandkey() failed on vector %d\n", i);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (!aesgcm_decrypt(&ctx, buf, aesgcm_tv[i].ctext, plen,
@@ -710,7 +710,7 @@ static int __init libaesgcm_init(void)
 				    aesgcm_tv[i].iv, aesgcm_tv[i].ctext + plen)
 		    || memcmp(buf, aesgcm_tv[i].ptext, plen)) {
 			pr_err("aesgcm_decrypt() #1 failed on vector %d\n", i);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* encrypt in place */
@@ -718,7 +718,7 @@ static int __init libaesgcm_init(void)
 			       aesgcm_tv[i].alen, aesgcm_tv[i].iv, tagbuf);
 		if (memcmp(buf, aesgcm_tv[i].ctext, plen)) {
 			pr_err("aesgcm_encrypt() failed on vector %d\n", i);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* decrypt in place */
@@ -726,7 +726,7 @@ static int __init libaesgcm_init(void)
 				    aesgcm_tv[i].alen, aesgcm_tv[i].iv, tagbuf)
 		    || memcmp(buf, aesgcm_tv[i].ptext, plen)) {
 			pr_err("aesgcm_decrypt() #2 failed on vector %d\n", i);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	return 0;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2004-2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004-2013 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * MDIO implementation for ARC EMAC
  */
@@ -123,7 +123,7 @@ static int arc_mdio_reset(struct mii_bus *bus)
  * arc_mdio_probe - MDIO probe function.
  * @priv:	Pointer to ARC EMAC private data structure.
  *
- * returns:	0 on success, -ENOMEM when mdiobus_alloc
+ * returns:	0 on success, -EANALMEM when mdiobus_alloc
  * (to allocate memory for MII bus structure) fails.
  *
  * Sets up and registers the MDIO interface.
@@ -131,14 +131,14 @@ static int arc_mdio_reset(struct mii_bus *bus)
 int arc_mdio_probe(struct arc_emac_priv *priv)
 {
 	struct arc_emac_mdio_bus_data *data = &priv->bus_data;
-	struct device_node *np = priv->dev->of_node;
-	const char *name = "Synopsys MII Bus";
+	struct device_analde *np = priv->dev->of_analde;
+	const char *name = "Syanalpsys MII Bus";
 	struct mii_bus *bus;
 	int error;
 
 	bus = mdiobus_alloc();
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->bus = bus;
 	bus->priv = priv;
@@ -158,17 +158,17 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 	}
 
 	of_property_read_u32(np, "phy-reset-duration", &data->msec);
-	/* A sane reset duration should not be longer than 1s */
+	/* A sane reset duration should analt be longer than 1s */
 	if (data->msec > 1000)
 		data->msec = 1;
 
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", bus->name);
 
-	error = of_mdiobus_register(bus, priv->dev->of_node);
+	error = of_mdiobus_register(bus, priv->dev->of_analde);
 	if (error) {
 		mdiobus_free(bus);
 		return dev_err_probe(priv->dev, error,
-				     "cannot register MDIO bus %s\n", name);
+				     "cananalt register MDIO bus %s\n", name);
 	}
 
 	return 0;

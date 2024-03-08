@@ -18,7 +18,7 @@
 #define EF_PARISC_EXT		0x00020000 /* Program uses arch. extensions. */
 #define EF_PARISC_LSB		0x00040000 /* Program expects little endian. */
 #define EF_PARISC_WIDE		0x00080000 /* Program expects wide mode.  */
-#define EF_PARISC_NO_KABP	0x00100000 /* No kernel assisted branch
+#define EF_PARISC_ANAL_KABP	0x00100000 /* Anal kernel assisted branch
 					      prediction.  */
 #define EF_PARISC_LAZYSWAP	0x00400000 /* Allow lazy swapping.  */
 #define EF_PARISC_ARCH		0x0000ffff /* Architecture version.  */
@@ -56,7 +56,7 @@
 
 /* HPPA relocs.  */
 
-#define R_PARISC_NONE		0	/* No reloc.  */
+#define R_PARISC_ANALNE		0	/* Anal reloc.  */
 #define R_PARISC_DIR32		1	/* Direct 32-bit reference.  */
 #define R_PARISC_DIR21L		2	/* Left 21 bits of eff. address.  */
 #define R_PARISC_DIR17R		3	/* Right 17 bits of eff. address.  */
@@ -74,7 +74,7 @@
 #define R_PARISC_LTOFF21L	34	/* LT-relative, left 21 bits.  */
 #define R_PARISC_LTOFF14R	38	/* LT-relative, right 14 bits.  */
 #define R_PARISC_SECREL32	41	/* 32 bits section rel. address.  */
-#define R_PARISC_SEGBASE	48	/* No relocation, set segment base.  */
+#define R_PARISC_SEGBASE	48	/* Anal relocation, set segment base.  */
 #define R_PARISC_SEGREL32	49	/* 32 bits segment rel. address.  */
 #define R_PARISC_PLTOFF21L	50	/* PLT rel. address, left 21 bits.  */
 #define R_PARISC_PLTOFF14R	54	/* PLT rel. address, right 14 bits.  */
@@ -146,13 +146,13 @@
 #define R_PARISC_HIRESERVE	255
 
 #define PA_PLABEL_FDESC		0x02	/* bit set if PLABEL points to
-					 * a function descriptor, not
+					 * a function descriptor, analt
 					 * an address */
 
 /* The following are PA function descriptors 
  *
  * addr:	the absolute address of the function
- * gp:		either the data pointer (r27) for non-PIC code or
+ * gp:		either the data pointer (r27) for analn-PIC code or
  *		the PLT pointer (r19) for PIC code */
 
 /* Format for the Elf32 Function descriptor */
@@ -177,7 +177,7 @@ typedef struct elf64_fdesc {
 /* Legal values for p_type field of Elf32_Phdr/Elf64_Phdr.  */
 
 #define PT_HP_TLS		(PT_LOOS + 0x0)
-#define PT_HP_CORE_NONE		(PT_LOOS + 0x1)
+#define PT_HP_CORE_ANALNE		(PT_LOOS + 0x1)
 #define PT_HP_CORE_VERSION	(PT_LOOS + 0x2)
 #define PT_HP_CORE_KERNEL	(PT_LOOS + 0x3)
 #define PT_HP_CORE_COMM		(PT_LOOS + 0x4)
@@ -188,8 +188,8 @@ typedef struct elf64_fdesc {
 #define PT_HP_CORE_MMF		(PT_LOOS + 0x9)
 #define PT_HP_PARALLEL		(PT_LOOS + 0x10)
 #define PT_HP_FASTBIND		(PT_LOOS + 0x11)
-#define PT_HP_OPT_ANNOT		(PT_LOOS + 0x12)
-#define PT_HP_HSL_ANNOT		(PT_LOOS + 0x13)
+#define PT_HP_OPT_ANANALT		(PT_LOOS + 0x12)
+#define PT_HP_HSL_ANANALT		(PT_LOOS + 0x13)
 #define PT_HP_STACK		(PT_LOOS + 0x14)
 
 #define PT_PARISC_ARCHEXT	0x70000000
@@ -253,7 +253,7 @@ typedef unsigned long elf_greg_t;
 /*
  * Fill in general registers in a core dump.  This saves pretty
  * much the same registers as hp-ux, although in a different order.
- * Registers marked # below are not currently saved in pt_regs, so
+ * Registers marked # below are analt currently saved in pt_regs, so
  * we use their current values here.
  *
  * 	gr0..gr31
@@ -325,7 +325,7 @@ struct pt_regs;	/* forward declaration... */
    been loaded before the code runs.
 
    So that we can use the same startup file with static executables,
-   we start programs with a value of 0 to indicate that there is no
+   we start programs with a value of 0 to indicate that there is anal
    such function.  */
 #define ELF_PLAT_INIT(_r, load_addr)       _r->gr[23] = 0
 
@@ -345,7 +345,7 @@ struct pt_regs;	/* forward declaration... */
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,
-   but it's not easy, and we've already done it here.  */
+   but it's analt easy, and we've already done it here.  */
 
 #define ELF_HWCAP	0
 

@@ -72,7 +72,7 @@ static void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr,
 		discard_len = 0;
 	}
 	/*
-	 * no need to check for size as it is guaranteed
+	 * anal need to check for size as it is guaranteed
 	 * that length fits into rd_msg_buf
 	 */
 	mei_read_slots(dev, dev->rd_msg_buf, discard_len);
@@ -115,7 +115,7 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 	cb = list_first_entry_or_null(&cl->rd_pending, struct mei_cl_cb, list);
 	if (!cb) {
 		if (!mei_cl_is_fixed_address(cl)) {
-			cl_err(dev, cl, "pending read cb not found\n");
+			cl_err(dev, cl, "pending read cb analt found\n");
 			goto discard;
 		}
 		cb = mei_cl_alloc_cb(cl, mei_cl_mtu(cl), MEI_FOP_READ, cl->fp);
@@ -135,14 +135,14 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 				gsc_f2h = (struct mei_ext_hdr_gsc_f2h *)ext;
 				cb->ext_hdr = kzalloc(sizeof(*gsc_f2h), GFP_KERNEL);
 				if (!cb->ext_hdr) {
-					cb->status = -ENOMEM;
+					cb->status = -EANALMEM;
 					goto discard;
 				}
 				break;
-			case MEI_EXT_HDR_NONE:
+			case MEI_EXT_HDR_ANALNE:
 				fallthrough;
 			default:
-				cl_err(dev, cl, "unknown extended header\n");
+				cl_err(dev, cl, "unkanalwn extended header\n");
 				cb->status = -EPROTO;
 				break;
 			}
@@ -151,7 +151,7 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 		} while (!mei_ext_last(meta, ext));
 
 		if (!vtag_hdr && !gsc_f2h) {
-			cl_dbg(dev, cl, "no vtag or gsc found in extended header.\n");
+			cl_dbg(dev, cl, "anal vtag or gsc found in extended header.\n");
 			cb->status = -EPROTO;
 			goto discard;
 		}
@@ -172,13 +172,13 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 		u32 ext_hdr_len = mei_ext_hdr_len(&gsc_f2h->hdr);
 
 		if (!dev->hbm_f_gsc_supported) {
-			cl_err(dev, cl, "gsc extended header is not supported\n");
+			cl_err(dev, cl, "gsc extended header is analt supported\n");
 			cb->status = -EPROTO;
 			goto discard;
 		}
 
 		if (length) {
-			cl_err(dev, cl, "no data allowed in cb with gsc\n");
+			cl_err(dev, cl, "anal data allowed in cb with gsc\n");
 			cb->status = -EPROTO;
 			goto discard;
 		}
@@ -191,8 +191,8 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 	}
 
 	if (!mei_cl_is_connected(cl)) {
-		cl_dbg(dev, cl, "not connected\n");
-		cb->status = -ENODEV;
+		cl_dbg(dev, cl, "analt connected\n");
+		cb->status = -EANALDEV;
 		goto discard;
 	}
 
@@ -390,7 +390,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 		dev_err(dev->dev, "less data available than length=%08x.\n",
 				*slots);
 		/* we can't read the message */
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		goto end;
 	}
 
@@ -462,8 +462,8 @@ int mei_irq_read_handler(struct mei_device *dev,
 		}
 	}
 
-	/* if no recipient cl was found we assume corrupted header */
-	/* A message for not connected fixed address clients
+	/* if anal recipient cl was found we assume corrupted header */
+	/* A message for analt connected fixed address clients
 	 * should be silently discarded
 	 * On power down client may be force cleaned,
 	 * silently discard such messages
@@ -474,7 +474,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 		ret = 0;
 		goto reset_slots;
 	}
-	dev_err(dev->dev, "no destination client found 0x%08X\n", dev->rd_msg_hdr[0]);
+	dev_err(dev->dev, "anal destination client found 0x%08X\n", dev->rd_msg_hdr[0]);
 	ret = -EBADMSG;
 	goto end;
 
@@ -569,9 +569,9 @@ int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list)
 				return ret;
 			break;
 
-		case MEI_FOP_NOTIFY_START:
-		case MEI_FOP_NOTIFY_STOP:
-			ret = mei_cl_irq_notify(cl, cb, cmpl_list);
+		case MEI_FOP_ANALTIFY_START:
+		case MEI_FOP_ANALTIFY_STOP:
+			ret = mei_cl_irq_analtify(cl, cb, cmpl_list);
 			if (ret)
 				return ret;
 			break;

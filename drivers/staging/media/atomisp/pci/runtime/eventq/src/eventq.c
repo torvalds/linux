@@ -30,7 +30,7 @@ int ia_css_eventq_recv(
 	/* dequeue the IRQ event */
 	error = ia_css_queue_dequeue(eventq_handle, &sp_event);
 
-	/* check whether the IRQ event is available or not */
+	/* check whether the IRQ event is available or analt */
 	if (!error)
 		ia_css_event_decode(sp_event, payload);
 	return error;
@@ -49,7 +49,7 @@ int ia_css_eventq_send(
 {
 	u8 tmp[4];
 	u32 sw_event;
-	int error = -ENOSYS;
+	int error = -EANALSYS;
 
 	/*
 	 * Encode the queue type, the thread ID and
@@ -64,12 +64,12 @@ int ia_css_eventq_send(
 	/* queue the software event (busy-waiting) */
 	for ( ; ; ) {
 		error = ia_css_queue_enqueue(eventq_handle, sw_event);
-		if (error != -ENOBUFS) {
+		if (error != -EANALBUFS) {
 			/* We were able to successfully send the event
 			   or had a real failure. return the status*/
 			break;
 		}
-		/* Wait for the queue to be not full and try again*/
+		/* Wait for the queue to be analt full and try again*/
 		udelay(1);
 	}
 	return error;

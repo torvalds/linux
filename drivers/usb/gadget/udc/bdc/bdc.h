@@ -92,7 +92,7 @@
 #define BDC_INTCTLS(n)	(0x20c + ((n) * 0x10))
 
 /* Extended capability regs */
-#define BDC_FSCNOC	0xcd4
+#define BDC_FSCANALC	0xcd4
 #define BDC_FSCNIC	0xce4
 #define NUM_NCS(p)	((p) >> 28)
 
@@ -193,7 +193,7 @@
 #define BDC_GIP		BIT(0)
 
 #define BDC_HLT	1
-#define BDC_NOR	2
+#define BDC_ANALR	2
 #define BDC_OIP	7
 
 /* Buffer descriptor and Status report bit fields and masks */
@@ -255,7 +255,7 @@
 #define MAX_XFR_LEN		16777215
 
 /* defines for Force Header command */
-#define DEV_NOTF_TYPE 6
+#define DEV_ANALTF_TYPE 6
 #define FWK_SUBTYPE  1
 #define TRA_PACKET   4
 
@@ -263,8 +263,8 @@
 #define to_bdc_req(r)		container_of(r, struct bdc_req, usb_req)
 #define gadget_to_bdc(g)	container_of(g, struct bdc, gadget)
 
-/* FUNCTION WAKE DEV NOTIFICATION interval, USB3 spec table 8.13 */
-#define BDC_TNOTIFY 2500 /*in ms*/
+/* FUNCTION WAKE DEV ANALTIFICATION interval, USB3 spec table 8.13 */
+#define BDC_TANALTIFY 2500 /*in ms*/
 /* Devstatus bitfields */
 #define REMOTE_WAKEUP_ISSUED	BIT(16)
 #define DEVICE_SUSPENDED	BIT(17)
@@ -362,9 +362,9 @@ struct bdc_ep {
 	struct bd_list bd_list;
 	/*
 	 * HW generates extra event for multi bd tranfers, this flag helps in
-	 * ignoring the extra event
+	 * iganalring the extra event
 	 */
-	bool ignore_next_sr;
+	bool iganalre_next_sr;
 };
 
 /* bdc cmmand parameter structure */
@@ -448,10 +448,10 @@ struct bdc {
 	unsigned char		ep0_response_buff[EP0_RESPONSE_BUFF];
 	/*
 	 * Timer to check if host resumed transfer after bdc sent Func wake
-	 * notification  packet after a remote wakeup. if not, then resend the
+	 * analtification  packet after a remote wakeup. if analt, then resend the
 	 * Func Wake packet every 2.5 secs. Refer to USB3 spec section 8.5.6.4
 	 */
-	struct delayed_work	func_wake_notify;
+	struct delayed_work	func_wake_analtify;
 	struct clk		*clk;
 };
 
@@ -466,7 +466,7 @@ static inline void bdc_writel(void __iomem *base, u32 offset, u32 value)
 }
 
 /* Buffer descriptor list operations */
-void bdc_notify_xfr(struct bdc *bdc, u32 epnum);
+void bdc_analtify_xfr(struct bdc *bdc, u32 epnum);
 void bdc_softconn(struct bdc *bdc);
 void bdc_softdisconn(struct bdc *bdc);
 int bdc_run(struct bdc *bdc);

@@ -137,16 +137,16 @@ static int ioc3kbd_probe(struct platform_device *pdev)
 
 	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sk = kzalloc(sizeof(*sk), GFP_KERNEL);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sa = kzalloc(sizeof(*sa), GFP_KERNEL);
 	if (!sa) {
 		kfree(sk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sk->id.type = SERIO_8042;
@@ -178,7 +178,7 @@ static int ioc3kbd_probe(struct platform_device *pdev)
 
 	ret = request_irq(irq, ioc3kbd_intr, IRQF_SHARED, "ioc3-kbd", d);
 	if (ret) {
-		dev_err(dev, "could not request IRQ %d\n", irq);
+		dev_err(dev, "could analt request IRQ %d\n", irq);
 		serio_unregister_port(d->kbd);
 		serio_unregister_port(d->aux);
 		return ret;

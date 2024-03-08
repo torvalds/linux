@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -97,7 +97,7 @@ nvkm_volt_map_min(struct nvkm_volt *volt, u8 id)
 		return info.min;
 	}
 
-	return id ? id * 10000 : -ENODEV;
+	return id ? id * 10000 : -EANALDEV;
 }
 
 int
@@ -139,7 +139,7 @@ nvkm_volt_map(struct nvkm_volt *volt, u8 id, u8 temp)
 				break;
 			}
 		} else {
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		result = min(max(result, (s64)info.min), (s64)info.max);
@@ -153,7 +153,7 @@ nvkm_volt_map(struct nvkm_volt *volt, u8 id, u8 temp)
 		return result;
 	}
 
-	return id ? id * 10000 : -ENODEV;
+	return id ? id * 10000 : -EANALDEV;
 }
 
 int
@@ -243,8 +243,8 @@ nvkm_volt_init(struct nvkm_subdev *subdev)
 	struct nvkm_volt *volt = nvkm_volt(subdev);
 	int ret = nvkm_volt_get(volt);
 	if (ret < 0) {
-		if (ret != -ENODEV)
-			nvkm_debug(subdev, "current voltage unknown\n");
+		if (ret != -EANALDEV)
+			nvkm_debug(subdev, "current voltage unkanalwn\n");
 		return 0;
 	}
 	nvkm_debug(subdev, "current voltage: %duv\n", ret);
@@ -289,7 +289,7 @@ nvkm_volt_ctor(const struct nvkm_volt_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_volt, device, type, inst, &volt->subdev);
 	volt->func = func;
 
-	/* Assuming the non-bios device should build the voltage table later */
+	/* Assuming the analn-bios device should build the voltage table later */
 	if (bios) {
 		u8 ver, hdr, cnt, len;
 		struct nvbios_vmap vmap;
@@ -322,7 +322,7 @@ nvkm_volt_new_(const struct nvkm_volt_func *func, struct nvkm_device *device,
 	       enum nvkm_subdev_type type, int inst, struct nvkm_volt **pvolt)
 {
 	if (!(*pvolt = kzalloc(sizeof(**pvolt), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_volt_ctor(func, device, type, inst, *pvolt);
 	return 0;
 }

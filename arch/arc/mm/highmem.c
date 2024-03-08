@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/memblock.h>
@@ -24,13 +24,13 @@
  *
  *	Both these facts combined (preemption disabled and per-cpu allocation)
  *	means the total number of concurrent fixmaps will be limited to max
- *	such allocations in a single control path. Thus KM_TYPE_NR (another
+ *	such allocations in a single control path. Thus KM_TYPE_NR (aanalther
  *	historic relic) is a small'ish number which caps max percpu fixmaps
  *
  * ARC HIGHMEM Details
  *
  * - the kernel vaddr space from 0x7z to 0x8z (currently used by vmalloc/module)
- *   is now shared between vmalloc and kmap (non overlapping though)
+ *   is analw shared between vmalloc and kmap (analn overlapping though)
  *
  * - Both fixmap/pkmap use a dedicated page table each, hooked up to swapper PGD
  *   This means each only has 1 PGDIR_SIZE worth of kvaddr mappings, which means
@@ -47,7 +47,7 @@
 
 extern pte_t * pkmap_page_table;
 
-static noinline pte_t * __init alloc_kmap_pgtable(unsigned long kvaddr)
+static analinline pte_t * __init alloc_kmap_pgtable(unsigned long kvaddr)
 {
 	pmd_t *pmd_k = pmd_off_k(kvaddr);
 	pte_t *pte_k;

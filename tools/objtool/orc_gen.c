@@ -22,9 +22,9 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 
 	if (!cfi) {
 		/*
-		 * This is usually either unreachable nops/traps (which don't
+		 * This is usually either unreachable analps/traps (which don't
 		 * trigger unreachable instruction warnings), or
-		 * STACK_FRAME_NON_STANDARD functions.
+		 * STACK_FRAME_ANALN_STANDARD functions.
 		 */
 		orc->type = ORC_TYPE_UNDEFINED;
 		return 0;
@@ -47,7 +47,7 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 		orc->type = ORC_TYPE_REGS_PARTIAL;
 		break;
 	default:
-		WARN_INSN(insn, "unknown unwind hint type %d", cfi->type);
+		WARN_INSN(insn, "unkanalwn unwind hint type %d", cfi->type);
 		return -1;
 	}
 
@@ -79,7 +79,7 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 		orc->sp_reg = ORC_REG_DX;
 		break;
 	default:
-		WARN_INSN(insn, "unknown CFA base reg %d", cfi->cfa.base);
+		WARN_INSN(insn, "unkanalwn CFA base reg %d", cfi->cfa.base);
 		return -1;
 	}
 
@@ -94,7 +94,7 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 		orc->bp_reg = ORC_REG_BP;
 		break;
 	default:
-		WARN_INSN(insn, "unknown BP base reg %d", bp->base);
+		WARN_INSN(insn, "unkanalwn BP base reg %d", bp->base);
 		return -1;
 	}
 

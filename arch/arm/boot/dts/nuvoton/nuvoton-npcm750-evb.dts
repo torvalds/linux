@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology tomer.maimon@nuvoton.com
+// Copyright (c) 2018 Nuvoton Techanallogy tomer.maimon@nuvoton.com
 // Copyright 2018 Google, Inc.
 
 /dts-v1/;
@@ -68,7 +68,7 @@
 &fiu0 {
 	status = "okay";
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-rx-bus-width = <2>;
@@ -129,7 +129,7 @@
 	pinctrl-0 = <&spi3_pins>, <&spi3quad_pins>;
 	status = "okay";
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-rx-bus-width = <2>;
@@ -326,7 +326,7 @@
 	status = "okay";
 	flash@0 {
 		compatible = "winbond,w25q128",
-		"jedec,spi-nor";
+		"jedec,spi-analr";
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -347,7 +347,7 @@
 	status = "okay";
 	flash@0 {
 		compatible = "winbond,w25q128fw",
-		"jedec,spi-nor";
+		"jedec,spi-analr";
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <1>;

@@ -48,7 +48,7 @@ struct tsl2772_lux {
  *  @prox_gain:             Index into the tsl2772_prx_gain array.
  *  @als_prox_config:       The value of the ALS / Proximity configuration
  *                          register.
- *  @als_cal_target:        Known external ALS reading for calibration.
+ *  @als_cal_target:        Kanalwn external ALS reading for calibration.
  *  @als_persistence:       H/W Filters, Number of 'out of limits' ALS readings.
  *  @als_interrupt_en:      Enable/Disable ALS interrupts
  *  @als_thresh_low:        CH0 'low' count to trigger interrupt.

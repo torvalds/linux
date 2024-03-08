@@ -349,13 +349,13 @@ modehdlc(struct bchannel *bch, int protocol)
 	case -1: /* used for init */
 		bch->state = -1;
 		fallthrough;
-	case ISDN_P_NONE:
-		if (bch->state == ISDN_P_NONE)
+	case ISDN_P_ANALNE:
+		if (bch->state == ISDN_P_ANALNE)
 			break;
 		hdlc->ctrl.sr.cmd  = HDLC_CMD_XRS | HDLC_CMD_RRS;
 		hdlc->ctrl.sr.mode = mode | HDLC_MODE_TRANS;
 		write_ctrl(bch, 5);
-		bch->state = ISDN_P_NONE;
+		bch->state = ISDN_P_ANALNE;
 		test_and_clear_bit(FLG_HDLC, &bch->Flags);
 		test_and_clear_bit(FLG_TRANSPARENT, &bch->Flags);
 		break;
@@ -380,8 +380,8 @@ modehdlc(struct bchannel *bch, int protocol)
 		test_and_set_bit(FLG_HDLC, &bch->Flags);
 		break;
 	default:
-		pr_info("%s: protocol not known %x\n", fc->name, protocol);
-		return -ENOPROTOOPT;
+		pr_info("%s: protocol analt kanalwn %x\n", fc->name, protocol);
+		return -EANALPROTOOPT;
 	}
 	return 0;
 }
@@ -402,7 +402,7 @@ hdlc_empty_fifo(struct bchannel *bch, int count)
 	} else {
 		cnt = bchannel_get_rxbuf(bch, count);
 		if (cnt < 0) {
-			pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+			pr_warn("%s.B%d: Anal bufferspace for %d bytes\n",
 				fc->name, bch->nr, count);
 			return;
 		}
@@ -484,7 +484,7 @@ hdlc_fill_fifo(struct bchannel *bch)
 	}
 	if (fillempty) {
 		while (cnt < count) {
-			/* all bytes the same - no worry about endian */
+			/* all bytes the same - anal worry about endian */
 			outl(*ptr, addr);
 			cnt += 4;
 		}
@@ -575,7 +575,7 @@ handle_tx:
 		 * in transparent mode we send the next data
 		 */
 		pr_warn("%s: ch%d stat %x XDU %s\n", fc->name, bch->nr,
-			stat, bch->tx_skb ? "tx_skb" : "no tx_skb");
+			stat, bch->tx_skb ? "tx_skb" : "anal tx_skb");
 		if (bch->tx_skb && bch->tx_skb->len) {
 			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
 				bch->tx_idx = 0;
@@ -617,7 +617,7 @@ HDLC_irq_main(struct fritzcard *fc)
 }
 
 static irqreturn_t
-avm_fritz_interrupt(int intno, void *dev_id)
+avm_fritz_interrupt(int intanal, void *dev_id)
 {
 	struct fritzcard *fc = dev_id;
 	u8 val;
@@ -629,7 +629,7 @@ avm_fritz_interrupt(int intno, void *dev_id)
 	if ((sval & AVM_STATUS0_IRQ_MASK) == AVM_STATUS0_IRQ_MASK) {
 		/* shared  IRQ from other HW */
 		spin_unlock(&fc->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	fc->irqcnt++;
 
@@ -644,7 +644,7 @@ avm_fritz_interrupt(int intno, void *dev_id)
 }
 
 static irqreturn_t
-avm_fritzv2_interrupt(int intno, void *dev_id)
+avm_fritzv2_interrupt(int intanal, void *dev_id)
 {
 	struct fritzcard *fc = dev_id;
 	u8 val;
@@ -656,7 +656,7 @@ avm_fritzv2_interrupt(int intno, void *dev_id)
 	if (!(sval & AVM_STATUS0_IRQ_MASK)) {
 		/* shared  IRQ from other HW */
 		spin_unlock(&fc->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	fc->irqcnt++;
 
@@ -709,7 +709,7 @@ avm_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 	case PH_DEACTIVATE_REQ:
 		spin_lock_irqsave(&fc->lock, flags);
 		mISDN_clear_bchannel(bch);
-		modehdlc(bch, ISDN_P_NONE);
+		modehdlc(bch, ISDN_P_ANALNE);
 		spin_unlock_irqrestore(&fc->lock, flags);
 		_queue_data(ch, PH_DEACTIVATE_IND, MISDN_ID_ANY, 0,
 			    NULL, GFP_KERNEL);
@@ -751,7 +751,7 @@ reset_avm(struct fritzcard *fc)
 		break;
 	}
 	if (debug & DEBUG_HW)
-		pr_notice("%s: reset\n", fc->name);
+		pr_analtice("%s: reset\n", fc->name);
 	disable_hwirq(fc);
 	mdelay(5);
 	switch (fc->type) {
@@ -767,7 +767,7 @@ reset_avm(struct fritzcard *fc)
 	}
 	mdelay(1);
 	if (debug & DEBUG_HW)
-		pr_notice("%s: S0/S1 %x/%x\n", fc->name,
+		pr_analtice("%s: S0/S1 %x/%x\n", fc->name,
 			  inb(fc->addr + 2), inb(fc->addr + 3));
 }
 
@@ -813,10 +813,10 @@ init_card(struct fritzcard *fc)
 		/* Timeout 10ms */
 		msleep_interruptible(10);
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IRQ %d count %d\n", fc->name,
+			pr_analtice("%s: IRQ %d count %d\n", fc->name,
 				  fc->irq, fc->irqcnt);
 		if (!fc->irqcnt) {
-			pr_info("%s: IRQ(%d) getting no IRQs during init %d\n",
+			pr_info("%s: IRQ(%d) getting anal IRQs during init %d\n",
 				fc->name, fc->irq, 3 - cnt);
 			reset_avm(fc);
 		} else
@@ -847,9 +847,9 @@ avm_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(&fc->lock, flags);
 		mISDN_clear_bchannel(bch);
-		modehdlc(bch, ISDN_P_NONE);
+		modehdlc(bch, ISDN_P_ANALNE);
 		spin_unlock_irqrestore(&fc->lock, flags);
-		ch->protocol = ISDN_P_NONE;
+		ch->protocol = ISDN_P_ANALNE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
 		ret = 0;
@@ -858,7 +858,7 @@ avm_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		ret = channel_bctrl(bch, arg);
 		break;
 	default:
-		pr_info("%s: %s unknown prim(%x)\n", fc->name, __func__, cmd);
+		pr_info("%s: %s unkanalwn prim(%x)\n", fc->name, __func__, cmd);
 	}
 	return ret;
 }
@@ -884,7 +884,7 @@ channel_ctrl(struct fritzcard  *fc, struct mISDN_ctrl_req *cq)
 		ret = fc->isac.ctrl(&fc->isac, HW_TIMER3_VALUE, cq->p1);
 		break;
 	default:
-		pr_info("%s: %s unknown Op %x\n", fc->name, __func__, cq->op);
+		pr_info("%s: %s unkanalwn Op %x\n", fc->name, __func__, cq->op);
 		ret = -EINVAL;
 		break;
 	}
@@ -898,7 +898,7 @@ open_bchannel(struct fritzcard *fc, struct channel_req *rq)
 
 	if (rq->adr.channel == 0 || rq->adr.channel > 2)
 		return -EINVAL;
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
 	bch = &fc->bch[rq->adr.channel - 1];
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
@@ -931,7 +931,7 @@ avm_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		if (err)
 			break;
 		if (!try_module_get(THIS_MODULE))
-			pr_info("%s: cannot get module\n", fc->name);
+			pr_info("%s: cananalt get module\n", fc->name);
 		break;
 	case CLOSE_CHANNEL:
 		pr_debug("%s: dev(%d) close from %p\n", fc->name, dch->dev.id,
@@ -942,7 +942,7 @@ avm_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(fc, arg);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n",
+		pr_debug("%s: %s unkanalwn command %x\n",
 			 fc->name, __func__, cmd);
 		return -EINVAL;
 	}
@@ -965,10 +965,10 @@ setup_fritz(struct fritzcard *fc)
 		outl(AVM_HDLC_1, fc->addr + CHIP_INDEX);
 		ver = inl(fc->addr + CHIP_WINDOW + HDLC_STATUS) >> 24;
 		if (debug & DEBUG_HW) {
-			pr_notice("%s: PCI stat %#x\n", fc->name, val);
-			pr_notice("%s: PCI Class %X Rev %d\n", fc->name,
+			pr_analtice("%s: PCI stat %#x\n", fc->name, val);
+			pr_analtice("%s: PCI Class %X Rev %d\n", fc->name,
 				  val & 0xff, (val >> 8) & 0xff);
-			pr_notice("%s: HDLC version %x\n", fc->name, ver & 0xf);
+			pr_analtice("%s: HDLC version %x\n", fc->name, ver & 0xf);
 		}
 		ASSIGN_FUNC(V1, ISAC, fc->isac);
 		fc->isac.type = IPAC_TYPE_ISAC;
@@ -977,20 +977,20 @@ setup_fritz(struct fritzcard *fc)
 		val = inl(fc->addr);
 		ver = inl(fc->addr + AVM_HDLC_STATUS_1) >> 24;
 		if (debug & DEBUG_HW) {
-			pr_notice("%s: PCI V2 stat %#x\n", fc->name, val);
-			pr_notice("%s: PCI V2 Class %X Rev %d\n", fc->name,
+			pr_analtice("%s: PCI V2 stat %#x\n", fc->name, val);
+			pr_analtice("%s: PCI V2 Class %X Rev %d\n", fc->name,
 				  val & 0xff, (val >> 8) & 0xff);
-			pr_notice("%s: HDLC version %x\n", fc->name, ver & 0xf);
+			pr_analtice("%s: HDLC version %x\n", fc->name, ver & 0xf);
 		}
 		ASSIGN_FUNC(V2, ISAC, fc->isac);
 		fc->isac.type = IPAC_TYPE_ISACX;
 		break;
 	default:
 		release_region(fc->addr, 32);
-		pr_info("%s: AVM unknown type %d\n", fc->name, fc->type);
-		return -ENODEV;
+		pr_info("%s: AVM unkanalwn type %d\n", fc->name, fc->type);
+		return -EANALDEV;
 	}
-	pr_notice("%s: %s config irq:%d base:0x%X\n", fc->name,
+	pr_analtice("%s: %s config irq:%d base:0x%X\n", fc->name,
 		  (fc->type == AVM_FRITZ_PCI) ? "AVM Fritz!CARD PCI" :
 		  "AVM Fritz!CARD PCIv2", fc->irq, fc->addr);
 	return 0;
@@ -1003,8 +1003,8 @@ release_card(struct fritzcard *card)
 
 	disable_hwirq(card);
 	spin_lock_irqsave(&card->lock, flags);
-	modehdlc(&card->bch[0], ISDN_P_NONE);
-	modehdlc(&card->bch[1], ISDN_P_NONE);
+	modehdlc(&card->bch[0], ISDN_P_ANALNE);
+	modehdlc(&card->bch[1], ISDN_P_ANALNE);
 	spin_unlock_irqrestore(&card->lock, flags);
 	card->isac.release(&card->isac);
 	free_irq(card->irq, card);
@@ -1066,7 +1066,7 @@ setup_instance(struct fritzcard *card)
 	err = init_card(card);
 	if (!err)  {
 		AVM_cnt++;
-		pr_notice("AVM %d cards installed DEBUG\n", AVM_cnt);
+		pr_analtice("AVM %d cards installed DEBUG\n", AVM_cnt);
 		return 0;
 	}
 	mISDN_unregister_device(&card->isac.dch.dev);
@@ -1086,12 +1086,12 @@ error:
 static int
 fritzpci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct fritzcard *card;
 
 	card = kzalloc(sizeof(struct fritzcard), GFP_KERNEL);
 	if (!card) {
-		pr_info("No kmem for fritzcard\n");
+		pr_info("Anal kmem for fritzcard\n");
 		return err;
 	}
 	if (pdev->device == PCI_DEVICE_ID_AVM_A1_V2)
@@ -1105,7 +1105,7 @@ fritzpci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 	}
 
-	pr_notice("mISDN: found adapter %s at %s\n",
+	pr_analtice("mISDN: found adapter %s at %s\n",
 		  (char *) ent->driver_data, pci_name(pdev));
 
 	card->addr = pci_resource_start(pdev, 1);
@@ -1149,7 +1149,7 @@ static int __init AVM_init(void)
 {
 	int err;
 
-	pr_notice("AVM Fritz PCI driver Rev. %s\n", AVMFRITZ_REV);
+	pr_analtice("AVM Fritz PCI driver Rev. %s\n", AVMFRITZ_REV);
 	err = pci_register_driver(&fcpci_driver);
 	return err;
 }

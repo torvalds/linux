@@ -72,7 +72,7 @@ static int rr_create(struct path_selector *ps, unsigned int argc, char **argv)
 
 	s = alloc_selector();
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps->context = s;
 	return 0;
@@ -147,7 +147,7 @@ static int rr_add_path(struct path_selector *ps, struct dm_path *path,
 	pi = kmalloc(sizeof(*pi), GFP_KERNEL);
 	if (!pi) {
 		*error = "round-robin ps: Error allocating path context";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pi->path = path;

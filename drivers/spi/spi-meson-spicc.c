@@ -23,12 +23,12 @@
 #include <linux/pinctrl/consumer.h>
 
 /*
- * The Meson SPICC controller could support DMA based transfers, but is not
+ * The Meson SPICC controller could support DMA based transfers, but is analt
  * implemented by the vendor code, and while having the registers documentation
  * it has never worked on the GXL Hardware.
  * The PIO mode is the only mode implemented, and due to badly designed HW :
  * - all transfers are cutted in 16 words burst because the FIFO hangs on
- *   TX underflow, and there is no TX "Half-Empty" interrupt, so we go by
+ *   TX underflow, and there is anal TX "Half-Empty" interrupt, so we go by
  *   FIFO max size chunk only
  * - CS management is dumb, and goes UP between every burst, so is really a
  *   "Data Valid" signal than a Chip Select, GPIO link should be used instead
@@ -52,7 +52,7 @@
 #define SPICC_SSCTL		BIT(6)
 #define SPICC_SSPOL		BIT(7)
 #define SPICC_DRCTL_MASK	GENMASK(9, 8)
-#define SPICC_DRCTL_IGNORE	0
+#define SPICC_DRCTL_IGANALRE	0
 #define SPICC_DRCTL_FALLING	1
 #define SPICC_DRCTL_LOWLEVEL	2
 #define SPICC_CS_MASK		GENMASK(13, 12)
@@ -107,19 +107,19 @@
 #define SPICC_SWAP_W1		BIT(15) /* RX FIFO Data Swap Write-Only */
 #define SPICC_DLYCTL_RO_MASK	GENMASK(20, 15) /* Delay Control Read-Only */
 #define SPICC_MO_DELAY_MASK	GENMASK(17, 16) /* Master Output Delay */
-#define SPICC_MO_NO_DELAY	0
+#define SPICC_MO_ANAL_DELAY	0
 #define SPICC_MO_DELAY_1_CYCLE	1
 #define SPICC_MO_DELAY_2_CYCLE	2
 #define SPICC_MO_DELAY_3_CYCLE	3
 #define SPICC_MI_DELAY_MASK	GENMASK(19, 18) /* Master Input Delay */
-#define SPICC_MI_NO_DELAY	0
+#define SPICC_MI_ANAL_DELAY	0
 #define SPICC_MI_DELAY_1_CYCLE	1
 #define SPICC_MI_DELAY_2_CYCLE	2
 #define SPICC_MI_DELAY_3_CYCLE	3
 #define SPICC_MI_CAP_DELAY_MASK	GENMASK(21, 20) /* Master Capture Delay */
 #define SPICC_CAP_AHEAD_2_CYCLE	0
 #define SPICC_CAP_AHEAD_1_CYCLE	1
-#define SPICC_CAP_NO_DELAY	2
+#define SPICC_CAP_ANAL_DELAY	2
 #define SPICC_CAP_DELAY_1_CYCLE	3
 #define SPICC_FIFORST_RO_MASK	GENMASK(22, 21) /* FIFO Softreset Read-Only */
 #define SPICC_FIFORST_W1_MASK	GENMASK(23, 22) /* FIFO Softreset Write-Only */
@@ -332,14 +332,14 @@ static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
 		div = 1 << div;
 	}
 
-	mi_delay = SPICC_MI_NO_DELAY;
+	mi_delay = SPICC_MI_ANAL_DELAY;
 	cap_delay = SPICC_CAP_AHEAD_2_CYCLE;
 	hz = clk_get_rate(spicc->clk);
 
 	if (hz >= 100000000)
 		cap_delay = SPICC_CAP_DELAY_1_CYCLE;
 	else if (hz >= 80000000)
-		cap_delay = SPICC_CAP_NO_DELAY;
+		cap_delay = SPICC_CAP_ANAL_DELAY;
 	else if (hz >= 40000000)
 		cap_delay = SPICC_CAP_AHEAD_1_CYCLE;
 	else if (div >= 16)
@@ -370,7 +370,7 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 	conf |= FIELD_PREP(SPICC_BITLENGTH_MASK,
 			   (spicc->bytes_per_word << 3) - 1);
 
-	/* Ignore if unchanged */
+	/* Iganalre if unchanged */
 	if (conf != conf_orig)
 		writel_relaxed(conf, spicc->base + SPICC_CONREG);
 
@@ -501,7 +501,7 @@ static int meson_spicc_prepare_message(struct spi_controller *host,
 	if (spi->mode & SPI_READY)
 		conf |= FIELD_PREP(SPICC_DRCTL_MASK, SPICC_DRCTL_LOWLEVEL);
 	else
-		conf |= FIELD_PREP(SPICC_DRCTL_MASK, SPICC_DRCTL_IGNORE);
+		conf |= FIELD_PREP(SPICC_DRCTL_MASK, SPICC_DRCTL_IGANALRE);
 
 	/* Select CS */
 	conf |= FIELD_PREP(SPICC_CS_MASK, spi_get_chipselect(spi, 0));
@@ -511,7 +511,7 @@ static int meson_spicc_prepare_message(struct spi_controller *host,
 
 	writel_relaxed(conf, spicc->base + SPICC_CONREG);
 
-	/* Setup no wait cycles by default */
+	/* Setup anal wait cycles by default */
 	writel_relaxed(0, spicc->base + SPICC_PERIODREG);
 
 	writel_bits_relaxed(SPICC_LBC_W1, 0, spicc->base + SPICC_TESTREG);
@@ -576,7 +576,7 @@ static void meson_spicc_cleanup(struct spi_device *spi)
  * divider is only valid when the controller is initialized.
  *
  * A set of clock ops is added to make sure we don't read/set this
- * clock rate while the controller is in an unknown state.
+ * clock rate while the controller is in an unkanalwn state.
  */
 
 static unsigned long meson_spicc_pow2_recalc_rate(struct clk_hw *hw,
@@ -639,7 +639,7 @@ static int meson_spicc_pow2_clk_init(struct meson_spicc_device *spicc)
 
 	pow2_fixed_div = devm_kzalloc(dev, sizeof(*pow2_fixed_div), GFP_KERNEL);
 	if (!pow2_fixed_div)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(name, sizeof(name), "%s#pow2_fixed_div", dev_name(dev));
 	init.name = name;
@@ -663,10 +663,10 @@ static int meson_spicc_pow2_clk_init(struct meson_spicc_device *spicc)
 	init.name = name;
 	init.ops = &meson_spicc_pow2_clk_ops;
 	/*
-	 * Set NOCACHE here to make sure we read the actual HW value
+	 * Set ANALCACHE here to make sure we read the actual HW value
 	 * since we reset the HW after each transfer.
 	 */
-	init.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE;
 	parent_data[0].hw = &pow2_fixed_div->hw;
 	init.num_parents = 1;
 
@@ -703,7 +703,7 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 
 	enh_fixed_div = devm_kzalloc(dev, sizeof(*enh_fixed_div), GFP_KERNEL);
 	if (!enh_fixed_div)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(name, sizeof(name), "%s#enh_fixed_div", dev_name(dev));
 	init.name = name;
@@ -725,7 +725,7 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 
 	enh_div = devm_kzalloc(dev, sizeof(*enh_div), GFP_KERNEL);
 	if (!enh_div)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(name, sizeof(name), "%s#enh_div", dev_name(dev));
 	init.name = name;
@@ -745,7 +745,7 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(name, sizeof(name), "%s#sel", dev_name(dev));
 	init.name = name;
@@ -776,7 +776,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	host = spi_alloc_host(&pdev->dev, sizeof(*spicc));
 	if (!host) {
 		dev_err(&pdev->dev, "host allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	spicc = spi_controller_get_devdata(host);
 	spicc->host = host;
@@ -845,7 +845,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	device_reset_optional(&pdev->dev);
 
 	host->num_chipselect = 4;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
 	host->bits_per_word_mask = SPI_BPW_MASK(32) |
 				   SPI_BPW_MASK(24) |

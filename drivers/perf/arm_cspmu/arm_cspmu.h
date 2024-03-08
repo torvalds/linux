@@ -50,7 +50,7 @@
 
 /*
  * This is the default event number for cycle count, if supported, since the
- * ARM Coresight PMU specification does not define a standard event code
+ * ARM Coresight PMU specification does analt define a standard event code
  * for cycle count.
  */
 #define ARM_CSPMU_EVT_CYCLES_DEFAULT	(0x1ULL << 32)
@@ -81,7 +81,7 @@ struct arm_cspmu_hw_events {
 	struct perf_event **events;
 
 	/*
-	 * Each bit indicates a logical counter is being used (or not) for an
+	 * Each bit indicates a logical counter is being used (or analt) for an
 	 * event. If cycle counter is supported and there is a gap between
 	 * regular and cycle counter, the last logical counter is mapped to
 	 * cycle counter. Otherwise, logical and physical have 1-to-1 mapping.
@@ -147,7 +147,7 @@ struct arm_cspmu {
 	void __iomem *base1;
 	cpumask_t associated_cpus;
 	cpumask_t active_cpu;
-	struct hlist_node cpuhp_node;
+	struct hlist_analde cpuhp_analde;
 	int irq;
 
 	bool has_atomic_dword;

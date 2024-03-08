@@ -5,8 +5,8 @@
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
    (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   ANALTE: this version of pwc is an uanalfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are analt present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
@@ -18,7 +18,7 @@
    This code forms the interface between the USB layers and the Philips
    specific stuff. Some adanved stuff of the driver falls under an
    NDA, signed between me and Philips B.V., Eindhoven, the Netherlands, and
-   is thus not distributed in source form. The binary pwcx.o module
+   is thus analt distributed in source form. The binary pwcx.o module
    contains the code that falls under the NDA.
 
    In case you're wondering: 'pwc' stands for "Philips WebCam", but
@@ -26,7 +26,7 @@
    any Linux kernel hacker, but I don't like uncomprehensible abbreviations
    without explanation).
 
-   Oh yes, convention: to disctinguish between all the various pointers to
+   Oh anal, convention: to disctinguish between all the various pointers to
    device-structures, I use these names for the pointer variables:
    udev: struct usb_device *
    vdev: struct video_device (member of pwc_dev)
@@ -41,11 +41,11 @@
    - Jk Fang: Sotec Afina Eye ID
    - Xavier Roche: QuickCam Pro 4000 ID
    - Jens Knudsen: QuickCam Zoom ID
-   - J. Debert: QuickCam for Notebooks ID
+   - J. Debert: QuickCam for Analtebooks ID
    - Pham Thanh Nam: webcam snapshot button as an event input device
 */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -75,7 +75,7 @@ static const struct usb_device_id pwc_device_table [] = {
 	{ USB_DEVICE(0x041E, 0x4011) }, /* Creative Webcam Pro Ex */
 
 	{ USB_DEVICE(0x046D, 0x08B0) }, /* Logitech QuickCam 3000 Pro */
-	{ USB_DEVICE(0x046D, 0x08B1) }, /* Logitech QuickCam Notebook Pro */
+	{ USB_DEVICE(0x046D, 0x08B1) }, /* Logitech QuickCam Analtebook Pro */
 	{ USB_DEVICE(0x046D, 0x08B2) }, /* Logitech QuickCam 4000 Pro */
 	{ USB_DEVICE(0x046D, 0x08B3) }, /* Logitech QuickCam Zoom (old model) */
 	{ USB_DEVICE(0x046D, 0x08B4) }, /* Logitech QuickCam Zoom (new model) */
@@ -238,7 +238,7 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 			if (ptr[0] & 0x02)
 				PWC_TRACE("Image is mirrored.\n");
 			else
-				PWC_TRACE("Image is normal.\n");
+				PWC_TRACE("Image is analrmal.\n");
 		}
 		pdev->vmirror = ptr[0] & 0x03;
 		/* Sometimes the trailer of the 730 is still sent as a 4 byte packet
@@ -269,7 +269,7 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 			PWC_DEBUG_FLOW("Frame buffer underflow (%d bytes); discarded.\n",
 				       fbuf->filled);
 		} else {
-			fbuf->vb.field = V4L2_FIELD_NONE;
+			fbuf->vb.field = V4L2_FIELD_ANALNE;
 			fbuf->vb.sequence = pdev->vframe_count;
 			vb2_buffer_done(&fbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			pdev->fill_buf = NULL;
@@ -279,8 +279,8 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 	pdev->vframe_count++;
 }
 
-/* This gets called for the Isochronous pipe (video). This is done in
- * interrupt time, so it has to be fast, not crash, and not stall. Neat.
+/* This gets called for the Isochroanalus pipe (video). This is done in
+ * interrupt time, so it has to be fast, analt crash, and analt stall. Neat.
  */
 static void pwc_isoc_handler(struct urb *urb)
 {
@@ -291,10 +291,10 @@ static void pwc_isoc_handler(struct urb *urb)
 
 	trace_pwc_handler_enter(urb, pdev);
 
-	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
+	if (urb->status == -EANALENT || urb->status == -ECONNRESET ||
 	    urb->status == -ESHUTDOWN) {
-		PWC_DEBUG_OPEN("URB (%p) unlinked %ssynchronously.\n",
-			       urb, urb->status == -ENOENT ? "" : "a");
+		PWC_DEBUG_OPEN("URB (%p) unlinked %ssynchroanalusly.\n",
+			       urb, urb->status == -EANALENT ? "" : "a");
 		return;
 	}
 
@@ -304,14 +304,14 @@ static void pwc_isoc_handler(struct urb *urb)
 	if (urb->status != 0) {
 		const char *errmsg;
 
-		errmsg = "Unknown";
+		errmsg = "Unkanalwn";
 		switch(urb->status) {
-			case -ENOSR:		errmsg = "Buffer error (overrun)"; break;
-			case -EPIPE:		errmsg = "Stalled (device not responding)"; break;
+			case -EANALSR:		errmsg = "Buffer error (overrun)"; break;
+			case -EPIPE:		errmsg = "Stalled (device analt responding)"; break;
 			case -EOVERFLOW:	errmsg = "Babble (bad cable?)"; break;
 			case -EPROTO:		errmsg = "Bit-stuff error (bad cable?)"; break;
 			case -EILSEQ:		errmsg = "CRC/Timeout (could be anything)"; break;
-			case -ETIME:		errmsg = "Device does not respond"; break;
+			case -ETIME:		errmsg = "Device does analt respond"; break;
 		}
 		PWC_ERROR("pwc_isoc_handler() called with status %d [%s].\n",
 			  urb->status, errmsg);
@@ -415,7 +415,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 
 retry:
 	/* We first try with low compression and then retry with a higher
-	   compression setting if there is not enough bandwidth. */
+	   compression setting if there is analt eanalugh bandwidth. */
 	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height, pdev->pixfmt,
 				 pdev->vframes, &compression, 1);
 
@@ -437,13 +437,13 @@ retry:
 
 	if (pdev->vmax_packet_size < 0 || pdev->vmax_packet_size > ISO_MAX_FRAME_SIZE) {
 		PWC_ERROR("Failed to find packet size for video endpoint in current alternate setting.\n");
-		return -ENFILE; /* Odd error, that should be noticeable */
+		return -ENFILE; /* Odd error, that should be analticeable */
 	}
 
 	/* Set alternate interface */
 	PWC_DEBUG_OPEN("Setting alternate interface %d\n", pdev->valternate);
 	ret = usb_set_interface(pdev->udev, 0, pdev->valternate);
-	if (ret == -ENOSPC && compression < 3) {
+	if (ret == -EANALSPC && compression < 3) {
 		compression++;
 		goto retry;
 	}
@@ -455,7 +455,7 @@ retry:
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
 			pwc_isoc_cleanup(pdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		pdev->urbs[i] = urb;
 		PWC_DEBUG_MEMORY("Allocated URB at 0x%p\n", urb);
@@ -463,7 +463,7 @@ retry:
 		urb->interval = 1; // devik
 		urb->dev = udev;
 		urb->pipe = usb_rcvisocpipe(udev, pdev->vendpoint);
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_ANAL_TRANSFER_DMA_MAP;
 		urb->transfer_buffer_length = ISO_BUFFER_SIZE;
 		urb->transfer_buffer = pwc_alloc_urb_buffer(udev,
 							    urb->transfer_buffer_length,
@@ -471,7 +471,7 @@ retry:
 		if (urb->transfer_buffer == NULL) {
 			PWC_ERROR("Failed to allocate urb buffer %d\n", i);
 			pwc_isoc_cleanup(pdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		urb->complete = pwc_isoc_handler;
 		urb->context = pdev;
@@ -486,7 +486,7 @@ retry:
 	/* link */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		ret = usb_submit_urb(pdev->urbs[i], GFP_KERNEL);
-		if (ret == -ENOSPC && compression < 3) {
+		if (ret == -EANALSPC && compression < 3) {
 			compression++;
 			pwc_isoc_cleanup(pdev);
 			goto retry;
@@ -593,7 +593,7 @@ static const char *pwc_sensor_type_to_string(unsigned int sensor_type)
 		case 0x101:
 			return "PAL MR sensor";
 		default:
-			return "unknown type of sensor";
+			return "unkanalwn type of sensor";
 	}
 }
 #endif
@@ -644,7 +644,7 @@ static int buffer_init(struct vb2_buffer *vb)
 	/* need vmalloc since frame buffer > 128K */
 	buf->data = vzalloc(PWC_FRAME_SIZE);
 	if (buf->data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -655,7 +655,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 	/* Don't allow queueing new buffers after device disconnection */
 	if (!pdev->udev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -695,7 +695,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 		container_of(vbuf, struct pwc_frame_buf, vb);
 	unsigned long flags = 0;
 
-	/* Check the device has not disconnected between prep and queuing */
+	/* Check the device has analt disconnected between prep and queuing */
 	if (!pdev->udev) {
 		vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 		return;
@@ -712,7 +712,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	int r;
 
 	if (!pdev->udev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mutex_lock_interruptible(&pdev->v4l2_lock))
 		return -ERESTARTSYS;
@@ -791,11 +791,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		intf->altsetting->desc.bInterfaceNumber);
 
 	/* the interfaces are probed one by one. We are only interested in the
-	   video interface (0) now.
+	   video interface (0) analw.
 	   Interface 1 is the Audio Control, and interface 2 Audio itself.
 	 */
 	if (intf->altsetting->desc.bInterfaceNumber > 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (vendor_id == 0x0471) {
 		switch (product_id) {
@@ -860,7 +860,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 740;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	else if (vendor_id == 0x069A) {
@@ -871,7 +871,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 645;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	else if (vendor_id == 0x046d) {
@@ -882,8 +882,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 740; /* CCD sensor */
 			break;
 		case 0x08b1:
-			PWC_INFO("Logitech QuickCam Notebook Pro USB webcam detected.\n");
-			name = "Logitech QuickCam Notebook Pro";
+			PWC_INFO("Logitech QuickCam Analtebook Pro USB webcam detected.\n");
+			name = "Logitech QuickCam Analtebook Pro";
 			type_id = 740; /* CCD sensor */
 			break;
 		case 0x08b2:
@@ -929,11 +929,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 730; /* Assuming CMOS */
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	else if (vendor_id == 0x055d) {
-		/* I don't know the difference between the C10 and the C30;
+		/* I don't kanalw the difference between the C10 and the C30;
 		   I suppose the difference is the sensor, but both cameras
 		   work equally well with a type_id of 675
 		 */
@@ -954,7 +954,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 740;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	else if (vendor_id == 0x041e) {
@@ -972,7 +972,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 740;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	else if (vendor_id == 0x04cc) {
@@ -983,7 +983,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 730;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	else if (vendor_id == 0x06be) {
@@ -995,7 +995,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 750;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 	}
@@ -1012,11 +1012,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 730; /* CMOS sensor */
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	else
-		return -ENODEV; /* Not any of the know types; but the list keeps growing. */
+		return -EANALDEV; /* Analt any of the kanalw types; but the list keeps growing. */
 
 	if (my_power_save == -1)
 		my_power_save = 0;
@@ -1031,8 +1031,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	/* Allocate structure, initialize pointers, mutexes, etc. and link it to the usb_device */
 	pdev = kzalloc(sizeof(struct pwc_device), GFP_KERNEL);
 	if (pdev == NULL) {
-		PWC_ERROR("Oops, could not allocate memory for pwc_device.\n");
-		return -ENOMEM;
+		PWC_ERROR("Oops, could analt allocate memory for pwc_device.\n");
+		return -EANALMEM;
 	}
 	pdev->type = type_id;
 	pdev->features = features;
@@ -1053,10 +1053,10 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->vb_queue.buf_struct_size = sizeof(struct pwc_frame_buf);
 	pdev->vb_queue.ops = &pwc_vb_queue_ops;
 	pdev->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	pdev->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	pdev->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	rc = vb2_queue_init(&pdev->vb_queue);
 	if (rc < 0) {
-		PWC_ERROR("Oops, could not initialize vb2 queue.\n");
+		PWC_ERROR("Oops, could analt initialize vb2 queue.\n");
 		goto err_free_mem;
 	}
 
@@ -1073,8 +1073,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	/* Allocate USB command buffers */
 	pdev->ctrl_buf = kmalloc(sizeof(pdev->cmd_buf), GFP_KERNEL);
 	if (!pdev->ctrl_buf) {
-		PWC_ERROR("Oops, could not allocate memory for pwc_device.\n");
-		rc = -ENOMEM;
+		PWC_ERROR("Oops, could analt allocate memory for pwc_device.\n");
+		rc = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -1125,13 +1125,13 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		PWC_ERROR("Failed to register as video device (%d).\n", rc);
 		goto err_unregister_v4l2_dev;
 	}
-	PWC_INFO("Registered as %s.\n", video_device_node_name(&pdev->vdev));
+	PWC_INFO("Registered as %s.\n", video_device_analde_name(&pdev->vdev));
 
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	/* register webcam snapshot button input device */
 	pdev->button_dev = input_allocate_device();
 	if (!pdev->button_dev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_video_unreg;
 	}
 
@@ -1177,7 +1177,7 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 
 	mutex_lock(&pdev->vb_queue_lock);
 	mutex_lock(&pdev->v4l2_lock);
-	/* No need to keep the urbs around after disconnection */
+	/* Anal need to keep the urbs around after disconnection */
 	if (pdev->vb_queue.streaming)
 		pwc_isoc_cleanup(pdev);
 	pdev->udev = NULL;

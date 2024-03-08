@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include <inttypes.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/seg6_local.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
@@ -212,7 +212,7 @@ static __always_inline int add_tlv(struct __sk_buff *skb,
 	len_remaining = partial_srh_len % 8;
 	new_pad = 8 - len_remaining;
 
-	if (new_pad == 1) // cannot pad for 1 byte only
+	if (new_pad == 1) // cananalt pad for 1 byte only
 		new_pad = 9;
 	else if (new_pad == 8)
 		new_pad = 0;

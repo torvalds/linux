@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *  Copyright 2000-2014 Avago Technologies.  All rights reserved.
+ *  Copyright 2000-2014 Avago Techanallogies.  All rights reserved.
  *
  *
  *           Name:  mpi2_type.h

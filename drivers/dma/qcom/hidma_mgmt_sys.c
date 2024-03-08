@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Qualcomm Technologies HIDMA Management SYS interface
+ * Qualcomm Techanallogies HIDMA Management SYS interface
  *
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  */
@@ -45,7 +45,7 @@ static int set_##name(struct hidma_mgmt_dev *mdev, u64 val)	\
 	{#name, mode, get_##name, set_##name}
 
 IMPLEMENT_GETSET(hw_version_major)
-IMPLEMENT_GETSET(hw_version_minor)
+IMPLEMENT_GETSET(hw_version_mianalr)
 IMPLEMENT_GETSET(max_wr_xactions)
 IMPLEMENT_GETSET(max_rd_xactions)
 IMPLEMENT_GETSET(max_write_request)
@@ -87,7 +87,7 @@ static int set_weight(struct hidma_mgmt_dev *mdev, unsigned int i, u64 val)
 
 static struct hidma_mgmt_fileinfo hidma_mgmt_files[] = {
 	DECLARE_ATTRIBUTE(hw_version_major, S_IRUGO),
-	DECLARE_ATTRIBUTE(hw_version_minor, S_IRUGO),
+	DECLARE_ATTRIBUTE(hw_version_mianalr, S_IRUGO),
 	DECLARE_ATTRIBUTE(dma_channels, S_IRUGO),
 	DECLARE_ATTRIBUTE(chreset_timeout_cycles, S_IRUGO),
 	DECLARE_ATTRIBUTE(max_wr_xactions, S_IRUGO),
@@ -190,11 +190,11 @@ static int create_sysfs_entry(struct hidma_mgmt_dev *dev, char *name, int mode)
 	attrs = devm_kmalloc(&dev->pdev->dev,
 			     sizeof(struct device_attribute), GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name_copy = devm_kstrdup(&dev->pdev->dev, name, GFP_KERNEL);
 	if (!name_copy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attrs->attr.name = name_copy;
 	attrs->attr.mode = mode;
@@ -214,11 +214,11 @@ static int create_sysfs_entry_channel(struct hidma_mgmt_dev *mdev, char *name,
 
 	chattr = devm_kmalloc(&mdev->pdev->dev, sizeof(*chattr), GFP_KERNEL);
 	if (!chattr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name_copy = devm_kstrdup(&mdev->pdev->dev, name, GFP_KERNEL);
 	if (!name_copy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chattr->mdev = mdev;
 	chattr->index = index;
@@ -236,25 +236,25 @@ int hidma_mgmt_init_sys(struct hidma_mgmt_dev *mdev)
 	unsigned int i;
 	int rc;
 	int required;
-	struct kobject *chanops;
+	struct kobject *chaanalps;
 
 	required = sizeof(*mdev->chroots) * mdev->dma_channels;
 	mdev->chroots = devm_kmalloc(&mdev->pdev->dev, required, GFP_KERNEL);
 	if (!mdev->chroots)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	chanops = kobject_create_and_add("chanops", &mdev->pdev->dev.kobj);
-	if (!chanops)
-		return -ENOMEM;
+	chaanalps = kobject_create_and_add("chaanalps", &mdev->pdev->dev.kobj);
+	if (!chaanalps)
+		return -EANALMEM;
 
 	/* create each channel directory here */
 	for (i = 0; i < mdev->dma_channels; i++) {
 		char name[20];
 
 		snprintf(name, sizeof(name), "chan%d", i);
-		mdev->chroots[i] = kobject_create_and_add(name, chanops);
+		mdev->chroots[i] = kobject_create_and_add(name, chaanalps);
 		if (!mdev->chroots[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* populate common parameters */

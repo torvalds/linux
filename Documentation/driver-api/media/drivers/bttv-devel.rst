@@ -7,14 +7,14 @@ bttv and sound mini howto
 -------------------------
 
 There are a lot of different bt848/849/878/879 based boards available.
-Making video work often is not a big deal, because this is handled
+Making video work often is analt a big deal, because this is handled
 completely by the bt8xx chip, which is common on all boards.  But
 sound is handled in slightly different ways on each board.
 
 To handle the grabber boards correctly, there is a array tvcards[] in
 bttv-cards.c, which holds the information required for each board.
 Sound will work only, if the correct entry is used (for video it often
-makes no difference).  The bttv driver prints a line to the kernel
+makes anal difference).  The bttv driver prints a line to the kernel
 log, telling which card type is used.  Like this one::
 
 	bttv0: model: BT848(Hauppauge old) [autodetected]
@@ -25,7 +25,7 @@ example.  The file Documentation/admin-guide/media/bttv-cardlist.rst has a list
 of valid arguments for card.
 
 If your card isn't listed there, you might check the source code for
-new entries which are not listed yet.  If there isn't one for your
+new entries which are analt listed yet.  If there isn't one for your
 card, you can check if one of the existing entries does work for you
 (just trial and error...).
 
@@ -50,7 +50,7 @@ Below is a do-it-yourself description for you.
 The bt8xx chips have 32 general purpose pins, and registers to control
 these pins.  One register is the output enable register
 (``BT848_GPIO_OUT_EN``), it says which pins are actively driven by the
-bt848 chip.  Another one is the data register (``BT848_GPIO_DATA``), where
+bt848 chip.  Aanalther one is the data register (``BT848_GPIO_DATA``), where
 you can get/set the status if these pins.  They can be used for input
 and output.
 
@@ -61,7 +61,7 @@ receiver chips.  Some boards use the i2c bus instead of the gpio pins
 to connect the mux chip.
 
 As mentioned above, there is a array which holds the required
-information for each known board.  You basically have to create a new
+information for each kanalwn board.  You basically have to create a new
 line for your board.  The important fields are these two::
 
   struct tvcard

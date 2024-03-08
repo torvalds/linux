@@ -31,7 +31,7 @@ static ssize_t details_show(struct device *dev,
 static DEVICE_ATTR_RO(details);
 
 static const char * const status_msg[] = {
-	[SCAN_NOT_TESTED] = "untested",
+	[SCAN_ANALT_TESTED] = "untested",
 	[SCAN_TEST_PASS] = "pass",
 	[SCAN_TEST_FAIL] = "fail"
 };
@@ -113,7 +113,7 @@ static ssize_t current_batch_show(struct device *dev,
 	struct ifs_data *ifsd = ifs_get_data(dev);
 
 	if (!ifsd->loaded)
-		return sysfs_emit(buf, "none\n");
+		return sysfs_emit(buf, "analne\n");
 	else
 		return sysfs_emit(buf, "0x%02x\n", ifsd->cur_batch);
 }
@@ -129,7 +129,7 @@ static ssize_t image_version_show(struct device *dev,
 	struct ifs_data *ifsd = ifs_get_data(dev);
 
 	if (!ifsd->loaded)
-		return sysfs_emit(buf, "%s\n", "none");
+		return sysfs_emit(buf, "%s\n", "analne");
 	else
 		return sysfs_emit(buf, "%#x\n", ifsd->loaded_version);
 }

@@ -45,8 +45,8 @@ static int adfs_fplus_validate_header(const struct adfs_bigdirheader *h)
 	size -= len;
 
 	/*
-	 * Avoid division, we know that absolute maximum number of entries
-	 * can not be so large to cause overflow of the multiplication below.
+	 * Avoid division, we kanalw that absolute maximum number of entries
+	 * can analt be so large to cause overflow of the multiplication below.
 	 */
 	len = le32_to_cpu(h->bigdirentries);
 	if (len > SZ_4M / sizeof(struct adfs_bigdirentry) ||
@@ -123,7 +123,7 @@ static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 	dirsize = le32_to_cpu(h->bigdirsize);
 	if (size && dirsize != size) {
 		adfs_msg(sb, KERN_WARNING,
-			 "dir %06x header size %X does not match directory size %X",
+			 "dir %06x header size %X does analt match directory size %X",
 			 indaddr, dirsize, size);
 	}
 
@@ -158,7 +158,7 @@ out:
 static int
 adfs_fplus_setpos(struct adfs_dir *dir, unsigned int fpos)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (fpos <= le32_to_cpu(dir->bighead->bigdirentries)) {
 		dir->pos = fpos;
@@ -177,7 +177,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	int ret;
 
 	if (dir->pos >= le32_to_cpu(h->bigdirentries))
-		return -ENOENT;
+		return -EANALENT;
 
 	offset = adfs_fplus_offset(h, dir->pos);
 
@@ -219,7 +219,7 @@ static int adfs_fplus_iterate(struct adfs_dir *dir, struct dir_context *ctx)
 
 	while (!adfs_fplus_getnext(dir, &obj)) {
 		if (!dir_emit(ctx, obj.name, obj.name_len,
-			      obj.indaddr, DT_UNKNOWN))
+			      obj.indaddr, DT_UNKANALWN))
 			break;
 		ctx->pos++;
 	}
@@ -240,12 +240,12 @@ static int adfs_fplus_update(struct adfs_dir *dir, struct object_info *obj)
 		offset += sizeof(bde);
 		if (offset >= end) {
 			adfs_error(dir->sb, "unable to locate entry to update");
-			return -ENOENT;
+			return -EANALENT;
 		}
 		ret = adfs_dir_copyfrom(&bde, dir, offset, sizeof(bde));
 		if (ret) {
 			adfs_error(dir->sb, "error reading directory entry");
-			return -ENOENT;
+			return -EANALENT;
 		}
 	} while (le32_to_cpu(bde.bigdirindaddr) != obj->indaddr);
 

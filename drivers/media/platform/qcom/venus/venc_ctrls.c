@@ -333,7 +333,7 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 		 * high profile(HP) and constrained high profile(CHP).
 		 * If client wants to disable 8x8 transform for HP/CHP,
 		 * it is better to set profile as main profile(MP).
-		 * Because there is no difference between HP and MP
+		 * Because there is anal difference between HP and MP
 		 * if we disable 8x8 transform for HP.
 		 */
 

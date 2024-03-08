@@ -167,7 +167,7 @@ struct coresight_desc {
  * struct coresight_connection - representation of a single connection
  * @src_port:	a connection's output port number.
  * @dest_port:	destination's input port number @src_port is connected to.
- * @dest_fwnode: destination component's fwnode handle.
+ * @dest_fwanalde: destination component's fwanalde handle.
  * @dest_dev:	a @coresight_device representation of the component
 		connected to @src_port. NULL until the device is created
  * @link: Representation of the connection as a sysfs link.
@@ -195,7 +195,7 @@ struct coresight_desc {
 struct coresight_connection {
 	int src_port;
 	int dest_port;
-	struct fwnode_handle *dest_fwnode;
+	struct fwanalde_handle *dest_fwanalde;
 	struct coresight_device *dest_dev;
 	struct coresight_sysfs_link *link;
 	struct coresight_device *src_dev;
@@ -230,7 +230,7 @@ struct coresight_sysfs_link {
  * @orphan:	true if the component has connections that haven't been linked.
  * @enable:	'true' if component is currently part of an active path.
  * @activated:	'true' only if a _sink_ has been activated.  A sink can be
- *		activated but not yet enabled.  Enabling for a _sink_
+ *		activated but analt yet enabled.  Enabling for a _sink_
  *		happens when a source has been selected and a path is enabled
  *		from source to that sink.
  * @ea:		Device attribute for sink representation under PMU directory.
@@ -273,20 +273,20 @@ struct coresight_device {
  *
  * @nr_idx:		Number of entries already allocated.
  * @pfx:		Prefix pattern for device name.
- * @fwnode_list:	Array of fwnode_handles associated with each allocated
+ * @fwanalde_list:	Array of fwanalde_handles associated with each allocated
  *			index, upto nr_idx entries.
  */
 struct coresight_dev_list {
 	int			nr_idx;
 	const char		*pfx;
-	struct fwnode_handle	**fwnode_list;
+	struct fwanalde_handle	**fwanalde_list;
 };
 
 #define DEFINE_CORESIGHT_DEVLIST(var, dev_pfx)				\
 static struct coresight_dev_list (var) = {				\
 						.pfx = dev_pfx,		\
 						.nr_idx = 0,		\
-						.fwnode_list = NULL,	\
+						.fwanalde_list = NULL,	\
 }
 
 #define to_coresight_device(d) container_of(d, struct coresight_device, dev)
@@ -414,7 +414,7 @@ static inline bool is_coresight_device(void __iomem *base)
  * Returns:
  *
  * clk   - Clock is found and enabled
- * NULL  - clock is not found
+ * NULL  - clock is analt found
  * ERROR - Clock is found but failed to enable
  */
 static inline struct clk *coresight_get_enable_apb_pclk(struct device *dev)
@@ -603,7 +603,7 @@ static inline struct coresight_device *
 coresight_register(struct coresight_desc *desc) { return NULL; }
 static inline void coresight_unregister(struct coresight_device *csdev) {}
 static inline int
-coresight_enable(struct coresight_device *csdev) { return -ENOSYS; }
+coresight_enable(struct coresight_device *csdev) { return -EANALSYS; }
 static inline void coresight_disable(struct coresight_device *csdev) {}
 
 static inline int coresight_timeout(struct csdev_access *csa, u32 offset,

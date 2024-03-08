@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_FS_H
 #define _UAPI_LINUX_FS_H
 
 /*
  * This file has definitions for some important file table structures
  * and constants and structures used by various generic file system
- * ioctl's.  Please do not make any changes in this file before
+ * ioctl's.  Please do analt make any changes in this file before
  * sending patches for review to linux-fsdevel@vger.kernel.org and
  * linux-api@vger.kernel.org.
  */
@@ -28,7 +28,7 @@
  * nr_file rlimit, so it's safe to set up a ridiculously high absolute
  * upper limit on files-per-process.
  *
- * Some programs (notably those using select()) may have to be 
+ * Some programs (analtably those using select()) may have to be 
  * recompiled to take full advantage of the new limits..  
  */
 
@@ -47,7 +47,7 @@
 #define SEEK_HOLE	4	/* seek to the next hole */
 #define SEEK_MAX	SEEK_HOLE
 
-#define RENAME_NOREPLACE	(1 << 0)	/* Don't overwrite target */
+#define RENAME_ANALREPLACE	(1 << 0)	/* Don't overwrite target */
 #define RENAME_EXCHANGE		(1 << 1)	/* Exchange source and dest */
 #define RENAME_WHITEOUT		(1 << 2)	/* Whiteout source */
 
@@ -100,8 +100,8 @@ struct files_stat_struct {
 	unsigned long max_files;		/* tunable */
 };
 
-struct inodes_stat_t {
-	long nr_inodes;
+struct ianaldes_stat_t {
+	long nr_ianaldes;
 	long nr_unused;
 	long dummy[5];		/* padding for sysctl ABI compatibility */
 };
@@ -126,24 +126,24 @@ struct fsxattr {
  */
 #define FS_XFLAG_REALTIME	0x00000001	/* data in realtime volume */
 #define FS_XFLAG_PREALLOC	0x00000002	/* preallocated file extents */
-#define FS_XFLAG_IMMUTABLE	0x00000008	/* file cannot be modified */
+#define FS_XFLAG_IMMUTABLE	0x00000008	/* file cananalt be modified */
 #define FS_XFLAG_APPEND		0x00000010	/* all writes append */
-#define FS_XFLAG_SYNC		0x00000020	/* all writes synchronous */
-#define FS_XFLAG_NOATIME	0x00000040	/* do not update access time */
-#define FS_XFLAG_NODUMP		0x00000080	/* do not include in backups */
+#define FS_XFLAG_SYNC		0x00000020	/* all writes synchroanalus */
+#define FS_XFLAG_ANALATIME	0x00000040	/* do analt update access time */
+#define FS_XFLAG_ANALDUMP		0x00000080	/* do analt include in backups */
 #define FS_XFLAG_RTINHERIT	0x00000100	/* create with rt bit set */
 #define FS_XFLAG_PROJINHERIT	0x00000200	/* create with parents projid */
-#define FS_XFLAG_NOSYMLINKS	0x00000400	/* disallow symlink creation */
+#define FS_XFLAG_ANALSYMLINKS	0x00000400	/* disallow symlink creation */
 #define FS_XFLAG_EXTSIZE	0x00000800	/* extent size allocator hint */
-#define FS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit inode extent size */
-#define FS_XFLAG_NODEFRAG	0x00002000	/* do not defragment */
+#define FS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit ianalde extent size */
+#define FS_XFLAG_ANALDEFRAG	0x00002000	/* do analt defragment */
 #define FS_XFLAG_FILESTREAM	0x00004000	/* use filestream allocator */
 #define FS_XFLAG_DAX		0x00008000	/* use DAX for IO */
 #define FS_XFLAG_COWEXTSIZE	0x00010000	/* CoW extent size allocator hint */
-#define FS_XFLAG_HASATTR	0x80000000	/* no DIFLAG for this	*/
+#define FS_XFLAG_HASATTR	0x80000000	/* anal DIFLAG for this	*/
 
 /* the read-only stuff doesn't really belong here, but any other place is
-   probably as bad and I don't want to create yet another include file. */
+   probably as bad and I don't want to create yet aanalther include file. */
 
 #define BLKROSET   _IO(0x12,93)	/* set device read-only (0 = read-write) */
 #define BLKROGET   _IO(0x12,94)	/* get read-only status (0 = read_write) */
@@ -160,7 +160,7 @@ struct fsxattr {
 #if 0
 #define BLKPG      _IO(0x12,105)/* See blkpg.h */
 
-/* Some people are morons.  Do not use sizeof! */
+/* Some people are morons.  Do analt use sizeof! */
 
 #define BLKELVGET  _IOR(0x12,106,size_t)/* elevator get */
 #define BLKELVSET  _IOW(0x12,107,size_t)/* elevator set */
@@ -178,7 +178,7 @@ struct fsxattr {
 #define BLKDISCARD _IO(0x12,119)
 #define BLKIOMIN _IO(0x12,120)
 #define BLKIOOPT _IO(0x12,121)
-#define BLKALIGNOFF _IO(0x12,122)
+#define BLKALIGANALFF _IO(0x12,122)
 #define BLKPBSZGET _IO(0x12,123)
 #define BLKDISCARDZEROES _IO(0x12,124)
 #define BLKSECDISCARD _IO(0x12,125)
@@ -217,9 +217,9 @@ struct fsxattr {
 #define FS_IOC_SETFSLABEL		_IOW(0x94, 50, char[FSLABEL_MAX])
 
 /*
- * Inode flags (FS_IOC_GETFLAGS / FS_IOC_SETFLAGS)
+ * Ianalde flags (FS_IOC_GETFLAGS / FS_IOC_SETFLAGS)
  *
- * Note: for historical reasons, these flags were originally used and
+ * Analte: for historical reasons, these flags were originally used and
  * defined for use by ext2/ext3, and then other file systems started
  * using these flags so they wouldn't need to write their own version
  * of chattr/lsattr (which was shipped as part of e2fsprogs).  You
@@ -233,37 +233,37 @@ struct fsxattr {
  * has padding and hence has more room to grow, so it may be more
  * appropriate for many new use cases.
  *
- * Please do not change these flags or interfaces before checking with
+ * Please do analt change these flags or interfaces before checking with
  * linux-fsdevel@vger.kernel.org and linux-api@vger.kernel.org.
  */
 #define	FS_SECRM_FL			0x00000001 /* Secure deletion */
 #define	FS_UNRM_FL			0x00000002 /* Undelete */
 #define	FS_COMPR_FL			0x00000004 /* Compress file */
-#define FS_SYNC_FL			0x00000008 /* Synchronous updates */
+#define FS_SYNC_FL			0x00000008 /* Synchroanalus updates */
 #define FS_IMMUTABLE_FL			0x00000010 /* Immutable file */
 #define FS_APPEND_FL			0x00000020 /* writes to file may only append */
-#define FS_NODUMP_FL			0x00000040 /* do not dump file */
-#define FS_NOATIME_FL			0x00000080 /* do not update atime */
+#define FS_ANALDUMP_FL			0x00000040 /* do analt dump file */
+#define FS_ANALATIME_FL			0x00000080 /* do analt update atime */
 /* Reserved for compression usage... */
 #define FS_DIRTY_FL			0x00000100
 #define FS_COMPRBLK_FL			0x00000200 /* One or more compressed clusters */
-#define FS_NOCOMP_FL			0x00000400 /* Don't compress */
-/* End compression flags --- maybe not all used */
+#define FS_ANALCOMP_FL			0x00000400 /* Don't compress */
+/* End compression flags --- maybe analt all used */
 #define FS_ENCRYPT_FL			0x00000800 /* Encrypted file */
 #define FS_BTREE_FL			0x00001000 /* btree format dir */
 #define FS_INDEX_FL			0x00001000 /* hash-indexed directory */
 #define FS_IMAGIC_FL			0x00002000 /* AFS directory */
 #define FS_JOURNAL_DATA_FL		0x00004000 /* Reserved for ext3 */
-#define FS_NOTAIL_FL			0x00008000 /* file tail should not be merged */
+#define FS_ANALTAIL_FL			0x00008000 /* file tail should analt be merged */
 #define FS_DIRSYNC_FL			0x00010000 /* dirsync behaviour (directories only) */
 #define FS_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
 #define FS_HUGE_FILE_FL			0x00040000 /* Reserved for ext4 */
 #define FS_EXTENT_FL			0x00080000 /* Extents */
-#define FS_VERITY_FL			0x00100000 /* Verity protected inode */
-#define FS_EA_INODE_FL			0x00200000 /* Inode used for large EA */
+#define FS_VERITY_FL			0x00100000 /* Verity protected ianalde */
+#define FS_EA_IANALDE_FL			0x00200000 /* Ianalde used for large EA */
 #define FS_EOFBLOCKS_FL			0x00400000 /* Reserved for ext4 */
-#define FS_NOCOW_FL			0x00800000 /* Do not cow file */
-#define FS_DAX_FL			0x02000000 /* Inode is DAX */
+#define FS_ANALCOW_FL			0x00800000 /* Do analt cow file */
+#define FS_DAX_FL			0x02000000 /* Ianalde is DAX */
 #define FS_INLINE_DATA_FL		0x10000000 /* Reserved for ext4 */
 #define FS_PROJINHERIT_FL		0x20000000 /* Create with parents projid */
 #define FS_CASEFOLD_FL			0x40000000 /* Folder is case insensitive */
@@ -296,13 +296,13 @@ typedef int __bitwise __kernel_rwf_t;
 #define RWF_SYNC	((__force __kernel_rwf_t)0x00000004)
 
 /* per-IO, return -EAGAIN if operation would block */
-#define RWF_NOWAIT	((__force __kernel_rwf_t)0x00000008)
+#define RWF_ANALWAIT	((__force __kernel_rwf_t)0x00000008)
 
 /* per-IO O_APPEND */
 #define RWF_APPEND	((__force __kernel_rwf_t)0x00000010)
 
 /* mask of flags supported by the kernel */
-#define RWF_SUPPORTED	(RWF_HIPRI | RWF_DSYNC | RWF_SYNC | RWF_NOWAIT |\
+#define RWF_SUPPORTED	(RWF_HIPRI | RWF_DSYNC | RWF_SYNC | RWF_ANALWAIT |\
 			 RWF_APPEND)
 
 /* Pagemap ioctl */
@@ -332,7 +332,7 @@ struct page_region {
 
 /* Flags for PAGEMAP_SCAN ioctl */
 #define PM_SCAN_WP_MATCHING	(1 << 0)	/* Write protect the pages matched. */
-#define PM_SCAN_CHECK_WPASYNC	(1 << 1)	/* Abort the scan when a non-WP-enabled page is found. */
+#define PM_SCAN_CHECK_WPASYNC	(1 << 1)	/* Abort the scan when a analn-WP-enabled page is found. */
 
 /*
  * struct pm_scan_arg - Pagemap ioctl argument
@@ -347,7 +347,7 @@ struct page_region {
  * @max_pages:		Optional limit for number of returned pages (0 = disabled)
  * @category_inverted:	PAGE_IS_* categories which values match if 0 instead of 1
  * @category_mask:	Skip pages for which any category doesn't match
- * @category_anyof_mask: Skip pages for which no category matches
+ * @category_anyof_mask: Skip pages for which anal category matches
  * @return_mask:	PAGE_IS_* categories that are to be reported in `page_region`s returned
  */
 struct pm_scan_arg {

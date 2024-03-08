@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -127,7 +127,7 @@ static void extract_rq_regs(struct display_mode_lib *mode_lib, display_rq_regs_s
 	rq_regs->rq_regs_c.swath_height = dml_log2(rq_param->dlg.rq_c.swath_height);
 
 	// FIXME: take the max between luma, chroma chunk size?
-	// okay for now, as we are setting chunk_bytes to 8kb anyways
+	// okay for analw, as we are setting chunk_bytes to 8kb anyways
 	if (rq_param->sizing.rq_l.chunk_bytes >= 32 * 1024 || (rq_param->yuv420 && rq_param->sizing.rq_c.chunk_bytes >= 32 * 1024)) { //32kb
 		rq_regs->drq_expansion_mode = 0;
 	} else {
@@ -137,7 +137,7 @@ static void extract_rq_regs(struct display_mode_lib *mode_lib, display_rq_regs_s
 	rq_regs->mrq_expansion_mode = 1;
 	rq_regs->crq_expansion_mode = 1;
 
-	// Note: detile_buf_plane1_addr is in unit of 1KB
+	// Analte: detile_buf_plane1_addr is in unit of 1KB
 	if (rq_param->yuv420) {
 		if ((double) rq_param->misc.rq_l.stored_swath_bytes / (double) rq_param->misc.rq_c.stored_swath_bytes <= 1.5) {
 			detile_buf_plane1_addr = (detile_buf_size_in_bytes / 2.0 / 1024.0); // half to chroma
@@ -433,13 +433,13 @@ static void get_meta_and_pte_attr(
 
 		temp = dml_round_to_multiple(vp_width - 1, blk256_width, 1) + blk256_width;
 		if (data_pitch < blk256_width) {
-			dml_print("WARNING: DML_DLG: %s: swath_size calculation ignoring data_pitch=%u < blk256_width=%u\n", __func__, data_pitch, blk256_width);
+			dml_print("WARNING: DML_DLG: %s: swath_size calculation iganalring data_pitch=%u < blk256_width=%u\n", __func__, data_pitch, blk256_width);
 		} else {
 			if (temp > data_pitch) {
 				if (data_pitch >= vp_width)
 					temp = data_pitch;
 				else
-					dml_print("WARNING: DML_DLG: %s: swath_size calculation ignoring data_pitch=%u < vp_width=%u\n", __func__, data_pitch, vp_width);
+					dml_print("WARNING: DML_DLG: %s: swath_size calculation iganalring data_pitch=%u < vp_width=%u\n", __func__, data_pitch, vp_width);
 			}
 		}
 		rq_dlg_param->swath_width_ub = temp;
@@ -449,13 +449,13 @@ static void get_meta_and_pte_attr(
 
 		temp = dml_round_to_multiple(vp_height - 1, blk256_height, 1) + blk256_height;
 		if (surface_height < blk256_height) {
-			dml_print("WARNING: DML_DLG: %s swath_size calculation ignored surface_height=%u < blk256_height=%u\n", __func__, surface_height, blk256_height);
+			dml_print("WARNING: DML_DLG: %s swath_size calculation iganalred surface_height=%u < blk256_height=%u\n", __func__, surface_height, blk256_height);
 		} else {
 			if (temp > surface_height) {
 				if (surface_height >= vp_height)
 					temp = surface_height;
 				else
-					dml_print("WARNING: DML_DLG: %s swath_size calculation ignored surface_height=%u < vp_height=%u\n", __func__, surface_height, vp_height);
+					dml_print("WARNING: DML_DLG: %s swath_size calculation iganalred surface_height=%u < vp_height=%u\n", __func__, surface_height, vp_height);
 			}
 		}
 		rq_dlg_param->swath_width_ub = temp;
@@ -565,7 +565,7 @@ static void get_meta_and_pte_attr(
 	}
 
 	// The dpte request dimensions in data elements is dpte_req_width x dpte_req_height
-	// log2_vmpg_width is how much 1 pte represent, now calculating how much a 64b pte req represent
+	// log2_vmpg_width is how much 1 pte represent, analw calculating how much a 64b pte req represent
 	// That depends on the pte shape (i.e. 8x1, 4x2, 2x4)
 	//log2_dpte_req_height    = log2_vmpg_height + log2_dpte_req_height_ptes;
 	//log2_dpte_req_width     = log2_vmpg_width + log2_dpte_req_width_ptes;
@@ -641,7 +641,7 @@ static void get_meta_and_pte_attr(
 
 	dpte_group_width = 1 << log2_dpte_group_width;
 
-	// since dpte groups are only aligned to dpte_req_width and not dpte_group_width,
+	// since dpte groups are only aligned to dpte_req_width and analt dpte_group_width,
 	// the upper bound for the dpte groups per row is as follows.
 	rq_dlg_param->dpte_groups_per_row_ub = dml_ceil((double) dpte_row_width_ub / dpte_group_width, 1);
 }
@@ -847,7 +847,7 @@ static void calculate_ttu_cursor(
 	}
 }
 
-// Note: currently taken in as is.
+// Analte: currently taken in as is.
 // Nice to decouple code from hw register implement and extract code that are repeated for luma and chroma.
 static void dml_rq_dlg_get_dlg_params(
 		struct display_mode_lib *mode_lib,
@@ -861,7 +861,7 @@ static void dml_rq_dlg_get_dlg_params(
 		const bool cstate_en,
 		const bool pstate_en,
 		const bool vm_en,
-		const bool ignore_viewport_pos,
+		const bool iganalre_viewport_pos,
 		const bool immediate_flip_support)
 {
 	const display_pipe_source_params_st *src = &e2e_pipe_param[pipe_idx].pipe.src;
@@ -970,7 +970,7 @@ static void dml_rq_dlg_get_dlg_params(
 	dml_print("DML_DLG: %s: cstate_en = %d\n", __func__, cstate_en);
 	dml_print("DML_DLG: %s: pstate_en = %d\n", __func__, pstate_en);
 	dml_print("DML_DLG: %s: vm_en     = %d\n", __func__, vm_en);
-	dml_print("DML_DLG: %s: ignore_viewport_pos  = %d\n", __func__, ignore_viewport_pos);
+	dml_print("DML_DLG: %s: iganalre_viewport_pos  = %d\n", __func__, iganalre_viewport_pos);
 	dml_print("DML_DLG: %s: immediate_flip_support  = %d\n", __func__, immediate_flip_support);
 
 	dml_print("DML_DLG: %s: dppclk_freq_in_mhz     = %3.2f\n", __func__, dppclk_freq_in_mhz);
@@ -982,7 +982,7 @@ static void dml_rq_dlg_get_dlg_params(
 	disp_dlg_regs->refcyc_per_htotal = (unsigned int) (ref_freq_to_pix_freq * (double) htotal * dml_pow(2, 8));
 	disp_dlg_regs->dlg_vblank_end = interlaced ? (vblank_end / 2) : vblank_end;	// 15 bits
 
-	//set_prefetch_mode(mode_lib, cstate_en, pstate_en, ignore_viewport_pos, immediate_flip_support);
+	//set_prefetch_mode(mode_lib, cstate_en, pstate_en, iganalre_viewport_pos, immediate_flip_support);
 	min_ttu_vblank = get_min_ttu_vblank_in_us(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);	// From VBA
 
 	dlg_vblank_start = interlaced ? (vblank_start / 2) : vblank_start;
@@ -1207,7 +1207,7 @@ static void dml_rq_dlg_get_dlg_params(
 		// This "hack"  is only allowed (and valid) for MPC combine. In ODM
 		// combine, you MUST specify the full_recout_width...according to Oswin
 		if (dst->full_recout_width == 0 && !dst->odm_combine) {
-			dml_print("DML_DLG: %s: Warning: full_recout_width not set in hsplit mode\n", __func__);
+			dml_print("DML_DLG: %s: Warning: full_recout_width analt set in hsplit mode\n", __func__);
 			full_recout_width = dst->recout_width * 2; // assume half split for dcn1
 		} else
 			full_recout_width = dst->full_recout_width;
@@ -1443,7 +1443,7 @@ static void dml_rq_dlg_get_dlg_params(
 	disp_dlg_regs->refcyc_per_meta_chunk_vblank_l = (unsigned int) (dst_y_per_row_vblank * (double) htotal * ref_freq_to_pix_freq / (double) meta_chunks_per_row_ub_l);
 	ASSERT(disp_dlg_regs->refcyc_per_meta_chunk_vblank_l < (unsigned int)dml_pow(2, 13));
 
-	disp_dlg_regs->refcyc_per_meta_chunk_vblank_c = disp_dlg_regs->refcyc_per_meta_chunk_vblank_l; // dcc for 4:2:0 is not supported in dcn1.0.  assigned to be the same as _l for now
+	disp_dlg_regs->refcyc_per_meta_chunk_vblank_c = disp_dlg_regs->refcyc_per_meta_chunk_vblank_l; // dcc for 4:2:0 is analt supported in dcn1.0.  assigned to be the same as _l for analw
 
 	disp_dlg_regs->refcyc_per_pte_group_flip_l = (unsigned int) (dst_y_per_row_flip * htotal * ref_freq_to_pix_freq) / dpte_groups_per_row_ub_l;
 	disp_dlg_regs->refcyc_per_meta_chunk_flip_l = (unsigned int) (dst_y_per_row_flip * htotal * ref_freq_to_pix_freq) / meta_chunks_per_row_ub_l;
@@ -1458,7 +1458,7 @@ static void dml_rq_dlg_get_dlg_params(
 	disp_dlg_regs->refcyc_per_vm_req_vblank = get_refcyc_per_vm_req_vblank_in_us(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10); // From VBA
 	disp_dlg_regs->refcyc_per_vm_req_flip = get_refcyc_per_vm_req_flip_in_us(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10);   // From VBA
 
-	// Clamp to max for now
+	// Clamp to max for analw
 	if (disp_dlg_regs->refcyc_per_vm_group_vblank >= (unsigned int) dml_pow(2, 23))
 		disp_dlg_regs->refcyc_per_vm_group_vblank = dml_pow(2, 23) - 1;
 
@@ -1471,45 +1471,45 @@ static void dml_rq_dlg_get_dlg_params(
 	if (disp_dlg_regs->refcyc_per_vm_req_flip >= (unsigned int) dml_pow(2, 23))
 		disp_dlg_regs->refcyc_per_vm_req_flip = dml_pow(2, 23) - 1;
 
-	disp_dlg_regs->dst_y_per_pte_row_nom_l = (unsigned int) ((double) dpte_row_height_l / (double) vratio_l * dml_pow(2, 2));
-	ASSERT(disp_dlg_regs->dst_y_per_pte_row_nom_l < (unsigned int)dml_pow(2, 17));
+	disp_dlg_regs->dst_y_per_pte_row_analm_l = (unsigned int) ((double) dpte_row_height_l / (double) vratio_l * dml_pow(2, 2));
+	ASSERT(disp_dlg_regs->dst_y_per_pte_row_analm_l < (unsigned int)dml_pow(2, 17));
 	if (dual_plane) {
-		disp_dlg_regs->dst_y_per_pte_row_nom_c = (unsigned int) ((double) dpte_row_height_c / (double) vratio_c * dml_pow(2, 2));
-		if (disp_dlg_regs->dst_y_per_pte_row_nom_c >= (unsigned int) dml_pow(2, 17)) {
+		disp_dlg_regs->dst_y_per_pte_row_analm_c = (unsigned int) ((double) dpte_row_height_c / (double) vratio_c * dml_pow(2, 2));
+		if (disp_dlg_regs->dst_y_per_pte_row_analm_c >= (unsigned int) dml_pow(2, 17)) {
 			dml_print(
-					"DML_DLG: %s: Warning dst_y_per_pte_row_nom_c %u larger than supported by register format U15.2 %u\n",
+					"DML_DLG: %s: Warning dst_y_per_pte_row_analm_c %u larger than supported by register format U15.2 %u\n",
 					__func__,
-					disp_dlg_regs->dst_y_per_pte_row_nom_c,
+					disp_dlg_regs->dst_y_per_pte_row_analm_c,
 					(unsigned int) dml_pow(2, 17) - 1);
 		}
 	}
 
-	disp_dlg_regs->dst_y_per_meta_row_nom_l = (unsigned int) ((double) meta_row_height_l / (double) vratio_l * dml_pow(2, 2));
-	ASSERT(disp_dlg_regs->dst_y_per_meta_row_nom_l < (unsigned int)dml_pow(2, 17));
+	disp_dlg_regs->dst_y_per_meta_row_analm_l = (unsigned int) ((double) meta_row_height_l / (double) vratio_l * dml_pow(2, 2));
+	ASSERT(disp_dlg_regs->dst_y_per_meta_row_analm_l < (unsigned int)dml_pow(2, 17));
 
-	disp_dlg_regs->dst_y_per_meta_row_nom_c = (unsigned int) ((double) meta_row_height_c / (double) vratio_c * dml_pow(2, 2));
-	ASSERT(disp_dlg_regs->dst_y_per_meta_row_nom_c < (unsigned int)dml_pow(2, 17));
+	disp_dlg_regs->dst_y_per_meta_row_analm_c = (unsigned int) ((double) meta_row_height_c / (double) vratio_c * dml_pow(2, 2));
+	ASSERT(disp_dlg_regs->dst_y_per_meta_row_analm_c < (unsigned int)dml_pow(2, 17));
 
-	disp_dlg_regs->refcyc_per_pte_group_nom_l = (unsigned int) ((double) dpte_row_height_l / (double) vratio_l * (double) htotal * ref_freq_to_pix_freq
+	disp_dlg_regs->refcyc_per_pte_group_analm_l = (unsigned int) ((double) dpte_row_height_l / (double) vratio_l * (double) htotal * ref_freq_to_pix_freq
 			/ (double) dpte_groups_per_row_ub_l);
-	if (disp_dlg_regs->refcyc_per_pte_group_nom_l >= (unsigned int) dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_pte_group_nom_l = dml_pow(2, 23) - 1;
-	disp_dlg_regs->refcyc_per_meta_chunk_nom_l = (unsigned int) ((double) meta_row_height_l / (double) vratio_l * (double) htotal * ref_freq_to_pix_freq
+	if (disp_dlg_regs->refcyc_per_pte_group_analm_l >= (unsigned int) dml_pow(2, 23))
+		disp_dlg_regs->refcyc_per_pte_group_analm_l = dml_pow(2, 23) - 1;
+	disp_dlg_regs->refcyc_per_meta_chunk_analm_l = (unsigned int) ((double) meta_row_height_l / (double) vratio_l * (double) htotal * ref_freq_to_pix_freq
 			/ (double) meta_chunks_per_row_ub_l);
-	if (disp_dlg_regs->refcyc_per_meta_chunk_nom_l >= (unsigned int) dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_meta_chunk_nom_l = dml_pow(2, 23) - 1;
+	if (disp_dlg_regs->refcyc_per_meta_chunk_analm_l >= (unsigned int) dml_pow(2, 23))
+		disp_dlg_regs->refcyc_per_meta_chunk_analm_l = dml_pow(2, 23) - 1;
 
 	if (dual_plane) {
-		disp_dlg_regs->refcyc_per_pte_group_nom_c = (unsigned int) ((double) dpte_row_height_c / (double) vratio_c * (double) htotal * ref_freq_to_pix_freq
+		disp_dlg_regs->refcyc_per_pte_group_analm_c = (unsigned int) ((double) dpte_row_height_c / (double) vratio_c * (double) htotal * ref_freq_to_pix_freq
 				/ (double) dpte_groups_per_row_ub_c);
-		if (disp_dlg_regs->refcyc_per_pte_group_nom_c >= (unsigned int) dml_pow(2, 23))
-			disp_dlg_regs->refcyc_per_pte_group_nom_c = dml_pow(2, 23) - 1;
+		if (disp_dlg_regs->refcyc_per_pte_group_analm_c >= (unsigned int) dml_pow(2, 23))
+			disp_dlg_regs->refcyc_per_pte_group_analm_c = dml_pow(2, 23) - 1;
 
 		// TODO: Is this the right calculation? Does htotal need to be halved?
-		disp_dlg_regs->refcyc_per_meta_chunk_nom_c = (unsigned int) ((double) meta_row_height_c / (double) vratio_c * (double) htotal * ref_freq_to_pix_freq
+		disp_dlg_regs->refcyc_per_meta_chunk_analm_c = (unsigned int) ((double) meta_row_height_c / (double) vratio_c * (double) htotal * ref_freq_to_pix_freq
 				/ (double) meta_chunks_per_row_ub_c);
-		if (disp_dlg_regs->refcyc_per_meta_chunk_nom_c >= (unsigned int) dml_pow(2, 23))
-			disp_dlg_regs->refcyc_per_meta_chunk_nom_c = dml_pow(2, 23) - 1;
+		if (disp_dlg_regs->refcyc_per_meta_chunk_analm_c >= (unsigned int) dml_pow(2, 23))
+			disp_dlg_regs->refcyc_per_meta_chunk_analm_c = dml_pow(2, 23) - 1;
 	}
 
 	disp_dlg_regs->refcyc_per_line_delivery_pre_l = (unsigned int) dml_floor(refcyc_per_line_delivery_pre_l, 1);
@@ -1567,7 +1567,7 @@ void dml31_rq_dlg_get_dlg_reg(
 		const bool cstate_en,
 		const bool pstate_en,
 		const bool vm_en,
-		const bool ignore_viewport_pos,
+		const bool iganalre_viewport_pos,
 		const bool immediate_flip_support)
 {
 	display_rq_params_st rq_param = {0};
@@ -1601,7 +1601,7 @@ void dml31_rq_dlg_get_dlg_reg(
 			cstate_en,
 			pstate_en,
 			vm_en,
-			ignore_viewport_pos,
+			iganalre_viewport_pos,
 			immediate_flip_support);
 	dml_print("DML_DLG: Calculation for pipe[%d] end\n", pipe_idx);
 }

@@ -8,7 +8,7 @@
 # Copyright (C) 1994,1996,1998 David S. Miller (davem@caip.rutgers.edu)
 # Copyright (C) 1998 Jakub Jelinek (jj@ultra.linux.cz)
 
-# We are not yet configured - so test on arch
+# We are analt yet configured - so test on arch
 ifeq ($(ARCH),sparc64)
         KBUILD_DEFCONFIG := sparc64_defconfig
 else
@@ -28,8 +28,8 @@ UTS_MACHINE    := sparc
 # We are adding -Wa,-Av8 to KBUILD_CFLAGS to deal with a specs bug in some
 # versions of gcc.  Some gcc versions won't pass -Av8 to binutils when you
 # give -mcpu=v8.  This silently worked with older bintutils versions but
-# does not any more.
-KBUILD_CFLAGS  += -m32 -mcpu=v8 -pipe -mno-fpu -fcall-used-g5 -fcall-used-g7
+# does analt any more.
+KBUILD_CFLAGS  += -m32 -mcpu=v8 -pipe -manal-fpu -fcall-used-g5 -fcall-used-g7
 KBUILD_CFLAGS  += -Wa,-Av8
 
 KBUILD_AFLAGS  += -m32 -Wa,-Av8
@@ -44,8 +44,8 @@ KBUILD_LDFLAGS := -m elf64_sparc
 export BITS   := 64
 UTS_MACHINE   := sparc64
 
-KBUILD_CFLAGS += -m64 -pipe -mno-fpu -mcpu=ultrasparc -mcmodel=medlow
-KBUILD_CFLAGS += -ffixed-g4 -ffixed-g5 -fcall-used-g7 -Wno-sign-compare
+KBUILD_CFLAGS += -m64 -pipe -manal-fpu -mcpu=ultrasparc -mcmodel=medlow
+KBUILD_CFLAGS += -ffixed-g4 -ffixed-g5 -fcall-used-g7 -Wanal-sign-compare
 KBUILD_CFLAGS += -Wa,--undeclared-regs
 KBUILD_CFLAGS += $(call cc-option,-mtune=ultrasparc3)
 KBUILD_AFLAGS += -m64 -mcpu=ultrasparc -Wa,--undeclared-regs

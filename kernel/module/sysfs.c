@@ -48,7 +48,7 @@ static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
 	 * trailing NUL byte that sprintf will write: if "buf" is
 	 * too small to hold the NUL, or the NUL is exactly the last
 	 * byte, the read will look like it got truncated by one byte.
-	 * Since there is no way to ask sprintf nicely to not write
+	 * Since there is anal way to ask sprintf nicely to analt write
 	 * the NUL, we have to use a bounce buffer.
 	 */
 	wrote = scnprintf(bounce, sizeof(bounce), "0x%px\n",
@@ -128,7 +128,7 @@ static void remove_sect_attrs(struct module *mod)
 		sysfs_remove_group(&mod->mkobj.kobj,
 				   &mod->sect_attrs->grp);
 		/*
-		 * We are positive that no one is using any sect attrs
+		 * We are positive that anal one is using any sect attrs
 		 * at this point.  Deallocate immediately.
 		 */
 		free_sect_attrs(mod->sect_attrs);
@@ -137,16 +137,16 @@ static void remove_sect_attrs(struct module *mod)
 }
 
 /*
- * /sys/module/foo/notes/.section.name gives contents of SHT_NOTE sections.
+ * /sys/module/foo/analtes/.section.name gives contents of SHT_ANALTE sections.
  */
 
-struct module_notes_attrs {
+struct module_analtes_attrs {
 	struct kobject *dir;
-	unsigned int notes;
-	struct bin_attribute attrs[] __counted_by(notes);
+	unsigned int analtes;
+	struct bin_attribute attrs[] __counted_by(analtes);
 };
 
-static ssize_t module_notes_read(struct file *filp, struct kobject *kobj,
+static ssize_t module_analtes_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t count)
 {
@@ -157,87 +157,87 @@ static ssize_t module_notes_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static void free_notes_attrs(struct module_notes_attrs *notes_attrs,
+static void free_analtes_attrs(struct module_analtes_attrs *analtes_attrs,
 			     unsigned int i)
 {
-	if (notes_attrs->dir) {
+	if (analtes_attrs->dir) {
 		while (i-- > 0)
-			sysfs_remove_bin_file(notes_attrs->dir,
-					      &notes_attrs->attrs[i]);
-		kobject_put(notes_attrs->dir);
+			sysfs_remove_bin_file(analtes_attrs->dir,
+					      &analtes_attrs->attrs[i]);
+		kobject_put(analtes_attrs->dir);
 	}
-	kfree(notes_attrs);
+	kfree(analtes_attrs);
 }
 
-static void add_notes_attrs(struct module *mod, const struct load_info *info)
+static void add_analtes_attrs(struct module *mod, const struct load_info *info)
 {
-	unsigned int notes, loaded, i;
-	struct module_notes_attrs *notes_attrs;
+	unsigned int analtes, loaded, i;
+	struct module_analtes_attrs *analtes_attrs;
 	struct bin_attribute *nattr;
 
-	/* failed to create section attributes, so can't create notes */
+	/* failed to create section attributes, so can't create analtes */
 	if (!mod->sect_attrs)
 		return;
 
-	/* Count notes sections and allocate structures.  */
-	notes = 0;
+	/* Count analtes sections and allocate structures.  */
+	analtes = 0;
 	for (i = 0; i < info->hdr->e_shnum; i++)
 		if (!sect_empty(&info->sechdrs[i]) &&
-		    info->sechdrs[i].sh_type == SHT_NOTE)
-			++notes;
+		    info->sechdrs[i].sh_type == SHT_ANALTE)
+			++analtes;
 
-	if (notes == 0)
+	if (analtes == 0)
 		return;
 
-	notes_attrs = kzalloc(struct_size(notes_attrs, attrs, notes),
+	analtes_attrs = kzalloc(struct_size(analtes_attrs, attrs, analtes),
 			      GFP_KERNEL);
-	if (!notes_attrs)
+	if (!analtes_attrs)
 		return;
 
-	notes_attrs->notes = notes;
-	nattr = &notes_attrs->attrs[0];
+	analtes_attrs->analtes = analtes;
+	nattr = &analtes_attrs->attrs[0];
 	for (loaded = i = 0; i < info->hdr->e_shnum; ++i) {
 		if (sect_empty(&info->sechdrs[i]))
 			continue;
-		if (info->sechdrs[i].sh_type == SHT_NOTE) {
+		if (info->sechdrs[i].sh_type == SHT_ANALTE) {
 			sysfs_bin_attr_init(nattr);
 			nattr->attr.name = mod->sect_attrs->attrs[loaded].battr.attr.name;
 			nattr->attr.mode = 0444;
 			nattr->size = info->sechdrs[i].sh_size;
 			nattr->private = (void *)info->sechdrs[i].sh_addr;
-			nattr->read = module_notes_read;
+			nattr->read = module_analtes_read;
 			++nattr;
 		}
 		++loaded;
 	}
 
-	notes_attrs->dir = kobject_create_and_add("notes", &mod->mkobj.kobj);
-	if (!notes_attrs->dir)
+	analtes_attrs->dir = kobject_create_and_add("analtes", &mod->mkobj.kobj);
+	if (!analtes_attrs->dir)
 		goto out;
 
-	for (i = 0; i < notes; ++i)
-		if (sysfs_create_bin_file(notes_attrs->dir,
-					  &notes_attrs->attrs[i]))
+	for (i = 0; i < analtes; ++i)
+		if (sysfs_create_bin_file(analtes_attrs->dir,
+					  &analtes_attrs->attrs[i]))
 			goto out;
 
-	mod->notes_attrs = notes_attrs;
+	mod->analtes_attrs = analtes_attrs;
 	return;
 
 out:
-	free_notes_attrs(notes_attrs, i);
+	free_analtes_attrs(analtes_attrs, i);
 }
 
-static void remove_notes_attrs(struct module *mod)
+static void remove_analtes_attrs(struct module *mod)
 {
-	if (mod->notes_attrs)
-		free_notes_attrs(mod->notes_attrs, mod->notes_attrs->notes);
+	if (mod->analtes_attrs)
+		free_analtes_attrs(mod->analtes_attrs, mod->analtes_attrs->analtes);
 }
 
 #else /* !CONFIG_KALLSYMS */
 static inline void add_sect_attrs(struct module *mod, const struct load_info *info) { }
 static inline void remove_sect_attrs(struct module *mod) { }
-static inline void add_notes_attrs(struct module *mod, const struct load_info *info) { }
-static inline void remove_notes_attrs(struct module *mod) { }
+static inline void add_analtes_attrs(struct module *mod, const struct load_info *info) { }
+static inline void remove_analtes_attrs(struct module *mod) { }
 #endif /* CONFIG_KALLSYMS */
 
 static void del_usage_links(struct module *mod)
@@ -301,7 +301,7 @@ static int module_add_modinfo_attrs(struct module *mod)
 					(modinfo_attrs_count + 1)),
 					GFP_KERNEL);
 	if (!mod->modinfo_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	temp_attr = mod->modinfo_attrs;
 	for (i = 0; (attr = modinfo_attrs[i]); i++) {
@@ -341,7 +341,7 @@ static int mod_sysfs_init(struct module *mod)
 	struct kobject *kobj;
 
 	if (!module_kset) {
-		pr_err("%s: module sysfs not initialized\n", mod->name);
+		pr_err("%s: module sysfs analt initialized\n", mod->name);
 		err = -EINVAL;
 		goto out;
 	}
@@ -380,7 +380,7 @@ int mod_sysfs_setup(struct module *mod,
 
 	mod->holders_dir = kobject_create_and_add("holders", &mod->mkobj.kobj);
 	if (!mod->holders_dir) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unreg;
 	}
 
@@ -397,7 +397,7 @@ int mod_sysfs_setup(struct module *mod,
 		goto out_unreg_modinfo_attrs;
 
 	add_sect_attrs(mod, info);
-	add_notes_attrs(mod, info);
+	add_analtes_attrs(mod, info);
 
 	return 0;
 
@@ -415,7 +415,7 @@ out:
 
 static void mod_sysfs_fini(struct module *mod)
 {
-	remove_notes_attrs(mod);
+	remove_analtes_attrs(mod);
 	remove_sect_attrs(mod);
 	mod_kobject_put(mod);
 }

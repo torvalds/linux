@@ -6,7 +6,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  */
 
 #include <linux/usb.h>
@@ -33,7 +33,7 @@ MODULE_FIRMWARE("isl3887usb");
 static struct usb_driver p54u_driver;
 
 /*
- * Note:
+ * Analte:
  *
  * Always update our wiki's device list (located at:
  * http://wireless.wiki.kernel.org/en/users/Drivers/p54/devices ),
@@ -94,7 +94,7 @@ static const struct usb_device_id p54u_table[] = {
 	{USB_DEVICE(0x0baf, 0x0118)},   /* U.S. Robotics U5 802.11g Adapter*/
 	{USB_DEVICE(0x0bf8, 0x1009)},   /* FUJITSU E-5400 USB D1700*/
 	/* {USB_DEVICE(0x0cde, 0x0006)}, * Medion MD40900 already listed above,
-					 * just noting it here for clarity */
+					 * just analting it here for clarity */
 	{USB_DEVICE(0x0cde, 0x0008)},	/* Sagem XG703A */
 	{USB_DEVICE(0x0cde, 0x0015)},	/* Zcomax XG-705A */
 	{USB_DEVICE(0x0d8e, 0x3762)},	/* DLink DWL-G120 Cohiba */
@@ -230,12 +230,12 @@ static int p54u_init_urbs(struct ieee80211_hw *dev)
 	while (skb_queue_len(&priv->rx_queue) < 32) {
 		skb = __dev_alloc_skb(priv->common.rx_mtu + 32, GFP_KERNEL);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		entry = usb_alloc_urb(0, GFP_KERNEL);
 		if (!entry) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -271,7 +271,7 @@ static int p54u_init_urbs(struct ieee80211_hw *dev)
 static int p54u_open(struct ieee80211_hw *dev)
 {
 	/*
-	 * TODO: Because we don't know how to reliably stop the 3887 and
+	 * TODO: Because we don't kanalw how to reliably stop the 3887 and
 	 * the isl3886+net2280, other than brutally cut off all
 	 * communications. We have to reinitialize the urbs on every start.
 	 */
@@ -326,7 +326,7 @@ static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct urb *int_urb = NULL, *data_urb = NULL;
 	struct net2280_tx_hdr *hdr = (void *)skb->data - sizeof(*hdr);
 	struct net2280_reg_write *reg = NULL;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	reg = kmalloc(sizeof(*reg), GFP_ATOMIC);
 	if (!reg)
@@ -482,7 +482,7 @@ static int p54u_firmware_reset_3887(struct ieee80211_hw *dev)
 
 	buf = kmemdup(p54u_romboot_3887, 4, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = p54u_bulk_msg(priv, P54U_PIPE_DATA,
 			    buf, 4);
 	kfree(buf);
@@ -511,7 +511,7 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 
 	tmp = buf = kmalloc(P54U_FW_BLOCK, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	left = block_size = min_t(size_t, P54U_FW_BLOCK, priv->fw->size);
 	strcpy(buf, p54u_firmware_upload_3887);
@@ -635,7 +635,7 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 
 	buf = kmalloc(512, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #define P54U_WRITE(type, addr, data) \
 	do {\
@@ -735,7 +735,7 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 	P54U_READ(NET2280_DEV_U32, &devreg->int_ident);
 	P54U_WRITE(NET2280_DEV_U32, &devreg->int_ack, reg);
 
-	/* finally, we can upload firmware now! */
+	/* finally, we can upload firmware analw! */
 	remains = priv->fw->size;
 	data = priv->fw->data;
 	offset = ISL38XX_DEV_FIRMWARE_ADDR;
@@ -859,7 +859,7 @@ static int p54_find_type(struct p54u_priv *priv)
 		if (p54u_fwlist[i].type == priv->hw_type)
 			break;
 	if (i == __NUM_P54U_HWTYPES)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return i;
 }
@@ -881,7 +881,7 @@ static int p54u_start_ops(struct p54u_priv *priv)
 		dev_err(&priv->udev->dev, "wrong firmware, please get "
 			"a firmware for \"%s\" and try again.\n",
 			p54u_fwlist[ret].hw);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out;
 	}
 
@@ -928,14 +928,14 @@ static void p54u_load_firmware_cb(const struct firmware *firmware,
 		priv->fw = firmware;
 		err = p54u_start_ops(priv);
 	} else {
-		err = -ENOENT;
-		dev_err(&udev->dev, "Firmware not found.\n");
+		err = -EANALENT;
+		dev_err(&udev->dev, "Firmware analt found.\n");
 	}
 
 	complete(&priv->fw_wait_load);
 	/*
 	 * At this point p54u_disconnect may have already freed
-	 * the "priv" context. Do not use it anymore!
+	 * the "priv" context. Do analt use it anymore!
 	 */
 	priv = NULL;
 
@@ -969,11 +969,11 @@ static int p54u_load_firmware(struct ieee80211_hw *dev,
 	       p54u_fwlist[i].fw);
 
 	usb_get_intf(intf);
-	err = request_firmware_nowait(THIS_MODULE, 1, p54u_fwlist[i].fw,
+	err = request_firmware_analwait(THIS_MODULE, 1, p54u_fwlist[i].fw,
 				      device, GFP_KERNEL, priv,
 				      p54u_load_firmware_cb);
 	if (err) {
-		dev_err(&priv->udev->dev, "(p54usb) cannot load firmware %s "
+		dev_err(&priv->udev->dev, "(p54usb) cananalt load firmware %s "
 					  "(%d)!\n", p54u_fwlist[i].fw, err);
 		usb_put_intf(intf);
 	}
@@ -994,7 +994,7 @@ static int p54u_probe(struct usb_interface *intf,
 
 	if (!dev) {
 		dev_err(&udev->dev, "(p54usb) ieee80211 alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv = dev->priv;
@@ -1073,7 +1073,7 @@ static int p54u_pre_reset(struct usb_interface *intf)
 	struct ieee80211_hw *dev = usb_get_intfdata(intf);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	p54u_stop(dev);
 	return 0;
@@ -1085,7 +1085,7 @@ static int p54u_resume(struct usb_interface *intf)
 	struct p54u_priv *priv;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = dev->priv;
 	if (unlikely(!(priv->upload_fw && priv->fw)))

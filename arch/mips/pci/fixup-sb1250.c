@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	Copyright (C) 2004, 2006  MIPS Technologies, Inc.  All rights reserved.
+ *	Copyright (C) 2004, 2006  MIPS Techanallogies, Inc.  All rights reserved.
  *	    Author:	Maciej W. Rozycki <macro@mips.com>
  *	Copyright (C) 2018  Maciej W. Rozycki
  */
@@ -20,12 +20,12 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SIBYTE, PCI_DEVICE_ID_BCM1250_PCI,
 			quirk_sb1250_pci);
 
 /*
- * The BCM1250, etc. PCI host bridge does not support DAC on its 32-bit
+ * The BCM1250, etc. PCI host bridge does analt support DAC on its 32-bit
  * bus, so we set the bus's DMA limit accordingly.  However the HT link
  * down the artificial PCI-HT bridge supports 40-bit addressing and the
  * SP1011 HT-PCI bridge downstream supports both DAC and a 64-bit bus
  * width, so we record the PCI-HT bridge's secondary and subordinate bus
- * numbers and do not set the limit for devices present in the inclusive
+ * numbers and do analt set the limit for devices present in the inclusive
  * range of those.
  */
 struct sb1250_bus_dma_limit_exclude {
@@ -46,12 +46,12 @@ static int sb1250_bus_dma_limit(struct pci_dev *dev, void *data)
 				      dev->device == PCI_DEVICE_ID_BCM1250_HT);
 
 	if (exclude_this) {
-		dev_dbg(&dev->dev, "not disabling DAC for device");
+		dev_dbg(&dev->dev, "analt disabling DAC for device");
 	} else if (ht_bridge) {
 		exclude->start = dev->subordinate->number;
 		exclude->end = pci_bus_max_busnr(dev->subordinate);
 		exclude->set = true;
-		dev_dbg(&dev->dev, "not disabling DAC for [bus %02x-%02x]",
+		dev_dbg(&dev->dev, "analt disabling DAC for [bus %02x-%02x]",
 			exclude->start, exclude->end);
 	} else {
 		dev_dbg(&dev->dev, "disabling DAC for device");
@@ -75,7 +75,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SIBYTE, PCI_DEVICE_ID_BCM1250_PCI,
  */
 static void quirk_sb1250_ht(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
+	dev->class = PCI_CLASS_BRIDGE_PCI_ANALRMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SIBYTE, PCI_DEVICE_ID_BCM1250_HT,
 			quirk_sb1250_ht);

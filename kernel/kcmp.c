@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/cache.h>
 #include <linux/bug.h>
 #include <linux/err.h>
@@ -31,7 +31,7 @@
  * is unique ever after the high bits are truncated, since any odd number is
  * relative prime to 2^n).
  *
- * Note also that the obfuscation itself is invisible to userspace and if needed
+ * Analte also that the obfuscation itself is invisible to userspace and if needed
  * it can be changed to an alternate scheme.
  */
 static unsigned long cookies[KCMP_TYPES][2] __read_mostly;
@@ -45,7 +45,7 @@ static long kptr_obfuscate(long v, int type)
  * 0 - equal, i.e. v1 = v2
  * 1 - less than, i.e. v1 < v2
  * 2 - greater than, i.e. v1 > v2
- * 3 - not equal but ordering unavailable (reserved for future)
+ * 3 - analt equal but ordering unavailable (reserved for future)
  */
 static int kcmp_ptr(void *v1, void *v2, enum kcmp_type type)
 {
@@ -130,7 +130,7 @@ static int kcmp_epoll_target(struct task_struct *task1,
 			     unsigned long idx1,
 			     struct kcmp_epoll_slot __user *uslot)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -148,7 +148,7 @@ SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
 	task1 = find_task_by_vpid(pid1);
 	task2 = find_task_by_vpid(pid2);
 	if (!task1 || !task2)
-		goto err_no_task;
+		goto err_anal_task;
 
 	get_task_struct(task1);
 	get_task_struct(task2);
@@ -156,7 +156,7 @@ SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
 	rcu_read_unlock();
 
 	/*
-	 * One should have enough rights to inspect task details.
+	 * One should have eanalugh rights to inspect task details.
 	 */
 	ret = kcmp_lock(&task1->signal->exec_update_lock,
 			&task2->signal->exec_update_lock);
@@ -202,7 +202,7 @@ SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
 			       task2->sysvsem.undo_list,
 			       KCMP_SYSVSEM);
 #else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 #endif
 		break;
 	case KCMP_EPOLL_TFD:
@@ -222,7 +222,7 @@ err:
 
 	return ret;
 
-err_no_task:
+err_anal_task:
 	rcu_read_unlock();
 	return -ESRCH;
 }

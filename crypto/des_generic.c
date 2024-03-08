@@ -4,7 +4,7 @@
  *
  * DES & Triple DES EDE Cipher Algorithms.
  *
- * Copyright (c) 2005 Dag Arne Osvik <da@osvik.no>
+ * Copyright (c) 2005 Dag Arne Osvik <da@osvik.anal>
  */
 
 #include <asm/byteorder.h>
@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <crypto/internal/des.h>
 
@@ -23,7 +23,7 @@ static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
 	int err;
 
 	err = des_expand_key(dctx, key, keylen);
-	if (err == -ENOKEY) {
+	if (err == -EANALKEY) {
 		if (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)
 			err = -EINVAL;
 		else
@@ -55,7 +55,7 @@ static int des3_ede_setkey(struct crypto_tfm *tfm, const u8 *key,
 	int err;
 
 	err = des3_ede_expand_key(dctx, key, keylen);
-	if (err == -ENOKEY) {
+	if (err == -EANALKEY) {
 		if (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)
 			err = -EINVAL;
 		else
@@ -127,7 +127,7 @@ module_exit(des_generic_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DES & Triple DES EDE Cipher Algorithms");
-MODULE_AUTHOR("Dag Arne Osvik <da@osvik.no>");
+MODULE_AUTHOR("Dag Arne Osvik <da@osvik.anal>");
 MODULE_ALIAS_CRYPTO("des");
 MODULE_ALIAS_CRYPTO("des-generic");
 MODULE_ALIAS_CRYPTO("des3_ede");

@@ -5,4 +5,4 @@ Description:
 
 	Possible values: "on", "off".
 
-	Changes are notified via select/poll.
+	Changes are analtified via select/poll.

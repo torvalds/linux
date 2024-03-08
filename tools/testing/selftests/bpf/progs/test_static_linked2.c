@@ -12,7 +12,7 @@ int var2 = -1;
 const volatile long rovar2;
 
 /* same "subprog" name in both files */
-static __noinline int subprog(int x)
+static __analinline int subprog(int x)
 {
 	/* but different formula */
 	return x * 3;

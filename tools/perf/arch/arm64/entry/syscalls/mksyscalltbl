@@ -15,7 +15,7 @@ incpath=$3
 input=$4
 
 if ! test -r $input; then
-	echo "Could not read input file" >&2
+	echo "Could analt read input file" >&2
 	exit 1
 fi
 

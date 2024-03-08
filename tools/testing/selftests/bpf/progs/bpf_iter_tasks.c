@@ -7,8 +7,8 @@
 char _license[] SEC("license") = "GPL";
 
 uint32_t tid = 0;
-int num_unknown_tid = 0;
-int num_known_tid = 0;
+int num_unkanalwn_tid = 0;
+int num_kanalwn_tid = 0;
 
 SEC("iter/task")
 int dump_task(struct bpf_iter__task *ctx)
@@ -23,9 +23,9 @@ int dump_task(struct bpf_iter__task *ctx)
 	}
 
 	if (task->pid != (pid_t)tid)
-		num_unknown_tid++;
+		num_unkanalwn_tid++;
 	else
-		num_known_tid++;
+		num_kanalwn_tid++;
 
 	if (ctx->meta->seq_num == 0)
 		BPF_SEQ_PRINTF(seq, "    tgid      gid\n");

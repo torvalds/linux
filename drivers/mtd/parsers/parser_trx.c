@@ -51,7 +51,7 @@ static int parser_trx_parse(struct mtd_info *mtd,
 			    const struct mtd_partition **pparts,
 			    struct mtd_part_parser_data *data)
 {
-	struct device_node *np = mtd_get_of_node(mtd);
+	struct device_analde *np = mtd_get_of_analde(mtd);
 	struct mtd_partition *parts;
 	struct mtd_partition *part;
 	struct trx_header trx;
@@ -68,7 +68,7 @@ static int parser_trx_parse(struct mtd_info *mtd,
 	parts = kcalloc(TRX_PARSER_MAX_PARTS, sizeof(struct mtd_partition),
 			GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mtd_read(mtd, 0, sizeof(trx), &bytes_read, (uint8_t *)&trx);
 	if (err) {
@@ -79,7 +79,7 @@ static int parser_trx_parse(struct mtd_info *mtd,
 
 	if (trx.magic != trx_magic) {
 		kfree(parts);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* We have LZMA loader if there is address in offset[2] */

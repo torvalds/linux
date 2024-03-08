@@ -33,7 +33,7 @@ static inline void ice_eswitch_detach(struct ice_pf *pf, struct ice_vf *vf) { }
 static inline int
 ice_eswitch_attach(struct ice_pf *pf, struct ice_vf *vf)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void ice_eswitch_stop_all_tx_queues(struct ice_pf *pf) { }
@@ -52,7 +52,7 @@ static inline int ice_eswitch_configure(struct ice_pf *pf)
 
 static inline int ice_eswitch_rebuild(struct ice_pf *pf)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ice_eswitch_mode_get(struct devlink *devlink, u16 *mode)
@@ -64,7 +64,7 @@ static inline int
 ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		     struct netlink_ext_ack *extack)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline bool ice_is_eswitch_mode_switchdev(struct ice_pf *pf)

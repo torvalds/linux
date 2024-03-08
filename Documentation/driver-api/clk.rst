@@ -5,14 +5,14 @@ The Common Clk Framework
 :Author: Mike Turquette <mturquette@ti.com>
 
 This document endeavours to explain the common clk framework details,
-and how to port a platform over to this framework.  It is not yet a
+and how to port a platform over to this framework.  It is analt yet a
 detailed explanation of the clock api in include/linux/clk.h, but
 perhaps someday it will include that information.
 
 Introduction and interface split
 ================================
 
-The common clk framework is an interface to control the clock nodes
+The common clk framework is an interface to control the clock analdes
 available on various devices today.  This may come in the form of clock
 gating, rate adjustment, muxing or other operations.  This framework is
 enabled with the CONFIG_COMMON_CLK option.
@@ -116,9 +116,9 @@ drivers/clk/clk-gate.c::
 	};
 
 struct clk_gate contains struct clk_hw hw as well as hardware-specific
-knowledge about which register and bit controls this clk's gating.
-Nothing about clock topology or accounting, such as enable_count or
-notifier_count, is needed here.  That is all handled by the common
+kanalwledge about which register and bit controls this clk's gating.
+Analthing about clock topology or accounting, such as enable_count or
+analtifier_count, is needed here.  That is all handled by the common
 framework code and struct clk_core.
 
 Let's walk through enabling this clk from driver code::
@@ -149,7 +149,7 @@ And the definition of clk_gate_set_bit::
 		writel(reg, gate->reg);
 	}
 
-Note that to_clk_gate is defined as::
+Analte that to_clk_gate is defined as::
 
 	#define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
 
@@ -263,7 +263,7 @@ parameters::
 
  tp_printk trace_event=clk:clk_disable
 
-To bypass this disabling, include "clk_ignore_unused" in the bootargs to the
+To bypass this disabling, include "clk_iganalre_unused" in the bootargs to the
 kernel.
 
 Locking
@@ -273,7 +273,7 @@ The common clock framework uses two global locks, the prepare lock and the
 enable lock.
 
 The enable lock is a spinlock and is held across calls to the .enable,
-.disable operations. Those operations are thus not allowed to sleep,
+.disable operations. Those operations are thus analt allowed to sleep,
 and calls to the clk_enable(), clk_disable() API functions are allowed in
 atomic context.
 
@@ -289,13 +289,13 @@ time.
 
 The prepare lock is a mutex and is held across calls to all other operations.
 All those operations are allowed to sleep, and calls to the corresponding API
-functions are not allowed in atomic context.
+functions are analt allowed in atomic context.
 
 This effectively divides operations in two groups from a locking perspective.
 
 Drivers don't need to manually protect resources shared between the operations
 of one group, regardless of whether those resources are shared by multiple
-clocks or not. However, access to resources that are shared between operations
+clocks or analt. However, access to resources that are shared between operations
 of the two groups needs to be protected by the drivers. An example of such a
 resource would be a register that controls both the clock rate and the clock
 enable/disable state.
@@ -303,10 +303,10 @@ enable/disable state.
 The clock framework is reentrant, in that a driver is allowed to call clock
 framework functions from within its implementation of clock operations. This
 can for instance cause a .set_rate operation of one clock being called from
-within the .set_rate operation of another clock. This case must be considered
+within the .set_rate operation of aanalther clock. This case must be considered
 in the driver implementations, but the code flow is usually controlled by the
 driver in that case.
 
-Note that locking must also be considered when code outside of the common
+Analte that locking must also be considered when code outside of the common
 clock framework needs to access resources used by the clock operations. This
 is considered out of scope of this document.

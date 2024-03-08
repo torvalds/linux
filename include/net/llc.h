@@ -1,7 +1,7 @@
 #ifndef LLC_H
 #define LLC_H
 /*
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -48,7 +48,7 @@ struct llc_addr {
  * @p_bit - only lowest-order bit used
  * @f_bit - only lowest-order bit used
  * @laddr - SAP value in this 'lsap'
- * @node - entry in station sap_list
+ * @analde - entry in station sap_list
  * @sk_list - LLC sockets this one manages
  */
 struct llc_sap {
@@ -61,7 +61,7 @@ struct llc_sap {
 				     struct packet_type *pt,
 				     struct net_device *orig_dev);
 	struct llc_addr	 laddr;
-	struct list_head node;
+	struct list_head analde;
 	spinlock_t sk_lock;
 	int sk_count;
 	struct hlist_nulls_head sk_laddr_hash[LLC_SK_LADDR_HASH_ENTRIES];
@@ -121,7 +121,7 @@ static inline void llc_sap_hold(struct llc_sap *sap)
 
 static inline bool llc_sap_hold_safe(struct llc_sap *sap)
 {
-	return refcount_inc_not_zero(&sap->refcnt);
+	return refcount_inc_analt_zero(&sap->refcnt);
 }
 
 void llc_sap_close(struct llc_sap *sap);

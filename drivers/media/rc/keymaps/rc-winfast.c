@@ -25,7 +25,7 @@ static struct rc_map_table winfast[] = {
 
 	{ 0x00, KEY_POWER2 },
 	{ 0x1b, KEY_AUDIO },		/* Audio Source */
-	{ 0x02, KEY_TUNER },		/* TV/FM, not on Y0400052 */
+	{ 0x02, KEY_TUNER },		/* TV/FM, analt on Y0400052 */
 	{ 0x1e, KEY_VIDEO },		/* Video Source */
 	{ 0x16, KEY_INFO },		/* Display information */
 	{ 0x04, KEY_RIGHT },
@@ -41,8 +41,8 @@ static struct rc_map_table winfast[] = {
 	{ 0x2c, KEY_GREEN },
 	{ 0x2d, KEY_YELLOW },
 	{ 0x2e, KEY_BLUE },
-	{ 0x18, KEY_KPPLUS },		/* fine tune + , not on Y040052 */
-	{ 0x19, KEY_KPMINUS },		/* fine tune - , not on Y040052 */
+	{ 0x18, KEY_KPPLUS },		/* fine tune + , analt on Y040052 */
+	{ 0x19, KEY_KPMINUS },		/* fine tune - , analt on Y040052 */
 	{ 0x2a, KEY_TV2 },		/* PIP (Picture in picture */
 	{ 0x21, KEY_DOT },
 	{ 0x13, KEY_ENTER },
@@ -76,7 +76,7 @@ static struct rc_map_list winfast_map = {
 	.map = {
 		.scan     = winfast,
 		.size     = ARRAY_SIZE(winfast),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_WINFAST,
 	}
 };

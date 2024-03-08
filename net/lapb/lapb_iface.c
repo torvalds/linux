@@ -13,7 +13,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -59,12 +59,12 @@ static __inline__ void lapb_put(struct lapb_cb *lapb)
 }
 
 /*
- *	Socket removal during an interrupt is now safe.
+ *	Socket removal during an interrupt is analw safe.
  */
 static void __lapb_remove_cb(struct lapb_cb *lapb)
 {
-	if (lapb->node.next) {
-		list_del(&lapb->node);
+	if (lapb->analde.next) {
+		list_del(&lapb->analde);
 		lapb_put(lapb);
 	}
 }
@@ -74,7 +74,7 @@ static void __lapb_remove_cb(struct lapb_cb *lapb)
  */
 static void __lapb_insert_cb(struct lapb_cb *lapb)
 {
-	list_add(&lapb->node, &lapb_list);
+	list_add(&lapb->analde, &lapb_list);
 	lapb_hold(lapb);
 }
 
@@ -82,7 +82,7 @@ static struct lapb_cb *__lapb_devtostruct(struct net_device *dev)
 {
 	struct lapb_cb *lapb, *use = NULL;
 
-	list_for_each_entry(lapb, &lapb_list, node) {
+	list_for_each_entry(lapb, &lapb_list, analde) {
 		if (lapb->dev == dev) {
 			use = lapb;
 			break;
@@ -151,7 +151,7 @@ int lapb_register(struct net_device *dev,
 	}
 
 	lapb = lapb_create_cb();
-	rc = LAPB_NOMEM;
+	rc = LAPB_ANALMEM;
 	if (!lapb)
 		goto out;
 
@@ -318,7 +318,7 @@ static int __lapb_disconnect_request(struct lapb_cb *lapb)
 {
 	switch (lapb->state) {
 	case LAPB_STATE_0:
-		return LAPB_NOTCONNECTED;
+		return LAPB_ANALTCONNECTED;
 
 	case LAPB_STATE_1:
 		lapb_dbg(1, "(%p) S1 TX DISC(1)\n", lapb->dev);
@@ -326,7 +326,7 @@ static int __lapb_disconnect_request(struct lapb_cb *lapb)
 		lapb_send_control(lapb, LAPB_DISC, LAPB_POLLON, LAPB_COMMAND);
 		lapb->state = LAPB_STATE_0;
 		lapb_start_t1timer(lapb);
-		return LAPB_NOTCONNECTED;
+		return LAPB_ANALTCONNECTED;
 
 	case LAPB_STATE_2:
 		return LAPB_OK;
@@ -374,7 +374,7 @@ int lapb_data_request(struct net_device *dev, struct sk_buff *skb)
 
 	spin_lock_bh(&lapb->lock);
 
-	rc = LAPB_NOTCONNECTED;
+	rc = LAPB_ANALTCONNECTED;
 	if (lapb->state != LAPB_STATE_3 && lapb->state != LAPB_STATE_4)
 		goto out_put;
 
@@ -436,7 +436,7 @@ int lapb_data_indication(struct lapb_cb *lapb, struct sk_buff *skb)
 		return lapb->callbacks->data_indication(lapb->dev, skb);
 
 	kfree_skb(skb);
-	return NET_RX_SUCCESS; /* For now; must be != NET_RX_DROP */
+	return NET_RX_SUCCESS; /* For analw; must be != NET_RX_DROP */
 }
 
 int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)
@@ -452,21 +452,21 @@ int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)
 }
 
 /* Handle device status changes. */
-static int lapb_device_event(struct notifier_block *this, unsigned long event,
+static int lapb_device_event(struct analtifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct lapb_cb *lapb;
 
 	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (dev->type != ARPHRD_X25)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	lapb = lapb_devtostruct(dev);
 	if (!lapb)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	spin_lock_bh(&lapb->lock);
 
@@ -526,23 +526,23 @@ static int lapb_device_event(struct notifier_block *this, unsigned long event,
 
 	spin_unlock_bh(&lapb->lock);
 	lapb_put(lapb);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block lapb_dev_notifier = {
-	.notifier_call = lapb_device_event,
+static struct analtifier_block lapb_dev_analtifier = {
+	.analtifier_call = lapb_device_event,
 };
 
 static int __init lapb_init(void)
 {
-	return register_netdevice_notifier(&lapb_dev_notifier);
+	return register_netdevice_analtifier(&lapb_dev_analtifier);
 }
 
 static void __exit lapb_exit(void)
 {
 	WARN_ON(!list_empty(&lapb_list));
 
-	unregister_netdevice_notifier(&lapb_dev_notifier);
+	unregister_netdevice_analtifier(&lapb_dev_analtifier);
 }
 
 MODULE_AUTHOR("Jonathan Naylor <g4klx@g4klx.demon.co.uk>");

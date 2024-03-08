@@ -68,7 +68,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 			 mid_entry->callback_data,
 			 mid_entry->mid);
 #ifdef CONFIG_CIFS_STATS2
-		cifs_dbg(VFS, "IsLarge: %d buf: %p time rcv: %ld now: %ld\n",
+		cifs_dbg(VFS, "IsLarge: %d buf: %p time rcv: %ld analw: %ld\n",
 			 mid_entry->large_buf,
 			 mid_entry->resp_buf,
 			 mid_entry->when_received,
@@ -112,8 +112,8 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 	    (tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
 	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
 		seq_puts(m, " encrypted");
-	if (tcon->nocase)
-		seq_printf(m, " nocase");
+	if (tcon->analcase)
+		seq_printf(m, " analcase");
 	if (tcon->unix_ext)
 		seq_printf(m, " POSIX Extensions");
 	if (tcon->ses->server->ops->dump_share_caps)
@@ -121,7 +121,7 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 	if (tcon->use_witness)
 		seq_puts(m, " Witness");
 	if (tcon->broken_sparse_sup)
-		seq_puts(m, " nosparse");
+		seq_puts(m, " analsparse");
 	if (tcon->need_reconnect)
 		seq_puts(m, "\tDISCONNECTED ");
 	spin_lock(&tcon->tc_lock);
@@ -205,7 +205,7 @@ static inline const char *smb_speed_to_str(size_t bps)
 	case SPEED_800000:
 		return "800Gbps";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -222,7 +222,7 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 	if (iface->rss_capable)
 		seq_puts(m, "rss ");
 	if (!iface->rdma_capable && !iface->rss_capable)
-		seq_puts(m, "None");
+		seq_puts(m, "Analne");
 	seq_putc(m, '\n');
 	if (iface->sockaddr.ss_family == AF_INET)
 		seq_printf(m, "\t\tIPv4: %pI4\n", &ipv4->sin_addr);
@@ -357,7 +357,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			goto skip_rdma;
 
 		if (!server->smbd_conn) {
-			seq_printf(m, "\nSMBDirect transport not available");
+			seq_printf(m, "\nSMBDirect transport analt available");
 			goto skip_rdma;
 		}
 
@@ -433,8 +433,8 @@ skip_rdma:
 			seq_printf(m, " signed");
 		if (server->posix_ext_supported)
 			seq_printf(m, " posix");
-		if (server->nosharesock)
-			seq_printf(m, " nosharesock");
+		if (server->analsharesock)
+			seq_printf(m, " analsharesock");
 
 		seq_printf(m, "\nServer capabilities: 0x%x", server->capabilities);
 
@@ -471,21 +471,21 @@ skip_rdma:
 			i++;
 			if ((ses->serverDomain == NULL) ||
 				(ses->serverOS == NULL) ||
-				(ses->serverNOS == NULL)) {
+				(ses->serverANALS == NULL)) {
 				seq_printf(m, "\n\t%d) Address: %s Uses: %d Capability: 0x%x\tSession Status: %d ",
 					i, ses->ip_addr, ses->ses_count,
 					ses->capabilities, ses->ses_status);
 				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
 					seq_printf(m, "Guest ");
 				else if (ses->session_flags & SMB2_SESSION_FLAG_IS_NULL)
-					seq_printf(m, "Anonymous ");
+					seq_printf(m, "Aanalnymous ");
 			} else {
 				seq_printf(m,
 				    "\n\t%d) Name: %s  Domain: %s Uses: %d OS: %s "
-				    "\n\tNOS: %s\tCapability: 0x%x"
+				    "\n\tANALS: %s\tCapability: 0x%x"
 					"\n\tSMB session status: %d ",
 				i, ses->ip_addr, ses->serverDomain,
-				ses->ses_count, ses->serverOS, ses->serverNOS,
+				ses->ses_count, ses->serverOS, ses->serverANALS,
 				ses->capabilities, ses->ses_status);
 			}
 			spin_unlock(&ses->ses_lock);
@@ -539,7 +539,7 @@ skip_rdma:
 			if (ses->tcon_ipc)
 				cifs_debug_tcon(m, ses->tcon_ipc);
 			else
-				seq_puts(m, "none\n");
+				seq_puts(m, "analne\n");
 
 			list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 				++j;
@@ -604,16 +604,16 @@ skip_rdma:
 			seq_puts(m, "\n--\n");
 		}
 		if (i == 0)
-			seq_printf(m, "\n\t\t[NONE]");
+			seq_printf(m, "\n\t\t[ANALNE]");
 	}
 	if (c == 0)
-		seq_printf(m, "\n\t[NONE]");
+		seq_printf(m, "\n\t[ANALNE]");
 
 	spin_unlock(&cifs_tcp_ses_lock);
 	seq_putc(m, '\n');
 	cifs_swn_dump(m);
 
-	/* BB add code to dump additional info such as TCP session info now */
+	/* BB add code to dump additional info such as TCP session info analw */
 	return 0;
 }
 
@@ -752,7 +752,7 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_stats_proc_open(struct inode *inode, struct file *file)
+static int cifs_stats_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, cifs_stats_proc_show, NULL);
 }
@@ -781,7 +781,7 @@ static int name##_proc_show(struct seq_file *m, void *v) \
 	seq_printf(m, "%d\n", name); \
 	return 0; \
 } \
-static int name##_open(struct inode *inode, struct file *file) \
+static int name##_open(struct ianalde *ianalde, struct file *file) \
 { \
 	return single_open(file, name##_proc_show, NULL); \
 } \
@@ -899,7 +899,7 @@ static int cifsFYI_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifsFYI_proc_open(struct inode *inode, struct file *file)
+static int cifsFYI_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, cifsFYI_proc_show, NULL);
 }
@@ -938,7 +938,7 @@ static int cifs_linux_ext_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_linux_ext_proc_open(struct inode *inode, struct file *file)
+static int cifs_linux_ext_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, cifs_linux_ext_proc_show, NULL);
 }
@@ -969,7 +969,7 @@ static int cifs_lookup_cache_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_lookup_cache_proc_open(struct inode *inode, struct file *file)
+static int cifs_lookup_cache_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, cifs_lookup_cache_proc_show, NULL);
 }
@@ -1000,7 +1000,7 @@ static int traceSMB_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int traceSMB_proc_open(struct inode *inode, struct file *file)
+static int traceSMB_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, traceSMB_proc_show, NULL);
 }
@@ -1031,7 +1031,7 @@ static int cifs_security_flags_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_security_flags_proc_open(struct inode *inode, struct file *file)
+static int cifs_security_flags_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, cifs_security_flags_proc_show, NULL);
 }
@@ -1112,7 +1112,7 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 	if (global_secflags & CIFSSEC_MUST_SIGN) {
 		/* requiring signing implies signing is allowed */
 		global_secflags |= CIFSSEC_MAY_SIGN;
-		cifs_dbg(FYI, "packet signing now required\n");
+		cifs_dbg(FYI, "packet signing analw required\n");
 	} else if ((global_secflags & CIFSSEC_MAY_SIGN) == 0) {
 		cifs_dbg(FYI, "packet signing disabled\n");
 	}
@@ -1135,10 +1135,10 @@ static int cifs_mount_params_proc_show(struct seq_file *m, void *v)
 	const char *type;
 
 	for (p = smb3_fs_parameters; p->name; p++) {
-		/* cannot use switch with pointers... */
+		/* cananalt use switch with pointers... */
 		if (!p->type) {
-			if (p->flags == fs_param_neg_with_no)
-				type = "noflag";
+			if (p->flags == fs_param_neg_with_anal)
+				type = "analflag";
 			else
 				type = "flag";
 		} else if (p->type == fs_param_is_bool)
@@ -1150,7 +1150,7 @@ static int cifs_mount_params_proc_show(struct seq_file *m, void *v)
 		else if (p->type == fs_param_is_string)
 			type = "string";
 		else
-			type = "unknown";
+			type = "unkanalwn";
 
 		seq_printf(m, "%s:%s\n", p->name, type);
 	}
@@ -1158,7 +1158,7 @@ static int cifs_mount_params_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_mount_params_proc_open(struct inode *inode, struct file *file)
+static int cifs_mount_params_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, cifs_mount_params_proc_show, NULL);
 }
@@ -1168,7 +1168,7 @@ static const struct proc_ops cifs_mount_params_proc_ops = {
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
 	.proc_release	= single_release,
-	/* No need for write for now */
+	/* Anal need for write for analw */
 	/* .proc_write	= cifs_mount_params_proc_write, */
 };
 

@@ -1,5 +1,5 @@
 ===============================================
-Release notes for Linux Kernel VFP support code
+Release analtes for Linux Kernel VFP support code
 ===============================================
 
 Date: 	20 May 2004
@@ -35,8 +35,8 @@ All the above pass softfloat tests with the following exceptions:
 - fadd/fsub shows some differences in the handling of +0 / -0 results
   when input operands differ in signs.
 - the handling of underflow exceptions is slightly different.  If a
-  result underflows before rounding, but becomes a normalised number
-  after rounding, we do not signal an underflow exception.
+  result underflows before rounding, but becomes a analrmalised number
+  after rounding, we do analt signal an underflow exception.
 
 Other operations which have been tested by basic assembly-only tests
 are:
@@ -48,7 +48,7 @@ are:
  - ftosiz
  - ftouiz
 
-The combination operations have not been tested:
+The combination operations have analt been tested:
 
  - fmac
  - fnmac

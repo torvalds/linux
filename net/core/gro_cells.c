@@ -72,14 +72,14 @@ int gro_cells_init(struct gro_cells *gcells, struct net_device *dev)
 
 	gcells->cells = alloc_percpu(struct gro_cell);
 	if (!gcells->cells)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(i) {
 		struct gro_cell *cell = per_cpu_ptr(gcells->cells, i);
 
 		__skb_queue_head_init(&cell->napi_skbs);
 
-		set_bit(NAPI_STATE_NO_BUSY_POLL, &cell->napi.state);
+		set_bit(NAPI_STATE_ANAL_BUSY_POLL, &cell->napi.state);
 
 		netif_napi_add(dev, &cell->napi, gro_cell_poll);
 		napi_enable(&cell->napi);
@@ -120,15 +120,15 @@ void gro_cells_destroy(struct gro_cells *gcells)
 	 * because netpoll could access dev->napi_list under rcu protection.
 	 * Try hard using call_rcu() instead of synchronize_rcu(),
 	 * because we might be called from cleanup_net(), and we
-	 * definitely do not want to block this critical task.
+	 * definitely do analt want to block this critical task.
 	 */
-	defer = kmalloc(sizeof(*defer), GFP_KERNEL | __GFP_NOWARN);
+	defer = kmalloc(sizeof(*defer), GFP_KERNEL | __GFP_ANALWARN);
 	if (likely(defer)) {
 		defer->ptr = gcells->cells;
 		call_rcu(&defer->rcu, percpu_free_defer_callback);
 	} else {
-		/* We do not hold RTNL at this point, synchronize_net()
-		 * would not be able to expedite this sync.
+		/* We do analt hold RTNL at this point, synchronize_net()
+		 * would analt be able to expedite this sync.
 		 */
 		synchronize_rcu_expedited();
 		free_percpu(gcells->cells);

@@ -2,8 +2,8 @@
 /*
  * Qualcomm Global Clock Controller driver for MSM8956/76
  *
- * Copyright (c) 2016-2021, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2016-2021, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  *
  * Driver cleanup and modernization
  * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
@@ -4102,7 +4102,7 @@ static int gcc_msm8976_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,gcc-msm8976-v1.1")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,gcc-msm8976-v1.1")) {
 		sdcc1_apps_clk_src.parent_map = gcc_parent_map_v1_1;
 		sdcc1_apps_clk_src.freq_tbl = ftbl_sdcc1_8976_v1_1_apps_clk_src;
 		sdcc1_apps_clk_src.clkr.hw.init = &sdcc1_apps_clk_src_8976v1_1_init;
@@ -4152,5 +4152,5 @@ static void __exit gcc_msm8976_exit(void)
 }
 module_exit(gcc_msm8976_exit);
 
-MODULE_AUTHOR("AngeloGioacchino Del Regno <angelogioacchino.delregno@somainline.org>");
+MODULE_AUTHOR("AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@somainline.org>");
 MODULE_LICENSE("GPL v2");

@@ -486,7 +486,7 @@
 &main_sdhci0 {
 	/* eMMC */
 	status = "okay";
-	non-removable;
+	analn-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };
@@ -559,7 +559,7 @@
 	pinctrl-0 = <&mcu_fss0_ospi1_pins_default>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;

@@ -16,7 +16,7 @@
 #include <linux/timer.h>
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
@@ -84,7 +84,7 @@ struct xhci_cap_regs {
 /* bits 4:7, max number of Event Ring segments */
 #define HCS_ERST_MAX(p)		(((p) >> 4) & 0xf)
 /* bits 21:25 Hi 5 bits of Scratchpad buffers SW must allocate for the HW */
-/* bit 26 Scratchpad restore - for save/restore HW state - not used yet */
+/* bit 26 Scratchpad restore - for save/restore HW state - analt used yet */
 /* bits 27:31 Lo 5 bits of Scratchpad buffers SW must allocate for the HW */
 #define HCS_MAX_SCRATCHPAD(p)   ((((p) >> 16) & 0x3e0) | (((p) >> 27) & 0x1f))
 
@@ -111,7 +111,7 @@ struct xhci_cap_regs {
 #define HCC_LIGHT_RESET(p)	((p) & (1 << 5))
 /* true: HC supports latency tolerance messaging */
 #define HCC_LTC(p)		((p) & (1 << 6))
-/* true: no secondary Stream ID Support */
+/* true: anal secondary Stream ID Support */
 #define HCC_NSS(p)		((p) & (1 << 7))
 /* true: HC supports Stopped - Short Packet */
 #define HCC_SPC(p)		((p) & (1 << 9))
@@ -182,7 +182,7 @@ struct xhci_op_regs {
 	__le32	page_size;
 	__le32	reserved1;
 	__le32	reserved2;
-	__le32	dev_notification;
+	__le32	dev_analtification;
 	__le64	cmd_ring;
 	/* rsvd: offset 0x20-2F */
 	__le32	reserved3[4];
@@ -200,10 +200,10 @@ struct xhci_op_regs {
 };
 
 /* USBCMD - USB command - command bitmasks */
-/* start/stop HC execution - do not write unless HC is halted*/
+/* start/stop HC execution - do analt write unless HC is halted*/
 #define CMD_RUN		XHCI_CMD_RUN
 /* Reset HC - resets internal HC state machine and all registers (except
- * PCI config regs).  HC does NOT drive a USB reset on the downstream ports.
+ * PCI config regs).  HC does ANALT drive a USB reset on the downstream ports.
  * The xHCI driver must reinitialize the xHC after setting this bit.
  */
 #define CMD_RESET	(1 << 1)
@@ -237,7 +237,7 @@ struct xhci_op_regs {
 #define IMAN_IP		(1 << 0)
 
 /* USBSTS - USB status - status bitmasks */
-/* HC not running - set to 1 when run/stop bit is cleared. */
+/* HC analt running - set to 1 when run/stop bit is cleared. */
 #define STS_HALT	XHCI_STS_HALT
 /* serious error, e.g. PCI parity error.  The HC will clear the run/stop bit. */
 #define STS_FATAL	(1 << 2)
@@ -252,23 +252,23 @@ struct xhci_op_regs {
 #define STS_RESTORE	(1 << 9)
 /* true: save or restore error */
 #define STS_SRE		(1 << 10)
-/* true: Controller Not Ready to accept doorbell or op reg writes after reset */
+/* true: Controller Analt Ready to accept doorbell or op reg writes after reset */
 #define STS_CNR		XHCI_STS_CNR
 /* true: internal Host Controller Error - SW needs to reset and reinitialize */
 #define STS_HCE		(1 << 12)
 /* bits 13:31 reserved and should be preserved */
 
 /*
- * DNCTRL - Device Notification Control Register - dev_notification bitmasks
- * Generate a device notification event when the HC sees a transaction with a
- * notification type that matches a bit set in this bit field.
+ * DNCTRL - Device Analtification Control Register - dev_analtification bitmasks
+ * Generate a device analtification event when the HC sees a transaction with a
+ * analtification type that matches a bit set in this bit field.
  */
-#define	DEV_NOTE_MASK		(0xffff)
-#define ENABLE_DEV_NOTE(x)	(1 << (x))
-/* Most of the device notification types should only be used for debug.
- * SW does need to pay attention to function wake notifications.
+#define	DEV_ANALTE_MASK		(0xffff)
+#define ENABLE_DEV_ANALTE(x)	(1 << (x))
+/* Most of the device analtification types should only be used for debug.
+ * SW does need to pay attention to function wake analtifications.
  */
-#define	DEV_NOTE_FWAKE		ENABLE_DEV_NOTE(1)
+#define	DEV_ANALTE_FWAKE		ENABLE_DEV_ANALTE(1)
 
 /* CRCR - Command Ring Control Register - cmd_ring bitmasks */
 /* bit 0 is the command ring cycle state */
@@ -404,7 +404,7 @@ struct xhci_op_regs {
 /* wake on over-current (enable) */
 #define PORT_WKOC_E	(1 << 27)
 /* bits 28:29 reserved */
-/* true: device is non-removable - for USB 3.0 roothub emulation */
+/* true: device is analn-removable - for USB 3.0 roothub emulation */
 #define PORT_DEV_REMOVE	(1 << 30)
 /* Initiate a warm port reset - complete when PORT_WRC is '1' */
 #define PORT_WR		(1 << 31)
@@ -450,11 +450,11 @@ struct xhci_op_regs {
  * Safe to use with mixed HIRD and BESL systems (host and device) and is used
  * by other operating systems.
  *
- * XHCI 1.0 errata 8/14/12 Table 13 notes:
- * "Software should choose xHC BESL/BESLD field values that do not violate a
+ * XHCI 1.0 errata 8/14/12 Table 13 analtes:
+ * "Software should choose xHC BESL/BESLD field values that do analt violate a
  * device's resume latency requirements,
- * e.g. not program values > '4' if BLC = '1' and a HIRD device is attached,
- * or not program values < '4' if BLC = '0' and a BESL device is attached.
+ * e.g. analt program values > '4' if BLC = '1' and a HIRD device is attached,
+ * or analt program values < '4' if BLC = '0' and a BESL device is attached.
  */
 #define XHCI_DEFAULT_BESL	4
 
@@ -502,7 +502,7 @@ struct xhci_intr_reg {
 
 /* irq_control bitmasks */
 /* Minimum interval between interrupts (in 250ns intervals).  The interval
- * between interrupts will be longer if there are no events on the event ring.
+ * between interrupts will be longer if there are anal events on the event ring.
  * Default is 4000 (1 ms).
  */
 #define ER_IRQ_INTERVAL_MASK	(0xffff)
@@ -641,7 +641,7 @@ struct xhci_slot_ctx {
 #define TT_SLOT		(0xff)
 /*
  * The number of the downstream facing port of the high-speed hub
- * '0' if the device is not low or full speed.
+ * '0' if the device is analt low or full speed.
  */
 #define TT_PORT		(0xff << 8)
 #define TT_THINK_TIME(p)	(((p) & 0x3) << 16)
@@ -726,7 +726,7 @@ struct xhci_ep_ctx {
 /* ep_info2 bitmasks */
 /*
  * Force Event - generate transfer events for all TRBs for this endpoint
- * This will tell the HC to ignore the IOC and ISP flags (for debugging only).
+ * This will tell the HC to iganalre the IOC and ISP flags (for debugging only).
  */
 #define	FORCE_EVENT	(0x1)
 #define ERROR_COUNT(p)	(((p) & 0x3) << 1)
@@ -777,7 +777,7 @@ struct xhci_input_control_ctx {
 	(le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1)))
 
 /* Represents everything that is needed to issue a command on the command ring.
- * It's useful to pre-allocate these for commands that cannot fail due to
+ * It's useful to pre-allocate these for commands that cananalt fail due to
  * out-of-memory errors, like freeing streams.
  */
 struct xhci_command {
@@ -785,7 +785,7 @@ struct xhci_command {
 	struct xhci_container_ctx	*in_ctx;
 	u32				status;
 	int				slot_id;
-	/* If completion is null, no one is waiting on this command
+	/* If completion is null, anal one is waiting on this command
 	 * and the structure can be freed after the command completes.
 	 */
 	struct completion		*completion;
@@ -821,7 +821,7 @@ struct xhci_stream_ctx {
 #define SCT_SSA_128		6
 #define SCT_SSA_256		7
 
-/* Assume no secondary streams for now */
+/* Assume anal secondary streams for analw */
 struct xhci_stream_info {
 	struct xhci_ring		**stream_rings;
 	/* Number of streams, including stream 0 (which drivers can't use) */
@@ -896,7 +896,7 @@ struct xhci_bw_info {
 #define SS_BW_LIMIT_OUT		3906
 #define DMI_BW_LIMIT_OUT	3906
 
-/* Percentage of bus bandwidth reserved for non-periodic transfers */
+/* Percentage of bus bandwidth reserved for analn-periodic transfers */
 #define FS_BW_RESERVED		10
 #define HS_BW_RESERVED		20
 #define SS_BW_RESERVED		10
@@ -919,8 +919,8 @@ struct xhci_virt_ep {
 /* Transitioning the endpoint to using streams, don't enqueue URBs */
 #define EP_GETTING_STREAMS	(1 << 3)
 #define EP_HAS_STREAMS		(1 << 4)
-/* Transitioning the endpoint to not using streams, don't enqueue URBs */
-#define EP_GETTING_NO_STREAMS	(1 << 5)
+/* Transitioning the endpoint to analt using streams, don't enqueue URBs */
+#define EP_GETTING_ANAL_STREAMS	(1 << 5)
 #define EP_HARD_CLEAR_TOGGLE	(1 << 6)
 #define EP_SOFT_CLEAR_TOGGLE	(1 << 7)
 /* usb_hub_clear_tt_buffer is in progress */
@@ -935,8 +935,8 @@ struct xhci_virt_ep {
 	struct xhci_segment	*queued_deq_seg;
 	union xhci_trb		*queued_deq_ptr;
 	/*
-	 * Sometimes the xHC can not process isochronous endpoint ring quickly
-	 * enough, and it will miss some isoc tds on the ring and generate
+	 * Sometimes the xHC can analt process isochroanalus endpoint ring quickly
+	 * eanalugh, and it will miss some isoc tds on the ring and generate
 	 * a Missed Service Error Event.
 	 * Set skip flag when receive a Missed Service Error Event and
 	 * process the missed tds on the endpoint ring.
@@ -1001,7 +1001,7 @@ struct xhci_virt_device {
 	struct xhci_tt_bw_info		*tt_info;
 	/*
 	 * flags for state tracking based on events and issued commands.
-	 * Software can not rely on states from output contexts because of
+	 * Software can analt rely on states from output contexts because of
 	 * latency between events and xHC updating output context values.
 	 * See xhci 1.1 section 4.8.3 for more details
 	 */
@@ -1050,7 +1050,7 @@ struct xhci_device_context_array {
 /* TODO: write function to set the 64-bit device DMA address */
 /*
  * TODO: change this to be dynamically sized at HC mem init time since the HC
- * might not be able to handle the maximum number of devices possible.
+ * might analt be able to handle the maximum number of devices possible.
  */
 
 
@@ -1081,10 +1081,10 @@ struct xhci_transfer_event {
 #define COMP_STALL_ERROR			6
 #define COMP_RESOURCE_ERROR			7
 #define COMP_BANDWIDTH_ERROR			8
-#define COMP_NO_SLOTS_AVAILABLE_ERROR		9
+#define COMP_ANAL_SLOTS_AVAILABLE_ERROR		9
 #define COMP_INVALID_STREAM_TYPE_ERROR		10
-#define COMP_SLOT_NOT_ENABLED_ERROR		11
-#define COMP_ENDPOINT_NOT_ENABLED_ERROR		12
+#define COMP_SLOT_ANALT_ENABLED_ERROR		11
+#define COMP_ENDPOINT_ANALT_ENABLED_ERROR		12
 #define COMP_SHORT_PACKET			13
 #define COMP_RING_UNDERRUN			14
 #define COMP_RING_OVERRUN			15
@@ -1092,7 +1092,7 @@ struct xhci_transfer_event {
 #define COMP_PARAMETER_ERROR			17
 #define COMP_BANDWIDTH_OVERRUN_ERROR		18
 #define COMP_CONTEXT_STATE_ERROR		19
-#define COMP_NO_PING_RESPONSE_ERROR		20
+#define COMP_ANAL_PING_RESPONSE_ERROR		20
 #define COMP_EVENT_RING_FULL_ERROR		21
 #define COMP_INCOMPATIBLE_DEVICE_ERROR		22
 #define COMP_MISSED_SERVICE_ERROR		23
@@ -1130,14 +1130,14 @@ static inline const char *xhci_trb_comp_code_string(u8 status)
 		return "Resource Error";
 	case COMP_BANDWIDTH_ERROR:
 		return "Bandwidth Error";
-	case COMP_NO_SLOTS_AVAILABLE_ERROR:
-		return "No Slots Available Error";
+	case COMP_ANAL_SLOTS_AVAILABLE_ERROR:
+		return "Anal Slots Available Error";
 	case COMP_INVALID_STREAM_TYPE_ERROR:
 		return "Invalid Stream Type Error";
-	case COMP_SLOT_NOT_ENABLED_ERROR:
-		return "Slot Not Enabled Error";
-	case COMP_ENDPOINT_NOT_ENABLED_ERROR:
-		return "Endpoint Not Enabled Error";
+	case COMP_SLOT_ANALT_ENABLED_ERROR:
+		return "Slot Analt Enabled Error";
+	case COMP_ENDPOINT_ANALT_ENABLED_ERROR:
+		return "Endpoint Analt Enabled Error";
 	case COMP_SHORT_PACKET:
 		return "Short Packet";
 	case COMP_RING_UNDERRUN:
@@ -1152,8 +1152,8 @@ static inline const char *xhci_trb_comp_code_string(u8 status)
 		return "Bandwidth Overrun Error";
 	case COMP_CONTEXT_STATE_ERROR:
 		return "Context State Error";
-	case COMP_NO_PING_RESPONSE_ERROR:
-		return "No Ping Response Error";
+	case COMP_ANAL_PING_RESPONSE_ERROR:
+		return "Anal Ping Response Error";
 	case COMP_EVENT_RING_FULL_ERROR:
 		return "Event Ring Full Error";
 	case COMP_INCOMPATIBLE_DEVICE_ERROR:
@@ -1185,7 +1185,7 @@ static inline const char *xhci_trb_comp_code_string(u8 status)
 	case COMP_SPLIT_TRANSACTION_ERROR:
 		return "Split Transaction Error";
 	default:
-		return "Unknown!!";
+		return "Unkanalwn!!";
 	}
 }
 
@@ -1269,7 +1269,7 @@ enum xhci_setup_dev {
 
 #define EVENT_DATA		(1 << 2)
 
-/* Normal TRB fields */
+/* Analrmal TRB fields */
 /* transfer_len bitmasks - bits 0:16 */
 #define	TRB_LEN(p)		((p) & 0x1ffff)
 /* TD Size, packets remaining in this TD, bits 21:17 (5 bits, so max 31) */
@@ -1293,8 +1293,8 @@ enum xhci_setup_dev {
 #define TRB_ENT			(1<<1)
 /* Interrupt on short packet */
 #define TRB_ISP			(1<<2)
-/* Set PCIe no snoop attribute */
-#define TRB_NO_SNOOP		(1<<3)
+/* Set PCIe anal sanalop attribute */
+#define TRB_ANAL_SANALOP		(1<<3)
 /* Chain multiple TRBs into a TD */
 #define TRB_CHAIN		(1<<4)
 /* Interrupt on completion */
@@ -1313,7 +1313,7 @@ enum xhci_setup_dev {
 #define	TRB_DATA_OUT		2
 #define	TRB_DATA_IN		3
 
-/* Isochronous TRB specific fields */
+/* Isochroanalus TRB specific fields */
 #define TRB_SIA			(1<<31)
 #define TRB_FRAME_ID(p)		(((p) & 0x7ff) << 20)
 
@@ -1338,7 +1338,7 @@ union xhci_trb {
 #define TRB_FIELD_TO_TYPE(p)	(((p) & TRB_TYPE_BITMASK) >> 10)
 /* TRB type IDs */
 /* bulk, interrupt, isoc scatter/gather, and control data stage */
-#define TRB_NORMAL		1
+#define TRB_ANALRMAL		1
 /* setup stage for control transfers */
 #define TRB_SETUP		2
 /* data stage for control transfers */
@@ -1350,8 +1350,8 @@ union xhci_trb {
 /* TRB for linking ring segments */
 #define TRB_LINK		6
 #define TRB_EVENT_DATA		7
-/* Transfer Ring No-op (not for the command ring) */
-#define TRB_TR_NOOP		8
+/* Transfer Ring Anal-op (analt for the command ring) */
+#define TRB_TR_ANALOP		8
 /* Command TRBs */
 /* Enable Slot Command */
 #define TRB_ENABLE_SLOT		9
@@ -1381,8 +1381,8 @@ union xhci_trb {
 #define TRB_GET_BW		21
 /* Force Header Command - generate a transaction or link management packet */
 #define TRB_FORCE_HEADER	22
-/* No-op Command - not for transfer rings */
-#define TRB_CMD_NOOP		23
+/* Anal-op Command - analt for transfer rings */
+#define TRB_CMD_ANALOP		23
 /* TRB IDs 24-31 reserved */
 /* Event TRBS */
 /* Transfer Event */
@@ -1397,8 +1397,8 @@ union xhci_trb {
 #define TRB_DOORBELL		36
 /* Host Controller Event */
 #define TRB_HC_EVENT		37
-/* Device Notification Event - device sent function wake notification */
-#define TRB_DEV_NOTE		38
+/* Device Analtification Event - device sent function wake analtification */
+#define TRB_DEV_ANALTE		38
 /* MFINDEX Wrap Event - microframe counter wrapped */
 #define TRB_MFINDEX_WRAP	39
 /* TRB IDs 40-47 reserved, 48-63 is vendor-defined */
@@ -1411,8 +1411,8 @@ union xhci_trb {
 static inline const char *xhci_trb_type_string(u8 type)
 {
 	switch (type) {
-	case TRB_NORMAL:
-		return "Normal";
+	case TRB_ANALRMAL:
+		return "Analrmal";
 	case TRB_SETUP:
 		return "Setup Stage";
 	case TRB_DATA:
@@ -1425,8 +1425,8 @@ static inline const char *xhci_trb_type_string(u8 type)
 		return "Link";
 	case TRB_EVENT_DATA:
 		return "Event Data";
-	case TRB_TR_NOOP:
-		return "No-Op";
+	case TRB_TR_ANALOP:
+		return "Anal-Op";
 	case TRB_ENABLE_SLOT:
 		return "Enable Slot Command";
 	case TRB_DISABLE_SLOT:
@@ -1455,8 +1455,8 @@ static inline const char *xhci_trb_type_string(u8 type)
 		return "Get Port Bandwidth Command";
 	case TRB_FORCE_HEADER:
 		return "Force Header Command";
-	case TRB_CMD_NOOP:
-		return "No-Op Command";
+	case TRB_CMD_ANALOP:
+		return "Anal-Op Command";
 	case TRB_TRANSFER:
 		return "Transfer Event";
 	case TRB_COMPLETION:
@@ -1469,8 +1469,8 @@ static inline const char *xhci_trb_type_string(u8 type)
 		return "Doorbell Event";
 	case TRB_HC_EVENT:
 		return "Host Controller Event";
-	case TRB_DEV_NOTE:
-		return "Device Notification Event";
+	case TRB_DEV_ANALTE:
+		return "Device Analtification Event";
 	case TRB_MFINDEX_WRAP:
 		return "MFINDEX Wrap Event";
 	case TRB_NEC_CMD_COMP:
@@ -1478,7 +1478,7 @@ static inline const char *xhci_trb_type_string(u8 type)
 	case TRB_NEC_GET_FW:
 		return "NET Get Firmware Revision Command";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -1486,10 +1486,10 @@ static inline const char *xhci_trb_type_string(u8 type)
 /* Above, but for __le32 types -- can avoid work by swapping constants: */
 #define TRB_TYPE_LINK_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
 				 cpu_to_le32(TRB_TYPE(TRB_LINK)))
-#define TRB_TYPE_NOOP_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
-				 cpu_to_le32(TRB_TYPE(TRB_TR_NOOP)))
+#define TRB_TYPE_ANALOP_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
+				 cpu_to_le32(TRB_TYPE(TRB_TR_ANALOP)))
 
-#define NEC_FW_MINOR(p)		(((p) >> 0) & 0xff)
+#define NEC_FW_MIANALR(p)		(((p) >> 0) & 0xff)
 #define NEC_FW_MAJOR(p)		(((p) >> 8) & 0xff)
 
 /*
@@ -1594,7 +1594,7 @@ static inline const char *xhci_ring_type_string(enum xhci_ring_type type)
 		return "EVENT";
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 struct xhci_ring {
@@ -1791,7 +1791,7 @@ struct xhci_hcd {
 	struct xhci_scratchpad  *scratchpad;
 
 	/* slot enabling and address device helpers */
-	/* these are not thread safe so use mutex */
+	/* these are analt thread safe so use mutex */
 	struct mutex mutex;
 	/* Internal mirror of the HW's dcbaa */
 	struct xhci_virt_device	*devs[MAX_HC_SLOTS];
@@ -1808,7 +1808,7 @@ struct xhci_hcd {
 	unsigned int		xhc_state;
 	unsigned long		run_graceperiod;
 	struct s3_save		s3;
-/* Host controller is dying - not responding to commands. "I'm not dead yet!"
+/* Host controller is dying - analt responding to commands. "I'm analt dead yet!"
  *
  * xHC interrupts have been disabled and a watchdog timer will (or has already)
  * halt the xHCI host, and complete all URBs with an -ESHUTDOWN code.  Any code
@@ -1818,7 +1818,7 @@ struct xhci_hcd {
  * xhci_urb_dequeue() should call usb_hcd_check_unlink_urb() and return without
  * putting the TD on the canceled list, etc.
  *
- * There are no reports of xHCI host controllers that display this issue.
+ * There are anal reports of xHCI host controllers that display this issue.
  */
 #define XHCI_STATE_DYING	(1 << 0)
 #define XHCI_STATE_HALTED	(1 << 1)
@@ -1857,7 +1857,7 @@ struct xhci_hcd {
 #define XHCI_PME_STUCK_QUIRK	BIT_ULL(20)
 #define XHCI_MTK_HOST		BIT_ULL(21)
 #define XHCI_SSIC_PORT_UNUSED	BIT_ULL(22)
-#define XHCI_NO_64BIT_SUPPORT	BIT_ULL(23)
+#define XHCI_ANAL_64BIT_SUPPORT	BIT_ULL(23)
 #define XHCI_MISSING_CAS	BIT_ULL(24)
 /* For controller with a broken Port Disable implementation */
 #define XHCI_BROKEN_PORT_PED	BIT_ULL(25)
@@ -1875,7 +1875,7 @@ struct xhci_hcd {
 #define XHCI_SKIP_PHY_INIT	BIT_ULL(37)
 #define XHCI_DISABLE_SPARSE	BIT_ULL(38)
 #define XHCI_SG_TRB_CACHE_SIZE_QUIRK	BIT_ULL(39)
-#define XHCI_NO_SOFT_RETRY	BIT_ULL(40)
+#define XHCI_ANAL_SOFT_RETRY	BIT_ULL(40)
 #define XHCI_BROKEN_D3COLD_S2I	BIT_ULL(41)
 #define XHCI_EP_CTX_BROKEN_DCS	BIT_ULL(42)
 #define XHCI_SUSPEND_RESUME_CLKS	BIT_ULL(43)
@@ -1892,7 +1892,7 @@ struct xhci_hcd {
 	unsigned		hw_lpm_support:1;
 	/* Broken Suspend flag for SNPS Suspend resume issue */
 	unsigned		broken_suspend:1;
-	/* Indicates that omitting hcd is supported if root hub has no ports */
+	/* Indicates that omitting hcd is supported if root hub has anal ports */
 	unsigned		allow_single_roothub:1;
 	/* cached usb2 extened protocol capabilites */
 	u32                     *ext_caps;
@@ -1994,7 +1994,7 @@ static inline bool xhci_has_one_roothub(struct xhci_hcd *xhci)
  * Some xHCI implementations may support 64-bit address pointers.  Registers
  * with 64-bit address pointers should be written to with dword accesses by
  * writing the low dword first (ptr[0]), then the high dword (ptr[1]) second.
- * xHCI implementations that do not support 64-bit address pointers will ignore
+ * xHCI implementations that do analt support 64-bit address pointers will iganalre
  * the high dword, and write order is irrelevant.
  */
 static inline u64 xhci_read_64(const struct xhci_hcd *xhci,
@@ -2068,7 +2068,7 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
 		struct xhci_ep_ctx *ep_ctx,
 		struct xhci_stream_info *stream_info);
-void xhci_setup_no_streams_ep_input_ctx(struct xhci_ep_ctx *ep_ctx,
+void xhci_setup_anal_streams_ep_input_ctx(struct xhci_ep_ctx *ep_ctx,
 		struct xhci_virt_ep *ep);
 void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
 	struct xhci_virt_device *virt_dev, bool drop_control_ep);
@@ -2222,7 +2222,7 @@ static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
 }
 
 /*
- * TODO: As per spec Isochronous IDT transmissions are supported. We bypass
+ * TODO: As per spec Isochroanalus IDT transmissions are supported. We bypass
  * them anyways as we where unable to find a device that matches the
  * constraints.
  */
@@ -2231,7 +2231,7 @@ static inline bool xhci_urb_suitable_for_idt(struct urb *urb)
 	if (!usb_endpoint_xfer_isoc(&urb->ep->desc) && usb_urb_dir_out(urb) &&
 	    usb_endpoint_maxp(&urb->ep->desc) >= TRB_IDT_MAX_SIZE &&
 	    urb->transfer_buffer_length <= TRB_IDT_MAX_SIZE &&
-	    !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP) &&
+	    !(urb->transfer_flags & URB_ANAL_TRANSFER_DMA_MAP) &&
 	    !urb->num_sgs)
 		return true;
 
@@ -2276,7 +2276,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 	case TRB_BANDWIDTH_EVENT:
 	case TRB_DOORBELL:
 	case TRB_HC_EVENT:
-	case TRB_DEV_NOTE:
+	case TRB_DEV_ANALTE:
 	case TRB_MFINDEX_WRAP:
 		snprintf(str, size,
 			"TRB %08x%08x status '%s' len %d slot %d ep %d type '%s' flags %c:%c",
@@ -2317,7 +2317,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 				field3 & TRB_IDT ? 'I' : 'i',
 				field3 & TRB_IOC ? 'I' : 'i',
 				field3 & TRB_CHAIN ? 'C' : 'c',
-				field3 & TRB_NO_SNOOP ? 'S' : 's',
+				field3 & TRB_ANAL_SANALOP ? 'S' : 's',
 				field3 & TRB_ISP ? 'I' : 'i',
 				field3 & TRB_ENT ? 'E' : 'e',
 				field3 & TRB_CYCLE ? 'C' : 'c');
@@ -2333,10 +2333,10 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 				field3 & TRB_ENT ? 'E' : 'e',
 				field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
-	case TRB_NORMAL:
+	case TRB_ANALRMAL:
 	case TRB_ISOC:
 	case TRB_EVENT_DATA:
-	case TRB_TR_NOOP:
+	case TRB_TR_ANALOP:
 		snprintf(str, size,
 			"Buffer %08x%08x length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c:%c:%c:%c:%c",
 			field1, field0, TRB_LEN(field2), GET_TD_SIZE(field2),
@@ -2346,13 +2346,13 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			field3 & TRB_IDT ? 'I' : 'i',
 			field3 & TRB_IOC ? 'I' : 'i',
 			field3 & TRB_CHAIN ? 'C' : 'c',
-			field3 & TRB_NO_SNOOP ? 'S' : 's',
+			field3 & TRB_ANAL_SANALOP ? 'S' : 's',
 			field3 & TRB_ISP ? 'I' : 'i',
 			field3 & TRB_ENT ? 'E' : 'e',
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
 
-	case TRB_CMD_NOOP:
+	case TRB_CMD_ANALOP:
 	case TRB_ENABLE_SLOT:
 		snprintf(str, size,
 			"%s: flags %c",
@@ -2538,7 +2538,7 @@ static inline const char *xhci_decode_slot_context(char *str,
 				s = "super-speed plus";
 				break;
 			default:
-				s = "UNKNOWN speed";
+				s = "UNKANALWN speed";
 			} s; }),
 			mtt ? " multi-TT" : "",
 			hub ? " Hub" : "",
@@ -2589,7 +2589,7 @@ static inline const char *xhci_portsc_link_state_string(u32 portsc)
 	default:
 		break;
 	}
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static inline const char *xhci_decode_portsc(char *str, u32 portsc)
@@ -2598,7 +2598,7 @@ static inline const char *xhci_decode_portsc(char *str, u32 portsc)
 
 	ret = sprintf(str, "%s %s %s Link:%s PortSpeed:%d ",
 		      portsc & PORT_POWER	? "Powered" : "Powered-off",
-		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
+		      portsc & PORT_CONNECT	? "Connected" : "Analt-connected",
 		      portsc & PORT_PE		? "Enabled" : "Disabled",
 		      xhci_portsc_link_state_string(portsc),
 		      DEV_PORT_SPEED(portsc));

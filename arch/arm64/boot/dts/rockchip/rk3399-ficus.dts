@@ -57,7 +57,7 @@
 			label = "red:user4";
 			gpios = <&gpio1 0 0>;
 			panic-indicator;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		wlan_active_led: led-5 {
@@ -107,46 +107,46 @@
 	pcie {
 		pcie_drv: pcie-drv {
 			rockchip,pins =
-				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 			};
 	};
 
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
-				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	leds {
 		user_led1_pin: user-led1-pin {
 			rockchip,pins =
-				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		user_led2_pin: user-led2-pin {
 			rockchip,pins =
-				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		user_led3_pin: user-led3-pin {
 			rockchip,pins =
-				<4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		user_led4_pin: user-led4-pin {
 			rockchip,pins =
-				<1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wlan_led_pin: wlan-led-pin {
 			rockchip,pins =
-				<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_led_pin: bt-led-pin {
 			rockchip,pins =
-				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

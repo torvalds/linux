@@ -8,8 +8,8 @@ menuconfig ATM_DRIVERS
 	depends on NETDEVICES && ATM
 	default y
 	help
-	  Say Y here to get to see options for Asynchronous Transfer Mode
-	  device drivers. This option alone does not add any kernel code.
+	  Say Y here to get to see options for Asynchroanalus Transfer Mode
+	  device drivers. This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -34,7 +34,7 @@ config ATM_LANAI
 	help
 	  Supports ATM cards based on the Efficient Networks "Lanai"
 	  chipset such as the Speedstream 3010 and the ENI-25p.  The
-	  Speedstream 3060 is currently not supported since we don't
+	  Speedstream 3060 is currently analt supported since we don't
 	  have the code to drive the on-board Alcatel DSL chipset (yet).
 
 config ATM_ENI
@@ -58,7 +58,7 @@ config ATM_ENI_DEBUG
 	  Extended debugging records various events and displays that list
 	  when an inconsistency is detected. This mechanism is faster than
 	  generally using printks, but still has some impact on performance.
-	  Note that extended debugging may create certain race conditions
+	  Analte that extended debugging may create certain race conditions
 	  itself. Enable this ONLY if you suspect problems with the driver.
 
 config ATM_ENI_TUNE_BURST
@@ -76,7 +76,7 @@ config ATM_ENI_TUNE_BURST
 	  The burst sizes can be set independently in the send (TX) and
 	  receive (RX) direction.
 
-	  Note that enabling many different burst sizes in the same direction
+	  Analte that enabling many different burst sizes in the same direction
 	  may increase the cost of setting up a transfer such that the
 	  resulting throughput is lower than when using only the largest
 	  available burst size.
@@ -90,7 +90,7 @@ config ATM_ENI_BURST_TX_16W
 	depends on ATM_ENI_TUNE_BURST
 	help
 	  Burst sixteen words at once in the send direction. This may work
-	  with recent PCI chipsets, but is known to fail with older chipsets.
+	  with recent PCI chipsets, but is kanalwn to fail with older chipsets.
 
 config ATM_ENI_BURST_TX_8W
 	bool "Enable 8W TX bursts (recommended)"
@@ -105,7 +105,7 @@ config ATM_ENI_BURST_TX_4W
 	help
 	  Burst four words at once in the send direction. You may want to try
 	  this if you have disabled 8W bursts. Enabling 4W if 8W is also set
-	  may or may not improve throughput.
+	  may or may analt improve throughput.
 
 config ATM_ENI_BURST_TX_2W
 	bool "Enable 2W TX bursts (optional)"
@@ -113,21 +113,21 @@ config ATM_ENI_BURST_TX_2W
 	help
 	  Burst two words at once in the send direction. You may want to try
 	  this if you have disabled 4W and 8W bursts. Enabling 2W if 4W or 8W
-	  are also set may or may not improve throughput.
+	  are also set may or may analt improve throughput.
 
 config ATM_ENI_BURST_RX_16W
 	bool "Enable 16W RX bursts (discouraged)"
 	depends on ATM_ENI_TUNE_BURST
 	help
 	  Burst sixteen words at once in the receive direction. This may work
-	  with recent PCI chipsets, but is known to fail with older chipsets.
+	  with recent PCI chipsets, but is kanalwn to fail with older chipsets.
 
 config ATM_ENI_BURST_RX_8W
 	bool "Enable 8W RX bursts (discouraged)"
 	depends on ATM_ENI_TUNE_BURST
 	help
 	  Burst eight words at once in the receive direction. This may work
-	  with recent PCI chipsets, but is known to fail with older chipsets,
+	  with recent PCI chipsets, but is kanalwn to fail with older chipsets,
 	  such as the Intel Neptune series.
 
 config ATM_ENI_BURST_RX_4W
@@ -135,7 +135,7 @@ config ATM_ENI_BURST_RX_4W
 	depends on ATM_ENI_TUNE_BURST
 	help
 	  Burst four words at once in the receive direction. This is the
-	  default setting. Enabling 4W if 8W is also set may or may not
+	  default setting. Enabling 4W if 8W is also set may or may analt
 	  improve throughput.
 
 config ATM_ENI_BURST_RX_2W
@@ -144,7 +144,7 @@ config ATM_ENI_BURST_RX_2W
 	help
 	  Burst two words at once in the receive direction. You may want to
 	  try this if you have disabled 4W and 8W bursts. Enabling 2W if 4W or
-	  8W are also set may or may not improve throughput.
+	  8W are also set may or may analt improve throughput.
 
 config ATM_NICSTAR
 	tristate "IDT 77201 (NICStAR) (ForeRunnerLE)"
@@ -166,7 +166,7 @@ config ATM_NICSTAR_USE_SUNI
 	  ForeRunner LE155 cards. This driver provides detection of cable~
 	  removal and reinsertion and provides some statistics. This driver
 	  doesn't have removal capability when compiled as a module, so if you
-	  need that capability don't include S-UNI support (it's not needed to
+	  need that capability don't include S-UNI support (it's analt needed to
 	  make the card work).
 
 config ATM_NICSTAR_USE_IDT77105
@@ -205,7 +205,7 @@ config ATM_IDT77252_RCV_ALL
 	bool "Receive ALL cells in raw queue"
 	depends on ATM_IDT77252
 	help
-	  Enable receiving of all cells on the ATM link, that do not match
+	  Enable receiving of all cells on the ATM link, that do analt match
 	  an open connection in the raw cell queue of the driver.  Useful
 	  for debugging or special applications only, so the safe answer is N.
 
@@ -284,7 +284,7 @@ config ATM_FORE200E_TX_RETRY
 	  conditions, e.g. when a fast host continuously submits very small
 	  frames (<64 bytes) or raw AAL0 cells (48 bytes) to the ATM adapter.
 
-	  Note that under common conditions, it is unlikely that you encounter
+	  Analte that under common conditions, it is unlikely that you encounter
 	  a saturation of the transmit queue, so the retry mechanism never
 	  comes into play.
 
@@ -299,7 +299,7 @@ config ATM_FORE200E_DEBUG
 
 	  When active, these messages can have a significant impact on
 	  the performances of the driver, and the size of your syslog files!
-	  Keep the debugging level to 0 during normal operations.
+	  Keep the debugging level to 0 during analrmal operations.
 
 config ATM_HE
 	tristate "ForeRunner HE Series"

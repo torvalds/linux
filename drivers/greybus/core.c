@@ -15,15 +15,15 @@
 #define GB_BUNDLE_AUTOSUSPEND_MS	3000
 
 /* Allow greybus to be disabled at boot if needed */
-static bool nogreybus;
+static bool analgreybus;
 #ifdef MODULE
-module_param(nogreybus, bool, 0444);
+module_param(analgreybus, bool, 0444);
 #else
-core_param(nogreybus, nogreybus, bool, 0444);
+core_param(analgreybus, analgreybus, bool, 0444);
 #endif
 int greybus_disabled(void)
 {
-	return nogreybus;
+	return analgreybus;
 }
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
@@ -110,24 +110,24 @@ static int greybus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 		svc = to_gb_svc(dev);
 		hd = svc->hd;
 	} else {
-		dev_WARN(dev, "uevent for unknown greybus device \"type\"!\n");
+		dev_WARN(dev, "uevent for unkanalwn greybus device \"type\"!\n");
 		return -EINVAL;
 	}
 
 	if (add_uevent_var(env, "BUS=%u", hd->bus_id))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (module) {
 		if (add_uevent_var(env, "MODULE=%u", module->module_id))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (intf) {
 		if (add_uevent_var(env, "INTERFACE=%u", intf->interface_id))
-			return -ENOMEM;
+			return -EANALMEM;
 		if (add_uevent_var(env, "GREYBUS_ID=%08x/%08x",
 				   intf->vendor_id, intf->product_id))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (bundle) {
@@ -137,9 +137,9 @@ static int greybus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 		// in gmod here as well
 
 		if (add_uevent_var(env, "BUNDLE=%u", bundle->id))
-			return -ENOMEM;
+			return -EANALMEM;
 		if (add_uevent_var(env, "BUNDLE_CLASS=%02x", bundle->class))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -172,11 +172,11 @@ static int greybus_probe(struct device *dev)
 	/* match id */
 	id = greybus_match_id(bundle, driver->id_table);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	retval = pm_runtime_get_sync(&bundle->intf->dev);
 	if (retval < 0) {
-		pm_runtime_put_noidle(&bundle->intf->dev);
+		pm_runtime_put_analidle(&bundle->intf->dev);
 		return retval;
 	}
 
@@ -195,7 +195,7 @@ static int greybus_probe(struct device *dev)
 	 */
 	pm_runtime_set_autosuspend_delay(dev, GB_BUNDLE_AUTOSUSPEND_MS);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -210,7 +210,7 @@ static int greybus_probe(struct device *dev)
 
 		pm_runtime_disable(dev);
 		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		pm_runtime_dont_use_autosuspend(dev);
 		pm_runtime_put(&bundle->intf->dev);
 
@@ -234,7 +234,7 @@ static int greybus_remove(struct device *dev)
 		dev_err(dev, "failed to resume bundle: %d\n", retval);
 
 	/*
-	 * Disable (non-offloaded) connections early in case the interface is
+	 * Disable (analn-offloaded) connections early in case the interface is
 	 * already gone to avoid unceccessary operation timeouts during
 	 * driver disconnect. Otherwise, only disable incoming requests.
 	 */
@@ -256,11 +256,11 @@ static int greybus_remove(struct device *dev)
 	if (!bundle->intf->disconnected)
 		gb_control_bundle_deactivate(bundle->intf->control, bundle->id);
 
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	return 0;
 }
@@ -271,7 +271,7 @@ int greybus_register_driver(struct greybus_driver *driver, struct module *owner,
 	int retval;
 
 	if (greybus_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver->driver.bus = &greybus_bus_type;
 	driver->driver.name = driver->name;
@@ -300,7 +300,7 @@ static int __init gb_init(void)
 	int retval;
 
 	if (greybus_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	BUILD_BUG_ON(CPORT_ID_MAX >= (long)CPORT_ID_BAD);
 

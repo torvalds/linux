@@ -52,7 +52,7 @@ struct mscc_miim_info {
 struct mscc_miim_dev {
 	struct regmap *regs;
 	int mii_status_offset;
-	bool ignore_read_errors;
+	bool iganalre_read_errors;
 	struct regmap *phy_regs;
 	const struct mscc_miim_info *info;
 	struct clk *clk;
@@ -136,7 +136,7 @@ static int mscc_miim_read(struct mii_bus *bus, int mii_id, int regnum)
 		goto out;
 	}
 
-	if (!miim->ignore_read_errors && !!(val & MSCC_MIIM_DATA_ERROR)) {
+	if (!miim->iganalre_read_errors && !!(val & MSCC_MIIM_DATA_ERROR)) {
 		ret = -EIO;
 		goto out;
 	}
@@ -214,14 +214,14 @@ static const struct regmap_config mscc_miim_phy_regmap_config = {
 
 int mscc_miim_setup(struct device *dev, struct mii_bus **pbus, const char *name,
 		    struct regmap *mii_regmap, int status_offset,
-		    bool ignore_read_errors)
+		    bool iganalre_read_errors)
 {
 	struct mscc_miim_dev *miim;
 	struct mii_bus *bus;
 
 	bus = devm_mdiobus_alloc_size(dev, sizeof(*miim));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = name;
 	bus->read = mscc_miim_read;
@@ -236,7 +236,7 @@ int mscc_miim_setup(struct device *dev, struct mii_bus **pbus, const char *name,
 
 	miim->regs = mii_regmap;
 	miim->mii_status_offset = status_offset;
-	miim->ignore_read_errors = ignore_read_errors;
+	miim->iganalre_read_errors = iganalre_read_errors;
 
 	*pbus = bus;
 
@@ -268,7 +268,7 @@ static int mscc_miim_clk_set(struct mii_bus *bus)
 
 static int mscc_miim_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct regmap *mii_regmap, *phy_regmap;
 	struct device *dev = &pdev->dev;
 	struct mscc_miim_dev *miim;
@@ -308,7 +308,7 @@ static int mscc_miim_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "clock-frequency", &miim->bus_freq);
 
 	if (miim->bus_freq && !miim->clk) {
-		dev_err(dev, "cannot use clock-frequency without a clock\n");
+		dev_err(dev, "cananalt use clock-frequency without a clock\n");
 		return -EINVAL;
 	}
 
@@ -322,7 +322,7 @@ static int mscc_miim_probe(struct platform_device *pdev)
 
 	ret = of_mdiobus_register(bus, np);
 	if (ret < 0) {
-		dev_err(dev, "Cannot register MDIO bus (%d)\n", ret);
+		dev_err(dev, "Cananalt register MDIO bus (%d)\n", ret);
 		goto out_disable_clk;
 	}
 

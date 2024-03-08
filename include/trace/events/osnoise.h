@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM osnoise
+#define TRACE_SYSTEM osanalise
 
-#if !defined(_OSNOISE_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _OSNOISE_TRACE_H
+#if !defined(_OSANALISE_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _OSANALISE_TRACE_H
 
 #include <linux/tracepoint.h>
-TRACE_EVENT(thread_noise,
+TRACE_EVENT(thread_analise,
 
 	TP_PROTO(struct task_struct *t, u64 start, u64 duration),
 
@@ -34,7 +34,7 @@ TRACE_EVENT(thread_noise,
 		__entry->duration)
 );
 
-TRACE_EVENT(softirq_noise,
+TRACE_EVENT(softirq_analise,
 
 	TP_PROTO(int vector, u64 start, u64 duration),
 
@@ -60,7 +60,7 @@ TRACE_EVENT(softirq_noise,
 		__entry->duration)
 );
 
-TRACE_EVENT(irq_noise,
+TRACE_EVENT(irq_analise,
 
 	TP_PROTO(int vector, const char *desc, u64 start, u64 duration),
 
@@ -89,7 +89,7 @@ TRACE_EVENT(irq_noise,
 		__entry->duration)
 );
 
-TRACE_EVENT(nmi_noise,
+TRACE_EVENT(nmi_analise,
 
 	TP_PROTO(u64 start, u64 duration),
 
@@ -136,7 +136,7 @@ TRACE_EVENT(sample_threshold,
 		__entry->interference)
 );
 
-#endif /* _TRACE_OSNOISE_H */
+#endif /* _TRACE_OSANALISE_H */
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>

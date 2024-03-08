@@ -60,7 +60,7 @@ bfa_hwct_reqq_ack(struct bfa_s *bfa, int reqq)
 /*
  * Actions to respond RME Interrupt for Catapult ASIC:
  * - Write 1 to Interrupt Status register (INTx only - done in bfa_intx())
- * - Acknowledge by writing to RME Queue Control register
+ * - Ackanalwledge by writing to RME Queue Control register
  * - Update CI
  */
 void

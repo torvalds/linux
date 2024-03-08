@@ -134,10 +134,10 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	}
 
 	/*
-	 * If MCLK not present, then we're using the internal oscillator and
+	 * If MCLK analt present, then we're using the internal oscillator and
 	 * require different frequency settings to achieve the same result.
 	 *
-	 * If MCLK is present, but PLL is not enabled then we enable it here to
+	 * If MCLK is present, but PLL is analt enabled then we enable it here to
 	 * ensure a consistent detection procedure.
 	 */
 	pll_srm_sts = snd_soc_component_read(component, DA7219_PLL_SRM_STS);
@@ -362,11 +362,11 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 			       events, DA7219_AAD_IRQ_REG_MAX);
 	if (ret) {
 		dev_warn_ratelimited(component->dev, "Failed to read IRQ events: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!events[DA7219_AAD_IRQ_REG_A] && !events[DA7219_AAD_IRQ_REG_B])
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Read status register for jack insertion & type status */
 	statusa = snd_soc_component_read(component, DA7219_ACCDET_STATUS_A);
@@ -413,7 +413,7 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 			 * during the procedure as this will invalidate the
 			 * result. By doing this as work, the IRQ thread can
 			 * handle a removal, and we can check at the end of
-			 * hptest if we have a valid result or not.
+			 * hptest if we have a valid result or analt.
 			 */
 
 			cancel_delayed_work_sync(&da7219_aad->jack_det_work);
@@ -661,12 +661,12 @@ static enum da7219_aad_adc_1bit_rpt
 static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct device *dev)
 {
 	struct i2c_client *i2c = to_i2c_client(dev);
-	struct fwnode_handle *aad_np;
+	struct fwanalde_handle *aad_np;
 	struct da7219_aad_pdata *aad_pdata;
 	const char *fw_str;
 	u32 fw_val32;
 
-	aad_np = device_get_named_child_node(dev, "da7219_aad");
+	aad_np = device_get_named_child_analde(dev, "da7219_aad");
 	if (!aad_np)
 		return NULL;
 
@@ -676,78 +676,78 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct device *dev)
 
 	aad_pdata->irq = i2c->irq;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,micbias-pulse-lvl",
+	if (fwanalde_property_read_u32(aad_np, "dlg,micbias-pulse-lvl",
 				     &fw_val32) >= 0)
 		aad_pdata->micbias_pulse_lvl =
 			da7219_aad_fw_micbias_pulse_lvl(dev, fw_val32);
 	else
 		aad_pdata->micbias_pulse_lvl = DA7219_AAD_MICBIAS_PULSE_LVL_OFF;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,micbias-pulse-time",
+	if (fwanalde_property_read_u32(aad_np, "dlg,micbias-pulse-time",
 				     &fw_val32) >= 0)
 		aad_pdata->micbias_pulse_time = fw_val32;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,btn-cfg", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,btn-cfg", &fw_val32) >= 0)
 		aad_pdata->btn_cfg = da7219_aad_fw_btn_cfg(dev, fw_val32);
 	else
 		aad_pdata->btn_cfg = DA7219_AAD_BTN_CFG_10MS;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,mic-det-thr", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,mic-det-thr", &fw_val32) >= 0)
 		aad_pdata->mic_det_thr =
 			da7219_aad_fw_mic_det_thr(dev, fw_val32);
 	else
 		aad_pdata->mic_det_thr = DA7219_AAD_MIC_DET_THR_200_OHMS;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,jack-ins-deb", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,jack-ins-deb", &fw_val32) >= 0)
 		aad_pdata->jack_ins_deb =
 			da7219_aad_fw_jack_ins_deb(dev, fw_val32);
 	else
 		aad_pdata->jack_ins_deb = DA7219_AAD_JACK_INS_DEB_20MS;
 
-	if (!fwnode_property_read_string(aad_np, "dlg,jack-ins-det-pty", &fw_str))
+	if (!fwanalde_property_read_string(aad_np, "dlg,jack-ins-det-pty", &fw_str))
 		aad_pdata->jack_ins_det_pty =
 			da7219_aad_fw_jack_ins_det_pty(dev, fw_str);
 	else
 		aad_pdata->jack_ins_det_pty = DA7219_AAD_JACK_INS_DET_PTY_LOW;
 
-	if (!fwnode_property_read_string(aad_np, "dlg,jack-det-rate", &fw_str))
+	if (!fwanalde_property_read_string(aad_np, "dlg,jack-det-rate", &fw_str))
 		aad_pdata->jack_det_rate =
 			da7219_aad_fw_jack_det_rate(dev, fw_str);
 	else
 		aad_pdata->jack_det_rate = DA7219_AAD_JACK_DET_RATE_256_512MS;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,jack-rem-deb", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,jack-rem-deb", &fw_val32) >= 0)
 		aad_pdata->jack_rem_deb =
 			da7219_aad_fw_jack_rem_deb(dev, fw_val32);
 	else
 		aad_pdata->jack_rem_deb = DA7219_AAD_JACK_REM_DEB_1MS;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,a-d-btn-thr", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,a-d-btn-thr", &fw_val32) >= 0)
 		aad_pdata->a_d_btn_thr = (u8) fw_val32;
 	else
 		aad_pdata->a_d_btn_thr = 0xA;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,d-b-btn-thr", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,d-b-btn-thr", &fw_val32) >= 0)
 		aad_pdata->d_b_btn_thr = (u8) fw_val32;
 	else
 		aad_pdata->d_b_btn_thr = 0x16;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,b-c-btn-thr", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,b-c-btn-thr", &fw_val32) >= 0)
 		aad_pdata->b_c_btn_thr = (u8) fw_val32;
 	else
 		aad_pdata->b_c_btn_thr = 0x21;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,c-mic-btn-thr", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,c-mic-btn-thr", &fw_val32) >= 0)
 		aad_pdata->c_mic_btn_thr = (u8) fw_val32;
 	else
 		aad_pdata->c_mic_btn_thr = 0x3E;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,btn-avg", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,btn-avg", &fw_val32) >= 0)
 		aad_pdata->btn_avg = da7219_aad_fw_btn_avg(dev, fw_val32);
 	else
 		aad_pdata->btn_avg = DA7219_AAD_BTN_AVG_2;
 
-	if (fwnode_property_read_u32(aad_np, "dlg,adc-1bit-rpt", &fw_val32) >= 0)
+	if (fwanalde_property_read_u32(aad_np, "dlg,adc-1bit-rpt", &fw_val32) >= 0)
 		aad_pdata->adc_1bit_rpt =
 			da7219_aad_fw_adc_1bit_rpt(dev, fw_val32);
 	else
@@ -939,7 +939,7 @@ void da7219_aad_suspend(struct snd_soc_component *component)
 
 		/*
 		 * If we have a 4-pole jack inserted, then micbias will be
-		 * enabled. We can disable micbias here, and keep a note to
+		 * enabled. We can disable micbias here, and keep a analte to
 		 * re-enable it on resume. If jack removal occurred during
 		 * suspend then this will be dealt with through the IRQ handler.
 		 */
@@ -1004,7 +1004,7 @@ int da7219_aad_init(struct snd_soc_component *component)
 	da7219_aad->aad_wq = create_singlethread_workqueue("da7219-aad");
 	if (!da7219_aad->aad_wq) {
 		dev_err(component->dev, "Failed to create aad workqueue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_DELAYED_WORK(&da7219_aad->jack_det_work, da7219_aad_jack_det_work);
@@ -1059,7 +1059,7 @@ int da7219_aad_probe(struct i2c_client *i2c)
 
 	da7219_aad = devm_kzalloc(dev, sizeof(*da7219_aad), GFP_KERNEL);
 	if (!da7219_aad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	da7219->aad = da7219_aad;
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/rocker/rocker.h - Rocker switch device driver
- * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellaanalx.com>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
  */
 
@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <net/neighbour.h>
 #include <net/switchdev.h>
 
@@ -66,7 +66,7 @@ struct rocker {
 	spinlock_t cmd_ring_lock;		/* for cmd ring accesses */
 	struct rocker_dma_ring_info cmd_ring;
 	struct rocker_dma_ring_info event_ring;
-	struct notifier_block fib_nb;
+	struct analtifier_block fib_nb;
 	struct rocker_world_ops *wops;
 	struct workqueue_struct *rocker_owq;
 	void *wpriv;
@@ -80,7 +80,7 @@ typedef int (*rocker_cmd_proc_cb_t)(const struct rocker_port *rocker_port,
 				    const struct rocker_desc_info *desc_info,
 				    void *priv);
 
-int rocker_cmd_exec(struct rocker_port *rocker_port, bool nowait,
+int rocker_cmd_exec(struct rocker_port *rocker_port, bool analwait,
 		    rocker_cmd_prep_cb_t prepare, void *prepare_priv,
 		    rocker_cmd_proc_cb_t process, void *process_priv);
 
@@ -131,9 +131,9 @@ struct rocker_world_ops {
 				     const unsigned char *addr,
 				     __be16 vlan_id);
 	int (*fib4_add)(struct rocker *rocker,
-			const struct fib_entry_notifier_info *fen_info);
+			const struct fib_entry_analtifier_info *fen_info);
 	int (*fib4_del)(struct rocker *rocker,
-			const struct fib_entry_notifier_info *fen_info);
+			const struct fib_entry_analtifier_info *fen_info);
 	void (*fib4_abort)(struct rocker *rocker);
 };
 

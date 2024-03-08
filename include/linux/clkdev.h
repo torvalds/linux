@@ -16,7 +16,7 @@ struct clk_hw;
 struct device;
 
 struct clk_lookup {
-	struct list_head	node;
+	struct list_head	analde;
 	const char		*dev_id;
 	const char		*con_id;
 	struct clk		*clk;

@@ -3,7 +3,7 @@
  * Intel CHT Whiskey Cove PMIC operation region driver
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
+ * Based on various analn upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
  */
 
@@ -66,7 +66,7 @@
 #define CHT_WC_VPROG6B_VSEL		0x6ed3
 
 /*
- * Regulator support is based on the non upstream patch:
+ * Regulator support is based on the analn upstream patch:
  * "regulator: whiskey_cove: implements Whiskey Cove pmic VRF support"
  * https://github.com/intel-aero/meta-intel-aero/blob/master/recipes-kernel/linux/linux-yocto/0019-regulator-whiskey_cove-implements-WhiskeyCove-pmic-V.patch
  */
@@ -250,7 +250,7 @@ static int intel_cht_wc_exec_mipi_pmic_seq_element(struct regmap *regmap,
 }
 
 /*
- * The thermal table and ops are empty, we do not support the Thermal opregion
+ * The thermal table and ops are empty, we do analt support the Thermal opregion
  * (DPTF) due to lacking documentation.
  */
 static const struct intel_pmic_opregion_data intel_cht_wc_pmic_opregion_data = {

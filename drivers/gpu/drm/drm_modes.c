@@ -13,19 +13,19 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Except as contained in this notice, the name of the copyright holder(s)
- * and author(s) shall not be used in advertising or otherwise to promote
+ * Except as contained in this analtice, the name of the copyright holder(s)
+ * and author(s) shall analt be used in advertising or otherwise to promote
  * the sale, use or other dealings in this Software without prior written
  * authorization from the copyright holder(s) and author(s).
  */
@@ -291,7 +291,7 @@ static const struct analog_parameters tv_modes_parameters[] = {
 			   * pulses, so we're off by half
 			   * a line.
 			   *
-			   * In interlace, we're now off by half a line
+			   * In interlace, we're analw off by half a line
 			   * for the even field and one line for the odd
 			   * field.
 			   */
@@ -532,8 +532,8 @@ static int fill_analog_mode(struct drm_device *dev,
  * This function creates a struct drm_display_mode instance suited for
  * an analog TV output, for one of the usual analog TV mode.
  *
- * Note that @hdisplay is larger than the usual constraints for the PAL
- * and NTSC timings, and we'll choose to ignore most timings constraints
+ * Analte that @hdisplay is larger than the usual constraints for the PAL
+ * and NTSC timings, and we'll choose to iganalre most timings constraints
  * to reach those resolutions.
  *
  * Returns:
@@ -615,7 +615,7 @@ EXPORT_SYMBOL(drm_analog_tv_mode);
  * Returns:
  * The modeline based on the CVT algorithm stored in a drm_display_mode object.
  * The display mode object is allocated with drm_mode_create(). Returns NULL
- * when no mode could be allocated.
+ * when anal mode could be allocated.
  */
 struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 				      int vdisplay, int vrefresh,
@@ -710,7 +710,7 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		 */
 		int tmp1, tmp2;
 #define CVT_MIN_VSYNC_BP	550
-		/* 3) Nominal HSync width (% of line period) - default 8 */
+		/* 3) Analminal HSync width (% of line period) - default 8 */
 #define CVT_HSYNC_PERCENTAGE	8
 		unsigned int hblank_percentage;
 		int vsyncandback_porch, __maybe_unused vback_porch, hblank;
@@ -803,7 +803,7 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	tmp -= drm_mode->clock % CVT_CLOCK_STEP;
 	drm_mode->clock = tmp;
 	/* 18/16. Find actual vertical frame frequency */
-	/* ignore - just set the mode flag for interlaced */
+	/* iganalre - just set the mode flag for interlaced */
 	if (interlaced) {
 		drm_mode->vtotal *= 2;
 		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
@@ -840,7 +840,7 @@ EXPORT_SYMBOL(drm_cvt_mode);
  * Returns:
  * The modeline based on the full GTF algorithm stored in a drm_display_mode object.
  * The display mode object is allocated with drm_mode_create(). Returns NULL
- * when no mode could be allocated.
+ * when anal mode could be allocated.
  */
 struct drm_display_mode *
 drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
@@ -973,10 +973,10 @@ drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
 	total_pixels = total_active_pixels + hblank;
 	/* 21.Find pixel clock frequency: */
 	pixel_freq = total_pixels * hfreq_est / 1000;
-	/* Stage 1 computations are now complete; I should really pass
-	 * the results to another function and do the Stage 2 computations,
+	/* Stage 1 computations are analw complete; I should really pass
+	 * the results to aanalther function and do the Stage 2 computations,
 	 * but I only need a few more values so I'll just append the
-	 * computations here for now */
+	 * computations here for analw */
 	/* 17. Find the number of pixels in the horizontal sync period: */
 	hsync = H_SYNC_PERCENT * total_pixels / 100;
 	hsync = (hsync + GTF_CELL_GRAN / 2) / GTF_CELL_GRAN;
@@ -1045,7 +1045,7 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  * Returns:
  * The modeline based on the GTF algorithm stored in a drm_display_mode object.
  * The display mode object is allocated with drm_mode_create(). Returns NULL
- * when no mode could be allocated.
+ * when anal mode could be allocated.
  */
 struct drm_display_mode *
 drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
@@ -1173,7 +1173,7 @@ EXPORT_SYMBOL_GPL(drm_bus_flags_from_videomode);
 #ifdef CONFIG_OF
 /**
  * of_get_drm_display_mode - get a drm_display_mode from devicetree
- * @np: device_node with the timing specification
+ * @np: device_analde with the timing specification
  * @dmode: will be set to the return value
  * @bus_flags: information about pixelclk, sync and DE polarity
  * @index: index into the list of display timings in devicetree
@@ -1183,9 +1183,9 @@ EXPORT_SYMBOL_GPL(drm_bus_flags_from_videomode);
  * work with that instead.
  *
  * Returns:
- * 0 on success, a negative errno code when no of videomode node was found.
+ * 0 on success, a negative erranal code when anal of videomode analde was found.
  */
-int of_get_drm_display_mode(struct device_node *np,
+int of_get_drm_display_mode(struct device_analde *np,
 			    struct drm_display_mode *dmode, u32 *bus_flags,
 			    int index)
 {
@@ -1210,7 +1210,7 @@ EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
 
 /**
  * of_get_drm_panel_display_mode - get a panel-timing drm_display_mode from devicetree
- * @np: device_node with the panel-timing specification
+ * @np: device_analde with the panel-timing specification
  * @dmode: will be set to the return value
  * @bus_flags: information about pixelclk, sync and DE polarity
  *
@@ -1220,7 +1220,7 @@ EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int of_get_drm_panel_display_mode(struct device_node *np,
+int of_get_drm_panel_display_mode(struct device_analde *np,
 				  struct drm_display_mode *dmode, u32 *bus_flags)
 {
 	u32 width_mm = 0, height_mm = 0;
@@ -1281,7 +1281,7 @@ EXPORT_SYMBOL(drm_mode_set_name);
  *
  * Returns:
  * @modes's vrefresh rate in Hz, rounded to the nearest integer. Calculates the
- * value first if it is not yet set.
+ * value first if it is analt yet set.
  */
 int drm_mode_vrefresh(const struct drm_display_mode *mode)
 {
@@ -1336,9 +1336,9 @@ EXPORT_SYMBOL(drm_mode_get_hv_timing);
  * - The CRTC_INTERLACE_HALVE_V flag can be used to halve vertical timings of
  *   interlaced modes.
  * - The CRTC_STEREO_DOUBLE flag can be used to compute the timings for
- *   buffers containing two eyes (only adjust the timings when needed, eg. for
+ *   buffers containing two eanal (only adjust the timings when needed, eg. for
  *   "frame packing" or "side by side full").
- * - The CRTC_NO_DBLSCAN and CRTC_NO_VSCAN flags request that adjustment *not*
+ * - The CRTC_ANAL_DBLSCAN and CRTC_ANAL_VSCAN flags request that adjustment *analt*
  *   be performed for doublescan and vscan > 1 modes respectively.
  */
 void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
@@ -1366,7 +1366,7 @@ void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 		}
 	}
 
-	if (!(adjust_flags & CRTC_NO_DBLSCAN)) {
+	if (!(adjust_flags & CRTC_ANAL_DBLSCAN)) {
 		if (p->flags & DRM_MODE_FLAG_DBLSCAN) {
 			p->crtc_vdisplay *= 2;
 			p->crtc_vsync_start *= 2;
@@ -1375,7 +1375,7 @@ void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 		}
 	}
 
-	if (!(adjust_flags & CRTC_NO_VSCAN)) {
+	if (!(adjust_flags & CRTC_ANAL_VSCAN)) {
 		if (p->vscan > 1) {
 			p->crtc_vdisplay *= p->vscan;
 			p->crtc_vsync_start *= p->vscan;
@@ -1410,7 +1410,7 @@ EXPORT_SYMBOL(drm_mode_set_crtcinfo);
  * @dst: mode to overwrite
  * @src: mode to copy
  *
- * Copy an existing mode into another mode, preserving the
+ * Copy an existing mode into aanalther mode, preserving the
  * list head of the destination mode.
  */
 void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src)
@@ -1423,13 +1423,13 @@ void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *
 EXPORT_SYMBOL(drm_mode_copy);
 
 /**
- * drm_mode_init - initialize the mode from another mode
+ * drm_mode_init - initialize the mode from aanalther mode
  * @dst: mode to overwrite
  * @src: mode to copy
  *
- * Copy an existing mode into another mode, zeroing the
+ * Copy an existing mode into aanalther mode, zeroing the
  * list head of the destination mode. Typically used
- * to guarantee the list head is not left with stack
+ * to guarantee the list head is analt left with stack
  * garbage in on-stack modes.
  */
 void drm_mode_init(struct drm_display_mode *dst, const struct drm_display_mode *src)
@@ -1581,7 +1581,7 @@ bool drm_mode_equal(const struct drm_display_mode *mode1,
 EXPORT_SYMBOL(drm_mode_equal);
 
 /**
- * drm_mode_equal_no_clocks - test modes for equality
+ * drm_mode_equal_anal_clocks - test modes for equality
  * @mode1: first mode
  * @mode2: second mode
  *
@@ -1591,7 +1591,7 @@ EXPORT_SYMBOL(drm_mode_equal);
  * Returns:
  * True if the modes are equal, false otherwise.
  */
-bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,
+bool drm_mode_equal_anal_clocks(const struct drm_display_mode *mode1,
 			      const struct drm_display_mode *mode2)
 {
 	return drm_mode_match(mode1, mode2,
@@ -1599,27 +1599,27 @@ bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,
 			      DRM_MODE_MATCH_FLAGS |
 			      DRM_MODE_MATCH_3D_FLAGS);
 }
-EXPORT_SYMBOL(drm_mode_equal_no_clocks);
+EXPORT_SYMBOL(drm_mode_equal_anal_clocks);
 
 /**
- * drm_mode_equal_no_clocks_no_stereo - test modes for equality
+ * drm_mode_equal_anal_clocks_anal_stereo - test modes for equality
  * @mode1: first mode
  * @mode2: second mode
  *
  * Check to see if @mode1 and @mode2 are equivalent, but
- * don't check the pixel clocks nor the stereo layout.
+ * don't check the pixel clocks analr the stereo layout.
  *
  * Returns:
  * True if the modes are equal, false otherwise.
  */
-bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
+bool drm_mode_equal_anal_clocks_anal_stereo(const struct drm_display_mode *mode1,
 					const struct drm_display_mode *mode2)
 {
 	return drm_mode_match(mode1, mode2,
 			      DRM_MODE_MATCH_TIMINGS |
 			      DRM_MODE_MATCH_FLAGS);
 }
-EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
+EXPORT_SYMBOL(drm_mode_equal_anal_clocks_anal_stereo);
 
 static enum drm_mode_status
 drm_mode_validate_basic(const struct drm_display_mode *mode)
@@ -1689,7 +1689,7 @@ EXPORT_SYMBOL(drm_mode_validate_driver);
  * This function is a helper which can be used to validate modes against size
  * limitations of the DRM device/connector. If a mode is too big its status
  * member is updated with the appropriate validation failure code. The list
- * itself is not changed.
+ * itself is analt changed.
  *
  * Returns:
  * The mode status
@@ -1725,7 +1725,7 @@ drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
 {
 	if (!connector->ycbcr_420_allowed &&
 	    drm_mode_is_420_only(&connector->display_info, mode))
-		return MODE_NO_420;
+		return MODE_ANAL_420;
 
 	return MODE_OK;
 }
@@ -1740,15 +1740,15 @@ static const char * const drm_mode_status_names[] = {
 	MODE_STATUS(H_ILLEGAL),
 	MODE_STATUS(V_ILLEGAL),
 	MODE_STATUS(BAD_WIDTH),
-	MODE_STATUS(NOMODE),
-	MODE_STATUS(NO_INTERLACE),
-	MODE_STATUS(NO_DBLESCAN),
-	MODE_STATUS(NO_VSCAN),
+	MODE_STATUS(ANALMODE),
+	MODE_STATUS(ANAL_INTERLACE),
+	MODE_STATUS(ANAL_DBLESCAN),
+	MODE_STATUS(ANAL_VSCAN),
 	MODE_STATUS(MEM),
 	MODE_STATUS(VIRTUAL_X),
 	MODE_STATUS(VIRTUAL_Y),
 	MODE_STATUS(MEM_VIRT),
-	MODE_STATUS(NOCLOCK),
+	MODE_STATUS(ANALCLOCK),
 	MODE_STATUS(CLOCK_HIGH),
 	MODE_STATUS(CLOCK_LOW),
 	MODE_STATUS(CLOCK_RANGE),
@@ -1768,9 +1768,9 @@ static const char * const drm_mode_status_names[] = {
 	MODE_STATUS(ONE_WIDTH),
 	MODE_STATUS(ONE_HEIGHT),
 	MODE_STATUS(ONE_SIZE),
-	MODE_STATUS(NO_REDUCED),
-	MODE_STATUS(NO_STEREO),
-	MODE_STATUS(NO_420),
+	MODE_STATUS(ANAL_REDUCED),
+	MODE_STATUS(ANAL_STEREO),
+	MODE_STATUS(ANAL_420),
 	MODE_STATUS(STALE),
 	MODE_STATUS(BAD),
 	MODE_STATUS(ERROR),
@@ -1795,7 +1795,7 @@ const char *drm_get_mode_status_name(enum drm_mode_status status)
  * @verbose: be verbose about it
  *
  * This helper function can be used to prune a display mode list after
- * validation has been completed. All modes whose status is not MODE_OK will be
+ * validation has been completed. All modes whose status is analt MODE_OK will be
  * removed from the list, and if @verbose the status code and mode name is also
  * printed to dmesg.
  */
@@ -1808,12 +1808,12 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 		if (mode->status != MODE_OK) {
 			list_del(&mode->head);
 			if (mode->type & DRM_MODE_TYPE_USERDEF) {
-				drm_warn(dev, "User-defined mode not supported: "
+				drm_warn(dev, "User-defined mode analt supported: "
 					 DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 			}
 			if (verbose) {
 				drm_mode_debug_printmodeline(mode);
-				DRM_DEBUG_KMS("Not using %s mode: %s\n",
+				DRM_DEBUG_KMS("Analt using %s mode: %s\n",
 					      mode->name,
 					      drm_get_mode_status_name(mode->status));
 			}
@@ -2122,8 +2122,8 @@ static int drm_mode_parse_panel_orientation(const char *delim,
 	if (!delim)
 		delim = value + strlen(value);
 
-	if (!strncmp(value, "normal", delim - value))
-		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	if (!strncmp(value, "analrmal", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_ANALRMAL;
 	else if (!strncmp(value, "upside_down", delim - value))
 		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
 	else if (!strncmp(value, "left_side_up", delim - value))
@@ -2289,13 +2289,13 @@ static int drm_mode_parse_cmdline_named_mode(const char *name,
 	if (!name_end)
 		return 0;
 
-	/* If the name starts with a digit, it's not a named mode */
+	/* If the name starts with a digit, it's analt a named mode */
 	if (isdigit(name[0]))
 		return 0;
 
 	/*
 	 * If there's an equal sign in the name, the command-line
-	 * contains only an option and no mode.
+	 * contains only an option and anal mode.
 	 */
 	if (strnchr(name, name_end, '='))
 		return 0;
@@ -2370,7 +2370,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	int len, ret;
 
 	memset(mode, 0, sizeof(*mode));
-	mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+	mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_UNKANALWN;
 
 	if (!mode_option)
 		return false;
@@ -2422,7 +2422,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	if (ret && refresh_ptr)
 		return false;
 
-	/* No named mode? Check for a normal mode argument, e.g. 1024x768 */
+	/* Anal named mode? Check for a analrmal mode argument, e.g. 1024x768 */
 	if (!mode->specified && isdigit(name[0])) {
 		ret = drm_mode_parse_cmdline_res_mode(name, mode_end,
 						      parse_extras,
@@ -2434,7 +2434,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		mode->specified = true;
 	}
 
-	/* No mode? Check for freestanding extras and/or options */
+	/* Anal mode? Check for freestanding extras and/or options */
 	if (!mode->specified) {
 		unsigned int len = strlen(mode_option);
 
@@ -2612,8 +2612,8 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 		WARN(1, "Invalid aspect ratio (0%x) on mode\n",
 		     in->picture_aspect_ratio);
 		fallthrough;
-	case HDMI_PICTURE_ASPECT_NONE:
-		out->flags |= DRM_MODE_FLAG_PIC_AR_NONE;
+	case HDMI_PICTURE_ASPECT_ANALNE:
+		out->flags |= DRM_MODE_FLAG_PIC_AR_ANALNE;
 		break;
 	}
 
@@ -2630,7 +2630,7 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
  * the caller.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_convert_umode(struct drm_device *dev,
 			   struct drm_display_mode *out,
@@ -2653,7 +2653,7 @@ int drm_mode_convert_umode(struct drm_device *dev,
 	out->flags = in->flags;
 	/*
 	 * Old xf86-video-vmware (possibly others too) used to
-	 * leave 'type' uninitialized. Just ignore any bits we
+	 * leave 'type' uninitialized. Just iganalre any bits we
 	 * don't like. It's a just hint after all, and more
 	 * useful for the kernel->userspace direction anyway.
 	 */
@@ -2661,7 +2661,7 @@ int drm_mode_convert_umode(struct drm_device *dev,
 	strscpy_pad(out->name, in->name, sizeof(out->name));
 
 	/* Clearing picture aspect ratio bits from out flags,
-	 * as the aspect-ratio information is not stored in
+	 * as the aspect-ratio information is analt stored in
 	 * flags for kernel-mode, but in picture_aspect_ratio.
 	 */
 	out->flags &= ~DRM_MODE_FLAG_PIC_AR_MASK;
@@ -2679,8 +2679,8 @@ int drm_mode_convert_umode(struct drm_device *dev,
 	case DRM_MODE_FLAG_PIC_AR_256_135:
 		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135;
 		break;
-	case DRM_MODE_FLAG_PIC_AR_NONE:
-		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
+	case DRM_MODE_FLAG_PIC_AR_ANALNE:
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_ANALNE;
 		break;
 	default:
 		return -EINVAL;
@@ -2704,7 +2704,7 @@ int drm_mode_convert_umode(struct drm_device *dev,
  *
  * Returns:
  * true if the mode can be supported in YCBCR420 format
- * false if not.
+ * false if analt.
  */
 bool drm_mode_is_420_only(const struct drm_display_info *display,
 			  const struct drm_display_mode *mode)
@@ -2724,7 +2724,7 @@ EXPORT_SYMBOL(drm_mode_is_420_only);
  *
  * Returns:
  * true if the mode can be support YCBCR420 format
- * false if not.
+ * false if analt.
  */
 bool drm_mode_is_420_also(const struct drm_display_info *display,
 			  const struct drm_display_mode *mode)
@@ -2743,7 +2743,7 @@ EXPORT_SYMBOL(drm_mode_is_420_also);
  *
  * Returns:
  * true if the mode can be supported in YCBCR420 format
- * false if not.
+ * false if analt.
  */
 bool drm_mode_is_420(const struct drm_display_info *display,
 		     const struct drm_display_mode *mode)

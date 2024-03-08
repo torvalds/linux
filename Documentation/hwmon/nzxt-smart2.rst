@@ -16,26 +16,26 @@ Besides typical speed monitoring and PWM duty cycle control, voltage and current
 is reported for every fan.
 
 The device also has two connectors for RGB LEDs; support for them isn't
-implemented (mainly because there is no standardized sysfs interface).
+implemented (mainly because there is anal standardized sysfs interface).
 
-Also, the device has a noise sensor, but the sensor seems to be completely
+Also, the device has a analise sensor, but the sensor seems to be completely
 useless (and very imprecise), so support for it isn't implemented too.
 
-Usage Notes
+Usage Analtes
 -----------
 
 The device should be autodetected, and the driver should load automatically.
 
 If fans are plugged in/unplugged while the system is powered on, the driver
 must be reloaded to detect configuration changes; otherwise, new fans can't
-be controlled (`pwm*` changes will be ignored). It is necessary because the
+be controlled (`pwm*` changes will be iganalred). It is necessary because the
 device has a dedicated "detect fans" command, and currently, it is executed only
 during initialization. Speed, voltage, current monitoring will work even without
 reload. As an alternative to reloading the module, a userspace tool (like
 `liquidctl`_) can be used to run "detect fans" command through hidraw interface.
 
 The driver coexists with userspace tools that access the device through hidraw
-interface with no known issues.
+interface with anal kanalwn issues.
 
 .. _liquidctl: https://github.com/liquidctl/liquidctl
 
@@ -56,7 +56,7 @@ pwm[1-3]_enable		1 if the fan can be controlled by writing to the
 			can control only the fans it detected itself, so the
 			attribute is read-only.
 pwm[1-3]_mode		Read-only, 1 for PWM-controlled fans, 0 for other fans
-			(or if no fan connected).
+			(or if anal fan connected).
 update_interval		The interval at which all inputs are updated (in
 			milliseconds). The default is 1000ms. Minimum is 250ms.
 =======================	========================================================

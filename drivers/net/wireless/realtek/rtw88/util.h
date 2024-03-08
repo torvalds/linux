@@ -9,7 +9,7 @@ struct rtw_dev;
 
 #define rtw_iterate_vifs_atomic(rtwdev, iterator, data)                        \
 	ieee80211_iterate_active_interfaces_atomic(rtwdev->hw,                 \
-			IEEE80211_IFACE_ITER_NORMAL, iterator, data)
+			IEEE80211_IFACE_ITER_ANALRMAL, iterator, data)
 #define rtw_iterate_stas_atomic(rtwdev, iterator, data)                        \
 	ieee80211_iterate_stations_atomic(rtwdev->hw, iterator, data)
 #define rtw_iterate_keys(rtwdev, vif, iterator, data)			       \

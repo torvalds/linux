@@ -15,7 +15,7 @@ struct rq_enet_desc {
 
 enum rq_enet_type_types {
 	RQ_ENET_TYPE_ONLY_SOP = 0,
-	RQ_ENET_TYPE_NOT_SOP = 1,
+	RQ_ENET_TYPE_ANALT_SOP = 1,
 	RQ_ENET_TYPE_RESV2 = 2,
 	RQ_ENET_TYPE_RESV3 = 3,
 };

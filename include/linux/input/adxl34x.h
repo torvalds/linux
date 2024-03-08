@@ -214,8 +214,8 @@ struct adxl34x_platform_data {
 
 	/*
 	 * low_power_mode:
-	 * A '0' = Normal operation and a '1' = Reduced
-	 * power operation with somewhat higher noise.
+	 * A '0' = Analrmal operation and a '1' = Reduced
+	 * power operation with somewhat higher analise.
 	 */
 
 	u8 low_power_mode;

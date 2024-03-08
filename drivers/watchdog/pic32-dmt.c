@@ -3,7 +3,7 @@
  * PIC32 deadman timer driver
  *
  * Purna Chandra Mandal <purna.mandal@microchip.com>
- * Copyright (c) 2016, Microchip Technology Inc.
+ * Copyright (c) 2016, Microchip Techanallogy Inc.
  */
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -31,7 +31,7 @@
 #define DMT_ON			BIT(15)
 #define DMT_STEP1_KEY		BIT(6)
 #define DMT_STEP2_KEY		BIT(3)
-#define DMTSTAT_WINOPN		BIT(0)
+#define DMTSTAT_WIANALPN		BIT(0)
 #define DMTSTAT_EVENT		BIT(5)
 #define DMTSTAT_BAD2		BIT(6)
 #define DMTSTAT_BAD1		BIT(7)
@@ -53,10 +53,10 @@ static inline void dmt_disable(struct pic32_dmt *dmt)
 {
 	writel(DMT_ON, PIC32_CLR(dmt->regs + DMTCON_REG));
 	/*
-	 * Cannot touch registers in the CPU cycle following clearing the
+	 * Cananalt touch registers in the CPU cycle following clearing the
 	 * ON bit.
 	 */
-	nop();
+	analp();
 }
 
 static inline int dmt_bad_status(struct pic32_dmt *dmt)
@@ -81,8 +81,8 @@ static inline int dmt_keepalive(struct pic32_dmt *dmt)
 
 	/* wait for DMT window to open */
 	while (--timeout) {
-		v = readl(dmt->regs + DMTSTAT_REG) & DMTSTAT_WINOPN;
-		if (v == DMTSTAT_WINOPN)
+		v = readl(dmt->regs + DMTSTAT_REG) & DMTSTAT_WIANALPN;
+		if (v == DMTSTAT_WIANALPN)
 			break;
 	}
 
@@ -172,7 +172,7 @@ static int pic32_dmt_probe(struct platform_device *pdev)
 
 	dmt = devm_kzalloc(dev, sizeof(*dmt), GFP_KERNEL);
 	if (!dmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dmt->regs))
@@ -180,7 +180,7 @@ static int pic32_dmt_probe(struct platform_device *pdev)
 
 	dmt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(dmt->clk)) {
-		dev_err(dev, "clk not found\n");
+		dev_err(dev, "clk analt found\n");
 		return PTR_ERR(dmt->clk);
 	}
 
@@ -194,7 +194,7 @@ static int pic32_dmt_probe(struct platform_device *pdev)
 
 	wdd->bootstatus = pic32_dmt_bootstatus(dmt) ? WDIOF_CARDRESET : 0;
 
-	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_analwayout(wdd, WATCHDOG_ANALWAYOUT);
 	watchdog_set_drvdata(wdd, dmt);
 
 	ret = devm_watchdog_register_device(dev, wdd);

@@ -21,8 +21,8 @@ if [ "$(basename $2)" = "vmlinuz" ]; then
   echo "Installing compressed kernel"
   base=vmlinuz
 else
-# Normal install
-  echo "Installing normal kernel"
+# Analrmal install
+  echo "Installing analrmal kernel"
   base=vmlinux
 fi
 

@@ -261,7 +261,7 @@ static void m98095_eq_band(struct snd_soc_component *component, unsigned int dai
 	/* Load the base register address */
 	eq_reg = dai ? M98095_142_DAI2_EQ_BASE : M98095_110_DAI1_EQ_BASE;
 
-	/* Add the band address offset, note adjustment for word address */
+	/* Add the band address offset, analte adjustment for word address */
 	eq_reg += band * (M98095_COEFS_PER_BAND << 1);
 
 	/* Step through the registers and coefs */
@@ -287,7 +287,7 @@ static void m98095_biquad_band(struct snd_soc_component *component, unsigned int
 	/* Load the base register address */
 	bq_reg = dai ? M98095_17E_DAI2_BQ_BASE : M98095_174_DAI1_BQ_BASE;
 
-	/* Add the band address offset, note adjustment for word address */
+	/* Add the band address offset, analte adjustment for word address */
 	bq_reg += band * (M98095_COEFS_PER_BAND << 1);
 
 	/* Step through the registers and coefs */
@@ -305,7 +305,7 @@ static SOC_ENUM_SINGLE_DECL(max98095_dai2_filter_mode_enum,
 			    M98095_038_DAI2_FILTERS, 7,
 			    max98095_fltr_mode);
 
-static const char * const max98095_extmic_text[] = { "None", "MIC1", "MIC2" };
+static const char * const max98095_extmic_text[] = { "Analne", "MIC1", "MIC2" };
 
 static SOC_ENUM_SINGLE_DECL(max98095_extmic_enum,
 			    M98095_087_CFG_MIC, 0,
@@ -506,8 +506,8 @@ static const struct snd_kcontrol_new max98095_snd_controls[] = {
 static const struct snd_kcontrol_new max98095_left_speaker_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_050_MIX_SPK_LEFT, 0, 1, 0),
 	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_050_MIX_SPK_LEFT, 6, 1, 0),
-	SOC_DAPM_SINGLE("Mono DAC2 Switch", M98095_050_MIX_SPK_LEFT, 3, 1, 0),
-	SOC_DAPM_SINGLE("Mono DAC3 Switch", M98095_050_MIX_SPK_LEFT, 3, 1, 0),
+	SOC_DAPM_SINGLE("Moanal DAC2 Switch", M98095_050_MIX_SPK_LEFT, 3, 1, 0),
+	SOC_DAPM_SINGLE("Moanal DAC3 Switch", M98095_050_MIX_SPK_LEFT, 3, 1, 0),
 	SOC_DAPM_SINGLE("MIC1 Switch", M98095_050_MIX_SPK_LEFT, 4, 1, 0),
 	SOC_DAPM_SINGLE("MIC2 Switch", M98095_050_MIX_SPK_LEFT, 5, 1, 0),
 	SOC_DAPM_SINGLE("IN1 Switch", M98095_050_MIX_SPK_LEFT, 1, 1, 0),
@@ -518,8 +518,8 @@ static const struct snd_kcontrol_new max98095_left_speaker_mixer_controls[] = {
 static const struct snd_kcontrol_new max98095_right_speaker_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_051_MIX_SPK_RIGHT, 6, 1, 0),
 	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_051_MIX_SPK_RIGHT, 0, 1, 0),
-	SOC_DAPM_SINGLE("Mono DAC2 Switch", M98095_051_MIX_SPK_RIGHT, 3, 1, 0),
-	SOC_DAPM_SINGLE("Mono DAC3 Switch", M98095_051_MIX_SPK_RIGHT, 3, 1, 0),
+	SOC_DAPM_SINGLE("Moanal DAC2 Switch", M98095_051_MIX_SPK_RIGHT, 3, 1, 0),
+	SOC_DAPM_SINGLE("Moanal DAC3 Switch", M98095_051_MIX_SPK_RIGHT, 3, 1, 0),
 	SOC_DAPM_SINGLE("MIC1 Switch", M98095_051_MIX_SPK_RIGHT, 5, 1, 0),
 	SOC_DAPM_SINGLE("MIC2 Switch", M98095_051_MIX_SPK_RIGHT, 4, 1, 0),
 	SOC_DAPM_SINGLE("IN1 Switch", M98095_051_MIX_SPK_RIGHT, 1, 1, 0),
@@ -547,7 +547,7 @@ static const struct snd_kcontrol_new max98095_right_hp_mixer_controls[] = {
 };
 
 /* Receiver earpiece mixer switch */
-static const struct snd_kcontrol_new max98095_mono_rcv_mixer_controls[] = {
+static const struct snd_kcontrol_new max98095_moanal_rcv_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_04F_MIX_RCV, 0, 1, 0),
 	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_04F_MIX_RCV, 5, 1, 0),
 	SOC_DAPM_SINGLE("MIC1 Switch", M98095_04F_MIX_RCV, 3, 1, 0),
@@ -715,7 +715,7 @@ static const struct snd_soc_dapm_widget max98095_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("SPK Right Out", M98095_091_PWR_EN_OUT,
 		5, 0, NULL, 0),
 
-	SND_SOC_DAPM_PGA("RCV Mono Out", M98095_091_PWR_EN_OUT,
+	SND_SOC_DAPM_PGA("RCV Moanal Out", M98095_091_PWR_EN_OUT,
 		3, 0, NULL, 0),
 
 	SND_SOC_DAPM_PGA_E("LINE Left Out", M98095_092_PWR_EN_OUT,
@@ -723,45 +723,45 @@ static const struct snd_soc_dapm_widget max98095_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("LINE Right Out", M98095_092_PWR_EN_OUT,
 		1, 0, NULL, 0, max98095_lineout_event, SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_MUX("External MIC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("External MIC", SND_SOC_ANALPM, 0, 0,
 		&max98095_extmic_mux),
 
-	SND_SOC_DAPM_MUX("Linein Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Linein Mux", SND_SOC_ANALPM, 0, 0,
 		&max98095_linein_mux),
 
-	SND_SOC_DAPM_MIXER("Left Headphone Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Headphone Mixer", SND_SOC_ANALPM, 0, 0,
 		&max98095_left_hp_mixer_controls[0],
 		ARRAY_SIZE(max98095_left_hp_mixer_controls)),
 
-	SND_SOC_DAPM_MIXER("Right Headphone Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Headphone Mixer", SND_SOC_ANALPM, 0, 0,
 		&max98095_right_hp_mixer_controls[0],
 		ARRAY_SIZE(max98095_right_hp_mixer_controls)),
 
-	SND_SOC_DAPM_MIXER("Left Speaker Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Speaker Mixer", SND_SOC_ANALPM, 0, 0,
 		&max98095_left_speaker_mixer_controls[0],
 		ARRAY_SIZE(max98095_left_speaker_mixer_controls)),
 
-	SND_SOC_DAPM_MIXER("Right Speaker Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Speaker Mixer", SND_SOC_ANALPM, 0, 0,
 		&max98095_right_speaker_mixer_controls[0],
 		ARRAY_SIZE(max98095_right_speaker_mixer_controls)),
 
-	SND_SOC_DAPM_MIXER("Receiver Mixer", SND_SOC_NOPM, 0, 0,
-	  &max98095_mono_rcv_mixer_controls[0],
-		ARRAY_SIZE(max98095_mono_rcv_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Receiver Mixer", SND_SOC_ANALPM, 0, 0,
+	  &max98095_moanal_rcv_mixer_controls[0],
+		ARRAY_SIZE(max98095_moanal_rcv_mixer_controls)),
 
-	SND_SOC_DAPM_MIXER("Left Lineout Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Lineout Mixer", SND_SOC_ANALPM, 0, 0,
 		&max98095_left_lineout_mixer_controls[0],
 		ARRAY_SIZE(max98095_left_lineout_mixer_controls)),
 
-	SND_SOC_DAPM_MIXER("Right Lineout Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Lineout Mixer", SND_SOC_ANALPM, 0, 0,
 		&max98095_right_lineout_mixer_controls[0],
 		ARRAY_SIZE(max98095_right_lineout_mixer_controls)),
 
-	SND_SOC_DAPM_MIXER("Left ADC Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left ADC Mixer", SND_SOC_ANALPM, 0, 0,
 		&max98095_left_ADC_mixer_controls[0],
 		ARRAY_SIZE(max98095_left_ADC_mixer_controls)),
 
-	SND_SOC_DAPM_MIXER("Right ADC Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right ADC Mixer", SND_SOC_ANALPM, 0, 0,
 		&max98095_right_ADC_mixer_controls[0],
 		ARRAY_SIZE(max98095_right_ADC_mixer_controls)),
 
@@ -822,8 +822,8 @@ static const struct snd_soc_dapm_route max98095_audio_map[] = {
 	/* Left speaker output mixer */
 	{"Left Speaker Mixer", "Left DAC1 Switch", "DACL1"},
 	{"Left Speaker Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Left Speaker Mixer", "Mono DAC2 Switch", "DACM2"},
-	{"Left Speaker Mixer", "Mono DAC3 Switch", "DACM3"},
+	{"Left Speaker Mixer", "Moanal DAC2 Switch", "DACM2"},
+	{"Left Speaker Mixer", "Moanal DAC3 Switch", "DACM3"},
 	{"Left Speaker Mixer", "MIC1 Switch", "MIC1 Input"},
 	{"Left Speaker Mixer", "MIC2 Switch", "MIC2 Input"},
 	{"Left Speaker Mixer", "IN1 Switch", "IN1 Input"},
@@ -832,8 +832,8 @@ static const struct snd_soc_dapm_route max98095_audio_map[] = {
 	/* Right speaker output mixer */
 	{"Right Speaker Mixer", "Left DAC1 Switch", "DACL1"},
 	{"Right Speaker Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Right Speaker Mixer", "Mono DAC2 Switch", "DACM2"},
-	{"Right Speaker Mixer", "Mono DAC3 Switch", "DACM3"},
+	{"Right Speaker Mixer", "Moanal DAC2 Switch", "DACM2"},
+	{"Right Speaker Mixer", "Moanal DAC3 Switch", "DACM3"},
 	{"Right Speaker Mixer", "MIC1 Switch", "MIC1 Input"},
 	{"Right Speaker Mixer", "MIC2 Switch", "MIC2 Input"},
 	{"Right Speaker Mixer", "IN1 Switch", "IN1 Input"},
@@ -867,7 +867,7 @@ static const struct snd_soc_dapm_route max98095_audio_map[] = {
 	{"HP Right Out", NULL, "Right Headphone Mixer"},
 	{"SPK Left Out", NULL, "Left Speaker Mixer"},
 	{"SPK Right Out", NULL, "Right Speaker Mixer"},
-	{"RCV Mono Out", NULL, "Receiver Mixer"},
+	{"RCV Moanal Out", NULL, "Receiver Mixer"},
 	{"LINE Left Out", NULL, "Left Lineout Mixer"},
 	{"LINE Right Out", NULL, "Right Lineout Mixer"},
 
@@ -875,7 +875,7 @@ static const struct snd_soc_dapm_route max98095_audio_map[] = {
 	{"HPR", NULL, "HP Right Out"},
 	{"SPKL", NULL, "SPK Left Out"},
 	{"SPKR", NULL, "SPK Right Out"},
-	{"RCV", NULL, "RCV Mono Out"},
+	{"RCV", NULL, "RCV Moanal Out"},
 	{"OUT1", NULL, "LINE Left Out"},
 	{"OUT2", NULL, "LINE Right Out"},
 	{"OUT3", NULL, "LINE Left Out"},
@@ -1611,7 +1611,7 @@ static void max98095_handle_eq_pdata(struct snd_soc_component *component)
 		max98095->eq_texts = t;
 	}
 
-	/* Now point the soc_enum to .texts array items */
+	/* Analw point the soc_enum to .texts array items */
 	max98095->eq_enum.texts = max98095->eq_texts;
 	max98095->eq_enum.items = max98095->eq_textcnt;
 
@@ -1763,7 +1763,7 @@ static void max98095_handle_bq_pdata(struct snd_soc_component *component)
 		max98095->bq_texts = t;
 	}
 
-	/* Now point the soc_enum to .texts array items */
+	/* Analw point the soc_enum to .texts array items */
 	max98095->bq_enum.texts = max98095->bq_texts;
 	max98095->bq_enum.items = max98095->bq_textcnt;
 
@@ -1779,7 +1779,7 @@ static void max98095_handle_pdata(struct snd_soc_component *component)
 	u8 regval = 0;
 
 	if (!pdata) {
-		dev_dbg(component->dev, "No platform data\n");
+		dev_dbg(component->dev, "Anal platform data\n");
 		return;
 	}
 
@@ -1812,9 +1812,9 @@ static irqreturn_t max98095_report_jack(int irq, void *data)
 	/* Read the Jack Status Register */
 	value = snd_soc_component_read(component, M98095_007_JACK_AUTO_STS);
 
-	/* If ddone is not set, then detection isn't finished yet */
+	/* If ddone is analt set, then detection isn't finished yet */
 	if ((value & M98095_DDONE) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* if hp, check its bit, and if set, clear it */
 	if ((value & M98095_HP_IN || value & M98095_LO_IN) &&
@@ -1963,7 +1963,7 @@ static int max98095_reset(struct snd_soc_component *component)
 		return ret;
 	}
 
-	/* Reset to hardware default for registers, as there is not
+	/* Reset to hardware default for registers, as there is analt
 	 * a soft reset hardware control register */
 	for (i = M98095_010_HOST_INT_CFG; i < M98095_REG_MAX_CACHED; i++) {
 		ret = snd_soc_component_write(component, i, snd_soc_component_read(component, i));
@@ -2049,17 +2049,17 @@ static int max98095_probe(struct snd_soc_component *component)
 		M98095_DAI2M_TO_DACM|M98095_DAI3M_TO_DACM);
 
 	snd_soc_component_write(component, M98095_092_PWR_EN_OUT, M98095_SPK_SPREADSPECTRUM);
-	snd_soc_component_write(component, M98095_045_CFG_DSP, M98095_DSPNORMAL);
-	snd_soc_component_write(component, M98095_04E_CFG_HP, M98095_HPNORMAL);
+	snd_soc_component_write(component, M98095_045_CFG_DSP, M98095_DSPANALRMAL);
+	snd_soc_component_write(component, M98095_04E_CFG_HP, M98095_HPANALRMAL);
 
 	snd_soc_component_write(component, M98095_02C_DAI1_IOCFG,
-		M98095_S1NORMAL|M98095_SDATA);
+		M98095_S1ANALRMAL|M98095_SDATA);
 
 	snd_soc_component_write(component, M98095_036_DAI2_IOCFG,
-		M98095_S2NORMAL|M98095_SDATA);
+		M98095_S2ANALRMAL|M98095_SDATA);
 
 	snd_soc_component_write(component, M98095_040_DAI3_IOCFG,
-		M98095_S3NORMAL|M98095_SDATA);
+		M98095_S3ANALRMAL|M98095_SDATA);
 
 	max98095_handle_pdata(component);
 
@@ -2120,7 +2120,7 @@ static int max98095_i2c_probe(struct i2c_client *i2c)
 	max98095 = devm_kzalloc(&i2c->dev, sizeof(struct max98095_priv),
 				GFP_KERNEL);
 	if (max98095 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&max98095->lock);
 

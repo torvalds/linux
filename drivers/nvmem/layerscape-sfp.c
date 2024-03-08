@@ -53,7 +53,7 @@ static int layerscape_sfp_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

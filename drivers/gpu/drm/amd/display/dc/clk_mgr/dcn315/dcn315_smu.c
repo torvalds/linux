@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -85,7 +85,7 @@ static const struct IP_BASE NBIO_BASE = { { { { 0x00000000, 0x00000014, 0x00000D
 #define VBIOSSMC_MSG_SetDppclkFreq                0x06 ///< Set DPP clock frequency in MHZ
 #define VBIOSSMC_MSG_SetHardMinDcfclkByFreq       0x07 ///< Set DCF clock frequency hard min in MHZ
 #define VBIOSSMC_MSG_SetMinDeepSleepDcfclk        0x08 ///< Set DCF clock minimum frequency in deep sleep in MHZ
-#define VBIOSSMC_MSG_GetDtbclkFreq                0x09 ///< Get display dtb clock frequency in MHZ in case VMIN does not support phy frequency
+#define VBIOSSMC_MSG_GetDtbclkFreq                0x09 ///< Get display dtb clock frequency in MHZ in case VMIN does analt support phy frequency
 #define VBIOSSMC_MSG_SetDtbClk                    0x0A ///< Set dtb clock frequency, return frequemcy in MHZ
 #define VBIOSSMC_MSG_SetDisplayCount              0x0B ///< Inform PMFW of number of display connected
 #define VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown 0x0C ///< To ask PMFW turn off TMDP 48MHz refclk during display off to save power
@@ -101,13 +101,13 @@ static const struct IP_BASE NBIO_BASE = { { { { 0x00000000, 0x00000014, 0x00000D
 #define VBIOSSMC_Status_BUSY                      0x0
 #define VBIOSSMC_Result_OK                        0x01 ///< Message Response OK
 #define VBIOSSMC_Result_Failed                    0xFF ///< Message Response Failed
-#define VBIOSSMC_Result_UnknownCmd                0xFE ///< Message Response Unknown Command
+#define VBIOSSMC_Result_UnkanalwnCmd                0xFE ///< Message Response Unkanalwn Command
 #define VBIOSSMC_Result_CmdRejectedPrereq         0xFD ///< Message Response Command Failed Prerequisite
 #define VBIOSSMC_Result_CmdRejectedBusy           0xFC ///< Message Response Command Rejected due to PMFW is busy. Sender should retry sending this message
 
 /*
  * Function to be used instead of REG_WAIT macro because the wait ends when
- * the register is NOT EQUAL to zero, and because the translation in msg_if.h
+ * the register is ANALT EQUAL to zero, and because the translation in msg_if.h
  * won't work with REG_WAIT.
  */
 static uint32_t dcn315_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, unsigned int delay_us, unsigned int max_retries)
@@ -139,7 +139,7 @@ static int dcn315_smu_send_msg_with_param(
 	result = dcn315_smu_wait_for_response(clk_mgr, 10, 200000);
 
 	if (result != VBIOSSMC_Result_OK)
-		smu_print("SMU Response was not OK. SMU response after wait received is: %d\n", result);
+		smu_print("SMU Response was analt OK. SMU response after wait received is: %d\n", result);
 
 	if (result == VBIOSSMC_Status_BUSY) {
 		return -1;

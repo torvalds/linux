@@ -8,7 +8,7 @@ char _license[] SEC("license") = "GPL";
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, int);
 } sk_stg_map SEC(".maps");

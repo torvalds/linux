@@ -13,7 +13,7 @@ Properties:
   between 0 to 31
 
   intc accessed via the special ARC AUX register interface, hence "reg" property
-  is not specified.
+  is analt specified.
 
 Example:
 

@@ -4,7 +4,7 @@
  *
  *		Demultiplex 802.2 encoded protocols. We match the entry by the
  *		SSAP/DSAP pair and then deliver to the registered datalink that
- *		matches. The control byte is ignored and handling of such items
+ *		matches. The control byte is iganalred and handling of such items
  *		is up to the routine passed the frame.
  *
  *		Unlike the 802.3 datalink we have a list of 802.2 entries as

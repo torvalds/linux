@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -72,21 +72,21 @@ static inline void rcl_u32(struct vc4_rcl_setup *setup, u32 val)
 }
 
 /*
- * Emits a no-op STORE_TILE_BUFFER_GENERAL.
+ * Emits a anal-op STORE_TILE_BUFFER_GENERAL.
  *
  * If we emit a PACKET_TILE_COORDINATES, it must be followed by a store of
- * some sort before another load is triggered.
+ * some sort before aanalther load is triggered.
  */
 static void vc4_store_before_load(struct vc4_rcl_setup *setup)
 {
 	rcl_u8(setup, VC4_PACKET_STORE_TILE_BUFFER_GENERAL);
 	rcl_u16(setup,
-		VC4_SET_FIELD(VC4_LOADSTORE_TILE_BUFFER_NONE,
+		VC4_SET_FIELD(VC4_LOADSTORE_TILE_BUFFER_ANALNE,
 			      VC4_LOADSTORE_TILE_BUFFER_BUFFER) |
 		VC4_STORE_TILE_BUFFER_DISABLE_COLOR_CLEAR |
 		VC4_STORE_TILE_BUFFER_DISABLE_ZS_CLEAR |
 		VC4_STORE_TILE_BUFFER_DISABLE_VG_MASK_CLEAR);
-	rcl_u32(setup, 0); /* no address, since we're in None mode */
+	rcl_u32(setup, 0); /* anal address, since we're in Analne mode */
 }
 
 /*
@@ -127,7 +127,7 @@ static void emit_tile(struct vc4_exec_info *exec,
 	struct drm_vc4_submit_cl *args = exec->args;
 	bool has_bin = args->bin_cl_size != 0;
 
-	/* Note that the load doesn't actually occur until the
+	/* Analte that the load doesn't actually occur until the
 	 * tile coords packet is processed, and only one load
 	 * may be outstanding at a time.
 	 */
@@ -336,7 +336,7 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 
 	/* The tile buffer gets cleared when the previous tile is stored.  If
 	 * the clear values changed between frames, then the tile buffer has
-	 * stale clear values in it, so we have to do a store in None mode (no
+	 * stale clear values in it, so we have to do a store in Analne mode (anal
 	 * writes) so that we trigger the tile buffer clear.
 	 */
 	if (args->flags & VC4_SUBMIT_CL_USE_CLEAR_COLOR) {
@@ -349,8 +349,8 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 		vc4_tile_coordinates(setup, 0, 0);
 
 		rcl_u8(setup, VC4_PACKET_STORE_TILE_BUFFER_GENERAL);
-		rcl_u16(setup, VC4_LOADSTORE_TILE_BUFFER_NONE);
-		rcl_u32(setup, 0); /* no address, since we're in None mode */
+		rcl_u16(setup, VC4_LOADSTORE_TILE_BUFFER_ANALNE);
+		rcl_u32(setup, 0); /* anal address, since we're in Analne mode */
 	}
 
 	rcl_u8(setup, VC4_PACKET_TILE_RENDERING_MODE_CONFIG);
@@ -411,7 +411,7 @@ static int vc4_rcl_msaa_surface_setup(struct vc4_exec_info *exec,
 				      struct drm_vc4_submit_rcl_surface *surf)
 {
 	if (surf->flags != 0 || surf->bits != 0) {
-		DRM_DEBUG("MSAA surface had nonzero flags/bits\n");
+		DRM_DEBUG("MSAA surface had analnzero flags/bits\n");
 		return -EINVAL;
 	}
 
@@ -463,7 +463,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 
 	if (surf->flags & VC4_SUBMIT_RCL_SURFACE_READ_IS_FULL_RES) {
 		if (surf == &exec->args->zs_write) {
-			DRM_DEBUG("general zs write may not be a full-res.\n");
+			DRM_DEBUG("general zs write may analt be a full-res.\n");
 			return -EINVAL;
 		}
 
@@ -483,7 +483,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 	if (surf->bits & ~(VC4_LOADSTORE_TILE_BUFFER_TILING_MASK |
 			   VC4_LOADSTORE_TILE_BUFFER_BUFFER_MASK |
 			   VC4_LOADSTORE_TILE_BUFFER_FORMAT_MASK)) {
-		DRM_DEBUG("Unknown bits in load/store: 0x%04x\n",
+		DRM_DEBUG("Unkanalwn bits in load/store: 0x%04x\n",
 			  surf->bits);
 		return -EINVAL;
 	}
@@ -495,7 +495,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 
 	if (buffer == VC4_LOADSTORE_TILE_BUFFER_ZS) {
 		if (format != 0) {
-			DRM_DEBUG("No color format should be set for ZS\n");
+			DRM_DEBUG("Anal color format should be set for ZS\n");
 			return -EINVAL;
 		}
 		cpp = 4;
@@ -543,7 +543,7 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 	int cpp;
 
 	if (surf->flags != 0) {
-		DRM_DEBUG("No flags supported on render config.\n");
+		DRM_DEBUG("Anal flags supported on render config.\n");
 		return -EINVAL;
 	}
 
@@ -551,7 +551,7 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 			   VC4_RENDER_CONFIG_FORMAT_MASK |
 			   VC4_RENDER_CONFIG_MS_MODE_4X |
 			   VC4_RENDER_CONFIG_DECIMATE_MODE_4X)) {
-		DRM_DEBUG("Unknown bits in render config: 0x%04x\n",
+		DRM_DEBUG("Unkanalwn bits in render config: 0x%04x\n",
 			  surf->bits);
 		return -EINVAL;
 	}
@@ -600,7 +600,7 @@ int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (args->min_x_tile > args->max_x_tile ||
 	    args->min_y_tile > args->max_y_tile) {
@@ -651,7 +651,7 @@ int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	if (ret)
 		return ret;
 
-	/* We shouldn't even have the job submitted to us if there's no
+	/* We shouldn't even have the job submitted to us if there's anal
 	 * surface to write out.
 	 */
 	if (!setup.color_write && !setup.zs_write &&

@@ -101,9 +101,9 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 		}
 
 		if (!test_bit(NETFS_RREQ_DONT_UNLOCK_FOLIOS, &rreq->flags)) {
-			if (folio->index == rreq->no_unlock_folio &&
-			    test_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags))
-				_debug("no unlock");
+			if (folio->index == rreq->anal_unlock_folio &&
+			    test_bit(NETFS_RREQ_ANAL_UNLOCK_FOLIO, &rreq->flags))
+				_debug("anal unlock");
 			else
 				folio_unlock(folio);
 		}
@@ -138,7 +138,7 @@ static void netfs_rreq_expand(struct netfs_io_request *rreq,
 	if (rreq->netfs_ops->expand_readahead)
 		rreq->netfs_ops->expand_readahead(rreq);
 
-	/* Expand the request if the cache wants it to start earlier.  Note
+	/* Expand the request if the cache wants it to start earlier.  Analte
 	 * that the expansion may get further extended if the VM wishes to
 	 * insert THPs and the preferred start and/or end wind up in the middle
 	 * of THPs.
@@ -162,7 +162,7 @@ static void netfs_rreq_expand(struct netfs_io_request *rreq,
  * Begin an operation, and fetch the stored zero point value from the cookie if
  * available.
  */
-static int netfs_begin_cache_read(struct netfs_io_request *rreq, struct netfs_inode *ctx)
+static int netfs_begin_cache_read(struct netfs_io_request *rreq, struct netfs_ianalde *ctx)
 {
 	return fscache_begin_read_operation(&rreq->cache_resources, netfs_i_cookie(ctx));
 }
@@ -172,20 +172,20 @@ static int netfs_begin_cache_read(struct netfs_io_request *rreq, struct netfs_in
  * @ractl: The description of the readahead request
  *
  * Fulfil a readahead request by drawing data from the cache if possible, or
- * the netfs if not.  Space beyond the EOF is zero-filled.  Multiple I/O
+ * the netfs if analt.  Space beyond the EOF is zero-filled.  Multiple I/O
  * requests from different sources will get munged together.  If necessary, the
  * readahead window can be expanded in either direction to a more convenient
  * alighment for RPC efficiency or to make storage in the cache feasible.
  *
  * The calling netfs must initialise a netfs context contiguous to the vfs
- * inode before calling this.
+ * ianalde before calling this.
  *
- * This is usable whether or not caching is enabled.
+ * This is usable whether or analt caching is enabled.
  */
 void netfs_readahead(struct readahead_control *ractl)
 {
 	struct netfs_io_request *rreq;
-	struct netfs_inode *ctx = netfs_inode(ractl->mapping->host);
+	struct netfs_ianalde *ctx = netfs_ianalde(ractl->mapping->host);
 	int ret;
 
 	_enter("%lx,%x", readahead_index(ractl), readahead_count(ractl));
@@ -201,7 +201,7 @@ void netfs_readahead(struct readahead_control *ractl)
 		return;
 
 	ret = netfs_begin_cache_read(rreq, ctx);
-	if (ret == -ENOMEM || ret == -EINTR || ret == -ERESTARTSYS)
+	if (ret == -EANALMEM || ret == -EINTR || ret == -ERESTARTSYS)
 		goto cleanup_free;
 
 	netfs_stat(&netfs_n_rh_readahead);
@@ -236,19 +236,19 @@ EXPORT_SYMBOL(netfs_readahead);
  * @folio: The folio to read
  *
  * Fulfil a read_folio request by drawing data from the cache if
- * possible, or the netfs if not.  Space beyond the EOF is zero-filled.
+ * possible, or the netfs if analt.  Space beyond the EOF is zero-filled.
  * Multiple I/O requests from different sources will get munged together.
  *
  * The calling netfs must initialise a netfs context contiguous to the vfs
- * inode before calling this.
+ * ianalde before calling this.
  *
- * This is usable whether or not caching is enabled.
+ * This is usable whether or analt caching is enabled.
  */
 int netfs_read_folio(struct file *file, struct folio *folio)
 {
 	struct address_space *mapping = folio->mapping;
 	struct netfs_io_request *rreq;
-	struct netfs_inode *ctx = netfs_inode(mapping->host);
+	struct netfs_ianalde *ctx = netfs_ianalde(mapping->host);
 	struct folio *sink = NULL;
 	int ret;
 
@@ -263,7 +263,7 @@ int netfs_read_folio(struct file *file, struct folio *folio)
 	}
 
 	ret = netfs_begin_cache_read(rreq, ctx);
-	if (ret == -ENOMEM || ret == -EINTR || ret == -ERESTARTSYS)
+	if (ret == -EANALMEM || ret == -EINTR || ret == -ERESTARTSYS)
 		goto discard;
 
 	netfs_stat(&netfs_n_rh_readpage);
@@ -285,7 +285,7 @@ int netfs_read_folio(struct file *file, struct folio *folio)
 		size_t nr_bvec = flen / PAGE_SIZE + 2;
 		size_t part;
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		bvec = kmalloc_array(nr_bvec, sizeof(*bvec), GFP_KERNEL);
 		if (!bvec)
 			goto discard;
@@ -347,8 +347,8 @@ EXPORT_SYMBOL(netfs_read_folio);
 static bool netfs_skip_folio_read(struct folio *folio, loff_t pos, size_t len,
 				 bool always_fill)
 {
-	struct inode *inode = folio_inode(folio);
-	loff_t i_size = i_size_read(inode);
+	struct ianalde *ianalde = folio_ianalde(folio);
+	loff_t i_size = i_size_read(ianalde);
 	size_t offset = offset_in_folio(folio, pos);
 	size_t plen = folio_size(folio);
 
@@ -389,7 +389,7 @@ zero_out:
  * @_fsdata: Place for the netfs to store a cookie
  *
  * Pre-read data for a write-begin request by drawing data from the cache if
- * possible, or the netfs if not.  Space beyond the EOF is zero-filled.
+ * possible, or the netfs if analt.  Space beyond the EOF is zero-filled.
  * Multiple I/O requests from different sources will get munged together.  If
  * necessary, the readahead window can be expanded in either direction to a
  * more convenient alighment for RPC efficiency or to make storage in the cache
@@ -407,11 +407,11 @@ zero_out:
  * will cause the folio to be re-got and the process to be retried.
  *
  * The calling netfs must initialise a netfs context contiguous to the vfs
- * inode before calling this.
+ * ianalde before calling this.
  *
- * This is usable whether or not caching is enabled.
+ * This is usable whether or analt caching is enabled.
  */
-int netfs_write_begin(struct netfs_inode *ctx,
+int netfs_write_begin(struct netfs_ianalde *ctx,
 		      struct file *file, struct address_space *mapping,
 		      loff_t pos, unsigned int len, struct folio **_folio,
 		      void **_fsdata)
@@ -450,7 +450,7 @@ retry:
 	if (!netfs_is_cache_enabled(ctx) &&
 	    netfs_skip_folio_read(folio, pos, len, false)) {
 		netfs_stat(&netfs_n_rh_write_zskip);
-		goto have_folio_no_wait;
+		goto have_folio_anal_wait;
 	}
 
 	rreq = netfs_alloc_request(mapping, file,
@@ -460,11 +460,11 @@ retry:
 		ret = PTR_ERR(rreq);
 		goto error;
 	}
-	rreq->no_unlock_folio	= folio->index;
-	__set_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags);
+	rreq->anal_unlock_folio	= folio->index;
+	__set_bit(NETFS_RREQ_ANAL_UNLOCK_FOLIO, &rreq->flags);
 
 	ret = netfs_begin_cache_read(rreq, ctx);
-	if (ret == -ENOMEM || ret == -EINTR || ret == -ERESTARTSYS)
+	if (ret == -EANALMEM || ret == -EINTR || ret == -ERESTARTSYS)
 		goto error_put;
 
 	netfs_stat(&netfs_n_rh_write_begin);
@@ -494,7 +494,7 @@ have_folio:
 	ret = folio_wait_fscache_killable(folio);
 	if (ret < 0)
 		goto error;
-have_folio_no_wait:
+have_folio_anal_wait:
 	*_folio = folio;
 	_leave(" = 0");
 	return 0;
@@ -519,14 +519,14 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 {
 	struct netfs_io_request *rreq;
 	struct address_space *mapping = folio->mapping;
-	struct netfs_inode *ctx = netfs_inode(mapping->host);
+	struct netfs_ianalde *ctx = netfs_ianalde(mapping->host);
 	unsigned long long start = folio_pos(folio);
 	size_t flen = folio_size(folio);
 	int ret;
 
 	_enter("%zx @%llx", flen, start);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	rreq = netfs_alloc_request(mapping, file, start, flen,
 				   NETFS_READ_FOR_WRITE);
@@ -535,10 +535,10 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 		goto error;
 	}
 
-	rreq->no_unlock_folio = folio->index;
-	__set_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags);
+	rreq->anal_unlock_folio = folio->index;
+	__set_bit(NETFS_RREQ_ANAL_UNLOCK_FOLIO, &rreq->flags);
 	ret = netfs_begin_cache_read(rreq, ctx);
-	if (ret == -ENOMEM || ret == -EINTR || ret == -ERESTARTSYS)
+	if (ret == -EANALMEM || ret == -EINTR || ret == -ERESTARTSYS)
 		goto error_put;
 
 	netfs_stat(&netfs_n_rh_write_begin);
@@ -567,33 +567,33 @@ error:
  * This is the ->read_iter() routine for all filesystems that can use the page
  * cache directly.
  *
- * The IOCB_NOWAIT flag in iocb->ki_flags indicates that -EAGAIN shall be
- * returned when no data can be read without waiting for I/O requests to
+ * The IOCB_ANALWAIT flag in iocb->ki_flags indicates that -EAGAIN shall be
+ * returned when anal data can be read without waiting for I/O requests to
  * complete; it doesn't prevent readahead.
  *
- * The IOCB_NOIO flag in iocb->ki_flags indicates that no new I/O requests
- * shall be made for the read or for readahead.  When no data can be read,
+ * The IOCB_ANALIO flag in iocb->ki_flags indicates that anal new I/O requests
+ * shall be made for the read or for readahead.  When anal data can be read,
  * -EAGAIN shall be returned.  When readahead would be triggered, a partial,
  * possibly empty read shall be returned.
  *
  * Return:
  * * number of bytes copied, even for partial reads
- * * negative error code (or 0 if IOCB_NOIO) if nothing was read
+ * * negative error code (or 0 if IOCB_ANALIO) if analthing was read
  */
 ssize_t netfs_buffered_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
-	struct netfs_inode *ictx = netfs_inode(inode);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
+	struct netfs_ianalde *ictx = netfs_ianalde(ianalde);
 	ssize_t ret;
 
 	if (WARN_ON_ONCE((iocb->ki_flags & IOCB_DIRECT) ||
 			 test_bit(NETFS_ICTX_UNBUFFERED, &ictx->flags)))
 		return -EINVAL;
 
-	ret = netfs_start_io_read(inode);
+	ret = netfs_start_io_read(ianalde);
 	if (ret == 0) {
 		ret = filemap_read(iocb, iter, 0);
-		netfs_end_io_read(inode);
+		netfs_end_io_read(ianalde);
 	}
 	return ret;
 }
@@ -607,22 +607,22 @@ EXPORT_SYMBOL(netfs_buffered_read_iter);
  * This is the ->read_iter() routine for all filesystems that can use the page
  * cache directly.
  *
- * The IOCB_NOWAIT flag in iocb->ki_flags indicates that -EAGAIN shall be
- * returned when no data can be read without waiting for I/O requests to
+ * The IOCB_ANALWAIT flag in iocb->ki_flags indicates that -EAGAIN shall be
+ * returned when anal data can be read without waiting for I/O requests to
  * complete; it doesn't prevent readahead.
  *
- * The IOCB_NOIO flag in iocb->ki_flags indicates that no new I/O requests
- * shall be made for the read or for readahead.  When no data can be read,
+ * The IOCB_ANALIO flag in iocb->ki_flags indicates that anal new I/O requests
+ * shall be made for the read or for readahead.  When anal data can be read,
  * -EAGAIN shall be returned.  When readahead would be triggered, a partial,
  * possibly empty read shall be returned.
  *
  * Return:
  * * number of bytes copied, even for partial reads
- * * negative error code (or 0 if IOCB_NOIO) if nothing was read
+ * * negative error code (or 0 if IOCB_ANALIO) if analthing was read
  */
 ssize_t netfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct netfs_inode *ictx = netfs_inode(iocb->ki_filp->f_mapping->host);
+	struct netfs_ianalde *ictx = netfs_ianalde(iocb->ki_filp->f_mapping->host);
 
 	if ((iocb->ki_flags & IOCB_DIRECT) ||
 	    test_bit(NETFS_ICTX_UNBUFFERED, &ictx->flags))

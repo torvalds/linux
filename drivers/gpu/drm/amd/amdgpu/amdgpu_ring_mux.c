@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -59,7 +59,7 @@ static void amdgpu_ring_mux_copy_pkt_from_sw_ring(struct amdgpu_ring_mux *mux,
 	end = s_end & ring->buf_mask;
 
 	if (start == end) {
-		DRM_ERROR("no more data copied from sw ring\n");
+		DRM_ERROR("anal more data copied from sw ring\n");
 		return;
 	}
 	if (start > end) {
@@ -92,12 +92,12 @@ static void amdgpu_mux_resubmit_chunks(struct amdgpu_ring_mux *mux)
 	}
 
 	if (!e) {
-		DRM_ERROR("%s no low priority ring found\n", __func__);
+		DRM_ERROR("%s anal low priority ring found\n", __func__);
 		return;
 	}
 
 	last_seq = atomic_read(&e->ring->fence_drv.last_seq);
-	seq = mux->seqno_to_resubmit;
+	seq = mux->seqanal_to_resubmit;
 	if (last_seq < seq) {
 		/*resubmit all the fences between (last_seq, seq]*/
 		list_for_each_entry(chunk, &e->list, entry) {
@@ -154,7 +154,7 @@ int amdgpu_ring_mux_init(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring,
 
 	mux->ring_entry = kcalloc(entry_size, sizeof(struct amdgpu_mux_entry), GFP_KERNEL);
 	if (!mux->ring_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mux->ring_entry_size = entry_size;
 	mux->s_resubmit = false;
@@ -164,7 +164,7 @@ int amdgpu_ring_mux_init(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring,
 						  SLAB_HWCACHE_ALIGN, NULL);
 	if (!amdgpu_mux_chunk_slab) {
 		DRM_ERROR("create amdgpu_mux_chunk cache failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_init(&mux->lock);
@@ -199,7 +199,7 @@ int amdgpu_ring_mux_add_sw_ring(struct amdgpu_ring_mux *mux, struct amdgpu_ring 
 
 	if (mux->num_ring_entries >= mux->ring_entry_size) {
 		DRM_ERROR("add sw ring exceeding max entry size\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	e = &mux->ring_entry[mux->num_ring_entries];
@@ -222,7 +222,7 @@ void amdgpu_ring_mux_set_wptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *r
 
 	e = amdgpu_ring_mux_sw_entry(mux, ring);
 	if (!e) {
-		DRM_ERROR("cannot find entry for sw ring\n");
+		DRM_ERROR("cananalt find entry for sw ring\n");
 		spin_unlock(&mux->lock);
 		return;
 	}
@@ -257,7 +257,7 @@ u64 amdgpu_ring_mux_get_wptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ri
 
 	e = amdgpu_ring_mux_sw_entry(mux, ring);
 	if (!e) {
-		DRM_ERROR("cannot find entry for sw ring\n");
+		DRM_ERROR("cananalt find entry for sw ring\n");
 		return 0;
 	}
 
@@ -269,9 +269,9 @@ u64 amdgpu_ring_mux_get_wptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ri
  * @mux: the multiplexer the software rings attach to
  * @ring: the software ring of which we calculate the readptr
  *
- * The return value of the readptr is not precise while the other rings could
+ * The return value of the readptr is analt precise while the other rings could
  * write data onto the real ring buffer.After overwriting on the real ring, we
- * can not decide if our packages have been excuted or not read yet. However,
+ * can analt decide if our packages have been excuted or analt read yet. However,
  * this function is only called by the tools such as umr to collect the latest
  * packages for the hang analysis. We assume the hang happens near our latest
  * submit. Thus we could use the following logic to give the clue:
@@ -287,7 +287,7 @@ u64 amdgpu_ring_mux_get_rptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ri
 
 	e = amdgpu_ring_mux_sw_entry(mux, ring);
 	if (!e) {
-		DRM_ERROR("no sw entry found!\n");
+		DRM_ERROR("anal sw entry found!\n");
 		return 0;
 	}
 
@@ -341,8 +341,8 @@ void amdgpu_sw_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 	amdgpu_ring_mux_set_wptr(mux, ring, ring->wptr);
 }
 
-/* Override insert_nop to prevent emitting nops to the software rings */
-void amdgpu_sw_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+/* Override insert_analp to prevent emitting analps to the software rings */
+void amdgpu_sw_ring_insert_analp(struct amdgpu_ring *ring, uint32_t count)
 {
 	WARN_ON(!ring->is_sw_ring);
 }
@@ -359,7 +359,7 @@ unsigned int amdgpu_sw_ring_priority(int idx)
 		sw_ring_info[idx].hw_pio : AMDGPU_RING_PRIO_DEFAULT;
 }
 
-/*Scan on low prio rings to have unsignaled fence and high ring has no fence.*/
+/*Scan on low prio rings to have unsignaled fence and high ring has anal fence.*/
 static int amdgpu_mcbp_scan(struct amdgpu_ring_mux *mux)
 {
 	struct amdgpu_ring *ring;
@@ -442,7 +442,7 @@ void amdgpu_ring_mux_start_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *r
 
 	e = amdgpu_ring_mux_sw_entry(mux, ring);
 	if (!e) {
-		DRM_ERROR("cannot find entry!\n");
+		DRM_ERROR("cananalt find entry!\n");
 		return;
 	}
 
@@ -468,7 +468,7 @@ static void scan_and_remove_signaled_chunk(struct amdgpu_ring_mux *mux, struct a
 
 	e = amdgpu_ring_mux_sw_entry(mux, ring);
 	if (!e) {
-		DRM_ERROR("cannot find entry!\n");
+		DRM_ERROR("cananalt find entry!\n");
 		return;
 	}
 
@@ -491,13 +491,13 @@ void amdgpu_ring_mux_ib_mark_offset(struct amdgpu_ring_mux *mux,
 
 	e = amdgpu_ring_mux_sw_entry(mux, ring);
 	if (!e) {
-		DRM_ERROR("cannot find entry!\n");
+		DRM_ERROR("cananalt find entry!\n");
 		return;
 	}
 
 	chunk = list_last_entry(&e->list, struct amdgpu_mux_chunk, entry);
 	if (!chunk) {
-		DRM_ERROR("cannot find chunk!\n");
+		DRM_ERROR("cananalt find chunk!\n");
 		return;
 	}
 
@@ -524,13 +524,13 @@ void amdgpu_ring_mux_end_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *rin
 
 	e = amdgpu_ring_mux_sw_entry(mux, ring);
 	if (!e) {
-		DRM_ERROR("cannot find entry!\n");
+		DRM_ERROR("cananalt find entry!\n");
 		return;
 	}
 
 	chunk = list_last_entry(&e->list, struct amdgpu_mux_chunk, entry);
 	if (!chunk) {
-		DRM_ERROR("cannot find chunk!\n");
+		DRM_ERROR("cananalt find chunk!\n");
 		return;
 	}
 
@@ -561,14 +561,14 @@ bool amdgpu_mcbp_handle_trailing_fence_irq(struct amdgpu_ring_mux *mux)
 	}
 
 	if (!ring) {
-		DRM_ERROR("cannot find low priority ring\n");
+		DRM_ERROR("cananalt find low priority ring\n");
 		return false;
 	}
 
 	amdgpu_fence_process(ring);
 	if (amdgpu_fence_count_emitted(ring) > 0) {
 		mux->s_resubmit = true;
-		mux->seqno_to_resubmit = ring->fence_drv.sync_seq;
+		mux->seqanal_to_resubmit = ring->fence_drv.sync_seq;
 		amdgpu_ring_mux_schedule_resubmit(mux);
 	}
 

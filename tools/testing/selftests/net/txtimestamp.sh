@@ -57,7 +57,7 @@ run_test_one() {
 
 usage() {
 	echo "Usage: $0 [ -r | --run ] <txtimestamp args> | [ -h | --help ]"
-	echo "  (no args)  Run all tests"
+	echo "  (anal args)  Run all tests"
 	echo "  -r|--run  Run an individual test with arguments"
 	echo "  -h|--help Help"
 }

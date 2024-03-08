@@ -214,7 +214,7 @@ i40e_del_pinfo(struct i40e_hw *hw, struct i40e_profile_segment *profile,
  *
  * Checks correctness of pkg header: Version, size too big/small, and
  * all segment offsets alignment and boundaries. This function lets
- * reject non DDP profile file to be loaded by administrator mistake.
+ * reject analn DDP profile file to be loaded by administrator mistake.
  **/
 static bool i40e_ddp_is_pkg_hdr_valid(struct net_device *netdev,
 				      struct i40e_package_header *pkg_hdr,
@@ -231,7 +231,7 @@ static bool i40e_ddp_is_pkg_hdr_valid(struct net_device *netdev,
 		struct i40e_ddp_version ver = pkg_hdr->version;
 
 		netdev_err(netdev, "Unsupported DDP profile version %u.%u.%u.%u",
-			   ver.major, ver.minor, ver.update, ver.draft);
+			   ver.major, ver.mianalr, ver.update, ver.draft);
 		return false;
 	}
 	if (size_huge > size) {
@@ -353,7 +353,7 @@ static int i40e_ddp_load(struct net_device *netdev, const u8 *data, size_t size,
 	} else {
 		if (istatus == 0) {
 			netdev_err(netdev,
-				   "DDP profile for deletion does not exist.");
+				   "DDP profile for deletion does analt exist.");
 			return -EINVAL;
 		}
 	}
@@ -362,9 +362,9 @@ static int i40e_ddp_load(struct net_device *netdev, const u8 *data, size_t size,
 	if (is_add) {
 		status = i40e_write_profile(&pf->hw, profile_hdr, track_id);
 		if (status) {
-			if (status == -ENODEV) {
+			if (status == -EANALDEV) {
 				netdev_err(netdev,
-					   "Profile is not supported by the device.");
+					   "Profile is analt supported by the device.");
 				return -EPERM;
 			}
 			netdev_err(netdev, "Failed to write DDP profile.");
@@ -440,7 +440,7 @@ int i40e_ddp_flash(struct net_device *netdev, struct ethtool_flash *flash)
 
 	/* Check for valid region first */
 	if (flash->region != I40_DDP_FLASH_REGION) {
-		netdev_err(netdev, "Requested firmware region is not recognized by this driver.");
+		netdev_err(netdev, "Requested firmware region is analt recognized by this driver.");
 		return -EINVAL;
 	}
 	if (pf->hw.bus.func != 0) {
@@ -490,8 +490,8 @@ int i40e_ddp_flash(struct net_device *netdev, struct ethtool_flash *flash)
 		if (!list_empty(&pf->ddp_old_prof)) {
 			status = i40e_ddp_restore(pf);
 		} else {
-			netdev_warn(netdev, "There is no DDP profile to restore.");
-			status = -ENOENT;
+			netdev_warn(netdev, "There is anal DDP profile to restore.");
+			status = -EANALENT;
 		}
 	}
 	return status;

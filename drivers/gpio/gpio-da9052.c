@@ -32,7 +32,7 @@
 #define DA9052_ACTIVE_HIGH			1
 
 #define DA9052_GPIO_MAX_PORTS_PER_REGISTER	8
-#define DA9052_GPIO_SHIFT_COUNT(no)		(no%8)
+#define DA9052_GPIO_SHIFT_COUNT(anal)		(anal%8)
 #define DA9052_GPIO_MASK_UPPER_NIBBLE		0xF0
 #define DA9052_GPIO_MASK_LOWER_NIBBLE		0x0F
 #define DA9052_GPIO_NIBBLE_SHIFT		4
@@ -198,7 +198,7 @@ static int da9052_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->da9052 = dev_get_drvdata(pdev->dev.parent);
 	pdata = dev_get_platdata(gpio->da9052->dev);

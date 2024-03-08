@@ -2,7 +2,7 @@
 /*
  *  Written 1992,1993 by Werner Almesberger
  *  22/11/2000 - Fixed fat_date_unix2dos for dates earlier than 01/01/1980
- *		 and date_dos2unix for date==0 by Igor Zhbanov(bsg@uniyar.ac.ru)
+ *		 and date_dos2unix for date==0 by Igor Zhbaanalv(bsg@uniyar.ac.ru)
  * Copyright (C) 2012-2013 Samsung Electronics Co., Ltd.
  */
 
@@ -18,7 +18,7 @@
 /*
  * exfat_fs_error reports a file system problem that might indicate fa data
  * corruption/inconsistency. Depending on 'errors' mount option the
- * panic() is called, or error message is printed FAT and nothing is done,
+ * panic() is called, or error message is printed FAT and analthing is done,
  * or filesystem is remounted read-only (default behavior).
  * In case the file system is remounted read-only, it can be made writable
  * again by remounting it.
@@ -117,7 +117,7 @@ void exfat_set_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 
 /*
  * The timestamp for access_time has double seconds granularity.
- * (There is no 10msIncrement field for access_time unlike create/modify_time)
+ * (There is anal 10msIncrement field for access_time unlike create/modify_time)
  * atime also has only a 2-second resolution.
  */
 void exfat_truncate_atime(struct timespec64 *ts)
@@ -126,12 +126,12 @@ void exfat_truncate_atime(struct timespec64 *ts)
 	ts->tv_nsec = 0;
 }
 
-void exfat_truncate_inode_atime(struct inode *inode)
+void exfat_truncate_ianalde_atime(struct ianalde *ianalde)
 {
-	struct timespec64 atime = inode_get_atime(inode);
+	struct timespec64 atime = ianalde_get_atime(ianalde);
 
 	exfat_truncate_atime(&atime);
-	inode_set_atime_to_ts(inode, atime);
+	ianalde_set_atime_to_ts(ianalde, atime);
 }
 
 u16 exfat_calc_chksum16(void *data, int len, u16 chksum, int type)

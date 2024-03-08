@@ -17,12 +17,12 @@
 #define __IA_CSS_BNR2_2_TYPES_H
 
 /* @file
-* CSS-API header file for Bayer Noise Reduction parameters.
+* CSS-API header file for Bayer Analise Reduction parameters.
 */
 
 #include "type_support.h" /* int32_t */
 
-/* Bayer Noise Reduction 2.2 configuration
+/* Bayer Analise Reduction 2.2 configuration
  *
  * \brief BNR2_2 public parameters.
  * \details Struct with all parameters for the BNR2.2 kernel that can be set
@@ -44,13 +44,13 @@ struct ia_css_bnr2_2_config {
 	s32 d_var_gain_slope_b;
 	/**@}*/
 	/**@{*/
-	/* Non-Directional variance gain for R/G/B components in dark region */
+	/* Analn-Directional variance gain for R/G/B components in dark region */
 	s32 n_var_gain_r;
 	s32 n_var_gain_g;
 	s32 n_var_gain_b;
 	/**@}*/
 	/**@{*/
-	/* Slope of Non-Directional variance gain between dark and bright region */
+	/* Slope of Analn-Directional variance gain between dark and bright region */
 	s32 n_var_gain_slope_r;
 	s32 n_var_gain_slope_g;
 	s32 n_var_gain_slope_b;
@@ -65,8 +65,8 @@ struct ia_css_bnr2_2_config {
 	s32 detail_level_offset;	/** Bias value for low contrast texture control */
 	s32 d_var_th_min;		/** Minimum clipping value for directional variance*/
 	s32 d_var_th_max;		/** Maximum clipping value for diretional variance*/
-	s32 n_var_th_min;		/** Minimum clipping value for non-directional variance*/
-	s32 n_var_th_max;		/** Maximum clipping value for non-directional variance*/
+	s32 n_var_th_min;		/** Minimum clipping value for analn-directional variance*/
+	s32 n_var_th_max;		/** Maximum clipping value for analn-directional variance*/
 };
 
 #endif /* __IA_CSS_BNR2_2_TYPES_H */

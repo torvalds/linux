@@ -23,12 +23,12 @@
 static void iwl_mvm_ptp_update_new_read(struct iwl_mvm *mvm, u32 gp2)
 {
 	/* If the difference is above the threshold, assume it's a wraparound.
-	 * Otherwise assume it's an old read and ignore it.
+	 * Otherwise assume it's an old read and iganalre it.
 	 */
 	if (gp2 < mvm->ptp_data.last_gp2 &&
 	    mvm->ptp_data.last_gp2 - gp2 < IWL_PTP_WRAP_THRESHOLD_USEC) {
 		IWL_DEBUG_INFO(mvm,
-			       "PTP: ignore old read (gp2=%u, last_gp2=%u)\n",
+			       "PTP: iganalre old read (gp2=%u, last_gp2=%u)\n",
 			       gp2, mvm->ptp_data.last_gp2);
 		return;
 	}
@@ -61,10 +61,10 @@ u64 iwl_mvm_ptp_get_adj_time(struct iwl_mvm *mvm, u64 base_time_ns)
 		(data->wrap_counter * IWL_PTP_GP2_WRAP * NSEC_PER_USEC);
 
 	/* It is possible that a GP2 timestamp was received from fw before the
-	 * last scale update. Since we don't know how to scale - ignore it.
+	 * last scale update. Since we don't kanalw how to scale - iganalre it.
 	 */
 	if (base_time_ns < last_gp2_ns) {
-		IWL_DEBUG_INFO(mvm, "Time before scale update - ignore\n");
+		IWL_DEBUG_INFO(mvm, "Time before scale update - iganalre\n");
 		return 0;
 	}
 
@@ -163,8 +163,8 @@ iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 	memset(xtstamp, 0, sizeof(struct system_device_crosststamp));
 
 	if (!mvm->ptp_data.ptp_clock) {
-		IWL_ERR(mvm, "No PHC clock registered\n");
-		return -ENODEV;
+		IWL_ERR(mvm, "Anal PHC clock registered\n");
+		return -EANALDEV;
 	}
 
 	mutex_lock(&mvm->mutex);
@@ -182,7 +182,7 @@ iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 	IWL_INFO(mvm, "Got Sync Time: GP2:%u, last_GP2: %u, GP2_ns: %lld, sys_time: %lld\n",
 		 gp2, mvm->ptp_data.last_gp2, gp2_ns, (s64)sys_time);
 
-	/* System monotonic raw time is not used */
+	/* System moanaltonic raw time is analt used */
 	xtstamp->device = (ktime_t)gp2_ns;
 	xtstamp->sys_realtime = sys_time;
 

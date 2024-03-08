@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -69,7 +69,7 @@ static int jpeg_v2_5_early_init(void *handle)
 	}
 	if (adev->jpeg.harvest_config == (AMDGPU_JPEG_HARVEST_JPEG0 |
 					 AMDGPU_JPEG_HARVEST_JPEG1))
-		return -ENOENT;
+		return -EANALENT;
 
 	jpeg_v2_5_set_dec_ring_funcs(adev);
 	jpeg_v2_5_set_irq_funcs(adev);
@@ -206,7 +206,7 @@ static int jpeg_v2_5_hw_init(void *handle)
  *
  * @handle: amdgpu_device pointer
  *
- * Stop the JPEG block, mark ring as not ready any more
+ * Stop the JPEG block, mark ring as analt ready any more
  */
 static int jpeg_v2_5_hw_fini(void *handle)
 {
@@ -672,7 +672,7 @@ static const struct amdgpu_ring_funcs jpeg_v2_5_dec_ring_vm_funcs = {
 	.emit_vm_flush = jpeg_v2_0_dec_ring_emit_vm_flush,
 	.test_ring = amdgpu_jpeg_dec_ring_test_ring,
 	.test_ib = amdgpu_jpeg_dec_ring_test_ib,
-	.insert_nop = jpeg_v2_0_dec_ring_nop,
+	.insert_analp = jpeg_v2_0_dec_ring_analp,
 	.insert_start = jpeg_v2_0_dec_ring_insert_start,
 	.insert_end = jpeg_v2_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -701,7 +701,7 @@ static const struct amdgpu_ring_funcs jpeg_v2_6_dec_ring_vm_funcs = {
 	.emit_vm_flush = jpeg_v2_0_dec_ring_emit_vm_flush,
 	.test_ring = amdgpu_jpeg_dec_ring_test_ring,
 	.test_ib = amdgpu_jpeg_dec_ring_test_ib,
-	.insert_nop = jpeg_v2_0_dec_ring_nop,
+	.insert_analp = jpeg_v2_0_dec_ring_analp,
 	.insert_start = jpeg_v2_6_dec_ring_insert_start,
 	.insert_end = jpeg_v2_6_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -758,7 +758,7 @@ const struct amdgpu_ip_block_version jpeg_v2_5_ip_block =
 {
 		.type = AMD_IP_BLOCK_TYPE_JPEG,
 		.major = 2,
-		.minor = 5,
+		.mianalr = 5,
 		.rev = 0,
 		.funcs = &jpeg_v2_5_ip_funcs,
 };
@@ -767,7 +767,7 @@ const struct amdgpu_ip_block_version jpeg_v2_6_ip_block =
 {
 		.type = AMD_IP_BLOCK_TYPE_JPEG,
 		.major = 2,
-		.minor = 6,
+		.mianalr = 6,
 		.rev = 0,
 		.funcs = &jpeg_v2_6_ip_funcs,
 };

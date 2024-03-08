@@ -63,20 +63,20 @@ static bool ip_tunnel_key_match(const struct ip_tunnel_parm *p,
 		if (flags & TUNNEL_KEY)
 			return key == p->i_key;
 		else
-			/* key expected, none present */
+			/* key expected, analne present */
 			return false;
 	} else
 		return !(flags & TUNNEL_KEY);
 }
 
-/* Fallback tunnel: no source, no destination, no key, no options
+/* Fallback tunnel: anal source, anal destination, anal key, anal options
 
    Tunnel hash table:
    We require exact key match i.e. if a key is present in packet
-   it will match only tunnel with the same key; if it is not present,
+   it will match only tunnel with the same key; if it is analt present,
    it will match only keyless tunnel.
 
-   All keysless packets, if not matched configured keyless tunnels
+   All keysless packets, if analt matched configured keyless tunnels
    will match fallback tunnel.
    Given src, dst and key, find appropriate for input tunnel.
 */
@@ -93,7 +93,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 	hash = ip_tunnel_hash(key, remote);
 	head = &itn->tunnels[hash];
 
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+	hlist_for_each_entry_rcu(t, head, hash_analde) {
 		if (local != t->parms.iph.saddr ||
 		    remote != t->parms.iph.daddr ||
 		    !(t->dev->flags & IFF_UP))
@@ -108,7 +108,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 			cand = t;
 	}
 
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+	hlist_for_each_entry_rcu(t, head, hash_analde) {
 		if (remote != t->parms.iph.daddr ||
 		    t->parms.iph.saddr != 0 ||
 		    !(t->dev->flags & IFF_UP))
@@ -126,7 +126,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 	hash = ip_tunnel_hash(key, 0);
 	head = &itn->tunnels[hash];
 
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+	hlist_for_each_entry_rcu(t, head, hash_analde) {
 		if ((local != t->parms.iph.saddr || t->parms.iph.daddr != 0) &&
 		    (local != t->parms.iph.daddr || !ipv4_is_multicast(local)))
 			continue;
@@ -143,8 +143,8 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 			cand = t;
 	}
 
-	hlist_for_each_entry_rcu(t, head, hash_node) {
-		if ((!(flags & TUNNEL_NO_KEY) && t->parms.i_key != key) ||
+	hlist_for_each_entry_rcu(t, head, hash_analde) {
+		if ((!(flags & TUNNEL_ANAL_KEY) && t->parms.i_key != key) ||
 		    t->parms.iph.saddr != 0 ||
 		    t->parms.iph.daddr != 0 ||
 		    !(t->dev->flags & IFF_UP))
@@ -196,14 +196,14 @@ static void ip_tunnel_add(struct ip_tunnel_net *itn, struct ip_tunnel *t)
 
 	if (t->collect_md)
 		rcu_assign_pointer(itn->collect_md_tun, t);
-	hlist_add_head_rcu(&t->hash_node, head);
+	hlist_add_head_rcu(&t->hash_analde, head);
 }
 
 static void ip_tunnel_del(struct ip_tunnel_net *itn, struct ip_tunnel *t)
 {
 	if (t->collect_md)
 		rcu_assign_pointer(itn->collect_md_tun, NULL);
-	hlist_del_init_rcu(&t->hash_node);
+	hlist_del_init_rcu(&t->hash_analde);
 }
 
 static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
@@ -218,7 +218,7 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 	struct ip_tunnel *t = NULL;
 	struct hlist_head *head = ip_bucket(itn, parms);
 
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+	hlist_for_each_entry_rcu(t, head, hash_analde) {
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr &&
 		    link == t->parms.link &&
@@ -251,9 +251,9 @@ static struct net_device *__ip_tunnel_create(struct net *net,
 	}
 
 	ASSERT_RTNL();
-	dev = alloc_netdev(ops->priv_size, name, NET_NAME_UNKNOWN, ops->setup);
+	dev = alloc_netdev(ops->priv_size, name, NET_NAME_UNKANALWN, ops->setup);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed;
 	}
 	dev_net_set(dev, net);
@@ -396,12 +396,12 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 
 	if (tunnel->parms.i_flags&TUNNEL_SEQ) {
 		if (!(tpi->flags&TUNNEL_SEQ) ||
-		    (tunnel->i_seqno && (s32)(ntohl(tpi->seq) - tunnel->i_seqno) < 0)) {
+		    (tunnel->i_seqanal && (s32)(ntohl(tpi->seq) - tunnel->i_seqanal) < 0)) {
 			DEV_STATS_INC(tunnel->dev, rx_fifo_errors);
 			DEV_STATS_INC(tunnel->dev, rx_errors);
 			goto drop;
 		}
-		tunnel->i_seqno = ntohl(tpi->seq) + 1;
+		tunnel->i_seqanal = ntohl(tpi->seq) + 1;
 	}
 
 	skb_set_network_header(skb, (tunnel->dev->type == ARPHRD_ETHER) ? ETH_HLEN : 0);
@@ -409,7 +409,7 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	err = IP_ECN_decapsulate(iph, skb);
 	if (unlikely(err)) {
 		if (log_ecn_error)
-			net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+			net_info_ratelimited("analn-ECT from %pI4 with TOS=%#x\n",
 					&iph->saddr, iph->tos);
 		if (err > 1) {
 			DEV_STATS_INC(tunnel->dev, rx_frame_errors);
@@ -516,7 +516,7 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	if (skb_valid_dst(skb))
-		skb_dst_update_pmtu_no_confirm(skb, mtu);
+		skb_dst_update_pmtu_anal_confirm(skb, mtu);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		if (!skb_is_gso(skb) &&
@@ -799,7 +799,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	df = tnl_params->frag_off;
-	if (payload_protocol == htons(ETH_P_IP) && !tunnel->ignore_df)
+	if (payload_protocol == htons(ETH_P_IP) && !tunnel->iganalre_df)
 		df |= (inner_iph->frag_off & htons(IP_DF));
 
 	if (tnl_update_pmtu(dev, skb, rt, df, inner_iph, 0, 0, false)) {
@@ -961,7 +961,7 @@ int ip_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 			err = 0;
 			ip_tunnel_update(itn, t, dev, p, true, 0);
 		} else {
-			err = -ENOENT;
+			err = -EANALENT;
 		}
 		break;
 
@@ -971,7 +971,7 @@ int ip_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 			goto done;
 
 		if (dev == itn->fb_tunnel_dev) {
-			err = -ENOENT;
+			err = -EANALENT;
 			t = ip_tunnel_find(itn, p, itn->fb_tunnel_dev->type);
 			if (!t)
 				goto done;
@@ -1104,7 +1104,7 @@ int ip_tunnel_init_net(struct net *net, unsigned int ip_tnl_net_id,
 	rtnl_lock();
 	itn->fb_tunnel_dev = __ip_tunnel_create(net, ops, &parms);
 	/* FB netdevice is special: we have one, and only one per netns.
-	 * Allowing to move it to another netns is clearly unsafe.
+	 * Allowing to move it to aanalther netns is clearly unsafe.
 	 */
 	if (!IS_ERR(itn->fb_tunnel_dev)) {
 		itn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
@@ -1131,10 +1131,10 @@ static void ip_tunnel_destroy(struct net *net, struct ip_tunnel_net *itn,
 
 	for (h = 0; h < IP_TNL_HASH_SIZE; h++) {
 		struct ip_tunnel *t;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 		struct hlist_head *thead = &itn->tunnels[h];
 
-		hlist_for_each_entry_safe(t, n, thead, hash_node)
+		hlist_for_each_entry_safe(t, n, thead, hash_analde)
 			/* If dev is in the same netns, it has already
 			 * been added to the list by the previous loop.
 			 */
@@ -1262,7 +1262,7 @@ int ip_tunnel_init(struct net_device *dev)
 	dev->priv_destructor = ip_tunnel_dev_free;
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
 	if (err) {

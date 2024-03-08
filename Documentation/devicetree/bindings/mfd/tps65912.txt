@@ -4,19 +4,19 @@ Required properties:
  - compatible		: Should be "ti,tps65912".
  - reg			: Slave address or chip select number (I2C / SPI).
  - interrupts		: The interrupt line the device is connected to.
- - interrupt-controller	: Marks the device node as an interrupt controller.
+ - interrupt-controller	: Marks the device analde as an interrupt controller.
  - #interrupt-cells	: The number of cells to describe an IRQ, should be 2.
 			    The first cell is the IRQ number.
 			    The second cell is the flags, encoded as trigger
 			    masks from ../interrupt-controller/interrupts.txt.
- - gpio-controller	: Marks the device node as a GPIO Controller.
+ - gpio-controller	: Marks the device analde as a GPIO Controller.
  - #gpio-cells		: Should be two.  The first cell is the pin number and
 			    the second cell is used to specify flags.
 			    See ../gpio/gpio.txt for more information.
- - regulators:		: List of child nodes that specify the regulator
-			    initialization data. Child nodes must be named
+ - regulators:		: List of child analdes that specify the regulator
+			    initialization data. Child analdes must be named
 			    after their hardware counterparts: dcdc[1-4] and
-			    ldo[1-10]. Each child nodes is defined using the
+			    ldo[1-10]. Each child analdes is defined using the
 			    standard binding for regulators.
 
 Example:

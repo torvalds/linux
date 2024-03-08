@@ -58,7 +58,7 @@ properties:
       starting at the LSB. Linux keycodes are defined in
       <dt-bindings/input/input.h>.
 
-      Note: the numbering of the GPIOs and the bit they start at varies
+      Analte: the numbering of the GPIOs and the bit they start at varies
       between maXTouch devices. You must either refer to the documentation,
       or experiment to determine which bit corresponds to which input. Use
       KEY_RESERVED for unused padding values.
@@ -82,7 +82,7 @@ properties:
        2) connected to the I2C-compatible SCL pin
        3) connected to a GPIO pin on the host
     enum:
-      - 0 # ATMEL_MXT_WAKEUP_NONE
+      - 0 # ATMEL_MXT_WAKEUP_ANALNE
       - 1 # ATMEL_MXT_WAKEUP_I2C_SCL
       - 2 # ATMEL_MXT_WAKEUP_GPIO
     default: 0

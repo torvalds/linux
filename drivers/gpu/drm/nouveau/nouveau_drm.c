@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,7 +27,7 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/dynamic_debug.h>
 
 #include <drm/drm_aperture.h>
@@ -50,27 +50,27 @@
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_ttm.h"
-#include "nouveau_gem.h"
-#include "nouveau_vga.h"
-#include "nouveau_led.h"
-#include "nouveau_hwmon.h"
-#include "nouveau_acpi.h"
-#include "nouveau_bios.h"
-#include "nouveau_ioctl.h"
-#include "nouveau_abi16.h"
-#include "nouveau_fence.h"
-#include "nouveau_debugfs.h"
-#include "nouveau_usif.h"
-#include "nouveau_connector.h"
-#include "nouveau_platform.h"
-#include "nouveau_svm.h"
-#include "nouveau_dmem.h"
-#include "nouveau_exec.h"
-#include "nouveau_uvmm.h"
-#include "nouveau_sched.h"
+#include "analuveau_drv.h"
+#include "analuveau_dma.h"
+#include "analuveau_ttm.h"
+#include "analuveau_gem.h"
+#include "analuveau_vga.h"
+#include "analuveau_led.h"
+#include "analuveau_hwmon.h"
+#include "analuveau_acpi.h"
+#include "analuveau_bios.h"
+#include "analuveau_ioctl.h"
+#include "analuveau_abi16.h"
+#include "analuveau_fence.h"
+#include "analuveau_debugfs.h"
+#include "analuveau_usif.h"
+#include "analuveau_connector.h"
+#include "analuveau_platform.h"
+#include "analuveau_svm.h"
+#include "analuveau_dmem.h"
+#include "analuveau_exec.h"
+#include "analuveau_uvmm.h"
+#include "analuveau_sched.h"
 
 DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
 			"DRM_UT_CORE",
@@ -85,36 +85,36 @@ DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
 			"DRM_UT_DRMRES");
 
 MODULE_PARM_DESC(config, "option string to pass to driver core");
-static char *nouveau_config;
-module_param_named(config, nouveau_config, charp, 0400);
+static char *analuveau_config;
+module_param_named(config, analuveau_config, charp, 0400);
 
 MODULE_PARM_DESC(debug, "debug string to pass to driver core");
-static char *nouveau_debug;
-module_param_named(debug, nouveau_debug, charp, 0400);
+static char *analuveau_debug;
+module_param_named(debug, analuveau_debug, charp, 0400);
 
-MODULE_PARM_DESC(noaccel, "disable kernel/abi16 acceleration");
-static int nouveau_noaccel = 0;
-module_param_named(noaccel, nouveau_noaccel, int, 0400);
+MODULE_PARM_DESC(analaccel, "disable kernel/abi16 acceleration");
+static int analuveau_analaccel = 0;
+module_param_named(analaccel, analuveau_analaccel, int, 0400);
 
 MODULE_PARM_DESC(modeset, "enable driver (default: auto, "
 		          "0 = disabled, 1 = enabled, 2 = headless)");
-int nouveau_modeset = -1;
-module_param_named(modeset, nouveau_modeset, int, 0400);
+int analuveau_modeset = -1;
+module_param_named(modeset, analuveau_modeset, int, 0400);
 
 MODULE_PARM_DESC(atomic, "Expose atomic ioctl (default: disabled)");
-static int nouveau_atomic = 0;
-module_param_named(atomic, nouveau_atomic, int, 0400);
+static int analuveau_atomic = 0;
+module_param_named(atomic, analuveau_atomic, int, 0400);
 
 MODULE_PARM_DESC(runpm, "disable (0), force enable (1), optimus only default (-1)");
-static int nouveau_runtime_pm = -1;
-module_param_named(runpm, nouveau_runtime_pm, int, 0400);
+static int analuveau_runtime_pm = -1;
+module_param_named(runpm, analuveau_runtime_pm, int, 0400);
 
 static struct drm_driver driver_stub;
 static struct drm_driver driver_pci;
 static struct drm_driver driver_platform;
 
 static u64
-nouveau_pci_name(struct pci_dev *pdev)
+analuveau_pci_name(struct pci_dev *pdev)
 {
 	u64 name = (u64)pci_domain_nr(pdev->bus) << 32;
 	name |= pdev->bus->number << 16;
@@ -123,22 +123,22 @@ nouveau_pci_name(struct pci_dev *pdev)
 }
 
 static u64
-nouveau_platform_name(struct platform_device *platformdev)
+analuveau_platform_name(struct platform_device *platformdev)
 {
 	return platformdev->id;
 }
 
 static u64
-nouveau_name(struct drm_device *dev)
+analuveau_name(struct drm_device *dev)
 {
 	if (dev_is_pci(dev->dev))
-		return nouveau_pci_name(to_pci_dev(dev->dev));
+		return analuveau_pci_name(to_pci_dev(dev->dev));
 	else
-		return nouveau_platform_name(to_platform_device(dev->dev));
+		return analuveau_platform_name(to_platform_device(dev->dev));
 }
 
 static inline bool
-nouveau_cli_work_ready(struct dma_fence *fence)
+analuveau_cli_work_ready(struct dma_fence *fence)
 {
 	bool ret = true;
 
@@ -153,13 +153,13 @@ nouveau_cli_work_ready(struct dma_fence *fence)
 }
 
 static void
-nouveau_cli_work(struct work_struct *w)
+analuveau_cli_work(struct work_struct *w)
 {
-	struct nouveau_cli *cli = container_of(w, typeof(*cli), work);
-	struct nouveau_cli_work *work, *wtmp;
+	struct analuveau_cli *cli = container_of(w, typeof(*cli), work);
+	struct analuveau_cli_work *work, *wtmp;
 	mutex_lock(&cli->lock);
 	list_for_each_entry_safe(work, wtmp, &cli->worker, head) {
-		if (!work->fence || nouveau_cli_work_ready(work->fence)) {
+		if (!work->fence || analuveau_cli_work_ready(work->fence)) {
 			list_del(&work->head);
 			work->func(work);
 		}
@@ -168,45 +168,45 @@ nouveau_cli_work(struct work_struct *w)
 }
 
 static void
-nouveau_cli_work_fence(struct dma_fence *fence, struct dma_fence_cb *cb)
+analuveau_cli_work_fence(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
-	struct nouveau_cli_work *work = container_of(cb, typeof(*work), cb);
+	struct analuveau_cli_work *work = container_of(cb, typeof(*work), cb);
 	schedule_work(&work->cli->work);
 }
 
 void
-nouveau_cli_work_queue(struct nouveau_cli *cli, struct dma_fence *fence,
-		       struct nouveau_cli_work *work)
+analuveau_cli_work_queue(struct analuveau_cli *cli, struct dma_fence *fence,
+		       struct analuveau_cli_work *work)
 {
 	work->fence = dma_fence_get(fence);
 	work->cli = cli;
 	mutex_lock(&cli->lock);
 	list_add_tail(&work->head, &cli->worker);
-	if (dma_fence_add_callback(fence, &work->cb, nouveau_cli_work_fence))
-		nouveau_cli_work_fence(fence, &work->cb);
+	if (dma_fence_add_callback(fence, &work->cb, analuveau_cli_work_fence))
+		analuveau_cli_work_fence(fence, &work->cb);
 	mutex_unlock(&cli->lock);
 }
 
 static void
-nouveau_cli_fini(struct nouveau_cli *cli)
+analuveau_cli_fini(struct analuveau_cli *cli)
 {
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm_locked(cli);
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm_locked(cli);
 
-	/* All our channels are dead now, which means all the fences they
+	/* All our channels are dead analw, which means all the fences they
 	 * own are signalled, and all callback functions have been called.
 	 *
-	 * So, after flushing the workqueue, there should be nothing left.
+	 * So, after flushing the workqueue, there should be analthing left.
 	 */
 	flush_work(&cli->work);
 	WARN_ON(!list_empty(&cli->worker));
 
 	usif_client_fini(cli);
 	if (cli->sched)
-		nouveau_sched_destroy(&cli->sched);
+		analuveau_sched_destroy(&cli->sched);
 	if (uvmm)
-		nouveau_uvmm_fini(uvmm);
-	nouveau_vmm_fini(&cli->svm);
-	nouveau_vmm_fini(&cli->vmm);
+		analuveau_uvmm_fini(uvmm);
+	analuveau_vmm_fini(&cli->svm);
+	analuveau_vmm_fini(&cli->vmm);
 	nvif_mmu_dtor(&cli->mmu);
 	nvif_device_dtor(&cli->device);
 	mutex_lock(&cli->drm->master.lock);
@@ -215,8 +215,8 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 }
 
 static int
-nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
-		 struct nouveau_cli *cli)
+analuveau_cli_init(struct analuveau_drm *drm, const char *sname,
+		 struct analuveau_cli *cli)
 {
 	static const struct nvif_mclass
 	mems[] = {
@@ -241,7 +241,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		{ NVIF_CLASS_VMM_NV04 , -1 },
 		{}
 	};
-	u64 device = nouveau_name(drm->dev);
+	u64 device = analuveau_name(drm->dev);
 	int ret;
 
 	snprintf(cli->name, sizeof(cli->name), "%s", sname);
@@ -249,12 +249,12 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	mutex_init(&cli->mutex);
 	usif_client_init(cli);
 
-	INIT_WORK(&cli->work, nouveau_cli_work);
+	INIT_WORK(&cli->work, analuveau_cli_work);
 	INIT_LIST_HEAD(&cli->worker);
 	mutex_init(&cli->lock);
 
 	if (cli == &drm->master) {
-		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
+		ret = nvif_driver_init(NULL, analuveau_config, analuveau_debug,
 				       cli->name, device, &cli->base);
 	} else {
 		mutex_lock(&drm->master.lock);
@@ -280,7 +280,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 
 	ret = nvif_mclass(&cli->device.object, mmus);
 	if (ret < 0) {
-		NV_PRINTK(err, cli, "No supported MMU class\n");
+		NV_PRINTK(err, cli, "Anal supported MMU class\n");
 		goto done;
 	}
 
@@ -293,11 +293,11 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 
 	ret = nvif_mclass(&cli->mmu.object, vmms);
 	if (ret < 0) {
-		NV_PRINTK(err, cli, "No supported VMM class\n");
+		NV_PRINTK(err, cli, "Anal supported VMM class\n");
 		goto done;
 	}
 
-	ret = nouveau_vmm_init(cli, vmms[ret].oclass, &cli->vmm);
+	ret = analuveau_vmm_init(cli, vmms[ret].oclass, &cli->vmm);
 	if (ret) {
 		NV_PRINTK(err, cli, "VMM allocation failed: %d\n", ret);
 		goto done;
@@ -305,43 +305,43 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 
 	ret = nvif_mclass(&cli->mmu.object, mems);
 	if (ret < 0) {
-		NV_PRINTK(err, cli, "No supported MEM class\n");
+		NV_PRINTK(err, cli, "Anal supported MEM class\n");
 		goto done;
 	}
 
 	cli->mem = &mems[ret];
 
 	/* Don't pass in the (shared) sched_wq in order to let
-	 * nouveau_sched_create() create a dedicated one for VM_BIND jobs.
+	 * analuveau_sched_create() create a dedicated one for VM_BIND jobs.
 	 *
 	 * This is required to ensure that for VM_BIND jobs free_job() work and
 	 * run_job() work can always run concurrently and hence, free_job() work
 	 * can never stall run_job() work. For EXEC jobs we don't have this
-	 * requirement, since EXEC job's free_job() does not require to take any
+	 * requirement, since EXEC job's free_job() does analt require to take any
 	 * locks which indirectly or directly are held for allocations
 	 * elsewhere.
 	 */
-	ret = nouveau_sched_create(&cli->sched, drm, NULL, 1);
+	ret = analuveau_sched_create(&cli->sched, drm, NULL, 1);
 	if (ret)
 		goto done;
 
 	return 0;
 done:
 	if (ret)
-		nouveau_cli_fini(cli);
+		analuveau_cli_fini(cli);
 	return ret;
 }
 
 static void
-nouveau_accel_ce_fini(struct nouveau_drm *drm)
+analuveau_accel_ce_fini(struct analuveau_drm *drm)
 {
-	nouveau_channel_idle(drm->cechan);
+	analuveau_channel_idle(drm->cechan);
 	nvif_object_dtor(&drm->ttm.copy);
-	nouveau_channel_del(&drm->cechan);
+	analuveau_channel_del(&drm->cechan);
 }
 
 static void
-nouveau_accel_ce_init(struct nouveau_drm *drm)
+analuveau_accel_ce_init(struct analuveau_drm *drm)
 {
 	struct nvif_device *device = &drm->client.device;
 	u64 runm;
@@ -352,26 +352,26 @@ nouveau_accel_ce_init(struct nouveau_drm *drm)
 	 */
 	runm = nvif_fifo_runlist_ce(device);
 	if (!runm) {
-		NV_DEBUG(drm, "no ce runlist\n");
+		NV_DEBUG(drm, "anal ce runlist\n");
 		return;
 	}
 
-	ret = nouveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->cechan);
+	ret = analuveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->cechan);
 	if (ret)
 		NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 }
 
 static void
-nouveau_accel_gr_fini(struct nouveau_drm *drm)
+analuveau_accel_gr_fini(struct analuveau_drm *drm)
 {
-	nouveau_channel_idle(drm->channel);
+	analuveau_channel_idle(drm->channel);
 	nvif_object_dtor(&drm->ntfy);
-	nvkm_gpuobj_del(&drm->notify);
-	nouveau_channel_del(&drm->channel);
+	nvkm_gpuobj_del(&drm->analtify);
+	analuveau_channel_del(&drm->channel);
 }
 
 static void
-nouveau_accel_gr_init(struct nouveau_drm *drm)
+analuveau_accel_gr_init(struct analuveau_drm *drm)
 {
 	struct nvif_device *device = &drm->client.device;
 	u64 runm;
@@ -380,14 +380,14 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	/* Allocate channel that has access to the graphics engine. */
 	runm = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
 	if (!runm) {
-		NV_DEBUG(drm, "no gr runlist\n");
+		NV_DEBUG(drm, "anal gr runlist\n");
 		return;
 	}
 
-	ret = nouveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->channel);
+	ret = analuveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
-		nouveau_accel_gr_fini(drm);
+		analuveau_accel_gr_fini(drm);
 		return;
 	}
 
@@ -397,7 +397,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 */
 	if (!drm->channel->nvsw.client && device->info.family < NV_DEVICE_INFO_V0_TESLA) {
 		ret = nvif_object_ctor(&drm->channel->user, "drmNvsw",
-				       NVDRM_NVSW, nouveau_abi16_swclass(drm),
+				       NVDRM_NVSW, analuveau_abi16_swclass(drm),
 				       NULL, 0, &drm->channel->nvsw);
 
 		if (ret == 0 && device->info.chipset >= 0x11) {
@@ -422,62 +422,62 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 
 		if (ret) {
 			NV_ERROR(drm, "failed to allocate sw or blit class, %d\n", ret);
-			nouveau_accel_gr_fini(drm);
+			analuveau_accel_gr_fini(drm);
 			return;
 		}
 	}
 
-	/* NvMemoryToMemoryFormat requires a notifier ctxdma for some reason,
-	 * even if notification is never requested, so, allocate a ctxdma on
+	/* NvMemoryToMemoryFormat requires a analtifier ctxdma for some reason,
+	 * even if analtification is never requested, so, allocate a ctxdma on
 	 * any GPU where it's possible we'll end up using M2MF for BO moves.
 	 */
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
 		ret = nvkm_gpuobj_new(nvxx_device(device), 32, 0, false, NULL,
-				      &drm->notify);
+				      &drm->analtify);
 		if (ret) {
-			NV_ERROR(drm, "failed to allocate notifier, %d\n", ret);
-			nouveau_accel_gr_fini(drm);
+			NV_ERROR(drm, "failed to allocate analtifier, %d\n", ret);
+			analuveau_accel_gr_fini(drm);
 			return;
 		}
 
 		ret = nvif_object_ctor(&drm->channel->user, "drmM2mfNtfy",
-				       NvNotify0, NV_DMA_IN_MEMORY,
+				       NvAnaltify0, NV_DMA_IN_MEMORY,
 				       &(struct nv_dma_v0) {
 						.target = NV_DMA_V0_TARGET_VRAM,
 						.access = NV_DMA_V0_ACCESS_RDWR,
-						.start = drm->notify->addr,
-						.limit = drm->notify->addr + 31
+						.start = drm->analtify->addr,
+						.limit = drm->analtify->addr + 31
 				       }, sizeof(struct nv_dma_v0),
 				       &drm->ntfy);
 		if (ret) {
-			nouveau_accel_gr_fini(drm);
+			analuveau_accel_gr_fini(drm);
 			return;
 		}
 	}
 }
 
 static void
-nouveau_accel_fini(struct nouveau_drm *drm)
+analuveau_accel_fini(struct analuveau_drm *drm)
 {
-	nouveau_accel_ce_fini(drm);
-	nouveau_accel_gr_fini(drm);
+	analuveau_accel_ce_fini(drm);
+	analuveau_accel_gr_fini(drm);
 	if (drm->fence)
-		nouveau_fence(drm)->dtor(drm);
-	nouveau_channels_fini(drm);
+		analuveau_fence(drm)->dtor(drm);
+	analuveau_channels_fini(drm);
 }
 
 static void
-nouveau_accel_init(struct nouveau_drm *drm)
+analuveau_accel_init(struct analuveau_drm *drm)
 {
 	struct nvif_device *device = &drm->client.device;
 	struct nvif_sclass *sclass;
 	int ret, i, n;
 
-	if (nouveau_noaccel)
+	if (analuveau_analaccel)
 		return;
 
 	/* Initialise global support for channels, and synchronisation. */
-	ret = nouveau_channels_init(drm);
+	ret = analuveau_channels_init(drm);
 	if (ret)
 		return;
 
@@ -488,7 +488,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	if (ret < 0)
 		return;
 
-	for (ret = -ENOSYS, i = 0; i < n; i++) {
+	for (ret = -EANALSYS, i = 0; i < n; i++) {
 		switch (sclass[i].oclass) {
 		case NV03_CHANNEL_DMA:
 			ret = nv04_fence_create(drm);
@@ -525,7 +525,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	nvif_object_sclass_put(&sclass);
 	if (ret) {
 		NV_ERROR(drm, "failed to initialise sync subsystem, %d\n", ret);
-		nouveau_accel_fini(drm);
+		analuveau_accel_fini(drm);
 		return;
 	}
 
@@ -537,17 +537,17 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	/* Allocate channels we need to support various functions. */
-	nouveau_accel_gr_init(drm);
-	nouveau_accel_ce_init(drm);
+	analuveau_accel_gr_init(drm);
+	analuveau_accel_ce_init(drm);
 
 	/* Initialise accelerated TTM buffer moves. */
-	nouveau_bo_move_init(drm);
+	analuveau_bo_move_init(drm);
 }
 
 static void __printf(2, 3)
-nouveau_drm_errorf(struct nvif_object *object, const char *fmt, ...)
+analuveau_drm_errorf(struct nvif_object *object, const char *fmt, ...)
 {
-	struct nouveau_drm *drm = container_of(object->parent, typeof(*drm), parent);
+	struct analuveau_drm *drm = container_of(object->parent, typeof(*drm), parent);
 	struct va_format vaf;
 	va_list va;
 
@@ -559,9 +559,9 @@ nouveau_drm_errorf(struct nvif_object *object, const char *fmt, ...)
 }
 
 static void __printf(2, 3)
-nouveau_drm_debugf(struct nvif_object *object, const char *fmt, ...)
+analuveau_drm_debugf(struct nvif_object *object, const char *fmt, ...)
 {
-	struct nouveau_drm *drm = container_of(object->parent, typeof(*drm), parent);
+	struct analuveau_drm *drm = container_of(object->parent, typeof(*drm), parent);
 	struct va_format vaf;
 	va_list va;
 
@@ -573,83 +573,83 @@ nouveau_drm_debugf(struct nvif_object *object, const char *fmt, ...)
 }
 
 static const struct nvif_parent_func
-nouveau_parent = {
-	.debugf = nouveau_drm_debugf,
-	.errorf = nouveau_drm_errorf,
+analuveau_parent = {
+	.debugf = analuveau_drm_debugf,
+	.errorf = analuveau_drm_errorf,
 };
 
 static int
-nouveau_drm_device_init(struct drm_device *dev)
+analuveau_drm_device_init(struct drm_device *dev)
 {
-	struct nouveau_drm *drm;
+	struct analuveau_drm *drm;
 	int ret;
 
 	if (!(drm = kzalloc(sizeof(*drm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->dev_private = drm;
 	drm->dev = dev;
 
-	nvif_parent_ctor(&nouveau_parent, &drm->parent);
+	nvif_parent_ctor(&analuveau_parent, &drm->parent);
 	drm->master.base.object.parent = &drm->parent;
 
-	drm->sched_wq = alloc_workqueue("nouveau_sched_wq_shared", 0,
+	drm->sched_wq = alloc_workqueue("analuveau_sched_wq_shared", 0,
 					WQ_MAX_ACTIVE);
 	if (!drm->sched_wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_alloc;
 	}
 
-	ret = nouveau_cli_init(drm, "DRM-master", &drm->master);
+	ret = analuveau_cli_init(drm, "DRM-master", &drm->master);
 	if (ret)
 		goto fail_wq;
 
-	ret = nouveau_cli_init(drm, "DRM", &drm->client);
+	ret = analuveau_cli_init(drm, "DRM", &drm->client);
 	if (ret)
 		goto fail_master;
 
 	nvxx_client(&drm->client.base)->debug =
-		nvkm_dbgopt(nouveau_debug, "DRM");
+		nvkm_dbgopt(analuveau_debug, "DRM");
 
 	INIT_LIST_HEAD(&drm->clients);
 	mutex_init(&drm->clients_lock);
 	spin_lock_init(&drm->tile.lock);
 
 	/* workaround an odd issue on nvc1 by disabling the device's
-	 * nosnoop capability.  hopefully won't cause issues until a
+	 * analsanalop capability.  hopefully won't cause issues until a
 	 * better fix is found - assuming there is one...
 	 */
 	if (drm->client.device.info.chipset == 0xc1)
 		nvif_mask(&drm->client.device.object, 0x00088080, 0x00000800, 0x00000000);
 
-	nouveau_vga_init(drm);
+	analuveau_vga_init(drm);
 
-	ret = nouveau_ttm_init(drm);
+	ret = analuveau_ttm_init(drm);
 	if (ret)
 		goto fail_ttm;
 
-	ret = nouveau_bios_init(dev);
+	ret = analuveau_bios_init(dev);
 	if (ret)
 		goto fail_bios;
 
-	nouveau_accel_init(drm);
+	analuveau_accel_init(drm);
 
-	ret = nouveau_display_create(dev);
+	ret = analuveau_display_create(dev);
 	if (ret)
 		goto fail_dispctor;
 
 	if (dev->mode_config.num_crtc) {
-		ret = nouveau_display_init(dev, false, false);
+		ret = analuveau_display_init(dev, false, false);
 		if (ret)
 			goto fail_dispinit;
 	}
 
-	nouveau_debugfs_init(drm);
-	nouveau_hwmon_init(dev);
-	nouveau_svm_init(drm);
-	nouveau_dmem_init(drm);
-	nouveau_led_init(dev);
+	analuveau_debugfs_init(drm);
+	analuveau_hwmon_init(dev);
+	analuveau_svm_init(drm);
+	analuveau_dmem_init(drm);
+	analuveau_led_init(dev);
 
-	if (nouveau_pmops_runtime()) {
+	if (analuveau_pmops_runtime()) {
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
@@ -660,17 +660,17 @@ nouveau_drm_device_init(struct drm_device *dev)
 
 	return 0;
 fail_dispinit:
-	nouveau_display_destroy(dev);
+	analuveau_display_destroy(dev);
 fail_dispctor:
-	nouveau_accel_fini(drm);
-	nouveau_bios_takedown(dev);
+	analuveau_accel_fini(drm);
+	analuveau_bios_takedown(dev);
 fail_bios:
-	nouveau_ttm_fini(drm);
+	analuveau_ttm_fini(drm);
 fail_ttm:
-	nouveau_vga_fini(drm);
-	nouveau_cli_fini(&drm->client);
+	analuveau_vga_fini(drm);
+	analuveau_cli_fini(&drm->client);
 fail_master:
-	nouveau_cli_fini(&drm->master);
+	analuveau_cli_fini(&drm->master);
 fail_wq:
 	destroy_workqueue(drm->sched_wq);
 fail_alloc:
@@ -680,36 +680,36 @@ fail_alloc:
 }
 
 static void
-nouveau_drm_device_fini(struct drm_device *dev)
+analuveau_drm_device_fini(struct drm_device *dev)
 {
-	struct nouveau_cli *cli, *temp_cli;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_cli *cli, *temp_cli;
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
-	if (nouveau_pmops_runtime()) {
+	if (analuveau_pmops_runtime()) {
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
 	}
 
-	nouveau_led_fini(dev);
-	nouveau_dmem_fini(drm);
-	nouveau_svm_fini(drm);
-	nouveau_hwmon_fini(dev);
-	nouveau_debugfs_fini(drm);
+	analuveau_led_fini(dev);
+	analuveau_dmem_fini(drm);
+	analuveau_svm_fini(drm);
+	analuveau_hwmon_fini(dev);
+	analuveau_debugfs_fini(drm);
 
 	if (dev->mode_config.num_crtc)
-		nouveau_display_fini(dev, false, false);
-	nouveau_display_destroy(dev);
+		analuveau_display_fini(dev, false, false);
+	analuveau_display_destroy(dev);
 
-	nouveau_accel_fini(drm);
-	nouveau_bios_takedown(dev);
+	analuveau_accel_fini(drm);
+	analuveau_bios_takedown(dev);
 
-	nouveau_ttm_fini(drm);
-	nouveau_vga_fini(drm);
+	analuveau_ttm_fini(drm);
+	analuveau_vga_fini(drm);
 
 	/*
-	 * There may be existing clients from as-yet unclosed files. For now,
+	 * There may be existing clients from as-yet unclosed files. For analw,
 	 * clean them up here rather than deferring until the file is closed,
-	 * but this likely not correct if we want to support hot-unplugging
+	 * but this likely analt correct if we want to support hot-unplugging
 	 * properly.
 	 */
 	mutex_lock(&drm->clients_lock);
@@ -717,15 +717,15 @@ nouveau_drm_device_fini(struct drm_device *dev)
 		list_del(&cli->head);
 		mutex_lock(&cli->mutex);
 		if (cli->abi16)
-			nouveau_abi16_fini(cli->abi16);
+			analuveau_abi16_fini(cli->abi16);
 		mutex_unlock(&cli->mutex);
-		nouveau_cli_fini(cli);
+		analuveau_cli_fini(cli);
 		kfree(cli);
 	}
 	mutex_unlock(&drm->clients_lock);
 
-	nouveau_cli_fini(&drm->client);
-	nouveau_cli_fini(&drm->master);
+	analuveau_cli_fini(&drm->client);
+	analuveau_cli_fini(&drm->master);
 	destroy_workqueue(drm->sched_wq);
 	nvif_parent_dtor(&drm->parent);
 	mutex_destroy(&drm->clients_lock);
@@ -734,22 +734,22 @@ nouveau_drm_device_fini(struct drm_device *dev)
 
 /*
  * On some Intel PCIe bridge controllers doing a
- * D0 -> D3hot -> D3cold -> D0 sequence causes Nvidia GPUs to not reappear.
+ * D0 -> D3hot -> D3cold -> D0 sequence causes Nvidia GPUs to analt reappear.
  * Skipping the intermediate D3hot step seems to make it work again. This is
- * probably caused by not meeting the expectation the involved AML code has
+ * probably caused by analt meeting the expectation the involved AML code has
  * when the GPU is put into D3hot state before invoking it.
  *
  * This leads to various manifestations of this issue:
  *  - AML code execution to power on the GPU hits an infinite loop (as the
  *    code waits on device memory to change).
  *  - kernel crashes, as all PCI reads return -1, which most code isn't able
- *    to handle well enough.
+ *    to handle well eanalugh.
  *
  * In all cases dmesg will contain at least one line like this:
- * 'nouveau 0000:01:00.0: Refused to change power state, currently in D3'
- * followed by a lot of nouveau timeouts.
+ * 'analuveau 0000:01:00.0: Refused to change power state, currently in D3'
+ * followed by a lot of analuveau timeouts.
  *
- * In the \_SB.PCI0.PEG0.PG00._OFF code deeper down writes bit 0x80 to the not
+ * In the \_SB.PCI0.PEG0.PG00._OFF code deeper down writes bit 0x80 to the analt
  * documented PCI config space register 0x248 of the Intel PCIe bridge
  * controller (0x1901) in order to change the state of the PCIe link between
  * the PCIe port and the GPU. There are alternative code paths using other
@@ -758,7 +758,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
  *  - 0xb0 bit 0x10 (link disable)
  * Changing the conditions inside the firmware by poking into the relevant
  * addresses does resolve the issue, but it seemed to be ACPI private memory
- * and not any device accessible memory at all, so there is no portable way of
+ * and analt any device accessible memory at all, so there is anal portable way of
  * changing the conditions.
  * On a XPS 9560 that means bits [0,3] on \CPEX need to be cleared.
  *
@@ -775,7 +775,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 static void quirk_broken_nv_runpm(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct pci_dev *bridge = pci_upstream_bridge(pdev);
 
 	if (!bridge || bridge->vendor != PCI_VENDOR_ID_INTEL)
@@ -790,7 +790,7 @@ static void quirk_broken_nv_runpm(struct pci_dev *pdev)
 	}
 }
 
-static int nouveau_drm_probe(struct pci_dev *pdev,
+static int analuveau_drm_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *pent)
 {
 	struct nvkm_device *device;
@@ -801,9 +801,9 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		return -EPROBE_DEFER;
 
 	/* We need to check that the chipset is supported before booting
-	 * fbdev off the hardware, as there's no way to put it back.
+	 * fbdev off the hardware, as there's anal way to put it back.
 	 */
-	ret = nvkm_device_pci_new(pdev, nouveau_config, "error",
+	ret = nvkm_device_pci_new(pdev, analuveau_config, "error",
 				  true, false, 0, &device);
 	if (ret)
 		return ret;
@@ -815,14 +815,14 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	ret = nvkm_device_pci_new(pdev, nouveau_config, nouveau_debug,
+	ret = nvkm_device_pci_new(pdev, analuveau_config, analuveau_debug,
 				  true, true, ~0ULL, &device);
 	if (ret)
 		return ret;
 
 	pci_set_master(pdev);
 
-	if (nouveau_atomic)
+	if (analuveau_atomic)
 		driver_pci.driver_features |= DRIVER_ATOMIC;
 
 	drm_dev = drm_dev_alloc(&driver_pci, &pdev->dev);
@@ -837,7 +837,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, drm_dev);
 
-	ret = nouveau_drm_device_init(drm_dev);
+	ret = analuveau_drm_device_init(drm_dev);
 	if (ret)
 		goto fail_pci;
 
@@ -845,7 +845,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (ret)
 		goto fail_drm_dev_init;
 
-	if (nouveau_drm(drm_dev)->client.device.info.ram_size <= 32 * 1024 * 1024)
+	if (analuveau_drm(drm_dev)->client.device.info.ram_size <= 32 * 1024 * 1024)
 		drm_fbdev_generic_setup(drm_dev, 8);
 	else
 		drm_fbdev_generic_setup(drm_dev, 32);
@@ -854,7 +854,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	return 0;
 
 fail_drm_dev_init:
-	nouveau_drm_device_fini(drm_dev);
+	analuveau_drm_device_fini(drm_dev);
 fail_pci:
 	pci_disable_device(pdev);
 fail_drm:
@@ -865,9 +865,9 @@ fail_nvkm:
 }
 
 void
-nouveau_drm_device_remove(struct drm_device *dev)
+analuveau_drm_device_remove(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_client *client;
 	struct nvkm_device *device;
 
@@ -876,38 +876,38 @@ nouveau_drm_device_remove(struct drm_device *dev)
 	client = nvxx_client(&drm->client.base);
 	device = nvkm_device_find(client->device);
 
-	nouveau_drm_device_fini(dev);
+	analuveau_drm_device_fini(dev);
 	drm_dev_put(dev);
 	nvkm_device_del(&device);
 }
 
 static void
-nouveau_drm_remove(struct pci_dev *pdev)
+analuveau_drm_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	/* revert our workaround */
 	if (drm->old_pm_cap)
 		pdev->pm_cap = drm->old_pm_cap;
-	nouveau_drm_device_remove(dev);
+	analuveau_drm_device_remove(dev);
 	pci_disable_device(pdev);
 }
 
 static int
-nouveau_do_suspend(struct drm_device *dev, bool runtime)
+analuveau_do_suspend(struct drm_device *dev, bool runtime)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct ttm_resource_manager *man;
 	int ret;
 
-	nouveau_svm_suspend(drm);
-	nouveau_dmem_suspend(drm);
-	nouveau_led_suspend(dev);
+	analuveau_svm_suspend(drm);
+	analuveau_dmem_suspend(drm);
+	analuveau_led_suspend(dev);
 
 	if (dev->mode_config.num_crtc) {
 		NV_DEBUG(drm, "suspending display...\n");
-		ret = nouveau_display_suspend(dev, runtime);
+		ret = analuveau_display_suspend(dev, runtime);
 		if (ret)
 			return ret;
 	}
@@ -919,21 +919,21 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 
 	NV_DEBUG(drm, "waiting for kernel channels to go idle...\n");
 	if (drm->cechan) {
-		ret = nouveau_channel_idle(drm->cechan);
+		ret = analuveau_channel_idle(drm->cechan);
 		if (ret)
 			goto fail_display;
 	}
 
 	if (drm->channel) {
-		ret = nouveau_channel_idle(drm->channel);
+		ret = analuveau_channel_idle(drm->channel);
 		if (ret)
 			goto fail_display;
 	}
 
 	NV_DEBUG(drm, "suspending fence...\n");
-	if (drm->fence && nouveau_fence(drm)->suspend) {
-		if (!nouveau_fence(drm)->suspend(drm)) {
-			ret = -ENOMEM;
+	if (drm->fence && analuveau_fence(drm)->suspend) {
+		if (!analuveau_fence(drm)->suspend(drm)) {
+			ret = -EANALMEM;
 			goto fail_display;
 		}
 	}
@@ -946,22 +946,22 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	return 0;
 
 fail_client:
-	if (drm->fence && nouveau_fence(drm)->resume)
-		nouveau_fence(drm)->resume(drm);
+	if (drm->fence && analuveau_fence(drm)->resume)
+		analuveau_fence(drm)->resume(drm);
 
 fail_display:
 	if (dev->mode_config.num_crtc) {
 		NV_DEBUG(drm, "resuming display...\n");
-		nouveau_display_resume(dev, runtime);
+		analuveau_display_resume(dev, runtime);
 	}
 	return ret;
 }
 
 static int
-nouveau_do_resume(struct drm_device *dev, bool runtime)
+analuveau_do_resume(struct drm_device *dev, bool runtime)
 {
 	int ret = 0;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	NV_DEBUG(drm, "resuming object tree...\n");
 	ret = nvif_client_resume(&drm->master.base);
@@ -971,24 +971,24 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	}
 
 	NV_DEBUG(drm, "resuming fence...\n");
-	if (drm->fence && nouveau_fence(drm)->resume)
-		nouveau_fence(drm)->resume(drm);
+	if (drm->fence && analuveau_fence(drm)->resume)
+		analuveau_fence(drm)->resume(drm);
 
-	nouveau_run_vbios_init(dev);
+	analuveau_run_vbios_init(dev);
 
 	if (dev->mode_config.num_crtc) {
 		NV_DEBUG(drm, "resuming display...\n");
-		nouveau_display_resume(dev, runtime);
+		analuveau_display_resume(dev, runtime);
 	}
 
-	nouveau_led_resume(dev);
-	nouveau_dmem_resume(drm);
-	nouveau_svm_resume(drm);
+	analuveau_led_resume(dev);
+	analuveau_dmem_resume(drm);
+	analuveau_svm_resume(drm);
 	return 0;
 }
 
 int
-nouveau_pmops_suspend(struct device *dev)
+analuveau_pmops_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
@@ -998,7 +998,7 @@ nouveau_pmops_suspend(struct device *dev)
 	    drm_dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
-	ret = nouveau_do_suspend(drm_dev, false);
+	ret = analuveau_do_suspend(drm_dev, false);
 	if (ret)
 		return ret;
 
@@ -1010,7 +1010,7 @@ nouveau_pmops_suspend(struct device *dev)
 }
 
 int
-nouveau_pmops_resume(struct device *dev)
+analuveau_pmops_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
@@ -1027,70 +1027,70 @@ nouveau_pmops_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	ret = nouveau_do_resume(drm_dev, false);
+	ret = analuveau_do_resume(drm_dev, false);
 
 	/* Monitors may have been connected / disconnected during suspend */
-	nouveau_display_hpd_resume(drm_dev);
+	analuveau_display_hpd_resume(drm_dev);
 
 	return ret;
 }
 
 static int
-nouveau_pmops_freeze(struct device *dev)
+analuveau_pmops_freeze(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	return nouveau_do_suspend(drm_dev, false);
+	return analuveau_do_suspend(drm_dev, false);
 }
 
 static int
-nouveau_pmops_thaw(struct device *dev)
+analuveau_pmops_thaw(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	return nouveau_do_resume(drm_dev, false);
+	return analuveau_do_resume(drm_dev, false);
 }
 
 bool
-nouveau_pmops_runtime(void)
+analuveau_pmops_runtime(void)
 {
-	if (nouveau_runtime_pm == -1)
-		return nouveau_is_optimus() || nouveau_is_v1_dsm();
-	return nouveau_runtime_pm == 1;
+	if (analuveau_runtime_pm == -1)
+		return analuveau_is_optimus() || analuveau_is_v1_dsm();
+	return analuveau_runtime_pm == 1;
 }
 
 static int
-nouveau_pmops_runtime_suspend(struct device *dev)
+analuveau_pmops_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (!nouveau_pmops_runtime()) {
+	if (!analuveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
 
-	nouveau_switcheroo_optimus_dsm();
-	ret = nouveau_do_suspend(drm_dev, true);
+	analuveau_switcheroo_optimus_dsm();
+	ret = analuveau_do_suspend(drm_dev, true);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
-	pci_ignore_hotplug(pdev);
+	pci_iganalre_hotplug(pdev);
 	pci_set_power_state(pdev, PCI_D3cold);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 	return ret;
 }
 
 static int
-nouveau_pmops_runtime_resume(struct device *dev)
+analuveau_pmops_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct nvif_device *device = &nouveau_drm(drm_dev)->client.device;
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
+	struct nvif_device *device = &analuveau_drm(drm_dev)->client.device;
 	int ret;
 
-	if (!nouveau_pmops_runtime()) {
+	if (!analuveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -1102,7 +1102,7 @@ nouveau_pmops_runtime_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	ret = nouveau_do_resume(drm_dev, true);
+	ret = analuveau_do_resume(drm_dev, true);
 	if (ret) {
 		NV_ERROR(drm, "resume failed with: %d\n", ret);
 		return ret;
@@ -1113,15 +1113,15 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
 
 	/* Monitors may have been connected / disconnected during suspend */
-	nouveau_display_hpd_resume(drm_dev);
+	analuveau_display_hpd_resume(drm_dev);
 
 	return ret;
 }
 
 static int
-nouveau_pmops_runtime_idle(struct device *dev)
+analuveau_pmops_runtime_idle(struct device *dev)
 {
-	if (!nouveau_pmops_runtime()) {
+	if (!analuveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -1133,10 +1133,10 @@ nouveau_pmops_runtime_idle(struct device *dev)
 }
 
 static int
-nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
+analuveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_cli *cli;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_cli *cli;
 	char name[32], tmpname[TASK_COMM_LEN];
 	int ret;
 
@@ -1154,11 +1154,11 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	rcu_read_unlock();
 
 	if (!(cli = kzalloc(sizeof(*cli), GFP_KERNEL))) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
-	ret = nouveau_cli_init(drm, name, cli);
+	ret = analuveau_cli_init(drm, name, cli);
 	if (ret)
 		goto done;
 
@@ -1170,7 +1170,7 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 
 done:
 	if (ret && cli) {
-		nouveau_cli_fini(cli);
+		analuveau_cli_fini(cli);
 		kfree(cli);
 	}
 
@@ -1180,16 +1180,16 @@ done:
 }
 
 static void
-nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
+analuveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
 {
-	struct nouveau_cli *cli = nouveau_cli(fpriv);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_cli *cli = analuveau_cli(fpriv);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	int dev_index;
 
 	/*
 	 * The device is gone, and as it currently stands all clients are
 	 * cleaned up in the removal codepath. In the future this may change
-	 * so that we can support hot-unplugging, but for now we immediately
+	 * so that we can support hot-unplugging, but for analw we immediately
 	 * return to avoid a double-free situation.
 	 */
 	if (!drm_dev_enter(dev, &dev_index))
@@ -1199,14 +1199,14 @@ nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
 
 	mutex_lock(&cli->mutex);
 	if (cli->abi16)
-		nouveau_abi16_fini(cli->abi16);
+		analuveau_abi16_fini(cli->abi16);
 	mutex_unlock(&cli->mutex);
 
 	mutex_lock(&drm->clients_lock);
 	list_del(&cli->head);
 	mutex_unlock(&drm->clients_lock);
 
-	nouveau_cli_fini(cli);
+	analuveau_cli_fini(cli);
 	kfree(cli);
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
@@ -1214,31 +1214,31 @@ nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
 }
 
 static const struct drm_ioctl_desc
-nouveau_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GETPARAM, nouveau_abi16_ioctl_getparam, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_SETPARAM, drm_invalid_op, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_CHANNEL_ALLOC, nouveau_abi16_ioctl_channel_alloc, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_CHANNEL_FREE, nouveau_abi16_ioctl_channel_free, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GROBJ_ALLOC, nouveau_abi16_ioctl_grobj_alloc, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_NOTIFIEROBJ_ALLOC, nouveau_abi16_ioctl_notifierobj_alloc, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GPUOBJ_FREE, nouveau_abi16_ioctl_gpuobj_free, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_SVM_INIT, nouveau_svmm_init, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_SVM_BIND, nouveau_svmm_bind, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_NEW, nouveau_gem_ioctl_new, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_PUSHBUF, nouveau_gem_ioctl_pushbuf, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_CPU_PREP, nouveau_gem_ioctl_cpu_prep, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_CPU_FINI, nouveau_gem_ioctl_cpu_fini, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_INFO, nouveau_gem_ioctl_info, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_VM_INIT, nouveau_uvmm_ioctl_vm_init, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_VM_BIND, nouveau_uvmm_ioctl_vm_bind, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_EXEC, nouveau_exec_ioctl_exec, DRM_RENDER_ALLOW),
+analuveau_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_GETPARAM, analuveau_abi16_ioctl_getparam, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_SETPARAM, drm_invalid_op, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_CHANNEL_ALLOC, analuveau_abi16_ioctl_channel_alloc, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_CHANNEL_FREE, analuveau_abi16_ioctl_channel_free, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_GROBJ_ALLOC, analuveau_abi16_ioctl_grobj_alloc, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_ANALTIFIEROBJ_ALLOC, analuveau_abi16_ioctl_analtifierobj_alloc, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_GPUOBJ_FREE, analuveau_abi16_ioctl_gpuobj_free, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_SVM_INIT, analuveau_svmm_init, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_SVM_BIND, analuveau_svmm_bind, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_GEM_NEW, analuveau_gem_ioctl_new, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_GEM_PUSHBUF, analuveau_gem_ioctl_pushbuf, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_GEM_CPU_PREP, analuveau_gem_ioctl_cpu_prep, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_GEM_CPU_FINI, analuveau_gem_ioctl_cpu_fini, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_GEM_INFO, analuveau_gem_ioctl_info, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_VM_INIT, analuveau_uvmm_ioctl_vm_init, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_VM_BIND, analuveau_uvmm_ioctl_vm_bind, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ANALUVEAU_EXEC, analuveau_exec_ioctl_exec, DRM_RENDER_ALLOW),
 };
 
 long
-nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+analuveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct drm_file *filp = file->private_data;
-	struct drm_device *dev = filp->minor->dev;
+	struct drm_device *dev = filp->mianalr->dev;
 	long ret;
 
 	ret = pm_runtime_get_sync(dev->dev);
@@ -1248,7 +1248,7 @@ nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	switch (_IOC_NR(cmd) - DRM_COMMAND_BASE) {
-	case DRM_NOUVEAU_NVIF:
+	case DRM_ANALUVEAU_NVIF:
 		ret = usif_ioctl(filp, (void __user *)arg, _IOC_SIZE(cmd));
 		break;
 	default:
@@ -1262,18 +1262,18 @@ nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations
-nouveau_driver_fops = {
+analuveau_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.release = drm_release,
-	.unlocked_ioctl = nouveau_drm_ioctl,
+	.unlocked_ioctl = analuveau_drm_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 #if defined(CONFIG_COMPAT)
-	.compat_ioctl = nouveau_compat_ioctl,
+	.compat_ioctl = analuveau_compat_ioctl,
 #endif
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct drm_driver
@@ -1283,21 +1283,21 @@ driver_stub = {
 			   DRIVER_GEM_GPUVA |
 			   DRIVER_MODESET |
 			   DRIVER_RENDER,
-	.open = nouveau_drm_open,
-	.postclose = nouveau_drm_postclose,
-	.lastclose = nouveau_vga_lastclose,
+	.open = analuveau_drm_open,
+	.postclose = analuveau_drm_postclose,
+	.lastclose = analuveau_vga_lastclose,
 
 #if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = nouveau_drm_debugfs_init,
+	.debugfs_init = analuveau_drm_debugfs_init,
 #endif
 
-	.ioctls = nouveau_ioctls,
-	.num_ioctls = ARRAY_SIZE(nouveau_ioctls),
-	.fops = &nouveau_driver_fops,
+	.ioctls = analuveau_ioctls,
+	.num_ioctls = ARRAY_SIZE(analuveau_ioctls),
+	.fops = &analuveau_driver_fops,
 
-	.gem_prime_import_sg_table = nouveau_gem_prime_import_sg_table,
+	.gem_prime_import_sg_table = analuveau_gem_prime_import_sg_table,
 
-	.dumb_create = nouveau_display_dumb_create,
+	.dumb_create = analuveau_display_dumb_create,
 	.dumb_map_offset = drm_gem_ttm_dumb_map_offset,
 
 	.name = DRIVER_NAME,
@@ -1308,12 +1308,12 @@ driver_stub = {
 	.date = DRIVER_DATE,
 #endif
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
 static struct pci_device_id
-nouveau_drm_pci_table[] = {
+analuveau_drm_pci_table[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID),
 		.class = PCI_BASE_CLASS_DISPLAY << 16,
@@ -1327,52 +1327,52 @@ nouveau_drm_pci_table[] = {
 	{}
 };
 
-static void nouveau_display_options(void)
+static void analuveau_display_options(void)
 {
-	DRM_DEBUG_DRIVER("Loading Nouveau with parameters:\n");
+	DRM_DEBUG_DRIVER("Loading Analuveau with parameters:\n");
 
-	DRM_DEBUG_DRIVER("... tv_disable   : %d\n", nouveau_tv_disable);
-	DRM_DEBUG_DRIVER("... ignorelid    : %d\n", nouveau_ignorelid);
-	DRM_DEBUG_DRIVER("... duallink     : %d\n", nouveau_duallink);
-	DRM_DEBUG_DRIVER("... config       : %s\n", nouveau_config);
-	DRM_DEBUG_DRIVER("... debug        : %s\n", nouveau_debug);
-	DRM_DEBUG_DRIVER("... noaccel      : %d\n", nouveau_noaccel);
-	DRM_DEBUG_DRIVER("... modeset      : %d\n", nouveau_modeset);
-	DRM_DEBUG_DRIVER("... runpm        : %d\n", nouveau_runtime_pm);
-	DRM_DEBUG_DRIVER("... vram_pushbuf : %d\n", nouveau_vram_pushbuf);
-	DRM_DEBUG_DRIVER("... hdmimhz      : %d\n", nouveau_hdmimhz);
+	DRM_DEBUG_DRIVER("... tv_disable   : %d\n", analuveau_tv_disable);
+	DRM_DEBUG_DRIVER("... iganalrelid    : %d\n", analuveau_iganalrelid);
+	DRM_DEBUG_DRIVER("... duallink     : %d\n", analuveau_duallink);
+	DRM_DEBUG_DRIVER("... config       : %s\n", analuveau_config);
+	DRM_DEBUG_DRIVER("... debug        : %s\n", analuveau_debug);
+	DRM_DEBUG_DRIVER("... analaccel      : %d\n", analuveau_analaccel);
+	DRM_DEBUG_DRIVER("... modeset      : %d\n", analuveau_modeset);
+	DRM_DEBUG_DRIVER("... runpm        : %d\n", analuveau_runtime_pm);
+	DRM_DEBUG_DRIVER("... vram_pushbuf : %d\n", analuveau_vram_pushbuf);
+	DRM_DEBUG_DRIVER("... hdmimhz      : %d\n", analuveau_hdmimhz);
 }
 
-static const struct dev_pm_ops nouveau_pm_ops = {
-	.suspend = nouveau_pmops_suspend,
-	.resume = nouveau_pmops_resume,
-	.freeze = nouveau_pmops_freeze,
-	.thaw = nouveau_pmops_thaw,
-	.poweroff = nouveau_pmops_freeze,
-	.restore = nouveau_pmops_resume,
-	.runtime_suspend = nouveau_pmops_runtime_suspend,
-	.runtime_resume = nouveau_pmops_runtime_resume,
-	.runtime_idle = nouveau_pmops_runtime_idle,
+static const struct dev_pm_ops analuveau_pm_ops = {
+	.suspend = analuveau_pmops_suspend,
+	.resume = analuveau_pmops_resume,
+	.freeze = analuveau_pmops_freeze,
+	.thaw = analuveau_pmops_thaw,
+	.poweroff = analuveau_pmops_freeze,
+	.restore = analuveau_pmops_resume,
+	.runtime_suspend = analuveau_pmops_runtime_suspend,
+	.runtime_resume = analuveau_pmops_runtime_resume,
+	.runtime_idle = analuveau_pmops_runtime_idle,
 };
 
 static struct pci_driver
-nouveau_drm_pci_driver = {
-	.name = "nouveau",
-	.id_table = nouveau_drm_pci_table,
-	.probe = nouveau_drm_probe,
-	.remove = nouveau_drm_remove,
-	.driver.pm = &nouveau_pm_ops,
+analuveau_drm_pci_driver = {
+	.name = "analuveau",
+	.id_table = analuveau_drm_pci_table,
+	.probe = analuveau_drm_probe,
+	.remove = analuveau_drm_remove,
+	.driver.pm = &analuveau_pm_ops,
 };
 
 struct drm_device *
-nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
+analuveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 			       struct platform_device *pdev,
 			       struct nvkm_device **pdevice)
 {
 	struct drm_device *drm;
 	int err;
 
-	err = nvkm_device_tegra_new(func, pdev, nouveau_config, nouveau_debug,
+	err = nvkm_device_tegra_new(func, pdev, analuveau_config, analuveau_debug,
 				    true, true, ~0ULL, pdevice);
 	if (err)
 		goto err_free;
@@ -1383,7 +1383,7 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 	}
 
-	err = nouveau_drm_device_init(drm);
+	err = analuveau_drm_device_init(drm);
 	if (err)
 		goto err_put;
 
@@ -1400,58 +1400,58 @@ err_free:
 }
 
 static int __init
-nouveau_drm_init(void)
+analuveau_drm_init(void)
 {
 	driver_pci = driver_stub;
 	driver_platform = driver_stub;
 
-	nouveau_display_options();
+	analuveau_display_options();
 
-	if (nouveau_modeset == -1) {
+	if (analuveau_modeset == -1) {
 		if (drm_firmware_drivers_only())
-			nouveau_modeset = 0;
+			analuveau_modeset = 0;
 	}
 
-	if (!nouveau_modeset)
+	if (!analuveau_modeset)
 		return 0;
 
-#ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
-	platform_driver_register(&nouveau_platform_driver);
+#ifdef CONFIG_ANALUVEAU_PLATFORM_DRIVER
+	platform_driver_register(&analuveau_platform_driver);
 #endif
 
-	nouveau_register_dsm_handler();
-	nouveau_backlight_ctor();
+	analuveau_register_dsm_handler();
+	analuveau_backlight_ctor();
 
 #ifdef CONFIG_PCI
-	return pci_register_driver(&nouveau_drm_pci_driver);
+	return pci_register_driver(&analuveau_drm_pci_driver);
 #else
 	return 0;
 #endif
 }
 
 static void __exit
-nouveau_drm_exit(void)
+analuveau_drm_exit(void)
 {
-	if (!nouveau_modeset)
+	if (!analuveau_modeset)
 		return;
 
 #ifdef CONFIG_PCI
-	pci_unregister_driver(&nouveau_drm_pci_driver);
+	pci_unregister_driver(&analuveau_drm_pci_driver);
 #endif
-	nouveau_backlight_dtor();
-	nouveau_unregister_dsm_handler();
+	analuveau_backlight_dtor();
+	analuveau_unregister_dsm_handler();
 
-#ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
-	platform_driver_unregister(&nouveau_platform_driver);
+#ifdef CONFIG_ANALUVEAU_PLATFORM_DRIVER
+	platform_driver_unregister(&analuveau_platform_driver);
 #endif
-	if (IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM))
-		mmu_notifier_synchronize();
+	if (IS_ENABLED(CONFIG_DRM_ANALUVEAU_SVM))
+		mmu_analtifier_synchronize();
 }
 
-module_init(nouveau_drm_init);
-module_exit(nouveau_drm_exit);
+module_init(analuveau_drm_init);
+module_exit(analuveau_drm_exit);
 
-MODULE_DEVICE_TABLE(pci, nouveau_drm_pci_table);
+MODULE_DEVICE_TABLE(pci, analuveau_drm_pci_table);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");

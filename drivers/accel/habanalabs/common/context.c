@@ -89,7 +89,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	hl_hw_block_mem_fini(ctx);
 
 	/*
-	 * If we arrived here, there are no jobs waiting for this context
+	 * If we arrived here, there are anal jobs waiting for this context
 	 * on its queues so we can safely remove it.
 	 * This is because for each CS, we increment the ref count and for
 	 * every CS that was finished we decrement it and we won't arrive
@@ -104,7 +104,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
 		dev_dbg(hdev->dev, "closing user context, asid=%u\n", ctx->asid);
 
-		/* The engines are stopped as there is no executing CS, but the
+		/* The engines are stopped as there is anal executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
 		 */
@@ -157,7 +157,7 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_err;
 	}
 
@@ -214,13 +214,13 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 				sizeof(struct hl_fence *),
 				GFP_KERNEL);
 	if (!ctx->cs_pending)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ctx->outcome_store.used_list);
 	INIT_LIST_HEAD(&ctx->outcome_store.free_list);
 	hash_init(ctx->outcome_store.outcome_map);
-	for (i = 0; i < ARRAY_SIZE(ctx->outcome_store.nodes_pool); ++i)
-		list_add(&ctx->outcome_store.nodes_pool[i].list_link,
+	for (i = 0; i < ARRAY_SIZE(ctx->outcome_store.analdes_pool); ++i)
+		list_add(&ctx->outcome_store.analdes_pool[i].list_link,
 			 &ctx->outcome_store.free_list);
 
 	hl_hw_block_mem_init(ctx);
@@ -230,7 +230,7 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 		rc = hl_vm_ctx_init(ctx);
 		if (rc) {
 			dev_err(hdev->dev, "Failed to init mem ctx module\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_hw_block_mem_fini;
 		}
 
@@ -242,15 +242,15 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	} else {
 		ctx->asid = hl_asid_alloc(hdev);
 		if (!ctx->asid) {
-			dev_err(hdev->dev, "No free ASID, failed to create context\n");
-			rc = -ENOMEM;
+			dev_err(hdev->dev, "Anal free ASID, failed to create context\n");
+			rc = -EANALMEM;
 			goto err_hw_block_mem_fini;
 		}
 
 		rc = hl_vm_ctx_init(ctx);
 		if (rc) {
 			dev_err(hdev->dev, "Failed to init mem ctx module\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_asid_free;
 		}
 
@@ -313,7 +313,7 @@ struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev)
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node) {
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_analde) {
 		mutex_lock(&hpriv->ctx_lock);
 		ctx = hpriv->ctx;
 		if (ctx && !hl_ctx_get_unless_zero(ctx))
@@ -340,7 +340,7 @@ struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev)
  * @return valid fence pointer on success, NULL if fence is gone, otherwise
  *         error pointer.
  *
- * NOTE: this function shall be called with cs_lock locked
+ * ANALTE: this function shall be called with cs_lock locked
  */
 static struct hl_fence *hl_ctx_get_fence_locked(struct hl_ctx *ctx, u64 seq)
 {
@@ -379,7 +379,7 @@ struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
  * @fence: fence array to store the CS fences
  * @arr_len: length of seq_arr and fence_arr
  *
- * @return 0 on success, otherwise non 0 error code
+ * @return 0 on success, otherwise analn 0 error code
  */
 int hl_ctx_get_fences(struct hl_ctx *ctx, u64 *seq_arr,
 				struct hl_fence **fence, u32 arr_len)

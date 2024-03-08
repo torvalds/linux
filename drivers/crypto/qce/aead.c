@@ -14,8 +14,8 @@
 #include <crypto/scatterwalk.h>
 #include "aead.h"
 
-#define CCM_NONCE_ADATA_SHIFT		6
-#define CCM_NONCE_AUTHSIZE_SHIFT	3
+#define CCM_ANALNCE_ADATA_SHIFT		6
+#define CCM_ANALNCE_AUTHSIZE_SHIFT	3
 #define MAX_CCM_ADATA_HEADER_LEN        6
 
 static LIST_HEAD(aead_algs);
@@ -206,7 +206,7 @@ qce_aead_ccm_prepare_buf_assoclen(struct aead_request *req)
 	rctx->adata = kzalloc((ALIGN(assoclen, 16) + MAX_CCM_ADATA_HEADER_LEN) *
 			       sizeof(unsigned char), GFP_ATOMIC);
 	if (!rctx->adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Format associated data (RFC3610 and NIST 800-38C)
@@ -358,7 +358,7 @@ static int qce_aead_ccm_prepare_buf(struct aead_request *req)
 	return 0;
 }
 
-static int qce_aead_create_ccm_nonce(struct qce_aead_reqctx *rctx, struct qce_aead_ctx *ctx)
+static int qce_aead_create_ccm_analnce(struct qce_aead_reqctx *rctx, struct qce_aead_ctx *ctx)
 {
 	unsigned int msglen_size, ivsize;
 	u8 msg_len[4];
@@ -377,7 +377,7 @@ static int qce_aead_create_ccm_nonce(struct qce_aead_reqctx *rctx, struct qce_ae
 
 	/*
 	 * Clear the msglen bytes in IV.
-	 * Else the h/w engine and nonce will use any stray value pending there.
+	 * Else the h/w engine and analnce will use any stray value pending there.
 	 */
 	if (!IS_CCM_RFC4309(rctx->flags)) {
 		for (i = 0; i < msglen_size; i++)
@@ -393,13 +393,13 @@ static int qce_aead_create_ccm_nonce(struct qce_aead_reqctx *rctx, struct qce_ae
 
 	memcpy(&msg_len[0], &rctx->cryptlen, 4);
 
-	memcpy(&rctx->ccm_nonce[0], rctx->iv, rctx->ivsize);
+	memcpy(&rctx->ccm_analnce[0], rctx->iv, rctx->ivsize);
 	if (rctx->assoclen)
-		rctx->ccm_nonce[0] |= 1 << CCM_NONCE_ADATA_SHIFT;
-	rctx->ccm_nonce[0] |= ((ctx->authsize - 2) / 2) <<
-				CCM_NONCE_AUTHSIZE_SHIFT;
+		rctx->ccm_analnce[0] |= 1 << CCM_ANALNCE_ADATA_SHIFT;
+	rctx->ccm_analnce[0] |= ((ctx->authsize - 2) / 2) <<
+				CCM_ANALNCE_AUTHSIZE_SHIFT;
 	for (i = 0; i < msglen_size; i++)
-		rctx->ccm_nonce[QCE_MAX_NONCE - i - 1] = msg_len[i];
+		rctx->ccm_analnce[QCE_MAX_ANALNCE - i - 1] = msg_len[i];
 
 	return 0;
 }
@@ -438,7 +438,7 @@ qce_aead_async_req_handle(struct crypto_async_request *async_req)
 	dir_dst = diff_dst ? DMA_FROM_DEVICE : DMA_BIDIRECTIONAL;
 
 	if (IS_CCM(rctx->flags)) {
-		ret = qce_aead_create_ccm_nonce(rctx, ctx);
+		ret = qce_aead_create_ccm_analnce(rctx, ctx);
 		if (ret)
 			return ret;
 	}
@@ -515,7 +515,7 @@ static int qce_aead_crypt(struct aead_request *req, int encrypt)
 	else
 		rctx->cryptlen = req->cryptlen - ctx->authsize;
 
-	/* CE does not handle 0 length messages */
+	/* CE does analt handle 0 length messages */
 	if (!rctx->cryptlen) {
 		if (!(IS_CCM(rctx->flags) && IS_DECRYPT(rctx->flags)))
 			ctx->need_fallback = true;
@@ -523,7 +523,7 @@ static int qce_aead_crypt(struct aead_request *req, int encrypt)
 
 	/* If fallback is needed, schedule and exit */
 	if (ctx->need_fallback) {
-		/* Reset need_fallback in case the same ctx is used for another transaction */
+		/* Reset need_fallback in case the same ctx is used for aanalther transaction */
 		ctx->need_fallback = false;
 
 		aead_request_set_tfm(&rctx->fallback_req, ctx->fallback);
@@ -617,9 +617,9 @@ static int qce_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int 
 		if (err)
 			return err;
 		/*
-		 * The crypto engine does not support any two keys
+		 * The crypto engine does analt support any two keys
 		 * being the same for triple des algorithms. The
-		 * verify_skcipher_des3_key does not check for all the
+		 * verify_skcipher_des3_key does analt check for all the
 		 * below conditions. Schedule fallback in this case.
 		 */
 		memcpy(_key, authenc_keys.enckey, DES3_EDE_KEY_SIZE);
@@ -628,7 +628,7 @@ static int qce_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int 
 		    !((_key[0] ^ _key[4]) | (_key[1] ^ _key[5])))
 			ctx->need_fallback = true;
 	} else if (IS_AES(flags)) {
-		/* No random key sizes */
+		/* Anal random key sizes */
 		if (authenc_keys.enckeylen != AES_KEYSIZE_128 &&
 		    authenc_keys.enckeylen != AES_KEYSIZE_192 &&
 		    authenc_keys.enckeylen != AES_KEYSIZE_256)
@@ -764,7 +764,7 @@ static int qce_aead_register_one(const struct qce_aead_def *def, struct qce_devi
 
 	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
 	if (!tmpl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alg = &tmpl->alg.aead;
 

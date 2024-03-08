@@ -79,7 +79,7 @@ static struct rc_map_table manli[] = {
 	 *  SOURCE         STEREO *
 	 *                        */
 	{ 0x11, KEY_TV },	/*XXX*/
-	{ 0x0d, KEY_MODE },	/*XXX there's no KEY_STEREO	*/
+	{ 0x0d, KEY_MODE },	/*XXX there's anal KEY_STEREO	*/
 
 	/*  0x0f    0x1b    0x1a  *
 	 *  AUDIO   Vol+    Chan+ *
@@ -108,7 +108,7 @@ static struct rc_map_list manli_map = {
 	.map = {
 		.scan     = manli,
 		.size     = ARRAY_SIZE(manli),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_MANLI,
 	}
 };

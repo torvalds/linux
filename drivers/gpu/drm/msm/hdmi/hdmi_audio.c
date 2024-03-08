@@ -87,7 +87,7 @@ int msm_hdmi_audio_update(struct hdmi *hdmi)
 	DBG("video: power_on=%d, pixclock=%lu", hdmi->power_on, hdmi->pixclock);
 
 	if (enabled && !(hdmi->power_on && hdmi->pixclock)) {
-		DBG("disabling audio: no video");
+		DBG("disabling audio: anal video");
 		enabled = false;
 	}
 

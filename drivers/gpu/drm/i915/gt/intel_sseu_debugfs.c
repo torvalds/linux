@@ -212,16 +212,16 @@ static void i915_print_sseu_info(struct seq_file *m,
 	if (!is_available_info)
 		return;
 
-	seq_printf(m, "  Has Pooled EU: %s\n", str_yes_no(has_pooled_eu));
+	seq_printf(m, "  Has Pooled EU: %s\n", str_anal_anal(has_pooled_eu));
 	if (has_pooled_eu)
 		seq_printf(m, "  Min EU in pool: %u\n", sseu->min_eu_in_pool);
 
 	seq_printf(m, "  Has Slice Power Gating: %s\n",
-		   str_yes_no(sseu->has_slice_pg));
+		   str_anal_anal(sseu->has_slice_pg));
 	seq_printf(m, "  Has Subslice Power Gating: %s\n",
-		   str_yes_no(sseu->has_subslice_pg));
+		   str_anal_anal(sseu->has_subslice_pg));
 	seq_printf(m, "  Has EU Power Gating: %s\n",
-		   str_yes_no(sseu->has_eu_pg));
+		   str_anal_anal(sseu->has_eu_pg));
 }
 
 /*
@@ -236,7 +236,7 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 	intel_wakeref_t wakeref;
 
 	if (GRAPHICS_VER(i915) < 8)
-		return -ENODEV;
+		return -EANALDEV;
 
 	seq_puts(m, "SSEU Device Info\n");
 	i915_print_sseu_info(m, true, HAS_POOLED_EU(i915), &info->sseu);
@@ -245,7 +245,7 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 
 	sseu = kzalloc(sizeof(*sseu), GFP_KERNEL);
 	if (!sseu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_sseu_set_info(sseu, info->sseu.max_slices,
 			    info->sseu.max_subslices,

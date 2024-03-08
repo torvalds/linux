@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -120,7 +120,7 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 	return ttm;
 }
 
-static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
+static void qxl_bo_move_analtify(struct ttm_buffer_object *bo,
 			       struct ttm_resource *new_mem)
 {
 	struct qxl_bo *qbo;
@@ -154,7 +154,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 		return 0;
 	}
 
-	qxl_bo_move_notify(bo, new_mem);
+	qxl_bo_move_analtify(bo, new_mem);
 
 	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
@@ -167,9 +167,9 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 	return ttm_bo_move_memcpy(bo, ctx, new_mem);
 }
 
-static void qxl_bo_delete_mem_notify(struct ttm_buffer_object *bo)
+static void qxl_bo_delete_mem_analtify(struct ttm_buffer_object *bo)
 {
-	qxl_bo_move_notify(bo, NULL);
+	qxl_bo_move_analtify(bo, NULL);
 }
 
 static struct ttm_device_funcs qxl_bo_driver = {
@@ -179,7 +179,7 @@ static struct ttm_device_funcs qxl_bo_driver = {
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
-	.delete_mem_notify = &qxl_bo_delete_mem_notify,
+	.delete_mem_analtify = &qxl_bo_delete_mem_analtify,
 };
 
 static int qxl_ttm_init_mem_type(struct qxl_device *qdev,
@@ -194,16 +194,16 @@ int qxl_ttm_init(struct qxl_device *qdev)
 	int r;
 	int num_io_pages; /* != rom->num_io_pages, we include surface0 */
 
-	/* No others user of address space so set it to 0 */
+	/* Anal others user of address space so set it to 0 */
 	r = ttm_device_init(&qdev->mman.bdev, &qxl_bo_driver, NULL,
-			    qdev->ddev.anon_inode->i_mapping,
+			    qdev->ddev.aanaln_ianalde->i_mapping,
 			    qdev->ddev.vma_offset_manager,
 			    false, false);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
-	/* NOTE: this includes the framebuffer (aka surface 0) */
+	/* ANALTE: this includes the framebuffer (aka surface 0) */
 	num_io_pages = qdev->rom->ram_header_offset / PAGE_SIZE;
 	r = qxl_ttm_init_mem_type(qdev, TTM_PL_VRAM, num_io_pages);
 	if (r) {

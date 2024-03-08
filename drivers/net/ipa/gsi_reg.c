@@ -129,7 +129,7 @@ int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gsi");
 	if (!res) {
 		dev_err(dev, "DT error getting \"gsi\" memory property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	size = resource_size(res);
@@ -147,7 +147,7 @@ int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev)
 	gsi->virt = ioremap(res->start, size);
 	if (!gsi->virt) {
 		dev_err(dev, "unable to remap \"gsi\" memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

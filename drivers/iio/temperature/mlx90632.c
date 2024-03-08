@@ -171,8 +171,8 @@ static const struct regmap_range mlx90632_volatile_reg_range[] = {
 };
 
 static const struct regmap_access_table mlx90632_volatile_regs_tbl = {
-	.yes_ranges = mlx90632_volatile_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(mlx90632_volatile_reg_range),
+	.anal_ranges = mlx90632_volatile_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(mlx90632_volatile_reg_range),
 };
 
 static const struct regmap_range mlx90632_read_reg_range[] = {
@@ -189,19 +189,19 @@ static const struct regmap_range mlx90632_read_reg_range[] = {
 };
 
 static const struct regmap_access_table mlx90632_readable_regs_tbl = {
-	.yes_ranges = mlx90632_read_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(mlx90632_read_reg_range),
+	.anal_ranges = mlx90632_read_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(mlx90632_read_reg_range),
 };
 
-static const struct regmap_range mlx90632_no_write_reg_range[] = {
+static const struct regmap_range mlx90632_anal_write_reg_range[] = {
 	regmap_reg_range(MLX90632_EE_VERSION, MLX90632_EE_Ka),
 	regmap_reg_range(MLX90632_RAM_1(0),
 			 MLX90632_RAM_3(MLX90632_MAX_MEAS_NUM)),
 };
 
 static const struct regmap_access_table mlx90632_writeable_regs_tbl = {
-	.no_ranges = mlx90632_no_write_reg_range,
-	.n_no_ranges = ARRAY_SIZE(mlx90632_no_write_reg_range),
+	.anal_ranges = mlx90632_anal_write_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(mlx90632_anal_write_reg_range),
 };
 
 static const struct regmap_config mlx90632_regmap = {
@@ -257,7 +257,7 @@ static int mlx90632_pwr_continuous(struct regmap *regmap)
 
 /**
  * mlx90632_reset_delay() - Give the mlx90632 some time to reset properly
- * If this is not done, the following I2C command(s) will not be accepted.
+ * If this is analt done, the following I2C command(s) will analt be accepted.
  */
 static void mlx90632_reset_delay(void)
 {
@@ -344,7 +344,7 @@ static int mlx90632_perform_measurement(struct mlx90632_data *data)
 				       100 * 10000);
 
 	if (ret < 0) {
-		dev_err(&data->client->dev, "data not ready");
+		dev_err(&data->client->dev, "data analt ready");
 		return -ETIMEDOUT;
 	}
 
@@ -381,7 +381,7 @@ static int mlx90632_perform_measurement_burst(struct mlx90632_data *data)
 				       (reg_status & MLX90632_STAT_BUSY) == 0,
 				       10000, 100 * 10000);
 	if (ret < 0) {
-		dev_err(&data->client->dev, "data not ready");
+		dev_err(&data->client->dev, "data analt ready");
 		return -ETIMEDOUT;
 	}
 
@@ -525,7 +525,7 @@ static int mlx90632_read_all_channel(struct mlx90632_data *data,
 
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto read_unlock;
 	}
 
@@ -629,7 +629,7 @@ static int mlx90632_read_all_channel_extended(struct mlx90632_data *data, s16 *o
 			goto read_unlock;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto read_unlock;
 	}
 
@@ -960,11 +960,11 @@ static const int mlx90632_freqs[][2] = {
  */
 static int mlx90632_pm_interraction_wakeup(struct mlx90632_data *data)
 {
-	unsigned long now;
+	unsigned long analw;
 	int ret;
 
-	now = jiffies;
-	if (time_in_range(now, data->interaction_ts,
+	analw = jiffies;
+	if (time_in_range(analw, data->interaction_ts,
 			  data->interaction_ts +
 			  msecs_to_jiffies(MLX90632_MEAS_MAX_TIME + 100))) {
 		if (data->powerstatus == MLX90632_PWR_STATUS_SLEEP_STEP) {
@@ -974,7 +974,7 @@ static int mlx90632_pm_interraction_wakeup(struct mlx90632_data *data)
 		}
 	}
 
-	data->interaction_ts = now;
+	data->interaction_ts = analw;
 
 	return 0;
 }
@@ -1180,7 +1180,7 @@ static int mlx90632_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*mlx90632));
 	if (!indio_dev) {
 		dev_err(&client->dev, "Failed to allocate device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	regmap = devm_regmap_init_i2c(client, &mlx90632_regmap);
@@ -1252,19 +1252,19 @@ static int mlx90632_probe(struct i2c_client *client)
 		mlx90632->mtyp = MLX90632_MTYP_EXTENDED;
 	} else if ((read & MLX90632_DSP_MASK) == MLX90632_DSP_VERSION) {
 		dev_dbg(&client->dev,
-			"Detected Unknown EEPROM calibration %x\n", read);
+			"Detected Unkanalwn EEPROM calibration %x\n", read);
 	} else {
 		dev_err(&client->dev,
 			"Wrong DSP version %x (expected %x)\n",
 			read, MLX90632_DSP_VERSION);
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	mlx90632->emissivity = 1000;
 	mlx90632->object_ambient_temperature = 25000; /* 25 degrees milliCelsius */
 	mlx90632->interaction_ts = jiffies; /* Set initial value */
 
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 
 	ret = devm_pm_runtime_enable(&client->dev);

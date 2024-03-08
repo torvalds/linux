@@ -278,7 +278,7 @@ static int decode_nul(struct bitstr *bs, const struct field_t *f,
 {
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_bool(struct bitstr *bs, const struct field_t *f,
@@ -289,7 +289,7 @@ static int decode_bool(struct bitstr *bs, const struct field_t *f,
 	INC_BIT(bs);
 	if (nf_h323_error_boundary(bs, 0, 0))
 		return H323_ERROR_BOUND;
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_oid(struct bitstr *bs, const struct field_t *f,
@@ -308,7 +308,7 @@ static int decode_oid(struct bitstr *bs, const struct field_t *f,
 	if (nf_h323_error_boundary(bs, 0, 0))
 		return H323_ERROR_BOUND;
 
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_int(struct bitstr *bs, const struct field_t *f,
@@ -355,7 +355,7 @@ static int decode_int(struct bitstr *bs, const struct field_t *f,
 
 	if (nf_h323_error_boundary(bs, 0, 0))
 		return H323_ERROR_BOUND;
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_enum(struct bitstr *bs, const struct field_t *f,
@@ -371,7 +371,7 @@ static int decode_enum(struct bitstr *bs, const struct field_t *f,
 
 	if (nf_h323_error_boundary(bs, 0, 0))
 		return H323_ERROR_BOUND;
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_bitstr(struct bitstr *bs, const struct field_t *f,
@@ -407,7 +407,7 @@ static int decode_bitstr(struct bitstr *bs, const struct field_t *f,
 
 	if (nf_h323_error_boundary(bs, 0, 0))
 		return H323_ERROR_BOUND;
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_numstr(struct bitstr *bs, const struct field_t *f,
@@ -427,7 +427,7 @@ static int decode_numstr(struct bitstr *bs, const struct field_t *f,
 
 	if (nf_h323_error_boundary(bs, 0, 0))
 		return H323_ERROR_BOUND;
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_octstr(struct bitstr *bs, const struct field_t *f,
@@ -480,7 +480,7 @@ static int decode_octstr(struct bitstr *bs, const struct field_t *f,
 
 	if (nf_h323_error_boundary(bs, 0, 0))
 		return H323_ERROR_BOUND;
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_bmpstr(struct bitstr *bs, const struct field_t *f,
@@ -509,7 +509,7 @@ static int decode_bmpstr(struct bitstr *bs, const struct field_t *f,
 
 	if (nf_h323_error_boundary(bs, 0, 0))
 		return H323_ERROR_BOUND;
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_seq(struct bitstr *bs, const struct field_t *f,
@@ -548,7 +548,7 @@ static int decode_seq(struct bitstr *bs, const struct field_t *f,
 		}
 
 		if (son->attr & OPT) {	/* Optional component */
-			if (!((0x80000000U >> (opt++)) & bmp))	/* Not exist */
+			if (!((0x80000000U >> (opt++)) & bmp))	/* Analt exist */
 				continue;
 		}
 
@@ -570,20 +570,20 @@ static int decode_seq(struct bitstr *bs, const struct field_t *f,
 			/* Decode */
 			if ((err = (Decoders[son->type]) (bs, son, base,
 							  level + 1)) <
-			    H323_ERROR_NONE)
+			    H323_ERROR_ANALNE)
 				return err;
 
 			bs->cur = beg + len;
 			bs->bit = 0;
 		} else if ((err = (Decoders[son->type]) (bs, son, base,
 							 level + 1)) <
-			   H323_ERROR_NONE)
+			   H323_ERROR_ANALNE)
 			return err;
 	}
 
-	/* No extension? */
+	/* Anal extension? */
 	if (!ext)
-		return H323_ERROR_NONE;
+		return H323_ERROR_ANALNE;
 
 	/* Get the extension bitmap */
 	if (nf_h323_error_boundary(bs, 0, 7))
@@ -618,7 +618,7 @@ static int decode_seq(struct bitstr *bs, const struct field_t *f,
 			return H323_ERROR_STOP;
 		}
 
-		if (!((0x80000000 >> opt) & bmp2))	/* Not present */
+		if (!((0x80000000 >> opt) & bmp2))	/* Analt present */
 			continue;
 
 		if (nf_h323_error_boundary(bs, 2, 0))
@@ -636,13 +636,13 @@ static int decode_seq(struct bitstr *bs, const struct field_t *f,
 
 		if ((err = (Decoders[son->type]) (bs, son, base,
 						  level + 1)) <
-		    H323_ERROR_NONE)
+		    H323_ERROR_ANALNE)
 			return err;
 
 		bs->cur = beg + len;
 		bs->bit = 0;
 	}
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_seqof(struct bitstr *bs, const struct field_t *f,
@@ -720,7 +720,7 @@ static int decode_seqof(struct bitstr *bs, const struct field_t *f,
 							  effective_count ?
 							  base : NULL,
 							  level + 1)) <
-			    H323_ERROR_NONE)
+			    H323_ERROR_ANALNE)
 				return err;
 
 			bs->cur = beg + len;
@@ -731,14 +731,14 @@ static int decode_seqof(struct bitstr *bs, const struct field_t *f,
 							  effective_count ?
 							  base : NULL,
 							  level + 1)) <
-			    H323_ERROR_NONE)
+			    H323_ERROR_ANALNE)
 				return err;
 
 		if (base)
 			base += son->offset;
 	}
 
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 static int decode_choice(struct bitstr *bs, const struct field_t *f,
@@ -784,7 +784,7 @@ static int decode_choice(struct bitstr *bs, const struct field_t *f,
 		if (nf_h323_error_boundary(bs, len, 0))
 			return H323_ERROR_BOUND;
 		bs->cur += len;
-		return H323_ERROR_NONE;
+		return H323_ERROR_ANALNE;
 	}
 
 	/* Transfer to son level */
@@ -805,21 +805,21 @@ static int decode_choice(struct bitstr *bs, const struct field_t *f,
 			PRINT("%*.s%s\n", (level + 1) * TAB_SIZE, " ",
 			      son->name);
 			bs->cur += len;
-			return H323_ERROR_NONE;
+			return H323_ERROR_ANALNE;
 		}
 		beg = bs->cur;
 
 		if ((err = (Decoders[son->type]) (bs, son, base, level + 1)) <
-		    H323_ERROR_NONE)
+		    H323_ERROR_ANALNE)
 			return err;
 
 		bs->cur = beg + len;
 		bs->bit = 0;
 	} else if ((err = (Decoders[son->type]) (bs, son, base, level + 1)) <
-		   H323_ERROR_NONE)
+		   H323_ERROR_ANALNE)
 		return err;
 
-	return H323_ERROR_NONE;
+	return H323_ERROR_ANALNE;
 }
 
 int DecodeRasMessage(unsigned char *buf, size_t sz, RasMessage *ras)
@@ -882,7 +882,7 @@ int DecodeQ931(unsigned char *buf, size_t sz, Q931 *q931)
 
 	/* Protocol Discriminator */
 	if (*p != 0x08) {
-		PRINT("Unknown Protocol Discriminator\n");
+		PRINT("Unkanalwn Protocol Discriminator\n");
 		return H323_ERROR_RANGE;
 	}
 	p++;
@@ -937,7 +937,7 @@ int DecodeQ931(unsigned char *buf, size_t sz, Q931 *q931)
 		sz -= len;
 	}
 
-	PRINT("Q.931 UUIE not found\n");
+	PRINT("Q.931 UUIE analt found\n");
 
 	return H323_ERROR_BOUND;
 }

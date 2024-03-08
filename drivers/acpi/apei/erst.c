@@ -34,11 +34,11 @@
 
 /* ERST command status */
 #define ERST_STATUS_SUCCESS			0x0
-#define ERST_STATUS_NOT_ENOUGH_SPACE		0x1
-#define ERST_STATUS_HARDWARE_NOT_AVAILABLE	0x2
+#define ERST_STATUS_ANALT_EANALUGH_SPACE		0x1
+#define ERST_STATUS_HARDWARE_ANALT_AVAILABLE	0x2
 #define ERST_STATUS_FAILED			0x3
 #define ERST_STATUS_RECORD_STORE_EMPTY		0x4
-#define ERST_STATUS_RECORD_NOT_FOUND		0x5
+#define ERST_STATUS_RECORD_ANALT_FOUND		0x5
 
 #define ERST_TAB_ENTRY(tab)						\
 	((struct acpi_whea_header *)((char *)(tab) +			\
@@ -77,7 +77,7 @@ static struct erst_erange {
 
 /*
  * Prevent ERST interpreter to run simultaneously, because the
- * corresponding firmware implementation may not work properly when
+ * corresponding firmware implementation may analt work properly when
  * invoked simultaneously.
  *
  * It is used to provide exclusive accessing for ERST Error Log
@@ -85,18 +85,18 @@ static struct erst_erange {
  */
 static DEFINE_RAW_SPINLOCK(erst_lock);
 
-static inline int erst_errno(int command_status)
+static inline int erst_erranal(int command_status)
 {
 	switch (command_status) {
 	case ERST_STATUS_SUCCESS:
 		return 0;
-	case ERST_STATUS_HARDWARE_NOT_AVAILABLE:
-		return -ENODEV;
-	case ERST_STATUS_NOT_ENOUGH_SPACE:
-		return -ENOSPC;
+	case ERST_STATUS_HARDWARE_ANALT_AVAILABLE:
+		return -EANALDEV;
+	case ERST_STATUS_ANALT_EANALUGH_SPACE:
+		return -EANALSPC;
 	case ERST_STATUS_RECORD_STORE_EMPTY:
-	case ERST_STATUS_RECORD_NOT_FOUND:
-		return -ENOENT;
+	case ERST_STATUS_RECORD_ANALT_FOUND:
+		return -EANALENT;
 	default:
 		return -EINVAL;
 	}
@@ -118,7 +118,7 @@ static inline u64 erst_get_timeout(void)
 static int erst_timedout(u64 *t, u64 spin_unit)
 {
 	if ((s64)*t < spin_unit) {
-		pr_warn(FW_WARN "Firmware does not respond in time.\n");
+		pr_warn(FW_WARN "Firmware does analt respond in time.\n");
 		return 1;
 	}
 	*t -= spin_unit;
@@ -279,9 +279,9 @@ static int erst_exec_move_data(struct apei_exec_context *ctx,
 	u64 offset;
 	void *src, *dst;
 
-	/* ioremap does not work in interrupt context */
+	/* ioremap does analt work in interrupt context */
 	if (in_interrupt()) {
-		pr_warn("MOVE_DATA can not be used in interrupt context.\n");
+		pr_warn("MOVE_DATA can analt be used in interrupt context.\n");
 		return -EBUSY;
 	}
 
@@ -291,11 +291,11 @@ static int erst_exec_move_data(struct apei_exec_context *ctx,
 
 	src = ioremap(ctx->src_base + offset, ctx->var2);
 	if (!src)
-		return -ENOMEM;
+		return -EANALMEM;
 	dst = ioremap(ctx->dst_base + offset, ctx->var2);
 	if (!dst) {
 		iounmap(src);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memmove(dst, src, ctx->var2);
@@ -323,9 +323,9 @@ static struct apei_exec_ins_type erst_ins_type[] = {
 		.flags = APEI_EXEC_INS_ACCESS_REGISTER,
 		.run = apei_exec_write_register_value,
 	},
-	[ACPI_ERST_NOOP] = {
+	[ACPI_ERST_ANALOP] = {
 		.flags = 0,
-		.run = apei_exec_noop,
+		.run = apei_exec_analop,
 	},
 	[ACPI_ERST_LOAD_VAR1] = {
 		.flags = APEI_EXEC_INS_ACCESS_REGISTER,
@@ -412,7 +412,7 @@ static int erst_get_erange(struct erst_erange *range)
 	rc = apei_exec_run(&ctx, ACPI_ERST_EXECUTE_TIMINGS);
 	if (rc == 0)
 		range->timings = apei_exec_ctx_get_output(&ctx);
-	else if (rc == -ENOENT)
+	else if (rc == -EANALENT)
 		range->timings = 0;
 	else
 		return rc;
@@ -438,7 +438,7 @@ ssize_t erst_get_record_count(void)
 	unsigned long flags;
 
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	raw_spin_lock_irqsave(&erst_lock, flags);
 	count = __erst_get_record_count();
@@ -483,7 +483,7 @@ int erst_get_record_id_begin(int *pos)
 	int rc;
 
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = mutex_lock_interruptible(&erst_record_id_cache.lock);
 	if (rc)
@@ -510,13 +510,13 @@ retry:
 	raw_spin_lock_irqsave(&erst_lock, flags);
 	rc = __erst_get_next_record_id(&id);
 	raw_spin_unlock_irqrestore(&erst_lock, flags);
-	if (rc == -ENOENT)
+	if (rc == -EANALENT)
 		return 0;
 	if (rc)
 		return rc;
 	if (id == APEI_ERST_INVALID_RECORD_ID)
 		return 0;
-	/* can not skip current ID, or loop back to first ID */
+	/* can analt skip current ID, or loop back to first ID */
 	if (id == prev_id || id == first_id)
 		return 0;
 	if (first_id == APEI_ERST_INVALID_RECORD_ID)
@@ -546,7 +546,7 @@ retry:
 		new_entries = kvmalloc_array(new_size, sizeof(entries[0]),
 					     GFP_KERNEL);
 		if (!new_entries)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(new_entries, entries,
 		       erst_record_id_cache.len * sizeof(entries[0]));
 		kvfree(entries);
@@ -561,7 +561,7 @@ retry:
 
 /*
  * Get the record ID of an existing error record on the persistent
- * storage. If there is no error record on the persistent storage, the
+ * storage. If there is anal error record on the persistent storage, the
  * returned record_id is APEI_ERST_INVALID_RECORD_ID.
  */
 int erst_get_record_id_next(int *pos, u64 *record_id)
@@ -570,7 +570,7 @@ int erst_get_record_id_next(int *pos, u64 *record_id)
 	u64 *entries;
 
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* must be enclosed by erst_get_record_id_begin/end */
 	BUG_ON(!erst_record_id_cache.refcount);
@@ -633,7 +633,7 @@ void erst_get_record_id_end(void)
 	/*
 	 * erst_disable != 0 should be detected by invoker via the
 	 * return value of erst_get_record_id_begin/next, so this
-	 * function should not be called for erst_disable != 0.
+	 * function should analt be called for erst_disable != 0.
 	 */
 	BUG_ON(erst_disable);
 
@@ -683,7 +683,7 @@ static int __erst_write_to_storage(u64 offset)
 	if (rc)
 		return rc;
 
-	return erst_errno(val);
+	return erst_erranal(val);
 }
 
 static int __erst_read_from_storage(u64 record_id, u64 offset)
@@ -728,7 +728,7 @@ static int __erst_read_from_storage(u64 record_id, u64 offset)
 	if (rc)
 		return rc;
 
-	return erst_errno(val);
+	return erst_erranal(val);
 }
 
 static int __erst_clear_from_storage(u64 record_id)
@@ -769,32 +769,32 @@ static int __erst_clear_from_storage(u64 record_id)
 	if (rc)
 		return rc;
 
-	return erst_errno(val);
+	return erst_erranal(val);
 }
 
-/* NVRAM ERST Error Log Address Range is not supported yet */
+/* NVRAM ERST Error Log Address Range is analt supported yet */
 static void pr_unimpl_nvram(void)
 {
 	if (printk_ratelimit())
-		pr_warn("NVRAM ERST Log Address Range not implemented yet.\n");
+		pr_warn("NVRAM ERST Log Address Range analt implemented yet.\n");
 }
 
 static int __erst_write_to_nvram(const struct cper_record_header *record)
 {
-	/* do not print message, because printk is not safe for NMI */
-	return -ENOSYS;
+	/* do analt print message, because printk is analt safe for NMI */
+	return -EANALSYS;
 }
 
 static int __erst_read_to_erange_from_nvram(u64 record_id, u64 *offset)
 {
 	pr_unimpl_nvram();
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int __erst_clear_from_nvram(u64 record_id)
 {
 	pr_unimpl_nvram();
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int erst_write(const struct cper_record_header *record)
@@ -804,7 +804,7 @@ int erst_write(const struct cper_record_header *record)
 	struct cper_record_header *rcd_erange;
 
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (memcmp(record->signature, CPER_SIG_RECORD, CPER_SIG_SIZE))
 		return -EINVAL;
@@ -869,7 +869,7 @@ static ssize_t __erst_read(u64 record_id, struct cper_record_header *record,
 }
 
 /*
- * If return value > buflen, the buffer size is not big enough,
+ * If return value > buflen, the buffer size is analt big eanalugh,
  * else if return value < 0, something goes wrong,
  * else everything is OK, and return value is record length
  */
@@ -880,7 +880,7 @@ ssize_t erst_read(u64 record_id, struct cper_record_header *record,
 	unsigned long flags;
 
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	raw_spin_lock_irqsave(&erst_lock, flags);
 	len = __erst_read(record_id, record, buflen);
@@ -916,7 +916,7 @@ ssize_t erst_read_record(u64 record_id, struct cper_record_header *record,
 	 */
 	if (creatorid == NULL) {
 		len = erst_read(record_id, record, buflen);
-		if (len == -ENOENT)
+		if (len == -EANALENT)
 			erst_clear_cache(record_id);
 
 		return len;
@@ -924,10 +924,10 @@ ssize_t erst_read_record(u64 record_id, struct cper_record_header *record,
 
 	len = erst_read(record_id, record, buflen);
 	/*
-	 * if erst_read return value is -ENOENT skip to next record_id,
+	 * if erst_read return value is -EANALENT skip to next record_id,
 	 * and clear the record_id cache.
 	 */
-	if (len == -ENOENT) {
+	if (len == -EANALENT) {
 		erst_clear_cache(record_id);
 		goto out;
 	}
@@ -946,11 +946,11 @@ ssize_t erst_read_record(u64 record_id, struct cper_record_header *record,
 	}
 
 	/*
-	 * if creatorid is not wanted, consider it as not found,
+	 * if creatorid is analt wanted, consider it as analt found,
 	 * for skipping to next record_id.
 	 */
 	if (!guid_equal(&record->creator_id, creatorid))
-		len = -ENOENT;
+		len = -EANALENT;
 
 out:
 	return len;
@@ -964,7 +964,7 @@ int erst_clear(u64 record_id)
 	u64 *entries;
 
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = mutex_lock_interruptible(&erst_record_id_cache.lock);
 	if (rc)
@@ -1054,7 +1054,7 @@ static int reader_pos;
 static int erst_open_pstore(struct pstore_info *psi)
 {
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return erst_get_record_id_begin(&reader_pos);
 }
@@ -1075,11 +1075,11 @@ static ssize_t erst_reader(struct pstore_record *record)
 	size_t rcd_len = sizeof(*rcd) + erst_info.bufsize;
 
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rcd = kmalloc(rcd_len, GFP_KERNEL);
 	if (!rcd) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 skip:
@@ -1087,7 +1087,7 @@ skip:
 	if (rc)
 		goto out;
 
-	/* no more record */
+	/* anal more record */
 	if (record_id == APEI_ERST_INVALID_RECORD_ID) {
 		rc = -EINVAL;
 		goto out;
@@ -1096,20 +1096,20 @@ skip:
 	len = erst_read_record(record_id, &rcd->hdr, rcd_len, sizeof(*rcd),
 			&CPER_CREATOR_PSTORE);
 	/* The record may be cleared by others, try read next record */
-	if (len == -ENOENT)
+	if (len == -EANALENT)
 		goto skip;
 	else if (len < 0)
 		goto out;
 
 	record->buf = kmalloc(len, GFP_KERNEL);
 	if (record->buf == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	memcpy(record->buf, rcd->data, len - sizeof(*rcd));
 	record->id = record_id;
 	record->compressed = false;
-	record->ecc_notice_size = 0;
+	record->ecc_analtice_size = 0;
 	if (guid_equal(&rcd->sec_hdr.section_type, &CPER_SECTION_TYPE_DMESG_Z)) {
 		record->type = PSTORE_TYPE_DMESG;
 		record->compressed = true;
@@ -1148,7 +1148,7 @@ static int erst_writer(struct pstore_record *record)
 	rcd->hdr.timestamp = ktime_get_real_seconds();
 	rcd->hdr.record_length = sizeof(*rcd) + record->size;
 	rcd->hdr.creator_id = CPER_CREATOR_PSTORE;
-	rcd->hdr.notification_type = CPER_NOTIFY_MCE;
+	rcd->hdr.analtification_type = CPER_ANALTIFY_MCE;
 	rcd->hdr.record_id = cper_next_record_id();
 	rcd->hdr.flags = CPER_HW_ERROR_FLAGS_PREVERR;
 
@@ -1204,7 +1204,7 @@ static int __init erst_init(void)
 
 	status = acpi_get_table(ACPI_SIG_ERST, 0,
 				(struct acpi_table_header **)&erst_tab);
-	if (status == AE_NOT_FOUND)
+	if (status == AE_ANALT_FOUND)
 		goto err;
 	else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
@@ -1232,10 +1232,10 @@ static int __init erst_init(void)
 		goto err_release;
 	rc = erst_get_erange(&erst_erange);
 	if (rc) {
-		if (rc == -ENODEV)
+		if (rc == -EANALDEV)
 			pr_info(
 	"The corresponding hardware device or firmware implementation "
-	"is not available.\n");
+	"is analt available.\n");
 		else
 			pr_err("Failed to get Error Log Address Range.\n");
 		goto err_unmap_reg;
@@ -1243,13 +1243,13 @@ static int __init erst_init(void)
 
 	r = request_mem_region(erst_erange.base, erst_erange.size, "APEI ERST");
 	if (!r) {
-		pr_err("Can not request [mem %#010llx-%#010llx] for ERST.\n",
+		pr_err("Can analt request [mem %#010llx-%#010llx] for ERST.\n",
 		       (unsigned long long)erst_erange.base,
 		       (unsigned long long)erst_erange.base + erst_erange.size - 1);
 		rc = -EIO;
 		goto err_unmap_reg;
 	}
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	erst_erange.vaddr = ioremap_cache(erst_erange.base,
 					  erst_erange.size);
 	if (!erst_erange.vaddr)
@@ -1267,7 +1267,7 @@ static int __init erst_init(void)
 		if (rc) {
 			if (rc != -EPERM)
 				pr_info(
-				"Could not register with persistent store.\n");
+				"Could analt register with persistent store.\n");
 			erst_info.buf = NULL;
 			erst_info.bufsize = 0;
 			kfree(buf);

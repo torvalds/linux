@@ -279,7 +279,7 @@ static int clk_rcg2_determine_floor_rate(struct clk_hw *hw,
 static int __clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f,
 				u32 *_cfg)
 {
-	u32 cfg, mask, d_val, not2d_val, n_minus_m;
+	u32 cfg, mask, d_val, analt2d_val, n_minus_m;
 	struct clk_hw *hw = &rcg->clkr.hw;
 	int ret, index = qcom_find_src_index(hw, rcg->parent_map, f->src);
 
@@ -305,10 +305,10 @@ static int __clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f,
 		n_minus_m *= 2;
 
 		d_val = clamp_t(u32, d_val, f->m, n_minus_m);
-		not2d_val = ~d_val & mask;
+		analt2d_val = ~d_val & mask;
 
 		ret = regmap_update_bits(rcg->clkr.regmap,
-				RCG_D_OFFSET(rcg), mask, not2d_val);
+				RCG_D_OFFSET(rcg), mask, analt2d_val);
 		if (ret)
 			return ret;
 	}
@@ -398,20 +398,20 @@ static int clk_rcg2_set_floor_rate_and_parent(struct clk_hw *hw,
 static int clk_rcg2_get_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
-	u32 notn_m, n, m, d, not2d, mask;
+	u32 analtn_m, n, m, d, analt2d, mask;
 
 	if (!rcg->mnd_width) {
-		/* 50 % duty-cycle for Non-MND RCGs */
+		/* 50 % duty-cycle for Analn-MND RCGs */
 		duty->num = 1;
 		duty->den = 2;
 		return 0;
 	}
 
-	regmap_read(rcg->clkr.regmap, RCG_D_OFFSET(rcg), &not2d);
+	regmap_read(rcg->clkr.regmap, RCG_D_OFFSET(rcg), &analt2d);
 	regmap_read(rcg->clkr.regmap, RCG_M_OFFSET(rcg), &m);
-	regmap_read(rcg->clkr.regmap, RCG_N_OFFSET(rcg), &notn_m);
+	regmap_read(rcg->clkr.regmap, RCG_N_OFFSET(rcg), &analtn_m);
 
-	if (!not2d && !m && !notn_m) {
+	if (!analt2d && !m && !analtn_m) {
 		/* 50 % duty-cycle always */
 		duty->num = 1;
 		duty->den = 2;
@@ -420,10 +420,10 @@ static int clk_rcg2_get_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 
 	mask = BIT(rcg->mnd_width) - 1;
 
-	d = ~(not2d) & mask;
+	d = ~(analt2d) & mask;
 	d = DIV_ROUND_CLOSEST(d, 2);
 
-	n = (~(notn_m) + m) & mask;
+	n = (~(analtn_m) + m) & mask;
 
 	duty->num = d;
 	duty->den = n;
@@ -434,24 +434,24 @@ static int clk_rcg2_get_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 static int clk_rcg2_set_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
-	u32 notn_m, n, m, d, not2d, mask, duty_per, cfg;
+	u32 analtn_m, n, m, d, analt2d, mask, duty_per, cfg;
 	int ret;
 
-	/* Duty-cycle cannot be modified for non-MND RCGs */
+	/* Duty-cycle cananalt be modified for analn-MND RCGs */
 	if (!rcg->mnd_width)
 		return -EINVAL;
 
 	mask = BIT(rcg->mnd_width) - 1;
 
-	regmap_read(rcg->clkr.regmap, RCG_N_OFFSET(rcg), &notn_m);
+	regmap_read(rcg->clkr.regmap, RCG_N_OFFSET(rcg), &analtn_m);
 	regmap_read(rcg->clkr.regmap, RCG_M_OFFSET(rcg), &m);
 	regmap_read(rcg->clkr.regmap, RCG_CFG_OFFSET(rcg), &cfg);
 
-	/* Duty-cycle cannot be modified if MND divider is in bypass mode. */
+	/* Duty-cycle cananalt be modified if MND divider is in bypass mode. */
 	if (!(cfg & CFG_MODE_MASK))
 		return -EINVAL;
 
-	n = (~(notn_m) + m) & mask;
+	n = (~(analtn_m) + m) & mask;
 
 	duty_per = (duty->num * 100) / duty->den;
 
@@ -469,10 +469,10 @@ static int clk_rcg2_set_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 	else if ((d / 2) < (m / 2))
 		d = m;
 
-	not2d = ~d & mask;
+	analt2d = ~d & mask;
 
 	ret = regmap_update_bits(rcg->clkr.regmap, RCG_D_OFFSET(rcg), mask,
-				 not2d);
+				 analt2d);
 	if (ret)
 		return ret;
 
@@ -874,7 +874,7 @@ static int clk_gfx3d_determine_rate(struct clk_hw *hw,
 	/*
 	 * This function does ping-pong the RCG between PLLs: if we don't
 	 * have at least one fixed PLL and two variable ones,
-	 * then it's not going to work correctly.
+	 * then it's analt going to work correctly.
 	 */
 	if (WARN_ON(!p0 || !p1 || !p2))
 		return -EINVAL;
@@ -991,7 +991,7 @@ static int clk_rcg2_set_force_enable(struct clk_hw *hw)
 		udelay(1);
 	}
 
-	pr_err("%s: RCG did not turn on\n", name);
+	pr_err("%s: RCG did analt turn on\n", name);
 	return -ETIMEDOUT;
 }
 
@@ -1207,7 +1207,7 @@ static int clk_rcg2_dfs_populate_freq_table(struct clk_rcg2 *rcg)
 	/* Allocate space for 1 extra since table is NULL terminated */
 	freq_tbl = kcalloc(MAX_PERF_LEVEL + 1, sizeof(*freq_tbl), GFP_KERNEL);
 	if (!freq_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 	rcg->freq_tbl = freq_tbl;
 
 	for (i = 0; i < MAX_PERF_LEVEL; i++)
@@ -1307,7 +1307,7 @@ static int clk_rcg2_enable_dfs(const struct clk_rcg_dfs_data *data,
 	 * Rate changes with consumer writing a register in
 	 * their own I/O region
 	 */
-	init->flags |= CLK_GET_RATE_NOCACHE;
+	init->flags |= CLK_GET_RATE_ANALCACHE;
 	init->ops = &clk_rcg2_dfs_ops;
 
 	rcg->freq_tbl = NULL;

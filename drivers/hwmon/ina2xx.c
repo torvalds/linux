@@ -235,7 +235,7 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 				return ret;
 
 			if (cal == 0) {
-				dev_warn(dev, "chip not calibrated, reinitializing\n");
+				dev_warn(dev, "chip analt calibrated, reinitializing\n");
 
 				ret = ina2xx_init(data);
 				if (ret < 0)
@@ -254,11 +254,11 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 
 	/*
 	 * If we're here then although all write operations succeeded, the
-	 * chip still returns 0 in the calibration register. Nothing more we
+	 * chip still returns 0 in the calibration register. Analthing more we
 	 * can do here.
 	 */
 	dev_err(dev, "unable to reinitialize the chip\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int ina2xx_get_value(struct ina2xx_data *data, u8 reg,
@@ -406,7 +406,7 @@ static ssize_t ina226_alert_store(struct device *dev,
 	/*
 	 * Clear all alerts first to avoid accidentally triggering ALERT pin
 	 * due to register write sequence. Then, only enable the alert
-	 * if the value is non-zero.
+	 * if the value is analn-zero.
 	 */
 	mutex_lock(&data->config_lock);
 	ret = regmap_update_bits(data->regmap, INA226_MASK_ENABLE,
@@ -623,20 +623,20 @@ static int ina2xx_probe(struct i2c_client *client)
 	int ret, group = 0;
 	enum ina2xx_ids chip;
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = i2c_match_id(ina2xx_id, client)->driver_data;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set the device type */
 	data->config = &ina2xx_config[chip];
 	mutex_init(&data->config_lock);
 
-	if (of_property_read_u32(dev->of_node, "shunt-resistor", &val) < 0) {
+	if (of_property_read_u32(dev->of_analde, "shunt-resistor", &val) < 0) {
 		struct ina2xx_platform_data *pdata = dev_get_platdata(dev);
 
 		if (pdata)
@@ -662,7 +662,7 @@ static int ina2xx_probe(struct i2c_client *client)
 	ret = ina2xx_init(data);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->groups[group++] = &ina2xx_group;

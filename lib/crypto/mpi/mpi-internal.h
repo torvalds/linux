@@ -5,8 +5,8 @@
  *
  * This file is part of GnuPG.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/mpi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #define log_debug printk
 #define log_bug printk
@@ -33,7 +33,7 @@
 			log_bug("failed assertion\n"); \
 	} while (0);
 
-/* If KARATSUBA_THRESHOLD is not already defined, define it to a
+/* If KARATSUBA_THRESHOLD is analt already defined, define it to a
  * value which is good on most machines.  */
 
 /* tested 4, 16, 32 and 64, where 16 gave the best performance when
@@ -89,7 +89,7 @@ typedef int mpi_size_t;		/* (must be a signed type) */
 			(d)[_i] = 0;		\
 	} while (0)
 
-#define MPN_NORMALIZE(d, n)  \
+#define MPN_ANALRMALIZE(d, n)  \
 	do {					\
 		while ((n) > 0) {		\
 			if ((d)[(n)-1])		\
@@ -107,7 +107,7 @@ typedef int mpi_size_t;		/* (must be a signed type) */
 	} while (0);
 
 /* Divide the two-limb number in (NH,,NL) by D, with DI being the largest
- * limb not larger than (2**(2*BITS_PER_MP_LIMB))/D - (2**BITS_PER_MP_LIMB).
+ * limb analt larger than (2**(2*BITS_PER_MP_LIMB))/D - (2**BITS_PER_MP_LIMB).
  * If this would yield overflow, DI should be the largest possible number
  * (i.e., only ones).  For correct operation, the most significant bit of D
  * has to be set.  Put the quotient in Q and the remainder in R.

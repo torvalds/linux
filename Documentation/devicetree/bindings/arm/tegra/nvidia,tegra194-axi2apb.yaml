@@ -10,7 +10,7 @@ maintainers:
   - Sumit Gupta <sumitg@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^axi2apb@([0-9a-f]+)$"
 
   compatible:

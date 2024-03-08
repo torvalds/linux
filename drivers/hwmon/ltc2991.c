@@ -110,7 +110,7 @@ static int ltc2991_read_in(struct device *dev, u32 attr, int channel, long *val)
 
 		return ltc2991_get_voltage(st, reg, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -141,7 +141,7 @@ static int ltc2991_read_curr(struct device *dev, u32 attr, int channel,
 		reg = LTC2991_CHANNEL_C_MSB(channel);
 		return ltc2991_get_curr(st, reg, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -175,7 +175,7 @@ static int ltc2991_read_temp(struct device *dev, u32 attr, int channel,
 
 		return ltc2991_get_temp(st, reg, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -190,7 +190,7 @@ static int ltc2991_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return ltc2991_read_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -284,7 +284,7 @@ static const struct regmap_config ltc2991_regmap_config = {
 
 static int ltc2991_init(struct ltc2991_state *st, struct device *dev)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int ret;
 	u32 val, addr;
 	u8 v5_v8_reg_data = 0, v1_v4_reg_data = 0;
@@ -294,25 +294,25 @@ static int ltc2991_init(struct ltc2991_state *st, struct device *dev)
 		return dev_err_probe(dev, ret,
 				     "failed to enable regulator\n");
 
-	device_for_each_child_node(dev, child) {
-		ret = fwnode_property_read_u32(child, "reg", &addr);
+	device_for_each_child_analde(dev, child) {
+		ret = fwanalde_property_read_u32(child, "reg", &addr);
 		if (ret < 0) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
 		if (addr > 3) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return -EINVAL;
 		}
 
-		ret = fwnode_property_read_u32(child,
+		ret = fwanalde_property_read_u32(child,
 					       "shunt-resistor-micro-ohms",
 					       &val);
 		if (!ret) {
 			if (!val)
 				return dev_err_probe(dev, -EINVAL,
-						     "shunt resistor value cannot be zero\n");
+						     "shunt resistor value cananalt be zero\n");
 
 			st->r_sense_uohm[addr] = val;
 
@@ -334,7 +334,7 @@ static int ltc2991_init(struct ltc2991_state *st, struct device *dev)
 			}
 		}
 
-		ret = fwnode_property_read_bool(child,
+		ret = fwanalde_property_read_bool(child,
 						"adi,temperature-enable");
 		if (ret) {
 			st->temp_en[addr] = ret;
@@ -389,7 +389,7 @@ static int ltc2991_i2c_probe(struct i2c_client *client)
 
 	st = devm_kzalloc(&client->dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->regmap = devm_regmap_init_i2c(client, &ltc2991_regmap_config);
 	if (IS_ERR(st->regmap))

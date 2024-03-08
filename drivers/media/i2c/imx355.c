@@ -9,7 +9,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define IMX355_REG_MODE_SELECT		0x0100
 #define IMX355_MODE_STANDBY		0x00
@@ -1166,7 +1166,7 @@ static int imx355_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->width = imx355->cur_mode->width;
 	try_fmt->height = imx355->cur_mode->height;
 	try_fmt->code = imx355_get_format_code(imx355);
-	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->field = V4L2_FIELD_ANALNE;
 
 	mutex_unlock(&imx355->mutex);
 
@@ -1230,7 +1230,7 @@ static int imx355_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		ret = -EINVAL;
-		dev_info(&client->dev, "ctrl(id:0x%x,val:0x%x) is not handled",
+		dev_info(&client->dev, "ctrl(id:0x%x,val:0x%x) is analt handled",
 			 ctrl->id, ctrl->val);
 		break;
 	}
@@ -1291,7 +1291,7 @@ static void imx355_update_pad_format(struct imx355 *imx355,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = imx355_get_format_code(imx355);
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 }
 
 static int imx355_do_get_pad_format(struct imx355 *imx355,
@@ -1369,7 +1369,7 @@ imx355_set_pad_format(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(imx355->vblank, vblank_def);
 		h_blank = mode->llp - imx355->cur_mode->width;
 		/*
-		 * Currently hblank is not changeable.
+		 * Currently hblank is analt changeable.
 		 * So FPS control is done only by vblank.
 		 */
 		__v4l2_ctrl_modify_range(imx355->hblank, h_blank,
@@ -1450,7 +1450,7 @@ static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	/* vflip and hflip cannot change during streaming */
+	/* vflip and hflip cananalt change during streaming */
 	__v4l2_ctrl_grab(imx355->vflip, enable);
 	__v4l2_ctrl_grab(imx355->hflip, enable);
 
@@ -1615,22 +1615,22 @@ error:
 static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 {
 	struct imx355_hwcfg *cfg;
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	unsigned int i;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return NULL;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return NULL;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
 	if (ret)
 		goto out_err;
 
@@ -1638,7 +1638,7 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 	if (!cfg)
 		goto out_err;
 
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	ret = fwanalde_property_read_u32(dev_fwanalde(dev), "clock-frequency",
 				       &cfg->ext_clk);
 	if (ret) {
 		dev_err(dev, "can't get clock frequency");
@@ -1647,14 +1647,14 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 
 	dev_dbg(dev, "ext clk: %d", cfg->ext_clk);
 	if (cfg->ext_clk != IMX355_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
+		dev_err(dev, "external clock %d is analt supported",
 			cfg->ext_clk);
 		goto out_err;
 	}
 
 	dev_dbg(dev, "num of link freqs: %d", bus_cfg.nr_of_link_frequencies);
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_warn(dev, "no link frequencies defined");
+		dev_warn(dev, "anal link frequencies defined");
 		goto out_err;
 	}
 
@@ -1670,13 +1670,13 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 		dev_dbg(dev, "link_freq[%d] = %lld", i, cfg->link_freqs[i]);
 	}
 
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
+	fwanalde_handle_put(ep);
 	return cfg;
 
 out_err:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
+	fwanalde_handle_put(ep);
 	return NULL;
 }
 
@@ -1688,7 +1688,7 @@ static int imx355_probe(struct i2c_client *client)
 
 	imx355 = devm_kzalloc(&client->dev, sizeof(*imx355), GFP_KERNEL);
 	if (!imx355)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&imx355->mutex);
 
@@ -1705,7 +1705,7 @@ static int imx355_probe(struct i2c_client *client)
 	imx355->hwcfg = imx355_get_hwcfg(&client->dev);
 	if (!imx355->hwcfg) {
 		dev_err(&client->dev, "failed to get hwcfg");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_probe;
 	}
 
@@ -1718,7 +1718,7 @@ static int imx355_probe(struct i2c_client *client)
 	}
 
 	if (i == imx355->hwcfg->nr_of_link_freqs) {
-		dev_err(&client->dev, "no link frequency supported");
+		dev_err(&client->dev, "anal link frequency supported");
 		ret = -EINVAL;
 		goto error_probe;
 	}
@@ -1734,7 +1734,7 @@ static int imx355_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	imx355->sd.internal_ops = &imx355_internal_ops;
-	imx355->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	imx355->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 		V4L2_SUBDEV_FL_HAS_EVENTS;
 	imx355->sd.entity.ops = &imx355_subdev_entity_ops;
 	imx355->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

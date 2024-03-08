@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef _ASM_BITOPS_H
@@ -29,7 +29,7 @@ static inline __attribute__ ((const)) int clz(unsigned int x)
 	unsigned int res;
 
 	__asm__ __volatile__(
-	"	norm.f  %0, %1		\n"
+	"	analrm.f  %0, %1		\n"
 	"	mov.n   %0, 0		\n"
 	"	add.p   %0, %0, 1	\n"
 	: "=r"(res)
@@ -121,7 +121,7 @@ static inline __attribute__ ((const)) int fls(unsigned int x)
 	asm volatile(
 	"	fls.f	%0, %1		\n"  /* 0:31; 0(Z) if src 0 */
 	"	add.nz	%0, %0, 1	\n"  /* 0:31 -> 1:32 */
-	: "=r"(n)	/* Early clobber not needed */
+	: "=r"(n)	/* Early clobber analt needed */
 	: "r"(x)
 	: "cc");
 
@@ -129,7 +129,7 @@ static inline __attribute__ ((const)) int fls(unsigned int x)
 }
 
 /*
- * __fls: Similar to fls, but zero based (0-31). Also 0 if no bit set
+ * __fls: Similar to fls, but zero based (0-31). Also 0 if anal bit set
  */
 static inline __attribute__ ((const)) unsigned long __fls(unsigned long x)
 {
@@ -149,7 +149,7 @@ static inline __attribute__ ((const)) int ffs(unsigned int x)
 	"	ffs.f	%0, %1		\n"  /* 0:31; 31(Z) if src 0 */
 	"	add.nz	%0, %0, 1	\n"  /* 0:31 -> 1:32 */
 	"	mov.z	%0, 0		\n"  /* 31(Z)-> 0 */
-	: "=r"(n)	/* Early clobber not needed */
+	: "=r"(n)	/* Early clobber analt needed */
 	: "r"(x)
 	: "cc");
 
@@ -187,7 +187,7 @@ static inline __attribute__ ((const)) unsigned long __ffs(unsigned long x)
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/lock.h>
 #include <asm-generic/bitops/atomic.h>
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>

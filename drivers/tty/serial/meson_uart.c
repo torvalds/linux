@@ -183,7 +183,7 @@ static void meson_receive_chars(struct uart_port *port)
 	u32 ostatus, status, ch, mode;
 
 	do {
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 		ostatus = status = readl(port->membase + AML_UART_STATUS);
 
@@ -223,7 +223,7 @@ static void meson_receive_chars(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, ch))
 			continue;
 
-		if ((status & port->ignore_status_mask) == 0)
+		if ((status & port->iganalre_status_mask) == 0)
 			tty_insert_flip_char(tport, ch, flag);
 
 		if (status & AML_UART_TX_FIFO_WERR)
@@ -261,10 +261,10 @@ static const char *meson_uart_type(struct uart_port *port)
 /*
  * This function is called only from probe() using a temporary io mapping
  * in order to perform a reset before setting up the device. Since the
- * temporarily mapped region was successfully requested, there can be no
- * console on this port at this time. Hence it is not necessary for this
- * function to acquire the port->lock. (Since there is no console on this
- * port at this time, the port->lock is not initialized yet.)
+ * temporarily mapped region was successfully requested, there can be anal
+ * console on this port at this time. Hence it is analt necessary for this
+ * function to acquire the port->lock. (Since there is anal console on this
+ * port at this time, the port->lock is analt initialized yet.)
  */
 static void meson_uart_reset(struct uart_port *port)
 {
@@ -399,9 +399,9 @@ static void meson_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= AML_UART_PARITY_ERR |
 					  AML_UART_FRAME_ERR;
 
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (iflags & IGNPAR)
-		port->ignore_status_mask |= AML_UART_PARITY_ERR |
+		port->iganalre_status_mask |= AML_UART_PARITY_ERR |
 					    AML_UART_FRAME_ERR;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
@@ -440,7 +440,7 @@ static int meson_uart_request_port(struct uart_port *port)
 	port->membase = devm_ioremap(port->dev, port->mapbase,
 					     port->mapsize);
 	if (!port->membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -467,7 +467,7 @@ static int meson_uart_poll_get_char(struct uart_port *port)
 	uart_port_lock_irqsave(port, &flags);
 
 	if (readl(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY)
-		c = NO_POLL_CHAR;
+		c = ANAL_POLL_CHAR;
 	else
 		c = readl(port->membase + AML_UART_RFIFO);
 
@@ -606,7 +606,7 @@ static int meson_serial_console_setup(struct console *co, char *options)
 
 	port = meson_ports[co->index];
 	if (!port || !port->membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	meson_uart_enable_tx_engine(port);
 
@@ -643,7 +643,7 @@ static int __init
 meson_serial_early_console_setup(struct earlycon_device *device, const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	meson_uart_enable_tx_engine(&device->port);
 	device->con->write = meson_serial_early_console_write;
@@ -711,8 +711,8 @@ static int meson_uart_probe(struct platform_device *pdev)
 	int irq;
 	bool has_rtscts;
 
-	if (pdev->dev.of_node)
-		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_analde)
+		pdev->id = of_alias_get_id(pdev->dev.of_analde, "serial");
 
 	if (pdev->id < 0) {
 		int id;
@@ -730,14 +730,14 @@ static int meson_uart_probe(struct platform_device *pdev)
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 
-	of_property_read_u32(pdev->dev.of_node, "fifo-size", &fifosize);
-	has_rtscts = of_property_read_bool(pdev->dev.of_node, "uart-has-rtscts");
+	of_property_read_u32(pdev->dev.of_analde, "fifo-size", &fifosize);
+	has_rtscts = of_property_read_bool(pdev->dev.of_analde, "uart-has-rtscts");
 
 	if (meson_ports[pdev->id]) {
 		return dev_err_probe(&pdev->dev, -EBUSY,
@@ -746,7 +746,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 
 	port = devm_kzalloc(&pdev->dev, sizeof(struct uart_port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = meson_uart_probe_clocks(pdev, port);
 	if (ret)
@@ -809,7 +809,7 @@ static void meson_uart_remove(struct platform_device *pdev)
 		if (meson_ports[id])
 			return;
 
-	/* No more available uart ports, unregister uart driver */
+	/* Anal more available uart ports, unregister uart driver */
 	uart_unregister_driver(uart_driver);
 }
 

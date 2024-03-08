@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 config ATH11K
-	tristate "Qualcomm Technologies 802.11ax chipset support"
+	tristate "Qualcomm Techanallogies 802.11ax chipset support"
 	depends on MAC80211 && HAS_DMA
 	select CRYPTO_MICHAEL_MIC
 	select ATH_COMMON
 	select QCOM_QMI_HELPERS
 	help
-	  This module adds support for Qualcomm Technologies 802.11ax family of
+	  This module adds support for Qualcomm Techanallogies 802.11ax family of
 	  chipsets.
 
 	  If you choose to build a module, it'll be called ath11k.

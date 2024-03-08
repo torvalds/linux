@@ -60,12 +60,12 @@ static void nft_tproxy_eval_v4(const struct nft_expr *expr,
 	if (!tport)
 		tport = hp->dest;
 
-	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	/* UDP has anal TCP_TIME_WAIT state, so we never enter here */
 	if (sk && sk->sk_state == TCP_TIME_WAIT) {
 		/* reopening a TIME_WAIT connection needs special handling */
 		sk = nf_tproxy_handle_time_wait4(nft_net(pkt), skb, taddr, tport, sk);
 	} else if (!sk) {
-		/* no, there's no established connection, check if
+		/* anal, there's anal established connection, check if
 		 * there's a listener on the redirected addr/port
 		 */
 		sk = nf_tproxy_get_sock_v4(nft_net(pkt), skb, iph->protocol,
@@ -128,7 +128,7 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 	if (!tport)
 		tport = hp->dest;
 
-	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	/* UDP has anal TCP_TIME_WAIT state, so we never enter here */
 	if (sk && sk->sk_state == TCP_TIME_WAIT) {
 		/* reopening a TIME_WAIT connection needs special handling */
 		sk = nf_tproxy_handle_time_wait6(skb, l4proto, thoff,
@@ -137,7 +137,7 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 						 tport,
 						 sk);
 	} else if (!sk) {
-		/* no there's no established connection, check if
+		/* anal there's anal established connection, check if
 		 * there's a listener on the redirected addr/port
 		 */
 		sk = nf_tproxy_get_sock_v6(nft_net(pkt), skb, thoff,
@@ -146,7 +146,7 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 					   nft_in(pkt), NF_TPROXY_LOOKUP_LISTENER);
 	}
 
-	/* NOTE: assign_sock consumes our sk reference */
+	/* ANALTE: assign_sock consumes our sk reference */
 	if (sk && nf_tproxy_sk_is_transparent(sk))
 		nf_tproxy_assign_sock(skb, sk);
 	else
@@ -216,10 +216,10 @@ static int nft_tproxy_init(const struct nft_ctx *ctx,
 	case NFPROTO_INET:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	/* Address is specified but the rule family is not set accordingly */
+	/* Address is specified but the rule family is analt set accordingly */
 	if (priv->family == NFPROTO_UNSPEC && tb[NFTA_TPROXY_REG_ADDR])
 		return -EINVAL;
 
@@ -239,7 +239,7 @@ static int nft_tproxy_init(const struct nft_ctx *ctx,
 		break;
 #endif
 	case NFPROTO_UNSPEC:
-		/* No address is specified here */
+		/* Anal address is specified here */
 		err = nf_defrag_ipv4_enable(ctx->net);
 		if (err)
 			return err;
@@ -250,7 +250,7 @@ static int nft_tproxy_init(const struct nft_ctx *ctx,
 #endif
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[NFTA_TPROXY_REG_ADDR]) {
@@ -319,7 +319,7 @@ static int nft_tproxy_validate(const struct nft_ctx *ctx,
 	if (ctx->family != NFPROTO_IPV4 &&
 	    ctx->family != NFPROTO_IPV6 &&
 	    ctx->family != NFPROTO_INET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return nft_chain_validate_hooks(ctx->chain, 1 << NF_INET_PRE_ROUTING);
 }

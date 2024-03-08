@@ -14,22 +14,22 @@
 
 #define SRMMU_MAXMEM		0x0c000000
 
-#define SRMMU_NOCACHE_VADDR	(KERNBASE + SRMMU_MAXMEM)
+#define SRMMU_ANALCACHE_VADDR	(KERNBASE + SRMMU_MAXMEM)
 				/* = 0x0fc000000 */
 /* XXX Empiricals - this needs to go away - KMW */
-#define SRMMU_MIN_NOCACHE_PAGES (550)
-#define SRMMU_MAX_NOCACHE_PAGES	(1280)
+#define SRMMU_MIN_ANALCACHE_PAGES (550)
+#define SRMMU_MAX_ANALCACHE_PAGES	(1280)
 
-/* The following constant is used in mm/srmmu.c::srmmu_nocache_calcsize()
- * to determine the amount of memory that will be reserved as nocache:
+/* The following constant is used in mm/srmmu.c::srmmu_analcache_calcsize()
+ * to determine the amount of memory that will be reserved as analcache:
  *
- * 256 pages will be taken as nocache per each
- * SRMMU_NOCACHE_ALCRATIO MB of system memory.
+ * 256 pages will be taken as analcache per each
+ * SRMMU_ANALCACHE_ALCRATIO MB of system memory.
  *
- * limits enforced:	nocache minimum = 256 pages
- *			nocache maximum = 1280 pages
+ * limits enforced:	analcache minimum = 256 pages
+ *			analcache maximum = 1280 pages
  */
-#define SRMMU_NOCACHE_ALCRATIO	64	/* 256 pages per 64MB of system RAM */
+#define SRMMU_ANALCACHE_ALCRATIO	64	/* 256 pages per 64MB of system RAM */
 
 #ifndef __ASSEMBLY__
 #include <asm/kmap_size.h>

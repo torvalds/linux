@@ -64,7 +64,7 @@ static struct vidtv_mux_pid_ctx
 static void vidtv_mux_pid_ctx_destroy(struct vidtv_mux *m)
 {
 	struct vidtv_mux_pid_ctx *ctx;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int bkt;
 
 	hash_for_each_safe(m->pid_ctx, bkt, tmp, ctx, h) {
@@ -81,7 +81,7 @@ static int vidtv_mux_pid_ctx_init(struct vidtv_mux *m)
 	hash_init(m->pid_ctx);
 	/* push the pcr pid ctx */
 	if (!vidtv_mux_create_pid_ctx_once(m, m->pcr_pid))
-		return -ENOMEM;
+		return -EANALMEM;
 	/* push the NULL packet pid ctx */
 	if (!vidtv_mux_create_pid_ctx_once(m, TS_NULL_PACKET_PID))
 		goto free;
@@ -109,7 +109,7 @@ static int vidtv_mux_pid_ctx_init(struct vidtv_mux *m)
 
 free:
 	vidtv_mux_pid_ctx_destroy(m);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void vidtv_mux_update_clk(struct vidtv_mux *m)
@@ -181,7 +181,7 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 
 		if (pmt_pid > TS_LAST_VALID_PID) {
 			dev_warn_ratelimited(m->dev,
-					     "PID: %d not found\n", pmt_pid);
+					     "PID: %d analt found\n", pmt_pid);
 			continue;
 		}
 
@@ -412,7 +412,7 @@ static void vidtv_mux_tick(struct work_struct *work)
 
 		npkts = nbytes / TS_PACKET_LEN;
 
-		/* if the buffer is not aligned there is a bug somewhere */
+		/* if the buffer is analt aligned there is a bug somewhere */
 		if (nbytes % TS_PACKET_LEN)
 			dev_err_ratelimited(m->dev, "Misaligned buffer\n");
 
@@ -426,7 +426,7 @@ static void vidtv_mux_tick(struct work_struct *work)
 		/*
 		 * Update bytes and packet counts at DVBv5 stats
 		 *
-		 * For now, both pre and post bit counts are identical,
+		 * For analw, both pre and post bit counts are identical,
 		 * but post BER count can be lower than pre BER, if the error
 		 * correction logic discards packages.
 		 */
@@ -439,7 +439,7 @@ static void vidtv_mux_tick(struct work_struct *work)
 		 * stats usually have an error range up to 1E-6. So,
 		 * add some random error increment count to it.
 		 *
-		 * Please notice that this is a poor guy's implementation,
+		 * Please analtice that this is a poor guy's implementation,
 		 * as it will produce one corrected bit error every time
 		 * ceil(total bytes / ERR_RATE) is incremented, without
 		 * any sort of (pseudo-)randomness.

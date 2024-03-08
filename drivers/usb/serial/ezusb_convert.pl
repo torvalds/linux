@@ -11,12 +11,12 @@
 
 
 my $basename = $ARGV[0];
-die "no base name specified" unless $basename;
+die "anal base name specified" unless $basename;
 
 while (<STDIN>) {
     # ':' <len> <addr> <type> <len-data> <crc> '\r'
     #  len, type, crc are 2-char hex, addr is 4-char hex. type is 00 for
-    # normal records, 01 for EOF
+    # analrmal records, 01 for EOF
     my($lenstring, $addrstring, $typestring, $reststring, $doscrap) =
       /^:(\w\w)(\w\w\w\w)(\w\w)(\w+)(\r?)$/;
     die "malformed line: $_" unless $reststring;

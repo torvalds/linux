@@ -297,7 +297,7 @@ ENTRY(sha1_transform_neon)
    */
 
   cmp RNBLKS, #0;
-  beq .Ldo_nothing;
+  beq .Ldo_analthing;
 
   push {r4-r12, lr};
   /*vpush {q4-q7};*/
@@ -629,6 +629,6 @@ ENTRY(sha1_transform_neon)
 
   pop {r4-r12, pc};
 
-.Ldo_nothing:
+.Ldo_analthing:
   bx lr
 ENDPROC(sha1_transform_neon)

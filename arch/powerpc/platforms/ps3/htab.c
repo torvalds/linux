@@ -91,7 +91,7 @@ static long ps3_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 
 static long ps3_hpte_remove(unsigned long hpte_group)
 {
-	panic("ps3_hpte_remove() not implemented");
+	panic("ps3_hpte_remove() analt implemented");
 	return 0;
 }
 
@@ -123,14 +123,14 @@ static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	hpte_v = hpte_v_array[slot % 4];
 
 	/*
-	 * As lv1_read_htab_entries() does not give us the RPN, we can
-	 * not synthesize the new hpte_r value here, and therefore can
-	 * not update the hpte with lv1_insert_htab_entry(), so we
+	 * As lv1_read_htab_entries() does analt give us the RPN, we can
+	 * analt synthesize the new hpte_r value here, and therefore can
+	 * analt update the hpte with lv1_insert_htab_entry(), so we
 	 * instead invalidate it and ask the caller to update it via
 	 * ps3_hpte_insert() by returning a -1 value.
 	 */
 	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID)) {
-		/* not found */
+		/* analt found */
 		ret = -1;
 	} else {
 		/* entry found, just invalidate it */
@@ -146,7 +146,7 @@ static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
 static void ps3_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 	int psize, int ssize)
 {
-	pr_info("ps3_hpte_updateboltedpp() not implemented");
+	pr_info("ps3_hpte_updateboltedpp() analt implemented");
 }
 
 static void ps3_hpte_invalidate(unsigned long slot, unsigned long vpn,
@@ -169,7 +169,7 @@ static void ps3_hpte_invalidate(unsigned long slot, unsigned long vpn,
 }
 
 /* Called during kexec sequence with MMU off */
-static notrace void ps3_hpte_clear(void)
+static analtrace void ps3_hpte_clear(void)
 {
 	unsigned long hpte_count = (1UL << ppc64_pft_size) >> 4;
 	u64 i;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Etnaviv Project
- * Copyright (C) 2017 Zodiac Inflight Innovations
+ * Copyright (C) 2017 Zodiac Inflight Inanalvations
  */
 
 #include "common.xml.h"

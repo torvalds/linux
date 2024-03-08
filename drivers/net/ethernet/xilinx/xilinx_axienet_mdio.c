@@ -2,7 +2,7 @@
 /*
  * MDIO bus driver for the Xilinx Axi Ethernet device
  *
- * Copyright (c) 2009 Secret Lab Technologies, Ltd.
+ * Copyright (c) 2009 Secret Lab Techanallogies, Ltd.
  * Copyright (c) 2010 - 2011 Michal Simek <monstr@monstr.eu>
  * Copyright (c) 2010 - 2011 PetaLogix
  * Copyright (c) 2019 SED Systems, a division of Calian Ltd.
@@ -147,7 +147,7 @@ static int axienet_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 /**
  * axienet_mdio_enable - MDIO hardware setup function
  * @lp:		Pointer to axienet local data structure.
- * @np:		Pointer to mdio device tree node.
+ * @np:		Pointer to mdio device tree analde.
  *
  * Return:	0 on success, -ETIMEDOUT on a timeout, -EOVERFLOW on a clock
  *		divisor overflow.
@@ -155,7 +155,7 @@ static int axienet_mdio_write(struct mii_bus *bus, int phy_id, int reg,
  * Sets up the MDIO interface by initializing the MDIO clock and enabling the
  * MDIO interface in hardware.
  **/
-static int axienet_mdio_enable(struct axienet_local *lp, struct device_node *np)
+static int axienet_mdio_enable(struct axienet_local *lp, struct device_analde *np)
 {
 	u32 mdio_freq = DEFAULT_MDIO_FREQ;
 	u32 host_clock;
@@ -167,23 +167,23 @@ static int axienet_mdio_enable(struct axienet_local *lp, struct device_node *np)
 	if (lp->axi_clk) {
 		host_clock = clk_get_rate(lp->axi_clk);
 	} else {
-		struct device_node *np1;
+		struct device_analde *np1;
 
 		/* Legacy fallback: detect CPU clock frequency and use as AXI
 		 * bus clock frequency. This only works on certain platforms.
 		 */
-		np1 = of_find_node_by_name(NULL, "cpu");
+		np1 = of_find_analde_by_name(NULL, "cpu");
 		if (!np1) {
-			netdev_warn(lp->ndev, "Could not find CPU device node.\n");
+			netdev_warn(lp->ndev, "Could analt find CPU device analde.\n");
 			host_clock = DEFAULT_HOST_CLOCK;
 		} else {
 			int ret = of_property_read_u32(np1, "clock-frequency",
 						       &host_clock);
 			if (ret) {
-				netdev_warn(lp->ndev, "CPU clock-frequency property not found.\n");
+				netdev_warn(lp->ndev, "CPU clock-frequency property analt found.\n");
 				host_clock = DEFAULT_HOST_CLOCK;
 			}
-			of_node_put(np1);
+			of_analde_put(np1);
 		}
 		netdev_info(lp->ndev, "Setting assumed host clock to %u\n",
 			    host_clock);
@@ -192,7 +192,7 @@ static int axienet_mdio_enable(struct axienet_local *lp, struct device_node *np)
 	if (np)
 		of_property_read_u32(np, "clock-frequency", &mdio_freq);
 	if (mdio_freq != DEFAULT_MDIO_FREQ)
-		netdev_info(lp->ndev, "Setting non-standard mdio bus frequency to %u Hz\n",
+		netdev_info(lp->ndev, "Setting analn-standard mdio bus frequency to %u Hz\n",
 			    mdio_freq);
 
 	/* clk_div can be calculated by deriving it from the equation:
@@ -254,7 +254,7 @@ static int axienet_mdio_enable(struct axienet_local *lp, struct device_node *np)
  * @lp:		Pointer to axienet local data structure.
  *
  * Return:	0 on success, -ETIMEDOUT on a timeout, -EOVERFLOW on a clock
- *		divisor overflow, -ENOMEM when mdiobus_alloc (to allocate
+ *		divisor overflow, -EANALMEM when mdiobus_alloc (to allocate
  *		memory for mii bus structure) fails.
  *
  * Sets up the MDIO interface by initializing the MDIO clock.
@@ -262,13 +262,13 @@ static int axienet_mdio_enable(struct axienet_local *lp, struct device_node *np)
  **/
 int axienet_mdio_setup(struct axienet_local *lp)
 {
-	struct device_node *mdio_node;
+	struct device_analde *mdio_analde;
 	struct mii_bus *bus;
 	int ret;
 
 	bus = mdiobus_alloc();
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(bus->id, MII_BUS_ID_SIZE, "axienet-%.8llx",
 		 (unsigned long long)lp->regs_start);
@@ -280,21 +280,21 @@ int axienet_mdio_setup(struct axienet_local *lp)
 	bus->parent = lp->dev;
 	lp->mii_bus = bus;
 
-	mdio_node = of_get_child_by_name(lp->dev->of_node, "mdio");
-	ret = axienet_mdio_enable(lp, mdio_node);
+	mdio_analde = of_get_child_by_name(lp->dev->of_analde, "mdio");
+	ret = axienet_mdio_enable(lp, mdio_analde);
 	if (ret < 0)
 		goto unregister;
-	ret = of_mdiobus_register(bus, mdio_node);
+	ret = of_mdiobus_register(bus, mdio_analde);
 	if (ret)
 		goto unregister_mdio_enabled;
-	of_node_put(mdio_node);
+	of_analde_put(mdio_analde);
 	axienet_mdio_mdc_disable(lp);
 	return 0;
 
 unregister_mdio_enabled:
 	axienet_mdio_mdc_disable(lp);
 unregister:
-	of_node_put(mdio_node);
+	of_analde_put(mdio_analde);
 	mdiobus_free(bus);
 	lp->mii_bus = NULL;
 	return ret;

@@ -27,7 +27,7 @@
 #define _PAGE_BIT_PKEY_BIT1	60	/* Protection Keys, bit 2/4 */
 #define _PAGE_BIT_PKEY_BIT2	61	/* Protection Keys, bit 3/4 */
 #define _PAGE_BIT_PKEY_BIT3	62	/* Protection Keys, bit 4/4 */
-#define _PAGE_BIT_NX		63	/* No execute: only valid after cpuid check */
+#define _PAGE_BIT_NX		63	/* Anal execute: only valid after cpuid check */
 
 #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
 #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
@@ -38,13 +38,13 @@
 #ifdef CONFIG_X86_64
 #define _PAGE_BIT_SAVED_DIRTY	_PAGE_BIT_SOFTW5 /* Saved Dirty bit */
 #else
-/* Shared with _PAGE_BIT_UFFD_WP which is not supported on 32 bit */
+/* Shared with _PAGE_BIT_UFFD_WP which is analt supported on 32 bit */
 #define _PAGE_BIT_SAVED_DIRTY	_PAGE_BIT_SOFTW2 /* Saved Dirty bit */
 #endif
 
 /* If _PAGE_BIT_PRESENT is clear, we use these: */
-/* - if the user mapped it with PROT_NONE; pte_present gives true */
-#define _PAGE_BIT_PROTNONE	_PAGE_BIT_GLOBAL
+/* - if the user mapped it with PROT_ANALNE; pte_present gives true */
+#define _PAGE_BIT_PROTANALNE	_PAGE_BIT_GLOBAL
 
 #define _PAGE_PRESENT	(_AT(pteval_t, 1) << _PAGE_BIT_PRESENT)
 #define _PAGE_RW	(_AT(pteval_t, 1) << _PAGE_BIT_RW)
@@ -93,12 +93,12 @@
 
 /*
  * Tracking soft dirty bit when a page goes to a swap is tricky.
- * We need a bit which can be stored in pte _and_ not conflict
- * with swap entry format. On x86 bits 1-4 are *not* involved
+ * We need a bit which can be stored in pte _and_ analt conflict
+ * with swap entry format. On x86 bits 1-4 are *analt* involved
  * into swap entry computation, but bit 7 is used for thp migration,
  * so we borrow bit 1 for soft dirty tracking.
  *
- * Please note that this bit must be treated as swap dirty page
+ * Please analte that this bit must be treated as swap dirty page
  * mark if and only if the PTE/PMD has present bit clear!
  */
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -137,12 +137,12 @@
 
 #define _PAGE_DIRTY_BITS (_PAGE_DIRTY | _PAGE_SAVED_DIRTY)
 
-#define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
+#define _PAGE_PROTANALNE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTANALNE)
 
 /*
- * Set of bits not changed in pte_modify.  The pte's
+ * Set of bits analt changed in pte_modify.  The pte's
  * protection key is treated like _PAGE_RW, for
- * instance, and is *not* included in this mask since
+ * instance, and is *analt* included in this mask since
  * pte_modify() does modify it.
  */
 #define _COMMON_PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |	\
@@ -158,7 +158,7 @@
  *
  * The resulting bits for PWT, PCD and PAT should be chosen in a way
  * to have the WB mode at index 0 (all bits clear). This is the default
- * right now and likely would break too much if changed.
+ * right analw and likely would break too much if changed.
  */
 #ifndef __ASSEMBLY__
 enum page_cache_mode {
@@ -178,7 +178,7 @@ enum page_cache_mode {
 #define _PAGE_CACHE_MASK	(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)
 #define _PAGE_LARGE_CACHE_MASK	(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT_LARGE)
 
-#define _PAGE_NOCACHE		(cachemode2protval(_PAGE_CACHE_MODE_UC))
+#define _PAGE_ANALCACHE		(cachemode2protval(_PAGE_CACHE_MODE_UC))
 #define _PAGE_CACHE_WP		(cachemode2protval(_PAGE_CACHE_MODE_WP))
 
 #define __PP _PAGE_PRESENT
@@ -191,17 +191,17 @@ enum page_cache_mode {
 
 #define _ENC _PAGE_ENC
 #define __WP _PAGE_CACHE_WP
-#define __NC _PAGE_NOCACHE
+#define __NC _PAGE_ANALCACHE
 #define _PSE _PAGE_PSE
 
 #define pgprot_val(x)		((x).pgprot)
 #define __pgprot(x)		((pgprot_t) { (x) } )
 #define __pg(x)			__pgprot(x)
 
-#define PAGE_NONE	     __pg(   0|   0|   0|___A|   0|   0|   0|___G)
+#define PAGE_ANALNE	     __pg(   0|   0|   0|___A|   0|   0|   0|___G)
 #define PAGE_SHARED	     __pg(__PP|__RW|_USR|___A|__NX|   0|   0|   0)
 #define PAGE_SHARED_EXEC     __pg(__PP|__RW|_USR|___A|   0|   0|   0|   0)
-#define PAGE_COPY_NOEXEC     __pg(__PP|   0|_USR|___A|__NX|   0|   0|   0)
+#define PAGE_COPY_ANALEXEC     __pg(__PP|   0|_USR|___A|__NX|   0|   0|   0)
 #define PAGE_COPY_EXEC	     __pg(__PP|   0|_USR|___A|   0|   0|   0|   0)
 #define PAGE_COPY	     __pg(__PP|   0|_USR|___A|__NX|   0|   0|   0)
 #define PAGE_READONLY	     __pg(__PP|   0|_USR|___A|__NX|   0|   0|   0)
@@ -214,16 +214,16 @@ enum page_cache_mode {
  * Page tables needs to have Write=1 in order for any lower PTEs to be
  * writable. This includes shadow stack memory (Write=0, Dirty=1)
  */
-#define _KERNPG_TABLE_NOENC	 (__PP|__RW|   0|___A|   0|___D|   0|   0)
+#define _KERNPG_TABLE_ANALENC	 (__PP|__RW|   0|___A|   0|___D|   0|   0)
 #define _KERNPG_TABLE		 (__PP|__RW|   0|___A|   0|___D|   0|   0| _ENC)
-#define _PAGE_TABLE_NOENC	 (__PP|__RW|_USR|___A|   0|___D|   0|   0)
+#define _PAGE_TABLE_ANALENC	 (__PP|__RW|_USR|___A|   0|___D|   0|   0)
 #define _PAGE_TABLE		 (__PP|__RW|_USR|___A|   0|___D|   0|   0| _ENC)
 
 #define __PAGE_KERNEL_RO	 (__PP|   0|   0|___A|__NX|   0|   0|___G)
 #define __PAGE_KERNEL_ROX	 (__PP|   0|   0|___A|   0|   0|   0|___G)
 #define __PAGE_KERNEL		 (__PP|__RW|   0|___A|__NX|___D|   0|___G)
 #define __PAGE_KERNEL_EXEC	 (__PP|__RW|   0|___A|   0|___D|   0|___G)
-#define __PAGE_KERNEL_NOCACHE	 (__PP|__RW|   0|___A|__NX|___D|   0|___G| __NC)
+#define __PAGE_KERNEL_ANALCACHE	 (__PP|__RW|   0|___A|__NX|___D|   0|___G| __NC)
 #define __PAGE_KERNEL_VVAR	 (__PP|   0|_USR|___A|__NX|   0|   0|___G)
 #define __PAGE_KERNEL_LARGE	 (__PP|__RW|   0|___A|__NX|___D|_PSE|___G)
 #define __PAGE_KERNEL_LARGE_EXEC (__PP|__RW|   0|___A|   0|___D|_PSE|___G)
@@ -231,31 +231,31 @@ enum page_cache_mode {
 
 
 #define __PAGE_KERNEL_IO		__PAGE_KERNEL
-#define __PAGE_KERNEL_IO_NOCACHE	__PAGE_KERNEL_NOCACHE
+#define __PAGE_KERNEL_IO_ANALCACHE	__PAGE_KERNEL_ANALCACHE
 
 
 #ifndef __ASSEMBLY__
 
 #define __PAGE_KERNEL_ENC	(__PAGE_KERNEL    | _ENC)
 #define __PAGE_KERNEL_ENC_WP	(__PAGE_KERNEL_WP | _ENC)
-#define __PAGE_KERNEL_NOENC	(__PAGE_KERNEL    |    0)
-#define __PAGE_KERNEL_NOENC_WP	(__PAGE_KERNEL_WP |    0)
+#define __PAGE_KERNEL_ANALENC	(__PAGE_KERNEL    |    0)
+#define __PAGE_KERNEL_ANALENC_WP	(__PAGE_KERNEL_WP |    0)
 
 #define __pgprot_mask(x)	__pgprot((x) & __default_kernel_pte_mask)
 
 #define PAGE_KERNEL		__pgprot_mask(__PAGE_KERNEL            | _ENC)
-#define PAGE_KERNEL_NOENC	__pgprot_mask(__PAGE_KERNEL            |    0)
+#define PAGE_KERNEL_ANALENC	__pgprot_mask(__PAGE_KERNEL            |    0)
 #define PAGE_KERNEL_RO		__pgprot_mask(__PAGE_KERNEL_RO         | _ENC)
 #define PAGE_KERNEL_EXEC	__pgprot_mask(__PAGE_KERNEL_EXEC       | _ENC)
-#define PAGE_KERNEL_EXEC_NOENC	__pgprot_mask(__PAGE_KERNEL_EXEC       |    0)
+#define PAGE_KERNEL_EXEC_ANALENC	__pgprot_mask(__PAGE_KERNEL_EXEC       |    0)
 #define PAGE_KERNEL_ROX		__pgprot_mask(__PAGE_KERNEL_ROX        | _ENC)
-#define PAGE_KERNEL_NOCACHE	__pgprot_mask(__PAGE_KERNEL_NOCACHE    | _ENC)
+#define PAGE_KERNEL_ANALCACHE	__pgprot_mask(__PAGE_KERNEL_ANALCACHE    | _ENC)
 #define PAGE_KERNEL_LARGE	__pgprot_mask(__PAGE_KERNEL_LARGE      | _ENC)
 #define PAGE_KERNEL_LARGE_EXEC	__pgprot_mask(__PAGE_KERNEL_LARGE_EXEC | _ENC)
 #define PAGE_KERNEL_VVAR	__pgprot_mask(__PAGE_KERNEL_VVAR       | _ENC)
 
 #define PAGE_KERNEL_IO		__pgprot_mask(__PAGE_KERNEL_IO)
-#define PAGE_KERNEL_IO_NOCACHE	__pgprot_mask(__PAGE_KERNEL_IO_NOCACHE)
+#define PAGE_KERNEL_IO_ANALCACHE	__pgprot_mask(__PAGE_KERNEL_IO_ANALCACHE)
 
 #endif	/* __ASSEMBLY__ */
 
@@ -267,7 +267,7 @@ enum page_cache_mode {
 #else
 #define PTE_IDENT_ATTR	 0x003		/* PRESENT+RW */
 #define PDE_IDENT_ATTR	 0x063		/* PRESENT+RW+DIRTY+ACCESSED */
-#define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
+#define PGD_IDENT_ATTR	 0x001		/* PRESENT (anal other attributes) */
 #endif
 
 #ifdef CONFIG_X86_32
@@ -302,7 +302,7 @@ static inline pgprot_t pgprot_nx(pgprot_t prot)
 #ifdef CONFIG_X86_PAE
 
 /*
- * PHYSICAL_PAGE_MASK might be non-constant when SME is compiled in, so we can't
+ * PHYSICAL_PAGE_MASK might be analn-constant when SME is compiled in, so we can't
  * use it here.
  */
 
@@ -318,7 +318,7 @@ static inline pgprot_t pgprot_nx(pgprot_t prot)
 				 _PAGE_SOFTW1 | _PAGE_SOFTW2 | _PAGE_SOFTW3)
 
 #else
-/* No need to mask any bits for !PAE */
+/* Anal need to mask any bits for !PAE */
 #define PGD_ALLOWED_BITS	(~0ULL)
 #endif
 
@@ -350,7 +350,7 @@ static inline p4dval_t native_p4d_val(p4d_t p4d)
 	return p4d.p4d;
 }
 #else
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-analp4d.h>
 
 static inline p4d_t native_make_p4d(pudval_t val)
 {
@@ -376,7 +376,7 @@ static inline pudval_t native_pud_val(pud_t pud)
 	return pud.pud;
 }
 #else
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 
 static inline pud_t native_make_pud(pudval_t val)
 {
@@ -400,7 +400,7 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 	return pmd.pmd;
 }
 #else
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 static inline pmd_t native_make_pmd(pmdval_t val)
 {
@@ -415,7 +415,7 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 
 static inline p4dval_t p4d_pfn_mask(p4d_t p4d)
 {
-	/* No 512 GiB huge pages yet */
+	/* Anal 512 GiB huge pages yet */
 	return PTE_PFN_MASK;
 }
 
@@ -543,7 +543,7 @@ extern void native_pagetable_init(void);
 #endif
 
 enum pg_level {
-	PG_LEVEL_NONE,
+	PG_LEVEL_ANALNE,
 	PG_LEVEL_4K,
 	PG_LEVEL_2M,
 	PG_LEVEL_1G,
@@ -559,8 +559,8 @@ static inline void update_page_count(int level, unsigned long pages) { }
 
 /*
  * Helper function that returns the kernel pagetable entry controlling
- * the virtual address 'address'. NULL means no pagetable entry present.
- * NOTE: the return type is pte_t but if the pmd is PSE then we return it
+ * the virtual address 'address'. NULL means anal pagetable entry present.
+ * ANALTE: the return type is pte_t but if the pmd is PSE then we return it
  * as a pte too.
  */
 extern pte_t *lookup_address(unsigned long address, unsigned int *level);

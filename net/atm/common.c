@@ -11,7 +11,7 @@
 #include <linux/atm.h>		/* ATM stuff */
 #include <linux/atmdev.h>
 #include <linux/socket.h>	/* SOL_SOCKET */
-#include <linux/errno.h>	/* error codes */
+#include <linux/erranal.h>	/* error codes */
 #include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
@@ -38,14 +38,14 @@ EXPORT_SYMBOL(vcc_hash);
 DEFINE_RWLOCK(vcc_sklist_lock);
 EXPORT_SYMBOL(vcc_sklist_lock);
 
-static ATOMIC_NOTIFIER_HEAD(atm_dev_notify_chain);
+static ATOMIC_ANALTIFIER_HEAD(atm_dev_analtify_chain);
 
 static void __vcc_insert_socket(struct sock *sk)
 {
 	struct atm_vcc *vcc = atm_sk(sk);
 	struct hlist_head *head = &vcc_hash[vcc->vci & (VCC_HTABLE_SIZE - 1)];
 	sk->sk_hash = vcc->vci & (VCC_HTABLE_SIZE - 1);
-	sk_add_node(sk, head);
+	sk_add_analde(sk, head);
 }
 
 void vcc_insert_socket(struct sock *sk)
@@ -59,7 +59,7 @@ EXPORT_SYMBOL(vcc_insert_socket);
 static void vcc_remove_socket(struct sock *sk)
 {
 	write_lock_irq(&vcc_sklist_lock);
-	sk_del_node_init(sk);
+	sk_del_analde_init(sk);
 	write_unlock_irq(&vcc_sklist_lock);
 }
 
@@ -147,7 +147,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family, i
 		return -EINVAL;
 	sk = sk_alloc(net, family, GFP_KERNEL, &vcc_proto, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 	sock_init_data(sock, sk);
 	sk->sk_state_change = vcc_def_wakeup;
 	sk->sk_write_space = vcc_write_space;
@@ -164,7 +164,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family, i
 	vcc->owner = NULL;
 	vcc->push_oam = NULL;
 	vcc->release_cb = NULL;
-	vcc->vpi = vcc->vci = 0; /* no VCI/VPI yet */
+	vcc->vpi = vcc->vci = 0; /* anal VCI/VPI yet */
 	vcc->atm_options = vcc->aal_options = 0;
 	sk->sk_destruct = vcc_sock_destruct;
 	return 0;
@@ -180,7 +180,7 @@ static void vcc_destroy_socket(struct sock *sk)
 	if (vcc->dev && vcc->dev->ops->close)
 		vcc->dev->ops->close(vcc);
 	if (vcc->push)
-		vcc->push(vcc, NULL); /* atmarpd has no push */
+		vcc->push(vcc, NULL); /* atmarpd has anal push */
 	module_put(vcc->owner);
 
 	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
@@ -251,11 +251,11 @@ void atm_dev_signal_change(struct atm_dev *dev, char signal)
 	WARN_ON(signal < ATM_PHY_SIG_LOST || signal > ATM_PHY_SIG_FOUND);
 
 	if (dev->signal == signal)
-		return; /* no change */
+		return; /* anal change */
 
 	dev->signal = signal;
 
-	atomic_notifier_call_chain(&atm_dev_notify_chain, signal, dev);
+	atomic_analtifier_call_chain(&atm_dev_analtify_chain, signal, dev);
 }
 EXPORT_SYMBOL(atm_dev_signal_change);
 
@@ -266,7 +266,7 @@ void atm_dev_release_vccs(struct atm_dev *dev)
 	write_lock_irq(&vcc_sklist_lock);
 	for (i = 0; i < VCC_HTABLE_SIZE; i++) {
 		struct hlist_head *head = &vcc_hash[i];
-		struct hlist_node *tmp;
+		struct hlist_analde *tmp;
 		struct sock *s;
 		struct atm_vcc *vcc;
 
@@ -274,7 +274,7 @@ void atm_dev_release_vccs(struct atm_dev *dev)
 			vcc = atm_sk(s);
 			if (vcc->dev == dev) {
 				vcc_release_async(vcc, -EPIPE);
-				sk_del_node_init(s);
+				sk_del_analde_init(s);
 			}
 		}
 	}
@@ -322,9 +322,9 @@ static int check_ci(const struct atm_vcc *vcc, short vpi, int vci)
 			continue;
 		if (test_bit(ATM_VF_ADDR, &walk->flags) && walk->vpi == vpi &&
 		    walk->vci == vci && ((walk->qos.txtp.traffic_class !=
-		    ATM_NONE && vcc->qos.txtp.traffic_class != ATM_NONE) ||
-		    (walk->qos.rxtp.traffic_class != ATM_NONE &&
-		    vcc->qos.rxtp.traffic_class != ATM_NONE)))
+		    ATM_ANALNE && vcc->qos.txtp.traffic_class != ATM_ANALNE) ||
+		    (walk->qos.rxtp.traffic_class != ATM_ANALNE &&
+		    vcc->qos.rxtp.traffic_class != ATM_ANALNE)))
 			return -EADDRINUSE;
 	}
 
@@ -354,8 +354,8 @@ static int find_ci(const struct atm_vcc *vcc, short *vpi, int *vci)
 		p = 0;
 	if (*vci != ATM_VCI_ANY)
 		c = *vci;
-	else if (c < ATM_NOT_RSV_VCI || c >= 1 << vcc->dev->ci_range.vci_bits)
-			c = ATM_NOT_RSV_VCI;
+	else if (c < ATM_ANALT_RSV_VCI || c >= 1 << vcc->dev->ci_range.vci_bits)
+			c = ATM_ANALT_RSV_VCI;
 	old_p = p;
 	old_c = c;
 	do {
@@ -367,9 +367,9 @@ static int find_ci(const struct atm_vcc *vcc, short *vpi, int *vci)
 		if (*vci == ATM_VCI_ANY) {
 			c++;
 			if (c >= 1 << vcc->dev->ci_range.vci_bits)
-				c = ATM_NOT_RSV_VCI;
+				c = ATM_ANALT_RSV_VCI;
 		}
-		if ((c == ATM_NOT_RSV_VCI || *vci != ATM_VCI_ANY) &&
+		if ((c == ATM_ANALT_RSV_VCI || *vci != ATM_VCI_ANY) &&
 		    *vpi == ATM_VPI_ANY) {
 			p++;
 			if (p >= 1 << vcc->dev->ci_range.vpi_bits)
@@ -389,9 +389,9 @@ static int __vcc_connect(struct atm_vcc *vcc, struct atm_dev *dev, short vpi,
 	    vpi >> dev->ci_range.vpi_bits) || (vci != ATM_VCI_UNSPEC &&
 	    vci != ATM_VCI_ANY && vci >> dev->ci_range.vci_bits))
 		return -EINVAL;
-	if (vci > 0 && vci < ATM_NOT_RSV_VCI && !capable(CAP_NET_BIND_SERVICE))
+	if (vci > 0 && vci < ATM_ANALT_RSV_VCI && !capable(CAP_NET_BIND_SERVICE))
 		return -EPERM;
-	error = -ENODEV;
+	error = -EANALDEV;
 	if (!try_module_get(dev->ops->owner))
 		return error;
 	vcc->dev = dev;
@@ -414,7 +414,7 @@ static int __vcc_connect(struct atm_vcc *vcc, struct atm_dev *dev, short vpi,
 		error = atm_init_aal34(vcc);
 		vcc->stats = &dev->stats.aal34;
 		break;
-	case ATM_NO_AAL:
+	case ATM_ANAL_AAL:
 		/* ATM_AAL5 is also used in the "0 for default" case */
 		vcc->qos.aal = ATM_AAL5;
 		fallthrough;
@@ -506,7 +506,7 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 		mutex_unlock(&atm_dev_mutex);
 	}
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	error = __vcc_connect(vcc, dev, vpi, vci);
 	if (error) {
 		atm_dev_put(dev);
@@ -528,11 +528,11 @@ int vcc_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	int copied, error = -EINVAL;
 
 	if (sock->state != SS_CONNECTED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	/* only handle MSG_DONTWAIT and MSG_PEEK */
 	if (flags & ~(MSG_DONTWAIT | MSG_PEEK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	vcc = ATM_SD(sock);
 	if (test_bit(ATM_VF_RELEASED, &vcc->flags) ||
@@ -575,7 +575,7 @@ int vcc_sendmsg(struct socket *sock, struct msghdr *m, size_t size)
 
 	lock_sock(sk);
 	if (sock->state != SS_CONNECTED) {
-		error = -ENOTCONN;
+		error = -EANALTCONN;
 		goto out;
 	}
 	if (m->msg_name) {
@@ -627,7 +627,7 @@ int vcc_sendmsg(struct socket *sock, struct msghdr *m, size_t size)
 
 	skb = alloc_skb(eff, GFP_KERNEL);
 	if (!skb) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 	pr_debug("%d += %d\n", sk_wmem_alloc_get(sk), skb->truesize);
@@ -669,16 +669,16 @@ __poll_t vcc_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 	/* readable? */
 	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	/* writable? */
 	if (sock->state == SS_CONNECTING &&
 	    test_bit(ATM_VF_WAITING, &vcc->flags))
 		return mask;
 
-	if (vcc->qos.txtp.traffic_class != ATM_NONE &&
+	if (vcc->qos.txtp.traffic_class != ATM_ANALNE &&
 	    vcc_writable(sk))
-		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND;
 
 	return mask;
 }
@@ -688,7 +688,7 @@ static int atm_change_qos(struct atm_vcc *vcc, struct atm_qos *qos)
 	int error;
 
 	/*
-	 * Don't let the QoS change the already connected AAL type nor the
+	 * Don't let the QoS change the already connected AAL type analr the
 	 * traffic class.
 	 */
 	if (qos->aal != vcc->qos.aal ||
@@ -701,7 +701,7 @@ static int atm_change_qos(struct atm_vcc *vcc, struct atm_qos *qos)
 	if (error)
 		return error;
 	if (!vcc->dev->ops->change_qos)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (sk_atm(vcc)->sk_family == AF_ATMPVC)
 		return vcc->dev->ops->change_qos(vcc, qos, ATM_MF_SET);
 	return svc_change_qos(vcc, qos);
@@ -812,7 +812,7 @@ int vcc_getsockopt(struct socket *sock, int level, int optname,
 		struct sockaddr_atmpvc pvc;
 
 		if (!vcc->dev || !test_bit(ATM_VF_ADDR, &vcc->flags))
-			return -ENOTCONN;
+			return -EANALTCONN;
 		memset(&pvc, 0, sizeof(pvc));
 		pvc.sap_family = AF_ATMPVC;
 		pvc.sap_addr.itf = vcc->dev->number;
@@ -825,17 +825,17 @@ int vcc_getsockopt(struct socket *sock, int level, int optname,
 	}
 }
 
-int register_atmdevice_notifier(struct notifier_block *nb)
+int register_atmdevice_analtifier(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_register(&atm_dev_notify_chain, nb);
+	return atomic_analtifier_chain_register(&atm_dev_analtify_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_atmdevice_notifier);
+EXPORT_SYMBOL_GPL(register_atmdevice_analtifier);
 
-void unregister_atmdevice_notifier(struct notifier_block *nb)
+void unregister_atmdevice_analtifier(struct analtifier_block *nb)
 {
-	atomic_notifier_chain_unregister(&atm_dev_notify_chain, nb);
+	atomic_analtifier_chain_unregister(&atm_dev_analtify_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_atmdevice_notifier);
+EXPORT_SYMBOL_GPL(unregister_atmdevice_analtifier);
 
 static int __init atm_init(void)
 {
@@ -890,7 +890,7 @@ subsys_initcall(atm_init);
 
 module_exit(atm_exit);
 
-MODULE_DESCRIPTION("Asynchronous Transfer Mode (ATM) networking core");
+MODULE_DESCRIPTION("Asynchroanalus Transfer Mode (ATM) networking core");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_ATMPVC);
 MODULE_ALIAS_NETPROTO(PF_ATMSVC);

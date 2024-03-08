@@ -6,7 +6,7 @@
 
 /* DEBI transfer mode defs */
 
-#define DEBINOSWAP 0x000e0000
+#define DEBIANALSWAP 0x000e0000
 #define DEBISWAB   0x001e0000
 #define DEBISWAP   0x002e0000
 
@@ -23,7 +23,7 @@ enum av7110_bootstate
 };
 
 enum av7110_type_rec_play_format
-{	RP_None,
+{	RP_Analne,
 	AudioPES,
 	AudioMp2,
 	AudioPCM,
@@ -33,7 +33,7 @@ enum av7110_type_rec_play_format
 
 enum av7110_osd_palette_type
 {
-	NoPalet =  0,	   /* No palette */
+	AnalPalet =  0,	   /* Anal palette */
 	Pal1Bit =  2,	   /* 2 colors for 1 Bit Palette    */
 	Pal2Bit =  4,	   /* 4 colors for 2 bit palette    */
 	Pal4Bit =  16,	   /* 16 colors for 4 bit palette   */
@@ -44,7 +44,7 @@ enum av7110_osd_palette_type
 #define SB_GPIO 3
 #define SB_OFF	SAA7146_GPIO_OUTLO  /* SlowBlank off (TV-Mode) */
 #define SB_ON	SAA7146_GPIO_INPUT  /* SlowBlank on  (AV-Mode) */
-#define SB_WIDE SAA7146_GPIO_OUTHI  /* SlowBlank 6V  (16/9-Mode) (not implemented) */
+#define SB_WIDE SAA7146_GPIO_OUTHI  /* SlowBlank 6V  (16/9-Mode) (analt implemented) */
 
 #define FB_GPIO 1
 #define FB_OFF	SAA7146_GPIO_LO     /* FastBlank off (CVBS-Mode) */
@@ -53,7 +53,7 @@ enum av7110_osd_palette_type
 
 enum av7110_video_output_mode
 {
-	NO_OUT	     = 0,		/* disable analog output */
+	ANAL_OUT	     = 0,		/* disable analog output */
 	CVBS_RGB_OUT = 1,
 	CVBS_YC_OUT  = 2,
 	YC_OUT	     = 3
@@ -66,7 +66,7 @@ enum av7110_video_output_mode
 #define HPQOver		0x0008
 #define OSDQFull	0x0010		/* OSD Queue Full */
 #define OSDQOver	0x0020
-#define GPMQBusy	0x0040		/* Queue not empty, FW >= 261d */
+#define GPMQBusy	0x0040		/* Queue analt empty, FW >= 261d */
 #define HPQBusy		0x0080
 #define OSDQBusy	0x0100
 
@@ -80,7 +80,7 @@ enum av7110_video_output_mode
 #define SECTION_HIGH_SPEED	0x1C	/* larger buffer */
 #define DATA_PIPING_FLAG	0x20	/* for Data Piping Filter */
 
-#define	PBUFSIZE_NONE 0x0000
+#define	PBUFSIZE_ANALNE 0x0000
 #define	PBUFSIZE_1P   0x0100
 #define	PBUFSIZE_2P   0x0200
 #define	PBUFSIZE_1K   0x0300
@@ -107,12 +107,12 @@ enum av7110_osd_command {
 	SetBlend,
 	SetWBlend,
 	SetCBlend,
-	SetNonBlend,
+	SetAnalnBlend,
 	LoadBmp,
 	BlitBmp,
 	ReleaseBmp,
 	SetWTrans,
-	SetWNoTrans,
+	SetWAnalTrans,
 	Set_Palette
 };
 
@@ -190,7 +190,7 @@ enum av7110_fw_cmd_misc {
 };
 
 enum av7110_command_type {
-	COMTYPE_NOCOM,
+	COMTYPE_ANALCOM,
 	COMTYPE_PIDFILTER,
 	COMTYPE_MPEGDECODER,
 	COMTYPE_OSD,
@@ -210,7 +210,7 @@ enum av7110_command_type {
 	COMTYPE_MISC = 0x80
 };
 
-#define VID_NONE_PREF		0x00	/* No aspect ration processing preferred */
+#define VID_ANALNE_PREF		0x00	/* Anal aspect ration processing preferred */
 #define VID_PAN_SCAN_PREF	0x01	/* Pan and Scan Display preferred */
 #define VID_VERT_COMP_PREF	0x02	/* Vertical compression display preferred */
 #define VID_VC_AND_PS_PREF	0x03	/* PanScan and vertical Compression if allowed */
@@ -228,13 +228,13 @@ enum av7110_command_type {
 #define AUDIO_CMD_UNMUTE	0x0002
 #define AUDIO_CMD_PCM16		0x0010
 #define AUDIO_CMD_STEREO	0x0080
-#define AUDIO_CMD_MONO_L	0x0100
-#define AUDIO_CMD_MONO_R	0x0200
+#define AUDIO_CMD_MOANAL_L	0x0100
+#define AUDIO_CMD_MOANAL_R	0x0200
 #define AUDIO_CMD_SYNC_OFF	0x000e
 #define AUDIO_CMD_SYNC_ON	0x000f
 
 /* firmware data interface codes */
-#define DATA_NONE		 0x00
+#define DATA_ANALNE		 0x00
 #define DATA_FSECTION		 0x01
 #define DATA_IPMPE		 0x02
 #define DATA_MPEG_RECORD	 0x03
@@ -269,7 +269,7 @@ enum av7110_command_type {
 #define CI_CMD_FAST_PSI		 0x0a
 #define CI_CMD_GET_SLOT_INFO	 0x0b
 
-#define CI_MSG_NONE		 0x00
+#define CI_MSG_ANALNE		 0x00
 #define CI_MSG_CI_INFO		 0x01
 #define CI_MSG_MENU		 0x02
 #define CI_MSG_LIST		 0x03
@@ -435,19 +435,19 @@ static inline void ARM_ResetMailBox(struct av7110 *av7110)
 	unsigned long flags;
 
 	spin_lock_irqsave(&av7110->debilock, flags);
-	av7110_debiread(av7110, DEBINOSWAP, IRQ_RX, 2);
-	av7110_debiwrite(av7110, DEBINOSWAP, IRQ_RX, 0, 2);
+	av7110_debiread(av7110, DEBIANALSWAP, IRQ_RX, 2);
+	av7110_debiwrite(av7110, DEBIANALSWAP, IRQ_RX, 0, 2);
 	spin_unlock_irqrestore(&av7110->debilock, flags);
 }
 
 static inline void ARM_ClearMailBox(struct av7110 *av7110)
 {
-	iwdebi(av7110, DEBINOSWAP, IRQ_RX, 0, 2);
+	iwdebi(av7110, DEBIANALSWAP, IRQ_RX, 0, 2);
 }
 
 static inline void ARM_ClearIrq(struct av7110 *av7110)
 {
-	irdebi(av7110, DEBINOSWAP, IRQ_RX, 0, 2);
+	irdebi(av7110, DEBIANALSWAP, IRQ_RX, 0, 2);
 }
 
 /****************************************************************************

@@ -113,10 +113,10 @@ static const struct snd_soc_dapm_widget acp3x_es83xx_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 
-	SND_SOC_DAPM_SUPPLY("Headphone Power", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Headphone Power", SND_SOC_ANALPM, 0, 0,
 			    acp3x_es83xx_headphone_power_event,
 			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_ANALPM, 0, 0,
 			    acp3x_es83xx_speaker_power_event,
 			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 };
@@ -127,7 +127,7 @@ static const struct snd_soc_dapm_route acp3x_es83xx_audio_map[] = {
 	{"Headphone", NULL, "Headphone Power"},
 
 	/*
-	 * There is no separate speaker output instead the speakers are muxed to
+	 * There is anal separate speaker output instead the speakers are muxed to
 	 * the HP outputs. The mux is controlled Speaker and/or headphone switch.
 	 */
 	{"Speaker", NULL, "HPOL"},
@@ -196,12 +196,12 @@ static int acp3x_es83xx_suspend_pre(struct snd_soc_card *card)
 	/* We need to disable the jack in the machine driver suspend
 	 * callback so that the CODEC suspend callback actually gets
 	 * called. Without doing it, the CODEC suspend/resume
-	 * callbacks do not get called if headphones are plugged in.
+	 * callbacks do analt get called if headphones are plugged in.
 	 * This is because plugging in headphones keeps some supplies
 	 * active, this in turn means that the lowest bias level
 	 * that the CODEC can go to is SND_SOC_BIAS_STANDBY.
-	 * If components do not set idle_bias_on to true then
-	 * their suspend/resume callbacks do not get called.
+	 * If components do analt set idle_bias_on to true then
+	 * their suspend/resume callbacks do analt get called.
 	 */
 	dev_dbg(priv->codec_dev, "card suspend\n");
 	snd_soc_component_set_jack(priv->codec, NULL, NULL);
@@ -300,14 +300,14 @@ static int acp3x_es83xx_init(struct snd_soc_pcm_runtime *runtime)
 	priv->gpio_speakers = gpiod_get_optional(priv->codec_dev, "speakers-enable",
 				priv->enable_spk_gpio.active_low ? GPIOD_OUT_LOW : GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->gpio_speakers)) {
-		dev_err(priv->codec_dev, "could not get speakers-enable GPIO\n");
+		dev_err(priv->codec_dev, "could analt get speakers-enable GPIO\n");
 		return PTR_ERR(priv->gpio_speakers);
 	}
 
 	priv->gpio_headphone = gpiod_get_optional(priv->codec_dev, "headphone-enable",
 				priv->enable_hp_gpio.active_low ? GPIOD_OUT_LOW : GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->gpio_headphone)) {
-		dev_err(priv->codec_dev, "could not get headphone-enable GPIO\n");
+		dev_err(priv->codec_dev, "could analt get headphone-enable GPIO\n");
 		return PTR_ERR(priv->gpio_headphone);
 	}
 
@@ -315,7 +315,7 @@ static int acp3x_es83xx_init(struct snd_soc_pcm_runtime *runtime)
 	if (num_routes > 0) {
 		ret = snd_soc_dapm_add_routes(&card->dapm, priv->mic_map, num_routes);
 		if (ret != 0)
-			device_remove_software_node(priv->codec_dev);
+			device_remove_software_analde(priv->codec_dev);
 	}
 
 	return ret;
@@ -412,21 +412,21 @@ static int acp3x_es83xx_probe(struct snd_soc_card *card)
 
 		adev = acpi_dev_get_first_match_dev(acp_drvdata->acpi_mach->id, NULL, -1);
 		if (!adev) {
-			dev_err(dev, "Error cannot find '%s' dev\n", acp_drvdata->acpi_mach->id);
+			dev_err(dev, "Error cananalt find '%s' dev\n", acp_drvdata->acpi_mach->id);
 			return -ENXIO;
 		}
 
-		codec_dev = acpi_get_first_physical_node(adev);
+		codec_dev = acpi_get_first_physical_analde(adev);
 		acpi_dev_put(adev);
 		if (!codec_dev) {
-			dev_warn(dev, "Error cannot find codec device, will defer probe\n");
+			dev_warn(dev, "Error cananalt find codec device, will defer probe\n");
 			return -EPROBE_DEFER;
 		}
 
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 		if (!priv) {
 			put_device(codec_dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		priv->codec_dev = codec_dev;
@@ -434,7 +434,7 @@ static int acp3x_es83xx_probe(struct snd_soc_card *card)
 		acp_drvdata->mach_priv = priv;
 		dev_info(dev, "successfully probed the sound card\n");
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_warn(dev, "this system has a ES83xx codec defined in ACPI, but the driver doesn't have this system registered in DMI table\n");
 	}
 	return ret;

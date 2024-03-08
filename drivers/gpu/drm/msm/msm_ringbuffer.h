@@ -56,7 +56,7 @@ struct msm_ringbuffer {
 	/*
 	 * List of in-flight submits on this ring.  Protected by submit_lock.
 	 *
-	 * Currently just submits that are already written into the ring, not
+	 * Currently just submits that are already written into the ring, analt
 	 * submits that are still in drm_gpu_scheduler's queues.  At a later
 	 * step we could probably move to letting drm_gpu_scheduler manage
 	 * hangcheck detection and keep track of submit jobs that are in-

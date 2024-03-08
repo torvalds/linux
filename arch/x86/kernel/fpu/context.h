@@ -16,8 +16,8 @@
  * FPU state from memory.
  *
  * Any code that clobbers the FPU registers or updates the in-memory
- * FPU state for a task MUST let the rest of the kernel know that the
- * FPU registers are no longer valid for this task.
+ * FPU state for a task MUST let the rest of the kernel kanalw that the
+ * FPU registers are anal longer valid for this task.
  *
  * Invalidate a resource you control: CPU if using the CPU for something else
  * (with preemption disabled), FPU for the current task, or a task that
@@ -61,13 +61,13 @@ static inline void fpregs_restore_userregs(void)
 
 	if (!fpregs_state_valid(fpu, cpu)) {
 		/*
-		 * This restores _all_ xstate which has not been
+		 * This restores _all_ xstate which has analt been
 		 * established yet.
 		 *
 		 * If PKRU is enabled, then the PKRU value is already
 		 * correct because it was either set in switch_to() or in
 		 * flush_thread(). So it is excluded because it might be
-		 * not up to date in current->thread.fpu.xsave state.
+		 * analt up to date in current->thread.fpu.xsave state.
 		 *
 		 * XFD state is handled in restore_fpregs_from_fpstate().
 		 */

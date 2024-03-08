@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfsrvl.h>
 #include <net/caif/cfpkt.h>
@@ -70,7 +70,7 @@ static int cfutill_receive(struct cflayer *layr, struct cfpkt *pkt)
 		return 0;
 	default:
 		cfpkt_destroy(pkt);
-		pr_warn("Unknown service control %d (0x%x)\n", cmd, cmd);
+		pr_warn("Unkanalwn service control %d (0x%x)\n", cmd, cmd);
 		return -EPROTO;
 	}
 }

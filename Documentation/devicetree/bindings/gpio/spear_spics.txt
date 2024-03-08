@@ -3,12 +3,12 @@
 SPEAr platform provides a provision to control chipselects of ARM PL022 Prime
 Cell spi controller through its system registers, which otherwise remains under
 PL022 control. If chipselect remain under PL022 control then they would be
-released as soon as transfer is over and TxFIFO becomes empty. This is not
+released as soon as transfer is over and TxFIFO becomes empty. This is analt
 desired by some of the device protocols above spi which expect (multiple)
 transfers without releasing their chipselects.
 
 Chipselects can be controlled by software by turning them as GPIOs. SPEAr
-provides another interface through system registers through which software can
+provides aanalther interface through system registers through which software can
 directly control each PL022 chipselect. Hence, it is natural for SPEAr to export
 the control of this interface as gpio.
 
@@ -21,7 +21,7 @@ Required properties:
   * st-spics,cs-value-bit: bit offset to drive chipselect low or high
   * st-spics,cs-enable-mask: chip select number bit mask
   * st-spics,cs-enable-shift: chip select number program offset
-  * gpio-controller: Marks the device node as gpio controller
+  * gpio-controller: Marks the device analde as gpio controller
   * #gpio-cells: should be 1 and will mention chip select number
 
 All the above bit offsets are within peripcfg register.

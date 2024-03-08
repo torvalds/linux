@@ -20,7 +20,7 @@
 
 #include "internal.h"
 
-/* Exclude devices that have no _CRS resources provided */
+/* Exclude devices that have anal _CRS resources provided */
 #define ACPI_ALLOW_WO_RESOURCES		BIT(0)
 
 static const struct acpi_device_id forbidden_id_list[] = {
@@ -41,7 +41,7 @@ static struct platform_device *acpi_platform_device_find_by_companion(struct acp
 	return dev ? to_platform_device(dev) : NULL;
 }
 
-static int acpi_platform_device_remove_notify(struct notifier_block *nb,
+static int acpi_platform_device_remove_analtify(struct analtifier_block *nb,
 					      unsigned long value, void *arg)
 {
 	struct acpi_device *adev = arg;
@@ -49,7 +49,7 @@ static int acpi_platform_device_remove_notify(struct notifier_block *nb,
 
 	switch (value) {
 	case ACPI_RECONFIG_DEVICE_ADD:
-		/* Nothing to do here */
+		/* Analthing to do here */
 		break;
 	case ACPI_RECONFIG_DEVICE_REMOVE:
 		if (!acpi_device_enumerated(adev))
@@ -64,11 +64,11 @@ static int acpi_platform_device_remove_notify(struct notifier_block *nb,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block acpi_platform_notifier = {
-	.notifier_call = acpi_platform_device_remove_notify,
+static struct analtifier_block acpi_platform_analtifier = {
+	.analtifier_call = acpi_platform_device_remove_analtify,
 };
 
 static void acpi_platform_fill_resource(struct acpi_device *adev,
@@ -82,7 +82,7 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
 	 * If the device has parent we need to take its resources into
 	 * account as well because this device might consume part of those.
 	 */
-	parent = acpi_get_first_physical_node(acpi_dev_parent(adev));
+	parent = acpi_get_first_physical_analde(acpi_dev_parent(adev));
 	if (parent && dev_is_pci(parent))
 		dest->parent = pci_find_resource(to_pci_dev(parent), dest);
 }
@@ -97,8 +97,8 @@ static unsigned int acpi_platform_resource_count(struct acpi_resource *ares, voi
 }
 
 /**
- * acpi_create_platform_device - Create platform device for ACPI device node
- * @adev: ACPI device node to create a platform device for.
+ * acpi_create_platform_device - Create platform device for ACPI device analde
+ * @adev: ACPI device analde to create a platform device for.
  * @properties: Optional collection of build-in properties.
  *
  * Check if the given @adev can be represented as a platform device and, if
@@ -119,8 +119,8 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	struct resource *resources = NULL;
 	int count;
 
-	/* If the ACPI node already has a physical device attached, skip it. */
-	if (adev->physical_node_count)
+	/* If the ACPI analde already has a physical device attached, skip it. */
+	if (adev->physical_analde_count)
 		return NULL;
 
 	match = acpi_match_acpi_device(forbidden_id_list, adev);
@@ -145,10 +145,10 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		resources = kcalloc(count, sizeof(*resources), GFP_KERNEL);
 		if (!resources) {
 			acpi_dev_free_resource_list(&resource_list);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		count = 0;
-		list_for_each_entry(rentry, &resource_list, node)
+		list_for_each_entry(rentry, &resource_list, analde)
 			acpi_platform_fill_resource(adev, rentry->res,
 						    &resources[count++]);
 
@@ -157,16 +157,16 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	/*
-	 * If the ACPI node has a parent and that parent has a physical device
+	 * If the ACPI analde has a parent and that parent has a physical device
 	 * attached to it, that physical device should be the parent of the
 	 * platform device we are about to create.
 	 */
-	pdevinfo.parent = parent ? acpi_get_first_physical_node(parent) : NULL;
+	pdevinfo.parent = parent ? acpi_get_first_physical_analde(parent) : NULL;
 	pdevinfo.name = dev_name(&adev->dev);
-	pdevinfo.id = PLATFORM_DEVID_NONE;
+	pdevinfo.id = PLATFORM_DEVID_ANALNE;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
-	pdevinfo.fwnode = acpi_fwnode_handle(adev);
+	pdevinfo.fwanalde = acpi_fwanalde_handle(adev);
 	pdevinfo.properties = properties;
 
 	if (acpi_dma_supported(adev))
@@ -179,7 +179,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",
 			PTR_ERR(pdev));
 	else {
-		set_dev_node(&pdev->dev, acpi_get_node(adev->handle));
+		set_dev_analde(&pdev->dev, acpi_get_analde(adev->handle));
 		dev_dbg(&adev->dev, "created platform device %s\n",
 			dev_name(&pdev->dev));
 	}
@@ -192,5 +192,5 @@ EXPORT_SYMBOL_GPL(acpi_create_platform_device);
 
 void __init acpi_platform_init(void)
 {
-	acpi_reconfig_notifier_register(&acpi_platform_notifier);
+	acpi_reconfig_analtifier_register(&acpi_platform_analtifier);
 }

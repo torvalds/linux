@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
-# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+# Copyright (C) 2022 Microchip Techanallogy, Inc. and its subsidiaries
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/sound/atmel,sama5d2-classd.yaml#
@@ -53,7 +53,7 @@ properties:
     default: single
     description: PWM modulation type.
 
-  atmel,non-overlap-time:
+  atmel,analn-overlap-time:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 5
@@ -62,8 +62,8 @@ properties:
       - 20
     default: 10
     description:
-      Set non-overlapping time, the unit is nanosecond(ns).
-      Non-overlapping will be disabled if not specified.
+      Set analn-overlapping time, the unit is naanalsecond(ns).
+      Analn-overlapping will be disabled if analt specified.
 
 required:
   - compatible
@@ -96,5 +96,5 @@ examples:
         pinctrl-0 = <&pinctrl_classd_default>;
         atmel,model = "classd @ SAMA5D2-Xplained";
         atmel,pwm-type = "diff";
-        atmel,non-overlap-time = <10>;
+        atmel,analn-overlap-time = <10>;
     };

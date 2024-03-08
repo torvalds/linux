@@ -28,12 +28,12 @@ static int catpt_ipc_arm(struct catpt_ipc *ipc, struct catpt_fw_ready *config)
 {
 	/*
 	 * Both tx and rx are put into and received from outbox. Inbox is
-	 * only used for notifications where payload size is known upfront,
-	 * thus no separate buffer is allocated for it.
+	 * only used for analtifications where payload size is kanalwn upfront,
+	 * thus anal separate buffer is allocated for it.
 	 */
 	ipc->rx.data = devm_kzalloc(ipc->dev, config->outbox_size, GFP_KERNEL);
 	if (!ipc->rx.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&ipc->config, config, sizeof(*config));
 	ipc->ready = true;
@@ -143,28 +143,28 @@ int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
 }
 
 static void
-catpt_dsp_notify_stream(struct catpt_dev *cdev, union catpt_notify_msg msg)
+catpt_dsp_analtify_stream(struct catpt_dev *cdev, union catpt_analtify_msg msg)
 {
 	struct catpt_stream_runtime *stream;
-	struct catpt_notify_position pos;
-	struct catpt_notify_glitch glitch;
+	struct catpt_analtify_position pos;
+	struct catpt_analtify_glitch glitch;
 
 	stream = catpt_stream_find(cdev, msg.stream_hw_id);
 	if (!stream) {
-		dev_warn(cdev->dev, "notify %d for non-existent stream %d\n",
-			 msg.notify_reason, msg.stream_hw_id);
+		dev_warn(cdev->dev, "analtify %d for analn-existent stream %d\n",
+			 msg.analtify_reason, msg.stream_hw_id);
 		return;
 	}
 
-	switch (msg.notify_reason) {
-	case CATPT_NOTIFY_POSITION_CHANGED:
+	switch (msg.analtify_reason) {
+	case CATPT_ANALTIFY_POSITION_CHANGED:
 		memcpy_fromio(&pos, catpt_inbox_addr(cdev), sizeof(pos));
 		trace_catpt_ipc_payload((u8 *)&pos, sizeof(pos));
 
 		catpt_stream_update_position(cdev, stream, &pos);
 		break;
 
-	case CATPT_NOTIFY_GLITCH_OCCURRED:
+	case CATPT_ANALTIFY_GLITCH_OCCURRED:
 		memcpy_fromio(&glitch, catpt_inbox_addr(cdev), sizeof(glitch));
 		trace_catpt_ipc_payload((u8 *)&glitch, sizeof(glitch));
 
@@ -174,8 +174,8 @@ catpt_dsp_notify_stream(struct catpt_dev *cdev, union catpt_notify_msg msg)
 		break;
 
 	default:
-		dev_warn(cdev->dev, "unknown notification: %d received\n",
-			 msg.notify_reason);
+		dev_warn(cdev->dev, "unkanalwn analtification: %d received\n",
+			 msg.analtify_reason);
 		break;
 	}
 }
@@ -194,7 +194,7 @@ static void catpt_dsp_copy_rx(struct catpt_dev *cdev, u32 header)
 
 static void catpt_dsp_process_response(struct catpt_dev *cdev, u32 header)
 {
-	union catpt_notify_msg msg = CATPT_MSG(header);
+	union catpt_analtify_msg msg = CATPT_MSG(header);
 	struct catpt_ipc *ipc = &cdev->ipc;
 
 	if (msg.fw_ready) {
@@ -220,8 +220,8 @@ static void catpt_dsp_process_response(struct catpt_dev *cdev, u32 header)
 
 	case CATPT_GLB_STREAM_MESSAGE:
 		switch (msg.stream_msg_type) {
-		case CATPT_STRM_NOTIFICATION:
-			catpt_dsp_notify_stream(cdev, msg);
+		case CATPT_STRM_ANALTIFICATION:
+			catpt_dsp_analtify_stream(cdev, msg);
 			break;
 		default:
 			catpt_dsp_copy_rx(cdev, header);
@@ -232,7 +232,7 @@ static void catpt_dsp_process_response(struct catpt_dev *cdev, u32 header)
 		break;
 
 	default:
-		dev_warn(cdev->dev, "unknown response: %d received\n",
+		dev_warn(cdev->dev, "unkanalwn response: %d received\n",
 			 msg.global_msg_type);
 		break;
 	}
@@ -244,11 +244,11 @@ irqreturn_t catpt_dsp_irq_thread(int irq, void *dev_id)
 	u32 ipcd;
 
 	ipcd = catpt_readl_shim(cdev, IPCD);
-	trace_catpt_ipc_notify(ipcd);
+	trace_catpt_ipc_analtify(ipcd);
 
-	/* ensure there is delayed reply or notification to process */
+	/* ensure there is delayed reply or analtification to process */
 	if (!(ipcd & CATPT_IPCD_BUSY))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	catpt_dsp_process_response(cdev, ipcd);
 
@@ -264,7 +264,7 @@ irqreturn_t catpt_dsp_irq_thread(int irq, void *dev_id)
 irqreturn_t catpt_dsp_irq_handler(int irq, void *dev_id)
 {
 	struct catpt_dev *cdev = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 isc, ipcc;
 
 	isc = catpt_readl_shim(cdev, ISC);
@@ -287,7 +287,7 @@ irqreturn_t catpt_dsp_irq_handler(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 	}
 
-	/* delayed reply or notification */
+	/* delayed reply or analtification */
 	if (isc & CATPT_ISC_IPCDB) {
 		/* mask dsp BUSY interrupt */
 		catpt_updatel_shim(cdev, IMC, CATPT_IMC_IPCDB, CATPT_IMC_IPCDB);

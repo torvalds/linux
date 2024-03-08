@@ -20,7 +20,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -117,7 +117,7 @@ static int belkin_sa_port_probe(struct usb_serial_port *port)
 
 	priv = kmalloc(sizeof(struct belkin_sa_private), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	priv->control_state = 0;
@@ -181,22 +181,22 @@ static void belkin_sa_read_int_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
 
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
-	/* Handle known interrupt data */
-	/* ignore data[0] and data[1] */
+	/* Handle kanalwn interrupt data */
+	/* iganalre data[0] and data[1] */
 
 	priv = usb_get_serial_port_data(port);
 	spin_lock_irqsave(&priv->lock, flags);
@@ -242,7 +242,7 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 	char tty_flag;
 
 	/* Update line status */
-	tty_flag = TTY_NORMAL;
+	tty_flag = TTY_ANALRMAL;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	status = priv->last_lsr;
@@ -263,7 +263,7 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 			tty_flag = TTY_FRAME;
 		dev_dbg(&port->dev, "tty_flag = %d\n", tty_flag);
 
-		/* Overrun is special, not associated with a char. */
+		/* Overrun is special, analt associated with a char. */
 		if (status & BELKIN_SA_LSR_OE)
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 	}
@@ -335,7 +335,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 	} else {
 		/* Disable flow control */
 		if (BSA_USB_CMD(BELKIN_SA_SET_FLOW_CTRL_REQUEST,
-						BELKIN_SA_FLOW_NONE) < 0)
+						BELKIN_SA_FLOW_ANALNE) < 0)
 			dev_err(&port->dev, "Disable flowcontrol error\n");
 		/* Drop RTS and DTR */
 		control_state &= ~(TIOCM_DTR | TIOCM_RTS);
@@ -351,7 +351,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 			urb_value = (cflag & PARODD) ?  BELKIN_SA_PARITY_ODD
 						: BELKIN_SA_PARITY_EVEN;
 		else
-			urb_value = BELKIN_SA_PARITY_NONE;
+			urb_value = BELKIN_SA_PARITY_ANALNE;
 		if (BSA_USB_CMD(BELKIN_SA_SET_PARITY_REQUEST, urb_value) < 0)
 			dev_err(&port->dev, "Set parity error\n");
 	}

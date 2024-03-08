@@ -7,7 +7,7 @@
  * Copied and modified from arch/i386/kernel/time.c
  *
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -40,20 +40,20 @@ static int nvram_data = NVRAM_DATA;
 
 long __init chrp_time_init(void)
 {
-	struct device_node *rtcs;
+	struct device_analde *rtcs;
 	struct resource r;
 	int base;
 
-	rtcs = of_find_compatible_node(NULL, "rtc", "pnpPNP,b00");
+	rtcs = of_find_compatible_analde(NULL, "rtc", "pnpPNP,b00");
 	if (rtcs == NULL)
-		rtcs = of_find_compatible_node(NULL, "rtc", "ds1385-rtc");
+		rtcs = of_find_compatible_analde(NULL, "rtc", "ds1385-rtc");
 	if (rtcs == NULL)
 		return 0;
 	if (of_address_to_resource(rtcs, 0, &r)) {
-		of_node_put(rtcs);
+		of_analde_put(rtcs);
 		return 0;
 	}
-	of_node_put(rtcs);
+	of_analde_put(rtcs);
 
 	base = r.start;
 	nvram_as1 = 0;
@@ -115,7 +115,7 @@ int chrp_set_rtc_time(struct rtc_time *tmarg)
 
 	/* The following flags have to be released exactly in this order,
 	 * otherwise the DS12887 (popular MC146818A clone with integrated
-	 * battery and quartz) will not reset the oscillator and will not
+	 * battery and quartz) will analt reset the oscillator and will analt
 	 * update precisely 500 ms later. You won't find this mentioned in
 	 * the Dallas Semiconductor data sheets, but who believes data
 	 * sheets anyway ...                           -- Markus Kuhn

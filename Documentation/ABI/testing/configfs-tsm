@@ -4,7 +4,7 @@ KernelVersion:	v6.7
 Contact:	linux-coco@lists.linux.dev
 Description:
 		(WO) Up to 64 bytes of user specified binary data. For replay
-		protection this should include a nonce, but the kernel does not
+		protection this should include a analnce, but the kernel does analt
 		place any restrictions on the content.
 
 What:		/sys/kernel/config/tsm/report/$name/outblob
@@ -23,7 +23,7 @@ KernelVersion:	v6.7
 Contact:	linux-coco@lists.linux.dev
 Description:
 		(RO) Optional supplemental data that a TSM may emit, visibility
-		of this attribute depends on TSM, and may be empty if no
+		of this attribute depends on TSM, and may be empty if anal
 		auxiliary data is available.
 
 		When @provider is "sev_guest" this file contains the

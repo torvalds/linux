@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -331,12 +331,12 @@ enum gpio_result dal_gpio_service_open(
 	break;
 	default:
 		ASSERT_CRITICAL(false);
-		return GPIO_RESULT_NON_SPECIFIC_ERROR;
+		return GPIO_RESULT_ANALN_SPECIFIC_ERROR;
 	}
 
 	if (!*pin) {
 		ASSERT_CRITICAL(false);
-		return GPIO_RESULT_NON_SPECIFIC_ERROR;
+		return GPIO_RESULT_ANALN_SPECIFIC_ERROR;
 	}
 
 	if (!(*pin)->funcs->open(*pin, mode)) {
@@ -600,7 +600,7 @@ enum gpio_result dal_ddc_change_mode(
 
 	result = dal_gpio_change_mode(ddc->pin_data, mode);
 
-	/* [anaumov] DAL2 code returns GPIO_RESULT_NON_SPECIFIC_ERROR
+	/* [anaumov] DAL2 code returns GPIO_RESULT_ANALN_SPECIFIC_ERROR
 	 * in case of failures;
 	 * set_mode() is so that, in case of failure,
 	 * we must explicitly set original mode */

@@ -19,7 +19,7 @@ extern void thirty_two_instruction_loop(int loops);
  * A perf sampling test for mmcra
  * field: bhrb_disable.
  */
-static int mmcra_bhrb_disable_no_branch_test(void)
+static int mmcra_bhrb_disable_anal_branch_test(void)
 {
 	struct event event;
 	u64 *intr_regs;
@@ -51,7 +51,7 @@ static int mmcra_bhrb_disable_no_branch_test(void)
 	/* Check for intr_regs */
 	FAIL_IF(!intr_regs);
 
-	/* Verify that bhrb_disable bit is set in MMCRA for non-branch samples */
+	/* Verify that bhrb_disable bit is set in MMCRA for analn-branch samples */
 	FAIL_IF(!get_mmcra_bhrb_disable(get_reg_value(intr_regs, "MMCRA"), 5));
 
 	event_close(&event);
@@ -60,5 +60,5 @@ static int mmcra_bhrb_disable_no_branch_test(void)
 
 int main(void)
 {
-	return test_harness(mmcra_bhrb_disable_no_branch_test, "mmcra_bhrb_disable_no_branch_test");
+	return test_harness(mmcra_bhrb_disable_anal_branch_test, "mmcra_bhrb_disable_anal_branch_test");
 }

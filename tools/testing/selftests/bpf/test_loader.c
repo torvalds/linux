@@ -73,7 +73,7 @@ static int tester_init(struct test_loader *tester)
 		tester->log_buf_sz = TEST_LOADER_LOG_BUF_SZ;
 		tester->log_buf = calloc(tester->log_buf_sz, 1);
 		if (!ASSERT_OK_PTR(tester->log_buf, "tester_log_buf"))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -107,7 +107,7 @@ static int push_msg(const char *msg, struct test_subspec *subspec)
 	tmp = realloc(subspec->expect_msgs, (1 + subspec->expect_msg_cnt) * sizeof(void *));
 	if (!tmp) {
 		ASSERT_FAIL("failed to realloc memory for messages\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	subspec->expect_msgs = tmp;
 	subspec->expect_msgs[subspec->expect_msg_cnt++] = msg;
@@ -120,12 +120,12 @@ static int parse_int(const char *str, int *val, const char *name)
 	char *end;
 	long tmp;
 
-	errno = 0;
+	erranal = 0;
 	if (str_has_pfx(str, "0x"))
 		tmp = strtol(str + 2, &end, 16);
 	else
 		tmp = strtol(str, &end, 10);
-	if (errno || end[0] != '\0') {
+	if (erranal || end[0] != '\0') {
 		PRINT_FAIL("failed to parse %s from '%s'\n", name, str);
 		return -EINVAL;
 	}
@@ -185,7 +185,7 @@ static int parse_test_spec(struct test_loader *tester,
 
 	btf = bpf_object__btf(obj);
 	if (!btf) {
-		ASSERT_FAIL("BPF object has no BTF");
+		ASSERT_FAIL("BPF object has anal BTF");
 		return -EINVAL;
 	}
 
@@ -305,7 +305,7 @@ static int parse_test_spec(struct test_loader *tester,
 		spec->priv.name = strdup(description);
 		if (!spec->priv.name) {
 			PRINT_FAIL("failed to allocate memory for priv.name\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto cleanup;
 		}
 	}
@@ -318,7 +318,7 @@ static int parse_test_spec(struct test_loader *tester,
 		name = malloc(descr_len + strlen(suffix) + 1);
 		if (!name) {
 			PRINT_FAIL("failed to allocate memory for unpriv.name\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto cleanup;
 		}
 
@@ -342,7 +342,7 @@ static int parse_test_spec(struct test_loader *tester,
 			spec->unpriv.expect_msgs = malloc(sz);
 			if (!spec->unpriv.expect_msgs) {
 				PRINT_FAIL("failed to allocate memory for unpriv.expect_msgs\n");
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto cleanup;
 			}
 			memcpy(spec->unpriv.expect_msgs, spec->priv.expect_msgs, sz);
@@ -366,7 +366,7 @@ static void prepare_case(struct test_loader *tester,
 {
 	int min_log_level = 0, prog_flags;
 
-	if (env.verbosity > VERBOSE_NONE)
+	if (env.verbosity > VERBOSE_ANALNE)
 		min_log_level = 1;
 	if (env.verbosity > VERBOSE_VERY)
 		min_log_level = 2;
@@ -391,7 +391,7 @@ static void prepare_case(struct test_loader *tester,
 
 static void emit_verifier_log(const char *log_buf, bool force)
 {
-	if (!force && env.verbosity == VERBOSE_NONE)
+	if (!force && env.verbosity == VERBOSE_ANALNE)
 		return;
 	fprintf(stdout, "VERIFIER LOG:\n=============\n%s=============\n", log_buf);
 }
@@ -413,7 +413,7 @@ static void validate_case(struct test_loader *tester,
 		match = strstr(tester->log_buf + tester->next_match_pos, expect_msg);
 		if (!ASSERT_OK_PTR(match, "expect_msg")) {
 			/* if we are in verbose mode, we've already emitted log */
-			if (env.verbosity == VERBOSE_NONE)
+			if (env.verbosity == VERBOSE_ANALNE)
 				emit_verifier_log(tester->log_buf, true /*force*/);
 			for (j = 0; j < i; j++)
 				fprintf(stderr,
@@ -505,7 +505,7 @@ static int do_prog_test_run(int fd_prog, int *retval)
 {
 	__u8 tmp_out[TEST_DATA_LEN << 2] = {};
 	__u8 tmp_in[TEST_DATA_LEN] = {};
-	int err, saved_errno;
+	int err, saved_erranal;
 	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = tmp_in,
 		.data_size_in = sizeof(tmp_in),
@@ -515,11 +515,11 @@ static int do_prog_test_run(int fd_prog, int *retval)
 	);
 
 	err = bpf_prog_test_run_opts(fd_prog, &topts);
-	saved_errno = errno;
+	saved_erranal = erranal;
 
 	if (err) {
 		PRINT_FAIL("FAIL: Unexpected bpf_prog_test_run error: %d (%s) ",
-			   saved_errno, strerror(saved_errno));
+			   saved_erranal, strerror(saved_erranal));
 		return err;
 	}
 
@@ -538,7 +538,7 @@ static bool should_do_test_run(struct test_spec *spec, struct test_subspec *subs
 		return false;
 
 	if ((spec->prog_flags & BPF_F_ANY_ALIGNMENT) && !EFFICIENT_UNALIGNED_ACCESS) {
-		if (env.verbosity != VERBOSE_NONE)
+		if (env.verbosity != VERBOSE_ANALNE)
 			printf("alignment prevents execution\n");
 		return false;
 	}
@@ -546,10 +546,10 @@ static bool should_do_test_run(struct test_spec *spec, struct test_subspec *subs
 	return true;
 }
 
-/* this function is forced noinline and has short generic name to look better
+/* this function is forced analinline and has short generic name to look better
  * in test_progs output (in case of a failure)
  */
-static noinline
+static analinline
 void run_subtest(struct test_loader *tester,
 		 struct bpf_object_open_opts *open_opts,
 		 const void *obj_bytes,
@@ -693,7 +693,7 @@ static void process_subtest(struct test_loader *tester,
 
 	i = 0;
 	bpf_object__for_each_program(prog, obj) {
-		/* ignore tests for which  we can't derive test specification */
+		/* iganalre tests for which  we can't derive test specification */
 		err = parse_test_spec(tester, obj, prog, &specs[i++]);
 		if (err)
 			PRINT_FAIL("Can't parse test spec for program '%s'\n",

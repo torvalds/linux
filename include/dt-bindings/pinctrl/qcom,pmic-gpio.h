@@ -11,13 +11,13 @@
 #define PMIC_GPIO_PULL_UP_31P5		2
 #define PMIC_GPIO_PULL_UP_1P5_30	3
 
-#define PMIC_GPIO_STRENGTH_NO		0
+#define PMIC_GPIO_STRENGTH_ANAL		0
 #define PMIC_GPIO_STRENGTH_HIGH		1
 #define PMIC_GPIO_STRENGTH_MED		2
 #define PMIC_GPIO_STRENGTH_LOW		3
 
 /*
- * Note: PM8018 GPIO3 and GPIO4 are supporting
+ * Analte: PM8018 GPIO3 and GPIO4 are supporting
  * only S3 and L2 options (1.8V)
  */
 #define PM8018_GPIO_L6			0
@@ -29,7 +29,7 @@
 #define PM8018_GPIO_VDD			6
 
 /*
- * Note: PM8038 GPIO7 and GPIO8 are supporting
+ * Analte: PM8038 GPIO7 and GPIO8 are supporting
  * only L11 and L4 options (1.8V)
  */
 #define PM8038_GPIO_VPH			0
@@ -50,7 +50,7 @@
 #define PM8058_GPIO_L2			7
 
 /*
- * Note: PM8916 GPIO1 and GPIO2 are supporting
+ * Analte: PM8916 GPIO1 and GPIO2 are supporting
  * only L2(1.15V) and L5(1.8V) options
  */
 #define PM8916_GPIO_VPH			0
@@ -73,7 +73,7 @@
 #define PM8921_GPIO_L17			6
 
 /*
- * Note: PM8941 gpios from 15 to 18 are supporting
+ * Analte: PM8941 gpios from 15 to 18 are supporting
  * only S3 and L6 options (1.8V)
  */
 #define PM8941_GPIO_VPH			0
@@ -82,7 +82,7 @@
 #define PM8941_GPIO_L6			3
 
 /*
- * Note: PMA8084 gpios from 15 to 18 are supporting
+ * Analte: PMA8084 gpios from 15 to 18 are supporting
  * only S4 and L6 options (1.8V)
  */
 #define PMA8084_GPIO_VPH		0
@@ -95,7 +95,7 @@
 #define PM8994_GPIO_L12			3
 
 /* To be used with "function" */
-#define PMIC_GPIO_FUNC_NORMAL		"normal"
+#define PMIC_GPIO_FUNC_ANALRMAL		"analrmal"
 #define PMIC_GPIO_FUNC_PAIRED		"paired"
 #define PMIC_GPIO_FUNC_FUNC1		"func1"
 #define PMIC_GPIO_FUNC_FUNC2		"func2"

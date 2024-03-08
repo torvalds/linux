@@ -56,7 +56,7 @@ static ssize_t sof_telemetry_entry_read(struct file *file, char __user *buffer,
 
 	buf = kzalloc(SOF_IPC4_DEBUG_SLOT_SIZE - 4, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(buf, io_addr, SOF_IPC4_DEBUG_SLOT_SIZE - 4);
 	size_ret = copy_to_user(buffer, buf + pos, count);
@@ -76,7 +76,7 @@ static const struct file_operations sof_telemetry_fops = {
 	.read = sof_telemetry_entry_read,
 };
 
-void sof_ipc4_create_exception_debugfs_node(struct snd_sof_dev *sdev)
+void sof_ipc4_create_exception_debugfs_analde(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_dfsentry *dfse;
 

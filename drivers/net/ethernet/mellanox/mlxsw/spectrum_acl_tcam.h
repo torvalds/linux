@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_SPECTRUM_ACL_TCAM_H
 #define _MLXSW_SPECTRUM_ACL_TCAM_H
@@ -177,7 +177,7 @@ struct mlxsw_sp_acl_atcam_chunk {
 };
 
 struct mlxsw_sp_acl_atcam_entry {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct list_head list; /* Member in entries_list */
 	struct mlxsw_sp_acl_atcam_entry_ht_key ht_key;
 	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key,

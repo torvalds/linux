@@ -6,8 +6,8 @@
  *
  * Based on the omapdrm-specific panel-sony-acx565akm driver
  *
- * Copyright (C) 2010 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Copyright (C) 2010 Analkia Corporation
+ * Author: Imre Deak <imre.deak@analkia.com>
  */
 
 /*
@@ -170,7 +170,7 @@ static unsigned int acx565akm_get_hw_cabc_mode(struct acx565akm_panel *lcd)
 }
 
 static const char * const acx565akm_cabc_modes[] = {
-	"off",		/* always used when CABC is not supported */
+	"off",		/* always used when CABC is analt supported */
 	"ui",
 	"still-image",
 	"moving-image",
@@ -189,7 +189,7 @@ static ssize_t cabc_mode_show(struct device *dev,
 	else
 		mode = acx565akm_get_cabc_mode(lcd);
 
-	mode_str = "unknown";
+	mode_str = "unkanalwn";
 	if (mode >= 0 && mode < ARRAY_SIZE(acx565akm_cabc_modes))
 		mode_str = acx565akm_cabc_modes[mode];
 
@@ -519,7 +519,7 @@ static int acx565akm_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &acx565akm_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
@@ -588,9 +588,9 @@ static int acx565akm_detect(struct acx565akm_panel *lcd)
 		lcd->name = "ls041y3";
 		break;
 	default:
-		lcd->name = "unknown";
-		dev_err(&lcd->spi->dev, "unknown display ID\n");
-		ret = -ENODEV;
+		lcd->name = "unkanalwn";
+		dev_err(&lcd->spi->dev, "unkanalwn display ID\n");
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -613,7 +613,7 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, lcd);
 	spi->mode = SPI_MODE_3;
@@ -686,6 +686,6 @@ static struct spi_driver acx565akm_driver = {
 
 module_spi_driver(acx565akm_driver);
 
-MODULE_AUTHOR("Nokia Corporation");
+MODULE_AUTHOR("Analkia Corporation");
 MODULE_DESCRIPTION("Sony ACX565AKM LCD Panel Driver");
 MODULE_LICENSE("GPL");

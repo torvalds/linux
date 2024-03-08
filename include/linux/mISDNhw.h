@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@analvell.com>
  *
  *   Basic declarations for the mISDN HW channels
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #ifndef MISDNHW_H
@@ -118,7 +118,7 @@ extern int	create_l1(struct dchannel *, dchannel_l1callback *);
 #define HW_POWERUP_REQ	0x8b02
 #define HW_DEACT_REQ	0x8c02
 #define HW_ACTIVATE_REQ	0x8e02
-#define HW_D_NOBLOCKED  0x8f02
+#define HW_D_ANALBLOCKED  0x8f02
 #define HW_RESET_IND	0x9002
 #define HW_POWERUP_IND	0x9102
 #define HW_DEACT_IND	0x9202

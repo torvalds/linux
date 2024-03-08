@@ -5,7 +5,7 @@
  * Copyright (C) 2022 Google LLC.
  *
  * Tests for KVM ownership of bits in the VMX entry/exit control MSRs. Checks
- * that KVM will set owned bits where appropriate, and will not if
+ * that KVM will set owned bits where appropriate, and will analt if
  * KVM_X86_QUIRK_TWEAK_VMX_CTRL_MSRS is disabled.
  */
 #include <linux/bitmap.h>
@@ -121,7 +121,7 @@ int main(void)
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_DISABLE_QUIRKS2));
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 
-	/* No need to actually do KVM_RUN, thus no guest code. */
+	/* Anal need to actually do KVM_RUN, thus anal guest code. */
 	vm = vm_create_with_one_vcpu(&vcpu, NULL);
 
 	vmx_save_restore_msrs_test(vcpu);

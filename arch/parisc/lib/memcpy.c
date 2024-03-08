@@ -16,7 +16,7 @@
 #define get_user_space()	mfsp(SR_USER)
 #define get_kernel_space()	SR_KERNEL
 
-/* Returns 0 for success, otherwise, returns number of bytes not transferred. */
+/* Returns 0 for success, otherwise, returns number of bytes analt transferred. */
 extern unsigned long pa_memcpy(void *dst, const void *src,
 				unsigned long len);
 
@@ -48,7 +48,7 @@ void * memcpy(void * dst,const void *src, size_t count)
 
 EXPORT_SYMBOL(memcpy);
 
-bool copy_from_kernel_nofault_allowed(const void *unsafe_src, size_t size)
+bool copy_from_kernel_analfault_allowed(const void *unsafe_src, size_t size)
 {
 	if ((unsigned long)unsafe_src < PAGE_SIZE)
 		return false;

@@ -60,7 +60,7 @@ struct ptn5150_info {
 static const unsigned int ptn5150_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static const struct regmap_config ptn5150_regmap_config = {
@@ -72,7 +72,7 @@ static const struct regmap_config ptn5150_regmap_config = {
 static void ptn5150_check_state(struct ptn5150_info *info)
 {
 	unsigned int port_status, reg_data, vbus;
-	enum usb_role usb_role = USB_ROLE_NONE;
+	enum usb_role usb_role = USB_ROLE_ANALNE;
 	int ret;
 
 	ret = regmap_read(info->regmap, PTN5150_REG_CC_STATUS, &reg_data);
@@ -147,10 +147,10 @@ static void ptn5150_irq_work(struct work_struct *work)
 			gpiod_set_value_cansleep(info->vbus_gpiod, 0);
 
 			ret = usb_role_switch_set_role(info->role_sw,
-						       USB_ROLE_NONE);
+						       USB_ROLE_ANALNE);
 			if (ret)
 				dev_err(info->dev,
-					"failed to set none role: %d\n",
+					"failed to set analne role: %d\n",
 					ret);
 		}
 	}
@@ -224,7 +224,7 @@ static void ptn5150_work_sync_and_put(void *data)
 static int ptn5150_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
-	struct device_node *np = i2c->dev.of_node;
+	struct device_analde *np = i2c->dev.of_analde;
 	struct ptn5150_info *info;
 	int ret;
 
@@ -233,7 +233,7 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c)
 
 	info = devm_kzalloc(&i2c->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	i2c_set_clientdata(i2c, info);
 
 	info->dev = &i2c->dev;
@@ -241,8 +241,8 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c)
 	info->vbus_gpiod = devm_gpiod_get(&i2c->dev, "vbus", GPIOD_OUT_LOW);
 	if (IS_ERR(info->vbus_gpiod)) {
 		ret = PTR_ERR(info->vbus_gpiod);
-		if (ret == -ENOENT) {
-			dev_info(dev, "No VBUS GPIO, ignoring VBUS control\n");
+		if (ret == -EANALENT) {
+			dev_info(dev, "Anal VBUS GPIO, iganalring VBUS control\n");
 			info->vbus_gpiod = NULL;
 		} else {
 			return dev_err_probe(dev, ret, "failed to get VBUS GPIO\n");
@@ -289,7 +289,7 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c)
 	info->edev = devm_extcon_dev_allocate(info->dev, ptn5150_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(info->dev, "failed to allocate memory for extcon\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Register extcon device */

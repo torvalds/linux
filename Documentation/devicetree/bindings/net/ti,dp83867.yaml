@@ -52,7 +52,7 @@ properties:
     description: |
       MAC Interface Impedance control to set the programmable output impedance
       to a maximum value (70 ohms).
-      Note: Specifying an io_impedance_ctrl nvmem cell or one of the
+      Analte: Specifying an io_impedance_ctrl nvmem cell or one of the
         ti,min-output-impedance, ti,max-output-impedance properties
         are mutually exclusive. If more than one is present, an nvmem
         cell takes precedence over ti,max-output-impedance, which in
@@ -89,10 +89,10 @@ properties:
       for applicable values. Required only if interface type is
       PHY_INTERFACE_MODE_RGMII_ID or PHY_INTERFACE_MODE_RGMII_TXID.
 
-        Note: If the interface type is PHY_INTERFACE_MODE_RGMII the TX/RX clock
+        Analte: If the interface type is PHY_INTERFACE_MODE_RGMII the TX/RX clock
           delays will be left at their default values, as set by the PHY's pin
           strapping. The default strapping will use a delay of 2.00 ns.  Thus
-          PHY_INTERFACE_MODE_RGMII, by default, does not behave as RGMII with no
+          PHY_INTERFACE_MODE_RGMII, by default, does analt behave as RGMII with anal
           internal delay, but as PHY_INTERFACE_MODE_RGMII_ID.  The device tree
           should use "rgmii-id" if internal delays are desired as this may be
           changed in future to cause "rgmii" mode to disable delays.
@@ -100,7 +100,7 @@ properties:
   ti,dp83867-rxctrl-strap-quirk:
     type: boolean
     description: |
-      This denotes the fact that the board has RX_DV/RX_CTRL pin strapped in
+      This deanaltes the fact that the board has RX_DV/RX_CTRL pin strapped in
       mode 1 or 2. To ensure PHY operation, there are specific actions that
       software needs to take when this pin is strapped in these modes.
       See data manual for details.
@@ -108,7 +108,7 @@ properties:
   ti,sgmii-ref-clock-output-enable:
     type: boolean
     description: |
-      This denotes which SGMII configuration is used (4 or 6-wire modes).
+      This deanaltes which SGMII configuration is used (4 or 6-wire modes).
       Some MACs work with differential SGMII clock. See data manual for details.
 
   ti,fifo-depth:

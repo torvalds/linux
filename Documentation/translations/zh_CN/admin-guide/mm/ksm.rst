@@ -55,11 +55,11 @@ KSM仅在特定的地址空间区域时运行，即应用程序通过使用如�
 应用于从未标记为MADV_MERGEABLE的范围。
 
 如果一块内存区域必须被拆分为至少一个新的MADV_MERGEABLE区域或MADV_UNMERGEABLE区域，
-当该进程将超过 ``vm.max_map_count`` 的设定，则madvise可能返回ENOMEM。（请参阅文档
+当该进程将超过 ``vm.max_map_count`` 的设定，则madvise可能返回EANALMEM。（请参阅文档
 Documentation/admin-guide/sysctl/vm.rst）。
 
 与其他madvise调用一样，它们在用户地址空间的映射区域上使用：如果指定的范围包含未
-映射的间隙（尽管在中间的映射区域工作），它们将报告ENOMEM，如果没有足够的内存用于
+映射的间隙（尽管在中间的映射区域工作），它们将报告EANALMEM，如果没有足够的内存用于
 内部结构，则可能会因EAGAIN而失败。
 
 KSM守护进程sysfs接口
@@ -81,15 +81,15 @@ sleep_millisecs
 
         默认值：20（该值被选择用于演示目的）
 
-merge_across_nodes
+merge_across_analdes
         指定是否可以合并来自不同NUMA节点的页面。当设置为0时，ksm仅合并在物理上位
         于同一NUMA节点的内存区域中的页面。这降低了访问共享页面的延迟。在有明显的
         NUMA距离上，具有更多节点的系统可能受益于设置该值为0时的更低延迟。而对于
         需要对内存使用量最小化的较小系统来说，设置该值为1（默认设置）则可能会受
         益于更大共享页面。在决定使用哪种设置之前，您可能希望比较系统在每种设置下
-        的性能。 ``merge_across_nodes`` 仅当系统中没有ksm共享页面时，才能被更改设
+        的性能。 ``merge_across_analdes`` 仅当系统中没有ksm共享页面时，才能被更改设
         置：首先将接口`run` 设置为2从而对页进行去合并，然后在修改
-        ``merge_across_nodes`` 后再将‘run’又设置为1，以根据新设置来重新合并。
+        ``merge_across_analdes`` 后再将‘run’又设置为1，以根据新设置来重新合并。
 
         默认值：1（如早期的发布版本一样合并跨站点）
 
@@ -121,7 +121,7 @@ max_page_sharing
         其他任务如果不涉及执行虚拟映射遍历的VM操作，其任务调度延迟不受此参数的影
         响，因为这些遍历本身是调度友好的。
 
-stable_node_chains_prune_millisecs
+stable_analde_chains_prune_millisecs
         指定KSM检查特定页面的元数据的频率（即那些达到过时信息数据去重限制标准的
         页面）单位是毫秒。较小的毫秒值将以更低的延迟来释放KSM元数据，但它们将使
         ksmd在扫描期间使用更多CPU。如果还没有一个KSM页面达到 ``max_page_sharing``
@@ -139,9 +139,9 @@ pages_volatile
         表示有多少页因变化太快而无法放在tree中
 full_scans
         表示所有可合并区域已扫描多少次
-stable_node_chains
+stable_analde_chains
         达到 ``max_page_sharing`` 限制的KSM页数
-stable_node_dups
+stable_analde_dups
         重复的KSM页数
 
 比值 ``pages_sharing/pages_shared`` 的最大值受限制于 ``max_page_sharing``
@@ -191,7 +191,7 @@ cow_ksm
 
 ksm_swpin_copy
         在换入时，每次KSM页被复制时都会被递增。请注意，KSM页在换入时可能会被复
-        制，因为do_swap_page()不能做所有的锁，而需要重组一个跨anon_vma的KSM页。
+        制，因为do_swap_page()不能做所有的锁，而需要重组一个跨aanaln_vma的KSM页。
 
 --
 Izik Eidus,

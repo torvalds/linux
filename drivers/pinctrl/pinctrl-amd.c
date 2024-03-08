@@ -15,7 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/log2.h>
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
@@ -233,7 +233,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			pin_num = AMD_GPIO_PINS_BANK3 + i;
 			break;
 		default:
-			/* Illegal bank number, ignore */
+			/* Illegal bank number, iganalre */
 			continue;
 		}
 		seq_printf(s, "GPIO bank%d\n", bank);
@@ -524,7 +524,7 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		irq_set_handler_locked(d, handle_level_irq);
 		break;
 
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		break;
 
 	default:
@@ -541,10 +541,10 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	 * INTERRUPT_ENABLE bit will read as 0.
 	 *
 	 * We temporarily enable irq for the GPIO whose configuration is
-	 * changing, and then wait for it to read back as 1 to know when
+	 * changing, and then wait for it to read back as 1 to kanalw when
 	 * debounce has settled and then disable the irq again.
 	 * We do this polling with the spinlock held to ensure other GPIO
-	 * access routines do not read an incorrect value for the irq enable
+	 * access routines do analt read an incorrect value for the irq enable
 	 * bit of other GPIOs.  We keep the GPIO masked while polling to avoid
 	 * spurious irqs, and disable the irq again after polling.
 	 */
@@ -564,7 +564,7 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 static void amd_irq_ack(struct irq_data *d)
 {
 	/*
-	 * based on HW design,there is no need to ack HW
+	 * based on HW design,there is anal need to ack HW
 	 * before handle current irq. But this routine is
 	 * necessary for handle_edge_irq
 	*/
@@ -639,7 +639,7 @@ static bool do_amd_gpio_irq_handler(int irq, void *dev_id)
 			 * We must read the pin register again, in case the
 			 * value was changed while executing
 			 * generic_handle_domain_irq() above.
-			 * If the line is not an irq, disable it in order to
+			 * If the line is analt an irq, disable it in order to
 			 * avoid a system hang caused by an interrupt storm.
 			 */
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
@@ -656,7 +656,7 @@ static bool do_amd_gpio_irq_handler(int irq, void *dev_id)
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 		}
 	}
-	/* did not cause wake on resume context for shared IRQ */
+	/* did analt cause wake on resume context for shared IRQ */
 	if (irq < 0)
 		return false;
 
@@ -712,7 +712,7 @@ static const struct pinctrl_ops amd_pinctrl_ops = {
 	.get_group_name		= amd_get_group_name,
 	.get_group_pins		= amd_get_group_pins,
 #ifdef CONFIG_OF
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 #endif
 };
@@ -750,7 +750,7 @@ static int amd_pinconf_get(struct pinctrl_dev *pctldev,
 	default:
 		dev_dbg(&gpio_dev->pdev->dev, "Invalid config param %04x\n",
 			param);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -800,7 +800,7 @@ static int amd_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		default:
 			dev_dbg(&gpio_dev->pdev->dev,
 				"Invalid config param %04x\n", param);
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 		}
 
 		writel(pin_reg, gpio_dev->base + pin*4);
@@ -824,7 +824,7 @@ static int amd_pinconf_group_get(struct pinctrl_dev *pctldev,
 		return ret;
 
 	if (amd_pinconf_get(pctldev, pins[0], config))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 	return 0;
 }
@@ -842,7 +842,7 @@ static int amd_pinconf_group_set(struct pinctrl_dev *pctldev,
 		return ret;
 	for (i = 0; i < npins; i++) {
 		if (amd_pinconf_set(pctldev, pins[i], configs, num_configs))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 	}
 	return 0;
 }
@@ -924,7 +924,7 @@ static int amd_gpio_suspend(struct device *dev)
 		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 		gpio_dev->saved_regs[i] = readl(gpio_dev->base + pin * 4) & ~PIN_IRQ_PENDING;
 
-		/* mask any interrupts not intended to be a wake source */
+		/* mask any interrupts analt intended to be a wake source */
 		if (!(gpio_dev->saved_regs[i] & WAKE_SOURCE)) {
 			writel(gpio_dev->saved_regs[i] & ~BIT(INTERRUPT_MASK_OFF),
 			       gpio_dev->base + pin * 4);
@@ -983,7 +983,7 @@ static int amd_get_groups(struct pinctrl_dev *pctrldev, unsigned int selector,
 	struct amd_gpio *gpio_dev = pinctrl_dev_get_drvdata(pctrldev);
 
 	if (!gpio_dev->iomux_base) {
-		dev_err(&gpio_dev->pdev->dev, "iomux function %d group not supported\n", selector);
+		dev_err(&gpio_dev->pdev->dev, "iomux function %d group analt supported\n", selector);
 		return -EINVAL;
 	}
 
@@ -1008,7 +1008,7 @@ static int amd_set_mux(struct pinctrl_dev *pctrldev, unsigned int function, unsi
 
 		if (readb(gpio_dev->iomux_base + pmx_functions[function].index) ==
 				FUNCTION_INVALID) {
-			dev_err(dev, "IOMUX_GPIO 0x%x not present or supported\n",
+			dev_err(dev, "IOMUX_GPIO 0x%x analt present or supported\n",
 				pmx_functions[function].index);
 			return -EINVAL;
 		}
@@ -1017,7 +1017,7 @@ static int amd_set_mux(struct pinctrl_dev *pctrldev, unsigned int function, unsi
 
 		if (index != (readb(gpio_dev->iomux_base + pmx_functions[function].index) &
 					FUNCTION_MASK)) {
-			dev_err(dev, "IOMUX_GPIO 0x%x not present or supported\n",
+			dev_err(dev, "IOMUX_GPIO 0x%x analt present or supported\n",
 				pmx_functions[function].index);
 			return -EINVAL;
 		}
@@ -1059,19 +1059,19 @@ static void amd_get_iomux_res(struct amd_gpio *gpio_dev)
 
 	index = device_property_match_string(dev, "pinctrl-resource-names",  "iomux");
 	if (index < 0) {
-		dev_dbg(dev, "iomux not supported\n");
-		goto out_no_pinmux;
+		dev_dbg(dev, "iomux analt supported\n");
+		goto out_anal_pinmux;
 	}
 
 	gpio_dev->iomux_base = devm_platform_ioremap_resource(gpio_dev->pdev, index);
 	if (IS_ERR(gpio_dev->iomux_base)) {
-		dev_dbg(dev, "iomux not supported %d io resource\n", index);
-		goto out_no_pinmux;
+		dev_dbg(dev, "iomux analt supported %d io resource\n", index);
+		goto out_anal_pinmux;
 	}
 
 	return;
 
-out_no_pinmux:
+out_anal_pinmux:
 	desc->pmxops = NULL;
 }
 
@@ -1085,7 +1085,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	gpio_dev = devm_kzalloc(&pdev->dev,
 				sizeof(struct amd_gpio), GFP_KERNEL);
 	if (!gpio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&gpio_dev->lock);
 
@@ -1104,7 +1104,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 					    sizeof(*gpio_dev->saved_regs),
 					    GFP_KERNEL);
 	if (!gpio_dev->saved_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	gpio_dev->pdev = pdev;
@@ -1144,7 +1144,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 
 	ret = gpiochip_add_data(&gpio_dev->gc, gpio_dev);

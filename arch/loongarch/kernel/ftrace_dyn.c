@@ -2,7 +2,7 @@
 /*
  * Based on arch/arm64/kernel/ftrace.c
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/ftrace.h>
@@ -67,7 +67,7 @@ static bool ftrace_find_callable_addr(struct dyn_ftrace *rec, struct module *mod
 
 	/*
 	 * If a custom trampoline is unreachable, rely on the ftrace_regs_caller
-	 * trampoline which knows how to indirectly reach that trampoline through
+	 * trampoline which kanalws how to indirectly reach that trampoline through
 	 * ops->direct_call.
 	 */
 	if (*addr != FTRACE_ADDR && *addr != FTRACE_REGS_ADDR && !reachable_by_bl(*addr, pc))
@@ -85,7 +85,7 @@ static bool ftrace_find_callable_addr(struct dyn_ftrace *rec, struct module *mod
 	 * dealing with an out-of-range condition, we can assume it
 	 * is due to a module being loaded far away from the kernel.
 	 *
-	 * NOTE: __module_text_address() must be called with preemption
+	 * ANALTE: __module_text_address() must be called with preemption
 	 * disabled, but we can rely on ftrace_lock to ensure that 'mod'
 	 * retains its validity throughout the remainder of this code.
 	 */
@@ -100,7 +100,7 @@ static bool ftrace_find_callable_addr(struct dyn_ftrace *rec, struct module *mod
 
 	plt = get_ftrace_plt(mod, *addr);
 	if (!plt) {
-		pr_err("ftrace: no module PLT for %ps\n", (void *)*addr);
+		pr_err("ftrace: anal module PLT for %ps\n", (void *)*addr);
 		return false;
 	}
 
@@ -147,33 +147,33 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 }
 
 /*
- * The compiler has inserted 2 NOPs before the regular function prologue.
+ * The compiler has inserted 2 ANALPs before the regular function prologue.
  * T series registers are available and safe because of LoongArch's psABI.
  *
- * At runtime, we can replace nop with bl to enable ftrace call and replace bl
- * with nop to disable ftrace call. The bl requires us to save the original RA
+ * At runtime, we can replace analp with bl to enable ftrace call and replace bl
+ * with analp to disable ftrace call. The bl requires us to save the original RA
  * value, so it saves RA at t0 here.
  *
  * Details are:
  *
  * | Compiled   |       Disabled         |        Enabled         |
  * +------------+------------------------+------------------------+
- * | nop        | move     t0, ra        | move     t0, ra        |
- * | nop        | nop                    | bl       ftrace_caller |
+ * | analp        | move     t0, ra        | move     t0, ra        |
+ * | analp        | analp                    | bl       ftrace_caller |
  * | func_body  | func_body              | func_body              |
  *
  * The RA value will be recovered by ftrace_regs_entry, and restored into RA
- * before returning to the regular function prologue. When a function is not
- * being traced, the "move t0, ra" is not harmful.
+ * before returning to the regular function prologue. When a function is analt
+ * being traced, the "move t0, ra" is analt harmful.
  */
 
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec)
 {
 	u32 old, new;
 	unsigned long pc;
 
 	pc = rec->ip;
-	old = larch_insn_gen_nop();
+	old = larch_insn_gen_analp();
 	new = larch_insn_gen_move(LOONGARCH_GPR_T0, LOONGARCH_GPR_RA);
 
 	return ftrace_modify_code(pc, old, new, true);
@@ -189,13 +189,13 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (!ftrace_find_callable_addr(rec, NULL, &addr))
 		return -EINVAL;
 
-	old = larch_insn_gen_nop();
+	old = larch_insn_gen_analp();
 	new = larch_insn_gen_bl(pc, addr);
 
 	return ftrace_modify_code(pc, old, new, true);
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
+int ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
 {
 	u32 old, new;
 	unsigned long pc;
@@ -205,7 +205,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long ad
 	if (!ftrace_find_callable_addr(rec, NULL, &addr))
 		return -EINVAL;
 
-	new = larch_insn_gen_nop();
+	new = larch_insn_gen_analp();
 	old = larch_insn_gen_bl(pc, addr);
 
 	return ftrace_modify_code(pc, old, new, true);
@@ -249,20 +249,20 @@ void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 #else
 static int ftrace_modify_graph_caller(bool enable)
 {
-	u32 branch, nop;
+	u32 branch, analp;
 	unsigned long pc, func;
 	extern void ftrace_graph_call(void);
 
 	pc = (unsigned long)&ftrace_graph_call;
 	func = (unsigned long)&ftrace_graph_caller;
 
-	nop = larch_insn_gen_nop();
+	analp = larch_insn_gen_analp();
 	branch = larch_insn_gen_b(pc, func);
 
 	if (enable)
-		return ftrace_modify_code(pc, nop, branch, true);
+		return ftrace_modify_code(pc, analp, branch, true);
 	else
-		return ftrace_modify_code(pc, branch, nop, true);
+		return ftrace_modify_code(pc, branch, analp, true);
 }
 
 int ftrace_enable_ftrace_graph_caller(void)
@@ -312,7 +312,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 		if (!p->pre_handler || !p->pre_handler(p, regs)) {
 			/*
 			 * Emulate singlestep (and also recover regs->csr_era)
-			 * as if there is a nop
+			 * as if there is a analp
 			 */
 			instruction_pointer_set(regs, (unsigned long)p->addr + MCOUNT_INSN_SIZE);
 			if (unlikely(p->post_handler)) {
@@ -331,7 +331,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 out:
 	ftrace_test_recursion_unlock(bit);
 }
-NOKPROBE_SYMBOL(kprobe_ftrace_handler);
+ANALKPROBE_SYMBOL(kprobe_ftrace_handler);
 
 int arch_prepare_kprobe_ftrace(struct kprobe *p)
 {

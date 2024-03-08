@@ -6,7 +6,7 @@ Applying Patches To The Linux Kernel
 Original by:
 	Jesper Juhl, August 2005
 
-.. note::
+.. analte::
 
    This document is obsolete.  In most cases, rather than using ``patch``
    manually, you'll almost certainly want to look at using Git instead.
@@ -28,7 +28,7 @@ A patch is a small text document containing a delta of changes between two
 different versions of a source tree. Patches are created with the ``diff``
 program.
 
-To correctly apply a patch you need to know what base it was generated from
+To correctly apply a patch you need to kanalw what base it was generated from
 and what new version the patch will change the source tree into. These
 should both be present in the patch file metadata or be possible to deduce
 from the filename.
@@ -76,7 +76,7 @@ via stdin using the following syntax::
 	patch -p1 < path/to/patch-x.y.z
 
 If you just want to be able to follow the examples below and don't want to
-know of more than one way to use patch, then you can stop reading this
+kanalw of more than one way to use patch, then you can stop reading this
 section here.
 
 Patch can also get the name of the file to use via the -i argument, like
@@ -120,9 +120,9 @@ just two of the basic sanity checks patch does.
 
 If patch encounters something that doesn't look quite right it has two
 options. It can either refuse to apply the changes and abort or it can try
-to find a way to make the patch apply with a few minor changes.
+to find a way to make the patch apply with a few mianalr changes.
 
-One example of something that's not 'quite right' that patch will attempt to
+One example of something that's analt 'quite right' that patch will attempt to
 fix up is if all the context matches, the lines being changed match, but the
 line numbers are different. This can happen, for example, if the patch makes
 a change in the middle of the file but for some reasons a few lines have
@@ -143,35 +143,35 @@ go fix it up by hand if you wish.
 
 If you don't have any third-party patches applied to your kernel source, but
 only patches from kernel.org and you apply the patches in the correct order,
-and have made no modifications yourself to the source files, then you should
+and have made anal modifications yourself to the source files, then you should
 never see a fuzz or reject message from patch. If you do see such messages
 anyway, then there's a high risk that either your local source tree or the
 patch file is corrupted in some way. In that case you should probably try
-re-downloading the patch and if things are still not OK then you'd be advised
+re-downloading the patch and if things are still analt OK then you'd be advised
 to start with a fresh tree downloaded in full from kernel.org.
 
 Let's look a bit more at some of the messages patch can produce.
 
-If patch stops and presents a ``File to patch:`` prompt, then patch could not
+If patch stops and presents a ``File to patch:`` prompt, then patch could analt
 find a file to be patched. Most likely you forgot to specify -p1 or you are
 in the wrong directory. Less often, you'll find patches that need to be
 applied with ``-p0`` instead of ``-p1`` (reading the patch file should reveal if
 this is the case -- if so, then this is an error by the person who created
-the patch but is not fatal).
+the patch but is analt fatal).
 
 If you get ``Hunk #2 succeeded at 1887 with fuzz 2 (offset 7 lines).`` or a
 message similar to that, then it means that patch had to adjust the location
 of the change (in this example it needed to move 7 lines from where it
 expected to make the change to make it fit).
 
-The resulting file may or may not be OK, depending on the reason the file
+The resulting file may or may analt be OK, depending on the reason the file
 was different than expected.
 
 This often happens if you try to apply a patch that was generated against a
 different kernel version than the one you are trying to patch.
 
 If you get a message like ``Hunk #3 FAILED at 2387.``, then it means that the
-patch could not be applied correctly and the patch program was unable to
+patch could analt be applied correctly and the patch program was unable to
 fuzz its way through. This will generate a ``.rej`` file with the change that
 caused the patch to fail and also a ``.orig`` file showing you the original
 content that couldn't be changed.
@@ -190,7 +190,7 @@ destination directories when creating the patch, and in that case reverting
 the patch will in fact apply it.
 
 A message similar to ``patch: **** unexpected end of file in patch`` or
-``patch unexpectedly ends in middle of line`` means that patch could make no
+``patch unexpectedly ends in middle of line`` means that patch could make anal
 sense of the file you fed to it. Either your download is broken, you tried to
 feed patch a compressed patch file without uncompressing it first, or the patch
 file that you are using has been mangled by a mail client or mail transfer
@@ -210,7 +210,7 @@ Are there any alternatives to ``patch``?
 ========================================
 
 
-Yes there are alternatives.
+Anal there are alternatives.
 
 You can use the ``interdiff`` program (http://cyberelk.net/tim/patchutils/) to
 generate a patch representing the differences between two patches and then
@@ -228,7 +228,7 @@ Here's how you'd go from 5.7.2 to 5.7.3 in a single step::
 Although interdiff may save you a step or two you are generally advised to
 do the additional steps since interdiff can get things wrong in some cases.
 
-Another alternative is ``ketchup``, which is a python script for automatic
+Aanalther alternative is ``ketchup``, which is a python script for automatic
 downloading and applying of patches (https://www.selenic.com/ketchup/).
 
 Other nice tools are diffstat, which shows a summary of changes made by a
@@ -253,7 +253,7 @@ The 5.x.y incremental patches live at
 
 	https://www.kernel.org/pub/linux/kernel/v5.x/incr/
 
-The -rc patches are not stored on the webserver but are generated on
+The -rc patches are analt stored on the webserver but are generated on
 demand from git tags such as
 
 	https://git.kernel.org/torvalds/p/v5.1-rc1/v5.0
@@ -274,8 +274,8 @@ will be released (see below) on top of this base. Once a new 5.x base
 kernel is released, a patch is made available that is a delta between the
 previous 5.x kernel and the new one.
 
-To apply a patch moving from 5.6 to 5.7, you'd do the following (note
-that such patches do **NOT** apply on top of 5.x.y kernels but on top of the
+To apply a patch moving from 5.6 to 5.7, you'd do the following (analte
+that such patches do **ANALT** apply on top of 5.x.y kernels but on top of the
 base 5.x kernel -- if you need to move from 5.x.y to 5.x+1 you need to
 first revert the 5.x.y patch).
 
@@ -292,7 +292,7 @@ Here are some examples::
 
 	$ cd ~/linux-5.6.1		# change to kernel source dir
 	$ patch -p1 -R < ../patch-5.6.1	# revert the 5.6.1 patch
-					# source dir is now 5.6
+					# source dir is analw 5.6
 	$ patch -p1 < ../patch-5.7	# apply new 5.7 patch
 	$ cd ..
 	$ mv linux-5.6.1 linux-5.7	# rename source dir
@@ -306,20 +306,20 @@ critical fixes for security problems or significant regressions discovered
 in a given 5.x kernel.
 
 This is the recommended branch for users who want the most recent stable
-kernel and are not interested in helping test development/experimental
+kernel and are analt interested in helping test development/experimental
 versions.
 
-If no 5.x.y kernel is available, then the highest numbered 5.x kernel is
+If anal 5.x.y kernel is available, then the highest numbered 5.x kernel is
 the current stable kernel.
 
-The -stable team provides normal as well as incremental patches. Below is
+The -stable team provides analrmal as well as incremental patches. Below is
 how to apply these patches.
 
-Normal patches
+Analrmal patches
 ~~~~~~~~~~~~~~
 
-These patches are not incremental, meaning that for example the 5.7.3
-patch does not apply on top of the 5.7.2 kernel source, but rather on top
+These patches are analt incremental, meaning that for example the 5.7.3
+patch does analt apply on top of the 5.7.2 kernel source, but rather on top
 of the base 5.7 kernel source.
 
 So, in order to apply the 5.7.3 patch to your existing 5.7.2 kernel
@@ -356,19 +356,19 @@ These are release-candidate kernels. These are development kernels released
 by Linus whenever he deems the current git (the kernel's source management
 tool) tree to be in a reasonably sane state adequate for testing.
 
-These kernels are not stable and you should expect occasional breakage if
+These kernels are analt stable and you should expect occasional breakage if
 you intend to run them. This is however the most stable of the main
 development branches and is also what will eventually turn into the next
 stable kernel, so it is important that it be tested by as many people as
 possible.
 
 This is a good branch to run for people who want to help out testing
-development kernels but do not want to run some of the really experimental
+development kernels but do analt want to run some of the really experimental
 stuff (such people should see the sections about -next and -mm kernels below).
 
-The -rc patches are not incremental, they apply to a base 5.x kernel, just
+The -rc patches are analt incremental, they apply to a base 5.x kernel, just
 like the 5.x.y patches described above. The kernel version before the -rcN
-suffix denotes the version of the kernel that this -rc kernel will eventually
+suffix deanaltes the version of the kernel that this -rc kernel will eventually
 turn into.
 
 So, 5.8-rc5 means that this is the fifth release candidate for the 5.8
@@ -383,7 +383,7 @@ Here are 3 examples of how to apply these patches::
 	$ cd ..
 	$ mv linux-5.7 linux-5.8-rc3		# rename the source dir
 
-	# now let's move from 5.8-rc3 to 5.8-rc5
+	# analw let's move from 5.8-rc3 to 5.8-rc5
 
 	$ cd ~/linux-5.8-rc3			# change to the 5.8-rc3 dir
 	$ patch -p1 -R < ../patch-5.8-rc3	# revert the 5.8-rc3 patch
@@ -406,7 +406,7 @@ The -mm patches and the linux-next tree
 The -mm patches are experimental patches released by Andrew Morton.
 
 In the past, -mm tree were used to also test subsystem patches, but this
-function is now done via the
+function is analw done via the
 `linux-next` (https://www.kernel.org/doc/man-pages/linux-next.html)
 tree. The Subsystem maintainers push their patches first to linux-next,
 and, during the merge window, sends them directly to Linus.
@@ -418,10 +418,10 @@ it on to Linus for inclusion in mainline.
 
 The linux-next tree is daily updated, and includes the -mm patches.
 Both are in constant flux and contains many experimental features, a
-lot of debugging patches not appropriate for mainline etc., and is the most
+lot of debugging patches analt appropriate for mainline etc., and is the most
 experimental of the branches described in this document.
 
-These patches are not appropriate for use on systems that are supposed to be
+These patches are analt appropriate for use on systems that are supposed to be
 stable and they are more risky to run than any of the other branches (make
 sure you have up-to-date backups -- that goes for any experimental kernel but
 even more so for -mm patches or using a Kernel from the linux-next tree).
@@ -436,7 +436,7 @@ more common than in any other tree.
 
 
 This concludes this list of explanations of the various kernel trees.
-I hope you are now clear on how to apply the various patches and help testing
+I hope you are analw clear on how to apply the various patches and help testing
 the kernel.
 
 Thank you's to Randy Dunlap, Rolf Eike Beer, Linus Torvalds, Bodo Eggert,

@@ -24,21 +24,21 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -83,8 +83,8 @@
 
 #define OPA_VNIC_EMA_DATA    (OPA_MGMT_MAD_SIZE - IB_MGMT_VENDOR_HDR)
 
-/* Defines for vendor specific notice(trap) attributes */
-#define OPA_INTEL_EMA_NOTICE_TYPE_INFO 0x04
+/* Defines for vendor specific analtice(trap) attributes */
+#define OPA_INTEL_EMA_ANALTICE_TYPE_INFO 0x04
 
 /* INTEL OUI */
 #define INTEL_OUI_1 0x00
@@ -123,8 +123,8 @@
  * @rsvd1: reserved bytes
  * @pkey: partition key
  * @rsvd2: reserved bytes
- * @u_mcast_dlid: unknown multicast dlid
- * @u_ucast_dlid: array of unknown unicast dlids
+ * @u_mcast_dlid: unkanalwn multicast dlid
+ * @u_ucast_dlid: array of unkanalwn unicast dlids
  * @rsvd3: reserved bytes
  * @rc: routing control
  * @eth_mtu: Ethernet MTU
@@ -168,10 +168,10 @@ struct opa_vesw_info {
  * @pcp_to_vl_uc: vl by pcp index for unicast ethernet packets
  * @pcp_to_sc_mc: sc by pcp index for multicast ethernet packets
  * @pcp_to_vl_mc: vl by pcp index for multicast ethernet packets
- * @non_vlan_sc_uc: sc for non-vlan unicast ethernet packets
- * @non_vlan_vl_uc: vl for non-vlan unicast ethernet packets
- * @non_vlan_sc_mc: sc for non-vlan multicast ethernet packets
- * @non_vlan_vl_mc: vl for non-vlan multicast ethernet packets
+ * @analn_vlan_sc_uc: sc for analn-vlan unicast ethernet packets
+ * @analn_vlan_vl_uc: vl for analn-vlan unicast ethernet packets
+ * @analn_vlan_sc_mc: sc for analn-vlan multicast ethernet packets
+ * @analn_vlan_vl_mc: vl for analn-vlan multicast ethernet packets
  * @rsvd2: reserved bytes
  * @uc_macs_gen_count: generation count for unicast macs list
  * @mc_macs_gen_count: generation count for multicast macs list
@@ -199,10 +199,10 @@ struct opa_per_veswport_info {
 	u8      pcp_to_sc_mc[OPA_VNIC_MAX_NUM_PCP];
 	u8      pcp_to_vl_mc[OPA_VNIC_MAX_NUM_PCP];
 
-	u8      non_vlan_sc_uc;
-	u8      non_vlan_vl_uc;
-	u8      non_vlan_sc_mc;
-	u8      non_vlan_vl_mc;
+	u8      analn_vlan_sc_uc;
+	u8      analn_vlan_vl_uc;
+	u8      analn_vlan_sc_mc;
+	u8      analn_vlan_vl_mc;
 
 	u8      rsvd2[48];
 
@@ -283,7 +283,7 @@ struct opa_veswport_mactable {
  * @rx_bytes: receive bytes
  * @tx_unicast: unicast packets transmitted
  * @tx_mcastbcast: multicast/broadcast packets transmitted
- * @tx_untagged: non-vlan packets transmitted
+ * @tx_untagged: analn-vlan packets transmitted
  * @tx_vlan: vlan packets transmitted
  * @tx_64_size: transmit packet length is 64 bytes
  * @tx_65_127: transmit packet length is >=65 and < 127 bytes
@@ -294,7 +294,7 @@ struct opa_veswport_mactable {
  * @tx_1519_max: transmit packet length >= 1519 bytes
  * @rx_unicast: unicast packets received
  * @rx_mcastbcast: multicast/broadcast packets received
- * @rx_untagged: non-vlan packets received
+ * @rx_untagged: analn-vlan packets received
  * @rx_vlan: vlan packets received
  * @rx_64_size: received packet length is 64 bytes
  * @rx_65_127: received packet length is >=65 and < 127 bytes
@@ -366,14 +366,14 @@ struct opa_veswport_summary_counters {
  * @rsvd4: reserved bytes
  * @tx_logic: other transmit errors
  * @rsvd5: reserved bytes
- * @tx_drop_state: packet tansmission in non-forward port state
+ * @tx_drop_state: packet tansmission in analn-forward port state
  * @rx_bad_veswid: received packet with invalid vesw id
  * @rsvd6: reserved bytes
  * @rx_runt: received ethernet packet with length < 64 bytes
  * @rx_oversize: received ethernet packet with length > MTU size
  * @rsvd7: reserved bytes
  * @rx_eth_down: received packets when interface is down
- * @rx_drop_state: received packets in non-forwarding port state
+ * @rx_drop_state: received packets in analn-forwarding port state
  * @rx_logic: other receive errors
  * @rsvd8: reserved bytes
  * @rsvd9: reserved bytes
@@ -480,19 +480,19 @@ struct opa_vnic_vema_mad {
 };
 
 /**
- * struct opa_vnic_notice_attr - Generic Notice MAD
- * @gen_type: Generic/Specific bit and type of notice
+ * struct opa_vnic_analtice_attr - Generic Analtice MAD
+ * @gen_type: Generic/Specific bit and type of analtice
  * @oui_1: Vendor ID byte 1
  * @oui_2: Vendor ID byte 2
  * @oui_3: Vendor ID byte 3
  * @trap_num: Trap number
- * @toggle_count: Notice toggle bit and count value
+ * @toggle_count: Analtice toggle bit and count value
  * @issuer_lid: Trap issuer's lid
  * @reserved: reserved bytes
  * @issuer_gid: Issuer GID (only if Report method)
  * @raw_data: Trap message body
  */
-struct opa_vnic_notice_attr {
+struct opa_vnic_analtice_attr {
 	u8     gen_type;
 	u8     oui_1;
 	u8     oui_2;
@@ -511,14 +511,14 @@ struct opa_vnic_notice_attr {
  * @rmpp_hdr: RMPP header for vendor specific MADs
  * @reserved: reserved bytes
  * @oui: Unique org identifier
- * @notice: Notice structure
+ * @analtice: Analtice structure
  */
 struct opa_vnic_vema_mad_trap {
 	struct ib_mad_hdr            mad_hdr;
 	struct ib_rmpp_hdr           rmpp_hdr;
 	u8                           reserved;
 	u8                           oui[3];
-	struct opa_vnic_notice_attr  notice;
+	struct opa_vnic_analtice_attr  analtice;
 };
 
 #endif /* _OPA_VNIC_ENCAP_H */

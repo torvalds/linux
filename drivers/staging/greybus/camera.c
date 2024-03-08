@@ -196,7 +196,7 @@ static int gb_camera_operation_sync_flags(struct gb_connection *connection,
 					      *response_size, flags,
 					      GFP_KERNEL);
 	if (!operation)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	if (request_size)
 		memcpy(operation->request->payload, request, request_size);
@@ -204,7 +204,7 @@ static int gb_camera_operation_sync_flags(struct gb_connection *connection,
 	ret = gb_operation_request_send_sync(operation);
 	if (ret) {
 		dev_err(&connection->hd->dev,
-			"%s: synchronous operation of type 0x%02x failed: %d\n",
+			"%s: synchroanalus operation of type 0x%02x failed: %d\n",
 			connection->name, type, ret);
 	} else {
 		*response_size = operation->response->payload_size;
@@ -312,7 +312,7 @@ static int gb_camera_set_intf_power_mode(struct gb_camera *gcam, u8 intf_id,
 						 GB_SVC_UNIPRO_HS_SERIES_A,
 						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
 						 GB_SVC_SMALL_AMPLITUDE,
-						 GB_SVC_NO_DE_EMPHASIS,
+						 GB_SVC_ANAL_DE_EMPHASIS,
 						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
 						 GB_SVC_PWRM_RXTERMINATION |
 						 GB_SVC_PWRM_TXTERMINATION, 0,
@@ -323,7 +323,7 @@ static int gb_camera_set_intf_power_mode(struct gb_camera *gcam, u8 intf_id,
 						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 						 2, 1,
 						 GB_SVC_SMALL_AMPLITUDE,
-						 GB_SVC_NO_DE_EMPHASIS,
+						 GB_SVC_ANAL_DE_EMPHASIS,
 						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 						 2, 1,
 						 0, 0,
@@ -390,7 +390,7 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 	 * APB CDSI1. The CDSI1 CPort ID is hardcoded by the ES2 bridge.
 	 */
 	conn = gb_connection_create_offloaded(gcam->bundle, gcam->data_cport_id,
-					      GB_CONNECTION_FLAG_NO_FLOWCTRL |
+					      GB_CONNECTION_FLAG_ANAL_FLOWCTRL |
 					      GB_CONNECTION_FLAG_CDSI1);
 	if (IS_ERR(conn))
 		return PTR_ERR(conn);
@@ -542,7 +542,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	if (!req || !resp) {
 		kfree(req);
 		kfree(resp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->num_streams = nstreams;
@@ -612,7 +612,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		 * the beginning of this function gets released right before
 		 * returning.
 		 */
-		gb_pm_runtime_put_noidle(gcam->bundle);
+		gb_pm_runtime_put_analidle(gcam->bundle);
 	}
 
 	if (resp->num_streams == 0)
@@ -622,7 +622,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	 * Make sure the bundle won't be suspended until streams get
 	 * unconfigured after the stream is configured successfully
 	 */
-	gb_pm_runtime_get_noresume(gcam->bundle);
+	gb_pm_runtime_get_analresume(gcam->bundle);
 
 	/* Setup CSI-2 connection from APB-A to AP */
 	ret = gb_camera_setup_data_connection(gcam, resp, csi_params);
@@ -634,7 +634,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 				  resp, sizeof(*resp));
 		*flags = 0;
 		*num_streams = 0;
-		gb_pm_runtime_put_noidle(gcam->bundle);
+		gb_pm_runtime_put_analidle(gcam->bundle);
 		goto done;
 	}
 
@@ -664,7 +664,7 @@ static int gb_camera_capture(struct gb_camera *gcam, u32 request_id,
 	req_size = sizeof(*req) + settings_size;
 	req = kmalloc(req_size, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->request_id = cpu_to_le32(request_id);
 	req->streams = streams;
@@ -797,7 +797,7 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int *nstreams,
 
 	gb_streams = kcalloc(gb_nstreams, sizeof(*gb_streams), GFP_KERNEL);
 	if (!gb_streams)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < gb_nstreams; i++) {
 		gb_streams[i].width = streams[i].width;
@@ -879,7 +879,7 @@ static ssize_t gb_camera_debugfs_capabilities(struct gb_camera *gcam,
 
 	caps = kmalloc(size, GFP_KERNEL);
 	if (!caps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gb_camera_capabilities(gcam, caps, &size);
 	if (ret < 0)
@@ -938,7 +938,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 	/* For each stream to configure parse width, height and format */
 	streams = kcalloc(nstreams, sizeof(*streams), GFP_KERNEL);
 	if (!streams)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nstreams; ++i) {
 		struct gb_camera_stream_config *stream = &streams[i];
@@ -1090,7 +1090,7 @@ static ssize_t gb_camera_debugfs_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
 	const struct gb_camera_debugfs_entry *op = file->private_data;
-	struct gb_camera *gcam = file_inode(file)->i_private;
+	struct gb_camera *gcam = file_ianalde(file)->i_private;
 	struct gb_camera_debugfs_buffer *buffer;
 	ssize_t ret;
 
@@ -1112,7 +1112,7 @@ static ssize_t gb_camera_debugfs_write(struct file *file,
 				       loff_t *offset)
 {
 	const struct gb_camera_debugfs_entry *op = file->private_data;
-	struct gb_camera *gcam = file_inode(file)->i_private;
+	struct gb_camera *gcam = file_ianalde(file)->i_private;
 	ssize_t ret;
 	char *kbuf;
 
@@ -1130,7 +1130,7 @@ done:
 	return ret;
 }
 
-static int gb_camera_debugfs_open(struct inode *inode, struct file *file)
+static int gb_camera_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
 	unsigned int i;
 
@@ -1171,7 +1171,7 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 		vmalloc(array_size(GB_CAMERA_DEBUGFS_BUFFER_MAX,
 				   sizeof(*gcam->debugfs.buffers)));
 	if (!gcam->debugfs.buffers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(gb_camera_debugfs_entries); ++i) {
 		const struct gb_camera_debugfs_entry *entry =
@@ -1239,7 +1239,7 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 	 * camera management protocol and one for the camera data protocol.
 	 */
 	if (bundle->num_cports != 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < bundle->num_cports; ++i) {
 		struct greybus_descriptor_cport *desc = &bundle->cport_desc[i];
@@ -1252,16 +1252,16 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 			data_cport_id = le16_to_cpu(desc->id);
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	if (!mgmt_cport_id || !data_cport_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gcam = kzalloc(sizeof(*gcam), GFP_KERNEL);
 	if (!gcam)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&gcam->mutex);
 
@@ -1314,7 +1314,7 @@ static void gb_camera_disconnect(struct gb_bundle *bundle)
 
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret)
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_analresume(bundle);
 
 	gb_camera_cleanup(gcam);
 	gb_camera_unregister(&gcam->module);

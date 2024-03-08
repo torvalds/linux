@@ -100,7 +100,7 @@ static int sc7280_headset_init(struct snd_soc_pcm_runtime *rtd)
 	case TX_CODEC_DMA_TX_3:
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
 			rval = snd_soc_component_set_jack(component, &pdata->hs_jack, NULL);
-			if (rval != 0 && rval != -ENOTSUPP) {
+			if (rval != 0 && rval != -EANALTSUPP) {
 				dev_err(card->dev, "Failed to set jack: %d\n", rval);
 				return rval;
 			}
@@ -212,7 +212,7 @@ static int sc7280_snd_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_stream_runtime *sruntime;
 	int i;
 
-	if (!rtd->dai_link->no_pcm) {
+	if (!rtd->dai_link->anal_pcm) {
 		snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
 		snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_RATE, 48000, 48000);
 	}
@@ -226,7 +226,7 @@ static int sc7280_snd_hw_params(struct snd_pcm_substream *substream,
 	case VA_CODEC_DMA_TX_0:
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
 			sruntime = snd_soc_dai_get_stream(codec_dai, substream->stream);
-			if (sruntime != ERR_PTR(-ENOTSUPP))
+			if (sruntime != ERR_PTR(-EANALTSUPP))
 				pdata->sruntime[cpu_dai->id] = sruntime;
 		}
 		break;
@@ -405,7 +405,7 @@ static int sc7280_snd_platform_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = &data->card;
 	snd_soc_card_set_drvdata(card, data);
@@ -426,7 +426,7 @@ static int sc7280_snd_platform_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, link) {
 		link->init = sc7280_init;
 		link->ops = &sc7280_ops;
-		if (link->no_pcm == 1)
+		if (link->anal_pcm == 1)
 			link->be_hw_params_fixup = sc7280_snd_be_hw_params_fixup;
 	}
 

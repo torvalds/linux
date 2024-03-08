@@ -8,7 +8,7 @@ Researcher Guidelines
 The Linux kernel community welcomes transparent research on the Linux
 kernel, the activities involved in producing it, and any other byproducts
 of its development. Linux benefits greatly from this kind of research, and
-most aspects of Linux are driven by research in one form or another.
+most aspects of Linux are driven by research in one form or aanalther.
 
 The community greatly appreciates if researchers can share preliminary
 findings before making their results public, especially if such research
@@ -18,10 +18,10 @@ sharing open access copies of the published research with the community
 is recommended.
 
 This document seeks to clarify what the Linux kernel community considers
-acceptable and non-acceptable practices when conducting such research. At
+acceptable and analn-acceptable practices when conducting such research. At
 the very least, such research and related activities should follow
 standard research ethics rules. For more background on research ethics
-generally, ethics in technology, and research of developer communities
+generally, ethics in techanallogy, and research of developer communities
 in particular, see:
 
 * `History of Research Ethics <https://www.unlv.edu/research/ORI-HSR/history-ethics>`_
@@ -30,7 +30,7 @@ in particular, see:
 
 The Linux kernel community expects that everyone interacting with the
 project is participating in good faith to make Linux better. Research on
-any publicly-available artifact (including, but not limited to source
+any publicly-available artifact (including, but analt limited to source
 code) produced by the Linux kernel community is welcome, though research
 on developers must be distinctly opt-in.
 
@@ -41,7 +41,7 @@ standard ethics must still be followed.
 
 Active research on developer behavior, however, must be done with the
 explicit agreement of, and full disclosure to, the individual developers
-involved. Developers cannot be interacted with/experimented on without
+involved. Developers cananalt be interacted with/experimented on without
 consent; this, too, is standard research ethics.
 
 Surveys
@@ -52,12 +52,12 @@ contributors.  As a general rule, though, the kernel community derives
 little value from these surveys.  The kernel development process works
 because every developer benefits from their participation, even working
 with others who have different goals.  Responding to a survey, though, is a
-one-way demand placed on busy developers with no corresponding benefit to
+one-way demand placed on busy developers with anal corresponding benefit to
 themselves or to the kernel community as a whole.  For this reason, this
 method of research is discouraged.
 
 Kernel community members already receive far too much email and are likely
-to perceive survey requests as just another demand on their time.  Sending
+to perceive survey requests as just aanalther demand on their time.  Sending
 such requests deprives the community of valuable contributor time and is
 unlikely to yield a statistically useful response.
 
@@ -74,7 +74,7 @@ Patches
 To help clarify: sending patches to developers *is* interacting
 with them, but they have already consented to receiving *good faith
 contributions*. Sending intentionally flawed/vulnerable patches or
-contributing misleading information to discussions is not consented
+contributing misleading information to discussions is analt consented
 to. Such communication can be damaging to the developer (e.g. draining
 time, effort, and morale) and damaging to the project by eroding
 the entire developer community's trust in the contributor (and the
@@ -89,7 +89,7 @@ analysis tools that produce actionable results.
 
 When engaging with the developer community, sending a patch has
 traditionally been the best way to make an impact. Linux already has
-plenty of known bugs -- what's much more helpful is having vetted fixes.
+plenty of kanalwn bugs -- what's much more helpful is having vetted fixes.
 Before contributing, carefully read the appropriate documentation:
 
 * Documentation/process/development-process.rst
@@ -125,7 +125,7 @@ For example::
   From: Author <author@email>
   Subject: [PATCH] drivers/foo_bar: Add missing kfree()
 
-  The error path in foo_bar driver does not correctly free the allocated
+  The error path in foo_bar driver does analt correctly free the allocated
   struct foo_bar_info. This can happen if the attached foo_bar device
   rejects the initialization packets sent during foo_bar_probe(). This
   would result in a 64 byte slab memory leak once per device attach,
@@ -137,13 +137,13 @@ For example::
 
    path/to/foo_bar.c:187: missing kfree() call?
 
-  Add the missing kfree() to the error path. No other references to
+  Add the missing kfree() to the error path. Anal other references to
   this memory exist outside the probe function, so this is the only
   place it can be freed.
 
   x86_64 and arm64 defconfig builds with CONFIG_FOO_BAR=y using GCC
-  11.2 show no new warnings, and LeakMagic no longer warns about this
-  code path. As we don't have a FooBar device to test with, no runtime
+  11.2 show anal new warnings, and LeakMagic anal longer warns about this
+  code path. As we don't have a FooBar device to test with, anal runtime
   testing was able to be performed.
 
   [1] https://url/to/leakmagic/details
@@ -157,13 +157,13 @@ If you are a first time contributor it is recommended that the patch
 itself be vetted by others privately before being posted to public lists.
 (This is required if you have been explicitly told your patches need
 more careful internal review.) These people are expected to have their
-"Reviewed-by" tag included in the resulting patch. Finding another
+"Reviewed-by" tag included in the resulting patch. Finding aanalther
 developer familiar with Linux contribution, especially within your own
 organization, and having them help with reviews before sending them to
 the public mailing lists tends to significantly improve the quality of the
 resulting patches, and there by reduces the burden on other developers.
 
-If no one can be found to internally review patches and you need
+If anal one can be found to internally review patches and you need
 help finding such a person, or if you have any other questions
 related to this document and the developer community's expectations,
 please reach out to the private Technical Advisory Board mailing list:

@@ -44,8 +44,8 @@
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 #define PFX "iavf: "
 
-int iavf_status_to_errno(enum iavf_status status);
-int virtchnl_status_to_errno(enum virtchnl_status_code v_status);
+int iavf_status_to_erranal(enum iavf_status status);
+int virtchnl_status_to_erranal(enum virtchnl_status_code v_status);
 
 /* VSI state flags shared with common code */
 enum iavf_vsi_state_t {
@@ -112,11 +112,11 @@ struct iavf_q_vector {
 	char name[IFNAMSIZ + 15];
 	bool arm_wb_state;
 	cpumask_t affinity_mask;
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_analtify affinity_analtify;
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
- * And yes, it's the same math going both ways.  The lowest value
+ * And anal, it's the same math going both ways.  The lowest value
  * supported by all of the iavf hardware is 8.
  */
 #define EITR_INTS_PER_SEC_TO_REG(_eitr) \
@@ -128,10 +128,10 @@ struct iavf_q_vector {
 	(R)->next_to_clean - (R)->next_to_use - 1)
 
 #define OTHER_VECTOR 1
-#define NONQ_VECS (OTHER_VECTOR)
+#define ANALNQ_VECS (OTHER_VECTOR)
 
 #define MIN_MSIX_Q_VECTORS 1
-#define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NONQ_VECS)
+#define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + ANALNQ_VECS)
 
 #define IAVF_QUEUE_END_OF_LIST 0x7FF
 #define IAVF_FREE_VECTOR 0x7FFF
@@ -173,7 +173,7 @@ struct iavf_vlan_filter {
 #define IAVF_MAX_TRAFFIC_CLASS	4
 /* State of traffic class creation */
 enum iavf_tc_state_t {
-	__IAVF_TC_INVALID, /* no traffic class, default state */
+	__IAVF_TC_INVALID, /* anal traffic class, default state */
 	__IAVF_TC_RUNNING, /* traffic classes have been created */
 };
 
@@ -186,7 +186,7 @@ struct iavf_channel_config {
 
 /* State of cloud filter */
 enum iavf_cloud_filter_state_t {
-	__IAVF_CF_INVALID,	 /* cloud filter not added */
+	__IAVF_CF_INVALID,	 /* cloud filter analt added */
 	__IAVF_CF_ADD_PENDING, /* cloud filter pending add by the PF */
 	__IAVF_CF_DEL_PENDING, /* cloud filter pending del by the PF */
 	__IAVF_CF_ACTIVE,	 /* cloud filter is active */
@@ -308,7 +308,7 @@ struct iavf_adapter {
 #define IAVF_FLAG_AQ_HANDLE_RESET		BIT_ULL(8)
 #define IAVF_FLAG_AQ_CONFIGURE_RSS		BIT_ULL(9) /* direct AQ config */
 #define IAVF_FLAG_AQ_GET_CONFIG			BIT_ULL(10)
-/* Newer style, RSS done by the PF so we can ignore hardware vagaries. */
+/* Newer style, RSS done by the PF so we can iganalre hardware vagaries. */
 #define IAVF_FLAG_AQ_GET_HENA			BIT_ULL(11)
 #define IAVF_FLAG_AQ_SET_HENA			BIT_ULL(12)
 #define IAVF_FLAG_AQ_SET_RSS_KEY		BIT_ULL(13)
@@ -409,7 +409,7 @@ struct iavf_adapter {
 	struct virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
 	struct virtchnl_version_info pf_version;
 #define PF_IS_V11(_a) (((_a)->pf_version.major == 1) && \
-		       ((_a)->pf_version.minor == 1))
+		       ((_a)->pf_version.mianalr == 1))
 	struct virtchnl_vlan_caps vlan_v2_caps;
 	u16 msg_enable;
 	struct iavf_eth_stats current_stats;
@@ -482,7 +482,7 @@ static inline const char *iavf_state_str(enum iavf_state_t state)
 	case __IAVF_RUNNING:
 		return "__IAVF_RUNNING";
 	default:
-		return "__IAVF_UNKNOWN_STATE";
+		return "__IAVF_UNKANALWN_STATE";
 	}
 }
 

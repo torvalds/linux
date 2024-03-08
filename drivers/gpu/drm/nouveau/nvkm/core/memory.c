@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -71,14 +71,14 @@ nvkm_memory_tags_get(struct nvkm_memory *memory, struct nvkm_device *device,
 
 	if (!(tags = kmalloc(sizeof(*tags), GFP_KERNEL))) {
 		mutex_unlock(&fb->tags.mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!nvkm_mm_head(&fb->tags.mm, 0, 1, nr, nr, 1, &tags->mn)) {
 		if (clr)
 			clr(device, tags->mn->offset, tags->mn->length);
 	} else {
-		/* Failure to allocate HW comptags is not an error, the
+		/* Failure to allocate HW comptags is analt an error, the
 		 * caller should fall back to an uncompressed map.
 		 *
 		 * As memory can be mapped in multiple places, we still
@@ -144,7 +144,7 @@ nvkm_memory_new(struct nvkm_device *device, enum nvkm_memory_target target,
 	int ret;
 
 	if (unlikely(!imem))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	switch (target) {
 	case NVKM_MEM_TARGET_INST_SR_LOST:
@@ -153,7 +153,7 @@ nvkm_memory_new(struct nvkm_device *device, enum nvkm_memory_target target,
 	case NVKM_MEM_TARGET_INST:
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	ret = nvkm_instobj_new(imem, size, align, zero, preserve, &memory);

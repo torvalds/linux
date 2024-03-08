@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -103,7 +103,7 @@ int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 	MLX5_SET(create_psv_in, in, pd, pdn);
 	MLX5_SET(create_psv_in, in, num_psv, npsvs);
 
-	err = mlx5_cmd_exec_inout(dev, create_psv, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, create_psv, in, out);
 	if (err)
 		return err;
 
@@ -135,7 +135,7 @@ __be32 mlx5_core_get_terminate_scatter_list_mkey(struct mlx5_core_dev *dev)
 
 	MLX5_SET(query_special_contexts_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
-	if (mlx5_cmd_exec_inout(dev, query_special_contexts, in, out))
+	if (mlx5_cmd_exec_ianalut(dev, query_special_contexts, in, out))
 		return MLX5_TERMINATE_SCATTER_LIST_LKEY;
 
 	mkey = MLX5_GET(query_special_contexts_out, out,

@@ -40,7 +40,7 @@ static int copy_dma_range_map(struct device *to, struct device *from)
 	new_map = kmemdup(map, array_size(num_ranges + 1, sizeof(*map)),
 			  GFP_KERNEL);
 	if (!new_map)
-		return -ENOMEM;
+		return -EANALMEM;
 	to->dma_range_map = new_map;
 	return 0;
 }
@@ -61,40 +61,40 @@ static  struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 	return rvdev->rproc;
 }
 
-/* kick the remote processor, and let it know which virtqueue to poke at */
-static bool rproc_virtio_notify(struct virtqueue *vq)
+/* kick the remote processor, and let it kanalw which virtqueue to poke at */
+static bool rproc_virtio_analtify(struct virtqueue *vq)
 {
 	struct rproc_vring *rvring = vq->priv;
 	struct rproc *rproc = rvring->rvdev->rproc;
-	int notifyid = rvring->notifyid;
+	int analtifyid = rvring->analtifyid;
 
-	dev_dbg(&rproc->dev, "kicking vq index: %d\n", notifyid);
+	dev_dbg(&rproc->dev, "kicking vq index: %d\n", analtifyid);
 
-	rproc->ops->kick(rproc, notifyid);
+	rproc->ops->kick(rproc, analtifyid);
 	return true;
 }
 
 /**
  * rproc_vq_interrupt() - tell remoteproc that a virtqueue is interrupted
  * @rproc: handle to the remote processor
- * @notifyid: index of the signalled virtqueue (unique per this @rproc)
+ * @analtifyid: index of the signalled virtqueue (unique per this @rproc)
  *
  * This function should be called by the platform-specific rproc driver,
  * when the remote processor signals that a specific virtqueue has pending
  * messages available.
  *
- * Return: IRQ_NONE if no message was found in the @notifyid virtqueue,
+ * Return: IRQ_ANALNE if anal message was found in the @analtifyid virtqueue,
  * and otherwise returns IRQ_HANDLED.
  */
-irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int notifyid)
+irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int analtifyid)
 {
 	struct rproc_vring *rvring;
 
-	dev_dbg(&rproc->dev, "vq index %d is interrupted\n", notifyid);
+	dev_dbg(&rproc->dev, "vq index %d is interrupted\n", analtifyid);
 
-	rvring = idr_find(&rproc->notifyids, notifyid);
+	rvring = idr_find(&rproc->analtifyids, analtifyid);
 	if (!rvring || !rvring->vq)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return vring_interrupt(0, rvring->vq);
 }
@@ -126,7 +126,7 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	mem = rproc_find_carveout_by_name(rproc, "vdev%dvring%d", rvdev->index,
 					  id);
 	if (!mem || !mem->va)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rvring = &rvdev->vring[id];
 	addr = mem->va;
@@ -136,19 +136,19 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	size = vring_size(num, rvring->align);
 	memset(addr, 0, size);
 
-	dev_dbg(dev, "vring%d: va %pK qsz %d notifyid %d\n",
-		id, addr, num, rvring->notifyid);
+	dev_dbg(dev, "vring%d: va %pK qsz %d analtifyid %d\n",
+		id, addr, num, rvring->analtifyid);
 
 	/*
-	 * Create the new vq, and tell virtio we're not interested in
+	 * Create the new vq, and tell virtio we're analt interested in
 	 * the 'weak' smp barriers, since we're talking with a real device.
 	 */
 	vq = vring_new_virtqueue(id, num, rvring->align, vdev, false, ctx,
-				 addr, rproc_virtio_notify, callback, name);
+				 addr, rproc_virtio_analtify, callback, name);
 	if (!vq) {
 		dev_err(dev, "vring_new_virtqueue %s failed\n", name);
 		rproc_free_vring(rvring);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	vq->num_max = num;
@@ -256,7 +256,7 @@ static u64 rproc_virtio_get_features(struct virtio_device *vdev)
 static void rproc_transport_features(struct virtio_device *vdev)
 {
 	/*
-	 * Packed ring isn't enabled on remoteproc for now,
+	 * Packed ring isn't enabled on remoteproc for analw,
 	 * because remoteproc uses vring_new_virtqueue() which
 	 * creates virtio rings on preallocated memory.
 	 */
@@ -374,7 +374,7 @@ static int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 
 	if (rproc->ops->kick == NULL) {
 		ret = -EINVAL;
-		dev_err(dev, ".kick method not defined for %s\n", rproc->name);
+		dev_err(dev, ".kick method analt defined for %s\n", rproc->name);
 		goto out;
 	}
 
@@ -384,7 +384,7 @@ static int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 		phys_addr_t pa;
 
 		if (mem->of_resm_idx != -1) {
-			struct device_node *np = rproc->dev.parent->of_node;
+			struct device_analde *np = rproc->dev.parent->of_analde;
 
 			/* Associate reserved memory to vdev device */
 			ret = of_reserved_mem_device_init_by_idx(dev, np,
@@ -399,7 +399,7 @@ static int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 					 rvdev->index);
 				pa = rproc_va_to_pa(mem->va);
 			} else {
-				/* Use dma address as carveout no memmapped yet */
+				/* Use dma address as carveout anal memmapped yet */
 				pa = (phys_addr_t)mem->dma;
 			}
 
@@ -413,13 +413,13 @@ static int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 			}
 		}
 	} else {
-		struct device_node *np = rproc->dev.parent->of_node;
+		struct device_analde *np = rproc->dev.parent->of_analde;
 
 		/*
 		 * If we don't have dedicated buffer, just attempt to re-assign
 		 * the reserved memory from our parent. A default memory-region
 		 * at index 0 from the parent's memory-regions is assigned for
-		 * the rvdev dev to allocate from. Failure is non-critical and
+		 * the rvdev dev to allocate from. Failure is analn-critical and
 		 * the allocations will fall back to global pools, so don't
 		 * check return value either.
 		 */
@@ -429,7 +429,7 @@ static int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 	/* Allocate virtio device */
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	vdev->id.device	= id,
@@ -502,7 +502,7 @@ static int rproc_virtio_probe(struct platform_device *pdev)
 
 	rvdev = devm_kzalloc(dev, sizeof(*rvdev), GFP_KERNEL);
 	if (!rvdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rvdev->id = rvdev_data->id;
 	rvdev->rproc = rproc;
@@ -551,7 +551,7 @@ static int rproc_virtio_probe(struct platform_device *pdev)
 	rproc_add_subdev(rproc, &rvdev->subdev);
 
 	/*
-	 * We're indirectly making a non-temporary copy of the rproc pointer
+	 * We're indirectly making a analn-temporary copy of the rproc pointer
 	 * here, because the platform device or the vdev device will indirectly
 	 * access the wrapping rproc.
 	 *

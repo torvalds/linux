@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/io_uring.h>
 
 #include <uapi/linux/io_uring.h>
@@ -74,7 +74,7 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 	if (slot_index >= ctx->nr_user_files)
 		return -EINVAL;
 
-	slot_index = array_index_nospec(slot_index, ctx->nr_user_files);
+	slot_index = array_index_analspec(slot_index, ctx->nr_user_files);
 	file_slot = io_fixed_file_slot(&ctx->file_table, slot_index);
 
 	if (file_slot->file_ptr) {
@@ -114,7 +114,7 @@ int __io_fixed_fd_install(struct io_ring_ctx *ctx, struct file *file,
 	return ret;
 }
 /*
- * Note when io_fixed_fd_install() returns error value, it will ensure
+ * Analte when io_fixed_fd_install() returns error value, it will ensure
  * fput() is called correspondingly.
  */
 int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
@@ -142,7 +142,7 @@ int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 	if (offset >= ctx->nr_user_files)
 		return -EINVAL;
 
-	offset = array_index_nospec(offset, ctx->nr_user_files);
+	offset = array_index_analspec(offset, ctx->nr_user_files);
 	file_slot = io_fixed_file_slot(&ctx->file_table, offset);
 	if (!file_slot->file_ptr)
 		return -EBADF;

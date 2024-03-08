@@ -81,13 +81,13 @@ struct tps65090 {
  * struct tps65090_regulator_plat_data
  *
  * @reg_init_data: The regulator init data.
- * @enable_ext_control: Enable extrenal control or not. Only available for
+ * @enable_ext_control: Enable extrenal control or analt. Only available for
  *     DCDC1, DCDC2 and DCDC3.
  * @gpiod: Gpio descriptor if external control is enabled and controlled through
  *     gpio
  * @overcurrent_wait_valid: True if the overcurrent_wait should be applied.
  * @overcurrent_wait: Value to set as the overcurrent wait time.  This is the
- *     actual bitfield value, not a time in ms (valid value are 0 - 3).
+ *     actual bitfield value, analt a time in ms (valid value are 0 - 3).
  */
 struct tps65090_regulator_plat_data {
 	struct regulator_init_data *reg_init_data;
@@ -108,7 +108,7 @@ struct tps65090_platform_data {
 };
 
 /*
- * NOTE: the functions below are not intended for use outside
+ * ANALTE: the functions below are analt intended for use outside
  * of the TPS65090 sub-device drivers
  */
 static inline int tps65090_write(struct device *dev, int reg, uint8_t val)

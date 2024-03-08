@@ -34,7 +34,7 @@
 			format = "a8r8g8b8";
 			/*
 			* That's a lot of clocks, but it's necessary due
-			* to unused clk cleanup & no panel driver yet..
+			* to unused clk cleanup & anal panel driver yet..
 			*/
 			clocks = <&mmcc MDSS_AHB_CLK>,
 				 <&mmcc MDSS_AXI_CLK>,
@@ -52,7 +52,7 @@
 		/* Bootloader display framebuffer region */
 		cont_splash_mem: memory@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x2400000>;
-			no-map;
+			anal-map;
 		};
 
 		/* For getting crash logs using Android downstream kernels */
@@ -73,12 +73,12 @@
 		ipa_fws_region: ipa@f6800000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xf6800000 0x0 0x5000>;
-			no-map;
+			anal-map;
 		};
 		zap_shader_region: gpu@f6900000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xf6900000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -134,8 +134,8 @@
 
 /*
  * OnePlus' ADSP firmware requires 30 MiB in total, so increase the adsp_mem
- * region by 4 MiB to account for this while relocating the other now
- * conflicting memory nodes accordingly.
+ * region by 4 MiB to account for this while relocating the other analw
+ * conflicting memory analdes accordingly.
  */
 &adsp_mem {
 	reg = <0x0 0x8b200000 0x0 0x1e00000>;
@@ -188,7 +188,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4_f12: rmi4-f12@12 {
@@ -238,7 +238,7 @@
 		/*
 		 * Configure a pull-up on 46 (RX). This is needed to
 		 * avoid garbage data when the TX pin of the Bluetooth
-		 * module is in tri-state (module powered off or not
+		 * module is in tri-state (module powered off or analt
 		 * driving the signal yet).
 		 */
 		bias-pull-up;
@@ -272,10 +272,10 @@
 &pm8998_gpios {
 	vol_keys_default: vol-keys-state {
 		pins = "gpio5", "gpio6";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-up;
 		input-enable;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 };
 

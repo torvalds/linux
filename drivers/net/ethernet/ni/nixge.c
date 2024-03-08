@@ -170,7 +170,7 @@ struct nixge_priv {
 	struct device *dev;
 
 	/* Connection to PHY device */
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	phy_interface_t		phy_mode;
 
 	int link;
@@ -377,7 +377,7 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 			    (sizeof(*priv->rx_bd_v) * (RX_BD_NUM - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
-	 * Tx channel is now ready to run. But only after we write to the
+	 * Tx channel is analw ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting.
 	 */
 	nixge_dma_write_desc_reg(priv, XAXIDMA_TX_CDESC_OFFSET, priv->tx_bd_p);
@@ -388,7 +388,7 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 	return 0;
 out:
 	nixge_hw_dma_bd_release(ndev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __nixge_device_reset(struct nixge_priv *priv, off_t offset)
@@ -624,12 +624,12 @@ static int nixge_recv(struct net_device *ndev, int budget)
 		skb_put(skb, length);
 
 		skb->protocol = eth_type_trans(skb, ndev);
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 
-		/* For now mark them as CHECKSUM_NONE since
+		/* For analw mark them as CHECKSUM_ANALNE since
 		 * we don't have offload capabilities
 		 */
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 
 		napi_gro_receive(&priv->napi, skb);
 
@@ -685,7 +685,7 @@ static int nixge_poll(struct napi_struct *napi, int budget)
 			nixge_dma_write_reg(priv, XAXIDMA_RX_SR_OFFSET, status);
 			napi_schedule(napi);
 		} else {
-			/* if not, turn on RX IRQs again ... */
+			/* if analt, turn on RX IRQs again ... */
 			cr = nixge_dma_read_reg(priv, XAXIDMA_RX_CR_OFFSET);
 			cr |= (XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK);
 			nixge_dma_write_reg(priv, XAXIDMA_RX_CR_OFFSET, cr);
@@ -710,8 +710,8 @@ static irqreturn_t nixge_tx_irq(int irq, void *_ndev)
 		goto out;
 	}
 	if (!(status & XAXIDMA_IRQ_ALL_MASK)) {
-		netdev_err(ndev, "No interrupts asserted in Tx path\n");
-		return IRQ_NONE;
+		netdev_err(ndev, "Anal interrupts asserted in Tx path\n");
+		return IRQ_ANALNE;
 	}
 	if (status & XAXIDMA_IRQ_ERROR_MASK) {
 		phys = nixge_hw_dma_bd_get_addr(&priv->tx_bd_v[priv->tx_bd_ci],
@@ -759,8 +759,8 @@ static irqreturn_t nixge_rx_irq(int irq, void *_ndev)
 		goto out;
 	}
 	if (!(status & XAXIDMA_IRQ_ALL_MASK)) {
-		netdev_err(ndev, "No interrupts asserted in Rx path\n");
-		return IRQ_NONE;
+		netdev_err(ndev, "Anal interrupts asserted in Rx path\n");
+		return IRQ_ANALNE;
 	}
 	if (status & XAXIDMA_IRQ_ERROR_MASK) {
 		phys = nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[priv->rx_bd_ci],
@@ -854,7 +854,7 @@ static void nixge_dma_err_handler(struct tasklet_struct *t)
 			    (sizeof(*lp->rx_bd_v) * (RX_BD_NUM - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
-	 * Tx channel is now ready to run. But only after we write to the
+	 * Tx channel is analw ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting
 	 */
 	nixge_dma_write_desc_reg(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
@@ -871,10 +871,10 @@ static int nixge_open(struct net_device *ndev)
 
 	nixge_device_reset(ndev);
 
-	phy = of_phy_connect(ndev, priv->phy_node,
+	phy = of_phy_connect(ndev, priv->phy_analde,
 			     &nixge_handle_link_change, 0, priv->phy_mode);
 	if (!phy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy_start(phy);
 
@@ -1209,13 +1209,13 @@ static int nixge_mdio_write_c45(struct mii_bus *bus, int phy_id,
 	return err;
 }
 
-static int nixge_mdio_setup(struct nixge_priv *priv, struct device_node *np)
+static int nixge_mdio_setup(struct nixge_priv *priv, struct device_analde *np)
 {
 	struct mii_bus *bus;
 
 	bus = devm_mdiobus_alloc(priv->dev);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(priv->dev));
 	bus->priv = priv;
@@ -1264,9 +1264,9 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 
 	ndev = platform_get_drvdata(pdev);
 	priv = netdev_priv(ndev);
-	of_id = of_match_node(nixge_dt_ids, pdev->dev.of_node);
+	of_id = of_match_analde(nixge_dt_ids, pdev->dev.of_analde);
 	if (!of_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	version = (enum nixge_version)of_id->data;
 	if (version <= NIXGE_V2)
@@ -1290,7 +1290,7 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 
 static int nixge_probe(struct platform_device *pdev)
 {
-	struct device_node *mn, *phy_node;
+	struct device_analde *mn, *phy_analde;
 	struct nixge_priv *priv;
 	struct net_device *ndev;
 	const u8 *mac_addr;
@@ -1298,7 +1298,7 @@ static int nixge_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(*priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -1331,14 +1331,14 @@ static int nixge_probe(struct platform_device *pdev)
 
 	priv->tx_irq = platform_get_irq_byname(pdev, "tx");
 	if (priv->tx_irq < 0) {
-		netdev_err(ndev, "could not find 'tx' irq");
+		netdev_err(ndev, "could analt find 'tx' irq");
 		err = priv->tx_irq;
 		goto free_netdev;
 	}
 
 	priv->rx_irq = platform_get_irq_byname(pdev, "rx");
 	if (priv->rx_irq < 0) {
-		netdev_err(ndev, "could not find 'rx' irq");
+		netdev_err(ndev, "could analt find 'rx' irq");
 		err = priv->rx_irq;
 		goto free_netdev;
 	}
@@ -1346,32 +1346,32 @@ static int nixge_probe(struct platform_device *pdev)
 	priv->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
 	priv->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;
 
-	mn = of_get_child_by_name(pdev->dev.of_node, "mdio");
+	mn = of_get_child_by_name(pdev->dev.of_analde, "mdio");
 	if (mn) {
 		err = nixge_mdio_setup(priv, mn);
-		of_node_put(mn);
+		of_analde_put(mn);
 		if (err) {
 			netdev_err(ndev, "error registering mdio bus");
 			goto free_netdev;
 		}
 	}
 
-	err = of_get_phy_mode(pdev->dev.of_node, &priv->phy_mode);
+	err = of_get_phy_mode(pdev->dev.of_analde, &priv->phy_mode);
 	if (err) {
-		netdev_err(ndev, "not find \"phy-mode\" property\n");
+		netdev_err(ndev, "analt find \"phy-mode\" property\n");
 		goto unregister_mdio;
 	}
 
-	phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
-	if (!phy_node && of_phy_is_fixed_link(pdev->dev.of_node)) {
-		err = of_phy_register_fixed_link(pdev->dev.of_node);
+	phy_analde = of_parse_phandle(pdev->dev.of_analde, "phy-handle", 0);
+	if (!phy_analde && of_phy_is_fixed_link(pdev->dev.of_analde)) {
+		err = of_phy_register_fixed_link(pdev->dev.of_analde);
 		if (err < 0) {
 			netdev_err(ndev, "broken fixed-link specification\n");
 			goto unregister_mdio;
 		}
-		phy_node = of_node_get(pdev->dev.of_node);
+		phy_analde = of_analde_get(pdev->dev.of_analde);
 	}
-	priv->phy_node = phy_node;
+	priv->phy_analde = phy_analde;
 
 	err = register_netdev(priv->ndev);
 	if (err) {
@@ -1382,9 +1382,9 @@ static int nixge_probe(struct platform_device *pdev)
 	return 0;
 
 free_phy:
-	if (of_phy_is_fixed_link(pdev->dev.of_node))
-		of_phy_deregister_fixed_link(pdev->dev.of_node);
-	of_node_put(phy_node);
+	if (of_phy_is_fixed_link(pdev->dev.of_analde))
+		of_phy_deregister_fixed_link(pdev->dev.of_analde);
+	of_analde_put(phy_analde);
 
 unregister_mdio:
 	if (priv->mii_bus)
@@ -1403,9 +1403,9 @@ static void nixge_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 
-	if (of_phy_is_fixed_link(pdev->dev.of_node))
-		of_phy_deregister_fixed_link(pdev->dev.of_node);
-	of_node_put(priv->phy_node);
+	if (of_phy_is_fixed_link(pdev->dev.of_analde))
+		of_phy_deregister_fixed_link(pdev->dev.of_analde);
+	of_analde_put(priv->phy_analde);
 
 	if (priv->mii_bus)
 		mdiobus_unregister(priv->mii_bus);

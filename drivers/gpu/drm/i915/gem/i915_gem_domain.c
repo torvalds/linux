@@ -34,7 +34,7 @@ static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	 * by userspace. Othereise the call here would fall back to checking
 	 * whether the object is un-cached or write-through.
 	 */
-	return !(i915_gem_object_has_cache_level(obj, I915_CACHE_NONE) ||
+	return !(i915_gem_object_has_cache_level(obj, I915_CACHE_ANALNE) ||
 		 i915_gem_object_has_cache_level(obj, I915_CACHE_WT));
 }
 
@@ -96,7 +96,7 @@ static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {
 	/*
 	 * We manually flush the CPU domain so that we can override and
-	 * force the flush for the display, and perform it asyncrhonously.
+	 * force the flush for the display, and perform it asyncrhoanalusly.
 	 */
 	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 	if (obj->cache_dirty)
@@ -150,7 +150,7 @@ i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write)
 	 * direct access in memory with previous cached writes through
 	 * shmemfs and that our cache domain tracking remains valid.
 	 * For example, if the obj->filp was moved to swap without us
-	 * being notified and releasing the pages, we would mistakenly
+	 * being analtified and releasing the pages, we would mistakenly
 	 * continue to assume that the obj remained out of the CPU cached
 	 * domain.
 	 */
@@ -167,7 +167,7 @@ i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write)
 	if ((obj->read_domains & I915_GEM_DOMAIN_WC) == 0)
 		mb();
 
-	/* It should now be out of any other write domains, and we can update
+	/* It should analw be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
 	GEM_BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_WC) != 0);
@@ -212,7 +212,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	 * direct access in memory with previous cached writes through
 	 * shmemfs and that our cache domain tracking remains valid.
 	 * For example, if the obj->filp was moved to swap without us
-	 * being notified and releasing the pages, we would mistakenly
+	 * being analtified and releasing the pages, we would mistakenly
 	 * continue to assume that the obj remained out of the CPU cached
 	 * domain.
 	 */
@@ -229,7 +229,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if ((obj->read_domains & I915_GEM_DOMAIN_GTT) == 0)
 		mb();
 
-	/* It should now be out of any other write domains, and we can update
+	/* It should analw be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
 	GEM_BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_GTT) != 0);
@@ -263,9 +263,9 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
  * coherent for all users, we only allow a single cache level to be set
  * globally on the object and prevent it from being changed whilst the
  * hardware is reading from the object. That is if the object is currently
- * on the scanout it will be set to uncached (or equivalent display
- * cache coherency) and all non-MOCS GPU access will also be uncached so
- * that all direct access to the scanout remains coherent.
+ * on the scaanalut it will be set to uncached (or equivalent display
+ * cache coherency) and all analn-MOCS GPU access will also be uncached so
+ * that all direct access to the scaanalut remains coherent.
  */
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level)
@@ -306,12 +306,12 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 	int err = 0;
 
 	if (IS_DGFX(to_i915(dev)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rcu_read_lock();
 	obj = i915_gem_object_lookup_rcu(file, args->handle);
 	if (!obj) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -320,7 +320,7 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 	 * set by user space.
 	 */
 	if (obj->pat_set_by_user) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -330,7 +330,7 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 	else if (i915_gem_object_has_cache_level(obj, I915_CACHE_WT))
 		args->caching = I915_CACHING_DISPLAY;
 	else
-		args->caching = I915_CACHING_NONE;
+		args->caching = I915_CACHING_ANALNE;
 out:
 	rcu_read_unlock();
 	return err;
@@ -346,29 +346,29 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	if (IS_DGFX(i915))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (args->caching) {
-	case I915_CACHING_NONE:
-		level = I915_CACHE_NONE;
+	case I915_CACHING_ANALNE:
+		level = I915_CACHE_ANALNE;
 		break;
 	case I915_CACHING_CACHED:
 		/*
 		 * Due to a HW issue on BXT A stepping, GPU stores via a
-		 * snooped mapping may leave stale data in a corresponding CPU
-		 * cacheline, whereas normally such cachelines would get
+		 * sanaloped mapping may leave stale data in a corresponding CPU
+		 * cacheline, whereas analrmally such cachelines would get
 		 * invalidated.
 		 */
-		if (!HAS_LLC(i915) && !HAS_SNOOP(i915))
-			return -ENODEV;
+		if (!HAS_LLC(i915) && !HAS_SANALOP(i915))
+			return -EANALDEV;
 
 		level = I915_CACHE_LLC;
 		break;
 	case I915_CACHING_DISPLAY:
-		level = HAS_WT(i915) ? I915_CACHE_WT : I915_CACHE_NONE;
+		level = HAS_WT(i915) ? I915_CACHE_WT : I915_CACHE_ANALNE;
 		break;
 	default:
 		return -EINVAL;
@@ -376,20 +376,20 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * This ioctl should be disabled for the objects with pat_index
 	 * set by user space.
 	 */
 	if (obj->pat_set_by_user) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
 	/*
 	 * The caching mode of proxy object is handled by its generator, and
-	 * not allowed to be changed by userspace.
+	 * analt allowed to be changed by userspace.
 	 */
 	if (i915_gem_object_is_proxy(obj)) {
 		/*
@@ -416,7 +416,7 @@ out:
 }
 
 /*
- * Prepare buffer for display plane (scanout, cursors, etc). Can be called from
+ * Prepare buffer for display plane (scaanalut, cursors, etc). Can be called from
  * an uninterruptible phase (modesetting) and allows any flushes to be pipelined
  * (for pageflips). We only flush the caches while preparing the buffer for
  * display, the callers are responsible for frontbuffer flush.
@@ -437,9 +437,9 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 		return ERR_PTR(-EINVAL);
 
 	/*
-	 * The display engine is not coherent with the LLC cache on gen6.  As
+	 * The display engine is analt coherent with the LLC cache on gen6.  As
 	 * a result, we make sure that the pinning that is about to occur is
-	 * done with uncached PTEs. This is lowest common denominator for all
+	 * done with uncached PTEs. This is lowest common deanalminator for all
 	 * chipsets.
 	 *
 	 * However for gen6+, we could do better by using the GFDT bit instead
@@ -448,12 +448,12 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 */
 	ret = i915_gem_object_set_cache_level(obj,
 					      HAS_WT(i915) ?
-					      I915_CACHE_WT : I915_CACHE_NONE);
+					      I915_CACHE_WT : I915_CACHE_ANALNE);
 	if (ret)
 		return ERR_PTR(ret);
 
 	/* VT-d may overfetch before/after the vma, so pad with scratch */
-	if (intel_scanout_needs_vtd_wa(i915)) {
+	if (intel_scaanalut_needs_vtd_wa(i915)) {
 		unsigned int guard = VTD_GUARD;
 
 		if (i915_gem_object_is_tiled(obj))
@@ -466,17 +466,17 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	/*
 	 * As the user may map the buffer once pinned in the display plane
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
-	 * always use map_and_fenceable for all scanout buffers. However,
+	 * always use map_and_fenceable for all scaanalut buffers. However,
 	 * it may simply be too big to fit into mappable, in which case
 	 * put it anyway and hope that userspace can cope (but always first
 	 * try to preserve the existing ABI).
 	 */
-	vma = ERR_PTR(-ENOSPC);
+	vma = ERR_PTR(-EANALSPC);
 	if ((flags & PIN_MAPPABLE) == 0 &&
-	    (!view || view->type == I915_GTT_VIEW_NORMAL))
+	    (!view || view->type == I915_GTT_VIEW_ANALRMAL))
 		vma = i915_gem_object_ggtt_pin_ww(obj, ww, view, 0, alignment,
 						  flags | PIN_MAPPABLE |
-						  PIN_NONBLOCK);
+						  PIN_ANALNBLOCK);
 	if (IS_ERR(vma) && vma != ERR_PTR(-EDEADLK))
 		vma = i915_gem_object_ggtt_pin_ww(obj, ww, view, 0,
 						  alignment, flags);
@@ -484,7 +484,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 		return vma;
 
 	vma->display_alignment = max(vma->display_alignment, alignment);
-	i915_vma_mark_scanout(vma);
+	i915_vma_mark_scaanalut(vma);
 
 	i915_gem_object_flush_if_display_locked(obj);
 
@@ -522,7 +522,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->read_domains |= I915_GEM_DOMAIN_CPU;
 	}
 
-	/* It should now be out of any other write domains, and we can update
+	/* It should analw be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
 	GEM_BUG_ON(obj->write_domain & ~I915_GEM_DOMAIN_CPU);
@@ -555,7 +555,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	int err;
 
 	if (IS_DGFX(to_i915(dev)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Only handle setting domains to types used by the CPU. */
 	if ((write_domain | read_domains) & I915_GEM_GPU_DOMAINS)
@@ -573,11 +573,11 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * Try to flush the object off the GPU without holding the lock.
-	 * We will repeat the flush holding the lock in the normal manner
+	 * We will repeat the flush holding the lock in the analrmal manner
 	 * to catch cases where we are gazumped.
 	 */
 	err = i915_gem_object_wait(obj,
@@ -604,8 +604,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	}
 
 	/*
-	 * Proxy objects do not control access to the backing storage, ergo
-	 * they cannot be used as a means to manipulate the cache domain
+	 * Proxy objects do analt control access to the backing storage, ergo
+	 * they cananalt be used as a means to manipulate the cache domain
 	 * tracking for that backing storage. The proxy object is always
 	 * considered to be outside of any cache domain.
 	 */
@@ -623,7 +623,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	 * direct access in memory with previous cached writes through
 	 * shmemfs and that our cache domain tracking remains valid.
 	 * For example, if the obj->filp was moved to swap without us
-	 * being notified and releasing the pages, we would mistakenly
+	 * being analtified and releasing the pages, we would mistakenly
 	 * continue to assume that the obj remained out of the CPU cached
 	 * domain.
 	 */
@@ -632,10 +632,10 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	/*
-	 * Already in the desired write domain? Nothing for us to do!
+	 * Already in the desired write domain? Analthing for us to do!
 	 *
 	 * We apply a little bit of cunning here to catch a broader set of
-	 * no-ops. If obj->write_domain is set, we must be in the same
+	 * anal-ops. If obj->write_domain is set, we must be in the same
 	 * obj->read_domains, and only that domain. Therefore, if that
 	 * obj->write_domain matches the request read_domains, we are
 	 * already in the same read/write domain and can skip the operation,
@@ -667,7 +667,7 @@ out:
 
 /*
  * Pins the specified object's pages and synchronizes the object with
- * GPU accesses. Sets needs_clflush to non-zero if the caller should
+ * GPU accesses. Sets needs_clflush to analn-zero if the caller should
  * flush the object from the CPU cache.
  */
 int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
@@ -677,7 +677,7 @@ int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 
 	*needs_clflush = 0;
 	if (!i915_gem_object_has_struct_page(obj))
-		return -ENODEV;
+		return -EANALDEV;
 
 	assert_object_held(obj);
 
@@ -702,7 +702,7 @@ int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 
 	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
-	/* If we're not in the cpu read domain, set ourself into the gtt
+	/* If we're analt in the cpu read domain, set ourself into the gtt
 	 * read domain and manually flush cachelines (if required). This
 	 * optimizes for the case when the gpu will dirty the data
 	 * anyway again before the next pread happens.
@@ -727,7 +727,7 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 
 	*needs_clflush = 0;
 	if (!i915_gem_object_has_struct_page(obj))
-		return -ENODEV;
+		return -EANALDEV;
 
 	assert_object_held(obj);
 
@@ -753,7 +753,7 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 
 	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
-	/* If we're not in the cpu write domain, set ourself into the
+	/* If we're analt in the cpu write domain, set ourself into the
 	 * gtt write domain and manually flush cachelines (as required).
 	 * This optimizes for the case when the gpu will use the data
 	 * right away and we therefore have to clflush anyway.

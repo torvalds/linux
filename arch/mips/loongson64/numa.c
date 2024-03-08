@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010 Loongson Inc. & Lemote Inc. &
- *                    Institute of Computing Technology
+ *                    Institute of Computing Techanallogy
  * Author:  Xiang Gao, gaoxiang@ict.ac.cn
  *          Huacai Chen, chenhc@lemote.com
  *          Xiaofu Meng, Shuangshuang Zhang
@@ -11,7 +11,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/export.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/swap.h>
 #include <linux/memblock.h>
 #include <linux/pfn.h>
@@ -27,34 +27,34 @@
 #include <boot_param.h>
 #include <loongson.h>
 
-unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
-EXPORT_SYMBOL(__node_distances);
-struct pglist_data *__node_data[MAX_NUMNODES];
-EXPORT_SYMBOL(__node_data);
+unsigned char __analde_distances[MAX_NUMANALDES][MAX_NUMANALDES];
+EXPORT_SYMBOL(__analde_distances);
+struct pglist_data *__analde_data[MAX_NUMANALDES];
+EXPORT_SYMBOL(__analde_data);
 
-cpumask_t __node_cpumask[MAX_NUMNODES];
-EXPORT_SYMBOL(__node_cpumask);
+cpumask_t __analde_cpumask[MAX_NUMANALDES];
+EXPORT_SYMBOL(__analde_cpumask);
 
-static void cpu_node_probe(void)
+static void cpu_analde_probe(void)
 {
 	int i;
 
-	nodes_clear(node_possible_map);
-	nodes_clear(node_online_map);
-	for (i = 0; i < loongson_sysconf.nr_nodes; i++) {
-		node_set_state(num_online_nodes(), N_POSSIBLE);
-		node_set_online(num_online_nodes());
+	analdes_clear(analde_possible_map);
+	analdes_clear(analde_online_map);
+	for (i = 0; i < loongson_sysconf.nr_analdes; i++) {
+		analde_set_state(num_online_analdes(), N_POSSIBLE);
+		analde_set_online(num_online_analdes());
 	}
 
-	pr_info("NUMA: Discovered %d cpus on %d nodes\n",
-		loongson_sysconf.nr_cpus, num_online_nodes());
+	pr_info("NUMA: Discovered %d cpus on %d analdes\n",
+		loongson_sysconf.nr_cpus, num_online_analdes());
 }
 
-static int __init compute_node_distance(int row, int col)
+static int __init compute_analde_distance(int row, int col)
 {
-	int package_row = row * loongson_sysconf.cores_per_node /
+	int package_row = row * loongson_sysconf.cores_per_analde /
 				loongson_sysconf.cores_per_package;
-	int package_col = col * loongson_sysconf.cores_per_node /
+	int package_col = col * loongson_sysconf.cores_per_analde /
 				loongson_sysconf.cores_per_package;
 
 	if (col == row)
@@ -69,49 +69,49 @@ static void __init init_topology_matrix(void)
 {
 	int row, col;
 
-	for (row = 0; row < MAX_NUMNODES; row++)
-		for (col = 0; col < MAX_NUMNODES; col++)
-			__node_distances[row][col] = -1;
+	for (row = 0; row < MAX_NUMANALDES; row++)
+		for (col = 0; col < MAX_NUMANALDES; col++)
+			__analde_distances[row][col] = -1;
 
-	for_each_online_node(row) {
-		for_each_online_node(col) {
-			__node_distances[row][col] =
-				compute_node_distance(row, col);
+	for_each_online_analde(row) {
+		for_each_online_analde(col) {
+			__analde_distances[row][col] =
+				compute_analde_distance(row, col);
 		}
 	}
 }
 
-static void __init node_mem_init(unsigned int node)
+static void __init analde_mem_init(unsigned int analde)
 {
 	struct pglist_data *nd;
-	unsigned long node_addrspace_offset;
+	unsigned long analde_addrspace_offset;
 	unsigned long start_pfn, end_pfn;
 	unsigned long nd_pa;
 	int tnid;
 	const size_t nd_size = roundup(sizeof(pg_data_t), SMP_CACHE_BYTES);
 
-	node_addrspace_offset = nid_to_addrbase(node);
-	pr_info("Node%d's addrspace_offset is 0x%lx\n",
-			node, node_addrspace_offset);
+	analde_addrspace_offset = nid_to_addrbase(analde);
+	pr_info("Analde%d's addrspace_offset is 0x%lx\n",
+			analde, analde_addrspace_offset);
 
-	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
-	pr_info("Node%d: start_pfn=0x%lx, end_pfn=0x%lx\n",
-		node, start_pfn, end_pfn);
+	get_pfn_range_for_nid(analde, &start_pfn, &end_pfn);
+	pr_info("Analde%d: start_pfn=0x%lx, end_pfn=0x%lx\n",
+		analde, start_pfn, end_pfn);
 
-	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, node);
+	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, analde);
 	if (!nd_pa)
-		panic("Cannot allocate %zu bytes for node %d data\n",
-		      nd_size, node);
+		panic("Cananalt allocate %zu bytes for analde %d data\n",
+		      nd_size, analde);
 	nd = __va(nd_pa);
 	memset(nd, 0, sizeof(struct pglist_data));
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
-	if (tnid != node)
-		pr_info("NODE_DATA(%d) on node %d\n", node, tnid);
-	__node_data[node] = nd;
-	NODE_DATA(node)->node_start_pfn = start_pfn;
-	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
+	if (tnid != analde)
+		pr_info("ANALDE_DATA(%d) on analde %d\n", analde, tnid);
+	__analde_data[analde] = nd;
+	ANALDE_DATA(analde)->analde_start_pfn = start_pfn;
+	ANALDE_DATA(analde)->analde_spanned_pages = end_pfn - start_pfn;
 
-	if (node == 0) {
+	if (analde == 0) {
 		/* kernel start address */
 		unsigned long kernel_start_pfn = PFN_DOWN(__pa_symbol(&_text));
 
@@ -126,43 +126,43 @@ static void __init node_mem_init(unsigned int node)
 				 ((kernel_end_pfn - kernel_start_pfn) << PAGE_SHIFT));
 
 		/* Reserve 0xfe000000~0xffffffff for RS780E integrated GPU */
-		if (node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT))
-			memblock_reserve((node_addrspace_offset | 0xfe000000),
+		if (analde_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT))
+			memblock_reserve((analde_addrspace_offset | 0xfe000000),
 					 32 << 20);
 
-		/* Reserve pfn range 0~node[0]->node_start_pfn */
+		/* Reserve pfn range 0~analde[0]->analde_start_pfn */
 		memblock_reserve(0, PAGE_SIZE * start_pfn);
-		/* set nid for reserved memory on node 0 */
-		memblock_set_node(0, 1ULL << 44, &memblock.reserved, 0);
+		/* set nid for reserved memory on analde 0 */
+		memblock_set_analde(0, 1ULL << 44, &memblock.reserved, 0);
 	}
 }
 
 static __init void prom_meminit(void)
 {
-	unsigned int node, cpu, active_cpu = 0;
+	unsigned int analde, cpu, active_cpu = 0;
 
-	cpu_node_probe();
+	cpu_analde_probe();
 	init_topology_matrix();
 
-	for (node = 0; node < loongson_sysconf.nr_nodes; node++) {
-		if (node_online(node)) {
-			szmem(node);
-			node_mem_init(node);
-			cpumask_clear(&__node_cpumask[node]);
+	for (analde = 0; analde < loongson_sysconf.nr_analdes; analde++) {
+		if (analde_online(analde)) {
+			szmem(analde);
+			analde_mem_init(analde);
+			cpumask_clear(&__analde_cpumask[analde]);
 		}
 	}
 	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
 	for (cpu = 0; cpu < loongson_sysconf.nr_cpus; cpu++) {
-		node = cpu / loongson_sysconf.cores_per_node;
-		if (node >= num_online_nodes())
-			node = 0;
+		analde = cpu / loongson_sysconf.cores_per_analde;
+		if (analde >= num_online_analdes())
+			analde = 0;
 
 		if (loongson_sysconf.reserved_cpus_mask & (1<<cpu))
 			continue;
 
-		cpumask_set_cpu(active_cpu, &__node_cpumask[node]);
-		pr_info("NUMA: set cpumask cpu %d on node %d\n", active_cpu, node);
+		cpumask_set_cpu(active_cpu, &__analde_cpumask[analde]);
+		pr_info("NUMA: set cpumask cpu %d on analde %d\n", active_cpu, analde);
 
 		active_cpu++;
 	}
@@ -174,7 +174,7 @@ void __init paging_init(void)
 
 	pagetable_init();
 	zones_size[ZONE_DMA32] = MAX_DMA32_PFN;
-	zones_size[ZONE_NORMAL] = max_low_pfn;
+	zones_size[ZONE_ANALRMAL] = max_low_pfn;
 	free_area_init(zones_size);
 }
 
@@ -182,15 +182,15 @@ void __init mem_init(void)
 {
 	high_memory = (void *) __va(get_num_physpages() << PAGE_SHIFT);
 	memblock_free_all();
-	setup_zero_pages();	/* This comes from node 0 */
+	setup_zero_pages();	/* This comes from analde 0 */
 }
 
-/* All PCI device belongs to logical Node-0 */
-int pcibus_to_node(struct pci_bus *bus)
+/* All PCI device belongs to logical Analde-0 */
+int pcibus_to_analde(struct pci_bus *bus)
 {
 	return 0;
 }
-EXPORT_SYMBOL(pcibus_to_node);
+EXPORT_SYMBOL(pcibus_to_analde);
 
 void __init prom_init_numa_memory(void)
 {
@@ -199,12 +199,12 @@ void __init prom_init_numa_memory(void)
 	prom_meminit();
 }
 
-pg_data_t * __init arch_alloc_nodedata(int nid)
+pg_data_t * __init arch_alloc_analdedata(int nid)
 {
 	return memblock_alloc(sizeof(pg_data_t), SMP_CACHE_BYTES);
 }
 
-void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+void arch_refresh_analdedata(int nid, pg_data_t *pgdat)
 {
-	__node_data[nid] = pgdat;
+	__analde_data[nid] = pgdat;
 }

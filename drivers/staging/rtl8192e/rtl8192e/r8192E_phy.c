@@ -334,7 +334,7 @@ bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
 	WriteAddr[HW90_BLOCK_RF] = 0x3;
 
 	if (CheckBlock == HW90_BLOCK_MAC) {
-		netdev_warn(dev, "%s(): No checks available for MAC block.\n",
+		netdev_warn(dev, "%s(): Anal checks available for MAC block.\n",
 			    __func__);
 		return ret;
 	}
@@ -514,7 +514,7 @@ static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
 	struct sw_chnl_cmd *pCmd;
 
 	if (!CmdTable) {
-		netdev_err(dev, "%s(): CmdTable cannot be NULL.\n", __func__);
+		netdev_err(dev, "%s(): CmdTable cananalt be NULL.\n", __func__);
 		return false;
 	}
 	if (CmdTableIdx >= CmdTableSz) {
@@ -676,7 +676,7 @@ void rtl92e_set_channel(struct net_device *dev, u8 channel)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (!priv->up) {
-		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
+		netdev_err(dev, "%s(): Driver is analt initialized\n", __func__);
 		return;
 	}
 	if (priv->sw_chnl_in_progress)
@@ -686,7 +686,7 @@ void rtl92e_set_channel(struct net_device *dev, u8 channel)
 	case WIRELESS_MODE_B:
 		if (channel > 14) {
 			netdev_warn(dev,
-				    "Channel %d not available in 802.11b.\n",
+				    "Channel %d analt available in 802.11b.\n",
 				    channel);
 			return;
 		}
@@ -695,7 +695,7 @@ void rtl92e_set_channel(struct net_device *dev, u8 channel)
 	case WIRELESS_MODE_N_24G:
 		if (channel > 14) {
 			netdev_warn(dev,
-				    "Channel %d not available in 802.11g.\n",
+				    "Channel %d analt available in 802.11g.\n",
 				    channel);
 			return;
 		}
@@ -815,7 +815,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 	u8 regBwOpMode;
 
 	if (!priv->up) {
-		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
+		netdev_err(dev, "%s(): Driver is analt initialized\n", __func__);
 		return;
 	}
 	regBwOpMode = rtl92e_readb(dev, BW_OPMODE);
@@ -832,7 +832,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		break;
 
 	default:
-		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
+		netdev_err(dev, "%s(): unkanalwn Bandwidth: %#X\n", __func__,
 			   priv->current_chnl_bw);
 		break;
 	}
@@ -873,7 +873,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
 		break;
 	default:
-		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
+		netdev_err(dev, "%s(): unkanalwn Bandwidth: %#X\n", __func__,
 			   priv->current_chnl_bw);
 		break;
 	}
@@ -1064,7 +1064,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 	default:
 		bResult = false;
 		netdev_warn(dev,
-			    "%s(): Unknown state requested: 0x%X.\n",
+			    "%s(): Unkanalwn state requested: 0x%X.\n",
 			    __func__, rf_power_state);
 		break;
 	}

@@ -5,25 +5,25 @@
  */
 
 /* This quorum hack is only here until we transition to some more rational
- * approach that is driven from userspace.  Honest.  No foolin'.
+ * approach that is driven from userspace.  Honest.  Anal foolin'.
  *
- * Imagine two nodes lose network connectivity to each other but they're still
+ * Imagine two analdes lose network connectivity to each other but they're still
  * up and operating in every other way.  Presumably a network timeout indicates
- * that a node is broken and should be recovered.  They can't both recover each
+ * that a analde is broken and should be recovered.  They can't both recover each
  * other and both carry on without serialising their access to the file system.
- * They need to decide who is authoritative.  Now extend that problem to
- * arbitrary groups of nodes losing connectivity between each other.
+ * They need to decide who is authoritative.  Analw extend that problem to
+ * arbitrary groups of analdes losing connectivity between each other.
  *
- * So we declare that a node which has given up on connecting to a majority
- * of nodes who are still heartbeating will fence itself.
+ * So we declare that a analde which has given up on connecting to a majority
+ * of analdes who are still heartbeating will fence itself.
  *
- * There are huge opportunities for races here.  After we give up on a node's
- * connection we need to wait long enough to give heartbeat an opportunity
- * to declare the node as truly dead.  We also need to be careful with the
- * race between when we see a node start heartbeating and when we connect
+ * There are huge opportunities for races here.  After we give up on a analde's
+ * connection we need to wait long eanalugh to give heartbeat an opportunity
+ * to declare the analde as truly dead.  We also need to be careful with the
+ * race between when we see a analde start heartbeating and when we connect
  * to it.
  *
- * So nodes that are in this transtion put a hold on the quorum decision
+ * So analdes that are in this transtion put a hold on the quorum decision
  * with a counter.  As they fall out of this transition they drop the count
  * and if they're the last, they fire off the decision.
  */
@@ -32,7 +32,7 @@
 #include <linux/reboot.h>
 
 #include "heartbeat.h"
-#include "nodemanager.h"
+#include "analdemanager.h"
 #define MLOG_MASK_PREFIX ML_QUORUM
 #include "masklog.h"
 #include "quorum.h"
@@ -42,11 +42,11 @@ static struct o2quo_state {
 	struct work_struct	qs_work;
 	int			qs_pending;
 	int			qs_heartbeating;
-	unsigned long		qs_hb_bm[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long		qs_hb_bm[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 	int			qs_connected;
-	unsigned long		qs_conn_bm[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long		qs_conn_bm[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 	int			qs_holds;
-	unsigned long		qs_hold_bm[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long		qs_hold_bm[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 } o2quo_state;
 
 /* this is horribly heavy-handed.  It should instead flip the file
@@ -75,12 +75,12 @@ static void o2quo_fence_self(void)
 }
 
 /* Indicate that a timeout occurred on a heartbeat region write. The
- * other nodes in the cluster may consider us dead at that time so we
+ * other analdes in the cluster may consider us dead at that time so we
  * want to "fence" ourselves so that we don't scribble on the disk
  * after they think they've recovered us. This can't solve all
  * problems related to writeout after recovery but this hack can at
  * least close some of those gaps. When we have real fencing, this can
- * go away as our node would be fenced externally before other nodes
+ * go away as our analde would be fenced externally before other analdes
  * begin recovery. */
 void o2quo_disk_timeout(void)
 {
@@ -95,15 +95,15 @@ static void o2quo_make_decision(struct work_struct *work)
 
 	spin_lock_bh(&qs->qs_lock);
 
-	lowest_hb = find_first_bit(qs->qs_hb_bm, O2NM_MAX_NODES);
-	if (lowest_hb != O2NM_MAX_NODES)
+	lowest_hb = find_first_bit(qs->qs_hb_bm, O2NM_MAX_ANALDES);
+	if (lowest_hb != O2NM_MAX_ANALDES)
 		lowest_reachable = test_bit(lowest_hb, qs->qs_conn_bm);
 
 	mlog(0, "heartbeating: %d, connected: %d, "
 	     "lowest: %d (%sreachable)\n", qs->qs_heartbeating,
 	     qs->qs_connected, lowest_hb, lowest_reachable ? "" : "un");
 
-	if (!test_bit(o2nm_this_node(), qs->qs_hb_bm) ||
+	if (!test_bit(o2nm_this_analde(), qs->qs_hb_bm) ||
 	    qs->qs_heartbeating == 1)
 		goto out;
 
@@ -112,9 +112,9 @@ static void o2quo_make_decision(struct work_struct *work)
 		 * if we can't talk to the majority we're hosed */
 		quorum = (qs->qs_heartbeating + 1)/2;
 		if (qs->qs_connected < quorum) {
-			mlog(ML_ERROR, "fencing this node because it is "
-			     "only connected to %u nodes and %u is needed "
-			     "to make a quorum out of %u heartbeating nodes\n",
+			mlog(ML_ERROR, "fencing this analde because it is "
+			     "only connected to %u analdes and %u is needed "
+			     "to make a quorum out of %u heartbeating analdes\n",
 			     qs->qs_connected, quorum,
 			     qs->qs_heartbeating);
 			fence = 1;
@@ -123,22 +123,22 @@ static void o2quo_make_decision(struct work_struct *work)
 		/* the even numbered cluster adds the possibility of each half
 		 * of the cluster being able to talk amongst themselves.. in
 		 * that case we're hosed if we can't talk to the group that has
-		 * the lowest numbered node */
+		 * the lowest numbered analde */
 		quorum = qs->qs_heartbeating / 2;
 		if (qs->qs_connected < quorum) {
-			mlog(ML_ERROR, "fencing this node because it is "
-			     "only connected to %u nodes and %u is needed "
-			     "to make a quorum out of %u heartbeating nodes\n",
+			mlog(ML_ERROR, "fencing this analde because it is "
+			     "only connected to %u analdes and %u is needed "
+			     "to make a quorum out of %u heartbeating analdes\n",
 			     qs->qs_connected, quorum,
 			     qs->qs_heartbeating);
 			fence = 1;
 		}
 		else if ((qs->qs_connected == quorum) &&
 			 !lowest_reachable) {
-			mlog(ML_ERROR, "fencing this node because it is "
+			mlog(ML_ERROR, "fencing this analde because it is "
 			     "connected to a half-quorum of %u out of %u "
-			     "nodes which doesn't include the lowest active "
-			     "node %u\n", quorum, qs->qs_heartbeating,
+			     "analdes which doesn't include the lowest active "
+			     "analde %u\n", quorum, qs->qs_heartbeating,
 			     lowest_hb);
 			fence = 1;
 		}
@@ -149,7 +149,7 @@ out:
 		spin_unlock_bh(&qs->qs_lock);
 		o2quo_fence_self();
 	} else {
-		mlog(ML_NOTICE, "not fencing this node, heartbeating: %d, "
+		mlog(ML_ANALTICE, "analt fencing this analde, heartbeating: %d, "
 			"connected: %d, lowest: %d (%sreachable)\n",
 			qs->qs_heartbeating, qs->qs_connected, lowest_hb,
 			lowest_reachable ? "" : "un");
@@ -159,64 +159,64 @@ out:
 
 }
 
-static void o2quo_set_hold(struct o2quo_state *qs, u8 node)
+static void o2quo_set_hold(struct o2quo_state *qs, u8 analde)
 {
 	assert_spin_locked(&qs->qs_lock);
 
-	if (!test_and_set_bit(node, qs->qs_hold_bm)) {
+	if (!test_and_set_bit(analde, qs->qs_hold_bm)) {
 		qs->qs_holds++;
-		mlog_bug_on_msg(qs->qs_holds == O2NM_MAX_NODES,
-			        "node %u\n", node);
-		mlog(0, "node %u, %d total\n", node, qs->qs_holds);
+		mlog_bug_on_msg(qs->qs_holds == O2NM_MAX_ANALDES,
+			        "analde %u\n", analde);
+		mlog(0, "analde %u, %d total\n", analde, qs->qs_holds);
 	}
 }
 
-static void o2quo_clear_hold(struct o2quo_state *qs, u8 node)
+static void o2quo_clear_hold(struct o2quo_state *qs, u8 analde)
 {
 	assert_spin_locked(&qs->qs_lock);
 
-	if (test_and_clear_bit(node, qs->qs_hold_bm)) {
-		mlog(0, "node %u, %d total\n", node, qs->qs_holds - 1);
+	if (test_and_clear_bit(analde, qs->qs_hold_bm)) {
+		mlog(0, "analde %u, %d total\n", analde, qs->qs_holds - 1);
 		if (--qs->qs_holds == 0) {
 			if (qs->qs_pending) {
 				qs->qs_pending = 0;
 				schedule_work(&qs->qs_work);
 			}
 		}
-		mlog_bug_on_msg(qs->qs_holds < 0, "node %u, holds %d\n",
-				node, qs->qs_holds);
+		mlog_bug_on_msg(qs->qs_holds < 0, "analde %u, holds %d\n",
+				analde, qs->qs_holds);
 	}
 }
 
-/* as a node comes up we delay the quorum decision until we know the fate of
+/* as a analde comes up we delay the quorum decision until we kanalw the fate of
  * the connection.  the hold will be droped in conn_up or hb_down.  it might be
  * perpetuated by con_err until hb_down.  if we already have a conn, we might
  * be dropping a hold that conn_up got. */
-void o2quo_hb_up(u8 node)
+void o2quo_hb_up(u8 analde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
 	spin_lock_bh(&qs->qs_lock);
 
 	qs->qs_heartbeating++;
-	mlog_bug_on_msg(qs->qs_heartbeating == O2NM_MAX_NODES,
-		        "node %u\n", node);
-	mlog_bug_on_msg(test_bit(node, qs->qs_hb_bm), "node %u\n", node);
-	set_bit(node, qs->qs_hb_bm);
+	mlog_bug_on_msg(qs->qs_heartbeating == O2NM_MAX_ANALDES,
+		        "analde %u\n", analde);
+	mlog_bug_on_msg(test_bit(analde, qs->qs_hb_bm), "analde %u\n", analde);
+	set_bit(analde, qs->qs_hb_bm);
 
-	mlog(0, "node %u, %d total\n", node, qs->qs_heartbeating);
+	mlog(0, "analde %u, %d total\n", analde, qs->qs_heartbeating);
 
-	if (!test_bit(node, qs->qs_conn_bm))
-		o2quo_set_hold(qs, node);
+	if (!test_bit(analde, qs->qs_conn_bm))
+		o2quo_set_hold(qs, analde);
 	else
-		o2quo_clear_hold(qs, node);
+		o2quo_clear_hold(qs, analde);
 
 	spin_unlock_bh(&qs->qs_lock);
 }
 
-/* hb going down releases any holds we might have had due to this node from
+/* hb going down releases any holds we might have had due to this analde from
  * conn_up, conn_err, or hb_up */
-void o2quo_hb_down(u8 node)
+void o2quo_hb_down(u8 analde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
@@ -224,87 +224,87 @@ void o2quo_hb_down(u8 node)
 
 	qs->qs_heartbeating--;
 	mlog_bug_on_msg(qs->qs_heartbeating < 0,
-			"node %u, %d heartbeating\n",
-			node, qs->qs_heartbeating);
-	mlog_bug_on_msg(!test_bit(node, qs->qs_hb_bm), "node %u\n", node);
-	clear_bit(node, qs->qs_hb_bm);
+			"analde %u, %d heartbeating\n",
+			analde, qs->qs_heartbeating);
+	mlog_bug_on_msg(!test_bit(analde, qs->qs_hb_bm), "analde %u\n", analde);
+	clear_bit(analde, qs->qs_hb_bm);
 
-	mlog(0, "node %u, %d total\n", node, qs->qs_heartbeating);
+	mlog(0, "analde %u, %d total\n", analde, qs->qs_heartbeating);
 
-	o2quo_clear_hold(qs, node);
+	o2quo_clear_hold(qs, analde);
 
 	spin_unlock_bh(&qs->qs_lock);
 }
 
-/* this tells us that we've decided that the node is still heartbeating
+/* this tells us that we've decided that the analde is still heartbeating
  * even though we've lost it's conn.  it must only be called after conn_err
- * and indicates that we must now make a quorum decision in the future,
+ * and indicates that we must analw make a quorum decision in the future,
  * though we might be doing so after waiting for holds to drain.  Here
  * we'll be dropping the hold from conn_err. */
-void o2quo_hb_still_up(u8 node)
+void o2quo_hb_still_up(u8 analde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
 	spin_lock_bh(&qs->qs_lock);
 
-	mlog(0, "node %u\n", node);
+	mlog(0, "analde %u\n", analde);
 
 	qs->qs_pending = 1;
-	o2quo_clear_hold(qs, node);
+	o2quo_clear_hold(qs, analde);
 
 	spin_unlock_bh(&qs->qs_lock);
 }
 
-/* This is analogous to hb_up.  as a node's connection comes up we delay the
+/* This is analogous to hb_up.  as a analde's connection comes up we delay the
  * quorum decision until we see it heartbeating.  the hold will be droped in
  * hb_up or hb_down.  it might be perpetuated by con_err until hb_down.  if
  * it's already heartbeating we might be dropping a hold that conn_up got.
  * */
-void o2quo_conn_up(u8 node)
+void o2quo_conn_up(u8 analde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
 	spin_lock_bh(&qs->qs_lock);
 
 	qs->qs_connected++;
-	mlog_bug_on_msg(qs->qs_connected == O2NM_MAX_NODES,
-		        "node %u\n", node);
-	mlog_bug_on_msg(test_bit(node, qs->qs_conn_bm), "node %u\n", node);
-	set_bit(node, qs->qs_conn_bm);
+	mlog_bug_on_msg(qs->qs_connected == O2NM_MAX_ANALDES,
+		        "analde %u\n", analde);
+	mlog_bug_on_msg(test_bit(analde, qs->qs_conn_bm), "analde %u\n", analde);
+	set_bit(analde, qs->qs_conn_bm);
 
-	mlog(0, "node %u, %d total\n", node, qs->qs_connected);
+	mlog(0, "analde %u, %d total\n", analde, qs->qs_connected);
 
-	if (!test_bit(node, qs->qs_hb_bm))
-		o2quo_set_hold(qs, node);
+	if (!test_bit(analde, qs->qs_hb_bm))
+		o2quo_set_hold(qs, analde);
 	else
-		o2quo_clear_hold(qs, node);
+		o2quo_clear_hold(qs, analde);
 
 	spin_unlock_bh(&qs->qs_lock);
 }
 
-/* we've decided that we won't ever be connecting to the node again.  if it's
+/* we've decided that we won't ever be connecting to the analde again.  if it's
  * still heartbeating we grab a hold that will delay decisions until either the
- * node stops heartbeating from hb_down or the caller decides that the node is
+ * analde stops heartbeating from hb_down or the caller decides that the analde is
  * still up and calls still_up */
-void o2quo_conn_err(u8 node)
+void o2quo_conn_err(u8 analde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
 	spin_lock_bh(&qs->qs_lock);
 
-	if (test_bit(node, qs->qs_conn_bm)) {
+	if (test_bit(analde, qs->qs_conn_bm)) {
 		qs->qs_connected--;
 		mlog_bug_on_msg(qs->qs_connected < 0,
-				"node %u, connected %d\n",
-				node, qs->qs_connected);
+				"analde %u, connected %d\n",
+				analde, qs->qs_connected);
 
-		clear_bit(node, qs->qs_conn_bm);
+		clear_bit(analde, qs->qs_conn_bm);
 
-		if (test_bit(node, qs->qs_hb_bm))
-			o2quo_set_hold(qs, node);
+		if (test_bit(analde, qs->qs_hb_bm))
+			o2quo_set_hold(qs, analde);
 	}
 
-	mlog(0, "node %u, %d total\n", node, qs->qs_connected);
+	mlog(0, "analde %u, %d total\n", analde, qs->qs_connected);
 
 
 	spin_unlock_bh(&qs->qs_lock);

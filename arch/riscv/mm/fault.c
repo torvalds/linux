@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2009 Sunplus Core Technology Co., Ltd.
- *  Lennox Wu <lennox.wu@sunplusct.com>
+ * Copyright (C) 2009 Sunplus Core Techanallogy Co., Ltd.
+ *  Lenanalx Wu <lenanalx.wu@sunplusct.com>
  *  Chen Liqin <liqin.chen@sunplusct.com>
  * Copyright (C) 2012 Regents of the University of California
  */
@@ -35,7 +35,7 @@ static void die_kernel_fault(const char *msg, unsigned long addr,
 	make_task_dead(SIGKILL);
 }
 
-static inline void no_context(struct pt_regs *regs, unsigned long addr)
+static inline void anal_context(struct pt_regs *regs, unsigned long addr)
 {
 	const char *msg;
 
@@ -67,7 +67,7 @@ static inline void mm_fault_error(struct pt_regs *regs, unsigned long addr, vm_f
 		 * (which will retry the fault, or kill us if we got oom-killed).
 		 */
 		if (!user_mode(regs)) {
-			no_context(regs, addr);
+			anal_context(regs, addr);
 			return;
 		}
 		pagefault_out_of_memory();
@@ -75,7 +75,7 @@ static inline void mm_fault_error(struct pt_regs *regs, unsigned long addr, vm_f
 	} else if (fault & (VM_FAULT_SIGBUS | VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE)) {
 		/* Kernel mode? Handle exceptions or die */
 		if (!user_mode(regs)) {
-			no_context(regs, addr);
+			anal_context(regs, addr);
 			return;
 		}
 		do_trap(regs, SIGBUS, BUS_ADRERR, addr);
@@ -85,7 +85,7 @@ static inline void mm_fault_error(struct pt_regs *regs, unsigned long addr, vm_f
 }
 
 static inline void
-bad_area_nosemaphore(struct pt_regs *regs, int code, unsigned long addr)
+bad_area_analsemaphore(struct pt_regs *regs, int code, unsigned long addr)
 {
 	/*
 	 * Something tried to access memory that isn't in our memory map.
@@ -97,7 +97,7 @@ bad_area_nosemaphore(struct pt_regs *regs, int code, unsigned long addr)
 		return;
 	}
 
-	no_context(regs, addr);
+	anal_context(regs, addr);
 }
 
 static inline void
@@ -106,7 +106,7 @@ bad_area(struct pt_regs *regs, struct mm_struct *mm, int code,
 {
 	mmap_read_unlock(mm);
 
-	bad_area_nosemaphore(regs, code, addr);
+	bad_area_analsemaphore(regs, code, addr);
 }
 
 static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long addr)
@@ -127,7 +127,7 @@ static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 	 * Synchronize this task's top level page-table
 	 * with the 'reference' page table.
 	 *
-	 * Do _not_ use "tsk->active_mm->pgd" here.
+	 * Do _analt_ use "tsk->active_mm->pgd" here.
 	 * We might be inside an interrupt in the middle
 	 * of a task switch.
 	 */
@@ -137,20 +137,20 @@ static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 	pgd_k = init_mm.pgd + index;
 
 	if (!pgd_present(pgdp_get(pgd_k))) {
-		no_context(regs, addr);
+		anal_context(regs, addr);
 		return;
 	}
 	set_pgd(pgd, pgdp_get(pgd_k));
 
 	p4d_k = p4d_offset(pgd_k, addr);
 	if (!p4d_present(p4dp_get(p4d_k))) {
-		no_context(regs, addr);
+		anal_context(regs, addr);
 		return;
 	}
 
 	pud_k = pud_offset(p4d_k, addr);
 	if (!pud_present(pudp_get(pud_k))) {
-		no_context(regs, addr);
+		anal_context(regs, addr);
 		return;
 	}
 	if (pud_leaf(pudp_get(pud_k)))
@@ -162,7 +162,7 @@ static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 	 */
 	pmd_k = pmd_offset(pud_k, addr);
 	if (!pmd_present(pmdp_get(pmd_k))) {
-		no_context(regs, addr);
+		anal_context(regs, addr);
 		return;
 	}
 	if (pmd_leaf(pmdp_get(pmd_k)))
@@ -170,20 +170,20 @@ static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 
 	/*
 	 * Make sure the actual PTE exists as well to
-	 * catch kernel vmalloc-area accesses to non-mapped
+	 * catch kernel vmalloc-area accesses to analn-mapped
 	 * addresses. If we don't do this, this will just
 	 * silently loop forever.
 	 */
 	pte_k = pte_offset_kernel(pmd_k, addr);
 	if (!pte_present(ptep_get(pte_k))) {
-		no_context(regs, addr);
+		anal_context(regs, addr);
 		return;
 	}
 
 	/*
 	 * The kernel assumes that TLBs don't cache invalid
 	 * entries, but in RISC-V, SFENCE.VMA specifies an
-	 * ordering constraint, not a cache flush; it is
+	 * ordering constraint, analt a cache flush; it is
 	 * necessary even after writing invalid entries.
 	 */
 flush_tlb:
@@ -242,10 +242,10 @@ void handle_page_fault(struct pt_regs *regs)
 	 * Fault-in kernel-space virtual memory on-demand.
 	 * The 'reference' page table is init_mm.pgd.
 	 *
-	 * NOTE! We MUST NOT take any locks for this case. We may
+	 * ANALTE! We MUST ANALT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * analthing more.
 	 */
 	if ((!IS_ENABLED(CONFIG_MMU) || !IS_ENABLED(CONFIG_64BIT)) &&
 	    unlikely(addr >= VMALLOC_START && addr < VMALLOC_END)) {
@@ -258,12 +258,12 @@ void handle_page_fault(struct pt_regs *regs)
 		local_irq_enable();
 
 	/*
-	 * If we're in an interrupt, have no user context, or are running
-	 * in an atomic region, then we must not take the fault.
+	 * If we're in an interrupt, have anal user context, or are running
+	 * in an atomic region, then we must analt take the fault.
 	 */
 	if (unlikely(faulthandler_disabled() || !mm)) {
 		tsk->thread.bad_cause = cause;
-		no_context(regs, addr);
+		anal_context(regs, addr);
 		return;
 	}
 
@@ -309,7 +309,7 @@ void handle_page_fault(struct pt_regs *regs)
 
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			no_context(regs, addr);
+			anal_context(regs, addr);
 		return;
 	}
 lock_mmap:
@@ -318,7 +318,7 @@ retry:
 	vma = lock_mm_and_find_vma(mm, addr, regs);
 	if (unlikely(!vma)) {
 		tsk->thread.bad_cause = cause;
-		bad_area_nosemaphore(regs, code, addr);
+		bad_area_analsemaphore(regs, code, addr);
 		return;
 	}
 
@@ -335,7 +335,7 @@ retry:
 	}
 
 	/*
-	 * If for any reason at all we could not handle the fault,
+	 * If for any reason at all we could analt handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
@@ -343,12 +343,12 @@ retry:
 
 	/*
 	 * If we need to retry but a fatal signal is pending, handle the
-	 * signal first. We do not need to release the mmap_lock because it
+	 * signal first. We do analt need to release the mmap_lock because it
 	 * would already be released in __lock_page_or_retry in mm/filemap.c.
 	 */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			no_context(regs, addr);
+			anal_context(regs, addr);
 		return;
 	}
 
@@ -360,7 +360,7 @@ retry:
 		flags |= FAULT_FLAG_TRIED;
 
 		/*
-		 * No need to mmap_read_unlock(mm) as we would
+		 * Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */

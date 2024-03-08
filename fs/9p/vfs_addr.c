@@ -7,7 +7,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/stat.h>
@@ -71,7 +71,7 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 	total = p9_client_read(fid, subreq->start + subreq->transferred,
 			       &subreq->io_iter, &err);
 
-	/* if we just extended the file size, any portion not in
+	/* if we just extended the file size, any portion analt in
 	 * cache won't be on server and is zeroes */
 	__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 
@@ -96,12 +96,12 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 	if (file) {
 		fid = file->private_data;
 		if (!fid)
-			goto no_fid;
+			goto anal_fid;
 		p9_fid_get(fid);
 	} else {
-		fid = v9fs_fid_find_inode(rreq->inode, writing, INVALID_UID, true);
+		fid = v9fs_fid_find_ianalde(rreq->ianalde, writing, INVALID_UID, true);
 		if (!fid)
-			goto no_fid;
+			goto anal_fid;
 	}
 
 	/* we might need to read from a fid that was opened write-only
@@ -111,9 +111,9 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 	rreq->netfs_priv = fid;
 	return 0;
 
-no_fid:
-	WARN_ONCE(1, "folio expected an open fid inode->i_ino=%lx\n",
-		  rreq->inode->i_ino);
+anal_fid:
+	WARN_ONCE(1, "folio expected an open fid ianalde->i_ianal=%lx\n",
+		  rreq->ianalde->i_ianal);
 	return -EINVAL;
 }
 
@@ -142,6 +142,6 @@ const struct address_space_operations v9fs_addr_operations = {
 	.release_folio		= netfs_release_folio,
 	.invalidate_folio	= netfs_invalidate_folio,
 	.launder_folio		= netfs_launder_folio,
-	.direct_IO		= noop_direct_IO,
+	.direct_IO		= analop_direct_IO,
 	.writepages		= netfs_writepages,
 };

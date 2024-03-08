@@ -50,7 +50,7 @@ static long __sh_cpufreq_target(void *arg)
 	long freq;
 
 	if (smp_processor_id() != cpu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = get_cpu_device(cpu);
 
@@ -75,7 +75,7 @@ static long __sh_cpufreq_target(void *arg)
 }
 
 /*
- * Here we notify other drivers of the proposed change and the final change.
+ * Here we analtify other drivers of the proposed change and the final change.
  */
 static int sh_cpufreq_target(struct cpufreq_policy *policy,
 			     unsigned int target_freq,
@@ -123,7 +123,7 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (freq_table) {
 		policy->freq_table = freq_table;
 	} else {
-		dev_notice(dev, "no frequency table found, falling back "
+		dev_analtice(dev, "anal frequency table found, falling back "
 			   "to rate rounding.\n");
 
 		policy->min = policy->cpuinfo.min_freq =
@@ -147,7 +147,7 @@ static int sh_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver sh_cpufreq_driver = {
 	.name		= "sh",
-	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
+	.flags		= CPUFREQ_ANAL_AUTO_DYNAMIC_SWITCHING,
 	.get		= sh_cpufreq_get,
 	.target		= sh_cpufreq_target,
 	.verify		= sh_cpufreq_verify,
@@ -158,7 +158,7 @@ static struct cpufreq_driver sh_cpufreq_driver = {
 
 static int __init sh_cpufreq_module_init(void)
 {
-	pr_notice("SuperH CPU frequency driver.\n");
+	pr_analtice("SuperH CPU frequency driver.\n");
 	return cpufreq_register_driver(&sh_cpufreq_driver);
 }
 

@@ -5,7 +5,7 @@
 
   PHY workarounds.
 
-  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005-2007 Stefaanal Brivio <stefaanal.brivio@polimi.it>
   Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
 
 
@@ -79,19 +79,19 @@ static void b43_wa_fft(struct b43_wldev *dev) /* Fine frequency table */
 				    b43_tab_finefreqg[i]);
 }
 
-static void b43_wa_nft(struct b43_wldev *dev) /* Noise figure table */
+static void b43_wa_nft(struct b43_wldev *dev) /* Analise figure table */
 {
 	struct b43_phy *phy = &dev->phy;
 	int i;
 
 	if (phy->rev == 1)
-		for (i = 0; i < B43_TAB_NOISEG1_SIZE; i++)
+		for (i = 0; i < B43_TAB_ANALISEG1_SIZE; i++)
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC2, i,
-					    b43_tab_noiseg1[i]);
+					    b43_tab_analiseg1[i]);
 	else
-		for (i = 0; i < B43_TAB_NOISEG2_SIZE; i++)
+		for (i = 0; i < B43_TAB_ANALISEG2_SIZE; i++)
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC2, i,
-					    b43_tab_noiseg2[i]);
+					    b43_tab_analiseg2[i]);
 }
 
 static void b43_wa_rt(struct b43_wldev *dev) /* Rotor table */
@@ -106,21 +106,21 @@ static void b43_write_nst(struct b43_wldev *dev, const u16 *nst)
 {
 	int i;
 
-	for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
-		b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE, i, nst[i]);
+	for (i = 0; i < B43_TAB_ANALISESCALE_SIZE; i++)
+		b43_ofdmtab_write16(dev, B43_OFDMTAB_ANALISESCALE, i, nst[i]);
 }
 
-static void b43_wa_nst(struct b43_wldev *dev) /* Noise scale table */
+static void b43_wa_nst(struct b43_wldev *dev) /* Analise scale table */
 {
 	struct b43_phy *phy = &dev->phy;
 
 	if (phy->rev >= 6) {
 		if (b43_phy_read(dev, B43_PHY_ENCORE) & B43_PHY_ENCORE_EN)
-			b43_write_nst(dev, b43_tab_noisescaleg3);
+			b43_write_nst(dev, b43_tab_analisescaleg3);
 		else
-			b43_write_nst(dev, b43_tab_noisescaleg2);
+			b43_write_nst(dev, b43_tab_analisescaleg2);
 	} else {
-		b43_write_nst(dev, b43_tab_noisescaleg1);
+		b43_write_nst(dev, b43_tab_analisescaleg1);
 	}
 }
 
@@ -204,8 +204,8 @@ static void b43_wa_wrssi_offset(struct b43_wldev *dev)
 
 static void b43_wa_txpuoff_rxpuon(struct b43_wldev *dev)
 {
-	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKNOWN_0F, 2, 15);
-	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKNOWN_0F, 3, 20);
+	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKANALWN_0F, 2, 15);
+	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKANALWN_0F, 3, 20);
 }
 
 static void b43_wa_altagc(struct b43_wldev *dev)
@@ -291,10 +291,10 @@ static void b43_wa_tr_ltov(struct b43_wldev *dev) /* TR Lookup Table Original Va
 	b43_gtab_write(dev, B43_GTAB_ORIGTR, 0, 0x7654);
 }
 
-static void b43_wa_cpll_nonpilot(struct b43_wldev *dev)
+static void b43_wa_cpll_analnpilot(struct b43_wldev *dev)
 {
-	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKNOWN_11, 0, 0);
-	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKNOWN_11, 1, 0);
+	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKANALWN_11, 0, 0);
+	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKANALWN_11, 1, 0);
 }
 
 static void b43_wa_boards_g(struct b43_wldev *dev)
@@ -368,9 +368,9 @@ void b43_wa_all(struct b43_wldev *dev)
 			B43_WARN_ON(1);
 		}
 		b43_wa_boards_g(dev);
-	} else { /* No N PHY support so far, LP PHY is in phy_lp.c */
+	} else { /* Anal N PHY support so far, LP PHY is in phy_lp.c */
 		B43_WARN_ON(1);
 	}
 
-	b43_wa_cpll_nonpilot(dev);
+	b43_wa_cpll_analnpilot(dev);
 }

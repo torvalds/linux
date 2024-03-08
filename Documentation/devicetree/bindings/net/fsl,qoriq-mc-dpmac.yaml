@@ -11,7 +11,7 @@ maintainers:
 
 description:
   This binding represents the DPAA2 MAC objects found on the fsl-mc bus and
-  located under the 'dpmacs' node for the fsl-mc bus DTS node.
+  located under the 'dpmacs' analde for the fsl-mc bus DTS analde.
 
 allOf:
   - $ref: ethernet-controller.yaml#
@@ -33,7 +33,7 @@ properties:
   pcs-handle:
     maxItems: 1
     description:
-      A reference to a node representing a PCS PHY device found on
+      A reference to a analde representing a PCS PHY device found on
       the internal MDIO bus.
 
   managed: true

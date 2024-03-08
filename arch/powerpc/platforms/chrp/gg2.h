@@ -6,7 +6,7 @@
  *  This file is based on the following documentation:
  *
  *	The VAS96011/12 Chipset, Data Book, Edition 1.0
- *	VLSI Technology, Inc.
+ *	VLSI Techanallogy, Inc.
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive
@@ -24,7 +24,7 @@
 #define GG2_ISA_MEM_BASE	0xf7000000	/* Peripheral memory alias */
 #define GG2_ISA_IO_BASE		0xf8000000	/* Peripheral I/O space */
 #define GG2_PCI_CONFIG_BASE	0xfec00000	/* PCI configuration space */
-#define GG2_INT_ACK_SPECIAL	0xfec80000	/* Interrupt acknowledge and */
+#define GG2_INT_ACK_SPECIAL	0xfec80000	/* Interrupt ackanalwledge and */
 						/* special PCI cycles */
 #define GG2_ROM_BASE0		0xff000000	/* ROM bank 0 */
 #define GG2_ROM_BASE1		0xff800000	/* ROM bank 1 */
@@ -36,8 +36,8 @@
 
 extern void __iomem *gg2_pci_config_base;	/* kernel virtual address */
 
-#define GG2_PCI_BUSNO		0x40	/* Bus number */
-#define GG2_PCI_SUBBUSNO	0x41	/* Subordinate bus number */
+#define GG2_PCI_BUSANAL		0x40	/* Bus number */
+#define GG2_PCI_SUBBUSANAL	0x41	/* Subordinate bus number */
 #define GG2_PCI_DISCCTR		0x42	/* Disconnect counter */
 #define GG2_PCI_PPC_CTRL	0x50	/* PowerPC interface control register */
 #define GG2_PCI_ADDR_MAP	0x5c	/* Address map */

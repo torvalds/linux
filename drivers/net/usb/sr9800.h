@@ -47,10 +47,10 @@
 #define SR_CMD_READ_IPG012		0x11
 /* command : IPG0/IPG1/IPG2 Control Write Reg */
 #define SR_CMD_WRITE_IPG012		0x12
-/* command : Node ID Read Reg */
-#define SR_CMD_READ_NODE_ID		0x13
-/* command : Node ID Write Reg */
-#define SR_CMD_WRITE_NODE_ID		0x14
+/* command : Analde ID Read Reg */
+#define SR_CMD_READ_ANALDE_ID		0x13
+/* command : Analde ID Write Reg */
+#define SR_CMD_WRITE_ANALDE_ID		0x14
 /* command : Multicast Filter Array Read Reg */
 #define	SR_CMD_READ_MULTI_FILTER	0x15
 /* command : Multicast Filter Array Write Reg */
@@ -148,7 +148,7 @@
 #define SR9800_EEPROM_LEN		0xff
 
 /* SR9800 Driver Version and Driver Name */
-#define DRIVER_VERSION			"11-Nov-2013"
+#define DRIVER_VERSION			"11-Analv-2013"
 #define DRIVER_NAME			"CoreChips"
 #define	DRIVER_FLAG		\
 	(FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |  FLAG_MULTI_PACKET)
@@ -182,7 +182,7 @@ static const struct {unsigned short size, byte_cnt, threshold; } SR9800_BULKIN_S
 	{32768, 0x8700, 0x8A3D},
 };
 
-/* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
+/* This structure cananalt exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct sr_data {
 	u8 multi_filter[SR_MCAST_FILTER_SIZE];
 	u8 mac_addr[ETH_ALEN];

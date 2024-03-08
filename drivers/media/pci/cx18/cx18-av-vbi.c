@@ -16,7 +16,7 @@
  * Thus, according to the VIP-2 Spec, our VBI ancillary data lines
  * (should!) look like:
  *	4 byte EAV code:          0xff 0x00 0x00 0xRP
- *	unknown number of possible idle bytes
+ *	unkanalwn number of possible idle bytes
  *	3 byte Anc data preamble: 0x00 0xff 0xff
  *	1 byte data identifier:   ne010iii (parity bits, 010, DID bits)
  *	1 byte secondary data id: nessssss (parity bits, SDID bits)
@@ -26,7 +26,7 @@
  *	1 byte checksum
  *	Fill bytes needed to fil out to 4*NN bytes of payload
  *
- * The RP codes for EAVs when in VIP-1.1 mode, not in raw mode, &
+ * The RP codes for EAVs when in VIP-1.1 mode, analt in raw mode, &
  * in the vertical blanking interval are:
  *	0xb0 (Task         0 VerticalBlank HorizontalBlank 0 0 0 0)
  *	0xf0 (Task EvenField VerticalBlank HorizontalBlank 0 0 0 0)

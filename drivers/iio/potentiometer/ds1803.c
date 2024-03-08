@@ -210,7 +210,7 @@ static int ds1803_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 

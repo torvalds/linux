@@ -45,10 +45,10 @@ the DPSW object that it will probe:
 
  * The minimum number of FDBs should be at least equal to the number of switch
    interfaces. This is necessary so that separation of switch ports can be
-   done, ie when not under a bridge, each switch port will have its own FDB.
+   done, ie when analt under a bridge, each switch port will have its own FDB.
    ::
 
-        fsl_dpaa2_switch dpsw.0: The number of FDBs is lower than the number of ports, cannot probe
+        fsl_dpaa2_switch dpsw.0: The number of FDBs is lower than the number of ports, cananalt probe
 
  * Both the broadcast and flooding configuration should be per FDB. This
    enables the driver to restrict the broadcast and flooding domains of each
@@ -56,16 +56,16 @@ the DPSW object that it will probe:
    same bridge).
    ::
 
-        fsl_dpaa2_switch dpsw.0: Flooding domain is not per FDB, cannot probe
-        fsl_dpaa2_switch dpsw.0: Broadcast domain is not per FDB, cannot probe
+        fsl_dpaa2_switch dpsw.0: Flooding domain is analt per FDB, cananalt probe
+        fsl_dpaa2_switch dpsw.0: Broadcast domain is analt per FDB, cananalt probe
 
- * The control interface of the switch should not be disabled
-   (DPSW_OPT_CTRL_IF_DIS not passed as a create time option). Without the
-   control interface, the driver is not capable to provide proper Rx/Tx traffic
+ * The control interface of the switch should analt be disabled
+   (DPSW_OPT_CTRL_IF_DIS analt passed as a create time option). Without the
+   control interface, the driver is analt capable to provide proper Rx/Tx traffic
    support on the switch port netdevices.
    ::
 
-        fsl_dpaa2_switch dpsw.0: Control Interface is disabled, cannot probe
+        fsl_dpaa2_switch dpsw.0: Control Interface is disabled, cananalt probe
 
 Besides the configuration of the actual DPSW object, the dpaa2-switch driver
 will need the following DPAA2 objects:
@@ -78,7 +78,7 @@ will need the following DPAA2 objects:
 
  * Access to at least one DPIO object (Software Portal) is needed for any
    enqueue/dequeue operation to be performed on the control interface queues.
-   The DPIO object will be shared, no need for a private one.
+   The DPIO object will be shared, anal need for a private one.
 
 Switching features
 ==================
@@ -86,14 +86,14 @@ Switching features
 The driver supports the configuration of L2 forwarding rules in hardware for
 port bridging as well as standalone usage of the independent switch interfaces.
 
-The hardware is not configurable with respect to VLAN awareness, thus any DPAA2
+The hardware is analt configurable with respect to VLAN awareness, thus any DPAA2
 switch port should be used only in usecases with a VLAN aware bridge::
 
         $ ip link add dev br0 type bridge vlan_filtering 1
 
         $ ip link add dev br1 type bridge
         $ ip link set dev ethX master br1
-        Error: fsl_dpaa2_switch: Cannot join a VLAN-unaware bridge
+        Error: fsl_dpaa2_switch: Cananalt join a VLAN-unaware bridge
 
 Topology and loop detection through STP is supported when ``stp_state 1`` is
 used at bridge create ::
@@ -110,12 +110,12 @@ run and any previously learnt addresses will be removed.
         $ bridge link set dev ethX learning off
         $ bridge link set dev ethX learning on
 
-Restricting the unknown unicast and multicast flooding domain is supported, but
-not independently of each other::
+Restricting the unkanalwn unicast and multicast flooding domain is supported, but
+analt independently of each other::
 
         $ ip link set dev ethX type bridge_slave flood off mcast_flood off
         $ ip link set dev ethX type bridge_slave flood off mcast_flood on
-        Error: fsl_dpaa2_switch: Cannot configure multicast flooding independently of unicast.
+        Error: fsl_dpaa2_switch: Cananalt configure multicast flooding independently of unicast.
 
 Broadcast flooding on a switch port can be disabled/enabled through the brport sysfs::
 
@@ -203,9 +203,9 @@ a VLAN upper device if the switch port is used as a standalone interface::
         $ ip link add link eth8 name eth8.200 type vlan id 200
         $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_id 200 action mirred egress mirror dev eth6
 
-Also, it should be noted that the mirrored traffic will be subject to the same
+Also, it should be analted that the mirrored traffic will be subject to the same
 egress restrictions as any other traffic. This means that when a mirrored
-packet will reach the mirror port, if the VLAN found in the packet is not
+packet will reach the mirror port, if the VLAN found in the packet is analt
 installed on the port it will get dropped.
 
 The DPAA2 switch supports only a single mirroring destination, thus multiple
@@ -213,5 +213,5 @@ mirror rules can be installed but their ''to'' port has to be the same::
 
         $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_id 200 action mirred egress mirror dev eth6
         $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_id 100 action mirred egress mirror dev eth7
-        Error: fsl_dpaa2_switch: Multiple mirror ports not supported.
+        Error: fsl_dpaa2_switch: Multiple mirror ports analt supported.
         We have an error talking to the kernel

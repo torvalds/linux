@@ -66,14 +66,14 @@ static const struct snd_soc_dapm_widget src4xxx_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("DIR_A"),
 	SND_SOC_DAPM_INPUT("SRC_A"),
 	SND_SOC_DAPM_MUX("Port A source",
-		SND_SOC_NOPM, 0, 0, &porta_out_control),
+		SND_SOC_ANALPM, 0, 0, &porta_out_control),
 
 	SND_SOC_DAPM_INPUT("loopback_B"),
 	SND_SOC_DAPM_INPUT("other_port_B"),
 	SND_SOC_DAPM_INPUT("DIR_B"),
 	SND_SOC_DAPM_INPUT("SRC_B"),
 	SND_SOC_DAPM_MUX("Port B source",
-		SND_SOC_NOPM, 0, 0, &portb_out_control),
+		SND_SOC_ANALPM, 0, 0, &portb_out_control),
 
 	SND_SOC_DAPM_INPUT("Port_A"),
 	SND_SOC_DAPM_INPUT("Port_B"),
@@ -95,7 +95,7 @@ static const struct snd_soc_dapm_widget src4xxx_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("AIF_B_TX", "Capture B", 0,
 		SRC4XXX_PWR_RST_01, SRC4XXX_ENABLE_PORT_B_SHIFT, 1),
 
-	SND_SOC_DAPM_MUX("SRC source", SND_SOC_NOPM, 0, 0, &src_in_control),
+	SND_SOC_DAPM_MUX("SRC source", SND_SOC_ANALPM, 0, 0, &src_in_control),
 
 	SND_SOC_DAPM_INPUT("MCLK"),
 	SND_SOC_DAPM_INPUT("RXMCLKI"),
@@ -284,7 +284,7 @@ static int src4xxx_hw_params(struct snd_pcm_substream *substream,
 			 * -Wsometimes-uninitialized from clang.
 			 */
 			dev_info(component->dev,
-				"Couldn't set the RCV PLL as this master clock rate is unknown. Chosen regmap values may not match real world values.\n");
+				"Couldn't set the RCV PLL as this master clock rate is unkanalwn. Chosen regmap values may analt match real world values.\n");
 			pj = 0x0;
 			jd = 0xff;
 			d = 0xff;
@@ -320,7 +320,7 @@ static int src4xxx_hw_params(struct snd_pcm_substream *substream,
 		return regmap_update_bits(src4xxx->regmap, reg,
 					SRC4XXX_MCLK_DIV_MASK, val);
 	} else {
-		dev_info(dai->dev, "not setting up MCLK as not master\n");
+		dev_info(dai->dev, "analt setting up MCLK as analt master\n");
 	}
 
 	return 0;
@@ -393,9 +393,9 @@ static const struct reg_default src4xxx_reg_defaults[] = {
 	{ SRC4XXX_SRC_DIT_IRQ_MODE_0C,	0x00 },
 	{ SRC4XXX_RCV_CTL_0D,		0x00 },
 	{ SRC4XXX_RCV_CTL_0E,		0x00 },
-	{ SRC4XXX_RCV_PLL_0F,		0x00 }, /* not spec. in the datasheet */
-	{ SRC4XXX_RCV_PLL_10,		0xff }, /* not spec. in the datasheet */
-	{ SRC4XXX_RCV_PLL_11,		0xff }, /* not spec. in the datasheet */
+	{ SRC4XXX_RCV_PLL_0F,		0x00 }, /* analt spec. in the datasheet */
+	{ SRC4XXX_RCV_PLL_10,		0xff }, /* analt spec. in the datasheet */
+	{ SRC4XXX_RCV_PLL_11,		0xff }, /* analt spec. in the datasheet */
 	{ SRC4XXX_RVC_IRQ_MSK_16,	0x00 },
 	{ SRC4XXX_RVC_IRQ_MSK_17,	0x00 },
 	{ SRC4XXX_RVC_IRQ_MODE_18,	0x00 },
@@ -423,11 +423,11 @@ int src4xxx_probe(struct device *dev, struct regmap *regmap,
 
 	src4xxx = devm_kzalloc(dev, sizeof(*src4xxx), GFP_KERNEL);
 	if (!src4xxx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	src4xxx->regmap = regmap;
 	src4xxx->dev = dev;
-	src4xxx->mclk_hz = 0; /* mclk has not been configured yet */
+	src4xxx->mclk_hz = 0; /* mclk has analt been configured yet */
 	dev_set_drvdata(dev, src4xxx);
 
 	ret = regmap_write(regmap, SRC4XXX_PWR_RST_01, SRC4XXX_RESET);
@@ -472,7 +472,7 @@ static bool src4xxx_volatile_register(struct device *dev, unsigned int reg)
 	case SRC4XXX_RES_00:
 	case SRC4XXX_GLOBAL_ITR_STS_02:
 	case SRC4XXX_SRC_DIT_STS_0A:
-	case SRC4XXX_NON_AUDIO_D_12:
+	case SRC4XXX_ANALN_AUDIO_D_12:
 	case SRC4XXX_RVC_STS_13:
 	case SRC4XXX_RVC_STS_14:
 	case SRC4XXX_RVC_STS_15:

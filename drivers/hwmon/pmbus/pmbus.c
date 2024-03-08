@@ -133,7 +133,7 @@ static int pmbus_identify(struct i2c_client *client,
 				info->format[PSC_VOLTAGE_OUT] = direct;
 				break;
 			default:
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto abort;
 			}
 		}
@@ -151,7 +151,7 @@ static int pmbus_identify(struct i2c_client *client,
 	 * mode was detected.
 	 */
 	if (info->format[PSC_VOLTAGE_OUT] == direct) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto abort;
 	}
 
@@ -170,14 +170,14 @@ static int pmbus_probe(struct i2c_client *client)
 
 	info = devm_kzalloc(dev, sizeof(struct pmbus_driver_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_info = (struct pmbus_device_info *)i2c_match_id(pmbus_id, client)->driver_data;
 	if (device_info->flags) {
 		pdata = devm_kzalloc(dev, sizeof(struct pmbus_platform_data),
 				     GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pdata->flags = device_info->flags;
 	}

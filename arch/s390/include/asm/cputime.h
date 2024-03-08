@@ -12,7 +12,7 @@
 #include <asm/timex.h>
 
 /*
- * Convert cputime to nanoseconds.
+ * Convert cputime to naanalseconds.
  */
 #define cputime_to_nsecs(cputime) tod_to_ns(cputime)
 

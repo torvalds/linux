@@ -118,10 +118,10 @@ static const struct snd_soc_dapm_widget jz4740_codec_dapm_widgets[] = {
 			jz4740_codec_output_controls,
 			ARRAY_SIZE(jz4740_codec_output_controls)),
 
-	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Mixer", SND_SOC_ANALPM, 0, 0,
 			jz4740_codec_input_controls,
 			ARRAY_SIZE(jz4740_codec_input_controls)),
-	SND_SOC_DAPM_MIXER("Line Input", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Line Input", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("LOUT"),
 	SND_SOC_DAPM_OUTPUT("ROUT"),
@@ -313,7 +313,7 @@ static int jz4740_codec_probe(struct platform_device *pdev)
 	jz4740_codec = devm_kzalloc(&pdev->dev, sizeof(*jz4740_codec),
 				    GFP_KERNEL);
 	if (!jz4740_codec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

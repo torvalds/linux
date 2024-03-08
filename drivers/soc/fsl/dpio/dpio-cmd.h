@@ -9,7 +9,7 @@
 
 /* DPIO Version */
 #define DPIO_VER_MAJOR			4
-#define DPIO_VER_MINOR			2
+#define DPIO_VER_MIANALR			2
 
 /* Command Versioning */
 

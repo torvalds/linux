@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -583,11 +583,11 @@ static int ci_populate_bapm_vddc_vid_sidd(struct pp_hwmgr *hwmgr)
 	uint8_t *hi2_vid = smu_data->power_tune_table.BapmVddCVidHiSidd2;
 
 	PP_ASSERT_WITH_CODE(NULL != hwmgr->dyn_state.cac_leakage_table,
-			    "The CAC Leakage table does not exist!", return -EINVAL);
+			    "The CAC Leakage table does analt exist!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(hwmgr->dyn_state.cac_leakage_table->count <= 8,
 			    "There should never be more than 8 entries for BapmVddcVid!!!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(hwmgr->dyn_state.cac_leakage_table->count == hwmgr->dyn_state.vddc_dependency_on_sclk->count,
-			    "CACLeakageTable->count and VddcDependencyOnSCLk->count not equal", return -EINVAL);
+			    "CACLeakageTable->count and VddcDependencyOnSCLk->count analt equal", return -EINVAL);
 
 	for (i = 0; (uint32_t) i < hwmgr->dyn_state.cac_leakage_table->count; i++) {
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_EVV)) {
@@ -771,11 +771,11 @@ static int ci_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 	*lo = tab->value * VOLTAGE_SCALE;
 
 	PP_ASSERT_WITH_CODE(NULL != hwmgr->dyn_state.vddc_dependency_on_sclk,
-			"The SCLK/VDDC Dependency Table does not exist.\n",
+			"The SCLK/VDDC Dependency Table does analt exist.\n",
 			return -EINVAL);
 
 	if (NULL == hwmgr->dyn_state.cac_leakage_table) {
-		pr_warn("CAC Leakage Table does not exist, using vddc.\n");
+		pr_warn("CAC Leakage Table does analt exist, using vddc.\n");
 		return 0;
 	}
 
@@ -850,7 +850,7 @@ static int ci_populate_smc_vddc_table(struct pp_hwmgr *hwmgr,
 		result = ci_populate_smc_voltage_table(hwmgr,
 				&(data->vddc_voltage_table.entries[count]),
 				&(table->VddcLevel[count]));
-		PP_ASSERT_WITH_CODE(0 == result, "do not populate SMC VDDC voltage table", return -EINVAL);
+		PP_ASSERT_WITH_CODE(0 == result, "do analt populate SMC VDDC voltage table", return -EINVAL);
 
 		/* GPIO voltage control */
 		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->voltage_control) {
@@ -880,7 +880,7 @@ static int ci_populate_smc_vdd_ci_table(struct pp_hwmgr *hwmgr,
 		result = ci_populate_smc_voltage_table(hwmgr,
 				&(data->vddci_voltage_table.entries[count]),
 				&(table->VddciLevel[count]));
-		PP_ASSERT_WITH_CODE(result == 0, "do not populate SMC VDDCI voltage table", return -EINVAL);
+		PP_ASSERT_WITH_CODE(result == 0, "do analt populate SMC VDDCI voltage table", return -EINVAL);
 		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
 			table->VddciLevel[count].Smio = (uint8_t) count;
 			table->Smio[count] |= data->vddci_voltage_table.entries[count].smio_low;
@@ -908,7 +908,7 @@ static int ci_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 		result = ci_populate_smc_voltage_table(hwmgr,
 				&(data->mvdd_voltage_table.entries[count]),
 				&table->MvddLevel[count]);
-		PP_ASSERT_WITH_CODE(result == 0, "do not populate SMC mvdd voltage table", return -EINVAL);
+		PP_ASSERT_WITH_CODE(result == 0, "do analt populate SMC mvdd voltage table", return -EINVAL);
 		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
 			table->MvddLevel[count].Smio = (uint8_t) count;
 			table->Smio[count] |= data->mvdd_voltage_table.entries[count].smio_low;
@@ -931,15 +931,15 @@ static int ci_populate_smc_voltage_tables(struct pp_hwmgr *hwmgr,
 
 	result = ci_populate_smc_vddc_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
-			"can not populate VDDC voltage table to SMC", return -EINVAL);
+			"can analt populate VDDC voltage table to SMC", return -EINVAL);
 
 	result = ci_populate_smc_vdd_ci_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
-			"can not populate VDDCI voltage table to SMC", return -EINVAL);
+			"can analt populate VDDCI voltage table to SMC", return -EINVAL);
 
 	result = ci_populate_smc_mvdd_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
-			"can not populate MVDD voltage table to SMC", return -EINVAL);
+			"can analt populate MVDD voltage table to SMC", return -EINVAL);
 
 	return 0;
 }
@@ -955,7 +955,7 @@ static int ci_populate_ulv_level(struct pp_hwmgr *hwmgr,
 	state->CcPwrDynRm1 = 0;
 
 	result = pp_tables_get_response_times(hwmgr, &voltage_response_time, &ulv_voltage);
-	PP_ASSERT_WITH_CODE((0 == result), "can not get ULV voltage value", return result;);
+	PP_ASSERT_WITH_CODE((0 == result), "can analt get ULV voltage value", return result;);
 
 	if (ulv_voltage == 0) {
 		data->ulv_supported = false;
@@ -967,7 +967,7 @@ static int ci_populate_ulv_level(struct pp_hwmgr *hwmgr,
 		if (ulv_voltage > hwmgr->dyn_state.vddc_dependency_on_sclk->entries[0].v)
 			state->VddcOffset = 0;
 		else
-			/* used in SMIO Mode. not implemented for now. this is backup only for CI. */
+			/* used in SMIO Mode. analt implemented for analw. this is backup only for CI. */
 			state->VddcOffset = (uint16_t)(hwmgr->dyn_state.vddc_dependency_on_sclk->entries[0].v - ulv_voltage);
 	} else {
 		/* use minimum voltage if ulv voltage in pptable is bigger than minimum voltage */
@@ -1069,25 +1069,25 @@ static int ci_calculate_mclk_params(
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MemorySpreadSpectrumSupport)) {
 		pp_atomctrl_internal_ss_info ss_info;
-		uint32_t freq_nom;
+		uint32_t freq_analm;
 		uint32_t tmp;
 		uint32_t reference_clock = atomctrl_get_mpll_reference_clock(hwmgr);
 
 		/* for GDDR5 for all modes and DDR3 */
 		if (1 == mpll_param.qdr)
-			freq_nom = memory_clock * 4 * (1 << mpll_param.mpll_post_divider);
+			freq_analm = memory_clock * 4 * (1 << mpll_param.mpll_post_divider);
 		else
-			freq_nom = memory_clock * 2 * (1 << mpll_param.mpll_post_divider);
+			freq_analm = memory_clock * 2 * (1 << mpll_param.mpll_post_divider);
 
-		/* tmp = (freq_nom / reference_clock * reference_divider) ^ 2  Note: S.I. reference_divider = 1*/
-		tmp = (freq_nom / reference_clock);
+		/* tmp = (freq_analm / reference_clock * reference_divider) ^ 2  Analte: S.I. reference_divider = 1*/
+		tmp = (freq_analm / reference_clock);
 		tmp = tmp * tmp;
 
-		if (0 == atomctrl_get_memory_clock_spread_spectrum(hwmgr, freq_nom, &ss_info)) {
+		if (0 == atomctrl_get_memory_clock_spread_spectrum(hwmgr, freq_analm, &ss_info)) {
 			uint32_t clks = reference_clock * 5 / ss_info.speed_spectrum_rate;
 			uint32_t clkv =
 				(uint32_t)((((131 * ss_info.speed_spectrum_percentage *
-							ss_info.speed_spectrum_rate) / 100) * tmp) / freq_nom);
+							ss_info.speed_spectrum_rate) / 100) * tmp) / freq_analm);
 
 			mpll_ss1 = PHM_SET_FIELD(mpll_ss1, MPLL_SS1, CLKV, clkv);
 			mpll_ss2 = PHM_SET_FIELD(mpll_ss2, MPLL_SS2, CLKS, clks);
@@ -1188,7 +1188,7 @@ static int ci_populate_single_memory_level(
 		result = ci_get_dependency_volt_by_clk(hwmgr,
 			hwmgr->dyn_state.vddc_dependency_on_mclk, memory_clock, &memory_level->MinVddc);
 		PP_ASSERT_WITH_CODE((0 == result),
-			"can not find MinVddc voltage value from memory VDDC voltage dependency table", return result);
+			"can analt find MinVddc voltage value from memory VDDC voltage dependency table", return result);
 	}
 
 	if (NULL != hwmgr->dyn_state.vddci_dependency_on_mclk) {
@@ -1197,7 +1197,7 @@ static int ci_populate_single_memory_level(
 				memory_clock,
 				&memory_level->MinVddci);
 		PP_ASSERT_WITH_CODE((0 == result),
-			"can not find MinVddci voltage value from memory VDDCI voltage dependency table", return result);
+			"can analt find MinVddci voltage value from memory VDDCI voltage dependency table", return result);
 	}
 
 	if (NULL != hwmgr->dyn_state.mvdd_dependency_on_mclk) {
@@ -1206,7 +1206,7 @@ static int ci_populate_single_memory_level(
 				memory_clock,
 				&memory_level->MinMvdd);
 		PP_ASSERT_WITH_CODE((0 == result),
-			"can not find MinVddci voltage value from memory MVDD voltage dependency table", return result);
+			"can analt find MinVddci voltage value from memory MVDD voltage dependency table", return result);
 	}
 
 	memory_level->MinVddcPhases = 1;
@@ -1236,7 +1236,7 @@ static int ci_populate_single_memory_level(
 	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
 	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
-	/* stutter mode not support on ci */
+	/* stutter mode analt support on ci */
 
 	/* decide strobe mode*/
 	memory_level->StrobeEnable = (mclk_strobe_mode_threshold != 0) &&
@@ -1315,7 +1315,7 @@ static int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < dpm_table->mclk_table.count; i++) {
 		PP_ASSERT_WITH_CODE((0 != dpm_table->mclk_table.dpm_levels[i].value),
-			"can not populate memory level as memory clock is zero", return -EINVAL);
+			"can analt populate memory level as memory clock is zero", return -EINVAL);
 		result = ci_populate_single_memory_level(hwmgr, dpm_table->mclk_table.dpm_levels[i].value,
 			&(smu_data->smc_state_table.MemoryLevel[i]));
 		if (0 != result)
@@ -1354,7 +1354,7 @@ static int ci_populate_mvdd_value(struct pp_hwmgr *hwmgr, uint32_t mclk,
 
 	uint32_t i = 0;
 
-	if (SMU7_VOLTAGE_CONTROL_NONE != data->mvdd_control) {
+	if (SMU7_VOLTAGE_CONTROL_ANALNE != data->mvdd_control) {
 		/* find mvdd value which clock is more than request */
 		for (i = 0; i < hwmgr->dyn_state.mvdd_dependency_on_mclk->count; i++) {
 			if (mclk <= hwmgr->dyn_state.mvdd_dependency_on_mclk->entries[i].clk) {
@@ -1388,7 +1388,7 @@ static int ci_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	uint32_t mclk_pwrmgt_cntl  = data->clock_registers.vMCLK_PWRMGT_CNTL;
 
 
-	/* The ACPI state should not do DPM on DC (or ever).*/
+	/* The ACPI state should analt do DPM on DC (or ever).*/
 	table->ACPILevel.Flags &= ~PPSMC_SWSTATE_FLAG_DC;
 
 	if (data->acpi_vddc)
@@ -1397,7 +1397,7 @@ static int ci_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 		table->ACPILevel.MinVddc = PP_HOST_TO_SMC_UL(data->min_vddc_in_pptable * VOLTAGE_SCALE);
 
 	table->ACPILevel.MinVddcPhases = data->vddc_phase_shed_control ? 0 : 1;
-	/* assign zero for now*/
+	/* assign zero for analw*/
 	table->ACPILevel.SclkFrequency = atomctrl_get_reference_clock(hwmgr);
 
 	/* get the engine clock dividers for this clock value*/
@@ -1446,7 +1446,7 @@ static int ci_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.MinVddc = table->ACPILevel.MinVddc;
 	table->MemoryACPILevel.MinVddcPhases = table->ACPILevel.MinVddcPhases;
 
-	if (SMU7_VOLTAGE_CONTROL_NONE == data->vddci_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE == data->vddci_control)
 		table->MemoryACPILevel.MinVddci = table->MemoryACPILevel.MinVddc;
 	else {
 		if (data->acpi_vddci != 0)
@@ -1538,14 +1538,14 @@ static int ci_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->UvdLevel[count].VclkFrequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for Vclk clock", return result);
+				"can analt find divide id for Vclk clock", return result);
 
 		table->UvdLevel[count].VclkDivider = (uint8_t)dividers.pll_post_divider;
 
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->UvdLevel[count].DclkFrequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for Dclk clock", return result);
+				"can analt find divide id for Dclk clock", return result);
 
 		table->UvdLevel[count].DclkDivider = (uint8_t)dividers.pll_post_divider;
 		CONVERT_FROM_HOST_TO_SMC_UL(table->UvdLevel[count].VclkFrequency);
@@ -1577,7 +1577,7 @@ static int ci_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->VceLevel[count].Frequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for VCE engine clock",
+				"can analt find divide id for VCE engine clock",
 				return result);
 
 		table->VceLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
@@ -1608,7 +1608,7 @@ static int ci_populate_smc_acp_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->AcpLevel[count].Frequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for engine clock", return result);
+				"can analt find divide id for engine clock", return result);
 
 		table->AcpLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
 
@@ -1699,7 +1699,7 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Graphics DPM level 0!\n");
+		pr_err("VBIOS did analt find boot engine clock value in dependency table. Using Graphics DPM level 0!\n");
 		result = 0;
 	}
 
@@ -1709,7 +1709,7 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Memory DPM level 0!\n");
+		pr_err("VBIOS did analt find boot engine clock value in dependency table. Using Memory DPM level 0!\n");
 		result = 0;
 	}
 
@@ -1951,7 +1951,7 @@ static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	ci_initialize_power_tune_defaults(hwmgr);
 	memset(&(smu_data->smc_state_table), 0x00, sizeof(smu_data->smc_state_table));
 
-	if (SMU7_VOLTAGE_CONTROL_NONE != data->voltage_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE != data->voltage_control)
 		ci_populate_smc_voltage_tables(hwmgr, table);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -2136,7 +2136,7 @@ static int ci_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl))
 		return 0;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan) {
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
@@ -2217,7 +2217,7 @@ static int ci_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	uint32_t low_sclk_interrupt_threshold = 0;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkThrottleLowNotification)
+			PHM_PlatformCaps_SclkThrottleLowAnaltification)
 		&& (data->low_sclk_interrupt_threshold != 0)) {
 		low_sclk_interrupt_threshold =
 				data->low_sclk_interrupt_threshold;
@@ -2352,7 +2352,7 @@ static int ci_load_smc_ucode(struct pp_hwmgr *hwmgr)
 static int ci_upload_firmware(struct pp_hwmgr *hwmgr)
 {
 	if (ci_is_smc_ram_running(hwmgr)) {
-		pr_info("smc is running, no need to load smc firmware\n");
+		pr_info("smc is running, anal need to load smc firmware\n");
 		return 0;
 	}
 	PHM_WAIT_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS,
@@ -2684,9 +2684,9 @@ static int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	table = kzalloc(sizeof(pp_atomctrl_mc_reg_table), GFP_KERNEL);
 
 	if (NULL == table)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Program additional LP registers that are no longer programmed by VBIOS */
+	/* Program additional LP registers that are anal longer programmed by VBIOS */
 	cgs_write_register(hwmgr->device, mmMC_SEQ_RAS_TIMING_LP, cgs_read_register(hwmgr->device, mmMC_SEQ_RAS_TIMING));
 	cgs_write_register(hwmgr->device, mmMC_SEQ_CAS_TIMING_LP, cgs_read_register(hwmgr->device, mmMC_SEQ_CAS_TIMING));
 	cgs_write_register(hwmgr->device, mmMC_SEQ_DLL_STBY_LP, cgs_read_register(hwmgr->device, mmMC_SEQ_DLL_STBY));
@@ -2738,7 +2738,7 @@ static int ci_smu_init(struct pp_hwmgr *hwmgr)
 	ci_priv = kzalloc(sizeof(struct ci_smumgr), GFP_KERNEL);
 
 	if (ci_priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->smu_backend = ci_priv;
 

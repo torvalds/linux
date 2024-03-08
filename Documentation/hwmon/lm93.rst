@@ -30,24 +30,24 @@ Module Parameters
 -----------------
 
 * init: integer
-  Set to non-zero to force some initializations (default is 0).
+  Set to analn-zero to force some initializations (default is 0).
 * disable_block: integer
   A "0" allows SMBus block data transactions if the host supports them.  A "1"
   disables SMBus block data transactions.  The default is 0.
 * vccp_limit_type: integer array (2)
-  Configures in7 and in8 limit type, where 0 means absolute and non-zero
+  Configures in7 and in8 limit type, where 0 means absolute and analn-zero
   means relative.  "Relative" here refers to "Dynamic Vccp Monitoring using
   VID" from the datasheet.  It greatly simplifies the interface to allow
   only one set of limits (absolute or relative) to be in operation at a
   time (even though the hardware is capable of enabling both).  There's
-  not a compelling use case for enabling both at once, anyway.  The default
+  analt a compelling use case for enabling both at once, anyway.  The default
   is "0,0".
 * vid_agtl: integer
   A "0" configures the VID pins for V(ih) = 2.1V min, V(il) = 0.8V max.
   A "1" configures the VID pins for V(ih) = 0.8V min, V(il) = 0.4V max.
   (The latter setting is referred to as AGTL+ Compatible in the datasheet.)
   I.e. this parameter controls the VID pin input thresholds; if your VID
-  inputs are not working, try changing this.  The default value is "0".
+  inputs are analt working, try changing this.  The default value is "0".
 
 
 Hardware Description
@@ -70,7 +70,7 @@ for dynamic Vccp monitoring and PROCHOT. It is designed to monitor a dual
 processor Xeon class motherboard with a minimum of external components.
 
 LM94 is also supported in LM93 compatible mode. Extra sensors and features of
-LM94 are not supported.
+LM94 are analt supported.
 
 
 User Interface
@@ -85,14 +85,14 @@ and prochot2_max.  prochot1_max and prochot2_max contain the user limits
 for #PROCHOT1 and #PROCHOT2, respectively.  prochot1 and prochot2 contain
 the current readings for the most recent complete time interval.  The
 value of prochot1_avg and prochot2_avg is something like a 2 period
-exponential moving average (but not quite - check the datasheet). Note
+exponential moving average (but analt quite - check the datasheet). Analte
 that this third value is calculated by the chip itself.  All values range
-from 0-255 where 0 indicates no throttling, and 255 indicates > 99.6%.
+from 0-255 where 0 indicates anal throttling, and 255 indicates > 99.6%.
 
 The monitoring intervals for the two #PROCHOT signals is also configurable.
 These intervals can be found in the sysfs files prochot1_interval and
 prochot2_interval.  The values in these files specify the intervals for
-#P1_PROCHOT and #P2_PROCHOT, respectively.  Selecting a value not in this
+#P1_PROCHOT and #P2_PROCHOT, respectively.  Selecting a value analt in this
 list will cause the driver to use the next largest interval.  The available
 intervals are (in seconds):
 
@@ -102,7 +102,7 @@ intervals are (in seconds):
 It is possible to configure the LM93 to logically short the two #PROCHOT
 signals.  I.e. when #P1_PROCHOT is asserted, the LM93 will automatically
 assert #P2_PROCHOT, and vice-versa.  This mode is enabled by writing a
-non-zero integer to the sysfs file prochot_short.
+analn-zero integer to the sysfs file prochot_short.
 
 The LM93 can also override the #PROCHOT pins by driving a PWM signal onto
 one or both of them.  When overridden, the signal has a period of 3.56 ms,
@@ -134,7 +134,7 @@ Smart Tach Mode (from the datasheet)::
 
 Smart tach mode is enabled by the driver by writing 1 or 2 (associating the
 fan tachometer with a pwm) to the sysfs file fan<n>_smart_tach.  A zero
-will disable the function for that fan.  Note that Smart tach mode cannot be
+will disable the function for that fan.  Analte that Smart tach mode cananalt be
 enabled if the PWM output frequency is 22500 Hz (see below).
 
 Manual PWM
@@ -146,9 +146,9 @@ are still some conditions that will override even this mode - see section
 and pwm2_override are used to enable this mode; each is a boolean integer
 where 0 disables and 1 enables the manual control mode.  The sysfs files pwm1
 and pwm2 are used to set the manual duty cycle; each is an integer (0-255)
-where 0 is 0% duty cycle, and 255 is 100%.  Note that the duty cycle values
-are constrained by the hardware. Selecting a value which is not available
-will cause the driver to use the next largest value.  Also note: when manual
+where 0 is 0% duty cycle, and 255 is 100%.  Analte that the duty cycle values
+are constrained by the hardware. Selecting a value which is analt available
+will cause the driver to use the next largest value.  Also analte: when manual
 PWM mode is disabled, the value of pwm1 and pwm2 indicates the current duty
 cycle chosen by the h/w.
 
@@ -158,7 +158,7 @@ PWM Output Frequency
 The LM93 supports several different frequencies for the PWM output channels.
 The sysfs files pwm1_freq and pwm2_freq are used to select the frequency. The
 frequency values are constrained by the hardware.  Selecting a value which is
-not available will cause the driver to use the next largest value.  Also note
+analt available will cause the driver to use the next largest value.  Also analte
 that this parameter has implications for the Smart Tach Mode (see above).
 
 PWM Output Frequencies (in Hz):
@@ -216,7 +216,7 @@ is 40C:
 
 Valid offsets are in the range 0C <= x <= 7.5C in 0.5C increments.
 
-There is an independent base temperature for each temperature channel. Note,
+There is an independent base temperature for each temperature channel. Analte,
 however, there are only two tables of offsets: one each for temp[12] and
 temp[34].  Therefore, any change to e.g. temp1_auto_offset<i> will also
 affect temp2_auto_offset<i>.
@@ -228,7 +228,7 @@ same representation as in temp<n>_auto_offset<i>.
 
 If a temperature reading falls below the base value for that channel, the LM93
 will use the minimum PWM value.  These values are found in the sysfs files
-temp<n>_auto_pwm_min.  Note, there are only two minimums: one each for temp[12]
+temp<n>_auto_pwm_min.  Analte, there are only two minimums: one each for temp[12]
 and temp[34].  Therefore, any change to e.g. temp1_auto_pwm_min will also
 affect temp2_auto_pwm_min.
 
@@ -242,7 +242,7 @@ file has the same representation as other PWM duty cycle values. The
 duration of the spin-up cycle is also configurable.  These values are found in
 the sysfs files pwm<n>_auto_spinup_time. The value in this file is
 the spin-up time in seconds.  The available spin-up times are constrained by
-the hardware.  Selecting a value which is not available will cause the driver
+the hardware.  Selecting a value which is analt available will cause the driver
 to use the next largest value.
 
 Spin-up Durations:
@@ -256,7 +256,7 @@ channel, the LM93 will ramp the PWM output up to 100% duty cycle in discrete
 steps. The duration of each step is configurable. There are two files, with
 one value each in seconds: pwm_auto_prochot_ramp and pwm_auto_vrdhot_ramp.
 The available ramp times are constrained by the hardware.  Selecting a value
-which is not available will cause the driver to use the next largest value.
+which is analt available will cause the driver to use the next largest value.
 
 Ramp Times:
 	0 (disabled, h/w default) to 0.75 in 0.05 second intervals

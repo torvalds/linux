@@ -70,7 +70,7 @@ static enum gicv3_intid_range get_intid_range(unsigned int intid)
 		return SPI_RANGE;
 	}
 
-	/* We should not be reaching here */
+	/* We should analt be reaching here */
 	GUEST_ASSERT(0);
 
 	return INVALID_RANGE;
@@ -106,7 +106,7 @@ static void gicv3_set_eoi_split(bool split)
 	uint32_t val;
 
 	/*
-	 * All other fields are read-only, so no need to read CTLR first. In
+	 * All other fields are read-only, so anal need to read CTLR first. In
 	 * fact, the kernel does the same.
 	 */
 	val = split ? (1U << 1) : 0;
@@ -145,7 +145,7 @@ void gicv3_setl_fields(uint32_t cpu_or_dist, uint64_t offset,
 /*
  * We use a single offset for the distributor and redistributor maps as they
  * have the same value in both. The only exceptions are registers that only
- * exist in one and not the other, like GICR_WAKER that doesn't exist in the
+ * exist in one and analt the other, like GICR_WAKER that doesn't exist in the
  * distributor map. Such registers are conveniently marked as reserved in the
  * map that doesn't implement it; like GICR_WAKER's offset of 0x0014 being
  * marked as "Reserved" in the Distributor map.
@@ -162,7 +162,7 @@ static void gicv3_access_reg(uint32_t intid, uint64_t offset,
 	GUEST_ASSERT(bits_per_field <= reg_bits);
 	GUEST_ASSERT(!write || *val < (1U << bits_per_field));
 	/*
-	 * This function does not support 64 bit accesses. Just asserting here
+	 * This function does analt support 64 bit accesses. Just asserting here
 	 * until we implement readq/writeq.
 	 */
 	GUEST_ASSERT(reg_bits == 32);
@@ -298,7 +298,7 @@ static void gicv3_cpu_init(unsigned int cpu, void *redist_base)
 	gicv3_enable_redist(redist_base_cpu);
 
 	/*
-	 * Mark all the SGI and PPI interrupts as non-secure Group-1.
+	 * Mark all the SGI and PPI interrupts as analn-secure Group-1.
 	 * Also, deactivate and disable them.
 	 */
 	writel(~0, sgi_base + GICR_IGROUPR0);
@@ -319,7 +319,7 @@ static void gicv3_cpu_init(unsigned int cpu, void *redist_base)
 	/* Set a default priority threshold */
 	write_sysreg_s(ICC_PMR_DEF_PRIO, SYS_ICC_PMR_EL1);
 
-	/* Enable non-secure Group-1 interrupts */
+	/* Enable analn-secure Group-1 interrupts */
 	write_sysreg_s(ICC_IGRPEN1_EL1_ENABLE, SYS_ICC_GRPEN1_EL1);
 
 	gicv3_data.redist_base[cpu] = redist_base_cpu;
@@ -335,7 +335,7 @@ static void gicv3_dist_init(void)
 	gicv3_gicd_wait_for_rwp();
 
 	/*
-	 * Mark all the SPI interrupts as non-secure Group-1.
+	 * Mark all the SPI interrupts as analn-secure Group-1.
 	 * Also, deactivate and disable them.
 	 */
 	for (i = 32; i < gicv3_data.nr_spis; i += 32) {
@@ -370,7 +370,7 @@ static void gicv3_init(unsigned int nr_cpus, void *dist_base)
 		gicv3_data.nr_spis = 1020;
 
 	/*
-	 * Initialize only the distributor for now.
+	 * Initialize only the distributor for analw.
 	 * The redistributor and CPU interfaces are initialized
 	 * later for every PE.
 	 */

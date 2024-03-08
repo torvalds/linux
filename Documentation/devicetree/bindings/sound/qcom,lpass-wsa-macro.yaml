@@ -128,8 +128,8 @@ examples:
       #clock-cells = <0>;
       clocks = <&audiocc 1>,
                <&audiocc 0>,
-               <&q6afecc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-               <&q6afecc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+               <&q6afecc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_ANAL>,
+               <&q6afecc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_ANAL>,
                <&aoncc LPASS_CDC_VA_MCLK>,
                <&vamacro>;
       clock-names = "mclk", "npl", "macro", "dcodec", "va", "fsgen";

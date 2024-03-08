@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@
 #include "asic_reg/mp/mp_14_0_0_sh_mask.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -210,7 +210,7 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version = 0xff, smu_version = 0xff;
-	uint8_t smu_program, smu_major, smu_minor, smu_debug;
+	uint8_t smu_program, smu_major, smu_mianalr, smu_debug;
 	int ret = 0;
 
 	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
@@ -219,7 +219,7 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 
 	smu_program = (smu_version >> 24) & 0xff;
 	smu_major = (smu_version >> 16) & 0xff;
-	smu_minor = (smu_version >> 8) & 0xff;
+	smu_mianalr = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 	if (smu->is_apu)
 		adev->pm.fw_version = smu_version;
@@ -242,10 +242,10 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 
 	if (adev->pm.fw)
 		dev_dbg(smu->adev->dev, "smu fw reported program %d, version = 0x%08x (%d.%d.%d)\n",
-			 smu_program, smu_version, smu_major, smu_minor, smu_debug);
+			 smu_program, smu_version, smu_major, smu_mianalr, smu_debug);
 
 	/*
-	 * 1. if_version mismatch is not critical as our fw is designed
+	 * 1. if_version mismatch is analt critical as our fw is designed
 	 * to be backward compatible.
 	 * 2. New fw usually brings some optimizations. But that's visible
 	 * only on the paired driver.
@@ -256,8 +256,8 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 		dev_info(adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			 "smu fw program = %d, smu fw version = 0x%08x (%d.%d.%d)\n",
 			 smu->smc_driver_if_version, if_version,
-			 smu_program, smu_version, smu_major, smu_minor, smu_debug);
-		dev_info(adev->dev, "SMU driver if version not matched\n");
+			 smu_program, smu_version, smu_major, smu_mianalr, smu_debug);
+		dev_info(adev->dev, "SMU driver if version analt matched\n");
 	}
 
 	return ret;
@@ -334,7 +334,7 @@ int smu_v14_0_get_pptable_from_firmware(struct smu_context *smu,
 {
 	const struct smc_firmware_header_v1_0 *hdr;
 	struct amdgpu_device *adev = smu->adev;
-	uint16_t version_major, version_minor;
+	uint16_t version_major, version_mianalr;
 	int ret;
 
 	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
@@ -344,14 +344,14 @@ int smu_v14_0_get_pptable_from_firmware(struct smu_context *smu,
 	dev_info(adev->dev, "use driver provided pptable %d\n", pptable_id);
 
 	version_major = le16_to_cpu(hdr->header.header_version_major);
-	version_minor = le16_to_cpu(hdr->header.header_version_minor);
+	version_mianalr = le16_to_cpu(hdr->header.header_version_mianalr);
 	if (version_major != 2) {
 		dev_err(adev->dev, "Unsupported smu firmware version %d.%d\n",
-			version_major, version_minor);
+			version_major, version_mianalr);
 		return -EINVAL;
 	}
 
-	switch (version_minor) {
+	switch (version_mianalr) {
 	case 0:
 		ret = smu_v14_0_set_pptable_v2_0(smu, table, size);
 		break;
@@ -407,14 +407,14 @@ int smu_v14_0_init_smc_tables(struct smu_context *smu)
 	smu_table->driver_pptable =
 		kzalloc(tables[SMU_TABLE_PPTABLE].size, GFP_KERNEL);
 	if (!smu_table->driver_pptable) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err0_out;
 	}
 
 	smu_table->max_sustainable_clocks =
 		kzalloc(sizeof(struct smu_14_0_max_sustainable_clocks), GFP_KERNEL);
 	if (!smu_table->max_sustainable_clocks) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err1_out;
 	}
 
@@ -422,14 +422,14 @@ int smu_v14_0_init_smc_tables(struct smu_context *smu)
 		smu_table->overdrive_table =
 			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
 		if (!smu_table->overdrive_table) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err2_out;
 		}
 
 		smu_table->boot_overdrive_table =
 			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
 		if (!smu_table->boot_overdrive_table) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err3_out;
 		}
 	}
@@ -437,7 +437,7 @@ int smu_v14_0_init_smc_tables(struct smu_context *smu)
 	smu_table->combo_pptable =
 		kzalloc(tables[SMU_TABLE_COMBO_PPTABLE].size, GFP_KERNEL);
 	if (!smu_table->combo_pptable) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err4_out;
 	}
 
@@ -506,7 +506,7 @@ int smu_v14_0_init_power(struct smu_context *smu)
 	smu_power->power_context = kzalloc(sizeof(struct smu_14_0_dpm_context),
 					   GFP_KERNEL);
 	if (!smu_power->power_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	smu_power->power_context_size = sizeof(struct smu_14_0_dpm_context);
 
 	return 0;
@@ -547,7 +547,7 @@ int smu_v14_0_get_vbios_bootup_values(struct smu_context *smu)
 		return ret;
 
 	if (header->format_revision != 3) {
-		dev_err(smu->adev->dev, "unknown atom_firmware_info version! for smu14\n");
+		dev_err(smu->adev->dev, "unkanalwn atom_firmware_info version! for smu14\n");
 		return -EINVAL;
 	}
 
@@ -634,7 +634,7 @@ int smu_v14_0_get_vbios_bootup_values(struct smu_context *smu)
 }
 
 
-int smu_v14_0_notify_memory_pool_location(struct smu_context *smu)
+int smu_v14_0_analtify_memory_pool_location(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *memory_pool = &smu_table->memory_pool;
@@ -757,7 +757,7 @@ int smu_v14_0_system_features_control(struct smu_context *smu,
 					  SMU_MSG_DisableAllSmuFeatures), NULL);
 }
 
-int smu_v14_0_notify_display_change(struct smu_context *smu)
+int smu_v14_0_analtify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
 
@@ -808,8 +808,8 @@ int smu_v14_0_set_power_limit(struct smu_context *smu,
 		return -EINVAL;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
-		return -EOPNOTSUPP;
+		dev_err(smu->adev->dev, "Setting new power limit is analt supported!\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit, NULL);
@@ -1253,7 +1253,7 @@ int smu_v14_0_set_power_source(struct smu_context *smu,
 		return -EINVAL;
 
 	return smu_cmn_send_smc_msg_with_param(smu,
-					       SMU_MSG_NotifyPowerSource,
+					       SMU_MSG_AnaltifyPowerSource,
 					       pwr_source,
 					       NULL);
 }
@@ -1334,7 +1334,7 @@ static int smu_v14_0_get_fine_grained_status(struct smu_context *smu,
 
 	/*
 	 * BIT31:  1 - Fine grained DPM, 0 - Dicrete DPM
-	 * now, we un-support it
+	 * analw, we un-support it
 	 */
 	*is_fine_grained_dpm = value & 0x80000000;
 
@@ -1659,7 +1659,7 @@ int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (size != 2) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 
@@ -1685,7 +1685,7 @@ int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 		break;
 	case PP_OD_RESTORE_DEFAULT_TABLE:
 		if (size != 0) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
@@ -1693,7 +1693,7 @@ int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
 		if (size != 0) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 		if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
@@ -1721,7 +1721,7 @@ int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 		}
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return ret;

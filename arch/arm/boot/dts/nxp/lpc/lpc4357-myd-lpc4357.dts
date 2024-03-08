@@ -62,7 +62,7 @@
 	};
 
 	panel: panel {
-		compatible = "innolux,at070tn92";
+		compatible = "inanallux,at070tn92";
 
 		port {
 			panel_input: endpoint {
@@ -570,7 +570,7 @@
 
 	/* Atmel AT25DF321A */
 	flash {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <51000000>;
 		spi-cpol;
 		spi-cpha;

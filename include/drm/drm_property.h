@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -42,7 +42,7 @@ struct drm_property_enum {
 	 * @value: numeric property value for this enum entry
 	 *
 	 * If the property has the type &DRM_MODE_PROP_BITMASK, @value stores a
-	 * bitshift, not a bitmask. In other words, the enum entry is enabled
+	 * bitshift, analt a bitmask. In other words, the enum entry is enabled
 	 * if the bit number @value is set in the property's value. This enum
 	 * entry has the bitmask ``1 << value``.
 	 */
@@ -58,10 +58,10 @@ struct drm_property_enum {
  * of the property with the set of permissible values. This means that when a
  * driver wants to use a property with the same name on different objects, but
  * with different value ranges, then it must create property for each one. An
- * example would be rotation of &drm_plane, when e.g. the primary plane cannot
+ * example would be rotation of &drm_plane, when e.g. the primary plane cananalt
  * be rotated. But if both the name and the value range match, then the same
  * property structure can be instantiated multiple times for the same object.
- * Userspace must be able to cope with this and cannot assume that the same
+ * Userspace must be able to cope with this and cananalt assume that the same
  * symbolic property will have the same modeset object ID on all modeset
  * objects.
  *
@@ -153,10 +153,10 @@ struct drm_property {
 	 *
 	 * DRM_MODE_PROP_ATOMIC
 	 *     Set for properties which encode atomic modeset state. Such
-	 *     properties are not exposed to legacy userspace.
+	 *     properties are analt exposed to legacy userspace.
 	 *
 	 * DRM_MODE_PROP_IMMUTABLE
-	 *     Set for properties whose values cannot be changed by
+	 *     Set for properties whose values cananalt be changed by
 	 *     userspace. The kernel is allowed to update the value of these
 	 *     properties. This is generally used to expose probe state to
 	 *     userspace, e.g. the EDID, or the connector path property on DP

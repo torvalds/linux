@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #include <linux/dma-mapping.h>
 #include "hal_tx.h"
@@ -341,7 +341,7 @@ static bool ath12k_hw_qcn9274_rx_desc_get_mpdu_fc_valid(struct hal_rx_desc *desc
 			       RX_MPDU_START_INFO4_MPDU_FCTRL_VALID);
 }
 
-static u16 ath12k_hw_qcn9274_rx_desc_get_mpdu_start_seq_no(struct hal_rx_desc *desc)
+static u16 ath12k_hw_qcn9274_rx_desc_get_mpdu_start_seq_anal(struct hal_rx_desc *desc)
 {
 	return le32_get_bits(desc->u.qcn9274.mpdu_start.info4,
 			     RX_MPDU_START_INFO4_MPDU_SEQ_NUM);
@@ -477,7 +477,7 @@ static void ath12k_hw_qcn9274_rx_desc_get_crypto_hdr(struct hal_rx_desc *desc,
 	switch (enctype) {
 	case HAL_ENCRYPT_TYPE_OPEN:
 		return;
-	case HAL_ENCRYPT_TYPE_TKIP_NO_MIC:
+	case HAL_ENCRYPT_TYPE_TKIP_ANAL_MIC:
 	case HAL_ENCRYPT_TYPE_TKIP_MIC:
 		crypto_hdr[0] =
 			HAL_RX_MPDU_INFO_PN_GET_BYTE2(desc->u.qcn9274.mpdu_start.pn[0]);
@@ -525,7 +525,7 @@ static int ath12k_hal_srng_create_config_qcn9274(struct ath12k_base *ab)
 				   sizeof(hw_srng_config_template),
 				   GFP_KERNEL);
 	if (!hal->srng_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s = &hal->srng_config[HAL_REO_DST];
 	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_RING_BASE_LSB(ab);
@@ -609,7 +609,7 @@ static int ath12k_hal_srng_create_config_qcn9274(struct ath12k_base *ab)
 		HAL_WBM0_RELEASE_RING_BASE_LSB(ab);
 	s->reg_size[1] = HAL_WBM1_RELEASE_RING_HP - HAL_WBM0_RELEASE_RING_HP;
 
-	/* Some LMAC rings are not accessed from the host:
+	/* Some LMAC rings are analt accessed from the host:
 	 * RXDMA_BUG, RXDMA_DST, RXDMA_MONITOR_BUF, RXDMA_MONITOR_STATUS,
 	 * RXDMA_MONITOR_DST, RXDMA_MONITOR_DESC, RXDMA_DIR_BUF_SRC,
 	 * RXDMA_RX_MONITOR_BUF, TX_MONITOR_BUF, TX_MONITOR_DST, SW2RXDMA
@@ -690,7 +690,7 @@ const struct hal_ops hal_qcn9274_ops = {
 	.rx_desc_get_mesh_ctl = ath12k_hw_qcn9274_rx_desc_get_mesh_ctl,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath12k_hw_qcn9274_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath12k_hw_qcn9274_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath12k_hw_qcn9274_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath12k_hw_qcn9274_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath12k_hw_qcn9274_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath12k_hw_qcn9274_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath12k_hw_qcn9274_rx_desc_get_msdu_rate_mcs,
@@ -775,7 +775,7 @@ static bool ath12k_hw_wcn7850_rx_desc_get_mpdu_fc_valid(struct hal_rx_desc *desc
 			       RX_MPDU_START_INFO4_MPDU_FCTRL_VALID);
 }
 
-static u16 ath12k_hw_wcn7850_rx_desc_get_mpdu_start_seq_no(struct hal_rx_desc *desc)
+static u16 ath12k_hw_wcn7850_rx_desc_get_mpdu_start_seq_anal(struct hal_rx_desc *desc)
 {
 	return le32_get_bits(desc->u.wcn7850.mpdu_start.info4,
 			     RX_MPDU_START_INFO4_MPDU_SEQ_NUM);
@@ -917,7 +917,7 @@ static void ath12k_hw_wcn7850_rx_desc_get_crypto_hdr(struct hal_rx_desc *desc,
 	switch (enctype) {
 	case HAL_ENCRYPT_TYPE_OPEN:
 		return;
-	case HAL_ENCRYPT_TYPE_TKIP_NO_MIC:
+	case HAL_ENCRYPT_TYPE_TKIP_ANAL_MIC:
 	case HAL_ENCRYPT_TYPE_TKIP_MIC:
 		crypto_hdr[0] =
 			HAL_RX_MPDU_INFO_PN_GET_BYTE2(desc->u.wcn7850.mpdu_start.pn[0]);
@@ -965,7 +965,7 @@ static int ath12k_hal_srng_create_config_wcn7850(struct ath12k_base *ab)
 				   sizeof(hw_srng_config_template),
 				   GFP_KERNEL);
 	if (!hal->srng_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s = &hal->srng_config[HAL_REO_DST];
 	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_RING_BASE_LSB(ab);
@@ -1058,7 +1058,7 @@ static int ath12k_hal_srng_create_config_wcn7850(struct ath12k_base *ab)
 	s->max_rings = 1;
 	s->entry_size = sizeof(struct hal_reo_entrance_ring) >> 2;
 
-	/* below rings are not used */
+	/* below rings are analt used */
 	s = &hal->srng_config[HAL_RXDMA_DIR_BUF];
 	s->max_rings = 0;
 
@@ -1144,7 +1144,7 @@ const struct hal_ops hal_wcn7850_ops = {
 	.rx_desc_get_mesh_ctl = ath12k_hw_wcn7850_rx_desc_get_mesh_ctl,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath12k_hw_wcn7850_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath12k_hw_wcn7850_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath12k_hw_wcn7850_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath12k_hw_wcn7850_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath12k_hw_wcn7850_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath12k_hw_wcn7850_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath12k_hw_wcn7850_rx_desc_get_msdu_rate_mcs,
@@ -1185,7 +1185,7 @@ static int ath12k_hal_alloc_cont_rdp(struct ath12k_base *ab)
 	hal->rdp.vaddr = dma_alloc_coherent(ab->dev, size, &hal->rdp.paddr,
 					    GFP_KERNEL);
 	if (!hal->rdp.vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1213,7 +1213,7 @@ static int ath12k_hal_alloc_cont_wrp(struct ath12k_base *ab)
 	hal->wrp.vaddr = dma_alloc_coherent(ab->dev, size, &hal->wrp.paddr,
 					    GFP_KERNEL);
 	if (!hal->wrp.vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1410,7 +1410,7 @@ static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_SWAP)
 		val |= HAL_TCL1_RING_MISC_MSI_SWAP;
 
-	/* Loop count is not used for SRC rings */
+	/* Loop count is analt used for SRC rings */
 	val |= HAL_TCL1_RING_MISC_MSI_LOOPCNT_DISABLE;
 
 	val |= HAL_TCL1_RING_MISC_SRNG_ENABLE;
@@ -1665,7 +1665,7 @@ void *ath12k_hal_srng_src_get_next_entry(struct ath12k_base *ab,
 	lockdep_assert_held(&srng->lock);
 
 	/* TODO: Using % is expensive, but we have to do this since size of some
-	 * SRNG rings is not power of 2 (due to descriptor sizes). Need to see
+	 * SRNG rings is analt power of 2 (due to descriptor sizes). Need to see
 	 * if separate function is defined for rings having power of 2 ring size
 	 * (TCL2SW, REO2SW, SW2RXDMA and CE rings) so that we can avoid the
 	 * overhead of % by using mask (with &).
@@ -1678,8 +1678,8 @@ void *ath12k_hal_srng_src_get_next_entry(struct ath12k_base *ab,
 	desc = srng->ring_base_vaddr + srng->u.src_ring.hp;
 	srng->u.src_ring.hp = next_hp;
 
-	/* TODO: Reap functionality is not used by all rings. If particular
-	 * ring does not use reap functionality, we need not update reap_hp
+	/* TODO: Reap functionality is analt used by all rings. If particular
+	 * ring does analt use reap functionality, we need analt update reap_hp
 	 * with next_hp pointer. Need to make sure a separate function is used
 	 * before doing any optimization by removing below code updating
 	 * reap_hp.
@@ -2070,7 +2070,7 @@ void ath12k_hal_srng_shadow_config(struct ath12k_base *ab)
 	struct ath12k_hal *hal = &ab->hal;
 	int ring_type, ring_num;
 
-	/* update all the non-CE srngs. */
+	/* update all the analn-CE srngs. */
 	for (ring_type = 0; ring_type < HAL_MAX_RING_TYPES; ring_type++) {
 		struct hal_srng_config *srng_config = &hal->srng_config[ring_type];
 

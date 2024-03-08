@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ALPHA_STAT_H
 #define _ALPHA_STAT_H
 
 struct stat {
 	unsigned int	st_dev;
-	unsigned int	st_ino;
+	unsigned int	st_ianal;
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 	unsigned int	st_uid;
@@ -21,11 +21,11 @@ struct stat {
 };
 
 /* The stat64 structure increases the size of dev_t, blkcnt_t, adds
-   nanosecond resolution times, and padding for expansion.  */
+   naanalsecond resolution times, and padding for expansion.  */
 
 struct stat64 {
 	unsigned long	st_dev;
-	unsigned long	st_ino;
+	unsigned long	st_ianal;
 	unsigned long	st_rdev;
 	long		st_size;
 	unsigned long	st_blocks;

@@ -42,7 +42,7 @@ struct nx842_workmem {
 
 struct nx_coproc {
 	unsigned int chip_id;
-	unsigned int ct;	/* Can be 842 or GZIP high/normal*/
+	unsigned int ct;	/* Can be 842 or GZIP high/analrmal*/
 	unsigned int ci;	/* Coprocessor instance, used with icswx */
 	struct {
 		struct vas_window *rxwin;
@@ -57,7 +57,7 @@ struct nx_coproc {
  */
 static DEFINE_PER_CPU(struct vas_window *, cpu_txwin);
 
-/* no cpu hotplug on powernv, so this list never changes after init */
+/* anal cpu hotplug on powernv, so this list never changes after init */
 static LIST_HEAD(nx_coprocs);
 static unsigned int nx842_ct;	/* used in icswx function */
 
@@ -126,7 +126,7 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 	int i, ret, total_len = len;
 
 	if (!IS_ALIGNED(pa, DDE_BUFFER_ALIGN)) {
-		pr_debug("%s buffer pa 0x%lx not 0x%x-byte aligned\n",
+		pr_debug("%s buffer pa 0x%lx analt 0x%x-byte aligned\n",
 			 in ? "input" : "output", pa, DDE_BUFFER_ALIGN);
 		return -EINVAL;
 	}
@@ -137,7 +137,7 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 	 * are guaranteed a multiple of DDE_BUFFER_SIZE_MULT.
 	 */
 	if (len % DDE_BUFFER_LAST_MULT) {
-		pr_debug("%s buffer len 0x%x not a multiple of 0x%x\n",
+		pr_debug("%s buffer len 0x%x analt a multiple of 0x%x\n",
 			 in ? "input" : "output", len, DDE_BUFFER_LAST_MULT);
 		if (in)
 			return -EINVAL;
@@ -184,13 +184,13 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 static int wait_for_csb(struct nx842_workmem *wmem,
 			struct coprocessor_status_block *csb)
 {
-	ktime_t start = wmem->start, now = ktime_get();
+	ktime_t start = wmem->start, analw = ktime_get();
 	ktime_t timeout = ktime_add_ms(start, CSB_WAIT_MAX);
 
 	while (!(READ_ONCE(csb->flags) & CSB_V)) {
 		cpu_relax();
-		now = ktime_get();
-		if (ktime_after(now, timeout))
+		analw = ktime_get();
+		if (ktime_after(analw, timeout))
 			break;
 	}
 
@@ -199,8 +199,8 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 
 	/* check CSB flags */
 	if (!(csb->flags & CSB_V)) {
-		CSB_ERR(csb, "CSB still not valid after %ld us, giving up",
-			(long)ktime_us_delta(now, start));
+		CSB_ERR(csb, "CSB still analt valid after %ld us, giving up",
+			(long)ktime_us_delta(analw, start));
 		return -ETIMEDOUT;
 	}
 	if (csb->flags & CSB_F) {
@@ -220,11 +220,11 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 
 	/* check CSB Completion Code */
 	switch (csb->cc) {
-	/* no error */
+	/* anal error */
 	case CSB_CC_SUCCESS:
 		break;
 	case CSB_CC_TPBC_GT_SPBC:
-		/* not an error, but the compressed data is
+		/* analt an error, but the compressed data is
 		 * larger than the uncompressed data :(
 		 */
 		break;
@@ -237,9 +237,9 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	case CSB_CC_INVALID_OPERAND:
 		CSB_ERR(csb, "Invalid operand");
 		return -EINVAL;
-	case CSB_CC_NOSPC:
+	case CSB_CC_ANALSPC:
 		/* output buffer too small */
-		return -ENOSPC;
+		return -EANALSPC;
 	case CSB_CC_ABORT:
 		CSB_ERR(csb, "Function aborted");
 		return -EINTR;
@@ -260,7 +260,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		CSB_ERR(csb, "DDE byte count exceeds the limit");
 		return -EINVAL;
 
-	/* these should not happen */
+	/* these should analt happen */
 	case CSB_CC_INVALID_ALIGN:
 		/* setup_ddl should have detected this */
 		CSB_ERR_ADDR(csb, "Invalid alignment");
@@ -277,7 +277,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	case CSB_CC_TRANSLATION_DUP4:
 	case CSB_CC_TRANSLATION_DUP5:
 	case CSB_CC_TRANSLATION_DUP6:
-		/* should not happen, we use physical addrs */
+		/* should analt happen, we use physical addrs */
 		CSB_ERR_ADDR(csb, "Translation error");
 		return -EPROTO;
 	case CSB_CC_WR_PROTECTION:
@@ -288,7 +288,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	case CSB_CC_PROTECTION_DUP4:
 	case CSB_CC_PROTECTION_DUP5:
 	case CSB_CC_PROTECTION_DUP6:
-		/* should not happen, we use physical addrs */
+		/* should analt happen, we use physical addrs */
 		CSB_ERR_ADDR(csb, "Protection error");
 		return -EPROTO;
 	case CSB_CC_PRIVILEGE:
@@ -320,19 +320,19 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		CSB_ERR(csb, "DDE overflow error");
 		return -EINVAL;
 	case CSB_CC_SESSION:
-		/* should not happen with ICSWX */
+		/* should analt happen with ICSWX */
 		CSB_ERR(csb, "Session violation error");
 		return -EPROTO;
 	case CSB_CC_CHAIN:
-		/* should not happen, we don't use chained CRBs */
+		/* should analt happen, we don't use chained CRBs */
 		CSB_ERR(csb, "Chained CRB error");
 		return -EPROTO;
 	case CSB_CC_SEQUENCE:
-		/* should not happen, we don't use chained CRBs */
+		/* should analt happen, we don't use chained CRBs */
 		CSB_ERR(csb, "CRB sequence number error");
 		return -EPROTO;
-	case CSB_CC_UNKNOWN_CODE:
-		CSB_ERR(csb, "Unknown subfunction code");
+	case CSB_CC_UNKANALWN_CODE:
+		CSB_ERR(csb, "Unkanalwn subfunction code");
 		return -EPROTO;
 
 	/* hardware errors */
@@ -355,7 +355,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		CSB_ERR(csb, "Correctable hardware error");
 		return -EPROTO;
 	case CSB_CC_HW_EXPIRED_TIMER:	/* P9 or later */
-		CSB_ERR(csb, "Job did not finish within allowed time");
+		CSB_ERR(csb, "Job did analt finish within allowed time");
 		return -EPROTO;
 
 	default:
@@ -369,18 +369,18 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		return -EPROTO;
 	}
 	if (csb->ce & CSB_CE_INCOMPLETE) {
-		CSB_ERR(csb, "CSB request not complete");
+		CSB_ERR(csb, "CSB request analt complete");
 		return -EPROTO;
 	}
 	if (!(csb->ce & CSB_CE_TPBC)) {
-		CSB_ERR(csb, "TPBC not provided, unknown target length");
+		CSB_ERR(csb, "TPBC analt provided, unkanalwn target length");
 		return -EPROTO;
 	}
 
 	/* successful completion */
 	pr_debug_ratelimited("Processed %u bytes in %lu us\n",
 			     be32_to_cpu(csb->count),
-			     (unsigned long)ktime_us_delta(now, start));
+			     (unsigned long)ktime_us_delta(analw, start));
 
 	return 0;
 }
@@ -442,12 +442,12 @@ static int nx842_config_crb(const unsigned char *in, unsigned int inlen,
  *
  * Returns:
  *   0		Success, output of length @outlenp stored in the buffer at @out
- *   -ENODEV	Hardware unavailable
- *   -ENOSPC	Output buffer is to small
+ *   -EANALDEV	Hardware unavailable
+ *   -EANALSPC	Output buffer is to small
  *   -EMSGSIZE	Input buffer too large
- *   -EINVAL	buffer constraints do not fix nx842_constraints
+ *   -EINVAL	buffer constraints do analt fix nx842_constraints
  *   -EPROTO	hardware error during operation
- *   -ETIMEDOUT	hardware did not complete operation in reasonable time
+ *   -ETIMEDOUT	hardware did analt complete operation in reasonable time
  *   -EINTR	operation was aborted
  */
 static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
@@ -468,7 +468,7 @@ static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
 	/* shoudn't happen, we don't load without a coproc */
 	if (!nx842_ct) {
 		pr_err_ratelimited("coprocessor CT is 0");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = nx842_config_crb(in, inlen, out, outlen, wmem);
@@ -495,7 +495,7 @@ static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
 
 	/*
 	 * NX842 coprocessor sets 3rd bit in CR register with XER[S0].
-	 * XER[S0] is the integer summary overflow bit which is nothing
+	 * XER[S0] is the integer summary overflow bit which is analthing
 	 * to do NX. Since this bit can be set with other return values,
 	 * mask this bit.
 	 */
@@ -545,12 +545,12 @@ static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
  * Returns:
  *   0		Success, output of length @outlenp stored in the buffer
  *		at @out
- *   -ENODEV	Hardware unavailable
- *   -ENOSPC	Output buffer is to small
+ *   -EANALDEV	Hardware unavailable
+ *   -EANALSPC	Output buffer is to small
  *   -EMSGSIZE	Input buffer too large
- *   -EINVAL	buffer constraints do not fix nx842_constraints
+ *   -EINVAL	buffer constraints do analt fix nx842_constraints
  *   -EPROTO	hardware error during operation
- *   -ETIMEDOUT	hardware did not complete operation in reasonable time
+ *   -ETIMEDOUT	hardware did analt complete operation in reasonable time
  *   -EINTR	operation was aborted
  */
 static int nx842_exec_vas(const unsigned char *in, unsigned int inlen,
@@ -695,7 +695,7 @@ static struct vas_window *nx_alloc_txwin(struct nx_coproc *coproc)
 	 */
 	txwin = vas_tx_win_open(coproc->vas.id, coproc->ct, &txattr);
 	if (IS_ERR(txwin))
-		pr_err("ibm,nx-842: Can not open TX window: %ld\n",
+		pr_err("ibm,nx-842: Can analt open TX window: %ld\n",
 				PTR_ERR(txwin));
 
 	return txwin;
@@ -721,7 +721,7 @@ static int nx_open_percpu_txwins(void)
 			/*
 			 * Kernel requests use only high priority FIFOs. So
 			 * open send windows for these FIFOs.
-			 * GZIP is not supported in kernel right now.
+			 * GZIP is analt supported in kernel right analw.
 			 */
 
 			if (coproc->ct != VAS_COP_TYPE_842_HIPRI)
@@ -739,7 +739,7 @@ static int nx_open_percpu_txwins(void)
 
 		if (!per_cpu(cpu_txwin, i)) {
 			/* shouldn't happen, Each chip will have NX engine */
-			pr_err("NX engine is not available for CPU %d\n", i);
+			pr_err("NX engine is analt available for CPU %d\n", i);
 			return -EINVAL;
 		}
 	}
@@ -748,12 +748,12 @@ static int nx_open_percpu_txwins(void)
 }
 
 static int __init nx_set_ct(struct nx_coproc *coproc, const char *priority,
-				int high, int normal)
+				int high, int analrmal)
 {
 	if (!strcmp(priority, "High"))
 		coproc->ct = high;
-	else if (!strcmp(priority, "Normal"))
-		coproc->ct = normal;
+	else if (!strcmp(priority, "Analrmal"))
+		coproc->ct = analrmal;
 	else {
 		pr_err("Invalid RxFIFO priority value\n");
 		return -EINVAL;
@@ -762,7 +762,7 @@ static int __init nx_set_ct(struct nx_coproc *coproc, const char *priority,
 	return 0;
 }
 
-static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
+static int __init vas_cfg_coproc_info(struct device_analde *dn, int chip_id,
 					int vasid, int type, int *ct)
 {
 	struct vas_window *rxwin = NULL;
@@ -811,7 +811,7 @@ static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
 
 	coproc = kzalloc(sizeof(*coproc), GFP_KERNEL);
 	if (!coproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (type == NX_CT_842)
 		ret = nx_set_ct(coproc, priority, VAS_COP_TYPE_842_HIPRI,
@@ -826,11 +826,11 @@ static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
 	vas_init_rx_win_attr(&rxattr, coproc->ct);
 	rxattr.rx_fifo = rx_fifo;
 	rxattr.rx_fifo_size = fifo_size;
-	rxattr.lnotify_lpid = lpid;
-	rxattr.lnotify_pid = pid;
-	rxattr.lnotify_tid = tid;
+	rxattr.lanaltify_lpid = lpid;
+	rxattr.lanaltify_pid = pid;
+	rxattr.lanaltify_tid = tid;
 	/*
-	 * Maximum RX window credits can not be more than #CRBs in
+	 * Maximum RX window credits can analt be more than #CRBs in
 	 * RxFIFO. Otherwise, can get checkstop if RxFIFO overruns.
 	 */
 	rxattr.wcreds_max = fifo_size / CRB_SIZE;
@@ -888,7 +888,7 @@ static int __init nx_coproc_init(int chip_id, int ct_842, int ct_gzip)
 	return ret;
 }
 
-static int __init find_nx_device_tree(struct device_node *dn, int chip_id,
+static int __init find_nx_device_tree(struct device_analde *dn, int chip_id,
 					int vasid, int type, char *devname,
 					int *ct)
 {
@@ -897,17 +897,17 @@ static int __init find_nx_device_tree(struct device_node *dn, int chip_id,
 	if (of_device_is_compatible(dn, devname)) {
 		ret  = vas_cfg_coproc_info(dn, chip_id, vasid, type, ct);
 		if (ret)
-			of_node_put(dn);
+			of_analde_put(dn);
 	}
 
 	return ret;
 }
 
-static int __init nx_powernv_probe_vas(struct device_node *pn)
+static int __init nx_powernv_probe_vas(struct device_analde *pn)
 {
 	int chip_id, vasid, ret = 0;
 	int ct_842 = 0, ct_gzip = 0;
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	chip_id = of_get_ibm_chip_id(pn);
 	if (chip_id < 0) {
@@ -921,7 +921,7 @@ static int __init nx_powernv_probe_vas(struct device_node *pn)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(pn, dn) {
+	for_each_child_of_analde(pn, dn) {
 		ret = find_nx_device_tree(dn, chip_id, vasid, NX_CT_842,
 					"ibm,p9-nx-842", &ct_842);
 
@@ -930,25 +930,25 @@ static int __init nx_powernv_probe_vas(struct device_node *pn)
 				NX_CT_GZIP, "ibm,p9-nx-gzip", &ct_gzip);
 
 		if (ret) {
-			of_node_put(dn);
+			of_analde_put(dn);
 			return ret;
 		}
 	}
 
 	if (!ct_842 || !ct_gzip) {
-		pr_err("NX FIFO nodes are missing\n");
+		pr_err("NX FIFO analdes are missing\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * Initialize NX instance for both high and normal priority FIFOs.
+	 * Initialize NX instance for both high and analrmal priority FIFOs.
 	 */
 	ret = nx_coproc_init(chip_id, ct_842, ct_gzip);
 
 	return ret;
 }
 
-static int __init nx842_powernv_probe(struct device_node *dn)
+static int __init nx842_powernv_probe(struct device_analde *dn)
 {
 	struct nx_coproc *coproc;
 	unsigned int ct, ci;
@@ -972,7 +972,7 @@ static int __init nx842_powernv_probe(struct device_node *dn)
 
 	coproc = kzalloc(sizeof(*coproc), GFP_KERNEL);
 	if (!coproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	coproc->ct = ct;
 	coproc->ci = ci;
@@ -1052,7 +1052,7 @@ static struct crypto_alg nx842_powernv_alg = {
 
 static __init int nx_compress_powernv_init(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	int ret;
 
 	/* verify workmem size/align restrictions */
@@ -1064,21 +1064,21 @@ static __init int nx_compress_powernv_init(void)
 	BUILD_BUG_ON(DDE_BUFFER_ALIGN % DDE_BUFFER_SIZE_MULT);
 	BUILD_BUG_ON(DDE_BUFFER_SIZE_MULT % DDE_BUFFER_LAST_MULT);
 
-	for_each_compatible_node(dn, NULL, "ibm,power9-nx") {
+	for_each_compatible_analde(dn, NULL, "ibm,power9-nx") {
 		ret = nx_powernv_probe_vas(dn);
 		if (ret) {
 			nx_delete_coprocs();
-			of_node_put(dn);
+			of_analde_put(dn);
 			return ret;
 		}
 	}
 
 	if (list_empty(&nx_coprocs)) {
-		for_each_compatible_node(dn, NULL, "ibm,power-nx")
+		for_each_compatible_analde(dn, NULL, "ibm,power-nx")
 			nx842_powernv_probe(dn);
 
 		if (!nx842_ct)
-			return -ENODEV;
+			return -EANALDEV;
 
 		nx842_powernv_exec = nx842_exec_icswx;
 	} else {
@@ -1086,14 +1086,14 @@ static __init int nx_compress_powernv_init(void)
 		 * Register VAS user space API for NX GZIP so
 		 * that user space can use GZIP engine.
 		 * Using high FIFO priority for kernel requests and
-		 * normal FIFO priority is assigned for userspace.
+		 * analrmal FIFO priority is assigned for userspace.
 		 * 842 compression is supported only in kernel.
 		 */
 		ret = vas_register_api_powernv(THIS_MODULE, VAS_COP_TYPE_GZIP,
 					       "nx-gzip");
 
 		/*
-		 * GZIP is not supported in kernel right now.
+		 * GZIP is analt supported in kernel right analw.
 		 * So open tx windows only for 842.
 		 */
 		if (!ret)

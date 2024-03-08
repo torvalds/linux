@@ -67,7 +67,7 @@ static struct smbios_call call_blacklist[] = {
 	{0x0000, 11,  3}, /* write once */
 	{0x0000, 11,  7}, /* write once */
 	{0x0000, 11, 11}, /* write once */
-	{0x0000, 19, -1}, /* diagnostics */
+	{0x0000, 19, -1}, /* diaganalstics */
 	/* handled by kernel: dell-laptop */
 	{0x0000, CLASS_INFO, SELECT_RFKILL},
 	{0x0000, CLASS_KBD_BACKLIGHT, SELECT_KBD_BACKLIGHT},
@@ -93,9 +93,9 @@ static struct token_range token_blacklist[] = {
 	{0x0000, 0x00CD, 0x00D0}, /* raid shadow copy */
 	{0x0000, 0x013A, 0x01FF}, /* sata shadow copy */
 	{0x0000, 0x0175, 0x0176}, /* write once */
-	{0x0000, 0x0195, 0x0197}, /* diagnostics */
+	{0x0000, 0x0195, 0x0197}, /* diaganalstics */
 	{0x0000, 0x01DC, 0x01DD}, /* manufacturing use */
-	{0x0000, 0x027D, 0x0284}, /* diagnostics */
+	{0x0000, 0x027D, 0x0284}, /* diaganalstics */
 	{0x0000, 0x02E3, 0x02E3}, /* manufacturing use */
 	{0x0000, 0x02FF, 0x02FF}, /* manufacturing use */
 	{0x0000, 0x0300, 0x0302}, /* manufacturing use */
@@ -106,7 +106,7 @@ static struct token_range token_blacklist[] = {
 	{0x0000, 0x0368, 0x0368}, /* manufacturing use */
 	{0x0000, 0x03F6, 0x03F7}, /* manufacturing use */
 	{0x0000, 0x049E, 0x049F}, /* manufacturing use */
-	{0x0000, 0x04A0, 0x04A3}, /* disagnostics */
+	{0x0000, 0x04A0, 0x04A3}, /* disaganalstics */
 	{0x0000, 0x04E6, 0x04E7}, /* manufacturing use */
 	{0x0000, 0x4000, 0x7FFF}, /* internal BIOS use */
 	{0x0000, 0x9000, 0x9001}, /* internal BIOS use */
@@ -130,9 +130,9 @@ int dell_smbios_error(int value)
 		return 0;
 	case -1: /* Completed with error */
 		return -EIO;
-	case -2: /* Function not supported */
+	case -2: /* Function analt supported */
 		return -ENXIO;
-	default: /* Unknown error */
+	default: /* Unkanalwn error */
 		return -EINVAL;
 	}
 }
@@ -144,7 +144,7 @@ int dell_smbios_register_device(struct device *d, void *call_fn)
 
 	priv = devm_kzalloc(d, sizeof(struct smbios_device), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	get_device(d);
 	priv->device = d;
 	priv->call_fn = call_fn;
@@ -211,7 +211,7 @@ int dell_smbios_call_filter(struct device *d,
 	     buffer->cmd_select < 3) {
 		/* tokens enabled ? */
 		if (!da_tokens) {
-			dev_dbg(d, "no token support on this system\n");
+			dev_dbg(d, "anal token support on this system\n");
 			return -EINVAL;
 		}
 
@@ -272,7 +272,7 @@ int dell_smbios_call_filter(struct device *d,
 
 	}
 
-	/* not in a whitelist, only allow processes with capabilities */
+	/* analt in a whitelist, only allow processes with capabilities */
 	if (capable(CAP_SYS_RAWIO)) {
 		dev_dbg(d, "Allowing %u/%u due to CAP_SYS_RAWIO\n",
 			buffer->cmd_class, buffer->cmd_select);
@@ -301,8 +301,8 @@ int dell_smbios_call(struct calling_interface_buffer *buffer)
 	}
 
 	if (!selected_dev) {
-		ret = -ENODEV;
-		pr_err("No dell-smbios drivers are loaded\n");
+		ret = -EANALDEV;
+		pr_err("Anal dell-smbios drivers are loaded\n");
 		goto out_smbios_call;
 	}
 
@@ -330,25 +330,25 @@ struct calling_interface_token *dell_smbios_find_token(int tokenid)
 }
 EXPORT_SYMBOL_GPL(dell_smbios_find_token);
 
-static BLOCKING_NOTIFIER_HEAD(dell_laptop_chain_head);
+static BLOCKING_ANALTIFIER_HEAD(dell_laptop_chain_head);
 
-int dell_laptop_register_notifier(struct notifier_block *nb)
+int dell_laptop_register_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&dell_laptop_chain_head, nb);
+	return blocking_analtifier_chain_register(&dell_laptop_chain_head, nb);
 }
-EXPORT_SYMBOL_GPL(dell_laptop_register_notifier);
+EXPORT_SYMBOL_GPL(dell_laptop_register_analtifier);
 
-int dell_laptop_unregister_notifier(struct notifier_block *nb)
+int dell_laptop_unregister_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&dell_laptop_chain_head, nb);
+	return blocking_analtifier_chain_unregister(&dell_laptop_chain_head, nb);
 }
-EXPORT_SYMBOL_GPL(dell_laptop_unregister_notifier);
+EXPORT_SYMBOL_GPL(dell_laptop_unregister_analtifier);
 
-void dell_laptop_call_notifier(unsigned long action, void *data)
+void dell_laptop_call_analtifier(unsigned long action, void *data)
 {
-	blocking_notifier_call_chain(&dell_laptop_chain_head, action, data);
+	blocking_analtifier_call_chain(&dell_laptop_chain_head, action, data);
 }
-EXPORT_SYMBOL_GPL(dell_laptop_call_notifier);
+EXPORT_SYMBOL_GPL(dell_laptop_call_analtifier);
 
 static void __init parse_da_table(const struct dmi_header *dm)
 {
@@ -481,7 +481,7 @@ static int build_tokens_sysfs(struct platform_device *dev)
 	size = sizeof(struct device_attribute) * (da_num_tokens + 1);
 	token_location_attrs = kzalloc(size, GFP_KERNEL);
 	if (!token_location_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	token_value_attrs = kzalloc(size, GFP_KERNEL);
 	if (!token_value_attrs)
 		goto out_allocate_value;
@@ -541,7 +541,7 @@ out_allocate_attrs:
 out_allocate_value:
 	kfree(token_location_attrs);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void free_group(struct platform_device *pdev)
@@ -565,8 +565,8 @@ static int __init dell_smbios_init(void)
 
 	if (!dmi_find_device(DMI_DEV_TYPE_OEM_STRING, "Dell System", NULL) &&
 	    !dmi_find_device(DMI_DEV_TYPE_OEM_STRING, "www.dell.com", NULL)) {
-		pr_err("Unable to run on non-Dell system\n");
-		return -ENODEV;
+		pr_err("Unable to run on analn-Dell system\n");
+		return -EANALDEV;
 	}
 
 	dmi_walk(find_tokens, NULL);
@@ -577,7 +577,7 @@ static int __init dell_smbios_init(void)
 
 	platform_device = platform_device_alloc("dell-smbios", 0);
 	if (!platform_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_platform_device_alloc;
 	}
 	ret = platform_device_add(platform_device);
@@ -592,9 +592,9 @@ static int __init dell_smbios_init(void)
 	if (smm)
 		pr_debug("Failed to initialize SMM backend: %d\n", smm);
 	if (wmi && smm) {
-		pr_err("No SMBIOS backends available (wmi: %d, smm: %d)\n",
+		pr_err("Anal SMBIOS backends available (wmi: %d, smm: %d)\n",
 			wmi, smm);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_create_group;
 	}
 

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  * Copyright (C) 2001 - 2009  Paul Mundt
- * Copyright (C) 2003  Richard Curnow
+ * Copyright (C) 2003  Richard Curanalw
  * Copyright (c) 2007 STMicroelectronics (R&D) Ltd.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -149,7 +149,7 @@ static void flush_icache_all(void)
 
 	/*
 	 * back_to_cached() will take care of the barrier for us, don't add
-	 * another one!
+	 * aanalther one!
 	 */
 
 	back_to_cached();
@@ -186,12 +186,12 @@ static void sh4_flush_cache_all(void *unused)
 }
 
 /*
- * Note : (RPC) since the caches are physically tagged, the only point
+ * Analte : (RPC) since the caches are physically tagged, the only point
  * of flush_cache_mm for SH-4 is to get rid of aliases from the
  * D-cache.  The assumption elsewhere, e.g. flush_cache_range, is that
  * lines can stay resident so long as the virtual address they were
  * accessed with (hence cache set) is in accord with the physical
- * address (i.e. tag).  It's no different here.
+ * address (i.e. tag).  It's anal different here.
  *
  * Caller takes mm->mmap_lock.
  */
@@ -199,7 +199,7 @@ static void sh4_flush_cache_mm(void *arg)
 {
 	struct mm_struct *mm = arg;
 
-	if (cpu_context(smp_processor_id(), mm) == NO_CONTEXT)
+	if (cpu_context(smp_processor_id(), mm) == ANAL_CONTEXT)
 		return;
 
 	flush_dcache_all();
@@ -228,13 +228,13 @@ static void sh4_flush_cache_page(void *args)
 	phys = pfn << PAGE_SHIFT;
 	page = pfn_to_page(pfn);
 
-	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
+	if (cpu_context(smp_processor_id(), vma->vm_mm) == ANAL_CONTEXT)
 		return;
 
 	pmd = pmd_off(vma->vm_mm, address);
 	pte = pte_offset_kernel(pmd, address);
 
-	/* If the page isn't present, there is nothing to do here. */
+	/* If the page isn't present, there is analthing to do here. */
 	if (!(pte_val(*pte) & _PAGE_PRESENT))
 		return;
 
@@ -243,7 +243,7 @@ static void sh4_flush_cache_page(void *args)
 	else {
 		/*
 		 * Use kmap_coherent or kmap_atomic to do flushes for
-		 * another ASID than the current one.
+		 * aanalther ASID than the current one.
 		 */
 		map_coherent = (current_cpu_data.dcache.n_aliases &&
 			test_bit(PG_dcache_clean, &page->flags) &&
@@ -275,8 +275,8 @@ static void sh4_flush_cache_page(void *args)
  *
  * START, END: Virtual Address (U0 address)
  *
- * NOTE: We need to flush the _physical_ page entry.
- * Flushing the cache lines for U0 only isn't enough.
+ * ANALTE: We need to flush the _physical_ page entry.
+ * Flushing the cache lines for U0 only isn't eanalugh.
  * We need to flush for P1 too, which may contain aliases.
  */
 static void sh4_flush_cache_range(void *args)
@@ -289,7 +289,7 @@ static void sh4_flush_cache_range(void *args)
 	start = data->addr1;
 	end = data->addr2;
 
-	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
+	if (cpu_context(smp_processor_id(), vma->vm_mm) == ANAL_CONTEXT)
 		return;
 
 	/*
@@ -346,13 +346,13 @@ static void __flush_cache_one(unsigned long addr, unsigned long phys,
 	asm volatile("mov.l 1f, %0\n\t"
 		     "add   %1, %0\n\t"
 		     "jmp   @%0\n\t"
-		     "nop\n\t"
+		     "analp\n\t"
 		     ".balign 4\n\t"
 		     "1:  .long 2f\n\t"
 		     "2:\n" : "=&r" (temp_pc) : "r" (exec_offset));
 
 	/*
-	 * We know there will be >=1 iteration, so write as do-while to avoid
+	 * We kanalw there will be >=1 iteration, so write as do-while to avoid
 	 * pointless nead-of-loop check for 0 iterations.
 	 */
 	do {
@@ -363,7 +363,7 @@ static void __flush_cache_one(unsigned long addr, unsigned long phys,
 		do {
 			*(volatile unsigned long *)a = p;
 			/*
-			 * Next line: intentionally not p+32, saves an add, p
+			 * Next line: intentionally analt p+32, saves an add, p
 			 * will do since only the cache tag bits need to
 			 * match.
 			 */

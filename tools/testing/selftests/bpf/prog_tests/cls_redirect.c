@@ -174,19 +174,19 @@ enum type {
 };
 
 enum hops {
-	NO_HOPS,
+	ANAL_HOPS,
 	ONE_HOP,
 };
 
 enum flags {
-	NONE,
+	ANALNE,
 	SYN,
 	ACK,
 };
 
 enum conn {
-	KNOWN_CONN,
-	UNKNOWN_CONN,
+	KANALWN_CONN,
+	UNKANALWN_CONN,
 };
 
 enum result {
@@ -215,11 +215,11 @@ static int test_str(void *buf, size_t len, const struct test_cfg *test,
 	if (test->type == UDP)
 		type = "UDP";
 
-	conn = "known";
-	if (test->conn == UNKNOWN_CONN)
-		conn = "unknown";
+	conn = "kanalwn";
+	if (test->conn == UNKANALWN_CONN)
+		conn = "unkanalwn";
 
-	hops = "no hops";
+	hops = "anal hops";
 	if (test->hops == ONE_HOP)
 		hops = "one hop";
 
@@ -227,7 +227,7 @@ static int test_str(void *buf, size_t len, const struct test_cfg *test,
 	if (test->result == FORWARD)
 		result = "forward";
 
-	flags = "none";
+	flags = "analne";
 	if (test->flags == SYN)
 		flags = "SYN";
 	else if (test->flags == ACK)
@@ -238,13 +238,13 @@ static int test_str(void *buf, size_t len, const struct test_cfg *test,
 }
 
 static struct test_cfg tests[] = {
-	{ TCP, ACCEPT, UNKNOWN_CONN, NO_HOPS, SYN },
-	{ TCP, ACCEPT, UNKNOWN_CONN, NO_HOPS, ACK },
-	{ TCP, FORWARD, UNKNOWN_CONN, ONE_HOP, ACK },
-	{ TCP, ACCEPT, KNOWN_CONN, ONE_HOP, ACK },
-	{ UDP, ACCEPT, UNKNOWN_CONN, NO_HOPS, NONE },
-	{ UDP, FORWARD, UNKNOWN_CONN, ONE_HOP, NONE },
-	{ UDP, ACCEPT, KNOWN_CONN, ONE_HOP, NONE },
+	{ TCP, ACCEPT, UNKANALWN_CONN, ANAL_HOPS, SYN },
+	{ TCP, ACCEPT, UNKANALWN_CONN, ANAL_HOPS, ACK },
+	{ TCP, FORWARD, UNKANALWN_CONN, ONE_HOP, ACK },
+	{ TCP, ACCEPT, KANALWN_CONN, ONE_HOP, ACK },
+	{ UDP, ACCEPT, UNKANALWN_CONN, ANAL_HOPS, ANALNE },
+	{ UDP, FORWARD, UNKANALWN_CONN, ONE_HOP, ANALNE },
+	{ UDP, ACCEPT, KANALWN_CONN, ONE_HOP, ANALNE },
 };
 
 static void encap_init(encap_headers_t *encap, uint8_t hop_count, uint8_t proto)
@@ -328,7 +328,7 @@ static size_t build_input(const struct test_cfg *test, void *const buf,
 		return 0;
 	}
 
-	if (test->conn == UNKNOWN_CONN)
+	if (test->conn == UNKANALWN_CONN)
 		sport--;
 
 	switch (test->type) {
@@ -436,7 +436,7 @@ static void test_cls_redirect_common(struct bpf_program *prog)
 					continue;
 				break;
 			default:
-				PRINT_FAIL("unknown result %d\n", test->result);
+				PRINT_FAIL("unkanalwn result %d\n", test->result);
 				continue;
 			}
 		}

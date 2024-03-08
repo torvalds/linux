@@ -4,9 +4,9 @@
 
 set -e
 
-# skip if there's no gcc
+# skip if there's anal gcc
 if ! [ -x "$(command -v gcc)" ]; then
-        echo "failed: no gcc compiler"
+        echo "failed: anal gcc compiler"
         exit 2
 fi
 

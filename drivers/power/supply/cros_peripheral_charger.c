@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
@@ -41,7 +41,7 @@ struct charger_data {
 	struct cros_ec_device *ec_device;
 	int num_registered_psy;
 	struct port_data *ports[EC_PCHG_MAX_PORTS];
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 };
 
 static enum power_supply_property cros_pchg_props[] = {
@@ -65,7 +65,7 @@ static int cros_pchg_ec_command(const struct charger_data *charger,
 
 	msg = kzalloc(struct_size(msg, data, max(outsize, insize)), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->version = version;
 	msg->command = ec_dev->cmd_offset + command;
@@ -144,8 +144,8 @@ static int cros_pchg_get_status(struct port_data *port)
 	case PCHG_STATE_INITIALIZED:
 	case PCHG_STATE_ENABLED:
 	default:
-		port->psy_status = POWER_SUPPLY_STATUS_UNKNOWN;
-		port->charge_type = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		port->psy_status = POWER_SUPPLY_STATUS_UNKANALWN;
+		port->charge_type = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	case PCHG_STATE_DETECTED:
 		port->psy_status = POWER_SUPPLY_STATUS_CHARGING;
@@ -157,7 +157,7 @@ static int cros_pchg_get_status(struct port_data *port)
 		break;
 	case PCHG_STATE_FULL:
 		port->psy_status = POWER_SUPPLY_STATUS_FULL;
-		port->charge_type = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		port->charge_type = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	}
 
@@ -234,26 +234,26 @@ static int cros_pchg_event(const struct charger_data *charger)
 	for (i = 0; i < charger->num_registered_psy; i++)
 		cros_pchg_get_port_status(charger->ports[i], false);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int cros_ec_notify(struct notifier_block *nb,
+static int cros_ec_analtify(struct analtifier_block *nb,
 			  unsigned long queued_during_suspend,
 			  void *data)
 {
 	struct cros_ec_device *ec_dev = data;
 	struct charger_data *charger =
-			container_of(nb, struct charger_data, notifier);
+			container_of(nb, struct charger_data, analtifier);
 	u32 host_event;
 
 	if (ec_dev->event_data.event_type != EC_MKBP_EVENT_PCHG ||
 			ec_dev->event_size != sizeof(host_event))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	host_event = get_unaligned_le32(&ec_dev->event_data.data.host_event);
 
 	if (!(host_event & EC_MKBP_PCHG_DEVICE_EVENT))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	return cros_pchg_event(charger);
 }
@@ -267,14 +267,14 @@ static int cros_pchg_probe(struct platform_device *pdev)
 	struct charger_data *charger;
 	struct power_supply *psy;
 	struct port_data *port;
-	struct notifier_block *nb;
+	struct analtifier_block *nb;
 	int num_ports;
 	int ret;
 	int i;
 
 	charger = devm_kzalloc(dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	charger->dev = dev;
 	charger->ec_dev = ec_dev;
@@ -287,23 +287,23 @@ static int cros_pchg_probe(struct platform_device *pdev)
 		/*
 		 * This feature is enabled by the EC and the kernel driver is
 		 * included by default for CrOS devices. Don't need to be loud
-		 * since this error can be normal.
+		 * since this error can be analrmal.
 		 */
-		dev_info(dev, "No peripheral charge ports (err:%d)\n", ret);
-		return -ENODEV;
+		dev_info(dev, "Anal peripheral charge ports (err:%d)\n", ret);
+		return -EANALDEV;
 	}
 
 	if (!cros_pchg_cmd_ver_check(charger)) {
 		dev_err(dev, "EC_CMD_PCHG version %d isn't available.\n",
 			pchg_cmd_version);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	num_ports = ret;
 	if (num_ports > EC_PCHG_MAX_PORTS) {
 		dev_err(dev, "Too many peripheral charge ports (%d)\n",
 			num_ports);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	dev_info(dev, "%d peripheral charge ports found\n", num_ports);
@@ -313,7 +313,7 @@ static int cros_pchg_probe(struct platform_device *pdev)
 
 		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 		if (!port)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		port->charger = charger;
 		port->port_number = i;
@@ -338,14 +338,14 @@ static int cros_pchg_probe(struct platform_device *pdev)
 	}
 
 	if (!charger->num_registered_psy)
-		return -ENODEV;
+		return -EANALDEV;
 
-	nb = &charger->notifier;
-	nb->notifier_call = cros_ec_notify;
-	ret = blocking_notifier_chain_register(&ec_dev->ec_dev->event_notifier,
+	nb = &charger->analtifier;
+	nb->analtifier_call = cros_ec_analtify;
+	ret = blocking_analtifier_chain_register(&ec_dev->ec_dev->event_analtifier,
 					       nb);
 	if (ret < 0)
-		dev_err(dev, "Failed to register notifier (err:%d)\n", ret);
+		dev_err(dev, "Failed to register analtifier (err:%d)\n", ret);
 
 	return 0;
 }

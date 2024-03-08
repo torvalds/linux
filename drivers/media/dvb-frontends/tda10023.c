@@ -14,7 +14,7 @@
 */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -373,7 +373,7 @@ static int tda10023_read_status(struct dvb_frontend *fe,
 	//0x11[1] == CARLOCK -> Carrier locked
 	//0x11[2] == FSYNC -> Frame synchronisation
 	//0x11[3] == FEL -> Front End locked
-	//0x11[6] == NODVB -> DVB Mode Information
+	//0x11[6] == ANALDVB -> DVB Mode Information
 	sync = tda10023_readreg (state, 0x11);
 
 	if (sync & 2)
@@ -407,7 +407,7 @@ static int tda10023_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	u8 ifgain=tda10023_readreg(state, 0x2f);
 
 	u16 gain = ((255-tda10023_readreg(state, 0x17))) + (255-ifgain)/16;
-	// Max raw value is about 0xb0 -> Normalize to >0xf0 after 0x90
+	// Max raw value is about 0xb0 -> Analrmalize to >0xf0 after 0x90
 	if (gain>0x90)
 		gain=gain+2*(gain-0x90);
 	if (gain>255)
@@ -465,7 +465,7 @@ static int tda10023_get_frontend(struct dvb_frontend *fe,
 	p->inversion = (inv&0x20?0:1);
 	p->modulation = ((state->reg0 >> 2) & 7) + QAM_16;
 
-	p->fec_inner = FEC_NONE;
+	p->fec_inner = FEC_ANALNE;
 	p->frequency = ((p->frequency + 31250) / 62500) * 62500;
 
 	if (sync & 2)
@@ -533,7 +533,7 @@ struct dvb_frontend *tda10023_attach(const struct tda10023_config *config,
 		state->pll_p = state->config->pll_p;
 		state->pll_n = state->config->pll_n;
 	} else {
-		/* set default values if not defined in config */
+		/* set default values if analt defined in config */
 		state->xtal  = 28920000;
 		state->pll_m = 8;
 		state->pll_p = 4;

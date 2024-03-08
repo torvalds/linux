@@ -82,5 +82,5 @@ p1 << r.p1;
 arr << r.arr;
 @@
 
-msg = "%s is not NULL terminated at line %s" % (arr, p1[0].line)
+msg = "%s is analt NULL terminated at line %s" % (arr, p1[0].line)
 coccilib.report.print_report(p1[0],msg)

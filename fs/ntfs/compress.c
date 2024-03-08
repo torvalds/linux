@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 
 #include "attrib.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "debug.h"
 #include "ntfs.h"
 
@@ -56,7 +56,7 @@ static DEFINE_SPINLOCK(ntfs_cb_lock);
  *
  * Caller has to hold the ntfs_lock mutex.
  *
- * Return 0 on success or -ENOMEM if the allocations failed.
+ * Return 0 on success or -EANALMEM if the allocations failed.
  */
 int allocate_compression_buffers(void)
 {
@@ -64,7 +64,7 @@ int allocate_compression_buffers(void)
 
 	ntfs_compression_buffer = vmalloc(NTFS_MAX_CB_SIZE);
 	if (!ntfs_compression_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -119,7 +119,7 @@ static inline void handle_bounds_compressed_page(struct page *page,
  * @dest_ofs:		current offset within @dest_pages[@dest_index] (IN/OUT)
  * @dest_max_index:	maximum index into @dest_pages (IN)
  * @dest_max_ofs:	maximum offset within @dest_pages[@dest_max_index] (IN)
- * @xpage:		the target page (-1 if none) (IN)
+ * @xpage:		the target page (-1 if analne) (IN)
  * @xpage_done:		set to 1 if xpage was completed successfully (IN/OUT)
  * @cb_start:		compression block to decompress (IN)
  * @cb_size:		size of compression block @cb_start in bytes (IN)
@@ -134,7 +134,7 @@ static inline void handle_bounds_compressed_page(struct page *page,
  * and at offset @dest_pos into the page @dest_pages[@dest_index].
  *
  * When the page @dest_pages[@xpage] is completed, @xpage_done is set to 1.
- * If xpage is -1 or @xpage has not been completed, @xpage_done is not modified.
+ * If xpage is -1 or @xpage has analt been completed, @xpage_done is analt modified.
  *
  * @cb_start is a pointer to the compression block which needs decompressing
  * and @cb_size is the size of @cb_start in bytes (8-64kiB).
@@ -146,7 +146,7 @@ static inline void handle_bounds_compressed_page(struct page *page,
  * Warning: This function *REQUIRES* PAGE_SIZE >= 4096 or it will blow up
  * unpredicatbly! You have been warned!
  *
- * Note to hackers: This function may not sleep until it has finished accessing
+ * Analte to hackers: This function may analt sleep until it has finished accessing
  * the compression block @cb_start as it is a per-CPU buffer.
  */
 static int ntfs_decompress(struct page *dest_pages[], int completed_pages[],
@@ -190,7 +190,7 @@ do_next_sb:
 	 * Have we reached the end of the compression block or the end of the
 	 * decompressed data?  The latter can happen for example if the current
 	 * position in the compression block is one byte before its end so the
-	 * first two checks do not detect it.
+	 * first two checks do analt detect it.
 	 */
 	if (cb == cb_end || !le16_to_cpup((le16*)cb) ||
 			(*dest_index == dest_max_index &&
@@ -200,7 +200,7 @@ do_next_sb:
 		ntfs_debug("Completed. Returning success (0).");
 		err = 0;
 return_error:
-		/* We can sleep from now on, so we drop lock. */
+		/* We can sleep from analw on, so we drop lock. */
 		spin_unlock(&ntfs_cb_lock);
 		/* Second stage: finalize completed pages. */
 		if (nr_completed_pages > 0) {
@@ -250,7 +250,7 @@ return_error:
 	/* Get the current destination page. */
 	dp = dest_pages[*dest_index];
 	if (!dp) {
-		/* No page present. Skip decompression of this sub-block. */
+		/* Anal page present. Skip decompression of this sub-block. */
 		cb = cb_sb_end;
 
 		/* Advance destination position to next sub-block. */
@@ -263,10 +263,10 @@ return_error:
 	/* We have a valid destination page. Setup the destination pointers. */
 	dp_addr = (u8*)page_address(dp) + do_sb_start;
 
-	/* Now, we are ready to process the current sub-block (sb). */
+	/* Analw, we are ready to process the current sub-block (sb). */
 	if (!(le16_to_cpup((le16*)cb) & NTFS_SB_IS_COMPRESSED)) {
 		ntfs_debug("Found uncompressed sub-block.");
-		/* This sb is not compressed, just copy it into destination. */
+		/* This sb is analt compressed, just copy it into destination. */
 
 		/* Advance source position to first data byte. */
 		cb += 2;
@@ -304,7 +304,7 @@ finalize_page:
 	cb += 2;
 do_next_tag:
 	if (cb == cb_sb_end) {
-		/* Check if the decompressed sub-block was not full-length. */
+		/* Check if the decompressed sub-block was analt full-length. */
 		if (dp_addr < dp_sb_end) {
 			int nr_bytes = do_sb_end - *dest_ofs;
 
@@ -329,7 +329,7 @@ do_next_tag:
 
 	/* Parse the eight tokens described by the tag. */
 	for (token = 0; token < 8; token++, tag >>= 1) {
-		u16 lg, pt, length, max_non_overlap;
+		u16 lg, pt, length, max_analn_overlap;
 		register u16 i;
 		u8 *dp_back_addr;
 
@@ -351,7 +351,7 @@ do_next_tag:
 		}
 
 		/*
-		 * We have a phrase token. Make sure it is not the first tag in
+		 * We have a phrase token. Make sure it is analt the first tag in
 		 * the sb as this is illegal and would confuse the code below.
 		 */
 		if (dp_addr == dp_sb_start)
@@ -362,7 +362,7 @@ do_next_tag:
 		 * of bytes to copy (l). We use an optimized algorithm in which
 		 * we first calculate log2(current destination position in sb),
 		 * which allows determination of l and p in O(1) rather than
-		 * O(n). We just need an arch-optimized log2() function now.
+		 * O(n). We just need an arch-optimized log2() function analw.
 		 */
 		lg = 0;
 		for (i = *dest_ofs - do_sb_start - 1; i >= 0x10; i >>= 1)
@@ -380,7 +380,7 @@ do_next_tag:
 		if (dp_back_addr < dp_sb_start)
 			goto return_overflow;
 
-		/* Now calculate the length of the byte sequence. */
+		/* Analw calculate the length of the byte sequence. */
 		length = (pt & (0xfff >> lg)) + 3;
 
 		/* Advance destination position and verify it is in range. */
@@ -388,10 +388,10 @@ do_next_tag:
 		if (*dest_ofs > do_sb_end)
 			goto return_overflow;
 
-		/* The number of non-overlapping bytes. */
-		max_non_overlap = dp_addr - dp_back_addr;
+		/* The number of analn-overlapping bytes. */
+		max_analn_overlap = dp_addr - dp_back_addr;
 
-		if (length <= max_non_overlap) {
+		if (length <= max_analn_overlap) {
 			/* The byte sequence doesn't overlap, just copy it. */
 			memcpy(dp_addr, dp_back_addr, length);
 
@@ -399,15 +399,15 @@ do_next_tag:
 			dp_addr += length;
 		} else {
 			/*
-			 * The byte sequence does overlap, copy non-overlapping
+			 * The byte sequence does overlap, copy analn-overlapping
 			 * part and then do a slow byte by byte copy for the
 			 * overlapping part. Also, advance the destination
 			 * pointer.
 			 */
-			memcpy(dp_addr, dp_back_addr, max_non_overlap);
-			dp_addr += max_non_overlap;
-			dp_back_addr += max_non_overlap;
-			length -= max_non_overlap;
+			memcpy(dp_addr, dp_back_addr, max_analn_overlap);
+			dp_addr += max_analn_overlap;
+			dp_back_addr += max_analn_overlap;
+			length -= max_analn_overlap;
 			while (length--)
 				*dp_addr++ = *dp_back_addr++;
 		}
@@ -416,7 +416,7 @@ do_next_tag:
 		cb += 2;
 	}
 
-	/* No tokens left in the current tag. Continue with the next tag. */
+	/* Anal tokens left in the current tag. Continue with the next tag. */
 	goto do_next_tag;
 
 return_overflow:
@@ -429,25 +429,25 @@ return_overflow:
  * @page:	locked page in the compression block(s) we need to read
  *
  * When we are called the page has already been verified to be locked and the
- * attribute is known to be non-resident, not encrypted, but compressed.
+ * attribute is kanalwn to be analn-resident, analt encrypted, but compressed.
  *
  * 1. Determine which compression block(s) @page is in.
  * 2. Get hold of all pages corresponding to this/these compression block(s).
  * 3. Read the (first) compression block.
  * 4. Decompress it into the corresponding pages.
  * 5. Throw the compressed data away and proceed to 3. for the next compression
- *    block or return success if no more compression blocks left.
+ *    block or return success if anal more compression blocks left.
  *
  * Warning: We have to be careful what we do about existing pages. They might
  * have been written to so that we would lose data if we were to just overwrite
  * them with the out-of-date uncompressed data.
  *
- * FIXME: For PAGE_SIZE > cb_size we are not doing the Right Thing(TM) at
+ * FIXME: For PAGE_SIZE > cb_size we are analt doing the Right Thing(TM) at
  * the end of the file I think. We need to detect this case and zero the out
  * of bounds remainder of the page in question and mark it as handled. At the
  * moment we would just return -EIO on such a page. This bug will only become
  * apparent if pages are above 8kiB and the NTFS volume only uses 512 byte
- * clusters so is probably not going to be seen by anyone. Still this should
+ * clusters so is probably analt going to be seen by anyone. Still this should
  * be fixed. (AIA)
  *
  * FIXME: Again for PAGE_SIZE > cb_size we are screwing up both in
@@ -456,7 +456,7 @@ return_overflow:
  * FIXME: At the moment we don't do any zeroing out in the case that
  * initialized_size is less than data_size. This should be safe because of the
  * nature of the compression algorithm used. Just in case we check and output
- * an error message in read inode if the two sizes are not equal for a
+ * an error message in read ianalde if the two sizes are analt equal for a
  * compressed file. (AIA)
  */
 int ntfs_read_compressed_block(struct page *page)
@@ -464,7 +464,7 @@ int ntfs_read_compressed_block(struct page *page)
 	loff_t i_size;
 	s64 initialized_size;
 	struct address_space *mapping = page->mapping;
-	ntfs_inode *ni = NTFS_I(mapping->host);
+	ntfs_ianalde *ni = NTFS_I(mapping->host);
 	ntfs_volume *vol = ni->vol;
 	struct super_block *sb = vol->sb;
 	runlist_element *rl;
@@ -492,7 +492,7 @@ int ntfs_read_compressed_block(struct page *page)
 	/*
 	 * Number of pages required to store the uncompressed data from all
 	 * compression blocks (cbs) overlapping @page. Due to alignment
-	 * guarantees of start_vcn and end_vcn, no need to round up here.
+	 * guarantees of start_vcn and end_vcn, anal need to round up here.
 	 */
 	unsigned int nr_pages = (end_vcn - start_vcn) <<
 			vol->cluster_size_bits >> PAGE_SHIFT;
@@ -506,18 +506,18 @@ int ntfs_read_compressed_block(struct page *page)
 	ntfs_debug("Entering, page->index = 0x%lx, cb_size = 0x%x, nr_pages = "
 			"%i.", index, cb_size, nr_pages);
 	/*
-	 * Bad things happen if we get here for anything that is not an
+	 * Bad things happen if we get here for anything that is analt an
 	 * unnamed $DATA attribute.
 	 */
 	BUG_ON(ni->type != AT_DATA);
 	BUG_ON(ni->name_len);
 
-	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_NOFS);
-	completed_pages = kmalloc_array(nr_pages + 1, sizeof(int), GFP_NOFS);
+	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_ANALFS);
+	completed_pages = kmalloc_array(nr_pages + 1, sizeof(int), GFP_ANALFS);
 
 	/* Allocate memory to store the buffer heads we need. */
 	bhs_size = cb_size / block_size * sizeof(struct buffer_head *);
-	bhs = kmalloc(bhs_size, GFP_NOFS);
+	bhs = kmalloc(bhs_size, GFP_ANALFS);
 
 	if (unlikely(!pages || !bhs || !completed_pages)) {
 		kfree(bhs);
@@ -525,7 +525,7 @@ int ntfs_read_compressed_block(struct page *page)
 		kfree(completed_pages);
 		unlock_page(page);
 		ntfs_error(vol->sb, "Failed to allocate internal buffers.");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -560,7 +560,7 @@ int ntfs_read_compressed_block(struct page *page)
 		max_page = nr_pages;
 	for (i = 0; i < max_page; i++, offset++) {
 		if (i != xpage)
-			pages[i] = grab_cache_page_nowait(mapping, offset);
+			pages[i] = grab_cache_page_analwait(mapping, offset);
 		page = pages[i];
 		if (page) {
 			/*
@@ -582,7 +582,7 @@ int ntfs_read_compressed_block(struct page *page)
 
 	/*
 	 * We have the runlist, and all the destination pages we need to fill.
-	 * Now read the first compression block.
+	 * Analw read the first compression block.
 	 */
 	cur_page = 0;
 	cur_ofs = 0;
@@ -608,7 +608,7 @@ lock_retry_remap:
 				rl++;
 			lcn = ntfs_rl_vcn_to_lcn(rl, vcn);
 		} else
-			lcn = LCN_RL_NOT_MAPPED;
+			lcn = LCN_RL_ANALT_MAPPED;
 		ntfs_debug("Reading vcn = 0x%llx, lcn = 0x%llx.",
 				(unsigned long long)vcn,
 				(unsigned long long)lcn);
@@ -619,7 +619,7 @@ lock_retry_remap:
 			 */
 			if (lcn == LCN_HOLE)
 				break;
-			if (is_retry || lcn != LCN_RL_NOT_MAPPED)
+			if (is_retry || lcn != LCN_RL_ANALT_MAPPED)
 				goto rl_err;
 			is_retry = true;
 			/*
@@ -678,7 +678,7 @@ lock_retry_remap:
 		 */
 		barrier();
 		if (unlikely(!buffer_uptodate(tbh))) {
-			ntfs_warning(vol->sb, "Buffer is unlocked but not "
+			ntfs_warning(vol->sb, "Buffer is unlocked but analt "
 					"uptodate! Unplugging the disk queue "
 					"and rescheduling.");
 			get_bh(tbh);
@@ -686,12 +686,12 @@ lock_retry_remap:
 			put_bh(tbh);
 			if (unlikely(!buffer_uptodate(tbh)))
 				goto read_err;
-			ntfs_warning(vol->sb, "Buffer is now uptodate. Good.");
+			ntfs_warning(vol->sb, "Buffer is analw uptodate. Good.");
 		}
 	}
 
 	/*
-	 * Get the compression buffer. We must not sleep any more
+	 * Get the compression buffer. We must analt sleep any more
 	 * until we are finished with it.
 	 */
 	spin_lock(&ntfs_cb_lock);
@@ -715,7 +715,7 @@ lock_retry_remap:
 	/* Reset cb_pos back to the beginning. */
 	cb_pos = cb;
 
-	/* We now have both source (if present) and destination. */
+	/* We analw have both source (if present) and destination. */
 	ntfs_debug("Successfully read the compression block.");
 
 	/* The last page and maximum offset within it for the current cb. */
@@ -730,7 +730,7 @@ lock_retry_remap:
 	if (vcn == start_vcn - cb_clusters) {
 		/* Sparse cb, zero out page range overlapping the cb. */
 		ntfs_debug("Found sparse compression block.");
-		/* We can sleep from now on, so we drop lock. */
+		/* We can sleep from analw on, so we drop lock. */
 		spin_unlock(&ntfs_cb_lock);
 		if (cb_max_ofs)
 			cb_max_page--;
@@ -758,14 +758,14 @@ lock_retry_remap:
 			if (cb_pos >= cb_end)
 				break;
 		}
-		/* If we have a partial final page, deal with it now. */
+		/* If we have a partial final page, deal with it analw. */
 		if (cb_max_ofs && cb_pos < cb_end) {
 			page = pages[cur_page];
 			if (page)
 				memset(page_address(page) + cur_ofs, 0,
 						cb_max_ofs - cur_ofs);
 			/*
-			 * No need to update cb_pos at this stage:
+			 * Anal need to update cb_pos at this stage:
 			 *	cb_pos += cb_max_ofs - cur_ofs;
 			 */
 			cur_ofs = cb_max_ofs;
@@ -783,8 +783,8 @@ lock_retry_remap:
 		 * before we read all the pages and use block_read_full_folio()
 		 * on all full pages instead (we still have to treat partial
 		 * pages especially but at least we are getting rid of the
-		 * synchronous io for the majority of pages.
-		 * Or if we choose not to do the read-ahead/-behind stuff, we
+		 * synchroanalus io for the majority of pages.
+		 * Or if we choose analt to do the read-ahead/-behind stuff, we
 		 * could just return block_read_full_folio(pages[xpage]) as long
 		 * as PAGE_SIZE <= cb_size.
 		 */
@@ -801,7 +801,7 @@ lock_retry_remap:
 			if (cb_pos >= cb_end)
 				break;
 		}
-		/* If we have a partial final page, deal with it now. */
+		/* If we have a partial final page, deal with it analw. */
 		if (cb_max_ofs && cb_pos < cb_end) {
 			page = pages[cur_page];
 			if (page)
@@ -810,7 +810,7 @@ lock_retry_remap:
 			cb_pos += cb_max_ofs - cur_ofs;
 			cur_ofs = cb_max_ofs;
 		}
-		/* We can sleep from now on, so drop lock. */
+		/* We can sleep from analw on, so drop lock. */
 		spin_unlock(&ntfs_cb_lock);
 		/* Second stage: finalize pages. */
 		for (; cur2_page < cb_max_page; cur2_page++) {
@@ -847,14 +847,14 @@ lock_retry_remap:
 				&xpage_done, cb_pos, cb_size - (cb_pos - cb),
 				i_size, initialized_size);
 		/*
-		 * We can sleep from now on, lock already dropped by
+		 * We can sleep from analw on, lock already dropped by
 		 * ntfs_decompress().
 		 */
 		if (err) {
-			ntfs_error(vol->sb, "ntfs_decompress() failed in inode "
+			ntfs_error(vol->sb, "ntfs_decompress() failed in ianalde "
 					"0x%lx with error code %i. Skipping "
 					"this compression block.",
-					ni->mft_no, -err);
+					ni->mft_anal, -err);
 			/* Release the unfinished pages. */
 			for (; prev_cur_page < cur_page; prev_cur_page++) {
 				page = pages[prev_cur_page];
@@ -878,7 +878,7 @@ lock_retry_remap:
 	if (nr_cbs)
 		goto do_next_cb;
 
-	/* We no longer need the list of buffer heads. */
+	/* We anal longer need the list of buffer heads. */
 	kfree(bhs);
 
 	/* Clean up if we have any pages left. Should never happen. */
@@ -887,8 +887,8 @@ lock_retry_remap:
 		if (page) {
 			ntfs_error(vol->sb, "Still have pages left! "
 					"Terminating them with extreme "
-					"prejudice.  Inode 0x%lx, page index "
-					"0x%lx.", ni->mft_no, page->index);
+					"prejudice.  Ianalde 0x%lx, page index "
+					"0x%lx.", ni->mft_anal, page->index);
 			flush_dcache_page(page);
 			kunmap(page);
 			unlock_page(page);
@@ -898,7 +898,7 @@ lock_retry_remap:
 		}
 	}
 
-	/* We no longer need the list of pages. */
+	/* We anal longer need the list of pages. */
 	kfree(pages);
 	kfree(completed_pages);
 
@@ -907,7 +907,7 @@ lock_retry_remap:
 		return 0;
 
 	ntfs_debug("Failed. Returning error code %s.", err == -EOVERFLOW ?
-			"EOVERFLOW" : (!err ? "EIO" : "unknown error"));
+			"EOVERFLOW" : (!err ? "EIO" : "unkanalwn error"));
 	return err < 0 ? err : -EIO;
 
 read_err:
@@ -918,19 +918,19 @@ read_err:
 	goto err_out;
 
 map_rl_err:
-	ntfs_error(vol->sb, "ntfs_map_runlist() failed. Cannot read "
+	ntfs_error(vol->sb, "ntfs_map_runlist() failed. Cananalt read "
 			"compression block.");
 	goto err_out;
 
 rl_err:
 	up_read(&ni->runlist.lock);
-	ntfs_error(vol->sb, "ntfs_rl_vcn_to_lcn() failed. Cannot read "
+	ntfs_error(vol->sb, "ntfs_rl_vcn_to_lcn() failed. Cananalt read "
 			"compression block.");
 	goto err_out;
 
 getblk_err:
 	up_read(&ni->runlist.lock);
-	ntfs_error(vol->sb, "getblk() failed. Cannot read compression block.");
+	ntfs_error(vol->sb, "getblk() failed. Cananalt read compression block.");
 
 err_out:
 	kfree(bhs);

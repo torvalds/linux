@@ -8,22 +8,22 @@
 #include "bpf_experimental.h"
 
 /* BTF load should fail as bpf_rb_root __contains this type and points to
- * 'node', but 'node' is not a bpf_rb_node
+ * 'analde', but 'analde' is analt a bpf_rb_analde
  */
-struct node_data {
+struct analde_data {
 	int key;
 	int data;
-	struct bpf_list_node node;
+	struct bpf_list_analde analde;
 };
 
 #define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
 private(A) struct bpf_spin_lock glock;
-private(A) struct bpf_rb_root groot __contains(node_data, node);
+private(A) struct bpf_rb_root groot __contains(analde_data, analde);
 
 SEC("tc")
-long rbtree_api_add__wrong_node_type(void *ctx)
+long rbtree_api_add__wrong_analde_type(void *ctx)
 {
-	struct node_data *n;
+	struct analde_data *n;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)

@@ -24,7 +24,7 @@ struct sram_dev {
 
 	struct device *dev;
 	void __iomem *virt_base;
-	bool no_memory_wc;
+	bool anal_memory_wc;
 
 	struct gen_pool *pool;
 
@@ -52,12 +52,12 @@ static inline int sram_check_protect_exec(struct sram_dev *sram,
 					  struct sram_reserve *block,
 					  struct sram_partition *part)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int sram_add_protect_exec(struct sram_partition *part)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_SRAM_EXEC */
 #endif /* __SRAM_H */

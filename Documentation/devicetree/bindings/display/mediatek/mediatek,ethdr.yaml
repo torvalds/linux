@@ -105,7 +105,7 @@ properties:
     minItems: 1
     maxItems: 7
     description: The register of display function block to be set by gce.
-      There are 4 arguments in this property, gce node, subsys id, offset and
+      There are 4 arguments in this property, gce analde, subsys id, offset and
       register size. The subsys id is defined in the gce header of each chips
       include/dt-bindings/gce/<chip>-gce.h, mapping to the register of display
       function block.

@@ -41,7 +41,7 @@ struct dw_hdmi_channel_conf {
 
 /*
  * The default mapping of ALSA channels to HDMI channels and speaker
- * allocation bits.  Note that we can't do channel remapping here -
+ * allocation bits.  Analte that we can't do channel remapping here -
  * channels must be in the same order.
  *
  * Mappings for alsa-lib pcm/surround*.conf files:
@@ -86,8 +86,8 @@ static int audio_hw_params(struct device *dev,  void *data,
 	dw_hdmi_set_channel_count(dw->data.hdmi, params->channels);
 	dw_hdmi_set_channel_allocation(dw->data.hdmi, ca);
 
-	dw_hdmi_set_sample_non_pcm(dw->data.hdmi,
-				   params->iec.status[0] & IEC958_AES0_NONAUDIO);
+	dw_hdmi_set_sample_analn_pcm(dw->data.hdmi,
+				   params->iec.status[0] & IEC958_AES0_ANALNAUDIO);
 	dw_hdmi_set_sample_width(dw->data.hdmi, params->sample_width);
 
 	return 0;
@@ -120,7 +120,7 @@ static int audio_get_eld(struct device *dev, void *data,
 	if (eld)
 		memcpy(buf, eld, min_t(size_t, MAX_ELD_BYTES, len));
 	else
-		/* Pass en empty ELD if connector not available */
+		/* Pass en empty ELD if connector analt available */
 		memset(buf, 0, len);
 
 	return 0;
@@ -158,7 +158,7 @@ static int snd_dw_hdmi_probe(struct platform_device *pdev)
 
 	dw = devm_kzalloc(&pdev->dev, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw->data = *data;
 
@@ -190,6 +190,6 @@ static struct platform_driver snd_dw_hdmi_driver = {
 module_platform_driver(snd_dw_hdmi_driver);
 
 MODULE_AUTHOR("Shengjiu Wang <shengjiu.wang@nxp.com>");
-MODULE_DESCRIPTION("Synopsys Designware HDMI GPA ALSA interface");
+MODULE_DESCRIPTION("Syanalpsys Designware HDMI GPA ALSA interface");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);

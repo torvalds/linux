@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices analt fully compliant with HID standard
  *
  *  Copyright (c) 2022 José Expósito <jose.exposito89@gmail.com>
  */
@@ -186,10 +186,10 @@ static void hid_test_uclogic_params_cleanup_event_hooks(struct kunit *test)
 	struct uclogic_params p = {0, };
 
 	hdev = kunit_kzalloc(test, sizeof(struct hid_device), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hdev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, hdev);
 
 	fake_dev = kunit_kzalloc(test, sizeof(struct fake_device), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fake_dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, fake_dev);
 
 	hid_set_drvdata(hdev, fake_dev);
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos5420 Klimt WiFi board device tree source
+ * Samsung's Exyanals5420 Klimt WiFi board device tree source
  *
  * Copyright (c) 2012-2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -8,12 +8,12 @@
  */
 
 /dts-v1/;
-#include "exynos5420-galaxy-tab-common.dtsi"
+#include "exyanals5420-galaxy-tab-common.dtsi"
 
 / {
-	model = "Samsung Klimt WiFi based on Exynos5420";
-	compatible = "samsung,klimt-wifi", "samsung,exynos5420", \
-		     "samsung,exynos5";
+	model = "Samsung Klimt WiFi based on Exyanals5420";
+	compatible = "samsung,klimt-wifi", "samsung,exyanals5420", \
+		     "samsung,exyanals5";
 };
 
 &ldo15_reg {

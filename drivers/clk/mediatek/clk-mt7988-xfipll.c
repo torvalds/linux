@@ -29,7 +29,7 @@ static const struct mtk_gate_regs xfipll_cg_regs = {
 		.parent_name = _parent,				\
 		.regs = &xfipll_cg_regs,			\
 		.shift = _shift,				\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,		\
+		.ops = &mtk_clk_gate_ops_anal_setclr_inv,		\
 	}
 
 static const struct mtk_fixed_factor xfipll_divs[] = {
@@ -49,11 +49,11 @@ static const struct mtk_clk_desc xfipll_desc = {
 
 static int clk_mt7988_xfipll_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	void __iomem *base = of_iomap(node, 0);
+	struct device_analde *analde = pdev->dev.of_analde;
+	void __iomem *base = of_iomap(analde, 0);
 
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Apply software workaround for USXGMII PLL TCL issue */
 	writel(RG_XFI_PLL_ANA_SWWA, base + XFI_PLL_ANA_GLB8);

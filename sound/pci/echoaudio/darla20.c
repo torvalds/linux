@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ALSA driver for Echoaudio soundcards.
- *  Copyright (C) 2003-2004 Giuliano Pochini <pochini@shiny.it>
+ *  Copyright (C) 2003-2004 Giuliaanal Pochini <pochini@shiny.it>
  */
 
 #define ECHOGALS_FAMILY
@@ -78,7 +78,7 @@ static const struct snd_pcm_hardware pcm_hardware_skel = {
 	.period_bytes_max = 131072,
 	.periods_min = 2,
 	.periods_max = 220,
-	/* One page (4k) contains 512 instructions. I don't know if the hw
+	/* One page (4k) contains 512 instructions. I don't kanalw if the hw
 	supports lists longer than this. In this case periods_max=220 is a
 	safe limit to make sure the list never exceeds 512 instructions. */
 };

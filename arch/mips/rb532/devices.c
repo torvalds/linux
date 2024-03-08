@@ -147,7 +147,7 @@ static void rb532_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 
 		set_latch_u5(orbits, nandbits);
 	}
-	if (cmd != NAND_CMD_NONE)
+	if (cmd != NAND_CMD_ANALNE)
 		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
@@ -282,7 +282,7 @@ static int __init plat_setup_devices(void)
 	dev3.base = ioremap(readl(IDT434_REG_BASE + DEV3BASE), 1);
 
 	if (!dev3.base) {
-		printk(KERN_ERR "rb532: cannot remap device controller 3\n");
+		printk(KERN_ERR "rb532: cananalt remap device controller 3\n");
 		return -ENXIO;
 	}
 

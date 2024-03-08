@@ -30,9 +30,9 @@
 #define CAMCC_BPS_AXI_CLK				19
 #define CAMCC_BPS_CLK					20
 #define CAMCC_BPS_CLK_SRC				21
-#define CAMCC_CAMNOC_AXI_CLK				22
-#define CAMCC_CAMNOC_AXI_CLK_SRC			23
-#define CAMCC_CAMNOC_DCD_XO_CLK				24
+#define CAMCC_CAMANALC_AXI_CLK				22
+#define CAMCC_CAMANALC_AXI_CLK_SRC			23
+#define CAMCC_CAMANALC_DCD_XO_CLK				24
 #define CAMCC_CCI_0_CLK					25
 #define CAMCC_CCI_0_CLK_SRC				26
 #define CAMCC_CCI_1_CLK					27
@@ -145,7 +145,7 @@
 
 /* CAMCC resets */
 #define CAMCC_BPS_BCR					0
-#define CAMCC_CAMNOC_BCR				1
+#define CAMCC_CAMANALC_BCR				1
 #define CAMCC_CCI_BCR					2
 #define CAMCC_CPAS_BCR					3
 #define CAMCC_CSI0PHY_BCR				4

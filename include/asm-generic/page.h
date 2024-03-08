@@ -2,7 +2,7 @@
 #ifndef __ASM_GENERIC_PAGE_H
 #define __ASM_GENERIC_PAGE_H
 /*
- * Generic page.h implementation, for NOMMU architectures.
+ * Generic page.h implementation, for ANALMMU architectures.
  * This provides the dummy definitions for the memory management.
  */
 

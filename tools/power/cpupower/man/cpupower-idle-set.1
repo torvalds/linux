@@ -13,10 +13,10 @@ sleep states. This can be handy for power vs performance tuning.
 .SH "OPTIONS"
 .LP
 .TP
-\fB\-d\fR \fB\-\-disable\fR <STATE_NO>
+\fB\-d\fR \fB\-\-disable\fR <STATE_ANAL>
 Disable a specific processor sleep state.
 .TP
-\fB\-e\fR \fB\-\-enable\fR <STATE_NO>
+\fB\-e\fR \fB\-\-enable\fR <STATE_ANAL>
 Enable a specific processor sleep state.
 .TP
 \fB\-D\fR \fB\-\-disable-by-latency\fR <LATENCY>
@@ -25,34 +25,34 @@ Disable all idle states with a equal or higher latency than <LATENCY>.
 Enable all idle states with a latency lower than <LATENCY>.
 .TP
 \fB\-E\fR \fB\-\-enable-all\fR
-Enable all idle states if not enabled already.
+Enable all idle states if analt enabled already.
 
 .SH "REMARKS"
 .LP
-Cpuidle Governors Policy on Disabling Sleep States
+Cpuidle Goveranalrs Policy on Disabling Sleep States
 
 .RS 4
-Depending on the used  cpuidle governor, implementing the kernel policy
+Depending on the used  cpuidle goveranalr, implementing the kernel policy
 how to choose sleep states, subsequent sleep states on this core, might get
 disabled as well.
 
-There are two cpuidle governors ladder and menu. While the ladder
-governor is always available, if CONFIG_CPU_IDLE is selected, the
-menu governor additionally requires CONFIG_NO_HZ.
+There are two cpuidle goveranalrs ladder and menu. While the ladder
+goveranalr is always available, if CONFIG_CPU_IDLE is selected, the
+menu goveranalr additionally requires CONFIG_ANAL_HZ.
 
 The behavior and the effect of the disable variable depends on the
-implementation of a particular governor. In the ladder governor, for
-example, it is not coherent, i.e. if one is disabling a light state,
+implementation of a particular goveranalr. In the ladder goveranalr, for
+example, it is analt coherent, i.e. if one is disabling a light state,
 then all deeper states are disabled as well. Likewise, if one enables a
-deep state but a lighter state still is disabled, then this has no effect.
+deep state but a lighter state still is disabled, then this has anal effect.
 .RE
 .LP
-Disabling the Lightest Sleep State may not have any Affect
+Disabling the Lightest Sleep State may analt have any Affect
 
 .RS 4
-If criteria are not met to enter deeper sleep states and the lightest sleep
+If criteria are analt met to enter deeper sleep states and the lightest sleep
 state is chosen when idle, the kernel may still enter this sleep state,
-irrespective of whether it is disabled or not. This is also reflected in
+irrespective of whether it is disabled or analt. This is also reflected in
 the usage count of the disabled sleep state when using the cpupower idle-info
 command.
 .RE

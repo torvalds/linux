@@ -49,7 +49,7 @@ static struct rc_map_list tbs_nec_map = {
 	.map = {
 		.scan     = tbs_nec,
 		.size     = ARRAY_SIZE(tbs_nec),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_TBS_NEC,
 	}
 };

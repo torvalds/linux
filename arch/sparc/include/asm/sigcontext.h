@@ -7,7 +7,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define __SUNOS_MAXWIN   31
+#define __SUANALS_MAXWIN   31
 
 /* This is what SunOS does, so shall I unless we use new 32bit signals or rt signals. */
 struct sigcontext32 {
@@ -20,20 +20,20 @@ struct sigcontext32 {
 	int sigc_g1;           /* User uses these two registers */
 	int sigc_o0;           /* within the trampoline code. */
 
-	/* Now comes information regarding the users window set
+	/* Analw comes information regarding the users window set
 	 * at the time of the signal.
 	 */
 	int sigc_oswins;       /* outstanding windows */
 
 	/* stack ptrs for each regwin buf */
-	unsigned int sigc_spbuf[__SUNOS_MAXWIN];
+	unsigned int sigc_spbuf[__SUANALS_MAXWIN];
 
 	/* Windows to restore after signal */
-	struct reg_window32 sigc_wbuf[__SUNOS_MAXWIN];
+	struct reg_window32 sigc_wbuf[__SUANALS_MAXWIN];
 };
 
 
-/* This is what we use for 32bit new non-rt signals. */
+/* This is what we use for 32bit new analn-rt signals. */
 
 typedef struct {
 	struct {

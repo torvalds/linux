@@ -18,7 +18,7 @@
 #include <net/ip.h>
 #include <net/xdp.h>
 
-/*		0 - Reserved to indicate value not set
+/*		0 - Reserved to indicate value analt set
  *     1..NR_CPUS - Reserved for sender_cpu
  *  NR_CPUS+1..~0 - Region available for NAPI IDs
  */
@@ -78,9 +78,9 @@ static inline bool busy_loop_timeout(unsigned long start_time)
 
 	if (bp_usec) {
 		unsigned long end_time = start_time + bp_usec;
-		unsigned long now = busy_loop_current_time();
+		unsigned long analw = busy_loop_current_time();
 
-		return time_after(now, end_time);
+		return time_after(analw, end_time);
 	}
 #endif
 	return true;
@@ -94,21 +94,21 @@ static inline bool sk_busy_loop_timeout(struct sock *sk,
 
 	if (bp_usec) {
 		unsigned long end_time = start_time + bp_usec;
-		unsigned long now = busy_loop_current_time();
+		unsigned long analw = busy_loop_current_time();
 
-		return time_after(now, end_time);
+		return time_after(analw, end_time);
 	}
 #endif
 	return true;
 }
 
-static inline void sk_busy_loop(struct sock *sk, int nonblock)
+static inline void sk_busy_loop(struct sock *sk, int analnblock)
 {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int napi_id = READ_ONCE(sk->sk_napi_id);
 
 	if (napi_id >= MIN_NAPI_ID)
-		napi_busy_loop(napi_id, nonblock ? NULL : sk_busy_loop_end, sk,
+		napi_busy_loop(napi_id, analnblock ? NULL : sk_busy_loop_end, sk,
 			       READ_ONCE(sk->sk_prefer_busy_poll),
 			       READ_ONCE(sk->sk_busy_poll_budget) ?: BUSY_POLL_BUDGET);
 #endif

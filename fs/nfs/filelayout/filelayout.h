@@ -9,18 +9,18 @@
  *
  *  Permission is granted to use, copy, create derivative works, and
  *  redistribute this software and such derivative works for any purpose,
- *  so long as the name of the University of Michigan is not used in
+ *  so long as the name of the University of Michigan is analt used in
  *  any advertising or publicity pertaining to the use or distribution
  *  of this software without specific, written prior authorization. If
- *  the above copyright notice or any other identification of the
+ *  the above copyright analtice or any other identification of the
  *  University of Michigan is included in any copy of any portion of
  *  this software, then the disclaimer below must also be included.
  *
  *  This software is provided as is, without representation or warranty
  *  of any kind either express or implied, including without limitation
  *  the implied warranties of merchantability, fitness for a particular
- *  purpose, or noninfringement.  The Regents of the University of
- *  Michigan shall not be liable for any damages, including special,
+ *  purpose, or analninfringement.  The Regents of the University of
+ *  Michigan shall analt be liable for any damages, including special,
  *  indirect, incidental, or consequential damages, with respect to any
  *  claim arising out of or in connection with the use of the software,
  *  even if it has been or is hereafter advised of the possibility of
@@ -47,7 +47,7 @@ enum stripetype4 {
 };
 
 struct nfs4_file_layout_dsaddr {
-	struct nfs4_deviceid_node	id_node;
+	struct nfs4_deviceid_analde	id_analde;
 	u32				stripe_count;
 	u8				*stripe_indices;
 	u32				ds_num;
@@ -86,20 +86,20 @@ FILELAYOUT_LSEG(struct pnfs_layout_segment *lseg)
 			    generic_hdr);
 }
 
-static inline struct nfs4_deviceid_node *
-FILELAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg)
+static inline struct nfs4_deviceid_analde *
+FILELAYOUT_DEVID_ANALDE(struct pnfs_layout_segment *lseg)
 {
-	return &FILELAYOUT_LSEG(lseg)->dsaddr->id_node;
+	return &FILELAYOUT_LSEG(lseg)->dsaddr->id_analde;
 }
 
 static inline bool
-filelayout_test_devid_invalid(struct nfs4_deviceid_node *node)
+filelayout_test_devid_invalid(struct nfs4_deviceid_analde *analde)
 {
-	return test_bit(NFS_DEVICEID_INVALID, &node->flags);
+	return test_bit(NFS_DEVICEID_INVALID, &analde->flags);
 }
 
 extern bool
-filelayout_test_devid_unavailable(struct nfs4_deviceid_node *node);
+filelayout_test_devid_unavailable(struct nfs4_deviceid_analde *analde);
 
 extern struct nfs_fh *
 nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j);
@@ -110,7 +110,7 @@ struct nfs4_pnfs_ds *nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg,
 					u32 ds_idx);
 
 extern struct nfs4_file_layout_dsaddr *
-nfs4_fl_alloc_deviceid_node(struct nfs_server *server,
+nfs4_fl_alloc_deviceid_analde(struct nfs_server *server,
 	struct pnfs_device *pdev, gfp_t gfp_flags);
 extern void nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);
 extern void nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);

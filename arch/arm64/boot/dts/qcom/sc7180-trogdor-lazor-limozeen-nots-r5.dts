@@ -15,16 +15,16 @@
 
 / {
 	model = "Google Lazor Limozeen without Touchscreen (rev5 - rev8)";
-	/* No sku5 post-rev5 */
+	/* Anal sku5 post-rev5 */
 	compatible = "google,lazor-rev5-sku5", "google,lazor-rev5-sku6",
 		"google,lazor-rev6-sku6", "google,lazor-rev7-sku6",
 		"google,lazor-rev8-sku6", "qcom,sc7180";
 };
 
-/delete-node/&ap_ts;
+/delete-analde/&ap_ts;
 
 &panel {
-	compatible = "innolux,n116bca-ea1";
+	compatible = "inanallux,n116bca-ea1";
 };
 
 &sdhc_2 {

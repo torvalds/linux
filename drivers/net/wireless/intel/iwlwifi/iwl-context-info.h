@@ -12,7 +12,7 @@
 
 /**
  * enum iwl_context_info_flags - Context information control flags
- * @IWL_CTXT_INFO_AUTO_FUNC_INIT: If set, FW will not wait before interrupting
+ * @IWL_CTXT_INFO_AUTO_FUNC_INIT: If set, FW will analt wait before interrupting
  *	the init done for driver command that configures several system modes
  * @IWL_CTXT_INFO_EARLY_DEBUG: enable early debug
  * @IWL_CTXT_INFO_ENABLE_CDMP: enable core dump
@@ -20,7 +20,7 @@
  *	exponent, the actual size is 2**value, valid sizes are 8-2048.
  *	The value is four bits long. Maximum valid exponent is 12
  * @IWL_CTXT_INFO_TFD_FORMAT_LONG: use long TFD Format (the
- *	default is short format - not supported by the driver)
+ *	default is short format - analt supported by the driver)
  * @IWL_CTXT_INFO_RB_SIZE: RB size mask
  *	(values are IWL_CTXT_INFO_RB_SIZE_*K)
  * @IWL_CTXT_INFO_RB_SIZE_1K: Value for 1K RB size

@@ -27,15 +27,15 @@
 #define JFFS2_SB_FLAG_SCANNING 2 /* Flash scanning is in progress */
 #define JFFS2_SB_FLAG_BUILDING 4 /* File system building is in progress */
 
-struct jffs2_inodirty;
+struct jffs2_ianaldirty;
 
 struct jffs2_mount_opts {
 	bool override_compr;
 	unsigned int compr;
 
 	/* The size of the reserved pool. The reserved pool is the JFFS2 flash
-	 * space which may only be used by root cannot be used by the other
-	 * users. This is implemented simply by means of not allowing the
+	 * space which may only be used by root cananalt be used by the other
+	 * users. This is implemented simply by means of analt allowing the
 	 * latter users to write to the file system if the amount if the
 	 * available space is less then 'rp_size'. */
 	bool set_rp_size;
@@ -49,8 +49,8 @@ struct jffs2_mount_opts {
 struct jffs2_sb_info {
 	struct mtd_info *mtd;
 
-	uint32_t highest_ino;
-	uint32_t check_ino;		/* *NEXT* inode to be checked */
+	uint32_t highest_ianal;
+	uint32_t check_ianal;		/* *NEXT* ianalde to be checked */
 
 	unsigned int flags;
 
@@ -60,7 +60,7 @@ struct jffs2_sb_info {
 
 	struct mutex alloc_sem;		/* Used to protect all the following
 					   fields, and also to protect against
-					   out-of-order writing of nodes. And GC. */
+					   out-of-order writing of analdes. And GC. */
 	uint32_t cleanmarker_size;	/* Size of an _inline_ CLEANMARKER
 					 (i.e. zero for OOB CLEANMARKER */
 
@@ -78,15 +78,15 @@ struct jffs2_sb_info {
 	uint32_t nr_erasing_blocks;
 
 	/* Number of free blocks there must be before we... */
-	uint8_t resv_blocks_write;	/* ... allow a normal filesystem write */
-	uint8_t resv_blocks_deletion;	/* ... allow a normal filesystem deletion */
+	uint8_t resv_blocks_write;	/* ... allow a analrmal filesystem write */
+	uint8_t resv_blocks_deletion;	/* ... allow a analrmal filesystem deletion */
 	uint8_t resv_blocks_gctrigger;	/* ... wake up the GC thread */
 	uint8_t resv_blocks_gcbad;	/* ... pick a block from the bad_list to GC */
 	uint8_t resv_blocks_gcmerge;	/* ... merge pages when garbage collecting */
 	/* Number of 'very dirty' blocks before we trigger immediate GC */
 	uint8_t vdirty_blocks_gctrigger;
 
-	uint32_t nospc_dirty_size;
+	uint32_t analspc_dirty_size;
 
 	uint32_t nr_blocks;
 	struct jffs2_eraseblock *blocks;	/* The whole array of blocks. Used for getting blocks
@@ -102,7 +102,7 @@ struct jffs2_sb_info {
 	struct list_head erasable_pending_wbuf_list;	/* Blocks which need erasing but only after the current wbuf is flushed */
 	struct list_head erasing_list;		/* Blocks which are currently erasing */
 	struct list_head erase_checking_list;	/* Blocks which are being checked and marked */
-	struct list_head erase_pending_list;	/* Blocks which need erasing now */
+	struct list_head erase_pending_list;	/* Blocks which need erasing analw */
 	struct list_head erase_complete_list;	/* Blocks which are erased and need the clean marker written to them */
 	struct list_head free_list;		/* Blocks which are free and ready to be used */
 	struct list_head bad_list;		/* Bad blocks. */
@@ -112,17 +112,17 @@ struct jffs2_sb_info {
 						   against erase completion handler */
 	wait_queue_head_t erase_wait;		/* For waiting for erases to complete */
 
-	wait_queue_head_t inocache_wq;
-	int inocache_hashsize;
-	struct jffs2_inode_cache **inocache_list;
-	spinlock_t inocache_lock;
+	wait_queue_head_t ianalcache_wq;
+	int ianalcache_hashsize;
+	struct jffs2_ianalde_cache **ianalcache_list;
+	spinlock_t ianalcache_lock;
 
 	/* Sem to allow jffs2_garbage_collect_deletion_dirent to
 	   drop the erase_completion_lock while it's holding a pointer
-	   to an obsoleted node. I don't like this. Alternatives welcomed. */
+	   to an obsoleted analde. I don't like this. Alternatives welcomed. */
 	struct mutex erase_free_sem;
 
-	uint32_t wbuf_pagesize; /* 0 for NOR and other flashes with no wbuf */
+	uint32_t wbuf_pagesize; /* 0 for ANALR and other flashes with anal wbuf */
 
 #ifdef CONFIG_JFFS2_FS_WBUF_VERIFY
 	unsigned char *wbuf_verify; /* read-back buffer for verification */
@@ -131,7 +131,7 @@ struct jffs2_sb_info {
 	unsigned char *wbuf; /* Write-behind buffer for NAND flash */
 	uint32_t wbuf_ofs;
 	uint32_t wbuf_len;
-	struct jffs2_inodirty *wbuf_inodes;
+	struct jffs2_ianaldirty *wbuf_ianaldes;
 	struct rw_semaphore wbuf_sem;	/* Protects the write buffer */
 
 	struct delayed_work wbuf_dwork; /* write-buffer write-out work */
@@ -146,7 +146,7 @@ struct jffs2_sb_info {
 #ifdef CONFIG_JFFS2_FS_XATTR
 #define XATTRINDEX_HASHSIZE	(57)
 	uint32_t highest_xid;
-	uint32_t highest_xseqno;
+	uint32_t highest_xseqanal;
 	struct list_head xattrindex[XATTRINDEX_HASHSIZE];
 	struct list_head xattr_unchecked;
 	struct list_head xattr_dead_list;

@@ -18,8 +18,8 @@ per user per user namespace limits.
 The primary purpose of these limits is to stop programs that
 malfunction and attempt to create a ridiculous number of objects,
 before the malfunction becomes a system wide problem.  It is the
-intention that the defaults of these limits are set high enough that
-no program in normal operation should run into these limits.
+intention that the defaults of these limits are set high eanalugh that
+anal program in analrmal operation should run into these limits.
 
 The creation of per user per user namespace objects are charged to
 the user in the user namespace who created the object and
@@ -31,7 +31,7 @@ in (user namespaces can be nested) and verified to be below the per user
 limits in the user namespaces of those users.
 
 This recursive counting of created objects ensures that creating a
-user namespace does not allow a user to escape their current limits.
+user namespace does analt allow a user to escape their current limits.
 
 Currently, these files are in /proc/sys/user:
 

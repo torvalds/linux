@@ -7,7 +7,7 @@
 
 #define SDIO_HEADER_LEN			4
 
-/* SD block size can not bigger than 64 due to buf size limit in firmware */
+/* SD block size can analt bigger than 64 due to buf size limit in firmware */
 /* define SD block size for data Tx/Rx */
 #define SDIO_BLOCK_SIZE			64
 
@@ -87,7 +87,7 @@ struct btmrvl_sdio_card {
 	u16 sd_blksz_fw_dl;
 	u8 rx_unit;
 	struct btmrvl_private *priv;
-	struct device_node *plt_of_node;
+	struct device_analde *plt_of_analde;
 	struct btmrvl_plt_wake_cfg *plt_wake_cfg;
 };
 

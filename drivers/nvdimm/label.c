@@ -76,7 +76,7 @@ size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd)
 
 	/*
 	 * Per UEFI 2.7, the minimum size of the Label Storage Area is large
-	 * enough to hold 2 index blocks and 2 labels.  The minimum index
+	 * eanalugh to hold 2 index blocks and 2 labels.  The minimum index
 	 * block size is 256 bytes. The label size is 128 for namespaces
 	 * prior to version 1.2 and at minimum 256 for version 1.2 and later.
 	 */
@@ -95,7 +95,7 @@ static int __nd_label_validate(struct nvdimm_drvdata *ndd)
 {
 	/*
 	 * On media label format consists of two index blocks followed
-	 * by an array of labels.  None of these structures are ever
+	 * by an array of labels.  Analne of these structures are ever
 	 * updated in place.  A sequence number tracks the current
 	 * active index and the next one to write, while labels are
 	 * written to free slots.
@@ -144,7 +144,7 @@ static int __nd_label_validate(struct nvdimm_drvdata *ndd)
 
 		/* label sizes larger than 128 arrived with v1.2 */
 		version = __le16_to_cpu(nsindex[i]->major) * 100
-			+ __le16_to_cpu(nsindex[i]->minor);
+			+ __le16_to_cpu(nsindex[i]->mianalr);
 		if (version >= 102)
 			labelsize = 1 << (7 + nsindex[i]->labelsize);
 		else
@@ -241,9 +241,9 @@ static int nd_label_validate(struct nvdimm_drvdata *ndd)
 {
 	/*
 	 * In order to probe for and validate namespace index blocks we
-	 * need to know the size of the labels, and we can't trust the
+	 * need to kanalw the size of the labels, and we can't trust the
 	 * size of the labels until we validate the index blocks.
-	 * Resolve this dependency loop by probing for known label
+	 * Resolve this dependency loop by probing for kanalwn label
 	 * sizes, but default to v1.2 256-byte namespace labels if
 	 * discovery fails.
 	 */
@@ -402,7 +402,7 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 	u32 nslot, slot;
 
 	if (!preamble_current(ndd, &nsindex, &free, &nslot))
-		return 0; /* no label, nothing to reserve */
+		return 0; /* anal label, analthing to reserve */
 
 	for_each_clear_bit_le(slot, free, nslot) {
 		struct nd_namespace_label *nd_label;
@@ -467,7 +467,7 @@ int nd_label_data_init(struct nvdimm_drvdata *ndd)
 	config_size = ndd->nsarea.config_size;
 	ndd->data = kvzalloc(config_size, GFP_KERNEL);
 	if (!ndd->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We want to guarantee as few reads as possible while conserving
@@ -495,7 +495,7 @@ int nd_label_data_init(struct nvdimm_drvdata *ndd)
 	if (rc)
 		goto out_err;
 
-	/* Validate index data, if not valid assume all labels are invalid */
+	/* Validate index data, if analt valid assume all labels are invalid */
 	ndd->ns_current = nd_label_validate(ndd);
 	if (ndd->ns_current < 0)
 		return 0;
@@ -689,9 +689,9 @@ static int nd_label_write_index(struct nvdimm_drvdata *ndd, int index, u32 seq,
 	nsindex->nslot = __cpu_to_le32(nslot);
 	nsindex->major = __cpu_to_le16(1);
 	if (sizeof_namespace_label(ndd) < 256)
-		nsindex->minor = __cpu_to_le16(1);
+		nsindex->mianalr = __cpu_to_le16(1);
 	else
-		nsindex->minor = __cpu_to_le16(2);
+		nsindex->mianalr = __cpu_to_le16(2);
 	nsindex->checksum = __cpu_to_le64(0);
 	if (flags & ND_NSINDEX_INIT) {
 		unsigned long *free = (unsigned long *) nsindex->free;
@@ -740,9 +740,9 @@ static enum nvdimm_claim_class guid_to_nvdimm_cclass(guid_t *guid)
 	else if (guid_equal(guid, &nvdimm_dax_guid))
 		return NVDIMM_CCLASS_DAX;
 	else if (guid_equal(guid, &guid_null))
-		return NVDIMM_CCLASS_NONE;
+		return NVDIMM_CCLASS_ANALNE;
 
-	return NVDIMM_CCLASS_UNKNOWN;
+	return NVDIMM_CCLASS_UNKANALWN;
 }
 
 /* CXL labels store UUIDs instead of GUIDs for the same data */
@@ -757,9 +757,9 @@ static enum nvdimm_claim_class uuid_to_nvdimm_cclass(uuid_t *uuid)
 	else if (uuid_equal(uuid, &nvdimm_dax_uuid))
 		return NVDIMM_CCLASS_DAX;
 	else if (uuid_equal(uuid, &uuid_null))
-		return NVDIMM_CCLASS_NONE;
+		return NVDIMM_CCLASS_ANALNE;
 
-	return NVDIMM_CCLASS_UNKNOWN;
+	return NVDIMM_CCLASS_UNKANALWN;
 }
 
 static const guid_t *to_abstraction_guid(enum nvdimm_claim_class claim_class,
@@ -773,10 +773,10 @@ static const guid_t *to_abstraction_guid(enum nvdimm_claim_class claim_class,
 		return &nvdimm_pfn_guid;
 	else if (claim_class == NVDIMM_CCLASS_DAX)
 		return &nvdimm_dax_guid;
-	else if (claim_class == NVDIMM_CCLASS_UNKNOWN) {
+	else if (claim_class == NVDIMM_CCLASS_UNKANALWN) {
 		/*
 		 * If we're modifying a namespace for which we don't
-		 * know the claim_class, don't touch the existing guid.
+		 * kanalw the claim_class, don't touch the existing guid.
 		 */
 		return target;
 	} else
@@ -795,10 +795,10 @@ static const uuid_t *to_abstraction_uuid(enum nvdimm_claim_class claim_class,
 		return &nvdimm_pfn_uuid;
 	else if (claim_class == NVDIMM_CCLASS_DAX)
 		return &nvdimm_dax_uuid;
-	else if (claim_class == NVDIMM_CCLASS_UNKNOWN) {
+	else if (claim_class == NVDIMM_CCLASS_UNKANALWN) {
 		/*
 		 * If we're modifying a namespace for which we don't
-		 * know the claim_class, don't touch the existing uuid.
+		 * kanalw the claim_class, don't touch the existing uuid.
 		 */
 		return target;
 	} else
@@ -866,7 +866,7 @@ enum nvdimm_claim_class nsl_get_claim_class(struct nvdimm_drvdata *ndd,
 		return uuid_to_nvdimm_cclass(&uuid);
 	}
 	if (!efi_namespace_label_has(ndd, abstraction_guid))
-		return NVDIMM_CCLASS_NONE;
+		return NVDIMM_CCLASS_ANALNE;
 	return guid_to_nvdimm_cclass(&nd_label->efi.abstraction_guid);
 }
 
@@ -983,7 +983,7 @@ static int init_labels(struct nd_mapping *nd_mapping, int num_labels)
 	for (i = old_num_labels; i < num_labels; i++) {
 		label_ent = kzalloc(sizeof(*label_ent), GFP_KERNEL);
 		if (!label_ent)
-			return -ENOMEM;
+			return -EANALMEM;
 		mutex_lock(&nd_mapping->lock);
 		list_add_tail(&label_ent->list, &nd_mapping->labels);
 		mutex_unlock(&nd_mapping->lock);
@@ -1021,7 +1021,7 @@ static int del_labels(struct nd_mapping *nd_mapping, uuid_t *uuid)
 	if (!uuid)
 		return 0;
 
-	/* no index || no labels == nothing to delete */
+	/* anal index || anal labels == analthing to delete */
 	if (!preamble_next(ndd, &nsindex, &free, &nslot))
 		return 0;
 
@@ -1045,7 +1045,7 @@ static int del_labels(struct nd_mapping *nd_mapping, uuid_t *uuid)
 
 	if (active == 0) {
 		nd_mapping_free_labels(nd_mapping);
-		dev_dbg(ndd->dev, "no more active labels\n");
+		dev_dbg(ndd->dev, "anal more active labels\n");
 	}
 	mutex_unlock(&nd_mapping->lock);
 

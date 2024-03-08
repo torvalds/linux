@@ -2,7 +2,7 @@
 /*
  * phy-da8xx-usb - TI DaVinci DA8xx USB PHY driver
  *
- * Copyright (C) 2016 David Lechner <david@lechnology.com>
+ * Copyright (C) 2016 David Lechner <david@lechanallogy.com>
  */
 
 #include <linux/clk.h>
@@ -99,7 +99,7 @@ static int da8xx_usb20_phy_set_mode(struct phy *phy,
 		val = CFGCHIP2_OTGMODE_FORCE_DEVICE;
 		break;
 	case PHY_MODE_USB_OTG:	/* Don't override the VBUS/ID comparators */
-		val = CFGCHIP2_OTGMODE_NO_OVERRIDE;
+		val = CFGCHIP2_OTGMODE_ANAL_OVERRIDE;
 		break;
 	default:
 		return -EINVAL;
@@ -124,7 +124,7 @@ static struct phy *da8xx_usb_phy_of_xlate(struct device *dev,
 	struct da8xx_usb_phy *d_phy = dev_get_drvdata(dev);
 
 	if (!d_phy)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	switch (args->args[0]) {
 	case 0:
@@ -140,12 +140,12 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
 	struct da8xx_usb_phy_platform_data *pdata = dev->platform_data;
-	struct device_node	*node = dev->of_node;
+	struct device_analde	*analde = dev->of_analde;
 	struct da8xx_usb_phy	*d_phy;
 
 	d_phy = devm_kzalloc(dev, sizeof(*d_phy), GFP_KERNEL);
 	if (!d_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdata)
 		d_phy->regmap = pdata->cfgchip;
@@ -169,13 +169,13 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(d_phy->usb20_clk);
 	}
 
-	d_phy->usb11_phy = devm_phy_create(dev, node, &da8xx_usb11_phy_ops);
+	d_phy->usb11_phy = devm_phy_create(dev, analde, &da8xx_usb11_phy_ops);
 	if (IS_ERR(d_phy->usb11_phy)) {
 		dev_err(dev, "Failed to create usb11 phy\n");
 		return PTR_ERR(d_phy->usb11_phy);
 	}
 
-	d_phy->usb20_phy = devm_phy_create(dev, node, &da8xx_usb20_phy_ops);
+	d_phy->usb20_phy = devm_phy_create(dev, analde, &da8xx_usb20_phy_ops);
 	if (IS_ERR(d_phy->usb20_phy)) {
 		dev_err(dev, "Failed to create usb20 phy\n");
 		return PTR_ERR(d_phy->usb20_phy);
@@ -185,7 +185,7 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 	phy_set_drvdata(d_phy->usb11_phy, d_phy);
 	phy_set_drvdata(d_phy->usb20_phy, d_phy);
 
-	if (node) {
+	if (analde) {
 		d_phy->phy_provider = devm_of_phy_provider_register(dev,
 							da8xx_usb_phy_of_xlate);
 		if (IS_ERR(d_phy->phy_provider)) {
@@ -215,7 +215,7 @@ static void da8xx_usb_phy_remove(struct platform_device *pdev)
 {
 	struct da8xx_usb_phy *d_phy = platform_get_drvdata(pdev);
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_analde) {
 		phy_remove_lookup(d_phy->usb20_phy, "usb-phy", "musb-da8xx");
 		phy_remove_lookup(d_phy->usb11_phy, "usb-phy", "ohci-da8xx");
 	}
@@ -239,6 +239,6 @@ static struct platform_driver da8xx_usb_phy_driver = {
 module_platform_driver(da8xx_usb_phy_driver);
 
 MODULE_ALIAS("platform:da8xx-usb-phy");
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechanallogy.com>");
 MODULE_DESCRIPTION("TI DA8xx USB PHY driver");
 MODULE_LICENSE("GPL v2");

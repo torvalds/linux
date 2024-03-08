@@ -604,7 +604,7 @@ static inline void spitz_spi_init(void) {}
  ******************************************************************************/
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 /*
- * NOTE: The card detect interrupt isn't debounced so we delay it by 250ms to
+ * ANALTE: The card detect interrupt isn't debounced so we delay it by 250ms to
  * give the card a chance to fully insert/eject.
  */
 static int spitz_mci_setpower(struct device *dev, unsigned int vdd)
@@ -672,7 +672,7 @@ static struct pxaohci_platform_data spitz_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
 	.init		= spitz_ohci_init,
 	.exit		= spitz_ohci_exit,
-	.flags		= ENABLE_PORT_ALL | NO_OC_PROTECTION,
+	.flags		= ENABLE_PORT_ALL | ANAL_OC_PROTECTION,
 	.power_budget	= 150,
 };
 
@@ -833,7 +833,7 @@ static inline void spitz_nand_init(void) {}
 #endif
 
 /******************************************************************************
- * NOR Flash
+ * ANALR Flash
  ******************************************************************************/
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition spitz_rom_parts[] = {
@@ -868,12 +868,12 @@ static struct platform_device spitz_rom_device = {
 	},
 };
 
-static void __init spitz_nor_init(void)
+static void __init spitz_analr_init(void)
 {
 	platform_device_register(&spitz_rom_device);
 }
 #else
-static inline void spitz_nor_init(void) {}
+static inline void spitz_analr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -1020,7 +1020,7 @@ static void __init spitz_init(void)
 	spitz_pcmcia_init();
 	spitz_uhc_init();
 	spitz_lcd_init();
-	spitz_nor_init();
+	spitz_analr_init();
 	spitz_nand_init();
 	spitz_i2c_init();
 	spitz_audio_init();

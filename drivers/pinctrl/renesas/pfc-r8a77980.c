@@ -12,7 +12,7 @@
  * Copyright (C) 2015 Renesas Electronics Corporation
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 
@@ -26,18 +26,18 @@
 	PORT_GP_CFG_25(4, fn, sfx, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
 	PORT_GP_CFG_15(5, fn, sfx, SH_PFC_PIN_CFG_PULL_UP_DOWN)
 
-#define CPU_ALL_NOGP(fn)	\
-	PIN_NOGP_CFG(DCUTCK_LPDCLK, "DCUTCK_LPDCLK", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(DCUTDI_LPDI, "DCUTDI_LPDI", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(DCUTMS, "DCUTMS", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(DCUTRST_N, "DCUTRST#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(DU_DOTCLKIN, "DU_DOTCLKIN", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(EXTALR, "EXTALR", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(FSCLKST, "FSCLKST", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(FSCLKST_N, "FSCLKST#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(PRESETOUT_N, "PRESETOUT#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN), \
-	PIN_NOGP_CFG(VDDQ_AVB, "VDDQ_AVB", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_25_33), \
-	PIN_NOGP_CFG(VDDQ_GE, "VDDQ_GE", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_25_33)
+#define CPU_ALL_ANALGP(fn)	\
+	PIN_ANALGP_CFG(DCUTCK_LPDCLK, "DCUTCK_LPDCLK", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(DCUTDI_LPDI, "DCUTDI_LPDI", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(DCUTMS, "DCUTMS", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(DCUTRST_N, "DCUTRST#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(DU_DOTCLKIN, "DU_DOTCLKIN", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(EXTALR, "EXTALR", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(FSCLKST, "FSCLKST", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(FSCLKST_N, "FSCLKST#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(PRESETOUT_N, "PRESETOUT#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN), \
+	PIN_ANALGP_CFG(VDDQ_AVB, "VDDQ_AVB", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_25_33), \
+	PIN_ANALGP_CFG(VDDQ_GE, "VDDQ_GE", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_25_33)
 
 /*
  * F_() : just information
@@ -841,16 +841,16 @@ static const u16 pinmux_data[] = {
 };
 
 /*
- * Pins not associated with a GPIO port.
+ * Pins analt associated with a GPIO port.
  */
 enum {
 	GP_ASSIGN_LAST(),
-	NOGP_ALL(),
+	ANALGP_ALL(),
 };
 
 static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
-	PINMUX_NOGP_ALL(),
+	PINMUX_ANALGP_ALL(),
 };
 
 /* - AVB -------------------------------------------------------------------- */
@@ -2898,26 +2898,26 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[19] = RCAR_GP_PIN(0, 19),	/* DU_EXHSYNC/DU_HSYNC */
 		[20] = RCAR_GP_PIN(0, 20),	/* DU_EXVSYNC/DU_VSYNC */
 		[21] = RCAR_GP_PIN(0, 21),	/* DU_EXODDF/DU_ODDF/DISP/CDE */
-		[22] = SH_PFC_PIN_NONE,
-		[23] = SH_PFC_PIN_NONE,
+		[22] = SH_PFC_PIN_ANALNE,
+		[23] = SH_PFC_PIN_ANALNE,
 		[24] = PIN_DU_DOTCLKIN,		/* DU_DOTCLKIN */
-		[25] = SH_PFC_PIN_NONE,
+		[25] = SH_PFC_PIN_ANALNE,
 		[26] = PIN_PRESETOUT_N,		/* PRESETOUT# */
-		[27] = SH_PFC_PIN_NONE,
-		[28] = SH_PFC_PIN_NONE,
-		[29] = SH_PFC_PIN_NONE,
+		[27] = SH_PFC_PIN_ANALNE,
+		[28] = SH_PFC_PIN_ANALNE,
+		[29] = SH_PFC_PIN_ANALNE,
 		[30] = PIN_EXTALR,		/* EXTALR */
 		[31] = PIN_FSCLKST_N,		/* FSCLKST# */
 	} },
 	{ PINMUX_BIAS_REG("PUEN1", 0xe6060404, "PUD1", 0xe6060444) {
 		[ 0] = PIN_FSCLKST,		/* FSCLKST */
-		[ 1] = SH_PFC_PIN_NONE,
+		[ 1] = SH_PFC_PIN_ANALNE,
 		[ 2] = RCAR_GP_PIN(1, 0),	/* IRQ0 */
 		[ 3] = PIN_DCUTRST_N,		/* DCUTRST# */
 		[ 4] = PIN_DCUTCK_LPDCLK,	/* DCUTCK_LPDCLK */
 		[ 5] = PIN_DCUTMS,		/* DCUTMS */
 		[ 6] = PIN_DCUTDI_LPDI,		/* DCUTDI_LPDI */
-		[ 7] = SH_PFC_PIN_NONE,
+		[ 7] = SH_PFC_PIN_ANALNE,
 		[ 8] = RCAR_GP_PIN(2, 0),	/* VI0_CLK */
 		[ 9] = RCAR_GP_PIN(2, 1),	/* VI0_CLKENB */
 		[10] = RCAR_GP_PIN(2, 2),	/* VI0_HSYNC# */
@@ -3038,12 +3038,12 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[23] = RCAR_GP_PIN(2, 27),	/* FSO_CFE_0# */
 		[24] = RCAR_GP_PIN(2, 28),	/* FSO_CFE_1# */
 		[25] = RCAR_GP_PIN(2, 29),	/* FSO_TOE# */
-		[26] = SH_PFC_PIN_NONE,
-		[27] = SH_PFC_PIN_NONE,
-		[28] = SH_PFC_PIN_NONE,
-		[29] = SH_PFC_PIN_NONE,
-		[30] = SH_PFC_PIN_NONE,
-		[31] = SH_PFC_PIN_NONE,
+		[26] = SH_PFC_PIN_ANALNE,
+		[27] = SH_PFC_PIN_ANALNE,
+		[28] = SH_PFC_PIN_ANALNE,
+		[29] = SH_PFC_PIN_ANALNE,
+		[30] = SH_PFC_PIN_ANALNE,
+		[31] = SH_PFC_PIN_ANALNE,
 	} },
 	{ /* sentinel */ }
 };

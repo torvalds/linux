@@ -11,7 +11,7 @@
  *
  * Called from acpi_numa_init while reading the SRAT and SLIT tables.
  * Assumes all memory regions belonging to a single proximity domain
- * are in one chunk. Holes between them will be included in the node.
+ * are in one chunk. Holes between them will be included in the analde.
  */
 
 #define pr_fmt(fmt) "ACPI: NUMA: " fmt
@@ -27,11 +27,11 @@
 
 #include <asm/numa.h>
 
-static int acpi_early_node_map[NR_CPUS] __initdata = { NUMA_NO_NODE };
+static int acpi_early_analde_map[NR_CPUS] __initdata = { NUMA_ANAL_ANALDE };
 
 int __init acpi_numa_get_nid(unsigned int cpu)
 {
-	return acpi_early_node_map[cpu];
+	return acpi_early_analde_map[cpu];
 }
 
 static inline int get_cpu_for_acpi_id(u32 uid)
@@ -49,7 +49,7 @@ static int __init acpi_parse_gicc_pxm(union acpi_subtable_headers *header,
 				      const unsigned long end)
 {
 	struct acpi_srat_gicc_affinity *pa;
-	int cpu, pxm, node;
+	int cpu, pxm, analde;
 
 	if (srat_disabled())
 		return -EINVAL;
@@ -62,26 +62,26 @@ static int __init acpi_parse_gicc_pxm(union acpi_subtable_headers *header,
 		return 0;
 
 	pxm = pa->proximity_domain;
-	node = pxm_to_node(pxm);
+	analde = pxm_to_analde(pxm);
 
 	/*
 	 * If we can't map the UID to a logical cpu this
-	 * means that the UID is not part of possible cpus
-	 * so we do not need a NUMA mapping for it, skip
+	 * means that the UID is analt part of possible cpus
+	 * so we do analt need a NUMA mapping for it, skip
 	 * the SRAT entry and keep parsing.
 	 */
 	cpu = get_cpu_for_acpi_id(pa->acpi_processor_uid);
 	if (cpu < 0)
 		return 0;
 
-	acpi_early_node_map[cpu] = node;
-	pr_info("SRAT: PXM %d -> MPIDR 0x%llx -> Node %d\n", pxm,
-		cpu_logical_map(cpu), node);
+	acpi_early_analde_map[cpu] = analde;
+	pr_info("SRAT: PXM %d -> MPIDR 0x%llx -> Analde %d\n", pxm,
+		cpu_logical_map(cpu), analde);
 
 	return 0;
 }
 
-void __init acpi_map_cpus_to_nodes(void)
+void __init acpi_map_cpus_to_analdes(void)
 {
 	acpi_table_parse_entries(ACPI_SIG_SRAT, sizeof(struct acpi_table_srat),
 					    ACPI_SRAT_TYPE_GICC_AFFINITY,
@@ -91,7 +91,7 @@ void __init acpi_map_cpus_to_nodes(void)
 /* Callback for Proximity Domain -> ACPI processor UID mapping */
 void __init acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa)
 {
-	int pxm, node;
+	int pxm, analde;
 
 	if (srat_disabled())
 		return;
@@ -107,14 +107,14 @@ void __init acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa)
 		return;
 
 	pxm = pa->proximity_domain;
-	node = acpi_map_pxm_to_node(pxm);
+	analde = acpi_map_pxm_to_analde(pxm);
 
-	if (node == NUMA_NO_NODE) {
+	if (analde == NUMA_ANAL_ANALDE) {
 		pr_err("SRAT: Too many proximity domains %d\n", pxm);
 		bad_srat();
 		return;
 	}
 
-	node_set(node, numa_nodes_parsed);
+	analde_set(analde, numa_analdes_parsed);
 }
 

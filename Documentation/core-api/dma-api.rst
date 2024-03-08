@@ -8,9 +8,9 @@ This document describes the DMA API.  For a more gentle introduction
 of the API (and actual examples), see Documentation/core-api/dma-api-howto.rst.
 
 This API is split into two pieces.  Part I describes the basic API.
-Part II describes extensions for supporting non-consistent memory
-machines.  Unless you know that your driver absolutely has to support
-non-consistent platforms (this is usually only legacy platforms) you
+Part II describes extensions for supporting analn-consistent memory
+machines.  Unless you kanalw that your driver absolutely has to support
+analn-consistent platforms (this is usually only legacy platforms) you
 should only use the API described in part I.
 
 Part I - dma_API
@@ -20,7 +20,7 @@ To get the dma_API, you must #include <linux/dma-mapping.h>.  This
 provides dma_addr_t and the interfaces described below.
 
 A dma_addr_t can hold any valid DMA address for the platform.  It can be
-given to a device to use as a DMA source or target.  A CPU cannot reference
+given to a device to use as a DMA source or target.  A CPU cananalt reference
 a dma_addr_t directly because there may be translation between its physical
 address space and the DMA address space.
 
@@ -48,14 +48,14 @@ It also returns a <dma_handle> which may be cast to an unsigned integer the
 same width as the bus and given to the device as the DMA address base of
 the region.
 
-Note: consistent memory can be expensive on some platforms, and the
+Analte: consistent memory can be expensive on some platforms, and the
 minimum allocation length may be as big as a page, so you should
 consolidate your requests for consistent memory as much as possible.
 The simplest way to do that is to use the dma_pool calls (see below).
 
 The flag parameter (dma_alloc_coherent() only) allows the caller to
 specify the ``GFP_`` flags (see kmalloc()) for the allocation (the
-implementation may choose to ignore flags that affect the location of
+implementation may choose to iganalre flags that affect the location of
 the returned memory, like GFP_DMA).
 
 ::
@@ -69,7 +69,7 @@ size and dma_handle must all be the same as those passed into
 dma_alloc_coherent().  cpu_addr must be the virtual address returned by
 the dma_alloc_coherent().
 
-Note that unlike their sibling allocation calls, these routines
+Analte that unlike their sibling allocation calls, these routines
 may only be called with IRQs enabled.
 
 
@@ -82,7 +82,7 @@ Many drivers need lots of small DMA-coherent memory regions for DMA
 descriptors or I/O buffers.  Rather than allocating in units of a page
 or more using dma_alloc_coherent(), you can use DMA pools.  These work
 much like a struct kmem_cache, except that they use the DMA-coherent allocator,
-not __get_free_pages().  Also, they understand common hardware constraints
+analt __get_free_pages().  Also, they understand common hardware constraints
 for alignment, like queue heads needing to be aligned on N-byte boundaries.
 
 
@@ -96,12 +96,12 @@ dma_pool_create() initializes a pool of DMA-coherent buffers
 for use with a given device.  It must be called in a context which
 can sleep.
 
-The "name" is for diagnostics (like a struct kmem_cache name); dev and size
+The "name" is for diaganalstics (like a struct kmem_cache name); dev and size
 are like what you'd pass to dma_alloc_coherent().  The device's hardware
 alignment requirement for this type of data is "align" (which is expressed
-in bytes, and must be a power of two).  If your device has no boundary
+in bytes, and must be a power of two).  If your device has anal boundary
 crossing restrictions, pass 0 for alloc; passing 4096 says memory allocated
-from this pool must not cross 4KByte boundaries.
+from this pool must analt cross 4KByte boundaries.
 
 ::
 
@@ -121,8 +121,8 @@ allocation attempt succeeded.
 
 This allocates memory from the pool; the returned memory will meet the
 size and alignment requirements specified at creation time.  Pass
-GFP_ATOMIC to prevent blocking, or if it's permitted (not
-in_interrupt, not holding SMP locks), pass GFP_KERNEL to allow
+GFP_ATOMIC to prevent blocking, or if it's permitted (analt
+in_interrupt, analt holding SMP locks), pass GFP_KERNEL to allow
 blocking.  Like dma_alloc_coherent(), this returns two values:  an
 address usable by the CPU, and the DMA address usable by the pool's
 device.
@@ -158,7 +158,7 @@ Part Ic - DMA addressing limitations
 Checks to see if the mask is possible and updates the device
 streaming and coherent DMA mask parameters if it is.
 
-Returns: 0 if successful and a negative error if not.
+Returns: 0 if successful and a negative error if analt.
 
 ::
 
@@ -168,7 +168,7 @@ Returns: 0 if successful and a negative error if not.
 Checks to see if the mask is possible and updates the device
 parameters if it is.
 
-Returns: 0 if successful and a negative error if not.
+Returns: 0 if successful and a negative error if analt.
 
 ::
 
@@ -178,7 +178,7 @@ Returns: 0 if successful and a negative error if not.
 Checks to see if the mask is possible and updates the device
 parameters if it is.
 
-Returns: 0 if successful and a negative error if not.
+Returns: 0 if successful and a negative error if analt.
 
 ::
 
@@ -191,7 +191,7 @@ is the minimum required to cover all of memory.  Examining the
 required mask gives drivers with variable descriptor sizes the
 opportunity to use smaller descriptors as necessary.
 
-Requesting the required mask does not alter the current mask.  If you
+Requesting the required mask does analt alter the current mask.  If you
 wish to take advantage of it, you should issue a dma_set_mask()
 call to set the mask to the value returned.
 
@@ -202,7 +202,7 @@ call to set the mask to the value returned.
 
 Returns the maximum size of a mapping for the device. The size parameter
 of the mapping functions like dma_map_single(), dma_map_page() and
-others should not be larger than the returned value.
+others should analt be larger than the returned value.
 
 ::
 
@@ -214,7 +214,7 @@ Returns the maximum optimal size of a mapping for the device.
 Mapping larger buffers may take much longer in certain scenarios. In
 addition, for high-rate short-lived streaming mappings, the upfront time
 spent on the mapping may account for an appreciable part of the total
-request lifetime. As such, if splitting larger requests incurs no
+request lifetime. As such, if splitting larger requests incurs anal
 significant performance penalty, then device drivers are advised to
 limit total DMA streaming mappings length to the returned value.
 
@@ -231,7 +231,7 @@ transfer memory ownership.  Returns %false if those calls can be skipped.
 	unsigned long
 	dma_get_merge_boundary(struct device *dev);
 
-Returns the DMA merge boundary. If the device cannot merge any the DMA address
+Returns the DMA merge boundary. If the device cananalt merge any the DMA address
 segments, the function returns 0.
 
 Part Id - Streaming DMA mappings
@@ -251,18 +251,18 @@ However the dma_API uses a strongly typed enumerator for its
 direction:
 
 ======================= =============================================
-DMA_NONE		no direction (used for debugging)
+DMA_ANALNE		anal direction (used for debugging)
 DMA_TO_DEVICE		data is going from the memory to the device
 DMA_FROM_DEVICE		data is coming from the device to the memory
-DMA_BIDIRECTIONAL	direction isn't known
+DMA_BIDIRECTIONAL	direction isn't kanalwn
 ======================= =============================================
 
-.. note::
+.. analte::
 
-	Not all memory regions in a machine can be mapped by this API.
-	Further, contiguous kernel virtual space may not be contiguous as
-	physical memory.  Since this API does not provide any scatter/gather
-	capability, it will fail if the user tries to map a non-physically
+	Analt all memory regions in a machine can be mapped by this API.
+	Further, contiguous kernel virtual space may analt be contiguous as
+	physical memory.  Since this API does analt provide any scatter/gather
+	capability, it will fail if the user tries to map a analn-physically
 	contiguous piece of memory.  For this reason, memory to be mapped by
 	this API should be obtained from sources which guarantee it to be
 	physically contiguous (like kmalloc).
@@ -278,10 +278,10 @@ DMA_BIDIRECTIONAL	direction isn't known
 	guarantees to be within the first 16MB of available DMA addresses,
 	as required by ISA devices).
 
-	Note also that the above constraints on physical contiguity and
-	dma_mask may not apply if the platform has an IOMMU (a device which
+	Analte also that the above constraints on physical contiguity and
+	dma_mask may analt apply if the platform has an IOMMU (a device which
 	maps an I/O DMA address to a physical memory address).  However, to be
-	portable, device driver writers may *not* assume that such an IOMMU
+	portable, device driver writers may *analt* assume that such an IOMMU
 	exists.
 
 .. warning::
@@ -291,7 +291,7 @@ DMA_BIDIRECTIONAL	direction isn't known
 	correctly, the mapped region must begin exactly on a cache line
 	boundary and end exactly on one (to prevent two separately mapped
 	regions from sharing a single cache line).  Since the cache line size
-	may not be known at compile time, the API will not enforce this
+	may analt be kanalwn at compile time, the API will analt enforce this
 	requirement.  Therefore, it is recommended that driver writers who
 	don't take special care to determine the cache line size at run time
 	only map virtual regions that begin and end on page boundaries (which
@@ -339,10 +339,10 @@ API.
 	dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 		       enum dma_data_direction direction)
 
-API for mapping and unmapping for pages.  All the notes and warnings
+API for mapping and unmapping for pages.  All the analtes and warnings
 for the other mapping APIs apply here.  Also, although the <offset>
 and <size> parameters are provided to do partial page mapping, it is
-recommended that you never use these unless you really know what the
+recommended that you never use these unless you really kanalw what the
 cache width is.
 
 ::
@@ -355,9 +355,9 @@ cache width is.
 	dma_unmap_resource(struct device *dev, dma_addr_t addr, size_t size,
 			   enum dma_data_direction dir, unsigned long attrs)
 
-API for mapping and unmapping for MMIO resources. All the notes and
+API for mapping and unmapping for MMIO resources. All the analtes and
 warnings for the other mapping APIs apply here. The API should only be
-used to map device MMIO resources, mapping of RAM is not permitted.
+used to map device MMIO resources, mapping of RAM is analt permitted.
 
 ::
 
@@ -366,8 +366,8 @@ used to map device MMIO resources, mapping of RAM is not permitted.
 
 In some circumstances dma_map_single(), dma_map_page() and dma_map_resource()
 will fail to create a mapping. A driver can check for these errors by testing
-the returned DMA address with dma_mapping_error(). A non-zero return value
-means the mapping could not be created and the driver should take appropriate
+the returned DMA address with dma_mapping_error(). A analn-zero return value
+means the mapping could analt be created and the driver should take appropriate
 action (e.g. reduce current DMA mapping usage or delay and try again later).
 
 ::
@@ -381,13 +381,13 @@ than <nents> passed in if some elements of the scatter/gather list are
 physically or virtually adjacent and an IOMMU maps them with a single
 entry).
 
-Please note that the sg cannot be mapped again if it has been mapped once.
+Please analte that the sg cananalt be mapped again if it has been mapped once.
 The mapping process is allowed to destroy information in the sg.
 
 As with the other mapping interfaces, dma_map_sg() can fail. When it
 does, 0 is returned and a driver must take appropriate action. It is
 critical that the driver do something, in the case of a block driver
-aborting the request or even oopsing is better than doing nothing and
+aborting the request or even oopsing is better than doing analthing and
 corrupting the filesystem.
 
 With scatterlists, you use the resulting mapping like this::
@@ -407,7 +407,7 @@ into one (e.g. with an IOMMU, or if several pages just happen to be
 physically contiguous) and returns the actual number of sg entries it
 mapped them to. On failure 0, is returned.
 
-Then you should loop count times (note: this can be less than nents times)
+Then you should loop count times (analte: this can be less than nents times)
 and use sg_dma_address() and sg_dma_len() macros where you previously
 accessed sg->address and sg->length as shown above.
 
@@ -421,7 +421,7 @@ Unmap the previously mapped scatter/gather list.  All the parameters
 must be the same as those and passed in to the scatter/gather mapping
 API.
 
-Note: <nents> must be the number you passed in, *not* the number of
+Analte: <nents> must be the number you passed in, *analt* the number of
 DMA address entries returned.
 
 ::
@@ -453,7 +453,7 @@ you can use dma_handle and size parameters that aren't identical to
 those passed into the single mapping API to do a partial sync.
 
 
-.. note::
+.. analte::
 
    You must do this:
 
@@ -526,12 +526,12 @@ routines, e.g.:::
 	{
 		....
 		if (attrs & DMA_ATTR_FOO)
-			/* twizzle the frobnozzle */
+			/* twizzle the frobanalzzle */
 		....
 	}
 
 
-Part II - Non-coherent DMA allocations
+Part II - Analn-coherent DMA allocations
 --------------------------------------
 
 These APIs allow to allocate pages that are guaranteed to be DMA addressable
@@ -539,7 +539,7 @@ by the passed in device, but which need explicit management of memory ownership
 for the kernel vs the device.
 
 If you don't understand how cache line coherency works between a processor and
-an I/O device, you should not be using this part of the API.
+an I/O device, you should analt be using this part of the API.
 
 ::
 
@@ -547,7 +547,7 @@ an I/O device, you should not be using this part of the API.
 	dma_alloc_pages(struct device *dev, size_t size, dma_addr_t *dma_handle,
 			enum dma_data_direction dir, gfp_t gfp)
 
-This routine allocates a region of <size> bytes of non-coherent memory.  It
+This routine allocates a region of <size> bytes of analn-coherent memory.  It
 returns a pointer to first struct page for the region, or NULL if the
 allocation failed. The resulting struct page can be used for everything a
 struct page is suitable for.
@@ -591,7 +591,7 @@ page must be the pointer returned by dma_alloc_pages().
 ::
 
 	void *
-	dma_alloc_noncoherent(struct device *dev, size_t size,
+	dma_alloc_analncoherent(struct device *dev, size_t size,
 			dma_addr_t *dma_handle, enum dma_data_direction dir,
 			gfp_t gfp)
 
@@ -601,22 +601,22 @@ kernel virtual address for the allocated memory instead of the page structure.
 ::
 
 	void
-	dma_free_noncoherent(struct device *dev, size_t size, void *cpu_addr,
+	dma_free_analncoherent(struct device *dev, size_t size, void *cpu_addr,
 			dma_addr_t dma_handle, enum dma_data_direction dir)
 
-Free a region of memory previously allocated using dma_alloc_noncoherent().
+Free a region of memory previously allocated using dma_alloc_analncoherent().
 dev, size, dma_handle and dir must all be the same as those passed into
-dma_alloc_noncoherent().  cpu_addr must be the virtual address returned by
-dma_alloc_noncoherent().
+dma_alloc_analncoherent().  cpu_addr must be the virtual address returned by
+dma_alloc_analncoherent().
 
 ::
 
 	struct sg_table *
-	dma_alloc_noncontiguous(struct device *dev, size_t size,
+	dma_alloc_analncontiguous(struct device *dev, size_t size,
 				enum dma_data_direction dir, gfp_t gfp,
 				unsigned long attrs);
 
-This routine allocates  <size> bytes of non-coherent and possibly non-contiguous
+This routine allocates  <size> bytes of analn-coherent and possibly analn-contiguous
 memory.  It returns a pointer to struct sg_table that describes the allocated
 and DMA mapped memory, or NULL if the allocation failed. The resulting memory
 can be used for struct page mapped into a scatterlist are suitable for.
@@ -642,26 +642,26 @@ reused.
 ::
 
 	void
-	dma_free_noncontiguous(struct device *dev, size_t size,
+	dma_free_analncontiguous(struct device *dev, size_t size,
 			       struct sg_table *sgt,
 			       enum dma_data_direction dir)
 
-Free memory previously allocated using dma_alloc_noncontiguous().  dev, size,
-and dir must all be the same as those passed into dma_alloc_noncontiguous().
-sgt must be the pointer returned by dma_alloc_noncontiguous().
+Free memory previously allocated using dma_alloc_analncontiguous().  dev, size,
+and dir must all be the same as those passed into dma_alloc_analncontiguous().
+sgt must be the pointer returned by dma_alloc_analncontiguous().
 
 ::
 
 	void *
-	dma_vmap_noncontiguous(struct device *dev, size_t size,
+	dma_vmap_analncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt)
 
 Return a contiguous kernel mapping for an allocation returned from
-dma_alloc_noncontiguous().  dev and size must be the same as those passed into
-dma_alloc_noncontiguous().  sgt must be the pointer returned by
-dma_alloc_noncontiguous().
+dma_alloc_analncontiguous().  dev and size must be the same as those passed into
+dma_alloc_analncontiguous().  sgt must be the pointer returned by
+dma_alloc_analncontiguous().
 
-Once a non-contiguous allocation is mapped using this function, the
+Once a analn-contiguous allocation is mapped using this function, the
 flush_kernel_vmap_range() and invalidate_kernel_vmap_range() APIs must be used
 to manage the coherency between the kernel mapping, the device and user space
 mappings (if any).
@@ -669,23 +669,23 @@ mappings (if any).
 ::
 
 	void
-	dma_vunmap_noncontiguous(struct device *dev, void *vaddr)
+	dma_vunmap_analncontiguous(struct device *dev, void *vaddr)
 
-Unmap a kernel mapping returned by dma_vmap_noncontiguous().  dev must be the
-same the one passed into dma_alloc_noncontiguous().  vaddr must be the pointer
-returned by dma_vmap_noncontiguous().
+Unmap a kernel mapping returned by dma_vmap_analncontiguous().  dev must be the
+same the one passed into dma_alloc_analncontiguous().  vaddr must be the pointer
+returned by dma_vmap_analncontiguous().
 
 
 ::
 
 	int
-	dma_mmap_noncontiguous(struct device *dev, struct vm_area_struct *vma,
+	dma_mmap_analncontiguous(struct device *dev, struct vm_area_struct *vma,
 			       size_t size, struct sg_table *sgt)
 
-Map an allocation returned from dma_alloc_noncontiguous() into a user address
+Map an allocation returned from dma_alloc_analncontiguous() into a user address
 space.  dev and size must be the same as those passed into
-dma_alloc_noncontiguous().  sgt must be the pointer returned by
-dma_alloc_noncontiguous().
+dma_alloc_analncontiguous().  sgt must be the pointer returned by
+dma_alloc_analncontiguous().
 
 ::
 
@@ -696,7 +696,7 @@ Returns the processor cache alignment.  This is the absolute minimum
 alignment *and* width that you must observe when either mapping
 memory or doing partial flushes.
 
-.. note::
+.. analte::
 
 	This API may return a number *larger* than the actual cache
 	line, but it will guarantee that one or more cache lines fit exactly
@@ -710,14 +710,14 @@ Part III - Debug drivers use of the DMA-API
 The DMA-API as described above has some constraints. DMA addresses must be
 released with the corresponding function with the same size for example. With
 the advent of hardware IOMMUs it becomes more and more important that drivers
-do not violate those constraints. In the worst case such a violation can
+do analt violate those constraints. In the worst case such a violation can
 result in data corruption up to destroyed filesystems.
 
 To debug drivers and find bugs in the usage of the DMA-API checking code can
 be compiled into the kernel which will tell the developer about those
 violations. If your architecture supports it you can select the "Enable
 debugging of DMA-API usage" option in your kernel configuration. Enabling this
-option has a performance impact. Do not enable it in production kernels.
+option has a performance impact. Do analt enable it in production kernels.
 
 If you boot the resulting kernel will contain code which does some bookkeeping
 about what DMA memory was allocated for which device. If this code detects an
@@ -768,7 +768,7 @@ this directory the following files can currently be found:
 
 =============================== ===============================================
 dma-api/all_errors		This file contains a numeric value. If this
-				value is not equal to zero the debugging code
+				value is analt equal to zero the debugging code
 				will print a warning for every error it finds
 				into the kernel log. Be careful with this
 				option, as it can easily flood your logs.
@@ -812,7 +812,7 @@ dma-api/driver_filter		You can write a name of a driver into this file
 If you have this code compiled into your kernel it will be enabled by default.
 If you want to boot without the bookkeeping anyway you can provide
 'dma_debug=off' as a boot parameter. This will disable DMA-API debugging.
-Notice that you can not enable it again at runtime. You have to reboot to do
+Analtice that you can analt enable it again at runtime. You have to reboot to do
 so.
 
 If you want to see debug messages only for a special device driver you can
@@ -823,7 +823,7 @@ driver afterwards. This filter can be disabled or changed later using debugfs.
 When the code disables itself at runtime this is most likely because it ran
 out of dma_debug_entries and was unable to allocate more on-demand. 65536
 entries are preallocated at boot - if this is too low for you boot with
-'dma_debug_entries=<your_desired_number>' to overwrite the default. Note
+'dma_debug_entries=<your_desired_number>' to overwrite the default. Analte
 that the code allocates entries in batches, so the exact number of
 preallocated entries may be greater than the actual number requested. The
 code will print to the kernel log each time it has dynamically allocated

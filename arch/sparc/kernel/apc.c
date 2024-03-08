@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/pm.h>
@@ -28,26 +28,26 @@
  * #define APC_DEBUG_LED
  */
 
-#define APC_MINOR	MISC_DYNAMIC_MINOR
+#define APC_MIANALR	MISC_DYNAMIC_MIANALR
 #define APC_OBPNAME	"power-management"
 #define APC_DEVNAME "apc"
 
 static u8 __iomem *regs;
-static int apc_no_idle = 0;
+static int apc_anal_idle = 0;
 
 #define apc_readb(offs)		(sbus_readb(regs+offs))
 #define apc_writeb(val, offs) 	(sbus_writeb(val, regs+offs))
 
-/* Specify "apc=noidle" on the kernel command line to 
+/* Specify "apc=analidle" on the kernel command line to 
  * disable APC CPU standby support.  Certain prototype
- * systems (SPARCstation-Fox) do not play well with APC
+ * systems (SPARCstation-Fox) do analt play well with APC
  * CPU idle, so disable this if your system has APC and 
  * crashes randomly.
  */
 static int __init apc_setup(char *str) 
 {
-	if(!strncmp(str, "noidle", strlen("noidle"))) {
-		apc_no_idle = 1;
+	if(!strncmp(str, "analidle", strlen("analidle"))) {
+		apc_anal_idle = 1;
 		return 1;
 	}
 	return 0;
@@ -76,12 +76,12 @@ static inline void apc_free(struct platform_device *op)
 	of_iounmap(&op->resource[0], regs, resource_size(&op->resource[0]));
 }
 
-static int apc_open(struct inode *inode, struct file *f)
+static int apc_open(struct ianalde *ianalde, struct file *f)
 {
 	return 0;
 }
 
-static int apc_release(struct inode *inode, struct file *f)
+static int apc_release(struct ianalde *ianalde, struct file *f)
 {
 	return 0;
 }
@@ -135,10 +135,10 @@ static const struct file_operations apc_fops = {
 	.unlocked_ioctl =	apc_ioctl,
 	.open =			apc_open,
 	.release =		apc_release,
-	.llseek =		noop_llseek,
+	.llseek =		analop_llseek,
 };
 
-static struct miscdevice apc_miscdev = { APC_MINOR, APC_DEVNAME, &apc_fops };
+static struct miscdevice apc_miscdev = { APC_MIANALR, APC_DEVNAME, &apc_fops };
 
 static int apc_probe(struct platform_device *op)
 {
@@ -148,22 +148,22 @@ static int apc_probe(struct platform_device *op)
 			  resource_size(&op->resource[0]), APC_OBPNAME);
 	if (!regs) {
 		printk(KERN_ERR "%s: unable to map registers\n", APC_DEVNAME);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = misc_register(&apc_miscdev);
 	if (err) {
 		printk(KERN_ERR "%s: unable to register device\n", APC_DEVNAME);
 		apc_free(op);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Assign power management IDLE handler */
-	if (!apc_no_idle)
+	if (!apc_anal_idle)
 		sparc_idle = apc_swift_idle;
 
 	printk(KERN_INFO "%s: power management initialized%s\n", 
-	       APC_DEVNAME, apc_no_idle ? " (CPU idle disabled)" : "");
+	       APC_DEVNAME, apc_anal_idle ? " (CPU idle disabled)" : "");
 
 	return 0;
 }
@@ -189,7 +189,7 @@ static int __init apc_init(void)
 	return platform_driver_register(&apc_driver);
 }
 
-/* This driver is not critical to the boot process
+/* This driver is analt critical to the boot process
  * and is easiest to ioremap when SBus is already
  * initialized, so we install ourselves thusly:
  */

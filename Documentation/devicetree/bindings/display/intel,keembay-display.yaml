@@ -37,7 +37,7 @@ properties:
 
   port:
     $ref: /schemas/graph.yaml#/properties/port
-    description: Display output node to DSI.
+    description: Display output analde to DSI.
 
 required:
   - compatible

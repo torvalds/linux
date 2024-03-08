@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 /* based on linux-kernel/tools/testing/selftests/net/msg_zerocopy.c */
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -38,12 +38,12 @@
 
 #include <io_uring/mini_liburing.h>
 
-#define NOTIF_TAG 0xfffffffULL
-#define NONZC_TAG 0
+#define ANALTIF_TAG 0xfffffffULL
+#define ANALNZC_TAG 0
 #define ZC_TAG 1
 
 enum {
-	MODE_NONZC	= 0,
+	MODE_ANALNZC	= 0,
 	MODE_ZC		= 1,
 	MODE_ZC_FIXED	= 2,
 	MODE_MIXED	= 3,
@@ -73,7 +73,7 @@ static unsigned long gettimeofday_ms(void)
 static void do_setsockopt(int fd, int level, int optname, int val)
 {
 	if (setsockopt(fd, level, optname, &val, sizeof(val)))
-		error(1, errno, "setsockopt %d.%d: %d", level, optname, val);
+		error(1, erranal, "setsockopt %d.%d: %d", level, optname, val);
 }
 
 static int do_setup_tx(int domain, int type, int protocol)
@@ -82,12 +82,12 @@ static int do_setup_tx(int domain, int type, int protocol)
 
 	fd = socket(domain, type, protocol);
 	if (fd == -1)
-		error(1, errno, "socket t");
+		error(1, erranal, "socket t");
 
 	do_setsockopt(fd, SOL_SOCKET, SO_SNDBUF, 1 << 21);
 
 	if (connect(fd, (void *) &cfg_dst_addr, cfg_alen))
-		error(1, errno, "connect");
+		error(1, erranal, "connect");
 	return fd;
 }
 
@@ -131,10 +131,10 @@ static void do_tx(int domain, int type, int protocol)
 
 			sqe = io_uring_get_sqe(&ring);
 
-			if (mode == MODE_NONZC) {
+			if (mode == MODE_ANALNZC) {
 				io_uring_prep_send(sqe, fd, payload,
 						   cfg_payload_len, msg_flags);
-				sqe->user_data = NONZC_TAG;
+				sqe->user_data = ANALNZC_TAG;
 			} else {
 				io_uring_prep_sendzc(sqe, fd, payload,
 						     cfg_payload_len,
@@ -158,15 +158,15 @@ static void do_tx(int domain, int type, int protocol)
 			if (ret)
 				error(1, ret, "wait cqe");
 
-			if (cqe->user_data != NONZC_TAG &&
+			if (cqe->user_data != ANALNZC_TAG &&
 			    cqe->user_data != ZC_TAG)
 				error(1, -EINVAL, "invalid cqe->user_data");
 
-			if (cqe->flags & IORING_CQE_F_NOTIF) {
+			if (cqe->flags & IORING_CQE_F_ANALTIF) {
 				if (cqe->flags & IORING_CQE_F_MORE)
-					error(1, -EINVAL, "invalid notif flags");
+					error(1, -EINVAL, "invalid analtif flags");
 				if (compl_cqes <= 0)
-					error(1, -EINVAL, "notification mismatch");
+					error(1, -EINVAL, "analtification mismatch");
 				compl_cqes--;
 				i--;
 				io_uring_cqe_seen(&ring);
@@ -192,9 +192,9 @@ static void do_tx(int domain, int type, int protocol)
 		if (ret)
 			error(1, ret, "wait cqe");
 		if (cqe->flags & IORING_CQE_F_MORE)
-			error(1, -EINVAL, "invalid notif flags");
-		if (!(cqe->flags & IORING_CQE_F_NOTIF))
-			error(1, -EINVAL, "missing notif flag");
+			error(1, -EINVAL, "invalid analtif flags");
+		if (!(cqe->flags & IORING_CQE_F_ANALTIF))
+			error(1, -EINVAL, "missing analtif flag");
 
 		io_uring_cqe_seen(&ring);
 		compl_cqes--;
@@ -206,7 +206,7 @@ static void do_tx(int domain, int type, int protocol)
 			(bytes >> 20) / (cfg_runtime_ms / 1000));
 
 	if (close(fd))
-		error(1, errno, "close");
+		error(1, erranal, "close");
 }
 
 static void do_test(int domain, int type, int protocol)
@@ -315,6 +315,6 @@ int main(int argc, char **argv)
 	else if (!strcmp(cfg_test, "udp"))
 		do_test(cfg_family, SOCK_DGRAM, 0);
 	else
-		error(1, 0, "unknown cfg_test %s", cfg_test);
+		error(1, 0, "unkanalwn cfg_test %s", cfg_test);
 	return 0;
 }

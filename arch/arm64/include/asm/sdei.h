@@ -17,7 +17,7 @@
 
 #include <asm/virt.h>
 
-DECLARE_PER_CPU(struct sdei_registered_event *, sdei_active_normal_event);
+DECLARE_PER_CPU(struct sdei_registered_event *, sdei_active_analrmal_event);
 DECLARE_PER_CPU(struct sdei_registered_event *, sdei_active_critical_event);
 
 extern unsigned long sdei_exit_mode;

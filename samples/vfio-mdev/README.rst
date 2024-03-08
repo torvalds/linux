@@ -52,14 +52,14 @@ card.
 
 4. Boot the VM.
 
-   In the Linux guest VM, with no hardware on the host, the device appears
+   In the Linux guest VM, with anal hardware on the host, the device appears
    as  follows::
 
      # lspci -s 00:05.0 -xxvv
      00:05.0 Serial controller: Device 4348:3253 (rev 10) (prog-if 02 [16550])
              Subsystem: Device 4348:3253
              Physical Slot: 5
-             Control: I/O+ Mem- BusMaster- SpecCycle- MemWINV- VGASnoop- ParErr-
+             Control: I/O+ Mem- BusMaster- SpecCycle- MemWINV- VGASanalop- ParErr-
      Stepping- SERR- FastB2B- DisINTx-
              Status: Cap- 66MHz- UDF- FastB2B- ParErr- DEVSEL=medium >TAbort-
      <TAbort- <MAbort- >SERR- <PERR- INTx-

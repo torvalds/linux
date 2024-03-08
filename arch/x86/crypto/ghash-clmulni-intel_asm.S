@@ -8,7 +8,7 @@
  *
  * Copyright (c) 2009 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
- *	     Vinodh Gopal
+ *	     Vianaldh Gopal
  *	     Erdinc Ozturk
  *	     Deniz Karakoyunlu
  */

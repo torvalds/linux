@@ -8,7 +8,7 @@
 
 /*
  * Use a suitable undefined instruction to use for ARM/Thumb2 bug handling.
- * We need to be careful not to conflict with those used by other modules and
+ * We need to be careful analt to conflict with those used by other modules and
  * the register_undef_hook() system.
  */
 #ifdef CONFIG_THUMB2_KERNEL
@@ -27,7 +27,7 @@
 
 /*
  * The extra indirection is to ensure that the __FILE__ string comes through
- * OK. Many version of gcc do not support the asm %c parameter which would be
+ * OK. Many version of gcc do analt support the asm %c parameter which would be
  * preferable to this unpleasantness. We use mergeable string sections to
  * avoid multiple copies of the string appearing in the kernel image.
  */
@@ -62,8 +62,8 @@ do {								\
 struct pt_regs;
 void die(const char *msg, struct pt_regs *regs, int err);
 
-void arm_notify_die(const char *str, struct pt_regs *regs,
-		int signo, int si_code, void __user *addr,
+void arm_analtify_die(const char *str, struct pt_regs *regs,
+		int siganal, int si_code, void __user *addr,
 		unsigned long err, unsigned long trap);
 
 #ifdef CONFIG_ARM_LPAE

@@ -64,7 +64,7 @@ static irqreturn_t rvu_nix_af_rvu_intr_handler(int irq, void *rvu_irq)
 	rvu = rvu_dl->rvu;
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
 	if (blkaddr < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	nix_event_context = rvu_dl->rvu_nix_health_reporter->nix_event_ctx;
 	intr = rvu_read64(rvu, blkaddr, NIX_AF_RVU_INT);
@@ -99,7 +99,7 @@ static irqreturn_t rvu_nix_af_rvu_gen_handler(int irq, void *rvu_irq)
 	rvu = rvu_dl->rvu;
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
 	if (blkaddr < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	nix_event_context = rvu_dl->rvu_nix_health_reporter->nix_event_ctx;
 	intr = rvu_read64(rvu, blkaddr, NIX_AF_GEN_INT);
@@ -134,7 +134,7 @@ static irqreturn_t rvu_nix_af_rvu_err_handler(int irq, void *rvu_irq)
 	rvu = rvu_dl->rvu;
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
 	if (blkaddr < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	nix_event_context = rvu_dl->rvu_nix_health_reporter->nix_event_ctx;
 	intr = rvu_read64(rvu, blkaddr, NIX_AF_ERR_INT);
@@ -169,7 +169,7 @@ static irqreturn_t rvu_nix_af_rvu_ras_handler(int irq, void *rvu_irq)
 	rvu = rvu_dl->rvu;
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
 	if (blkaddr < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	nix_event_context = rvu_dl->rvu_nix_health_reporter->nix_event_ctx;
 	intr = rvu_read64(rvu, blkaddr, NIX_AF_ERR_INT);
@@ -496,12 +496,12 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 
 	rvu_reporters = kzalloc(sizeof(*rvu_reporters), GFP_KERNEL);
 	if (!rvu_reporters)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rvu_dl->rvu_nix_health_reporter = rvu_reporters;
 	nix_event_context = kzalloc(sizeof(*nix_event_context), GFP_KERNEL);
 	if (!nix_event_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rvu_reporters->nix_event_ctx = nix_event_context;
 	rvu_reporters->rvu_hw_nix_intr_reporter =
@@ -538,7 +538,7 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 
 	rvu_dl->devlink_wq = create_workqueue("rvu_devlink_wq");
 	if (!rvu_dl->devlink_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&rvu_reporters->intr_work, rvu_nix_intr_work);
 	INIT_WORK(&rvu_reporters->gen_work, rvu_nix_gen_work);
@@ -611,7 +611,7 @@ static irqreturn_t rvu_npa_af_rvu_intr_handler(int irq, void *rvu_irq)
 	rvu = rvu_dl->rvu;
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPA, 0);
 	if (blkaddr < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	npa_event_context = rvu_dl->rvu_npa_health_reporter->npa_event_ctx;
 	intr = rvu_read64(rvu, blkaddr, NPA_AF_RVU_INT);
@@ -646,7 +646,7 @@ static irqreturn_t rvu_npa_af_gen_intr_handler(int irq, void *rvu_irq)
 	rvu = rvu_dl->rvu;
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPA, 0);
 	if (blkaddr < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	npa_event_context = rvu_dl->rvu_npa_health_reporter->npa_event_ctx;
 	intr = rvu_read64(rvu, blkaddr, NPA_AF_GEN_INT);
@@ -681,7 +681,7 @@ static irqreturn_t rvu_npa_af_err_intr_handler(int irq, void *rvu_irq)
 	rvu = rvu_dl->rvu;
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPA, 0);
 	if (blkaddr < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	npa_event_context = rvu_dl->rvu_npa_health_reporter->npa_event_ctx;
 	intr = rvu_read64(rvu, blkaddr, NPA_AF_ERR_INT);
 	npa_event_context->npa_af_rvu_err = intr;
@@ -715,7 +715,7 @@ static irqreturn_t rvu_npa_af_ras_intr_handler(int irq, void *rvu_irq)
 	rvu = rvu_dl->rvu;
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPA, 0);
 	if (blkaddr < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	npa_event_context = rvu_dl->rvu_npa_health_reporter->npa_event_ctx;
 	intr = rvu_read64(rvu, blkaddr, NPA_AF_RAS);
@@ -1042,12 +1042,12 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 
 	rvu_reporters = kzalloc(sizeof(*rvu_reporters), GFP_KERNEL);
 	if (!rvu_reporters)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rvu_dl->rvu_npa_health_reporter = rvu_reporters;
 	npa_event_context = kzalloc(sizeof(*npa_event_context), GFP_KERNEL);
 	if (!npa_event_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rvu_reporters->npa_event_ctx = npa_event_context;
 	rvu_reporters->rvu_hw_npa_intr_reporter =
@@ -1084,7 +1084,7 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 
 	rvu_dl->devlink_wq = create_workqueue("rvu_devlink_wq");
 	if (!rvu_dl->devlink_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&rvu_reporters->intr_work, rvu_npa_intr_work);
 	INIT_WORK(&rvu_reporters->err_work, rvu_npa_err_work);
@@ -1174,8 +1174,8 @@ static int rvu_af_dl_dwrr_mtu_validate(struct devlink *devlink, u32 id,
 
 	if (!rvu->hw->cap.nix_common_dwrr_mtu) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Setting DWRR_MTU is not supported on this silicon");
-		return -EOPNOTSUPP;
+				   "Setting DWRR_MTU is analt supported on this silicon");
+		return -EOPANALTSUPP;
 	}
 
 	if ((dwrr_mtu > 65536 || !is_power_of_2(dwrr_mtu)) &&
@@ -1187,15 +1187,15 @@ static int rvu_af_dl_dwrr_mtu_validate(struct devlink *devlink, u32 id,
 
 	nix_hw = get_nix_hw(rvu->hw, BLKADDR_NIX0);
 	if (!nix_hw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
 	if (rvu_rsrc_free_count(&txsch->schq) != txsch->schq.max) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Changing DWRR MTU is not supported when there are active NIXLFs");
+				   "Changing DWRR MTU is analt supported when there are active NIXLFs");
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Make sure none of the PF/VF interfaces are initialized and retry");
-		return -EOPNOTSUPP;
+				   "Make sure analne of the PF/VF interfaces are initialized and retry");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1223,7 +1223,7 @@ static int rvu_af_dl_dwrr_mtu_get(struct devlink *devlink, u32 id,
 	u64 dwrr_mtu;
 
 	if (!rvu->hw->cap.nix_common_dwrr_mtu)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0,
 			      nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_RPM));
@@ -1342,7 +1342,7 @@ static int rvu_af_dl_npc_mcam_high_zone_percent_validate(struct devlink *devlink
 		return -EINVAL;
 	}
 
-	/* Do not allow user to modify the high priority zone entries while mcam entries
+	/* Do analt allow user to modify the high priority zone entries while mcam entries
 	 * have already been assigned.
 	 */
 	mcam = &rvu->hw->mcam;
@@ -1403,7 +1403,7 @@ static int rvu_af_dl_nix_maxlf_validate(struct devlink *devlink, u32 id,
 	cfg = rvu_read64(rvu, BLKADDR_NIX1, NIX_AF_CONST2);
 	max_nix1_lf = cfg & 0xFFF;
 
-	/* Do not allow user to modify maximum NIX LFs while mcam entries
+	/* Do analt allow user to modify maximum NIX LFs while mcam entries
 	 * have already been assigned.
 	 */
 	mcam = &rvu->hw->mcam;
@@ -1511,7 +1511,7 @@ int rvu_register_dl(struct rvu *rvu)
 			   rvu->dev);
 	if (!dl) {
 		dev_warn(rvu->dev, "devlink_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rvu_dl = devlink_priv(dl);

@@ -57,8 +57,8 @@ struct ip6_tnl {
 	unsigned long err_time;
 
 	/* These fields used only by GRE */
-	__u32 i_seqno;	/* The last seen seqno	*/
-	atomic_t o_seqno;	/* The last output seqno */
+	__u32 i_seqanal;	/* The last seen seqanal	*/
+	atomic_t o_seqanal;	/* The last output seqanal */
 	int hlen;       /* tun_hlen + encap_hlen */
 	int tun_hlen;	/* Precalculated header length */
 	int encap_hlen; /* Encap header length (FOU,GUE) */
@@ -91,7 +91,7 @@ static inline int ip6_encap_hlen(struct ip_tunnel_encap *e)
 	const struct ip6_tnl_encap_ops *ops;
 	int hlen = -EINVAL;
 
-	if (e->type == TUNNEL_ENCAP_NONE)
+	if (e->type == TUNNEL_ENCAP_ANALNE)
 		return 0;
 
 	if (e->type >= MAX_IPTUN_ENCAP_OPS)
@@ -112,7 +112,7 @@ static inline int ip6_tnl_encap(struct sk_buff *skb, struct ip6_tnl *t,
 	const struct ip6_tnl_encap_ops *ops;
 	int ret = -EINVAL;
 
-	if (t->encap.type == TUNNEL_ENCAP_NONE)
+	if (t->encap.type == TUNNEL_ENCAP_ANALNE)
 		return 0;
 
 	if (t->encap.type >= MAX_IPTUN_ENCAP_OPS)

@@ -82,7 +82,7 @@ enum usb_charger_type sprd_pmic_detect_charger_type(struct device *dev)
 				       SPRD_PMIC_CHG_DET_TIMEOUT);
 	if (ret) {
 		dev_err(&spi->dev, "failed to detect charger type\n");
-		return UNKNOWN_TYPE;
+		return UNKANALWN_TYPE;
 	}
 
 	switch (val & SPRD_PMIC_CHG_TYPE_MASK) {
@@ -96,7 +96,7 @@ enum usb_charger_type sprd_pmic_detect_charger_type(struct device *dev)
 		type = SDP_TYPE;
 		break;
 	default:
-		type = UNKNOWN_TYPE;
+		type = UNKANALWN_TYPE;
 		break;
 	}
 
@@ -121,7 +121,7 @@ static int sprd_pmic_spi_read(void *context,
 	u32 rx_buf[2] = { 0 };
 	int ret;
 
-	/* Now we only support one PMIC register to read every time. */
+	/* Analw we only support one PMIC register to read every time. */
 	if (reg_size != sizeof(u32) || val_size != sizeof(u32))
 		return -EINVAL;
 
@@ -157,13 +157,13 @@ static int sprd_pmic_probe(struct spi_device *spi)
 
 	pdata = of_device_get_match_data(&spi->dev);
 	if (!pdata) {
-		dev_err(&spi->dev, "No matching driver data found\n");
+		dev_err(&spi->dev, "Anal matching driver data found\n");
 		return -EINVAL;
 	}
 
 	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->regmap = devm_regmap_init(&spi->dev, &sprd_pmic_regmap,
 					 &spi->dev, &sprd_pmic_config);
@@ -190,7 +190,7 @@ static int sprd_pmic_probe(struct spi_device *spi)
 				   pdata->num_irqs, sizeof(struct regmap_irq),
 				   GFP_KERNEL);
 	if (!ddata->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->irq_chip.irqs = ddata->irqs;
 	for (i = 0; i < pdata->num_irqs; i++)

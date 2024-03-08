@@ -10,14 +10,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -71,7 +71,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	u8 jreg;
 
 	/* Check 3rd Tx option (digital output afaik) */
-	ast->tx_chip_types |= AST_TX_NONE_BIT;
+	ast->tx_chip_types |= AST_TX_ANALNE_BIT;
 
 	/*
 	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
@@ -79,7 +79,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	 *
 	 * Don't make that assumption if we the chip wasn't enabled and
 	 * is at power-on reset, otherwise we'll incorrectly "detect" a
-	 * SIL164 when there is none.
+	 * SIL164 when there is analne.
 	 */
 	if (!need_post) {
 		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
@@ -119,8 +119,8 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 		}
 	}
 
-	/* Print stuff for diagnostic purposes */
-	if (ast->tx_chip_types & AST_TX_NONE_BIT)
+	/* Print stuff for diaganalstic purposes */
+	if (ast->tx_chip_types & AST_TX_ANALNE_BIT)
 		drm_info(dev, "Using analog VGA\n");
 	if (ast->tx_chip_types & AST_TX_SIL164_BIT)
 		drm_info(dev, "Using Sil164 TMDS transmitter\n");
@@ -132,7 +132,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 
 static int ast_get_dram_info(struct drm_device *dev)
 {
-	struct device_node *np = dev->dev->of_node;
+	struct device_analde *np = dev->dev->of_analde;
 	struct ast_device *ast = to_ast_device(dev);
 	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
 	uint32_t denum, num, div, ref_pll, dsel;

@@ -19,7 +19,7 @@ void cpu_probe(void)
 
 	jump_to_uncached();
 	/*
-	 * Check if the entry shadows or not.
+	 * Check if the entry shadows or analt.
 	 * When shadowed, it's 128-entry system.
 	 * Otherwise, it's 256-entry system.
 	 */
@@ -32,7 +32,7 @@ void cpu_probe(void)
 	data1  = __raw_readl(addr1);
 	__raw_writel(data1&~(SH_CACHE_VALID|SH_CACHE_UPDATED), addr1);
 
-	/* Next, check if there's shadow or not */
+	/* Next, check if there's shadow or analt */
 	data0 = __raw_readl(addr0);
 	data0 ^= SH_CACHE_VALID;
 	__raw_writel(data0, addr0);
@@ -54,7 +54,7 @@ void cpu_probe(void)
 
 	/*
 	 * 7709A/7729 has 16K cache (256-entry), while 7702 has only
-	 * 2K(direct) 7702 is not supported (yet)
+	 * 2K(direct) 7702 is analt supported (yet)
 	 */
 	if (data0 == data1 && data2 == data3) {	/* Shadow */
 		boot_cpu_data.dcache.way_incr	= (1 << 11);

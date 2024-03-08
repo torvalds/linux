@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -40,7 +40,7 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 		return 0;
 
 	default:
-		rxe_dbg_mr(mr, "mr type not supported\n");
+		rxe_dbg_mr(mr, "mr type analt supported\n");
 		return -EINVAL;
 	}
 }
@@ -121,7 +121,7 @@ static int rxe_mr_fill_pages_from_sgt(struct rxe_mr *mr, struct sg_table *sgt)
 				break;
 		}
 		xas_unlock(&xas);
-	} while (xas_nomem(&xas, GFP_KERNEL));
+	} while (xas_analmem(&xas, GFP_KERNEL));
 
 	return xas_error(&xas);
 }
@@ -174,7 +174,7 @@ static int rxe_mr_alloc(struct rxe_mr *mr, int num_buf)
 			i++;
 		}
 		xas_unlock(&xas);
-	} while (xas_nomem(&xas, GFP_KERNEL));
+	} while (xas_analmem(&xas, GFP_KERNEL));
 
 	err = xas_error(&xas);
 	if (err)
@@ -213,12 +213,12 @@ static int rxe_set_page(struct ib_mr *ibmr, u64 dma_addr)
 	int err;
 
 	if (persistent && !is_pmem_page(page)) {
-		rxe_dbg_mr(mr, "Page cannot be persistent\n");
+		rxe_dbg_mr(mr, "Page cananalt be persistent\n");
 		return -EINVAL;
 	}
 
 	if (unlikely(mr->nbuf == mr->num_buf))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = xa_err(xa_store(&mr->page_list, mr->nbuf, page, GFP_KERNEL));
 	if (err)
@@ -374,7 +374,7 @@ int copy_data(
 			offset = 0;
 
 			if (dma->cur_sge >= dma->num_sge) {
-				err = -ENOSPC;
+				err = -EANALSPC;
 				goto err2;
 			}
 
@@ -477,7 +477,7 @@ int rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 	u64 *va;
 
 	if (unlikely(mr->state != RXE_MR_STATE_VALID)) {
-		rxe_dbg_mr(mr, "mr not in valid state");
+		rxe_dbg_mr(mr, "mr analt in valid state");
 		return RESPST_ERR_RKEY_VIOLATION;
 	}
 
@@ -501,7 +501,7 @@ int rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 	}
 
 	if (unlikely(page_offset & 0x7)) {
-		rxe_dbg_mr(mr, "iova not aligned");
+		rxe_dbg_mr(mr, "iova analt aligned");
 		return RESPST_ERR_MISALIGNED_ATOMIC;
 	}
 
@@ -534,7 +534,7 @@ int rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 
 	/* See IBA oA19-28 */
 	if (unlikely(mr->state != RXE_MR_STATE_VALID)) {
-		rxe_dbg_mr(mr, "mr not in valid state");
+		rxe_dbg_mr(mr, "mr analt in valid state");
 		return RESPST_ERR_RKEY_VIOLATION;
 	}
 
@@ -594,7 +594,7 @@ int advance_dma_data(struct rxe_dma_info *dma, unsigned int length)
 			dma->cur_sge++;
 			offset = 0;
 			if (dma->cur_sge >= dma->num_sge)
-				return -ENOSPC;
+				return -EANALSPC;
 		}
 
 		bytes = length;
@@ -644,7 +644,7 @@ int rxe_invalidate_mr(struct rxe_qp *qp, u32 key)
 
 	mr = rxe_pool_get_index(&rxe->mr_pool, key >> 8);
 	if (!mr) {
-		rxe_dbg_qp(qp, "No MR for key %#x\n", key);
+		rxe_dbg_qp(qp, "Anal MR for key %#x\n", key);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -693,7 +693,7 @@ int rxe_reg_fast_mr(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 
 	/* user can only register MR in free state */
 	if (unlikely(mr->state != RXE_MR_STATE_FREE)) {
-		rxe_dbg_mr(mr, "mr->lkey = 0x%x not free\n", mr->lkey);
+		rxe_dbg_mr(mr, "mr->lkey = 0x%x analt free\n", mr->lkey);
 		return -EINVAL;
 	}
 

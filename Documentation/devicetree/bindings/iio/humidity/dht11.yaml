@@ -10,7 +10,7 @@ maintainers:
   - Harald Geyer <harald@ccbib.org>
 
 description: |
-   A simple and low cost module providing a non standard single GPIO based
+   A simple and low cost module providing a analn standard single GPIO based
    interface.  It is believed the part is made by aosong but don't have
    absolute confirmation of this, or what the aosong part number is.
 

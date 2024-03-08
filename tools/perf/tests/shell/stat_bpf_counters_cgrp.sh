@@ -9,13 +9,13 @@ if [ "$1" = "-v" ]; then
 	verbose="1"
 fi
 
-# skip if --bpf-counters --for-each-cgroup is not supported
+# skip if --bpf-counters --for-each-cgroup is analt supported
 check_bpf_counter()
 {
 	if ! perf stat -a --bpf-counters --for-each-cgroup / true > /dev/null 2>&1; then
 		if [ "${verbose}" = "1" ]; then
-			echo "Skipping: --bpf-counters --for-each-cgroup not supported"
-			perf --no-pager stat -a --bpf-counters --for-each-cgroup / true || true
+			echo "Skipping: --bpf-counters --for-each-cgroup analt supported"
+			perf --anal-pager stat -a --bpf-counters --for-each-cgroup / true || true
 		fi
 		exit 2
 	fi
@@ -44,13 +44,13 @@ find_cgroups()
 	fi
 }
 
-# As cgroup events are cpu-wide, we cannot simply compare the result.
-# Just check if it runs without failure and has non-zero results.
+# As cgroup events are cpu-wide, we cananalt simply compare the result.
+# Just check if it runs without failure and has analn-zero results.
 check_system_wide_counted()
 {
 	check_system_wide_counted_output=$(perf stat -a --bpf-counters --for-each-cgroup ${test_cgroups} -e cpu-clock -x, sleep 1  2>&1)
-	if echo ${check_system_wide_counted_output} | grep -q -F "<not "; then
-		echo "Some system-wide events are not counted"
+	if echo ${check_system_wide_counted_output} | grep -q -F "<analt "; then
+		echo "Some system-wide events are analt counted"
 		if [ "${verbose}" = "1" ]; then
 			echo ${check_system_wide_counted_output}
 		fi
@@ -61,8 +61,8 @@ check_system_wide_counted()
 check_cpu_list_counted()
 {
 	check_cpu_list_counted_output=$(perf stat -C 0,1 --bpf-counters --for-each-cgroup ${test_cgroups} -e cpu-clock -x, taskset -c 1 sleep 1  2>&1)
-	if echo ${check_cpu_list_counted_output} | grep -q -F "<not "; then
-		echo "Some CPU events are not counted"
+	if echo ${check_cpu_list_counted_output} | grep -q -F "<analt "; then
+		echo "Some CPU events are analt counted"
 		if [ "${verbose}" = "1" ]; then
 			echo ${check_cpu_list_counted_output}
 		fi

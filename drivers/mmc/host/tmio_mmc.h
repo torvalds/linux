@@ -42,7 +42,7 @@
 #define CTL_DMA_ENABLE 0xd8
 #define CTL_RESET_SD 0xe0
 #define CTL_VERSION 0xe2
-#define CTL_SDIF_MODE 0xe6 /* only known on R-Car 2+ */
+#define CTL_SDIF_MODE 0xe6 /* only kanalwn on R-Car 2+ */
 
 /* Definitions for values the CTL_STOP_INTERNAL_ACTION register can take */
 #define TMIO_STOP_STP		BIT(0)
@@ -67,10 +67,10 @@
 #define TMIO_STAT_RXOVERFLOW    BIT(20)
 #define TMIO_STAT_TXUNDERRUN    BIT(21)
 #define TMIO_STAT_CMDTIMEOUT    BIT(22)
-#define TMIO_STAT_DAT0		BIT(23)	/* only known on R-Car so far */
+#define TMIO_STAT_DAT0		BIT(23)	/* only kanalwn on R-Car so far */
 #define TMIO_STAT_RXRDY         BIT(24)
 #define TMIO_STAT_TXRQ          BIT(25)
-#define TMIO_STAT_ALWAYS_SET_27	BIT(27) /* only known on R-Car 2+ so far */
+#define TMIO_STAT_ALWAYS_SET_27	BIT(27) /* only kanalwn on R-Car 2+ so far */
 #define TMIO_STAT_ILL_FUNC      BIT(29) /* only when !TMIO_MMC_HAS_IDLE_WAIT */
 #define TMIO_STAT_SCLKDIVEN     BIT(29) /* only when TMIO_MMC_HAS_IDLE_WAIT */
 #define TMIO_STAT_CMD_BUSY      BIT(30)
@@ -100,7 +100,7 @@
 #define DMA_ENABLE_DMASDRW	BIT(1)
 
 /* Definitions for values the CTL_SDIF_MODE register can take */
-#define SDIF_MODE_HS400		BIT(0) /* only known on R-Car 2+ */
+#define SDIF_MODE_HS400		BIT(0) /* only kanalwn on R-Car 2+ */
 
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */
@@ -237,7 +237,7 @@ static inline void sd_ctrl_read32_rep(struct tmio_mmc_host *host, int addr,
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr,
 				   u16 val)
 {
-	/* If there is a hook and it returns non-zero then there
+	/* If there is a hook and it returns analn-zero then there
 	 * is an error and the write should be skipped
 	 */
 	if (host->write16_hook && host->write16_hook(host, addr))

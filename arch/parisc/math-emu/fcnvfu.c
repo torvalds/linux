@@ -70,7 +70,7 @@ sgl_to_sgl_fcnvfu(
 		}
 		Set_invalidflag();
 		*dstptr = result;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate result
@@ -87,7 +87,7 @@ sgl_to_sgl_fcnvfu(
 			}
 			Set_invalidflag();
 			*dstptr = result;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		Sgl_clear_signexponent_set_hidden(src);
 		Suint_from_sgl_mantissa(src,src_exponent,result);
@@ -115,7 +115,7 @@ sgl_to_sgl_fcnvfu(
 		result = 0;
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isanaltzero_exponentmantissa(src)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -136,7 +136,7 @@ sgl_to_sgl_fcnvfu(
 				break;
 			case ROUNDNEAREST:
 				if (src_exponent == -1 &&
-				    Sgl_isnotzero_mantissa(src)) {
+				    Sgl_isanaltzero_mantissa(src)) {
 					if (Sgl_isone_sign(src)) {
 						result = 0;
 						if (Is_invalidtrap_enabled()) {
@@ -156,7 +156,7 @@ sgl_to_sgl_fcnvfu(
 		if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 		else Set_inexactflag();
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -191,7 +191,7 @@ sgl_to_dbl_fcnvfu(
 		}
 		Set_invalidflag();
     		Duint_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate result
@@ -208,7 +208,7 @@ sgl_to_dbl_fcnvfu(
 			}
 			Set_invalidflag();
     			Duint_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		Sgl_clear_signexponent_set_hidden(src);
 		Duint_from_sgl_mantissa(src,src_exponent,resultp1,resultp2);
@@ -236,7 +236,7 @@ sgl_to_dbl_fcnvfu(
 		Duint_setzero(resultp1,resultp2);
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isanaltzero_exponentmantissa(src)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -257,7 +257,7 @@ sgl_to_dbl_fcnvfu(
 				break;
 			case ROUNDNEAREST:
 				if (src_exponent == -1 &&
-				    Sgl_isnotzero_mantissa(src)) {
+				    Sgl_isanaltzero_mantissa(src)) {
 					if (Sgl_isone_sign(src)) {
 						resultp1 = 0;
 						resultp2 = 0;
@@ -277,7 +277,7 @@ sgl_to_dbl_fcnvfu(
 		if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 		else Set_inexactflag();
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -309,7 +309,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 		}
 		Set_invalidflag();
 		*dstptr = result;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate result
@@ -326,7 +326,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 			}
 			Set_invalidflag();
 			*dstptr = result;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		Dbl_clear_signexponent_set_hidden(srcp1);
 		Suint_from_dbl_mantissa(srcp1,srcp2,src_exponent,result);
@@ -356,14 +356,14 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 				}
 				Set_invalidflag();
 				*dstptr = result;
-				return(NOEXCEPTION);
+				return(ANALEXCEPTION);
 			}
 		}
 	} else {
 		result = 0;
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isanaltzero_exponentmantissa(srcp1,srcp2)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -382,7 +382,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 				break;
 			case ROUNDNEAREST:
 				if (src_exponent == -1 &&
-				    Dbl_isnotzero_mantissa(srcp1,srcp2))
+				    Dbl_isanaltzero_mantissa(srcp1,srcp2))
 					if (Dbl_isone_sign(srcp1)) {
 						result = 0;
 						if (Is_invalidtrap_enabled()) {
@@ -400,7 +400,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 		if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 		else Set_inexactflag();
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -432,7 +432,7 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 		}
 		Set_invalidflag();
     		Duint_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
  
 	/*
@@ -450,7 +450,7 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 			}
 			Set_invalidflag();
     			Duint_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		Dbl_clear_signexponent_set_hidden(srcp1);
 		Duint_from_dbl_mantissa(srcp1,srcp2,src_exponent,resultp1,
@@ -477,7 +477,7 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 		Duint_setzero(resultp1,resultp2);
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isanaltzero_exponentmantissa(srcp1,srcp2)) {
 			inexact = TRUE;
 			/*  round result  */
 			switch (Rounding_mode()) {
@@ -498,7 +498,7 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 				break;
 			case ROUNDNEAREST:
 				if (src_exponent == -1 &&
-				    Dbl_isnotzero_mantissa(srcp1,srcp2))
+				    Dbl_isanaltzero_mantissa(srcp1,srcp2))
 					if (Dbl_iszero_sign(srcp1)) {
 						Duint_increment(resultp1,resultp2);
 					} else {
@@ -518,6 +518,6 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 		if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 		else Set_inexactflag();
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 

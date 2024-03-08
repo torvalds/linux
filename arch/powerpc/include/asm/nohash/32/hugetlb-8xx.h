@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_32_HUGETLB_8XX_H
-#define _ASM_POWERPC_NOHASH_32_HUGETLB_8XX_H
+#ifndef _ASM_POWERPC_ANALHASH_32_HUGETLB_8XX_H
+#define _ASM_POWERPC_ANALHASH_32_HUGETLB_8XX_H
 
 #define PAGE_SHIFT_8M		23
 
@@ -79,4 +79,4 @@ static inline pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags
 #define arch_make_huge_pte arch_make_huge_pte
 #endif
 
-#endif /* _ASM_POWERPC_NOHASH_32_HUGETLB_8XX_H */
+#endif /* _ASM_POWERPC_ANALHASH_32_HUGETLB_8XX_H */

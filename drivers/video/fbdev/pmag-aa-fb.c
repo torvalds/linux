@@ -28,7 +28,7 @@
  */
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -77,8 +77,8 @@ static const struct fb_var_screeninfo aafb_defined = {
 	.red.length	= 0,
 	.green.length	= 1,
 	.blue.length	= 0,
-	.activate	= FB_ACTIVATE_NOW,
-	.accel_flags	= FB_ACCEL_NONE,
+	.activate	= FB_ACTIVATE_ANALW,
+	.accel_flags	= FB_ACCEL_ANALNE,
 	.pixclock	= 7645,
 	.left_margin	= 224,
 	.right_margin	= 32,
@@ -87,14 +87,14 @@ static const struct fb_var_screeninfo aafb_defined = {
 	.hsync_len	= 160,
 	.vsync_len	= 3,
 	.sync		= FB_SYNC_ON_GREEN,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 static const struct fb_fix_screeninfo aafb_fix = {
 	.id		= "PMAG-AA",
 	.smem_len	= (2048 * 1024),
 	.type		= FB_TYPE_PACKED_PIXELS,
-	.visual		= FB_VISUAL_MONO10,
+	.visual		= FB_VISUAL_MOANAL10,
 	.ypanstep	= 1,
 	.ywrapstep	= 1,
 	.line_length	= 2048,
@@ -164,7 +164,7 @@ static int pmagaafb_probe(struct device *dev)
 
 	info = framebuffer_alloc(sizeof(struct aafb_par), dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	dev_set_drvdata(dev, info);
@@ -177,7 +177,7 @@ static int pmagaafb_probe(struct device *dev)
 	start = tdev->resource.start;
 	len = tdev->resource.end - start + 1;
 	if (!request_mem_region(start, len, dev_name(dev))) {
-		printk(KERN_ERR "%s: Cannot reserve FB region\n",
+		printk(KERN_ERR "%s: Cananalt reserve FB region\n",
 		       dev_name(dev));
 		err = -EBUSY;
 		goto err_alloc;
@@ -187,8 +187,8 @@ static int pmagaafb_probe(struct device *dev)
 	info->fix.mmio_start = start + PMAG_AA_BT455_OFFSET;
 	par->mmio = ioremap(info->fix.mmio_start, info->fix.mmio_len);
 	if (!par->mmio) {
-		printk(KERN_ERR "%s: Cannot map MMIO\n", dev_name(dev));
-		err = -ENOMEM;
+		printk(KERN_ERR "%s: Cananalt map MMIO\n", dev_name(dev));
+		err = -EANALMEM;
 		goto err_resource;
 	}
 	par->bt455 = par->mmio - PMAG_AA_BT455_OFFSET + PMAG_AA_BT455_OFFSET;
@@ -199,8 +199,8 @@ static int pmagaafb_probe(struct device *dev)
 	info->screen_base = ioremap(info->fix.smem_start,
 					    info->fix.smem_len);
 	if (!info->screen_base) {
-		printk(KERN_ERR "%s: Cannot map FB\n", dev_name(dev));
-		err = -ENOMEM;
+		printk(KERN_ERR "%s: Cananalt map FB\n", dev_name(dev));
+		err = -EANALMEM;
 		goto err_mmio_map;
 	}
 	info->screen_size = info->fix.smem_len;
@@ -215,7 +215,7 @@ static int pmagaafb_probe(struct device *dev)
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "%s: Cannot register framebuffer\n",
+		printk(KERN_ERR "%s: Cananalt register framebuffer\n",
 		       dev_name(dev));
 		goto err_smem_map;
 	}
@@ -223,7 +223,7 @@ static int pmagaafb_probe(struct device *dev)
 	get_device(dev);
 
 	pr_info("fb%d: %s frame buffer device at %s\n",
-		info->node, info->fix.id, dev_name(dev));
+		info->analde, info->fix.id, dev_name(dev));
 
 	return 0;
 

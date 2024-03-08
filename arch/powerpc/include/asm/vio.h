@@ -11,7 +11,7 @@
 #define _ASM_POWERPC_VIO_H
 #ifdef __KERNEL__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/mod_devicetable.h>
@@ -29,7 +29,7 @@
 /* End architecture-specific constants */
 
 #define h_vio_signal(ua, mode) \
-  plpar_hcall_norets(H_VIO_SIGNAL, ua, mode)
+  plpar_hcall_analrets(H_VIO_SIGNAL, ua, mode)
 
 #define VIO_IRQ_DISABLE		0UL
 #define VIO_IRQ_ENABLE		1UL
@@ -55,14 +55,14 @@ struct iommu_table;
  *
  * @flags: h_call subfunctions and modifiers
  * @in: Input data block logical real address
- * @inlen: If non-negative, the length of the input data block.  If negative,
+ * @inlen: If analn-negative, the length of the input data block.  If negative,
  *	the length of the input data descriptor list in bytes.
  * @out: Output data block logical real address
- * @outlen: If non-negative, the length of the input data block.  If negative,
+ * @outlen: If analn-negative, the length of the input data block.  If negative,
  *	the length of the input data descriptor list in bytes.
  * @csbcpb: Logical real address of the 4k naturally-aligned storage block
  *	containing the CSB & optional FC field specific CPB
- * @timeout: # of milliseconds to retry h_call, 0 for no timeout.
+ * @timeout: # of milliseconds to retry h_call, 0 for anal timeout.
  * @hcall_err: pointer to return the h_call return value, else NULL
  */
 struct vio_pfo_op {
@@ -81,8 +81,8 @@ struct vio_pfo_op {
 /* End PFO specific data */
 
 enum vio_dev_family {
-	VDEVICE,	/* The OF node is a child of /vdevice */
-	PFO,		/* The OF node is a child of /ibm,platform-facilities */
+	VDEVICE,	/* The OF analde is a child of /vdevice */
+	PFO,		/* The OF analde is a child of /ibm,platform-facilities */
 };
 
 /**
@@ -139,14 +139,14 @@ extern void vio_unregister_device(struct vio_dev *dev);
 
 extern int vio_h_cop_sync(struct vio_dev *vdev, struct vio_pfo_op *op);
 
-struct device_node;
+struct device_analde;
 
-extern struct vio_dev *vio_register_device_node(
-		struct device_node *node_vdev);
+extern struct vio_dev *vio_register_device_analde(
+		struct device_analde *analde_vdev);
 extern const void *vio_get_attribute(struct vio_dev *vdev, char *which,
 		int *length);
 #ifdef CONFIG_PPC_PSERIES
-extern struct vio_dev *vio_find_node(struct device_node *vnode);
+extern struct vio_dev *vio_find_analde(struct device_analde *vanalde);
 extern int vio_enable_interrupts(struct vio_dev *dev);
 extern int vio_disable_interrupts(struct vio_dev *dev);
 #else

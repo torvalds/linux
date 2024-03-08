@@ -4,14 +4,14 @@
  *
  * Copyright (C) 2017 Red Hat, Inc.
  *
- * Author: Stefan Hajnoczi <stefanha@redhat.com>
+ * Author: Stefan Hajanalczi <stefanha@redhat.com>
  */
 
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <linux/kernel.h>
 #include <sys/types.h>
@@ -47,15 +47,15 @@ static void test_stream_connection_reset(const struct test_opts *opts)
 	do {
 		ret = connect(fd, &addr.sa, sizeof(addr.svm));
 		timeout_check("connect");
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 	timeout_end();
 
 	if (ret != -1) {
 		fprintf(stderr, "expected connect(2) failure, got %d\n", ret);
 		exit(EXIT_FAILURE);
 	}
-	if (errno != ECONNRESET) {
-		fprintf(stderr, "unexpected connect(2) errno %d\n", errno);
+	if (erranal != ECONNRESET) {
+		fprintf(stderr, "unexpected connect(2) erranal %d\n", erranal);
 		exit(EXIT_FAILURE);
 	}
 
@@ -86,19 +86,19 @@ static void test_stream_bind_only_client(const struct test_opts *opts)
 	do {
 		ret = connect(fd, &addr.sa, sizeof(addr.svm));
 		timeout_check("connect");
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 	timeout_end();
 
 	if (ret != -1) {
 		fprintf(stderr, "expected connect(2) failure, got %d\n", ret);
 		exit(EXIT_FAILURE);
 	}
-	if (errno != ECONNRESET) {
-		fprintf(stderr, "unexpected connect(2) errno %d\n", errno);
+	if (erranal != ECONNRESET) {
+		fprintf(stderr, "unexpected connect(2) erranal %d\n", erranal);
 		exit(EXIT_FAILURE);
 	}
 
-	/* Notify the server that the client has finished */
+	/* Analtify the server that the client has finished */
 	control_writeln("DONE");
 
 	close(fd);
@@ -125,7 +125,7 @@ static void test_stream_bind_only_server(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	/* Notify the client that the server is ready */
+	/* Analtify the client that the server is ready */
 	control_writeln("BIND");
 
 	/* Wait for the client to finish */
@@ -290,7 +290,7 @@ static void test_msg_peek_server(const struct test_opts *opts,
 				 bool seqpacket)
 {
 	unsigned char buf_half[MSG_PEEK_BUF_LEN / 2];
-	unsigned char buf_normal[MSG_PEEK_BUF_LEN];
+	unsigned char buf_analrmal[MSG_PEEK_BUF_LEN];
 	unsigned char buf_peek[MSG_PEEK_BUF_LEN];
 	int fd;
 
@@ -331,10 +331,10 @@ static void test_msg_peek_server(const struct test_opts *opts,
 			 sizeof(buf_peek));
 	}
 
-	recv_buf(fd, buf_normal, sizeof(buf_normal), 0, sizeof(buf_normal));
+	recv_buf(fd, buf_analrmal, sizeof(buf_analrmal), 0, sizeof(buf_analrmal));
 
-	/* Compare full peek and normal read. */
-	if (memcmp(buf_peek, buf_normal, sizeof(buf_peek))) {
+	/* Compare full peek and analrmal read. */
+	if (memcmp(buf_peek, buf_analrmal, sizeof(buf_peek))) {
 		fprintf(stderr, "Full peek data mismatch\n");
 		exit(EXIT_FAILURE);
 	}
@@ -597,7 +597,7 @@ static void test_seqpacket_timeout_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	if (errno != EAGAIN) {
+	if (erranal != EAGAIN) {
 		perror("EAGAIN expected");
 		exit(EXIT_FAILURE);
 	}
@@ -729,7 +729,7 @@ static void test_seqpacket_invalid_rec_buffer_server(const struct test_opts *opt
 	int buf_size = page_size * 3;
 	ssize_t res;
 	int prot = PROT_READ | PROT_WRITE;
-	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	int flags = MAP_PRIVATE | MAP_AANALNYMOUS;
 	int i;
 
 	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
@@ -766,8 +766,8 @@ static void test_seqpacket_invalid_rec_buffer_server(const struct test_opts *opt
 		exit(EXIT_FAILURE);
 	}
 
-	if (errno != EFAULT) {
-		perror("unexpected errno of 'broken_buf'");
+	if (erranal != EFAULT) {
+		perror("unexpected erranal of 'broken_buf'");
 		exit(EXIT_FAILURE);
 	}
 
@@ -855,7 +855,7 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 
 	/* At this point, server sent 1 byte. */
 	fds.fd = fd;
-	poll_flags = POLLIN | POLLRDNORM;
+	poll_flags = POLLIN | POLLRDANALRM;
 	fds.events = poll_flags;
 
 	/* Try to wait for 1 sec. */
@@ -864,7 +864,7 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	/* poll() must return nothing. */
+	/* poll() must return analthing. */
 	if (fds.revents) {
 		fprintf(stderr, "Unexpected poll result %hx\n",
 			fds.revents);
@@ -1036,7 +1036,7 @@ static void test_stream_virtio_skb_merge_server(const struct test_opts *opts)
 	recv_buf(fd, buf + read, to_read, 0, to_read);
 	read += to_read;
 
-	/* No more bytes should be there */
+	/* Anal more bytes should be there */
 	to_read = sizeof(buf) - read;
 	recv_buf(fd, buf + read, to_read, MSG_DONTWAIT, -EAGAIN);
 
@@ -1062,7 +1062,7 @@ static void test_seqpacket_msg_peek_server(const struct test_opts *opts)
 
 static sig_atomic_t have_sigpipe;
 
-static void sigpipe(int signo)
+static void sigpipe(int siganal)
 {
 	have_sigpipe = 1;
 }
@@ -1086,14 +1086,14 @@ static void test_stream_check_sigpipe(int fd)
 
 	have_sigpipe = 0;
 
-	res = send(fd, "A", 1, MSG_NOSIGNAL);
+	res = send(fd, "A", 1, MSG_ANALSIGNAL);
 	if (res != -1) {
 		fprintf(stderr, "expected send(2) failure, got %zi\n", res);
 		exit(EXIT_FAILURE);
 	}
 
 	if (have_sigpipe) {
-		fprintf(stderr, "SIGPIPE not expected\n");
+		fprintf(stderr, "SIGPIPE analt expected\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -1203,7 +1203,7 @@ static void test_double_bind_connect_server(const struct test_opts *opts)
 			client_fd = accept(listen_fd, (struct sockaddr *)&sa_client,
 					   &socklen_client);
 			timeout_check("accept");
-		} while (client_fd < 0 && errno == EINTR);
+		} while (client_fd < 0 && erranal == EINTR);
 		timeout_end();
 
 		if (client_fd < 0) {
@@ -1357,7 +1357,7 @@ static void test_stream_credit_update_test(const struct test_opts *opts,
 	}
 
 	fds.fd = fd;
-	fds.events = POLLIN | POLLRDNORM | POLLERR |
+	fds.events = POLLIN | POLLRDANALRM | POLLERR |
 		     POLLRDHUP | POLLHUP;
 
 	/* This 'poll()' will return once we receive last byte
@@ -1373,13 +1373,13 @@ static void test_stream_credit_update_test(const struct test_opts *opts,
 		exit(EXIT_FAILURE);
 	}
 
-	if (fds.revents & (POLLIN | POLLRDNORM)) {
+	if (fds.revents & (POLLIN | POLLRDANALRM)) {
 		recv_buf(fd, buf, recv_buf_size, MSG_DONTWAIT, recv_buf_size);
 	} else {
 		/* These flags must be set, as there is at
 		 * least 64KB of data ready to read.
 		 */
-		fprintf(stderr, "POLLIN | POLLRDNORM expected\n");
+		fprintf(stderr, "POLLIN | POLLRDANALRM expected\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -1544,7 +1544,7 @@ static const struct option longopts[] = {
 	},
 	{
 		.name = "list",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = 'l',
 	},
 	{
@@ -1554,7 +1554,7 @@ static const struct option longopts[] = {
 	},
 	{
 		.name = "help",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = '?',
 	},
 	{},

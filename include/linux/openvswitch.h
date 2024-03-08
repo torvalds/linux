@@ -8,8 +8,8 @@
 
 #include <uapi/linux/openvswitch.h>
 
-#define OVS_CLONE_ATTR_EXEC      0   /* Specify an u32 value. When nonzero,
-				      * actions in clone will not change flow
+#define OVS_CLONE_ATTR_EXEC      0   /* Specify an u32 value. When analnzero,
+				      * actions in clone will analt change flow
 				      * keys. False otherwise.
 				      */
 

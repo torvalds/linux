@@ -34,7 +34,7 @@ struct gb_bootrom {
 	struct gb_connection	*connection;
 	const struct firmware	*fw;
 	u8			protocol_major;
-	u8			protocol_minor;
+	u8			protocol_mianalr;
 	enum next_request_type	next_request;
 	struct delayed_work	dwork;
 	struct mutex		mutex; /* Protects bootrom->fw */
@@ -115,7 +115,7 @@ static void bootrom_es2_fixup_vid_pid(struct gb_bootrom *bootrom)
 	struct gb_interface *intf = connection->bundle->intf;
 	int ret;
 
-	if (!(intf->quirks & GB_INTERFACE_QUIRK_NO_GMP_IDS))
+	if (!(intf->quirks & GB_INTERFACE_QUIRK_ANAL_GMP_IDS))
 		return;
 
 	ret = gb_operation_sync(connection, GB_BOOTROM_TYPE_GET_VID_PID,
@@ -127,7 +127,7 @@ static void bootrom_es2_fixup_vid_pid(struct gb_bootrom *bootrom)
 	}
 
 	/*
-	 * NOTE: This is hacked, so that the same values of VID/PID can be used
+	 * ANALTE: This is hacked, so that the same values of VID/PID can be used
 	 * by next firmware level as well. The uevent for bootrom will still
 	 * have VID/PID as 0, though after this point the sysfs files will start
 	 * showing the updated values. But yeah, that's a bit racy as the same
@@ -170,7 +170,7 @@ static int find_firmware(struct gb_bootrom *bootrom, u8 stage)
 
 	// FIXME:
 	// Turn to dev_dbg later after everyone has valid bootloaders with good
-	// ids, but leave this as dev_info for now to make it easier to track
+	// ids, but leave this as dev_info for analw to make it easier to track
 	// down "empty" vid/pid modules.
 	dev_info(&connection->bundle->dev, "Firmware file '%s' requested\n",
 		 firmware_name);
@@ -215,7 +215,7 @@ static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 					 GFP_KERNEL)) {
 		dev_err(dev, "%s: error allocating response\n", __func__);
 		free_firmware(bootrom);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -264,7 +264,7 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 
 	fw = bootrom->fw;
 	if (!fw) {
-		dev_err(dev, "%s: firmware not available\n", __func__);
+		dev_err(dev, "%s: firmware analt available\n", __func__);
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -283,7 +283,7 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	if (!gb_operation_response_alloc(op, sizeof(*firmware_response) + size,
 					 GFP_KERNEL)) {
 		dev_err(dev, "%s: error allocating response\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -380,7 +380,7 @@ static int gb_bootrom_get_version(struct gb_bootrom *bootrom)
 	int ret;
 
 	request.major = GB_BOOTROM_VERSION_MAJOR;
-	request.minor = GB_BOOTROM_VERSION_MINOR;
+	request.mianalr = GB_BOOTROM_VERSION_MIANALR;
 
 	ret = gb_operation_sync(bootrom->connection,
 				GB_BOOTROM_TYPE_VERSION,
@@ -397,14 +397,14 @@ static int gb_bootrom_get_version(struct gb_bootrom *bootrom)
 		dev_err(&bundle->dev,
 			"unsupported major protocol version (%u > %u)\n",
 			response.major, request.major);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	bootrom->protocol_major = response.major;
-	bootrom->protocol_minor = response.minor;
+	bootrom->protocol_mianalr = response.mianalr;
 
 	dev_dbg(&bundle->dev, "%s - %u.%u\n", __func__, response.major,
-		response.minor);
+		response.mianalr);
 
 	return 0;
 }
@@ -418,15 +418,15 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 	int ret;
 
 	if (bundle->num_cports != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cport_desc = &bundle->cport_desc[0];
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_BOOTROM)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bootrom = kzalloc(sizeof(*bootrom), GFP_KERNEL);
 	if (!bootrom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(bundle,
 					  le16_to_cpu(cport_desc->id),

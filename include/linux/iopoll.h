@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/ktime.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 
 /**
@@ -27,7 +27,7 @@
  * @args: arguments for @op poll
  *
  * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
- * case, the last read value at @args is stored in @val. Must not
+ * case, the last read value at @args is stored in @val. Must analt
  * be called from atomic context if sleep_us or timeout_us are used.
  *
  * When available, you'll probably want to use one of the specialized
@@ -74,9 +74,9 @@
  * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
  * case, the last read value at @args is stored in @val.
  *
- * This macro does not rely on timekeeping.  Hence it is safe to call even when
+ * This macro does analt rely on timekeeping.  Hence it is safe to call even when
  * timekeeping is suspended, at the expense of an underestimation of wall clock
- * time, which is rather minimal with a non-zero delay_us.
+ * time, which is rather minimal with a analn-zero delay_us.
  *
  * When available, you'll probably want to use one of the specialized
  * macros defined below rather than this macro directly.
@@ -125,7 +125,7 @@
  * @timeout_us: Timeout in us, 0 means never timeout
  *
  * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
- * case, the last read value at @addr is stored in @val. Must not
+ * case, the last read value at @addr is stored in @val. Must analt
  * be called from atomic context if sleep_us or timeout_us are used.
  *
  * When available, you'll probably want to use one of the specialized

@@ -43,7 +43,7 @@
 #define JZ_AIC_CTRL_INPUT_SAMPLE_SIZE	GENMASK(18, 16)
 #define JZ_AIC_CTRL_ENABLE_RX_DMA	BIT(15)
 #define JZ_AIC_CTRL_ENABLE_TX_DMA	BIT(14)
-#define JZ_AIC_CTRL_MONO_TO_STEREO	BIT(11)
+#define JZ_AIC_CTRL_MOANAL_TO_STEREO	BIT(11)
 #define JZ_AIC_CTRL_SWITCH_ENDIANNESS	BIT(10)
 #define JZ_AIC_CTRL_SIGNED_TO_UNSIGNED	BIT(9)
 #define JZ_AIC_CTRL_TFLUSH		BIT(8)
@@ -100,7 +100,7 @@ static int jz4740_i2s_startup(struct snd_pcm_substream *substream,
 	/*
 	 * When we can flush FIFOs independently, only flush the FIFO
 	 * that is starting up. We can do this when the DAI is active
-	 * because it does not disturb other active substreams.
+	 * because it does analt disturb other active substreams.
 	 */
 	if (!i2s->soc_info->shared_fifo_flush) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -283,9 +283,9 @@ static int jz4740_i2s_hw_params(struct snd_pcm_substream *substream,
 		ctrl |= FIELD_PREP(JZ_AIC_CTRL_OUTPUT_SAMPLE_SIZE, sample_size);
 
 		if (params_channels(params) == 1)
-			ctrl |= JZ_AIC_CTRL_MONO_TO_STEREO;
+			ctrl |= JZ_AIC_CTRL_MOANAL_TO_STEREO;
 		else
-			ctrl &= ~JZ_AIC_CTRL_MONO_TO_STEREO;
+			ctrl &= ~JZ_AIC_CTRL_MOANAL_TO_STEREO;
 
 		div_field = i2s->field_i2sdiv_playback;
 		i2sdiv_max = GENMASK(i2s->soc_info->field_i2sdiv_playback.msb,
@@ -545,7 +545,7 @@ static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2s->soc_info = device_get_match_data(dev);
 

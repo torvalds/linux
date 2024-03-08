@@ -25,7 +25,7 @@ igt_request_alloc(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 
 	/*
 	 * Pinning the contexts may generate requests in order to acquire
-	 * GGTT space, so do this first before we reserve a seqno for
+	 * GGTT space, so do this first before we reserve a seqanal for
 	 * ourselves.
 	 */
 	ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);

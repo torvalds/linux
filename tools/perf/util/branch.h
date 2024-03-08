@@ -65,7 +65,7 @@ static inline struct branch_entry *perf_sample__branch_entries(struct perf_sampl
 	u64 *entry = (u64 *)sample->branch_stack;
 
 	entry++;
-	if (sample->no_hw_idx)
+	if (sample->anal_hw_idx)
 		return (struct branch_entry *)entry;
 	return (struct branch_entry *)(++entry);
 }

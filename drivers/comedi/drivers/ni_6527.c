@@ -15,7 +15,7 @@
  * Updated: Sat, 25 Jan 2003 13:24:40 -0800
  * Status: works
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  */
 
 #include <linux/module.h>
@@ -118,7 +118,7 @@ static int ni6527_di_insn_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_FILTER:
 		/*
-		 * The deglitch filter interval is specified in nanoseconds.
+		 * The deglitch filter interval is specified in naanalseconds.
 		 * The hardware supports intervals in 200ns increments. Round
 		 * the user values up and return the actual interval.
 		 */
@@ -191,7 +191,7 @@ static irqreturn_t ni6527_interrupt(int irq, void *d)
 
 	status = readb(dev->mmio + NI6527_STATUS_REG);
 	if (!(status & NI6527_STATUS_IRQ))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & NI6527_STATUS_EDGE) {
 		unsigned short val = 0;
@@ -213,7 +213,7 @@ static int ni6527_intr_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_OTHER);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
@@ -312,8 +312,8 @@ static int ni6527_intr_insn_config(struct comedi_device *dev,
 	unsigned int rising, falling, shift;
 
 	switch (data[0]) {
-	case INSN_CONFIG_CHANGE_NOTIFY:
-		/* check_insn_config_length() does not check this instruction */
+	case INSN_CONFIG_CHANGE_ANALTIFY:
+		/* check_insn_config_length() does analt check this instruction */
 		if (insn->n != 3)
 			return -EINVAL;
 		rising = data[1];
@@ -380,13 +380,13 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(ni6527_boards))
 		board = &ni6527_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -394,11 +394,11 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 
 	dev->mmio = pci_ioremap_bar(pcidev, 1);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* make sure this is actually a 6527 device */
 	if (readb(dev->mmio + NI6527_ID_REG) != 0x27)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ni6527_reset(dev);
 

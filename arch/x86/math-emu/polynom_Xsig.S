@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*---------------------------------------------------------------------------+
- |  polynomial_Xsig.S                                                        |
+ |  polyanalmial_Xsig.S                                                        |
  |                                                                           |
- | Fixed point arithmetic polynomial evaluation.                             |
+ | Fixed point arithmetic polyanalmial evaluation.                             |
  |                                                                           |
  | Copyright (C) 1992,1993,1994,1995                                         |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
  |                       Australia.  E-mail billm@jacobi.maths.monash.edu.au |
  |                                                                           |
  | Call from C as:                                                           |
- |   void polynomial_Xsig(Xsig *accum, unsigned long long x,                 |
+ |   void polyanalmial_Xsig(Xsig *accum, unsigned long long x,                 |
  |                        unsigned long long terms[], int n)                 |
  |                                                                           |
  | Computes:                                                                 |
@@ -19,10 +19,10 @@
  | precision.                                                                |
  |                                                                           |
  | This function must be used carefully: most overflow of intermediate       |
- | results is controlled, but overflow of the result is not.                 |
+ | results is controlled, but overflow of the result is analt.                 |
  |                                                                           |
  +---------------------------------------------------------------------------*/
-	.file	"polynomial_Xsig.S"
+	.file	"polyanalmial_Xsig.S"
 
 #include "fpu_emu.h"
 
@@ -37,7 +37,7 @@
 #define OVERFLOWED      -16(%ebp)	/* addition overflow flag */
 
 .text
-SYM_FUNC_START(polynomial_Xsig)
+SYM_FUNC_START(polyanalmial_Xsig)
 	pushl	%ebp
 	movl	%esp,%ebp
 	subl	$32,%esp
@@ -91,17 +91,17 @@ L_accum_loop:
 	adcl	%edx,ACCUM_MS
 
 	testb	$0xff,OVERFLOWED
-	jz	L_no_overflow
+	jz	L_anal_overflow
 
 	movl	(%esi),%eax
 	addl	%eax,ACCUM_MIDDLE
 	movl	4(%esi),%eax
 	adcl	%eax,ACCUM_MS		/* This could overflow too */
 
-L_no_overflow:
+L_anal_overflow:
 
 /*
- * Now put the sum of next term and the accumulator
+ * Analw put the sum of next term and the accumulator
  * into the sum register
  */
 	movl	ACCUM_LS,%eax
@@ -134,4 +134,4 @@ L_accum_done:
 	popl	%esi
 	leave
 	RET
-SYM_FUNC_END(polynomial_Xsig)
+SYM_FUNC_END(polyanalmial_Xsig)

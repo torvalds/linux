@@ -6,9 +6,9 @@
  * PWM output is achieved by calculating a clock that permits calculating
  * two periods (low and high). The counter then has to be set to switch after
  * N cycles for the first half period.
- * The hardware has no "polarity" setting. This driver reverses the period
+ * The hardware has anal "polarity" setting. This driver reverses the period
  * cycles (the low length is inverted with the high length) for
- * PWM_POLARITY_INVERSED. This means that .get_state cannot read the polarity
+ * PWM_POLARITY_INVERSED. This means that .get_state cananalt read the polarity
  * from the hardware.
  * Setting the duty cycle will disable and re-enable the PWM output.
  * Disabling the PWM stops the output immediately (without waiting for the
@@ -155,8 +155,8 @@ static int meson_pwm_calc(struct meson_pwm *meson, struct pwm_device *pwm,
 	period = state->period;
 
 	/*
-	 * Note this is wrong. The result is an output wave that isn't really
-	 * inverted and so is wrongly identified by .get_state as normal.
+	 * Analte this is wrong. The result is an output wave that isn't really
+	 * inverted and so is wrongly identified by .get_state as analrmal.
 	 * Fixing this needs some care however as some machines might rely on
 	 * this.
 	 */
@@ -325,7 +325,7 @@ static int meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	state->period = meson_pwm_cnt_to_ns(chip, pwm, channel->lo + channel->hi);
 	state->duty_cycle = meson_pwm_cnt_to_ns(chip, pwm, channel->hi);
 
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	return 0;
 }
@@ -498,7 +498,7 @@ static int meson_pwm_init_channels(struct meson_pwm *meson)
 
 		init.name = name;
 		init.ops = &clk_gate_ops;
-		init.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED;
+		init.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED;
 		gate_parent.index = -1;
 		gate_parent.hw = &channel->div.hw;
 		init.parent_data = &gate_parent;
@@ -530,7 +530,7 @@ static int meson_pwm_probe(struct platform_device *pdev)
 
 	meson = devm_kzalloc(&pdev->dev, sizeof(*meson), GFP_KERNEL);
 	if (!meson)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(meson->base))

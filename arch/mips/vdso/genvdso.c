@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -24,7 +24,7 @@
 
 #include <byteswap.h>
 #include <elf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdarg.h>
@@ -34,7 +34,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/* Define these in case the system elf.h is not new enough to have them. */
+/* Define these in case the system elf.h is analt new eanalugh to have them. */
 #ifndef SHT_GNU_ATTRIBUTES
 # define SHT_GNU_ATTRIBUTES	0x6ffffff5
 #endif
@@ -115,13 +115,13 @@ static void *map_vdso(const char *path, size_t *_size)
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
 		fprintf(stderr, "%s: Failed to open '%s': %s\n", program_name,
-			path, strerror(errno));
+			path, strerror(erranal));
 		return NULL;
 	}
 
 	if (fstat(fd, &stat) != 0) {
 		fprintf(stderr, "%s: Failed to stat '%s': %s\n", program_name,
-			path, strerror(errno));
+			path, strerror(erranal));
 		close(fd);
 		return NULL;
 	}
@@ -130,7 +130,7 @@ static void *map_vdso(const char *path, size_t *_size)
 		    0);
 	if (addr == MAP_FAILED) {
 		fprintf(stderr, "%s: Failed to map '%s': %s\n", program_name,
-			path, strerror(errno));
+			path, strerror(erranal));
 		close(fd);
 		return NULL;
 	}
@@ -139,7 +139,7 @@ static void *map_vdso(const char *path, size_t *_size)
 	ehdr = addr;
 
 	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) {
-		fprintf(stderr, "%s: '%s' is not an ELF file\n", program_name,
+		fprintf(stderr, "%s: '%s' is analt an ELF file\n", program_name,
 			path);
 		close(fd);
 		return NULL;
@@ -240,22 +240,22 @@ int main(int argc, char **argv)
 
 	if (msync(dbg_vdso, dbg_vdso_size, MS_SYNC) != 0) {
 		fprintf(stderr, "%s: Failed to sync '%s': %s\n", program_name,
-			dbg_vdso_path, strerror(errno));
+			dbg_vdso_path, strerror(erranal));
 		return EXIT_FAILURE;
 	} else if (msync(vdso, vdso_size, MS_SYNC) != 0) {
 		fprintf(stderr, "%s: Failed to sync '%s': %s\n", program_name,
-			vdso_path, strerror(errno));
+			vdso_path, strerror(erranal));
 		return EXIT_FAILURE;
 	}
 
 	out_file = fopen(out_path, "w");
 	if (!out_file) {
 		fprintf(stderr, "%s: Failed to open '%s': %s\n", program_name,
-			out_path, strerror(errno));
+			out_path, strerror(erranal));
 		return EXIT_FAILURE;
 	}
 
-	fprintf(out_file, "/* Automatically generated - do not edit */\n");
+	fprintf(out_file, "/* Automatically generated - do analt edit */\n");
 	fprintf(out_file, "#include <linux/linkage.h>\n");
 	fprintf(out_file, "#include <linux/mm.h>\n");
 	fprintf(out_file, "#include <asm/vdso.h>\n");

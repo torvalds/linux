@@ -23,7 +23,7 @@
 #include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
@@ -506,7 +506,7 @@ static void atmel_aes_ctr_update_req_iv(struct atmel_aes_dev *dd)
 	 * The CTR transfer works in fragments of data of maximum 1 MByte
 	 * because of the 16 bit CTR counter embedded in the IP. When reaching
 	 * here, ctx->blocks contains the number of blocks of the last fragment
-	 * processed, there is no need to explicit cast it to u16.
+	 * processed, there is anal need to explicit cast it to u16.
 	 */
 	for (i = 0; i < ctx->blocks; i++)
 		crypto_inc((u8 *)ctx->iv, AES_BLOCK_SIZE);
@@ -716,7 +716,7 @@ static int atmel_aes_map(struct atmel_aes_dev *dd,
 		padlen = atmel_aes_padlen(len, dd->ctx->block_size);
 
 		if (dd->buflen < len + padlen)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (!src_aligned) {
 			sg_copy_to_buffer(src, sg_nents(src), dd->buf, len);
@@ -827,7 +827,7 @@ static int atmel_aes_dma_transfer_start(struct atmel_aes_dev *dd,
 	desc = dmaengine_prep_slave_sg(dma->chan, dma->sg, dma->sg_len, dir,
 				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->callback = callback;
 	desc->callback_param = dd;
@@ -1157,7 +1157,7 @@ static int atmel_aes_init_tfm(struct crypto_skcipher *tfm)
 
 	dd = atmel_aes_dev_alloc(&ctx->base);
 	if (!dd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
 	ctx->base.dd = dd;
@@ -1173,7 +1173,7 @@ static int atmel_aes_ctr_init_tfm(struct crypto_skcipher *tfm)
 
 	dd = atmel_aes_dev_alloc(&ctx->base);
 	if (!dd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
 	ctx->base.dd = dd;
@@ -1579,7 +1579,7 @@ static int atmel_aes_gcm_init(struct crypto_aead *tfm)
 
 	dd = atmel_aes_dev_alloc(&ctx->base);
 	if (!dd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	crypto_aead_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
 	ctx->base.dd = dd;
@@ -1716,7 +1716,7 @@ static int atmel_aes_xts_init_tfm(struct crypto_skcipher *tfm)
 
 	dd = atmel_aes_dev_alloc(&ctx->base);
 	if (!dd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctx->fallback_tfm = crypto_alloc_skcipher(tfm_name, 0,
 						  CRYPTO_ALG_NEED_FALLBACK);
@@ -1844,7 +1844,7 @@ static int atmel_aes_authenc_transfer(struct atmel_aes_dev *dd, int err,
 	/*
 	 * Here we always set the 2nd parameter of atmel_aes_write_ctrl() to
 	 * 'true' even if the data transfer is actually performed by the CPU (so
-	 * not by the DMA) because we must force the AES_MR_SMOD bitfield to the
+	 * analt by the DMA) because we must force the AES_MR_SMOD bitfield to the
 	 * value AES_MR_SMOD_IDATAR0. Indeed, both AES_MR_SMOD and SHA_MR_SMOD
 	 * must be set to *_MR_SMOD_IDATAR0.
 	 */
@@ -1943,7 +1943,7 @@ static int atmel_aes_authenc_init_tfm(struct crypto_aead *tfm,
 
 	dd = atmel_aes_dev_alloc(&ctx->base);
 	if (!dd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctx->auth = atmel_sha_authenc_spawn(auth_mode);
 	if (IS_ERR(ctx->auth))
@@ -2004,8 +2004,8 @@ static int atmel_aes_authenc_crypt(struct aead_request *req,
 	rctx->textlen = req->cryptlen - (enc ? 0 : authsize);
 
 	/*
-	 * Currently, empty messages are not supported yet:
-	 * the SHA auto-padding can be used only on non-empty messages.
+	 * Currently, empty messages are analt supported yet:
+	 * the SHA auto-padding can be used only on analn-empty messages.
 	 * Hence a special case needs to be implemented for empty message.
 	 */
 	if (!rctx->textlen && !req->assoclen)
@@ -2122,7 +2122,7 @@ static int atmel_aes_buff_init(struct atmel_aes_dev *dd)
 
 	if (!dd->buf) {
 		dev_err(dd->dev, "unable to alloc pages.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -2155,7 +2155,7 @@ static int atmel_aes_dma_init(struct atmel_aes_dev *dd)
 err_dma_out:
 	dma_release_channel(dd->src.chan);
 err_dma_in:
-	dev_err(dd->dev, "no DMA channel available\n");
+	dev_err(dd->dev, "anal DMA channel available\n");
 	return ret;
 }
 
@@ -2191,11 +2191,11 @@ static irqreturn_t atmel_aes_irq(int irq, void *dev_id)
 		if (AES_FLAGS_BUSY & aes_dd->flags)
 			tasklet_schedule(&aes_dd->done_task);
 		else
-			dev_warn(aes_dd->dev, "AES interrupt when no active requests.\n");
+			dev_warn(aes_dd->dev, "AES interrupt when anal active requests.\n");
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void atmel_aes_unregister_algs(struct atmel_aes_dev *dd)
@@ -2338,7 +2338,7 @@ static int atmel_aes_probe(struct platform_device *pdev)
 
 	aes_dd = devm_kzalloc(&pdev->dev, sizeof(*aes_dd), GFP_KERNEL);
 	if (!aes_dd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aes_dd->dev = dev;
 

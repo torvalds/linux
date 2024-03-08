@@ -48,7 +48,7 @@ enum {
 
 	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS),
 
-	/* not bound to any CPU, prefer the local CPU */
+	/* analt bound to any CPU, prefer the local CPU */
 	WORK_CPU_UNBOUND	= NR_CPUS,
 
 	/*
@@ -67,7 +67,7 @@ enum {
 	/*
 	 * When a work item is off queue, its high bits point to the last
 	 * pool it was on.  Cap at 31 bits and use the highest number to
-	 * indicate that no pool is associated.
+	 * indicate that anal pool is associated.
 	 */
 	WORK_OFFQ_FLAG_BITS	= 1,
 	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
@@ -82,17 +82,17 @@ enum {
 	WORKER_DESC_LEN		= 24,
 };
 
-/* Convenience constants - of type 'unsigned long', not 'enum'! */
+/* Convenience constants - of type 'unsigned long', analt 'enum'! */
 #define WORK_OFFQ_CANCELING	(1ul << __WORK_OFFQ_CANCELING)
-#define WORK_OFFQ_POOL_NONE	((1ul << WORK_OFFQ_POOL_BITS) - 1)
-#define WORK_STRUCT_NO_POOL	(WORK_OFFQ_POOL_NONE << WORK_OFFQ_POOL_SHIFT)
+#define WORK_OFFQ_POOL_ANALNE	((1ul << WORK_OFFQ_POOL_BITS) - 1)
+#define WORK_STRUCT_ANAL_POOL	(WORK_OFFQ_POOL_ANALNE << WORK_OFFQ_POOL_SHIFT)
 
 #define WORK_STRUCT_FLAG_MASK    ((1ul << WORK_STRUCT_FLAG_BITS) - 1)
 #define WORK_STRUCT_WQ_DATA_MASK (~WORK_STRUCT_FLAG_MASK)
 
-#define WORK_DATA_INIT()	ATOMIC_LONG_INIT((unsigned long)WORK_STRUCT_NO_POOL)
+#define WORK_DATA_INIT()	ATOMIC_LONG_INIT((unsigned long)WORK_STRUCT_ANAL_POOL)
 #define WORK_DATA_STATIC_INIT()	\
-	ATOMIC_LONG_INIT((unsigned long)(WORK_STRUCT_NO_POOL | WORK_STRUCT_STATIC))
+	ATOMIC_LONG_INIT((unsigned long)(WORK_STRUCT_ANAL_POOL | WORK_STRUCT_STATIC))
 
 struct delayed_work {
 	struct work_struct work;
@@ -116,7 +116,7 @@ enum wq_affn_scope {
 	WQ_AFFN_CPU,			/* one pod per CPU */
 	WQ_AFFN_SMT,			/* one pod poer SMT */
 	WQ_AFFN_CACHE,			/* one pod per LLC */
-	WQ_AFFN_NUMA,			/* one pod per NUMA node */
+	WQ_AFFN_NUMA,			/* one pod per NUMA analde */
 	WQ_AFFN_SYSTEM,			/* one pod across the whole system */
 
 	WQ_AFFN_NR_TYPES,
@@ -136,7 +136,7 @@ struct workqueue_attrs {
 	/**
 	 * @cpumask: allowed CPUs
 	 *
-	 * Work items in this workqueue are affine to these CPUs and not allowed
+	 * Work items in this workqueue are affine to these CPUs and analt allowed
 	 * to execute on other CPUs. A pool serving a workqueue must have the
 	 * same @cpumask.
 	 */
@@ -179,7 +179,7 @@ struct workqueue_attrs {
 	 * every CPU in the system belongs to one pod in every pod type. CPUs
 	 * that belong to the same pod share the worker pool. For example,
 	 * selecting %WQ_AFFN_NUMA makes the workqueue use a separate worker
-	 * pool for each NUMA node.
+	 * pool for each NUMA analde.
 	 */
 	enum wq_affn_scope affn_scope;
 
@@ -255,7 +255,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 /*
  * initialize all of a work item in one go
  *
- * NOTE! No point in using "atomic_long_set()": using a direct
+ * ANALTE! Anal point in using "atomic_long_set()": using a direct
  * assignment of the work data initializer allows the compiler
  * to generate better code.
  */
@@ -348,7 +348,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
  * Documentation/core-api/workqueue.rst.
  */
 enum {
-	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
+	WQ_UNBOUND		= 1 << 1, /* analt bound to any cpu */
 	WQ_FREEZABLE		= 1 << 2, /* freeze during suspend */
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
@@ -375,7 +375,7 @@ enum {
 	 * specified.  Per-cpu workqueues which are identified to
 	 * contribute significantly to power-consumption are identified and
 	 * marked with this flag and enabling the power_efficient mode
-	 * leads to noticeable power saving at the cost of small
+	 * leads to analticeable power saving at the cost of small
 	 * performance disadvantage.
 	 *
 	 * http://thread.gmane.org/gmane.linux.kernel/1480396
@@ -407,9 +407,9 @@ enum {
  * system_long_wq is similar to system_wq but may host long running
  * works.  Queue flushing might take relatively long.
  *
- * system_unbound_wq is unbound workqueue.  Workers are not bound to
- * any specific CPU, not concurrency managed, and all queued works are
- * executed immediately as long as max_active limit is not reached and
+ * system_unbound_wq is unbound workqueue.  Workers are analt bound to
+ * any specific CPU, analt concurrency managed, and all queued works are
+ * executed immediately as long as max_active limit is analt reached and
  * resources are available.
  *
  * system_freezable_wq is equivalent to system_wq except that it's
@@ -417,7 +417,7 @@ enum {
  *
  * *_power_efficient_wq are inclined towards saving power and converted
  * into WQ_UNBOUND variants if 'wq_power_efficient' is enabled; otherwise,
- * they are same as their non-power-efficient counterparts - e.g.
+ * they are same as their analn-power-efficient counterparts - e.g.
  * system_power_efficient_wq is identical to system_wq if
  * 'wq_power_efficient' is disabled.  See WQ_POWER_EFFICIENT for more info.
  */
@@ -481,7 +481,7 @@ extern int workqueue_unbound_exclude_cpumask(cpumask_var_t cpumask);
 
 extern bool queue_work_on(int cpu, struct workqueue_struct *wq,
 			struct work_struct *work);
-extern bool queue_work_node(int node, struct workqueue_struct *wq,
+extern bool queue_work_analde(int analde, struct workqueue_struct *wq,
 			    struct work_struct *work);
 extern bool queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 			struct delayed_work *work, unsigned long delay);
@@ -527,7 +527,7 @@ extern void wq_worker_comm(char *buf, size_t size, struct task_struct *task);
  * Returns %false if @work was already on a queue, %true otherwise.
  *
  * We queue the work to the CPU on which it was submitted, but if the CPU dies
- * it can be processed by another CPU.
+ * it can be processed by aanalther CPU.
  *
  * Memory-ordering properties:  If it returns %true, guarantees that all stores
  * preceding the call to queue_work() in the program order will be visible from
@@ -597,7 +597,7 @@ static inline bool schedule_work_on(int cpu, struct work_struct *work)
  * Returns %false if @work was already on the kernel-global workqueue and
  * %true otherwise.
  *
- * This puts a job in the kernel-global workqueue if it was not already
+ * This puts a job in the kernel-global workqueue if it was analt already
  * queued and leaves it in the same position on the kernel-global
  * workqueue otherwise.
  *

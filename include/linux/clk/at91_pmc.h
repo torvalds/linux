@@ -64,7 +64,7 @@
 #define		AT91_PMC_PLL_UPDT_ID_MSK	(0xf)		/* PLL ID mask */
 #define		AT91_PMC_PLL_UPDT_STUPTIM	(0xff << 16)	/* Startup time */
 
-#define	AT91_CKGR_MOR		0x20			/* Main Oscillator Register [not on SAM9RL] */
+#define	AT91_CKGR_MOR		0x20			/* Main Oscillator Register [analt on SAM9RL] */
 #define		AT91_PMC_MOSCEN		(1    <<  0)		/* Main Oscillator Enable */
 #define		AT91_PMC_OSCBYPASS	(1    <<  1)		/* Oscillator Bypass */
 #define		AT91_PMC_WAITMODE	(1    <<  2)		/* Wait Mode Command */

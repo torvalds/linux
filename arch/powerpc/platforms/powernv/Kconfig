@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC_POWERNV
 	depends on PPC64 && PPC_BOOK3S
-	bool "IBM PowerNV (Non-Virtualized) platform support"
+	bool "IBM PowerNV (Analn-Virtualized) platform support"
 	select PPC_HASH_MMU_NATIVE if PPC_64S_HASH_MMU
 	select PPC_XICS
 	select PPC_ICP_NATIVE
@@ -14,7 +14,7 @@ config PPC_POWERNV
 	select PPC_UDBG_16550
 	select CPU_FREQ
 	select PPC_DOORBELL
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	select FORCE_SMP
 	select ARCH_SUPPORTS_PER_VMA_LOCK
 	default y
@@ -24,7 +24,7 @@ config OPAL_PRD
 	depends on PPC_POWERNV
 	help
 	  This enables the opal-prd driver, a facility to run processor
-	  recovery diagnostics on OpenPower machines
+	  recovery diaganalstics on OpenPower machines
 
 config PPC_MEMTRACE
 	bool "Enable runtime allocation of RAM for tracing"

@@ -83,7 +83,7 @@ static inline u_int8_t xt_family(const struct xt_action_param *par)
  * @net:	network namespace through which the check was invoked
  * @table:	table the rule is tried to be inserted into
  * @entryinfo:	the family-specific rule data
- * 		(struct ipt_ip, ip6t_ip, arpt_arp or (note) ebt_entry)
+ * 		(struct ipt_ip, ip6t_ip, arpt_arp or (analte) ebt_entry)
  * @match:	struct xt_match through which this function was invoked
  * @matchinfo:	per-match data
  * @hook_mask:	via which hooks the new rule is reachable
@@ -147,8 +147,8 @@ struct xt_match {
 
 	/* Return true or false: return FALSE and set *hotdrop = 1 to
            force immediate packet drop. */
-	/* Arguments changed since 2.6.9, as this must now handle
-	   non-linear skb, using skb_header_pointer and
+	/* Arguments changed since 2.6.9, as this must analw handle
+	   analn-linear skb, using skb_header_pointer and
 	   skb_ip_make_writable. */
 	bool (*match)(const struct sk_buff *skb,
 		      struct xt_action_param *);
@@ -186,7 +186,7 @@ struct xt_target {
 	u_int8_t revision;
 
 	/* Returns verdict. Argument order changed since 2.6.9, as this
-	   must now handle non-linear skbs, using skb_copy_bits and
+	   must analw handle analn-linear skbs, using skb_copy_bits and
 	   skb_ip_make_writable. */
 	unsigned int (*target)(struct sk_buff *skb,
 			       const struct xt_action_param *);
@@ -258,7 +258,7 @@ struct xt_table_info {
 	unsigned int underflow[NF_INET_NUMHOOKS];
 
 	/*
-	 * Number of user chains. Since tables cannot have loops, at most
+	 * Number of user chains. Since tables cananalt have loops, at most
 	 * @stacksize jumps (number of user chains) can possibly be made.
 	 */
 	unsigned int stacksize;
@@ -338,9 +338,9 @@ void xt_free_table_info(struct xt_table_info *info);
 /**
  * xt_recseq - recursive seqcount for netfilter use
  *
- * Packet processing changes the seqcount only if no recursion happened
+ * Packet processing changes the seqcount only if anal recursion happened
  * get_counters() can use read_seqcount_begin()/read_seqcount_retry(),
- * because we use the normal seqcount convention :
+ * because we use the analrmal seqcount convention :
  * Low order bit set to 1 if a writer is active.
  */
 DECLARE_PER_CPU(seqcount_t, xt_recseq);
@@ -358,7 +358,7 @@ extern struct static_key xt_tee_enabled;
  * 1) Must be called with preemption disabled
  * 2) softirqs must be disabled too (or we should use this_cpu_add())
  * Returns :
- *  1 if no recursion on this cpu
+ *  1 if anal recursion on this cpu
  *  0 if recursion detected
  */
 static inline unsigned int xt_write_recseq_begin(void)
@@ -508,7 +508,7 @@ struct _compat_xt_align {
 	compat_u64 u64;
 };
 
-#define COMPAT_XT_ALIGN(s) __ALIGN_KERNEL((s), __alignof__(struct _compat_xt_align))
+#define COMPAT_XT_ALIGN(s) __ALIGN_KERNEL((s), __aliganalf__(struct _compat_xt_align))
 
 void xt_compat_lock(u_int8_t af);
 void xt_compat_unlock(u_int8_t af);

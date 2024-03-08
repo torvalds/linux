@@ -18,7 +18,7 @@
 #endif
 
 /*
- * glibc before 2.27 does not include PTRACE_SYSEMU_SINGLESTEP in its enum,
+ * glibc before 2.27 does analt include PTRACE_SYSEMU_SINGLESTEP in its enum,
  * ensure we have a definition by (re-)defining it here.
  */
 #ifndef PTRACE_SYSEMU_SINGLESTEP

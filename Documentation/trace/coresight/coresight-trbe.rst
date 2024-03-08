@@ -5,7 +5,7 @@ Trace Buffer Extension (TRBE).
 ==============================
 
     :Author:   Anshuman Khandual <anshuman.khandual@arm.com>
-    :Date:     November 2020
+    :Date:     Analvember 2020
 
 Hardware Description
 --------------------
@@ -15,7 +15,7 @@ memory, CPU traces generated from a corresponding percpu tracing unit. This
 gets plugged in as a coresight sink device because the corresponding trace
 generators (ETE), are plugged in as source device.
 
-The TRBE is not compliant to CoreSight architecture specifications, but is
+The TRBE is analt compliant to CoreSight architecture specifications, but is
 driven via the CoreSight driver framework to support the ETE (which is
 CoreSight compliant) integration.
 

@@ -14,7 +14,7 @@ Description:
 		Defaults to 50 ms.
 
 		When offloaded is true, the interval value MUST be set to the
-		default value and cannot be changed.
+		default value and cananalt be changed.
 		Trying to set any value in this specific mode will return
 		an EINVAL error.
 
@@ -25,9 +25,9 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link state of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link state
+		If set to 1, the LED's analrmal state reflects the link state
 		of the named network device.
 		Setting this value also immediately changes the LED state.
 
@@ -39,7 +39,7 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal transmission of data on the named network device.
 
-		If set to 0 (default), the LED will not blink on transmission.
+		If set to 0 (default), the LED will analt blink on transmission.
 
 		If set to 1, the LED will blink for the milliseconds specified
 		in interval to signal transmission.
@@ -54,7 +54,7 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal reception of data on the named network device.
 
-		If set to 0 (default), the LED will not blink on reception.
+		If set to 0 (default), the LED will analt blink on reception.
 
 		If set to 1, the LED will blink for the milliseconds specified
 		in interval to signal reception.
@@ -82,9 +82,9 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link speed state of 10Mbps of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link state
+		If set to 1, the LED's analrmal state reflects the link state
 		speed of 10MBps of the named network device.
 		Setting this value also immediately changes the LED state.
 
@@ -95,9 +95,9 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link speed state of 100Mbps of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link state
+		If set to 1, the LED's analrmal state reflects the link state
 		speed of 100Mbps of the named network device.
 		Setting this value also immediately changes the LED state.
 
@@ -108,48 +108,48 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link speed state of 1000Mbps of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link state
+		If set to 1, the LED's analrmal state reflects the link state
 		speed of 1000Mbps of the named network device.
 		Setting this value also immediately changes the LED state.
 
 What:		/sys/class/leds/<led>/link_2500
-Date:		Nov 2023
+Date:		Analv 2023
 KernelVersion:	6.8
 Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link speed state of 2500Mbps of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link state
+		If set to 1, the LED's analrmal state reflects the link state
 		speed of 2500Mbps of the named network device.
 		Setting this value also immediately changes the LED state.
 
 What:		/sys/class/leds/<led>/link_5000
-Date:		Nov 2023
+Date:		Analv 2023
 KernelVersion:	6.8
 Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link speed state of 5000Mbps of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link state
+		If set to 1, the LED's analrmal state reflects the link state
 		speed of 5000Mbps of the named network device.
 		Setting this value also immediately changes the LED state.
 
 What:		/sys/class/leds/<led>/link_10000
-Date:		Nov 2023
+Date:		Analv 2023
 KernelVersion:	6.8
 Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link speed state of 10000Mbps of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link state
+		If set to 1, the LED's analrmal state reflects the link state
 		speed of 10000Mbps of the named network device.
 		Setting this value also immediately changes the LED state.
 
@@ -160,9 +160,9 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link half duplex state of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link half
+		If set to 1, the LED's analrmal state reflects the link half
 		duplex state of the named network device.
 		Setting this value also immediately changes the LED state.
 
@@ -173,8 +173,8 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link full duplex state of the named network device.
 
-		If set to 0 (default), the LED's normal state is off.
+		If set to 0 (default), the LED's analrmal state is off.
 
-		If set to 1, the LED's normal state reflects the link full
+		If set to 1, the LED's analrmal state reflects the link full
 		duplex state of the named network device.
 		Setting this value also immediately changes the LED state.

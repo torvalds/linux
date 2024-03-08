@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_DEC0_CMD_REGS_H_

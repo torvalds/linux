@@ -72,7 +72,7 @@ static inline u16 ts_pid(const u8 *buf)
 
 static inline u8 payload(const u8 *tsp)
 {
-	if (!(tsp[3] & 0x10))	// no payload?
+	if (!(tsp[3] & 0x10))	// anal payload?
 		return 0;
 
 	if (tsp[3] & 0x20) {	// adaptation field?
@@ -143,7 +143,7 @@ static int dvb_dmx_swfilter_sectionfilter(struct dvb_demux_feed *feed,
 		if (f->maskandmode[i] & xor)
 			return 0;
 
-		neq |= f->maskandnotmode[i] & xor;
+		neq |= f->maskandanaltmode[i] & xor;
 	}
 
 	if (f->doneq && !neq)
@@ -213,13 +213,13 @@ static void dvb_dmx_swfilter_section_new(struct dvb_demux_feed *feed)
 /*
  * Losless Section Demux 1.4.1 by Emard
  * Valsecchi Patrick:
- *  - middle of section A  (no PUSI)
+ *  - middle of section A  (anal PUSI)
  *  - end of section A and start of section B
  *    (with PUSI pointing to the start of the second section)
  *
  *  In this case, without feed->pusi_seen you'll receive a garbage section
  *  consisting of the end of section A. Basically because tsfeedp
- *  is incemented and the use=0 condition is not raised
+ *  is incemented and the use=0 condition is analt raised
  *  when the second packet arrives.
  *
  * Fix:
@@ -275,7 +275,7 @@ static int dvb_dmx_swfilter_section_copy_dump(struct dvb_demux_feed *feed,
 		} else {
 			set_buf_flags(feed,
 				      DMX_BUFFER_FLAG_DISCONTINUITY_DETECTED);
-			dprintk_sect_loss("pusi not seen, discarding section data\n");
+			dprintk_sect_loss("pusi analt seen, discarding section data\n");
 		}
 		sec->secbufp += seclen;	/* secbufp and secbuf moving together is */
 		sec->secbuf += seclen;	/* redundant but saves pointer arithmetic */
@@ -293,7 +293,7 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 
 	count = payload(buf);
 
-	if (count == 0)		/* count == 0 if no payload or out of range */
+	if (count == 0)		/* count == 0 if anal payload or out of range */
 		return -1;
 
 	p = 188 - count;	/* payload start */
@@ -358,7 +358,7 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 			dprintk_sect_loss("PUSI=1 but %d bytes lost\n", count);
 		}
 	} else {
-		/* PUSI=0 (is not set), no section boundary */
+		/* PUSI=0 (is analt set), anal section boundary */
 		dvb_dmx_swfilter_section_copy_dump(feed, &buf[p], count);
 	}
 
@@ -543,7 +543,7 @@ static inline void _dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf,
 
 	spin_lock_irqsave(&demux->lock, flags);
 
-	if (demux->tsbufp) { /* tsbuf[0] is now 0x47. */
+	if (demux->tsbufp) { /* tsbuf[0] is analw 0x47. */
 		i = demux->tsbufp;
 		j = pktsize - i;
 		if (count < j) {
@@ -674,7 +674,7 @@ static void dvb_demux_feed_del(struct dvb_demux_feed *feed)
 {
 	spin_lock_irq(&feed->demux->lock);
 	if (!(dvb_demux_feed_find(feed))) {
-		pr_err("%s: feed not in list (type=%x state=%x pid=%x)\n",
+		pr_err("%s: feed analt in list (type=%x state=%x pid=%x)\n",
 		       __func__, feed->type, feed->state, feed->pid);
 		goto out;
 	}
@@ -741,7 +741,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 
 	if (!demux->start_feed) {
 		mutex_unlock(&demux->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if ((ret = demux->start_feed(feed)) < 0) {
@@ -773,7 +773,7 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed *ts_feed)
 
 	if (!demux->stop_feed) {
 		mutex_unlock(&demux->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = demux->stop_feed(feed);
@@ -932,7 +932,7 @@ static void prepare_secfilters(struct dvb_demux_feed *dvbdmxfeed)
 			mode = sf->filter_mode[i];
 			mask = sf->filter_mask[i];
 			f->maskandmode[i] = mask & mode;
-			doneq |= f->maskandnotmode[i] = mask & ~mode;
+			doneq |= f->maskandanaltmode[i] = mask & ~mode;
 		}
 		f->doneq = doneq ? true : false;
 	} while ((f = f->next));
@@ -965,7 +965,7 @@ static int dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 
 	if (!dvbdmx->start_feed) {
 		mutex_unlock(&dvbdmx->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	prepare_secfilters(dvbdmxfeed);
@@ -994,7 +994,7 @@ static int dmx_section_feed_stop_filtering(struct dmx_section_feed *feed)
 
 	if (!dvbdmx->stop_feed) {
 		mutex_unlock(&dvbdmx->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = dvbdmx->stop_feed(dvbdmxfeed);
@@ -1129,7 +1129,7 @@ static int dvbdmx_close(struct dmx_demux *demux)
 	struct dvb_demux *dvbdemux = (struct dvb_demux *)demux;
 
 	if (dvbdemux->users == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dvbdemux->users--;
 	//FIXME: release any unneeded resources if users==0
@@ -1184,7 +1184,7 @@ static int dvbdmx_remove_frontend(struct dmx_demux *demux,
 		}
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct list_head *dvbdmx_get_frontends(struct dmx_demux *demux)
@@ -1242,14 +1242,14 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 					      dvbdemux->filternum));
 
 	if (!dvbdemux->filter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dvbdemux->feed = vmalloc(array_size(sizeof(struct dvb_demux_feed),
 					    dvbdemux->feednum));
 	if (!dvbdemux->feed) {
 		vfree(dvbdemux->filter);
 		dvbdemux->filter = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (i = 0; i < dvbdemux->filternum; i++) {
 		dvbdemux->filter[i].state = DMX_STATE_FREE;

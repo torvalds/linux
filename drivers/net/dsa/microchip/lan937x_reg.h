@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Microchip LAN937X switch register definitions
- * Copyright (C) 2019-2021 Microchip Technology Inc.
+ * Copyright (C) 2019-2021 Microchip Techanallogy Inc.
  */
 #ifndef __LAN937X_REG_H
 #define __LAN937X_REG_H
@@ -78,7 +78,7 @@
 #define MULTICAST_STORM_DISABLE		BIT(6)
 #define SW_BACK_PRESSURE		BIT(5)
 #define FAIR_FLOW_CTRL			BIT(4)
-#define NO_EXC_COLLISION_DROP		BIT(3)
+#define ANAL_EXC_COLLISION_DROP		BIT(3)
 #define SW_LEGAL_PACKET_DISABLE		BIT(1)
 #define SW_PASS_SHORT_FRAME		BIT(0)
 

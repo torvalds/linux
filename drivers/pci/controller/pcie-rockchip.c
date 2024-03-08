@@ -7,7 +7,7 @@
  * Author: Shawn Lin <shawn.lin@rock-chips.com>
  *         Wenrui Li <wenrui.li@rock-chips.com>
  *
- * Bits taken from Synopsys DesignWare Host controller driver and
+ * Bits taken from Syanalpsys DesignWare Host controller driver and
  * ARM PCI Host generic driver.
  */
 
@@ -28,7 +28,7 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 {
 	struct device *dev = rockchip->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct resource *regs;
 	int err;
 
@@ -57,7 +57,7 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 		return err;
 
 	rockchip->lanes = 1;
-	err = of_property_read_u32(node, "num-lanes", &rockchip->lanes);
+	err = of_property_read_u32(analde, "num-lanes", &rockchip->lanes);
 	if (!err && (rockchip->lanes == 0 ||
 		     rockchip->lanes == 3 ||
 		     rockchip->lanes > 4)) {
@@ -65,21 +65,21 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 		rockchip->lanes = 1;
 	}
 
-	rockchip->link_gen = of_pci_get_max_link_speed(node);
+	rockchip->link_gen = of_pci_get_max_link_speed(analde);
 	if (rockchip->link_gen < 0 || rockchip->link_gen > 2)
 		rockchip->link_gen = 2;
 
 	rockchip->core_rst = devm_reset_control_get_exclusive(dev, "core");
 	if (IS_ERR(rockchip->core_rst)) {
 		if (PTR_ERR(rockchip->core_rst) != -EPROBE_DEFER)
-			dev_err(dev, "missing core reset property in node\n");
+			dev_err(dev, "missing core reset property in analde\n");
 		return PTR_ERR(rockchip->core_rst);
 	}
 
 	rockchip->mgmt_rst = devm_reset_control_get_exclusive(dev, "mgmt");
 	if (IS_ERR(rockchip->mgmt_rst)) {
 		if (PTR_ERR(rockchip->mgmt_rst) != -EPROBE_DEFER)
-			dev_err(dev, "missing mgmt reset property in node\n");
+			dev_err(dev, "missing mgmt reset property in analde\n");
 		return PTR_ERR(rockchip->mgmt_rst);
 	}
 
@@ -87,35 +87,35 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 								"mgmt-sticky");
 	if (IS_ERR(rockchip->mgmt_sticky_rst)) {
 		if (PTR_ERR(rockchip->mgmt_sticky_rst) != -EPROBE_DEFER)
-			dev_err(dev, "missing mgmt-sticky reset property in node\n");
+			dev_err(dev, "missing mgmt-sticky reset property in analde\n");
 		return PTR_ERR(rockchip->mgmt_sticky_rst);
 	}
 
 	rockchip->pipe_rst = devm_reset_control_get_exclusive(dev, "pipe");
 	if (IS_ERR(rockchip->pipe_rst)) {
 		if (PTR_ERR(rockchip->pipe_rst) != -EPROBE_DEFER)
-			dev_err(dev, "missing pipe reset property in node\n");
+			dev_err(dev, "missing pipe reset property in analde\n");
 		return PTR_ERR(rockchip->pipe_rst);
 	}
 
 	rockchip->pm_rst = devm_reset_control_get_exclusive(dev, "pm");
 	if (IS_ERR(rockchip->pm_rst)) {
 		if (PTR_ERR(rockchip->pm_rst) != -EPROBE_DEFER)
-			dev_err(dev, "missing pm reset property in node\n");
+			dev_err(dev, "missing pm reset property in analde\n");
 		return PTR_ERR(rockchip->pm_rst);
 	}
 
 	rockchip->pclk_rst = devm_reset_control_get_exclusive(dev, "pclk");
 	if (IS_ERR(rockchip->pclk_rst)) {
 		if (PTR_ERR(rockchip->pclk_rst) != -EPROBE_DEFER)
-			dev_err(dev, "missing pclk reset property in node\n");
+			dev_err(dev, "missing pclk reset property in analde\n");
 		return PTR_ERR(rockchip->pclk_rst);
 	}
 
 	rockchip->aclk_rst = devm_reset_control_get_exclusive(dev, "aclk");
 	if (IS_ERR(rockchip->aclk_rst)) {
 		if (PTR_ERR(rockchip->aclk_rst) != -EPROBE_DEFER)
-			dev_err(dev, "missing aclk reset property in node\n");
+			dev_err(dev, "missing aclk reset property in analde\n");
 		return PTR_ERR(rockchip->aclk_rst);
 	}
 
@@ -129,25 +129,25 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 
 	rockchip->aclk_pcie = devm_clk_get(dev, "aclk");
 	if (IS_ERR(rockchip->aclk_pcie)) {
-		dev_err(dev, "aclk clock not found\n");
+		dev_err(dev, "aclk clock analt found\n");
 		return PTR_ERR(rockchip->aclk_pcie);
 	}
 
 	rockchip->aclk_perf_pcie = devm_clk_get(dev, "aclk-perf");
 	if (IS_ERR(rockchip->aclk_perf_pcie)) {
-		dev_err(dev, "aclk_perf clock not found\n");
+		dev_err(dev, "aclk_perf clock analt found\n");
 		return PTR_ERR(rockchip->aclk_perf_pcie);
 	}
 
 	rockchip->hclk_pcie = devm_clk_get(dev, "hclk");
 	if (IS_ERR(rockchip->hclk_pcie)) {
-		dev_err(dev, "hclk clock not found\n");
+		dev_err(dev, "hclk clock analt found\n");
 		return PTR_ERR(rockchip->hclk_pcie);
 	}
 
 	rockchip->clk_pcie_pm = devm_clk_get(dev, "pm");
 	if (IS_ERR(rockchip->clk_pcie_pm)) {
-		dev_err(dev, "pm clock not found\n");
+		dev_err(dev, "pm clock analt found\n");
 		return PTR_ERR(rockchip->clk_pcie_pm);
 	}
 
@@ -268,7 +268,7 @@ int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 				 RK_PHY_PLL_LOCK_SLEEP_US,
 				 RK_PHY_PLL_LOCK_TIMEOUT_US);
 	if (err) {
-		dev_err(dev, "PHY PLLs could not lock, %d\n", err);
+		dev_err(dev, "PHY PLLs could analt lock, %d\n", err);
 		goto err_power_off_phy;
 	}
 
@@ -335,9 +335,9 @@ int rockchip_pcie_get_phys(struct rockchip_pcie *rockchip)
 	for (i = 0; i < MAX_LANE_NUM; i++) {
 		name = kasprintf(GFP_KERNEL, "pcie-phy-%u", i);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		phy = devm_of_phy_get(dev, dev->of_node, name);
+		phy = devm_of_phy_get(dev, dev->of_analde, name);
 		kfree(name);
 
 		if (IS_ERR(phy)) {

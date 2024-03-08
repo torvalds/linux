@@ -11,5 +11,5 @@ What:		/sys/bus/spi/<dev>/reset
 Date:		Jul 2021
 Contact:	sebastian.reichel@collabora.com
 Description:	This file represents the microcontroller's reset line.
-                1 means the reset line is asserted, 0 means it's not
+                1 means the reset line is asserted, 0 means it's analt
 		asserted. The file is read and writable.

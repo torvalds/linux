@@ -71,7 +71,7 @@
 #define CFGR1_PCSCFG	BIT(27)
 #define CFGR1_PINCFG	(BIT(24)|BIT(25))
 #define CFGR1_PCSPOL	BIT(8)
-#define CFGR1_NOSTALL	BIT(3)
+#define CFGR1_ANALSTALL	BIT(3)
 #define CFGR1_HOST	BIT(0)
 #define FSR_TXCOUNT	(0xFF)
 #define RSR_RXEMPTY	BIT(1)
@@ -768,7 +768,7 @@ static irqreturn_t fsl_lpspi_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 #ifdef CONFIG_PM
@@ -828,7 +828,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	u32 temp;
 	bool is_target;
 
-	is_target = of_property_read_bool((&pdev->dev)->of_node, "spi-slave");
+	is_target = of_property_read_bool((&pdev->dev)->of_analde, "spi-slave");
 	if (is_target)
 		controller = spi_alloc_target(&pdev->dev,
 					      sizeof(struct fsl_lpspi_data));
@@ -837,14 +837,14 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 					    sizeof(struct fsl_lpspi_data));
 
 	if (!controller)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, controller);
 
 	fsl_lpspi = spi_controller_get_devdata(controller);
 	fsl_lpspi->dev = &pdev->dev;
 	fsl_lpspi->is_target = is_target;
-	fsl_lpspi->is_only_cs1 = of_property_read_bool((&pdev->dev)->of_node,
+	fsl_lpspi->is_only_cs1 = of_property_read_bool((&pdev->dev)->of_analde,
 						"fsl,spi-only-use-cs1-sel");
 
 	init_completion(&fsl_lpspi->xfer_done);
@@ -895,9 +895,9 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	temp = readl(fsl_lpspi->base + IMX7ULP_PARAM);
 	fsl_lpspi->txfifosize = 1 << (temp & 0x0f);
 	fsl_lpspi->rxfifosize = 1 << ((temp >> 8) & 0x0f);
-	if (of_property_read_u32((&pdev->dev)->of_node, "num-cs",
+	if (of_property_read_u32((&pdev->dev)->of_analde, "num-cs",
 				 &num_cs)) {
-		if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx93-spi"))
+		if (of_device_is_compatible(pdev->dev.of_analde, "fsl,imx93-spi"))
 			num_cs = ((temp >> 16) & 0xf);
 		else
 			num_cs = 1;
@@ -909,7 +909,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	controller->unprepare_transfer_hardware = lpspi_unprepare_xfer_hardware;
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
-	controller->dev.of_node = pdev->dev.of_node;
+	controller->dev.of_analde = pdev->dev.of_analde;
 	controller->bus_num = pdev->id;
 	controller->num_chipselect = num_cs;
 	controller->target_abort = fsl_lpspi_target_abort;

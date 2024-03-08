@@ -20,7 +20,7 @@
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
 
-/* So far nothing hangs here */
+/* So far analthing hangs here */
 #undef USE_LIO3_IRQ
 
 struct sgint_regs *sgint;
@@ -173,8 +173,8 @@ extern void indy_8254timer_irq(void);
  *
  *	MIPS IRQ	Source
  *	--------	------
- *	       0	Software (ignored)
- *	       1	Software (ignored)
+ *	       0	Software (iganalred)
+ *	       1	Software (iganalred)
  *	       2	Local IRQ level zero
  *	       3	Local IRQ level one
  *	       4	8254 Timer zero
@@ -192,7 +192,7 @@ extern void indy_8254timer_irq(void);
  * Lowest  ----	    8254 Timer one
  *
  * then we just return, if multiple IRQs are pending then we will just take
- * another exception, big deal.
+ * aanalther exception, big deal.
  */
 
 asmlinkage void plat_irq_dispatch(void)
@@ -292,23 +292,23 @@ void __init arch_init_irq(void)
 		irq_set_chip_and_handler(i, handler, handle_level_irq);
 	}
 
-	/* vector handler. this register the IRQ as non-sharable */
-	if (request_irq(SGI_LOCAL_0_IRQ, no_action, IRQF_NO_THREAD,
+	/* vector handler. this register the IRQ as analn-sharable */
+	if (request_irq(SGI_LOCAL_0_IRQ, anal_action, IRQF_ANAL_THREAD,
 			"local0 cascade", NULL))
 		pr_err("Failed to register local0 cascade interrupt\n");
-	if (request_irq(SGI_LOCAL_1_IRQ, no_action, IRQF_NO_THREAD,
+	if (request_irq(SGI_LOCAL_1_IRQ, anal_action, IRQF_ANAL_THREAD,
 			"local1 cascade", NULL))
 		pr_err("Failed to register local1 cascade interrupt\n");
-	if (request_irq(SGI_BUSERR_IRQ, no_action, IRQF_NO_THREAD,
+	if (request_irq(SGI_BUSERR_IRQ, anal_action, IRQF_ANAL_THREAD,
 			"Bus Error", NULL))
 		pr_err("Failed to register Bus Error interrupt\n");
 
 	/* cascade in cascade. i love Indy ;-) */
-	if (request_irq(SGI_MAP_0_IRQ, no_action, IRQF_NO_THREAD,
+	if (request_irq(SGI_MAP_0_IRQ, anal_action, IRQF_ANAL_THREAD,
 			"mapable0 cascade", NULL))
 		pr_err("Failed to register mapable0 cascade interrupt\n");
 #ifdef USE_LIO3_IRQ
-	if (request_irq(SGI_MAP_1_IRQ, no_action, IRQF_NO_THREAD,
+	if (request_irq(SGI_MAP_1_IRQ, anal_action, IRQF_ANAL_THREAD,
 			"mapable1 cascade", NULL))
 		pr_err("Failed to register mapable1 cascade interrupt\n");
 #endif

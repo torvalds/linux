@@ -35,7 +35,7 @@
 #define DLN2_ADC_CHANNEL_GET_CFG	DLN2_CMD(0x0D, DLN2_ADC_ID)
 #define DLN2_ADC_CONDITION_MET_EV	DLN2_CMD(0x10, DLN2_ADC_ID)
 
-#define DLN2_ADC_EVENT_NONE		0
+#define DLN2_ADC_EVENT_ANALNE		0
 #define DLN2_ADC_EVENT_BELOW		1
 #define DLN2_ADC_EVENT_LEVEL_ABOVE	2
 #define DLN2_ADC_EVENT_OUTSIDE		3
@@ -233,7 +233,7 @@ static int dln2_adc_set_chan_period(struct dln2_adc *dln2,
 	} __packed set_cfg = {
 		.port_chan.port = dln2->port,
 		.port_chan.chan = channel,
-		.type = period ? DLN2_ADC_EVENT_ALWAYS : DLN2_ADC_EVENT_NONE,
+		.type = period ? DLN2_ADC_EVENT_ALWAYS : DLN2_ADC_EVENT_ANALNE,
 		.period = cpu_to_le16(period)
 	};
 
@@ -353,7 +353,7 @@ static int dln2_adc_read_raw(struct iio_dev *indio_dev,
 		 */
 		*val = 0;
 		*val2 = 3222656;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (dln2->sample_period) {
@@ -512,7 +512,7 @@ static irqreturn_t dln2_adc_trigger_h(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -608,7 +608,7 @@ static int dln2_adc_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*dln2));
 	if (!indio_dev) {
 		dev_err(dev, "failed allocating iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dln2 = iio_priv(indio_dev);
@@ -652,7 +652,7 @@ static int dln2_adc_probe(struct platform_device *pdev)
 					    iio_device_id(indio_dev));
 	if (!dln2->trig) {
 		dev_err(dev, "failed to allocate trigger\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	iio_trigger_set_drvdata(dln2->trig, dln2);
 	ret = devm_iio_trigger_register(dev, dln2->trig);

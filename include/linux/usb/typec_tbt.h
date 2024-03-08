@@ -41,8 +41,8 @@ struct typec_thunderbolt_data {
 #define   TBT_CABLE_10_AND_20GBPS	3
 #define TBT_CABLE_ROUNDED_SUPPORT(_vdo_) \
 					(((_vdo_) & GENMASK(20, 19)) >> 19)
-#define   TBT_GEN3_NON_ROUNDED                 0
-#define   TBT_GEN3_GEN4_ROUNDED_NON_ROUNDED    1
+#define   TBT_GEN3_ANALN_ROUNDED                 0
+#define   TBT_GEN3_GEN4_ROUNDED_ANALN_ROUNDED    1
 #define TBT_CABLE_OPTICAL		BIT(21)
 #define TBT_CABLE_RETIMER		BIT(22)
 #define TBT_CABLE_LINK_TRAINING		BIT(23)

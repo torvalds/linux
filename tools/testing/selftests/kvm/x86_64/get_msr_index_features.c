@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 	/*
 	 * Skip the entire test if MSR_FEATURES isn't supported, other tests
 	 * will cover the "regular" list of MSRs, the coverage here is purely
-	 * opportunistic and not interesting on its own.
+	 * opportunistic and analt interesting on its own.
 	 */
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_GET_MSR_FEATURES));
 

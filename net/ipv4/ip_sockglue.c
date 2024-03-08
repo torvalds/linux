@@ -352,7 +352,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 
 	new_ra = on ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 	if (on && !new_ra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&net->ipv4.ra_mutex);
 	for (rap = &net->ipv4.ra_chain;
@@ -384,7 +384,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 	}
 	if (!new_ra) {
 		mutex_unlock(&net->ipv4.ra_mutex);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 	new_ra->sk = sk;
 	new_ra->destructor = destructor;
@@ -419,7 +419,7 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		return;
 
 	serr = SKB_EXT_ERR(skb);
-	serr->ee.ee_errno = err;
+	serr->ee.ee_erranal = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_ICMP;
 	serr->ee.ee_type = icmp_hdr(skb)->type;
 	serr->ee.ee_code = icmp_hdr(skb)->code;
@@ -461,7 +461,7 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 	iph->daddr = daddr;
 
 	serr = SKB_EXT_ERR(skb);
-	serr->ee.ee_errno = err;
+	serr->ee.ee_erranal = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_LOCAL;
 	serr->ee.ee_type = 0;
 	serr->ee.ee_code = 0;
@@ -489,7 +489,7 @@ static inline bool ipv4_datagram_support_addr(struct sock_exterr_skb *serr)
 
 /* IPv4 supports cmsg on all imcp errors and some timestamps
  *
- * Timestamp code paths do not initialize the fields expected by cmsg:
+ * Timestamp code paths do analt initialize the fields expected by cmsg:
  * the PKTINFO fields in skb->cb[]. Fill those in here.
  */
 static bool ipv4_datagram_support_cmsg(const struct sock *sk,
@@ -505,7 +505,7 @@ static bool ipv4_datagram_support_cmsg(const struct sock *sk,
 		return false;
 
 	/* Support IP_PKTINFO on tstamp packets if requested, to correlate
-	 * timestamp with egress dev. Not possible for packets without iif
+	 * timestamp with egress dev. Analt possible for packets without iif
 	 * or without payload (SOF_TIMESTAMPING_OPT_TSONLY).
 	 */
 	info = PKTINFO_SKB_CB(skb);
@@ -573,7 +573,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	put_cmsg(msg, SOL_IP, IP_RECVERR, sizeof(errhdr), &errhdr);
 
-	/* Now we could try to dump offended packet options */
+	/* Analw we could try to dump offended packet options */
 
 	msg->msg_flags |= MSG_ERRQUEUE;
 	err = copied;
@@ -670,11 +670,11 @@ static int set_mcast_msfilter(struct sock *sk, int ifindex,
 
 	msf = kmalloc(IP_MSFILTER_SIZE(numsrc), GFP_KERNEL);
 	if (!msf)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	psin = (struct sockaddr_in *)group;
 	if (psin->sin_family != AF_INET)
-		goto Eaddrnotavail;
+		goto Eaddranaltavail;
 	msf->imsf_multiaddr = psin->sin_addr.s_addr;
 	msf->imsf_interface = 0;
 	msf->imsf_fmode = fmode;
@@ -683,16 +683,16 @@ static int set_mcast_msfilter(struct sock *sk, int ifindex,
 		psin = (struct sockaddr_in *)&list[i];
 
 		if (psin->sin_family != AF_INET)
-			goto Eaddrnotavail;
+			goto Eaddranaltavail;
 		msf->imsf_slist_flex[i] = psin->sin_addr.s_addr;
 	}
 	err = ip_mc_msfilter(sk, msf, ifindex);
 	kfree(msf);
 	return err;
 
-Eaddrnotavail:
+Eaddranaltavail:
 	kfree(msf);
-	return -EADDRNOTAVAIL;
+	return -EADDRANALTAVAIL;
 }
 
 static int copy_group_source_from_sockptr(struct group_source_req *greqs,
@@ -732,7 +732,7 @@ static int do_mcast_group_source(struct sock *sk, int optname,
 
 	if (greqs.gsr_group.ss_family != AF_INET ||
 	    greqs.gsr_source.ss_family != AF_INET)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	psin = (struct sockaddr_in *)&greqs.gsr_group;
 	mreqs.imr_multiaddr = psin->sin_addr.s_addr;
@@ -774,14 +774,14 @@ static int ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval, int optlen)
 	if (optlen < GROUP_FILTER_SIZE(0))
 		return -EINVAL;
 	if (optlen > READ_ONCE(sock_net(sk)->core.sysctl_optmem_max))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	gsf = memdup_sockptr(optval, optlen);
 	if (IS_ERR(gsf))
 		return PTR_ERR(gsf);
 
 	/* numsrc >= (4G-140)/128 overflow in 32 bits */
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	if (gsf->gf_numsrc >= 0x1ffffff ||
 	    gsf->gf_numsrc > READ_ONCE(sock_net(sk)->ipv4.sysctl_igmp_max_msf))
 		goto out_free_gsf;
@@ -810,11 +810,11 @@ static int compat_ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 	if (optlen < size0)
 		return -EINVAL;
 	if (optlen > READ_ONCE(sock_net(sk)->core.sysctl_optmem_max) - 4)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	p = kmalloc(optlen + 4, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	gf32 = p + 4; /* we want ->gf_group and ->gf_slist_flex aligned */
 
 	err = -EFAULT;
@@ -823,7 +823,7 @@ static int compat_ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 
 	/* numsrc >= (4G-140)/128 overflow in 32 bits */
 	n = gf32->gf_numsrc;
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	if (n >= 0x1ffffff)
 		goto out_free_gsf;
 
@@ -832,7 +832,7 @@ static int compat_ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 		goto out_free_gsf;
 
 	/* numsrc >= (4G-140)/128 overflow in 32 bits */
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	if (n > READ_ONCE(sock_net(sk)->ipv4.sysctl_igmp_max_msf))
 		goto out_free_gsf;
 	err = set_mcast_msfilter(sk, gf32->gf_interface, n, gf32->gf_fmode,
@@ -913,8 +913,8 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 	case IP_PASSSEC:
 	case IP_TRANSPARENT:
 	case IP_MINTTL:
-	case IP_NODEFRAG:
-	case IP_BIND_ADDRESS_NO_PORT:
+	case IP_ANALDEFRAG:
+	case IP_BIND_ADDRESS_ANAL_PORT:
 	case IP_UNICAST_IF:
 	case IP_MULTICAST_TTL:
 	case IP_MULTICAST_ALL:
@@ -988,7 +988,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		return 0;
 	case IP_HDRINCL:
 		if (sk->sk_type != SOCK_RAW)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		inet_assign_bit(HDRINCL, sk, val);
 		return 0;
 	case IP_MULTICAST_LOOP:
@@ -1011,13 +1011,13 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet_assign_bit(TRANSPARENT, sk, val);
 		return 0;
-	case IP_NODEFRAG:
+	case IP_ANALDEFRAG:
 		if (sk->sk_type != SOCK_RAW)
-			return -ENOPROTOOPT;
-		inet_assign_bit(NODEFRAG, sk, val);
+			return -EANALPROTOOPT;
+		inet_assign_bit(ANALDEFRAG, sk, val);
 		return 0;
-	case IP_BIND_ADDRESS_NO_PORT:
-		inet_assign_bit(BIND_ADDRESS_NO_PORT, sk, val);
+	case IP_BIND_ADDRESS_ANAL_PORT:
+		inet_assign_bit(BIND_ADDRESS_ANAL_PORT, sk, val);
 		return 0;
 	case IP_TTL:
 		if (optlen < 1)
@@ -1137,7 +1137,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		}
 
 		dev = dev_get_by_index(sock_net(sk), ifindex);
-		err = -EADDRNOTAVAIL;
+		err = -EADDRANALTAVAIL;
 		if (!dev)
 			break;
 
@@ -1198,7 +1198,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			dev = dev_get_by_index(sock_net(sk), mreq.imr_ifindex);
 
 
-		err = -EADDRNOTAVAIL;
+		err = -EADDRANALTAVAIL;
 		if (!dev)
 			break;
 
@@ -1253,7 +1253,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (optlen < IP_MSFILTER_SIZE(0))
 			goto e_inval;
 		if (optlen > READ_ONCE(net->core.sysctl_optmem_max)) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			break;
 		}
 		msf = memdup_sockptr(optval, optlen);
@@ -1265,7 +1265,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (msf->imsf_numsrc >= 0x3ffffffcU ||
 		    msf->imsf_numsrc > READ_ONCE(net->ipv4.sysctl_igmp_max_msf)) {
 			kfree(msf);
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			break;
 		}
 		if (IP_MSFILTER_SIZE(msf->imsf_numsrc) > optlen) {
@@ -1344,7 +1344,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 	sockopt_release_sock(sk);
@@ -1408,12 +1408,12 @@ int ip_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
 	int err;
 
 	if (level != SOL_IP)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	err = do_ip_setsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER
-	/* we need to exclude all possible ENOPROTOOPTs except default case */
-	if (err == -ENOPROTOOPT && optname != IP_HDRINCL &&
+	/* we need to exclude all possible EANALPROTOOPTs except default case */
+	if (err == -EANALPROTOOPT && optname != IP_HDRINCL &&
 			optname != IP_IPSEC_POLICY &&
 			optname != IP_XFRM_POLICY &&
 			!ip_mroute_opt(optname))
@@ -1424,7 +1424,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
 EXPORT_SYMBOL(ip_setsockopt);
 
 /*
- *	Get the options. Note for future reference. The GET of IP options gets
+ *	Get the options. Analte for future reference. The GET of IP options gets
  *	the _received_ ones. The set sets the _sent_ ones.
  */
 
@@ -1509,7 +1509,7 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	int len;
 
 	if (level != SOL_IP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ip_mroute_opt(optname))
 		return ip_mroute_getsockopt(sk, optname, optval, optlen);
@@ -1569,11 +1569,11 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_TRANSPARENT:
 		val = inet_test_bit(TRANSPARENT, sk);
 		goto copyval;
-	case IP_NODEFRAG:
-		val = inet_test_bit(NODEFRAG, sk);
+	case IP_ANALDEFRAG:
+		val = inet_test_bit(ANALDEFRAG, sk);
 		goto copyval;
-	case IP_BIND_ADDRESS_NO_PORT:
-		val = inet_test_bit(BIND_ADDRESS_NO_PORT, sk);
+	case IP_BIND_ADDRESS_ANAL_PORT:
+		val = inet_test_bit(BIND_ADDRESS_ANAL_PORT, sk);
 		goto copyval;
 	case IP_TTL:
 		val = READ_ONCE(inet->uc_ttl);
@@ -1631,7 +1631,7 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			dst_release(dst);
 		}
 		if (!val)
-			return -ENOTCONN;
+			return -EANALTCONN;
 		goto copyval;
 	}
 	case IP_PKTOPTIONS:
@@ -1639,7 +1639,7 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		struct msghdr msg;
 
 		if (sk->sk_type != SOCK_STREAM)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 
 		if (optval.is_kernel) {
 			msg.msg_control_is_user = false;
@@ -1723,7 +1723,7 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	default:
 		sockopt_release_sock(sk);
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 	sockopt_release_sock(sk);
 copyval:
@@ -1759,8 +1759,8 @@ int ip_getsockopt(struct sock *sk, int level,
 			       USER_SOCKPTR(optval), USER_SOCKPTR(optlen));
 
 #ifdef CONFIG_NETFILTER
-	/* we need to exclude all possible ENOPROTOOPTs except default case */
-	if (err == -ENOPROTOOPT && optname != IP_PKTOPTIONS &&
+	/* we need to exclude all possible EANALPROTOOPTs except default case */
+	if (err == -EANALPROTOOPT && optname != IP_PKTOPTIONS &&
 			!ip_mroute_opt(optname)) {
 		int len;
 

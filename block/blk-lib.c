@@ -44,13 +44,13 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (bdev_read_only(bdev))
 		return -EPERM;
 	if (!bdev_max_discard_sectors(bdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* In case the discard granularity isn't set by buggy device driver */
 	if (WARN_ON_ONCE(!bdev_discard_granularity(bdev))) {
 		pr_err_ratelimited("%pg: Error: discard_granularity is 0.\n",
 				   bdev);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
@@ -105,7 +105,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, &bio);
 	if (!ret && bio) {
 		ret = submit_bio_wait(bio);
-		if (ret == -EOPNOTSUPP)
+		if (ret == -EOPANALTSUPP)
 			ret = 0;
 		bio_put(bio);
 	}
@@ -129,13 +129,13 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 	max_write_zeroes_sectors = bdev_write_zeroes_sectors(bdev);
 
 	if (max_write_zeroes_sectors == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	while (nr_sects) {
 		bio = blk_next_bio(bio, bdev, 0, REQ_OP_WRITE_ZEROES, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
-		if (flags & BLKDEV_ZERO_NOUNMAP)
-			bio->bi_opf |= REQ_NOUNMAP;
+		if (flags & BLKDEV_ZERO_ANALUNMAP)
+			bio->bi_opf |= REQ_ANALUNMAP;
 
 		if (nr_sects > max_write_zeroes_sectors) {
 			bio->bi_iter.bi_size = max_write_zeroes_sectors << 9;
@@ -210,10 +210,10 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
  *  writing zeroes to the device.
  *
  *  If a device is using logical block provisioning, the underlying space will
- *  not be released if %flags contains BLKDEV_ZERO_NOUNMAP.
+ *  analt be released if %flags contains BLKDEV_ZERO_ANALUNMAP.
  *
- *  If %flags contains BLKDEV_ZERO_NOFALLBACK, the function will return
- *  -EOPNOTSUPP if no explicit hardware offload for zeroing is provided.
+ *  If %flags contains BLKDEV_ZERO_ANALFALLBACK, the function will return
+ *  -EOPANALTSUPP if anal explicit hardware offload for zeroing is provided.
  */
 int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
@@ -228,7 +228,7 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 
 	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
 			biop, flags);
-	if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
+	if (ret != -EOPANALTSUPP || (flags & BLKDEV_ZERO_ANALFALLBACK))
 		return ret;
 
 	return __blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
@@ -268,12 +268,12 @@ retry:
 	if (try_write_zeroes) {
 		ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects,
 						  gfp_mask, &bio, flags);
-	} else if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
+	} else if (!(flags & BLKDEV_ZERO_ANALFALLBACK)) {
 		ret = __blkdev_issue_zero_pages(bdev, sector, nr_sects,
 						gfp_mask, &bio);
 	} else {
-		/* No zeroing offload support */
-		ret = -EOPNOTSUPP;
+		/* Anal zeroing offload support */
+		ret = -EOPANALTSUPP;
 	}
 	if (ret == 0 && bio) {
 		ret = submit_bio_wait(bio);
@@ -281,7 +281,7 @@ retry:
 	}
 	blk_finish_plug(&plug);
 	if (ret && try_write_zeroes) {
-		if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
+		if (!(flags & BLKDEV_ZERO_ANALFALLBACK)) {
 			try_write_zeroes = false;
 			goto retry;
 		}
@@ -289,10 +289,10 @@ retry:
 			/*
 			 * Zeroing offload support was indicated, but the
 			 * device reported ILLEGAL REQUEST (for some devices
-			 * there is no non-destructive way to verify whether
+			 * there is anal analn-destructive way to verify whether
 			 * WRITE ZEROES is actually supported).
 			 */
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		}
 	}
 
@@ -315,7 +315,7 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 	max_sectors &= ~bs_mask;
 
 	if (max_sectors == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if ((sector | nr_sects) & bs_mask)
 		return -EINVAL;
 	if (bdev_read_only(bdev))

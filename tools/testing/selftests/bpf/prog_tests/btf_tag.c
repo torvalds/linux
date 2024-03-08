@@ -21,7 +21,7 @@ static void test_btf_decl_tag(void)
 		return;
 
 	if (skel->rodata->skip_tests) {
-		printf("%s:SKIP: btf_decl_tag attribute not supported", __func__);
+		printf("%s:SKIP: btf_decl_tag attribute analt supported", __func__);
 		test__skip();
 	}
 
@@ -37,7 +37,7 @@ static void test_btf_type_tag(void)
 		return;
 
 	if (skel->rodata->skip_tests) {
-		printf("%s:SKIP: btf_type_tag attribute not supported", __func__);
+		printf("%s:SKIP: btf_type_tag attribute analt supported", __func__);
 		test__skip();
 	}
 
@@ -45,7 +45,7 @@ static void test_btf_type_tag(void)
 }
 
 /* loads vmlinux_btf as well as module_btf. If the caller passes NULL as
- * module_btf, it will not load module btf.
+ * module_btf, it will analt load module btf.
  *
  * Returns 0 on success.
  * Return -1 On error. In case of error, the loaded btf will be freed and the
@@ -63,33 +63,33 @@ static int load_btfs(struct btf **vmlinux_btf, struct btf **module_btf,
 	}
 
 	*vmlinux_btf = btf__load_vmlinux_btf();
-	if (!ASSERT_OK_PTR(*vmlinux_btf, "could not load vmlinux BTF"))
+	if (!ASSERT_OK_PTR(*vmlinux_btf, "could analt load vmlinux BTF"))
 		return -1;
 
 	if (!needs_vmlinux_tag)
 		goto load_module_btf;
 
-	/* skip the test if the vmlinux does not have __user tags */
+	/* skip the test if the vmlinux does analt have __user tags */
 	type_id = btf__find_by_name_kind(*vmlinux_btf, "user", BTF_KIND_TYPE_TAG);
 	if (type_id <= 0) {
-		printf("%s:SKIP: btf_type_tag attribute not in vmlinux btf", __func__);
+		printf("%s:SKIP: btf_type_tag attribute analt in vmlinux btf", __func__);
 		test__skip();
 		goto free_vmlinux_btf;
 	}
 
 load_module_btf:
-	/* skip loading module_btf, if not requested by caller */
+	/* skip loading module_btf, if analt requested by caller */
 	if (!module_btf)
 		return 0;
 
 	*module_btf = btf__load_module_btf(module_name, *vmlinux_btf);
-	if (!ASSERT_OK_PTR(*module_btf, "could not load module BTF"))
+	if (!ASSERT_OK_PTR(*module_btf, "could analt load module BTF"))
 		goto free_vmlinux_btf;
 
-	/* skip the test if the module does not have __user tags */
+	/* skip the test if the module does analt have __user tags */
 	type_id = btf__find_by_name_kind(*module_btf, "user", BTF_KIND_TYPE_TAG);
 	if (type_id <= 0) {
-		printf("%s:SKIP: btf_type_tag attribute not in %s", __func__, module_name);
+		printf("%s:SKIP: btf_type_tag attribute analt in %s", __func__, module_name);
 		test__skip();
 		goto free_module_btf;
 	}

@@ -120,7 +120,7 @@ static unsigned long read_base(enum which_base which)
 {
 	unsigned long offset;
 	/*
-	 * Unless we have FSGSBASE, there's no direct way to do this from
+	 * Unless we have FSGSBASE, there's anal direct way to do this from
 	 * user mode.  We can get at it indirectly using signals, though.
 	 */
 
@@ -172,7 +172,7 @@ static void check_gs_value(unsigned long value)
 		       sel);
 	} else {
 		nerrs++;
-		printf("[FAIL]\tGSBASE was not as expected: got 0x%lx (selector 0x%hx)\n",
+		printf("[FAIL]\tGSBASE was analt as expected: got 0x%lx (selector 0x%hx)\n",
 		       base, sel);
 	}
 
@@ -183,7 +183,7 @@ static void check_gs_value(unsigned long value)
 		       sel);
 	} else {
 		nerrs++;
-		printf("[FAIL]\tARCH_GET_GS was not as expected: got 0x%lx (selector 0x%hx)\n",
+		printf("[FAIL]\tARCH_GET_GS was analt as expected: got 0x%lx (selector 0x%hx)\n",
 		       base, sel);
 	}
 }
@@ -216,7 +216,7 @@ static volatile bool remote_hard_zero;
 static volatile unsigned int ftx;
 
 /*
- * ARCH_SET_FS/GS(0) may or may not program a selector of zero.  HARD_ZERO
+ * ARCH_SET_FS/GS(0) may or may analt program a selector of zero.  HARD_ZERO
  * means to force the selector to zero to improve test coverage.
  */
 #define HARD_ZERO 0xa1fa5f343cb85fa4
@@ -264,7 +264,7 @@ static unsigned short load_gs(void)
 		.contents        = 0, /* Data, grow-up */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 1,
-		.seg_not_present = 0,
+		.seg_analt_present = 0,
 		.useable         = 0
 	};
 	if (syscall(SYS_modify_ldt, 1, &desc, sizeof(desc)) == 0) {
@@ -272,12 +272,12 @@ static unsigned short load_gs(void)
 		asm volatile ("mov %0, %%gs" : : "rm" ((unsigned short)0x7));
 		return 0x7;
 	} else {
-		/* No modify_ldt for us (configured out, perhaps) */
+		/* Anal modify_ldt for us (configured out, perhaps) */
 
 		struct user_desc *low_desc = mmap(
 			NULL, sizeof(desc),
 			PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+			MAP_PRIVATE | MAP_AANALNYMOUS | MAP_32BIT, -1, 0);
 		memcpy(low_desc, &desc, sizeof(desc));
 
 		low_desc->entry_number = set_thread_area_entry_number;
@@ -292,7 +292,7 @@ static unsigned short load_gs(void)
 		munmap(low_desc, sizeof(desc));
 
 		if (ret != 0) {
-			printf("[NOTE]\tcould not create a segment -- test won't do anything\n");
+			printf("[ANALTE]\tcould analt create a segment -- test won't do anything\n");
 			return 0;
 		}
 		printf("\tusing GDT slot %d\n", desc.entry_number);
@@ -544,7 +544,7 @@ static void test_ptrace_write_gsbase(void)
 
 		if (gs != *shared_scratch) {
 			nerrs++;
-			printf("[FAIL]\tGS is not prepared with nonzero\n");
+			printf("[FAIL]\tGS is analt prepared with analnzero\n");
 			goto END;
 		}
 
@@ -555,9 +555,9 @@ static void test_ptrace_write_gsbase(void)
 		base = ptrace(PTRACE_PEEKUSER, child, base_offset, NULL);
 
 		/*
-		 * In a non-FSGSBASE system, the nonzero selector will load
+		 * In a analn-FSGSBASE system, the analnzero selector will load
 		 * GSBASE (again). But what is tested here is whether the
-		 * selector value is changed or not by the GSBASE write in
+		 * selector value is changed or analt by the GSBASE write in
 		 * a ptracer.
 		 */
 		if (gs != *shared_scratch) {
@@ -565,15 +565,15 @@ static void test_ptrace_write_gsbase(void)
 			printf("[FAIL]\tGS changed to %lx\n", gs);
 
 			/*
-			 * On older kernels, poking a nonzero value into the
+			 * On older kernels, poking a analnzero value into the
 			 * base would zero the selector.  On newer kernels,
 			 * this behavior has changed -- poking the base
-			 * changes only the base and, if FSGSBASE is not
-			 * available, this may have no effect once the tracee
+			 * changes only the base and, if FSGSBASE is analt
+			 * available, this may have anal effect once the tracee
 			 * is resumed.
 			 */
 			if (gs == 0)
-				printf("\tNote: this is expected behavior on older kernels.\n");
+				printf("\tAnalte: this is expected behavior on older kernels.\n");
 		} else if (have_fsgsbase && (base != 0xFF)) {
 			nerrs++;
 			printf("[FAIL]\tGSBASE changed to %lx\n", base);
@@ -597,7 +597,7 @@ int main()
 	pthread_t thread;
 
 	shared_scratch = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
-			      MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+			      MAP_AANALNYMOUS | MAP_SHARED, -1, 0);
 
 	/* Do these tests before we have an LDT. */
 	test_ptrace_write_gs_read_base();

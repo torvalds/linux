@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -39,7 +39,7 @@
 	}					\
 }
 
-#define CHECK_NOT_NULL__(x) {			\
+#define CHECK_ANALT_NULL__(x) {			\
 	while ((x) == NULL) {			\
 		pr_debug(#x " failed!\n");	\
 		goto out_err;			\
@@ -50,7 +50,7 @@ static int test__tsc_is_supported(struct test_suite *test __maybe_unused,
 				  int subtest __maybe_unused)
 {
 	if (!TSC_IS_SUPPORTED) {
-		pr_debug("Test not supported on this architecture\n");
+		pr_debug("Test analt supported on this architecture\n");
 		return TEST_SKIP;
 	}
 
@@ -62,8 +62,8 @@ static int test__tsc_is_supported(struct test_suite *test __maybe_unused,
  *
  * This function implements a test that checks that the conversion of perf time
  * to and from TSC is consistent with the order of events.  If the test passes
- * %0 is returned, otherwise %-1 is returned.  If TSC conversion is not
- * supported then the test passes but " (not supported)" is printed.
+ * %0 is returned, otherwise %-1 is returned.  If TSC conversion is analt
+ * supported then the test passes but " (analt supported)" is printed.
  */
 static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
@@ -91,13 +91,13 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
-	CHECK_NOT_NULL__(threads);
+	CHECK_ANALT_NULL__(threads);
 
 	cpus = perf_cpu_map__new_online_cpus();
-	CHECK_NOT_NULL__(cpus);
+	CHECK_ANALT_NULL__(cpus);
 
 	evlist = evlist__new();
-	CHECK_NOT_NULL__(evlist);
+	CHECK_ANALT_NULL__(evlist);
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
@@ -114,7 +114,7 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 
 	ret = evlist__open(evlist);
 	if (ret < 0) {
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			err = TEST_SKIP;
 		else
 			pr_debug("evlist__open() failed\n");
@@ -126,8 +126,8 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 	pc = evlist->mmap[0].core.base;
 	ret = perf_read_tsc_conversion(pc, &tc);
 	if (ret) {
-		if (ret == -EOPNOTSUPP) {
-			pr_debug("perf_read_tsc_conversion is not supported in current kernel\n");
+		if (ret == -EOPANALTSUPP) {
+			pr_debug("perf_read_tsc_conversion is analt supported in current kernel\n");
 			err = TEST_SKIP;
 		}
 		goto out_err;
@@ -159,12 +159,12 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 				goto next_event;
 
 			if (strcmp(event->comm.comm, comm1) == 0) {
-				CHECK_NOT_NULL__(evsel = evlist__event2evsel(evlist, event));
+				CHECK_ANALT_NULL__(evsel = evlist__event2evsel(evlist, event));
 				CHECK__(evsel__parse_sample(evsel, event, &sample));
 				comm1_time = sample.time;
 			}
 			if (strcmp(event->comm.comm, comm2) == 0) {
-				CHECK_NOT_NULL__(evsel = evlist__event2evsel(evlist, event));
+				CHECK_ANALT_NULL__(evsel = evlist__event2evsel(evlist, event));
 				CHECK__(evsel__parse_sample(evsel, event, &sample));
 				comm2_time = sample.time;
 			}
@@ -207,9 +207,9 @@ out_err:
 
 static struct test_case time_to_tsc_tests[] = {
 	TEST_CASE_REASON("TSC support", tsc_is_supported,
-			 "This architecture does not support"),
+			 "This architecture does analt support"),
 	TEST_CASE_REASON("Perf time to TSC", perf_time_to_tsc,
-			 "perf_read_tsc_conversion is not supported"),
+			 "perf_read_tsc_conversion is analt supported"),
 	{ .name = NULL, }
 };
 

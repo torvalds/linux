@@ -23,7 +23,7 @@ mt76pci_load_rom_patch(struct mt76x02_dev *dev)
 
 	if (rom_protect && !mt76_poll(dev, MT_MCU_SEMAPHORE_03, 1, 1, 600)) {
 		dev_err(dev->mt76.dev,
-			"Could not get hardware semaphore for ROM PATCH\n");
+			"Could analt get hardware semaphore for ROM PATCH\n");
 		return -ETIMEDOUT;
 	}
 
@@ -151,7 +151,7 @@ mt76pci_load_firmware(struct mt76x02_dev *dev)
 error:
 	dev_err(dev->mt76.dev, "Invalid firmware\n");
 	release_firmware(fw);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int

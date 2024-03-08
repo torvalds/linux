@@ -19,13 +19,13 @@
 static void ti_sci_inta_msi_write_msg(struct irq_data *data,
 				      struct msi_msg *msg)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 
 static void ti_sci_inta_msi_compose_msi_msg(struct irq_data *data,
 					    struct msi_msg *msg)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 
 static void ti_sci_inta_msi_update_chip_ops(struct msi_domain_info *info)
@@ -45,7 +45,7 @@ static void ti_sci_inta_msi_update_chip_ops(struct msi_domain_info *info)
 	chip->irq_ack = irq_chip_ack_parent;
 }
 
-struct irq_domain *ti_sci_inta_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *ti_sci_inta_msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 						     struct msi_domain_info *info,
 						     struct irq_domain *parent)
 {
@@ -54,7 +54,7 @@ struct irq_domain *ti_sci_inta_msi_create_irq_domain(struct fwnode_handle *fwnod
 	ti_sci_inta_msi_update_chip_ops(info);
 	info->flags |= MSI_FLAG_FREE_MSI_DESCS;
 
-	domain = msi_create_irq_domain(fwnode, info, parent);
+	domain = msi_create_irq_domain(fwanalde, info, parent);
 	if (domain)
 		irq_domain_update_bus_token(domain, DOMAIN_BUS_TI_SCI_INTA_MSI);
 
@@ -87,7 +87,7 @@ static int ti_sci_inta_msi_alloc_descs(struct device *dev,
 	return count;
 fail:
 	msi_free_msi_descs(dev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int ti_sci_inta_msi_domain_alloc_irqs(struct device *dev,
@@ -97,7 +97,7 @@ int ti_sci_inta_msi_domain_alloc_irqs(struct device *dev,
 	int ret, nvec;
 
 	if (pdev->id < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = msi_setup_device_data(dev);
 	if (ret)

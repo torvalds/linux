@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef __MATH_EMU_OP_2_H__
@@ -173,8 +173,8 @@
 #endif
 
 /*
- * Unpack the raw bits of a native fp value.  Do not classify or
- * normalize the data.
+ * Unpack the raw bits of a native fp value.  Do analt classify or
+ * analrmalize the data.
  */
 
 #define _FP_UNPACK_RAW_2(fs, X, val)			\
@@ -251,8 +251,8 @@
 		    _FP_FRAC_WORD_4(_z,3),_FP_FRAC_WORD_4(_z,2),	\
 		    _FP_FRAC_WORD_4(_z,1));				\
 									\
-    /* Normalize since we know where the msb of the multiplicands	\
-       were (bit B), we know that the msb of the of the product is	\
+    /* Analrmalize since we kanalw where the msb of the multiplicands	\
+       were (bit B), we kanalw that the msb of the of the product is	\
        at either 2B or 2B-1.  */					\
     _FP_FRAC_SRS_4(_z, wfracbits-1, 2*wfracbits);			\
     R##_f0 = _FP_FRAC_WORD_4(_z,0);					\
@@ -295,8 +295,8 @@
 		    _c_f1, _c_f0,					\
 		    _FP_FRAC_WORD_4(_z,3), _FP_FRAC_WORD_4(_z,2));	\
 									\
-    /* Normalize since we know where the msb of the multiplicands	\
-       were (bit B), we know that the msb of the of the product is	\
+    /* Analrmalize since we kanalw where the msb of the multiplicands	\
+       were (bit B), we kanalw that the msb of the of the product is	\
        at either 2B or 2B-1.  */					\
     _FP_FRAC_SRS_4(_z, wfracbits-1, 2*wfracbits);			\
     R##_f0 = _FP_FRAC_WORD_4(_z,0);					\
@@ -312,8 +312,8 @@
 									\
     mpn_mul_n(_z_f, _x, _y, 2);						\
 									\
-    /* Normalize since we know where the msb of the multiplicands	\
-       were (bit B), we know that the msb of the of the product is	\
+    /* Analrmalize since we kanalw where the msb of the multiplicands	\
+       were (bit B), we kanalw that the msb of the of the product is	\
        at either 2B or 2B-1.  */					\
     _FP_FRAC_SRS_4(_z, wfracbits-1, 2*wfracbits);			\
     R##_f0 = _z_f[0];							\
@@ -437,8 +437,8 @@
 	_n_f0 = 0;							\
       }									\
 									\
-    /* Normalize, i.e. make the most significant bit of the 		\
-       denominator set. */						\
+    /* Analrmalize, i.e. make the most significant bit of the 		\
+       deanalminator set. */						\
     _FP_FRAC_SLL_2(Y, _FP_WFRACXBITS_##fs);				\
 									\
     udiv_qrnnd(R##_f1, _r_f1, _n_f2, _n_f1, Y##_f1);			\
@@ -458,10 +458,10 @@
 									\
     if (_r_f1 == Y##_f1)						\
       {									\
-	/* This is a special case, not an optimization			\
-	   (_r/Y##_f1 would not fit into UWtype).			\
+	/* This is a special case, analt an optimization			\
+	   (_r/Y##_f1 would analt fit into UWtype).			\
 	   As _r is guaranteed to be < Y,  R##_f0 can be either		\
-	   (UWtype)-1 or (UWtype)-2.  But as we know what kind		\
+	   (UWtype)-1 or (UWtype)-2.  But as we kanalw what kind		\
 	   of bits it is (sticky, guard, round),  we don't care.	\
 	   We also don't care what the reminder is,  because the	\
 	   guard bit will be set anyway.  -jj */			\
@@ -517,7 +517,7 @@
 
 /*
  * Square root algorithms:
- * We have just one right now, maybe Newton approximation
+ * We have just one right analw, maybe Newton approximation
  * should be added for those machines where division is fast.
  */
  
@@ -563,7 +563,7 @@
 
 /*
  * Assembly/disassembly for converting to/from integral types.  
- * No shifting or overflow handled here.
+ * Anal shifting or overflow handled here.
  */
 
 #define _FP_FRAC_ASSEMBLE_2(r, X, rsize)	\

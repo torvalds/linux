@@ -2,7 +2,7 @@
 /*
  * This test is intended to reproduce a crash that happens when
  * kvm_arch_hardware_disable is called and it attempts to unregister the user
- * return notifiers.
+ * return analtifiers.
  */
 
 #define _GNU_SOURCE
@@ -31,7 +31,7 @@ static void guest_code(void)
 {
 	for (;;)
 		;  /* Some busy work */
-	printf("Should not be reached.\n");
+	printf("Should analt be reached.\n");
 }
 
 static void *run_vcpu(void *arg)
@@ -117,7 +117,7 @@ static void run_test(uint32_t run)
 	sem_post(sem);
 	for (i = 0; i < VCPU_NUM; ++i)
 		check_join(threads[i], &b);
-	/* Should not be reached */
+	/* Should analt be reached */
 	TEST_ASSERT(false, "%s: [%d] child escaped the ninja", __func__, run);
 }
 
@@ -135,13 +135,13 @@ void wait_for_child_setup(pid_t pid)
 			return;
 
 		/* Child is still running, keep waiting. */
-		if (pid != waitpid(pid, &status, WNOHANG))
+		if (pid != waitpid(pid, &status, WANALHANG))
 			continue;
 
 		/*
-		 * Child is no longer running, which is not expected.
+		 * Child is anal longer running, which is analt expected.
 		 *
-		 * If it exited with a non-zero status, we explicitly forward
+		 * If it exited with a analn-zero status, we explicitly forward
 		 * the child's status in case it exited with KSFT_SKIP.
 		 */
 		if (WIFEXITED(status))
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 		r = (rand() % DELAY_US_MAX) + 1;
 		pr_debug("%s: [%d] waiting %dus\n", __func__, i, r);
 		usleep(r);
-		r = waitpid(pid, &s, WNOHANG);
+		r = waitpid(pid, &s, WANALHANG);
 		TEST_ASSERT(r != pid,
 			    "%s: [%d] child exited unexpectedly status: [%d]",
 			    __func__, i, s);

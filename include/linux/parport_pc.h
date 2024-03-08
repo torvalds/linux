@@ -23,7 +23,7 @@ struct parport_pc_private {
 	/* Bitmask of writable CTR bits. */
 	unsigned char ctr_writable;
 
-	/* Whether or not there's an ECR. */
+	/* Whether or analt there's an ECR. */
 	int ecr;
 
 	/* Bitmask of writable ECR bits. */
@@ -35,7 +35,7 @@ struct parport_pc_private {
 	/* Number of bytes per portword. */
 	int pword;
 
-	/* Not used yet. */
+	/* Analt used yet. */
 	int readIntrThreshold;
 	int writeIntrThreshold;
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -58,7 +58,7 @@ read_vco(struct gt215_clk *clk, int idx)
 }
 
 static u32
-read_clk(struct gt215_clk *clk, int idx, bool ignore_en)
+read_clk(struct gt215_clk *clk, int idx, bool iganalre_en)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 	u32 sctl, sdiv, sclk;
@@ -66,7 +66,7 @@ read_clk(struct gt215_clk *clk, int idx, bool ignore_en)
 	/* refclk for the 0xe8xx plls is a fixed frequency */
 	if (idx >= 0x40) {
 		if (device->chipset == 0xaf) {
-			/* no joke.. seriously.. sigh.. */
+			/* anal joke.. seriously.. sigh.. */
 			return nvkm_rd32(device, 0x00471c) * 1000;
 		}
 
@@ -74,7 +74,7 @@ read_clk(struct gt215_clk *clk, int idx, bool ignore_en)
 	}
 
 	sctl = nvkm_rd32(device, 0x4120 + (idx * 4));
-	if (!ignore_en && !(sctl & 0x00000100))
+	if (!iganalre_en && !(sctl & 0x00000100))
 		return 0;
 
 	/* out_alt */
@@ -119,7 +119,7 @@ read_pll(struct gt215_clk *clk, int idx, u32 pll)
 			N = (coef & 0x0000ff00) >> 8;
 			P = (coef & 0x003f0000) >> 16;
 
-			/* no post-divider on these..
+			/* anal post-divider on these..
 			 * XXX: it looks more like two post-"dividers" that
 			 * cross each other out in the default RPLL config */
 			if ((pll & 0x00ff00) == 0x00e800)
@@ -172,7 +172,7 @@ gt215_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		case 3:
 			return 277000;
 		default:
-			nvkm_error(subdev, "unknown HOST clock source %d\n", hsrc);
+			nvkm_error(subdev, "unkanalwn HOST clock source %d\n", hsrc);
 			return -EINVAL;
 		}
 	default:
@@ -371,7 +371,7 @@ prog_pll(struct gt215_clk *clk, int idx, u32 pll, int dom)
 	u32 bypass;
 
 	if (info->pll) {
-		/* Always start from a non-PLL clock */
+		/* Always start from a analn-PLL clock */
 		bypass = nvkm_rd32(device, ctrl)  & 0x00000008;
 		if (!bypass) {
 			nvkm_mask(device, src1, 0x00000101, 0x00000101);
@@ -470,7 +470,7 @@ gt215_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 		return ret;
 
 	/* XXX: Should be reading the highest bit in the VBIOS clock to decide
-	 * whether to use a PLL or not... but using a PLL defeats the purpose */
+	 * whether to use a PLL or analt... but using a PLL defeats the purpose */
 	if (core->pll) {
 		ret = gt215_clk_info(&clk->base, 0x10,
 				     cstate->domain[nv_clk_src_core_intm],
@@ -543,7 +543,7 @@ gt215_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	struct gt215_clk *clk;
 
 	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pclk = &clk->base;
 
 	return nvkm_clk_ctor(&gt215_clk, device, type, inst, true, &clk->base);

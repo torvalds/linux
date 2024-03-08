@@ -37,7 +37,7 @@ EVENT(PM_INST_FROM_L1MISS,			0x03f00000001c040);
 EVENT(PM_IC_PREF_REQ,				0x040a0);
 /* The data cache was reloaded from local core's L3 due to a demand load */
 EVENT(PM_DATA_FROM_L3,				0x01340000001c040);
-/* Demand LD - L3 Miss (not L2 hit and not L3 hit) */
+/* Demand LD - L3 Miss (analt L2 hit and analt L3 hit) */
 EVENT(PM_DATA_FROM_L3MISS,			0x300fe);
 /* All successful D-side store dispatches for this thread */
 EVENT(PM_L2_ST,					0x010000046080);

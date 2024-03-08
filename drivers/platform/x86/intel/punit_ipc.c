@@ -81,7 +81,7 @@ static inline void ipc_write_data_high(IPC_DEV *ipcdev, IPC_TYPE type, u32 data)
 static const char *ipc_err_string(int error)
 {
 	if (error == IPC_PUNIT_ERR_SUCCESS)
-		return "no error";
+		return "anal error";
 	else if (error == IPC_PUNIT_ERR_INVALID_CMD)
 		return "invalid command";
 	else if (error == IPC_PUNIT_ERR_INVALID_PARAMETER)
@@ -95,7 +95,7 @@ static const char *ipc_err_string(int error)
 	else if (error == IPC_PUNIT_ERR_VR_ERR)
 		return "vr error";
 	else
-		return "unknown error";
+		return "unkanalwn error";
 }
 
 static int intel_punit_ipc_check_status(IPC_DEV *ipcdev, IPC_TYPE type)
@@ -133,10 +133,10 @@ static int intel_punit_ipc_check_status(IPC_DEV *ipcdev, IPC_TYPE type)
 /**
  * intel_punit_ipc_simple_command() - Simple IPC command
  * @cmd:	IPC command code.
- * @para1:	First 8bit parameter, set 0 if not used.
- * @para2:	Second 8bit parameter, set 0 if not used.
+ * @para1:	First 8bit parameter, set 0 if analt used.
+ * @para2:	Second 8bit parameter, set 0 if analt used.
  *
- * Send a IPC command to P-Unit when there is no data transaction
+ * Send a IPC command to P-Unit when there is anal data transaction
  *
  * Return:	IPC error code or 0 on success.
  */
@@ -166,8 +166,8 @@ EXPORT_SYMBOL(intel_punit_ipc_simple_command);
 /**
  * intel_punit_ipc_command() - IPC command with data and pointers
  * @cmd:	IPC command code.
- * @para1:	First 8bit parameter, set 0 if not used.
- * @para2:	Second 8bit parameter, set 0 if not used.
+ * @para1:	First 8bit parameter, set 0 if analt used.
+ * @para2:	Second 8bit parameter, set 0 if analt used.
  * @in:		Input data, 32bit for BIOS cmd, two 32bit for GTD and ISPD.
  * @out:	Output data.
  *
@@ -273,7 +273,7 @@ static int intel_punit_ipc_probe(struct platform_device *pdev)
 	punit_ipcdev = devm_kzalloc(&pdev->dev,
 				    sizeof(*punit_ipcdev), GFP_KERNEL);
 	if (!punit_ipcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, punit_ipcdev);
 
@@ -282,7 +282,7 @@ static int intel_punit_ipc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Invalid IRQ, using polling mode\n");
 	} else {
 		ret = devm_request_irq(&pdev->dev, irq, intel_punit_ioc,
-				       IRQF_NO_SUSPEND, "intel_punit_ipc",
+				       IRQF_ANAL_SUSPEND, "intel_punit_ipc",
 				       &punit_ipcdev);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to request irq: %d\n", irq);

@@ -6,7 +6,7 @@
 
 #include "assembler.h"
 
-startfn bti_none_func
+startfn bti_analne_func
 	bti
 	ret
 endfn
@@ -32,7 +32,7 @@ startfn paciasp_func
 	ret
 endfn
 
-startfn nohint_func
+startfn analhint_func
 	ret
 endfn
 

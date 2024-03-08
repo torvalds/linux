@@ -94,7 +94,7 @@
 static inline int madera_get_irq_mapping(struct madera *madera, int irq)
 {
 	if (!madera->irq_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regmap_irq_get_virq(madera->irq_data, irq);
 }

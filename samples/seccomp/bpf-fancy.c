@@ -20,8 +20,8 @@
 
 #include "bpf-helper.h"
 
-#ifndef PR_SET_NO_NEW_PRIVS
-#define PR_SET_NO_NEW_PRIVS 38
+#ifndef PR_SET_ANAL_NEW_PRIVS
+#define PR_SET_ANAL_NEW_PRIVS 38
 #endif
 
 int main(int argc, char **argv)
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 
 		LABEL(&l, read),
 		ARG(0),
-		JNE(STDIN_FILENO, DENY),
+		JNE(STDIN_FILEANAL, DENY),
 		ARG(1),
 		JNE((unsigned long)buf, DENY),
 		ARG(2),
@@ -52,8 +52,8 @@ int main(int argc, char **argv)
 
 		LABEL(&l, write_fd),
 		ARG(0),
-		JEQ(STDOUT_FILENO, JUMP(&l, write_buf)),
-		JEQ(STDERR_FILENO, JUMP(&l, write_buf)),
+		JEQ(STDOUT_FILEANAL, JUMP(&l, write_buf)),
+		JEQ(STDERR_FILEANAL, JUMP(&l, write_buf)),
 		DENY,
 
 		LABEL(&l, write_buf),
@@ -85,8 +85,8 @@ int main(int argc, char **argv)
 	ssize_t bytes;
 	bpf_resolve_jumps(&l, filter, sizeof(filter)/sizeof(*filter));
 
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		perror("prctl(NO_NEW_PRIVS)");
+	if (prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0)) {
+		perror("prctl(ANAL_NEW_PRIVS)");
 		return 1;
 	}
 
@@ -94,12 +94,12 @@ int main(int argc, char **argv)
 		perror("prctl(SECCOMP)");
 		return 1;
 	}
-	syscall(__NR_write, STDOUT_FILENO, msg1, strlen(msg1));
-	bytes = syscall(__NR_read, STDIN_FILENO, buf, sizeof(buf)-1);
+	syscall(__NR_write, STDOUT_FILEANAL, msg1, strlen(msg1));
+	bytes = syscall(__NR_read, STDIN_FILEANAL, buf, sizeof(buf)-1);
 	bytes = (bytes > 0 ? bytes : 0);
-	syscall(__NR_write, STDERR_FILENO, msg2, strlen(msg2));
-	syscall(__NR_write, STDERR_FILENO, buf, bytes);
-	/* Now get killed */
-	syscall(__NR_write, STDERR_FILENO, msg2, strlen(msg2)+2);
+	syscall(__NR_write, STDERR_FILEANAL, msg2, strlen(msg2));
+	syscall(__NR_write, STDERR_FILEANAL, buf, bytes);
+	/* Analw get killed */
+	syscall(__NR_write, STDERR_FILEANAL, msg2, strlen(msg2)+2);
 	return 0;
 }

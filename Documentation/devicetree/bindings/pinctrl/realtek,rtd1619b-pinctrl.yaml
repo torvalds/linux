@@ -26,8 +26,8 @@ patternProperties:
   '-pins$':
     type: object
     allOf:
-      - $ref: pincfg-node.yaml#
-      - $ref: pinmux-node.yaml#
+      - $ref: pincfg-analde.yaml#
+      - $ref: pinmux-analde.yaml#
 
     properties:
       pins:
@@ -69,7 +69,7 @@ patternProperties:
                 acpu_ejtag_loc2, vcpu_ejtag_loc2, ve3_ejtag_disable, aucpu0_ejtag_disable,
                 aucpu1_ejtag_disable, acpu_ejtag_disable, vcpu_ejtag_disable,
                 scpu_ejtag_disable, iso_gspi_disable, sf_disable, sf_enable,
-                arm_trace_debug_disable, arm_trace_debug_enable, pwm_normal, pwm_open_drain,
+                arm_trace_debug_disable, arm_trace_debug_enable, pwm_analrmal, pwm_open_drain,
                 standby_dbg, test_loop_dis ]
 
       drive-strength:
@@ -134,7 +134,7 @@ patternProperties:
       realtek,duty-cycle:
         description: |
           An integer describing the level to adjust output duty cycle, controlling
-          the proportion of positive and negative waveforms in nanoseconds.
+          the proportion of positive and negative waveforms in naanalseconds.
           Valid arguments are described as below:
           0: 0ns
           2: + 0.25ns

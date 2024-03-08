@@ -140,7 +140,7 @@ static int k8temp_probe(struct pci_dev *pdev,
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct k8temp_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	model = boot_cpu_data.x86_model;
 	stepping = boot_cpu_data.x86_stepping;
@@ -148,7 +148,7 @@ static int k8temp_probe(struct pci_dev *pdev,
 	/* feature available since SH-C0, exclude older revisions */
 	if ((model == 4 && stepping == 0) ||
 	    (model == 5 && stepping <= 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * AMD NPT family 0fh, i.e. RevF and RevG:
@@ -161,7 +161,7 @@ static int k8temp_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	 * RevG desktop CPUs (i.e. no socket S1G1 or ASB1 parts) need
+	 * RevG desktop CPUs (i.e. anal socket S1G1 or ASB1 parts) need
 	 * additional offset, otherwise reported temperature is below
 	 * ambient temperature
 	 */
@@ -175,13 +175,13 @@ static int k8temp_probe(struct pci_dev *pdev,
 
 	if (scfg & (SEL_PLACE | SEL_CORE)) {
 		dev_err(&pdev->dev, "Configuration bit(s) stuck at 1!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	scfg |= (SEL_PLACE | SEL_CORE);
 	pci_write_config_byte(pdev, REG_TEMP, scfg);
 
-	/* now we know if we can change core and/or sensor */
+	/* analw we kanalw if we can change core and/or sensor */
 	pci_read_config_byte(pdev, REG_TEMP, &data->sensorsp);
 
 	if (data->sensorsp & SEL_PLACE) {

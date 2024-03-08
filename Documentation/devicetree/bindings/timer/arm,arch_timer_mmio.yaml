@@ -36,7 +36,7 @@ properties:
 
   clock-frequency:
     description: The frequency of the main counter, in Hz. Should be present
-      only where necessary to work around broken firmware which does not configure
+      only where necessary to work around broken firmware which does analt configure
       CNTFRQ on all CPUs to a uniform correct value. Use of this property is
       strongly discouraged; fix your firmware unless absolutely impossible.
 
@@ -45,17 +45,17 @@ properties:
     description: If present, the timer is powered through an always-on power
       domain, therefore it never loses context.
 
-  arm,cpu-registers-not-fw-configured:
+  arm,cpu-registers-analt-fw-configured:
     type: boolean
-    description: Firmware does not initialize any of the generic timer CPU
+    description: Firmware does analt initialize any of the generic timer CPU
       registers, which contain their architecturally-defined reset values. Only
       supported for 32-bit systems which follow the ARMv7 architected reset
       values.
 
-  arm,no-tick-in-suspend:
+  arm,anal-tick-in-suspend:
     type: boolean
-    description: The main counter does not tick when the system is in
-      low-power system suspend on some SoCs. This behavior does not match the
+    description: The main counter does analt tick when the system is in
+      low-power system suspend on some SoCs. This behavior does analt match the
       Architecture Reference Manual's specification that the system counter "must
       be implemented in an always-on power domain."
 
@@ -63,7 +63,7 @@ patternProperties:
   '^frame@[0-9a-z]*$':
     type: object
     additionalProperties: false
-    description: A timer node has up to 8 frame sub-nodes, each with the following properties.
+    description: A timer analde has up to 8 frame sub-analdes, each with the following properties.
     properties:
       frame-number:
         $ref: /schemas/types.yaml#/definitions/uint32

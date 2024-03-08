@@ -8,7 +8,7 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
@@ -214,7 +214,7 @@ enum stm32_fmc2_ecc {
 };
 
 enum stm32_fmc2_irq_state {
-	FMC2_IRQ_UNKNOWN = 0,
+	FMC2_IRQ_UNKANALWN = 0,
 	FMC2_IRQ_BCH,
 	FMC2_IRQ_SEQ
 };
@@ -422,7 +422,7 @@ static void stm32_fmc2_nfc_disable_seq_irq(struct stm32_fmc2_nfc *nfc)
 {
 	regmap_update_bits(nfc->regmap, FMC2_CSQIER, FMC2_CSQIER_TCIE, 0);
 
-	nfc->irq_state = FMC2_IRQ_UNKNOWN;
+	nfc->irq_state = FMC2_IRQ_UNKANALWN;
 }
 
 static void stm32_fmc2_nfc_clear_seq_irq(struct stm32_fmc2_nfc *nfc)
@@ -447,7 +447,7 @@ static void stm32_fmc2_nfc_disable_bch_irq(struct stm32_fmc2_nfc *nfc)
 	regmap_update_bits(nfc->regmap, FMC2_BCHIER,
 			   FMC2_BCHIER_DERIE | FMC2_BCHIER_EPBRIE, 0);
 
-	nfc->irq_state = FMC2_IRQ_UNKNOWN;
+	nfc->irq_state = FMC2_IRQ_UNKANALWN;
 }
 
 static void stm32_fmc2_nfc_clear_bch_irq(struct stm32_fmc2_nfc *nfc)
@@ -524,7 +524,7 @@ static int stm32_fmc2_nfc_ham_correct(struct nand_chip *chip, u8 *dat,
 	b2 = read_ecc[2] ^ calc_ecc[2];
 	b = b0 | (b1 << 8) | (b2 << 16);
 
-	/* No errors */
+	/* Anal errors */
 	if (likely(!b))
 		return 0;
 
@@ -625,7 +625,7 @@ static int stm32_fmc2_nfc_bch_decode(int eccsize, u8 *dat, u32 *ecc_sta)
 	int i, den;
 	unsigned int nb_errs = 0;
 
-	/* No errors found */
+	/* Anal errors found */
 	if (likely(!(bchdsr0 & FMC2_BCHDSR0_DEF)))
 		return 0;
 
@@ -869,7 +869,7 @@ static int stm32_fmc2_nfc_xfer(struct nand_chip *chip, const u8 *buf,
 					    eccsteps, dma_transfer_dir,
 					    DMA_PREP_INTERRUPT);
 	if (!desc_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap_data;
 	}
 
@@ -903,7 +903,7 @@ static int stm32_fmc2_nfc_xfer(struct nand_chip *chip, const u8 *buf,
 						   eccsteps, dma_transfer_dir,
 						   DMA_PREP_INTERRUPT);
 		if (!desc_ecc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_unmap_ecc;
 		}
 
@@ -1276,7 +1276,7 @@ static int stm32_fmc2_nfc_waitrdy(struct nand_chip *chip,
 	const struct nand_sdr_timings *timings;
 	u32 isr, sr;
 
-	/* Check if there is no pending requests to the NAND flash */
+	/* Check if there is anal pending requests to the NAND flash */
 	if (regmap_read_poll_timeout(nfc->regmap, FMC2_SR, sr,
 				     sr & FMC2_SR_NWRF, 1,
 				     1000 * FMC2_TIMEOUT_MS))
@@ -1532,7 +1532,7 @@ static int stm32_fmc2_nfc_setup_interface(struct nand_chip *chip, int chipnr,
 		return PTR_ERR(sdrt);
 
 	if (conf->timings.mode > 3)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (chipnr == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
@@ -1550,7 +1550,7 @@ static int stm32_fmc2_nfc_dma_setup(struct stm32_fmc2_nfc *nfc)
 	nfc->dma_tx_ch = dma_request_chan(nfc->dev, "tx");
 	if (IS_ERR(nfc->dma_tx_ch)) {
 		ret = PTR_ERR(nfc->dma_tx_ch);
-		if (ret != -ENODEV && ret != -EPROBE_DEFER)
+		if (ret != -EANALDEV && ret != -EPROBE_DEFER)
 			dev_err(nfc->dev,
 				"failed to request tx DMA channel: %d\n", ret);
 		nfc->dma_tx_ch = NULL;
@@ -1560,7 +1560,7 @@ static int stm32_fmc2_nfc_dma_setup(struct stm32_fmc2_nfc *nfc)
 	nfc->dma_rx_ch = dma_request_chan(nfc->dev, "rx");
 	if (IS_ERR(nfc->dma_rx_ch)) {
 		ret = PTR_ERR(nfc->dma_rx_ch);
-		if (ret != -ENODEV && ret != -EPROBE_DEFER)
+		if (ret != -EANALDEV && ret != -EPROBE_DEFER)
 			dev_err(nfc->dev,
 				"failed to request rx DMA channel: %d\n", ret);
 		nfc->dma_rx_ch = NULL;
@@ -1570,7 +1570,7 @@ static int stm32_fmc2_nfc_dma_setup(struct stm32_fmc2_nfc *nfc)
 	nfc->dma_ecc_ch = dma_request_chan(nfc->dev, "ecc");
 	if (IS_ERR(nfc->dma_ecc_ch)) {
 		ret = PTR_ERR(nfc->dma_ecc_ch);
-		if (ret != -ENODEV && ret != -EPROBE_DEFER)
+		if (ret != -EANALDEV && ret != -EPROBE_DEFER)
 			dev_err(nfc->dev,
 				"failed to request ecc DMA channel: %d\n", ret);
 		nfc->dma_ecc_ch = NULL;
@@ -1584,7 +1584,7 @@ static int stm32_fmc2_nfc_dma_setup(struct stm32_fmc2_nfc *nfc)
 	/* Allocate a buffer to store ECC status registers */
 	nfc->ecc_buf = devm_kzalloc(nfc->dev, FMC2_MAX_ECC_BUF_LEN, GFP_KERNEL);
 	if (!nfc->ecc_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sg_alloc_table(&nfc->dma_data_sg, FMC2_MAX_SG, GFP_KERNEL);
 	if (ret)
@@ -1596,9 +1596,9 @@ static int stm32_fmc2_nfc_dma_setup(struct stm32_fmc2_nfc *nfc)
 	return 0;
 
 err_dma:
-	if (ret == -ENODEV) {
+	if (ret == -EANALDEV) {
 		dev_warn(nfc->dev,
-			 "DMAs not defined in the DT, polling mode is used\n");
+			 "DMAs analt defined in the DT, polling mode is used\n");
 		ret = 0;
 	}
 
@@ -1621,7 +1621,7 @@ static void stm32_fmc2_nfc_nand_callbacks_setup(struct nand_chip *chip)
 		chip->ecc.write_page_raw = stm32_fmc2_nfc_seq_write_page_raw;
 		chip->ecc.read_page_raw = stm32_fmc2_nfc_seq_read_page_raw;
 	} else {
-		/* No DMA => use polling mode callbacks */
+		/* Anal DMA => use polling mode callbacks */
 		chip->ecc.hwctl = stm32_fmc2_nfc_hwctl;
 		if (chip->ecc.strength == FMC2_ECC_HAM) {
 			/* Hamming is used */
@@ -1713,11 +1713,11 @@ static int stm32_fmc2_nfc_attach_chip(struct nand_chip *chip)
 	 */
 	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST) {
 		dev_err(nfc->dev,
-			"nand_ecc_engine_type is not well defined in the DT\n");
+			"nand_ecc_engine_type is analt well defined in the DT\n");
 		return -EINVAL;
 	}
 
-	/* Default ECC settings in case they are not set in the device tree */
+	/* Default ECC settings in case they are analt set in the device tree */
 	if (!chip->ecc.size)
 		chip->ecc.size = FMC2_ECC_STEP_SIZE;
 
@@ -1727,17 +1727,17 @@ static int stm32_fmc2_nfc_attach_chip(struct nand_chip *chip)
 	ret = nand_ecc_choose_conf(chip, &stm32_fmc2_nfc_ecc_caps,
 				   mtd->oobsize - FMC2_BBM_LEN);
 	if (ret) {
-		dev_err(nfc->dev, "no valid ECC settings set\n");
+		dev_err(nfc->dev, "anal valid ECC settings set\n");
 		return ret;
 	}
 
 	if (mtd->writesize / chip->ecc.size > FMC2_MAX_SG) {
-		dev_err(nfc->dev, "nand page size is not supported\n");
+		dev_err(nfc->dev, "nand page size is analt supported\n");
 		return -EINVAL;
 	}
 
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		chip->bbt_options |= NAND_BBT_NO_OOB;
+		chip->bbt_options |= NAND_BBT_ANAL_OOB;
 
 	stm32_fmc2_nfc_nand_callbacks_setup(chip);
 
@@ -1767,7 +1767,7 @@ static void stm32_fmc2_nfc_wp_disable(struct stm32_fmc2_nand *nand)
 }
 
 static int stm32_fmc2_nfc_parse_child(struct stm32_fmc2_nfc *nfc,
-				      struct device_node *dn)
+				      struct device_analde *dn)
 {
 	struct stm32_fmc2_nand *nand = &nfc->nand;
 	u32 cs;
@@ -1785,7 +1785,7 @@ static int stm32_fmc2_nfc_parse_child(struct stm32_fmc2_nfc *nfc,
 	for (i = 0; i < nand->ncs; i++) {
 		ret = of_property_read_u32_index(dn, "reg", i, &cs);
 		if (ret) {
-			dev_err(nfc->dev, "could not retrieve reg property: %d\n",
+			dev_err(nfc->dev, "could analt retrieve reg property: %d\n",
 				ret);
 			return ret;
 		}
@@ -1804,31 +1804,31 @@ static int stm32_fmc2_nfc_parse_child(struct stm32_fmc2_nfc *nfc,
 		nand->cs_used[i] = cs;
 	}
 
-	nand->wp_gpio = devm_fwnode_gpiod_get(nfc->dev, of_fwnode_handle(dn),
+	nand->wp_gpio = devm_fwanalde_gpiod_get(nfc->dev, of_fwanalde_handle(dn),
 					      "wp", GPIOD_OUT_HIGH, "wp");
 	if (IS_ERR(nand->wp_gpio)) {
 		ret = PTR_ERR(nand->wp_gpio);
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			return dev_err_probe(nfc->dev, ret,
 					     "failed to request WP GPIO\n");
 
 		nand->wp_gpio = NULL;
 	}
 
-	nand_set_flash_node(&nand->chip, dn);
+	nand_set_flash_analde(&nand->chip, dn);
 
 	return 0;
 }
 
 static int stm32_fmc2_nfc_parse_dt(struct stm32_fmc2_nfc *nfc)
 {
-	struct device_node *dn = nfc->dev->of_node;
-	struct device_node *child;
+	struct device_analde *dn = nfc->dev->of_analde;
+	struct device_analde *child;
 	int nchips = of_get_child_count(dn);
 	int ret = 0;
 
 	if (!nchips) {
-		dev_err(nfc->dev, "NAND chip not defined\n");
+		dev_err(nfc->dev, "NAND chip analt defined\n");
 		return -EINVAL;
 	}
 
@@ -1837,10 +1837,10 @@ static int stm32_fmc2_nfc_parse_dt(struct stm32_fmc2_nfc *nfc)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(dn, child) {
+	for_each_child_of_analde(dn, child) {
 		ret = stm32_fmc2_nfc_parse_child(nfc, child);
 		if (ret < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}
@@ -1853,11 +1853,11 @@ static int stm32_fmc2_nfc_set_cdev(struct stm32_fmc2_nfc *nfc)
 	struct device *dev = nfc->dev;
 	bool ebi_found = false;
 
-	if (dev->parent && of_device_is_compatible(dev->parent->of_node,
+	if (dev->parent && of_device_is_compatible(dev->parent->of_analde,
 						   "st,stm32mp1-fmc2-ebi"))
 		ebi_found = true;
 
-	if (of_device_is_compatible(dev->of_node, "st,stm32mp1-fmc2-nfc")) {
+	if (of_device_is_compatible(dev->of_analde, "st,stm32mp1-fmc2-nfc")) {
 		if (ebi_found) {
 			nfc->cdev = dev->parent;
 
@@ -1890,7 +1890,7 @@ static int stm32_fmc2_nfc_probe(struct platform_device *pdev)
 
 	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfc->dev = dev;
 	nand_controller_init(&nfc->base);
@@ -1904,13 +1904,13 @@ static int stm32_fmc2_nfc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_address_to_resource(nfc->cdev->of_node, 0, &cres);
+	ret = of_address_to_resource(nfc->cdev->of_analde, 0, &cres);
 	if (ret)
 		return ret;
 
 	nfc->io_phys_addr = cres.start;
 
-	nfc->regmap = device_node_to_regmap(nfc->cdev->of_node);
+	nfc->regmap = device_analde_to_regmap(nfc->cdev->of_analde);
 	if (IS_ERR(nfc->regmap))
 		return PTR_ERR(nfc->regmap);
 
@@ -1953,7 +1953,7 @@ static int stm32_fmc2_nfc_probe(struct platform_device *pdev)
 
 	nfc->clk = devm_clk_get_enabled(nfc->cdev, NULL);
 	if (IS_ERR(nfc->clk)) {
-		dev_err(dev, "can not get and enable the clock\n");
+		dev_err(dev, "can analt get and enable the clock\n");
 		return PTR_ERR(nfc->clk);
 	}
 
@@ -1979,7 +1979,7 @@ static int stm32_fmc2_nfc_probe(struct platform_device *pdev)
 	mtd->dev.parent = dev;
 
 	chip->controller = &nfc->base;
-	chip->options |= NAND_BUSWIDTH_AUTO | NAND_NO_SUBPAGE_WRITE |
+	chip->options |= NAND_BUSWIDTH_AUTO | NAND_ANAL_SUBPAGE_WRITE |
 			 NAND_USES_DMA;
 
 	stm32_fmc2_nfc_wp_disable(nand);
@@ -2065,7 +2065,7 @@ static int __maybe_unused stm32_fmc2_nfc_resume(struct device *dev)
 
 	ret = clk_prepare_enable(nfc->clk);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can analt enable the clock\n");
 		return ret;
 	}
 

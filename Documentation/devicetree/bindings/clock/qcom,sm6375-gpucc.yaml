@@ -25,7 +25,7 @@ properties:
       - description: Board XO source
       - description: GPLL0 main branch source
       - description: GPLL0 div branch source
-      - description: SNoC DVM GFX source
+      - description: SAnalC DVM GFX source
 
   power-domains:
     description:
@@ -34,7 +34,7 @@ properties:
 
   required-opps:
     description:
-      A phandle to an OPP node describing required VDD_GX performance point.
+      A phandle to an OPP analde describing required VDD_GX performance point.
     maxItems: 1
 
 required:
@@ -64,7 +64,7 @@ examples:
             clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
                      <&gcc GCC_GPU_GPLL0_CLK_SRC>,
                      <&gcc GCC_GPU_GPLL0_DIV_CLK_SRC>,
-                     <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>;
+                     <&gcc GCC_GPU_SANALC_DVM_GFX_CLK>;
             power-domains = <&rpmpd SM6375_VDDGX>;
             required-opps = <&rpmpd_opp_low_svs>;
             #clock-cells = <1>;

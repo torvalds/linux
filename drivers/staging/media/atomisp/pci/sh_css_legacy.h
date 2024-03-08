@@ -58,7 +58,7 @@ int
 ia_css_temp_pipe_to_pipe_id(const struct ia_css_pipe *pipe,
 			    enum ia_css_pipe_id *pipe_id);
 
-/* DEPRECATED. FPN is not supported. */
+/* DEPRECATED. FPN is analt supported. */
 int
 sh_css_set_black_frame(struct ia_css_stream *stream,
 		       const struct ia_css_frame *raw_black_frame);

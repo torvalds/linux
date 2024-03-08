@@ -97,7 +97,7 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 	return 0;
 err_mem:
 	kfree(mt);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(input_mt_init_slots);
 
@@ -228,8 +228,8 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 		    input_abs_get_val(dev, ABS_DISTANCE) != 0) {
 			/*
 			 * Force reporting BTN_TOOL_FINGER for devices that
-			 * only report general hover (and not per-contact
-			 * distance) when contact is in proximity but not
+			 * only report general hover (and analt per-contact
+			 * distance) when contact is in proximity but analt
 			 * on the surface.
 			 */
 			count = 1;
@@ -272,10 +272,10 @@ static void __input_mt_drop_unused(struct input_dev *dev, struct input_mt *mt)
 }
 
 /**
- * input_mt_drop_unused() - Inactivate slots not seen in this frame
+ * input_mt_drop_unused() - Inactivate slots analt seen in this frame
  * @dev: input device with allocated MT slots
  *
- * Lift all slots not seen since the last call to this function.
+ * Lift all slots analt seen since the last call to this function.
  */
 void input_mt_drop_unused(struct input_dev *dev)
 {
@@ -472,7 +472,7 @@ static void input_mt_set_slots(struct input_mt *mt,
  * slots.
  *
  * The assignments are balanced so that all coordinate displacements are
- * below the euclidian distance dmax. If no such assignment can be found,
+ * below the euclidian distance dmax. If anal such assignment can be found,
  * some contacts are assigned to unused slots.
  *
  * Returns zero on success, or negative error in case of failure.
@@ -508,8 +508,8 @@ EXPORT_SYMBOL(input_mt_assign_slots);
  * Returns the slot of the given key, if it exists, otherwise
  * set the key on the first unused slot and return.
  *
- * If no available slot can be found, -1 is returned.
- * Note that for this function to work properly, input_mt_sync_frame() has
+ * If anal available slot can be found, -1 is returned.
+ * Analte that for this function to work properly, input_mt_sync_frame() has
  * to be called at each frame.
  */
 int input_mt_get_slot_by_key(struct input_dev *dev, int key)

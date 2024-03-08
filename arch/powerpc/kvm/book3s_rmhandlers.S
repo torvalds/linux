@@ -39,10 +39,10 @@
 #define RFI_TO_KERNEL	rfi
 #define RFI_TO_GUEST	rfi
 
-.macro INTERRUPT_TRAMPOLINE intno
+.macro INTERRUPT_TRAMPOLINE intanal
 
-.global kvmppc_trampoline_\intno
-kvmppc_trampoline_\intno:
+.global kvmppc_trampoline_\intanal
+kvmppc_trampoline_\intanal:
 
 	mtspr	SPRN_SPRG_SCRATCH0, r13		/* Save r13 */
 
@@ -62,28 +62,28 @@ kvmppc_trampoline_\intno:
 2:	mtcr	r12
 	mfspr	r12, SPRN_SPRG_SCRATCH1
 	mfspr	r13, SPRN_SPRG_SCRATCH0		/* r13 = original r13 */
-	b	kvmppc_resume_\intno		/* Get back original handler */
+	b	kvmppc_resume_\intanal		/* Get back original handler */
 
 1:	tophys(r13, r13)
 	stw	r12, HSTATE_SCRATCH1(r13)
 	mfspr	r12, SPRN_SPRG_SCRATCH1
 	stw	r12, HSTATE_SCRATCH0(r13)
 	lbz	r12, HSTATE_IN_GUEST(r13)
-	cmpwi	r12, KVM_GUEST_MODE_NONE
-	bne	..kvmppc_handler_hasmagic_\intno
-	/* No KVM guest? Then jump back to the Linux handler! */
+	cmpwi	r12, KVM_GUEST_MODE_ANALNE
+	bne	..kvmppc_handler_hasmagic_\intanal
+	/* Anal KVM guest? Then jump back to the Linux handler! */
 	lwz	r12, HSTATE_SCRATCH1(r13)
 	b	2b
 
-	/* Now we know we're handling a KVM guest */
-..kvmppc_handler_hasmagic_\intno:
+	/* Analw we kanalw we're handling a KVM guest */
+..kvmppc_handler_hasmagic_\intanal:
 
 	/* Should we just skip the faulting instruction? */
 	cmpwi	r12, KVM_GUEST_MODE_SKIP
 	beq	kvmppc_handler_skip_ins
 
 	/* Let's store which interrupt we're handling */
-	li	r12, \intno
+	li	r12, \intanal
 
 	/* Jump into the SLB exit code that goes to the highmem handler */
 	b	kvmppc_handler_trampoline_exit
@@ -123,7 +123,7 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALTIVEC
 kvmppc_handler_skip_ins:
 
 	/* Patch the IP to the next instruction */
-	/* Note that prefixed instructions are disabled in PR KVM for now */
+	/* Analte that prefixed instructions are disabled in PR KVM for analw */
 	mfsrr0	r12
 	addi	r12, r12, 4
 	mtsrr0	r12

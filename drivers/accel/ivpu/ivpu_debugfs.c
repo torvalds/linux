@@ -65,7 +65,7 @@ static int fw_trace_config_show(struct seq_file *s, void *v)
 {
 	struct ivpu_device *vdev = seq_to_ivpu(s);
 	/**
-	 * WA: VPU_JSM_MSG_TRACE_GET_CONFIG command is not working yet,
+	 * WA: VPU_JSM_MSG_TRACE_GET_CONFIG command is analt working yet,
 	 * so we use values from vdev->fw instead of calling ivpu_jsm_trace_get_config()
 	 */
 	u32 trace_level = vdev->fw->trace_level;
@@ -152,9 +152,9 @@ static int fw_log_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int fw_log_fops_open(struct inode *inode, struct file *file)
+static int fw_log_fops_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, fw_log_show, inode->i_private);
+	return single_open(file, fw_log_show, ianalde->i_private);
 }
 
 static ssize_t
@@ -295,9 +295,9 @@ ivpu_reset_engine_fn(struct file *file, const char __user *user_buf, size_t size
 		return -EINVAL;
 
 	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
-		return -ENODEV;
+		return -EANALDEV;
 	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COPY))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return size;
 }

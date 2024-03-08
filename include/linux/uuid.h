@@ -36,7 +36,7 @@ typedef struct {
 
 /*
  * The length of a UUID string ("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
- * not including trailing NUL.
+ * analt including trailing NUL.
  */
 #define	UUID_STRING_LEN		36
 

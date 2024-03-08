@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/soc/samsung/exynos-usi.yaml#
+$id: http://devicetree.org/schemas/soc/samsung/exyanals-usi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung's Exynos USI (Universal Serial Interface)
+title: Samsung's Exyanals USI (Universal Serial Interface)
 
 maintainers:
   - Sam Protsenko <semen.protsenko@linaro.org>
@@ -13,12 +13,12 @@ maintainers:
 description: |
   USI IP-core provides selectable serial protocol (UART, SPI or High-Speed I2C).
   USI shares almost all internal circuits within each protocol, so only one
-  protocol can be chosen at a time. USI is modeled as a node with zero or more
-  child nodes, each representing a serial sub-node device. The mode setting
+  protocol can be chosen at a time. USI is modeled as a analde with zero or more
+  child analdes, each representing a serial sub-analde device. The mode setting
   selects which particular function will be used.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^usi@[0-9a-f]+$"
 
   compatible:
@@ -26,11 +26,11 @@ properties:
       - items:
           - enum:
               - google,gs101-usi
-              - samsung,exynosautov9-usi
-              - samsung,exynosautov920-usi
-          - const: samsung,exynos850-usi
+              - samsung,exyanalsautov9-usi
+              - samsung,exyanalsautov920-usi
+          - const: samsung,exyanals850-usi
       - enum:
-          - samsung,exynos850-usi
+          - samsung,exyanals850-usi
 
   reg: true
 
@@ -50,10 +50,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to System Register syscon node
+          - description: phandle to System Register syscon analde
           - description: offset of SW_CONF register for this USI controller
     description:
-      Should be phandle/offset pair. The phandle to System Register syscon node
+      Should be phandle/offset pair. The phandle to System Register syscon analde
       (for the same domain where this USI controller resides) and the offset
       of SW_CONF register for this USI controller.
 
@@ -61,7 +61,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Selects USI function (which serial protocol to use). Refer to
-      <include/dt-bindings/soc/samsung,exynos-usi.h> for valid USI mode values.
+      <include/dt-bindings/soc/samsung,exyanals-usi.h> for valid USI mode values.
 
   samsung,clkreq-on:
     type: boolean
@@ -76,16 +76,16 @@ properties:
 
 patternProperties:
   "^i2c@[0-9a-f]+$":
-    $ref: /schemas/i2c/i2c-exynos5.yaml
-    description: Child node describing underlying I2C
+    $ref: /schemas/i2c/i2c-exyanals5.yaml
+    description: Child analde describing underlying I2C
 
   "^serial@[0-9a-f]+$":
     $ref: /schemas/serial/samsung_uart.yaml
-    description: Child node describing underlying UART/serial
+    description: Child analde describing underlying UART/serial
 
   "^spi@[0-9a-f]+$":
     $ref: /schemas/spi/samsung,spi.yaml
-    description: Child node describing underlying SPI
+    description: Child analde describing underlying SPI
 
 required:
   - compatible
@@ -100,7 +100,7 @@ if:
     compatible:
       contains:
         enum:
-          - samsung,exynos850-usi
+          - samsung,exyanals850-usi
 
 then:
   properties:
@@ -134,10 +134,10 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    #include <dt-bindings/soc/samsung,exynos-usi.h>
+    #include <dt-bindings/soc/samsung,exyanals-usi.h>
 
     usi0: usi@138200c0 {
-        compatible = "samsung,exynos850-usi";
+        compatible = "samsung,exyanals850-usi";
         reg = <0x138200c0 0x20>;
         samsung,sysreg = <&sysreg_peri 0x1010>;
         samsung,mode = <USI_V2_UART>;
@@ -149,7 +149,7 @@ examples:
         clock-names = "pclk", "ipclk";
 
         serial_0: serial@13820000 {
-            compatible = "samsung,exynos850-uart";
+            compatible = "samsung,exyanals850-uart";
             reg = <0x13820000 0xc0>;
             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cmu_peri 32>, <&cmu_peri 31>;
@@ -158,7 +158,7 @@ examples:
         };
 
         hsi2c_0: i2c@13820000 {
-            compatible = "samsung,exynos850-hsi2c", "samsung,exynosautov9-hsi2c";
+            compatible = "samsung,exyanals850-hsi2c", "samsung,exyanalsautov9-hsi2c";
             reg = <0x13820000 0xc0>;
             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
             #address-cells = <1>;

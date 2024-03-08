@@ -57,7 +57,7 @@ static inline int get_hugepd_cache_index(int index)
 	default:
 		BUG();
 	}
-	/* should not reach */
+	/* should analt reach */
 }
 
 #endif /* CONFIG_HUGETLB_PAGE */

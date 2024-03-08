@@ -68,7 +68,7 @@ static const struct scsi_host_template tosh_sht = {
 
 static struct ata_port_operations tosh_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_piomode	= tosh_set_piomode,
 	.set_dmamode	= tosh_set_dmamode
 };

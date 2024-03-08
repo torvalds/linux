@@ -11,7 +11,7 @@
 #define _LINUX_PSTORE_H
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kmsg_dump.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -55,16 +55,16 @@ struct pstore_info;
  * @time:	timestamp of the record
  * @buf:	pointer to record contents
  * @size:	size of @buf
- * @ecc_notice_size:
+ * @ecc_analtice_size:
  *		ECC information for @buf
  * @priv:	pointer for backend specific use, will be
- *		kfree()d by the pstore core if non-NULL
+ *		kfree()d by the pstore core if analn-NULL
  *		when the record is freed.
  *
  * Valid for PSTORE_TYPE_DMESG @type:
  *
  * @count:	Oops count since boot
- * @reason:	kdump reason for notification
+ * @reason:	kdump reason for analtification
  * @part:	position in a multipart record
  * @compressed:	whether the buffer is compressed
  *
@@ -76,7 +76,7 @@ struct pstore_record {
 	struct timespec64	time;
 	char			*buf;
 	ssize_t			size;
-	ssize_t			ecc_notice_size;
+	ssize_t			ecc_analtice_size;
 	void			*priv;
 
 	int			count;
@@ -111,22 +111,22 @@ struct pstore_record {
  * Callbacks:
  *
  * @open:
- *	Notify backend that pstore is starting a full read of backend
+ *	Analtify backend that pstore is starting a full read of backend
  *	records. Followed by one or more @read calls, and a final @close.
  *
  *	@psi:	in: pointer to the struct pstore_info for the backend
  *
- *	Returns 0 on success, and non-zero on error.
+ *	Returns 0 on success, and analn-zero on error.
  *
  * @close:
- *	Notify backend that pstore has finished a full read of backend
+ *	Analtify backend that pstore has finished a full read of backend
  *	records. Always preceded by an @open call and one or more @read
  *	calls.
  *
  *	@psi:	in: pointer to the struct pstore_info for the backend
  *
- *	Returns 0 on success, and non-zero on error. (Though pstore will
- *	ignore the error.)
+ *	Returns 0 on success, and analn-zero on error. (Though pstore will
+ *	iganalre the error.)
  *
  * @read:
  *	Read next available backend record. Called after a successful
@@ -138,7 +138,7 @@ struct pstore_record {
  *		be populated, since these are used when creating pstorefs
  *		file names.
  *
- *	Returns record size on success, zero when no more records are
+ *	Returns record size on success, zero when anal more records are
  *	available, or negative on error.
  *
  * @write:
@@ -155,7 +155,7 @@ struct pstore_record {
  *		when available. The @size field will have the size of data
  *		in @buf.
  *
- *	Returns 0 on success, and non-zero on error.
+ *	Returns 0 on success, and analn-zero on error.
  *
  * @write_user:
  *	Perform a frontend write to a backend record, using a specified
@@ -165,7 +165,7 @@ struct pstore_record {
  *	@record:	pointer to record metadata.
  *	@buf:		pointer to userspace contents to write to backend
  *
- *	Returns 0 on success, and non-zero on error.
+ *	Returns 0 on success, and analn-zero on error.
  *
  * @erase:
  *	Delete a record from backend storage.  Different backends
@@ -175,7 +175,7 @@ struct pstore_record {
  *
  *	@record:	pointer to record metadata.
  *
- *	Returns 0 on success, and non-zero on error.
+ *	Returns 0 on success, and analn-zero on error.
  *
  */
 struct pstore_info {

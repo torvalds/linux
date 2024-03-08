@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 68060 FLOATING-POINT SOFTWARE PACKAGE (Kernel version)
@@ -78,7 +78,7 @@ Release file structure:
 (bottom of module)
 
 The first section of this module is the "Call-out" section. This section
-is NOT INCLUDED in fpsp.sa (an example "Call-out" section is provided at
+is ANALT INCLUDED in fpsp.sa (an example "Call-out" section is provided at
 the end of the file fskeleton.s). The purpose of this section is to allow
 the FPSP routines to reference external functions that must be provided
 by the host operating system. This section MUST be exactly 128 bytes in
@@ -91,7 +91,7 @@ fpsp.sa image in memory.
 
 The second section, the "Entry-point" section, is used by external routines
 to access the functions within the FPSP. Since the fpsp.sa hex file contains
-no symbol names, this section contains function entry points that are fixed
+anal symbol names, this section contains function entry points that are fixed
 with respect to the top of the package. The currently defined entry-points
 are listed in section "68060 FPSP entry points" below. A calling routine
 would simply execute a "bra" or "jmp" that jumped to the selected function
@@ -224,7 +224,7 @@ _060_fpsp_unfl:
 
 _060_fpsp_fline:
 -----------------
-- not fully documented in 060SP spec.
+- analt fully documented in 060SP spec.
 - Basic flow:
 	exception taken ---> enter _060_fpsp_fline --|
 						     |
@@ -238,14 +238,14 @@ _060_fpsp_fline:
             |     _060_real_fpu_disabled        -------------
             |                                   |           |
             |               ^                   v           v
-            |               |                 (yes)        (no)
+            |               |                 (anal)        (anal)
             |               |                   v           v
             |               |             fpu disabled?   exit through
             |               |                   |         _060_real_fline
             v               |             -------------
             |               |             |           |
             |               |             v           v
-            |               |-----------(yes)        (no)
+            |               |-----------(anal)        (anal)
             |                                         |
             |----<------------------------------------|
             |

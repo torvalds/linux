@@ -4,7 +4,7 @@ include ../Makefile.miniconfig
 
 # Binary to produce
 BIN=memcpy_thread
-# Any linking/libraries needed for the binary - empty if none needed
+# Any linking/libraries needed for the binary - empty if analne needed
 LIB=-pthread
 
 all: $(BIN)

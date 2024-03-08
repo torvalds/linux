@@ -50,7 +50,7 @@ ENTRY(__raw_writesb)
 		stmfd	sp!, {r4, r5, lr}
 
 		subs	r2, r2, #16
-		bmi	.Loutsb_no_16
+		bmi	.Loutsb_anal_16
 
 .Loutsb_16_lp:	ldmia	r1!, {r3, r4, r5, ip}
 		outword	r3
@@ -63,20 +63,20 @@ ENTRY(__raw_writesb)
 		tst	r2, #15
 		ldmfdeq	sp!, {r4, r5, pc}
 
-.Loutsb_no_16:	tst	r2, #8
-		beq	.Loutsb_no_8
+.Loutsb_anal_16:	tst	r2, #8
+		beq	.Loutsb_anal_8
 
 		ldmia	r1!, {r3, r4}
 		outword	r3
 		outword	r4
 
-.Loutsb_no_8:	tst	r2, #4
-		beq	.Loutsb_no_4
+.Loutsb_anal_8:	tst	r2, #4
+		beq	.Loutsb_anal_4
 
 		ldr	r3, [r1], #4
 		outword	r3
 
-.Loutsb_no_4:	ands	r2, r2, #3
+.Loutsb_anal_4:	ands	r2, r2, #3
 		ldmfdeq	sp!, {r4, r5, pc}
 
 		cmp	r2, #2

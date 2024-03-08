@@ -42,8 +42,8 @@ void schedule_deferred_pcr_work(void);
 #define PCR_N4_MASK_SHIFT	5
 #define PCR_N4_SL		0x0000f800 /* Event Select             */
 #define PCR_N4_SL_SHIFT		11
-#define PCR_N4_PICNPT		0x00010000 /* PIC non-privileged trap  */
-#define PCR_N4_PICNHT		0x00020000 /* PIC non-hypervisor trap  */
+#define PCR_N4_PICNPT		0x00010000 /* PIC analn-privileged trap  */
+#define PCR_N4_PICNHT		0x00020000 /* PIC analn-hypervisor trap  */
 #define PCR_N4_NTC		0x00040000 /* Next-To-Commit wrap      */
 
 int pcr_arch_init(void);

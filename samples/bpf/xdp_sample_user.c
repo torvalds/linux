@@ -4,7 +4,7 @@
 #include <arpa/inet.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <linux/ethtool.h>
@@ -64,10 +64,10 @@
 #define XMIT(xmit) xmit, "xmit/s"
 #define PASS(pass) pass, "pass/s"
 #define REDIR(redir) redir, "redir/s"
-#define NANOSEC_PER_SEC 1000000000 /* 10^9 */
+#define NAANALSEC_PER_SEC 1000000000 /* 10^9 */
 
-#define XDP_UNKNOWN (XDP_REDIRECT + 1)
-#define XDP_ACTION_MAX (XDP_UNKNOWN + 1)
+#define XDP_UNKANALWN (XDP_REDIRECT + 1)
+#define XDP_ACTION_MAX (XDP_UNKANALWN + 1)
 #define XDP_REDIRECT_ERR_MAX 7
 
 enum map_type {
@@ -94,7 +94,7 @@ struct record {
 };
 
 struct map_entry {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	__u64 pair;
 	struct record val;
 };
@@ -160,24 +160,24 @@ int sample_sig_fd;
 int sample_mask;
 
 static const char *xdp_redirect_err_names[XDP_REDIRECT_ERR_MAX] = {
-	/* Key=1 keeps unknown errors */
+	/* Key=1 keeps unkanalwn errors */
 	"Success",
-	"Unknown",
+	"Unkanalwn",
 	"EINVAL",
 	"ENETDOWN",
 	"EMSGSIZE",
-	"EOPNOTSUPP",
-	"ENOSPC",
+	"EOPANALTSUPP",
+	"EANALSPC",
 };
 
-/* Keyed from Unknown */
+/* Keyed from Unkanalwn */
 static const char *xdp_redirect_err_help[XDP_REDIRECT_ERR_MAX - 1] = {
-	"Unknown error",
+	"Unkanalwn error",
 	"Invalid redirection",
 	"Device being redirected to is down",
 	"Packet length too large for device",
-	"Operation not supported",
-	"No space in ptr_ring of cpumap kthread",
+	"Operation analt supported",
+	"Anal space in ptr_ring of cpumap kthread",
 };
 
 static const char *xdp_action_names[XDP_ACTION_MAX] = {
@@ -186,7 +186,7 @@ static const char *xdp_action_names[XDP_ACTION_MAX] = {
 	[XDP_PASS]     = "XDP_PASS",
 	[XDP_TX]       = "XDP_TX",
 	[XDP_REDIRECT] = "XDP_REDIRECT",
-	[XDP_UNKNOWN]  = "XDP_UNKNOWN",
+	[XDP_UNKANALWN]  = "XDP_UNKANALWN",
 };
 
 static __u64 gettime(void)
@@ -194,12 +194,12 @@ static __u64 gettime(void)
 	struct timespec t;
 	int res;
 
-	res = clock_gettime(CLOCK_MONOTONIC, &t);
+	res = clock_gettime(CLOCK_MOANALTONIC, &t);
 	if (res < 0) {
 		fprintf(stderr, "Error with gettimeofday! (%i)\n", res);
 		return UINT64_MAX;
 	}
-	return (__u64)t.tv_sec * NANOSEC_PER_SEC + t.tv_nsec;
+	return (__u64)t.tv_sec * NAANALSEC_PER_SEC + t.tv_nsec;
 }
 
 static const char *action2str(int action)
@@ -234,10 +234,10 @@ static void sample_print_help(int mask)
 	if (mask & (SAMPLE_REDIRECT_CNT | SAMPLE_REDIRECT_ERR_CNT)) {
 		printf("  redirect\t\tDisplays the number of packets successfully redirected\n"
 		       "  \t\t\tErrors encountered are expanded under redirect_err field\n"
-		       "  \t\t\tNote that passing -s to enable it has a per packet overhead\n"
+		       "  \t\t\tAnalte that passing -s to enable it has a per packet overhead\n"
 		       "  \t\t\t\tredir/s   - Packets redirected successfully per second\n\n"
 		       "  redirect_err\t\tDisplays the number of packets that failed redirection\n"
-		       "  \t\t\tThe errno is expanded under this field with per CPU count\n"
+		       "  \t\t\tThe erranal is expanded under this field with per CPU count\n"
 		       "  \t\t\tThe recognized errors are:\n");
 
 		for (int i = 2; i < XDP_REDIRECT_ERR_MAX; i++)
@@ -282,7 +282,7 @@ static void sample_print_help(int mask)
 	if (mask & SAMPLE_DEVMAP_XMIT_CNT) {
 		printf("  devmap_xmit\t\tDisplays devmap_xmit tracepoint events\n"
 		       "  \t\t\tThis tracepoint is invoked for successful transmissions on output\n"
-		       "  \t\t\tdevice but these statistics are not available for generic XDP mode,\n"
+		       "  \t\t\tdevice but these statistics are analt available for generic XDP mode,\n"
 		       "  \t\t\thence they will be omitted from the output when using SKB mode\n"
 		       "  \t\t\t\txmit/s    - Number of packets that were transmitted per second\n"
 		       "  \t\t\t\tdrop/s    - Number of packets that failed transmissions per second\n"
@@ -329,11 +329,11 @@ static struct datarec *alloc_record_per_cpu(void)
 static int map_entry_init(struct map_entry *e, __u64 pair)
 {
 	e->pair = pair;
-	INIT_HLIST_NODE(&e->node);
+	INIT_HLIST_ANALDE(&e->analde);
 	e->val.timestamp = gettime();
 	e->val.cpu = alloc_record_per_cpu();
 	if (!e->val.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -388,11 +388,11 @@ static int map_collect_percpu_devmap(int map_fd, struct stats_record *rec)
 
 	keys = calloc(count, sizeof(__u64));
 	if (!keys)
-		return -ENOMEM;
+		return -EANALMEM;
 	values = calloc(count * nr_cpus, sizeof(struct datarec));
 	if (!values) {
 		free(keys);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (;;) {
@@ -400,9 +400,9 @@ static int map_collect_percpu_devmap(int map_fd, struct stats_record *rec)
 
 		ret = bpf_map_lookup_batch(map_fd, init ? &batch : NULL, &batch,
 					   keys, values, &count, NULL);
-		if (ret < 0 && errno != ENOENT)
+		if (ret < 0 && erranal != EANALENT)
 			break;
-		if (errno == ENOENT)
+		if (erranal == EANALENT)
 			exit = true;
 
 		init = true;
@@ -412,7 +412,7 @@ static int map_collect_percpu_devmap(int map_fd, struct stats_record *rec)
 			struct datarec *arr;
 
 			arr = &values[i * nr_cpus];
-			hash_for_each_possible(rec->xmit_map, e, node, pair) {
+			hash_for_each_possible(rec->xmit_map, e, analde, pair) {
 				if (e->pair == pair) {
 					x = e;
 					break;
@@ -426,7 +426,7 @@ static int map_collect_percpu_devmap(int map_fd, struct stats_record *rec)
 					free(x);
 					goto cleanup;
 				}
-				hash_add(rec->xmit_map, &x->node, pair);
+				hash_add(rec->xmit_map, &x->analde, pair);
 			}
 			map_collect_percpu(arr, &x->val);
 		}
@@ -442,7 +442,7 @@ static int map_collect_percpu_devmap(int map_fd, struct stats_record *rec)
 cleanup:
 	free(values);
 	free(keys);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct stats_record *alloc_stats_record(void)
@@ -546,14 +546,14 @@ end_rec:
 
 static void free_stats_record(struct stats_record *r)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct map_entry *e;
 	int i;
 
 	for (i = 0; i < sample_n_cpus; i++)
 		free(r->enq[i].cpu);
-	hash_for_each_safe(r->xmit_map, i, tmp, e, node) {
-		hash_del(&e->node);
+	hash_for_each_safe(r->xmit_map, i, tmp, e, analde) {
+		hash_del(&e->analde);
 		free(e->val.cpu);
 		free(e);
 	}
@@ -574,7 +574,7 @@ static double calc_period(struct record *r, struct record *p)
 
 	period = r->timestamp - p->timestamp;
 	if (period > 0)
-		period_ = ((double)period / NANOSEC_PER_SEC);
+		period_ = ((double)period / NAANALSEC_PER_SEC);
 
 	return period_;
 }
@@ -1009,7 +1009,7 @@ static void stats_get_devmap_xmit_multi(struct stats_record *stats_rec,
 	double t;
 	int bkt;
 
-	hash_for_each(stats_rec->xmit_map, bkt, entry, node) {
+	hash_for_each(stats_rec->xmit_map, bkt, entry, analde) {
 		struct map_entry *e, *x = NULL;
 		char ifname_from[IFNAMSIZ];
 		char ifname_to[IFNAMSIZ];
@@ -1021,7 +1021,7 @@ static void stats_get_devmap_xmit_multi(struct stats_record *stats_rec,
 		__u64 pair;
 		int i;
 
-		prev_time = sample_interval * NANOSEC_PER_SEC;
+		prev_time = sample_interval * NAANALSEC_PER_SEC;
 
 		pair = entry->pair;
 		from_idx = pair >> 32;
@@ -1031,7 +1031,7 @@ static void stats_get_devmap_xmit_multi(struct stats_record *stats_rec,
 		beg.timestamp = r->timestamp - prev_time;
 
 		/* Find matching entry from stats_prev map */
-		hash_for_each_possible(stats_prev->xmit_map, e, node, pair) {
+		hash_for_each_possible(stats_prev->xmit_map, e, analde, pair) {
 			if (e->pair == pair) {
 				x = e;
 				break;
@@ -1218,7 +1218,7 @@ int sample_setup_maps(struct bpf_map **maps)
 			return -EINVAL;
 		}
 		if (bpf_map__set_max_entries(sample_map[i], sample_map_count[i]) < 0)
-			return -errno;
+			return -erranal;
 	}
 	sample_map[MAP_DEVMAP_XMIT_MULTI] = maps[MAP_DEVMAP_XMIT_MULTI];
 	return 0;
@@ -1232,7 +1232,7 @@ static int sample_setup_maps_mappings(void)
 		sample_mmap[i] = mmap(NULL, size, PROT_READ | PROT_WRITE,
 				      MAP_SHARED, bpf_map__fd(sample_map[i]), 0);
 		if (sample_mmap[i] == MAP_FAILED)
-			return -errno;
+			return -erranal;
 	}
 	return 0;
 }
@@ -1247,11 +1247,11 @@ int __sample_init(int mask)
 	sigaddset(&st, SIGTERM);
 
 	if (sigprocmask(SIG_BLOCK, &st, NULL) < 0)
-		return -errno;
+		return -erranal;
 
-	sample_sig_fd = signalfd(-1, &st, SFD_CLOEXEC | SFD_NONBLOCK);
+	sample_sig_fd = signalfd(-1, &st, SFD_CLOEXEC | SFD_ANALNBLOCK);
 	if (sample_sig_fd < 0)
-		return -errno;
+		return -erranal;
 
 	sample_mask = mask;
 
@@ -1266,14 +1266,14 @@ static int __sample_remove_xdp(int ifindex, __u32 prog_id, int xdp_flags)
 	if (prog_id) {
 		ret = bpf_xdp_query_id(ifindex, xdp_flags, &cur_prog_id);
 		if (ret < 0)
-			return -errno;
+			return -erranal;
 
 		if (prog_id != cur_prog_id) {
 			print_always(
-				"Program on ifindex %d does not match installed "
+				"Program on ifindex %d does analt match installed "
 				"program, skipping unload\n",
 				ifindex);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -1289,14 +1289,14 @@ int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
 	if (sample_xdp_cnt == 32) {
 		fprintf(stderr,
 			"Total limit for installed XDP programs in a sample reached\n");
-		return -ENOTSUP;
+		return -EANALTSUP;
 	}
 
-	xdp_flags |= !force ? XDP_FLAGS_UPDATE_IF_NOEXIST : 0;
+	xdp_flags |= !force ? XDP_FLAGS_UPDATE_IF_ANALEXIST : 0;
 	xdp_flags |= generic ? XDP_FLAGS_SKB_MODE : XDP_FLAGS_DRV_MODE;
 	ret = bpf_xdp_attach(ifindex, bpf_program__fd(xdp_prog), xdp_flags, NULL);
 	if (ret < 0) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr,
 			"Failed to install program \"%s\" on ifindex %d, mode = %s, "
 			"force = %s: %s\n",
@@ -1308,10 +1308,10 @@ int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
 
 	ret = bpf_xdp_query_id(ifindex, xdp_flags, &prog_id);
 	if (ret < 0) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr,
 			"Failed to get XDP program id for ifindex %d, removing program: %s\n",
-			ifindex, strerror(errno));
+			ifindex, strerror(erranal));
 		__sample_remove_xdp(ifindex, 0, xdp_flags);
 		return ret;
 	}
@@ -1469,9 +1469,9 @@ static int sample_signal_cb(void)
 
 	r = read(sample_sig_fd, &si, sizeof(si));
 	if (r < 0)
-		return -errno;
+		return -erranal;
 
-	switch (si.ssi_signo) {
+	switch (si.ssi_siganal) {
 	case SIGQUIT:
 		sample_switch_mode();
 		printf("\n");
@@ -1503,7 +1503,7 @@ static int sample_timer_cb(int timerfd, struct stats_record **rec,
 
 	ret = read(timerfd, &t, sizeof(t));
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 
 	swap(prev, rec);
 	ret = sample_stats_collect(*rec);
@@ -1544,9 +1544,9 @@ int sample_run(int interval, void (*post_cb)(void *), void *ctx)
 	/* Pretty print numbers */
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 
-	timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
+	timerfd = timerfd_create(CLOCK_MOANALTONIC, TFD_CLOEXEC | TFD_ANALNBLOCK);
 	if (timerfd < 0)
-		return -errno;
+		return -erranal;
 	timerfd_settime(timerfd, 0, &its, NULL);
 
 	pfd[0].fd = sample_sig_fd;
@@ -1555,7 +1555,7 @@ int sample_run(int interval, void (*post_cb)(void *), void *ctx)
 	pfd[1].fd = timerfd;
 	pfd[1].events = POLLIN;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	rec = alloc_stats_record();
 	if (!rec)
 		goto end;
@@ -1570,7 +1570,7 @@ int sample_run(int interval, void (*post_cb)(void *), void *ctx)
 	for (;;) {
 		ret = poll(pfd, 2, -1);
 		if (ret < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			else
 				break;
@@ -1627,9 +1627,9 @@ const char *get_driver_name(int ifindex)
 	return drvname;
 
 end:
-	r = errno;
+	r = erranal;
 	close(fd);
-	return r == EOPNOTSUPP ? "loopback" : "[error]";
+	return r == EOPANALTSUPP ? "loopback" : "[error]";
 }
 
 int get_mac_addr(int ifindex, void *mac_addr)
@@ -1640,10 +1640,10 @@ int get_mac_addr(int ifindex, void *mac_addr)
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	if (!if_indextoname(ifindex, ifname)) {
-		r = -errno;
+		r = -erranal;
 		goto end;
 	}
 
@@ -1651,7 +1651,7 @@ int get_mac_addr(int ifindex, void *mac_addr)
 
 	r = ioctl(fd, SIOCGIFHWADDR, &ifr);
 	if (r) {
-		r = -errno;
+		r = -erranal;
 		goto end;
 	}
 
@@ -1666,8 +1666,8 @@ __attribute__((constructor)) static void sample_ctor(void)
 {
 	if (libbpf_set_strict_mode(LIBBPF_STRICT_ALL) < 0) {
 		fprintf(stderr, "Failed to set libbpf strict mode: %s\n",
-			strerror(errno));
-		/* Just exit, nothing to cleanup right now */
+			strerror(erranal));
+		/* Just exit, analthing to cleanup right analw */
 		exit(EXIT_FAIL_BPF);
 	}
 }

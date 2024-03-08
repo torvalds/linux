@@ -94,7 +94,7 @@ void dw_spi_set_cs(struct spi_device *spi, bool enable)
 	 * DW SPI controller demands any native CS being set in order to
 	 * proceed with data transfer. So in order to activate the SPI
 	 * communications we must set a corresponding bit in the Slave
-	 * Enable register no matter whether the SPI core is configured to
+	 * Enable register anal matter whether the SPI core is configured to
 	 * support active-high or active-low CS level.
 	 */
 	if (cs_high == enable)
@@ -112,7 +112,7 @@ static inline u32 dw_spi_tx_max(struct dw_spi *dws)
 	tx_room = dws->fifo_len - dw_readl(dws, DW_SPI_TXFLR);
 
 	/*
-	 * Another concern is about the tx/rx mismatch, we
+	 * Aanalther concern is about the tx/rx mismatch, we
 	 * though to use (dws->fifo_len - rxflr - txflr) as
 	 * one maximum value for tx, but it doesn't cover the
 	 * data which is out of tx/rx fifo and inside the
@@ -219,7 +219,7 @@ static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 
 	/*
 	 * Read data from the Rx FIFO every time we've got a chance executing
-	 * this method. If there is nothing left to receive, terminate the
+	 * this method. If there is analthing left to receive, terminate the
 	 * procedure. Otherwise adjust the Rx FIFO Threshold level if it's a
 	 * final stage of the transfer. By doing so we'll get the next IRQ
 	 * right when the leftover incoming data is received.
@@ -234,7 +234,7 @@ static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 
 	/*
 	 * Send data out if Tx FIFO Empty IRQ is received. The IRQ will be
-	 * disabled after the data transmission is finished so not to
+	 * disabled after the data transmission is finished so analt to
 	 * have the TXE IRQ flood at the final stage of the transfer.
 	 */
 	if (irq_status & DW_SPI_INT_TXEI) {
@@ -253,7 +253,7 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	u16 irq_status = dw_readl(dws, DW_SPI_ISR) & DW_SPI_INT_MASK;
 
 	if (!irq_status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!host->cur_msg) {
 		dw_spi_mask_intr(dws, 0xff);
@@ -334,7 +334,7 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 	    cfg->tmode == DW_SPI_CTRLR0_TMOD_RO)
 		dw_writel(dws, DW_SPI_CTRLR1, cfg->ndf ? cfg->ndf - 1 : 0);
 
-	/* Note DW APB SSI clock divider doesn't support odd numbers */
+	/* Analte DW APB SSI clock divider doesn't support odd numbers */
 	clk_div = (DIV_ROUND_UP(dws->max_freq, cfg->freq) + 1) & 0xfffe;
 	speed_hz = dws->max_freq / clk_div;
 
@@ -359,7 +359,7 @@ static void dw_spi_irq_setup(struct dw_spi *dws)
 	/*
 	 * Originally Tx and Rx data lengths match. Rx FIFO Threshold level
 	 * will be adjusted at the final stage of the IRQ-based SPI transfer
-	 * execution so not to lose the leftover of the incoming data.
+	 * execution so analt to lose the leftover of the incoming data.
 	 */
 	level = min_t(unsigned int, dws->fifo_len / 2, dws->tx_len);
 	dw_writel(dws, DW_SPI_TXFTLR, level);
@@ -378,7 +378,7 @@ static void dw_spi_irq_setup(struct dw_spi *dws)
  * to be read, read it from the Rx FIFO and check whether the performed
  * procedure has been successful.
  *
- * Note this method the same way as the IRQ-based transfer won't work well for
+ * Analte this method the same way as the IRQ-based transfer won't work well for
  * the SPI devices connected to the controller with native CS due to the
  * automatic CS assertion/de-assertion.
  */
@@ -456,7 +456,7 @@ static int dw_spi_transfer_one(struct spi_controller *host,
 
 	if (dws->dma_mapped)
 		return dws->dma_ops->dma_transfer(dws, transfer);
-	else if (dws->irq == IRQ_NOTCONNECTED)
+	else if (dws->irq == IRQ_ANALTCONNECTED)
 		return dw_spi_poll_transfer(dws, transfer);
 
 	dw_spi_irq_setup(dws);
@@ -511,7 +511,7 @@ static int dw_spi_init_mem_buf(struct dw_spi *dws, const struct spi_mem_op *op)
 	} else {
 		out = kzalloc(len, GFP_KERNEL);
 		if (!out)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/*
@@ -556,7 +556,7 @@ static int dw_spi_write_then_read(struct dw_spi *dws, struct spi_device *spi)
 	u8 *buf;
 
 	/*
-	 * At initial stage we just pre-fill the Tx FIFO in with no rush,
+	 * At initial stage we just pre-fill the Tx FIFO in with anal rush,
 	 * since native CS hasn't been enabled yet and the automatic data
 	 * transmission won't start til we do that.
 	 */
@@ -655,7 +655,7 @@ static void dw_spi_stop_mem_op(struct dw_spi *dws, struct spi_device *spi)
  * The SPI memory operation implementation below is the best choice for the
  * devices, which are selected by the native chip-select lane. It's
  * specifically developed to workaround the problem with automatic chip-select
- * lane toggle when there is no data in the Tx FIFO buffer. Luckily the current
+ * lane toggle when there is anal data in the Tx FIFO buffer. Luckily the current
  * SPI-mem core calls exec_op() callback only if the GPIO-based CS is
  * unavailable.
  */
@@ -714,10 +714,10 @@ static int dw_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	 * Rx FIFO overflow we have to disable the local interrupts so to block
 	 * any preemption during the subsequent IO operations.
 	 *
-	 * Note. At some circumstances disabling IRQs may not help to prevent
+	 * Analte. At some circumstances disabling IRQs may analt help to prevent
 	 * the problems described above. The CS de-assertion and Rx FIFO
 	 * overflow may still happen due to the relatively slow system bus or
-	 * CPU not working fast enough, so the write-then-read algo implemented
+	 * CPU analt working fast eanalugh, so the write-then-read algo implemented
 	 * here just won't keep up with the SPI bus data transfer. Such
 	 * situation is highly platform specific and is supposed to be fixed by
 	 * manually restricting the SPI bus frequency using the
@@ -754,11 +754,11 @@ static int dw_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 /*
  * Initialize the default memory operations if a glue layer hasn't specified
  * custom ones. Direct mapping operations will be preserved anyway since DW SPI
- * controller doesn't have an embedded dirmap interface. Note the memory
+ * controller doesn't have an embedded dirmap interface. Analte the memory
  * operations implemented in this driver is the best choice only for the DW APB
  * SSI controller with standard native CS functionality. If a hardware vendor
  * has fixed the automatic CS assertion/de-assertion peculiarity, then it will
- * be safer to use the normal SPI-messages-based transfers implementation.
+ * be safer to use the analrmal SPI-messages-based transfers implementation.
  */
 static void dw_spi_init_mem_ops(struct dw_spi *dws)
 {
@@ -786,7 +786,7 @@ static int dw_spi_setup(struct spi_device *spi)
 
 		chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 		if (!chip)
-			return -ENOMEM;
+			return -EANALMEM;
 		spi_set_ctldata(spi, chip);
 		/* Get specific / default rx-sample-delay */
 		if (device_property_read_u32(&spi->dev,
@@ -823,21 +823,21 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 	dw_spi_reset_chip(dws);
 
 	/*
-	 * Retrieve the Synopsys component version if it hasn't been specified
+	 * Retrieve the Syanalpsys component version if it hasn't been specified
 	 * by the platform. CoreKit version ID is encoded as a 3-chars ASCII
-	 * code enclosed with '*' (typical for the most of Synopsys IP-cores).
+	 * code enclosed with '*' (typical for the most of Syanalpsys IP-cores).
 	 */
 	if (!dws->ver) {
 		dws->ver = dw_readl(dws, DW_SPI_VERSION);
 
-		dev_dbg(dev, "Synopsys DWC%sSSI v%c.%c%c\n",
+		dev_dbg(dev, "Syanalpsys DWC%sSSI v%c.%c%c\n",
 			dw_spi_ip_is(dws, PSSI) ? " APB " : " ",
 			DW_SPI_GET_BYTE(dws->ver, 3), DW_SPI_GET_BYTE(dws->ver, 2),
 			DW_SPI_GET_BYTE(dws->ver, 1));
 	}
 
 	/*
-	 * Try to detect the FIFO depth if not set by interface driver,
+	 * Try to detect the FIFO depth if analt set by interface driver,
 	 * the depth could be from 2 to 256 from HW spec
 	 */
 	if (!dws->fifo_len) {
@@ -856,7 +856,7 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 
 	/*
 	 * Detect CTRLR0.DFS field size and offset by testing the lowest bits
-	 * writability. Note DWC SSI controller also has the extended DFS, but
+	 * writability. Analte DWC SSI controller also has the extended DFS, but
 	 * with zero offset.
 	 */
 	if (dw_spi_ip_is(dws, PSSI)) {
@@ -892,9 +892,9 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 
 	host = spi_alloc_host(dev, 0);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	device_set_node(&host->dev, dev_fwnode(dev));
+	device_set_analde(&host->dev, dev_fwanalde(dev));
 
 	dws->host = host;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + DW_SPI_DR);
@@ -906,8 +906,8 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 
 	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED, dev_name(dev),
 			  host);
-	if (ret < 0 && ret != -ENOTCONN) {
-		dev_err(dev, "can not get IRQ\n");
+	if (ret < 0 && ret != -EANALTCONN) {
+		dev_err(dev, "can analt get IRQ\n");
 		goto err_free_host;
 	}
 

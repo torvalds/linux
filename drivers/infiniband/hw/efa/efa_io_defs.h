@@ -38,17 +38,17 @@ enum efa_io_comp_status {
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_INVALID_OP_TYPE = 3,
 	/* Bad AH */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_INVALID_AH   = 4,
-	/* LKEY not registered or does not match IOVA */
+	/* LKEY analt registered or does analt match IOVA */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_INVALID_LKEY = 5,
 	/* Message too long */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_BAD_LENGTH   = 6,
-	/* Destination ENI is down or does not run EFA */
+	/* Destination ENI is down or does analt run EFA */
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_BAD_ADDRESS = 7,
 	/* Connection was reset by remote side */
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_ABORT       = 8,
-	/* Bad dest QP number (QP does not exist or is in error state) */
+	/* Bad dest QP number (QP does analt exist or is in error state) */
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_BAD_DEST_QPN = 9,
-	/* Destination resource not ready (no WQEs posted on RQ) */
+	/* Destination resource analt ready (anal WQEs posted on RQ) */
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_RNR         = 10,
 	/* Receiver SGL too short */
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_BAD_LENGTH  = 11,
@@ -68,8 +68,8 @@ struct efa_io_tx_meta_desc {
 	 * 4 : has_imm - immediate_data field carries valid
 	 *    data.
 	 * 5 : inline_msg - inline mode - inline message data
-	 *    follows this descriptor (no buffer descriptors).
-	 *    Note that it is different from immediate data
+	 *    follows this descriptor (anal buffer descriptors).
+	 *    Analte that it is different from immediate data
 	 * 6 : meta_extension - Extended metadata. MBZ
 	 * 7 : meta_desc - Indicates metadata descriptor.
 	 *    Must be set.
@@ -270,7 +270,7 @@ struct efa_io_rx_cdesc_ex {
 		struct efa_io_rx_cdesc_rdma_write rdma_write;
 
 		/*
-		 * Valid only in case of unknown AH (0xFFFF) and CQ
+		 * Valid only in case of unkanalwn AH (0xFFFF) and CQ
 		 * set_src_addr is enabled.
 		 */
 		u8 src_addr[16];

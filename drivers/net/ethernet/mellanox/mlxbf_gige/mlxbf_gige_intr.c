@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
-/* Interrupt related logic for Mellanox Gigabit Ethernet driver
+/* Interrupt related logic for Mellaanalx Gigabit Ethernet driver
  *
  * Copyright (C) 2020-2021 NVIDIA CORPORATION & AFFILIATES
  */
@@ -55,7 +55,7 @@ static irqreturn_t mlxbf_gige_error_intr(int irq, void *dev_id)
 		priv->stats.sw_access_errors++;
 
 	/* Clear all error interrupts by writing '1' back to
-	 * all the asserted bits in INT_STATUS.  Do not write
+	 * all the asserted bits in INT_STATUS.  Do analt write
 	 * '1' back to 'receive packet' bit, since that is
 	 * managed separately.
 	 */
@@ -73,7 +73,7 @@ static irqreturn_t mlxbf_gige_rx_intr(int irq, void *dev_id)
 
 	priv = dev_id;
 
-	/* NOTE: GigE silicon automatically disables "packet rx" interrupt by
+	/* ANALTE: GigE silicon automatically disables "packet rx" interrupt by
 	 *       setting MLXBF_GIGE_INT_MASK bit0 upon triggering the interrupt
 	 *       to the ARM cores.  Software needs to re-enable "packet rx"
 	 *       interrupts by clearing MLXBF_GIGE_INT_MASK bit0.

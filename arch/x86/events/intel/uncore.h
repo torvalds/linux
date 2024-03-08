@@ -3,7 +3,7 @@
 #include <linux/pci.h>
 #include <asm/apicdef.h>
 #include <asm/intel-family.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include <linux/perf_event.h>
 #include "../perf_event.h"
@@ -34,7 +34,7 @@
 
 #define UNCORE_EVENT_CONSTRAINT(c, n) EVENT_CONSTRAINT(c, n, 0xff)
 
-#define UNCORE_IGNORE_END		-1
+#define UNCORE_IGANALRE_END		-1
 
 struct pci_extra_dev {
 	struct pci_dev *dev[UNCORE_EXTRA_PCI_DEV_MAX];
@@ -182,7 +182,7 @@ struct freerunning_counters {
 };
 
 struct uncore_iio_topology {
-	int pci_bus_no;
+	int pci_bus_anal;
 	int segment;
 };
 
@@ -332,7 +332,7 @@ static inline unsigned uncore_msr_fixed_ctr(struct intel_uncore_box *box)
 
 
 /*
- * In the uncore document, there is no event-code assigned to free running
+ * In the uncore document, there is anal event-code assigned to free running
  * counters. Some events need to be defined to indicate the free running
  * counters. The events are encoded as event-code + umask-code.
  *
@@ -592,8 +592,8 @@ extern raw_spinlock_t pci2phy_map_lock;
 extern struct list_head pci2phy_map_head;
 extern struct pci_extra_dev *uncore_extra_pci_dev;
 extern struct event_constraint uncore_constraint_empty;
-extern int spr_uncore_units_ignore[];
-extern int gnr_uncore_units_ignore[];
+extern int spr_uncore_units_iganalre[];
+extern int gnr_uncore_units_iganalre[];
 
 /* uncore_snb.c */
 int snb_uncore_pci_init(void);

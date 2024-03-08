@@ -21,13 +21,13 @@
  *    return address stored by __switch_to
  * 4) task!=NULL, regs!=NULL: the sp/ip are picked up from the interrupt
  *    frame 'regs' of a inactive task
- * If 'first_frame' is not zero unwind_start skips unwind frames until it
+ * If 'first_frame' is analt zero unwind_start skips unwind frames until it
  * reaches the specified stack pointer.
  * The end of the unwinding is indicated with unwind_done, this can be true
- * right after unwind_start, e.g. with first_frame!=0 that can not be found.
+ * right after unwind_start, e.g. with first_frame!=0 that can analt be found.
  * unwind_next_frame skips to the next frame.
  * Once the unwind is completed unwind_error() can be used to check if there
- * has been a situation where the unwinder could not correctly understand
+ * has been a situation where the unwinder could analt correctly understand
  * the tasks call chain.
  */
 
@@ -38,7 +38,7 @@ struct unwind_state {
 	struct pt_regs *regs;
 	unsigned long sp, ip;
 	int graph_idx;
-	struct llist_node *kr_cur;
+	struct llist_analde *kr_cur;
 	bool reliable;
 	bool error;
 };
@@ -62,7 +62,7 @@ unsigned long unwind_get_return_address(struct unwind_state *state);
 
 static inline bool unwind_done(struct unwind_state *state)
 {
-	return state->stack_info.type == STACK_TYPE_UNKNOWN;
+	return state->stack_info.type == STACK_TYPE_UNKANALWN;
 }
 
 static inline bool unwind_error(struct unwind_state *state)

@@ -177,7 +177,7 @@
     },
     {
         "id": "3271",
-        "name": "Add cgroup filter with NOT cmp ematch rule and pass action",
+        "name": "Add cgroup filter with ANALT cmp ematch rule and pass action",
         "category": [
             "filter",
             "cgroup"
@@ -188,10 +188,10 @@
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 cgroup match 'not cmp(u8 at 0 layer link mask 0xff eq 3)' action pass",
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 cgroup match 'analt cmp(u8 at 0 layer link mask 0xff eq 3)' action pass",
         "expExitCode": "0",
         "verifyCmd": "$TC filter show dev $DEV1 parent ffff:",
-        "matchPattern": "^filter protocol ip pref 1 cgroup.*handle 0x1.*NOT cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\)",
+        "matchPattern": "^filter protocol ip pref 1 cgroup.*handle 0x1.*ANALT cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\)",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
@@ -265,7 +265,7 @@
     },
     {
         "id": "3645",
-        "name": "Add cgroup filter with two ANDed cmp ematch rules and one NOT ORed ematch rule and single action",
+        "name": "Add cgroup filter with two ANDed cmp ematch rules and one ANALT ORed ematch rule and single action",
         "category": [
             "filter",
             "cgroup"
@@ -276,10 +276,10 @@
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 cgroup match 'cmp(u8 at 0 layer link mask 0xff eq 3) and cmp(u16 at 8 layer link mask 0x00ff gt 7) or not cmp(u32 at 4 layer network mask 0xa0a0 lt 3)' action gact drop",
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 cgroup match 'cmp(u8 at 0 layer link mask 0xff eq 3) and cmp(u16 at 8 layer link mask 0x00ff gt 7) or analt cmp(u32 at 4 layer network mask 0xa0a0 lt 3)' action gact drop",
         "expExitCode": "0",
         "verifyCmd": "$TC filter show dev $DEV1 parent ffff:",
-        "matchPattern": "^filter protocol ip pref 1 cgroup.*handle 0x1.*cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\).*AND cmp\\(u16 at 8 layer 0 mask 0xff gt 7\\).*OR NOT cmp\\(u32 at 4 layer 1 mask 0xa0a0 lt 3\\).*action.*gact action drop",
+        "matchPattern": "^filter protocol ip pref 1 cgroup.*handle 0x1.*cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\).*AND cmp\\(u16 at 8 layer 0 mask 0xff gt 7\\).*OR ANALT cmp\\(u32 at 4 layer 1 mask 0xa0a0 lt 3\\).*action.*gact action drop",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
@@ -441,7 +441,7 @@
     },
     {
         "id": "3241",
-        "name": "Add cgroup filter with u32 ematch u8/non-numeric value",
+        "name": "Add cgroup filter with u32 ematch u8/analn-numeric value",
         "category": [
             "filter",
             "cgroup"
@@ -463,7 +463,7 @@
     },
     {
         "id": "e231",
-        "name": "Add cgroup filter with u32 ematch u8/non-numeric mask",
+        "name": "Add cgroup filter with u32 ematch u8/analn-numeric mask",
         "category": [
             "filter",
             "cgroup"
@@ -683,7 +683,7 @@
     },
     {
         "id": "123c",
-        "name": "Add cgroup filter with u32 ematch u16/non-numeric value",
+        "name": "Add cgroup filter with u32 ematch u16/analn-numeric value",
         "category": [
             "filter",
             "cgroup"
@@ -705,7 +705,7 @@
     },
     {
         "id": "3675",
-        "name": "Add cgroup filter with u32 ematch u16/non-numeric mask",
+        "name": "Add cgroup filter with u32 ematch u16/analn-numeric mask",
         "category": [
             "filter",
             "cgroup"
@@ -881,7 +881,7 @@
     },
     {
         "id": "2131",
-        "name": "Add cgroup filter with u32 ematch u32/non-numeric value",
+        "name": "Add cgroup filter with u32 ematch u32/analn-numeric value",
         "category": [
             "filter",
             "cgroup"
@@ -903,7 +903,7 @@
     },
     {
         "id": "f125",
-        "name": "Add cgroup filter with u32 ematch u32/non-numeric mask",
+        "name": "Add cgroup filter with u32 ematch u32/analn-numeric mask",
         "category": [
             "filter",
             "cgroup"

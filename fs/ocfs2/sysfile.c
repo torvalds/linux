@@ -17,151 +17,151 @@
 
 #include "alloc.h"
 #include "dir.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "journal.h"
 #include "sysfile.h"
 
 #include "buffer_head_io.h"
 
-static struct inode * _ocfs2_get_system_file_inode(struct ocfs2_super *osb,
+static struct ianalde * _ocfs2_get_system_file_ianalde(struct ocfs2_super *osb,
 						   int type,
 						   u32 slot);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-static struct lock_class_key ocfs2_sysfile_cluster_lock_key[NUM_SYSTEM_INODES];
+static struct lock_class_key ocfs2_sysfile_cluster_lock_key[NUM_SYSTEM_IANALDES];
 #endif
 
-static inline int is_global_system_inode(int type)
+static inline int is_global_system_ianalde(int type)
 {
-	return type >= OCFS2_FIRST_ONLINE_SYSTEM_INODE &&
-		type <= OCFS2_LAST_GLOBAL_SYSTEM_INODE;
+	return type >= OCFS2_FIRST_ONLINE_SYSTEM_IANALDE &&
+		type <= OCFS2_LAST_GLOBAL_SYSTEM_IANALDE;
 }
 
-static struct inode **get_local_system_inode(struct ocfs2_super *osb,
+static struct ianalde **get_local_system_ianalde(struct ocfs2_super *osb,
 					     int type,
 					     u32 slot)
 {
 	int index;
-	struct inode **local_system_inodes, **free = NULL;
+	struct ianalde **local_system_ianaldes, **free = NULL;
 
 	BUG_ON(slot == OCFS2_INVALID_SLOT);
-	BUG_ON(type < OCFS2_FIRST_LOCAL_SYSTEM_INODE ||
-	       type > OCFS2_LAST_LOCAL_SYSTEM_INODE);
+	BUG_ON(type < OCFS2_FIRST_LOCAL_SYSTEM_IANALDE ||
+	       type > OCFS2_LAST_LOCAL_SYSTEM_IANALDE);
 
 	spin_lock(&osb->osb_lock);
-	local_system_inodes = osb->local_system_inodes;
+	local_system_ianaldes = osb->local_system_ianaldes;
 	spin_unlock(&osb->osb_lock);
 
-	if (unlikely(!local_system_inodes)) {
-		local_system_inodes =
-			kzalloc(array3_size(sizeof(struct inode *),
-					    NUM_LOCAL_SYSTEM_INODES,
+	if (unlikely(!local_system_ianaldes)) {
+		local_system_ianaldes =
+			kzalloc(array3_size(sizeof(struct ianalde *),
+					    NUM_LOCAL_SYSTEM_IANALDES,
 					    osb->max_slots),
-				GFP_NOFS);
-		if (!local_system_inodes) {
-			mlog_errno(-ENOMEM);
+				GFP_ANALFS);
+		if (!local_system_ianaldes) {
+			mlog_erranal(-EANALMEM);
 			/*
-			 * return NULL here so that ocfs2_get_sytem_file_inodes
-			 * will try to create an inode and use it. We will try
-			 * to initialize local_system_inodes next time.
+			 * return NULL here so that ocfs2_get_sytem_file_ianaldes
+			 * will try to create an ianalde and use it. We will try
+			 * to initialize local_system_ianaldes next time.
 			 */
 			return NULL;
 		}
 
 		spin_lock(&osb->osb_lock);
-		if (osb->local_system_inodes) {
+		if (osb->local_system_ianaldes) {
 			/* Someone has initialized it for us. */
-			free = local_system_inodes;
-			local_system_inodes = osb->local_system_inodes;
+			free = local_system_ianaldes;
+			local_system_ianaldes = osb->local_system_ianaldes;
 		} else
-			osb->local_system_inodes = local_system_inodes;
+			osb->local_system_ianaldes = local_system_ianaldes;
 		spin_unlock(&osb->osb_lock);
 		kfree(free);
 	}
 
-	index = (slot * NUM_LOCAL_SYSTEM_INODES) +
-		(type - OCFS2_FIRST_LOCAL_SYSTEM_INODE);
+	index = (slot * NUM_LOCAL_SYSTEM_IANALDES) +
+		(type - OCFS2_FIRST_LOCAL_SYSTEM_IANALDE);
 
-	return &local_system_inodes[index];
+	return &local_system_ianaldes[index];
 }
 
-struct inode *ocfs2_get_system_file_inode(struct ocfs2_super *osb,
+struct ianalde *ocfs2_get_system_file_ianalde(struct ocfs2_super *osb,
 					  int type,
 					  u32 slot)
 {
-	struct inode *inode = NULL;
-	struct inode **arr = NULL;
+	struct ianalde *ianalde = NULL;
+	struct ianalde **arr = NULL;
 
 	/* avoid the lookup if cached in local system file array */
-	if (is_global_system_inode(type)) {
-		arr = &(osb->global_system_inodes[type]);
+	if (is_global_system_ianalde(type)) {
+		arr = &(osb->global_system_ianaldes[type]);
 	} else
-		arr = get_local_system_inode(osb, type, slot);
+		arr = get_local_system_ianalde(osb, type, slot);
 
 	mutex_lock(&osb->system_file_mutex);
-	if (arr && ((inode = *arr) != NULL)) {
+	if (arr && ((ianalde = *arr) != NULL)) {
 		/* get a ref in addition to the array ref */
-		inode = igrab(inode);
+		ianalde = igrab(ianalde);
 		mutex_unlock(&osb->system_file_mutex);
-		BUG_ON(!inode);
+		BUG_ON(!ianalde);
 
-		return inode;
+		return ianalde;
 	}
 
 	/* this gets one ref thru iget */
-	inode = _ocfs2_get_system_file_inode(osb, type, slot);
+	ianalde = _ocfs2_get_system_file_ianalde(osb, type, slot);
 
 	/* add one more if putting into array for first time */
-	if (arr && inode) {
-		*arr = igrab(inode);
+	if (arr && ianalde) {
+		*arr = igrab(ianalde);
 		BUG_ON(!*arr);
 	}
 	mutex_unlock(&osb->system_file_mutex);
-	return inode;
+	return ianalde;
 }
 
-static struct inode * _ocfs2_get_system_file_inode(struct ocfs2_super *osb,
+static struct ianalde * _ocfs2_get_system_file_ianalde(struct ocfs2_super *osb,
 						   int type,
 						   u32 slot)
 {
 	char namebuf[40];
-	struct inode *inode = NULL;
-	u64 blkno;
+	struct ianalde *ianalde = NULL;
+	u64 blkanal;
 	int status = 0;
 
-	ocfs2_sprintf_system_inode_name(namebuf,
+	ocfs2_sprintf_system_ianalde_name(namebuf,
 					sizeof(namebuf),
 					type, slot);
 
-	status = ocfs2_lookup_ino_from_name(osb->sys_root_inode, namebuf,
-					    strlen(namebuf), &blkno);
+	status = ocfs2_lookup_ianal_from_name(osb->sys_root_ianalde, namebuf,
+					    strlen(namebuf), &blkanal);
 	if (status < 0) {
 		goto bail;
 	}
 
-	inode = ocfs2_iget(osb, blkno, OCFS2_FI_FLAG_SYSFILE, type);
-	if (IS_ERR(inode)) {
-		mlog_errno(PTR_ERR(inode));
-		inode = NULL;
+	ianalde = ocfs2_iget(osb, blkanal, OCFS2_FI_FLAG_SYSFILE, type);
+	if (IS_ERR(ianalde)) {
+		mlog_erranal(PTR_ERR(ianalde));
+		ianalde = NULL;
 		goto bail;
 	}
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	if (type == LOCAL_USER_QUOTA_SYSTEM_INODE ||
-	    type == LOCAL_GROUP_QUOTA_SYSTEM_INODE ||
-	    type == JOURNAL_SYSTEM_INODE) {
-		/* Ignore inode lock on these inodes as the lock does not
-		 * really belong to any process and lockdep cannot handle
+	if (type == LOCAL_USER_QUOTA_SYSTEM_IANALDE ||
+	    type == LOCAL_GROUP_QUOTA_SYSTEM_IANALDE ||
+	    type == JOURNAL_SYSTEM_IANALDE) {
+		/* Iganalre ianalde lock on these ianaldes as the lock does analt
+		 * really belong to any process and lockdep cananalt handle
 		 * that */
-		OCFS2_I(inode)->ip_inode_lockres.l_lockdep_map.key = NULL;
+		OCFS2_I(ianalde)->ip_ianalde_lockres.l_lockdep_map.key = NULL;
 	} else {
-		lockdep_init_map(&OCFS2_I(inode)->ip_inode_lockres.
+		lockdep_init_map(&OCFS2_I(ianalde)->ip_ianalde_lockres.
 								l_lockdep_map,
-				 ocfs2_system_inodes[type].si_name,
+				 ocfs2_system_ianaldes[type].si_name,
 				 &ocfs2_sysfile_cluster_lock_key[type], 0);
 	}
 #endif
 bail:
 
-	return inode;
+	return ianalde;
 }
 

@@ -23,7 +23,7 @@
  */
 #define RNG_MODULE_NAME "hw_random"
 
-/* Changed at init time, in the non-modular case, and at module load
+/* Changed at init time, in the analn-modular case, and at module load
  * time, in the module case.  Presumably, the module subsystem
  * protects against a module being loaded twice at the same time.
  */
@@ -42,7 +42,7 @@ static int rng_dev_read(struct hwrng *rng, void *buf, size_t max, bool block)
 
 			ret = wait_for_completion_killable(&have_data);
 
-			ignore_sigio_fd(random_fd);
+			iganalre_sigio_fd(random_fd);
 			deactivate_fd(random_fd, RANDOM_IRQ);
 
 			if (ret < 0)

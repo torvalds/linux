@@ -20,7 +20,7 @@
  * stores the user configured per cpu CLOSID and RMID.
  *
  * The cache also helps to avoid pointless updates if the value does
- * not change.
+ * analt change.
  */
 struct resctrl_pqr_state {
 	u32			cur_rmid;
@@ -40,7 +40,7 @@ DECLARE_STATIC_KEY_FALSE(rdt_mon_enable_key);
  *
  * Following considerations are made so that this has minimal impact
  * on scheduler hot path:
- * - This will stay as no-op unless we are running on an Intel SKU
+ * - This will stay as anal-op unless we are running on an Intel SKU
  *   which supports resource control or monitoring and we enable by
  *   mounting the resctrl file system.
  * - Caches the per cpu CLOSid/RMID values and does the MSR write only

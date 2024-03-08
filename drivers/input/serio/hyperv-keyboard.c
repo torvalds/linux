@@ -16,8 +16,8 @@
  *
  */
 #define SYNTH_KBD_VERSION_MAJOR 1
-#define SYNTH_KBD_VERSION_MINOR	0
-#define SYNTH_KBD_VERSION		(SYNTH_KBD_VERSION_MINOR | \
+#define SYNTH_KBD_VERSION_MIANALR	0
+#define SYNTH_KBD_VERSION		(SYNTH_KBD_VERSION_MIANALR | \
 					 (SYNTH_KBD_VERSION_MAJOR << 16))
 
 
@@ -199,16 +199,16 @@ static void hv_kbd_handle_received_packet(struct hv_device *hv_dev,
 		 * parse the payload header safely (assuming that the host
 		 * can be trusted.  Trusting the host seems to be a
 		 * reasonable assumption because in a virtualized
-		 * environment there is not whole lot you can do if you
+		 * environment there is analt whole lot you can do if you
 		 * don't trust the host.
 		 *
-		 * Nonetheless, let us validate if the host can be trusted
+		 * Analnetheless, let us validate if the host can be trusted
 		 * (in a trivial way).  The interesting aspect of this
 		 * validation is how do you recover if we discover that the
-		 * host is not to be trusted? Simply dropping the packet, I
+		 * host is analt to be trusted? Simply dropping the packet, I
 		 * don't think is an appropriate recovery.  In the interest
 		 * of failing fast, it may be better to crash the guest.
-		 * For now, I will just drop the packet!
+		 * For analw, I will just drop the packet!
 		 */
 
 		msg_sz = bytes_recvd - (desc->offset8 << 3);
@@ -283,7 +283,7 @@ static int hv_kbd_connect_to_vsp(struct hv_device *hv_dev)
 		dev_err(&hv_dev->device,
 			"synth_kbd protocol request failed (version %d)\n",
 		        SYNTH_KBD_VERSION);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -321,7 +321,7 @@ static int hv_kbd_probe(struct hv_device *hv_dev,
 	kbd_dev = kzalloc(sizeof(struct hv_kbd_dev), GFP_KERNEL);
 	hv_serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!kbd_dev || !hv_serio) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -419,7 +419,7 @@ static struct  hv_driver hv_kbd_drv = {
 	.suspend = hv_kbd_suspend,
 	.resume = hv_kbd_resume,
 	.driver = {
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

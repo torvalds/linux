@@ -16,8 +16,8 @@
  * contents for __mcount_loc and its relocations.  The old shstrtab strings,
  * and the old ElfXX_Shdr[] array, remain as "garbage" (commonly, a couple
  * kilobytes.)  Subsequent processing by /bin/ld (or the kernel module loader)
- * will ignore the garbage regions, because they are not designated by the
- * new .e_shoff nor the new ElfXX_Shdr[].  [In order to remove the garbage,
+ * will iganalre the garbage regions, because they are analt designated by the
+ * new .e_shoff analr the new ElfXX_Shdr[].  [In order to remove the garbage,
  * then use "ld -r" to create a new file that omits the garbage.]
  */
 
@@ -34,7 +34,7 @@
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183
-#define R_AARCH64_NONE		0
+#define R_AARCH64_ANALNE		0
 #define R_AARCH64_ABS64	257
 #endif
 
@@ -57,7 +57,7 @@ static int mmap_failed; /* Boolean flag. */
 static char gpfx;	/* prefix for global symbol name (sometimes '_') */
 static struct stat sb;	/* Remember .st_size, etc. */
 static const char *altmcount;	/* alternate mcount symbol name */
-static int warn_on_notrace_sect; /* warn when section has mcount not being recorded */
+static int warn_on_analtrace_sect; /* warn when section has mcount analt being recorded */
 static void *file_map;	/* pointer of the mapped file */
 static void *file_end;	/* pointer to the end of the mapped file */
 static int file_updated; /* flag to state file was changed */
@@ -166,10 +166,10 @@ static void * umalloc(size_t size)
  * avoids copying unused pieces; else just read the whole file.
  * Open for both read and write; new info will be appended to the file.
  * Use MAP_PRIVATE so that a few changes to the in-memory ElfXX_Ehdr
- * do not propagate to the file until an explicit overwrite at the last.
+ * do analt propagate to the file until an explicit overwrite at the last.
  * This preserves most aspects of consistency (all except .st_size)
  * for simultaneous readers of the file while we are appending to it.
- * However, multiple writers still are bad.  We choose not to use
+ * However, multiple writers still are bad.  We choose analt to use
  * locking because it is expensive and the use case of kernel build
  * makes multiple writers unlikely.
  */
@@ -193,7 +193,7 @@ static void *mmap_file(char const *fname)
 		goto out;
 	}
 	if (!S_ISREG(sb.st_mode)) {
-		fprintf(stderr, "not a regular file: %s\n", fname);
+		fprintf(stderr, "analt a regular file: %s\n", fname);
 		goto out;
 	}
 	file_map = mmap(0, sb.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE,
@@ -223,15 +223,15 @@ out:
 }
 
 
-static unsigned char ideal_nop5_x86_64[5] = { 0x0f, 0x1f, 0x44, 0x00, 0x00 };
-static unsigned char ideal_nop5_x86_32[5] = { 0x3e, 0x8d, 0x74, 0x26, 0x00 };
-static unsigned char *ideal_nop;
+static unsigned char ideal_analp5_x86_64[5] = { 0x0f, 0x1f, 0x44, 0x00, 0x00 };
+static unsigned char ideal_analp5_x86_32[5] = { 0x3e, 0x8d, 0x74, 0x26, 0x00 };
+static unsigned char *ideal_analp;
 
-static char rel_type_nop;
+static char rel_type_analp;
 
-static int (*make_nop)(void *map, size_t const offset);
+static int (*make_analp)(void *map, size_t const offset);
 
-static int make_nop_x86(void *map, size_t const offset)
+static int make_analp_x86(void *map, size_t const offset)
 {
 	uint32_t *ptr;
 	unsigned char *op;
@@ -245,17 +245,17 @@ static int make_nop_x86(void *map, size_t const offset)
 	if (*op != 0xe8)
 		return -1;
 
-	/* convert to nop */
+	/* convert to analp */
 	if (ulseek(offset - 1, SEEK_SET) < 0)
 		return -1;
-	if (uwrite(ideal_nop, 5) < 0)
+	if (uwrite(ideal_analp, 5) < 0)
 		return -1;
 	return 0;
 }
 
-static unsigned char ideal_nop4_arm_le[4] = { 0x00, 0x00, 0xa0, 0xe1 }; /* mov r0, r0 */
-static unsigned char ideal_nop4_arm_be[4] = { 0xe1, 0xa0, 0x00, 0x00 }; /* mov r0, r0 */
-static unsigned char *ideal_nop4_arm;
+static unsigned char ideal_analp4_arm_le[4] = { 0x00, 0x00, 0xa0, 0xe1 }; /* mov r0, r0 */
+static unsigned char ideal_analp4_arm_be[4] = { 0xe1, 0xa0, 0x00, 0x00 }; /* mov r0, r0 */
+static unsigned char *ideal_analp4_arm;
 
 static unsigned char bl_mcount_arm_le[4] = { 0xfe, 0xff, 0xff, 0xeb }; /* bl */
 static unsigned char bl_mcount_arm_be[4] = { 0xeb, 0xff, 0xff, 0xfe }; /* bl */
@@ -265,19 +265,19 @@ static unsigned char push_arm_le[4] = { 0x04, 0xe0, 0x2d, 0xe5 }; /* push {lr} *
 static unsigned char push_arm_be[4] = { 0xe5, 0x2d, 0xe0, 0x04 }; /* push {lr} */
 static unsigned char *push_arm;
 
-static unsigned char ideal_nop2_thumb_le[2] = { 0x00, 0xbf }; /* nop */
-static unsigned char ideal_nop2_thumb_be[2] = { 0xbf, 0x00 }; /* nop */
-static unsigned char *ideal_nop2_thumb;
+static unsigned char ideal_analp2_thumb_le[2] = { 0x00, 0xbf }; /* analp */
+static unsigned char ideal_analp2_thumb_be[2] = { 0xbf, 0x00 }; /* analp */
+static unsigned char *ideal_analp2_thumb;
 
 static unsigned char push_bl_mcount_thumb_le[6] = { 0x00, 0xb5, 0xff, 0xf7, 0xfe, 0xff }; /* push {lr}, bl */
 static unsigned char push_bl_mcount_thumb_be[6] = { 0xb5, 0x00, 0xf7, 0xff, 0xff, 0xfe }; /* push {lr}, bl */
 static unsigned char *push_bl_mcount_thumb;
 
-static int make_nop_arm(void *map, size_t const offset)
+static int make_analp_arm(void *map, size_t const offset)
 {
 	char *ptr;
 	int cnt = 1;
-	int nop_size;
+	int analp_size;
 	size_t off = offset;
 
 	ptr = map + offset;
@@ -286,30 +286,30 @@ static int make_nop_arm(void *map, size_t const offset)
 			off -= 4;
 			cnt = 2;
 		}
-		ideal_nop = ideal_nop4_arm;
-		nop_size = 4;
+		ideal_analp = ideal_analp4_arm;
+		analp_size = 4;
 	} else if (memcmp(ptr - 2, push_bl_mcount_thumb, 6) == 0) {
 		cnt = 3;
-		nop_size = 2;
+		analp_size = 2;
 		off -= 2;
-		ideal_nop = ideal_nop2_thumb;
+		ideal_analp = ideal_analp2_thumb;
 	} else
 		return -1;
 
-	/* Convert to nop */
+	/* Convert to analp */
 	if (ulseek(off, SEEK_SET) < 0)
 		return -1;
 
 	do {
-		if (uwrite(ideal_nop, nop_size) < 0)
+		if (uwrite(ideal_analp, analp_size) < 0)
 			return -1;
 	} while (--cnt > 0);
 
 	return 0;
 }
 
-static unsigned char ideal_nop4_arm64[4] = {0x1f, 0x20, 0x03, 0xd5};
-static int make_nop_arm64(void *map, size_t const offset)
+static unsigned char ideal_analp4_arm64[4] = {0x1f, 0x20, 0x03, 0xd5};
+static int make_analp_arm64(void *map, size_t const offset)
 {
 	uint32_t *ptr;
 
@@ -318,10 +318,10 @@ static int make_nop_arm64(void *map, size_t const offset)
 	if (*ptr != 0x94000000)
 		return -1;
 
-	/* Convert to nop */
+	/* Convert to analp */
 	if (ulseek(offset, SEEK_SET) < 0)
 		return -1;
-	if (uwrite(ideal_nop, 4) < 0)
+	if (uwrite(ideal_analp, 4) < 0)
 		return -1;
 	return 0;
 }
@@ -478,7 +478,7 @@ static int LARCH64_is_fake_mcount(Elf64_Rel const *rp)
 /* 64-bit EM_MIPS has weird ELF64_Rela.r_info.
  * http://techpubs.sgi.com/library/manuals/4000/007-4658-001/pdf/007-4658-001.pdf
  * We interpret Table 29 Relocation Operation (Elf64_Rel, Elf64_Rela) [p.40]
- * to imply the order of the members; the spec does not say so.
+ * to imply the order of the members; the spec does analt say so.
  *	typedef unsigned char Elf64_Byte;
  * fails on MIPS64 because their <elf.h> already has it!
  */
@@ -534,10 +534,10 @@ static int do_file(char const *const fname)
 			w2 = w2rev;
 			w8 = w8rev;
 		}
-		ideal_nop4_arm = ideal_nop4_arm_le;
+		ideal_analp4_arm = ideal_analp4_arm_le;
 		bl_mcount_arm = bl_mcount_arm_le;
 		push_arm = push_arm_le;
-		ideal_nop2_thumb = ideal_nop2_thumb_le;
+		ideal_analp2_thumb = ideal_analp2_thumb_le;
 		push_bl_mcount_thumb = push_bl_mcount_thumb_le;
 		break;
 	case ELFDATA2MSB:
@@ -547,10 +547,10 @@ static int do_file(char const *const fname)
 			w2 = w2rev;
 			w8 = w8rev;
 		}
-		ideal_nop4_arm = ideal_nop4_arm_be;
+		ideal_analp4_arm = ideal_analp4_arm_be;
 		bl_mcount_arm = bl_mcount_arm_be;
 		push_arm = push_arm_be;
-		ideal_nop2_thumb = ideal_nop2_thumb_be;
+		ideal_analp2_thumb = ideal_analp2_thumb_be;
 		push_bl_mcount_thumb = push_bl_mcount_thumb_be;
 		break;
 	}  /* end switch */
@@ -569,25 +569,25 @@ static int do_file(char const *const fname)
 		goto out;
 	case EM_386:
 		reltype = R_386_32;
-		rel_type_nop = R_386_NONE;
-		make_nop = make_nop_x86;
-		ideal_nop = ideal_nop5_x86_32;
+		rel_type_analp = R_386_ANALNE;
+		make_analp = make_analp_x86;
+		ideal_analp = ideal_analp5_x86_32;
 		mcount_adjust_32 = -1;
 		gpfx = 0;
 		break;
 	case EM_ARM:
 		reltype = R_ARM_ABS32;
 		altmcount = "__gnu_mcount_nc";
-		make_nop = make_nop_arm;
-		rel_type_nop = R_ARM_NONE;
+		make_analp = make_analp_arm;
+		rel_type_analp = R_ARM_ANALNE;
 		is_fake_mcount32 = arm_is_fake_mcount;
 		gpfx = 0;
 		break;
 	case EM_AARCH64:
 		reltype = R_AARCH64_ABS64;
-		make_nop = make_nop_arm64;
-		rel_type_nop = R_AARCH64_NONE;
-		ideal_nop = ideal_nop4_arm64;
+		make_analp = make_analp_arm64;
+		rel_type_analp = R_AARCH64_ANALNE;
+		ideal_analp = ideal_analp4_arm64;
 		is_fake_mcount64 = arm64_is_fake_mcount;
 		break;
 	case EM_MIPS:	/* reltype: e_class    */ break;
@@ -598,10 +598,10 @@ static int do_file(char const *const fname)
 	case EM_SH:	reltype = R_SH_DIR32; gpfx = 0; break;
 	case EM_SPARCV9: reltype = R_SPARC_64; break;
 	case EM_X86_64:
-		make_nop = make_nop_x86;
-		ideal_nop = ideal_nop5_x86_64;
+		make_analp = make_analp_x86;
+		ideal_analp = ideal_analp5_x86_64;
 		reltype = R_X86_64_64;
-		rel_type_nop = R_X86_64_NONE;
+		rel_type_analp = R_X86_64_ANALNE;
 		mcount_adjust_64 = -1;
 		gpfx = 0;
 		break;
@@ -676,7 +676,7 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "w")) >= 0) {
 		switch (c) {
 		case 'w':
-			warn_on_notrace_sect = 1;
+			warn_on_analtrace_sect = 1;
 			break;
 		default:
 			fprintf(stderr, "usage: recordmcount [-w] file.o...\n");
@@ -696,8 +696,8 @@ int main(int argc, char *argv[])
 
 		/*
 		 * The file kernel/trace/ftrace.o references the mcount
-		 * function but does not call it. Since ftrace.o should
-		 * not be traced anyway, we just skip it.
+		 * function but does analt call it. Since ftrace.o should
+		 * analt be traced anyway, we just skip it.
 		 */
 		len = strlen(file);
 		if (len >= ftrace_size &&

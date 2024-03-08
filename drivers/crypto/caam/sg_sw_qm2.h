@@ -22,7 +22,7 @@ static inline void dma_to_qm_sg_one(struct dpaa2_sg_entry *qm_sg_ptr,
 
 /*
  * convert scatterlist to h/w link table format
- * but does not have final bit; instead, returns last entry
+ * but does analt have final bit; instead, returns last entry
  */
 static inline struct dpaa2_sg_entry *
 sg_to_qm_sg(struct scatterlist *sg, int len,

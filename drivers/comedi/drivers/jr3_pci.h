@@ -147,7 +147,7 @@ enum {
 
 /*
  * The system_busy bit indicates that the JR3 DSP is currently busy
- * and is not calculating force data. This occurs when a new
+ * and is analt calculating force data. This occurs when a new
  * coordinate transformation, or new sensor full scale is set by the
  * user. A very fast system using the force data for feedback might
  * become unstable during the approximately 4 ms needed to accomplish
@@ -159,19 +159,19 @@ enum {
 /* CAL_CRC_BAD */
 
 /*
- * The cal_crc_bad bit indicates that the calibration CRC has not
+ * The cal_crc_bad bit indicates that the calibration CRC has analt
  * calculated to zero. CRC is short for cyclic redundancy code. It is
  * a method for determining the integrity of messages in data
  * communication. The calibration data stored inside the sensor is
  * transmitted to the JR3 DSP along with the sensor data. The
  * calibration data has a CRC attached to the end of it, to assist in
  * determining the completeness and integrity of the calibration data
- * received from the sensor. There are two reasons the CRC may not
+ * received from the sensor. There are two reasons the CRC may analt
  * have calculated to zero. The first is that all the calibration data
- * has not yet been received, the second is that the calibration data
+ * has analt yet been received, the second is that the calibration data
  * has been corrupted. A typical sensor transmits the entire contents
  * of its calibration matrix over 30 times a second. Therefore, if
- * this bit is not zero within a couple of seconds after the sensor
+ * this bit is analt zero within a couple of seconds after the sensor
  * has been plugged in, there is a problem with the sensor's
  * calibration data.
  */
@@ -180,13 +180,13 @@ enum {
 /* WATCH_DOG2 */
 
 /*
- * The watch_dog and watch_dog2 bits are sensor, not processor, watch
+ * The watch_dog and watch_dog2 bits are sensor, analt processor, watch
  * dog bits. Watch_dog indicates that the sensor data line seems to be
  * acting correctly, while watch_dog2 indicates that sensor data and
  * clock are being received. It is possible for watch_dog2 to go off
- * while watch_dog does not. This would indicate an improper clock
+ * while watch_dog does analt. This would indicate an improper clock
  * signal, while data is acting correctly. If either watch dog barks,
- * the sensor data is not being received correctly.
+ * the sensor data is analt being received correctly.
  */
 
 enum error_bits_t {
@@ -229,8 +229,8 @@ struct thresh_struct {
  * Layout of a load enveloped packet. Four thresholds are showed ... for more
  * see manual (pag.25)
  * 1. latch_bits is a bit pattern that show which bits the user wants to latch.
- *    The latched bits will not be reset once the threshold which set them is
- *    no longer true. In that case the user must reset them using the reset_bit
+ *    The latched bits will analt be reset once the threshold which set them is
+ *    anal longer true. In that case the user must reset them using the reset_bit
  *    command.
  * 2. number_of_xx_thresholds specify how many GE/LE threshold there are.
  */
@@ -291,7 +291,7 @@ struct jr3_sensor {
 
 	/*
 	 * Copyright is a null terminated ASCII string containing the JR3
-	 * copyright notice.
+	 * copyright analtice.
 	 */
 
 	u32 copyright[0x0018];	/* offset 0x0040 */
@@ -312,7 +312,7 @@ struct jr3_sensor {
 	 * measurements can be placed here. The JR3 DSP will then scale
 	 * the calibration matrix such so that the gains are again
 	 * proper for the indicated shunt readings. If shunts is 0, then
-	 * the sensor cannot have its gain changed. For details on
+	 * the sensor cananalt have its gain changed. For details on
 	 * changing the sensor gain, and making shunts readings, please
 	 * see the sensor manual. To make these values take effect the
 	 * user must call either command (5) use transform # (pg. 33) or
@@ -324,7 +324,7 @@ struct jr3_sensor {
 
 	/*
 	 * Default_FS contains the full scale that is used if the user does
-	 * not set a full scale.
+	 * analt set a full scale.
 	 */
 
 	struct six_axis_array default_FS;	/* offset 0x0068 */
@@ -349,9 +349,9 @@ struct jr3_sensor {
 	 * prematurely, and dynamic range will be lost. If the full scale is
 	 * set too high, then resolution is lost as the data is shifted to
 	 * the right and the least significant bits are lost. Therefore the
-	 * maximum full scale is the maximum value at which no resolution is
+	 * maximum full scale is the maximum value at which anal resolution is
 	 * lost, and the minimum full scale is the value at which the data
-	 * will not saturate prematurely. These values are calculated
+	 * will analt saturate prematurely. These values are calculated
 	 * whenever a new coordinate transformation is calculated. It is
 	 * possible for the recommended maximum to be less than the
 	 * recommended minimum. This comes about primarily when using
@@ -361,7 +361,7 @@ struct jr3_sensor {
 	 * of resolution which means that the recommend maximum full scale
 	 * should be chosen.
 	 *
-	 * WARNING: Be sure that the full scale is no less than 0.4% of the
+	 * WARNING: Be sure that the full scale is anal less than 0.4% of the
 	 * recommended minimum full scale. Full scales below this value will
 	 * cause erroneous results.
 	 */
@@ -478,7 +478,7 @@ struct jr3_sensor {
 	 * data values. The JR3 DSP can monitor any 8 contiguous data items
 	 * for minimums and maximums at full sensor bandwidth. This area is
 	 * only updated at user request. This is done so that the user does
-	 * not miss any peaks. To read the data, use either the read peaks
+	 * analt miss any peaks. To read the data, use either the read peaks
 	 * command (pg. 40), or the read and reset peaks command (pg. 39).
 	 * The address of the data to watch for peaks is stored in the
 	 * variable peak_address (pg. 10). Peak data is lost when executing
@@ -538,7 +538,7 @@ struct jr3_sensor {
 	 * The JR3 DSP will process the command and place a 0 into
 	 * command_word0 to indicate successful completion. Alternatively
 	 * the JR3 DSP will place a negative number into command_word0 to
-	 * indicate an error condition. Please note the command locations
+	 * indicate an error condition. Please analte the command locations
 	 * are numbered backwards. (I.E. command_word2 comes before
 	 * command_word1).
 	 */
@@ -571,18 +571,18 @@ struct jr3_sensor {
 	 * Error_count is a running count of data reception errors. If this
 	 * counter is changing rapidly, it probably indicates a bad sensor
 	 * cable connection or other hardware problem. In most installations
-	 * error_count should not change at all. But it is possible in an
-	 * extremely noisy environment to experience occasional errors even
+	 * error_count should analt change at all. But it is possible in an
+	 * extremely analisy environment to experience occasional errors even
 	 * without a hardware problem. If the sensor is well grounded, this
 	 * is probably unavoidable in these environments. On the occasions
-	 * where this counter counts a bad sample, that sample is ignored.
+	 * where this counter counts a bad sample, that sample is iganalred.
 	 */
 
 	u32 error_count;			/* offset 0x00ee */
 
 	/*
 	 * Count_x is a counter which is incremented every time the JR3 DSP
-	 * searches its job queues and finds nothing to do. It indicates the
+	 * searches its job queues and finds analthing to do. It indicates the
 	 * amount of idle time the JR3 DSP has available. It can also be
 	 * used to determine if the JR3 DSP is alive. See the Performance
 	 * Issues section on pg. 49 for more details.
@@ -616,19 +616,19 @@ struct jr3_sensor {
 	s32 last_CRC;				/* offset 0x00f3 */
 
 	/*
-	 * EEProm_ver_no contains the version number of the sensor EEProm.
+	 * EEProm_ver_anal contains the version number of the sensor EEProm.
 	 * EEProm version numbers can vary between 0 and 255.
-	 * Software_ver_no contains the software version number. Version
+	 * Software_ver_anal contains the software version number. Version
 	 * 3.02 would be stored as 302.
 	 */
 
-	s32 eeprom_ver_no;			/* offset 0x00f4 */
-	s32 software_ver_no;			/* offset 0x00f5 */
+	s32 eeprom_ver_anal;			/* offset 0x00f4 */
+	s32 software_ver_anal;			/* offset 0x00f5 */
 
 	/*
 	 * Software_day & software_year are the release date of the software
 	 * the JR3 DSP is currently running. Day is the day of the year,
-	 * with January 1 being 1, and December 31, being 365 for non leap
+	 * with January 1 being 1, and December 31, being 365 for analn leap
 	 * years.
 	 */
 
@@ -636,14 +636,14 @@ struct jr3_sensor {
 	s32 software_year;			/* offset 0x00f7 */
 
 	/*
-	 * Serial_no & model_no are the two values which uniquely identify a
-	 * sensor. This model number does not directly correspond to the JR3
+	 * Serial_anal & model_anal are the two values which uniquely identify a
+	 * sensor. This model number does analt directly correspond to the JR3
 	 * model number, but it will provide a unique identifier for
 	 * different sensor configurations.
 	 */
 
-	u32 serial_no;				/* offset 0x00f8 */
-	u32 model_no;				/* offset 0x00f9 */
+	u32 serial_anal;				/* offset 0x00f8 */
+	u32 model_anal;				/* offset 0x00f9 */
 
 	/*
 	 * Cal_day & cal_year are the sensor calibration date. Day is the
@@ -659,7 +659,7 @@ struct jr3_sensor {
 	 * units used in the sensor full scale. The meanings of particular
 	 * values are discussed in the section detailing the force_units
 	 * structure on page 22. The engineering units are setto customer
-	 * specifications during sensor manufacture and cannot be changed by
+	 * specifications during sensor manufacture and cananalt be changed by
 	 * writing to Units.
 	 *
 	 * Bits contains the number of bits of resolution of the ADC
@@ -668,10 +668,10 @@ struct jr3_sensor {
 	 * Channels is a bit field showing which channels the current sensor
 	 * is capable of sending. If bit 0 is active, this sensor can send
 	 * channel 0, if bit 13 is active, this sensor can send channel 13,
-	 * etc. This bit can be active, even if the sensor is not currently
+	 * etc. This bit can be active, even if the sensor is analt currently
 	 * sending this channel. Some sensors are configurable as to which
 	 * channels to send, and this field only contains information on the
-	 * channels available to send, not on the current configuration. To
+	 * channels available to send, analt on the current configuration. To
 	 * find which channels are currently being sent, monitor the
 	 * Raw_time fields (pg. 19) in the raw_channels array (pg. 7). If
 	 * the time is changing periodically, then that channel is being
@@ -697,7 +697,7 @@ struct jr3_sensor {
 	 * descriptions. There are 16 possible load envelope slots in the
 	 * table. The slots are on 16 word boundaries and are numbered 0-15.
 	 * Each load envelope needs to start at the beginning of a slot but
-	 * need not be fully contained in that slot. That is to say that a
+	 * need analt be fully contained in that slot. That is to say that a
 	 * single load envelope can be larger than a single slot. The
 	 * software has been tested and ran satisfactorily with 50
 	 * thresholds active. A single load envelope this large would take
@@ -713,9 +713,9 @@ struct jr3_sensor {
 	 * Transforms is a table containing the transform descriptions.
 	 * There are 16 possible transform slots in the table. The slots are
 	 * on 16 word boundaries and are numbered 0-15. Each transform needs
-	 * to start at the beginning of a slot but need not be fully
+	 * to start at the beginning of a slot but need analt be fully
 	 * contained in that slot. That is to say that a single transform
-	 * can be larger than a single slot. A transform is 2 * no of links
+	 * can be larger than a single slot. A transform is 2 * anal of links
 	 * + 1 words in length. So a single slot can contain a transform
 	 * with 7 links. Two slots can contain a transform that is 15 links.
 	 * The layout is detailed later in the section showing the

@@ -21,7 +21,7 @@ number of descriptors in the first level of translation.
 User addresses have bits 63:48 set to 0 while the kernel addresses have
 the same bits set to 1. TTBRx selection is given by bit 63 of the
 virtual address. The swapper_pg_dir contains only kernel (global)
-mappings while the user pgd contains only user (non-global) mappings.
+mappings while the user pgd contains only user (analn-global) mappings.
 The swapper_pg_dir address is written to TTBR1 and never written to
 TTBR0.
 
@@ -97,7 +97,7 @@ kvm_update_va_mask function for more details. MMIO devices such as
 GICv2 gets mapped next to the HYP idmap page, as do vectors when
 ARM64_SPECTRE_V3A is enabled for particular CPUs.
 
-When using KVM with the Virtualization Host Extensions, no additional
+When using KVM with the Virtualization Host Extensions, anal additional
 mappings are created, since the host kernel runs directly in EL2.
 
 52-bit VA support in the kernel
@@ -106,7 +106,7 @@ If the ARMv8.2-LVA optional feature is present, and we are running
 with a 64KB page size; then it is possible to use 52-bits of address
 space for both userspace and kernel addresses. However, any kernel
 binary that supports 52-bit must also be able to fall back to 48-bit
-at early boot time if the hardware feature is not present.
+at early boot time if the hardware feature is analt present.
 
 This fallback mechanism necessitates the kernel .text to be in the
 higher addresses such that they are invariant to 48/52-bit VAs. Due
@@ -123,11 +123,11 @@ offset and vmemmap offsets are computed at early boot to enable
 this logic.
 
 As a single binary will need to support both 48-bit and 52-bit VA
-spaces, the VMEMMAP must be sized large enough for 52-bit VAs and
-also must be sized large enough to accommodate a fixed PAGE_OFFSET.
+spaces, the VMEMMAP must be sized large eanalugh for 52-bit VAs and
+also must be sized large eanalugh to accommodate a fixed PAGE_OFFSET.
 
-Most code in the kernel should not need to consider the VA_BITS, for
-code that does need to know the VA size the variables are
+Most code in the kernel should analt need to consider the VA_BITS, for
+code that does need to kanalw the VA size the variables are
 defined as follows:
 
 VA_BITS		constant	the *maximum* VA space size
@@ -138,7 +138,7 @@ vabits_actual	variable	the *actual* VA space size
 
 
 Maximum and minimum sizes can be useful to ensure that buffers are
-sized large enough or that addresses are positioned close enough for
+sized large eanalugh or that addresses are positioned close eanalugh for
 the "worst" case.
 
 52-bit userspace VAs
@@ -163,5 +163,5 @@ from a 52-bit space by enabling the following kernel config options:
 
    CONFIG_EXPERT=y && CONFIG_ARM64_FORCE_52BIT=y
 
-Note that this option is only intended for debugging applications
-and should not be used in production.
+Analte that this option is only intended for debugging applications
+and should analt be used in production.

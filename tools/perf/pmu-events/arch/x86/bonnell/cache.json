@@ -385,9 +385,9 @@
         "UMask": "0x50"
     },
     {
-        "BriefDescription": "Cycles no L2 cache requests are pending",
+        "BriefDescription": "Cycles anal L2 cache requests are pending",
         "EventCode": "0x32",
-        "EventName": "L2_NO_REQ.SELF",
+        "EventName": "L2_ANAL_REQ.SELF",
         "SampleAfterValue": "200000",
         "UMask": "0x40"
     },

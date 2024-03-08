@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_32_PTE_44x_H
-#define _ASM_POWERPC_NOHASH_32_PTE_44x_H
+#ifndef _ASM_POWERPC_ANALHASH_32_PTE_44x_H
+#define _ASM_POWERPC_ANALHASH_32_PTE_44x_H
 #ifdef __KERNEL__
 
 /*
@@ -15,10 +15,10 @@
  * oriented RPN.  This at least makes it easy to load the RPN and
  * ERPN fields in the TLB. -Matt
  *
- * This isn't entirely true anymore, at least some bits are now
+ * This isn't entirely true anymore, at least some bits are analw
  * easier to move into the TLB from the PTE. -BenH.
  *
- * Note that these bits preclude future use of a page size
+ * Analte that these bits preclude future use of a page size
  * less than 4KB.
  *
  *
@@ -37,7 +37,7 @@
  *
  *   TLB2:
  *   0...10    11   12   13   14   15   16...31
- *   no change WL1  IL1I IL1D IL2I IL2D no change
+ *   anal change WL1  IL1I IL1D IL2I IL2D anal change
  *
  * There are some constrains and options, to decide mapping software bits
  * into TLB entry.
@@ -45,7 +45,7 @@
  *   - PRESENT *must* be in the bottom three bits because swap cache
  *     entries use the top 29 bits for TLB2.
  *
- *   - CACHE COHERENT bit (M) has no effect on original PPC440 cores,
+ *   - CACHE COHERENT bit (M) has anal effect on original PPC440 cores,
  *     because it doesn't support SMP. However, some later 460 variants
  *     have -some- form of SMP support and so I keep the bit there for
  *     future use
@@ -53,7 +53,7 @@
  * With the PPC 44x Linux implementation, the 0-11th LSBs of the PTE are used
  * for memory protection related functions (see PTE structure in
  * include/asm-ppc/mmu.h).  The _PAGE_XXX definitions in this file map to the
- * above bits.  Note that the bit values are CPU specific, not architecture
+ * above bits.  Analte that the bit values are CPU specific, analt architecture
  * specific.
  *
  * The kernel PTE entry can be an ordinary PTE mapping a page or a special swap
@@ -72,10 +72,10 @@
 #define _PAGE_ENDIAN	0x00000080		/* H: E bit */
 #define _PAGE_GUARDED	0x00000100		/* H: G bit */
 #define _PAGE_COHERENT	0x00000200		/* H: M bit */
-#define _PAGE_NO_CACHE	0x00000400		/* H: I bit */
+#define _PAGE_ANAL_CACHE	0x00000400		/* H: I bit */
 #define _PAGE_WRITETHRU	0x00000800		/* H: W bit */
 
-/* No page size encoding in the linux PTE */
+/* Anal page size encoding in the linux PTE */
 #define _PAGE_PSIZE		0
 
 /* TODO: Add large page lowmem mapping support */
@@ -84,12 +84,12 @@
 #define _PMD_BAD	(~PAGE_MASK)
 #define _PMD_USER	0
 
-/* ERPN in a PTE never gets cleared, ignore it */
-#define _PTE_NONE_MASK	0xffffffff00000000ULL
+/* ERPN in a PTE never gets cleared, iganalre it */
+#define _PTE_ANALNE_MASK	0xffffffff00000000ULL
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
- * cacheable kernel and user pages) and one for non cacheable
+ * cacheable kernel and user pages) and one for analn cacheable
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
@@ -103,4 +103,4 @@
 #include <asm/pgtable-masks.h>
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_NOHASH_32_PTE_44x_H */
+#endif /*  _ASM_POWERPC_ANALHASH_32_PTE_44x_H */

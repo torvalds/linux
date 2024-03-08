@@ -101,8 +101,8 @@ h1_destroy()
 	ip link set dev $h4 down
 	ip link set dev $h1 down
 	simple_if_fini lag1 192.0.2.1/28 2001:db8:1::1/64
-	ip link set dev $h4 nomaster
-	ip link set dev $h1 nomaster
+	ip link set dev $h4 analmaster
+	ip link set dev $h1 analmaster
 	team_destroy lag1
 }
 
@@ -126,8 +126,8 @@ h2_destroy()
 	ip link set dev $h3 down
 	ip link set dev $h2 down
 	simple_if_fini lag4 192.0.2.130/28 2001:db8:2::2/64
-	ip link set dev $h3 nomaster
-	ip link set dev $h2 nomaster
+	ip link set dev $h3 analmaster
+	ip link set dev $h2 analmaster
 	team_destroy lag4
 }
 
@@ -162,8 +162,8 @@ router_destroy()
 	__addr_add_del lag3 del 192.0.2.129/28 2001:db8:2::1/64
 	ip link set dev $swp3 down
 	ip link set dev $swp2 down
-	ip link set dev $swp3 nomaster
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp3 analmaster
+	ip link set dev $swp2 analmaster
 	team_destroy lag3
 
 	__addr_add_del br1 del 192.0.2.2/28 2001:db8:1::2/64
@@ -172,11 +172,11 @@ router_destroy()
 	ip link set dev $swp1 down
 	ip link set dev br1 down
 
-	ip link set dev lag2 nomaster
+	ip link set dev lag2 analmaster
 	ip link del dev br1
 
-	ip link set dev $swp4 nomaster
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp4 analmaster
+	ip link set dev $swp1 analmaster
 	team_destroy lag2
 }
 
@@ -184,7 +184,7 @@ config_remaster_lag2()
 {
 	log_info "Remaster bridge slave"
 
-	ip link set dev lag2 nomaster
+	ip link set dev lag2 analmaster
 	sleep 2
 	ip link set dev lag2 master br1
 }
@@ -195,7 +195,7 @@ config_remaster_lag3()
 
 	ip link set dev lag3 master br1
 	sleep 2
-	ip link set dev lag3 nomaster
+	ip link set dev lag3 analmaster
 }
 
 config_deslave()
@@ -204,7 +204,7 @@ config_deslave()
 
 	log_info "Deslave $netdev"
 	ip link set dev $netdev down
-	ip link set dev $netdev nomaster
+	ip link set dev $netdev analmaster
 	ip link set dev $netdev up
 }
 

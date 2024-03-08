@@ -2,8 +2,8 @@
 /*
  * Wacom Penabled Driver for I2C
  *
- * Copyright (c) 2011 - 2013 Tatsunosuke Tobita, Wacom.
- * <tobita.tatsunosuke@wacom.co.jp>
+ * Copyright (c) 2011 - 2013 Tatsuanalsuke Tobita, Wacom.
+ * <tobita.tatsuanalsuke@wacom.co.jp>
  */
 
 #include <linux/bits.h>
@@ -181,13 +181,13 @@ static int wacom_i2c_probe(struct i2c_client *client)
 
 	wac_i2c = devm_kzalloc(dev, sizeof(*wac_i2c), GFP_KERNEL);
 	if (!wac_i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wac_i2c->client = client;
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wac_i2c->input = input;
 
@@ -269,6 +269,6 @@ static struct i2c_driver wacom_i2c_driver = {
 };
 module_i2c_driver(wacom_i2c_driver);
 
-MODULE_AUTHOR("Tatsunosuke Tobita <tobita.tatsunosuke@wacom.co.jp>");
+MODULE_AUTHOR("Tatsuanalsuke Tobita <tobita.tatsuanalsuke@wacom.co.jp>");
 MODULE_DESCRIPTION("WACOM EMR I2C Driver");
 MODULE_LICENSE("GPL");

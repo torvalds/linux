@@ -46,7 +46,7 @@ union delcom_packet {
 	__u8 data[8];
 	struct {
 		__u8 major_cmd;
-		__u8 minor_cmd;
+		__u8 mianalr_cmd;
 		__u8 data_lsb;
 		__u8 data_msb;
 	} tx;
@@ -117,8 +117,8 @@ static int hidled_send(struct hidled_device *ldev, __u8 *buf)
 	mutex_lock(&ldev->lock);
 
 	/*
-	 * buffer provided to hid_hw_raw_request must not be on the stack
-	 * and must not be part of a data structure
+	 * buffer provided to hid_hw_raw_request must analt be on the stack
+	 * and must analt be part of a data structure
 	 */
 	memcpy(ldev->buf, buf, ldev->config->report_size);
 
@@ -288,7 +288,7 @@ static inline int delcom_get_lednum(const struct hidled_led *led)
 
 static int delcom_enable_led(struct hidled_led *led)
 {
-	union delcom_packet dp = { .tx.major_cmd = 101, .tx.minor_cmd = 12 };
+	union delcom_packet dp = { .tx.major_cmd = 101, .tx.mianalr_cmd = 12 };
 
 	dp.tx.data_lsb = 1 << delcom_get_lednum(led);
 	dp.tx.data_msb = 0;
@@ -298,7 +298,7 @@ static int delcom_enable_led(struct hidled_led *led)
 
 static int delcom_set_pwm(struct hidled_led *led)
 {
-	union delcom_packet dp = { .tx.major_cmd = 101, .tx.minor_cmd = 34 };
+	union delcom_packet dp = { .tx.major_cmd = 101, .tx.mianalr_cmd = 34 };
 
 	dp.tx.data_lsb = delcom_get_lednum(led);
 	dp.tx.data_msb = led->cdev.brightness;
@@ -335,7 +335,7 @@ static int delcom_init(struct hidled_device *ldev)
 	 * Several Delcom devices share the same USB VID/PID
 	 * Check for family id 2 for Visual Signal Indicator
 	 */
-	return le16_to_cpu(dp.fw.family_code) == 2 ? 0 : -ENODEV;
+	return le16_to_cpu(dp.fw.family_code) == 2 ? 0 : -EANALDEV;
 }
 
 static int luxafor_write(struct led_classdev *cdev, enum led_brightness br)
@@ -354,7 +354,7 @@ static int luxafor_write(struct led_classdev *cdev, enum led_brightness br)
 static const struct hidled_config hidled_configs[] = {
 	{
 		.type = RISO_KAGAKU,
-		.name = "Riso Kagaku Webmail Notifier",
+		.name = "Riso Kagaku Webmail Analtifier",
 		.short_name = "riso_kagaku",
 		.max_brightness = 1,
 		.num_leds = 1,
@@ -364,7 +364,7 @@ static const struct hidled_config hidled_configs[] = {
 	},
 	{
 		.type = DREAM_CHEEKY,
-		.name = "Dream Cheeky Webmail Notifier",
+		.name = "Dream Cheeky Webmail Analtifier",
 		.short_name = "dream_cheeky",
 		.max_brightness = 63,
 		.num_leds = 1,
@@ -408,16 +408,16 @@ static const struct hidled_config hidled_configs[] = {
 };
 
 static int hidled_init_led(struct hidled_led *led, const char *color_name,
-			   struct hidled_rgb *rgb, unsigned int minor)
+			   struct hidled_rgb *rgb, unsigned int mianalr)
 {
 	const struct hidled_config *config = rgb->ldev->config;
 
 	if (config->num_leds > 1)
 		snprintf(led->name, sizeof(led->name), "%s%u:%s:led%u",
-			 config->short_name, minor, color_name, rgb->num);
+			 config->short_name, mianalr, color_name, rgb->num);
 	else
 		snprintf(led->name, sizeof(led->name), "%s%u:%s",
-			 config->short_name, minor, color_name);
+			 config->short_name, mianalr, color_name);
 	led->cdev.name = led->name;
 	led->cdev.max_brightness = config->max_brightness;
 	led->cdev.brightness_set_blocking = config->write;
@@ -427,37 +427,37 @@ static int hidled_init_led(struct hidled_led *led, const char *color_name,
 	return devm_led_classdev_register(&rgb->ldev->hdev->dev, &led->cdev);
 }
 
-static int hidled_init_rgb(struct hidled_rgb *rgb, unsigned int minor)
+static int hidled_init_rgb(struct hidled_rgb *rgb, unsigned int mianalr)
 {
 	int ret;
 
 	/* Register the red diode */
-	ret = hidled_init_led(&rgb->red, "red", rgb, minor);
+	ret = hidled_init_led(&rgb->red, "red", rgb, mianalr);
 	if (ret)
 		return ret;
 
 	/* Register the green diode */
-	ret = hidled_init_led(&rgb->green, "green", rgb, minor);
+	ret = hidled_init_led(&rgb->green, "green", rgb, mianalr);
 	if (ret)
 		return ret;
 
 	/* Register the blue diode */
-	return hidled_init_led(&rgb->blue, "blue", rgb, minor);
+	return hidled_init_led(&rgb->blue, "blue", rgb, mianalr);
 }
 
 static int hidled_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct hidled_device *ldev;
-	unsigned int minor;
+	unsigned int mianalr;
 	int ret, i;
 
 	ldev = devm_kzalloc(&hdev->dev, sizeof(*ldev), GFP_KERNEL);
 	if (!ldev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldev->buf = devm_kmalloc(&hdev->dev, MAX_REPORT_SIZE, GFP_KERNEL);
 	if (!ldev->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_parse(hdev);
 	if (ret)
@@ -482,18 +482,18 @@ static int hidled_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ldev->rgb = devm_kcalloc(&hdev->dev, ldev->config->num_leds,
 				 sizeof(struct hidled_rgb), GFP_KERNEL);
 	if (!ldev->rgb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
 	if (ret)
 		return ret;
 
-	minor = ((struct hidraw *) hdev->hidraw)->minor;
+	mianalr = ((struct hidraw *) hdev->hidraw)->mianalr;
 
 	for (i = 0; i < ldev->config->num_leds; i++) {
 		ldev->rgb[i].ldev = ldev;
 		ldev->rgb[i].num = i;
-		ret = hidled_init_rgb(&ldev->rgb[i], minor);
+		ret = hidled_init_rgb(&ldev->rgb[i], mianalr);
 		if (ret) {
 			hid_hw_stop(hdev);
 			return ret;

@@ -16,6 +16,6 @@
 #ifndef __EVENT_FIFO_GLOBAL_H
 #define __EVENT_FIFO_GLOBAL_H
 
-/*#error "event_global.h: No global event information permitted"*/
+/*#error "event_global.h: Anal global event information permitted"*/
 
 #endif /* __EVENT_FIFO_GLOBAL_H */

@@ -10,17 +10,17 @@
 
 static char test_data[] = "test_data";
 
-noinline void uprobe_multi_func_1(void)
+analinline void uprobe_multi_func_1(void)
 {
 	asm volatile ("");
 }
 
-noinline void uprobe_multi_func_2(void)
+analinline void uprobe_multi_func_2(void)
 {
 	asm volatile ("");
 }
 
-noinline void uprobe_multi_func_3(void)
+analinline void uprobe_multi_func_3(void)
 {
 	asm volatile ("");
 }
@@ -59,14 +59,14 @@ static struct child *spawn_child(void)
 	int err;
 	int c;
 
-	/* pipe to notify child to execute the trigger functions */
+	/* pipe to analtify child to execute the trigger functions */
 	if (pipe(child.go))
 		return NULL;
 
 	child.pid = fork();
 	if (child.pid < 0) {
 		release_child(&child);
-		errno = EINVAL;
+		erranal = EINVAL;
 		return NULL;
 	}
 
@@ -83,7 +83,7 @@ static struct child *spawn_child(void)
 		uprobe_multi_func_2();
 		uprobe_multi_func_3();
 
-		exit(errno);
+		exit(erranal);
 	}
 
 	return &child;
@@ -201,7 +201,7 @@ test_attach_api(const char *binary, const char *pattern, struct bpf_uprobe_multi
 {
 	struct child *child;
 
-	/* no pid filter */
+	/* anal pid filter */
 	__test_attach_api(binary, pattern, opts, NULL);
 
 	/* pid filter */
@@ -248,7 +248,7 @@ static void test_attach_api_fails(void)
 
 	prog_fd = bpf_program__fd(skel->progs.uprobe_extra);
 
-	/* abnormal cnt */
+	/* abanalrmal cnt */
 	opts.uprobe_multi.path = path;
 	opts.uprobe_multi.offsets = &offset;
 	opts.uprobe_multi.cnt = INT_MAX;
@@ -486,7 +486,7 @@ static void test_link_api(void)
 {
 	struct child *child;
 
-	/* no pid filter */
+	/* anal pid filter */
 	__test_link_api(NULL);
 
 	/* pid filter */

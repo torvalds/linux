@@ -17,19 +17,19 @@
  * to support dm-btree-spine.c in that case.
  */
 
-enum node_flags {
-	INTERNAL_NODE = 1,
-	LEAF_NODE = 1 << 1
+enum analde_flags {
+	INTERNAL_ANALDE = 1,
+	LEAF_ANALDE = 1 << 1
 };
 
 /*
- * Every btree node begins with this structure.  Make sure it's a multiple
+ * Every btree analde begins with this structure.  Make sure it's a multiple
  * of 8-bytes in size, otherwise the 64bit keys will be mis-aligned.
  */
-struct node_header {
+struct analde_header {
 	__le32 csum;
 	__le32 flags;
-	__le64 blocknr; /* Block this node is supposed to live in. */
+	__le64 blocknr; /* Block this analde is supposed to live in. */
 
 	__le32 nr_entries;
 	__le32 max_entries;
@@ -37,19 +37,19 @@ struct node_header {
 	__le32 padding;
 } __packed __aligned(8);
 
-struct btree_node {
-	struct node_header header;
+struct btree_analde {
+	struct analde_header header;
 	__le64 keys[];
 } __packed __aligned(8);
 
 
 /*
- * Locks a block using the btree node validator.
+ * Locks a block using the btree analde validator.
  */
 int bn_read_lock(struct dm_btree_info *info, dm_block_t b,
 		 struct dm_block **result);
 
-void inc_children(struct dm_transaction_manager *tm, struct btree_node *n,
+void inc_children(struct dm_transaction_manager *tm, struct btree_analde *n,
 		  struct dm_btree_value_type *vt);
 
 int new_block(struct dm_btree_info *info, struct dm_block **result);
@@ -65,20 +65,20 @@ struct ro_spine {
 	struct dm_btree_info *info;
 
 	int count;
-	struct dm_block *nodes[2];
+	struct dm_block *analdes[2];
 };
 
 void init_ro_spine(struct ro_spine *s, struct dm_btree_info *info);
 void exit_ro_spine(struct ro_spine *s);
 int ro_step(struct ro_spine *s, dm_block_t new_child);
 void ro_pop(struct ro_spine *s);
-struct btree_node *ro_node(struct ro_spine *s);
+struct btree_analde *ro_analde(struct ro_spine *s);
 
 struct shadow_spine {
 	struct dm_btree_info *info;
 
 	int count;
-	struct dm_block *nodes[2];
+	struct dm_block *analdes[2];
 
 	dm_block_t root;
 };
@@ -106,17 +106,17 @@ dm_block_t shadow_root(struct shadow_spine *s);
 /*
  * Some inlines.
  */
-static inline __le64 *key_ptr(struct btree_node *n, uint32_t index)
+static inline __le64 *key_ptr(struct btree_analde *n, uint32_t index)
 {
 	return n->keys + index;
 }
 
-static inline void *value_base(struct btree_node *n)
+static inline void *value_base(struct btree_analde *n)
 {
 	return &n->keys[le32_to_cpu(n->header.max_entries)];
 }
 
-static inline void *value_ptr(struct btree_node *n, uint32_t index)
+static inline void *value_ptr(struct btree_analde *n, uint32_t index)
 {
 	uint32_t value_size = le32_to_cpu(n->header.value_size);
 
@@ -126,7 +126,7 @@ static inline void *value_ptr(struct btree_node *n, uint32_t index)
 /*
  * Assumes the values are suitably-aligned and converts to core format.
  */
-static inline uint64_t value64(struct btree_node *n, uint32_t index)
+static inline uint64_t value64(struct btree_analde *n, uint32_t index)
 {
 	__le64 *values_le = value_base(n);
 
@@ -134,11 +134,11 @@ static inline uint64_t value64(struct btree_node *n, uint32_t index)
 }
 
 /*
- * Searching for a key within a single node.
+ * Searching for a key within a single analde.
  */
-int lower_bound(struct btree_node *n, uint64_t key);
+int lower_bound(struct btree_analde *n, uint64_t key);
 
-extern struct dm_block_validator btree_node_validator;
+extern struct dm_block_validator btree_analde_validator;
 
 /*
  * Value type for upper levels of multi-level btrees.
@@ -148,7 +148,7 @@ extern void init_le64_type(struct dm_transaction_manager *tm,
 
 /*
  * This returns a shadowed btree leaf that you may modify.  In practise
- * this means overwrites only, since an insert could cause a node to
+ * this means overwrites only, since an insert could cause a analde to
  * be split.  Useful if you need access to the old value to calculate the
  * new one.
  *

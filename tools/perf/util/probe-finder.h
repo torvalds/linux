@@ -55,7 +55,7 @@ struct probe_finder {
 	int (*callback)(Dwarf_Die *sc_die, struct probe_finder *pf);
 
 	/* For function searching */
-	int			lno;		/* Line number */
+	int			lanal;		/* Line number */
 	Dwarf_Addr		addr;		/* Address */
 	const char		*fname;		/* Real file name */
 	Dwarf_Die		cu_die;		/* Current CU */
@@ -73,7 +73,7 @@ struct probe_finder {
 	unsigned int		machine;	/* Target machine arch */
 	struct perf_probe_arg	*pvar;		/* Current target variable */
 	struct probe_trace_arg	*tvar;		/* Current result variable */
-	bool			skip_empty_arg;	/* Skip non-exist args */
+	bool			skip_empty_arg;	/* Skip analn-exist args */
 };
 
 struct trace_event_finder {
@@ -89,7 +89,7 @@ struct available_var_finder {
 	Dwfl_Module		*mod;		/* For solving symbols */
 	struct variable_list	*vls;		/* Found variable lists */
 	int			nvls;		/* Number of variable lists */
-	int			max_vls;	/* Max no. of variable lists */
+	int			max_vls;	/* Max anal. of variable lists */
 	bool			child;		/* Search child scopes */
 };
 
@@ -97,8 +97,8 @@ struct line_finder {
 	struct line_range	*lr;		/* Target line range */
 
 	const char		*fname;		/* File name */
-	int			lno_s;		/* Start line number */
-	int			lno_e;		/* End line number */
+	int			lanal_s;		/* Start line number */
+	int			lanal_e;		/* End line number */
 	Dwarf_Die		cu_die;		/* Current CU */
 	Dwarf_Die		sp_die;
 	int			found;

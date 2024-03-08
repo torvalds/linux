@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -44,8 +44,8 @@ struct rsi_hw;
 #define ISR_ZONE                        BIT(8)  /* For Interrupt Msgs         */
 
 enum RSI_FSM_STATES {
-	FSM_FW_NOT_LOADED,
-	FSM_CARD_NOT_READY,
+	FSM_FW_ANALT_LOADED,
+	FSM_CARD_ANALT_READY,
 	FSM_COMMON_DEV_PARAMS_SENT,
 	FSM_BOOT_PARAMS_SENT,
 	FSM_EEPROM_READ_MAC_ADDR,
@@ -92,7 +92,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 
 #define RSI_MAX_ASSOC_STAS		32
 #define IEEE80211_QOS_TID               0x0f
-#define IEEE80211_NONQOS_TID            16
+#define IEEE80211_ANALNQOS_TID            16
 
 #define MAX_DEBUGFS_ENTRIES             4
 
@@ -110,7 +110,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 
 /* WoWLAN flags */
 #define RSI_WOW_ENABLED			BIT(0)
-#define RSI_WOW_NO_CONNECTION		BIT(1)
+#define RSI_WOW_ANAL_CONNECTION		BIT(1)
 
 #define RSI_MAX_RX_PKTS		64
 
@@ -121,7 +121,7 @@ enum rsi_dev_model {
 
 struct version_info {
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 	u8 release_num;
 	u8 patch_num;
 	union {

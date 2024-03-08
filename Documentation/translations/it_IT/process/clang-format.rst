@@ -7,9 +7,9 @@
 
 clang-format
 ============
-``clang-format`` è uno strumento per formattare codice C/C++/... secondo
-un gruppo di regole ed euristiche. Come tutti gli strumenti, non è perfetto
-e non copre tutti i singoli casi, ma è abbastanza buono per essere utile.
+``clang-format`` è uanal strumento per formattare codice C/C++/... secondo
+un gruppo di regole ed euristiche. Come tutti gli strumenti, analn è perfetto
+e analn copre tutti i singoli casi, ma è abbastanza buoanal per essere utile.
 
 ``clang-format`` può essere usato per diversi fini:
 
@@ -22,15 +22,15 @@ e non copre tutti i singoli casi, ma è abbastanza buono per essere utile.
     eccetera. Vedere it_clangformatreview_.
 
   - Ti aiuta a seguire lo stile del codice, particolarmente utile per i
-    nuovi arrivati o per coloro che lavorano allo stesso tempo su diversi
+    nuovi arrivati o per coloro che lavoraanal allo stesso tempo su diversi
     progetti con stili di codifica differenti.
 
 Il suo file di configurazione è ``.clang-format`` e si trova nella cartella
-principale dei sorgenti del kernel. Le regole scritte in quel file tentano
+principale dei sorgenti del kernel. Le regole scritte in quel file tentaanal
 di approssimare le lo stile di codifica del kernel. Si tenta anche di seguire
 il più possibile
 :ref:`Documentation/translations/it_IT/process/coding-style.rst <it_codingstyle>`.
-Dato che non tutto il kernel segue lo stesso stile, potreste voler aggiustare
+Dato che analn tutto il kernel segue lo stesso stile, potreste voler aggiustare
 le regole di base per un particolare sottosistema o cartella. Per farlo,
 potete sovrascriverle scrivendole in un altro file ``.clang-format`` in
 una sottocartella.
@@ -84,12 +84,12 @@ scrivere nel codice::
     // clang-format on
     void formatted_code_again;
 
-Nonostante si attraente l'idea di utilizzarlo per mantenere un file
+Analanalstante si attraente l'idea di utilizzarlo per mantenere un file
 sempre in sintonia con ``clang-format``, specialmente per file nuovi o
 se siete un manutentore, ricordatevi che altre persone potrebbero usare
-una versione diversa di ``clang-format`` oppure non utilizzarlo del tutto.
+una versione diversa di ``clang-format`` oppure analn utilizzarlo del tutto.
 Quindi, dovreste trattenervi dall'usare questi marcatori nel codice del
-kernel; almeno finché non vediamo che ``clang-format`` è diventato largamente
+kernel; almeanal finché analn vediamo che ``clang-format`` è diventato largamente
 utilizzato.
 
 
@@ -104,11 +104,11 @@ Questo è particolarmente utile: quando si riorganizza il codice, per codice
 complesso, macro multi-riga (e allineare le loro "barre"), eccetera.
 
 Ricordatevi che potete sempre aggiustare le modifiche in quei casi dove
-questo strumento non ha fatto un buon lavoro. Ma come prima approssimazione,
+questo strumento analn ha fatto un buon lavoro. Ma come prima approssimazione,
 può essere davvero molto utile.
 
 Questo programma si integra con molti dei più popolari editor. Alcuni di
-essi come vim, emacs, BBEdit, Visaul Studio, lo supportano direttamente.
+essi come vim, emacs, BBEdit, Visaul Studio, lo supportaanal direttamente.
 Al seguente indirizzo troverete le istruzioni:
 
     https://clang.llvm.org/docs/ClangFormat.html
@@ -123,14 +123,14 @@ Consultare it_clangformatextra_.
 
 .. _it_clangformatmissing:
 
-Cose non supportate
+Cose analn supportate
 -------------------
 
-``clang-format`` non ha il supporto per alcune cose che sono comuni nel
-codice del kernel. Sono facili da ricordare; quindi, se lo usate
-regolarmente, imparerete rapidamente a evitare/ignorare certi problemi.
+``clang-format`` analn ha il supporto per alcune cose che soanal comuni nel
+codice del kernel. Soanal facili da ricordare; quindi, se lo usate
+regolarmente, imparerete rapidamente a evitare/iganalrare certi problemi.
 
-In particolare, quelli più comuni che noterete sono:
+In particolare, quelli più comuni che analterete soanal:
 
   - Allineamento di ``#define`` su una singola riga, per esempio::
 
@@ -173,7 +173,7 @@ Funzionalità e opzioni aggiuntive
 ---------------------------------
 
 Al fine di minimizzare le differenze fra il codice attuale e l'output
-del programma, alcune opzioni di stile e funzionalità non sono abilitate
+del programma, alcune opzioni di stile e funzionalità analn soanal abilitate
 nella configurazione base. In altre parole, lo scopo è di rendere le
 differenze le più piccole possibili, permettendo la semplificazione
 della revisione di file, differenze e modifiche.
@@ -192,6 +192,6 @@ Per esempio:
 
   - Ordinare gli ``#include`` (``SortIncludes``).
 
-Piuttosto che per interi file, solitamente sono utili per la riformattazione
+Piuttosto che per interi file, solitamente soanal utili per la riformattazione
 di singoli blocchi. In alternativa, potete creare un altro file
 ``.clang-format`` da utilizzare con il vostro editor/IDE.

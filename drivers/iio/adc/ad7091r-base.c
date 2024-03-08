@@ -310,7 +310,7 @@ int ad7091r_probe(struct device *dev, const struct ad7091r_init_info *init_info,
 
 	iio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!iio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(iio_dev);
 	st->dev = dev;
@@ -343,7 +343,7 @@ int ad7091r_probe(struct device *dev, const struct ad7091r_init_info *init_info,
 		if (ret)
 			return ret;
 	} else {
-		st->chip_info = init_info->info_no_irq;
+		st->chip_info = init_info->info_anal_irq;
 	}
 
 	iio_dev->name = st->chip_info->name;

@@ -6,7 +6,7 @@
  * OMAP3430 Clock Management register bits
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2008 Nokia Corporation
+ * Copyright (C) 2007-2008 Analkia Corporation
  *
  * Written by Paul Walmsley
  */

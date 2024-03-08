@@ -4,6 +4,6 @@
 #include "omap2420-n8x0-common.dtsi"
 
 / {
-	model = "Nokia N800";
-	compatible = "nokia,n800", "nokia,n8x0", "ti,omap2420", "ti,omap2";
+	model = "Analkia N800";
+	compatible = "analkia,n800", "analkia,n8x0", "ti,omap2420", "ti,omap2";
 };

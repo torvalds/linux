@@ -177,11 +177,11 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 
 	intel_vsec_dev = kzalloc(sizeof(*intel_vsec_dev), GFP_KERNEL);
 	if (!intel_vsec_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = kcalloc(header->num_entries, sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (quirks & VSEC_QUIRK_TABLE_SHIFT)
 		header->offset >>= TABLE_OFFSET_SHIFT;
@@ -201,7 +201,7 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 		tmp->end = tmp->start + (header->entry_size * sizeof(u32)) - 1;
 		tmp->flags = IORESOURCE_MEM;
 
-		/* Check resource is not in use */
+		/* Check resource is analt in use */
 		if (!request_mem_region(tmp->start, resource_size(tmp), ""))
 			return -EBUSY;
 
@@ -209,7 +209,7 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	}
 
 	intel_vsec_dev->pcidev = pdev;
-	intel_vsec_dev->resource = no_free_ptr(res);
+	intel_vsec_dev->resource = anal_free_ptr(res);
 	intel_vsec_dev->num_resources = header->num_entries;
 	intel_vsec_dev->quirks = info->quirks;
 	intel_vsec_dev->base_addr = info->base_addr;
@@ -223,7 +223,7 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	 * Pass the ownership of intel_vsec_dev and resource within it to
 	 * intel_vsec_add_aux()
 	 */
-	return intel_vsec_add_aux(pdev, parent, no_free_ptr(intel_vsec_dev),
+	return intel_vsec_add_aux(pdev, parent, anal_free_ptr(intel_vsec_dev),
 				  intel_vsec_name(header->id));
 }
 
@@ -237,7 +237,7 @@ static bool intel_vsec_walk_header(struct pci_dev *pdev,
 	for ( ; *header; header++) {
 		ret = intel_vsec_add_dev(pdev, *header, info);
 		if (ret)
-			dev_info(&pdev->dev, "Could not add device for VSEC id %d\n",
+			dev_info(&pdev->dev, "Could analt add device for VSEC id %d\n",
 				 (*header)->id);
 		else
 			have_devices = true;
@@ -372,12 +372,12 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 	if (intel_vsec_walk_vsec(pdev, info))
 		have_devices = true;
 
-	if (info && (info->quirks & VSEC_QUIRK_NO_DVSEC) &&
+	if (info && (info->quirks & VSEC_QUIRK_ANAL_DVSEC) &&
 	    intel_vsec_walk_header(pdev, info))
 		have_devices = true;
 
 	if (!have_devices)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -400,7 +400,7 @@ static struct intel_vsec_header *dg1_headers[] = {
 static const struct intel_vsec_platform_info dg1_info = {
 	.caps = VSEC_CAP_TELEMETRY,
 	.headers = dg1_headers,
-	.quirks = VSEC_QUIRK_NO_DVSEC | VSEC_QUIRK_EARLY_HW,
+	.quirks = VSEC_QUIRK_ANAL_DVSEC | VSEC_QUIRK_EARLY_HW,
 };
 
 /* MTL info */

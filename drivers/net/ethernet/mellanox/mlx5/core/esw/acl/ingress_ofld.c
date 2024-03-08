@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Inc. All rights reserved. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Inc. All rights reserved. */
 
 #include "mlx5_core.h"
 #include "eswitch.h"
@@ -28,7 +28,7 @@ static int esw_acl_ingress_prio_tag_create(struct mlx5_eswitch *esw,
 	 */
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Untagged packets - push prio tag VLAN, allow */
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
@@ -200,7 +200,7 @@ static int esw_acl_ingress_ofld_groups_create(struct mlx5_eswitch *esw,
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (vport->vport == MLX5_VPORT_UPLINK) {
 		/* This group can hold an FTE to drop all traffic.
@@ -245,7 +245,7 @@ static int esw_acl_ingress_ofld_groups_create(struct mlx5_eswitch *esw,
 	}
 
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
-		/* This group holds an FTE with no match to add metadata for
+		/* This group holds an FTE with anal match to add metadata for
 		 * tagged packets if prio-tag is enabled, or for all untagged
 		 * traffic in case prio-tag is disabled.
 		 */

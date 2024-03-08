@@ -23,7 +23,7 @@
 				   * But to achieve this, an extra buffer element is required to detect
 				   * queue full & empty conditions, wherein the tail trails the head for
 				   * full and is equal to head for empty condition. This causes 1 buffer
-				   * not being available for use.
+				   * analt being available for use.
 				   */
 
 /****************************************************************

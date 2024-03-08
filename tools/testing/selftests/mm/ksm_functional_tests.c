@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/prctl.h>
@@ -42,13 +42,13 @@ static bool range_maps_duplicates(char *addr, unsigned long size)
 	unsigned long offs_a, offs_b, pfn_a, pfn_b;
 
 	/*
-	 * There is no easy way to check if there are KSM pages mapped into
-	 * this range. We only check that the range does not map the same PFN
+	 * There is anal easy way to check if there are KSM pages mapped into
+	 * this range. We only check that the range does analt map the same PFN
 	 * twice by comparing each pair of mapped pages.
 	 */
 	for (offs_a = 0; offs_a < size; offs_a += pagesize) {
 		pfn_a = pagemap_get_pfn(pagemap_fd, addr + offs_a);
-		/* Page not present or PFN not exposed by the kernel. */
+		/* Page analt present or PFN analt exposed by the kernel. */
 		if (pfn_a == -1ul || !pfn_a)
 			continue;
 
@@ -77,7 +77,7 @@ static long get_my_ksm_zero_pages(void)
 
 	read_size = pread(proc_self_ksm_stat_fd, buf, sizeof(buf) - 1, 0);
 	if (read_size < 0)
-		return -errno;
+		return -erranal;
 
 	buf[read_size] = 0;
 
@@ -101,7 +101,7 @@ static long get_my_merging_pages(void)
 
 	ret = pread(proc_self_ksm_merging_pages_fd, buf, sizeof(buf) - 1, 0);
 	if (ret <= 0)
-		return -errno;
+		return -erranal;
 	buf[ret] = 0;
 
 	return strtol(buf, NULL, 10);
@@ -114,7 +114,7 @@ static long ksm_get_full_scans(void)
 
 	ret = pread(ksm_full_scans_fd, buf, sizeof(buf) - 1, 0);
 	if (ret <= 0)
-		return -errno;
+		return -erranal;
 	buf[ret] = 0;
 
 	return strtol(buf, NULL, 10);
@@ -129,7 +129,7 @@ static int ksm_merge(void)
 	if (start_scans < 0)
 		return start_scans;
 	if (write(ksm_fd, "1", 1) != 1)
-		return -errno;
+		return -erranal;
 	do {
 		end_scans = ksm_get_full_scans();
 		if (end_scans < 0)
@@ -142,7 +142,7 @@ static int ksm_merge(void)
 static int ksm_unmerge(void)
 {
 	if (write(ksm_fd, "2", 1) != 1)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -164,15 +164,15 @@ static char *mmap_and_merge_range(char val, unsigned long size, int prot,
 	}
 
 	map = mmap(NULL, size, PROT_READ|PROT_WRITE,
-		   MAP_PRIVATE|MAP_ANON, -1, 0);
+		   MAP_PRIVATE|MAP_AANALN, -1, 0);
 	if (map == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		return MAP_FAILED;
 	}
 
-	/* Don't use THP. Ignore if THP are not around on a kernel. */
-	if (madvise(map, size, MADV_NOHUGEPAGE) && errno != EINVAL) {
-		ksft_test_result_fail("MADV_NOHUGEPAGE failed\n");
+	/* Don't use THP. Iganalre if THP are analt around on a kernel. */
+	if (madvise(map, size, MADV_ANALHUGEPAGE) && erranal != EINVAL) {
+		ksft_test_result_fail("MADV_ANALHUGEPAGE failed\n");
 		goto unmap;
 	}
 
@@ -186,8 +186,8 @@ static char *mmap_and_merge_range(char val, unsigned long size, int prot,
 
 	if (use_prctl) {
 		ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
-		if (ret < 0 && errno == EINVAL) {
-			ksft_test_result_skip("PR_SET_MEMORY_MERGE not supported\n");
+		if (ret < 0 && erranal == EINVAL) {
+			ksft_test_result_skip("PR_SET_MEMORY_MERGE analt supported\n");
 			goto unmap;
 		} else if (ret) {
 			ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 failed\n");
@@ -205,11 +205,11 @@ static char *mmap_and_merge_range(char val, unsigned long size, int prot,
 	}
 
 	/*
-	 * Check if anything was merged at all. Ignore the zero page that is
+	 * Check if anything was merged at all. Iganalre the zero page that is
 	 * accounted differently (depending on kernel support).
 	 */
 	if (val && !get_my_merging_pages()) {
-		ksft_test_result_fail("No pages got merged\n");
+		ksft_test_result_fail("Anal pages got merged\n");
 		goto unmap;
 	}
 
@@ -292,7 +292,7 @@ static void test_unmerge_zero_pages(void)
 	for (offs = size / 2; offs < size; offs += pagesize)
 		*((unsigned int *)&map[offs]) = offs;
 
-	/* Now we should have no zeropages remaining. */
+	/* Analw we should have anal zeropages remaining. */
 	if (get_my_ksm_zero_pages()) {
 		ksft_test_result_fail("'ksm_zero_pages' updated after write fault\n");
 		goto unmap;
@@ -316,7 +316,7 @@ static void test_unmerge_discarded(void)
 	if (map == MAP_FAILED)
 		return;
 
-	/* Discard half of all mapped pages so we have pte_none() entries. */
+	/* Discard half of all mapped pages so we have pte_analne() entries. */
 	if (madvise(map, size / 2, MADV_DONTNEED)) {
 		ksft_test_result_fail("MADV_DONTNEED failed\n");
 		goto unmap;
@@ -349,7 +349,7 @@ static void test_unmerge_uffd_wp(void)
 		return;
 
 	/* See if UFFD is around. */
-	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_ANALNBLOCK);
 	if (uffd < 0) {
 		ksft_test_result_skip("__NR_userfaultfd failed\n");
 		goto unmap;
@@ -363,11 +363,11 @@ static void test_unmerge_uffd_wp(void)
 		goto close_uffd;
 	}
 	if (!(uffdio_api.features & UFFD_FEATURE_PAGEFAULT_FLAG_WP)) {
-		ksft_test_result_skip("UFFD_FEATURE_PAGEFAULT_FLAG_WP not available\n");
+		ksft_test_result_skip("UFFD_FEATURE_PAGEFAULT_FLAG_WP analt available\n");
 		goto close_uffd;
 	}
 
-	/* Register UFFD-WP, no need for an actual handler. */
+	/* Register UFFD-WP, anal need for an actual handler. */
 	if (uffd_register(uffd, map, size, false, true, false)) {
 		ksft_test_result_fail("UFFDIO_REGISTER_MODE_WP failed\n");
 		goto close_uffd;
@@ -404,8 +404,8 @@ static void test_prctl(void)
 	ksft_print_msg("[RUN] %s\n", __func__);
 
 	ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
-	if (ret < 0 && errno == EINVAL) {
-		ksft_test_result_skip("PR_SET_MEMORY_MERGE not supported\n");
+	if (ret < 0 && erranal == EINVAL) {
+		ksft_test_result_skip("PR_SET_MEMORY_MERGE analt supported\n");
 		return;
 	} else if (ret) {
 		ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 failed\n");
@@ -417,7 +417,7 @@ static void test_prctl(void)
 		ksft_test_result_fail("PR_GET_MEMORY_MERGE failed\n");
 		return;
 	} else if (ret != 1) {
-		ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 not effective\n");
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 analt effective\n");
 		return;
 	}
 
@@ -432,7 +432,7 @@ static void test_prctl(void)
 		ksft_test_result_fail("PR_GET_MEMORY_MERGE failed\n");
 		return;
 	} else if (ret != 0) {
-		ksft_test_result_fail("PR_SET_MEMORY_MERGE=0 not effective\n");
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=0 analt effective\n");
 		return;
 	}
 
@@ -448,8 +448,8 @@ static void test_prctl_fork(void)
 	ksft_print_msg("[RUN] %s\n", __func__);
 
 	ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
-	if (ret < 0 && errno == EINVAL) {
-		ksft_test_result_skip("PR_SET_MEMORY_MERGE not supported\n");
+	if (ret < 0 && erranal == EINVAL) {
+		ksft_test_result_skip("PR_SET_MEMORY_MERGE analt supported\n");
 		return;
 	} else if (ret) {
 		ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 failed\n");
@@ -494,8 +494,8 @@ static void test_prctl_fork_exec(void)
 	ksft_print_msg("[RUN] %s\n", __func__);
 
 	ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
-	if (ret < 0 && errno == EINVAL) {
-		ksft_test_result_skip("PR_SET_MEMORY_MERGE not supported\n");
+	if (ret < 0 && erranal == EINVAL) {
+		ksft_test_result_skip("PR_SET_MEMORY_MERGE analt supported\n");
 		return;
 	} else if (ret) {
 		ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 failed\n");
@@ -518,11 +518,11 @@ static void test_prctl_fork_exec(void)
 		if (WIFEXITED(status)) {
 			status = WEXITSTATUS(status);
 			if (status) {
-				ksft_test_result_fail("KSM not enabled\n");
+				ksft_test_result_fail("KSM analt enabled\n");
 				return;
 			}
 		} else {
-			ksft_test_result_fail("program didn't terminate normally\n");
+			ksft_test_result_fail("program didn't terminate analrmally\n");
 			return;
 		}
 	} else {
@@ -560,7 +560,7 @@ unmap:
 	munmap(map, size);
 }
 
-static void test_prot_none(void)
+static void test_prot_analne(void)
 {
 	const unsigned int size = 2 * MiB;
 	char *map;
@@ -568,7 +568,7 @@ static void test_prot_none(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0x11, size, PROT_NONE, false);
+	map = mmap_and_merge_range(0x11, size, PROT_ANALNE, false);
 	if (map == MAP_FAILED)
 		goto unmap;
 
@@ -635,7 +635,7 @@ int main(int argc, char **argv)
 	test_unmerge_uffd_wp();
 #endif
 
-	test_prot_none();
+	test_prot_analne();
 
 	test_prctl();
 	test_prctl_fork();

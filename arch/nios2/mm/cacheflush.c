@@ -31,7 +31,7 @@ static void __flush_dcache(unsigned long start, unsigned long end)
 		__asm__ __volatile__ ("   flushd 0(%0)\n"
 					: /* Outputs */
 					: /* Inputs  */ "r"(addr)
-					/* : No clobber */);
+					/* : Anal clobber */);
 	}
 }
 
@@ -47,7 +47,7 @@ static void __invalidate_dcache(unsigned long start, unsigned long end)
 		__asm__ __volatile__ ("   initda 0(%0)\n"
 					: /* Outputs */
 					: /* Inputs  */ "r"(addr)
-					/* : No clobber */);
+					/* : Anal clobber */);
 	}
 }
 
@@ -66,7 +66,7 @@ static void __flush_icache(unsigned long start, unsigned long end)
 		__asm__ __volatile__ ("   flushi %0\n"
 					: /* Outputs */
 					: /* Inputs  */ "r"(addr)
-					/* : No clobber */);
+					/* : Anal clobber */);
 	}
 	__asm__ __volatile(" flushp\n");
 }

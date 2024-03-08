@@ -66,7 +66,7 @@ int lock_contention_prepare(struct lock_contention *con)
 								  con->filters->syms[i],
 								  &kmap);
 			if (sym == NULL) {
-				pr_warning("ignore unknown symbol: %s\n",
+				pr_warning("iganalre unkanalwn symbol: %s\n",
 					   con->filters->syms[i]);
 				continue;
 			}
@@ -121,7 +121,7 @@ int lock_contention_prepare(struct lock_contention *con)
 		}
 	}
 
-	if (target__none(target) && evlist->workload.pid > 0) {
+	if (target__analne(target) && evlist->workload.pid > 0) {
 		u32 pid = evlist->workload.pid;
 		u8 val = 1;
 
@@ -208,7 +208,7 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 		int pid = key->pid;
 		int task_fd = bpf_map__fd(skel->maps.task_data);
 
-		/* do not update idle comm which contains CPU number */
+		/* do analt update idle comm which contains CPU number */
 		if (pid) {
 			struct thread *t = __machine__findnew_thread(machine, /*pid=*/-1, pid);
 
@@ -389,7 +389,7 @@ int lock_contention_read(struct lock_contention *con)
 next:
 		prev_key = &key;
 
-		/* we're fine now, reset the error */
+		/* we're fine analw, reset the error */
 		err = 0;
 	}
 
@@ -406,10 +406,10 @@ int lock_contention_finish(struct lock_contention *con)
 	}
 
 	while (!RB_EMPTY_ROOT(&con->cgroups)) {
-		struct rb_node *node = rb_first(&con->cgroups);
-		struct cgroup *cgrp = rb_entry(node, struct cgroup, node);
+		struct rb_analde *analde = rb_first(&con->cgroups);
+		struct cgroup *cgrp = rb_entry(analde, struct cgroup, analde);
 
-		rb_erase(node, &con->cgroups);
+		rb_erase(analde, &con->cgroups);
 		cgroup__put(cgrp);
 	}
 

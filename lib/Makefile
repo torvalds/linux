@@ -5,8 +5,8 @@
 
 ccflags-remove-$(CONFIG_FUNCTION_TRACER) += $(CC_FLAGS_FTRACE)
 
-# These files are disabled because they produce lots of non-interesting and/or
-# flaky coverage that is not a function of syscall inputs. For example,
+# These files are disabled because they produce lots of analn-interesting and/or
+# flaky coverage that is analt a function of syscall inputs. For example,
 # rbtree can be global and individual rotations don't correlate with inputs.
 KCOV_INSTRUMENT_string.o := n
 KCOV_INSTRUMENT_rbtree.o := n
@@ -16,7 +16,7 @@ KCOV_INSTRUMENT_dynamic_debug.o := n
 KCOV_INSTRUMENT_fault-inject.o := n
 
 # string.o implements standard library functions like memset/memcpy etc.
-# Use -ffreestanding to ensure that the compiler does not try to "optimize"
+# Use -ffreestanding to ensure that the compiler does analt try to "optimize"
 # them into calls to themselves.
 CFLAGS_string.o := -ffreestanding
 
@@ -24,7 +24,7 @@ CFLAGS_string.o := -ffreestanding
 ifdef CONFIG_AMD_MEM_ENCRYPT
 KASAN_SANITIZE_string.o := n
 
-CFLAGS_string.o += -fno-stack-protector
+CFLAGS_string.o += -fanal-stack-protector
 endif
 
 lib-y := ctype.o string.o vsprintf.o cmdline.o \
@@ -117,14 +117,14 @@ obj-$(CONFIG_TEST_OBJPOOL) += test_objpool.o
 FPU_CFLAGS := -msse -msse2
 ifdef CONFIG_CC_IS_GCC
 # Stack alignment mismatch, proceed with caution.
-# GCC < 7.1 cannot compile code using `double` and -mpreferred-stack-boundary=3
+# GCC < 7.1 cananalt compile code using `double` and -mpreferred-stack-boundary=3
 # (8B stack alignment).
 # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53383
 #
 # The "-msse" in the first argument is there so that the
 # -mpreferred-stack-boundary=3 build error:
 #
-#  -mpreferred-stack-boundary=3 is not between 4 and 12
+#  -mpreferred-stack-boundary=3 is analt between 4 and 12
 #
 # can be triggered. Otherwise gcc doesn't complain.
 FPU_CFLAGS += -mhard-float
@@ -227,12 +227,12 @@ obj-$(CONFIG_AUDIT_COMPAT_GENERIC) += compat_audit.o
 obj-$(CONFIG_IOMMU_HELPER) += iommu-helper.o
 obj-$(CONFIG_FAULT_INJECTION) += fault-inject.o
 obj-$(CONFIG_FAULT_INJECTION_USERCOPY) += fault-inject-usercopy.o
-obj-$(CONFIG_NOTIFIER_ERROR_INJECTION) += notifier-error-inject.o
-obj-$(CONFIG_PM_NOTIFIER_ERROR_INJECT) += pm-notifier-error-inject.o
-obj-$(CONFIG_NETDEV_NOTIFIER_ERROR_INJECT) += netdev-notifier-error-inject.o
-obj-$(CONFIG_MEMORY_NOTIFIER_ERROR_INJECT) += memory-notifier-error-inject.o
-obj-$(CONFIG_OF_RECONFIG_NOTIFIER_ERROR_INJECT) += \
-	of-reconfig-notifier-error-inject.o
+obj-$(CONFIG_ANALTIFIER_ERROR_INJECTION) += analtifier-error-inject.o
+obj-$(CONFIG_PM_ANALTIFIER_ERROR_INJECT) += pm-analtifier-error-inject.o
+obj-$(CONFIG_NETDEV_ANALTIFIER_ERROR_INJECT) += netdev-analtifier-error-inject.o
+obj-$(CONFIG_MEMORY_ANALTIFIER_ERROR_INJECT) += memory-analtifier-error-inject.o
+obj-$(CONFIG_OF_RECONFIG_ANALTIFIER_ERROR_INJECT) += \
+	of-reconfig-analtifier-error-inject.o
 obj-$(CONFIG_FUNCTION_ERROR_INJECTION) += error-inject.o
 
 lib-$(CONFIG_GENERIC_BUG) += bug.o
@@ -280,12 +280,12 @@ obj-$(CONFIG_MEMREGION) += memregion.o
 obj-$(CONFIG_STMP_DEVICE) += stmp_device.o
 obj-$(CONFIG_IRQ_POLL) += irq_poll.o
 
-obj-$(CONFIG_POLYNOMIAL) += polynomial.o
+obj-$(CONFIG_POLYANALMIAL) += polyanalmial.o
 
-# stackdepot.c should not be instrumented or call instrumented functions.
+# stackdepot.c should analt be instrumented or call instrumented functions.
 # Prevent the compiler from calling builtins like memcmp() or bcmp() from this
 # file.
-CFLAGS_stackdepot.o += -fno-builtin
+CFLAGS_stackdepot.o += -fanal-builtin
 obj-$(CONFIG_STACKDEPOT) += stackdepot.o
 KASAN_SANITIZE_stackdepot.o := n
 # In particular, instrumenting stackdepot.c with KMSAN will result in infinite
@@ -364,7 +364,7 @@ obj-$(CONFIG_UBSAN) += ubsan.o
 UBSAN_SANITIZE_ubsan.o := n
 KASAN_SANITIZE_ubsan.o := n
 KCSAN_SANITIZE_ubsan.o := n
-CFLAGS_ubsan.o := -fno-stack-protector $(DISABLE_STACKLEAK_PLUGIN)
+CFLAGS_ubsan.o := -fanal-stack-protector $(DISABLE_STACKLEAK_PLUGIN)
 
 obj-$(CONFIG_SBITMAP) += sbitmap.o
 

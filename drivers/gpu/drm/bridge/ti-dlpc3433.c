@@ -56,7 +56,7 @@ struct dlpc {
 	struct device		*dev;
 	struct drm_bridge	bridge;
 	struct drm_bridge	*next_bridge;
-	struct device_node	*host_node;
+	struct device_analde	*host_analde;
 	struct mipi_dsi_device	*dsi;
 	struct drm_display_mode	mode;
 
@@ -72,7 +72,7 @@ static inline struct dlpc *bridge_to_dlpc(struct drm_bridge *bridge)
 	return container_of(bridge, struct dlpc, bridge);
 }
 
-static bool dlpc_writeable_noinc_reg(struct device *dev, unsigned int reg)
+static bool dlpc_writeable_analinc_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case WR_IMAGE_CROP:
@@ -90,15 +90,15 @@ static const struct regmap_range dlpc_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table dlpc_volatile_table = {
-	.yes_ranges = dlpc_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(dlpc_volatile_ranges),
+	.anal_ranges = dlpc_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(dlpc_volatile_ranges),
 };
 
 static struct regmap_config dlpc_regmap_config = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
 	.max_register		= WR_DSI_PORT_EN,
-	.writeable_noinc_reg	= dlpc_writeable_noinc_reg,
+	.writeable_analinc_reg	= dlpc_writeable_analinc_reg,
 	.volatile_table		= &dlpc_volatile_table,
 	.cache_type		= REGCACHE_MAPLE,
 	.name			= "dlpc3433",
@@ -137,21 +137,21 @@ static void dlpc_atomic_enable(struct drm_bridge *bridge,
 	buf[5] = (mode->hdisplay & 0xff00) >> 8;
 	buf[6] = mode->vdisplay & 0xff;
 	buf[7] = (mode->vdisplay & 0xff00) >> 8;
-	regmap_noinc_write(regmap, WR_IMAGE_CROP, buf, MAX_BYTE_SIZE);
+	regmap_analinc_write(regmap, WR_IMAGE_CROP, buf, MAX_BYTE_SIZE);
 
 	/* set display size */
 	buf[4] = mode->hdisplay & 0xff;
 	buf[5] = (mode->hdisplay & 0xff00) >> 8;
 	buf[6] = mode->vdisplay & 0xff;
 	buf[7] = (mode->vdisplay & 0xff00) >> 8;
-	regmap_noinc_write(regmap, WR_DISPLAY_SIZE, buf, MAX_BYTE_SIZE);
+	regmap_analinc_write(regmap, WR_DISPLAY_SIZE, buf, MAX_BYTE_SIZE);
 
 	/* set input image size */
 	buf[0] = mode->hdisplay & 0xff;
 	buf[1] = (mode->hdisplay & 0xff00) >> 8;
 	buf[2] = mode->vdisplay & 0xff;
 	buf[3] = (mode->vdisplay & 0xff00) >> 8;
-	regmap_noinc_write(regmap, WR_INPUT_IMAGE_SIZE, buf, 4);
+	regmap_analinc_write(regmap, WR_INPUT_IMAGE_SIZE, buf, 4);
 
 	/* set external video port */
 	regmap_write(regmap, WR_INPUT_SOURCE, INPUT_EXTERNAL_VIDEO);
@@ -265,7 +265,7 @@ static const struct drm_bridge_funcs dlpc_bridge_funcs = {
 static int dlpc3433_parse_dt(struct dlpc *dlpc)
 {
 	struct device *dev = dlpc->dev;
-	struct device_node *endpoint;
+	struct device_analde *endpoint;
 	int ret;
 
 	dlpc->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
@@ -282,31 +282,31 @@ static int dlpc3433_parse_dt(struct dlpc *dlpc)
 		return dev_err_probe(dev, PTR_ERR(dlpc->vcc_flsh),
 				     "failed to get VCC_FLSH supply\n");
 
-	dlpc->next_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 1, 0);
+	dlpc->next_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 1, 0);
 	if (IS_ERR(dlpc->next_bridge))
 		return PTR_ERR(dlpc->next_bridge);
 
-	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_analde, 0, 0);
 	dlpc->dsi_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
 	if (dlpc->dsi_lanes < 0 || dlpc->dsi_lanes > 4) {
 		ret = -EINVAL;
 		goto err_put_endpoint;
 	}
 
-	dlpc->host_node = of_graph_get_remote_port_parent(endpoint);
-	if (!dlpc->host_node) {
-		ret = -ENODEV;
+	dlpc->host_analde = of_graph_get_remote_port_parent(endpoint);
+	if (!dlpc->host_analde) {
+		ret = -EANALDEV;
 		goto err_put_host;
 	}
 
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 
 	return 0;
 
 err_put_host:
-	of_node_put(dlpc->host_node);
+	of_analde_put(dlpc->host_analde);
 err_put_endpoint:
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 	return ret;
 }
 
@@ -317,10 +317,10 @@ static int dlpc_host_attach(struct dlpc *dlpc)
 	struct mipi_dsi_device_info info = {
 		.type = "dlpc3433",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	};
 
-	host = of_find_mipi_dsi_host_by_node(dlpc->host_node);
+	host = of_find_mipi_dsi_host_by_analde(dlpc->host_analde);
 	if (!host) {
 		DRM_DEV_ERROR(dev, "failed to find dsi host\n");
 		return -EPROBE_DEFER;
@@ -347,7 +347,7 @@ static int dlpc3433_probe(struct i2c_client *client)
 
 	dlpc = devm_kzalloc(dev, sizeof(*dlpc), GFP_KERNEL);
 	if (!dlpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dlpc->dev = dev;
 
@@ -363,7 +363,7 @@ static int dlpc3433_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, dlpc);
 
 	dlpc->bridge.funcs = &dlpc_bridge_funcs;
-	dlpc->bridge.of_node = dev->of_node;
+	dlpc->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&dlpc->bridge);
 
 	ret = dlpc_host_attach(dlpc);
@@ -384,7 +384,7 @@ static void dlpc3433_remove(struct i2c_client *client)
 	struct dlpc *dlpc = i2c_get_clientdata(client);
 
 	drm_bridge_remove(&dlpc->bridge);
-	of_node_put(dlpc->host_node);
+	of_analde_put(dlpc->host_analde);
 }
 
 static const struct i2c_device_id dlpc3433_id[] = {

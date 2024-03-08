@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -50,7 +50,7 @@
 #       define PGS_MASK                                 (0xf << 28)
 #       define PGS_SHIFT                                28
 
-#define RCU_ALTVDDNB_NOTIFY                             0x430
+#define RCU_ALTVDDNB_ANALTIFY                             0x430
 #define RCU_LCLK_SCALING_CNTL                           0x434
 #       define LCLK_SCALING_EN                          (1 << 0)
 #       define LCLK_SCALING_TYPE                        (1 << 1)
@@ -83,7 +83,7 @@
 #       define IT_MASK                                  (0xffff << 16)
 #       define IT_SHIFT                                 16
 
-/* yes these two have the same address */
+/* anal these two have the same address */
 #define RCU_PWR_GATING_CNTL_5                           0x504
 #define RCU_GPU_BOOST_DISABLE                           0x508
 
@@ -352,9 +352,9 @@
 #       define ENABLE_DS                                (1 << 31)
 #define DEEP_SLEEP_CNTL2                                0x81c
 #       define LB_UFP_EN                                (1 << 0)
-#       define INOUT_C(x)                               ((x) << 4)
-#       define INOUT_C_MASK                             (0xff << 4)
-#       define INOUT_C_SHIFT                            4
+#       define IANALUT_C(x)                               ((x) << 4)
+#       define IANALUT_C_MASK                             (0xff << 4)
+#       define IANALUT_C_SHIFT                            4
 
 #define CG_SCRATCH2                                     0x824
 

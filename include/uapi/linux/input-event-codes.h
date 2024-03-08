@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Input event codes
  *
  *    *** IMPORTANT ***
- * This file is not only included from C-code but also from devicetree source
+ * This file is analt only included from C-code but also from devicetree source
  * files. As such this file MUST only contain comments and defines.
  *
  * Copyright (c) 1999-2002 Vojtech Pavlik
@@ -321,7 +321,7 @@
 #define KEY_WLAN		238
 #define KEY_UWB			239
 
-#define KEY_UNKNOWN		240
+#define KEY_UNKANALWN		240
 
 #define KEY_VIDEO_NEXT		241	/* drive next video source */
 #define KEY_VIDEO_PREV		242	/* drive previous video source */
@@ -383,8 +383,8 @@
 #define BTN_EAST		0x131
 #define BTN_B			BTN_EAST
 #define BTN_C			0x132
-#define BTN_NORTH		0x133
-#define BTN_X			BTN_NORTH
+#define BTN_ANALRTH		0x133
+#define BTN_X			BTN_ANALRTH
 #define BTN_WEST		0x134
 #define BTN_Y			BTN_WEST
 #define BTN_Z			0x135
@@ -516,7 +516,7 @@
 #define KEY_10CHANNELSUP	0x1b8	/* 10 channels up (10+) */
 #define KEY_10CHANNELSDOWN	0x1b9	/* 10 channels down (10-) */
 #define KEY_IMAGES		0x1ba	/* AL Image Browser */
-#define KEY_NOTIFICATION_CENTER	0x1bc	/* Show/hide the notification center */
+#define KEY_ANALTIFICATION_CENTER	0x1bc	/* Show/hide the analtification center */
 #define KEY_PICKUP_PHONE	0x1bd	/* Answer incoming call */
 #define KEY_HANGUP_PHONE	0x1be	/* Decline incoming call */
 
@@ -641,7 +641,7 @@
 #define KEY_NUMERIC_12			0x26d
 /*
  * Toggle Audio Description: refers to an audio service that helps blind and
- * visually impaired consumers understand the action in a program. Note: in
+ * visually impaired consumers understand the action in a program. Analte: in
  * some countries this is referred to as "Video Description".
  */
 #define KEY_AUDIO_DESC			0x26e
@@ -687,17 +687,17 @@
 #define KEY_BRIGHTNESS_MENU            0x289
 
 /*
- * Some keyboards have keys which do not have a defined meaning, these keys
+ * Some keyboards have keys which do analt have a defined meaning, these keys
  * are intended to be programmed / bound to macros by the user. For most
  * keyboards with these macro-keys the key-sequence to inject, or action to
  * take, is all handled by software on the host side. So from the kernel's
- * point of view these are just normal keys.
+ * point of view these are just analrmal keys.
  *
  * The KEY_MACRO# codes below are intended for such keys, which may be labeled
- * e.g. G1-G18, or S1 - S30. The KEY_MACRO# codes MUST NOT be used for keys
+ * e.g. G1-G18, or S1 - S30. The KEY_MACRO# codes MUST ANALT be used for keys
  * where the marking on the key does indicate a defined meaning / purpose.
  *
- * The KEY_MACRO# codes MUST also NOT be used as fallback for when no existing
+ * The KEY_MACRO# codes MUST also ANALT be used as fallback for when anal existing
  * KEY_FOO define matches the marking / purpose. In this case a new KEY_FOO
  * define MUST be added.
  */
@@ -735,9 +735,9 @@
 /*
  * Some keyboards with the macro-keys described above have some extra keys
  * for controlling the host-side software responsible for the macro handling:
- * -A macro recording start/stop key. Note that not all keyboards which emit
+ * -A macro recording start/stop key. Analte that analt all keyboards which emit
  *  KEY_MACRO_RECORD_START will also emit KEY_MACRO_RECORD_STOP if
- *  KEY_MACRO_RECORD_STOP is not advertised, then KEY_MACRO_RECORD_START
+ *  KEY_MACRO_RECORD_STOP is analt advertised, then KEY_MACRO_RECORD_START
  *  should be interpreted as a recording start/stop toggle;
  * -Keys for switching between different macro (pre)sets, either a key for
  *  cycling through the configured presets or keys to directly select a preset.
@@ -823,7 +823,7 @@
 #define REL_WHEEL		0x08
 #define REL_MISC		0x09
 /*
- * 0x0a is reserved and should not be used in input drivers.
+ * 0x0a is reserved and should analt be used in input drivers.
  * It was used by HID as REL_MISC+1 and userspace needs to detect if
  * the next REL_* event is correct or is just REL_MISC + n.
  * We define here REL_RESERVED so userspace can rely on it and detect
@@ -870,7 +870,7 @@
 #define ABS_MISC		0x28
 
 /*
- * 0x2e is reserved and should not be used in input drivers.
+ * 0x2e is reserved and should analt be used in input drivers.
  * It was used by HID as ABS_MISC+6 and userspace needs to detect if
  * the next ABS_* event is correct or is just ABS_MISC + n.
  * We define here ABS_RESERVED so userspace can rely on it and detect
@@ -880,9 +880,9 @@
 
 #define ABS_MT_SLOT		0x2f	/* MT slot being modified */
 #define ABS_MT_TOUCH_MAJOR	0x30	/* Major axis of touching ellipse */
-#define ABS_MT_TOUCH_MINOR	0x31	/* Minor axis (omit if circular) */
+#define ABS_MT_TOUCH_MIANALR	0x31	/* Mianalr axis (omit if circular) */
 #define ABS_MT_WIDTH_MAJOR	0x32	/* Major axis of approaching ellipse */
-#define ABS_MT_WIDTH_MINOR	0x33	/* Minor axis (omit if circular) */
+#define ABS_MT_WIDTH_MIANALR	0x33	/* Mianalr axis (omit if circular) */
 #define ABS_MT_ORIENTATION	0x34	/* Ellipse orientation */
 #define ABS_MT_POSITION_X	0x35	/* Center X touch position */
 #define ABS_MT_POSITION_Y	0x36	/* Center Y touch position */

@@ -12,7 +12,7 @@ int null_data_vprintk_ret = 0;
 int trace_vprintk_ret = 0;
 int trace_vprintk_ran = 0;
 
-SEC("fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("fentry/" SYS_PREFIX "sys_naanalsleep")
 int sys_enter(void *ctx)
 {
 	static const char one[] = "1";
@@ -28,7 +28,7 @@ int sys_enter(void *ctx)
 	trace_vprintk_ret = __bpf_vprintk("%s,%d,%s,%d,%s,%d,%s,%d,%s,%d %d\n",
 		one, 2, three, 4, five, 6, seven, 8, nine, 10, ++trace_vprintk_ran);
 
-	/* non-NULL fmt w/ NULL data should result in error */
+	/* analn-NULL fmt w/ NULL data should result in error */
 	null_data_vprintk_ret = bpf_trace_vprintk(f, sizeof(f), NULL, 0);
 	return 0;
 }

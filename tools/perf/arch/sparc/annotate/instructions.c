@@ -157,7 +157,7 @@ static struct ins_ops *sparc__associate_instruction_ops(struct arch *arch, const
 	return ops;
 }
 
-static int sparc__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+static int sparc__ananaltate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	if (!arch->initialized) {
 		arch->initialized = true;

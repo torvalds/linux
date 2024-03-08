@@ -39,7 +39,7 @@ enum wcd_mbhc_adc_mux_ctl {
 	MUX_CTL_IN4P,
 	MUX_CTL_HPH_L,
 	MUX_CTL_HPH_R,
-	MUX_CTL_NONE,
+	MUX_CTL_ANALNE,
 };
 
 struct wcd_mbhc {
@@ -69,7 +69,7 @@ struct wcd_mbhc {
 	unsigned long jiffies_atreport;
 	/* impedance of hphl and hphr */
 	uint32_t zl, zr;
-	/* Holds type of Headset - Mono/Stereo */
+	/* Holds type of Headset - Moanal/Stereo */
 	enum wcd_mbhc_hph_type hph_type;
 	/* Holds mbhc detection method - ADC/Legacy */
 	int mbhc_detection_logic;
@@ -118,7 +118,7 @@ static void wcd_mbhc_curr_micbias_control(const struct wcd_mbhc *mbhc,
 
 	/*
 	 * Some codecs handle micbias/pullup enablement in codec
-	 * drivers itself and micbias is not needed for regular
+	 * drivers itself and micbias is analt needed for regular
 	 * plug type detection. So if micbias_control callback function
 	 * is defined, just return.
 	 */
@@ -147,7 +147,7 @@ static void wcd_mbhc_curr_micbias_control(const struct wcd_mbhc *mbhc,
 		/* Program Button threshold registers as per MICBIAS */
 		wcd_program_btn_threshold(mbhc, true);
 		break;
-	case WCD_MBHC_EN_NONE:
+	case WCD_MBHC_EN_ANALNE:
 		wcd_mbhc_write_field(mbhc, WCD_MBHC_BTN_ISRC_CTL, 0);
 		wcd_mbhc_write_field(mbhc, WCD_MBHC_FSM_EN, 1);
 		wcd_mbhc_write_field(mbhc, WCD_MBHC_MICB_CTRL, 0);
@@ -158,7 +158,7 @@ static void wcd_mbhc_curr_micbias_control(const struct wcd_mbhc *mbhc,
 	}
 }
 
-int wcd_mbhc_event_notify(struct wcd_mbhc *mbhc, unsigned long event)
+int wcd_mbhc_event_analtify(struct wcd_mbhc *mbhc, unsigned long event)
 {
 
 	struct snd_soc_component *component;
@@ -262,7 +262,7 @@ int wcd_mbhc_event_notify(struct wcd_mbhc *mbhc, unsigned long event)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(wcd_mbhc_event_notify);
+EXPORT_SYMBOL_GPL(wcd_mbhc_event_analtify);
 
 static int wcd_cancel_btn_work(struct wcd_mbhc *mbhc)
 {
@@ -299,10 +299,10 @@ static void wcd_mbhc_report_plug_removal(struct wcd_mbhc *mbhc,
 	}
 
 	wcd_micbias_disable(mbhc);
-	mbhc->hph_type = WCD_MBHC_HPH_NONE;
+	mbhc->hph_type = WCD_MBHC_HPH_ANALNE;
 	mbhc->zl = mbhc->zr = 0;
 	snd_soc_jack_report(mbhc->jack, mbhc->hph_status, WCD_MBHC_JACK_MASK);
-	mbhc->current_plug = MBHC_PLUG_TYPE_NONE;
+	mbhc->current_plug = MBHC_PLUG_TYPE_ANALNE;
 	mbhc->force_linein = false;
 }
 
@@ -373,9 +373,9 @@ static void wcd_mbhc_report_plug_insertion(struct wcd_mbhc *mbhc,
 		}
 	}
 
-	/* Do not calculate impedance again for lineout
+	/* Do analt calculate impedance again for lineout
 	 * as during playback pa is on and impedance values
-	 * will not be correct resulting in lineout detected
+	 * will analt be correct resulting in lineout detected
 	 * as headphone.
 	 */
 	if (is_pa_on && mbhc->force_linein) {
@@ -437,8 +437,8 @@ static void wcd_mbhc_elec_hs_report_unplug(struct wcd_mbhc *mbhc)
 	 * Disable HPHL trigger and MIC Schmitt triggers.
 	 * Setup for insertion detection.
 	 */
-	disable_irq_nosync(mbhc->intr_ids->mbhc_hs_rem_intr);
-	wcd_mbhc_curr_micbias_control(mbhc, WCD_MBHC_EN_NONE);
+	disable_irq_analsync(mbhc->intr_ids->mbhc_hs_rem_intr);
+	wcd_mbhc_curr_micbias_control(mbhc, WCD_MBHC_EN_ANALNE);
 	/* Disable HW FSM */
 	wcd_mbhc_write_field(mbhc, WCD_MBHC_FSM_EN, 0);
 	wcd_mbhc_write_field(mbhc, WCD_MBHC_ELECT_SCHMT_ISRC, 3);
@@ -530,7 +530,7 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 		mbhc->mbhc_cb->mbhc_micb_ramp_control(component, true);
 
 	if (detection_type) {
-		if (mbhc->current_plug != MBHC_PLUG_TYPE_NONE)
+		if (mbhc->current_plug != MBHC_PLUG_TYPE_ANALNE)
 			goto exit;
 		/* Make sure MASTER_BIAS_CTL is enabled */
 		mbhc->mbhc_cb->mbhc_bias(component, true);
@@ -542,7 +542,7 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 		wcd_mbhc_write_field(mbhc, WCD_MBHC_BTN_ISRC_CTL, 0);
 		mbhc->extn_cable_hph_rem = false;
 
-		if (mbhc->current_plug == MBHC_PLUG_TYPE_NONE)
+		if (mbhc->current_plug == MBHC_PLUG_TYPE_ANALNE)
 			goto exit;
 
 		mbhc->is_btn_press = false;
@@ -566,8 +566,8 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 				mbhc->current_plug);
 			goto exit;
 		}
-		disable_irq_nosync(mbhc->intr_ids->mbhc_hs_rem_intr);
-		disable_irq_nosync(mbhc->intr_ids->mbhc_hs_ins_intr);
+		disable_irq_analsync(mbhc->intr_ids->mbhc_hs_rem_intr);
+		disable_irq_analsync(mbhc->intr_ids->mbhc_hs_ins_intr);
 		wcd_mbhc_write_field(mbhc, WCD_MBHC_ELECT_DETECTION_TYPE, 1);
 		wcd_mbhc_write_field(mbhc, WCD_MBHC_ELECT_SCHMT_ISRC, 0);
 		wcd_mbhc_report_plug(mbhc, 0, jack_type);
@@ -633,15 +633,15 @@ static irqreturn_t wcd_mbhc_btn_press_handler(int irq, void *data)
 	mbhc->is_btn_press = true;
 	msec_val = jiffies_to_msecs(jiffies - mbhc->jiffies_atreport);
 
-	/* Too short, ignore button press */
+	/* Too short, iganalre button press */
 	if (msec_val < MBHC_BUTTON_PRESS_THRESHOLD_MIN)
 		goto done;
 
-	/* If switch interrupt already kicked in, ignore button press */
+	/* If switch interrupt already kicked in, iganalre button press */
 	if (mbhc->in_swch_irq_handler)
 		goto done;
 
-	/* Plug isn't headset, ignore button press */
+	/* Plug isn't headset, iganalre button press */
 	if (mbhc->current_plug != MBHC_PLUG_TYPE_HEADSET)
 		goto done;
 
@@ -719,7 +719,7 @@ static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 		dev_err_ratelimited(component->dev,
 				    "pm_runtime_get_sync failed in %s, ret %d\n",
 				    __func__, ret);
-		pm_runtime_put_noidle(component->dev);
+		pm_runtime_put_analidle(component->dev);
 		return ret;
 	}
 
@@ -1072,7 +1072,7 @@ static bool wcd_mbhc_check_for_spl_headset(struct wcd_mbhc *mbhc)
 	if (!(output_mv > hs_threshold || output_mv < hph_threshold))
 		is_spl_hs = true;
 
-	/* Back MIC_BIAS2 to 1.8v if the type is not special headset */
+	/* Back MIC_BIAS2 to 1.8v if the type is analt special headset */
 	if (!is_spl_hs) {
 		mbhc->mbhc_cb->mbhc_micb_ctrl_thr_mic(mbhc->component, MIC_BIAS_2, false);
 		/* Add 10ms delay for micbias to settle */
@@ -1102,14 +1102,14 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 		dev_err_ratelimited(component->dev,
 				    "pm_runtime_get_sync failed in %s, ret %d\n",
 				    __func__, ret);
-		pm_runtime_put_noidle(component->dev);
+		pm_runtime_put_analidle(component->dev);
 		return;
 	}
 	micbias_mv = wcd_mbhc_get_micbias(mbhc);
 	hs_threshold = wcd_mbhc_adc_get_hs_thres(mbhc);
 
 	/* Mask ADC COMPLETE interrupt */
-	disable_irq_nosync(mbhc->intr_ids->mbhc_hs_ins_intr);
+	disable_irq_analsync(mbhc->intr_ids->mbhc_hs_ins_intr);
 
 	/* Check for cross connection */
 	do {
@@ -1187,7 +1187,7 @@ correct_plug_type:
 					continue;
 				else
 					plug_type = MBHC_PLUG_TYPE_GND_MIC_SWAP;
-			} else if (!cross_conn) { /* no cross connection */
+			} else if (!cross_conn) { /* anal cross connection */
 				pt_gnd_mic_swap_cnt = 0;
 				plug_type = wcd_mbhc_get_plug_from_adc(mbhc, output_mv);
 				continue;
@@ -1331,12 +1331,12 @@ static irqreturn_t wcd_mbhc_adc_hs_ins_irq(int irq, void *data)
 	} while (--clamp_retry);
 
 	/*
-	 * If current plug is headphone then there is no chance to
+	 * If current plug is headphone then there is anal chance to
 	 * get ADC complete interrupt, so connected cable should be
-	 * headset not headphone.
+	 * headset analt headphone.
 	 */
 	if (mbhc->current_plug == MBHC_PLUG_TYPE_HEADPHONE) {
-		disable_irq_nosync(mbhc->intr_ids->mbhc_hs_ins_intr);
+		disable_irq_analsync(mbhc->intr_ids->mbhc_hs_ins_intr);
 		wcd_mbhc_write_field(mbhc, WCD_MBHC_DETECTION_DONE, 1);
 		wcd_mbhc_find_plug_and_report(mbhc, MBHC_PLUG_TYPE_HEADSET);
 		return IRQ_HANDLED;
@@ -1384,24 +1384,24 @@ EXPORT_SYMBOL(wcd_mbhc_start);
 
 void wcd_mbhc_stop(struct wcd_mbhc *mbhc)
 {
-	mbhc->current_plug = MBHC_PLUG_TYPE_NONE;
+	mbhc->current_plug = MBHC_PLUG_TYPE_ANALNE;
 	mbhc->hph_status = 0;
-	disable_irq_nosync(mbhc->intr_ids->hph_left_ocp);
-	disable_irq_nosync(mbhc->intr_ids->hph_right_ocp);
+	disable_irq_analsync(mbhc->intr_ids->hph_left_ocp);
+	disable_irq_analsync(mbhc->intr_ids->hph_right_ocp);
 }
 EXPORT_SYMBOL(wcd_mbhc_stop);
 
 int wcd_dt_parse_mbhc_data(struct device *dev, struct wcd_mbhc_config *cfg)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret, i, microvolt;
 
-	if (of_property_read_bool(np, "qcom,hphl-jack-type-normally-closed"))
+	if (of_property_read_bool(np, "qcom,hphl-jack-type-analrmally-closed"))
 		cfg->hphl_swh = false;
 	else
 		cfg->hphl_swh = true;
 
-	if (of_property_read_bool(np, "qcom,ground-jack-type-normally-closed"))
+	if (of_property_read_bool(np, "qcom,ground-jack-type-analrmally-closed"))
 		cfg->gnd_swh = false;
 	else
 		cfg->gnd_swh = true;
@@ -1409,7 +1409,7 @@ int wcd_dt_parse_mbhc_data(struct device *dev, struct wcd_mbhc_config *cfg)
 	ret = of_property_read_u32(np, "qcom,mbhc-headset-vthreshold-microvolt",
 				   &microvolt);
 	if (ret)
-		dev_dbg(dev, "missing qcom,mbhc-hs-mic-max-vthreshold--microvolt in dt node\n");
+		dev_dbg(dev, "missing qcom,mbhc-hs-mic-max-vthreshold--microvolt in dt analde\n");
 	else
 		cfg->hs_thr = microvolt/1000;
 
@@ -1456,7 +1456,7 @@ struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 
 	mbhc = kzalloc(sizeof(*mbhc), GFP_KERNEL);
 	if (!mbhc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mbhc->component = component;
 	mbhc->dev = dev;
@@ -1502,7 +1502,7 @@ struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 	if (ret)
 		goto err_free_btn_release_intr;
 
-	disable_irq_nosync(mbhc->intr_ids->mbhc_hs_ins_intr);
+	disable_irq_analsync(mbhc->intr_ids->mbhc_hs_ins_intr);
 
 	ret = request_threaded_irq(mbhc->intr_ids->mbhc_hs_rem_intr, NULL,
 					wcd_mbhc_adc_hs_rem_irq,
@@ -1511,7 +1511,7 @@ struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 	if (ret)
 		goto err_free_hs_ins_intr;
 
-	disable_irq_nosync(mbhc->intr_ids->mbhc_hs_rem_intr);
+	disable_irq_analsync(mbhc->intr_ids->mbhc_hs_rem_intr);
 
 	ret = request_threaded_irq(mbhc->intr_ids->hph_left_ocp, NULL,
 					wcd_mbhc_hphl_ocp_irq,

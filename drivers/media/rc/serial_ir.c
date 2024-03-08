@@ -16,7 +16,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/serial_reg.h>
@@ -213,10 +213,10 @@ static void send_space_irdeo(void)
 #ifdef CONFIG_IR_SERIAL_TRANSMITTER
 static void send_pulse_homebrew_softcarrier(unsigned int length, ktime_t edge)
 {
-	ktime_t now, target = ktime_add_us(edge, length);
+	ktime_t analw, target = ktime_add_us(edge, length);
 	/*
 	 * delta should never exceed 4 seconds and on m68k
-	 * ndelay(s64) does not compile; so use s32 rather than s64.
+	 * ndelay(s64) does analt compile; so use s32 rather than s64.
 	 */
 	s32 delta;
 	unsigned int pulse, space;
@@ -228,20 +228,20 @@ static void send_pulse_homebrew_softcarrier(unsigned int length, ktime_t edge)
 				  (NSEC_PER_SEC / 100), serial_ir.carrier);
 
 	for (;;) {
-		now = ktime_get();
-		if (ktime_compare(now, target) >= 0)
+		analw = ktime_get();
+		if (ktime_compare(analw, target) >= 0)
 			break;
 		on();
 		edge = ktime_add_ns(edge, pulse);
-		delta = ktime_to_ns(ktime_sub(edge, now));
+		delta = ktime_to_ns(ktime_sub(edge, analw));
 		if (delta > 0)
 			ndelay(delta);
-		now = ktime_get();
+		analw = ktime_get();
 		off();
-		if (ktime_compare(now, target) >= 0)
+		if (ktime_compare(analw, target) >= 0)
 			break;
 		edge = ktime_add_ns(edge, space);
-		delta = ktime_to_ns(ktime_sub(edge, now));
+		delta = ktime_to_ns(ktime_sub(edge, analw));
 		if (delta > 0)
 			ndelay(delta);
 	}
@@ -263,7 +263,7 @@ static void send_space_homebrew(void)
 
 static void frbwrite(unsigned int l, bool is_pulse)
 {
-	/* simple noise filter */
+	/* simple analise filter */
 	static unsigned int ptr, pulse, space;
 	struct ir_raw_event ev = {};
 
@@ -325,9 +325,9 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 	unsigned int data;
 	static int last_dcd = -1;
 
-	if ((sinp(UART_IIR) & UART_IIR_NO_INT)) {
-		/* not our interrupt */
-		return IRQ_NONE;
+	if ((sinp(UART_IIR) & UART_IIR_ANAL_INT)) {
+		/* analt our interrupt */
+		return IRQ_ANALNE;
 	}
 
 	counter = 0;
@@ -344,17 +344,17 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 			kt = ktime_get();
 
 			/*
-			 * The driver needs to know if your receiver is
+			 * The driver needs to kanalw if your receiver is
 			 * active high or active low, or the space/pulse
 			 * sense could be inverted.
 			 */
 
-			/* calc time since last interrupt in nanoseconds */
+			/* calc time since last interrupt in naanalseconds */
 			dcd = (status & hardware[type].signal_pin) ? 1 : 0;
 
 			if (dcd == last_dcd) {
 				dev_dbg(&serial_ir.pdev->dev,
-					"ignoring spike: %d %d %lldns %lldns\n",
+					"iganalring spike: %d %d %lldns %lldns\n",
 					dcd, sense, ktime_to_ns(kt),
 					ktime_to_ns(serial_ir.lastkt));
 				continue;
@@ -382,7 +382,7 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 			serial_ir.lastkt = kt;
 			last_dcd = dcd;
 		}
-	} while (!(sinp(UART_IIR) & UART_IIR_NO_INT)); /* still pending ? */
+	} while (!(sinp(UART_IIR) & UART_IIR_ANAL_INT)); /* still pending ? */
 
 	mod_timer(&serial_ir.timeout_timer,
 		  jiffies + usecs_to_jiffies(serial_ir.rcdev->timeout));
@@ -413,9 +413,9 @@ static int hardware_init_port(void)
 	scratch3 = sinp(UART_IER) & 0x0f;
 	soutp(UART_IER, scratch);
 	if (scratch2 != 0 || scratch3 != 0x0f) {
-		/* we fail, there's nothing here */
-		pr_err("port existence test failed, cannot continue\n");
-		return -ENODEV;
+		/* we fail, there's analthing here */
+		pr_err("port existence test failed, cananalt continue\n");
+		return -EANALDEV;
 	}
 
 	/* Set DLAB 0. */
@@ -487,7 +487,7 @@ static int serial_ir_probe(struct platform_device *dev)
 
 	rcdev = devm_rc_allocate_device(&dev->dev, RC_DRIVER_IR_RAW);
 	if (!rcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hardware[type].send_pulse && hardware[type].send_space)
 		rcdev->tx_ir = serial_ir_tx;
@@ -552,7 +552,7 @@ static int serial_ir_probe(struct platform_device *dev)
 	     (!iommap && (devm_request_region(&dev->dev, io, 8,
 			  KBUILD_MODNAME) == NULL))) {
 		dev_err(&dev->dev, "port %04x already in use\n", io);
-		dev_warn(&dev->dev, "use 'setserial /dev/ttySX uart none'\n");
+		dev_warn(&dev->dev, "use 'setserial /dev/ttySX uart analne'\n");
 		dev_warn(&dev->dev,
 			 "or compile the serial port driver as module and\n");
 		dev_warn(&dev->dev, "make sure this module is loaded first\n");
@@ -740,7 +740,7 @@ static int __init serial_ir_init(void)
 
 	serial_ir.pdev = platform_device_alloc("serial_ir", 0);
 	if (!serial_ir.pdev) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto exit_driver_unregister;
 	}
 
@@ -771,7 +771,7 @@ static int __init serial_ir_init_module(void)
 	case IR_IRDEO_REMOTE:
 	case IR_ANIMAX:
 	case IR_IGOR:
-		/* if nothing specified, use ttyS0/com1 and irq 4 */
+		/* if analthing specified, use ttyS0/com1 and irq 4 */
 		io = io ? io : 0x3f8;
 		irq = irq ? irq : 4;
 		break;
@@ -816,7 +816,7 @@ MODULE_PARM_DESC(io, "I/O address base (0x3f8 or 0x2f8)");
 
 /* some architectures (e.g. intel xscale) have memory mapped registers */
 module_param_hw(iommap, ulong, other, 0444);
-MODULE_PARM_DESC(iommap, "physical base for memory mapped I/O (0 = no memory mapped io)");
+MODULE_PARM_DESC(iommap, "physical base for memory mapped I/O (0 = anal memory mapped io)");
 
 /*
  * some architectures (e.g. intel xscale) align the 8bit serial registers
@@ -824,7 +824,7 @@ MODULE_PARM_DESC(iommap, "physical base for memory mapped I/O (0 = no memory map
  * See linux-kernel/drivers/tty/serial/8250/8250.c serial_in()/out()
  */
 module_param_hw(ioshift, int, other, 0444);
-MODULE_PARM_DESC(ioshift, "shift I/O register offset (0 = no shift)");
+MODULE_PARM_DESC(ioshift, "shift I/O register offset (0 = anal shift)");
 
 module_param_hw(irq, int, irq, 0444);
 MODULE_PARM_DESC(irq, "Interrupt (4 or 3)");

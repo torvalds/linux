@@ -37,7 +37,7 @@ _GLOBAL(_tlbie)
 	mtmsr	r10
 	isync
 	blr
-_ASM_NOKPROBE_SYMBOL(_tlbie)
+_ASM_ANALKPROBE_SYMBOL(_tlbie)
 #endif /* CONFIG_SMP */
 
 /*
@@ -77,4 +77,4 @@ _GLOBAL(_tlbia)
 	isync
 #endif /* CONFIG_SMP */
 	blr
-_ASM_NOKPROBE_SYMBOL(_tlbia)
+_ASM_ANALKPROBE_SYMBOL(_tlbia)

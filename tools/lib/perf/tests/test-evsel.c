@@ -157,9 +157,9 @@ static int test_stat_user_read(int event)
 	__T("failed to get mmapped address", pc);
 
 #if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
-	__T("userspace counter access not supported", pc->cap_user_rdpmc);
-	__T("userspace counter access not enabled", pc->index);
-	__T("userspace counter width not set", pc->pmc_width >= 32);
+	__T("userspace counter access analt supported", pc->cap_user_rdpmc);
+	__T("userspace counter access analt enabled", pc->index);
+	__T("userspace counter width analt set", pc->pmc_width >= 32);
 #endif
 
 	perf_evsel__read(evsel, 0, 0, &counts);

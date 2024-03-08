@@ -17,7 +17,7 @@ struct pt_regs;
 
 #define __SYSCALL_DEFINEx(x, name, ...)						\
 	long sys##name(const struct pt_regs *regs);			\
-	ALLOW_ERROR_INJECTION(sys##name, ERRNO);			\
+	ALLOW_ERROR_INJECTION(sys##name, ERRANAL);			\
 	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));		\
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
 	long sys##name(const struct pt_regs *regs)			\
@@ -36,7 +36,7 @@ struct pt_regs;
 #define SYSCALL_DEFINE0(sname)							\
 	SYSCALL_METADATA(_##sname, 0);						\
 	long sys_##sname(const struct pt_regs *__unused);		\
-	ALLOW_ERROR_INJECTION(sys_##sname, ERRNO);			\
+	ALLOW_ERROR_INJECTION(sys_##sname, ERRANAL);			\
 	long sys_##sname(const struct pt_regs *__unused)
 
 #define COND_SYSCALL(name)							\

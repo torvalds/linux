@@ -20,7 +20,7 @@ config DRM_HDLCD_SHOW_UNDERRUN
 	default n
 	help
 	  Enable this option to show in red colour the pixels that the
-	  HDLCD device did not fetch from framebuffer due to underrun
+	  HDLCD device did analt fetch from framebuffer due to underrun
 	  conditions.
 
 config DRM_MALI_DISPLAY

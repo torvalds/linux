@@ -220,7 +220,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define IS_BASTREAM_SETUP(ptr)  (ptr->ba_status)
 
-#define BA_STREAM_NOT_ALLOWED   0xff
+#define BA_STREAM_ANALT_ALLOWED   0xff
 
 #define IS_11N_ENABLED(priv) ((priv->adapter->config_bands & BAND_GN || \
 			priv->adapter->config_bands & BAND_AN) && \
@@ -287,13 +287,13 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 /* 11AC Tx and Rx MCS map for 1x1 mode:
  * IEEE80211_VHT_MCS_SUPPORT_0_9 for stream 1
- * IEEE80211_VHT_MCS_NOT_SUPPORTED for remaining 7 streams
+ * IEEE80211_VHT_MCS_ANALT_SUPPORTED for remaining 7 streams
  */
 #define MWIFIEX_11AC_MCS_MAP_1X1	0xfffefffe
 
 /* 11AC Tx and Rx MCS map for 2x2 mode:
  * IEEE80211_VHT_MCS_SUPPORT_0_9 for stream 1 and 2
- * IEEE80211_VHT_MCS_NOT_SUPPORTED for remaining 6 streams
+ * IEEE80211_VHT_MCS_ANALT_SUPPORTED for remaining 6 streams
  */
 #define MWIFIEX_11AC_MCS_MAP_2X2	0xfffafffa
 
@@ -406,13 +406,13 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_CHAN_REGION_CFG		      0x0242
 #define HostCmd_CMD_PACKET_AGGR_CTRL		      0x0251
 
-#define PROTOCOL_NO_SECURITY        0x01
+#define PROTOCOL_ANAL_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
 #define PROTOCOL_WPA                0x08
 #define PROTOCOL_WPA2               0x20
 #define PROTOCOL_WPA2_MIXED         0x28
 #define PROTOCOL_EAP                0x40
-#define KEY_MGMT_NONE               0x04
+#define KEY_MGMT_ANALNE               0x04
 #define KEY_MGMT_PSK                0x02
 #define KEY_MGMT_EAP                0x01
 #define CIPHER_TKIP                 0x04
@@ -440,8 +440,8 @@ enum P2P_MODES {
 enum mwifiex_channel_flags {
 	MWIFIEX_CHANNEL_PASSIVE = BIT(0),
 	MWIFIEX_CHANNEL_DFS = BIT(1),
-	MWIFIEX_CHANNEL_NOHT40 = BIT(2),
-	MWIFIEX_CHANNEL_NOHT80 = BIT(3),
+	MWIFIEX_CHANNEL_ANALHT40 = BIT(2),
+	MWIFIEX_CHANNEL_ANALHT80 = BIT(3),
 	MWIFIEX_CHANNEL_DISABLED = BIT(7),
 };
 
@@ -502,15 +502,15 @@ enum mwifiex_channel_flags {
 
 #define RF_ANTENNA_AUTO                 0xFFFF
 
-#define HostCmd_SET_SEQ_NO_BSS_INFO(seq, num, type) \
+#define HostCmd_SET_SEQ_ANAL_BSS_INFO(seq, num, type) \
 	((((seq) & 0x00ff) |                        \
 	 (((num) & 0x000f) << 8)) |                 \
 	(((type) & 0x000f) << 12))
 
-#define HostCmd_GET_SEQ_NO(seq)       \
+#define HostCmd_GET_SEQ_ANAL(seq)       \
 	((seq) & HostCmd_SEQ_NUM_MASK)
 
-#define HostCmd_GET_BSS_NO(seq)         \
+#define HostCmd_GET_BSS_ANAL(seq)         \
 	(((seq) & HostCmd_BSS_NUM_MASK) >> 8)
 
 #define HostCmd_GET_BSS_TYPE(seq)       \
@@ -568,7 +568,7 @@ enum mwifiex_channel_flags {
 #define EVENT_TX_DATA_PAUSE             0x00000055
 #define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_RXBA_SYNC                 0x00000059
-#define EVENT_UNKNOWN_DEBUG             0x00000063
+#define EVENT_UNKANALWN_DEBUG             0x00000063
 #define EVENT_BG_SCAN_STOPPED           0x00000065
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 #define EVENT_MULTI_CHAN_INFO           0x0000006a
@@ -652,13 +652,13 @@ struct mwifiex_ie_types_data {
 #define MWIFIEX_TXPD_FLAGS_REQ_TX_STATUS    0x20
 
 enum HS_WAKEUP_REASON {
-	NO_HSWAKEUP_REASON = 0,
+	ANAL_HSWAKEUP_REASON = 0,
 	BCAST_DATA_MATCHED,
 	MCAST_DATA_MATCHED,
 	UCAST_DATA_MATCHED,
 	MASKTABLE_EVENT_MATCHED,
-	NON_MASKABLE_EVENT_MATCHED,
-	NON_MASKABLE_CONDITION_MATCHED,
+	ANALN_MASKABLE_EVENT_MATCHED,
+	ANALN_MASKABLE_CONDITION_MATCHED,
 	MAGIC_PATTERN_MATCHED,
 	CONTROL_FRAME_MATCHED,
 	MANAGEMENT_FRAME_MATCHED,
@@ -693,7 +693,7 @@ struct rxpd {
 	s8 snr;
 	s8 nf;
 
-	/* For: Non-802.11 AC cards
+	/* For: Analn-802.11 AC cards
 	 *
 	 * Ht Info [Bit 0] RxRate format: LG=0, HT=1
 	 * [Bit 1]  HT Bandwidth: BW20 = 0, BW40 = 1
@@ -748,7 +748,7 @@ struct mwifiex_fw_chan_stats {
 	u8 chan_num;
 	u8 bandcfg;
 	u8 flags;
-	s8 noise;
+	s8 analise;
 	__le16 total_bss;
 	__le16 cca_scan_dur;
 	__le16 cca_busy_dur;
@@ -999,7 +999,7 @@ struct host_cmd_ds_gen {
 #define S_DS_GEN        sizeof(struct host_cmd_ds_gen)
 
 enum sleep_resp_ctrl {
-	RESP_NOT_NEEDED = 0,
+	RESP_ANALT_NEEDED = 0,
 	RESP_NEEDED,
 };
 
@@ -1056,7 +1056,7 @@ struct hw_spec_api_rev {
 	struct mwifiex_ie_types_header header;
 	__le16 api_id;
 	u8 major_ver;
-	u8 minor_ver;
+	u8 mianalr_ver;
 } __packed;
 
 struct host_cmd_ds_get_hw_spec {
@@ -1228,7 +1228,7 @@ struct adhoc_bss_desc {
 	u8 data_rates[HOSTCMD_SUPPORTED_RATES];
 
 	/*
-	 *  DO NOT ADD ANY FIELDS TO THIS STRUCTURE.
+	 *  DO ANALT ADD ANY FIELDS TO THIS STRUCTURE.
 	 *  It is used in the Adhoc join command and will cause a
 	 *  binary layout mismatch with the firmware
 	 */
@@ -1275,7 +1275,7 @@ struct host_cmd_ds_tx_rate_query {
 	 * [Bit 2-3] HT/VHT Bandwidth: BW20 = 0, BW40 = 1, BW80 = 2, BW160 = 3
 	 * [Bit 4]   HT/VHT Guard Interval: LGI = 0, SGI = 1
 	 *
-	 * For non-802.11 AC cards
+	 * For analn-802.11 AC cards
 	 * Ht Info [Bit 0] RxRate format: LG=0, HT=1
 	 * [Bit 1]  HT Bandwidth: BW20 = 0, BW40 = 1
 	 * [Bit 2]  HT Guard Interval: LGI = 0, SGI = 1
@@ -2154,7 +2154,7 @@ struct mwifiex_ie_types_rssi_threshold {
 struct mwifiex_radar_det_event {
 	__le32 detect_count;
 	u8 reg_domain;  /*1=fcc, 2=etsi, 3=mic*/
-	u8 det_type;  /*0=none, 1=pw(chirp), 2=pri(radar)*/
+	u8 det_type;  /*0=analne, 1=pw(chirp), 2=pri(radar)*/
 	__le16 pw_chirp_type;
 	u8 pw_chirp_idx;
 	u8 pw_value;

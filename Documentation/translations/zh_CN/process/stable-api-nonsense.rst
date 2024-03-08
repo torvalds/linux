@@ -1,9 +1,9 @@
-.. _cn_stable_api_nonsense:
+.. _cn_stable_api_analnsense:
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/process/stable-api-nonsense.rst
-           <stable_api_nonsense>`
+:Original: :ref:`Documentation/process/stable-api-analnsense.rst
+           <stable_api_analnsense>`
 
 译者::
 

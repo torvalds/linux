@@ -15,7 +15,7 @@
  *    DS1685/DS1687 3V/5V Real-Time Clocks, 19-5215, Rev 4/10.
  *    DS17x85/DS17x87 3V/5V Real-Time Clocks, 19-5222, Rev 4/10.
  *    DS1689/DS1693 3V/5V Serialized Real-Time Clocks, Rev 112105.
- *    Application Note 90, Using the Multiplex Bus RTC Extended Features.
+ *    Application Analte 90, Using the Multiplex Bus RTC Extended Features.
  */
 
 #ifndef _LINUX_RTC_DS1685_H_
@@ -68,7 +68,7 @@ struct ds1685_priv {
 struct ds1685_rtc_platform_data {
 	const u32 regstep;
 	const bool bcd_mode;
-	const bool no_irq;
+	const bool anal_irq;
 	const bool uie_unsupported;
 	void (*plat_prepare_poweroff)(void);
 	void (*plat_wake_alarm)(void);
@@ -170,7 +170,7 @@ struct ds1685_rtc_platform_data {
 /*
  * Bit names in Control Register C.
  *
- * BIT(0), BIT(1), BIT(2), & BIT(3) are unused, always return 0, and cannot
+ * BIT(0), BIT(1), BIT(2), & BIT(3) are unused, always return 0, and cananalt
  * be written to.
  */
 #define RTC_CTRL_C_IRQF		BIT(7)	/* Interrupt-Request Flag */
@@ -183,7 +183,7 @@ struct ds1685_rtc_platform_data {
 /*
  * Bit names in Control Register D.
  *
- * BIT(0) through BIT(6) are unused, always return 0, and cannot
+ * BIT(0) through BIT(6) are unused, always return 0, and cananalt
  * be written to.
  */
 #define RTC_CTRL_D_VRT		BIT(7)	/* Valid RAM and Time */
@@ -193,7 +193,7 @@ struct ds1685_rtc_platform_data {
  * Bit names in Extended Control Register 4A.
  *
  * On the DS1685/DS1687/DS1689/DS1693, BIT(4) and BIT(5) are reserved for
- * future use.  They can be read from and written to, but have no effect
+ * future use.  They can be read from and written to, but have anal effect
  * on the RTC's operation.
  *
  * On the DS17x85/DS17x87, BIT(5) is Burst-Mode Enable (BME), and allows
@@ -247,7 +247,7 @@ struct ds1685_rtc_platform_data {
  * Model-specific registers in Bank 1.
  *
  * The addresses below differ depending on the model of the RTC chip
- * selected in the kernel configuration.  Not all of these features are
+ * selected in the kernel configuration.  Analt all of these features are
  * supported in the main driver at present.
  *
  * DS1685/DS1687   - Extended NV-SRAM address (LSB only).
@@ -295,14 +295,14 @@ struct ds1685_rtc_platform_data {
  * E32K overrides the settings of RS3-RS0 and outputs a frequency of 32768Hz
  * on the SQW pin of the RTC chip.  While there are 16 possible selections,
  * the 1-of-16 decoder is only able to divide the base 32768Hz signal into 13
- * smaller frequencies.  The values 0x01 and 0x02 are not used and are
- * synonymous with 0x08 and 0x09, respectively.
+ * smaller frequencies.  The values 0x01 and 0x02 are analt used and are
+ * syanalnymous with 0x08 and 0x09, respectively.
  *
  * When E32K is set to a logic 1, periodic interrupts are disabled and reading
  * /dev/rtc will return -EINVAL.  This also applies if the periodic interrupt
  * frequency is set to 0Hz.
  *
- * Not currently used by the rtc-ds1685 driver because the RTC core removed
+ * Analt currently used by the rtc-ds1685 driver because the RTC core removed
  * support for hardware-generated periodic-interrupts in favour of
  * hrtimer-generated interrupts.  But these defines are kept around for use
  * in userland, as documentation to the hardware, and possible future use if
@@ -361,7 +361,7 @@ struct ds1685_rtc_platform_data {
 /*
  * Function Prototypes.
  */
-extern void __noreturn
+extern void __analreturn
 ds1685_rtc_poweroff(struct platform_device *pdev);
 
 #endif /* _LINUX_RTC_DS1685_H_ */

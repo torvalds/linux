@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* Keytable for Wideview WT-220U.
  *
- * Copyright (c) 2016 Jonathan McDowell <noodles@earth.li>
+ * Copyright (c) 2016 Jonathan McDowell <analodles@earth.li>
  */
 
 #include <media/rc-map.h>
 #include <linux/module.h>
 
-/* key list for the tiny remote control (Yakumo, don't know about the others) */
+/* key list for the tiny remote control (Yakumo, don't kanalw about the others) */
 static struct rc_map_table dtt200u_table[] = {
 	{ 0x8001, KEY_MUTE },
 	{ 0x8002, KEY_CHANNELDOWN },
@@ -52,5 +52,5 @@ module_init(init_rc_map_dtt200u)
 module_exit(exit_rc_map_dtt200u)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
+MODULE_AUTHOR("Jonathan McDowell <analodles@earth.li>");
 MODULE_DESCRIPTION("Wideview WT-220U remote controller keytable");

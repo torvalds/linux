@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2013 Linaro Ltd.
 // Copyright (c) 2011 HiSilicon Ltd.
-// Copyright (c) 2020-2021 Huawei Technologies Co., Ltd.
+// Copyright (c) 2020-2021 Huawei Techanallogies Co., Ltd.
 //
 // Guodong Xu <guodong.xu@linaro.org>
 
@@ -77,7 +77,7 @@ static const unsigned int range_2v6_to_3v3[] = {
 		.desc = {						       \
 			.name		= #_id,				       \
 			.of_match        = of_match_ptr(#_id),		       \
-			.regulators_node = of_match_ptr("regulators"),	       \
+			.regulators_analde = of_match_ptr("regulators"),	       \
 			.ops		= &hi6421_spmi_ldo_rops,	       \
 			.type		= REGULATOR_VOLTAGE,		       \
 			.id		= hi6421v600_##_id,		       \
@@ -101,7 +101,7 @@ static int hi6421_spmi_regulator_enable(struct regulator_dev *rdev)
 	struct hi6421_spmi_reg_priv *priv = rdev_get_drvdata(rdev);
 	int ret;
 
-	/* cannot enable more than one regulator at one time */
+	/* cananalt enable more than one regulator at one time */
 	mutex_lock(&priv->enable_mutex);
 
 	ret = regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
@@ -127,7 +127,7 @@ static unsigned int hi6421_spmi_regulator_get_mode(struct regulator_dev *rdev)
 	if (reg_val & sreg->eco_mode_mask)
 		return REGULATOR_MODE_IDLE;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int hi6421_spmi_regulator_set_mode(struct regulator_dev *rdev,
@@ -138,7 +138,7 @@ static int hi6421_spmi_regulator_set_mode(struct regulator_dev *rdev,
 
 	sreg = container_of(rdev->desc, struct hi6421_spmi_reg_info, desc);
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_IDLE:
@@ -165,7 +165,7 @@ hi6421_spmi_regulator_get_optimum_mode(struct regulator_dev *rdev,
 	sreg = container_of(rdev->desc, struct hi6421_spmi_reg_info, desc);
 
 	if (!sreg->eco_uA || ((unsigned int)load_uA > sreg->eco_uA))
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 
 	return REGULATOR_MODE_IDLE;
 }
@@ -183,7 +183,7 @@ static const struct regulator_ops hi6421_spmi_ldo_rops = {
 	.get_optimum_mode = hi6421_spmi_regulator_get_optimum_mode,
 };
 
-/* HI6421v600 regulators with known registers */
+/* HI6421v600 regulators with kanalwn registers */
 enum hi6421_spmi_regulator_id {
 	hi6421v600_ldo3,
 	hi6421v600_ldo4,
@@ -248,11 +248,11 @@ static int hi6421_spmi_regulator_probe(struct platform_device *pdev)
 	 */
 	regmap = dev_get_drvdata(pmic_dev);
 	if (WARN_ON(!regmap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->enable_mutex);
 
@@ -284,7 +284,7 @@ static struct platform_driver hi6421_spmi_regulator_driver = {
 	.id_table = hi6421_spmi_regulator_table,
 	.driver = {
 		.name = "hi6421v600-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe	= hi6421_spmi_regulator_probe,
 };

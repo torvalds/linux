@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -122,9 +122,9 @@ struct in_addr {
 #define IP_RECVORIGDSTADDR   IP_ORIGDSTADDR
 
 #define IP_MINTTL       21
-#define IP_NODEFRAG     22
+#define IP_ANALDEFRAG     22
 #define IP_CHECKSUM	23
-#define IP_BIND_ADDRESS_NO_PORT	24
+#define IP_BIND_ADDRESS_ANAL_PORT	24
 #define IP_RECVFRAGSIZE	25
 #define IP_RECVERR_RFC4884	26
 
@@ -132,9 +132,9 @@ struct in_addr {
 #define IP_PMTUDISC_DONT		0	/* Never send DF frames */
 #define IP_PMTUDISC_WANT		1	/* Use per route hints	*/
 #define IP_PMTUDISC_DO			2	/* Always DF		*/
-#define IP_PMTUDISC_PROBE		3       /* Ignore dst pmtu      */
-/* Always use interface mtu (ignores dst pmtu) but don't set DF flag.
- * Also incoming ICMP frag_needed notifications will be ignored on
+#define IP_PMTUDISC_PROBE		3       /* Iganalre dst pmtu      */
+/* Always use interface mtu (iganalres dst pmtu) but don't set DF flag.
+ * Also incoming ICMP frag_needed analtifications will be iganalred on
  * this socket to prevent accepting spoofed ones.
  */
 #define IP_PMTUDISC_INTERFACE		4
@@ -269,7 +269,7 @@ struct sockaddr_in {
 /*
  * Definitions of the bits in an Internet address integer.
  * On subnets, host and network parts are found according
- * to the subnet mask, not these masks.
+ * to the subnet mask, analt these masks.
  */
 #define	IN_CLASSA(a)		((((long int) (a)) & 0x80000000) == 0)
 #define	IN_CLASSA_NET		0xff000000
@@ -306,9 +306,9 @@ struct sockaddr_in {
 #define	INADDR_BROADCAST	((unsigned long int) 0xffffffff)
 
 /* Address indicating an error return. */
-#define	INADDR_NONE		((unsigned long int) 0xffffffff)
+#define	INADDR_ANALNE		((unsigned long int) 0xffffffff)
 
-/* Dummy address for src of ICMP replies if no real address is set (RFC7600). */
+/* Dummy address for src of ICMP replies if anal real address is set (RFC7600). */
 #define	INADDR_DUMMY		((unsigned long int) 0xc0000008)
 
 /* Network number for local host loopback. */
@@ -322,7 +322,7 @@ struct sockaddr_in {
 #define INADDR_UNSPEC_GROUP		0xe0000000U	/* 224.0.0.0   */
 #define INADDR_ALLHOSTS_GROUP		0xe0000001U	/* 224.0.0.1   */
 #define INADDR_ALLRTRS_GROUP		0xe0000002U	/* 224.0.0.2 */
-#define INADDR_ALLSNOOPERS_GROUP	0xe000006aU	/* 224.0.0.106 */
+#define INADDR_ALLSANALOPERS_GROUP	0xe000006aU	/* 224.0.0.106 */
 #define INADDR_MAX_LOCAL_GROUP		0xe00000ffU	/* 224.0.0.255 */
 #endif
 

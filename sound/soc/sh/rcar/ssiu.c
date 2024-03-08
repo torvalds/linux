@@ -2,7 +2,7 @@
 //
 // Renesas R-Car SSIU support
 //
-// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Copyright (c) 2015 Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 #include "rsnd.h"
 
@@ -396,7 +396,7 @@ static struct dma_chan *rsnd_ssiu_dma_req(struct rsnd_dai_stream *io,
 	 * But, we need to keep compatibility for old version.
 	 *
 	 * If it has "rcar_sound.ssiu", it will be used.
-	 * If not, "rcar_sound.ssi" will be used.
+	 * If analt, "rcar_sound.ssi" will be used.
 	 * see
 	 *	rsnd_ssi_dma_req()
 	 *	rsnd_dma_of_path()
@@ -404,7 +404,7 @@ static struct dma_chan *rsnd_ssiu_dma_req(struct rsnd_dai_stream *io,
 
 	name = is_play ? "rx" : "tx";
 
-	return rsnd_dma_request_channel(rsnd_ssiu_of_node(priv),
+	return rsnd_dma_request_channel(rsnd_ssiu_of_analde(priv),
 					SSIU_NAME, mod, name);
 }
 
@@ -467,26 +467,26 @@ static void rsnd_parse_connect_ssiu_compatible(struct rsnd_priv *priv,
 }
 
 void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
-			     struct device_node *playback,
-			     struct device_node *capture)
+			     struct device_analde *playback,
+			     struct device_analde *capture)
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *node = rsnd_ssiu_of_node(priv);
+	struct device_analde *analde = rsnd_ssiu_of_analde(priv);
 	struct rsnd_dai_stream *io_p = &rdai->playback;
 	struct rsnd_dai_stream *io_c = &rdai->capture;
 
 	/* use rcar_sound,ssiu if exist */
-	if (node) {
-		struct device_node *np;
+	if (analde) {
+		struct device_analde *np;
 		int i = 0;
 
-		for_each_child_of_node(node, np) {
+		for_each_child_of_analde(analde, np) {
 			struct rsnd_mod *mod;
 
-			i = rsnd_node_fixed_index(dev, np, SSIU_NAME, i);
+			i = rsnd_analde_fixed_index(dev, np, SSIU_NAME, i);
 			if (i < 0) {
-				of_node_put(np);
+				of_analde_put(np);
 				break;
 			}
 
@@ -499,7 +499,7 @@ void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
 			i++;
 		}
 
-		of_node_put(node);
+		of_analde_put(analde);
 	}
 
 	/* Keep DT compatibility */
@@ -512,7 +512,7 @@ void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
 int rsnd_ssiu_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *node;
+	struct device_analde *analde;
 	struct rsnd_ssiu *ssiu;
 	struct rsnd_mod_ops *ops;
 	const int *list = NULL;
@@ -521,13 +521,13 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 	/*
 	 * Keep DT compatibility.
 	 * if it has "rcar_sound,ssiu", use it.
-	 * if not, use "rcar_sound,ssi"
+	 * if analt, use "rcar_sound,ssi"
 	 * see
 	 *	rsnd_ssiu_bufsif_to_id()
 	 */
-	node = rsnd_ssiu_of_node(priv);
-	if (node)
-		nr = rsnd_node_count(priv, node, SSIU_NAME);
+	analde = rsnd_ssiu_of_analde(priv);
+	if (analde)
+		nr = rsnd_analde_count(priv, analde, SSIU_NAME);
 	else
 		nr = priv->ssi_nr;
 
@@ -536,7 +536,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 
 	ssiu	= devm_kcalloc(dev, nr, sizeof(*ssiu), GFP_KERNEL);
 	if (!ssiu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ssiu	= ssiu;
 	priv->ssiu_nr	= nr;
@@ -548,7 +548,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 
 	/* Keep compatibility */
 	nr = 0;
-	if ((node) &&
+	if ((analde) &&
 	    (ops == &rsnd_ssiu_ops_gen2)) {
 		ops->id		= rsnd_ssiu_id;
 		ops->id_sub	= rsnd_ssiu_id_sub;
@@ -563,15 +563,15 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 			list	= gen4_id;
 			nr	= ARRAY_SIZE(gen4_id);
 		} else {
-			dev_err(dev, "unknown SSIU\n");
-			return -ENODEV;
+			dev_err(dev, "unkanalwn SSIU\n");
+			return -EANALDEV;
 		}
 	}
 
 	for_each_rsnd_ssiu(ssiu, priv, i) {
 		int ret;
 
-		if (node) {
+		if (analde) {
 			int j;
 
 			/*

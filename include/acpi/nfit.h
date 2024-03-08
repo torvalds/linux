@@ -11,7 +11,7 @@ int nfit_get_smbios_id(u32 device_handle, u16 *flags);
 #else
 static inline int nfit_get_smbios_id(u32 device_handle, u16 *flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

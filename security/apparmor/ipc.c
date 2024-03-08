@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor ipc mediation
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2017 Caanalnical Ltd.
  */
 
 #include <linux/gfp.h>
@@ -21,12 +21,12 @@
 static inline int map_signal_num(int sig)
 {
 	if (sig > SIGRTMAX)
-		return SIGUNKNOWN;
+		return SIGUNKANALWN;
 	else if (sig >= SIGRTMIN)
 		return sig - SIGRTMIN + SIGRT_BASE;
 	else if (sig < MAXMAPPED_SIG)
 		return sig_map[sig];
-	return SIGUNKNOWN;
+	return SIGUNKANALWN;
 }
 
 /**
@@ -46,8 +46,8 @@ static const char *audit_signal_mask(u32 mask)
 
 /**
  * audit_signal_cb() - call back for signal specific audit fields
- * @ab: audit_buffer  (NOT NULL)
- * @va: audit struct to audit values of  (NOT NULL)
+ * @ab: audit_buffer  (ANALT NULL)
+ * @va: audit struct to audit values of  (ANALT NULL)
  */
 static void audit_signal_cb(struct audit_buffer *ab, void *va)
 {
@@ -62,8 +62,8 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 					 audit_signal_mask(ad->denied));
 		}
 	}
-	if (ad->signal == SIGUNKNOWN)
-		audit_log_format(ab, "signal=unknown(%d)",
+	if (ad->signal == SIGUNKANALWN)
+		audit_log_format(ab, "signal=unkanalwn(%d)",
 				 ad->unmappedsig);
 	else if (ad->signal < MAXMAPPED_SIGNAME)
 		audit_log_format(ab, " signal=%s", sig_names[ad->signal]);
@@ -72,7 +72,7 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 				 ad->signal - SIGRT_BASE);
 	audit_log_format(ab, " peer=");
 	aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
-			FLAGS_NONE, GFP_ATOMIC);
+			FLAGS_ANALNE, GFP_ATOMIC);
 }
 
 static int profile_signal_perm(const struct cred *cred,
@@ -105,7 +105,7 @@ int aa_may_signal(const struct cred *subj_cred, struct aa_label *sender,
 		  int sig)
 {
 	struct aa_profile *profile;
-	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_SIGNAL, OP_SIGNAL);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_ANALNE, AA_CLASS_SIGNAL, OP_SIGNAL);
 
 	ad.signal = map_signal_num(sig);
 	ad.unmappedsig = sig;

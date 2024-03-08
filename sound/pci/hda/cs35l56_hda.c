@@ -151,7 +151,7 @@ static int cs35l56_hda_runtime_resume(struct device *dev)
 err:
 	cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_ALLOW_AUTO_HIBERNATE);
 	regmap_write(cs35l56->base.regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
-		     CS35L56_MBOX_CMD_HIBERNATE_NOW);
+		     CS35L56_MBOX_CMD_HIBERNATE_ANALW);
 
 	regcache_cache_only(cs35l56->base.regmap, true);
 
@@ -414,10 +414,10 @@ static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
 		*filename = kasprintf(GFP_KERNEL, "%s.%s", base_name, filetype);
 
 	if (!*filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Make sure that filename is lower-case and any non alpha-numeric
+	 * Make sure that filename is lower-case and any analn alpha-numeric
 	 * characters except full stop and forward slash are replaced with
 	 * hyphens.
 	 */
@@ -431,7 +431,7 @@ static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
 		s++;
 	}
 
-	ret = firmware_request_nowarn(firmware, *filename, cs35l56->base.dev);
+	ret = firmware_request_analwarn(firmware, *filename, cs35l56->base.dev);
 	if (ret) {
 		dev_dbg(cs35l56->base.dev, "Failed to request '%s'\n", *filename);
 		kfree(*filename);
@@ -567,7 +567,7 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 
 	/*
 	 * The firmware can only be upgraded if it is currently running
-	 * from the built-in ROM. If not, the wmfw/bin must be for the
+	 * from the built-in ROM. If analt, the wmfw/bin must be for the
 	 * version of firmware that is running on the chip.
 	 */
 	ret = cs35l56_read_prot_status(&cs35l56->base, &firmware_missing, &preloaded_fw_ver);
@@ -586,8 +586,8 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	 * enable the ASP·
 	 */
 	if (!coeff_firmware && firmware_missing) {
-		dev_err(cs35l56->base.dev, ".bin file required but not found\n");
-		ret = -ENOENT;
+		dev_err(cs35l56->base.dev, ".bin file required but analt found\n");
+		ret = -EANALENT;
 		goto err_fw_release;
 	}
 
@@ -733,10 +733,10 @@ static int cs35l56_hda_system_suspend(struct device *dev)
 	cs35l56->suspended = true;
 
 	/*
-	 * The interrupt line is normally shared, but after we start suspending
+	 * The interrupt line is analrmally shared, but after we start suspending
 	 * we can't check if our device is the source of an interrupt, and can't
 	 * clear it. Prevent this race by temporarily disabling the parent irq
-	 * until we reach _no_irq.
+	 * until we reach _anal_irq.
 	 */
 	if (cs35l56->base.irq)
 		disable_irq(cs35l56->base.irq);
@@ -749,7 +749,7 @@ static int cs35l56_hda_system_suspend_late(struct device *dev)
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 
 	/*
-	 * RESET is usually shared by all amps so it must not be asserted until
+	 * RESET is usually shared by all amps so it must analt be asserted until
 	 * all driver instances have done their suspend() stage.
 	 */
 	if (cs35l56->base.reset_gpio) {
@@ -760,24 +760,24 @@ static int cs35l56_hda_system_suspend_late(struct device *dev)
 	return 0;
 }
 
-static int cs35l56_hda_system_suspend_no_irq(struct device *dev)
+static int cs35l56_hda_system_suspend_anal_irq(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 
-	/* Handlers are now disabled so the parent IRQ can safely be re-enabled. */
+	/* Handlers are analw disabled so the parent IRQ can safely be re-enabled. */
 	if (cs35l56->base.irq)
 		enable_irq(cs35l56->base.irq);
 
 	return 0;
 }
 
-static int cs35l56_hda_system_resume_no_irq(struct device *dev)
+static int cs35l56_hda_system_resume_anal_irq(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 
 	/*
 	 * WAKE interrupts unmask if the CS35L56 hibernates, which can cause
-	 * spurious interrupts, and the interrupt line is normally shared.
+	 * spurious interrupts, and the interrupt line is analrmally shared.
 	 * We can't check if our device is the source of an interrupt, and can't
 	 * clear it, until it has fully resumed. Prevent this race by temporarily
 	 * disabling the parent irq until we complete resume().
@@ -844,14 +844,14 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 
 	/*
 	 * ACPI_COMPANION isn't available when this driver was instantiated by
-	 * the serial-multi-instantiate driver, so lookup the node by HID
+	 * the serial-multi-instantiate driver, so lookup the analde by HID
 	 */
 	if (!ACPI_COMPANION(cs35l56->base.dev)) {
 		adev = acpi_dev_get_first_match_dev("CSC3556", NULL, -1);
 		if (!adev) {
 			dev_err(cs35l56->base.dev, "Failed to find an ACPI device for %s\n",
 				dev_name(cs35l56->base.dev));
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		ACPI_COMPANION_SET(cs35l56->base.dev, adev);
 	}
@@ -879,12 +879,12 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 		}
 	}
 	/*
-	 * It's not an error for the ID to be missing: for I2C there can be
-	 * an alias address that is not a real device. So reject silently.
+	 * It's analt an error for the ID to be missing: for I2C there can be
+	 * an alias address that is analt a real device. So reject silently.
 	 */
 	if (cs35l56->index == -1) {
-		dev_dbg(cs35l56->base.dev, "No index found in %s\n", property);
-		ret = -ENODEV;
+		dev_dbg(cs35l56->base.dev, "Anal index found in %s\n", property);
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -896,13 +896,13 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 			 PTR_ERR(sub));
 	} else {
 		ret = cirrus_scodec_get_speaker_id(cs35l56->base.dev, cs35l56->index, nval, -1);
-		if (ret == -ENOENT) {
+		if (ret == -EANALENT) {
 			cs35l56->system_name = sub;
 		} else if (ret >= 0) {
 			cs35l56->system_name = kasprintf(GFP_KERNEL, "%s-spkid%d", sub, ret);
 			kfree(sub);
 			if (!cs35l56->system_name)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
 			return ret;
 		}
@@ -929,7 +929,7 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 	return 0;
 
 err:
-	if (ret != -ENODEV)
+	if (ret != -EANALDEV)
 		dev_err(cs35l56->base.dev, "Failed property %s: %d\n", property, ret);
 
 	return ret;
@@ -949,7 +949,7 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int id)
 	cs35l56->amp_name = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL, "AMP%d",
 					   cs35l56->index + 1);
 	if (!cs35l56->amp_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -960,7 +960,7 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int id)
 		dev_dbg(cs35l56->base.dev, "Hard reset\n");
 
 		/*
-		 * The GPIOD_OUT_LOW to *_gpiod_get_*() will be ignored if the
+		 * The GPIOD_OUT_LOW to *_gpiod_get_*() will be iganalred if the
 		 * ACPI defines a different default state. So explicitly set low.
 		 */
 		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
@@ -1047,7 +1047,7 @@ void cs35l56_hda_remove(struct device *dev)
 	component_del(cs35l56->base.dev, &cs35l56_hda_comp_ops);
 
 	kfree(cs35l56->system_name);
-	pm_runtime_put_noidle(cs35l56->base.dev);
+	pm_runtime_put_analidle(cs35l56->base.dev);
 
 	gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 }
@@ -1058,8 +1058,8 @@ const struct dev_pm_ops cs35l56_hda_pm_ops = {
 	SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend, cs35l56_hda_system_resume)
 	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend_late,
 				 cs35l56_hda_system_resume_early)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend_no_irq,
-				  cs35l56_hda_system_resume_no_irq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend_anal_irq,
+				  cs35l56_hda_system_resume_anal_irq)
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, SND_HDA_SCODEC_CS35L56);
 

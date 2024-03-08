@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@ tu102_gr_init_fs(struct gf100_gr *gr)
 	gk104_grctx_generate_gpc_tpc_nr(gr);
 
 	for (sm = 0; sm < gr->sm_nr; sm++) {
-		int tpc = gv100_gr_nonpes_aware_tpc(gr, gr->sm[sm].gpc, gr->sm[sm].tpc);
+		int tpc = gv100_gr_analnpes_aware_tpc(gr, gr->sm[sm].gpc, gr->sm[sm].tpc);
 
 		nvkm_wr32(device, GPC_UNIT(gr->sm[sm].gpc, 0x0c10 + tpc * 4), sm);
 	}
@@ -141,7 +141,7 @@ MODULE_FIRMWARE("nvidia/tu102/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/tu102/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/tu102/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_veid_bundle_init.bin");
@@ -155,7 +155,7 @@ MODULE_FIRMWARE("nvidia/tu104/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/tu104/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/tu104/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_veid_bundle_init.bin");
@@ -169,7 +169,7 @@ MODULE_FIRMWARE("nvidia/tu106/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/tu106/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/tu106/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_veid_bundle_init.bin");
@@ -183,7 +183,7 @@ MODULE_FIRMWARE("nvidia/tu117/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/tu117/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_veid_bundle_init.bin");
@@ -197,7 +197,7 @@ MODULE_FIRMWARE("nvidia/tu116/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/tu116/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_veid_bundle_init.bin");
@@ -211,7 +211,7 @@ tu102_gr_av_to_init_veid(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
 static const struct gf100_gr_fwif
 tu102_gr_fwif[] = {
 	{  0, gm200_gr_load, &tu102_gr, &gp108_gr_fecs_acr, &gp108_gr_gpccs_acr },
-	{ -1, gm200_gr_nofw },
+	{ -1, gm200_gr_analfw },
 	{}
 };
 

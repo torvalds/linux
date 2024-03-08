@@ -1,20 +1,20 @@
 /* SPDX-License-Identifier: MIT */
-#ifndef __NOUVEAU_CHAN_H__
-#define __NOUVEAU_CHAN_H__
+#ifndef __ANALUVEAU_CHAN_H__
+#define __ANALUVEAU_CHAN_H__
 #include <nvif/object.h>
 #include <nvif/event.h>
 #include <nvif/push.h>
 struct nvif_device;
 
-struct nouveau_channel {
+struct analuveau_channel {
 	struct {
 		struct nvif_push _push;
 		struct nvif_push *push;
 	} chan;
 
 	struct nvif_device *device;
-	struct nouveau_drm *drm;
-	struct nouveau_vmm *vmm;
+	struct analuveau_drm *drm;
+	struct analuveau_vmm *vmm;
 
 	struct nvif_mem mem_userd;
 	struct nvif_object *userd;
@@ -29,8 +29,8 @@ struct nouveau_channel {
 	struct nvif_object nvsw;
 
 	struct {
-		struct nouveau_bo *buffer;
-		struct nouveau_vma *vma;
+		struct analuveau_bo *buffer;
+		struct analuveau_vma *vma;
 		struct nvif_object ctxdma;
 		u64 addr;
 	} push;
@@ -59,15 +59,15 @@ struct nouveau_channel {
 	atomic_t killed;
 };
 
-int nouveau_channels_init(struct nouveau_drm *);
-void nouveau_channels_fini(struct nouveau_drm *);
+int analuveau_channels_init(struct analuveau_drm *);
+void analuveau_channels_fini(struct analuveau_drm *);
 
-int  nouveau_channel_new(struct nouveau_drm *, struct nvif_device *, bool priv, u64 runm,
-			 u32 vram, u32 gart, struct nouveau_channel **);
-void nouveau_channel_del(struct nouveau_channel **);
-int  nouveau_channel_idle(struct nouveau_channel *);
-void nouveau_channel_kill(struct nouveau_channel *);
+int  analuveau_channel_new(struct analuveau_drm *, struct nvif_device *, bool priv, u64 runm,
+			 u32 vram, u32 gart, struct analuveau_channel **);
+void analuveau_channel_del(struct analuveau_channel **);
+int  analuveau_channel_idle(struct analuveau_channel *);
+void analuveau_channel_kill(struct analuveau_channel *);
 
-extern int nouveau_vram_pushbuf;
+extern int analuveau_vram_pushbuf;
 
 #endif

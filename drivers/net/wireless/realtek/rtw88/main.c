@@ -25,9 +25,9 @@ EXPORT_SYMBOL(rtw_disable_lps_deep_mode);
 bool rtw_bf_support = true;
 unsigned int rtw_debug_mask;
 EXPORT_SYMBOL(rtw_debug_mask);
-/* EDCCA is enabled during normal behavior. For debugging purpose in
- * a noisy environment, it can be disabled via edcca debugfs. Because
- * all rtw88 devices will probably be affected if environment is noisy,
+/* EDCCA is enabled during analrmal behavior. For debugging purpose in
+ * a analisy environment, it can be disabled via edcca debugfs. Because
+ * all rtw88 devices will probably be affected if environment is analisy,
  * rtw_edcca_enabled is just declared by driver instead of by device.
  * So, turning it off will take effect for all rtw88 devices before
  * there is a tough reason to maintain rtw_edcca_enabled by device.
@@ -85,7 +85,7 @@ static struct ieee80211_channel rtw_channeltable_5g[] = {
 	{.center_freq = 5785, .hw_value = 157,},
 	{.center_freq = 5805, .hw_value = 161,},
 	{.center_freq = 5825, .hw_value = 165,
-	 .flags = IEEE80211_CHAN_NO_HT40MINUS},
+	 .flags = IEEE80211_CHAN_ANAL_HT40MINUS},
 };
 
 static struct ieee80211_rate rtw_ratetable[] = {
@@ -154,7 +154,7 @@ static struct ieee80211_supported_band rtw_band_5ghz = {
 	.channels = rtw_channeltable_5g,
 	.n_channels = ARRAY_SIZE(rtw_channeltable_5g),
 
-	/* 5G has no CCK rates */
+	/* 5G has anal CCK rates */
 	.bitrates = rtw_ratetable + 4,
 	.n_bitrates = ARRAY_SIZE(rtw_ratetable) - 4,
 
@@ -231,7 +231,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	rtw_coex_query_bt_hid_list(rtwdev);
 
 	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
-		rtw_coex_wl_status_change_notify(rtwdev, 0);
+		rtw_coex_wl_status_change_analtify(rtwdev, 0);
 
 	if (stats->tx_cnt > RTW_LPS_THRESHOLD ||
 	    stats->rx_cnt > RTW_LPS_THRESHOLD)
@@ -267,8 +267,8 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	rtw_iterate_vifs(rtwdev, rtw_vif_watch_dog_iter, &data);
 
 	/* fw supports only one station associated to enter lps, if there are
-	 * more than two stations associated to the AP, then we can not enter
-	 * lps, because fw does not handle the overlapped beacon interval
+	 * more than two stations associated to the AP, then we can analt enter
+	 * lps, because fw does analt handle the overlapped beacon interval
 	 *
 	 * rtw_recalc_lps() iterate vifs and determine if driver can enter
 	 * ps by vif->type and vif->cfg.ps, all we need to do here is to
@@ -338,7 +338,7 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 
 	si->mac_id = rtw_acquire_macid(rtwdev);
 	if (si->mac_id >= RTW_MAX_MAC_ID_NUM)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (vif->type == NL80211_IFTYPE_STATION && vif->cfg.assoc == 0)
 		rtwvif->mac_id = si->mac_id;
@@ -408,7 +408,7 @@ static int rtw_fwcd_prep(struct rtw_dev *rtwdev)
 
 	desc->data = vmalloc(prep_size);
 	if (!desc->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->size = prep_size;
 	desc->next = desc->data;
@@ -429,7 +429,7 @@ static u8 *rtw_fwcd_next(struct rtw_dev *rtwdev, u32 item, u32 size)
 
 	next = desc->next + sizeof(struct rtw_fwcd_hdr);
 	if (next - desc->data + size > desc->size) {
-		rtw_dbg(rtwdev, RTW_DBG_FW, "fwcd isn't prepared enough\n");
+		rtw_dbg(rtwdev, RTW_DBG_FW, "fwcd isn't prepared eanalugh\n");
 		return NULL;
 	}
 
@@ -451,7 +451,7 @@ static void rtw_fwcd_dump(struct rtw_dev *rtwdev)
 
 	/* Data will be freed after lifetime of device coredump. After calling
 	 * dev_coredump, data is supposed to be handled by the device coredump
-	 * framework. Note that a new dump will be discarded if a previous one
+	 * framework. Analte that a new dump will be discarded if a previous one
 	 * hasn't been released yet.
 	 */
 	dev_coredumpv(rtwdev->dev, desc->data, desc->size, GFP_KERNEL);
@@ -478,7 +478,7 @@ static int rtw_fw_dump_crash_log(struct rtw_dev *rtwdev)
 
 	buf = (u32 *)rtw_fwcd_next(rtwdev, RTW_FWCD_TLV, size);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RXBUF_FW, 0, size, buf)) {
 		rtw_dbg(rtwdev, RTW_DBG_FW, "dump fw fifo fail\n");
@@ -510,7 +510,7 @@ int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
 
 	buf = rtw_fwcd_next(rtwdev, fwcd_item, size);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (size) {
 		dump_size = size > rxff ? rxff : size;
@@ -553,7 +553,7 @@ int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size)
 
 	buf = rtw_fwcd_next(rtwdev, RTW_FWCD_REG, size);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < size; i += 4)
 		*(u32 *)(buf + i) = rtw_read32(rtwdev, addr + i);
@@ -575,7 +575,7 @@ void rtw_vif_assoc_changed(struct rtw_vif *rtwvif,
 		rtwvif->net_type = RTW_NET_MGD_LINKED;
 	} else {
 		rtwvif->aid = 0;
-		rtwvif->net_type = RTW_NET_NO_LINK;
+		rtwvif->net_type = RTW_NET_ANAL_LINK;
 	}
 }
 
@@ -596,7 +596,7 @@ static void rtw_reset_sta_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw_dev *rtwdev = (struct rtw_dev *)data;
 
 	if (rtwdev->sta_cnt == 0) {
-		rtw_warn(rtwdev, "sta count before reset should not be 0\n");
+		rtw_warn(rtwdev, "sta count before reset should analt be 0\n");
 		return;
 	}
 	rtw_sta_remove(rtwdev, sta, false);
@@ -786,7 +786,7 @@ void rtw_update_channel(struct rtw_dev *rtwdev, u8 center_channel,
 		sar_band = RTW_SAR_BAND_4;
 		break;
 	default:
-		WARN(1, "unknown ch(%u) to SAR band\n", center_channel);
+		WARN(1, "unkanalwn ch(%u) to SAR band\n", center_channel);
 		sar_band = RTW_SAR_BAND_0;
 		break;
 	}
@@ -813,7 +813,7 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 	center_freq = chandef->center_freq1;
 
 	switch (width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_20:
 		bandwidth = RTW_CHANNEL_WIDTH_20;
 		break;
@@ -874,12 +874,12 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 			       hal->current_primary_channel_index);
 
 	if (hal->current_band_type == RTW_BAND_5G) {
-		rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_5G);
+		rtw_coex_switchband_analtify(rtwdev, COEX_SWITCH_TO_5G);
 	} else {
 		if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
-			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G);
+			rtw_coex_switchband_analtify(rtwdev, COEX_SWITCH_TO_24G);
 		else
-			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G_NOFORSCAN);
+			rtw_coex_switchband_analtify(rtwdev, COEX_SWITCH_TO_24G_ANALFORSCAN);
 	}
 
 	rtw_phy_set_tx_power_level(rtwdev, center_chan);
@@ -946,7 +946,7 @@ static u8 hw_bw_cap_to_bitamp(u8 bw_cap)
 	u8 bw = 0;
 
 	switch (bw_cap) {
-	case EFUSE_HW_CAP_IGNORE:
+	case EFUSE_HW_CAP_IGANALRE:
 	case EFUSE_HW_CAP_SUPP_BW80:
 		bw |= BIT(RTW_CHANNEL_WIDTH_80);
 		fallthrough;
@@ -966,7 +966,7 @@ static void rtw_hw_config_rf_ant_num(struct rtw_dev *rtwdev, u8 hw_ant_num)
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
 
-	if (hw_ant_num == EFUSE_HW_CAP_IGNORE ||
+	if (hw_ant_num == EFUSE_HW_CAP_IGANALRE ||
 	    hw_ant_num >= hal->rf_path_num)
 		return;
 
@@ -1261,7 +1261,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 		}
 		dm_info->rrsr_val_init = RRSR_INIT_2G;
 	} else {
-		rtw_err(rtwdev, "Unknown band type\n");
+		rtw_err(rtwdev, "Unkanalwn band type\n");
 		ra_mask_bak = ra_mask;
 		wireless_set = 0;
 	}
@@ -1337,7 +1337,7 @@ static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
 
 	if (rtw_disable_lps_deep_mode || !chip->lps_deep_mode_supported ||
 	    !fw->feature)
-		return LPS_DEEP_MODE_NONE;
+		return LPS_DEEP_MODE_ANALNE;
 
 	if ((chip->lps_deep_mode_supported & BIT(LPS_DEEP_MODE_PG)) &&
 	    rtw_fw_feature_check(fw, FW_FEATURE_PG))
@@ -1347,7 +1347,7 @@ static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
 	    rtw_fw_feature_check(fw, FW_FEATURE_LCLK))
 		return LPS_DEEP_MODE_LCLK;
 
-	return LPS_DEEP_MODE_NONE;
+	return LPS_DEEP_MODE_ANALNE;
 }
 
 static int rtw_power_on(struct rtw_dev *rtwdev)
@@ -1414,18 +1414,18 @@ err:
 	return ret;
 }
 
-void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start)
+void rtw_core_fw_scan_analtify(struct rtw_dev *rtwdev, bool start)
 {
-	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_NOTIFY_SCAN))
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_ANALTIFY_SCAN))
 		return;
 
 	if (start) {
-		rtw_fw_scan_notify(rtwdev, true);
+		rtw_fw_scan_analtify(rtwdev, true);
 	} else {
 		reinit_completion(&rtwdev->fw_scan_density);
-		rtw_fw_scan_notify(rtwdev, false);
+		rtw_fw_scan_analtify(rtwdev, false);
 		if (!wait_for_completion_timeout(&rtwdev->fw_scan_density,
-						 SCAN_NOTIFY_TIMEOUT))
+						 SCAN_ANALTIFY_TIMEOUT))
 			rtw_warn(rtwdev, "firmware failed to report density after scan\n");
 	}
 }
@@ -1450,8 +1450,8 @@ void rtw_core_scan_start(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 	config |= PORT_SET_MAC_ADDR;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
-	rtw_coex_scan_notify(rtwdev, COEX_SCAN_START);
-	rtw_core_fw_scan_notify(rtwdev, true);
+	rtw_coex_scan_analtify(rtwdev, COEX_SCAN_START);
+	rtw_core_fw_scan_analtify(rtwdev, true);
 
 	set_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
 	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
@@ -1469,13 +1469,13 @@ void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	clear_bit(RTW_FLAG_SCANNING, rtwdev->flags);
 	clear_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
 
-	rtw_core_fw_scan_notify(rtwdev, false);
+	rtw_core_fw_scan_analtify(rtwdev, false);
 
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
 	config |= PORT_SET_MAC_ADDR;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
-	rtw_coex_scan_notify(rtwdev, COEX_SCAN_FINISH);
+	rtw_coex_scan_analtify(rtwdev, COEX_SCAN_FINISH);
 
 	if (hw_scan && (rtwdev->hw->conf.flags & IEEE80211_CONF_IDLE))
 		ieee80211_queue_work(rtwdev->hw, &rtwdev->ips_work);
@@ -1582,7 +1582,7 @@ static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 	u16 mcs_map;
 	__le16 highest;
 
-	if (efuse->hw_cap.ptcl != EFUSE_HW_CAP_IGNORE &&
+	if (efuse->hw_cap.ptcl != EFUSE_HW_CAP_IGANALRE &&
 	    efuse->hw_cap.ptcl != EFUSE_HW_CAP_PTCL_VHT)
 		return;
 
@@ -1604,18 +1604,18 @@ static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 		vht_cap->cap |= IEEE80211_VHT_CAP_RXLDPC;
 
 	mcs_map = IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 4 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 8 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 10 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
-		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 14;
+		  IEEE80211_VHT_MCS_ANALT_SUPPORTED << 4 |
+		  IEEE80211_VHT_MCS_ANALT_SUPPORTED << 6 |
+		  IEEE80211_VHT_MCS_ANALT_SUPPORTED << 8 |
+		  IEEE80211_VHT_MCS_ANALT_SUPPORTED << 10 |
+		  IEEE80211_VHT_MCS_ANALT_SUPPORTED << 12 |
+		  IEEE80211_VHT_MCS_ANALT_SUPPORTED << 14;
 	if (efuse->hw_cap.nss > 1) {
 		highest = cpu_to_le16(780);
 		mcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << 2;
 	} else {
 		highest = cpu_to_le16(390);
-		mcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << 2;
+		mcs_map |= IEEE80211_VHT_MCS_ANALT_SUPPORTED << 2;
 	}
 
 	vht_cap->vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
@@ -1791,21 +1791,21 @@ static int rtw_load_firmware(struct rtw_dev *rtwdev, enum rtw_fw_type type)
 		fw_name = rtwdev->chip->wow_fw_name;
 		break;
 
-	case RTW_NORMAL_FW:
+	case RTW_ANALRMAL_FW:
 		fw = &rtwdev->fw;
 		fw_name = rtwdev->chip->fw_name;
 		break;
 
 	default:
 		rtw_warn(rtwdev, "unsupported firmware type\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	fw->type = type;
 	fw->rtwdev = rtwdev;
 	init_completion(&fw->completion);
 
-	ret = request_firmware_nowait(THIS_MODULE, true, fw_name, rtwdev->dev,
+	ret = request_firmware_analwait(THIS_MODULE, true, fw_name, rtwdev->dev,
 				      GFP_KERNEL, fw, rtw_load_firmware_cb);
 	if (ret) {
 		rtw_err(rtwdev, "failed to async firmware request\n");
@@ -1937,7 +1937,7 @@ static int rtw_dump_hw_feature(struct rtw_dev *rtwdev)
 
 	rtw_hw_config_rf_ant_num(rtwdev, efuse->hw_cap.ant_num);
 
-	if (efuse->hw_cap.nss == EFUSE_HW_CAP_IGNORE ||
+	if (efuse->hw_cap.nss == EFUSE_HW_CAP_IGANALRE ||
 	    efuse->hw_cap.nss > rtwdev->hal.rf_path_num)
 		efuse->hw_cap.nss = rtwdev->hal.rf_path_num;
 
@@ -2027,7 +2027,7 @@ static int rtw_chip_board_info_setup(struct rtw_dev *rtwdev)
 	const struct rtw_rfe_def *rfe_def = rtw_get_rfe_def(rtwdev);
 
 	if (!rfe_def)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtw_phy_setup_phy_cond(rtwdev, hal->pkg_type);
 
@@ -2100,7 +2100,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	rtwdev->tx_wq = alloc_workqueue("rtw_tx_wq", WQ_UNBOUND | WQ_HIGHPRI, 0);
 	if (!rtwdev->tx_wq) {
 		rtw_warn(rtwdev, "alloc_workqueue rtw_tx_wq failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_DELAYED_WORK(&rtwdev->watch_dog_work, rtw_watch_dog_work);
@@ -2145,16 +2145,16 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 			  BIT_PKTCTL_DLEN | BIT_HTC_LOC_CTRL | BIT_APP_PHYSTS |
 			  BIT_AB | BIT_AM | BIT_APM;
 
-	ret = rtw_load_firmware(rtwdev, RTW_NORMAL_FW);
+	ret = rtw_load_firmware(rtwdev, RTW_ANALRMAL_FW);
 	if (ret) {
-		rtw_warn(rtwdev, "no firmware loaded\n");
+		rtw_warn(rtwdev, "anal firmware loaded\n");
 		goto out;
 	}
 
 	if (chip->wow_fw_name) {
 		ret = rtw_load_firmware(rtwdev, RTW_WOWLAN_FW);
 		if (ret) {
-			rtw_warn(rtwdev, "no wow firmware loaded\n");
+			rtw_warn(rtwdev, "anal wow firmware loaded\n");
 			wait_for_completion(&rtwdev->fw.completion);
 			if (rtwdev->fw.firmware)
 				release_firmware(rtwdev->fw.firmware);
@@ -2348,7 +2348,7 @@ static void rtw_port_switch_iter(void *data, struct ieee80211_vif *vif)
 	rtw_dbg(rtwdev, RTW_DBG_STATE, "AP port switch from %d -> %d\n",
 		rtwvif_ap->port, rtwvif_target->port);
 
-	/* Leave LPS so the value swapped are not in PS mode */
+	/* Leave LPS so the value swapped are analt in PS mode */
 	rtw_leave_lps(rtwdev);
 
 	reg1 = &rtwvif_ap->conf->net_type;

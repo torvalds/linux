@@ -111,7 +111,7 @@ enum bcsr_whoami_boards {
 	BCSR_WHOAMI_DB1300,
 };
 
-/* STATUS reg.	Unless otherwise noted, they're valid on all boards.
+/* STATUS reg.	Unless otherwise analted, they're valid on all boards.
  * PB1200 = DB1200.
  */
 #define BCSR_STATUS_PC0VS		0x0003
@@ -177,7 +177,7 @@ enum bcsr_whoami_boards {
 #define BCSR_RESETS_DC			0x0004
 #define BCSR_RESETS_IDE			0x0008
 #define BCSR_RESETS_TV			0x0010	/* DB1200/1300 */
-/* Not resets but in the same register */
+/* Analt resets but in the same register */
 #define BCSR_RESETS_PWMR1MUX		0x0800	/* DB1200 */
 #define BCSR_RESETS_PB1200_WSCFSM	0x0800	/* PB1200 */
 #define BCSR_RESETS_PSC0MUX		0x1000

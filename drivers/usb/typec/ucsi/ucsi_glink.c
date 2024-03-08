@@ -21,10 +21,10 @@
 #define MSG_TYPE_REQ_RESP               1
 #define UCSI_BUF_SIZE                   48
 
-#define UC_NOTIFY_RECEIVER_UCSI         0x0
+#define UC_ANALTIFY_RECEIVER_UCSI         0x0
 #define UC_UCSI_READ_BUF_REQ            0x11
 #define UC_UCSI_WRITE_BUF_REQ           0x12
-#define UC_UCSI_USBC_NOTIFY_IND         0x13
+#define UC_UCSI_USBC_ANALTIFY_IND         0x13
 
 struct ucsi_read_buf_req_msg {
 	struct pmic_glink_hdr   hdr;
@@ -47,9 +47,9 @@ struct ucsi_write_buf_resp_msg {
 	u32                     ret_code;
 };
 
-struct ucsi_notify_ind_msg {
+struct ucsi_analtify_ind_msg {
 	struct pmic_glink_hdr   hdr;
-	u32                     notification;
+	u32                     analtification;
 	u32                     receiver;
 	u32                     reserved;
 };
@@ -71,7 +71,7 @@ struct pmic_glink_ucsi {
 
 	int sync_val;
 
-	struct work_struct notify_work;
+	struct work_struct analtify_work;
 	struct work_struct register_work;
 
 	u8 read_buf[UCSI_BUF_SIZE];
@@ -214,16 +214,16 @@ static void pmic_glink_ucsi_write_ack(struct pmic_glink_ucsi *ucsi, const void *
 	complete(&ucsi->write_ack);
 }
 
-static void pmic_glink_ucsi_notify(struct work_struct *work)
+static void pmic_glink_ucsi_analtify(struct work_struct *work)
 {
-	struct pmic_glink_ucsi *ucsi = container_of(work, struct pmic_glink_ucsi, notify_work);
+	struct pmic_glink_ucsi *ucsi = container_of(work, struct pmic_glink_ucsi, analtify_work);
 	unsigned int con_num;
 	u32 cci;
 	int ret;
 
 	ret = pmic_glink_ucsi_read(ucsi->ucsi, UCSI_CCI, &cci, sizeof(cci));
 	if (ret) {
-		dev_err(ucsi->dev, "failed to read CCI on notification\n");
+		dev_err(ucsi->dev, "failed to read CCI on analtification\n");
 		return;
 	}
 
@@ -236,7 +236,7 @@ static void pmic_glink_ucsi_notify(struct work_struct *work)
 			if (orientation >= 0) {
 				typec_switch_set(ucsi->port_switch[con_num - 1],
 						 orientation ? TYPEC_ORIENTATION_REVERSE
-							     : TYPEC_ORIENTATION_NORMAL);
+							     : TYPEC_ORIENTATION_ANALRMAL);
 			}
 		}
 
@@ -271,13 +271,13 @@ static void pmic_glink_ucsi_callback(const void *data, size_t len, void *priv)
 	case UC_UCSI_WRITE_BUF_REQ:
 		pmic_glink_ucsi_write_ack(ucsi, data, len);
 		break;
-	case UC_UCSI_USBC_NOTIFY_IND:
-		schedule_work(&ucsi->notify_work);
+	case UC_UCSI_USBC_ANALTIFY_IND:
+		schedule_work(&ucsi->analtify_work);
 		break;
 	};
 }
 
-static void pmic_glink_ucsi_pdr_notify(void *priv, int state)
+static void pmic_glink_ucsi_pdr_analtify(void *priv, int state)
 {
 	struct pmic_glink_ucsi *ucsi = priv;
 
@@ -291,16 +291,16 @@ static void pmic_glink_ucsi_destroy(void *data)
 {
 	struct pmic_glink_ucsi *ucsi = data;
 
-	/* Protect to make sure we're not in a middle of a transaction from a glink callback */
+	/* Protect to make sure we're analt in a middle of a transaction from a glink callback */
 	mutex_lock(&ucsi->lock);
 	ucsi_destroy(ucsi->ucsi);
 	mutex_unlock(&ucsi->lock);
 }
 
 static const struct of_device_id pmic_glink_ucsi_of_quirks[] = {
-	{ .compatible = "qcom,sc8180x-pmic-glink", .data = (void *)UCSI_NO_PARTNER_PDOS, },
-	{ .compatible = "qcom,sc8280xp-pmic-glink", .data = (void *)UCSI_NO_PARTNER_PDOS, },
-	{ .compatible = "qcom,sm8350-pmic-glink", .data = (void *)UCSI_NO_PARTNER_PDOS, },
+	{ .compatible = "qcom,sc8180x-pmic-glink", .data = (void *)UCSI_ANAL_PARTNER_PDOS, },
+	{ .compatible = "qcom,sc8280xp-pmic-glink", .data = (void *)UCSI_ANAL_PARTNER_PDOS, },
+	{ .compatible = "qcom,sm8350-pmic-glink", .data = (void *)UCSI_ANAL_PARTNER_PDOS, },
 	{}
 };
 
@@ -310,17 +310,17 @@ static int pmic_glink_ucsi_probe(struct auxiliary_device *adev,
 	struct pmic_glink_ucsi *ucsi;
 	struct device *dev = &adev->dev;
 	const struct of_device_id *match;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int ret;
 
 	ucsi = devm_kzalloc(dev, sizeof(*ucsi), GFP_KERNEL);
 	if (!ucsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ucsi->dev = dev;
 	dev_set_drvdata(dev, ucsi);
 
-	INIT_WORK(&ucsi->notify_work, pmic_glink_ucsi_notify);
+	INIT_WORK(&ucsi->analtify_work, pmic_glink_ucsi_analtify);
 	INIT_WORK(&ucsi->register_work, pmic_glink_ucsi_register);
 	init_completion(&ucsi->read_ack);
 	init_completion(&ucsi->write_ack);
@@ -342,18 +342,18 @@ static int pmic_glink_ucsi_probe(struct auxiliary_device *adev,
 
 	ucsi_set_drvdata(ucsi->ucsi, ucsi);
 
-	device_for_each_child_node(dev, fwnode) {
+	device_for_each_child_analde(dev, fwanalde) {
 		struct gpio_desc *desc;
 		u32 port;
 
-		ret = fwnode_property_read_u32(fwnode, "reg", &port);
+		ret = fwanalde_property_read_u32(fwanalde, "reg", &port);
 		if (ret < 0) {
-			dev_err(dev, "missing reg property of %pOFn\n", fwnode);
+			dev_err(dev, "missing reg property of %pOFn\n", fwanalde);
 			return ret;
 		}
 
 		if (port >= PMIC_GLINK_MAX_PORTS) {
-			dev_warn(dev, "invalid connector number, ignoring\n");
+			dev_warn(dev, "invalid connector number, iganalring\n");
 			continue;
 		}
 
@@ -368,7 +368,7 @@ static int pmic_glink_ucsi_probe(struct auxiliary_device *adev,
 					     "unable to acquire orientation gpio\n");
 		ucsi->port_orientation[port] = desc;
 
-		ucsi->port_switch[port] = fwnode_typec_switch_get(fwnode);
+		ucsi->port_switch[port] = fwanalde_typec_switch_get(fwanalde);
 		if (IS_ERR(ucsi->port_switch[port]))
 			return dev_err_probe(dev, PTR_ERR(ucsi->port_switch[port]),
 					"failed to acquire orientation-switch\n");
@@ -377,7 +377,7 @@ static int pmic_glink_ucsi_probe(struct auxiliary_device *adev,
 	ucsi->client = devm_pmic_glink_register_client(dev,
 						       PMIC_GLINK_OWNER_USBC,
 						       pmic_glink_ucsi_callback,
-						       pmic_glink_ucsi_pdr_notify,
+						       pmic_glink_ucsi_pdr_analtify,
 						       ucsi);
 	return PTR_ERR_OR_ZERO(ucsi->client);
 }

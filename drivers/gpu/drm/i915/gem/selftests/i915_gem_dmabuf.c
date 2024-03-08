@@ -121,14 +121,14 @@ static int igt_dmabuf_import_same_driver_lmem(void *arg)
 
 	/*
 	 * We expect an import of an LMEM-only object to fail with
-	 * -EOPNOTSUPP because it can't be migrated to SMEM.
+	 * -EOPANALTSUPP because it can't be migrated to SMEM.
 	 */
 	import = i915_gem_prime_import(&i915->drm, dmabuf);
 	if (!IS_ERR(import)) {
 		drm_gem_object_put(import);
 		pr_err("i915_gem_prime_import succeeded when it shouldn't have\n");
 		err = -EINVAL;
-	} else if (PTR_ERR(import) != -EOPNOTSUPP) {
+	} else if (PTR_ERR(import) != -EOPANALTSUPP) {
 		pr_err("i915_gem_prime_import failed with the wrong err=%ld\n",
 		       PTR_ERR(import));
 		err = PTR_ERR(import);
@@ -268,12 +268,12 @@ static int igt_dmabuf_import_same_driver(struct drm_i915_private *i915,
 	}
 
 	/*
-	 * If the exported object is not in system memory, something
-	 * weird is going on. TODO: When p2p is supported, this is no
+	 * If the exported object is analt in system memory, something
+	 * weird is going on. TODO: When p2p is supported, this is anal
 	 * longer considered weird.
 	 */
 	if (obj->mm.region != i915->mm.regions[INTEL_REGION_SMEM]) {
-		pr_err("Exported dma-buf is not in system memory\n");
+		pr_err("Exported dma-buf is analt in system memory\n");
 		err = -EINVAL;
 	}
 
@@ -283,7 +283,7 @@ static int igt_dmabuf_import_same_driver(struct drm_i915_private *i915,
 	if (err)
 		goto out_import;
 
-	/* Now try a fake an importer */
+	/* Analw try a fake an importer */
 	import_attach = dma_buf_attach(dmabuf, obj->base.dev->dev);
 	if (IS_ERR(import_attach)) {
 		err = PTR_ERR(import_attach);
@@ -361,7 +361,7 @@ static int igt_dmabuf_import(void *arg)
 	}
 
 	if (obj->base.dev != &i915->drm) {
-		pr_err("i915_gem_prime_import created a non-i915 object!\n");
+		pr_err("i915_gem_prime_import created a analn-i915 object!\n");
 		err = -EINVAL;
 		goto out_obj;
 	}
@@ -377,11 +377,11 @@ static int igt_dmabuf_import(void *arg)
 	dma_map = err ? NULL : map.vaddr;
 	if (!dma_map) {
 		pr_err("dma_buf_vmap failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_obj;
 	}
 
-	if (0) { /* Can not yet map dmabuf */
+	if (0) { /* Can analt yet map dmabuf */
 		obj_map = i915_gem_object_pin_map(obj, I915_MAP_WB);
 		if (IS_ERR(obj_map)) {
 			err = PTR_ERR(obj_map);
@@ -393,7 +393,7 @@ static int igt_dmabuf_import(void *arg)
 			memset(dma_map, pattern[i], PAGE_SIZE);
 			if (memchr_inv(obj_map, pattern[i], PAGE_SIZE)) {
 				err = -EINVAL;
-				pr_err("imported vmap not all set to %x!\n", pattern[i]);
+				pr_err("imported vmap analt all set to %x!\n", pattern[i]);
 				i915_gem_object_unpin_map(obj);
 				goto out_dma_map;
 			}
@@ -403,7 +403,7 @@ static int igt_dmabuf_import(void *arg)
 			memset(obj_map, pattern[i], PAGE_SIZE);
 			if (memchr_inv(dma_map, pattern[i], PAGE_SIZE)) {
 				err = -EINVAL;
-				pr_err("exported vmap not all set to %x!\n", pattern[i]);
+				pr_err("exported vmap analt all set to %x!\n", pattern[i]);
 				i915_gem_object_unpin_map(obj);
 				goto out_dma_map;
 			}
@@ -439,7 +439,7 @@ static int igt_dmabuf_import_ownership(void *arg)
 	ptr = err ? NULL : map.vaddr;
 	if (!ptr) {
 		pr_err("dma_buf_vmap failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_dmabuf;
 	}
 
@@ -499,12 +499,12 @@ static int igt_dmabuf_export_vmap(void *arg)
 	ptr = err ? NULL : map.vaddr;
 	if (!ptr) {
 		pr_err("dma_buf_vmap failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	if (memchr_inv(ptr, 0, dmabuf->size)) {
-		pr_err("Exported object not initialised to zero!\n");
+		pr_err("Exported object analt initialised to zero!\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -536,7 +536,7 @@ int i915_gem_dmabuf_mock_selftests(void)
 
 	i915 = mock_gem_device();
 	if (!i915)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = i915_subtests(tests, i915);
 

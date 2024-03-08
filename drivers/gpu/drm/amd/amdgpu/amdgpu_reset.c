@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,7 +82,7 @@ int amdgpu_reset_prepare_hwcontext(struct amdgpu_device *adev,
 		reset_handler = adev->reset_cntl->get_reset_handler(
 			adev->reset_cntl, reset_context);
 	if (!reset_handler)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return reset_handler->prepare_hwcontext(adev->reset_cntl,
 						reset_context);
@@ -98,7 +98,7 @@ int amdgpu_reset_perform_reset(struct amdgpu_device *adev,
 		reset_handler = adev->reset_cntl->get_reset_handler(
 			adev->reset_cntl, reset_context);
 	if (!reset_handler)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = reset_handler->perform_reset(adev->reset_cntl, reset_context);
 	if (ret)
@@ -221,7 +221,7 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
 	struct amdgpu_coredump_info *coredump;
 	struct drm_device *dev = adev_to_drm(adev);
 
-	coredump = kzalloc(sizeof(*coredump), GFP_NOWAIT);
+	coredump = kzalloc(sizeof(*coredump), GFP_ANALWAIT);
 
 	if (!coredump) {
 		DRM_ERROR("%s: failed to allocate memory for coredump\n", __func__);
@@ -237,7 +237,7 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
 
 	ktime_get_ts64(&coredump->reset_time);
 
-	dev_coredumpm(dev->dev, THIS_MODULE, coredump, 0, GFP_NOWAIT,
+	dev_coredumpm(dev->dev, THIS_MODULE, coredump, 0, GFP_ANALWAIT,
 		      amdgpu_devcoredump_read, amdgpu_devcoredump_free);
 }
 #endif

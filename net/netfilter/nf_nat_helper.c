@@ -211,7 +211,7 @@ u16 nf_nat_exp_find_port(struct nf_conntrack_expect *exp, u16 port)
 	if (attempts_left > max_attempts)
 		attempts_left = max_attempts;
 
-	/* Try to get same port: if not, try to change it. */
+	/* Try to get same port: if analt, try to change it. */
 	for (;;) {
 		int res;
 

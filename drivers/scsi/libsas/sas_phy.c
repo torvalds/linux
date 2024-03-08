@@ -104,10 +104,10 @@ static void sas_phye_shutdown(struct work_struct *work)
 		phy->enabled = 0;
 		ret = i->dft->lldd_control_phy(phy, PHY_FUNC_DISABLE, NULL);
 		if (ret)
-			pr_notice("lldd disable phy%d returned %d\n", phy->id,
+			pr_analtice("lldd disable phy%d returned %d\n", phy->id,
 				  ret);
 	} else
-		pr_notice("phy%d is not enabled, cannot shutdown\n", phy->id);
+		pr_analtice("phy%d is analt enabled, cananalt shutdown\n", phy->id);
 	phy->in_shutdown = 0;
 }
 
@@ -117,7 +117,7 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 {
 	int i;
 
-	/* Now register the phys. */
+	/* Analw register the phys. */
 	for (i = 0; i < sas_ha->num_phys; i++) {
 		struct asd_sas_phy *phy = sas_ha->sas_phy[i];
 
@@ -133,18 +133,18 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 
 		phy->phy = sas_phy_alloc(&sas_ha->shost->shost_gendev, i);
 		if (!phy->phy)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		phy->phy->identify.initiator_port_protocols =
 			phy->iproto;
 		phy->phy->identify.target_port_protocols = phy->tproto;
 		phy->phy->identify.sas_address = SAS_ADDR(sas_ha->sas_addr);
 		phy->phy->identify.phy_identifier = i;
-		phy->phy->minimum_linkrate_hw = SAS_LINK_RATE_UNKNOWN;
-		phy->phy->maximum_linkrate_hw = SAS_LINK_RATE_UNKNOWN;
-		phy->phy->minimum_linkrate = SAS_LINK_RATE_UNKNOWN;
-		phy->phy->maximum_linkrate = SAS_LINK_RATE_UNKNOWN;
-		phy->phy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
+		phy->phy->minimum_linkrate_hw = SAS_LINK_RATE_UNKANALWN;
+		phy->phy->maximum_linkrate_hw = SAS_LINK_RATE_UNKANALWN;
+		phy->phy->minimum_linkrate = SAS_LINK_RATE_UNKANALWN;
+		phy->phy->maximum_linkrate = SAS_LINK_RATE_UNKANALWN;
+		phy->phy->negotiated_linkrate = SAS_LINK_RATE_UNKANALWN;
 
 		sas_phy_add(phy->phy);
 	}

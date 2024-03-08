@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * File: if_phonet.h
  *
  * Phonet interface kernel definitions
  *
- * Copyright (C) 2008 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2008 Analkia Corporation. All rights reserved.
  */
 #ifndef _UAPILINUX_IF_PHONET_H
 #define _UAPILINUX_IF_PHONET_H

@@ -17,9 +17,9 @@
 #define ESSA_SET_POT_VOLATILE		4
 #define ESSA_SET_STABLE_RESIDENT	5
 #define ESSA_SET_STABLE_IF_RESIDENT	6
-#define ESSA_SET_STABLE_NODAT		7
+#define ESSA_SET_STABLE_ANALDAT		7
 
-#define ESSA_MAX	ESSA_SET_STABLE_NODAT
+#define ESSA_MAX	ESSA_SET_STABLE_ANALDAT
 
 extern int __bootdata_preserved(cmma_flag);
 
@@ -55,19 +55,19 @@ static inline void __set_page_stable_dat(void *addr, unsigned long num_pages)
 	__set_page_state(addr, num_pages, ESSA_SET_STABLE);
 }
 
-static inline void __set_page_stable_nodat(void *addr, unsigned long num_pages)
+static inline void __set_page_stable_analdat(void *addr, unsigned long num_pages)
 {
-	__set_page_state(addr, num_pages, ESSA_SET_STABLE_NODAT);
+	__set_page_state(addr, num_pages, ESSA_SET_STABLE_ANALDAT);
 }
 
-static inline void __arch_set_page_nodat(void *addr, unsigned long num_pages)
+static inline void __arch_set_page_analdat(void *addr, unsigned long num_pages)
 {
 	if (!cmma_flag)
 		return;
 	if (cmma_flag < 2)
 		__set_page_stable_dat(addr, num_pages);
 	else
-		__set_page_stable_nodat(addr, num_pages);
+		__set_page_stable_analdat(addr, num_pages);
 }
 
 static inline void __arch_set_page_dat(void *addr, unsigned long num_pages)

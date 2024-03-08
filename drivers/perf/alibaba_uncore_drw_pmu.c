@@ -16,7 +16,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -82,9 +82,9 @@ static LIST_HEAD(ali_drw_pmu_irqs);
 static DEFINE_MUTEX(ali_drw_pmu_irqs_lock);
 
 struct ali_drw_pmu_irq {
-	struct hlist_node node;
-	struct list_head irqs_node;
-	struct list_head pmus_node;
+	struct hlist_analde analde;
+	struct list_head irqs_analde;
+	struct list_head pmus_analde;
 	int irq_num;
 	int cpu;
 	refcount_t refcount;
@@ -94,7 +94,7 @@ struct ali_drw_pmu {
 	void __iomem *cfg_base;
 	struct device *dev;
 
-	struct list_head pmus_node;
+	struct list_head pmus_analde;
 	struct ali_drw_pmu_irq *irq;
 	int irq_num;
 	int cpu;
@@ -305,15 +305,15 @@ static u64 ali_drw_pmu_read_counter(struct perf_event *event)
 static void ali_drw_pmu_event_update(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	u64 delta, prev, now;
+	u64 delta, prev, analw;
 
 	do {
 		prev = local64_read(&hwc->prev_count);
-		now = ali_drw_pmu_read_counter(event);
-	} while (local64_cmpxchg(&hwc->prev_count, prev, now) != prev);
+		analw = ali_drw_pmu_read_counter(event);
+	} while (local64_cmpxchg(&hwc->prev_count, prev, analw) != prev);
 
 	/* handle overflow. */
-	delta = now - prev;
+	delta = analw - prev;
 	if (GET_DRW_EVENTID(event) == ALI_DRW_PMU_CYCLE_EVT_ID)
 		delta &= ALI_DRW_PMU_OV_INTR_MASK;
 	else
@@ -379,10 +379,10 @@ static irqreturn_t ali_drw_pmu_isr(int irq_num, void *data)
 {
 	struct ali_drw_pmu_irq *irq = data;
 	struct ali_drw_pmu *drw_pmu;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(drw_pmu, &irq->pmus_node, pmus_node) {
+	list_for_each_entry_rcu(drw_pmu, &irq->pmus_analde, pmus_analde) {
 		unsigned long status, clr_status;
 		struct perf_event *event;
 		unsigned int idx;
@@ -433,17 +433,17 @@ static struct ali_drw_pmu_irq *__ali_drw_pmu_init_irq(struct platform_device
 	int ret;
 	struct ali_drw_pmu_irq *irq;
 
-	list_for_each_entry(irq, &ali_drw_pmu_irqs, irqs_node) {
+	list_for_each_entry(irq, &ali_drw_pmu_irqs, irqs_analde) {
 		if (irq->irq_num == irq_num
-		    && refcount_inc_not_zero(&irq->refcount))
+		    && refcount_inc_analt_zero(&irq->refcount))
 			return irq;
 	}
 
 	irq = kzalloc(sizeof(*irq), GFP_KERNEL);
 	if (!irq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	INIT_LIST_HEAD(&irq->pmus_node);
+	INIT_LIST_HEAD(&irq->pmus_analde);
 
 	/* Pick one CPU to be the preferred one to use */
 	irq->cpu = smp_processor_id();
@@ -452,7 +452,7 @@ static struct ali_drw_pmu_irq *__ali_drw_pmu_init_irq(struct platform_device
 	/*
 	 * FIXME: one of DDRSS Driveway PMU overflow interrupt shares the same
 	 * irq number with MPAM ERR_IRQ. To register DDRSS PMU and MPAM drivers
-	 * successfully, add IRQF_SHARED flag. Howerer, PMU interrupt should not
+	 * successfully, add IRQF_SHARED flag. Howerer, PMU interrupt should analt
 	 * share with other component.
 	 */
 	ret = devm_request_irq(&pdev->dev, irq_num, ali_drw_pmu_isr,
@@ -467,13 +467,13 @@ static struct ali_drw_pmu_irq *__ali_drw_pmu_init_irq(struct platform_device
 	if (ret)
 		goto out_free;
 
-	ret = cpuhp_state_add_instance_nocalls(ali_drw_cpuhp_state_num,
-					     &irq->node);
+	ret = cpuhp_state_add_instance_analcalls(ali_drw_cpuhp_state_num,
+					     &irq->analde);
 	if (ret)
 		goto out_free;
 
 	irq->irq_num = irq_num;
-	list_add(&irq->irqs_node, &ali_drw_pmu_irqs);
+	list_add(&irq->irqs_analde, &ali_drw_pmu_irqs);
 
 	return irq;
 
@@ -503,7 +503,7 @@ static int ali_drw_pmu_init_irq(struct ali_drw_pmu *drw_pmu,
 	drw_pmu->irq = irq;
 
 	mutex_lock(&ali_drw_pmu_irqs_lock);
-	list_add_rcu(&drw_pmu->pmus_node, &irq->pmus_node);
+	list_add_rcu(&drw_pmu->pmus_analde, &irq->pmus_analde);
 	mutex_unlock(&ali_drw_pmu_irqs_lock);
 
 	return 0;
@@ -514,19 +514,19 @@ static void ali_drw_pmu_uninit_irq(struct ali_drw_pmu *drw_pmu)
 	struct ali_drw_pmu_irq *irq = drw_pmu->irq;
 
 	mutex_lock(&ali_drw_pmu_irqs_lock);
-	list_del_rcu(&drw_pmu->pmus_node);
+	list_del_rcu(&drw_pmu->pmus_analde);
 
 	if (!refcount_dec_and_test(&irq->refcount)) {
 		mutex_unlock(&ali_drw_pmu_irqs_lock);
 		return;
 	}
 
-	list_del(&irq->irqs_node);
+	list_del(&irq->irqs_analde);
 	mutex_unlock(&ali_drw_pmu_irqs_lock);
 
 	WARN_ON(irq_set_affinity_hint(irq->irq_num, NULL));
-	cpuhp_state_remove_instance_nocalls(ali_drw_cpuhp_state_num,
-					    &irq->node);
+	cpuhp_state_remove_instance_analcalls(ali_drw_cpuhp_state_num,
+					    &irq->analde);
 	kfree(irq);
 }
 
@@ -538,22 +538,22 @@ static int ali_drw_pmu_event_init(struct perf_event *event)
 	struct device *dev = drw_pmu->pmu.dev;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (is_sampling_event(event)) {
-		dev_err(dev, "Sampling not supported!\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "Sampling analt supported!\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (event->attach_state & PERF_ATTACH_TASK) {
-		dev_err(dev, "Per-task counter cannot allocate!\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "Per-task counter cananalt allocate!\n");
+		return -EOPANALTSUPP;
 	}
 
 	event->cpu = drw_pmu->cpu;
 	if (event->cpu < 0) {
-		dev_err(dev, "Per-task mode not supported!\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "Per-task mode analt supported!\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (event->group_leader != event &&
@@ -564,7 +564,7 @@ static int ali_drw_pmu_event_init(struct perf_event *event)
 
 	for_each_sibling_event(sibling, event->group_leader) {
 		if (sibling != event && !is_software_event(sibling)) {
-			dev_err(dev, "driveway event not allowed!\n");
+			dev_err(dev, "driveway event analt allowed!\n");
 			return -EINVAL;
 		}
 	}
@@ -678,7 +678,7 @@ static int ali_drw_pmu_probe(struct platform_device *pdev)
 
 	drw_pmu = devm_kzalloc(&pdev->dev, sizeof(*drw_pmu), GFP_KERNEL);
 	if (!drw_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drw_pmu->dev = &pdev->dev;
 	platform_set_drvdata(pdev, drw_pmu);
@@ -690,7 +690,7 @@ static int ali_drw_pmu_probe(struct platform_device *pdev)
 	name = devm_kasprintf(drw_pmu->dev, GFP_KERNEL, "ali_drw_%llx",
 			      (u64) (res->start >> ALI_DRW_PMU_PA_SHIFT));
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	writel(ALI_DRW_PMU_CNT_RST, drw_pmu->cfg_base + ALI_DRW_PMU_CNT_CTRL);
 
@@ -717,7 +717,7 @@ static int ali_drw_pmu_probe(struct platform_device *pdev)
 		.stop		= ali_drw_pmu_stop,
 		.read		= ali_drw_pmu_read,
 		.attr_groups	= ali_drw_pmu_attr_groups,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	ret = perf_pmu_register(&drw_pmu->pmu, name, -1);
@@ -743,22 +743,22 @@ static int ali_drw_pmu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int ali_drw_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int ali_drw_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct ali_drw_pmu_irq *irq;
 	struct ali_drw_pmu *drw_pmu;
 	unsigned int target;
 	int ret;
-	cpumask_t node_online_cpus;
+	cpumask_t analde_online_cpus;
 
-	irq = hlist_entry_safe(node, struct ali_drw_pmu_irq, node);
+	irq = hlist_entry_safe(analde, struct ali_drw_pmu_irq, analde);
 	if (cpu != irq->cpu)
 		return 0;
 
-	ret = cpumask_and(&node_online_cpus,
-			  cpumask_of_node(cpu_to_node(cpu)), cpu_online_mask);
+	ret = cpumask_and(&analde_online_cpus,
+			  cpumask_of_analde(cpu_to_analde(cpu)), cpu_online_mask);
 	if (ret)
-		target = cpumask_any_but(&node_online_cpus, cpu);
+		target = cpumask_any_but(&analde_online_cpus, cpu);
 	else
 		target = cpumask_any_but(cpu_online_mask, cpu);
 
@@ -767,7 +767,7 @@ static int ali_drw_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 
 	/* We're only reading, but this isn't the place to be involving RCU */
 	mutex_lock(&ali_drw_pmu_irqs_lock);
-	list_for_each_entry(drw_pmu, &irq->pmus_node, pmus_node)
+	list_for_each_entry(drw_pmu, &irq->pmus_analde, pmus_analde)
 		perf_pmu_migrate_context(&drw_pmu->pmu, irq->cpu, target);
 	mutex_unlock(&ali_drw_pmu_irqs_lock);
 

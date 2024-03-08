@@ -43,7 +43,7 @@
  * sectionA4.7 Access Permissions.
  *
  * Bit 0: 0 - Unprivileged access, 1 - Privileged access
- * Bit 1: 0 - Secure access, 1 - Non-secure access.
+ * Bit 1: 0 - Secure access, 1 - Analn-secure access.
  * Bit 2: 0 - Data access, 1 - instruction access.
  *
  * CATU AXICTRL:ARPROT[2] is res0 as we always access data.

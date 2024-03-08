@@ -110,7 +110,7 @@ static int sbsm_get_property(struct power_supply *psy,
 			return regval;
 
 		if ((regval & SBSM_MASK_CHARGE_BAT) == 0) {
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 			return 0;
 		}
 		val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
@@ -225,9 +225,9 @@ static int sbsm_do_alert(struct device *dev, void *d)
 		if (driver->alert)
 			driver->alert(client, I2C_PROTOCOL_SMBUS_ALERT, 0);
 		else
-			dev_warn(&client->dev, "no driver alert()!\n");
+			dev_warn(&client->dev, "anal driver alert()!\n");
 	} else {
-		dev_dbg(&client->dev, "alert with no driver\n");
+		dev_dbg(&client->dev, "alert with anal driver\n");
 	}
 	device_unlock(dev);
 
@@ -330,11 +330,11 @@ static int sbsm_probe(struct i2c_client *client)
 		return -EINVAL;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EPFNOSUPPORT;
+		return -EPFANALSUPPORT;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 
@@ -348,7 +348,7 @@ static int sbsm_probe(struct i2c_client *client)
 	data->muxc = i2c_mux_alloc(adapter, dev, SBSM_MAX_BATS, 0,
 				   I2C_MUX_LOCKED, &sbsm_select, NULL);
 	if (!data->muxc)
-		return dev_err_probe(dev, -ENOMEM, "failed to alloc i2c mux\n");
+		return dev_err_probe(dev, -EANALMEM, "failed to alloc i2c mux\n");
 	data->muxc->priv = data;
 
 	ret = devm_add_action_or_reset(dev, sbsm_del_mux_adapter, data);
@@ -368,18 +368,18 @@ static int sbsm_probe(struct i2c_client *client)
 
 	psy_desc = devm_kmemdup(dev, &sbsm_default_psy_desc, sizeof(*psy_desc), GFP_KERNEL);
 	if (!psy_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psy_desc->name = devm_kasprintf(dev, GFP_KERNEL, "sbsm-%s", dev_name(&client->dev));
 	if (!psy_desc->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sbsm_gpio_setup(data);
 	if (ret < 0)
 		return ret;
 
 	psy_cfg.drv_data = data;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 	data->psy = devm_power_supply_register(dev, psy_desc, &psy_cfg);
 	if (IS_ERR(data->psy))
 		return dev_err_probe(dev, PTR_ERR(data->psy),

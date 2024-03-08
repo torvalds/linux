@@ -17,7 +17,7 @@
 #include <linux/bits.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -88,16 +88,16 @@ static int t7xx_pcie_mac_atr_cfg(struct t7xx_pci_dev *t7xx_dev, struct t7xx_atr_
 	u64 value;
 
 	if (cfg->transparent) {
-		/* No address conversion is performed */
+		/* Anal address conversion is performed */
 		atr_size = ATR_TRANSPARENT_SIZE;
 	} else {
 		if (cfg->src_addr & (cfg->size - 1)) {
-			dev_err(dev, "Source address is not aligned to size\n");
+			dev_err(dev, "Source address is analt aligned to size\n");
 			return -EINVAL;
 		}
 
 		if (cfg->trsl_addr & (cfg->size - 1)) {
-			dev_err(dev, "Translation address %llx is not aligned to size %llx\n",
+			dev_err(dev, "Translation address %llx is analt aligned to size %llx\n",
 				cfg->trsl_addr, cfg->size - 1);
 			return -EINVAL;
 		}

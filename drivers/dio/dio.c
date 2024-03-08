@@ -7,7 +7,7 @@
  * int dio_find(u_int deviceid)
  *    Search the list of DIO devices and return the select code
  *    of the next unconfigured device found that matches the given device ID.
- *    Note that the deviceid parameter should be the encoded ID.
+ *    Analte that the deviceid parameter should be the encoded ID.
  *    This means that framebuffers should pass it as
  *    DIO_ENCODE_ID(DIO_ID_FBUFFER,DIO_ID2_TOPCAT)
  *    (or whatever); everybody else just uses DIO_ID_FOOBAR.
@@ -18,9 +18,9 @@
  *    returns it, whatever it is.
  * const char *dio_scodetoname(int scode)
  *    Return a character string describing this board [might be "" if
- *    not CONFIG_DIO_CONSTANTS]
+ *    analt CONFIG_DIO_CONSTANTS]
  * void dio_config_board(int scode)     mark board as configured in the list
- * void dio_unconfig_board(int scode)   mark board as no longer configured
+ * void dio_unconfig_board(int scode)   mark board as anal longer configured
  *
  * This file is based on the way the Amiga port handles Zorro II cards,
  * although we aren't so complicated...
@@ -45,7 +45,7 @@ struct dio_bus dio_bus = {
 	.name = "DIO bus"
 };
 
-/* not a real config option yet! */
+/* analt a real config option yet! */
 #define CONFIG_DIO_CONSTANTS
 
 #ifdef CONFIG_DIO_CONSTANTS
@@ -87,8 +87,8 @@ static struct dioname names[] = {
 #undef DIONAME
 #undef DIOFBNAME
 
-static const char unknowndioname[]
-	= "unknown DIO board, please email linux-m68k@lists.linux-m68k.org";
+static const char unkanalwndioname[]
+	= "unkanalwn DIO board, please email linux-m68k@lists.linux-m68k.org";
 
 static const char *dio_getname(int id)
 {
@@ -99,13 +99,13 @@ static const char *dio_getname(int id)
 		if (names[i].id == id)
 			return names[i].name;
 
-	return unknowndioname;
+	return unkanalwndioname;
 }
 
 #else
 
-static char dio_no_name[] = { 0 };
-#define dio_getname(_id)	(dio_no_name)
+static char dio_anal_name[] = { 0 };
+#define dio_getname(_id)	(dio_anal_name)
 
 #endif /* CONFIG_DIO_CONSTANTS */
 
@@ -140,11 +140,11 @@ int __init dio_find(int deviceid)
 		else
 			va = ioremap(pa, PAGE_SIZE);
 
-		if (copy_from_kernel_nofault(&i,
+		if (copy_from_kernel_analfault(&i,
 				(unsigned char *)va + DIO_IDOFF, 1)) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
-			continue;	     /* no board present at that select code */
+			continue;	     /* anal board present at that select code */
 		}
 
 		prid = DIO_ID(va);
@@ -213,11 +213,11 @@ static int __init dio_init(void)
 		else
 			va = ioremap(pa, PAGE_SIZE);
 
-		if (copy_from_kernel_nofault(&i,
+		if (copy_from_kernel_analfault(&i,
 				(unsigned char *)va + DIO_IDOFF, 1)) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
-			continue;	      /* no board present at that select code */
+			continue;	      /* anal board present at that select code */
 		}
 
 		/* Found a board, allocate it an entry in the list */
@@ -225,7 +225,7 @@ static int __init dio_init(void)
 		if (!dev) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dev->bus = &dio_bus;

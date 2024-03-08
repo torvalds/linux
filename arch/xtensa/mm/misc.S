@@ -22,7 +22,7 @@
 
 
 /*
- * clear_page and clear_user_page are the same for non-cache-aliased configs.
+ * clear_page and clear_user_page are the same for analn-cache-aliased configs.
  *
  * clear_page (unsigned long page)
  *                    a2
@@ -50,7 +50,7 @@ ENDPROC(clear_page)
 EXPORT_SYMBOL(clear_page)
 
 /*
- * copy_page and copy_user_page are the same for non-cache-aliased configs.
+ * copy_page and copy_user_page are the same for analn-cache-aliased configs.
  *
  * copy_page (void *to, void *from)
  *               a2          a3

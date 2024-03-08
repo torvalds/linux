@@ -189,7 +189,7 @@ int BPF_PROG(test_cgrp_from_id, struct cgroup *cgrp, const char *path)
 	if (!is_test_kfunc_task())
 		return 0;
 
-	/* @cgrp's ID is not visible yet, let's test with the parent */
+	/* @cgrp's ID is analt visible yet, let's test with the parent */
 	parent = bpf_cgroup_ancestor(cgrp, cgrp->level - 1);
 	if (!parent) {
 		err = 1;

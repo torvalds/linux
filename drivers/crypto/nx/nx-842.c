@@ -25,22 +25,22 @@
  * decompression fails, so this driver's decompression should never fail as
  * long as the provided compressed buffer is valid.  Any compressed buffer
  * created by this driver will have a header (except ones where the input
- * perfectly matches the constraints); so users of this driver cannot simply
+ * perfectly matches the constraints); so users of this driver cananalt simply
  * pass a compressed buffer created by this driver over to the 842 software
  * decompression library.  Instead, users must use this driver to decompress;
  * if the hardware fails or is unavailable, the compressed buffer will be
  * parsed and the header removed, and the raw 842 buffer(s) passed to the 842
  * software decompression library.
  *
- * This does not fall back to software compression, however, since the caller
+ * This does analt fall back to software compression, however, since the caller
  * of this function is specifically requesting hardware compression; if the
  * hardware compression fails, the caller can fall back to software
  * compression, and the raw 842 compressed buffer that the software compressor
  * creates can be passed to this driver for hardware decompression; any
  * buffer without our specific header magic is assumed to be a raw 842 buffer
- * and passed directly to the hardware.  Note that the software compression
+ * and passed directly to the hardware.  Analte that the software compression
  * library will produce a compressed buffer that is incompatible with the
- * hardware decompressor if the original input buffer length is not a multiple
+ * hardware decompressor if the original input buffer length is analt a multiple
  * of 8; if such a compressed buffer is passed to this driver for
  * decompression, the hardware will reject it and this driver will then pass
  * it over to the software library for decompression.
@@ -90,7 +90,7 @@ static int update_param(struct nx842_crypto_param *p,
 	if (p->iremain < slen)
 		return -EOVERFLOW;
 	if (p->oremain < dlen)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	p->in += slen;
 	p->iremain -= slen;
@@ -114,7 +114,7 @@ int nx842_crypto_init(struct crypto_tfm *tfm, struct nx842_driver *driver)
 		kfree(ctx->wmem);
 		free_page((unsigned long)ctx->sbounce);
 		free_page((unsigned long)ctx->dbounce);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -133,7 +133,7 @@ EXPORT_SYMBOL_GPL(nx842_crypto_exit);
 
 static void check_constraints(struct nx842_constraints *c)
 {
-	/* limit maximum, to always have enough bounce buffer to decompress */
+	/* limit maximum, to always have eanalugh bounce buffer to decompress */
 	if (c->maximum > BOUNCE_BUFFER_SIZE)
 		c->maximum = BOUNCE_BUFFER_SIZE;
 }
@@ -144,7 +144,7 @@ static int nx842_crypto_add_header(struct nx842_crypto_header *hdr, u8 *buf)
 
 	/* compress should have added space for header */
 	if (s > be16_to_cpu(hdr->group[0].padding)) {
-		pr_err("Internal error: no space for header\n");
+		pr_err("Internal error: anal space for header\n");
 		return -EINVAL;
 	}
 
@@ -159,7 +159,7 @@ static int compress(struct nx842_crypto_ctx *ctx,
 		    struct nx842_crypto_param *p,
 		    struct nx842_crypto_header_group *g,
 		    struct nx842_constraints *c,
-		    u16 *ignore,
+		    u16 *iganalre,
 		    unsigned int hdrsize)
 {
 	unsigned int slen = p->iremain, dlen = p->oremain, tmplen;
@@ -172,7 +172,7 @@ static int compress(struct nx842_crypto_ctx *ctx,
 		return -EOVERFLOW;
 
 	if (p->oremain == 0 || hdrsize + c->minimum > dlen)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (slen % c->multiple)
 		adj_slen = round_up(slen, c->multiple);
@@ -202,7 +202,7 @@ static int compress(struct nx842_crypto_ctx *ctx,
 	if (dlen % c->multiple)
 		dlen = round_down(dlen, c->multiple);
 	if (dlen < c->minimum) {
-nospc:
+analspc:
 		dst = ctx->dbounce;
 		dlen = min(p->oremain, BOUNCE_BUFFER_SIZE);
 		dlen = round_down(dlen, c->multiple);
@@ -220,8 +220,8 @@ nospc:
 		/* possibly we should reduce the slen here, instead of
 		 * retrying with the dbounce buffer?
 		 */
-		if (ret == -ENOSPC && dst != ctx->dbounce)
-			goto nospc;
+		if (ret == -EANALSPC && dst != ctx->dbounce)
+			goto analspc;
 	} while (ret == -EBUSY && ktime_before(ktime_get(), timeout));
 	if (ret)
 		return ret;
@@ -236,12 +236,12 @@ nospc:
 	g->uncompressed_length = cpu_to_be32(slen);
 
 	if (p->iremain < slen) {
-		*ignore = slen - p->iremain;
+		*iganalre = slen - p->iremain;
 		slen = p->iremain;
 	}
 
-	pr_debug("compress slen %x ignore %x dlen %x padding %x\n",
-		 slen, *ignore, dlen, dskip);
+	pr_debug("compress slen %x iganalre %x dlen %x padding %x\n",
+		 slen, *iganalre, dlen, dskip);
 
 	return update_param(p, slen, dskip + dlen);
 }
@@ -257,7 +257,7 @@ int nx842_crypto_compress(struct crypto_tfm *tfm,
 	unsigned int groups, hdrsize, h;
 	int ret, n;
 	bool add_header;
-	u16 ignore = 0;
+	u16 iganalre = 0;
 
 	check_constraints(&c);
 
@@ -287,35 +287,35 @@ int nx842_crypto_compress(struct crypto_tfm *tfm,
 
 	hdr->magic = cpu_to_be16(NX842_CRYPTO_MAGIC);
 	hdr->groups = 0;
-	hdr->ignore = 0;
+	hdr->iganalre = 0;
 
 	while (p.iremain > 0) {
 		n = hdr->groups++;
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		if (hdr->groups > NX842_CRYPTO_GROUP_MAX)
 			goto unlock;
 
 		/* header goes before first group */
 		h = !n && add_header ? hdrsize : 0;
 
-		if (ignore)
-			pr_warn("internal error, ignore is set %x\n", ignore);
+		if (iganalre)
+			pr_warn("internal error, iganalre is set %x\n", iganalre);
 
-		ret = compress(ctx, &p, &hdr->group[n], &c, &ignore, h);
+		ret = compress(ctx, &p, &hdr->group[n], &c, &iganalre, h);
 		if (ret)
 			goto unlock;
 	}
 
 	if (!add_header && hdr->groups > 1) {
-		pr_err("Internal error: No header but multiple groups\n");
+		pr_err("Internal error: Anal header but multiple groups\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
 
-	/* ignore indicates the input stream needed to be padded */
-	hdr->ignore = cpu_to_be16(ignore);
-	if (ignore)
-		pr_debug("marked %d bytes as ignore\n", ignore);
+	/* iganalre indicates the input stream needed to be padded */
+	hdr->iganalre = cpu_to_be16(iganalre);
+	if (iganalre)
+		pr_debug("marked %d bytes as iganalre\n", iganalre);
 
 	if (add_header)
 		ret = nx842_crypto_add_header(hdr, dst);
@@ -336,7 +336,7 @@ static int decompress(struct nx842_crypto_ctx *ctx,
 		      struct nx842_crypto_param *p,
 		      struct nx842_crypto_header_group *g,
 		      struct nx842_constraints *c,
-		      u16 ignore)
+		      u16 iganalre)
 {
 	unsigned int slen = be32_to_cpu(g->compressed_length);
 	unsigned int required_len = be32_to_cpu(g->uncompressed_length);
@@ -353,8 +353,8 @@ static int decompress(struct nx842_crypto_ctx *ctx,
 	if (p->iremain <= 0 || padding + slen > p->iremain)
 		return -EOVERFLOW;
 
-	if (p->oremain <= 0 || required_len - ignore > p->oremain)
-		return -ENOSPC;
+	if (p->oremain <= 0 || required_len - iganalre > p->oremain)
+		return -EANALSPC;
 
 	src += padding;
 
@@ -367,7 +367,7 @@ static int decompress(struct nx842_crypto_ctx *ctx,
 	if (slen < adj_slen || (u64)src % c->alignment) {
 		/* we can append padding bytes because the 842 format defines
 		 * an "end" template (see lib/842/842_decompress.c) and will
-		 * ignore any bytes following it.
+		 * iganalre any bytes following it.
 		 */
 		if (slen < adj_slen)
 			memset(ctx->sbounce + slen, 0, adj_slen - slen);
@@ -404,7 +404,7 @@ usesw:
 		spadding = 0;
 		dst = p->out;
 		dlen = p->oremain;
-		if (dlen < required_len) { /* have ignore bytes */
+		if (dlen < required_len) { /* have iganalre bytes */
 			dst = ctx->dbounce;
 			dlen = BOUNCE_BUFFER_SIZE;
 		}
@@ -416,15 +416,15 @@ usesw:
 
 	slen -= spadding;
 
-	dlen -= ignore;
-	if (ignore)
-		pr_debug("ignoring last %x bytes\n", ignore);
+	dlen -= iganalre;
+	if (iganalre)
+		pr_debug("iganalring last %x bytes\n", iganalre);
 
 	if (dst == ctx->dbounce)
 		memcpy(p->out, dst, dlen);
 
-	pr_debug("decompress slen %x padding %x dlen %x ignore %x\n",
-		 slen, padding, dlen, ignore);
+	pr_debug("decompress slen %x padding %x dlen %x iganalre %x\n",
+		 slen, padding, dlen, iganalre);
 
 	return update_param(p, slen + padding, dlen);
 }
@@ -438,7 +438,7 @@ int nx842_crypto_decompress(struct crypto_tfm *tfm,
 	struct nx842_crypto_param p;
 	struct nx842_constraints c = *ctx->driver->constraints;
 	int n, ret, hdr_len;
-	u16 ignore = 0;
+	u16 iganalre = 0;
 
 	check_constraints(&c);
 
@@ -472,7 +472,7 @@ int nx842_crypto_decompress(struct crypto_tfm *tfm,
 	}
 
 	if (!hdr->groups) {
-		pr_err("header has no groups\n");
+		pr_err("header has anal groups\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -493,11 +493,11 @@ int nx842_crypto_decompress(struct crypto_tfm *tfm,
 	hdr = &ctx->header;
 
 	for (n = 0; n < hdr->groups; n++) {
-		/* ignore applies to last group */
+		/* iganalre applies to last group */
 		if (n + 1 == hdr->groups)
-			ignore = be16_to_cpu(hdr->ignore);
+			iganalre = be16_to_cpu(hdr->iganalre);
 
-		ret = decompress(ctx, &p, &hdr->group[n], &c, ignore);
+		ret = decompress(ctx, &p, &hdr->group[n], &c, iganalre);
 		if (ret)
 			goto unlock;
 	}

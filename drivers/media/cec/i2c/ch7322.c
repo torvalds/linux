@@ -6,7 +6,7 @@
  */
 
 /*
- * Notes
+ * Analtes
  *
  * - This device powers on in Auto Mode which has limited functionality. This
  *   driver disables Auto Mode when it attaches.
@@ -22,7 +22,7 @@
 #include <linux/pci.h>
 #include <linux/regmap.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #define CH7322_WRITE		0x00
 #define CH7322_WRITE_MSENT		0x80
@@ -178,7 +178,7 @@ static int ch7322_send_message(struct ch7322 *ch7322, const struct cec_msg *msg)
 	if (ret)
 		return ret;
 
-	/* Buffer not ready */
+	/* Buffer analt ready */
 	if (!(val & CH7322_WRITE_MSENT))
 		return -EBUSY;
 
@@ -217,7 +217,7 @@ static int ch7322_receive_message(struct ch7322 *ch7322, struct cec_msg *msg)
 	if (ret)
 		return ret;
 
-	/* Message not ready */
+	/* Message analt ready */
 	if (!(val & CH7322_READ_NRDT))
 		return -EIO;
 
@@ -326,7 +326,7 @@ static irqreturn_t ch7322_irq(int irq, void *dev)
 		ch7322_phys_addr(ch7322);
 
 	if (data & CH7322_INTDATA_ERROR)
-		dev_dbg(&ch7322->i2c->dev, "unknown error\n");
+		dev_dbg(&ch7322->i2c->dev, "unkanalwn error\n");
 
 	return IRQ_HANDLED;
 }
@@ -449,7 +449,7 @@ static int ch7322_probe(struct i2c_client *client)
 	struct device *hdmi_dev;
 	const char *port_name;
 	struct ch7322 *ch7322;
-	struct cec_notifier *notifier = NULL;
+	struct cec_analtifier *analtifier = NULL;
 	u32 caps = CEC_CAP_DEFAULTS;
 	int ret;
 	unsigned int val;
@@ -463,7 +463,7 @@ static int ch7322_probe(struct i2c_client *client)
 
 	ch7322 = devm_kzalloc(&client->dev, sizeof(*ch7322), GFP_KERNEL);
 	if (!ch7322)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ch7322->regmap = devm_regmap_init_i2c(client, &ch7322_regmap);
 	if (IS_ERR(ch7322->regmap))
@@ -474,7 +474,7 @@ static int ch7322_probe(struct i2c_client *client)
 		return ret;
 
 	if (val != CH7322_DID_CH7322)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_init(&ch7322->mutex);
 	ch7322->i2c = client;
@@ -505,11 +505,11 @@ static int ch7322_probe(struct i2c_client *client)
 	ch7322->cec->adap_controls_phys_addr = true;
 
 	if (hdmi_dev) {
-		notifier = cec_notifier_cec_adap_register(hdmi_dev,
+		analtifier = cec_analtifier_cec_adap_register(hdmi_dev,
 							  port_name,
 							  ch7322->cec);
-		if (!notifier) {
-			ret = -ENOMEM;
+		if (!analtifier) {
+			ret = -EANALMEM;
 			goto err_cec;
 		}
 	}
@@ -517,18 +517,18 @@ static int ch7322_probe(struct i2c_client *client)
 	/* Configure, mask, and clear interrupt */
 	ret = regmap_write(ch7322->regmap, CH7322_CFG1, 0);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 	ret = regmap_write(ch7322->regmap, CH7322_INTCTL, CH7322_INTCTL_INTPB);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 	ret = regmap_write(ch7322->regmap, CH7322_INTDATA, 0xff);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 
 	/* If HPD is up read physical address */
 	ret = regmap_read(ch7322->regmap, CH7322_ADDLR, &val);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 	if (val & CH7322_ADDLR_HPD)
 		ch7322_phys_addr(ch7322);
 
@@ -537,7 +537,7 @@ static int ch7322_probe(struct i2c_client *client)
 					IRQF_ONESHOT | IRQF_TRIGGER_RISING,
 					client->name, ch7322);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 
 	/* Unmask interrupt */
 	mutex_lock(&ch7322->mutex);
@@ -545,19 +545,19 @@ static int ch7322_probe(struct i2c_client *client)
 	mutex_unlock(&ch7322->mutex);
 
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 
 	ret = cec_register_adapter(ch7322->cec, &client->dev);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 
 	dev_info(&client->dev, "device registered\n");
 
 	return 0;
 
-err_notifier:
-	if (notifier)
-		cec_notifier_cec_adap_unregister(notifier, ch7322->cec);
+err_analtifier:
+	if (analtifier)
+		cec_analtifier_cec_adap_unregister(analtifier, ch7322->cec);
 err_cec:
 	cec_delete_adapter(ch7322->cec);
 err_mutex:

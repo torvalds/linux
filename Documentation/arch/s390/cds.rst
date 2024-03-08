@@ -18,16 +18,16 @@ This document describes the common device support routines for Linux/390.
 Different than other hardware architectures, ESA/390 has defined a unified
 I/O access method. This gives relief to the device drivers as they don't
 have to deal with different bus types, polling versus interrupt
-processing, shared versus non-shared interrupt processing, DMA versus port
+processing, shared versus analn-shared interrupt processing, DMA versus port
 I/O (PIO), and other hardware features more. However, this implies that
 either every single device driver needs to implement the hardware I/O
 attachment functionality itself, or the operating system provides for a
 unified method to access the hardware, providing all the functionality that
 every single device driver would have to provide itself.
 
-The document does not intend to explain the ESA/390 hardware architecture in
+The document does analt intend to explain the ESA/390 hardware architecture in
 every detail.This information can be obtained from the ESA/390 Principles of
-Operation manual (IBM Form. No. SA22-7201).
+Operation manual (IBM Form. Anal. SA22-7201).
 
 In order to build common device support for ESA/390 I/O interfaces, a
 functional layer was introduced that provides generic I/O access methods to
@@ -37,21 +37,21 @@ The common device support layer comprises the I/O support routines defined
 below. Some of them implement common Linux device driver interfaces, while
 some of them are ESA/390 platform specific.
 
-Note:
+Analte:
   In order to write a driver for S/390, you also need to look into the interface
   described in Documentation/arch/s390/driver-model.rst.
 
-Note for porting drivers from 2.4:
+Analte for porting drivers from 2.4:
 
 The major changes are:
 
 * The functions use a ccw_device instead of an irq (subchannel).
 * All drivers must define a ccw_driver (see driver-model.txt) and the associated
   functions.
-* request_irq() and free_irq() are no longer done by the driver.
+* request_irq() and free_irq() are anal longer done by the driver.
 * The oper_handler is (kindof) replaced by the probe() and set_online() functions
   of the ccw_driver.
-* The not_oper_handler is (kindof) replaced by the remove() and set_offline()
+* The analt_oper_handler is (kindof) replaced by the remove() and set_offline()
   functions of the ccw_driver.
 * The channel device layer is gone.
 * The interrupt handlers must be adapted to use a ccw_device as argument.
@@ -80,12 +80,12 @@ do_IRQ()
    initiation with do_IO().
 
 The next chapters describe the functions other than do_IRQ() in more details.
-The do_IRQ() interface is not described, as it is called from the Linux/390
-first level interrupt handler only and does not comprise a device driver
+The do_IRQ() interface is analt described, as it is called from the Linux/390
+first level interrupt handler only and does analt comprise a device driver
 callable interface. Instead, the functional description of do_IO() also
 describes the input to the device specific interrupt handler.
 
-Note:
+Analte:
 	All explanations apply also to the 64 bit architecture s390x.
 
 
@@ -111,10 +111,10 @@ Overview of CDS interface concepts
 
 Different to other hardware platforms, the ESA/390 architecture doesn't define
 interrupt lines managed by a specific interrupt controller and bus systems
-that may or may not allow for shared interrupts, DMA processing, etc.. Instead,
+that may or may analt allow for shared interrupts, DMA processing, etc.. Instead,
 the ESA/390 architecture has implemented a so called channel subsystem, that
 provides a unified view of the devices physically attached to the systems.
-Though the ESA/390 hardware platform knows about a huge variety of different
+Though the ESA/390 hardware platform kanalws about a huge variety of different
 peripheral attachments like disk devices (aka. DASDs), tapes, communication
 controllers, etc. they can all be accessed by a well defined access method and
 they are presenting I/O completion a unified way : I/O interruptions. Every
@@ -125,7 +125,7 @@ Linux, however, was first built on the Intel PC architecture, with its two
 cascaded 8259 programmable interrupt controllers (PICs), that allow for a
 maximum of 15 different interrupt lines. All devices attached to such a system
 share those 15 interrupt levels. Devices attached to the ISA bus system must
-not share interrupt levels (aka. IRQs), as the ISA bus bases on edge triggered
+analt share interrupt levels (aka. IRQs), as the ISA bus bases on edge triggered
 interrupts. MCA, EISA, PCI and other bus systems base on level triggered
 interrupts, and therewith allow for shared IRQs. However, if multiple devices
 present their hardware status by the same (shared) IRQ, the operating system
@@ -140,13 +140,13 @@ During its startup the Linux/390 system checks for peripheral devices. Each
 of those devices is uniquely defined by a so called subchannel by the ESA/390
 channel subsystem. While the subchannel numbers are system generated, each
 subchannel also takes a user defined attribute, the so called device number.
-Both subchannel number and device number cannot exceed 65535. During sysfs
+Both subchannel number and device number cananalt exceed 65535. During sysfs
 initialisation, the information about control unit type and device types that
 imply specific I/O commands (channel command words - CCWs) in order to operate
 the device are gathered. Device drivers can retrieve this set of hardware
 information during their initialization step to recognize the devices they
 support using the information saved in the struct ccw_device given to them.
-This methods implies that Linux/390 doesn't require to probe for free (not
+This methods implies that Linux/390 doesn't require to probe for free (analt
 armed) interrupt request lines (IRQs) to drive its devices with. Where
 applicable, the device drivers can use issue the READ DEVICE CHARACTERISTICS
 ccw to retrieve device characteristics in its online routine.
@@ -156,7 +156,7 @@ ccw_device_start() interface that takes a device specific channel program (one
 or more CCWs) as input sets up the required architecture specific control blocks
 and initiates an I/O request on behalf of the device driver. The
 ccw_device_start() routine allows to specify whether it expects the CDS layer
-to notify the device driver for every interrupt it observes, or with final status
+to analtify the device driver for every interrupt it observes, or with final status
 only. See ccw_device_start() for more details. A device driver must never issue
 ESA/390 I/O commands itself, but must use the Linux/390 CDS interfaces instead.
 
@@ -184,7 +184,7 @@ cmd   The command type to be retrieved.
 ccw_device_get_ciw() returns:
 
 =====  ================================================================
- NULL  No extended data available, invalid device or command not found.
+ NULL  Anal extended data available, invalid device or command analt found.
 !NULL  The command requested.
 =====  ================================================================
 
@@ -194,7 +194,7 @@ ccw_device_get_ciw() returns:
 
 The ccw_device_start() routines is the I/O request front-end processor. All
 device driver I/O requests must be issued using this routine. A device driver
-must not issue ESA/390 I/O commands itself. Instead the ccw_device_start()
+must analt issue ESA/390 I/O commands itself. Instead the ccw_device_start()
 routine provides all interfaces required to drive arbitrary devices.
 
 This description also covers the status information passed to the device
@@ -281,7 +281,7 @@ Via ccw_device_set_options(), the device driver may specify the following
 options for the device:
 
 ========================= ======================================
-DOIO_EARLY_NOTIFICATION   allow for early interrupt notification
+DOIO_EARLY_ANALTIFICATION   allow for early interrupt analtification
 DOIO_REPORT_ALL           report all interrupt conditions
 ========================= ======================================
 
@@ -292,8 +292,8 @@ The ccw_device_start() function returns:
       0  successful completion or request successfully initiated
  -EBUSY  The device is currently processing a previous I/O request, or there is
 	 a status pending at the device.
--ENODEV  cdev is invalid, the device is not operational or the ccw_device is
-	 not online.
+-EANALDEV  cdev is invalid, the device is analt operational or the ccw_device is
+	 analt online.
 ======== ======================================================================
 
 When the I/O request completes, the CDS first level interrupt handler will
@@ -301,8 +301,8 @@ accumulate the status in a struct irb and then call the device interrupt handler
 The intparm field will contain the value the device driver has associated with a
 particular I/O request. If a pending device status was recognized,
 intparm will be set to 0 (zero). This may happen during I/O initiation or delayed
-by an alert status notification. In any case this status is not related to the
-current (last) I/O request. In case of a delayed status notification no special
+by an alert status analtification. In any case this status is analt related to the
+current (last) I/O request. In case of a delayed status analtification anal special
 interrupt will be presented to indicate I/O completion as the I/O request was
 never started, even though ccw_device_start() returned with successful completion.
 
@@ -317,7 +317,7 @@ first:
 
 If the concurrent sense flag in the extended status word (esw) in the irb is
 set, the field erw.scnt in the esw describes the number of device specific
-sense bytes available in the extended control word irb->scsw.ecw[]. No device
+sense bytes available in the extended control word irb->scsw.ecw[]. Anal device
 sensing by the device driver itself is required.
 
 The device interrupt handler can use the following definitions to investigate
@@ -365,24 +365,24 @@ DEV_STAT_UNIT_EXCEP   unit exception
 Please see the ESA/390 Principles of Operation manual for details on the
 individual flag meanings.
 
-Usage Notes:
+Usage Analtes:
 
 ccw_device_start() must be called disabled and with the ccw device lock held.
 
 The device driver is allowed to issue the next ccw_device_start() call from
-within its interrupt handler already. It is not required to schedule a
-bottom-half, unless a non deterministically long running error recovery procedure
+within its interrupt handler already. It is analt required to schedule a
+bottom-half, unless a analn deterministically long running error recovery procedure
 or similar needs to be scheduled. During I/O processing the Linux/390 generic
 I/O device driver support has already obtained the IRQ lock, i.e. the handler
-must not try to obtain it again when calling ccw_device_start() or we end in a
+must analt try to obtain it again when calling ccw_device_start() or we end in a
 deadlock situation!
 
 If a device driver relies on an I/O request to be completed prior to start the
-next it can reduce I/O processing overhead by chaining a NoOp I/O command
-CCW_CMD_NOOP to the end of the submitted CCW chain. This will force Channel-End
+next it can reduce I/O processing overhead by chaining a AnalOp I/O command
+CCW_CMD_ANALOP to the end of the submitted CCW chain. This will force Channel-End
 and Device-End status to be presented together, with a single interrupt.
 However, this should be used with care as it implies the channel will remain
-busy, not being able to process I/O requests for other devices on the same
+busy, analt being able to process I/O requests for other devices on the same
 channel. Therefore e.g. read commands should never use this technique, as the
 result will be presented by a single interrupt anyway.
 
@@ -392,8 +392,8 @@ information prior to device-end the device driver urgently relies on. In this
 case all I/O interruptions are presented to the device driver until final
 status is recognized.
 
-If a device is able to recover from asynchronously presented I/O errors, it can
-perform overlapping I/O using the DOIO_EARLY_NOTIFICATION flag. While some
+If a device is able to recover from asynchroanalusly presented I/O errors, it can
+perform overlapping I/O using the DOIO_EARLY_ANALTIFICATION flag. While some
 devices always report channel-end and device-end together, with a single
 interrupt, others present primary status (channel-end) when the channel is
 ready for the next I/O request and secondary status (device-end) when the data
@@ -435,14 +435,14 @@ The ccw_device_resume() function returns:
 =========   ==============================================
 	0   suspended channel program is resumed
    -EBUSY   status pending
-  -ENODEV   cdev invalid or not-operational subchannel
-  -EINVAL   resume function not applicable
--ENOTCONN   there is no I/O request pending for completion
+  -EANALDEV   cdev invalid or analt-operational subchannel
+  -EINVAL   resume function analt applicable
+-EANALTCONN   there is anal I/O request pending for completion
 =========   ==============================================
 
-Usage Notes:
+Usage Analtes:
 
-Please have a look at the ccw_device_start() usage notes for more details on
+Please have a look at the ccw_device_start() usage analtes for more details on
 suspended channel programs.
 
 ccw_device_halt() - Halt I/O Request Processing
@@ -461,7 +461,7 @@ ccw_device_halt() must be called disabled and with the ccw device lock held.
 
 =======  =====================================================
 cdev     ccw_device the halt operation is requested for
-intparm  interruption parameter; value is only used if no I/O
+intparm  interruption parameter; value is only used if anal I/O
 	 is outstanding, otherwise the intparm associated with
 	 the I/O request is returned
 =======  =====================================================
@@ -471,11 +471,11 @@ The ccw_device_halt() function returns:
 =======  ==============================================================
       0  request successfully initiated
 -EBUSY   the device is currently busy, or status pending.
--ENODEV  cdev invalid.
--EINVAL  The device is not operational or the ccw device is not online.
+-EANALDEV  cdev invalid.
+-EINVAL  The device is analt operational or the ccw device is analt online.
 =======  ==============================================================
 
-Usage Notes:
+Usage Analtes:
 
 A device driver may write a never-ending channel program by writing a channel
 program that at its end loops back to its beginning by means of a transfer in
@@ -508,8 +508,8 @@ The ccw_device_clear() function returns:
 
 =======  ==============================================================
       0  request successfully initiated
--ENODEV  cdev invalid
--EINVAL  The device is not operational or the ccw device is not online.
+-EANALDEV  cdev invalid
+-EINVAL  The device is analt operational or the ccw device is analt online.
 =======  ==============================================================
 
 Miscellaneous Support Routines

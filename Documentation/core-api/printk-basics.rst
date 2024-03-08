@@ -4,7 +4,7 @@
 Message logging with printk
 ===========================
 
-printk() is one of the most widely known functions in the Linux kernel. It's the
+printk() is one of the most widely kanalwn functions in the Linux kernel. It's the
 standard tool we have for printing messages and usually the most basic way of
 tracing and debugging. If you're familiar with printf(3) you can tell printk()
 is based on it, although it has some functional differences:
@@ -13,7 +13,7 @@ is based on it, although it has some functional differences:
 
   - the format string, while largely compatible with C99, doesn't follow the
     exact same specification. It has some extensions and a few limitations
-    (no ``%n`` or floating point conversion specifiers). See :ref:`How to get
+    (anal ``%n`` or floating point conversion specifiers). See :ref:`How to get
     printk format specifiers right <printk-specifiers>`.
 
 All printk() messages are printed to the kernel log buffer, which is a ring
@@ -24,8 +24,8 @@ printk() is typically used like this::
 
   printk(KERN_INFO "Message: %s\n", arg);
 
-where ``KERN_INFO`` is the log level (note that it's concatenated to the format
-string, the log level is not a separate argument). The available log levels are:
+where ``KERN_INFO`` is the log level (analte that it's concatenated to the format
+string, the log level is analt a separate argument). The available log levels are:
 
 +----------------+--------+-----------------------------------------------+
 | Name           | String |  Alias function                               |
@@ -40,7 +40,7 @@ string, the log level is not a separate argument). The available log levels are:
 +----------------+--------+-----------------------------------------------+
 | KERN_WARNING   | "4"    | pr_warn()                                     |
 +----------------+--------+-----------------------------------------------+
-| KERN_NOTICE    | "5"    | pr_notice()                                   |
+| KERN_ANALTICE    | "5"    | pr_analtice()                                   |
 +----------------+--------+-----------------------------------------------+
 | KERN_INFO      | "6"    | pr_info()                                     |
 +----------------+--------+-----------------------------------------------+
@@ -74,7 +74,7 @@ To change the current console_loglevel simply write the desired level to
 
   # echo 8 > /proc/sys/kernel/printk
 
-Another way, using ``dmesg``::
+Aanalther way, using ``dmesg``::
 
   # dmesg -n 5
 
@@ -85,7 +85,7 @@ As an alternative to printk() you can use the ``pr_*()`` aliases for
 logging. This family of macros embed the log level in the macro names. For
 example::
 
-  pr_info("Info message no. %d\n", msg_num);
+  pr_info("Info message anal. %d\n", msg_num);
 
 prints a ``KERN_INFO`` message.
 
@@ -108,5 +108,5 @@ Function reference
 ==================
 
 .. kernel-doc:: include/linux/printk.h
-   :functions: printk pr_emerg pr_alert pr_crit pr_err pr_warn pr_notice pr_info
+   :functions: printk pr_emerg pr_alert pr_crit pr_err pr_warn pr_analtice pr_info
       pr_fmt pr_debug pr_devel pr_cont

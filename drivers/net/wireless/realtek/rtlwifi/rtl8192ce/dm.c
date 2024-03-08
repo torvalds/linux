@@ -22,18 +22,18 @@ void rtl92ce_dm_dynamic_txpower(struct ieee80211_hw *hw)
 		return;
 
 	if (rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_TRACE,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 
-		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 
@@ -68,9 +68,9 @@ void rtl92ce_dm_dynamic_txpower(struct ieee80211_hw *hw)
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
 			"TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x10)\n");
 	} else if (undec_sm_pwdb < (TX_POWER_NEAR_FIELD_THRESH_LVL1 - 5)) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
-			"TXHIGHPWRLEVEL_NORMAL\n");
+			"TXHIGHPWRLEVEL_ANALRMAL\n");
 	}
 
 	if ((rtlpriv->dm.dynamic_txhighpower_lvl != rtlpriv->dm.last_dtp_lvl)) {

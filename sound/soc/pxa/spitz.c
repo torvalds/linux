@@ -209,7 +209,7 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 	SND_SOC_DAPM_LINE("Line Jack", NULL),
 
-	/* headset is a mic and mono headphone */
+	/* headset is a mic and moanal headphone */
 	SND_SOC_DAPM_HP("Headset Jack", NULL),
 };
 
@@ -231,7 +231,7 @@ static const struct snd_soc_dapm_route spitz_audio_map[] = {
 	{"LINPUT1", NULL, "Mic Bias"},
 	{"Mic Bias", NULL, "Mic Jack"},
 
-	/* line is connected to input 1 - no bias */
+	/* line is connected to input 1 - anal bias */
 	{"LINPUT1", NULL, "Line Jack"},
 };
 

@@ -11,7 +11,7 @@
  * Returns : r4 - r11, r13 preserved
  *
  * Purpose : obtain information about current aborted instruction.
- * Note: we read user space.  This means we might cause a data
+ * Analte: we read user space.  This means we might cause a data
  * abort here if the I-TLB and D-TLB aren't seeing the same
  * picture.  Unfortunately, this does happen.  We live with it.
  */
@@ -23,5 +23,5 @@ ENTRY(v4_early_abort)
 	uaccess_disable ip			@ disable userspace access
 	bic	r1, r1, #1 << 11 | 1 << 10	@ clear bits 11 and 10 of FSR
 	tst	r3, #1 << 20			@ L = 1 -> write?
-	orreq	r1, r1, #1 << 11		@ yes.
+	orreq	r1, r1, #1 << 11		@ anal.
 	b	do_DataAbort

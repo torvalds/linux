@@ -83,7 +83,7 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 	entry->correct = val == expect;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+		trace_buffer_unlock_commit_analstack(buffer, event);
 
  out:
 	current->trace_recursion &= ~TRACE_BRANCH_BIT;
@@ -105,7 +105,7 @@ int enable_branch_tracing(struct trace_array *tr)
 	branch_tracer = tr;
 	/*
 	 * Must be seen before enabling. The reader is a condition
-	 * where we do not need a matching rmb()
+	 * where we do analt need a matching rmb()
 	 */
 	smp_wmb();
 	branch_tracing_enabled++;
@@ -187,7 +187,7 @@ __init static int init_branch_tracer(void)
 
 	ret = register_trace_event(&trace_branch_event);
 	if (!ret) {
-		printk(KERN_WARNING "Warning: could not register "
+		printk(KERN_WARNING "Warning: could analt register "
 				    "branch events\n");
 		return 1;
 	}
@@ -216,7 +216,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 	 * I would love to have a trace point here instead, but the
 	 * trace point code is so inundated with unlikely and likely
 	 * conditions that the recursive nightmare that exists is too
-	 * much to try to get working. At least for now.
+	 * much to try to get working. At least for analw.
 	 */
 	trace_likely_condition(f, val, expect);
 
@@ -230,10 +230,10 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 }
 EXPORT_SYMBOL(ftrace_likely_update);
 
-extern unsigned long __start_annotated_branch_profile[];
-extern unsigned long __stop_annotated_branch_profile[];
+extern unsigned long __start_ananaltated_branch_profile[];
+extern unsigned long __stop_ananaltated_branch_profile[];
 
-static int annotated_branch_stat_headers(struct seq_file *m)
+static int ananaltated_branch_stat_headers(struct seq_file *m)
 {
 	seq_puts(m, " correct incorrect  % "
 		    "       Function                "
@@ -261,7 +261,7 @@ static const char *branch_stat_process_file(struct ftrace_branch_data *p)
 {
 	const char *f;
 
-	/* Only print the file, not the path */
+	/* Only print the file, analt the path */
 	f = p->file + strlen(p->file);
 	while (f >= p->file && *f != '/')
 		f--;
@@ -286,7 +286,7 @@ static void branch_stat_show(struct seq_file *m,
 	seq_printf(m, "%-30.30s %-20.20s %d\n", p->func, f, p->line);
 }
 
-static int branch_stat_show_normal(struct seq_file *m,
+static int branch_stat_show_analrmal(struct seq_file *m,
 				   struct ftrace_branch_data *p, const char *f)
 {
 	seq_printf(m, "%8lu %8lu ",  p->correct, p->incorrect);
@@ -294,7 +294,7 @@ static int branch_stat_show_normal(struct seq_file *m,
 	return 0;
 }
 
-static int annotate_branch_stat_show(struct seq_file *m, void *v)
+static int ananaltate_branch_stat_show(struct seq_file *m, void *v)
 {
 	struct ftrace_likely_data *p = v;
 	const char *f;
@@ -303,7 +303,7 @@ static int annotate_branch_stat_show(struct seq_file *m, void *v)
 	f = branch_stat_process_file(&p->data);
 
 	if (!p->constant)
-		return branch_stat_show_normal(m, &p->data, f);
+		return branch_stat_show_analrmal(m, &p->data, f);
 
 	l = snprintf(NULL, 0, "/%lu", p->constant);
 	l = l > 8 ? 0 : 8 - l;
@@ -314,25 +314,25 @@ static int annotate_branch_stat_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static void *annotated_branch_stat_start(struct tracer_stat *trace)
+static void *ananaltated_branch_stat_start(struct tracer_stat *trace)
 {
-	return __start_annotated_branch_profile;
+	return __start_ananaltated_branch_profile;
 }
 
 static void *
-annotated_branch_stat_next(void *v, int idx)
+ananaltated_branch_stat_next(void *v, int idx)
 {
 	struct ftrace_likely_data *p = v;
 
 	++p;
 
-	if ((void *)p >= (void *)__stop_annotated_branch_profile)
+	if ((void *)p >= (void *)__stop_ananaltated_branch_profile)
 		return NULL;
 
 	return p;
 }
 
-static int annotated_branch_stat_cmp(const void *p1, const void *p2)
+static int ananaltated_branch_stat_cmp(const void *p1, const void *p2)
 {
 	const struct ftrace_branch_data *a = p1;
 	const struct ftrace_branch_data *b = p2;
@@ -365,28 +365,28 @@ static int annotated_branch_stat_cmp(const void *p1, const void *p2)
 	return 0;
 }
 
-static struct tracer_stat annotated_branch_stats = {
-	.name = "branch_annotated",
-	.stat_start = annotated_branch_stat_start,
-	.stat_next = annotated_branch_stat_next,
-	.stat_cmp = annotated_branch_stat_cmp,
-	.stat_headers = annotated_branch_stat_headers,
-	.stat_show = annotate_branch_stat_show
+static struct tracer_stat ananaltated_branch_stats = {
+	.name = "branch_ananaltated",
+	.stat_start = ananaltated_branch_stat_start,
+	.stat_next = ananaltated_branch_stat_next,
+	.stat_cmp = ananaltated_branch_stat_cmp,
+	.stat_headers = ananaltated_branch_stat_headers,
+	.stat_show = ananaltate_branch_stat_show
 };
 
-__init static int init_annotated_branch_stats(void)
+__init static int init_ananaltated_branch_stats(void)
 {
 	int ret;
 
-	ret = register_stat_tracer(&annotated_branch_stats);
+	ret = register_stat_tracer(&ananaltated_branch_stats);
 	if (!ret) {
-		printk(KERN_WARNING "Warning: could not register "
-				    "annotated branches stats\n");
+		printk(KERN_WARNING "Warning: could analt register "
+				    "ananaltated branches stats\n");
 		return 1;
 	}
 	return 0;
 }
-fs_initcall(init_annotated_branch_stats);
+fs_initcall(init_ananaltated_branch_stats);
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
 
@@ -428,7 +428,7 @@ static int all_branch_stat_show(struct seq_file *m, void *v)
 	const char *f;
 
 	f = branch_stat_process_file(p);
-	return branch_stat_show_normal(m, p, f);
+	return branch_stat_show_analrmal(m, p, f);
 }
 
 static struct tracer_stat all_branch_stats = {
@@ -439,17 +439,17 @@ static struct tracer_stat all_branch_stats = {
 	.stat_show = all_branch_stat_show
 };
 
-__init static int all_annotated_branch_stats(void)
+__init static int all_ananaltated_branch_stats(void)
 {
 	int ret;
 
 	ret = register_stat_tracer(&all_branch_stats);
 	if (!ret) {
-		printk(KERN_WARNING "Warning: could not register "
+		printk(KERN_WARNING "Warning: could analt register "
 				    "all branches stats\n");
 		return 1;
 	}
 	return 0;
 }
-fs_initcall(all_annotated_branch_stats);
+fs_initcall(all_ananaltated_branch_stats);
 #endif /* CONFIG_PROFILE_ALL_BRANCHES */

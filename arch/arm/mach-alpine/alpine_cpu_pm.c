@@ -24,7 +24,7 @@ static int wakeup_supported;
 int alpine_cpu_wakeup(unsigned int phys_cpu, uint32_t phys_resume_addr)
 {
 	if (!wakeup_supported)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	/*
 	 * Set CPU resume address -
@@ -43,12 +43,12 @@ int alpine_cpu_wakeup(unsigned int phys_cpu, uint32_t phys_resume_addr)
 
 void __init alpine_cpu_pm_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	uint32_t watermark;
 
 	al_sysfabric = syscon_regmap_lookup_by_compatible("al,alpine-sysfabric-service");
 
-	np = of_find_compatible_node(NULL, NULL, "al,alpine-cpu-resume");
+	np = of_find_compatible_analde(NULL, NULL, "al,alpine-cpu-resume");
 	al_cpu_resume_regs = of_iomap(np, 0);
 
 	wakeup_supported = !IS_ERR(al_sysfabric) && al_cpu_resume_regs;

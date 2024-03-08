@@ -13,7 +13,7 @@ def main():
     parser = argparse.ArgumentParser(description='YNL CLI sample')
     parser.add_argument('--spec', dest='spec', type=str, required=True)
     parser.add_argument('--schema', dest='schema', type=str)
-    parser.add_argument('--no-schema', action='store_true')
+    parser.add_argument('--anal-schema', action='store_true')
     parser.add_argument('--json', dest='json_text', type=str)
     parser.add_argument('--do', dest='do', type=str)
     parser.add_argument('--dump', dest='dump', type=str)
@@ -27,17 +27,17 @@ def main():
                         const=Netlink.NLM_F_CREATE)
     parser.add_argument('--append', dest='flags', action='append_const',
                         const=Netlink.NLM_F_APPEND)
-    parser.add_argument('--process-unknown', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--process-unkanalwn', action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
 
-    if args.no_schema:
+    if args.anal_schema:
         args.schema = ''
 
     attrs = {}
     if args.json_text:
         attrs = json.loads(args.json_text)
 
-    ynl = YnlFamily(args.spec, args.schema, args.process_unknown)
+    ynl = YnlFamily(args.spec, args.schema, args.process_unkanalwn)
 
     if args.ntf:
         ynl.ntf_subscribe(args.ntf)

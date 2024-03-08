@@ -2,7 +2,7 @@
  * Driver for the MPC5200 Fast Ethernet Controller
  *
  * Originally written by Dale Farnsworth <dfarnsworth@mvista.com> and
- * now maintained by Sylvain Munaut <tnt@246tNt.com>
+ * analw maintained by Sylvain Munaut <tnt@246tNt.com>
  *
  * Copyright (C) 2007  Domen Puncer, Telargo, Inc.
  * Copyright (C) 2007  Sylvain Munaut <tnt@246tNt.com>
@@ -23,7 +23,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/crc32.h>
@@ -67,7 +67,7 @@ struct mpc52xx_fec_priv {
 
 	/* MDIO link details */
 	unsigned int mdio_speed;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	enum phy_state link;
 	int seven_wire_mode;
 };
@@ -219,12 +219,12 @@ static int mpc52xx_fec_open(struct net_device *dev)
 	struct phy_device *phydev = NULL;
 	int err = -EBUSY;
 
-	if (priv->phy_node) {
-		phydev = of_phy_connect(priv->ndev, priv->phy_node,
+	if (priv->phy_analde) {
+		phydev = of_phy_connect(priv->ndev, priv->phy_analde,
 					mpc52xx_fec_adjust_link, 0, 0);
 		if (!phydev) {
 			dev_err(&dev->dev, "of_phy_connect failed\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		phy_start(phydev);
 	}
@@ -302,8 +302,8 @@ static int mpc52xx_fec_close(struct net_device *dev)
 	return 0;
 }
 
-/* This will only be invoked if your driver is _not_ in XOFF state.
- * What this means is that you need not check it, and that this
+/* This will only be invoked if your driver is _analt_ in XOFF state.
+ * What this means is that you need analt check it, and that this
  * invariant will hold if you make sure that the netif_*_queue()
  * calls are done at the proper times.
  */
@@ -406,12 +406,12 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 			continue;
 		}
 
-		/* skbs are allocated on open, so now we allocate a new one,
+		/* skbs are allocated on open, so analw we allocate a new one,
 		 * and remove the old (with the packet) */
 		skb = netdev_alloc_skb(dev, FEC_RX_BUFFER_SIZE);
 		if (!skb) {
 			/* Can't get a new one : reuse the same & drop pkt */
-			dev_notice(&dev->dev, "Low memory - dropped packet.\n");
+			dev_analtice(&dev->dev, "Low memory - dropped packet.\n");
 			mpc52xx_fec_rx_submit(dev, rskb);
 			dev->stats.rx_dropped++;
 			continue;
@@ -451,7 +451,7 @@ static irqreturn_t mpc52xx_fec_interrupt(int irq, void *dev_id)
 
 	ievent &= ~FEC_IEVENT_MII;	/* mii is handled separately */
 	if (!ievent)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	out_be32(&fec->ievent, ievent);		/* clear pending events */
 
@@ -624,8 +624,8 @@ static void mpc52xx_fec_hw_init(struct net_device *dev)
 
 	/* enable crc generation */
 	out_be32(&fec->xmit_fsm, FEC_XMIT_FSM_APPEND_CRC | FEC_XMIT_FSM_ENABLE_CRC);
-	out_be32(&fec->iaddr1, 0x00000000);	/* No individual filter */
-	out_be32(&fec->iaddr2, 0x00000000);	/* No individual filter */
+	out_be32(&fec->iaddr1, 0x00000000);	/* Anal individual filter */
+	out_be32(&fec->iaddr2, 0x00000000);	/* Anal individual filter */
 
 	/* set phy speed.
 	 * this can't be done in phy driver, since it needs to be called
@@ -814,7 +814,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	struct resource mem;
 	const u32 *prop;
 	int prop_size;
-	struct device_node *np = op->dev.of_node;
+	struct device_analde *np = op->dev.of_analde;
 
 	phys_addr_t rx_fifo;
 	phys_addr_t tx_fifo;
@@ -822,7 +822,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	/* Get the ether ndev & it's private zone */
 	ndev = alloc_etherdev(sizeof(struct mpc52xx_fec_priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = netdev_priv(ndev);
 	priv->ndev = ndev;
@@ -830,7 +830,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	/* Reserve FEC control zone */
 	rv = of_address_to_resource(np, 0, &mem);
 	if (rv) {
-		pr_err("Error while parsing device node resource\n");
+		pr_err("Error while parsing device analde resource\n");
 		goto err_netdev;
 	}
 	if (resource_size(&mem) < sizeof(struct mpc52xx_fec)) {
@@ -860,7 +860,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	priv->fec = ioremap(mem.start, sizeof(struct mpc52xx_fec));
 
 	if (!priv->fec) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_mem_region;
 	}
 
@@ -872,8 +872,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	priv->tx_dmatsk = bcom_fec_tx_init(FEC_TX_NUM_BD, tx_fifo);
 
 	if (!priv->rx_dmatsk || !priv->tx_dmatsk) {
-		pr_err("Can not init SDMA tasks\n");
-		rv = -ENOMEM;
+		pr_err("Can analt init SDMA tasks\n");
+		rv = -EANALMEM;
 		goto err_rx_tx_dmatsk;
 	}
 
@@ -898,7 +898,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 		u8 addr[ETH_ALEN] __aligned(4);
 
 		/*
-		 * If the MAC addresse is not provided via DT then read
+		 * If the MAC addresse is analt provided via DT then read
 		 * it back from the controller regs
 		 */
 		*(u32 *)(&addr[0]) = in_be32(&fec->paddr1);
@@ -907,7 +907,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	}
 
 	/*
-	 * Check if the MAC address is valid, if not get a random one
+	 * Check if the MAC address is valid, if analt get a random one
 	 */
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		eth_hw_addr_random(ndev);
@@ -933,8 +933,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 		priv->duplex = prop[1] ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
-	/* If there is a phy handle, then get the PHY node */
-	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
+	/* If there is a phy handle, then get the PHY analde */
+	priv->phy_analde = of_parse_phandle(np, "phy-handle", 0);
 
 	/* the 7-wire property means don't use MII mode */
 	if (of_property_read_bool(np, "fsl,7-wire-mode")) {
@@ -948,17 +948,17 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 
 	rv = register_netdev(ndev);
 	if (rv < 0)
-		goto err_node;
+		goto err_analde;
 
 	/* We're done ! */
 	platform_set_drvdata(op, ndev);
 	netdev_info(ndev, "%pOF MAC %pM\n",
-		    op->dev.of_node, ndev->dev_addr);
+		    op->dev.of_analde, ndev->dev_addr);
 
 	return 0;
 
-err_node:
-	of_node_put(priv->phy_node);
+err_analde:
+	of_analde_put(priv->phy_analde);
 	irq_dispose_mapping(ndev->irq);
 err_rx_tx_dmatsk:
 	if (priv->rx_dmatsk)
@@ -985,8 +985,8 @@ mpc52xx_fec_remove(struct platform_device *op)
 
 	unregister_netdev(ndev);
 
-	of_node_put(priv->phy_node);
-	priv->phy_node = NULL;
+	of_analde_put(priv->phy_analde);
+	priv->phy_analde = NULL;
 
 	irq_dispose_mapping(ndev->irq);
 

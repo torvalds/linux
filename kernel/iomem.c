@@ -44,9 +44,9 @@ static void *try_ram_remap(resource_size_t offset, size_t size,
  * @flags: any of MEMREMAP_WB, MEMREMAP_WT, MEMREMAP_WC,
  *		  MEMREMAP_ENC, MEMREMAP_DEC
  *
- * memremap() is "ioremap" for cases where it is known that the resource
- * being mapped does not have i/o side effects and the __iomem
- * annotation is not applicable. In the case of multiple flags, the different
+ * memremap() is "ioremap" for cases where it is kanalwn that the resource
+ * being mapped does analt have i/o side effects and the __iomem
+ * ananaltation is analt applicable. In the case of multiple flags, the different
  * mapping types will be attempted in the order listed below until one of
  * them succeeds.
  *
@@ -68,7 +68,7 @@ static void *try_ram_remap(resource_size_t offset, size_t size,
 void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 {
 	int is_ram = region_intersects(offset, size,
-				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+				       IORESOURCE_SYSTEM_RAM, IORES_DESC_ANALNE);
 	void *addr = NULL;
 
 	if (!flags)
@@ -80,7 +80,7 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 		return NULL;
 	}
 
-	/* Try all mapping types requested until one returns non-NULL */
+	/* Try all mapping types requested until one returns analn-NULL */
 	if (flags & MEMREMAP_WB) {
 		/*
 		 * MEMREMAP_WB is special in that it can be satisfied
@@ -97,7 +97,7 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 	/*
 	 * If we don't have a mapping yet and other request flags are
 	 * present then we will be attempting to establish a new virtual
-	 * address mapping.  Enforce that this mapping is not aliasing
+	 * address mapping.  Enforce that this mapping is analt aliasing
 	 * System RAM.
 	 */
 	if (!addr && is_ram == REGION_INTERSECTS && flags != MEMREMAP_WB) {
@@ -138,10 +138,10 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
 {
 	void **ptr, *addr;
 
-	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
-			dev_to_node(dev));
+	ptr = devres_alloc_analde(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
+			dev_to_analde(dev));
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	addr = memremap(offset, size, flags);
 	if (addr) {

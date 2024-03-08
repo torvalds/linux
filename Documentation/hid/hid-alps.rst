@@ -19,7 +19,7 @@ HID Descriptor
 --------------
 
 =======	====================	=====	=======================================
-Byte	Field			Value	Notes
+Byte	Field			Value	Analtes
 =======	====================	=====	=======================================
 0	wHIDDescLength		001E	Length of HID Descriptor : 30 bytes
 2	bcdVersion		0100	Compliant with Version 1.00
@@ -28,7 +28,7 @@ Byte	Field			Value	Notes
 8	wInputRegister		0003	Identifier to read Input Report
 10	wMaxInputLength		0053	Input Report is 80 Bytes + 2
 12	wOutputRegister		0000	Identifier to read Output Report
-14	wMaxOutputLength	0000	No Output Reports
+14	wMaxOutputLength	0000	Anal Output Reports
 16	wCommandRegister	0005	Identifier for Command Register
 18	wDataRegister		0006	Identifier for Data Register
 20	wVendorID		044E	Vendor ID 0x044E
@@ -86,7 +86,7 @@ Address is read/write RAM address.
 
 Value Byte is writing data when you send the write commands.
 
-When you read RAM, there is no meaning.
+When you read RAM, there is anal meaning.
 
 DataByte(GET_REPORT)
 

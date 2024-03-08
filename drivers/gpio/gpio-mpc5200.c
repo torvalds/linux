@@ -141,7 +141,7 @@ static int mpc52xx_wkup_gpiochip_probe(struct platform_device *ofdev)
 
 	chip = devm_kzalloc(&ofdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(ofdev, chip);
 
@@ -153,7 +153,7 @@ static int mpc52xx_wkup_gpiochip_probe(struct platform_device *ofdev)
 	gc->get              = mpc52xx_wkup_gpio_get;
 	gc->set              = mpc52xx_wkup_gpio_set;
 
-	ret = of_mm_gpiochip_add_data(ofdev->dev.of_node, &chip->mmchip, chip);
+	ret = of_mm_gpiochip_add_data(ofdev->dev.of_analde, &chip->mmchip, chip);
 	if (ret)
 		return ret;
 
@@ -301,7 +301,7 @@ static int mpc52xx_simple_gpiochip_probe(struct platform_device *ofdev)
 
 	chip = devm_kzalloc(&ofdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(ofdev, chip);
 
@@ -313,7 +313,7 @@ static int mpc52xx_simple_gpiochip_probe(struct platform_device *ofdev)
 	gc->get              = mpc52xx_simple_gpio_get;
 	gc->set              = mpc52xx_simple_gpio_set;
 
-	ret = of_mm_gpiochip_add_data(ofdev->dev.of_node, &chip->mmchip, chip);
+	ret = of_mm_gpiochip_add_data(ofdev->dev.of_analde, &chip->mmchip, chip);
 	if (ret)
 		return ret;
 

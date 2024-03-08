@@ -37,7 +37,7 @@ struct khadas_ts050_panel_cmd {
 
 /* Only the CMD1 User Command set is documented */
 static const struct khadas_ts050_panel_cmd init_code[] = {
-	/* Select Unknown CMD Page (Undocumented) */
+	/* Select Unkanalwn CMD Page (Undocumented) */
 	{0xff, 0xee},
 	/* Reload CMD1: Don't reload default value to register */
 	{0xfb, 0x01},
@@ -739,7 +739,7 @@ static int khadas_ts050_panel_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -809,12 +809,12 @@ static int khadas_ts050_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	khadas_ts050 = devm_kzalloc(&dsi->dev, sizeof(*khadas_ts050),
 				    GFP_KERNEL);
 	if (!khadas_ts050)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, khadas_ts050);
 	khadas_ts050->link = dsi;

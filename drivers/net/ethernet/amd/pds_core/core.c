@@ -6,23 +6,23 @@
 
 #include "core.h"
 
-static BLOCKING_NOTIFIER_HEAD(pds_notify_chain);
+static BLOCKING_ANALTIFIER_HEAD(pds_analtify_chain);
 
-int pdsc_register_notify(struct notifier_block *nb)
+int pdsc_register_analtify(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&pds_notify_chain, nb);
+	return blocking_analtifier_chain_register(&pds_analtify_chain, nb);
 }
-EXPORT_SYMBOL_GPL(pdsc_register_notify);
+EXPORT_SYMBOL_GPL(pdsc_register_analtify);
 
-void pdsc_unregister_notify(struct notifier_block *nb)
+void pdsc_unregister_analtify(struct analtifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&pds_notify_chain, nb);
+	blocking_analtifier_chain_unregister(&pds_analtify_chain, nb);
 }
-EXPORT_SYMBOL_GPL(pdsc_unregister_notify);
+EXPORT_SYMBOL_GPL(pdsc_unregister_analtify);
 
-void pdsc_notify(unsigned long event, void *data)
+void pdsc_analtify(unsigned long event, void *data)
 {
-	blocking_notifier_call_chain(&pds_notify_chain, event, data);
+	blocking_analtifier_call_chain(&pds_analtify_chain, event, data);
 }
 
 void pdsc_intr_free(struct pdsc *pdsc, int index)
@@ -60,9 +60,9 @@ int pdsc_intr_alloc(struct pdsc *pdsc, char *name,
 		if (!pdsc->intr_info[index].vector)
 			break;
 	if (index >= pdsc->nintrs) {
-		dev_warn(pdsc->dev, "%s: no intr, index=%d nintrs=%d\n",
+		dev_warn(pdsc->dev, "%s: anal intr, index=%d nintrs=%d\n",
 			 __func__, index, pdsc->nintrs);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	pds_core_intr_clean_flags(&pdsc->intr_ctrl[index],
@@ -106,11 +106,11 @@ err_out_free_intr:
 static void pdsc_qcq_intr_free(struct pdsc *pdsc, struct pdsc_qcq *qcq)
 {
 	if (!(qcq->flags & PDS_CORE_QCQ_F_INTR) ||
-	    qcq->intx == PDS_CORE_INTR_INDEX_NOT_ASSIGNED)
+	    qcq->intx == PDS_CORE_INTR_INDEX_ANALT_ASSIGNED)
 		return;
 
 	pdsc_intr_free(pdsc, qcq->intx);
-	qcq->intx = PDS_CORE_INTR_INDEX_NOT_ASSIGNED;
+	qcq->intx = PDS_CORE_INTR_INDEX_ANALT_ASSIGNED;
 }
 
 static int pdsc_qcq_intr_alloc(struct pdsc *pdsc, struct pdsc_qcq *qcq)
@@ -119,7 +119,7 @@ static int pdsc_qcq_intr_alloc(struct pdsc *pdsc, struct pdsc_qcq *qcq)
 	int index;
 
 	if (!(qcq->flags & PDS_CORE_QCQ_F_INTR)) {
-		qcq->intx = PDS_CORE_INTR_INDEX_NOT_ASSIGNED;
+		qcq->intx = PDS_CORE_INTR_INDEX_ANALT_ASSIGNED;
 		return 0;
 	}
 
@@ -195,7 +195,7 @@ int pdsc_qcq_alloc(struct pdsc *pdsc, unsigned int type, unsigned int index,
 
 	qcq->q.info = vcalloc(num_descs, sizeof(*qcq->q.info));
 	if (!qcq->q.info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -218,7 +218,7 @@ int pdsc_qcq_alloc(struct pdsc *pdsc, unsigned int type, unsigned int index,
 
 	qcq->cq.info = vcalloc(num_descs, sizeof(*qcq->cq.info));
 	if (!qcq->cq.info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_irq;
 	}
 
@@ -228,8 +228,8 @@ int pdsc_qcq_alloc(struct pdsc *pdsc, unsigned int type, unsigned int index,
 	qcq->cq.tail_idx = 0;
 	qcq->cq.done_color = 1;
 
-	if (flags & PDS_CORE_QCQ_F_NOTIFYQ) {
-		/* q & cq need to be contiguous in case of notifyq */
+	if (flags & PDS_CORE_QCQ_F_ANALTIFYQ) {
+		/* q & cq need to be contiguous in case of analtifyq */
 		qcq->q_size = PDS_PAGE_SIZE +
 			      ALIGN(num_descs * desc_size, PDS_PAGE_SIZE) +
 			      ALIGN(num_descs * cq_desc_size, PDS_PAGE_SIZE);
@@ -238,7 +238,7 @@ int pdsc_qcq_alloc(struct pdsc *pdsc, unsigned int type, unsigned int index,
 						 &qcq->q_base_pa,
 						 GFP_KERNEL);
 		if (!qcq->q_base) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out_free_cq_info;
 		}
 		q_base = PTR_ALIGN(qcq->q_base, PDS_PAGE_SIZE);
@@ -259,7 +259,7 @@ int pdsc_qcq_alloc(struct pdsc *pdsc, unsigned int type, unsigned int index,
 						 &qcq->q_base_pa,
 						 GFP_KERNEL);
 		if (!qcq->q_base) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out_free_cq_info;
 		}
 		q_base = PTR_ALIGN(qcq->q_base, PDS_PAGE_SIZE);
@@ -272,7 +272,7 @@ int pdsc_qcq_alloc(struct pdsc *pdsc, unsigned int type, unsigned int index,
 						  &qcq->cq_base_pa,
 						  GFP_KERNEL);
 		if (!qcq->cq_base) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out_free_q;
 		}
 		cq_base = PTR_ALIGN(qcq->cq_base, PDS_PAGE_SIZE);
@@ -315,11 +315,11 @@ static int pdsc_core_init(struct pdsc *pdsc)
 
 	cidi.adminq_q_base = cpu_to_le64(pdsc->adminqcq.q_base_pa);
 	cidi.adminq_cq_base = cpu_to_le64(pdsc->adminqcq.cq_base_pa);
-	cidi.notifyq_cq_base = cpu_to_le64(pdsc->notifyqcq.cq.base_pa);
+	cidi.analtifyq_cq_base = cpu_to_le64(pdsc->analtifyqcq.cq.base_pa);
 	cidi.flags = cpu_to_le32(PDS_CORE_QINIT_F_IRQ | PDS_CORE_QINIT_F_ENA);
 	cidi.intr_index = cpu_to_le16(pdsc->adminqcq.intx);
 	cidi.adminq_ring_size = ilog2(pdsc->adminqcq.q.num_descs);
-	cidi.notifyq_ring_size = ilog2(pdsc->notifyqcq.q.num_descs);
+	cidi.analtifyq_ring_size = ilog2(pdsc->analtifyqcq.q.num_descs);
 
 	mutex_lock(&pdsc->devcmd_lock);
 
@@ -345,17 +345,17 @@ static int pdsc_core_init(struct pdsc *pdsc)
 	dbpage_num = pdsc->hw_index * dbid_count;
 	pdsc->kern_dbpage = pdsc_map_dbpage(pdsc, dbpage_num);
 	if (!pdsc->kern_dbpage) {
-		dev_err(pdsc->dev, "Cannot map dbpage, aborting\n");
-		return -ENOMEM;
+		dev_err(pdsc->dev, "Cananalt map dbpage, aborting\n");
+		return -EANALMEM;
 	}
 
 	pdsc->adminqcq.q.hw_type = cido.adminq_hw_type;
 	pdsc->adminqcq.q.hw_index = le32_to_cpu(cido.adminq_hw_index);
 	pdsc->adminqcq.q.dbval = PDS_CORE_DBELL_QID(pdsc->adminqcq.q.hw_index);
 
-	pdsc->notifyqcq.q.hw_type = cido.notifyq_hw_type;
-	pdsc->notifyqcq.q.hw_index = le32_to_cpu(cido.notifyq_hw_index);
-	pdsc->notifyqcq.q.dbval = PDS_CORE_DBELL_QID(pdsc->notifyqcq.q.hw_index);
+	pdsc->analtifyqcq.q.hw_type = cido.analtifyq_hw_type;
+	pdsc->analtifyqcq.q.hw_index = le32_to_cpu(cido.analtifyq_hw_index);
+	pdsc->analtifyqcq.q.dbval = PDS_CORE_DBELL_QID(pdsc->analtifyqcq.q.hw_index);
 
 	pdsc->last_eid = 0;
 
@@ -376,7 +376,7 @@ static int pdsc_viftypes_init(struct pdsc *pdsc)
 	pdsc->viftype_status = kzalloc(sizeof(pdsc_viftype_defaults),
 				       GFP_KERNEL);
 	if (!pdsc->viftype_status)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (vt = 0; vt < PDS_DEV_TYPE_MAX; vt++) {
 		bool vt_support;
@@ -391,7 +391,7 @@ static int pdsc_viftypes_init(struct pdsc *pdsc)
 		vt_support = !!le16_to_cpu(pdsc->dev_ident.vif_types[vt]);
 		dev_dbg(pdsc->dev, "VIF %s is %ssupported\n",
 			pdsc->viftype_status[vt].name,
-			vt_support ? "" : "not ");
+			vt_support ? "" : "analt ");
 
 		pdsc->viftype_status[vt].supported = vt_support;
 	}
@@ -421,19 +421,19 @@ int pdsc_setup(struct pdsc *pdsc, bool init)
 	if (err)
 		goto err_out_teardown;
 
-	err = pdsc_qcq_alloc(pdsc, PDS_CORE_QTYPE_NOTIFYQ, 0, "notifyq",
-			     PDS_CORE_QCQ_F_NOTIFYQ,
-			     PDSC_NOTIFYQ_LENGTH,
-			     sizeof(struct pds_core_notifyq_cmd),
-			     sizeof(union pds_core_notifyq_comp),
-			     0, &pdsc->notifyqcq);
+	err = pdsc_qcq_alloc(pdsc, PDS_CORE_QTYPE_ANALTIFYQ, 0, "analtifyq",
+			     PDS_CORE_QCQ_F_ANALTIFYQ,
+			     PDSC_ANALTIFYQ_LENGTH,
+			     sizeof(struct pds_core_analtifyq_cmd),
+			     sizeof(union pds_core_analtifyq_comp),
+			     0, &pdsc->analtifyqcq);
 	if (err)
 		goto err_out_teardown;
 
-	/* NotifyQ rides on the AdminQ interrupt */
-	pdsc->notifyqcq.intx = pdsc->adminqcq.intx;
+	/* AnaltifyQ rides on the AdminQ interrupt */
+	pdsc->analtifyqcq.intx = pdsc->adminqcq.intx;
 
-	/* Set up the Core with the AdminQ and NotifyQ info */
+	/* Set up the Core with the AdminQ and AnaltifyQ info */
 	err = pdsc_core_init(pdsc);
 	if (err)
 		goto err_out_teardown;
@@ -464,7 +464,7 @@ void pdsc_teardown(struct pdsc *pdsc, bool removing)
 		pdsc_devcmd_reset(pdsc);
 	if (pdsc->adminqcq.work.func)
 		cancel_work_sync(&pdsc->adminqcq.work);
-	pdsc_qcq_free(pdsc, &pdsc->notifyqcq);
+	pdsc_qcq_free(pdsc, &pdsc->analtifyqcq);
 	pdsc_qcq_free(pdsc, &pdsc->adminqcq);
 
 	if (removing) {
@@ -517,7 +517,7 @@ static void pdsc_adminq_wait_and_dec_once_unused(struct pdsc *pdsc)
 	/* The driver initializes the adminq_refcnt to 1 when the adminq is
 	 * allocated and ready for use. Other users/requesters will increment
 	 * the refcnt while in use. If the refcnt is down to 1 then the adminq
-	 * is not in use and the refcnt can be cleared and adminq freed. Before
+	 * is analt in use and the refcnt can be cleared and adminq freed. Before
 	 * calling this function the driver will set PDSC_S_FW_DEAD, which
 	 * prevent subsequent attempts to use the adminq and increment the
 	 * refcnt to fail. This guarantees that this function will eventually
@@ -532,7 +532,7 @@ static void pdsc_adminq_wait_and_dec_once_unused(struct pdsc *pdsc)
 
 void pdsc_fw_down(struct pdsc *pdsc)
 {
-	union pds_core_notifyq_comp reset_event = {
+	union pds_core_analtifyq_comp reset_event = {
 		.reset.ecode = cpu_to_le16(PDS_EVENT_RESET),
 		.reset.state = 0,
 	};
@@ -547,10 +547,10 @@ void pdsc_fw_down(struct pdsc *pdsc)
 
 	pdsc_adminq_wait_and_dec_once_unused(pdsc);
 
-	/* Notify clients of fw_down */
+	/* Analtify clients of fw_down */
 	if (pdsc->fw_reporter)
 		devlink_health_report(pdsc->fw_reporter, "FW down reported", pdsc);
-	pdsc_notify(PDS_EVENT_RESET, &reset_event);
+	pdsc_analtify(PDS_EVENT_RESET, &reset_event);
 
 	pdsc_stop(pdsc);
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_RECOVERY);
@@ -558,14 +558,14 @@ void pdsc_fw_down(struct pdsc *pdsc)
 
 void pdsc_fw_up(struct pdsc *pdsc)
 {
-	union pds_core_notifyq_comp reset_event = {
+	union pds_core_analtifyq_comp reset_event = {
 		.reset.ecode = cpu_to_le16(PDS_EVENT_RESET),
 		.reset.state = 1,
 	};
 	int err;
 
 	if (!test_bit(PDSC_S_FW_DEAD, &pdsc->state)) {
-		dev_err(pdsc->dev, "%s: fw not dead\n", __func__);
+		dev_err(pdsc->dev, "%s: fw analt dead\n", __func__);
 		return;
 	}
 
@@ -582,12 +582,12 @@ void pdsc_fw_up(struct pdsc *pdsc)
 	if (err)
 		goto err_out;
 
-	/* Notify clients of fw_up */
+	/* Analtify clients of fw_up */
 	pdsc->fw_recoveries++;
 	if (pdsc->fw_reporter)
 		devlink_health_reporter_state_update(pdsc->fw_reporter,
 						     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
-	pdsc_notify(PDS_EVENT_RESET, &reset_event);
+	pdsc_analtify(PDS_EVENT_RESET, &reset_event);
 
 	return;
 

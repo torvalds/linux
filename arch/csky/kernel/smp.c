@@ -6,7 +6,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
 #include <linux/delay.h>
@@ -179,14 +179,14 @@ void __init setup_smp_ipi(void)
 
 void __init setup_smp(void)
 {
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 	unsigned int cpu;
 
-	for_each_of_cpu_node(node) {
-		if (!of_device_is_available(node))
+	for_each_of_cpu_analde(analde) {
+		if (!of_device_is_available(analde))
 			continue;
 
-		cpu = of_get_cpu_hwid(node, 0);
+		cpu = of_get_cpu_hwid(analde, 0);
 		if (cpu >= NR_CPUS)
 			continue;
 
@@ -268,7 +268,7 @@ void csky_start_secondary(void)
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 
 	pr_info("CPU%u Online: %s...\n", cpu, __func__);
@@ -293,10 +293,10 @@ int __cpu_disable(void)
 
 void arch_cpuhp_cleanup_dead_cpu(unsigned int cpu)
 {
-	pr_notice("CPU%u: shutdown\n", cpu);
+	pr_analtice("CPU%u: shutdown\n", cpu);
 }
 
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	idle_task_exit();
 

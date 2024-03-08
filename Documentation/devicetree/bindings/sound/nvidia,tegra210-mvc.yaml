@@ -10,7 +10,7 @@ description: |
   The Master Volume Control (MVC) provides gain or attenuation to a digital
   signal path. It can be used in input or output signal path for per-stream
   volume control or it can be used as master volume control. The MVC block
-  has one input and one output. The input digital stream can be mono or
+  has one input and one output. The input digital stream can be moanal or
   multi-channel (up to 7.1 channels) stream. An independent mute control is
   also included in the MVC block.
 
@@ -23,7 +23,7 @@ allOf:
   - $ref: dai-common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^mvc@[0-9a-f]*$"
 
   compatible:

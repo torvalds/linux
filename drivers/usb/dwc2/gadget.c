@@ -79,10 +79,10 @@ static void dwc2_hsotg_dump(struct dwc2_hsotg *hsotg);
  * Currently, we have the DMA support code worked into everywhere
  * that needs it, but the AMBA DMA implementation in the hardware can
  * only DMA from 32bit aligned addresses. This means that gadgets such
- * as the CDC Ethernet cannot work as they often pass packets which are
- * not 32bit aligned.
+ * as the CDC Ethernet cananalt work as they often pass packets which are
+ * analt 32bit aligned.
  *
- * Unfortunately the choice to use DMA or not is global to the controller
+ * Unfortunately the choice to use DMA or analt is global to the controller
  * and seems to be only settable when the controller is being put through
  * a core reset. This means we either need to fix the gadgets to take
  * account of DMA alignment, or add bounce buffers (yuerk).
@@ -166,7 +166,7 @@ static void dwc2_hsotg_en_gsint(struct dwc2_hsotg *hsotg, u32 ints)
 	new_gsintmsk = gsintmsk | ints;
 
 	if (new_gsintmsk != gsintmsk) {
-		dev_dbg(hsotg->dev, "gsintmsk now 0x%08x\n", new_gsintmsk);
+		dev_dbg(hsotg->dev, "gsintmsk analw 0x%08x\n", new_gsintmsk);
 		dwc2_writel(hsotg, new_gsintmsk, GINTMSK);
 	}
 }
@@ -302,7 +302,7 @@ int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg)
 }
 
 /**
- * dwc2_hsotg_init_fifo - initialise non-periodic FIFOs
+ * dwc2_hsotg_init_fifo - initialise analn-periodic FIFOs
  * @hsotg: The device instance.
  */
 static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
@@ -314,7 +314,7 @@ static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 	u32 val;
 	u32 *txfsz = hsotg->params.g_tx_fifo_size;
 
-	/* Reset fifo map if not correctly cleared during previous session */
+	/* Reset fifo map if analt correctly cleared during previous session */
 	WARN_ON(hsotg->fifo_map);
 	hsotg->fifo_map = 0;
 
@@ -329,7 +329,7 @@ static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 	 * arange all the rest of the TX FIFOs, as some versions of this
 	 * block have overlapping default addresses. This also ensures
 	 * that if the settings have been changed, then they are set to
-	 * known values.
+	 * kanalwn values.
 	 */
 
 	/* start at the end of the GNPTXFSIZ, rounded up */
@@ -481,7 +481,7 @@ static int dwc2_gadget_alloc_ctrl_desc_chains(struct dwc2_hsotg *hsotg)
 	return 0;
 
 fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -495,8 +495,8 @@ fail:
  * the data size is done elsewhere, so all we have to do is to actually
  * write the data.
  *
- * The return value is zero if there is more space (or nothing was done)
- * otherwise -ENOSPC is returned if the FIFO space was used up.
+ * The return value is zero if there is more space (or analthing was done)
+ * otherwise -EANALSPC is returned if the FIFO space was used up.
  *
  * This routine is only needed for PIO
  */
@@ -515,7 +515,7 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 
 	to_write -= (buf_pos - hs_ep->last_load);
 
-	/* if there's nothing to write, get out early */
+	/* if there's analthing to write, get out early */
 	if (to_write == 0)
 		return 0;
 
@@ -532,12 +532,12 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 		size_left = DXEPTSIZ_XFERSIZE_GET(epsize);
 
 		/*
-		 * if shared fifo, we cannot write anything until the
+		 * if shared fifo, we cananalt write anything until the
 		 * previous data has been completely sent.
 		 */
 		if (hs_ep->fifo_load != 0) {
 			dwc2_hsotg_en_gsint(hsotg, GINTSTS_PTXFEMP);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		dev_dbg(hsotg->dev, "%s: left=%d, load=%d, fifo=%d, size %d\n",
@@ -558,7 +558,7 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 
 		if (can_write <= 0) {
 			dwc2_hsotg_en_gsint(hsotg, GINTSTS_PTXFEMP);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	} else if (hsotg->dedicated_fifos && hs_ep->index != 0) {
 		can_write = dwc2_readl(hsotg,
@@ -569,11 +569,11 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 	} else {
 		if (GNPTXSTS_NP_TXQ_SPC_AVAIL_GET(gnptxsts) == 0) {
 			dev_dbg(hsotg->dev,
-				"%s: no queue slots available (0x%08x)\n",
+				"%s: anal queue slots available (0x%08x)\n",
 				__func__, gnptxsts);
 
 			dwc2_hsotg_en_gsint(hsotg, GINTSTS_NPTXFEMP);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		can_write = GNPTXSTS_NP_TXF_SPC_AVAIL_GET(gnptxsts);
@@ -586,7 +586,7 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 		__func__, gnptxsts, can_write, to_write, max_transfer);
 
 	/*
-	 * limit to 512 bytes of data, it seems at least on the non-periodic
+	 * limit to 512 bytes of data, it seems at least on the analn-periodic
 	 * FIFO, requests of >512 cause the endpoint to get stuck with a
 	 * fragment of the end of the transfer in it.
 	 */
@@ -595,13 +595,13 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 
 	/*
 	 * limit the write to one max-packet size worth of data, but allow
-	 * the transfer to return that it did not run out of fifo space
+	 * the transfer to return that it did analt run out of fifo space
 	 * doing it.
 	 */
 	if (to_write > max_transfer) {
 		to_write = max_transfer;
 
-		/* it's needed only when we do not use dedicated fifos */
+		/* it's needed only when we do analt use dedicated fifos */
 		if (!hsotg->dedicated_fifos)
 			dwc2_hsotg_en_gsint(hsotg,
 					    periodic ? GINTSTS_PTXFEMP :
@@ -618,8 +618,8 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 		 * Round the write down to an
 		 * exact number of packets.
 		 *
-		 * Note, we do not currently check to see if we can ever
-		 * write a full packet or not to the FIFO.
+		 * Analte, we do analt currently check to see if we can ever
+		 * write a full packet or analt to the FIFO.
 		 */
 
 		if (pkt_round)
@@ -630,7 +630,7 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 		 * is more room left.
 		 */
 
-		/* it's needed only when we do not use dedicated fifos */
+		/* it's needed only when we do analt use dedicated fifos */
 		if (!hsotg->dedicated_fifos)
 			dwc2_hsotg_en_gsint(hsotg,
 					    periodic ? GINTSTS_PTXFEMP :
@@ -641,7 +641,7 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 		to_write, hs_req->req.length, can_write, buf_pos);
 
 	if (to_write <= 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	hs_req->req.actual = buf_pos + to_write;
 	hs_ep->total_data += to_write;
@@ -654,7 +654,7 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 
 	dwc2_writel_rep(hsotg, EPFIFO(hs_ep->index), data, to_write);
 
-	return (to_write >= can_write) ? -ENOSPC : 0;
+	return (to_write >= can_write) ? -EANALSPC : 0;
 }
 
 /**
@@ -697,12 +697,12 @@ static unsigned int get_ep_limit(struct dwc2_hsotg_ep *hs_ep)
 }
 
 /**
- * dwc2_hsotg_read_frameno - read current frame number
+ * dwc2_hsotg_read_frameanal - read current frame number
  * @hsotg: The device instance
  *
  * Return the current frame number
  */
-static u32 dwc2_hsotg_read_frameno(struct dwc2_hsotg *hsotg)
+static u32 dwc2_hsotg_read_frameanal(struct dwc2_hsotg *hsotg)
 {
 	u32 dsts;
 
@@ -725,7 +725,7 @@ static u32 dwc2_hsotg_read_frameno(struct dwc2_hsotg *hsotg)
 static unsigned int dwc2_gadget_get_chain_limit(struct dwc2_hsotg_ep *hs_ep)
 {
 	const struct usb_endpoint_descriptor *ep_desc = hs_ep->ep.desc;
-	int is_isoc = hs_ep->isochronous;
+	int is_isoc = hs_ep->isochroanalus;
 	unsigned int maxsize;
 	u32 mps = hs_ep->ep.maxpacket;
 	int dir_in = hs_ep->dir_in;
@@ -737,7 +737,7 @@ static unsigned int dwc2_gadget_get_chain_limit(struct dwc2_hsotg_ep *hs_ep)
 	else
 		maxsize = DEV_DMA_NBYTES_LIMIT * MAX_DMA_DESC_NUM_GENERIC;
 
-	/* Interrupt OUT EP with mps not multiple of 4 */
+	/* Interrupt OUT EP with mps analt multiple of 4 */
 	if (hs_ep->index)
 		if (usb_endpoint_xfer_int(ep_desc) && !dir_in && (mps % 4))
 			maxsize = mps * MAX_DMA_DESC_NUM_GENERIC;
@@ -754,10 +754,10 @@ static unsigned int dwc2_gadget_get_chain_limit(struct dwc2_hsotg_ep *hs_ep)
  * characteristics.
  * DMA descriptor transfer bytes limit depends on EP type:
  * Control out - MPS,
- * Isochronous - descriptor rx/tx bytes bitfield limit,
- * Control In/Bulk/Interrupt - multiple of mps. This will allow to not
+ * Isochroanalus - descriptor rx/tx bytes bitfield limit,
+ * Control In/Bulk/Interrupt - multiple of mps. This will allow to analt
  * have concatenations from various descriptors within one packet.
- * Interrupt OUT - if mps not multiple of 4 then a single packet corresponds
+ * Interrupt OUT - if mps analt multiple of 4 then a single packet corresponds
  * to a single descriptor.
  *
  * Selects corresponding mask for RX/TX bytes as well.
@@ -772,7 +772,7 @@ static u32 dwc2_gadget_get_desc_params(struct dwc2_hsotg_ep *hs_ep, u32 *mask)
 	if (!hs_ep->index && !dir_in) {
 		desc_size = mps;
 		*mask = DEV_DMA_NBYTES_MASK;
-	} else if (hs_ep->isochronous) {
+	} else if (hs_ep->isochroanalus) {
 		if (dir_in) {
 			desc_size = DEV_DMA_ISOC_TX_NBYTES_LIMIT;
 			*mask = DEV_DMA_ISOC_TX_NBYTES_MASK;
@@ -788,7 +788,7 @@ static u32 dwc2_gadget_get_desc_params(struct dwc2_hsotg_ep *hs_ep, u32 *mask)
 		desc_size -= desc_size % mps;
 	}
 
-	/* Interrupt OUT EP with mps not multiple of 4 */
+	/* Interrupt OUT EP with mps analt multiple of 4 */
 	if (hs_ep->index)
 		if (usb_endpoint_xfer_int(ep_desc) && !dir_in && (mps % 4)) {
 			desc_size = mps;
@@ -798,7 +798,7 @@ static u32 dwc2_gadget_get_desc_params(struct dwc2_hsotg_ep *hs_ep, u32 *mask)
 	return desc_size;
 }
 
-static void dwc2_gadget_fill_nonisoc_xfer_ddma_one(struct dwc2_hsotg_ep *hs_ep,
+static void dwc2_gadget_fill_analnisoc_xfer_ddma_one(struct dwc2_hsotg_ep *hs_ep,
 						 struct dwc2_dma_desc **desc,
 						 dma_addr_t dma_buff,
 						 unsigned int len,
@@ -855,7 +855,7 @@ static void dwc2_gadget_fill_nonisoc_xfer_ddma_one(struct dwc2_hsotg_ep *hs_ep,
 }
 
 /*
- * dwc2_gadget_config_nonisoc_xfer_ddma - prepare non ISOC DMA desc chain.
+ * dwc2_gadget_config_analnisoc_xfer_ddma - prepare analn ISOC DMA desc chain.
  * @hs_ep: The endpoint
  * @ureq: Request to transfer
  * @offset: offset in bytes
@@ -864,7 +864,7 @@ static void dwc2_gadget_fill_nonisoc_xfer_ddma_one(struct dwc2_hsotg_ep *hs_ep,
  * This function will iterate over descriptor chain and fill its entries
  * with corresponding information based on transfer data.
  */
-static void dwc2_gadget_config_nonisoc_xfer_ddma(struct dwc2_hsotg_ep *hs_ep,
+static void dwc2_gadget_config_analnisoc_xfer_ddma(struct dwc2_hsotg_ep *hs_ep,
 						 dma_addr_t dma_buff,
 						 unsigned int len)
 {
@@ -877,16 +877,16 @@ static void dwc2_gadget_config_nonisoc_xfer_ddma(struct dwc2_hsotg_ep *hs_ep,
 	if (hs_ep->req)
 		ureq = &hs_ep->req->req;
 
-	/* non-DMA sg buffer */
+	/* analn-DMA sg buffer */
 	if (!ureq || !ureq->num_sgs) {
-		dwc2_gadget_fill_nonisoc_xfer_ddma_one(hs_ep, &desc,
+		dwc2_gadget_fill_analnisoc_xfer_ddma_one(hs_ep, &desc,
 			dma_buff, len, true);
 		return;
 	}
 
 	/* DMA sg buffer */
 	for_each_sg(ureq->sg, sg, ureq->num_sgs, i) {
-		dwc2_gadget_fill_nonisoc_xfer_ddma_one(hs_ep, &desc,
+		dwc2_gadget_fill_analnisoc_xfer_ddma_one(hs_ep, &desc,
 			sg_dma_address(sg) + sg->offset, sg_dma_len(sg),
 			sg_is_last(sg));
 		desc_count += hs_ep->desc_count;
@@ -896,14 +896,14 @@ static void dwc2_gadget_config_nonisoc_xfer_ddma(struct dwc2_hsotg_ep *hs_ep,
 }
 
 /*
- * dwc2_gadget_fill_isoc_desc - fills next isochronous descriptor in chain.
- * @hs_ep: The isochronous endpoint.
+ * dwc2_gadget_fill_isoc_desc - fills next isochroanalus descriptor in chain.
+ * @hs_ep: The isochroanalus endpoint.
  * @dma_buff: usb requests dma buffer.
  * @len: usb request transfer length.
  *
  * Fills next free descriptor with the data of the arrived usb request,
  * frame info, sets Last and IOC bits increments next_desc. If filled
- * descriptor is not the first one, removes L bit from the previous descriptor
+ * descriptor is analt the first one, removes L bit from the previous descriptor
  * status.
  */
 static int dwc2_gadget_fill_isoc_desc(struct dwc2_hsotg_ep *hs_ep,
@@ -971,10 +971,10 @@ static int dwc2_gadget_fill_isoc_desc(struct dwc2_hsotg_ep *hs_ep,
 }
 
 /*
- * dwc2_gadget_start_isoc_ddma - start isochronous transfer in DDMA
- * @hs_ep: The isochronous endpoint.
+ * dwc2_gadget_start_isoc_ddma - start isochroanalus transfer in DDMA
+ * @hs_ep: The isochroanalus endpoint.
  *
- * Prepare descriptor chain for isochronous endpoints. Afterwards
+ * Prepare descriptor chain for isochroanalus endpoints. Afterwards
  * write DMA address to HW and enable the endpoint.
  */
 static void dwc2_gadget_start_isoc_ddma(struct dwc2_hsotg_ep *hs_ep)
@@ -991,7 +991,7 @@ static void dwc2_gadget_start_isoc_ddma(struct dwc2_hsotg_ep *hs_ep)
 
 	if (list_empty(&hs_ep->queue)) {
 		hs_ep->target_frame = TARGET_FRAME_INITIAL;
-		dev_dbg(hsotg->dev, "%s: No requests in queue\n", __func__);
+		dev_dbg(hsotg->dev, "%s: Anal requests in queue\n", __func__);
 		return;
 	}
 
@@ -1119,7 +1119,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 		packets = 1;	/* send one packet if length is zero. */
 
 	if (dir_in && index != 0)
-		if (hs_ep->isochronous)
+		if (hs_ep->isochroanalus)
 			epsize = DXEPTSIZ_MC(packets);
 		else
 			epsize = DXEPTSIZ_MC(1);
@@ -1127,7 +1127,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 		epsize = 0;
 
 	/*
-	 * zero length packet should be programmed on its own and should not
+	 * zero length packet should be programmed on its own and should analt
 	 * be counted in DIEPTSIZ.PktCnt with other packets.
 	 */
 	if (dir_in && ureq->zero && !continuing) {
@@ -1162,7 +1162,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 			offset = ureq->actual;
 
 		/* Fill DDMA chain entries */
-		dwc2_gadget_config_nonisoc_xfer_ddma(hs_ep, ureq->dma + offset,
+		dwc2_gadget_config_analnisoc_xfer_ddma(hs_ep, ureq->dma + offset,
 						     length);
 
 		/* write descriptor chain address to control register */
@@ -1187,7 +1187,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 		}
 	}
 
-	if (hs_ep->isochronous) {
+	if (hs_ep->isochroanalus) {
 		if (!dwc2_gadget_target_frame_elapsed(hs_ep)) {
 			if (hs_ep->interval == 1) {
 				if (hs_ep->target_frame & 0x1)
@@ -1199,7 +1199,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 		} else {
 			hs_req->req.frame_number = hs_ep->target_frame;
 			hs_req->req.actual = 0;
-			dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, -ENODATA);
+			dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, -EANALDATA);
 			return;
 		}
 	}
@@ -1208,7 +1208,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 
 	dev_dbg(hsotg->dev, "ep0 state:%d\n", hsotg->ep0_state);
 
-	/* For Setup request do not clear NAK */
+	/* For Setup request do analt clear NAK */
 	if (!(index == 0 && hsotg->ep0_state == DWC2_EP0_SETUP))
 		ctrl |= DXEPCTL_CNAK;	/* clear NAK set by core */
 
@@ -1224,14 +1224,14 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	hs_ep->last_load = ureq->actual;
 
 	if (dir_in && !using_dma(hsotg)) {
-		/* set these anyway, we may need them for non-periodic in */
+		/* set these anyway, we may need them for analn-periodic in */
 		hs_ep->fifo_load = 0;
 
 		dwc2_hsotg_write_fifo(hsotg, hs_ep, hs_req);
 	}
 
 	/*
-	 * Note, trying to clear the NAK here causes problems with transmit
+	 * Analte, trying to clear the NAK here causes problems with transmit
 	 * on the S3C6400 ending up with the TXFIFO becoming full.
 	 */
 
@@ -1256,7 +1256,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
  *
  * We've been asked to queue a request, so ensure that the memory buffer
  * is correctly setup for DMA. If we've been passed an extant DMA address
- * then ensure the buffer has been synced to memory. If our buffer has no
+ * then ensure the buffer has been synced to memory. If our buffer has anal
  * DMA memory, then we map the memory and mark our request to allow us to
  * cleanup on completion.
  */
@@ -1286,7 +1286,7 @@ static int dwc2_hsotg_handle_unaligned_buf_start(struct dwc2_hsotg *hsotg,
 {
 	void *req_buf = hs_req->req.buf;
 
-	/* If dma is not being used or buffer is aligned */
+	/* If dma is analt being used or buffer is aligned */
 	if (!using_dma(hsotg) || !((long)req_buf & 3))
 		return 0;
 
@@ -1301,7 +1301,7 @@ static int dwc2_hsotg_handle_unaligned_buf_start(struct dwc2_hsotg *hsotg,
 		dev_err(hsotg->dev,
 			"%s: unable to allocate memory for bounce buffer\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Save actual buffer */
@@ -1317,7 +1317,7 @@ dwc2_hsotg_handle_unaligned_buf_complete(struct dwc2_hsotg *hsotg,
 					 struct dwc2_hsotg_ep *hs_ep,
 					 struct dwc2_hsotg_req *hs_req)
 {
-	/* If dma is not being used or buffer was aligned */
+	/* If dma is analt being used or buffer was aligned */
 	if (!using_dma(hsotg) || !hs_req->saved_req_buf)
 		return;
 
@@ -1411,9 +1411,9 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	u32 mask = 0;
 
 
-	dev_dbg(hs->dev, "%s: req %p: %d@%p, noi=%d, zero=%d, snok=%d\n",
-		ep->name, req, req->length, req->buf, req->no_interrupt,
-		req->zero, req->short_not_ok);
+	dev_dbg(hs->dev, "%s: req %p: %d@%p, anali=%d, zero=%d, sanalk=%d\n",
+		ep->name, req, req->length, req->buf, req->anal_interrupt,
+		req->zero, req->short_analt_ok);
 
 	/* Prevent new request submission when controller is suspended */
 	if (hs->lx_state != DWC2_L0) {
@@ -1428,7 +1428,7 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	req->status = -EINPROGRESS;
 
 	/* Don't queue ISOC request if length greater than mps*mc */
-	if (hs_ep->isochronous &&
+	if (hs_ep->isochroanalus &&
 	    req->length > (hs_ep->mc * hs_ep->ep.maxpacket)) {
 		dev_err(hs->dev, "req length > maxpacket*mc\n");
 		return -EINVAL;
@@ -1437,7 +1437,7 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	/* In DDMA mode for ISOC's don't queue request if length greater
 	 * than descriptor limits.
 	 */
-	if (using_desc_dma(hs) && hs_ep->isochronous) {
+	if (using_desc_dma(hs) && hs_ep->isochroanalus) {
 		maxsize = dwc2_gadget_get_desc_params(hs_ep, &mask);
 		if (hs_ep->dir_in && req->length > maxsize) {
 			dev_err(hs->dev, "wrong length %d (maxsize=%d)\n",
@@ -1473,12 +1473,12 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	list_add_tail(&hs_req->queue, &hs_ep->queue);
 
 	/*
-	 * Handle DDMA isochronous transfers separately - just add new entry
+	 * Handle DDMA isochroanalus transfers separately - just add new entry
 	 * to the descriptor chain.
 	 * Transfer will be started once SW gets either one of NAK or
 	 * OutTknEpDis interrupts.
 	 */
-	if (using_desc_dma(hs) && hs_ep->isochronous) {
+	if (using_desc_dma(hs) && hs_ep->isochroanalus) {
 		if (hs_ep->target_frame != TARGET_FRAME_INITIAL) {
 			dma_addr_t dma_addr = hs_req->req.dma;
 
@@ -1498,19 +1498,19 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 		hs_ep->dir_in = 1;
 
 	if (first) {
-		if (!hs_ep->isochronous) {
+		if (!hs_ep->isochroanalus) {
 			dwc2_hsotg_start_req(hs, hs_ep, hs_req, false);
 			return 0;
 		}
 
 		/* Update current frame number value. */
-		hs->frame_number = dwc2_hsotg_read_frameno(hs);
+		hs->frame_number = dwc2_hsotg_read_frameanal(hs);
 		while (dwc2_gadget_target_frame_elapsed(hs_ep)) {
 			dwc2_gadget_incr_frame_num(hs_ep);
 			/* Update current frame number value once more as it
 			 * changes here.
 			 */
-			hs->frame_number = dwc2_hsotg_read_frameno(hs);
+			hs->frame_number = dwc2_hsotg_read_frameanal(hs);
 		}
 
 		if (hs_ep->target_frame != TARGET_FRAME_INITIAL)
@@ -1567,7 +1567,7 @@ static void dwc2_hsotg_complete_oursetup(struct usb_ep *ep,
  * @windex: The control request wIndex field (in host order).
  *
  * Convert the given wIndex into a pointer to an driver endpoint
- * structure, or return NULL if it is not a valid endpoint.
+ * structure, or return NULL if it is analt a valid endpoint.
  */
 static struct dwc2_hsotg_ep *ep_from_windex(struct dwc2_hsotg *hsotg,
 					    u32 windex)
@@ -1633,14 +1633,14 @@ static int dwc2_hsotg_send_reply(struct dwc2_hsotg *hsotg,
 	req = dwc2_hsotg_ep_alloc_request(&ep->ep, GFP_ATOMIC);
 	hsotg->ep0_reply = req;
 	if (!req) {
-		dev_warn(hsotg->dev, "%s: cannot alloc req\n", __func__);
-		return -ENOMEM;
+		dev_warn(hsotg->dev, "%s: cananalt alloc req\n", __func__);
+		return -EANALMEM;
 	}
 
 	req->buf = hsotg->ep0_buff;
 	req->length = length;
 	/*
-	 * zero flag is for sending zlp in DATA IN stage. It has no impact on
+	 * zero flag is for sending zlp in DATA IN stage. It has anal impact on
 	 * STATUS stage.
 	 */
 	req->zero = 0;
@@ -1651,7 +1651,7 @@ static int dwc2_hsotg_send_reply(struct dwc2_hsotg *hsotg,
 
 	ret = dwc2_hsotg_ep_queue(&ep->ep, req, GFP_ATOMIC);
 	if (ret) {
-		dev_warn(hsotg->dev, "%s: cannot queue req\n", __func__);
+		dev_warn(hsotg->dev, "%s: cananalt queue req\n", __func__);
 		return ret;
 	}
 
@@ -1696,7 +1696,7 @@ static int dwc2_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 	case USB_RECIP_ENDPOINT:
 		ep = ep_from_windex(hsotg, le16_to_cpu(ctrl->wIndex));
 		if (!ep)
-			return -ENOENT;
+			return -EANALENT;
 
 		reply = cpu_to_le16(ep->halted ? 1 : 0);
 		break;
@@ -1717,7 +1717,7 @@ static int dwc2_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 	return 1;
 }
 
-static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now);
+static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool analw);
 
 /**
  * get_ep_head - return the first request on the endpoint
@@ -1750,14 +1750,14 @@ static void dwc2_gadget_start_next_request(struct dwc2_hsotg_ep *hs_ep)
 		dwc2_hsotg_start_req(hsotg, hs_ep, hs_req, false);
 		return;
 	}
-	if (!hs_ep->isochronous)
+	if (!hs_ep->isochroanalus)
 		return;
 
 	if (dir_in) {
-		dev_dbg(hsotg->dev, "%s: No more ISOC-IN requests\n",
+		dev_dbg(hsotg->dev, "%s: Anal more ISOC-IN requests\n",
 			__func__);
 	} else {
-		dev_dbg(hsotg->dev, "%s: No more ISOC-OUT requests\n",
+		dev_dbg(hsotg->dev, "%s: Anal more ISOC-OUT requests\n",
 			__func__);
 	}
 }
@@ -1806,7 +1806,7 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 			hsotg->test_mode = wIndex >> 8;
 			break;
 		default:
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		ret = dwc2_hsotg_send_reply(hsotg, ep0, NULL, 0);
@@ -1820,9 +1820,9 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 	case USB_RECIP_ENDPOINT:
 		ep = ep_from_windex(hsotg, wIndex);
 		if (!ep) {
-			dev_dbg(hsotg->dev, "%s: no endpoint for 0x%04x\n",
+			dev_dbg(hsotg->dev, "%s: anal endpoint for 0x%04x\n",
 				__func__, wIndex);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		switch (wValue) {
@@ -1869,11 +1869,11 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 			break;
 
 		default:
-			return -ENOENT;
+			return -EANALENT;
 		}
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 	return 1;
 }
@@ -1897,7 +1897,7 @@ static void dwc2_hsotg_stall_ep0(struct dwc2_hsotg *hsotg)
 
 	/*
 	 * DxEPCTL_Stall will be cleared by EP once it has
-	 * taken effect, so no need to clear later.
+	 * taken effect, so anal need to clear later.
 	 */
 
 	ctrl = dwc2_readl(hsotg, reg);
@@ -1989,7 +1989,7 @@ static void dwc2_hsotg_process_control(struct dwc2_hsotg *hsotg,
 		hsotg->delayed_status = true;
 
 	/*
-	 * the request is either unhandlable, or is not formatted correctly
+	 * the request is either unhandlable, or is analt formatted correctly
 	 * so respond with a STALL for the status stage to indicate failure.
 	 */
 
@@ -2078,13 +2078,13 @@ static void dwc2_hsotg_program_zlp(struct dwc2_hsotg *hsotg,
 		dev_dbg(hsotg->dev, "Receiving zero-length packet on ep%d\n",
 			index);
 	if (using_desc_dma(hsotg)) {
-		/* Not specific buffer needed for ep0 ZLP */
+		/* Analt specific buffer needed for ep0 ZLP */
 		dma_addr_t dma = hs_ep->desc_list_dma;
 
 		if (!index)
 			dwc2_gadget_set_ep0_desc_chain(hsotg, hs_ep);
 
-		dwc2_gadget_config_nonisoc_xfer_ddma(hs_ep, dma, 0);
+		dwc2_gadget_config_analnisoc_xfer_ddma(hs_ep, dma, 0);
 	} else {
 		dwc2_writel(hsotg, DXEPTSIZ_MC(1) | DXEPTSIZ_PKTCNT(1) |
 			    DXEPTSIZ_XFERSIZE(0),
@@ -2103,13 +2103,13 @@ static void dwc2_hsotg_program_zlp(struct dwc2_hsotg *hsotg,
  * @hsotg: The device state.
  * @hs_ep: The endpoint the request was on.
  * @hs_req: The request to complete.
- * @result: The result code (0 => Ok, otherwise errno)
+ * @result: The result code (0 => Ok, otherwise erranal)
  *
  * The given request has finished, so call the necessary completion
  * if it has one and then look to see if we can start a new request
  * on the endpoint.
  *
- * Note, expects the ep to already be locked as appropriate.
+ * Analte, expects the ep to already be locked as appropriate.
  */
 static void dwc2_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 					struct dwc2_hsotg_ep *hs_ep,
@@ -2117,7 +2117,7 @@ static void dwc2_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 				       int result)
 {
 	if (!hs_req) {
-		dev_dbg(hsotg->dev, "%s: nothing to complete?\n", __func__);
+		dev_dbg(hsotg->dev, "%s: analthing to complete?\n", __func__);
 		return;
 	}
 
@@ -2125,7 +2125,7 @@ static void dwc2_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 		hs_ep, hs_ep->ep.name, hs_req, result, hs_req->req.complete);
 
 	/*
-	 * only replace the status if we've not already set an error
+	 * only replace the status if we've analt already set an error
 	 * from a previous transaction
 	 */
 
@@ -2152,11 +2152,11 @@ static void dwc2_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 	}
 
 	/* In DDMA don't need to proceed to starting of next ISOC request */
-	if (using_desc_dma(hsotg) && hs_ep->isochronous)
+	if (using_desc_dma(hsotg) && hs_ep->isochroanalus)
 		return;
 
 	/*
-	 * Look to see if there is anything else to do. Note, the completion
+	 * Look to see if there is anything else to do. Analte, the completion
 	 * of the previous request may have caused a new request to be started
 	 * so be careful when doing this.
 	 */
@@ -2204,7 +2204,7 @@ static void dwc2_gadget_complete_isoc_request_ddma(struct dwc2_hsotg_ep *hs_ep)
 				DEV_DMA_ISOC_NBYTES_SHIFT);
 
 			/* Adjust actual len for ISOC Out if len is
-			 * not align of 4
+			 * analt align of 4
 			 */
 			if (!hs_ep->dir_in && ureq->length & 0x3)
 				ureq->actual += 4 - (ureq->length & 0x3);
@@ -2226,7 +2226,7 @@ static void dwc2_gadget_complete_isoc_request_ddma(struct dwc2_hsotg_ep *hs_ep)
 
 /*
  * dwc2_gadget_handle_isoc_bna - handle BNA interrupt for ISOC.
- * @hs_ep: The isochronous endpoint.
+ * @hs_ep: The isochroanalus endpoint.
  *
  * If EP ISOC OUT then need to flush RX FIFO to remove source of BNA
  * interrupt. Reset target frame and next_desc to allow to start
@@ -2269,10 +2269,10 @@ static void dwc2_hsotg_rx_data(struct dwc2_hsotg *hsotg, int ep_idx, int size)
 		int ptr;
 
 		dev_dbg(hsotg->dev,
-			"%s: FIFO %d bytes on ep%d but no req (DXEPCTl=0x%08x)\n",
+			"%s: FIFO %d bytes on ep%d but anal req (DXEPCTl=0x%08x)\n",
 			 __func__, size, ep_idx, epctl);
 
-		/* dump the data from the FIFO, we've nothing we can do */
+		/* dump the data from the FIFO, we've analthing we can do */
 		for (ptr = 0; ptr < size; ptr += 4)
 			(void)dwc2_readl(hsotg, EPFIFO(ep_idx));
 
@@ -2301,7 +2301,7 @@ static void dwc2_hsotg_rx_data(struct dwc2_hsotg *hsotg, int ep_idx, int size)
 	to_read = DIV_ROUND_UP(to_read, 4);
 
 	/*
-	 * note, we might over-write the buffer end by 3 bytes depending on
+	 * analte, we might over-write the buffer end by 3 bytes depending on
 	 * alignment of the data.
 	 */
 	dwc2_readl_rep(hsotg, EPFIFO(ep_idx),
@@ -2316,8 +2316,8 @@ static void dwc2_hsotg_rx_data(struct dwc2_hsotg *hsotg, int ep_idx, int size)
  * Generate a zero-length IN packet request for terminating a SETUP
  * transaction.
  *
- * Note, since we don't write any data to the TxFIFO, then it is
- * currently believed that we do not need to wait for any space in
+ * Analte, since we don't write any data to the TxFIFO, then it is
+ * currently believed that we do analt need to wait for any space in
  * the TxFIFO.
  */
 static void dwc2_hsotg_ep0_zlp(struct dwc2_hsotg *hsotg, bool dir_in)
@@ -2334,7 +2334,7 @@ static void dwc2_hsotg_ep0_zlp(struct dwc2_hsotg *hsotg, bool dir_in)
  * @hs_ep - The endpoint on which transfer went
  *
  * Iterate over endpoints descriptor chain and get info on bytes remained
- * in DMA descriptors after transfer has completed. Used for non isoc EPs.
+ * in DMA descriptors after transfer has completed. Used for analn isoc EPs.
  */
 static unsigned int dwc2_gadget_get_xfersize_ddma(struct dwc2_hsotg_ep *hs_ep)
 {
@@ -2351,7 +2351,7 @@ static unsigned int dwc2_gadget_get_xfersize_ddma(struct dwc2_hsotg_ep *hs_ep)
 	if (!desc)
 		return -EINVAL;
 
-	/* Interrupt OUT EP with mps not multiple of 4 */
+	/* Interrupt OUT EP with mps analt multiple of 4 */
 	if (hs_ep->index)
 		if (usb_endpoint_xfer_int(ep_desc) && !dir_in && (mps % 4))
 			bytes_rem_correction = 4 - (mps % 4);
@@ -2393,7 +2393,7 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 	int result = 0;
 
 	if (!hs_req) {
-		dev_dbg(hsotg->dev, "%s: no request active\n", __func__);
+		dev_dbg(hsotg->dev, "%s: anal request active\n", __func__);
 		return;
 	}
 
@@ -2431,12 +2431,12 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 		return;
 	}
 
-	if (req->actual < req->length && req->short_not_ok) {
-		dev_dbg(hsotg->dev, "%s: got %d/%d (short not ok) => error\n",
+	if (req->actual < req->length && req->short_analt_ok) {
+		dev_dbg(hsotg->dev, "%s: got %d/%d (short analt ok) => error\n",
 			__func__, req->actual, req->length);
 
 		/*
-		 * todo - what should we return here? there's no one else
+		 * todo - what should we return here? there's anal one else
 		 * even bothering to check the status.
 		 */
 	}
@@ -2450,7 +2450,7 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 	}
 
 	/* Set actual frame number for completed transfers */
-	if (!using_desc_dma(hsotg) && hs_ep->isochronous) {
+	if (!using_desc_dma(hsotg) && hs_ep->isochroanalus) {
 		req->frame_number = hs_ep->target_frame;
 		dwc2_gadget_incr_frame_num(hs_ep);
 	}
@@ -2470,9 +2470,9 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
  * chunks, so if you have x packets received on an endpoint you'll get x
  * FIFO events delivered, each with a packet's worth of data in it.
  *
- * When using DMA, we should not be processing events from the RXFIFO
+ * When using DMA, we should analt be processing events from the RXFIFO
  * as the actual data should be sent to the memory directly and we turn
- * on the completion interrupts to get notifications of transfer completion.
+ * on the completion interrupts to get analtifications of transfer completion.
  */
 static void dwc2_hsotg_handle_rx(struct dwc2_hsotg *hsotg)
 {
@@ -2497,7 +2497,7 @@ static void dwc2_hsotg_handle_rx(struct dwc2_hsotg *hsotg)
 
 	case GRXSTS_PKTSTS_OUTDONE:
 		dev_dbg(hsotg->dev, "OutDone (Frame=0x%08x)\n",
-			dwc2_hsotg_read_frameno(hsotg));
+			dwc2_hsotg_read_frameanal(hsotg));
 
 		if (!using_dma(hsotg))
 			dwc2_hsotg_handle_outdone(hsotg, epnum);
@@ -2506,10 +2506,10 @@ static void dwc2_hsotg_handle_rx(struct dwc2_hsotg *hsotg)
 	case GRXSTS_PKTSTS_SETUPDONE:
 		dev_dbg(hsotg->dev,
 			"SetupDone (Frame=0x%08x, DOPEPCTL=0x%08x)\n",
-			dwc2_hsotg_read_frameno(hsotg),
+			dwc2_hsotg_read_frameanal(hsotg),
 			dwc2_readl(hsotg, DOEPCTL(0)));
 		/*
-		 * Call dwc2_hsotg_handle_outdone here if it was not called from
+		 * Call dwc2_hsotg_handle_outdone here if it was analt called from
 		 * GRXSTS_PKTSTS_OUTDONE. That is, if the core didn't
 		 * generate GRXSTS_PKTSTS_OUTDONE for setup packet.
 		 */
@@ -2524,7 +2524,7 @@ static void dwc2_hsotg_handle_rx(struct dwc2_hsotg *hsotg)
 	case GRXSTS_PKTSTS_SETUPRX:
 		dev_dbg(hsotg->dev,
 			"SetupRX (Frame=0x%08x, DOPEPCTL=0x%08x)\n",
-			dwc2_hsotg_read_frameno(hsotg),
+			dwc2_hsotg_read_frameanal(hsotg),
 			dwc2_readl(hsotg, DOEPCTL(0)));
 
 		WARN_ON(hsotg->ep0_state != DWC2_EP0_SETUP);
@@ -2533,7 +2533,7 @@ static void dwc2_hsotg_handle_rx(struct dwc2_hsotg *hsotg)
 		break;
 
 	default:
-		dev_warn(hsotg->dev, "%s: unknown status %08x\n",
+		dev_warn(hsotg->dev, "%s: unkanalwn status %08x\n",
 			 __func__, grxstsr);
 
 		dwc2_hsotg_dump(hsotg);
@@ -2652,7 +2652,7 @@ static int dwc2_hsotg_trytx(struct dwc2_hsotg *hsotg,
 
 	if (!hs_ep->dir_in || !hs_req) {
 		/**
-		 * if request is not enqueued, we disable interrupts
+		 * if request is analt enqueued, we disable interrupts
 		 * for endpoints, excepting ep0
 		 */
 		if (hs_ep->index != 0)
@@ -2686,7 +2686,7 @@ static void dwc2_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 	int size_left, size_done;
 
 	if (!hs_req) {
-		dev_dbg(hsotg->dev, "XferCompl but no req\n");
+		dev_dbg(hsotg->dev, "XferCompl but anal req\n");
 		return;
 	}
 
@@ -2751,7 +2751,7 @@ static void dwc2_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 		return;
 	}
 
-	/* Zlp for all endpoints in non DDMA, for ep0 only in DATA IN stage */
+	/* Zlp for all endpoints in analn DDMA, for ep0 only in DATA IN stage */
 	if (hs_ep->send_zlp) {
 		hs_ep->send_zlp = 0;
 		if (!using_desc_dma(hsotg)) {
@@ -2768,7 +2768,7 @@ static void dwc2_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 	}
 
 	/* Set actual frame number for completed transfers */
-	if (!using_desc_dma(hsotg) && hs_ep->isochronous) {
+	if (!using_desc_dma(hsotg) && hs_ep->isochroanalus) {
 		hs_req->req.frame_number = hs_ep->target_frame;
 		dwc2_gadget_incr_frame_num(hs_ep);
 	}
@@ -2847,7 +2847,7 @@ static void dwc2_gadget_handle_ep_disabled(struct dwc2_hsotg_ep *hs_ep)
 		}
 	}
 
-	if (!hs_ep->isochronous)
+	if (!hs_ep->isochroanalus)
 		return;
 
 	if (list_empty(&hs_ep->queue)) {
@@ -2862,11 +2862,11 @@ static void dwc2_gadget_handle_ep_disabled(struct dwc2_hsotg_ep *hs_ep)
 			hs_req->req.frame_number = hs_ep->target_frame;
 			hs_req->req.actual = 0;
 			dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req,
-						    -ENODATA);
+						    -EANALDATA);
 		}
 		dwc2_gadget_incr_frame_num(hs_ep);
 		/* Update current frame number value. */
-		hsotg->frame_number = dwc2_hsotg_read_frameno(hsotg);
+		hsotg->frame_number = dwc2_hsotg_read_frameanal(hsotg);
 	} while (dwc2_gadget_target_frame_elapsed(hs_ep));
 }
 
@@ -2877,7 +2877,7 @@ static void dwc2_gadget_handle_ep_disabled(struct dwc2_hsotg_ep *hs_ep)
  * This is starting point for ISOC-OUT transfer, synchronization done with
  * first out token received from host while corresponding EP is disabled.
  *
- * Device does not know initial frame in which out token will come. For this
+ * Device does analt kanalw initial frame in which out token will come. For this
  * HW generates OUTTKNEPDIS - out token is received while EP is disabled. Upon
  * getting this interrupt SW starts calculation for next transfer frame.
  */
@@ -2887,7 +2887,7 @@ static void dwc2_gadget_handle_out_token_ep_disabled(struct dwc2_hsotg_ep *ep)
 	struct dwc2_hsotg_req *hs_req;
 	int dir_in = ep->dir_in;
 
-	if (dir_in || !ep->isochronous)
+	if (dir_in || !ep->isochroanalus)
 		return;
 
 	if (using_desc_dma(hsotg)) {
@@ -2919,12 +2919,12 @@ static void dwc2_gadget_handle_out_token_ep_disabled(struct dwc2_hsotg_ep *ep)
 		if (hs_req) {
 			hs_req->req.frame_number = ep->target_frame;
 			hs_req->req.actual = 0;
-			dwc2_hsotg_complete_request(hsotg, ep, hs_req, -ENODATA);
+			dwc2_hsotg_complete_request(hsotg, ep, hs_req, -EANALDATA);
 		}
 
 		dwc2_gadget_incr_frame_num(ep);
 		/* Update current frame number value. */
-		hsotg->frame_number = dwc2_hsotg_read_frameno(hsotg);
+		hsotg->frame_number = dwc2_hsotg_read_frameanal(hsotg);
 	}
 
 	if (!ep->req)
@@ -2942,10 +2942,10 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
  * This is starting point for ISOC-IN transfer, synchronization done with
  * first IN token received from host while corresponding EP is disabled.
  *
- * Device does not know when first one token will arrive from host. On first
+ * Device does analt kanalw when first one token will arrive from host. On first
  * token arrival HW generates 2 interrupts: 'in token received while FIFO empty'
  * and 'NAK'. NAK interrupt for ISOC-IN means that token has arrived and ZLP was
- * sent in response to that as there was no data in FIFO. SW is basing on this
+ * sent in response to that as there was anal data in FIFO. SW is basing on this
  * interrupt to obtain frame in which token has come and then based on the
  * interval calculates next frame for transfer.
  */
@@ -2956,7 +2956,7 @@ static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
 	int dir_in = hs_ep->dir_in;
 	u32 ctrl;
 
-	if (!dir_in || !hs_ep->isochronous)
+	if (!dir_in || !hs_ep->isochroanalus)
 		return;
 
 	if (hs_ep->target_frame == TARGET_FRAME_INITIAL) {
@@ -3012,12 +3012,12 @@ static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
 		if (hs_req) {
 			hs_req->req.frame_number = hs_ep->target_frame;
 			hs_req->req.actual = 0;
-			dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, -ENODATA);
+			dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, -EANALDATA);
 		}
 
 		dwc2_gadget_incr_frame_num(hs_ep);
 		/* Update current frame number value. */
-		hsotg->frame_number = dwc2_hsotg_read_frameno(hsotg);
+		hsotg->frame_number = dwc2_hsotg_read_frameanal(hsotg);
 	}
 
 	if (!hs_ep->req)
@@ -3075,8 +3075,8 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 			__func__, dwc2_readl(hsotg, epctl_reg),
 			dwc2_readl(hsotg, epsiz_reg));
 
-		/* In DDMA handle isochronous requests separately */
-		if (using_desc_dma(hsotg) && hs_ep->isochronous) {
+		/* In DDMA handle isochroanalus requests separately */
+		if (using_desc_dma(hsotg) && hs_ep->isochroanalus) {
 			dwc2_gadget_complete_isoc_request_ddma(hs_ep);
 		} else if (dir_in) {
 			/*
@@ -3084,7 +3084,7 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 			 * need to look at completing IN requests here
 			 * if operating slave mode
 			 */
-			if (!hs_ep->isochronous || !(ints & DXEPINT_NAKINTRPT))
+			if (!hs_ep->isochroanalus || !(ints & DXEPINT_NAKINTRPT))
 				dwc2_hsotg_complete_in(hsotg, hs_ep);
 
 			if (idx == 0 && !hs_ep->req)
@@ -3092,9 +3092,9 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 		} else if (using_dma(hsotg)) {
 			/*
 			 * We're using DMA, we need to fire an OutDone here
-			 * as we ignore the RXFIFO.
+			 * as we iganalre the RXFIFO.
 			 */
-			if (!hs_ep->isochronous || !(ints & DXEPINT_OUTTKNEPDIS))
+			if (!hs_ep->isochroanalus || !(ints & DXEPINT_OUTTKNEPDIS))
 				dwc2_hsotg_handle_outdone(hsotg, idx);
 		}
 	}
@@ -3116,8 +3116,8 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 
 		if (using_dma(hsotg) && idx == 0) {
 			/*
-			 * this is the notification we've received a
-			 * setup packet. In non-DMA mode we'd get this
+			 * this is the analtification we've received a
+			 * setup packet. In analn-DMA mode we'd get this
 			 * from the RXFIFO, instead we need to process
 			 * the setup here.
 			 */
@@ -3141,9 +3141,9 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 				else
 				/* In case of 3 stage Control Write with delayed
 				 * status, when Status IN transfer started
-				 * before STSPHSERCVD asserted, NAKSTS bit not
+				 * before STSPHSERCVD asserted, NAKSTS bit analt
 				 * cleared by CNAK in dwc2_hsotg_start_req()
-				 * function. Clear now NAKSTS to allow complete
+				 * function. Clear analw NAKSTS to allow complete
 				 * transfer.
 				 */
 					dwc2_set_bit(hsotg, DIEPCTL(0),
@@ -3158,12 +3158,12 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 
 	if (ints & DXEPINT_BNAINTR) {
 		dev_dbg(hsotg->dev, "%s: BNA interrupt\n", __func__);
-		if (hs_ep->isochronous)
+		if (hs_ep->isochroanalus)
 			dwc2_gadget_handle_isoc_bna(hs_ep);
 	}
 
-	if (dir_in && !hs_ep->isochronous) {
-		/* not sure if this is important, but we'll clear it anyway */
+	if (dir_in && !hs_ep->isochroanalus) {
+		/* analt sure if this is important, but we'll clear it anyway */
 		if (ints & DXEPINT_INTKNTXFEMP) {
 			dev_dbg(hsotg->dev, "%s: ep%d: INTknTXFEmpMsk\n",
 				__func__, idx);
@@ -3200,16 +3200,16 @@ static void dwc2_hsotg_irq_enumdone(struct dwc2_hsotg *hsotg)
 
 	/*
 	 * This should signal the finish of the enumeration phase
-	 * of the USB handshaking, so we should now know what rate
+	 * of the USB handshaking, so we should analw kanalw what rate
 	 * we connected at.
 	 */
 
 	dev_dbg(hsotg->dev, "EnumDone (DSTS=0x%08x)\n", dsts);
 
 	/*
-	 * note, since we're limited by the size of transfer on EP0, and
+	 * analte, since we're limited by the size of transfer on EP0, and
 	 * it seems IN transfers must be a even number of packets we do
-	 * not advertise a 64byte MPS on EP0.
+	 * analt advertise a 64byte MPS on EP0.
 	 */
 
 	/* catch both EnumSpd_FS and EnumSpd_FS48 */
@@ -3232,7 +3232,7 @@ static void dwc2_hsotg_irq_enumdone(struct dwc2_hsotg *hsotg)
 		ep0_mps = 8;
 		ep_mps = 8;
 		/*
-		 * note, we don't actually support LS in this driver at the
+		 * analte, we don't actually support LS in this driver at the
 		 * moment, and the documentation seems to imply that it isn't
 		 * supported by the PHYs on some of the devices.
 		 */
@@ -3242,7 +3242,7 @@ static void dwc2_hsotg_irq_enumdone(struct dwc2_hsotg *hsotg)
 		 usb_speed_string(hsotg->gadget.speed));
 
 	/*
-	 * we should now know the maximum packet size for an
+	 * we should analw kanalw the maximum packet size for an
 	 * endpoint, so set the endpoints to a default value.
 	 */
 
@@ -3331,7 +3331,7 @@ void dwc2_hsotg_disconnect(struct dwc2_hsotg *hsotg)
 	call_gadget(hsotg, disconnect);
 	hsotg->lx_state = DWC2_L3;
 
-	usb_gadget_set_state(&hsotg->gadget, USB_STATE_NOTATTACHED);
+	usb_gadget_set_state(&hsotg->gadget, USB_STATE_ANALTATTACHED);
 }
 
 /**
@@ -3342,11 +3342,11 @@ void dwc2_hsotg_disconnect(struct dwc2_hsotg *hsotg)
 static void dwc2_hsotg_irq_fifoempty(struct dwc2_hsotg *hsotg, bool periodic)
 {
 	struct dwc2_hsotg_ep *ep;
-	int epno, ret;
+	int epanal, ret;
 
 	/* look through for any more data to transmit */
-	for (epno = 0; epno < hsotg->num_of_eps; epno++) {
-		ep = index_to_ep(hsotg, epno, 1);
+	for (epanal = 0; epanal < hsotg->num_of_eps; epanal++) {
+		ep = index_to_ep(hsotg, epanal, 1);
 
 		if (!ep)
 			continue;
@@ -3403,11 +3403,11 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	}
 
 	/*
-	 * we must now enable ep0 ready for host detection and then
+	 * we must analw enable ep0 ready for host detection and then
 	 * set configuration.
 	 */
 
-	/* keep other bits untouched (so e.g. forced modes are not lost) */
+	/* keep other bits untouched (so e.g. forced modes are analt lost) */
 	usbcfg = dwc2_readl(hsotg, GUSBCFG);
 	usbcfg &= ~GUSBCFG_TOUTCAL_MASK;
 	usbcfg |= GUSBCFG_TOUTCAL(7);
@@ -3482,7 +3482,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	/*
 	 * If INTknTXFEmpMsk is enabled, it's important to disable ep interrupts
-	 * when we have no data to transfer. Otherwise we get being flooded by
+	 * when we have anal data to transfer. Otherwise we get being flooded by
 	 * interrupts.
 	 */
 
@@ -3524,7 +3524,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	/*
 	 * Enable the RXFIFO when in slave mode, as this is how we collect
 	 * the data. In DMA mode, we get events from the FIFO but also
-	 * things we cannot process, so do not use it.
+	 * things we cananalt process, so do analt use it.
 	 */
 	if (!using_dma(hsotg))
 		dwc2_hsotg_en_gsint(hsotg, GINTSTS_RXFLVL);
@@ -3604,7 +3604,7 @@ void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg)
  * This interrupt indicates one of the following conditions occurred while
  * transmitting an ISOC transaction.
  * - Corrupted IN Token for ISOC EP.
- * - Packet not complete in FIFO.
+ * - Packet analt complete in FIFO.
  *
  * The following actions will be taken:
  * - Determine the EP
@@ -3624,7 +3624,7 @@ static void dwc2_gadget_handle_incomplete_isoc_in(struct dwc2_hsotg *hsotg)
 	for (idx = 1; idx < hsotg->num_of_eps; idx++) {
 		hs_ep = hsotg->eps_in[idx];
 		/* Proceed only unmasked ISOC EPs */
-		if ((BIT(idx) & ~daintmsk) || !hs_ep->isochronous)
+		if ((BIT(idx) & ~daintmsk) || !hs_ep->isochroanalus)
 			continue;
 
 		epctrl = dwc2_readl(hsotg, DIEPCTL(idx));
@@ -3647,7 +3647,7 @@ static void dwc2_gadget_handle_incomplete_isoc_in(struct dwc2_hsotg *hsotg)
  * This interrupt indicates one of the following conditions occurred while
  * transmitting an ISOC transaction.
  * - Corrupted OUT Token for ISOC EP.
- * - Packet not complete in FIFO.
+ * - Packet analt complete in FIFO.
  *
  * The following actions will be taken:
  * - Determine the EP
@@ -3670,7 +3670,7 @@ static void dwc2_gadget_handle_incomplete_isoc_out(struct dwc2_hsotg *hsotg)
 	for (idx = 1; idx < hsotg->num_of_eps; idx++) {
 		hs_ep = hsotg->eps_out[idx];
 		/* Proceed only unmasked ISOC EPs */
-		if ((BIT(idx) & ~daintmsk) || !hs_ep->isochronous)
+		if ((BIT(idx) & ~daintmsk) || !hs_ep->isochroanalus)
 			continue;
 
 		epctrl = dwc2_readl(hsotg, DOEPCTL(idx));
@@ -3706,7 +3706,7 @@ static irqreturn_t dwc2_hsotg_irq(int irq, void *pw)
 	u32 gintmsk;
 
 	if (!dwc2_is_device_mode(hsotg))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&hsotg->lock);
 irq_retry:
@@ -3740,7 +3740,7 @@ irq_retry:
 
 		dwc2_writel(hsotg, GINTSTS_USBRST, GINTSTS);
 
-		/* Report disconnection if it is not already done. */
+		/* Report disconnection if it is analt already done. */
 		dwc2_hsotg_disconnect(hsotg);
 
 		/* Reset device address to zero */
@@ -3799,7 +3799,7 @@ irq_retry:
 	if (gintsts & GINTSTS_PTXFEMP) {
 		dev_dbg(hsotg->dev, "PTxFEmp\n");
 
-		/* See note in GINTSTS_NPTxFEmp */
+		/* See analte in GINTSTS_NPTxFEmp */
 
 		dwc2_hsotg_disable_gsint(hsotg, GINTSTS_PTXFEMP);
 		dwc2_hsotg_irq_fifoempty(hsotg, true);
@@ -3807,7 +3807,7 @@ irq_retry:
 
 	if (gintsts & GINTSTS_RXFLVL) {
 		/*
-		 * note, since GINTSTS_RxFLvl doubles as FIFO-not-empty,
+		 * analte, since GINTSTS_RxFLvl doubles as FIFO-analt-empty,
 		 * we need to retry dwc2_hsotg_handle_rx if this is still
 		 * set.
 		 */
@@ -3850,14 +3850,14 @@ irq_retry:
 			epctrl = dwc2_readl(hsotg, DOEPCTL(idx));
 
 			//ISOC Ep's only
-			if ((epctrl & DXEPCTL_EPENA) && hs_ep->isochronous) {
+			if ((epctrl & DXEPCTL_EPENA) && hs_ep->isochroanalus) {
 				epctrl |= DXEPCTL_SNAK;
 				epctrl |= DXEPCTL_EPDIS;
 				dwc2_writel(hsotg, epctrl, DOEPCTL(idx));
 				continue;
 			}
 
-			//Non-ISOC EP's
+			//Analn-ISOC EP's
 			if (hs_ep->halted) {
 				if (!(epctrl & DXEPCTL_EPENA))
 					epctrl |= DXEPCTL_EPENA;
@@ -3984,7 +3984,7 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 		/* Flush TX FIFO */
 		dwc2_flush_tx_fifo(hsotg, fifo_index);
 
-		/* Clear Global In NP NAK in Shared FIFO for non periodic ep */
+		/* Clear Global In NP NAK in Shared FIFO for analn periodic ep */
 		if (!hsotg->dedicated_fifos && !hs_ep->periodic)
 			dwc2_set_bit(hsotg, DCTL, DCTL_CGNPINNAK);
 
@@ -4024,7 +4024,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		__func__, ep->name, desc->bEndpointAddress, desc->bmAttributes,
 		desc->wMaxPacketSize, desc->bInterval);
 
-	/* not to be called for EP0 */
+	/* analt to be called for EP0 */
 	if (index == 0) {
 		dev_err(hsotg->dev, "%s: called for EP 0\n", __func__);
 		return -EINVAL;
@@ -4044,19 +4044,19 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	if (using_desc_dma(hsotg) && ep_type == USB_ENDPOINT_XFER_ISOC &&
 	    dir_in && desc->bInterval > 10) {
 		dev_err(hsotg->dev,
-			"%s: ISOC IN, DDMA: bInterval>10 not supported!\n", __func__);
+			"%s: ISOC IN, DDMA: bInterval>10 analt supported!\n", __func__);
 		return -EINVAL;
 	}
 
-	/* High bandwidth ISOC OUT in DDMA not supported */
+	/* High bandwidth ISOC OUT in DDMA analt supported */
 	if (using_desc_dma(hsotg) && ep_type == USB_ENDPOINT_XFER_ISOC &&
 	    !dir_in && mc > 1) {
 		dev_err(hsotg->dev,
-			"%s: ISOC OUT, DDMA: HB not supported!\n", __func__);
+			"%s: ISOC OUT, DDMA: HB analt supported!\n", __func__);
 		return -EINVAL;
 	}
 
-	/* note, we handle this here instead of dwc2_hsotg_set_ep_maxpacket */
+	/* analte, we handle this here instead of dwc2_hsotg_set_ep_maxpacket */
 
 	epctrl_reg = dir_in ? DIEPCTL(index) : DOEPCTL(index);
 	epctrl = dwc2_readl(hsotg, epctrl_reg);
@@ -4069,13 +4069,13 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	else
 		desc_num = MAX_DMA_DESC_NUM_GENERIC;
 
-	/* Allocate DMA descriptor chain for non-ctrl endpoints */
+	/* Allocate DMA descriptor chain for analn-ctrl endpoints */
 	if (using_desc_dma(hsotg) && !hs_ep->desc_list) {
 		hs_ep->desc_list = dmam_alloc_coherent(hsotg->dev,
 			desc_num * sizeof(struct dwc2_dma_desc),
 			&hs_ep->desc_list_dma, GFP_ATOMIC);
 		if (!hs_ep->desc_list) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error2;
 		}
 	}
@@ -4086,7 +4086,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	epctrl |= DXEPCTL_MPS(mps);
 
 	/*
-	 * mark the endpoint as active, otherwise the core may ignore
+	 * mark the endpoint as active, otherwise the core may iganalre
 	 * transactions entirely for this endpoint
 	 */
 	epctrl |= DXEPCTL_USBACTEP;
@@ -4094,8 +4094,8 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	/* update the endpoint state */
 	dwc2_hsotg_set_ep_maxpacket(hsotg, hs_ep->index, mps, mc, dir_in);
 
-	/* default, set to non-periodic */
-	hs_ep->isochronous = 0;
+	/* default, set to analn-periodic */
+	hs_ep->isochroanalus = 0;
 	hs_ep->periodic = 0;
 	hs_ep->halted = 0;
 	hs_ep->wedged = 0;
@@ -4105,7 +4105,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	case USB_ENDPOINT_XFER_ISOC:
 		epctrl |= DXEPCTL_EPTYPE_ISO;
 		epctrl |= DXEPCTL_SETEVENFR;
-		hs_ep->isochronous = 1;
+		hs_ep->isochroanalus = 1;
 		hs_ep->interval = 1 << (desc->bInterval - 1);
 		hs_ep->target_frame = TARGET_FRAME_INITIAL;
 		hs_ep->next_desc = 0;
@@ -4144,7 +4144,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 
 	/*
 	 * if the hardware has dedicated fifos, we must give each IN EP
-	 * a unique tx-fifo even if it is non-periodic.
+	 * a unique tx-fifo even if it is analn-periodic.
 	 */
 	if (dir_in && hsotg->dedicated_fifos) {
 		unsigned fifo_count = dwc2_hsotg_tx_fifo_count(hsotg);
@@ -4167,8 +4167,8 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		}
 		if (!fifo_index) {
 			dev_err(hsotg->dev,
-				"%s: No suitable fifo found\n", __func__);
-			ret = -ENOMEM;
+				"%s: Anal suitable fifo found\n", __func__);
+			ret = -EANALMEM;
 			goto error1;
 		}
 		epctrl &= ~(DXEPCTL_TXFNUM_LIMIT << DXEPCTL_TXFNUM_SHIFT);
@@ -4178,8 +4178,8 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		hs_ep->fifo_size = fifo_size;
 	}
 
-	/* for non control endpoints, set PID to D0 */
-	if (index && !hs_ep->isochronous)
+	/* for analn control endpoints, set PID to D0 */
+	if (index && !hs_ep->isochroanalus)
 		epctrl |= DXEPCTL_SETD0PID;
 
 	/* WA for Full speed ISOC IN in DDMA mode.
@@ -4189,7 +4189,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	 */
 
 	if (hsotg->gadget.speed == USB_SPEED_FULL &&
-	    hs_ep->isochronous && dir_in) {
+	    hs_ep->isochroanalus && dir_in) {
 		/* The WA applies only to core versions from 2.72a
 		 * to 4.00a (including both). Also for FS_IOT_1.00a
 		 * and HS_IOT_1.00a.
@@ -4365,13 +4365,13 @@ static int dwc2_gadget_ep_set_wedge(struct usb_ep *ep)
  * dwc2_hsotg_ep_sethalt - set halt on a given endpoint
  * @ep: The endpoint to set halt.
  * @value: Set or unset the halt.
- * @now: If true, stall the endpoint now. Otherwise return -EAGAIN if
+ * @analw: If true, stall the endpoint analw. Otherwise return -EAGAIN if
  *       the endpoint is busy processing requests.
  *
  * We need to stall the endpoint immediately if request comes from set_feature
  * protocol command handler.
  */
-static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
+static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool analw)
 {
 	struct dwc2_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hs = hs_ep->parent;
@@ -4391,13 +4391,13 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 		return 0;
 	}
 
-	if (hs_ep->isochronous) {
-		dev_err(hs->dev, "%s is Isochronous Endpoint\n", ep->name);
+	if (hs_ep->isochroanalus) {
+		dev_err(hs->dev, "%s is Isochroanalus Endpoint\n", ep->name);
 		return -EINVAL;
 	}
 
-	if (!now && value && !list_empty(&hs_ep->queue)) {
-		dev_dbg(hs->dev, "%s request is pending, cannot halt\n",
+	if (!analw && value && !list_empty(&hs_ep->queue)) {
+		dev_dbg(hs->dev, "%s request is pending, cananalt halt\n",
 			ep->name);
 		return -EAGAIN;
 	}
@@ -4473,7 +4473,7 @@ static const struct usb_ep_ops dwc2_hsotg_ep_ops = {
 	.dequeue	= dwc2_hsotg_ep_dequeue,
 	.set_halt	= dwc2_hsotg_ep_sethalt_lock,
 	.set_wedge	= dwc2_gadget_ep_set_wedge,
-	/* note, don't believe we have any call for the fifo routines */
+	/* analte, don't believe we have any call for the fifo routines */
 };
 
 /**
@@ -4525,12 +4525,12 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 	int ret;
 
 	if (!hsotg) {
-		pr_err("%s: called with no device\n", __func__);
-		return -ENODEV;
+		pr_err("%s: called with anal device\n", __func__);
+		return -EANALDEV;
 	}
 
 	if (!driver) {
-		dev_err(hsotg->dev, "%s: no driver\n", __func__);
+		dev_err(hsotg->dev, "%s: anal driver\n", __func__);
 		return -EINVAL;
 	}
 
@@ -4545,8 +4545,8 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 	WARN_ON(hsotg->driver);
 
 	hsotg->driver = driver;
-	hsotg->gadget.dev.of_node = hsotg->dev->of_node;
-	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
+	hsotg->gadget.dev.of_analde = hsotg->dev->of_analde;
+	hsotg->gadget.speed = USB_SPEED_UNKANALWN;
 
 	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) {
 		ret = dwc2_lowlevel_hw_enable(hsotg);
@@ -4589,7 +4589,7 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 	int ep;
 
 	if (!hsotg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* all endpoints should be shutdown */
 	for (ep = 1; ep < hsotg->num_of_eps; ep++) {
@@ -4602,7 +4602,7 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	hsotg->driver = NULL;
-	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
+	hsotg->gadget.speed = USB_SPEED_UNKANALWN;
 	hsotg->enabled = 0;
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
@@ -4624,7 +4624,7 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
  */
 static int dwc2_hsotg_gadget_getframe(struct usb_gadget *gadget)
 {
-	return dwc2_hsotg_read_frameno(to_hsotg(gadget));
+	return dwc2_hsotg_read_frameanal(to_hsotg(gadget));
 }
 
 /**
@@ -4681,7 +4681,7 @@ static int dwc2_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 		hsotg->enabled = 0;
 	}
 
-	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
+	hsotg->gadget.speed = USB_SPEED_UNKANALWN;
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
 	return 0;
@@ -4701,8 +4701,8 @@ static int dwc2_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
 	 */
 	if (hsotg->lx_state == DWC2_L2 && hsotg->in_ppd)
 		/*
-		 * No need to check the return value as
-		 * registers are not being restored.
+		 * Anal need to check the return value as
+		 * registers are analt being restored.
 		 */
 		dwc2_exit_partial_power_down(hsotg, 0, false);
 
@@ -4736,7 +4736,7 @@ static int dwc2_hsotg_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
 
 	if (IS_ERR_OR_NULL(hsotg->uphy))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	return usb_phy_set_power(hsotg->uphy, mA);
 }
 
@@ -4806,7 +4806,7 @@ static void dwc2_hsotg_initep(struct dwc2_hsotg *hsotg,
 	INIT_LIST_HEAD(&hs_ep->queue);
 	INIT_LIST_HEAD(&hs_ep->ep.ep_list);
 
-	/* add to the list of endpoints known by the gadget driver */
+	/* add to the list of endpoints kanalwn by the gadget driver */
 	if (epnum)
 		list_add_tail(&hs_ep->ep.ep_list, &hsotg->gadget.ep_list);
 
@@ -4873,7 +4873,7 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 					sizeof(struct dwc2_hsotg_ep),
 					GFP_KERNEL);
 	if (!hsotg->eps_in[0])
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Same dwc2_hsotg_ep is used in both directions for ep0 */
 	hsotg->eps_out[0] = hsotg->eps_in[0];
 
@@ -4885,14 +4885,14 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 			hsotg->eps_in[i] = devm_kzalloc(hsotg->dev,
 				sizeof(struct dwc2_hsotg_ep), GFP_KERNEL);
 			if (!hsotg->eps_in[i])
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		/* Direction out or both */
 		if (!(ep_type & 1)) {
 			hsotg->eps_out[i] = devm_kzalloc(hsotg->dev,
 				sizeof(struct dwc2_hsotg_ep), GFP_KERNEL);
 			if (!hsotg->eps_out[i])
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
@@ -4969,7 +4969,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 	int ret;
 
 	/* Dump fifo information */
-	dev_dbg(dev, "NonPeriodic TXFIFO size: %d\n",
+	dev_dbg(dev, "AnalnPeriodic TXFIFO size: %d\n",
 		hsotg->params.g_np_tx_fifo_size);
 	dev_dbg(dev, "RXFIFO size: %d\n", hsotg->params.g_rx_fifo_size);
 
@@ -5007,12 +5007,12 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 	hsotg->ctrl_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
 	if (!hsotg->ctrl_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsotg->ep0_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
 	if (!hsotg->ep0_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (using_desc_dma(hsotg)) {
 		ret = dwc2_gadget_alloc_ctrl_desc_chains(hsotg);
@@ -5023,7 +5023,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 	ret = devm_request_irq(hsotg->dev, hsotg->irq, dwc2_hsotg_irq,
 			       IRQF_SHARED, dev_name(hsotg->dev), hsotg);
 	if (ret < 0) {
-		dev_err(dev, "cannot claim IRQ for gadget\n");
+		dev_err(dev, "cananalt claim IRQ for gadget\n");
 		return ret;
 	}
 
@@ -5045,10 +5045,10 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 						     GFP_KERNEL);
 	if (!hsotg->ctrl_req) {
 		dev_err(dev, "failed to allocate ctrl req\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* initialise the endpoints now the core has been initialised */
+	/* initialise the endpoints analw the core has been initialised */
 	for (epnum = 0; epnum < hsotg->num_of_eps; epnum++) {
 		if (hsotg->eps_in[epnum])
 			dwc2_hsotg_initep(hsotg, hsotg->eps_in[epnum],
@@ -5093,7 +5093,7 @@ int dwc2_hsotg_suspend(struct dwc2_hsotg *hsotg)
 		if (hsotg->enabled)
 			dwc2_hsotg_core_disconnect(hsotg);
 		dwc2_hsotg_disconnect(hsotg);
-		hsotg->gadget.speed = USB_SPEED_UNKNOWN;
+		hsotg->gadget.speed = USB_SPEED_UNKANALWN;
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 
 		for (ep = 1; ep < hsotg->num_of_eps; ep++) {
@@ -5204,7 +5204,7 @@ int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg, int remote_wakeup)
 	/* Restore dev regs */
 	dr = &hsotg->dr_backup;
 	if (!dr->valid) {
-		dev_err(hsotg->dev, "%s: no device registers to restore\n",
+		dev_err(hsotg->dev, "%s: anal device registers to restore\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -5301,7 +5301,7 @@ void dwc2_gadget_program_ref_clk(struct dwc2_hsotg *hsotg)
  *
  * @hsotg: Programming view of the DWC_otg controller
  *
- * Return non-zero if failed to enter to hibernation.
+ * Return analn-zero if failed to enter to hibernation.
  */
 int dwc2_gadget_enter_hibernation(struct dwc2_hsotg *hsotg)
 {
@@ -5374,7 +5374,7 @@ int dwc2_gadget_enter_hibernation(struct dwc2_hsotg *hsotg)
  * @rem_wakeup: indicates whether resume is initiated by Device or Host.
  * @reset: indicates whether resume is initiated by Reset.
  *
- * Return non-zero if failed to exit from hibernation.
+ * Return analn-zero if failed to exit from hibernation.
  */
 int dwc2_gadget_exit_hibernation(struct dwc2_hsotg *hsotg,
 				 int rem_wakeup, int reset)
@@ -5482,7 +5482,7 @@ int dwc2_gadget_exit_hibernation(struct dwc2_hsotg *hsotg,
  *
  * @hsotg: Programming view of the DWC_otg controller
  *
- * Return: non-zero if failed to enter device partial power down.
+ * Return: analn-zero if failed to enter device partial power down.
  *
  * This function is for entering device mode partial power down.
  */
@@ -5509,7 +5509,7 @@ int dwc2_gadget_enter_partial_power_down(struct dwc2_hsotg *hsotg)
 	}
 
 	/*
-	 * Clear any pending interrupts since dwc2 will not be able to
+	 * Clear any pending interrupts since dwc2 will analt be able to
 	 * clear them after entering partial_power_down.
 	 */
 	dwc2_writel(hsotg, 0xffffffff, GINTSTS);
@@ -5542,9 +5542,9 @@ int dwc2_gadget_enter_partial_power_down(struct dwc2_hsotg *hsotg)
  * power down.
  *
  * @hsotg: Programming view of the DWC_otg controller
- * @restore: indicates whether need to restore the registers or not.
+ * @restore: indicates whether need to restore the registers or analt.
  *
- * Return: non-zero if failed to exit device partial power down.
+ * Return: analn-zero if failed to exit device partial power down.
  *
  * This function is for exiting from device mode partial power down.
  */
@@ -5609,7 +5609,7 @@ int dwc2_gadget_exit_partial_power_down(struct dwc2_hsotg *hsotg,
  *
  * @hsotg: Programming view of the DWC_otg controller
  *
- * Return: non-zero if failed to enter device partial power down.
+ * Return: analn-zero if failed to enter device partial power down.
  *
  * This function is for entering device mode clock gating.
  */

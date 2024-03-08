@@ -30,10 +30,10 @@
 #define LG_BAD_RELATIVE_KEYS	0x002
 #define LG_DUPLICATE_USAGES	0x004
 #define LG_EXPANDED_KEYMAP	0x010
-#define LG_IGNORE_DOUBLED_WHEEL	0x020
+#define LG_IGANALRE_DOUBLED_WHEEL	0x020
 #define LG_WIRELESS		0x040
 #define LG_INVERT_HWHEEL	0x080
-#define LG_NOGET		0x100
+#define LG_ANALGET		0x100
 #define LG_FF			0x200
 #define LG_FF2			0x400
 #define LG_RDESC_REL_ABS	0x800
@@ -97,7 +97,7 @@ static __u8 df_rdesc_fixed[] = {
 0x81, 0x42,         /*          Input (Variable, Null State),   */
 0x75, 0x01,         /*          Report Size (1),                */
 0x95, 0x04,         /*          Report Count (4),               */
-0x65, 0x00,         /*          Unit (none),                    */
+0x65, 0x00,         /*          Unit (analne),                    */
 0x06, 0x00, 0xFF,   /*          Usage Page (Vendor: 65280),     */
 0x09, 0x01,         /*          Usage (?: 1),                   */
 0x25, 0x01,         /*          Logical Maximum (1),            */
@@ -662,7 +662,7 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	/* Special handling for Logitech Cordless Desktop */
 	if (field->application == HID_GD_MOUSE) {
-		if ((drv_data->quirks & LG_IGNORE_DOUBLED_WHEEL) &&
+		if ((drv_data->quirks & LG_IGANALRE_DOUBLED_WHEEL) &&
 				(hid == 7 || hid == 8))
 			return -1;
 	} else {
@@ -692,7 +692,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 			 usage->type == EV_REL || usage->type == EV_ABS))
 		clear_bit(usage->code, *bit);
 
-	/* Ensure that Logitech wheels are not given a default fuzz/flat value */
+	/* Ensure that Logitech wheels are analt given a default fuzz/flat value */
 	if (usage->type == EV_ABS && (usage->code == ABS_X ||
 			usage->code == ABS_Y || usage->code == ABS_Z ||
 			usage->code == ABS_RZ)) {
@@ -764,21 +764,21 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	/* G29 only work with the 1st interface */
 	if ((hdev->product == USB_DEVICE_ID_LOGITECH_G29_WHEEL) &&
 	    (iface_num != 0)) {
-		dbg_hid("%s: ignoring ifnum %d\n", __func__, iface_num);
-		return -ENODEV;
+		dbg_hid("%s: iganalring ifnum %d\n", __func__, iface_num);
+		return -EANALDEV;
 	}
 
 	drv_data = kzalloc(sizeof(struct lg_drv_data), GFP_KERNEL);
 	if (!drv_data) {
-		hid_err(hdev, "Insufficient memory, cannot allocate driver data\n");
-		return -ENOMEM;
+		hid_err(hdev, "Insufficient memory, cananalt allocate driver data\n");
+		return -EANALMEM;
 	}
 	drv_data->quirks = id->driver_data;
 
 	hid_set_drvdata(hdev, (void *)drv_data);
 
-	if (drv_data->quirks & LG_NOGET)
-		hdev->quirks |= HID_QUIRK_NOGET;
+	if (drv_data->quirks & LG_ANALGET)
+		hdev->quirks |= HID_QUIRK_ANALGET;
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -803,7 +803,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		u8 *buf = kmemdup(cbuf, sizeof(cbuf), GFP_KERNEL);
 
 		if (!buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_stop;
 		}
 
@@ -863,20 +863,20 @@ static const struct hid_device_id lg_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RECEIVER),
 		.driver_data = LG_BAD_RELATIVE_KEYS },
 
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_DESKTOP),
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DIANALVO_DESKTOP),
 		.driver_data = LG_DUPLICATE_USAGES },
 
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_ELITE_KBD),
-		.driver_data = LG_IGNORE_DOUBLED_WHEEL | LG_EXPANDED_KEYMAP },
+		.driver_data = LG_IGANALRE_DOUBLED_WHEEL | LG_EXPANDED_KEYMAP },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_CORDLESS_DESKTOP_LX500),
-		.driver_data = LG_IGNORE_DOUBLED_WHEEL | LG_EXPANDED_KEYMAP },
+		.driver_data = LG_IGANALRE_DOUBLED_WHEEL | LG_EXPANDED_KEYMAP },
 
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_EXTREME_3D),
-		.driver_data = LG_NOGET },
+		.driver_data = LG_ANALGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_DUAL_ACTION),
-		.driver_data = LG_NOGET },
+		.driver_data = LG_ANALGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL),
-		.driver_data = LG_NOGET | LG_FF4 },
+		.driver_data = LG_ANALGET | LG_FF4 },
 
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD_CORD),
 		.driver_data = LG_FF2 },
@@ -891,7 +891,7 @@ static const struct hid_device_id lg_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FORCE3D_PRO),
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_MOMO_WHEEL),
-		.driver_data = LG_NOGET | LG_FF4 },
+		.driver_data = LG_ANALGET | LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2),
 		.driver_data = LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL),
@@ -903,15 +903,15 @@ static const struct hid_device_id lg_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G27_WHEEL),
 		.driver_data = LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_DFP_WHEEL),
-		.driver_data = LG_NOGET | LG_FF4 },
+		.driver_data = LG_ANALGET | LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WII_WHEEL),
 		.driver_data = LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FG),
-		.driver_data = LG_NOGET },
+		.driver_data = LG_ANALGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG),
-		.driver_data = LG_NOGET | LG_FF4 },
+		.driver_data = LG_ANALGET | LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2),
-		.driver_data = LG_NOGET | LG_FF2 },
+		.driver_data = LG_ANALGET | LG_FF2 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FLIGHT_SYSTEM_G940),
 		.driver_data = LG_FF3 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_SPACENAVIGATOR),
@@ -937,9 +937,9 @@ static struct hid_driver lg_driver = {
 module_hid_driver(lg_driver);
 
 #ifdef CONFIG_LOGIWHEELS_FF
-int lg4ff_no_autoswitch = 0;
-module_param_named(lg4ff_no_autoswitch, lg4ff_no_autoswitch, int, S_IRUGO);
-MODULE_PARM_DESC(lg4ff_no_autoswitch, "Do not switch multimode wheels to their native mode automatically");
+int lg4ff_anal_autoswitch = 0;
+module_param_named(lg4ff_anal_autoswitch, lg4ff_anal_autoswitch, int, S_IRUGO);
+MODULE_PARM_DESC(lg4ff_anal_autoswitch, "Do analt switch multimode wheels to their native mode automatically");
 #endif
 
 MODULE_LICENSE("GPL");

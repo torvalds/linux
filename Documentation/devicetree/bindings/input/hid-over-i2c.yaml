@@ -31,7 +31,7 @@ properties:
           - enum:
               - wacom,w9013
           - const: hid-over-i2c
-      - description: Just "hid-over-i2c" alone is allowed, but not recommended.
+      - description: Just "hid-over-i2c" alone is allowed, but analt recommended.
         const: hid-over-i2c
 
   reg:

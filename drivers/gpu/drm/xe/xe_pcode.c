@@ -6,7 +6,7 @@
 #include "xe_pcode.h"
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <drm/drm_managed.h>
 
@@ -40,7 +40,7 @@ static int pcode_mailbox_status(struct xe_gt *gt)
 		[PCODE_GT_RATIO_OUT_OF_RANGE] = {-EOVERFLOW,
 			"GT ratio out of range"},
 		[PCODE_REJECTED] = {-EACCES, "PCODE Rejected"},
-		[PCODE_ERROR_MASK] = {-EPROTO, "Unknown"},
+		[PCODE_ERROR_MASK] = {-EPROTO, "Unkanalwn"},
 	};
 
 	lockdep_assert_held(&gt->pcode.lock);
@@ -48,8 +48,8 @@ static int pcode_mailbox_status(struct xe_gt *gt)
 	err = xe_mmio_read32(gt, PCODE_MAILBOX) & PCODE_ERROR_MASK;
 	if (err) {
 		drm_err(&gt_to_xe(gt)->drm, "PCODE Mailbox failed: %d %s", err,
-			err_decode[err].str ?: "Unknown");
-		return err_decode[err].errno ?: -EPROTO;
+			err_decode[err].str ?: "Unkanalwn");
+		return err_decode[err].erranal ?: -EPROTO;
 	}
 
 	return 0;
@@ -132,19 +132,19 @@ static int xe_pcode_try_request(struct xe_gt *gt, u32 mbox,
 }
 
 /**
- * xe_pcode_request - send PCODE request until acknowledgment
+ * xe_pcode_request - send PCODE request until ackanalwledgment
  * @gt: gt
  * @mbox: PCODE mailbox ID the request is targeted for
  * @request: request ID
- * @reply_mask: mask used to check for request acknowledgment
- * @reply: value used to check for request acknowledgment
+ * @reply_mask: mask used to check for request ackanalwledgment
+ * @reply: value used to check for request ackanalwledgment
  * @timeout_base_ms: timeout for polling with preemption enabled
  *
- * Keep resending the @request to @mbox until PCODE acknowledges it, PCODE
+ * Keep resending the @request to @mbox until PCODE ackanalwledges it, PCODE
  * reports an error or an overall timeout of @timeout_base_ms+50 ms expires.
- * The request is acknowledged once the PCODE reply dword equals @reply after
+ * The request is ackanalwledged once the PCODE reply dword equals @reply after
  * applying @reply_mask. Polling is first attempted with preemption enabled
- * for @timeout_base_ms and if this times out for another 50 ms with
+ * for @timeout_base_ms and if this times out for aanalther 50 ms with
  * preemption disabled.
  *
  * Returns 0 on success, %-ETIMEDOUT in case of a timeout, <0 in case of some
@@ -196,7 +196,7 @@ out:
  * frequency. For older platforms this was a more complete table including
  * the IA freq. However for the latest platforms this table become a simple
  * 1-1 Ring vs GT frequency. Even though, without setting it, PCODE might
- * not take the right decisions for some memory frequencies and affect latency.
+ * analt take the right decisions for some memory frequencies and affect latency.
  *
  * It returns 0 on success, and -ERROR number on failure, -EINVAL if max
  * frequency is higher then the minimal, and other errors directly translated
@@ -208,7 +208,7 @@ out:
  * - -EBUSY: "PCODE Locked"
  * - -EOVERFLOW, "GT ratio out of range"
  * - -EACCES, "PCODE Rejected"
- * - -EPROTO, "Unknown"
+ * - -EPROTO, "Unkanalwn"
  */
 int xe_pcode_init_min_freq_table(struct xe_gt *gt, u32 min_gt_freq,
 				 u32 max_gt_freq)

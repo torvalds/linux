@@ -1,6 +1,6 @@
 * I2C
 
-The I2C controller is expressed as a bus under the CPM node.
+The I2C controller is expressed as a bus under the CPM analde.
 
 Properties:
 - compatible : "fsl,cpm1-i2c", "fsl,cpm2-i2c"

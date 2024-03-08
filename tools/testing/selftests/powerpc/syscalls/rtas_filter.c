@@ -17,7 +17,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include "utils.h"
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -29,7 +29,7 @@
 #endif
 
 #define RTAS_IO_ASSERT	-1098	/* Unexpected I/O Error */
-#define RTAS_UNKNOWN_OP -1099	/* No Firmware Implementation of Function */
+#define RTAS_UNKANALWN_OP -1099	/* Anal Firmware Implementation of Function */
 #define BLOCK_SIZE 4096
 #define PAGE_SIZE 4096
 #define MAX_PAGES 64
@@ -58,7 +58,7 @@ static int get_property(const char *prop_path, const char *prop_name,
 
 	int len = snprintf(path, sizeof(path), "%s/%s", prop_path, prop_name);
 	if (len < 0 || len >= sizeof(path))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return read_file_alloc(path, prop_val, prop_len);
 }
@@ -71,7 +71,7 @@ int rtas_token(const char *call_name)
 
 	rc = get_property(ofdt_rtas_path, call_name, &prop_buf, &len);
 	if (rc < 0) {
-		rc = RTAS_UNKNOWN_OP;
+		rc = RTAS_UNKANALWN_OP;
 		goto err;
 	}
 
@@ -89,7 +89,7 @@ static int read_kregion_bounds(struct region *kregion)
 
 	err = read_file_alloc("/proc/ppc64/rtas/rmo_buffer", &buf, NULL);
 	if (err) {
-		perror("Could not open rmo_buffer file");
+		perror("Could analt open rmo_buffer file");
 		return RTAS_IO_ASSERT;
 	}
 
@@ -116,10 +116,10 @@ static int rtas_call(const char *name, int nargs,
 	va_start(ap, nrets);
 
 	token = rtas_token(name);
-	if (token == RTAS_UNKNOWN_OP) {
+	if (token == RTAS_UNKANALWN_OP) {
 		// We don't care if the call doesn't exist
-		printf("call '%s' not available, skipping...", name);
-		rc = RTAS_UNKNOWN_OP;
+		printf("call '%s' analt available, skipping...", name);
+		rc = RTAS_UNKANALWN_OP;
 		goto err;
 	}
 
@@ -135,7 +135,7 @@ static int rtas_call(const char *name, int nargs,
 
 	rc = syscall(__NR_rtas, &args);
 	if (rc) {
-		rc = -errno;
+		rc = -erranal;
 		goto err;
 	}
 
@@ -162,17 +162,17 @@ static int test(void)
 
 	// Test a legitimate harmless call
 	// Expected: call succeeds
-	printf("Test a permitted call, no parameters... ");
+	printf("Test a permitted call, anal parameters... ");
 	rc = rtas_call("get-time-of-day", 0, 1, rets);
 	printf("rc: %d\n", rc);
-	FAIL_IF(rc != 0 && rc != RTAS_UNKNOWN_OP);
+	FAIL_IF(rc != 0 && rc != RTAS_UNKANALWN_OP);
 
 	// Test a prohibited call
 	// Expected: call returns -EINVAL
 	printf("Test a prohibited call... ");
 	rc = rtas_call("nvram-fetch", 0, 1, rets);
 	printf("rc: %d\n", rc);
-	FAIL_IF(rc != -EINVAL && rc != RTAS_UNKNOWN_OP);
+	FAIL_IF(rc != -EINVAL && rc != RTAS_UNKANALWN_OP);
 
 	// Get RMO
 	rc = read_kregion_bounds(&rmo_region);
@@ -190,7 +190,7 @@ static int test(void)
 	rc = rtas_call("ibm,get-system-parameter", 3, 1, 0, cpu_to_be32(rmo_start),
 		       cpu_to_be32(rmo_end - rmo_start + 1), rets);
 	printf("rc: %d\n", rc);
-	FAIL_IF(rc != 0 && rc != RTAS_UNKNOWN_OP);
+	FAIL_IF(rc != 0 && rc != RTAS_UNKANALWN_OP);
 
 	// Test a permitted call, user-supplied size, buffer start outside RMO
 	// Expected: call returns -EINVAL
@@ -198,7 +198,7 @@ static int test(void)
 	rc = rtas_call("ibm,get-system-parameter", 3, 1, 0, cpu_to_be32(rmo_end + 1),
 		       cpu_to_be32(4000), rets);
 	printf("rc: %d\n", rc);
-	FAIL_IF(rc != -EINVAL && rc != RTAS_UNKNOWN_OP);
+	FAIL_IF(rc != -EINVAL && rc != RTAS_UNKANALWN_OP);
 
 	// Test a permitted call, user-supplied size, buffer end outside RMO
 	// Expected: call returns -EINVAL
@@ -206,14 +206,14 @@ static int test(void)
 	rc = rtas_call("ibm,get-system-parameter", 3, 1, 0, cpu_to_be32(rmo_start),
 		       cpu_to_be32(rmo_end - rmo_start + 2), rets);
 	printf("rc: %d\n", rc);
-	FAIL_IF(rc != -EINVAL && rc != RTAS_UNKNOWN_OP);
+	FAIL_IF(rc != -EINVAL && rc != RTAS_UNKANALWN_OP);
 
 	// Test a permitted call, fixed size, buffer end outside RMO
 	// Expected: call returns -EINVAL
 	printf("Test a permitted call, fixed size, buffer end outside RMO... ");
 	rc = rtas_call("ibm,configure-connector", 2, 1, cpu_to_be32(rmo_end - 4000), 0, rets);
 	printf("rc: %d\n", rc);
-	FAIL_IF(rc != -EINVAL && rc != RTAS_UNKNOWN_OP);
+	FAIL_IF(rc != -EINVAL && rc != RTAS_UNKANALWN_OP);
 
 	return 0;
 }

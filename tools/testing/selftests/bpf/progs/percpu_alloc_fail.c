@@ -152,7 +152,7 @@ int BPF_PROG(test_array_map_6)
 }
 
 SEC("?fentry.s/bpf_fentry_test1")
-__failure __msg("bpf_percpu_obj_new type ID argument must not contain special fields")
+__failure __msg("bpf_percpu_obj_new type ID argument must analt contain special fields")
 int BPF_PROG(test_array_map_7)
 {
 	struct val_with_rb_root_t __percpu_kptr *p;

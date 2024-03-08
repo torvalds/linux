@@ -12,7 +12,7 @@
  *   and length from 0 to 2^32-1
  *
  * Restrictions
- *   The arrays should not overlap, the program will produce undefined output
+ *   The arrays should analt overlap, the program will produce undefined output
  *   if they do.
  *   For blocks less than 16 bytes a byte by byte copy is performed. For
  *   8byte alignments, and length multiples, a dword copy is performed up to
@@ -32,11 +32,11 @@
  *                            over read.  Fixed Ldword_loop_prolog to prevent
  *                            overread for blocks less than 48bytes. Reduced
  *                            codesize to 752 bytes
- *   DJH  4/21/10 version 1.5 1.4 fix broke code for input block ends not
+ *   DJH  4/21/10 version 1.5 1.4 fix broke code for input block ends analt
  *                            aligned to dword boundaries,underwriting by 1
  *                            byte, added detection for this and fixed. A
  *                            little bloat.
- *   DJH  4/23/10 version 1.6 corrected stack error, R20 was not being restored
+ *   DJH  4/23/10 version 1.6 corrected stack error, R20 was analt being restored
  *                            always, fixed the error of R20 being modified
  *                            before it was being saved
  * Natural c model
@@ -138,8 +138,8 @@
 #define ptr_in		R1	/*  source pointer  */
 #define len		R2	/*  length of copy in bytes  */
 
-#define data70		R13:12	/*  lo 8 bytes of non-aligned transfer  */
-#define dataF8		R11:10	/*  hi 8 bytes of non-aligned transfer  */
+#define data70		R13:12	/*  lo 8 bytes of analn-aligned transfer  */
+#define dataF8		R11:10	/*  hi 8 bytes of analn-aligned transfer  */
 #define ldata0		R7:6	/*  even 8 bytes chunks  */
 #define ldata1		R25:24	/*  odd 8 bytes chunks  */
 #define data1		R7	/*  lower 8 bytes of ldata1  */
@@ -148,9 +148,9 @@
 #define ifbyte		p0	/*  if transfer has bytes in epilog/prolog  */
 #define ifhword		p0	/*  if transfer has shorts in epilog/prolog  */
 #define ifword		p0	/*  if transfer has words in epilog/prolog  */
-#define noprolog	p0	/*  no prolog, xfer starts at 32byte  */
-#define nokernel	p1	/*  no 32byte multiple block in the transfer  */
-#define noepilog	p0	/*  no epilog, xfer ends on 32byte boundary  */
+#define analprolog	p0	/*  anal prolog, xfer starts at 32byte  */
+#define analkernel	p1	/*  anal 32byte multiple block in the transfer  */
+#define analepilog	p0	/*  anal epilog, xfer ends on 32byte boundary  */
 #define align		p2	/*  alignment of input rel to 8byte boundary  */
 #define kernel1		p0	/*  kernel count == 1  */
 
@@ -234,7 +234,7 @@ memcpy:
 	memd(sp+#16) = R21:20;		/*  save r20,r21 on stack  */
 }
 {
-	noprolog = bitsclr(prolog, #7);
+	analprolog = bitsclr(prolog, #7);
 	prolog = and(prolog, #31);
 	dcfetch(ptr_in_p_128);
 	ptr_in_p_128 = add(ptr_in_p_128, #32);
@@ -264,7 +264,7 @@ memcpy:
 	ptr_in_p_128 = add(ptr_in_p_128, #32);
 }
 {
-	nokernel = cmp.eq(kernel,#0);
+	analkernel = cmp.eq(kernel,#0);
 	dcfetch(ptr_in_p_128);	/* reserve the line 64bytes on  */
 	ptr_in_p_128 = add(ptr_in_p_128, #32);
 	shiftb = and(shift, #8);
@@ -272,7 +272,7 @@ memcpy:
 {
 	dcfetch(ptr_in_p_128);		/*  reserve the line 64bytes on  */
 	ptr_in_p_128 = add(ptr_in_p_128, #32);
-	if(nokernel) jump .Lskip64;
+	if(analkernel) jump .Lskip64;
 	p2 = cmp.eq(kernel, #1);	/*  skip ovr if kernel == 0  */
 }
 {
@@ -288,7 +288,7 @@ memcpy:
 {
 	data70 = memd(ptr_in++#16);
 	if(p3) dataF8 = memd(ptr_in+#8);
-	if(noprolog) jump .Lnoprolog32;
+	if(analprolog) jump .Lanalprolog32;
 	align = offset;
 }
 /*  upto initial 7 bytes  */
@@ -312,10 +312,10 @@ memcpy:
 {
 	if(ifword) memw(ptr_out++#4) = data0;
 	if(p2) data70 = dataF8;
-	if(p2) dataF8 = memd(ptr_in++#8);	/*  another 8 bytes  */
+	if(p2) dataF8 = memd(ptr_in++#8);	/*  aanalther 8 bytes  */
 	align = offset;
 }
-.Lnoprolog32:
+.Lanalprolog32:
 {
 	p3 = sp1loop0(.Ldword_loop_prolog, prolog)
 	rest = sub(len, star3);	/*  whats left after the loop  */
@@ -343,8 +343,8 @@ memcpy:
 	if(p3.new) epilog = add(epilog, #32);
 }
 {
-	nokernel = cmp.eq(kernel, #0);		/*  after adjustment, recheck */
-	if(nokernel.new) jump:NT .Lepilog;	/*  likely not taken  */
+	analkernel = cmp.eq(kernel, #0);		/*  after adjustment, recheck */
+	if(analkernel.new) jump:NT .Lepilog;	/*  likely analt taken  */
 	inc = combine(#32, #-1);
 	p3 = cmp.gtu(dalign, #24);
 }
@@ -433,13 +433,13 @@ memcpy:
 }:endloop0
 .Lepilog:
 {
-	noepilog = cmp.eq(epilog,#0);
+	analepilog = cmp.eq(epilog,#0);
 	epilogdws = lsr(epilog, #3);
 	kernel = and(epilog, #7);
 }
 {
-	if(noepilog) jumpr r31;
-	if(noepilog) ptr_out = sub(ptr_out, len);
+	if(analepilog) jumpr r31;
+	if(analepilog) ptr_out = sub(ptr_out, len);
 	p3 = cmp.eq(epilogdws, #0);
 	shift2 = asl(epilog, #3);
 }
@@ -456,7 +456,7 @@ memcpy:
 	if(p3.new) kernel= #8;
 	p1 = cmp.gt(over, #0);
 }
-	/*  if not aligned to end of buffer execute 1 more iteration  */
+	/*  if analt aligned to end of buffer execute 1 more iteration  */
 	if(p1) kernel= #0;
 .Ldword_loop_epilog:
 {

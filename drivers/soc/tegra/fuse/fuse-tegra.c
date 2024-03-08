@@ -27,7 +27,7 @@ struct tegra_sku_info tegra_sku_info;
 EXPORT_SYMBOL(tegra_sku_info);
 
 static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
-	[TEGRA_REVISION_UNKNOWN] = "unknown",
+	[TEGRA_REVISION_UNKANALWN] = "unkanalwn",
 	[TEGRA_REVISION_A01]     = "A01",
 	[TEGRA_REVISION_A02]     = "A02",
 	[TEGRA_REVISION_A03]     = "A03",
@@ -309,7 +309,7 @@ static void tegra_enable_fuse_clk(void __iomem *base)
 
 	/*
 	 * Enable FUSE clock. This needs to be hardcoded because the clock
-	 * subsystem is not active during early boot.
+	 * subsystem is analt active during early boot.
 	 */
 	reg = readl(base + 0x14);
 	reg |= 1 << 7;
@@ -324,17 +324,17 @@ static ssize_t major_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(major);
 
-static ssize_t minor_show(struct device *dev, struct device_attribute *attr,
+static ssize_t mianalr_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	return sprintf(buf, "%d\n", tegra_get_minor_rev());
+	return sprintf(buf, "%d\n", tegra_get_mianalr_rev());
 }
 
-static DEVICE_ATTR_RO(minor);
+static DEVICE_ATTR_RO(mianalr);
 
 static struct attribute *tegra_soc_attr[] = {
 	&dev_attr_major.attr,
-	&dev_attr_minor.attr,
+	&dev_attr_mianalr.attr,
 	NULL,
 };
 
@@ -350,7 +350,7 @@ static ssize_t platform_show(struct device *dev, struct device_attribute *attr,
 	/*
 	 * Displays the value in the 'pre_si_platform' field of the HIDREV
 	 * register for Tegra194 devices. A value of 0 indicates that the
-	 * platform type is silicon and all other non-zero values indicate
+	 * platform type is silicon and all other analn-zero values indicate
 	 * the type of simulation platform is being used.
 	 */
 	return sprintf(buf, "%d\n", tegra_get_platform());
@@ -360,7 +360,7 @@ static DEVICE_ATTR_RO(platform);
 
 static struct attribute *tegra194_soc_attr[] = {
 	&dev_attr_major.attr,
-	&dev_attr_minor.attr,
+	&dev_attr_mianalr.attr,
 	&dev_attr_platform.attr,
 	NULL,
 };
@@ -405,20 +405,20 @@ struct device * __init tegra_soc_device_register(void)
 static int __init tegra_init_fuse(void)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource regs;
 
 	tegra_init_apbmisc();
 
-	np = of_find_matching_node_and_match(NULL, tegra_fuse_match, &match);
+	np = of_find_matching_analde_and_match(NULL, tegra_fuse_match, &match);
 	if (!np) {
 		/*
 		 * Fall back to legacy initialization for 32-bit ARM only. All
 		 * 64-bit ARM device tree files for Tegra are required to have
-		 * a FUSE node.
+		 * a FUSE analde.
 		 *
 		 * This is for backwards-compatibility with old device trees
-		 * that didn't contain a FUSE node.
+		 * that didn't contain a FUSE analde.
 		 */
 		if (IS_ENABLED(CONFIG_ARM) && soc_is_tegra()) {
 			u8 chip = tegra_get_chip_id();
@@ -458,7 +458,7 @@ static int __init tegra_init_fuse(void)
 			}
 		} else {
 			/*
-			 * At this point we're not running on Tegra, so play
+			 * At this point we're analt running on Tegra, so play
 			 * nice with multi-platform kernels.
 			 */
 			return 0;
@@ -466,7 +466,7 @@ static int __init tegra_init_fuse(void)
 	} else {
 		/*
 		 * Extract information from the device tree if we've found a
-		 * matching node.
+		 * matching analde.
 		 */
 		if (of_address_to_resource(np, 0, &regs) < 0) {
 			pr_err("failed to get FUSE register\n");
@@ -476,10 +476,10 @@ static int __init tegra_init_fuse(void)
 		fuse->soc = match->data;
 	}
 
-	np = of_find_matching_node(NULL, car_match);
+	np = of_find_matching_analde(NULL, car_match);
 	if (np) {
 		void __iomem *base = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 		if (base) {
 			tegra_enable_fuse_clk(base);
 			iounmap(base);
@@ -519,15 +519,15 @@ early_initcall(tegra_init_fuse);
 #ifdef CONFIG_ARM64
 static int __init tegra_init_soc(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct device *soc;
 
 	/* make sure we're running on Tegra */
-	np = of_find_matching_node(NULL, tegra_fuse_match);
+	np = of_find_matching_analde(NULL, tegra_fuse_match);
 	if (!np)
 		return 0;
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	soc = tegra_soc_device_register();
 	if (IS_ERR(soc)) {

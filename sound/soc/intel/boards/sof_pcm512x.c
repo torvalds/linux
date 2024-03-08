@@ -76,7 +76,7 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* dai_link id is 1:1 mapped to the PCM device */
 	pcm->device = rtd->dai_link->id;
@@ -136,7 +136,7 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct sof_hdmi_pcm *pcm;
 
-	/* HDMI is not supported by SOF on Baytrail/CherryTrail */
+	/* HDMI is analt supported by SOF on Baytrail/CherryTrail */
 	if (is_legacy_cpu)
 		return 0;
 
@@ -252,7 +252,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	 */
 	if (sof_pcm512x_quirk & SOF_PCM512X_ENABLE_SSP_CAPTURE)
 		links[id].dpcm_capture = 1;
-	links[id].no_pcm = 1;
+	links[id].anal_pcm = 1;
 	links[id].cpus = &cpus[id];
 	links[id].num_cpus = 1;
 	if (is_legacy_cpu) {
@@ -293,9 +293,9 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].num_codecs = ARRAY_SIZE(dmic_component);
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
-		links[id].ignore_suspend = 1;
+		links[id].iganalre_suspend = 1;
 		links[id].dpcm_capture = 1;
-		links[id].no_pcm = 1;
+		links[id].anal_pcm = 1;
 		id++;
 	}
 
@@ -322,7 +322,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			goto devm_err;
 
 		/*
-		 * topology cannot be loaded if codec is missing, so
+		 * topology cananalt be loaded if codec is missing, so
 		 * use the dummy codec if needed
 		 */
 		if (idisp_codec) {
@@ -342,7 +342,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
 		links[id].init = sof_hdmi_init;
 		links[id].dpcm_playback = 1;
-		links[id].no_pcm = 1;
+		links[id].anal_pcm = 1;
 		id++;
 	}
 
@@ -361,7 +361,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdmi_num = 0;
 	if (soc_intel_is_byt() || soc_intel_is_cht()) {
@@ -395,7 +395,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 					      dmic_be_num, hdmi_num,
 					      ctx->idisp_codec);
 	if (!dai_links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sof_audio_card_pcm512x.dai_link = dai_links;
 

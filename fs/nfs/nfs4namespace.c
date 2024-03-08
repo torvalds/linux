@@ -29,7 +29,7 @@
 
 /*
  * Work out the length that an NFSv4 path would render to as a standard posix
- * path, with a leading slash but no terminating slash.
+ * path, with a leading slash but anal terminating slash.
  */
 static ssize_t nfs4_pathname_len(const struct nfs4_pathname *pathname)
 {
@@ -68,7 +68,7 @@ static char *nfs4_pathname_string(const struct nfs4_pathname *pathname,
 
 	p = buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < pathname->ncomponents; i++) {
 		const struct nfs4_string *component = &pathname->components[i];
@@ -113,7 +113,7 @@ static char *nfs4_path(struct dentry *dentry, char *buffer, ssize_t buflen)
 {
 	char *limit;
 	char *path = nfs_path(&limit, dentry, buffer, buflen,
-			      NFS_PATH_CANONICAL);
+			      NFS_PATH_CAANALNICAL);
 	if (!IS_ERR(path)) {
 		char *path_component = nfs_path_component(path, limit);
 		if (path_component)
@@ -138,7 +138,7 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 
 	buf = kmalloc(4096, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	path = nfs4_path(dentry, buf, 4096);
 	if (IS_ERR(path)) {
@@ -156,9 +156,9 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 	kfree(buf);
 	kfree(fs_path);
 	if (n != 0) {
-		dprintk("%s: path %s does not begin with fsroot %s\n",
+		dprintk("%s: path %s does analt begin with fsroot %s\n",
 			__func__, path, ctx->nfs_server.export_path);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -196,7 +196,7 @@ size_t nfs_parse_server_name(char *string, size_t len, struct sockaddr_storage *
  * recommendation and each flavor is checked for membership in the
  * sec= mount option list if it exists.
  *
- * Return -EPERM if no matching flavor is found in the array.
+ * Return -EPERM if anal matching flavor is found in the array.
  *
  * Please call rpc_shutdown_client() when you are done with this rpc client.
  *
@@ -252,13 +252,13 @@ static struct rpc_clnt *nfs_find_best_sec(struct rpc_clnt *clnt,
  * respect to the secinfo flavor list and the sec= mount options.
  *
  * @clnt: RPC client to clone
- * @inode: directory inode
+ * @ianalde: directory ianalde
  * @name: lookup name
  *
  * Please call rpc_shutdown_client() when you are done with this rpc client.
  */
 struct rpc_clnt *
-nfs4_negotiate_security(struct rpc_clnt *clnt, struct inode *inode,
+nfs4_negotiate_security(struct rpc_clnt *clnt, struct ianalde *ianalde,
 					const struct qstr *name)
 {
 	struct page *page;
@@ -268,17 +268,17 @@ nfs4_negotiate_security(struct rpc_clnt *clnt, struct inode *inode,
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	flavors = page_address(page);
 
-	err = nfs4_proc_secinfo(inode, name, flavors);
+	err = nfs4_proc_secinfo(ianalde, name, flavors);
 	if (err < 0) {
 		new = ERR_PTR(err);
 		goto out;
 	}
 
-	new = nfs_find_best_sec(clnt, NFS_SERVER(inode), flavors);
+	new = nfs_find_best_sec(clnt, NFS_SERVER(ianalde), flavors);
 
 out:
 	put_page(page);
@@ -291,10 +291,10 @@ static int try_location(struct fs_context *fc,
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	unsigned int len, s;
 	char *export_path, *source, *p;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
-	/* Allocate a buffer big enough to hold any of the hostnames plus a
-	 * terminating char and also a buffer big enough to hold the hostname
+	/* Allocate a buffer big eanalugh to hold any of the hostnames plus a
+	 * terminating char and also a buffer big eanalugh to hold the hostname
 	 * plus a colon plus the path.
 	 */
 	len = 0;
@@ -307,7 +307,7 @@ static int try_location(struct fs_context *fc,
 	kfree(ctx->nfs_server.hostname);
 	ctx->nfs_server.hostname = kmalloc(len + 1, GFP_KERNEL);
 	if (!ctx->nfs_server.hostname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	export_path = nfs4_pathname_string(&location->rootpath,
 					   &ctx->nfs_server.export_path_len);
@@ -320,7 +320,7 @@ static int try_location(struct fs_context *fc,
 	source = kmalloc(len + 1 + ctx->nfs_server.export_path_len + 1,
 			 GFP_KERNEL);
 	if (!source)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kfree(fc->source);
 	fc->source = source;
@@ -372,7 +372,7 @@ static int nfs_follow_referral(struct fs_context *fc,
 	int loc, error;
 
 	if (locations == NULL || locations->nlocations <= 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	dprintk("%s: referral at %pd2\n", __func__, ctx->clone_data.dentry);
 
@@ -381,7 +381,7 @@ static int nfs_follow_referral(struct fs_context *fc,
 	if (error < 0)
 		return error;
 
-	error = -ENOENT;
+	error = -EANALENT;
 	for (loc = 0; loc < locations->nlocations; loc++) {
 		const struct nfs4_fs_location *location = &locations->locations[loc];
 
@@ -408,12 +408,12 @@ static int nfs_do_refmount(struct fs_context *fc, struct rpc_clnt *client)
 	struct dentry *dentry, *parent;
 	struct nfs4_fs_locations *fs_locations = NULL;
 	struct page *page;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* BUG_ON(IS_ROOT(dentry)); */
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fs_locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
 	if (!fs_locations)
@@ -428,12 +428,12 @@ static int nfs_do_refmount(struct fs_context *fc, struct rpc_clnt *client)
 	dprintk("%s: getting locations for %pd2\n",
 		__func__, dentry);
 
-	err = nfs4_proc_fs_locations(client, d_inode(parent), &dentry->d_name, fs_locations, page);
+	err = nfs4_proc_fs_locations(client, d_ianalde(parent), &dentry->d_name, fs_locations, page);
 	dput(parent);
 	if (err != 0)
 		goto out_free_3;
 
-	err = -ENOENT;
+	err = -EANALENT;
 	if (fs_locations->nlocations <= 0 ||
 	    fs_locations->fs_path.ncomponents <= 0)
 		goto out_free_3;
@@ -453,7 +453,7 @@ int nfs4_submount(struct fs_context *fc, struct nfs_server *server)
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct dentry *dentry = ctx->clone_data.dentry;
 	struct dentry *parent = dget_parent(dentry);
-	struct inode *dir = d_inode(parent);
+	struct ianalde *dir = d_ianalde(parent);
 	struct rpc_clnt *client;
 	int ret;
 
@@ -478,7 +478,7 @@ int nfs4_submount(struct fs_context *fc, struct nfs_server *server)
 /*
  * Try one location from the fs_locations array.
  *
- * Returns zero on success, or a negative errno value.
+ * Returns zero on success, or a negative erranal value.
  */
 static int nfs4_try_replacing_one_location(struct nfs_server *server,
 		char *page, char *page2,
@@ -492,9 +492,9 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 
 	sap = kmalloc(sizeof(*sap), GFP_KERNEL);
 	if (sap == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	error = -ENOENT;
+	error = -EANALENT;
 	for (s = 0; s < location->nservers; s++) {
 		const struct nfs4_string *buf = &location->servers[s];
 		char *hostname;
@@ -511,7 +511,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 			continue;
 		rpc_set_port((struct sockaddr *)sap, NFS_PORT);
 
-		error = -ENOMEM;
+		error = -EANALMEM;
 		hostname = kmemdup_nul(buf->data, buf->len, GFP_KERNEL);
 		if (hostname == NULL)
 			break;
@@ -532,7 +532,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
  * @server: export being migrated
  * @locations: fs_locations array
  *
- * Returns zero on success, or a negative errno value.
+ * Returns zero on success, or a negative erranal value.
  *
  * The client tries all the entries in the "locations" array, in the
  * order returned by the server, until one works or the end of the
@@ -544,11 +544,11 @@ int nfs4_replace_transport(struct nfs_server *server,
 	char *page = NULL, *page2 = NULL;
 	int loc, error;
 
-	error = -ENOENT;
+	error = -EANALENT;
 	if (locations == NULL || locations->nlocations <= 0)
 		goto out;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	page = (char *) __get_free_page(GFP_USER);
 	if (!page)
 		goto out;

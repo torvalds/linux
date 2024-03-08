@@ -11,7 +11,7 @@ This is a description of the messages to be passed between the X.25 Packet
 Layer and the X.25 device driver. They are designed to allow for the easy
 setting of the LAPB mode from within the Packet Layer.
 
-The X.25 device driver will be coded normally as per the Linux device driver
+The X.25 device driver will be coded analrmally as per the Linux device driver
 standards. Most X.25 device drivers will be moderately similar to the
 already existing Ethernet device drivers. However unlike those drivers, the
 X.25 device driver has a state associated with it, and this information
@@ -72,10 +72,10 @@ LAPB parameters. To be defined.
 Requirements for the device driver
 ----------------------------------
 
-Packets should not be reordered or dropped when delivering between the
+Packets should analt be reordered or dropped when delivering between the
 Packet Layer and the device driver.
 
 To avoid packets from being reordered or dropped when delivering from
-the device driver to the Packet Layer, the device driver should not
+the device driver to the Packet Layer, the device driver should analt
 call "netif_rx" to deliver the received packets. Instead, it should
 call "netif_receive_skb_core" from softirq context to deliver them.

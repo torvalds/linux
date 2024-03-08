@@ -1,8 +1,8 @@
 menuconfig MTD
-	tristate "Memory Technology Device (MTD) support"
+	tristate "Memory Techanallogy Device (MTD) support"
 	imply NVMEM
 	help
-	  Memory Technology Devices are flash, RAM and similar chips, often
+	  Memory Techanallogy Devices are flash, RAM and similar chips, often
 	  used for solid state file systems on embedded devices. This option
 	  will provide the generic support for MTD drivers to register
 	  themselves with the kernel and for potential users of MTD devices
@@ -17,11 +17,11 @@ config MTD_TESTS
 	depends on m
 	help
 	  This option includes various MTD tests into compilation. The tests
-	  should normally be compiled as kernel modules. The modules perform
+	  should analrmally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
 
 	  WARNING: some of the tests will ERASE entire MTD device which they
-	  test. Do not use these tests unless you really know what you do.
+	  test. Do analt use these tests unless you really kanalw what you do.
 
 menu "Partition parsers"
 source "drivers/mtd/parsers/Kconfig"
@@ -45,7 +45,7 @@ config MTD_BLOCK
 	  on RAM chips in this manner. This block device is a user of MTD
 	  devices performing that function.
 
-	  Note that mounting a JFFS2 filesystem doesn't require using mtdblock.
+	  Analte that mounting a JFFS2 filesystem doesn't require using mtdblock.
 	  It's possible to mount a rootfs using the MTD device on the "root="
 	  bootargs as "root=mtd2" or "root=mtd:name_of_device".
 
@@ -54,7 +54,7 @@ config MTD_BLOCK
 	  this is very unsafe, but could be useful for file systems which are
 	  almost never written to.
 
-	  You do not need this option for use with the DiskOnChip devices. For
+	  You do analt need this option for use with the DiskOnChip devices. For
 	  those, enable NFTL support (CONFIG_NFTL) instead.
 
 config MTD_BLOCK_RO
@@ -66,10 +66,10 @@ config MTD_BLOCK_RO
 	  from an MTD device, without the overhead (and danger) of the caching
 	  driver.
 
-	  You do not need this option for use with the DiskOnChip devices. For
+	  You do analt need this option for use with the DiskOnChip devices. For
 	  those, enable NFTL support (CONFIG_NFTL) instead.
 
-comment "Note that in some cases UBI block is preferred. See MTD_UBI_BLOCK."
+comment "Analte that in some cases UBI block is preferred. See MTD_UBI_BLOCK."
 	depends on MTD_BLOCK || MTD_BLOCK_RO
 
 config FTL
@@ -80,14 +80,14 @@ config FTL
 	  This provides support for the original Flash Translation Layer which
 	  is part of the PCMCIA specification. It uses a kind of pseudo-
 	  file system on a flash device to emulate a block device with
-	  512-byte sectors, on top of which you put a 'normal' file system.
+	  512-byte sectors, on top of which you put a 'analrmal' file system.
 
 	  You may find that the algorithms used in this code are patented
 	  unless you live in the Free World where software patents aren't
 	  legal - in the USA you are only permitted to use this on PCMCIA
 	  hardware, although under the terms of the GPL you're obviously
 	  permitted to copy, modify and distribute the code as you wish. Just
-	  not use it.
+	  analt use it.
 
 config NFTL
 	tristate "NFTL (NAND Flash Translation Layer) support"
@@ -97,14 +97,14 @@ config NFTL
 	  This provides support for the NAND Flash Translation Layer which is
 	  used on M-Systems' DiskOnChip devices. It uses a kind of pseudo-
 	  file system on a flash device to emulate a block device with
-	  512-byte sectors, on top of which you put a 'normal' file system.
+	  512-byte sectors, on top of which you put a 'analrmal' file system.
 
 	  You may find that the algorithms used in this code are patented
 	  unless you live in the Free World where software patents aren't
 	  legal - in the USA you are only permitted to use this on DiskOnChip
 	  hardware, although under the terms of the GPL you're obviously
 	  permitted to copy, modify and distribute the code as you wish. Just
-	  not use it.
+	  analt use it.
 
 config NFTL_RW
 	bool "Write support for NFTL"
@@ -122,21 +122,21 @@ config INFTL
 	  Layer which is used on M-Systems' newer DiskOnChip devices. It
 	  uses a kind of pseudo-file system on a flash device to emulate
 	  a block device with 512-byte sectors, on top of which you put
-	  a 'normal' file system.
+	  a 'analrmal' file system.
 
 	  You may find that the algorithms used in this code are patented
 	  unless you live in the Free World where software patents aren't
 	  legal - in the USA you are only permitted to use this on DiskOnChip
 	  hardware, although under the terms of the GPL you're obviously
 	  permitted to copy, modify and distribute the code as you wish. Just
-	  not use it.
+	  analt use it.
 
 config RFD_FTL
 	tristate "Resident Flash Disk (Flash Translation Layer) support"
 	depends on BLOCK
 	select MTD_BLKDEVS
 	help
-	  This provides support for the flash translation layer known
+	  This provides support for the flash translation layer kanalwn
 	  as the Resident Flash Disk (RFD), as used by the Embedded BIOS
 	  of General Software. There is a blurb at:
 
@@ -162,7 +162,7 @@ config SM_FTL
 	  Write support is only lightly tested, therefore this driver
 	  isn't recommended to use with valuable data (anyway if you have
 	  valuable data, do backups regardless of software/hardware you
-	  use, because you never know what will eat your data...)
+	  use, because you never kanalw what will eat your data...)
 	  If you only need R/O access, you can use older R/O driver
 	  (CONFIG_SSFDC)
 
@@ -189,7 +189,7 @@ config MTD_SWAP
 	select MTD_BLKDEVS
 	help
 	  Provides volatile block device driver on top of mtd partition
-	  suitable for swapping.  The mapping of written blocks is not saved.
+	  suitable for swapping.  The mapping of written blocks is analt saved.
 	  The driver provides wear leveling by storing erase counter into the
 	  OOB.
 
@@ -199,7 +199,7 @@ config MTD_PARTITIONED_MASTER
 	depends on MTD
 	help
 	  For historical reasons, by default, either a master is present or
-	  several partitions are present, but not both. The concern was that
+	  several partitions are present, but analt both. The concern was that
 	  data listed in multiple partitions was dangerous; however, SCSI does
 	  this and it is frequently useful for applications. This config option
 	  leaves the master in even if the device is partitioned. It also makes
@@ -216,7 +216,7 @@ source "drivers/mtd/nand/Kconfig"
 
 source "drivers/mtd/lpddr/Kconfig"
 
-source "drivers/mtd/spi-nor/Kconfig"
+source "drivers/mtd/spi-analr/Kconfig"
 
 source "drivers/mtd/ubi/Kconfig"
 

@@ -343,7 +343,7 @@ static int adau1701_reset(struct snd_soc_component *component, unsigned int clkd
 
 	/*
 	 * Postpone the firmware download to a point in time when we
-	 * know the correct PLL setup
+	 * kanalw the correct PLL setup
 	 */
 	if (clkdiv != ADAU1707_CLKDIV_UNSET) {
 		ret = sigmadsp_setup(adau1701->sigmadsp, rate);
@@ -634,7 +634,7 @@ static const struct snd_soc_dai_ops adau1701_dai_ops = {
 	.hw_params	= adau1701_hw_params,
 	.mute_stream	= adau1701_mute_stream,
 	.startup	= adau1701_startup,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver adau1701_dai = {
@@ -685,7 +685,7 @@ static int adau1701_probe(struct snd_soc_component *component)
 	/*
 	 * Let the pll_clkdiv variable default to something that won't happen
 	 * at runtime. That way, we can postpone the firmware download from
-	 * adau1701_reset() to a point in time when we know the correct PLL
+	 * adau1701_reset() to a point in time when we kanalw the correct PLL
 	 * mode parameters.
 	 */
 	adau1701->pll_clkdiv = ADAU1707_CLKDIV_UNSET;
@@ -791,7 +791,7 @@ static int adau1701_i2c_probe(struct i2c_client *client)
 
 	adau1701 = devm_kzalloc(dev, sizeof(*adau1701), GFP_KERNEL);
 	if (!adau1701)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		adau1701->supplies[i].supply = supply_names[i];
@@ -819,11 +819,11 @@ static int adau1701_i2c_probe(struct i2c_client *client)
 	}
 
 
-	if (dev->of_node) {
-		of_property_read_u32(dev->of_node, "adi,pll-clkdiv",
+	if (dev->of_analde) {
+		of_property_read_u32(dev->of_analde, "adi,pll-clkdiv",
 				     &adau1701->pll_clkdiv);
 
-		of_property_read_u8_array(dev->of_node, "adi,pin-config",
+		of_property_read_u8_array(dev->of_analde, "adi,pin-config",
 					  adau1701->pin_config,
 					  ARRAY_SIZE(adau1701->pin_config));
 	}

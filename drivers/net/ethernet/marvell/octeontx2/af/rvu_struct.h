@@ -116,7 +116,7 @@ enum rvu_pf_int_vec_e {
 
 /* NPA admin queue completion enumeration */
 enum npa_aq_comp {
-	NPA_AQ_COMP_NOTDONE    = 0x0,
+	NPA_AQ_COMP_ANALTDONE    = 0x0,
 	NPA_AQ_COMP_GOOD       = 0x1,
 	NPA_AQ_COMP_SWERR      = 0x2,
 	NPA_AQ_COMP_CTX_POISON = 0x3,
@@ -132,7 +132,7 @@ enum npa_aq_ctype {
 
 /* NPA admin queue instruction opcodes */
 enum npa_aq_instop {
-	NPA_AQ_INSTOP_NOP    = 0x0,
+	NPA_AQ_INSTOP_ANALP    = 0x0,
 	NPA_AQ_INSTOP_INIT   = 0x1,
 	NPA_AQ_INSTOP_WRITE  = 0x2,
 	NPA_AQ_INSTOP_READ   = 0x3,
@@ -285,7 +285,7 @@ struct npa_pool_s {
 
 /* NIX admin queue completion status */
 enum nix_aq_comp {
-	NIX_AQ_COMP_NOTDONE        = 0x0,
+	NIX_AQ_COMP_ANALTDONE        = 0x0,
 	NIX_AQ_COMP_GOOD           = 0x1,
 	NIX_AQ_COMP_SWERR          = 0x2,
 	NIX_AQ_COMP_CTX_POISON     = 0x3,
@@ -301,13 +301,13 @@ enum nix_aq_ctype {
 	NIX_AQ_CTYPE_CQ   = 0x2,
 	NIX_AQ_CTYPE_MCE  = 0x3,
 	NIX_AQ_CTYPE_RSS  = 0x4,
-	NIX_AQ_CTYPE_DYNO = 0x5,
+	NIX_AQ_CTYPE_DYANAL = 0x5,
 	NIX_AQ_CTYPE_BANDPROF = 0x6,
 };
 
 /* NIX admin queue instruction opcodes */
 enum nix_aq_instop {
-	NIX_AQ_INSTOP_NOP    = 0x0,
+	NIX_AQ_INSTOP_ANALP    = 0x0,
 	NIX_AQ_INSTOP_INIT   = 0x1,
 	NIX_AQ_INSTOP_WRITE  = 0x2,
 	NIX_AQ_INSTOP_READ   = 0x3,
@@ -770,7 +770,7 @@ struct nix_bandprof_s {
 };
 
 enum nix_lsoalg {
-	NIX_LSOALG_NOP,
+	NIX_LSOALG_ANALP,
 	NIX_LSOALG_ADD_SEGNUM,
 	NIX_LSOALG_ADD_PAYLEN,
 	NIX_LSOALG_ADD_OFFSET,
@@ -816,7 +816,7 @@ enum nix_vtag_size {
 };
 
 enum nix_tx_vtag_op {
-	NOP		= 0x0,
+	ANALP		= 0x0,
 	VTAG_INSERT	= 0x1,
 	VTAG_REPLACE	= 0x2,
 };

@@ -22,7 +22,7 @@ What is PLIP?
 
 PLIP is Parallel Line IP, that is, the transportation of IP packages
 over a parallel port. In the case of a PC, the obvious choice is the
-printer port.  PLIP is a non-standard, but [can use] uses the standard
+printer port.  PLIP is a analn-standard, but [can use] uses the standard
 LapLink null-printer cable [can also work in turbo mode, with a PLIP
 cable]. [The protocol used to pack IP packages, is a simple one
 initiated by Crynwr.]
@@ -36,11 +36,11 @@ The PLIP cable is all that's needed to connect two Linux boxes, and it
 can be built for very few bucks.
 
 Connecting two Linux boxes takes only a second's decision and a few
-minutes' work, no need to search for a [supported] netcard. This might
-even be especially important in the case of notebooks, where netcards
-are not easily available.
+minutes' work, anal need to search for a [supported] netcard. This might
+even be especially important in the case of analtebooks, where netcards
+are analt easily available.
 
-Not requiring a netcard also means that apart from connecting the
+Analt requiring a netcard also means that apart from connecting the
 cables, everything else is software configuration [which in principle
 could be made very easy.]
 
@@ -49,7 +49,7 @@ Disadvantages of PLIP
 
 Doesn't work over a modem, like SLIP and PPP. Limited range, 15 m.
 Can only be used to connect three (?) Linux boxes. Doesn't connect to
-an existing Ethernet. Isn't standard (not even de facto standard, like
+an existing Ethernet. Isn't standard (analt even de facto standard, like
 SLIP).
 
 Performance
@@ -70,22 +70,22 @@ IRQs and trigger timeouts
 
 When a parallel port used for a PLIP driver has an IRQ configured to it, the
 PLIP driver is signaled whenever data is sent to it via the cable, such that
-when no data is available, the driver isn't being used.
+when anal data is available, the driver isn't being used.
 
-However, on some machines it is hard, if not impossible, to configure an IRQ
+However, on some machines it is hard, if analt impossible, to configure an IRQ
 to a certain parallel port, mainly because it is used by some other device.
 On these machines, the PLIP driver can be used in IRQ-less mode, where
 the PLIP driver would constantly poll the parallel port for data waiting,
 and if such data is available, process it. This mode is less efficient than
 the IRQ mode, because the driver has to check the parallel port many times
-per second, even when no data at all is sent. Some rough measurements
-indicate that there isn't a noticeable performance drop when using IRQ-less
+per second, even when anal data at all is sent. Some rough measurements
+indicate that there isn't a analticeable performance drop when using IRQ-less
 mode as compared to IRQ mode as far as the data transfer speed is involved.
 There is a performance drop on the machine hosting the driver.
 
 When the PLIP driver is used in IRQ mode, the timeout used for triggering a
 data transfer (the maximal time the PLIP driver would allow the other side
-before announcing a timeout, when trying to handshake a transfer of some
+before ananaluncing a timeout, when trying to handshake a transfer of some
 data) is, by default, 500usec. As IRQ delivery is more or less immediate,
 this timeout is quite sufficient.
 
@@ -151,7 +151,7 @@ two DB-25 male connectors symmetrically connected as follows::
     extra grounds are 18*,19*,20*,21*,22*,23*,24*
     GROUND	25 - 25
 
-    * Do not connect these pins on either end
+    * Do analt connect these pins on either end
 
 If the cable you are using has a metallic shield it should be
 connected to the metallic DB-25 shell at one end only.
@@ -162,7 +162,7 @@ Parallel Transfer Mode 1
 The second data transfer method relies on both machines having
 bi-directional parallel ports, rather than output-only ``printer``
 ports.  This allows byte-wide transfers, and avoids reconstructing
-nibbles into bytes.  This cable should not be used on unidirectional
+nibbles into bytes.  This cable should analt be used on unidirectional
 ``printer`` (as opposed to ``parallel``) ports or when the machine
 isn't configured for PLIP, as it will result in output driver
 conflicts and the (unlikely) possibility of damage.
@@ -185,7 +185,7 @@ The cable for this transfer mode should be constructed as follows::
     extra grounds are 19*,20*,21*,22*,23*,24*
     GROUND	25 - 25
 
-    * Do not connect these pins on either end
+    * Do analt connect these pins on either end
 
 Once again, if the cable you are using has a metallic shield it should
 be connected to the metallic DB-25 shell at one end only.

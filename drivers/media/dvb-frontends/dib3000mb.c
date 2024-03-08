@@ -9,7 +9,7 @@
  *
  * Copyright (C) 2004 Amaury Demol for DiBcom
  *
- * Acknowledgements
+ * Ackanalwledgements
  *
  *  Amaury Demol from DiBcom for providing specs and driver
  *  sources, on which this driver (and the dvb-dibusb) are based.
@@ -87,7 +87,7 @@ static int dib3000_search_status(u16 irq,u16 lock)
 			deb_srch("auto search succeeded\n");
 			return 1; // auto search succeeded
 		} else {
-			deb_srch("auto search not successful\n");
+			deb_srch("auto search analt successful\n");
 			return 0; // auto search failed
 		}
 	} else if (irq & 0x01)  {
@@ -117,7 +117,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 {
 	struct dib3000_state* state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	enum fe_code_rate fe_cr = FEC_NONE;
+	enum fe_code_rate fe_cr = FEC_ANALNE;
 	int search_state, seq;
 
 	if (tuner && fe->ops.tuner_ops.set_params) {
@@ -138,9 +138,9 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 				wr_foreach(dib3000mb_reg_bandwidth, dib3000mb_bandwidth_6mhz);
 				break;
 			case 0:
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			default:
-				pr_err("unknown bandwidth value.\n");
+				pr_err("unkanalwn bandwidth value.\n");
 				return -EINVAL;
 		}
 		deb_setf("bandwidth: %d MHZ\n", c->bandwidth_hz / 1000000);
@@ -222,8 +222,8 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 			return -EINVAL;
 	}
 	switch (c->hierarchy) {
-		case HIERARCHY_NONE:
-			deb_setf("hierarchy: none\n");
+		case HIERARCHY_ANALNE:
+			deb_setf("hierarchy: analne\n");
 			fallthrough;
 		case HIERARCHY_1:
 			deb_setf("hierarchy: alpha=1\n");
@@ -244,7 +244,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 			return -EINVAL;
 	}
 
-	if (c->hierarchy == HIERARCHY_NONE) {
+	if (c->hierarchy == HIERARCHY_ANALNE) {
 		wr(DIB3000MB_REG_VIT_HRCH, DIB3000_HRCH_OFF);
 		wr(DIB3000MB_REG_VIT_HP, DIB3000_SELECT_HP);
 		fe_cr = c->code_rate_HP;
@@ -274,8 +274,8 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 			deb_setf("fec: 7_8\n");
 			wr(DIB3000MB_REG_VIT_CODE_RATE, DIB3000_FEC_7_8);
 			break;
-		case FEC_NONE:
-			deb_setf("fec: none\n");
+		case FEC_ANALNE:
+			deb_setf("fec: analne\n");
 			break;
 		case FEC_AUTO:
 			deb_setf("fec: auto\n");
@@ -382,14 +382,14 @@ static int dib3000mb_fe_init(struct dvb_frontend* fe, int mobile_mode)
 
 	wr_foreach(dib3000mb_reg_timing_freq, dib3000mb_timing_freq[2]);
 
-	wr_foreach(dib3000mb_reg_impulse_noise,
-			dib3000mb_impulse_noise_values[DIB3000MB_IMPNOISE_OFF]);
+	wr_foreach(dib3000mb_reg_impulse_analise,
+			dib3000mb_impulse_analise_values[DIB3000MB_IMPANALISE_OFF]);
 
 	wr_foreach(dib3000mb_reg_agc_gain, dib3000mb_default_agc_gain);
 
-	wr(DIB3000MB_REG_PHASE_NOISE, DIB3000MB_PHASE_NOISE_DEFAULT);
+	wr(DIB3000MB_REG_PHASE_ANALISE, DIB3000MB_PHASE_ANALISE_DEFAULT);
 
-	wr_foreach(dib3000mb_reg_phase_noise, dib3000mb_default_noise_phase);
+	wr_foreach(dib3000mb_reg_phase_analise, dib3000mb_default_analise_phase);
 
 	wr_foreach(dib3000mb_reg_lock_duration, dib3000mb_default_lock_duration);
 
@@ -497,11 +497,11 @@ static int dib3000mb_get_frontend(struct dvb_frontend* fe,
 	if (rd(DIB3000MB_REG_TPS_HRCH)) {
 		deb_getf("HRCH ON\n");
 		cr = &c->code_rate_LP;
-		c->code_rate_HP = FEC_NONE;
+		c->code_rate_HP = FEC_ANALNE;
 		switch ((tps_val = rd(DIB3000MB_REG_TPS_VIT_ALPHA))) {
 			case DIB3000_ALPHA_0:
-				deb_getf("HIERARCHY_NONE\n");
-				c->hierarchy = HIERARCHY_NONE;
+				deb_getf("HIERARCHY_ANALNE\n");
+				c->hierarchy = HIERARCHY_ANALNE;
 				break;
 			case DIB3000_ALPHA_1:
 				deb_getf("HIERARCHY_1\n");
@@ -525,8 +525,8 @@ static int dib3000mb_get_frontend(struct dvb_frontend* fe,
 	} else {
 		deb_getf("HRCH OFF\n");
 		cr = &c->code_rate_HP;
-		c->code_rate_LP = FEC_NONE;
-		c->hierarchy = HIERARCHY_NONE;
+		c->code_rate_LP = FEC_ANALNE;
+		c->hierarchy = HIERARCHY_ANALNE;
 
 		tps_val = rd(DIB3000MB_REG_TPS_CODE_RATE_HP);
 	}
@@ -653,8 +653,8 @@ static int dib3000mb_read_snr(struct dvb_frontend* fe, u16 *snr)
 {
 	struct dib3000_state* state = fe->demodulator_priv;
 	short sigpow = rd(DIB3000MB_REG_SIGNAL_POWER);
-	int icipow = ((rd(DIB3000MB_REG_NOISE_POWER_MSB) & 0xff) << 16) |
-		rd(DIB3000MB_REG_NOISE_POWER_LSB);
+	int icipow = ((rd(DIB3000MB_REG_ANALISE_POWER_MSB) & 0xff) << 16) |
+		rd(DIB3000MB_REG_ANALISE_POWER_LSB);
 	*snr = (sigpow << 8) / ((icipow > 0) ? icipow : 1);
 	return 0;
 }
@@ -681,7 +681,7 @@ static int dib3000mb_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_fr
 	return 0;
 }
 
-static int dib3000mb_fe_init_nonmobile(struct dvb_frontend* fe)
+static int dib3000mb_fe_init_analnmobile(struct dvb_frontend* fe)
 {
 	return dib3000mb_fe_init(fe, 0);
 }
@@ -698,20 +698,20 @@ static void dib3000mb_release(struct dvb_frontend* fe)
 }
 
 /* pid filter and transfer stuff */
-static int dib3000mb_pid_control(struct dvb_frontend *fe,int index, int pid,int onoff)
+static int dib3000mb_pid_control(struct dvb_frontend *fe,int index, int pid,int oanalff)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
-	pid = (onoff ? pid | DIB3000_ACTIVATE_PID_FILTERING : 0);
+	pid = (oanalff ? pid | DIB3000_ACTIVATE_PID_FILTERING : 0);
 	wr(index+DIB3000MB_REG_FIRST_PID,pid);
 	return 0;
 }
 
-static int dib3000mb_fifo_control(struct dvb_frontend *fe, int onoff)
+static int dib3000mb_fifo_control(struct dvb_frontend *fe, int oanalff)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
 
-	deb_xfer("%s fifo\n",onoff ? "enabling" : "disabling");
-	if (onoff) {
+	deb_xfer("%s fifo\n",oanalff ? "enabling" : "disabling");
+	if (oanalff) {
 		wr(DIB3000MB_REG_FIFO, DIB3000MB_FIFO_ACTIVATE);
 	} else {
 		wr(DIB3000MB_REG_FIFO, DIB3000MB_FIFO_INHIBIT);
@@ -719,18 +719,18 @@ static int dib3000mb_fifo_control(struct dvb_frontend *fe, int onoff)
 	return 0;
 }
 
-static int dib3000mb_pid_parse(struct dvb_frontend *fe, int onoff)
+static int dib3000mb_pid_parse(struct dvb_frontend *fe, int oanalff)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
-	deb_xfer("%s pid parsing\n",onoff ? "enabling" : "disabling");
-	wr(DIB3000MB_REG_PID_PARSE,onoff);
+	deb_xfer("%s pid parsing\n",oanalff ? "enabling" : "disabling");
+	wr(DIB3000MB_REG_PID_PARSE,oanalff);
 	return 0;
 }
 
-static int dib3000mb_tuner_pass_ctrl(struct dvb_frontend *fe, int onoff, u8 pll_addr)
+static int dib3000mb_tuner_pass_ctrl(struct dvb_frontend *fe, int oanalff, u8 pll_addr)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
-	if (onoff) {
+	if (oanalff) {
 		wr(DIB3000MB_REG_TUNER, DIB3000_TUNER_WRITE_ENABLE(pll_addr));
 	} else {
 		wr(DIB3000MB_REG_TUNER, DIB3000_TUNER_WRITE_DISABLE(pll_addr));
@@ -797,7 +797,7 @@ static const struct dvb_frontend_ops dib3000mb_ops = {
 
 	.release = dib3000mb_release,
 
-	.init = dib3000mb_fe_init_nonmobile,
+	.init = dib3000mb_fe_init_analnmobile,
 	.sleep = dib3000mb_sleep,
 
 	.set_frontend = dib3000mb_set_frontend_and_tuner,

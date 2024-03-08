@@ -93,7 +93,7 @@ void mcde_display_irq(struct mcde *mcde)
 		u32 val;
 
 		/*
-		 * In oneshot mode we do not send continuous updates
+		 * In oneshot mode we do analt send continuous updates
 		 * to the display, instead we only push out updates when
 		 * the update function is called, then we disable the
 		 * flow on the channel once we get the TE IRQ.
@@ -169,12 +169,12 @@ static int mcde_display_check(struct drm_simple_display_pipe *pipe,
 
 		/* FB base address must be dword aligned. */
 		if (offset & 3) {
-			DRM_DEBUG_KMS("FB not 32-bit aligned\n");
+			DRM_DEBUG_KMS("FB analt 32-bit aligned\n");
 			return -EINVAL;
 		}
 
 		/*
-		 * There's no pitch register, the mode's hdisplay
+		 * There's anal pitch register, the mode's hdisplay
 		 * controls this.
 		 */
 		if (fb->pitches[0] != mode->hdisplay * fb->format->cpp[0]) {
@@ -321,7 +321,7 @@ static int mcde_configure_extsrc(struct mcde *mcde, enum mcde_extsrc src,
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
 		break;
 	default:
-		dev_err(mcde->dev, "Unknown pixel format 0x%08x\n",
+		dev_err(mcde->dev, "Unkanalwn pixel format 0x%08x\n",
 			format);
 		return -EINVAL;
 	}
@@ -417,7 +417,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 	case DRM_FORMAT_ABGR4444:
 	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_XBGR1555:
-		/* No OPQ */
+		/* Anal OPQ */
 		break;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -429,7 +429,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 		val |= MCDE_OVLXCONF2_OPQ;
 		break;
 	default:
-		dev_err(mcde->dev, "Unknown pixel format 0x%08x\n",
+		dev_err(mcde->dev, "Unkanalwn pixel format 0x%08x\n",
 			format);
 		break;
 	}
@@ -464,7 +464,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 
 	/* Number of bytes to fetch per line */
 	writel(mcde->stride, mcde->regs + ljinc);
-	/* No cropping */
+	/* Anal cropping */
 	writel(0, mcde->regs + crop);
 
 	/* Set up overlay control register */
@@ -474,7 +474,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 		MCDE_OVLXCR_BURSTSIZE_SHIFT;
 	val |= MCDE_OVLXCR_MAXOUTSTANDING_8_REQ <<
 		MCDE_OVLXCR_MAXOUTSTANDING_SHIFT;
-	/* Not using rotation but set it up anyways */
+	/* Analt using rotation but set it up anyways */
 	val |= MCDE_OVLXCR_ROTBURSTSIZE_8W <<
 		MCDE_OVLXCR_ROTBURSTSIZE_SHIFT;
 	writel(val, mcde->regs + cr);
@@ -568,7 +568,7 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
 		break;
 	default:
-		dev_err(mcde->dev, "unknown flow mode %d\n",
+		dev_err(mcde->dev, "unkanalwn flow mode %d\n",
 			mcde->flow_mode);
 		return;
 	}
@@ -581,7 +581,7 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 	writel(val, mcde->regs + conf);
 
 	/*
-	 * Normalize color conversion:
+	 * Analrmalize color conversion:
 	 * black background, OLED conversion disable on channel
 	 */
 	val = MCDE_CHNLXSTAT_CHNLBLBCKGND_EN |
@@ -603,7 +603,7 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 
 	/*
 	 * If using DPI configure the sync event.
-	 * TODO: this is for LCD only, it does not cover TV out.
+	 * TODO: this is for LCD only, it does analt cover TV out.
 	 */
 	if (mcde->dpi_output) {
 		u32 stripwidth;
@@ -709,9 +709,9 @@ static void mcde_configure_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 		struct drm_connector *connector = drm_panel_bridge_connector(mcde->bridge);
 		u32 bus_format;
 
-		/* Assume RGB888 24 bit if we have no further info */
+		/* Assume RGB888 24 bit if we have anal further info */
 		if (!connector->display_info.num_bus_formats) {
-			dev_info(mcde->dev, "panel does not specify bus format, assume RGB888\n");
+			dev_info(mcde->dev, "panel does analt specify bus format, assume RGB888\n");
 			bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		} else {
 			bus_format = connector->display_info.bus_formats[0];
@@ -720,7 +720,7 @@ static void mcde_configure_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 		/*
 		 * Set up the CDWIN and OUTBPP for the LCD
 		 *
-		 * FIXME: fill this in if you know the correspondance between the MIPI
+		 * FIXME: fill this in if you kanalw the correspondance between the MIPI
 		 * DPI specification and the media bus formats.
 		 */
 		val &= ~MCDE_CRX1_CDWIN_MASK;
@@ -731,7 +731,7 @@ static void mcde_configure_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 			val |= MCDE_CRX1_OUTBPP_24BPP << MCDE_CRX1_OUTBPP_SHIFT;
 			break;
 		default:
-			dev_err(mcde->dev, "unknown bus format, assume RGB888\n");
+			dev_err(mcde->dev, "unkanalwn bus format, assume RGB888\n");
 			val |= MCDE_CRX1_CDWIN_24BPP << MCDE_CRX1_CDWIN_SHIFT;
 			val |= MCDE_CRX1_OUTBPP_24BPP << MCDE_CRX1_OUTBPP_SHIFT;
 			break;
@@ -787,15 +787,15 @@ static void mcde_configure_dsi_formatter(struct mcde *mcde,
 		delay1 = MCDE_DSIVID2DELAY1;
 		break;
 	default:
-		dev_err(mcde->dev, "tried to configure a non-DSI formatter as DSI\n");
+		dev_err(mcde->dev, "tried to configure a analn-DSI formatter as DSI\n");
 		return;
 	}
 
 	/*
 	 * Enable formatter
-	 * 8 bit commands and DCS commands (notgen = not generic)
+	 * 8 bit commands and DCS commands (analtgen = analt generic)
 	 */
-	val = MCDE_DSICONF0_CMD8 | MCDE_DSICONF0_DCSVID_NOTGEN;
+	val = MCDE_DSICONF0_CMD8 | MCDE_DSICONF0_DCSVID_ANALTGEN;
 	if (mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO)
 		val |= MCDE_DSICONF0_VID_MODE_VID;
 	switch (mcde->mdsi->format) {
@@ -809,7 +809,7 @@ static void mcde_configure_dsi_formatter(struct mcde *mcde,
 		break;
 	case MIPI_DSI_FMT_RGB666_PACKED:
 		dev_err(mcde->dev,
-			"we cannot handle the packed RGB666 format\n");
+			"we cananalt handle the packed RGB666 format\n");
 		val |= MCDE_DSICONF0_PACKING_RGB666 <<
 			MCDE_DSICONF0_PACKING_SHIFT;
 		break;
@@ -818,7 +818,7 @@ static void mcde_configure_dsi_formatter(struct mcde *mcde,
 			MCDE_DSICONF0_PACKING_SHIFT;
 		break;
 	default:
-		dev_err(mcde->dev, "unknown DSI format\n");
+		dev_err(mcde->dev, "unkanalwn DSI format\n");
 		return;
 	}
 	writel(val, mcde->regs + conf0);
@@ -854,7 +854,7 @@ static void mcde_enable_fifo(struct mcde *mcde, enum mcde_fifo fifo)
 		cr = MCDE_CRB0;
 		break;
 	default:
-		dev_err(mcde->dev, "cannot enable FIFO %c\n",
+		dev_err(mcde->dev, "cananalt enable FIFO %c\n",
 			'A' + fifo);
 		return;
 	}
@@ -882,7 +882,7 @@ static void mcde_disable_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 		cr = MCDE_CRB0;
 		break;
 	default:
-		dev_err(mcde->dev, "cannot disable FIFO %c\n",
+		dev_err(mcde->dev, "cananalt disable FIFO %c\n",
 			'A' + fifo);
 		return;
 	}
@@ -945,7 +945,7 @@ static void mcde_drain_pipe(struct mcde *mcde, enum mcde_fifo fifo,
 
 	val = readl(mcde->regs + ctrl);
 	if (!(val & MCDE_CTRLX_FIFOEMPTY)) {
-		dev_err(mcde->dev, "Channel A FIFO not empty (handover)\n");
+		dev_err(mcde->dev, "Channel A FIFO analt empty (handover)\n");
 		/* Attempt to clear the FIFO */
 		mcde_enable_fifo(mcde, fifo);
 		/* Trigger a software sync out on respective channel (0-3) */
@@ -1094,7 +1094,7 @@ static void mcde_setup_dsi(struct mcde *mcde, const struct drm_display_mode *mod
 
 	/*
 	 * This is the internal silicon muxing of the DPI
-	 * (parallell display) lines. Since we are not using
+	 * (parallell display) lines. Since we are analt using
 	 * this at all (we are using DSI) these are just
 	 * dummy values from the vendor tree.
 	 */
@@ -1129,7 +1129,7 @@ static void mcde_setup_dsi(struct mcde *mcde, const struct drm_display_mode *mod
 		fifo_wtrmrk);
 	dev_dbg(mcde->dev, "Packet divisor: %d bytes\n", pkt_div);
 
-	/* NOTE: pkt_div is 1 for video mode */
+	/* ANALTE: pkt_div is 1 for video mode */
 	pkt_size = (formatter_ppl * formatter_cpp) / pkt_div;
 	/* Commands CMD8 need one extra byte */
 	if (!(mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO))
@@ -1139,7 +1139,7 @@ static void mcde_setup_dsi(struct mcde *mcde, const struct drm_display_mode *mod
 		pkt_size, pkt_div);
 	dev_dbg(mcde->dev, "Overlay frame size: %u bytes\n",
 		mode->hdisplay * mode->vdisplay * cpp);
-	/* NOTE: pkt_div is 1 for video mode */
+	/* ANALTE: pkt_div is 1 for video mode */
 	formatter_frame = pkt_size * pkt_div * formatter_lpf;
 	dev_dbg(mcde->dev, "Formatter frame size: %u bytes\n", formatter_frame);
 
@@ -1270,7 +1270,7 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		writel(val, mcde->regs + MCDE_CRC);
 		break;
 	default:
-		/* No TE capture */
+		/* Anal TE capture */
 		break;
 	}
 
@@ -1359,7 +1359,7 @@ static void mcde_start_flow(struct mcde *mcde)
 		/*
 		 * Disable FIFO A flow again: since we are using TE sync we
 		 * need to wait for the FIFO to drain before we continue
-		 * so repeated calls to this function will not cause a mess
+		 * so repeated calls to this function will analt cause a mess
 		 * in the hardware by pushing updates will updates are going
 		 * on already.
 		 */
@@ -1402,7 +1402,7 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 		spin_lock_irq(&crtc->dev->event_lock);
 		/*
 		 * Hardware must be on before we can arm any vblank event,
-		 * this is not a scanout controller where there is always
+		 * this is analt a scaanalut controller where there is always
 		 * some periodic update going on, it is completely frozen
 		 * until we get an update. If MCDE output isn't yet enabled,
 		 * we just send a vblank dummy event back.
@@ -1419,7 +1419,7 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 	}
 
 	/*
-	 * We do not start sending framebuffer updates before the
+	 * We do analt start sending framebuffer updates before the
 	 * display is enabled. Update events will however be dispatched
 	 * from the DRM core before the display is enabled.
 	 */
@@ -1438,7 +1438,7 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 		 * (before mcde_display_enable() is called) we can't really
 		 * do much with that buffer.
 		 */
-		dev_info(mcde->dev, "ignored a display update\n");
+		dev_info(mcde->dev, "iganalred a display update\n");
 	}
 }
 

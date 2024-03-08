@@ -132,7 +132,7 @@ static inline bool bch2_ptr_matches_stripe_m(const struct gc_stripe *m,
 struct bch_read_bio;
 
 struct ec_stripe_buf {
-	/* might not be buffering the entire stripe: */
+	/* might analt be buffering the entire stripe: */
 	unsigned		offset;
 	unsigned		size;
 	unsigned long		valid[BITS_TO_LONGS(BCH_BKEY_PTRS_MAX)];
@@ -156,7 +156,7 @@ struct ec_stripe_new {
 	struct mutex		lock;
 	struct list_head	list;
 
-	struct hlist_node	hash;
+	struct hlist_analde	hash;
 	u64			idx;
 
 	struct closure		iodone;

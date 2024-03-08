@@ -3,7 +3,7 @@
  * Copyright (C) Neil Brown 2002
  * Copyright (C) Christoph Hellwig 2007
  *
- * This file contains the code mapping from inodes to NFS file handles,
+ * This file contains the code mapping from ianaldes to NFS file handles,
  * and for mapping back from file handles to dentries.
  *
  * For details on why we do all the strange and hairy things in here
@@ -27,11 +27,11 @@ static int get_name(const struct path *path, char *name, struct dentry *child);
 static int exportfs_get_name(struct vfsmount *mnt, struct dentry *dir,
 		char *name, struct dentry *child)
 {
-	const struct export_operations *nop = dir->d_sb->s_export_op;
+	const struct export_operations *analp = dir->d_sb->s_export_op;
 	struct path path = {.mnt = mnt, .dentry = dir};
 
-	if (nop->get_name)
-		return nop->get_name(dir, name, child);
+	if (analp->get_name)
+		return analp->get_name(dir, name, child);
 	else
 		return get_name(&path, name, child);
 }
@@ -45,26 +45,26 @@ find_acceptable_alias(struct dentry *result,
 		void *context)
 {
 	struct dentry *dentry, *toput = NULL;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (acceptable(context, result))
 		return result;
 
-	inode = result->d_inode;
-	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
+	ianalde = result->d_ianalde;
+	spin_lock(&ianalde->i_lock);
+	hlist_for_each_entry(dentry, &ianalde->i_dentry, d_u.d_alias) {
 		dget(dentry);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		if (toput)
 			dput(toput);
 		if (dentry != result && acceptable(context, dentry)) {
 			dput(result);
 			return dentry;
 		}
-		spin_lock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
 		toput = dentry;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ianalde->i_lock);
 
 	if (toput)
 		dput(toput);
@@ -116,7 +116,7 @@ static void clear_disconnected(struct dentry *dentry)
  *
  * In the NULL case, a concurrent VFS operation has either renamed or
  * removed this directory.  The concurrent operation has reconnected our
- * dentry, so we no longer need to.
+ * dentry, so we anal longer need to.
  */
 static struct dentry *reconnect_one(struct vfsmount *mnt,
 		struct dentry *dentry, char *nbuf)
@@ -126,21 +126,21 @@ static struct dentry *reconnect_one(struct vfsmount *mnt,
 	int err;
 
 	parent = ERR_PTR(-EACCES);
-	inode_lock(dentry->d_inode);
+	ianalde_lock(dentry->d_ianalde);
 	if (mnt->mnt_sb->s_export_op->get_parent)
 		parent = mnt->mnt_sb->s_export_op->get_parent(dentry);
-	inode_unlock(dentry->d_inode);
+	ianalde_unlock(dentry->d_ianalde);
 
 	if (IS_ERR(parent)) {
 		dprintk("get_parent of %lu failed, err %ld\n",
-			dentry->d_inode->i_ino, PTR_ERR(parent));
+			dentry->d_ianalde->i_ianal, PTR_ERR(parent));
 		return parent;
 	}
 
 	dprintk("%s: find name of %lu in %lu\n", __func__,
-		dentry->d_inode->i_ino, parent->d_inode->i_ino);
+		dentry->d_ianalde->i_ianal, parent->d_ianalde->i_ianal);
 	err = exportfs_get_name(mnt, parent, nbuf, dentry);
-	if (err == -ENOENT)
+	if (err == -EANALENT)
 		goto out_reconnected;
 	if (err)
 		goto out_err;
@@ -174,17 +174,17 @@ out_err:
 out_reconnected:
 	dput(parent);
 	/*
-	 * Someone must have renamed our entry into another parent, in
+	 * Someone must have renamed our entry into aanalther parent, in
 	 * which case it has been reconnected by the rename.
 	 *
 	 * Or someone removed it entirely, in which case filehandle
-	 * lookup will succeed but the directory is now IS_DEAD and
+	 * lookup will succeed but the directory is analw IS_DEAD and
 	 * subsequent operations on it will fail.
 	 *
-	 * Alternatively, maybe there was no race at all, and the
+	 * Alternatively, maybe there was anal race at all, and the
 	 * filesystem is just corrupt and gave us a parent that doesn't
-	 * actually contain any entry pointing to this inode.  So,
-	 * double check that this worked and return -ESTALE if not:
+	 * actually contain any entry pointing to this ianalde.  So,
+	 * double check that this worked and return -ESTALE if analt:
 	 */
 	if (!dentry_connected(dentry))
 		return ERR_PTR(-ESTALE);
@@ -199,11 +199,11 @@ out_reconnected:
  * root of the filesystem.
  *
  * Whenever DCACHE_DISCONNECTED is unset, target_dir is fully connected.
- * But the converse is not true: target_dir may have DCACHE_DISCONNECTED
+ * But the converse is analt true: target_dir may have DCACHE_DISCONNECTED
  * set but already be connected.  In that case we'll verify the
  * connection to root and then clear the flag.
  *
- * Note that target_dir could be removed by a concurrent operation.  In
+ * Analte that target_dir could be removed by a concurrent operation.  In
  * that case reconnect_path may still succeed with target_dir fully
  * connected, but further operations using the filehandle will fail when
  * necessary (due to S_DEAD being set on the directory).
@@ -239,27 +239,27 @@ struct getdents_callback {
 	struct dir_context ctx;
 	char *name;		/* name that was found. It already points to a
 				   buffer NAME_MAX+1 is size */
-	u64 ino;		/* the inum we are looking for */
-	int found;		/* inode matched? */
+	u64 ianal;		/* the inum we are looking for */
+	int found;		/* ianalde matched? */
 	int sequence;		/* sequence counter */
 };
 
 /*
  * A rather strange filldir function to capture
- * the name matching the specified inode number.
+ * the name matching the specified ianalde number.
  */
 static bool filldir_one(struct dir_context *ctx, const char *name, int len,
-			loff_t pos, u64 ino, unsigned int d_type)
+			loff_t pos, u64 ianal, unsigned int d_type)
 {
 	struct getdents_callback *buf =
 		container_of(ctx, struct getdents_callback, ctx);
 
 	buf->sequence++;
-	if (buf->ino == ino && len <= NAME_MAX) {
+	if (buf->ianal == ianal && len <= NAME_MAX) {
 		memcpy(buf->name, name, len);
 		buf->name[len] = '\0';
 		buf->found = 1;
-		return false;	// no more
+		return false;	// anal more
 	}
 	return true;
 }
@@ -271,12 +271,12 @@ static bool filldir_one(struct dir_context *ctx, const char *name, int len,
  * @child:  the dentry for the child directory.
  *
  * calls readdir on the parent until it finds an entry with
- * the same inode number as the child, and returns that.
+ * the same ianalde number as the child, and returns that.
  */
 static int get_name(const struct path *path, char *name, struct dentry *child)
 {
 	const struct cred *cred = current_cred();
-	struct inode *dir = path->dentry->d_inode;
+	struct ianalde *dir = path->dentry->d_ianalde;
 	int error;
 	struct file *file;
 	struct kstat stat;
@@ -289,23 +289,23 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 		.name = name,
 	};
 
-	error = -ENOTDIR;
+	error = -EANALTDIR;
 	if (!dir || !S_ISDIR(dir->i_mode))
 		goto out;
 	error = -EINVAL;
 	if (!dir->i_fop)
 		goto out;
 	/*
-	 * inode->i_ino is unsigned long, kstat->ino is u64, so the
+	 * ianalde->i_ianal is unsigned long, kstat->ianal is u64, so the
 	 * former would be insufficient on 32-bit hosts when the
-	 * filesystem supports 64-bit inode numbers.  So we need to
-	 * actually call ->getattr, not just read i_ino:
+	 * filesystem supports 64-bit ianalde numbers.  So we need to
+	 * actually call ->getattr, analt just read i_ianal:
 	 */
-	error = vfs_getattr_nosec(&child_path, &stat,
-				  STATX_INO, AT_STATX_SYNC_AS_STAT);
+	error = vfs_getattr_analsec(&child_path, &stat,
+				  STATX_IANAL, AT_STATX_SYNC_AS_STAT);
 	if (error)
 		return error;
-	buffer.ino = stat.ino;
+	buffer.ianal = stat.ianal;
 	/*
 	 * Open the directory ...
 	 */
@@ -331,7 +331,7 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 		if (error < 0)
 			break;
 
-		error = -ENOENT;
+		error = -EANALENT;
 		if (old_seq == buffer.sequence)
 			break;
 	}
@@ -342,56 +342,56 @@ out:
 	return error;
 }
 
-#define FILEID_INO64_GEN_LEN 3
+#define FILEID_IANAL64_GEN_LEN 3
 
 /**
- * exportfs_encode_ino64_fid - encode non-decodeable 64bit ino file id
- * @inode:   the object to encode
+ * exportfs_encode_ianal64_fid - encode analn-decodeable 64bit ianal file id
+ * @ianalde:   the object to encode
  * @fid:     where to store the file handle fragment
  * @max_len: maximum length to store there (in 4 byte units)
  *
- * This generic function is used to encode a non-decodeable file id for
- * fanotify for filesystems that do not support NFS export.
+ * This generic function is used to encode a analn-decodeable file id for
+ * faanaltify for filesystems that do analt support NFS export.
  */
-static int exportfs_encode_ino64_fid(struct inode *inode, struct fid *fid,
+static int exportfs_encode_ianal64_fid(struct ianalde *ianalde, struct fid *fid,
 				     int *max_len)
 {
-	if (*max_len < FILEID_INO64_GEN_LEN) {
-		*max_len = FILEID_INO64_GEN_LEN;
+	if (*max_len < FILEID_IANAL64_GEN_LEN) {
+		*max_len = FILEID_IANAL64_GEN_LEN;
 		return FILEID_INVALID;
 	}
 
-	fid->i64.ino = inode->i_ino;
-	fid->i64.gen = inode->i_generation;
-	*max_len = FILEID_INO64_GEN_LEN;
+	fid->i64.ianal = ianalde->i_ianal;
+	fid->i64.gen = ianalde->i_generation;
+	*max_len = FILEID_IANAL64_GEN_LEN;
 
-	return FILEID_INO64_GEN;
+	return FILEID_IANAL64_GEN;
 }
 
 /**
- * exportfs_encode_inode_fh - encode a file handle from inode
- * @inode:   the object to encode
+ * exportfs_encode_ianalde_fh - encode a file handle from ianalde
+ * @ianalde:   the object to encode
  * @fid:     where to store the file handle fragment
  * @max_len: maximum length to store there
- * @parent:  parent directory inode, if wanted
+ * @parent:  parent directory ianalde, if wanted
  * @flags:   properties of the requested file handle
  *
- * Returns an enum fid_type or a negative errno.
+ * Returns an enum fid_type or a negative erranal.
  */
-int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
-			     int *max_len, struct inode *parent, int flags)
+int exportfs_encode_ianalde_fh(struct ianalde *ianalde, struct fid *fid,
+			     int *max_len, struct ianalde *parent, int flags)
 {
-	const struct export_operations *nop = inode->i_sb->s_export_op;
+	const struct export_operations *analp = ianalde->i_sb->s_export_op;
 
-	if (!exportfs_can_encode_fh(nop, flags))
-		return -EOPNOTSUPP;
+	if (!exportfs_can_encode_fh(analp, flags))
+		return -EOPANALTSUPP;
 
-	if (!nop && (flags & EXPORT_FH_FID))
-		return exportfs_encode_ino64_fid(inode, fid, max_len);
+	if (!analp && (flags & EXPORT_FH_FID))
+		return exportfs_encode_ianal64_fid(ianalde, fid, max_len);
 
-	return nop->encode_fh(inode, fid->raw, max_len, parent);
+	return analp->encode_fh(ianalde, fid->raw, max_len, parent);
 }
-EXPORT_SYMBOL_GPL(exportfs_encode_inode_fh);
+EXPORT_SYMBOL_GPL(exportfs_encode_ianalde_fh);
 
 /**
  * exportfs_encode_fh - encode a file handle from dentry
@@ -400,25 +400,25 @@ EXPORT_SYMBOL_GPL(exportfs_encode_inode_fh);
  * @max_len: maximum length to store there
  * @flags:   properties of the requested file handle
  *
- * Returns an enum fid_type or a negative errno.
+ * Returns an enum fid_type or a negative erranal.
  */
 int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 		       int flags)
 {
 	int error;
 	struct dentry *p = NULL;
-	struct inode *inode = dentry->d_inode, *parent = NULL;
+	struct ianalde *ianalde = dentry->d_ianalde, *parent = NULL;
 
-	if ((flags & EXPORT_FH_CONNECTABLE) && !S_ISDIR(inode->i_mode)) {
+	if ((flags & EXPORT_FH_CONNECTABLE) && !S_ISDIR(ianalde->i_mode)) {
 		p = dget_parent(dentry);
 		/*
-		 * note that while p might've ceased to be our parent already,
+		 * analte that while p might've ceased to be our parent already,
 		 * it's still pinned by and still positive.
 		 */
-		parent = p->d_inode;
+		parent = p->d_ianalde;
 	}
 
-	error = exportfs_encode_inode_fh(inode, fid, max_len, parent, flags);
+	error = exportfs_encode_ianalde_fh(ianalde, fid, max_len, parent, flags);
 	dput(p);
 
 	return error;
@@ -431,7 +431,7 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 		       int (*acceptable)(void *, struct dentry *),
 		       void *context)
 {
-	const struct export_operations *nop = mnt->mnt_sb->s_export_op;
+	const struct export_operations *analp = mnt->mnt_sb->s_export_op;
 	struct dentry *result, *alias;
 	char nbuf[NAME_MAX+1];
 	int err;
@@ -439,16 +439,16 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 	/*
 	 * Try to get any dentry for the given file handle from the filesystem.
 	 */
-	if (!exportfs_can_decode_fh(nop))
+	if (!exportfs_can_decode_fh(analp))
 		return ERR_PTR(-ESTALE);
-	result = nop->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
+	result = analp->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
 	if (IS_ERR_OR_NULL(result))
 		return result;
 
 	/*
-	 * If no acceptance criteria was specified by caller, a disconnected
+	 * If anal acceptance criteria was specified by caller, a disconnected
 	 * dentry is also accepatable. Callers may use this mode to query if
-	 * file handle is stale or to get a reference to an inode without
+	 * file handle is stale or to get a reference to an ianalde without
 	 * risking the high overhead caused by directory reconnect.
 	 */
 	if (!acceptable)
@@ -459,7 +459,7 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 		 * This request is for a directory.
 		 *
 		 * On the positive side there is only one dentry for each
-		 * directory inode.  On the negative side this implies that we
+		 * directory ianalde.  On the negative side this implies that we
 		 * to ensure our dentry is connected all the way up to the
 		 * filesystem root.
 		 */
@@ -477,7 +477,7 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 		return result;
 	} else {
 		/*
-		 * It's not a directory.  Life is a little more complicated.
+		 * It's analt a directory.  Life is a little more complicated.
 		 */
 		struct dentry *target_dir, *nresult;
 
@@ -499,10 +499,10 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 		 * file handle.  If this fails we'll have to give up.
 		 */
 		err = -ESTALE;
-		if (!nop->fh_to_parent)
+		if (!analp->fh_to_parent)
 			goto err_result;
 
-		target_dir = nop->fh_to_parent(mnt->mnt_sb, fid,
+		target_dir = analp->fh_to_parent(mnt->mnt_sb, fid,
 				fh_len, fileid_type);
 		if (!target_dir)
 			goto err_result;
@@ -522,9 +522,9 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 		}
 
 		/*
-		 * Now that we've got both a well-connected parent and a
-		 * dentry for the inode we're after, make sure that our
-		 * inode is actually connected to the parent.
+		 * Analw that we've got both a well-connected parent and a
+		 * dentry for the ianalde we're after, make sure that our
+		 * ianalde is actually connected to the parent.
 		 */
 		err = exportfs_get_name(mnt, target_dir, nbuf, result);
 		if (err) {
@@ -532,16 +532,16 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 			goto err_result;
 		}
 
-		inode_lock(target_dir->d_inode);
+		ianalde_lock(target_dir->d_ianalde);
 		nresult = lookup_one(mnt_idmap(mnt), nbuf,
 				     target_dir, strlen(nbuf));
 		if (!IS_ERR(nresult)) {
-			if (unlikely(nresult->d_inode != result->d_inode)) {
+			if (unlikely(nresult->d_ianalde != result->d_ianalde)) {
 				dput(nresult);
 				nresult = ERR_PTR(-ESTALE);
 			}
 		}
-		inode_unlock(target_dir->d_inode);
+		ianalde_unlock(target_dir->d_ianalde);
 		/*
 		 * At this point we are done with the parent, but it's pinned
 		 * by the child dentry anyway.
@@ -584,7 +584,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	ret = exportfs_decode_fh_raw(mnt, fid, fh_len, fileid_type,
 				     acceptable, context);
 	if (IS_ERR_OR_NULL(ret)) {
-		if (ret == ERR_PTR(-ENOMEM))
+		if (ret == ERR_PTR(-EANALMEM))
 			return ret;
 		return ERR_PTR(-ESTALE);
 	}

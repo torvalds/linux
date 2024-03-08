@@ -12,9 +12,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -215,11 +215,11 @@ static int bnep_rx_control(struct bnep_session *s, void *data, int len)
 	len--;
 
 	switch (cmd) {
-	case BNEP_CMD_NOT_UNDERSTOOD:
+	case BNEP_CMD_ANALT_UNDERSTOOD:
 	case BNEP_SETUP_CONN_RSP:
 	case BNEP_FILTER_NET_TYPE_RSP:
 	case BNEP_FILTER_MULTI_ADDR_RSP:
-		/* Ignore these for now */
+		/* Iganalre these for analw */
 		break;
 
 	case BNEP_FILTER_NET_TYPE_SET:
@@ -238,13 +238,13 @@ static int bnep_rx_control(struct bnep_session *s, void *data, int len)
 					    BNEP_SUCCESS);
 		else
 			err = bnep_send_rsp(s, BNEP_SETUP_CONN_RSP,
-					    BNEP_CONN_NOT_ALLOWED);
+					    BNEP_CONN_ANALT_ALLOWED);
 		break;
 
 	default: {
 			u8 pkt[3];
 			pkt[0] = BNEP_CONTROL;
-			pkt[1] = BNEP_CMD_NOT_UNDERSTOOD;
+			pkt[1] = BNEP_CMD_ANALT_UNDERSTOOD;
 			pkt[2] = cmd;
 			err = bnep_send(s, pkt, sizeof(pkt));
 		}
@@ -274,7 +274,7 @@ static int bnep_rx_extension(struct bnep_session *s, struct sk_buff *skb)
 			break;
 
 		default:
-			/* Unknown extension, skip it. */
+			/* Unkanalwn extension, skip it. */
 			break;
 		}
 
@@ -362,12 +362,12 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	}
 
 	/* We have to alloc new skb and copy data here :(. Because original skb
-	 * may not be modified and because of the alignment requirements. */
+	 * may analt be modified and because of the alignment requirements. */
 	nskb = alloc_skb(2 + ETH_HLEN + skb->len, GFP_KERNEL);
 	if (!nskb) {
 		dev->stats.rx_dropped++;
 		kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	skb_reserve(nskb, 2);
 
@@ -398,7 +398,7 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	kfree_skb(skb);
 
 	dev->stats.rx_packets++;
-	nskb->ip_summed = CHECKSUM_NONE;
+	nskb->ip_summed = CHECKSUM_ANALNE;
 	nskb->protocol  = eth_type_trans(nskb, dev);
 	netif_rx(nskb);
 	return 0;
@@ -575,10 +575,10 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	/* session struct allocated as private part of net_device */
 	dev = alloc_netdev(sizeof(struct bnep_session),
 			   (*req->device) ? req->device : "bnep%d",
-			   NET_NAME_UNKNOWN,
+			   NET_NAME_UNKANALWN,
 			   bnep_net_setup);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	down_write(&bnep_session_sem);
 
@@ -602,10 +602,10 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	s->state = BT_CONNECTED;
 	s->flags = req->flags;
 
-	s->msg.msg_flags = MSG_NOSIGNAL;
+	s->msg.msg_flags = MSG_ANALSIGNAL;
 
 #ifdef CONFIG_BT_BNEP_MC_FILTER
-	/* Set default mc filter to not filter out any mc addresses
+	/* Set default mc filter to analt filter out any mc addresses
 	 * as defined in the BNEP specification (revision 0.95a)
 	 * http://grouper.ieee.org/groups/802/15/Bluetooth/BNEP.pdf
 	 */
@@ -665,7 +665,7 @@ int bnep_del_connection(struct bnep_conndel_req *req)
 		atomic_inc(&s->terminate);
 		wake_up_interruptible(sk_sleep(s->sock->sk));
 	} else
-		err = -ENOENT;
+		err = -EANALENT;
 
 	up_read(&bnep_session_sem);
 	return err;
@@ -722,7 +722,7 @@ int bnep_get_conninfo(struct bnep_conninfo *ci)
 	if (s)
 		__bnep_copy_ci(ci, s);
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 
 	up_read(&bnep_session_sem);
 	return err;

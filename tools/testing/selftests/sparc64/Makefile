@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-uname_M := $(shell uname -m 2>/dev/null || echo not)
+uname_M := $(shell uname -m 2>/dev/null || echo analt)
 ARCH ?= $(shell echo $(uname_M) | sed -e s/x86_64/x86/)
 
 ifneq ($(ARCH),sparc64)
-nothing:
+analthing:
 .PHONY: all clean run_tests install
 .SILENT:
 else

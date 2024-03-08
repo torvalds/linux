@@ -3,7 +3,7 @@
  * Copyright 2009 Freescale Semiconductor, Inc.
  *
  * provides masks and opcode images for use by code generation, emulation
- * and for instructions that older assemblers might not know about
+ * and for instructions that older assemblers might analt kanalw about
  */
 #ifndef _ASM_POWERPC_DBELL_H
 #define _ASM_POWERPC_DBELL_H
@@ -49,7 +49,7 @@ static inline void ppc_msgsnd_sync(void)
 /* sync after taking message interrupt */
 static inline void ppc_msgsync(void)
 {
-	/* sync is not required when taking messages from the same core */
+	/* sync is analt required when taking messages from the same core */
 	__asm__ __volatile__ (ASM_FTR_IFSET(PPC_MSGSYNC " ; lwsync", "", %0)
 				: : "i" (CPU_FTR_HVMODE|CPU_FTR_ARCH_300));
 }

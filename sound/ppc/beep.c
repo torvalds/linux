@@ -211,11 +211,11 @@ int snd_pmac_attach_beep(struct snd_pmac *chip)
 	struct input_dev *input_dev;
 	struct snd_kcontrol *beep_ctl;
 	void *dmabuf;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	beep = kzalloc(sizeof(*beep), GFP_KERNEL);
 	if (! beep)
-		return -ENOMEM;
+		return -EANALMEM;
 	dmabuf = dma_alloc_coherent(&chip->pdev->dev, BEEP_BUFLEN * 4,
 				    &beep->addr, GFP_KERNEL);
 	input_dev = input_allocate_device();

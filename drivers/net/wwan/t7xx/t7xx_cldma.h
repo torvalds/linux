@@ -150,31 +150,31 @@ struct t7xx_cldma_hw {
 	u32				phy_interrupt_id;
 };
 
-void t7xx_cldma_hw_irq_dis_txrx(struct t7xx_cldma_hw *hw_info, unsigned int qno,
+void t7xx_cldma_hw_irq_dis_txrx(struct t7xx_cldma_hw *hw_info, unsigned int qanal,
 				enum mtk_txrx tx_rx);
-void t7xx_cldma_hw_irq_dis_eq(struct t7xx_cldma_hw *hw_info, unsigned int qno,
+void t7xx_cldma_hw_irq_dis_eq(struct t7xx_cldma_hw *hw_info, unsigned int qanal,
 			      enum mtk_txrx tx_rx);
-void t7xx_cldma_hw_irq_en_txrx(struct t7xx_cldma_hw *hw_info, unsigned int qno,
+void t7xx_cldma_hw_irq_en_txrx(struct t7xx_cldma_hw *hw_info, unsigned int qanal,
 			       enum mtk_txrx tx_rx);
-void t7xx_cldma_hw_irq_en_eq(struct t7xx_cldma_hw *hw_info, unsigned int qno, enum mtk_txrx tx_rx);
-unsigned int t7xx_cldma_hw_queue_status(struct t7xx_cldma_hw *hw_info, unsigned int qno,
+void t7xx_cldma_hw_irq_en_eq(struct t7xx_cldma_hw *hw_info, unsigned int qanal, enum mtk_txrx tx_rx);
+unsigned int t7xx_cldma_hw_queue_status(struct t7xx_cldma_hw *hw_info, unsigned int qanal,
 					enum mtk_txrx tx_rx);
 void t7xx_cldma_hw_init(struct t7xx_cldma_hw *hw_info);
-void t7xx_cldma_hw_resume_queue(struct t7xx_cldma_hw *hw_info, unsigned int qno,
+void t7xx_cldma_hw_resume_queue(struct t7xx_cldma_hw *hw_info, unsigned int qanal,
 				enum mtk_txrx tx_rx);
 void t7xx_cldma_hw_start(struct t7xx_cldma_hw *hw_info);
-void t7xx_cldma_hw_start_queue(struct t7xx_cldma_hw *hw_info, unsigned int qno,
+void t7xx_cldma_hw_start_queue(struct t7xx_cldma_hw *hw_info, unsigned int qanal,
 			       enum mtk_txrx tx_rx);
 void t7xx_cldma_hw_tx_done(struct t7xx_cldma_hw *hw_info, unsigned int bitmask);
 void t7xx_cldma_hw_rx_done(struct t7xx_cldma_hw *hw_info, unsigned int bitmask);
 void t7xx_cldma_hw_stop_all_qs(struct t7xx_cldma_hw *hw_info, enum mtk_txrx tx_rx);
 void t7xx_cldma_hw_set_start_addr(struct t7xx_cldma_hw *hw_info,
-				  unsigned int qno, u64 address, enum mtk_txrx tx_rx);
+				  unsigned int qanal, u64 address, enum mtk_txrx tx_rx);
 void t7xx_cldma_hw_reset(void __iomem *ao_base);
 void t7xx_cldma_hw_stop(struct t7xx_cldma_hw *hw_info, enum mtk_txrx tx_rx);
 unsigned int t7xx_cldma_hw_int_status(struct t7xx_cldma_hw *hw_info, unsigned int bitmask,
 				      enum mtk_txrx tx_rx);
 void t7xx_cldma_hw_restore(struct t7xx_cldma_hw *hw_info);
 void t7xx_cldma_clear_ip_busy(struct t7xx_cldma_hw *hw_info);
-bool t7xx_cldma_tx_addr_is_set(struct t7xx_cldma_hw *hw_info, unsigned int qno);
+bool t7xx_cldma_tx_addr_is_set(struct t7xx_cldma_hw *hw_info, unsigned int qanal);
 #endif

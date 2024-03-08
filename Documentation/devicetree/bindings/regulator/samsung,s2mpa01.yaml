@@ -48,7 +48,7 @@ patternProperties:
           In the absence of the regulator-ramp-delay property, the default ramp
           delay will be used.
 
-          Note: Some bucks share the ramp rate setting i.e. same ramp value
+          Analte: Some bucks share the ramp rate setting i.e. same ramp value
           will be set for a particular group of bucks so provide the same
           regulator-ramp-delay value for them.
           Groups sharing ramp rate:

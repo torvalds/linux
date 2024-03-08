@@ -20,9 +20,9 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define deb_rc(args...)   dprintk(debug,0x01,args)
 
-static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int a800_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
-	/* do nothing for the AVerMedia */
+	/* do analthing for the AVerMedia */
 	return 0;
 }
 
@@ -41,16 +41,16 @@ static int a800_rc_query(struct dvb_usb_device *d)
 	int ret = 0;
 	u8 *key = kmalloc(5, GFP_KERNEL);
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (usb_control_msg(d->udev,usb_rcvctrlpipe(d->udev,0),
 				0x04, USB_TYPE_VENDOR | USB_DIR_IN, 0, 0, key, 5,
 				2000) != 5) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
-	/* Note that extended nec and nec32 are dropped */
+	/* Analte that extended nec and nec32 are dropped */
 	if (key[0] == 1)
 		rc_keydown(d->rc_dev, RC_PROTO_NEC,
 			   RC_SCANCODE_NEC(key[1], key[3]), 0);
@@ -71,7 +71,7 @@ static int a800_probe(struct usb_interface *intf,
 				   THIS_MODULE, NULL, adapter_nr);
 }
 
-/* do not change the order of the ID table */
+/* do analt change the order of the ID table */
 enum {
 	AVERMEDIA_DVBT_USB2_COLD,
 	AVERMEDIA_DVBT_USB2_WARM,

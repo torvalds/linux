@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +46,7 @@ static int tun_alloc(char *dev)
 
 	fd = open("/dev/net/tun", O_RDWR);
 	if (fd < 0) {
-		fprintf(stderr, "can't open tun: %s\n", strerror(errno));
+		fprintf(stderr, "can't open tun: %s\n", strerror(erranal));
 		return fd;
 	}
 
@@ -56,7 +56,7 @@ static int tun_alloc(char *dev)
 
 	err = ioctl(fd, TUNSETIFF, (void *) &ifr);
 	if (err < 0) {
-		fprintf(stderr, "can't TUNSETIFF: %s\n", strerror(errno));
+		fprintf(stderr, "can't TUNSETIFF: %s\n", strerror(erranal));
 		close(fd);
 		return err;
 	}
@@ -76,7 +76,7 @@ static int tun_delete(char *dev)
 
 	rtnl = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE);
 	if (rtnl < 0) {
-		fprintf(stderr, "can't open rtnl: %s\n", strerror(errno));
+		fprintf(stderr, "can't open rtnl: %s\n", strerror(erranal));
 		return 1;
 	}
 
@@ -95,7 +95,7 @@ static int tun_delete(char *dev)
 
 	ret = send(rtnl, &req, req.nh.nlmsg_len, 0);
 	if (ret < 0)
-		fprintf(stderr, "can't send: %s\n", strerror(errno));
+		fprintf(stderr, "can't send: %s\n", strerror(erranal));
 	ret = (unsigned int)ret != req.nh.nlmsg_len;
 
 	close(rtnl);
@@ -130,7 +130,7 @@ FIXTURE_TEARDOWN(tun)
 TEST_F(tun, delete_detach_close) {
 	EXPECT_EQ(tun_delete(self->ifname), 0);
 	EXPECT_EQ(tun_detach(self->fd, self->ifname), -1);
-	EXPECT_EQ(errno, 22);
+	EXPECT_EQ(erranal, 22);
 }
 
 TEST_F(tun, detach_delete_close) {

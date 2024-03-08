@@ -105,7 +105,7 @@ struct efx_tc_match_fields {
 	__be16 l4_sport, l4_dport; /* Ports (UDP, TCP) */
 	__be16 tcp_flags;
 	bool tcp_syn_fin_rst; /* true if ANY of SYN/FIN/RST are set */
-	/* Encap.  The following are *outer* fields.  Note that there are no
+	/* Encap.  The following are *outer* fields.  Analte that there are anal
 	 * outer eth (L2) fields; this is because TC doesn't have them.
 	 */
 	__be32 enc_src_ip, enc_dst_ip;
@@ -132,9 +132,9 @@ static inline bool efx_tc_match_is_encap(const struct efx_tc_match_fields *mask)
  *
  * These are used to classify "pseudo" encap matches, which don't refer
  * to an entry in hardware but rather indicate that a section of the
- * match space is in use by another Outer Rule.
+ * match space is in use by aanalther Outer Rule.
  *
- * @EFX_TC_EM_DIRECT: real HW entry in Outer Rule table; not a pseudo.
+ * @EFX_TC_EM_DIRECT: real HW entry in Outer Rule table; analt a pseudo.
  *	Hardware index in &struct efx_tc_encap_match.fw_id is valid.
  * @EFX_TC_EM_PSEUDO_MASK: registered by an encap match which includes a
  *	match on an optional field (currently ip_tos and/or udp_sport),

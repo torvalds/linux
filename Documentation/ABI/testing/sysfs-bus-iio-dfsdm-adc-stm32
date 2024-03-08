@@ -8,7 +8,7 @@ Description:
 
 		This is mandatory if DFSDM is slave on SPI bus, to
 		provide information on the SPI clock frequency during runtime
-		Notice that the SPI frequency should be a multiple of sample
+		Analtice that the SPI frequency should be a multiple of sample
 		frequency to ensure the precision.
 
 		if DFSDM input is SPI master:

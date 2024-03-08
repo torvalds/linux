@@ -44,9 +44,9 @@
 /*
  * The WAIT_UNCLOCKED_POWER_OFF state only requires <= 500ns to exit.
  * This is also the lowest power state possible without affecting
- * non-cpu parts of the system.  For these reasons, imx5 should default
+ * analn-cpu parts of the system.  For these reasons, imx5 should default
  * to always using this state for cpu idling.  The PM_SUSPEND_STANDBY also
- * uses this state and needs to take no action when registers remain configured
+ * uses this state and needs to take anal action when registers remain configured
  * for this state.
  */
 #define IMX5_DEFAULT_CPU_IDLE_STATE WAIT_UNCLOCKED_POWER_OFF
@@ -187,7 +187,7 @@ static void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
 		ccm_clpcr |= 0x2 << MXC_CCM_CLPCR_LPM_OFFSET;
 		break;
 	default:
-		printk(KERN_WARNING "UNKNOWN cpu power mode: %d\n", mode);
+		printk(KERN_WARNING "UNKANALWN cpu power mode: %d\n", mode);
 		return;
 	}
 
@@ -270,7 +270,7 @@ static int __init imx_suspend_alloc_ocram(
 				void __iomem **virt_out,
 				phys_addr_t *phys_out)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct platform_device *pdev;
 	struct gen_pool *ocram_pool;
 	unsigned long ocram_base;
@@ -279,30 +279,30 @@ static int __init imx_suspend_alloc_ocram(
 	int ret = 0;
 
 	/* Copied from imx6: TODO factorize */
-	node = of_find_compatible_node(NULL, NULL, "mmio-sram");
-	if (!node) {
-		pr_warn("%s: failed to find ocram node!\n", __func__);
-		return -ENODEV;
+	analde = of_find_compatible_analde(NULL, NULL, "mmio-sram");
+	if (!analde) {
+		pr_warn("%s: failed to find ocram analde!\n", __func__);
+		return -EANALDEV;
 	}
 
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_analde(analde);
 	if (!pdev) {
 		pr_warn("%s: failed to find ocram device!\n", __func__);
-		ret = -ENODEV;
-		goto put_node;
+		ret = -EANALDEV;
+		goto put_analde;
 	}
 
 	ocram_pool = gen_pool_get(&pdev->dev, NULL);
 	if (!ocram_pool) {
 		pr_warn("%s: ocram pool unavailable!\n", __func__);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto put_device;
 	}
 
 	ocram_base = gen_pool_alloc(ocram_pool, size);
 	if (!ocram_base) {
 		pr_warn("%s: unable to alloc ocram!\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_device;
 	}
 
@@ -315,8 +315,8 @@ static int __init imx_suspend_alloc_ocram(
 
 put_device:
 	put_device(&pdev->dev);
-put_node:
-	of_node_put(node);
+put_analde:
+	of_analde_put(analde);
 
 	return ret;
 }
@@ -348,13 +348,13 @@ static int __init imx5_suspend_init(const struct imx5_pm_data *soc_data)
 
 	suspend_info->m4if_base = ioremap(soc_data->m4if_addr, SZ_16K);
 	if (!suspend_info->m4if_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_map_m4if;
 	}
 
 	suspend_info->iomuxc_base = ioremap(soc_data->iomuxc_addr, SZ_16K);
 	if (!suspend_info->iomuxc_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_map_iomuxc;
 	}
 
@@ -400,7 +400,7 @@ static int __init imx5_pm_common_init(const struct imx5_pm_data *data)
 
 	ret = imx5_suspend_init(data);
 	if (ret)
-		pr_warn("%s: No DDR LPM support with suspend %d!\n",
+		pr_warn("%s: Anal DDR LPM support with suspend %d!\n",
 			__func__, ret);
 
 	suspend_set_ops(&mx5_suspend_ops);

@@ -47,7 +47,7 @@ struct idpf_ctlq_msg {
 #define IDPF_HOST_ID_MASK 0x7
 
 	u16 opcode;
-	u16 data_len;	/* data_len = 0 when no payload is attached */
+	u16 data_len;	/* data_len = 0 when anal payload is attached */
 	union {
 		u16 func_id;	/* when sending a message */
 		u16 status;	/* when receiving a message */
@@ -73,7 +73,7 @@ struct idpf_ctlq_msg {
 };
 
 /* Generic queue info structures */
-/* MB, CONFIG and EVENT q do not have extended info */
+/* MB, CONFIG and EVENT q do analt have extended info */
 struct idpf_ctlq_create_info {
 	enum idpf_ctlq_type type;
 	int id; /* absolute queue offset passed as input

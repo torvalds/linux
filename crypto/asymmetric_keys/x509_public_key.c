@@ -34,7 +34,7 @@ int x509_get_sig_params(struct x509_certificate *cert)
 
 	sig->s = kmemdup(cert->raw_sig, cert->raw_sig_size, GFP_KERNEL);
 	if (!sig->s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sig->s_size = cert->raw_sig_size;
 
@@ -43,7 +43,7 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	 */
 	tfm = crypto_alloc_shash(sig->hash_algo, 0, 0);
 	if (IS_ERR(tfm)) {
-		if (PTR_ERR(tfm) == -ENOENT) {
+		if (PTR_ERR(tfm) == -EANALENT) {
 			cert->unsupported_sig = true;
 			return 0;
 		}
@@ -53,7 +53,7 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
 	sig->digest_size = crypto_shash_digestsize(tfm);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	sig->digest = kmalloc(sig->digest_size, GFP_KERNEL);
 	if (!sig->digest)
 		goto error;
@@ -112,7 +112,7 @@ int x509_check_for_self_signed(struct x509_certificate *cert)
 	if (cert->raw_subject_size != cert->raw_issuer_size ||
 	    memcmp(cert->raw_subject, cert->raw_issuer,
 		   cert->raw_issuer_size) != 0)
-		goto not_self_signed;
+		goto analt_self_signed;
 
 	if (cert->sig->auth_ids[0] || cert->sig->auth_ids[1]) {
 		/* If the AKID is present it may have one or two parts.  If
@@ -122,7 +122,7 @@ int x509_check_for_self_signed(struct x509_certificate *cert)
 		bool b = asymmetric_key_id_same(cert->id, cert->sig->auth_ids[0]);
 
 		if (!a && !b)
-			goto not_self_signed;
+			goto analt_self_signed;
 
 		ret = -EKEYREJECTED;
 		if (((a && !b) || (b && !a)) &&
@@ -137,7 +137,7 @@ int x509_check_for_self_signed(struct x509_certificate *cert)
 
 	ret = public_key_verify_signature(cert->pub, cert->sig);
 	if (ret < 0) {
-		if (ret == -ENOPKG) {
+		if (ret == -EANALPKG) {
 			cert->unsupported_sig = true;
 			ret = 0;
 		}
@@ -151,8 +151,8 @@ out:
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 
-not_self_signed:
-	pr_devel("<==%s() = 0 [not]\n", __func__);
+analt_self_signed:
+	pr_devel("<==%s() = 0 [analt]\n", __func__);
 	return 0;
 }
 
@@ -202,7 +202,7 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		q = cert->raw_serial;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	desc = kmalloc(sulen + 2 + srlen * 2 + 1, GFP_KERNEL);
 	if (!desc)
 		goto error_free_cert;

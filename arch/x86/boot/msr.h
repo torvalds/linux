@@ -9,9 +9,9 @@
 #include <asm/shared/msr.h>
 
 /*
- * The kernel proper already defines rdmsr()/wrmsr(), but they are not for the
+ * The kernel proper already defines rdmsr()/wrmsr(), but they are analt for the
  * boot kernel since they rely on tracepoint/exception handling infrastructure
- * that's not available here.
+ * that's analt available here.
  */
 static inline void boot_rdmsr(unsigned int reg, struct msr *m)
 {

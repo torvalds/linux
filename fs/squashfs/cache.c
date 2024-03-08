@@ -19,10 +19,10 @@
  * To avoid out of memory and fragmentation issues with vmalloc the cache
  * uses sequences of kmalloced PAGE_SIZE buffers.
  *
- * It should be noted that the cache is not used for file datablocks, these
- * are decompressed and cached in the page-cache in the normal way.  The
+ * It should be analted that the cache is analt used for file datablocks, these
+ * are decompressed and cached in the page-cache in the analrmal way.  The
  * cache is only used to temporarily cache fragment and metadata blocks
- * which have been read as as a result of a metadata (i.e. inode or
+ * which have been read as as a result of a metadata (i.e. ianalde or
  * directory) or fragment access.  Because metadata and fragments are packed
  * together into blocks (to gain greater compression) the read of a particular
  * piece of metadata or fragment will retrieve other metadata/fragments which
@@ -46,7 +46,7 @@
 #include "page_actor.h"
 
 /*
- * Look-up block in cache, and increment usage count.  If not in cache, read
+ * Look-up block in cache, and increment usage count.  If analt in cache, read
  * and decompress it from disk.
  */
 struct squashfs_cache_entry *squashfs_cache_get(struct super_block *sb,
@@ -68,7 +68,7 @@ struct squashfs_cache_entry *squashfs_cache_get(struct super_block *sb,
 
 		if (n == cache->entries) {
 			/*
-			 * Block not in cache, if all cache entries are used
+			 * Block analt in cache, if all cache entries are used
 			 * go to sleep waiting for one to become available.
 			 */
 			if (cache->unused == 0) {
@@ -143,7 +143,7 @@ struct squashfs_cache_entry *squashfs_cache_get(struct super_block *sb,
 		entry->refcount++;
 
 		/*
-		 * If the entry is currently being filled in by another process
+		 * If the entry is currently being filled in by aanalther process
 		 * go to sleep waiting for it to become available.
 		 */
 		if (entry->pending) {
@@ -287,7 +287,7 @@ cleanup:
 
 /*
  * Copy up to length bytes from cache entry to buffer starting at offset bytes
- * into the cache entry.  If there's not length bytes then copy the number of
+ * into the cache entry.  If there's analt length bytes then copy the number of
  * bytes available.  In all cases return the number of bytes copied.
  */
 int squashfs_copy_data(void *buffer, struct squashfs_cache_entry *entry,
@@ -412,17 +412,17 @@ void *squashfs_read_table(struct super_block *sb, u64 block, int length)
 
 	table = buffer = kmalloc(length, GFP_KERNEL);
 	if (table == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	data = kcalloc(pages, sizeof(void *), GFP_KERNEL);
 	if (data == NULL) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto failed;
 	}
 
 	actor = squashfs_page_actor_init(data, pages, length);
 	if (actor == NULL) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto failed2;
 	}
 

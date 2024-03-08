@@ -17,7 +17,7 @@
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
@@ -306,7 +306,7 @@ static int c8sectpfe_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 		tasklet_disable(&channel->tsklet);
 
-		/* now request memdma channel goes idle */
+		/* analw request memdma channel goes idle */
 		idlereq = (1 << channel->tsin_id) | IDLEREQ;
 		writel(idlereq, fei->io + DMA_IDLE_REQ);
 
@@ -463,7 +463,7 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 
 	tsin->back_buffer_start = kzalloc(FEI_BUFFER_SIZE + FEI_ALIGNMENT, GFP_KERNEL);
 	if (!tsin->back_buffer_start) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 
@@ -490,7 +490,7 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	 */
 	tsin->pid_buffer_start = kzalloc(PID_TABLE_SIZE + PID_TABLE_SIZE, GFP_KERNEL);
 	if (!tsin->pid_buffer_start) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 
@@ -523,7 +523,7 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 				DMA_TO_DEVICE);
 
 	snprintf(tsin_pin_name, MAX_NAME, "tsin%d-%s", tsin->tsin_id,
-		(tsin->serial_not_parallel ? "serial" : "parallel"));
+		(tsin->serial_analt_parallel ? "serial" : "parallel"));
 
 	tsin->pstate = pinctrl_lookup_state(fei->pinctrl, tsin_pin_name);
 	if (IS_ERR(tsin->pstate)) {
@@ -546,14 +546,14 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	tmp |= BIT(tsin->tsin_id);
 	writel(tmp, fei->io + SYS_INPUT_CLKEN);
 
-	if (tsin->serial_not_parallel)
-		tmp |= C8SECTPFE_SERIAL_NOT_PARALLEL;
+	if (tsin->serial_analt_parallel)
+		tmp |= C8SECTPFE_SERIAL_ANALT_PARALLEL;
 
 	if (tsin->invert_ts_clk)
 		tmp |= C8SECTPFE_INVERT_TSCLK;
 
-	if (tsin->async_not_sync)
-		tmp |= C8SECTPFE_ASYNC_NOT_SYNC;
+	if (tsin->async_analt_sync)
+		tmp |= C8SECTPFE_ASYNC_ANALT_SYNC;
 
 	tmp |= C8SECTPFE_ALIGN_BYTE_SOP | C8SECTPFE_BYTE_ENDIANNESS_MSB;
 
@@ -645,7 +645,7 @@ static irqreturn_t c8sectpfe_error_irq_handler(int irq, void *priv)
 {
 	struct c8sectpfei *fei = priv;
 
-	dev_err(fei->dev, "%s: error handling not yet implemented\n"
+	dev_err(fei->dev, "%s: error handling analt yet implemented\n"
 		, __func__);
 
 	/*
@@ -659,7 +659,7 @@ static irqreturn_t c8sectpfe_error_irq_handler(int irq, void *priv)
 static int c8sectpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_analde *child, *np = dev->of_analde;
 	struct c8sectpfei *fei;
 	struct resource *res;
 	int ret, index = 0;
@@ -668,7 +668,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 	/* Allocate the c8sectpfei structure */
 	fei = devm_kzalloc(dev, sizeof(struct c8sectpfei), GFP_KERNEL);
 	if (!fei)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fei->dev = dev;
 
@@ -743,16 +743,16 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		return PTR_ERR(fei->pinctrl);
 	}
 
-	for_each_child_of_node(np, child) {
-		struct device_node *i2c_bus;
+	for_each_child_of_analde(np, child) {
+		struct device_analde *i2c_bus;
 
 		fei->channel_data[index] = devm_kzalloc(dev,
 						sizeof(struct channel_info),
 						GFP_KERNEL);
 
 		if (!fei->channel_data[index]) {
-			ret = -ENOMEM;
-			goto err_node_put;
+			ret = -EANALMEM;
+			goto err_analde_put;
 		}
 
 		tsin = fei->channel_data[index];
@@ -761,8 +761,8 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 
 		ret = of_property_read_u32(child, "tsin-num", &tsin->tsin_id);
 		if (ret) {
-			dev_err(&pdev->dev, "No tsin_num found\n");
-			goto err_node_put;
+			dev_err(&pdev->dev, "Anal tsin_num found\n");
+			goto err_analde_put;
 		}
 
 		/* sanity check value */
@@ -771,51 +771,51 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 				"tsin-num %d specified greater than number\n\tof input block hw in SoC! (%d)",
 				tsin->tsin_id, fei->hw_stats.num_ib);
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		tsin->invert_ts_clk = of_property_read_bool(child,
 							"invert-ts-clk");
 
-		tsin->serial_not_parallel = of_property_read_bool(child,
-							"serial-not-parallel");
+		tsin->serial_analt_parallel = of_property_read_bool(child,
+							"serial-analt-parallel");
 
-		tsin->async_not_sync = of_property_read_bool(child,
-							"async-not-sync");
+		tsin->async_analt_sync = of_property_read_bool(child,
+							"async-analt-sync");
 
 		ret = of_property_read_u32(child, "dvb-card",
 					&tsin->dvb_card);
 		if (ret) {
-			dev_err(&pdev->dev, "No dvb-card found\n");
-			goto err_node_put;
+			dev_err(&pdev->dev, "Anal dvb-card found\n");
+			goto err_analde_put;
 		}
 
 		i2c_bus = of_parse_phandle(child, "i2c-bus", 0);
 		if (!i2c_bus) {
-			dev_err(&pdev->dev, "No i2c-bus found\n");
-			ret = -ENODEV;
-			goto err_node_put;
+			dev_err(&pdev->dev, "Anal i2c-bus found\n");
+			ret = -EANALDEV;
+			goto err_analde_put;
 		}
 		tsin->i2c_adapter =
-			of_find_i2c_adapter_by_node(i2c_bus);
+			of_find_i2c_adapter_by_analde(i2c_bus);
 		if (!tsin->i2c_adapter) {
-			dev_err(&pdev->dev, "No i2c adapter found\n");
-			of_node_put(i2c_bus);
-			ret = -ENODEV;
-			goto err_node_put;
+			dev_err(&pdev->dev, "Anal i2c adapter found\n");
+			of_analde_put(i2c_bus);
+			ret = -EANALDEV;
+			goto err_analde_put;
 		}
-		of_node_put(i2c_bus);
+		of_analde_put(i2c_bus);
 
 		/* Acquire reset GPIO and activate it */
-		tsin->rst_gpio = devm_fwnode_gpiod_get(dev,
-						       of_fwnode_handle(child),
+		tsin->rst_gpio = devm_fwanalde_gpiod_get(dev,
+						       of_fwanalde_handle(child),
 						       "reset", GPIOD_OUT_HIGH,
 						       "NIM reset");
 		ret = PTR_ERR_OR_ZERO(tsin->rst_gpio);
 		if (ret && ret != -EBUSY) {
 			dev_err(dev, "Can't request tsin%d reset gpio\n",
 				fei->channel_data[index]->tsin_id);
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		if (!ret) {
@@ -829,10 +829,10 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		tsin->demux_mapping = index;
 
 		dev_dbg(fei->dev,
-			"channel=%p n=%d tsin_num=%d, invert-ts-clk=%d\n\tserial-not-parallel=%d pkt-clk-valid=%d dvb-card=%d\n",
+			"channel=%p n=%d tsin_num=%d, invert-ts-clk=%d\n\tserial-analt-parallel=%d pkt-clk-valid=%d dvb-card=%d\n",
 			fei->channel_data[index], index,
 			tsin->tsin_id, tsin->invert_ts_clk,
-			tsin->serial_not_parallel, tsin->async_not_sync,
+			tsin->serial_analt_parallel, tsin->async_analt_sync,
 			tsin->dvb_card);
 
 		index++;
@@ -858,8 +858,8 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_node_put:
-	of_node_put(child);
+err_analde_put:
+	of_analde_put(child);
 	return ret;
 }
 
@@ -874,7 +874,7 @@ static void c8sectpfe_remove(struct platform_device *pdev)
 	c8sectpfe_tuner_unregister_frontend(fei->c8sectpfe[0], fei);
 
 	/*
-	 * Now loop through and un-configure each of the InputBlock resources
+	 * Analw loop through and un-configure each of the InputBlock resources
 	 */
 	for (i = 0; i < fei->tsin_count; i++) {
 		channel = fei->channel_data[i];
@@ -899,16 +899,16 @@ static void c8sectpfe_remove(struct platform_device *pdev)
 static int configure_channels(struct c8sectpfei *fei)
 {
 	int index = 0, ret;
-	struct device_node *child, *np = fei->dev->of_node;
+	struct device_analde *child, *np = fei->dev->of_analde;
 
 	/* iterate round each tsin and configure memdma descriptor and IB hw */
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		ret = configure_memdma_and_inputblock(fei,
 						fei->channel_data[index]);
 		if (ret) {
 			dev_err(fei->dev,
 				"configure_memdma_and_inputblock failed\n");
-			of_node_put(child);
+			of_analde_put(child);
 			goto err_unmap;
 		}
 		index++;
@@ -998,7 +998,7 @@ static void load_imem_segment(struct c8sectpfei *fei, Elf32_Phdr *phdr,
 	 * For IMEM segments, the segment contains 24-bit
 	 * instructions which must be padded to 32-bit
 	 * instructions before being written. The written
-	 * segment is padded with NOP instructions.
+	 * segment is padded with ANALP instructions.
 	 */
 
 	dev_dbg(fei->dev,
@@ -1126,7 +1126,7 @@ static int load_c8sectpfe_fw(struct c8sectpfei *fei)
 		return err;
 	}
 
-	/* now the firmware is loaded configure the input blocks */
+	/* analw the firmware is loaded configure the input blocks */
 	err = configure_channels(fei);
 	if (err) {
 		dev_err(fei->dev, "configure_channels failed err=(%d)\n", err);

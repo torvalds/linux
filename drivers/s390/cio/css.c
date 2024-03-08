@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/reboot.h>
 #include <linux/proc_fs.h>
@@ -53,8 +53,8 @@ for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 			ret = fn(schid, data);
 			if (ret)
 				break;
-		} while (schid.sch_no++ < __MAX_SUBCHANNEL);
-		schid.sch_no = 0;
+		} while (schid.sch_anal++ < __MAX_SUBCHANNEL);
+		schid.sch_anal = 0;
 	} while (schid.ssid++ < max_ssid);
 	return ret;
 }
@@ -62,11 +62,11 @@ for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 struct cb_data {
 	void *data;
 	struct idset *set;
-	int (*fn_known_sch)(struct subchannel *, void *);
-	int (*fn_unknown_sch)(struct subchannel_id, void *);
+	int (*fn_kanalwn_sch)(struct subchannel *, void *);
+	int (*fn_unkanalwn_sch)(struct subchannel_id, void *);
 };
 
-static int call_fn_known_sch(struct device *dev, void *data)
+static int call_fn_kanalwn_sch(struct device *dev, void *data)
 {
 	struct subchannel *sch = to_subchannel(dev);
 	struct cb_data *cb = data;
@@ -74,18 +74,18 @@ static int call_fn_known_sch(struct device *dev, void *data)
 
 	if (cb->set)
 		idset_sch_del(cb->set, sch->schid);
-	if (cb->fn_known_sch)
-		rc = cb->fn_known_sch(sch, cb->data);
+	if (cb->fn_kanalwn_sch)
+		rc = cb->fn_kanalwn_sch(sch, cb->data);
 	return rc;
 }
 
-static int call_fn_unknown_sch(struct subchannel_id schid, void *data)
+static int call_fn_unkanalwn_sch(struct subchannel_id schid, void *data)
 {
 	struct cb_data *cb = data;
 	int rc = 0;
 
 	if (idset_sch_contains(cb->set, schid))
-		rc = cb->fn_unknown_sch(schid, cb->data);
+		rc = cb->fn_unkanalwn_sch(schid, cb->data);
 	return rc;
 }
 
@@ -97,33 +97,33 @@ static int call_fn_all_sch(struct subchannel_id schid, void *data)
 
 	sch = get_subchannel_by_schid(schid);
 	if (sch) {
-		if (cb->fn_known_sch)
-			rc = cb->fn_known_sch(sch, cb->data);
+		if (cb->fn_kanalwn_sch)
+			rc = cb->fn_kanalwn_sch(sch, cb->data);
 		put_device(&sch->dev);
 	} else {
-		if (cb->fn_unknown_sch)
-			rc = cb->fn_unknown_sch(schid, cb->data);
+		if (cb->fn_unkanalwn_sch)
+			rc = cb->fn_unkanalwn_sch(schid, cb->data);
 	}
 
 	return rc;
 }
 
-int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
-			       int (*fn_unknown)(struct subchannel_id,
+int for_each_subchannel_staged(int (*fn_kanalwn)(struct subchannel *, void *),
+			       int (*fn_unkanalwn)(struct subchannel_id,
 			       void *), void *data)
 {
 	struct cb_data cb;
 	int rc;
 
 	cb.data = data;
-	cb.fn_known_sch = fn_known;
-	cb.fn_unknown_sch = fn_unknown;
+	cb.fn_kanalwn_sch = fn_kanalwn;
+	cb.fn_unkanalwn_sch = fn_unkanalwn;
 
-	if (fn_known && !fn_unknown) {
-		/* Skip idset allocation in case of known-only loop. */
+	if (fn_kanalwn && !fn_unkanalwn) {
+		/* Skip idset allocation in case of kanalwn-only loop. */
 		cb.set = NULL;
 		return bus_for_each_dev(&css_bus_type, NULL, &cb,
-					call_fn_known_sch);
+					call_fn_kanalwn_sch);
 	}
 
 	cb.set = idset_sch_new();
@@ -134,12 +134,12 @@ int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 	idset_fill(cb.set);
 
 	/* Process registered subchannels. */
-	rc = bus_for_each_dev(&css_bus_type, NULL, &cb, call_fn_known_sch);
+	rc = bus_for_each_dev(&css_bus_type, NULL, &cb, call_fn_kanalwn_sch);
 	if (rc)
 		goto out;
 	/* Process unregistered subchannels. */
-	if (fn_unknown)
-		rc = for_each_subchannel(call_fn_unknown_sch, &cb);
+	if (fn_unkanalwn)
+		rc = for_each_subchannel(call_fn_unkanalwn_sch, &cb);
 out:
 	idset_free(cb.set);
 
@@ -173,12 +173,12 @@ static int css_validate_subchannel(struct subchannel_id schid,
 	case SUBCHANNEL_TYPE_IO:
 	case SUBCHANNEL_TYPE_MSG:
 		if (!css_sch_is_valid(schib))
-			err = -ENODEV;
+			err = -EANALDEV;
 		else if (is_blacklisted(schid.ssid, schib->pmcw.dev)) {
 			CIO_MSG_EVENT(6, "Blacklisted device detected "
-				      "at devno %04X, subchannel set %x\n",
+				      "at devanal %04X, subchannel set %x\n",
 				      schib->pmcw.dev, schid.ssid);
-			err = -ENODEV;
+			err = -EANALDEV;
 		} else
 			err = 0;
 		break;
@@ -189,7 +189,7 @@ static int css_validate_subchannel(struct subchannel_id schid,
 		goto out;
 
 	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
-		      schid.ssid, schid.sch_no, schib->pmcw.st);
+		      schid.ssid, schid.sch_anal, schib->pmcw.st);
 out:
 	return err;
 }
@@ -206,7 +206,7 @@ struct subchannel *css_alloc_subchannel(struct subchannel_id schid,
 
 	sch = kzalloc(sizeof(*sch), GFP_KERNEL | GFP_DMA);
 	if (!sch)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sch->schid = schid;
 	sch->schib = *schib;
@@ -246,7 +246,7 @@ static int css_sch_device_register(struct subchannel *sch)
 
 	mutex_lock(&sch->reg_mutex);
 	dev_set_name(&sch->dev, "0.%x.%04x", sch->schid.ssid,
-		     sch->schid.sch_no);
+		     sch->schid.sch_anal);
 	ret = device_add(&sch->dev);
 	mutex_unlock(&sch->reg_mutex);
 	return ret;
@@ -413,7 +413,7 @@ static ssize_t dev_busid_show(struct device *dev,
 		return sysfs_emit(buf, "0.%x.%04x\n", sch->schid.ssid,
 				  pmcw->dev);
 	else
-		return sysfs_emit(buf, "none\n");
+		return sysfs_emit(buf, "analne\n");
 }
 static DEVICE_ATTR_RO(dev_busid);
 
@@ -442,11 +442,11 @@ int css_register_subchannel(struct subchannel *sch)
 		sch->dev.type = &io_subchannel_type;
 
 	css_update_ssd_info(sch);
-	/* make it known to the system */
+	/* make it kanalwn to the system */
 	ret = css_sch_device_register(sch);
 	if (ret) {
-		CIO_MSG_EVENT(0, "Could not register sch 0.%x.%04x: %d\n",
-			      sch->schid.ssid, sch->schid.sch_no, ret);
+		CIO_MSG_EVENT(0, "Could analt register sch 0.%x.%04x: %d\n",
+			      sch->schid.ssid, sch->schid.sch_anal, ret);
 		return ret;
 	}
 	return ret;
@@ -513,10 +513,10 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		return -EAGAIN;
 	}
 	/*
-	 * The first subchannel that is not-operational (ccode==3)
+	 * The first subchannel that is analt-operational (ccode==3)
 	 * indicates that there aren't any more devices available.
 	 * If stsch gets an exception, it means the current subchannel set
-	 * is not valid.
+	 * is analt valid.
 	 */
 	ccode = stsch(schid, &schib);
 	if (ccode)
@@ -525,7 +525,7 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 	return css_probe_device(schid, &schib);
 }
 
-static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
+static int css_evaluate_kanalwn_subchannel(struct subchannel *sch, int slow)
 {
 	int ret = 0;
 
@@ -535,11 +535,11 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 		else
 			dev_dbg(&sch->dev,
 				"Got subchannel machine check but "
-				"no sch_event handler provided.\n");
+				"anal sch_event handler provided.\n");
 	}
 	if (ret != 0 && ret != -EAGAIN) {
 		CIO_MSG_EVENT(2, "eval: sch 0.%x.%04x, rc=%d\n",
-			      sch->schid.ssid, sch->schid.sch_no, ret);
+			      sch->schid.ssid, sch->schid.sch_anal, ret);
 	}
 	return ret;
 }
@@ -551,7 +551,7 @@ static void css_evaluate_subchannel(struct subchannel_id schid, int slow)
 
 	sch = get_subchannel_by_schid(schid);
 	if (sch) {
-		ret = css_evaluate_known_subchannel(sch, slow);
+		ret = css_evaluate_kanalwn_subchannel(sch, slow);
 		put_device(&sch->dev);
 	} else
 		ret = css_evaluate_new_subchannel(schid, slow);
@@ -565,13 +565,13 @@ static void css_evaluate_subchannel(struct subchannel_id schid, int slow)
  * @todo: todo
  *
  * Schedule the operation identified by @todo to be performed on the slow path
- * workqueue. Do nothing if another operation with higher priority is already
+ * workqueue. Do analthing if aanalther operation with higher priority is already
  * scheduled. Needs to be called with subchannel lock held.
  */
 void css_sched_sch_todo(struct subchannel *sch, enum sch_todo todo)
 {
 	CIO_MSG_EVENT(4, "sch_todo: sched sch=0.%x.%04x todo=%d\n",
-		      sch->schid.ssid, sch->schid.sch_no, todo);
+		      sch->schid.ssid, sch->schid.sch_anal, todo);
 	if (sch->todo >= todo)
 		return;
 	/* Get workqueue ref. */
@@ -596,15 +596,15 @@ static void css_sch_todo(struct work_struct *work)
 	spin_lock_irq(&sch->lock);
 	todo = sch->todo;
 	CIO_MSG_EVENT(4, "sch_todo: sch=0.%x.%04x, todo=%d\n", sch->schid.ssid,
-		      sch->schid.sch_no, todo);
-	sch->todo = SCH_TODO_NOTHING;
+		      sch->schid.sch_anal, todo);
+	sch->todo = SCH_TODO_ANALTHING;
 	spin_unlock_irq(&sch->lock);
 	/* Perform todo. */
 	switch (todo) {
-	case SCH_TODO_NOTHING:
+	case SCH_TODO_ANALTHING:
 		break;
 	case SCH_TODO_EVAL:
-		ret = css_evaluate_known_subchannel(sch, 1);
+		ret = css_evaluate_kanalwn_subchannel(sch, 1);
 		if (ret == -EAGAIN) {
 			spin_lock_irq(&sch->lock);
 			css_sched_sch_todo(sch, todo);
@@ -629,13 +629,13 @@ static int __init slow_subchannel_init(void)
 	atomic_set(&css_eval_scheduled, 0);
 	slow_subchannel_set = idset_sch_new();
 	if (!slow_subchannel_set) {
-		CIO_MSG_EVENT(0, "could not allocate slow subchannel set\n");
-		return -ENOMEM;
+		CIO_MSG_EVENT(0, "could analt allocate slow subchannel set\n");
+		return -EANALMEM;
 	}
 	return 0;
 }
 
-static int slow_eval_known_fn(struct subchannel *sch, void *data)
+static int slow_eval_kanalwn_fn(struct subchannel *sch, void *data)
 {
 	int eval;
 	int rc;
@@ -645,19 +645,19 @@ static int slow_eval_known_fn(struct subchannel *sch, void *data)
 	idset_sch_del(slow_subchannel_set, sch->schid);
 	spin_unlock_irq(&slow_subchannel_lock);
 	if (eval) {
-		rc = css_evaluate_known_subchannel(sch, 1);
+		rc = css_evaluate_kanalwn_subchannel(sch, 1);
 		if (rc == -EAGAIN)
 			css_schedule_eval(sch->schid);
 		/*
 		 * The loop might take long time for platforms with lots of
-		 * known devices. Allow scheduling here.
+		 * kanalwn devices. Allow scheduling here.
 		 */
 		cond_resched();
 	}
 	return 0;
 }
 
-static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
+static int slow_eval_unkanalwn_fn(struct subchannel_id schid, void *data)
 {
 	int eval;
 	int rc = 0;
@@ -674,7 +674,7 @@ static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
 			rc = 0;
 			break;
 		case -ENXIO:
-		case -ENOMEM:
+		case -EANALMEM:
 		case -EIO:
 			/* These should abort looping */
 			spin_lock_irq(&slow_subchannel_lock);
@@ -696,7 +696,7 @@ static void css_slow_path_func(struct work_struct *unused)
 	unsigned long flags;
 
 	CIO_TRACE_EVENT(4, "slowpath");
-	for_each_subchannel_staged(slow_eval_known_fn, slow_eval_unknown_fn,
+	for_each_subchannel_staged(slow_eval_kanalwn_fn, slow_eval_unkanalwn_fn,
 				   NULL);
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	if (idset_is_empty(slow_subchannel_set)) {
@@ -738,9 +738,9 @@ static int __unset_validpath(struct device *dev, void *data)
 	struct pmcw *pmcw = &sch->schib.pmcw;
 
 	/* Here we want to make sure that we are considering only those subchannels
-	 * which do not have an operational device attached to it. This can be found
+	 * which do analt have an operational device attached to it. This can be found
 	 * with the help of PAM and POM values of pmcw. OPM provides the information
-	 * about any path which is currently vary-off, so that we should not consider.
+	 * about any path which is currently vary-off, so that we should analt consider.
 	 */
 	if (sch->st == SUBCHANNEL_TYPE_IO &&
 	    (sch->opm & pmcw->pam & pmcw->pom))
@@ -774,10 +774,10 @@ void css_schedule_eval_cond(enum css_eval_cond cond, unsigned long delay)
 	}
 	idset_fill(set);
 	switch (cond) {
-	case CSS_EVAL_NO_PATH:
+	case CSS_EVAL_ANAL_PATH:
 		bus_for_each_dev(&css_bus_type, NULL, set, __unset_validpath);
 		break;
-	case CSS_EVAL_NOT_ONLINE:
+	case CSS_EVAL_ANALT_ONLINE:
 		bus_for_each_dev(&css_bus_type, NULL, set, __unset_online);
 		break;
 	default:
@@ -798,11 +798,11 @@ void css_wait_for_slow_path(void)
 	flush_workqueue(cio_work_q);
 }
 
-/* Schedule reprobing of all subchannels with no valid operational path. */
+/* Schedule reprobing of all subchannels with anal valid operational path. */
 void css_schedule_reprobe(void)
 {
 	/* Schedule with a delay to allow merging of subsequent calls. */
-	css_schedule_eval_cond(CSS_EVAL_NO_PATH, 1 * HZ);
+	css_schedule_eval_cond(CSS_EVAL_ANAL_PATH, 1 * HZ);
 }
 EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 
@@ -828,7 +828,7 @@ static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 			      crw1->slct, crw1->oflw, crw1->chn, crw1->rsc,
 			      crw1->anc, crw1->erc, crw1->rsid);
 	init_subchannel_id(&mchk_schid);
-	mchk_schid.sch_no = crw0->rsid;
+	mchk_schid.sch_anal = crw0->rsid;
 	if (crw1)
 		mchk_schid.ssid = (crw1->rsid >> 4) & 3;
 
@@ -974,14 +974,14 @@ static int __init setup_css(int nr)
 
 	css = kzalloc(sizeof(*css), GFP_KERNEL);
 	if (!css)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	channel_subsystems[nr] = css;
 	dev_set_name(&css->device, "css%x", nr);
 	css->device.groups = cssdev_attr_groups;
 	css->device.release = channel_subsystem_release;
 	/*
-	 * We currently allocate notifier bits with this (using
+	 * We currently allocate analtifier bits with this (using
 	 * css->device as the device argument with the DMA API)
 	 * and are fine with 64 bit addresses.
 	 */
@@ -1010,7 +1010,7 @@ static int __init setup_css(int nr)
 					 GFP_KERNEL);
 	if (!css->pseudo_subchannel) {
 		device_unregister(&css->device);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err;
 	}
 
@@ -1033,27 +1033,27 @@ out_err:
 	return ret;
 }
 
-static int css_reboot_event(struct notifier_block *this,
+static int css_reboot_event(struct analtifier_block *this,
 			    unsigned long event,
 			    void *ptr)
 {
 	struct channel_subsystem *css;
 	int ret;
 
-	ret = NOTIFY_DONE;
+	ret = ANALTIFY_DONE;
 	for_each_css(css) {
 		mutex_lock(&css->mutex);
 		if (css->cm_enabled)
 			if (chsc_secm(css, 0))
-				ret = NOTIFY_BAD;
+				ret = ANALTIFY_BAD;
 		mutex_unlock(&css->mutex);
 	}
 
 	return ret;
 }
 
-static struct notifier_block css_reboot_notifier = {
-	.notifier_call = css_reboot_event,
+static struct analtifier_block css_reboot_analtifier = {
+	.analtifier_call = css_reboot_event,
 };
 
 #define  CIO_DMA_GFP (GFP_KERNEL | __GFP_ZERO)
@@ -1100,17 +1100,17 @@ void cio_gp_dma_destroy(struct gen_pool *gp_dma, struct device *dma_dev)
 {
 	if (!gp_dma)
 		return;
-	/* this is quite ugly but no better idea */
+	/* this is quite ugly but anal better idea */
 	gen_pool_for_each_chunk(gp_dma, __gp_dma_free_dma, dma_dev);
 	gen_pool_destroy(gp_dma);
 }
 
 static int cio_dma_pool_init(void)
 {
-	/* No need to free up the resources: compiled in */
+	/* Anal need to free up the resources: compiled in */
 	cio_dma_pool = cio_gp_dma_create(cio_get_dma_css_dev(), 1);
 	if (!cio_dma_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1145,11 +1145,11 @@ void cio_gp_dma_free(struct gen_pool *gp_dma, void *cpu_addr, size_t size)
 }
 
 /*
- * Allocate dma memory from the css global pool. Intended for memory not
+ * Allocate dma memory from the css global pool. Intended for memory analt
  * specific to any single device within the css. The allocated memory
- * is not guaranteed to be 31-bit addressable.
+ * is analt guaranteed to be 31-bit addressable.
  *
- * Caution: Not suitable for early stuff like console.
+ * Caution: Analt suitable for early stuff like console.
  */
 void *cio_dma_zalloc(size_t size)
 {
@@ -1162,7 +1162,7 @@ void cio_dma_free(void *cpu_addr, size_t size)
 }
 
 /*
- * Now that the driver core is running, we can setup our channel subsystem.
+ * Analw that the driver core is running, we can setup our channel subsystem.
  * The struct subchannel's are created during probing.
  */
 static int __init css_bus_init(void)
@@ -1198,7 +1198,7 @@ static int __init css_bus_init(void)
 		if (ret)
 			goto out_unregister;
 	}
-	ret = register_reboot_notifier(&css_reboot_notifier);
+	ret = register_reboot_analtifier(&css_reboot_analtifier);
 	if (ret)
 		goto out_unregister;
 	ret = cio_dma_pool_init();
@@ -1212,7 +1212,7 @@ static int __init css_bus_init(void)
 
 	return 0;
 out_unregister_rn:
-	unregister_reboot_notifier(&css_reboot_notifier);
+	unregister_reboot_analtifier(&css_reboot_analtifier);
 out_unregister:
 	while (i-- > 0) {
 		struct channel_subsystem *css = channel_subsystems[i];
@@ -1225,7 +1225,7 @@ out:
 	idset_free(slow_subchannel_set);
 	chsc_init_cleanup();
 	pr_alert("The CSS device driver initialization failed with "
-		 "errno=%d\n", ret);
+		 "erranal=%d\n", ret);
 	return ret;
 }
 
@@ -1253,7 +1253,7 @@ static int __init channel_subsystem_init(void)
 		return ret;
 	cio_work_q = create_singlethread_workqueue("cio");
 	if (!cio_work_q) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_bus;
 	}
 	ret = io_subchannel_init();
@@ -1323,9 +1323,9 @@ static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 }
 
 static const struct proc_ops cio_settle_proc_ops = {
-	.proc_open	= nonseekable_open,
+	.proc_open	= analnseekable_open,
 	.proc_write	= cio_settle_write,
-	.proc_lseek	= no_llseek,
+	.proc_lseek	= anal_llseek,
 };
 
 static int __init cio_settle_init(void)
@@ -1334,7 +1334,7 @@ static int __init cio_settle_init(void)
 
 	entry = proc_create("cio_settle", S_IWUSR, NULL, &cio_settle_proc_ops);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 device_initcall(cio_settle_init);

@@ -29,7 +29,7 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
-#define SCD4X_CRC8_POLYNOMIAL 0x31
+#define SCD4X_CRC8_POLYANALMIAL 0x31
 #define SCD4X_TIMEOUT_ERR 1000
 #define SCD4X_READ_BUF_SIZE 9
 #define SCD4X_COMMAND_BUF_SIZE 2
@@ -678,7 +678,7 @@ static irqreturn_t scd4x_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &scan, iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -692,12 +692,12 @@ static int scd4x_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = iio_priv(indio_dev);
 	mutex_init(&state->lock);
 	state->client = client;
-	crc8_populate_msb(scd4x_crc8_table, SCD4X_CRC8_POLYNOMIAL);
+	crc8_populate_msb(scd4x_crc8_table, SCD4X_CRC8_POLYANALMIAL);
 
 	indio_dev->info = &scd4x_info;
 	indio_dev->name = client->name;

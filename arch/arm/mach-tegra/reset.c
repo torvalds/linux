@@ -36,7 +36,7 @@ static void __init tegra_cpu_reset_handler_set(const u32 reset_address)
 	u32 reg;
 
 	/*
-	 * NOTE: This must be the one and only write to the EVP CPU reset
+	 * ANALTE: This must be the one and only write to the EVP CPU reset
 	 *       vector in the entire system.
 	 */
 	writel(reset_address, evp_cpu_reset);
@@ -45,7 +45,7 @@ static void __init tegra_cpu_reset_handler_set(const u32 reset_address)
 
 	/*
 	 * Prevent further modifications to the physical reset vector.
-	 *  NOTE: Has no effect on chips prior to Tegra30.
+	 *  ANALTE: Has anal effect on chips prior to Tegra30.
 	 */
 	reg = readl(sb_ctrl);
 	reg |= 2;
@@ -68,14 +68,14 @@ static void __init tegra_cpu_reset_handler_enable(void)
 
 	err = call_firmware_op(set_cpu_boot_addr, 0, reset_address);
 	switch (err) {
-	case -ENOSYS:
+	case -EANALSYS:
 		tegra_cpu_reset_handler_set(reset_address);
 		fallthrough;
 	case 0:
 		is_enabled = true;
 		break;
 	default:
-		pr_crit("Cannot set CPU reset handler: %d\n", err);
+		pr_crit("Cananalt set CPU reset handler: %d\n", err);
 		BUG();
 	}
 }

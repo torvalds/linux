@@ -2,7 +2,7 @@ Amlogic Meson8 and Meson8b "analog top" registers:
 --------------------------------------------------
 
 The analog top registers contain information about the so-called
-"metal revision" (which encodes the "minor version") of the SoC.
+"metal revision" (which encodes the "mianalr version") of the SoC.
 
 Required properties:
 - reg: the register range of the analog top registers

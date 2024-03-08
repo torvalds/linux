@@ -11,7 +11,7 @@
         "BriefDescription": "Machine clears due to FP assists",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.FP_ASSIST",
-        "PublicDescription": "Counts machine clears due to floating point (FP) operations needing assists.  For instance, if the result was a floating point denormal, the hardware clears the pipeline and reissues uops to produce the correct IEEE compliant denormal result.",
+        "PublicDescription": "Counts machine clears due to floating point (FP) operations needing assists.  For instance, if the result was a floating point deanalrmal, the hardware clears the pipeline and reissues uops to produce the correct IEEE compliant deanalrmal result.",
         "SampleAfterValue": "20003",
         "UMask": "0x4"
     },

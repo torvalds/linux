@@ -37,7 +37,7 @@
 
 #define PUSH_NINC_INC 0:0
 #define PUSH_NINC_HDR(p,c,m,n) \
-	PUSH_HDR(p, NON_INC_METHOD, "ninc", "size %d", PUSH906F_SUBC_##c, m, n)
+	PUSH_HDR(p, ANALN_INC_METHOD, "ninc", "size %d", PUSH906F_SUBC_##c, m, n)
 
 #define PUSH_IMMD_HDR(p,c,m,n) \
 	PUSH_HDR(p, IMMD_DATA_METHOD, "immd", "data 0x%04x", PUSH906F_SUBC_##c, m, n)

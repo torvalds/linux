@@ -11,7 +11,7 @@
 #include <linux/err.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -20,7 +20,7 @@
 #include <linux/of.h>
 #include <linux/devm-helpers.h>
 
-#define JITTER_DEFAULT 10 /* hope 10ms is enough */
+#define JITTER_DEFAULT 10 /* hope 10ms is eanalugh */
 
 enum gab_chan_type {
 	GAB_VOLTAGE = 0,
@@ -71,9 +71,9 @@ static const enum power_supply_property gab_props[] = {
  * should correspond one-to-one with enum chan_type.
  */
 static const enum power_supply_property gab_dyn_props[] = {
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
-	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
+	POWER_SUPPLY_PROP_POWER_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 };
 
@@ -107,11 +107,11 @@ static int gab_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = adc_bat->status;
 		return 0;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		return gab_read_channel(adc_bat, GAB_VOLTAGE, &val->intval);
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		return gab_read_channel(adc_bat, GAB_CURRENT, &val->intval);
-	case POWER_SUPPLY_PROP_POWER_NOW:
+	case POWER_SUPPLY_PROP_POWER_ANALW:
 		return gab_read_channel(adc_bat, GAB_POWER, &val->intval);
 	case POWER_SUPPLY_PROP_TEMP:
 		return gab_read_channel(adc_bat, GAB_TEMP, &val->intval);
@@ -133,7 +133,7 @@ static void gab_work(struct work_struct *work)
 	if (!power_supply_am_i_supplied(adc_bat->psy))
 		adc_bat->status =  POWER_SUPPLY_STATUS_DISCHARGING;
 	else if (gab_charge_finished(adc_bat))
-		adc_bat->status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		adc_bat->status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	else
 		adc_bat->status = POWER_SUPPLY_STATUS_CHARGING;
 
@@ -164,9 +164,9 @@ static int gab_probe(struct platform_device *pdev)
 
 	adc_bat = devm_kzalloc(&pdev->dev, sizeof(*adc_bat), GFP_KERNEL);
 	if (!adc_bat)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_analde = pdev->dev.of_analde;
 	psy_cfg.drv_data = adc_bat;
 	psy_desc = &adc_bat->psy_desc;
 	psy_desc->name = dev_name(&pdev->dev);
@@ -187,7 +187,7 @@ static int gab_probe(struct platform_device *pdev)
 				  sizeof(*properties),
 				  GFP_KERNEL);
 	if (!properties)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(properties, gab_props, sizeof(gab_props));
 
@@ -199,7 +199,7 @@ static int gab_probe(struct platform_device *pdev)
 		adc_bat->channel[chan] = devm_iio_channel_get(&pdev->dev, gab_chan_name[chan]);
 		if (IS_ERR(adc_bat->channel[chan])) {
 			ret = PTR_ERR(adc_bat->channel[chan]);
-			if (ret != -ENODEV)
+			if (ret != -EANALDEV)
 				return dev_err_probe(&pdev->dev, ret, "Failed to get ADC channel %s\n", gab_chan_name[chan]);
 			adc_bat->channel[chan] = NULL;
 		} else if (adc_bat->channel[chan]) {
@@ -208,7 +208,7 @@ static int gab_probe(struct platform_device *pdev)
 
 			for (index2 = 0; index2 < index; index2++) {
 				if (properties[index2] == gab_dyn_props[chan])
-					break;	/* already known */
+					break;	/* already kanalwn */
 			}
 			if (index2 == index)	/* really new */
 				properties[index++] = gab_dyn_props[chan];
@@ -216,14 +216,14 @@ static int gab_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* none of the channels are supported so let's bail out */
+	/* analne of the channels are supported so let's bail out */
 	if (!any)
-		return dev_err_probe(&pdev->dev, -ENODEV, "Failed to get any ADC channel\n");
+		return dev_err_probe(&pdev->dev, -EANALDEV, "Failed to get any ADC channel\n");
 
 	/*
 	 * Total number of properties is equal to static properties
-	 * plus the dynamic properties.Some properties may not be set
-	 * as come channels may be not be supported by the device.So
+	 * plus the dynamic properties.Some properties may analt be set
+	 * as come channels may be analt be supported by the device.So
 	 * we need to take care of that.
 	 */
 	psy_desc->properties = properties;
@@ -262,7 +262,7 @@ static int __maybe_unused gab_suspend(struct device *dev)
 	struct gab *adc_bat = dev_get_drvdata(dev);
 
 	cancel_delayed_work_sync(&adc_bat->bat_work);
-	adc_bat->status = POWER_SUPPLY_STATUS_UNKNOWN;
+	adc_bat->status = POWER_SUPPLY_STATUS_UNKANALWN;
 	return 0;
 }
 

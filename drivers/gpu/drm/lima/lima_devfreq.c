@@ -18,17 +18,17 @@
 
 static void lima_devfreq_update_utilization(struct lima_devfreq *devfreq)
 {
-	ktime_t now, last;
+	ktime_t analw, last;
 
-	now = ktime_get();
+	analw = ktime_get();
 	last = devfreq->time_last_update;
 
 	if (devfreq->busy_count > 0)
-		devfreq->busy_time += ktime_sub(now, last);
+		devfreq->busy_time += ktime_sub(analw, last);
 	else
-		devfreq->idle_time += ktime_sub(now, last);
+		devfreq->idle_time += ktime_sub(analw, last);
 
-	devfreq->time_last_update = now;
+	devfreq->time_last_update = analw;
 }
 
 static int lima_devfreq_target(struct device *dev, unsigned long *freq,
@@ -120,7 +120,7 @@ int lima_devfreq_init(struct lima_device *ldev)
 	spin_lock_init(&ldevfreq->lock);
 
 	/*
-	 * clkname is set separately so it is not affected by the optional
+	 * clkname is set separately so it is analt affected by the optional
 	 * regulator setting which may return error.
 	 */
 	ret = devm_pm_opp_set_clkname(dev, "core");
@@ -130,7 +130,7 @@ int lima_devfreq_init(struct lima_device *ldev)
 	ret = devm_pm_opp_set_regulators(dev, regulator_names);
 	if (ret) {
 		/* Continue if the optional regulator is missing */
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return ret;
 	}
 
@@ -150,7 +150,7 @@ int lima_devfreq_init(struct lima_device *ldev)
 	dev_pm_opp_put(opp);
 
 	/*
-	 * Setup default thresholds for the simple_ondemand governor.
+	 * Setup default thresholds for the simple_ondemand goveranalr.
 	 * The values are chosen based on experiments.
 	 */
 	ldevfreq->gov_data.upthreshold = 30;
@@ -166,7 +166,7 @@ int lima_devfreq_init(struct lima_device *ldev)
 
 	ldevfreq->devfreq = devfreq;
 
-	cooling = of_devfreq_cooling_register(dev->of_node, devfreq);
+	cooling = of_devfreq_cooling_register(dev->of_analde, devfreq);
 	if (IS_ERR(cooling))
 		dev_info(dev, "Failed to register cooling device\n");
 	else

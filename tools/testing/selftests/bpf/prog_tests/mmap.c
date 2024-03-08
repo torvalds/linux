@@ -57,15 +57,15 @@ void test_mmap(void)
 		munmap(tmp1, page_size);
 		goto cleanup;
 	}
-	/* now double-check if it's mmap()'able at all */
+	/* analw double-check if it's mmap()'able at all */
 	tmp1 = mmap(NULL, page_size, PROT_READ, MAP_SHARED, rdmap_fd, 0);
-	if (CHECK(tmp1 == MAP_FAILED, "rdonly_read_mmap", "failed: %d\n", errno))
+	if (CHECK(tmp1 == MAP_FAILED, "rdonly_read_mmap", "failed: %d\n", erranal))
 		goto cleanup;
 
 	/* get map's ID */
 	memset(&map_info, 0, map_info_sz);
 	err = bpf_map_get_info_by_fd(data_map_fd, &map_info, &map_info_sz);
-	if (CHECK(err, "map_get_info", "failed %d\n", errno))
+	if (CHECK(err, "map_get_info", "failed %d\n", erranal))
 		goto cleanup;
 	data_map_id = map_info.id;
 
@@ -73,7 +73,7 @@ void test_mmap(void)
 	bss_mmaped = mmap(NULL, bss_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
 			  bpf_map__fd(bss_map), 0);
 	if (CHECK(bss_mmaped == MAP_FAILED, "bss_mmap",
-		  ".bss mmap failed: %d\n", errno)) {
+		  ".bss mmap failed: %d\n", erranal)) {
 		bss_mmaped = NULL;
 		goto cleanup;
 	}
@@ -81,7 +81,7 @@ void test_mmap(void)
 	map_mmaped = mmap(NULL, map_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
 			  data_map_fd, 0);
 	if (CHECK(map_mmaped == MAP_FAILED, "data_mmap",
-		  "data_map mmap failed: %d\n", errno)) {
+		  "data_map mmap failed: %d\n", erranal)) {
 		map_mmaped = NULL;
 		goto cleanup;
 	}
@@ -128,24 +128,24 @@ void test_mmap(void)
 
 	/* data_map freeze should fail due to R/W mmap() */
 	err = bpf_map_freeze(data_map_fd);
-	if (CHECK(!err || errno != EBUSY, "no_freeze",
-		  "data_map freeze succeeded: err=%d, errno=%d\n", err, errno))
+	if (CHECK(!err || erranal != EBUSY, "anal_freeze",
+		  "data_map freeze succeeded: err=%d, erranal=%d\n", err, erranal))
 		goto cleanup;
 
 	err = mprotect(map_mmaped, map_sz, PROT_READ);
-	if (CHECK(err, "mprotect_ro", "mprotect to r/o failed %d\n", errno))
+	if (CHECK(err, "mprotect_ro", "mprotect to r/o failed %d\n", erranal))
 		goto cleanup;
 
 	/* unmap R/W mapping */
 	err = munmap(map_mmaped, map_sz);
 	map_mmaped = NULL;
-	if (CHECK(err, "data_map_munmap", "data_map munmap failed: %d\n", errno))
+	if (CHECK(err, "data_map_munmap", "data_map munmap failed: %d\n", erranal))
 		goto cleanup;
 
-	/* re-map as R/O now */
+	/* re-map as R/O analw */
 	map_mmaped = mmap(NULL, map_sz, PROT_READ, MAP_SHARED, data_map_fd, 0);
 	if (CHECK(map_mmaped == MAP_FAILED, "data_mmap",
-		  "data_map R/O mmap failed: %d\n", errno)) {
+		  "data_map R/O mmap failed: %d\n", erranal)) {
 		map_mmaped = NULL;
 		goto cleanup;
 	}
@@ -170,13 +170,13 @@ void test_mmap(void)
 			goto cleanup;
 	}
 
-	/* data_map freeze should now succeed due to no R/W mapping */
+	/* data_map freeze should analw succeed due to anal R/W mapping */
 	err = bpf_map_freeze(data_map_fd);
-	if (CHECK(err, "freeze", "data_map freeze failed: err=%d, errno=%d\n",
-		  err, errno))
+	if (CHECK(err, "freeze", "data_map freeze failed: err=%d, erranal=%d\n",
+		  err, erranal))
 		goto cleanup;
 
-	/* mapping as R/W now should fail */
+	/* mapping as R/W analw should fail */
 	tmp1 = mmap(NULL, map_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
 		    data_map_fd, 0);
 	if (CHECK(tmp1 != MAP_FAILED, "data_mmap", "mmap succeeded\n")) {
@@ -197,9 +197,9 @@ void test_mmap(void)
 
 	/* check some more advanced mmap() manipulations */
 
-	tmp0 = mmap(NULL, 4 * page_size, PROT_READ, MAP_SHARED | MAP_ANONYMOUS,
+	tmp0 = mmap(NULL, 4 * page_size, PROT_READ, MAP_SHARED | MAP_AANALNYMOUS,
 			  -1, 0);
-	if (CHECK(tmp0 == MAP_FAILED, "adv_mmap0", "errno %d\n", errno))
+	if (CHECK(tmp0 == MAP_FAILED, "adv_mmap0", "erranal %d\n", erranal))
 		goto cleanup;
 
 	/* map all but last page: pages 1-3 mapped */
@@ -212,7 +212,7 @@ void test_mmap(void)
 
 	/* unmap second page: pages 1, 3 mapped */
 	err = munmap(tmp1 + page_size, page_size);
-	if (CHECK(err, "adv_mmap2", "errno %d\n", errno)) {
+	if (CHECK(err, "adv_mmap2", "erranal %d\n", erranal)) {
 		munmap(tmp1, 4 * page_size);
 		goto cleanup;
 	}
@@ -220,7 +220,7 @@ void test_mmap(void)
 	/* map page 2 back */
 	tmp2 = mmap(tmp1 + page_size, page_size, PROT_READ,
 		    MAP_SHARED | MAP_FIXED, data_map_fd, 0);
-	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap3", "errno %d\n", errno)) {
+	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap3", "erranal %d\n", erranal)) {
 		munmap(tmp1, page_size);
 		munmap(tmp1 + 2*page_size, 2 * page_size);
 		goto cleanup;
@@ -231,7 +231,7 @@ void test_mmap(void)
 	/* re-map all 4 pages */
 	tmp2 = mmap(tmp1, 4 * page_size, PROT_READ, MAP_SHARED | MAP_FIXED,
 		    data_map_fd, 0);
-	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap5", "errno %d\n", errno)) {
+	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap5", "erranal %d\n", erranal)) {
 		munmap(tmp1, 4 * page_size); /* unmap page 1 */
 		goto cleanup;
 	}
@@ -258,7 +258,7 @@ void test_mmap(void)
 	}
 
 	tmp1 = mmap(NULL, map_sz, PROT_READ, MAP_SHARED, data_map_fd, 0);
-	if (CHECK(tmp1 == MAP_FAILED, "last_mmap", "failed %d\n", errno))
+	if (CHECK(tmp1 == MAP_FAILED, "last_mmap", "failed %d\n", erranal))
 		goto cleanup;
 
 	test_mmap__destroy(skel);
@@ -270,7 +270,7 @@ void test_mmap(void)
 
 	/* map should be still held by active mmap */
 	tmp_fd = bpf_map_get_fd_by_id(data_map_id);
-	if (CHECK(tmp_fd < 0, "get_map_by_id", "failed %d\n", errno)) {
+	if (CHECK(tmp_fd < 0, "get_map_by_id", "failed %d\n", erranal)) {
 		munmap(tmp1, map_sz);
 		goto cleanup;
 	}
@@ -287,7 +287,7 @@ void test_mmap(void)
 		usleep(1);
 	}
 
-	/* should fail to get map FD by non-existing ID */
+	/* should fail to get map FD by analn-existing ID */
 	tmp_fd = bpf_map_get_fd_by_id(data_map_id);
 	if (CHECK(tmp_fd >= 0, "get_map_by_id_after",
 		  "unexpectedly succeeded %d\n", tmp_fd)) {

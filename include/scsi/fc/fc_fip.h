@@ -24,7 +24,7 @@
  */
 #define FIP_VN_FC_MAP	0x0efd00 /* MAC OUI for VN2VN use */
 #define FIP_VN_PROBE_WAIT 100	/* interval between VN2VN probes (ms) */
-#define FIP_VN_ANN_WAIT 400	/* interval between VN2VN announcements (ms) */
+#define FIP_VN_ANN_WAIT 400	/* interval between VN2VN ananaluncements (ms) */
 #define FIP_VN_RLIM_INT 10000	/* interval between probes when rate limited */
 #define FIP_VN_RLIM_COUNT 10	/* number of probes before rate limiting */
 #define FIP_VN_BEACON_INT 8000	/* interval between VN2VN beacons */
@@ -34,7 +34,7 @@
  * Multicast MAC addresses.  T11-adopted.
  */
 #define FIP_ALL_FCOE_MACS	((__u8[6]) { 1, 0x10, 0x18, 1, 0, 0 })
-#define FIP_ALL_ENODE_MACS	((__u8[6]) { 1, 0x10, 0x18, 1, 0, 1 })
+#define FIP_ALL_EANALDE_MACS	((__u8[6]) { 1, 0x10, 0x18, 1, 0, 1 })
 #define FIP_ALL_FCF_MACS	((__u8[6]) { 1, 0x10, 0x18, 1, 0, 2 })
 #define FIP_ALL_VN2VN_MACS	((__u8[6]) { 1, 0x10, 0x18, 1, 0, 4 })
 #define FIP_ALL_P2P_MACS	((__u8[6]) { 1, 0x10, 0x18, 1, 0, 5 })
@@ -98,8 +98,8 @@ enum fip_reset_subcode {
  */
 enum fip_vlan_subcode {
 	FIP_SC_VL_REQ =	1,		/* vlan request */
-	FIP_SC_VL_NOTE = 2,		/* vlan notification */
-	FIP_SC_VL_VN2VN_NOTE = 3,	/* VN2VN vlan notification */
+	FIP_SC_VL_ANALTE = 2,		/* vlan analtification */
+	FIP_SC_VL_VN2VN_ANALTE = 3,	/* VN2VN vlan analtification */
 };
 
 /*
@@ -108,7 +108,7 @@ enum fip_vlan_subcode {
 enum fip_vn2vn_subcode {
 	FIP_SC_VN_PROBE_REQ = 1,	/* probe request */
 	FIP_SC_VN_PROBE_REP = 2,	/* probe reply */
-	FIP_SC_VN_CLAIM_NOTIFY = 3,	/* claim notification */
+	FIP_SC_VN_CLAIM_ANALTIFY = 3,	/* claim analtification */
 	FIP_SC_VN_CLAIM_REP = 4,	/* claim response */
 	FIP_SC_VN_BEACON = 5,		/* beacon */
 };
@@ -139,20 +139,20 @@ enum fip_desc_type {
 	FIP_DT_PRI =	1,		/* priority for forwarder selection */
 	FIP_DT_MAC =	2,		/* MAC address */
 	FIP_DT_MAP_OUI = 3,		/* FC-MAP OUI */
-	FIP_DT_NAME =	4,		/* switch name or node name */
+	FIP_DT_NAME =	4,		/* switch name or analde name */
 	FIP_DT_FAB =	5,		/* fabric descriptor */
 	FIP_DT_FCOE_SIZE = 6,		/* max FCoE frame size */
 	FIP_DT_FLOGI =	7,		/* FLOGI request or response */
 	FIP_DT_FDISC =	8,		/* FDISC request or response */
 	FIP_DT_LOGO =	9,		/* LOGO request or response */
 	FIP_DT_ELP =	10,		/* ELP request or response */
-	FIP_DT_VN_ID =	11,		/* VN_Node Identifier */
+	FIP_DT_VN_ID =	11,		/* VN_Analde Identifier */
 	FIP_DT_FKA =	12,		/* advertisement keep-alive period */
 	FIP_DT_VENDOR =	13,		/* vendor ID */
 	FIP_DT_VLAN =	14,		/* vlan number */
 	FIP_DT_FC4F =	15,		/* FC-4 features */
 	FIP_DT_LIMIT,			/* max defined desc_type + 1 */
-	FIP_DT_NON_CRITICAL = 128,	/* First non-critical descriptor */
+	FIP_DT_ANALN_CRITICAL = 128,	/* First analn-critical descriptor */
 	FIP_DT_CLR_VLINKS = 128,	/* Clear virtual links reason code */
 	FIP_DT_VENDOR_BASE = 241,	/* first vendor-specific desc_type */
 };
@@ -222,7 +222,7 @@ struct fip_encaps {
 } __attribute__((packed));
 
 /*
- * FIP_DT_VN_ID - VN_Node Identifier descriptor.
+ * FIP_DT_VN_ID - VN_Analde Identifier descriptor.
  */
 struct fip_vn_desc {
 	struct fip_desc fd_desc;
@@ -246,7 +246,7 @@ struct fip_fka_desc {
  * flags for fip_fka_desc.fd_flags
  */
 enum fip_fka_flags {
-	FIP_FKA_ADV_D =	0x01,		/* no need for FKA from ENode */
+	FIP_FKA_ADV_D =	0x01,		/* anal need for FKA from EAnalde */
 };
 
 /* FIP_DT_FKA flags */
@@ -256,7 +256,7 @@ enum fip_fka_flags {
  */
 struct fip_vlan_desc {
 	struct fip_desc fd_desc;
-	__be16		fd_vlan; /* Note: highest 4 bytes are unused */
+	__be16		fd_vlan; /* Analte: highest 4 bytes are unused */
 } __attribute__((packed));
 
 /*

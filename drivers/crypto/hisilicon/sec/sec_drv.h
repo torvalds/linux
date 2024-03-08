@@ -62,7 +62,7 @@ struct sec_bd_info {
 
 #define SEC_BD_W0_AI_GEN			BIT(22)
 #define SEC_BD_W0_CI_GEN			BIT(23)
-#define SEC_BD_W0_NO_HPAD			BIT(24)
+#define SEC_BD_W0_ANAL_HPAD			BIT(24)
 #define SEC_BD_W0_HM_M				GENMASK(26, 25)
 #define SEC_BD_W0_HM_S				25
 #define SEC_BD_W0_ICV_OR_SKEY_EN_M		GENMASK(28, 27)
@@ -237,7 +237,7 @@ enum sec_cipher_alg {
  * @lock: Protect key and pkey to ensure they are consistent
  * @auth_buf: Current context buffer for auth operations.
  * @backlog: The backlog queue used for cases where our buffers aren't
- * large enough.
+ * large eanalugh.
  */
 struct sec_alg_tfm_ctx {
 	enum sec_cipher_alg cipher_alg;
@@ -322,7 +322,7 @@ struct sec_request_el {
  * @queue_id: Index of the queue used for naming and resource selection.
  * @in_use: Flag to say if the queue is in use.
  * @expected: The next expected element to finish assuming we were in order.
- * @uprocessed: A bitmap to track which OoO elements are done but not handled.
+ * @uprocessed: A bitmap to track which OoO elements are done but analt handled.
  * @softqueue: A software queue used when chaining requirements prevent direct
  *   use of the hardware queues.
  * @havesoftqueue: A flag to say we have a queues - as we may need one for the
@@ -373,9 +373,9 @@ struct sec_hw_sge {
  * @cpuid: Currently unused.
  * @data_bytes_in_sgl: Count of bytes from all SGEs in this SGL.
  * @next: Virtual address used to stash the next sgl - useful in completion.
- * @reserved: A reserved field not currently used.
+ * @reserved: A reserved field analt currently used.
  * @sge_entries: The (up to) 64 Scatter Gather Entries, representing IOVs.
- * @node: Currently unused.
+ * @analde: Currently unused.
  */
 struct sec_hw_sgl {
 	dma_addr_t next_sgl;
@@ -388,7 +388,7 @@ struct sec_hw_sgl {
 	struct sec_hw_sgl *next;
 	u64 reserved;
 	struct sec_hw_sge  sge_entries[SEC_MAX_SGE_NUM];
-	u8 node[16];
+	u8 analde[16];
 };
 
 struct dma_pool;

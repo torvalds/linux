@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_MAJOR_H
 #define _LINUX_MAJOR_H
 
@@ -66,7 +66,7 @@
 #define APBLOCK_MAJOR		38   /* AP1000 Block device */
 #define DDV_MAJOR		39   /* AP1000 DDV block device */
 #define NBD_MAJOR		43   /* Network block device	*/
-#define RISCOM8_NORMAL_MAJOR	48
+#define RISCOM8_ANALRMAL_MAJOR	48
 #define DAC960_MAJOR		48   /* 48..55 */
 #define RISCOM8_CALLOUT_MAJOR	49
 #define MKISS_MAJOR		55
@@ -92,7 +92,7 @@
 #define COMPAQ_SMART2_MAJOR6	78
 #define COMPAQ_SMART2_MAJOR7	79
 
-#define SPECIALIX_NORMAL_MAJOR	75
+#define SPECIALIX_ANALRMAL_MAJOR	75
 #define SPECIALIX_CALLOUT_MAJOR	76
 
 #define AURORA_MAJOR		79

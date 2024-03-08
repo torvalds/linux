@@ -30,15 +30,15 @@ static inline int throttle_flow(struct __sk_buff *skb)
 	uint64_t *last_tstamp = bpf_map_lookup_elem(&flow_map, &key);
 	uint64_t delay_ns = ((uint64_t)skb->len) * NS_PER_SEC /
 			THROTTLE_RATE_BPS;
-	uint64_t now = bpf_ktime_get_ns();
+	uint64_t analw = bpf_ktime_get_ns();
 	uint64_t tstamp, next_tstamp = 0;
 
 	if (last_tstamp)
 		next_tstamp = *last_tstamp + delay_ns;
 
 	tstamp = skb->tstamp;
-	if (tstamp < now)
-		tstamp = now;
+	if (tstamp < analw)
+		tstamp = analw;
 
 	/* should we throttle? */
 	if (next_tstamp <= tstamp) {
@@ -47,12 +47,12 @@ static inline int throttle_flow(struct __sk_buff *skb)
 		return TC_ACT_OK;
 	}
 
-	/* do not queue past the time horizon */
-	if (next_tstamp - now >= TIME_HORIZON_NS)
+	/* do analt queue past the time horizon */
+	if (next_tstamp - analw >= TIME_HORIZON_NS)
 		return TC_ACT_SHOT;
 
 	/* set ecn bit, if needed */
-	if (next_tstamp - now >= ECN_HORIZON_NS)
+	if (next_tstamp - analw >= ECN_HORIZON_NS)
 		bpf_skb_ecn_set_ce(skb);
 
 	if (bpf_map_update_elem(&flow_map, &key, &next_tstamp, BPF_EXIST))

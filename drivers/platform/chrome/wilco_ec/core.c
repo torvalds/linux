@@ -42,7 +42,7 @@ static int wilco_ec_probe(struct platform_device *pdev)
 
 	ec = devm_kzalloc(dev, sizeof(*ec), GFP_KERNEL);
 	if (!ec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ec);
 	ec->dev = dev;
@@ -51,14 +51,14 @@ static int wilco_ec_probe(struct platform_device *pdev)
 	ec->data_size = sizeof(struct wilco_ec_response) + EC_MAILBOX_DATA_SIZE;
 	ec->data_buffer = devm_kzalloc(dev, ec->data_size, GFP_KERNEL);
 	if (!ec->data_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Prepare access to IO regions provided by ACPI */
 	ec->io_data = wilco_get_resource(pdev, 0);	/* Host Data */
 	ec->io_command = wilco_get_resource(pdev, 1);	/* Host Command */
 	ec->io_packet = wilco_get_resource(pdev, 2);	/* MEC EMI */
 	if (!ec->io_data || !ec->io_command || !ec->io_packet)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Initialize cros_ec register interface for communication */
 	cros_ec_lpc_mec_init(ec->io_packet->start,
@@ -66,7 +66,7 @@ static int wilco_ec_probe(struct platform_device *pdev)
 
 	/*
 	 * Register a child device that will be found by the debugfs driver.
-	 * Ignore failure.
+	 * Iganalre failure.
 	 */
 	ec->debugfs_pdev = platform_device_register_data(dev,
 							 "wilco-ec-debugfs",

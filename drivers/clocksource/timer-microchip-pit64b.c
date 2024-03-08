@@ -2,7 +2,7 @@
 /*
  * 64-bit Periodic Interval Timer driver
  *
- * Copyright (C) 2019 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2019 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Claudiu Beznea <claudiu.beznea@microchip.com>
  */
@@ -167,12 +167,12 @@ static u64 mchp_pit64b_clksrc_read(struct clocksource *cs)
 	return mchp_pit64b_cnt_read(mchp_pit64b_cs_base);
 }
 
-static u64 notrace mchp_pit64b_sched_read_clk(void)
+static u64 analtrace mchp_pit64b_sched_read_clk(void)
 {
 	return mchp_pit64b_cnt_read(mchp_pit64b_cs_base);
 }
 
-static unsigned long notrace mchp_pit64b_dt_read(void)
+static unsigned long analtrace mchp_pit64b_dt_read(void)
 {
 	return mchp_pit64b_cnt_read(mchp_pit64b_cs_base);
 }
@@ -286,7 +286,7 @@ static void __init mchp_pit64b_pres_compute(u32 *pres, u32 clk_rate,
  * Where:
  *	- gclk rate <= pclk rate/3
  *	- gclk rate could be requested from PMC
- *	- pclk rate is fixed (cannot be requested from PMC)
+ *	- pclk rate is fixed (cananalt be requested from PMC)
  */
 static int __init mchp_pit64b_init_mode(struct mchp_pit64b_timer *timer,
 					unsigned long max_rate)
@@ -352,7 +352,7 @@ static int __init mchp_pit64b_init_clksrc(struct mchp_pit64b_timer *timer,
 
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mchp_pit64b_resume(timer);
 	mchp_pit64b_reset(timer, ULLONG_MAX, MCHP_PIT64B_MR_CONT, 0);
@@ -399,7 +399,7 @@ static int __init mchp_pit64b_init_clkevt(struct mchp_pit64b_timer *timer,
 
 	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
 	if (!ce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mchp_pit64b_ce_cycles = DIV_ROUND_CLOSEST(clk_rate, HZ);
 
@@ -430,7 +430,7 @@ static int __init mchp_pit64b_init_clkevt(struct mchp_pit64b_timer *timer,
 	return 0;
 }
 
-static int __init mchp_pit64b_dt_init_timer(struct device_node *node,
+static int __init mchp_pit64b_dt_init_timer(struct device_analde *analde,
 					    bool clkevt)
 {
 	struct mchp_pit64b_timer timer;
@@ -438,23 +438,23 @@ static int __init mchp_pit64b_dt_init_timer(struct device_node *node,
 	u32 irq = 0;
 	int ret;
 
-	/* Parse DT node. */
-	timer.pclk = of_clk_get_by_name(node, "pclk");
+	/* Parse DT analde. */
+	timer.pclk = of_clk_get_by_name(analde, "pclk");
 	if (IS_ERR(timer.pclk))
 		return PTR_ERR(timer.pclk);
 
-	timer.gclk = of_clk_get_by_name(node, "gclk");
+	timer.gclk = of_clk_get_by_name(analde, "gclk");
 	if (IS_ERR(timer.gclk))
 		return PTR_ERR(timer.gclk);
 
-	timer.base = of_iomap(node, 0);
+	timer.base = of_iomap(analde, 0);
 	if (!timer.base)
 		return -ENXIO;
 
 	if (clkevt) {
-		irq = irq_of_parse_and_map(node, 0);
+		irq = irq_of_parse_and_map(analde, 0);
 		if (!irq) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto io_unmap;
 		}
 	}
@@ -488,17 +488,17 @@ io_unmap:
 	return ret;
 }
 
-static int __init mchp_pit64b_dt_init(struct device_node *node)
+static int __init mchp_pit64b_dt_init(struct device_analde *analde)
 {
 	static int inits;
 
 	switch (inits++) {
 	case 0:
 		/* 1st request, register clockevent. */
-		return mchp_pit64b_dt_init_timer(node, true);
+		return mchp_pit64b_dt_init_timer(analde, true);
 	case 1:
 		/* 2nd request, register clocksource. */
-		return mchp_pit64b_dt_init_timer(node, false);
+		return mchp_pit64b_dt_init_timer(analde, false);
 	}
 
 	/* The rest, don't care. */

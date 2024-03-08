@@ -13,7 +13,7 @@
 #define CLK_MGR_FREE_MASK		0x7
 
 #define SOCFPGA_MPU_FREE_CLK		"mpu_free_clk"
-#define SOCFPGA_NOC_FREE_CLK		"noc_free_clk"
+#define SOCFPGA_ANALC_FREE_CLK		"analc_free_clk"
 #define SOCFPGA_SDMMC_FREE_CLK		"sdmmc_free_clk"
 #define to_socfpga_periph_clk(p) container_of(p, struct socfpga_periph_clk, hw.hw)
 
@@ -44,7 +44,7 @@ static u8 clk_periclk_get_parent(struct clk_hw *hwclk)
 
 	clk_src = readl(socfpgaclk->hw.reg);
 	if (streq(name, SOCFPGA_MPU_FREE_CLK) ||
-	    streq(name, SOCFPGA_NOC_FREE_CLK) ||
+	    streq(name, SOCFPGA_ANALC_FREE_CLK) ||
 	    streq(name, SOCFPGA_SDMMC_FREE_CLK))
 		return (clk_src >> CLK_MGR_FREE_SHIFT) &
 			CLK_MGR_FREE_MASK;
@@ -57,20 +57,20 @@ static const struct clk_ops periclk_ops = {
 	.get_parent = clk_periclk_get_parent,
 };
 
-static void __init __socfpga_periph_init(struct device_node *node,
+static void __init __socfpga_periph_init(struct device_analde *analde,
 					 const struct clk_ops *ops)
 {
 	u32 reg;
 	struct clk_hw *hw_clk;
 	struct socfpga_periph_clk *periph_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
 	int rc;
 	u32 fixed_div;
 	u32 div_reg[3];
 
-	of_property_read_u32(node, "reg", &reg);
+	of_property_read_u32(analde, "reg", &reg);
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
@@ -78,7 +78,7 @@ static void __init __socfpga_periph_init(struct device_node *node,
 
 	periph_clk->hw.reg = clk_mgr_a10_base_addr + reg;
 
-	rc = of_property_read_u32_array(node, "div-reg", div_reg, 3);
+	rc = of_property_read_u32_array(analde, "div-reg", div_reg, 3);
 	if (!rc) {
 		periph_clk->div_reg = clk_mgr_a10_base_addr + div_reg[0];
 		periph_clk->shift = div_reg[1];
@@ -87,19 +87,19 @@ static void __init __socfpga_periph_init(struct device_node *node,
 		periph_clk->div_reg = NULL;
 	}
 
-	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
+	rc = of_property_read_u32(analde, "fixed-divider", &fixed_div);
 	if (rc)
 		periph_clk->fixed_div = 0;
 	else
 		periph_clk->fixed_div = fixed_div;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
 
-	init.num_parents = of_clk_parent_fill(node, parent_name, SOCFPGA_MAX_PARENTS);
+	init.num_parents = of_clk_parent_fill(analde, parent_name, SOCFPGA_MAX_PARENTS);
 	init.parent_names = parent_name;
 
 	periph_clk->hw.hw.init = &init;
@@ -108,13 +108,13 @@ static void __init __socfpga_periph_init(struct device_node *node,
 
 	rc = clk_hw_register(NULL, hw_clk);
 	if (rc) {
-		pr_err("Could not register clock:%s\n", clk_name);
+		pr_err("Could analt register clock:%s\n", clk_name);
 		goto err_clk_hw_register;
 	}
 
-	rc = of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw_clk);
+	rc = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, hw_clk);
 	if (rc) {
-		pr_err("Could not register clock provider for node:%s\n",
+		pr_err("Could analt register clock provider for analde:%s\n",
 		       clk_name);
 		goto err_of_clk_add_hw_provider;
 	}
@@ -127,7 +127,7 @@ err_clk_hw_register:
 	kfree(periph_clk);
 }
 
-void __init socfpga_a10_periph_init(struct device_node *node)
+void __init socfpga_a10_periph_init(struct device_analde *analde)
 {
-	__socfpga_periph_init(node, &periclk_ops);
+	__socfpga_periph_init(analde, &periclk_ops);
 }

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* Copyright (c) 2022/23 Siemens Mobility GmbH */
 #ifndef _LINUX_GSMMUX_H
 #define _LINUX_GSMMUX_H
@@ -32,7 +32,7 @@
  * @adaption:      Convergence layer type
  * @encapsulation: Framing (0 = basic option, 1 = advanced option)
  * @initiator:     Initiator or responder
- * @t1:            Acknowledgment timer
+ * @t1:            Ackanalwledgment timer
  * @t2:            Response timer for multiplexer control channel
  * @t3:            Response timer for wake-up procedure
  * @n2:            Maximum number of retransmissions
@@ -40,7 +40,7 @@
  * @mtu:           Maximum outgoing frame payload size
  * @k:             Window size
  * @i:             Frame type (1 = UIH, 2 = UI)
- * @unused:        Can not be used
+ * @unused:        Can analt be used
  */
 struct gsm_config
 {
@@ -71,9 +71,9 @@ struct gsm_config
  *
  * @adaption: Adaption to use in network mode.
  * @protocol: Protocol to use - only ETH_P_IP supported.
- * @unused2:  Can not be used.
+ * @unused2:  Can analt be used.
  * @if_name:  Interface name format string.
- * @unused:   Can not be used.
+ * @unused:   Can analt be used.
  */
 struct gsm_netconfig {
 	unsigned int adaption;

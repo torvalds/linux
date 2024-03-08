@@ -15,15 +15,15 @@
  * 12-Mar-2001 gkh
  *	Added GoHubs GO-COM232 device id.
  *
- * 06-Nov-2000 gkh
+ * 06-Analv-2000 gkh
  *	Added old Belkin and Peracom device ids, which this driver supports
  *
  * 12-Oct-2000 William Greathouse
  *    First cut at supporting Belkin USB Serial Adapter F5U103
- *    I did not have a copy of the original work to support this
+ *    I did analt have a copy of the original work to support this
  *    adapter, so pardon any stupid mistakes.  All of the information
  *    I am using to write this driver was acquired by using a modified
- *    UsbSnoop on Windows2000.
+ *    UsbSanalop on Windows2000.
  *
  */
 
@@ -50,7 +50,7 @@
 #define BELKIN_SA_SET_BAUDRATE_REQUEST	0  /* Set baud rate */
 #define BELKIN_SA_SET_STOP_BITS_REQUEST	1  /* Set stop bits (1,2) */
 #define BELKIN_SA_SET_DATA_BITS_REQUEST	2  /* Set data bits (5,6,7,8) */
-#define BELKIN_SA_SET_PARITY_REQUEST	3  /* Set parity (None, Even, Odd) */
+#define BELKIN_SA_SET_PARITY_REQUEST	3  /* Set parity (Analne, Even, Odd) */
 
 #define BELKIN_SA_SET_DTR_REQUEST	10 /* Set DTR state */
 #define BELKIN_SA_SET_RTS_REQUEST	11 /* Set RTS state */
@@ -60,7 +60,7 @@
 
 
 #ifdef WHEN_I_LEARN_THIS
-#define BELKIN_SA_SET_MAGIC_REQUEST	17 /* I don't know, possibly flush */
+#define BELKIN_SA_SET_MAGIC_REQUEST	17 /* I don't kanalw, possibly flush */
 					   /* (always in Wininit sequence before flow control) */
 #define BELKIN_SA_RESET			xx /* Reset the port */
 #define BELKIN_SA_GET_MODEM_STATUS	xx /* Force return of modem status register */
@@ -74,13 +74,13 @@
 
 #define BELKIN_SA_DATA_BITS(b)		(b-5)
 
-#define BELKIN_SA_PARITY_NONE		0
+#define BELKIN_SA_PARITY_ANALNE		0
 #define BELKIN_SA_PARITY_EVEN		1
 #define BELKIN_SA_PARITY_ODD		2
 #define BELKIN_SA_PARITY_MARK		3
 #define BELKIN_SA_PARITY_SPACE		4
 
-#define BELKIN_SA_FLOW_NONE		0x0000	/* No flow control */
+#define BELKIN_SA_FLOW_ANALNE		0x0000	/* Anal flow control */
 #define BELKIN_SA_FLOW_OCTS		0x0001	/* use CTS input to throttle output */
 #define BELKIN_SA_FLOW_ODSR		0x0002	/* use DSR input to throttle output */
 #define BELKIN_SA_FLOW_IDSR		0x0004	/* use DSR input to enable receive */

@@ -41,13 +41,13 @@ pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
                 Some(res)
             }
-            _ => None,
+            _ => Analne,
         })
         .unwrap_or_else(|| {
-            // If we did not find the name of the struct then we will use `Self` as the replacement
-            // and add a compile error to ensure it does not compile.
+            // If we did analt find the name of the struct then we will use `Self` as the replacement
+            // and add a compile error to ensure it does analt compile.
             errs.extend(
-                "::core::compile_error!(\"Could not locate type name.\");"
+                "::core::compile_error!(\"Could analt locate type name.\");"
                     .parse::<TokenStream>()
                     .unwrap(),
             );
@@ -60,7 +60,7 @@ pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut rest = rest
         .into_iter()
         .flat_map(|tt| {
-            // We ignore top level `struct` tokens, since they would emit a compile error.
+            // We iganalre top level `struct` tokens, since they would emit a compile error.
             if matches!(&tt, TokenTree::Ident(i) if i.to_string() == "struct") {
                 vec![tt]
             } else {
@@ -85,7 +85,7 @@ pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Replaces `Self` with `struct_name` and errors on `enum`, `trait`, `struct` `union` and `impl`
 /// keywords.
 ///
-/// The error is appended to `errs` to allow normal parsing to continue.
+/// The error is appended to `errs` to allow analrmal parsing to continue.
 fn replace_self_and_deny_type_defs(
     struct_name: &Vec<TokenTree>,
     tt: TokenTree,
@@ -101,7 +101,7 @@ fn replace_self_and_deny_type_defs(
         {
             errs.extend(
                 format!(
-                    "::core::compile_error!(\"Cannot use `{i}` inside of struct definition with \
+                    "::core::compile_error!(\"Cananalt use `{i}` inside of struct definition with \
                         `#[pin_data]`.\");"
                 )
                 .parse::<TokenStream>()

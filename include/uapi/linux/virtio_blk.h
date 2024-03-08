@@ -7,19 +7,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -44,7 +44,7 @@
 #define VIRTIO_BLK_F_ZONED		17	/* Zoned block device */
 
 /* Legacy feature bits */
-#ifndef VIRTIO_BLK_NO_LEGACY
+#ifndef VIRTIO_BLK_ANAL_LEGACY
 #define VIRTIO_BLK_F_BARRIER	0	/* Does host support barriers? */
 #define VIRTIO_BLK_F_SCSI	7	/* Supports scsi command passthru */
 #define VIRTIO_BLK_F_FLUSH	9	/* Flush command supported */
@@ -53,7 +53,7 @@
 /* Old (deprecated) name for VIRTIO_BLK_F_FLUSH. */
 #define VIRTIO_BLK_F_WCE VIRTIO_BLK_F_FLUSH
 #endif
-#endif /* !VIRTIO_BLK_NO_LEGACY */
+#endif /* !VIRTIO_BLK_ANAL_LEGACY */
 
 #define VIRTIO_BLK_ID_BYTES	20	/* ID string length */
 
@@ -153,22 +153,22 @@ struct virtio_blk_config {
 /*
  * Command types
  *
- * Usage is a bit tricky as some bits are used as flags and some are not.
+ * Usage is a bit tricky as some bits are used as flags and some are analt.
  *
  * Rules:
  *   VIRTIO_BLK_T_OUT may be combined with VIRTIO_BLK_T_SCSI_CMD or
  *   VIRTIO_BLK_T_BARRIER.  VIRTIO_BLK_T_FLUSH is a command of its own
- *   and may not be combined with any of the other flags.
+ *   and may analt be combined with any of the other flags.
  */
 
 /* These two define direction. */
 #define VIRTIO_BLK_T_IN		0
 #define VIRTIO_BLK_T_OUT	1
 
-#ifndef VIRTIO_BLK_NO_LEGACY
-/* This bit says it's a scsi command, not an actual read or write. */
+#ifndef VIRTIO_BLK_ANAL_LEGACY
+/* This bit says it's a scsi command, analt an actual read or write. */
 #define VIRTIO_BLK_T_SCSI_CMD	2
-#endif /* VIRTIO_BLK_NO_LEGACY */
+#endif /* VIRTIO_BLK_ANAL_LEGACY */
 
 /* Cache flush command */
 #define VIRTIO_BLK_T_FLUSH	4
@@ -206,14 +206,14 @@ struct virtio_blk_config {
 /* Reset All zones command */
 #define VIRTIO_BLK_T_ZONE_RESET_ALL 26
 
-#ifndef VIRTIO_BLK_NO_LEGACY
+#ifndef VIRTIO_BLK_ANAL_LEGACY
 /* Barrier before this op. */
 #define VIRTIO_BLK_T_BARRIER	0x80000000
-#endif /* !VIRTIO_BLK_NO_LEGACY */
+#endif /* !VIRTIO_BLK_ANAL_LEGACY */
 
 /*
  * This comes first in the read scatter-gather list.
- * For legacy virtio, if VIRTIO_F_ANY_LAYOUT is not negotiated,
+ * For legacy virtio, if VIRTIO_F_ANY_LAYOUT is analt negotiated,
  * this is the first element of the read scatter-gather list.
  */
 struct virtio_blk_outhdr {
@@ -230,7 +230,7 @@ struct virtio_blk_outhdr {
  */
 
 /* Regular block device */
-#define VIRTIO_BLK_Z_NONE      0
+#define VIRTIO_BLK_Z_ANALNE      0
 /* Host-managed zoned device */
 #define VIRTIO_BLK_Z_HM        1
 /* Host-aware zoned device */
@@ -274,8 +274,8 @@ struct virtio_blk_zone_report {
  * Zone states that are available for zones of all types.
  */
 
-/* Not a write pointer (conventional zones only) */
-#define VIRTIO_BLK_ZS_NOT_WP       0
+/* Analt a write pointer (conventional zones only) */
+#define VIRTIO_BLK_ZS_ANALT_WP       0
 /* Empty */
 #define VIRTIO_BLK_ZS_EMPTY        1
 /* Implicitly Open */
@@ -304,14 +304,14 @@ struct virtio_blk_discard_write_zeroes {
 	__le32 flags;
 };
 
-#ifndef VIRTIO_BLK_NO_LEGACY
+#ifndef VIRTIO_BLK_ANAL_LEGACY
 struct virtio_scsi_inhdr {
 	__virtio32 errors;
 	__virtio32 data_len;
 	__virtio32 sense_len;
 	__virtio32 residual;
 };
-#endif /* !VIRTIO_BLK_NO_LEGACY */
+#endif /* !VIRTIO_BLK_ANAL_LEGACY */
 
 /* And this is the final byte of the write scatter-gather list. */
 #define VIRTIO_BLK_S_OK		0

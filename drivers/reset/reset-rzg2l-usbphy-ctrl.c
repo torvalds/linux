@@ -110,7 +110,7 @@ static int rzg2l_usbphy_ctrl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -128,7 +128,7 @@ static int rzg2l_usbphy_ctrl_probe(struct platform_device *pdev)
 	priv->rcdev.ops = &rzg2l_usbphy_ctrl_reset_ops;
 	priv->rcdev.of_reset_n_cells = 1;
 	priv->rcdev.nr_resets = NUM_PORTS;
-	priv->rcdev.of_node = dev->of_node;
+	priv->rcdev.of_analde = dev->of_analde;
 	priv->rcdev.dev = dev;
 
 	error = devm_reset_controller_register(dev, &priv->rcdev);

@@ -90,7 +90,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 
 	/*
 	 * HACK: This fixes the vm flags.
-	 * struct drm_display_mode does not contain the VSYNC/HSYNC/DE flags and
+	 * struct drm_display_mode does analt contain the VSYNC/HSYNC/DE flags and
 	 * they get lost when converting back and forth between struct
 	 * drm_display_mode and struct videomode. The hack below goes and
 	 * fetches the missing flags.

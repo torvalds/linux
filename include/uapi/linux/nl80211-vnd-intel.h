@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
@@ -14,11 +14,11 @@
  * @IWL_MVM_VENDOR_CMD_GET_CSME_CONN_INFO: reports CSME connection info.
  * @IWL_MVM_VENDOR_CMD_HOST_GET_OWNERSHIP: asks for ownership on the device.
  *	This is useful when the CSME firmware owns the device and the kernel
- *	wants to use it. In case the CSME firmware has no connection active the
+ *	wants to use it. In case the CSME firmware has anal connection active the
  *	kernel will manage on its own to get ownership of the device.
  *	When the CSME firmware has an active connection, the user space
  *	involvement is required. The kernel will assert the RFKILL signal with
- *	the "device not owned" reason so that nobody can touch the device. Then
+ *	the "device analt owned" reason so that analbody can touch the device. Then
  *	the user space can run the following flow to be able to get connected
  *	to the very same AP the CSME firmware is currently connected to:
  *
@@ -42,7 +42,7 @@
  *	12) The host reports to the CSME firmware that there is a connection
  *	13) The TCP connection is preserved and the host has connectivity
  *
- * @IWL_MVM_VENDOR_CMD_ROAMING_FORBIDDEN_EVENT: notifies if roaming is allowed.
+ * @IWL_MVM_VENDOR_CMD_ROAMING_FORBIDDEN_EVENT: analtifies if roaming is allowed.
  *	It contains a &IWL_MVM_VENDOR_ATTR_ROAMING_FORBIDDEN and a
  *	&IWL_MVM_VENDOR_ATTR_VIF_ADDR attributes.
  */
@@ -70,7 +70,7 @@ enum iwl_vendor_auth_akm_mode {
  * @IWL_MVM_VENDOR_ATTR_STA_CIPHER: the cipher to use for the station with the
  *	mac address specified in &IWL_MVM_VENDOR_ATTR_ADDR.
  * @IWL_MVM_VENDOR_ATTR_ROAMING_FORBIDDEN: u8 attribute. Indicates whether
- *	roaming is forbidden or not. Value 1 means roaming is forbidden,
+ *	roaming is forbidden or analt. Value 1 means roaming is forbidden,
  *	0 mean roaming is allowed.
  * @IWL_MVM_VENDOR_ATTR_AUTH_MODE: u32 attribute. Authentication mode type
  *	as specified in &enum iwl_vendor_auth_akm_mode.

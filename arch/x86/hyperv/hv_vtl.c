@@ -25,17 +25,17 @@ void __init hv_vtl_init_platform(void)
 {
 	pr_info("Linux runs in Hyper-V Virtual Trust Level\n");
 
-	x86_platform.realmode_reserve = x86_init_noop;
-	x86_platform.realmode_init = x86_init_noop;
-	x86_init.irqs.pre_vector_init = x86_init_noop;
-	x86_init.timers.timer_init = x86_init_noop;
+	x86_platform.realmode_reserve = x86_init_analop;
+	x86_platform.realmode_init = x86_init_analop;
+	x86_init.irqs.pre_vector_init = x86_init_analop;
+	x86_init.timers.timer_init = x86_init_analop;
 
 	/* Avoid searching for BIOS MP tables */
-	x86_init.mpparse.find_smp_config = x86_init_noop;
-	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
+	x86_init.mpparse.find_smp_config = x86_init_analop;
+	x86_init.mpparse.get_smp_config = x86_init_uint_analop;
 
-	x86_platform.get_wallclock = get_rtc_noop;
-	x86_platform.set_wallclock = set_rtc_noop;
+	x86_platform.get_wallclock = get_rtc_analop;
+	x86_platform.set_wallclock = set_rtc_analop;
 	x86_platform.get_nmi_reason = hv_get_nmi_reason;
 
 	x86_platform.legacy.i8042 = X86_LEGACY_I8042_PLATFORM_ABSENT;
@@ -64,7 +64,7 @@ static void hv_vtl_ap_entry(void)
 	((secondary_startup_64_fn)secondary_startup_64)(&boot_params, &boot_params);
 }
 
-static int hv_vtl_bringup_vcpu(u32 target_vp_index, u64 eip_ignored)
+static int hv_vtl_bringup_vcpu(u32 target_vp_index, u64 eip_iganalred)
 {
 	u64 status;
 	int ret = 0;
@@ -124,12 +124,12 @@ static int hv_vtl_bringup_vcpu(u32 target_vp_index, u64 eip_ignored)
 	input->vp_context.gdtr.limit = gdt_ptr.size;
 	input->vp_context.gdtr.base = gdt_ptr.address;
 
-	/* Non-system desc (64bit), long, code, present */
+	/* Analn-system desc (64bit), long, code, present */
 	input->vp_context.cs.selector = __KERNEL_CS;
 	input->vp_context.cs.base = 0;
 	input->vp_context.cs.limit = 0xffffffff;
 	input->vp_context.cs.attributes = 0xa09b;
-	/* Non-system desc (64bit), data, present, granularity, default */
+	/* Analn-system desc (64bit), data, present, granularity, default */
 	input->vp_context.ss.selector = __KERNEL_DS;
 	input->vp_context.ss.base = 0;
 	input->vp_context.ss.limit = 0xffffffff;
@@ -229,8 +229,8 @@ int __init hv_vtl_early_init(void)
 	 * and here is the earliest it can be used.
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_XSAVE))
-		panic("XSAVE has to be disabled as it is not supported by this module.\n"
-			  "Please add 'noxsave' to the kernel command line.\n");
+		panic("XSAVE has to be disabled as it is analt supported by this module.\n"
+			  "Please add 'analxsave' to the kernel command line.\n");
 
 	real_mode_header = &hv_vtl_real_mode_header;
 	apic_update_callback(wakeup_secondary_cpu_64, hv_vtl_wakeup_secondary_cpu);

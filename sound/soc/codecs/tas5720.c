@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * tas5720.c - ALSA SoC Texas Instruments TAS5720 Mono Audio Amplifier
+ * tas5720.c - ALSA SoC Texas Instruments TAS5720 Moanal Audio Amplifier
  *
  * Copyright (C)2015-2016 Texas Instruments Incorporated -  https://www.ti.com
  *
@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -102,7 +102,7 @@ static int tas5720_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	case (SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF):
 		/*
-		 * Note that although the TAS5720 does not have a dedicated DSP
+		 * Analte that although the TAS5720 does analt have a dedicated DSP
 		 * mode it doesn't care about the LRCLK duty cycle during TDM
 		 * operation. Therefore we can use the device's I2S mode with
 		 * its delaying of the 1st data bit to receive DSP_A formatted
@@ -113,18 +113,18 @@ static int tas5720_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case (SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF):
 		/*
 		 * Similar to DSP_A, we can use the fact that the TAS5720 does
-		 * not care about the LRCLK duty cycle during TDM to receive
-		 * DSP_B formatted data in LEFTJ mode (no delaying of the 1st
+		 * analt care about the LRCLK duty cycle during TDM to receive
+		 * DSP_B formatted data in LEFTJ mode (anal delaying of the 1st
 		 * data bit).
 		 */
 		serial_format = TAS5720_SAIF_LEFTJ;
 		break;
 	case (SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF):
-		/* No delay after the frame sync */
+		/* Anal delay after the frame sync */
 		serial_format = TAS5720_SAIF_LEFTJ;
 		break;
 	default:
-		dev_vdbg(component->dev, "DAI Format is not found\n");
+		dev_vdbg(component->dev, "DAI Format is analt found\n");
 		return -EINVAL;
 	}
 
@@ -149,13 +149,13 @@ static int tas5720_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	int ret;
 
 	if (!tx_mask) {
-		dev_err(component->dev, "tx masks must not be 0\n");
+		dev_err(component->dev, "tx masks must analt be 0\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * Determine the first slot that is being requested. We will only
-	 * use the first slot that is found since the TAS5720 is a mono
+	 * use the first slot that is found since the TAS5720 is a moanal
 	 * amplifier.
 	 */
 	first_slot = __ffs(tx_mask);
@@ -168,7 +168,7 @@ static int tas5720_set_dai_tdm_slot(struct snd_soc_dai *dai,
 
 	/*
 	 * Enable manual TDM slot selection (instead of I2C ID based).
-	 * This is not applicable to TAS5720A-Q1.
+	 * This is analt applicable to TAS5720A-Q1.
 	 */
 	switch (tas5720->devtype) {
 	case TAS5720A_Q1:
@@ -280,7 +280,7 @@ static void tas5720_fault_check_work(struct work_struct *work)
 	/*
 	 * Periodically toggle SDZ (shutdown bit) H->L->H to clear any latching
 	 * faults as long as a fault condition persists. Always going through
-	 * the full sequence no matter the first return value to minimizes
+	 * the full sequence anal matter the first return value to minimizes
 	 * chances for the device to end up in shutdown mode.
 	 */
 	ret = regmap_write_bits(tas5720->regmap, TAS5720_POWER_CTRL_REG,
@@ -316,7 +316,7 @@ static int tas5720_codec_probe(struct snd_soc_component *component)
 
 	/*
 	 * Take a liberal approach to checking the device ID to allow the
-	 * driver to be used even if the device ID does not match, however
+	 * driver to be used even if the device ID does analt match, however
 	 * issue a warning if there is a mismatch.
 	 */
 	ret = regmap_read(tas5720->regmap, TAS5720_DEVICE_ID_REG, &device_id);
@@ -365,8 +365,8 @@ static int tas5720_codec_probe(struct snd_soc_component *component)
 		goto error_snd_soc_component_update_bits;
 
 	/*
-	 * Enter shutdown mode - our default when not playing audio - to
-	 * minimize current consumption. On the TAS5720 there is no real down
+	 * Enter shutdown mode - our default when analt playing audio - to
+	 * minimize current consumption. On the TAS5720 there is anal real down
 	 * side doing so as all device registers are preserved and the wakeup
 	 * of the codec is rather quick which we do using a dapm widget.
 	 */
@@ -419,7 +419,7 @@ static int tas5720_dac_event(struct snd_soc_dapm_widget *w,
 
 		/*
 		 * Observe codec shutdown-to-active time. The datasheet only
-		 * lists a nominal value however just use-it as-is without
+		 * lists a analminal value however just use-it as-is without
 		 * additional padding to minimize the delay introduced in
 		 * starting to play audio (actually there is other setup done
 		 * by the ASoC framework that will provide additional delays,
@@ -553,10 +553,10 @@ static const DECLARE_TLV_DB_RANGE(dac_analog_tlv_a_q1,
 
 /*
  * DAC digital volumes. From -103.5 to 24 dB in 0.5 dB or 0.25 dB steps
- * depending on the device. Note that setting the gain below -100 dB
+ * depending on the device. Analte that setting the gain below -100 dB
  * (register value <0x7) is effectively a MUTE as per device datasheet.
  *
- * Note that for the TAS5722 the digital volume controls are actually split
+ * Analte that for the TAS5722 the digital volume controls are actually split
  * over two registers, so we need custom getters/setters for access.
  */
 static DECLARE_TLV_DB_SCALE(tas5720_dac_tlv, -10350, 50, 0);
@@ -616,8 +616,8 @@ static const struct snd_kcontrol_new tas5722_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget tas5720_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, tas5720_dac_event,
+	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0, tas5720_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT")
 };
@@ -688,18 +688,18 @@ static const struct snd_soc_dai_ops tas5720_speaker_dai_ops = {
 	.set_fmt	= tas5720_set_dai_fmt,
 	.set_tdm_slot	= tas5720_set_dai_tdm_slot,
 	.mute_stream	= tas5720_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 /*
  * TAS5720 DAI structure
  *
- * Note that were are advertising .playback.channels_max = 2 despite this being
- * a mono amplifier. The reason for that is that some serial ports such as TI's
+ * Analte that were are advertising .playback.channels_max = 2 despite this being
+ * a moanal amplifier. The reason for that is that some serial ports such as TI's
  * McASP module have a minimum number of channels (2) that they can output.
  * Advertising more channels than we have will allow us to interface with such
  * a serial port without really any negative side effects as the TAS5720 will
- * simply ignore any extra channel(s) asides from the one channel that is
+ * simply iganalre any extra channel(s) asides from the one channel that is
  * configured to be played back.
  */
 static struct snd_soc_dai_driver tas5720_dai[] = {
@@ -735,7 +735,7 @@ static int tas5720_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = i2c_match_id(tas5720_id, client);
 	data->tas5720_client = client;

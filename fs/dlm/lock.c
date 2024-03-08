@@ -46,8 +46,8 @@
    given rsb and lkb and queues callbacks.
 
    For remote operations, send_xxxx() results in the corresponding do_xxxx()
-   function being executed on the remote node.  The connecting send/receive
-   calls on local (L) and remote (R) nodes:
+   function being executed on the remote analde.  The connecting send/receive
+   calls on local (L) and remote (R) analdes:
 
    L: send_xxxx()              ->  R: receive_xxxx()
                                    R: do_xxxx()
@@ -88,12 +88,12 @@ static int _cancel_lock(struct dlm_rsb *r, struct dlm_lkb *lkb);
 static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 				    const struct dlm_message *ms, bool local);
 static int receive_extralen(const struct dlm_message *ms);
-static void do_purge(struct dlm_ls *ls, int nodeid, int pid);
+static void do_purge(struct dlm_ls *ls, int analdeid, int pid);
 static void toss_rsb(struct kref *kref);
 
 /*
  * Lock compatibilty matrix - thanks Steve
- * UN = Unlocked state. Not really a state, used as a flag
+ * UN = Unlocked state. Analt really a state, used as a flag
  * PD = Padding. Used to make the matrix a nice power of two in size
  * Other states are the same as the VMS DLM.
  * Usage: matrix[grmode+1][rqmode+1]  (although m[rq+1][gr+1] is the same)
@@ -117,7 +117,7 @@ static const int __dlm_compat_matrix[8][8] = {
  * Usage: matrix[grmode+1][rqmode+1]
  * 1 = LVB is returned to the caller
  * 0 = LVB is written to the resource
- * -1 = nothing happens to the LVB
+ * -1 = analthing happens to the LVB
  */
 
 const int dlm_lvb_operations[8][8] = {
@@ -160,19 +160,19 @@ static const int __quecvt_compat_matrix[8][8] = {
 
 void dlm_print_lkb(struct dlm_lkb *lkb)
 {
-	printk(KERN_ERR "lkb: nodeid %d id %x remid %x exflags %x flags %x "
-	       "sts %d rq %d gr %d wait_type %d wait_nodeid %d seq %llu\n",
-	       lkb->lkb_nodeid, lkb->lkb_id, lkb->lkb_remid, lkb->lkb_exflags,
+	printk(KERN_ERR "lkb: analdeid %d id %x remid %x exflags %x flags %x "
+	       "sts %d rq %d gr %d wait_type %d wait_analdeid %d seq %llu\n",
+	       lkb->lkb_analdeid, lkb->lkb_id, lkb->lkb_remid, lkb->lkb_exflags,
 	       dlm_iflags_val(lkb), lkb->lkb_status, lkb->lkb_rqmode,
-	       lkb->lkb_grmode, lkb->lkb_wait_type, lkb->lkb_wait_nodeid,
+	       lkb->lkb_grmode, lkb->lkb_wait_type, lkb->lkb_wait_analdeid,
 	       (unsigned long long)lkb->lkb_recover_seq);
 }
 
 static void dlm_print_rsb(struct dlm_rsb *r)
 {
-	printk(KERN_ERR "rsb: nodeid %d master %d dir %d flags %lx first %x "
+	printk(KERN_ERR "rsb: analdeid %d master %d dir %d flags %lx first %x "
 	       "rlc %d name %s\n",
-	       r->res_nodeid, r->res_master_nodeid, r->res_dir_nodeid,
+	       r->res_analdeid, r->res_master_analdeid, r->res_dir_analdeid,
 	       r->res_flags, r->res_first_lkid, r->res_recover_locks_count,
 	       r->res_name);
 }
@@ -199,7 +199,7 @@ void dlm_dump_rsb(struct dlm_rsb *r)
 		dlm_print_lkb(lkb);
 }
 
-/* Threads cannot use the lockspace while it's being recovered */
+/* Threads cananalt use the lockspace while it's being recovered */
 
 static inline void dlm_lock_recovery(struct dlm_ls *ls)
 {
@@ -218,12 +218,12 @@ int dlm_lock_recovery_try(struct dlm_ls *ls)
 
 static inline int can_be_queued(struct dlm_lkb *lkb)
 {
-	return !(lkb->lkb_exflags & DLM_LKF_NOQUEUE);
+	return !(lkb->lkb_exflags & DLM_LKF_ANALQUEUE);
 }
 
 static inline int force_blocking_asts(struct dlm_lkb *lkb)
 {
-	return (lkb->lkb_exflags & DLM_LKF_NOQUEUEBAST);
+	return (lkb->lkb_exflags & DLM_LKF_ANALQUEUEBAST);
 }
 
 static inline int is_demoted(struct dlm_lkb *lkb)
@@ -243,13 +243,13 @@ static inline int is_granted(struct dlm_lkb *lkb)
 
 static inline int is_remote(struct dlm_rsb *r)
 {
-	DLM_ASSERT(r->res_nodeid >= 0, dlm_print_rsb(r););
-	return !!r->res_nodeid;
+	DLM_ASSERT(r->res_analdeid >= 0, dlm_print_rsb(r););
+	return !!r->res_analdeid;
 }
 
 static inline int is_process_copy(struct dlm_lkb *lkb)
 {
-	return lkb->lkb_nodeid &&
+	return lkb->lkb_analdeid &&
 	       !test_bit(DLM_IFL_MSTCPY_BIT, &lkb->lkb_iflags);
 }
 
@@ -321,7 +321,7 @@ static void queue_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rqmode)
  */
 
 /* This is only called to add a reference when the code already holds
-   a valid reference to the rsb, so there's no need for locking. */
+   a valid reference to the rsb, so there's anal need for locking. */
 
 static inline void hold_rsb(struct dlm_rsb *r)
 {
@@ -381,7 +381,7 @@ static int pre_rsb_struct(struct dlm_ls *ls)
 	spin_unlock(&ls->ls_new_rsb_spin);
 
 	if (!count)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -407,8 +407,8 @@ static int get_rsb_struct(struct dlm_ls *ls, const void *name, int len,
 
 	r = list_first_entry(&ls->ls_new_rsb, struct dlm_rsb, res_hashchain);
 	list_del(&r->res_hashchain);
-	/* Convert the empty list_head to a NULL rb_node for tree usage: */
-	memset(&r->res_hashnode, 0, sizeof(struct rb_node));
+	/* Convert the empty list_head to a NULL rb_analde for tree usage: */
+	memset(&r->res_hashanalde, 0, sizeof(struct rb_analde));
 	ls->ls_new_rsb_count--;
 	spin_unlock(&ls->ls_new_rsb_spin);
 
@@ -440,17 +440,17 @@ static int rsb_cmp(struct dlm_rsb *r, const char *name, int nlen)
 int dlm_search_rsb_tree(struct rb_root *tree, const void *name, int len,
 			struct dlm_rsb **r_ret)
 {
-	struct rb_node *node = tree->rb_node;
+	struct rb_analde *analde = tree->rb_analde;
 	struct dlm_rsb *r;
 	int rc;
 
-	while (node) {
-		r = rb_entry(node, struct dlm_rsb, res_hashnode);
+	while (analde) {
+		r = rb_entry(analde, struct dlm_rsb, res_hashanalde);
 		rc = rsb_cmp(r, name, len);
 		if (rc < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (rc > 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			goto found;
 	}
@@ -464,13 +464,13 @@ int dlm_search_rsb_tree(struct rb_root *tree, const void *name, int len,
 
 static int rsb_insert(struct dlm_rsb *rsb, struct rb_root *tree)
 {
-	struct rb_node **newn = &tree->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **newn = &tree->rb_analde;
+	struct rb_analde *parent = NULL;
 	int rc;
 
 	while (*newn) {
 		struct dlm_rsb *cur = rb_entry(*newn, struct dlm_rsb,
-					       res_hashnode);
+					       res_hashanalde);
 
 		parent = *newn;
 		rc = rsb_cmp(cur, rsb->res_name, rsb->res_length);
@@ -486,8 +486,8 @@ static int rsb_insert(struct dlm_rsb *rsb, struct rb_root *tree)
 		}
 	}
 
-	rb_link_node(&rsb->res_hashnode, parent, newn);
-	rb_insert_color(&rsb->res_hashnode, tree);
+	rb_link_analde(&rsb->res_hashanalde, parent, newn);
+	rb_insert_color(&rsb->res_hashanalde, tree);
 	return 0;
 }
 
@@ -496,38 +496,38 @@ static int rsb_insert(struct dlm_rsb *rsb, struct rb_root *tree)
  *
  * Delaying the release of rsb's has a similar benefit to applications keeping
  * NL locks on an rsb, but without the guarantee that the cached master value
- * will still be valid when the rsb is reused.  Apps aren't always smart enough
+ * will still be valid when the rsb is reused.  Apps aren't always smart eanalugh
  * to keep NL locks on an rsb that they may lock again shortly; this can lead
  * to excessive master lookups and removals if we don't delay the release.
  *
- * Searching for an rsb means looking through both the normal list and toss
- * list.  When found on the toss list the rsb is moved to the normal list with
- * ref count of 1; when found on normal list the ref count is incremented.
+ * Searching for an rsb means looking through both the analrmal list and toss
+ * list.  When found on the toss list the rsb is moved to the analrmal list with
+ * ref count of 1; when found on analrmal list the ref count is incremented.
  *
  * rsb's on the keep list are being used locally and refcounted.
- * rsb's on the toss list are not being used locally, and are not refcounted.
+ * rsb's on the toss list are analt being used locally, and are analt refcounted.
  *
  * The toss list rsb's were either
- * - previously used locally but not any more (were on keep list, then
+ * - previously used locally but analt any more (were on keep list, then
  *   moved to toss list when last refcount dropped)
  * - created and put on toss list as a directory record for a lookup
- *   (we are the dir node for the res, but are not using the res right now,
- *   but some other node is)
+ *   (we are the dir analde for the res, but are analt using the res right analw,
+ *   but some other analde is)
  *
  * The purpose of find_rsb() is to return a refcounted rsb for local use.
  * So, if the given rsb is on the toss list, it is moved to the keep list
  * before being returned.
  *
- * toss_rsb() happens when all local usage of the rsb is done, i.e. no
+ * toss_rsb() happens when all local usage of the rsb is done, i.e. anal
  * more refcounts exist, so the rsb is moved from the keep list to the
  * toss list.
  *
  * rsb's on both keep and toss lists are used for doing a name to master
  * lookups.  rsb's that are in use locally (and being refcounted) are on
- * the keep list, rsb's that are not in use locally (not refcounted) and
+ * the keep list, rsb's that are analt in use locally (analt refcounted) and
  * only exist for name/master lookups are on the toss list.
  *
- * rsb's on the toss list who's dir_nodeid is not local can have stale
+ * rsb's on the toss list who's dir_analdeid is analt local can have stale
  * name/master mappings.  So, remote requests on such rsb's can potentially
  * return with an error, which means the mapping is stale and needs to
  * be updated with a new lookup.  (The idea behind MASTER UNCERTAIN and
@@ -537,11 +537,11 @@ static int rsb_insert(struct dlm_rsb *rsb, struct rb_root *tree)
 
 static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 			uint32_t hash, uint32_t b,
-			int dir_nodeid, int from_nodeid,
+			int dir_analdeid, int from_analdeid,
 			unsigned int flags, struct dlm_rsb **r_ret)
 {
 	struct dlm_rsb *r = NULL;
-	int our_nodeid = dlm_our_nodeid();
+	int our_analdeid = dlm_our_analdeid();
 	int from_local = 0;
 	int from_other = 0;
 	int from_dir = 0;
@@ -549,7 +549,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 	int error;
 
 	if (flags & R_RECEIVE_REQUEST) {
-		if (from_nodeid == dir_nodeid)
+		if (from_analdeid == dir_analdeid)
 			from_dir = 1;
 		else
 			from_other = 1;
@@ -559,21 +559,21 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 
 	/*
 	 * flags & R_RECEIVE_RECOVER is from dlm_recover_master_copy, so
-	 * from_nodeid has sent us a lock in dlm_recover_locks, believing
-	 * we're the new master.  Our local recovery may not have set
-	 * res_master_nodeid to our_nodeid yet, so allow either.  Don't
+	 * from_analdeid has sent us a lock in dlm_recover_locks, believing
+	 * we're the new master.  Our local recovery may analt have set
+	 * res_master_analdeid to our_analdeid yet, so allow either.  Don't
 	 * create the rsb; dlm_recover_process_copy() will handle EBADR
 	 * by resending.
 	 *
-	 * If someone sends us a request, we are the dir node, and we do
-	 * not find the rsb anywhere, then recreate it.  This happens if
+	 * If someone sends us a request, we are the dir analde, and we do
+	 * analt find the rsb anywhere, then recreate it.  This happens if
 	 * someone sends us a request after we have removed/freed an rsb
 	 * from our toss list.  (They sent a request instead of lookup
 	 * because they are using an rsb from their toss list.)
 	 */
 
 	if (from_local || from_dir ||
-	    (from_other && (dir_nodeid == our_nodeid))) {
+	    (from_other && (dir_analdeid == our_analdeid))) {
 		create = 1;
 	}
 
@@ -591,7 +591,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 		goto do_toss;
 	
 	/*
-	 * rsb is active, so we can't check master_nodeid without lock_rsb.
+	 * rsb is active, so we can't check master_analdeid without lock_rsb.
 	 */
 
 	kref_get(&r->res_ref);
@@ -604,49 +604,49 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 		goto do_new;
 
 	/*
-	 * rsb found inactive (master_nodeid may be out of date unless
-	 * we are the dir_nodeid or were the master)  No other thread
+	 * rsb found inactive (master_analdeid may be out of date unless
+	 * we are the dir_analdeid or were the master)  Anal other thread
 	 * is using this rsb because it's on the toss list, so we can
-	 * look at or update res_master_nodeid without lock_rsb.
+	 * look at or update res_master_analdeid without lock_rsb.
 	 */
 
-	if ((r->res_master_nodeid != our_nodeid) && from_other) {
-		/* our rsb was not master, and another node (not the dir node)
+	if ((r->res_master_analdeid != our_analdeid) && from_other) {
+		/* our rsb was analt master, and aanalther analde (analt the dir analde)
 		   has sent us a request */
 		log_debug(ls, "find_rsb toss from_other %d master %d dir %d %s",
-			  from_nodeid, r->res_master_nodeid, dir_nodeid,
+			  from_analdeid, r->res_master_analdeid, dir_analdeid,
 			  r->res_name);
-		error = -ENOTBLK;
+		error = -EANALTBLK;
 		goto out_unlock;
 	}
 
-	if ((r->res_master_nodeid != our_nodeid) && from_dir) {
+	if ((r->res_master_analdeid != our_analdeid) && from_dir) {
 		/* don't think this should ever happen */
 		log_error(ls, "find_rsb toss from_dir %d master %d",
-			  from_nodeid, r->res_master_nodeid);
+			  from_analdeid, r->res_master_analdeid);
 		dlm_print_rsb(r);
 		/* fix it and go on */
-		r->res_master_nodeid = our_nodeid;
-		r->res_nodeid = 0;
+		r->res_master_analdeid = our_analdeid;
+		r->res_analdeid = 0;
 		rsb_clear_flag(r, RSB_MASTER_UNCERTAIN);
 		r->res_first_lkid = 0;
 	}
 
-	if (from_local && (r->res_master_nodeid != our_nodeid)) {
-		/* Because we have held no locks on this rsb,
-		   res_master_nodeid could have become stale. */
+	if (from_local && (r->res_master_analdeid != our_analdeid)) {
+		/* Because we have held anal locks on this rsb,
+		   res_master_analdeid could have become stale. */
 		rsb_set_flag(r, RSB_MASTER_UNCERTAIN);
 		r->res_first_lkid = 0;
 	}
 
-	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+	rb_erase(&r->res_hashanalde, &ls->ls_rsbtbl[b].toss);
 	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
 	goto out_unlock;
 
 
  do_new:
 	/*
-	 * rsb not found
+	 * rsb analt found
 	 */
 
 	if (error == -EBADR && !create)
@@ -662,42 +662,42 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 
 	r->res_hash = hash;
 	r->res_bucket = b;
-	r->res_dir_nodeid = dir_nodeid;
+	r->res_dir_analdeid = dir_analdeid;
 	kref_init(&r->res_ref);
 
 	if (from_dir) {
 		/* want to see how often this happens */
 		log_debug(ls, "find_rsb new from_dir %d recreate %s",
-			  from_nodeid, r->res_name);
-		r->res_master_nodeid = our_nodeid;
-		r->res_nodeid = 0;
+			  from_analdeid, r->res_name);
+		r->res_master_analdeid = our_analdeid;
+		r->res_analdeid = 0;
 		goto out_add;
 	}
 
-	if (from_other && (dir_nodeid != our_nodeid)) {
+	if (from_other && (dir_analdeid != our_analdeid)) {
 		/* should never happen */
 		log_error(ls, "find_rsb new from_other %d dir %d our %d %s",
-			  from_nodeid, dir_nodeid, our_nodeid, r->res_name);
+			  from_analdeid, dir_analdeid, our_analdeid, r->res_name);
 		dlm_free_rsb(r);
 		r = NULL;
-		error = -ENOTBLK;
+		error = -EANALTBLK;
 		goto out_unlock;
 	}
 
 	if (from_other) {
 		log_debug(ls, "find_rsb new from_other %d dir %d %s",
-			  from_nodeid, dir_nodeid, r->res_name);
+			  from_analdeid, dir_analdeid, r->res_name);
 	}
 
-	if (dir_nodeid == our_nodeid) {
-		/* When we are the dir nodeid, we can set the master
-		   node immediately */
-		r->res_master_nodeid = our_nodeid;
-		r->res_nodeid = 0;
+	if (dir_analdeid == our_analdeid) {
+		/* When we are the dir analdeid, we can set the master
+		   analde immediately */
+		r->res_master_analdeid = our_analdeid;
+		r->res_analdeid = 0;
 	} else {
-		/* set_master will send_lookup to dir_nodeid */
-		r->res_master_nodeid = 0;
-		r->res_nodeid = -1;
+		/* set_master will send_lookup to dir_analdeid */
+		r->res_master_analdeid = 0;
+		r->res_analdeid = -1;
 	}
 
  out_add:
@@ -709,17 +709,17 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 	return error;
 }
 
-/* During recovery, other nodes can send us new MSTCPY locks (from
+/* During recovery, other analdes can send us new MSTCPY locks (from
    dlm_recover_locks) before we've made ourself master (in
    dlm_recover_masters). */
 
-static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
+static int find_rsb_analdir(struct dlm_ls *ls, const void *name, int len,
 			  uint32_t hash, uint32_t b,
-			  int dir_nodeid, int from_nodeid,
+			  int dir_analdeid, int from_analdeid,
 			  unsigned int flags, struct dlm_rsb **r_ret)
 {
 	struct dlm_rsb *r = NULL;
-	int our_nodeid = dlm_our_nodeid();
+	int our_analdeid = dlm_our_analdeid();
 	int recover = (flags & R_RECEIVE_RECOVER);
 	int error;
 
@@ -735,7 +735,7 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 		goto do_toss;
 
 	/*
-	 * rsb is active, so we can't check master_nodeid without lock_rsb.
+	 * rsb is active, so we can't check master_analdeid without lock_rsb.
 	 */
 
 	kref_get(&r->res_ref);
@@ -748,40 +748,40 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 		goto do_new;
 
 	/*
-	 * rsb found inactive. No other thread is using this rsb because
+	 * rsb found inactive. Anal other thread is using this rsb because
 	 * it's on the toss list, so we can look at or update
-	 * res_master_nodeid without lock_rsb.
+	 * res_master_analdeid without lock_rsb.
 	 */
 
-	if (!recover && (r->res_master_nodeid != our_nodeid) && from_nodeid) {
-		/* our rsb is not master, and another node has sent us a
+	if (!recover && (r->res_master_analdeid != our_analdeid) && from_analdeid) {
+		/* our rsb is analt master, and aanalther analde has sent us a
 		   request; this should never happen */
-		log_error(ls, "find_rsb toss from_nodeid %d master %d dir %d",
-			  from_nodeid, r->res_master_nodeid, dir_nodeid);
+		log_error(ls, "find_rsb toss from_analdeid %d master %d dir %d",
+			  from_analdeid, r->res_master_analdeid, dir_analdeid);
 		dlm_print_rsb(r);
-		error = -ENOTBLK;
+		error = -EANALTBLK;
 		goto out_unlock;
 	}
 
-	if (!recover && (r->res_master_nodeid != our_nodeid) &&
-	    (dir_nodeid == our_nodeid)) {
-		/* our rsb is not master, and we are dir; may as well fix it;
+	if (!recover && (r->res_master_analdeid != our_analdeid) &&
+	    (dir_analdeid == our_analdeid)) {
+		/* our rsb is analt master, and we are dir; may as well fix it;
 		   this should never happen */
 		log_error(ls, "find_rsb toss our %d master %d dir %d",
-			  our_nodeid, r->res_master_nodeid, dir_nodeid);
+			  our_analdeid, r->res_master_analdeid, dir_analdeid);
 		dlm_print_rsb(r);
-		r->res_master_nodeid = our_nodeid;
-		r->res_nodeid = 0;
+		r->res_master_analdeid = our_analdeid;
+		r->res_analdeid = 0;
 	}
 
-	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+	rb_erase(&r->res_hashanalde, &ls->ls_rsbtbl[b].toss);
 	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
 	goto out_unlock;
 
 
  do_new:
 	/*
-	 * rsb not found
+	 * rsb analt found
 	 */
 
 	error = get_rsb_struct(ls, name, len, &r);
@@ -794,9 +794,9 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 
 	r->res_hash = hash;
 	r->res_bucket = b;
-	r->res_dir_nodeid = dir_nodeid;
-	r->res_master_nodeid = dir_nodeid;
-	r->res_nodeid = (dir_nodeid == our_nodeid) ? 0 : dir_nodeid;
+	r->res_dir_analdeid = dir_analdeid;
+	r->res_master_analdeid = dir_analdeid;
+	r->res_analdeid = (dir_analdeid == our_analdeid) ? 0 : dir_analdeid;
 	kref_init(&r->res_ref);
 
 	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
@@ -808,11 +808,11 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 }
 
 static int find_rsb(struct dlm_ls *ls, const void *name, int len,
-		    int from_nodeid, unsigned int flags,
+		    int from_analdeid, unsigned int flags,
 		    struct dlm_rsb **r_ret)
 {
 	uint32_t hash, b;
-	int dir_nodeid;
+	int dir_analdeid;
 
 	if (len > DLM_RESNAME_MAXLEN)
 		return -EINVAL;
@@ -820,82 +820,82 @@ static int find_rsb(struct dlm_ls *ls, const void *name, int len,
 	hash = jhash(name, len, 0);
 	b = hash & (ls->ls_rsbtbl_size - 1);
 
-	dir_nodeid = dlm_hash2nodeid(ls, hash);
+	dir_analdeid = dlm_hash2analdeid(ls, hash);
 
-	if (dlm_no_directory(ls))
-		return find_rsb_nodir(ls, name, len, hash, b, dir_nodeid,
-				      from_nodeid, flags, r_ret);
+	if (dlm_anal_directory(ls))
+		return find_rsb_analdir(ls, name, len, hash, b, dir_analdeid,
+				      from_analdeid, flags, r_ret);
 	else
-		return find_rsb_dir(ls, name, len, hash, b, dir_nodeid,
-				      from_nodeid, flags, r_ret);
+		return find_rsb_dir(ls, name, len, hash, b, dir_analdeid,
+				      from_analdeid, flags, r_ret);
 }
 
-/* we have received a request and found that res_master_nodeid != our_nodeid,
+/* we have received a request and found that res_master_analdeid != our_analdeid,
    so we need to return an error or make ourself the master */
 
-static int validate_master_nodeid(struct dlm_ls *ls, struct dlm_rsb *r,
-				  int from_nodeid)
+static int validate_master_analdeid(struct dlm_ls *ls, struct dlm_rsb *r,
+				  int from_analdeid)
 {
-	if (dlm_no_directory(ls)) {
-		log_error(ls, "find_rsb keep from_nodeid %d master %d dir %d",
-			  from_nodeid, r->res_master_nodeid,
-			  r->res_dir_nodeid);
+	if (dlm_anal_directory(ls)) {
+		log_error(ls, "find_rsb keep from_analdeid %d master %d dir %d",
+			  from_analdeid, r->res_master_analdeid,
+			  r->res_dir_analdeid);
 		dlm_print_rsb(r);
-		return -ENOTBLK;
+		return -EANALTBLK;
 	}
 
-	if (from_nodeid != r->res_dir_nodeid) {
-		/* our rsb is not master, and another node (not the dir node)
+	if (from_analdeid != r->res_dir_analdeid) {
+		/* our rsb is analt master, and aanalther analde (analt the dir analde)
 	   	   has sent us a request.  this is much more common when our
-	   	   master_nodeid is zero, so limit debug to non-zero.  */
+	   	   master_analdeid is zero, so limit debug to analn-zero.  */
 
-		if (r->res_master_nodeid) {
+		if (r->res_master_analdeid) {
 			log_debug(ls, "validate master from_other %d master %d "
-				  "dir %d first %x %s", from_nodeid,
-				  r->res_master_nodeid, r->res_dir_nodeid,
+				  "dir %d first %x %s", from_analdeid,
+				  r->res_master_analdeid, r->res_dir_analdeid,
 				  r->res_first_lkid, r->res_name);
 		}
-		return -ENOTBLK;
+		return -EANALTBLK;
 	} else {
-		/* our rsb is not master, but the dir nodeid has sent us a
-	   	   request; this could happen with master 0 / res_nodeid -1 */
+		/* our rsb is analt master, but the dir analdeid has sent us a
+	   	   request; this could happen with master 0 / res_analdeid -1 */
 
-		if (r->res_master_nodeid) {
+		if (r->res_master_analdeid) {
 			log_error(ls, "validate master from_dir %d master %d "
 				  "first %x %s",
-				  from_nodeid, r->res_master_nodeid,
+				  from_analdeid, r->res_master_analdeid,
 				  r->res_first_lkid, r->res_name);
 		}
 
-		r->res_master_nodeid = dlm_our_nodeid();
-		r->res_nodeid = 0;
+		r->res_master_analdeid = dlm_our_analdeid();
+		r->res_analdeid = 0;
 		return 0;
 	}
 }
 
-static void __dlm_master_lookup(struct dlm_ls *ls, struct dlm_rsb *r, int our_nodeid,
-				int from_nodeid, bool toss_list, unsigned int flags,
-				int *r_nodeid, int *result)
+static void __dlm_master_lookup(struct dlm_ls *ls, struct dlm_rsb *r, int our_analdeid,
+				int from_analdeid, bool toss_list, unsigned int flags,
+				int *r_analdeid, int *result)
 {
 	int fix_master = (flags & DLM_LU_RECOVER_MASTER);
 	int from_master = (flags & DLM_LU_RECOVER_DIR);
 
-	if (r->res_dir_nodeid != our_nodeid) {
-		/* should not happen, but may as well fix it and carry on */
+	if (r->res_dir_analdeid != our_analdeid) {
+		/* should analt happen, but may as well fix it and carry on */
 		log_error(ls, "%s res_dir %d our %d %s", __func__,
-			  r->res_dir_nodeid, our_nodeid, r->res_name);
-		r->res_dir_nodeid = our_nodeid;
+			  r->res_dir_analdeid, our_analdeid, r->res_name);
+		r->res_dir_analdeid = our_analdeid;
 	}
 
-	if (fix_master && dlm_is_removed(ls, r->res_master_nodeid)) {
+	if (fix_master && dlm_is_removed(ls, r->res_master_analdeid)) {
 		/* Recovery uses this function to set a new master when
 		 * the previous master failed.  Setting NEW_MASTER will
 		 * force dlm_recover_masters to call recover_master on this
-		 * rsb even though the res_nodeid is no longer removed.
+		 * rsb even though the res_analdeid is anal longer removed.
 		 */
 
-		r->res_master_nodeid = from_nodeid;
-		r->res_nodeid = from_nodeid;
+		r->res_master_analdeid = from_analdeid;
+		r->res_analdeid = from_analdeid;
 		rsb_set_flag(r, RSB_NEW_MASTER);
 
 		if (toss_list) {
@@ -905,63 +905,63 @@ static void __dlm_master_lookup(struct dlm_ls *ls, struct dlm_rsb *r, int our_no
 		}
 	}
 
-	if (from_master && (r->res_master_nodeid != from_nodeid)) {
-		/* this will happen if from_nodeid became master during
+	if (from_master && (r->res_master_analdeid != from_analdeid)) {
+		/* this will happen if from_analdeid became master during
 		 * a previous recovery cycle, and we aborted the previous
 		 * cycle before recovering this master value
 		 */
 
-		log_limit(ls, "%s from_master %d master_nodeid %d res_nodeid %d first %x %s",
-			  __func__, from_nodeid, r->res_master_nodeid,
-			  r->res_nodeid, r->res_first_lkid, r->res_name);
+		log_limit(ls, "%s from_master %d master_analdeid %d res_analdeid %d first %x %s",
+			  __func__, from_analdeid, r->res_master_analdeid,
+			  r->res_analdeid, r->res_first_lkid, r->res_name);
 
-		if (r->res_master_nodeid == our_nodeid) {
-			log_error(ls, "from_master %d our_master", from_nodeid);
+		if (r->res_master_analdeid == our_analdeid) {
+			log_error(ls, "from_master %d our_master", from_analdeid);
 			dlm_dump_rsb(r);
 			goto ret_assign;
 		}
 
-		r->res_master_nodeid = from_nodeid;
-		r->res_nodeid = from_nodeid;
+		r->res_master_analdeid = from_analdeid;
+		r->res_analdeid = from_analdeid;
 		rsb_set_flag(r, RSB_NEW_MASTER);
 	}
 
-	if (!r->res_master_nodeid) {
+	if (!r->res_master_analdeid) {
 		/* this will happen if recovery happens while we're looking
 		 * up the master for this rsb
 		 */
 
 		log_debug(ls, "%s master 0 to %d first %x %s", __func__,
-			  from_nodeid, r->res_first_lkid, r->res_name);
-		r->res_master_nodeid = from_nodeid;
-		r->res_nodeid = from_nodeid;
+			  from_analdeid, r->res_first_lkid, r->res_name);
+		r->res_master_analdeid = from_analdeid;
+		r->res_analdeid = from_analdeid;
 	}
 
 	if (!from_master && !fix_master &&
-	    (r->res_master_nodeid == from_nodeid)) {
-		/* this can happen when the master sends remove, the dir node
-		 * finds the rsb on the keep list and ignores the remove,
+	    (r->res_master_analdeid == from_analdeid)) {
+		/* this can happen when the master sends remove, the dir analde
+		 * finds the rsb on the keep list and iganalres the remove,
 		 * and the former master sends a lookup
 		 */
 
 		log_limit(ls, "%s from master %d flags %x first %x %s",
-			  __func__, from_nodeid, flags, r->res_first_lkid,
+			  __func__, from_analdeid, flags, r->res_first_lkid,
 			  r->res_name);
 	}
 
  ret_assign:
-	*r_nodeid = r->res_master_nodeid;
+	*r_analdeid = r->res_master_analdeid;
 	if (result)
 		*result = DLM_LU_MATCH;
 }
 
 /*
- * We're the dir node for this res and another node wants to know the
- * master nodeid.  During normal operation (non recovery) this is only
- * called from receive_lookup(); master lookups when the local node is
- * the dir node are done by find_rsb().
+ * We're the dir analde for this res and aanalther analde wants to kanalw the
+ * master analdeid.  During analrmal operation (analn recovery) this is only
+ * called from receive_lookup(); master lookups when the local analde is
+ * the dir analde are done by find_rsb().
  *
- * normal operation, we are the dir node for a resource
+ * analrmal operation, we are the dir analde for a resource
  * . _request_lock
  * . set_master
  * . send_lookup
@@ -971,10 +971,10 @@ static void __dlm_master_lookup(struct dlm_ls *ls, struct dlm_rsb *r, int our_no
  * recover directory, we are rebuilding dir for all resources
  * . dlm_recover_directory
  * . dlm_rcom_names
- *   remote node sends back the rsb names it is master of and we are dir of
+ *   remote analde sends back the rsb names it is master of and we are dir of
  * . dlm_master_lookup RECOVER_DIR (fix_master 0, from_master 1)
- *   we either create new rsb setting remote node as master, or find existing
- *   rsb and set master to be the remote node.
+ *   we either create new rsb setting remote analde as master, or find existing
+ *   rsb and set master to be the remote analde.
  *
  * recover masters, we are finding the new master for resources
  * . dlm_recover_masters
@@ -984,32 +984,32 @@ static void __dlm_master_lookup(struct dlm_ls *ls, struct dlm_rsb *r, int our_no
  * . dlm_master_lookup RECOVER_MASTER (fix_master 1, from_master 0)
  */
 
-int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
-		      int len, unsigned int flags, int *r_nodeid, int *result)
+int dlm_master_lookup(struct dlm_ls *ls, int from_analdeid, const char *name,
+		      int len, unsigned int flags, int *r_analdeid, int *result)
 {
 	struct dlm_rsb *r = NULL;
 	uint32_t hash, b;
-	int our_nodeid = dlm_our_nodeid();
-	int dir_nodeid, error;
+	int our_analdeid = dlm_our_analdeid();
+	int dir_analdeid, error;
 
 	if (len > DLM_RESNAME_MAXLEN)
 		return -EINVAL;
 
-	if (from_nodeid == our_nodeid) {
-		log_error(ls, "dlm_master_lookup from our_nodeid %d flags %x",
-			  our_nodeid, flags);
+	if (from_analdeid == our_analdeid) {
+		log_error(ls, "dlm_master_lookup from our_analdeid %d flags %x",
+			  our_analdeid, flags);
 		return -EINVAL;
 	}
 
 	hash = jhash(name, len, 0);
 	b = hash & (ls->ls_rsbtbl_size - 1);
 
-	dir_nodeid = dlm_hash2nodeid(ls, hash);
-	if (dir_nodeid != our_nodeid) {
+	dir_analdeid = dlm_hash2analdeid(ls, hash);
+	if (dir_analdeid != our_analdeid) {
 		log_error(ls, "dlm_master_lookup from %d dir %d our %d h %x %d",
-			  from_nodeid, dir_nodeid, our_nodeid, hash,
-			  ls->ls_num_nodes);
-		*r_nodeid = -1;
+			  from_analdeid, dir_analdeid, our_analdeid, hash,
+			  ls->ls_num_analdes);
+		*r_analdeid = -1;
 		return -EINVAL;
 	}
 
@@ -1022,15 +1022,15 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
 	if (!error) {
 		/* because the rsb is active, we need to lock_rsb before
-		 * checking/changing re_master_nodeid
+		 * checking/changing re_master_analdeid
 		 */
 
 		hold_rsb(r);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
 		lock_rsb(r);
 
-		__dlm_master_lookup(ls, r, our_nodeid, from_nodeid, false,
-				    flags, r_nodeid, result);
+		__dlm_master_lookup(ls, r, our_analdeid, from_analdeid, false,
+				    flags, r_analdeid, result);
 
 		/* the rsb was active */
 		unlock_rsb(r);
@@ -1041,14 +1041,14 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 
 	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
 	if (error)
-		goto not_found;
+		goto analt_found;
 
-	/* because the rsb is inactive (on toss list), it's not refcounted
-	 * and lock_rsb is not used, but is protected by the rsbtbl lock
+	/* because the rsb is inactive (on toss list), it's analt refcounted
+	 * and lock_rsb is analt used, but is protected by the rsbtbl lock
 	 */
 
-	__dlm_master_lookup(ls, r, our_nodeid, from_nodeid, true, flags,
-			    r_nodeid, result);
+	__dlm_master_lookup(ls, r, our_analdeid, from_analdeid, true, flags,
+			    r_analdeid, result);
 
 	r->res_toss_time = jiffies;
 	/* the rsb was inactive (on toss list) */
@@ -1056,7 +1056,7 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 
 	return 0;
 
- not_found:
+ analt_found:
 	error = get_rsb_struct(ls, name, len, &r);
 	if (error == -EAGAIN) {
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
@@ -1067,9 +1067,9 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 
 	r->res_hash = hash;
 	r->res_bucket = b;
-	r->res_dir_nodeid = our_nodeid;
-	r->res_master_nodeid = from_nodeid;
-	r->res_nodeid = from_nodeid;
+	r->res_dir_analdeid = our_analdeid;
+	r->res_master_analdeid = from_analdeid;
+	r->res_analdeid = from_analdeid;
 	kref_init(&r->res_ref);
 	r->res_toss_time = jiffies;
 
@@ -1083,7 +1083,7 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 
 	if (result)
 		*result = DLM_LU_ADD;
-	*r_nodeid = from_nodeid;
+	*r_analdeid = from_analdeid;
  out_unlock:
 	spin_unlock(&ls->ls_rsbtbl[b].lock);
 	return error;
@@ -1091,14 +1091,14 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 
 static void dlm_dump_rsb_hash(struct dlm_ls *ls, uint32_t hash)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 	struct dlm_rsb *r;
 	int i;
 
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
 		spin_lock(&ls->ls_rsbtbl[i].lock);
 		for (n = rb_first(&ls->ls_rsbtbl[i].keep); n; n = rb_next(n)) {
-			r = rb_entry(n, struct dlm_rsb, res_hashnode);
+			r = rb_entry(n, struct dlm_rsb, res_hashanalde);
 			if (r->res_hash == hash)
 				dlm_dump_rsb(r);
 		}
@@ -1136,7 +1136,7 @@ static void toss_rsb(struct kref *kref)
 
 	DLM_ASSERT(list_empty(&r->res_root_list), dlm_print_rsb(r););
 	kref_init(&r->res_ref);
-	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[r->res_bucket].keep);
+	rb_erase(&r->res_hashanalde, &ls->ls_rsbtbl[r->res_bucket].keep);
 	rsb_insert(r, &ls->ls_rsbtbl[r->res_bucket].toss);
 	r->res_toss_time = jiffies;
 	set_bit(DLM_RTF_SHRINK_BIT, &ls->ls_rsbtbl[r->res_bucket].flags);
@@ -1195,10 +1195,10 @@ static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
 
 	lkb = dlm_allocate_lkb(ls);
 	if (!lkb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lkb->lkb_last_bast_mode = -1;
-	lkb->lkb_nodeid = -1;
+	lkb->lkb_analdeid = -1;
 	lkb->lkb_grmode = DLM_LOCK_IV;
 	kref_init(&lkb->lkb_ref);
 	INIT_LIST_HEAD(&lkb->lkb_ownqueue);
@@ -1208,9 +1208,9 @@ static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
 	spin_lock_init(&lkb->lkb_cb_lock);
 	INIT_WORK(&lkb->lkb_cb_work, dlm_callback_work);
 
-	idr_preload(GFP_NOFS);
+	idr_preload(GFP_ANALFS);
 	spin_lock(&ls->ls_lkbidr_spin);
-	rv = idr_alloc(&ls->ls_lkbidr, lkb, start, end, GFP_NOWAIT);
+	rv = idr_alloc(&ls->ls_lkbidr, lkb, start, end, GFP_ANALWAIT);
 	if (rv >= 0)
 		lkb->lkb_id = rv;
 	spin_unlock(&ls->ls_lkbidr_spin);
@@ -1242,7 +1242,7 @@ static int find_lkb(struct dlm_ls *ls, uint32_t lkid, struct dlm_lkb **lkb_ret)
 	spin_unlock(&ls->ls_lkbidr_spin);
 
 	*lkb_ret = lkb;
-	return lkb ? 0 : -ENOENT;
+	return lkb ? 0 : -EANALENT;
 }
 
 static void kill_lkb(struct kref *kref)
@@ -1255,7 +1255,7 @@ static void kill_lkb(struct kref *kref)
 	DLM_ASSERT(!lkb->lkb_status, dlm_print_lkb(lkb););
 }
 
-/* __put_lkb() is used when an lkb may not have an rsb attached to
+/* __put_lkb() is used when an lkb may analt have an rsb attached to
    it so we need to provide the lockspace explicitly */
 
 static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
@@ -1292,7 +1292,7 @@ int dlm_put_lkb(struct dlm_lkb *lkb)
 }
 
 /* This is only called to add a reference when the code already holds
-   a valid reference to the lkb, so there's no need for locking. */
+   a valid reference to the lkb, so there's anal need for locking. */
 
 static inline void hold_lkb(struct dlm_lkb *lkb)
 {
@@ -1307,7 +1307,7 @@ static void unhold_lkb_assert(struct kref *kref)
 }
 
 /* This is called when we need to remove a reference and are certain
-   it's not the last ref.  e.g. del_lkb is always called between a
+   it's analt the last ref.  e.g. del_lkb is always called between a
    find_lkb/put_lkb and is always the inverse of a previous add_lkb.
    put_lkb would work fine, but would involve unnecessary locking */
 
@@ -1401,9 +1401,9 @@ static int msg_reply_type(int mstype)
 }
 
 /* add/remove lkb from global waiters list of lkb's waiting for
-   a reply from a remote node */
+   a reply from a remote analde */
 
-static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
+static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_analdeid)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int error = 0;
@@ -1441,7 +1441,7 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 	wc = atomic_fetch_inc(&lkb->lkb_wait_count);
 	DLM_ASSERT(!wc, dlm_print_lkb(lkb); printk("wait_count %d\n", wc););
 	lkb->lkb_wait_type = mstype;
-	lkb->lkb_wait_nodeid = to_nodeid; /* for debugging */
+	lkb->lkb_wait_analdeid = to_analdeid; /* for debugging */
 	hold_lkb(lkb);
 	list_add(&lkb->lkb_wait_reply, &ls->ls_waiters);
  out:
@@ -1479,7 +1479,7 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 	}
 
 	/* Cancel state was preemptively cleared by a successful convert,
-	   see next comment, nothing to do. */
+	   see next comment, analthing to do. */
 
 	if ((mstype == DLM_MSG_CANCEL_REPLY) &&
 	    (lkb->lkb_wait_type != DLM_MSG_CANCEL)) {
@@ -1493,7 +1493,7 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 	   an outstanding cancel on it (the cancel is moot and the result
 	   in the cancel reply should be 0).  We preempt the cancel reply
 	   because the app gets the convert result and then can follow up
-	   with another op, like convert.  This subsequent op would see the
+	   with aanalther op, like convert.  This subsequent op would see the
 	   lingering state of the cancel and fail with -EBUSY. */
 
 	if ((mstype == DLM_MSG_CONVERT_REPLY) &&
@@ -1507,7 +1507,7 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 		goto out_del;
 	}
 
-	/* N.B. type of reply may not always correspond to type of original
+	/* N.B. type of reply may analt always correspond to type of original
 	   msg due to lookup->request optimization, verify others? */
 
 	if (lkb->lkb_wait_type) {
@@ -1515,15 +1515,15 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 		goto out_del;
 	}
 
-	log_error(ls, "remwait error %x remote %d %x msg %d flags %x no wait",
-		  lkb->lkb_id, ms ? le32_to_cpu(ms->m_header.h_nodeid) : 0,
+	log_error(ls, "remwait error %x remote %d %x msg %d flags %x anal wait",
+		  lkb->lkb_id, ms ? le32_to_cpu(ms->m_header.h_analdeid) : 0,
 		  lkb->lkb_remid, mstype, dlm_iflags_val(lkb));
 	return -1;
 
  out_del:
 	/* the force-unlock/cancel has completed and we haven't recvd a reply
 	   to the op that was in progress prior to the unlock/cancel; we
-	   give up on any reply to the earlier op.  FIXME: not sure when/how
+	   give up on any reply to the earlier op.  FIXME: analt sure when/how
 	   this would happen */
 
 	if (overlap_done && lkb->lkb_wait_type) {
@@ -1573,10 +1573,10 @@ static int remove_from_waiters_ms(struct dlm_lkb *lkb,
 
 static void shrink_bucket(struct dlm_ls *ls, int b)
 {
-	struct rb_node *n, *next;
+	struct rb_analde *n, *next;
 	struct dlm_rsb *r;
 	char *name;
-	int our_nodeid = dlm_our_nodeid();
+	int our_analdeid = dlm_our_analdeid();
 	int remote_count = 0;
 	int need_shrink = 0;
 	int i, len, rv;
@@ -1592,16 +1592,16 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 
 	for (n = rb_first(&ls->ls_rsbtbl[b].toss); n; n = next) {
 		next = rb_next(n);
-		r = rb_entry(n, struct dlm_rsb, res_hashnode);
+		r = rb_entry(n, struct dlm_rsb, res_hashanalde);
 
 		/* If we're the directory record for this rsb, and
-		   we're not the master of it, then we need to wait
-		   for the master node to send us a dir remove for
+		   we're analt the master of it, then we need to wait
+		   for the master analde to send us a dir remove for
 		   before removing the dir record. */
 
-		if (!dlm_no_directory(ls) &&
-		    (r->res_master_nodeid != our_nodeid) &&
-		    (dlm_dir_nodeid(r) == our_nodeid)) {
+		if (!dlm_anal_directory(ls) &&
+		    (r->res_master_analdeid != our_analdeid) &&
+		    (dlm_dir_analdeid(r) == our_analdeid)) {
 			continue;
 		}
 
@@ -1612,13 +1612,13 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 			continue;
 		}
 
-		if (!dlm_no_directory(ls) &&
-		    (r->res_master_nodeid == our_nodeid) &&
-		    (dlm_dir_nodeid(r) != our_nodeid)) {
+		if (!dlm_anal_directory(ls) &&
+		    (r->res_master_analdeid == our_analdeid) &&
+		    (dlm_dir_analdeid(r) != our_analdeid)) {
 
-			/* We're the master of this rsb but we're not
+			/* We're the master of this rsb but we're analt
 			   the directory record, so we need to tell the
-			   dir node to remove the dir record. */
+			   dir analde to remove the dir record. */
 
 			ls->ls_remove_lens[remote_count] = r->res_length;
 			memcpy(ls->ls_remove_names[remote_count], r->res_name,
@@ -1635,7 +1635,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 			continue;
 		}
 
-		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+		rb_erase(&r->res_hashanalde, &ls->ls_rsbtbl[b].toss);
 		dlm_free_rsb(r);
 	}
 
@@ -1650,8 +1650,8 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 	 * remote removal.  We leave them in place and find them again here
 	 * so there is a very small gap between removing them from the toss
 	 * list and sending the removal.  Keeping this gap small is
-	 * important to keep us (the master node) from being out of sync
-	 * with the remote dir node for very long.
+	 * important to keep us (the master analde) from being out of sync
+	 * with the remote dir analde for very long.
 	 */
 
 	for (i = 0; i < remote_count; i++) {
@@ -1662,31 +1662,31 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
 		if (rv) {
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
-			log_debug(ls, "remove_name not toss %s", name);
+			log_debug(ls, "remove_name analt toss %s", name);
 			continue;
 		}
 
-		if (r->res_master_nodeid != our_nodeid) {
+		if (r->res_master_analdeid != our_analdeid) {
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
 			log_debug(ls, "remove_name master %d dir %d our %d %s",
-				  r->res_master_nodeid, r->res_dir_nodeid,
-				  our_nodeid, name);
+				  r->res_master_analdeid, r->res_dir_analdeid,
+				  our_analdeid, name);
 			continue;
 		}
 
-		if (r->res_dir_nodeid == our_nodeid) {
+		if (r->res_dir_analdeid == our_analdeid) {
 			/* should never happen */
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
 			log_error(ls, "remove_name dir %d master %d our %d %s",
-				  r->res_dir_nodeid, r->res_master_nodeid,
-				  our_nodeid, name);
+				  r->res_dir_analdeid, r->res_master_analdeid,
+				  our_analdeid, name);
 			continue;
 		}
 
 		if (!time_after_eq(jiffies, r->res_toss_time +
 				   dlm_config.ci_toss_secs * HZ)) {
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
-			log_debug(ls, "remove_name toss_time %lu now %lu %s",
+			log_debug(ls, "remove_name toss_time %lu analw %lu %s",
 				  r->res_toss_time, jiffies, name);
 			continue;
 		}
@@ -1697,7 +1697,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 			continue;
 		}
 
-		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+		rb_erase(&r->res_hashanalde, &ls->ls_rsbtbl[b].toss);
 		send_remove(r);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
 
@@ -1725,7 +1725,7 @@ static void set_lvb_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	/* b=1 lvb returned to caller
 	   b=0 lvb written to rsb or invalidated
-	   b=-1 do nothing */
+	   b=-1 do analthing */
 
 	b =  dlm_lvb_operations[lkb->lkb_grmode + 1][lkb->lkb_rqmode + 1];
 
@@ -1744,7 +1744,7 @@ static void set_lvb_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	} else if (b == 0) {
 		if (lkb->lkb_exflags & DLM_LKF_IVVALBLK) {
-			rsb_set_flag(r, RSB_VALNOTVALID);
+			rsb_set_flag(r, RSB_VALANALTVALID);
 			return;
 		}
 
@@ -1763,11 +1763,11 @@ static void set_lvb_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		memcpy(r->res_lvbptr, lkb->lkb_lvbptr, len);
 		r->res_lvbseq++;
 		lkb->lkb_lvbseq = r->res_lvbseq;
-		rsb_clear_flag(r, RSB_VALNOTVALID);
+		rsb_clear_flag(r, RSB_VALANALTVALID);
 	}
 
-	if (rsb_flag(r, RSB_VALNOTVALID))
-		set_bit(DLM_SBF_VALNOTVALID_BIT, &lkb->lkb_sbflags);
+	if (rsb_flag(r, RSB_VALANALTVALID))
+		set_bit(DLM_SBF_VALANALTVALID_BIT, &lkb->lkb_sbflags);
 }
 
 static void set_lvb_unlock(struct dlm_rsb *r, struct dlm_lkb *lkb)
@@ -1776,7 +1776,7 @@ static void set_lvb_unlock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		return;
 
 	if (lkb->lkb_exflags & DLM_LKF_IVVALBLK) {
-		rsb_set_flag(r, RSB_VALNOTVALID);
+		rsb_set_flag(r, RSB_VALANALTVALID);
 		return;
 	}
 
@@ -1794,7 +1794,7 @@ static void set_lvb_unlock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	memcpy(r->res_lvbptr, lkb->lkb_lvbptr, r->res_ls->ls_lvblen);
 	r->res_lvbseq++;
-	rsb_clear_flag(r, RSB_VALNOTVALID);
+	rsb_clear_flag(r, RSB_VALANALTVALID);
 }
 
 /* lkb is process copy (pc) */
@@ -1850,7 +1850,7 @@ static void remove_lock_pc(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	_remove_lock(r, lkb);
 }
 
-/* returns: 0 did nothing
+/* returns: 0 did analthing
 	    1 moved lock to granted
 	   -1 removed lock */
 
@@ -1914,8 +1914,8 @@ static void grant_lock_pc(struct dlm_rsb *r, struct dlm_lkb *lkb,
 }
 
 /* called by grant_pending_locks() which means an async grant message must
-   be sent to the requesting node in addition to granting the lock if the
-   lkb belongs to a remote node. */
+   be sent to the requesting analde in addition to granting the lock if the
+   lkb belongs to a remote analde. */
 
 static void grant_lock_pending(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
@@ -1974,7 +1974,7 @@ static inline int first_in_list(struct dlm_lkb *lkb, struct list_head *head)
 	return 0;
 }
 
-/* Check if the given lkb conflicts with another lkb on the queue. */
+/* Check if the given lkb conflicts with aanalther lkb on the queue. */
 
 static int queue_conflict(struct list_head *head, struct dlm_lkb *lkb)
 {
@@ -2003,15 +2003,15 @@ static int queue_conflict(struct list_head *head, struct dlm_lkb *lkb)
  *                PR->EX (second lock)
  *
  * The first lock can't be granted because of the granted mode of the second
- * lock and the second lock can't be granted because it's not first in the
+ * lock and the second lock can't be granted because it's analt first in the
  * list.  We either cancel lkb's conversion (PR->EX) and return EDEADLK, or we
  * demote the granted mode of lkb (from PR to NL) if it has the CONVDEADLK
  * flag set and return DEMOTED in the lksb flags.
  *
  * Originally, this function detected conv-deadlk in a more limited scope:
  * - if !modes_compat(lkb1, lkb2) && !modes_compat(lkb2, lkb1), or
- * - if lkb1 was the first entry in the queue (not just earlier), and was
- *   blocked by the granted mode of lkb2, and there was nothing on the
+ * - if lkb1 was the first entry in the queue (analt just earlier), and was
+ *   blocked by the granted mode of lkb2, and there was analthing on the
  *   granted queue preventing lkb1 from being granted immediately, i.e.
  *   lkb2 was the only thing preventing lkb1 from being granted.
  *
@@ -2020,8 +2020,8 @@ static int queue_conflict(struct list_head *head, struct dlm_lkb *lkb)
  * queue being granted right away.  It allowed conversion deadlocks to exist
  * between locks on the convert queue while they couldn't be granted anyway.
  *
- * Now, we detect and take action on conversion deadlocks immediately when
- * they're created, even if they may not be immediately consequential.  If
+ * Analw, we detect and take action on conversion deadlocks immediately when
+ * they're created, even if they may analt be immediately consequential.  If
  * lkb1 exists anywhere in the convert queue and lkb2 comes in with a granted
  * mode that would prevent lkb1's conversion from being granted, we do a
  * deadlk/demote on lkb2 right away and don't let it onto the convert queue.
@@ -2059,7 +2059,7 @@ static int conversion_deadlock_detect(struct dlm_rsb *r, struct dlm_lkb *lkb2)
  *
  * lkb is the lock to be granted
  *
- * now is 1 if the function is being called in the context of the
+ * analw is 1 if the function is being called in the context of the
  * immediate request, it is 0 if called later, after the lock has been
  * queued.
  *
@@ -2069,26 +2069,26 @@ static int conversion_deadlock_detect(struct dlm_rsb *r, struct dlm_lkb *lkb2)
  * References are from chapter 6 of "VAXcluster Principles" by Roy Davis
  */
 
-static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
+static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int analw,
 			   int recover)
 {
 	int8_t conv = (lkb->lkb_grmode != DLM_LOCK_IV);
 
 	/*
-	 * 6-10: Version 5.4 introduced an option to address the phenomenon of
+	 * 6-10: Version 5.4 introduced an option to address the pheanalmeanaln of
 	 * a new request for a NL mode lock being blocked.
 	 *
 	 * 6-11: If the optional EXPEDITE flag is used with the new NL mode
 	 * request, then it would be granted.  In essence, the use of this flag
-	 * tells the Lock Manager to expedite theis request by not considering
+	 * tells the Lock Manager to expedite theis request by analt considering
 	 * what may be in the CONVERTING or WAITING queues...  As of this
 	 * writing, the EXPEDITE flag can be used only with new requests for NL
-	 * mode locks.  This flag is not valid for conversion requests.
+	 * mode locks.  This flag is analt valid for conversion requests.
 	 *
 	 * A shortcut.  Earlier checks return an error if EXPEDITE is used in a
-	 * conversion or used with a non-NL requested mode.  We also know an
-	 * EXPEDITE request is always granted immediately, so now must always
-	 * be 1.  The full condition to grant an expedite request: (now &&
+	 * conversion or used with a analn-NL requested mode.  We also kanalw an
+	 * EXPEDITE request is always granted immediately, so analw must always
+	 * be 1.  The full condition to grant an expedite request: (analw &&
 	 * !conv && lkb->rqmode == DLM_LOCK_NL && (flags & EXPEDITE)) can
 	 * therefore be shortened to just checking the flag.
 	 */
@@ -2122,7 +2122,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 	 * since the order hasn't been preserved anyway.  The new order
 	 * could also have created a new "in place" conversion deadlock.
 	 * (e.g. old, failed master held granted EX, with PR->EX, NL->EX.
-	 * After recovery, there would be no granted locks, and possibly
+	 * After recovery, there would be anal granted locks, and possibly
 	 * NL->EX, PR->EX, an in-place conversion deadlock.)  So, after
 	 * recovery, grant conversions without considering order.
 	 */
@@ -2132,9 +2132,9 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 
 	/*
 	 * 6-5: But the default algorithm for deciding whether to grant or
-	 * queue conversion requests does not by itself guarantee that such
+	 * queue conversion requests does analt by itself guarantee that such
 	 * requests are serviced on a "first come first serve" basis.  This, in
-	 * turn, can lead to a phenomenon known as "indefinate postponement".
+	 * turn, can lead to a pheanalmeanaln kanalwn as "indefinate postponement".
 	 *
 	 * 6-7: This issue is dealt with by using the optional QUECVT flag with
 	 * the system service employed to request a lock conversion.  This flag
@@ -2145,15 +2145,15 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 	 *
 	 * DCT: This condition is all about new conversions being able to occur
 	 * "in place" while the lock remains on the granted queue (assuming
-	 * nothing else conflicts.)  IOW if QUECVT isn't set, a conversion
+	 * analthing else conflicts.)  IOW if QUECVT isn't set, a conversion
 	 * doesn't _have_ to go onto the convert queue where it's processed in
-	 * order.  The "now" variable is necessary to distinguish converts
-	 * being received and processed for the first time now, because once a
+	 * order.  The "analw" variable is necessary to distinguish converts
+	 * being received and processed for the first time analw, because once a
 	 * convert is moved to the conversion queue the condition below applies
 	 * requiring fifo granting.
 	 */
 
-	if (now && conv && !(lkb->lkb_exflags & DLM_LKF_QUECVT))
+	if (analw && conv && !(lkb->lkb_exflags & DLM_LKF_QUECVT))
 		return 1;
 
 	/*
@@ -2161,7 +2161,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 	 * QUECVT forces it behind other locks on the convert queue.
 	 */
 
-	if (now && conv && (lkb->lkb_exflags & DLM_LKF_QUECVT)) {
+	if (analw && conv && (lkb->lkb_exflags & DLM_LKF_QUECVT)) {
 		if (list_empty(&r->res_convertqueue))
 			return 1;
 		else
@@ -2169,20 +2169,20 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 	}
 
 	/*
-	 * The NOORDER flag is set to avoid the standard vms rules on grant
+	 * The ANALORDER flag is set to avoid the standard vms rules on grant
 	 * order.
 	 */
 
-	if (lkb->lkb_exflags & DLM_LKF_NOORDER)
+	if (lkb->lkb_exflags & DLM_LKF_ANALORDER)
 		return 1;
 
 	/*
-	 * 6-3: Once in that queue [CONVERTING], a conversion request cannot be
+	 * 6-3: Once in that queue [CONVERTING], a conversion request cananalt be
 	 * granted until all other conversion requests ahead of it are granted
 	 * and/or canceled.
 	 */
 
-	if (!now && conv && first_in_list(lkb, &r->res_convertqueue))
+	if (!analw && conv && first_in_list(lkb, &r->res_convertqueue))
 		return 1;
 
 	/*
@@ -2196,26 +2196,26 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 	 *   restrictive mode of all granted locks on the resource.
 	 */
 
-	if (now && !conv && list_empty(&r->res_convertqueue) &&
+	if (analw && !conv && list_empty(&r->res_convertqueue) &&
 	    list_empty(&r->res_waitqueue))
 		return 1;
 
 	/*
 	 * 6-4: Once a lock request is in the queue of ungranted new requests,
-	 * it cannot be granted until the queue of ungranted conversion
+	 * it cananalt be granted until the queue of ungranted conversion
 	 * requests is empty, all ungranted new requests ahead of it are
 	 * granted and/or canceled, and it is compatible with the granted mode
 	 * of the most restrictive lock granted on the resource.
 	 */
 
-	if (!now && !conv && list_empty(&r->res_convertqueue) &&
+	if (!analw && !conv && list_empty(&r->res_convertqueue) &&
 	    first_in_list(lkb, &r->res_waitqueue))
 		return 1;
 
 	return 0;
 }
 
-static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
+static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int analw,
 			  int recover, int *err)
 {
 	int rv;
@@ -2225,12 +2225,12 @@ static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 	if (err)
 		*err = 0;
 
-	rv = _can_be_granted(r, lkb, now, recover);
+	rv = _can_be_granted(r, lkb, analw, recover);
 	if (rv)
 		goto out;
 
 	/*
-	 * The CONVDEADLK flag is non-standard and tells the dlm to resolve
+	 * The CONVDEADLK flag is analn-standard and tells the dlm to resolve
 	 * conversion deadlocks by demoting grmode to NL, otherwise the dlm
 	 * cancels one of the locks.
 	 */
@@ -2243,16 +2243,16 @@ static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 		} else if (err) {
 			*err = -EDEADLK;
 		} else {
-			log_print("can_be_granted deadlock %x now %d",
-				  lkb->lkb_id, now);
+			log_print("can_be_granted deadlock %x analw %d",
+				  lkb->lkb_id, analw);
 			dlm_dump_rsb(r);
 		}
 		goto out;
 	}
 
 	/*
-	 * The ALTPR and ALTCW flags are non-standard and tell the dlm to try
-	 * to grant a request in a mode other than the normal rqmode.  It's a
+	 * The ALTPR and ALTCW flags are analn-standard and tell the dlm to try
+	 * to grant a request in a mode other than the analrmal rqmode.  It's a
 	 * simple way to provide a big optimization to applications that can
 	 * use them.
 	 */
@@ -2264,7 +2264,7 @@ static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 
 	if (alt) {
 		lkb->lkb_rqmode = alt;
-		rv = _can_be_granted(r, lkb, now, 0);
+		rv = _can_be_granted(r, lkb, analw, 0);
 		if (rv)
 			set_bit(DLM_SBF_ALTMODE_BIT, &lkb->lkb_sbflags);
 		else
@@ -2304,26 +2304,26 @@ static int grant_pending_convert(struct dlm_rsb *r, int high, int *cw,
 		}
 
 		if (!demoted && is_demoted(lkb)) {
-			log_print("WARN: pending demoted %x node %d %s",
-				  lkb->lkb_id, lkb->lkb_nodeid, r->res_name);
+			log_print("WARN: pending demoted %x analde %d %s",
+				  lkb->lkb_id, lkb->lkb_analdeid, r->res_name);
 			demote_restart = 1;
 			continue;
 		}
 
 		if (deadlk) {
 			/*
-			 * If DLM_LKB_NODLKWT flag is set and conversion
+			 * If DLM_LKB_ANALDLKWT flag is set and conversion
 			 * deadlock is detected, we request blocking AST and
 			 * down (or cancel) conversion.
 			 */
-			if (lkb->lkb_exflags & DLM_LKF_NODLCKWT) {
+			if (lkb->lkb_exflags & DLM_LKF_ANALDLCKWT) {
 				if (lkb->lkb_highbast < lkb->lkb_rqmode) {
 					queue_bast(r, lkb, lkb->lkb_rqmode);
 					lkb->lkb_highbast = lkb->lkb_rqmode;
 				}
 			} else {
-				log_print("WARN: pending deadlock %x node %d %s",
-					  lkb->lkb_id, lkb->lkb_nodeid,
+				log_print("WARN: pending deadlock %x analde %d %s",
+					  lkb->lkb_id, lkb->lkb_analdeid,
 					  r->res_name);
 				dlm_dump_rsb(r);
 			}
@@ -2392,7 +2392,7 @@ static void grant_pending_locks(struct dlm_rsb *r, unsigned int *count)
 	int cw = 0;
 
 	if (!is_master(r)) {
-		log_print("grant_pending_locks r nodeid %d", r->res_nodeid);
+		log_print("grant_pending_locks r analdeid %d", r->res_analdeid);
 		dlm_dump_rsb(r);
 		return;
 	}
@@ -2462,33 +2462,33 @@ static void send_blocking_asts_all(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	send_bast_queue(r, &r->res_convertqueue, lkb);
 }
 
-/* set_master(r, lkb) -- set the master nodeid of a resource
+/* set_master(r, lkb) -- set the master analdeid of a resource
 
-   The purpose of this function is to set the nodeid field in the given
-   lkb using the nodeid field in the given rsb.  If the rsb's nodeid is
-   known, it can just be copied to the lkb and the function will return
-   0.  If the rsb's nodeid is _not_ known, it needs to be looked up
+   The purpose of this function is to set the analdeid field in the given
+   lkb using the analdeid field in the given rsb.  If the rsb's analdeid is
+   kanalwn, it can just be copied to the lkb and the function will return
+   0.  If the rsb's analdeid is _analt_ kanalwn, it needs to be looked up
    before it can be copied to the lkb.
 
-   When the rsb nodeid is being looked up remotely, the initial lkb
+   When the rsb analdeid is being looked up remotely, the initial lkb
    causing the lookup is kept on the ls_waiters list waiting for the
    lookup reply.  Other lkb's waiting for the same rsb lookup are kept
    on the rsb's res_lookup list until the master is verified.
 
    Return values:
-   0: nodeid is set in rsb/lkb and the caller should go ahead and use it
-   1: the rsb master is not available and the lkb has been placed on
+   0: analdeid is set in rsb/lkb and the caller should go ahead and use it
+   1: the rsb master is analt available and the lkb has been placed on
       a wait queue
 */
 
 static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
-	int our_nodeid = dlm_our_nodeid();
+	int our_analdeid = dlm_our_analdeid();
 
 	if (rsb_flag(r, RSB_MASTER_UNCERTAIN)) {
 		rsb_clear_flag(r, RSB_MASTER_UNCERTAIN);
 		r->res_first_lkid = lkb->lkb_id;
-		lkb->lkb_nodeid = r->res_nodeid;
+		lkb->lkb_analdeid = r->res_analdeid;
 		return 0;
 	}
 
@@ -2497,29 +2497,29 @@ static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		return 1;
 	}
 
-	if (r->res_master_nodeid == our_nodeid) {
-		lkb->lkb_nodeid = 0;
+	if (r->res_master_analdeid == our_analdeid) {
+		lkb->lkb_analdeid = 0;
 		return 0;
 	}
 
-	if (r->res_master_nodeid) {
-		lkb->lkb_nodeid = r->res_master_nodeid;
+	if (r->res_master_analdeid) {
+		lkb->lkb_analdeid = r->res_master_analdeid;
 		return 0;
 	}
 
-	if (dlm_dir_nodeid(r) == our_nodeid) {
+	if (dlm_dir_analdeid(r) == our_analdeid) {
 		/* This is a somewhat unusual case; find_rsb will usually
-		   have set res_master_nodeid when dir nodeid is local, but
-		   there are cases where we become the dir node after we've
+		   have set res_master_analdeid when dir analdeid is local, but
+		   there are cases where we become the dir analde after we've
 		   past find_rsb and go through _request_lock again.
 		   confirm_master() or process_lookup_list() needs to be
 		   called after this. */
 		log_debug(r->res_ls, "set_master %x self master %d dir %d %s",
-			  lkb->lkb_id, r->res_master_nodeid, r->res_dir_nodeid,
+			  lkb->lkb_id, r->res_master_analdeid, r->res_dir_analdeid,
 			  r->res_name);
-		r->res_master_nodeid = our_nodeid;
-		r->res_nodeid = 0;
-		lkb->lkb_nodeid = 0;
+		r->res_master_analdeid = our_analdeid;
+		r->res_analdeid = 0;
+		lkb->lkb_analdeid = 0;
 		return 0;
 	}
 
@@ -2539,7 +2539,7 @@ static void process_lookup_list(struct dlm_rsb *r)
 	}
 }
 
-/* confirm_master -- confirm (or deny) an rsb's master nodeid */
+/* confirm_master -- confirm (or deny) an rsb's master analdeid */
 
 static void confirm_master(struct dlm_rsb *r, int error)
 {
@@ -2557,9 +2557,9 @@ static void confirm_master(struct dlm_rsb *r, int error)
 
 	case -EAGAIN:
 	case -EBADR:
-	case -ENOTBLK:
+	case -EANALTBLK:
 		/* the remote request failed and won't be retried (it was
-		   a NOQUEUE, or has been canceled/unlocked); make a waiting
+		   a ANALQUEUE, or has been canceled/unlocked); make a waiting
 		   lkb the first_lkid */
 
 		r->res_first_lkid = 0;
@@ -2574,7 +2574,7 @@ static void confirm_master(struct dlm_rsb *r, int error)
 		break;
 
 	default:
-		log_error(r->res_ls, "confirm_master unknown error %d", error);
+		log_error(r->res_ls, "confirm_master unkanalwn error %d", error);
 	}
 }
 
@@ -2603,7 +2603,7 @@ static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 	if (flags & DLM_LKF_CONVDEADLK && !(flags & DLM_LKF_CONVERT))
 		goto out;
 
-	if (flags & DLM_LKF_CONVDEADLK && flags & DLM_LKF_NOQUEUE)
+	if (flags & DLM_LKF_CONVDEADLK && flags & DLM_LKF_ANALQUEUE)
 		goto out;
 
 	if (flags & DLM_LKF_EXPEDITE && flags & DLM_LKF_CONVERT)
@@ -2612,7 +2612,7 @@ static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 	if (flags & DLM_LKF_EXPEDITE && flags & DLM_LKF_QUECVT)
 		goto out;
 
-	if (flags & DLM_LKF_EXPEDITE && flags & DLM_LKF_NOQUEUE)
+	if (flags & DLM_LKF_EXPEDITE && flags & DLM_LKF_ANALQUEUE)
 		goto out;
 
 	if (flags & DLM_LKF_EXPEDITE && mode != DLM_LOCK_NL)
@@ -2628,8 +2628,8 @@ static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 		goto out;
 
 	/* these args will be copied to the lkb in validate_lock_args,
-	   it cannot be done now because when converting locks, fields in
-	   an active lkb cannot be modified before locking the rsb */
+	   it cananalt be done analw because when converting locks, fields in
+	   an active lkb cananalt be modified before locking the rsb */
 
 	args->flags = flags;
 	args->astfn = ast;
@@ -2665,7 +2665,7 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		if (lkb->lkb_status != DLM_LKSTS_GRANTED)
 			goto out;
 
-		/* lock not allowed if there's any op in progress */
+		/* lock analt allowed if there's any op in progress */
 		if (lkb->lkb_wait_type || atomic_read(&lkb->lkb_wait_count))
 			goto out;
 
@@ -2696,7 +2696,7 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	case 0:
 		break;
 	case -EINVAL:
-		/* annoy the user because dlm usage is wrong */
+		/* ananaly the user because dlm usage is wrong */
 		WARN_ON(1);
 		log_error(ls, "%s %d %x %x %x %d %d %s", __func__,
 			  rv, lkb->lkb_id, dlm_iflags_val(lkb), args->flags,
@@ -2717,7 +2717,7 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 /* when dlm_unlock() sees -EBUSY with CANCEL/FORCEUNLOCK it returns 0
    for success */
 
-/* note: it's valid for lkb_nodeid/res_nodeid to be -1 when we get here
+/* analte: it's valid for lkb_analdeid/res_analdeid to be -1 when we get here
    because there may be a lookup in progress and it's valid to do
    cancel/unlockf on it */
 
@@ -2726,13 +2726,13 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int rv = -EBUSY;
 
-	/* normal unlock not allowed if there's any op in progress */
+	/* analrmal unlock analt allowed if there's any op in progress */
 	if (!(args->flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)) &&
 	    (lkb->lkb_wait_type || atomic_read(&lkb->lkb_wait_count)))
 		goto out;
 
 	/* an lkb may be waiting for an rsb lookup to complete where the
-	   lookup was initiated by another lock */
+	   lookup was initiated by aanalther lock */
 
 	if (!list_empty(&lkb->lkb_rsb_lookup)) {
 		if (args->flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)) {
@@ -2755,17 +2755,17 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 	}
 
 	/* an lkb may still exist even though the lock is EOL'ed due to a
-	 * cancel, unlock or failed noqueue request; an app can't use these
-	 * locks; return same error as if the lkid had not been found at all
+	 * cancel, unlock or failed analqueue request; an app can't use these
+	 * locks; return same error as if the lkid had analt been found at all
 	 */
 
 	if (test_bit(DLM_IFL_ENDOFLIFE_BIT, &lkb->lkb_iflags)) {
 		log_debug(ls, "unlock on ENDOFLIFE %x", lkb->lkb_id);
-		rv = -ENOENT;
+		rv = -EANALENT;
 		goto out;
 	}
 
-	/* cancel not allowed with another cancel/unlock in progress */
+	/* cancel analt allowed with aanalther cancel/unlock in progress */
 
 	if (args->flags & DLM_LKF_CANCEL) {
 		if (lkb->lkb_exflags & DLM_LKF_CANCEL)
@@ -2780,7 +2780,7 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 			goto out;
 		}
 
-		/* there's nothing to cancel */
+		/* there's analthing to cancel */
 		if (lkb->lkb_status == DLM_LKSTS_GRANTED &&
 		    !lkb->lkb_wait_type) {
 			rv = -EBUSY;
@@ -2801,8 +2801,8 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 		goto out_ok;
 	}
 
-	/* do we need to allow a force-unlock if there's a normal unlock
-	   already in progress?  in what conditions could the normal unlock
+	/* do we need to allow a force-unlock if there's a analrmal unlock
+	   already in progress?  in what conditions could the analrmal unlock
 	   fail such that we'd want to send a force-unlock to be sure? */
 
 	if (args->flags & DLM_LKF_FORCEUNLOCK) {
@@ -2841,7 +2841,7 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 	case 0:
 		break;
 	case -EINVAL:
-		/* annoy the user because dlm usage is wrong */
+		/* ananaly the user because dlm usage is wrong */
 		WARN_ON(1);
 		log_error(ls, "%s %d %x %x %x %x %d %s", __func__, rv,
 			  lkb->lkb_id, dlm_iflags_val(lkb), lkb->lkb_exflags,
@@ -2862,7 +2862,7 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 /*
  * Four stage 4 varieties:
  * do_request(), do_convert(), do_unlock(), do_cancel()
- * These are called on the master node for the given lock and
+ * These are called on the master analde for the given lock and
  * from the central locking logic.
  */
 
@@ -2919,7 +2919,7 @@ static int do_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	   deadlock, so we leave it on the granted queue and return EDEADLK in
 	   the ast for the convert. */
 
-	if (deadlk && !(lkb->lkb_exflags & DLM_LKF_NODLCKWT)) {
+	if (deadlk && !(lkb->lkb_exflags & DLM_LKF_ANALDLCKWT)) {
 		/* it's left on the granted queue */
 		revert_lock(r, lkb);
 		queue_cast(r, lkb, -EDEADLK);
@@ -2930,7 +2930,7 @@ static int do_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	/* is_demoted() means the can_be_granted() above set the grmode
 	   to NL, and left us on the granted queue.  This auto-demotion
 	   (due to CONVDEADLK) might mean other locks, and/or this lock, are
-	   now grantable.  We have to try to grant other converting locks
+	   analw grantable.  We have to try to grant other converting locks
 	   before we try again to grant this one. */
 
 	if (is_demoted(lkb)) {
@@ -2987,7 +2987,7 @@ static void do_unlock_effects(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	grant_pending_locks(r, NULL);
 }
 
-/* returns: 0 did nothing, -DLM_ECANCEL canceled lock */
+/* returns: 0 did analthing, -DLM_ECANCEL canceled lock */
 
 static int do_cancel(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
@@ -3019,7 +3019,7 @@ static int _request_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
 	int error;
 
-	/* set_master: sets lkb nodeid from r */
+	/* set_master: sets lkb analdeid from r */
 
 	error = set_master(r, lkb);
 	if (error < 0)
@@ -3030,7 +3030,7 @@ static int _request_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	}
 
 	if (is_remote(r)) {
-		/* receive_request() calls do_request() on remote node */
+		/* receive_request() calls do_request() on remote analde */
 		error = send_request(r, lkb);
 	} else {
 		error = do_request(r, lkb);
@@ -3049,7 +3049,7 @@ static int _convert_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	int error;
 
 	if (is_remote(r)) {
-		/* receive_convert() calls do_convert() on remote node */
+		/* receive_convert() calls do_convert() on remote analde */
 		error = send_convert(r, lkb);
 	} else {
 		error = do_convert(r, lkb);
@@ -3068,7 +3068,7 @@ static int _unlock_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	int error;
 
 	if (is_remote(r)) {
-		/* receive_unlock() calls do_unlock() on remote node */
+		/* receive_unlock() calls do_unlock() on remote analde */
 		error = send_unlock(r, lkb);
 	} else {
 		error = do_unlock(r, lkb);
@@ -3087,7 +3087,7 @@ static int _cancel_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	int error;
 
 	if (is_remote(r)) {
-		/* receive_cancel() calls do_cancel() on remote node */
+		/* receive_cancel() calls do_cancel() on remote analde */
 		error = send_cancel(r, lkb);
 	} else {
 		error = do_cancel(r, lkb);
@@ -3327,7 +3327,7 @@ int dlm_unlock(dlm_lockspace_t *lockspace,
  */
 
 static int _create_message(struct dlm_ls *ls, int mb_len,
-			   int to_nodeid, int mstype,
+			   int to_analdeid, int mstype,
 			   struct dlm_message **ms_ret,
 			   struct dlm_mhandle **mh_ret,
 			   gfp_t allocation)
@@ -3340,15 +3340,15 @@ static int _create_message(struct dlm_ls *ls, int mb_len,
 	   pass into midcomms_commit and a message buffer (mb) that we
 	   write our data into */
 
-	mh = dlm_midcomms_get_mhandle(to_nodeid, mb_len, allocation, &mb);
+	mh = dlm_midcomms_get_mhandle(to_analdeid, mb_len, allocation, &mb);
 	if (!mh)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	ms = (struct dlm_message *) mb;
 
-	ms->m_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	ms->m_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MIANALR);
 	ms->m_header.u.h_lockspace = cpu_to_le32(ls->ls_global_id);
-	ms->m_header.h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	ms->m_header.h_analdeid = cpu_to_le32(dlm_our_analdeid());
 	ms->m_header.h_length = cpu_to_le16(mb_len);
 	ms->m_header.h_cmd = DLM_MSG;
 
@@ -3360,7 +3360,7 @@ static int _create_message(struct dlm_ls *ls, int mb_len,
 }
 
 static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
-			  int to_nodeid, int mstype,
+			  int to_analdeid, int mstype,
 			  struct dlm_message **ms_ret,
 			  struct dlm_mhandle **mh_ret,
 			  gfp_t allocation)
@@ -3383,7 +3383,7 @@ static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 		break;
 	}
 
-	return _create_message(r->res_ls, mb_len, to_nodeid, mstype,
+	return _create_message(r->res_ls, mb_len, to_analdeid, mstype,
 			       ms_ret, mh_ret, allocation);
 }
 
@@ -3400,7 +3400,7 @@ static int send_message(struct dlm_mhandle *mh, struct dlm_message *ms,
 static void send_args(struct dlm_rsb *r, struct dlm_lkb *lkb,
 		      struct dlm_message *ms)
 {
-	ms->m_nodeid   = cpu_to_le32(lkb->lkb_nodeid);
+	ms->m_analdeid   = cpu_to_le32(lkb->lkb_analdeid);
 	ms->m_pid      = cpu_to_le32(lkb->lkb_ownpid);
 	ms->m_lkid     = cpu_to_le32(lkb->lkb_id);
 	ms->m_remid    = cpu_to_le32(lkb->lkb_remid);
@@ -3414,7 +3414,7 @@ static void send_args(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	ms->m_hash     = cpu_to_le32(r->res_hash);
 
 	/* m_result and m_bastmode are set from function args,
-	   not from lkb fields */
+	   analt from lkb fields */
 
 	if (lkb->lkb_bastfn)
 		ms->m_asts |= cpu_to_le32(DLM_CB_BAST);
@@ -3445,15 +3445,15 @@ static int send_common(struct dlm_rsb *r, struct dlm_lkb *lkb, int mstype)
 {
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
-	int to_nodeid, error;
+	int to_analdeid, error;
 
-	to_nodeid = r->res_nodeid;
+	to_analdeid = r->res_analdeid;
 
-	error = add_to_waiters(lkb, mstype, to_nodeid);
+	error = add_to_waiters(lkb, mstype, to_analdeid);
 	if (error)
 		return error;
 
-	error = create_message(r, lkb, to_nodeid, mstype, &ms, &mh, GFP_NOFS);
+	error = create_message(r, lkb, to_analdeid, mstype, &ms, &mh, GFP_ANALFS);
 	if (error)
 		goto fail;
 
@@ -3509,12 +3509,12 @@ static int send_grant(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
-	int to_nodeid, error;
+	int to_analdeid, error;
 
-	to_nodeid = lkb->lkb_nodeid;
+	to_analdeid = lkb->lkb_analdeid;
 
-	error = create_message(r, lkb, to_nodeid, DLM_MSG_GRANT, &ms, &mh,
-			       GFP_NOFS);
+	error = create_message(r, lkb, to_analdeid, DLM_MSG_GRANT, &ms, &mh,
+			       GFP_ANALFS);
 	if (error)
 		goto out;
 
@@ -3531,12 +3531,12 @@ static int send_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int mode)
 {
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
-	int to_nodeid, error;
+	int to_analdeid, error;
 
-	to_nodeid = lkb->lkb_nodeid;
+	to_analdeid = lkb->lkb_analdeid;
 
-	error = create_message(r, NULL, to_nodeid, DLM_MSG_BAST, &ms, &mh,
-			       GFP_NOFS);
+	error = create_message(r, NULL, to_analdeid, DLM_MSG_BAST, &ms, &mh,
+			       GFP_ANALFS);
 	if (error)
 		goto out;
 
@@ -3553,16 +3553,16 @@ static int send_lookup(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
-	int to_nodeid, error;
+	int to_analdeid, error;
 
-	to_nodeid = dlm_dir_nodeid(r);
+	to_analdeid = dlm_dir_analdeid(r);
 
-	error = add_to_waiters(lkb, DLM_MSG_LOOKUP, to_nodeid);
+	error = add_to_waiters(lkb, DLM_MSG_LOOKUP, to_analdeid);
 	if (error)
 		return error;
 
-	error = create_message(r, NULL, to_nodeid, DLM_MSG_LOOKUP, &ms, &mh,
-			       GFP_NOFS);
+	error = create_message(r, NULL, to_analdeid, DLM_MSG_LOOKUP, &ms, &mh,
+			       GFP_ANALFS);
 	if (error)
 		goto fail;
 
@@ -3582,11 +3582,11 @@ static int send_remove(struct dlm_rsb *r)
 {
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
-	int to_nodeid, error;
+	int to_analdeid, error;
 
-	to_nodeid = dlm_dir_nodeid(r);
+	to_analdeid = dlm_dir_analdeid(r);
 
-	error = create_message(r, NULL, to_nodeid, DLM_MSG_REMOVE, &ms, &mh,
+	error = create_message(r, NULL, to_analdeid, DLM_MSG_REMOVE, &ms, &mh,
 			       GFP_ATOMIC);
 	if (error)
 		goto out;
@@ -3604,17 +3604,17 @@ static int send_common_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 {
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
-	int to_nodeid, error;
+	int to_analdeid, error;
 
-	to_nodeid = lkb->lkb_nodeid;
+	to_analdeid = lkb->lkb_analdeid;
 
-	error = create_message(r, lkb, to_nodeid, mstype, &ms, &mh, GFP_NOFS);
+	error = create_message(r, lkb, to_analdeid, mstype, &ms, &mh, GFP_ANALFS);
 	if (error)
 		goto out;
 
 	send_args(r, lkb, ms);
 
-	ms->m_result = cpu_to_le32(to_dlm_errno(rv));
+	ms->m_result = cpu_to_le32(to_dlm_erranal(rv));
 
 	error = send_message(mh, ms, r->res_name, r->res_length);
  out:
@@ -3642,22 +3642,22 @@ static int send_cancel_reply(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 }
 
 static int send_lookup_reply(struct dlm_ls *ls,
-			     const struct dlm_message *ms_in, int ret_nodeid,
+			     const struct dlm_message *ms_in, int ret_analdeid,
 			     int rv)
 {
 	struct dlm_rsb *r = &ls->ls_local_rsb;
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
-	int error, nodeid = le32_to_cpu(ms_in->m_header.h_nodeid);
+	int error, analdeid = le32_to_cpu(ms_in->m_header.h_analdeid);
 
-	error = create_message(r, NULL, nodeid, DLM_MSG_LOOKUP_REPLY, &ms, &mh,
-			       GFP_NOFS);
+	error = create_message(r, NULL, analdeid, DLM_MSG_LOOKUP_REPLY, &ms, &mh,
+			       GFP_ANALFS);
 	if (error)
 		goto out;
 
 	ms->m_lkid = ms_in->m_lkid;
-	ms->m_result = cpu_to_le32(to_dlm_errno(rv));
-	ms->m_nodeid = cpu_to_le32(ret_nodeid);
+	ms->m_result = cpu_to_le32(to_dlm_erranal(rv));
+	ms->m_analdeid = cpu_to_le32(ret_analdeid);
 
 	error = send_message(mh, ms, ms_in->m_extra, receive_extralen(ms_in));
  out:
@@ -3701,7 +3701,7 @@ static int receive_lvb(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		if (!lkb->lkb_lvbptr)
 			lkb->lkb_lvbptr = dlm_allocate_lvb(ls);
 		if (!lkb->lkb_lvbptr)
-			return -ENOMEM;
+			return -EANALMEM;
 		len = receive_extralen(ms);
 		if (len > ls->ls_lvblen)
 			len = ls->ls_lvblen;
@@ -3712,18 +3712,18 @@ static int receive_lvb(struct dlm_ls *ls, struct dlm_lkb *lkb,
 
 static void fake_bastfn(void *astparam, int mode)
 {
-	log_print("fake_bastfn should not be called");
+	log_print("fake_bastfn should analt be called");
 }
 
 static void fake_astfn(void *astparam)
 {
-	log_print("fake_astfn should not be called");
+	log_print("fake_astfn should analt be called");
 }
 
 static int receive_request_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 				const struct dlm_message *ms)
 {
-	lkb->lkb_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
+	lkb->lkb_analdeid = le32_to_cpu(ms->m_header.h_analdeid);
 	lkb->lkb_ownpid = le32_to_cpu(ms->m_pid);
 	lkb->lkb_remid = le32_to_cpu(ms->m_lkid);
 	lkb->lkb_grmode = DLM_LOCK_IV;
@@ -3736,7 +3736,7 @@ static int receive_request_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		/* lkb was just created so there won't be an lvb yet */
 		lkb->lkb_lvbptr = dlm_allocate_lvb(ls);
 		if (!lkb->lkb_lvbptr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -3749,7 +3749,7 @@ static int receive_convert_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		return -EBUSY;
 
 	if (receive_lvb(ls, lkb, ms))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lkb->lkb_rqmode = le32_to_cpu(ms->m_rqmode);
 	lkb->lkb_lvbseq = le32_to_cpu(ms->m_lvbseq);
@@ -3761,7 +3761,7 @@ static int receive_unlock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 			       const struct dlm_message *ms)
 {
 	if (receive_lvb(ls, lkb, ms))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -3771,7 +3771,7 @@ static int receive_unlock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 static void setup_local_lkb(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb = &ls->ls_local_lkb;
-	lkb->lkb_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
+	lkb->lkb_analdeid = le32_to_cpu(ms->m_header.h_analdeid);
 	lkb->lkb_remid = le32_to_cpu(ms->m_lkid);
 }
 
@@ -3780,10 +3780,10 @@ static void setup_local_lkb(struct dlm_ls *ls, const struct dlm_message *ms)
 
 static int validate_message(struct dlm_lkb *lkb, const struct dlm_message *ms)
 {
-	int from = le32_to_cpu(ms->m_header.h_nodeid);
+	int from = le32_to_cpu(ms->m_header.h_analdeid);
 	int error = 0;
 
-	/* currently mixing of user/kernel locks are not supported */
+	/* currently mixing of user/kernel locks are analt supported */
 	if (ms->m_flags & cpu_to_le32(BIT(DLM_DFL_USER_BIT)) &&
 	    !test_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags)) {
 		log_error(lkb->lkb_resource->res_ls,
@@ -3796,7 +3796,7 @@ static int validate_message(struct dlm_lkb *lkb, const struct dlm_message *ms)
 	case cpu_to_le32(DLM_MSG_CONVERT):
 	case cpu_to_le32(DLM_MSG_UNLOCK):
 	case cpu_to_le32(DLM_MSG_CANCEL):
-		if (!is_master_copy(lkb) || lkb->lkb_nodeid != from)
+		if (!is_master_copy(lkb) || lkb->lkb_analdeid != from)
 			error = -EINVAL;
 		break;
 
@@ -3805,14 +3805,14 @@ static int validate_message(struct dlm_lkb *lkb, const struct dlm_message *ms)
 	case cpu_to_le32(DLM_MSG_CANCEL_REPLY):
 	case cpu_to_le32(DLM_MSG_GRANT):
 	case cpu_to_le32(DLM_MSG_BAST):
-		if (!is_process_copy(lkb) || lkb->lkb_nodeid != from)
+		if (!is_process_copy(lkb) || lkb->lkb_analdeid != from)
 			error = -EINVAL;
 		break;
 
 	case cpu_to_le32(DLM_MSG_REQUEST_REPLY):
 		if (!is_process_copy(lkb))
 			error = -EINVAL;
-		else if (lkb->lkb_nodeid != -1 && lkb->lkb_nodeid != from)
+		else if (lkb->lkb_analdeid != -1 && lkb->lkb_analdeid != from)
 			error = -EINVAL;
 		break;
 
@@ -3823,10 +3823,10 @@ static int validate_message(struct dlm_lkb *lkb, const struct dlm_message *ms)
 out:
 	if (error)
 		log_error(lkb->lkb_resource->res_ls,
-			  "ignore invalid message %d from %d %x %x %x %d",
+			  "iganalre invalid message %d from %d %x %x %x %d",
 			  le32_to_cpu(ms->m_type), from, lkb->lkb_id,
 			  lkb->lkb_remid, dlm_iflags_val(lkb),
-			  lkb->lkb_nodeid);
+			  lkb->lkb_analdeid);
 	return error;
 }
 
@@ -3834,10 +3834,10 @@ static int receive_request(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
-	int from_nodeid;
+	int from_analdeid;
 	int error, namelen = 0;
 
-	from_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
+	from_analdeid = le32_to_cpu(ms->m_header.h_analdeid);
 
 	error = create_lkb(ls, &lkb);
 	if (error)
@@ -3851,15 +3851,15 @@ static int receive_request(struct dlm_ls *ls, const struct dlm_message *ms)
 		goto fail;
 	}
 
-	/* The dir node is the authority on whether we are the master
-	   for this rsb or not, so if the master sends us a request, we should
+	/* The dir analde is the authority on whether we are the master
+	   for this rsb or analt, so if the master sends us a request, we should
 	   recreate the rsb if we've destroyed it.   This race happens when we
-	   send a remove message to the dir node at the same time that the dir
-	   node sends us a request for the rsb. */
+	   send a remove message to the dir analde at the same time that the dir
+	   analde sends us a request for the rsb. */
 
 	namelen = receive_extralen(ms);
 
-	error = find_rsb(ls, ms->m_extra, namelen, from_nodeid,
+	error = find_rsb(ls, ms->m_extra, namelen, from_analdeid,
 			 R_RECEIVE_REQUEST, &r);
 	if (error) {
 		__put_lkb(ls, lkb);
@@ -3868,8 +3868,8 @@ static int receive_request(struct dlm_ls *ls, const struct dlm_message *ms)
 
 	lock_rsb(r);
 
-	if (r->res_master_nodeid != dlm_our_nodeid()) {
-		error = validate_master_nodeid(ls, r, from_nodeid);
+	if (r->res_master_analdeid != dlm_our_analdeid()) {
+		error = validate_master_analdeid(ls, r, from_analdeid);
 		if (error) {
 			unlock_rsb(r);
 			put_rsb(r);
@@ -3893,15 +3893,15 @@ static int receive_request(struct dlm_ls *ls, const struct dlm_message *ms)
 	return 0;
 
  fail:
-	/* TODO: instead of returning ENOTBLK, add the lkb to res_lookup
+	/* TODO: instead of returning EANALTBLK, add the lkb to res_lookup
 	   and do this receive_request again from process_lookup_list once
 	   we get the lookup reply.  This would avoid a many repeated
-	   ENOTBLK request failures when the lookup reply designating us
+	   EANALTBLK request failures when the lookup reply designating us
 	   as master is delayed. */
 
-	if (error != -ENOTBLK) {
+	if (error != -EANALTBLK) {
 		log_limit(ls, "receive_request %x from %d %d",
-			  le32_to_cpu(ms->m_lkid), from_nodeid, error);
+			  le32_to_cpu(ms->m_lkid), from_analdeid, error);
 	}
 
 	setup_local_lkb(ls, ms);
@@ -3923,9 +3923,9 @@ static int receive_convert(struct dlm_ls *ls, const struct dlm_message *ms)
 		log_error(ls, "receive_convert %x remid %x recover_seq %llu "
 			  "remote %d %x", lkb->lkb_id, lkb->lkb_remid,
 			  (unsigned long long)lkb->lkb_recover_seq,
-			  le32_to_cpu(ms->m_header.h_nodeid),
+			  le32_to_cpu(ms->m_header.h_analdeid),
 			  le32_to_cpu(ms->m_lkid));
-		error = -ENOENT;
+		error = -EANALENT;
 		dlm_put_lkb(lkb);
 		goto fail;
 	}
@@ -3978,9 +3978,9 @@ static int receive_unlock(struct dlm_ls *ls, const struct dlm_message *ms)
 	if (lkb->lkb_remid != le32_to_cpu(ms->m_lkid)) {
 		log_error(ls, "receive_unlock %x remid %x remote %d %x",
 			  lkb->lkb_id, lkb->lkb_remid,
-			  le32_to_cpu(ms->m_header.h_nodeid),
+			  le32_to_cpu(ms->m_header.h_analdeid),
 			  le32_to_cpu(ms->m_lkid));
-		error = -ENOENT;
+		error = -EANALENT;
 		dlm_put_lkb(lkb);
 		goto fail;
 	}
@@ -4114,22 +4114,22 @@ static int receive_bast(struct dlm_ls *ls, const struct dlm_message *ms)
 
 static void receive_lookup(struct dlm_ls *ls, const struct dlm_message *ms)
 {
-	int len, error, ret_nodeid, from_nodeid, our_nodeid;
+	int len, error, ret_analdeid, from_analdeid, our_analdeid;
 
-	from_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
-	our_nodeid = dlm_our_nodeid();
+	from_analdeid = le32_to_cpu(ms->m_header.h_analdeid);
+	our_analdeid = dlm_our_analdeid();
 
 	len = receive_extralen(ms);
 
-	error = dlm_master_lookup(ls, from_nodeid, ms->m_extra, len, 0,
-				  &ret_nodeid, NULL);
+	error = dlm_master_lookup(ls, from_analdeid, ms->m_extra, len, 0,
+				  &ret_analdeid, NULL);
 
 	/* Optimization: we're master so treat lookup as a request */
-	if (!error && ret_nodeid == our_nodeid) {
+	if (!error && ret_analdeid == our_analdeid) {
 		receive_request(ls, ms);
 		return;
 	}
-	send_lookup_reply(ls, ms, ret_nodeid, error);
+	send_lookup_reply(ls, ms, ret_analdeid, error);
 }
 
 static void receive_remove(struct dlm_ls *ls, const struct dlm_message *ms)
@@ -4137,32 +4137,32 @@ static void receive_remove(struct dlm_ls *ls, const struct dlm_message *ms)
 	char name[DLM_RESNAME_MAXLEN+1];
 	struct dlm_rsb *r;
 	uint32_t hash, b;
-	int rv, len, dir_nodeid, from_nodeid;
+	int rv, len, dir_analdeid, from_analdeid;
 
-	from_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
+	from_analdeid = le32_to_cpu(ms->m_header.h_analdeid);
 
 	len = receive_extralen(ms);
 
 	if (len > DLM_RESNAME_MAXLEN) {
 		log_error(ls, "receive_remove from %d bad len %d",
-			  from_nodeid, len);
+			  from_analdeid, len);
 		return;
 	}
 
-	dir_nodeid = dlm_hash2nodeid(ls, le32_to_cpu(ms->m_hash));
-	if (dir_nodeid != dlm_our_nodeid()) {
-		log_error(ls, "receive_remove from %d bad nodeid %d",
-			  from_nodeid, dir_nodeid);
+	dir_analdeid = dlm_hash2analdeid(ls, le32_to_cpu(ms->m_hash));
+	if (dir_analdeid != dlm_our_analdeid()) {
+		log_error(ls, "receive_remove from %d bad analdeid %d",
+			  from_analdeid, dir_analdeid);
 		return;
 	}
 
 	/* Look for name on rsbtbl.toss, if it's there, kill it.
-	   If it's on rsbtbl.keep, it's being used, and we should ignore this
-	   message.  This is an expected race between the dir node sending a
-	   request to the master node at the same time as the master node sends
-	   a remove to the dir node.  The resolution to that race is for the
-	   dir node to ignore the remove message, and the master node to
-	   recreate the master rsb when it gets a request from the dir node for
+	   If it's on rsbtbl.keep, it's being used, and we should iganalre this
+	   message.  This is an expected race between the dir analde sending a
+	   request to the master analde at the same time as the master analde sends
+	   a remove to the dir analde.  The resolution to that race is for the
+	   dir analde to iganalre the remove message, and the master analde to
+	   recreate the master rsb when it gets a request from the dir analde for
 	   an rsb it doesn't have. */
 
 	memset(name, 0, sizeof(name));
@@ -4178,43 +4178,43 @@ static void receive_remove(struct dlm_ls *ls, const struct dlm_message *ms)
 		/* verify the rsb is on keep list per comment above */
 		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
 		if (rv) {
-			/* should not happen */
-			log_error(ls, "receive_remove from %d not found %s",
-				  from_nodeid, name);
+			/* should analt happen */
+			log_error(ls, "receive_remove from %d analt found %s",
+				  from_analdeid, name);
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
 			return;
 		}
-		if (r->res_master_nodeid != from_nodeid) {
-			/* should not happen */
+		if (r->res_master_analdeid != from_analdeid) {
+			/* should analt happen */
 			log_error(ls, "receive_remove keep from %d master %d",
-				  from_nodeid, r->res_master_nodeid);
+				  from_analdeid, r->res_master_analdeid);
 			dlm_print_rsb(r);
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
 			return;
 		}
 
 		log_debug(ls, "receive_remove from %d master %d first %x %s",
-			  from_nodeid, r->res_master_nodeid, r->res_first_lkid,
+			  from_analdeid, r->res_master_analdeid, r->res_first_lkid,
 			  name);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
 		return;
 	}
 
-	if (r->res_master_nodeid != from_nodeid) {
+	if (r->res_master_analdeid != from_analdeid) {
 		log_error(ls, "receive_remove toss from %d master %d",
-			  from_nodeid, r->res_master_nodeid);
+			  from_analdeid, r->res_master_analdeid);
 		dlm_print_rsb(r);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
 		return;
 	}
 
 	if (kref_put(&r->res_ref, kill_rsb)) {
-		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+		rb_erase(&r->res_hashanalde, &ls->ls_rsbtbl[b].toss);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
 		dlm_free_rsb(r);
 	} else {
 		log_error(ls, "receive_remove from %d rsb ref error",
-			  from_nodeid);
+			  from_analdeid);
 		dlm_print_rsb(r);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
 	}
@@ -4222,7 +4222,7 @@ static void receive_remove(struct dlm_ls *ls, const struct dlm_message *ms)
 
 static void receive_purge(struct dlm_ls *ls, const struct dlm_message *ms)
 {
-	do_purge(ls, le32_to_cpu(ms->m_nodeid), le32_to_cpu(ms->m_pid));
+	do_purge(ls, le32_to_cpu(ms->m_analdeid), le32_to_cpu(ms->m_pid));
 }
 
 static int receive_request_reply(struct dlm_ls *ls,
@@ -4231,7 +4231,7 @@ static int receive_request_reply(struct dlm_ls *ls,
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
 	int error, mstype, result;
-	int from_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
+	int from_analdeid = le32_to_cpu(ms->m_header.h_analdeid);
 
 	error = find_lkb(ls, le32_to_cpu(ms->m_remid), &lkb);
 	if (error)
@@ -4249,22 +4249,22 @@ static int receive_request_reply(struct dlm_ls *ls,
 	error = remove_from_waiters(lkb, DLM_MSG_REQUEST_REPLY);
 	if (error) {
 		log_error(ls, "receive_request_reply %x remote %d %x result %d",
-			  lkb->lkb_id, from_nodeid, le32_to_cpu(ms->m_lkid),
-			  from_dlm_errno(le32_to_cpu(ms->m_result)));
+			  lkb->lkb_id, from_analdeid, le32_to_cpu(ms->m_lkid),
+			  from_dlm_erranal(le32_to_cpu(ms->m_result)));
 		dlm_dump_rsb(r);
 		goto out;
 	}
 
-	/* Optimization: the dir node was also the master, so it took our
+	/* Optimization: the dir analde was also the master, so it took our
 	   lookup as a request and sent request reply instead of lookup reply */
 	if (mstype == DLM_MSG_LOOKUP) {
-		r->res_master_nodeid = from_nodeid;
-		r->res_nodeid = from_nodeid;
-		lkb->lkb_nodeid = from_nodeid;
+		r->res_master_analdeid = from_analdeid;
+		r->res_analdeid = from_analdeid;
+		lkb->lkb_analdeid = from_analdeid;
 	}
 
 	/* this is the value returned from do_request() on the master */
-	result = from_dlm_errno(le32_to_cpu(ms->m_result));
+	result = from_dlm_erranal(le32_to_cpu(ms->m_result));
 
 	switch (result) {
 	case -EAGAIN:
@@ -4291,30 +4291,30 @@ static int receive_request_reply(struct dlm_ls *ls,
 		break;
 
 	case -EBADR:
-	case -ENOTBLK:
+	case -EANALTBLK:
 		/* find_rsb failed to find rsb or rsb wasn't master */
 		log_limit(ls, "receive_request_reply %x from %d %d "
 			  "master %d dir %d first %x %s", lkb->lkb_id,
-			  from_nodeid, result, r->res_master_nodeid,
-			  r->res_dir_nodeid, r->res_first_lkid, r->res_name);
+			  from_analdeid, result, r->res_master_analdeid,
+			  r->res_dir_analdeid, r->res_first_lkid, r->res_name);
 
-		if (r->res_dir_nodeid != dlm_our_nodeid() &&
-		    r->res_master_nodeid != dlm_our_nodeid()) {
+		if (r->res_dir_analdeid != dlm_our_analdeid() &&
+		    r->res_master_analdeid != dlm_our_analdeid()) {
 			/* cause _request_lock->set_master->send_lookup */
-			r->res_master_nodeid = 0;
-			r->res_nodeid = -1;
-			lkb->lkb_nodeid = -1;
+			r->res_master_analdeid = 0;
+			r->res_analdeid = -1;
+			lkb->lkb_analdeid = -1;
 		}
 
 		if (is_overlap(lkb)) {
-			/* we'll ignore error in cancel/unlock reply */
+			/* we'll iganalre error in cancel/unlock reply */
 			queue_cast_overlap(r, lkb);
 			confirm_master(r, result);
 			unhold_lkb(lkb); /* undoes create_lkb() */
 		} else {
 			_request_lock(r, lkb);
 
-			if (r->res_master_nodeid == dlm_our_nodeid())
+			if (r->res_master_analdeid == dlm_our_analdeid())
 				confirm_master(r, 0);
 		}
 		break;
@@ -4351,7 +4351,7 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 				    const struct dlm_message *ms, bool local)
 {
 	/* this is the value returned from do_convert() on the master */
-	switch (from_dlm_errno(le32_to_cpu(ms->m_result))) {
+	switch (from_dlm_erranal(le32_to_cpu(ms->m_result))) {
 	case -EAGAIN:
 		/* convert would block (be queued) on remote master */
 		queue_cast(r, lkb, -EAGAIN);
@@ -4383,9 +4383,9 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 
 	default:
 		log_error(r->res_ls, "receive_convert_reply %x remote %d %x %d",
-			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_nodeid),
+			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_analdeid),
 			  le32_to_cpu(ms->m_lkid),
-			  from_dlm_errno(le32_to_cpu(ms->m_result)));
+			  from_dlm_erranal(le32_to_cpu(ms->m_result)));
 		dlm_print_rsb(r);
 		dlm_print_lkb(lkb);
 	}
@@ -4450,17 +4450,17 @@ static void _receive_unlock_reply(struct dlm_lkb *lkb,
 
 	/* this is the value returned from do_unlock() on the master */
 
-	switch (from_dlm_errno(le32_to_cpu(ms->m_result))) {
+	switch (from_dlm_erranal(le32_to_cpu(ms->m_result))) {
 	case -DLM_EUNLOCK:
 		receive_flags_reply(lkb, ms, local);
 		remove_lock_pc(r, lkb);
 		queue_cast(r, lkb, -DLM_EUNLOCK);
 		break;
-	case -ENOENT:
+	case -EANALENT:
 		break;
 	default:
 		log_error(r->res_ls, "receive_unlock_reply %x error %d",
-			  lkb->lkb_id, from_dlm_errno(le32_to_cpu(ms->m_result)));
+			  lkb->lkb_id, from_dlm_erranal(le32_to_cpu(ms->m_result)));
 	}
  out:
 	unlock_rsb(r);
@@ -4502,7 +4502,7 @@ static void _receive_cancel_reply(struct dlm_lkb *lkb,
 
 	/* this is the value returned from do_cancel() on the master */
 
-	switch (from_dlm_errno(le32_to_cpu(ms->m_result))) {
+	switch (from_dlm_erranal(le32_to_cpu(ms->m_result))) {
 	case -DLM_ECANCEL:
 		receive_flags_reply(lkb, ms, local);
 		revert_lock_pc(r, lkb);
@@ -4513,7 +4513,7 @@ static void _receive_cancel_reply(struct dlm_lkb *lkb,
 	default:
 		log_error(r->res_ls, "receive_cancel_reply %x error %d",
 			  lkb->lkb_id,
-			  from_dlm_errno(le32_to_cpu(ms->m_result)));
+			  from_dlm_erranal(le32_to_cpu(ms->m_result)));
 	}
  out:
 	unlock_rsb(r);
@@ -4540,18 +4540,18 @@ static void receive_lookup_reply(struct dlm_ls *ls,
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
-	int error, ret_nodeid;
+	int error, ret_analdeid;
 	int do_lookup_list = 0;
 
 	error = find_lkb(ls, le32_to_cpu(ms->m_lkid), &lkb);
 	if (error) {
-		log_error(ls, "%s no lkid %x", __func__,
+		log_error(ls, "%s anal lkid %x", __func__,
 			  le32_to_cpu(ms->m_lkid));
 		return;
 	}
 
-	/* ms->m_result is the value returned by dlm_master_lookup on dir node
-	   FIXME: will a non-zero error ever be returned? */
+	/* ms->m_result is the value returned by dlm_master_lookup on dir analde
+	   FIXME: will a analn-zero error ever be returned? */
 
 	r = lkb->lkb_resource;
 	hold_rsb(r);
@@ -4561,39 +4561,39 @@ static void receive_lookup_reply(struct dlm_ls *ls,
 	if (error)
 		goto out;
 
-	ret_nodeid = le32_to_cpu(ms->m_nodeid);
+	ret_analdeid = le32_to_cpu(ms->m_analdeid);
 
-	/* We sometimes receive a request from the dir node for this
-	   rsb before we've received the dir node's loookup_reply for it.
-	   The request from the dir node implies we're the master, so we set
+	/* We sometimes receive a request from the dir analde for this
+	   rsb before we've received the dir analde's loookup_reply for it.
+	   The request from the dir analde implies we're the master, so we set
 	   ourself as master in receive_request_reply, and verify here that
 	   we are indeed the master. */
 
-	if (r->res_master_nodeid && (r->res_master_nodeid != ret_nodeid)) {
+	if (r->res_master_analdeid && (r->res_master_analdeid != ret_analdeid)) {
 		/* This should never happen */
 		log_error(ls, "receive_lookup_reply %x from %d ret %d "
 			  "master %d dir %d our %d first %x %s",
-			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_nodeid),
-			  ret_nodeid, r->res_master_nodeid, r->res_dir_nodeid,
-			  dlm_our_nodeid(), r->res_first_lkid, r->res_name);
+			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_analdeid),
+			  ret_analdeid, r->res_master_analdeid, r->res_dir_analdeid,
+			  dlm_our_analdeid(), r->res_first_lkid, r->res_name);
 	}
 
-	if (ret_nodeid == dlm_our_nodeid()) {
-		r->res_master_nodeid = ret_nodeid;
-		r->res_nodeid = 0;
+	if (ret_analdeid == dlm_our_analdeid()) {
+		r->res_master_analdeid = ret_analdeid;
+		r->res_analdeid = 0;
 		do_lookup_list = 1;
 		r->res_first_lkid = 0;
-	} else if (ret_nodeid == -1) {
-		/* the remote node doesn't believe it's the dir node */
-		log_error(ls, "receive_lookup_reply %x from %d bad ret_nodeid",
-			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_nodeid));
-		r->res_master_nodeid = 0;
-		r->res_nodeid = -1;
-		lkb->lkb_nodeid = -1;
+	} else if (ret_analdeid == -1) {
+		/* the remote analde doesn't believe it's the dir analde */
+		log_error(ls, "receive_lookup_reply %x from %d bad ret_analdeid",
+			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_analdeid));
+		r->res_master_analdeid = 0;
+		r->res_analdeid = -1;
+		lkb->lkb_analdeid = -1;
 	} else {
-		/* set_master() will set lkb_nodeid from r */
-		r->res_master_nodeid = ret_nodeid;
-		r->res_nodeid = ret_nodeid;
+		/* set_master() will set lkb_analdeid from r */
+		r->res_master_analdeid = ret_analdeid;
+		r->res_analdeid = ret_analdeid;
 	}
 
 	if (is_overlap(lkb)) {
@@ -4618,20 +4618,20 @@ static void receive_lookup_reply(struct dlm_ls *ls,
 static void _receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
 			     uint32_t saved_seq)
 {
-	int error = 0, noent = 0;
+	int error = 0, analent = 0;
 
-	if (WARN_ON_ONCE(!dlm_is_member(ls, le32_to_cpu(ms->m_header.h_nodeid)))) {
-		log_limit(ls, "receive %d from non-member %d %x %x %d",
+	if (WARN_ON_ONCE(!dlm_is_member(ls, le32_to_cpu(ms->m_header.h_analdeid)))) {
+		log_limit(ls, "receive %d from analn-member %d %x %x %d",
 			  le32_to_cpu(ms->m_type),
-			  le32_to_cpu(ms->m_header.h_nodeid),
+			  le32_to_cpu(ms->m_header.h_analdeid),
 			  le32_to_cpu(ms->m_lkid), le32_to_cpu(ms->m_remid),
-			  from_dlm_errno(le32_to_cpu(ms->m_result)));
+			  from_dlm_erranal(le32_to_cpu(ms->m_result)));
 		return;
 	}
 
 	switch (ms->m_type) {
 
-	/* messages sent to a master node */
+	/* messages sent to a master analde */
 
 	case cpu_to_le32(DLM_MSG_REQUEST):
 		error = receive_request(ls, ms);
@@ -4646,11 +4646,11 @@ static void _receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
 		break;
 
 	case cpu_to_le32(DLM_MSG_CANCEL):
-		noent = 1;
+		analent = 1;
 		error = receive_cancel(ls, ms);
 		break;
 
-	/* messages sent from a master node (replies to above) */
+	/* messages sent from a master analde (replies to above) */
 
 	case cpu_to_le32(DLM_MSG_REQUEST_REPLY):
 		error = receive_request_reply(ls, ms);
@@ -4668,19 +4668,19 @@ static void _receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
 		error = receive_cancel_reply(ls, ms);
 		break;
 
-	/* messages sent from a master node (only two types of async msg) */
+	/* messages sent from a master analde (only two types of async msg) */
 
 	case cpu_to_le32(DLM_MSG_GRANT):
-		noent = 1;
+		analent = 1;
 		error = receive_grant(ls, ms);
 		break;
 
 	case cpu_to_le32(DLM_MSG_BAST):
-		noent = 1;
+		analent = 1;
 		error = receive_bast(ls, ms);
 		break;
 
-	/* messages sent to a dir node */
+	/* messages sent to a dir analde */
 
 	case cpu_to_le32(DLM_MSG_LOOKUP):
 		receive_lookup(ls, ms);
@@ -4690,7 +4690,7 @@ static void _receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
 		receive_remove(ls, ms);
 		break;
 
-	/* messages sent from a dir node (remove has no reply) */
+	/* messages sent from a dir analde (remove has anal reply) */
 
 	case cpu_to_le32(DLM_MSG_LOOKUP_REPLY):
 		receive_lookup_reply(ls, ms);
@@ -4703,30 +4703,30 @@ static void _receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
 		break;
 
 	default:
-		log_error(ls, "unknown message type %d",
+		log_error(ls, "unkanalwn message type %d",
 			  le32_to_cpu(ms->m_type));
 	}
 
 	/*
-	 * When checking for ENOENT, we're checking the result of
+	 * When checking for EANALENT, we're checking the result of
 	 * find_lkb(m_remid):
 	 *
 	 * The lock id referenced in the message wasn't found.  This may
-	 * happen in normal usage for the async messages and cancel, so
+	 * happen in analrmal usage for the async messages and cancel, so
 	 * only use log_debug for them.
 	 *
-	 * Some errors are expected and normal.
+	 * Some errors are expected and analrmal.
 	 */
 
-	if (error == -ENOENT && noent) {
-		log_debug(ls, "receive %d no %x remote %d %x saved_seq %u",
+	if (error == -EANALENT && analent) {
+		log_debug(ls, "receive %d anal %x remote %d %x saved_seq %u",
 			  le32_to_cpu(ms->m_type), le32_to_cpu(ms->m_remid),
-			  le32_to_cpu(ms->m_header.h_nodeid),
+			  le32_to_cpu(ms->m_header.h_analdeid),
 			  le32_to_cpu(ms->m_lkid), saved_seq);
-	} else if (error == -ENOENT) {
-		log_error(ls, "receive %d no %x remote %d %x saved_seq %u",
+	} else if (error == -EANALENT) {
+		log_error(ls, "receive %d anal %x remote %d %x saved_seq %u",
 			  le32_to_cpu(ms->m_type), le32_to_cpu(ms->m_remid),
-			  le32_to_cpu(ms->m_header.h_nodeid),
+			  le32_to_cpu(ms->m_header.h_analdeid),
 			  le32_to_cpu(ms->m_lkid), saved_seq);
 
 		if (ms->m_type == cpu_to_le32(DLM_MSG_CONVERT))
@@ -4737,34 +4737,34 @@ static void _receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
 		log_error(ls, "receive %d inval from %d lkid %x remid %x "
 			  "saved_seq %u",
 			  le32_to_cpu(ms->m_type),
-			  le32_to_cpu(ms->m_header.h_nodeid),
+			  le32_to_cpu(ms->m_header.h_analdeid),
 			  le32_to_cpu(ms->m_lkid), le32_to_cpu(ms->m_remid),
 			  saved_seq);
 	}
 }
 
-/* If the lockspace is in recovery mode (locking stopped), then normal
+/* If the lockspace is in recovery mode (locking stopped), then analrmal
    messages are saved on the requestqueue for processing after recovery is
-   done.  When not in recovery mode, we wait for dlm_recoverd to drain saved
+   done.  When analt in recovery mode, we wait for dlm_recoverd to drain saved
    messages off the requestqueue before we process new ones. This occurs right
    after recovery completes when we transition from saving all messages on
    requestqueue, to processing all the saved messages, to processing new
    messages as they arrive. */
 
 static void dlm_receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
-				int nodeid)
+				int analdeid)
 {
 	if (dlm_locking_stopped(ls)) {
 		/* If we were a member of this lockspace, left, and rejoined,
-		   other nodes may still be sending us messages from the
+		   other analdes may still be sending us messages from the
 		   lockspace generation before we left. */
 		if (WARN_ON_ONCE(!ls->ls_generation)) {
-			log_limit(ls, "receive %d from %d ignore old gen",
-				  le32_to_cpu(ms->m_type), nodeid);
+			log_limit(ls, "receive %d from %d iganalre old gen",
+				  le32_to_cpu(ms->m_type), analdeid);
 			return;
 		}
 
-		dlm_add_requestqueue(ls, nodeid, ms);
+		dlm_add_requestqueue(ls, analdeid, ms);
 	} else {
 		dlm_wait_requestqueue(ls);
 		_receive_message(ls, ms, 0);
@@ -4781,11 +4781,11 @@ void dlm_receive_message_saved(struct dlm_ls *ls, const struct dlm_message *ms,
 }
 
 /* This is called by the midcomms layer when something is received for
-   the lockspace.  It could be either a MSG (normal message sent as part of
+   the lockspace.  It could be either a MSG (analrmal message sent as part of
    standard locking activity) or an RCOM (recovery message sent as part of
    lockspace recovery). */
 
-void dlm_receive_buffer(const union dlm_packet *p, int nodeid)
+void dlm_receive_buffer(const union dlm_packet *p, int analdeid)
 {
 	const struct dlm_header *hd = &p->header;
 	struct dlm_ls *ls;
@@ -4799,13 +4799,13 @@ void dlm_receive_buffer(const union dlm_packet *p, int nodeid)
 		type = le32_to_cpu(p->rcom.rc_type);
 		break;
 	default:
-		log_print("invalid h_cmd %d from %u", hd->h_cmd, nodeid);
+		log_print("invalid h_cmd %d from %u", hd->h_cmd, analdeid);
 		return;
 	}
 
-	if (le32_to_cpu(hd->h_nodeid) != nodeid) {
-		log_print("invalid h_nodeid %d from %d lockspace %x",
-			  le32_to_cpu(hd->h_nodeid), nodeid,
+	if (le32_to_cpu(hd->h_analdeid) != analdeid) {
+		log_print("invalid h_analdeid %d from %d lockspace %x",
+			  le32_to_cpu(hd->h_analdeid), analdeid,
 			  le32_to_cpu(hd->u.h_lockspace));
 		return;
 	}
@@ -4815,12 +4815,12 @@ void dlm_receive_buffer(const union dlm_packet *p, int nodeid)
 		if (dlm_config.ci_log_debug) {
 			printk_ratelimited(KERN_DEBUG "dlm: invalid lockspace "
 				"%u from %d cmd %d type %d\n",
-				le32_to_cpu(hd->u.h_lockspace), nodeid,
+				le32_to_cpu(hd->u.h_lockspace), analdeid,
 				hd->h_cmd, type);
 		}
 
 		if (hd->h_cmd == DLM_RCOM && type == DLM_RCOM_STATUS)
-			dlm_send_ls_not_ready(nodeid, &p->rcom);
+			dlm_send_ls_analt_ready(analdeid, &p->rcom);
 		return;
 	}
 
@@ -4829,12 +4829,12 @@ void dlm_receive_buffer(const union dlm_packet *p, int nodeid)
 
 	down_read(&ls->ls_recv_active);
 	if (hd->h_cmd == DLM_MSG)
-		dlm_receive_message(ls, &p->message, nodeid);
+		dlm_receive_message(ls, &p->message, analdeid);
 	else if (hd->h_cmd == DLM_RCOM)
-		dlm_receive_rcom(ls, &p->rcom, nodeid);
+		dlm_receive_rcom(ls, &p->rcom, analdeid);
 	else
 		log_error(ls, "invalid h_cmd %d from %d lockspace %x",
-			  hd->h_cmd, nodeid, le32_to_cpu(hd->u.h_lockspace));
+			  hd->h_cmd, analdeid, le32_to_cpu(hd->u.h_lockspace));
 	up_read(&ls->ls_recv_active);
 
 	dlm_put_lockspace(ls);
@@ -4847,8 +4847,8 @@ static void recover_convert_waiter(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		hold_lkb(lkb);
 		memset(ms_local, 0, sizeof(struct dlm_message));
 		ms_local->m_type = cpu_to_le32(DLM_MSG_CONVERT_REPLY);
-		ms_local->m_result = cpu_to_le32(to_dlm_errno(-EINPROGRESS));
-		ms_local->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
+		ms_local->m_result = cpu_to_le32(to_dlm_erranal(-EINPROGRESS));
+		ms_local->m_header.h_analdeid = cpu_to_le32(lkb->lkb_analdeid);
 		_receive_convert_reply(lkb, ms_local, true);
 
 		/* Same special case as in receive_rcom_lock_args() */
@@ -4861,27 +4861,27 @@ static void recover_convert_waiter(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	}
 
 	/* lkb->lkb_rqmode < lkb->lkb_grmode shouldn't happen since down
-	   conversions are async; there's no reply from the remote master */
+	   conversions are async; there's anal reply from the remote master */
 }
 
-/* A waiting lkb needs recovery if the master node has failed, or
-   the master node is changing (only when no directory is used) */
+/* A waiting lkb needs recovery if the master analde has failed, or
+   the master analde is changing (only when anal directory is used) */
 
 static int waiter_needs_recovery(struct dlm_ls *ls, struct dlm_lkb *lkb,
-				 int dir_nodeid)
+				 int dir_analdeid)
 {
-	if (dlm_no_directory(ls))
+	if (dlm_anal_directory(ls))
 		return 1;
 
-	if (dlm_is_removed(ls, lkb->lkb_wait_nodeid))
+	if (dlm_is_removed(ls, lkb->lkb_wait_analdeid))
 		return 1;
 
 	return 0;
 }
 
-/* Recovery for locks that are waiting for replies from nodes that are now
+/* Recovery for locks that are waiting for replies from analdes that are analw
    gone.  We can just complete unlocks and cancels by faking a reply from the
-   dead node.  Requests and up-conversions we flag to be resent after
+   dead analde.  Requests and up-conversions we flag to be resent after
    recovery.  Down-conversions can just be completed with a fake reply like
    unlocks.  Conversions between PR and CW need special attention. */
 
@@ -4890,7 +4890,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 	struct dlm_lkb *lkb, *safe;
 	struct dlm_message *ms_local;
 	int wait_type, local_unlock_result, local_cancel_result;
-	int dir_nodeid;
+	int dir_analdeid;
 
 	ms_local = kmalloc(sizeof(*ms_local), GFP_KERNEL);
 	if (!ms_local)
@@ -4900,21 +4900,21 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 
 	list_for_each_entry_safe(lkb, safe, &ls->ls_waiters, lkb_wait_reply) {
 
-		dir_nodeid = dlm_dir_nodeid(lkb->lkb_resource);
+		dir_analdeid = dlm_dir_analdeid(lkb->lkb_resource);
 
 		/* exclude debug messages about unlocks because there can be so
 		   many and they aren't very interesting */
 
 		if (lkb->lkb_wait_type != DLM_MSG_UNLOCK) {
-			log_debug(ls, "waiter %x remote %x msg %d r_nodeid %d "
-				  "lkb_nodeid %d wait_nodeid %d dir_nodeid %d",
+			log_debug(ls, "waiter %x remote %x msg %d r_analdeid %d "
+				  "lkb_analdeid %d wait_analdeid %d dir_analdeid %d",
 				  lkb->lkb_id,
 				  lkb->lkb_remid,
 				  lkb->lkb_wait_type,
-				  lkb->lkb_resource->res_nodeid,
-				  lkb->lkb_nodeid,
-				  lkb->lkb_wait_nodeid,
-				  dir_nodeid);
+				  lkb->lkb_resource->res_analdeid,
+				  lkb->lkb_analdeid,
+				  lkb->lkb_wait_analdeid,
+				  dir_analdeid);
 		}
 
 		/* all outstanding lookups, regardless of destination  will be
@@ -4925,7 +4925,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			continue;
 		}
 
-		if (!waiter_needs_recovery(ls, lkb, dir_nodeid))
+		if (!waiter_needs_recovery(ls, lkb, dir_analdeid))
 			continue;
 
 		wait_type = lkb->lkb_wait_type;
@@ -4933,7 +4933,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 		local_cancel_result = -DLM_ECANCEL;
 
 		/* Main reply may have been received leaving a zero wait_type,
-		   but a reply for the overlapping op may not have been
+		   but a reply for the overlapping op may analt have been
 		   received.  In that case we need to fake the appropriate
 		   reply for the overlap op. */
 
@@ -4946,7 +4946,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			if (is_overlap_unlock(lkb)) {
 				wait_type = DLM_MSG_UNLOCK;
 				if (lkb->lkb_grmode == DLM_LOCK_IV)
-					local_unlock_result = -ENOENT;
+					local_unlock_result = -EANALENT;
 			}
 
 			log_debug(ls, "rwpre overlap %x %x %d %d %d",
@@ -4968,8 +4968,8 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			hold_lkb(lkb);
 			memset(ms_local, 0, sizeof(struct dlm_message));
 			ms_local->m_type = cpu_to_le32(DLM_MSG_UNLOCK_REPLY);
-			ms_local->m_result = cpu_to_le32(to_dlm_errno(local_unlock_result));
-			ms_local->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
+			ms_local->m_result = cpu_to_le32(to_dlm_erranal(local_unlock_result));
+			ms_local->m_header.h_analdeid = cpu_to_le32(lkb->lkb_analdeid);
 			_receive_unlock_reply(lkb, ms_local, true);
 			dlm_put_lkb(lkb);
 			break;
@@ -4978,8 +4978,8 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			hold_lkb(lkb);
 			memset(ms_local, 0, sizeof(struct dlm_message));
 			ms_local->m_type = cpu_to_le32(DLM_MSG_CANCEL_REPLY);
-			ms_local->m_result = cpu_to_le32(to_dlm_errno(local_cancel_result));
-			ms_local->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
+			ms_local->m_result = cpu_to_le32(to_dlm_erranal(local_cancel_result));
+			ms_local->m_header.h_analdeid = cpu_to_le32(lkb->lkb_analdeid);
 			_receive_cancel_reply(lkb, ms_local, true);
 			dlm_put_lkb(lkb);
 			break;
@@ -5011,11 +5011,11 @@ static struct dlm_lkb *find_resend_waiter(struct dlm_ls *ls)
 	return lkb;
 }
 
-/* Deal with lookups and lkb's marked RESEND from _pre.  We may now be the
-   master or dir-node for r.  Processing the lkb may result in it being placed
+/* Deal with lookups and lkb's marked RESEND from _pre.  We may analw be the
+   master or dir-analde for r.  Processing the lkb may result in it being placed
    back on waiters. */
 
-/* We do this after normal locking has been enabled and any saved messages
+/* We do this after analrmal locking has been enabled and any saved messages
    (in requestqueue) have been processed.  We should be confident that at
    this point we won't get or process a reply to any of these waiting
    operations.  But, new ops may be coming in on the rsbs/locks here from
@@ -5023,7 +5023,7 @@ static struct dlm_lkb *find_resend_waiter(struct dlm_ls *ls)
 
 /* there may have been an overlap unlock/cancel prior to recovery or after
    recovery.  if before, the lkb may still have a pos wait_count; if after, the
-   overlap flag would just have been set and nothing new sent.  we can be
+   overlap flag would just have been set and analthing new sent.  we can be
    confident here than any replies to either the initial op or overlap ops
    prior to recovery have been received. */
 
@@ -5055,11 +5055,11 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 					&lkb->lkb_iflags);
 		err = 0;
 
-		log_debug(ls, "waiter %x remote %x msg %d r_nodeid %d "
-			  "lkb_nodeid %d wait_nodeid %d dir_nodeid %d "
+		log_debug(ls, "waiter %x remote %x msg %d r_analdeid %d "
+			  "lkb_analdeid %d wait_analdeid %d dir_analdeid %d "
 			  "overlap %d %d", lkb->lkb_id, lkb->lkb_remid, mstype,
-			  r->res_nodeid, lkb->lkb_nodeid, lkb->lkb_wait_nodeid,
-			  dlm_dir_nodeid(r), oc, ou);
+			  r->res_analdeid, lkb->lkb_analdeid, lkb->lkb_wait_analdeid,
+			  dlm_dir_analdeid(r), oc, ou);
 
 		/* At this point we assume that we won't get a reply to any
 		   previous op or overlap op on this lock.  First, do a big
@@ -5114,10 +5114,10 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 		}
 
 		if (err) {
-			log_error(ls, "waiter %x msg %d r_nodeid %d "
-				  "dir_nodeid %d overlap %d %d",
-				  lkb->lkb_id, mstype, r->res_nodeid,
-				  dlm_dir_nodeid(r), oc, ou);
+			log_error(ls, "waiter %x msg %d r_analdeid %d "
+				  "dir_analdeid %d overlap %d %d",
+				  lkb->lkb_id, mstype, r->res_analdeid,
+				  dlm_dir_analdeid(r), oc, ou);
 		}
 		unlock_rsb(r);
 		put_rsb(r);
@@ -5146,7 +5146,7 @@ static void purge_mstcpy_list(struct dlm_ls *ls, struct dlm_rsb *r,
 
 		/* this put should free the lkb */
 		if (!dlm_put_lkb(lkb))
-			log_error(ls, "purged mstcpy lkb not released");
+			log_error(ls, "purged mstcpy lkb analt released");
 	}
 }
 
@@ -5161,7 +5161,7 @@ void dlm_purge_mstcpy_locks(struct dlm_rsb *r)
 
 static void purge_dead_list(struct dlm_ls *ls, struct dlm_rsb *r,
 			    struct list_head *list,
-			    int nodeid_gone, unsigned int *count)
+			    int analdeid_gone, unsigned int *count)
 {
 	struct dlm_lkb *lkb, *safe;
 
@@ -5169,11 +5169,11 @@ static void purge_dead_list(struct dlm_ls *ls, struct dlm_rsb *r,
 		if (!is_master_copy(lkb))
 			continue;
 
-		if ((lkb->lkb_nodeid == nodeid_gone) ||
-		    dlm_is_removed(ls, lkb->lkb_nodeid)) {
+		if ((lkb->lkb_analdeid == analdeid_gone) ||
+		    dlm_is_removed(ls, lkb->lkb_analdeid)) {
 
 			/* tell recover_lvb to invalidate the lvb
-			   because a node holding EX/PW failed */
+			   because a analde holding EX/PW failed */
 			if ((lkb->lkb_exflags & DLM_LKF_VALBLK) &&
 			    (lkb->lkb_grmode >= DLM_LOCK_PW)) {
 				rsb_set_flag(r, RSB_RECOVER_LVB_INVAL);
@@ -5183,7 +5183,7 @@ static void purge_dead_list(struct dlm_ls *ls, struct dlm_rsb *r,
 
 			/* this put should free the lkb */
 			if (!dlm_put_lkb(lkb))
-				log_error(ls, "purged dead lkb not released");
+				log_error(ls, "purged dead lkb analt released");
 
 			rsb_set_flag(r, RSB_RECOVER_GRANT);
 
@@ -5192,25 +5192,25 @@ static void purge_dead_list(struct dlm_ls *ls, struct dlm_rsb *r,
 	}
 }
 
-/* Get rid of locks held by nodes that are gone. */
+/* Get rid of locks held by analdes that are gone. */
 
 void dlm_recover_purge(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
 	struct dlm_member *memb;
-	int nodes_count = 0;
-	int nodeid_gone = 0;
+	int analdes_count = 0;
+	int analdeid_gone = 0;
 	unsigned int lkb_count = 0;
 
-	/* cache one removed nodeid to optimize the common
-	   case of a single node removed */
+	/* cache one removed analdeid to optimize the common
+	   case of a single analde removed */
 
-	list_for_each_entry(memb, &ls->ls_nodes_gone, list) {
-		nodes_count++;
-		nodeid_gone = memb->nodeid;
+	list_for_each_entry(memb, &ls->ls_analdes_gone, list) {
+		analdes_count++;
+		analdeid_gone = memb->analdeid;
 	}
 
-	if (!nodes_count)
+	if (!analdes_count)
 		return;
 
 	down_write(&ls->ls_root_sem);
@@ -5219,11 +5219,11 @@ void dlm_recover_purge(struct dlm_ls *ls)
 		lock_rsb(r);
 		if (is_master(r)) {
 			purge_dead_list(ls, r, &r->res_grantqueue,
-					nodeid_gone, &lkb_count);
+					analdeid_gone, &lkb_count);
 			purge_dead_list(ls, r, &r->res_convertqueue,
-					nodeid_gone, &lkb_count);
+					analdeid_gone, &lkb_count);
 			purge_dead_list(ls, r, &r->res_waitqueue,
-					nodeid_gone, &lkb_count);
+					analdeid_gone, &lkb_count);
 		}
 		unlock_rsb(r);
 		unhold_rsb(r);
@@ -5232,18 +5232,18 @@ void dlm_recover_purge(struct dlm_ls *ls)
 	up_write(&ls->ls_root_sem);
 
 	if (lkb_count)
-		log_rinfo(ls, "dlm_recover_purge %u locks for %u nodes",
-			  lkb_count, nodes_count);
+		log_rinfo(ls, "dlm_recover_purge %u locks for %u analdes",
+			  lkb_count, analdes_count);
 }
 
 static struct dlm_rsb *find_grant_rsb(struct dlm_ls *ls, int bucket)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 	struct dlm_rsb *r;
 
 	spin_lock(&ls->ls_rsbtbl[bucket].lock);
 	for (n = rb_first(&ls->ls_rsbtbl[bucket].keep); n; n = rb_next(n)) {
-		r = rb_entry(n, struct dlm_rsb, res_hashnode);
+		r = rb_entry(n, struct dlm_rsb, res_hashanalde);
 
 		if (!rsb_flag(r, RSB_RECOVER_GRANT))
 			continue;
@@ -5262,12 +5262,12 @@ static struct dlm_rsb *find_grant_rsb(struct dlm_ls *ls, int bucket)
 /*
  * Attempt to grant locks on resources that we are the master of.
  * Locks may have become grantable during recovery because locks
- * from departed nodes have been purged (or not rebuilt), allowing
- * previously blocked locks to now be granted.  The subset of rsb's
+ * from departed analdes have been purged (or analt rebuilt), allowing
+ * previously blocked locks to analw be granted.  The subset of rsb's
  * we are interested in are those with lkb's on either the convert or
  * waiting queues.
  *
- * Simplest would be to go through each master rsb and check for non-empty
+ * Simplest would be to go through each master rsb and check for analn-empty
  * convert or waiting queues, and attempt to grant on those rsbs.
  * Checking the queues requires lock_rsb, though, for which we'd need
  * to release the rsbtbl lock.  This would make iterating through all
@@ -5310,30 +5310,30 @@ void dlm_recover_grant(struct dlm_ls *ls)
 			  lkb_count, rsb_count);
 }
 
-static struct dlm_lkb *search_remid_list(struct list_head *head, int nodeid,
+static struct dlm_lkb *search_remid_list(struct list_head *head, int analdeid,
 					 uint32_t remid)
 {
 	struct dlm_lkb *lkb;
 
 	list_for_each_entry(lkb, head, lkb_statequeue) {
-		if (lkb->lkb_nodeid == nodeid && lkb->lkb_remid == remid)
+		if (lkb->lkb_analdeid == analdeid && lkb->lkb_remid == remid)
 			return lkb;
 	}
 	return NULL;
 }
 
-static struct dlm_lkb *search_remid(struct dlm_rsb *r, int nodeid,
+static struct dlm_lkb *search_remid(struct dlm_rsb *r, int analdeid,
 				    uint32_t remid)
 {
 	struct dlm_lkb *lkb;
 
-	lkb = search_remid_list(&r->res_grantqueue, nodeid, remid);
+	lkb = search_remid_list(&r->res_grantqueue, analdeid, remid);
 	if (lkb)
 		return lkb;
-	lkb = search_remid_list(&r->res_convertqueue, nodeid, remid);
+	lkb = search_remid_list(&r->res_convertqueue, analdeid, remid);
 	if (lkb)
 		return lkb;
-	lkb = search_remid_list(&r->res_waitqueue, nodeid, remid);
+	lkb = search_remid_list(&r->res_waitqueue, analdeid, remid);
 	if (lkb)
 		return lkb;
 	return NULL;
@@ -5345,7 +5345,7 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
 
-	lkb->lkb_nodeid = le32_to_cpu(rc->rc_header.h_nodeid);
+	lkb->lkb_analdeid = le32_to_cpu(rc->rc_header.h_analdeid);
 	lkb->lkb_ownpid = le32_to_cpu(rl->rl_ownpid);
 	lkb->lkb_remid = le32_to_cpu(rl->rl_lkid);
 	lkb->lkb_exflags = le32_to_cpu(rl->rl_exflags);
@@ -5366,12 +5366,12 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 			return -EINVAL;
 		lkb->lkb_lvbptr = dlm_allocate_lvb(ls);
 		if (!lkb->lkb_lvbptr)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(lkb->lkb_lvbptr, rl->rl_lvb, lvblen);
 	}
 
 	/* Conversions between PR and CW (middle modes) need special handling.
-	   The real granted mode of these converting locks cannot be determined
+	   The real granted mode of these converting locks cananalt be determined
 	   until all locks have been rebuilt on the rsb (recover_conversion) */
 
 	if (rl->rl_wait_type == cpu_to_le16(DLM_MSG_CONVERT) &&
@@ -5385,8 +5385,8 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 }
 
 /* This lkb may have been recovered in a previous aborted recovery so we need
-   to check if the rsb already has an lkb with the given remote nodeid/lkid.
-   If so we just send back a standard reply.  If not, we create a new lkb with
+   to check if the rsb already has an lkb with the given remote analdeid/lkid.
+   If so we just send back a standard reply.  If analt, we create a new lkb with
    the given values and send back our lkid.  We send back our lkid by sending
    back the rcom_lock struct we got but with the remid field filled in. */
 
@@ -5398,42 +5398,42 @@ int dlm_recover_master_copy(struct dlm_ls *ls, const struct dlm_rcom *rc,
 	struct dlm_rsb *r;
 	struct dlm_lkb *lkb;
 	uint32_t remid = 0;
-	int from_nodeid = le32_to_cpu(rc->rc_header.h_nodeid);
+	int from_analdeid = le32_to_cpu(rc->rc_header.h_analdeid);
 	int error;
 
 	/* init rl_remid with rcom lock rl_remid */
 	*rl_remid = rl->rl_remid;
 
 	if (rl->rl_parent_lkid) {
-		error = -EOPNOTSUPP;
+		error = -EOPANALTSUPP;
 		goto out;
 	}
 
 	remid = le32_to_cpu(rl->rl_lkid);
 
 	/* In general we expect the rsb returned to be R_MASTER, but we don't
-	   have to require it.  Recovery of masters on one node can overlap
-	   recovery of locks on another node, so one node can send us MSTCPY
+	   have to require it.  Recovery of masters on one analde can overlap
+	   recovery of locks on aanalther analde, so one analde can send us MSTCPY
 	   locks before we've made ourselves master of this rsb.  We can still
 	   add new MSTCPY locks that we receive here without any harm; when
 	   we make ourselves master, dlm_recover_masters() won't touch the
 	   MSTCPY locks we've received early. */
 
 	error = find_rsb(ls, rl->rl_name, le16_to_cpu(rl->rl_namelen),
-			 from_nodeid, R_RECEIVE_RECOVER, &r);
+			 from_analdeid, R_RECEIVE_RECOVER, &r);
 	if (error)
 		goto out;
 
 	lock_rsb(r);
 
-	if (dlm_no_directory(ls) && (dlm_dir_nodeid(r) != dlm_our_nodeid())) {
-		log_error(ls, "dlm_recover_master_copy remote %d %x not dir",
-			  from_nodeid, remid);
+	if (dlm_anal_directory(ls) && (dlm_dir_analdeid(r) != dlm_our_analdeid())) {
+		log_error(ls, "dlm_recover_master_copy remote %d %x analt dir",
+			  from_analdeid, remid);
 		error = -EBADR;
 		goto out_unlock;
 	}
 
-	lkb = search_remid(r, from_nodeid, remid);
+	lkb = search_remid(r, from_analdeid, remid);
 	if (lkb) {
 		error = -EEXIST;
 		goto out_remid;
@@ -5469,7 +5469,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, const struct dlm_rcom *rc,
  out:
 	if (error && error != -EEXIST)
 		log_rinfo(ls, "dlm_recover_master_copy remote %d %x error %d",
-			  from_nodeid, remid, error);
+			  from_analdeid, remid, error);
 	*rl_result = cpu_to_le32(error);
 	return error;
 }
@@ -5490,8 +5490,8 @@ int dlm_recover_process_copy(struct dlm_ls *ls, const struct dlm_rcom *rc,
 
 	error = find_lkb(ls, lkid, &lkb);
 	if (error) {
-		log_error(ls, "dlm_recover_process_copy no %x remote %d %x %d",
-			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
+		log_error(ls, "dlm_recover_process_copy anal %x remote %d %x %d",
+			  lkid, le32_to_cpu(rc->rc_header.h_analdeid), remid,
 			  result);
 		return error;
 	}
@@ -5502,7 +5502,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, const struct dlm_rcom *rc,
 
 	if (!is_process_copy(lkb)) {
 		log_error(ls, "dlm_recover_process_copy bad %x remote %d %x %d",
-			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
+			  lkid, le32_to_cpu(rc->rc_header.h_analdeid), remid,
 			  result);
 		dlm_dump_rsb(r);
 		unlock_rsb(r);
@@ -5518,7 +5518,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, const struct dlm_rcom *rc,
 		   a barrier between recover_masters and recover_locks. */
 
 		log_debug(ls, "dlm_recover_process_copy %x remote %d %x %d",
-			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
+			  lkid, le32_to_cpu(rc->rc_header.h_analdeid), remid,
 			  result);
 	
 		dlm_send_rcom_lock(r, lkb, seq);
@@ -5529,7 +5529,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, const struct dlm_rcom *rc,
 		break;
 	default:
 		log_error(ls, "dlm_recover_process_copy %x remote %d %x %d unk",
-			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
+			  lkid, le32_to_cpu(rc->rc_header.h_analdeid), remid,
 			  result);
 	}
 
@@ -5563,10 +5563,10 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 	trace_dlm_lock_start(ls, lkb, name, namelen, mode, flags);
 
 	if (flags & DLM_LKF_VALBLK) {
-		ua->lksb.sb_lvbptr = kzalloc(DLM_USER_LVB_LEN, GFP_NOFS);
+		ua->lksb.sb_lvbptr = kzalloc(DLM_USER_LVB_LEN, GFP_ANALFS);
 		if (!ua->lksb.sb_lvbptr) {
 			kfree(ua);
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out_put;
 		}
 	}
@@ -5580,7 +5580,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 	}
 
 	/* After ua is attached to lkb it will be freed by dlm_free_lkb().
-	   When DLM_DFL_USER_BIT is set, the dlm knows that this is a userspace
+	   When DLM_DFL_USER_BIT is set, the dlm kanalws that this is a userspace
 	   lock and that lkb_astparam is the dlm_user_args structure. */
 	set_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags);
 	error = request_lock(ls, lkb, name, namelen, &args);
@@ -5635,9 +5635,9 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	ua = lkb->lkb_ua;
 
 	if (flags & DLM_LKF_VALBLK && !ua->lksb.sb_lvbptr) {
-		ua->lksb.sb_lvbptr = kzalloc(DLM_USER_LVB_LEN, GFP_NOFS);
+		ua->lksb.sb_lvbptr = kzalloc(DLM_USER_LVB_LEN, GFP_ANALFS);
 		if (!ua->lksb.sb_lvbptr) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out_put;
 		}
 	}
@@ -5709,7 +5709,7 @@ int dlm_user_adopt_orphan(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	}
 
 	if (!lkb) {
-		rv = -ENOENT;
+		rv = -EANALENT;
 		goto out;
 	}
 
@@ -5727,8 +5727,8 @@ int dlm_user_adopt_orphan(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	ua->user_lksb = ua_tmp->user_lksb;
 
 	/*
-	 * The lkb reference from the ls_orphans list was not
-	 * removed above, and is now considered the reference
+	 * The lkb reference from the ls_orphans list was analt
+	 * removed above, and is analw considered the reference
 	 * for the proc locks list.
 	 */
 
@@ -5908,7 +5908,7 @@ static int orphan_proc_lock(struct dlm_ls *ls, struct dlm_lkb *lkb)
 /* The FORCEUNLOCK flag allows the unlock to go ahead even if the lkb isn't
    granted.  Regardless of what rsb queue the lock is on, it's removed and
    freed.  The IVVALBLK flag causes the lvb on the resource to be invalidated
-   if our lock is PW/EX (it's ignored if our granted mode is smaller.) */
+   if our lock is PW/EX (it's iganalred if our granted mode is smaller.) */
 
 static int unlock_proc_lock(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
@@ -5953,8 +5953,8 @@ static struct dlm_lkb *del_proc_lock(struct dlm_ls *ls,
    1) references lkb->ua which we free here and 2) adds lkbs to proc->asts,
    which we clear here. */
 
-/* proc CLOSING flag is set so no more device_reads should look at proc->asts
-   list, and no more device_writes should add lkb's to proc->locks list; so we
+/* proc CLOSING flag is set so anal more device_reads should look at proc->asts
+   list, and anal more device_writes should add lkb's to proc->locks list; so we
    shouldn't need to take asts_spin or locks_spin here.  this assumes that
    device reads/writes/closes are serialized -- FIXME: we may need to serialize
    them ourself. */
@@ -6041,7 +6041,7 @@ static void purge_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 
 /* pid of 0 means purge all orphans */
 
-static void do_purge(struct dlm_ls *ls, int nodeid, int pid)
+static void do_purge(struct dlm_ls *ls, int analdeid, int pid)
 {
 	struct dlm_lkb *lkb, *safe;
 
@@ -6056,35 +6056,35 @@ static void do_purge(struct dlm_ls *ls, int nodeid, int pid)
 	mutex_unlock(&ls->ls_orphans_mutex);
 }
 
-static int send_purge(struct dlm_ls *ls, int nodeid, int pid)
+static int send_purge(struct dlm_ls *ls, int analdeid, int pid)
 {
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
 	int error;
 
-	error = _create_message(ls, sizeof(struct dlm_message), nodeid,
-				DLM_MSG_PURGE, &ms, &mh, GFP_NOFS);
+	error = _create_message(ls, sizeof(struct dlm_message), analdeid,
+				DLM_MSG_PURGE, &ms, &mh, GFP_ANALFS);
 	if (error)
 		return error;
-	ms->m_nodeid = cpu_to_le32(nodeid);
+	ms->m_analdeid = cpu_to_le32(analdeid);
 	ms->m_pid = cpu_to_le32(pid);
 
 	return send_message(mh, ms, NULL, 0);
 }
 
 int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
-		   int nodeid, int pid)
+		   int analdeid, int pid)
 {
 	int error = 0;
 
-	if (nodeid && (nodeid != dlm_our_nodeid())) {
-		error = send_purge(ls, nodeid, pid);
+	if (analdeid && (analdeid != dlm_our_analdeid())) {
+		error = send_purge(ls, analdeid, pid);
 	} else {
 		dlm_lock_recovery(ls);
 		if (pid == current->pid)
 			purge_proc_locks(ls, proc);
 		else
-			do_purge(ls, nodeid, pid);
+			do_purge(ls, analdeid, pid);
 		dlm_unlock_recovery(ls);
 	}
 	return error;
@@ -6092,7 +6092,7 @@ int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
 
 /* debug functionality */
 int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
-		      int lkb_nodeid, unsigned int lkb_dflags, int lkb_status)
+		      int lkb_analdeid, unsigned int lkb_dflags, int lkb_status)
 {
 	struct dlm_lksb *lksb;
 	struct dlm_lkb *lkb;
@@ -6101,11 +6101,11 @@ int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
 
 	/* we currently can't set a valid user lock */
 	if (lkb_dflags & BIT(DLM_DFL_USER_BIT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	lksb = kzalloc(sizeof(*lksb), GFP_NOFS);
+	lksb = kzalloc(sizeof(*lksb), GFP_ANALFS);
 	if (!lksb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = _create_lkb(ls, &lkb, lkb_id, lkb_id + 1);
 	if (error) {
@@ -6114,7 +6114,7 @@ int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
 	}
 
 	dlm_set_dflags_val(lkb, lkb_dflags);
-	lkb->lkb_nodeid = lkb_nodeid;
+	lkb->lkb_analdeid = lkb_analdeid;
 	lkb->lkb_lksb = lksb;
 	/* user specific pointer, just don't have it NULL for kernel locks */
 	if (~lkb_dflags & BIT(DLM_DFL_USER_BIT))
@@ -6137,7 +6137,7 @@ int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
 }
 
 int dlm_debug_add_lkb_to_waiters(struct dlm_ls *ls, uint32_t lkb_id,
-				 int mstype, int to_nodeid)
+				 int mstype, int to_analdeid)
 {
 	struct dlm_lkb *lkb;
 	int error;
@@ -6146,7 +6146,7 @@ int dlm_debug_add_lkb_to_waiters(struct dlm_ls *ls, uint32_t lkb_id,
 	if (error)
 		return error;
 
-	error = add_to_waiters(lkb, mstype, to_nodeid);
+	error = add_to_waiters(lkb, mstype, to_analdeid);
 	dlm_put_lkb(lkb);
 	return error;
 }

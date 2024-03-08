@@ -13,14 +13,14 @@
 
 static int
 crcc37d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source,
-		struct nv50_crc_notifier_ctx *ctx)
+		struct nv50_crc_analtifier_ctx *ctx)
 {
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
 	u32 crc_args = NVVAL(NVC37D, HEAD_SET_CRC_CONTROL, CONTROLLING_CHANNEL, i * 4) |
 		       NVDEF(NVC37D, HEAD_SET_CRC_CONTROL, EXPECT_BUFFER_COLLAPSE, FALSE) |
-		       NVDEF(NVC37D, HEAD_SET_CRC_CONTROL, SECONDARY_CRC, NONE) |
-		       NVDEF(NVC37D, HEAD_SET_CRC_CONTROL, CRC_DURING_SNOOZE, DISABLE);
+		       NVDEF(NVC37D, HEAD_SET_CRC_CONTROL, SECONDARY_CRC, ANALNE) |
+		       NVDEF(NVC37D, HEAD_SET_CRC_CONTROL, CRC_DURING_SANALOZE, DISABLE);
 	int ret;
 
 	switch (source) {
@@ -51,7 +51,7 @@ crcc37d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source
 	return 0;
 }
 
-int crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
+int crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_analtifier_ctx *ctx)
 {
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
@@ -64,11 +64,11 @@ int crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 	return 0;
 }
 
-u32 crcc37d_get_entry(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx,
+u32 crcc37d_get_entry(struct nv50_head *head, struct nv50_crc_analtifier_ctx *ctx,
 		      enum nv50_crc_source source, int idx)
 {
-	struct crcc37d_notifier __iomem *notifier = ctx->mem.object.map.ptr;
-	struct crcc37d_entry __iomem *entry = &notifier->entries[idx];
+	struct crcc37d_analtifier __iomem *analtifier = ctx->mem.object.map.ptr;
+	struct crcc37d_entry __iomem *entry = &analtifier->entries[idx];
 	u32 __iomem *crc_addr;
 
 	if (source == NV50_CRC_SOURCE_RG)
@@ -79,11 +79,11 @@ u32 crcc37d_get_entry(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx,
 	return ioread32_native(crc_addr);
 }
 
-bool crcc37d_ctx_finished(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
+bool crcc37d_ctx_finished(struct nv50_head *head, struct nv50_crc_analtifier_ctx *ctx)
 {
-	struct nouveau_drm *drm = nouveau_drm(head->base.base.dev);
-	struct crcc37d_notifier __iomem *notifier = ctx->mem.object.map.ptr;
-	const u32 status = ioread32_native(&notifier->status);
+	struct analuveau_drm *drm = analuveau_drm(head->base.base.dev);
+	struct crcc37d_analtifier __iomem *analtifier = ctx->mem.object.map.ptr;
+	const u32 status = ioread32_native(&analtifier->status);
 	const u32 overflow = status & 0x0000007e;
 
 	if (!(status & 0x00000001))
@@ -102,11 +102,11 @@ bool crcc37d_ctx_finished(struct nv50_head *head, struct nv50_crc_notifier_ctx *
 
 		if (engine)
 			NV_ERROR(drm,
-				 "CRC notifier context for head %d overflowed on %s: %x\n",
+				 "CRC analtifier context for head %d overflowed on %s: %x\n",
 				 head->base.index, engine, status);
 		else
 			NV_ERROR(drm,
-				 "CRC notifier context for head %d overflowed: %x\n",
+				 "CRC analtifier context for head %d overflowed: %x\n",
 				 head->base.index, status);
 	}
 
@@ -123,5 +123,5 @@ const struct nv50_crc_func crcc37d = {
 	.ctx_finished = crcc37d_ctx_finished,
 	.flip_threshold = CRCC37D_FLIP_THRESHOLD,
 	.num_entries = CRCC37D_MAX_ENTRIES,
-	.notifier_len = sizeof(struct crcc37d_notifier),
+	.analtifier_len = sizeof(struct crcc37d_analtifier),
 };

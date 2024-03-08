@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/watchdog/snps,dw-wdt.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys Designware Watchdog Timer
+title: Syanalpsys Designware Watchdog Timer
 
 maintainers:
   - Jamie Iles <jamie@jamieiles.com>
@@ -63,7 +63,7 @@ properties:
       Each TOP is a number loaded into the watchdog counter at the moment of
       the timer restart. The counter decrementing happens each tick of the
       reference clock. Therefore the TOPs array is equivalent to an array of
-      the timer expiration intervals supported by the DW APB Watchdog. Note
+      the timer expiration intervals supported by the DW APB Watchdog. Analte
       DW APB Watchdog IP-core might be synthesized with fixed TOP values,
       in which case this property is unnecessary with default TOPs utilized.
     default: [0x0001000 0x0002000 0x0004000 0x0008000

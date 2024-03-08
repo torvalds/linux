@@ -16,7 +16,7 @@
 //
 // This file contains the version data for the CSS
 //
-// === Do not change - automatically generated ===
+// === Do analt change - automatically generated ===
 //
 
 #ifndef __IA_CSS_VERSION_DATA_H

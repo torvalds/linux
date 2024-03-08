@@ -379,13 +379,13 @@
 		interrupts = <19 2>;
 
 		ranges = <
-			0 0x0 0xf8000000 0x08000000	// NOR boot flash
-			1 0x0 0xf0000000 0x08000000	// NOR expansion flash
+			0 0x0 0xf8000000 0x08000000	// ANALR boot flash
+			1 0x0 0xf0000000 0x08000000	// ANALR expansion flash
 			2 0x0 0xe8000000 0x00010000	// NAND CE1
 			3 0x0 0xe8010000 0x00010000	// NAND CE2
 		>;
 
-		nor-boot@0,0 {
+		analr-boot@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
@@ -410,7 +410,7 @@
 			};
 		};
 
-		nor-alternate@1,0 {
+		analr-alternate@1,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";

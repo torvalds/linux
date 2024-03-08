@@ -6,7 +6,7 @@
  *
  *  proc root directory handling functions
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -50,9 +50,9 @@ static const struct fs_parameter_spec proc_fs_parameters[] = {
 static inline int valid_hidepid(unsigned int value)
 {
 	return (value == HIDEPID_OFF ||
-		value == HIDEPID_NO_ACCESS ||
+		value == HIDEPID_ANAL_ACCESS ||
 		value == HIDEPID_INVISIBLE ||
-		value == HIDEPID_NOT_PTRACEABLE);
+		value == HIDEPID_ANALT_PTRACEABLE);
 }
 
 static int proc_parse_hidepid_param(struct fs_context *fc, struct fs_parameter *param)
@@ -67,21 +67,21 @@ static int proc_parse_hidepid_param(struct fs_context *fc, struct fs_parameter *
 
 	if (!kstrtouint(param->string, base, &result.uint_32)) {
 		if (!valid_hidepid(result.uint_32))
-			return invalf(fc, "proc: unknown value of hidepid - %s\n", param->string);
+			return invalf(fc, "proc: unkanalwn value of hidepid - %s\n", param->string);
 		ctx->hidepid = result.uint_32;
 		return 0;
 	}
 
 	if (!strcmp(param->string, "off"))
 		ctx->hidepid = HIDEPID_OFF;
-	else if (!strcmp(param->string, "noaccess"))
-		ctx->hidepid = HIDEPID_NO_ACCESS;
+	else if (!strcmp(param->string, "analaccess"))
+		ctx->hidepid = HIDEPID_ANAL_ACCESS;
 	else if (!strcmp(param->string, "invisible"))
 		ctx->hidepid = HIDEPID_INVISIBLE;
 	else if (!strcmp(param->string, "ptraceable"))
-		ctx->hidepid = HIDEPID_NOT_PTRACEABLE;
+		ctx->hidepid = HIDEPID_ANALT_PTRACEABLE;
 	else
-		return invalf(fc, "proc: unknown value of hidepid - %s\n", param->string);
+		return invalf(fc, "proc: unkanalwn value of hidepid - %s\n", param->string);
 
 	return 0;
 }
@@ -159,20 +159,20 @@ static void proc_apply_options(struct proc_fs_info *fs_info,
 static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct proc_fs_context *ctx = fc->fs_private;
-	struct inode *root_inode;
+	struct ianalde *root_ianalde;
 	struct proc_fs_info *fs_info;
 	int ret;
 
 	fs_info = kzalloc(sizeof(*fs_info), GFP_KERNEL);
 	if (!fs_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fs_info->pid_ns = get_pid_ns(ctx->pid_ns);
 	proc_apply_options(fs_info, fc, current_user_ns());
 
 	/* User space would break if executables or devices appear on proc */
-	s->s_iflags |= SB_I_USERNS_VISIBLE | SB_I_NOEXEC | SB_I_NODEV;
-	s->s_flags |= SB_NODIRATIME | SB_NOSUID | SB_NOEXEC;
+	s->s_iflags |= SB_I_USERNS_VISIBLE | SB_I_ANALEXEC | SB_I_ANALDEV;
+	s->s_flags |= SB_ANALDIRATIME | SB_ANALSUID | SB_ANALEXEC;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = PROC_SUPER_MAGIC;
@@ -187,20 +187,20 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 	 */
 	s->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
 
-	/* procfs dentries and inodes don't require IO to create */
+	/* procfs dentries and ianaldes don't require IO to create */
 	s->s_shrink->seeks = 0;
 
 	pde_get(&proc_root);
-	root_inode = proc_get_inode(s, &proc_root);
-	if (!root_inode) {
-		pr_err("proc_fill_super: get root inode failed\n");
-		return -ENOMEM;
+	root_ianalde = proc_get_ianalde(s, &proc_root);
+	if (!root_ianalde) {
+		pr_err("proc_fill_super: get root ianalde failed\n");
+		return -EANALMEM;
 	}
 
-	s->s_root = d_make_root(root_inode);
+	s->s_root = d_make_root(root_ianalde);
 	if (!s->s_root) {
 		pr_err("proc_fill_super: allocate dentry failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = proc_setup_self(s);
@@ -223,7 +223,7 @@ static int proc_reconfigure(struct fs_context *fc)
 
 static int proc_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, proc_fill_super);
+	return get_tree_analdev(fc, proc_fill_super);
 }
 
 static void proc_fs_context_free(struct fs_context *fc)
@@ -247,7 +247,7 @@ static int proc_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct proc_fs_context), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->pid_ns = get_pid_ns(task_active_pid_ns(current));
 	put_user_ns(fc->user_ns);
@@ -262,14 +262,14 @@ static void proc_kill_sb(struct super_block *sb)
 	struct proc_fs_info *fs_info = proc_sb_info(sb);
 
 	if (!fs_info) {
-		kill_anon_super(sb);
+		kill_aanaln_super(sb);
 		return;
 	}
 
 	dput(fs_info->proc_self);
 	dput(fs_info->proc_thread_self);
 
-	kill_anon_super(sb);
+	kill_aanaln_super(sb);
 	put_pid_ns(fs_info->pid_ns);
 	kfree_rcu(fs_info, rcu);
 }
@@ -279,7 +279,7 @@ static struct file_system_type proc_fs_type = {
 	.init_fs_context	= proc_init_fs_context,
 	.parameters		= proc_fs_parameters,
 	.kill_sb		= proc_kill_sb,
-	.fs_flags		= FS_USERNS_MOUNT | FS_DISALLOW_NOTIFY_PERM,
+	.fs_flags		= FS_USERNS_MOUNT | FS_DISALLOW_ANALTIFY_PERM,
 };
 
 void __init proc_root_init(void)
@@ -303,7 +303,7 @@ void __init proc_root_init(void)
 	proc_sys_init();
 
 	/*
-	 * Last things last. It is not like userspace processes eager
+	 * Last things last. It is analt like userspace processes eager
 	 * to open /proc files exist at this point but register last
 	 * anyway.
 	 */
@@ -314,13 +314,13 @@ static int proc_root_getattr(struct mnt_idmap *idmap,
 			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
-	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(path->dentry),
+	generic_fillattr(&analp_mnt_idmap, request_mask, d_ianalde(path->dentry),
 			 stat);
 	stat->nlink = proc_root.nlink + nr_processes();
 	return 0;
 }
 
-static struct dentry *proc_root_lookup(struct inode * dir, struct dentry * dentry, unsigned int flags)
+static struct dentry *proc_root_lookup(struct ianalde * dir, struct dentry * dentry, unsigned int flags)
 {
 	if (!proc_pid_lookup(dentry, flags))
 		return NULL;
@@ -352,23 +352,23 @@ static const struct file_operations proc_root_operations = {
 };
 
 /*
- * proc root can do almost nothing..
+ * proc root can do almost analthing..
  */
-static const struct inode_operations proc_root_inode_operations = {
+static const struct ianalde_operations proc_root_ianalde_operations = {
 	.lookup		= proc_root_lookup,
 	.getattr	= proc_root_getattr,
 };
 
 /*
- * This is the root "inode" in the /proc tree..
+ * This is the root "ianalde" in the /proc tree..
  */
 struct proc_dir_entry proc_root = {
-	.low_ino	= PROC_ROOT_INO, 
+	.low_ianal	= PROC_ROOT_IANAL, 
 	.namelen	= 5, 
 	.mode		= S_IFDIR | S_IRUGO | S_IXUGO, 
 	.nlink		= 2, 
 	.refcnt		= REFCOUNT_INIT(1),
-	.proc_iops	= &proc_root_inode_operations, 
+	.proc_iops	= &proc_root_ianalde_operations, 
 	.proc_dir_ops	= &proc_root_operations,
 	.parent		= &proc_root,
 	.subdir		= RB_ROOT,

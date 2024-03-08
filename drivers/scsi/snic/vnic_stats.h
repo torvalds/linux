@@ -32,7 +32,7 @@ struct vnic_rx_stats {
 	u64 rx_multicast_bytes_ok;
 	u64 rx_broadcast_bytes_ok;
 	u64 rx_drop;
-	u64 rx_no_bufs;
+	u64 rx_anal_bufs;
 	u64 rx_errors;
 	u64 rx_rss;
 	u64 rx_crc_errors;

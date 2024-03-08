@@ -24,9 +24,9 @@ static int get_bpf_testmod_btf_fd(void)
 
 		fd = bpf_btf_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				continue; /* expected race: BTF was unloaded */
-			err = -errno;
+			err = -erranal;
 			log_err("failed to get FD for BTF object #%d", id);
 			return err;
 		}
@@ -38,7 +38,7 @@ static int get_bpf_testmod_btf_fd(void)
 
 		err = bpf_obj_get_info_by_fd(fd, &info, &len);
 		if (err) {
-			err = -errno;
+			err = -erranal;
 			log_err("failed to get info for BTF object #%d", id);
 			close(fd);
 			return err;
@@ -49,7 +49,7 @@ static int get_bpf_testmod_btf_fd(void)
 
 		close(fd);
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 void test_module_fentry_shadow(void)

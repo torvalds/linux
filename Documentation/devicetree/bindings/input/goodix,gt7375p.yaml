@@ -11,7 +11,7 @@ maintainers:
 
 description:
   Supports the Goodix GT7375P touchscreen.
-  This touchscreen uses the i2c-hid protocol but has some non-standard
+  This touchscreen uses the i2c-hid protocol but has some analn-standard
   power sequencing required.
 
 allOf:
@@ -44,13 +44,13 @@ properties:
   mainboard-vddio-supply:
     description:
       The supply on the main board needed to power up IO signals going
-      to the touchscreen. This supply need not go to the touchscreen
+      to the touchscreen. This supply need analt go to the touchscreen
       itself as long as it allows the main board to make signals compatible
       with what the touchscreen is expecting for its IO rails.
 
-  goodix,no-reset-during-suspend:
+  goodix,anal-reset-during-suspend:
     description:
-      Set this to true to enforce the driver to not assert the reset GPIO
+      Set this to true to enforce the driver to analt assert the reset GPIO
       during suspend.
       Due to potential touchscreen hardware flaw, back-powering could happen in
       suspend if the power supply is on and with active-low reset GPIO asserted.

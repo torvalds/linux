@@ -14,7 +14,7 @@
 rundir="$1"
 if ! test -d "$rundir"
 then
-	echo kvm-end-run-stats.sh: Specified run directory does not exist: $rundir
+	echo kvm-end-run-stats.sh: Specified run directory does analt exist: $rundir
 	exit 1
 fi
 

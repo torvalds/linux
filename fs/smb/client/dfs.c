@@ -16,7 +16,7 @@
  * @ref: dfs referral pointer.
  * @ctx: smb3 fs context pointer.
  *
- * Return zero if dfs referral was parsed correctly, otherwise non-zero.
+ * Return zero if dfs referral was parsed correctly, otherwise analn-zero.
  */
 int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_param *ref,
 			      struct smb3_fs_context *ctx)
@@ -28,7 +28,7 @@ int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_para
 	if (!full_path || !*full_path || !ref || !ctx)
 		return -EINVAL;
 
-	if (WARN_ON_ONCE(!ref->node_name || ref->path_consumed < 0))
+	if (WARN_ON_ONCE(!ref->analde_name || ref->path_consumed < 0))
 		return -EINVAL;
 
 	if (strlen(full_path) - ref->path_consumed) {
@@ -38,7 +38,7 @@ int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_para
 			prepath++;
 	}
 
-	path = cifs_build_devname(ref->node_name, prepath);
+	path = cifs_build_devname(ref->analde_name, prepath);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
@@ -80,7 +80,7 @@ static int add_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
 	if (ses) {
 		root_ses = kmalloc(sizeof(*root_ses), GFP_KERNEL);
 		if (!root_ses)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		INIT_LIST_HEAD(&root_ses->list);
 
@@ -142,7 +142,7 @@ static int __dfs_referral_walk(struct cifs_mount_ctx *mnt_ctx,
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	struct dfs_info3_param tgt = {};
 	bool is_refsrv;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 again:
 	do {
@@ -156,7 +156,7 @@ again:
 				continue;
 			}
 			if (!ref_walk_num_tgts(rw)) {
-				rc = -ENOENT;
+				rc = -EANALENT;
 				continue;
 			}
 		}
@@ -266,7 +266,7 @@ out:
 /*
  * If @ctx->dfs_automount, then update @ctx->dstaddr earlier with the DFS root
  * server from where we'll start following any referrals.  Otherwise rely on the
- * value provided by mount(2) as the user might not have dns_resolver key set up
+ * value provided by mount(2) as the user might analt have dns_resolver key set up
  * and therefore failing to upcall to resolve UNC hostname under @ctx->source.
  */
 static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
@@ -274,7 +274,7 @@ static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
 	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
 	int rc = 0;
 
-	if (!ctx->nodfs && ctx->dfs_automount) {
+	if (!ctx->analdfs && ctx->dfs_automount) {
 		rc = dns_resolve_server_name_to_ip(ctx->source, addr, NULL);
 		if (!rc)
 			cifs_set_port(addr, ctx->port);
@@ -286,7 +286,7 @@ static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
 int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
-	bool nodfs = ctx->nodfs;
+	bool analdfs = ctx->analdfs;
 	int rc;
 
 	rc = update_fs_context_dstaddr(ctx);
@@ -300,22 +300,22 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 
 	ctx->dfs_root_ses = mnt_ctx->ses;
 	/*
-	 * If called with 'nodfs' mount option, then skip DFS resolving.  Otherwise unconditionally
+	 * If called with 'analdfs' mount option, then skip DFS resolving.  Otherwise unconditionally
 	 * try to get an DFS referral (even cached) to determine whether it is an DFS mount.
 	 *
 	 * Skip prefix path to provide support for DFS referrals from w2k8 servers which don't seem
-	 * to respond with PATH_NOT_COVERED to requests that include the prefix.
+	 * to respond with PATH_ANALT_COVERED to requests that include the prefix.
 	 */
-	if (!nodfs) {
+	if (!analdfs) {
 		rc = dfs_get_referral(mnt_ctx, ctx->UNC + 1, NULL, NULL);
 		if (rc) {
-			cifs_dbg(FYI, "%s: no dfs referral for %s: %d\n",
+			cifs_dbg(FYI, "%s: anal dfs referral for %s: %d\n",
 				 __func__, ctx->UNC + 1, rc);
-			cifs_dbg(FYI, "%s: assuming non-dfs mount...\n", __func__);
-			nodfs = true;
+			cifs_dbg(FYI, "%s: assuming analn-dfs mount...\n", __func__);
+			analdfs = true;
 		}
 	}
-	if (nodfs) {
+	if (analdfs) {
 		rc = cifs_mount_get_tcon(mnt_ctx);
 		if (!rc)
 			rc = cifs_is_path_remote(mnt_ctx);
@@ -342,19 +342,19 @@ static int update_server_fullpath(struct TCP_Server_Info *server, struct cifs_sb
 		len += 1;
 		refpath = kmalloc(len, GFP_KERNEL);
 		if (!refpath)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		scnprintf(refpath, len, "%s", target);
 	} else {
 		len += sizeof("\\");
 		refpath = kmalloc(len, GFP_KERNEL);
 		if (!refpath)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		scnprintf(refpath, len, "\\%s", target);
 	}
 
-	npath = dfs_cache_canonical_path(refpath, cifs_sb->local_nls, cifs_remap(cifs_sb));
+	npath = dfs_cache_caanalnical_path(refpath, cifs_sb->local_nls, cifs_remap(cifs_sb));
 	kfree(refpath);
 
 	if (IS_ERR(npath)) {
@@ -456,7 +456,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 
 	tit = dfs_cache_get_tgt_iterator(tl);
 	if (!tit) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto out;
 	}
 
@@ -484,7 +484,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 			continue;
 		}
 
-		dfs_cache_noreq_update_tgthint(server->leaf_fullpath + 1, tit);
+		dfs_cache_analreq_update_tgthint(server->leaf_fullpath + 1, tit);
 		tree_connect_ipc(xid, tree, cifs_sb, tcon);
 
 		scnprintf(tree, MAX_TREE_SIZE, "\\%s", share);
@@ -494,7 +494,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 		}
 
 		/*
-		 * If no dfs referrals were returned from link target, then just do a TREE_CONNECT
+		 * If anal dfs referrals were returned from link target, then just do a TREE_CONNECT
 		 * to it.  Otherwise, cache the dfs referral and then mark current tcp ses for
 		 * reconnect so either the demultiplex thread or the echo worker will reconnect to
 		 * newly resolved target.
@@ -507,7 +507,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 
 			rc = cifs_update_super_prepath(cifs_sb, prefix);
 		} else {
-			/* Target is another dfs share */
+			/* Target is aanalther dfs share */
 			rc = update_server_fullpath(server, cifs_sb, target);
 			dfs_cache_free_tgts(tl);
 
@@ -586,7 +586,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 
 	tree = kzalloc(MAX_TREE_SIZE, GFP_KERNEL);
 	if (!tree) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -604,10 +604,10 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 
 	/*
 	 * Tree connect to last share in @tcon->tree_name whether dfs super or
-	 * cached dfs referral was not found.
+	 * cached dfs referral was analt found.
 	 */
 	if (!cifs_sb || !server->leaf_fullpath ||
-	    dfs_cache_noreq_find(server->leaf_fullpath + 1, &ref, &tl)) {
+	    dfs_cache_analreq_find(server->leaf_fullpath + 1, &ref, &tl)) {
 		rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name, tcon,
 				       cifs_sb ? cifs_sb->local_nls : nlsc);
 		goto out;

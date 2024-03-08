@@ -12,7 +12,7 @@
  * life in portables, and add a 'performance/watt' metric somewhere in /proc
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
@@ -192,7 +192,7 @@ static int __init TAU_init(void)
 	 * all have it --BenH
 	 */
 	if (!cpu_has_feature(CPU_FTR_TAU)) {
-		printk("Thermal assist unit not available\n");
+		printk("Thermal assist unit analt available\n");
 		tau_initialized = 0;
 		return 1;
 	}
@@ -202,7 +202,7 @@ static int __init TAU_init(void)
 
 	tau_workq = alloc_ordered_workqueue("tau", 0);
 	if (!tau_workq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	on_each_cpu(TAU_init_smp, NULL, 0);
 

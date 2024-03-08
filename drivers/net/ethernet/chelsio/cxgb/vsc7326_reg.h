@@ -81,7 +81,7 @@
 
 /* Traffic shaper buckets
  *   ie = 0 for ingress, 1 for egress
- *   bn = bucket number 0-10 (yes, 11 buckets)
+ *   bn = bucket number 0-10 (anal, 11 buckets)
  */
 /* OK, this one's kinda ugly.  Some hardware designers are perverse. */
 #define REG_TRAFFIC_SHAPER_BUCKET(ie,bn) CRA(0x2,ie&1,0x0a + (bn>7) | ((bn&7)<<4))
@@ -129,20 +129,20 @@
 #define REG_SPI4_DESKEW 	CRA(0x5,0x0,0x43)	/* Ingress cranted credit value */
 
 /* 10GbE MAC Block Registers */
-/* Note that those registers that are exactly the same for 10GbE as for
+/* Analte that those registers that are exactly the same for 10GbE as for
  * tri-speed are only defined with the version that needs a port number.
  * Pass 0xa in those cases.
  *
- * Also note that despite the presence of a MAC address register, this part
- * does no ingress MAC address filtering.  That register is used only for
+ * Also analte that despite the presence of a MAC address register, this part
+ * does anal ingress MAC address filtering.  That register is used only for
  * pause frame detection and generation.
  */
 /* 10GbE specific, and different from tri-speed */
 #define REG_MISC_10G		CRA(0x1,0xa,0x00)	/* Misc 10GbE setup */
 #define REG_PAUSE_10G		CRA(0x1,0xa,0x01)	/* Pause register */
-#define REG_NORMALIZER_10G	CRA(0x1,0xa,0x05)	/* 10G normalizer */
+#define REG_ANALRMALIZER_10G	CRA(0x1,0xa,0x05)	/* 10G analrmalizer */
 #define REG_STICKY_RX		CRA(0x1,0xa,0x06)	/* RX debug register */
-#define REG_DENORM_10G		CRA(0x1,0xa,0x07)	/* Denormalizer  */
+#define REG_DEANALRM_10G		CRA(0x1,0xa,0x07)	/* Deanalrmalizer  */
 #define REG_STICKY_TX		CRA(0x1,0xa,0x08)	/* TX sticky bits */
 #define REG_MAX_RXHIGH		CRA(0x1,0xa,0x0a)	/* XGMII lane 0-3 debug */
 #define REG_MAX_RXLOW		CRA(0x1,0xa,0x0b)	/* XGMII lane 4-7 debug */
@@ -152,7 +152,7 @@
 #define REG_TX_ABORT_SHORT	CRA(0x1,0xa,0x15)	/* Short Tx frames discarded */
 #define REG_TX_ABORT_TAXI	CRA(0x1,0xa,0x16)	/* Taxi error frames discarded */
 #define REG_TX_ABORT_UNDERRUN	CRA(0x1,0xa,0x17)	/* Tx Underrun abort counter */
-#define REG_TX_DENORM_DISCARD	CRA(0x1,0xa,0x18)	/* Tx denormalizer discards */
+#define REG_TX_DEANALRM_DISCARD	CRA(0x1,0xa,0x18)	/* Tx deanalrmalizer discards */
 #define REG_XAUI_STAT_A		CRA(0x1,0xa,0x20)	/* XAUI status A */
 #define REG_XAUI_STAT_B		CRA(0x1,0xa,0x21)	/* XAUI status B */
 #define REG_XAUI_STAT_C		CRA(0x1,0xa,0x22)	/* XAUI status C */
@@ -173,7 +173,7 @@
  */
 #define REG_MODE_CFG(pn)	CRA(0x1,pn,0x00)	/* Mode configuration */
 #define REG_PAUSE_CFG(pn)	CRA(0x1,pn,0x01)	/* Pause configuration */
-#define REG_NORMALIZER(pn)	CRA(0x1,pn,0x05)	/* Normalizer */
+#define REG_ANALRMALIZER(pn)	CRA(0x1,pn,0x05)	/* Analrmalizer */
 #define REG_TBI_STATUS(pn)	CRA(0x1,pn,0x06)	/* TBI status */
 #define REG_PCS_STATUS_DBG(pn)	CRA(0x1,pn,0x07)	/* PCS status debug */
 #define REG_PCS_CTRL(pn)	CRA(0x1,pn,0x08)	/* PCS control */
@@ -187,7 +187,7 @@
 #define REG_SERDES_TEST(pn)	CRA(0x1,pn,0x10)	/* SerDes test */
 #define REG_SERDES_STAT(pn)	CRA(0x1,pn,0x11)	/* SerDes status */
 #define REG_SERDES_COM_CNT(pn)	CRA(0x1,pn,0x12)	/* SerDes comma counter */
-#define REG_DENORM(pn)		CRA(0x1,pn,0x15)	/* Frame denormalization */
+#define REG_DEANALRM(pn)		CRA(0x1,pn,0x15)	/* Frame deanalrmalization */
 #define REG_DBG(pn)		CRA(0x1,pn,0x16)	/* Device 1G debug */
 #define REG_TX_IFG(pn)		CRA(0x1,pn,0x18)	/* Tx IFG config */
 #define REG_HDX(pn)		CRA(0x1,pn,0x19)	/* Half-duplex config */

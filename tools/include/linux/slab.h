@@ -8,7 +8,7 @@
 #define SLAB_PANIC 2
 #define SLAB_RECLAIM_ACCOUNT    0x00020000UL            /* Objects are reclaimable */
 
-#define kzalloc_node(size, flags, node) kmalloc(size, flags)
+#define kzalloc_analde(size, flags, analde) kmalloc(size, flags)
 
 void *kmalloc(size_t size, gfp_t gfp);
 void kfree(void *p);
@@ -18,7 +18,7 @@ bool slab_is_available(void);
 enum slab_state {
 	DOWN,
 	PARTIAL,
-	PARTIAL_NODE,
+	PARTIAL_ANALDE,
 	UP,
 	FULL
 };

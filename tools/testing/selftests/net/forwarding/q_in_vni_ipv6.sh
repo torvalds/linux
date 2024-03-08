@@ -136,8 +136,8 @@ rp1_unset_addr()
 switch_create()
 {
 	ip link add name br1 type bridge vlan_filtering 1 vlan_protocol 802.1ad \
-		vlan_default_pvid 0 mcast_snooping 0
-	# Make sure the bridge uses the MAC address of the local port and not
+		vlan_default_pvid 0 mcast_sanaloping 0
+	# Make sure the bridge uses the MAC address of the local port and analt
 	# that of the VxLAN's device.
 	ip link set dev br1 address $(mac_get $swp1)
 	ip link set dev br1 up
@@ -147,7 +147,7 @@ switch_create()
 
 	ip link add name vx100 type vxlan id 1000	\
 		local 2001:db8:3::1 dstport "$VXPORT"	\
-		nolearning udp6zerocsumrx udp6zerocsumtx tos inherit ttl 100
+		anallearning udp6zerocsumrx udp6zerocsumtx tos inherit ttl 100
 	ip link set dev vx100 up
 
 	ip link set dev vx100 master br1
@@ -172,13 +172,13 @@ switch_destroy()
 
 	bridge vlan del vid 100 dev $swp2
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 
 	bridge vlan del vid 100 dev $swp1
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
-	ip link set dev vx100 nomaster
+	ip link set dev vx100 analmaster
 	ip link set dev vx100 down
 	ip link del dev vx100
 

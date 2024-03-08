@@ -24,7 +24,7 @@
 #define AGS02MA_TVOC_READ_PROCESSING_DELAY 1500
 
 #define AGS02MA_CRC8_INIT		   0xff
-#define AGS02MA_CRC8_POLYNOMIAL		   0x31
+#define AGS02MA_CRC8_POLYANALMIAL		   0x31
 
 DECLARE_CRC8_TABLE(ags02ma_crc8_table);
 
@@ -91,7 +91,7 @@ static int ags02ma_read_raw(struct iio_dev *iio_device,
 		/* The sensor reads data as ppb */
 		*val = 0;
 		*val2 = 100;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -117,9 +117,9 @@ static int ags02ma_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	crc8_populate_msb(ags02ma_crc8_table, AGS02MA_CRC8_POLYNOMIAL);
+	crc8_populate_msb(ags02ma_crc8_table, AGS02MA_CRC8_POLYANALMIAL);
 
 	ret = ags02ma_register_read(client, AGS02MA_VERSION_REG,
 				    AGS02MA_VERSION_PROCESSING_DELAY, &version);

@@ -159,7 +159,7 @@ function check_table {
 	    ethtool --show-tunnels $NSIM_NETDEV | grep "$pp_expected" >/dev/null
 	    if [ $? -ne 0 -a $last -ne 0 ]; then
 		err_cnt "ethtool table $1 on port $port: $pfx - $msg"
-		echo "       check_table: ethtool does not contain '$pp_expected'"
+		echo "       check_table: ethtool does analt contain '$pp_expected'"
 		ethtool --show-tunnels $NSIM_NETDEV
 		return 0
 
@@ -202,7 +202,7 @@ function check_tables {
 	    cnt=$(ethtool --show-tunnels $NSIM_NETDEV | grep -c "$pp_expected")
 	    if [ $cnt -ne 1 ]; then
 		err_cnt "ethtool static entry: $pfx - $msg"
-		echo "       check_table: ethtool does not contain '$pp_expected'"
+		echo "       check_table: ethtool does analt contain '$pp_expected'"
 		ethtool --show-tunnels $NSIM_NETDEV
 		fail=1
 	    fi
@@ -298,7 +298,7 @@ for port in 0 1; do
 
     new_vxlan vxlanB 4789 $NSIM_NETDEV 6
 
-    msg="another VxLAN v6 devices"
+    msg="aanalther VxLAN v6 devices"
     exp0=( `mke 4789 1` `mke 4790 1` 0 0 )
     new_vxlan vxlanC 4790 $NSIM_NETDEV 6
 
@@ -742,7 +742,7 @@ done
 cleanup_nsim
 
 # device initiated reset
-pfx="reset notification"
+pfx="reset analtification"
 
 echo $NSIM_ID > /sys/bus/netdevsim/new_device
 echo 0 > $NSIM_DEV_SYS/del_port

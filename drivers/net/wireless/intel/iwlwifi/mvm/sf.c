@@ -7,14 +7,14 @@
 
 /* For counting bound interfaces */
 struct iwl_mvm_active_iface_iterator_data {
-	struct ieee80211_vif *ignore_vif;
+	struct ieee80211_vif *iganalre_vif;
 	struct ieee80211_sta *sta_vif_ap_sta;
 	enum iwl_sf_state sta_vif_state;
 	u32 num_active_macs;
 };
 
 /*
- * Count bound interfaces which are not p2p, besides data->ignore_vif.
+ * Count bound interfaces which are analt p2p, besides data->iganalre_vif.
  * data->station_vif will point to one bound vif of type station, if exists.
  */
 static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
@@ -23,7 +23,7 @@ static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_active_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif == data->ignore_vif || !mvmvif->deflink.phy_ctxt ||
+	if (vif == data->iganalre_vif || !mvmvif->deflink.phy_ctxt ||
 	    vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return;
 
@@ -194,7 +194,7 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	case SF_FULL_ON:
 		if (!sta) {
 			IWL_ERR(mvm,
-				"No station: Cannot switch SF to FULL_ON\n");
+				"Anal station: Cananalt switch SF to FULL_ON\n");
 			return -EINVAL;
 		}
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, sta);
@@ -203,7 +203,7 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, NULL);
 		break;
 	default:
-		WARN_ONCE(1, "Invalid state: %d. not sending Smart Fifo cmd\n",
+		WARN_ONCE(1, "Invalid state: %d. analt sending Smart Fifo cmd\n",
 			  new_state);
 		return -EINVAL;
 	}
@@ -218,7 +218,7 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 /*
  * Update Smart fifo:
- * Count bound interfaces that are not to be removed, ignoring p2p devices,
+ * Count bound interfaces that are analt to be removed, iganalring p2p devices,
  * and set new state accordingly.
  */
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
@@ -227,13 +227,13 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 	enum iwl_sf_state new_state;
 	struct iwl_mvm_vif *mvmvif = NULL;
 	struct iwl_mvm_active_iface_iterator_data data = {
-		.ignore_vif = changed_vif,
+		.iganalre_vif = changed_vif,
 		.sta_vif_state = SF_UNINIT,
 	};
 	struct ieee80211_sta *sta = NULL;
 
 	/*
-	 * Ignore the call if we are in HW Restart flow, or if the handled
+	 * Iganalre the call if we are in HW Restart flow, or if the handled
 	 * vif is a p2p device.
 	 */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) ||
@@ -241,17 +241,17 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 		return 0;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   iwl_mvm_bound_iface_iterator,
 						   &data);
 
-	/* If changed_vif exists and is not to be removed, add to the count */
+	/* If changed_vif exists and is analt to be removed, add to the count */
 	if (changed_vif && !remove_vif)
 		data.num_active_macs++;
 
 	switch (data.num_active_macs) {
 	case 0:
-		/* If there are no active macs - change state to SF_INIT_OFF */
+		/* If there are anal active macs - change state to SF_INIT_OFF */
 		new_state = SF_INIT_OFF;
 		break;
 	case 1:

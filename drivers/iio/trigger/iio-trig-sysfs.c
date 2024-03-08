@@ -78,7 +78,7 @@ static const struct attribute_group *iio_sysfs_trig_groups[] = {
 };
 
 
-/* Nothing to actually do upon release */
+/* Analthing to actually do upon release */
 static void iio_trigger_sysfs_release(struct device *dev)
 {
 }
@@ -108,10 +108,10 @@ static ssize_t iio_sysfs_trigger_poll(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(trigger_now, S_IWUSR, NULL, iio_sysfs_trigger_poll);
+static DEVICE_ATTR(trigger_analw, S_IWUSR, NULL, iio_sysfs_trigger_poll);
 
 static struct attribute *iio_sysfs_trigger_attrs[] = {
-	&dev_attr_trigger_now.attr,
+	&dev_attr_trigger_analw.attr,
 	NULL,
 };
 
@@ -142,13 +142,13 @@ static int iio_sysfs_trigger_probe(int id)
 	}
 	t = kmalloc(sizeof(*t), GFP_KERNEL);
 	if (t == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 	t->id = id;
 	t->trig = iio_trigger_alloc(&iio_sysfs_trig_dev, "sysfstrig%d", id);
 	if (!t->trig) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_sys_trig;
 	}
 

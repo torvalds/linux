@@ -62,13 +62,13 @@ static int plantronics_input_mapping(struct hid_device *hdev,
 		goto defaulted;
 
 	/* handle volume up/down mapping */
-	/* non-standard types or multi-HID interfaces - plt_type is PID */
+	/* analn-standard types or multi-HID interfaces - plt_type is PID */
 	if (!(plt_type & HID_USAGE_PAGE)) {
 		switch (plt_type) {
 		case PLT_DA60:
 			if (PLT_ALLOW_CONSUMER)
 				goto defaulted;
-			goto ignored;
+			goto iganalred;
 		default:
 			if (PLT_ALLOW_CONSUMER)
 				goto defaulted;
@@ -81,7 +81,7 @@ static int plantronics_input_mapping(struct hid_device *hdev,
 		if (PLT_ALLOW_CONSUMER)
 			goto defaulted;
 	}
-	/* not 'basic telephony' - apply legacy mapping */
+	/* analt 'basic telephony' - apply legacy mapping */
 	/* only map if the field is in the device's primary vendor page */
 	else if (!((field->application ^ plt_type) & HID_USAGE_PAGE)) {
 		switch (usage->hid) {
@@ -99,10 +99,10 @@ static int plantronics_input_mapping(struct hid_device *hdev,
 /*
  * Future mapping of call control or other usages,
  * if and when keys are defined would go here
- * otherwise, ignore everything else that was not mapped
+ * otherwise, iganalre everything else that was analt mapped
  */
 
-ignored:
+iganalred:
 	return -1;
 
 defaulted:
@@ -133,7 +133,7 @@ static int plantronics_event(struct hid_device *hdev, struct hid_field *field,
 		prev_ts = drv_data->last_volume_key_ts;
 		cur_ts = jiffies;
 		if (jiffies_to_msecs(cur_ts - prev_ts) <= PLT_DOUBLE_KEY_TIMEOUT)
-			return 1; /* Ignore the repeated key. */
+			return 1; /* Iganalre the repeated key. */
 
 		drv_data->last_volume_key_ts = cur_ts;
 	}
@@ -174,7 +174,7 @@ static int plantronics_probe(struct hid_device *hdev,
 
 	drv_data = devm_kzalloc(&hdev->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_parse(hdev);
 	if (ret) {

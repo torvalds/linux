@@ -137,7 +137,7 @@ static bool __kprobes __check_al(unsigned long pstate)
 }
 
 /*
- * Note that the ARMv8 ARM calls condition code 0b1111 "nv", but states that
+ * Analte that the ARMv8 ARM calls condition code 0b1111 "nv", but states that
  * it behaves identically to 0b1110 ("al").
  */
 pstate_check_t * const aarch32_opcode_cond_checks[16] = {
@@ -191,8 +191,8 @@ static int __die(const char *str, long err, struct pt_regs *regs)
 		 str, err, ++die_counter);
 
 	/* trap and error numbers are mostly meaningless on ARM */
-	ret = notify_die(DIE_OOPS, str, regs, err, 0, SIGSEGV);
-	if (ret == NOTIFY_STOP)
+	ret = analtify_die(DIE_OOPS, str, regs, err, 0, SIGSEGV);
+	if (ret == ANALTIFY_STOP)
 		return ret;
 
 	print_modules();
@@ -225,7 +225,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 		crash_kexec(regs);
 
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	oops_exit();
 
 	if (in_interrupt())
@@ -235,11 +235,11 @@ void die(const char *str, struct pt_regs *regs, long err)
 
 	raw_spin_unlock_irqrestore(&die_lock, flags);
 
-	if (ret != NOTIFY_STOP)
+	if (ret != ANALTIFY_STOP)
 		make_task_dead(SIGSEGV);
 }
 
-static void arm64_show_signal(int signo, const char *str)
+static void arm64_show_signal(int siganal, const char *str)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
@@ -249,7 +249,7 @@ static void arm64_show_signal(int signo, const char *str)
 
 	/* Leave if the signal won't be shown */
 	if (!show_unhandled_signals ||
-	    !unhandled_signal(tsk, signo) ||
+	    !unhandled_signal(tsk, siganal) ||
 	    !__ratelimit(&rs))
 		return;
 
@@ -263,14 +263,14 @@ static void arm64_show_signal(int signo, const char *str)
 	__show_regs(regs);
 }
 
-void arm64_force_sig_fault(int signo, int code, unsigned long far,
+void arm64_force_sig_fault(int siganal, int code, unsigned long far,
 			   const char *str)
 {
-	arm64_show_signal(signo, str);
-	if (signo == SIGKILL)
+	arm64_show_signal(siganal, str);
+	if (siganal == SIGKILL)
 		force_sig(SIGKILL);
 	else
-		force_sig_fault(signo, code, (void __user *)far);
+		force_sig_fault(siganal, code, (void __user *)far);
 }
 
 void arm64_force_sig_mceerr(int code, unsigned long far, short lsb,
@@ -280,15 +280,15 @@ void arm64_force_sig_mceerr(int code, unsigned long far, short lsb,
 	force_sig_mceerr(code, (void __user *)far, lsb);
 }
 
-void arm64_force_sig_ptrace_errno_trap(int errno, unsigned long far,
+void arm64_force_sig_ptrace_erranal_trap(int erranal, unsigned long far,
 				       const char *str)
 {
 	arm64_show_signal(SIGTRAP, str);
-	force_sig_ptrace_errno_trap(errno, (void __user *)far);
+	force_sig_ptrace_erranal_trap(erranal, (void __user *)far);
 }
 
-void arm64_notify_die(const char *str, struct pt_regs *regs,
-		      int signo, int sicode, unsigned long far,
+void arm64_analtify_die(const char *str, struct pt_regs *regs,
+		      int siganal, int sicode, unsigned long far,
 		      unsigned long err)
 {
 	if (user_mode(regs)) {
@@ -296,7 +296,7 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
 		current->thread.fault_address = 0;
 		current->thread.fault_code = err;
 
-		arm64_force_sig_fault(signo, sicode, far, str);
+		arm64_force_sig_fault(siganal, sicode, far, str);
 	} else {
 		die(str, regs, err);
 	}
@@ -421,7 +421,7 @@ void force_signal_inject(int signal, int code, unsigned long address, unsigned l
 		desc = "illegal memory access";
 		break;
 	default:
-		desc = "unknown or unrecoverable error";
+		desc = "unkanalwn or unrecoverable error";
 		break;
 	}
 
@@ -431,13 +431,13 @@ void force_signal_inject(int signal, int code, unsigned long address, unsigned l
 		signal = SIGKILL;
 	}
 
-	arm64_notify_die(desc, regs, signal, code, address, err);
+	arm64_analtify_die(desc, regs, signal, code, address, err);
 }
 
 /*
  * Set up process info to signal segmentation fault - called on access error.
  */
-void arm64_notify_segfault(unsigned long addr)
+void arm64_analtify_segfault(unsigned long addr)
 {
 	int code;
 
@@ -575,7 +575,7 @@ static void user_cache_maint_handler(unsigned long esr, struct pt_regs *regs)
 	}
 
 	if (ret)
-		arm64_notify_segfault(tagged_address);
+		arm64_analtify_segfault(tagged_address);
 	else
 		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 }
@@ -751,7 +751,7 @@ void do_el0_cp15(unsigned long esr, struct pt_regs *regs)
 
 	if (!cp15_cond_valid(esr, regs)) {
 		/*
-		 * There is no T16 variant of a CP access, so we
+		 * There is anal T16 variant of a CP access, so we
 		 * always advance PC by 4 bytes.
 		 */
 		arm64_skip_faulting_instruction(regs, 4);
@@ -805,7 +805,7 @@ void do_el0_sys(unsigned long esr, struct pt_regs *regs)
 
 static const char *esr_class_str[] = {
 	[0 ... ESR_ELx_EC_MAX]		= "UNRECOGNIZED EC",
-	[ESR_ELx_EC_UNKNOWN]		= "Unknown/Uncategorized",
+	[ESR_ELx_EC_UNKANALWN]		= "Unkanalwn/Uncategorized",
 	[ESR_ELx_EC_WFx]		= "WFI/WFE",
 	[ESR_ELx_EC_CP15_32]		= "CP15 MCR/MRC",
 	[ESR_ELx_EC_CP15_64]		= "CP15 MCRR/MRRC",
@@ -856,7 +856,7 @@ const char *esr_get_class_string(unsigned long esr)
 }
 
 /*
- * bad_el0_sync handles unexpected, but potentially recoverable synchronous
+ * bad_el0_sync handles unexpected, but potentially recoverable synchroanalus
  * exceptions taken from EL0.
  */
 void bad_el0_sync(struct pt_regs *regs, int reason, unsigned long esr)
@@ -867,7 +867,7 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned long esr)
 	current->thread.fault_code = esr;
 
 	arm64_force_sig_fault(SIGILL, ILL_ILLOPC, pc,
-			      "Bad EL0 synchronous exception");
+			      "Bad EL0 synchroanalus exception");
 }
 
 #ifdef CONFIG_VMAP_STACK
@@ -875,7 +875,7 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned long esr)
 DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack)
 	__aligned(16);
 
-void __noreturn panic_bad_stack(struct pt_regs *regs, unsigned long esr, unsigned long far)
+void __analreturn panic_bad_stack(struct pt_regs *regs, unsigned long esr, unsigned long far)
 {
 	unsigned long tsk_stk = (unsigned long)current->stack;
 	unsigned long irq_stk = (unsigned long)this_cpu_read(irq_stack_ptr);
@@ -905,7 +905,7 @@ void __noreturn panic_bad_stack(struct pt_regs *regs, unsigned long esr, unsigne
 }
 #endif
 
-void __noreturn arm64_serror_panic(struct pt_regs *regs, unsigned long esr)
+void __analreturn arm64_serror_panic(struct pt_regs *regs, unsigned long esr)
 {
 	console_verbose();
 
@@ -914,7 +914,7 @@ void __noreturn arm64_serror_panic(struct pt_regs *regs, unsigned long esr)
 	if (regs)
 		__show_regs(regs);
 
-	nmi_panic(regs, "Asynchronous SError Interrupt");
+	nmi_panic(regs, "Asynchroanalus SError Interrupt");
 
 	cpu_park_loop();
 }
@@ -925,7 +925,7 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned long esr)
 
 	switch (aet) {
 	case ESR_ELx_AET_CE:	/* corrected error */
-	case ESR_ELx_AET_UEO:	/* restartable, not yet consumed */
+	case ESR_ELx_AET_UEO:	/* restartable, analt yet consumed */
 		/*
 		 * The CPU can make progress. We may take UEO again as
 		 * a more severe error.
@@ -938,7 +938,7 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned long esr)
 		 * The CPU can't make progress. The exception may have
 		 * been imprecise.
 		 *
-		 * Neoverse-N1 #1349291 means a non-KVM SError reported as
+		 * Neoverse-N1 #1349291 means a analn-KVM SError reported as
 		 * Unrecoverable should be treated as Uncontainable. We
 		 * call arm64_serror_panic() in both cases.
 		 */
@@ -953,7 +953,7 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned long esr)
 
 void do_serror(struct pt_regs *regs, unsigned long esr)
 {
-	/* non-RAS errors are not containable */
+	/* analn-RAS errors are analt containable */
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(regs, esr))
 		arm64_serror_panic(regs, esr);
 }
@@ -964,7 +964,7 @@ int is_valid_bugaddr(unsigned long addr)
 {
 	/*
 	 * bug_handler() only called for BRK #BUG_BRK_IMM.
-	 * So the answer is trivial -- any spurious instances with no
+	 * So the answer is trivial -- any spurious instances with anal
 	 * bug table entry will be rejected by report_bug() and passed
 	 * back to the debug-monitors code and handled as a fatal
 	 * unexpected debug exception.
@@ -984,7 +984,7 @@ static int bug_handler(struct pt_regs *regs, unsigned long esr)
 		break;
 
 	default:
-		/* unknown/unrecognised bug trap type */
+		/* unkanalwn/unrecognised bug trap type */
 		return DBG_HOOK_ERROR;
 	}
 
@@ -1036,7 +1036,7 @@ static int reserved_fault_handler(struct pt_regs *regs, unsigned long esr)
 		"Kernel text patching",
 		(void *)instruction_pointer(regs));
 
-	/* We cannot handle this */
+	/* We cananalt handle this */
 	return DBG_HOOK_ERROR;
 }
 
@@ -1069,10 +1069,10 @@ static int kasan_handler(struct pt_regs *regs, unsigned long esr)
 	 * code.
 	 *
 	 * Unfortunately disabling recovery doesn't work for the kernel right
-	 * now. KASAN reporting is disabled in some contexts (for example when
+	 * analw. KASAN reporting is disabled in some contexts (for example when
 	 * the allocator accesses slab object metadata; this is controlled by
 	 * current->kasan_depth). All these accesses are detected by the tool,
-	 * even though the reports for them are not printed.
+	 * even though the reports for them are analt printed.
 	 *
 	 * This is something that might be fixed at some point in the future.
 	 */

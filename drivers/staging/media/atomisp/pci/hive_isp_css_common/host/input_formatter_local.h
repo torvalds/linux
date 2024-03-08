@@ -56,8 +56,8 @@ typedef struct input_formatter_bin_state_s		input_formatter_bin_state_t;
  *
  * The encoding is redundant. The FSYNCH setting will connect
  * a channel to a sink. At that point the LUT's belonging to
- * that channel can be directed to another sink. Thus the data
- * goes to another place than the synch
+ * that channel can be directed to aanalther sink. Thus the data
+ * goes to aanalther place than the synch
  */
 struct input_formatter_switch_state_s {
 	int	if_input_switch_lut_reg[8];
@@ -85,7 +85,7 @@ struct input_formatter_state_s {
 	int	vsync_active_low;
 	int	hsync_active_low;
 	int	allow_fifo_overflow;
-	int block_fifo_when_no_req;
+	int block_fifo_when_anal_req;
 	int	fsm_sync_status;
 	int	fsm_sync_counter;
 	int	fsm_crop_status;

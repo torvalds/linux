@@ -33,7 +33,7 @@ static int imx_audio_rpmsg_cb(struct rpmsg_device *rpdev, void *data, int len,
 
 	switch (r_msg->header.type) {
 	case MSG_TYPE_C:
-		/* TYPE C is notification from M core */
+		/* TYPE C is analtification from M core */
 		switch (r_msg->header.cmd) {
 		case TX_PERIOD_DONE:
 			spin_lock_irqsave(&info->lock[TX], flags);
@@ -54,7 +54,7 @@ static int imx_audio_rpmsg_cb(struct rpmsg_device *rpdev, void *data, int len,
 			info->callback[RX](info->callback_param[RX]);
 			break;
 		default:
-			dev_warn(&rpdev->dev, "unknown msg command\n");
+			dev_warn(&rpdev->dev, "unkanalwn msg command\n");
 			break;
 		}
 		break;
@@ -64,7 +64,7 @@ static int imx_audio_rpmsg_cb(struct rpmsg_device *rpdev, void *data, int len,
 		complete(&info->cmd_complete);
 		break;
 	default:
-		dev_warn(&rpdev->dev, "unknown msg type\n");
+		dev_warn(&rpdev->dev, "unkanalwn msg type\n");
 		break;
 	}
 
@@ -81,7 +81,7 @@ static int imx_audio_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	data = devm_kzalloc(&rpdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&rpdev->dev, data);
 

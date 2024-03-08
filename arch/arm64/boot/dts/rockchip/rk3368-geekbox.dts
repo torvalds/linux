@@ -83,7 +83,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	clock-frequency = <150000000>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&vcc_io>;
 	vqmmc-supply = <&vcc18_flash>;
 	pinctrl-names = "default";
@@ -238,19 +238,19 @@
 &pinctrl {
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	keys {
 		pwr_key: pwr-key {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pmic {
 		pmic_sleep: pmic-sleep {
-			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_analne>;
 		};
 
 		pmic_int: pmic-int {

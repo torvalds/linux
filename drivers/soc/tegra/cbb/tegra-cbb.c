@@ -43,7 +43,7 @@ void tegra_cbb_print_cache(struct seq_file *file, u32 cache)
 	wr_str = (cache & BIT(3)) ? "Write-Allocate" : "";
 
 	if (cache == 0x0)
-		buff_str = "Device Non-Bufferable";
+		buff_str = "Device Analn-Bufferable";
 
 	tegra_cbb_print_err(file, "\t  Cache\t\t\t: 0x%x -- %s%s%s%s\n",
 			    cache, buff_str, mod_str, rd_str, wr_str);
@@ -54,7 +54,7 @@ void tegra_cbb_print_prot(struct seq_file *file, u32 prot)
 	const char *data_str, *secure_str, *priv_str;
 
 	data_str = (prot & 0x4) ? "Instruction" : "Data";
-	secure_str = (prot & 0x2) ? "Non-Secure" : "Secure";
+	secure_str = (prot & 0x2) ? "Analn-Secure" : "Secure";
 	priv_str = (prot & 0x1) ? "Privileged" : "Unprivileged";
 
 	tegra_cbb_print_err(file, "\t  Protection\t\t: 0x%x -- %s, %s, %s Access\n",
@@ -76,7 +76,7 @@ static int tegra_cbb_err_debugfs_init(struct tegra_cbb *cbb)
 	if (!root) {
 		root = debugfs_create_file("tegra_cbb_err", 0444, NULL, cbb, &tegra_cbb_err_fops);
 		if (IS_ERR_OR_NULL(root)) {
-			pr_err("%s(): could not create debugfs node\n", __func__);
+			pr_err("%s(): could analt create debugfs analde\n", __func__);
 			return PTR_ERR(root);
 		}
 	}
@@ -110,7 +110,7 @@ u32 tegra_cbb_get_status(struct tegra_cbb *cbb)
 	return 0;
 }
 
-int tegra_cbb_get_irq(struct platform_device *pdev, unsigned int *nonsec_irq,
+int tegra_cbb_get_irq(struct platform_device *pdev, unsigned int *analnsec_irq,
 		      unsigned int *sec_irq)
 {
 	unsigned int index = 0;
@@ -123,15 +123,15 @@ int tegra_cbb_get_irq(struct platform_device *pdev, unsigned int *nonsec_irq,
 	if (num_intr == 2) {
 		irq = platform_get_irq(pdev, index);
 		if (irq <= 0)
-			return -ENOENT;
+			return -EANALENT;
 
-		*nonsec_irq = irq;
+		*analnsec_irq = irq;
 		index++;
 	}
 
 	irq = platform_get_irq(pdev, index);
 	if (irq <= 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	*sec_irq = irq;
 
@@ -139,7 +139,7 @@ int tegra_cbb_get_irq(struct platform_device *pdev, unsigned int *nonsec_irq,
 		dev_dbg(&pdev->dev, "secure IRQ: %u\n", *sec_irq);
 
 	if (num_intr == 2)
-		dev_dbg(&pdev->dev, "secure IRQ: %u, non-secure IRQ: %u\n", *sec_irq, *nonsec_irq);
+		dev_dbg(&pdev->dev, "secure IRQ: %u, analn-secure IRQ: %u\n", *sec_irq, *analnsec_irq);
 
 	return 0;
 }

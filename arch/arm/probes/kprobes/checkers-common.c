@@ -10,20 +10,20 @@
 #include "../decode-arm.h"
 #include "checkers.h"
 
-enum probes_insn checker_stack_use_none(probes_opcode_t insn,
+enum probes_insn checker_stack_use_analne(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
 	asi->stack_space = 0;
-	return INSN_GOOD_NO_SLOT;
+	return INSN_GOOD_ANAL_SLOT;
 }
 
-enum probes_insn checker_stack_use_unknown(probes_opcode_t insn,
+enum probes_insn checker_stack_use_unkanalwn(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
 	asi->stack_space = -1;
-	return INSN_GOOD_NO_SLOT;
+	return INSN_GOOD_ANAL_SLOT;
 }
 
 #ifdef CONFIG_THUMB2_KERNEL
@@ -33,7 +33,7 @@ enum probes_insn checker_stack_use_imm_0xx(probes_opcode_t insn,
 {
 	int imm = insn & 0xff;
 	asi->stack_space = imm;
-	return INSN_GOOD_NO_SLOT;
+	return INSN_GOOD_ANAL_SLOT;
 }
 
 /*
@@ -46,7 +46,7 @@ static enum probes_insn checker_stack_use_t32strd(probes_opcode_t insn,
 {
 	int imm = insn & 0xff;
 	asi->stack_space = imm << 2;
-	return INSN_GOOD_NO_SLOT;
+	return INSN_GOOD_ANAL_SLOT;
 }
 #else
 enum probes_insn checker_stack_use_imm_x0x(probes_opcode_t insn,
@@ -55,7 +55,7 @@ enum probes_insn checker_stack_use_imm_x0x(probes_opcode_t insn,
 {
 	int imm = ((insn & 0xf00) >> 4) + (insn & 0xf);
 	asi->stack_space = imm;
-	return INSN_GOOD_NO_SLOT;
+	return INSN_GOOD_ANAL_SLOT;
 }
 #endif
 
@@ -65,7 +65,7 @@ enum probes_insn checker_stack_use_imm_xxx(probes_opcode_t insn,
 {
 	int imm = insn & 0xfff;
 	asi->stack_space = imm;
-	return INSN_GOOD_NO_SLOT;
+	return INSN_GOOD_ANAL_SLOT;
 }
 
 enum probes_insn checker_stack_use_stmdx(probes_opcode_t insn,
@@ -76,12 +76,12 @@ enum probes_insn checker_stack_use_stmdx(probes_opcode_t insn,
 	int pbit = insn & (1 << 24);
 	asi->stack_space = (hweight32(reglist) - (!pbit ? 1 : 0)) * 4;
 
-	return INSN_GOOD_NO_SLOT;
+	return INSN_GOOD_ANAL_SLOT;
 }
 
 const union decode_action stack_check_actions[] = {
-	[STACK_USE_NONE] = {.decoder = checker_stack_use_none},
-	[STACK_USE_UNKNOWN] = {.decoder = checker_stack_use_unknown},
+	[STACK_USE_ANALNE] = {.decoder = checker_stack_use_analne},
+	[STACK_USE_UNKANALWN] = {.decoder = checker_stack_use_unkanalwn},
 #ifdef CONFIG_THUMB2_KERNEL
 	[STACK_USE_FIXED_0XX] = {.decoder = checker_stack_use_imm_0xx},
 	[STACK_USE_T32STRD] = {.decoder = checker_stack_use_t32strd},

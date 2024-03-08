@@ -13,7 +13,7 @@
 
 /*
  * This is needed because a variable is used to index the mask at
- * pm_scnprint_table(), making it not compile time constant, so the compile
+ * pm_scnprint_table(), making it analt compile time constant, so the compile
  * asserts from FIELD_GET() or u32_get_bits() won't be fulfilled.
  */
 #define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
@@ -88,7 +88,7 @@ static struct pm_status_row pm_log_rows[] = {
 	PM_INFO_REGSET_ENTRY32(event_counters.sys_pm, SYS_PM_EVENT_COUNT),
 	PM_INFO_REGSET_ENTRY32(event_counters.local_ssm, SSM_EVENT_COUNT),
 	PM_INFO_REGSET_ENTRY32(event_counters.timer, TIMER_EVENT_COUNT),
-	PM_INFO_REGSET_ENTRY32(event_counters.unknown, UNKNOWN_EVENT_COUNT),
+	PM_INFO_REGSET_ENTRY32(event_counters.unkanalwn, UNKANALWN_EVENT_COUNT),
 };
 
 static struct pm_status_row pm_event_rows[ICP_QAT_NUMBER_OF_PM_EVENTS] = {
@@ -165,11 +165,11 @@ static ssize_t adf_gen4_print_pm_status(struct adf_accel_dev *accel_dev,
 
 	pm_info = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pm_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_kv = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pm_kv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 

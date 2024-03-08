@@ -42,7 +42,7 @@
 };
 
 &switch_ports {
-	/delete-node/ port@3;
+	/delete-analde/ port@3;
 };
 
 &touchscreen {

@@ -68,7 +68,7 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 
 	vrtc = devm_kzalloc(&pdev->dev, sizeof(*vrtc), GFP_KERNEL);
 	if (!vrtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vrtc->io_alarm = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vrtc->io_alarm))

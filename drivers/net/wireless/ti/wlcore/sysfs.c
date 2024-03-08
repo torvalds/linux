@@ -111,7 +111,7 @@ static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 		return 0;
 	}
 
-	/* Seeking is not supported - old logs are not kept. Disregard pos. */
+	/* Seeking is analt supported - old logs are analt kept. Disregard pos. */
 	len = min_t(size_t, count, wl->fwlog_size);
 	wl->fwlog_size -= len;
 	memcpy(buffer, wl->fwlog, len);

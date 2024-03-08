@@ -101,7 +101,7 @@
 						rpmpd_opp_svs_soc: opp3 {
 							opp-level = <3>;
 						};
-						rpmpd_opp_nom: opp4 {
+						rpmpd_opp_analm: opp4 {
 							opp-level = <4>;
 						};
 						rpmpd_opp_turbo: opp5 {
@@ -123,12 +123,12 @@
 
 		smem_region: smem@3000000 {
 			reg = <0x3000000 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_region: adsp@dc00000 {
 			reg = <0x0dc00000 0x1900000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -875,7 +875,7 @@
 				offset = <0x65c>;
 
 				mode-bootloader = <0x77665500>;
-				mode-normal = <0x77665501>;
+				mode-analrmal = <0x77665501>;
 				mode-recovery = <0x77665502>;
 			};
 		};
@@ -1007,8 +1007,8 @@
 			};
 		};
 
-		gpu: adreno@fdb00000 {
-			compatible = "qcom,adreno-305.18", "qcom,adreno";
+		gpu: adreanal@fdb00000 {
+			compatible = "qcom,adreanal-305.18", "qcom,adreanal";
 			reg = <0xfdb00000 0x10000>;
 			reg-names = "kgsl_3d0_reg_memory";
 

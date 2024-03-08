@@ -22,13 +22,13 @@
  * Devices: [ADDI-DATA] APCI-1032 (addi_apci_1032)
  *
  * Configuration options:
- *   None; devices are configured automatically.
+ *   Analne; devices are configured automatically.
  *
  * This driver models the APCI-1032 as a 32-channel, digital input subdevice
  * plus an additional digital input subdevice to handle change-of-state (COS)
  * interrupts (if an interrupt handler can be set up successfully).
  *
- * The COS subdevice supports comedi asynchronous read commands.
+ * The COS subdevice supports comedi asynchroanalus read commands.
  *
  * Change-Of-State (COS) interrupt configuration:
  *
@@ -48,12 +48,12 @@
  *     inputs to release the IRQ logic
  *
  * The COS subdevice must be configured before setting up a comedi
- * asynchronous command:
+ * asynchroanalus command:
  *
  *   data[0] : INSN_CONFIG_DIGITAL_TRIG
  *   data[1] : trigger number (= 0)
  *   data[2] : configuration operation:
- *             - COMEDI_DIGITAL_TRIG_DISABLE = no interrupts
+ *             - COMEDI_DIGITAL_TRIG_DISABLE = anal interrupts
  *             - COMEDI_DIGITAL_TRIG_ENABLE_EDGES = OR (edge) interrupts
  *             - COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = AND (level) interrupts
  *   data[3] : left-shift for data[4] and data[5]
@@ -194,11 +194,11 @@ static int apci1032_cos_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -265,7 +265,7 @@ static irqreturn_t apci1032_interrupt(int irq, void *d)
 	/* check interrupt is from this device */
 	if ((inl(devpriv->amcc_iobase + AMCC_OP_REG_INTCSR) &
 	     INTCSR_INTR_ASSERTED) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* check interrupt is enabled */
 	ctrl = inl(dev->iobase + APCI1032_CTRL_REG);
@@ -306,7 +306,7 @@ static int apci1032_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

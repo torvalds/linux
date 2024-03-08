@@ -12,7 +12,7 @@
 #include "sc7280-herobrine-lte-sku.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. sc7280 CRD platform (rev5+)";
+	model = "Qualcomm Techanallogies, Inc. sc7280 CRD platform (rev5+)";
 	compatible = "google,zoglin", "google,hoglin", "qcom,sc7280";
 
 	/* FIXED REGULATORS */
@@ -37,7 +37,7 @@
 	};
 };
 
-/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+/* ADDITIONS TO ANALDES DEFINED IN PARENT DEVICE TREE FILES */
 
 &apps_rsc {
 	regulators-2 {
@@ -136,7 +136,7 @@ ap_ts_pen_1v8: &i2c13 {
 	status = "okay";
 };
 
-/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
+/* PINCTRL - ADDITIONS TO ANALDES IN PARENT DEVICE TREE FILES */
 
 /*
  * This pin goes to the display panel but then doesn't actually do anything
@@ -152,9 +152,9 @@ ap_ts_pen_1v8: &i2c13 {
 /*
  * Methodology for gpio-line-names:
  * - If a pin goes to CRD board and is named it gets that name.
- * - If a pin goes to CRD board and is not named, it gets no name.
+ * - If a pin goes to CRD board and is analt named, it gets anal name.
  * - If a pin is totally internal to Qcard then it gets Qcard name.
- * - If a pin is not hooked up on Qcard, it gets no name.
+ * - If a pin is analt hooked up on Qcard, it gets anal name.
  */
 
 &pm8350c_gpios {
@@ -170,7 +170,7 @@ ap_ts_pen_1v8: &i2c13 {
 
 	edp_bl_reg_en: edp-bl-reg-en-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		bias-disable;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 	};

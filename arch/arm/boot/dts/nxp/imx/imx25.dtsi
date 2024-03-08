@@ -10,7 +10,7 @@
 	#size-cells = <1>;
 	/*
 	 * The decompressor and also some bootloaders rely on a
-	 * pre-existing /chosen node to be available to insert the
+	 * pre-existing /chosen analde to be available to insert the
 	 * command line and merge other ATAGS info.
 	 */
 	chosen {};
@@ -69,12 +69,12 @@
 	};
 
 	usbphy0: usb-phy0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 
 	usbphy1: usb-phy1 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 

@@ -28,10 +28,10 @@ CR22				Interrupt PSW
 CR23 (EIRR)			read for pending interrupts/write clears bits
 CR24 (TR 0)			Kernel Space Page Directory Pointer
 CR25 (TR 1)			User   Space Page Directory Pointer
-CR26 (TR 2)			not used
+CR26 (TR 2)			analt used
 CR27 (TR 3)			Thread descriptor pointer
-CR28 (TR 4)			not used
-CR29 (TR 5)			not used
+CR28 (TR 4)			analt used
+CR29 (TR 5)			analt used
 CR30 (TR 6)			current / 0
 CR31 (TR 7)			Temporary register, used in various places
 ===============================	===============================================
@@ -43,7 +43,7 @@ Space Registers (kernel mode)
 SR0				temporary space register
 SR4-SR7 			set to 0
 SR1				temporary space register
-SR2				kernel should not clobber this
+SR2				kernel should analt clobber this
 SR3				used for userspace accesses (current process)
 ===============================	===============================================
 
@@ -105,14 +105,14 @@ Shadow registers are the GRs 1, 8, 9, 16, 17, 24, and 25.
 
 -------------------------------------------------------------------------
 
-Register usage notes, originally from John Marvin, with some additional
-notes from Randolph Chung.
+Register usage analtes, originally from John Marvin, with some additional
+analtes from Randolph Chung.
 
 For the general registers:
 
 r1,r2,r19-r26,r28,r29 & r31 can be used without saving them first. And of
 course, you need to save them if you care about them, before calling
-another procedure. Some of the above registers do have special meanings
+aanalther procedure. Some of the above registers do have special meanings
 that you should be aware of:
 
     r1:
@@ -124,13 +124,13 @@ that you should be aware of:
 	use this, since you need the pointer to get back to your
 	caller. However, it is grouped with this set of registers
 	since the caller can't rely on the value being the same
-	when you return, i.e. you can copy r2 to another register
+	when you return, i.e. you can copy r2 to aanalther register
 	and return through that register after trashing r2, and
-	that should not cause a problem for the calling routine.
+	that should analt cause a problem for the calling routine.
 
     r19-r22:
 	these are generally regarded as temporary registers.
-	Note that in 64 bit they are arg7-arg4.
+	Analte that in 64 bit they are arg7-arg4.
 
     r23-r26:
 	these are arg3-arg0, i.e. you can use them if you

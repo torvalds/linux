@@ -47,7 +47,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void unix_sysctl_unregister(struct net *net)

@@ -60,14 +60,14 @@ struct nf_exp_event {
 	int report;
 };
 
-struct nf_ct_event_notifier {
+struct nf_ct_event_analtifier {
 	int (*ct_event)(unsigned int events, const struct nf_ct_event *item);
 	int (*exp_event)(unsigned int events, const struct nf_exp_event *item);
 };
 
-void nf_conntrack_register_notifier(struct net *net,
-				   const struct nf_ct_event_notifier *nb);
-void nf_conntrack_unregister_notifier(struct net *net);
+void nf_conntrack_register_analtifier(struct net *net,
+				   const struct nf_ct_event_analtifier *nb);
+void nf_conntrack_unregister_analtifier(struct net *net);
 
 void nf_ct_deliver_cached_events(struct nf_conn *ct);
 int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,

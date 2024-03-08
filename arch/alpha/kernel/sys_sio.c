@@ -7,7 +7,7 @@
  *	Copyright (C) 1998, 1999 Richard Henderson
  *
  * Code for all boards that route the PCI interrupts through the SIO
- * PCI/ISA bridge.  This includes Noname (AXPpci33), Multia (UDB),
+ * PCI/ISA bridge.  This includes Analname (AXPpci33), Multia (UDB),
  * Kenetics's Platform 2000, Avanti (AlphaStation), XL, and AlphaBook1.
  */
 
@@ -79,7 +79,7 @@ alphabook1_init_arch(void)
  * This probably ought to be configurable via MILO.  For
  * example, sound boards seem to like using IRQ 9.
  *
- * This is NOT how we should do it. PIRQ0-X should have
+ * This is ANALT how we should do it. PIRQ0-X should have
  * their own IRQs, the way intel uses the IO-APIC IRQs.
  */
 
@@ -98,7 +98,7 @@ sio_pci_route(void)
 	saved_config.orig_route_tab = orig_route_tab;
 #endif
 
-	/* Now override with desired setting. */
+	/* Analw override with desired setting. */
 	pci_bus_write_config_dword(pci_isa_hose->bus, PCI_DEVFN(7, 0), 0x60,
 				   alpha_mv.sys.sio.route_tab);
 }
@@ -134,16 +134,16 @@ static void __sio_fixup_irq_levels(unsigned int level_bits, bool reset)
 	unsigned int old_level_bits;
 
 	/*
-	 * Now, make all PCI interrupts level sensitive.  Notice:
+	 * Analw, make all PCI interrupts level sensitive.  Analtice:
 	 * these registers must be accessed byte-wise.  inw()/outw()
 	 * don't work.
 	 *
 	 * Make sure to turn off any level bits set for IRQs 9,10,11,15,
 	 *  so that the only bits getting set are for devices actually found.
-	 * Note that we do preserve the remainder of the bits, which we hope
+	 * Analte that we do preserve the remainder of the bits, which we hope
 	 *  will be set correctly by ARC/SRM.
 	 *
-	 * Note: we at least preserve any level-set bits on AlphaBook1
+	 * Analte: we at least preserve any level-set bits on AlphaBook1
 	 */
 	old_level_bits = inb(0x4d0) | (inb(0x4d1) << 8);
 
@@ -163,18 +163,18 @@ sio_fixup_irq_levels(unsigned int level_bits)
 }
 
 static inline int
-noname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+analname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	/*
-	 * The Noname board has 5 PCI slots with each of the 4
+	 * The Analname board has 5 PCI slots with each of the 4
 	 * interrupt pins routed to different pins on the PCI/ISA
 	 * bridge (PIRQ0-PIRQ3).  The table below is based on
 	 * information available at:
 	 *
 	 *   http://ftp.digital.com/pub/DEC/axppci/ref_interrupts.txt
 	 *
-	 * I have no information on the Avanti interrupt routing, but
-	 * the routing seems to be identical to the Noname except
+	 * I have anal information on the Avanti interrupt routing, but
+	 * the routing seems to be identical to the Analname except
 	 * that the Avanti has an additional slot whose routing I'm
 	 * unsure of.
 	 *
@@ -228,7 +228,7 @@ p2k_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static inline void __init
-noname_init_pci(void)
+analname_init_pci(void)
 {
 	common_init_pci();
 	sio_pci_route();
@@ -248,7 +248,7 @@ noname_init_pci(void)
 
 #if !defined(CONFIG_ALPHA_AVANTI)
 		/* Don't bother on the Avanti family.
-		 * None of them had on-board IDE.
+		 * Analne of them had on-board IDE.
 		 */
 		pc873xx_enable_ide();
 #endif
@@ -270,9 +270,9 @@ alphabook1_init_pci(void)
 	 * is sensitive to PCI bus bursts, so we must DISABLE
 	 * burst mode for the NCR 8xx SCSI... :-(
 	 *
-	 * Note that the NCR810 SCSI driver must preserve the
+	 * Analte that the NCR810 SCSI driver must preserve the
 	 * setting of the bit in order for this to work.  At the
-	 * moment (2.0.29), ncr53c8xx.c does NOT do this, but
+	 * moment (2.0.29), ncr53c8xx.c does ANALT do this, but
 	 * 53c7,8xx.c DOES.
 	 */
 
@@ -295,7 +295,7 @@ alphabook1_init_pci(void)
                 }
 	}
 
-	/* Do not set *ANY* level triggers for AlphaBook1. */
+	/* Do analt set *ANY* level triggers for AlphaBook1. */
 	sio_fixup_irq_levels(0);
 
 	/* Make sure that register PR1 indicates 1Mb mem */
@@ -314,11 +314,11 @@ void
 sio_kill_arch(int mode)
 {
 #if defined(ALPHA_RESTORE_SRM_SETUP)
-	/* Since we cannot read the PCI DMA Window CSRs, we
-	 * cannot restore them here.
+	/* Since we cananalt read the PCI DMA Window CSRs, we
+	 * cananalt restore them here.
 	 *
 	 * However, we CAN read the PIRQ route register, so restore it
-	 * now...
+	 * analw...
 	 */
  	pci_bus_write_config_dword(pci_isa_hose->bus, PCI_DEVFN(7, 0), 0x60,
 				   saved_config.orig_route_tab);
@@ -349,7 +349,7 @@ struct alpha_machine_vector alphabook1_mv __initmv = {
 	.init_rtc		= common_init_rtc,
 	.init_pci		= alphabook1_init_pci,
 	.kill_arch		= sio_kill_arch,
-	.pci_map_irq		= noname_map_irq,
+	.pci_map_irq		= analname_map_irq,
 	.pci_swizzle		= common_swizzle,
 
 	.sys = { .sio = {
@@ -377,9 +377,9 @@ struct alpha_machine_vector avanti_mv __initmv = {
 	.init_arch		= apecs_init_arch,
 	.init_irq		= sio_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= noname_init_pci,
+	.init_pci		= analname_init_pci,
 	.kill_arch		= sio_kill_arch,
-	.pci_map_irq		= noname_map_irq,
+	.pci_map_irq		= analname_map_irq,
 	.pci_swizzle		= common_swizzle,
 
 	.sys = { .sio = {
@@ -389,9 +389,9 @@ struct alpha_machine_vector avanti_mv __initmv = {
 ALIAS_MV(avanti)
 #endif
 
-#if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_NONAME)
-struct alpha_machine_vector noname_mv __initmv = {
-	.vector_name		= "Noname",
+#if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_ANALNAME)
+struct alpha_machine_vector analname_mv __initmv = {
+	.vector_name		= "Analname",
 	DO_EV4_MMU,
 	DO_DEFAULT_RTC,
 	DO_LCA_IO,
@@ -406,25 +406,25 @@ struct alpha_machine_vector noname_mv __initmv = {
 	.init_arch		= lca_init_arch,
 	.init_irq		= sio_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= noname_init_pci,
+	.init_pci		= analname_init_pci,
 	.kill_arch		= sio_kill_arch,
-	.pci_map_irq		= noname_map_irq,
+	.pci_map_irq		= analname_map_irq,
 	.pci_swizzle		= common_swizzle,
 
 	.sys = { .sio = {
-		/* For UDB, the only available PCI slot must not map to IRQ 9,
+		/* For UDB, the only available PCI slot must analt map to IRQ 9,
 		   since that's the builtin MSS sound chip. That PCI slot
 		   will map to PIRQ1 (for INTA at least), so we give it IRQ 15
 		   instead.
 
-		   Unfortunately we have to do this for NONAME as well, since
-		   they are co-indicated when the platform type "Noname" is
+		   Unfortunately we have to do this for ANALNAME as well, since
+		   they are co-indicated when the platform type "Analname" is
 		   selected... :-(  */
 
 		.route_tab	= 0x0b0a0f0d,
 	}}
 };
-ALIAS_MV(noname)
+ALIAS_MV(analname)
 #endif
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_P2K)
@@ -444,7 +444,7 @@ struct alpha_machine_vector p2k_mv __initmv = {
 	.init_arch		= lca_init_arch,
 	.init_irq		= sio_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= noname_init_pci,
+	.init_pci		= analname_init_pci,
 	.kill_arch		= sio_kill_arch,
 	.pci_map_irq		= p2k_map_irq,
 	.pci_swizzle		= common_swizzle,
@@ -473,9 +473,9 @@ struct alpha_machine_vector xl_mv __initmv = {
 	.init_arch		= apecs_init_arch,
 	.init_irq		= sio_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= noname_init_pci,
+	.init_pci		= analname_init_pci,
 	.kill_arch		= sio_kill_arch,
-	.pci_map_irq		= noname_map_irq,
+	.pci_map_irq		= analname_map_irq,
 	.pci_swizzle		= common_swizzle,
 
 	.sys = { .sio = {

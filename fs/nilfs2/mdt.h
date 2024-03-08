@@ -18,12 +18,12 @@
 /**
  * struct nilfs_shadow_map - shadow mapping of meta data file
  * @bmap_store: shadow copy of bmap state
- * @inode: holder of page caches used in shadow mapping
+ * @ianalde: holder of page caches used in shadow mapping
  * @frozen_buffers: list of frozen buffers
  */
 struct nilfs_shadow_map {
 	struct nilfs_bmap_store bmap_store;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct list_head frozen_buffers;
 };
 
@@ -51,65 +51,65 @@ struct nilfs_mdt_info {
 	unsigned long		mi_blocks_per_desc_block;
 };
 
-static inline struct nilfs_mdt_info *NILFS_MDT(const struct inode *inode)
+static inline struct nilfs_mdt_info *NILFS_MDT(const struct ianalde *ianalde)
 {
-	return inode->i_private;
+	return ianalde->i_private;
 }
 
-static inline int nilfs_is_metadata_file_inode(const struct inode *inode)
+static inline int nilfs_is_metadata_file_ianalde(const struct ianalde *ianalde)
 {
-	return inode->i_private != NULL;
+	return ianalde->i_private != NULL;
 }
 
 /* Default GFP flags using highmem */
 #define NILFS_MDT_GFP      (__GFP_RECLAIM | __GFP_IO | __GFP_HIGHMEM)
 
-int nilfs_mdt_get_block(struct inode *, unsigned long, int,
-			void (*init_block)(struct inode *,
+int nilfs_mdt_get_block(struct ianalde *, unsigned long, int,
+			void (*init_block)(struct ianalde *,
 					   struct buffer_head *, void *),
 			struct buffer_head **);
-int nilfs_mdt_find_block(struct inode *inode, unsigned long start,
+int nilfs_mdt_find_block(struct ianalde *ianalde, unsigned long start,
 			 unsigned long end, unsigned long *blkoff,
 			 struct buffer_head **out_bh);
-int nilfs_mdt_delete_block(struct inode *, unsigned long);
-int nilfs_mdt_forget_block(struct inode *, unsigned long);
-int nilfs_mdt_fetch_dirty(struct inode *);
+int nilfs_mdt_delete_block(struct ianalde *, unsigned long);
+int nilfs_mdt_forget_block(struct ianalde *, unsigned long);
+int nilfs_mdt_fetch_dirty(struct ianalde *);
 
-int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz);
-void nilfs_mdt_clear(struct inode *inode);
-void nilfs_mdt_destroy(struct inode *inode);
+int nilfs_mdt_init(struct ianalde *ianalde, gfp_t gfp_mask, size_t objsz);
+void nilfs_mdt_clear(struct ianalde *ianalde);
+void nilfs_mdt_destroy(struct ianalde *ianalde);
 
-void nilfs_mdt_set_entry_size(struct inode *, unsigned int, unsigned int);
+void nilfs_mdt_set_entry_size(struct ianalde *, unsigned int, unsigned int);
 
-int nilfs_mdt_setup_shadow_map(struct inode *inode,
+int nilfs_mdt_setup_shadow_map(struct ianalde *ianalde,
 			       struct nilfs_shadow_map *shadow);
-int nilfs_mdt_save_to_shadow_map(struct inode *inode);
-void nilfs_mdt_restore_from_shadow_map(struct inode *inode);
-void nilfs_mdt_clear_shadow_map(struct inode *inode);
-int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh);
-struct buffer_head *nilfs_mdt_get_frozen_buffer(struct inode *inode,
+int nilfs_mdt_save_to_shadow_map(struct ianalde *ianalde);
+void nilfs_mdt_restore_from_shadow_map(struct ianalde *ianalde);
+void nilfs_mdt_clear_shadow_map(struct ianalde *ianalde);
+int nilfs_mdt_freeze_buffer(struct ianalde *ianalde, struct buffer_head *bh);
+struct buffer_head *nilfs_mdt_get_frozen_buffer(struct ianalde *ianalde,
 						struct buffer_head *bh);
 
-static inline void nilfs_mdt_mark_dirty(struct inode *inode)
+static inline void nilfs_mdt_mark_dirty(struct ianalde *ianalde)
 {
-	if (!test_bit(NILFS_I_DIRTY, &NILFS_I(inode)->i_state))
-		set_bit(NILFS_I_DIRTY, &NILFS_I(inode)->i_state);
+	if (!test_bit(NILFS_I_DIRTY, &NILFS_I(ianalde)->i_state))
+		set_bit(NILFS_I_DIRTY, &NILFS_I(ianalde)->i_state);
 }
 
-static inline void nilfs_mdt_clear_dirty(struct inode *inode)
+static inline void nilfs_mdt_clear_dirty(struct ianalde *ianalde)
 {
-	clear_bit(NILFS_I_DIRTY, &NILFS_I(inode)->i_state);
+	clear_bit(NILFS_I_DIRTY, &NILFS_I(ianalde)->i_state);
 }
 
-static inline __u64 nilfs_mdt_cno(struct inode *inode)
+static inline __u64 nilfs_mdt_canal(struct ianalde *ianalde)
 {
-	return ((struct the_nilfs *)inode->i_sb->s_fs_info)->ns_cno;
+	return ((struct the_nilfs *)ianalde->i_sb->s_fs_info)->ns_canal;
 }
 
 static inline spinlock_t *
-nilfs_mdt_bgl_lock(struct inode *inode, unsigned int block_group)
+nilfs_mdt_bgl_lock(struct ianalde *ianalde, unsigned int block_group)
 {
-	return bgl_lock_ptr(NILFS_MDT(inode)->mi_bgl, block_group);
+	return bgl_lock_ptr(NILFS_MDT(ianalde)->mi_bgl, block_group);
 }
 
 #endif /* _NILFS_MDT_H */

@@ -48,7 +48,7 @@ int __init db1000_board_setup(void)
 		pr_info("AMD Alchemy %s Board\n", get_system_type());
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int db1500_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
@@ -458,15 +458,15 @@ int __init db1000_dev_setup(void)
 	if (board == BCSR_WHOAMI_DB1500) {
 		c0 = AU1500_GPIO2_INT;
 		c1 = AU1500_GPIO5_INT;
-		d0 = 0;	/* GPIO number, NOT irq! */
-		d1 = 3; /* GPIO number, NOT irq! */
+		d0 = 0;	/* GPIO number, ANALT irq! */
+		d1 = 3; /* GPIO number, ANALT irq! */
 		s0 = AU1500_GPIO1_INT;
 		s1 = AU1500_GPIO4_INT;
 	} else if (board == BCSR_WHOAMI_DB1100) {
 		c0 = AU1100_GPIO2_INT;
 		c1 = AU1100_GPIO5_INT;
-		d0 = 0; /* GPIO number, NOT irq! */
-		d1 = 3; /* GPIO number, NOT irq! */
+		d0 = 0; /* GPIO number, ANALT irq! */
+		d1 = 3; /* GPIO number, ANALT irq! */
 		s0 = AU1100_GPIO1_INT;
 		s1 = AU1100_GPIO4_INT;
 
@@ -502,14 +502,14 @@ int __init db1000_dev_setup(void)
 	} else if (board == BCSR_WHOAMI_DB1000) {
 		c0 = AU1000_GPIO2_INT;
 		c1 = AU1000_GPIO5_INT;
-		d0 = 0; /* GPIO number, NOT irq! */
-		d1 = 3; /* GPIO number, NOT irq! */
+		d0 = 0; /* GPIO number, ANALT irq! */
+		d1 = 3; /* GPIO number, ANALT irq! */
 		s0 = AU1000_GPIO1_INT;
 		s1 = AU1000_GPIO4_INT;
 	} else if ((board == BCSR_WHOAMI_PB1500) ||
 		   (board == BCSR_WHOAMI_PB1500R2)) {
 		c0 = AU1500_GPIO203_INT;
-		d0 = 1; /* GPIO number, NOT irq! */
+		d0 = 1; /* GPIO number, ANALT irq! */
 		s0 = AU1500_GPIO202_INT;
 		twosocks = 0;
 		flashsize = 64;
@@ -522,7 +522,7 @@ int __init db1000_dev_setup(void)
 		 */
 	} else if (board == BCSR_WHOAMI_PB1100) {
 		c0 = AU1100_GPIO11_INT;
-		d0 = 9; /* GPIO number, NOT irq! */
+		d0 = 9; /* GPIO number, ANALT irq! */
 		s0 = AU1100_GPIO10_INT;
 		twosocks = 0;
 		flashsize = 64;
@@ -537,7 +537,7 @@ int __init db1000_dev_setup(void)
 		 */
 		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
 	} else
-		return 0; /* unknown board, no further dev setup to do */
+		return 0; /* unkanalwn board, anal further dev setup to do */
 
 	irq_set_irq_type(c0, IRQ_TYPE_LEVEL_LOW);
 	irq_set_irq_type(s0, IRQ_TYPE_LEVEL_LOW);
@@ -566,6 +566,6 @@ int __init db1000_dev_setup(void)
 	}
 
 	platform_add_devices(db1x00_devs, ARRAY_SIZE(db1x00_devs));
-	db1x_register_norflash(flashsize << 20, 4 /* 32bit */, F_SWAPPED);
+	db1x_register_analrflash(flashsize << 20, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }

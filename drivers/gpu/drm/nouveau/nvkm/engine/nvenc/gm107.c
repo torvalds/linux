@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@ gm107_nvenc = {
 };
 
 static int
-gm107_nvenc_nofw(struct nvkm_nvenc *nvenc, int ver,
+gm107_nvenc_analfw(struct nvkm_nvenc *nvenc, int ver,
 		 const struct nvkm_nvenc_fwif *fwif)
 {
 	return 0;
@@ -40,7 +40,7 @@ gm107_nvenc_nofw(struct nvkm_nvenc *nvenc, int ver,
 
 const struct nvkm_nvenc_fwif
 gm107_nvenc_fwif[] = {
-	{ -1, gm107_nvenc_nofw, &gm107_nvenc },
+	{ -1, gm107_nvenc_analfw, &gm107_nvenc },
 	{}
 };
 

@@ -2,7 +2,7 @@
 /*
  * OMAP2/3 Power Management Routines
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  * Jouni Hogander
  */
 #ifndef __ARCH_ARM_MACH_OMAP2_PM_H

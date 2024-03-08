@@ -47,7 +47,7 @@ EXPORT_SYMBOL(argv_free);
  * @argcp: returned argument count
  *
  * Returns: an array of pointers to strings which are split out from
- * @str.  This is performed by strictly splitting on white-space; no
+ * @str.  This is performed by strictly splitting on white-space; anal
  * quote processing is performed.  Multiple whitespace characters are
  * considered to be a single argument separator.  The returned array
  * is always NULL-terminated.  Returns NULL on memory allocation

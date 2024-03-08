@@ -175,9 +175,9 @@ hmark_pkt_set_htuple_ipv6(const struct sk_buff *skb, struct hmark_tuple *t,
 	nexthdr = ipv6_find_hdr(skb, &nhoff, -1, &fragoff, &flag);
 	if (nexthdr < 0)
 		return 0;
-	/* No need to check for icmp errors on fragments */
+	/* Anal need to check for icmp errors on fragments */
 	if ((flag & IP6_FH_F_FRAG) || (nexthdr != IPPROTO_ICMPV6))
-		goto noicmp;
+		goto analicmp;
 	/* Use inner header in case of ICMP errors */
 	if (get_inner6_hdr(skb, &nhoff)) {
 		ip6 = skb_header_pointer(skb, nhoff, sizeof(_ip6), &_ip6);
@@ -189,7 +189,7 @@ hmark_pkt_set_htuple_ipv6(const struct sk_buff *skb, struct hmark_tuple *t,
 		if (nexthdr < 0)
 			return -1;
 	}
-noicmp:
+analicmp:
 	t->src = hmark_addr6_mask(ip6->saddr.s6_addr32, info->src_mask.ip6);
 	t->dst = hmark_addr6_mask(ip6->daddr.s6_addr32, info->dst_mask.ip6);
 
@@ -233,7 +233,7 @@ static int get_inner_hdr(const struct sk_buff *skb, int iphsz, int *nhoff)
 	const struct icmphdr *icmph;
 	struct icmphdr _ih;
 
-	/* Not enough header? */
+	/* Analt eanalugh header? */
 	icmph = skb_header_pointer(skb, *nhoff + iphsz, sizeof(_ih), &_ih);
 	if (icmph == NULL || icmph->type > NR_ICMP_TYPES)
 		return 0;
@@ -271,7 +271,7 @@ hmark_pkt_set_htuple_ipv4(const struct sk_buff *skb, struct hmark_tuple *t,
 
 	t->proto = ip->protocol;
 
-	/* ICMP has no ports, skip */
+	/* ICMP has anal ports, skip */
 	if (t->proto == IPPROTO_ICMP)
 		return 0;
 

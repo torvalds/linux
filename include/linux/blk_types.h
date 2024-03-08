@@ -45,14 +45,14 @@ struct block_device {
 	struct disk_stats __percpu *bd_stats;
 	unsigned long		bd_stamp;
 	bool			bd_read_only;	/* read-only policy */
-	u8			bd_partno;
+	u8			bd_partanal;
 	bool			bd_write_holder;
 	bool			bd_has_submit_bio;
 	dev_t			bd_dev;
-	struct inode		*bd_inode;	/* will die */
+	struct ianalde		*bd_ianalde;	/* will die */
 
 	atomic_t		bd_openers;
-	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
+	spinlock_t		bd_size_lock; /* for bd_ianalde->i_size updates */
 	void *			bd_claiming;
 	void *			bd_holder;
 	const struct blk_holder_ops *bd_holder_ops;
@@ -70,7 +70,7 @@ struct block_device {
 	bool			bd_ro_warned;
 	int			bd_writers;
 	/*
-	 * keep this out-of-line as it's both big and not needed in the fast
+	 * keep this out-of-line as it's both big and analt needed in the fast
 	 * path
 	 */
 	struct device		bd_device;
@@ -87,7 +87,7 @@ struct block_device {
 
 /*
  * Block error status values.  See block/blk-core:blk_errors for the details.
- * Alpha cannot write a byte atomically, so we need to use 32-bit value.
+ * Alpha cananalt write a byte atomically, so we need to use 32-bit value.
  */
 #if defined(CONFIG_ALPHA) && !defined(__alpha_bwx__)
 typedef u32 __bitwise blk_status_t;
@@ -97,9 +97,9 @@ typedef u8 __bitwise blk_status_t;
 typedef u16 blk_short_t;
 #endif
 #define	BLK_STS_OK 0
-#define BLK_STS_NOTSUPP		((__force blk_status_t)1)
+#define BLK_STS_ANALTSUPP		((__force blk_status_t)1)
 #define BLK_STS_TIMEOUT		((__force blk_status_t)2)
-#define BLK_STS_NOSPC		((__force blk_status_t)3)
+#define BLK_STS_ANALSPC		((__force blk_status_t)3)
 #define BLK_STS_TRANSPORT	((__force blk_status_t)4)
 #define BLK_STS_TARGET		((__force blk_status_t)5)
 #define BLK_STS_RESV_CONFLICT	((__force blk_status_t)6)
@@ -112,7 +112,7 @@ typedef u16 blk_short_t;
 #define BLK_STS_DM_REQUEUE    ((__force blk_status_t)11)
 
 /*
- * BLK_STS_AGAIN should only be returned if RQF_NOWAIT is set
+ * BLK_STS_AGAIN should only be returned if RQF_ANALWAIT is set
  * and the bio would block (cf bio_wouldblock_error())
  */
 #define BLK_STS_AGAIN		((__force blk_status_t)12)
@@ -123,13 +123,13 @@ typedef u16 blk_short_t;
  * that the queue will be rerun in the future once resources become
  * available again. This is typically the case for device specific
  * resources that are consumed for IO. If the driver fails allocating these
- * resources, we know that inflight (or pending) IO will free these
+ * resources, we kanalw that inflight (or pending) IO will free these
  * resource upon completion.
  *
  * This is different from BLK_STS_RESOURCE in that it explicitly references
  * a device specific resource. For resources of wider scope, allocation
  * failure can happen without having pending IO. This means that we can't
- * rely on request completions freeing these resources, as IO may not be in
+ * rely on request completions freeing these resources, as IO may analt be in
  * flight. Examples of that are kernel memory allocations, DMA mappings, or
  * any other system wide resources.
  */
@@ -183,18 +183,18 @@ typedef u16 blk_short_t;
  * @error: status the request was completed with
  *
  * Description:
- *     This classifies block error status into non-retryable errors and ones
+ *     This classifies block error status into analn-retryable errors and ones
  *     that may be successful if retried on a failover path.
  *
  * Return:
- *     %false - retrying failover path will not help
+ *     %false - retrying failover path will analt help
  *     %true  - may succeed if retried
  */
 static inline bool blk_path_error(blk_status_t error)
 {
 	switch (error) {
-	case BLK_STS_NOTSUPP:
-	case BLK_STS_NOSPC:
+	case BLK_STS_ANALTSUPP:
+	case BLK_STS_ANALSPC:
 	case BLK_STS_TARGET:
 	case BLK_STS_RESV_CONFLICT:
 	case BLK_STS_MEDIUM:
@@ -255,7 +255,7 @@ static inline void bio_issue_init(struct bio_issue *issue,
 typedef __u32 __bitwise blk_opf_t;
 
 typedef unsigned int blk_qc_t;
-#define BLK_QC_T_NONE		-1U
+#define BLK_QC_T_ANALNE		-1U
 
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
@@ -280,8 +280,8 @@ struct bio {
 #ifdef CONFIG_BLK_CGROUP
 	/*
 	 * Represents the association of the css and request_queue for the bio.
-	 * If a bio goes direct to device, it will not have a blkg as it will
-	 * not have a request_queue associated with it.  The reference is put
+	 * If a bio goes direct to device, it will analt have a blkg as it will
+	 * analt have a request_queue associated with it.  The reference is put
 	 * on release of the bio.
 	 */
 	struct blkcg_gq		*bi_blkg;
@@ -362,9 +362,9 @@ typedef __u32 __bitwise blk_mq_req_flags_t;
  * transfer direction:
  *
  *   - if the least significant bit is set transfers are TO the device
- *   - if the least significant bit is not set transfers are FROM the device
+ *   - if the least significant bit is analt set transfers are FROM the device
  *
- * If a operation does not transfer data the least significant bit has no
+ * If a operation does analt transfer data the least significant bit has anal
  * meaning.
  */
 enum req_op {
@@ -401,21 +401,21 @@ enum req_op {
 };
 
 enum req_flag_bits {
-	__REQ_FAILFAST_DEV =	/* no driver retries of device errors */
+	__REQ_FAILFAST_DEV =	/* anal driver retries of device errors */
 		REQ_OP_BITS,
-	__REQ_FAILFAST_TRANSPORT, /* no driver retries of transport errors */
-	__REQ_FAILFAST_DRIVER,	/* no driver retries of driver errors */
+	__REQ_FAILFAST_TRANSPORT, /* anal driver retries of transport errors */
+	__REQ_FAILFAST_DRIVER,	/* anal driver retries of driver errors */
 	__REQ_SYNC,		/* request is sync (sync write or read) */
 	__REQ_META,		/* metadata io request */
 	__REQ_PRIO,		/* boost priority in cfq */
-	__REQ_NOMERGE,		/* don't touch this for merging */
+	__REQ_ANALMERGE,		/* don't touch this for merging */
 	__REQ_IDLE,		/* anticipate more IO after this one */
 	__REQ_INTEGRITY,	/* I/O includes block integrity payload */
 	__REQ_FUA,		/* forced unit access */
 	__REQ_PREFLUSH,		/* request for cache flush */
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
 	__REQ_BACKGROUND,	/* background IO */
-	__REQ_NOWAIT,           /* Don't wait if request will block */
+	__REQ_ANALWAIT,           /* Don't wait if request will block */
 	__REQ_POLLED,		/* caller polls for completion using bio_poll */
 	__REQ_ALLOC_CACHE,	/* allocate IO from cache if available */
 	__REQ_SWAP,		/* swap I/O */
@@ -426,7 +426,7 @@ enum req_flag_bits {
 	 * Command specific flags, keep last:
 	 */
 	/* for REQ_OP_WRITE_ZEROES: */
-	__REQ_NOUNMAP,		/* do not free blocks when zeroing */
+	__REQ_ANALUNMAP,		/* do analt free blocks when zeroing */
 
 	__REQ_NR_BITS,		/* stops here */
 };
@@ -440,27 +440,27 @@ enum req_flag_bits {
 #define REQ_SYNC	(__force blk_opf_t)(1ULL << __REQ_SYNC)
 #define REQ_META	(__force blk_opf_t)(1ULL << __REQ_META)
 #define REQ_PRIO	(__force blk_opf_t)(1ULL << __REQ_PRIO)
-#define REQ_NOMERGE	(__force blk_opf_t)(1ULL << __REQ_NOMERGE)
+#define REQ_ANALMERGE	(__force blk_opf_t)(1ULL << __REQ_ANALMERGE)
 #define REQ_IDLE	(__force blk_opf_t)(1ULL << __REQ_IDLE)
 #define REQ_INTEGRITY	(__force blk_opf_t)(1ULL << __REQ_INTEGRITY)
 #define REQ_FUA		(__force blk_opf_t)(1ULL << __REQ_FUA)
 #define REQ_PREFLUSH	(__force blk_opf_t)(1ULL << __REQ_PREFLUSH)
 #define REQ_RAHEAD	(__force blk_opf_t)(1ULL << __REQ_RAHEAD)
 #define REQ_BACKGROUND	(__force blk_opf_t)(1ULL << __REQ_BACKGROUND)
-#define REQ_NOWAIT	(__force blk_opf_t)(1ULL << __REQ_NOWAIT)
+#define REQ_ANALWAIT	(__force blk_opf_t)(1ULL << __REQ_ANALWAIT)
 #define REQ_POLLED	(__force blk_opf_t)(1ULL << __REQ_POLLED)
 #define REQ_ALLOC_CACHE	(__force blk_opf_t)(1ULL << __REQ_ALLOC_CACHE)
 #define REQ_SWAP	(__force blk_opf_t)(1ULL << __REQ_SWAP)
 #define REQ_DRV		(__force blk_opf_t)(1ULL << __REQ_DRV)
 #define REQ_FS_PRIVATE	(__force blk_opf_t)(1ULL << __REQ_FS_PRIVATE)
 
-#define REQ_NOUNMAP	(__force blk_opf_t)(1ULL << __REQ_NOUNMAP)
+#define REQ_ANALUNMAP	(__force blk_opf_t)(1ULL << __REQ_ANALUNMAP)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
 
-#define REQ_NOMERGE_FLAGS \
-	(REQ_NOMERGE | REQ_PREFLUSH | REQ_FUA)
+#define REQ_ANALMERGE_FLAGS \
+	(REQ_ANALMERGE | REQ_PREFLUSH | REQ_FUA)
 
 enum stat_group {
 	STAT_READ,
@@ -491,8 +491,8 @@ static inline bool op_is_flush(blk_opf_t op)
 }
 
 /*
- * Reads are always treated as synchronous, as are requests with the FUA or
- * PREFLUSH flag.  Other operations may be marked as synchronous using the
+ * Reads are always treated as synchroanalus, as are requests with the FUA or
+ * PREFLUSH flag.  Other operations may be marked as synchroanalus using the
  * REQ_SYNC flag.
  */
 static inline bool op_is_sync(blk_opf_t op)

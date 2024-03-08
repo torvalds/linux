@@ -64,7 +64,7 @@ int dump_bpf_hash_map(struct bpf_iter__bpf_map_elem *ctx)
 			return 0;
 
 		/* update the value and then delete the <key, value> pair.
-		 * it should not impact the existing 'val' which is still
+		 * it should analt impact the existing 'val' which is still
 		 * accessible under rcu.
 		 */
 		__builtin_memcpy(&tmp_key, key, sizeof(struct key_t));
@@ -82,7 +82,7 @@ int dump_bpf_hash_map(struct bpf_iter__bpf_map_elem *ctx)
 		return 0;
 	}
 
-	/* non-test mode, the map is prepared with the
+	/* analn-test mode, the map is prepared with the
 	 * below bpftool command sequence:
 	 *   bpftool map create /sys/fs/bpf/m1 type hash \
 	 *   	key 12 value 8 entries 3 name map1

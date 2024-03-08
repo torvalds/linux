@@ -2,7 +2,7 @@
 /*
  * Bestcomm GenBD TX task microcode
  *
- * Copyright (C) 2006 AppSpec Computer Technologies Corp.
+ * Copyright (C) 2006 AppSpec Computer Techanallogies Corp.
  *                    Jeff Gibbons <jeff.gibbons@appspec.com>
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
  *
@@ -46,7 +46,7 @@ u32 bcom_gen_bd_tx_task[] = {
 	0x99190036, /*   LCD: idx2 = idx2; idx2 once var0; idx2 += inc6 */
 	0x60000005, /*     DRD2A: EU0=0 EU1=0 EU2=0 EU3=5 EXT init=0 WS=0 RS=0 */
 	0x0c4cf889, /*     DRD2B1: *idx1 = EU3(); EU3(idx2,var9)  */
-	0x000001f8, /*   NOP */
+	0x000001f8, /*   ANALP */
 
 	/* VAR[9]-VAR[12] */
 	0x40000000,

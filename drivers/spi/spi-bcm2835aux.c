@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom BCM2835 auxiliary SPI Controllers
  *
- * the driver does not rely on the native chipselects at all
+ * the driver does analt rely on the native chipselects at all
  * but only uses the gpio type chipselects
  *
  * Based on: spi-bcm2835.c
@@ -29,12 +29,12 @@
 static unsigned int polling_limit_us = 30;
 module_param(polling_limit_us, uint, 0664);
 MODULE_PARM_DESC(polling_limit_us,
-		 "time in us to run a transfer in polling mode - if zero no polling is used\n");
+		 "time in us to run a transfer in polling mode - if zero anal polling is used\n");
 
 /*
  * spi register defines
  *
- * note there is garbage in the "official" documentation,
+ * analte there is garbage in the "official" documentation,
  * so some data is taken from the file:
  *   brcm_usrlib/dag/vmcsx/vcinclude/bcm2708_chip/aux_io.h
  * inside of:
@@ -167,7 +167,7 @@ static inline void bcm2835aux_rd_fifo(struct bcm2835aux_spi *bs)
 			fallthrough;
 		case 1:
 			*bs->rx_buf++ = (data >> 0) & 0xff;
-			/* fallthrough - no default */
+			/* fallthrough - anal default */
 		}
 	}
 	bs->rx_len -= count;
@@ -237,7 +237,7 @@ static irqreturn_t bcm2835aux_spi_interrupt(int irq, void *dev_id)
 	/* IRQ may be shared, so return if our interrupts are disabled */
 	if (!(bcm2835aux_rd(bs, BCM2835_AUX_SPI_CNTL1) &
 	      (BCM2835_AUX_SPI_CNTL1_TXEMPTY | BCM2835_AUX_SPI_CNTL1_IDLE)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* do common fifo handling */
 	bcm2835aux_spi_transfer_helper(bs);
@@ -293,7 +293,7 @@ static int bcm2835aux_spi_transfer_one_irq(struct spi_controller *host,
 		bcm2835aux_wr_fifo(bs);
 	}
 
-	/* now run the interrupt mode */
+	/* analw run the interrupt mode */
 	return __bcm2835aux_spi_transfer_one_irq(host, spi, tfr);
 }
 
@@ -347,8 +347,8 @@ static int bcm2835aux_spi_transfer_one(struct spi_controller *host,
 
 	/* calculate the registers to handle
 	 *
-	 * note that we use the variable data mode, which
-	 * is not optimal for longer transfers as we waste registers
+	 * analte that we use the variable data mode, which
+	 * is analt optimal for longer transfers as we waste registers
 	 * resulting (potentially) in more interrupts when transferring
 	 * more than 12 bytes
 	 */
@@ -380,7 +380,7 @@ static int bcm2835aux_spi_transfer_one(struct spi_controller *host,
 	bs->rx_len = tfr->len;
 	bs->pending = 0;
 
-	/* Calculate the estimated time in us the transfer runs.  Note that
+	/* Calculate the estimated time in us the transfer runs.  Analte that
 	 * there are 2 idle clocks cycles after each chunk getting
 	 * transferred - in our case the chunk size is 3 bytes, so we
 	 * approximate this by 9 cycles/byte.  This is used to find the number
@@ -443,17 +443,17 @@ static void bcm2835aux_spi_handle_err(struct spi_controller *host,
 static int bcm2835aux_spi_setup(struct spi_device *spi)
 {
 	/* sanity check for native cs */
-	if (spi->mode & SPI_NO_CS)
+	if (spi->mode & SPI_ANAL_CS)
 		return 0;
 
 	if (spi_get_csgpiod(spi, 0))
 		return 0;
 
 	/* for dt-backwards compatibility: only support native on CS0
-	 * known things not supported with broken native CS:
+	 * kanalwn things analt supported with broken native CS:
 	 * * multiple chip-selects: cs0-cs2 are all
 	 *     simultaniously asserted whenever there is a transfer
-	 *     this even includes SPI_NO_CS
+	 *     this even includes SPI_ANAL_CS
 	 * * SPI_CS_HIGH: cs are always asserted low
 	 * * cs_change: cs is deasserted after each spi_transfer
 	 * * cs_delay_usec: cs is always deasserted one SCK cycle
@@ -461,12 +461,12 @@ static int bcm2835aux_spi_setup(struct spi_device *spi)
 	 * probably more...
 	 */
 	dev_warn(&spi->dev,
-		 "Native CS is not supported - please configure cs-gpio in device-tree\n");
+		 "Native CS is analt supported - please configure cs-gpio in device-tree\n");
 
 	if (spi_get_chipselect(spi, 0) == 0)
 		return 0;
 
-	dev_warn(&spi->dev, "Native CS is not working for cs > 0\n");
+	dev_warn(&spi->dev, "Native CS is analt working for cs > 0\n");
 
 	return -EINVAL;
 }
@@ -480,18 +480,18 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*bs));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
-	host->mode_bits = (SPI_CPOL | SPI_CS_HIGH | SPI_NO_CS);
+	host->mode_bits = (SPI_CPOL | SPI_CS_HIGH | SPI_ANAL_CS);
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	/* even though the driver never officially supported native CS
 	 * allow a single native CS for legacy DT support purposes when
-	 * no cs-gpio is configured.
-	 * Known limitations for native cs are:
+	 * anal cs-gpio is configured.
+	 * Kanalwn limitations for native cs are:
 	 * * multiple chip-selects: cs0-cs2 are all simultaniously asserted
-	 *     whenever there is a transfer -  this even includes SPI_NO_CS
-	 * * SPI_CS_HIGH: is ignores - cs are always asserted low
+	 *     whenever there is a transfer -  this even includes SPI_ANAL_CS
+	 * * SPI_CS_HIGH: is iganalres - cs are always asserted low
 	 * * cs_change: cs is deasserted after each spi_transfer
 	 * * cs_delay_usec: cs is always deasserted one SCK cycle after
 	 *     a spi_transfer
@@ -502,7 +502,7 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 	host->handle_err = bcm2835aux_spi_handle_err;
 	host->prepare_message = bcm2835aux_spi_prepare_message;
 	host->unprepare_message = bcm2835aux_spi_unprepare_message;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->use_gpio_descriptors = true;
 
 	bs = spi_controller_get_devdata(host);
@@ -515,7 +515,7 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 	bs->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(bs->clk)) {
 		err = PTR_ERR(bs->clk);
-		dev_err(&pdev->dev, "could not get clk: %d\n", err);
+		dev_err(&pdev->dev, "could analt get clk: %d\n", err);
 		return err;
 	}
 
@@ -527,7 +527,7 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 	clk_hz = clk_get_rate(bs->clk);
 	if (!clk_hz) {
 		dev_err(&pdev->dev, "clock returns 0 Hz\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* reset SPI-HW block */
@@ -538,13 +538,13 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 			       IRQF_SHARED,
 			       dev_name(&pdev->dev), host);
 	if (err) {
-		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
+		dev_err(&pdev->dev, "could analt request IRQ: %d\n", err);
 		return err;
 	}
 
 	err = spi_register_controller(host);
 	if (err) {
-		dev_err(&pdev->dev, "could not register SPI host: %d\n", err);
+		dev_err(&pdev->dev, "could analt register SPI host: %d\n", err);
 		return err;
 	}
 

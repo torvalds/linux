@@ -17,7 +17,7 @@
 #define RAC_ANA0C			0x0C
 #define B_PCIE_BIT_PSAVE		BIT(15)
 #define RAC_ANA10			0x10
-#define B_PCIE_BIT_PINOUT_DIS		BIT(3)
+#define B_PCIE_BIT_PIANALUT_DIS		BIT(3)
 #define RAC_REG_REV2			0x1B
 #define BAC_CMU_EN_DLY_MASK		GENMASK(15, 12)
 #define PCIE_DPHY_DLY_25US		0x1
@@ -255,9 +255,9 @@
 #define B_BE_PCIE_FRZ_ANA_RST BIT(25)
 #define B_BE_PCIE_FRZ_WLAN_RST BIT(24)
 #define B_BE_PCIE_FRZ_FLR_RST BIT(23)
-#define B_BE_PCIE_FRZ_RET_NON_STKY_RST BIT(22)
+#define B_BE_PCIE_FRZ_RET_ANALN_STKY_RST BIT(22)
 #define B_BE_PCIE_FRZ_RET_STKY_RST BIT(21)
-#define B_BE_PCIE_FRZ_NON_STKY_RST BIT(20)
+#define B_BE_PCIE_FRZ_ANALN_STKY_RST BIT(20)
 #define B_BE_PCIE_FRZ_STKY_RST BIT(19)
 #define B_BE_PCIE_FRZ_RET_CORE_RST BIT(18)
 #define B_BE_PCIE_FRZ_PWR_RST BIT(17)
@@ -849,7 +849,7 @@
 #define B_AX_MAX_TAG_NUM_V1_MASK	GENMASK(2, 0)
 
 #define R_AX_PCIE_EXP_CTRL		0x13F0
-#define B_AX_EN_CHKDSC_NO_RX_STUCK	BIT(20)
+#define B_AX_EN_CHKDSC_ANAL_RX_STUCK	BIT(20)
 #define B_AX_MAX_TAG_NUM		GENMASK(18, 16)
 #define B_AX_SIC_EN_FORCE_CLKREQ	BIT(4)
 
@@ -912,7 +912,7 @@
 
 #define R_BE_SER_PL1_CTRL 0x34A8
 #define B_BE_PL1_SER_PL1_EN BIT(31)
-#define B_BE_PL1_IGNORE_HOT_RST BIT(30)
+#define B_BE_PL1_IGANALRE_HOT_RST BIT(30)
 #define B_BE_PL1_TIMER_UNIT_MASK GENMASK(19, 17)
 #define B_BE_PL1_TIMER_CLEAR BIT(0)
 
@@ -986,7 +986,7 @@
 			    B_BE_CH12_BUSY | B_BE_CH13_BUSY | B_BE_CH14_BUSY)
 
 #define R_BE_HAXI_EXP_CTRL_V1 0xB020
-#define B_BE_R_NO_SEC_ACCESS BIT(31)
+#define B_BE_R_ANAL_SEC_ACCESS BIT(31)
 #define B_BE_FORCE_EN_DMA_RX_GCLK BIT(5)
 #define B_BE_FORCE_EN_DMA_TX_GCLK BIT(4)
 #define B_BE_MAX_TAG_NUM_MASK GENMASK(3, 0)
@@ -1066,7 +1066,7 @@ enum rtw89_pcie_clkdly_hw {
 };
 
 enum mac_ax_bd_trunc_mode {
-	MAC_AX_BD_NORM,
+	MAC_AX_BD_ANALRM,
 	MAC_AX_BD_TRUNC,
 	MAC_AX_BD_DEF = 0xFE
 };
@@ -1154,7 +1154,7 @@ enum mac_ax_pcie_func_ctrl {
 	MAC_AX_PCIE_DISABLE = 0,
 	MAC_AX_PCIE_ENABLE = 1,
 	MAC_AX_PCIE_DEFAULT = 0xFE,
-	MAC_AX_PCIE_IGNORE = 0xFF
+	MAC_AX_PCIE_IGANALRE = 0xFF
 };
 
 enum mac_ax_io_rcy_tmr {
@@ -1166,7 +1166,7 @@ enum mac_ax_io_rcy_tmr {
 
 enum rtw89_pci_intr_mask_cfg {
 	RTW89_PCI_INTR_MASK_RESET,
-	RTW89_PCI_INTR_MASK_NORMAL,
+	RTW89_PCI_INTR_MASK_ANALRMAL,
 	RTW89_PCI_INTR_MASK_LOW_POWER,
 	RTW89_PCI_INTR_MASK_RECOVERY_START,
 	RTW89_PCI_INTR_MASK_RECOVERY_COMPLETE,
@@ -1586,7 +1586,7 @@ static inline void rtw89_chip_config_intr_mask(struct rtw89_dev *rtwdev,
 		rtwpci->low_power = false;
 		rtwpci->under_recovery = false;
 		break;
-	case RTW89_PCI_INTR_MASK_NORMAL:
+	case RTW89_PCI_INTR_MASK_ANALRMAL:
 		rtwpci->low_power = false;
 		break;
 	case RTW89_PCI_INTR_MASK_LOW_POWER:

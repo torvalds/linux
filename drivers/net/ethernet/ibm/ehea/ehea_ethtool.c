@@ -51,8 +51,8 @@ static int ehea_get_link_ksettings(struct net_device *dev,
 		cmd->base.duplex = port->full_duplex == 1 ?
 						     DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 	cmd->base.speed = speed;
 
@@ -216,7 +216,7 @@ static int ehea_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(ehea_ethtool_stats_keys);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

@@ -173,7 +173,7 @@ struct receive_queue {
 
 	struct virtnet_rq_stats stats;
 
-	/* The number of rx notifications */
+	/* The number of rx analtifications */
 	u16 calls;
 
 	/* Is dynamic interrupt moderation enabled? */
@@ -214,7 +214,7 @@ struct receive_queue {
 };
 
 /* This structure can contain rss message with maximum settings for indirection table and keysize
- * Note, that default structure that describes RSS configuration virtio_net_rss_config
+ * Analte, that default structure that describes RSS configuration virtio_net_rss_config
  * contains same info but can't handle table values.
  * In any case, structure would be passed to virtio hw through sg_buf split by parts
  * because table sizes may be differ according to the device configuration.
@@ -266,7 +266,7 @@ struct virtnet_info {
 	/* xdp_queue_pairs may be 0, when xdp is already loaded. So add this. */
 	bool xdp_enabled;
 
-	/* I like... big packets and I cannot lie! */
+	/* I like... big packets and I cananalt lie! */
 	bool big_packets;
 
 	/* number of sg entries allocated for big packets */
@@ -308,8 +308,8 @@ struct virtnet_info {
 	bool affinity_hint_set;
 
 	/* CPU hotplug instances for online & dead */
-	struct hlist_node node;
-	struct hlist_node node_dead;
+	struct hlist_analde analde;
+	struct hlist_analde analde_dead;
 
 	struct control_buf *ctrl;
 
@@ -366,7 +366,7 @@ static struct xdp_frame *ptr_to_xdp(void *ptr)
 	return (struct xdp_frame *)((unsigned long)ptr & ~VIRTIO_XDP_FLAG);
 }
 
-/* Converting between virtqueue no. and kernel tx/rx queue no.
+/* Converting between virtqueue anal. and kernel tx/rx queue anal.
  * 0:rx0 1:tx0 2:rx1 3:tx1 ... 2N:rxN 2N+1:txN 2N+2:cvq
  */
 static int vq2txq(struct virtqueue *vq)
@@ -706,8 +706,8 @@ static void *virtnet_rq_alloc(struct receive_queue *rq, u32 size, gfp_t gfp)
 		/* new pages */
 		if (!alloc_frag->offset) {
 			if (rq->last_dma) {
-				/* Now, the new page is allocated, the last dma
-				 * will not be used. So the dma can be unmapped
+				/* Analw, the new page is allocated, the last dma
+				 * will analt be used. So the dma can be unmapped
 				 * if the ref is 0.
 				 */
 				virtnet_rq_unmap(rq, rq->last_dma, 0);
@@ -726,7 +726,7 @@ static void *virtnet_rq_alloc(struct receive_queue *rq, u32 size, gfp_t gfp)
 
 			/* Add a reference to dma to prevent the entire dma from
 			 * being released during error handling. This reference
-			 * will be freed after the pages are no longer used.
+			 * will be freed after the pages are anal longer used.
 			 */
 			get_page(alloc_frag->page);
 			dma->ref = 1;
@@ -800,7 +800,7 @@ static void free_old_xmit_skbs(struct send_queue *sq, bool in_napi)
 		packets++;
 	}
 
-	/* Avoid overhead when no packets have been processed
+	/* Avoid overhead when anal packets have been processed
 	 * happens when called speculatively from start_xmit.
 	 */
 	if (!packets)
@@ -834,10 +834,10 @@ static void check_sq_full_and_disable(struct virtnet_info *vi,
 	/* If running out of space, stop queue to avoid getting packets that we
 	 * are then unable to transmit.
 	 * An alternative would be to force queuing layer to requeue the skb by
-	 * returning NETDEV_TX_BUSY. However, NETDEV_TX_BUSY should not be
-	 * returned in a normal path of operation: it means that driver is not
+	 * returning NETDEV_TX_BUSY. However, NETDEV_TX_BUSY should analt be
+	 * returned in a analrmal path of operation: it means that driver is analt
 	 * maintaining the TX queue stop/start state properly, and causes
-	 * the stack to do a non-trivial amount of useless work.
+	 * the stack to do a analn-trivial amount of useless work.
 	 * Since most packets only take 1 or 2 ring slots, stopping the queue
 	 * early means 16 slots are typically wasted.
 	 */
@@ -879,7 +879,7 @@ static int __virtnet_xdp_xmit_one(struct virtnet_info *vi,
 	 * position of skb_shared_info in xdp_get_frame_len() and
 	 * xdp_return_frame(), which will involve to xdpf->data and
 	 * xdpf->headroom. Therefore, we need to update the value of
-	 * headroom synchronously here.
+	 * headroom synchroanalusly here.
 	 */
 	xdpf->headroom -= vi->hdr_len;
 	xdpf->data -= vi->hdr_len;
@@ -900,13 +900,13 @@ static int __virtnet_xdp_xmit_one(struct virtnet_info *vi,
 	err = virtqueue_add_outbuf(sq->vq, sq->sg, nr_frags + 1,
 				   xdp_to_ptr(xdpf), GFP_ATOMIC);
 	if (unlikely(err))
-		return -ENOSPC; /* Caller handle free/refcnt */
+		return -EANALSPC; /* Caller handle free/refcnt */
 
 	return 0;
 }
 
 /* when vi->curr_queue_pairs > nr_cpu_ids, the txq/sq is only used for xdp tx on
- * the current cpu, so it does not need to be locked.
+ * the current cpu, so it does analt need to be locked.
  *
  * Here we use marco instead of inline functions because we have to deal with
  * three issues at the same time: 1. the choice of sq. 2. judge and execute the
@@ -1002,7 +1002,7 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 		check_sq_full_and_disable(vi, dev, sq);
 
 	if (flags & XDP_XMIT_FLUSH) {
-		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq))
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_analtify(sq->vq))
 			kicks = 1;
 	}
 out:
@@ -1104,7 +1104,7 @@ static unsigned int virtnet_get_headroom(struct virtnet_info *vi)
  * Afterwards, the conditions to enable
  * XDP should preclude the underlying device from sending packets
  * across multiple buffers (num_buf > 1), and we make sure buffers
- * have enough headroom.
+ * have eanalugh headroom.
  */
 static struct page *xdp_linearize_page(struct receive_queue *rq,
 				       int *num_buf,
@@ -1152,7 +1152,7 @@ static struct page *xdp_linearize_page(struct receive_queue *rq,
 		put_page(p);
 	}
 
-	/* Headroom does not contribute to packet length */
+	/* Headroom does analt contribute to packet length */
 	*len = page_off - VIRTIO_XDP_HEADROOM;
 	return page;
 err_buf:
@@ -1364,10 +1364,10 @@ static void mergeable_buf_free(struct receive_queue *rq, int num_buf,
 	}
 }
 
-/* Why not use xdp_build_skb_from_frame() ?
+/* Why analt use xdp_build_skb_from_frame() ?
  * XDP core assumes that xdp frags are PAGE_SIZE in length, while in
- * virtio-net there are 2 points that do not match its requirements:
- *  1. The size of the prefilled buffer is not fixed before xdp is set.
+ * virtio-net there are 2 points that do analt match its requirements:
+ *  1. The size of the prefilled buffer is analt fixed before xdp is set.
  *  2. xdp_build_skb_from_frame() does more checks that we don't need,
  *     like eth_type_trans() (which virtio-net does in receive_buf()).
  */
@@ -1526,7 +1526,7 @@ static void *mergeable_xdp_get_buf(struct virtnet_info *vi,
 	if (unlikely(hdr->hdr.gso_type))
 		return NULL;
 
-	/* Now XDP core assumes frag size is PAGE_SIZE, but buffers
+	/* Analw XDP core assumes frag size is PAGE_SIZE, but buffers
 	 * with headroom may add hole in truesize, which
 	 * make their length exceed PAGE_SIZE. So we disabled the
 	 * hole mechanism for xdp. See add_recvbuf_mergeable().
@@ -1538,13 +1538,13 @@ static void *mergeable_xdp_get_buf(struct virtnet_info *vi,
 		return page_address(*page) + offset;
 	}
 
-	/* This happens when headroom is not enough because
+	/* This happens when headroom is analt eanalugh because
 	 * of the buffer was prefilled before XDP is set.
 	 * This should only happen for the first several packets.
 	 * In fact, vq reset can be used here to help us clean up
-	 * the prefilled buffers, but many existing devices do not
+	 * the prefilled buffers, but many existing devices do analt
 	 * support it, and we don't want to bother users who are
-	 * using xdp normally.
+	 * using xdp analrmally.
 	 */
 	if (!xdp_prog->aux->xdp_has_frags) {
 		/* linearize data for XDP */
@@ -1777,9 +1777,9 @@ static void virtio_skb_set_hash(const struct virtio_net_hdr_v1_hash *hdr_hash,
 	case VIRTIO_NET_HASH_REPORT_IPv6_EX:
 		rss_hash_type = PKT_HASH_TYPE_L3;
 		break;
-	case VIRTIO_NET_HASH_REPORT_NONE:
+	case VIRTIO_NET_HASH_REPORT_ANALNE:
 	default:
-		rss_hash_type = PKT_HASH_TYPE_NONE;
+		rss_hash_type = PKT_HASH_TYPE_ANALNE;
 	}
 	skb_set_hash(skb, __le32_to_cpu(hdr_hash->hash_value), rss_hash_type);
 }
@@ -1841,8 +1841,8 @@ frame_err:
 
 /* Unlike mergeable buffers, all buffers are allocated to the
  * same size, except for the headroom. For this reason we do
- * not need to use  mergeable_len_to_ctx here - it is enough
- * to store the headroom as the context ignoring the truesize.
+ * analt need to use  mergeable_len_to_ctx here - it is eanalugh
+ * to store the headroom as the context iganalring the truesize.
  */
 static int add_recvbuf_small(struct virtnet_info *vi, struct receive_queue *rq,
 			     gfp_t gfp)
@@ -1858,7 +1858,7 @@ static int add_recvbuf_small(struct virtnet_info *vi, struct receive_queue *rq,
 
 	buf = virtnet_rq_alloc(rq, len, gfp);
 	if (unlikely(!buf))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	virtnet_rq_init_one_sg(rq, buf + VIRTNET_RX_PAD + xdp_headroom,
 			       vi->hdr_len + GOOD_PACKET_LEN);
@@ -1888,7 +1888,7 @@ static int add_recvbuf_big(struct virtnet_info *vi, struct receive_queue *rq,
 		if (!first) {
 			if (list)
 				give_pages(rq, list);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		sg_set_buf(&rq->sg[i], page_address(first), PAGE_SIZE);
 
@@ -1900,7 +1900,7 @@ static int add_recvbuf_big(struct virtnet_info *vi, struct receive_queue *rq,
 	first = get_a_page(rq, gfp);
 	if (!first) {
 		give_pages(rq, list);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	p = page_address(first);
 
@@ -1959,13 +1959,13 @@ static int add_recvbuf_mergeable(struct virtnet_info *vi,
 
 	buf = virtnet_rq_alloc(rq, len + room, gfp);
 	if (unlikely(!buf))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf += headroom; /* advance address leaving hole at front of pkt */
 	hole = alloc_frag->size - alloc_frag->offset;
 	if (hole < len + room) {
-		/* To avoid internal fragmentation, if there is very likely not
-		 * enough space for another buffer, add the remaining space to
+		/* To avoid internal fragmentation, if there is very likely analt
+		 * eanalugh space for aanalther buffer, add the remaining space to
 		 * the current buffer.
 		 * XDP core assumes that frame_size of xdp_buff and the length
 		 * of the frag are PAGE_SIZE, so we disable the hole mechanism.
@@ -1991,7 +1991,7 @@ static int add_recvbuf_mergeable(struct virtnet_info *vi,
 /*
  * Returns false if we couldn't fill entirely (OOM).
  *
- * Normally run in the receive path, but can also be run from ndo_open
+ * Analrmally run in the receive path, but can also be run from ndo_open
  * before we're receiving packets, or from refill_work which is
  * careful to disable receiving (using napi_disable).
  */
@@ -2009,11 +2009,11 @@ static bool try_fill_recv(struct virtnet_info *vi, struct receive_queue *rq,
 		else
 			err = add_recvbuf_small(vi, rq, gfp);
 
-		oom = err == -ENOMEM;
+		oom = err == -EANALMEM;
 		if (err)
 			break;
 	} while (rq->vq->num_free);
-	if (virtqueue_kick_prepare(rq->vq) && virtqueue_notify(rq->vq)) {
+	if (virtqueue_kick_prepare(rq->vq) && virtqueue_analtify(rq->vq)) {
 		unsigned long flags;
 
 		flags = u64_stats_update_begin_irqsave(&rq->stats.syncp);
@@ -2038,7 +2038,7 @@ static void virtnet_napi_enable(struct virtqueue *vq, struct napi_struct *napi)
 	napi_enable(napi);
 
 	/* If all buffers were filled by other side before we napi_enabled, we
-	 * won't get another interrupt, so process any outstanding packets now.
+	 * won't get aanalther interrupt, so process any outstanding packets analw.
 	 * Call local_bh_enable after to trigger softIRQ processing.
 	 */
 	local_bh_disable();
@@ -2215,7 +2215,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 
 	if (xdp_xmit & VIRTIO_XDP_TX) {
 		sq = virtnet_xdp_get_sq(vi);
-		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq)) {
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_analtify(sq->vq)) {
 			u64_stats_update_begin(&sq->stats.syncp);
 			u64_stats_inc(&sq->stats.kicks);
 			u64_stats_update_end(&sq->stats.syncp);
@@ -2348,7 +2348,7 @@ static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
 	pr_debug("%s: xmit %p %pM\n", vi->dev->name, skb, dest);
 
 	can_push = vi->any_header_sg &&
-		!((unsigned long)skb->data & (__alignof__(*hdr) - 1)) &&
+		!((unsigned long)skb->data & (__aliganalf__(*hdr) - 1)) &&
 		!skb_header_cloned(skb) && skb_headroom(skb) >= hdr_len;
 	/* Even if we can, don't push here yet as this would skew
 	 * csum_start offset below. */
@@ -2409,7 +2409,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Try to transmit */
 	err = xmit_skb(sq, skb);
 
-	/* This should not happen! */
+	/* This should analt happen! */
 	if (unlikely(err)) {
 		DEV_STATS_INC(dev, tx_fifo_errors);
 		if (net_ratelimit())
@@ -2430,7 +2430,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	check_sq_full_and_disable(vi, dev, sq);
 
 	if (kick || netif_xmit_stopped(txq)) {
-		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq)) {
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_analtify(sq->vq)) {
 			u64_stats_update_begin(&sq->stats.syncp);
 			u64_stats_inc(&sq->stats.kicks);
 			u64_stats_update_end(&sq->stats.syncp);
@@ -2518,7 +2518,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	unsigned out_num = 0, tmp;
 	int ret;
 
-	/* Caller should know better */
+	/* Caller should kanalw better */
 	BUG_ON(!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ));
 
 	vi->ctrl->status = ~0;
@@ -2565,11 +2565,11 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	struct scatterlist sg;
 
 	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_STANDBY))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	addr = kmemdup(p, sizeof(*addr), GFP_KERNEL);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = eth_prepare_mac_addr_change(dev, addr);
 	if (ret)
@@ -2643,12 +2643,12 @@ static void virtnet_stats(struct net_device *dev,
 	tot->rx_frame_errors = DEV_STATS_READ(dev, rx_frame_errors);
 }
 
-static void virtnet_ack_link_announce(struct virtnet_info *vi)
+static void virtnet_ack_link_ananalunce(struct virtnet_info *vi)
 {
 	rtnl_lock();
-	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_ANNOUNCE,
-				  VIRTIO_NET_CTRL_ANNOUNCE_ACK, NULL))
-		dev_warn(&vi->dev->dev, "Failed to ack link announce.\n");
+	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_ANANALUNCE,
+				  VIRTIO_NET_CTRL_ANANALUNCE_ACK, NULL))
+		dev_warn(&vi->dev->dev, "Failed to ack link ananalunce.\n");
 	rtnl_unlock();
 }
 
@@ -2859,26 +2859,26 @@ static void virtnet_set_affinity(struct virtnet_info *vi)
 	free_cpumask_var(mask);
 }
 
-static int virtnet_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int virtnet_cpu_online(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct virtnet_info *vi = hlist_entry_safe(node, struct virtnet_info,
-						   node);
+	struct virtnet_info *vi = hlist_entry_safe(analde, struct virtnet_info,
+						   analde);
 	virtnet_set_affinity(vi);
 	return 0;
 }
 
-static int virtnet_cpu_dead(unsigned int cpu, struct hlist_node *node)
+static int virtnet_cpu_dead(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct virtnet_info *vi = hlist_entry_safe(node, struct virtnet_info,
-						   node_dead);
+	struct virtnet_info *vi = hlist_entry_safe(analde, struct virtnet_info,
+						   analde_dead);
 	virtnet_set_affinity(vi);
 	return 0;
 }
 
-static int virtnet_cpu_down_prep(unsigned int cpu, struct hlist_node *node)
+static int virtnet_cpu_down_prep(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct virtnet_info *vi = hlist_entry_safe(node, struct virtnet_info,
-						   node);
+	struct virtnet_info *vi = hlist_entry_safe(analde, struct virtnet_info,
+						   analde);
 
 	virtnet_clean_affinity(vi);
 	return 0;
@@ -2886,26 +2886,26 @@ static int virtnet_cpu_down_prep(unsigned int cpu, struct hlist_node *node)
 
 static enum cpuhp_state virtionet_online;
 
-static int virtnet_cpu_notif_add(struct virtnet_info *vi)
+static int virtnet_cpu_analtif_add(struct virtnet_info *vi)
 {
 	int ret;
 
-	ret = cpuhp_state_add_instance_nocalls(virtionet_online, &vi->node);
+	ret = cpuhp_state_add_instance_analcalls(virtionet_online, &vi->analde);
 	if (ret)
 		return ret;
-	ret = cpuhp_state_add_instance_nocalls(CPUHP_VIRT_NET_DEAD,
-					       &vi->node_dead);
+	ret = cpuhp_state_add_instance_analcalls(CPUHP_VIRT_NET_DEAD,
+					       &vi->analde_dead);
 	if (!ret)
 		return ret;
-	cpuhp_state_remove_instance_nocalls(virtionet_online, &vi->node);
+	cpuhp_state_remove_instance_analcalls(virtionet_online, &vi->analde);
 	return ret;
 }
 
-static void virtnet_cpu_notif_remove(struct virtnet_info *vi)
+static void virtnet_cpu_analtif_remove(struct virtnet_info *vi)
 {
-	cpuhp_state_remove_instance_nocalls(virtionet_online, &vi->node);
-	cpuhp_state_remove_instance_nocalls(CPUHP_VIRT_NET_DEAD,
-					    &vi->node_dead);
+	cpuhp_state_remove_instance_analcalls(virtionet_online, &vi->analde);
+	cpuhp_state_remove_instance_analcalls(CPUHP_VIRT_NET_DEAD,
+					    &vi->analde_dead);
 }
 
 static int virtnet_send_ctrl_coal_vq_cmd(struct virtnet_info *vi,
@@ -2918,8 +2918,8 @@ static int virtnet_send_ctrl_coal_vq_cmd(struct virtnet_info *vi,
 	vi->ctrl->coal_vq.coal.max_packets = cpu_to_le32(max_packets);
 	sg_init_one(&sgs, &vi->ctrl->coal_vq, sizeof(vi->ctrl->coal_vq));
 
-	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_NOTF_COAL,
-				  VIRTIO_NET_CTRL_NOTF_COAL_VQ_SET,
+	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_ANALTF_COAL,
+				  VIRTIO_NET_CTRL_ANALTF_COAL_VQ_SET,
 				  &sgs))
 		return -EINVAL;
 
@@ -3011,8 +3011,8 @@ static int virtnet_set_ringparam(struct net_device *dev,
 
 			/* Upon disabling and re-enabling a transmit virtqueue, the device must
 			 * set the coalescing parameters of the virtqueue to those configured
-			 * through the VIRTIO_NET_CTRL_NOTF_COAL_TX_SET command, or, if the driver
-			 * did not set any TX coalescing parameters, to 0.
+			 * through the VIRTIO_NET_CTRL_ANALTF_COAL_TX_SET command, or, if the driver
+			 * did analt set any TX coalescing parameters, to 0.
 			 */
 			err = virtnet_send_tx_ctrl_coal_vq_cmd(vi, i,
 							       vi->intr_coal_tx.max_usecs,
@@ -3236,7 +3236,7 @@ static int virtnet_set_channels(struct net_device *dev,
 	if (queue_pairs > vi->max_queue_pairs || queue_pairs == 0)
 		return -EINVAL;
 
-	/* For now we don't support modifying channels while XDP is loaded
+	/* For analw we don't support modifying channels while XDP is loaded
 	 * also when XDP is loaded all RX queues have XDP programs so we only
 	 * need to check a single RX queue.
 	 */
@@ -3290,7 +3290,7 @@ static int virtnet_get_sset_count(struct net_device *dev, int sset)
 		return vi->curr_queue_pairs * (VIRTNET_RQ_STATS_LEN +
 					       VIRTNET_SQ_STATS_LEN);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3368,7 +3368,7 @@ static int virtnet_get_link_ksettings(struct net_device *dev,
 	return 0;
 }
 
-static int virtnet_send_tx_notf_coal_cmds(struct virtnet_info *vi,
+static int virtnet_send_tx_analtf_coal_cmds(struct virtnet_info *vi,
 					  struct ethtool_coalesce *ec)
 {
 	struct scatterlist sgs_tx;
@@ -3378,8 +3378,8 @@ static int virtnet_send_tx_notf_coal_cmds(struct virtnet_info *vi,
 	vi->ctrl->coal_tx.tx_max_packets = cpu_to_le32(ec->tx_max_coalesced_frames);
 	sg_init_one(&sgs_tx, &vi->ctrl->coal_tx, sizeof(vi->ctrl->coal_tx));
 
-	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_NOTF_COAL,
-				  VIRTIO_NET_CTRL_NOTF_COAL_TX_SET,
+	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_ANALTF_COAL,
+				  VIRTIO_NET_CTRL_ANALTF_COAL_TX_SET,
 				  &sgs_tx))
 		return -EINVAL;
 
@@ -3393,15 +3393,15 @@ static int virtnet_send_tx_notf_coal_cmds(struct virtnet_info *vi,
 	return 0;
 }
 
-static int virtnet_send_rx_notf_coal_cmds(struct virtnet_info *vi,
+static int virtnet_send_rx_analtf_coal_cmds(struct virtnet_info *vi,
 					  struct ethtool_coalesce *ec)
 {
 	bool rx_ctrl_dim_on = !!ec->use_adaptive_rx_coalesce;
 	struct scatterlist sgs_rx;
 	int i;
 
-	if (rx_ctrl_dim_on && !virtio_has_feature(vi->vdev, VIRTIO_NET_F_VQ_NOTF_COAL))
-		return -EOPNOTSUPP;
+	if (rx_ctrl_dim_on && !virtio_has_feature(vi->vdev, VIRTIO_NET_F_VQ_ANALTF_COAL))
+		return -EOPANALTSUPP;
 
 	if (rx_ctrl_dim_on && (ec->rx_coalesce_usecs != vi->intr_coal_rx.max_usecs ||
 			       ec->rx_max_coalesced_frames != vi->intr_coal_rx.max_packets))
@@ -3422,14 +3422,14 @@ static int virtnet_send_rx_notf_coal_cmds(struct virtnet_info *vi,
 
 	/* Since the per-queue coalescing params can be set,
 	 * we need apply the global new params even if they
-	 * are not updated.
+	 * are analt updated.
 	 */
 	vi->ctrl->coal_rx.rx_usecs = cpu_to_le32(ec->rx_coalesce_usecs);
 	vi->ctrl->coal_rx.rx_max_packets = cpu_to_le32(ec->rx_max_coalesced_frames);
 	sg_init_one(&sgs_rx, &vi->ctrl->coal_rx, sizeof(vi->ctrl->coal_rx));
 
-	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_NOTF_COAL,
-				  VIRTIO_NET_CTRL_NOTF_COAL_RX_SET,
+	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_ANALTF_COAL,
+				  VIRTIO_NET_CTRL_ANALTF_COAL_RX_SET,
 				  &sgs_rx))
 		return -EINVAL;
 
@@ -3443,23 +3443,23 @@ static int virtnet_send_rx_notf_coal_cmds(struct virtnet_info *vi,
 	return 0;
 }
 
-static int virtnet_send_notf_coal_cmds(struct virtnet_info *vi,
+static int virtnet_send_analtf_coal_cmds(struct virtnet_info *vi,
 				       struct ethtool_coalesce *ec)
 {
 	int err;
 
-	err = virtnet_send_tx_notf_coal_cmds(vi, ec);
+	err = virtnet_send_tx_analtf_coal_cmds(vi, ec);
 	if (err)
 		return err;
 
-	err = virtnet_send_rx_notf_coal_cmds(vi, ec);
+	err = virtnet_send_rx_analtf_coal_cmds(vi, ec);
 	if (err)
 		return err;
 
 	return 0;
 }
 
-static int virtnet_send_rx_notf_coal_vq_cmds(struct virtnet_info *vi,
+static int virtnet_send_rx_analtf_coal_vq_cmds(struct virtnet_info *vi,
 					     struct ethtool_coalesce *ec,
 					     u16 queue)
 {
@@ -3483,7 +3483,7 @@ static int virtnet_send_rx_notf_coal_vq_cmds(struct virtnet_info *vi,
 	if (!rx_ctrl_dim_on && cur_rx_dim)
 		vi->rq[queue].dim_enabled = false;
 
-	/* If no params are updated, userspace ethtool will
+	/* If anal params are updated, userspace ethtool will
 	 * reject the modification.
 	 */
 	err = virtnet_send_rx_ctrl_coal_vq_cmd(vi, queue,
@@ -3495,13 +3495,13 @@ static int virtnet_send_rx_notf_coal_vq_cmds(struct virtnet_info *vi,
 	return 0;
 }
 
-static int virtnet_send_notf_coal_vq_cmds(struct virtnet_info *vi,
+static int virtnet_send_analtf_coal_vq_cmds(struct virtnet_info *vi,
 					  struct ethtool_coalesce *ec,
 					  u16 queue)
 {
 	int err;
 
-	err = virtnet_send_rx_notf_coal_vq_cmds(vi, ec, queue);
+	err = virtnet_send_rx_analtf_coal_vq_cmds(vi, ec, queue);
 	if (err)
 		return err;
 
@@ -3528,7 +3528,7 @@ static void virtnet_rx_dim_work(struct work_struct *work)
 		return;
 
 	/* Each rxq's work is queued by "net_dim()->schedule_work()"
-	 * in response to NAPI traffic changes. Note that dim->profile_ix
+	 * in response to NAPI traffic changes. Analte that dim->profile_ix
 	 * for each rxq is updated prior to the queuing action.
 	 * So we only need to traverse and update profiles for all rxqs
 	 * in the work which is holding rtnl_lock.
@@ -3559,11 +3559,11 @@ static void virtnet_rx_dim_work(struct work_struct *work)
 
 static int virtnet_coal_params_supported(struct ethtool_coalesce *ec)
 {
-	/* usecs coalescing is supported only if VIRTIO_NET_F_NOTF_COAL
-	 * or VIRTIO_NET_F_VQ_NOTF_COAL feature is negotiated.
+	/* usecs coalescing is supported only if VIRTIO_NET_F_ANALTF_COAL
+	 * or VIRTIO_NET_F_VQ_ANALTF_COAL feature is negotiated.
 	 */
 	if (ec->rx_coalesce_usecs || ec->tx_coalesce_usecs)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ec->tx_max_coalesced_frames > 1 ||
 	    ec->rx_max_coalesced_frames != 1)
@@ -3604,14 +3604,14 @@ static int virtnet_set_coalesce(struct net_device *dev,
 
 		if (update_napi) {
 			/* All queues that belong to [queue_number, vi->max_queue_pairs] will be
-			 * updated for the sake of simplicity, which might not be necessary
+			 * updated for the sake of simplicity, which might analt be necessary
 			 */
 			break;
 		}
 	}
 
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_NOTF_COAL))
-		ret = virtnet_send_notf_coal_cmds(vi, ec);
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_ANALTF_COAL))
+		ret = virtnet_send_analtf_coal_cmds(vi, ec);
 	else
 		ret = virtnet_coal_params_supported(ec);
 
@@ -3633,7 +3633,7 @@ static int virtnet_get_coalesce(struct net_device *dev,
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_NOTF_COAL)) {
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_ANALTF_COAL)) {
 		ec->rx_coalesce_usecs = vi->intr_coal_rx.max_usecs;
 		ec->tx_coalesce_usecs = vi->intr_coal_tx.max_usecs;
 		ec->tx_max_coalesced_frames = vi->intr_coal_tx.max_packets;
@@ -3668,8 +3668,8 @@ static int virtnet_set_per_queue_coalesce(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_VQ_NOTF_COAL))
-		ret = virtnet_send_notf_coal_vq_cmds(vi, ec, queue);
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_VQ_ANALTF_COAL))
+		ret = virtnet_send_analtf_coal_vq_cmds(vi, ec, queue);
 	else
 		ret = virtnet_coal_params_supported(ec);
 
@@ -3691,7 +3691,7 @@ static int virtnet_get_per_queue_coalesce(struct net_device *dev,
 	if (queue >= vi->max_queue_pairs)
 		return -EINVAL;
 
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_VQ_NOTF_COAL)) {
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_VQ_ANALTF_COAL)) {
 		ec->rx_coalesce_usecs = vi->rq[queue].intr_coal.max_usecs;
 		ec->tx_coalesce_usecs = vi->sq[queue].intr_coal.max_usecs;
 		ec->tx_max_coalesced_frames = vi->sq[queue].intr_coal.max_packets;
@@ -3711,8 +3711,8 @@ static void virtnet_init_settings(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 
-	vi->speed = SPEED_UNKNOWN;
-	vi->duplex = DUPLEX_UNKNOWN;
+	vi->speed = SPEED_UNKANALWN;
+	vi->duplex = DUPLEX_UNKANALWN;
 }
 
 static void virtnet_update_settings(struct virtnet_info *vi)
@@ -3770,9 +3770,9 @@ static int virtnet_set_rxfh(struct net_device *dev,
 	struct virtnet_info *vi = netdev_priv(dev);
 	int i;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rxfh->indir) {
 		for (i = 0; i < vi->rss_indir_table_size; ++i)
@@ -3799,7 +3799,7 @@ static int virtnet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		virtnet_get_hashflow(vi, info);
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 	}
 
 	return rc;
@@ -3817,7 +3817,7 @@ static int virtnet_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 	}
 
 	return rc;
@@ -3854,7 +3854,7 @@ static void virtnet_freeze_down(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
 
-	/* Make sure no work handler is accessing the device */
+	/* Make sure anal work handler is accessing the device */
 	flush_work(&vi->config_work);
 
 	netif_tx_lock_bh(vi->dev);
@@ -3947,7 +3947,7 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 		virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_USO4) ||
 		virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_USO6))) {
 		NL_SET_ERR_MSG_MOD(extack, "Can't set XDP while host is implementing GRO_HW/CSUM, disable GRO_HW/CSUM first");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (vi->mergeable_rx_bufs && !vi->any_header_sg) {
@@ -3979,7 +3979,7 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	if (prog)
 		bpf_prog_add(prog, vi->max_queue_pairs - 1);
 
-	/* Make sure NAPI is not using any XDP TX queues for RX. */
+	/* Make sure NAPI is analt using any XDP TX queues for RX. */
 	if (netif_running(dev)) {
 		for (i = 0; i < vi->max_queue_pairs; i++) {
 			napi_disable(&vi->rq[i].napi);
@@ -4064,11 +4064,11 @@ static int virtnet_get_phys_port_name(struct net_device *dev, char *buf,
 	int ret;
 
 	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_STANDBY))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = snprintf(buf, len, "sby");
 	if (ret >= len)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -4100,7 +4100,7 @@ static int virtnet_set_features(struct net_device *dev,
 		if (features & NETIF_F_RXHASH)
 			vi->ctrl->rss.hash_types = vi->rss_hash_types_saved;
 		else
-			vi->ctrl->rss.hash_types = VIRTIO_NET_HASH_REPORT_NONE;
+			vi->ctrl->rss.hash_types = VIRTIO_NET_HASH_REPORT_ANALNE;
 
 		if (!virtnet_commit_rss_command(vi))
 			return -EINVAL;
@@ -4152,12 +4152,12 @@ static void virtnet_config_changed_work(struct work_struct *work)
 				 struct virtio_net_config, status, &v) < 0)
 		return;
 
-	if (v & VIRTIO_NET_S_ANNOUNCE) {
-		netdev_notify_peers(vi->dev);
-		virtnet_ack_link_announce(vi);
+	if (v & VIRTIO_NET_S_ANANALUNCE) {
+		netdev_analtify_peers(vi->dev);
+		virtnet_ack_link_ananalunce(vi);
 	}
 
-	/* Ignore unknown (future) status bits */
+	/* Iganalre unkanalwn (future) status bits */
 	v &= VIRTIO_NET_S_LINK_UP;
 
 	if (vi->status == v)
@@ -4296,7 +4296,7 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 	vq_callback_t **callbacks;
 	struct virtqueue **vqs;
 	const char **names;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int total_vqs;
 	bool *ctx;
 	u16 i;
@@ -4421,7 +4421,7 @@ err_rq:
 err_sq:
 	kfree(vi->ctrl);
 err_ctrl:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int init_vqs(struct virtnet_info *vi)
@@ -4489,7 +4489,7 @@ static bool virtnet_fail_on_feature(struct virtio_device *vdev,
 	if (!virtio_has_feature(vdev, fbit))
 		return false;
 
-	dev_err(&vdev->dev, "device advertises feature %s but not %s",
+	dev_err(&vdev->dev, "device advertises feature %s but analt %s",
 		fname, dname);
 
 	return true;
@@ -4505,7 +4505,7 @@ static bool virtnet_validate_features(struct virtio_device *vdev)
 			     "VIRTIO_NET_F_CTRL_VQ") ||
 	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_CTRL_VLAN,
 			     "VIRTIO_NET_F_CTRL_VQ") ||
-	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_GUEST_ANNOUNCE,
+	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_GUEST_ANANALUNCE,
 			     "VIRTIO_NET_F_CTRL_VQ") ||
 	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_MQ, "VIRTIO_NET_F_CTRL_VQ") ||
 	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_CTRL_MAC_ADDR,
@@ -4514,9 +4514,9 @@ static bool virtnet_validate_features(struct virtio_device *vdev)
 			     "VIRTIO_NET_F_CTRL_VQ") ||
 	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_HASH_REPORT,
 			     "VIRTIO_NET_F_CTRL_VQ") ||
-	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_NOTF_COAL,
+	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_ANALTF_COAL,
 			     "VIRTIO_NET_F_CTRL_VQ") ||
-	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_VQ_NOTF_COAL,
+	     VIRTNET_FAIL_ON(vdev, VIRTIO_NET_F_VQ_ANALTF_COAL,
 			     "VIRTIO_NET_F_CTRL_VQ"))) {
 		return false;
 	}
@@ -4548,7 +4548,7 @@ static int virtnet_validate(struct virtio_device *vdev)
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_STANDBY) &&
 	    !virtio_has_feature(vdev, VIRTIO_NET_F_MAC)) {
-		dev_warn(&vdev->dev, "device advertises feature VIRTIO_NET_F_STANDBY but not VIRTIO_NET_F_MAC, disabling standby");
+		dev_warn(&vdev->dev, "device advertises feature VIRTIO_NET_F_STANDBY but analt VIRTIO_NET_F_MAC, disabling standby");
 		__virtio_clear_bit(vdev, VIRTIO_NET_F_STANDBY);
 	}
 
@@ -4581,7 +4581,7 @@ static void virtnet_set_big_packets(struct virtnet_info *vi, const int mtu)
 
 static int virtnet_probe(struct virtio_device *vdev)
 {
-	int i, err = -ENOMEM;
+	int i, err = -EANALMEM;
 	struct net_device *dev;
 	struct virtnet_info *vi;
 	u16 max_queue_pairs;
@@ -4602,11 +4602,11 @@ static int virtnet_probe(struct virtio_device *vdev)
 	/* Allocate ourselves a network device with room for our info */
 	dev = alloc_etherdev_mq(sizeof(struct virtnet_info), max_queue_pairs);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Set up network device as normal. */
+	/* Set up network device as analrmal. */
 	dev->priv_flags |= IFF_UNICAST_FLT | IFF_LIVE_ADDR_CHANGE |
-			   IFF_TX_SKB_NO_LINEAR;
+			   IFF_TX_SKB_ANAL_LINEAR;
 	dev->netdev_ops = &virtnet_netdev;
 	dev->features = NETIF_F_HIGHDMA;
 
@@ -4730,7 +4730,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 			 * in virtnet_validate.
 			 */
 			dev_err(&vdev->dev,
-				"device MTU appears to have changed it is now %d < %d",
+				"device MTU appears to have changed it is analw %d < %d",
 				mtu, dev->min_mtu);
 			err = -EINVAL;
 			goto free;
@@ -4757,7 +4757,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (err)
 		goto free;
 
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_NOTF_COAL)) {
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_ANALTF_COAL)) {
 		vi->intr_coal_rx.max_usecs = 0;
 		vi->intr_coal_tx.max_usecs = 0;
 		vi->intr_coal_rx.max_packets = 0;
@@ -4771,8 +4771,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 			vi->intr_coal_tx.max_packets = 0;
 	}
 
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_VQ_NOTF_COAL)) {
-		/* The reason is the same as VIRTIO_NET_F_NOTF_COAL. */
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_VQ_ANALTF_COAL)) {
+		/* The reason is the same as VIRTIO_NET_F_ANALTF_COAL. */
 		for (i = 0; i < vi->max_queue_pairs; i++)
 			if (vi->sq[i].napi.weight)
 				vi->sq[i].intr_coal.max_packets = 1;
@@ -4812,8 +4812,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	_virtnet_set_queues(vi, vi->curr_queue_pairs);
 
-	/* a random MAC address has been assigned, notify the device.
-	 * We don't fail probe if VIRTIO_NET_F_CTRL_MAC_ADDR is not there
+	/* a random MAC address has been assigned, analtify the device.
+	 * We don't fail probe if VIRTIO_NET_F_CTRL_MAC_ADDR is analt there
 	 * because many devices work fine without getting MAC explicitly
 	 */
 	if (!virtio_has_feature(vdev, VIRTIO_NET_F_MAC) &&
@@ -4832,9 +4832,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	rtnl_unlock();
 
-	err = virtnet_cpu_notif_add(vi);
+	err = virtnet_cpu_analtif_add(vi);
 	if (err) {
-		pr_debug("virtio_net: registering cpu notifier failed\n");
+		pr_debug("virtio_net: registering cpu analtifier failed\n");
 		goto free_unregister_netdev;
 	}
 
@@ -4891,9 +4891,9 @@ static void virtnet_remove(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
 
-	virtnet_cpu_notif_remove(vi);
+	virtnet_cpu_analtif_remove(vi);
 
-	/* Make sure no work handler is accessing the device. */
+	/* Make sure anal work handler is accessing the device. */
 	flush_work(&vi->config_work);
 
 	unregister_netdev(vi->dev);
@@ -4909,7 +4909,7 @@ static __maybe_unused int virtnet_freeze(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
 
-	virtnet_cpu_notif_remove(vi);
+	virtnet_cpu_analtif_remove(vi);
 	virtnet_freeze_down(vdev);
 	remove_vq_common(vi);
 
@@ -4926,7 +4926,7 @@ static __maybe_unused int virtnet_restore(struct virtio_device *vdev)
 		return err;
 	virtnet_set_queues(vi, vi->curr_queue_pairs);
 
-	err = virtnet_cpu_notif_add(vi);
+	err = virtnet_cpu_analtif_add(vi);
 	if (err) {
 		virtnet_freeze_down(vdev);
 		remove_vq_common(vi);
@@ -4950,12 +4950,12 @@ static struct virtio_device_id id_table[] = {
 	VIRTIO_NET_F_HOST_USO, VIRTIO_NET_F_GUEST_USO4, VIRTIO_NET_F_GUEST_USO6, \
 	VIRTIO_NET_F_MRG_RXBUF, VIRTIO_NET_F_STATUS, VIRTIO_NET_F_CTRL_VQ, \
 	VIRTIO_NET_F_CTRL_RX, VIRTIO_NET_F_CTRL_VLAN, \
-	VIRTIO_NET_F_GUEST_ANNOUNCE, VIRTIO_NET_F_MQ, \
+	VIRTIO_NET_F_GUEST_ANANALUNCE, VIRTIO_NET_F_MQ, \
 	VIRTIO_NET_F_CTRL_MAC_ADDR, \
 	VIRTIO_NET_F_MTU, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, \
 	VIRTIO_NET_F_SPEED_DUPLEX, VIRTIO_NET_F_STANDBY, \
-	VIRTIO_NET_F_RSS, VIRTIO_NET_F_HASH_REPORT, VIRTIO_NET_F_NOTF_COAL, \
-	VIRTIO_NET_F_VQ_NOTF_COAL, \
+	VIRTIO_NET_F_RSS, VIRTIO_NET_F_HASH_REPORT, VIRTIO_NET_F_ANALTF_COAL, \
+	VIRTIO_NET_F_VQ_ANALTF_COAL, \
 	VIRTIO_NET_F_GUEST_HDRLEN
 
 static unsigned int features[] = {

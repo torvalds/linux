@@ -48,7 +48,7 @@ struct ipl_parameter_block {
 
 #define IPL_MAX_SUPPORTED_VERSION (0)
 
-#define IPL_RB_CERT_UNKNOWN ((unsigned short)-1)
+#define IPL_RB_CERT_UNKANALWN ((unsigned short)-1)
 
 #define DIAG308_VMPARM_SIZE (64)
 #define DIAG308_SCPDATA_OFFSET offsetof(struct ipl_parameter_block, \
@@ -66,7 +66,7 @@ extern size_t ipl_block_get_ascii_vmparm(char *dest, size_t size,
 					 const struct ipl_parameter_block *ipb);
 
 enum ipl_type {
-	IPL_TYPE_UNKNOWN	= 1,
+	IPL_TYPE_UNKANALWN	= 1,
 	IPL_TYPE_CCW		= 2,
 	IPL_TYPE_FCP		= 4,
 	IPL_TYPE_FCP_DUMP	= 8,
@@ -145,13 +145,13 @@ int ipl_report_add_certificate(struct ipl_report *report, void *key,
  */
 enum diag308_subcode  {
 	DIAG308_CLEAR_RESET = 0,
-	DIAG308_LOAD_NORMAL_RESET = 1,
+	DIAG308_LOAD_ANALRMAL_RESET = 1,
 	DIAG308_REL_HSA = 2,
 	DIAG308_LOAD_CLEAR = 3,
-	DIAG308_LOAD_NORMAL_DUMP = 4,
+	DIAG308_LOAD_ANALRMAL_DUMP = 4,
 	DIAG308_SET = 5,
 	DIAG308_STORE = 6,
-	DIAG308_LOAD_NORMAL = 7,
+	DIAG308_LOAD_ANALRMAL = 7,
 };
 
 enum diag308_subcode_flags {
@@ -160,7 +160,7 @@ enum diag308_subcode_flags {
 
 enum diag308_rc {
 	DIAG308_RC_OK		= 0x0001,
-	DIAG308_RC_NOCONFIG	= 0x0102,
+	DIAG308_RC_ANALCONFIG	= 0x0102,
 };
 
 extern int diag308(unsigned long subcode, void *addr);

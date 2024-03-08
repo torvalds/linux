@@ -85,28 +85,28 @@ int mtk_eint_find_irq(struct mtk_eint *eint, unsigned long eint_n);
 #else
 static inline int mtk_eint_do_init(struct mtk_eint *eint)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mtk_eint_do_suspend(struct mtk_eint *eint)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mtk_eint_do_resume(struct mtk_eint *eint)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_n,
 			  unsigned int debounce)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mtk_eint_find_irq(struct mtk_eint *eint, unsigned long eint_n)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 #endif /* __MTK_EINT_H */

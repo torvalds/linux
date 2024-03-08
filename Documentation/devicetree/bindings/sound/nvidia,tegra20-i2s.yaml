@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: NVIDIA Tegra20 I2S Controller
 
 description: |
-  The I2S Controller streams synchronous serial audio data between system
+  The I2S Controller streams synchroanalus serial audio data between system
   memory and an external audio device. The controller supports the I2S Left
   Justified Mode, Right Justified Mode, and DSP mode formats.
 

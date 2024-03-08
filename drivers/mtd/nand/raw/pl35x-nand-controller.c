@@ -114,7 +114,7 @@ struct pl35x_nand_timings {
 };
 
 struct pl35x_nand {
-	struct list_head node;
+	struct list_head analde;
 	struct nand_chip chip;
 	unsigned int cs;
 	unsigned int addr_cycles;
@@ -351,7 +351,7 @@ static void pl35x_nand_read_data_op(struct nand_chip *chip, u8 *in,
 		buf32[i] = readl(nfc->io_regs + data_phase_addr);
 	}
 
-	/* No working extra flags on unaligned data accesses */
+	/* Anal working extra flags on unaligned data accesses */
 	for (i = in_start; i < len; i++)
 		buf8[i] = readb(nfc->io_regs + PL35X_SMC_DATA_PHASE);
 
@@ -383,7 +383,7 @@ static void pl35x_nand_write_data_op(struct nand_chip *chip, const u8 *out,
 		writel(buf32[i], nfc->io_regs + data_phase_addr);
 	}
 
-	/* No working extra flags on unaligned data accesses */
+	/* Anal working extra flags on unaligned data accesses */
 	for (i = in_start; i < len; i++)
 		writeb(buf8[i], nfc->io_regs + PL35X_SMC_DATA_PHASE);
 
@@ -412,7 +412,7 @@ static int pl35x_nand_correct_data(struct pl35x_nandc *nfc, unsigned char *buf,
 	ecc_odd = read_ecc_lower ^ calc_ecc_lower;
 	ecc_even = read_ecc_upper ^ calc_ecc_upper;
 
-	/* No error */
+	/* Anal error */
 	if (likely(!ecc_odd && !ecc_even))
 		return 0;
 
@@ -428,7 +428,7 @@ static int pl35x_nand_correct_data(struct pl35x_nandc *nfc, unsigned char *buf,
 		return 1;
 	}
 
-	/* One error in the ECC data; no action needed */
+	/* One error in the ECC data; anal action needed */
 	if (hweight32(ecc_odd | ecc_even) == 1)
 		return 1;
 
@@ -583,11 +583,11 @@ disable_ecc_engine:
  * generated ECC values and read ECC values from spare area.
  *
  * There is a limitation with SMC controller: ECC_LAST must be set on the
- * last data access to tell the ECC engine not to expect any further data.
+ * last data access to tell the ECC engine analt to expect any further data.
  * In practice, this implies to shrink the last data transfert by eg. 4 bytes,
  * and doing a last 4-byte transfer with the additional bit set. The last block
  * should be aligned with the end of an ECC block. Because of this limitation,
- * it is not possible to use the core routines.
+ * it is analt possible to use the core routines.
  */
 static int pl35x_nand_read_page_hwecc(struct nand_chip *chip,
 				      u8 *buf, int oob_required, int page)
@@ -795,7 +795,7 @@ static int pl35x_nfc_setup_interface(struct nand_chip *chip, int cs,
 	if (IS_ERR(sdr))
 		return PTR_ERR(sdr);
 
-	mclk = of_clk_get_by_name(nfc->dev->parent->of_node, "memclk");
+	mclk = of_clk_get_by_name(nfc->dev->parent->of_analde, "memclk");
 	if (IS_ERR(mclk)) {
 		dev_err(nfc->dev, "Failed to retrieve SMC memclk\n");
 		return PTR_ERR(mclk);
@@ -809,7 +809,7 @@ static int pl35x_nfc_setup_interface(struct nand_chip *chip, int cs,
 	period_ns = NSEC_PER_SEC / clk_get_rate(mclk);
 
 	/*
-	 * PL35X SMC needs one extra read cycle in SDR Mode 5. This is not
+	 * PL35X SMC needs one extra read cycle in SDR Mode 5. This is analt
 	 * written anywhere in the datasheet but is an empirical observation.
 	 */
 	val = TO_CYCLES(sdr->tRC_min, period_ns);
@@ -902,7 +902,7 @@ static int pl35x_nand_init_hw_ecc_controller(struct pl35x_nandc *nfc,
 	if (mtd->writesize < SZ_512 || mtd->writesize > SZ_2K) {
 		dev_err(nfc->dev,
 			"The hardware ECC engine is limited to pages up to 2kiB\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	chip->ecc.strength = 1;
@@ -911,26 +911,26 @@ static int pl35x_nand_init_hw_ecc_controller(struct pl35x_nandc *nfc,
 	chip->ecc.steps = mtd->writesize / chip->ecc.size;
 	chip->ecc.read_page = pl35x_nand_read_page_hwecc;
 	chip->ecc.write_page = pl35x_nand_write_page_hwecc;
-	chip->ecc.write_page_raw = nand_monolithic_write_page_raw;
+	chip->ecc.write_page_raw = nand_moanallithic_write_page_raw;
 	pl35x_smc_set_ecc_pg_size(nfc, chip, mtd->writesize);
 
 	nfc->ecc_buf = devm_kmalloc(nfc->dev, chip->ecc.bytes * chip->ecc.steps,
 				    GFP_KERNEL);
 	if (!nfc->ecc_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (mtd->oobsize) {
 	case 16:
 		/* Legacy Xilinx layout */
 		mtd_set_ooblayout(mtd, &pl35x_ecc_ooblayout16_ops);
-		chip->bbt_options |= NAND_BBT_NO_OOB_BBM;
+		chip->bbt_options |= NAND_BBT_ANAL_OOB_BBM;
 		break;
 	case 64:
 		mtd_set_ooblayout(mtd, nand_get_large_page_ooblayout());
 		break;
 	default:
 		dev_err(nfc->dev, "Unsupported OOB size\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -945,14 +945,14 @@ static int pl35x_nand_attach_chip(struct nand_chip *chip)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
-	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_NONE &&
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ANALNE &&
 	    (!chip->ecc.size || !chip->ecc.strength)) {
 		if (requirements->step_size && requirements->strength) {
 			chip->ecc.size = requirements->step_size;
 			chip->ecc.strength = requirements->strength;
 		} else {
 			dev_info(nfc->dev,
-				 "No minimum ECC strength, using 1b/512B\n");
+				 "Anal minimum ECC strength, using 1b/512B\n");
 			chip->ecc.size = 512;
 			chip->ecc.strength = 1;
 		}
@@ -974,7 +974,7 @@ static int pl35x_nand_attach_chip(struct nand_chip *chip)
 		chip->bbt_td = &bbt_main_descr;
 		chip->bbt_md = &bbt_mirror_descr;
 		fallthrough;
-	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_ANALNE:
 	case NAND_ECC_ENGINE_TYPE_SOFT:
 		break;
 	case NAND_ECC_ENGINE_TYPE_ON_HOST:
@@ -1036,7 +1036,7 @@ static int pl35x_nand_reset_state(struct pl35x_nandc *nfc)
 }
 
 static int pl35x_nand_chip_init(struct pl35x_nandc *nfc,
-				struct device_node *np)
+				struct device_analde *np)
 {
 	struct pl35x_nand *plnand;
 	struct nand_chip *chip;
@@ -1045,7 +1045,7 @@ static int pl35x_nand_chip_init(struct pl35x_nandc *nfc,
 
 	plnand = devm_kzalloc(nfc->dev, sizeof(*plnand), GFP_KERNEL);
 	if (!plnand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32(np, "reg", &cs);
 	if (ret)
@@ -1064,18 +1064,18 @@ static int pl35x_nand_chip_init(struct pl35x_nandc *nfc,
 	plnand->cs = cs;
 
 	chip = &plnand->chip;
-	chip->options = NAND_BUSWIDTH_AUTO | NAND_USES_DMA | NAND_NO_SUBPAGE_WRITE;
+	chip->options = NAND_BUSWIDTH_AUTO | NAND_USES_DMA | NAND_ANAL_SUBPAGE_WRITE;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 	chip->controller = &nfc->controller;
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = nfc->dev;
-	nand_set_flash_node(chip, np);
+	nand_set_flash_analde(chip, np);
 	if (!mtd->name) {
 		mtd->name = devm_kasprintf(nfc->dev, GFP_KERNEL,
 					   "%s", PL35X_NANDC_DRIVER_NAME);
 		if (!mtd->name) {
 			dev_err(nfc->dev, "Failed to allocate mtd->name\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1089,7 +1089,7 @@ static int pl35x_nand_chip_init(struct pl35x_nandc *nfc,
 		return ret;
 	}
 
-	list_add_tail(&plnand->node, &nfc->chips);
+	list_add_tail(&plnand->analde, &nfc->chips);
 
 	return ret;
 }
@@ -1100,18 +1100,18 @@ static void pl35x_nand_chips_cleanup(struct pl35x_nandc *nfc)
 	struct nand_chip *chip;
 	int ret;
 
-	list_for_each_entry_safe(plnand, tmp, &nfc->chips, node) {
+	list_for_each_entry_safe(plnand, tmp, &nfc->chips, analde) {
 		chip = &plnand->chip;
 		ret = mtd_device_unregister(nand_to_mtd(chip));
 		WARN_ON(ret);
 		nand_cleanup(chip);
-		list_del(&plnand->node);
+		list_del(&plnand->analde);
 	}
 }
 
 static int pl35x_nand_chips_init(struct pl35x_nandc *nfc)
 {
-	struct device_node *np = nfc->dev->of_node, *nand_np;
+	struct device_analde *np = nfc->dev->of_analde, *nand_np;
 	int nchips = of_get_child_count(np);
 	int ret;
 
@@ -1121,10 +1121,10 @@ static int pl35x_nand_chips_init(struct pl35x_nandc *nfc)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_analde(np, nand_np) {
 		ret = pl35x_nand_chip_init(nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
+			of_analde_put(nand_np);
 			pl35x_nand_chips_cleanup(nfc);
 			break;
 		}
@@ -1142,7 +1142,7 @@ static int pl35x_nand_probe(struct platform_device *pdev)
 
 	nfc = devm_kzalloc(&pdev->dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfc->dev = &pdev->dev;
 	nand_controller_init(&nfc->controller);

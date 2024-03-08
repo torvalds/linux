@@ -21,7 +21,7 @@
 #define KN02CA_CPU_INR_TIMER	2	/* ARC periodic timer */
 
 /*
- * I/O ASIC interrupt bits.  Star marks denote non-IRQ status bits.
+ * I/O ASIC interrupt bits.  Star marks deanalte analn-IRQ status bits.
  */
 #define KN02CA_IO_INR_FLOPPY	15	/* 82077 FDC */
 #define KN02CA_IO_INR_NVRAM	14	/* (*) NVRAM clear jumper */

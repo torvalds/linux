@@ -78,9 +78,9 @@
 #define BIT_DPU_LAY_FORMAT_RGB565			(0x04 << 4)
 #define BIT_DPU_LAY_DATA_ENDIAN_B0B1B2B3		(0x00 << 8)
 #define BIT_DPU_LAY_DATA_ENDIAN_B3B2B1B0		(0x01 << 8)
-#define BIT_DPU_LAY_NO_SWITCH			(0x00 << 10)
+#define BIT_DPU_LAY_ANAL_SWITCH			(0x00 << 10)
 #define BIT_DPU_LAY_RB_OR_UV_SWITCH		(0x01 << 10)
-#define BIT_DPU_LAY_MODE_BLEND_NORMAL		(0x00 << 16)
+#define BIT_DPU_LAY_MODE_BLEND_ANALRMAL		(0x00 << 16)
 #define BIT_DPU_LAY_MODE_BLEND_PREMULT		(0x01 << 16)
 #define BIT_DPU_LAY_ROTATION_0		(0x00 << 20)
 #define BIT_DPU_LAY_ROTATION_90		(0x01 << 20)
@@ -207,7 +207,7 @@ static u32 drm_format_to_dpu(struct drm_framebuffer *fb)
 		/* Y endian */
 		format |= BIT_DPU_LAY_DATA_ENDIAN_B0B1B2B3;
 		/* UV endian */
-		format |= BIT_DPU_LAY_NO_SWITCH;
+		format |= BIT_DPU_LAY_ANAL_SWITCH;
 		break;
 	case DRM_FORMAT_NV21:
 		/* 2-Lane: Yuv420 */
@@ -231,14 +231,14 @@ static u32 drm_format_to_dpu(struct drm_framebuffer *fb)
 		/* Y endian */
 		format |= BIT_DPU_LAY_DATA_ENDIAN_B0B1B2B3;
 		/* UV endian */
-		format |= BIT_DPU_LAY_NO_SWITCH;
+		format |= BIT_DPU_LAY_ANAL_SWITCH;
 		break;
 	case DRM_FORMAT_YUV420:
 		format |= BIT_DPU_LAY_FORMAT_YUV420_3PLANE;
 		/* Y endian */
 		format |= BIT_DPU_LAY_DATA_ENDIAN_B0B1B2B3;
 		/* UV endian */
-		format |= BIT_DPU_LAY_NO_SWITCH;
+		format |= BIT_DPU_LAY_ANAL_SWITCH;
 		break;
 	case DRM_FORMAT_YVU420:
 		format |= BIT_DPU_LAY_FORMAT_YUV420_3PLANE;
@@ -297,8 +297,8 @@ static u32 drm_blend_to_dpu(struct drm_plane_state *state)
 	case DRM_MODE_BLEND_COVERAGE:
 		/* alpha mode select - combo alpha */
 		blend |= BIT_DPU_LAY_COMBO_ALPHA;
-		/* Normal mode */
-		blend |= BIT_DPU_LAY_MODE_BLEND_NORMAL;
+		/* Analrmal mode */
+		blend |= BIT_DPU_LAY_MODE_BLEND_ANALRMAL;
 		break;
 	case DRM_MODE_BLEND_PREMULTI:
 		/* alpha mode select - combo alpha */
@@ -306,7 +306,7 @@ static u32 drm_blend_to_dpu(struct drm_plane_state *state)
 		/* Pre-mult mode */
 		blend |= BIT_DPU_LAY_MODE_BLEND_PREMULT;
 		break;
-	case DRM_MODE_BLEND_PIXEL_NONE:
+	case DRM_MODE_BLEND_PIXEL_ANALNE:
 	default:
 		/* don't do blending, maybe RGBX */
 		/* alpha mode select - layer alpha */
@@ -379,7 +379,7 @@ static void sprd_dpu_flip(struct sprd_dpu *dpu)
 	struct dpu_context *ctx = &dpu->ctx;
 
 	/*
-	 * Make sure the dpu is in stop status. DPU has no shadow
+	 * Make sure the dpu is in stop status. DPU has anal shadow
 	 * registers in EDPI mode. So the config registers can only be
 	 * updated in the rising edge of DPU_RUN bit.
 	 */
@@ -520,8 +520,8 @@ static int sprd_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  true, true);
 }
 
@@ -548,7 +548,7 @@ static void sprd_plane_atomic_disable(struct drm_plane *drm_plane,
 
 static void sprd_plane_create_properties(struct sprd_plane *plane, int index)
 {
-	unsigned int supported_modes = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+	unsigned int supported_modes = BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 				       BIT(DRM_MODE_BLEND_PREMULTI) |
 				       BIT(DRM_MODE_BLEND_COVERAGE);
 
@@ -613,7 +613,7 @@ static struct sprd_plane *sprd_planes_init(struct drm_device *drm)
 	return primary;
 }
 
-static void sprd_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void sprd_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct sprd_dpu *dpu = to_sprd_crtc(crtc);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
@@ -697,7 +697,7 @@ static void sprd_crtc_disable_vblank(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs sprd_crtc_helper_funcs = {
-	.mode_set_nofb	= sprd_crtc_mode_set_nofb,
+	.mode_set_analfb	= sprd_crtc_mode_set_analfb,
 	.atomic_flush	= sprd_crtc_atomic_flush,
 	.atomic_enable	= sprd_crtc_atomic_enable,
 	.atomic_disable	= sprd_crtc_atomic_disable,
@@ -717,7 +717,7 @@ static const struct drm_crtc_funcs sprd_crtc_funcs = {
 static struct sprd_dpu *sprd_crtc_init(struct drm_device *drm,
 				       struct drm_plane *primary, struct device *dev)
 {
-	struct device_node *port;
+	struct device_analde *port;
 	struct sprd_dpu *dpu;
 
 	dpu = drmm_crtc_alloc_with_planes(drm, struct sprd_dpu, base,
@@ -732,14 +732,14 @@ static struct sprd_dpu *sprd_crtc_init(struct drm_device *drm,
 	/*
 	 * set crtc port so that drm_of_find_possible_crtcs call works
 	 */
-	port = of_graph_get_port_by_id(dev->of_node, 0);
+	port = of_graph_get_port_by_id(dev->of_analde, 0);
 	if (!port) {
 		drm_err(drm, "failed to found crtc output port for %s\n",
-			dev->of_node->full_name);
+			dev->of_analde->full_name);
 		return ERR_PTR(-EINVAL);
 	}
 	dpu->base.port = port;
-	of_node_put(port);
+	of_analde_put(port);
 
 	return dpu;
 }
@@ -808,7 +808,7 @@ static int sprd_dpu_context_init(struct sprd_dpu *dpu,
 	writel(0xff, ctx->base + REG_DPU_INT_CLR);
 
 	ret = devm_request_irq(dev, ctx->irq, sprd_dpu_isr,
-			       IRQF_TRIGGER_NONE, "DPU", dpu);
+			       IRQF_TRIGGER_ANALNE, "DPU", dpu);
 	if (ret) {
 		dev_err(dev, "failed to register dpu irq handler\n");
 		return ret;

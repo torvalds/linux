@@ -127,7 +127,7 @@ $cpu_ok:
 	ldo		ASM_PGD_ENTRY*ASM_PGD_ENTRY_SIZE(%r4),%r4
 #endif
 
-	/* Fill in pmd with enough pte directories */
+	/* Fill in pmd with eanalugh pte directories */
 	load32		PA(pg0),%r1
 	SHRREG		%r1,PxD_VALUE_SHIFT,%r3
 	ldo		(PxD_FLAG_PRESENT+PxD_FLAG_VALID)(%r3),%r3
@@ -145,7 +145,7 @@ $cpu_ok:
 #endif
 
 
-	/* Now initialize the PTEs themselves.  We use RWX for
+	/* Analw initialize the PTEs themselves.  We use RWX for
 	 * everything ... it will get remapped correctly later */
 	ldo		0+_PAGE_KERNEL_RWX(%r0),%r3 /* Hardwired 0 phys addr start */
 	load32		(1<<(KERNEL_INITIAL_ORDER-PAGE_SHIFT)),%r11 /* PFN count */
@@ -155,7 +155,7 @@ $pgt_fill_loop:
 	STREGM          %r3,ASM_PTE_ENTRY_SIZE(%r1)
 	ldo		(1<<PFN_PTE_SHIFT)(%r3),%r3 /* add one PFN */
 	addib,>		-1,%r11,$pgt_fill_loop
-	nop
+	analp
 
 	/* Load the return address...er...crash 'n burn */
 	copy		%r0,%r2
@@ -203,7 +203,7 @@ $pgt_fill_loop:
 	.procend
 
 #ifdef CONFIG_HOTPLUG_CPU
-	/* common_stext is far away in another section... jump there */
+	/* common_stext is far away in aanalther section... jump there */
 	load32		PA(common_stext), %rp
 	bv,n		(%rp)
 
@@ -252,7 +252,7 @@ common_stext:
 
         /* Set Wide mode as the "Default" (eg for traps)
         ** First trap occurs *right* after (or part of) rfi for slave CPUs.
-        ** Someday, palo might not do this for the Monarch either.
+        ** Someday, palo might analt do this for the Monarch either.
         */
 2:
 
@@ -279,7 +279,7 @@ stext_pdc_ret:
 stext_pdc_btlb_ret:
 #endif
 
-	/* PARANOID: clear user scratch/user space SR's */
+	/* PARAANALID: clear user scratch/user space SR's */
 	mtsp	%r0,%sr0
 	mtsp	%r0,%sr1
 	mtsp	%r0,%sr2
@@ -294,7 +294,7 @@ stext_pdc_btlb_ret:
 	/* Initialize the global data pointer */
 	loadgp
 
-	/* Set up our interrupt table.  HPMCs might not work after this! 
+	/* Set up our interrupt table.  HPMCs might analt work after this! 
 	 *
 	 * We need to install the correct iva for PA1.1 or PA2.0. The
 	 * following short sequence of instructions can determine this
@@ -319,8 +319,8 @@ $is_pa20:
 $install_iva:
 	mtctl		%r10,%cr14
 
-	b		aligned_rfi  /* Prepare to RFI! Man all the cannons! */
-	nop
+	b		aligned_rfi  /* Prepare to RFI! Man all the cananalns! */
+	analp
 
 	.align 128
 aligned_rfi:
@@ -329,7 +329,7 @@ aligned_rfi:
 	copy		%r3, %arg0	/* PDCE_PROC for smp_callin() */
 
 	rsm		PSW_SM_QUIET,%r0	/* off troublesome PSW bits */
-	/* Don't need NOPs, have 8 compliant insn before rfi */
+	/* Don't need ANALPs, have 8 compliant insn before rfi */
 
 	mtctl		%r0,%cr17	/* Clear IIASQ tail */
 	mtctl		%r0,%cr17	/* Clear IIASQ head */
@@ -346,7 +346,7 @@ aligned_rfi:
 
 	/* Jump through hyperspace to Virt Mode */
 	rfi
-	nop
+	analp
 
 	.procend
 
@@ -360,13 +360,13 @@ smp_callin_rtn:
         .proc
 	.callinfo
 	break	1,1		/*  Break if returned from start_secondary */
-	nop
-	nop
+	analp
+	analp
         .procend
 #endif /*!CONFIG_64BIT*/
 
 /***************************************************************************
-* smp_slave_stext is executed by all non-monarch Processors when the Monarch
+* smp_slave_stext is executed by all analn-monarch Processors when the Monarch
 * pokes the slave CPUs in smp.c:smp_boot_cpus().
 *
 * Once here, registers values are initialized in order to branch to virtual
@@ -425,7 +425,7 @@ smp_slave_stext:
 	
 	/* ok...common code can handle the rest */
 	b		common_stext
-	nop
+	analp
 
 	.procend
 #endif /* CONFIG_SMP */

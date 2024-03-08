@@ -2,7 +2,7 @@
 /*
  * Copyright 2022 The Chromium OS Authors
  *
- * Support that applies to the combination of SDHCI and CQHCI, while not
+ * Support that applies to the combination of SDHCI and CQHCI, while analt
  * expressing a dependency between the two modules.
  */
 

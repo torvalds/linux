@@ -31,20 +31,20 @@
 #define PROM_EMFILE			0x0a
 #define PROM_EMLINK			0x0b
 #define PROM_ENAMETOOLONG		0x0c
-#define PROM_ENODEV			0x0d
-#define PROM_ENOENT			0x0e
-#define PROM_ENOEXEC			0x0f
-#define PROM_ENOMEM			0x10
-#define PROM_ENOSPC			0x11
-#define PROM_ENOTDIR			0x12
-#define PROM_ENOTTY			0x13
+#define PROM_EANALDEV			0x0d
+#define PROM_EANALENT			0x0e
+#define PROM_EANALEXEC			0x0f
+#define PROM_EANALMEM			0x10
+#define PROM_EANALSPC			0x11
+#define PROM_EANALTDIR			0x12
+#define PROM_EANALTTY			0x13
 #define PROM_ENXIO			0x14
 #define PROM_EROFS			0x15
-/* SGI ARCS specific errno's. */
-#define PROM_EADDRNOTAVAIL		0x1f
+/* SGI ARCS specific erranal's. */
+#define PROM_EADDRANALTAVAIL		0x1f
 #define PROM_ETIMEDOUT			0x20
 #define PROM_ECONNABORTED		0x21
-#define PROM_ENOCONNECT			0x22
+#define PROM_EANALCONNECT			0x22
 
 /* Device classes, types, and identifiers for prom
  * device inventory queries.
@@ -70,7 +70,7 @@ enum linux_devtypes {
 	misc_controller, disk_peripheral, flpy_peripheral, tp_peripheral,
 	modem_peripheral, monitor_peripheral, printer_peripheral,
 	ptr_peripheral, kbd_peripheral, term_peripheral, line_peripheral,
-	net_peripheral, misc_peripheral, anon
+	net_peripheral, misc_peripheral, aanaln
 };
 
 enum linux_identifier {
@@ -79,11 +79,11 @@ enum linux_identifier {
 
 /* A prom device tree component. */
 struct linux_component {
-	enum linux_devclass	class;	/* node class */
-	enum linux_devtypes	type;	/* node type */
-	enum linux_identifier	iflags; /* node flags */
-	USHORT			vers;	/* node version */
-	USHORT			rev;	/* node revision */
+	enum linux_devclass	class;	/* analde class */
+	enum linux_devtypes	type;	/* analde type */
+	enum linux_identifier	iflags; /* analde flags */
+	USHORT			vers;	/* analde version */
+	USHORT			rev;	/* analde revision */
 	ULONG			key;	/* completely magic */
 	ULONG			amask;	/* XXX affinity mask??? */
 	ULONG			cdsize; /* size of configuration data */
@@ -237,7 +237,7 @@ struct linux_romvec {
 
 	/* Miscellaneous. */
 	LONG	cache_flush;
-	LONG	TestUnicodeCharacter;		/* ARC; not sure if ARCS too */
+	LONG	TestUnicodeCharacter;		/* ARC; analt sure if ARCS too */
 	LONG	GetDisplayStatus;
 };
 

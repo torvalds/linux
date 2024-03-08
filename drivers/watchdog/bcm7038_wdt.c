@@ -33,7 +33,7 @@ struct bcm7038_watchdog {
 	struct clk		*clk;
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 static inline void bcm7038_wdt_write(u32 value, void __iomem *addr)
 {
@@ -137,7 +137,7 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -226,9 +226,9 @@ static struct platform_driver bcm7038_wdt_driver = {
 };
 module_platform_driver(bcm7038_wdt_driver);
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+	__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Broadcom 7038 SoCs Watchdog");
 MODULE_AUTHOR("Justin Chen");

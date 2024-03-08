@@ -123,7 +123,7 @@
 #define AMS_ALARM_THR_MAX		(BIT(16) - 1)
 
 #define AMS_ALARM_MASK			GENMASK_ULL(63, 0)
-#define AMS_NO_OF_ALARMS		32
+#define AMS_ANAL_OF_ALARMS		32
 #define AMS_PL_ALARM_START		16
 #define AMS_PL_ALARM_MASK		GENMASK(31, 16)
 #define AMS_ISR0_ALARM_MASK		GENMASK(31, 0)
@@ -254,8 +254,8 @@ enum ams_ps_pl_seq {
 	AMS_CHAN_TEMP(PL_SEQ(_scan_index), _addr)
 #define AMS_PL_CHAN_VOLTAGE(_scan_index, _addr, _alarm) \
 	AMS_CHAN_VOLTAGE(PL_SEQ(_scan_index), _addr, _alarm)
-#define AMS_PL_AUX_CHAN_VOLTAGE(_auxno) \
-	AMS_CHAN_VOLTAGE(PL_SEQ(AMS_SEQ(_auxno)), AMS_REG_VAUX(_auxno), false)
+#define AMS_PL_AUX_CHAN_VOLTAGE(_auxanal) \
+	AMS_CHAN_VOLTAGE(PL_SEQ(AMS_SEQ(_auxanal)), AMS_REG_VAUX(_auxanal), false)
 #define AMS_CTRL_CHAN_VOLTAGE(_scan_index, _addr) \
 	AMS_CHAN_VOLTAGE(PL_SEQ(AMS_SEQ(AMS_SEQ(_scan_index))), _addr, false)
 
@@ -987,9 +987,9 @@ static void ams_handle_event(struct iio_dev *indio_dev, u32 event)
 			       iio_get_time_ns(indio_dev));
 	} else {
 		/*
-		 * For other channels we don't know whether it is a upper or
+		 * For other channels we don't kanalw whether it is a upper or
 		 * lower threshold event. Userspace will have to check the
-		 * channel value if it wants to know.
+		 * channel value if it wants to kanalw.
 		 */
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(chan->type, chan->channel,
@@ -1003,7 +1003,7 @@ static void ams_handle_events(struct iio_dev *indio_dev, unsigned long events)
 {
 	unsigned int bit;
 
-	for_each_set_bit(bit, &events, AMS_NO_OF_ALARMS)
+	for_each_set_bit(bit, &events, AMS_ANAL_OF_ALARMS)
 		ams_handle_event(indio_dev, bit);
 }
 
@@ -1027,7 +1027,7 @@ static void ams_unmask_worker(struct work_struct *work)
 
 	status = readl(ams->base + AMS_ISR_0);
 
-	/* Clear those bits which are not active anymore */
+	/* Clear those bits which are analt active anymore */
 	unmask = (ams->current_masked_alarm ^ status) & ams->current_masked_alarm;
 
 	/* Clear status of disabled alarm */
@@ -1061,11 +1061,11 @@ static irqreturn_t ams_irq(int irq, void *data)
 
 	isr0 = readl(ams->base + AMS_ISR_0);
 
-	/* Only process alarms that are not masked */
+	/* Only process alarms that are analt masked */
 	isr0 &= ~((ams->intr_mask & AMS_ISR0_ALARM_MASK) | ams->current_masked_alarm);
 	if (!isr0) {
 		spin_unlock(&ams->intr_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Clear interrupt */
@@ -1171,16 +1171,16 @@ static const struct iio_chan_spec ams_ctrl_channels[] = {
 	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_INTDDR, AMS_PSINTFPDDR),
 };
 
-static int ams_get_ext_chan(struct fwnode_handle *chan_node,
+static int ams_get_ext_chan(struct fwanalde_handle *chan_analde,
 			    struct iio_chan_spec *channels, int num_channels)
 {
 	struct iio_chan_spec *chan;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	unsigned int reg, ext_chan;
 	int ret;
 
-	fwnode_for_each_child_node(chan_node, child) {
-		ret = fwnode_property_read_u32(child, "reg", &reg);
+	fwanalde_for_each_child_analde(chan_analde, child) {
+		ret = fwanalde_property_read_u32(child, "reg", &reg);
 		if (ret || reg > AMS_PL_MAX_EXT_CHANNEL + 30)
 			continue;
 
@@ -1188,7 +1188,7 @@ static int ams_get_ext_chan(struct fwnode_handle *chan_node,
 		ext_chan = reg + AMS_PL_MAX_FIXED_CHANNEL - 30;
 		memcpy(chan, &ams_pl_channels[ext_chan], sizeof(*channels));
 
-		if (fwnode_property_read_bool(child, "xlnx,bipolar"))
+		if (fwanalde_property_read_bool(child, "xlnx,bipolar"))
 			chan->scan_type.sign = 's';
 
 		num_channels++;
@@ -1212,7 +1212,7 @@ static void ams_iounmap_pl(void *data)
 }
 
 static int ams_init_module(struct iio_dev *indio_dev,
-			   struct fwnode_handle *fwnode,
+			   struct fwanalde_handle *fwanalde,
 			   struct iio_chan_spec *channels)
 {
 	struct device *dev = indio_dev->dev.parent;
@@ -1220,8 +1220,8 @@ static int ams_init_module(struct iio_dev *indio_dev,
 	int num_channels = 0;
 	int ret;
 
-	if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams-ps")) {
-		ams->ps_base = fwnode_iomap(fwnode, 0);
+	if (fwanalde_device_is_compatible(fwanalde, "xlnx,zynqmp-ams-ps")) {
+		ams->ps_base = fwanalde_iomap(fwanalde, 0);
 		if (!ams->ps_base)
 			return -ENXIO;
 		ret = devm_add_action_or_reset(dev, ams_iounmap_ps, ams);
@@ -1231,8 +1231,8 @@ static int ams_init_module(struct iio_dev *indio_dev,
 		/* add PS channels to iio device channels */
 		memcpy(channels, ams_ps_channels, sizeof(ams_ps_channels));
 		num_channels = ARRAY_SIZE(ams_ps_channels);
-	} else if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams-pl")) {
-		ams->pl_base = fwnode_iomap(fwnode, 0);
+	} else if (fwanalde_device_is_compatible(fwanalde, "xlnx,zynqmp-ams-pl")) {
+		ams->pl_base = fwanalde_iomap(fwanalde, 0);
 		if (!ams->pl_base)
 			return -ENXIO;
 
@@ -1243,9 +1243,9 @@ static int ams_init_module(struct iio_dev *indio_dev,
 		/* Copy only first 10 fix channels */
 		memcpy(channels, ams_pl_channels, AMS_PL_MAX_FIXED_CHANNEL * sizeof(*channels));
 		num_channels += AMS_PL_MAX_FIXED_CHANNEL;
-		num_channels = ams_get_ext_chan(fwnode, channels,
+		num_channels = ams_get_ext_chan(fwanalde, channels,
 						num_channels);
-	} else if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams")) {
+	} else if (fwanalde_device_is_compatible(fwanalde, "xlnx,zynqmp-ams")) {
 		/* add AMS channels to iio device channels */
 		memcpy(channels, ams_ctrl_channels, sizeof(ams_ctrl_channels));
 		num_channels += ARRAY_SIZE(ams_ctrl_channels);
@@ -1261,8 +1261,8 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 	struct ams *ams = iio_priv(indio_dev);
 	struct iio_chan_spec *ams_channels, *dev_channels;
 	struct device *dev = indio_dev->dev.parent;
-	struct fwnode_handle *child = NULL;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *child = NULL;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	size_t ams_size;
 	int ret, ch_cnt = 0, i, rising_off, falling_off;
 	unsigned int num_channels = 0;
@@ -1273,21 +1273,21 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 	/* Initialize buffer for channel specification */
 	ams_channels = devm_kcalloc(dev, ams_size, sizeof(*ams_channels), GFP_KERNEL);
 	if (!ams_channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (fwnode_device_is_available(fwnode)) {
-		ret = ams_init_module(indio_dev, fwnode, ams_channels);
+	if (fwanalde_device_is_available(fwanalde)) {
+		ret = ams_init_module(indio_dev, fwanalde, ams_channels);
 		if (ret < 0)
 			return ret;
 
 		num_channels += ret;
 	}
 
-	fwnode_for_each_child_node(fwnode, child) {
-		if (fwnode_device_is_available(child)) {
+	fwanalde_for_each_child_analde(fwanalde, child) {
+		if (fwanalde_device_is_available(child)) {
 			ret = ams_init_module(indio_dev, child, ams_channels + num_channels);
 			if (ret < 0) {
-				fwnode_handle_put(child);
+				fwanalde_handle_put(child);
 				return ret;
 			}
 
@@ -1323,7 +1323,7 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 	dev_channels = devm_krealloc_array(dev, ams_channels, num_channels,
 					   sizeof(*dev_channels), GFP_KERNEL);
 	if (!dev_channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->channels = dev_channels;
 	indio_dev->num_channels = num_channels;
@@ -1354,7 +1354,7 @@ static int ams_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*ams));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ams = iio_priv(indio_dev);
 	mutex_init(&ams->lock);

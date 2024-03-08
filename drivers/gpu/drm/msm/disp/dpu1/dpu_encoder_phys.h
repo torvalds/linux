@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  */
 
@@ -33,7 +33,7 @@
  *	Masters have extra responsibilities, like managing the VBLANK IRQ.
  * @ENC_ROLE_SOLO:	This is the one and only panel. This encoder is master.
  * @ENC_ROLE_MASTER:	This encoder is the master of a split panel config.
- * @ENC_ROLE_SLAVE:	This encoder is not the master of a split panel config.
+ * @ENC_ROLE_SLAVE:	This encoder is analt the master of a split panel config.
  */
 enum dpu_enc_split_role {
 	ENC_ROLE_SOLO,
@@ -320,7 +320,7 @@ static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 	struct dpu_crtc_state *dpu_cstate;
 
 	if (!phys_enc || phys_enc->enable_state == DPU_ENC_DISABLING)
-		return BLEND_3D_NONE;
+		return BLEND_3D_ANALNE;
 
 	dpu_cstate = to_dpu_crtc_state(phys_enc->parent->crtc->state);
 
@@ -330,7 +330,7 @@ static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 	    !dpu_encoder_use_dsc_merge(phys_enc->parent))
 		return BLEND_3D_H_ROW_INT;
 
-	return BLEND_3D_NONE;
+	return BLEND_3D_ANALNE;
 }
 
 /**
@@ -363,7 +363,7 @@ void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 
 /**
  * dpu_encoder_helper_wait_for_irq - utility to wait on an irq.
- *	note: will call dpu_encoder_helper_wait_for_irq on timeout
+ *	analte: will call dpu_encoder_helper_wait_for_irq on timeout
  * @phys_enc: Pointer to physical encoder structure
  * @irq: IRQ index
  * @func: IRQ callback to be called in case of timeout
@@ -382,23 +382,23 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc);
 
 /**
- * dpu_encoder_vblank_callback - Notify virtual encoder of vblank IRQ reception
+ * dpu_encoder_vblank_callback - Analtify virtual encoder of vblank IRQ reception
  * @drm_enc:    Pointer to drm encoder structure
  * @phys_enc:	Pointer to physical encoder
- * Note: This is called from IRQ handler context.
+ * Analte: This is called from IRQ handler context.
  */
 void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
 				 struct dpu_encoder_phys *phy_enc);
 
-/** dpu_encoder_underrun_callback - Notify virtual encoder of underrun IRQ reception
+/** dpu_encoder_underrun_callback - Analtify virtual encoder of underrun IRQ reception
  * @drm_enc:    Pointer to drm encoder structure
  * @phys_enc:	Pointer to physical encoder
- * Note: This is called from IRQ handler context.
+ * Analte: This is called from IRQ handler context.
  */
 void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
 				   struct dpu_encoder_phys *phy_enc);
 
-/** dpu_encoder_frame_done_callback -- Notify virtual encoder that this phys encoder completes last request frame
+/** dpu_encoder_frame_done_callback -- Analtify virtual encoder that this phys encoder completes last request frame
  * @drm_enc:    Pointer to drm encoder structure
  * @phys_enc:	Pointer to physical encoder
  * @event:	Event to process

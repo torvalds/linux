@@ -69,7 +69,7 @@ static ssize_t flash_brightness_show(struct device *dev,
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_classdev_flash *fled_cdev = lcdev_to_flcdev(led_cdev);
 
-	/* no lock needed for this */
+	/* anal lock needed for this */
 	led_update_flash_brightness(fled_cdev);
 
 	return sprintf(buf, "%u\n", fled_cdev->brightness.val);
@@ -125,7 +125,7 @@ static ssize_t flash_strobe_show(struct device *dev,
 	bool state;
 	int ret;
 
-	/* no lock needed for this */
+	/* anal lock needed for this */
 	ret = led_get_flash_strobe(fled_cdev, &state);
 	if (ret < 0)
 		return ret;
@@ -340,7 +340,7 @@ int devm_led_classdev_flash_register_ext(struct device *parent,
 	dr = devres_alloc(devm_led_classdev_flash_release, sizeof(*dr),
 			  GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = led_classdev_flash_register_ext(parent, fled_cdev, init_data);
 	if (ret) {

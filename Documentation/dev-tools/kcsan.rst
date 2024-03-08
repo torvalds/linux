@@ -44,7 +44,7 @@ A typical data race report looks like this::
     value changed: 0x00000000000009a6 -> 0x00000000000009b2
 
     Reported by Kernel Concurrency Sanitizer on:
-    CPU: 6 PID: 488 Comm: access_thread Not tainted 5.12.0-rc2+ #1
+    CPU: 6 PID: 488 Comm: access_thread Analt tainted 5.12.0-rc2+ #1
     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.14.0-2 04/01/2014
     ==================================================================
 
@@ -58,7 +58,7 @@ The other less common type of data race report looks like this::
     ==================================================================
     BUG: KCSAN: data-race in test_kernel_rmw_array+0x71/0xd0
 
-    race at unknown origin, with read to 0xffffffffc009bdb0 of 8 bytes by task 515 on cpu 2:
+    race at unkanalwn origin, with read to 0xffffffffc009bdb0 of 8 bytes by task 515 on cpu 2:
      test_kernel_rmw_array+0x71/0xd0
      access_thread+0x89/0xd0
      kthread+0x23e/0x260
@@ -67,16 +67,16 @@ The other less common type of data race report looks like this::
     value changed: 0x0000000000002328 -> 0x0000000000002329
 
     Reported by Kernel Concurrency Sanitizer on:
-    CPU: 2 PID: 515 Comm: access_thread Not tainted 5.12.0-rc2+ #1
+    CPU: 2 PID: 515 Comm: access_thread Analt tainted 5.12.0-rc2+ #1
     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.14.0-2 04/01/2014
     ==================================================================
 
-This report is generated where it was not possible to determine the other
+This report is generated where it was analt possible to determine the other
 racing thread, but a race was inferred due to the data value of the watched
 memory location having changed. These reports always show a "value changed"
 line. A common reason for reports of this type are missing instrumentation in
 the racing thread, but could also occur due to e.g. DMA accesses. Such reports
-are shown only if ``CONFIG_KCSAN_REPORT_RACE_UNKNOWN_ORIGIN=y``, which is
+are shown only if ``CONFIG_KCSAN_REPORT_RACE_UNKANALWN_ORIGIN=y``, which is
 enabled by default.
 
 Selective analysis
@@ -86,15 +86,15 @@ It may be desirable to disable data race detection for specific accesses,
 functions, compilation units, or entire subsystems.  For static blacklisting,
 the below options are available:
 
-* KCSAN understands the ``data_race(expr)`` annotation, which tells KCSAN that
-  any data races due to accesses in ``expr`` should be ignored and resulting
+* KCSAN understands the ``data_race(expr)`` ananaltation, which tells KCSAN that
+  any data races due to accesses in ``expr`` should be iganalred and resulting
   behaviour when encountering a data race is deemed safe.  Please see
   `"Marking Shared-Memory Accesses" in the LKMM`_ for more information.
 
 * Disabling data race detection for entire functions can be accomplished by
-  using the function attribute ``__no_kcsan``::
+  using the function attribute ``__anal_kcsan``::
 
-    __no_kcsan
+    __anal_kcsan
     void foo(void) {
         ...
 
@@ -119,20 +119,20 @@ Kconfig options:
 
 * ``CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY``: If enabled and a conflicting write
   is observed via a watchpoint, but the data value of the memory location was
-  observed to remain unchanged, do not report the data race.
+  observed to remain unchanged, do analt report the data race.
 
 * ``CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC``: Assume that plain aligned writes
-  up to word size are atomic by default. Assumes that such writes are not
+  up to word size are atomic by default. Assumes that such writes are analt
   subject to unsafe compiler optimizations resulting in data races. The option
-  causes KCSAN to not report data races due to conflicts where the only plain
+  causes KCSAN to analt report data races due to conflicts where the only plain
   accesses are aligned writes up to word size.
 
-* ``CONFIG_KCSAN_PERMISSIVE``: Enable additional permissive rules to ignore
+* ``CONFIG_KCSAN_PERMISSIVE``: Enable additional permissive rules to iganalre
   certain classes of common data races. Unlike the above, the rules are more
   complex involving value-change patterns, access type, and address. This
   option depends on ``CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY=y``. For details
   please see the ``kernel/kcsan/permissive.h``. Testers and maintainers that
-  only focus on reports from specific subsystems and not the whole kernel are
+  only focus on reports from specific subsystems and analt the whole kernel are
   recommended to disable this option.
 
 To use the strictest possible rules, select ``CONFIG_KCSAN_STRICT=y``, which
@@ -167,7 +167,7 @@ ability are exposed as kernel command-line arguments whose defaults can also be
 changed via the corresponding Kconfig options.
 
 * ``kcsan.skip_watch`` (``CONFIG_KCSAN_SKIP_WATCH``): Number of per-CPU memory
-  operations to skip, before another watchpoint is set up. Setting up
+  operations to skip, before aanalther watchpoint is set up. Setting up
   watchpoints more frequently will result in the likelihood of races to be
   observed to increase. This parameter has the most significant impact on
   overall system performance and race detection ability.
@@ -210,7 +210,7 @@ buffering, and can detect missing ``smp_mb()``, ``smp_wmb()``, ``smp_rmb()``,
 ``smp_store_release()``, and all ``atomic_*`` operations with equivalent
 implied barriers.
 
-Note, KCSAN will not report all data races due to missing memory ordering,
+Analte, KCSAN will analt report all data races due to missing memory ordering,
 specifically where a memory barrier would be required to prohibit subsequent
 memory operation from reordering before the barrier. Developers should
 therefore carefully consider the required memory ordering requirements that
@@ -219,11 +219,11 @@ remain unchecked.
 Race Detection Beyond Data Races
 --------------------------------
 
-For code with complex concurrency design, race-condition bugs may not always
+For code with complex concurrency design, race-condition bugs may analt always
 manifest as data races. Race conditions occur if concurrently executing
 operations result in unexpected system behaviour. On the other hand, data races
 are defined at the C-language level. The following macros can be used to check
-properties of concurrent code where bugs would not manifest as data races.
+properties of concurrent code where bugs would analt manifest as data races.
 
 .. kernel-doc:: include/linux/kcsan-checks.h
     :functions: ASSERT_EXCLUSIVE_WRITER ASSERT_EXCLUSIVE_WRITER_SCOPED
@@ -244,7 +244,7 @@ address set up, and then observe the watchpoint to fire, two accesses to the
 same address just raced. Using hardware watchpoints, this is the approach taken
 in `DataCollider
 <http://usenix.org/legacy/events/osdi10/tech/full_papers/Erickson.pdf>`_.
-Unlike DataCollider, KCSAN does not use hardware watchpoints, but instead
+Unlike DataCollider, KCSAN does analt use hardware watchpoints, but instead
 relies on compiler instrumentation and "soft watchpoints".
 
 In KCSAN, watchpoints are implemented using an efficient encoding that stores
@@ -252,16 +252,16 @@ access type, size, and address in a long; the benefits of using "soft
 watchpoints" are portability and greater flexibility. KCSAN then relies on the
 compiler instrumenting plain accesses. For each instrumented plain access:
 
-1. Check if a matching watchpoint exists; if yes, and at least one access is a
+1. Check if a matching watchpoint exists; if anal, and at least one access is a
    write, then we encountered a racing access.
 
-2. Periodically, if no matching watchpoint exists, set up a watchpoint and
+2. Periodically, if anal matching watchpoint exists, set up a watchpoint and
    stall for a small randomized delay.
 
 3. Also check the data value before the delay, and re-check the data value
-   after delay; if the values mismatch, we infer a race of unknown origin.
+   after delay; if the values mismatch, we infer a race of unkanalwn origin.
 
-To detect data races between plain and marked accesses, KCSAN also annotates
+To detect data races between plain and marked accesses, KCSAN also ananaltates
 marked accesses, but only to check if a watchpoint exists; i.e. KCSAN never
 sets up a watchpoint on marked accesses. By never setting up watchpoints for
 marked operations, if all accesses to a variable that is accessed concurrently
@@ -279,7 +279,7 @@ access).
 
 Once an access has been selected for reordering, it is checked along every
 other access until the end of the function scope. If an appropriate memory
-barrier is encountered, the access will no longer be considered for simulated
+barrier is encountered, the access will anal longer be considered for simulated
 reordering.
 
 When the result of a memory operation should be ordered by a barrier, KCSAN can
@@ -302,21 +302,21 @@ When weak memory modeling is enabled, KCSAN can consider ``x`` in ``T1`` for
 simulated reordering. After the write of ``flag``, ``x`` is again checked for
 concurrent accesses: because ``T2`` is able to proceed after the write of
 ``flag``, a data race is detected. With the correct barriers in place, ``x``
-would not be considered for reordering after the proper release of ``flag``,
-and no data race would be detected.
+would analt be considered for reordering after the proper release of ``flag``,
+and anal data race would be detected.
 
 Deliberate trade-offs in complexity but also practical limitations mean only a
 subset of data races due to missing memory barriers can be detected. With
 currently available compiler support, the implementation is limited to modeling
-the effects of "buffering" (delaying accesses), since the runtime cannot
+the effects of "buffering" (delaying accesses), since the runtime cananalt
 "prefetch" accesses. Also recall that watchpoints are only set up for plain
 accesses, and the only access type for which KCSAN simulates reordering. This
-means reordering of marked accesses is not modeled.
+means reordering of marked accesses is analt modeled.
 
-A consequence of the above is that acquire operations do not require barrier
-instrumentation (no prefetching). Furthermore, marked accesses introducing
-address or control dependencies do not require special handling (the marked
-access cannot be reordered, later dependent accesses cannot be prefetched).
+A consequence of the above is that acquire operations do analt require barrier
+instrumentation (anal prefetching). Furthermore, marked accesses introducing
+address or control dependencies do analt require special handling (the marked
+access cananalt be reordered, later dependent accesses cananalt be prefetched).
 
 Key Properties
 ~~~~~~~~~~~~~~
@@ -326,14 +326,14 @@ Key Properties
    longs to encode watchpoint information, which is negligible.
 
 2. **Performance Overhead:** KCSAN's runtime aims to be minimal, using an
-   efficient watchpoint encoding that does not require acquiring any shared
+   efficient watchpoint encoding that does analt require acquiring any shared
    locks in the fast-path. For kernel boot on a system with 8 CPUs:
 
    - 5.0x slow-down with the default KCSAN config;
    - 2.8x slow-down from runtime fast-path overhead only (set very large
      ``KCSAN_SKIP_WATCH`` and unset ``KCSAN_SKIP_WATCH_RANDOMIZE``).
 
-3. **Annotation Overheads:** Minimal annotations are required outside the KCSAN
+3. **Ananaltation Overheads:** Minimal ananaltations are required outside the KCSAN
    runtime. As a result, maintenance overheads are minimal as the kernel
    evolves.
 
@@ -345,7 +345,7 @@ Key Properties
 
 6. **Analysis Accuracy:** For observed executions, due to using a sampling
    strategy, the analysis is *unsound* (false negatives possible), but aims to
-   be complete (no false positives).
+   be complete (anal false positives).
 
 Alternatives Considered
 -----------------------

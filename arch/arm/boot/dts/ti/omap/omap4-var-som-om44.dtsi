@@ -33,7 +33,7 @@
 
 	/* HS USB Host PHY on PORT 1 */
 	hsusb1_phy: hsusb1_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		pinctrl-names = "default";
 		pinctrl-0 = <
 			&hsusbb1_phy_clk_pins
@@ -264,7 +264,7 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc>;
 	bus-width = <4>;
-	ti,non-removable;
+	ti,analn-removable;
 	status = "okay";
 };
 

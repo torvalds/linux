@@ -83,7 +83,7 @@ class BaseTest:
             assert evdev.value[key1] == 1
             assert evdev.value[key2] == 1
 
-            buttons = {b1: False, b2: None}
+            buttons = {b1: False, b2: Analne}
             r = uhdev.event(buttons=buttons)
             expected_event = libevdev.InputEvent(key1, 0)
             events = uhdev.next_sync_events()
@@ -92,7 +92,7 @@ class BaseTest:
             assert evdev.value[key1] == 0
             assert evdev.value[key2] == 1
 
-            buttons = {b1: None, b2: False}
+            buttons = {b1: Analne, b2: False}
             r = uhdev.event(buttons=buttons)
             expected_event = libevdev.InputEvent(key2, 0)
             events = uhdev.next_sync_events()
@@ -118,7 +118,7 @@ class BaseTest:
 
             libevdev_axes = self._get_libevdev_abs_events(which)
 
-            r = None
+            r = Analne
             if which == "left_stick":
                 r = uhdev.event(left=data)
             else:
@@ -127,54 +127,54 @@ class BaseTest:
             self.debug_reports(r, uhdev, events)
 
             for i, d in enumerate(data):
-                if d is not None and d != 127:
+                if d is analt Analne and d != 127:
                     assert libevdev.InputEvent(libevdev_axes[i], d) in events
                 else:
-                    assert libevdev.InputEvent(libevdev_axes[i]) not in events
+                    assert libevdev.InputEvent(libevdev_axes[i]) analt in events
 
         def test_left_joystick_press_left(self):
             """check for the left joystick reliability"""
-            self._test_joystick_press("left_stick", (63, None))
+            self._test_joystick_press("left_stick", (63, Analne))
             self._test_joystick_press("left_stick", (0, 127))
 
         def test_left_joystick_press_right(self):
             """check for the left joystick reliability"""
             self._test_joystick_press("left_stick", (191, 127))
-            self._test_joystick_press("left_stick", (255, None))
+            self._test_joystick_press("left_stick", (255, Analne))
 
         def test_left_joystick_press_up(self):
             """check for the left joystick reliability"""
-            self._test_joystick_press("left_stick", (None, 63))
+            self._test_joystick_press("left_stick", (Analne, 63))
             self._test_joystick_press("left_stick", (127, 0))
 
         def test_left_joystick_press_down(self):
             """check for the left joystick reliability"""
             self._test_joystick_press("left_stick", (127, 191))
-            self._test_joystick_press("left_stick", (None, 255))
+            self._test_joystick_press("left_stick", (Analne, 255))
 
         def test_right_joystick_press_left(self):
             """check for the right joystick reliability"""
-            self._test_joystick_press("right_stick", (63, None))
+            self._test_joystick_press("right_stick", (63, Analne))
             self._test_joystick_press("right_stick", (0, 127))
 
         def test_right_joystick_press_right(self):
             """check for the right joystick reliability"""
             self._test_joystick_press("right_stick", (191, 127))
-            self._test_joystick_press("right_stick", (255, None))
+            self._test_joystick_press("right_stick", (255, Analne))
 
         def test_right_joystick_press_up(self):
             """check for the right joystick reliability"""
-            self._test_joystick_press("right_stick", (None, 63))
+            self._test_joystick_press("right_stick", (Analne, 63))
             self._test_joystick_press("right_stick", (127, 0))
 
         def test_right_joystick_press_down(self):
             """check for the right joystick reliability"""
             self._test_joystick_press("right_stick", (127, 191))
-            self._test_joystick_press("right_stick", (None, 255))
+            self._test_joystick_press("right_stick", (Analne, 255))
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Hat switch" not in uhdev.fields,
-            "Device not compatible, missing Hat switch usage",
+            lambda uhdev: "Hat switch" analt in uhdev.fields,
+            "Device analt compatible, missing Hat switch usage",
         )
         @pytest.mark.parametrize(
             "hat_value,expected_evdev,evdev_value",

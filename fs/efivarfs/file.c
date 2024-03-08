@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.
- * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@canonical.com>
+ * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@caanalnical.com>
  */
 
 #include <linux/efi.h>
@@ -18,7 +18,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	struct efivar_entry *var = file->private_data;
 	void *data;
 	u32 attributes;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	unsigned long datasize = count - sizeof(attributes);
 	ssize_t bytes;
 	bool set = false;
@@ -39,20 +39,20 @@ static ssize_t efivarfs_file_write(struct file *file,
 	bytes = efivar_entry_set_get_size(var, attributes, &datasize,
 					  data, &set);
 	if (!set && bytes) {
-		if (bytes == -ENOENT)
+		if (bytes == -EANALENT)
 			bytes = -EIO;
 		goto out;
 	}
 
-	if (bytes == -ENOENT) {
-		drop_nlink(inode);
+	if (bytes == -EANALENT) {
+		drop_nlink(ianalde);
 		d_delete(file->f_path.dentry);
 		dput(file->f_path.dentry);
 	} else {
-		inode_lock(inode);
-		i_size_write(inode, datasize + sizeof(attributes));
-		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
-		inode_unlock(inode);
+		ianalde_lock(ianalde);
+		i_size_write(ianalde, datasize + sizeof(attributes));
+		ianalde_set_mtime_to_ts(ianalde, ianalde_set_ctime_current(ianalde));
+		ianalde_unlock(ianalde);
 	}
 
 	bytes = count;
@@ -82,7 +82,7 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	 * efivarfs represents uncommitted variables with
 	 * zero-length files. Reading them should return EOF.
 	 */
-	if (err == -ENOENT)
+	if (err == -EANALENT)
 		return 0;
 	else if (err)
 		return err;
@@ -90,7 +90,7 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	data = kmalloc(datasize + sizeof(attributes), GFP_KERNEL);
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = efivar_entry_get(var, &attributes, &datasize,
 				data + sizeof(attributes));
@@ -110,5 +110,5 @@ const struct file_operations efivarfs_file_operations = {
 	.open	= simple_open,
 	.read	= efivarfs_file_read,
 	.write	= efivarfs_file_write,
-	.llseek	= no_llseek,
+	.llseek	= anal_llseek,
 };

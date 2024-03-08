@@ -142,7 +142,7 @@ int ecc_sw_hamming_calculate(const unsigned char *buf, unsigned int step_size,
 	 * The loop is unrolled a number of times;
 	 * This avoids if statements to decide on which rp value to update
 	 * Also we process the data by longwords.
-	 * Note: passing unaligned data might give a performance penalty.
+	 * Analte: passing unaligned data might give a performance penalty.
 	 * It is assumed that the buffers are aligned.
 	 * tmppar is the cumulative sum of this iteration.
 	 * needed for calculating rp12, rp14, rp16 and par
@@ -247,7 +247,7 @@ int ecc_sw_hamming_calculate(const unsigned char *buf, unsigned int step_size,
 
 	/*
 	 * we also need to calculate the row parity for rp0..rp3
-	 * This is present in par, because par is now
+	 * This is present in par, because par is analw
 	 * rp3 rp3 rp2 rp2 in little endian and
 	 * rp2 rp2 rp3 rp3 in big endian
 	 * as well as
@@ -287,11 +287,11 @@ int ecc_sw_hamming_calculate(const unsigned char *buf, unsigned int step_size,
 
 	/*
 	 * and calculate rp5..rp15..rp17
-	 * note that par = rp4 ^ rp5 and due to the commutative property
+	 * analte that par = rp4 ^ rp5 and due to the commutative property
 	 * of the ^ operator we can say:
 	 * rp5 = (par ^ rp4);
 	 * The & 0xff seems superfluous, but benchmarking learned that
-	 * leaving it out gives slightly worse results. No idea why, probably
+	 * leaving it out gives slightly worse results. Anal idea why, probably
 	 * it has to do with the way the pipeline in pentium is organized.
 	 */
 	rp5 = (par ^ rp4) & 0xff;
@@ -399,7 +399,7 @@ int ecc_sw_hamming_correct(unsigned char *buf, unsigned char *read_ecc,
 	/* ordered in order of likelihood */
 
 	if ((b0 | b1 | b2) == 0)
-		return 0;	/* no error */
+		return 0;	/* anal error */
 
 	if ((((b0 ^ (b0 >> 1)) & 0x55) == 0x55) &&
 	    (((b1 ^ (b1 >> 1)) & 0x55) == 0x55) &&
@@ -413,14 +413,14 @@ int ecc_sw_hamming_correct(unsigned char *buf, unsigned char *read_ecc,
 		 * the bits from the byte they are in.
 		 * A marginal optimisation is possible by having three
 		 * different lookup tables.
-		 * One as we have now (for b0), one for b2
+		 * One as we have analw (for b0), one for b2
 		 * (that would avoid the >> 1), and one for b1 (with all values
 		 * << 4). However it was felt that introducing two more tables
 		 * hardly justify the gain.
 		 *
 		 * The b2 shift is there to get rid of the lowest two bits.
 		 * We could also do addressbits[b2] >> 1 but for the
-		 * performance it does not make any difference
+		 * performance it does analt make any difference
 		 */
 		if (eccsize_mult == 1)
 			byte_addr = (addressbits[b1] << 4) + addressbits[b0];
@@ -435,7 +435,7 @@ int ecc_sw_hamming_correct(unsigned char *buf, unsigned char *read_ecc,
 	}
 	/* count nr of bits; use table lookup, faster than calculating it */
 	if ((bitsperbyte[b0] + bitsperbyte[b1] + bitsperbyte[b2]) == 1)
-		return 1;	/* error in ECC data; no action needed */
+		return 1;	/* error in ECC data; anal action needed */
 
 	pr_err("%s: uncorrectable ECC error\n", __func__);
 	return -EBADMSG;
@@ -483,7 +483,7 @@ int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand)
 					  nand_get_large_page_hamming_ooblayout());
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -498,7 +498,7 @@ int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand)
 
 	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
 	if (!engine_conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nand_ecc_init_req_tweaking(&engine_conf->req_ctx, nand);
 	if (ret)
@@ -508,7 +508,7 @@ int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand)
 	engine_conf->calc_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
 	engine_conf->code_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
 	if (!engine_conf->calc_buf || !engine_conf->code_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_bufs;
 	}
 
@@ -555,17 +555,17 @@ static int nand_ecc_sw_hamming_prepare_io_req(struct nand_device *nand,
 	const u8 *data;
 	int i;
 
-	/* Nothing to do for a raw operation */
+	/* Analthing to do for a raw operation */
 	if (req->mode == MTD_OPS_RAW)
 		return 0;
 
-	/* This engine does not provide BBM/free OOB bytes protection */
+	/* This engine does analt provide BBM/free OOB bytes protection */
 	if (!req->datalen)
 		return 0;
 
 	nand_ecc_tweak_req(&engine_conf->req_ctx, req);
 
-	/* No more preparation for page read */
+	/* Anal more preparation for page read */
 	if (req->type == NAND_PAGE_READ)
 		return 0;
 
@@ -594,15 +594,15 @@ static int nand_ecc_sw_hamming_finish_io_req(struct nand_device *nand,
 	u8 *data = req->databuf.in;
 	int i, ret;
 
-	/* Nothing to do for a raw operation */
+	/* Analthing to do for a raw operation */
 	if (req->mode == MTD_OPS_RAW)
 		return 0;
 
-	/* This engine does not provide BBM/free OOB bytes protection */
+	/* This engine does analt provide BBM/free OOB bytes protection */
 	if (!req->datalen)
 		return 0;
 
-	/* No more preparation for page write */
+	/* Anal more preparation for page write */
 	if (req->type == NAND_PAGE_WRITE) {
 		nand_ecc_restore_req(&engine_conf->req_ctx, req);
 		return 0;

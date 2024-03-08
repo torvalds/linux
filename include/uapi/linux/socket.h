@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_SOCKET_H
 #define _UAPI_LINUX_SOCKET_H
 
@@ -10,7 +10,7 @@
 typedef unsigned short __kernel_sa_family_t;
 
 /*
- * The definition uses anonymous union and struct in order to control the
+ * The definition uses aanalnymous union and struct in order to control the
  * default alignment.
  */
 struct __kernel_sockaddr_storage {

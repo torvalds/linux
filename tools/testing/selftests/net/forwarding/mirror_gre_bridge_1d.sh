@@ -128,7 +128,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

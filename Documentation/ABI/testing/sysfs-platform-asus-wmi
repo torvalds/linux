@@ -34,7 +34,7 @@ Description:
 What:		/sys/devices/platform/<platform>/lid_resume
 Date:		May 2012
 KernelVersion:	3.5
-Contact:	"AceLan Kao" <acelan.kao@canonical.com>
+Contact:	"AceLan Kao" <acelan.kao@caanalnical.com>
 Description:
 		Resume on lid open. 1 means on, 0 means off.
 
@@ -44,7 +44,7 @@ KernelVersion:	5.3
 Contact:	"Yurii Pavlovskyi" <yurii.pavlovskyi@gmail.com>
 Description:
 		Fan boost mode:
-			* 0 - normal,
+			* 0 - analrmal,
 			* 1 - overboost,
 			* 2 - silent
 

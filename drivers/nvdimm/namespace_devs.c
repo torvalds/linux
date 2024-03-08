@@ -68,11 +68,11 @@ static int is_namespace_uuid_busy(struct device *dev, void *data)
 }
 
 /**
- * nd_is_uuid_unique - verify that no other namespace has @uuid
+ * nd_is_uuid_unique - verify that anal other namespace has @uuid
  * @dev: any device on a nvdimm_bus
  * @uuid: uuid to check
  *
- * Returns: %true if the uuid is unique, %false if not
+ * Returns: %true if the uuid is unique, %false if analt
  */
 bool nd_is_uuid_unique(struct device *dev, uuid_t *uuid)
 {
@@ -108,7 +108,7 @@ bool pmem_should_map_pages(struct device *dev)
 	nsio = to_nd_namespace_io(dev);
 	if (region_intersects(nsio->res.start, resource_size(&nsio->res),
 				IORESOURCE_SYSTEM_RAM,
-				IORES_DESC_NONE) == REGION_MIXED)
+				IORES_DESC_ANALNE) == REGION_MIXED)
 		return false;
 
 	return ARCH_MEMREMAP_PMEM == MEMREMAP_WB;
@@ -131,7 +131,7 @@ unsigned int pmem_sector_size(struct nd_namespace_common *ndns)
 	}
 
 	/*
-	 * There is no namespace label (is_namespace_io()), or the label
+	 * There is anal namespace label (is_namespace_io()), or the label
 	 * indicates the default sector size.
 	 */
 	return 512;
@@ -209,7 +209,7 @@ static ssize_t __alt_name_store(struct device *dev, const char *buf,
 
 	input = kstrndup(buf, len, GFP_KERNEL);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = strim(input);
 	if (strlen(pos) + 1 > NSLABEL_NAME_LEN) {
@@ -219,7 +219,7 @@ static ssize_t __alt_name_store(struct device *dev, const char *buf,
 
 	alt_name = kzalloc(NSLABEL_NAME_LEN, GFP_KERNEL);
 	if (!alt_name) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	kfree(*ns_altname);
@@ -340,7 +340,7 @@ static int scan_free(struct nd_region *nd_region,
  * allocation delete it and find the 'new' last allocation in the label
  * set.
  *
- * Returns: %0 on success on -errno on error
+ * Returns: %0 on success on -erranal on error
  */
 static int shrink_dpa_allocation(struct nd_region *nd_region,
 		struct nd_label_id *label_id, resource_size_t n)
@@ -388,7 +388,7 @@ static resource_size_t init_dpa_allocation(struct nd_label_id *label_id,
  * @n: range that must satisfied for pmem allocations
  * @valid: free space range to validate
  *
- * BLK-space is valid as long as it does not precede a PMEM
+ * BLK-space is valid as long as it does analt precede a PMEM
  * allocation in a given region. PMEM-space must be contiguous
  * and adjacent to an existing allocation (if one
  * exists).  If reserving PMEM any space is valid.
@@ -411,11 +411,11 @@ static void space_valid(struct nd_region *nd_region, struct nvdimm_drvdata *ndd,
 	if (is_reserve)
 		return;
 
-	/* allocation needs to be contiguous, so this is all or nothing */
+	/* allocation needs to be contiguous, so this is all or analthing */
 	if (resource_size(valid) < n)
 		goto invalid;
 
-	/* we've got all the space we need and no existing allocation */
+	/* we've got all the space we need and anal existing allocation */
 	if (!exist)
 		return;
 
@@ -459,7 +459,7 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 		const char *action;
 		int rc = 0;
 
-		/* ignore resources outside this nd_mapping */
+		/* iganalre resources outside this nd_mapping */
 		if (res->start > mapping_end)
 			continue;
 		if (res->end < nd_mapping->start)
@@ -667,7 +667,7 @@ void release_free_pmem(struct nvdimm_bus *nvdimm_bus,
  * BLK allocation or the end of the interleave set, whichever comes
  * first.
  *
- * Returns: %0 on success on -errno on error
+ * Returns: %0 on success on -erranal on error
  */
 static int grow_dpa_allocation(struct nd_region *nd_region,
 		struct nd_label_id *label_id, resource_size_t n)
@@ -736,11 +736,11 @@ static void nd_namespace_pmem_set_resource(struct nd_region *nd_region,
 	res->end = res->start + size - 1;
 }
 
-static bool uuid_not_set(const uuid_t *uuid, struct device *dev,
+static bool uuid_analt_set(const uuid_t *uuid, struct device *dev,
 			 const char *where)
 {
 	if (!uuid) {
-		dev_dbg(dev, "%s: uuid not set\n", where);
+		dev_dbg(dev, "%s: uuid analt set\n", where);
 		return true;
 	}
 	return false;
@@ -772,16 +772,16 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 	 * We need a uuid for the allocation-label and dimm(s) on which
 	 * to store the label.
 	 */
-	if (uuid_not_set(uuid, dev, __func__))
+	if (uuid_analt_set(uuid, dev, __func__))
 		return -ENXIO;
 	if (nd_region->ndr_mappings == 0) {
-		dev_dbg(dev, "not associated with dimm(s)\n");
+		dev_dbg(dev, "analt associated with dimm(s)\n");
 		return -ENXIO;
 	}
 
 	div_u64_rem(val, nd_region->align, &remainder);
 	if (remainder) {
-		dev_dbg(dev, "%llu is not %ldK aligned\n", val,
+		dev_dbg(dev, "%llu is analt %ldK aligned\n", val,
 				nd_region->align / SZ_1K);
 		return -EINVAL;
 	}
@@ -803,7 +803,7 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 	available = nd_region_allocatable_dpa(nd_region);
 
 	if (val > available + allocated)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (val == allocated)
 		return 0;
@@ -828,8 +828,8 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 
 	/*
 	 * Try to delete the namespace if we deleted all of its
-	 * allocation, this is not the seed or 0th device for the
-	 * region, and it is not actively claimed by a btt, pfn, or dax
+	 * allocation, this is analt the seed or 0th device for the
+	 * region, and it is analt actively claimed by a btt, pfn, or dax
 	 * instance.
 	 */
 	if (val == 0 && id != 0 && nd_region->ns_seed != dev && !ndns->claim)
@@ -885,7 +885,7 @@ resource_size_t __nvdimm_namespace_capacity(struct nd_namespace_common *ndns)
 
 		return resource_size(&nsio->res);
 	} else
-		WARN_ONCE(1, "unknown namespace type\n");
+		WARN_ONCE(1, "unkanalwn namespace type\n");
 	return 0;
 }
 
@@ -958,7 +958,7 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
  * @new_uuid: incoming uuid
  * @old_uuid: reference to the uuid storage location in the namespace object
  *
- * Returns: %0 on success on -errno on error
+ * Returns: %0 on success on -erranal on error
  */
 static int namespace_update_uuid(struct nd_region *nd_region,
 				 struct device *dev, uuid_t *new_uuid,
@@ -985,7 +985,7 @@ static int namespace_update_uuid(struct nd_region *nd_region,
 
 		/*
 		 * This check by itself is sufficient because old_uuid
-		 * would be NULL above if this uuid did not exist in the
+		 * would be NULL above if this uuid did analt exist in the
 		 * currently written set.
 		 *
 		 * FIXME: can we delete uuid with zero dpa allocated?
@@ -1082,7 +1082,7 @@ static ssize_t resource_show(struct device *dev,
 	} else
 		return -ENXIO;
 
-	/* no address to convey if the namespace has no allocation */
+	/* anal address to convey if the namespace has anal allocation */
 	if (resource_size(res) == 0)
 		return -ENXIO;
 	return sprintf(buf, "%#llx\n", (unsigned long long) res->start);
@@ -1184,7 +1184,7 @@ static int btt_claim_class(struct device *dev)
 		struct nd_namespace_index *nsindex;
 
 		/*
-		 * If any of the DIMMs do not support labels the only
+		 * If any of the DIMMs do analt support labels the only
 		 * possible BTT format is v1.
 		 */
 		if (!ndd) {
@@ -1198,7 +1198,7 @@ static int btt_claim_class(struct device *dev)
 		else {
 			/* check whether existing labels are v1.1 or v1.2 */
 			if (__le16_to_cpu(nsindex->major) == 1
-					&& __le16_to_cpu(nsindex->minor) == 1)
+					&& __le16_to_cpu(nsindex->mianalr) == 1)
 				loop_bitmask |= 2;
 			else
 				loop_bitmask |= 4;
@@ -1258,7 +1258,7 @@ static int __holder_class_store(struct device *dev, const char *buf)
 	if (sysfs_streq(buf, "btt")) {
 		int rc = btt_claim_class(dev);
 
-		if (rc < NVDIMM_CCLASS_NONE)
+		if (rc < NVDIMM_CCLASS_ANALNE)
 			return rc;
 		ndns->claim_class = rc;
 	} else if (sysfs_streq(buf, "pfn"))
@@ -1266,7 +1266,7 @@ static int __holder_class_store(struct device *dev, const char *buf)
 	else if (sysfs_streq(buf, "dax"))
 		ndns->claim_class = NVDIMM_CCLASS_DAX;
 	else if (sysfs_streq(buf, ""))
-		ndns->claim_class = NVDIMM_CCLASS_NONE;
+		ndns->claim_class = NVDIMM_CCLASS_ANALNE;
 	else
 		return -EINVAL;
 
@@ -1299,7 +1299,7 @@ static ssize_t holder_class_show(struct device *dev,
 	ssize_t rc;
 
 	device_lock(dev);
-	if (ndns->claim_class == NVDIMM_CCLASS_NONE)
+	if (ndns->claim_class == NVDIMM_CCLASS_ANALNE)
 		rc = sprintf(buf, "\n");
 	else if ((ndns->claim_class == NVDIMM_CCLASS_BTT) ||
 			(ndns->claim_class == NVDIMM_CCLASS_BTT2))
@@ -1309,7 +1309,7 @@ static ssize_t holder_class_show(struct device *dev,
 	else if (ndns->claim_class == NVDIMM_CCLASS_DAX)
 		rc = sprintf(buf, "dax\n");
 	else
-		rc = sprintf(buf, "<unknown>\n");
+		rc = sprintf(buf, "<unkanalwn>\n");
 	device_unlock(dev);
 
 	return rc;
@@ -1451,7 +1451,7 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 			ndns = nd_dax->nd_pfn.ndns;
 
 		if (!ndns)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 
 		/*
 		 * Flush any in-progess probes / removals in the driver
@@ -1486,11 +1486,11 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 	if (size < ND_MIN_NAMESPACE_SIZE) {
 		dev_dbg(&ndns->dev, "%pa, too small must be at least %#x\n",
 				&size, ND_MIN_NAMESPACE_SIZE);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	/*
-	 * Note, alignment validation for fsdax and devdax mode
+	 * Analte, alignment validation for fsdax and devdax mode
 	 * namespaces happens in nd_pfn_validate() where infoblock
 	 * padding parameters can be applied.
 	 */
@@ -1501,7 +1501,7 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 		if (!IS_ALIGNED(res->start | (res->end + 1),
 					memremap_compat_align())) {
 			dev_err(&ndns->dev, "%pr misaligned, unable to map\n", res);
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 	}
 
@@ -1509,8 +1509,8 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 		struct nd_namespace_pmem *nspm;
 
 		nspm = to_nd_namespace_pmem(&ndns->dev);
-		if (uuid_not_set(nspm->uuid, &ndns->dev, __func__))
-			return ERR_PTR(-ENODEV);
+		if (uuid_analt_set(nspm->uuid, &ndns->dev, __func__))
+			return ERR_PTR(-EANALDEV);
 	}
 
 	return ndns;
@@ -1613,7 +1613,7 @@ static int select_pmem_id(struct nd_region *nd_region, const uuid_t *pmem_id)
 	int i;
 
 	if (!pmem_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
@@ -1667,7 +1667,7 @@ static int select_pmem_id(struct nd_region *nd_region, const uuid_t *pmem_id)
  * @nd_mapping: container of dpa-resource-root + labels
  * @nd_label: target pmem namespace label to evaluate
  *
- * Returns: the created &struct device on success or ERR_PTR(-errno) on error
+ * Returns: the created &struct device on success or ERR_PTR(-erranal) on error
  */
 static struct device *create_namespace_pmem(struct nd_region *nd_region,
 					    struct nd_mapping *nd_mapping,
@@ -1704,7 +1704,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 
 	nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
 	if (!nspm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	nspm->id = -1;
 	dev = &nspm->nsio.common.dev;
@@ -1777,7 +1777,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	}
 
 	if (!nspm->alt_name || !nspm->uuid) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -1790,8 +1790,8 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	case -EINVAL:
 		dev_dbg(&nd_region->dev, "invalid label(s)\n");
 		break;
-	case -ENODEV:
-		dev_dbg(&nd_region->dev, "label not found\n");
+	case -EANALDEV:
+		dev_dbg(&nd_region->dev, "label analt found\n");
 		break;
 	default:
 		dev_dbg(&nd_region->dev, "unexpected err: %d\n", rc);
@@ -1843,7 +1843,7 @@ void nd_region_create_ns_seed(struct nd_region *nd_region)
 	nd_region->ns_seed = nd_namespace_pmem_create(nd_region);
 
 	/*
-	 * Seed creation failures are not fatal, provisioning is simply
+	 * Seed creation failures are analt fatal, provisioning is simply
 	 * disabled until memory becomes available
 	 */
 	if (!nd_region->ns_seed)
@@ -1861,7 +1861,7 @@ void nd_region_create_dax_seed(struct nd_region *nd_region)
 	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
 	nd_region->dax_seed = nd_dax_create(nd_region);
 	/*
-	 * Seed creation failures are not fatal, provisioning is simply
+	 * Seed creation failures are analt fatal, provisioning is simply
 	 * disabled until memory becomes available
 	 */
 	if (!nd_region->dax_seed)
@@ -1873,7 +1873,7 @@ void nd_region_create_pfn_seed(struct nd_region *nd_region)
 	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
 	nd_region->pfn_seed = nd_pfn_create(nd_region);
 	/*
-	 * Seed creation failures are not fatal, provisioning is simply
+	 * Seed creation failures are analt fatal, provisioning is simply
 	 * disabled until memory becomes available
 	 */
 	if (!nd_region->pfn_seed)
@@ -1885,7 +1885,7 @@ void nd_region_create_btt_seed(struct nd_region *nd_region)
 	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
 	nd_region->btt_seed = nd_btt_create(nd_region);
 	/*
-	 * Seed creation failures are not fatal, provisioning is simply
+	 * Seed creation failures are analt fatal, provisioning is simply
 	 * disabled until memory becomes available
 	 */
 	if (!nd_region->btt_seed)
@@ -1974,7 +1974,7 @@ static struct device **scan_labels(struct nd_region *nd_region)
 			case -EAGAIN:
 				/* skip invalid labels */
 				continue;
-			case -ENODEV:
+			case -EANALDEV:
 				/* fallthrough to seed creation */
 				break;
 			default:
@@ -2149,7 +2149,7 @@ static int init_active_labels(struct nd_region *nd_region)
 	}
 
 	if (i < nd_region->ndr_mappings)
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
 out:
 	if (rc) {
@@ -2188,7 +2188,7 @@ int nd_region_register_namespaces(struct nd_region *nd_region, int *err)
 	nvdimm_bus_unlock(&nd_region->dev);
 
 	if (!devs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; devs[i]; i++) {
 		struct device *dev = devs[i];
@@ -2228,11 +2228,11 @@ int nd_region_register_namespaces(struct nd_region *nd_region, int *err)
 		 * fail region activation.
 		 */
 		if (*err == 0)
-			rc = -ENODEV;
+			rc = -EANALDEV;
 	}
 	kfree(devs);
 
-	if (rc == -ENODEV)
+	if (rc == -EANALDEV)
 		return rc;
 
 	return i;

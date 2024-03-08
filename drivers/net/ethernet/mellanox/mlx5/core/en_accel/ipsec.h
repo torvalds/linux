@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -139,8 +139,8 @@ struct mlx5e_ipsec_sw_stats {
 	atomic64_t ipsec_rx_drop_sadb_miss;
 	atomic64_t ipsec_rx_drop_syndrome;
 	atomic64_t ipsec_tx_drop_bundle;
-	atomic64_t ipsec_tx_drop_no_state;
-	atomic64_t ipsec_tx_drop_not_ip;
+	atomic64_t ipsec_tx_drop_anal_state;
+	atomic64_t ipsec_tx_drop_analt_ip;
 	atomic64_t ipsec_tx_drop_trailer;
 };
 
@@ -238,8 +238,8 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_tx *tx;
 	struct mlx5e_ipsec_tx *tx_esw;
 	struct mlx5e_ipsec_aso *aso;
-	struct notifier_block nb;
-	struct notifier_block netevent_nb;
+	struct analtifier_block nb;
+	struct analtifier_block netevent_nb;
 	struct mlx5_ipsec_fs *roce;
 	u8 is_uplink_rep: 1;
 	struct mlx5e_ipsec_mpv_work mpv_work;

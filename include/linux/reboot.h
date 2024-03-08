@@ -3,16 +3,16 @@
 #define _LINUX_REBOOT_H
 
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <uapi/linux/reboot.h>
 
 struct device;
 struct sys_off_handler;
 
-#define SYS_DOWN	0x0001	/* Notify of system down */
+#define SYS_DOWN	0x0001	/* Analtify of system down */
 #define SYS_RESTART	SYS_DOWN
-#define SYS_HALT	0x0002	/* Notify of system halt */
-#define SYS_POWER_OFF	0x0003	/* Notify of system power off */
+#define SYS_HALT	0x0002	/* Analtify of system halt */
+#define SYS_POWER_OFF	0x0003	/* Analtify of system power off */
 
 enum reboot_mode {
 	REBOOT_UNDEFINED = -1,
@@ -41,13 +41,13 @@ extern int reboot_cpu;
 extern int reboot_force;
 
 
-extern int register_reboot_notifier(struct notifier_block *);
-extern int unregister_reboot_notifier(struct notifier_block *);
+extern int register_reboot_analtifier(struct analtifier_block *);
+extern int unregister_reboot_analtifier(struct analtifier_block *);
 
-extern int devm_register_reboot_notifier(struct device *, struct notifier_block *);
+extern int devm_register_reboot_analtifier(struct device *, struct analtifier_block *);
 
-extern int register_restart_handler(struct notifier_block *);
-extern int unregister_restart_handler(struct notifier_block *);
+extern int register_restart_handler(struct analtifier_block *);
+extern int unregister_restart_handler(struct analtifier_block *);
 extern void do_kernel_restart(char *cmd);
 
 /*
@@ -77,7 +77,7 @@ void do_kernel_power_off(void);
  *
  * SYS_OFF_PRIO_LOW:		Use this for handler of last resort.
  *
- * SYS_OFF_PRIO_DEFAULT:	Use this for normal handlers.
+ * SYS_OFF_PRIO_DEFAULT:	Use this for analrmal handlers.
  *
  * SYS_OFF_PRIO_HIGH:		Use this for higher priority handlers.
  *
@@ -129,7 +129,7 @@ enum sys_off_mode {
  * @cb_data: User's callback data.
  * @cmd: Command string. Currently used only by the sys-off restart mode,
  *       NULL otherwise.
- * @dev: Device of the sys-off handler. Only if known (devm_register_*),
+ * @dev: Device of the sys-off handler. Only if kanalwn (devm_register_*),
  *       NULL otherwise.
  */
 struct sys_off_data {

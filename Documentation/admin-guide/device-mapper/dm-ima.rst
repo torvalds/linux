@@ -72,14 +72,14 @@ Then IMA ASCII measurement log has the following format:
 
 |
 
-| *NOTE #1:*
+| *ANALTE #1:*
 | The DM target data measured by IMA subsystem can alternatively
  be queried from userspace by setting DM_IMA_MEASUREMENT_FLAG with
  DM_TABLE_STATUS_CMD.
 
 |
 
-| *NOTE #2:*
+| *ANALTE #2:*
 | The Kernel configuration CONFIG_IMA_DISABLE_HTABLE allows measurement of duplicate records.
 | To support recording duplicate IMA events in the IMA log, the Kernel needs to be configured with
  CONFIG_IMA_DISABLE_HTABLE=y.
@@ -109,14 +109,14 @@ The IMA measurement log has the following format for 'dm_table_load':
 
  dm_version_str := "dm_version=" <N> "." <N> "." <N>
                   Same as Device Mapper driver version.
- device_metadata := <device_name> "," <device_uuid> "," <device_major> "," <device_minor> ","
-                   <minor_count> "," <num_device_targets> ";"
+ device_metadata := <device_name> "," <device_uuid> "," <device_major> "," <device_mianalr> ","
+                   <mianalr_count> "," <num_device_targets> ";"
 
  device_name := "name=" <dm-device-name>
  device_uuid := "uuid=" <dm-device-uuid>
  device_major := "major=" <N>
- device_minor := "minor=" <N>
- minor_count := "minor_count=" <N>
+ device_mianalr := "mianalr=" <N>
+ mianalr_count := "mianalr_count=" <N>
  num_device_targets := "num_targets=" <N>
  dm-device-name := Name of the device. If it contains special characters like '\', ',', ';',
                    they are prefixed with '\'.
@@ -159,7 +159,7 @@ The IMA measurement log has the following format for 'dm_table_load':
  10 a8c5ff755561c7a28146389d1514c318592af49a ima-buf sha256:4d73481ecce5eadba8ab084640d85bb9ca899af4d0a122989252a76efadc5b72
  dm_table_load
  dm_version=4.45.0;
- name=linear1,uuid=,major=253,minor=0,minor_count=1,num_targets=4;
+ name=linear1,uuid=,major=253,mianalr=0,mianalr_count=1,num_targets=4;
  target_index=0,target_begin=0,target_len=2,target_name=linear,target_version=1.4.0,device_name=7:0,start=512;
  target_index=1,target_begin=2,target_len=2,target_name=linear,target_version=1.4.0,device_name=7:0,start=512;
  target_index=2,target_begin=4,target_len=2,target_name=linear,target_version=1.4.0,device_name=7:0,start=512;
@@ -185,7 +185,7 @@ The IMA measurement log has the following format for 'dm_device_resume':
  table_hash_alg := Algorithm used to compute the hash.
  table_hash := Hash of the (<dm_version_str> ";" <device_metadata> ";" <table_load_data> ";")
                as described in the 'dm_table_load' above.
-               Note: If the table_load data spans across multiple IMA 'dm_table_load'
+               Analte: If the table_load data spans across multiple IMA 'dm_table_load'
                events for a given device, the hash is computed combining all the event data
                i.e. (<dm_version_str> ";" <device_metadata> ";" <table_load_data> ";")
                across all those events.
@@ -200,7 +200,7 @@ The IMA measurement log has the following format for 'dm_device_resume':
  10 56c00cc062ffc24ccd9ac2d67d194af3282b934e ima-buf sha256:e7d12c03b958b4e0e53e7363a06376be88d98a1ac191fdbd3baf5e4b77f329b6
  dm_device_resume
  dm_version=4.45.0;
- name=linear1,uuid=,major=253,minor=0,minor_count=1,num_targets=4;
+ name=linear1,uuid=,major=253,mianalr=0,mianalr_count=1,num_targets=4;
  active_table_hash=sha256:4d73481ecce5eadba8ab084640d85bb9ca899af4d0a122989252a76efadc5b72;current_device_capacity=8;
 
 3. Device remove:
@@ -225,8 +225,8 @@ The IMA measurement log has the following format for 'dm_device_remove':
                       The format is same as 'active_table_hash' described in the 'Device resume' section above.
  inactive_table_hash :=  Hash of the inactive table.
                          The format is same as 'active_table_hash' described in the 'Device resume' section above.
- remove_all := "remove_all=" <yes_no>
- yes_no := "y" | "n"
+ remove_all := "remove_all=" <anal_anal>
+ anal_anal := "y" | "n"
  current_device_capacity := "current_device_capacity=" <N>
 
  For instance, if a linear device is removed with the following command,
@@ -238,8 +238,8 @@ The IMA measurement log has the following format for 'dm_device_remove':
  10 790e830a3a7a31590824ac0642b3b31c2d0e8b38 ima-buf sha256:ab9f3c959367a8f5d4403d6ce9c3627dadfa8f9f0e7ec7899299782388de3840
  dm_device_remove
  dm_version=4.45.0;
- device_active_metadata=name=l1,uuid=,major=253,minor=2,minor_count=1,num_targets=2;
- device_inactive_metadata=name=l1,uuid=,major=253,minor=2,minor_count=1,num_targets=1;
+ device_active_metadata=name=l1,uuid=,major=253,mianalr=2,mianalr_count=1,num_targets=2;
+ device_inactive_metadata=name=l1,uuid=,major=253,mianalr=2,mianalr_count=1,num_targets=1;
  active_table_hash=sha256:4a7e62efaebfc86af755831998b7db6f59b60d23c9534fb16a4455907957953a,
  inactive_table_hash=sha256:9d79c175bc2302d55a183e8f50ad4bafd60f7692fd6249e5fd213e2464384b86,remove_all=n;
  current_device_capacity=2048;
@@ -272,7 +272,7 @@ The IMA measurement log has the following format for 'dm_table_clear':
  10 77d347408f557f68f0041acb0072946bb2367fe5 ima-buf sha256:42f9ca22163fdfa548e6229dece2959bc5ce295c681644240035827ada0e1db5
  dm_table_clear
  dm_version=4.45.0;
- name=l1,uuid=,major=253,minor=2,minor_count=1,num_targets=1;
+ name=l1,uuid=,major=253,mianalr=2,mianalr_count=1,num_targets=1;
  inactive_table_hash=sha256:75c0dc347063bf474d28a9907037eba060bfe39d8847fc0646d75e149045d545;current_device_capacity=1024;
 
 5. Device rename:
@@ -305,7 +305,7 @@ The IMA measurement log has the following format for 'dm_device_rename':
  10 8b0423209b4c66ac1523f4c9848c9b51ee332f48 ima-buf sha256:6847b7258134189531db593e9230b257c84f04038b5a18fd2e1473860e0569ac
  dm_device_rename
  dm_version=4.45.0;
- name=linear1,uuid=,major=253,minor=2,minor_count=1,num_targets=1;new_name=linear1,new_uuid=1234-5678;
+ name=linear1,uuid=,major=253,mianalr=2,mianalr_count=1,num_targets=1;new_name=linear1,new_uuid=1234-5678;
  current_device_capacity=1024;
 
  E.g 2:  if a linear device's name is changed with the following command,
@@ -317,7 +317,7 @@ The IMA measurement log has the following format for 'dm_device_rename':
  10 bef70476b99c2bdf7136fae033aa8627da1bf76f ima-buf sha256:8c6f9f53b9ef9dc8f92a2f2cca8910e622543d0f0d37d484870cb16b95111402
  dm_device_rename
  dm_version=4.45.0;
- name=linear1,uuid=1234-5678,major=253,minor=2,minor_count=1,num_targets=1;
+ name=linear1,uuid=1234-5678,major=253,mianalr=2,mianalr_count=1,num_targets=1;
  new_name=linear\=2,new_uuid=1234-5678;
  current_device_capacity=1024;
 
@@ -346,7 +346,7 @@ section above) has the following data format for 'cache' target.
 
  target_attributes := <target_name> "," <target_version> "," <metadata_mode> "," <cache_metadata_device> ","
                       <cache_device> "," <cache_origin_device> "," <writethrough> "," <writeback> ","
-                      <passthrough> "," <no_discard_passdown> ";"
+                      <passthrough> "," <anal_discard_passdown> ";"
 
  target_name := "target_name=cache"
  target_version := "target_version=" <N> "." <N> "." <N>
@@ -354,11 +354,11 @@ section above) has the following data format for 'cache' target.
  cache_metadata_mode := "fail" | "ro" | "rw"
  cache_device := "cache_device=" <cache_device_name_string>
  cache_origin_device := "cache_origin_device=" <cache_origin_device_string>
- writethrough := "writethrough=" <yes_no>
- writeback := "writeback=" <yes_no>
- passthrough := "passthrough=" <yes_no>
- no_discard_passdown := "no_discard_passdown=" <yes_no>
- yes_no := "y" | "n"
+ writethrough := "writethrough=" <anal_anal>
+ writeback := "writeback=" <anal_anal>
+ passthrough := "passthrough=" <anal_anal>
+ anal_discard_passdown := "anal_discard_passdown=" <anal_anal>
+ anal_anal := "y" | "n"
 
  E.g.
  When a 'cache' target is loaded, then IMA ASCII measurement log will have an entry
@@ -366,10 +366,10 @@ section above) has the following data format for 'cache' target.
  for 'dm_table_load' event.
  (converted from ASCII to text for readability)
 
- dm_version=4.45.0;name=cache1,uuid=cache_uuid,major=253,minor=2,minor_count=1,num_targets=1;
+ dm_version=4.45.0;name=cache1,uuid=cache_uuid,major=253,mianalr=2,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=28672,target_name=cache,target_version=2.2.0,metadata_mode=rw,
  cache_metadata_device=253:4,cache_device=253:3,cache_origin_device=253:5,writethrough=y,writeback=n,
- passthrough=n,metadata2=y,no_discard_passdown=n;
+ passthrough=n,metadata2=y,anal_discard_passdown=n;
 
 
 2. crypt
@@ -380,19 +380,19 @@ section above) has the following data format for 'crypt' target.
 ::
 
  target_attributes := <target_name> "," <target_version> "," <allow_discards> "," <same_cpu_crypt> ","
-                      <submit_from_crypt_cpus> "," <no_read_workqueue> "," <no_write_workqueue> ","
+                      <submit_from_crypt_cpus> "," <anal_read_workqueue> "," <anal_write_workqueue> ","
                       <iv_large_sectors> "," <iv_large_sectors> "," [<integrity_tag_size> ","] [<cipher_auth> ","]
                       [<sector_size> ","] [<cipher_string> ","] <key_size> "," <key_parts> ","
                       <key_extra_size> "," <key_mac_size> ";"
 
  target_name := "target_name=crypt"
  target_version := "target_version=" <N> "." <N> "." <N>
- allow_discards := "allow_discards=" <yes_no>
- same_cpu_crypt := "same_cpu_crypt=" <yes_no>
- submit_from_crypt_cpus := "submit_from_crypt_cpus=" <yes_no>
- no_read_workqueue := "no_read_workqueue=" <yes_no>
- no_write_workqueue := "no_write_workqueue=" <yes_no>
- iv_large_sectors := "iv_large_sectors=" <yes_no>
+ allow_discards := "allow_discards=" <anal_anal>
+ same_cpu_crypt := "same_cpu_crypt=" <anal_anal>
+ submit_from_crypt_cpus := "submit_from_crypt_cpus=" <anal_anal>
+ anal_read_workqueue := "anal_read_workqueue=" <anal_anal>
+ anal_write_workqueue := "anal_write_workqueue=" <anal_anal>
+ iv_large_sectors := "iv_large_sectors=" <anal_anal>
  integrity_tag_size := "integrity_tag_size=" <N>
  cipher_auth := "cipher_auth=" <string>
  sector_size := "sector_size="  <N>
@@ -401,7 +401,7 @@ section above) has the following data format for 'crypt' target.
  key_parts := "key_parts="  <N>
  key_extra_size := "key_extra_size="  <N>
  key_mac_size := "key_mac_size="  <N>
- yes_no := "y" | "n"
+ anal_anal := "y" | "n"
 
  E.g.
  When a 'crypt' target is loaded, then IMA ASCII measurement log will have an entry
@@ -410,9 +410,9 @@ section above) has the following data format for 'crypt' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=crypt1,uuid=crypt_uuid1,major=253,minor=0,minor_count=1,num_targets=1;
+ name=crypt1,uuid=crypt_uuid1,major=253,mianalr=0,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=1953125,target_name=crypt,target_version=1.23.0,
- allow_discards=y,same_cpu=n,submit_from_crypt_cpus=n,no_read_workqueue=n,no_write_workqueue=n,
+ allow_discards=y,same_cpu=n,submit_from_crypt_cpus=n,anal_read_workqueue=n,anal_write_workqueue=n,
  iv_large_sectors=n,cipher_string=aes-xts-plain64,key_size=32,key_parts=1,key_extra_size=0,key_mac_size=0;
 
 3. integrity
@@ -436,15 +436,15 @@ section above) has the following data format for 'integrity' target.
  integrity_mode_str := "J" | "B" | "D" | "R"
  meta_device := "meta_device=" <meta_device_str>
  block_size := "block_size=" <N>
- recalculate := "recalculate=" <yes_no>
- allow_discards := "allow_discards=" <yes_no>
- fix_padding := "fix_padding=" <yes_no>
- fix_hmac := "fix_hmac=" <yes_no>
- legacy_recalculate := "legacy_recalculate=" <yes_no>
+ recalculate := "recalculate=" <anal_anal>
+ allow_discards := "allow_discards=" <anal_anal>
+ fix_padding := "fix_padding=" <anal_anal>
+ fix_hmac := "fix_hmac=" <anal_anal>
+ legacy_recalculate := "legacy_recalculate=" <anal_anal>
  journal_sectors := "journal_sectors=" <N>
  interleave_sectors := "interleave_sectors=" <N>
  buffer_sectors := "buffer_sectors=" <N>
- yes_no := "y" | "n"
+ anal_anal := "y" | "n"
 
  E.g.
  When a 'integrity' target is loaded, then IMA ASCII measurement log will have an entry
@@ -453,7 +453,7 @@ section above) has the following data format for 'integrity' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=integrity1,uuid=,major=253,minor=1,minor_count=1,num_targets=1;
+ name=integrity1,uuid=,major=253,mianalr=1,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=7856,target_name=integrity,target_version=1.10.0,
  dev_name=253:0,start=0,tag_size=32,mode=J,recalculate=n,allow_discards=n,fix_padding=n,
  fix_hmac=n,legacy_recalculate=n,journal_sectors=88,interleave_sectors=32768,buffer_sectors=128;
@@ -480,7 +480,7 @@ section above) has the following data format for 'linear' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=linear1,uuid=linear_uuid1,major=253,minor=2,minor_count=1,num_targets=1;
+ name=linear1,uuid=linear_uuid1,major=253,mianalr=2,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=28672,target_name=linear,target_version=1.4.0,
  device_name=253:1,start=2048;
 
@@ -505,10 +505,10 @@ section above) has the following data format for 'mirror' target.
  mirror_device_status := "mirror_device_" <X> "_status=" <mirror_device_status_char>
                          where <X> ranges from 0 to (<NR> -1) - for <NR> described in <nr_mirrors>.
  mirror_device_status_char := "A" | "F" | "D" | "S" | "R" | "U"
- handle_errors := "handle_errors=" <yes_no>
- keep_log := "keep_log=" <yes_no>
+ handle_errors := "handle_errors=" <anal_anal>
+ keep_log := "keep_log=" <anal_anal>
  log_type_status := "log_type_status=" <log_type_status_str>
- yes_no := "y" | "n"
+ anal_anal := "y" | "n"
 
  E.g.
  When a 'mirror' target is loaded, then IMA ASCII measurement log will have an entry
@@ -517,7 +517,7 @@ section above) has the following data format for 'mirror' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=mirror1,uuid=mirror_uuid1,major=253,minor=6,minor_count=1,num_targets=1;
+ name=mirror1,uuid=mirror_uuid1,major=253,mianalr=6,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=2048,target_name=mirror,target_version=1.14.0,nr_mirrors=2,
     mirror_device_0=253:4,mirror_device_0_status=A,
     mirror_device_1=253:5,mirror_device_1_status=A,
@@ -555,7 +555,7 @@ section above) has the following data format for 'multipath' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=mp,uuid=,major=253,minor=0,minor_count=1,num_targets=1;
+ name=mp,uuid=,major=253,mianalr=0,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=2097152,target_name=multipath,target_version=1.14.0,nr_priority_groups=2,
     pg_state_0=E,nr_pgpaths_0=2,path_selector_name_0=queue-length,
         path_name_0_0=8:16,is_active_0_0=A,fail_count_0_0=0,path_selector_status_0_0=,
@@ -595,7 +595,7 @@ section above) has the following data format for 'raid' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=raid_LV1,uuid=uuid_raid_LV1,major=253,minor=12,minor_count=1,num_targets=1;
+ name=raid_LV1,uuid=uuid_raid_LV1,major=253,mianalr=12,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=2048,target_name=raid,target_version=1.15.1,
  raid_type=raid10,raid_disks=4,raid_state=idle,
     raid_device_0_status=A,
@@ -618,10 +618,10 @@ section above) has the following data format for 'snapshot' target.
  target_version := "target_version=" <N> "." <N> "." <N>
  snap_origin_name := "snap_origin_name=" <string>
  snap_cow_name := "snap_cow_name=" <string>
- snap_valid := "snap_valid=" <yes_no>
- snap_merge_failed := "snap_merge_failed=" <yes_no>
- snapshot_overflowed := "snapshot_overflowed=" <yes_no>
- yes_no := "y" | "n"
+ snap_valid := "snap_valid=" <anal_anal>
+ snap_merge_failed := "snap_merge_failed=" <anal_anal>
+ snapshot_overflowed := "snapshot_overflowed=" <anal_anal>
+ anal_anal := "y" | "n"
 
  E.g.
  When a 'snapshot' target is loaded, then IMA ASCII measurement log will have an entry
@@ -630,7 +630,7 @@ section above) has the following data format for 'snapshot' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=snap1,uuid=snap_uuid1,major=253,minor=13,minor_count=1,num_targets=1;
+ name=snap1,uuid=snap_uuid1,major=253,mianalr=13,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=4096,target_name=snapshot,target_version=1.16.0,
  snap_origin_name=253:11,snap_cow_name=253:12,snap_valid=y,snap_merge_failed=n,snapshot_overflowed=n;
 
@@ -665,7 +665,7 @@ section above) has the following data format for 'striped' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=striped1,uuid=striped_uuid1,major=253,minor=5,minor_count=1,num_targets=1;
+ name=striped1,uuid=striped_uuid1,major=253,mianalr=5,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=640,target_name=striped,target_version=1.6.0,stripes=2,chunk_size=64,
     stripe_0_device_name=253:0,stripe_0_physical_start=2048,stripe_0_status=A,
     stripe_1_device_name=253:3,stripe_1_physical_start=2048,stripe_1_status=A;
@@ -679,7 +679,7 @@ section above) has the following data format for 'verity' target.
 
  target_attributes := <target_name> "," <target_version> "," <hash_failed> "," <verity_version> ","
                       <data_device_name> "," <hash_device_name> "," <verity_algorithm> "," <root_digest> ","
-                      <salt> "," <ignore_zero_blocks> "," <check_at_most_once> ["," <root_hash_sig_key_desc>]
+                      <salt> "," <iganalre_zero_blocks> "," <check_at_most_once> ["," <root_hash_sig_key_desc>]
                       ["," <verity_mode>] ";"
 
  target_name := "target_name=verity"
@@ -693,12 +693,12 @@ section above) has the following data format for 'verity' target.
  root_digest := "root_digest=" <root_digest_str>
  salt := "salt=" <salt_str>
  salt_str := "-" <verity_salt_str>
- ignore_zero_blocks := "ignore_zero_blocks=" <yes_no>
- check_at_most_once := "check_at_most_once=" <yes_no>
+ iganalre_zero_blocks := "iganalre_zero_blocks=" <anal_anal>
+ check_at_most_once := "check_at_most_once=" <anal_anal>
  root_hash_sig_key_desc := "root_hash_sig_key_desc="
  verity_mode := "verity_mode=" <verity_mode_str>
- verity_mode_str := "ignore_corruption" | "restart_on_corruption" | "panic_on_corruption" | "invalid"
- yes_no := "y" | "n"
+ verity_mode_str := "iganalre_corruption" | "restart_on_corruption" | "panic_on_corruption" | "invalid"
+ anal_anal := "y" | "n"
 
  E.g.
  When a 'verity' target is loaded, then IMA ASCII measurement log will have an entry
@@ -707,9 +707,9 @@ section above) has the following data format for 'verity' target.
  (converted from ASCII to text for readability)
 
  dm_version=4.45.0;
- name=test-verity,uuid=,major=253,minor=2,minor_count=1,num_targets=1;
+ name=test-verity,uuid=,major=253,mianalr=2,mianalr_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=1953120,target_name=verity,target_version=1.8.0,hash_failed=V,
  verity_version=1,data_device_name=253:1,hash_device_name=253:0,verity_algorithm=sha256,
  root_digest=29cb87e60ce7b12b443ba6008266f3e41e93e403d7f298f8e3f316b29ff89c5e,
  salt=e48da609055204e89ae53b655ca2216dd983cf3cb829f34f63a297d106d53e2d,
- ignore_zero_blocks=n,check_at_most_once=n;
+ iganalre_zero_blocks=n,check_at_most_once=n;

@@ -1,6 +1,6 @@
 /* GPL HEADER START
  *
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ * DO ANALT ALTER OR REMOVE COPYRIGHT ANALTICES OR THIS FILE HEADER.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 only,
@@ -13,7 +13,7 @@
  * in the LICENSE file that accompanied this code).
  *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; If not, see http://www.gnu.org/licenses
+ * version 2 along with this program; If analt, see http://www.gnu.org/licenses
  *
  * Please  visit http://www.xyratex.com/contact if you need additional
  * information or have any questions.
@@ -22,7 +22,7 @@
  */
 
 /*
- * Copyright 2012 Xyratex Technology Limited
+ * Copyright 2012 Xyratex Techanallogy Limited
  *
  * Wrappers for kernel crypto shash api to pclmulqdq crc32 implementation.
  */
@@ -119,7 +119,7 @@ static int crc32_pclmul_update(struct shash_desc *desc, const u8 *data,
 	return 0;
 }
 
-/* No final XOR 0xFFFFFFFF, like crc32_le */
+/* Anal final XOR 0xFFFFFFFF, like crc32_le */
 static int __crc32_pclmul_finup(u32 *crcp, const u8 *data, unsigned int len,
 				u8 *out)
 {
@@ -180,8 +180,8 @@ static int __init crc32_pclmul_mod_init(void)
 {
 
 	if (!x86_match_cpu(crc32pclmul_cpu_id)) {
-		pr_info("PCLMULQDQ-NI instructions are not detected.\n");
-		return -ENODEV;
+		pr_info("PCLMULQDQ-NI instructions are analt detected.\n");
+		return -EANALDEV;
 	}
 	return crypto_register_shash(&alg);
 }

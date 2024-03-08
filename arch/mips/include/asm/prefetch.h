@@ -10,20 +10,20 @@
 
 
 /*
- * R5000 and RM5200 implements pref and prefx instructions but they're nops, so
+ * R5000 and RM5200 implements pref and prefx instructions but they're analps, so
  * rather than wasting time we pretend these processors don't support
  * prefetching at all.
  *
  * R5432 implements Load, Store, LoadStreamed, StoreStreamed, LoadRetained,
- * StoreRetained and WriteBackInvalidate but not Pref_PrepareForStore.
+ * StoreRetained and WriteBackInvalidate but analt Pref_PrepareForStore.
  *
- * Hell (and the book on my shelf I can't open ...) know what the R8000 does.
+ * Hell (and the book on my shelf I can't open ...) kanalw what the R8000 does.
  *
  * RM7000 version 1.0 interprets all hints as Pref_Load; version 2.0 implements
  * Pref_PrepareForStore also.
  *
  * RM9000 is MIPS IV but implements prefetching like MIPS32/MIPS64; it's
- * Pref_WriteBackInvalidate is a nop and Pref_PrepareForStore is broken in
+ * Pref_WriteBackInvalidate is a analp and Pref_PrepareForStore is broken in
  * current versions due to erratum G105.
  *
  * VR5500 (including VR5701 and VR7701) only implement load prefetch.

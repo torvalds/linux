@@ -1,4 +1,4 @@
-/* CLOCK_MONOTONIC vs CLOCK_MONOTONIC_RAW skew test
+/* CLOCK_MOANALTONIC vs CLOCK_MOANALTONIC_RAW skew test
  *		by: john stultz (johnstul@us.ibm.com)
  *		    John Stultz <john.stultz@linaro.org>
  *		(C) Copyright IBM 2012
@@ -27,7 +27,7 @@
 #include <time.h>
 #include "../kselftest.h"
 
-#define CLOCK_MONOTONIC_RAW		4
+#define CLOCK_MOANALTONIC_RAW		4
 #define NSEC_PER_SEC 1000000000LL
 
 #define shift_right(x, s) ({		\
@@ -66,7 +66,7 @@ long long diff_timespec(struct timespec start, struct timespec end)
 	return end_ns - start_ns;
 }
 
-void get_monotonic_and_raw(struct timespec *mon, struct timespec *raw)
+void get_moanaltonic_and_raw(struct timespec *mon, struct timespec *raw)
 {
 	struct timespec start, mid, end;
 	long long diff = 0, tmp;
@@ -75,9 +75,9 @@ void get_monotonic_and_raw(struct timespec *mon, struct timespec *raw)
 	for (i = 0; i < 3; i++) {
 		long long newdiff;
 
-		clock_gettime(CLOCK_MONOTONIC, &start);
-		clock_gettime(CLOCK_MONOTONIC_RAW, &mid);
-		clock_gettime(CLOCK_MONOTONIC, &end);
+		clock_gettime(CLOCK_MOANALTONIC, &start);
+		clock_gettime(CLOCK_MOANALTONIC_RAW, &mid);
+		clock_gettime(CLOCK_MOANALTONIC, &end);
 
 		newdiff = diff_timespec(start, end);
 		if (diff == 0 || newdiff < diff) {
@@ -97,14 +97,14 @@ int main(int argc, char **argv)
 
 	setbuf(stdout, NULL);
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &raw)) {
-		printf("ERR: NO CLOCK_MONOTONIC_RAW\n");
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &raw)) {
+		printf("ERR: ANAL CLOCK_MOANALTONIC_RAW\n");
 		return -1;
 	}
 
 	tx1.modes = 0;
 	adjtimex(&tx1);
-	get_monotonic_and_raw(&mon, &raw);
+	get_moanaltonic_and_raw(&mon, &raw);
 	start = mon;
 	delta1 = diff_timespec(mon, raw);
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
 	fflush(stdout);
 	sleep(120);
 
-	get_monotonic_and_raw(&mon, &raw);
+	get_moanaltonic_and_raw(&mon, &raw);
 	end = mon;
 	tx2.modes = 0;
 	adjtimex(&tx2);
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 
 	interval = diff_timespec(start, end);
 
-	/* calculate measured ppm between MONOTONIC and MONOTONIC_RAW */
+	/* calculate measured ppm between MOANALTONIC and MOANALTONIC_RAW */
 	eppm = ((delta2-delta1)*NSEC_PER_SEC)/interval;
 	eppm = -eppm;
 	printf("%lld.%i(est)", eppm/1000, abs((int)(eppm%1000)));

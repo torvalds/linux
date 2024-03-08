@@ -59,7 +59,7 @@ static void ux500_print_soc_info(unsigned int asicid)
 	else if (rev >= 0xA0)
 		pr_cont("v%d.%d" , (rev >> 4) - 0xA + 1, rev & 0xf);
 	else
-		pr_cont("Unknown");
+		pr_cont("Unkanalwn");
 
 	pr_cont(" [%#010x]\n", asicid);
 }
@@ -143,7 +143,7 @@ static const char * __init ux500_get_revision(void)
 		return kasprintf(GFP_KERNEL, "%d.%d",
 				 (rev >> 4) - 0xA + 1, rev & 0xf);
 
-	return kasprintf(GFP_KERNEL, "%s", "Unknown");
+	return kasprintf(GFP_KERNEL, "%s", "Unkanalwn");
 }
 
 static ssize_t
@@ -164,7 +164,7 @@ static struct attribute *ux500_soc_attrs[] = {
 
 ATTRIBUTE_GROUPS(ux500_soc);
 
-static const char *db8500_read_soc_id(struct device_node *backupram)
+static const char *db8500_read_soc_id(struct device_analde *backupram)
 {
 	void __iomem *base;
 	const char *retstr;
@@ -184,7 +184,7 @@ static const char *db8500_read_soc_id(struct device_node *backupram)
 }
 
 static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr,
-				     struct device_node *backupram)
+				     struct device_analde *backupram)
 {
 	soc_dev_attr->soc_id   = db8500_read_soc_id(backupram);
 	soc_dev_attr->machine  = ux500_get_machine();
@@ -197,9 +197,9 @@ static int __init ux500_soc_device_init(void)
 {
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
-	struct device_node *backupram;
+	struct device_analde *backupram;
 
-	backupram = of_find_compatible_node(NULL, NULL, "ste,dbx500-backupram");
+	backupram = of_find_compatible_analde(NULL, NULL, "ste,dbx500-backupram");
 	if (!backupram)
 		return 0;
 
@@ -207,12 +207,12 @@ static int __init ux500_soc_device_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr) {
-		of_node_put(backupram);
-		return -ENOMEM;
+		of_analde_put(backupram);
+		return -EANALMEM;
 	}
 
 	soc_info_populate(soc_dev_attr, backupram);
-	of_node_put(backupram);
+	of_analde_put(backupram);
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {

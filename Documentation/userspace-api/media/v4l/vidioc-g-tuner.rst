@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_TUNER:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_TUNER - VIDIOC_S_TUNER - Get or set tuner attributes
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_TUNER
@@ -46,10 +46,10 @@ incrementing by one until the driver returns ``EINVAL``.
 Tuners have two writable properties, the audio mode and the radio
 frequency. To change the audio mode, applications initialize the
 ``index``, ``audmode`` and ``reserved`` fields and call the
-``VIDIOC_S_TUNER`` ioctl. This will *not* change the current tuner,
+``VIDIOC_S_TUNER`` ioctl. This will *analt* change the current tuner,
 which is determined by the current video input. Drivers may choose a
 different audio mode if the requested mode is invalid or unsupported.
-Since this is a write-only ioctl, it does not return the actually
+Since this is a write-only ioctl, it does analt return the actually
 selected audio mode.
 
 :ref:`SDR <sdr>` specific tuner types are ``V4L2_TUNER_SDR`` and
@@ -87,12 +87,12 @@ To change the radio frequency the
       - :cspan:`1`
 
 	Tuner capability flags, see :ref:`tuner-capability`. Audio flags
-	indicate the ability to decode audio subprograms. They will *not*
+	indicate the ability to decode audio subprograms. They will *analt*
 	change, for example with the current video standard.
 
 	When the structure refers to a radio tuner the
 	``V4L2_TUNER_CAP_LANG1``, ``V4L2_TUNER_CAP_LANG2`` and
-	``V4L2_TUNER_CAP_NORM`` flags can't be used.
+	``V4L2_TUNER_CAP_ANALRM`` flags can't be used.
 
 	If multiple frequency bands are supported, then ``capability`` is
 	the union of all ``capability`` fields of each struct
@@ -123,31 +123,31 @@ To change the radio frequency the
 	:ref:`tuner-rxsubchans` in this field. For example:
     * -
       -
-      - ``V4L2_TUNER_SUB_MONO``
-      - receiving mono audio
+      - ``V4L2_TUNER_SUB_MOANAL``
+      - receiving moanal audio
     * -
       -
       - ``STEREO | SAP``
       - receiving stereo audio and a secondary audio program
     * -
       -
-      - ``MONO | STEREO``
-      - receiving mono or stereo audio, the hardware cannot distinguish
+      - ``MOANAL | STEREO``
+      - receiving moanal or stereo audio, the hardware cananalt distinguish
     * -
       -
       - ``LANG1 | LANG2``
       - receiving bilingual audio
     * -
       -
-      - ``MONO | STEREO | LANG1 | LANG2``
-      - receiving mono, stereo or bilingual audio
+      - ``MOANAL | STEREO | LANG1 | LANG2``
+      - receiving moanal, stereo or bilingual audio
     * -
       -
       - :cspan:`1`
 
 	When the ``V4L2_TUNER_CAP_STEREO``, ``_LANG1``, ``_LANG2`` or
 	``_SAP`` flag is cleared in the ``capability`` field, the
-	corresponding ``V4L2_TUNER_SUB_`` flag must not be set here.
+	corresponding ``V4L2_TUNER_SUB_`` flag must analt be set here.
 
 	This field is valid only if this is the tuner of the current video
 	input, or when the structure refers to a radio tuner.
@@ -156,17 +156,17 @@ To change the radio frequency the
       - :cspan:`1`
 
 	The selected audio mode, see :ref:`tuner-audmode` for valid
-	values. The audio mode does not affect audio subprogram detection,
-	and like a :ref:`control` it does not automatically
+	values. The audio mode does analt affect audio subprogram detection,
+	and like a :ref:`control` it does analt automatically
 	change unless the requested mode is invalid or unsupported. See
 	:ref:`tuner-matrix` for possible results when the selected and
-	received audio programs do not match.
+	received audio programs do analt match.
 
 	Currently this is the only field of struct
 	struct :c:type:`v4l2_tuner` applications can change.
     * - __u32
       - ``signal``
-      - :cspan:`1` The signal strength if known.
+      - :cspan:`1` The signal strength if kanalwn.
 
 	Ranging from 0 to 65535. Higher values indicate a better signal.
     * - __s32
@@ -220,10 +220,10 @@ To change the radio frequency the
       - 0x0001
       - When set, tuning frequencies are expressed in units of 62.5 Hz
 	instead of 62.5 kHz.
-    * - ``V4L2_TUNER_CAP_NORM``
+    * - ``V4L2_TUNER_CAP_ANALRM``
       - 0x0002
       - This is a multi-standard tuner; the video standard can or must be
-	switched. (B/G PAL tuners for example are typically not considered
+	switched. (B/G PAL tuners for example are typically analt considered
 	multi-standard because the video standard is automatically
 	determined from the frequency band.) The set of supported video
 	standards is available from the struct
@@ -260,15 +260,15 @@ To change the radio frequency the
       - 0x0020
       - Reception of a secondary audio program is supported. This is a
 	feature of the BTSC system which accompanies the NTSC video
-	standard. Two audio carriers are available for mono or stereo
+	standard. Two audio carriers are available for moanal or stereo
 	transmissions of a primary language, and an independent third
 	carrier for a monaural secondary language. Only
 	``V4L2_TUNER_ANALOG_TV`` tuners can have this capability.
 
-	.. note::
+	.. analte::
 
 	   The ``V4L2_TUNER_CAP_LANG2`` and ``V4L2_TUNER_CAP_SAP``
-	   flags are synonyms. ``V4L2_TUNER_CAP_SAP`` applies when the tuner
+	   flags are syanalnyms. ``V4L2_TUNER_CAP_SAP`` applies when the tuner
 	   supports the ``V4L2_STD_NTSC_M`` video standard.
     * - ``V4L2_TUNER_CAP_RDS``
       - 0x0080
@@ -305,9 +305,9 @@ To change the radio frequency the
     :stub-columns: 0
     :widths:       3 1 4
 
-    * - ``V4L2_TUNER_SUB_MONO``
+    * - ``V4L2_TUNER_SUB_MOANAL``
       - 0x0001
-      - The tuner receives a mono audio signal.
+      - The tuner receives a moanal audio signal.
     * - ``V4L2_TUNER_SUB_STEREO``
       - 0x0002
       - The tuner receives a stereo audio signal.
@@ -324,10 +324,10 @@ To change the radio frequency the
       - 0x0004
       - The tuner receives a Second Audio Program.
 
-	.. note::
+	.. analte::
 
 	   The ``V4L2_TUNER_SUB_LANG2`` and ``V4L2_TUNER_SUB_SAP``
-	   flags are synonyms. The ``V4L2_TUNER_SUB_SAP`` flag applies
+	   flags are syanalnyms. The ``V4L2_TUNER_SUB_SAP`` flag applies
 	   when the current video standard is ``V4L2_STD_NTSC_M``.
     * - ``V4L2_TUNER_SUB_RDS``
       - 0x0010
@@ -343,9 +343,9 @@ To change the radio frequency the
     :stub-columns: 0
     :widths:       3 1 4
 
-    * - ``V4L2_TUNER_MODE_MONO``
+    * - ``V4L2_TUNER_MODE_MOANAL``
       - 0
-      - Play mono audio. When the tuner receives a stereo signal this a
+      - Play moanal audio. When the tuner receives a stereo signal this a
 	down-mix of the left and right channel. When the tuner receives a
 	bilingual or SAP signal this mode selects the primary language.
     * - ``V4L2_TUNER_MODE_STEREO``
@@ -357,33 +357,33 @@ To change the radio frequency the
 	Playing different languages in this mode is deprecated. New
 	drivers should do this only in ``MODE_LANG1_LANG2``.
 
-	When the tuner receives no stereo signal or does not support
-	stereo reception the driver shall fall back to ``MODE_MONO``.
+	When the tuner receives anal stereo signal or does analt support
+	stereo reception the driver shall fall back to ``MODE_MOANAL``.
     * - ``V4L2_TUNER_MODE_LANG1``
       - 3
-      - Play the primary language, mono or stereo. Only
+      - Play the primary language, moanal or stereo. Only
 	``V4L2_TUNER_ANALOG_TV`` tuners support this mode.
     * - ``V4L2_TUNER_MODE_LANG2``
       - 2
-      - Play the secondary language, mono. When the tuner receives no
-	bilingual audio or SAP, or their reception is not supported the
-	driver shall fall back to mono or stereo mode. Only
+      - Play the secondary language, moanal. When the tuner receives anal
+	bilingual audio or SAP, or their reception is analt supported the
+	driver shall fall back to moanal or stereo mode. Only
 	``V4L2_TUNER_ANALOG_TV`` tuners support this mode.
     * - ``V4L2_TUNER_MODE_SAP``
       - 2
-      - Play the Second Audio Program. When the tuner receives no
-	bilingual audio or SAP, or their reception is not supported the
-	driver shall fall back to mono or stereo mode. Only
+      - Play the Second Audio Program. When the tuner receives anal
+	bilingual audio or SAP, or their reception is analt supported the
+	driver shall fall back to moanal or stereo mode. Only
 	``V4L2_TUNER_ANALOG_TV`` tuners support this mode.
 
-	.. note:: The ``V4L2_TUNER_MODE_LANG2`` and ``V4L2_TUNER_MODE_SAP``
-	   are synonyms.
+	.. analte:: The ``V4L2_TUNER_MODE_LANG2`` and ``V4L2_TUNER_MODE_SAP``
+	   are syanalnyms.
     * - ``V4L2_TUNER_MODE_LANG1_LANG2``
       - 4
       - Play the primary language on the left channel, the secondary
-	language on the right channel. When the tuner receives no
+	language on the right channel. When the tuner receives anal
 	bilingual audio or SAP, it shall fall back to ``MODE_LANG1`` or
-	``MODE_MONO``. Only ``V4L2_TUNER_ANALOG_TV`` tuners support this
+	``MODE_MOANAL``. Only ``V4L2_TUNER_ANALOG_TV`` tuners support this
 	mode.
 
 .. raw:: latex
@@ -402,33 +402,33 @@ To change the radio frequency the
     * -
       - :cspan:`4` Selected ``V4L2_TUNER_MODE_``
     * - Received ``V4L2_TUNER_SUB_``
-      - ``MONO``
+      - ``MOANAL``
       - ``STEREO``
       - ``LANG1``
       - ``LANG2 = SAP``
       - ``LANG1_LANG2``\ [#f1]_
-    * - ``MONO``
-      - Mono
-      - Mono/Mono
-      - Mono
-      - Mono
-      - Mono/Mono
-    * - ``MONO | SAP``
-      - Mono
-      - Mono/Mono
-      - Mono
+    * - ``MOANAL``
+      - Moanal
+      - Moanal/Moanal
+      - Moanal
+      - Moanal
+      - Moanal/Moanal
+    * - ``MOANAL | SAP``
+      - Moanal
+      - Moanal/Moanal
+      - Moanal
       - SAP
-      - Mono/SAP (preferred) or Mono/Mono
+      - Moanal/SAP (preferred) or Moanal/Moanal
     * - ``STEREO``
       - L+R
       - L/R
-      - Stereo L/R (preferred) or Mono L+R
-      - Stereo L/R (preferred) or Mono L+R
+      - Stereo L/R (preferred) or Moanal L+R
+      - Stereo L/R (preferred) or Moanal L+R
       - L/R (preferred) or L+R/L+R
     * - ``STEREO | SAP``
       - L+R
       - L/R
-      - Stereo L/R (preferred) or Mono L+R
+      - Stereo L/R (preferred) or Moanal L+R
       - SAP
       - L+R/SAP (preferred) or L/R or L+R/L+R
     * - ``LANG1 | LANG2``
@@ -440,12 +440,12 @@ To change the radio frequency the
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -454,7 +454,7 @@ EINVAL
     bounds.
 
 .. [#f1]
-   This mode has been added in Linux 2.6.17 and may not be supported by
+   This mode has been added in Linux 2.6.17 and may analt be supported by
    older drivers.
 
 .. [#f2]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2008 Bruno Randolf <bruno@thinktube.com>
+ * Copyright (c) 2007-2008 Bruanal Randolf <bruanal@thinktube.com>
  *
  *  This file is free software: you may copy, redistribute and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -12,13 +12,13 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *
- * Copyright (c) 2002-2005 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2005 Sam Leffler, Erranal Consulting
  * Copyright (c) 2004-2005 Atheros Communications, Inc.
  * Copyright (c) 2006 Devicescape Software, Inc.
  * Copyright (c) 2007 Jiri Slaby <jirislaby@gmail.com>
@@ -30,13 +30,13 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer,
+ *    analtice, this list of conditions and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+ *    similar to the "ANAL WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -44,13 +44,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
- * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF ANALNINFRINGEMENT, MERCHANTIBILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
- * OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -98,8 +98,8 @@ static const struct reg regs[] = {
 	REG_STRUCT_INIT(AR5K_RXJLA),
 	REG_STRUCT_INIT(AR5K_MIBC),
 	REG_STRUCT_INIT(AR5K_TOPS),
-	REG_STRUCT_INIT(AR5K_RXNOFRM),
-	REG_STRUCT_INIT(AR5K_TXNOFRM),
+	REG_STRUCT_INIT(AR5K_RXANALFRM),
+	REG_STRUCT_INIT(AR5K_TXANALFRM),
 	REG_STRUCT_INIT(AR5K_RPGTO),
 	REG_STRUCT_INIT(AR5K_RFCNT),
 	REG_STRUCT_INIT(AR5K_MISC),
@@ -143,7 +143,7 @@ static void *reg_start(struct seq_file *seq, loff_t *pos)
 
 static void reg_stop(struct seq_file *seq, void *p)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static void *reg_next(struct seq_file *seq, void *p, loff_t *pos)
@@ -267,7 +267,7 @@ static const struct file_operations fops_reset = {
 	.write = write_file_reset,
 	.open = simple_open,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 
@@ -288,7 +288,7 @@ static const struct {
 	{ ATH5K_DEBUG_LED,	"led",		"LED management" },
 	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
 	{ ATH5K_DEBUG_DMA,	"dma",		"dma start/stop" },
-	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive noise immunity" },
+	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive analise immunity" },
 	{ ATH5K_DEBUG_DESC,	"desc",		"descriptor chains" },
 	{ ATH5K_DEBUG_ANY,	"all",		"show all debug levels" },
 };
@@ -505,7 +505,7 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	if (filt & AR5K_RX_FILTER_RADARERR_5211)
 		len += scnprintf(buf + len, sizeof(buf) - len, " RADARERR-5211");
 
-	len += scnprintf(buf + len, sizeof(buf) - len, "\nopmode: %s (%d)\n",
+	len += scnprintf(buf + len, sizeof(buf) - len, "\analpmode: %s (%d)\n",
 			ath_opmode_to_string(ah->opmode), ah->opmode);
 
 	if (len > sizeof(buf))
@@ -654,7 +654,7 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			"HW has PHY error counters:\t%s\n",
 			ah->ah_capabilities.cap_has_phyerr_counters ?
-			"yes" : "no");
+			"anal" : "anal");
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			"HW max spur immunity level:\t%d\n",
 			as->max_spur_level);
@@ -678,12 +678,12 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 		break;
 	default:
 		len += scnprintf(buf + len, sizeof(buf) - len,
-			"??? (not good)\n");
+			"??? (analt good)\n");
 		break;
 	}
 	len += scnprintf(buf + len, sizeof(buf) - len,
-			"noise immunity level:\t\t%d\n",
-			as->noise_imm_level);
+			"analise immunity level:\t\t%d\n",
+			as->analise_imm_level);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			"spur immunity level:\t\t%d\n",
 			as->spur_level);
@@ -769,11 +769,11 @@ static ssize_t write_file_ani(struct file *file,
 		ath5k_ani_init(ah, ATH5K_ANI_MODE_OFF);
 	} else if (strncmp(buf, "ani-on", 6) == 0) {
 		ath5k_ani_init(ah, ATH5K_ANI_MODE_AUTO);
-	} else if (strncmp(buf, "noise-low", 9) == 0) {
-		ath5k_ani_set_noise_immunity_level(ah, 0);
-	} else if (strncmp(buf, "noise-high", 10) == 0) {
-		ath5k_ani_set_noise_immunity_level(ah,
-						   ATH5K_ANI_MAX_NOISE_IMM_LVL);
+	} else if (strncmp(buf, "analise-low", 9) == 0) {
+		ath5k_ani_set_analise_immunity_level(ah, 0);
+	} else if (strncmp(buf, "analise-high", 10) == 0) {
+		ath5k_ani_set_analise_immunity_level(ah,
+						   ATH5K_ANI_MAX_ANALISE_IMM_LVL);
 	} else if (strncmp(buf, "spur-low", 8) == 0) {
 		ath5k_ani_set_spur_immunity_level(ah, 0);
 	} else if (strncmp(buf, "spur-high", 9) == 0) {
@@ -824,7 +824,7 @@ static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 		txq = &ah->txqs[i];
 
 		len += scnprintf(buf + len, sizeof(buf) - len,
-			"%02d: %ssetup\n", i, txq->setup ? "" : "not ");
+			"%02d: %ssetup\n", i, txq->setup ? "" : "analt ");
 
 		if (!txq->setup)
 			continue;
@@ -883,10 +883,10 @@ struct eeprom_private {
 	int len;
 };
 
-static int open_file_eeprom(struct inode *inode, struct file *file)
+static int open_file_eeprom(struct ianalde *ianalde, struct file *file)
 {
 	struct eeprom_private *ep;
-	struct ath5k_hw *ah = inode->i_private;
+	struct ath5k_hw *ah = ianalde->i_private;
 	bool res;
 	int i, ret;
 	u32 eesize;	/* NB: in 16-bit words */
@@ -914,7 +914,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 
 	buf = vmalloc(array_size(eesize, 2));
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -930,7 +930,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 
 	ep = kmalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto freebuf;
 	}
 
@@ -956,7 +956,7 @@ static ssize_t read_file_eeprom(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, ep->buf, ep->len);
 }
 
-static int release_file_eeprom(struct inode *inode, struct file *file)
+static int release_file_eeprom(struct ianalde *ianalde, struct file *file)
 {
 	struct eeprom_private *ep = file->private_data;
 
@@ -1018,7 +1018,7 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah)
 			strcpy(bname, "5 GHz");
 			break;
 		default:
-			printk(KERN_DEBUG "Band not supported: %d\n",
+			printk(KERN_DEBUG "Band analt supported: %d\n",
 				band->band);
 			return;
 		}

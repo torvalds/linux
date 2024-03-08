@@ -14,19 +14,19 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   NO WARRANTY
+   ANAL WARRANTY
    THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-   LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+   LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
    solely responsible for determining the appropriateness of using and
    distributing the Program and assumes all risks associated with its
-   exercise of rights under this Agreement, including but not limited to
+   exercise of rights under this Agreement, including but analt limited to
    the risks and costs of program errors, damage to or loss of data,
    programs or equipment, and unavailability or interruption of operations.
 
    DISCLAIMER OF LIABILITY
-   NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+   NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
    DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -35,7 +35,7 @@
    HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Controllers supported by this driver:
@@ -55,7 +55,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
@@ -235,7 +235,7 @@ static void twl_aen_queue_event(TW_Device_Extension *tw_dev, TW_Command_Apache_H
 
 	host[0] = '\0';
 	if (tw_dev->host)
-		sprintf(host, " scsi%d:", tw_dev->host->host_no);
+		sprintf(host, " scsi%d:", tw_dev->host->host_anal);
 
 	aen = le16_to_cpu(header->status_block.error);
 	memset(event, 0, sizeof(TW_Event));
@@ -245,7 +245,7 @@ static void twl_aen_queue_event(TW_Device_Extension *tw_dev, TW_Command_Apache_H
 	local_time = (u32)(ktime_get_real_seconds() - (sys_tz.tz_minuteswest * 60));
 	event->time_stamp_sec = local_time;
 	event->aen_code = aen;
-	event->retrieved = TW_AEN_NOT_RETRIEVED;
+	event->retrieved = TW_AEN_ANALT_RETRIEVED;
 	event->sequence_id = tw_dev->error_sequence_id;
 	tw_dev->error_sequence_id++;
 
@@ -363,7 +363,7 @@ static int twl_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id,
 			tw_dev->max_sgl_entries = tw_dev->sgl_entries;
 	}
 
-	/* Now post the command to the board */
+	/* Analw post the command to the board */
 	retval = twl_post_command_packet(tw_dev, request_id);
 
 out:
@@ -394,7 +394,7 @@ static int twl_aen_read_queue(TW_Device_Extension *tw_dev, int request_id)
 	/* Mark internal command */
 	tw_dev->srb[request_id] = NULL;
 
-	/* Now post the command packet */
+	/* Analw post the command packet */
 	if (twl_scsiop_execute_scsi(tw_dev, request_id, cdb, 1, sglist)) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x2, "Post failed while reading AEN queue");
 		goto out;
@@ -442,7 +442,7 @@ static void twl_aen_sync_time(TW_Device_Extension *tw_dev, int request_id)
 	/* Mark internal command */
 	tw_dev->srb[request_id] = NULL;
 
-	/* Now post the command */
+	/* Analw post the command */
 	twl_post_command_packet(tw_dev, request_id);
 } /* End twl_aen_sync_time() */
 
@@ -552,7 +552,7 @@ out:
 } /* End twl_poll_response() */
 
 /* This function will drain the aen queue */
-static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
+static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int anal_check_reset)
 {
 	int request_id = 0;
 	unsigned char cdb[TW_MAX_CDB_LEN];
@@ -563,7 +563,7 @@ static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
 	unsigned short aen;
 	int first_reset = 0, queue = 0, retval = 1;
 
-	if (no_check_reset)
+	if (anal_check_reset)
 		first_reset = 0;
 	else
 		first_reset = 1;
@@ -591,9 +591,9 @@ static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
 			goto out;
 		}
 
-		/* Now poll for completion */
+		/* Analw poll for completion */
 		if (twl_poll_response(tw_dev, request_id, 30)) {
-			TW_PRINTK(tw_dev->host, TW_DRIVER, 0x4, "No valid response while draining AEN queue");
+			TW_PRINTK(tw_dev->host, TW_DRIVER, 0x4, "Anal valid response while draining AEN queue");
 			tw_dev->posted_request_count--;
 			goto out;
 		}
@@ -623,7 +623,7 @@ static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
 			queue = 1;
 		}
 
-		/* Now queue an event info */
+		/* Analw queue an event info */
 		if (queue)
 			twl_aen_queue_event(tw_dev, header);
 	} while ((finished == 0) && (count < TW_MAX_AEN_DRAIN));
@@ -719,10 +719,10 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	dma_addr_t dma_handle;
 	int request_id = 0;
 	TW_Ioctl_Driver_Command driver_command;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	TW_Ioctl_Buf_Apache *tw_ioctl;
 	TW_Command_Full *full_command_packet;
-	TW_Device_Extension *tw_dev = twl_device_extension_list[iminor(inode)];
+	TW_Device_Extension *tw_dev = twl_device_extension_list[imianalr(ianalde)];
 	int retval = -EFAULT;
 	void __user *argp = (void __user *)arg;
 
@@ -747,16 +747,16 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	/* Hardware can only do multiple of 512 byte transfers */
 	data_buffer_length_adjusted = (driver_command.buffer_length + 511) & ~511;
 
-	/* Now allocate ioctl buf memory */
+	/* Analw allocate ioctl buf memory */
 	cpu_addr = dma_alloc_coherent(&tw_dev->tw_pci_dev->dev, data_buffer_length_adjusted + sizeof(TW_Ioctl_Buf_Apache), &dma_handle, GFP_KERNEL);
 	if (!cpu_addr) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out2;
 	}
 
 	tw_ioctl = (TW_Ioctl_Buf_Apache *)cpu_addr;
 
-	/* Now copy down the entire ioctl */
+	/* Analw copy down the entire ioctl */
 	if (copy_from_user(tw_ioctl, argp, driver_command.buffer_length + sizeof(TW_Ioctl_Buf_Apache)))
 		goto out3;
 
@@ -779,30 +779,30 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		memcpy(tw_dev->command_packet_virt[request_id], &(tw_ioctl->firmware_command), sizeof(TW_Command_Full));
 
-		/* Now post the command packet to the controller */
+		/* Analw post the command packet to the controller */
 		twl_post_command_packet(tw_dev, request_id);
 		spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
 
 		timeout = TW_IOCTL_CHRDEV_TIMEOUT*HZ;
 
-		/* Now wait for command to complete */
+		/* Analw wait for command to complete */
 		timeout = wait_event_timeout(tw_dev->ioctl_wqueue, tw_dev->chrdev_request_id == TW_IOCTL_CHRDEV_FREE, timeout);
 
 		/* We timed out, and didn't get an interrupt */
 		if (tw_dev->chrdev_request_id != TW_IOCTL_CHRDEV_FREE) {
-			/* Now we need to reset the board */
+			/* Analw we need to reset the board */
 			printk(KERN_WARNING "3w-sas: scsi%d: WARNING: (0x%02X:0x%04X): Character ioctl (0x%x) timed out, resetting card.\n",
-			       tw_dev->host->host_no, TW_DRIVER, 0x6,
+			       tw_dev->host->host_anal, TW_DRIVER, 0x6,
 			       cmd);
 			retval = -EIO;
 			twl_reset_device_extension(tw_dev, 1);
 			goto out3;
 		}
 
-		/* Now copy in the command packet response */
+		/* Analw copy in the command packet response */
 		memcpy(&(tw_ioctl->firmware_command), tw_dev->command_packet_virt[request_id], sizeof(TW_Command_Full));
 
-		/* Now complete the io */
+		/* Analw complete the io */
 		spin_lock_irqsave(tw_dev->host->host_lock, flags);
 		tw_dev->posted_request_count--;
 		tw_dev->state[request_id] = TW_S_COMPLETED;
@@ -810,15 +810,15 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
 		break;
 	default:
-		retval = -ENOTTY;
+		retval = -EANALTTY;
 		goto out3;
 	}
 
-	/* Now copy the entire response to userspace */
+	/* Analw copy the entire response to userspace */
 	if (copy_to_user(argp, tw_ioctl, sizeof(TW_Ioctl_Buf_Apache) + driver_command.buffer_length) == 0)
 		retval = 0;
 out3:
-	/* Now free ioctl buf memory */
+	/* Analw free ioctl buf memory */
 	dma_free_coherent(&tw_dev->tw_pci_dev->dev, data_buffer_length_adjusted + sizeof(TW_Ioctl_Buf_Apache), cpu_addr, dma_handle);
 out2:
 	mutex_unlock(&tw_dev->ioctl_lock);
@@ -828,18 +828,18 @@ out:
 } /* End twl_chrdev_ioctl() */
 
 /* This function handles open for the character device */
-static int twl_chrdev_open(struct inode *inode, struct file *file)
+static int twl_chrdev_open(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int minor_number;
-	int retval = -ENODEV;
+	unsigned int mianalr_number;
+	int retval = -EANALDEV;
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		retval = -EACCES;
 		goto out;
 	}
 
-	minor_number = iminor(inode);
-	if (minor_number >= twl_device_extension_count)
+	mianalr_number = imianalr(ianalde);
+	if (mianalr_number >= twl_device_extension_count)
 		goto out;
 	retval = 0;
 out:
@@ -852,7 +852,7 @@ static const struct file_operations twl_fops = {
 	.unlocked_ioctl	= twl_chrdev_ioctl,
 	.open		= twl_chrdev_open,
 	.release	= NULL,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 /* This function passes sense data from firmware to scsi layer */
@@ -869,12 +869,12 @@ static int twl_fill_sense(TW_Device_Extension *tw_dev, int i, int request_id, in
 	/* Get embedded firmware error string */
 	error_str = &(header->err_specific_desc[strlen(header->err_specific_desc) + 1]);
 
-	/* Don't print error for Logical unit not supported during rollcall */
+	/* Don't print error for Logical unit analt supported during rollcall */
 	error = le16_to_cpu(header->status_block.error);
-	if ((error != TW_ERROR_LOGICAL_UNIT_NOT_SUPPORTED) && (error != TW_ERROR_UNIT_OFFLINE) && (error != TW_ERROR_INVALID_FIELD_IN_CDB)) {
+	if ((error != TW_ERROR_LOGICAL_UNIT_ANALT_SUPPORTED) && (error != TW_ERROR_UNIT_OFFLINE) && (error != TW_ERROR_INVALID_FIELD_IN_CDB)) {
 		if (print_host)
 			printk(KERN_WARNING "3w-sas: scsi%d: ERROR: (0x%02X:0x%04X): %s:%s.\n",
-			       tw_dev->host->host_no,
+			       tw_dev->host->host_anal,
 			       TW_MESSAGE_SOURCE_CONTROLLER_ERROR,
 			       header->status_block.error,
 			       error_str,
@@ -939,7 +939,7 @@ static void *twl_get_param(TW_Device_Extension *tw_dev, int request_id, int tabl
 	command_packet->request_id	  = request_id;
 	command_packet->byte6_offset.block_count = cpu_to_le16(1);
 
-	/* Now setup the param */
+	/* Analw setup the param */
 	param = (TW_Param_Apache *)tw_dev->generic_buffer_virt[request_id];
 	memset(param, 0, TW_SECTOR_SIZE);
 	param->table_id = cpu_to_le16(table_id | 0x8000);
@@ -954,7 +954,7 @@ static void *twl_get_param(TW_Device_Extension *tw_dev, int request_id, int tabl
 
 	/* Poll for completion */
 	if (twl_poll_response(tw_dev, request_id, 30))
-		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x7, "No valid response during get param")
+		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x7, "Anal valid response during get param")
 	else
 		retval = (void *)&(param->data[0]);
 
@@ -1010,7 +1010,7 @@ static int twl_initconnection(TW_Device_Extension *tw_dev, int message_credits,
 
 	/* Poll for completion */
 	if (twl_poll_response(tw_dev, request_id, 30)) {
-		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x8, "No valid response during init connection");
+		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x8, "Anal valid response during init connection");
 	} else {
 		if (set_features & TW_EXTENDED_INIT_CONNECT) {
 			*fw_on_ctlr_srl = le16_to_cpu(tw_initconnect->fw_srl);
@@ -1161,7 +1161,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 		response = (u32)mfa;
 
 		/* Check for command packet error */
-		if (!TW_NOTMFA_OUT(response)) {
+		if (!TW_ANALTMFA_OUT(response)) {
 			for (i=0;i<TW_Q_LENGTH;i++) {
 				if (tw_dev->sense_buffer_phys[i] == mfa) {
 					request_id = le16_to_cpu(tw_dev->sense_buffer_virt[i]->header_desc.request_id);
@@ -1175,7 +1175,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 							memcpy(tw_dev->command_packet_virt[request_id], tw_dev->sense_buffer_virt[i], sizeof(TW_Command_Apache_Header));
 					}
 
-					/* Now re-post the sense buffer */
+					/* Analw re-post the sense buffer */
 					writel((u32)((u64)tw_dev->sense_buffer_phys[i] >> 32), TWL_HOBQPH_REG_ADDR(tw_dev));
 					writel((u32)tw_dev->sense_buffer_phys[i], TWL_HOBQPL_REG_ADDR(tw_dev));
 					break;
@@ -1216,7 +1216,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 					scsi_set_resid(cmd, scsi_bufflen(cmd) - full_command_packet->command.newcommand.sg_list[0].length);
 			}
 
-			/* Now complete the io */
+			/* Analw complete the io */
 			scsi_dma_unmap(cmd);
 			scsi_done(cmd);
 			tw_dev->state[request_id] = TW_S_COMPLETED;
@@ -1224,7 +1224,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 			tw_dev->posted_request_count--;
 		}
 
-		/* Check for another response interrupt */
+		/* Check for aanalther response interrupt */
 		reg = readl(TWL_HISTAT_REG_ADDR(tw_dev));
 	}
 
@@ -1273,12 +1273,12 @@ static int twl_reset_sequence(TW_Device_Extension *tw_dev, int soft_reset)
 
 			/* Make sure controller is in a good state */
 			if (twl_poll_register(tw_dev, TWL_SCRPD3_REG_ADDR(tw_dev), TWL_CONTROLLER_READY, 0x0, 30)) {
-				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x10, "Controller never went non-ready during reset sequence");
+				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x10, "Controller never went analn-ready during reset sequence");
 				tries++;
 				continue;
 			}
 			if (twl_poll_register(tw_dev, TWL_SCRPD3_REG_ADDR(tw_dev), TWL_CONTROLLER_READY, TWL_CONTROLLER_READY, 60)) {
-				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x11, "Controller not ready during reset sequence");
+				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x11, "Controller analt ready during reset sequence");
 				tries++;
 				continue;
 			}
@@ -1308,7 +1308,7 @@ static int twl_reset_sequence(TW_Device_Extension *tw_dev, int soft_reset)
 			    i++;
 		}
 
-		/* Now check status */
+		/* Analw check status */
 		status = readl(TWL_STATUS_REG_ADDR(tw_dev));
 		if (status) {
 			TW_PRINTK(tw_dev->host, TW_DRIVER, 0x13, "Bad controller status after loading sense buffers");
@@ -1437,10 +1437,10 @@ static int twl_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 		"WARNING: (0x%02X:0x%04X): Command (0x%x) timed out, resetting card.\n",
 		TW_DRIVER, 0x2c, SCpnt->cmnd[0]);
 
-	/* Make sure we are not issuing an ioctl or resetting from ioctl */
+	/* Make sure we are analt issuing an ioctl or resetting from ioctl */
 	mutex_lock(&tw_dev->ioctl_lock);
 
-	/* Now reset the card and some of the device extension data */
+	/* Analw reset the card and some of the device extension data */
 	if (twl_reset_device_extension(tw_dev, 0)) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x15, "Controller reset failed during scsi host reset");
 		goto out;
@@ -1494,7 +1494,7 @@ static void __twl_shutdown(TW_Device_Extension *tw_dev)
 	/* Free up the IRQ */
 	free_irq(tw_dev->tw_pci_dev->irq, tw_dev);
 
-	printk(KERN_WARNING "3w-sas: Shutting down host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-sas: Shutting down host %d.\n", tw_dev->host->host_anal);
 
 	/* Tell the card we are shutting down */
 	if (twl_initconnection(tw_dev, 1, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL)) {
@@ -1546,7 +1546,7 @@ static const struct scsi_host_template driver_template = {
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,
 	.shost_groups		= twl_host_groups,
 	.emulated		= 1,
-	.no_write_same		= 1,
+	.anal_write_same		= 1,
 };
 
 /* This function will probe and initialize a card */
@@ -1554,7 +1554,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 {
 	struct Scsi_Host *host = NULL;
 	TW_Device_Extension *tw_dev;
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 	int *ptr_phycount, phycount=0;
 
 	retval = pci_enable_device(pdev);
@@ -1569,14 +1569,14 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	retval = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (retval) {
 		TW_PRINTK(host, TW_DRIVER, 0x18, "Failed to set dma mask");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out_disable_device;
 	}
 
 	host = scsi_host_alloc(&driver_template, sizeof(TW_Device_Extension));
 	if (!host) {
 		TW_PRINTK(host, TW_DRIVER, 0x19, "Failed to allocate memory for device extension");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_disable_device;
 	}
 	tw_dev = shost_priv(host);
@@ -1587,7 +1587,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 
 	if (twl_initialize_device_extension(tw_dev)) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1a, "Failed to initialize device extension");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_free_device_extension;
 	}
 
@@ -1602,7 +1602,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	tw_dev->base_addr = pci_iomap(pdev, 1, 0);
 	if (!tw_dev->base_addr) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1c, "Failed to ioremap");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_release_mem_region;
 	}
 
@@ -1612,7 +1612,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	/* Initialize the card */
 	if (twl_reset_sequence(tw_dev, 0)) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1d, "Controller reset failed during probe");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_iounmap;
 	}
 
@@ -1632,7 +1632,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	pci_set_drvdata(pdev, host);
 
 	printk(KERN_WARNING "3w-sas: scsi%d: Found an LSI 3ware %s Controller at 0x%llx, IRQ: %d.\n",
-	       host->host_no,
+	       host->host_anal,
 	       (char *)twl_get_param(tw_dev, 1, TW_VERSION_TABLE,
 				     TW_PARAM_MODEL, TW_PARAM_MODEL_LENGTH),
 	       (u64)pci_resource_start(pdev, 1), pdev->irq);
@@ -1643,7 +1643,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 		phycount = le32_to_cpu(*(int *)ptr_phycount);
 
 	printk(KERN_WARNING "3w-sas: scsi%d: Firmware %s, BIOS %s, Phys: %d.\n",
-	       host->host_no,
+	       host->host_anal,
 	       (char *)twl_get_param(tw_dev, 1, TW_VERSION_TABLE,
 				     TW_PARAM_FWVER, TW_PARAM_FWVER_LENGTH),
 	       (char *)twl_get_param(tw_dev, 2, TW_VERSION_TABLE,
@@ -1654,7 +1654,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	if (use_msi && !pci_enable_msi(pdev))
 		set_bit(TW_USING_MSI, &tw_dev->flags);
 
-	/* Now setup the interrupt handler */
+	/* Analw setup the interrupt handler */
 	retval = request_irq(pdev->irq, twl_interrupt, IRQF_SHARED, "3w-sas", tw_dev);
 	if (retval) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1f, "Error requesting IRQ");
@@ -1753,7 +1753,7 @@ static int __maybe_unused twl_suspend(struct device *dev)
 	struct Scsi_Host *host = dev_get_drvdata(dev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
-	printk(KERN_WARNING "3w-sas: Suspending host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-sas: Suspending host %d.\n", tw_dev->host->host_anal);
 	/* Disable interrupts */
 	TWL_MASK_INTERRUPTS(tw_dev);
 
@@ -1780,31 +1780,31 @@ static int __maybe_unused twl_resume(struct device *dev)
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
-	printk(KERN_WARNING "3w-sas: Resuming host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-sas: Resuming host %d.\n", tw_dev->host->host_anal);
 	pci_try_set_mwi(pdev);
 
 	retval = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (retval) {
 		TW_PRINTK(host, TW_DRIVER, 0x25, "Failed to set dma mask during resume");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out_disable_device;
 	}
 
 	/* Initialize the card */
 	if (twl_reset_sequence(tw_dev, 0)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out_disable_device;
 	}
 
-	/* Now setup the interrupt handler */
+	/* Analw setup the interrupt handler */
 	retval = request_irq(pdev->irq, twl_interrupt, IRQF_SHARED, "3w-sas", tw_dev);
 	if (retval) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x26, "Error requesting IRQ during resume");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out_disable_device;
 	}
 
-	/* Now enable MSI if enabled */
+	/* Analw enable MSI if enabled */
 	if (test_bit(TW_USING_MSI, &tw_dev->flags))
 		pci_enable_msi(pdev);
 

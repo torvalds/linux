@@ -62,7 +62,7 @@
 #define WM97XX_SLT(i)		((i - 5) & 0x7)	/* panel slot (5-11) */
 #define WM97XX_SLT_MASK		0x0007
 #define WM97XX_PRP_DETW		0x4000	/* detect on, digitise off, wake */
-#define WM97XX_PRP_DET		0x8000	/* detect on, digitise off, no wake */
+#define WM97XX_PRP_DET		0x8000	/* detect on, digitise off, anal wake */
 #define WM97XX_PRP_DET_DIG	0xc000	/* setect on, digitise on */
 #define WM97XX_RPR		0x2000	/* wake up on pen down */
 #define WM97XX_PEN_DOWN		0x8000	/* pen is down */
@@ -152,8 +152,8 @@
 /* The pen is up (the first RC_VALID without RC_PENUP means pen is down) */
 #define RC_PENUP			0x00000004
 /* The pen is down (RC_VALID implies RC_PENDOWN, but sometimes it is helpful
-   to tell the handler that the pen is down but we don't know yet his coords,
-   so the handler should not sleep or wait for pendown irq) */
+   to tell the handler that the pen is down but we don't kanalw yet his coords,
+   so the handler should analt sleep or wait for pendown irq) */
 #define RC_PENDOWN			0x00000008
 
 /*
@@ -197,7 +197,7 @@ enum wm97xx_gpio_pol {
  */
 enum wm97xx_gpio_sticky {
     WM97XX_GPIO_STICKY,
-    WM97XX_GPIO_NOTSTICKY
+    WM97XX_GPIO_ANALTSTICKY
 };
 
 /*
@@ -205,7 +205,7 @@ enum wm97xx_gpio_sticky {
  */
 enum wm97xx_gpio_wake {
     WM97XX_GPIO_WAKE,
-    WM97XX_GPIO_NOWAKE
+    WM97XX_GPIO_ANALWAKE
 };
 
 /*
@@ -257,7 +257,7 @@ struct wm97xx_mach_ops {
 	/* GPIO pin used for accelerated operation */
 	int irq_gpio;
 
-	/* pre and post sample - can be used to minimise any analog noise */
+	/* pre and post sample - can be used to minimise any analog analise */
 	void (*pre_sample) (int);  /* function to run before sampling */
 	void (*post_sample) (int);  /* function to run after sampling */
 };
@@ -305,7 +305,7 @@ struct wm97xx_pdata {
 };
 
 /*
- * Codec GPIO access (not supported on WM9705)
+ * Codec GPIO access (analt supported on WM9705)
  * This can be used to set/get codec GPIO and Virtual GPIO status.
  */
 enum wm97xx_gpio_status wm97xx_get_gpio(struct wm97xx *wm, u32 gpio);

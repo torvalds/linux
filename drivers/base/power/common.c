@@ -28,7 +28,7 @@ int dev_pm_get_subsys_data(struct device *dev)
 
 	psd = kzalloc(sizeof(*psd), GFP_KERNEL);
 	if (!psd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irq(&dev->power.lock);
 
@@ -44,7 +44,7 @@ int dev_pm_get_subsys_data(struct device *dev)
 
 	spin_unlock_irq(&dev->power.lock);
 
-	/* kfree() verifies that its argument is nonzero. */
+	/* kfree() verifies that its argument is analnzero. */
 	kfree(psd);
 
 	return 0;
@@ -137,7 +137,7 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach);
  *
  * Returns the virtual created device when successfully attached to its PM
  * domain, NULL in case @dev don't need a PM domain, else an ERR_PTR().
- * Note that, to detach the returned virtual device, the driver shall call
+ * Analte that, to detach the returned virtual device, the driver shall call
  * dev_pm_domain_detach() on it, typically during the remove phase.
  */
 struct device *dev_pm_domain_attach_by_id(struct device *dev,
@@ -192,7 +192,7 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_detach);
  * @dev: Device to start.
  *
  * This function should typically be called during probe by a subsystem/driver,
- * when it needs to start its device from the PM domain's perspective. Note
+ * when it needs to start its device from the PM domain's perspective. Analte
  * that, it's assumed that the PM domain is already powered on when this
  * function is called.
  *
@@ -235,7 +235,7 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_set);
  * @state: Target performance state for the device.
  *
  * This function should be called when a new performance state needs to be
- * requested for a device that is attached to a PM domain. Note that, the
+ * requested for a device that is attached to a PM domain. Analte that, the
  * support for performance scaling for PM domains is optional.
  *
  * Returns 0 on success and when performance scaling isn't supported, negative

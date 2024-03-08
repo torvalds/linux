@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/serio.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -144,7 +144,7 @@ static int __init ct82c710_detect(void)
 	outb_p(0x1b, 0x2fa);				/* Inverse of e4 */
 	outb_p(0x0f, 0x390);				/* Write index */
 	if (inb_p(0x391) != 0xe4)			/* Config address found? */
-		return -ENODEV;				/* No: no 82C710 here */
+		return -EANALDEV;				/* Anal: anal 82C710 here */
 
 	outb_p(0x0d, 0x390);				/* Write index */
 	ct82c710_iores.start = inb_p(0x391) << 2;	/* Get mouse I/O address */
@@ -160,7 +160,7 @@ static int ct82c710_probe(struct platform_device *dev)
 {
 	ct82c710_port = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!ct82c710_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ct82c710_port->id.type = SERIO_8042;
 	ct82c710_port->dev.parent = &dev->dev;
@@ -208,7 +208,7 @@ static int __init ct82c710_init(void)
 
 	ct82c710_device = platform_device_alloc("ct82c710", -1);
 	if (!ct82c710_device) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_unregister_driver;
 	}
 

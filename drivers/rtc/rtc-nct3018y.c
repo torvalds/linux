@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2022 Nuvoton Technology Corporation
+// Copyright (c) 2022 Nuvoton Techanallogy Corporation
 
 #include <linux/bcd.h>
 #include <linux/clk-provider.h>
@@ -129,7 +129,7 @@ static irqreturn_t nct3018y_irq(int irq, void *dev_id)
 	dev_dbg(&client->dev, "%s:irq:%d\n", __func__, irq);
 	err = nct3018y_get_alarm_mode(nct3018y->client, &alarm_enable, &alarm_flag);
 	if (err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (alarm_flag) {
 		dev_dbg(&client->dev, "%s:alarm flag:%x\n",
@@ -140,7 +140,7 @@ static irqreturn_t nct3018y_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /*
@@ -158,7 +158,7 @@ static int nct3018y_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return err;
 
 	if (!buf[0]) {
-		dev_dbg(&client->dev, " voltage <=1.7, date/time is not reliable.\n");
+		dev_dbg(&client->dev, " voltage <=1.7, date/time is analt reliable.\n");
 		return -EINVAL;
 	}
 
@@ -334,7 +334,7 @@ static int nct3018y_ioctl(struct device *dev, unsigned int cmd, unsigned long ar
 		return put_user(flags, (unsigned int __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -453,7 +453,7 @@ static const struct clk_ops nct3018y_clkout_ops = {
 static struct clk *nct3018y_clkout_register_clk(struct nct3018y *nct3018y)
 {
 	struct i2c_client *client = nct3018y->client;
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 	struct clk *clk;
 	struct clk_init_data init;
 
@@ -465,13 +465,13 @@ static struct clk *nct3018y_clkout_register_clk(struct nct3018y *nct3018y)
 	nct3018y->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(analde, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = devm_clk_register(&client->dev, &nct3018y->clkout_hw);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 
 	return clk;
 }
@@ -494,12 +494,12 @@ static int nct3018y_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_BYTE |
 				     I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	nct3018y = devm_kzalloc(&client->dev, sizeof(struct nct3018y),
 				GFP_KERNEL);
 	if (!nct3018y)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, nct3018y);
 	nct3018y->client = client;

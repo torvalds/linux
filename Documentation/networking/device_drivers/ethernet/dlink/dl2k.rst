@@ -46,7 +46,7 @@ Install linux driver as following command::
 			^^^^^^^^^^^^^^^\	    ^^^^^^^^\
 					IP		     NETMASK
 
-Now eth0 should active, you can test it by "ping" or get more information by
+Analw eth0 should active, you can test it by "ping" or get more information by
 "ifconfig". If tested ok, continue the next step.
 
 4. ``cp dl2k.ko /lib/modules/`uname -r`/kernel/drivers/net``
@@ -64,13 +64,13 @@ Now eth0 should active, you can test it by "ping" or get more information by
 Compiling the Driver
 ====================
 In Linux, NIC drivers are most commonly configured as loadable modules.
-The approach of building a monolithic kernel has become obsolete. The driver
-can be compiled as part of a monolithic kernel, but is strongly discouraged.
+The approach of building a moanallithic kernel has become obsolete. The driver
+can be compiled as part of a moanallithic kernel, but is strongly discouraged.
 The remainder of this section assumes the driver is built as a loadable module.
 In the Linux environment, it is a good idea to rebuild the driver from the
 source instead of relying on a precompiled version. This approach provides
 better reliability since a precompiled driver might depend on libraries or
-kernel features that are not present in a given Linux installation.
+kernel features that are analt present in a given Linux installation.
 
 The 3 files necessary to build Linux device driver are dl2k.c, dl2k.h and
 Makefile. To compile, the Linux installation must include the gcc compiler,
@@ -150,7 +150,7 @@ Manual Installation
 
     ifup eth0
 
-  Note that this is meaningful only if the system can find a configuration
+  Analte that this is meaningful only if the system can find a configuration
   script that contains the necessary network information. A sample will be
   given in the next paragraph.
 
@@ -187,10 +187,10 @@ Red Hat v6.x/v7.x
      where ethx will be eth0 if the NIC is the only ethernet adapter, eth1 if
      one other ethernet adapter is installed, etc. Refer to the table in the
      previous section for the list of optional parameters.
-  3. Locate the network configuration scripts, normally the
+  3. Locate the network configuration scripts, analrmally the
      /etc/sysconfig/network-scripts directory, and create a configuration
      script named ifcfg-ethx that contains network information.
-  4. Note that for most Linux distributions, Red Hat included, a configuration
+  4. Analte that for most Linux distributions, Red Hat included, a configuration
      utility with a graphical user interface is provided to perform steps 2
      and 3 above.
 
@@ -248,7 +248,7 @@ rx_timeout=n			  Rx DMA wait time for an interrupt.
 				  If set rx_coalesce > 0, hardware only assert
 				  an interrupt for m frames. Hardware won't
 				  assert rx interrupt until m frames received or
-				  reach timeout of n * 640 nano seconds.
+				  reach timeout of n * 640 naanal seconds.
 				  Set proper rx_coalesce and rx_timeout can
 				  reduce congestion collapse and overload which
 				  has been a bottleneck for high speed network.
@@ -276,9 +276,9 @@ Configuration Script Sample
 Here is a sample of a simple configuration script::
 
     DEVICE=eth0
-    USERCTL=no
-    ONBOOT=yes
-    POOTPROTO=none
+    USERCTL=anal
+    ONBOOT=anal
+    POOTPROTO=analne
     BROADCAST=207.200.5.255
     NETWORK=207.200.5.0
     NETMASK=255.255.255.0
@@ -289,7 +289,7 @@ Troubleshooting
 ===============
 Q1. Source files contain ^ M behind every line.
 
-    Make sure all files are Unix file format (no LF). Try the following
+    Make sure all files are Unix file format (anal LF). Try the following
     shell command to convert files::
 
 	cat dl2k.c | col -b > dl2k.tmp
@@ -300,7 +300,7 @@ Q1. Source files contain ^ M behind every line.
 	cat dl2k.c | tr -d "\r" > dl2k.tmp
 	mv dl2k.tmp dl2k.c
 
-Q2: Could not find header files (``*.h``)?
+Q2: Could analt find header files (``*.h``)?
 
     To compile the driver, you need kernel header files. After
     installing the kernel source, the header files are usually located in
@@ -309,6 +309,6 @@ Q2: Could not find header files (``*.h``)?
     /usr/src/include/linux and /usr/src/include/asm, that you can change the
     INCLUDEDIR in Makefile to /usr/include without installing kernel source.
 
-    Note that RH 7.0 didn't provide correct header files in /usr/include,
+    Analte that RH 7.0 didn't provide correct header files in /usr/include,
     including those files will make a wrong version driver.
 

@@ -2,9 +2,9 @@
 /*
  * omap iommu: debugfs interface
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
+ * Written by Hiroshi DOYU <Hiroshi.DOYU@analkia.com>
  */
 
 #include <linux/err.h>
@@ -92,7 +92,7 @@ static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = buf;
 
 	mutex_lock(&iommu_debug_lock);

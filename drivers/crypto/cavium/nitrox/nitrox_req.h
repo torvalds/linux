@@ -30,7 +30,7 @@ struct gphdr {
 
 /**
  * struct se_req_ctrl - SE request information.
- * @arg: Minor number of the opcode
+ * @arg: Mianalr number of the opcode
  * @ctxc: Context control.
  * @unca: Uncertainity enabled.
  * @info: Additional information for SE cores.
@@ -270,7 +270,7 @@ struct nitrox_rfc4106_rctx {
  * @gsz: Number of pointers in the indirect gather list
  * @ihi: When set hardware duplicates the 1st 8 bytes of pkt_instr_hdr
  *   and adds them to the packet after the pkt_instr_hdr but before any UDD
- * @ssz: Not used by the input hardware. But can become slc_store_int[SSZ]
+ * @ssz: Analt used by the input hardware. But can become slc_store_int[SSZ]
  *   when [IHI] is set.
  * @fsz: The number of front data bytes directly included in the
  *   PCIe instruction.
@@ -311,12 +311,12 @@ union pkt_instr_hdr {
 /**
  * struct pkt_hdr - Packet Input Header
  * @opcode: Request opcode (Major)
- * @arg: Request opcode (Minor)
+ * @arg: Request opcode (Mianalr)
  * @ctxc: Context control.
  * @unca: When set [UNC] is the uncertainty count for an input packet.
  *        The hardware uses uncertainty counts to predict
  *        output buffer use and avoid deadlock.
- * @info: Not used by input hardware. Available for use
+ * @info: Analt used by input hardware. Available for use
  *        during SE processing.
  * @destport: The expected destination port/ring/channel for the packet.
  * @unc: Uncertainty count for an input packet.
@@ -368,7 +368,7 @@ union pkt_hdr {
  *       packet.
  * @rptr: The result pointer for the solicited output port packet.
  *        If [SSZ]=0, [RPTR] must point directly to a buffer on the remote
- *        host that is large enough to hold the entire output packet.
+ *        host that is large eanalugh to hold the entire output packet.
  *        If [SSZ]!=0, [RPTR] must point to an array of ([SSZ]+3)/4
  *        sglist components at [RPTR] on the remote host.
  */
@@ -624,7 +624,7 @@ static inline int alloc_src_req_buf(struct nitrox_kcrypt_request *nkreq,
 
 	nkreq->src = alloc_req_buf(nents, ivsize, creq->gfp);
 	if (!nkreq->src)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -671,7 +671,7 @@ static inline int alloc_dst_req_buf(struct nitrox_kcrypt_request *nkreq,
 
 	nkreq->dst = alloc_req_buf(nents, extralen, creq->gfp);
 	if (!nkreq->dst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

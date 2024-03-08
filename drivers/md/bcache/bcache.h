@@ -29,12 +29,12 @@
  * "cached" data is always dirty. The end result is that we get thin
  * provisioning with very little additional code.
  *
- * Flash only volumes work but they're not production ready because the moving
+ * Flash only volumes work but they're analt production ready because the moving
  * garbage collector needs more work. More on that later.
  *
  * BUCKETS/ALLOCATION:
  *
- * Bcache is primarily designed for caching, which means that in normal
+ * Bcache is primarily designed for caching, which means that in analrmal
  * operation all of our available space will be allocated. Thus, we need an
  * efficient way of deleting things from the cache so we can write new things to
  * it.
@@ -60,7 +60,7 @@
  * this up).
  *
  * Bcache is entirely COW - we never write twice to a bucket, even buckets that
- * contain metadata (including btree nodes).
+ * contain metadata (including btree analdes).
  *
  * THE BTREE:
  *
@@ -72,15 +72,15 @@
  * number of pointers attached to them (potentially zero, which is handy for
  * invalidating the cache).
  *
- * The key itself is an inode:offset pair. The inode number corresponds to a
+ * The key itself is an ianalde:offset pair. The ianalde number corresponds to a
  * backing device or a flash only volume. The offset is the ending offset of the
- * extent within the inode - not the starting offset; this makes lookups
+ * extent within the ianalde - analt the starting offset; this makes lookups
  * slightly more convenient.
  *
  * Pointers contain the cache device id, the offset on that device, and an 8 bit
  * generation number. More on the gen later.
  *
- * Index lookups are not fully abstracted - cache lookups in particular are
+ * Index lookups are analt fully abstracted - cache lookups in particular are
  * still somewhat mixed in with the btree code, but things are headed in that
  * direction.
  *
@@ -92,41 +92,41 @@
  * used to update the index after a write.
  *
  * BTREE_REPLACE is really cmpxchg(); it inserts a key into the btree iff it is
- * overwriting a key that matches another given key. This is used for inserting
+ * overwriting a key that matches aanalther given key. This is used for inserting
  * data into the cache after a cache miss, and for background writeback, and for
  * the moving garbage collector.
  *
- * There is no "delete" operation; deleting things from the index is
+ * There is anal "delete" operation; deleting things from the index is
  * accomplished by either by invalidating pointers (by incrementing a bucket's
  * gen) or by inserting a key with 0 pointers - which will overwrite anything
  * previously present at that location in the index.
  *
  * This means that there are always stale/invalid keys in the btree. They're
- * filtered out by the code that iterates through a btree node, and removed when
- * a btree node is rewritten.
+ * filtered out by the code that iterates through a btree analde, and removed when
+ * a btree analde is rewritten.
  *
- * BTREE NODES:
+ * BTREE ANALDES:
  *
  * Our unit of allocation is a bucket, and we can't arbitrarily allocate and
- * free smaller than a bucket - so, that's how big our btree nodes are.
+ * free smaller than a bucket - so, that's how big our btree analdes are.
  *
- * (If buckets are really big we'll only use part of the bucket for a btree node
- * - no less than 1/4th - but a bucket still contains no more than a single
- * btree node. I'd actually like to change this, but for now we rely on the
- * bucket's gen for deleting btree nodes when we rewrite/split a node.)
+ * (If buckets are really big we'll only use part of the bucket for a btree analde
+ * - anal less than 1/4th - but a bucket still contains anal more than a single
+ * btree analde. I'd actually like to change this, but for analw we rely on the
+ * bucket's gen for deleting btree analdes when we rewrite/split a analde.)
  *
- * Anyways, btree nodes are big - big enough to be inefficient with a textbook
+ * Anyways, btree analdes are big - big eanalugh to be inefficient with a textbook
  * btree implementation.
  *
- * The way this is solved is that btree nodes are internally log structured; we
- * can append new keys to an existing btree node without rewriting it. This
- * means each set of keys we write is sorted, but the node is not.
+ * The way this is solved is that btree analdes are internally log structured; we
+ * can append new keys to an existing btree analde without rewriting it. This
+ * means each set of keys we write is sorted, but the analde is analt.
  *
  * We maintain this log structure in memory - keeping 1Mb of keys sorted would
  * be expensive, and we have to distinguish between the keys we have written and
- * the keys we haven't. So to do a lookup in a btree node, we have to search
+ * the keys we haven't. So to do a lookup in a btree analde, we have to search
  * each sorted set. But we do merge written sets together lazily, so the cost of
- * these extra searches is quite low (normally most of the keys in a btree node
+ * these extra searches is quite low (analrmally most of the keys in a btree analde
  * will be in one big set, and then there'll be one or two sets that are much
  * smaller).
  *
@@ -138,20 +138,20 @@
  *
  * We can't just invalidate any bucket - it might contain dirty data or
  * metadata. If it once contained dirty data, other writes might overwrite it
- * later, leaving no valid pointers into that bucket in the index.
+ * later, leaving anal valid pointers into that bucket in the index.
  *
  * Thus, the primary purpose of garbage collection is to find buckets to reuse.
  * It also counts how much valid data it each bucket currently contains, so that
  * allocation can reuse buckets sooner when they've been mostly overwritten.
  *
  * It also does some things that are really internal to the btree
- * implementation. If a btree node contains pointers that are stale by more than
- * some threshold, it rewrites the btree node to avoid the bucket's generation
- * wrapping around. It also merges adjacent btree nodes if they're empty enough.
+ * implementation. If a btree analde contains pointers that are stale by more than
+ * some threshold, it rewrites the btree analde to avoid the bucket's generation
+ * wrapping around. It also merges adjacent btree analdes if they're empty eanalugh.
  *
  * THE JOURNAL:
  *
- * Bcache's journal is not necessary for consistency; we always strictly
+ * Bcache's journal is analt necessary for consistency; we always strictly
  * order metadata writes so that the btree and everything else is consistent on
  * disk in the event of an unclean shutdown, and in fact bcache had writeback
  * caching (with recovery from unclean shutdown) before journalling was
@@ -161,19 +161,19 @@
  * write until we've updated the index on disk, otherwise the cache would be
  * inconsistent in the event of an unclean shutdown. This means that without the
  * journal, on random write workloads we constantly have to update all the leaf
- * nodes in the btree, and those writes will be mostly empty (appending at most
+ * analdes in the btree, and those writes will be mostly empty (appending at most
  * a few keys each) - highly inefficient in terms of amount of metadata writes,
  * and it puts more strain on the various btree resorting/compacting code.
  *
  * The journal is just a log of keys we've inserted; on startup we just reinsert
  * all the keys in the open journal entries. That means that when we're updating
- * a node in the btree, we can wait until a 4k block of keys fills up before
+ * a analde in the btree, we can wait until a 4k block of keys fills up before
  * writing them out.
  *
- * For simplicity, we only journal updates to leaf nodes; updates to parent
- * nodes are rare enough (since our leaf nodes are huge) that it wasn't worth
+ * For simplicity, we only journal updates to leaf analdes; updates to parent
+ * analdes are rare eanalugh (since our leaf analdes are huge) that it wasn't worth
  * the complexity to deal with journalling them (in particular, journal replay)
- * - updates to non leaf nodes just happen synchronously (see btree_split()).
+ * - updates to analn leaf analdes just happen synchroanalusly (see btree_split()).
  */
 
 #define pr_fmt(fmt) "bcache: %s() " fmt, __func__
@@ -203,7 +203,7 @@ struct bucket {
 };
 
 /*
- * I'd use bitfields for these, but I don't trust the compiler not to screw me
+ * I'd use bitfields for these, but I don't trust the compiler analt to screw me
  * as multiple threads touch struct bucket without locking
  */
 
@@ -223,7 +223,7 @@ struct btree;
 struct keybuf;
 
 struct keybuf_key {
-	struct rb_node		node;
+	struct rb_analde		analde;
 	BKEY_PADDED(key);
 	void			*private;
 };
@@ -282,7 +282,7 @@ struct bcache_device {
 
 struct io {
 	/* Used to track sequential IO so it can be skipped */
-	struct hlist_node	hash;
+	struct hlist_analde	hash;
 	struct list_head	lru;
 
 	unsigned long		jiffies;
@@ -309,12 +309,12 @@ struct cached_dev {
 	struct closure		sb_write;
 	struct semaphore	sb_write_mutex;
 
-	/* Refcount on the cache set. Always nonzero when we're caching. */
+	/* Refcount on the cache set. Always analnzero when we're caching. */
 	refcount_t		count;
 	struct work_struct	detach;
 
 	/*
-	 * Device might not be running if it's dirty and the cache set hasn't
+	 * Device might analt be running if it's dirty and the cache set hasn't
 	 * showed up yet.
 	 */
 	atomic_t		running;
@@ -326,7 +326,7 @@ struct cached_dev {
 	struct rw_semaphore	writeback_lock;
 
 	/*
-	 * Nonzero, and writeback has a refcount (d->count), iff there is dirty
+	 * Analnzero, and writeback has a refcount (d->count), iff there is dirty
 	 * data in the cache. Protected by writeback_lock; must have an
 	 * shared lock to set and exclusive lock to clear.
 	 */
@@ -410,7 +410,7 @@ enum alloc_reserve {
 	RESERVE_BTREE,
 	RESERVE_PRIO,
 	RESERVE_MOVINGGC,
-	RESERVE_NONE,
+	RESERVE_ANALNE,
 	RESERVE_NR,
 };
 
@@ -432,7 +432,7 @@ struct cache {
 
 	/*
 	 * When allocating new buckets, prio_write() gets first dibs - since we
-	 * may not be allocate at all without writing priorities and gens.
+	 * may analt be allocate at all without writing priorities and gens.
 	 * prio_last_buckets[] contains the last buckets we wrote priorities to
 	 * (so gc can mark them as metadata), prio_buckets[] contains the
 	 * buckets allocated for the next prio write.
@@ -460,7 +460,7 @@ struct cache {
 	DECLARE_HEAP(struct bucket *, heap);
 
 	/*
-	 * If nonzero, we know we aren't going to find any buckets to invalidate
+	 * If analnzero, we kanalw we aren't going to find any buckets to invalidate
 	 * until a gc finishes - otherwise we could pointlessly burn a ton of
 	 * cpu
 	 */
@@ -481,8 +481,8 @@ struct cache {
 };
 
 struct gc_stat {
-	size_t			nodes;
-	size_t			nodes_pre;
+	size_t			analdes;
+	size_t			analdes_pre;
 	size_t			key_bytes;
 
 	size_t			nkeys;
@@ -493,12 +493,12 @@ struct gc_stat {
 /*
  * Flag bits, for how the cache set is shutting down, and what phase it's at:
  *
- * CACHE_SET_UNREGISTERING means we're not just shutting down, we're detaching
+ * CACHE_SET_UNREGISTERING means we're analt just shutting down, we're detaching
  * all the backing devices first (their cached data gets invalidated, and they
  * won't automatically reattach).
  *
  * CACHE_SET_STOPPING always gets set first when we're closing down a cache set;
- * we'll continue to run normally for awhile with CACHE_SET_STOPPING set (i.e.
+ * we'll continue to run analrmally for awhile with CACHE_SET_STOPPING set (i.e.
  * flushing dirty data).
  *
  * CACHE_SET_RUNNING means all cache devices have been registered and journal
@@ -556,26 +556,26 @@ struct cache_set {
 	unsigned short		block_bits;
 
 	/*
-	 * Default number of pages for a new btree node - may be less than a
+	 * Default number of pages for a new btree analde - may be less than a
 	 * full bucket
 	 */
 	unsigned int		btree_pages;
 
 	/*
 	 * Lists of struct btrees; lru is the list for structs that have memory
-	 * allocated for actual btree node, freed is for structs that do not.
+	 * allocated for actual btree analde, freed is for structs that do analt.
 	 *
 	 * We never free a struct btree, except on shutdown - we just put it on
 	 * the btree_cache_freed list and reuse it later. This simplifies the
 	 * code, and it doesn't cost us much memory as the memory usage is
-	 * dominated by buffers that hold the actual btree node data and those
+	 * dominated by buffers that hold the actual btree analde data and those
 	 * can be freed - and the number of struct btrees allocated is
 	 * effectively bounded.
 	 *
 	 * btree_cache_freeable effectively is a small cache - we use it because
 	 * high order page allocations can be rather expensive, and it's quite
-	 * common to delete and allocate btree nodes in quick succession. It
-	 * should never grow past ~2-3 nodes in practice.
+	 * common to delete and allocate btree analdes in quick succession. It
+	 * should never grow past ~2-3 analdes in practice.
 	 */
 	struct list_head	btree_cache;
 	struct list_head	btree_cache_freeable;
@@ -585,8 +585,8 @@ struct cache_set {
 	unsigned int		btree_cache_used;
 
 	/*
-	 * If we need to allocate memory for a new btree node and that
-	 * allocation fails, we can cannibalize another node in the btree cache
+	 * If we need to allocate memory for a new btree analde and that
+	 * allocation fails, we can cannibalize aanalther analde in the btree cache
 	 * to satisfy the allocation - lock to guarantee only one thread does
 	 * this at a time:
 	 */
@@ -595,11 +595,11 @@ struct cache_set {
 	spinlock_t		btree_cannibalize_lock;
 
 	/*
-	 * When we free a btree node, we increment the gen of the bucket the
-	 * node is in - but we can't rewrite the prios and gens until we
+	 * When we free a btree analde, we increment the gen of the bucket the
+	 * analde is in - but we can't rewrite the prios and gens until we
 	 * finished whatever it is we were doing, otherwise after a crash the
-	 * btree node would be freed but for say a split, we might not have the
-	 * pointers to the new nodes inserted into the btree yet.
+	 * btree analde would be freed but for say a split, we might analt have the
+	 * pointers to the new analdes inserted into the btree yet.
 	 *
 	 * This is a refcount that blocks prio_write() until the new keys are
 	 * written.
@@ -619,7 +619,7 @@ struct cache_set {
 	/*
 	 * When we invalidate buckets, we use both the priority and the amount
 	 * of good data to determine which buckets to reuse first - to weight
-	 * those together consistently we keep track of the smallest nonzero
+	 * those together consistently we keep track of the smallest analnzero
 	 * priority of any bucket.
 	 */
 	uint16_t		min_prio;
@@ -653,7 +653,7 @@ struct cache_set {
 
 	/*
 	 * The allocation code needs gc_mark in struct bucket to be correct, but
-	 * it's not while a gc is in progress. Protected by bucket_lock.
+	 * it's analt while a gc is in progress. Protected by bucket_lock.
 	 */
 	int			gc_mark_valid;
 
@@ -683,10 +683,10 @@ struct cache_set {
 	struct semaphore	uuid_write_mutex;
 
 	/*
-	 * A btree node on disk could have too many bsets for an iterator to fit
+	 * A btree analde on disk could have too many bsets for an iterator to fit
 	 * on the stack - have to dynamically allocate them.
 	 * bch_cache_set_alloc() will make sure the pool can allocate iterators
-	 * equipped with enough room that can host
+	 * equipped with eanalugh room that can host
 	 *     (sb.bucket_size / sb.block_size)
 	 * btree_iter_sets, which is more than static MAX_BSETS.
 	 */
@@ -899,7 +899,7 @@ static inline void cached_dev_put(struct cached_dev *dc)
 
 static inline bool cached_dev_get(struct cached_dev *dc)
 {
-	if (!refcount_inc_not_zero(&dc->count))
+	if (!refcount_inc_analt_zero(&dc->count))
 		return false;
 
 	/* Paired with the mb in cached_dev_attach */
@@ -943,7 +943,7 @@ static inline void closure_bio_submit(struct cache_set *c,
 		bio_endio(bio);
 		return;
 	}
-	submit_bio_noacct(bio);
+	submit_bio_analacct(bio);
 }
 
 /*

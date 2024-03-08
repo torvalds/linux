@@ -37,7 +37,7 @@
 #define   CTRL_FREQ_SEL_MASK		GENMASK(11, CTRL_FREQ_SEL_SHIFT)
 #define   CTRL_CE_STOP_ACTIVE		BIT(2)
 #define   CTRL_IO_MODE_CMD_MASK		GENMASK(1, 0)
-#define   CTRL_IO_MODE_NORMAL		0x0
+#define   CTRL_IO_MODE_ANALRMAL		0x0
 #define   CTRL_IO_MODE_READ		0x1
 #define   CTRL_IO_MODE_WRITE		0x2
 #define   CTRL_IO_MODE_USER		0x3
@@ -199,7 +199,7 @@ static int aspeed_spi_send_cmd_addr(struct aspeed_spi_chip *chip, u8 addr_nbytes
 		break;
 	default:
 		WARN_ONCE(1, "Unexpected address width %u", addr_nbytes);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -415,7 +415,7 @@ static int aspeed_spi_chip_set_default_window(struct aspeed_spi_chip *chip)
 	struct aspeed_spi_window windows[ASPEED_SPI_MAX_NUM_CS] = { 0 };
 	struct aspeed_spi_window *win = &windows[chip->cs];
 
-	/* No segment registers for the AST2400 SPI controller */
+	/* Anal segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data) {
 		win->offset = 0;
 		win->size = aspi->ahb_window_size;
@@ -471,7 +471,7 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi,
 /*
  * Yet to be done when possible :
  * - Align mappings on flash size (we don't have the info)
- * - ioremap each window, not strictly necessary since the overall window
+ * - ioremap each window, analt strictly necessary since the overall window
  *   is correct.
  */
 static const struct aspeed_spi_data ast2500_spi_data;
@@ -486,7 +486,7 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 	struct aspeed_spi_window *win = &windows[chip->cs];
 	int ret;
 
-	/* No segment registers for the AST2400 SPI controller */
+	/* Anal segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data)
 		return 0;
 
@@ -531,7 +531,7 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 	chip->ahb_window_size = win->size;
 
 	/*
-	 * Also adjust next chip window to make sure that it does not
+	 * Also adjust next chip window to make sure that it does analt
 	 * overlap with the current window.
 	 */
 	if (chip->cs < aspi->data->max_cs - 1) {
@@ -571,7 +571,7 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	/* Only for reads */
 	if (op->data.dir != SPI_MEM_DATA_IN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	aspeed_spi_chip_adjust_window(chip, desc->info.offset, desc->info.length);
 
@@ -724,11 +724,11 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctlr = devm_spi_alloc_host(dev, sizeof(*aspi));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aspi = spi_controller_get_devdata(ctlr);
 	platform_set_drvdata(pdev, aspi);
@@ -768,7 +768,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	ctlr->setup = aspeed_spi_setup;
 	ctlr->cleanup = aspeed_spi_cleanup;
 	ctlr->num_chipselect = data->max_cs;
-	ctlr->dev.of_node = dev->of_node;
+	ctlr->dev.of_analde = dev->of_analde;
 
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret)
@@ -861,7 +861,7 @@ static bool aspeed_spi_check_reads(struct aspeed_spi_chip *chip,
 		memcpy_fromio(test_buf, chip->ahb_base, CALIBRATE_BUF_SIZE);
 		if (memcmp(test_buf, golden_buf, CALIBRATE_BUF_SIZE) != 0) {
 #if defined(VERBOSE_DEBUG)
-			print_hex_dump_bytes(DEVICE_NAME "  fail: ", DUMP_PREFIX_NONE,
+			print_hex_dump_bytes(DEVICE_NAME "  fail: ", DUMP_PREFIX_ANALNE,
 					     test_buf, 0x100);
 #endif
 			return false;
@@ -913,7 +913,7 @@ static int aspeed_spi_calibrate(struct aspeed_spi_chip *chip, u32 hdiv,
 		}
 	}
 
-	/* No good setting for this frequency */
+	/* Anal good setting for this frequency */
 	if (good_pass < 0)
 		return -1;
 
@@ -933,10 +933,10 @@ static bool aspeed_spi_check_calib_data(const u8 *test_buf, u32 size)
 	const u32 *tb32 = (const u32 *)test_buf;
 	u32 i, cnt = 0;
 
-	/* We check if we have enough words that are neither all 0
-	 * nor all 1's so the calibration can be considered valid.
+	/* We check if we have eanalugh words that are neither all 0
+	 * analr all 1's so the calibration can be considered valid.
 	 *
-	 * I use an arbitrary threshold for now of 64
+	 * I use an arbitrary threshold for analw of 64
 	 */
 	size >>= 2;
 	for (i = 0; i < size; i++) {
@@ -980,22 +980,22 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 
 	test_buf = kzalloc(CALIBRATE_BUF_SIZE * 2, GFP_KERNEL);
 	if (!test_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	golden_buf = test_buf + CALIBRATE_BUF_SIZE;
 
 	memcpy_fromio(golden_buf, chip->ahb_base, CALIBRATE_BUF_SIZE);
 	if (!aspeed_spi_check_calib_data(golden_buf, CALIBRATE_BUF_SIZE)) {
 		dev_info(aspi->dev, "Calibration area too uniform, using low speed");
-		goto no_calib;
+		goto anal_calib;
 	}
 
 #if defined(VERBOSE_DEBUG)
-	print_hex_dump_bytes(DEVICE_NAME "  good: ", DUMP_PREFIX_NONE,
+	print_hex_dump_bytes(DEVICE_NAME "  good: ", DUMP_PREFIX_ANALNE,
 			     golden_buf, 0x100);
 #endif
 
-	/* Now we iterate the HCLK dividers until we find our breaking point */
+	/* Analw we iterate the HCLK dividers until we find our breaking point */
 	for (i = ARRAY_SIZE(aspeed_spi_hclk_divs); i > data->hdiv_max - 1; i--) {
 		u32 tv, freq;
 
@@ -1012,9 +1012,9 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 			best_div = i;
 	}
 
-	/* Nothing found ? */
+	/* Analthing found ? */
 	if (best_div < 0) {
-		dev_warn(aspi->dev, "No good frequency, using dumb slow");
+		dev_warn(aspi->dev, "Anal good frequency, using dumb slow");
 	} else {
 		dev_dbg(aspi->dev, "Found good read timings at HCLK/%d", best_div);
 
@@ -1024,7 +1024,7 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 				ASPEED_SPI_HCLK_DIV(best_div);
 	}
 
-no_calib:
+anal_calib:
 	writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
 	kfree(test_buf);
 	return 0;
@@ -1052,11 +1052,11 @@ static int aspeed_spi_ast2600_calibrate(struct aspeed_spi_chip *chip, u32 hdiv,
 		fread_timing_val &= mask;
 		fread_timing_val |= hcycle << shift;
 
-		/* no DI input delay first  */
+		/* anal DI input delay first  */
 		writel(fread_timing_val, TIMING_REG_AST2600(chip));
 		pass = aspeed_spi_check_reads(chip, golden_buf, test_buf);
 		dev_dbg(aspi->dev,
-			"  * [%08x] %d HCLK delay, DI delay none : %s",
+			"  * [%08x] %d HCLK delay, DI delay analne : %s",
 			fread_timing_val, hcycle, pass ? "PASS" : "FAIL");
 		if (pass)
 			return 0;
@@ -1085,7 +1085,7 @@ static int aspeed_spi_ast2600_calibrate(struct aspeed_spi_chip *chip, u32 hdiv,
 		}
 	}
 
-	/* No good setting for this frequency */
+	/* Anal good setting for this frequency */
 	return -1;
 }
 
@@ -1115,7 +1115,7 @@ static const struct aspeed_spi_data ast2400_spi_data = {
 	.hclk_mask     = 0xfffff0ff,
 	.hdiv_max      = 1,
 	.calibrate     = aspeed_spi_calibrate,
-	/* No segment registers */
+	/* Anal segment registers */
 };
 
 static const struct aspeed_spi_data ast2500_fmc_data = {

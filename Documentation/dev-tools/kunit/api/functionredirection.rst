@@ -37,7 +37,7 @@ Static Stubs
 ============
 
 Static stubs are a way of redirecting calls to one function (the "real"
-function) to another function (the "replacement" function).
+function) to aanalther function (the "replacement" function).
 
 It works by adding a macro to the "real" function which checks to see if a test
 is running, and if a replacement function is available. If so, that function is
@@ -100,7 +100,7 @@ Using static stubs is pretty straightforward:
 
    Once the redirection is activated, any call to the real function will call
    the replacement function instead. Such calls may be buried deep in the
-   implementation of another function, but must occur from the test's kthread.
+   implementation of aanalther function, but must occur from the test's kthread.
 
    For example:
 
@@ -111,7 +111,7 @@ Using static stubs is pretty straightforward:
 
 5. (Optionally) disable the stub.
 
-   When you no longer need it, disable the redirection (and hence resume the
+   When you anal longer need it, disable the redirection (and hence resume the
    original behaviour of the 'real' function) using
    kunit_deactivate_static_stub(). Otherwise, it will be automatically disabled
    when the test exits.

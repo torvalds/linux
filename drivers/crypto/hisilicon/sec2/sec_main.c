@@ -70,8 +70,8 @@
 #define SEC_BD_ERR_CHK_EN_REG1		0x301384
 #define SEC_BD_ERR_CHK_EN_REG3		0x30138c
 
-#define SEC_USER0_SMMU_NORMAL		(BIT(23) | BIT(15))
-#define SEC_USER1_SMMU_NORMAL		(BIT(31) | BIT(23) | BIT(15) | BIT(7))
+#define SEC_USER0_SMMU_ANALRMAL		(BIT(23) | BIT(15))
+#define SEC_USER1_SMMU_ANALRMAL		(BIT(31) | BIT(23) | BIT(15) | BIT(7))
 #define SEC_USER1_ENABLE_CONTEXT_SSV	BIT(24)
 #define SEC_USER1_ENABLE_DATA_SSV	BIT(16)
 #define SEC_USER1_WB_CONTEXT_SSV	BIT(8)
@@ -80,11 +80,11 @@
 					SEC_USER1_ENABLE_DATA_SSV | \
 					SEC_USER1_WB_CONTEXT_SSV |  \
 					SEC_USER1_WB_DATA_SSV)
-#define SEC_USER1_SMMU_SVA		(SEC_USER1_SMMU_NORMAL | SEC_USER1_SVA_SET)
+#define SEC_USER1_SMMU_SVA		(SEC_USER1_SMMU_ANALRMAL | SEC_USER1_SVA_SET)
 #define SEC_USER1_SMMU_MASK		(~SEC_USER1_SVA_SET)
 #define SEC_INTERFACE_USER_CTRL0_REG_V3	0x302220
 #define SEC_INTERFACE_USER_CTRL1_REG_V3	0x302224
-#define SEC_USER1_SMMU_NORMAL_V3	(BIT(23) | BIT(17) | BIT(11) | BIT(5))
+#define SEC_USER1_SMMU_ANALRMAL_V3	(BIT(23) | BIT(17) | BIT(11) | BIT(5))
 #define SEC_USER1_SMMU_MASK_V3		0xFF79E79E
 #define SEC_CORE_INT_STATUS_M_ECC	BIT(2)
 
@@ -225,7 +225,7 @@ static const struct sec_hw_error sec_hw_errors[] = {
 	},
 	{
 		.int_msk = BIT(14),
-		.msg = "sec_no_secure_access"
+		.msg = "sec_anal_secure_access"
 	},
 	{
 		.int_msk = BIT(15),
@@ -261,7 +261,7 @@ static struct sec_dfx_item sec_dfx_labels[] = {
 };
 
 static const struct debugfs_reg32 sec_dfx_regs[] = {
-	{"SEC_PF_ABNORMAL_INT_SOURCE    ",  0x301010},
+	{"SEC_PF_ABANALRMAL_INT_SOURCE    ",  0x301010},
 	{"SEC_SAA_EN                    ",  0x301270},
 	{"SEC_BD_LATENCY_MIN            ",  0x301600},
 	{"SEC_BD_LATENCY_MAX            ",  0x301608},
@@ -374,7 +374,7 @@ void sec_destroy_qps(struct hisi_qp **qps, int qp_num)
 
 struct hisi_qp **sec_create_qps(void)
 {
-	int node = cpu_to_node(smp_processor_id());
+	int analde = cpu_to_analde(smp_processor_id());
 	u32 ctx_num = ctx_q_num;
 	struct hisi_qp **qps;
 	int ret;
@@ -383,7 +383,7 @@ struct hisi_qp **sec_create_qps(void)
 	if (!qps)
 		return NULL;
 
-	ret = hisi_qm_alloc_qps_node(&sec_devices, ctx_num, 0, node, qps);
+	ret = hisi_qm_alloc_qps_analde(&sec_devices, ctx_num, 0, analde, qps);
 	if (!ret)
 		return qps;
 
@@ -410,7 +410,7 @@ static const struct kernel_param_ops sec_uacce_mode_ops = {
  * uacce_mode = 0 means sec only register to crypto,
  * uacce_mode = 1 means sec both register to crypto and uacce.
  */
-static u32 uacce_mode = UACCE_MODE_NOUACCE;
+static u32 uacce_mode = UACCE_MODE_ANALUACCE;
 module_param_cb(uacce_mode, &sec_uacce_mode_ops, &uacce_mode, 0444);
 MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 
@@ -443,20 +443,20 @@ static void sec_engine_sva_config(struct hisi_qm *qm)
 	if (qm->ver > QM_HW_V2) {
 		reg = readl_relaxed(qm->io_base +
 				SEC_INTERFACE_USER_CTRL0_REG_V3);
-		reg |= SEC_USER0_SMMU_NORMAL;
+		reg |= SEC_USER0_SMMU_ANALRMAL;
 		writel_relaxed(reg, qm->io_base +
 				SEC_INTERFACE_USER_CTRL0_REG_V3);
 
 		reg = readl_relaxed(qm->io_base +
 				SEC_INTERFACE_USER_CTRL1_REG_V3);
 		reg &= SEC_USER1_SMMU_MASK_V3;
-		reg |= SEC_USER1_SMMU_NORMAL_V3;
+		reg |= SEC_USER1_SMMU_ANALRMAL_V3;
 		writel_relaxed(reg, qm->io_base +
 				SEC_INTERFACE_USER_CTRL1_REG_V3);
 	} else {
 		reg = readl_relaxed(qm->io_base +
 				SEC_INTERFACE_USER_CTRL0_REG);
-		reg |= SEC_USER0_SMMU_NORMAL;
+		reg |= SEC_USER0_SMMU_ANALRMAL;
 		writel_relaxed(reg, qm->io_base +
 				SEC_INTERFACE_USER_CTRL0_REG);
 		reg = readl_relaxed(qm->io_base +
@@ -465,7 +465,7 @@ static void sec_engine_sva_config(struct hisi_qm *qm)
 		if (qm->use_sva)
 			reg |= SEC_USER1_SMMU_SVA;
 		else
-			reg |= SEC_USER1_SMMU_NORMAL;
+			reg |= SEC_USER1_SMMU_ANALRMAL;
 		writel_relaxed(reg, qm->io_base +
 				SEC_INTERFACE_USER_CTRL1_REG);
 	}
@@ -657,7 +657,7 @@ static void sec_hw_error_enable(struct hisi_qm *qm)
 
 	if (qm->ver == QM_HW_V1) {
 		writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
-		pci_info(qm->pdev, "V1 not support hw error handle\n");
+		pci_info(qm->pdev, "V1 analt support hw error handle\n");
 		return;
 	}
 
@@ -761,7 +761,7 @@ static ssize_t sec_debug_write(struct file *filp, const char __user *buf,
 		return 0;
 
 	if (count >= SEC_DBGFS_VAL_MAX_LEN)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = simple_write_to_buffer(tbuf, SEC_DBGFS_VAL_MAX_LEN - 1,
 				     pos, buf, count);
@@ -847,7 +847,7 @@ static int sec_core_debug_init(struct hisi_qm *qm)
 
 	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regset->regs = sec_dfx_regs;
 	regset->nregs = ARRAY_SIZE(sec_dfx_regs);
@@ -937,7 +937,7 @@ static int sec_show_last_regs_init(struct hisi_qm *qm)
 	debug->last_words = kcalloc(ARRAY_SIZE(sec_dfx_regs),
 					sizeof(unsigned int), GFP_KERNEL);
 	if (!debug->last_words)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(sec_dfx_regs); i++)
 		debug->last_words[i] = readl_relaxed(qm->io_base +
@@ -1087,7 +1087,7 @@ static int sec_pre_store_cap_reg(struct hisi_qm *qm)
 	size = ARRAY_SIZE(sec_pre_store_caps);
 	sec_cap = devm_kzalloc(&pdev->dev, sizeof(*sec_cap) * size, GFP_KERNEL);
 	if (!sec_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < size; i++) {
 		sec_cap[i].type = sec_pre_store_caps[i];
@@ -1122,10 +1122,10 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 			set_bit(QM_MODULE_PARAM, &qm->misc_ctl);
 	} else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V1) {
 		/*
-		 * have no way to get qm configure in VM in v1 hardware,
+		 * have anal way to get qm configure in VM in v1 hardware,
 		 * so currently force PF to uses SEC_PF_DEF_Q_NUM, and force
 		 * to trigger only one VF in v1 hardware.
-		 * v2 hardware has no such problem.
+		 * v2 hardware has anal such problem.
 		 */
 		qm->qp_base = SEC_PF_DEF_Q_NUM;
 		qm->qp_num = SEC_QUEUE_NUM_V1 - SEC_PF_DEF_Q_NUM;
@@ -1210,7 +1210,7 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	sec = devm_kzalloc(&pdev->dev, sizeof(*sec), GFP_KERNEL);
 	if (!sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qm = &sec->qm;
 	ret = sec_qm_init(qm, pdev);
@@ -1268,7 +1268,7 @@ err_alg_unregister:
 err_qm_del_list:
 	hisi_qm_del_list(qm, &sec_devices);
 	sec_debugfs_exit(qm);
-	hisi_qm_stop(qm, QM_NORMAL);
+	hisi_qm_stop(qm, QM_ANALRMAL);
 err_probe_uninit:
 	sec_show_last_regs_uninit(qm);
 	sec_probe_uninit(qm);
@@ -1291,7 +1291,7 @@ static void sec_remove(struct pci_dev *pdev)
 
 	sec_debugfs_exit(qm);
 
-	(void)hisi_qm_stop(qm, QM_NORMAL);
+	(void)hisi_qm_stop(qm, QM_ANALRMAL);
 
 	if (qm->fun_type == QM_HW_PF)
 		sec_debug_regs_clear(qm);

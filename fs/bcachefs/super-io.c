@@ -43,7 +43,7 @@ static const struct bch2_metadata_version bch2_metadata_versions[] = {
 
 void bch2_version_to_text(struct printbuf *out, unsigned v)
 {
-	const char *str = "(unknown version)";
+	const char *str = "(unkanalwn version)";
 
 	for (unsigned i = 0; i < ARRAY_SIZE(bch2_metadata_versions); i++)
 		if (bch2_metadata_versions[i].version == v) {
@@ -51,7 +51,7 @@ void bch2_version_to_text(struct printbuf *out, unsigned v)
 			break;
 		}
 
-	prt_printf(out, "%u.%u: %s", BCH_VERSION_MAJOR(v), BCH_VERSION_MINOR(v), str);
+	prt_printf(out, "%u.%u: %s", BCH_VERSION_MAJOR(v), BCH_VERSION_MIANALR(v), str);
 }
 
 unsigned bch2_latest_compatible_version(unsigned v)
@@ -99,7 +99,7 @@ static struct bch_sb_field *__bch2_sb_field_resize(struct bch_sb_handle *sb,
 	BUG_ON(__vstruct_bytes(struct bch_sb, sb_u64s) > sb->buffer_size);
 
 	if (!f && !u64s) {
-		/* nothing to do: */
+		/* analthing to do: */
 	} else if (!f) {
 		f = vstruct_last(sb->sb);
 		memset(f, 0, sizeof(u64) * u64s);
@@ -176,7 +176,7 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 			prt_printf(&buf, ": superblock too big: want %zu but have %llu", new_bytes, max_bytes);
 			pr_err("%s", buf.buf);
 			printbuf_exit(&buf);
-			return -BCH_ERR_ENOSPC_sb;
+			return -BCH_ERR_EANALSPC_sb;
 		}
 	}
 
@@ -184,11 +184,11 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 		return 0;
 
 	if (dynamic_fault("bcachefs:add:super_realloc"))
-		return -BCH_ERR_ENOMEM_sb_realloc_injected;
+		return -BCH_ERR_EANALMEM_sb_realloc_injected;
 
-	new_sb = krealloc(sb->sb, new_buffer_size, GFP_NOFS|__GFP_ZERO);
+	new_sb = krealloc(sb->sb, new_buffer_size, GFP_ANALFS|__GFP_ZERO);
 	if (!new_sb)
-		return -BCH_ERR_ENOMEM_sb_buf_realloc;
+		return -BCH_ERR_EANALMEM_sb_buf_realloc;
 
 	sb->sb = new_sb;
 
@@ -197,7 +197,7 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 
 		bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
 		if (!bio)
-			return -BCH_ERR_ENOMEM_sb_bio_realloc;
+			return -BCH_ERR_EANALMEM_sb_bio_realloc;
 
 		bio_init(bio, NULL, bio->bi_inline_vecs, nr_bvecs, 0);
 
@@ -226,7 +226,7 @@ struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *sb,
 
 		lockdep_assert_held(&c->sb_lock);
 
-		/* XXX: we're not checking that offline device have enough space */
+		/* XXX: we're analt checking that offline device have eanalugh space */
 
 		for_each_online_member(c, ca) {
 			struct bch_sb_handle *dev_sb = &ca->disk_sb;
@@ -267,7 +267,7 @@ static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out
 
 	if (!uuid_equal(&layout->magic, &BCACHE_MAGIC) &&
 	    !uuid_equal(&layout->magic, &BCHFS_MAGIC)) {
-		prt_printf(out, "Not a bcachefs superblock layout");
+		prt_printf(out, "Analt a bcachefs superblock layout");
 		return -BCH_ERR_invalid_sb_layout;
 	}
 
@@ -278,7 +278,7 @@ static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out
 	}
 
 	if (!layout->nr_superblocks) {
-		prt_printf(out, "Invalid superblock layout: no superblocks");
+		prt_printf(out, "Invalid superblock layout: anal superblocks");
 		return -BCH_ERR_invalid_sb_layout_nr_superblocks;
 	}
 
@@ -404,8 +404,8 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	if (rw == READ) {
 		/*
 		 * Been seeing a bug where these are getting inexplicably
-		 * zeroed, so we're now validating them, but we have to be
-		 * careful not to preven people's filesystems from mounting:
+		 * zeroed, so we're analw validating them, but we have to be
+		 * careful analt to preven people's filesystems from mounting:
 		 */
 		if (!BCH_SB_JOURNAL_FLUSH_DELAY(sb))
 			SET_BCH_SB_JOURNAL_FLUSH_DELAY(sb, 1000);
@@ -419,7 +419,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
 		const struct bch_option *opt = bch2_opt_table + opt_id;
 
-		if (opt->get_sb != BCH2_NO_SB_OPT) {
+		if (opt->get_sb != BCH2_ANAL_SB_OPT) {
 			u64 v = bch2_opt_from_sb(sb, opt_id);
 
 			prt_printf(out, "Invalid option ");
@@ -627,7 +627,7 @@ reread:
 
 	if (!uuid_equal(&sb->sb->magic, &BCACHE_MAGIC) &&
 	    !uuid_equal(&sb->sb->magic, &BCHFS_MAGIC)) {
-		prt_str(err, "Not a bcachefs superblock (got magic ");
+		prt_str(err, "Analt a bcachefs superblock (got magic ");
 		pr_uuid(err, sb->sb->magic.b);
 		prt_str(err, ")");
 		return -BCH_ERR_invalid_sb_magic;
@@ -654,12 +654,12 @@ reread:
 
 	enum bch_csum_type csum_type = BCH_SB_CSUM_TYPE(sb->sb);
 	if (csum_type >= BCH_CSUM_NR) {
-		prt_printf(err, "unknown checksum type %llu", BCH_SB_CSUM_TYPE(sb->sb));
+		prt_printf(err, "unkanalwn checksum type %llu", BCH_SB_CSUM_TYPE(sb->sb));
 		return -BCH_ERR_invalid_sb_csum_type;
 	}
 
 	/* XXX: verify MACs */
-	struct bch_csum csum = csum_vstruct(NULL, csum_type, null_nonce(), sb->sb);
+	struct bch_csum csum = csum_vstruct(NULL, csum_type, null_analnce(), sb->sb);
 	if (bch2_crc_cmp(csum, sb->sb->csum)) {
 		bch2_csum_err_msg(err, csum_type, sb->sb->csum, csum);
 		return -BCH_ERR_invalid_sb_csum;
@@ -671,7 +671,7 @@ reread:
 }
 
 static int __bch2_read_super(const char *path, struct bch_opts *opts,
-		    struct bch_sb_handle *sb, bool ignore_notbchfs_msg)
+		    struct bch_sb_handle *sb, bool iganalre_analtbchfs_msg)
 {
 	u64 offset = opt_get(*opts, sb);
 	struct bch_sb_layout layout;
@@ -687,21 +687,21 @@ retry:
 	sb->have_bio	= true;
 	sb->holder	= kmalloc(1, GFP_KERNEL);
 	if (!sb->holder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->sb_name = kstrdup(path, GFP_KERNEL);
 	if (!sb->sb_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifndef __KERNEL__
 	if (opt_get(*opts, direct_io) == false)
 		sb->mode |= BLK_OPEN_BUFFERED;
 #endif
 
-	if (!opt_get(*opts, noexcl))
+	if (!opt_get(*opts, analexcl))
 		sb->mode |= BLK_OPEN_EXCL;
 
-	if (!opt_get(*opts, nochanges))
+	if (!opt_get(*opts, analchanges))
 		sb->mode |= BLK_OPEN_WRITE;
 
 	sb->bdev_handle = bdev_open_by_path(path, sb->mode, sb->holder, &bch2_sb_handle_bdev_ops);
@@ -712,7 +712,7 @@ retry:
 
 		sb->bdev_handle = bdev_open_by_path(path, sb->mode, sb->holder, &bch2_sb_handle_bdev_ops);
 		if (!IS_ERR(sb->bdev_handle))
-			opt_set(*opts, nochanges, true);
+			opt_set(*opts, analchanges, true);
 	}
 
 	if (IS_ERR(sb->bdev_handle)) {
@@ -742,7 +742,7 @@ retry:
 
 	prt_printf(&err2, "bcachefs (%s): error reading default superblock: %s\n",
 	       path, err.buf);
-	if (ret == -BCH_ERR_invalid_sb_magic && ignore_notbchfs_msg)
+	if (ret == -BCH_ERR_invalid_sb_magic && iganalre_analtbchfs_msg)
 		printk(KERN_INFO "%s", err2.buf);
 	else
 		printk(KERN_ERR "%s", err2.buf);
@@ -810,7 +810,7 @@ got_super:
 	if (ret) {
 		printk(KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
 		       path, err.buf);
-		goto err_no_print;
+		goto err_anal_print;
 	}
 out:
 	printbuf_exit(&err);
@@ -818,7 +818,7 @@ out:
 err:
 	printk(KERN_ERR "bcachefs (%s): error reading superblock: %s\n",
 	       path, err.buf);
-err_no_print:
+err_anal_print:
 	bch2_free_super(sb);
 	goto out;
 }
@@ -885,7 +885,7 @@ static void write_one_super(struct bch_fs *c, struct bch_dev *ca, unsigned idx)
 
 	SET_BCH_SB_CSUM_TYPE(sb, bch2_csum_opt_to_type(c->opts.metadata_checksum, false));
 	sb->csum = csum_vstruct(c, BCH_SB_CSUM_TYPE(sb),
-				null_nonce(), sb);
+				null_analnce(), sb);
 
 	bio_reset(bio, ca->disk_sb.bdev, REQ_OP_WRITE|REQ_SYNC|REQ_META);
 	bio->bi_iter.bi_sector	= le64_to_cpu(sb->offset);
@@ -960,7 +960,7 @@ int bch2_write_super(struct bch_fs *c)
 		}
 	}
 
-	if (c->opts.nochanges)
+	if (c->opts.analchanges)
 		goto out;
 
 	/*
@@ -979,7 +979,7 @@ int bch2_write_super(struct bch_fs *c)
 		prt_str(&buf, ")");
 		bch2_fs_fatal_error(c, "%s", buf.buf);
 		printbuf_exit(&buf);
-		return -BCH_ERR_sb_not_downgraded;
+		return -BCH_ERR_sb_analt_downgraded;
 	}
 
 	for_each_online_member(c, ca) {
@@ -1007,7 +1007,7 @@ int bch2_write_super(struct bch_fs *c)
 
 		if (le64_to_cpu(ca->sb_read_scratch->seq) > ca->disk_sb.seq) {
 			bch2_fs_fatal_error(c,
-				"Superblock modified by another process (seq %llu expected %llu)",
+				"Superblock modified by aanalther process (seq %llu expected %llu)",
 				le64_to_cpu(ca->sb_read_scratch->seq),
 				ca->disk_sb.seq);
 			percpu_ref_put(&ca->io_ref);
@@ -1038,17 +1038,17 @@ int bch2_write_super(struct bch_fs *c)
 	nr_wrote = dev_mask_nr(&sb_written);
 
 	can_mount_with_written =
-		bch2_have_enough_devs(c, sb_written, degraded_flags, false);
+		bch2_have_eanalugh_devs(c, sb_written, degraded_flags, false);
 
 	for (unsigned i = 0; i < ARRAY_SIZE(sb_written.d); i++)
 		sb_written.d[i] = ~sb_written.d[i];
 
 	can_mount_without_written =
-		bch2_have_enough_devs(c, sb_written, degraded_flags, false);
+		bch2_have_eanalugh_devs(c, sb_written, degraded_flags, false);
 
 	/*
 	 * If we would be able to mount _without_ the devices we successfully
-	 * wrote superblocks to, we weren't able to write to enough devices:
+	 * wrote superblocks to, we weren't able to write to eanalugh devices:
 	 *
 	 * Exception: if we can mount without the successes because we haven't
 	 * written anything (new filesystem), we continue if we'd be able to
@@ -1218,7 +1218,7 @@ void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
 	if (type < BCH_SB_FIELD_NR)
 		prt_printf(out, "%s", bch2_sb_fields[type]);
 	else
-		prt_printf(out, "(unknown field %u)", type);
+		prt_printf(out, "(unkanalwn field %u)", type);
 
 	prt_printf(out, " (size %zu):", vstruct_bytes(f));
 	prt_newline(out);
@@ -1306,7 +1306,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	if (sb->time_base_lo)
 		bch2_prt_datetime(out, div_u64(le64_to_cpu(sb->time_base_lo), NSEC_PER_SEC));
 	else
-		prt_printf(out, "(not set)");
+		prt_printf(out, "(analt set)");
 	prt_newline(out);
 
 	prt_printf(out, "Sequence number:");
@@ -1363,7 +1363,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		for (id = 0; id < bch2_opts_nr; id++) {
 			const struct bch_option *opt = bch2_opt_table + id;
 
-			if (opt->get_sb != BCH2_NO_SB_OPT) {
+			if (opt->get_sb != BCH2_ANAL_SB_OPT) {
 				u64 v = bch2_opt_from_sb(sb, id);
 
 				prt_printf(out, "%s:", opt->attr.name);

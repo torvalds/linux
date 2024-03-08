@@ -11,7 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -104,45 +104,45 @@ static const struct fb_ops cg6_ops = {
 #define CG6_FHC_TEST_Y_MASK		15
 
 /* FBC mode definitions */
-#define CG6_FBC_BLIT_IGNORE		0x00000000
-#define CG6_FBC_BLIT_NOSRC		0x00100000
+#define CG6_FBC_BLIT_IGANALRE		0x00000000
+#define CG6_FBC_BLIT_ANALSRC		0x00100000
 #define CG6_FBC_BLIT_SRC		0x00200000
 #define CG6_FBC_BLIT_ILLEGAL		0x00300000
 #define CG6_FBC_BLIT_MASK		0x00300000
 
 #define CG6_FBC_VBLANK			0x00080000
 
-#define CG6_FBC_MODE_IGNORE		0x00000000
+#define CG6_FBC_MODE_IGANALRE		0x00000000
 #define CG6_FBC_MODE_COLOR8		0x00020000
 #define CG6_FBC_MODE_COLOR1		0x00040000
-#define CG6_FBC_MODE_HRMONO		0x00060000
+#define CG6_FBC_MODE_HRMOANAL		0x00060000
 #define CG6_FBC_MODE_MASK		0x00060000
 
-#define CG6_FBC_DRAW_IGNORE		0x00000000
+#define CG6_FBC_DRAW_IGANALRE		0x00000000
 #define CG6_FBC_DRAW_RENDER		0x00008000
 #define CG6_FBC_DRAW_PICK		0x00010000
 #define CG6_FBC_DRAW_ILLEGAL		0x00018000
 #define CG6_FBC_DRAW_MASK		0x00018000
 
-#define CG6_FBC_BWRITE0_IGNORE		0x00000000
+#define CG6_FBC_BWRITE0_IGANALRE		0x00000000
 #define CG6_FBC_BWRITE0_ENABLE		0x00002000
 #define CG6_FBC_BWRITE0_DISABLE		0x00004000
 #define CG6_FBC_BWRITE0_ILLEGAL		0x00006000
 #define CG6_FBC_BWRITE0_MASK		0x00006000
 
-#define CG6_FBC_BWRITE1_IGNORE		0x00000000
+#define CG6_FBC_BWRITE1_IGANALRE		0x00000000
 #define CG6_FBC_BWRITE1_ENABLE		0x00000800
 #define CG6_FBC_BWRITE1_DISABLE		0x00001000
 #define CG6_FBC_BWRITE1_ILLEGAL		0x00001800
 #define CG6_FBC_BWRITE1_MASK		0x00001800
 
-#define CG6_FBC_BREAD_IGNORE		0x00000000
+#define CG6_FBC_BREAD_IGANALRE		0x00000000
 #define CG6_FBC_BREAD_0			0x00000200
 #define CG6_FBC_BREAD_1			0x00000400
 #define CG6_FBC_BREAD_ILLEGAL		0x00000600
 #define CG6_FBC_BREAD_MASK		0x00000600
 
-#define CG6_FBC_BDISP_IGNORE		0x00000000
+#define CG6_FBC_BDISP_IGANALRE		0x00000000
 #define CG6_FBC_BDISP_0			0x00000080
 #define CG6_FBC_BDISP_1			0x00000100
 #define CG6_FBC_BDISP_ILLEGAL		0x00000180
@@ -165,7 +165,7 @@ static const struct fb_ops cg6_ops = {
 #define CG6_THC_MISC_INIT		0x9f
 #define CG6_THC_CURSOFF			((65536-32) | ((65536-32) << 16))
 
-/* The contents are unknown */
+/* The contents are unkanalwn */
 struct cg6_tec {
 	int tec_matrix;
 	int tec_clip;
@@ -344,14 +344,14 @@ static void cg6_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 }
 
 /**
- *	cg6_copyarea - Copies one area of the screen to another area.
+ *	cg6_copyarea - Copies one area of the screen to aanalther area.
  *
  *	@info: frame buffer structure that represents a single frame buffer
  *	@area: Structure providing the data to copy the framebuffer contents
- *		from one region to another.
+ *		from one region to aanalther.
  *
  *	This drawing operation copies a rectangular area from one area of the
- *	screen to another area.
+ *	screen to aanalther area.
  */
 static void cg6_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
@@ -474,14 +474,14 @@ static void cg6_imageblit(struct fb_info *info, const struct fb_image *image)
 /**
  *	cg6_setcolreg - Sets a color register.
  *
- *	@regno: boolean, 0 copy local, 1 get_user() function
+ *	@reganal: boolean, 0 copy local, 1 get_user() function
  *	@red: frame buffer colormap structure
  *	@green: The green value which can be up to 16 bits wide
  *	@blue:  The blue value which can be up to 16 bits wide.
  *	@transp: If supported the alpha value which can be up to 16 bits wide.
  *	@info: frame buffer info structure
  */
-static int cg6_setcolreg(unsigned regno,
+static int cg6_setcolreg(unsigned reganal,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
@@ -489,7 +489,7 @@ static int cg6_setcolreg(unsigned regno,
 	struct bt_regs __iomem *bt = par->bt;
 	unsigned long flags;
 
-	if (regno >= 256)
+	if (reganal >= 256)
 		return 1;
 
 	red >>= 8;
@@ -498,7 +498,7 @@ static int cg6_setcolreg(unsigned regno,
 
 	spin_lock_irqsave(&par->lock, flags);
 
-	sbus_writel((u32)regno << 24, &bt->addr);
+	sbus_writel((u32)reganal << 24, &bt->addr);
 	sbus_writel((u32)red << 24, &bt->color_map);
 	sbus_writel((u32)green << 24, &bt->color_map);
 	sbus_writel((u32)blue << 24, &bt->color_map);
@@ -530,7 +530,7 @@ static int cg6_blank(int blank, struct fb_info *info)
 		par->flags &= ~CG6_FLAG_BLANKED;
 		break;
 
-	case FB_BLANK_NORMAL: /* Normal blanking */
+	case FB_BLANK_ANALRMAL: /* Analrmal blanking */
 	case FB_BLANK_VSYNC_SUSPEND: /* VESA blank (vsync off) */
 	case FB_BLANK_HSYNC_SUSPEND: /* VESA blank (hsync off) */
 	case FB_BLANK_POWERDOWN: /* Poweroff */
@@ -740,7 +740,7 @@ static void cg6_unmap_regs(struct platform_device *op, struct fb_info *info,
 
 static int cg6_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 	struct fb_info *info;
 	struct cg6_par *par;
 	int linebytes, err;
@@ -748,7 +748,7 @@ static int cg6_probe(struct platform_device *op)
 
 	info = framebuffer_alloc(sizeof(struct cg6_par), &op->dev);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!info)
 		goto out_err;
 	par = info->par;
@@ -864,7 +864,7 @@ static struct platform_driver cg6_driver = {
 static int __init cg6_init(void)
 {
 	if (fb_get_options("cg6fb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&cg6_driver);
 }

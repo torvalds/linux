@@ -47,7 +47,7 @@ allOf:
             - const: gpio_mux
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^gpio@[0-9a-f]+$'
 
   compatible:

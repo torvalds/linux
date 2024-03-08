@@ -17,9 +17,9 @@ How it works
 The _DSC (Device State for Configuration) object that evaluates to an integer
 may be used to tell Linux the highest allowed D state for a device during
 probe. The support for _DSC requires support from the kernel bus type if the
-bus driver normally sets the device in D0 state for probe.
+bus driver analrmally sets the device in D0 state for probe.
 
-The downside of using _DSC is that as the device is not powered on, even if
+The downside of using _DSC is that as the device is analt powered on, even if
 there's a problem with the device, the driver likely probes just fine but the
 first user will find out the device doesn't work, instead of a failure at probe
 time. This feature should thus be used sparingly.
@@ -30,7 +30,7 @@ I²C
 If an I²C driver indicates its support for this by setting the
 I2C_DRV_ACPI_WAIVE_D0_PROBE flag in struct i2c_driver.flags field and the
 _DSC object evaluates to integer higher than the D state of the device,
-the device will not be powered on (put in D0 state) for probe.
+the device will analt be powered on (put in D0 state) for probe.
 
 D states
 --------
@@ -57,7 +57,7 @@ Example
 
 An ASL example describing an ACPI device using _DSC object to tell Operating
 System the device should remain powered off during probe looks like this. Some
-objects not relevant from the example point of view have been omitted.
+objects analt relevant from the example point of view have been omitted.
 
 .. code-block:: text
 
@@ -71,7 +71,7 @@ objects not relevant from the example point of view have been omitted.
 				     AddressingMode7Bit, "\\_SB.PCI0.I2C0",
 				     0x00, ResourceConsumer)
 		})
-		Method (_DSC, 0, NotSerialized)
+		Method (_DSC, 0, AnaltSerialized)
 		{
 			Return (0x4)
 		}

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,13 +33,13 @@
 #include "dce120/dce120_hwseq.h"
 
 static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
-/*ClocksStateInvalid - should not be used*/
+/*ClocksStateInvalid - should analt be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
+/*ClocksStateUltraLow - currently by HW design team analt supposed to be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
 /*ClocksStateLow*/
 { .display_clk_khz = 460000, .pixel_clk_khz = 400000 },
-/*ClocksStateNominal*/
+/*ClocksStateAnalminal*/
 { .display_clk_khz = 670000, .pixel_clk_khz = 600000 },
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
@@ -50,7 +50,7 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
  *
  * Reads from VBIOS the XGMI spread spectrum info and saves it within
  * the dce clock manager. This operation will overwrite the existing dprefclk
- * SS values if the vBIOS query succeeds. Otherwise, it does nothing. It also
+ * SS values if the vBIOS query succeeds. Otherwise, it does analthing. It also
  * sets the ->xgmi_enabled flag.
  */
 static void dce121_clock_patch_xgmi_ss_info(struct clk_mgr_internal *clk_mgr_dce)

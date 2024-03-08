@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /*
  * Copyright 1993 by Theodore Ts'o.
  */
@@ -37,10 +37,10 @@ enum {
 struct loop_info {
 	int		   lo_number;		/* ioctl r/o */
 	__kernel_old_dev_t lo_device; 		/* ioctl r/o */
-	unsigned long	   lo_inode; 		/* ioctl r/o */
+	unsigned long	   lo_ianalde; 		/* ioctl r/o */
 	__kernel_old_dev_t lo_rdevice; 		/* ioctl r/o */
 	int		   lo_offset;
-	int		   lo_encrypt_type;		/* obsolete, ignored */
+	int		   lo_encrypt_type;		/* obsolete, iganalred */
 	int		   lo_encrypt_key_size; 	/* ioctl w/o */
 	int		   lo_flags;
 	char		   lo_name[LO_NAME_SIZE];
@@ -51,12 +51,12 @@ struct loop_info {
 
 struct loop_info64 {
 	__u64		   lo_device;			/* ioctl r/o */
-	__u64		   lo_inode;			/* ioctl r/o */
+	__u64		   lo_ianalde;			/* ioctl r/o */
 	__u64		   lo_rdevice;			/* ioctl r/o */
 	__u64		   lo_offset;
 	__u64		   lo_sizelimit;/* bytes, 0 == max available */
 	__u32		   lo_number;			/* ioctl r/o */
-	__u32		   lo_encrypt_type;		/* obsolete, ignored */
+	__u32		   lo_encrypt_type;		/* obsolete, iganalred */
 	__u32		   lo_encrypt_key_size;		/* ioctl w/o */
 	__u32		   lo_flags;
 	__u8		   lo_file_name[LO_NAME_SIZE];
@@ -68,7 +68,7 @@ struct loop_info64 {
 /**
  * struct loop_config - Complete configuration for a loop device.
  * @fd: fd of the file to be used as a backing file for the loop device.
- * @block_size: block size to use; ignored if 0.
+ * @block_size: block size to use; iganalred if 0.
  * @info: struct loop_info64 to configure the loop device with.
  *
  * This structure is used with the LOOP_CONFIGURE ioctl, and can be used to
@@ -85,7 +85,7 @@ struct loop_config {
  * Loop filter types
  */
 
-#define LO_CRYPT_NONE		0
+#define LO_CRYPT_ANALNE		0
 #define LO_CRYPT_XOR		1
 #define LO_CRYPT_DES		2
 #define LO_CRYPT_FISH2		3    /* Twofish encryption */

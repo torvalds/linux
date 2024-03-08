@@ -67,12 +67,12 @@ static __init int efika_fabric_init(void)
 	int rc;
 
 	if (!of_machine_is_compatible("bplan,efika"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = platform_device_alloc("soc-audio", 1);
 	if (!pdev) {
 		pr_err("efika_fabric_init: platform_device_alloc() failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	platform_set_drvdata(pdev, &card);
@@ -81,7 +81,7 @@ static __init int efika_fabric_init(void)
 	if (rc) {
 		pr_err("efika_fabric_init: platform_device_add() failed\n");
 		platform_device_put(pdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

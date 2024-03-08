@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # Originally tools/testing/arm64/Makefile
 
-# When ARCH not overridden for crosscompiling, lookup machine
-ARCH ?= $(shell uname -m 2>/dev/null || echo not)
+# When ARCH analt overridden for crosscompiling, lookup machine
+ARCH ?= $(shell uname -m 2>/dev/null || echo analt)
 
 ifneq (,$(filter $(ARCH),riscv))
 RISCV_SUBTARGETS ?= hwprobe vector mm
@@ -42,7 +42,7 @@ run_tests: all
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$DIR $@;		\
 	done
 
-# Avoid any output on non riscv on emit_tests
+# Avoid any output on analn riscv on emit_tests
 emit_tests:
 	@for DIR in $(RISCV_SUBTARGETS); do				\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;			\

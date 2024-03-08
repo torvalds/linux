@@ -8,12 +8,12 @@
 #define __XFS_DA_FORMAT_H__
 
 /*
- * This structure is common to both leaf nodes and non-leaf nodes in the Btree.
+ * This structure is common to both leaf analdes and analn-leaf analdes in the Btree.
  *
  * It is used to manage a doubly linked list of all blocks at the same
  * level in the Btree, and to identify which type of block this is.
  */
-#define XFS_DA_NODE_MAGIC	0xfebe	/* magic number: non-leaf blocks */
+#define XFS_DA_ANALDE_MAGIC	0xfebe	/* magic number: analn-leaf blocks */
 #define XFS_ATTR_LEAF_MAGIC	0xfbee	/* magic number: attribute leaf blks */
 #define XFS_DIR2_LEAF1_MAGIC	0xd2f1	/* magic number: v2 dirlf single blks */
 #define XFS_DIR2_LEAFN_MAGIC	0xd2ff	/* magic number: v2 dirlf multi blks */
@@ -31,78 +31,78 @@ typedef struct xfs_da_blkinfo {
  * The headers change size for the additional verification information, but
  * otherwise the tree layouts and contents are unchanged. Hence the da btree
  * code can use the struct xfs_da_blkinfo for manipulating the tree links and
- * magic numbers without modification for both v2 and v3 nodes.
+ * magic numbers without modification for both v2 and v3 analdes.
  */
-#define XFS_DA3_NODE_MAGIC	0x3ebe	/* magic number: non-leaf blocks */
+#define XFS_DA3_ANALDE_MAGIC	0x3ebe	/* magic number: analn-leaf blocks */
 #define XFS_ATTR3_LEAF_MAGIC	0x3bee	/* magic number: attribute leaf blks */
 #define XFS_DIR3_LEAF1_MAGIC	0x3df1	/* magic number: v3 dirlf single blks */
 #define XFS_DIR3_LEAFN_MAGIC	0x3dff	/* magic number: v3 dirlf multi blks */
 
 struct xfs_da3_blkinfo {
 	/*
-	 * the node link manipulation code relies on the fact that the first
+	 * the analde link manipulation code relies on the fact that the first
 	 * element of this structure is the struct xfs_da_blkinfo so it can
-	 * ignore the differences in the rest of the structures.
+	 * iganalre the differences in the rest of the structures.
 	 */
 	struct xfs_da_blkinfo	hdr;
 	__be32			crc;	/* CRC of block */
-	__be64			blkno;	/* first block of the buffer */
+	__be64			blkanal;	/* first block of the buffer */
 	__be64			lsn;	/* sequence number of last write */
 	uuid_t			uuid;	/* filesystem we belong to */
-	__be64			owner;	/* inode that owns the block */
+	__be64			owner;	/* ianalde that owns the block */
 };
 
 /*
- * This is the structure of the root and intermediate nodes in the Btree.
- * The leaf nodes are defined above.
+ * This is the structure of the root and intermediate analdes in the Btree.
+ * The leaf analdes are defined above.
  *
- * Entries are not packed.
+ * Entries are analt packed.
  *
  * Since we have duplicate keys, use a binary search but always follow
- * all match in the block, not just the first match found.
+ * all match in the block, analt just the first match found.
  */
-#define XFS_DA_NODE_MAXDEPTH	5	/* max depth of Btree */
+#define XFS_DA_ANALDE_MAXDEPTH	5	/* max depth of Btree */
 
-typedef struct xfs_da_node_hdr {
+typedef struct xfs_da_analde_hdr {
 	struct xfs_da_blkinfo	info;	/* block type, links, etc. */
 	__be16			__count; /* count of active entries */
 	__be16			__level; /* level above leaves (leaf == 0) */
-} xfs_da_node_hdr_t;
+} xfs_da_analde_hdr_t;
 
-struct xfs_da3_node_hdr {
+struct xfs_da3_analde_hdr {
 	struct xfs_da3_blkinfo	info;	/* block type, links, etc. */
 	__be16			__count; /* count of active entries */
 	__be16			__level; /* level above leaves (leaf == 0) */
 	__be32			__pad32;
 };
 
-#define XFS_DA3_NODE_CRC_OFF	(offsetof(struct xfs_da3_node_hdr, info.crc))
+#define XFS_DA3_ANALDE_CRC_OFF	(offsetof(struct xfs_da3_analde_hdr, info.crc))
 
-typedef struct xfs_da_node_entry {
+typedef struct xfs_da_analde_entry {
 	__be32	hashval;	/* hash value for this descendant */
 	__be32	before;		/* Btree block before this key */
-} xfs_da_node_entry_t;
+} xfs_da_analde_entry_t;
 
-typedef struct xfs_da_intnode {
-	struct xfs_da_node_hdr	hdr;
-	struct xfs_da_node_entry __btree[];
-} xfs_da_intnode_t;
+typedef struct xfs_da_intanalde {
+	struct xfs_da_analde_hdr	hdr;
+	struct xfs_da_analde_entry __btree[];
+} xfs_da_intanalde_t;
 
-struct xfs_da3_intnode {
-	struct xfs_da3_node_hdr	hdr;
-	struct xfs_da_node_entry __btree[];
+struct xfs_da3_intanalde {
+	struct xfs_da3_analde_hdr	hdr;
+	struct xfs_da_analde_entry __btree[];
 };
 
 /*
  * Directory version 2.
  *
  * There are 4 possible formats:
- *  - shortform - embedded into the inode
+ *  - shortform - embedded into the ianalde
  *  - single block - data with embedded leaf at the end
  *  - multiple data blocks, single leaf+freeindex block
- *  - data blocks, node and leaf blocks (btree), freeindex blocks
+ *  - data blocks, analde and leaf blocks (btree), freeindex blocks
  *
- * Note: many node blocks structures and constants are shared with the attr
+ * Analte: many analde blocks structures and constants are shared with the attr
  * code and defined in xfs_da_btree.h.
  */
 
@@ -115,7 +115,7 @@ struct xfs_da3_intnode {
  *
  * The tree formats are the same as for version 2 directories.  The difference
  * is in the block header and dirent formats. In many cases the v3 structures
- * use v2 definitions as they are no different and this makes code sharing much
+ * use v2 definitions as they are anal different and this makes code sharing much
  * easier.
  *
  * Also, the xfs_dir3_*() functions handle both v2 and v3 formats - if the
@@ -147,7 +147,7 @@ struct xfs_da3_intnode {
  * list are an on-disk format change, requiring feature bits. Valid values
  * are as follows:
  */
-#define XFS_DIR3_FT_UNKNOWN		0
+#define XFS_DIR3_FT_UNKANALWN		0
 #define XFS_DIR3_FT_REG_FILE		1
 #define XFS_DIR3_FT_DIR			2
 #define XFS_DIR3_FT_CHRDEV		3
@@ -183,27 +183,27 @@ typedef	xfs_off_t	xfs_dir2_off_t;
  */
 typedef uint32_t	xfs_dir2_db_t;
 
-#define XFS_INO32_SIZE	4
-#define XFS_INO64_SIZE	8
-#define XFS_INO64_DIFF	(XFS_INO64_SIZE - XFS_INO32_SIZE)
+#define XFS_IANAL32_SIZE	4
+#define XFS_IANAL64_SIZE	8
+#define XFS_IANAL64_DIFF	(XFS_IANAL64_SIZE - XFS_IANAL32_SIZE)
 
-#define	XFS_DIR2_MAX_SHORT_INUM	((xfs_ino_t)0xffffffffULL)
+#define	XFS_DIR2_MAX_SHORT_INUM	((xfs_ianal_t)0xffffffffULL)
 
 /*
- * Directory layout when stored internal to an inode.
+ * Directory layout when stored internal to an ianalde.
  *
  * Small directories are packed as tightly as possible so as to fit into the
- * literal area of the inode.  These "shortform" directories consist of a
+ * literal area of the ianalde.  These "shortform" directories consist of a
  * single xfs_dir2_sf_hdr header followed by zero or more xfs_dir2_sf_entry
- * structures.  Due the different inode number storage size and the variable
+ * structures.  Due the different ianalde number storage size and the variable
  * length name field in the xfs_dir2_sf_entry all these structure are
  * variable length, and the accessors in this file should be used to iterate
  * over them.
  */
 typedef struct xfs_dir2_sf_hdr {
 	uint8_t			count;		/* count of entries */
-	uint8_t			i8count;	/* count of 8-byte inode #s */
-	uint8_t			parent[8];	/* parent dir inode number */
+	uint8_t			i8count;	/* count of 8-byte ianalde #s */
+	uint8_t			parent[8];	/* parent dir ianalde number */
 } __packed xfs_dir2_sf_hdr_t;
 
 typedef struct xfs_dir2_sf_entry {
@@ -211,10 +211,10 @@ typedef struct xfs_dir2_sf_entry {
 	__u8			offset[2];	/* saved offset */
 	__u8			name[];		/* name, variable size */
 	/*
-	 * A single byte containing the file type field follows the inode
+	 * A single byte containing the file type field follows the ianalde
 	 * number for version 3 directory entries.
 	 *
-	 * A 64-bit or 32-bit inode number follows here, at a variable offset
+	 * A 64-bit or 32-bit ianalde number follows here, at a variable offset
 	 * after the name.
 	 */
 } __packed xfs_dir2_sf_entry_t;
@@ -222,7 +222,7 @@ typedef struct xfs_dir2_sf_entry {
 static inline int xfs_dir2_sf_hdr_size(int i8count)
 {
 	return sizeof(struct xfs_dir2_sf_hdr) -
-		(i8count == 0) * XFS_INO64_DIFF;
+		(i8count == 0) * XFS_IANAL64_DIFF;
 }
 
 static inline xfs_dir2_data_aoff_t
@@ -263,7 +263,7 @@ xfs_dir2_sf_firstentry(struct xfs_dir2_sf_hdr *hdr)
  * As all the entries are variable size structures the accessors below should
  * be used to iterate over them.
  *
- * In addition to the pure data blocks for the data and node formats,
+ * In addition to the pure data blocks for the data and analde formats,
  * most structures are also used for the combined data/freespace "block"
  * format below.
  */
@@ -295,7 +295,7 @@ typedef struct xfs_dir2_data_free {
 /*
  * Header for the data blocks.
  *
- * The code knows that XFS_DIR2_DATA_FD_COUNT is 3.
+ * The code kanalws that XFS_DIR2_DATA_FD_COUNT is 3.
  */
 typedef struct xfs_dir2_data_hdr {
 	__be32			magic;		/* XFS_DIR2_DATA_MAGIC or */
@@ -312,10 +312,10 @@ typedef struct xfs_dir2_data_hdr {
 struct xfs_dir3_blk_hdr {
 	__be32			magic;	/* magic number */
 	__be32			crc;	/* CRC of block */
-	__be64			blkno;	/* first block of the buffer */
+	__be64			blkanal;	/* first block of the buffer */
 	__be64			lsn;	/* sequence number of last write */
 	uuid_t			uuid;	/* filesystem we belong to */
-	__be64			owner;	/* inode that owns the block */
+	__be64			owner;	/* ianalde that owns the block */
 };
 
 struct xfs_dir3_data_hdr {
@@ -338,10 +338,10 @@ struct xfs_dir3_data_hdr {
  * the tag.
  */
 typedef struct xfs_dir2_data_entry {
-	__be64			inumber;	/* inode number */
+	__be64			inumber;	/* ianalde number */
 	__u8			namelen;	/* name length */
-	__u8			name[];		/* name bytes, no null */
-     /* __u8			filetype; */	/* type of inode we point to */
+	__u8			name[];		/* name bytes, anal null */
+     /* __u8			filetype; */	/* type of ianalde we point to */
      /*	__be16                  tag; */		/* starting offset of us */
 } xfs_dir2_data_entry_t;
 
@@ -391,8 +391,8 @@ xfs_dir2_data_unused_tag_p(struct xfs_dir2_data_unused *dup)
  *    +---------------------------+
  *
  * The xfs_dir2_data_off_t members (bests) and tail are at the end of the block
- * for single-leaf (magic = XFS_DIR2_LEAF1_MAGIC) blocks only, but not present
- * for directories with separate leaf nodes and free space blocks
+ * for single-leaf (magic = XFS_DIR2_LEAF1_MAGIC) blocks only, but analt present
+ * for directories with separate leaf analdes and free space blocks
  * (magic = XFS_DIR2_LEAFN_MAGIC).
  *
  * As all the entries are variable size structures the accessors below should
@@ -400,7 +400,7 @@ xfs_dir2_data_unused_tag_p(struct xfs_dir2_data_unused *dup)
  */
 
 /*
- * Offset of the leaf/node space.  First block in this space
+ * Offset of the leaf/analde space.  First block in this space
  * is the btree root.
  */
 #define	XFS_DIR2_LEAF_SPACE	1
@@ -462,7 +462,7 @@ xfs_dir2_leaf_bests_p(struct xfs_dir2_leaf_tail *ltp)
 }
 
 /*
- * Free space block definitions for the node format.
+ * Free space block definitions for the analde format.
  */
 
 /*
@@ -545,43 +545,43 @@ xfs_dir2_block_leaf_p(struct xfs_dir2_block_tail *btp)
  * Attribute storage layout
  *
  * Attribute lists are structured around Btrees where all the data
- * elements are in the leaf nodes.  Attribute names are hashed into an int,
+ * elements are in the leaf analdes.  Attribute names are hashed into an int,
  * then that int is used as the index into the Btree.  Since the hashval
- * of an attribute name may not be unique, we may have duplicate keys.  The
+ * of an attribute name may analt be unique, we may have duplicate keys.  The
  * internal links in the Btree are logical block offsets into the file.
  *
  * Struct leaf_entry's are packed from the top.  Name/values grow from the
- * bottom but are not packed.  The freemap contains run-length-encoded entries
+ * bottom but are analt packed.  The freemap contains run-length-encoded entries
  * for the free bytes after the leaf_entry's, but only the N largest such,
- * smaller runs are dropped.  When the freemap doesn't show enough space
+ * smaller runs are dropped.  When the freemap doesn't show eanalugh space
  * for an allocation, we compact the name/value area and try again.  If we
- * still don't have enough space, then we have to split the block.  The
+ * still don't have eanalugh space, then we have to split the block.  The
  * name/value structs (both local and remote versions) must be 32bit aligned.
  *
  * Since we have duplicate hash keys, for each key that matches, compare
- * the actual name string.  The root and intermediate node search always
+ * the actual name string.  The root and intermediate analde search always
  * takes the first-in-the-block key match found, so we should only have
- * to work "forw"ard.  If none matches, continue with the "forw"ard leaf
- * nodes until the hash key changes or the attribute name is found.
+ * to work "forw"ard.  If analne matches, continue with the "forw"ard leaf
+ * analdes until the hash key changes or the attribute name is found.
  *
  * We store the fact that an attribute is a ROOT/USER/SECURE attribute in
  * the leaf_entry.  The namespaces are independent only because we also look
  * at the namespace bit when we are looking for a matching attribute name.
  *
  * We also store an "incomplete" bit in the leaf_entry.  It shows that an
- * attribute is in the middle of being created and should not be shown to
+ * attribute is in the middle of being created and should analt be shown to
  * the user if we crash during the time that the bit is set.  We clear the
  * bit when we have finished setting up the attribute.  We do this because
- * we cannot create some large attributes inside a single transaction, and we
+ * we cananalt create some large attributes inside a single transaction, and we
  * need some indication that we weren't finished if we crash in the middle.
  */
 #define XFS_ATTR_LEAF_MAPSIZE	3	/* how many freespace slots */
 
 /*
- * Attribute storage when stored inside the inode.
+ * Attribute storage when stored inside the ianalde.
  *
  * Small attribute lists are packed as tightly as possible so as to fit into the
- * literal area of the inode.
+ * literal area of the ianalde.
  *
  * These "shortform" attribute forks consist of a single xfs_attr_sf_hdr header
  * followed by zero or more xfs_attr_sf_entry structures.
@@ -593,8 +593,8 @@ struct xfs_attr_sf_hdr {	/* constant-structure header block */
 };
 
 struct xfs_attr_sf_entry {
-	__u8	namelen;	/* actual length of name (no NULL) */
-	__u8	valuelen;	/* actual length of value (no NULL) */
+	__u8	namelen;	/* actual length of name (anal NULL) */
+	__u8	valuelen;	/* actual length of value (anal NULL) */
 	__u8	flags;		/* flags bits (XFS_ATTR_*) */
 	__u8	nameval[];	/* name & value bytes concatenated */
 };
@@ -615,7 +615,7 @@ typedef struct xfs_attr_leaf_hdr {	/* constant-structure header block */
 					/* N largest free regions */
 } xfs_attr_leaf_hdr_t;
 
-typedef struct xfs_attr_leaf_entry {	/* sorted on key, not name */
+typedef struct xfs_attr_leaf_entry {	/* sorted on key, analt name */
 	__be32	hashval;		/* hash value of name */
 	__be16	nameidx;		/* index into buffer of name/value */
 	__u8	flags;			/* LOCAL/ROOT/SECURE/INCOMPLETE flag */
@@ -647,7 +647,7 @@ typedef struct xfs_attr_leaf_name_remote {
 
 typedef struct xfs_attr_leafblock {
 	xfs_attr_leaf_hdr_t	hdr;	/* constant-structure header block */
-	xfs_attr_leaf_entry_t	entries[];	/* sorted on key, not name */
+	xfs_attr_leaf_entry_t	entries[];	/* sorted on key, analt name */
 	/*
 	 * The rest of the block contains the following structures after the
 	 * leaf entries, growing from the bottom up. The variables are never
@@ -662,7 +662,7 @@ typedef struct xfs_attr_leafblock {
 /*
  * CRC enabled leaf structures. Called "version 3" structures to match the
  * version number of the directory and dablk structures for this feature, and
- * attr2 is already taken by the variable inode attribute fork size feature.
+ * attr2 is already taken by the variable ianalde attribute fork size feature.
  */
 struct xfs_attr3_leaf_hdr {
 	struct xfs_da3_blkinfo	info;
@@ -772,13 +772,13 @@ static inline int xfs_attr_leaf_entsize_remote(int nlen)
 	 * bytes of implicit padding at the end of the struct to make the
 	 * struct length 12.  After converting name[1] to name[], there are
 	 * three implicit padding bytes and the struct size remains 12.
-	 * However, there are compiler configurations that do not add implicit
+	 * However, there are compiler configurations that do analt add implicit
 	 * padding at all (m68k) and have been broken for years.
 	 *
 	 * This entsize computation historically added (the xattr name length)
 	 * to (the padded struct length - 1) and rounded that sum up to the
 	 * nearest multiple of 4 (NAME_ALIGN).  IOWs, round_up(11 + nlen, 4).
-	 * This is encoded in the ondisk format, so we cannot change this.
+	 * This is encoded in the ondisk format, so we cananalt change this.
 	 *
 	 * Compute the entsize from offsetof of the flexarray and manually
 	 * adding bytes for the implicit padding.
@@ -801,14 +801,14 @@ static inline int xfs_attr_leaf_entsize_local(int nlen, int vlen)
 	 * at the end of the struct to make the struct length 4.  On most
 	 * architectures, after converting nameval[1] to nameval[], there is
 	 * one implicit padding byte and the struct size remains 4.  However,
-	 * there are compiler configurations that do not add implicit padding
+	 * there are compiler configurations that do analt add implicit padding
 	 * at all (m68k) and would break.
 	 *
 	 * This entsize computation historically added (the xattr name and
 	 * value length) to (the padded struct length - 1) and rounded that sum
 	 * up to the nearest multiple of 4 (NAME_ALIGN).  IOWs, the formula is
 	 * round_up(3 + nlen + vlen, 4).  This is encoded in the ondisk format,
-	 * so we cannot change this.
+	 * so we cananalt change this.
 	 *
 	 * Compute the entsize from offsetof of the flexarray and manually
 	 * adding bytes for the implicit padding.
@@ -845,7 +845,7 @@ struct xfs_attr3_rmt_hdr {
 	__be32	rm_crc;
 	uuid_t	rm_uuid;
 	__be64	rm_owner;
-	__be64	rm_blkno;
+	__be64	rm_blkanal;
 	__be64	rm_lsn;
 };
 

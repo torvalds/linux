@@ -32,11 +32,11 @@ struct mconsole_reply {
 	char data[MCONSOLE_MAX_DATA];
 };
 
-struct mconsole_notify {
+struct mconsole_analtify {
 	u32 magic;
 	u32 version;
 	enum { MCONSOLE_SOCKET, MCONSOLE_PANIC, MCONSOLE_HANG,
-	       MCONSOLE_USER_NOTIFY } type;
+	       MCONSOLE_USER_ANALTIFY } type;
 	u32 len;
 	char data[MCONSOLE_MAX_DATA];
 };
@@ -89,10 +89,10 @@ extern void mconsole_proc(struct mc_request *req);
 extern void mconsole_stack(struct mc_request *req);
 
 extern int mconsole_get_request(int fd, struct mc_request *req);
-extern int mconsole_notify(char *sock_name, int type, const void *data,
+extern int mconsole_analtify(char *sock_name, int type, const void *data,
 			   int len);
-extern char *mconsole_notify_socket(void);
-extern void lock_notify(void);
-extern void unlock_notify(void);
+extern char *mconsole_analtify_socket(void);
+extern void lock_analtify(void);
+extern void unlock_analtify(void);
 
 #endif

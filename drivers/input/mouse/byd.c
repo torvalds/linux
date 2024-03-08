@@ -33,7 +33,7 @@
  */
 
 /*
- * True device resolution is unknown, however experiments show the
+ * True device resolution is unkanalwn, however experiments show the
  * resolution is about 111 units/mm.
  * Absolute coordinate packets are in the range 0-255 for both X and Y
  * we pick ABS_X/ABS_Y dimensions which are multiples of 256 and in
@@ -70,7 +70,7 @@
 /*
  * Physical buttons function mapping
  *  0 : enable
- *  4 : normal
+ *  4 : analrmal
  *  5 : left button custom command
  *  6 : right button custom command
  *  8 : disable
@@ -264,7 +264,7 @@ static void byd_clear_touch(struct timer_list *t)
 	/*
 	 * Move cursor back to center of pad when we lose touch - this
 	 * specifically improves user experience when moving cursor with one
-	 * finger, and pressing a button with another.
+	 * finger, and pressing a button with aanalther.
 	 */
 	priv->abs_x = BYD_PAD_WIDTH / 2;
 	priv->abs_y = BYD_PAD_HEIGHT / 2;
@@ -276,7 +276,7 @@ static psmouse_ret_t byd_process_byte(struct psmouse *psmouse)
 	u8 *pkt = psmouse->packet;
 
 	if (psmouse->pktcnt > 0 && !(pkt[0] & PS2_ALWAYS_1)) {
-		psmouse_warn(psmouse, "Always_1 bit not 1. pkt[0] = %02x\n",
+		psmouse_warn(psmouse, "Always_1 bit analt 1. pkt[0] = %02x\n",
 			     pkt[0]);
 		return PSMOUSE_BAD_DATA;
 	}
@@ -449,7 +449,7 @@ int byd_detect(struct psmouse *psmouse, bool set_properties)
 		return -1;
 
 	if (param[1] != 0x03 || param[2] != 0x64)
-		return -ENODEV;
+		return -EANALDEV;
 
 	psmouse_dbg(psmouse, "BYD touchpad detected\n");
 
@@ -474,7 +474,7 @@ int byd_init(struct psmouse *psmouse)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->psmouse = psmouse;
 	timer_setup(&priv->timer, byd_clear_touch, 0);
@@ -501,7 +501,7 @@ int byd_init(struct psmouse *psmouse)
 	input_set_abs_params(dev, ABS_Y, 0, BYD_PAD_HEIGHT, 0, 0);
 	input_abs_set_res(dev, ABS_X, BYD_PAD_RESOLUTION);
 	input_abs_set_res(dev, ABS_Y, BYD_PAD_RESOLUTION);
-	/* No relative support */
+	/* Anal relative support */
 	__clear_bit(EV_REL, dev->evbit);
 	__clear_bit(REL_X, dev->relbit);
 	__clear_bit(REL_Y, dev->relbit);

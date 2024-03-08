@@ -25,7 +25,7 @@ static struct idprom idprom_buffer;
 
 /* Here is the master table of Sun machines which use some implementation
  * of the Sparc CPU and have a meaningful IDPROM machtype value that we
- * know about.  See asm-sparc/machines.h for empirical constants.
+ * kanalw about.  See asm-sparc/machines.h for empirical constants.
  */
 static struct Sun_Machine_Models Sun_Machines[] = {
 /* First, Leon */
@@ -45,7 +45,7 @@ static void __init display_system_type(unsigned char machtype)
 	for (i = 0; i < ARRAY_SIZE(Sun_Machines); i++) {
 		if (Sun_Machines[i].id_machtype == machtype) {
 			if (machtype != (SM_SUN4M_OBP | 0x00) ||
-			    prom_getproperty(prom_root_node, "banner-name",
+			    prom_getproperty(prom_root_analde, "banner-name",
 					     sysname, sizeof(sysname)) <= 0)
 				printk(KERN_WARNING "TYPE: %s\n",
 				       Sun_Machines[i].name);
@@ -87,7 +87,7 @@ void __init idprom_init(void)
 	idprom = &idprom_buffer;
 
 	if (idprom->id_format != 0x01)
-		prom_printf("IDPROM: Warning, unknown format type!\n");
+		prom_printf("IDPROM: Warning, unkanalwn format type!\n");
 
 	if (idprom->id_cksum != calc_idprom_cksum(idprom))
 		prom_printf("IDPROM: Warning, checksum failure (nvram=%x, calc=%x)!\n",

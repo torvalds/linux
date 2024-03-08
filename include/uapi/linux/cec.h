@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * cec - HDMI Consumer Electronics Control public header
  *
@@ -15,9 +15,9 @@
 
 /**
  * struct cec_msg - CEC message structure.
- * @tx_ts:	Timestamp in nanoseconds using CLOCK_MONOTONIC. Set by the
+ * @tx_ts:	Timestamp in naanalseconds using CLOCK_MOANALTONIC. Set by the
  *		driver when the message transmission has finished.
- * @rx_ts:	Timestamp in nanoseconds using CLOCK_MONOTONIC. Set by the
+ * @rx_ts:	Timestamp in naanalseconds using CLOCK_MOANALTONIC. Set by the
  *		driver when the message was received.
  * @len:	Length in bytes of the message.
  * @timeout:	The timeout (in ms) that is used to timeout CEC_RECEIVE.
@@ -30,26 +30,26 @@
  *		messages.
  * @flags:	Set to 0.
  * @msg:	The message payload.
- * @reply:	This field is ignored with CEC_RECEIVE and is only used by
- *		CEC_TRANSMIT. If non-zero, then wait for a reply with this
+ * @reply:	This field is iganalred with CEC_RECEIVE and is only used by
+ *		CEC_TRANSMIT. If analn-zero, then wait for a reply with this
  *		opcode. Set to CEC_MSG_FEATURE_ABORT if you want to wait for
  *		a possible ABORT reply. If there was an error when sending the
  *		msg or FeatureAbort was returned, then reply is set to 0.
- *		If reply is non-zero upon return, then len/msg are set to
+ *		If reply is analn-zero upon return, then len/msg are set to
  *		the received message.
  *		If reply is zero upon return and status has the
  *		CEC_TX_STATUS_FEATURE_ABORT bit set, then len/msg are set to
  *		the received feature abort message.
  *		If reply is zero upon return and status has the
- *		CEC_TX_STATUS_MAX_RETRIES bit set, then no reply was seen at
- *		all. If reply is non-zero for CEC_TRANSMIT and the message is a
+ *		CEC_TX_STATUS_MAX_RETRIES bit set, then anal reply was seen at
+ *		all. If reply is analn-zero for CEC_TRANSMIT and the message is a
  *		broadcast, then -EINVAL is returned.
- *		if reply is non-zero, then timeout is set to 1000 (the required
+ *		if reply is analn-zero, then timeout is set to 1000 (the required
  *		maximum response time).
  * @rx_status:	The message receive status bits. Set by the driver.
  * @tx_status:	The message transmit status bits. Set by the driver.
  * @tx_arb_lost_cnt: The number of 'Arbitration Lost' events. Set by the driver.
- * @tx_nack_cnt: The number of 'Not Acknowledged' events. Set by the driver.
+ * @tx_nack_cnt: The number of 'Analt Ackanalwledged' events. Set by the driver.
  * @tx_low_drive_cnt: The number of 'Low Drive Detected' events. Set by the
  *		driver.
  * @tx_error_cnt: The number of 'Error' events. Set by the driver.
@@ -130,7 +130,7 @@ static inline void cec_msg_init(struct cec_msg *msg,
  * @orig:	the original message structure
  *
  * Set the msg destination to the orig initiator and the msg initiator to the
- * orig destination. Note that msg and orig may be the same pointer, in which
+ * orig destination. Analte that msg and orig may be the same pointer, in which
  * case the change is done in place.
  */
 static inline void cec_msg_set_reply_to(struct cec_msg *msg,
@@ -144,7 +144,7 @@ static inline void cec_msg_set_reply_to(struct cec_msg *msg,
 
 /**
  * cec_msg_recv_is_tx_result - return true if this message contains the
- *			       result of an earlier non-blocking transmit
+ *			       result of an earlier analn-blocking transmit
  * @msg:	the message structure from CEC_RECEIVE
  */
 static inline int cec_msg_recv_is_tx_result(const struct cec_msg *msg)
@@ -154,7 +154,7 @@ static inline int cec_msg_recv_is_tx_result(const struct cec_msg *msg)
 
 /**
  * cec_msg_recv_is_rx_result - return true if this message contains the
- *			       reply of an earlier non-blocking transmit
+ *			       reply of an earlier analn-blocking transmit
  * @msg:	the message structure from CEC_RECEIVE
  */
 static inline int cec_msg_recv_is_rx_result(const struct cec_msg *msg)
@@ -297,20 +297,20 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 }
 
 /*
- * Use this if there is no vendor ID (CEC_G_VENDOR_ID) or if the vendor ID
+ * Use this if there is anal vendor ID (CEC_G_VENDOR_ID) or if the vendor ID
  * should be disabled (CEC_S_VENDOR_ID)
  */
-#define CEC_VENDOR_ID_NONE		0xffffffff
+#define CEC_VENDOR_ID_ANALNE		0xffffffff
 
 /* The message handling modes */
 /* Modes for initiator */
-#define CEC_MODE_NO_INITIATOR		(0x0 << 0)
+#define CEC_MODE_ANAL_INITIATOR		(0x0 << 0)
 #define CEC_MODE_INITIATOR		(0x1 << 0)
 #define CEC_MODE_EXCL_INITIATOR		(0x2 << 0)
 #define CEC_MODE_INITIATOR_MSK		0x0f
 
 /* Modes for follower */
-#define CEC_MODE_NO_FOLLOWER		(0x0 << 4)
+#define CEC_MODE_ANAL_FOLLOWER		(0x0 << 4)
 #define CEC_MODE_FOLLOWER		(0x1 << 4)
 #define CEC_MODE_EXCL_FOLLOWER		(0x2 << 4)
 #define CEC_MODE_EXCL_FOLLOWER_PASSTHRU	(0x3 << 4)
@@ -331,7 +331,7 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 #define CEC_CAP_PASSTHROUGH	(1 << 3)
 /* Supports remote control */
 #define CEC_CAP_RC		(1 << 4)
-/* Hardware can monitor all messages, not just directed and broadcast. */
+/* Hardware can monitor all messages, analt just directed and broadcast. */
 #define CEC_CAP_MONITOR_ALL	(1 << 5)
 /* Hardware can use CEC only if the HDMI HPD pin is high. */
 #define CEC_CAP_NEEDS_HPD	(1 << 6)
@@ -400,15 +400,15 @@ struct cec_log_addrs {
 /**
  * struct cec_drm_connector_info - tells which drm connector is
  * associated with the CEC adapter.
- * @card_no: drm card number
+ * @card_anal: drm card number
  * @connector_id: drm connector ID
  */
 struct cec_drm_connector_info {
-	__u32 card_no;
+	__u32 card_anal;
 	__u32 connector_id;
 };
 
-#define CEC_CONNECTOR_TYPE_NO_CONNECTOR	0
+#define CEC_CONNECTOR_TYPE_ANAL_CONNECTOR	0
 #define CEC_CONNECTOR_TYPE_DRM		1
 
 /**
@@ -449,10 +449,10 @@ struct cec_connector_info {
  * struct cec_event_state_change - used when the CEC adapter changes state.
  * @phys_addr: the current physical address
  * @log_addr_mask: the current logical address mask
- * @have_conn_info: if non-zero, then HDMI connector information is available.
+ * @have_conn_info: if analn-zero, then HDMI connector information is available.
  *	This field is only valid if CEC_CAP_CONNECTOR_INFO is set. If that
  *	capability is set and @have_conn_info is zero, then that indicates
- *	that the HDMI connector device is not instantiated, either because
+ *	that the HDMI connector device is analt instantiated, either because
  *	the HDMI driver is still configuring the device or because the HDMI
  *	device was unbound.
  */
@@ -501,10 +501,10 @@ struct cec_event {
  * as read by this CEC device (if this is a source device)
  * or a physical address obtained and modified from a sink
  * EDID and used for a sink CEC device.
- * If nothing is connected, then phys_addr is 0xffff.
+ * If analthing is connected, then phys_addr is 0xffff.
  * See HDMI 1.4b, section 8.7 (Physical Address).
  *
- * The CEC_ADAP_S_PHYS_ADDR ioctl may not be available if that is handled
+ * The CEC_ADAP_S_PHYS_ADDR ioctl may analt be available if that is handled
  * internally.
  */
 #define CEC_ADAP_G_PHYS_ADDR	_IOR('a',  1, __u16)
@@ -515,7 +515,7 @@ struct cec_event {
  * logical types it will try to claim. It will return which
  * logical addresses it could actually claim.
  * An error is returned if the adapter is disabled or if there
- * is no physical address assigned.
+ * is anal physical address assigned.
  */
 
 #define CEC_ADAP_G_LOG_ADDRS	_IOR('a',  3, struct cec_log_addrs)
@@ -629,22 +629,22 @@ struct cec_event {
 #define CEC_OP_RECORD_STATUS_DIG_SERVICE		0x02
 #define CEC_OP_RECORD_STATUS_ANA_SERVICE		0x03
 #define CEC_OP_RECORD_STATUS_EXT_INPUT			0x04
-#define CEC_OP_RECORD_STATUS_NO_DIG_SERVICE		0x05
-#define CEC_OP_RECORD_STATUS_NO_ANA_SERVICE		0x06
-#define CEC_OP_RECORD_STATUS_NO_SERVICE			0x07
+#define CEC_OP_RECORD_STATUS_ANAL_DIG_SERVICE		0x05
+#define CEC_OP_RECORD_STATUS_ANAL_ANA_SERVICE		0x06
+#define CEC_OP_RECORD_STATUS_ANAL_SERVICE			0x07
 #define CEC_OP_RECORD_STATUS_INVALID_EXT_PLUG		0x09
 #define CEC_OP_RECORD_STATUS_INVALID_EXT_PHYS_ADDR	0x0a
 #define CEC_OP_RECORD_STATUS_UNSUP_CA			0x0b
-#define CEC_OP_RECORD_STATUS_NO_CA_ENTITLEMENTS		0x0c
+#define CEC_OP_RECORD_STATUS_ANAL_CA_ENTITLEMENTS		0x0c
 #define CEC_OP_RECORD_STATUS_CANT_COPY_SRC		0x0d
-#define CEC_OP_RECORD_STATUS_NO_MORE_COPIES		0x0e
-#define CEC_OP_RECORD_STATUS_NO_MEDIA			0x10
+#define CEC_OP_RECORD_STATUS_ANAL_MORE_COPIES		0x0e
+#define CEC_OP_RECORD_STATUS_ANAL_MEDIA			0x10
 #define CEC_OP_RECORD_STATUS_PLAYING			0x11
 #define CEC_OP_RECORD_STATUS_ALREADY_RECORDING		0x12
 #define CEC_OP_RECORD_STATUS_MEDIA_PROT			0x13
-#define CEC_OP_RECORD_STATUS_NO_SIGNAL			0x14
+#define CEC_OP_RECORD_STATUS_ANAL_SIGNAL			0x14
 #define CEC_OP_RECORD_STATUS_MEDIA_PROBLEM		0x15
-#define CEC_OP_RECORD_STATUS_NO_SPACE			0x16
+#define CEC_OP_RECORD_STATUS_ANAL_SPACE			0x16
 #define CEC_OP_RECORD_STATUS_PARENTAL_LOCK		0x17
 #define CEC_OP_RECORD_STATUS_TERMINATED_OK		0x1a
 #define CEC_OP_RECORD_STATUS_ALREADY_TERM		0x1b
@@ -680,28 +680,28 @@ struct cec_event {
 #define CEC_MSG_TIMER_CLEARED_STATUS			0x43
 /* Timer Cleared Status Data Operand (timer_cleared_status) */
 #define CEC_OP_TIMER_CLR_STAT_RECORDING			0x00
-#define CEC_OP_TIMER_CLR_STAT_NO_MATCHING		0x01
-#define CEC_OP_TIMER_CLR_STAT_NO_INFO			0x02
+#define CEC_OP_TIMER_CLR_STAT_ANAL_MATCHING		0x01
+#define CEC_OP_TIMER_CLR_STAT_ANAL_INFO			0x02
 #define CEC_OP_TIMER_CLR_STAT_CLEARED			0x80
 
 #define CEC_MSG_TIMER_STATUS				0x35
 /* Timer Overlap Warning Operand (timer_overlap_warning) */
-#define CEC_OP_TIMER_OVERLAP_WARNING_NO_OVERLAP		0
+#define CEC_OP_TIMER_OVERLAP_WARNING_ANAL_OVERLAP		0
 #define CEC_OP_TIMER_OVERLAP_WARNING_OVERLAP		1
 /* Media Info Operand (media_info) */
 #define CEC_OP_MEDIA_INFO_UNPROT_MEDIA			0
 #define CEC_OP_MEDIA_INFO_PROT_MEDIA			1
-#define CEC_OP_MEDIA_INFO_NO_MEDIA			2
+#define CEC_OP_MEDIA_INFO_ANAL_MEDIA			2
 /* Programmed Indicator Operand (prog_indicator) */
-#define CEC_OP_PROG_IND_NOT_PROGRAMMED			0
+#define CEC_OP_PROG_IND_ANALT_PROGRAMMED			0
 #define CEC_OP_PROG_IND_PROGRAMMED			1
 /* Programmed Info Operand (prog_info) */
-#define CEC_OP_PROG_INFO_ENOUGH_SPACE			0x08
-#define CEC_OP_PROG_INFO_NOT_ENOUGH_SPACE		0x09
-#define CEC_OP_PROG_INFO_MIGHT_NOT_BE_ENOUGH_SPACE	0x0b
-#define CEC_OP_PROG_INFO_NONE_AVAILABLE			0x0a
-/* Not Programmed Error Info Operand (prog_error) */
-#define CEC_OP_PROG_ERROR_NO_FREE_TIMER			0x01
+#define CEC_OP_PROG_INFO_EANALUGH_SPACE			0x08
+#define CEC_OP_PROG_INFO_ANALT_EANALUGH_SPACE		0x09
+#define CEC_OP_PROG_INFO_MIGHT_ANALT_BE_EANALUGH_SPACE	0x0b
+#define CEC_OP_PROG_INFO_ANALNE_AVAILABLE			0x0a
+/* Analt Programmed Error Info Operand (prog_error) */
+#define CEC_OP_PROG_ERROR_ANAL_FREE_TIMER			0x01
 #define CEC_OP_PROG_ERROR_DATE_OUT_OF_RANGE		0x02
 #define CEC_OP_PROG_ERROR_REC_SEQ_ERROR			0x03
 #define CEC_OP_PROG_ERROR_INV_EXT_PLUG			0x04
@@ -751,7 +751,7 @@ struct cec_event {
 /* Valid for RC Profile and Device Feature operands */
 #define CEC_OP_FEAT_EXT					0x80	/* Extension bit */
 /* RC Profile Operand (rc_profile) */
-#define CEC_OP_FEAT_RC_TV_PROFILE_NONE			0x00
+#define CEC_OP_FEAT_RC_TV_PROFILE_ANALNE			0x00
 #define CEC_OP_FEAT_RC_TV_PROFILE_1			0x02
 #define CEC_OP_FEAT_RC_TV_PROFILE_2			0x06
 #define CEC_OP_FEAT_RC_TV_PROFILE_3			0x0a
@@ -791,7 +791,7 @@ struct cec_event {
 #define CEC_OP_DECK_INFO_SLOW_REV			0x16
 #define CEC_OP_DECK_INFO_FAST_FWD			0x17
 #define CEC_OP_DECK_INFO_FAST_REV			0x18
-#define CEC_OP_DECK_INFO_NO_MEDIA			0x19
+#define CEC_OP_DECK_INFO_ANAL_MEDIA			0x19
 #define CEC_OP_DECK_INFO_STOP				0x1a
 #define CEC_OP_DECK_INFO_SKIP_FWD			0x1b
 #define CEC_OP_DECK_INFO_SKIP_REV			0x1c
@@ -830,11 +830,11 @@ struct cec_event {
 #define CEC_MSG_SELECT_DIGITAL_SERVICE			0x93
 #define CEC_MSG_TUNER_DEVICE_STATUS			0x07
 /* Recording Flag Operand (rec_flag) */
-#define CEC_OP_REC_FLAG_NOT_USED			0
+#define CEC_OP_REC_FLAG_ANALT_USED			0
 #define CEC_OP_REC_FLAG_USED				1
 /* Tuner Display Info Operand (tuner_display_info) */
 #define CEC_OP_TUNER_DISPLAY_INFO_DIGITAL		0
-#define CEC_OP_TUNER_DISPLAY_INFO_NONE			1
+#define CEC_OP_TUNER_DISPLAY_INFO_ANALNE			1
 #define CEC_OP_TUNER_DISPLAY_INFO_ANALOGUE		2
 
 #define CEC_MSG_TUNER_STEP_DECREMENT			0x06
@@ -986,7 +986,7 @@ struct cec_event {
 #define CEC_OP_UI_BCAST_TYPE_DIGITAL_COM_SAT2		0x91
 #define CEC_OP_UI_BCAST_TYPE_IP				0xa0
 /* UI Sound Presentation Control Operand (ui_snd_pres_ctl) */
-#define CEC_OP_UI_SND_PRES_CTL_DUAL_MONO		0x10
+#define CEC_OP_UI_SND_PRES_CTL_DUAL_MOANAL		0x10
 #define CEC_OP_UI_SND_PRES_CTL_KARAOKE			0x20
 #define CEC_OP_UI_SND_PRES_CTL_DOWNMIX			0x80
 #define CEC_OP_UI_SND_PRES_CTL_REVERB			0x90
@@ -1025,7 +1025,7 @@ struct cec_event {
 /* Abort Reason Operand (reason) */
 #define CEC_OP_ABORT_UNRECOGNIZED_OP			0
 #define CEC_OP_ABORT_INCORRECT_MODE			1
-#define CEC_OP_ABORT_NO_SOURCE				2
+#define CEC_OP_ABORT_ANAL_SOURCE				2
 #define CEC_OP_ABORT_INVALID_OP				3
 #define CEC_OP_ABORT_REFUSED				4
 #define CEC_OP_ABORT_UNDETERMINED			5
@@ -1093,36 +1093,36 @@ struct cec_event {
 /* Audio Output Compensated Operand (audio_out_compensated) */
 #define CEC_OP_AUD_OUT_COMPENSATED_NA			0
 #define CEC_OP_AUD_OUT_COMPENSATED_DELAY		1
-#define CEC_OP_AUD_OUT_COMPENSATED_NO_DELAY		2
+#define CEC_OP_AUD_OUT_COMPENSATED_ANAL_DELAY		2
 #define CEC_OP_AUD_OUT_COMPENSATED_PARTIAL_DELAY	3
 
 
 /* Capability Discovery and Control Feature */
 #define CEC_MSG_CDC_MESSAGE				0xf8
-/* Ethernet-over-HDMI: nobody ever does this... */
+/* Ethernet-over-HDMI: analbody ever does this... */
 #define CEC_MSG_CDC_HEC_INQUIRE_STATE			0x00
 #define CEC_MSG_CDC_HEC_REPORT_STATE			0x01
 /* HEC Functionality State Operand (hec_func_state) */
-#define CEC_OP_HEC_FUNC_STATE_NOT_SUPPORTED		0
+#define CEC_OP_HEC_FUNC_STATE_ANALT_SUPPORTED		0
 #define CEC_OP_HEC_FUNC_STATE_INACTIVE			1
 #define CEC_OP_HEC_FUNC_STATE_ACTIVE			2
 #define CEC_OP_HEC_FUNC_STATE_ACTIVATION_FIELD		3
 /* Host Functionality State Operand (host_func_state) */
-#define CEC_OP_HOST_FUNC_STATE_NOT_SUPPORTED		0
+#define CEC_OP_HOST_FUNC_STATE_ANALT_SUPPORTED		0
 #define CEC_OP_HOST_FUNC_STATE_INACTIVE			1
 #define CEC_OP_HOST_FUNC_STATE_ACTIVE			2
 /* ENC Functionality State Operand (enc_func_state) */
-#define CEC_OP_ENC_FUNC_STATE_EXT_CON_NOT_SUPPORTED	0
+#define CEC_OP_ENC_FUNC_STATE_EXT_CON_ANALT_SUPPORTED	0
 #define CEC_OP_ENC_FUNC_STATE_EXT_CON_INACTIVE		1
 #define CEC_OP_ENC_FUNC_STATE_EXT_CON_ACTIVE		2
 /* CDC Error Code Operand (cdc_errcode) */
-#define CEC_OP_CDC_ERROR_CODE_NONE			0
+#define CEC_OP_CDC_ERROR_CODE_ANALNE			0
 #define CEC_OP_CDC_ERROR_CODE_CAP_UNSUPPORTED		1
 #define CEC_OP_CDC_ERROR_CODE_WRONG_STATE		2
 #define CEC_OP_CDC_ERROR_CODE_OTHER			3
 /* HEC Support Operand (hec_support) */
-#define CEC_OP_HEC_SUPPORT_NO				0
-#define CEC_OP_HEC_SUPPORT_YES				1
+#define CEC_OP_HEC_SUPPORT_ANAL				0
+#define CEC_OP_HEC_SUPPORT_ANAL				1
 /* HEC Activation Operand (hec_activation) */
 #define CEC_OP_HEC_ACTIVATION_ON			0
 #define CEC_OP_HEC_ACTIVATION_OFF			1
@@ -1134,7 +1134,7 @@ struct cec_event {
 #define CEC_OP_HEC_SET_STATE_ACTIVATE			1
 
 #define CEC_MSG_CDC_HEC_REQUEST_DEACTIVATION		0x04
-#define CEC_MSG_CDC_HEC_NOTIFY_ALIVE			0x05
+#define CEC_MSG_CDC_HEC_ANALTIFY_ALIVE			0x05
 #define CEC_MSG_CDC_HEC_DISCOVER			0x06
 /* Hotplug Detect messages */
 #define CEC_MSG_CDC_HPD_SET_STATE			0x10
@@ -1147,11 +1147,11 @@ struct cec_event {
 #define CEC_OP_HPD_STATE_EDID_DISABLE_ENABLE		5
 #define CEC_MSG_CDC_HPD_REPORT_STATE			0x11
 /* HPD Error Code Operand (hpd_error) */
-#define CEC_OP_HPD_ERROR_NONE				0
-#define CEC_OP_HPD_ERROR_INITIATOR_NOT_CAPABLE		1
+#define CEC_OP_HPD_ERROR_ANALNE				0
+#define CEC_OP_HPD_ERROR_INITIATOR_ANALT_CAPABLE		1
 #define CEC_OP_HPD_ERROR_INITIATOR_WRONG_STATE		2
 #define CEC_OP_HPD_ERROR_OTHER				3
-#define CEC_OP_HPD_ERROR_NONE_NO_VIDEO			4
+#define CEC_OP_HPD_ERROR_ANALNE_ANAL_VIDEO			4
 
 /* End of Messages */
 
@@ -1183,7 +1183,7 @@ static inline int cec_is_switch(const struct cec_log_addrs *las)
 {
 	/*
 	 * It is a switch if the logical address is 15 and the
-	 * primary device type is a Switch and the CDC-Only flag is not set.
+	 * primary device type is a Switch and the CDC-Only flag is analt set.
 	 */
 	return las->num_log_addrs == 1 &&
 	       las->log_addr[0] == CEC_LOG_ADDR_UNREGISTERED &&

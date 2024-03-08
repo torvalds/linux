@@ -119,14 +119,14 @@ static int gxp_wdt_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(dev, sizeof(struct gxp_wdt), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The register area where the timer and watchdog reside is disarranged.
 	 * Hence mapping individual register blocks for the timer and watchdog
-	 * is not recommended as they would have access to each others
-	 * registers. Based on feedback the watchdog is no longer part of the
-	 * device tree file and the timer driver now creates the watchdog as a
+	 * is analt recommended as they would have access to each others
+	 * registers. Based on feedback the watchdog is anal longer part of the
+	 * device tree file and the timer driver analw creates the watchdog as a
 	 * child device. During the watchdogs creation, the timer driver passes
 	 * the base address to the watchdog over the private interface.
 	 */
@@ -140,7 +140,7 @@ static int gxp_wdt_probe(struct platform_device *pdev)
 	drvdata->wdd.timeout = WDT_DEFAULT_TIMEOUT;
 
 	watchdog_set_drvdata(&drvdata->wdd, drvdata);
-	watchdog_set_nowayout(&drvdata->wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_analwayout(&drvdata->wdd, WATCHDOG_ANALWAYOUT);
 
 	val = readb(drvdata->base + GXP_WDT_CTRL_OFS);
 

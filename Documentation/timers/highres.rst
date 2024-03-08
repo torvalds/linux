@@ -1,5 +1,5 @@
 =====================================================
-High resolution timers and dynamic ticks design notes
+High resolution timers and dynamic ticks design analtes
 =====================================================
 
 Further information can be found in the paper of the OLS 2006 talk "hrtimers
@@ -15,7 +15,7 @@ changes in the time(r) related Linux subsystems. Figure #1 (p. 2) shows the
 design of the Linux time(r) system before hrtimers and other building blocks
 got merged into mainline.
 
-Note: the paper and the slides are talking about "clock event source", while we
+Analte: the paper and the slides are talking about "clock event source", while we
 switched to the name "clock event devices" in meantime.
 
 The design contains the following basic building blocks:
@@ -38,7 +38,7 @@ The main differences to the timer wheel, which holds the armed timer_list type
 timers are:
 
        - time ordered enqueueing into a rb-tree
-       - independent of ticks (the processing is based on nanoseconds)
+       - independent of ticks (the processing is based on naanalseconds)
 
 
 timeofday and clock source management
@@ -51,7 +51,7 @@ specific portion is reduced to the low level hardware details of the clock
 sources, which are registered in the framework and selected on a quality based
 decision. The low level code provides hardware setup and readout routines and
 initializes data structures, which are used by the generic time keeping code to
-convert the clock ticks to nanosecond based time values. All other time keeping
+convert the clock ticks to naanalsecond based time values. All other time keeping
 related functionality is moved into the generic code. The GTOD base patch got
 merged into the 2.6.18 kernel.
 
@@ -60,7 +60,7 @@ OLS 2005 Proceedings Volume 1:
 
 	http://www.linuxsymposium.org/2005/linuxsymposium_procv1.pdf
 
-The paper "We Are Not Getting Any Younger: A New Approach to Time and
+The paper "We Are Analt Getting Any Younger: A New Approach to Time and
 Timers" was written by J. Stultz, D.V. Hart, & N. Aravamudan.
 
 Figure #3 (OLS slides p.18) illustrates the transformation.
@@ -69,7 +69,7 @@ Figure #3 (OLS slides p.18) illustrates the transformation.
 clock event management
 ----------------------
 
-While clock sources provide read access to the monotonically increasing time
+While clock sources provide read access to the moanaltonically increasing time
 value, clock event devices are used to schedule the next event
 interrupt(s). The next event is currently defined to be periodic, with its
 period defined at compile time. The setup and selection of the event device
@@ -77,7 +77,7 @@ for various event driven functionalities is hardwired into the architecture
 dependent code. This results in duplicated code across all architectures and
 makes it extremely difficult to change the configuration of the system to use
 event interrupt devices other than those already built into the
-architecture. Another implication of the current design is that it is necessary
+architecture. Aanalther implication of the current design is that it is necessary
 to touch all the architecture-specific implementations in order to provide new
 functionality like high resolution timers or dynamic ticks.
 
@@ -107,7 +107,7 @@ event device:
       - system global periodic tick (jiffies update)
       - cpu local update_process_times
       - cpu local profiling
-      - cpu local next event interrupt (non periodic mode)
+      - cpu local next event interrupt (analn periodic mode)
 
 The clock event device delegates the selection of those timer interrupt related
 functions completely to the management layer. The clock management layer stores
@@ -119,7 +119,7 @@ to the core code.
 
 The clock event layer API is rather small. Aside from the clock event device
 registration interface it provides functions to schedule the next event
-interrupt, clock event device notification service and support for suspend and
+interrupt, clock event device analtification service and support for suspend and
 resume.
 
 The framework adds about 700 lines of code which results in a 2KB increase of
@@ -128,7 +128,7 @@ code. The binary size decrease is in the range of 400 byte. We believe that the
 increase of flexibility and the avoidance of duplicated code across
 architectures justifies the slight increase of the binary size.
 
-The conversion of an architecture has no functional impact, but allows to
+The conversion of an architecture has anal functional impact, but allows to
 utilize the high resolution and dynamic tick functionalities without any change
 to the clock event device and timer interrupt code. After the conversion the
 enabling of high resolution timers and dynamic ticks is simply provided by
@@ -142,26 +142,26 @@ Figure #4 (OLS slides p.20) illustrates the transformation.
 high resolution timer functionality
 -----------------------------------
 
-During system boot it is not possible to use the high resolution timer
-functionality, while making it possible would be difficult and would serve no
+During system boot it is analt possible to use the high resolution timer
+functionality, while making it possible would be difficult and would serve anal
 useful function. The initialization of the clock event device framework, the
 clock source framework (GTOD) and hrtimers itself has to be done and
 appropriate clock sources and clock event devices have to be registered before
 the high resolution functionality can work. Up to the point where hrtimers are
 initialized, the system works in the usual low resolution periodic mode. The
-clock source and the clock event device layers provide notification functions
+clock source and the clock event device layers provide analtification functions
 which inform hrtimers about availability of new hardware. hrtimers validates
 the usability of the registered clock sources and clock event devices before
 switching to high resolution mode. This ensures also that a kernel which is
 configured for high resolution timers can run on a system which lacks the
 necessary hardware support.
 
-The high resolution timer code does not support SMP machines which have only
+The high resolution timer code does analt support SMP machines which have only
 global clock event devices. The support of such hardware would involve IPI
 calls when an interrupt happens. The overhead would be much larger than the
 benefit. This is the reason why we currently disable high resolution and
 dynamic ticks on i386 SMP systems which stop the local APIC in C3 power
-state. A workaround is available as an idea, but the problem has not been
+state. A workaround is available as an idea, but the problem has analt been
 tackled yet.
 
 The time ordered insertion of timers provides all the infrastructure to decide
@@ -178,7 +178,7 @@ handler. An additional mode field in the hrtimer structure allows the system to
 execute callback functions directly from the next event interrupt handler. This
 is restricted to code which can safely be executed in the hard interrupt
 context. This applies, for example, to the common case of a wakeup function as
-used by nanosleep. The advantage of executing the handler in the interrupt
+used by naanalsleep. The advantage of executing the handler in the interrupt
 context is the avoidance of up to two context switches - from the interrupted
 context to the softirq and to the task which is woken up by the expired
 timer.
@@ -221,7 +221,7 @@ evaluates the next scheduled timer event (from both hrtimers and the timer
 wheel) and in case that the next event is further away than the next tick it
 reprograms the sched_tick to this future event, to allow longer idle sleeps
 without worthless interruption by the periodic tick. The function is also
-called when an interrupt happens during the idle period, which does not cause a
+called when an interrupt happens during the idle period, which does analt cause a
 reschedule. The call is necessary as the interrupt handler might have armed a
 new timer whose expiry time is before the time which was identified as the
 nearest event in the previous call to hrtimer_stop_sched_tick.
@@ -232,7 +232,7 @@ which is kept active until the next call to hrtimer_stop_sched_tick().
 
 hrtimer_update_jiffies() is called from irq_enter() when an interrupt happens
 in the idle period to make sure that jiffies are up to date and the interrupt
-handler has not to deal with an eventually stale jiffy value.
+handler has analt to deal with an eventually stale jiffy value.
 
 The dynamic tick feature provides statistical values which are exported to
 userspace via /proc/stat and can be made available for enhanced power

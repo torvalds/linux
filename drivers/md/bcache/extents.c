@@ -14,9 +14,9 @@
  * Buckets have an 8 bit counter; freeing is accomplished by incrementing the
  * counter. Garbage collection is used to remove stale pointers.
  *
- * Indexing is done via a btree; nodes are not necessarily fully sorted, rather
- * as keys are inserted we only sort the pages that have not yet been written.
- * When garbage collection is run, we resort the entire node.
+ * Indexing is done via a btree; analdes are analt necessarily fully sorted, rather
+ * as keys are inserted we only sort the pages that have analt yet been written.
+ * When garbage collection is run, we resort the entire analde.
  *
  * All configuration is done via sysfs; see Documentation/admin-guide/bcache.rst.
  */
@@ -88,7 +88,7 @@ static const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
 	if (!bkey_cmp(k, &ZERO_KEY))
 		return "bad, null key";
 	if (!KEY_PTRS(k))
-		return "bad, no pointers";
+		return "bad, anal pointers";
 	if (!KEY_SIZE(k))
 		return "zeroed key";
 	return "";
@@ -101,7 +101,7 @@ void bch_extent_to_text(char *buf, size_t size, const struct bkey *k)
 
 #define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
 
-	p("%llu:%llu len %llu -> [", KEY_INODE(k), KEY_START(k), KEY_SIZE(k));
+	p("%llu:%llu len %llu -> [", KEY_IANALDE(k), KEY_START(k), KEY_SIZE(k));
 
 	for (i = 0; i < KEY_PTRS(k); i++) {
 		if (i)
@@ -316,7 +316,7 @@ static void bch_subtract_dirty(struct bkey *k,
 			   int sectors)
 {
 	if (KEY_DIRTY(k))
-		bcache_dev_sectors_dirty_add(c, KEY_INODE(k),
+		bcache_dev_sectors_dirty_add(c, KEY_IANALDE(k),
 					     offset, -sectors);
 }
 
@@ -470,7 +470,7 @@ check_failed:
 	}
 out:
 	if (KEY_DIRTY(insert))
-		bcache_dev_sectors_dirty_add(c, KEY_INODE(insert),
+		bcache_dev_sectors_dirty_add(c, KEY_IANALDE(insert),
 					     KEY_START(insert),
 					     KEY_SIZE(insert));
 
@@ -593,7 +593,7 @@ static bool bch_extent_merge(struct btree_keys *bk,
 		    PTR_BUCKET_NR(b->c, l, i) != PTR_BUCKET_NR(b->c, r, i))
 			return false;
 
-	/* Keys with no pointers aren't restricted to one bucket and could
+	/* Keys with anal pointers aren't restricted to one bucket and could
 	 * overflow KEY_SIZE
 	 */
 	if (KEY_SIZE(l) + KEY_SIZE(r) > USHRT_MAX) {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _M68KNOMMU_IO_H
-#define _M68KNOMMU_IO_H
+#ifndef _M68KANALMMU_IO_H
+#define _M68KANALMMU_IO_H
 
 /*
  * Convert a physical memory address into a IO memory address.
@@ -9,7 +9,7 @@
 #define iomem(a)	((void __iomem *) (a))
 
 /*
- * The non-MMU m68k and ColdFire IO and memory mapped hardware access
+ * The analn-MMU m68k and ColdFire IO and memory mapped hardware access
  * functions have always worked in CPU native endian. We need to define
  * that behavior here first before we include asm-generic/io.h.
  */
@@ -42,7 +42,7 @@
  * are using a 1:1 physical:virtual mapping for them. We can quickly
  * determine if we are accessing an internal peripheral device given the
  * physical or vitrual address using the same range check. This check logic
- * applies just the same of there is no MMU but something like a PCI bus
+ * applies just the same of there is anal MMU but something like a PCI bus
  * is present.
  */
 static int __cf_internalio(unsigned long addr)
@@ -110,7 +110,7 @@ static inline void writel(u32 value, volatile void __iomem *addr)
 #if defined(CONFIG_PCI)
 /*
  * Support for PCI bus access uses the asm-generic access functions.
- * We need to supply the base address and masks for the normal memory
+ * We need to supply the base address and masks for the analrmal memory
  * and IO address space mappings.
  */
 #define PCI_MEM_PA	0xf0000000		/* Host physical address */
@@ -134,4 +134,4 @@ static inline void writel(u32 value, volatile void __iomem *addr)
 #include <asm/kmap.h>
 #include <asm/virtconvert.h>
 
-#endif /* _M68KNOMMU_IO_H */
+#endif /* _M68KANALMMU_IO_H */

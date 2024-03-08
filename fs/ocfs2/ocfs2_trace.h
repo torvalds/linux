@@ -42,15 +42,15 @@ DEFINE_EVENT(ocfs2__uint, name,	\
 	TP_ARGS(num))
 
 DECLARE_EVENT_CLASS(ocfs2__ull,
-	TP_PROTO(unsigned long long blkno),
-	TP_ARGS(blkno),
+	TP_PROTO(unsigned long long blkanal),
+	TP_ARGS(blkanal),
 	TP_STRUCT__entry(
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 	),
 	TP_fast_assign(
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 	),
-	TP_printk("%llu", __entry->blkno)
+	TP_printk("%llu", __entry->blkanal)
 );
 
 #define DEFINE_OCFS2_ULL_EVENT(name)	\
@@ -435,21 +435,21 @@ TRACE_EVENT(ocfs2_grow_tree,
 );
 
 TRACE_EVENT(ocfs2_rotate_subtree,
-	TP_PROTO(int subtree_root, unsigned long long blkno,
+	TP_PROTO(int subtree_root, unsigned long long blkanal,
 		 int depth),
-	TP_ARGS(subtree_root, blkno, depth),
+	TP_ARGS(subtree_root, blkanal, depth),
 	TP_STRUCT__entry(
 		__field(int, subtree_root)
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 		__field(int, depth)
 	),
 	TP_fast_assign(
 		__entry->subtree_root = subtree_root;
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 		__entry->depth = depth;
 	),
 	TP_printk("%d %llu %d", __entry->subtree_root,
-		  __entry->blkno, __entry->depth)
+		  __entry->blkanal, __entry->depth)
 );
 
 TRACE_EVENT(ocfs2_insert_extent,
@@ -526,36 +526,36 @@ TRACE_EVENT(ocfs2_remove_extent,
 );
 
 TRACE_EVENT(ocfs2_commit_truncate,
-	TP_PROTO(unsigned long long ino, unsigned int new_cpos,
+	TP_PROTO(unsigned long long ianal, unsigned int new_cpos,
 		 unsigned int clusters, unsigned int depth),
-	TP_ARGS(ino, new_cpos, clusters, depth),
+	TP_ARGS(ianal, new_cpos, clusters, depth),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, new_cpos)
 		__field(unsigned int, clusters)
 		__field(unsigned int, depth)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->new_cpos = new_cpos;
 		__entry->clusters = clusters;
 		__entry->depth = depth;
 	),
 	TP_printk("%llu %u %u %u",
-		  __entry->ino, __entry->new_cpos,
+		  __entry->ianal, __entry->new_cpos,
 		  __entry->clusters, __entry->depth)
 );
 
 TRACE_EVENT(ocfs2_validate_extent_block,
-	TP_PROTO(unsigned long long blkno),
-	TP_ARGS(blkno),
+	TP_PROTO(unsigned long long blkanal),
+	TP_ARGS(blkanal),
 	TP_STRUCT__entry(
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 	),
 	TP_fast_assign(
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 	),
-	TP_printk("%llu ", __entry->blkno)
+	TP_printk("%llu ", __entry->blkanal)
 );
 
 TRACE_EVENT(ocfs2_rotate_leaf,
@@ -622,31 +622,31 @@ TRACE_EVENT(ocfs2_mark_extent_written,
 );
 
 DECLARE_EVENT_CLASS(ocfs2__truncate_log_ops,
-	TP_PROTO(unsigned long long blkno, int index,
+	TP_PROTO(unsigned long long blkanal, int index,
 		 unsigned int start, unsigned int num),
-	TP_ARGS(blkno, index, start, num),
+	TP_ARGS(blkanal, index, start, num),
 	TP_STRUCT__entry(
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 		__field(int, index)
 		__field(unsigned int, start)
 		__field(unsigned int, num)
 	),
 	TP_fast_assign(
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 		__entry->index = index;
 		__entry->start = start;
 		__entry->num = num;
 	),
 	TP_printk("%llu %d %u %u",
-		  __entry->blkno, __entry->index,
+		  __entry->blkanal, __entry->index,
 		  __entry->start, __entry->num)
 );
 
 #define DEFINE_OCFS2_TRUNCATE_LOG_OPS_EVENT(name)	\
 DEFINE_EVENT(ocfs2__truncate_log_ops, name,	\
-	TP_PROTO(unsigned long long blkno, int index,	\
+	TP_PROTO(unsigned long long blkanal, int index,	\
 		 unsigned int start, unsigned int num),	\
-	TP_ARGS(blkno, index, start, num))
+	TP_ARGS(blkanal, index, start, num))
 
 DEFINE_OCFS2_TRUNCATE_LOG_OPS_EVENT(ocfs2_truncate_log_append);
 
@@ -668,25 +668,25 @@ DEFINE_OCFS2_INT_INT_EVENT(ocfs2_run_deallocs);
 
 TRACE_EVENT(ocfs2_cache_block_dealloc,
 	TP_PROTO(int type, int slot, unsigned long long suballoc,
-		 unsigned long long blkno, unsigned int bit),
-	TP_ARGS(type, slot, suballoc, blkno, bit),
+		 unsigned long long blkanal, unsigned int bit),
+	TP_ARGS(type, slot, suballoc, blkanal, bit),
 	TP_STRUCT__entry(
 		__field(int, type)
 		__field(int, slot)
 		__field(unsigned long long, suballoc)
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 		__field(unsigned int, bit)
 	),
 	TP_fast_assign(
 		__entry->type = type;
 		__entry->slot = slot;
 		__entry->suballoc = suballoc;
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 		__entry->bit = bit;
 	),
 	TP_printk("%d %d %llu %llu %u",
 		  __entry->type, __entry->slot, __entry->suballoc,
-		  __entry->blkno, __entry->bit)
+		  __entry->blkanal, __entry->bit)
 );
 
 TRACE_EVENT(ocfs2_trim_extent,
@@ -695,18 +695,18 @@ TRACE_EVENT(ocfs2_trim_extent,
 	TP_ARGS(sb, blk, count),
 	TP_STRUCT__entry(
 		__field(int, dev_major)
-		__field(int, dev_minor)
+		__field(int, dev_mianalr)
 		__field(unsigned long long, blk)
 		__field(__u64,	count)
 	),
 	TP_fast_assign(
 		__entry->dev_major = MAJOR(sb->s_dev);
-		__entry->dev_minor = MINOR(sb->s_dev);
+		__entry->dev_mianalr = MIANALR(sb->s_dev);
 		__entry->blk = blk;
 		__entry->count = count;
 	),
 	TP_printk("%d %d %llu %llu",
-		  __entry->dev_major, __entry->dev_minor,
+		  __entry->dev_major, __entry->dev_mianalr,
 		  __entry->blk, __entry->count)
 );
 
@@ -740,23 +740,23 @@ DEFINE_OCFS2_INT_INT_EVENT(ocfs2_sync_local_to_main);
 
 TRACE_EVENT(ocfs2_sync_local_to_main_free,
 	TP_PROTO(int count, int bit, unsigned long long start_blk,
-		 unsigned long long blkno),
-	TP_ARGS(count, bit, start_blk, blkno),
+		 unsigned long long blkanal),
+	TP_ARGS(count, bit, start_blk, blkanal),
 	TP_STRUCT__entry(
 		__field(int, count)
 		__field(int, bit)
 		__field(unsigned long long, start_blk)
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 	),
 	TP_fast_assign(
 		__entry->count = count;
 		__entry->bit = bit;
 		__entry->start_blk = start_blk;
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 	),
 	TP_printk("%d %d %llu %llu",
 		  __entry->count, __entry->bit, __entry->start_blk,
-		  __entry->blkno)
+		  __entry->blkanal)
 );
 
 DEFINE_OCFS2_INT_INT_EVENT(ocfs2_local_alloc_new_window);
@@ -767,7 +767,7 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_local_alloc_new_window_result);
 
 /* Trace events for fs/ocfs2/resize.c. */
 
-DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_update_last_group_and_inode);
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_update_last_group_and_ianalde);
 
 DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_group_extend);
 
@@ -785,34 +785,34 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_block_group_alloc_discontig);
 
 DEFINE_OCFS2_ULL_EVENT(ocfs2_block_group_alloc);
 
-DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_reserve_suballoc_bits_nospc);
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_reserve_suballoc_bits_analspc);
 
-DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_reserve_suballoc_bits_no_new_group);
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_reserve_suballoc_bits_anal_new_group);
 
-DEFINE_OCFS2_ULL_EVENT(ocfs2_reserve_new_inode_new_group);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_reserve_new_ianalde_new_group);
 
 DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_block_group_set_bits);
 
 TRACE_EVENT(ocfs2_relink_block_group,
-	TP_PROTO(unsigned long long i_blkno, unsigned int chain,
-		 unsigned long long bg_blkno,
-		 unsigned long long prev_blkno),
-	TP_ARGS(i_blkno, chain, bg_blkno, prev_blkno),
+	TP_PROTO(unsigned long long i_blkanal, unsigned int chain,
+		 unsigned long long bg_blkanal,
+		 unsigned long long prev_blkanal),
+	TP_ARGS(i_blkanal, chain, bg_blkanal, prev_blkanal),
 	TP_STRUCT__entry(
-		__field(unsigned long long, i_blkno)
+		__field(unsigned long long, i_blkanal)
 		__field(unsigned int, chain)
-		__field(unsigned long long, bg_blkno)
-		__field(unsigned long long, prev_blkno)
+		__field(unsigned long long, bg_blkanal)
+		__field(unsigned long long, prev_blkanal)
 	),
 	TP_fast_assign(
-		__entry->i_blkno = i_blkno;
+		__entry->i_blkanal = i_blkanal;
 		__entry->chain = chain;
-		__entry->bg_blkno = bg_blkno;
-		__entry->prev_blkno = prev_blkno;
+		__entry->bg_blkanal = bg_blkanal;
+		__entry->prev_blkanal = prev_blkanal;
 	),
 	TP_printk("%llu %u %llu %llu",
-		  __entry->i_blkno, __entry->chain, __entry->bg_blkno,
-		  __entry->prev_blkno)
+		  __entry->i_blkanal, __entry->chain, __entry->bg_blkanal,
+		  __entry->prev_blkanal)
 );
 
 DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_cluster_group_search_wrong_max_bits);
@@ -829,47 +829,47 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_search_chain_end);
 
 DEFINE_OCFS2_UINT_EVENT(ocfs2_claim_suballoc_bits);
 
-DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_claim_new_inode_at_loc);
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_claim_new_ianalde_at_loc);
 
 DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_block_group_clear_bits);
 
 TRACE_EVENT(ocfs2_free_suballoc_bits,
-	TP_PROTO(unsigned long long inode, unsigned long long group,
+	TP_PROTO(unsigned long long ianalde, unsigned long long group,
 		 unsigned int start_bit, unsigned int count),
-	TP_ARGS(inode, group, start_bit, count),
+	TP_ARGS(ianalde, group, start_bit, count),
 	TP_STRUCT__entry(
-		__field(unsigned long long, inode)
+		__field(unsigned long long, ianalde)
 		__field(unsigned long long, group)
 		__field(unsigned int, start_bit)
 		__field(unsigned int, count)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->group = group;
 		__entry->start_bit = start_bit;
 		__entry->count = count;
 	),
-	TP_printk("%llu %llu %u %u", __entry->inode, __entry->group,
+	TP_printk("%llu %llu %u %u", __entry->ianalde, __entry->group,
 		  __entry->start_bit, __entry->count)
 );
 
 TRACE_EVENT(ocfs2_free_clusters,
-	TP_PROTO(unsigned long long bg_blkno, unsigned long long start_blk,
+	TP_PROTO(unsigned long long bg_blkanal, unsigned long long start_blk,
 		 unsigned int start_bit, unsigned int count),
-	TP_ARGS(bg_blkno, start_blk, start_bit, count),
+	TP_ARGS(bg_blkanal, start_blk, start_bit, count),
 	TP_STRUCT__entry(
-		__field(unsigned long long, bg_blkno)
+		__field(unsigned long long, bg_blkanal)
 		__field(unsigned long long, start_blk)
 		__field(unsigned int, start_bit)
 		__field(unsigned int, count)
 	),
 	TP_fast_assign(
-		__entry->bg_blkno = bg_blkno;
+		__entry->bg_blkanal = bg_blkanal;
 		__entry->start_blk = start_blk;
 		__entry->start_bit = start_bit;
 		__entry->count = count;
 	),
-	TP_printk("%llu %llu %u %u", __entry->bg_blkno, __entry->start_blk,
+	TP_printk("%llu %llu %u %u", __entry->bg_blkanal, __entry->start_blk,
 		  __entry->start_bit, __entry->count)
 );
 
@@ -877,7 +877,7 @@ DEFINE_OCFS2_ULL_EVENT(ocfs2_get_suballoc_slot_bit);
 
 DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_test_suballoc_bit);
 
-DEFINE_OCFS2_ULL_EVENT(ocfs2_test_inode_bit);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_test_ianalde_bit);
 
 /* End of trace events for fs/ocfs2/suballoc.c. */
 
@@ -889,7 +889,7 @@ DEFINE_OCFS2_ULL_EVENT(ocfs2_purge_refcount_trees);
 
 DEFINE_OCFS2_ULL_EVENT(ocfs2_create_refcount_tree);
 
-DEFINE_OCFS2_ULL_EVENT(ocfs2_create_refcount_tree_blkno);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_create_refcount_tree_blkanal);
 
 DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_change_refcount_rec);
 
@@ -900,34 +900,34 @@ DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_divide_leaf_refcount_block);
 DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_new_leaf_refcount_block);
 
 DECLARE_EVENT_CLASS(ocfs2__refcount_tree_ops,
-	TP_PROTO(unsigned long long blkno, int index,
+	TP_PROTO(unsigned long long blkanal, int index,
 		 unsigned long long cpos,
 		 unsigned int clusters, unsigned int refcount),
-	TP_ARGS(blkno, index, cpos, clusters, refcount),
+	TP_ARGS(blkanal, index, cpos, clusters, refcount),
 	TP_STRUCT__entry(
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 		__field(int, index)
 		__field(unsigned long long, cpos)
 		__field(unsigned int, clusters)
 		__field(unsigned int, refcount)
 	),
 	TP_fast_assign(
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 		__entry->index = index;
 		__entry->cpos = cpos;
 		__entry->clusters = clusters;
 		__entry->refcount = refcount;
 	),
-	TP_printk("%llu %d %llu %u %u", __entry->blkno, __entry->index,
+	TP_printk("%llu %d %llu %u %u", __entry->blkanal, __entry->index,
 		  __entry->cpos, __entry->clusters, __entry->refcount)
 );
 
 #define DEFINE_OCFS2_REFCOUNT_TREE_OPS_EVENT(name)	\
 DEFINE_EVENT(ocfs2__refcount_tree_ops, name,		\
-	TP_PROTO(unsigned long long blkno, int index,	\
+	TP_PROTO(unsigned long long blkanal, int index,	\
 		 unsigned long long cpos,		\
 		 unsigned int count, unsigned int refcount),	\
-	TP_ARGS(blkno, index, cpos, count, refcount))
+	TP_ARGS(blkanal, index, cpos, count, refcount))
 
 DEFINE_OCFS2_REFCOUNT_TREE_OPS_EVENT(ocfs2_insert_refcount_rec);
 
@@ -1041,36 +1041,36 @@ DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_duplicate_clusters_by_page);
 DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_duplicate_clusters_by_jbd);
 
 TRACE_EVENT(ocfs2_clear_ext_refcount,
-	TP_PROTO(unsigned long long ino, unsigned int cpos,
+	TP_PROTO(unsigned long long ianal, unsigned int cpos,
 		 unsigned int len, unsigned int p_cluster,
 		 unsigned int ext_flags),
-	TP_ARGS(ino, cpos, len, p_cluster, ext_flags),
+	TP_ARGS(ianal, cpos, len, p_cluster, ext_flags),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, cpos)
 		__field(unsigned int, len)
 		__field(unsigned int, p_cluster)
 		__field(unsigned int, ext_flags)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->cpos = cpos;
 		__entry->len = len;
 		__entry->p_cluster = p_cluster;
 		__entry->ext_flags = ext_flags;
 	),
 	TP_printk("%llu %u %u %u %u",
-		  __entry->ino, __entry->cpos, __entry->len,
+		  __entry->ianal, __entry->cpos, __entry->len,
 		  __entry->p_cluster, __entry->ext_flags)
 );
 
 TRACE_EVENT(ocfs2_replace_clusters,
-	TP_PROTO(unsigned long long ino, unsigned int cpos,
+	TP_PROTO(unsigned long long ianal, unsigned int cpos,
 		 unsigned int old, unsigned int new, unsigned int len,
 		 unsigned int ext_flags),
-	TP_ARGS(ino, cpos, old, new, len, ext_flags),
+	TP_ARGS(ianal, cpos, old, new, len, ext_flags),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, cpos)
 		__field(unsigned int, old)
 		__field(unsigned int, new)
@@ -1078,7 +1078,7 @@ TRACE_EVENT(ocfs2_replace_clusters,
 		__field(unsigned int, ext_flags)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->cpos = cpos;
 		__entry->old = old;
 		__entry->new = new;
@@ -1086,19 +1086,19 @@ TRACE_EVENT(ocfs2_replace_clusters,
 		__entry->ext_flags = ext_flags;
 	),
 	TP_printk("%llu %u %u %u %u %u",
-		  __entry->ino, __entry->cpos, __entry->old, __entry->new,
+		  __entry->ianal, __entry->cpos, __entry->old, __entry->new,
 		  __entry->len, __entry->ext_flags)
 );
 
 DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_make_clusters_writable);
 
 TRACE_EVENT(ocfs2_refcount_cow_hunk,
-	TP_PROTO(unsigned long long ino, unsigned int cpos,
+	TP_PROTO(unsigned long long ianal, unsigned int cpos,
 		 unsigned int write_len, unsigned int max_cpos,
 		 unsigned int cow_start, unsigned int cow_len),
-	TP_ARGS(ino, cpos, write_len, max_cpos, cow_start, cow_len),
+	TP_ARGS(ianal, cpos, write_len, max_cpos, cow_start, cow_len),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, cpos)
 		__field(unsigned int, write_len)
 		__field(unsigned int, max_cpos)
@@ -1106,7 +1106,7 @@ TRACE_EVENT(ocfs2_refcount_cow_hunk,
 		__field(unsigned int, cow_len)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->cpos = cpos;
 		__entry->write_len = write_len;
 		__entry->max_cpos = max_cpos;
@@ -1114,7 +1114,7 @@ TRACE_EVENT(ocfs2_refcount_cow_hunk,
 		__entry->cow_len = cow_len;
 	),
 	TP_printk("%llu %u %u %u %u %u",
-		  __entry->ino, __entry->cpos, __entry->write_len,
+		  __entry->ianal, __entry->cpos, __entry->write_len,
 		  __entry->max_cpos, __entry->cow_start, __entry->cow_len)
 );
 
@@ -1123,31 +1123,31 @@ TRACE_EVENT(ocfs2_refcount_cow_hunk,
 /* Trace events for fs/ocfs2/aops.c. */
 
 DECLARE_EVENT_CLASS(ocfs2__get_block,
-	TP_PROTO(unsigned long long ino, unsigned long long iblock,
+	TP_PROTO(unsigned long long ianal, unsigned long long iblock,
 		 void *bh_result, int create),
-	TP_ARGS(ino, iblock, bh_result, create),
+	TP_ARGS(ianal, iblock, bh_result, create),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned long long, iblock)
 		__field(void *, bh_result)
 		__field(int, create)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->iblock = iblock;
 		__entry->bh_result = bh_result;
 		__entry->create = create;
 	),
 	TP_printk("%llu %llu %p %d",
-		  __entry->ino, __entry->iblock,
+		  __entry->ianal, __entry->iblock,
 		  __entry->bh_result, __entry->create)
 );
 
 #define DEFINE_OCFS2_GET_BLOCK_EVENT(name)	\
 DEFINE_EVENT(ocfs2__get_block, name,	\
-	TP_PROTO(unsigned long long ino, unsigned long long iblock,	\
+	TP_PROTO(unsigned long long ianal, unsigned long long iblock,	\
 		 void *bh_result, int create),	\
-	TP_ARGS(ino, iblock, bh_result, create))
+	TP_ARGS(ianal, iblock, bh_result, create))
 
 DEFINE_OCFS2_GET_BLOCK_EVENT(ocfs2_symlink_get_block);
 
@@ -1160,35 +1160,35 @@ DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_readpage);
 DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_bmap);
 
 TRACE_EVENT(ocfs2_try_to_write_inline_data,
-	TP_PROTO(unsigned long long ino, unsigned int len,
+	TP_PROTO(unsigned long long ianal, unsigned int len,
 		 unsigned long long pos, unsigned int flags),
-	TP_ARGS(ino, len, pos, flags),
+	TP_ARGS(ianal, len, pos, flags),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, len)
 		__field(unsigned long long, pos)
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->len = len;
 		__entry->pos = pos;
 		__entry->flags = flags;
 	),
 	TP_printk("%llu %u %llu 0x%x",
-		  __entry->ino, __entry->len, __entry->pos, __entry->flags)
+		  __entry->ianal, __entry->len, __entry->pos, __entry->flags)
 );
 
-TRACE_EVENT(ocfs2_write_begin_nolock,
-	TP_PROTO(unsigned long long ino,
+TRACE_EVENT(ocfs2_write_begin_anallock,
+	TP_PROTO(unsigned long long ianal,
 		 long long i_size, unsigned int i_clusters,
 		 unsigned long long pos, unsigned int len,
 		 unsigned int flags, void *page,
 		 unsigned int clusters, unsigned int extents_to_split),
-	TP_ARGS(ino, i_size, i_clusters, pos, len, flags,
+	TP_ARGS(ianal, i_size, i_clusters, pos, len, flags,
 		page, clusters, extents_to_split),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(long long, i_size)
 		__field(unsigned int, i_clusters)
 		__field(unsigned long long, pos)
@@ -1199,7 +1199,7 @@ TRACE_EVENT(ocfs2_write_begin_nolock,
 		__field(unsigned int, extents_to_split)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->i_size = i_size;
 		__entry->i_clusters = i_clusters;
 		__entry->pos = pos;
@@ -1210,33 +1210,33 @@ TRACE_EVENT(ocfs2_write_begin_nolock,
 		__entry->extents_to_split = extents_to_split;
 	),
 	TP_printk("%llu %lld %u %llu %u %u %p %u %u",
-		  __entry->ino, __entry->i_size, __entry->i_clusters,
+		  __entry->ianal, __entry->i_size, __entry->i_clusters,
 		  __entry->pos, __entry->len,
 		  __entry->flags, __entry->page, __entry->clusters,
 		  __entry->extents_to_split)
 );
 
 TRACE_EVENT(ocfs2_write_end_inline,
-	TP_PROTO(unsigned long long ino,
+	TP_PROTO(unsigned long long ianal,
 		 unsigned long long pos, unsigned int copied,
 		 unsigned int id_count, unsigned int features),
-	TP_ARGS(ino, pos, copied, id_count, features),
+	TP_ARGS(ianal, pos, copied, id_count, features),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned long long, pos)
 		__field(unsigned int, copied)
 		__field(unsigned int, id_count)
 		__field(unsigned int, features)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->pos = pos;
 		__entry->copied = copied;
 		__entry->id_count = id_count;
 		__entry->features = features;
 	),
 	TP_printk("%llu %llu %u %u %u",
-		  __entry->ino, __entry->pos, __entry->copied,
+		  __entry->ianal, __entry->pos, __entry->copied,
 		  __entry->id_count, __entry->features)
 );
 
@@ -1245,23 +1245,23 @@ TRACE_EVENT(ocfs2_write_end_inline,
 /* Trace events for fs/ocfs2/mmap.c. */
 
 TRACE_EVENT(ocfs2_fault,
-	TP_PROTO(unsigned long long ino,
+	TP_PROTO(unsigned long long ianal,
 		 void *area, void *page, unsigned long pgoff),
-	TP_ARGS(ino, area, page, pgoff),
+	TP_ARGS(ianal, area, page, pgoff),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(void *, area)
 		__field(void *, page)
 		__field(unsigned long, pgoff)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->area = area;
 		__entry->page = page;
 		__entry->pgoff = pgoff;
 	),
 	TP_printk("%llu %p %p %lu",
-		  __entry->ino, __entry->area, __entry->page, __entry->pgoff)
+		  __entry->ianal, __entry->area, __entry->page, __entry->pgoff)
 );
 
 /* End of trace events for fs/ocfs2/mmap.c. */
@@ -1269,41 +1269,41 @@ TRACE_EVENT(ocfs2_fault,
 /* Trace events for fs/ocfs2/file.c. */
 
 DECLARE_EVENT_CLASS(ocfs2__file_ops,
-	TP_PROTO(void *inode, void *file, void *dentry,
-		 unsigned long long ino,
+	TP_PROTO(void *ianalde, void *file, void *dentry,
+		 unsigned long long ianal,
 		 unsigned int d_len, const unsigned char *d_name,
 		 unsigned long long para),
-	TP_ARGS(inode, file, dentry, ino, d_len, d_name, para),
+	TP_ARGS(ianalde, file, dentry, ianal, d_len, d_name, para),
 	TP_STRUCT__entry(
-		__field(void *, inode)
+		__field(void *, ianalde)
 		__field(void *, file)
 		__field(void *, dentry)
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, d_len)
 		__string(d_name, d_name)
 		__field(unsigned long long, para)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->file = file;
 		__entry->dentry = dentry;
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->d_len = d_len;
 		__assign_str(d_name, d_name);
 		__entry->para = para;
 	),
-	TP_printk("%p %p %p %llu %llu %.*s", __entry->inode, __entry->file,
-		  __entry->dentry, __entry->ino, __entry->para,
+	TP_printk("%p %p %p %llu %llu %.*s", __entry->ianalde, __entry->file,
+		  __entry->dentry, __entry->ianal, __entry->para,
 		  __entry->d_len, __get_str(d_name))
 );
 
 #define DEFINE_OCFS2_FILE_OPS(name)				\
 DEFINE_EVENT(ocfs2__file_ops, name,				\
-TP_PROTO(void *inode, void *file, void *dentry,			\
-	 unsigned long long ino,				\
+TP_PROTO(void *ianalde, void *file, void *dentry,			\
+	 unsigned long long ianal,				\
 	 unsigned int d_len, const unsigned char *d_name,	\
 	 unsigned long long mode),				\
-	TP_ARGS(inode, file, dentry, ino, d_len, d_name, mode))
+	TP_ARGS(ianalde, file, dentry, ianal, d_len, d_name, mode))
 
 DEFINE_OCFS2_FILE_OPS(ocfs2_file_open);
 
@@ -1322,12 +1322,12 @@ DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_truncate_file);
 DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_truncate_file_error);
 
 TRACE_EVENT(ocfs2_extend_allocation,
-	TP_PROTO(unsigned long long ip_blkno, unsigned long long size,
+	TP_PROTO(unsigned long long ip_blkanal, unsigned long long size,
 		 unsigned int clusters, unsigned int clusters_to_add,
 		 int why, int restart_func),
-	TP_ARGS(ip_blkno, size, clusters, clusters_to_add, why, restart_func),
+	TP_ARGS(ip_blkanal, size, clusters, clusters_to_add, why, restart_func),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ip_blkno)
+		__field(unsigned long long, ip_blkanal)
 		__field(unsigned long long, size)
 		__field(unsigned int, clusters)
 		__field(unsigned int, clusters_to_add)
@@ -1335,7 +1335,7 @@ TRACE_EVENT(ocfs2_extend_allocation,
 		__field(int, restart_func)
 	),
 	TP_fast_assign(
-		__entry->ip_blkno = ip_blkno;
+		__entry->ip_blkanal = ip_blkanal;
 		__entry->size = size;
 		__entry->clusters = clusters;
 		__entry->clusters_to_add = clusters_to_add;
@@ -1343,41 +1343,41 @@ TRACE_EVENT(ocfs2_extend_allocation,
 		__entry->restart_func = restart_func;
 	),
 	TP_printk("%llu %llu %u %u %d %d",
-		  __entry->ip_blkno, __entry->size, __entry->clusters,
+		  __entry->ip_blkanal, __entry->size, __entry->clusters,
 		  __entry->clusters_to_add, __entry->why, __entry->restart_func)
 );
 
 TRACE_EVENT(ocfs2_extend_allocation_end,
-	TP_PROTO(unsigned long long ino,
+	TP_PROTO(unsigned long long ianal,
 		 unsigned int di_clusters, unsigned long long di_size,
 		 unsigned int ip_clusters, unsigned long long i_size),
-	TP_ARGS(ino, di_clusters, di_size, ip_clusters, i_size),
+	TP_ARGS(ianal, di_clusters, di_size, ip_clusters, i_size),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, di_clusters)
 		__field(unsigned long long, di_size)
 		__field(unsigned int, ip_clusters)
 		__field(unsigned long long, i_size)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->di_clusters = di_clusters;
 		__entry->di_size = di_size;
 		__entry->ip_clusters = ip_clusters;
 		__entry->i_size = i_size;
 	),
-	TP_printk("%llu %u %llu %u %llu", __entry->ino, __entry->di_clusters,
+	TP_printk("%llu %u %llu %u %llu", __entry->ianal, __entry->di_clusters,
 		  __entry->di_size, __entry->ip_clusters, __entry->i_size)
 );
 
 TRACE_EVENT(ocfs2_write_zero_page,
-	TP_PROTO(unsigned long long ino,
+	TP_PROTO(unsigned long long ianal,
 		 unsigned long long abs_from, unsigned long long abs_to,
 		 unsigned long index, unsigned int zero_from,
 		 unsigned int zero_to),
-	TP_ARGS(ino, abs_from, abs_to, index, zero_from, zero_to),
+	TP_ARGS(ianal, abs_from, abs_to, index, zero_from, zero_to),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned long long, abs_from)
 		__field(unsigned long long, abs_to)
 		__field(unsigned long, index)
@@ -1385,14 +1385,14 @@ TRACE_EVENT(ocfs2_write_zero_page,
 		__field(unsigned int, zero_to)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->abs_from = abs_from;
 		__entry->abs_to = abs_to;
 		__entry->index = index;
 		__entry->zero_from = zero_from;
 		__entry->zero_to = zero_to;
 	),
-	TP_printk("%llu %llu %llu %lu %u %u", __entry->ino,
+	TP_printk("%llu %llu %llu %lu %u %u", __entry->ianal,
 		  __entry->abs_from, __entry->abs_to,
 		  __entry->index, __entry->zero_from, __entry->zero_to)
 );
@@ -1402,17 +1402,17 @@ DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_zero_extend_range);
 DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_zero_extend);
 
 TRACE_EVENT(ocfs2_setattr,
-	TP_PROTO(void *inode, void *dentry,
-		 unsigned long long ino,
+	TP_PROTO(void *ianalde, void *dentry,
+		 unsigned long long ianal,
 		 unsigned int d_len, const unsigned char *d_name,
 		 unsigned int ia_valid, unsigned int ia_mode,
 		 unsigned int ia_uid, unsigned int ia_gid),
-	TP_ARGS(inode, dentry, ino, d_len, d_name,
+	TP_ARGS(ianalde, dentry, ianal, d_len, d_name,
 		ia_valid, ia_mode, ia_uid, ia_gid),
 	TP_STRUCT__entry(
-		__field(void *, inode)
+		__field(void *, ianalde)
 		__field(void *, dentry)
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, d_len)
 		__string(d_name, d_name)
 		__field(unsigned int, ia_valid)
@@ -1421,9 +1421,9 @@ TRACE_EVENT(ocfs2_setattr,
 		__field(unsigned int, ia_gid)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->dentry = dentry;
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->d_len = d_len;
 		__assign_str(d_name, d_name);
 		__entry->ia_valid = ia_valid;
@@ -1431,8 +1431,8 @@ TRACE_EVENT(ocfs2_setattr,
 		__entry->ia_uid = ia_uid;
 		__entry->ia_gid = ia_gid;
 	),
-	TP_printk("%p %p %llu %.*s %u %u %u %u", __entry->inode,
-		  __entry->dentry, __entry->ino, __entry->d_len,
+	TP_printk("%p %p %llu %.*s %u %u %u %u", __entry->ianalde,
+		  __entry->dentry, __entry->ianal, __entry->d_len,
 		  __get_str(d_name), __entry->ia_valid, __entry->ia_mode,
 		  __entry->ia_uid, __entry->ia_gid)
 );
@@ -1445,25 +1445,25 @@ DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_zero_partial_clusters_range1);
 
 DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_zero_partial_clusters_range2);
 
-DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_remove_inode_range);
+DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_remove_ianalde_range);
 
-TRACE_EVENT(ocfs2_prepare_inode_for_write,
-	TP_PROTO(unsigned long long ino, unsigned long long saved_pos,
+TRACE_EVENT(ocfs2_prepare_ianalde_for_write,
+	TP_PROTO(unsigned long long ianal, unsigned long long saved_pos,
 		 unsigned long count, int wait),
-	TP_ARGS(ino, saved_pos, count, wait),
+	TP_ARGS(ianal, saved_pos, count, wait),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned long long, saved_pos)
 		__field(unsigned long, count)
 		__field(int, wait)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->saved_pos = saved_pos;
 		__entry->count = count;
 		__entry->wait = wait;
 	),
-	TP_printk("%llu %llu %lu %d", __entry->ino,
+	TP_printk("%llu %llu %lu %d", __entry->ianal,
 		  __entry->saved_pos, __entry->count, __entry->wait)
 );
 
@@ -1472,134 +1472,134 @@ DEFINE_OCFS2_INT_EVENT(filemap_splice_read_ret);
 
 /* End of trace events for fs/ocfs2/file.c. */
 
-/* Trace events for fs/ocfs2/inode.c. */
+/* Trace events for fs/ocfs2/ianalde.c. */
 
 TRACE_EVENT(ocfs2_iget_begin,
-	TP_PROTO(unsigned long long ino, unsigned int flags, int sysfile_type),
-	TP_ARGS(ino, flags, sysfile_type),
+	TP_PROTO(unsigned long long ianal, unsigned int flags, int sysfile_type),
+	TP_ARGS(ianal, flags, sysfile_type),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, flags)
 		__field(int, sysfile_type)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->flags = flags;
 		__entry->sysfile_type = sysfile_type;
 	),
-	TP_printk("%llu %u %d", __entry->ino,
+	TP_printk("%llu %u %d", __entry->ianal,
 		  __entry->flags, __entry->sysfile_type)
 );
 
 DEFINE_OCFS2_ULL_EVENT(ocfs2_iget5_locked);
 
 TRACE_EVENT(ocfs2_iget_end,
-	TP_PROTO(void *inode, unsigned long long ino),
-	TP_ARGS(inode, ino),
+	TP_PROTO(void *ianalde, unsigned long long ianal),
+	TP_ARGS(ianalde, ianal),
 	TP_STRUCT__entry(
-		__field(void *, inode)
-		__field(unsigned long long, ino)
+		__field(void *, ianalde)
+		__field(unsigned long long, ianal)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
-		__entry->ino = ino;
+		__entry->ianalde = ianalde;
+		__entry->ianal = ianal;
 	),
-	TP_printk("%p %llu", __entry->inode, __entry->ino)
+	TP_printk("%p %llu", __entry->ianalde, __entry->ianal)
 );
 
 TRACE_EVENT(ocfs2_find_actor,
-	TP_PROTO(void *inode, unsigned long long ino,
-		 void *args,  unsigned long long fi_blkno),
-	TP_ARGS(inode, ino, args, fi_blkno),
+	TP_PROTO(void *ianalde, unsigned long long ianal,
+		 void *args,  unsigned long long fi_blkanal),
+	TP_ARGS(ianalde, ianal, args, fi_blkanal),
 	TP_STRUCT__entry(
-		__field(void *, inode)
-		__field(unsigned long long, ino)
+		__field(void *, ianalde)
+		__field(unsigned long long, ianal)
 		__field(void *, args)
-		__field(unsigned long long, fi_blkno)
+		__field(unsigned long long, fi_blkanal)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
-		__entry->ino = ino;
+		__entry->ianalde = ianalde;
+		__entry->ianal = ianal;
 		__entry->args = args;
-		__entry->fi_blkno = fi_blkno;
+		__entry->fi_blkanal = fi_blkanal;
 	),
-	TP_printk("%p %llu %p %llu", __entry->inode, __entry->ino,
-		  __entry->args, __entry->fi_blkno)
+	TP_printk("%p %llu %p %llu", __entry->ianalde, __entry->ianal,
+		  __entry->args, __entry->fi_blkanal)
 );
 
-DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_populate_inode);
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_populate_ianalde);
 
-DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_read_locked_inode);
+DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_read_locked_ianalde);
 
 DEFINE_OCFS2_INT_INT_EVENT(ocfs2_check_orphan_recovery_state);
 
-DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_inode_block);
-DEFINE_OCFS2_ULL_EVENT(ocfs2_filecheck_validate_inode_block);
-DEFINE_OCFS2_ULL_EVENT(ocfs2_filecheck_repair_inode_block);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_ianalde_block);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_filecheck_validate_ianalde_block);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_filecheck_repair_ianalde_block);
 
-TRACE_EVENT(ocfs2_inode_is_valid_to_delete,
-	TP_PROTO(void *task, void *dc_task, unsigned long long ino,
+TRACE_EVENT(ocfs2_ianalde_is_valid_to_delete,
+	TP_PROTO(void *task, void *dc_task, unsigned long long ianal,
 		 unsigned int flags),
-	TP_ARGS(task, dc_task, ino, flags),
+	TP_ARGS(task, dc_task, ianal, flags),
 	TP_STRUCT__entry(
 		__field(void *, task)
 		__field(void *, dc_task)
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
 		__entry->task = task;
 		__entry->dc_task = dc_task;
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->flags = flags;
 	),
 	TP_printk("%p %p %llu %u", __entry->task, __entry->dc_task,
-		  __entry->ino, __entry->flags)
+		  __entry->ianal, __entry->flags)
 );
 
-DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_query_inode_wipe_begin);
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_query_ianalde_wipe_begin);
 
-DEFINE_OCFS2_UINT_EVENT(ocfs2_query_inode_wipe_succ);
+DEFINE_OCFS2_UINT_EVENT(ocfs2_query_ianalde_wipe_succ);
 
-DEFINE_OCFS2_INT_INT_EVENT(ocfs2_query_inode_wipe_end);
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_query_ianalde_wipe_end);
 
-DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_cleanup_delete_inode);
+DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_cleanup_delete_ianalde);
 
-DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_delete_inode);
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_delete_ianalde);
 
-DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_clear_inode);
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_clear_ianalde);
 
-DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_drop_inode);
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_drop_ianalde);
 
-TRACE_EVENT(ocfs2_inode_revalidate,
-	TP_PROTO(void *inode, unsigned long long ino,
+TRACE_EVENT(ocfs2_ianalde_revalidate,
+	TP_PROTO(void *ianalde, unsigned long long ianal,
 		 unsigned int flags),
-	TP_ARGS(inode, ino, flags),
+	TP_ARGS(ianalde, ianal, flags),
 	TP_STRUCT__entry(
-		__field(void *, inode)
-		__field(unsigned long long, ino)
+		__field(void *, ianalde)
+		__field(unsigned long long, ianal)
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
-		__entry->ino = ino;
+		__entry->ianalde = ianalde;
+		__entry->ianal = ianal;
 		__entry->flags = flags;
 	),
-	TP_printk("%p %llu %u", __entry->inode, __entry->ino, __entry->flags)
+	TP_printk("%p %llu %u", __entry->ianalde, __entry->ianal, __entry->flags)
 );
 
-DEFINE_OCFS2_ULL_EVENT(ocfs2_mark_inode_dirty);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_mark_ianalde_dirty);
 
-/* End of trace events for fs/ocfs2/inode.c. */
+/* End of trace events for fs/ocfs2/ianalde.c. */
 
 /* Trace events for fs/ocfs2/extent_map.c. */
 
 TRACE_EVENT(ocfs2_read_virt_blocks,
-	TP_PROTO(void *inode, unsigned long long vblock, int nr,
+	TP_PROTO(void *ianalde, unsigned long long vblock, int nr,
 		 void *bhs, unsigned int flags, void *validate),
-	TP_ARGS(inode, vblock, nr, bhs, flags, validate),
+	TP_ARGS(ianalde, vblock, nr, bhs, flags, validate),
 	TP_STRUCT__entry(
-		__field(void *, inode)
+		__field(void *, ianalde)
 		__field(unsigned long long, vblock)
 		__field(int, nr)
 		__field(void *, bhs)
@@ -1607,14 +1607,14 @@ TRACE_EVENT(ocfs2_read_virt_blocks,
 		__field(void *, validate)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->vblock = vblock;
 		__entry->nr = nr;
 		__entry->bhs = bhs;
 		__entry->flags = flags;
 		__entry->validate = validate;
 	),
-	TP_printk("%p %llu %d %p %x %p", __entry->inode, __entry->vblock,
+	TP_printk("%p %llu %d %p %x %p", __entry->ianalde, __entry->vblock,
 		  __entry->nr, __entry->bhs, __entry->flags, __entry->validate)
 );
 
@@ -1634,7 +1634,7 @@ DEFINE_OCFS2_INT_EVENT(ocfs2_find_slot);
 
 /* Trace events for fs/ocfs2/heartbeat.c. */
 
-DEFINE_OCFS2_INT_EVENT(ocfs2_do_node_down);
+DEFINE_OCFS2_INT_EVENT(ocfs2_do_analde_down);
 
 /* End of trace events for fs/ocfs2/heartbeat.c. */
 
@@ -1756,12 +1756,12 @@ TRACE_EVENT(ocfs2_init_xattr_set_ctxt,
 );
 
 DECLARE_EVENT_CLASS(ocfs2__xattr_find,
-	TP_PROTO(unsigned long long ino, const char *name, int name_index,
+	TP_PROTO(unsigned long long ianal, const char *name, int name_index,
 		 unsigned int hash, unsigned long long location,
 		 int xe_index),
-	TP_ARGS(ino, name, name_index, hash, location, xe_index),
+	TP_ARGS(ianal, name, name_index, hash, location, xe_index),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__string(name, name)
 		__field(int, name_index)
 		__field(unsigned int, hash)
@@ -1769,24 +1769,24 @@ DECLARE_EVENT_CLASS(ocfs2__xattr_find,
 		__field(int, xe_index)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__assign_str(name, name);
 		__entry->name_index = name_index;
 		__entry->hash = hash;
 		__entry->location = location;
 		__entry->xe_index = xe_index;
 	),
-	TP_printk("%llu %s %d %u %llu %d", __entry->ino, __get_str(name),
+	TP_printk("%llu %s %d %u %llu %d", __entry->ianal, __get_str(name),
 		  __entry->name_index, __entry->hash, __entry->location,
 		  __entry->xe_index)
 );
 
 #define DEFINE_OCFS2_XATTR_FIND_EVENT(name)					\
 DEFINE_EVENT(ocfs2__xattr_find, name,					\
-TP_PROTO(unsigned long long ino, const char *name, int name_index,	\
+TP_PROTO(unsigned long long ianal, const char *name, int name_index,	\
 	 unsigned int hash, unsigned long long bucket,			\
 	 int xe_index),							\
-	TP_ARGS(ino, name, name_index, hash, bucket, xe_index))
+	TP_ARGS(ianal, name, name_index, hash, bucket, xe_index))
 
 DEFINE_OCFS2_XATTR_FIND_EVENT(ocfs2_xattr_bucket_find);
 
@@ -1982,26 +1982,26 @@ DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_quota_block);
 
 TRACE_EVENT(ocfs2_sync_dquot,
 	TP_PROTO(unsigned int dq_id, long long dqb_curspace,
-		 long long spacechange, long long curinodes,
-		 long long inodechange),
-	TP_ARGS(dq_id, dqb_curspace, spacechange, curinodes, inodechange),
+		 long long spacechange, long long curianaldes,
+		 long long ianaldechange),
+	TP_ARGS(dq_id, dqb_curspace, spacechange, curianaldes, ianaldechange),
 	TP_STRUCT__entry(
 		__field(unsigned int, dq_id)
 		__field(long long, dqb_curspace)
 		__field(long long, spacechange)
-		__field(long long, curinodes)
-		__field(long long, inodechange)
+		__field(long long, curianaldes)
+		__field(long long, ianaldechange)
 	),
 	TP_fast_assign(
 		__entry->dq_id = dq_id;
 		__entry->dqb_curspace = dqb_curspace;
 		__entry->spacechange = spacechange;
-		__entry->curinodes = curinodes;
-		__entry->inodechange = inodechange;
+		__entry->curianaldes = curianaldes;
+		__entry->ianaldechange = ianaldechange;
 	),
 	TP_printk("%u %lld %lld %lld %lld", __entry->dq_id,
 		  __entry->dqb_curspace, __entry->spacechange,
-		  __entry->curinodes, __entry->inodechange)
+		  __entry->curianaldes, __entry->ianaldechange)
 );
 
 TRACE_EVENT(ocfs2_sync_dquot_helper,
@@ -2045,29 +2045,29 @@ DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_dir_block);
 DEFINE_OCFS2_POINTER_EVENT(ocfs2_find_entry_el);
 
 TRACE_EVENT(ocfs2_dx_dir_search,
-	TP_PROTO(unsigned long long ino, int namelen, const char *name,
-		 unsigned int major_hash, unsigned int minor_hash,
-		 unsigned long long blkno),
-	TP_ARGS(ino, namelen, name, major_hash, minor_hash, blkno),
+	TP_PROTO(unsigned long long ianal, int namelen, const char *name,
+		 unsigned int major_hash, unsigned int mianalr_hash,
+		 unsigned long long blkanal),
+	TP_ARGS(ianal, namelen, name, major_hash, mianalr_hash, blkanal),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(int, namelen)
 		__string(name, name)
 		__field(unsigned int, major_hash)
-		__field(unsigned int,minor_hash)
-		__field(unsigned long long, blkno)
+		__field(unsigned int,mianalr_hash)
+		__field(unsigned long long, blkanal)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->namelen = namelen;
 		__assign_str(name, name);
 		__entry->major_hash = major_hash;
-		__entry->minor_hash = minor_hash;
-		__entry->blkno = blkno;
+		__entry->mianalr_hash = mianalr_hash;
+		__entry->blkanal = blkanal;
 	),
-	TP_printk("%llu %.*s %u %u %llu", __entry->ino,
+	TP_printk("%llu %.*s %u %u %llu", __entry->ianal,
 		   __entry->namelen, __get_str(name),
-		  __entry->major_hash, __entry->minor_hash, __entry->blkno)
+		  __entry->major_hash, __entry->mianalr_hash, __entry->blkanal)
 );
 
 DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_dx_dir_search_leaf_info);
@@ -2077,23 +2077,23 @@ DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_delete_entry_dx);
 DEFINE_OCFS2_ULL_EVENT(ocfs2_readdir);
 
 TRACE_EVENT(ocfs2_find_files_on_disk,
-	TP_PROTO(int namelen, const char *name, void *blkno,
+	TP_PROTO(int namelen, const char *name, void *blkanal,
 		 unsigned long long dir),
-	TP_ARGS(namelen, name, blkno, dir),
+	TP_ARGS(namelen, name, blkanal, dir),
 	TP_STRUCT__entry(
 		__field(int, namelen)
 		__string(name, name)
-		__field(void *, blkno)
+		__field(void *, blkanal)
 		__field(unsigned long long, dir)
 	),
 	TP_fast_assign(
 		__entry->namelen = namelen;
 		__assign_str(name, name);
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 		__entry->dir = dir;
 	),
 	TP_printk("%.*s %p %llu", __entry->namelen, __get_str(name),
-		  __entry->blkno, __entry->dir)
+		  __entry->blkanal, __entry->dir)
 );
 
 TRACE_EVENT(ocfs2_check_dir_for_entry,
@@ -2119,13 +2119,13 @@ DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_dx_dir_format_cluster);
 
 TRACE_EVENT(ocfs2_dx_dir_index_root_block,
 	TP_PROTO(unsigned long long dir,
-		 unsigned int major_hash, unsigned int minor_hash,
+		 unsigned int major_hash, unsigned int mianalr_hash,
 		 int namelen, const char *name, unsigned int num_used),
-	TP_ARGS(dir, major_hash, minor_hash, namelen, name, num_used),
+	TP_ARGS(dir, major_hash, mianalr_hash, namelen, name, num_used),
 	TP_STRUCT__entry(
 		__field(unsigned long long, dir)
 		__field(unsigned int, major_hash)
-		__field(unsigned int, minor_hash)
+		__field(unsigned int, mianalr_hash)
 		__field(int, namelen)
 		__string(name, name)
 		__field(unsigned int, num_used)
@@ -2133,13 +2133,13 @@ TRACE_EVENT(ocfs2_dx_dir_index_root_block,
 	TP_fast_assign(
 		__entry->dir = dir;
 		__entry->major_hash = major_hash;
-		__entry->minor_hash = minor_hash;
+		__entry->mianalr_hash = mianalr_hash;
 		__entry->namelen = namelen;
 		__assign_str(name, name);
 		__entry->num_used = num_used;
 	),
 	TP_printk("%llu %x %x %.*s %u", __entry->dir,
-		  __entry->major_hash, __entry->minor_hash,
+		  __entry->major_hash, __entry->mianalr_hash,
 		   __entry->namelen, __get_str(name), __entry->num_used)
 );
 
@@ -2157,14 +2157,14 @@ DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_prepare_dir_for_insert);
 
 DECLARE_EVENT_CLASS(ocfs2__dentry_ops,
 	TP_PROTO(void *dir, void *dentry, int name_len, const char *name,
-		 unsigned long long dir_blkno, unsigned long long extra),
-	TP_ARGS(dir, dentry, name_len, name, dir_blkno, extra),
+		 unsigned long long dir_blkanal, unsigned long long extra),
+	TP_ARGS(dir, dentry, name_len, name, dir_blkanal, extra),
 	TP_STRUCT__entry(
 		__field(void *, dir)
 		__field(void *, dentry)
 		__field(int, name_len)
 		__string(name, name)
-		__field(unsigned long long, dir_blkno)
+		__field(unsigned long long, dir_blkanal)
 		__field(unsigned long long, extra)
 	),
 	TP_fast_assign(
@@ -2172,19 +2172,19 @@ DECLARE_EVENT_CLASS(ocfs2__dentry_ops,
 		__entry->dentry = dentry;
 		__entry->name_len = name_len;
 		__assign_str(name, name);
-		__entry->dir_blkno = dir_blkno;
+		__entry->dir_blkanal = dir_blkanal;
 		__entry->extra = extra;
 	),
 	TP_printk("%p %p %.*s %llu %llu", __entry->dir, __entry->dentry,
 		  __entry->name_len, __get_str(name),
-		  __entry->dir_blkno, __entry->extra)
+		  __entry->dir_blkanal, __entry->extra)
 );
 
 #define DEFINE_OCFS2_DENTRY_OPS(name)					\
 DEFINE_EVENT(ocfs2__dentry_ops, name,					\
 TP_PROTO(void *dir, void *dentry, int name_len, const char *name,	\
-	 unsigned long long dir_blkno, unsigned long long extra),	\
-	TP_ARGS(dir, dentry, name_len, name, dir_blkno, extra))
+	 unsigned long long dir_blkanal, unsigned long long extra),	\
+	TP_ARGS(dir, dentry, name_len, name, dir_blkanal, extra))
 
 DEFINE_OCFS2_DENTRY_OPS(ocfs2_lookup);
 
@@ -2196,20 +2196,20 @@ DEFINE_OCFS2_DENTRY_OPS(ocfs2_unlink);
 
 DEFINE_OCFS2_DENTRY_OPS(ocfs2_symlink_create);
 
-DEFINE_OCFS2_DENTRY_OPS(ocfs2_mv_orphaned_inode_to_new);
+DEFINE_OCFS2_DENTRY_OPS(ocfs2_mv_orphaned_ianalde_to_new);
 
 DEFINE_OCFS2_POINTER_EVENT(ocfs2_lookup_ret);
 
-TRACE_EVENT(ocfs2_mknod,
+TRACE_EVENT(ocfs2_mkanald,
 	TP_PROTO(void *dir, void *dentry, int name_len, const char *name,
-		 unsigned long long dir_blkno, unsigned long dev, int mode),
-	TP_ARGS(dir, dentry, name_len, name, dir_blkno, dev, mode),
+		 unsigned long long dir_blkanal, unsigned long dev, int mode),
+	TP_ARGS(dir, dentry, name_len, name, dir_blkanal, dev, mode),
 	TP_STRUCT__entry(
 		__field(void *, dir)
 		__field(void *, dentry)
 		__field(int, name_len)
 		__string(name, name)
-		__field(unsigned long long, dir_blkno)
+		__field(unsigned long long, dir_blkanal)
 		__field(unsigned long, dev)
 		__field(int, mode)
 	),
@@ -2218,39 +2218,39 @@ TRACE_EVENT(ocfs2_mknod,
 		__entry->dentry = dentry;
 		__entry->name_len = name_len;
 		__assign_str(name, name);
-		__entry->dir_blkno = dir_blkno;
+		__entry->dir_blkanal = dir_blkanal;
 		__entry->dev = dev;
 		__entry->mode = mode;
 	),
 	TP_printk("%p %p %.*s %llu %lu %d", __entry->dir, __entry->dentry,
 		  __entry->name_len, __get_str(name),
-		  __entry->dir_blkno, __entry->dev, __entry->mode)
+		  __entry->dir_blkanal, __entry->dev, __entry->mode)
 );
 
 TRACE_EVENT(ocfs2_link,
-	TP_PROTO(unsigned long long ino, int old_len, const char *old_name,
+	TP_PROTO(unsigned long long ianal, int old_len, const char *old_name,
 		 int name_len, const char *name),
-	TP_ARGS(ino, old_len, old_name, name_len, name),
+	TP_ARGS(ianal, old_len, old_name, name_len, name),
 	TP_STRUCT__entry(
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 		__field(int, old_len)
 		__string(old_name, old_name)
 		__field(int, name_len)
 		__string(name, name)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->old_len = old_len;
 		__assign_str(old_name, old_name);
 		__entry->name_len = name_len;
 		__assign_str(name, name);
 	),
-	TP_printk("%llu %.*s %.*s", __entry->ino,
+	TP_printk("%llu %.*s %.*s", __entry->ianal,
 		  __entry->old_len, __get_str(old_name),
 		  __entry->name_len, __get_str(name))
 );
 
-DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_unlink_noent);
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_unlink_analent);
 
 DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_double_lock);
 
@@ -2290,7 +2290,7 @@ TRACE_EVENT(ocfs2_rename,
 		  __entry->new_len, __get_str(new_name))
 );
 
-DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_rename_not_permitted);
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_rename_analt_permitted);
 
 TRACE_EVENT(ocfs2_rename_target_exists,
 	TP_PROTO(int new_len, const char *new_name),
@@ -2309,21 +2309,21 @@ TRACE_EVENT(ocfs2_rename_target_exists,
 DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_rename_disagree);
 
 TRACE_EVENT(ocfs2_rename_over_existing,
-	TP_PROTO(unsigned long long new_blkno, void *new_bh,
-		 unsigned long long newdi_blkno),
-	TP_ARGS(new_blkno, new_bh, newdi_blkno),
+	TP_PROTO(unsigned long long new_blkanal, void *new_bh,
+		 unsigned long long newdi_blkanal),
+	TP_ARGS(new_blkanal, new_bh, newdi_blkanal),
 	TP_STRUCT__entry(
-		__field(unsigned long long, new_blkno)
+		__field(unsigned long long, new_blkanal)
 		__field(void *, new_bh)
-		__field(unsigned long long, newdi_blkno)
+		__field(unsigned long long, newdi_blkanal)
 	),
 	TP_fast_assign(
-		__entry->new_blkno = new_blkno;
+		__entry->new_blkanal = new_blkanal;
 		__entry->new_bh = new_bh;
-		__entry->newdi_blkno = newdi_blkno;
+		__entry->newdi_blkanal = newdi_blkanal;
 	),
-	TP_printk("%llu %p %llu", __entry->new_blkno, __entry->new_bh,
-		  __entry->newdi_blkno)
+	TP_printk("%llu %p %llu", __entry->new_blkanal, __entry->new_bh,
+		  __entry->newdi_blkanal)
 );
 
 DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_create_symlink_data);
@@ -2350,20 +2350,20 @@ TRACE_EVENT(ocfs2_symlink_begin,
 		  __entry->symname, __entry->len, __get_str(name))
 );
 
-TRACE_EVENT(ocfs2_blkno_stringify,
-	TP_PROTO(unsigned long long blkno, const char *name, int namelen),
-	TP_ARGS(blkno, name, namelen),
+TRACE_EVENT(ocfs2_blkanal_stringify,
+	TP_PROTO(unsigned long long blkanal, const char *name, int namelen),
+	TP_ARGS(blkanal, name, namelen),
 	TP_STRUCT__entry(
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 		__string(name, name)
 		__field(int, namelen)
 	),
 	TP_fast_assign(
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 		__assign_str(name, name);
 		__entry->namelen = namelen;
 	),
-	TP_printk("%llu %s %d", __entry->blkno, __get_str(name),
+	TP_printk("%llu %s %d", __entry->blkanal, __get_str(name),
 		  __entry->namelen)
 );
 
@@ -2432,7 +2432,7 @@ DEFINE_OCFS2_ULL_EVENT(ocfs2_dentry_revalidate_delete);
 
 DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_dentry_revalidate_orphaned);
 
-DEFINE_OCFS2_ULL_EVENT(ocfs2_dentry_revalidate_nofsdata);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_dentry_revalidate_analfsdata);
 
 DEFINE_OCFS2_INT_EVENT(ocfs2_dentry_revalidate_ret);
 
@@ -2472,38 +2472,38 @@ TRACE_EVENT(ocfs2_dentry_attach_lock,
 
 TRACE_EVENT(ocfs2_dentry_attach_lock_found,
 	TP_PROTO(const char *name, unsigned long long parent,
-		 unsigned long long ino),
-	TP_ARGS(name, parent, ino),
+		 unsigned long long ianal),
+	TP_ARGS(name, parent, ianal),
 	TP_STRUCT__entry(
 		__string(name, name)
 		__field(unsigned long long, parent)
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 	),
 	TP_fast_assign(
 		__assign_str(name, name);
 		__entry->parent = parent;
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 	),
-	TP_printk("%s %llu %llu", __get_str(name), __entry->parent, __entry->ino)
+	TP_printk("%s %llu %llu", __get_str(name), __entry->parent, __entry->ianal)
 );
 /* End of trace events for fs/ocfs2/dcache.c. */
 
 /* Trace events for fs/ocfs2/export.c. */
 
 TRACE_EVENT(ocfs2_get_dentry_begin,
-	TP_PROTO(void *sb, void *handle, unsigned long long blkno),
-	TP_ARGS(sb, handle, blkno),
+	TP_PROTO(void *sb, void *handle, unsigned long long blkanal),
+	TP_ARGS(sb, handle, blkanal),
 	TP_STRUCT__entry(
 		__field(void *, sb)
 		__field(void *, handle)
-		__field(unsigned long long, blkno)
+		__field(unsigned long long, blkanal)
 	),
 	TP_fast_assign(
 		__entry->sb = sb;
 		__entry->handle = handle;
-		__entry->blkno = blkno;
+		__entry->blkanal = blkanal;
 	),
-	TP_printk("%p %p %llu", __entry->sb, __entry->handle, __entry->blkno)
+	TP_printk("%p %p %llu", __entry->sb, __entry->handle, __entry->blkanal)
 );
 
 DEFINE_OCFS2_INT_INT_EVENT(ocfs2_get_dentry_test_bit);
@@ -2516,22 +2516,22 @@ DEFINE_OCFS2_POINTER_EVENT(ocfs2_get_dentry_end);
 
 TRACE_EVENT(ocfs2_get_parent,
 	TP_PROTO(void *child, int len, const char *name,
-		 unsigned long long ino),
-	TP_ARGS(child, len, name, ino),
+		 unsigned long long ianal),
+	TP_ARGS(child, len, name, ianal),
 	TP_STRUCT__entry(
 		__field(void *,	child)
 		__field(int, len)
 		__string(name, name)
-		__field(unsigned long long, ino)
+		__field(unsigned long long, ianal)
 	),
 	TP_fast_assign(
 		__entry->child = child;
 		__entry->len = len;
 		__assign_str(name, name);
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 	),
 	TP_printk("%p %.*s %llu", __entry->child, __entry->len,
-		  __get_str(name), __entry->ino)
+		  __get_str(name), __entry->ianal)
 );
 
 DEFINE_OCFS2_POINTER_EVENT(ocfs2_get_parent_end);
@@ -2598,49 +2598,49 @@ DEFINE_OCFS2_ULL_EVENT(ocfs2_complete_recovery);
 DEFINE_OCFS2_INT_EVENT(ocfs2_complete_recovery_end);
 
 TRACE_EVENT(ocfs2_complete_recovery_slot,
-	TP_PROTO(int slot, unsigned long long la_ino,
-		 unsigned long long tl_ino, void *qrec),
-	TP_ARGS(slot, la_ino, tl_ino, qrec),
+	TP_PROTO(int slot, unsigned long long la_ianal,
+		 unsigned long long tl_ianal, void *qrec),
+	TP_ARGS(slot, la_ianal, tl_ianal, qrec),
 	TP_STRUCT__entry(
 		__field(int, slot)
-		__field(unsigned long long, la_ino)
-		__field(unsigned long long, tl_ino)
+		__field(unsigned long long, la_ianal)
+		__field(unsigned long long, tl_ianal)
 		__field(void *, qrec)
 	),
 	TP_fast_assign(
 		__entry->slot = slot;
-		__entry->la_ino = la_ino;
-		__entry->tl_ino = tl_ino;
+		__entry->la_ianal = la_ianal;
+		__entry->tl_ianal = tl_ianal;
 		__entry->qrec = qrec;
 	),
-	TP_printk("%d %llu %llu %p", __entry->slot, __entry->la_ino,
-		  __entry->tl_ino, __entry->qrec)
+	TP_printk("%d %llu %llu %p", __entry->slot, __entry->la_ianal,
+		  __entry->tl_ianal, __entry->qrec)
 );
 
-DEFINE_OCFS2_INT_INT_EVENT(ocfs2_recovery_thread_node);
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_recovery_thread_analde);
 
 DEFINE_OCFS2_INT_EVENT(ocfs2_recovery_thread_end);
 
 TRACE_EVENT(ocfs2_recovery_thread,
-	TP_PROTO(int node_num, int osb_node_num, int disable,
+	TP_PROTO(int analde_num, int osb_analde_num, int disable,
 		 void *recovery_thread, int map_set),
-	TP_ARGS(node_num, osb_node_num, disable, recovery_thread, map_set),
+	TP_ARGS(analde_num, osb_analde_num, disable, recovery_thread, map_set),
 	TP_STRUCT__entry(
-		__field(int, node_num)
-		__field(int, osb_node_num)
+		__field(int, analde_num)
+		__field(int, osb_analde_num)
 		__field(int,disable)
 		__field(void *, recovery_thread)
 		__field(int,map_set)
 	),
 	TP_fast_assign(
-		__entry->node_num = node_num;
-		__entry->osb_node_num = osb_node_num;
+		__entry->analde_num = analde_num;
+		__entry->osb_analde_num = osb_analde_num;
 		__entry->disable = disable;
 		__entry->recovery_thread = recovery_thread;
 		__entry->map_set = map_set;
 	),
-	TP_printk("%d %d %d %p %d", __entry->node_num,
-		   __entry->osb_node_num, __entry->disable,
+	TP_printk("%d %d %d %p %d", __entry->analde_num,
+		   __entry->osb_analde_num, __entry->disable,
 		   __entry->recovery_thread, __entry->map_set)
 );
 
@@ -2650,11 +2650,11 @@ DEFINE_OCFS2_INT_EVENT(ocfs2_replay_journal_lock_err);
 
 DEFINE_OCFS2_INT_EVENT(ocfs2_replay_journal_skip);
 
-DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_recover_node);
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_recover_analde);
 
-DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_recover_node_skip);
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_recover_analde_skip);
 
-DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_mark_dead_nodes);
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_mark_dead_analdes);
 
 DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_queue_orphan_scan_begin);
 

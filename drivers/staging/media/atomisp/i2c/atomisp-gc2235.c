@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/device.h>
@@ -44,9 +44,9 @@ static int gc2235_read_reg(struct i2c_client *client,
 	unsigned char data[6];
 
 	if (!client->adapter) {
-		dev_err(&client->dev, "%s error, no client->adapter\n",
+		dev_err(&client->dev, "%s error, anal client->adapter\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (data_length != GC2235_8BIT) {
@@ -161,7 +161,7 @@ static int __gc2235_buf_reg_array(struct i2c_client *client,
 	ctrl->index += size;
 
 	/*
-	 * Buffer cannot guarantee free space for u32? Better flush it to avoid
+	 * Buffer cananalt guarantee free space for u32? Better flush it to avoid
 	 * possible lack of memory for next item.
 	 */
 	if (ctrl->index + sizeof(u8) >= GC2235_MAX_WRITE_BUF_SIZE)
@@ -198,7 +198,7 @@ static int gc2235_write_reg_array(struct i2c_client *client,
 			break;
 		default:
 			/*
-			 * If next address is not consecutive, data needs to be
+			 * If next address is analt consecutive, data needs to be
 			 * flushed before proceed.
 			 */
 			if (!__gc2235_write_reg_is_consecutive(client, &ctrl,
@@ -276,7 +276,7 @@ static long gc2235_s_exposure(struct v4l2_subdev *sd,
 	int gain = exposure->gain[0];
 	int digitgain = exposure->gain[1];
 
-	/* we should not accept the invalid value below. */
+	/* we should analt accept the invalid value below. */
 	if (gain == 0) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -300,7 +300,7 @@ static long gc2235_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 /*
  * This returns the exposure time being used. This should only be used
- * for filling in EXIF data, not for actual image processing.
+ * for filling in EXIF data, analt for actual image processing.
  */
 static int gc2235_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
@@ -382,7 +382,7 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
 
 	if (!dev || !dev->platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (flag) {
 		ret = dev->platform_data->v1p8_ctrl(sd, 1);
@@ -402,7 +402,7 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	int ret;
 
 	if (!dev || !dev->platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = dev->platform_data->gpio1_ctrl(sd, !flag);
 	usleep_range(60, 90);
@@ -419,8 +419,8 @@ static int power_up(struct v4l2_subdev *sd)
 
 	if (!dev->platform_data) {
 		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
+			"anal camera_sensor_platform_data");
+		return -EANALDEV;
 	}
 	/* power control */
 	ret = power_ctrl(sd, 1);
@@ -463,8 +463,8 @@ static int power_down(struct v4l2_subdev *sd)
 
 	if (!dev->platform_data) {
 		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
+			"anal camera_sensor_platform_data");
+		return -EANALDEV;
 	}
 	/* gpio ctrl */
 	ret = gpio_ctrl(sd, 0);
@@ -510,7 +510,7 @@ static int startup(struct v4l2_subdev *sd)
 	if (is_init == 0) {
 		/*
 		 * force gc2235 to do a reset in res change, otherwise it
-		 * can not output normal after switching res. and it is not
+		 * can analt output analrmal after switching res. and it is analt
 		 * necessary for first time run up after power on, for the sack
 		 * of performance
 		 */
@@ -604,7 +604,7 @@ static int gc2235_detect(struct i2c_client *client)
 	u16 id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gc2235_read_reg(client, GC2235_8BIT, GC2235_SENSOR_ID_H, &high);
 	gc2235_read_reg(client, GC2235_8BIT, GC2235_SENSOR_ID_L, &low);
@@ -612,7 +612,7 @@ static int gc2235_detect(struct i2c_client *client)
 
 	if (id != GC2235_ID) {
 		dev_err(&client->dev, "sensor ID error, 0x%x\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(&client->dev, "detect gc2235 success\n");
@@ -644,7 +644,7 @@ static int gc2235_s_config(struct v4l2_subdev *sd,
 	int ret = 0;
 
 	if (!platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->platform_data =
 	    (struct camera_sensor_platform_data *)platform_data;
@@ -652,7 +652,7 @@ static int gc2235_s_config(struct v4l2_subdev *sd,
 	mutex_lock(&dev->input_lock);
 	/*
 	 * power off the module, then power on it in future
-	 * as first power on by board may not fulfill the
+	 * as first power on by board may analt fulfill the
 	 * power on sequqence needed by the module
 	 */
 	ret = power_down(sd);
@@ -712,7 +712,7 @@ static int gc2235_get_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = dev->res->fps;
+	interval->interval.deanalminator = dev->res->fps;
 
 	return 0;
 }
@@ -808,7 +808,7 @@ static int gc2235_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dev->input_lock);
 
@@ -823,7 +823,7 @@ static int gc2235_probe(struct i2c_client *client)
 	if (ret)
 		goto out_free;
 
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

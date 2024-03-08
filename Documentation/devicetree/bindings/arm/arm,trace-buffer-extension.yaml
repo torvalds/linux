@@ -18,7 +18,7 @@ description: |
   TRBIDR register.
 
 properties:
-  $nodename:
+  $analdename:
     const: trbe
 
   compatible:

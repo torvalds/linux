@@ -47,7 +47,7 @@ extern struct class *rtc_class;
 /*
  * For these RTC methods the device parameter is the physical device
  * on whatever bus holds the hardware (I2C, Platform, SPI, etc), which
- * was passed to rtc_device_register().  Its driver_data normally holds
+ * was passed to rtc_device_register().  Its driver_data analrmally holds
  * device state, including the rtc_device pointer for the RTC.
  *
  * Most of these methods are called with rtc_device.ops_lock held,
@@ -73,7 +73,7 @@ struct rtc_class_ops {
 struct rtc_device;
 
 struct rtc_timer {
-	struct timerqueue_node node;
+	struct timerqueue_analde analde;
 	ktime_t period;
 	void (*func)(struct rtc_device *rtc);
 	struct rtc_device *rtc;
@@ -82,7 +82,7 @@ struct rtc_timer {
 
 /* flags */
 #define RTC_DEV_BUSY 0
-#define RTC_NO_CDEV  1
+#define RTC_ANAL_CDEV  1
 
 struct rtc_device {
 	struct device dev;
@@ -248,7 +248,7 @@ static inline ktime_t rtc_bound_alarmtime(struct rtc_device *rtc,
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 extern int rtc_hctosys_ret;
 #else
-#define rtc_hctosys_ret -ENODEV
+#define rtc_hctosys_ret -EANALDEV
 #endif
 
 #ifdef CONFIG_RTC_NVMEM

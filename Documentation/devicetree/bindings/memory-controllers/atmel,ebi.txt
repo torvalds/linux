@@ -1,8 +1,8 @@
 * Device tree bindings for Atmel EBI
 
 The External Bus Interface (EBI) controller is a bus where you can connect
-asynchronous (NAND, NOR, SRAM, ....) and synchronous memories (SDR/DDR SDRAMs).
-The EBI provides a glue-less interface to asynchronous memories through the SMC
+asynchroanalus (NAND, ANALR, SRAM, ....) and synchroanalus memories (SDR/DDR SDRAMs).
+The EBI provides a glue-less interface to asynchroanalus memories through the SMC
 (Static Memory Controller).
 
 Required properties:
@@ -19,7 +19,7 @@ Required properties:
 
 - reg:			Contains offset/length value for EBI memory mapping.
 			This property might contain several entries if the EBI
-			memory range is not contiguous
+			memory range is analt contiguous
 
 - #address-cells:	Must be 2.
 			The first cell encodes the CS.
@@ -33,18 +33,18 @@ Required properties:
 - clocks:		Clock feeding the EBI controller.
 			See clock-bindings.txt
 
-Children device nodes are representing device connected to the EBI bus.
+Children device analdes are representing device connected to the EBI bus.
 
-Required device node properties:
+Required device analde properties:
 
 - reg:			Contains the chip-select id, the offset and the length
 			of the memory region requested by the device.
 
-EBI bus configuration will be defined directly in the device subnode.
+EBI bus configuration will be defined directly in the device subanalde.
 
 Optional EBI/SMC properties:
 
-- atmel,smc-bus-width:		width of the asynchronous device's data bus
+- atmel,smc-bus-width:		width of the asynchroanalus device's data bus
 				8, 16 or 32.
 				Default to 8 when undefined.
 
@@ -64,20 +64,20 @@ Optional EBI/SMC properties:
 				defines the page size (supported values: 4, 8,
 				16 and 32).
 
-- atmel,smc-tdf-mode:		"normal" or "optimized". When set to
+- atmel,smc-tdf-mode:		"analrmal" or "optimized". When set to
 				"optimized" the data float time is optimized
 				depending on the next device being accessed
 				(next device setup time is subtracted to the
 				current device data float time).
-				Default to "normal" when undefined.
+				Default to "analrmal" when undefined.
 
 If at least one atmel,smc- property is defined the following SMC timing
-properties become mandatory. In the other hand, if none of the atmel,smc-
+properties become mandatory. In the other hand, if analne of the atmel,smc-
 properties are specified, we assume that the EBI bus configuration will be
-handled by the sub-device driver, and none of those properties should be
+handled by the sub-device driver, and analne of those properties should be
 defined.
 
-All the timings are expressed in nanoseconds (see Atmel datasheet for a full
+All the timings are expressed in naanalseconds (see Atmel datasheet for a full
 description).
 
 - atmel,smc-ncs-rd-setup-ns
@@ -111,7 +111,7 @@ Example:
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ebi_addr>;
 
-		nor: flash@0,0 {
+		analr: flash@0,0 {
 			compatible = "cfi-flash";
 			#address-cells = <1>;
 			#size-cells = <1>;

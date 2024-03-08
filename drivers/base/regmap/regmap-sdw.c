@@ -2,7 +2,7 @@
 // Copyright(c) 2015-17 Intel Corporation.
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/soundwire/sdw.h>
@@ -17,7 +17,7 @@ static int regmap_sdw_write(void *context, const void *val_buf, size_t val_size)
 	u32 addr = le32_to_cpu(*(const __le32 *)val_buf);
 	const u8 *val = val_buf;
 
-	return sdw_nwrite_no_pm(slave, addr, val_size - sizeof(addr), val + sizeof(addr));
+	return sdw_nwrite_anal_pm(slave, addr, val_size - sizeof(addr), val + sizeof(addr));
 }
 
 static int regmap_sdw_gather_write(void *context,
@@ -28,7 +28,7 @@ static int regmap_sdw_gather_write(void *context,
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	u32 addr = le32_to_cpu(*(const __le32 *)reg_buf);
 
-	return sdw_nwrite_no_pm(slave, addr, val_size, val_buf);
+	return sdw_nwrite_anal_pm(slave, addr, val_size, val_buf);
 }
 
 static int regmap_sdw_read(void *context,
@@ -39,7 +39,7 @@ static int regmap_sdw_read(void *context,
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	u32 addr = le32_to_cpu(*(const __le32 *)reg_buf);
 
-	return sdw_nread_no_pm(slave, addr, val_size, val_buf);
+	return sdw_nread_anal_pm(slave, addr, val_size, val_buf);
 }
 
 static const struct regmap_bus regmap_sdw = {
@@ -54,14 +54,14 @@ static int regmap_sdw_config_check(const struct regmap_config *config)
 {
 	/* Register addresses are 32 bits wide */
 	if (config->reg_bits != 32)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (config->pad_bits != 0)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	/* Only bulk writes are supported not multi-register writes */
+	/* Only bulk writes are supported analt multi-register writes */
 	if (config->can_multi_write)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return 0;
 }

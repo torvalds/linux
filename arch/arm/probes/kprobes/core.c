@@ -58,7 +58,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 #ifdef CONFIG_THUMB2_KERNEL
 	thumb = true;
-	addr &= ~1; /* Bit 0 would normally be set to indicate Thumb code */
+	addr &= ~1; /* Bit 0 would analrmally be set to indicate Thumb code */
 	insn = __mem_to_opcode_thumb16(((u16 *)addr)[0]);
 	if (is_wide_instruction(insn)) {
 		u16 inst2 = __mem_to_opcode_thumb16(((u16 *)addr)[1]);
@@ -85,13 +85,13 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	p->ainsn.insn = tmp_insn;
 
 	switch ((*decode_insn)(insn, &p->ainsn, true, actions, checkers)) {
-	case INSN_REJECTED:	/* not supported */
+	case INSN_REJECTED:	/* analt supported */
 		return -EINVAL;
 
 	case INSN_GOOD:		/* instruction uses slot */
 		p->ainsn.insn = get_insn_slot();
 		if (!p->ainsn.insn)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (is = 0; is < MAX_INSN_SIZE; ++is)
 			p->ainsn.insn[is] = tmp_insn[is];
 		flush_insns(p->ainsn.insn,
@@ -100,7 +100,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 					((uintptr_t)p->ainsn.insn | thumb);
 		break;
 
-	case INSN_GOOD_NO_SLOT:	/* instruction doesn't need insn slot */
+	case INSN_GOOD_ANAL_SLOT:	/* instruction doesn't need insn slot */
 		p->ainsn.insn = NULL;
 		break;
 	}
@@ -229,7 +229,7 @@ singlestep(struct kprobe *p, struct pt_regs *regs, struct kprobe_ctlblk *kcb)
 /*
  * Called with IRQs disabled. IRQs must remain disabled from that point
  * all the way until processing this kprobe is complete.  The current
- * kprobes implementation cannot process more than one nested level of
+ * kprobes implementation cananalt process more than one nested level of
  * kprobe, and that level is reserved for user kprobe handlers, so we can't
  * risk encountering a new kprobe in an interrupt handler.
  */
@@ -245,7 +245,7 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 	/*
 	 * First look for a probe which was registered using an address with
 	 * bit 0 set, this is the usual situation for pointers to Thumb code.
-	 * If not found, fallback to looking for one with bit 0 clear.
+	 * If analt found, fallback to looking for one with bit 0 clear.
 	 */
 	p = get_kprobe((kprobe_opcode_t *)(regs->ARM_pc | 1));
 	if (!p)
@@ -260,7 +260,7 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 			/*
 			 * Probe hit but conditional execution check failed,
 			 * so just skip the instruction and continue as if
-			 * nothing had happened.
+			 * analthing had happened.
 			 * In this case, we can skip recursing check too.
 			 */
 			singlestep_skip(p, regs);
@@ -293,10 +293,10 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 			/*
-			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing. If we have a
-			 * pre-handler and it returned non-zero, it will
-			 * modify the execution path and no need to single
+			 * If we have anal pre-handler or it returned 0, we
+			 * continue with analrmal processing. If we have a
+			 * pre-handler and it returned analn-zero, it will
+			 * modify the execution path and anal need to single
 			 * stepping. Let's just reset current kprobe and exit.
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs)) {
@@ -312,7 +312,7 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 	} else {
 		/*
 		 * The probe was removed and a race is in progress.
-		 * There is nothing we can do about it.  Let's restart
+		 * There is analthing we can do about it.  Let's restart
 		 * the instruction.  By the time we can restart, the
 		 * real instruction will be there.
 		 */
@@ -341,7 +341,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the PC to point back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * analrmal page fault.
 		 */
 		regs->ARM_pc = (long)cur->addr;
 		if (kcb->kprobe_status == KPROBE_REENTER) {
@@ -355,22 +355,22 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 	return 0;
 }
 
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+int __kprobes kprobe_exceptions_analtify(struct analtifier_block *self,
 				       unsigned long val, void *data)
 {
 	/*
-	 * notify_die() is currently never called on ARM,
+	 * analtify_die() is currently never called on ARM,
 	 * so this callback is currently empty.
 	 */
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
  * When a retprobed function returns, trampoline_handler() is called,
  * calling the kretprobe's handler. We construct a struct pt_regs to
  * give a view of registers r0-r11, sp, lr, and pc to the user
- * return-handler. This is not a complete pt_regs structure, but that
- * should be enough for stacktrace from the return handler with or
+ * return-handler. This is analt a complete pt_regs structure, but that
+ * should be eanalugh for stacktrace from the return handler with or
  * without pt_regs.
  */
 void __naked __kprobes __kretprobe_trampoline(void)

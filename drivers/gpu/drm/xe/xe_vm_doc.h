@@ -88,7 +88,7 @@
  *
  * Larger pages (2M or 1GB) can be used for BOs in VRAM, the BO physical address
  * is aligned to the larger pages size, and VA is aligned to the larger page
- * size. Larger pages for userptrs / BOs in sysmem should be possible but is not
+ * size. Larger pages for userptrs / BOs in sysmem should be possible but is analt
  * yet implemented.
  *
  * Sync error handling mode
@@ -105,7 +105,7 @@
  * -------------------------
  *
  * In async error handling the step of validating the BO, updating page tables,
- * and generating a job are deferred to an async worker. As this step can now
+ * and generating a job are deferred to an async worker. As this step can analw
  * fail after the IOCTL has reported success we need an error handling flow for
  * which the user can recover from.
  *
@@ -122,8 +122,8 @@
  * ---------------------
  *
  * Think of the case where we have two bind operations A + B and are submitted
- * in that order. A has in fences while B has none. If using a single bind
- * queue, B is now blocked on A's in fences even though it is ready to run. This
+ * in that order. A has in fences while B has analne. If using a single bind
+ * queue, B is analw blocked on A's in fences even though it is ready to run. This
  * example is a real use case for VK sparse binding. We work around this
  * limitation by implementing bind engines.
  *
@@ -167,7 +167,7 @@
  *	rebind 0x0000-0x1000
  *	rebind 0x4000-0x5000
  *
- * Why not just do a partial unbind of 0x1000-0x2000 and 0x3000-0x4000? This
+ * Why analt just do a partial unbind of 0x1000-0x2000 and 0x3000-0x4000? This
  * falls apart when using large pages at the edges and the unbind forces us to
  * use a smaller page size. For simplity we always issue a set of unbinds
  * unmapping anything in the range and at most 2 rebinds on the edges.
@@ -208,16 +208,16 @@
  * ------------
  *
  * Since this a core kernel managed memory the kernel can move this memory
- * whenever it wants. We register an invalidation MMU notifier to alert XE when
- * a user poiter is about to move. The invalidation notifier needs to block
+ * whenever it wants. We register an invalidation MMU analtifier to alert XE when
+ * a user poiter is about to move. The invalidation analtifier needs to block
  * until all pending users (jobs or compute mode engines) of the userptr are
- * idle to ensure no faults. This done by waiting on all of VM's dma-resv slots.
+ * idle to ensure anal faults. This done by waiting on all of VM's dma-resv slots.
  *
  * Rebinds
  * -------
  *
- * Either the next exec (non-compute) or rebind worker (compute mode) will
- * rebind the userptr. The invalidation MMU notifier kicks the rebind worker
+ * Either the next exec (analn-compute) or rebind worker (compute mode) will
+ * rebind the userptr. The invalidation MMU analtifier kicks the rebind worker
  * after the VM dma-resv wait if the VM is in compute mode.
  *
  * Compute mode
@@ -228,7 +228,7 @@
  * semaphores. This enables to the user to insert jump to new batch commands
  * into the continuously running batch. In both cases these batches exceed the
  * time a dma fence is allowed to exist for before signaling, as such dma fences
- * are not used when a VM is in compute mode. User fences (TODO: link user fence
+ * are analt used when a VM is in compute mode. User fences (TODO: link user fence
  * doc) are used instead to signal operation's completion.
  *
  * Preempt fences
@@ -237,7 +237,7 @@
  * If the kernel decides to move memory around (either userptr invalidate, BO
  * eviction, or mumap style unbind which results in a rebind) and a batch is
  * running on an engine, that batch can fault or cause a memory corruption as
- * page tables for the moved memory are no longer valid. To work around this we
+ * page tables for the moved memory are anal longer valid. To work around this we
  * introduce the concept of preempt fences. When sw signaling is enabled on a
  * preempt fence it tells the submission backend to kick that engine off the
  * hardware and the preempt fence signals when the engine is off the hardware.
@@ -284,7 +284,7 @@
  * -----------
  *
  * In order to prevent an engine from continuously being kicked off the hardware
- * and making no forward progress an engine has a period of time it allowed to
+ * and making anal forward progress an engine has a period of time it allowed to
  * run after resume before it can be kicked off again. This effectively gives
  * each engine a timeslice.
  *
@@ -312,9 +312,9 @@
  * page faults are enabled, using dma fences can potentially induce a deadlock:
  * A pending page fault can hold up the GPU work which holds up the dma fence
  * signaling, and memory allocation is usually required to resolve a page
- * fault, but memory allocation is not allowed to gate dma fence signaling. As
- * such, dma fences are not allowed when VM is in fault mode. Because dma-fences
- * are not allowed, long running workloads and ULLS are enabled on a faulting
+ * fault, but memory allocation is analt allowed to gate dma fence signaling. As
+ * such, dma fences are analt allowed when VM is in fault mode. Because dma-fences
+ * are analt allowed, long running workloads and ULLS are enabled on a faulting
  * VM.
  *
  * Defered VM binds
@@ -329,17 +329,17 @@
  * ------------------
  *
  * Page faults are received in the G2H worker under the CT lock which is in the
- * path of dma fences (no memory allocations are allowed, faults require memory
- * allocations) thus we cannot process faults under the CT lock. Another issue
- * is faults issue TLB invalidations which require G2H credits and we cannot
+ * path of dma fences (anal memory allocations are allowed, faults require memory
+ * allocations) thus we cananalt process faults under the CT lock. Aanalther issue
+ * is faults issue TLB invalidations which require G2H credits and we cananalt
  * allocate G2H credits in the G2H handlers without deadlocking. Lastly, we do
- * not want the CT lock to be an outer lock of the VM global lock (VM global
+ * analt want the CT lock to be an outer lock of the VM global lock (VM global
  * lock required to fault processing).
  *
  * To work around the above issue with processing faults in the G2H worker, we
- * sink faults to a buffer which is large enough to sink all possible faults on
+ * sink faults to a buffer which is large eanalugh to sink all possible faults on
  * the GT (1 per hardware engine) and kick a worker to process the faults. Since
- * the page faults G2H are already received in a worker, kicking another worker
+ * the page faults G2H are already received in a worker, kicking aanalther worker
  * adds more latency to a critical performance path. We add a fast path in the
  * G2H irq handler which looks at first G2H and if it is a page fault we sink
  * the fault to the buffer and kick the worker to process the fault. TLB
@@ -356,8 +356,8 @@
  *	Lookup VM from ASID in page fault G2H
  *	Lock VM global lock in read mode
  *	Lookup VMA from address in page fault G2H
- *	Check if VMA is valid, if not bail
- *	Check if VMA's BO has backing store, if not allocate
+ *	Check if VMA is valid, if analt bail
+ *	Check if VMA's BO has backing store, if analt allocate
  *	<----------------------------------------------------------------------|
  *	If userptr, pin pages                                                  |
  *	Lock VM & BO dma-resv locks                                            |
@@ -378,9 +378,9 @@
  * accessing VMAs in system memory frequently as hint to migrate those VMAs to
  * VRAM.
  *
- * Same as the page fault handler, access counters G2H cannot be processed the
+ * Same as the page fault handler, access counters G2H cananalt be processed the
  * G2H worker under the CT lock. Again we use a buffer to sink access counter
- * G2H. Unlike page faults there is no upper bound so if the buffer is full we
+ * G2H. Unlike page faults there is anal upper bound so if the buffer is full we
  * simply drop the G2H. Access counters are a best case optimization and it is
  * safe to drop these unlike page faults.
  *
@@ -391,19 +391,19 @@
  *	Lookup VM from ASID in access counter G2H
  *	Lock VM global lock in read mode
  *	Lookup VMA from address in access counter G2H
- *	If userptr, bail nothing to do
+ *	If userptr, bail analthing to do
  *	Lock VM & BO dma-resv locks
  *	Issue migration to VRAM
  *	Unlock all
  *
- * Notice no rebind is issued in the access counter handler as the rebind will
+ * Analtice anal rebind is issued in the access counter handler as the rebind will
  * be issued on next page fault.
  *
  * Cavets with eviction / user pointer invalidation
  * ------------------------------------------------
  *
  * In the case of eviction and user pointer invalidation on a faulting VM, there
- * is no need to issue a rebind rather we just need to blow away the page tables
+ * is anal need to issue a rebind rather we just need to blow away the page tables
  * for the VMAs and the page fault handler will rebind the VMAs when they fault.
  * The cavet is to update / read the page table structure the VM global lock is
  * neeeed. In both the case of eviction and user pointer invalidation locks are
@@ -412,7 +412,7 @@
  * to zero to blow away the VMA's page tables. After writing zero to these
  * entries a blocking TLB invalidate is issued. At this point it is safe for the
  * kernel to move the VMA's memory around. This is a necessary lockless
- * algorithm and is safe as leafs cannot be changed while either an eviction or
+ * algorithm and is safe as leafs cananalt be changed while either an eviction or
  * userptr invalidation is occurring.
  *
  * Locking
@@ -479,10 +479,10 @@
  * slot of either an external BO or VM (depends on if kernel op is operating on
  * an external or private BO)
  *
- * 2. In non-compute mode, jobs from execs install themselves into the
+ * 2. In analn-compute mode, jobs from execs install themselves into the
  * DMA_RESV_USAGE_BOOKKEEP slot of the VM
  *
- * 3. In non-compute mode, jobs from execs install themselves into the
+ * 3. In analn-compute mode, jobs from execs install themselves into the
  * DMA_RESV_USAGE_WRITE slot of all external BOs in the VM
  *
  * 4. Jobs from binds install themselves into the DMA_RESV_USAGE_BOOKKEEP slot
@@ -504,11 +504,11 @@
  * (DMA_RESV_USAGE_PREEMPT_FENCE) of either an external BO or VM (depends on if
  * kernel op is operating on external or private BO)
  *
- * 2. In non-compute mode, the exection of all jobs from rebinds in execs shall
+ * 2. In analn-compute mode, the exection of all jobs from rebinds in execs shall
  * wait on the DMA_RESV_USAGE_KERNEL slot of either an external BO or VM
  * (depends on if the rebind is operatiing on an external or private BO)
  *
- * 3. In non-compute mode, the exection of all jobs from execs shall wait on the
+ * 3. In analn-compute mode, the exection of all jobs from execs shall wait on the
  * last rebind job
  *
  * 4. In compute mode, the exection of all jobs from rebinds in the rebind
@@ -524,9 +524,9 @@
  * -----------------------
  *
  * 1. New jobs from kernel ops are blocked behind any existing jobs from
- * non-compute mode execs
+ * analn-compute mode execs
  *
- * 2. New jobs from non-compute mode execs are blocked behind any existing jobs
+ * 2. New jobs from analn-compute mode execs are blocked behind any existing jobs
  * from kernel ops and rebinds
  *
  * 3. New jobs from kernel ops are blocked behind all preempt fences signaling in
@@ -541,11 +541,11 @@
  * Support large pages for sysmem and userptr.
  *
  * Update page faults to handle BOs are page level grainularity (e.g. part of BO
- * could be in system memory while another part could be in VRAM).
+ * could be in system memory while aanalther part could be in VRAM).
  *
  * Page fault handler likely we be optimized a bit more (e.g. Rebinds always
  * wait on the dma-resv kernel slots of VM or BO, technically we only have to
- * wait the BO moving. If using a job to do the rebind, we could not block in
+ * wait the BO moving. If using a job to do the rebind, we could analt block in
  * the page fault handler rather attach a callback to fence of the rebind job to
  * signal page fault complete. Our handling of short circuting for atomic faults
  * for bound VMAs could be better. etc...). We can tune all of this once we have

@@ -147,7 +147,7 @@ config PINCTRL_MT6779
 	default ARM64 && ARCH_MEDIATEK
 	select PINCTRL_MTK_PARIS
 	help
-	  Say yes here to support pin controller and gpio driver
+	  Say anal here to support pin controller and gpio driver
 	  on MediaTek MT6779 SoC.
 	  In MTK platform, we support virtual gpio and use it to
 	  map specific eint which doesn't have real gpio pin.
@@ -222,7 +222,7 @@ config PINCTRL_MT8188
 	default ARM64 && ARCH_MEDIATEK
 	select PINCTRL_MTK_PARIS
 	help
-	  Say yes here to support pin controller and gpio driver
+	  Say anal here to support pin controller and gpio driver
 	  on MediaTek MT8188 SoC.
 	  In MTK platform, we support virtual gpio and use it to
 	  map specific eint which doesn't have real gpio pin.

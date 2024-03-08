@@ -3,7 +3,7 @@
 #define __ASM_GENERIC_MMU_H
 
 /*
- * This is the mmu.h header for nommu implementations.
+ * This is the mmu.h header for analmmu implementations.
  * Architectures with an MMU need something more complex.
  */
 #ifndef __ASSEMBLY__

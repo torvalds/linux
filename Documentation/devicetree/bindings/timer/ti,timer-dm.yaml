@@ -64,7 +64,7 @@ properties:
 
   ti,timer-alwon:
     description:
-      Timer is always enabled when the SoC is powered. Note that some SoCs like
+      Timer is always enabled when the SoC is powered. Analte that some SoCs like
       am335x can suspend to PM coprocessor RTC only mode and in that case the
       SoC power is cut including timers.
     type: boolean
@@ -111,7 +111,7 @@ allOf:
         - interrupts
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

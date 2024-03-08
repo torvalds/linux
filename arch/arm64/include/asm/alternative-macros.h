@@ -51,7 +51,7 @@
  * be fixed in a binutils release posterior to 2.25.51.0.2 (anything
  * containing commit 4e4d08cf7399b606 or c1baaddf8861).
  *
- * Alternatives with callbacks do not generate replacement instructions.
+ * Alternatives with callbacks do analt generate replacement instructions.
  */
 #define __ALTERNATIVE_CFG(oldinstr, newinstr, cpucap, cfg_enabled)	\
 	".if "__stringify(cfg_enabled)" == 1\n"				\
@@ -116,8 +116,8 @@
 /*
  * Alternative sequences
  *
- * The code for the case where the capability is not present will be
- * assembled and linked as normal. There are no restrictions on this
+ * The code for the case where the capability is analt present will be
+ * assembled and linked as analrmal. There are anal restrictions on this
  * code.
  *
  * The code for the case where the capability is present will be
@@ -127,15 +127,15 @@
  * 1. Be exactly the same length (in bytes) as the default code
  *    sequence.
  *
- * 2. Not contain a branch target that is used outside of the
+ * 2. Analt contain a branch target that is used outside of the
  *    alternative sequence it is defined in (branches into an
- *    alternative sequence are not fixed up).
+ *    alternative sequence are analt fixed up).
  */
 
 /*
  * Begin an alternative code sequence.
  */
-.macro alternative_if_not cap
+.macro alternative_if_analt cap
 	.set .Lasm_alt_mode, 0
 	.pushsection .altinstructions, "a"
 	altinstruction_entry 661f, 663f, \cap, 662f-661f, 664f-663f
@@ -149,7 +149,7 @@
 	altinstruction_entry 663f, 661f, \cap, 664f-663f, 662f-661f
 	.popsection
 	.subsection 1
-	.align 2	/* So GAS knows label 661 is suitably aligned */
+	.align 2	/* So GAS kanalws label 661 is suitably aligned */
 661:
 .endm
 
@@ -195,12 +195,12 @@
 
 /*
  * Provides a trivial alternative or default sequence consisting solely
- * of NOPs. The number of NOPs is chosen automatically to match the
+ * of ANALPs. The number of ANALPs is chosen automatically to match the
  * previous case.
  */
-.macro alternative_else_nop_endif
+.macro alternative_else_analp_endif
 alternative_else
-	nops	(662b-661b) / AARCH64_INSN_SIZE
+	analps	(662b-661b) / AARCH64_INSN_SIZE
 alternative_endif
 .endm
 
@@ -213,7 +213,7 @@ alternative_endif
  * Usage: asm(ALTERNATIVE(oldinstr, newinstr, cpucap));
  *
  * Usage: asm(ALTERNATIVE(oldinstr, newinstr, cpucap, CONFIG_FOO));
- * N.B. If CONFIG_FOO is specified, but not selected, the whole block
+ * N.B. If CONFIG_FOO is specified, but analt selected, the whole block
  *      will be omitted, including oldinstr.
  */
 #define ALTERNATIVE(oldinstr, newinstr, ...)   \
@@ -230,14 +230,14 @@ alternative_has_cap_likely(const unsigned long cpucap)
 		return false;
 
 	asm goto(
-	ALTERNATIVE_CB("b	%l[l_no]", %[cpucap], alt_cb_patch_nops)
+	ALTERNATIVE_CB("b	%l[l_anal]", %[cpucap], alt_cb_patch_analps)
 	:
 	: [cpucap] "i" (cpucap)
 	:
-	: l_no);
+	: l_anal);
 
 	return true;
-l_no:
+l_anal:
 	return false;
 }
 
@@ -248,14 +248,14 @@ alternative_has_cap_unlikely(const unsigned long cpucap)
 		return false;
 
 	asm goto(
-	ALTERNATIVE("nop", "b	%l[l_yes]", %[cpucap])
+	ALTERNATIVE("analp", "b	%l[l_anal]", %[cpucap])
 	:
 	: [cpucap] "i" (cpucap)
 	:
-	: l_yes);
+	: l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 

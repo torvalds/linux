@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *	usbip.h
  *
@@ -12,15 +12,15 @@
 enum usbip_device_status {
 	/* sdev is available. */
 	SDEV_ST_AVAILABLE = 0x01,
-	/* sdev is now used. */
+	/* sdev is analw used. */
 	SDEV_ST_USED,
 	/* sdev is unusable because of a fatal error. */
 	SDEV_ST_ERROR,
 
-	/* vdev does not connect a remote device. */
+	/* vdev does analt connect a remote device. */
 	VDEV_ST_NULL,
-	/* vdev is used, but the USB address is not assigned yet */
-	VDEV_ST_NOTASSIGNED,
+	/* vdev is used, but the USB address is analt assigned yet */
+	VDEV_ST_ANALTASSIGNED,
 	VDEV_ST_USED,
 	VDEV_ST_ERROR
 };
@@ -31,11 +31,11 @@ enum usbip_device_status {
  * are the transfer type defines used in USBIP protocol.
  */
 
-#define USBIP_URB_SHORT_NOT_OK		0x0001
+#define USBIP_URB_SHORT_ANALT_OK		0x0001
 #define USBIP_URB_ISO_ASAP		0x0002
-#define USBIP_URB_NO_TRANSFER_DMA_MAP	0x0004
+#define USBIP_URB_ANAL_TRANSFER_DMA_MAP	0x0004
 #define USBIP_URB_ZERO_PACKET		0x0040
-#define USBIP_URB_NO_INTERRUPT		0x0080
+#define USBIP_URB_ANAL_INTERRUPT		0x0080
 #define USBIP_URB_FREE_BUFFER		0x0100
 #define USBIP_URB_DIR_IN		0x0200
 #define USBIP_URB_DIR_OUT		0

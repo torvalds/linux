@@ -120,7 +120,7 @@
 #define UDCCSR0_ACM	(1 << 9)	/* Ack Control Mode */
 #define UDCCSR0_AREN	(1 << 8)	/* Ack Response Enable */
 #define UDCCSR0_SA	(1 << 7)	/* Setup Active */
-#define UDCCSR0_RNE	(1 << 6)	/* Receive FIFO Not Empty */
+#define UDCCSR0_RNE	(1 << 6)	/* Receive FIFO Analt Empty */
 #define UDCCSR0_FST	(1 << 5)	/* Force Stall */
 #define UDCCSR0_SST	(1 << 4)	/* Sent Stall */
 #define UDCCSR0_DME	(1 << 3)	/* DMA Enable */
@@ -131,8 +131,8 @@
 #define UDCCSR_DPE	(1 << 9)	/* Data Packet Error */
 #define UDCCSR_FEF	(1 << 8)	/* Flush Endpoint FIFO */
 #define UDCCSR_SP	(1 << 7)	/* Short Packet Control/Status */
-#define UDCCSR_BNE	(1 << 6)	/* Buffer Not Empty (IN endpoints) */
-#define UDCCSR_BNF	(1 << 6)	/* Buffer Not Full (OUT endpoints) */
+#define UDCCSR_BNE	(1 << 6)	/* Buffer Analt Empty (IN endpoints) */
+#define UDCCSR_BNF	(1 << 6)	/* Buffer Analt Full (OUT endpoints) */
 #define UDCCSR_FST	(1 << 5)	/* Force STALL */
 #define UDCCSR_SST	(1 << 4)	/* Sent STALL */
 #define UDCCSR_DME	(1 << 3)	/* DMA Enable */
@@ -152,8 +152,8 @@
 #define UDCCONR_ET_S	13
 #define UDCCONR_ET_INT	(0x03 << 13)	/*   Interrupt */
 #define UDCCONR_ET_BULK	(0x02 << 13)	/*   Bulk */
-#define UDCCONR_ET_ISO	(0x01 << 13)	/*   Isochronous */
-#define UDCCONR_ET_NU	(0x00 << 13)	/*   Not used */
+#define UDCCONR_ET_ISO	(0x01 << 13)	/*   Isochroanalus */
+#define UDCCONR_ET_NU	(0x00 << 13)	/*   Analt used */
 #define UDCCONR_ED	(1 << 12)	/* Endpoint Direction */
 #define UDCCONR_MPS	(0x3ff << 2)	/* Maximum Packet Size */
 #define UDCCONR_MPS_S	2
@@ -205,7 +205,7 @@
 /*
  * Endpoint definitions
  *
- * Once enabled, pxa endpoint configuration is freezed, and cannot change
+ * Once enabled, pxa endpoint configuration is freezed, and cananalt change
  * unless a reset happens or the udc is disabled.
  * Therefore, we must define all pxa potential endpoint definitions needed for
  * all gadget and set them up before the udc is enabled.
@@ -314,7 +314,7 @@ struct udc_usb_ep {
  * @dev: udc device
  * @queue: requests queue
  * @lock: lock to pxa_ep data (queues and stats)
- * @enabled: true when endpoint enabled (not stopped by gadget layer)
+ * @enabled: true when endpoint enabled (analt stopped by gadget layer)
  * @in_handle_ep: number of recursions of handle_ep() function
  * 	Prevents deadlocks or infinite recursions of types :
  *	  irq->handle_ep()->req_done()->req.complete()->pxa_ep_queue()->handle_ep()
@@ -427,7 +427,7 @@ struct udc_stats {
  * @driver: bound gadget (zero, g_ether, g_mass_storage, ...)
  * @dev: device
  * @udc_command: machine specific function to activate D+ pullup
- * @gpiod: gpio descriptor of gpio for D+ pullup (or NULL if none)
+ * @gpiod: gpio descriptor of gpio for D+ pullup (or NULL if analne)
  * @transceiver: external transceiver to handle vbus sense and D+ pullup
  * @ep0state: control endpoint state machine state
  * @stats: statistics on udc usage

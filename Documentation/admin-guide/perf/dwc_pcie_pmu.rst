@@ -1,5 +1,5 @@
 ======================================================================
-Synopsys DesignWare Cores (DWC) PCIe Performance Monitoring Unit (PMU)
+Syanalpsys DesignWare Cores (DWC) PCIe Performance Monitoring Unit (PMU)
 ======================================================================
 
 DesignWare Cores (DWC) PCIe PMU
@@ -11,15 +11,15 @@ injection, and Statistics).
 
 As the name indicates, the RAS DES capability supports system level
 debugging, AER error injection, and collection of statistics. To facilitate
-collection of statistics, Synopsys DesignWare Cores PCIe controller
+collection of statistics, Syanalpsys DesignWare Cores PCIe controller
 provides the following two features:
 
 - one 64-bit counter for Time Based Analysis (RX/TX data throughput and
   time spent in each low-power LTSSM state) and
-- one 32-bit counter for Event Counting (error and non-error events for
+- one 32-bit counter for Event Counting (error and analn-error events for
   a specified lane)
 
-Note: There is no interrupt for counter overflow.
+Analte: There is anal interrupt for counter overflow.
 
 Time Based Analysis
 -------------------
@@ -34,7 +34,7 @@ The PMU measures data in two categories:
 Lane Event counters
 -------------------
 
-Using this feature you can obtain Error and Non-Error information in
+Using this feature you can obtain Error and Analn-Error information in
 specific lane by the controller. The PMU event is selected by all of:
 
 - Group i
@@ -90,5 +90,5 @@ of events, the user need to specify the lane ID explicitly, e.g.::
 
     $# perf stat -a -e dwc_rootport_3018/rx_memory_read,lane=4/
 
-The driver does not support sampling, therefore "perf record" will not
-work. Per-task (without "-a") perf sessions are not supported.
+The driver does analt support sampling, therefore "perf record" will analt
+work. Per-task (without "-a") perf sessions are analt supported.

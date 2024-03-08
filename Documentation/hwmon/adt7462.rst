@@ -21,7 +21,7 @@ This driver implements support for the Analog Devices ADT7462 chip family.
 This chip is a bit of a beast.  It has 8 counters for measuring fan speed.  It
 can also measure 13 voltages or 4 temperatures, or various combinations of the
 two.  See the chip documentation for more details about the exact set of
-configurations.  This driver does not allow one to configure the chip; that is
+configurations.  This driver does analt allow one to configure the chip; that is
 left to the system designer.
 
 A sophisticated control system for the PWM outputs is designed into the ADT7462
@@ -35,7 +35,7 @@ Each of the measured inputs (voltage, temperature, fan speed) has
 corresponding high/low limit values. The ADT7462 will signal an ALARM if
 any measured value exceeds either limit.
 
-The ADT7462 samples all inputs continuously. The driver will not read
+The ADT7462 samples all inputs continuously. The driver will analt read
 the registers more often than once every other second. Further,
 configuration data is only read once per minute.
 
@@ -51,7 +51,7 @@ determining an optimal configuration for the automatic PWM control.
 The driver will report sensor labels when it is able to determine that
 information from the configuration registers.
 
-Configuration Notes
+Configuration Analtes
 -------------------
 
 Besides standard interfaces driver adds the following:

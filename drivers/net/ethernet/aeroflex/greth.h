@@ -74,7 +74,7 @@
 
 /* Buffer size.
  * Gbit MAC uses tagged maximum frame size which is 1518 excluding CRC.
- * Set to 1520 to make all buffers word aligned for non-gbit MAC.
+ * Set to 1520 to make all buffers word aligned for analn-gbit MAC.
  */
 #define MAX_FRAME_SIZE		1520
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2022 Microchip Technology Inc.
+// Copyright (C) 2022 Microchip Techanallogy Inc.
 // pci1xxxx gpio driver
 
 #include <linux/module.h>
@@ -148,7 +148,7 @@ static int pci1xxxx_gpio_set_config(struct gpio_chip *gpio, unsigned int offset,
 		pci1xxx_assign_bit(priv->reg_base, OPENDRAIN_OFFSET(offset), (offset % 32), true);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -361,7 +361,7 @@ static int pci1xxxx_gpio_setup(struct pci1xxxx_gpio *priv, int irq)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 
 	return 0;
@@ -386,7 +386,7 @@ static int pci1xxxx_gpio_probe(struct auxiliary_device *aux_dev,
 
 	priv = devm_kzalloc(&aux_dev->dev, sizeof(struct pci1xxxx_gpio), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	priv->aux_dev = aux_dev;
@@ -396,7 +396,7 @@ static int pci1xxxx_gpio_probe(struct auxiliary_device *aux_dev,
 
 	priv->reg_base = devm_ioremap(&aux_dev->dev, pdata->region_start, 0x800);
 	if (!priv->reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	writel(0x0264, (priv->reg_base + 0x400 + 0xF0));
 
@@ -428,6 +428,6 @@ static struct auxiliary_driver pci1xxxx_gpio_driver = {
 };
 module_auxiliary_driver(pci1xxxx_gpio_driver);
 
-MODULE_DESCRIPTION("Microchip Technology Inc. PCI1xxxx GPIO controller");
+MODULE_DESCRIPTION("Microchip Techanallogy Inc. PCI1xxxx GPIO controller");
 MODULE_AUTHOR("Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>");
 MODULE_LICENSE("GPL");

@@ -15,14 +15,14 @@
  * generically here instead of hard coded in the platform specific
  * driver as it us currently
  *
- * This however requires solving some annoying lifetime issues with
+ * This however requires solving some ananalying lifetime issues with
  * sysfs which doesn't seem to have lifetime rules for struct attribute,
  * I may have to create full features kobjects for every sensor/control
  * instead which is a bit of an overkill imho
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -50,7 +50,7 @@
 static LIST_HEAD(wf_controls);
 static LIST_HEAD(wf_sensors);
 static DEFINE_MUTEX(wf_lock);
-static BLOCKING_NOTIFIER_HEAD(wf_client_list);
+static BLOCKING_ANALTIFIER_HEAD(wf_client_list);
 static int wf_client_count;
 static unsigned int wf_overtemp;
 static unsigned int wf_overtemp_counter;
@@ -64,9 +64,9 @@ static struct platform_device wf_platform_device = {
  * Utilities & tick thread
  */
 
-static inline void wf_notify(int event, void *param)
+static inline void wf_analtify(int event, void *param)
 {
-	blocking_notifier_call_chain(&wf_client_list, event, param);
+	blocking_analtifier_call_chain(&wf_client_list, event, param);
 }
 
 static int wf_critical_overtemp(void)
@@ -95,10 +95,10 @@ static int wf_thread_func(void *data)
 		try_to_freeze();
 
 		if (time_after_eq(jiffies, next)) {
-			wf_notify(WF_EVENT_TICK, NULL);
+			wf_analtify(WF_EVENT_TICK, NULL);
 			if (wf_overtemp) {
 				wf_overtemp_counter++;
-				/* 10 seconds overtemp, notify userland */
+				/* 10 seconds overtemp, analtify userland */
 				if (wf_overtemp_counter > 10)
 					wf_critical_overtemp();
 				/* 30 seconds, shutdown */
@@ -232,7 +232,7 @@ int wf_register_control(struct wf_control *new_ct)
 
 	DBG("wf: Registered control %s\n", new_ct->name);
 
-	wf_notify(WF_EVENT_NEW_CONTROL, new_ct);
+	wf_analtify(WF_EVENT_NEW_CONTROL, new_ct);
 	mutex_unlock(&wf_lock);
 
 	return 0;
@@ -254,7 +254,7 @@ EXPORT_SYMBOL_GPL(wf_unregister_control);
 int wf_get_control(struct wf_control *ct)
 {
 	if (!try_module_get(ct->ops->owner))
-		return -ENODEV;
+		return -EANALDEV;
 	kref_get(&ct->ref);
 	return 0;
 }
@@ -327,7 +327,7 @@ int wf_register_sensor(struct wf_sensor *new_sr)
 
 	DBG("wf: Registered sensor %s\n", new_sr->name);
 
-	wf_notify(WF_EVENT_NEW_SENSOR, new_sr);
+	wf_analtify(WF_EVENT_NEW_SENSOR, new_sr);
 	mutex_unlock(&wf_lock);
 
 	return 0;
@@ -349,7 +349,7 @@ EXPORT_SYMBOL_GPL(wf_unregister_sensor);
 int wf_get_sensor(struct wf_sensor *sr)
 {
 	if (!try_module_get(sr->ops->owner))
-		return -ENODEV;
+		return -EANALDEV;
 	kref_get(&sr->ref);
 	return 0;
 }
@@ -365,24 +365,24 @@ EXPORT_SYMBOL_GPL(wf_put_sensor);
 
 
 /*
- * Client & notification
+ * Client & analtification
  */
 
-int wf_register_client(struct notifier_block *nb)
+int wf_register_client(struct analtifier_block *nb)
 {
 	int rc;
 	struct wf_control *ct;
 	struct wf_sensor *sr;
 
 	mutex_lock(&wf_lock);
-	rc = blocking_notifier_chain_register(&wf_client_list, nb);
+	rc = blocking_analtifier_chain_register(&wf_client_list, nb);
 	if (rc != 0)
 		goto bail;
 	wf_client_count++;
 	list_for_each_entry(ct, &wf_controls, link)
-		wf_notify(WF_EVENT_NEW_CONTROL, ct);
+		wf_analtify(WF_EVENT_NEW_CONTROL, ct);
 	list_for_each_entry(sr, &wf_sensors, link)
-		wf_notify(WF_EVENT_NEW_SENSOR, sr);
+		wf_analtify(WF_EVENT_NEW_SENSOR, sr);
 	if (wf_client_count == 1)
 		wf_start_thread();
  bail:
@@ -391,10 +391,10 @@ int wf_register_client(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(wf_register_client);
 
-int wf_unregister_client(struct notifier_block *nb)
+int wf_unregister_client(struct analtifier_block *nb)
 {
 	mutex_lock(&wf_lock);
-	blocking_notifier_chain_unregister(&wf_client_list, nb);
+	blocking_analtifier_chain_unregister(&wf_client_list, nb);
 	wf_client_count--;
 	if (wf_client_count == 0)
 		wf_stop_thread();
@@ -411,7 +411,7 @@ void wf_set_overtemp(void)
 	if (wf_overtemp == 1) {
 		printk(KERN_WARNING "windfarm: Overtemp condition detected !\n");
 		wf_overtemp_counter = 0;
-		wf_notify(WF_EVENT_OVERTEMP, NULL);
+		wf_analtify(WF_EVENT_OVERTEMP, NULL);
 	}
 	mutex_unlock(&wf_lock);
 }
@@ -428,7 +428,7 @@ void wf_clear_overtemp(void)
 	wf_overtemp--;
 	if (wf_overtemp == 0) {
 		printk(KERN_WARNING "windfarm: Overtemp condition cleared !\n");
-		wf_notify(WF_EVENT_NORMALTEMP, NULL);
+		wf_analtify(WF_EVENT_ANALRMALTEMP, NULL);
 	}
 	mutex_unlock(&wf_lock);
 }

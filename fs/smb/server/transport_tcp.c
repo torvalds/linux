@@ -46,9 +46,9 @@ static struct interface *alloc_iface(char *ifname);
 #define TCP_TRANS(t)	((struct tcp_transport *)container_of(t, \
 				struct tcp_transport, transport))
 
-static inline void ksmbd_tcp_nodelay(struct socket *sock)
+static inline void ksmbd_tcp_analdelay(struct socket *sock)
 {
-	tcp_sock_set_nodelay(sock->sk);
+	tcp_sock_set_analdelay(sock->sk);
 }
 
 static inline void ksmbd_tcp_reuseaddr(struct socket *sock)
@@ -150,7 +150,7 @@ static struct kvec *get_conn_iovec(struct tcp_transport *t, unsigned int nr_segs
 	if (t->iov && nr_segs <= t->nr_iov)
 		return t->iov;
 
-	/* not big enough -- allocate a new one and release the old */
+	/* analt big eanalugh -- allocate a new one and release the old */
 	new_iov = kmalloc_array(nr_segs, sizeof(*new_iov), GFP_KERNEL);
 	if (new_iov) {
 		kfree(t->iov);
@@ -190,7 +190,7 @@ static int ksmbd_tcp_new_connection(struct socket *client_sk)
 	t = alloc_transport(client_sk);
 	if (!t) {
 		sock_release(client_sk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	csin = KSMBD_TCP_PEER_SOCKADDR(KSMBD_TRANS(t)->conn);
@@ -205,7 +205,7 @@ static int ksmbd_tcp_new_connection(struct socket *client_sk)
 			      "ksmbd:%u",
 			      ksmbd_tcp_get_port(csin));
 	if (IS_ERR(handler)) {
-		pr_err("cannot start conn thread\n");
+		pr_err("cananalt start conn thread\n");
 		rc = PTR_ERR(handler);
 		free_transport(t);
 	}
@@ -235,7 +235,7 @@ static int ksmbd_kthread_fn(void *p)
 			break;
 		}
 		ret = kernel_accept(iface->ksmbd_socket, &client_sk,
-				    SOCK_NONBLOCK);
+				    SOCK_ANALNBLOCK);
 		mutex_unlock(&iface->sock_release_lock);
 		if (ret) {
 			if (ret == -EAGAIN)
@@ -314,7 +314,7 @@ static int ksmbd_tcp_readv(struct tcp_transport *t, struct kvec *iov_orig,
 
 	iov = get_conn_iovec(t, nr_segs);
 	if (!iov)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ksmbd_msg.msg_control = NULL;
 	ksmbd_msg.msg_controllen = 0;
@@ -386,7 +386,7 @@ static int ksmbd_tcp_writev(struct ksmbd_transport *t, struct kvec *iov,
 			    unsigned int remote_key)
 
 {
-	struct msghdr smb_msg = {.msg_flags = MSG_NOSIGNAL};
+	struct msghdr smb_msg = {.msg_flags = MSG_ANALSIGNAL};
 
 	return kernel_sendmsg(TCP_TRANS(t)->sock, &smb_msg, iov, nvecs, size);
 }
@@ -431,7 +431,7 @@ static int create_socket(struct interface *iface)
 
 	ret = sock_create(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &ksmbd_socket);
 	if (ret) {
-		if (ret != -EAFNOSUPPORT)
+		if (ret != -EAFANALSUPPORT)
 			pr_err("Can't create socket for ipv6, fallback to ipv4: %d\n", ret);
 		ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP,
 				  &ksmbd_socket);
@@ -450,7 +450,7 @@ static int create_socket(struct interface *iface)
 		sin6.sin6_port = htons(server_conf.tcp_port);
 	}
 
-	ksmbd_tcp_nodelay(ksmbd_socket);
+	ksmbd_tcp_analdelay(ksmbd_socket);
 	ksmbd_tcp_reuseaddr(ksmbd_socket);
 
 	ret = sock_setsockopt(ksmbd_socket,
@@ -458,7 +458,7 @@ static int create_socket(struct interface *iface)
 			      SO_BINDTODEVICE,
 			      KERNEL_SOCKPTR(iface->name),
 			      strlen(iface->name));
-	if (ret != -ENODEV && ret < 0) {
+	if (ret != -EANALDEV && ret < 0) {
 		pr_err("Failed to set SO_BINDTODEVICE: %d\n", ret);
 		goto out_error;
 	}
@@ -500,17 +500,17 @@ out_clear:
 	return ret;
 }
 
-static int ksmbd_netdev_event(struct notifier_block *nb, unsigned long event,
+static int ksmbd_netdev_event(struct analtifier_block *nb, unsigned long event,
 			      void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(ptr);
 	struct interface *iface;
 	int ret, found = 0;
 
 	switch (event) {
 	case NETDEV_UP:
 		if (netif_is_bridge_port(netdev))
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 
 		list_for_each_entry(iface, &iface_list, entry) {
 			if (!strcmp(iface->name, netdev->name)) {
@@ -519,14 +519,14 @@ static int ksmbd_netdev_event(struct notifier_block *nb, unsigned long event,
 					break;
 				ret = create_socket(iface);
 				if (ret)
-					return NOTIFY_OK;
+					return ANALTIFY_OK;
 				break;
 			}
 		}
 		if (!found && bind_additional_ifaces) {
 			iface = alloc_iface(kstrdup(netdev->name, GFP_KERNEL));
 			if (!iface)
-				return NOTIFY_OK;
+				return ANALTIFY_OK;
 			ret = create_socket(iface);
 			if (ret)
 				break;
@@ -550,16 +550,16 @@ static int ksmbd_netdev_event(struct notifier_block *nb, unsigned long event,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block ksmbd_netdev_notifier = {
-	.notifier_call = ksmbd_netdev_event,
+static struct analtifier_block ksmbd_netdev_analtifier = {
+	.analtifier_call = ksmbd_netdev_event,
 };
 
 int ksmbd_tcp_init(void)
 {
-	register_netdevice_notifier(&ksmbd_netdev_notifier);
+	register_netdevice_analtifier(&ksmbd_netdev_analtifier);
 
 	return 0;
 }
@@ -580,7 +580,7 @@ void ksmbd_tcp_destroy(void)
 {
 	struct interface *iface, *tmp;
 
-	unregister_netdevice_notifier(&ksmbd_netdev_notifier);
+	unregister_netdevice_analtifier(&ksmbd_netdev_analtifier);
 
 	list_for_each_entry_safe(iface, tmp, &iface_list, entry) {
 		list_del(&iface->entry);
@@ -621,7 +621,7 @@ int ksmbd_tcp_set_interfaces(char *ifc_list, int ifc_list_sz)
 			if (netif_is_bridge_port(netdev))
 				continue;
 			if (!alloc_iface(kstrdup(netdev->name, GFP_KERNEL)))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		rtnl_unlock();
 		bind_additional_ifaces = 1;
@@ -630,7 +630,7 @@ int ksmbd_tcp_set_interfaces(char *ifc_list, int ifc_list_sz)
 
 	while (ifc_list_sz > 0) {
 		if (!alloc_iface(kstrdup(ifc_list, GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sz = strlen(ifc_list);
 		if (!sz)

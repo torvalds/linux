@@ -29,7 +29,7 @@ raw_get_hashinfo(const struct inet_diag_req_v2 *r)
 }
 
 /*
- * Due to requirement of not breaking user API we can't simply
+ * Due to requirement of analt breaking user API we can't simply
  * rename @pad field in inet_diag_req_v2 structure, instead
  * use helper to figure it out.
  */
@@ -74,12 +74,12 @@ static struct sock *raw_sock_get(struct net *net, const struct inet_diag_req_v2 
 				 * diag message to be reported, so
 				 * caller should call sock_put then.
 				 */
-				if (refcount_inc_not_zero(&sk->sk_refcnt))
+				if (refcount_inc_analt_zero(&sk->sk_refcnt))
 					goto out_unlock;
 			}
 		}
 	}
-	sk = ERR_PTR(-ENOENT);
+	sk = ERR_PTR(-EANALENT);
 out_unlock:
 	rcu_read_unlock();
 
@@ -106,7 +106,7 @@ static int raw_diag_dump_one(struct netlink_callback *cb,
 			GFP_KERNEL);
 	if (!rep) {
 		sock_put(sk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = inet_sk_diag_fill(sk, NULL, rep, cb, r, 0,

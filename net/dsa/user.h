@@ -14,8 +14,8 @@
 struct net_device;
 struct netlink_ext_ack;
 
-extern struct notifier_block dsa_user_switchdev_notifier;
-extern struct notifier_block dsa_user_switchdev_blocking_notifier;
+extern struct analtifier_block dsa_user_switchdev_analtifier;
+extern struct analtifier_block dsa_user_switchdev_blocking_analtifier;
 
 struct dsa_user_priv {
 	/* Copy of CPU port xmit for faster access in user transmit hot path */
@@ -40,8 +40,8 @@ int dsa_user_create(struct dsa_port *dp);
 void dsa_user_destroy(struct net_device *user_dev);
 int dsa_user_suspend(struct net_device *user_dev);
 int dsa_user_resume(struct net_device *user_dev);
-int dsa_user_register_notifier(void);
-void dsa_user_unregister_notifier(void);
+int dsa_user_register_analtifier(void);
+void dsa_user_unregister_analtifier(void);
 void dsa_user_sync_ha(struct net_device *dev);
 void dsa_user_unsync_ha(struct net_device *dev);
 void dsa_user_setup_tagger(struct net_device *user);

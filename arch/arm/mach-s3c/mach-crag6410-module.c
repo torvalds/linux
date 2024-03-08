@@ -438,7 +438,7 @@ static int wlf_gf_module_probe(struct i2c_client *i2c)
 		if (gf_mods[i].gpiod_table)
 			gpiod_add_lookup_table(gf_mods[i].gpiod_table);
 	} else {
-		dev_warn(&i2c->dev, "Unknown module ID 0x%x revision %d\n",
+		dev_warn(&i2c->dev, "Unkanalwn module ID 0x%x revision %d\n",
 			 id, rev + 1);
 	}
 

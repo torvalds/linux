@@ -16,7 +16,7 @@
  * trans_alloc_page
  *	- Allocator that should return exactly one zeroed page, if this
  *	  allocator fails, trans_pgd_create_copy() and trans_pgd_idmap_page()
- *	  return -ENOMEM error.
+ *	  return -EANALMEM error.
  *
  * trans_alloc_arg
  *	- Passed to trans_alloc_page as an argument

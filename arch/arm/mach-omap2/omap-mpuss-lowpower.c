@@ -12,7 +12,7 @@
  * hence multiple low power combinations of MPUSS are possible.
  *
  * The CPU0 and CPU1 can't support Closed switch Retention (CSWR)
- * because the mode is not supported by hw constraints of dormant
+ * because the mode is analt supported by hw constraints of dormant
  * mode. While waking up from the dormant mode, a reset  signal
  * to the Cortex-A9 processor must be asserted by the external
  * power controller.
@@ -29,14 +29,14 @@
  *	OFF		OFF		OFF(Device OFF *TBD)
  *	----------------------------------------------
  *
- * Note: CPU0 is the master core and it is the last CPU to go down
+ * Analte: CPU0 is the master core and it is the last CPU to go down
  * and first to wake-up when MPUSS low power states are excercised
  */
 
 #include <linux/cpuidle.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <linux/smp.h>
 
@@ -75,7 +75,7 @@ struct omap4_cpu_pm_info {
  * struct cpu_pm_ops - CPU pm operations
  * @finish_suspend:	CPU suspend finisher function pointer
  * @resume:		CPU resume function pointer
- * @scu_prepare:	CPU Snoop Control program function pointer
+ * @scu_prepare:	CPU Sanalop Control program function pointer
  * @hotplug_restart:	CPU restart function pointer
  *
  * Structure holds functions pointer for CPU low power operations like
@@ -141,7 +141,7 @@ static void scu_pwrst_prepare(unsigned int cpu_id, unsigned int cpu_state)
 	case PWRDM_POWER_ON:
 	case PWRDM_POWER_INACTIVE:
 	default:
-		scu_pwr_st = SCU_PM_NORMAL;
+		scu_pwr_st = SCU_PM_ANALRMAL;
 		break;
 	}
 
@@ -219,7 +219,7 @@ static void __init save_l2x0_context(void)
  *
  * MPUSS states for the context save:
  * save_state =
- *	0 - Nothing lost and no need to save: MPUSS INACTIVE
+ *	0 - Analthing lost and anal need to save: MPUSS INACTIVE
  *	1 - CPUx L1 and logic lost: MPUSS CSWR
  *	2 - CPUx L1 and logic lost + GIC lost: MPUSS OSWR
  *	3 - CPUx L1 and logic lost + GIC + L2 lost: DEVICE OFF
@@ -251,7 +251,7 @@ __cpuidle int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state,
 		 * CPUx CSWR is invalid hardware state. Also CPUx OSWR
 		 * doesn't make much scense, since logic is lost and $L1
 		 * needs to be cleaned because of coherency. This makes
-		 * CPUx OSWR equivalent to CPUX OFF and hence not supported
+		 * CPUx OSWR equivalent to CPUX OFF and hence analt supported
 		 */
 		WARN_ON(1);
 		return -ENXIO;
@@ -334,7 +334,7 @@ int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 
 	/*
 	 * CPU never retuns back if targeted power state is OFF mode.
-	 * CPU ONLINE follows normal CPU ONLINE ptah via
+	 * CPU ONLINE follows analrmal CPU ONLINE ptah via
 	 * omap4_secondary_startup().
 	 */
 	omap_pm_ops.finish_suspend(cpu_state);
@@ -367,8 +367,8 @@ int __init omap4_mpuss_init(void)
 	struct omap4_cpu_pm_info *pm_info;
 
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
-		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");
-		return -ENODEV;
+		WARN(1, "Power Management analt supported on OMAP4430 ES1.0\n");
+		return -EANALDEV;
 	}
 
 	/* Initilaise per CPU PM information */
@@ -386,7 +386,7 @@ int __init omap4_mpuss_init(void)
 	pm_info->pwrdm = pwrdm_lookup("cpu0_pwrdm");
 	if (!pm_info->pwrdm) {
 		pr_err("Lookup failed for CPU0 pwrdm\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Clear CPU previous power domain state */
@@ -411,7 +411,7 @@ int __init omap4_mpuss_init(void)
 	pm_info->pwrdm = pwrdm_lookup("cpu1_pwrdm");
 	if (!pm_info->pwrdm) {
 		pr_err("Lookup failed for CPU1 pwrdm\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Clear CPU previous power domain state */
@@ -424,7 +424,7 @@ int __init omap4_mpuss_init(void)
 	mpuss_pd = pwrdm_lookup("mpu_pwrdm");
 	if (!mpuss_pd) {
 		pr_err("Failed to lookup MPUSS power domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pwrdm_clear_all_prev_pwrst(mpuss_pd);
 	mpuss_clear_prev_logic_pwrst();

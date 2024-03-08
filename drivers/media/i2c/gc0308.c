@@ -19,7 +19,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* Analog & CISCTL*/
@@ -119,7 +119,7 @@
 #define GC0308_DD_FLAT_TH		CCI_REG8(0x067)
 #define GC0308_DD_LIMIT			CCI_REG8(0x068)
 
-/* ASDE - Auto Saturation De-noise and Edge-Enhancement */
+/* ASDE - Auto Saturation De-analise and Edge-Enhancement */
 #define GC0308_ASDE_GAIN_TRESH		CCI_REG8(0x069)
 #define GC0308_ASDE_GAIN_MODE		CCI_REG8(0x06a)
 #define GC0308_ASDE_DN_SLOPE		CCI_REG8(0x06b)
@@ -233,7 +233,7 @@
 #define GC0308_AEC_TARGET_Y		CCI_REG8(0x0d3)
 #define GC0308_Y_AVG			CCI_REG8(0x0d4)
 #define GC0308_AEC_HIGH_LOW_RANGE	CCI_REG8(0x0d5)
-#define GC0308_AEC_IGNORE		CCI_REG8(0x0d6)
+#define GC0308_AEC_IGANALRE		CCI_REG8(0x0d6)
 #define GC0308_AEC_LIMIT_HIGH_RANGE	CCI_REG8(0x0d7)
 #define GC0308_AEC_R_OFFSET		CCI_REG8(0x0d9)
 #define GC0308_AEC_GB_OFFSET		CCI_REG8(0x0da)
@@ -315,8 +315,8 @@
 
 /*
  * frame_time = (BT + height + 8) * row_time
- * width = 640 (driver does not change window size)
- * height = 480 (driver does not change window size)
+ * width = 640 (driver does analt change window size)
+ * height = 480 (driver does analt change window size)
  * row_time = HBLANK + SAMPLE_HOLD_DELAY + width + 8 + 4
  *
  * When EXP_TIME > (BT + height):
@@ -596,7 +596,7 @@ static const struct cci_reg_sequence sensor_default_regs[] = {
 	{GC0308_AEC_MODE3, 0x90},
 	{GC0308_AEC_TARGET_Y, 0x48},
 	{GC0308_AEC_HIGH_LOW_RANGE, 0xf2},
-	{GC0308_AEC_IGNORE, 0x16},
+	{GC0308_AEC_IGANALRE, 0x16},
 	{GC0308_AEC_SLOW_MARGIN, 0x92},
 	{GC0308_AEC_FAST_MARGIN, 0xa5},
 	{GC0308_AEC_I_FRAMES, 0x23},
@@ -738,7 +738,7 @@ struct gc0308_colormode {
 	}
 
 static const struct gc0308_colormode gc0308_colormodes[] = {
-	[V4L2_COLORFX_NONE] =
+	[V4L2_COLORFX_ANALNE] =
 		GC0308_COLOR_FX(0x00, 0x0a, 0xff, 0x90, 0x00,
 				0x54, 0x3c, 0x80, 0x00, 0x00),
 	[V4L2_COLORFX_BW] =
@@ -1043,7 +1043,7 @@ static void gc0308_update_pad_format(const struct gc0308_frame_size *mode,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = code;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
@@ -1087,7 +1087,7 @@ static int gc0308_init_state(struct v4l2_subdev *sd,
 	format->height		= 480;
 	format->code		= gc0308_formats[0].code;
 	format->colorspace	= V4L2_COLORSPACE_SRGB;
-	format->field		= V4L2_FIELD_NONE;
+	format->field		= V4L2_FIELD_ANALNE;
 	format->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
 	format->quantization	= V4L2_QUANTIZATION_DEFAULT;
 	format->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
@@ -1206,18 +1206,18 @@ static const struct v4l2_subdev_internal_ops gc0308_internal_ops = {
 static int gc0308_bus_config(struct gc0308 *gc0308)
 {
 	struct device *dev = gc0308->dev;
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_PARALLEL
 	};
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), 0, 0, 0);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
@@ -1262,7 +1262,7 @@ static int gc0308_init_controls(struct gc0308 *gc0308)
 			       V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
 			       8, ~0x14e, V4L2_WHITE_BALANCE_AUTO);
 	v4l2_ctrl_new_std_menu(&gc0308->hdl, &gc0308_ctrl_ops,
-			       V4L2_CID_COLORFX, 8, 0, V4L2_COLORFX_NONE);
+			       V4L2_CID_COLORFX, 8, 0, V4L2_COLORFX_ANALNE);
 	v4l2_ctrl_new_std_menu(&gc0308->hdl, &gc0308_ctrl_ops,
 			       V4L2_CID_POWER_LINE_FREQUENCY,
 			       V4L2_CID_POWER_LINE_FREQUENCY_60HZ,
@@ -1296,7 +1296,7 @@ static int gc0308_probe(struct i2c_client *client)
 
 	gc0308 = devm_kzalloc(dev, sizeof(*gc0308), GFP_KERNEL);
 	if (!gc0308)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc0308->dev = dev;
 	dev_set_drvdata(dev, gc0308);
@@ -1308,7 +1308,7 @@ static int gc0308_probe(struct i2c_client *client)
 	gc0308->clk = devm_clk_get_optional(dev, NULL);
 	if (IS_ERR(gc0308->clk))
 		return dev_err_probe(dev, PTR_ERR(gc0308->clk),
-				     "could not get clk\n");
+				     "could analt get clk\n");
 
 	gc0308->vdd = devm_regulator_get(dev, "vdd28");
 	if (IS_ERR(gc0308->vdd))
@@ -1326,7 +1326,7 @@ static int gc0308_probe(struct i2c_client *client)
 				     "failed to get reset gpio\n");
 
 	/*
-	 * This is not using devm_cci_regmap_init_i2c(), because the driver
+	 * This is analt using devm_cci_regmap_init_i2c(), because the driver
 	 * makes use of regmap's pagination feature. The chosen settings are
 	 * compatible with the CCI helpers.
 	 */
@@ -1337,7 +1337,7 @@ static int gc0308_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&gc0308->sd, client, &gc0308_subdev_ops);
 	gc0308->sd.internal_ops = &gc0308_internal_ops;
-	gc0308->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	gc0308->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	gc0308->sd.flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	ret = gc0308_init_controls(gc0308);
@@ -1383,7 +1383,7 @@ static int gc0308_probe(struct i2c_client *client)
 	 * resuming the device.
 	 */
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
@@ -1398,7 +1398,7 @@ static int gc0308_probe(struct i2c_client *client)
 
 fail_rpm:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 fail_power_off:
 	gc0308_power_off(dev);
 fail_subdev_cleanup:

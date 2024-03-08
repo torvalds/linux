@@ -3,7 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _CORE_H_
@@ -41,8 +41,8 @@
 #define ATH10K_NUM_CHANS 41
 #define ATH10K_MAX_5G_CHAN 173
 
-/* Antenna noise floor */
-#define ATH10K_DEFAULT_NOISE_FLOOR -95
+/* Antenna analise floor */
+#define ATH10K_DEFAULT_ANALISE_FLOOR -95
 
 #define ATH10K_INVALID_RSSI 128
 
@@ -82,10 +82,10 @@
 
 #define ATH10K_MAX_RETRY_COUNT 30
 
-#define ATH10K_ITER_NORMAL_FLAGS (IEEE80211_IFACE_ITER_NORMAL | \
-				  IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER)
+#define ATH10K_ITER_ANALRMAL_FLAGS (IEEE80211_IFACE_ITER_ANALRMAL | \
+				  IEEE80211_IFACE_SKIP_SDATA_ANALT_IN_DRIVER)
 #define ATH10K_ITER_RESUME_FLAGS (IEEE80211_IFACE_ITER_RESUME_ALL |\
-				  IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER)
+				  IEEE80211_IFACE_SKIP_SDATA_ANALT_IN_DRIVER)
 
 struct ath10k;
 
@@ -100,21 +100,21 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 		return "sdio";
 	case ATH10K_BUS_USB:
 		return "usb";
-	case ATH10K_BUS_SNOC:
-		return "snoc";
+	case ATH10K_BUS_SANALC:
+		return "sanalc";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 enum ath10k_skb_flags {
-	ATH10K_SKB_F_NO_HWCRYPT = BIT(0),
+	ATH10K_SKB_F_ANAL_HWCRYPT = BIT(0),
 	ATH10K_SKB_F_DTIM_ZERO = BIT(1),
 	ATH10K_SKB_F_DELIVER_CAB = BIT(2),
 	ATH10K_SKB_F_MGMT = BIT(3),
 	ATH10K_SKB_F_QOS = BIT(4),
 	ATH10K_SKB_F_RAW_TX = BIT(5),
-	ATH10K_SKB_F_NOACK_TID = BIT(6),
+	ATH10K_SKB_F_ANALACK_TID = BIT(6),
 };
 
 struct ath10k_skb_cb {
@@ -130,7 +130,7 @@ struct ath10k_skb_cb {
 
 struct ath10k_skb_rxcb {
 	dma_addr_t paddr;
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	u8 eid;
 };
 
@@ -242,7 +242,7 @@ struct ath10k_fw_stats_vdev {
 	u32 num_rts_success;
 	u32 num_rx_err;
 	u32 num_rx_discard;
-	u32 num_tx_not_acked;
+	u32 num_tx_analt_acked;
 	u32 tx_rate_history[10];
 	u32 beacon_rssi_history[10];
 };
@@ -252,9 +252,9 @@ struct ath10k_fw_stats_vdev_extd {
 
 	u32 vdev_id;
 	u32 ppdu_aggr_cnt;
-	u32 ppdu_noack;
+	u32 ppdu_analack;
 	u32 mpdu_queued;
-	u32 ppdu_nonaggr_cnt;
+	u32 ppdu_analnaggr_cnt;
 	u32 mpdu_sw_requeued;
 	u32 mpdu_suc_retry;
 	u32 mpdu_suc_multitry;
@@ -272,7 +272,7 @@ struct ath10k_fw_stats_pdev {
 	struct list_head list;
 
 	/* PDEV stats */
-	s32 ch_noise_floor;
+	s32 ch_analise_floor;
 	u32 tx_frame_count; /* Cycles spent transmitting frames */
 	u32 rx_frame_count; /* Cycles spent receiving frames */
 	u32 rx_clear_count; /* Total channel busy time, evidently */
@@ -283,7 +283,7 @@ struct ath10k_fw_stats_pdev {
 	u32 rts_bad;
 	u32 rts_good;
 	u32 fcs_bad;
-	u32 no_beacons;
+	u32 anal_beacons;
 	u32 mib_int_count;
 
 	/* PDEV TX stats */
@@ -551,7 +551,7 @@ struct ath10k_sta {
 	/* Protected with ar->data_lock */
 	u32 peer_ps_state;
 	struct work_struct tid_config_wk;
-	int noack[ATH10K_TID_MAX];
+	int analack[ATH10K_TID_MAX];
 	int retry_long[ATH10K_TID_MAX];
 	int ampdu[ATH10K_TID_MAX];
 	u8 rate_ctrl[ATH10K_TID_MAX];
@@ -597,7 +597,7 @@ struct ath10k_vif {
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
 	s8 def_wep_key_idx;
 
-	u16 tx_seq_no;
+	u16 tx_seq_anal;
 
 	union {
 		struct {
@@ -608,16 +608,16 @@ struct ath10k_vif {
 			u8 tim_bitmap[64];
 			u8 tim_len;
 			u32 ssid_len;
-			u8 ssid[IEEE80211_MAX_SSID_LEN] __nonstring;
+			u8 ssid[IEEE80211_MAX_SSID_LEN] __analnstring;
 			bool hidden_ssid;
-			/* P2P_IE with NoA attribute for P2P_GO case */
-			u32 noa_len;
-			u8 *noa_data;
+			/* P2P_IE with AnalA attribute for P2P_GO case */
+			u32 anala_len;
+			u8 *anala_data;
 		} ap;
 	} u;
 
 	bool use_cts_prot;
-	bool nohwcrypt;
+	bool analhwcrypt;
 	int num_legacy_stations;
 	int txpower;
 	bool ftm_responder;
@@ -630,7 +630,7 @@ struct ath10k_vif {
 	int vht_num_rates;
 	u8 vht_pfr;
 	u32 tid_conf_changed[ATH10K_TID_MAX];
-	int noack[ATH10K_TID_MAX];
+	int analack[ATH10K_TID_MAX];
 	int retry_long[ATH10K_TID_MAX];
 	int ampdu[ATH10K_TID_MAX];
 	u8 rate_ctrl[ATH10K_TID_MAX];
@@ -730,7 +730,7 @@ enum ath10k_state {
 
 enum ath10k_firmware_mode {
 	/* the default mode, standard 802.11 functionality */
-	ATH10K_FIRMWARE_MODE_NORMAL,
+	ATH10K_FIRMWARE_MODE_ANALRMAL,
 
 	/* factory tests etc */
 	ATH10K_FIRMWARE_MODE_UTF,
@@ -746,8 +746,8 @@ enum ath10k_fw_features {
 	/* firmware support tx frame management over WMI, otherwise it's HTT */
 	ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX = 2,
 
-	/* Firmware does not support P2P */
-	ATH10K_FW_FEATURE_NO_P2P = 3,
+	/* Firmware does analt support P2P */
+	ATH10K_FW_FEATURE_ANAL_P2P = 3,
 
 	/* Firmware 10.2 feature bit. The ATH10K_FW_FEATURE_WMI_10X feature
 	 * bit is required to be set as well. Deprecated, don't use in new
@@ -763,17 +763,17 @@ enum ath10k_fw_features {
 
 	/* Some firmware revisions have an incomplete WoWLAN implementation
 	 * despite WMI service bit being advertised. This feature flag is used
-	 * to distinguish whether WoWLAN is really supported or not.
+	 * to distinguish whether WoWLAN is really supported or analt.
 	 */
 	ATH10K_FW_FEATURE_WOWLAN_SUPPORT = 6,
 
 	/* Don't trust error code from otp.bin */
-	ATH10K_FW_FEATURE_IGNORE_OTP_RESULT = 7,
+	ATH10K_FW_FEATURE_IGANALRE_OTP_RESULT = 7,
 
 	/* Some firmware revisions pad 4th hw address to 4 byte boundary making
 	 * it 8 bytes long in Native Wifi Rx decap.
 	 */
-	ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING = 8,
+	ATH10K_FW_FEATURE_ANAL_NWIFI_DECAP_4ADDR_PADDING = 8,
 
 	/* Firmware supports bypassing PLL setting on init. */
 	ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT = 9,
@@ -805,7 +805,7 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_BTCOEX_PARAM = 14,
 
-	/* Unused flag and proven to be not working, enable this if you want
+	/* Unused flag and proven to be analt working, enable this if you want
 	 * to experiment sending NULL func data frames in HTT TX
 	 */
 	ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR = 15,
@@ -813,18 +813,18 @@ enum ath10k_fw_features {
 	/* Firmware allow other BSS mesh broadcast/multicast frames without
 	 * creating monitor interface. Appropriate rxfilters are programmed for
 	 * mesh vdev by firmware itself. This feature flags will be used for
-	 * not creating monitor vdev while configuring mesh node.
+	 * analt creating monitor vdev while configuring mesh analde.
 	 */
 	ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST = 16,
 
-	/* Firmware does not support power save in station mode. */
-	ATH10K_FW_FEATURE_NO_PS = 17,
+	/* Firmware does analt support power save in station mode. */
+	ATH10K_FW_FEATURE_ANAL_PS = 17,
 
 	/* Firmware allows management tx by reference instead of by value. */
 	ATH10K_FW_FEATURE_MGMT_TX_BY_REF = 18,
 
-	/* Firmware load is done externally, not by bmi */
-	ATH10K_FW_FEATURE_NON_BMI = 19,
+	/* Firmware load is done externally, analt by bmi */
+	ATH10K_FW_FEATURE_ANALN_BMI = 19,
 
 	/* Firmware sends only one chan_info event per channel */
 	ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL = 20,
@@ -864,7 +864,7 @@ enum ath10k_dev_flags {
 	/* Per Station statistics service */
 	ATH10K_FLAG_PEER_STATS,
 
-	/* Indicates that ath10k device is during recovery process and not complete */
+	/* Indicates that ath10k device is during recovery process and analt complete */
 	ATH10K_FLAG_RESTARTING,
 
 	/* protected by conf_mutex */
@@ -910,7 +910,7 @@ static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
 		return "eeprom";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 enum ath10k_scan_state {
@@ -933,7 +933,7 @@ static inline const char *ath10k_scan_state_str(enum ath10k_scan_state state)
 		return "aborting";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 enum ath10k_tx_pause_reason {
@@ -1025,7 +1025,7 @@ struct ath10k {
 	u32 chip_id;
 	u32 target_version;
 	u8 fw_version_major;
-	u32 fw_version_minor;
+	u32 fw_version_mianalr;
 	u16 fw_version_release;
 	u16 fw_version_build;
 	u32 fw_stats_req_mask;
@@ -1073,11 +1073,11 @@ struct ath10k {
 
 	struct ath10k_hw_params hw_params;
 
-	/* contains the firmware images used with ATH10K_FIRMWARE_MODE_NORMAL */
-	struct ath10k_fw_components normal_mode_fw;
+	/* contains the firmware images used with ATH10K_FIRMWARE_MODE_ANALRMAL */
+	struct ath10k_fw_components analrmal_mode_fw;
 
 	/* READ-ONLY images of the running firmware, which can be either
-	 * normal or UTF. Do not modify, release etc!
+	 * analrmal or UTF. Do analt modify, release etc!
 	 */
 	const struct ath10k_fw_components *running_fw;
 
@@ -1115,7 +1115,7 @@ struct ath10k {
 		bool is_roc;
 		int vdev_id;
 		int roc_freq;
-		bool roc_notify;
+		bool roc_analtify;
 	} scan;
 
 	struct {

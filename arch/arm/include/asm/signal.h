@@ -4,7 +4,7 @@
 
 #include <uapi/asm/signal.h>
 
-/* Most things should be clean enough to redefine this at will, if care
+/* Most things should be clean eanalugh to redefine this at will, if care
    is taken to make libc match.  */
 
 #define _NSIG		64

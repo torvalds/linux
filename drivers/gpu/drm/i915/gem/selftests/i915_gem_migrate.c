@@ -134,7 +134,7 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 	}
 
 	/*
-	 * Migration will implicitly unbind (asynchronously) any bound
+	 * Migration will implicitly unbind (asynchroanalusly) any bound
 	 * vmas.
 	 */
 	if (i915_gem_object_is_lmem(obj)) {
@@ -152,7 +152,7 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 		}
 
 		if (!i915_gem_object_has_struct_page(obj)) {
-			pr_err("object not backed by struct page\n");
+			pr_err("object analt backed by struct page\n");
 			err = -EINVAL;
 		}
 
@@ -171,7 +171,7 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 		}
 
 		if (!i915_gem_object_is_lmem(obj)) {
-			pr_err("object not backed by lmem\n");
+			pr_err("object analt backed by lmem\n");
 			err = -EINVAL;
 		}
 	}
@@ -326,7 +326,7 @@ static int igt_lmem_pages_failsafe_migrate(void *arg)
 
 						if (fail_gpu && !fail_alloc) {
 							if (!wedged) {
-								pr_err("gt(%u) not wedged\n", id);
+								pr_err("gt(%u) analt wedged\n", id);
 								ret = -EINVAL;
 								continue;
 							}
@@ -362,10 +362,10 @@ out_err:
  * that spinner to have terminated. Before each migration we bind a
  * vma, which should then be async unbound by the migration operation.
  * If we are able to schedule migrations without blocking while the
- * spinner is still running, those unbinds are indeed async and non-
+ * spinner is still running, those unbinds are indeed async and analn-
  * blocking.
  *
- * Note that each async bind operation is awaiting the previous migration
+ * Analte that each async bind operation is awaiting the previous migration
  * due to the moving fence resulting from the migration.
  */
 static int igt_async_migrate(struct intel_gt *gt)
@@ -381,7 +381,7 @@ static int igt_async_migrate(struct intel_gt *gt)
 		return PTR_ERR(ppgtt);
 
 	if (igt_spinner_init(&spin, gt)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_spin;
 	}
 
@@ -401,14 +401,14 @@ static int igt_async_migrate(struct intel_gt *gt)
 		}
 
 		/*
-		 * Use MI_NOOP, making the spinner non-preemptible. If there
+		 * Use MI_ANALOP, making the spinner analn-preemptible. If there
 		 * is a code path where we fail async operation due to the
 		 * running spinner, we will block and fail to end the
-		 * spinner resulting in a deadlock. But with a non-
+		 * spinner resulting in a deadlock. But with a analn-
 		 * preemptible spinner, hangcheck will terminate the spinner
 		 * for us, and we will later detect that and fail the test.
 		 */
-		rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
+		rq = igt_spinner_create_request(&spin, ce, MI_ANALOP);
 		intel_context_put(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
@@ -481,7 +481,7 @@ static int igt_lmem_async_migrate(void *arg)
 
 						if (fail_gpu && !fail_alloc) {
 							if (!wedged) {
-								pr_err("gt(%u) not wedged\n", id);
+								pr_err("gt(%u) analt wedged\n", id);
 								ret = -EINVAL;
 								continue;
 							}

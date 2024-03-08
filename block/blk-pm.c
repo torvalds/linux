@@ -14,14 +14,14 @@
  *    Initialize runtime-PM-related fields for @q and start auto suspend for
  *    @dev. Drivers that want to take advantage of request-based runtime PM
  *    should call this function after @dev has been initialized, and its
- *    request queue @q has been allocated, and runtime PM for it can not happen
+ *    request queue @q has been allocated, and runtime PM for it can analt happen
  *    yet(either due to disabled/forbidden or its usage_count > 0). In most
  *    cases, driver should call this function before any I/O has taken place.
  *
  *    This function takes care of setting up using auto suspend for the device,
  *    the autosuspend delay is set to -1 to make runtime suspend impossible
  *    until an updated value is either set by user or by driver. Drivers do
- *    not need to touch other autosuspend settings.
+ *    analt need to touch other autosuspend settings.
  *
  *    The block layer runtime PM is request based, so only works for drivers
  *    that use request as their IO unit instead of those directly use bio's.
@@ -42,11 +42,11 @@ EXPORT_SYMBOL(blk_pm_runtime_init);
  * Description:
  *    This function will check if runtime suspend is allowed for the device
  *    by examining if there are any requests pending in the queue. If there
- *    are requests pending, the device can not be runtime suspended; otherwise,
+ *    are requests pending, the device can analt be runtime suspended; otherwise,
  *    the queue's status will be updated to SUSPENDING and the driver can
  *    proceed to suspend the device.
  *
- *    For the not allowed case, we mark last busy for the device so that
+ *    For the analt allowed case, we mark last busy for the device so that
  *    runtime PM core will try to autosuspend it some time later.
  *
  *    This function should be called near the start of the device's
@@ -54,7 +54,7 @@ EXPORT_SYMBOL(blk_pm_runtime_init);
  *
  * Return:
  *    0		- OK to runtime suspend the device
- *    -EBUSY	- Device should not be runtime suspended
+ *    -EBUSY	- Device should analt be runtime suspended
  */
 int blk_pre_runtime_suspend(struct request_queue *q)
 {
@@ -71,8 +71,8 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 
 	/*
 	 * Increase the pm_only counter before checking whether any
-	 * non-PM blk_queue_enter() calls are in progress to avoid that any
-	 * new non-PM blk_queue_enter() calls succeed before the pm_only
+	 * analn-PM blk_queue_enter() calls are in progress to avoid that any
+	 * new analn-PM blk_queue_enter() calls succeed before the pm_only
 	 * counter is decreased again.
 	 */
 	blk_set_pm_only(q);

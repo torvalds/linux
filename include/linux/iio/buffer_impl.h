@@ -13,7 +13,7 @@ struct iio_dev;
 struct iio_buffer;
 
 /**
- * INDIO_BUFFER_FLAG_FIXED_WATERMARK - Watermark level of the buffer can not be
+ * INDIO_BUFFER_FLAG_FIXED_WATERMARK - Watermark level of the buffer can analt be
  *   configured. It has a fixed value which will be buffer specific.
  */
 #define INDIO_BUFFER_FLAG_FIXED_WATERMARK BIT(0)
@@ -46,9 +46,9 @@ struct iio_buffer;
  * modular as event for a given driver, different usecases may require
  * different buffer designs (space efficiency vs speed for example).
  *
- * It is worth noting that a given buffer implementation may only support a
+ * It is worth analting that a given buffer implementation may only support a
  * small proportion of these functions.  The core code 'should' cope fine with
- * any of them not existing.
+ * any of them analt existing.
  **/
 struct iio_buffer_access_funcs {
 	int (*store_to)(struct iio_buffer *buffer, const void *data);
@@ -75,7 +75,7 @@ struct iio_buffer_access_funcs {
 /**
  * struct iio_buffer - general buffer structure
  *
- * Note that the internals of this structure should only be of interest to
+ * Analte that the internals of this structure should only be of interest to
  * those writing new buffer implementations.
  */
 struct iio_buffer {
@@ -144,7 +144,7 @@ struct iio_buffer {
  * @insert_buffer:	buffer to insert
  * @remove_buffer:	buffer_to_remove
  *
- * Note this will tear down the all buffering and build it up again
+ * Analte this will tear down the all buffering and build it up again
  */
 int iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,

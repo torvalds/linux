@@ -14,7 +14,7 @@
 #include <sound/soc.h>
 #include "sof_hdmi_common.h"
 
-#define MAX_NO_PROPS 2
+#define MAX_ANAL_PROPS 2
 #define MAX_HDMI_NUM 4
 #define SDW_UNUSED_DAI_ID -1
 #define SDW_JACK_OUT_DAI_ID 0
@@ -50,7 +50,7 @@ enum {
 #define SOF_SDW_PCH_DMIC		BIT(6)
 #define SOF_SSP_PORT(x)		(((x) & GENMASK(5, 0)) << 7)
 #define SOF_SSP_GET_PORT(quirk)	(((quirk) >> 7) & GENMASK(5, 0))
-#define SOF_SDW_NO_AGGREGATION		BIT(14)
+#define SOF_SDW_ANAL_AGGREGATION		BIT(14)
 
 /* BT audio offload: reserve 3 bits for future */
 #define SOF_BT_OFFLOAD_SSP_SHIFT	15
@@ -86,7 +86,7 @@ struct sof_sdw_codec_info {
 	const char *codec_name;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
-	const bool ignore_pch_dmic;
+	const bool iganalre_pch_dmic;
 	const struct snd_soc_ops *ops;
 	struct sof_sdw_dai_info dais[SOF_SDW_MAX_DAI_NUM];
 	const int dai_num;

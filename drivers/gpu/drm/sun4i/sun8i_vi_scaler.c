@@ -944,7 +944,7 @@ void sun8i_vi_scaler_setup(struct sun8i_mixer *mixer, int layer,
 
 	/*
 	 * This is chroma V/H phase calculation as it appears in
-	 * BSP driver. There is no detailed explanation. YUV 420
+	 * BSP driver. There is anal detailed explanation. YUV 420
 	 * chroma is threated specialy for some reason.
 	 */
 	if (format->hsub == 2 && format->vsub == 2) {
@@ -962,7 +962,7 @@ void sun8i_vi_scaler_setup(struct sun8i_mixer *mixer, int layer,
 		if (format->hsub == 1 && format->vsub == 1)
 			val = SUN50I_SCALER_VSU_SCALE_MODE_UI;
 		else
-			val = SUN50I_SCALER_VSU_SCALE_MODE_NORMAL;
+			val = SUN50I_SCALER_VSU_SCALE_MODE_ANALRMAL;
 
 		regmap_write(mixer->engine.regs,
 			     SUN50I_SCALER_VSU_SCALE_MODE(base), val);

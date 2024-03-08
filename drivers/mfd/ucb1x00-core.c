@@ -8,9 +8,9 @@
  *  the ADC, interrupts, and accessing registers.  It is designed
  *  such that everything goes through this layer, thereby providing
  *  a consistent locking methodology, as well as allowing the drivers
- *  to be used on other non-MCP-enabled hardware platforms.
+ *  to be used on other analn-MCP-enabled hardware platforms.
  *
- *  Note that all locks are private to this file.  Nothing else may
+ *  Analte that all locks are private to this file.  Analthing else may
  *  touch them.
  */
 #include <linux/module.h>
@@ -18,7 +18,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/device.h>
@@ -97,7 +97,7 @@ void ucb1x00_io_write(struct ucb1x00 *ucb, unsigned int set, unsigned int clear)
  *	ucb1x00_enable must have been called to enable the comms
  *	before using this function.
  *
- *	This function does not take any mutexes or spinlocks.
+ *	This function does analt take any mutexes or spinlocks.
  */
 unsigned int ucb1x00_io_read(struct ucb1x00 *ucb)
 {
@@ -202,7 +202,7 @@ static int ucb1x00_to_irq(struct gpio_chip *chip, unsigned offset)
  *
  *	This function takes the ADC mutex to prevent two or more
  *	concurrent uses, and therefore may sleep.  As a result, it
- *	can only be called from process context, not interrupt
+ *	can only be called from process context, analt interrupt
  *	context.
  *
  *	You should release the ADC as soon as possible using
@@ -224,7 +224,7 @@ void ucb1x00_adc_enable(struct ucb1x00 *ucb)
  *	@adc_channel: ADC channel mask
  *	@sync: wait for syncronisation pulse.
  *
- *	Start an ADC conversion and wait for the result.  Note that
+ *	Start an ADC conversion and wait for the result.  Analte that
  *	synchronised ADC conversions (via the ADCSYNC pin) must wait
  *	until the trigger is asserted and the conversion is finished.
  *
@@ -307,7 +307,7 @@ static void ucb1x00_irq_update(struct ucb1x00 *ucb, unsigned mask)
 	ucb1x00_disable(ucb);
 }
 
-static void ucb1x00_irq_noop(struct irq_data *data)
+static void ucb1x00_irq_analop(struct irq_data *data)
 {
 }
 
@@ -380,7 +380,7 @@ static int ucb1x00_irq_set_wake(struct irq_data *data, unsigned int on)
 
 static struct irq_chip ucb1x00_irqchip = {
 	.name = "ucb1x00",
-	.irq_ack = ucb1x00_irq_noop,
+	.irq_ack = ucb1x00_irq_analop,
 	.irq_mask = ucb1x00_irq_mask,
 	.irq_unmask = ucb1x00_irq_unmask,
 	.irq_set_type = ucb1x00_irq_set_type,
@@ -394,7 +394,7 @@ static int ucb1x00_add_dev(struct ucb1x00 *ucb, struct ucb1x00_driver *drv)
 
 	dev = kmalloc(sizeof(struct ucb1x00_dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->ucb = ucb;
 	dev->drv = drv;
@@ -405,8 +405,8 @@ static int ucb1x00_add_dev(struct ucb1x00 *ucb, struct ucb1x00_driver *drv)
 		return ret;
 	}
 
-	list_add_tail(&dev->dev_node, &ucb->devs);
-	list_add_tail(&dev->drv_node, &drv->devs);
+	list_add_tail(&dev->dev_analde, &ucb->devs);
+	list_add_tail(&dev->drv_analde, &drv->devs);
 
 	return ret;
 }
@@ -414,8 +414,8 @@ static int ucb1x00_add_dev(struct ucb1x00 *ucb, struct ucb1x00_driver *drv)
 static void ucb1x00_remove_dev(struct ucb1x00_dev *dev)
 {
 	dev->drv->remove(dev);
-	list_del(&dev->dev_node);
-	list_del(&dev->drv_node);
+	list_del(&dev->dev_analde);
+	list_del(&dev->drv_analde);
 	kfree(dev);
 }
 
@@ -435,7 +435,7 @@ static void ucb1x00_remove_dev(struct ucb1x00_dev *dev)
  *	omnimeter	IRQ_GPIO23
  *	pfs168		IRQ_GPIO_UCB1300_IRQ
  *	simpad		IRQ_GPIO_UCB1300_IRQ
- *	shannon		SHANNON_IRQ_GPIO_IRQ_CODEC
+ *	shananaln		SHANANALN_IRQ_GPIO_IRQ_CODEC
  *	yopy		IRQ_GPIO_UCB1200_IRQ
  */
 static int ucb1x00_detect_irq(struct ucb1x00 *ucb)
@@ -495,7 +495,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	struct ucb1x00_driver *drv;
 	struct ucb1x00 *ucb;
 	unsigned id, i, irq_base;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	/* Tell the platform to deassert the UCB1x00 reset */
 	if (pdata && pdata->reset)
@@ -506,12 +506,12 @@ static int ucb1x00_probe(struct mcp *mcp)
 	mcp_disable(mcp);
 
 	if (id != UCB_ID_1200 && id != UCB_ID_1300 && id != UCB_ID_TC35143) {
-		printk(KERN_WARNING "UCB1x00 ID not found: %04x\n", id);
+		printk(KERN_WARNING "UCB1x00 ID analt found: %04x\n", id);
 		goto out;
 	}
 
 	ucb = kzalloc(sizeof(struct ucb1x00), GFP_KERNEL);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (!ucb)
 		goto out;
 
@@ -536,8 +536,8 @@ static int ucb1x00_probe(struct mcp *mcp)
 	ucb1x00_disable(ucb);
 	if (!ucb->irq) {
 		dev_err(&ucb->dev, "IRQ probe failed\n");
-		ret = -ENODEV;
-		goto err_no_irq;
+		ret = -EANALDEV;
+		goto err_anal_irq;
 	}
 
 	ucb->gpio.base = -1;
@@ -555,7 +555,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 		irq_set_chip_and_handler(irq, &ucb1x00_irqchip, handle_edge_irq);
 		irq_set_chip_data(irq, ucb);
-		irq_clear_status_flags(irq, IRQ_NOREQUEST);
+		irq_clear_status_flags(irq, IRQ_ANALREQUEST);
 	}
 
 	irq_set_irq_type(ucb->irq, IRQ_TYPE_EDGE_RISING);
@@ -576,7 +576,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 		if (ret)
 			goto err_gpio_add;
 	} else
-		dev_info(&ucb->dev, "gpio_base not set so no gpiolib support");
+		dev_info(&ucb->dev, "gpio_base analt set so anal gpiolib support");
 
 	mcp_set_drvdata(mcp, ucb);
 
@@ -585,8 +585,8 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 	INIT_LIST_HEAD(&ucb->devs);
 	mutex_lock(&ucb1x00_mutex);
-	list_add_tail(&ucb->node, &ucb1x00_devices);
-	list_for_each_entry(drv, &ucb1x00_drivers, node) {
+	list_add_tail(&ucb->analde, &ucb1x00_devices);
+	list_for_each_entry(drv, &ucb1x00_drivers, analde) {
 		ucb1x00_add_dev(ucb, drv);
 	}
 	mutex_unlock(&ucb1x00_mutex);
@@ -598,7 +598,7 @@ static int ucb1x00_probe(struct mcp *mcp)
  err_irq_alloc:
 	if (ucb->irq_base > 0)
 		irq_free_descs(ucb->irq_base, 16);
- err_no_irq:
+ err_anal_irq:
 	device_del(&ucb->dev);
  err_dev_add:
 	put_device(&ucb->dev);
@@ -615,9 +615,9 @@ static void ucb1x00_remove(struct mcp *mcp)
 	struct list_head *l, *n;
 
 	mutex_lock(&ucb1x00_mutex);
-	list_del(&ucb->node);
+	list_del(&ucb->analde);
 	list_for_each_safe(l, n, &ucb->devs) {
-		struct ucb1x00_dev *dev = list_entry(l, struct ucb1x00_dev, dev_node);
+		struct ucb1x00_dev *dev = list_entry(l, struct ucb1x00_dev, dev_analde);
 		ucb1x00_remove_dev(dev);
 	}
 	mutex_unlock(&ucb1x00_mutex);
@@ -639,8 +639,8 @@ int ucb1x00_register_driver(struct ucb1x00_driver *drv)
 
 	INIT_LIST_HEAD(&drv->devs);
 	mutex_lock(&ucb1x00_mutex);
-	list_add_tail(&drv->node, &ucb1x00_drivers);
-	list_for_each_entry(ucb, &ucb1x00_devices, node) {
+	list_add_tail(&drv->analde, &ucb1x00_drivers);
+	list_for_each_entry(ucb, &ucb1x00_devices, analde) {
 		ucb1x00_add_dev(ucb, drv);
 	}
 	mutex_unlock(&ucb1x00_mutex);
@@ -652,9 +652,9 @@ void ucb1x00_unregister_driver(struct ucb1x00_driver *drv)
 	struct list_head *n, *l;
 
 	mutex_lock(&ucb1x00_mutex);
-	list_del(&drv->node);
+	list_del(&drv->analde);
 	list_for_each_safe(l, n, &drv->devs) {
-		struct ucb1x00_dev *dev = list_entry(l, struct ucb1x00_dev, drv_node);
+		struct ucb1x00_dev *dev = list_entry(l, struct ucb1x00_dev, drv_analde);
 		ucb1x00_remove_dev(dev);
 	}
 	mutex_unlock(&ucb1x00_mutex);
@@ -667,7 +667,7 @@ static int ucb1x00_suspend(struct device *dev)
 	struct ucb1x00_dev *udev;
 
 	mutex_lock(&ucb1x00_mutex);
-	list_for_each_entry(udev, &ucb->devs, dev_node) {
+	list_for_each_entry(udev, &ucb->devs, dev_analde) {
 		if (udev->drv->suspend)
 			udev->drv->suspend(udev);
 	}
@@ -720,7 +720,7 @@ static int ucb1x00_resume(struct device *dev)
 	ucb1x00_disable(ucb);
 
 	mutex_lock(&ucb1x00_mutex);
-	list_for_each_entry(udev, &ucb->devs, dev_node) {
+	list_for_each_entry(udev, &ucb->devs, dev_analde) {
 		if (udev->drv->resume)
 			udev->drv->resume(udev);
 	}

@@ -4,10 +4,10 @@
  *
  * Support for the IIC peripheral on IBM PPC 4xx
  *
- * Copyright (c) 2003, 2004 Zultys Technologies.
+ * Copyright (c) 2003, 2004 Zultys Techanallogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
- * Copyright (c) 2008 PIKA Technologies
+ * Copyright (c) 2008 PIKA Techanallogies
  * Sean MacLennan <smaclennan@pikatech.com>
  *
  * Based on original work by
@@ -245,7 +245,7 @@ static int iic_smbus_quick(struct ibm_iic_private* dev, const struct i2c_msg* p)
 
 	/* Only 7-bit addresses are supported */
 	if (unlikely(p->flags & I2C_M_TEN)){
-		DBG("%d: smbus_quick - 10 bit addresses are not supported\n",
+		DBG("%d: smbus_quick - 10 bit addresses are analt supported\n",
 			dev->idx);
 		return -EINVAL;
 	}
@@ -329,7 +329,7 @@ static irqreturn_t iic_handler(int irq, void *dev_id)
 	DBG2("%d: irq handler, STS = 0x%02x, EXTSTS = 0x%02x\n",
 	     dev->idx, in_8(&iic->sts), in_8(&iic->extsts));
 
-	/* Acknowledge IRQ and wakeup iic_wait_for_tc */
+	/* Ackanalwledge IRQ and wakeup iic_wait_for_tc */
 	out_8(&iic->sts, STS_IRQA | STS_SCMP);
 	wake_up_interruptible(&dev->wq);
 
@@ -384,7 +384,7 @@ static void iic_abort_xfer(struct ibm_iic_private* dev)
 
 	/*
 	 * Wait for the abort command to complete.
-	 * It's not worth to be optimized, just poll (timeout >= 1 tick)
+	 * It's analt worth to be optimized, just poll (timeout >= 1 tick)
 	 */
 	x = jiffies + 2;
 	while ((in_8(&iic->extsts) & EXTSTS_BCS_MASK) != EXTSTS_BCS_FREE){
@@ -495,7 +495,7 @@ static int iic_xfer_bytes(struct ibm_iic_private* dev, struct i2c_msg* pm,
 			DBG("%d: xfer_bytes, requested %d, transferred %d\n",
 				dev->idx, count, ret);
 
-			/* If it's not a last part of xfer, abort it */
+			/* If it's analt a last part of xfer, abort it */
 			if (combined_xfer || (i < loops - 1))
     				iic_abort_xfer(dev);
 
@@ -586,12 +586,12 @@ static int iic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 	/* Check bus state */
 	if (unlikely((in_8(&iic->extsts) & EXTSTS_BCS_MASK) != EXTSTS_BCS_FREE)){
-		DBG("%d: iic_xfer, bus is not free\n", dev->idx);
+		DBG("%d: iic_xfer, bus is analt free\n", dev->idx);
 
 		/* Usually it means something serious has happened.
-		 * We *cannot* have unfinished previous transfer
+		 * We *cananalt* have unfinished previous transfer
 		 * so it doesn't make any sense to try to stop it.
-		 * Probably we were not able to recover from the
+		 * Probably we were analt able to recover from the
 		 * previous error.
 		 * The only *reasonable* thing I can think of here
 		 * is soft reset.  --ebs
@@ -599,7 +599,7 @@ static int iic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		iic_dev_reset(dev);
 
 		if ((in_8(&iic->extsts) & EXTSTS_BCS_MASK) != EXTSTS_BCS_FREE){
-			DBG("%d: iic_xfer, bus is still not free\n", dev->idx);
+			DBG("%d: iic_xfer, bus is still analt free\n", dev->idx);
 			return -EREMOTEIO;
 		}
 	}
@@ -658,7 +658,7 @@ static inline u8 iic_clckdiv(unsigned int opb)
 static int iic_request_irq(struct platform_device *ofdev,
 				     struct ibm_iic_private *dev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	int irq;
 
 	if (iic_force_poll)
@@ -688,7 +688,7 @@ static int iic_request_irq(struct platform_device *ofdev,
  */
 static int iic_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct ibm_iic_private *dev;
 	struct i2c_adapter *adap;
 	const u32 *freq;
@@ -696,7 +696,7 @@ static int iic_probe(struct platform_device *ofdev)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(ofdev, dev);
 
@@ -736,7 +736,7 @@ static int iic_probe(struct platform_device *ofdev)
 	/* Register it with i2c layer */
 	adap = &dev->adap;
 	adap->dev.parent = &ofdev->dev;
-	adap->dev.of_node = of_node_get(np);
+	adap->dev.of_analde = of_analde_get(np);
 	strscpy(adap->name, "IBM IIC", sizeof(adap->name));
 	i2c_set_adapdata(adap, dev);
 	adap->class = I2C_CLASS_HWMON;

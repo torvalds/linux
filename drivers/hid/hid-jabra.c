@@ -2,7 +2,7 @@
 /*
  *  Jabra USB HID Driver
  *
- *  Copyright (c) 2017 Niels Skou Olsen <nolsen@jabra.com>
+ *  Copyright (c) 2017 Niels Skou Olsen <anallsen@jabra.com>
  */
 
 /*
@@ -31,9 +31,9 @@ static int jabra_input_mapping(struct hid_device *hdev,
 		field->application,
 		usage->collection_index,
 		usage->usage_index,
-		is_vendor_defined ? "ignored" : "defaulted");
+		is_vendor_defined ? "iganalred" : "defaulted");
 
-	/* Ignore vendor defined usages, default map standard usages */
+	/* Iganalre vendor defined usages, default map standard usages */
 	return is_vendor_defined ? -1 : 0;
 }
 
@@ -50,6 +50,6 @@ static struct hid_driver jabra_driver = {
 };
 module_hid_driver(jabra_driver);
 
-MODULE_AUTHOR("Niels Skou Olsen <nolsen@jabra.com>");
+MODULE_AUTHOR("Niels Skou Olsen <anallsen@jabra.com>");
 MODULE_DESCRIPTION("Jabra USB HID Driver");
 MODULE_LICENSE("GPL");

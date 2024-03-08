@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __CONF_H__
@@ -121,7 +121,7 @@ struct conf_rx_settings {
 	/*
 	 * Packet detection threshold in the PHY.
 	 *
-	 * FIXME: details unknown.
+	 * FIXME: details unkanalwn.
 	 */
 	u32 packet_detection_threshold;
 
@@ -142,7 +142,7 @@ struct conf_rx_settings {
 
 	/*
 	 * The number of octets in an MPDU, below which an RTS/CTS
-	 * handshake is not performed.
+	 * handshake is analt performed.
 	 *
 	 * Range: 0 - 4096
 	 */
@@ -159,7 +159,7 @@ struct conf_rx_settings {
 
 	/*
 	 * Occupied Rx mem-blocks number which requires interrupting the host
-	 * (0 = no buffering, 0xffff = disabled).
+	 * (0 = anal buffering, 0xffff = disabled).
 	 *
 	 * Range: u16
 	 */
@@ -167,7 +167,7 @@ struct conf_rx_settings {
 
 	/*
 	 * Rx packets number which requires interrupting the host
-	 * (0 = no buffering).
+	 * (0 = anal buffering).
 	 *
 	 * Range: u16
 	 */
@@ -199,9 +199,9 @@ struct conf_rx_settings {
 #define CONF_TX_RATE_MASK_BASIC_P2P    CONF_HW_BIT_RATE_6MBPS
 
 /*
- * Rates supported for data packets when operating as STA/AP. Note the absence
+ * Rates supported for data packets when operating as STA/AP. Analte the absence
  * of the 22Mbps rate. There is a FW limitation on 12 rates so we must drop
- * one. The rate dropped is not mandatory under any operating mode.
+ * one. The rate dropped is analt mandatory under any operating mode.
  */
 #define CONF_TX_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS |    \
 	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS |      \
@@ -290,7 +290,7 @@ struct conf_tx_rate_class {
 
 /* Slot number setting to start transmission at PIFS interval */
 #define CONF_TX_AIFS_PIFS 1
-/* Slot number setting to start transmission at DIFS interval normal
+/* Slot number setting to start transmission at DIFS interval analrmal
  * DCF access */
 #define CONF_TX_AIFS_DIFS 2
 
@@ -363,7 +363,7 @@ enum {
 
 enum {
 	CONF_ACK_POLICY_LEGACY = 0,
-	CONF_ACK_POLICY_NO_ACK = 1,
+	CONF_ACK_POLICY_ANAL_ACK = 1,
 	CONF_ACK_POLICY_BLOCK = 2,
 };
 
@@ -387,7 +387,7 @@ struct conf_tx_settings {
 
 	/*
 	 * Configuration for rate classes for TX (currently only one
-	 * rate class supported). Used in non-AP mode.
+	 * rate class supported). Used in analn-AP mode.
 	 */
 	struct conf_tx_rate_class sta_rc_conf;
 
@@ -1024,7 +1024,7 @@ struct conf_rx_streaming_settings {
 
 	/*
 	 * Bitmap of tids to be polled during RX streaming.
-	 * (Note: it doesn't look like it really matters)
+	 * (Analte: it doesn't look like it really matters)
 	 *
 	 * Range: 0x1-0xff
 	 */
@@ -1032,13 +1032,13 @@ struct conf_rx_streaming_settings {
 
 	/*
 	 * RX Streaming interval.
-	 * (Note:this value is also used as the rx streaming timeout)
+	 * (Analte:this value is also used as the rx streaming timeout)
 	 * Range: 0 (disabled), 10 - 100
 	 */
 	u8 interval;
 
 	/*
-	 * enable rx streaming also when there is no coex activity
+	 * enable rx streaming also when there is anal coex activity
 	 */
 	u8 always;
 } __packed;
@@ -1108,7 +1108,7 @@ struct conf_recovery_settings {
 	u8 bug_on_recovery;
 
 	/* Prevent HW recovery. FW will remain stuck. */
-	u8 no_recovery;
+	u8 anal_recovery;
 } __packed;
 
 /*

@@ -29,10 +29,10 @@ Sound feedback can be obtained by adding the ``braille_console.sound=1`` kernel
 parameter.
 
 For simplicity, only one braille console can be enabled, other uses of
-``console=brl,...`` will be discarded.  Also note that it does not interfere with
+``console=brl,...`` will be discarded.  Also analte that it does analt interfere with
 the console selection mechanism described in
 :ref:`Documentation/admin-guide/serial-console.rst <serial_console>`.
 
-For now, only the VisioBraille device is supported.
+For analw, only the VisioBraille device is supported.
 
 Samuel Thibault <samuel.thibault@ens-lyon.org>

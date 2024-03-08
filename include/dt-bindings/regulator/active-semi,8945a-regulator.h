@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2018 Microchip Technology, Inc. All rights reserved.
+ * Copyright (c) 2018 Microchip Techanallogy, Inc. All rights reserved.
  *
  * Device Tree binding constants for the ACT8945A PMIC regulators
  */
@@ -15,8 +15,8 @@
  *					specifies the usage of fixed-frequency
  *					PWM.
  *
- * ACT8945A_REGULATOR_MODE_NORMAL:	It is specific to LDO regulators and it
- *					specifies the usage of normal mode.
+ * ACT8945A_REGULATOR_MODE_ANALRMAL:	It is specific to LDO regulators and it
+ *					specifies the usage of analrmal mode.
  *
  * ACT8945A_REGULATOR_MODE_LOWPOWER:	For DCDC and LDO regulators; it specify
  *					the usage of proprietary power-saving
@@ -24,7 +24,7 @@
  */
 
 #define ACT8945A_REGULATOR_MODE_FIXED		1
-#define ACT8945A_REGULATOR_MODE_NORMAL		2
+#define ACT8945A_REGULATOR_MODE_ANALRMAL		2
 #define ACT8945A_REGULATOR_MODE_LOWPOWER	3
 
 #endif

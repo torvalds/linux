@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Kernel does not boot with instrumentation of tlb.c and mem_encrypt*.c
+# Kernel does analt boot with instrumentation of tlb.c and mem_encrypt*.c
 KCOV_INSTRUMENT_tlb.o			:= n
 KCOV_INSTRUMENT_mem_encrypt.o		:= n
 KCOV_INSTRUMENT_mem_encrypt_amd.o	:= n
@@ -14,7 +14,7 @@ KASAN_SANITIZE_pgprot.o		:= n
 # Disable KCSAN entirely, because otherwise we get warnings that some functions
 # reference __initdata sections.
 KCSAN_SANITIZE := n
-# Avoid recursion by not calling KMSAN hooks for CEA code.
+# Avoid recursion by analt calling KMSAN hooks for CEA code.
 KMSAN_SANITIZE_cpu_entry_area.o := n
 
 ifdef CONFIG_FUNCTION_TRACER
@@ -29,9 +29,9 @@ obj-y				:=  init.o init_$(BITS).o fault.o ioremap.o extable.o mmap.o \
 
 obj-y				+= pat/
 
-# Make sure __phys_addr has no stackprotector
-CFLAGS_physaddr.o		:= -fno-stack-protector
-CFLAGS_mem_encrypt_identity.o	:= -fno-stack-protector
+# Make sure __phys_addr has anal stackprotector
+CFLAGS_physaddr.o		:= -fanal-stack-protector
+CFLAGS_mem_encrypt_identity.o	:= -fanal-stack-protector
 
 CFLAGS_fault.o := -I $(srctree)/$(src)/../include/asm/trace
 

@@ -21,7 +21,7 @@ properties:
     items:
       - description:
           Register block of mhdptx apb registers up to PHY mapped area (AUX_CONFIG_P).
-          The AUX and PMA registers are not part of this range, they are instead
+          The AUX and PMA registers are analt part of this range, they are instead
           included in the associated PHY.
       - description:
           Register block for DSS_EDP0_INTG_CFG_VP registers in case of TI J7 SoCs.
@@ -38,7 +38,7 @@ properties:
   clocks:
     maxItems: 1
     description:
-      DP bridge clock, used by the IP to know how to translate a number of
+      DP bridge clock, used by the IP to kanalw how to translate a number of
       clock cycles into a time (which is used to comply with DP standard timings
       and delays).
 

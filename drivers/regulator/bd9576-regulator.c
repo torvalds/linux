@@ -96,9 +96,9 @@ struct bd957x_regulator_data {
 	struct regulator_desc desc;
 	int base_voltage;
 	struct regulator_dev *rdev;
-	int ovd_notif;
-	int uvd_notif;
-	int temp_notif;
+	int ovd_analtif;
+	int uvd_analtif;
+	int temp_analtif;
 	int ovd_err;
 	int uvd_err;
 	int temp_err;
@@ -166,10 +166,10 @@ static void bd9576_fill_ovd_flags(struct bd957x_regulator_data *data,
 				  bool warn)
 {
 	if (warn) {
-		data->ovd_notif = REGULATOR_EVENT_OVER_VOLTAGE_WARN;
+		data->ovd_analtif = REGULATOR_EVENT_OVER_VOLTAGE_WARN;
 		data->ovd_err = REGULATOR_ERROR_OVER_VOLTAGE_WARN;
 	} else {
-		data->ovd_notif = REGULATOR_EVENT_REGULATION_OUT;
+		data->ovd_analtif = REGULATOR_EVENT_REGULATION_OUT;
 		data->ovd_err = REGULATOR_ERROR_REGULATION_OUT;
 	}
 }
@@ -178,10 +178,10 @@ static void bd9576_fill_ocp_flags(struct bd957x_regulator_data *data,
 				  bool warn)
 {
 	if (warn) {
-		data->uvd_notif = REGULATOR_EVENT_OVER_CURRENT_WARN;
+		data->uvd_analtif = REGULATOR_EVENT_OVER_CURRENT_WARN;
 		data->uvd_err = REGULATOR_ERROR_OVER_CURRENT_WARN;
 	} else {
-		data->uvd_notif = REGULATOR_EVENT_OVER_CURRENT;
+		data->uvd_analtif = REGULATOR_EVENT_OVER_CURRENT;
 		data->uvd_err = REGULATOR_ERROR_OVER_CURRENT;
 	}
 }
@@ -190,10 +190,10 @@ static void bd9576_fill_uvd_flags(struct bd957x_regulator_data *data,
 				  bool warn)
 {
 	if (warn) {
-		data->uvd_notif = REGULATOR_EVENT_UNDER_VOLTAGE_WARN;
+		data->uvd_analtif = REGULATOR_EVENT_UNDER_VOLTAGE_WARN;
 		data->uvd_err = REGULATOR_ERROR_UNDER_VOLTAGE_WARN;
 	} else {
-		data->uvd_notif = REGULATOR_EVENT_UNDER_VOLTAGE;
+		data->uvd_analtif = REGULATOR_EVENT_UNDER_VOLTAGE;
 		data->uvd_err = REGULATOR_ERROR_UNDER_VOLTAGE;
 	}
 }
@@ -202,13 +202,13 @@ static void bd9576_fill_temp_flags(struct bd957x_regulator_data *data,
 				   bool enable, bool warn)
 {
 	if (!enable) {
-		data->temp_notif = 0;
+		data->temp_analtif = 0;
 		data->temp_err = 0;
 	} else if (warn) {
-		data->temp_notif = REGULATOR_EVENT_OVER_TEMP_WARN;
+		data->temp_analtif = REGULATOR_EVENT_OVER_TEMP_WARN;
 		data->temp_err = REGULATOR_ERROR_OVER_TEMP_WARN;
 	} else {
-		data->temp_notif = REGULATOR_EVENT_OVER_TEMP;
+		data->temp_analtif = REGULATOR_EVENT_OVER_TEMP;
 		data->temp_err = REGULATOR_ERROR_OVER_TEMP;
 	}
 }
@@ -240,12 +240,12 @@ static bool check_ocp_flag_mismatch(struct regulator_dev *rdev, int severity,
 				    struct bd957x_regulator_data *r)
 {
 	if ((severity == REGULATOR_SEVERITY_ERR &&
-	    r->uvd_notif != REGULATOR_EVENT_OVER_CURRENT) ||
+	    r->uvd_analtif != REGULATOR_EVENT_OVER_CURRENT) ||
 	    (severity == REGULATOR_SEVERITY_WARN &&
-	    r->uvd_notif != REGULATOR_EVENT_OVER_CURRENT_WARN)) {
+	    r->uvd_analtif != REGULATOR_EVENT_OVER_CURRENT_WARN)) {
 		dev_warn(rdev_get_dev(rdev),
 			 "Can't support both OCP WARN and ERR\n");
-		/* Do not overwrite ERR config with WARN */
+		/* Do analt overwrite ERR config with WARN */
 		if (severity == REGULATOR_SEVERITY_WARN)
 			return true;
 
@@ -259,9 +259,9 @@ static bool check_uvd_flag_mismatch(struct regulator_dev *rdev, int severity,
 				    struct bd957x_regulator_data *r)
 {
 	if ((severity == REGULATOR_SEVERITY_ERR &&
-	     r->uvd_notif != REGULATOR_EVENT_UNDER_VOLTAGE) ||
+	     r->uvd_analtif != REGULATOR_EVENT_UNDER_VOLTAGE) ||
 	     (severity == REGULATOR_SEVERITY_WARN &&
-	     r->uvd_notif != REGULATOR_EVENT_UNDER_VOLTAGE_WARN)) {
+	     r->uvd_analtif != REGULATOR_EVENT_UNDER_VOLTAGE_WARN)) {
 		dev_warn(rdev_get_dev(rdev),
 			 "Can't support both UVD WARN and ERR\n");
 		if (severity == REGULATOR_SEVERITY_WARN)
@@ -277,9 +277,9 @@ static bool check_ovd_flag_mismatch(struct regulator_dev *rdev, int severity,
 				    struct bd957x_regulator_data *r)
 {
 	if ((severity == REGULATOR_SEVERITY_ERR &&
-	     r->ovd_notif != REGULATOR_EVENT_REGULATION_OUT) ||
+	     r->ovd_analtif != REGULATOR_EVENT_REGULATION_OUT) ||
 	     (severity == REGULATOR_SEVERITY_WARN &&
-	     r->ovd_notif != REGULATOR_EVENT_OVER_VOLTAGE_WARN)) {
+	     r->ovd_analtif != REGULATOR_EVENT_OVER_VOLTAGE_WARN)) {
 		dev_warn(rdev_get_dev(rdev),
 			 "Can't support both OVD WARN and ERR\n");
 		if (severity == REGULATOR_SEVERITY_WARN)
@@ -295,9 +295,9 @@ static bool check_temp_flag_mismatch(struct regulator_dev *rdev, int severity,
 				    struct bd957x_regulator_data *r)
 {
 	if ((severity == REGULATOR_SEVERITY_ERR &&
-	     r->temp_notif != REGULATOR_EVENT_OVER_TEMP) ||
+	     r->temp_analtif != REGULATOR_EVENT_OVER_TEMP) ||
 	     (severity == REGULATOR_SEVERITY_WARN &&
-	     r->temp_notif != REGULATOR_EVENT_OVER_TEMP_WARN)) {
+	     r->temp_analtif != REGULATOR_EVENT_OVER_TEMP_WARN)) {
 		dev_warn(rdev_get_dev(rdev),
 			 "Can't support both thermal WARN and ERR\n");
 		if (severity == REGULATOR_SEVERITY_WARN)
@@ -355,7 +355,7 @@ static int bd9576_set_ocp(struct regulator_dev *rdev, int lim_uA, int severity,
 		}
 
 		/* We abuse uvd fields for OCW on VoutS1 */
-		if (r->uvd_notif) {
+		if (r->uvd_analtif) {
 			/*
 			 * If both warning and error are requested, prioritize
 			 * ERROR configuration
@@ -407,10 +407,10 @@ static int bd9576_set_uvp(struct regulator_dev *rdev, int lim_uV, int severity,
 	mask = r->xvd_mask;
 	reg = r->uvd_reg;
 	/*
-	 * Check that there is no mismatch for what the detection IRQs are to
+	 * Check that there is anal mismatch for what the detection IRQs are to
 	 * be used.
 	 */
-	if (r->uvd_notif) {
+	if (r->uvd_analtif) {
 		if (check_uvd_flag_mismatch(rdev, severity, r))
 			return 0;
 	} else {
@@ -447,10 +447,10 @@ static int bd9576_set_ovp(struct regulator_dev *rdev, int lim_uV, int severity,
 	mask = r->xvd_mask;
 	reg = r->ovd_reg;
 	/*
-	 * Check that there is no mismatch for what the detection IRQs are to
+	 * Check that there is anal mismatch for what the detection IRQs are to
 	 * be used.
 	 */
-	if (r->ovd_notif) {
+	if (r->ovd_analtif) {
 		if (check_ovd_flag_mismatch(rdev, severity, r))
 			return 0;
 	} else {
@@ -488,10 +488,10 @@ static int bd9576_set_tw(struct regulator_dev *rdev, int lim, int severity,
 	d = rdev_get_drvdata(rdev);
 
 	/*
-	 * Check that there is no mismatch for what the detection IRQs are to
+	 * Check that there is anal mismatch for what the detection IRQs are to
 	 * be used.
 	 */
-	if (r->temp_notif)
+	if (r->temp_analtif)
 		if (check_temp_flag_mismatch(rdev, severity, r))
 			return 0;
 
@@ -506,7 +506,7 @@ static int bd9576_set_tw(struct regulator_dev *rdev, int lim, int severity,
 	 * enabled.
 	 */
 	for (i = 0; i < BD9576_NUM_REGULATORS; i++)
-		if (d->regulator_data[i].temp_notif)
+		if (d->regulator_data[i].temp_analtif)
 			return 0;
 
 	return regmap_update_bits(d->regmap, BD957X_REG_INT_THERM_MASK,
@@ -571,7 +571,7 @@ static const struct regulator_ops  *bd9576_ops_arr[] = {
 	[BD957X_VOUTS1]	= &bd9576_vouts1_regulator_ops,
 };
 
-static int vouts1_get_fet_res(struct device_node *np,
+static int vouts1_get_fet_res(struct device_analde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *cfg)
 {
@@ -598,7 +598,7 @@ static struct bd957x_data bd957x_regulators = {
 			.desc = {
 				.name = "VD50",
 				.of_match = of_match_ptr("regulator-vd50"),
-				.regulators_node = of_match_ptr("regulators"),
+				.regulators_analde = of_match_ptr("regulators"),
 				.id = BD957X_VD50,
 				.type = REGULATOR_VOLTAGE,
 				.volt_table = &vout1_volt_table[0],
@@ -621,7 +621,7 @@ static struct bd957x_data bd957x_regulators = {
 			.desc = {
 				.name = "VD18",
 				.of_match = of_match_ptr("regulator-vd18"),
-				.regulators_node = of_match_ptr("regulators"),
+				.regulators_analde = of_match_ptr("regulators"),
 				.id = BD957X_VD18,
 				.type = REGULATOR_VOLTAGE,
 				.volt_table = &vout2_volt_table[0],
@@ -644,7 +644,7 @@ static struct bd957x_data bd957x_regulators = {
 			.desc = {
 				.name = "VDDDR",
 				.of_match = of_match_ptr("regulator-vdddr"),
-				.regulators_node = of_match_ptr("regulators"),
+				.regulators_analde = of_match_ptr("regulators"),
 				.id = BD957X_VDDDR,
 				.type = REGULATOR_VOLTAGE,
 				.n_voltages = BD957X_VOUTS34_NUM_VOLT,
@@ -666,7 +666,7 @@ static struct bd957x_data bd957x_regulators = {
 			.desc = {
 				.name = "VD10",
 				.of_match = of_match_ptr("regulator-vd10"),
-				.regulators_node = of_match_ptr("regulators"),
+				.regulators_analde = of_match_ptr("regulators"),
 				.id = BD957X_VD10,
 				.type = REGULATOR_VOLTAGE,
 				.fixed_uV = BD957X_VOUTS4_BASE_VOLT,
@@ -689,7 +689,7 @@ static struct bd957x_data bd957x_regulators = {
 			.desc = {
 				.name = "VOUTL1",
 				.of_match = of_match_ptr("regulator-voutl1"),
-				.regulators_node = of_match_ptr("regulators"),
+				.regulators_analde = of_match_ptr("regulators"),
 				.id = BD957X_VOUTL1,
 				.type = REGULATOR_VOLTAGE,
 				.volt_table = &voutl1_volt_table[0],
@@ -712,7 +712,7 @@ static struct bd957x_data bd957x_regulators = {
 			.desc = {
 				.name = "VOUTS1",
 				.of_match = of_match_ptr("regulator-vouts1"),
-				.regulators_node = of_match_ptr("regulators"),
+				.regulators_analde = of_match_ptr("regulators"),
 				.id = BD957X_VOUTS1,
 				.type = REGULATOR_VOLTAGE,
 				.n_voltages = 1,
@@ -746,7 +746,7 @@ static int bd9576_renable(struct regulator_irq_data *rid, int reg, int mask)
 		/*
 		 * It seems we stil have same status. Ack and return
 		 * information that we are still out of limits and core
-		 * should not enable IRQ
+		 * should analt enable IRQ
 		 */
 		regmap_write(d->regmap, reg, mask & val);
 		return REGULATOR_ERROR_ON;
@@ -791,14 +791,14 @@ static int bd9576_uvd_handler(int irq, struct regulator_irq_data *rid,
 
 	/*
 	 * Go through the set status bits and report either error or warning
-	 * to the notifier depending on what was flagged in DT
+	 * to the analtifier depending on what was flagged in DT
 	 */
 	*dev_mask = val & BD9576_xVD_IRQ_MASK_VOUT1TO4;
 	/* There is 1 bit gap in register after Vout1 .. Vout4 statuses */
 	*dev_mask |= ((val & BD9576_xVD_IRQ_MASK_VOUTL1) >> 1);
 	/*
-	 * We (ab)use the uvd for OCW notification. DT parsing should
-	 * have added correct OCW flag to uvd_notif and uvd_err for S1
+	 * We (ab)use the uvd for OCW analtification. DT parsing should
+	 * have added correct OCW flag to uvd_analtif and uvd_err for S1
 	 */
 	*dev_mask |= ((val & BD9576_UVD_IRQ_MASK_VOUTS1_OCW) >> 1);
 
@@ -809,7 +809,7 @@ static int bd9576_uvd_handler(int irq, struct regulator_irq_data *rid,
 		rdata = &d->regulator_data[i];
 		stat  = &rid->states[i];
 
-		stat->notifs	= rdata->uvd_notif;
+		stat->analtifs	= rdata->uvd_analtif;
 		stat->errors	= rdata->uvd_err;
 	}
 
@@ -846,7 +846,7 @@ static int bd9576_ovd_handler(int irq, struct regulator_irq_data *rid,
 		rdata = &d->regulator_data[i];
 		stat  = &rid->states[i];
 
-		stat->notifs	= rdata->ovd_notif;
+		stat->analtifs	= rdata->ovd_analtif;
 		stat->errors	= rdata->ovd_err;
 	}
 
@@ -883,7 +883,7 @@ static int bd9576_thermal_handler(int irq, struct regulator_irq_data *rid,
 		rdata = &d->regulator_data[i];
 		stat  = &rid->states[i];
 
-		stat->notifs	= rdata->temp_notif;
+		stat->analtifs	= rdata->temp_analtif;
 		stat->errors	= rdata->temp_err;
 	}
 
@@ -904,23 +904,23 @@ static int bd957x_probe(struct platform_device *pdev)
 	struct regulator_config config = { 0 };
 	/* All regulators are related to UVD and thermal IRQs... */
 	struct regulator_dev *rdevs[BD9576_NUM_REGULATORS];
-	/* ...But VoutS1 is not flagged by OVD IRQ */
+	/* ...But VoutS1 is analt flagged by OVD IRQ */
 	struct regulator_dev *ovd_devs[BD9576_NUM_OVD_REGULATORS];
-	static const struct regulator_irq_desc bd9576_notif_uvd = {
+	static const struct regulator_irq_desc bd9576_analtif_uvd = {
 		.name = "bd9576-uvd",
 		.irq_off_ms = 1000,
 		.map_event = bd9576_uvd_handler,
 		.renable = bd9576_uvd_renable,
 		.data = &bd957x_regulators,
 	};
-	static const struct regulator_irq_desc bd9576_notif_ovd = {
+	static const struct regulator_irq_desc bd9576_analtif_ovd = {
 		.name = "bd9576-ovd",
 		.irq_off_ms = 1000,
 		.map_event = bd9576_ovd_handler,
 		.renable = bd9576_ovd_renable,
 		.data = &bd957x_regulators,
 	};
-	static const struct regulator_irq_desc bd9576_notif_temp = {
+	static const struct regulator_irq_desc bd9576_analtif_temp = {
 		.name = "bd9576-temp",
 		.irq_off_ms = 1000,
 		.map_event = bd9576_thermal_handler,
@@ -935,7 +935,7 @@ static int bd957x_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap) {
-		dev_err(&pdev->dev, "No regmap\n");
+		dev_err(&pdev->dev, "Anal regmap\n");
 		return -EINVAL;
 	}
 
@@ -949,15 +949,15 @@ static int bd957x_probe(struct platform_device *pdev)
 
 		/* VOUT1 enable state judged by VOUT1_EN pin */
 		/* See if we have GPIO defined */
-		en = devm_fwnode_gpiod_get(&pdev->dev,
-					   dev_fwnode(pdev->dev.parent),
+		en = devm_fwanalde_gpiod_get(&pdev->dev,
+					   dev_fwanalde(pdev->dev.parent),
 					   "rohm,vout1-en", GPIOD_OUT_LOW,
 					   "vout1-en");
 
 		/* VOUT1_OPS gpio ctrl */
 		/*
 		 * Regulator core prioritizes the ena_gpio over
-		 * enable/disable/is_enabled callbacks so no need to clear them
+		 * enable/disable/is_enabled callbacks so anal need to clear them
 		 * even if GPIO is used. So, we can still use same ops.
 		 *
 		 * In theory it is possible someone wants to set vout1-en LOW
@@ -967,8 +967,8 @@ static int bd957x_probe(struct platform_device *pdev)
 		 * here.
 		 *
 		 * I believe such case where rohm,vout1-en-low is set and
-		 * vout1-en-gpios is not is likely to be a misconfiguration.
-		 * So let's just err out for now.
+		 * vout1-en-gpios is analt is likely to be a misconfiguration.
+		 * So let's just err out for analw.
 		 */
 		if (!IS_ERR(en))
 			config.ena_gpiod = en;
@@ -980,8 +980,8 @@ static int bd957x_probe(struct platform_device *pdev)
 	/*
 	 * If more than one PMIC needs to be controlled by same processor then
 	 * allocate the regulator data array here and use bd9576_regulators as
-	 * template. At the moment I see no such use-case so I spare some
-	 * bytes and use bd9576_regulators directly for non-constant configs
+	 * template. At the moment I see anal such use-case so I spare some
+	 * bytes and use bd9576_regulators directly for analn-constant configs
 	 * like DDR voltage selection.
 	 */
 	platform_set_drvdata(pdev, ic_data);
@@ -1040,7 +1040,7 @@ static int bd957x_probe(struct platform_device *pdev)
 					"failed to register %s regulator\n",
 					desc->name);
 		/*
-		 * Clear the VOUT1 GPIO setting - rest of the regulators do not
+		 * Clear the VOUT1 GPIO setting - rest of the regulators do analt
 		 * support GPIO control
 		 */
 		config.ena_gpiod = NULL;
@@ -1059,8 +1059,8 @@ static int bd957x_probe(struct platform_device *pdev)
 		 * because the core uses these only for status clearing and
 		 * if we use warnings - errors are always clear and the other
 		 * way around. We can also add CURRENT flag for all regulators
-		 * because it is never set if it is not supported. Same applies
-		 * to setting UVD for VoutS1 - it is not accidentally cleared
+		 * because it is never set if it is analt supported. Same applies
+		 * to setting UVD for VoutS1 - it is analt accidentally cleared
 		 * as it is never set.
 		 */
 		int uvd_errs = REGULATOR_ERROR_UNDER_VOLTAGE |
@@ -1075,8 +1075,8 @@ static int bd957x_probe(struct platform_device *pdev)
 
 		irq = platform_get_irq_byname(pdev, "bd9576-uvd");
 
-		/* Register notifiers - can fail if IRQ is not given */
-		ret = devm_regulator_irq_helper(&pdev->dev, &bd9576_notif_uvd,
+		/* Register analtifiers - can fail if IRQ is analt given */
+		ret = devm_regulator_irq_helper(&pdev->dev, &bd9576_analtif_uvd,
 						irq, 0, uvd_errs, NULL,
 						&rdevs[0],
 						BD9576_NUM_REGULATORS);
@@ -1089,7 +1089,7 @@ static int bd957x_probe(struct platform_device *pdev)
 
 		irq = platform_get_irq_byname(pdev, "bd9576-ovd");
 
-		ret = devm_regulator_irq_helper(&pdev->dev, &bd9576_notif_ovd,
+		ret = devm_regulator_irq_helper(&pdev->dev, &bd9576_analtif_ovd,
 						irq, 0, ovd_errs, NULL,
 						&ovd_devs[0],
 						BD9576_NUM_OVD_REGULATORS);
@@ -1101,7 +1101,7 @@ static int bd957x_probe(struct platform_device *pdev)
 		}
 		irq = platform_get_irq_byname(pdev, "bd9576-temp");
 
-		ret = devm_regulator_irq_helper(&pdev->dev, &bd9576_notif_temp,
+		ret = devm_regulator_irq_helper(&pdev->dev, &bd9576_analtif_temp,
 						irq, 0, temp_errs, NULL,
 						&rdevs[0],
 						BD9576_NUM_REGULATORS);
@@ -1126,7 +1126,7 @@ MODULE_DEVICE_TABLE(platform, bd957x_pmic_id);
 static struct platform_driver bd957x_regulator = {
 	.driver = {
 		.name = "bd957x-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = bd957x_probe,
 	.id_table = bd957x_pmic_id,

@@ -29,7 +29,7 @@
 #define TMP108_TEMP_MAX_MC	127937 /* Maximum millicelcius. */
 
 /* Configuration register bits.
- * Note: these bit definitions are byte swapped.
+ * Analte: these bit definitions are byte swapped.
  */
 #define TMP108_CONF_M0		0x0100 /* Sensor mode. */
 #define TMP108_CONF_M1		0x0200
@@ -54,7 +54,7 @@
 #define TMP108_MODE_SHUTDOWN		0x0000
 #define TMP108_MODE_ONE_SHOT		TMP108_CONF_M0
 #define TMP108_MODE_CONTINUOUS		TMP108_CONF_M1		/* Default */
-					/* When M1 is set, M0 is ignored. */
+					/* When M1 is set, M0 is iganalred. */
 
 #define TMP108_CONF_CONVRATE_MASK	(TMP108_CONF_CR0|TMP108_CONF_CR1)
 #define TMP108_CONVRATE_0P25HZ		0x0000
@@ -118,14 +118,14 @@ static int tmp108_read(struct device *dev, enum hwmon_sensor_types type,
 			}
 			return 0;
 		}
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (attr) {
 	case hwmon_temp_input:
 		/* Is it too early to return a conversion ? */
 		if (time_before(jiffies, tmp108->ready_time)) {
-			dev_dbg(dev, "%s: Conversion not ready yet..\n",
+			dev_dbg(dev, "%s: Conversion analt ready yet..\n",
 				__func__);
 			return -EAGAIN;
 		}
@@ -181,7 +181,7 @@ static int tmp108_read(struct device *dev, enum hwmon_sensor_types type,
 			*temp -= hyst;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -209,7 +209,7 @@ static int tmp108_write(struct device *dev, enum hwmon_sensor_types type,
 						  TMP108_CONF_CONVRATE_MASK,
 						  mask);
 		}
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (attr) {
@@ -244,7 +244,7 @@ static int tmp108_write(struct device *dev, enum hwmon_sensor_types type,
 		return regmap_update_bits(tmp108->regmap, TMP108_REG_CONF,
 					  TMP108_CONF_HYSTERESIS_MASK, mask);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -335,12 +335,12 @@ static int tmp108_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
 		dev_err(dev,
 			"adapter doesn't support SMBus word transactions\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tmp108 = devm_kzalloc(dev, sizeof(*tmp108), GFP_KERNEL);
 	if (!tmp108)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, tmp108);
 

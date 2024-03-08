@@ -21,7 +21,7 @@ Quiescence
 ----------
 
 After the ndo_stop routine has been called, the hardware must
-not receive or transmit any data.  All in flight packets must
+analt receive or transmit any data.  All in flight packets must
 be aborted. If necessary, poll or wait for completion of
 any reset commands.
 
@@ -37,9 +37,9 @@ Transmit path guidelines
 Stop queues in advance
 ----------------------
 
-The ndo_start_xmit method must not return NETDEV_TX_BUSY under
-any normal circumstances.  It is considered a hard error unless
-there is no way your device can tell ahead of time when its
+The ndo_start_xmit method must analt return NETDEV_TX_BUSY under
+any analrmal circumstances.  It is considered a hard error unless
+there is anal way your device can tell ahead of time when its
 transmit function will become busy.
 
 Instead it must maintain the queue properly.  For example,
@@ -103,25 +103,25 @@ Lockless queue stop / wake helper macros
 .. kernel-doc:: include/net/netdev_queues.h
    :doc: Lockless queue stopping / waking helpers.
 
-No exclusive ownership
+Anal exclusive ownership
 ----------------------
 
-An ndo_start_xmit method must not modify the shared parts of a
+An ndo_start_xmit method must analt modify the shared parts of a
 cloned SKB.
 
 Timely completions
 ------------------
 
-Do not forget that once you return NETDEV_TX_OK from your
+Do analt forget that once you return NETDEV_TX_OK from your
 ndo_start_xmit method, it is your driver's responsibility to free
 up the SKB and in some finite amount of time.
 
-For example, this means that it is not allowed for your TX
+For example, this means that it is analt allowed for your TX
 mitigation scheme to let TX packets "hang out" in the TX
-ring unreclaimed forever if no new TX packets are sent.
+ring unreclaimed forever if anal new TX packets are sent.
 This error can deadlock sockets waiting for send buffer room
 to be freed up.
 
 If you return NETDEV_TX_BUSY from the ndo_start_xmit method, you
-must not keep any reference to that SKB and you must not attempt
+must analt keep any reference to that SKB and you must analt attempt
 to free it up.

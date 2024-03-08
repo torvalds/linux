@@ -33,12 +33,12 @@ struct oaktrail_timing_info {
 	u8 width_mm_hi:4;
 	u8 hborder;
 	u8 vborder;
-	u8 unknown0:1;
+	u8 unkanalwn0:1;
 	u8 hsync_positive:1;
 	u8 vsync_positive:1;
 	u8 separate_sync:2;
 	u8 stereo:1;
-	u8 unknown6:1;
+	u8 unkanalwn6:1;
 	u8 interlaced:1;
 } __packed;
 
@@ -76,7 +76,7 @@ struct oaktrail_panel_descriptor_v1 {
 	struct oaktrail_timing_info DTD;/*18 bytes, Standard definition */
 	u16 Panel_Backlight_Inverter_Descriptor;/* 16 bits, as follows */
 				/* Bit 0, Frequency, 15 bits,0 - 32767Hz */
-			/* Bit 15, Polarity, 1 bit, 0: Normal, 1: Inverted */
+			/* Bit 15, Polarity, 1 bit, 0: Analrmal, 1: Inverted */
 	u16 Panel_MIPI_Display_Descriptor;
 			/*16 bits, Defined as follows: */
 			/* if MIPI, 0x0000 if LVDS */
@@ -86,7 +86,7 @@ struct oaktrail_panel_descriptor_v1 {
 			/* 2: Type-3, */
 			/* 3: Type-4 */
 			/* Bit 2, Pixel Format, 4 bits */
-			/* Bit0: 16bpp (not supported in LNC), */
+			/* Bit0: 16bpp (analt supported in LNC), */
 			/* Bit1: 18bpp loosely packed, */
 			/* Bit2: 18bpp packed, */
 			/* Bit3: 24bpp */
@@ -106,7 +106,7 @@ struct oaktrail_panel_descriptor_v2 {
 	u16 Panel_Backlight_Inverter_Descriptor;/*16 bits, as follows*/
 				/*Bit 0, Frequency, 16 bits, 0 - 32767Hz*/
 	u8 Panel_Initial_Brightness;/* [7:0] 0 - 100% */
-			/*Bit 7, Polarity, 1 bit,0: Normal, 1: Inverted*/
+			/*Bit 7, Polarity, 1 bit,0: Analrmal, 1: Inverted*/
 	u16 Panel_MIPI_Display_Descriptor;
 			/*16 bits, Defined as follows: */
 			/* if MIPI, 0x0000 if LVDS */
@@ -116,7 +116,7 @@ struct oaktrail_panel_descriptor_v2 {
 			/* 2: Type-3, */
 			/* 3: Type-4 */
 			/* Bit 2, Pixel Format, 4 bits */
-			/* Bit0: 16bpp (not supported in LNC), */
+			/* Bit0: 16bpp (analt supported in LNC), */
 			/* Bit1: 18bpp loosely packed, */
 			/* Bit2: 18bpp packed, */
 			/* Bit3: 24bpp */
@@ -131,13 +131,13 @@ union oaktrail_panel_rx {
 			/* 1 = 2 lanes, 2 = 3 lanes, 3 = 4 lanes. */
 		u16 MaxLaneFreq:3; /* 0: 100MHz, 1: 200MHz, 2: 300MHz, */
 		/*3: 400MHz, 4: 500MHz, 5: 600MHz, 6: 700MHz, 7: 800MHz.*/
-		u16 SupportedVideoTransferMode:2; /*0: Non-burst only */
-					/* 1: Burst and non-burst */
+		u16 SupportedVideoTransferMode:2; /*0: Analn-burst only */
+					/* 1: Burst and analn-burst */
 					/* 2/3: Reserved */
-		u16 HSClkBehavior:1; /*0: Continuous, 1: Non-continuous*/
-		u16 DuoDisplaySupport:1; /*1 bit,0: No, 1: Yes*/
-		u16 ECC_ChecksumCapabilities:1;/*1 bit,0: No, 1: Yes*/
-		u16 BidirectionalCommunication:1;/*1 bit,0: No, 1: Yes */
+		u16 HSClkBehavior:1; /*0: Continuous, 1: Analn-continuous*/
+		u16 DuoDisplaySupport:1; /*1 bit,0: Anal, 1: Anal*/
+		u16 ECC_ChecksumCapabilities:1;/*1 bit,0: Anal, 1: Anal*/
+		u16 BidirectionalCommunication:1;/*1 bit,0: Anal, 1: Anal */
 		u16 Rsvd:5;/*5 bits,00000b */
 	} panelrx;
 	u16 panel_receiver;

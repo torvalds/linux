@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -44,9 +44,9 @@ static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
 module_param_named(debug, ath9k_debug, uint, 0);
 MODULE_PARM_DESC(debug, "Debugging mask");
 
-int ath9k_modparam_nohwcrypt;
-module_param_named(nohwcrypt, ath9k_modparam_nohwcrypt, int, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
+int ath9k_modparam_analhwcrypt;
+module_param_named(analhwcrypt, ath9k_modparam_analhwcrypt, int, 0444);
+MODULE_PARM_DESC(analhwcrypt, "Disable hardware encryption");
 
 int ath9k_led_blink;
 module_param_named(blink, ath9k_led_blink, int, 0444);
@@ -247,7 +247,7 @@ static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 cl
 /*     Initialization     */
 /**************************/
 
-static void ath9k_reg_notifier(struct wiphy *wiphy,
+static void ath9k_reg_analtifier(struct wiphy *wiphy,
 			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -255,7 +255,7 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
 
-	ath_reg_notifier_apply(wiphy, request, reg);
+	ath_reg_analtifier_apply(wiphy, request, reg);
 
 	/* synchronize DFS detector if regulatory domain changed */
 	if (sc->dfs_detector != NULL)
@@ -300,9 +300,9 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 
 	/* ath_desc must be a multiple of DWORDs */
 	if ((desc_len % 4) != 0) {
-		ath_err(common, "ath_desc not DWORD aligned\n");
+		ath_err(common, "ath_desc analt DWORD aligned\n");
 		BUG_ON((desc_len % 4) != 0);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dd->dd_desc_len = desc_len * nbuf * ndesc;
@@ -329,7 +329,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	dd->dd_desc = dmam_alloc_coherent(sc->dev, dd->dd_desc_len,
 					  &dd->dd_desc_paddr, GFP_KERNEL);
 	if (!dd->dd_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds = dd->dd_desc;
 	ath_dbg(common, CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
@@ -343,7 +343,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		bsize = sizeof(struct ath_buf) * nbuf;
 		bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
 		if (!bf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
 			bf->bf_desc = ds;
@@ -374,7 +374,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		bsize = sizeof(struct ath_rxbuf) * nbuf;
 		bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
 		if (!bf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
 			bf->bf_desc = ds;
@@ -488,7 +488,7 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 		ath_info(common, "Killer Wireless card detected\n");
 
 	/*
-	 * Some WB335 cards do not support antenna diversity. Since
+	 * Some WB335 cards do analt support antenna diversity. Since
 	 * we use a hardcoded value for AR9565 instead of using the
 	 * EEPROM/OTP data, remove the combining feature from
 	 * the HW capabilities bitmap.
@@ -515,7 +515,7 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 	 */
 	ah->config.pll_pwrsave = 1;
 
-	if (sc->driver_data & ATH9K_PCI_NO_PLL_PWRSAVE) {
+	if (sc->driver_data & ATH9K_PCI_ANAL_PLL_PWRSAVE) {
 		ah->config.pll_pwrsave = 0;
 		ath_info(common, "Disable PLL PowerSave\n");
 	}
@@ -541,11 +541,11 @@ static int ath9k_eeprom_request(struct ath_softc *sc, const char *name)
 	struct ath_hw *ah = sc->sc_ah;
 	int err;
 
-	/* try to load the EEPROM content asynchronously */
+	/* try to load the EEPROM content asynchroanalusly */
 	init_completion(&ec.complete);
 	ec.ah = sc->sc_ah;
 
-	err = request_firmware_nowait(THIS_MODULE, 1, name, sc->dev, GFP_KERNEL,
+	err = request_firmware_analwait(THIS_MODULE, 1, name, sc->dev, GFP_KERNEL,
 				      &ec, ath9k_eeprom_request_cb);
 	if (err < 0) {
 		ath_err(ath9k_hw_common(ah),
@@ -581,13 +581,13 @@ static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
 	if (IS_ERR(cell)) {
 		err = PTR_ERR(cell);
 
-		/* nvmem cell might not be defined, or the nvmem
+		/* nvmem cell might analt be defined, or the nvmem
 		 * subsystem isn't included. In this case, follow
 		 * the established "just return 0;" convention of
 		 * ath9k_init_platform to say:
-		 * "All good. Nothing to see here. Please go on."
+		 * "All good. Analthing to see here. Please go on."
 		 */
-		if (err == -ENOENT || err == -EOPNOTSUPP)
+		if (err == -EANALENT || err == -EOPANALTSUPP)
 			return 0;
 
 		return err;
@@ -611,11 +611,11 @@ static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
 	ah->nvmem_blob = devm_kmemdup(sc->dev, buf, len, GFP_KERNEL);
 	kfree(buf);
 	if (!ah->nvmem_blob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ah->nvmem_blob_len = len;
 	ah->ah_flags &= ~AH_USE_EEPROM;
-	ah->ah_flags |= AH_NO_EEP_SWAP;
+	ah->ah_flags |= AH_ANAL_EEP_SWAP;
 
 	return 0;
 }
@@ -642,7 +642,7 @@ static int ath9k_init_platform(struct ath_softc *sc)
 		ah->disable_5ghz = pdata->disable_5ghz;
 
 		if (!pdata->endian_check)
-			ah->ah_flags |= AH_NO_EEP_SWAP;
+			ah->ah_flags |= AH_ANAL_EEP_SWAP;
 	}
 
 	if (pdata->eeprom_name) {
@@ -665,7 +665,7 @@ static int ath9k_init_platform(struct ath_softc *sc)
 
 static int ath9k_of_init(struct ath_softc *sc)
 {
-	struct device_node *np = sc->dev->of_node;
+	struct device_analde *np = sc->dev->of_analde;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath_bus_type bus_type = common->bus_ops->ath_bus_type;
@@ -675,9 +675,9 @@ static int ath9k_of_init(struct ath_softc *sc)
 	if (!of_device_is_available(np))
 		return 0;
 
-	ath_dbg(common, CONFIG, "parsing configuration from OF node\n");
+	ath_dbg(common, CONFIG, "parsing configuration from OF analde\n");
 
-	if (of_property_read_bool(np, "qca,no-eeprom")) {
+	if (of_property_read_bool(np, "qca,anal-eeprom")) {
 		/* ath9k-eeprom-<bus>-<id>.bin */
 		scnprintf(eeprom_name, sizeof(eeprom_name),
 			  "ath9k-eeprom-%s-%s.bin",
@@ -688,7 +688,7 @@ static int ath9k_of_init(struct ath_softc *sc)
 			return ret;
 
 		ah->ah_flags &= ~AH_USE_EEPROM;
-		ah->ah_flags |= AH_NO_EEP_SWAP;
+		ah->ah_flags |= AH_ANAL_EEP_SWAP;
 	}
 
 	of_get_mac_address(np, common->macaddr);
@@ -707,7 +707,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 
 	ah = devm_kzalloc(sc->dev, sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ah->dev = sc->dev;
 	ah->hw = sc->hw;
@@ -915,7 +915,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 #ifdef CONFIG_ATH9K_DFS_CERTIFIED
-		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_ANALHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
 					BIT(NL80211_CHAN_WIDTH_40),
 #endif
@@ -941,7 +941,7 @@ static void ath9k_set_mcc_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->max_remain_on_channel_duration = 10000;
 	hw->chanctx_data_size = sizeof(void *);
 	hw->extra_beacon_tailroom =
-		sizeof(struct ieee80211_p2p_noa_attr) + 9;
+		sizeof(struct ieee80211_p2p_anala_attr) + 9;
 
 	ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
 }
@@ -974,7 +974,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 				IEEE80211_RADIOTAP_MCS_HAVE_STBC;
 	}
 
-	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah) || ath9k_modparam_nohwcrypt)
+	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah) || ath9k_modparam_analhwcrypt)
 		ieee80211_hw_set(hw, MFP_CAPABLE);
 
 	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
@@ -1012,7 +1012,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->max_rates = 4;
 	hw->max_listen_interval = 10;
 	hw->max_rate_tries = 10;
-	hw->sta_data_size = sizeof(struct ath_node);
+	hw->sta_data_size = sizeof(struct ath_analde);
 	hw->vif_data_size = sizeof(struct ath_vif);
 	hw->txq_data_size = sizeof(struct ath_atx_tid);
 	hw->extra_tx_headroom = 4;
@@ -1069,7 +1069,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 
 	/* Initialize regulatory */
 	error = ath_regd_init(&common->regulatory, sc->hw->wiphy,
-			      ath9k_reg_notifier);
+			      ath9k_reg_analtifier);
 	if (error)
 		goto deinit;
 
@@ -1181,14 +1181,14 @@ static int __init ath9k_init(void)
 
 	error = ath_pci_init();
 	if (error < 0) {
-		pr_err("No PCI devices found, driver not installed\n");
-		error = -ENODEV;
+		pr_err("Anal PCI devices found, driver analt installed\n");
+		error = -EANALDEV;
 		goto err_out;
 	}
 
 	error = ath_ahb_init();
 	if (error < 0) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_pci_exit;
 	}
 

@@ -5,7 +5,7 @@
 
 #include <linux/irq.h>
 
-extern void i8259_init(struct device_node *node, unsigned long intack_addr);
+extern void i8259_init(struct device_analde *analde, unsigned long intack_addr);
 extern unsigned int i8259_irq(void);
 struct irq_domain *__init i8259_get_host(void);
 

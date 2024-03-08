@@ -28,14 +28,14 @@ struct mt7615_mcu_txd {
 /**
  * struct mt7615_uni_txd - mcu command descriptor for firmware v3
  * @txd: hardware descriptor
- * @len: total length not including txd
+ * @len: total length analt including txd
  * @cid: command identifier
  * @pkt_type: must be 0xa0 (cmd packet by long format)
  * @frag_n: fragment number
  * @seq: sequence number
- * @checksum: 0 mean there is no checksum
+ * @checksum: 0 mean there is anal checksum
  * @s2d_index: index for command source and destination
- *  Definition              | value | note
+ *  Definition              | value | analte
  *  CMD_S2D_IDX_H2N         | 0x00  | command from HOST to WM
  *  CMD_S2D_IDX_C2N         | 0x01  | command from WA to WM
  *  CMD_S2D_IDX_H2C         | 0x02  | command from HOST to WA
@@ -147,7 +147,7 @@ struct mt7615_mcu_rxd {
 	u8 s2d_index;
 };
 
-struct mt7615_mcu_csa_notify {
+struct mt7615_mcu_csa_analtify {
 	struct mt7615_mcu_rxd rxd;
 
 	u8 omac_idx;

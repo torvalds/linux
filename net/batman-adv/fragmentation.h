@@ -15,16 +15,16 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 
-void batadv_frag_purge_orig(struct batadv_orig_node *orig,
+void batadv_frag_purge_orig(struct batadv_orig_analde *orig,
 			    bool (*check_cb)(struct batadv_frag_table_entry *));
 bool batadv_frag_skb_fwd(struct sk_buff *skb,
 			 struct batadv_hard_iface *recv_if,
-			 struct batadv_orig_node *orig_node_src);
+			 struct batadv_orig_analde *orig_analde_src);
 bool batadv_frag_skb_buffer(struct sk_buff **skb,
-			    struct batadv_orig_node *orig_node);
+			    struct batadv_orig_analde *orig_analde);
 int batadv_frag_send_packet(struct sk_buff *skb,
-			    struct batadv_orig_node *orig_node,
-			    struct batadv_neigh_node *neigh_node);
+			    struct batadv_orig_analde *orig_analde,
+			    struct batadv_neigh_analde *neigh_analde);
 
 /**
  * batadv_frag_check_entry() - check if a list of fragments has timed out

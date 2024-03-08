@@ -251,10 +251,10 @@
 				map0 {
 					trip = <&cpu_alert0>;
 					cooling-device =
-						<&A53_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A53_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -267,7 +267,7 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <8000000>;
-		arm,no-tick-in-suspend;
+		arm,anal-tick-in-suspend;
 	};
 
 	soc: soc@0 {
@@ -579,7 +579,7 @@
 				 *   reg = <ADDR SIZE>;
 				 * then
 				 *   Fuse Address = (ADDR * 4) + 0x400
-				 * Note that if SIZE is greater than 4, then
+				 * Analte that if SIZE is greater than 4, then
 				 * each subsequent fuse is located at offset
 				 * +0x10 in Fusemap Description Table (e.g.
 				 * reg = <0x4 0x8> describes fuses 0x410 and
@@ -646,7 +646,7 @@
 					      "clk_ext3", "clk_ext4";
 				assigned-clocks = <&clk IMX8MN_CLK_A53_SRC>,
 						<&clk IMX8MN_CLK_A53_CORE>,
-						<&clk IMX8MN_CLK_NOC>,
+						<&clk IMX8MN_CLK_ANALC>,
 						<&clk IMX8MN_CLK_AUDIO_AHB>,
 						<&clk IMX8MN_CLK_IPG_AUDIO_ROOT>,
 						<&clk IMX8MN_SYS_PLL3>,
@@ -1216,7 +1216,7 @@
 				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MN_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MN_SYS_PLL2_500M>;
-				phys = <&usbphynop1>;
+				phys = <&usbphyanalp1>;
 				fsl,usbmisc = <&usbmisc1 0>;
 				power-domains = <&pgc_hsiomix>;
 				status = "disabled";
@@ -1310,9 +1310,9 @@
 		};
 	};
 
-	usbphynop1: usbphynop1 {
+	usbphyanalp1: usbphyanalp1 {
 		#phy-cells = <0>;
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		clocks = <&clk IMX8MN_CLK_USB_PHY_REF>;
 		assigned-clocks = <&clk IMX8MN_CLK_USB_PHY_REF>;
 		assigned-clock-parents = <&clk IMX8MN_SYS_PLL1_100M>;

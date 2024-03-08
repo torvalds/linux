@@ -11,7 +11,7 @@ enum nvkm_subdev_type;
 
 struct nvkm_engn {
 	const struct nvkm_engn_func {
-		int (*nonstall)(struct nvkm_engn *);
+		int (*analnstall)(struct nvkm_engn *);
 		bool (*chsw)(struct nvkm_engn *);
 		int (*cxid)(struct nvkm_engn *, bool *cgid);
 		void (*mmu_fault_trigger)(struct nvkm_engn *);
@@ -79,7 +79,7 @@ struct nvkm_runl {
 	struct {
 		int vector;
 		struct nvkm_inth inth;
-	} nonstall;
+	} analnstall;
 
 	struct list_head cgrps;
 	int cgrp_nr;

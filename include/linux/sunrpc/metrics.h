@@ -8,10 +8,10 @@
  *
  *  RPC client per-operation statistics provide latency and retry
  *  information about each type of RPC procedure in a given RPC program.
- *  These statistics are not for detailed problem diagnosis, but simply
+ *  These statistics are analt for detailed problem diaganalsis, but simply
  *  to indicate whether the problem is local or remote.
  *
- *  These counters are not meant to be human-readable, but are meant to be
+ *  These counters are analt meant to be human-readable, but are meant to be
  *  integrated into system monitoring tools such as "sar" and "iostat".  As
  *  such, the counters are sampled by the tools over time, and are never
  *  zeroed after a file system is mounted.  Moving averages can be computed
@@ -19,7 +19,7 @@
  *  and dividing that by the time between the samples.
  *
  *  The counters are maintained in a single array per RPC client, indexed
- *  by procedure number.  There is no need to maintain separate counter
+ *  by procedure number.  There is anal need to maintain separate counter
  *  arrays per-CPU because these counters are always modified behind locks.
  */
 

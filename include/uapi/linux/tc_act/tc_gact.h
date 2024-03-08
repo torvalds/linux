@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_TC_GACT_H
 #define __LINUX_TC_GACT_H
 
@@ -11,7 +11,7 @@ struct tc_gact {
 };
 
 struct tc_gact_p {
-#define PGACT_NONE              0
+#define PGACT_ANALNE              0
 #define PGACT_NETRAND           1
 #define PGACT_DETERM            2
 #define MAX_RAND                (PGACT_DETERM + 1 )

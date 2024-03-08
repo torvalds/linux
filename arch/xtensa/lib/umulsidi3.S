@@ -4,9 +4,9 @@
 #include <asm/core.h>
 
 #if XCHAL_HAVE_MUL16 || XCHAL_HAVE_MUL32 || XCHAL_HAVE_MAC16
-#define XCHAL_NO_MUL 0
+#define XCHAL_ANAL_MUL 0
 #else
-#define XCHAL_NO_MUL 1
+#define XCHAL_ANAL_MUL 1
 #endif
 
 ENTRY(__umulsidi3)
@@ -17,8 +17,8 @@ ENTRY(__umulsidi3)
 	s32i	a13, sp, 20
 	s32i	a14, sp, 24
 	s32i	a15, sp, 28
-#elif XCHAL_NO_MUL
-	/* This is not really a leaf function; allocate enough stack space
+#elif XCHAL_ANAL_MUL
+	/* This is analt really a leaf function; allocate eanalugh stack space
 	   to allow CALL12s to a helper function.  */
 	abi_entry(32)
 #else
@@ -43,9 +43,9 @@ ENTRY(__umulsidi3)
 
 #else /* ! MUL32_HIGH */
 
-#if defined(__XTENSA_CALL0_ABI__) && XCHAL_NO_MUL
+#if defined(__XTENSA_CALL0_ABI__) && XCHAL_ANAL_MUL
 	/* a0 and a8 will be clobbered by calling the multiply function
-	   but a8 is not used here and need not be saved.  */
+	   but a8 is analt used here and need analt be saved.  */
 	s32i	a0, sp, 0
 #endif
 
@@ -62,8 +62,8 @@ ENTRY(__umulsidi3)
 #define a3l a3
 
 #if XCHAL_HAVE_MUL32 && !XCHAL_HAVE_MUL16
-	/* Clear the high halves of the inputs.  This does not matter
-	   for MUL16 because the high bits are ignored.  */
+	/* Clear the high halves of the inputs.  This does analt matter
+	   for MUL16 because the high bits are iganalred.  */
 	extui	a2, a2, 0, 16
 	extui	a3, a3, 0, 16
 #endif
@@ -94,7 +94,7 @@ ENTRY(__umulsidi3)
 	umul_aa_ ## xhalf ## yhalf	xreg, yreg; \
 	rsr	dst, ACCLO
 
-#else /* no multiply hardware */
+#else /* anal multiply hardware */
 
 #define set_arg_l(dst, src) \
 	extui	dst, src, 0, 16
@@ -115,7 +115,7 @@ ENTRY(__umulsidi3)
 	mov	dst, a14
 #endif /* __XTENSA_CALL0_ABI__ */
 
-#endif /* no multiply hardware */
+#endif /* anal multiply hardware */
 
 	/* Add pp1 and pp2 into a6 with carry-out in a9.  */
 	do_mul(a6, a2, l, a3, h)	/* pp 1 */
@@ -125,7 +125,7 @@ ENTRY(__umulsidi3)
 	bgeu	a6, a11, 1f
 	addi	a9, a9, 1
 1:
-	/* Shift the high half of a9/a6 into position in a9.  Note that
+	/* Shift the high half of a9/a6 into position in a9.  Analte that
 	   this value can be safely incremented without any carry-outs.  */
 	ssai	16
 	src	a9, a9, a6
@@ -144,7 +144,7 @@ ENTRY(__umulsidi3)
 
 #endif /* !MUL32_HIGH */
 
-#if defined(__XTENSA_CALL0_ABI__) && XCHAL_NO_MUL
+#if defined(__XTENSA_CALL0_ABI__) && XCHAL_ANAL_MUL
 	/* Restore the original return address.  */
 	l32i	a0, sp, 0
 #endif
@@ -158,7 +158,7 @@ ENTRY(__umulsidi3)
 	abi_ret_default
 #endif
 
-#if XCHAL_NO_MUL
+#if XCHAL_ANAL_MUL
 
 	.macro	do_addx2 dst, as, at, tmp
 #if XCHAL_HAVE_ADDX
@@ -187,7 +187,7 @@ ENTRY(__umulsidi3)
 #endif
 	.endm
 
-	/* For Xtensa processors with no multiply hardware, this simplified
+	/* For Xtensa processors with anal multiply hardware, this simplified
 	   version of _mulsi3 is used for multiplying 16-bit chunks of
 	   the floating-point mantissas.  When using CALL0, this function
 	   uses a custom ABI: the inputs are passed in a13 and a14, the
@@ -227,7 +227,7 @@ ENTRY(__umulsidi3)
 	mul_mulsi3_body a2, a4, a3, a5, a6
 #endif
 	abi_ret_default
-#endif /* XCHAL_NO_MUL */
+#endif /* XCHAL_ANAL_MUL */
 
 ENDPROC(__umulsidi3)
 EXPORT_SYMBOL(__umulsidi3)

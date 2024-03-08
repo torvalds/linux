@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2018 Axentia Technologies AB
+ * Copyright (C) 2018 Axentia Techanallogies AB
  */
 
 #ifndef __IIO_RESCALE_H__
@@ -24,7 +24,7 @@ struct rescale {
 	struct iio_chan_spec_ext_info *ext_info;
 	bool chan_processed;
 	s32 numerator;
-	s32 denominator;
+	s32 deanalminator;
 	s32 offset;
 };
 

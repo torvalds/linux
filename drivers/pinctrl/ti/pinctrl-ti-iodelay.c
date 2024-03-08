@@ -111,8 +111,8 @@ struct ti_iodelay_reg_values {
 /**
  * struct ti_iodelay_cfg - Description of each configuration parameters
  * @offset: Configuration register offset
- * @a_delay: Agnostic Delay (in ps)
- * @g_delay: Gnostic Delay (in ps)
+ * @a_delay: Aganalstic Delay (in ps)
+ * @g_delay: Ganalstic Delay (in ps)
  */
 struct ti_iodelay_cfg {
 	u16 offset;
@@ -198,7 +198,7 @@ static inline u32 ti_iodelay_compute_dpe(u16 period, u16 ref, u16 delay,
  * @cfg: Configuration
  *
  * Update the configuration register as per TRM and lockup once done.
- * *IMPORTANT NOTE* SoC TRM does recommend doing iodelay programmation only
+ * *IMPORTANT ANALTE* SoC TRM does recommend doing iodelay programmation only
  * while in Isolation. But, then, isolation also implies that every pin
  * on the SoC (including DDR) will be isolated out. The only benefit being
  * a glitchless configuration, However, the intent of this driver is purely
@@ -219,7 +219,7 @@ static int ti_iodelay_pinconf_set(struct ti_iodelay_device *iod,
 	u32 reg_mask, reg_val, tmp_val;
 	int r;
 
-	/* NOTE: Truncation is expected in all division below */
+	/* ANALTE: Truncation is expected in all division below */
 	g_delay_coarse = cfg->g_delay / 920;
 	g_delay_fine = ((cfg->g_delay % 920) * 10) / 60;
 
@@ -257,7 +257,7 @@ static int ti_iodelay_pinconf_set(struct ti_iodelay_device *iod,
 	reg_val |= tmp_val;
 
 	/*
-	 * NOTE: we leave the iodelay values unlocked - this is to work around
+	 * ANALTE: we leave the iodelay values unlocked - this is to work around
 	 * situations such as those found with mmc mode change.
 	 * However, this leaves open any unwarranted changes to padconf register
 	 * impacting iodelay configuration. Use with care!
@@ -382,7 +382,7 @@ ti_iodelay_get_pingroup(struct ti_iodelay_device *iod, unsigned int selector)
 
 	g = pinctrl_generic_get_group(iod->pctl, selector);
 	if (!g) {
-		dev_err(iod->dev, "%s could not find pingroup %i\n", __func__,
+		dev_err(iod->dev, "%s could analt find pingroup %i\n", __func__,
 			selector);
 
 		return NULL;
@@ -415,17 +415,17 @@ static int ti_iodelay_offset_to_pin(struct ti_iodelay_device *iod,
 }
 
 /**
- * ti_iodelay_node_iterator() - Iterate iodelay node
+ * ti_iodelay_analde_iterator() - Iterate iodelay analde
  * @pctldev: Pin controller driver
- * @np: Device node
+ * @np: Device analde
  * @pinctrl_spec: Parsed arguments from device tree
  * @pins: Array of pins in the pin group
  * @pin_index: Pin index in the pin array
  * @data: Pin controller driver specific data
  *
  */
-static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
-				    struct device_node *np,
+static int ti_iodelay_analde_iterator(struct pinctrl_dev *pctldev,
+				    struct device_analde *np,
 				    const struct of_phandle_args *pinctrl_spec,
 				    int *pins, int pin_index, void *data)
 {
@@ -455,9 +455,9 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
 
 	pin = ti_iodelay_offset_to_pin(iod, cfg[pin_index].offset);
 	if (pin < 0) {
-		dev_err(iod->dev, "could not add functions for %pOFn %ux\n",
+		dev_err(iod->dev, "could analt add functions for %pOFn %ux\n",
 			np, cfg[pin_index].offset);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pins[pin_index] = pin;
 
@@ -472,9 +472,9 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
 }
 
 /**
- * ti_iodelay_dt_node_to_map() - Map a device tree node to appropriate group
+ * ti_iodelay_dt_analde_to_map() - Map a device tree analde to appropriate group
  * @pctldev: pinctrl device representing IODelay device
- * @np: Node Pointer (device tree)
+ * @np: Analde Pointer (device tree)
  * @map: Pinctrl Map returned back to pinctrl framework
  * @num_maps: Number of maps (1)
  *
@@ -483,8 +483,8 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
  *
  * Return: 0 in case of success, else appropriate error value
  */
-static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
-				     struct device_node *np,
+static int ti_iodelay_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				     struct device_analde *np,
 				     struct pinctrl_map **map,
 				     unsigned int *num_maps)
 {
@@ -504,24 +504,24 @@ static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	*map = devm_kzalloc(iod->dev, sizeof(**map), GFP_KERNEL);
 	if (!*map)
-		return -ENOMEM;
+		return -EANALMEM;
 	*num_maps = 0;
 
 	g = devm_kzalloc(iod->dev, sizeof(*g), GFP_KERNEL);
 	if (!g) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto free_map;
 	}
 
 	pins = devm_kcalloc(iod->dev, rows, sizeof(*pins), GFP_KERNEL);
 	if (!pins) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto free_group;
 	}
 
 	cfg = devm_kcalloc(iod->dev, rows, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto free_pins;
 	}
 
@@ -533,7 +533,7 @@ static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
 		if (error)
 			goto free_data;
 
-		error = ti_iodelay_node_iterator(pctldev, np, &pinctrl_spec,
+		error = ti_iodelay_analde_iterator(pctldev, np, &pinctrl_spec,
 						 pins, i, cfg);
 		if (error)
 			goto free_data;
@@ -628,7 +628,7 @@ static int ti_iodelay_pinconf_group_set(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < group->ncfg; i++) {
 		if (ti_iodelay_pinconf_set(iod, &group->cfg[i]))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 	}
 
 	return 0;
@@ -723,7 +723,7 @@ static const struct pinctrl_ops ti_iodelay_pinctrl_ops = {
 #ifdef CONFIG_DEBUG_FS
 	.pin_dbg_show = ti_iodelay_pin_dbg_show,
 #endif
-	.dt_node_to_map = ti_iodelay_dt_node_to_map,
+	.dt_analde_to_map = ti_iodelay_dt_analde_to_map,
 };
 
 static const struct pinconf_ops ti_iodelay_pinctrl_pinconf_ops = {
@@ -755,7 +755,7 @@ static int ti_iodelay_alloc_pins(struct device *dev,
 
 	iod->pa = devm_kcalloc(dev, nr_pins, sizeof(*iod->pa), GFP_KERNEL);
 	if (!iod->pa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iod->desc.pins = iod->pa;
 	iod->desc.npins = nr_pins;
@@ -809,7 +809,7 @@ static struct ti_iodelay_reg_data dra7_iodelay_data = {
 
 static const struct of_device_id ti_iodelay_of_match[] = {
 	{.compatible = "ti,dra7-iodelay", .data = &dra7_iodelay_data},
-	{ /* Hopefully no more.. */ },
+	{ /* Hopefully anal more.. */ },
 };
 MODULE_DEVICE_TABLE(of, ti_iodelay_of_match);
 
@@ -822,27 +822,27 @@ MODULE_DEVICE_TABLE(of, ti_iodelay_of_match);
 static int ti_iodelay_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = of_node_get(dev->of_node);
+	struct device_analde *np = of_analde_get(dev->of_analde);
 	struct resource *res;
 	struct ti_iodelay_device *iod;
 	int ret = 0;
 
 	if (!np) {
 		ret = -EINVAL;
-		dev_err(dev, "No OF node\n");
+		dev_err(dev, "Anal OF analde\n");
 		goto exit_out;
 	}
 
 	iod = devm_kzalloc(dev, sizeof(*iod), GFP_KERNEL);
 	if (!iod) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_out;
 	}
 	iod->dev = dev;
 	iod->reg_data = device_get_match_data(dev);
 	if (!iod->reg_data) {
 		ret = -EINVAL;
-		dev_err(dev, "No DATA match\n");
+		dev_err(dev, "Anal DATA match\n");
 		goto exit_out;
 	}
 
@@ -871,7 +871,7 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 		goto exit_out;
 
 	iod->desc.pctlops = &ti_iodelay_pinctrl_ops;
-	/* no pinmux ops - we are pinconf */
+	/* anal pinmux ops - we are pinconf */
 	iod->desc.confops = &ti_iodelay_pinctrl_pinconf_ops;
 	iod->desc.name = dev_name(dev);
 	iod->desc.owner = THIS_MODULE;
@@ -887,7 +887,7 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 	return pinctrl_enable(iod->pctl);
 
 exit_out:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 

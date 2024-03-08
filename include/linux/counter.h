@@ -36,7 +36,7 @@ enum counter_comp_type {
 };
 
 /**
- * struct counter_comp - Counter component node
+ * struct counter_comp - Counter component analde
  * @type:		Counter component data type
  * @name:		device-specific component name
  * @priv:		component-relevant data
@@ -224,7 +224,7 @@ struct counter_comp {
 };
 
 /**
- * struct counter_signal - Counter Signal node
+ * struct counter_signal - Counter Signal analde
  * @id:		unique ID used to identify the Signal
  * @name:	device-specific Signal name
  * @ext:	optional array of Signal extensions
@@ -239,7 +239,7 @@ struct counter_signal {
 };
 
 /**
- * struct counter_synapse - Counter Synapse node
+ * struct counter_synapse - Counter Synapse analde
  * @actions_list:	array of available action modes
  * @num_actions:	number of action modes specified in @actions_list
  * @signal:		pointer to the associated Signal
@@ -252,7 +252,7 @@ struct counter_synapse {
 };
 
 /**
- * struct counter_count - Counter Count node
+ * struct counter_count - Counter Count analde
  * @id:			unique ID used to identify the Count
  * @name:		device-specific Count name
  * @functions_list:	array of available function modes
@@ -277,13 +277,13 @@ struct counter_count {
 };
 
 /**
- * struct counter_event_node - Counter Event node
+ * struct counter_event_analde - Counter Event analde
  * @l:		list of current watching Counter events
  * @event:	event that triggers
  * @channel:	event channel
  * @comp_list:	list of components to watch when event triggers
  */
-struct counter_event_node {
+struct counter_event_analde {
 	struct list_head l;
 	u8 event;
 	u8 channel;
@@ -314,7 +314,7 @@ struct counter_event_node {
  *			action mode to write for the respective Synapse is
  *			passed in via the action parameter.
  * @events_configure:	optional write callback to configure events. The list of
- *			struct counter_event_node may be accessed via the
+ *			struct counter_event_analde may be accessed via the
  *			events_list member of the counter parameter.
  * @watch_validate:	optional callback to validate a watch. The Counter
  *			component watch configuration is passed in via the watch

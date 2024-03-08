@@ -4,9 +4,9 @@
  *
  * Datagram (ISI) Phonet sockets
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@analkia.com>
  *          Rémi Denis-Courmont
  */
 
@@ -52,7 +52,7 @@ static int pn_ioctl(struct sock *sk, int cmd, int *karg)
 		}
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 /* Destroy socket. All references are gone. */
@@ -73,9 +73,9 @@ static int pn_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct sk_buff *skb;
 	int err;
 
-	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_NOSIGNAL|
+	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_ANALSIGNAL|
 				MSG_CMSG_COMPAT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (target == NULL)
 		return -EDESTADDRREQ;
@@ -84,7 +84,7 @@ static int pn_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		return -EINVAL;
 
 	if (target->spn_family != AF_PHONET)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	skb = sock_alloc_send_skb(sk, MAX_PHONET_HEADER + len,
 					msg->msg_flags & MSG_DONTWAIT, &err);
@@ -113,16 +113,16 @@ static int pn_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 {
 	struct sk_buff *skb = NULL;
 	struct sockaddr_pn sa;
-	int rval = -EOPNOTSUPP;
+	int rval = -EOPANALTSUPP;
 	int copylen;
 
-	if (flags & ~(MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT|MSG_NOSIGNAL|
+	if (flags & ~(MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT|MSG_ANALSIGNAL|
 			MSG_CMSG_COMPAT))
-		goto out_nofree;
+		goto out_analfree;
 
 	skb = skb_recv_datagram(sk, flags, &rval);
 	if (skb == NULL)
-		goto out_nofree;
+		goto out_analfree;
 
 	pn_skb_get_src_sockaddr(skb, &sa);
 
@@ -149,7 +149,7 @@ static int pn_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 out:
 	skb_free_datagram(sk, skb);
 
-out_nofree:
+out_analfree:
 	return rval;
 }
 

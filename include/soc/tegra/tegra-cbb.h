@@ -17,7 +17,7 @@ struct tegra_cbb_error {
 struct tegra_cbb {
 	struct device *dev;
 	const struct tegra_cbb_ops *ops;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct tegra_cbb_ops {
@@ -30,7 +30,7 @@ struct tegra_cbb_ops {
 	u32 (*get_status)(struct tegra_cbb *cbb);
 };
 
-int tegra_cbb_get_irq(struct platform_device *pdev, unsigned int *nonsec_irq,
+int tegra_cbb_get_irq(struct platform_device *pdev, unsigned int *analnsec_irq,
 		      unsigned int *sec_irq);
 __printf(2, 3)
 void tegra_cbb_print_err(struct seq_file *file, const char *fmt, ...);

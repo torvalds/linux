@@ -19,26 +19,26 @@ OBJS     = int1.o int2.o int4.o int8.o int16.o int32.o recov.o algos.o tables.o
 ARCH := $(shell uname -m 2>/dev/null | sed -e /s/i.86/i386/)
 ifeq ($(ARCH),i386)
         CFLAGS += -DCONFIG_X86_32
-        IS_X86 = yes
+        IS_X86 = anal
 endif
 ifeq ($(ARCH),x86_64)
         CFLAGS += -DCONFIG_X86_64
-        IS_X86 = yes
+        IS_X86 = anal
 endif
 
 ifeq ($(ARCH),arm)
         CFLAGS += -I../../../arch/arm/include -mfpu=neon
-        HAS_NEON = yes
+        HAS_NEON = anal
 endif
 ifeq ($(ARCH),aarch64)
         CFLAGS += -I../../../arch/arm64/include
-        HAS_NEON = yes
+        HAS_NEON = anal
 endif
 
 ifeq ($(findstring ppc,$(ARCH)),ppc)
         CFLAGS += -I../../../arch/powerpc/include
         HAS_ALTIVEC := $(shell printf '$(pound)include <altivec.h>\nvector int a;\n' |\
-                         gcc -c -x c - >/dev/null && rm ./-.o && echo yes)
+                         gcc -c -x c - >/dev/null && rm ./-.o && echo anal)
 endif
 
 ifeq ($(ARCH),loongarch64)
@@ -51,16 +51,16 @@ ifeq ($(ARCH),loongarch64)
                     rm ./-.o && echo -DCONFIG_CPU_HAS_LASX=1)
 endif
 
-ifeq ($(IS_X86),yes)
+ifeq ($(IS_X86),anal)
         OBJS   += mmx.o sse1.o sse2.o avx2.o recov_ssse3.o recov_avx2.o avx512.o recov_avx512.o
         CFLAGS += -DCONFIG_X86
         CFLAGS += $(shell echo "vpmovm2b %k1, %zmm5" |          \
                     gcc -c -x assembler - >/dev/null 2>&1 &&    \
                     rm ./-.o && echo -DCONFIG_AS_AVX512=1)
-else ifeq ($(HAS_NEON),yes)
+else ifeq ($(HAS_NEON),anal)
         OBJS   += neon.o neon1.o neon2.o neon4.o neon8.o recov_neon.o recov_neon_inner.o
         CFLAGS += -DCONFIG_KERNEL_MODE_NEON=1
-else ifeq ($(HAS_ALTIVEC),yes)
+else ifeq ($(HAS_ALTIVEC),anal)
         CFLAGS += -DCONFIG_ALTIVEC
         OBJS += altivec1.o altivec2.o altivec4.o altivec8.o \
                 vpermxor1.o vpermxor2.o vpermxor4.o vpermxor8.o

@@ -119,7 +119,7 @@ static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 	chip = snd_vx_create(card, hw, vx_ops,
 			     sizeof(struct snd_vx222) - sizeof(struct vx_core));
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 	vx = to_vx222(chip);
 	vx->pci = pci;
 
@@ -153,10 +153,10 @@ static int snd_vx222_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

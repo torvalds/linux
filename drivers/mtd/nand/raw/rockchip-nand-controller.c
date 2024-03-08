@@ -150,7 +150,7 @@ struct nfc_cfg {
 };
 
 struct rk_nfc_nand_chip {
-	struct list_head node;
+	struct list_head analde;
 	struct nand_chip chip;
 
 	u16 boot_blks;
@@ -374,7 +374,7 @@ static int rk_nfc_cmd(struct nand_chip *chip,
 		case NAND_OP_WAITRDY_INSTR:
 			if (rk_nfc_wait_ioready(nfc) < 0) {
 				ret = -ETIMEDOUT;
-				dev_err(nfc->dev, "IO not ready\n");
+				dev_err(nfc->dev, "IO analt ready\n");
 			}
 			break;
 		}
@@ -425,7 +425,7 @@ static int rk_nfc_setup_interface(struct nand_chip *chip, int target,
 
 	timings = nand_get_sdr_timings(conf);
 	if (IS_ERR(timings))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (IS_ERR(nfc->nfc_clk))
 		rate = clk_get_rate(nfc->ahb_clk);
@@ -517,7 +517,7 @@ static int rk_nfc_write_page_raw(struct nand_chip *chip, const u8 *buf,
 	    (page < (pages_per_blk * rknand->boot_blks)) &&
 	    rknand->boot_ecc != ecc->strength) {
 		/*
-		 * There's currently no method to notify the MTD framework that
+		 * There's currently anal method to analtify the MTD framework that
 		 * a different ECC strength is in use for the boot blocks.
 		 */
 		return -EIO;
@@ -619,7 +619,7 @@ static int rk_nfc_write_page_hwecc(struct nand_chip *chip, const u8 *buf,
 	 *
 	 *    PA0  PA1  PA2  PA3 | BBM OOB1 OOB2 OOB3 | ...
 	 *
-	 * If a NAND is not a boot medium or the page is not a boot block,
+	 * If a NAND is analt a boot medium or the page is analt a boot block,
 	 * the first 4 bytes are left untouched by writing 0xFF to them.
 	 *
 	 *   0xFF 0xFF 0xFF 0xFF | BBM OOB1 OOB2 OOB3 | ...
@@ -670,7 +670,7 @@ static int rk_nfc_write_page_hwecc(struct nand_chip *chip, const u8 *buf,
 	if (!ret)
 		dev_warn(nfc->dev, "write: wait dma done timeout.\n");
 	/*
-	 * Whether the DMA transfer is completed or not. The driver
+	 * Whether the DMA transfer is completed or analt. The driver
 	 * needs to check the NFC`s status register to see if the data
 	 * transfer was completed.
 	 */
@@ -711,7 +711,7 @@ static int rk_nfc_read_page_raw(struct nand_chip *chip, u8 *buf, int oob_on,
 	    (page < (pages_per_blk * rknand->boot_blks)) &&
 	    rknand->boot_ecc != ecc->strength) {
 		/*
-		 * There's currently no method to notify the MTD framework that
+		 * There's currently anal method to analtify the MTD framework that
 		 * a different ECC strength is in use for the boot blocks.
 		 */
 		return -EIO;
@@ -797,7 +797,7 @@ static int rk_nfc_read_page_hwecc(struct nand_chip *chip, u8 *buf, int oob_on,
 	if (!ret)
 		dev_warn(nfc->dev, "read: wait dma done timeout.\n");
 	/*
-	 * Whether the DMA transfer is completed or not. The driver
+	 * Whether the DMA transfer is completed or analt. The driver
 	 * needs to check the NFC`s status register to see if the data
 	 * transfer was completed.
 	 */
@@ -894,7 +894,7 @@ static irqreturn_t rk_nfc_irq(int irq, void *id)
 	ien = readl_relaxed(nfc->regs + nfc->cfg->int_en_off);
 
 	if (!(sta & ien))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writel(sta, nfc->regs + nfc->cfg->int_clr_off);
 	writel(~sta & ien, nfc->regs + nfc->cfg->int_en_off);
@@ -977,7 +977,7 @@ static int rk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 	int i;
 
 	nfc_max_strength = nfc->cfg->ecc_strengths[0];
-	/* If optional dt settings not present. */
+	/* If optional dt settings analt present. */
 	if (!ecc->size || !ecc->strength ||
 	    ecc->strength > nfc_max_strength) {
 		chip->ecc.size = 1024;
@@ -999,7 +999,7 @@ static int rk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 
 		if (i >= 4) {
 			dev_err(nfc->dev, "unsupported ECC strength\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		ecc->strength = strengths[i];
@@ -1022,7 +1022,7 @@ static int rk_nfc_attach_chip(struct nand_chip *chip)
 	int ret;
 
 	if (chip->options & NAND_BUSWIDTH_16) {
-		dev_err(dev, "16 bits bus width not supported");
+		dev_err(dev, "16 bits bus width analt supported");
 		return -EINVAL;
 	}
 
@@ -1048,7 +1048,7 @@ static int rk_nfc_attach_chip(struct nand_chip *chip)
 		buf = krealloc(nfc->page_buf, new_page_len,
 			       GFP_KERNEL | GFP_DMA);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		nfc->page_buf = buf;
 		nfc->page_buf_size = new_page_len;
 	}
@@ -1060,7 +1060,7 @@ static int rk_nfc_attach_chip(struct nand_chip *chip)
 		if (!buf) {
 			kfree(nfc->page_buf);
 			nfc->page_buf = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		nfc->oob_buf = buf;
 		nfc->oob_buf_size = new_oob_len;
@@ -1069,7 +1069,7 @@ static int rk_nfc_attach_chip(struct nand_chip *chip)
 	if (!nfc->page_buf) {
 		nfc->page_buf = kzalloc(new_page_len, GFP_KERNEL | GFP_DMA);
 		if (!nfc->page_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		nfc->page_buf_size = new_page_len;
 	}
 
@@ -1078,7 +1078,7 @@ static int rk_nfc_attach_chip(struct nand_chip *chip)
 		if (!nfc->oob_buf) {
 			kfree(nfc->page_buf);
 			nfc->page_buf = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		nfc->oob_buf_size = new_oob_len;
 	}
@@ -1101,7 +1101,7 @@ static const struct nand_controller_ops rk_nfc_controller_ops = {
 };
 
 static int rk_nfc_nand_chip_init(struct device *dev, struct rk_nfc *nfc,
-				 struct device_node *np)
+				 struct device_analde *np)
 {
 	struct rk_nfc_nand_chip *rknand;
 	struct nand_chip *chip;
@@ -1112,7 +1112,7 @@ static int rk_nfc_nand_chip_init(struct device *dev, struct rk_nfc *nfc,
 	int i;
 
 	if (!of_get_property(np, "reg", &nsels))
-		return -ENODEV;
+		return -EANALDEV;
 	nsels /= sizeof(u32);
 	if (!nsels || nsels > NFC_MAX_NSELS) {
 		dev_err(dev, "invalid reg property size %d\n", nsels);
@@ -1122,7 +1122,7 @@ static int rk_nfc_nand_chip_init(struct device *dev, struct rk_nfc *nfc,
 	rknand = devm_kzalloc(dev, struct_size(rknand, sels, nsels),
 			      GFP_KERNEL);
 	if (!rknand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rknand->nsels = nsels;
 	for (i = 0; i < nsels; i++) {
@@ -1148,12 +1148,12 @@ static int rk_nfc_nand_chip_init(struct device *dev, struct rk_nfc *nfc,
 	chip = &rknand->chip;
 	chip->controller = &nfc->controller;
 
-	nand_set_flash_node(chip, np);
+	nand_set_flash_analde(chip, np);
 
 	nand_set_controller_data(chip, nfc);
 
-	chip->options |= NAND_USES_DMA | NAND_NO_SUBPAGE_WRITE;
-	chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
+	chip->options |= NAND_USES_DMA | NAND_ANAL_SUBPAGE_WRITE;
+	chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_ANAL_OOB;
 
 	/* Set default mode in case dt entry is missing. */
 	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
@@ -1189,7 +1189,7 @@ static int rk_nfc_nand_chip_init(struct device *dev, struct rk_nfc *nfc,
 		return ret;
 	}
 
-	list_add_tail(&rknand->node, &nfc->chips);
+	list_add_tail(&rknand->analde, &nfc->chips);
 
 	return 0;
 }
@@ -1200,18 +1200,18 @@ static void rk_nfc_chips_cleanup(struct rk_nfc *nfc)
 	struct nand_chip *chip;
 	int ret;
 
-	list_for_each_entry_safe(rknand, tmp, &nfc->chips, node) {
+	list_for_each_entry_safe(rknand, tmp, &nfc->chips, analde) {
 		chip = &rknand->chip;
 		ret = mtd_device_unregister(nand_to_mtd(chip));
 		WARN_ON(ret);
 		nand_cleanup(chip);
-		list_del(&rknand->node);
+		list_del(&rknand->analde);
 	}
 }
 
 static int rk_nfc_nand_chips_init(struct device *dev, struct rk_nfc *nfc)
 {
-	struct device_node *np = dev->of_node, *nand_np;
+	struct device_analde *np = dev->of_analde, *nand_np;
 	int nchips = of_get_child_count(np);
 	int ret;
 
@@ -1221,10 +1221,10 @@ static int rk_nfc_nand_chips_init(struct device *dev, struct rk_nfc *nfc)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_analde(np, nand_np) {
 		ret = rk_nfc_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
+			of_analde_put(nand_np);
 			rk_nfc_chips_cleanup(nfc);
 			return ret;
 		}
@@ -1369,7 +1369,7 @@ static int rk_nfc_probe(struct platform_device *pdev)
 
 	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
@@ -1388,13 +1388,13 @@ static int rk_nfc_probe(struct platform_device *pdev)
 
 	nfc->nfc_clk = devm_clk_get(dev, "nfc");
 	if (IS_ERR(nfc->nfc_clk)) {
-		dev_dbg(dev, "no NFC clk\n");
-		/* Some earlier models, such as rk3066, have no NFC clk. */
+		dev_dbg(dev, "anal NFC clk\n");
+		/* Some earlier models, such as rk3066, have anal NFC clk. */
 	}
 
 	nfc->ahb_clk = devm_clk_get(dev, "ahb");
 	if (IS_ERR(nfc->ahb_clk)) {
-		dev_err(dev, "no ahb clk\n");
+		dev_err(dev, "anal ahb clk\n");
 		ret = PTR_ERR(nfc->ahb_clk);
 		goto release_nfc;
 	}
@@ -1463,7 +1463,7 @@ static int __maybe_unused rk_nfc_resume(struct device *dev)
 		return ret;
 
 	/* Reset NAND chip if VCC was powered off. */
-	list_for_each_entry(rknand, &nfc->chips, node) {
+	list_for_each_entry(rknand, &nfc->chips, analde) {
 		chip = &rknand->chip;
 		for (i = 0; i < rknand->nsels; i++)
 			nand_reset(chip, i);

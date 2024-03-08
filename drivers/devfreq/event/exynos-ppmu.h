@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * exynos_ppmu.h - Exynos PPMU header file
+ * exyanals_ppmu.h - Exyanals PPMU header file
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>
  */
 
-#ifndef __EXYNOS_PPMU_H__
-#define __EXYNOS_PPMU_H__
+#ifndef __EXYANALS_PPMU_H__
+#define __EXYANALS_PPMU_H__
 
 enum ppmu_state {
 	PPMU_DISABLE = 0,
@@ -157,4 +157,4 @@ enum ppmu_V2_reg {
 #define PPMU_V2_PMNCT(x)		(PPMU_V2_PMCNT0 + (0x4 * x))
 #define PPMU_V2_CH_EVx_TYPE(x)		(PPMU_V2_CH_EV0_TYPE + (0x4 * x))
 
-#endif /* __EXYNOS_PPMU_H__ */
+#endif /* __EXYANALS_PPMU_H__ */

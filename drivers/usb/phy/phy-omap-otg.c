@@ -4,7 +4,7 @@
  *
  * Based on code from tahvo-usb.c and isp1301_omap.c drivers.
  *
- * Copyright (C) 2005-2006 Nokia Corporation
+ * Copyright (C) 2005-2006 Analkia Corporation
  * Copyright (C) 2004 Texas Instruments
  * Copyright (C) 2004 David Brownell
  */
@@ -23,8 +23,8 @@ struct otg_device {
 	bool				id;
 	bool				vbus;
 	struct extcon_dev		*extcon;
-	struct notifier_block		vbus_nb;
-	struct notifier_block		id_nb;
+	struct analtifier_block		vbus_nb;
+	struct analtifier_block		id_nb;
 };
 
 #define OMAP_OTG_CTRL		0x0c
@@ -56,11 +56,11 @@ static void omap_otg_set_mode(struct otg_device *otg_dev)
 		/* Set A-session valid. */
 		omap_otg_ctrl(otg_dev, OMAP_OTG_ASESSVLD);
 	else if (!otg_dev->id)
-		/* Set B-session end to indicate no VBUS. */
+		/* Set B-session end to indicate anal VBUS. */
 		omap_otg_ctrl(otg_dev, OMAP_OTG_ID | OMAP_OTG_BSESSEND);
 }
 
-static int omap_otg_id_notifier(struct notifier_block *nb,
+static int omap_otg_id_analtifier(struct analtifier_block *nb,
 				unsigned long event, void *ptr)
 {
 	struct otg_device *otg_dev = container_of(nb, struct otg_device, id_nb);
@@ -68,10 +68,10 @@ static int omap_otg_id_notifier(struct notifier_block *nb,
 	otg_dev->id = event;
 	omap_otg_set_mode(otg_dev);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int omap_otg_vbus_notifier(struct notifier_block *nb,
+static int omap_otg_vbus_analtifier(struct analtifier_block *nb,
 				  unsigned long event, void *ptr)
 {
 	struct otg_device *otg_dev = container_of(nb, struct otg_device,
@@ -80,7 +80,7 @@ static int omap_otg_vbus_notifier(struct notifier_block *nb,
 	otg_dev->vbus = event;
 	omap_otg_set_mode(otg_dev);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int omap_otg_probe(struct platform_device *pdev)
@@ -92,7 +92,7 @@ static int omap_otg_probe(struct platform_device *pdev)
 	u32 rev;
 
 	if (!config || !config->extcon)
-		return -ENODEV;
+		return -EANALDEV;
 
 	extcon = extcon_get_extcon_dev(config->extcon);
 	if (IS_ERR(extcon))
@@ -100,22 +100,22 @@ static int omap_otg_probe(struct platform_device *pdev)
 
 	otg_dev = devm_kzalloc(&pdev->dev, sizeof(*otg_dev), GFP_KERNEL);
 	if (!otg_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otg_dev->base = devm_ioremap_resource(&pdev->dev, &pdev->resource[0]);
 	if (IS_ERR(otg_dev->base))
 		return PTR_ERR(otg_dev->base);
 
 	otg_dev->extcon = extcon;
-	otg_dev->id_nb.notifier_call = omap_otg_id_notifier;
-	otg_dev->vbus_nb.notifier_call = omap_otg_vbus_notifier;
+	otg_dev->id_nb.analtifier_call = omap_otg_id_analtifier;
+	otg_dev->vbus_nb.analtifier_call = omap_otg_vbus_analtifier;
 
-	ret = devm_extcon_register_notifier(&pdev->dev, extcon,
+	ret = devm_extcon_register_analtifier(&pdev->dev, extcon,
 					EXTCON_USB_HOST, &otg_dev->id_nb);
 	if (ret)
 		return ret;
 
-	ret = devm_extcon_register_notifier(&pdev->dev, extcon,
+	ret = devm_extcon_register_analtifier(&pdev->dev, extcon,
 					EXTCON_USB, &otg_dev->vbus_nb);
 	if (ret) {
 		return ret;

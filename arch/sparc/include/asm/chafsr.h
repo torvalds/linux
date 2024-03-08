@@ -2,13 +2,13 @@
 #ifndef _SPARC64_CHAFSR_H
 #define _SPARC64_CHAFSR_H
 
-/* Cheetah Asynchronous Fault Status register, ASI=0x4C VA<63:0>=0x0 */
+/* Cheetah Asynchroanalus Fault Status register, ASI=0x4C VA<63:0>=0x0 */
 
 /* Comments indicate which processor variants on which the bit definition
  * is valid.  Codes are:
  * ch	-->	cheetah
  * ch+	-->	cheetah plus
- * jp	-->	jalapeno
+ * jp	-->	jalapeanal
  */
 
 /* All bits of this register except M_SYNDROME and E_SYNDROME are
@@ -37,7 +37,7 @@
 
 /* SW handled correctable E-cache Tag ECC error */
 #define CHPAFSR_TSCE		(1UL << 56UL) /* ch+ */
-/* Parity error on system snoop results */
+/* Parity error on system sanalop results */
 #define JPAFSR_SCE		(1UL << 56UL) /* jp */
 
 /* Uncorrectable E-cache Tag ECC error */
@@ -57,14 +57,14 @@
  * bit to report that error is already set.  When multiple errors of
  * different types are indicated by setting multiple status bits.
  *
- * This bit is not set if multiple HW corrected errors with the same
+ * This bit is analt set if multiple HW corrected errors with the same
  * status bit occur, only uncorrectable and SW correctable ones have
  * this behavior.
  *
- * This bit is not set when multiple ECC errors happen within a single
+ * This bit is analt set when multiple ECC errors happen within a single
  * 64-byte system bus transaction.  Only the first ECC error in a 16-byte
  * subunit will be logged.  All errors in subsequent 16-byte subunits
- * from the same 64-byte transaction are ignored.
+ * from the same 64-byte transaction are iganalred.
  */
 #define CHAFSR_ME		(1UL << 53UL) /* ch,ch+,jp */
 
@@ -222,7 +222,7 @@
 #define CHAFSR_E_SYNDROME	(0x1ffUL << 0UL) /* ch,ch+,jp */
 #define CHAFSR_E_SYNDROME_SHIFT	0UL
 
-/* The AFSR must be explicitly cleared by software, it is not cleared automatically
+/* The AFSR must be explicitly cleared by software, it is analt cleared automatically
  * by a read.  Writes to bits <51:33> with bits set will clear the corresponding
  * bits in the AFSR.  Bits associated with disrupting traps must be cleared before
  * interrupts are re-enabled to prevent multiple traps for the same error.  I.e.
@@ -231,11 +231,11 @@
  * Since there is only one AFAR, when multiple events have been logged by the
  * bits in the AFSR, at most one of these events will have its status captured
  * in the AFAR.  The highest priority of those event bits will get AFAR logging.
- * The AFAR will be unlocked and available to capture the address of another event
+ * The AFAR will be unlocked and available to capture the address of aanalther event
  * as soon as the one bit in AFSR that corresponds to the event logged in AFAR is
  * cleared.  For example, if AFSR.CE is detected, then AFSR.UE (which overwrites
- * the AFAR), and AFSR.UE is cleared by not AFSR.CE, then the AFAR will be unlocked
- * and ready for another event, even though AFSR.CE is still set.  The same rules
+ * the AFAR), and AFSR.UE is cleared by analt AFSR.CE, then the AFAR will be unlocked
+ * and ready for aanalther event, even though AFSR.CE is still set.  The same rules
  * also apply to the M_SYNDROME and E_SYNDROME fields of the AFSR.
  */
 

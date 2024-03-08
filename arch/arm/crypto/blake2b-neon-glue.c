@@ -77,7 +77,7 @@ static struct shash_alg blake2b_neon_algs[] = {
 static int __init blake2b_neon_mod_init(void)
 {
 	if (!(elf_hwcap & HWCAP_NEON))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return crypto_register_shashes(blake2b_neon_algs,
 				       ARRAY_SIZE(blake2b_neon_algs));

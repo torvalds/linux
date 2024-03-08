@@ -38,8 +38,8 @@ enum {
  * DPU_SSPP_RECT_0 - rect0 of a multirect pipe
  * DPU_SSPP_RECT_1 - rect1 of a multirect pipe
  *
- * Note: HW supports multirect with either RECT0 or
- * RECT1. Considering no benefit of such configs over
+ * Analte: HW supports multirect with either RECT0 or
+ * RECT1. Considering anal benefit of such configs over
  * SOLO mode and to keep the plane management simple,
  * we dont support single rect multirect configs.
  */
@@ -50,7 +50,7 @@ enum dpu_sspp_multirect_index {
 };
 
 enum dpu_sspp_multirect_mode {
-	DPU_SSPP_MULTIRECT_NONE = 0,
+	DPU_SSPP_MULTIRECT_ANALNE = 0,
 	DPU_SSPP_MULTIRECT_PARALLEL,
 	DPU_SSPP_MULTIRECT_TIME_MX,
 };
@@ -85,7 +85,7 @@ struct dpu_hw_sharp_cfg {
 	u32 strength;
 	u32 edge_thr;
 	u32 smooth_thr;
-	u32 noise_thr;
+	u32 analise_thr;
 };
 
 struct dpu_hw_pixel_ext {
@@ -322,7 +322,7 @@ struct dpu_kms;
  * @cfg:  Pipe catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
  * @mdss_data: UBWC / MDSS configuration data
- * @mdss_rev: dpu core's major and minor versions
+ * @mdss_rev: dpu core's major and mianalr versions
  */
 struct dpu_hw_sspp *dpu_hw_sspp_init(struct drm_device *dev,
 				     const struct dpu_sspp_cfg *cfg,

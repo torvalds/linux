@@ -74,7 +74,7 @@ static void multi_lrc_context_put(struct intel_context *ce)
 }
 
 static struct i915_request *
-multi_lrc_nop_request(struct intel_context *ce)
+multi_lrc_analp_request(struct intel_context *ce)
 {
 	struct intel_context *child;
 	struct i915_request *rq, *child_rq;
@@ -105,7 +105,7 @@ multi_lrc_nop_request(struct intel_context *ce)
 child_error:
 	i915_request_put(rq);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static int __intel_guc_multi_lrc_basic(struct intel_gt *gt, unsigned int class)
@@ -119,11 +119,11 @@ static int __intel_guc_multi_lrc_basic(struct intel_gt *gt, unsigned int class)
 		gt_err(gt, "Failed creating contexts: %pe\n", parent);
 		return PTR_ERR(parent);
 	} else if (!parent) {
-		gt_dbg(gt, "Not enough engines in class: %d\n", class);
+		gt_dbg(gt, "Analt eanalugh engines in class: %d\n", class);
 		return 0;
 	}
 
-	rq = multi_lrc_nop_request(parent);
+	rq = multi_lrc_analp_request(parent);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
 		gt_err(gt, "Failed creating requests: %pe\n", rq);

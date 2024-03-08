@@ -17,7 +17,7 @@ enum ad5421_current_range {
 
 /**
  * struct ad5421_platform_data - AD5421 DAC driver platform data
- * @external_vref: whether an external reference voltage is used or not
+ * @external_vref: whether an external reference voltage is used or analt
  * @current_range: Current range the AD5421 is configured for
  */
 

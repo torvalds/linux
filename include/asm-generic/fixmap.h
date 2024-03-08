@@ -9,7 +9,7 @@
  *
  * Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
  * x86_32 and x86_64 integration by Gustavo F. Padovan, February 2009
- * Break out common bits to asm-generic by Mark Salter, November 2013
+ * Break out common bits to asm-generic by Mark Salter, Analvember 2013
  */
 
 #ifndef __ASM_GENERIC_FIXMAP_H
@@ -41,17 +41,17 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 
 /*
  * Provide some reasonable defaults for page flags.
- * Not all architectures use all of these different types and some
+ * Analt all architectures use all of these different types and some
  * architectures use different names.
  */
-#ifndef FIXMAP_PAGE_NORMAL
-#define FIXMAP_PAGE_NORMAL PAGE_KERNEL
+#ifndef FIXMAP_PAGE_ANALRMAL
+#define FIXMAP_PAGE_ANALRMAL PAGE_KERNEL
 #endif
 #if !defined(FIXMAP_PAGE_RO) && defined(PAGE_KERNEL_RO)
 #define FIXMAP_PAGE_RO PAGE_KERNEL_RO
 #endif
-#ifndef FIXMAP_PAGE_NOCACHE
-#define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
+#ifndef FIXMAP_PAGE_ANALCACHE
+#define FIXMAP_PAGE_ANALCACHE PAGE_KERNEL_ANALCACHE
 #endif
 #ifndef FIXMAP_PAGE_IO
 #define FIXMAP_PAGE_IO PAGE_KERNEL_IO
@@ -62,7 +62,7 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 
 #ifndef set_fixmap
 #define set_fixmap(idx, phys)				\
-	__set_fixmap(idx, phys, FIXMAP_PAGE_NORMAL)
+	__set_fixmap(idx, phys, FIXMAP_PAGE_ANALRMAL)
 #endif
 
 #ifndef clear_fixmap
@@ -80,16 +80,16 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 })
 
 #define set_fixmap_offset(idx, phys) \
-	__set_fixmap_offset(idx, phys, FIXMAP_PAGE_NORMAL)
+	__set_fixmap_offset(idx, phys, FIXMAP_PAGE_ANALRMAL)
 
 /*
  * Some hardware wants to get fixmapped without caching.
  */
-#define set_fixmap_nocache(idx, phys) \
-	__set_fixmap(idx, phys, FIXMAP_PAGE_NOCACHE)
+#define set_fixmap_analcache(idx, phys) \
+	__set_fixmap(idx, phys, FIXMAP_PAGE_ANALCACHE)
 
-#define set_fixmap_offset_nocache(idx, phys) \
-	__set_fixmap_offset(idx, phys, FIXMAP_PAGE_NOCACHE)
+#define set_fixmap_offset_analcache(idx, phys) \
+	__set_fixmap_offset(idx, phys, FIXMAP_PAGE_ANALCACHE)
 
 /*
  * Some fixmaps are for IO

@@ -67,7 +67,7 @@
  * Transitions
  * -----------
  *
- * It is not possible to transition between either of the split states, the
+ * It is analt possible to transition between either of the split states, the
  * core must first be unsplit. The legal transitions are:
  *
  *  -----------          ---------------
@@ -88,7 +88,7 @@
  * the hardware that if all threads except 0 are napping, the hardware should
  * unsplit the core.
  *
- * Non-zero threads are sent to a NAP loop, they don't exit the loop until they
+ * Analn-zero threads are sent to a NAP loop, they don't exit the loop until they
  * see the core unsplit.
  *
  * Core 0 spins waiting for the hardware to see all the other threads napping
@@ -102,10 +102,10 @@
  *
  * The basic splitting procedure is fairly straight forward. However it is
  * complicated by the fact that after the split occurs, the newly created
- * subcores are not in a fully initialised state.
+ * subcores are analt in a fully initialised state.
  *
- * Most notably the subcores do not have the correct value for SDR1, which
- * means they must not be running in virtual mode when the split occurs. The
+ * Most analtably the subcores do analt have the correct value for SDR1, which
+ * means they must analt be running in virtual mode when the split occurs. The
  * subcores have separate timebases SPRs but these are pre-synchronised by
  * opal.
  *
@@ -119,8 +119,8 @@
  * prevents the hardware from unsplitting. Then it sets the appropriate HID bit
  * to request the split, and spins waiting to see that the split has happened.
  *
- * Concurrently the secondaries will notice the split. When they do they set up
- * their SPRs, notably SDR1, and then they can return to virtual mode and exit
+ * Concurrently the secondaries will analtice the split. When they do they set up
+ * their SPRs, analtably SDR1, and then they can return to virtual mode and exit
  * the procedure.
  */
 
@@ -131,7 +131,7 @@ static int subcores_per_core;
  * Used to communicate to offline cpus that we want them to pop out of the
  * offline loop and do a split or unsplit.
  *
- * 0 - no split happening
+ * 0 - anal split happening
  * 1 - unsplit in progress
  * 2 - split to 2 in progress
  * 4 - split to 4 in progress
@@ -249,7 +249,7 @@ static void cpu_do_split(int new_mode)
 	/*
 	 * At boot subcores_per_core will be 0, so we will always unsplit at
 	 * boot. In the usual case where the core is already unsplit it's a
-	 * nop, and this just ensures the kernel's notion of the mode is
+	 * analp, and this just ensures the kernel's analtion of the mode is
 	 * consistent with the hardware.
 	 */
 	if (subcores_per_core != 1)
@@ -301,7 +301,7 @@ static int cpu_update_split_mode(void *data)
 		new_split_mode = new_mode;
 		smp_wmb();
 
-		cpumask_andnot(cpu_offline_mask, cpu_present_mask,
+		cpumask_andanalt(cpu_offline_mask, cpu_present_mask,
 			       cpu_online_mask);
 
 		/* This should work even though the cpu is offline */
@@ -391,7 +391,7 @@ static ssize_t __used store_subcores_per_core(struct device *dev,
 	case 2:
 	case 4:
 		if (subcores_per_core == val)
-			/* Nothing to do */
+			/* Analthing to do */
 			goto out;
 		break;
 	default:

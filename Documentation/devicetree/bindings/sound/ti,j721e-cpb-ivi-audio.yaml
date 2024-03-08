@@ -25,7 +25,7 @@ description: |
   44.1KHz). The same PLLs are used for McASP0's AUXCLK clock via different
   HSDIVIDER.
 
-  Note: the same PLL4 and PLL15 is used by the audio support on the CPB!
+  Analte: the same PLL4 and PLL15 is used by the audio support on the CPB!
 
   Clocking setup for 48KHz family:
   PLL4 ---> PLL4_HSDIV0 ---> MCASP10_AUXCLK ---> McASP10.auxclk

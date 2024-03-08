@@ -31,7 +31,7 @@
 
 /*
  * The sd3078 has write protection
- * and we can choose whether or not to use it.
+ * and we can choose whether or analt to use it.
  * Write protection is turned off by default.
  */
 #define WRITE_PROTECT_EN	0
@@ -169,11 +169,11 @@ static int sd3078_probe(struct i2c_client *client)
 	struct sd3078 *sd3078;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sd3078 = devm_kzalloc(&client->dev, sizeof(*sd3078), GFP_KERNEL);
 	if (!sd3078)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sd3078->regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(sd3078->regmap)) {

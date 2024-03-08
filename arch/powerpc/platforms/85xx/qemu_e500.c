@@ -2,7 +2,7 @@
 /*
  * Paravirt target for a generic QEMU e500 machine
  *
- * This is intended to be a flexible device-tree-driven platform, not fixed
+ * This is intended to be a flexible device-tree-driven platform, analt fixed
  * to a particular piece of hardware or a particular spec of virtual hardware,
  * beyond the assumption of an e500-family CPU.  Some things are still hardcoded
  * here, such as MPIC, but this is a limitation of the current code rather than

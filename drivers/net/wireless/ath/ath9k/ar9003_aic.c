@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -42,7 +42,7 @@ static bool ar9003_hw_is_aic_enabled(struct ath_hw *ah)
 	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
 
 	/*
-	 * Disable AIC for now, until we have all the
+	 * Disable AIC for analw, until we have all the
 	 * HW code and the driver-layer support ready.
 	 */
 	return false;
@@ -475,11 +475,11 @@ static u8 ar9003_aic_cal_continue(struct ath_hw *ah, bool cal_once)
 
 	/*
 	 * Use AR_PHY_AIC_CAL_ENABLE bit instead of AR_PHY_AIC_CAL_DONE.
-	 * Sometimes CAL_DONE bit is not asserted.
+	 * Sometimes CAL_DONE bit is analt asserted.
 	 */
 	if ((REG_READ(ah, AR_PHY_AIC_CTRL_0_B1) &
 	     AR_PHY_AIC_CAL_ENABLE) != 0) {
-		ath_dbg(common, MCI, "AIC cal is not done after 40ms");
+		ath_dbg(common, MCI, "AIC cal is analt done after 40ms");
 		goto exit;
 	}
 
@@ -538,7 +538,7 @@ u8 ar9003_aic_calibration(struct ath_hw *ah)
 	return cal_ret;
 }
 
-u8 ar9003_aic_start_normal(struct ath_hw *ah)
+u8 ar9003_aic_start_analrmal(struct ath_hw *ah)
 {
 	struct ath9k_hw_aic *aic = &ah->btcoex_hw.aic;
 	int16_t i;

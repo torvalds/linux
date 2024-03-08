@@ -39,13 +39,13 @@ Platform data for lp855x
 For supporting platform specific data, the lp855x platform data can be used.
 
 * name:
-	Backlight driver name. If it is not defined, default name is set.
+	Backlight driver name. If it is analt defined, default name is set.
 * device_control:
 	Value of DEVICE CONTROL register.
 * initial_brightness:
 	Initial value of backlight brightness.
 * period_ns:
-	Platform specific PWM period value. unit is nano.
+	Platform specific PWM period value. unit is naanal.
 	Only valid when brightness is pwm input mode.
 * size_program:
 	Total size of lp855x_rom_data.

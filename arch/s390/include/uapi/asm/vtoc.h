@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file contains volume label definitions for DASD devices.
  *
@@ -48,8 +48,8 @@ struct vtoc_volume_label_cdl
 	char res1[5];		/* reserved */
 	char cisize[4];		/* CI-size for FBA,... */
 				/* ...blanks for CKD */
-	char blkperci[4];	/* no of blocks per CI (FBA), blanks for CKD */
-	char labperci[4];	/* no of labels per CI (FBA), blanks for CKD */
+	char blkperci[4];	/* anal of blocks per CI (FBA), blanks for CKD */
+	char labperci[4];	/* anal of labels per CI (FBA), blanks for CKD */
 	char res2[4];		/* reserved */
 	char lvtoc[14];		/* owner code for LVTOC */
 	char res3[29];		/* reserved */
@@ -66,7 +66,7 @@ struct vtoc_volume_label_ldl {
 struct vtoc_extent
 {
 	__u8 typeind;			/* extent type indicator */
-	__u8 seqno;			/* extent sequence number */
+	__u8 seqanal;			/* extent sequence number */
 	struct vtoc_cchh llimit;	/* starting point of this extent */
 	struct vtoc_cchh ulimit;	/* ending point of this extent */
 } __attribute__ ((packed));
@@ -76,9 +76,9 @@ struct vtoc_dev_const
 	__u16 DS4DSCYL;	/* number of logical cyls */
 	__u16 DS4DSTRK;	/* number of tracks in a logical cylinder */
 	__u16 DS4DEVTK;	/* device track length */
-	__u8 DS4DEVI;	/* non-last keyed record overhead */
+	__u8 DS4DEVI;	/* analn-last keyed record overhead */
 	__u8 DS4DEVL;	/* last keyed record overhead */
-	__u8 DS4DEVK;	/* non-keyed record overhead differential */
+	__u8 DS4DEVK;	/* analn-keyed record overhead differential */
 	__u8 DS4DEVFG;	/* flag byte */
 	__u16 DS4DEVTL;	/* device tolerance */
 	__u8 DS4DEVDT;	/* number of DSCB's per track */
@@ -93,8 +93,8 @@ struct vtoc_format1_label
 	__u16 DS1VOLSQ;		/* volume sequence number */
 	struct vtoc_labeldate DS1CREDT; /* creation date: ydd */
 	struct vtoc_labeldate DS1EXPDT; /* expiration date */
-	__u8 DS1NOEPV;		/* number of extents on volume */
-	__u8 DS1NOBDB;		/* no. of bytes used in last direction blk */
+	__u8 DS1ANALEPV;		/* number of extents on volume */
+	__u8 DS1ANALBDB;		/* anal. of bytes used in last direction blk */
 	__u8 DS1FLAG1;		/* flag 1 */
 	char DS1SYSCD[13];	/* system code */
 	struct vtoc_labeldate DS1REFD; /* date last referenced	*/
@@ -128,9 +128,9 @@ struct vtoc_format4_label
 	struct vtoc_cchhb DS4HPCHR; /* highest address of a format 1 DSCB */
 	__u16 DS4DSREC;		/* number of available DSCB's */
 	struct vtoc_cchh DS4HCCHH; /* CCHH of next available alternate track */
-	__u16 DS4NOATK;		/* number of remaining alternate tracks */
+	__u16 DS4ANALATK;		/* number of remaining alternate tracks */
 	__u8 DS4VTOCI;		/* VTOC indicators */
-	__u8 DS4NOEXT;		/* number of extents in VTOC */
+	__u8 DS4ANALEXT;		/* number of extents in VTOC */
 	__u8 DS4SMSFG;		/* system managed storage indicators */
 	__u8 DS4DEVAC;		/* number of alternate cylinders.
 				 * Subtract from first two bytes of

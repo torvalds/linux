@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <stdio.h>
 
@@ -129,9 +129,9 @@ kmalloc_array(unsigned int n, unsigned int size, unsigned int flags)
 #define PageSlab(p) (0)
 #define flush_dcache_page(p)
 
-#define MAX_ERRNO	4095
+#define MAX_ERRANAL	4095
 
-#define IS_ERR_VALUE(x) unlikely((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)
+#define IS_ERR_VALUE(x) unlikely((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRANAL)
 
 static inline void * __must_check ERR_PTR(long error)
 {

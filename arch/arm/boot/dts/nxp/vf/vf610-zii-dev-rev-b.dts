@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2015, 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2015, 2016 Zodiac Inflight Inanalvations
  */
 
 /dts-v1/;
@@ -302,7 +302,7 @@
 		num-chipselects = <2>;
 
 		flash@0 {
-			compatible = "m25p128", "jedec,spi-nor";
+			compatible = "m25p128", "jedec,spi-analr";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0>;

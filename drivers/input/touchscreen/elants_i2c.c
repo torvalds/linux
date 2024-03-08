@@ -56,9 +56,9 @@
 
 /* Buffer mode Queue Header information */
 #define QUEUE_HEADER_SINGLE	0x62
-#define QUEUE_HEADER_NORMAL	0X63
+#define QUEUE_HEADER_ANALRMAL	0X63
 #define QUEUE_HEADER_WAIT	0x64
-#define QUEUE_HEADER_NORMAL2	0x66
+#define QUEUE_HEADER_ANALRMAL2	0x66
 
 /* Command header definition */
 #define CMD_HEADER_WRITE	0x54
@@ -137,7 +137,7 @@ enum elants_chip_id {
 };
 
 enum elants_state {
-	ELAN_STATE_NORMAL,
+	ELAN_STATE_ANALRMAL,
 	ELAN_WAIT_QUEUE_HEADER,
 	ELAN_WAIT_RECALIBRATION,
 };
@@ -316,7 +316,7 @@ static int elants_i2c_calibrate(struct elants_data *ts)
 	ret = wait_for_completion_interruptible_timeout(&ts->cmd_done,
 				msecs_to_jiffies(ELAN_CALI_TIMEOUT_MSEC));
 
-	ts->state = ELAN_STATE_NORMAL;
+	ts->state = ELAN_STATE_ANALRMAL;
 
 	if (ret <= 0) {
 		error = ret < 0 ? ret : -ETIMEDOUT;
@@ -349,7 +349,7 @@ static int elants_i2c_sw_reset(struct i2c_client *client)
 	}
 
 	/*
-	 * We should wait at least 10 msec (but no more than 40) before
+	 * We should wait at least 10 msec (but anal more than 40) before
 	 * sending fastboot or IAP command to the device.
 	 */
 	msleep(30);
@@ -755,7 +755,7 @@ static bool elants_i2c_should_check_remark_id(struct elants_data *ts)
 	const u8 bootcode_version = ts->iap_version;
 	bool check;
 
-	/* I2C eKTH3900 and eKTH5312 are NOT support Remark ID */
+	/* I2C eKTH3900 and eKTH5312 are ANALT support Remark ID */
 	if ((bootcode_version == BC_VER_H_BYTE_FOR_EKTH3900x1_I2C) ||
 	    (bootcode_version == BC_VER_H_BYTE_FOR_EKTH3900x2_I2C) ||
 	    (bootcode_version == BC_VER_H_BYTE_FOR_EKTH3900x3_I2C) ||
@@ -768,7 +768,7 @@ static bool elants_i2c_should_check_remark_id(struct elants_data *ts)
 	    (bootcode_version == BC_VER_H_BYTE_FOR_EKTH5312cx1_I2C_USB) ||
 	    (bootcode_version == BC_VER_H_BYTE_FOR_EKTH5312cx2_I2C_USB)) {
 		dev_dbg(&client->dev,
-			"eKTH3900/eKTH5312(0x%02x) are not support remark id\n",
+			"eKTH3900/eKTH5312(0x%02x) are analt support remark id\n",
 			bootcode_version);
 		check = false;
 	} else if (bootcode_version >= 0x60) {
@@ -813,7 +813,7 @@ static int elants_i2c_do_update_firmware(struct i2c_client *client,
 		}
 	} else {
 		/* Start IAP Procedure */
-		dev_dbg(&client->dev, "Normal IAP procedure\n");
+		dev_dbg(&client->dev, "Analrmal IAP procedure\n");
 
 		/* Close idle mode */
 		error = elants_i2c_send(client, close_idle, sizeof(close_idle));
@@ -844,7 +844,7 @@ static int elants_i2c_do_update_firmware(struct i2c_client *client,
 	error = elants_i2c_read(client, buf, 4);
 	if (error) {
 		dev_err(&client->dev,
-			"failed to read IAP acknowledgement: %d\n",
+			"failed to read IAP ackanalwledgement: %d\n",
 			error);
 		return error;
 	}
@@ -912,7 +912,7 @@ static int elants_i2c_fw_update(struct elants_data *ts)
 
 	fw_name = kasprintf(GFP_KERNEL, "elants_i2c_%04x.bin", ts->hw_version);
 	if (!fw_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_info(&client->dev, "requesting fw name = %s\n", fw_name);
 	error = request_firmware(&fw, fw_name, &client->dev);
@@ -952,7 +952,7 @@ static int elants_i2c_fw_update(struct elants_data *ts)
 	ts->iap_mode = ELAN_IAP_OPERATIONAL;
 
 out_enable_irq:
-	ts->state = ELAN_STATE_NORMAL;
+	ts->state = ELAN_STATE_ANALRMAL;
 	enable_irq(client->irq);
 	msleep(100);
 
@@ -983,7 +983,7 @@ static void elants_i2c_mt_event(struct elants_data *ts, u8 *buf,
 	dev_dbg(&ts->client->dev,
 		"n_fingers: %u, state: %04x\n",  n_fingers, finger_state);
 
-	/* Note: all fingers have the same tool type */
+	/* Analte: all fingers have the same tool type */
 	tool_type = buf[FW_POS_TOOL_TYPE] & BIT(0) ?
 			MT_TOOL_FINGER : MT_TOOL_PALM;
 
@@ -1056,7 +1056,7 @@ static void elants_i2c_event(struct elants_data *ts, u8 *buf,
 			 checksum, buf[FW_POS_CHECKSUM]);
 	else if (unlikely(buf[FW_POS_HEADER] != HEADER_REPORT_10_FINGER))
 		dev_warn(&ts->client->dev,
-			 "%s: unknown packet type: %02x\n",
+			 "%s: unkanalwn packet type: %02x\n",
 			 __func__, buf[FW_POS_HEADER]);
 	else
 		elants_i2c_mt_event(ts, buf, packet_size);
@@ -1086,18 +1086,18 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 		if (ts->buf[FW_HDR_TYPE] == CMD_HEADER_REK) {
 			memcpy(ts->cmd_resp, ts->buf, sizeof(ts->cmd_resp));
 			complete(&ts->cmd_done);
-			ts->state = ELAN_STATE_NORMAL;
+			ts->state = ELAN_STATE_ANALRMAL;
 		}
 		break;
 
 	case ELAN_WAIT_QUEUE_HEADER:
-		if (ts->buf[FW_HDR_TYPE] != QUEUE_HEADER_NORMAL)
+		if (ts->buf[FW_HDR_TYPE] != QUEUE_HEADER_ANALRMAL)
 			break;
 
-		ts->state = ELAN_STATE_NORMAL;
+		ts->state = ELAN_STATE_ANALRMAL;
 		fallthrough;
 
-	case ELAN_STATE_NORMAL:
+	case ELAN_STATE_ANALRMAL:
 
 		switch (ts->buf[FW_HDR_TYPE]) {
 		case CMD_HEADER_HELLO:
@@ -1120,11 +1120,11 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 					 ts->buf[FW_HDR_LENGTH]);
 			break;
 
-		case QUEUE_HEADER_NORMAL2: /* CMD_HEADER_REK */
+		case QUEUE_HEADER_ANALRMAL2: /* CMD_HEADER_REK */
 			/*
 			 * Depending on firmware version, eKTF3624 touchscreens
 			 * may utilize one of these opcodes for the touch events:
-			 * 0x63 (NORMAL) and 0x66 (NORMAL2).  The 0x63 is used by
+			 * 0x63 (ANALRMAL) and 0x66 (ANALRMAL2).  The 0x63 is used by
 			 * older firmware version and differs from 0x66 such that
 			 * touch pressure value needs to be adjusted.  The 0x66
 			 * opcode of newer firmware is equal to 0x63 of eKTH3500.
@@ -1134,7 +1134,7 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 
 			fallthrough;
 
-		case QUEUE_HEADER_NORMAL:
+		case QUEUE_HEADER_ANALRMAL:
 			report_count = ts->buf[FW_HDR_COUNT];
 			if (report_count == 0 || report_count > 3) {
 				dev_err(&client->dev,
@@ -1164,7 +1164,7 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 			break;
 
 		default:
-			dev_err(&client->dev, "unknown packet %*ph\n",
+			dev_err(&client->dev, "unkanalwn packet %*ph\n",
 				HEADER_SIZE, ts->buf);
 			break;
 		}
@@ -1223,7 +1223,7 @@ static ssize_t show_iap_mode(struct device *dev,
 
 	return sprintf(buf, "%s\n",
 		       ts->iap_mode == ELAN_IAP_OPERATIONAL ?
-				"Normal" : "Recovery");
+				"Analrmal" : "Recovery");
 }
 
 static ssize_t show_calibration_count(struct device *dev,
@@ -1320,7 +1320,7 @@ static int elants_i2c_power_on(struct elants_data *ts)
 	int error;
 
 	/*
-	 * If we do not have reset gpio assume platform firmware
+	 * If we do analt have reset gpio assume platform firmware
 	 * controls regulators and does power them on for us.
 	 */
 	if (IS_ERR_OR_NULL(ts->reset_gpio))
@@ -1414,8 +1414,8 @@ static int elants_i2c_probe(struct i2c_client *client)
 
 	/* Don't bind to i2c-hid compatible devices, these are handled by the i2c-hid drv. */
 	if (elants_acpi_is_hid_device(&client->dev)) {
-		dev_warn(&client->dev, "This device appears to be an I2C-HID device, not binding\n");
-		return -ENODEV;
+		dev_warn(&client->dev, "This device appears to be an I2C-HID device, analt binding\n");
+		return -EANALDEV;
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -1425,7 +1425,7 @@ static int elants_i2c_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(&client->dev, sizeof(struct elants_data), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ts->sysfs_mutex);
 	init_completion(&ts->cmd_done);
@@ -1451,7 +1451,7 @@ static int elants_i2c_probe(struct i2c_client *client)
 		if (error == -EPROBE_DEFER)
 			return error;
 
-		if (error != -ENOENT && error != -ENOSYS) {
+		if (error != -EANALENT && error != -EANALSYS) {
 			dev_err(&client->dev,
 				"failed to get reset gpio: %d\n",
 				error);
@@ -1476,7 +1476,7 @@ static int elants_i2c_probe(struct i2c_client *client)
 	/* Make sure there is something at this address */
 	if (i2c_smbus_xfer(client->adapter, client->addr, 0,
 			   I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
-		dev_err(&client->dev, "nothing at this address\n");
+		dev_err(&client->dev, "analthing at this address\n");
 		return -ENXIO;
 	}
 
@@ -1489,7 +1489,7 @@ static int elants_i2c_probe(struct i2c_client *client)
 	ts->input = devm_input_allocate_device(&client->dev);
 	if (!ts->input) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->input->name = "Elan Touchscreen";
@@ -1532,8 +1532,8 @@ static int elants_i2c_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * Platform code (ACPI, DTS) should normally set up interrupt
-	 * for us, but in case it did not let's fall back to using falling
+	 * Platform code (ACPI, DTS) should analrmally set up interrupt
+	 * for us, but in case it did analt let's fall back to using falling
 	 * edge to be compatible with older Chromebooks.
 	 */
 	irqflags = irq_get_trigger_type(client->irq);
@@ -1562,7 +1562,7 @@ static int elants_i2c_suspend(struct device *dev)
 	int retry_cnt;
 	int error;
 
-	/* Command not support in IAP recovery mode */
+	/* Command analt support in IAP recovery mode */
 	if (ts->iap_mode != ELAN_IAP_OPERATIONAL)
 		return -EBUSY;
 
@@ -1618,7 +1618,7 @@ static int elants_i2c_resume(struct device *dev)
 		elants_i2c_initialize(ts);
 	}
 
-	ts->state = ELAN_STATE_NORMAL;
+	ts->state = ELAN_STATE_ANALRMAL;
 	enable_irq(client->irq);
 
 	return 0;
@@ -1661,7 +1661,7 @@ static struct i2c_driver elants_i2c_driver = {
 		.pm = pm_sleep_ptr(&elants_i2c_pm_ops),
 		.acpi_match_table = ACPI_PTR(elants_acpi_id),
 		.of_match_table = of_match_ptr(elants_of_match),
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_i2c_driver(elants_i2c_driver);

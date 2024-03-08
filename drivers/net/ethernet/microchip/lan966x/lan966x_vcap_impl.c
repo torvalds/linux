@@ -140,18 +140,18 @@ lan966x_vcap_is1_get_port_keysets(struct net_device *ndev, int lookup,
 		case VCAP_IS1_PS_IPV4_5TUPLE_IP4:
 			vcap_keyset_list_add(keysetlist, VCAP_KFS_5TUPLE_IP4);
 			break;
-		case VCAP_IS1_PS_IPV4_NORMAL:
-			vcap_keyset_list_add(keysetlist, VCAP_KFS_NORMAL);
+		case VCAP_IS1_PS_IPV4_ANALRMAL:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_ANALRMAL);
 			break;
 		}
 	}
 
 	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_IPV6) {
 		switch (ANA_VCAP_S1_CFG_KEY_IP6_CFG_GET(val)) {
-		case VCAP_IS1_PS_IPV6_NORMAL:
-		case VCAP_IS1_PS_IPV6_NORMAL_IP6:
-			vcap_keyset_list_add(keysetlist, VCAP_KFS_NORMAL);
-			vcap_keyset_list_add(keysetlist, VCAP_KFS_NORMAL_IP6);
+		case VCAP_IS1_PS_IPV6_ANALRMAL:
+		case VCAP_IS1_PS_IPV6_ANALRMAL_IP6:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_ANALRMAL);
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_ANALRMAL_IP6);
 			break;
 		case VCAP_IS1_PS_IPV6_5TUPLE_IP6:
 			vcap_keyset_list_add(keysetlist, VCAP_KFS_5TUPLE_IP6);
@@ -172,8 +172,8 @@ lan966x_vcap_is1_get_port_keysets(struct net_device *ndev, int lookup,
 	case VCAP_IS1_PS_OTHER_7TUPLE:
 		vcap_keyset_list_add(keysetlist, VCAP_KFS_7TUPLE);
 		break;
-	case VCAP_IS1_PS_OTHER_NORMAL:
-		vcap_keyset_list_add(keysetlist, VCAP_KFS_NORMAL);
+	case VCAP_IS1_PS_OTHER_ANALRMAL:
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_ANALRMAL);
 		break;
 	}
 
@@ -277,7 +277,7 @@ lan966x_vcap_validate_keyset(struct net_device *dev,
 	int err;
 
 	if (!kslist || kslist->cnt == 0)
-		return VCAP_KFS_NO_VALUE;
+		return VCAP_KFS_ANAL_VALUE;
 
 	keysetlist.max = ARRAY_SIZE(keysets);
 	keysetlist.keysets = keysets;
@@ -296,13 +296,13 @@ lan966x_vcap_validate_keyset(struct net_device *dev,
 	case VCAP_TYPE_ES0:
 		return kslist->keysets[0];
 	default:
-		pr_err("vcap type: %s not supported\n",
+		pr_err("vcap type: %s analt supported\n",
 		       lan966x_vcaps[admin->vtype].name);
-		return VCAP_KFS_NO_VALUE;
+		return VCAP_KFS_ANAL_VALUE;
 	}
 
 	if (err)
-		return VCAP_KFS_NO_VALUE;
+		return VCAP_KFS_ANAL_VALUE;
 
 	/* Check if there is a match and return the match */
 	for (int i = 0; i < kslist->cnt; ++i)
@@ -310,7 +310,7 @@ lan966x_vcap_validate_keyset(struct net_device *dev,
 			if (kslist->keysets[i] == keysets[j])
 				return kslist->keysets[i];
 
-	return VCAP_KFS_NO_VALUE;
+	return VCAP_KFS_ANAL_VALUE;
 }
 
 static bool lan966x_vcap_is2_is_first_chain(struct vcap_rule *rule)
@@ -358,7 +358,7 @@ static void lan966x_vcap_es0_add_default_fields(struct lan966x_port *port,
 						struct vcap_admin *admin,
 						struct vcap_rule *rule)
 {
-	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_NO,
+	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_ANAL,
 			      port->chip_port, GENMASK(4, 0));
 }
 
@@ -379,7 +379,7 @@ static void lan966x_vcap_add_default_fields(struct net_device *dev,
 		lan966x_vcap_es0_add_default_fields(port, admin, rule);
 		break;
 	default:
-		pr_err("vcap type: %s not supported\n",
+		pr_err("vcap type: %s analt supported\n",
 		       lan966x_vcaps[admin->vtype].name);
 		break;
 	}
@@ -394,7 +394,7 @@ static void lan966x_vcap_cache_erase(struct vcap_admin *admin)
 }
 
 /* The ESDX counter is only used/incremented if the frame has been classified
- * with an ISDX > 0 (e.g by a rule in IS0).  This is not mentioned in the
+ * with an ISDX > 0 (e.g by a rule in IS0).  This is analt mentioned in the
  * datasheet.
  */
 static void lan966x_es0_read_esdx_counter(struct lan966x *lan966x,
@@ -613,7 +613,7 @@ lan966x_vcap_admin_alloc(struct lan966x *lan966x, struct vcap_control *ctrl,
 
 	admin = kzalloc(sizeof(*admin), GFP_KERNEL);
 	if (!admin)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&admin->lock);
 	INIT_LIST_HEAD(&admin->list);
@@ -639,7 +639,7 @@ lan966x_vcap_admin_alloc(struct lan966x *lan966x, struct vcap_control *ctrl,
 	    !admin->cache.maskstream ||
 	    !admin->cache.actionstream) {
 		lan966x_vcap_admin_free(admin);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return admin;
@@ -672,7 +672,7 @@ static void lan966x_vcap_port_key_deselection(struct lan966x *lan966x,
 	case VCAP_TYPE_IS1:
 		val = ANA_VCAP_S1_CFG_KEY_IP6_CFG_SET(VCAP_IS1_PS_IPV6_5TUPLE_IP6) |
 		      ANA_VCAP_S1_CFG_KEY_IP4_CFG_SET(VCAP_IS1_PS_IPV4_5TUPLE_IP4) |
-		      ANA_VCAP_S1_CFG_KEY_OTHER_CFG_SET(VCAP_IS1_PS_OTHER_NORMAL);
+		      ANA_VCAP_S1_CFG_KEY_OTHER_CFG_SET(VCAP_IS1_PS_OTHER_ANALRMAL);
 
 		for (int p = 0; p < lan966x->num_phys_ports; ++p) {
 			if (!lan966x->ports[p])
@@ -699,7 +699,7 @@ static void lan966x_vcap_port_key_deselection(struct lan966x *lan966x,
 				REW_PORT_CFG(p));
 		break;
 	default:
-		pr_err("vcap type: %s not supported\n",
+		pr_err("vcap type: %s analt supported\n",
 		       lan966x_vcaps[admin->vtype].name);
 		break;
 	}
@@ -714,7 +714,7 @@ int lan966x_vcap_init(struct lan966x *lan966x)
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->vcaps = lan966x_vcaps;
 	ctrl->stats = &lan966x_vcap_stats;
@@ -754,7 +754,7 @@ int lan966x_vcap_init(struct lan966x *lan966x)
 		}
 	}
 
-	/* Statistics: Use ESDX from ES0 if hit, otherwise no counting */
+	/* Statistics: Use ESDX from ES0 if hit, otherwise anal counting */
 	lan_rmw(REW_STAT_CFG_STAT_MODE_SET(1),
 		REW_STAT_CFG_STAT_MODE, lan966x,
 		REW_STAT_CFG);

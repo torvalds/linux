@@ -52,7 +52,7 @@ info. Following auxiliary vectors are provided by the kernel:
 	============	===========================================
 
 
-IMPORTANT NOTES
+IMPORTANT ANALTES
 ===============
 
 - Version tag values of 0x0 and 0xf are reserved. These values match any
@@ -68,24 +68,24 @@ IMPORTANT NOTES
   kernel clears the page using block initialization ASI which clears the
   version tags as well for the page. If a page allocated to a task is
   freed and allocated back to the same task, old version tags set by the
-  task on that page will no longer be present.
+  task on that page will anal longer be present.
 
-- ADI tag mismatches are not detected for non-faulting loads.
+- ADI tag mismatches are analt detected for analn-faulting loads.
 
-- Kernel does not set any tags for user pages and it is entirely a
+- Kernel does analt set any tags for user pages and it is entirely a
   task's responsibility to set any version tags. Kernel does ensure the
   version tags are preserved if a page is swapped out to the disk and
   swapped back in. It also preserves that version tags if a page is
   migrated.
 
-- ADI works for any size pages. A userspace task need not be aware of
+- ADI works for any size pages. A userspace task need analt be aware of
   page size when using ADI. It can simply select a virtual address
   range, enable ADI on the range using mprotect() and set version tags
   for the entire range. mprotect() ensures range is aligned to page size
   and is a multiple of page size.
 
 - ADI tags can only be set on writable memory. For example, ADI tags can
-  not be set on read-only mappings.
+  analt be set on read-only mappings.
 
 
 
@@ -99,7 +99,7 @@ Disrupting memory corruption
 
 	When a store accesses a memory location that has TTE.mcd=1,
 	the task is running with ADI enabled (PSTATE.mcde=1), and the ADI
-	tag in the address used (bits 63:60) does not match the tag set on
+	tag in the address used (bits 63:60) does analt match the tag set on
 	the corresponding cacheline, a memory corruption trap occurs. By
 	default, it is a disrupting trap and is sent to the hypervisor
 	first. Hypervisor creates a sun4v error report and sends a
@@ -107,11 +107,11 @@ Disrupting memory corruption
 	a SIGSEGV to the task that resulted in this trap with the following
 	info::
 
-		siginfo.si_signo = SIGSEGV;
-		siginfo.errno = 0;
+		siginfo.si_siganal = SIGSEGV;
+		siginfo.erranal = 0;
 		siginfo.si_code = SEGV_ADIDERR;
 		siginfo.si_addr = addr; /* PC where first mismatch occurred */
-		siginfo.si_trapno = 0;
+		siginfo.si_trapanal = 0;
 
 
 Precise memory corruption
@@ -119,38 +119,38 @@ Precise memory corruption
 
 	When a store accesses a memory location that has TTE.mcd=1,
 	the task is running with ADI enabled (PSTATE.mcde=1), and the ADI
-	tag in the address used (bits 63:60) does not match the tag set on
+	tag in the address used (bits 63:60) does analt match the tag set on
 	the corresponding cacheline, a memory corruption trap occurs. If
 	MCD precise exception is enabled (MCDPERR=1), a precise
 	exception is sent to the kernel with TT=0x1a. The kernel sends
 	a SIGSEGV to the task that resulted in this trap with the following
 	info::
 
-		siginfo.si_signo = SIGSEGV;
-		siginfo.errno = 0;
+		siginfo.si_siganal = SIGSEGV;
+		siginfo.erranal = 0;
 		siginfo.si_code = SEGV_ADIPERR;
 		siginfo.si_addr = addr;	/* address that caused trap */
-		siginfo.si_trapno = 0;
+		siginfo.si_trapanal = 0;
 
-	NOTE:
+	ANALTE:
 		ADI tag mismatch on a load always results in precise trap.
 
 
 MCD disabled
 ------------
 
-	When a task has not enabled ADI and attempts to set ADI version
+	When a task has analt enabled ADI and attempts to set ADI version
 	on a memory address, processor sends an MCD disabled trap. This
 	trap is handled by hypervisor first and the hypervisor vectors this
 	trap through to the kernel as Data Access Exception trap with
 	fault type set to 0xa (invalid ASI). When this occurs, the kernel
 	sends the task SIGSEGV signal with following info::
 
-		siginfo.si_signo = SIGSEGV;
-		siginfo.errno = 0;
+		siginfo.si_siganal = SIGSEGV;
+		siginfo.erranal = 0;
 		siginfo.si_code = SEGV_ACCADI;
 		siginfo.si_addr = addr;	/* address that caused trap */
-		siginfo.si_trapno = 0;
+		siginfo.si_trapanal = 0;
 
 
 Sample program to use ADI
@@ -202,7 +202,7 @@ functionality::
 		}
 	}
 	if (adi_blksz == 0) {
-		fprintf(stderr, "Oops! ADI is not supported\n");
+		fprintf(stderr, "Oops! ADI is analt supported\n");
 		exit(1);
 	}
 
@@ -242,7 +242,7 @@ functionality::
           }
 	asm volatile("membar #Sync\n\t");
 
-          /* Create a versioned address from the normal address by placing
+          /* Create a versioned address from the analrmal address by placing
 	 * version tag in the upper adi_nbits bits
            */
           tmp_addr = (void *) ((unsigned long)shmaddr << adi_nbits);

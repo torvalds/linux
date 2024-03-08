@@ -49,9 +49,9 @@ struct pyra_info {
 	uint8_t command; /* PYRA_COMMAND_INFO */
 	uint8_t size; /* always 6 */
 	uint8_t firmware_version;
-	uint8_t unknown1; /* always 0 */
-	uint8_t unknown2; /* always 1 */
-	uint8_t unknown3; /* always 0 */
+	uint8_t unkanalwn1; /* always 0 */
+	uint8_t unkanalwn2; /* always 1 */
+	uint8_t unkanalwn3; /* always 0 */
 } __attribute__ ((__packed__));
 
 enum pyra_commands {
@@ -71,7 +71,7 @@ enum pyra_mouse_report_numbers {
 
 struct pyra_mouse_event_button {
 	uint8_t report_number; /* always 3 */
-	uint8_t unknown; /* always 0 */
+	uint8_t unkanalwn; /* always 0 */
 	uint8_t type;
 	uint8_t data1;
 	uint8_t data2;
@@ -141,7 +141,7 @@ struct pyra_device {
 	int actual_profile;
 	int actual_cpi;
 	int roccat_claimed;
-	int chrdev_minor;
+	int chrdev_mianalr;
 	struct mutex pyra_lock;
 	struct pyra_profile_settings profile_settings[5];
 };

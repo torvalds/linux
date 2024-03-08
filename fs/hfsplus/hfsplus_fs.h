@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1999
  * Brad Boyer (flar@pants.nu)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  *
  */
 
@@ -23,19 +23,19 @@
 #include <linux/blkdev.h>
 #include "hfsplus_raw.h"
 
-#define DBG_BNODE_REFS	0x00000001
-#define DBG_BNODE_MOD	0x00000002
+#define DBG_BANALDE_REFS	0x00000001
+#define DBG_BANALDE_MOD	0x00000002
 #define DBG_CAT_MOD	0x00000004
-#define DBG_INODE	0x00000008
+#define DBG_IANALDE	0x00000008
 #define DBG_SUPER	0x00000010
 #define DBG_EXTENT	0x00000020
 #define DBG_BITMAP	0x00000040
 #define DBG_ATTR_MOD	0x00000080
 
 #if 0
-#define DBG_MASK	(DBG_EXTENT|DBG_INODE|DBG_BNODE_MOD)
-#define DBG_MASK	(DBG_BNODE_MOD|DBG_CAT_MOD|DBG_INODE)
-#define DBG_MASK	(DBG_CAT_MOD|DBG_BNODE_REFS|DBG_INODE|DBG_EXTENT)
+#define DBG_MASK	(DBG_EXTENT|DBG_IANALDE|DBG_BANALDE_MOD)
+#define DBG_MASK	(DBG_BANALDE_MOD|DBG_CAT_MOD|DBG_IANALDE)
+#define DBG_MASK	(DBG_CAT_MOD|DBG_BANALDE_REFS|DBG_IANALDE|DBG_EXTENT)
 #endif
 #define DBG_MASK	(0)
 
@@ -60,7 +60,7 @@ do {								\
 typedef int (*btree_keycmp)(const hfsplus_btree_key *,
 		const hfsplus_btree_key *);
 
-#define NODE_HASH_SIZE	256
+#define ANALDE_HASH_SIZE	256
 
 /* B-tree mutex nested subclasses */
 enum hfsplus_btree_mutex_classes {
@@ -72,7 +72,7 @@ enum hfsplus_btree_mutex_classes {
 /* An HFS+ BTree held in memory */
 struct hfs_btree {
 	struct super_block *sb;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	btree_keycmp keycmp;
 
 	u32 cnid;
@@ -80,27 +80,27 @@ struct hfs_btree {
 	u32 leaf_count;
 	u32 leaf_head;
 	u32 leaf_tail;
-	u32 node_count;
-	u32 free_nodes;
+	u32 analde_count;
+	u32 free_analdes;
 	u32 attributes;
 
-	unsigned int node_size;
-	unsigned int node_size_shift;
+	unsigned int analde_size;
+	unsigned int analde_size_shift;
 	unsigned int max_key_len;
 	unsigned int depth;
 
 	struct mutex tree_lock;
 
-	unsigned int pages_per_bnode;
+	unsigned int pages_per_banalde;
 	spinlock_t hash_lock;
-	struct hfs_bnode *node_hash[NODE_HASH_SIZE];
-	int node_hash_cnt;
+	struct hfs_banalde *analde_hash[ANALDE_HASH_SIZE];
+	int analde_hash_cnt;
 };
 
 struct page;
 
-/* An HFS+ BTree node in memory */
-struct hfs_bnode {
+/* An HFS+ BTree analde in memory */
+struct hfs_banalde {
 	struct hfs_btree *tree;
 
 	u32 prev;
@@ -112,7 +112,7 @@ struct hfs_bnode {
 	u8 type;
 	u8 height;
 
-	struct hfs_bnode *next_hash;
+	struct hfs_banalde *next_hash;
 	unsigned long flags;
 	wait_queue_head_t lock_wq;
 	atomic_t refcnt;
@@ -120,11 +120,11 @@ struct hfs_bnode {
 	struct page *page[];
 };
 
-#define HFS_BNODE_LOCK		0
-#define HFS_BNODE_ERROR		1
-#define HFS_BNODE_NEW		2
-#define HFS_BNODE_DIRTY		3
-#define HFS_BNODE_DELETED	4
+#define HFS_BANALDE_LOCK		0
+#define HFS_BANALDE_ERROR		1
+#define HFS_BANALDE_NEW		2
+#define HFS_BANALDE_DIRTY		3
+#define HFS_BANALDE_DELETED	4
 
 /*
  * Attributes file states
@@ -150,8 +150,8 @@ struct hfsplus_sb_info {
 	struct hfs_btree *cat_tree;
 	struct hfs_btree *attr_tree;
 	atomic_t attr_tree_state;
-	struct inode *alloc_file;
-	struct inode *hidden_dir;
+	struct ianalde *alloc_file;
+	struct ianalde *hidden_dir;
 	struct nls_table *nls;
 
 	/* Runtime variables */
@@ -187,18 +187,18 @@ struct hfsplus_sb_info {
 	int part, session;
 	unsigned long flags;
 
-	int work_queued;               /* non-zero delayed work is queued */
+	int work_queued;               /* analn-zero delayed work is queued */
 	struct delayed_work sync_work; /* FS sync delayed work */
 	spinlock_t work_lock;          /* protects sync_work and work_queued */
 	struct rcu_head rcu;
 };
 
 #define HFSPLUS_SB_WRITEBACKUP	0
-#define HFSPLUS_SB_NODECOMPOSE	1
+#define HFSPLUS_SB_ANALDECOMPOSE	1
 #define HFSPLUS_SB_FORCE	2
 #define HFSPLUS_SB_HFSX		3
 #define HFSPLUS_SB_CASEFOLD	4
-#define HFSPLUS_SB_NOBARRIER	5
+#define HFSPLUS_SB_ANALBARRIER	5
 #define HFSPLUS_SB_UID		6
 #define HFSPLUS_SB_GID		7
 
@@ -208,7 +208,7 @@ static inline struct hfsplus_sb_info *HFSPLUS_SB(struct super_block *sb)
 }
 
 
-struct hfsplus_inode_info {
+struct hfsplus_ianalde_info {
 	atomic_t opencnt;
 
 	/*
@@ -227,7 +227,7 @@ struct hfsplus_inode_info {
 	/*
 	 * Immutable data.
 	 */
-	struct inode *rsrc_inode;
+	struct ianalde *rsrc_ianalde;
 	__be32 create_date;
 
 	/*
@@ -250,7 +250,7 @@ struct hfsplus_inode_info {
 	spinlock_t open_dir_lock;
 	loff_t phys_size;
 
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
 #define HFSPLUS_EXT_DIRTY	0x0001
@@ -262,25 +262,25 @@ struct hfsplus_inode_info {
 #define HFSPLUS_I_ALLOC_DIRTY	3	/* has changes in the allocation file */
 #define HFSPLUS_I_ATTR_DIRTY	4	/* has changes in the attributes tree */
 
-#define HFSPLUS_IS_RSRC(inode) \
-	test_bit(HFSPLUS_I_RSRC, &HFSPLUS_I(inode)->flags)
+#define HFSPLUS_IS_RSRC(ianalde) \
+	test_bit(HFSPLUS_I_RSRC, &HFSPLUS_I(ianalde)->flags)
 
-static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
+static inline struct hfsplus_ianalde_info *HFSPLUS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct hfsplus_inode_info, vfs_inode);
+	return container_of(ianalde, struct hfsplus_ianalde_info, vfs_ianalde);
 }
 
 /*
- * Mark an inode dirty, and also mark the btree in which the
+ * Mark an ianalde dirty, and also mark the btree in which the
  * specific type of metadata is stored.
  * For data or metadata that gets written back by into the catalog btree
- * by hfsplus_write_inode a plain mark_inode_dirty call is enough.
+ * by hfsplus_write_ianalde a plain mark_ianalde_dirty call is eanalugh.
  */
-static inline void hfsplus_mark_inode_dirty(struct inode *inode,
+static inline void hfsplus_mark_ianalde_dirty(struct ianalde *ianalde,
 		unsigned int flag)
 {
-	set_bit(flag, &HFSPLUS_I(inode)->flags);
-	mark_inode_dirty(inode);
+	set_bit(flag, &HFSPLUS_I(ianalde)->flags);
+	mark_ianalde_dirty(ianalde);
 }
 
 struct hfs_find_data {
@@ -289,7 +289,7 @@ struct hfs_find_data {
 	hfsplus_btree_key *key;
 	/* filled by find */
 	struct hfs_btree *tree;
-	struct hfs_bnode *bnode;
+	struct hfs_banalde *banalde;
 	/* filled by findrec */
 	int record;
 	int keyoffset, keylength;
@@ -317,25 +317,25 @@ static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
 #define hfs_bmap_reserve hfsplus_bmap_reserve
 #define hfs_bmap_alloc hfsplus_bmap_alloc
 #define hfs_bmap_free hfsplus_bmap_free
-#define hfs_bnode_read hfsplus_bnode_read
-#define hfs_bnode_read_u16 hfsplus_bnode_read_u16
-#define hfs_bnode_read_u8 hfsplus_bnode_read_u8
-#define hfs_bnode_read_key hfsplus_bnode_read_key
-#define hfs_bnode_write hfsplus_bnode_write
-#define hfs_bnode_write_u16 hfsplus_bnode_write_u16
-#define hfs_bnode_clear hfsplus_bnode_clear
-#define hfs_bnode_copy hfsplus_bnode_copy
-#define hfs_bnode_move hfsplus_bnode_move
-#define hfs_bnode_dump hfsplus_bnode_dump
-#define hfs_bnode_unlink hfsplus_bnode_unlink
-#define hfs_bnode_findhash hfsplus_bnode_findhash
-#define hfs_bnode_find hfsplus_bnode_find
-#define hfs_bnode_unhash hfsplus_bnode_unhash
-#define hfs_bnode_free hfsplus_bnode_free
-#define hfs_bnode_create hfsplus_bnode_create
-#define hfs_bnode_get hfsplus_bnode_get
-#define hfs_bnode_put hfsplus_bnode_put
-#define hfs_brec_lenoff hfsplus_brec_lenoff
+#define hfs_banalde_read hfsplus_banalde_read
+#define hfs_banalde_read_u16 hfsplus_banalde_read_u16
+#define hfs_banalde_read_u8 hfsplus_banalde_read_u8
+#define hfs_banalde_read_key hfsplus_banalde_read_key
+#define hfs_banalde_write hfsplus_banalde_write
+#define hfs_banalde_write_u16 hfsplus_banalde_write_u16
+#define hfs_banalde_clear hfsplus_banalde_clear
+#define hfs_banalde_copy hfsplus_banalde_copy
+#define hfs_banalde_move hfsplus_banalde_move
+#define hfs_banalde_dump hfsplus_banalde_dump
+#define hfs_banalde_unlink hfsplus_banalde_unlink
+#define hfs_banalde_findhash hfsplus_banalde_findhash
+#define hfs_banalde_find hfsplus_banalde_find
+#define hfs_banalde_unhash hfsplus_banalde_unhash
+#define hfs_banalde_free hfsplus_banalde_free
+#define hfs_banalde_create hfsplus_banalde_create
+#define hfs_banalde_get hfsplus_banalde_get
+#define hfs_banalde_put hfsplus_banalde_put
+#define hfs_brec_leanalff hfsplus_brec_leanalff
 #define hfs_brec_keylen hfsplus_brec_keylen
 #define hfs_brec_insert hfsplus_brec_insert
 #define hfs_brec_remove hfsplus_brec_remove
@@ -352,7 +352,7 @@ static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
  */
 #define HFSPLUS_IOC_BLESS _IO('h', 0x80)
 
-typedef int (*search_strategy_t)(struct hfs_bnode *,
+typedef int (*search_strategy_t)(struct hfs_banalde *,
 				struct hfs_find_data *,
 				int *, int *, int *);
 
@@ -371,11 +371,11 @@ hfsplus_attr_entry *hfsplus_alloc_attr_entry(void);
 void hfsplus_destroy_attr_entry(hfsplus_attr_entry *entry);
 int hfsplus_find_attr(struct super_block *sb, u32 cnid, const char *name,
 		      struct hfs_find_data *fd);
-int hfsplus_attr_exists(struct inode *inode, const char *name);
-int hfsplus_create_attr(struct inode *inode, const char *name,
+int hfsplus_attr_exists(struct ianalde *ianalde, const char *name);
+int hfsplus_create_attr(struct ianalde *ianalde, const char *name,
 			const void *value, size_t size);
-int hfsplus_delete_attr(struct inode *inode, const char *name);
-int hfsplus_delete_all_attrs(struct inode *dir, u32 cnid);
+int hfsplus_delete_attr(struct ianalde *ianalde, const char *name);
+int hfsplus_delete_all_attrs(struct ianalde *dir, u32 cnid);
 
 /* bitmap.c */
 int hfsplus_block_allocate(struct super_block *sb, u32 size, u32 offset,
@@ -383,51 +383,51 @@ int hfsplus_block_allocate(struct super_block *sb, u32 size, u32 offset,
 int hfsplus_block_free(struct super_block *sb, u32 offset, u32 count);
 
 /* btree.c */
-u32 hfsplus_calc_btree_clump_size(u32 block_size, u32 node_size, u64 sectors,
+u32 hfsplus_calc_btree_clump_size(u32 block_size, u32 analde_size, u64 sectors,
 				  int file_id);
 struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id);
 void hfs_btree_close(struct hfs_btree *tree);
 int hfs_btree_write(struct hfs_btree *tree);
-int hfs_bmap_reserve(struct hfs_btree *tree, int rsvd_nodes);
-struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree);
-void hfs_bmap_free(struct hfs_bnode *node);
+int hfs_bmap_reserve(struct hfs_btree *tree, int rsvd_analdes);
+struct hfs_banalde *hfs_bmap_alloc(struct hfs_btree *tree);
+void hfs_bmap_free(struct hfs_banalde *analde);
 
-/* bnode.c */
-void hfs_bnode_read(struct hfs_bnode *node, void *buf, int off, int len);
-u16 hfs_bnode_read_u16(struct hfs_bnode *node, int off);
-u8 hfs_bnode_read_u8(struct hfs_bnode *node, int off);
-void hfs_bnode_read_key(struct hfs_bnode *node, void *key, int off);
-void hfs_bnode_write(struct hfs_bnode *node, void *buf, int off, int len);
-void hfs_bnode_write_u16(struct hfs_bnode *node, int off, u16 data);
-void hfs_bnode_clear(struct hfs_bnode *node, int off, int len);
-void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
-		    struct hfs_bnode *src_node, int src, int len);
-void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len);
-void hfs_bnode_dump(struct hfs_bnode *node);
-void hfs_bnode_unlink(struct hfs_bnode *node);
-struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid);
-void hfs_bnode_unhash(struct hfs_bnode *node);
-struct hfs_bnode *hfs_bnode_find(struct hfs_btree *tree, u32 num);
-void hfs_bnode_free(struct hfs_bnode *node);
-struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num);
-void hfs_bnode_get(struct hfs_bnode *node);
-void hfs_bnode_put(struct hfs_bnode *node);
-bool hfs_bnode_need_zeroout(struct hfs_btree *tree);
+/* banalde.c */
+void hfs_banalde_read(struct hfs_banalde *analde, void *buf, int off, int len);
+u16 hfs_banalde_read_u16(struct hfs_banalde *analde, int off);
+u8 hfs_banalde_read_u8(struct hfs_banalde *analde, int off);
+void hfs_banalde_read_key(struct hfs_banalde *analde, void *key, int off);
+void hfs_banalde_write(struct hfs_banalde *analde, void *buf, int off, int len);
+void hfs_banalde_write_u16(struct hfs_banalde *analde, int off, u16 data);
+void hfs_banalde_clear(struct hfs_banalde *analde, int off, int len);
+void hfs_banalde_copy(struct hfs_banalde *dst_analde, int dst,
+		    struct hfs_banalde *src_analde, int src, int len);
+void hfs_banalde_move(struct hfs_banalde *analde, int dst, int src, int len);
+void hfs_banalde_dump(struct hfs_banalde *analde);
+void hfs_banalde_unlink(struct hfs_banalde *analde);
+struct hfs_banalde *hfs_banalde_findhash(struct hfs_btree *tree, u32 cnid);
+void hfs_banalde_unhash(struct hfs_banalde *analde);
+struct hfs_banalde *hfs_banalde_find(struct hfs_btree *tree, u32 num);
+void hfs_banalde_free(struct hfs_banalde *analde);
+struct hfs_banalde *hfs_banalde_create(struct hfs_btree *tree, u32 num);
+void hfs_banalde_get(struct hfs_banalde *analde);
+void hfs_banalde_put(struct hfs_banalde *analde);
+bool hfs_banalde_need_zeroout(struct hfs_btree *tree);
 
 /* brec.c */
-u16 hfs_brec_lenoff(struct hfs_bnode *node, u16 rec, u16 *off);
-u16 hfs_brec_keylen(struct hfs_bnode *node, u16 rec);
+u16 hfs_brec_leanalff(struct hfs_banalde *analde, u16 rec, u16 *off);
+u16 hfs_brec_keylen(struct hfs_banalde *analde, u16 rec);
 int hfs_brec_insert(struct hfs_find_data *fd, void *entry, int entry_len);
 int hfs_brec_remove(struct hfs_find_data *fd);
 
 /* bfind.c */
 int hfs_find_init(struct hfs_btree *tree, struct hfs_find_data *fd);
 void hfs_find_exit(struct hfs_find_data *fd);
-int hfs_find_1st_rec_by_cnid(struct hfs_bnode *bnode, struct hfs_find_data *fd,
+int hfs_find_1st_rec_by_cnid(struct hfs_banalde *banalde, struct hfs_find_data *fd,
 			     int *begin, int *end, int *cur_rec);
-int hfs_find_rec_by_key(struct hfs_bnode *bnode, struct hfs_find_data *fd,
+int hfs_find_rec_by_key(struct hfs_banalde *banalde, struct hfs_find_data *fd,
 			int *begin, int *end, int *cur_rec);
-int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd,
+int __hfs_brec_find(struct hfs_banalde *banalde, struct hfs_find_data *fd,
 		    search_strategy_t rec_found);
 int hfs_brec_find(struct hfs_find_data *fd, search_strategy_t do_key_compare);
 int hfs_brec_read(struct hfs_find_data *fd, void *rec, int rec_len);
@@ -442,46 +442,46 @@ int hfsplus_cat_build_key(struct super_block *sb, hfsplus_btree_key *key,
 			   u32 parent, const struct qstr *str);
 void hfsplus_cat_build_key_with_cnid(struct super_block *sb,
 				     hfsplus_btree_key *key, u32 parent);
-void hfsplus_cat_set_perms(struct inode *inode, struct hfsplus_perm *perms);
+void hfsplus_cat_set_perms(struct ianalde *ianalde, struct hfsplus_perm *perms);
 int hfsplus_find_cat(struct super_block *sb, u32 cnid,
 		     struct hfs_find_data *fd);
-int hfsplus_create_cat(u32 cnid, struct inode *dir, const struct qstr *str,
-		       struct inode *inode);
-int hfsplus_delete_cat(u32 cnid, struct inode *dir, const struct qstr *str);
-int hfsplus_rename_cat(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
-		       struct inode *dst_dir, const struct qstr *dst_name);
+int hfsplus_create_cat(u32 cnid, struct ianalde *dir, const struct qstr *str,
+		       struct ianalde *ianalde);
+int hfsplus_delete_cat(u32 cnid, struct ianalde *dir, const struct qstr *str);
+int hfsplus_rename_cat(u32 cnid, struct ianalde *src_dir, const struct qstr *src_name,
+		       struct ianalde *dst_dir, const struct qstr *dst_name);
 
 /* dir.c */
-extern const struct inode_operations hfsplus_dir_inode_operations;
+extern const struct ianalde_operations hfsplus_dir_ianalde_operations;
 extern const struct file_operations hfsplus_dir_operations;
 
 /* extents.c */
 int hfsplus_ext_cmp_key(const hfsplus_btree_key *k1,
 			const hfsplus_btree_key *k2);
-int hfsplus_ext_write_extent(struct inode *inode);
-int hfsplus_get_block(struct inode *inode, sector_t iblock,
+int hfsplus_ext_write_extent(struct ianalde *ianalde);
+int hfsplus_get_block(struct ianalde *ianalde, sector_t iblock,
 		      struct buffer_head *bh_result, int create);
 int hfsplus_free_fork(struct super_block *sb, u32 cnid,
 		      struct hfsplus_fork_raw *fork, int type);
-int hfsplus_file_extend(struct inode *inode, bool zeroout);
-void hfsplus_file_truncate(struct inode *inode);
+int hfsplus_file_extend(struct ianalde *ianalde, bool zeroout);
+void hfsplus_file_truncate(struct ianalde *ianalde);
 
-/* inode.c */
+/* ianalde.c */
 extern const struct address_space_operations hfsplus_aops;
 extern const struct address_space_operations hfsplus_btree_aops;
 extern const struct dentry_operations hfsplus_dentry_operations;
 
 int hfsplus_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, struct page **pagep, void **fsdata);
-struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
+struct ianalde *hfsplus_new_ianalde(struct super_block *sb, struct ianalde *dir,
 				umode_t mode);
-void hfsplus_delete_inode(struct inode *inode);
-void hfsplus_inode_read_fork(struct inode *inode,
+void hfsplus_delete_ianalde(struct ianalde *ianalde);
+void hfsplus_ianalde_read_fork(struct ianalde *ianalde,
 			     struct hfsplus_fork_raw *fork);
-void hfsplus_inode_write_fork(struct inode *inode,
+void hfsplus_ianalde_write_fork(struct ianalde *ianalde,
 			      struct hfsplus_fork_raw *fork);
-int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd);
-int hfsplus_cat_write_inode(struct inode *inode);
+int hfsplus_cat_read_ianalde(struct ianalde *ianalde, struct hfs_find_data *fd);
+int hfsplus_cat_write_ianalde(struct ianalde *ianalde);
 int hfsplus_getattr(struct mnt_idmap *idmap, const struct path *path,
 		    struct kstat *stat, u32 request_mask,
 		    unsigned int query_flags);
@@ -505,7 +505,7 @@ int hfs_part_find(struct super_block *sb, sector_t *part_start,
 		  sector_t *part_size);
 
 /* super.c */
-struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino);
+struct ianalde *hfsplus_iget(struct super_block *sb, unsigned long ianal);
 void hfsplus_mark_mdb_dirty(struct super_block *sb);
 
 /* tables.c */
@@ -556,6 +556,6 @@ static inline __be32 __hfsp_ut2mt(time64_t ut)
 /* compatibility */
 #define hfsp_mt2ut(t)		(struct timespec64){ .tv_sec = __hfsp_mt2ut(t) }
 #define hfsp_ut2mt(t)		__hfsp_ut2mt((t).tv_sec)
-#define hfsp_now2mt()		__hfsp_ut2mt(ktime_get_real_seconds())
+#define hfsp_analw2mt()		__hfsp_ut2mt(ktime_get_real_seconds())
 
 #endif

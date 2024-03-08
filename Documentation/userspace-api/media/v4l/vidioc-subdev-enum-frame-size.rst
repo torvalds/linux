@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_ENUM_FRAME_SIZE:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_SUBDEV_ENUM_FRAME_SIZE - Enumerate media bus frame sizes
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBDEV_ENUM_FRAME_SIZE
@@ -53,16 +53,16 @@ structure.
 
 A successful call will return with minimum and maximum frame sizes filled in.
 Repeat with increasing ``index`` until ``EINVAL`` is received.
-``EINVAL`` means that either no more entries are available in the enumeration,
+``EINVAL`` means that either anal more entries are available in the enumeration,
 or that an input parameter was invalid.
 
 Sub-devices that only support discrete frame sizes (such as most
 sensors) will return one or more frame sizes with identical minimum and
 maximum values.
 
-Not all possible sizes in given [minimum, maximum] ranges need to be
+Analt all possible sizes in given [minimum, maximum] ranges need to be
 supported. For instance, a scaler that uses a fixed-point scaling ratio
-might not be able to produce every frame size between the minimum and
+might analt be able to produce every frame size between the minimum and
 maximum values. Applications must use the
 :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` ioctl to try the
 sub-device for an exact supported frame size.
@@ -121,11 +121,11 @@ information about try formats.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`v4l2_subdev_frame_size_enum` ``pad`` references a
-    non-existing pad, the ``which`` field has an unsupported value, the ``code``
+    analn-existing pad, the ``which`` field has an unsupported value, the ``code``
     is invalid for the given pad, or the ``index`` field is out of bounds.

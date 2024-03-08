@@ -35,8 +35,8 @@
  */
 
 #define NUD_IN_TIMER	(NUD_INCOMPLETE|NUD_REACHABLE|NUD_DELAY|NUD_PROBE)
-#define NUD_VALID	(NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE|NUD_PROBE|NUD_STALE|NUD_DELAY)
-#define NUD_CONNECTED	(NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE)
+#define NUD_VALID	(NUD_PERMANENT|NUD_ANALARP|NUD_REACHABLE|NUD_PROBE|NUD_STALE|NUD_DELAY)
+#define NUD_CONNECTED	(NUD_PERMANENT|NUD_ANALARP|NUD_REACHABLE)
 
 struct neighbour;
 
@@ -290,7 +290,7 @@ static inline bool neigh_key_eq128(const struct neighbour *n, const void *pkey)
 		(n32[2] ^ p32[2]) | (n32[3] ^ p32[3])) == 0;
 }
 
-static inline struct neighbour *___neigh_lookup_noref(
+static inline struct neighbour *___neigh_lookup_analref(
 	struct neigh_table *tbl,
 	bool (*key_eq)(const struct neighbour *n, const void *pkey),
 	__u32 (*hash)(const void *pkey,
@@ -314,21 +314,21 @@ static inline struct neighbour *___neigh_lookup_noref(
 	return NULL;
 }
 
-static inline struct neighbour *__neigh_lookup_noref(struct neigh_table *tbl,
+static inline struct neighbour *__neigh_lookup_analref(struct neigh_table *tbl,
 						     const void *pkey,
 						     struct net_device *dev)
 {
-	return ___neigh_lookup_noref(tbl, tbl->key_eq, tbl->hash, pkey, dev);
+	return ___neigh_lookup_analref(tbl, tbl->key_eq, tbl->hash, pkey, dev);
 }
 
 static inline void neigh_confirm(struct neighbour *n)
 {
 	if (n) {
-		unsigned long now = jiffies;
+		unsigned long analw = jiffies;
 
 		/* avoid dirtying neighbour */
-		if (READ_ONCE(n->confirmed) != now)
-			WRITE_ONCE(n->confirmed, now);
+		if (READ_ONCE(n->confirmed) != analw)
+			WRITE_ONCE(n->confirmed, analw);
 	}
 }
 
@@ -405,7 +405,7 @@ struct neigh_seq_state {
 	unsigned int flags;
 #define NEIGH_SEQ_NEIGH_ONLY	0x00000001
 #define NEIGH_SEQ_IS_PNEIGH	0x00000002
-#define NEIGH_SEQ_SKIP_NOARP	0x00000004
+#define NEIGH_SEQ_SKIP_ANALARP	0x00000004
 };
 void *neigh_seq_start(struct seq_file *, loff_t *, struct neigh_table *,
 		      unsigned int);
@@ -458,10 +458,10 @@ static __always_inline int neigh_event_send_probe(struct neighbour *neigh,
 						  struct sk_buff *skb,
 						  const bool immediate_ok)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
-	if (READ_ONCE(neigh->used) != now)
-		WRITE_ONCE(neigh->used, now);
+	if (READ_ONCE(neigh->used) != analw)
+		WRITE_ONCE(neigh->used, analw);
 	if (!(READ_ONCE(neigh->nud_state) & (NUD_CONNECTED | NUD_DELAY | NUD_PROBE)))
 		return __neigh_event_send(neigh, skb, immediate_ok);
 	return 0;
@@ -499,7 +499,7 @@ static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb
 			hh_alen = HH_DATA_MOD;
 
 			/* skb_push() would proceed silently if we have room for
-			 * the unaligned size but not for the aligned size:
+			 * the unaligned size but analt for the aligned size:
 			 * check headroom explicitly.
 			 */
 			if (likely(skb_headroom(skb) >= HH_DATA_MOD)) {
@@ -555,7 +555,7 @@ __neigh_lookup(struct neigh_table *tbl, const void *pkey, struct net_device *dev
 }
 
 static inline struct neighbour *
-__neigh_lookup_errno(struct neigh_table *tbl, const void *pkey,
+__neigh_lookup_erranal(struct neigh_table *tbl, const void *pkey,
   struct net_device *dev)
 {
 	struct neighbour *n = neigh_lookup(tbl, pkey, dev);
@@ -587,7 +587,7 @@ static inline void neigh_ha_snapshot(char *dst, const struct neighbour *n,
 }
 
 static inline void neigh_update_is_router(struct neighbour *neigh, u32 flags,
-					  int *notify)
+					  int *analtify)
 {
 	u8 ndm_flags = 0;
 
@@ -597,7 +597,7 @@ static inline void neigh_update_is_router(struct neighbour *neigh, u32 flags,
 			neigh->flags |= NTF_ROUTER;
 		else
 			neigh->flags &= ~NTF_ROUTER;
-		*notify = 1;
+		*analtify = 1;
 	}
 }
 #endif

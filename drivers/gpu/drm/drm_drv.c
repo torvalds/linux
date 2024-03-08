@@ -13,13 +13,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -53,8 +53,8 @@ MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
 MODULE_DESCRIPTION("DRM shared core routines");
 MODULE_LICENSE("GPL and additional rights");
 
-static DEFINE_SPINLOCK(drm_minor_lock);
-static struct idr drm_minors_idr;
+static DEFINE_SPINLOCK(drm_mianalr_lock);
+static struct idr drm_mianalrs_idr;
 
 /*
  * If the drm core fails to init for whatever reason,
@@ -70,109 +70,109 @@ static struct dentry *drm_debugfs_root;
 DEFINE_STATIC_SRCU(drm_unplug_srcu);
 
 /*
- * DRM Minors
+ * DRM Mianalrs
  * A DRM device can provide several char-dev interfaces on the DRM-Major. Each
- * of them is represented by a drm_minor object. Depending on the capabilities
+ * of them is represented by a drm_mianalr object. Depending on the capabilities
  * of the device-driver, different interfaces are registered.
  *
- * Minors can be accessed via dev->$minor_name. This pointer is either
- * NULL or a valid drm_minor pointer and stays valid as long as the device is
- * valid. This means, DRM minors have the same life-time as the underlying
- * device. However, this doesn't mean that the minor is active. Minors are
+ * Mianalrs can be accessed via dev->$mianalr_name. This pointer is either
+ * NULL or a valid drm_mianalr pointer and stays valid as long as the device is
+ * valid. This means, DRM mianalrs have the same life-time as the underlying
+ * device. However, this doesn't mean that the mianalr is active. Mianalrs are
  * registered and unregistered dynamically according to device-state.
  */
 
-static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
-					     enum drm_minor_type type)
+static struct drm_mianalr **drm_mianalr_get_slot(struct drm_device *dev,
+					     enum drm_mianalr_type type)
 {
 	switch (type) {
-	case DRM_MINOR_PRIMARY:
+	case DRM_MIANALR_PRIMARY:
 		return &dev->primary;
-	case DRM_MINOR_RENDER:
+	case DRM_MIANALR_RENDER:
 		return &dev->render;
-	case DRM_MINOR_ACCEL:
+	case DRM_MIANALR_ACCEL:
 		return &dev->accel;
 	default:
 		BUG();
 	}
 }
 
-static void drm_minor_alloc_release(struct drm_device *dev, void *data)
+static void drm_mianalr_alloc_release(struct drm_device *dev, void *data)
 {
-	struct drm_minor *minor = data;
+	struct drm_mianalr *mianalr = data;
 	unsigned long flags;
 
-	WARN_ON(dev != minor->dev);
+	WARN_ON(dev != mianalr->dev);
 
-	put_device(minor->kdev);
+	put_device(mianalr->kdev);
 
-	if (minor->type == DRM_MINOR_ACCEL) {
-		accel_minor_remove(minor->index);
+	if (mianalr->type == DRM_MIANALR_ACCEL) {
+		accel_mianalr_remove(mianalr->index);
 	} else {
-		spin_lock_irqsave(&drm_minor_lock, flags);
-		idr_remove(&drm_minors_idr, minor->index);
-		spin_unlock_irqrestore(&drm_minor_lock, flags);
+		spin_lock_irqsave(&drm_mianalr_lock, flags);
+		idr_remove(&drm_mianalrs_idr, mianalr->index);
+		spin_unlock_irqrestore(&drm_mianalr_lock, flags);
 	}
 }
 
-static int drm_minor_alloc(struct drm_device *dev, enum drm_minor_type type)
+static int drm_mianalr_alloc(struct drm_device *dev, enum drm_mianalr_type type)
 {
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	unsigned long flags;
 	int r;
 
-	minor = drmm_kzalloc(dev, sizeof(*minor), GFP_KERNEL);
-	if (!minor)
-		return -ENOMEM;
+	mianalr = drmm_kzalloc(dev, sizeof(*mianalr), GFP_KERNEL);
+	if (!mianalr)
+		return -EANALMEM;
 
-	minor->type = type;
-	minor->dev = dev;
+	mianalr->type = type;
+	mianalr->dev = dev;
 
 	idr_preload(GFP_KERNEL);
-	if (type == DRM_MINOR_ACCEL) {
-		r = accel_minor_alloc();
+	if (type == DRM_MIANALR_ACCEL) {
+		r = accel_mianalr_alloc();
 	} else {
-		spin_lock_irqsave(&drm_minor_lock, flags);
-		r = idr_alloc(&drm_minors_idr,
+		spin_lock_irqsave(&drm_mianalr_lock, flags);
+		r = idr_alloc(&drm_mianalrs_idr,
 			NULL,
 			64 * type,
 			64 * (type + 1),
-			GFP_NOWAIT);
-		spin_unlock_irqrestore(&drm_minor_lock, flags);
+			GFP_ANALWAIT);
+		spin_unlock_irqrestore(&drm_mianalr_lock, flags);
 	}
 	idr_preload_end();
 
 	if (r < 0)
 		return r;
 
-	minor->index = r;
+	mianalr->index = r;
 
-	r = drmm_add_action_or_reset(dev, drm_minor_alloc_release, minor);
+	r = drmm_add_action_or_reset(dev, drm_mianalr_alloc_release, mianalr);
 	if (r)
 		return r;
 
-	minor->kdev = drm_sysfs_minor_alloc(minor);
-	if (IS_ERR(minor->kdev))
-		return PTR_ERR(minor->kdev);
+	mianalr->kdev = drm_sysfs_mianalr_alloc(mianalr);
+	if (IS_ERR(mianalr->kdev))
+		return PTR_ERR(mianalr->kdev);
 
-	*drm_minor_get_slot(dev, type) = minor;
+	*drm_mianalr_get_slot(dev, type) = mianalr;
 	return 0;
 }
 
-static int drm_minor_register(struct drm_device *dev, enum drm_minor_type type)
+static int drm_mianalr_register(struct drm_device *dev, enum drm_mianalr_type type)
 {
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	unsigned long flags;
 	int ret;
 
 	DRM_DEBUG("\n");
 
-	minor = *drm_minor_get_slot(dev, type);
-	if (!minor)
+	mianalr = *drm_mianalr_get_slot(dev, type);
+	if (!mianalr)
 		return 0;
 
-	if (minor->type != DRM_MINOR_ACCEL) {
-		ret = drm_debugfs_register(minor, minor->index,
+	if (mianalr->type != DRM_MIANALR_ACCEL) {
+		ret = drm_debugfs_register(mianalr, mianalr->index,
 					   drm_debugfs_root);
 		if (ret) {
 			DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
@@ -180,83 +180,83 @@ static int drm_minor_register(struct drm_device *dev, enum drm_minor_type type)
 		}
 	}
 
-	ret = device_add(minor->kdev);
+	ret = device_add(mianalr->kdev);
 	if (ret)
 		goto err_debugfs;
 
-	/* replace NULL with @minor so lookups will succeed from now on */
-	if (minor->type == DRM_MINOR_ACCEL) {
-		accel_minor_replace(minor, minor->index);
+	/* replace NULL with @mianalr so lookups will succeed from analw on */
+	if (mianalr->type == DRM_MIANALR_ACCEL) {
+		accel_mianalr_replace(mianalr, mianalr->index);
 	} else {
-		spin_lock_irqsave(&drm_minor_lock, flags);
-		idr_replace(&drm_minors_idr, minor, minor->index);
-		spin_unlock_irqrestore(&drm_minor_lock, flags);
+		spin_lock_irqsave(&drm_mianalr_lock, flags);
+		idr_replace(&drm_mianalrs_idr, mianalr, mianalr->index);
+		spin_unlock_irqrestore(&drm_mianalr_lock, flags);
 	}
 
-	DRM_DEBUG("new minor registered %d\n", minor->index);
+	DRM_DEBUG("new mianalr registered %d\n", mianalr->index);
 	return 0;
 
 err_debugfs:
-	drm_debugfs_unregister(minor);
+	drm_debugfs_unregister(mianalr);
 	return ret;
 }
 
-static void drm_minor_unregister(struct drm_device *dev, enum drm_minor_type type)
+static void drm_mianalr_unregister(struct drm_device *dev, enum drm_mianalr_type type)
 {
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	unsigned long flags;
 
-	minor = *drm_minor_get_slot(dev, type);
-	if (!minor || !device_is_registered(minor->kdev))
+	mianalr = *drm_mianalr_get_slot(dev, type);
+	if (!mianalr || !device_is_registered(mianalr->kdev))
 		return;
 
-	/* replace @minor with NULL so lookups will fail from now on */
-	if (minor->type == DRM_MINOR_ACCEL) {
-		accel_minor_replace(NULL, minor->index);
+	/* replace @mianalr with NULL so lookups will fail from analw on */
+	if (mianalr->type == DRM_MIANALR_ACCEL) {
+		accel_mianalr_replace(NULL, mianalr->index);
 	} else {
-		spin_lock_irqsave(&drm_minor_lock, flags);
-		idr_replace(&drm_minors_idr, NULL, minor->index);
-		spin_unlock_irqrestore(&drm_minor_lock, flags);
+		spin_lock_irqsave(&drm_mianalr_lock, flags);
+		idr_replace(&drm_mianalrs_idr, NULL, mianalr->index);
+		spin_unlock_irqrestore(&drm_mianalr_lock, flags);
 	}
 
-	device_del(minor->kdev);
-	dev_set_drvdata(minor->kdev, NULL); /* safety belt */
-	drm_debugfs_unregister(minor);
+	device_del(mianalr->kdev);
+	dev_set_drvdata(mianalr->kdev, NULL); /* safety belt */
+	drm_debugfs_unregister(mianalr);
 }
 
 /*
- * Looks up the given minor-ID and returns the respective DRM-minor object. The
+ * Looks up the given mianalr-ID and returns the respective DRM-mianalr object. The
  * refence-count of the underlying device is increased so you must release this
- * object with drm_minor_release().
+ * object with drm_mianalr_release().
  *
- * As long as you hold this minor, it is guaranteed that the object and the
- * minor->dev pointer will stay valid! However, the device may get unplugged and
- * unregistered while you hold the minor.
+ * As long as you hold this mianalr, it is guaranteed that the object and the
+ * mianalr->dev pointer will stay valid! However, the device may get unplugged and
+ * unregistered while you hold the mianalr.
  */
-struct drm_minor *drm_minor_acquire(unsigned int minor_id)
+struct drm_mianalr *drm_mianalr_acquire(unsigned int mianalr_id)
 {
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&drm_minor_lock, flags);
-	minor = idr_find(&drm_minors_idr, minor_id);
-	if (minor)
-		drm_dev_get(minor->dev);
-	spin_unlock_irqrestore(&drm_minor_lock, flags);
+	spin_lock_irqsave(&drm_mianalr_lock, flags);
+	mianalr = idr_find(&drm_mianalrs_idr, mianalr_id);
+	if (mianalr)
+		drm_dev_get(mianalr->dev);
+	spin_unlock_irqrestore(&drm_mianalr_lock, flags);
 
-	if (!minor) {
-		return ERR_PTR(-ENODEV);
-	} else if (drm_dev_is_unplugged(minor->dev)) {
-		drm_dev_put(minor->dev);
-		return ERR_PTR(-ENODEV);
+	if (!mianalr) {
+		return ERR_PTR(-EANALDEV);
+	} else if (drm_dev_is_unplugged(mianalr->dev)) {
+		drm_dev_put(mianalr->dev);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	return minor;
+	return mianalr;
 }
 
-void drm_minor_release(struct drm_minor *minor)
+void drm_mianalr_release(struct drm_mianalr *mianalr)
 {
-	drm_dev_put(minor->dev);
+	drm_dev_put(mianalr->dev);
 }
 
 /**
@@ -275,15 +275,15 @@ void drm_minor_release(struct drm_minor *minor)
  * bus-specific helpers and the &drm_driver.load callback. But due to
  * backwards-compatibility needs the device instance have to be published too
  * early, which requires unpretty global locking to make safe and is therefore
- * only support for existing drivers not yet converted to the new scheme.
+ * only support for existing drivers analt yet converted to the new scheme.
  *
  * When cleaning up a device instance everything needs to be done in reverse:
  * First unpublish the device instance with drm_dev_unregister(). Then clean up
  * any other resources allocated at device initialization and drop the driver's
  * reference to &drm_device using drm_dev_put().
  *
- * Note that any allocation or resource which is visible to userspace must be
- * released only when the final drm_dev_put() is called, and not when the
+ * Analte that any allocation or resource which is visible to userspace must be
+ * released only when the final drm_dev_put() is called, and analt when the
  * driver is unbound from the underlying physical struct &device. Best to use
  * &drm_device managed resources with drmm_add_action(), drmm_kmalloc() and
  * related functions.
@@ -329,7 +329,7 @@ void drm_minor_release(struct drm_minor *minor)
  *
  *		priv->userspace_facing = drmm_kzalloc(..., GFP_KERNEL);
  *		if (!priv->userspace_facing)
- *			return -ENOMEM;
+ *			return -EANALMEM;
  *
  *		priv->pclk = devm_clk_get(dev, "PCLK");
  *		if (IS_ERR(priv->pclk))
@@ -400,7 +400,7 @@ void drm_minor_release(struct drm_minor *minor)
  * released. This is done using drm_dev_enter() and drm_dev_exit(). There is one
  * shortcoming however, drm_dev_unplug() marks the drm_device as unplugged before
  * drm_atomic_helper_shutdown() is called. This means that if the disable code
- * paths are protected, they will not run on regular driver module unload,
+ * paths are protected, they will analt run on regular driver module unload,
  * possibly leaving the hardware enabled.
  */
 
@@ -412,7 +412,7 @@ void drm_minor_release(struct drm_minor *minor)
  *
  * Cleans up all DRM device, calling drm_lastclose().
  *
- * Note: Use of this function is deprecated. It will eventually go away
+ * Analte: Use of this function is deprecated. It will eventually go away
  * completely.  Please use drm_dev_unregister() and drm_dev_put() explicitly
  * instead to make sure that the device isn't userspace accessible any more
  * while teardown is in progress, ensuring that userspace can't access an
@@ -423,7 +423,7 @@ void drm_put_dev(struct drm_device *dev)
 	DRM_DEBUG("\n");
 
 	if (!dev) {
-		DRM_ERROR("cleanup called no dev\n");
+		DRM_ERROR("cleanup called anal dev\n");
 		return;
 	}
 
@@ -437,7 +437,7 @@ EXPORT_SYMBOL(drm_put_dev);
  * @dev: DRM device
  * @idx: Pointer to index that will be passed to the matching drm_dev_exit()
  *
- * This function marks and protects the beginning of a section that should not
+ * This function marks and protects the beginning of a section that should analt
  * be entered after the device has been unplugged. The section end is marked
  * with drm_dev_exit(). Calls to this function can be nested.
  *
@@ -461,7 +461,7 @@ EXPORT_SYMBOL(drm_dev_enter);
  * drm_dev_exit - Exit device critical section
  * @idx: index returned from drm_dev_enter()
  *
- * This function marks the end of a section that should not be entered after
+ * This function marks the end of a section that should analt be entered after
  * the device has been unplugged.
  */
 void drm_dev_exit(int idx)
@@ -494,26 +494,26 @@ void drm_dev_unplug(struct drm_device *dev)
 	drm_dev_unregister(dev);
 
 	/* Clear all CPU mappings pointing to this device */
-	unmap_mapping_range(dev->anon_inode->i_mapping, 0, 0, 1);
+	unmap_mapping_range(dev->aanaln_ianalde->i_mapping, 0, 0, 1);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
 
 /*
  * DRM internal mount
  * We want to be able to allocate our own "struct address_space" to control
- * memory-mappings in VRAM (or stolen RAM, ...). However, core MM does not allow
- * stand-alone address_space objects, so we need an underlying inode. As there
- * is no way to allocate an independent inode easily, we need a fake internal
+ * memory-mappings in VRAM (or stolen RAM, ...). However, core MM does analt allow
+ * stand-alone address_space objects, so we need an underlying ianalde. As there
+ * is anal way to allocate an independent ianalde easily, we need a fake internal
  * VFS mount-point.
  *
- * The drm_fs_inode_new() function allocates a new inode, drm_fs_inode_free()
+ * The drm_fs_ianalde_new() function allocates a new ianalde, drm_fs_ianalde_free()
  * frees it again. You are allowed to use iget() and iput() to get references to
- * the inode. But each drm_fs_inode_new() call must be paired with exactly one
- * drm_fs_inode_free() call (which does not have to be the last iput()).
- * We use drm_fs_inode_*() to manage our internal VFS mount-point and share it
- * between multiple inode-users. You could, technically, call
- * iget() + drm_fs_inode_free() directly after alloc and sometime later do an
- * iput(), but this way you'd end up with a new vfsmount for each inode.
+ * the ianalde. But each drm_fs_ianalde_new() call must be paired with exactly one
+ * drm_fs_ianalde_free() call (which does analt have to be the last iput()).
+ * We use drm_fs_ianalde_*() to manage our internal VFS mount-point and share it
+ * between multiple ianalde-users. You could, technically, call
+ * iget() + drm_fs_ianalde_free() directly after alloc and sometime later do an
+ * iput(), but this way you'd end up with a new vfsmount for each ianalde.
  */
 
 static int drm_fs_cnt;
@@ -521,38 +521,38 @@ static struct vfsmount *drm_fs_mnt;
 
 static int drm_fs_init_fs_context(struct fs_context *fc)
 {
-	return init_pseudo(fc, 0x010203ff) ? 0 : -ENOMEM;
+	return init_pseudo(fc, 0x010203ff) ? 0 : -EANALMEM;
 }
 
 static struct file_system_type drm_fs_type = {
 	.name		= "drm",
 	.owner		= THIS_MODULE,
 	.init_fs_context = drm_fs_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_aanaln_super,
 };
 
-static struct inode *drm_fs_inode_new(void)
+static struct ianalde *drm_fs_ianalde_new(void)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int r;
 
 	r = simple_pin_fs(&drm_fs_type, &drm_fs_mnt, &drm_fs_cnt);
 	if (r < 0) {
-		DRM_ERROR("Cannot mount pseudo fs: %d\n", r);
+		DRM_ERROR("Cananalt mount pseudo fs: %d\n", r);
 		return ERR_PTR(r);
 	}
 
-	inode = alloc_anon_inode(drm_fs_mnt->mnt_sb);
-	if (IS_ERR(inode))
+	ianalde = alloc_aanaln_ianalde(drm_fs_mnt->mnt_sb);
+	if (IS_ERR(ianalde))
 		simple_release_fs(&drm_fs_mnt, &drm_fs_cnt);
 
-	return inode;
+	return ianalde;
 }
 
-static void drm_fs_inode_free(struct inode *inode)
+static void drm_fs_ianalde_free(struct ianalde *ianalde)
 {
-	if (inode) {
-		iput(inode);
+	if (ianalde) {
+		iput(ianalde);
 		simple_release_fs(&drm_fs_mnt, &drm_fs_cnt);
 	}
 }
@@ -571,20 +571,20 @@ static void drm_fs_inode_free(struct inode *inode)
  *    component_bind_all() and finishing with drm_dev_register().
  *
  *  - The opaque pointer passed to all components through component_bind_all()
- *    should point at &struct drm_device of the device instance, not some driver
+ *    should point at &struct drm_device of the device instance, analt some driver
  *    specific private structure.
  *
  *  - The component helper fills the niche where further standardization of
- *    interfaces is not practical. When there already is, or will be, a
+ *    interfaces is analt practical. When there already is, or will be, a
  *    standardized interface like &drm_bridge or &drm_panel, providing its own
  *    functions to find such components at driver load time, like
- *    drm_of_find_panel_or_bridge(), then the component helper should not be
+ *    drm_of_find_panel_or_bridge(), then the component helper should analt be
  *    used.
  */
 
 static void drm_dev_init_release(struct drm_device *dev, void *res)
 {
-	drm_fs_inode_free(dev->anon_inode);
+	drm_fs_ianalde_free(dev->aanaln_ianalde);
 
 	put_device(dev->dev);
 	/* Prevent use-after-free in drm_managed_release when debugging is
@@ -600,12 +600,12 @@ static int drm_dev_init(struct drm_device *dev,
 			const struct drm_driver *driver,
 			struct device *parent)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int ret;
 
 	if (!drm_core_init_complete) {
-		DRM_ERROR("DRM core is not initialized\n");
-		return -ENODEV;
+		DRM_ERROR("DRM core is analt initialized\n");
+		return -EANALDEV;
 	}
 
 	if (WARN_ON(!parent))
@@ -618,7 +618,7 @@ static int drm_dev_init(struct drm_device *dev,
 	INIT_LIST_HEAD(&dev->managed.resources);
 	spin_lock_init(&dev->managed.lock);
 
-	/* no per-device feature limits by default */
+	/* anal per-device feature limits by default */
 	dev->driver_features = ~0u;
 
 	if (drm_core_check_feature(dev, DRIVER_COMPUTE_ACCEL) &&
@@ -643,27 +643,27 @@ static int drm_dev_init(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	inode = drm_fs_inode_new();
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
-		DRM_ERROR("Cannot allocate anonymous inode: %d\n", ret);
+	ianalde = drm_fs_ianalde_new();
+	if (IS_ERR(ianalde)) {
+		ret = PTR_ERR(ianalde);
+		DRM_ERROR("Cananalt allocate aanalnymous ianalde: %d\n", ret);
 		goto err;
 	}
 
-	dev->anon_inode = inode;
+	dev->aanaln_ianalde = ianalde;
 
 	if (drm_core_check_feature(dev, DRIVER_COMPUTE_ACCEL)) {
-		ret = drm_minor_alloc(dev, DRM_MINOR_ACCEL);
+		ret = drm_mianalr_alloc(dev, DRM_MIANALR_ACCEL);
 		if (ret)
 			goto err;
 	} else {
 		if (drm_core_check_feature(dev, DRIVER_RENDER)) {
-			ret = drm_minor_alloc(dev, DRM_MINOR_RENDER);
+			ret = drm_mianalr_alloc(dev, DRM_MIANALR_RENDER);
 			if (ret)
 				goto err;
 		}
 
-		ret = drm_minor_alloc(dev, DRM_MINOR_PRIMARY);
+		ret = drm_mianalr_alloc(dev, DRM_MIANALR_PRIMARY);
 		if (ret)
 			goto err;
 	}
@@ -671,14 +671,14 @@ static int drm_dev_init(struct drm_device *dev,
 	if (drm_core_check_feature(dev, DRIVER_GEM)) {
 		ret = drm_gem_init(dev);
 		if (ret) {
-			DRM_ERROR("Cannot initialize graphics execution manager (GEM)\n");
+			DRM_ERROR("Cananalt initialize graphics execution manager (GEM)\n");
 			goto err;
 		}
 	}
 
 	dev->unique = drmm_kstrdup(dev, dev_name(parent), GFP_KERNEL);
 	if (!dev->unique) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -724,7 +724,7 @@ void *__devm_drm_dev_alloc(struct device *parent,
 
 	container = kzalloc(size, GFP_KERNEL);
 	if (!container)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	drm = container + offset;
 	ret = devm_drm_dev_init(parent, drm, driver);
@@ -743,9 +743,9 @@ EXPORT_SYMBOL(__devm_drm_dev_alloc);
  * @driver: DRM driver to allocate device for
  * @parent: Parent device object
  *
- * This is the deprecated version of devm_drm_dev_alloc(), which does not support
+ * This is the deprecated version of devm_drm_dev_alloc(), which does analt support
  * subclassing through embedding the struct &drm_device in a driver private
- * structure, and which does not support automatic cleanup through devres.
+ * structure, and which does analt support automatic cleanup through devres.
  *
  * RETURNS:
  * Pointer to new DRM device, or ERR_PTR on failure.
@@ -758,7 +758,7 @@ struct drm_device *drm_dev_alloc(const struct drm_driver *driver,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = drm_dev_init(dev, driver, parent);
 	if (ret) {
@@ -795,7 +795,7 @@ static void drm_dev_release(struct kref *ref)
  * reference when calling this. Use drm_dev_put() to drop this reference
  * again.
  *
- * This function never fails. However, this function does not provide *any*
+ * This function never fails. However, this function does analt provide *any*
  * guarantee whether the device is alive or running. It only provides a
  * reference to the object and the memory associated with it.
  */
@@ -822,15 +822,15 @@ EXPORT_SYMBOL(drm_dev_put);
 
 static int create_compat_control_link(struct drm_device *dev)
 {
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	char *name;
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
-	minor = *drm_minor_get_slot(dev, DRM_MINOR_PRIMARY);
-	if (!minor)
+	mianalr = *drm_mianalr_get_slot(dev, DRM_MIANALR_PRIMARY);
+	if (!mianalr)
 		return 0;
 
 	/*
@@ -842,12 +842,12 @@ static int create_compat_control_link(struct drm_device *dev)
 	 * Old controlD chardev have been allocated in the range
 	 * 64-127.
 	 */
-	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
+	name = kasprintf(GFP_KERNEL, "controlD%d", mianalr->index + 64);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = sysfs_create_link(minor->kdev->kobj.parent,
-				&minor->kdev->kobj,
+	ret = sysfs_create_link(mianalr->kdev->kobj.parent,
+				&mianalr->kdev->kobj,
 				name);
 
 	kfree(name);
@@ -857,21 +857,21 @@ static int create_compat_control_link(struct drm_device *dev)
 
 static void remove_compat_control_link(struct drm_device *dev)
 {
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	char *name;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	minor = *drm_minor_get_slot(dev, DRM_MINOR_PRIMARY);
-	if (!minor)
+	mianalr = *drm_mianalr_get_slot(dev, DRM_MIANALR_PRIMARY);
+	if (!mianalr)
 		return;
 
-	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
+	name = kasprintf(GFP_KERNEL, "controlD%d", mianalr->index + 64);
 	if (!name)
 		return;
 
-	sysfs_remove_link(minor->kdev->kobj.parent, name);
+	sysfs_remove_link(mianalr->kdev->kobj.parent, name);
 
 	kfree(name);
 }
@@ -882,14 +882,14 @@ static void remove_compat_control_link(struct drm_device *dev)
  * @flags: Flags passed to the driver's .load() function
  *
  * Register the DRM device @dev with the system, advertise device to user-space
- * and start normal device operation. @dev must be initialized via drm_dev_init()
+ * and start analrmal device operation. @dev must be initialized via drm_dev_init()
  * previously.
  *
  * Never call this twice on any device!
  *
- * NOTE: To ensure backward compatibility with existing drivers method this
+ * ANALTE: To ensure backward compatibility with existing drivers method this
  * function calls the &drm_driver.load method after registering the device
- * nodes, creating race conditions. Usage of the &drm_driver.load methods is
+ * analdes, creating race conditions. Usage of the &drm_driver.load methods is
  * therefore deprecated, drivers must perform all initialization before calling
  * drm_dev_register().
  *
@@ -914,28 +914,28 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	else
 		drm_debugfs_dev_register(dev);
 
-	ret = drm_minor_register(dev, DRM_MINOR_RENDER);
+	ret = drm_mianalr_register(dev, DRM_MIANALR_RENDER);
 	if (ret)
-		goto err_minors;
+		goto err_mianalrs;
 
-	ret = drm_minor_register(dev, DRM_MINOR_PRIMARY);
+	ret = drm_mianalr_register(dev, DRM_MIANALR_PRIMARY);
 	if (ret)
-		goto err_minors;
+		goto err_mianalrs;
 
-	ret = drm_minor_register(dev, DRM_MINOR_ACCEL);
+	ret = drm_mianalr_register(dev, DRM_MIANALR_ACCEL);
 	if (ret)
-		goto err_minors;
+		goto err_mianalrs;
 
 	ret = create_compat_control_link(dev);
 	if (ret)
-		goto err_minors;
+		goto err_mianalrs;
 
 	dev->registered = true;
 
 	if (driver->load) {
 		ret = driver->load(dev, flags);
 		if (ret)
-			goto err_minors;
+			goto err_mianalrs;
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -944,8 +944,8 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 			goto err_unload;
 	}
 
-	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
-		 driver->name, driver->major, driver->minor,
+	DRM_INFO("Initialized %s %d.%d.%d %s for %s on mianalr %d\n",
+		 driver->name, driver->major, driver->mianalr,
 		 driver->patchlevel, driver->date,
 		 dev->dev ? dev_name(dev->dev) : "virtual device",
 		 dev->primary ? dev->primary->index : dev->accel->index);
@@ -955,11 +955,11 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 err_unload:
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
-err_minors:
+err_mianalrs:
 	remove_compat_control_link(dev);
-	drm_minor_unregister(dev, DRM_MINOR_ACCEL);
-	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
-	drm_minor_unregister(dev, DRM_MINOR_RENDER);
+	drm_mianalr_unregister(dev, DRM_MIANALR_ACCEL);
+	drm_mianalr_unregister(dev, DRM_MIANALR_PRIMARY);
+	drm_mianalr_unregister(dev, DRM_MIANALR_RENDER);
 out_unlock:
 	if (drm_dev_needs_global_mutex(dev))
 		mutex_unlock(&drm_global_mutex);
@@ -972,7 +972,7 @@ EXPORT_SYMBOL(drm_dev_register);
  * @dev: Device to unregister
  *
  * Unregister the DRM device from the system. This does the reverse of
- * drm_dev_register() but does not deallocate the device. The caller must call
+ * drm_dev_register() but does analt deallocate the device. The caller must call
  * drm_dev_put() to drop their final reference, unless it is managed with devres
  * (as devices allocated with devm_drm_dev_alloc() are), in which case there is
  * already an unwind action registered.
@@ -996,9 +996,9 @@ void drm_dev_unregister(struct drm_device *dev)
 		dev->driver->unload(dev);
 
 	remove_compat_control_link(dev);
-	drm_minor_unregister(dev, DRM_MINOR_ACCEL);
-	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
-	drm_minor_unregister(dev, DRM_MINOR_RENDER);
+	drm_mianalr_unregister(dev, DRM_MIANALR_ACCEL);
+	drm_mianalr_unregister(dev, DRM_MIANALR_PRIMARY);
+	drm_mianalr_unregister(dev, DRM_MIANALR_RENDER);
 	drm_debugfs_dev_fini(dev);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
@@ -1012,43 +1012,43 @@ EXPORT_SYMBOL(drm_dev_unregister);
  *  - The "DRM-Global" key/value database
  *  - Global ID management for connectors
  *  - DRM major number allocation
- *  - DRM minor management
+ *  - DRM mianalr management
  *  - DRM sysfs class
  *  - DRM debugfs root
  *
  * Furthermore, the DRM core provides dynamic char-dev lookups. For each
- * interface registered on a DRM device, you can request minor numbers from DRM
+ * interface registered on a DRM device, you can request mianalr numbers from DRM
  * core. DRM core takes care of major-number management and char-dev
  * registration. A stub ->open() callback forwards any open() requests to the
- * registered minor.
+ * registered mianalr.
  */
 
-static int drm_stub_open(struct inode *inode, struct file *filp)
+static int drm_stub_open(struct ianalde *ianalde, struct file *filp)
 {
 	const struct file_operations *new_fops;
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	int err;
 
 	DRM_DEBUG("\n");
 
-	minor = drm_minor_acquire(iminor(inode));
-	if (IS_ERR(minor))
-		return PTR_ERR(minor);
+	mianalr = drm_mianalr_acquire(imianalr(ianalde));
+	if (IS_ERR(mianalr))
+		return PTR_ERR(mianalr);
 
-	new_fops = fops_get(minor->dev->driver->fops);
+	new_fops = fops_get(mianalr->dev->driver->fops);
 	if (!new_fops) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	replace_fops(filp, new_fops);
 	if (filp->f_op->open)
-		err = filp->f_op->open(inode, filp);
+		err = filp->f_op->open(ianalde, filp);
 	else
 		err = 0;
 
 out:
-	drm_minor_release(minor);
+	drm_mianalr_release(mianalr);
 
 	return err;
 }
@@ -1056,7 +1056,7 @@ out:
 static const struct file_operations drm_stub_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_stub_open,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static void drm_core_exit(void)
@@ -1066,7 +1066,7 @@ static void drm_core_exit(void)
 	unregister_chrdev(DRM_MAJOR, "drm");
 	debugfs_remove(drm_debugfs_root);
 	drm_sysfs_destroy();
-	idr_destroy(&drm_minors_idr);
+	idr_destroy(&drm_mianalrs_idr);
 	drm_connector_ida_destroy();
 }
 
@@ -1075,12 +1075,12 @@ static int __init drm_core_init(void)
 	int ret;
 
 	drm_connector_ida_init();
-	idr_init(&drm_minors_idr);
+	idr_init(&drm_mianalrs_idr);
 	drm_memcpy_init_early();
 
 	ret = drm_sysfs_init();
 	if (ret < 0) {
-		DRM_ERROR("Cannot create DRM class: %d\n", ret);
+		DRM_ERROR("Cananalt create DRM class: %d\n", ret);
 		goto error;
 	}
 

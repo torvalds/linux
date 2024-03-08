@@ -70,7 +70,7 @@ static inline int ixp46x_ptp_find(struct ixp46x_ts_regs *__iomem *regs, int *phc
 	*regs = NULL;
 	*phc_index = -1;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

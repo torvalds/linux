@@ -283,7 +283,7 @@ struct memstick_host {
 	unsigned int        retries;
 	bool removing;
 
-	/* Notify the host that some requests are pending. */
+	/* Analtify the host that some requests are pending. */
 	void                (*request)(struct memstick_host *host);
 	/* Set host IO parameters (power, clock, etc).     */
 	int                 (*set_param)(struct memstick_host *host,

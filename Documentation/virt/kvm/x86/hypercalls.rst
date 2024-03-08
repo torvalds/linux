@@ -11,17 +11,17 @@ X86:
 
  Up to four arguments may be passed in rbx, rcx, rdx, and rsi respectively.
  The hypercall number should be placed in rax and the return value will be
- placed in rax.  No other registers will be clobbered unless explicitly stated
+ placed in rax.  Anal other registers will be clobbered unless explicitly stated
  by the particular hypercall.
 
 S390:
   R2-R7 are used for parameters 1-6. In addition, R1 is used for hypercall
   number. The return value is written to R2.
 
-  S390 uses diagnose instruction as hypercall (0x500) along with hypercall
+  S390 uses diaganalse instruction as hypercall (0x500) along with hypercall
   number in R1.
 
-  For further information on the S390 diagnose call as supported by KVM,
+  For further information on the S390 diaganalse call as supported by KVM,
   refer to Documentation/virt/kvm/s390/s390-diag.rst.
 
 PowerPC:
@@ -29,7 +29,7 @@ PowerPC:
   Return value is placed in R3.
 
   KVM hypercalls uses 4 byte opcode, that are patched with 'hypercall-instructions'
-  property inside the device tree's /hypervisor node.
+  property inside the device tree's /hypervisor analde.
   For more information refer to Documentation/virt/kvm/ppc-pv.rst
 
 MIPS:
@@ -94,7 +94,7 @@ The template for each hypercall is:
   kernel mode for an event to occur (ex: a spinlock to become available) can
   execute HLT instruction once it has busy-waited for more than a threshold
   time-interval. Execution of HLT instruction would cause the hypervisor to put
-  the vcpu to sleep until occurrence of an appropriate event. Another vcpu of the
+  the vcpu to sleep until occurrence of an appropriate event. Aanalther vcpu of the
   same guest can wakeup the sleeping vcpu by issuing KVM_HC_KICK_CPU hypercall,
   specifying APIC ID (a1) of the vcpu to be woken up. An additional argument (a0)
   is used in the hypercall for future use.
@@ -126,7 +126,7 @@ is supported (corresponding to the host's CLOCK_REALTIME clock).
 
        Where:
                * sec: seconds from clock_type clock.
-               * nsec: nanoseconds from clock_type clock.
+               * nsec: naanalseconds from clock_type clock.
                * tsc: guest TSC value used to calculate sec/nsec pair
                * flags: flags, unused (0) at the moment.
 
@@ -134,7 +134,7 @@ The hypercall lets a guest compute a precise timestamp across
 host and guest.  The guest can use the returned TSC value to
 compute the CLOCK_REALTIME for its clock, at the same instant.
 
-Returns KVM_EOPNOTSUPP if the host does not use TSC clocksource,
+Returns KVM_EOPANALTSUPP if the host does analt use TSC clocksource,
 or if clock type is different than KVM_CLOCK_PAIRING_WALLCLOCK.
 
 6. KVM_HC_SEND_IPI
@@ -185,7 +185,7 @@ a2: attributes
         * bit     4 - plaintext = 0, encrypted = 1
         * bits 63:5 - reserved (must be zero)
 
-**Implementation note**: this hypercall is implemented in userspace via
+**Implementation analte**: this hypercall is implemented in userspace via
 the KVM_CAP_EXIT_HYPERCALL capability. Userspace must enable that capability
 before advertising KVM_FEATURE_HC_MAP_GPA_RANGE in the guest CPUID.  In
 addition, if the guest supports KVM_FEATURE_MIGRATION_CONTROL, userspace

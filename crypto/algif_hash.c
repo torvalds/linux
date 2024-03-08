@@ -40,7 +40,7 @@ static int hash_alloc_result(struct sock *sk, struct hash_ctx *ctx)
 
 	ctx->result = sock_kmalloc(sk, ds, GFP_KERNEL);
 	if (!ctx->result)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(ctx->result, 0, ds);
 
@@ -61,7 +61,7 @@ static void hash_free_result(struct sock *sk, struct hash_ctx *ctx)
 }
 
 static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
-			size_t ignored)
+			size_t iganalred)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -85,7 +85,7 @@ static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 		need_init = true;
 	} else if (!msg_data_left(msg)) {
 		/*
-		 * No data - finalise the prev req if MSG_MORE so any error
+		 * Anal data - finalise the prev req if MSG_MORE so any error
 		 * comes out here.
 		 */
 		if (!(msg->msg_flags & MSG_MORE)) {
@@ -240,7 +240,7 @@ static int hash_accept(struct socket *sock, struct socket *newsock, int flags,
 
 	tfm = crypto_ahash_reqtfm(req);
 	state = kmalloc(crypto_ahash_statesize(tfm), GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!state)
 		goto out;
 
@@ -280,14 +280,14 @@ out:
 static struct proto_ops algif_hash_ops = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
+	.connect	=	sock_anal_connect,
+	.socketpair	=	sock_anal_socketpair,
+	.getname	=	sock_anal_getname,
+	.ioctl		=	sock_anal_ioctl,
+	.listen		=	sock_anal_listen,
+	.shutdown	=	sock_anal_shutdown,
+	.mmap		=	sock_anal_mmap,
+	.bind		=	sock_anal_bind,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	hash_sendmsg,
@@ -305,20 +305,20 @@ static int hash_check_key(struct socket *sock)
 	struct alg_sock *ask = alg_sk(sk);
 
 	lock_sock(sk);
-	if (!atomic_read(&ask->nokey_refcnt))
+	if (!atomic_read(&ask->analkey_refcnt))
 		goto unlock_child;
 
 	psk = ask->parent;
 	pask = alg_sk(ask->parent);
 	tfm = pask->private;
 
-	err = -ENOKEY;
+	err = -EANALKEY;
 	lock_sock_nested(psk, SINGLE_DEPTH_NESTING);
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		goto unlock;
 
-	atomic_dec(&pask->nokey_refcnt);
-	atomic_set(&ask->nokey_refcnt, 0);
+	atomic_dec(&pask->analkey_refcnt);
+	atomic_set(&ask->analkey_refcnt, 0);
 
 	err = 0;
 
@@ -330,7 +330,7 @@ unlock_child:
 	return err;
 }
 
-static int hash_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
+static int hash_sendmsg_analkey(struct socket *sock, struct msghdr *msg,
 			      size_t size)
 {
 	int err;
@@ -342,8 +342,8 @@ static int hash_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
 	return hash_sendmsg(sock, msg, size);
 }
 
-static int hash_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
-			      size_t ignored, int flags)
+static int hash_recvmsg_analkey(struct socket *sock, struct msghdr *msg,
+			      size_t iganalred, int flags)
 {
 	int err;
 
@@ -351,10 +351,10 @@ static int hash_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
 	if (err)
 		return err;
 
-	return hash_recvmsg(sock, msg, ignored, flags);
+	return hash_recvmsg(sock, msg, iganalred, flags);
 }
 
-static int hash_accept_nokey(struct socket *sock, struct socket *newsock,
+static int hash_accept_analkey(struct socket *sock, struct socket *newsock,
 			     int flags, bool kern)
 {
 	int err;
@@ -366,22 +366,22 @@ static int hash_accept_nokey(struct socket *sock, struct socket *newsock,
 	return hash_accept(sock, newsock, flags, kern);
 }
 
-static struct proto_ops algif_hash_ops_nokey = {
+static struct proto_ops algif_hash_ops_analkey = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
+	.connect	=	sock_anal_connect,
+	.socketpair	=	sock_anal_socketpair,
+	.getname	=	sock_anal_getname,
+	.ioctl		=	sock_anal_ioctl,
+	.listen		=	sock_anal_listen,
+	.shutdown	=	sock_anal_shutdown,
+	.mmap		=	sock_anal_mmap,
+	.bind		=	sock_anal_bind,
 
 	.release	=	af_alg_release,
-	.sendmsg	=	hash_sendmsg_nokey,
-	.recvmsg	=	hash_recvmsg_nokey,
-	.accept		=	hash_accept_nokey,
+	.sendmsg	=	hash_sendmsg_analkey,
+	.recvmsg	=	hash_recvmsg_analkey,
+	.accept		=	hash_accept_analkey,
 };
 
 static void *hash_bind(const char *name, u32 type, u32 mask)
@@ -409,7 +409,7 @@ static void hash_sock_destruct(struct sock *sk)
 	af_alg_release_parent(sk);
 }
 
-static int hash_accept_parent_nokey(void *private, struct sock *sk)
+static int hash_accept_parent_analkey(void *private, struct sock *sk)
 {
 	struct crypto_ahash *tfm = private;
 	struct alg_sock *ask = alg_sk(sk);
@@ -418,7 +418,7 @@ static int hash_accept_parent_nokey(void *private, struct sock *sk)
 
 	ctx = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->result = NULL;
 	ctx->len = len;
@@ -441,9 +441,9 @@ static int hash_accept_parent(void *private, struct sock *sk)
 	struct crypto_ahash *tfm = private;
 
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
+		return -EANALKEY;
 
-	return hash_accept_parent_nokey(private, sk);
+	return hash_accept_parent_analkey(private, sk);
 }
 
 static const struct af_alg_type algif_type_hash = {
@@ -451,9 +451,9 @@ static const struct af_alg_type algif_type_hash = {
 	.release	=	hash_release,
 	.setkey		=	hash_setkey,
 	.accept		=	hash_accept_parent,
-	.accept_nokey	=	hash_accept_parent_nokey,
+	.accept_analkey	=	hash_accept_parent_analkey,
 	.ops		=	&algif_hash_ops,
-	.ops_nokey	=	&algif_hash_ops_nokey,
+	.ops_analkey	=	&algif_hash_ops_analkey,
 	.name		=	"hash",
 	.owner		=	THIS_MODULE
 };

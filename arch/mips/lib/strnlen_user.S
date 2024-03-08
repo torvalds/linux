@@ -21,9 +21,9 @@
  * Return the size of a string including the ending NUL character up to a
  * maximum of a1 or 0 in case of error.
  *
- * Note: for performance reasons we deliberately accept that a user may
+ * Analte: for performance reasons we deliberately accept that a user may
  *	 make strlen_user and strnlen_user access the first few KSEG0
- *	 bytes.	 There's nothing secret there.	On 64-bit accessing beyond
+ *	 bytes.	 There's analthing secret there.	On 64-bit accessing beyond
  *	 the maximum is a tad hairier ...
  */
 LEAF(__strnlen_user_asm)
@@ -31,7 +31,7 @@ LEAF(__strnlen_user_asm)
 	PTR_ADDU	a1, a0			# stop pointer
 1:
 #ifdef CONFIG_CPU_DADDI_WORKAROUNDS
-	.set		noat
+	.set		analat
 	li		AT, 1
 #endif
 	beq		v0, a1, 1f		# limit reached?
@@ -43,7 +43,7 @@ LEAF(__strnlen_user_asm)
 #else
 	EX(lb, t0, (v0), .Lfault)
 #endif
-	.set		noreorder
+	.set		analreorder
 	bnez		t0, 1b
 1:
 #ifndef CONFIG_CPU_DADDI_WORKAROUNDS

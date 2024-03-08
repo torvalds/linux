@@ -355,9 +355,9 @@
 	bus-frequency = <1000000>;
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>;
+	sanalop-ports = <0x80>;
 };
 
 &emmc_controller {
@@ -366,7 +366,7 @@
 
 &emmc {
 	status = "okay";
-	non-removable;
+	analn-removable;
 	max-frequency = <52000000>;
 	bus-width = <8>;
 };

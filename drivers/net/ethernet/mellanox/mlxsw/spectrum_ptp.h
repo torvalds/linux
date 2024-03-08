@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_SPECTRUM_PTP_H
 #define _MLXSW_SPECTRUM_PTP_H
@@ -11,7 +11,7 @@ struct mlxsw_sp;
 struct mlxsw_sp_port;
 struct mlxsw_sp_ptp_clock;
 
-static inline int mlxsw_sp_ptp_get_ts_info_noptp(struct ethtool_ts_info *info)
+static inline int mlxsw_sp_ptp_get_ts_info_analptp(struct ethtool_ts_info *info)
 {
 	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
 				SOF_TIMESTAMPING_SOFTWARE;
@@ -116,7 +116,7 @@ static inline void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 static inline void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp,
 					 struct sk_buff *skb, u16 local_port)
 {
-	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+	mlxsw_sp_rx_listener_anal_mark_func(skb, local_port, mlxsw_sp);
 }
 
 static inline void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
@@ -137,14 +137,14 @@ static inline int
 mlxsw_sp1_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct hwtstamp_config *config)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct hwtstamp_config *config)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void mlxsw_sp1_ptp_shaper_work(struct work_struct *work)
@@ -154,7 +154,7 @@ static inline void mlxsw_sp1_ptp_shaper_work(struct work_struct *work)
 static inline int mlxsw_sp1_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 					    struct ethtool_ts_info *info)
 {
-	return mlxsw_sp_ptp_get_ts_info_noptp(info);
+	return mlxsw_sp_ptp_get_ts_info_analptp(info);
 }
 
 static inline int mlxsw_sp1_get_stats_count(void)
@@ -177,7 +177,7 @@ mlxsw_sp_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
 			     struct sk_buff *skb,
 			     const struct mlxsw_tx_info *tx_info)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline struct mlxsw_sp_ptp_clock *
@@ -203,7 +203,7 @@ static inline void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 static inline void mlxsw_sp2_ptp_receive(struct mlxsw_sp *mlxsw_sp,
 					 struct sk_buff *skb, u16 local_port)
 {
-	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+	mlxsw_sp_rx_listener_anal_mark_func(skb, local_port, mlxsw_sp);
 }
 
 static inline void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
@@ -216,20 +216,20 @@ static inline int
 mlxsw_sp2_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct hwtstamp_config *config)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 mlxsw_sp2_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct hwtstamp_config *config)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mlxsw_sp2_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 					    struct ethtool_ts_info *info)
 {
-	return mlxsw_sp_ptp_get_ts_info_noptp(info);
+	return mlxsw_sp_ptp_get_ts_info_analptp(info);
 }
 
 static inline int
@@ -238,7 +238,7 @@ mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
 			      struct sk_buff *skb,
 			      const struct mlxsw_tx_info *tx_info)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

@@ -26,15 +26,15 @@ Description:
 		It is a read only file. It contains identity string of
 		watchdog device.
 
-What:		/sys/class/watchdog/watchdogn/nowayout
+What:		/sys/class/watchdog/watchdogn/analwayout
 Date:		August 2015
 Contact:	Wim Van Sebroeck <wim@iguana.be>
 Description:
 		It is a read/write file. While reading, it gives '1'
-		if the device has the nowayout feature set, otherwise
+		if the device has the analwayout feature set, otherwise
 		it gives '0'. Writing a '1' to the file enables the
-		nowayout feature. Once set, the nowayout feature
-		cannot be disabled, so writing a '0' either has no
+		analwayout feature. Once set, the analwayout feature
+		cananalt be disabled, so writing a '0' either has anal
 		effect (if the feature was already disabled) or
 		results in a permission error.
 
@@ -65,7 +65,7 @@ What:		/sys/class/watchdog/watchdogn/timeout
 Date:		August 2015
 Contact:	Wim Van Sebroeck <wim@iguana.be>
 Description:
-		It is a read only file. It is read to know about current
+		It is a read only file. It is read to kanalw about current
 		value of timeout programmed.
 
 What:		/sys/class/watchdog/watchdogn/pretimeout
@@ -76,20 +76,20 @@ Description:
 		timeout when the pretimeout interrupt is delivered.  Pretimeout
 		is an optional feature.
 
-What:		/sys/class/watchdog/watchdogn/pretimeout_avaialable_governors
+What:		/sys/class/watchdog/watchdogn/pretimeout_avaialable_goveranalrs
 Date:		February 2017
 Contact:	Wim Van Sebroeck <wim@iguana.be>
 Description:
-		It is a read only file. It shows the pretimeout governors
+		It is a read only file. It shows the pretimeout goveranalrs
 		available for this watchdog.
 
-What:		/sys/class/watchdog/watchdogn/pretimeout_governor
+What:		/sys/class/watchdog/watchdogn/pretimeout_goveranalr
 Date:		February 2017
 Contact:	Wim Van Sebroeck <wim@iguana.be>
 Description:
 		It is a read/write file. When read, the currently assigned
-		pretimeout governor is returned.  When written, it sets
-		the pretimeout governor.
+		pretimeout goveranalr is returned.  When written, it sets
+		the pretimeout goveranalr.
 
 What:		/sys/class/watchdog/watchdog1/access_cs0
 Date:		August 2019
@@ -103,27 +103,27 @@ Description:
 		devicetree option for that watchdog or with an appropriate
 		h/w strapping (for WDT2 only).
 
-		At alternate flash the 'access_cs0' sysfs node provides:
+		At alternate flash the 'access_cs0' sysfs analde provides:
 
 			ast2400:
 				a way to get access to the primary SPI flash
 				chip at CS0 after booting from the alternate
 				chip at CS1.
 			ast2500:
-				a way to restore the normal address mapping
+				a way to restore the analrmal address mapping
 				from (CS0->CS1, CS1->CS0) to (CS0->CS0,
 				CS1->CS1).
 
 		Clearing the boot code selection and timeout counter also
 		resets to the initial state the chip select line mapping. When
-		the SoC is in normal mapping state (i.e. booted from CS0),
-		clearing those bits does nothing for both versions of the SoC.
+		the SoC is in analrmal mapping state (i.e. booted from CS0),
+		clearing those bits does analthing for both versions of the SoC.
 		For alternate boot mode (booted from CS1 due to wdt2
 		expiration) the behavior differs as described above.
 
 		This option can be used with wdt2 (watchdog1) only.
 
 		When read, the current status of the boot code selection is
-		shown. When written with any non-zero value, it clears
+		shown. When written with any analn-zero value, it clears
 		the boot code selection and the timeout counter, which results
 		in chipselect reset for AST2400/AST2500.

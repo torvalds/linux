@@ -58,7 +58,7 @@ acpi_hw_set_firmware_waking_vector(struct acpi_table_facs *facs,
 	 * According to the ACPI specification 2.0c and later, the 64-bit
 	 * waking vector should be cleared and the 32-bit waking vector should
 	 * be used, unless we want the wake-up code to be called by the BIOS in
-	 * Protected Mode.  Some systems (for example HP dv5-1004nr) are known
+	 * Protected Mode.  Some systems (for example HP dv5-1004nr) are kanalwn
 	 * to fail to resume if the 64-bit vector is used.
 	 */
 
@@ -119,7 +119,7 @@ ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector)
  *
  * FUNCTION:    acpi_enter_sleep_state_s4bios
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -231,7 +231,7 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 
 	status =
 	    acpi_evaluate_object(NULL, METHOD_PATHNAME__PTS, &arg_list, NULL);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		return_ACPI_STATUS(status);
 	}
 
@@ -263,7 +263,7 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 
 	/*
 	 * Set the system indicators to show the desired sleep state.
-	 * _SST is an optional method (return no error if not found)
+	 * _SST is an optional method (return anal error if analt found)
 	 */
 	acpi_hw_execute_sleep_method(METHOD_PATHNAME__SST, sst_value);
 	return_ACPI_STATUS(AE_OK);

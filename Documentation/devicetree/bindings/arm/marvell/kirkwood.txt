@@ -4,11 +4,11 @@ Marvell Kirkwood Platforms Device Tree Bindings
 Boards with a SoC of the Marvell Kirkwood
 shall have the following property:
 
-Required root node property:
+Required root analde property:
 
 compatible: must contain "marvell,kirkwood";
 
-In order to support the kirkwood cpufreq driver, there must be a node
+In order to support the kirkwood cpufreq driver, there must be a analde
 cpus/cpu@0 with three clocks, "cpu_clk", "ddrclk" and "powersave",
 where the "powersave" clock is a gating clock used to switch the CPU
 between the "cpu_clk" and the "ddrclk".

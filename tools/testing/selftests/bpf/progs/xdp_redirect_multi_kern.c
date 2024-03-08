@@ -11,7 +11,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-/* One map use devmap, another one use devmap_hash for testing */
+/* One map use devmap, aanalther one use devmap_hash for testing */
 struct {
 	__uint(type, BPF_MAP_TYPE_DEVMAP);
 	__uint(key_size, sizeof(int));
@@ -54,7 +54,7 @@ int xdp_redirect_map_multi_prog(struct xdp_md *ctx)
 	if (h_proto == bpf_htons(ETH_P_IP))
 		return bpf_redirect_map(&map_all, 0,
 					BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS);
-	/* Using IPv6 for none flag testing */
+	/* Using IPv6 for analne flag testing */
 	else if (h_proto == bpf_htons(ETH_P_IPV6))
 		return bpf_redirect_map(&map_all, if_index, 0);
 	/* All others for BPF_F_BROADCAST testing */

@@ -24,7 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
 #include <linux/bitops.h>
@@ -87,7 +87,7 @@ MODULE_LICENSE("GPL");
 #  define MAC_PROMISCUOUS	(1 << 18)
 #  define MAC_PASS_ALL_MULTI	(1 << 19)
 #  define MAC_FULL_DUPLEX	(1 << 20)
-#  define MAC_NORMAL_MODE	0
+#  define MAC_ANALRMAL_MODE	0
 #  define MAC_INT_LOOPBACK	(1 << 21)
 #  define MAC_EXT_LOOPBACK	(1 << 22)
 #  define MAC_DISABLE_RX_OWN	(1 << 23)
@@ -126,7 +126,7 @@ MODULE_LICENSE("GPL");
 #define MAC_TX_BUFF0_STATUS	0x0
 #  define TX_FRAME_ABORTED	(1 << 0)
 #  define TX_JAB_TIMEOUT	(1 << 1)
-#  define TX_NO_CARRIER		(1 << 2)
+#  define TX_ANAL_CARRIER		(1 << 2)
 #  define TX_LOSS_CARRIER	(1 << 3)
 #  define TX_EXC_DEF		(1 << 4)
 #  define TX_LATE_COLL_ABORT	(1 << 5)
@@ -193,13 +193,13 @@ MODULE_LICENSE("GPL");
  *
  * The Au1000 MACs use a simple rx and tx descriptor ring scheme.
  * There are four receive and four transmit descriptors.  These
- * descriptors are not in memory; rather, they are just a set of
+ * descriptors are analt in memory; rather, they are just a set of
  * hardware registers.
  *
  * Since the Au1000 has a coherent data cache, the receive and
  * transmit buffers are allocated from the KSEG0 segment. The
  * hardware registers, however, are still mapped at KSEG1 to
- * make sure there's no out-of-order writes, and that all writes
+ * make sure there's anal out-of-order writes, and that all writes
  * complete immediately.
  */
 
@@ -213,16 +213,16 @@ MODULE_LICENSE("GPL");
  *
  * mii_probe() first searches the current MAC's MII bus for a PHY,
  * selecting the first (or last, if phy_search_highest_addr is
- * defined) PHY address not already claimed by another netdev.
+ * defined) PHY address analt already claimed by aanalther netdev.
  *
- * If nothing was found that way when searching for the 2nd ethernet
+ * If analthing was found that way when searching for the 2nd ethernet
  * controller's PHY and phy1_search_mac0 is defined, then
  * the first MII bus is searched as well for an unclaimed PHY; this is
  * needed in case of a dual-PHY accessible only through the MAC0's MII
  * bus.
  *
- * Finally, if no PHY is found, then the corresponding ethernet
- * controller is not registered to the network subsystem.
+ * Finally, if anal PHY is found, then the corresponding ethernet
+ * controller is analt registered to the network subsystem.
  */
 
 /* autodetection defaults: phy1_search_mac0 */
@@ -232,7 +232,7 @@ MODULE_LICENSE("GPL");
  * most boards PHY setup should be detectable properly with the
  * autodetection algorithm in mii_probe(), but in some cases (e.g. if
  * you have a switch attached, or want to use the PHY's interrupt
- * notification capabilities) you can provide a static PHY
+ * analtification capabilities) you can provide a static PHY
  * configuration here
  *
  * IRQs may only be set, if a PHY address was configured
@@ -410,7 +410,7 @@ au1000_adjust_link(struct net_device *dev)
 		case SPEED_100:
 			break;
 		default:
-			netdev_warn(dev, "Speed (%d) is not 10/100 ???\n",
+			netdev_warn(dev, "Speed (%d) is analt 10/100 ???\n",
 							phydev->speed);
 			break;
 		}
@@ -499,11 +499,11 @@ static int au1000_mii_probe(struct net_device *dev)
 	if (aup->phy1_search_mac0) {
 		/* try harder to find a PHY */
 		if (!phydev && (aup->mac_id == 1)) {
-			/* no PHY found, maybe we have a dual PHY? */
-			dev_info(&dev->dev, ": no PHY found on MAC1, "
+			/* anal PHY found, maybe we have a dual PHY? */
+			dev_info(&dev->dev, ": anal PHY found on MAC1, "
 				"let's see if it's attached to MAC0...\n");
 
-			/* find the first (lowest address) non-attached
+			/* find the first (lowest address) analn-attached
 			 * PHY on the MAC0 MII bus
 			 */
 			for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
@@ -514,7 +514,7 @@ static int au1000_mii_probe(struct net_device *dev)
 				if (aup->mac_id == 1)
 					break;
 
-				/* no PHY here... */
+				/* anal PHY here... */
 				if (!tmp_phydev)
 					continue;
 
@@ -529,18 +529,18 @@ static int au1000_mii_probe(struct net_device *dev)
 	}
 
 	if (!phydev) {
-		netdev_err(dev, "no PHY found\n");
+		netdev_err(dev, "anal PHY found\n");
 		return -1;
 	}
 
-	/* now we are supposed to have a proper phydev, to attach to... */
+	/* analw we are supposed to have a proper phydev, to attach to... */
 	BUG_ON(phydev->attached_dev);
 
 	phydev = phy_connect(dev, phydev_name(phydev),
 			     &au1000_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(dev, "Could not attach to PHY\n");
+		netdev_err(dev, "Could analt attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -625,7 +625,7 @@ static void au1000_reset_mac(struct net_device *dev)
 /*
  * Setup the receive and transmit "rings".  These pointers are the addresses
  * of the rx and tx MAC DMA registers so they are fixed by the hardware --
- * these are not descriptors sitting in memory.
+ * these are analt descriptors sitting in memory.
  */
 static void
 au1000_setup_hw_rings(struct au1000_private *aup, void __iomem *tx_base)
@@ -847,14 +847,14 @@ static void au1000_update_tx_stats(struct net_device *dev, u32 status)
 		} else {
 			ps->tx_errors++;
 			ps->tx_aborted_errors++;
-			if (status & (TX_NO_CARRIER | TX_LOSS_CARRIER))
+			if (status & (TX_ANAL_CARRIER | TX_LOSS_CARRIER))
 				ps->tx_carrier_errors++;
 		}
 	}
 }
 
 /*
- * Called from the interrupt service routine to acknowledge
+ * Called from the interrupt service routine to ackanalwledge
  * the TX DONE bits.  This is a must if the irq is setup as
  * edge triggered.
  */
@@ -1069,27 +1069,27 @@ static int au1000_probe(struct platform_device *pdev)
 	base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!base) {
 		dev_err(&pdev->dev, "failed to retrieve base register\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	macen = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!macen) {
 		dev_err(&pdev->dev, "failed to retrieve MAC Enable register\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	macdma = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (!macdma) {
 		dev_err(&pdev->dev, "failed to retrieve MACDMA registers\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -1116,7 +1116,7 @@ static int au1000_probe(struct platform_device *pdev)
 
 	dev = alloc_etherdev(sizeof(struct au1000_private));
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -1129,14 +1129,14 @@ static int au1000_probe(struct platform_device *pdev)
 				AU1000_DEF_MSG_ENABLE : au1000_debug);
 
 	/* Allocate the data buffers
-	 * Snooping works fine with eth on all au1xxx
+	 * Sanaloping works fine with eth on all au1xxx
 	 */
 	aup->vaddr = dma_alloc_coherent(&pdev->dev, MAX_BUF_SIZE *
 					(NUM_TX_BUFFS + NUM_RX_BUFFS),
 					&aup->dma_addr, 0);
 	if (!aup->vaddr) {
 		dev_err(&pdev->dev, "failed to allocate data buffers\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_vaddr;
 	}
 
@@ -1173,14 +1173,14 @@ static int au1000_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
-		dev_info(&pdev->dev, "no platform_data passed,"
+		dev_info(&pdev->dev, "anal platform_data passed,"
 					" PHY search on MAC0\n");
 		aup->phy1_search_mac0 = 1;
 	} else {
 		if (is_valid_ether_addr(pd->mac)) {
 			eth_hw_addr_set(dev, pd->mac);
 		} else {
-			/* Set a random MAC since no valid provided by platform_data. */
+			/* Set a random MAC since anal valid provided by platform_data. */
 			eth_hw_addr_random(dev);
 		}
 
@@ -1193,15 +1193,15 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 
 	if (aup->phy_busid > 0) {
-		dev_err(&pdev->dev, "MAC0-associated PHY attached 2nd MACs MII bus not supported yet\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "MAC0-associated PHY attached 2nd MACs MII bus analt supported yet\n");
+		err = -EANALDEV;
 		goto err_mdiobus_alloc;
 	}
 
 	aup->mii_bus = mdiobus_alloc();
 	if (!aup->mii_bus) {
 		dev_err(&pdev->dev, "failed to allocate mdiobus structure\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mdiobus_alloc;
 	}
 
@@ -1213,7 +1213,7 @@ static int au1000_probe(struct platform_device *pdev)
 	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		pdev->name, aup->mac_id);
 
-	/* if known, set corresponding PHY IRQs */
+	/* if kanalwn, set corresponding PHY IRQs */
 	if (aup->phy_static_config)
 		if (aup->phy_irq && aup->phy_busid == aup->mac_id)
 			aup->mii_bus->irq[aup->phy_addr] = aup->phy_irq;
@@ -1240,7 +1240,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 	aup->pDBfree = pDBfree;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	for (i = 0; i < NUM_RX_DMA; i++) {
 		pDB = au1000_GetFreeDB(aup);
 		if (!pDB)
@@ -1274,7 +1274,7 @@ static int au1000_probe(struct platform_device *pdev)
 
 	err = register_netdev(dev);
 	if (err) {
-		netdev_err(dev, "Cannot register net device, aborting.\n");
+		netdev_err(dev, "Cananalt register net device, aborting.\n");
 		goto err_out;
 	}
 

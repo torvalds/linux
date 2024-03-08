@@ -6,7 +6,7 @@
  * can be shared, all the other devices must be assigned to one core only.
  * This dts allows core1 to have l2, dma2, eth2, eth3, pci2, msi.
  *
- * Please note to add "-b 1" for core1's dts compiling.
+ * Please analte to add "-b 1" for core1's dts compiling.
  *
  * Copyright 2007-2009 Freescale Semiconductor Inc.
  */

@@ -21,7 +21,7 @@
 /*
  * void protected_mode_jump(u32 entrypoint, u32 bootparams);
  */
-SYM_FUNC_START_NOALIGN(protected_mode_jump)
+SYM_FUNC_START_ANALALIGN(protected_mode_jump)
 	movl	%edx, %esi		# Pointer to boot_params table
 
 	xorl	%ebx, %ebx
@@ -46,7 +46,7 @@ SYM_FUNC_END(protected_mode_jump)
 
 	.code32
 	.section ".text32","ax"
-SYM_FUNC_START_LOCAL_NOALIGN(.Lin_pm32)
+SYM_FUNC_START_LOCAL_ANALALIGN(.Lin_pm32)
 	# Set up data segments for flat 32-bit mode
 	movl	%ecx, %ds
 	movl	%ecx, %es

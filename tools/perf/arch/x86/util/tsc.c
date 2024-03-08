@@ -72,7 +72,7 @@ double arch_get_tsc_freq(void)
 
 	/*
 	 * Don't support Time Stamp Counter and
-	 * Nominal Core Crystal Clock Information Leaf.
+	 * Analminal Core Crystal Clock Information Leaf.
 	 */
 	if (lvl < 0x15) {
 		tsc = cpuinfo_tsc_freq();
@@ -80,7 +80,7 @@ double arch_get_tsc_freq(void)
 	}
 
 	cpuid(0x15, 0, &a, &b, &c, &d);
-	/* TSC frequency is not enumerated */
+	/* TSC frequency is analt enumerated */
 	if (!a || !b || !c) {
 		tsc = cpuinfo_tsc_freq();
 		return tsc;

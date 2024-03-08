@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Inc. All rights reserved. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Inc. All rights reserved. */
 
 #include "mlx5_core.h"
 #include "eswitch.h"
@@ -21,7 +21,7 @@ esw_acl_table_create(struct mlx5_eswitch *esw, struct mlx5_vport *vport, int ns,
 			MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support);
 
 	if (!acl_supported)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	vport_num = vport->vport;
 	esw_debug(dev, "Create vport[%d] %s ACL table\n", vport_num,
@@ -31,7 +31,7 @@ esw_acl_table_create(struct mlx5_eswitch *esw, struct mlx5_vport *vport, int ns,
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch root namespace for vport (%d)\n",
 			 vport_num);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	ft_attr.max_fte = size;
@@ -60,7 +60,7 @@ int esw_egress_acl_vlan_create(struct mlx5_eswitch *esw,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.cvlan_tag);
@@ -102,7 +102,7 @@ int esw_acl_egress_vlan_grp_create(struct mlx5_eswitch *esw, struct mlx5_vport *
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_flow_group_in, flow_group_in,
 		 match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);

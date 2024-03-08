@@ -22,7 +22,7 @@ static struct ins_ops *powerpc__associate_instruction_ops(struct arch *arch, con
 	if (i < 0)
 		return NULL;
 
-	/* ignore optional hints at the end of the instructions */
+	/* iganalre optional hints at the end of the instructions */
 	if (name[i] == '+' || name[i] == '-')
 		i--;
 
@@ -30,7 +30,7 @@ static struct ins_ops *powerpc__associate_instruction_ops(struct arch *arch, con
 		/*
 		 * if the instruction ends up with 'l' or 'la', then
 		 * those are considered 'calls' since they update LR.
-		 * ... except for 'bnl' which is branch if not less than
+		 * ... except for 'bnl' which is branch if analt less than
 		 * and the absolute form of the same.
 		 */
 		if (strcmp(name, "bnl") && strcmp(name, "bnl+") &&
@@ -49,7 +49,7 @@ static struct ins_ops *powerpc__associate_instruction_ops(struct arch *arch, con
 	return ops;
 }
 
-static int powerpc__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+static int powerpc__ananaltate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	if (!arch->initialized) {
 		arch->initialized = true;

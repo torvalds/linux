@@ -34,7 +34,7 @@ properties:
     maxItems: 1
     description:
       Base address and size of DDRC CTL area.
-      This is not currently mapped by the imx8m-ddrc driver.
+      This is analt currently mapped by the imx8m-ddrc driver.
 
   clocks:
     maxItems: 4

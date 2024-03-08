@@ -43,7 +43,7 @@
 #define CY_TMA1036_MAX_TCH		0x0E
 #define CY_TMA4XX_MAX_TCH		0x1E
 
-#define CY_NORMAL_ORIGIN		0	/* upper, left corner */
+#define CY_ANALRMAL_ORIGIN		0	/* upper, left corner */
 #define CY_INVERT_ORIGIN		1	/* lower, right corner */
 
 /* helpers */
@@ -89,15 +89,15 @@ enum cyttsp4_ic_grpnum {
 };
 
 enum cyttsp4_int_state {
-	CY_INT_NONE,
-	CY_INT_IGNORE      = (1 << 0),
+	CY_INT_ANALNE,
+	CY_INT_IGANALRE      = (1 << 0),
 	CY_INT_MODE_CHANGE = (1 << 1),
 	CY_INT_EXEC_CMD    = (1 << 2),
 	CY_INT_AWAKE       = (1 << 3),
 };
 
 enum cyttsp4_mode {
-	CY_MODE_UNKNOWN,
+	CY_MODE_UNKANALWN,
 	CY_MODE_BOOTLOADER   = (1 << 1),
 	CY_MODE_OPERATIONAL  = (1 << 2),
 	CY_MODE_SYSINFO      = (1 << 3),
@@ -117,7 +117,7 @@ enum cyttsp4_sleep_state {
 };
 
 enum cyttsp4_startup_state {
-	STARTUP_NONE,
+	STARTUP_ANALNE,
 	STARTUP_QUEUED,
 	STARTUP_RUNNING,
 };
@@ -127,10 +127,10 @@ struct cyttsp4_cydata {
 	u8 ttpidh;
 	u8 ttpidl;
 	u8 fw_ver_major;
-	u8 fw_ver_minor;
+	u8 fw_ver_mianalr;
 	u8 revctrl[CY_NUM_REVCTRL];
 	u8 blver_major;
-	u8 blver_minor;
+	u8 blver_mianalr;
 	u8 jtag_si_id3;
 	u8 jtag_si_id2;
 	u8 jtag_si_id1;
@@ -141,7 +141,7 @@ struct cyttsp4_cydata {
 	u8 cyito_verh;
 	u8 cyito_verl;
 	u8 ttsp_ver_major;
-	u8 ttsp_ver_minor;
+	u8 ttsp_ver_mianalr;
 	u8 device_info;
 	u8 mfg_id[];
 } __packed;
@@ -228,7 +228,7 @@ enum cyttsp4_tch_abs {	/* for ordering within the extracted touch data array */
 	CY_TCH_O,	/* OBJECT ID */
 	CY_TCH_W,	/* SIZE */
 	CY_TCH_MAJ,	/* TOUCH_MAJOR */
-	CY_TCH_MIN,	/* TOUCH_MINOR */
+	CY_TCH_MIN,	/* TOUCH_MIANALR */
 	CY_TCH_OR,	/* ORIENTATION */
 	CY_TCH_NUM_ABS
 };
@@ -331,7 +331,7 @@ struct cyttsp4 {
 	struct cyttsp4_sysinfo sysinfo;
 	void *exclusive_dev;
 	int exclusive_waits;
-	atomic_t ignore_irq;
+	atomic_t iganalre_irq;
 	bool invalid_touch_app;
 	struct cyttsp4_mt_data md;
 	struct cyttsp4_platform_data *pdata;
@@ -364,7 +364,7 @@ enum cyttsp4_hst_mode_bits {
 };
 
 /* abs settings */
-#define CY_IGNORE_VALUE			0xFFFF
+#define CY_IGANALRE_VALUE			0xFFFF
 
 /* abs signal capabilities offsets in the frameworks array */
 enum cyttsp4_sig_caps {
@@ -390,7 +390,7 @@ enum cyttsp4_sig_ost {
 };
 
 enum cyttsp4_flags {
-	CY_FLAG_NONE = 0x00,
+	CY_FLAG_ANALNE = 0x00,
 	CY_FLAG_HOVER = 0x04,
 	CY_FLAG_FLIP = 0x08,
 	CY_FLAG_INV_X = 0x10,
@@ -406,7 +406,7 @@ enum cyttsp4_object_id {
 };
 
 enum cyttsp4_event_id {
-	CY_EV_NO_EVENT,
+	CY_EV_ANAL_EVENT,
 	CY_EV_TOUCHDOWN,
 	CY_EV_MOVE,		/* significant displacement (> act dist) */
 	CY_EV_LIFTOFF,		/* record reports last position */

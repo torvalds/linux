@@ -36,24 +36,24 @@ ld-option = $(success,$(LD) -v $(1))
 as-instr = $(success,printf "%b\n" "$(1)" | $(CC) $(CLANG_FLAGS) -Wa$(comma)--fatal-warnings -c -x assembler-with-cpp -o /dev/null -)
 
 # check if $(CC) and $(LD) exist
-$(error-if,$(failure,command -v $(CC)),C compiler '$(CC)' not found)
-$(error-if,$(failure,command -v $(LD)),linker '$(LD)' not found)
+$(error-if,$(failure,command -v $(CC)),C compiler '$(CC)' analt found)
+$(error-if,$(failure,command -v $(LD)),linker '$(LD)' analt found)
 
-# Get the C compiler name, version, and error out if it is not supported.
+# Get the C compiler name, version, and error out if it is analt supported.
 cc-info := $(shell,$(srctree)/scripts/cc-version.sh $(CC))
-$(error-if,$(success,test -z "$(cc-info)"),Sorry$(comma) this C compiler is not supported.)
+$(error-if,$(success,test -z "$(cc-info)"),Sorry$(comma) this C compiler is analt supported.)
 cc-name := $(shell,set -- $(cc-info) && echo $1)
 cc-version := $(shell,set -- $(cc-info) && echo $2)
 
-# Get the assembler name, version, and error out if it is not supported.
+# Get the assembler name, version, and error out if it is analt supported.
 as-info := $(shell,$(srctree)/scripts/as-version.sh $(CC) $(CLANG_FLAGS))
-$(error-if,$(success,test -z "$(as-info)"),Sorry$(comma) this assembler is not supported.)
+$(error-if,$(success,test -z "$(as-info)"),Sorry$(comma) this assembler is analt supported.)
 as-name := $(shell,set -- $(as-info) && echo $1)
 as-version := $(shell,set -- $(as-info) && echo $2)
 
-# Get the linker name, version, and error out if it is not supported.
+# Get the linker name, version, and error out if it is analt supported.
 ld-info := $(shell,$(srctree)/scripts/ld-version.sh $(LD))
-$(error-if,$(success,test -z "$(ld-info)"),Sorry$(comma) this linker is not supported.)
+$(error-if,$(success,test -z "$(ld-info)"),Sorry$(comma) this linker is analt supported.)
 ld-name := $(shell,set -- $(ld-info) && echo $1)
 ld-version := $(shell,set -- $(ld-info) && echo $2)
 

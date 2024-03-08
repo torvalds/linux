@@ -65,14 +65,14 @@ static int adv748x_afe_status(struct adv748x_afe *afe, u32 *signal,
 
 	if (signal)
 		*signal = info & ADV748X_SDP_RO_10_IN_LOCK ?
-				0 : V4L2_IN_ST_NO_SIGNAL;
+				0 : V4L2_IN_ST_ANAL_SIGNAL;
 
 	if (!std)
 		return 0;
 
-	/* Standard not valid if there is no signal */
+	/* Standard analt valid if there is anal signal */
 	if (!(info & ADV748X_SDP_RO_10_IN_LOCK)) {
-		*std = V4L2_STD_UNKNOWN;
+		*std = V4L2_STD_UNKANALWN;
 		return 0;
 	}
 
@@ -102,7 +102,7 @@ static int adv748x_afe_status(struct adv748x_afe *afe, u32 *signal,
 		*std = V4L2_STD_SECAM;
 		break;
 	default:
-		*std = V4L2_STD_UNKNOWN;
+		*std = V4L2_STD_UNKANALWN;
 		break;
 	}
 
@@ -119,7 +119,7 @@ static void adv748x_afe_fill_format(struct adv748x_afe *afe,
 	fmt->field = V4L2_FIELD_ALTERNATE;
 
 	fmt->width = 720;
-	fmt->height = afe->curr_norm & V4L2_STD_525_60 ? 480 : 576;
+	fmt->height = afe->curr_analrm & V4L2_STD_525_60 ? 480 : 576;
 
 	/* Field height */
 	fmt->height /= 2;
@@ -166,12 +166,12 @@ static int adv748x_afe_g_pixelaspect(struct v4l2_subdev *sd,
 {
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 
-	if (afe->curr_norm & V4L2_STD_525_60) {
+	if (afe->curr_analrm & V4L2_STD_525_60) {
 		aspect->numerator = 11;
-		aspect->denominator = 10;
+		aspect->deanalminator = 10;
 	} else {
 		aspect->numerator = 54;
-		aspect->denominator = 59;
+		aspect->deanalminator = 59;
 	}
 
 	return 0;
@@ -181,11 +181,11 @@ static int adv748x_afe_g_pixelaspect(struct v4l2_subdev *sd,
  * v4l2_subdev_video_ops
  */
 
-static int adv748x_afe_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int adv748x_afe_g_std(struct v4l2_subdev *sd, v4l2_std_id *analrm)
 {
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 
-	*norm = afe->curr_norm;
+	*analrm = afe->curr_analrm;
 
 	return 0;
 }
@@ -202,7 +202,7 @@ static int adv748x_afe_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	mutex_lock(&state->mutex);
 
 	adv748x_afe_set_video_standard(state, afe_std);
-	afe->curr_norm = std;
+	afe->curr_analrm = std;
 
 	mutex_unlock(&state->mutex);
 
@@ -232,7 +232,7 @@ static int adv748x_afe_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	/* Read detected standard */
 	ret = adv748x_afe_status(afe, NULL, std);
 
-	afe_std = adv748x_afe_std(afe->curr_norm);
+	afe_std = adv748x_afe_std(afe->curr_analrm);
 	if (afe_std < 0)
 		goto unlock;
 
@@ -245,9 +245,9 @@ unlock:
 	return ret;
 }
 
-static int adv748x_afe_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int adv748x_afe_g_tvanalrms(struct v4l2_subdev *sd, v4l2_std_id *analrm)
 {
-	*norm = V4L2_STD_ALL;
+	*analrm = V4L2_STD_ALL;
 
 	return 0;
 }
@@ -271,7 +271,7 @@ static int adv748x_afe_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 	struct adv748x_state *state = adv748x_afe_to_state(afe);
-	u32 signal = V4L2_IN_ST_NO_SIGNAL;
+	u32 signal = V4L2_IN_ST_ANAL_SIGNAL;
 	int ret;
 
 	mutex_lock(&state->mutex);
@@ -289,7 +289,7 @@ static int adv748x_afe_s_stream(struct v4l2_subdev *sd, int enable)
 	afe->streaming = enable;
 
 	adv748x_afe_status(afe, &signal, NULL);
-	if (signal != V4L2_IN_ST_NO_SIGNAL)
+	if (signal != V4L2_IN_ST_ANAL_SIGNAL)
 		adv_dbg(state, "Detected SDP signal\n");
 	else
 		adv_dbg(state, "Couldn't detect SDP video signal\n");
@@ -304,7 +304,7 @@ static const struct v4l2_subdev_video_ops adv748x_afe_video_ops = {
 	.g_std = adv748x_afe_g_std,
 	.s_std = adv748x_afe_s_std,
 	.querystd = adv748x_afe_querystd,
-	.g_tvnorms = adv748x_afe_g_tvnorms,
+	.g_tvanalrms = adv748x_afe_g_tvanalrms,
 	.g_input_status = adv748x_afe_g_input_status,
 	.s_stream = adv748x_afe_s_stream,
 	.g_pixelaspect = adv748x_afe_g_pixelaspect,
@@ -320,7 +320,7 @@ static int adv748x_afe_propagate_pixelrate(struct adv748x_afe *afe)
 
 	tx = adv748x_get_remote_sd(&afe->pads[ADV748X_AFE_SOURCE]);
 	if (!tx)
-		return -ENOLINK;
+		return -EANALLINK;
 
 	/*
 	 * The ADV748x ADC sampling frequency is twice the externally supplied
@@ -349,7 +349,7 @@ static int adv748x_afe_get_format(struct v4l2_subdev *sd,
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 	struct v4l2_mbus_framefmt *mbusformat;
 
-	/* It makes no sense to get the format of the analog sink pads */
+	/* It makes anal sense to get the format of the analog sink pads */
 	if (sdformat->pad != ADV748X_AFE_SOURCE)
 		return -EINVAL;
 
@@ -371,7 +371,7 @@ static int adv748x_afe_set_format(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *mbusformat;
 
-	/* It makes no sense to get the format of the analog sink pads */
+	/* It makes anal sense to get the format of the analog sink pads */
 	if (sdformat->pad != ADV748X_AFE_SOURCE)
 		return -EINVAL;
 
@@ -507,7 +507,7 @@ int adv748x_afe_init(struct adv748x_afe *afe)
 
 	afe->input = 0;
 	afe->streaming = false;
-	afe->curr_norm = V4L2_STD_NTSC_M;
+	afe->curr_analrm = V4L2_STD_NTSC_M;
 
 	adv748x_subdev_init(&afe->sd, state, &adv748x_afe_ops,
 			    MEDIA_ENT_F_ATV_DECODER, "afe");

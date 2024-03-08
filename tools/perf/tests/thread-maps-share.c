@@ -52,14 +52,14 @@ static int test__thread_maps_share(struct test_suite *test __maybe_unused, int s
 
 	/*
 	 * Verify the other leader was created by previous call.
-	 * It should have shared maps with no change in
+	 * It should have shared maps with anal change in
 	 * refcnt.
 	 */
 	other_leader = machine__find_thread(machine, 4, 4);
 	TEST_ASSERT_VAL("failed to find other leader", other_leader);
 
 	/*
-	 * Ok, now that all the rbtree related operations were done,
+	 * Ok, analw that all the rbtree related operations were done,
 	 * lets remove all of them from there so that we can do the
 	 * refcounting tests.
 	 */

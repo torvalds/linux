@@ -6,7 +6,7 @@
  *  sof_sdw_cs42l43 - Helpers to handle CS42L43 from generic machine driver
  */
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <sound/jack.h>
 #include <linux/soundwire/sdw.h>
@@ -61,7 +61,7 @@ static int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL, "%s hs:cs42l43",
 					  card->components);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l43_hs_widgets,
 					ARRAY_SIZE(cs42l43_hs_widgets));
@@ -113,7 +113,7 @@ int sof_sdw_cs42l43_hs_init(struct snd_soc_card *card, const struct snd_soc_acpi
 			    bool playback)
 {
 	/*
-	 * No need to test if (!playback) like other codecs as cs42l43 uses separated dai for
+	 * Anal need to test if (!playback) like other codecs as cs42l43 uses separated dai for
 	 * playback and capture, and sof_sdw_cs42l43_init is only linked to the playback dai.
 	 */
 	dai_links->init = cs42l43_hs_rtd_init;
@@ -129,7 +129,7 @@ static int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL, "%s mic:cs42l43-dmic",
 					  card->components);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l43_dmic_widgets,
 					ARRAY_SIZE(cs42l43_dmic_widgets));

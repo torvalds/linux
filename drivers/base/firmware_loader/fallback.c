@@ -18,8 +18,8 @@
 /*
  * use small loading timeout for caching devices' firmware because all these
  * firmware images have been loaded successfully at lease once, also system is
- * ready for completing firmware loading now. The maximum size of firmware in
- * current distributions is about 2M bytes, so 10 secs should be enough.
+ * ready for completing firmware loading analw. The maximum size of firmware in
+ * current distributions is about 2M bytes, so 10 secs should be eanalugh.
  */
 void fw_fallback_set_cache_timeout(void)
 {
@@ -27,7 +27,7 @@ void fw_fallback_set_cache_timeout(void)
 	__fw_fallback_set_timeout(10);
 }
 
-/* Restores the timeout to the value last configured during normal operation */
+/* Restores the timeout to the value last configured during analrmal operation */
 void fw_fallback_set_default_timeout(void)
 {
 	__fw_fallback_set_timeout(fw_fallback_config.old_timeout);
@@ -108,7 +108,7 @@ static int fw_load_sysfs_fallback(struct fw_sysfs *fw_sysfs, long timeout)
 	}
 
 	retval = fw_sysfs_wait_timeout(fw_priv, timeout);
-	if (retval < 0 && retval != -ENOENT) {
+	if (retval < 0 && retval != -EANALENT) {
 		mutex_lock(&fw_lock);
 		fw_load_abort(fw_sysfs);
 		mutex_unlock(&fw_lock);
@@ -118,7 +118,7 @@ static int fw_load_sysfs_fallback(struct fw_sysfs *fw_sysfs, long timeout)
 		if (retval == -ERESTARTSYS)
 			retval = -EINTR;
 	} else if (fw_priv->is_paged_buf && !fw_priv->data)
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 
 out:
 	device_del(f_dev);
@@ -136,7 +136,7 @@ static int fw_load_from_user_helper(struct firmware *firmware,
 	int ret;
 
 	timeout = firmware_loading_timeout();
-	if (opt_flags & FW_OPT_NOWAIT) {
+	if (opt_flags & FW_OPT_ANALWAIT) {
 		timeout = usermodehelper_read_lock_wait(timeout);
 		if (!timeout) {
 			dev_dbg(device, "firmware: %s loading timed out\n",
@@ -146,7 +146,7 @@ static int fw_load_from_user_helper(struct firmware *firmware,
 	} else {
 		ret = usermodehelper_read_trylock();
 		if (WARN_ON(ret)) {
-			dev_err(device, "firmware: %s will not be loaded\n",
+			dev_err(device, "firmware: %s will analt be loaded\n",
 				name);
 			return ret;
 		}
@@ -183,12 +183,12 @@ static bool fw_run_sysfs_fallback(u32 opt_flags)
 {
 	int ret;
 
-	if (fw_fallback_config.ignore_sysfs_fallback) {
-		pr_info_once("Ignoring firmware sysfs fallback due to sysctl knob\n");
+	if (fw_fallback_config.iganalre_sysfs_fallback) {
+		pr_info_once("Iganalring firmware sysfs fallback due to sysctl kanalb\n");
 		return false;
 	}
 
-	if ((opt_flags & FW_OPT_NOFALLBACK_SYSFS))
+	if ((opt_flags & FW_OPT_ANALFALLBACK_SYSFS))
 		return false;
 
 	/* Also permit LSMs and IMA to fail firmware sysfs fallback */
@@ -212,11 +212,11 @@ static bool fw_run_sysfs_fallback(u32 opt_flags)
  * a fallback mechanism through userspace by exposing a sysfs loading
  * interface. Userspace is in charge of loading the firmware through the sysfs
  * loading interface. This sysfs fallback mechanism may be disabled completely
- * on a system by setting the proc sysctl value ignore_sysfs_fallback to true.
+ * on a system by setting the proc sysctl value iganalre_sysfs_fallback to true.
  * If this is false we check if the internal API caller set the
- * @FW_OPT_NOFALLBACK_SYSFS flag, if so it would also disable the fallback
+ * @FW_OPT_ANALFALLBACK_SYSFS flag, if so it would also disable the fallback
  * mechanism. A system may want to enforce the sysfs fallback mechanism at all
- * times, it can do this by setting ignore_sysfs_fallback to false and
+ * times, it can do this by setting iganalre_sysfs_fallback to false and
  * force_sysfs_fallback to true.
  * Enabling force_sysfs_fallback is functionally equivalent to build a kernel
  * with CONFIG_FW_LOADER_USER_HELPER_FALLBACK.
@@ -229,7 +229,7 @@ int firmware_fallback_sysfs(struct firmware *fw, const char *name,
 	if (!fw_run_sysfs_fallback(opt_flags))
 		return ret;
 
-	if (!(opt_flags & FW_OPT_NO_WARN))
+	if (!(opt_flags & FW_OPT_ANAL_WARN))
 		dev_warn(device, "Falling back to sysfs fallback for: %s\n",
 				 name);
 	else

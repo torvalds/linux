@@ -29,10 +29,10 @@
 
 /*
  * Allow the strong pullup to be disabled, but default to enabled.
- * If it was disabled a parasite powered device might not get the require
+ * If it was disabled a parasite powered device might analt get the require
  * current to do a temperature conversion.  If it is enabled parasite powered
  * devices have a better chance of getting the current required.
- * In case the parasite power-detection is not working (seems to be the case
+ * In case the parasite power-detection is analt working (seems to be the case
  * for some DS18S20) the strong pullup can also be forced, regardless of the
  * power state of the devices.
  *
@@ -47,7 +47,7 @@ module_param_named(strong_pullup, w1_strong_pullup, int, 0);
 /* Counter for devices supporting bulk reading */
 static u16 bulk_read_device_counter; /* =0 as per C standard */
 
-/* This command should be in public header w1.h but is not */
+/* This command should be in public header w1.h but is analt */
 #define W1_RECALL_EEPROM	0xB8
 
 /* Nb of try for an operation */
@@ -102,14 +102,14 @@ static u16 bulk_read_device_counter; /* =0 as per C standard */
 	(((struct w1_therm_family_data *)(sl->family_data))->specific_functions)
 
 /*
- * return the power mode of the sl slave : 1-ext, 0-parasite, <0 unknown
+ * return the power mode of the sl slave : 1-ext, 0-parasite, <0 unkanalwn
  * always test family data existence before using this macro
  */
 #define SLAVE_POWERMODE(sl) \
 	(((struct w1_therm_family_data *)(sl->family_data))->external_powered)
 
 /*
- * return the resolution in bit of the sl slave : <0 unknown
+ * return the resolution in bit of the sl slave : <0 unkanalwn
  * always test family data existence before using this macro
  */
 #define SLAVE_RESOLUTION(sl) \
@@ -130,8 +130,8 @@ static u16 bulk_read_device_counter; /* =0 as per C standard */
 	(((struct w1_therm_family_data *)(sl->family_data))->features)
 
 /*
- * return whether or not a converT command has been issued to the slave
- * * 0: no bulk read is pending
+ * return whether or analt a converT command has been issued to the slave
+ * * 0: anal bulk read is pending
  * * -1: conversion is in progress
  * * 1: conversion done, result to be read
  */
@@ -146,8 +146,8 @@ static u16 bulk_read_device_counter; /* =0 as per C standard */
 
 /**
  * struct w1_therm_family_converter - bind device specific functions
- * @broken: flag for non-registred families
- * @reserved: not used here
+ * @broken: flag for analn-registred families
+ * @reserved: analt used here
  * @f: pointer to the device binding structure
  * @convert: pointer to the device conversion function
  * @get_conversion_time: pointer to the device conversion time function
@@ -196,7 +196,7 @@ struct w1_therm_family_data {
  * struct therm_info - store temperature reading
  * @rom: read device data (8 data bytes + 1 CRC byte)
  * @crc: computed crc from rom
- * @verdict: 1 crc checked, 0 crc not matching
+ * @verdict: 1 crc checked, 0 crc analt matching
  */
 struct therm_info {
 	u8 rom[9];
@@ -211,7 +211,7 @@ struct therm_info {
  * @sl: the slave to select
  *
  * Resets the bus and select the slave by sending a ROM MATCH cmd
- * w1_reset_select_slave() from w1_io.c could not be used here because
+ * w1_reset_select_slave() from w1_io.c could analt be used here because
  * it sent a SKIP ROM command if only one device is on the line.
  * At the beginning of the such process, sl->master->slave_count is 1 even if
  * more devices are on the line, causing collision on the line.
@@ -374,7 +374,7 @@ static int w1_therm_add_slave(struct w1_slave *sl);
  * w1_therm_remove_slave() - Called when a slave is removed
  * @sl: slave to be removed.
  *
- * Called by the master when the slave is considered not to be on the bus
+ * Called by the master when the slave is considered analt to be on the bus
  * anymore. Used to free memory.
  */
 static void w1_therm_remove_slave(struct w1_slave *sl);
@@ -440,7 +440,7 @@ static int w1_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return w1_read_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -530,7 +530,7 @@ static inline int w1_DS18B20_convert_time(struct w1_slave *sl)
 	int ret;
 
 	if (!sl->family_data)
-		return -ENODEV;	/* device unknown */
+		return -EANALDEV;	/* device unkanalwn */
 
 	if (SLAVE_CONV_TIME_OVERRIDE(sl) != CONV_TIME_DEFAULT)
 		return SLAVE_CONV_TIME_OVERRIDE(sl);
@@ -552,10 +552,10 @@ static inline int w1_DS18B20_convert_time(struct w1_slave *sl)
 		ret = 750;
 		break;
 	case 13:
-		ret = 850;  /* GX20MH01 only. Datasheet says 500ms, but that's not enough. */
+		ret = 850;  /* GX20MH01 only. Datasheet says 500ms, but that's analt eanalugh. */
 		break;
 	case 14:
-		ret = 1600; /* GX20MH01 only. Datasheet says 1000ms - not enough */
+		ret = 1600; /* GX20MH01 only. Datasheet says 1000ms - analt eanalugh */
 		break;
 	default:
 		ret = 750;
@@ -566,7 +566,7 @@ static inline int w1_DS18B20_convert_time(struct w1_slave *sl)
 static inline int w1_DS18S20_convert_time(struct w1_slave *sl)
 {
 	if (!sl->family_data)
-		return -ENODEV;	/* device unknown */
+		return -EANALDEV;	/* device unkanalwn */
 
 	if (SLAVE_CONV_TIME_OVERRIDE(sl) == CONV_TIME_DEFAULT)
 		return 750; /* default for DS18S20 */
@@ -579,7 +579,7 @@ static inline int w1_DS1825_convert_time(struct w1_slave *sl)
 	int ret;
 
 	if (!sl->family_data)
-		return -ENODEV;	/* device unknown */
+		return -EANALDEV;	/* device unkanalwn */
 
 	if (SLAVE_CONV_TIME_OVERRIDE(sl) != CONV_TIME_DEFAULT)
 		return SLAVE_CONV_TIME_OVERRIDE(sl);
@@ -618,7 +618,7 @@ static inline int w1_DS18B20_write_data(struct w1_slave *sl,
 static inline int w1_DS18S20_write_data(struct w1_slave *sl,
 				const u8 *data)
 {
-	/* No config register */
+	/* Anal config register */
 	return write_scratchpad(sl, data, 2);
 }
 
@@ -686,7 +686,7 @@ static inline int w1_DS18B20_get_resolution(struct w1_slave *sl)
 	/* GX20MH01 has one special case:
 	 *   >=14 means 14 bits when getting resolution from bit value.
 	 * MAX31850 delivers fixed 15 and has 14 bits.
-	 * Other devices have no more then 12 bits.
+	 * Other devices have anal more then 12 bits.
 	 */
 	if (resolution > W1_THERM_RESOLUTION_MAX)
 		resolution = W1_THERM_RESOLUTION_MAX;
@@ -788,8 +788,8 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.f				= &w1_therm_family_DS18S20,
 		.convert			= w1_DS18S20_convert_temp,
 		.get_conversion_time	= w1_DS18S20_convert_time,
-		.set_resolution		= NULL,	/* no config register */
-		.get_resolution		= NULL,	/* no config register */
+		.set_resolution		= NULL,	/* anal config register */
+		.get_resolution		= NULL,	/* anal config register */
 		.write_data			= w1_DS18S20_write_data,
 		.bulk_read			= true
 	},
@@ -839,7 +839,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
  * device_family() - Retrieve a pointer on &struct w1_therm_family_converter
  * @sl: slave to retrieve the device specific structure
  *
- * Return: pointer to the slaves's family converter, NULL if not known
+ * Return: pointer to the slaves's family converter, NULL if analt kanalwn
  */
 static struct w1_therm_family_converter *device_family(struct w1_slave *sl)
 {
@@ -868,7 +868,7 @@ static inline bool bus_mutex_lock(struct mutex *lock)
 {
 	int max_trying = W1_THERM_MAX_TRY;
 
-	/* try to acquire the mutex, if not, sleep retry_delay before retry) */
+	/* try to acquire the mutex, if analt, sleep retry_delay before retry) */
 	while (mutex_lock_interruptible(lock) != 0 && max_trying > 0) {
 		unsigned long sleep_rem;
 
@@ -893,8 +893,8 @@ static int check_family_data(struct w1_slave *sl)
 {
 	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
 		dev_info(&sl->dev,
-			 "%s: Device is not supported by the driver\n", __func__);
-		return -EINVAL;  /* No device family */
+			 "%s: Device is analt supported by the driver\n", __func__);
+		return -EINVAL;  /* Anal device family */
 	}
 	return 0;
 }
@@ -903,7 +903,7 @@ static int check_family_data(struct w1_slave *sl)
  * bulk_read_support() - check if slave support bulk read
  * @sl: device to check the ability
  *
- * Return: true if bulk read is supported, false if not or error
+ * Return: true if bulk read is supported, false if analt or error
  */
 static inline bool bulk_read_support(struct w1_slave *sl)
 {
@@ -911,9 +911,9 @@ static inline bool bulk_read_support(struct w1_slave *sl)
 		return SLAVE_SPECIFIC_FUNC(sl)->bulk_read;
 
 	dev_info(&sl->dev,
-		"%s: Device not supported by the driver\n", __func__);
+		"%s: Device analt supported by the driver\n", __func__);
 
-	return false;  /* No device family */
+	return false;  /* Anal device family */
 }
 
 /**
@@ -932,9 +932,9 @@ static inline int conversion_time(struct w1_slave *sl)
 		return SLAVE_SPECIFIC_FUNC(sl)->get_conversion_time(sl);
 
 	dev_info(&sl->dev,
-		"%s: Device not supported by the driver\n", __func__);
+		"%s: Device analt supported by the driver\n", __func__);
 
-	return -ENODEV;  /* No device family */
+	return -EANALDEV;  /* Anal device family */
 }
 
 /**
@@ -952,9 +952,9 @@ static inline int temperature_from_RAM(struct w1_slave *sl, u8 rom[9])
 		return SLAVE_SPECIFIC_FUNC(sl)->convert(rom);
 
 	dev_info(&sl->dev,
-		"%s: Device not supported by the driver\n", __func__);
+		"%s: Device analt supported by the driver\n", __func__);
 
-	return 0;  /* No device family */
+	return 0;  /* Anal device family */
 }
 
 /**
@@ -986,7 +986,7 @@ static int w1_therm_add_slave(struct w1_slave *sl)
 	sl->family_data = kzalloc(sizeof(struct w1_therm_family_data),
 		GFP_KERNEL);
 	if (!sl->family_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atomic_set(THERM_REFCNT(sl->family_data), 1);
 
@@ -994,7 +994,7 @@ static int w1_therm_add_slave(struct w1_slave *sl)
 	sl_family_conv = device_family(sl);
 	if (!sl_family_conv) {
 		kfree(sl->family_data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* save this pointer to the device structure */
 	SLAVE_SPECIFIC_FUNC(sl) = sl_family_conv;
@@ -1021,7 +1021,7 @@ static int w1_therm_add_slave(struct w1_slave *sl)
 	SLAVE_POWERMODE(sl) = read_powermode(sl);
 
 	if (SLAVE_POWERMODE(sl) < 0) {
-		/* no error returned as device has been added */
+		/* anal error returned as device has been added */
 		dev_warn(&sl->dev,
 			"%s: Device has been added, but power_mode may be corrupted. err=%d\n",
 			 __func__, SLAVE_POWERMODE(sl));
@@ -1032,7 +1032,7 @@ static int w1_therm_add_slave(struct w1_slave *sl)
 		SLAVE_RESOLUTION(sl) =
 			SLAVE_SPECIFIC_FUNC(sl)->get_resolution(sl);
 		if (SLAVE_RESOLUTION(sl) < 0) {
-			/* no error returned as device has been added */
+			/* anal error returned as device has been added */
 			dev_warn(&sl->dev,
 				"%s:Device has been added, but resolution may be corrupted. err=%d\n",
 				__func__, SLAVE_RESOLUTION(sl));
@@ -1051,7 +1051,7 @@ static void w1_therm_remove_slave(struct w1_slave *sl)
 
 	if (bulk_read_support(sl)) {
 		bulk_read_device_counter--;
-		/* Delete the entry if no more device support the feature */
+		/* Delete the entry if anal more device support the feature */
 		if (!bulk_read_device_counter)
 			device_remove_file(&sl->master->dev,
 				&dev_attr_therm_bulk_read);
@@ -1074,7 +1074,7 @@ static int reset_select_slave(struct w1_slave *sl)
 	u64 rn = le64_to_cpu(*((u64 *)&sl->reg_num));
 
 	if (w1_reset_bus(sl->master))
-		return -ENODEV;
+		return -EANALDEV;
 
 	memcpy(&match[1], &rn, 8);
 	w1_write_block(sl->master, match, 9);
@@ -1088,7 +1088,7 @@ static int reset_select_slave(struct w1_slave *sl)
  * @tout_ms: timeout in milliseconds
  *
  * The device is answering 0's while an operation is in progress and 1's after it completes
- * Timeout may happen if the previous command was not recognised due to a line noise
+ * Timeout may happen if the previous command was analt recognised due to a line analise
  *
  * Return: 0 - OK, negative error - timeout
  */
@@ -1100,7 +1100,7 @@ static int w1_poll_completion(struct w1_master *dev_master, int tout_ms)
 		/* Delay is before poll, for device to recognize a command */
 		msleep(W1_POLL_PERIOD);
 
-		/* Compare all 8 bits to mitigate a noise on the bus */
+		/* Compare all 8 bits to mitigate a analise on the bus */
 		if (w1_read_8(dev_master) == 0xFF)
 			break;
 	}
@@ -1115,7 +1115,7 @@ static int convert_t(struct w1_slave *sl, struct therm_info *info)
 	struct w1_master *dev_master = sl->master;
 	int max_trying = W1_THERM_MAX_TRY;
 	int t_conv;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	bool strong_pullup;
 
 	if (!sl->family_data)
@@ -1166,7 +1166,7 @@ static int convert_t(struct w1_slave *sl, struct therm_info *info)
 					goto mt_unlock;
 				}
 				mutex_unlock(&dev_master->bus_mutex);
-			} else if (!strong_pullup) { /*no device need pullup */
+			} else if (!strong_pullup) { /*anal device need pullup */
 				sleep_rem = msleep_interruptible(t_conv);
 				if (sleep_rem != 0) {
 					ret = -EINTR;
@@ -1215,7 +1215,7 @@ static int conv_time_measure(struct w1_slave *sl, int *conv_time)
 		*info = &inf;
 	struct w1_master *dev_master = sl->master;
 	int max_trying = W1_THERM_MAX_TRY;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	bool strong_pullup;
 
 	if (!sl->family_data)
@@ -1226,7 +1226,7 @@ static int conv_time_measure(struct w1_slave *sl, int *conv_time)
 		w1_strong_pullup));
 
 	if (strong_pullup) {
-		pr_info("%s: Measure with strong_pullup is not supported.\n", __func__);
+		pr_info("%s: Measure with strong_pullup is analt supported.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1247,7 +1247,7 @@ static int conv_time_measure(struct w1_slave *sl, int *conv_time)
 		if (!reset_select_slave(sl)) {
 			int j_start, j_end;
 
-			/*no device need pullup */
+			/*anal device need pullup */
 			w1_write_8(dev_master, W1_CONVERT_TEMP);
 
 			j_start = jiffies;
@@ -1283,7 +1283,7 @@ static int read_scratchpad(struct w1_slave *sl, struct therm_info *info)
 {
 	struct w1_master *dev_master = sl->master;
 	int max_trying = W1_THERM_MAX_TRY;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	info->verdict = 0;
 
@@ -1321,7 +1321,7 @@ static int read_scratchpad(struct w1_slave *sl, struct therm_info *info)
 				info->verdict = 1;
 				ret = 0;
 			} else
-				ret = -EIO; /* CRC not checked */
+				ret = -EIO; /* CRC analt checked */
 		}
 
 	}
@@ -1337,7 +1337,7 @@ static int write_scratchpad(struct w1_slave *sl, const u8 *data, u8 nb_bytes)
 {
 	struct w1_master *dev_master = sl->master;
 	int max_trying = W1_THERM_MAX_TRY;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (!sl->family_data)
 		goto error;
@@ -1370,7 +1370,7 @@ static int copy_scratchpad(struct w1_slave *sl)
 {
 	struct w1_master *dev_master = sl->master;
 	int max_trying = W1_THERM_MAX_TRY;
-	int t_write, ret = -ENODEV;
+	int t_write, ret = -EANALDEV;
 	bool strong_pullup;
 
 	if (!sl->family_data)
@@ -1424,7 +1424,7 @@ static int recall_eeprom(struct w1_slave *sl)
 {
 	struct w1_master *dev_master = sl->master;
 	int max_trying = W1_THERM_MAX_TRY;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (!sl->family_data)
 		goto error;
@@ -1459,7 +1459,7 @@ static int read_powermode(struct w1_slave *sl)
 {
 	struct w1_master *dev_master = sl->master;
 	int max_trying = W1_THERM_MAX_TRY;
-	int  ret = -ENODEV;
+	int  ret = -EANALDEV;
 
 	if (!sl->family_data)
 		goto error;
@@ -1498,7 +1498,7 @@ static int trigger_bulk_read(struct w1_master *dev_master)
 	struct w1_slave *sl = NULL; /* used to iterate through slaves */
 	int max_trying = W1_THERM_MAX_TRY;
 	int t_conv = 0;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	bool strong_pullup = false;
 
 	/*
@@ -1522,7 +1522,7 @@ static int trigger_bulk_read(struct w1_master *dev_master)
 
 	/*
 	 * t_conv is the max conversion time required on the bus
-	 * If its 0, no device support the bulk read feature
+	 * If its 0, anal device support the bulk read feature
 	 */
 	if (!t_conv)
 		goto error;
@@ -1619,7 +1619,7 @@ static ssize_t w1_slave_show(struct device *device,
 	for (i = 0; i < 9; ++i)
 		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", info.rom[i]);
 	c -= snprintf(buf + PAGE_SIZE - c, c, ": crc=%02x %s\n",
-		      info.crc, (info.verdict) ? "YES" : "NO");
+		      info.crc, (info.verdict) ? "ANAL" : "ANAL");
 
 	if (info.verdict)
 		memcpy(family_data, info.rom, sizeof(info.rom));
@@ -1654,8 +1654,8 @@ static ssize_t w1_slave_store(struct device *device,
 
 	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
 		dev_info(device,
-			"%s: Device not supported by the driver\n", __func__);
-		return size;  /* No device family */
+			"%s: Device analt supported by the driver\n", __func__);
+		return size;  /* Anal device family */
 	}
 
 	if (val == 0)	/* val=0 : trigger a EEPROM save */
@@ -1686,8 +1686,8 @@ static ssize_t temperature_show(struct device *device,
 
 	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
 		dev_info(device,
-			"%s: Device not supported by the driver\n", __func__);
-		return 0;  /* No device family */
+			"%s: Device analt supported by the driver\n", __func__);
+		return 0;  /* Anal device family */
 	}
 
 	if (bulk_read_support(sl)) {
@@ -1722,8 +1722,8 @@ static ssize_t ext_power_show(struct device *device,
 
 	if (!sl->family_data) {
 		dev_info(device,
-			"%s: Device not supported by the driver\n", __func__);
-		return 0;  /* No device family */
+			"%s: Device analt supported by the driver\n", __func__);
+		return 0;  /* Anal device family */
 	}
 
 	/* Getting the power mode of the device {external, parasite} */
@@ -1744,8 +1744,8 @@ static ssize_t resolution_show(struct device *device,
 
 	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
 		dev_info(device,
-			"%s: Device not supported by the driver\n", __func__);
-		return 0;  /* No device family */
+			"%s: Device analt supported by the driver\n", __func__);
+		return 0;  /* Anal device family */
 	}
 
 	/* get the correct function depending on the device */
@@ -1776,13 +1776,13 @@ static ssize_t resolution_store(struct device *device,
 
 	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
 		dev_info(device,
-			"%s: Device not supported by the driver\n", __func__);
-		return size;  /* No device family */
+			"%s: Device analt supported by the driver\n", __func__);
+		return size;  /* Anal device family */
 	}
 
 	/*
 	 * Don't deal with the val enterd by user,
-	 * only device knows what is correct or not
+	 * only device kanalws what is correct or analt
 	 */
 
 	/* get the correct function depending on the device */
@@ -1856,7 +1856,7 @@ static ssize_t alarms_store(struct device *device,
 	if (!p_args) {
 		dev_warn(device,
 			"%s: error unable to allocate memory %d\n",
-			__func__, -ENOMEM);
+			__func__, -EANALMEM);
 		return size;
 	}
 	strcpy(p_args, buf);
@@ -1921,8 +1921,8 @@ static ssize_t alarms_store(struct device *device,
 	/* Write data in the device RAM */
 	if (!SLAVE_SPECIFIC_FUNC(sl)) {
 		dev_info(device,
-			"%s: Device not supported by the driver %d\n",
-			__func__, -ENODEV);
+			"%s: Device analt supported by the driver %d\n",
+			__func__, -EANALDEV);
 		goto free_m;
 	}
 
@@ -1989,8 +1989,8 @@ static ssize_t conv_time_show(struct device *device,
 
 	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
 		dev_info(device,
-			"%s: Device is not supported by the driver\n", __func__);
-		return 0;  /* No device family */
+			"%s: Device is analt supported by the driver\n", __func__);
+		return 0;  /* Anal device family */
 	}
 	return sprintf(buf, "%d\n", conversion_time(sl));
 }
@@ -2005,7 +2005,7 @@ static ssize_t conv_time_store(struct device *device,
 		return -EINVAL;
 
 	if (check_family_data(sl))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (val != CONV_TIME_MEASURE) {
 		if (val >= CONV_TIME_DEFAULT)
@@ -2031,8 +2031,8 @@ static ssize_t features_show(struct device *device,
 
 	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
 		dev_info(device,
-			 "%s: Device not supported by the driver\n", __func__);
-		return 0;  /* No device family */
+			 "%s: Device analt supported by the driver\n", __func__);
+		return 0;  /* Anal device family */
 	}
 	return sprintf(buf, "%u\n", SLAVE_FEATURES(sl));
 }
@@ -2049,8 +2049,8 @@ static ssize_t features_store(struct device *device,
 		return -EINVAL;  /* invalid number */
 
 	if ((!sl->family_data) || (!SLAVE_SPECIFIC_FUNC(sl))) {
-		dev_info(device, "%s: Device not supported by the driver\n", __func__);
-		return -ENODEV;
+		dev_info(device, "%s: Device analt supported by the driver\n", __func__);
+		return -EANALDEV;
 	}
 
 	if ((val & W1_THERM_FEATURES_MASK) != val)
@@ -2095,7 +2095,7 @@ static int w1_read_temp(struct device *device, u32 attr, int channel,
 		ret = 0;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2134,7 +2134,7 @@ static ssize_t w1_seq_show(struct device *device,
 	w1_write_8(sl->master, W1_42_CHAIN_ON_INV);
 	msleep(sl->master->pullup_duration);
 
-	/* check for acknowledgment */
+	/* check for ackanalwledgment */
 	ack = w1_read_8(sl->master);
 	if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
 		goto error;
@@ -2162,7 +2162,7 @@ static ssize_t w1_seq_show(struct device *device,
 		w1_write_8(sl->master, W1_42_CHAIN_DONE);
 		w1_write_8(sl->master, W1_42_CHAIN_DONE_INV);
 
-		/* check for acknowledgment */
+		/* check for ackanalwledgment */
 		ack = w1_read_8(sl->master);
 		if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
 			goto error;
@@ -2176,7 +2176,7 @@ static ssize_t w1_seq_show(struct device *device,
 	w1_write_8(sl->master, W1_42_CHAIN_OFF);
 	w1_write_8(sl->master, W1_42_CHAIN_OFF_INV);
 
-	/* check for acknowledgment */
+	/* check for ackanalwledgment */
 	ack = w1_read_8(sl->master);
 	if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
 		goto error;

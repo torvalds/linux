@@ -6,7 +6,7 @@
 #include <linux/types.h>
 
 /* Represents an open zip archive.
- * Only basic ZIP files are supported, in particular the following are not
+ * Only basic ZIP files are supported, in particular the following are analt
  * supported:
  * - encryption
  * - streaming
@@ -22,7 +22,7 @@ struct zip_entry {
 	/* Compression method as defined in pkzip spec. 0 means data is uncompressed. */
 	__u16 compression;
 
-	/* Non-null terminated name of the file. */
+	/* Analn-null terminated name of the file. */
 	const char *name;
 	/* Length of the file name. */
 	__u16 name_length;

@@ -24,7 +24,7 @@
 #define MADERA_FLL3_SYNCCLK		7
 #define MADERA_FLLAO_SYNCCLK		8
 
-#define MADERA_FLL_SRC_NONE		-1
+#define MADERA_FLL_SRC_ANALNE		-1
 #define MADERA_FLL_SRC_MCLK1		0
 #define MADERA_FLL_SRC_MCLK2		1
 #define MADERA_FLL_SRC_MCLK3		2
@@ -178,7 +178,7 @@ struct madera_enum {
 extern const unsigned int madera_ana_tlv[];
 extern const unsigned int madera_eq_tlv[];
 extern const unsigned int madera_digital_tlv[];
-extern const unsigned int madera_noise_tlv[];
+extern const unsigned int madera_analise_tlv[];
 extern const unsigned int madera_ng_tlv[];
 
 extern const unsigned int madera_mixer_tlv[];
@@ -231,7 +231,7 @@ extern const unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 	MADERA_MUX_ENUMS(name##_aux6, base_reg + 40)
 
 #define MADERA_MUX(name, ctrl) \
-	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_ANALPM, 0, 0, ctrl)
 
 #define MADERA_MUX_WIDGETS(name, name_str) \
 	MADERA_MUX(name_str " Input 1", &name##_mux)
@@ -241,7 +241,7 @@ extern const unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 	MADERA_MUX(name_str " Input 2", &name##_in2_mux), \
 	MADERA_MUX(name_str " Input 3", &name##_in3_mux), \
 	MADERA_MUX(name_str " Input 4", &name##_in4_mux), \
-	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_NOPM, 0, 0, NULL, 0)
+	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0)
 
 #define MADERA_DSP_WIDGETS(name, name_str)			\
 	MADERA_MIXER_WIDGETS(name##L, name_str "L"),		\
@@ -308,7 +308,7 @@ extern const unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 	((unsigned long)&(struct soc_bytes) { .base = xbase,	\
 	 .num_regs = 1 }) }
 
-#define MADERA_RATES SNDRV_PCM_RATE_KNOT
+#define MADERA_RATES SNDRV_PCM_RATE_KANALT
 
 #define MADERA_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
@@ -425,7 +425,7 @@ int madera_free_overheat(struct madera_priv *priv);
 int madera_init_inputs(struct snd_soc_component *component);
 int madera_init_outputs(struct snd_soc_component *component,
 			const struct snd_soc_dapm_route *routes,
-			int n_mono_routes, int n_real);
+			int n_moanal_routes, int n_real);
 int madera_init_bus_error_irq(struct madera_priv *priv, int dsp_num,
 			      irq_handler_t handler);
 void madera_free_bus_error_irq(struct madera_priv *priv, int dsp_num);
@@ -436,23 +436,23 @@ int madera_set_output_mode(struct snd_soc_component *component, int output,
 			   bool differential);
 
 /* Following functions are for use by machine drivers */
-static inline int madera_register_notifier(struct snd_soc_component *component,
-					   struct notifier_block *nb)
+static inline int madera_register_analtifier(struct snd_soc_component *component,
+					   struct analtifier_block *nb)
 {
 	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
 	struct madera *madera = priv->madera;
 
-	return blocking_notifier_chain_register(&madera->notifier, nb);
+	return blocking_analtifier_chain_register(&madera->analtifier, nb);
 }
 
 static inline int
-madera_unregister_notifier(struct snd_soc_component *component,
-			   struct notifier_block *nb)
+madera_unregister_analtifier(struct snd_soc_component *component,
+			   struct analtifier_block *nb)
 {
 	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
 	struct madera *madera = priv->madera;
 
-	return blocking_notifier_chain_unregister(&madera->notifier, nb);
+	return blocking_analtifier_chain_unregister(&madera->analtifier, nb);
 }
 
 #endif

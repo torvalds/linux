@@ -431,12 +431,12 @@
 #define VUL12_MODE_SFT                                20
 #define VUL12_MODE_MASK                               0xf
 #define VUL12_MODE_MASK_SFT                           (0xf << 20)
-#define VUL12_R_MONO_SFT                              11
-#define VUL12_R_MONO_MASK                             0x1
-#define VUL12_R_MONO_MASK_SFT                         (0x1 << 11)
-#define VUL12_MONO_SFT                                10
-#define VUL12_MONO_MASK                               0x1
-#define VUL12_MONO_MASK_SFT                           (0x1 << 10)
+#define VUL12_R_MOANAL_SFT                              11
+#define VUL12_R_MOANAL_MASK                             0x1
+#define VUL12_R_MOANAL_MASK_SFT                         (0x1 << 11)
+#define VUL12_MOANAL_SFT                                10
+#define VUL12_MOANAL_MASK                               0x1
+#define VUL12_MOANAL_MASK_SFT                           (0x1 << 10)
 #define VUL12_ON_SFT                                  9
 #define VUL12_ON_MASK                                 0x1
 #define VUL12_ON_MASK_SFT                             (0x1 << 9)
@@ -466,15 +466,15 @@
 #define MOD_DAI_MODE_SFT                              30
 #define MOD_DAI_MODE_MASK                             0x3
 #define MOD_DAI_MODE_MASK_SFT                         (0x3 << 30)
-#define VUL_R_MONO_SFT                                28
-#define VUL_R_MONO_MASK                               0x1
-#define VUL_R_MONO_MASK_SFT                           (0x1 << 28)
+#define VUL_R_MOANAL_SFT                                28
+#define VUL_R_MOANAL_MASK                               0x1
+#define VUL_R_MOANAL_MASK_SFT                           (0x1 << 28)
 #define VUL_DATA_SFT                                  27
 #define VUL_DATA_MASK                                 0x1
 #define VUL_DATA_MASK_SFT                             (0x1 << 27)
-#define AWB_R_MONO_SFT                                25
-#define AWB_R_MONO_MASK                               0x1
-#define AWB_R_MONO_MASK_SFT                           (0x1 << 25)
+#define AWB_R_MOANAL_SFT                                25
+#define AWB_R_MOANAL_MASK                               0x1
+#define AWB_R_MOANAL_MASK_SFT                           (0x1 << 25)
 #define AWB_DATA_SFT                                  24
 #define AWB_DATA_MASK                                 0x1
 #define AWB_DATA_MASK_SFT                             (0x1 << 24)
@@ -504,9 +504,9 @@
 #define DL1_MODE_MASK_SFT                             (0xf << 0)
 
 /* AFE_DAC_CON2 */
-#define AWB2_R_MONO_SFT                               21
-#define AWB2_R_MONO_MASK                              0x1
-#define AWB2_R_MONO_MASK_SFT                          (0x1 << 21)
+#define AWB2_R_MOANAL_SFT                               21
+#define AWB2_R_MOANAL_MASK                              0x1
+#define AWB2_R_MOANAL_MASK_SFT                          (0x1 << 21)
 #define AWB2_DATA_SFT                                 20
 #define AWB2_DATA_MASK                                0x1
 #define AWB2_DATA_MASK_SFT                            (0x1 << 20)
@@ -519,9 +519,9 @@
 #define VUL2_MODE_SFT                                 4
 #define VUL2_MODE_MASK                                0xf
 #define VUL2_MODE_MASK_SFT                            (0xf << 4)
-#define VUL2_R_MONO_SFT                               1
-#define VUL2_R_MONO_MASK                              0x1
-#define VUL2_R_MONO_MASK_SFT                          (0x1 << 1)
+#define VUL2_R_MOANAL_SFT                               1
+#define VUL2_R_MOANAL_MASK                              0x1
+#define VUL2_R_MOANAL_MASK_SFT                          (0x1 << 1)
 #define VUL2_DATA_SFT                                 0
 #define VUL2_DATA_MASK                                0x1
 #define VUL2_DATA_MASK_SFT                            (0x1 << 0)
@@ -544,9 +544,9 @@
 #define I2S_LOOPBACK_SFT                              20
 #define I2S_LOOPBACK_MASK                             0x1
 #define I2S_LOOPBACK_MASK_SFT                         (0x1 << 20)
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_SFT             17
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK            0x1
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_SFT             17
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK            0x1
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
 #define I2S1_HD_EN_SFT                                12
 #define I2S1_HD_EN_MASK                               0x1
 #define I2S1_HD_EN_MASK_SFT                           (0x1 << 12)
@@ -579,9 +579,9 @@
 #define I2S2_SEL_O19_O20_SFT                          18
 #define I2S2_SEL_O19_O20_MASK                         0x1
 #define I2S2_SEL_O19_O20_MASK_SFT                     (0x1 << 18)
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_SFT             17
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK            0x1
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_SFT             17
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK            0x1
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
 #define I2S2_SEL_O03_O04_SFT                          16
 #define I2S2_SEL_O03_O04_MASK                         0x1
 #define I2S2_SEL_O03_O04_MASK_SFT                     (0x1 << 16)
@@ -626,9 +626,9 @@
 #define I2S3_LOOPBACK_SFT                             20
 #define I2S3_LOOPBACK_MASK                            0x1
 #define I2S3_LOOPBACK_MASK_SFT                        (0x1 << 20)
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_SFT             17
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK            0x1
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_SFT             17
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK            0x1
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
 #define I2S3_HD_EN_SFT                                12
 #define I2S3_HD_EN_MASK                               0x1
 #define I2S3_HD_EN_MASK_SFT                           (0x1 << 12)
@@ -649,9 +649,9 @@
 #define I2S4_LR_SWAP_SFT                              31
 #define I2S4_LR_SWAP_MASK                             0x1
 #define I2S4_LR_SWAP_MASK_SFT                         (0x1 << 31)
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_SFT             17
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK            0x1
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_SFT             17
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK            0x1
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
 #define I2S4_32BIT_EN_SFT                             13
 #define I2S4_32BIT_EN_MASK                            0x1
 #define I2S4_32BIT_EN_MASK_SFT                        (0x1 << 13)
@@ -681,9 +681,9 @@
 #define I2S_LOOPBACK_SFT                              20
 #define I2S_LOOPBACK_MASK                             0x1
 #define I2S_LOOPBACK_MASK_SFT                         (0x1 << 20)
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_SFT             17
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK            0x1
-#define I2S_ONOFF_NOT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_SFT             17
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK            0x1
+#define I2S_OANALFF_ANALT_RESET_CK_ENABLE_MASK_SFT        (0x1 << 17)
 #define I2S5_32BIT_EN_SFT                             13
 #define I2S5_32BIT_EN_MASK                            0x1
 #define I2S5_32BIT_EN_MASK_SFT                        (0x1 << 13)
@@ -784,39 +784,39 @@
 #define DL1_HD_MASK_SFT                               (0x3 << 0)
 
 /* AFE_MEMIF_HDALIGN */
-#define AWB2_NORMAL_MODE_SFT                          30
-#define AWB2_NORMAL_MODE_MASK                         0x1
-#define AWB2_NORMAL_MODE_MASK_SFT                     (0x1 << 30)
-#define HDMI_NORMAL_MODE_SFT                          26
-#define HDMI_NORMAL_MODE_MASK                         0x1
-#define HDMI_NORMAL_MODE_MASK_SFT                     (0x1 << 26)
-#define MOD_DAI_NORMAL_MODE_SFT                       25
-#define MOD_DAI_NORMAL_MODE_MASK                      0x1
-#define MOD_DAI_NORMAL_MODE_MASK_SFT                  (0x1 << 25)
-#define DAI_NORMAL_MODE_SFT                           24
-#define DAI_NORMAL_MODE_MASK                          0x1
-#define DAI_NORMAL_MODE_MASK_SFT                      (0x1 << 24)
-#define VUL2_NORMAL_MODE_SFT                          23
-#define VUL2_NORMAL_MODE_MASK                         0x1
-#define VUL2_NORMAL_MODE_MASK_SFT                     (0x1 << 23)
-#define VUL12_NORMAL_MODE_SFT                         22
-#define VUL12_NORMAL_MODE_MASK                        0x1
-#define VUL12_NORMAL_MODE_MASK_SFT                    (0x1 << 22)
-#define VUL_NORMAL_MODE_SFT                           21
-#define VUL_NORMAL_MODE_MASK                          0x1
-#define VUL_NORMAL_MODE_MASK_SFT                      (0x1 << 21)
-#define AWB_NORMAL_MODE_SFT                           20
-#define AWB_NORMAL_MODE_MASK                          0x1
-#define AWB_NORMAL_MODE_MASK_SFT                      (0x1 << 20)
-#define DL3_NORMAL_MODE_SFT                           19
-#define DL3_NORMAL_MODE_MASK                          0x1
-#define DL3_NORMAL_MODE_MASK_SFT                      (0x1 << 19)
-#define DL2_NORMAL_MODE_SFT                           18
-#define DL2_NORMAL_MODE_MASK                          0x1
-#define DL2_NORMAL_MODE_MASK_SFT                      (0x1 << 18)
-#define DL1_NORMAL_MODE_SFT                           16
-#define DL1_NORMAL_MODE_MASK                          0x1
-#define DL1_NORMAL_MODE_MASK_SFT                      (0x1 << 16)
+#define AWB2_ANALRMAL_MODE_SFT                          30
+#define AWB2_ANALRMAL_MODE_MASK                         0x1
+#define AWB2_ANALRMAL_MODE_MASK_SFT                     (0x1 << 30)
+#define HDMI_ANALRMAL_MODE_SFT                          26
+#define HDMI_ANALRMAL_MODE_MASK                         0x1
+#define HDMI_ANALRMAL_MODE_MASK_SFT                     (0x1 << 26)
+#define MOD_DAI_ANALRMAL_MODE_SFT                       25
+#define MOD_DAI_ANALRMAL_MODE_MASK                      0x1
+#define MOD_DAI_ANALRMAL_MODE_MASK_SFT                  (0x1 << 25)
+#define DAI_ANALRMAL_MODE_SFT                           24
+#define DAI_ANALRMAL_MODE_MASK                          0x1
+#define DAI_ANALRMAL_MODE_MASK_SFT                      (0x1 << 24)
+#define VUL2_ANALRMAL_MODE_SFT                          23
+#define VUL2_ANALRMAL_MODE_MASK                         0x1
+#define VUL2_ANALRMAL_MODE_MASK_SFT                     (0x1 << 23)
+#define VUL12_ANALRMAL_MODE_SFT                         22
+#define VUL12_ANALRMAL_MODE_MASK                        0x1
+#define VUL12_ANALRMAL_MODE_MASK_SFT                    (0x1 << 22)
+#define VUL_ANALRMAL_MODE_SFT                           21
+#define VUL_ANALRMAL_MODE_MASK                          0x1
+#define VUL_ANALRMAL_MODE_MASK_SFT                      (0x1 << 21)
+#define AWB_ANALRMAL_MODE_SFT                           20
+#define AWB_ANALRMAL_MODE_MASK                          0x1
+#define AWB_ANALRMAL_MODE_MASK_SFT                      (0x1 << 20)
+#define DL3_ANALRMAL_MODE_SFT                           19
+#define DL3_ANALRMAL_MODE_MASK                          0x1
+#define DL3_ANALRMAL_MODE_MASK_SFT                      (0x1 << 19)
+#define DL2_ANALRMAL_MODE_SFT                           18
+#define DL2_ANALRMAL_MODE_MASK                          0x1
+#define DL2_ANALRMAL_MODE_MASK_SFT                      (0x1 << 18)
+#define DL1_ANALRMAL_MODE_SFT                           16
+#define DL1_ANALRMAL_MODE_MASK                          0x1
+#define DL1_ANALRMAL_MODE_MASK_SFT                      (0x1 << 16)
 #define RESERVED1_SFT                                 15
 #define RESERVED1_MASK                                0x1
 #define RESERVED1_MASK_SFT                            (0x1 << 15)

@@ -126,10 +126,10 @@ static const struct vpu_format dec_fmt_list[FMT_TYPES][MAX_FMTS] = {
 static int switch_state(struct vpu_instance *inst, enum vpu_instance_state state)
 {
 	switch (state) {
-	case VPU_INST_STATE_NONE:
+	case VPU_INST_STATE_ANALNE:
 		break;
 	case VPU_INST_STATE_OPEN:
-		if (inst->state != VPU_INST_STATE_NONE)
+		if (inst->state != VPU_INST_STATE_ANALNE)
 			goto invalid_state_switch;
 		goto valid_state_switch;
 	case VPU_INST_STATE_INIT_SEQ:
@@ -339,7 +339,7 @@ static void flag_last_buffer_done(struct vpu_instance *inst)
 
 	for (i = 0; i < vb->vb2_buf.num_planes; i++)
 		vb2_set_plane_payload(&vb->vb2_buf, i, 0);
-	vb->field = V4L2_FIELD_NONE;
+	vb->field = V4L2_FIELD_ANALNE;
 
 	v4l2_m2m_last_buffer_done(m2m_ctx, vb);
 }
@@ -420,7 +420,7 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 
 	ret = wave5_vpu_dec_get_output_info(inst, &dec_info);
 	if (ret) {
-		dev_warn(inst->dev->dev, "%s: could not get output info.", __func__);
+		dev_warn(inst->dev->dev, "%s: could analt get output info.", __func__);
 		v4l2_m2m_job_finish(inst->v4l2_m2m_dev, m2m_ctx);
 		return;
 	}
@@ -433,12 +433,12 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 		dec_info.index_frame_decoded, dec_info.index_frame_display);
 
 	if (!vb2_is_streaming(dst_vq)) {
-		dev_dbg(inst->dev->dev, "%s: capture is not streaming..", __func__);
+		dev_dbg(inst->dev->dev, "%s: capture is analt streaming..", __func__);
 		v4l2_m2m_job_finish(inst->v4l2_m2m_dev, m2m_ctx);
 		return;
 	}
 
-	/* Remove decoded buffer from the ready queue now that it has been
+	/* Remove decoded buffer from the ready queue analw that it has been
 	 * decoded.
 	 */
 	if (dec_info.index_frame_decoded >= 0) {
@@ -460,7 +460,7 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 				 __func__, dec_info.index_frame_display);
 	}
 
-	/* If there is anything to display, do that now */
+	/* If there is anything to display, do that analw */
 	if (disp_buf) {
 		struct vpu_dst_buffer *dst_vpu_buf = wave5_to_vpu_dst_buf(disp_buf);
 
@@ -482,7 +482,7 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 		}
 
 		/* TODO implement interlace support */
-		disp_buf->field = V4L2_FIELD_NONE;
+		disp_buf->field = V4L2_FIELD_ANALNE;
 		dst_vpu_buf->display = true;
 		v4l2_m2m_buf_done(disp_buf, VB2_BUF_STATE_DONE);
 
@@ -512,7 +512,7 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 	/*
 	 * During a resolution change and while draining, the firmware may flush
 	 * the reorder queue regardless of having a matching decoding operation
-	 * pending. Only terminate the job if there are no more IRQ coming.
+	 * pending. Only terminate the job if there are anal more IRQ coming.
 	 */
 	wave5_vpu_dec_give_command(inst, DEC_GET_QUEUE_STATUS, &q_status);
 	if (q_status.report_queue_count == 0 &&
@@ -603,7 +603,7 @@ static int wave5_vpu_dec_try_fmt_cap(struct file *file, void *fh, struct v4l2_fo
 
 	wave5_update_pix_fmt(&f->fmt.pix_mp, width, height);
 	f->fmt.pix_mp.flags = 0;
-	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix_mp.colorspace = inst->colorspace;
 	f->fmt.pix_mp.ycbcr_enc = inst->ycbcr_enc;
 	f->fmt.pix_mp.quantization = inst->quantization;
@@ -737,7 +737,7 @@ static int wave5_vpu_dec_try_fmt_out(struct file *file, void *fh, struct v4l2_fo
 	}
 
 	f->fmt.pix_mp.flags = 0;
-	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -757,7 +757,7 @@ static int wave5_vpu_dec_s_fmt_out(struct file *file, void *fh, struct v4l2_form
 		return ret;
 
 	inst->std = wave5_to_vpu_std(f->fmt.pix_mp.pixelformat, inst->type);
-	if (inst->std == STD_UNKNOWN) {
+	if (inst->std == STD_UNKANALWN) {
 		dev_warn(inst->dev->dev, "unsupported pixelformat: %.4s\n",
 			 (char *)&f->fmt.pix_mp.pixelformat);
 		return -EINVAL;
@@ -852,10 +852,10 @@ static int wave5_vpu_dec_stop(struct vpu_instance *inst)
 		goto unlock_and_return;
 	}
 
-	if (inst->state != VPU_INST_STATE_NONE) {
+	if (inst->state != VPU_INST_STATE_ANALNE) {
 		/*
 		 * Temporarily release the state_spinlock so that subsequent
-		 * calls do not block on a mutex while inside this spinlock.
+		 * calls do analt block on a mutex while inside this spinlock.
 		 */
 		spin_unlock_irqrestore(&inst->state_spinlock, flags);
 		ret = wave5_vpu_dec_set_eos_on_firmware(inst);
@@ -894,7 +894,7 @@ static int wave5_vpu_dec_stop(struct vpu_instance *inst)
 	if (m2m_ctx->last_src_buf)
 		goto unlock_and_return;
 
-	if (inst->state == VPU_INST_STATE_NONE) {
+	if (inst->state == VPU_INST_STATE_ANALNE) {
 		send_eos_event(inst);
 		flag_last_buffer_done(inst);
 	}
@@ -976,8 +976,8 @@ static const struct v4l2_ioctl_ops wave5_vpu_dec_ioctl_ops = {
 
 	.vidioc_reqbufs = v4l2_m2m_ioctl_reqbufs,
 	/*
-	 * Firmware does not support CREATE_BUFS for CAPTURE queue. Since
-	 * there is no immediate use-case for supporting CREATE_BUFS on
+	 * Firmware does analt support CREATE_BUFS for CAPTURE queue. Since
+	 * there is anal immediate use-case for supporting CREATE_BUFS on
 	 * just the OUTPUT queue, disable CREATE_BUFS altogether.
 	 */
 	.vidioc_querybuf = v4l2_m2m_ioctl_querybuf,
@@ -1049,7 +1049,7 @@ static int wave5_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 static int wave5_prepare_fb(struct vpu_instance *inst)
 {
 	int linear_num;
-	int non_linear_num;
+	int analn_linear_num;
 	int fb_stride = 0, fb_height = 0;
 	int luma_size, chroma_size;
 	int ret, i;
@@ -1057,9 +1057,9 @@ static int wave5_prepare_fb(struct vpu_instance *inst)
 	struct v4l2_m2m_ctx *m2m_ctx = inst->v4l2_fh.m2m_ctx;
 
 	linear_num = v4l2_m2m_num_dst_bufs_ready(m2m_ctx);
-	non_linear_num = inst->fbc_buf_count;
+	analn_linear_num = inst->fbc_buf_count;
 
-	for (i = 0; i < non_linear_num; i++) {
+	for (i = 0; i < analn_linear_num; i++) {
 		struct frame_buffer *frame = &inst->frame_buf[i];
 		struct vpu_buf *vframe = &inst->frame_vbuf[i];
 
@@ -1094,7 +1094,7 @@ static int wave5_prepare_fb(struct vpu_instance *inst)
 		frame->update_fb_info = true;
 	}
 	/* In case the count has reduced, clean up leftover framebuffer memory */
-	for (i = non_linear_num; i < MAX_REG_FRAME; i++) {
+	for (i = analn_linear_num; i < MAX_REG_FRAME; i++) {
 		ret = wave5_vpu_dec_reset_framebuffer(inst, i);
 		if (ret)
 			break;
@@ -1104,7 +1104,7 @@ static int wave5_prepare_fb(struct vpu_instance *inst)
 		struct v4l2_m2m_ctx *m2m_ctx = inst->v4l2_fh.m2m_ctx;
 		struct vb2_queue *dst_vq = v4l2_m2m_get_dst_vq(m2m_ctx);
 		struct vb2_buffer *vb = vb2_get_buffer(dst_vq, i);
-		struct frame_buffer *frame = &inst->frame_buf[non_linear_num + i];
+		struct frame_buffer *frame = &inst->frame_buf[analn_linear_num + i];
 		dma_addr_t buf_addr_y = 0, buf_addr_cb = 0, buf_addr_cr = 0;
 		u32 buf_size = 0;
 		u32 fb_stride = inst->dst_fmt.width;
@@ -1146,7 +1146,7 @@ static int wave5_prepare_fb(struct vpu_instance *inst)
 		frame->update_fb_info = true;
 	}
 
-	ret = wave5_vpu_dec_register_frame_buffer_ex(inst, non_linear_num, linear_num,
+	ret = wave5_vpu_dec_register_frame_buffer_ex(inst, analn_linear_num, linear_num,
 						     fb_stride, inst->dst_fmt.height);
 	if (ret) {
 		dev_dbg(inst->dev->dev, "%s: vpu_dec_register_frame_buffer_ex fail: %d",
@@ -1316,7 +1316,7 @@ static void wave5_vpu_dec_buf_queue_dst(struct vb2_buffer *vb)
 
 		/*
 		 * The buffer is already registered just clear the display flag
-		 * to let the firmware know it can be used.
+		 * to let the firmware kanalw it can be used.
 		 */
 		vpu_buf->display = false;
 		ret = wave5_vpu_dec_clr_disp_flag(inst, vb->index);
@@ -1333,7 +1333,7 @@ static void wave5_vpu_dec_buf_queue_dst(struct vb2_buffer *vb)
 		for (i = 0; i < vb->num_planes; i++)
 			vb2_set_plane_payload(vb, i, 0);
 
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 
 		send_eos_event(inst);
 		v4l2_m2m_last_buffer_done(m2m_ctx, vbuf);
@@ -1385,7 +1385,7 @@ static int wave5_vpu_dec_start_streaming(struct vb2_queue *q, unsigned int count
 
 	v4l2_m2m_update_start_streaming_state(m2m_ctx, q);
 
-	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE && inst->state == VPU_INST_STATE_NONE) {
+	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE && inst->state == VPU_INST_STATE_ANALNE) {
 		struct dec_open_param open_param;
 
 		memset(&open_param, 0, sizeof(struct dec_open_param));
@@ -1418,7 +1418,7 @@ static int wave5_vpu_dec_start_streaming(struct vb2_queue *q, unsigned int count
 
 		if (inst->state == VPU_INST_STATE_INIT_SEQ) {
 			if (initial_info->luma_bitdepth != 8) {
-				dev_info(inst->dev->dev, "%s: no support for %d bit depth",
+				dev_info(inst->dev->dev, "%s: anal support for %d bit depth",
 					 __func__, initial_info->luma_bitdepth);
 				ret = -EINVAL;
 				goto return_buffers;
@@ -1558,13 +1558,13 @@ static void wave5_set_default_format(struct v4l2_pix_format_mplane *src_fmt,
 	const struct v4l2_format_info *dst_fmt_info = v4l2_format_info(dst_pix_fmt);
 
 	src_fmt->pixelformat = dec_fmt_list[VPU_FMT_TYPE_CODEC][0].v4l2_pix_fmt;
-	src_fmt->field = V4L2_FIELD_NONE;
+	src_fmt->field = V4L2_FIELD_ANALNE;
 	src_fmt->flags = 0;
 	src_fmt->num_planes = 1;
 	wave5_update_pix_fmt(src_fmt, 720, 480);
 
 	dst_fmt->pixelformat = dst_pix_fmt;
-	dst_fmt->field = V4L2_FIELD_NONE;
+	dst_fmt->field = V4L2_FIELD_ANALNE;
 	dst_fmt->flags = 0;
 	dst_fmt->num_planes = dst_fmt_info->mem_planes;
 	wave5_update_pix_fmt(dst_fmt, 736, 480);
@@ -1737,7 +1737,7 @@ static int wave5_vpu_dec_job_ready(void *priv)
 	spin_lock_irqsave(&inst->state_spinlock, flags);
 
 	switch (inst->state) {
-	case VPU_INST_STATE_NONE:
+	case VPU_INST_STATE_ANALNE:
 		dev_dbg(inst->dev->dev, "Decoder must be open to start queueing M2M jobs!\n");
 		break;
 	case VPU_INST_STATE_OPEN:
@@ -1757,18 +1757,18 @@ static int wave5_vpu_dec_job_ready(void *priv)
 			break;
 		} else if (v4l2_m2m_num_dst_bufs_ready(m2m_ctx) < (inst->fbc_buf_count - 1)) {
 			dev_dbg(inst->dev->dev,
-				"No capture buffer ready to decode!\n");
+				"Anal capture buffer ready to decode!\n");
 			break;
 		} else if (!wave5_is_draining_or_eos(inst) &&
 			   !v4l2_m2m_num_src_bufs_ready(m2m_ctx)) {
 			dev_dbg(inst->dev->dev,
-				"No bitstream data to decode!\n");
+				"Anal bitstream data to decode!\n");
 			break;
 		}
 		ret = 1;
 		break;
 	case VPU_INST_STATE_STOP:
-		dev_dbg(inst->dev->dev, "Decoder is stopped, not running.\n");
+		dev_dbg(inst->dev->dev, "Decoder is stopped, analt running.\n");
 		break;
 	}
 
@@ -1793,7 +1793,7 @@ static int wave5_vpu_open_dec(struct file *filp)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inst->dev = dev;
 	inst->type = VPU_INST_TYPE_DEC;
@@ -1803,7 +1803,7 @@ static int wave5_vpu_open_dec(struct file *filp)
 
 	inst->codec_info = kzalloc(sizeof(*inst->codec_info), GFP_KERNEL);
 	if (!inst->codec_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(&inst->v4l2_fh, vdev);
 	filp->private_data = &inst->v4l2_fh;
@@ -1832,18 +1832,18 @@ static int wave5_vpu_open_dec(struct file *filp)
 	 * the CAPTURE queue has been started, because we need the results of the
 	 * initialization to properly prepare the CAPTURE queue with the correct
 	 * amount of buffers.
-	 * By setting ignore_cap_streaming to true the m2m framework will call
+	 * By setting iganalre_cap_streaming to true the m2m framework will call
 	 * job_ready as soon as the OUTPUT queue is streaming, instead of
 	 * waiting until both the CAPTURE and OUTPUT queues are streaming.
 	 */
-	m2m_ctx->ignore_cap_streaming = true;
+	m2m_ctx->iganalre_cap_streaming = true;
 
 	v4l2_ctrl_handler_init(&inst->v4l2_ctrl_hdl, 10);
 	v4l2_ctrl_new_std(&inst->v4l2_ctrl_hdl, NULL,
 			  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE, 1, 32, 1, 1);
 
 	if (inst->v4l2_ctrl_hdl.error) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto cleanup_inst;
 	}
 
@@ -1895,7 +1895,7 @@ int wave5_vpu_dec_register_device(struct vpu_device *dev)
 
 	vdev_dec = devm_kzalloc(dev->v4l2_dev.dev, sizeof(*vdev_dec), GFP_KERNEL);
 	if (!vdev_dec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->v4l2_m2m_dec_dev = v4l2_m2m_init(&wave5_vpu_dec_m2m_ops);
 	if (IS_ERR(dev->v4l2_m2m_dec_dev)) {

@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   This documents describes the devicetree bindings for a mmc-host controller
-  child node describing a mmc-card / an eMMC.
+  child analde describing a mmc-card / an eMMC.
 
 properties:
   compatible:
@@ -24,7 +24,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Use this to indicate that the mmc-card has a broken hpi
-      implementation, and that hpi should not be used.
+      implementation, and that hpi should analt be used.
 
 required:
   - compatible

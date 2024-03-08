@@ -13,8 +13,8 @@ So having this generic sound card allows all Freescale SoC users to benefit
 from the simplification of a new card support and the capability of the wide
 sample rates support through ASRC.
 
-Note: The card is initially designed for those sound cards who use AC'97, I2S
-      and PCM DAI formats. However, it'll be also possible to support those non
+Analte: The card is initially designed for those sound cards who use AC'97, I2S
+      and PCM DAI formats. However, it'll be also possible to support those analn
       AC'97/I2S/PCM type sound cards, such as S/PDIF audio and HDMI audio, as
       long as the driver has been properly upgraded.
 
@@ -60,7 +60,7 @@ Required properties:
 
 Optional properties:
 
-  - audio-asrc		: The phandle of ASRC. It can be absent if there's no
+  - audio-asrc		: The phandle of ASRC. It can be absent if there's anal
 			  need to add ASRC support via DPCM.
 
   - audio-routing	: A list of the connections between audio components.
@@ -75,7 +75,7 @@ Optional properties:
 			   * AMIC (stands for Analog Microphone Jack)
 			   * DMIC (stands for Digital Microphone Jack)
 
-			  Note: The "Mic Jack" and "AMIC" are redundant while
+			  Analte: The "Mic Jack" and "AMIC" are redundant while
 			        coexisting in order to support the old bindings
 				of wm8962 and sgtl5000.
 

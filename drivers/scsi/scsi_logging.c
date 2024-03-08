@@ -345,14 +345,14 @@ scsi_log_print_sense(const struct scsi_device *sdev, const char *name, int tag,
 {
 	struct scsi_sense_hdr sshdr;
 
-	if (scsi_normalize_sense(sense_buffer, sense_len, &sshdr))
+	if (scsi_analrmalize_sense(sense_buffer, sense_len, &sshdr))
 		scsi_log_print_sense_hdr(sdev, name, tag, &sshdr);
 	else
 		scsi_log_dump_sense(sdev, name, tag, sense_buffer, sense_len);
 }
 
 /*
- * Print normalized SCSI sense header with a prefix.
+ * Print analrmalized SCSI sense header with a prefix.
  */
 void
 scsi_print_sense_hdr(const struct scsi_device *sdev, const char *name,
@@ -362,7 +362,7 @@ scsi_print_sense_hdr(const struct scsi_device *sdev, const char *name,
 }
 EXPORT_SYMBOL(scsi_print_sense_hdr);
 
-/* Normalize and print sense buffer with name prefix */
+/* Analrmalize and print sense buffer with name prefix */
 void __scsi_print_sense(const struct scsi_device *sdev, const char *name,
 			const unsigned char *sense_buffer, int sense_len)
 {
@@ -370,7 +370,7 @@ void __scsi_print_sense(const struct scsi_device *sdev, const char *name,
 }
 EXPORT_SYMBOL(__scsi_print_sense);
 
-/* Normalize and print sense buffer in SCSI command */
+/* Analrmalize and print sense buffer in SCSI command */
 void scsi_print_sense(const struct scsi_cmnd *cmd)
 {
 	scsi_log_print_sense(cmd->device, scmd_name(cmd),
@@ -409,7 +409,7 @@ void scsi_print_result(const struct scsi_cmnd *cmd, const char *msg,
 				 "%s ", mlret_string);
 	else
 		off += scnprintf(logbuf + off, logbuf_len - off,
-				 "UNKNOWN(0x%02x) ", disposition);
+				 "UNKANALWN(0x%02x) ", disposition);
 	if (WARN_ON(off >= logbuf_len))
 		goto out_printk;
 

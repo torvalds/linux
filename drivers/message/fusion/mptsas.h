@@ -3,7 +3,7 @@
  *      High performance SCSI + LAN / Fibre Channel device drivers.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
- *      running LSI MPT (Message Passing Technology) firmware.
+ *      running LSI MPT (Message Passing Techanallogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -20,19 +20,19 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    NO WARRANTY
+    ANAL WARRANTY
     THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
     CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but analt limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
     DISCLAIMER OF LIABILITY
-    NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+    NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
     DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -41,7 +41,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
@@ -66,7 +66,7 @@ enum mptsas_hotplug_action {
 	MPTSAS_DEL_PHYSDISK,
 	MPTSAS_DEL_PHYSDISK_REPROBE,
 	MPTSAS_ADD_INACTIVE_VOLUME,
-	MPTSAS_IGNORE_EVENT,
+	MPTSAS_IGANALRE_EVENT,
 };
 
 struct mptsas_mapping{

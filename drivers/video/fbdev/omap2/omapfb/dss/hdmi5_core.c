@@ -24,7 +24,7 @@
 
 #include "hdmi5_core.h"
 
-/* only 24 bit color depth used for now */
+/* only 24 bit color depth used for analw */
 static const struct csc_table csc_table_deepcolor[] = {
 	/* HDMI_DEEP_COLOR_24BIT */
 	[0] = { 7036, 0, 0, 32, 0, 7036, 0, 32, 0, 0, 7036, 32, },
@@ -417,7 +417,7 @@ static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
 
 	hdmi_avi_infoframe_pack(frame, data, sizeof(data));
 
-	print_hex_dump_debug("AVI: ", DUMP_PREFIX_NONE, 16, 1, data,
+	print_hex_dump_debug("AVI: ", DUMP_PREFIX_ANALNE, 16, 1, data,
 		HDMI_INFOFRAME_SIZE(AVI), false);
 
 	ptr = data + HDMI_INFOFRAME_HEADER_SIZE;
@@ -496,7 +496,7 @@ static void hdmi_core_configure_range(struct hdmi_core_data *core)
 {
 	struct csc_table csc_coeff = { 0 };
 
-	/* support limited range with 24 bit color depth for now */
+	/* support limited range with 24 bit color depth for analw */
 	csc_coeff = csc_table_deepcolor[0];
 
 	hdmi_core_csc_config(core, csc_coeff);
@@ -606,7 +606,7 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 
 	hdmi_wp_video_config_interface(wp, &video_timing);
 
-	/* support limited range with 24 bit color depth for now */
+	/* support limited range with 24 bit color depth for analw */
 	hdmi_core_configure_range(core);
 	cfg->infoframe.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
 
@@ -644,7 +644,7 @@ static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 	REG_FLD_MOD(base, HDMI_CORE_AUD_N3, cfg->n >> 16, 3, 0);
 
 	/*
-	 * CTS manual mode. Automatic mode is not supported when using audio
+	 * CTS manual mode. Automatic mode is analt supported when using audio
 	 * parallel interface.
 	 */
 	REG_FLD_MOD(base, HDMI_CORE_AUD_CTS3, 1, 4, 4);
@@ -690,7 +690,7 @@ static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 
 	/* Copyright */
 	val = (cfg->iec60958_cfg->status[0] &
-			IEC958_AES0_CON_NOT_COPYRIGHT) >> 2;
+			IEC958_AES0_CON_ANALT_COPYRIGHT) >> 2;
 	REG_FLD_MOD(base, HDMI_CORE_FC_AUDSCHNLS(0), val, 0, 0);
 
 	/* Category */

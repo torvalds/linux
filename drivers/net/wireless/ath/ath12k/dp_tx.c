@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -49,7 +49,7 @@ static u8 ath12k_dp_tx_get_tid(struct sk_buff *skb)
 	if (cb->flags & ATH12K_SKB_HW_80211_ENCAP)
 		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	else if (!ieee80211_is_data_qos(hdr->frame_control))
-		return HAL_DESC_REO_NON_QOS_TID;
+		return HAL_DESC_REO_ANALN_QOS_TID;
 	else
 		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 }
@@ -151,7 +151,7 @@ int ath12k_dp_tx(struct ath12k *ar, struct ath12k_vif *arvif,
 
 	if (!(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
 	    !ieee80211_is_data(hdr->frame_control))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	pool_id = skb_get_queue_mapping(skb) & (ATH12K_HW_MAX_QUEUES - 1);
 
@@ -175,7 +175,7 @@ tcl_ring_sel:
 
 	tx_desc = ath12k_dp_tx_assign_buffer(dp, pool_id);
 	if (!tx_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ti.bank_id = arvif->bank_id;
 	ti.meta_data_flags = arvif->tcl_metadata;
@@ -230,7 +230,7 @@ tcl_ring_sel:
 		}
 		break;
 	case HAL_TCL_ENCAP_TYPE_ETHERNET:
-		/* no need to encap */
+		/* anal need to encap */
 		break;
 	case HAL_TCL_ENCAP_TYPE_802_3:
 	default:
@@ -244,7 +244,7 @@ tcl_ring_sel:
 	if (dma_mapping_error(ab->dev, ti.paddr)) {
 		atomic_inc(&ab->soc_stats.tx_err.misc_fail);
 		ath12k_warn(ab, "failed to DMA map data Tx buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_remove_tx_buf;
 	}
 
@@ -259,7 +259,7 @@ tcl_ring_sel:
 	if (msdu_ext_desc) {
 		skb_ext_desc = dev_alloc_skb(sizeof(struct hal_tx_msdu_ext_desc));
 		if (!skb_ext_desc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_unmap_dma;
 		}
 
@@ -292,18 +292,18 @@ tcl_ring_sel:
 
 	hal_tcl_desc = ath12k_hal_srng_src_get_next_entry(ab, tcl_ring);
 	if (!hal_tcl_desc) {
-		/* NOTE: It is highly unlikely we'll be running out of tcl_ring
+		/* ANALTE: It is highly unlikely we'll be running out of tcl_ring
 		 * desc because the desc is directly enqueued onto hw queue.
 		 */
 		ath12k_hal_srng_access_end(ab, tcl_ring);
 		ab->soc_stats.tx_err.desc_na[ti.ring_id]++;
 		spin_unlock_bh(&tcl_ring->lock);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
-		/* Checking for available tcl descriptors in another ring in
-		 * case of failure due to full tcl ring now, is better than
+		/* Checking for available tcl descriptors in aanalther ring in
+		 * case of failure due to full tcl ring analw, is better than
 		 * checking this ring earlier for each pkt tx.
-		 * Restart ring selection if some rings are not checked yet.
+		 * Restart ring selection if some rings are analt checked yet.
 		 */
 		if (ring_map != (BIT(ab->hw_params->max_tx_ring) - 1) &&
 		    ab->hw_params->tcl_ring_retry) {
@@ -391,13 +391,13 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 	memset(&info->status, 0, sizeof(info->status));
 
 	if (ts->acked) {
-		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+		if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK)) {
 			info->flags |= IEEE80211_TX_STAT_ACK;
-			info->status.ack_signal = ATH12K_DEFAULT_NOISE_FLOOR +
+			info->status.ack_signal = ATH12K_DEFAULT_ANALISE_FLOOR +
 						  ts->ack_rssi;
 			info->status.flags = IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 		} else {
-			info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+			info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 		}
 	}
 
@@ -432,13 +432,13 @@ ath12k_dp_tx_process_htt_tx_complete(struct ath12k_base *ab,
 	case HAL_WBM_REL_HTT_TX_COMP_STATUS_INSPECT:
 		ath12k_dp_tx_free_txbuf(ab, msdu, mac_id, tx_ring);
 		break;
-	case HAL_WBM_REL_HTT_TX_COMP_STATUS_MEC_NOTIFY:
+	case HAL_WBM_REL_HTT_TX_COMP_STATUS_MEC_ANALTIFY:
 		/* This event is to be handled only when the driver decides to
 		 * use WDS offload functionality.
 		 */
 		break;
 	default:
-		ath12k_warn(ab, "Unknown htt tx status %d\n", wbm_status);
+		ath12k_warn(ab, "Unkanalwn htt tx status %d\n", wbm_status);
 		break;
 	}
 }
@@ -452,7 +452,7 @@ static void ath12k_dp_tx_complete_msdu(struct ath12k *ar,
 	struct ath12k_skb_cb *skb_cb;
 
 	if (WARN_ON_ONCE(ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_TQM)) {
-		/* Must not happen */
+		/* Must analt happen */
 		return;
 	}
 
@@ -482,18 +482,18 @@ static void ath12k_dp_tx_complete_msdu(struct ath12k *ar,
 	info->status.rates[0].idx = -1;
 
 	if (ts->status == HAL_WBM_TQM_REL_REASON_FRAME_ACKED &&
-	    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+	    !(info->flags & IEEE80211_TX_CTL_ANAL_ACK)) {
 		info->flags |= IEEE80211_TX_STAT_ACK;
-		info->status.ack_signal = ATH12K_DEFAULT_NOISE_FLOOR +
+		info->status.ack_signal = ATH12K_DEFAULT_ANALISE_FLOOR +
 					  ts->ack_rssi;
 		info->status.flags = IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 	}
 
 	if (ts->status == HAL_WBM_TQM_REL_REASON_CMD_REMOVE_TX &&
-	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
-		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+	    (info->flags & IEEE80211_TX_CTL_ANAL_ACK))
+		info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 
-	/* NOTE: Tx rate status reporting. Tx completion status does not have
+	/* ANALTE: Tx rate status reporting. Tx completion status does analt have
 	 * necessary information (for example nss) to build the tx rate.
 	 * Might end up reporting it out-of-band from HTT stats.
 	 */
@@ -650,7 +650,7 @@ ath12k_dp_tx_get_ring_id_type(struct ath12k_base *ab,
 		}
 		break;
 	case HAL_RXDMA_DST:
-		*htt_ring_id = HTT_RXDMA_NON_MONITOR_DEST_RING;
+		*htt_ring_id = HTT_RXDMA_ANALN_MONITOR_DEST_RING;
 		*htt_ring_type = HTT_HW_TO_SW_RING;
 		break;
 	case HAL_RXDMA_MONITOR_BUF:
@@ -700,7 +700,7 @@ int ath12k_dp_tx_htt_srng_setup(struct ath12k_base *ab, u32 ring_id,
 
 	skb = ath12k_htc_alloc_skb(ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&params, 0, sizeof(params));
 	ath12k_hal_srng_get_params(ab, srng, &params);
@@ -814,7 +814,7 @@ int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab)
 
 	skb = ath12k_htc_alloc_skb(ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 	cmd = (struct htt_ver_req_cmd *)skb->data;
@@ -837,7 +837,7 @@ int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab)
 	if (dp->htt_tgt_ver_major != HTT_TARGET_VERSION_MAJOR) {
 		ath12k_err(ab, "unsupported htt major version %d supported version is %d\n",
 			   dp->htt_tgt_ver_major, HTT_TARGET_VERSION_MAJOR);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -857,7 +857,7 @@ int ath12k_dp_tx_htt_h2t_ppdu_stats_req(struct ath12k *ar, u32 mask)
 	for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++) {
 		skb = ath12k_htc_alloc_skb(ab, len);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		skb_put(skb, len);
 		cmd = (struct htt_ppdu_stats_cfg_cmd *)skb->data;
@@ -894,7 +894,7 @@ int ath12k_dp_tx_htt_rx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 
 	skb = ath12k_htc_alloc_skb(ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&params, 0, sizeof(params));
 	ath12k_hal_srng_get_params(ab, srng, &params);
@@ -990,7 +990,7 @@ ath12k_dp_tx_htt_h2t_ext_stats_req(struct ath12k *ar, u8 type,
 
 	skb = ath12k_htc_alloc_skb(ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 
@@ -1098,7 +1098,7 @@ int ath12k_dp_tx_htt_tx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 
 	skb = ath12k_htc_alloc_skb(ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&params, 0, sizeof(params));
 	ath12k_hal_srng_get_params(ab, srng, &params);

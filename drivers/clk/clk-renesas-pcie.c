@@ -77,8 +77,8 @@ static const struct regmap_range rs9_readable_ranges[] = {
 };
 
 static const struct regmap_access_table rs9_readable_table = {
-	.yes_ranges = rs9_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rs9_readable_ranges),
+	.anal_ranges = rs9_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(rs9_readable_ranges),
 };
 
 static const struct regmap_range rs9_writeable_ranges[] = {
@@ -87,8 +87,8 @@ static const struct regmap_range rs9_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table rs9_writeable_table = {
-	.yes_ranges = rs9_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rs9_writeable_ranges),
+	.anal_ranges = rs9_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(rs9_writeable_ranges),
 };
 
 static int rs9_regmap_i2c_write(void *context,
@@ -136,7 +136,7 @@ static int rs9_regmap_i2c_read(void *context,
 	/*
 	 * Byte 0 is transfer length, which is always 1 due
 	 * to BCP register programming to 1 in rs9_probe(),
-	 * ignore it and use data from Byte 1.
+	 * iganalre it and use data from Byte 1.
 	 */
 	*val = rxdata[1];
 	return 0;
@@ -169,7 +169,7 @@ static int rs9_get_output_config(struct rs9_driver_data *rs9, int idx)
 	struct i2c_client *client = rs9->client;
 	u8 dif = rs9_calc_dif(rs9, idx);
 	unsigned char name[5] = "DIF0";
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 	u32 sr;
 
@@ -177,13 +177,13 @@ static int rs9_get_output_config(struct rs9_driver_data *rs9, int idx)
 	rs9->clk_dif_sr |= dif;
 
 	snprintf(name, 5, "DIF%d", idx);
-	np = of_get_child_by_name(client->dev.of_node, name);
+	np = of_get_child_by_name(client->dev.of_analde, name);
 	if (!np)
 		return 0;
 
 	/* Output clock slew rate */
 	ret = of_property_read_u32(np, "renesas,slew-rate", &sr);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!ret) {
 		if (sr == 2000000) {		/* 2V/ns */
 			rs9->clk_dif_sr &= ~dif;
@@ -200,7 +200,7 @@ static int rs9_get_output_config(struct rs9_driver_data *rs9, int idx)
 static int rs9_get_common_config(struct rs9_driver_data *rs9)
 {
 	struct i2c_client *client = rs9->client;
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	unsigned int amp, ssc;
 	int ret;
 
@@ -228,7 +228,7 @@ static int rs9_get_common_config(struct rs9_driver_data *rs9)
 	/* Output clock spread spectrum */
 	ret = of_property_read_u32(np, "renesas,out-spread-spectrum", &ssc);
 	if (!ret) {
-		if (ssc == 100000)	/* 100% ... no spread (default) */
+		if (ssc == 100000)	/* 100% ... anal spread (default) */
 			rs9->pll_ssc = RS9_REG_SS_SSC_100;
 		else if (ssc == 99750)	/* -0.25% ... down spread */
 			rs9->pll_ssc = RS9_REG_SS_SSC_M025;
@@ -246,13 +246,13 @@ static void rs9_update_config(struct rs9_driver_data *rs9)
 {
 	int i;
 
-	/* If amplitude is non-default, update it. */
+	/* If amplitude is analn-default, update it. */
 	if (rs9->pll_amplitude != RS9_REG_SS_AMP_0V7) {
 		regmap_update_bits(rs9->regmap, RS9_REG_SS, RS9_REG_SS_AMP_MASK,
 				   rs9->pll_amplitude);
 	}
 
-	/* If SSC is non-default, update it. */
+	/* If SSC is analn-default, update it. */
 	if (rs9->pll_ssc != RS9_REG_SS_SSC_100) {
 		regmap_update_bits(rs9->regmap, RS9_REG_SS, RS9_REG_SS_SSC_MASK,
 				   rs9->pll_ssc);
@@ -288,7 +288,7 @@ static int rs9_probe(struct i2c_client *client)
 
 	rs9 = devm_kzalloc(&client->dev, sizeof(*rs9), GFP_KERNEL);
 	if (!rs9)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, rs9);
 	rs9->client = client;
@@ -329,7 +329,7 @@ static int rs9_probe(struct i2c_client *client)
 
 	vid &= RS9_REG_VID_MASK;
 	if (vid != RS9_REG_VID_IDT || did != rs9->chip_info->did)
-		return dev_err_probe(&client->dev, -ENODEV,
+		return dev_err_probe(&client->dev, -EANALDEV,
 				     "Incorrect VID/DID: %#02x, %#02x. Expected %#02x, %#02x\n",
 				     vid, did, RS9_REG_VID_IDT,
 				     rs9->chip_info->did);

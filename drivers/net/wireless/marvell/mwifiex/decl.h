@@ -126,7 +126,7 @@ enum mwifiex_bss_role {
 };
 
 enum mwifiex_tdls_status {
-	TDLS_NOT_SETUP = 0,
+	TDLS_ANALT_SETUP = 0,
 	TDLS_SETUP_INPROGRESS,
 	TDLS_SETUP_COMPLETE,
 	TDLS_SETUP_FAILURE,
@@ -137,11 +137,11 @@ enum mwifiex_tdls_status {
 };
 
 enum mwifiex_tdls_error_code {
-	TDLS_ERR_NO_ERROR = 0,
+	TDLS_ERR_ANAL_ERROR = 0,
 	TDLS_ERR_INTERNAL_ERROR,
 	TDLS_ERR_MAX_LINKS_EST,
 	TDLS_ERR_LINK_EXISTS,
-	TDLS_ERR_LINK_NONEXISTENT,
+	TDLS_ERR_LINK_ANALNEXISTENT,
 	TDLS_ERR_PEER_STA_UNREACHABLE = 25,
 };
 
@@ -223,7 +223,7 @@ struct mwifiex_chan_stats {
 	u8 chan_num;
 	u8 bandcfg;
 	u8 flags;
-	s8 noise;
+	s8 analise;
 	u16 total_bss;
 	u16 cca_scan_dur;
 	u16 cca_busy_dur;
@@ -233,13 +233,13 @@ struct mwifiex_chan_stats {
 #define MWIFIEX_MAX_RX_RATES		     44
 #define MWIFIEX_MAX_AC_RX_RATES		     74
 #define MWIFIEX_MAX_SNR			    256
-#define MWIFIEX_MAX_NOISE_FLR		    256
+#define MWIFIEX_MAX_ANALISE_FLR		    256
 #define MWIFIEX_MAX_SIG_STRENGTH	    256
 
 struct mwifiex_histogram_data {
 	atomic_t rx_rate[MWIFIEX_MAX_AC_RX_RATES];
 	atomic_t snr[MWIFIEX_MAX_SNR];
-	atomic_t noise_flr[MWIFIEX_MAX_NOISE_FLR];
+	atomic_t analise_flr[MWIFIEX_MAX_ANALISE_FLR];
 	atomic_t sig_str[MWIFIEX_MAX_SIG_STRENGTH];
 	atomic_t num_samples;
 };
@@ -292,7 +292,7 @@ enum mwifiex_chan_width {
 };
 
 enum mwifiex_chan_offset {
-	SEC_CHAN_NONE = 0,
+	SEC_CHAN_ANALNE = 0,
 	SEC_CHAN_ABOVE = 1,
 	SEC_CHAN_5MHZ = 2,
 	SEC_CHAN_BELOW = 3

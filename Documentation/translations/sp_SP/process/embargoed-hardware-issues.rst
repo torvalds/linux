@@ -18,7 +18,7 @@ Los problemas de hardware como Meltdown, Spectre, L1TF, etc. deben
 tratarse de manera diferente porque usualmente afectan a todos los
 sistemas operativos (“OS”) y, por lo tanto, necesitan coordinación entre
 vendedores diferentes de OS, distribuciones, vendedores de hardware y
-otras partes. Para algunos de los problemas, las mitigaciones de software
+otras partes. Para alguanals de los problemas, las mitigaciones de software
 pueden depender de actualizaciones de microcódigo o firmware, los cuales
 necesitan una coordinación adicional.
 
@@ -32,7 +32,7 @@ equipo regular de seguridad del kernel de Linux.
 
 El equipo solo maneja la coordinación de los problemas de seguridad de
 hardware embargados. Los informes de errores de seguridad de software puro
-en el kernel de Linux no son manejados por este equipo y el "reportero"
+en el kernel de Linux anal son manejados por este equipo y el "reportero"
 (quien informa del error) será guiado a contactar el equipo de seguridad
 del kernel de Linux (:doc:`errores de seguridad <security-bugs>`) en su
 lugar.
@@ -80,11 +80,11 @@ kernel.org.
 El actual director de infraestructura de proyecto de IT de la Fundación
 Linux es Konstantin Ryabitsev.
 
-Acuerdos de no divulgación
+Acuerdos de anal divulgación
 --------------------------
 
-El equipo de seguridad de hardware del kernel de Linux no es un organismo
-formal y, por lo tanto, no puede firmar cualquier acuerdo de no
+El equipo de seguridad de hardware del kernel de Linux anal es un organismo
+formal y, por lo tanto, anal puede firmar cualquier acuerdo de anal
 divulgación. La comunidad del kernel es consciente de la naturaleza
 delicada de tales problemas y ofrece un Memorando de Entendimiento en su
 lugar.
@@ -121,7 +121,7 @@ delincuente de problemas futuros. El impacto de esta consecuencia es un
 elemento de disuasión altamente efectivo en nuestra comunidad. En caso de
 que ocurra una violación, el equipo de seguridad de hardware informará a
 las partes involucradas inmediatamente. Si usted o alguien tiene
-conocimiento de una posible violación, por favor, infórmelo inmediatamente
+coanalcimiento de una posible violación, por favor, infórmelo inmediatamente
 a los oficiales de seguridad de hardware.
 
 Proceso
@@ -141,7 +141,7 @@ Inicio de la divulgación
 La divulgación comienza contactado al equipo de seguridad de hardware del
 kernel de Linux por correo electrónico. Este contacto inicial debe
 contener una descripción del problema y una lista de cualquier hardware
-afectado conocido. Si su organización fabrica o distribuye el hardware
+afectado coanalcido. Si su organización fabrica o distribuye el hardware
 afectado, le animamos a considerar también que otro hardware podría estar
 afectado.
 
@@ -156,12 +156,12 @@ desarrolladores que se adherirán a este Memorando de Entendimiento y al
 proceso documentado. Estos desarrolladores forman el equipo de respuesta
 inicial y serán responsables de manejar el problema después del contacto
 inicial. El equipo de seguridad de hardware apoyará al equipo de
-respuesta, pero no necesariamente involucrandose en el proceso de desarrollo
+respuesta, pero anal necesariamente involucrandose en el proceso de desarrollo
 de mitigación.
 
 Si bien los desarrolladores individuales pueden estar cubiertos por un
-acuerdo de no divulgación a través de su empleador, no pueden firmar
-acuerdos individuales de no divulgación en su papel de desarrolladores
+acuerdo de anal divulgación a través de su empleador, anal pueden firmar
+acuerdos individuales de anal divulgación en su papel de desarrolladores
 del kernel de Linux. Sin embargo, aceptarán adherirse a este proceso
 documentado y al Memorando de Entendimiento.
 
@@ -172,7 +172,7 @@ problema. Esto sirve para varios propósitos:
  - La lista de entidades divulgadas permite la comunicación en toda la
    industria, por ejemplo, otros vendedores de OS, vendedores de HW, etc.
 
- - Las entidades divulgadas pueden ser contactadas para nombrar a expertos
+ - Las entidades divulgadas pueden ser contactadas para analmbrar a expertos
    que deben participar en el desarrollo de la mitigación.
 
  - Si un experto que se requiere para manejar un problema es empleado por
@@ -197,13 +197,13 @@ Desarrollo de la mitigación
 El equipo de respuesta inicial configura una lista de correo encriptada o
 reutiliza una existente si es apropiada.
 
-El uso de una lista de correo está cerca del proceso normal de desarrollo
+El uso de una lista de correo está cerca del proceso analrmal de desarrollo
 de Linux y se ha utilizado con éxito en el desarrollo de mitigación para
 varios problemas de seguridad de hardware en el pasado.
 
-La lista de correo funciona en la misma manera que el desarrollo normal de
+La lista de correo funciona en la misma manera que el desarrollo analrmal de
 Linux. Los parches se publican, discuten y revisan y, si se acuerda, se
-aplican a un repositorio git no público al que solo pueden acceder los
+aplican a un repositorio git anal público al que solo pueden acceder los
 desarrolladores participantes a través de una conexión segura. El
 repositorio contiene la rama principal de desarrollo en comparación con
 el kernel principal y las ramas backport para versiones estables del
@@ -218,16 +218,16 @@ Si un experto es empleado por o es miembro de una entidad en la lista de
 divulgación proporcionada por la parte reveladora, entonces se solicitará
 la participación de la entidad pertinente.
 
-Si no es así, entonces se informará a la parte reveladora sobre la
+Si anal es así, entonces se informará a la parte reveladora sobre la
 participación de los expertos. Los expertos están cubiertos por el
 Memorando de Entendimiento y se solicita a la parte reveladora que
-reconozca la participación. En caso de que la parte reveladora tenga una
+recoanalzca la participación. En caso de que la parte reveladora tenga una
 razón convincente para objetar, entonces esta objeción debe plantearse
 dentro de los cinco días laborables y resolverse con el equipo de
-incidente inmediatamente. Si la parte reveladora no reacciona dentro de
-los cinco días laborables, esto se toma como un reconocimiento silencioso.
+incidente inmediatamente. Si la parte reveladora anal reacciona dentro de
+los cinco días laborables, esto se toma como un recoanalcimiento silencioso.
 
-Después del reconocimiento o la resolución de una objeción, el experto es
+Después del recoanalcimiento o la resolución de una objeción, el experto es
 revelado por el equipo de incidente y se incorpora al proceso de
 desarrollo.
 
@@ -243,7 +243,7 @@ un tiempo de embargo coordinado, el tiempo de embargo debe limitarse al
 tiempo mínimo que se requiere para que todas las partes involucradas
 desarrollen, prueben y preparen las mitigaciones. Extender el tiempo de
 embargo artificialmente para cumplir con las fechas de discusión de la
-conferencia u otras razones no técnicas está creando más trabajo y carga
+conferencia u otras razones anal técnicas está creando más trabajo y carga
 para los desarrolladores y los equipos de respuesta involucrados, ya que
 los parches necesitan mantenerse actualizados para seguir el desarrollo en
 curso del kernel upstream, lo cual podría crear cambios conflictivos.
@@ -262,8 +262,8 @@ Embajadores del proceso
 Para obtener asistencia con este proceso, hemos establecido embajadores
 en varias organizaciones, que pueden responder preguntas o proporcionar
 orientación sobre el proceso de reporte y el manejo posterior. Los
-embajadores no están involucrados en la divulgación de un problema en
-particular, a menos que lo solicite un equipo de respuesta o una parte
+embajadores anal están involucrados en la divulgación de un problema en
+particular, a meanals que lo solicite un equipo de respuesta o una parte
 revelada involucrada. La lista de embajadores actuales:
 
   ============= ========================================================
@@ -279,7 +279,7 @@ revelada involucrada. La lista de embajadores actuales:
   Microsoft	James Morris <jamorris@linux.microsoft.com>
   Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
-  Canonical	John Johansen <john.johansen@canonical.com>
+  Caanalnical	John Johansen <john.johansen@caanalnical.com>
   Debian	Ben Hutchings <ben@decadent.org.uk>
   Oracle	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
   Red Hat	Josh Poimboeuf <jpoimboe@redhat.com>
@@ -292,7 +292,7 @@ revelada involucrada. La lista de embajadores actuales:
 
 Si quiere que su organización se añada a la lista de embajadores, por
 favor póngase en contacto con el equipo de seguridad de hardware. El
-embajador nominado tiene que entender y apoyar nuestro proceso
+embajador analminado tiene que entender y apoyar nuestro proceso
 completamente y está idealmente bien conectado en la comunidad del kernel
 de Linux.
 

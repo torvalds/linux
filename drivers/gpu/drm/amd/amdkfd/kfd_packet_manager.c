@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -45,7 +45,7 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	unsigned int process_count, queue_count, compute_queue_count, gws_queue_count;
 	unsigned int map_queue_size;
 	unsigned int max_proc_per_quantum = 1;
-	struct kfd_node *dev = pm->dqm->dev;
+	struct kfd_analde *dev = pm->dqm->dev;
 
 	process_count = pm->dqm->processes_count;
 	queue_count = pm->dqm->active_queue_count;
@@ -53,7 +53,7 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	gws_queue_count = pm->dqm->gws_queue_count;
 
 	/* check if there is over subscription
-	 * Note: the arbitration between the number of VMIDs and
+	 * Analte: the arbitration between the number of VMIDs and
 	 * hws_max_conc_proc has been done in
 	 * kgd2kfd_device_init().
 	 */
@@ -126,7 +126,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	unsigned int alloc_size_bytes;
 	unsigned int *rl_buffer, rl_wptr, i;
 	int retval, processes_mapped;
-	struct device_process_node *cur;
+	struct device_process_analde *cur;
 	struct qcm_process_device *qpd;
 	struct queue *q;
 	struct kernel_queue *kq;
@@ -150,9 +150,9 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		qpd = cur->qpd;
 		/* build map process packet */
 		if (processes_mapped >= pm->dqm->processes_count) {
-			pr_debug("Not enough space left in runlist IB\n");
+			pr_debug("Analt eanalugh space left in runlist IB\n");
 			pm_release_ib(pm);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		retval = pm->pmf->map_process(pm, &rl_buffer[rl_wptr], qpd);
@@ -255,7 +255,7 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	pm->priv_queue = kernel_queue_init(dqm->dev, KFD_QUEUE_TYPE_HIQ);
 	if (!pm->priv_queue) {
 		mutex_destroy(&pm->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pm->allocated = false;
 
@@ -282,7 +282,7 @@ int pm_send_set_resources(struct packet_manager *pm,
 					(unsigned int **)&buffer);
 	if (!buffer) {
 		pr_err("Failed to allocate buffer on kernel queue\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -355,7 +355,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 			size / sizeof(uint32_t), (unsigned int **)&buffer);
 	if (!buffer) {
 		pr_err("Failed to allocate buffer on kernel queue\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -386,7 +386,7 @@ int pm_update_grace_period(struct packet_manager *pm, uint32_t grace_period)
 
 		if (!buffer) {
 			pr_err("Failed to allocate buffer on kernel queue\n");
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto out;
 		}
 
@@ -415,7 +415,7 @@ int pm_send_unmap_queue(struct packet_manager *pm,
 			size / sizeof(uint32_t), (unsigned int **)&buffer);
 	if (!buffer) {
 		pr_err("Failed to allocate buffer on kernel queue\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -449,7 +449,7 @@ int pm_debugfs_runlist(struct seq_file *m, void *data)
 	mutex_lock(&pm->lock);
 
 	if (!pm->allocated) {
-		seq_puts(m, "  No active runlist\n");
+		seq_puts(m, "  Anal active runlist\n");
 		goto out;
 	}
 
@@ -475,7 +475,7 @@ int pm_debugfs_hang_hws(struct packet_manager *pm)
 			size / sizeof(uint32_t), (unsigned int **)&buffer);
 	if (!buffer) {
 		pr_err("Failed to allocate buffer on kernel queue\n");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto out;
 	}
 	memset(buffer, 0x55, size);

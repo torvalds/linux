@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc_set_wideband_receiver:
@@ -12,7 +12,7 @@ Name
 
 LIRC_SET_WIDEBAND_RECEIVER - enable wide band receiver.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: LIRC_SET_WIDEBAND_RECEIVER
@@ -41,16 +41,16 @@ that prevents them to be used with some remotes. Wide band receiver might
 also be more precise. On the other hand its disadvantage it usually
 reduced range of reception.
 
-.. note::
+.. analte::
 
     Wide band receiver might be implicitly enabled if you enable
     carrier reports. In that case it will be disabled as soon as you disable
     carrier reports. Trying to disable wide band receiver while carrier
-    reports are active will do nothing.
+    reports are active will do analthing.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

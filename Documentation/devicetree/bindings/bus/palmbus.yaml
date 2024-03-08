@@ -15,7 +15,7 @@ description: |
   external devices to the SoC.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^palmbus(@[0-9a-f]+)?$"
 
   "#address-cells":
@@ -33,7 +33,7 @@ properties:
   ranges: true
 
 patternProperties:
-  # All other properties should be child nodes with unit-address and 'reg'
+  # All other properties should be child analdes with unit-address and 'reg'
   "@[0-9a-f]+$":
     type: object
     additionalProperties: true

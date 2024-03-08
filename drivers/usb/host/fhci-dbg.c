@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/usb.h>

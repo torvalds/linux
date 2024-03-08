@@ -23,9 +23,9 @@
  * Buffer descriptors must be allocated from the dual ported memory
  * space.  The allocator for that is here.  When the communication
  * process is reset, we reclaim the memory available.  There is
- * currently no deallocator for this memory.
+ * currently anal deallocator for this memory.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -91,7 +91,7 @@ int cpm_command(u32 command, u8 opcode)
 		if ((in_be32(&cpmp->cp_cpcr) & CPM_CR_FLG) == 0)
 			goto out;
 
-	printk(KERN_ERR "%s(): Not able to issue CPM command\n", __func__);
+	printk(KERN_ERR "%s(): Analt able to issue CPM command\n", __func__);
 	ret = -EIO;
 out:
 	spin_unlock_irqrestore(&cmd_lock, flags);
@@ -114,7 +114,7 @@ void __cpm2_setbrg(uint brg, uint rate, uint clk, int div16, int src)
 	u32 __iomem *bp;
 	u32 val;
 
-	/* This is good enough to get SMCs running.....
+	/* This is good eanalugh to get SMCs running.....
 	*/
 	if (brg < 4) {
 		bp = &cpm2_immr->im_brgc1;

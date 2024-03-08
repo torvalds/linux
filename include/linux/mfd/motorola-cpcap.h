@@ -18,7 +18,7 @@
 #define CPCAP_VENDOR_TI		1
 
 #define CPCAP_REVISION_MAJOR(r)	(((r) >> 4) + 1)
-#define CPCAP_REVISION_MINOR(r)	((r) & 0xf)
+#define CPCAP_REVISION_MIANALR(r)	((r) & 0xf)
 
 #define CPCAP_REVISION_1_0	0x08
 #define CPCAP_REVISION_1_1	0x09
@@ -249,7 +249,7 @@
 /*
  * Helpers for child devices to check the revision and vendor.
  *
- * REVISIT: No documentation for the bits below, please update
+ * REVISIT: Anal documentation for the bits below, please update
  * to use proper names for defines when available.
  */
 
@@ -262,7 +262,7 @@ static inline int cpcap_get_revision(struct device *dev,
 
 	ret = regmap_read(regmap, CPCAP_REG_VERSC1, &val);
 	if (ret) {
-		dev_err(dev, "Could not read revision\n");
+		dev_err(dev, "Could analt read revision\n");
 
 		return ret;
 	}
@@ -281,7 +281,7 @@ static inline int cpcap_get_vendor(struct device *dev,
 
 	ret = regmap_read(regmap, CPCAP_REG_VERSC1, &val);
 	if (ret) {
-		dev_err(dev, "Could not read vendor\n");
+		dev_err(dev, "Could analt read vendor\n");
 
 		return ret;
 	}

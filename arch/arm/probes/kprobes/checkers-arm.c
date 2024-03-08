@@ -16,12 +16,12 @@ static enum probes_insn __kprobes arm_check_stack(probes_opcode_t insn,
 {
 	/*
 	 * PROBES_LDRSTRD, PROBES_LDMSTM, PROBES_STORE,
-	 * PROBES_STORE_EXTRA may get here. Simply mark all normal
-	 * insns as STACK_USE_NONE.
+	 * PROBES_STORE_EXTRA may get here. Simply mark all analrmal
+	 * insns as STACK_USE_ANALNE.
 	 */
 	static const union decode_item table[] = {
 		/*
-		 * 'STR{,D,B,H}, Rt, [Rn, Rm]' should be marked as UNKNOWN
+		 * 'STR{,D,B,H}, Rt, [Rn, Rm]' should be marked as UNKANALWN
 		 * if Rn or Rm is SP.
 		 *                                 x
 		 * STR (register)	cccc 011x x0x0 xxxx xxxx xxxx xxxx xxxx
@@ -36,7 +36,7 @@ static enum probes_insn __kprobes arm_check_stack(probes_opcode_t insn,
 		 * STRH (register)	cccc 000x x0x0 xxxx xxxx xxxx 1011 xxxx
 		 */
 		DECODE_OR	(0x0e5000bf, 0x000000bd),
-		DECODE_CUSTOM	(0x0e5f00b0, 0x000d00b0, STACK_USE_UNKNOWN),
+		DECODE_CUSTOM	(0x0e5f00b0, 0x000d00b0, STACK_USE_UNKANALWN),
 
 		/*
 		 * For PROBES_LDMSTM, only stmdx sp, [...] need to examine
@@ -65,7 +65,7 @@ static enum probes_insn __kprobes arm_check_stack(probes_opcode_t insn,
 		 * Above insns with:
 		 *    index == 0 (str{,d,h} rx, [sp], #+/-imm) or
 		 *    add == 1 (str{,d,h} rx, [sp, #+<imm>])
-		 * should be STACK_USE_NONE.
+		 * should be STACK_USE_ANALNE.
 		 * Only str{,b,d,h} rx,[sp,#-n] (P == 1 and U == 0) are
 		 * required to be examined.
 		 */
@@ -76,7 +76,7 @@ static enum probes_insn __kprobes arm_check_stack(probes_opcode_t insn,
 		DECODE_CUSTOM	(0x0fdf00b0, 0x014d00b0, STACK_USE_FIXED_X0X),
 
 		/* fall through */
-		DECODE_CUSTOM	(0, 0, STACK_USE_NONE),
+		DECODE_CUSTOM	(0, 0, STACK_USE_ANALNE),
 		DECODE_END
 	};
 
@@ -90,7 +90,7 @@ const struct decode_checker arm_stack_checker[NUM_PROBES_ARM_ACTIONS] = {
 	[PROBES_LDMSTM] = {.checker = arm_check_stack},
 };
 
-static enum probes_insn __kprobes arm_check_regs_nouse(probes_opcode_t insn,
+static enum probes_insn __kprobes arm_check_regs_analuse(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
@@ -98,7 +98,7 @@ static enum probes_insn __kprobes arm_check_regs_nouse(probes_opcode_t insn,
 	return INSN_GOOD;
 }
 
-static enum probes_insn arm_check_regs_normal(probes_opcode_t insn,
+static enum probes_insn arm_check_regs_analrmal(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
@@ -150,34 +150,34 @@ static enum probes_insn arm_check_regs_ldrdstrd(probes_opcode_t insn,
 		const struct decode_header *h)
 {
 	int rdt = (insn >> 12) & 0xf;
-	arm_check_regs_normal(insn, asi, h);
+	arm_check_regs_analrmal(insn, asi, h);
 	asi->register_usage_flags |= 1 << (rdt + 1);
 	return INSN_GOOD;
 }
 
 
 const struct decode_checker arm_regs_checker[NUM_PROBES_ARM_ACTIONS] = {
-	[PROBES_MRS] = {.checker = arm_check_regs_normal},
-	[PROBES_SATURATING_ARITHMETIC] = {.checker = arm_check_regs_normal},
-	[PROBES_MUL1] = {.checker = arm_check_regs_normal},
-	[PROBES_MUL2] = {.checker = arm_check_regs_normal},
-	[PROBES_MUL_ADD_LONG] = {.checker = arm_check_regs_normal},
-	[PROBES_MUL_ADD] = {.checker = arm_check_regs_normal},
-	[PROBES_LOAD] = {.checker = arm_check_regs_normal},
-	[PROBES_LOAD_EXTRA] = {.checker = arm_check_regs_normal},
-	[PROBES_STORE] = {.checker = arm_check_regs_normal},
-	[PROBES_STORE_EXTRA] = {.checker = arm_check_regs_normal},
-	[PROBES_DATA_PROCESSING_REG] = {.checker = arm_check_regs_normal},
-	[PROBES_DATA_PROCESSING_IMM] = {.checker = arm_check_regs_normal},
-	[PROBES_SEV] = {.checker = arm_check_regs_nouse},
-	[PROBES_WFE] = {.checker = arm_check_regs_nouse},
-	[PROBES_SATURATE] = {.checker = arm_check_regs_normal},
-	[PROBES_REV] = {.checker = arm_check_regs_normal},
-	[PROBES_MMI] = {.checker = arm_check_regs_normal},
-	[PROBES_PACK] = {.checker = arm_check_regs_normal},
-	[PROBES_EXTEND] = {.checker = arm_check_regs_normal},
-	[PROBES_EXTEND_ADD] = {.checker = arm_check_regs_normal},
-	[PROBES_BITFIELD] = {.checker = arm_check_regs_normal},
+	[PROBES_MRS] = {.checker = arm_check_regs_analrmal},
+	[PROBES_SATURATING_ARITHMETIC] = {.checker = arm_check_regs_analrmal},
+	[PROBES_MUL1] = {.checker = arm_check_regs_analrmal},
+	[PROBES_MUL2] = {.checker = arm_check_regs_analrmal},
+	[PROBES_MUL_ADD_LONG] = {.checker = arm_check_regs_analrmal},
+	[PROBES_MUL_ADD] = {.checker = arm_check_regs_analrmal},
+	[PROBES_LOAD] = {.checker = arm_check_regs_analrmal},
+	[PROBES_LOAD_EXTRA] = {.checker = arm_check_regs_analrmal},
+	[PROBES_STORE] = {.checker = arm_check_regs_analrmal},
+	[PROBES_STORE_EXTRA] = {.checker = arm_check_regs_analrmal},
+	[PROBES_DATA_PROCESSING_REG] = {.checker = arm_check_regs_analrmal},
+	[PROBES_DATA_PROCESSING_IMM] = {.checker = arm_check_regs_analrmal},
+	[PROBES_SEV] = {.checker = arm_check_regs_analuse},
+	[PROBES_WFE] = {.checker = arm_check_regs_analuse},
+	[PROBES_SATURATE] = {.checker = arm_check_regs_analrmal},
+	[PROBES_REV] = {.checker = arm_check_regs_analrmal},
+	[PROBES_MMI] = {.checker = arm_check_regs_analrmal},
+	[PROBES_PACK] = {.checker = arm_check_regs_analrmal},
+	[PROBES_EXTEND] = {.checker = arm_check_regs_analrmal},
+	[PROBES_EXTEND_ADD] = {.checker = arm_check_regs_analrmal},
+	[PROBES_BITFIELD] = {.checker = arm_check_regs_analrmal},
 	[PROBES_LDMSTM] = {.checker = arm_check_regs_ldmstm},
 	[PROBES_MOV_IP_SP] = {.checker = arm_check_regs_mov_ip_sp},
 	[PROBES_LDRSTRD] = {.checker = arm_check_regs_ldrdstrd},

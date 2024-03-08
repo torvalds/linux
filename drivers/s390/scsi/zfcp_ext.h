@@ -63,7 +63,7 @@ extern void zfcp_dbf_scsi_eh(char *tag, struct zfcp_adapter *adapter,
 /* zfcp_erp.c */
 extern void zfcp_erp_set_adapter_status(struct zfcp_adapter *, u32);
 extern void zfcp_erp_clear_adapter_status(struct zfcp_adapter *, u32);
-extern void zfcp_erp_port_forced_no_port_dbf(char *dbftag,
+extern void zfcp_erp_port_forced_anal_port_dbf(char *dbftag,
 					     struct zfcp_adapter *adapter,
 					     u64 port_name, u32 port_id);
 extern void zfcp_erp_adapter_reopen(struct zfcp_adapter *, int, char *);
@@ -84,7 +84,7 @@ extern void zfcp_erp_lun_shutdown_wait(struct scsi_device *, char *);
 extern int  zfcp_erp_thread_setup(struct zfcp_adapter *);
 extern void zfcp_erp_thread_kill(struct zfcp_adapter *);
 extern void zfcp_erp_wait(struct zfcp_adapter *);
-extern void zfcp_erp_notify(struct zfcp_erp_action *, unsigned long);
+extern void zfcp_erp_analtify(struct zfcp_erp_action *, unsigned long);
 extern void zfcp_erp_timeout_handler(struct timer_list *t);
 extern void zfcp_erp_adapter_reset_sync(struct zfcp_adapter *adapter,
 					char *dbftag);

@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,7 +43,7 @@ static int c4iw_init_qid_table(struct c4iw_rdev *rdev)
 				rdev->lldi.vr->qp.start,
 				rdev->lldi.vr->qp.size,
 				rdev->lldi.vr->qp.size, 0))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = rdev->lldi.vr->qp.start;
 		i < rdev->lldi.vr->qp.start + rdev->lldi.vr->qp.size; i++)
@@ -84,11 +84,11 @@ int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt,
  qid_err:
 	c4iw_id_table_free(&rdev->resource.tpt_table);
  tpt_err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
- * returns 0 if no resource available
+ * returns 0 if anal resource available
  */
 u32 c4iw_get_resource(struct c4iw_id_table *id_table)
 {
@@ -134,7 +134,7 @@ u32 c4iw_get_cqid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 		}
 
 		/*
-		 * now put the same ids on the qp list since they all
+		 * analw put the same ids on the qp list since they all
 		 * map to the same db/gts page.
 		 */
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -208,7 +208,7 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 		}
 
 		/*
-		 * now put the same ids on the cq list since they all
+		 * analw put the same ids on the cq list since they all
 		 * map to the same db/gts page.
 		 */
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -303,7 +303,7 @@ int c4iw_pblpool_create(struct c4iw_rdev *rdev)
 
 	rdev->pbl_pool = gen_pool_create(MIN_PBL_SHIFT, -1);
 	if (!rdev->pbl_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pbl_start = rdev->lldi.vr->pbl.start;
 	pbl_chunk = rdev->lldi.vr->pbl.size;
@@ -386,7 +386,7 @@ int c4iw_rqtpool_create(struct c4iw_rdev *rdev)
 
 	rdev->rqt_pool = gen_pool_create(MIN_RQT_SHIFT, -1);
 	if (!rdev->rqt_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * If SRQs are supported, then never use the first RQE from
@@ -433,7 +433,7 @@ int c4iw_alloc_srq_idx(struct c4iw_rdev *rdev)
 	if (idx == -1) {
 		rdev->stats.srqt.fail++;
 		mutex_unlock(&rdev->stats.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rdev->stats.srqt.cur++;
 	if (rdev->stats.srqt.cur > rdev->stats.srqt.max)
@@ -484,7 +484,7 @@ int c4iw_ocqp_pool_create(struct c4iw_rdev *rdev)
 
 	rdev->ocqp_pool = gen_pool_create(MIN_OCQP_SHIFT, -1);
 	if (!rdev->ocqp_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	start = rdev->lldi.vr->ocq.start;
 	chunk = rdev->lldi.vr->ocq.size;

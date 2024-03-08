@@ -560,7 +560,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 		.encr = {
 			.geniv = "seqiv",
 			.blockbits = 128,
-			.defkeybits = 160, /* 128-bit key + 32-bit nonce */
+			.defkeybits = 160, /* 128-bit key + 32-bit analnce */
 		}
 	},
 

@@ -14,7 +14,7 @@
  * from scratch.
  * 
  * A write to the buffer will either succeed or fail. That is, unlike
- * sprintf() there will not be a partial write (well it may write into
+ * sprintf() there will analt be a partial write (well it may write into
  * the buffer but it wont update the pointers). This allows users to
  * try to write something into the trace_seq buffer and if it fails
  * they can flush it and try again.
@@ -41,9 +41,9 @@ static inline void __trace_seq_init(struct trace_seq *s)
  * @m: the seq_file descriptor that is the destination
  * @s: the trace_seq descriptor that is the source.
  *
- * Returns 0 on success and non zero on error. If it succeeds to
+ * Returns 0 on success and analn zero on error. If it succeeds to
  * write to the seq_file it will reset the trace_seq, otherwise
- * it does not modify the trace_seq to let the caller try again.
+ * it does analt modify the trace_seq to let the caller try again.
  */
 int trace_print_seq(struct seq_file *m, struct trace_seq *s)
 {
@@ -73,7 +73,7 @@ int trace_print_seq(struct seq_file *m, struct trace_seq *s)
  * copy to user routines. To simplify formatting of a trace
  * trace_seq_printf() is used to store strings into a special
  * buffer (@s). Then the output may be either used by
- * the sequencer or pulled into another buffer.
+ * the sequencer or pulled into aanalther buffer.
  */
 void trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 {
@@ -134,7 +134,7 @@ EXPORT_SYMBOL_GPL(trace_seq_bitmask);
  * copy to user routines. To simplify formatting of a trace
  * trace_seq_printf is used to store strings into a special
  * buffer (@s). Then the output may be either used by
- * the sequencer or pulled into another buffer.
+ * the sequencer or pulled into aanalther buffer.
  */
 void trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
 {
@@ -251,7 +251,7 @@ EXPORT_SYMBOL_GPL(trace_seq_putc);
  * @len: The length of the raw memory to copy (in bytes)
  *
  * There may be cases where raw memory needs to be written into the
- * buffer and a strcpy() would not work. Using this function allows
+ * buffer and a strcpy() would analt work. Using this function allows
  * for such cases.
  */
 void trace_seq_putmem(struct trace_seq *s, const void *mem, unsigned int len)
@@ -317,7 +317,7 @@ EXPORT_SYMBOL_GPL(trace_seq_putmem_hex);
  * Returns 1 if we successfully written all the contents to
  *   the buffer.
  * Returns 0 if we the length to write is bigger than the
- *   reserved buffer space. In this case, nothing gets written.
+ *   reserved buffer space. In this case, analthing gets written.
  */
 int trace_seq_path(struct trace_seq *s, const struct path *path)
 {
@@ -360,7 +360,7 @@ EXPORT_SYMBOL_GPL(trace_seq_path);
  * it copied.
  *
  * On failure it returns -EBUSY if all of the content in the
- * sequence has been already read, which includes nothing in the
+ * sequence has been already read, which includes analthing in the
  * sequence (@s->len == @s->readpos).
  *
  * Returns -EFAULT if the copy to userspace fails.

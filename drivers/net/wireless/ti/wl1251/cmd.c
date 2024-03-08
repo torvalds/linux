@@ -38,7 +38,7 @@ int wl1251_cmd_send(struct wl1251 *wl, u16 id, void *buf, size_t len)
 
 	timeout = jiffies + msecs_to_jiffies(WL1251_COMMAND_TIMEOUT);
 
-	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_ANAL_CLEAR);
 	while (!(intr & WL1251_ACX_INTR_CMD_COMPLETE)) {
 		if (time_after(jiffies, timeout)) {
 			wl1251_error("command complete timeout");
@@ -48,7 +48,7 @@ int wl1251_cmd_send(struct wl1251 *wl, u16 id, void *buf, size_t len)
 
 		msleep(1);
 
-		intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_ANAL_CLEAR);
 	}
 
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_ACK,
@@ -116,7 +116,7 @@ int wl1251_cmd_interrogate(struct wl1251 *wl, u16 id, void *buf, size_t len)
 
 	acx->id = id;
 
-	/* payload length, does not include any headers */
+	/* payload length, does analt include any headers */
 	acx->len = len - sizeof(*acx);
 
 	ret = wl1251_cmd_send(wl, CMD_INTERROGATE, acx, sizeof(*acx));
@@ -154,12 +154,12 @@ int wl1251_cmd_configure(struct wl1251 *wl, u16 id, void *buf, size_t len)
 
 	acx->id = id;
 
-	/* payload length, does not include any headers */
+	/* payload length, does analt include any headers */
 	acx->len = len - sizeof(*acx);
 
 	ret = wl1251_cmd_send(wl, CMD_CONFIGURE, acx, len);
 	if (ret < 0) {
-		wl1251_warning("CONFIGURE command NOK");
+		wl1251_warning("CONFIGURE command ANALK");
 		return ret;
 	}
 
@@ -176,7 +176,7 @@ int wl1251_cmd_vbm(struct wl1251 *wl, u8 identity,
 
 	vbm = kzalloc(sizeof(*vbm), GFP_KERNEL);
 	if (!vbm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Count and period will be filled by the target */
 	vbm->tim.bitmap_ctrl = bitmap_control;
@@ -212,7 +212,7 @@ int wl1251_cmd_data_path_rx(struct wl1251 *wl, u8 channel, bool enable)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->channel = channel;
 
@@ -246,7 +246,7 @@ int wl1251_cmd_data_path_tx(struct wl1251 *wl, u8 channel, bool enable)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->channel = channel;
 
@@ -276,7 +276,7 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 
 	join = kzalloc(sizeof(*join), GFP_KERNEL);
 	if (!join)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wl1251_debug(DEBUG_CMD, "cmd join%s ch %d %d/%d",
 		     bss_type == BSS_TYPE_IBSS ? " ibss" : "",
@@ -319,7 +319,7 @@ int wl1251_cmd_ps_mode(struct wl1251 *wl, u8 ps_mode)
 
 	ps_params = kzalloc(sizeof(*ps_params), GFP_KERNEL);
 	if (!ps_params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps_params->ps_mode = ps_mode;
 	ps_params->send_null_data = 1;
@@ -349,7 +349,7 @@ int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	WARN_ON(len > MAX_READ_SIZE);
 	len = min_t(size_t, len, MAX_READ_SIZE);
@@ -363,7 +363,7 @@ int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 		goto out;
 	}
 
-	/* the read command got in, we can now read the answer */
+	/* the read command got in, we can analw read the answer */
 	wl1251_mem_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd));
 
 	if (cmd->header.status != CMD_STATUS_SUCCESS)
@@ -392,7 +392,7 @@ int wl1251_cmd_template_set(struct wl1251 *wl, u16 cmd_id,
 
 	cmd = kzalloc(cmd_len, GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->size = cpu_to_le16(buf_len);
 
@@ -423,7 +423,7 @@ int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->params.rx_config_options = cpu_to_le32(CFG_RX_ALL_GOOD);
 	cmd->params.rx_filter_options = cpu_to_le32(CFG_RX_PRSP_EN |
@@ -431,9 +431,9 @@ int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
 						    CFG_RX_BCN_EN);
 	cmd->params.scan_options = 0;
 	/*
-	 * Use high priority scan when not associated to prevent fw issue
+	 * Use high priority scan when analt associated to prevent fw issue
 	 * causing never-ending scans (sometimes 20+ minutes).
-	 * Note: This bug may be caused by the fw's DTIM handling.
+	 * Analte: This bug may be caused by the fw's DTIM handling.
 	 */
 	if (is_zero_ether_addr(wl->bssid))
 		cmd->params.scan_options |= cpu_to_le16(WL1251_SCAN_OPT_PRIORITY_HIGH);
@@ -490,7 +490,7 @@ int wl1251_cmd_trigger_scan_to(struct wl1251 *wl, u32 timeout)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->timeout = timeout;
 

@@ -124,7 +124,7 @@ static int altera_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	bit = find_first_zero_bit(msi->used, msi->num_of_vectors);
 	if (bit >= msi->num_of_vectors) {
 		mutex_unlock(&msi->lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	set_bit(bit, msi->used);
@@ -171,21 +171,21 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static int altera_allocate_domains(struct altera_msi *msi)
 {
-	struct fwnode_handle *fwnode = of_node_to_fwnode(msi->pdev->dev.of_node);
+	struct fwanalde_handle *fwanalde = of_analde_to_fwanalde(msi->pdev->dev.of_analde);
 
 	msi->inner_domain = irq_domain_add_linear(NULL, msi->num_of_vectors,
 					     &msi_domain_ops, msi);
 	if (!msi->inner_domain) {
 		dev_err(&msi->pdev->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
+	msi->msi_domain = pci_msi_create_irq_domain(fwanalde,
 				&altera_msi_domain_info, msi->inner_domain);
 	if (!msi->msi_domain) {
 		dev_err(&msi->pdev->dev, "failed to create MSI domain\n");
 		irq_domain_remove(msi->inner_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -212,14 +212,14 @@ static void altera_msi_remove(struct platform_device *pdev)
 static int altera_msi_probe(struct platform_device *pdev)
 {
 	struct altera_msi *msi;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct resource *res;
 	int ret;
 
 	msi = devm_kzalloc(&pdev->dev, sizeof(struct altera_msi),
 			   GFP_KERNEL);
 	if (!msi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&msi->lock);
 	msi->pdev = pdev;

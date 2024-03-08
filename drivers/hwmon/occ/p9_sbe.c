@@ -2,7 +2,7 @@
 // Copyright IBM Corp 2019
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/fsi-occ.h>
 #include <linux/mm.h>
@@ -53,7 +53,7 @@ static BIN_ATTR_RO(ffdc, OCC_MAX_RESP_WORDS * 4);
 static bool p9_sbe_occ_save_ffdc(struct p9_sbe_occ *ctx, const void *resp,
 				 size_t resp_len)
 {
-	bool notify = false;
+	bool analtify = false;
 
 	mutex_lock(&ctx->sbe_error_lock);
 	if (!ctx->sbe_error) {
@@ -69,7 +69,7 @@ static bool p9_sbe_occ_save_ffdc(struct p9_sbe_occ *ctx, const void *resp,
 			ctx->ffdc_size = resp_len;
 		}
 
-		notify = true;
+		analtify = true;
 		ctx->sbe_error = true;
 		ctx->ffdc_len = resp_len;
 		memcpy(ctx->ffdc, resp, resp_len);
@@ -77,7 +77,7 @@ static bool p9_sbe_occ_save_ffdc(struct p9_sbe_occ *ctx, const void *resp,
 
 done:
 	mutex_unlock(&ctx->sbe_error_lock);
-	return notify;
+	return analtify;
 }
 
 static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd, size_t len,
@@ -93,7 +93,7 @@ static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd, size_t len,
 			break;
 		if (resp_len) {
 			if (p9_sbe_occ_save_ffdc(ctx, resp, resp_len))
-				sysfs_notify(&occ->bus_dev->kobj, NULL,
+				sysfs_analtify(&occ->bus_dev->kobj, NULL,
 					     bin_attr_ffdc.attr.name);
 			return rc;
 		}
@@ -138,7 +138,7 @@ static int p9_sbe_occ_probe(struct platform_device *pdev)
 	struct p9_sbe_occ *ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx),
 					      GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ctx->sbe_error_lock);
 
@@ -153,7 +153,7 @@ static int p9_sbe_occ_probe(struct platform_device *pdev)
 
 	rc = occ_setup(occ);
 	if (rc == -ESHUTDOWN)
-		rc = -ENODEV;	/* Host is shutdown, don't spew errors */
+		rc = -EANALDEV;	/* Host is shutdown, don't spew errors */
 
 	if (!rc) {
 		rc = device_create_bin_file(occ->bus_dev, &bin_attr_ffdc);

@@ -23,8 +23,8 @@ extern int __MIPS16e_compute_return_epc(struct pt_regs *regs);
 /*
  * microMIPS bitfields
  */
-#define MM_POOL32A_MINOR_MASK	0x3f
-#define MM_POOL32A_MINOR_SHIFT	0x6
+#define MM_POOL32A_MIANALR_MASK	0x3f
+#define MM_POOL32A_MIANALR_SHIFT	0x6
 #define MM_MIPS32_COND_FC	0x30
 
 int isBranchInstr(struct pt_regs *regs,

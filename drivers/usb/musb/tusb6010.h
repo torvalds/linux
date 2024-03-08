@@ -2,7 +2,7 @@
 /*
  * Definitions for TUSB6010 USB 2.0 OTG Dual Role controller
  *
- * Copyright (C) 2006 Nokia Corporation
+ * Copyright (C) 2006 Analkia Corporation
  * Tony Lindgren <tony@atomide.com>
  */
 
@@ -106,7 +106,7 @@
 #define		TUSB_PRCM_WGPIO_0	(1 << 5)
 #define		TUSB_PRCM_WHOSTDISCON	(1 << 4)	/* Host disconnect */
 #define		TUSB_PRCM_WBUS		(1 << 3)	/* USB bus resume */
-#define		TUSB_PRCM_WNORCS	(1 << 2)	/* NOR chip select */
+#define		TUSB_PRCM_WANALRCS	(1 << 2)	/* ANALR chip select */
 #define		TUSB_PRCM_WVBUS		(1 << 1)	/* OTG PHY VBUS */
 #define		TUSB_PRCM_WID		(1 << 0)	/* OTG PHY ID detect */
 
@@ -127,7 +127,7 @@
 #define TUSB_GPIO_INT_CLEAR		(TUSB_SYS_REG_BASE + 0x068)
 #define TUSB_GPIO_INT_MASK		(TUSB_SYS_REG_BASE + 0x06c)
 
-/* NOR flash interrupt source registers */
+/* ANALR flash interrupt source registers */
 #define TUSB_INT_SRC			(TUSB_SYS_REG_BASE + 0x070)
 #define TUSB_INT_SRC_SET		(TUSB_SYS_REG_BASE + 0x074)
 #define TUSB_INT_SRC_CLEAR		(TUSB_SYS_REG_BASE + 0x078)
@@ -150,7 +150,7 @@
 #define		TUSB_INT_SRC_USB_IP_RESUME		(1 << 1)
 #define		TUSB_INT_SRC_USB_IP_SUSPEND		(1 << 0)
 
-/* NOR flash interrupt registers reserved bits. Must be written as 0 */
+/* ANALR flash interrupt registers reserved bits. Must be written as 0 */
 #define		TUSB_INT_MASK_RESERVED_17		(0x3fff << 17)
 #define		TUSB_INT_MASK_RESERVED_13		(1 << 13)
 #define		TUSB_INT_MASK_RESERVED_8		(0xf << 8)
@@ -158,12 +158,12 @@
 #define		TUSB_INT_SRC_RESERVED_18		(0x3f << 18)
 #define		TUSB_INT_SRC_RESERVED_10		(0x03 << 10)
 
-/* Reserved bits for NOR flash interrupt mask and clear register */
+/* Reserved bits for ANALR flash interrupt mask and clear register */
 #define		TUSB_INT_MASK_RESERVED_BITS	(TUSB_INT_MASK_RESERVED_17 | \
 						TUSB_INT_MASK_RESERVED_13 | \
 						TUSB_INT_MASK_RESERVED_8)
 
-/* Reserved bits for NOR flash interrupt status register */
+/* Reserved bits for ANALR flash interrupt status register */
 #define		TUSB_INT_SRC_RESERVED_BITS	(TUSB_INT_SRC_RESERVED_26 | \
 						TUSB_INT_SRC_RESERVED_18 | \
 						TUSB_INT_SRC_RESERVED_10)

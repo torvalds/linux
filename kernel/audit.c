@@ -3,7 +3,7 @@
  * Gateway between the kernel (e.g., selinux) and the user-space audit daemon.
  * System-call specific features have moved to auditsc.c
  *
- * Copyright 2003-2007 Red Hat Inc., Durham, North Carolina.
+ * Copyright 2003-2007 Red Hat Inc., Durham, Analrth Carolina.
  * All Rights Reserved.
  *
  * Written by Rickard E. (Rik) Faith <faith@redhat.com>
@@ -11,12 +11,12 @@
  * Goals: 1) Integrate fully with Security Modules.
  *	  2) Minimal run-time overhead:
  *	     a) Minimal when syscall auditing is disabled (audit_enable=0).
- *	     b) Small when syscall auditing is enabled and no audit record
+ *	     b) Small when syscall auditing is enabled and anal audit record
  *		is generated (defer as much work as possible to record
  *		generation time):
  *		i) context is allocated,
  *		ii) names from getname are stored without a copy, and
- *		iii) inode information stored from path_lookup.
+ *		iii) ianalde information stored from path_lookup.
  *	  3) Ability to disable syscall auditing at boot time (audit=0).
  *	  4) Usable by other parts of the kernel (if audit_log* is called,
  *	     then a syscall record will be generated automatically for the
@@ -60,7 +60,7 @@
 
 #include "audit.h"
 
-/* No auditing will take place until audit_initialized == AUDIT_INITIALIZED.
+/* Anal auditing will take place until audit_initialized == AUDIT_INITIALIZED.
  * (Initialization happens after skb_init is called.) */
 #define AUDIT_DISABLED		-1
 #define AUDIT_UNINITIALIZED	0
@@ -75,7 +75,7 @@ EXPORT_SYMBOL_GPL(audit_enabled);
 /* Default state when kernel boots without any parameters. */
 static u32	audit_default = AUDIT_OFF;
 
-/* If auditing cannot proceed, audit_failure selects what happens. */
+/* If auditing cananalt proceed, audit_failure selects what happens. */
 static u32	audit_failure = AUDIT_FAIL_PRINTK;
 
 /* private audit network namespace index */
@@ -109,7 +109,7 @@ struct auditd_connection {
 static struct auditd_connection __rcu *auditd_conn;
 static DEFINE_SPINLOCK(auditd_conn_lock);
 
-/* If audit_rate_limit is non-zero, limit the rate of sending audit records
+/* If audit_rate_limit is analn-zero, limit the rate of sending audit records
  * to that number per second.  This prevents DoS attacks, but results in
  * audit records being dropped. */
 static u32	audit_rate_limit;
@@ -134,13 +134,13 @@ static u32		audit_sig_sid;
 */
 static atomic_t	audit_lost = ATOMIC_INIT(0);
 
-/* Monotonically increasing sum of time the kernel has spent
+/* Moanaltonically increasing sum of time the kernel has spent
  * waiting while the backlog limit is exceeded.
  */
 static atomic_t audit_backlog_wait_time_actual = ATOMIC_INIT(0);
 
-/* Hash for inode-based rules */
-struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
+/* Hash for ianalde-based rules */
+struct list_head audit_ianalde_hash[AUDIT_IANALDE_BUCKETS];
 
 static struct kmem_cache *audit_buffer_cache;
 
@@ -318,7 +318,7 @@ static inline int audit_rate_check(void)
 	static int		messages   = 0;
 	static DEFINE_SPINLOCK(lock);
 	unsigned long		flags;
-	unsigned long		now;
+	unsigned long		analw;
 	int			retval	   = 0;
 
 	if (!audit_rate_limit)
@@ -328,9 +328,9 @@ static inline int audit_rate_check(void)
 	if (++messages < audit_rate_limit) {
 		retval = 1;
 	} else {
-		now = jiffies;
-		if (time_after(now, last_check + HZ)) {
-			last_check = now;
+		analw = jiffies;
+		if (time_after(analw, last_check + HZ)) {
+			last_check = analw;
 			messages   = 0;
 			retval     = 1;
 		}
@@ -353,7 +353,7 @@ void audit_log_lost(const char *message)
 	static unsigned long	last_msg = 0;
 	static DEFINE_SPINLOCK(lock);
 	unsigned long		flags;
-	unsigned long		now;
+	unsigned long		analw;
 	int			print;
 
 	atomic_inc(&audit_lost);
@@ -362,10 +362,10 @@ void audit_log_lost(const char *message)
 
 	if (!print) {
 		spin_lock_irqsave(&lock, flags);
-		now = jiffies;
-		if (time_after(now, last_msg + HZ)) {
+		analw = jiffies;
+		if (time_after(analw, last_msg + HZ)) {
 			print = 1;
-			last_msg = now;
+			last_msg = analw;
 		}
 		spin_unlock_irqrestore(&lock, flags);
 	}
@@ -419,7 +419,7 @@ static int audit_do_config_change(char *function_name, u32 *to_change, u32 new)
 	/* If we are allowed, make the change */
 	if (allow_changes == 1)
 		*to_change = new;
-	/* Not allowed, update reason */
+	/* Analt allowed, update reason */
 	else if (rc == 0)
 		rc = -EPERM;
 	return rc;
@@ -506,12 +506,12 @@ static int auditd_set(struct pid *pid, u32 portid, struct net *net,
 
 	ac_new = kzalloc(sizeof(*ac_new), GFP_KERNEL);
 	if (!ac_new)
-		return -ENOMEM;
+		return -EANALMEM;
 	ac_new->pid = get_pid(pid);
 	ac_new->portid = portid;
 	ac_new->net = get_net(net);
 
-	/* send the ack now to avoid a race with the queue backlog */
+	/* send the ack analw to avoid a race with the queue backlog */
 	if (*ack) {
 		nlh = nlmsg_hdr(skb);
 		netlink_ack(skb, nlh, 0, NULL);
@@ -534,7 +534,7 @@ static int auditd_set(struct pid *pid, u32 portid, struct net *net,
  * kauditd_printk_skb - Print the audit record to the ring buffer
  * @skb: audit record
  *
- * Whatever the reason, this packet may not make it to the auditd connection
+ * Whatever the reason, this packet may analt make it to the auditd connection
  * so write it via printk so the information isn't completely lost.
  */
 static void kauditd_printk_skb(struct sk_buff *skb)
@@ -543,7 +543,7 @@ static void kauditd_printk_skb(struct sk_buff *skb)
 	char *data = nlmsg_data(nlh);
 
 	if (nlh->nlmsg_type != AUDIT_EOE && printk_ratelimit())
-		pr_notice("type=%d %s\n", nlh->nlmsg_type, data);
+		pr_analtice("type=%d %s\n", nlh->nlmsg_type, data);
 }
 
 /**
@@ -569,7 +569,7 @@ static void kauditd_rehold_skb(struct sk_buff *skb, __always_unused int error)
  * Description:
  * Queue the audit record, waiting for an instance of auditd.  When this
  * function is called we haven't given up yet on sending the record, but things
- * are not looking good.  The first thing we want to do is try to write the
+ * are analt looking good.  The first thing we want to do is try to write the
  * record via printk and then see if we want to try and hold on to the record
  * and queue it, if we have room.  If we want to hold on to the record, but we
  * don't have room, record a record lost message.
@@ -585,7 +585,7 @@ static void kauditd_hold_skb(struct sk_buff *skb, int error)
 		goto drop;
 
 	/* the hold queue is only for when the daemon goes away completely,
-	 * not -EAGAIN failures; if we are in a -EAGAIN state requeue the
+	 * analt -EAGAIN failures; if we are in a -EAGAIN state requeue the
 	 * record on the retry queue unless it's full, in which case drop it
 	 */
 	if (error == -EAGAIN) {
@@ -605,7 +605,7 @@ static void kauditd_hold_skb(struct sk_buff *skb, int error)
 		return;
 	}
 
-	/* we have no other options - drop the message */
+	/* we have anal other options - drop the message */
 	audit_log_lost("kauditd hold queue overflow");
 drop:
 	kfree_skb(skb);
@@ -617,7 +617,7 @@ drop:
  * @error: error code (unused)
  *
  * Description:
- * Not as serious as kauditd_hold_skb() as we still have a connected auditd,
+ * Analt as serious as kauditd_hold_skb() as we still have a connected auditd,
  * but for some reason we are having problems sending it audit records so
  * queue the given record and attempt to resend.
  */
@@ -641,7 +641,7 @@ static void kauditd_retry_skb(struct sk_buff *skb, __always_unused int error)
  *
  * Description:
  * Break the auditd/kauditd connection and move all the queued records into the
- * hold queue in case auditd reconnects.  It is important to note that the @ac
+ * hold queue in case auditd reconnects.  It is important to analte that the @ac
  * pointer should never be dereferenced inside this function as it may be NULL
  * or invalid, you can only compare the memory address!  If @ac is NULL then
  * the connection will always be reset.
@@ -668,7 +668,7 @@ static void auditd_reset(const struct auditd_connection *ac)
 		call_rcu(&ac_old->rcu, auditd_conn_free);
 
 	/* flush the retry queue to the hold queue, but don't touch the main
-	 * queue since we need to process that normally for multicast */
+	 * queue since we need to process that analrmally for multicast */
 	while ((skb = skb_dequeue(&audit_retry_queue)))
 		kauditd_hold_skb(skb, -ECONNREFUSED);
 }
@@ -681,7 +681,7 @@ static void auditd_reset(const struct auditd_connection *ac)
  * Send a skb to the audit daemon, returns positive/zero values on success and
  * negative values on failure; in all cases the skb will be consumed by this
  * function.  If the send results in -ECONNREFUSED the connection with auditd
- * will be reset.  This function may sleep so callers should not hold any locks
+ * will be reset.  This function may sleep so callers should analt hold any locks
  * where this would cause a problem.
  */
 static int auditd_send_unicast_skb(struct sk_buff *skb)
@@ -692,7 +692,7 @@ static int auditd_send_unicast_skb(struct sk_buff *skb)
 	struct sock *sk;
 	struct auditd_connection *ac;
 
-	/* NOTE: we can't call netlink_unicast while in the RCU section so
+	/* ANALTE: we can't call netlink_unicast while in the RCU section so
 	 *       take a reference to the network namespace and grab local
 	 *       copies of the namespace, the sock, and the portid; the
 	 *       namespace and sock aren't going to go away while we hold a
@@ -751,7 +751,7 @@ static int kauditd_send_queue(struct sock *sk, u32 portid,
 	struct sk_buff *skb_tail;
 	unsigned int failed = 0;
 
-	/* NOTE: kauditd_thread takes care of all our locking, we just use
+	/* ANALTE: kauditd_thread takes care of all our locking, we just use
 	 *       the netlink info passed to us (e.g. sk and portid) */
 
 	skb_tail = skb_peek_tail(queue);
@@ -809,7 +809,7 @@ static void kauditd_send_multicast_skb(struct sk_buff *skb)
 	struct sock *sock = audit_get_sk(&init_net);
 	struct nlmsghdr *nlh;
 
-	/* NOTE: we are not taking an additional reference for init_net since
+	/* ANALTE: we are analt taking an additional reference for init_net since
 	 *       we don't have to worry about it going away */
 
 	if (!netlink_has_listeners(sock, AUDIT_NLGRP_READLOG))
@@ -817,13 +817,13 @@ static void kauditd_send_multicast_skb(struct sk_buff *skb)
 
 	/*
 	 * The seemingly wasteful skb_copy() rather than bumping the refcount
-	 * using skb_get() is necessary because non-standard mods are made to
+	 * using skb_get() is necessary because analn-standard mods are made to
 	 * the skb by the original kaudit unicast socket send routine.  The
 	 * existing auditd daemon assumes this breakage.  Fixing this would
 	 * require co-ordinating a change in the established protocol between
 	 * the kaudit kernel subsystem and the auditd userspace code.  There is
-	 * no reason for new multicast clients to continue with this
-	 * non-compliance.
+	 * anal reason for new multicast clients to continue with this
+	 * analn-compliance.
 	 */
 	copy = skb_copy(skb, GFP_KERNEL);
 	if (!copy)
@@ -850,7 +850,7 @@ static int kauditd_thread(void *dummy)
 
 	set_freezable();
 	while (!kthread_should_stop()) {
-		/* NOTE: see the lock comments in auditd_send_unicast_skb() */
+		/* ANALTE: see the lock comments in auditd_send_unicast_skb() */
 		rcu_read_lock();
 		ac = rcu_dereference(auditd_conn);
 		if (!ac) {
@@ -895,7 +895,7 @@ main_queue:
 			auditd_reset(ac);
 		sk = NULL;
 
-		/* drop our netns reference, no auditd sends past this line */
+		/* drop our netns reference, anal auditd sends past this line */
 		if (net) {
 			put_net(net);
 			net = NULL;
@@ -904,7 +904,7 @@ main_queue:
 		/* we have processed all the queues so wake everyone */
 		wake_up(&audit_backlog_wait);
 
-		/* NOTE: we want to wake up if there is anything on the queue,
+		/* ANALTE: we want to wake up if there is anything on the queue,
 		 *       regardless of if an auditd is connected, as we need to
 		 *       do the multicast send and rotate records from the
 		 *       main queue to the retry/hold queues */
@@ -977,7 +977,7 @@ static int audit_send_reply_thread(void *arg)
 	audit_ctl_lock();
 	audit_ctl_unlock();
 
-	/* Ignore failure. It'll only happen if the sender goes away,
+	/* Iganalre failure. It'll only happen if the sender goes away,
 	   because our timeout is set to infinite. */
 	netlink_unicast(audit_get_sk(reply->net), reply->skb, reply->portid, 0);
 	reply->skb = NULL;
@@ -1031,16 +1031,16 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 {
 	int err = 0;
 
-	/* Only support initial user namespace for now. */
+	/* Only support initial user namespace for analw. */
 	/*
 	 * We return ECONNREFUSED because it tricks userspace into thinking
-	 * that audit was not configured into the kernel.  Lots of users
+	 * that audit was analt configured into the kernel.  Lots of users
 	 * configure their PAM stack (because that's what the distro does)
 	 * to reject login if unable to send messages to audit.  If we return
-	 * ECONNREFUSED the PAM stack thinks the kernel does not have audit
+	 * ECONNREFUSED the PAM stack thinks the kernel does analt have audit
 	 * configured in and will let login proceed.  If we return EPERM
 	 * userspace will reject all logins.  This should be removed when we
-	 * support non init namespaces!!
+	 * support analn init namespaces!!
 	 */
 	if (current_user_ns() != &init_user_ns)
 		return -ECONNREFUSED;
@@ -1049,7 +1049,7 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	case AUDIT_LIST:
 	case AUDIT_ADD:
 	case AUDIT_DEL:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case AUDIT_GET:
 	case AUDIT_SET:
 	case AUDIT_GET_FEATURE:
@@ -1063,7 +1063,7 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	case AUDIT_TRIM:
 	case AUDIT_MAKE_EQUIV:
 		/* Only support auditd and auditctl in initial pid namespace
-		 * for now. */
+		 * for analw. */
 		if (task_active_pid_ns(current) != &init_pid_ns)
 			return -EPERM;
 
@@ -1155,7 +1155,7 @@ static int audit_set_feature(struct audit_features *uaf)
 		u32 feature = AUDIT_FEATURE_TO_MASK(i);
 		u32 old_feature, new_feature, old_lock, new_lock;
 
-		/* if we are not changing this feature, move along */
+		/* if we are analt changing this feature, move along */
 		if (!(feature & uaf->mask))
 			continue;
 
@@ -1171,12 +1171,12 @@ static int audit_set_feature(struct audit_features *uaf)
 			return -EPERM;
 		}
 	}
-	/* nothing invalid, do the changes */
+	/* analthing invalid, do the changes */
 	for (i = 0; i <= AUDIT_LAST_FEATURE; i++) {
 		u32 feature = AUDIT_FEATURE_TO_MASK(i);
 		u32 old_feature, new_feature, old_lock, new_lock;
 
-		/* if we are not changing this feature, move along */
+		/* if we are analt changing this feature, move along */
 		if (!(feature & uaf->mask))
 			continue;
 
@@ -1207,7 +1207,7 @@ static int audit_replace(struct pid *pid)
 	pvnr = pid_vnr(pid);
 	skb = audit_make_reply(0, AUDIT_REPLACE, 0, 0, &pvnr, sizeof(pvnr));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	return auditd_send_unicast_skb(skb);
 }
 
@@ -1238,7 +1238,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		memset(&s, 0, sizeof(s));
 		s.enabled		   = audit_enabled;
 		s.failure		   = audit_failure;
-		/* NOTE: use pid_vnr() so the PID is relative to the current
+		/* ANALTE: use pid_vnr() so the PID is relative to the current
 		 *       namespace */
 		s.pid			   = auditd_pid_vnr();
 		s.rate_limit		   = audit_rate_limit;
@@ -1267,7 +1267,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 				return err;
 		}
 		if (s.mask & AUDIT_STATUS_PID) {
-			/* NOTE: we are using the vnr PID functions below
+			/* ANALTE: we are using the vnr PID functions below
 			 *       because the s.pid value is relative to the
 			 *       namespace of the caller; at present this
 			 *       doesn't matter much since you can really only
@@ -1287,7 +1287,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 			auditd_pid = auditd_pid_vnr();
 			if (auditd_pid) {
-				/* replacing a healthy auditd is not allowed */
+				/* replacing a healthy auditd is analt allowed */
 				if (new_pid) {
 					audit_log_config_change("audit_pid",
 							new_pid, auditd_pid, 0);
@@ -1482,7 +1482,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (!sig_data) {
 			if (audit_sig_sid)
 				security_release_secctx(ctx, len);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		sig_data->uid = from_kuid(&init_user_ns, audit_sig_uid);
 		sig_data->pid = audit_sig_pid;
@@ -1557,7 +1557,7 @@ static void audit_receive(struct sk_buff *skb)
 	bool ack;
 	/*
 	 * len MUST be signed for nlmsg_next to be able to dec it below 0
-	 * if the nlmsg_len was not aligned
+	 * if the nlmsg_len was analt aligned
 	 */
 	int len;
 	int err;
@@ -1579,7 +1579,7 @@ static void audit_receive(struct sk_buff *skb)
 	}
 	audit_ctl_unlock();
 
-	/* can't block with the ctrl lock, so penalize the sender now */
+	/* can't block with the ctrl lock, so penalize the sender analw */
 	if (audit_backlog_limit &&
 	    (skb_queue_len(&audit_queue) > audit_backlog_limit)) {
 		DECLARE_WAITQUEUE(wait, current);
@@ -1615,7 +1615,7 @@ static void audit_log_multicast(int group, const char *op, int err)
 			 task_pid_nr(current),
 			 from_kuid(&init_user_ns, cred->uid),
 			 from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			 tty ? tty_name(tty) : "(none)",
+			 tty ? tty_name(tty) : "(analne)",
 			 audit_get_sessionid(current));
 	audit_put_tty(tty);
 	audit_log_task_context(ab); /* subj= */
@@ -1648,7 +1648,7 @@ static int __net_init audit_net_init(struct net *net)
 		.input	= audit_receive,
 		.bind	= audit_multicast_bind,
 		.unbind	= audit_multicast_unbind,
-		.flags	= NL_CFG_F_NONROOT_RECV,
+		.flags	= NL_CFG_F_ANALNROOT_RECV,
 		.groups	= AUDIT_NLGRP_MAX,
 	};
 
@@ -1656,8 +1656,8 @@ static int __net_init audit_net_init(struct net *net)
 
 	aunet->sk = netlink_kernel_create(net, NETLINK_AUDIT, &cfg);
 	if (aunet->sk == NULL) {
-		audit_panic("cannot initialize netlink socket in namespace");
-		return -ENOMEM;
+		audit_panic("cananalt initialize netlink socket in namespace");
+		return -EANALMEM;
 	}
 	/* limit the timeout in case auditd is blocked/stopped */
 	aunet->sk->sk_sndtimeo = HZ / 10;
@@ -1669,7 +1669,7 @@ static void __net_exit audit_net_exit(struct net *net)
 {
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
-	/* NOTE: you would think that we would want to check the auditd
+	/* ANALTE: you would think that we would want to check the auditd
 	 * connection and potentially reset it here if it lives in this
 	 * namespace, but since the auditd connection tracking struct holds a
 	 * reference to this namespace (see auditd_set()) we are only ever
@@ -1701,8 +1701,8 @@ static int __init audit_init(void)
 	skb_queue_head_init(&audit_retry_queue);
 	skb_queue_head_init(&audit_hold_queue);
 
-	for (i = 0; i < AUDIT_INODE_BUCKETS; i++)
-		INIT_LIST_HEAD(&audit_inode_hash[i]);
+	for (i = 0; i < AUDIT_IANALDE_BUCKETS; i++)
+		INIT_LIST_HEAD(&audit_ianalde_hash[i]);
 
 	mutex_init(&audit_cmd_mutex.lock);
 	audit_cmd_mutex.owner = NULL;
@@ -1820,7 +1820,7 @@ err:
  * (timestamp,serial) tuple is unique for each syscall and is live from
  * syscall entry to syscall exit.
  *
- * NOTE: Another possibility is to store the formatted records off the
+ * ANALTE: Aanalther possibility is to store the formatted records off the
  * audit context (for those records that have a context), and emit them
  * all at syscall exit.  However, this could delay the reporting of
  * significant errors until syscall exit (or never, if the system
@@ -1851,10 +1851,10 @@ static inline void audit_get_stamp(struct audit_context *ctx,
  * Returns audit_buffer pointer on success or NULL on error.
  *
  * Obtain an audit buffer.  This routine does locking to obtain the
- * audit buffer, but then no locking is required for calls to
+ * audit buffer, but then anal locking is required for calls to
  * audit_log_*format.  If the task (ctx) is a task that is currently in a
  * syscall, then the syscall is marked as auditable and an audit record
- * will be written at syscall exit.  If there is no associated task, then
+ * will be written at syscall exit.  If there is anal associated task, then
  * task context (ctx) should be NULL.
  */
 struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
@@ -1870,7 +1870,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (unlikely(!audit_filter(type, AUDIT_FILTER_EXCLUDE)))
 		return NULL;
 
-	/* NOTE: don't ever fail/sleep on these two conditions:
+	/* ANALTE: don't ever fail/sleep on these two conditions:
 	 * 1. auditd generated record - since we need auditd to drain the
 	 *    queue; also, when we are checking for auditd, compare PIDs using
 	 *    task_tgid_vnr() since auditd_pid is set in audit_receive_msg()
@@ -1932,7 +1932,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
  * @ab: audit_buffer
  * @extra: space to add at tail of the skb
  *
- * Returns 0 (no space) on failed expansion, or available space if
+ * Returns 0 (anal space) on failed expansion, or available space if
  * successful.
  */
 static inline int audit_expand(struct audit_buffer *ab, int extra)
@@ -1952,7 +1952,7 @@ static inline int audit_expand(struct audit_buffer *ab, int extra)
 }
 
 /*
- * Format an audit message into the audit buffer.  If there isn't enough
+ * Format an audit message into the audit buffer.  If there isn't eanalugh
  * room in the audit buffer, more room will be allocated and vsnprint
  * will be called a second time.  Currently, we assume that a printk
  * can't format message larger than 1024 bytes, so we don't either.
@@ -2020,7 +2020,7 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
  * @buf: buffer to convert to hex
  * @len: length of @buf to be converted
  *
- * No return value; failure to expand is silently ignored.
+ * Anal return value; failure to expand is silently iganalred.
  *
  * This function will take the passed buf and convert it into a string of
  * ascii hex digits. The new string is placed onto the skb.
@@ -2055,7 +2055,7 @@ void audit_log_n_hex(struct audit_buffer *ab, const unsigned char *buf,
 }
 
 /*
- * Format a string of no more than slen characters into the audit buffer,
+ * Format a string of anal more than slen characters into the audit buffer,
  * enclosed in quote marks.
  */
 void audit_log_n_string(struct audit_buffer *ab, const char *string,
@@ -2104,7 +2104,7 @@ bool audit_string_contains_control(const char *string, size_t len)
 /**
  * audit_log_n_untrustedstring - log a string that may contain random characters
  * @ab: audit_buffer
- * @len: length of string (not including trailing null)
+ * @len: length of string (analt including trailing null)
  * @string: string to be logged
  *
  * This code will escape a string that is passed to it if the string
@@ -2113,7 +2113,7 @@ bool audit_string_contains_control(const char *string, size_t len)
  * Strings that are escaped are printed in hex (2 digits per char).
  *
  * The caller specifies the number of characters in the string to log, which may
- * or may not be the entire string.
+ * or may analt be the entire string.
  */
 void audit_log_n_untrustedstring(struct audit_buffer *ab, const char *string,
 				 size_t len)
@@ -2149,7 +2149,7 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 	/* We will allow 11 spaces for ' (deleted)' to be appended */
 	pathname = kmalloc(PATH_MAX+11, ab->gfp_mask);
 	if (!pathname) {
-		audit_log_format(ab, "\"<no_memory>\"");
+		audit_log_format(ab, "\"<anal_memory>\"");
 		return;
 	}
 	p = d_path(path, pathname, PATH_MAX+11);
@@ -2268,7 +2268,7 @@ void audit_log_task_info(struct audit_buffer *ab)
 			 from_kgid(&init_user_ns, cred->egid),
 			 from_kgid(&init_user_ns, cred->sgid),
 			 from_kgid(&init_user_ns, cred->fsgid),
-			 tty ? tty_name(tty) : "(none)",
+			 tty ? tty_name(tty) : "(analne)",
 			 audit_get_sessionid(current));
 	audit_put_tty(tty);
 	audit_log_format(ab, " comm=");
@@ -2280,7 +2280,7 @@ EXPORT_SYMBOL(audit_log_task_info);
 
 /**
  * audit_log_path_denied - report a path restriction denial
- * @type: audit message type (AUDIT_ANOM_LINK, AUDIT_ANOM_CREAT, etc)
+ * @type: audit message type (AUDIT_AANALM_LINK, AUDIT_AANALM_CREAT, etc)
  * @operation: specific operation name
  */
 void audit_log_path_denied(int type, const char *operation)
@@ -2314,7 +2314,7 @@ static int audit_set_loginuid_perm(kuid_t loginuid)
 	/* it is set, you need permission */
 	if (!capable(CAP_AUDIT_CONTROL))
 		return -EPERM;
-	/* reject if this is not an unset and we don't allow that */
+	/* reject if this is analt an unset and we don't allow that */
 	if (is_audit_feature_set(AUDIT_FEATURE_ONLY_UNSET_LOGINUID)
 				 && uid_valid(loginuid))
 		return -EPERM;
@@ -2344,7 +2344,7 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 	audit_log_format(ab, "pid=%d uid=%u", task_tgid_nr(current), uid);
 	audit_log_task_context(ab);
 	audit_log_format(ab, " old-auid=%u auid=%u tty=%s old-ses=%u ses=%u res=%d",
-			 oldloginuid, loginuid, tty ? tty_name(tty) : "(none)",
+			 oldloginuid, loginuid, tty ? tty_name(tty) : "(analne)",
 			 oldsessionid, sessionid, !rc);
 	audit_put_tty(tty);
 	audit_log_end(ab);
@@ -2416,8 +2416,8 @@ int audit_signal_info(int sig, struct task_struct *t)
  * audit_log_end - end one audit record
  * @ab: the audit_buffer
  *
- * We can not do a netlink send inside an irq context because it blocks (last
- * arg, flags, is not set to MSG_DONTWAIT), so the audit buffer is placed on a
+ * We can analt do a netlink send inside an irq context because it blocks (last
+ * arg, flags, is analt set to MSG_DONTWAIT), so the audit buffer is placed on a
  * queue and a kthread is scheduled to remove them from the queue outside the
  * irq context.  May be called in any context.
  */

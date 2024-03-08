@@ -37,8 +37,8 @@ unsigned int cdnsp_port_speed(unsigned int port_status)
 	else if (DEV_FULLSPEED(port_status))
 		return USB_SPEED_FULL;
 
-	/* If device is detached then speed will be USB_SPEED_UNKNOWN.*/
-	return USB_SPEED_UNKNOWN;
+	/* If device is detached then speed will be USB_SPEED_UNKANALWN.*/
+	return USB_SPEED_UNKANALWN;
 }
 
 /*
@@ -47,7 +47,7 @@ unsigned int cdnsp_port_speed(unsigned int port_status)
  * control register.
  * Save Read Only (RO) bits and save read/write bits where
  * writing a 0 clears the bit and writing a 1 sets the bit (RWS).
- * For all other types (RW1S, RW1CS, RW, and RZ), writing a '0' has no effect.
+ * For all other types (RW1S, RW1CS, RW, and RZ), writing a '0' has anal effect.
  */
 u32 cdnsp_port_state_to_neutral(u32 state)
 {
@@ -221,7 +221,7 @@ int cdnsp_halt(struct cdnsp_device *pdev)
  */
 void cdnsp_died(struct cdnsp_device *pdev)
 {
-	dev_err(pdev->dev, "ERROR: CDNSP controller not responding\n");
+	dev_err(pdev->dev, "ERROR: CDNSP controller analt responding\n");
 	pdev->cdnsp_state |= CDNSP_STATE_DYING;
 	cdnsp_halt(pdev);
 }
@@ -271,12 +271,12 @@ int cdnsp_reset(struct cdnsp_device *pdev)
 	temp = readl(&pdev->op_regs->status);
 
 	if (temp == ~(u32)0) {
-		dev_err(pdev->dev, "Device not accessible, reset failed.\n");
-		return -ENODEV;
+		dev_err(pdev->dev, "Device analt accessible, reset failed.\n");
+		return -EANALDEV;
 	}
 
 	if ((temp & STS_HALT) == 0) {
-		dev_err(pdev->dev, "Controller not halted, aborting reset.\n");
+		dev_err(pdev->dev, "Controller analt halted, aborting reset.\n");
 		return -EINVAL;
 	}
 
@@ -293,15 +293,15 @@ int cdnsp_reset(struct cdnsp_device *pdev)
 	}
 
 	/*
-	 * CDNSP cannot write any doorbells or operational registers other
-	 * than status until the "Controller Not Ready" flag is cleared.
+	 * CDNSP cananalt write any doorbells or operational registers other
+	 * than status until the "Controller Analt Ready" flag is cleared.
 	 */
 	ret = readl_poll_timeout_atomic(&pdev->op_regs->status, temp,
 					!(temp & STS_CNR), 1,
 					10 * 1000);
 
 	if (ret) {
-		dev_err(pdev->dev, "ERROR: Controller not ready to work\n");
+		dev_err(pdev->dev, "ERROR: Controller analt ready to work\n");
 		return ret;
 	}
 
@@ -412,7 +412,7 @@ unmap:
  *     and attempt to cancel.
  *
  *  2) If the controller is in the middle of a different TD, we turn the TRBs
- *     into a series of 1-TRB transfer no-op TDs. No-ops shouldn't be chained.
+ *     into a series of 1-TRB transfer anal-op TDs. Anal-ops shouldn't be chained.
  *     The controller will need to invalidate the any TRBs it has cached after
  *     the stop endpoint command.
  *
@@ -643,7 +643,7 @@ static int cdnsp_update_eps_configuration(struct cdnsp_device *pdev,
 
 	ctrl_ctx = cdnsp_get_input_control_ctx(&pdev->in_ctx);
 
-	/* Don't issue the command if there's no endpoints to update. */
+	/* Don't issue the command if there's anal endpoints to update. */
 	if (ctrl_ctx->add_flags == 0 && ctrl_ctx->drop_flags == 0)
 		return 0;
 
@@ -695,7 +695,7 @@ int cdnsp_reset_device(struct cdnsp_device *pdev)
 	slot_ctx->dev_info = 0;
 	pdev->device_address = 0;
 
-	/* If device is not setup, there is no point in resetting it. */
+	/* If device is analt setup, there is anal point in resetting it. */
 	slot_ctx = cdnsp_get_slot_ctx(&pdev->out_ctx);
 	slot_state = GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state));
 	trace_cdnsp_reset_device(slot_ctx);
@@ -720,7 +720,7 @@ int cdnsp_reset_device(struct cdnsp_device *pdev)
 	ret = cdnsp_wait_for_cmd_compl(pdev);
 
 	/*
-	 * After Reset Device command all not default endpoints
+	 * After Reset Device command all analt default endpoints
 	 * are in Disabled state.
 	 */
 	for (i = 1; i < CDNSP_ENDPOINTS_NUM; ++i)
@@ -745,7 +745,7 @@ static void cdnsp_setup_streams_ep_input_ctx(struct cdnsp_device *pdev,
 {
 	u32 max_primary_streams;
 
-	/* MaxPStreams is the number of stream context array entries, not the
+	/* MaxPStreams is the number of stream context array entries, analt the
 	 * number we're actually using. Must be in 2^(MaxPstreams + 1) format.
 	 * fls(0) = 0, fls(0x1) = 1, fls(0x10) = 2, fls(0x100) = 3, etc.
 	 */
@@ -825,7 +825,7 @@ int cdnsp_enable_slot(struct cdnsp_device *pdev)
 	int slot_state;
 	int ret;
 
-	/* If device is not setup, there is no point in resetting it */
+	/* If device is analt setup, there is anal point in resetting it */
 	slot_ctx = cdnsp_get_slot_ctx(&pdev->out_ctx);
 	slot_state = GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state));
 
@@ -965,7 +965,7 @@ static int cdnsp_gadget_ep_enable(struct usb_ep *ep,
 
 	if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_ISOC) {
 		if (pep->interval > BIT(12)) {
-			dev_err(pdev->dev, "bInterval %d not supported\n",
+			dev_err(pdev->dev, "bInterval %d analt supported\n",
 				desc->bInterval);
 			ret = -EINVAL;
 			goto unlock;
@@ -1266,7 +1266,7 @@ static int cdnsp_run(struct cdnsp_device *pdev,
 		dev_err(pdev->dev, "invalid maximum_speed parameter %d\n",
 			speed);
 		fallthrough;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 		/* Default to superspeed. */
 		speed = USB_SPEED_SUPER;
 		break;
@@ -1289,7 +1289,7 @@ static int cdnsp_run(struct cdnsp_device *pdev,
 
 	ret = cdnsp_start(pdev);
 	if (ret) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -1488,7 +1488,7 @@ static void __cdnsp_gadget_wakeup(struct cdnsp_device *pdev)
 	port_regs = pdev->active_port->regs;
 	portsc = readl(&port_regs->portsc) & PORT_PLS_MASK;
 
-	/* Remote wakeup feature is not enabled by host. */
+	/* Remote wakeup feature is analt enabled by host. */
 	if (pdev->gadget.speed < USB_SPEED_SUPER && portsc == XDEV_U2) {
 		portpm = readl(&port_regs->portpmsc);
 
@@ -1602,7 +1602,7 @@ static int cdnsp_gadget_init_endpoints(struct cdnsp_device *pdev)
 	INIT_LIST_HEAD(&pdev->gadget.ep_list);
 
 	if (max_streams < STREAM_LOG_STREAMS) {
-		dev_err(pdev->dev, "Stream size %d not supported\n",
+		dev_err(pdev->dev, "Stream size %d analt supported\n",
 			max_streams);
 		return -EINVAL;
 	}
@@ -1671,12 +1671,12 @@ static int cdnsp_gadget_init_endpoints(struct cdnsp_device *pdev)
 			"CTRL: %s, INT: %s, BULK: %s, ISOC %s, "
 			"SupDir IN: %s, OUT: %s\n",
 			pep->name, 1024,
-			(pep->endpoint.caps.type_control) ? "yes" : "no",
-			(pep->endpoint.caps.type_int) ? "yes" : "no",
-			(pep->endpoint.caps.type_bulk) ? "yes" : "no",
-			(pep->endpoint.caps.type_iso) ? "yes" : "no",
-			(pep->endpoint.caps.dir_in) ? "yes" : "no",
-			(pep->endpoint.caps.dir_out) ? "yes" : "no");
+			(pep->endpoint.caps.type_control) ? "anal" : "anal",
+			(pep->endpoint.caps.type_int) ? "anal" : "anal",
+			(pep->endpoint.caps.type_bulk) ? "anal" : "anal",
+			(pep->endpoint.caps.type_iso) ? "anal" : "anal",
+			(pep->endpoint.caps.dir_in) ? "anal" : "anal",
+			(pep->endpoint.caps.dir_out) ? "anal" : "anal");
 
 		INIT_LIST_HEAD(&pep->pending_list);
 	}
@@ -1706,8 +1706,8 @@ void cdnsp_disconnect_gadget(struct cdnsp_device *pdev)
 		spin_lock(&pdev->lock);
 	}
 
-	pdev->gadget.speed = USB_SPEED_UNKNOWN;
-	usb_gadget_set_state(&pdev->gadget, USB_STATE_NOTATTACHED);
+	pdev->gadget.speed = USB_SPEED_UNKANALWN;
+	usb_gadget_set_state(&pdev->gadget, USB_STATE_ANALTATTACHED);
 
 	pdev->cdnsp_state &= ~CDNSP_STATE_DISCONNECT_PENDING;
 }
@@ -1755,8 +1755,8 @@ void cdnsp_irq_reset(struct cdnsp_device *pdev)
 		pdev->gadget.ep0->maxpacket = 64;
 		break;
 	default:
-		/* Low speed is not supported. */
-		dev_err(pdev->dev, "Unknown device speed\n");
+		/* Low speed is analt supported. */
+		dev_err(pdev->dev, "Unkanalwn device speed\n");
 		break;
 	}
 
@@ -1852,13 +1852,13 @@ static int __cdnsp_gadget_init(struct cdns *cdns)
 {
 	struct cdnsp_device *pdev;
 	u32 max_speed;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	cdns_drd_gadget_on(cdns);
 
 	pdev = kzalloc(sizeof(*pdev), GFP_KERNEL);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_runtime_get_sync(cdns->dev);
 
@@ -1876,7 +1876,7 @@ static int __cdnsp_gadget_init(struct cdns *cdns)
 	default:
 		dev_err(cdns->dev, "invalid speed parameter %d\n", max_speed);
 		fallthrough;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 		/* Default to SSP */
 		max_speed = USB_SPEED_SUPER_PLUS;
 		break;
@@ -1884,7 +1884,7 @@ static int __cdnsp_gadget_init(struct cdns *cdns)
 
 	pdev->gadget.ops = &cdnsp_gadget_ops;
 	pdev->gadget.name = "cdnsp-gadget";
-	pdev->gadget.speed = USB_SPEED_UNKNOWN;
+	pdev->gadget.speed = USB_SPEED_UNKANALWN;
 	pdev->gadget.sg_supported = 1;
 	pdev->gadget.max_speed = max_speed;
 	pdev->gadget.lpm_capable = 1;
@@ -1894,7 +1894,7 @@ static int __cdnsp_gadget_init(struct cdns *cdns)
 		goto free_pdev;
 
 	/*
-	 * Controller supports not aligned buffer but it should improve
+	 * Controller supports analt aligned buffer but it should improve
 	 * performance.
 	 */
 	pdev->gadget.quirk_ep_out_aligned_size = true;
@@ -2011,7 +2011,7 @@ int cdnsp_gadget_init(struct cdns *cdns)
 
 	rdrv = devm_kzalloc(cdns->dev, sizeof(*rdrv), GFP_KERNEL);
 	if (!rdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdrv->start	= __cdnsp_gadget_init;
 	rdrv->stop	= cdnsp_gadget_exit;

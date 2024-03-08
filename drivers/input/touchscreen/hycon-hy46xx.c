@@ -23,7 +23,7 @@
 #define HY46XX_THRESHOLD		0x80
 #define HY46XX_GLOVE_EN			0x84
 #define HY46XX_REPORT_SPEED		0x88
-#define HY46XX_PWR_NOISE_EN		0x89
+#define HY46XX_PWR_ANALISE_EN		0x89
 #define HY46XX_FILTER_DATA		0x8A
 #define HY46XX_GAIN			0x92
 #define HY46XX_EDGE_OFFSET		0x93
@@ -60,7 +60,7 @@ struct hycon_hy46xx_data {
 	int threshold;
 	bool glove_enable;
 	int report_speed;
-	bool noise_filter_enable;
+	bool analise_filter_enable;
 	int filter_data;
 	int gain;
 	int edge_offset;
@@ -249,7 +249,7 @@ out:
 static HYCON_ATTR_U8(threshold, 0644, HY46XX_THRESHOLD, 0, 255);
 static HYCON_ATTR_BOOL(glove_enable, 0644, HY46XX_GLOVE_EN);
 static HYCON_ATTR_U8(report_speed, 0644, HY46XX_REPORT_SPEED, 0, 255);
-static HYCON_ATTR_BOOL(noise_filter_enable, 0644, HY46XX_PWR_NOISE_EN);
+static HYCON_ATTR_BOOL(analise_filter_enable, 0644, HY46XX_PWR_ANALISE_EN);
 static HYCON_ATTR_U8(filter_data, 0644, HY46XX_FILTER_DATA, 0, 5);
 static HYCON_ATTR_U8(gain, 0644, HY46XX_GAIN, 0, 5);
 static HYCON_ATTR_U8(edge_offset, 0644, HY46XX_EDGE_OFFSET, 0, 5);
@@ -263,7 +263,7 @@ static struct attribute *hycon_hy46xx_attrs[] = {
 	&hycon_hy46xx_attr_threshold.dattr.attr,
 	&hycon_hy46xx_attr_glove_enable.dattr.attr,
 	&hycon_hy46xx_attr_report_speed.dattr.attr,
-	&hycon_hy46xx_attr_noise_filter_enable.dattr.attr,
+	&hycon_hy46xx_attr_analise_filter_enable.dattr.attr,
 	&hycon_hy46xx_attr_filter_data.dattr.attr,
 	&hycon_hy46xx_attr_gain.dattr.attr,
 	&hycon_hy46xx_attr_edge_offset.dattr.attr,
@@ -306,11 +306,11 @@ static void hycon_hy46xx_get_defaults(struct device *dev, struct hycon_hy46xx_da
 		tsdata->report_speed = val;
 	}
 
-	val_bool = device_property_read_bool(dev, "hycon,noise-filter-enable");
-	error = regmap_write(tsdata->regmap, HY46XX_PWR_NOISE_EN, val_bool);
+	val_bool = device_property_read_bool(dev, "hycon,analise-filter-enable");
+	error = regmap_write(tsdata->regmap, HY46XX_PWR_ANALISE_EN, val_bool);
 	if (error < 0)
 		goto out;
-	tsdata->noise_filter_enable = val_bool;
+	tsdata->analise_filter_enable = val_bool;
 
 	error = device_property_read_u32(dev, "hycon,filter-data", &val);
 	if (!error) {
@@ -364,10 +364,10 @@ static void hycon_hy46xx_get_parameters(struct hycon_hy46xx_data *tsdata)
 		goto out;
 	tsdata->report_speed = val;
 
-	error = regmap_read(tsdata->regmap, HY46XX_PWR_NOISE_EN, &val);
+	error = regmap_read(tsdata->regmap, HY46XX_PWR_ANALISE_EN, &val);
 	if (error < 0)
 		goto out;
-	tsdata->noise_filter_enable = val;
+	tsdata->analise_filter_enable = val;
 
 	error = regmap_read(tsdata->regmap, HY46XX_FILTER_DATA, &val);
 	if (error < 0)
@@ -446,7 +446,7 @@ static int hycon_hy46xx_probe(struct i2c_client *client)
 
 	tsdata = devm_kzalloc(&client->dev, sizeof(*tsdata), GFP_KERNEL);
 	if (!tsdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tsdata->vcc = devm_regulator_get(&client->dev, "vcc");
 	if (IS_ERR(tsdata->vcc)) {
@@ -489,7 +489,7 @@ static int hycon_hy46xx_probe(struct i2c_client *client)
 	input = devm_input_allocate_device(&client->dev);
 	if (!input) {
 		dev_err(&client->dev, "failed to allocate input device.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&tsdata->mutex);
@@ -571,7 +571,7 @@ static struct i2c_driver hycon_hy46xx_driver = {
 		.name = "hycon_hy46xx",
 		.dev_groups = hycon_hy46xx_groups,
 		.of_match_table = hycon_hy46xx_of_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table = hycon_hy46xx_id,
 	.probe = hycon_hy46xx_probe,

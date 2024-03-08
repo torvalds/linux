@@ -85,7 +85,7 @@ struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	block = pool->mem_block;
 
 	for (i = 0; i < block_num; i++) {
@@ -126,7 +126,7 @@ err_free_mem:
 				  block[j].sgl_dma);
 
 	kfree_sensitive(pool);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_create_sgl_pool);
 
@@ -250,7 +250,7 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	if (IS_ERR(curr_hw_sgl)) {
 		dev_err(dev, "Get SGL error!\n");
 		dma_unmap_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	curr_hw_sgl->entry_length_in_sgl = cpu_to_le16(pool->sge_nr);
 	curr_hw_sge = curr_hw_sgl->sge_entries;

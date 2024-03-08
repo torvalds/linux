@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (c) 2015-2017 Daniel Borkmann */
-/* Copyright (c) 2018 Netronome Systems, Inc. */
+/* Copyright (c) 2018 Netroanalme Systems, Inc. */
 
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
@@ -29,9 +29,9 @@ static int validate_tracefs_mnt(const char *mnt, unsigned long magic)
 	struct statfs st_fs;
 
 	if (statfs(mnt, &st_fs) < 0)
-		return -ENOENT;
+		return -EANALENT;
 	if ((unsigned long)st_fs.f_type != magic)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -56,7 +56,7 @@ find_tracefs_mnt_single(unsigned long magic, char *mnt, const char *mntpt)
 
 static bool get_tracefs_pipe(char *mnt)
 {
-	static const char * const known_mnts[] = {
+	static const char * const kanalwn_mnts[] = {
 		"/sys/kernel/debug/tracing",
 		"/sys/kernel/tracing",
 		"/tracing",
@@ -69,7 +69,7 @@ static bool get_tracefs_pipe(char *mnt)
 	bool found = false;
 	FILE *fp;
 
-	for (ptr = known_mnts; ptr < known_mnts + ARRAY_SIZE(known_mnts); ptr++)
+	for (ptr = kanalwn_mnts; ptr < kanalwn_mnts + ARRAY_SIZE(kanalwn_mnts); ptr++)
 		if (find_tracefs_mnt_single(TRACEFS_MAGIC, mnt, *ptr))
 			goto exit_found;
 
@@ -94,13 +94,13 @@ static bool get_tracefs_pipe(char *mnt)
 	if (block_mount)
 		return false;
 
-	p_info("could not find tracefs, attempting to mount it now");
+	p_info("could analt find tracefs, attempting to mount it analw");
 	/* Most of the time, tracefs is automatically mounted by debugfs at
-	 * /sys/kernel/debug/tracing when we try to access it. If we could not
-	 * find it, it is likely that debugfs is not mounted. Let's give one
+	 * /sys/kernel/debug/tracing when we try to access it. If we could analt
+	 * find it, it is likely that debugfs is analt mounted. Let's give one
 	 * attempt at mounting just tracefs at /sys/kernel/tracing.
 	 */
-	strcpy(mnt, known_mnts[1]);
+	strcpy(mnt, kanalwn_mnts[1]);
 	if (mount_tracefs(mnt))
 		return false;
 
@@ -138,7 +138,7 @@ int do_tracelog(int argc, char **argv)
 
 	trace_pipe_fd = fopen(trace_pipe, "r");
 	if (!trace_pipe_fd) {
-		p_err("could not open trace pipe: %s", strerror(errno));
+		p_err("could analt open trace pipe: %s", strerror(erranal));
 		return -1;
 	}
 
@@ -151,7 +151,7 @@ int do_tracelog(int argc, char **argv)
 		ret = getline(&buff, &buff_len, trace_pipe_fd);
 		if (ret <= 0) {
 			p_err("failed to read content from trace pipe: %s",
-			      strerror(errno));
+			      strerror(erranal));
 			break;
 		}
 		if (json_output)

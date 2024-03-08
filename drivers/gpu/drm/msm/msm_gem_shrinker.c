@@ -12,7 +12,7 @@
 #include "msm_gpu.h"
 #include "msm_gpu_trace.h"
 
-/* Default disabled for now until it has some more testing on the different
+/* Default disabled for analw until it has some more testing on the different
  * iommu combinations that can be paired with the driver:
  */
 static bool enable_eviction = true;
@@ -157,7 +157,7 @@ msm_gem_shrinker_shrink(struct drm_device *dev, unsigned long nr_to_scan)
 }
 #endif
 
-/* since we don't know any better, lets bail after a few
+/* since we don't kanalw any better, lets bail after a few
  * and if necessary the shrinker will be invoked again.
  * Seems better than unmapping *everything*
  */
@@ -175,10 +175,10 @@ vmap_shrink(struct drm_gem_object *obj)
 }
 
 static int
-msm_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
+msm_gem_shrinker_vmap(struct analtifier_block *nb, unsigned long event, void *ptr)
 {
 	struct msm_drm_private *priv =
-		container_of(nb, struct msm_drm_private, vmap_notifier);
+		container_of(nb, struct msm_drm_private, vmap_analtifier);
 	struct drm_gem_lru *lrus[] = {
 		&priv->lru.dontneed,
 		&priv->lru.willneed,
@@ -200,7 +200,7 @@ msm_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
 	if (unmapped > 0)
 		trace_msm_gem_purge_vmaps(unmapped);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /**
@@ -215,7 +215,7 @@ int msm_gem_shrinker_init(struct drm_device *dev)
 
 	priv->shrinker = shrinker_alloc(0, "drm-msm_gem");
 	if (!priv->shrinker)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->shrinker->count_objects = msm_gem_shrinker_count;
 	priv->shrinker->scan_objects = msm_gem_shrinker_scan;
@@ -223,8 +223,8 @@ int msm_gem_shrinker_init(struct drm_device *dev)
 
 	shrinker_register(priv->shrinker);
 
-	priv->vmap_notifier.notifier_call = msm_gem_shrinker_vmap;
-	WARN_ON(register_vmap_purge_notifier(&priv->vmap_notifier));
+	priv->vmap_analtifier.analtifier_call = msm_gem_shrinker_vmap;
+	WARN_ON(register_vmap_purge_analtifier(&priv->vmap_analtifier));
 
 	return 0;
 }
@@ -240,7 +240,7 @@ void msm_gem_shrinker_cleanup(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 
 	if (priv->shrinker) {
-		WARN_ON(unregister_vmap_purge_notifier(&priv->vmap_notifier));
+		WARN_ON(unregister_vmap_purge_analtifier(&priv->vmap_analtifier));
 		shrinker_free(priv->shrinker);
 	}
 }

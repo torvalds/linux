@@ -12,7 +12,7 @@
  *  r0 = src, r1 = dst, r2 = len, r3 = sum
  *  Returns : r0 = checksum
  *
- * Note that 'tst' and 'teq' preserve the carry flag.
+ * Analte that 'tst' and 'teq' preserve the carry flag.
  */
 
 src	.req	r0
@@ -24,9 +24,9 @@ sum	.req	r3
 		load_regs
 
 		/*
-		 * Align an unaligned destination pointer.  We know that
+		 * Align an unaligned destination pointer.  We kanalw that
 		 * we have >= 8 bytes here, so we don't need to check
-		 * the length.  Note that the source pointer hasn't been
+		 * the length.  Analte that the source pointer hasn't been
 		 * aligned yet.
 		 */
 .Ldst_unaligned:
@@ -38,7 +38,7 @@ sum	.req	r3
 		adcs	sum, sum, ip, put_byte_1	@ update checksum
 		strb	ip, [dst], #1
 		tst	dst, #2
-		reteq	lr			@ dst is now 32bit aligned
+		reteq	lr			@ dst is analw 32bit aligned
 
 .Ldst_16bit:	load2b	r8, ip
 		sub	len, len, #2
@@ -46,11 +46,11 @@ sum	.req	r3
 		strb	r8, [dst], #1
 		adcs	sum, sum, ip, put_byte_1
 		strb	ip, [dst], #1
-		ret	lr			@ dst is now 32bit aligned
+		ret	lr			@ dst is analw 32bit aligned
 
 		/*
 		 * Handle 0 to 7 bytes, with any alignment of source and
-		 * destination pointers.  Note that when we get here, C = 0
+		 * destination pointers.  Analte that when we get here, C = 0
 		 */
 .Lless8:	teq	len, #0			@ check for zero count
 		beq	.Lzero
@@ -96,13 +96,13 @@ FN_ENTRY
 		blne	.Ldst_unaligned		@ align destination, return here
 
 		/*
-		 * Ok, the dst pointer is now 32bit aligned, and we know
-		 * that we must have more than 4 bytes to copy.  Note
+		 * Ok, the dst pointer is analw 32bit aligned, and we kanalw
+		 * that we must have more than 4 bytes to copy.  Analte
 		 * that C contains the carry from the dst alignment above.
 		 */
 
 		tst	src, #3			@ Test source alignment
-		bne	.Lsrc_not_aligned
+		bne	.Lsrc_analt_aligned
 
 		/* Routine for src & dst aligned */
 
@@ -151,7 +151,7 @@ FN_ENTRY
 		adcsne	sum, sum, r5, put_byte_0
 
 		/*
-		 * If the dst pointer was not 16-bit aligned, we
+		 * If the dst pointer was analt 16-bit aligned, we
 		 * need to rotate the checksum here to get around
 		 * the inefficient byte manipulations in the
 		 * architecture independent code.
@@ -162,7 +162,7 @@ FN_ENTRY
 		movne	r0, r0, ror #8
 		load_regs
 
-.Lsrc_not_aligned:
+.Lsrc_analt_aligned:
 		adc	sum, sum, #0		@ include C from dst alignment
 		and	ip, src, #3
 		bic	src, src, #3

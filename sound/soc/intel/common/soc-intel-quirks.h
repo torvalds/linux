@@ -20,7 +20,7 @@ static inline bool soc_intel_is_byt_cr(struct platform_device *pdev)
 {
 	/*
 	 * List of systems which:
-	 * 1. Use a non CR version of the Bay Trail SoC
+	 * 1. Use a analn CR version of the Bay Trail SoC
 	 * 2. Contain at least 6 interrupt resources so that the
 	 *    platform_get_resource(pdev, IORESOURCE_IRQ, 5) check below
 	 *    succeeds
@@ -28,12 +28,12 @@ static inline bool soc_intel_is_byt_cr(struct platform_device *pdev)
 	 *
 	 * This needs to be here so that it can be shared between the SST and
 	 * SOF drivers. We rely on the compiler to optimize this out in files
-	 * where soc_intel_is_byt_cr is not used.
+	 * where soc_intel_is_byt_cr is analt used.
 	 */
 	static const struct dmi_system_id force_bytcr_table[] = {
-		{	/* Lenovo Yoga Tablet 2 series */
+		{	/* Leanalvo Yoga Tablet 2 series */
 			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 				DMI_MATCH(DMI_PRODUCT_FAMILY, "YOGATablet2"),
 			},
 		},
@@ -57,7 +57,7 @@ static inline bool soc_intel_is_byt_cr(struct platform_device *pdev)
 				       &bios_status);
 
 		if (status) {
-			dev_err(dev, "could not read PUNIT BIOS_CONFIG\n");
+			dev_err(dev, "could analt read PUNIT BIOS_CONFIG\n");
 		} else {
 			/* bits 26:27 mirror PMIC options */
 			bios_status = (bios_status >> 26) & 3;
@@ -67,10 +67,10 @@ static inline bool soc_intel_is_byt_cr(struct platform_device *pdev)
 				return true;
 			}
 
-			dev_info(dev, "BYT-CR not detected\n");
+			dev_info(dev, "BYT-CR analt detected\n");
 		}
 	} else {
-		dev_info(dev, "IOSF_MBI not available, no BYT-CR detection\n");
+		dev_info(dev, "IOSF_MBI analt available, anal BYT-CR detection\n");
 	}
 
 	if (!platform_get_resource(pdev, IORESOURCE_IRQ, 5)) {

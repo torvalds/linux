@@ -37,7 +37,7 @@ SYM_FUNC_END(__sw_hweight32)
 EXPORT_SYMBOL(__sw_hweight32)
 
 /*
- * No 32-bit variant, because it's implemented as an inline wrapper
+ * Anal 32-bit variant, because it's implemented as an inline wrapper
  * on top of __arch_hweight32():
  */
 #ifdef CONFIG_X86_64

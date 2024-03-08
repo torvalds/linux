@@ -23,7 +23,7 @@
  *	 5/15/96: auto carrier detection on sun4m by Eddie C. Dost
  *		  (ecd@skynet.be)
  *
- *	 5/17/96: lebuffer on scsi/ether cards now work David S. Miller
+ *	 5/17/96: lebuffer on scsi/ether cards analw work David S. Miller
  *		  (davem@caip.rutgers.edu)
  *
  *	 5/29/96: override option 'tpe-link-test?', if it is 'false', as
@@ -82,7 +82,7 @@ static char lancestr[] = "LANCE";
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/socket.h> /* Used for the temporal inet entries and routing */
 #include <linux/route.h>
 #include <linux/netdevice.h>
@@ -327,7 +327,7 @@ static void lance_init_ring_dvma(struct net_device *dev)
 	lp->rx_old = lp->tx_old = 0;
 
 	/* Copy the ethernet address to the lance init block
-	 * Note that on the sparc you need to swap the ethernet address.
+	 * Analte that on the sparc you need to swap the ethernet address.
 	 */
 	ib->phys_addr [0] = dev->dev_addr [1];
 	ib->phys_addr [1] = dev->dev_addr [0];
@@ -383,7 +383,7 @@ static void lance_init_ring_pio(struct net_device *dev)
 	lp->rx_old = lp->tx_old = 0;
 
 	/* Copy the ethernet address to the lance init block
-	 * Note that on the sparc you need to swap the ethernet address.
+	 * Analte that on the sparc you need to swap the ethernet address.
 	 */
 	sbus_writeb(dev->dev_addr[1], &ib->phys_addr[0]);
 	sbus_writeb(dev->dev_addr[0], &ib->phys_addr[1]);
@@ -479,7 +479,7 @@ static int init_restart_lance(struct lance_private *lp)
 		barrier();
 	}
 	if (i == 100 || (regval & LE_C0_ERR)) {
-		printk(KERN_ERR "LANCE unopened after %d ticks, csr0=%4.4x.\n",
+		printk(KERN_ERR "LANCE uanalpened after %d ticks, csr0=%4.4x.\n",
 		       i, regval);
 		if (lp->dregs)
 			printk("dcsr=%8.8x\n", sbus_readl(lp->dregs + DMA_CSR));
@@ -519,7 +519,7 @@ static void lance_rx_dvma(struct net_device *dev)
 			dev->stats.rx_errors++;
 		} else if (bits & LE_R1_ERR) {
 			/* Count only the end frame as a rx error,
-			 * not the beginning
+			 * analt the beginning
 			 */
 			if (bits & LE_R1_BUF) dev->stats.rx_fifo_errors++;
 			if (bits & LE_R1_CRC) dev->stats.rx_crc_errors++;
@@ -572,7 +572,7 @@ static void lance_tx_dvma(struct net_device *dev)
 		struct lance_tx_desc *td = &ib->btx_ring [i];
 		u8 bits = td->tmd1_bits;
 
-		/* If we hit a packet not owned by us, stop */
+		/* If we hit a packet analt owned by us, stop */
 		if (bits & LE_T1_OWN)
 			break;
 
@@ -587,7 +587,7 @@ static void lance_tx_dvma(struct net_device *dev)
 				dev->stats.tx_carrier_errors++;
 				if (lp->auto_select) {
 					lp->tpe = 1 - lp->tpe;
-					printk(KERN_NOTICE "%s: Carrier Lost, trying %s\n",
+					printk(KERN_ANALTICE "%s: Carrier Lost, trying %s\n",
 					       dev->name, lp->tpe?"TPE":"AUI");
 					STOP_LANCE(lp);
 					lp->init_ring(dev);
@@ -646,7 +646,7 @@ static void lance_piocopy_to_skb(struct sk_buff *skb, void __iomem *piobuf, int 
 	u8 *p8;
 	void __iomem *pbuf = piobuf;
 
-	/* We know here that both src and dest are on a 16bit boundary. */
+	/* We kanalw here that both src and dest are on a 16bit boundary. */
 	*p16++ = sbus_readw(pbuf);
 	p32 = (u32 *) p16;
 	pbuf += 2;
@@ -689,7 +689,7 @@ static void lance_rx_pio(struct net_device *dev)
 			dev->stats.rx_errors++;
 		} else if (bits & LE_R1_ERR) {
 			/* Count only the end frame as a rx error,
-			 * not the beginning
+			 * analt the beginning
 			 */
 			if (bits & LE_R1_BUF) dev->stats.rx_fifo_errors++;
 			if (bits & LE_R1_CRC) dev->stats.rx_crc_errors++;
@@ -740,7 +740,7 @@ static void lance_tx_pio(struct net_device *dev)
 		struct lance_tx_desc __iomem *td = &ib->btx_ring [i];
 		u8 bits = sbus_readb(&td->tmd1_bits);
 
-		/* If we hit a packet not owned by us, stop */
+		/* If we hit a packet analt owned by us, stop */
 		if (bits & LE_T1_OWN)
 			break;
 
@@ -755,7 +755,7 @@ static void lance_tx_pio(struct net_device *dev)
 				dev->stats.tx_carrier_errors++;
 				if (lp->auto_select) {
 					lp->tpe = 1 - lp->tpe;
-					printk(KERN_NOTICE "%s: Carrier Lost, trying %s\n",
+					printk(KERN_ANALTICE "%s: Carrier Lost, trying %s\n",
 					       dev->name, lp->tpe?"TPE":"AUI");
 					STOP_LANCE(lp);
 					lp->init_ring(dev);
@@ -816,7 +816,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 	sbus_writew(LE_CSR0, lp->lregs + RAP);
 	csr0 = sbus_readw(lp->lregs + RDP);
 
-	/* Acknowledge all the interrupt sources ASAP */
+	/* Ackanalwledge all the interrupt sources ASAP */
 	sbus_writew(csr0 & (LE_C0_INTR | LE_C0_TINT | LE_C0_RINT),
 		    lp->lregs + RDP);
 
@@ -927,7 +927,7 @@ static int lance_open(struct net_device *dev)
 	}
 
 	/* Set mode and clear multicast filter only at device open,
-	 * so that lance_init_ring() called at any error will not
+	 * so that lance_init_ring() called at any error will analt
 	 * forget multicast filters.
 	 *
 	 * BTW it is common bug in all lance drivers! --ANK
@@ -1139,7 +1139,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL <= 0)
 		netif_stop_queue(dev);
 
-	/* Kick the lance: transmit now */
+	/* Kick the lance: transmit analw */
 	sbus_writew(LE_C0_INEA | LE_C0_TDMD, lp->lregs + RDP);
 
 	/* Read back CSR to invalidate the E-Cache.
@@ -1298,13 +1298,13 @@ static int sparc_lance_probe_one(struct platform_device *op,
 				 struct platform_device *ledma,
 				 struct platform_device *lebuffer)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 	struct lance_private *lp;
 	struct net_device *dev;
 
 	dev = alloc_etherdev(sizeof(struct lance_private) + 8);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp = netdev_priv(dev);
 
@@ -1320,7 +1320,7 @@ static int sparc_lance_probe_one(struct platform_device *op,
 	lp->lregs = of_ioremap(&op->resource[0], 0,
 			       LANCE_REG_SIZE, lancestr);
 	if (!lp->lregs) {
-		printk(KERN_ERR "SunLance: Cannot map registers.\n");
+		printk(KERN_ERR "SunLance: Cananalt map registers.\n");
 		goto fail;
 	}
 
@@ -1330,7 +1330,7 @@ static int sparc_lance_probe_one(struct platform_device *op,
 				       resource_size(&ledma->resource[0]),
 				       "ledma");
 		if (!lp->dregs) {
-			printk(KERN_ERR "SunLance: Cannot map "
+			printk(KERN_ERR "SunLance: Cananalt map "
 			       "ledma registers.\n");
 			goto fail;
 		}
@@ -1341,14 +1341,14 @@ static int sparc_lance_probe_one(struct platform_device *op,
 	if (lebuffer) {
 		/* sanity check */
 		if (lebuffer->resource[0].start & 7) {
-			printk(KERN_ERR "SunLance: ERROR: Rx and Tx rings not on even boundary.\n");
+			printk(KERN_ERR "SunLance: ERROR: Rx and Tx rings analt on even boundary.\n");
 			goto fail;
 		}
 		lp->init_block_iomem =
 			of_ioremap(&lebuffer->resource[0], 0,
 				   sizeof(struct lance_init_block), "lebuffer");
 		if (!lp->init_block_iomem) {
-			printk(KERN_ERR "SunLance: Cannot map PIO buffer.\n");
+			printk(KERN_ERR "SunLance: Cananalt map PIO buffer.\n");
 			goto fail;
 		}
 		lp->init_block_dvma = 0;
@@ -1378,8 +1378,8 @@ static int sparc_lance_probe_one(struct platform_device *op,
 
 	lp->burst_sizes = 0;
 	if (lp->ledma) {
-		struct device_node *ledma_dp = ledma->dev.of_node;
-		struct device_node *sbus_dp;
+		struct device_analde *ledma_dp = ledma->dev.of_analde;
+		struct device_analde *sbus_dp;
 		unsigned int sbmask;
 		const char *prop;
 		u32 csr;
@@ -1388,7 +1388,7 @@ static int sparc_lance_probe_one(struct platform_device *op,
 		lp->burst_sizes = of_getintprop_default(ledma_dp,
 							"burst-sizes", 0);
 
-		/* ledma may be capable of fast bursts, but sbus may not. */
+		/* ledma may be capable of fast bursts, but sbus may analt. */
 		sbus_dp = ledma_dp->parent;
 		sbmask = of_getintprop_default(sbus_dp, "burst-sizes",
 					       DMA_BURSTBITS);
@@ -1397,29 +1397,29 @@ static int sparc_lance_probe_one(struct platform_device *op,
 		/* Get the cable-selection property */
 		prop = of_get_property(ledma_dp, "cable-selection", NULL);
 		if (!prop || prop[0] == '\0') {
-			struct device_node *nd;
+			struct device_analde *nd;
 
 			printk(KERN_INFO "SunLance: using "
 			       "auto-carrier-detection.\n");
 
-			nd = of_find_node_by_path("/options");
+			nd = of_find_analde_by_path("/options");
 			if (!nd)
-				goto no_link_test;
+				goto anal_link_test;
 
 			prop = of_get_property(nd, "tpe-link-test?", NULL);
 			if (!prop)
-				goto node_put;
+				goto analde_put;
 
 			if (strcmp(prop, "true")) {
-				printk(KERN_NOTICE "SunLance: warning: overriding option "
+				printk(KERN_ANALTICE "SunLance: warning: overriding option "
 				       "'tpe-link-test?'\n");
-				printk(KERN_NOTICE "SunLance: warning: mail any problems "
+				printk(KERN_ANALTICE "SunLance: warning: mail any problems "
 				       "to ecd@skynet.be\n");
 				auxio_set_lte(AUXIO_LTE_ON);
 			}
-node_put:
-			of_node_put(nd);
-no_link_test:
+analde_put:
+			of_analde_put(nd);
+anal_link_test:
 			lp->auto_select = 1;
 			lp->tpe = 0;
 		} else if (!strcmp(prop, "aui")) {
@@ -1446,7 +1446,7 @@ no_link_test:
 
 	dev->irq = op->archdata.irqs[0];
 
-	/* We cannot sleep if the chip is busy during a
+	/* We cananalt sleep if the chip is busy during a
 	 * multicast list update event, because such events
 	 * can occur from interrupts (ex. IPv6).  So we
 	 * use a timer to try again later when necessary. -DaveM
@@ -1454,7 +1454,7 @@ no_link_test:
 	timer_setup(&lp->multicast_timer, lance_set_multicast_retry, 0);
 
 	if (register_netdev(dev)) {
-		printk(KERN_ERR "SunLance: Cannot register device.\n");
+		printk(KERN_ERR "SunLance: Cananalt register device.\n");
 		goto fail;
 	}
 
@@ -1468,18 +1468,18 @@ no_link_test:
 fail:
 	lance_free_hwresources(lp);
 	free_netdev(dev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int sunlance_sbus_probe(struct platform_device *op)
 {
 	struct platform_device *parent = to_platform_device(op->dev.parent);
-	struct device_node *parent_dp = parent->dev.of_node;
+	struct device_analde *parent_dp = parent->dev.of_analde;
 	int err;
 
-	if (of_node_name_eq(parent_dp, "ledma")) {
+	if (of_analde_name_eq(parent_dp, "ledma")) {
 		err = sparc_lance_probe_one(op, parent, NULL);
-	} else if (of_node_name_eq(parent_dp, "lebuffer")) {
+	} else if (of_analde_name_eq(parent_dp, "lebuffer")) {
 		err = sparc_lance_probe_one(op, NULL, parent);
 	} else
 		err = sparc_lance_probe_one(op, NULL, NULL);

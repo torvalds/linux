@@ -8,7 +8,7 @@ menuconfig VME_BUS
 	  interfaces (like USB or PCI) by means of translating VME protocol
 	  operations.
 
-	  Note that this only enables the bridge framework. You'll also
+	  Analte that this only enables the bridge framework. You'll also
 	  likely want to enable driver for specific bridge device you have
 	  to actually use it. If unsure, say N.
 
@@ -34,7 +34,7 @@ config VME_FAKE
 	tristate "Fake"
 	help
 	 If you say Y here you get support for the fake VME bridge. This
-	 provides a virtualised VME Bus for devices with no VME bridge. This
+	 provides a virtualised VME Bus for devices with anal VME bridge. This
 	 is mainly useful for VME development (in the absence of VME
 	 hardware).
 

@@ -21,7 +21,7 @@ static void btrfs_uuid_to_key(u8 *uuid, u8 type, struct btrfs_key *key)
 	key->offset = get_unaligned_le64(uuid + sizeof(u64));
 }
 
-/* return -ENOENT for !found, < 0 for errors, or 0 if an item was found */
+/* return -EANALENT for !found, < 0 for errors, or 0 if an item was found */
 static int btrfs_uuid_tree_lookup(struct btrfs_root *uuid_root, u8 *uuid,
 				  u8 type, u64 subid)
 {
@@ -34,13 +34,13 @@ static int btrfs_uuid_tree_lookup(struct btrfs_root *uuid_root, u8 *uuid,
 	struct btrfs_key key;
 
 	if (WARN_ON_ONCE(!uuid_root)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -49,15 +49,15 @@ static int btrfs_uuid_tree_lookup(struct btrfs_root *uuid_root, u8 *uuid,
 	if (ret < 0) {
 		goto out;
 	} else if (ret > 0) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
-	eb = path->nodes[0];
+	eb = path->analdes[0];
 	slot = path->slots[0];
 	item_size = btrfs_item_size(eb, slot);
 	offset = btrfs_item_ptr_offset(eb, slot);
-	ret = -ENOENT;
+	ret = -EANALENT;
 
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
 		btrfs_warn(uuid_root->fs_info,
@@ -96,7 +96,7 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 	__le64 subid_le;
 
 	ret = btrfs_uuid_tree_lookup(uuid_root, uuid, type, subid_cpu);
-	if (ret != -ENOENT)
+	if (ret != -EANALENT)
 		return ret;
 
 	if (WARN_ON_ONCE(!uuid_root)) {
@@ -108,7 +108,7 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -116,7 +116,7 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 				      sizeof(subid_le));
 	if (ret >= 0) {
 		/* Add an item for the type for the first time */
-		eb = path->nodes[0];
+		eb = path->analdes[0];
 		slot = path->slots[0];
 		offset = btrfs_item_ptr_offset(eb, slot);
 	} else if (ret == -EEXIST) {
@@ -125,7 +125,7 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 		 * Extend the item and store the new subid at the end.
 		 */
 		btrfs_extend_item(trans, path, sizeof(subid_le));
-		eb = path->nodes[0];
+		eb = path->analdes[0];
 		slot = path->slots[0];
 		offset = btrfs_item_ptr_offset(eb, slot);
 		offset += btrfs_item_size(eb, slot) - sizeof(subid_le);
@@ -171,7 +171,7 @@ int btrfs_uuid_tree_remove(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -182,18 +182,18 @@ int btrfs_uuid_tree_remove(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 		goto out;
 	}
 	if (ret > 0) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
-	eb = path->nodes[0];
+	eb = path->analdes[0];
 	slot = path->slots[0];
 	offset = btrfs_item_ptr_offset(eb, slot);
 	item_size = btrfs_item_size(eb, slot);
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
 		btrfs_warn(fs_info, "uuid item with illegal size %lu!",
 			   (unsigned long)item_size);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	while (item_size) {
@@ -207,7 +207,7 @@ int btrfs_uuid_tree_remove(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 	}
 
 	if (!item_size) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -252,7 +252,7 @@ out:
  * Check if there's an matching subvolume for given UUID
  *
  * Return:
- * 0	check succeeded, the entry is not outdated
+ * 0	check succeeded, the entry is analt outdated
  * > 0	if the check failed, the caller should remove the entry
  * < 0	if an error occurred
  */
@@ -269,7 +269,7 @@ static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
 	subvol_root = btrfs_get_fs_root(fs_info, subvolid, true);
 	if (IS_ERR(subvol_root)) {
 		ret = PTR_ERR(subvol_root);
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			ret = 1;
 		goto out;
 	}
@@ -303,7 +303,7 @@ int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info)
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -325,7 +325,7 @@ again_search_slot:
 			goto out;
 		}
 		cond_resched();
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 
@@ -369,7 +369,7 @@ again_search_slot:
 					 */
 					goto again_search_slot;
 				}
-				if (ret < 0 && ret != -ENOENT)
+				if (ret < 0 && ret != -EANALENT)
 					goto out;
 				key.offset++;
 				goto again_search_slot;

@@ -26,14 +26,14 @@ The THP7312 driver implements the following driver-specific controls:
 
     Supported values for the control depend on the camera sensor module
     connected to the THP7312. If the module doesn't have a focus lens actuator,
-    this control will not be exposed by the THP7312 driver. If the module has a
+    this control will analt be exposed by the THP7312 driver. If the module has a
     controllable focus lens but the sensor doesn't support PDAF, only the
     contrast-based auto-focus value will be valid. Otherwise all values for the
     controls will be supported.
 
-``V4L2_CID_THP7312_NOISE_REDUCTION_AUTO``
-    Enable/Disable auto noise reduction.
+``V4L2_CID_THP7312_ANALISE_REDUCTION_AUTO``
+    Enable/Disable auto analise reduction.
 
-``V4L2_CID_THP7312_NOISE_REDUCTION_ABSOLUTE``
-    Set the noise reduction strength, where 0 is the weakest and 10 is the
+``V4L2_CID_THP7312_ANALISE_REDUCTION_ABSOLUTE``
+    Set the analise reduction strength, where 0 is the weakest and 10 is the
     strongest.

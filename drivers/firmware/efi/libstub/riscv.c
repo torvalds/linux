@@ -11,25 +11,25 @@
 
 #include "efistub.h"
 
-typedef void __noreturn (*jump_kernel_func)(unsigned long, unsigned long);
+typedef void __analreturn (*jump_kernel_func)(unsigned long, unsigned long);
 
 static unsigned long hartid;
 
 static int get_boot_hartid_from_fdt(void)
 {
 	const void *fdt;
-	int chosen_node, len;
+	int chosen_analde, len;
 	const void *prop;
 
 	fdt = get_efi_config_table(DEVICE_TREE_GUID);
 	if (!fdt)
 		return -EINVAL;
 
-	chosen_node = fdt_path_offset(fdt, "/chosen");
-	if (chosen_node < 0)
+	chosen_analde = fdt_path_offset(fdt, "/chosen");
+	if (chosen_analde < 0)
 		return -EINVAL;
 
-	prop = fdt_getprop((void *)fdt, chosen_node, "boot-hartid", &len);
+	prop = fdt_getprop((void *)fdt, chosen_analde, "boot-hartid", &len);
 	if (!prop)
 		return -EINVAL;
 
@@ -81,7 +81,7 @@ unsigned long __weak stext_offset(void)
 	return 0;
 }
 
-void __noreturn efi_enter_kernel(unsigned long entrypoint, unsigned long fdt,
+void __analreturn efi_enter_kernel(unsigned long entrypoint, unsigned long fdt,
 				 unsigned long fdt_size)
 {
 	unsigned long kernel_entry = entrypoint + stext_offset();

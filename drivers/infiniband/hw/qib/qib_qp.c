@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -201,7 +201,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 		qpn = mk_qpn(qpt, map, offset);
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 bail:
 	return ret;
@@ -230,14 +230,14 @@ unsigned qib_free_all_qps(struct rvt_dev_info *rdi)
 	return qp_inuse;
 }
 
-void qib_notify_qp_reset(struct rvt_qp *qp)
+void qib_analtify_qp_reset(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 
 	atomic_set(&priv->s_dma_busy, 0);
 }
 
-void qib_notify_error_qp(struct rvt_qp *qp)
+void qib_analtify_error_qp(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
@@ -322,13 +322,13 @@ void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	priv->owner = qp;
 
 	priv->s_hdr = kzalloc(sizeof(*priv->s_hdr), GFP_KERNEL);
 	if (!priv->s_hdr) {
 		kfree(priv);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	init_waitqueue_head(&priv->wait_dma);
 	INIT_WORK(&priv->s_work, _qib_do_send);

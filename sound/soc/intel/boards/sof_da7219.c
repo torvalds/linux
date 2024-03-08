@@ -49,7 +49,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	/* PLL SRM mode */
 	codec_dai = snd_soc_card_get_codec_dai(card, DIALOG_CODEC_DAI);
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found; Unable to set/unset codec pll\n");
+		dev_err(card->dev, "Codec dai analt found; Unable to set/unset codec pll\n");
 		return -EIO;
 	}
 
@@ -86,7 +86,7 @@ static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_SPK("Left Spk", NULL),
 	SND_SOC_DAPM_SPK("Right Spk", NULL),
 
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_POST_PMD |
 			    SND_SOC_DAPM_PRE_PMU),
 
@@ -198,7 +198,7 @@ static int max98373_hw_params(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(runtime, j);
 
 		if (!strcmp(codec_dai->component->name, MAX_98373_DEV0_NAME)) {
-			/* vmon_slot_no = 0 imon_slot_no = 1 for TX slots */
+			/* vmon_slot_anal = 0 imon_slot_anal = 1 for TX slots */
 			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 3, 4, 16);
 			if (ret < 0) {
 				dev_err(runtime->dev, "DEV0 TDM slot err:%d\n", ret);
@@ -206,7 +206,7 @@ static int max98373_hw_params(struct snd_pcm_substream *substream,
 			}
 		}
 		if (!strcmp(codec_dai->component->name, MAX_98373_DEV1_NAME)) {
-			/* vmon_slot_no = 2 imon_slot_no = 3 for TX slots */
+			/* vmon_slot_anal = 2 imon_slot_anal = 3 for TX slots */
 			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xC, 3, 4, 16);
 			if (ret < 0) {
 				dev_err(runtime->dev, "DEV1 TDM slot err:%d\n", ret);
@@ -294,8 +294,8 @@ static struct snd_soc_dai_link jsl_dais[] = {
 	{
 		.name = "SSP1-Codec",
 		.id = 0,
-		.ignore_pmdown_time = 1,
-		.no_pcm = 1,
+		.iganalre_pmdown_time = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1, /* IV feedback */
 		SND_SOC_DAILINK_REG(ssp1_pin, max_98373_components, platform),
@@ -303,9 +303,9 @@ static struct snd_soc_dai_link jsl_dais[] = {
 	{
 		.name = "SSP0-Codec",
 		.id = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.init = da7219_codec_init,
-		.ignore_pmdown_time = 1,
+		.iganalre_pmdown_time = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(ssp0_pin, ssp0_codec, platform),
@@ -313,9 +313,9 @@ static struct snd_soc_dai_link jsl_dais[] = {
 	{
 		.name = "dmic01",
 		.id = 2,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic_pin, dmic_codec, platform),
 	},
 	{
@@ -323,7 +323,7 @@ static struct snd_soc_dai_link jsl_dais[] = {
 		.id = 3,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
@@ -331,7 +331,7 @@ static struct snd_soc_dai_link jsl_dais[] = {
 		.id = 4,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 	{
@@ -339,15 +339,15 @@ static struct snd_soc_dai_link jsl_dais[] = {
 		.id = 5,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 	{
 		.name = "dmic16k",
 		.id = 6,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic16k_pin, dmic_codec, platform),
 	}
 };
@@ -357,9 +357,9 @@ static struct snd_soc_dai_link adl_dais[] = {
 	{
 		.name = "SSP0-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.init = da7219_codec_init,
-		.ignore_pmdown_time = 1,
+		.iganalre_pmdown_time = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(ssp0_pin, ssp0_codec, platform),
@@ -367,17 +367,17 @@ static struct snd_soc_dai_link adl_dais[] = {
 	{
 		.name = "dmic01",
 		.id = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic_pin, dmic_codec, platform),
 	},
 	{
 		.name = "dmic16k",
 		.id = 2,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic16k_pin, dmic_codec, platform),
 	},
 	{
@@ -385,7 +385,7 @@ static struct snd_soc_dai_link adl_dais[] = {
 		.id = 3,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
@@ -393,7 +393,7 @@ static struct snd_soc_dai_link adl_dais[] = {
 		.id = 4,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 	{
@@ -401,7 +401,7 @@ static struct snd_soc_dai_link adl_dais[] = {
 		.id = 5,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 	{
@@ -409,13 +409,13 @@ static struct snd_soc_dai_link adl_dais[] = {
 		.id = 6,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp4_pin, idisp4_codec, platform),
 	},
 	{
 		.name = "SSP1-Codec",
 		.id = 7,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		/* feedback stream or firmware-generated echo reference */
 		.dpcm_capture = 1,
@@ -424,7 +424,7 @@ static struct snd_soc_dai_link adl_dais[] = {
 	{
 		.name = "SSP2-BT",
 		.id = 8,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(ssp2_pin, dummy_codec, platform),
@@ -454,7 +454,7 @@ static int audio_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		board_quirk = (unsigned long)pdev->id_entry->driver_data;
@@ -507,7 +507,7 @@ static int audio_probe(struct platform_device *pdev)
 			dai_links[amp_idx].ops = &max98373_ops; /* use local ops */
 		} else {
 			/* TBD: implement the amp for later platform */
-			dev_err(&pdev->dev, "max98373 not support yet\n");
+			dev_err(&pdev->dev, "max98373 analt support yet\n");
 			return -EINVAL;
 		}
 
@@ -543,7 +543,7 @@ static const struct platform_device_id board_ids[] = {
 	},
 	{
 		.name = "adl_mx98360_da7219",
-		/* no quirk needed for this board */
+		/* anal quirk needed for this board */
 	},
 	{ }
 };

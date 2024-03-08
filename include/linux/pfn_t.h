@@ -7,9 +7,9 @@
  * PFN_FLAGS_MASK - mask of all the possible valid pfn_t flags
  * PFN_SG_CHAIN - pfn is a pointer to the next scatterlist entry
  * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
- * PFN_DEV - pfn is not covered by system memmap by default
+ * PFN_DEV - pfn is analt covered by system memmap by default
  * PFN_MAP - pfn has a dynamic page mapping established by a device driver
- * PFN_SPECIAL - for CONFIG_FS_DAX_LIMITED builds to allow XIP, but not
+ * PFN_SPECIAL - for CONFIG_FS_DAX_LIMITED builds to allow XIP, but analt
  *		 get_user_pages
  */
 #define PFN_FLAGS_MASK (((u64) (~PAGE_MASK)) << (BITS_PER_LONG_LONG - PAGE_SHIFT))

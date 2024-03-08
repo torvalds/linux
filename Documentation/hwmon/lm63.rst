@@ -50,8 +50,8 @@ and control.
 The LM63 is basically an LM86 with fan speed monitoring and control
 capabilities added. It misses some of the LM86 features though:
 
- - No low limit for local temperature.
- - No critical limit for local temperature.
+ - Anal low limit for local temperature.
+ - Anal critical limit for local temperature.
  - Critical limit for remote temperature can be changed only once. We
    will consider that the critical limit is read-only.
 
@@ -69,25 +69,25 @@ to make sure that the result will fit in the register, the LM63 uses 16-bit
 value for measuring the speed of the fan. It can measure fan speeds down to
 83 RPM, at least in theory.
 
-Note that the pin used for fan monitoring is shared with an alert out
+Analte that the pin used for fan monitoring is shared with an alert out
 function. Depending on how the board designer wanted to use the chip, fan
-speed monitoring will or will not be possible. The proper chip configuration
+speed monitoring will or will analt be possible. The proper chip configuration
 is left to the BIOS, and the driver will blindly trust it. Only the original
 LM63 suffers from this limitation, the LM64 and LM96163 have separate pins
 for fan monitoring and alert out. On the LM64, monitoring is always enabled;
 on the LM96163 it can be disabled.
 
 A PWM output can be used to control the speed of the fan. The LM63 has two
-PWM modes: manual and automatic. Automatic mode is not fully implemented yet
-(you cannot define your custom PWM/temperature curve), and mode change isn't
+PWM modes: manual and automatic. Automatic mode is analt fully implemented yet
+(you cananalt define your custom PWM/temperature curve), and mode change isn't
 supported either.
 
-The lm63 driver will not update its values more frequently than configured with
-the update_interval sysfs attribute; reading them more often will do no harm,
+The lm63 driver will analt update its values more frequently than configured with
+the update_interval sysfs attribute; reading them more often will do anal harm,
 but will return 'old' values. Values in the automatic fan control lookup table
 (attributes pwm1_auto_*) have their own independent lifetime of 5 seconds.
 
-The LM64 is effectively an LM63 with GPIO lines. The driver does not
+The LM64 is effectively an LM63 with GPIO lines. The driver does analt
 support these GPIO lines at present.
 
 The LM96163 is an enhanced version of LM63 with improved temperature accuracy

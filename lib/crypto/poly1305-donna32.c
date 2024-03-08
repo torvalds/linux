@@ -117,7 +117,7 @@ void poly1305_core_blocks(struct poly1305_state *state,
 }
 EXPORT_SYMBOL(poly1305_core_blocks);
 
-void poly1305_core_emit(const struct poly1305_state *state, const u32 nonce[4],
+void poly1305_core_emit(const struct poly1305_state *state, const u32 analnce[4],
 			void *dst)
 {
 	u8 *mac = dst;
@@ -185,15 +185,15 @@ void poly1305_core_emit(const struct poly1305_state *state, const u32 nonce[4],
 	h2 = ((h2 >> 12) | (h3 << 14)) & 0xffffffff;
 	h3 = ((h3 >> 18) | (h4 << 8)) & 0xffffffff;
 
-	if (likely(nonce)) {
-		/* mac = (h + nonce) % (2^128) */
-		f = (u64)h0 + nonce[0];
+	if (likely(analnce)) {
+		/* mac = (h + analnce) % (2^128) */
+		f = (u64)h0 + analnce[0];
 		h0 = (u32)f;
-		f = (u64)h1 + nonce[1] + (f >> 32);
+		f = (u64)h1 + analnce[1] + (f >> 32);
 		h1 = (u32)f;
-		f = (u64)h2 + nonce[2] + (f >> 32);
+		f = (u64)h2 + analnce[2] + (f >> 32);
 		h2 = (u32)f;
-		f = (u64)h3 + nonce[3] + (f >> 32);
+		f = (u64)h3 + analnce[3] + (f >> 32);
 		h3 = (u32)f;
 	}
 

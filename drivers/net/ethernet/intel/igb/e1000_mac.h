@@ -11,7 +11,7 @@
 #include "e1000_defines.h"
 #include "e1000_i210.h"
 
-/* Functions that should not be called directly from drivers but can be used
+/* Functions that should analt be called directly from drivers but can be used
  * by other files in this 'shared code'
  */
 s32  igb_blink_led(struct e1000_hw *hw);
@@ -49,7 +49,7 @@ s32  igb_check_alt_mac_addr(struct e1000_hw *hw);
 bool igb_enable_mng_pass_thru(struct e1000_hw *hw);
 
 enum e1000_mng_mode {
-	e1000_mng_mode_none = 0,
+	e1000_mng_mode_analne = 0,
 	e1000_mng_mode_asf,
 	e1000_mng_mode_pt,
 	e1000_mng_mode_ipmi,

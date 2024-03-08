@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellaanalx Techanallogies.
  * All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -35,7 +35,7 @@
 
 #include <linux/sched.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -70,7 +70,7 @@ struct vlan_res {
 
 struct res_common {
 	struct list_head	list;
-	struct rb_node		node;
+	struct rb_analde		analde;
 	u64		        res_id;
 	int			owner;
 	int			state;
@@ -136,7 +136,7 @@ static inline const char *mtt_states_str(enum res_mtt_states state)
 	switch (state) {
 	case RES_MTT_BUSY: return "RES_MTT_BUSY";
 	case RES_MTT_ALLOCATED: return "RES_MTT_ALLOCATED";
-	default: return "Unknown";
+	default: return "Unkanalwn";
 	}
 }
 
@@ -234,16 +234,16 @@ struct res_fs_rule {
 
 static void *res_tracker_lookup(struct rb_root *root, u64 res_id)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_analde *analde = root->rb_analde;
 
-	while (node) {
-		struct res_common *res = rb_entry(node, struct res_common,
-						  node);
+	while (analde) {
+		struct res_common *res = rb_entry(analde, struct res_common,
+						  analde);
 
 		if (res_id < res->res_id)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (res_id > res->res_id)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return res;
 	}
@@ -252,12 +252,12 @@ static void *res_tracker_lookup(struct rb_root *root, u64 res_id)
 
 static int res_tracker_insert(struct rb_root *root, struct res_common *res)
 {
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_analde **new = &(root->rb_analde), *parent = NULL;
 
-	/* Figure out where to put new node */
+	/* Figure out where to put new analde */
 	while (*new) {
 		struct res_common *this = rb_entry(*new, struct res_common,
-						   node);
+						   analde);
 
 		parent = *new;
 		if (res->res_id < this->res_id)
@@ -268,9 +268,9 @@ static int res_tracker_insert(struct rb_root *root, struct res_common *res)
 			return -EEXIST;
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&res->node, parent, new);
-	rb_insert_color(&res->node, root);
+	/* Add new analde and rebalance tree. */
+	rb_link_analde(&res->analde, parent, new);
+	rb_insert_color(&res->analde, root);
 
 	return 0;
 }
@@ -299,7 +299,7 @@ static const char *resource_str(enum mlx4_resource rt)
 	case RES_COUNTER: return "RES_COUNTER";
 	case RES_FS_RULE: return "RES_FS_RULE";
 	case RES_XRCD: return "RES_XRCD";
-	default: return "Unknown resource type !!!";
+	default: return "Unkanalwn resource type !!!";
 	}
 }
 
@@ -488,7 +488,7 @@ mlx4_calc_res_counter_guaranteed(struct mlx4_dev *dev,
 	ports = bitmap_weight(actv_ports.ports, dev->caps.num_ports);
 	counters_guaranteed = ports * MLX4_VF_COUNTERS_PER_PORT;
 
-	/* If we do not have enough counters for this VF, do not
+	/* If we do analt have eanalugh counters for this VF, do analt
 	 * allocate any for it. '-1' to reduce the sink counter.
 	 */
 	if ((res_alloc->res_reserved + counters_guaranteed) >
@@ -508,7 +508,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 		kcalloc(dev->num_slaves, sizeof(struct slave_list),
 			GFP_KERNEL);
 	if (!priv->mfunc.master.res_tracker.slave_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0 ; i < dev->num_slaves; i++) {
 		for (t = 0; t < MLX4_NUM_OF_RESOURCE_TYPE; ++t)
@@ -546,7 +546,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 
 		if (!res_alloc->quota || !res_alloc->guaranteed ||
 		    !res_alloc->allocated)
-			goto no_mem_err;
+			goto anal_mem_err;
 
 		spin_lock_init(&res_alloc->alloc_lock);
 		for (t = 0; t < dev->persist->num_vfs + 1; t++) {
@@ -640,7 +640,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 	spin_lock_init(&priv->mfunc.master.res_tracker.lock);
 	return 0;
 
-no_mem_err:
+anal_mem_err:
 	for (i = 0; i < MLX4_NUM_OF_RESOURCE_TYPE; i++) {
 		kfree(priv->mfunc.master.res_tracker.res_alloc[i].allocated);
 		priv->mfunc.master.res_tracker.res_alloc[i].allocated = NULL;
@@ -649,7 +649,7 @@ no_mem_err:
 		kfree(priv->mfunc.master.res_tracker.res_alloc[i].quota);
 		priv->mfunc.master.res_tracker.res_alloc[i].quota = NULL;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void mlx4_free_resource_tracker(struct mlx4_dev *dev,
@@ -767,7 +767,7 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 
 	if (MLX4_VGT != vp_oper->state.default_vlan) {
 		/* the reserved QPs (special, proxy, tunnel)
-		 * do not operate over vlans
+		 * do analt operate over vlans
 		 */
 		if (mlx4_is_qp_reserved(dev, qpn))
 			return 0;
@@ -898,7 +898,7 @@ static int _get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 	spin_lock_irq(mlx4_tlock(dev));
 	r = find_res(dev, res_id, type);
 	if (!r) {
-		err = -ENONET;
+		err = -EANALNET;
 		goto exit;
 	}
 
@@ -937,7 +937,7 @@ int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 {
 
 	struct res_common *r;
-	int err = -ENOENT;
+	int err = -EANALENT;
 	int id = res_id;
 
 	if (type == RES_QP)
@@ -1019,12 +1019,12 @@ static int handle_unexisting_counter(struct mlx4_dev *dev,
 	}
 	spin_unlock_irq(mlx4_tlock(dev));
 
-	/* No existing counter, need to allocate a new counter */
+	/* Anal existing counter, need to allocate a new counter */
 	err = counter_alloc_res(dev, slave, RES_OP_RESERVE, 0, 0, &counter_idx,
 				port);
-	if (err == -ENOENT) {
+	if (err == -EANALENT) {
 		err = 0;
-	} else if (err && err != -ENOSPC) {
+	} else if (err && err != -EANALSPC) {
 		mlx4_err(dev, "%s: failed to create new counter for slave %d err %d\n",
 			 __func__, slave, err);
 	} else {
@@ -1243,7 +1243,7 @@ int mlx4_calc_vf_counters(struct mlx4_dev *dev, int slave, int port,
 	counters_arr = kmalloc_array(dev->caps.max_counters,
 				     sizeof(*counters_arr), GFP_KERNEL);
 	if (!counters_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry(tmp,
@@ -1287,7 +1287,7 @@ static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 
 	res_arr = kcalloc(count, sizeof(*res_arr), GFP_KERNEL);
 	if (!res_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; ++i) {
 		res_arr[i] = alloc_tr(base + i, type, slave, extra);
@@ -1296,7 +1296,7 @@ static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 				kfree(res_arr[i]);
 
 			kfree(res_arr);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1319,7 +1319,7 @@ static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 
 undo:
 	for (--i; i >= 0; --i) {
-		rb_erase(&res_arr[i]->node, root);
+		rb_erase(&res_arr[i]->analde, root);
 		list_del_init(&res_arr[i]->list);
 	}
 
@@ -1448,7 +1448,7 @@ static int remove_ok(struct res_common *res, enum mlx4_resource type, int extra)
 	case RES_MTT:
 		return remove_mtt_ok((struct res_mtt *)res, extra);
 	case RES_MAC:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case RES_EQ:
 		return remove_eq_ok((struct res_eq *)res);
 	case RES_COUNTER:
@@ -1475,7 +1475,7 @@ static int rem_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 	for (i = base; i < base + count; ++i) {
 		r = res_tracker_lookup(&tracker->res_tree[type], i);
 		if (!r) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto out;
 		}
 		if (r->owner != slave) {
@@ -1489,7 +1489,7 @@ static int rem_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 
 	for (i = base; i < base + count; ++i) {
 		r = res_tracker_lookup(&tracker->res_tree[type], i);
-		rb_erase(&r->node, &tracker->res_tree[type]);
+		rb_erase(&r->analde, &tracker->res_tree[type]);
 		list_del(&r->list);
 		kfree(r);
 	}
@@ -1513,7 +1513,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 	spin_lock_irq(mlx4_tlock(dev));
 	r = res_tracker_lookup(&tracker->res_tree[RES_QP], qpn);
 	if (!r)
-		err = -ENOENT;
+		err = -EANALENT;
 	else if (r->com.owner != slave)
 		err = -EPERM;
 	else {
@@ -1577,7 +1577,7 @@ static int mr_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 	spin_lock_irq(mlx4_tlock(dev));
 	r = res_tracker_lookup(&tracker->res_tree[RES_MPT], index);
 	if (!r)
-		err = -ENOENT;
+		err = -EANALENT;
 	else if (r->com.owner != slave)
 		err = -EPERM;
 	else {
@@ -1630,7 +1630,7 @@ static int eq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 	spin_lock_irq(mlx4_tlock(dev));
 	r = res_tracker_lookup(&tracker->res_tree[RES_EQ], index);
 	if (!r)
-		err = -ENOENT;
+		err = -EANALENT;
 	else if (r->com.owner != slave)
 		err = -EPERM;
 	else {
@@ -1679,7 +1679,7 @@ static int cq_res_start_move_to(struct mlx4_dev *dev, int slave, int cqn,
 	spin_lock_irq(mlx4_tlock(dev));
 	r = res_tracker_lookup(&tracker->res_tree[RES_CQ], cqn);
 	if (!r) {
-		err = -ENOENT;
+		err = -EANALENT;
 	} else if (r->com.owner != slave) {
 		err = -EPERM;
 	} else if (state == RES_CQ_ALLOCATED) {
@@ -1719,7 +1719,7 @@ static int srq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 	spin_lock_irq(mlx4_tlock(dev));
 	r = res_tracker_lookup(&tracker->res_tree[RES_SRQ], index);
 	if (!r) {
-		err = -ENOENT;
+		err = -EANALENT;
 	} else if (r->com.owner != slave) {
 		err = -EPERM;
 	} else if (state == RES_SRQ_ALLOCATED) {
@@ -1869,7 +1869,7 @@ static int mtt_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	base = __mlx4_alloc_mtt_range(dev, order);
 	if (base == -1) {
 		mlx4_release_resource(dev, slave, RES_MTT, 1 << order, 0);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = add_res_range(dev, slave, base, 1, RES_MTT, order);
@@ -2017,7 +2017,7 @@ static int mac_find_smac_ix_in_slave(struct mlx4_dev *dev, int slave, int port,
 			return 0;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int mac_add_to_slave(struct mlx4_dev *dev, int slave, u64 mac, int port, u8 smac_index)
@@ -2041,7 +2041,7 @@ static int mac_add_to_slave(struct mlx4_dev *dev, int slave, u64 mac, int port, 
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res) {
 		mlx4_release_resource(dev, slave, RES_MAC, 1, port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	res->mac = mac;
 	res->port = (u8) port;
@@ -2148,7 +2148,7 @@ static int vlan_add_to_slave(struct mlx4_dev *dev, int slave, u16 vlan,
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res) {
 		mlx4_release_resource(dev, slave, RES_VLAN, 1, port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	res->vlan = vlan;
 	res->port = (u8) port;
@@ -2221,7 +2221,7 @@ static int vlan_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 
 	if (port < 0)
 		return -EINVAL;
-	/* upstream kernels had NOP for reg/unreg vlan. Continue this. */
+	/* upstream kernels had ANALP for reg/unreg vlan. Continue this. */
 	if (!in_port && port > 0 && port <= dev->caps.num_ports) {
 		slave_state[slave].old_vlan_api = true;
 		return 0;
@@ -2885,9 +2885,9 @@ int mlx4_QUERY_MPT_wrapper(struct mlx4_dev *dev, int slave,
 
 	if (mpt->com.from_state == RES_MPT_MAPPED) {
 		/* In order to allow rereg in SRIOV, we need to alter the MPT entry. To do
-		 * that, the VF must read the MPT. But since the MPT entry memory is not
+		 * that, the VF must read the MPT. But since the MPT entry memory is analt
 		 * in the VF's virtual memory space, it must use QUERY_MPT to obtain the
-		 * entry contents. To guarantee that the MPT cannot be changed, the driver
+		 * entry contents. To guarantee that the MPT cananalt be changed, the driver
 		 * must perform HW2SW_MPT before this query and return the MPT entry to HW
 		 * ownership fofollowing the change. The change here allows the VF to
 		 * perform QUERY_MPT also when the entry is in SW ownership.
@@ -3349,7 +3349,7 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 	if (!priv->mfunc.master.slave_state)
 		return -EINVAL;
 
-	/* check for slave valid, slave not PF, and slave active */
+	/* check for slave valid, slave analt PF, and slave active */
 	if (slave < 0 || slave > dev->persist->num_vfs ||
 	    slave == dev->caps.function ||
 	    !priv->mfunc.master.slave_state[slave].active)
@@ -3812,7 +3812,7 @@ static int roce_verify_mac(struct mlx4_dev *dev, int slave,
 	if (mlx4_is_eth(dev, port) && (ts != MLX4_QP_ST_MLX)) {
 		smac_ix = qpc->pri_path.grh_mylmc & 0x7f;
 		if (mac_find_smac_ix_in_slave(dev, slave, port, smac_ix, &mac))
-			return -ENOENT;
+			return -EANALENT;
 	}
 	return 0;
 }
@@ -3863,7 +3863,7 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 
 	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
 out:
-	/* if no error, save sched queue value passed in by VF. This is
+	/* if anal error, save sched queue value passed in by VF. This is
 	 * essentially the QOS value provided by the VF. This will be useful
 	 * if we allow dynamic changes from VST back to VGT
 	 */
@@ -4034,7 +4034,7 @@ static int add_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irq(&rqp->mcg_spl);
 	if (find_gid(dev, slave, rqp, gid)) {
@@ -4309,7 +4309,7 @@ int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 		  MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
 		mlx4_warn(dev, "Src check LB for slave %d isn't supported\n",
 			  slave);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Just change the smac for the QP */
@@ -4384,7 +4384,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 
 	if (dev->caps.steering_mode !=
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ctrl = (struct mlx4_net_trans_rule_hw_ctrl *)inbox->buf;
 	err = mlx4_slave_convert_port(dev, slave, ctrl->port);
@@ -4450,7 +4450,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	mbox_size = qp_attach_mbox_size(inbox->buf);
 	rrule->mirr_mbox = kmalloc(mbox_size, GFP_KERNEL);
 	if (!rrule->mirr_mbox) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_put_rule;
 	}
 	rrule->mirr_mbox_size = mbox_size;
@@ -4511,14 +4511,14 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 
 	if (dev->caps.steering_mode !=
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = get_res(dev, slave, vhcr->in_param, RES_FS_RULE, &rrule);
 	if (err)
 		return err;
 
 	if (!rrule->mirr_mbox) {
-		mlx4_err(dev, "Mirror rules cannot be removed explicitly\n");
+		mlx4_err(dev, "Mirror rules cananalt be removed explicitly\n");
 		put_res(dev, slave, vhcr->in_param, RES_FS_RULE);
 		return -EINVAL;
 	}
@@ -4672,7 +4672,7 @@ static void rem_slave_qps(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_QP);
 	if (err)
-		mlx4_warn(dev, "rem_slave_qps: Could not move all qps to busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_qps: Could analt move all qps to busy for slave %d\n",
 			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
@@ -4686,7 +4686,7 @@ static void rem_slave_qps(struct mlx4_dev *dev, int slave)
 				switch (state) {
 				case RES_QP_RESERVED:
 					spin_lock_irq(mlx4_tlock(dev));
-					rb_erase(&qp->com.node,
+					rb_erase(&qp->com.analde,
 						 &tracker->res_tree[RES_QP]);
 					list_del(&qp->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
@@ -4745,7 +4745,7 @@ static void rem_slave_srqs(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_SRQ);
 	if (err)
-		mlx4_warn(dev, "rem_slave_srqs: Could not move all srqs - too busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_srqs: Could analt move all srqs - too busy for slave %d\n",
 			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
@@ -4759,7 +4759,7 @@ static void rem_slave_srqs(struct mlx4_dev *dev, int slave)
 				case RES_SRQ_ALLOCATED:
 					__mlx4_srq_free_icm(dev, srqn);
 					spin_lock_irq(mlx4_tlock(dev));
-					rb_erase(&srq->com.node,
+					rb_erase(&srq->com.analde,
 						 &tracker->res_tree[RES_SRQ]);
 					list_del(&srq->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
@@ -4810,7 +4810,7 @@ static void rem_slave_cqs(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_CQ);
 	if (err)
-		mlx4_warn(dev, "rem_slave_cqs: Could not move all cqs - too busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_cqs: Could analt move all cqs - too busy for slave %d\n",
 			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
@@ -4824,7 +4824,7 @@ static void rem_slave_cqs(struct mlx4_dev *dev, int slave)
 				case RES_CQ_ALLOCATED:
 					__mlx4_cq_free_icm(dev, cqn);
 					spin_lock_irq(mlx4_tlock(dev));
-					rb_erase(&cq->com.node,
+					rb_erase(&cq->com.analde,
 						 &tracker->res_tree[RES_CQ]);
 					list_del(&cq->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
@@ -4872,7 +4872,7 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_MPT);
 	if (err)
-		mlx4_warn(dev, "rem_slave_mrs: Could not move all mpts - too busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_mrs: Could analt move all mpts - too busy for slave %d\n",
 			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
@@ -4886,7 +4886,7 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 				case RES_MPT_RESERVED:
 					__mlx4_mpt_release(dev, mpt->key);
 					spin_lock_irq(mlx4_tlock(dev));
-					rb_erase(&mpt->com.node,
+					rb_erase(&mpt->com.analde,
 						 &tracker->res_tree[RES_MPT]);
 					list_del(&mpt->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
@@ -4939,7 +4939,7 @@ static void rem_slave_mtts(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_MTT);
 	if (err)
-		mlx4_warn(dev, "rem_slave_mtts: Could not move all mtts  - too busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_mtts: Could analt move all mtts  - too busy for slave %d\n",
 			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
@@ -4954,7 +4954,7 @@ static void rem_slave_mtts(struct mlx4_dev *dev, int slave)
 					__mlx4_free_mtt_range(dev, base,
 							      mtt->order);
 					spin_lock_irq(mlx4_tlock(dev));
-					rb_erase(&mtt->com.node,
+					rb_erase(&mtt->com.analde,
 						 &tracker->res_tree[RES_MTT]);
 					list_del(&mtt->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
@@ -5029,13 +5029,13 @@ static int mlx4_mirror_fs_rules(struct mlx4_dev *dev, bool bond)
 	struct mlx4_resource_tracker *tracker =
 		&priv->mfunc.master.res_tracker;
 	struct rb_root *root = &tracker->res_tree[RES_FS_RULE];
-	struct rb_node *p;
+	struct rb_analde *p;
 	struct res_fs_rule *fs_rule;
 	int err = 0;
 	LIST_HEAD(mirr_list);
 
 	for (p = rb_first(root); p; p = rb_next(p)) {
-		fs_rule = rb_entry(p, struct res_fs_rule, com.node);
+		fs_rule = rb_entry(p, struct res_fs_rule, com.analde);
 		if ((bond && fs_rule->mirr_mbox_size) ||
 		    (!bond && !fs_rule->mirr_mbox_size))
 			list_add_tail(&fs_rule->mirr_list, &mirr_list);
@@ -5075,7 +5075,7 @@ static void rem_slave_fs_rule(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_FS_RULE);
 	if (err)
-		mlx4_warn(dev, "rem_slave_fs_rule: Could not move all mtts to busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_fs_rule: Could analt move all mtts to busy for slave %d\n",
 			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
@@ -5094,7 +5094,7 @@ static void rem_slave_fs_rule(struct mlx4_dev *dev, int slave)
 						       MLX4_CMD_NATIVE);
 
 					spin_lock_irq(mlx4_tlock(dev));
-					rb_erase(&fs_rule->com.node,
+					rb_erase(&fs_rule->com.analde,
 						 &tracker->res_tree[RES_FS_RULE]);
 					list_del(&fs_rule->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
@@ -5127,7 +5127,7 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_EQ);
 	if (err)
-		mlx4_warn(dev, "rem_slave_eqs: Could not move all eqs - too busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_eqs: Could analt move all eqs - too busy for slave %d\n",
 			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
@@ -5140,7 +5140,7 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 				switch (state) {
 				case RES_EQ_RESERVED:
 					spin_lock_irq(mlx4_tlock(dev));
-					rb_erase(&eq->com.node,
+					rb_erase(&eq->com.analde,
 						 &tracker->res_tree[RES_EQ]);
 					list_del(&eq->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
@@ -5184,7 +5184,7 @@ static void rem_slave_counters(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_COUNTER);
 	if (err)
-		mlx4_warn(dev, "rem_slave_counters: Could not move all counters - too busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_counters: Could analt move all counters - too busy for slave %d\n",
 			  slave);
 
 	counters_arr = kmalloc_array(dev->caps.max_counters,
@@ -5199,7 +5199,7 @@ static void rem_slave_counters(struct mlx4_dev *dev, int slave)
 		list_for_each_entry_safe(counter, tmp, counter_list, com.list) {
 			if (counter->com.owner == slave) {
 				counters_arr[i++] = counter->com.res_id;
-				rb_erase(&counter->com.node,
+				rb_erase(&counter->com.analde,
 					 &tracker->res_tree[RES_COUNTER]);
 				list_del(&counter->com.list);
 				kfree(counter);
@@ -5229,14 +5229,14 @@ static void rem_slave_xrcdns(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_XRCD);
 	if (err)
-		mlx4_warn(dev, "rem_slave_xrcdns: Could not move all xrcdns - too busy for slave %d\n",
+		mlx4_warn(dev, "rem_slave_xrcdns: Could analt move all xrcdns - too busy for slave %d\n",
 			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(xrcd, tmp, xrcdn_list, com.list) {
 		if (xrcd->com.owner == slave) {
 			xrcdn = xrcd->com.res_id;
-			rb_erase(&xrcd->com.node, &tracker->res_tree[RES_XRCD]);
+			rb_erase(&xrcd->com.analde, &tracker->res_tree[RES_XRCD]);
 			list_del(&xrcd->com.list);
 			kfree(xrcd);
 			__mlx4_xrcd_free(dev, xrcdn);
@@ -5342,7 +5342,7 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 		spin_unlock_irq(mlx4_tlock(dev));
 		if (qp->com.owner == work->slave) {
 			if (qp->com.from_state != RES_QP_HW ||
-			    !qp->sched_queue ||  /* no INIT2RTR trans yet */
+			    !qp->sched_queue ||  /* anal INIT2RTR trans yet */
 			    mlx4_is_qp_reserved(dev, qp->local_qpn) ||
 			    qp->qpc_flags & (1 << MLX4_RSS_QPC_FLAG_OFFSET)) {
 				spin_lock_irq(mlx4_tlock(dev));
@@ -5410,11 +5410,11 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 		mlx4_err(dev, "%d UPDATE_QP failures for slave %d, port %d\n",
 			 errors, work->slave, work->port);
 
-	/* unregister previous vlan_id if needed and we had no errors
+	/* unregister previous vlan_id if needed and we had anal errors
 	 * while updating the QPs
 	 */
 	if (work->flags & MLX4_VF_IMMED_VLAN_FLAG_VLAN && !errors &&
-	    NO_INDX != work->orig_vlan_ix)
+	    ANAL_INDX != work->orig_vlan_ix)
 		__mlx4_unregister_vlan(&work->priv->dev, work->port,
 				       work->orig_vlan_id);
 out:

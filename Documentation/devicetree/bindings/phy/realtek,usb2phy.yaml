@@ -13,7 +13,7 @@ maintainers:
 description: |
   Realtek USB 2.0 PHY support the digital home center (DHC) RTD series SoCs.
   The USB 2.0 PHY driver is designed to support the XHCI controller. The SoCs
-  support multiple XHCI controllers. One PHY device node maps to one XHCI
+  support multiple XHCI controllers. One PHY device analde maps to one XHCI
   controller.
 
   RTD1295/RTD1619 SoCs USB
@@ -95,14 +95,14 @@ properties:
 
   realtek,inverse-hstx-sync-clock:
     description:
-      For one of the phys of RTD1619b SoC, the synchronous clock of the
+      For one of the phys of RTD1619b SoC, the synchroanalus clock of the
       high-speed tx must be inverted.
     type: boolean
 
   realtek,driving-level:
     description:
       Control the magnitude of High speed Dp/Dm output swing (mV).
-      For a different board or port, the original magnitude maybe not meet
+      For a different board or port, the original magnitude maybe analt meet
       the specification. In this situation we can adjust the value to meet
       the specification.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -114,7 +114,7 @@ properties:
     description:
       For RTD1315e SoC, the driving level can be adjusted by reading the
       efuse table. This property provides drive compensation.
-      If the magnitude of High speed Dp/Dm output swing still not meet the
+      If the magnitude of High speed Dp/Dm output swing still analt meet the
       specification, then we can set this value to meet the specification.
     $ref: /schemas/types.yaml#/definitions/int32
     default: 0
@@ -137,7 +137,7 @@ required:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -148,7 +148,7 @@ allOf:
         realtek,inverse-hstx-sync-clock: false
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

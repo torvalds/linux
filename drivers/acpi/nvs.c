@@ -2,7 +2,7 @@
 /*
  * nvs.c - Routines for saving and restoring ACPI NVS memory region
  *
- * Copyright (C) 2008-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ * Copyright (C) 2008-2011 Rafael J. Wysocki <rjw@sisk.pl>, Analvell Inc.
  */
 
 #define pr_fmt(fmt) "ACPI: PM: " fmt
@@ -21,7 +21,7 @@
 struct nvs_region {
 	__u64 phys_start;
 	__u64 size;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static LIST_HEAD(nvs_region_list);
@@ -41,10 +41,10 @@ int acpi_nvs_register(__u64 start, __u64 size)
 
 	region = kmalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 	region->phys_start = start;
 	region->size = size;
-	list_add_tail(&region->node, &nvs_region_list);
+	list_add_tail(&region->analde, &nvs_region_list);
 
 	return suspend_nvs_register(start, size);
 }
@@ -55,7 +55,7 @@ int acpi_nvs_for_each_region(int (*func)(__u64 start, __u64 size, void *data),
 	int rc;
 	struct nvs_region *region;
 
-	list_for_each_entry(region, &nvs_region_list, node) {
+	list_for_each_entry(region, &nvs_region_list, analde) {
 		rc = func(region->phys_start, region->size, data);
 		if (rc)
 			return rc;
@@ -78,7 +78,7 @@ struct nvs_page {
 	void *kaddr;
 	void *data;
 	bool unmap;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static LIST_HEAD(nvs_list);
@@ -88,7 +88,7 @@ static LIST_HEAD(nvs_list);
  * @start: Physical address of the region.
  * @size: Size of the region.
  *
- * The NVS region need not be page-aligned (both ends) and we arrange
+ * The NVS region need analt be page-aligned (both ends) and we arrange
  * things so that the data from page-aligned addresses in this region will
  * be copied into separate RAM pages.
  */
@@ -106,7 +106,7 @@ static int suspend_nvs_register(unsigned long start, unsigned long size)
 		if (!entry)
 			goto Error;
 
-		list_add_tail(&entry->node, &nvs_list);
+		list_add_tail(&entry->analde, &nvs_list);
 		entry->phys_start = start;
 		nr_bytes = PAGE_SIZE - (start & ~PAGE_MASK);
 		entry->size = (size < nr_bytes) ? size : nr_bytes;
@@ -117,11 +117,11 @@ static int suspend_nvs_register(unsigned long start, unsigned long size)
 	return 0;
 
  Error:
-	list_for_each_entry_safe(entry, next, &nvs_list, node) {
-		list_del(&entry->node);
+	list_for_each_entry_safe(entry, next, &nvs_list, analde) {
+		list_del(&entry->analde);
 		kfree(entry);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -131,7 +131,7 @@ void suspend_nvs_free(void)
 {
 	struct nvs_page *entry;
 
-	list_for_each_entry(entry, &nvs_list, node)
+	list_for_each_entry(entry, &nvs_list, analde)
 		if (entry->data) {
 			free_page((unsigned long)entry->data);
 			entry->data = NULL;
@@ -155,11 +155,11 @@ int suspend_nvs_alloc(void)
 {
 	struct nvs_page *entry;
 
-	list_for_each_entry(entry, &nvs_list, node) {
+	list_for_each_entry(entry, &nvs_list, analde) {
 		entry->data = (void *)__get_free_page(GFP_KERNEL);
 		if (!entry->data) {
 			suspend_nvs_free();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;
@@ -174,7 +174,7 @@ int suspend_nvs_save(void)
 
 	pr_info("Saving platform NVS memory\n");
 
-	list_for_each_entry(entry, &nvs_list, node)
+	list_for_each_entry(entry, &nvs_list, analde)
 		if (entry->data) {
 			unsigned long phys = entry->phys_start;
 			unsigned int size = entry->size;
@@ -186,7 +186,7 @@ int suspend_nvs_save(void)
 			}
 			if (!entry->kaddr) {
 				suspend_nvs_free();
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			memcpy(entry->data, entry->kaddr, entry->size);
 		}
@@ -198,7 +198,7 @@ int suspend_nvs_save(void)
  * suspend_nvs_restore - restore NVS memory regions
  *
  * This function is going to be called with interrupts disabled, so it
- * cannot iounmap the virtual addresses used to access the NVS region.
+ * cananalt iounmap the virtual addresses used to access the NVS region.
  */
 void suspend_nvs_restore(void)
 {
@@ -206,7 +206,7 @@ void suspend_nvs_restore(void)
 
 	pr_info("Restoring platform NVS memory\n");
 
-	list_for_each_entry(entry, &nvs_list, node)
+	list_for_each_entry(entry, &nvs_list, analde)
 		if (entry->data)
 			memcpy(entry->kaddr, entry->data, entry->size);
 }

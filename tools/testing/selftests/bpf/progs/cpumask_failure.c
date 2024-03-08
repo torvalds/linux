@@ -18,7 +18,7 @@ char _license[] SEC("license") = "GPL";
 
 SEC("tp_btf/task_newtask")
 __failure __msg("Unreleased reference")
-int BPF_PROG(test_alloc_no_release, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_alloc_anal_release, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *cpumask;
 
@@ -50,7 +50,7 @@ int BPF_PROG(test_acquire_wrong_cpumask, struct task_struct *task, u64 clone_fla
 {
 	struct bpf_cpumask *cpumask;
 
-	/* Can't acquire a non-struct bpf_cpumask. */
+	/* Can't acquire a analn-struct bpf_cpumask. */
 	cpumask = bpf_cpumask_acquire((struct bpf_cpumask *)task->cpus_ptr);
 	__sink(cpumask);
 
@@ -63,7 +63,7 @@ int BPF_PROG(test_mutate_cpumask, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *cpumask;
 
-	/* Can't set the CPU of a non-struct bpf_cpumask. */
+	/* Can't set the CPU of a analn-struct bpf_cpumask. */
 	bpf_cpumask_set_cpu(0, (struct bpf_cpumask *)task->cpus_ptr);
 	__sink(cpumask);
 
@@ -72,7 +72,7 @@ int BPF_PROG(test_mutate_cpumask, struct task_struct *task, u64 clone_flags)
 
 SEC("tp_btf/task_newtask")
 __failure __msg("Unreleased reference")
-int BPF_PROG(test_insert_remove_no_release, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_insert_remove_anal_release, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *cpumask;
 	struct __cpumask_map_value *v;
@@ -140,7 +140,7 @@ int BPF_PROG(test_global_mask_out_of_rcu, struct task_struct *task, u64 clone_fl
 
 SEC("tp_btf/task_newtask")
 __failure __msg("NULL pointer passed to trusted arg1")
-int BPF_PROG(test_global_mask_no_null_check, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_global_mask_anal_null_check, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *local, *prev;
 
@@ -158,7 +158,7 @@ int BPF_PROG(test_global_mask_no_null_check, struct task_struct *task, u64 clone
 	bpf_rcu_read_lock();
 	local = global_mask;
 
-	/* No NULL check is performed on global cpumask kptr. */
+	/* Anal NULL check is performed on global cpumask kptr. */
 	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
 
 	bpf_rcu_read_unlock();
@@ -168,7 +168,7 @@ int BPF_PROG(test_global_mask_no_null_check, struct task_struct *task, u64 clone
 
 SEC("tp_btf/task_newtask")
 __failure __msg("Possibly NULL pointer passed to helper arg2")
-int BPF_PROG(test_global_mask_rcu_no_null_check, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_global_mask_rcu_anal_null_check, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *prev, *curr;
 

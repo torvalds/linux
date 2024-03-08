@@ -130,7 +130,7 @@ static struct at91_twi_pdata sama5d2_config = {
 	.has_dig_filtr = true,
 	.has_adv_dig_filtr = true,
 	.has_ana_filtr = true,
-	.has_clear_cmd = false,	/* due to errata, CLEAR cmd is not working */
+	.has_clear_cmd = false,	/* due to errata, CLEAR cmd is analt working */
 };
 
 static struct at91_twi_pdata sam9x60_config = {
@@ -183,9 +183,9 @@ MODULE_DEVICE_TABLE(of, atmel_twi_dt_ids);
 static struct at91_twi_pdata *at91_twi_get_driver_data(
 					struct platform_device *pdev)
 {
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		const struct of_device_id *match;
-		match = of_match_node(atmel_twi_dt_ids, pdev->dev.of_node);
+		match = of_match_analde(atmel_twi_dt_ids, pdev->dev.of_analde);
 		if (!match)
 			return NULL;
 		return (struct at91_twi_pdata *)match->data;
@@ -202,7 +202,7 @@ static int at91_twi_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->dev = &pdev->dev;
 
@@ -213,7 +213,7 @@ static int at91_twi_probe(struct platform_device *pdev)
 
 	dev->pdata = at91_twi_get_driver_data(pdev);
 	if (!dev->pdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0)
@@ -233,7 +233,7 @@ static int at91_twi_probe(struct platform_device *pdev)
 	dev->adapter.dev.parent = dev->dev;
 	dev->adapter.nr = pdev->id;
 	dev->adapter.timeout = AT91_I2C_TIMEOUT;
-	dev->adapter.dev.of_node = pdev->dev.of_node;
+	dev->adapter.dev.of_analde = pdev->dev.of_analde;
 
 	dev->slave_detected = i2c_detect_slave_mode(&pdev->dev);
 
@@ -294,7 +294,7 @@ static int __maybe_unused at91_twi_runtime_resume(struct device *dev)
 	return clk_prepare_enable(twi_dev->clk);
 }
 
-static int __maybe_unused at91_twi_suspend_noirq(struct device *dev)
+static int __maybe_unused at91_twi_suspend_analirq(struct device *dev)
 {
 	if (!pm_runtime_status_suspended(dev))
 		at91_twi_runtime_suspend(dev);
@@ -302,7 +302,7 @@ static int __maybe_unused at91_twi_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused at91_twi_resume_noirq(struct device *dev)
+static int __maybe_unused at91_twi_resume_analirq(struct device *dev)
 {
 	struct at91_twi_dev *twi_dev = dev_get_drvdata(dev);
 	int ret;
@@ -322,8 +322,8 @@ static int __maybe_unused at91_twi_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops __maybe_unused at91_twi_pm = {
-	.suspend_noirq	= at91_twi_suspend_noirq,
-	.resume_noirq	= at91_twi_resume_noirq,
+	.suspend_analirq	= at91_twi_suspend_analirq,
+	.resume_analirq	= at91_twi_resume_analirq,
 	.runtime_suspend	= at91_twi_runtime_suspend,
 	.runtime_resume		= at91_twi_runtime_resume,
 };

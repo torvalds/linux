@@ -51,7 +51,7 @@ static int mx25_tsadc_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, tsadc);
 	irq_set_chip_and_handler(irq, &dummy_irq_chip,
 				 handle_level_irq);
-	irq_modify_status(irq, IRQ_NOREQUEST, IRQ_NOPROBE);
+	irq_modify_status(irq, IRQ_ANALREQUEST, IRQ_ANALPROBE);
 
 	return 0;
 }
@@ -65,7 +65,7 @@ static int mx25_tsadc_setup_irq(struct platform_device *pdev,
 				struct mx25_tsadc *tsadc)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int irq;
 
 	irq = platform_get_irq(pdev, 0);
@@ -76,7 +76,7 @@ static int mx25_tsadc_setup_irq(struct platform_device *pdev,
 					      tsadc);
 	if (!tsadc->domain) {
 		dev_err(dev, "Failed to add irq domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_set_chained_handler_and_data(irq, mx25_tsadc_irq_handler, tsadc);
@@ -142,7 +142,7 @@ static int mx25_tsadc_probe(struct platform_device *pdev)
 
 	tsadc = devm_kzalloc(dev, sizeof(*tsadc), GFP_KERNEL);
 	if (!tsadc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iomem = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(iomem))

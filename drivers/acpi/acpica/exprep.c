@@ -42,7 +42,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
  * DESCRIPTION: Generate an optimal access width for fields defined with the
  *              any_acc keyword.
  *
- * NOTE: Need to have the region_length in order to check for boundary
+ * ANALTE: Need to have the region_length in order to check for boundary
  *       conditions (end-of-region). However, the region_length is a deferred
  *       operation. Therefore, to complete this implementation, the generation
  *       of this access width must be deferred until the region length has
@@ -86,7 +86,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 
 	/*
 	 * Iterative search for the maximum access width that is both aligned
-	 * and does not go beyond the end of the region
+	 * and does analt go beyond the end of the region
 	 *
 	 * Start at byte_acc and work upwards to qword_acc max. (1,2,4,8 bytes)
 	 */
@@ -94,9 +94,9 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	     access_byte_width <<= 1) {
 		/*
 		 * 1) Round end offset up to next access boundary and make sure that
-		 *    this does not go beyond the end of the parent region.
+		 *    this does analt go beyond the end of the parent region.
 		 * 2) When the Access width is greater than the field_byte_length, we
-		 *    are done. (This does not optimize for the perfectly aligned
+		 *    are done. (This does analt optimize for the perfectly aligned
 		 *    case yet).
 		 */
 		if (ACPI_ROUND_UP(field_byte_end_offset, access_byte_width) <=
@@ -143,13 +143,13 @@ acpi_ex_generate_access(u32 field_bit_offset,
 			}
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-					  "AccessWidth %u end is NOT within region\n",
+					  "AccessWidth %u end is ANALT within region\n",
 					  access_byte_width));
 			if (access_byte_width == 1) {
 				ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 						  "Field goes beyond end-of-region!\n"));
 
-				/* Field does not fit in the region at all */
+				/* Field does analt fit in the region at all */
 
 				return_VALUE(0);
 			}
@@ -166,11 +166,11 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	}
 
 	/*
-	 * Could not read/write field with one operation,
+	 * Could analt read/write field with one operation,
 	 * just use max access width
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "Cannot access field in one operation, using width 8\n"));
+			  "Cananalt access field in one operation, using width 8\n"));
 
 	return_VALUE(8);
 }
@@ -250,7 +250,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 
 		/* Invalid field access type */
 
-		ACPI_ERROR((AE_INFO, "Unknown field access type 0x%X", access));
+		ACPI_ERROR((AE_INFO, "Unkanalwn field access type 0x%X", access));
 
 		return_UINT32(0);
 	}
@@ -276,14 +276,14 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
  *              field_flags         - Access, lock_rule, and update_rule.
  *                                    The format of a field_flag is described
  *                                    in the ACPI specification
- *              field_attribute     - Special attributes (not used)
+ *              field_attribute     - Special attributes (analt used)
  *              field_bit_position  - Field start position
  *              field_bit_length    - Field length in number of bits
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize the areas of the field object that are common
- *              to the various types of fields. Note: This is very "sensitive"
+ *              to the various types of fields. Analte: This is very "sensitive"
  *              code because we are solving the general case for field
  *              alignment.
  *
@@ -302,8 +302,8 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 	ACPI_FUNCTION_TRACE(ex_prep_common_field_object);
 
 	/*
-	 * Note: the structure being initialized is the
-	 * ACPI_COMMON_FIELD_INFO;  No structure fields outside of the common
+	 * Analte: the structure being initialized is the
+	 * ACPI_COMMON_FIELD_INFO;  Anal structure fields outside of the common
 	 * area are initialized by this procedure.
 	 */
 	obj_desc->common_field.field_flags = field_flags;
@@ -342,7 +342,7 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 	 * unit) of the field. (i.e., the first datum that contains at least the
 	 * first *bit* of the field.)
 	 *
-	 * Note: byte_alignment is always either equal to the access_bit_width or 8
+	 * Analte: byte_alignment is always either equal to the access_bit_width or 8
 	 * (Byte access), and it defines the addressing granularity of the parent
 	 * region or buffer.
 	 */
@@ -371,7 +371,7 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
  * RETURN:      Status
  *
  * DESCRIPTION: Construct an object of type union acpi_operand_object with a
- *              subtype of def_field and connect it to the parent Node.
+ *              subtype of def_field and connect it to the parent Analde.
  *
  ******************************************************************************/
 
@@ -388,12 +388,12 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 	/* Parameter validation */
 
 	if (info->field_type != ACPI_TYPE_LOCAL_INDEX_FIELD) {
-		if (!info->region_node) {
-			ACPI_ERROR((AE_INFO, "Null RegionNode"));
-			return_ACPI_STATUS(AE_AML_NO_OPERAND);
+		if (!info->region_analde) {
+			ACPI_ERROR((AE_INFO, "Null RegionAnalde"));
+			return_ACPI_STATUS(AE_AML_ANAL_OPERAND);
 		}
 
-		type = acpi_ns_get_type(info->region_node);
+		type = acpi_ns_get_type(info->region_analde);
 		if (type != ACPI_TYPE_REGION) {
 			ACPI_ERROR((AE_INFO,
 				    "Needed Region, found type 0x%X (%s)", type,
@@ -407,12 +407,12 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 	obj_desc = acpi_ut_create_internal_object(info->field_type);
 	if (!obj_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Initialize areas of the object that are common to all fields */
 
-	obj_desc->common_field.node = info->field_node;
+	obj_desc->common_field.analde = info->field_analde;
 	status = acpi_ex_prep_common_field_object(obj_desc,
 						  info->field_flags,
 						  info->attribute,
@@ -429,14 +429,14 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 
 		obj_desc->field.region_obj =
-		    acpi_ns_get_attached_object(info->region_node);
+		    acpi_ns_get_attached_object(info->region_analde);
 
 		/* Fields specific to generic_serial_bus fields */
 
 		obj_desc->field.access_length = info->access_length;
 
-		if (info->connection_node) {
-			second_desc = info->connection_node->object;
+		if (info->connection_analde) {
+			second_desc = info->connection_analde->object;
 			if (!(second_desc->common.flags & AOPOBJ_DATA_VALID)) {
 				status =
 				    acpi_ds_get_buffer_arguments(second_desc);
@@ -485,9 +485,9 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 		obj_desc->bank_field.value = info->bank_value;
 		obj_desc->bank_field.region_obj =
-		    acpi_ns_get_attached_object(info->region_node);
+		    acpi_ns_get_attached_object(info->region_analde);
 		obj_desc->bank_field.bank_obj =
-		    acpi_ns_get_attached_object(info->register_node);
+		    acpi_ns_get_attached_object(info->register_analde);
 
 		/* An additional reference for the attached objects */
 
@@ -510,10 +510,10 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		second_desc = obj_desc->common.next_object;
 		second_desc->extra.aml_start =
 		    ACPI_CAST_PTR(union acpi_parse_object,
-				  info->data_register_node)->named.data;
+				  info->data_register_analde)->named.data;
 		second_desc->extra.aml_length =
 		    ACPI_CAST_PTR(union acpi_parse_object,
-				  info->data_register_node)->named.length;
+				  info->data_register_analde)->named.length;
 
 		break;
 
@@ -522,9 +522,9 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		/* Get the Index and Data registers */
 
 		obj_desc->index_field.index_obj =
-		    acpi_ns_get_attached_object(info->register_node);
+		    acpi_ns_get_attached_object(info->register_analde);
 		obj_desc->index_field.data_obj =
-		    acpi_ns_get_attached_object(info->data_register_node);
+		    acpi_ns_get_attached_object(info->data_register_analde);
 
 		if (!obj_desc->index_field.data_obj
 		    || !obj_desc->index_field.index_obj) {
@@ -574,23 +574,23 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 	default:
 
-		/* No other types should get here */
+		/* Anal other types should get here */
 
 		break;
 	}
 
 	/*
-	 * Store the constructed descriptor (obj_desc) into the parent Node,
+	 * Store the constructed descriptor (obj_desc) into the parent Analde,
 	 * preserving the current type of that named_obj.
 	 */
 	status =
-	    acpi_ns_attach_object(info->field_node, obj_desc,
-				  acpi_ns_get_type(info->field_node));
+	    acpi_ns_attach_object(info->field_analde, obj_desc,
+				  acpi_ns_get_type(info->field_analde));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 			  "Set NamedObj %p [%4.4s], ObjDesc %p\n",
-			  info->field_node,
-			  acpi_ut_get_node_name(info->field_node), obj_desc));
+			  info->field_analde,
+			  acpi_ut_get_analde_name(info->field_analde), obj_desc));
 
 	/* Remove local reference to the object */
 

@@ -21,7 +21,7 @@
 #define GPTU_CLC	0x00
 /* id register */
 #define GPTU_ID		0x08
-/* interrupt node enable */
+/* interrupt analde enable */
 #define GPTU_IRNEN	0xf4
 /* interrupt control register */
 #define GPTU_IRCR	0xf8
@@ -138,7 +138,7 @@ static int gptu_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 
-	if (of_irq_to_resource_table(pdev->dev.of_node, irqres, 6) != 6) {
+	if (of_irq_to_resource_table(pdev->dev.of_analde, irqres, 6) != 6) {
 		dev_err(&pdev->dev, "Failed to get IRQ list\n");
 		return -EINVAL;
 	}
@@ -152,7 +152,7 @@ static int gptu_probe(struct platform_device *pdev)
 	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "Failed to get clock\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	clk_enable(clk);
 

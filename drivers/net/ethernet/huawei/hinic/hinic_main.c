@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
@@ -9,7 +9,7 @@
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
@@ -34,7 +34,7 @@
 #include "hinic_dev.h"
 #include "hinic_sriov.h"
 
-MODULE_AUTHOR("Huawei Technologies CO., Ltd");
+MODULE_AUTHOR("Huawei Techanallogies CO., Ltd");
 MODULE_DESCRIPTION("Huawei Intelligent NIC driver");
 MODULE_LICENSE("GPL");
 
@@ -137,7 +137,7 @@ static int create_txqs(struct hinic_dev *nic_dev)
 	nic_dev->txqs = devm_kcalloc(&netdev->dev, num_txqs,
 				     sizeof(*nic_dev->txqs), GFP_KERNEL);
 	if (!nic_dev->txqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hinic_sq_dbgfs_init(nic_dev);
 
@@ -233,7 +233,7 @@ static int create_rxqs(struct hinic_dev *nic_dev)
 	nic_dev->rxqs = devm_kcalloc(&netdev->dev, num_rxqs,
 				     sizeof(*nic_dev->rxqs), GFP_KERNEL);
 	if (!nic_dev->rxqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hinic_rq_dbgfs_init(nic_dev);
 
@@ -308,7 +308,7 @@ static int hinic_rss_init(struct hinic_dev *nic_dev)
 
 	indir_tbl = kcalloc(HINIC_RSS_INDIR_SIZE, sizeof(u32), GFP_KERNEL);
 	if (!indir_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	netdev_rss_key_fill(default_rss_key, sizeof(default_rss_key));
 	for (i = 0; i < HINIC_RSS_INDIR_SIZE; i++)
@@ -364,7 +364,7 @@ static void hinic_enable_rss(struct hinic_dev *nic_dev)
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	int i, node, err = 0;
+	int i, analde, err = 0;
 	u16 num_cpus = 0;
 
 	if (nic_dev->max_qps <= 1) {
@@ -392,8 +392,8 @@ static void hinic_enable_rss(struct hinic_dev *nic_dev)
 	nic_dev->flags |= HINIC_RSS_ENABLE;
 
 	for (i = 0; i < num_online_cpus(); i++) {
-		node = cpu_to_node(i);
-		if (node == dev_to_node(&pdev->dev))
+		analde = cpu_to_analde(i);
+		if (analde == dev_to_analde(&pdev->dev))
 			num_cpus++;
 	}
 
@@ -479,7 +479,7 @@ int hinic_open(struct net_device *netdev)
 	}
 
 	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
-		hinic_notify_all_vfs_link_changed(nic_dev->hwdev, link_state);
+		hinic_analtify_all_vfs_link_changed(nic_dev->hwdev, link_state);
 
 	if (link_state == HINIC_LINK_STATE_UP) {
 		nic_dev->flags |= HINIC_LINK_UP;
@@ -549,7 +549,7 @@ int hinic_close(struct net_device *netdev)
 	up(&nic_dev->mgmt_lock);
 
 	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
-		hinic_notify_all_vfs_link_changed(nic_dev->hwdev, 0);
+		hinic_analtify_all_vfs_link_changed(nic_dev->hwdev, 0);
 
 	hinic_port_set_state(nic_dev, HINIC_PORT_DISABLE);
 
@@ -600,7 +600,7 @@ static int change_mac_addr(struct net_device *netdev, const u8 *addr)
 	int err;
 
 	if (!is_valid_ether_addr(addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	netif_info(nic_dev, drv, netdev, "change mac addr = %02x %02x %02x %02x %02x %02x\n",
 		   addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
@@ -689,7 +689,7 @@ static int remove_mac_addr(struct net_device *netdev, const u8 *addr)
 	int err;
 
 	if (!is_valid_ether_addr(addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	netif_info(nic_dev, drv, netdev, "remove mac addr = %02x %02x %02x %02x %02x %02x\n",
 		   addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
@@ -1002,7 +1002,7 @@ static void link_status_event_handler(void *handle, void *buf_in, u16 in_size,
 	}
 
 	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
-		hinic_notify_all_vfs_link_changed(nic_dev->hwdev,
+		hinic_analtify_all_vfs_link_changed(nic_dev->hwdev,
 						  link_status->link);
 
 	ret_link_status = buf_out;
@@ -1034,7 +1034,7 @@ static void link_err_event(void *handle,
 
 	if (link_err->err_type >= LINK_ERR_NUM)
 		netif_info(nic_dev, link, nic_dev->netdev,
-			   "Link failed, Unknown error type: 0x%x\n",
+			   "Link failed, Unkanalwn error type: 0x%x\n",
 			   link_err->err_type);
 	else
 		nic_dev->module_unrecognized = true;
@@ -1118,11 +1118,11 @@ static int hinic_init_intr_coalesce(struct hinic_dev *nic_dev)
 	size = sizeof(struct hinic_intr_coal_info) * nic_dev->max_qps;
 	nic_dev->rx_intr_coalesce = kzalloc(size, GFP_KERNEL);
 	if (!nic_dev->rx_intr_coalesce)
-		return -ENOMEM;
+		return -EANALMEM;
 	nic_dev->tx_intr_coalesce = kzalloc(size, GFP_KERNEL);
 	if (!nic_dev->tx_intr_coalesce) {
 		kfree(nic_dev->rx_intr_coalesce);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < nic_dev->max_qps; i++) {
@@ -1168,7 +1168,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	devlink = hinic_devlink_alloc(&pdev->dev);
 	if (!devlink) {
 		dev_err(&pdev->dev, "Hinic devlink alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hwdev = hinic_init_hwdev(pdev, devlink);
@@ -1188,7 +1188,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	netdev = alloc_etherdev_mq(sizeof(*nic_dev), num_qps);
 	if (!netdev) {
 		dev_err(&pdev->dev, "Failed to allocate Ethernet device\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_etherdev;
 	}
 
@@ -1223,13 +1223,13 @@ static int nic_dev_init(struct pci_dev *pdev)
 	nic_dev->vlan_bitmap = devm_bitmap_zalloc(&pdev->dev, VLAN_N_VID,
 						  GFP_KERNEL);
 	if (!nic_dev->vlan_bitmap) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_vlan_bitmap;
 	}
 
 	nic_dev->workq = create_singlethread_workqueue(HINIC_WQ_NAME);
 	if (!nic_dev->workq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_workq;
 	}
 

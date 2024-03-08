@@ -4,7 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-__noinline int foo(int (*arr)[10])
+__analinline int foo(int (*arr)[10])
 {
 	if (arr)
 		return (*arr)[9];

@@ -211,8 +211,8 @@ struct asd_ha_struct {
                                     : ((u32)0))
 
 #define dev_to_asd_ha(__dev)  pci_get_drvdata(to_pci_dev(__dev))
-#define SCB_SITE_VALID(__site_no) (((__site_no) & 0xF0FF) != 0x00FF   \
-				 && ((__site_no) & 0xF0FF) > 0x001F)
+#define SCB_SITE_VALID(__site_anal) (((__site_anal) & 0xF0FF) != 0x00FF   \
+				 && ((__site_anal) & 0xF0FF) > 0x001F)
 /* For each bit set in __lseq_mask, set __lseq to equal the bit
  * position of the set bit and execute the statement following.
  * __mc is the temporary mask, used as a mask "counter".
@@ -338,7 +338,7 @@ static inline void asd_ascb_free(struct asd_ascb *ascb)
  *
  * This function will free a list of ascbs allocated by asd_ascb_alloc_list.
  * It is used when say the scb queueing function returned QUEUE_FULL,
- * and we do not need the ascbs any more.
+ * and we do analt need the ascbs any more.
  */
 static inline void asd_ascb_free_list(struct asd_ascb *ascb_list)
 {

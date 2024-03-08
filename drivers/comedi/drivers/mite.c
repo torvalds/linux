@@ -45,8 +45,8 @@
 /*
  * Mite registers
  */
-#define MITE_UNKNOWN_DMA_BURST_REG	0x28
-#define UNKNOWN_DMA_BURST_ENABLE_BITS	0x600
+#define MITE_UNKANALWN_DMA_BURST_REG	0x28
+#define UNKANALWN_DMA_BURST_ENABLE_BITS	0x600
 
 #define MITE_PCI_CONFIG_OFFSET	0x300
 #define MITE_CSIGR		0x460			/* chip signature */
@@ -96,14 +96,14 @@
 #define CHCR_FIFO_ON		CHCR_FIFO(0)
 #define CHCR_BURST(x)		(((x) & 0x1) << 14)
 #define CHCR_BURSTEN		CHCR_BURST(1)
-#define CHCR_NO_BURSTEN		CHCR_BURST(0)
+#define CHCR_ANAL_BURSTEN		CHCR_BURST(0)
 #define CHCR_BYTE_SWAP_DEVICE	BIT(6)
 #define CHCR_BYTE_SWAP_MEMORY	BIT(4)
 #define CHCR_DIR(x)		(((x) & 0x1) << 3)
 #define CHCR_DEV_TO_MEM		CHCR_DIR(1)
 #define CHCR_MEM_TO_DEV		CHCR_DIR(0)
 #define CHCR_MODE(x)		(((x) & 0x7) << 0)
-#define CHCR_NORMAL		CHCR_MODE(0)
+#define CHCR_ANALRMAL		CHCR_MODE(0)
 #define CHCR_CONTINUE		CHCR_MODE(1)
 #define CHCR_RINGBUFF		CHCR_MODE(2)
 #define CHCR_LINKSHORT		CHCR_MODE(4)
@@ -112,7 +112,7 @@
 #define MITE_MCR(x)		(0x0c + MITE_CHAN(x))	/* memory config */
 #define MITE_MAR(x)		(0x10 + MITE_CHAN(x))	/* memory address */
 #define MITE_DCR(x)		(0x14 + MITE_CHAN(x))	/* device config */
-#define DCR_NORMAL		BIT(29)
+#define DCR_ANALRMAL		BIT(29)
 #define MITE_DAR(x)		(0x18 + MITE_CHAN(x))	/* device address */
 #define MITE_LKCR(x)		(0x1c + MITE_CHAN(x))	/* link config */
 #define MITE_LKAR(x)		(0x20 + MITE_CHAN(x))	/* link address */
@@ -137,7 +137,7 @@
 #define CHSR_STOPS		BIT(12)
 #define CHSR_OPERR(x)		(((x) & 0x3) << 10)
 #define CHSR_OPERR_MASK		CHSR_OPERR(3)
-#define CHSR_OPERR_NOERROR	CHSR_OPERR(0)
+#define CHSR_OPERR_ANALERROR	CHSR_OPERR(0)
 #define CHSR_OPERR_FIFOERROR	CHSR_OPERR(1)
 #define CHSR_OPERR_LINKERROR	CHSR_OPERR(1)	/* ??? */
 #define CHSR_XFERR		BIT(9)
@@ -308,7 +308,7 @@ static void mite_sync_output_dma(struct mite_channel *mite_chan,
 	unsigned int old_alloc_count = async->buf_read_alloc_count;
 	u32 nbytes_ub, nbytes_lb;
 	int count;
-	bool finite_regen = (cmd->stop_src == TRIG_NONE && stop_count != 0);
+	bool finite_regen = (cmd->stop_src == TRIG_ANALNE && stop_count != 0);
 
 	/* read alloc as much as we can */
 	comedi_buf_read_alloc(s, async->prealloc_bufsz);
@@ -329,7 +329,7 @@ static void mite_sync_output_dma(struct mite_channel *mite_chan,
 	if (finite_regen) {
 		/*
 		 * This is a special case where we continuously output a finite
-		 * buffer.  In this case, we do not free any of the memory,
+		 * buffer.  In this case, we do analt free any of the memory,
 		 * hence we expect that old_alloc_count will reach a maximum of
 		 * stop_count bytes.
 		 */
@@ -486,7 +486,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	/*
 	 * Link Complete Interrupt: interrupt every time a link
 	 * in MITE_RING is completed. This can generate a lot of
-	 * extra interrupts, but right now we update the values
+	 * extra interrupts, but right analw we update the values
 	 * of buf_int_ptr and buf_int_count at each interrupt. A
 	 * better method is to poll the MITE before each user
 	 * "read()" to calculate the number of bytes available.
@@ -662,7 +662,7 @@ int mite_init_ring_descriptors(struct mite_ring *ring,
 	if ((n_full_links + (remainder > 0 ? 1 : 0)) > ring->n_links) {
 		dev_err(s->device->class_dev,
 			"mite: ring buffer too small for requested init\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* We set the descriptors for all full links. */
@@ -732,7 +732,7 @@ int mite_buf_change(struct mite_ring *ring, struct comedi_subdevice *s)
 	if (!descs) {
 		dev_err(s->device->class_dev,
 			"mite: ring buffer allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ring->descs = descs;
 	ring->n_links = n_links;
@@ -785,18 +785,18 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
 	unsigned long length;
 	int i;
 	u32 csigr_bits;
-	unsigned int unknown_dma_burst_bits;
+	unsigned int unkanalwn_dma_burst_bits;
 	unsigned int wpdep;
 
 	pci_set_master(mite->pcidev);
 
 	mite->mmio = pci_ioremap_bar(mite->pcidev, 0);
 	if (!mite->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->mmio = pci_ioremap_bar(mite->pcidev, 1);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 	daq_phys_addr = pci_resource_start(mite->pcidev, 1);
 	length = pci_resource_len(mite->pcidev, 1);
 
@@ -818,13 +818,13 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
 	 * 0x1f and bursts didn't work. The NI windows driver reads the
 	 * register, then does a bitwise-or of 0x600 with it and writes it back.
 	 *
-	 * The bits 0x90180700 in MITE_UNKNOWN_DMA_BURST_REG can be
+	 * The bits 0x90180700 in MITE_UNKANALWN_DMA_BURST_REG can be
 	 * written and read back.  The bits 0x1f always read as 1.
 	 * The rest always read as zero.
 	 */
-	unknown_dma_burst_bits = readl(mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
-	unknown_dma_burst_bits |= UNKNOWN_DMA_BURST_ENABLE_BITS;
-	writel(unknown_dma_burst_bits, mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
+	unkanalwn_dma_burst_bits = readl(mite->mmio + MITE_UNKANALWN_DMA_BURST_REG);
+	unkanalwn_dma_burst_bits |= UNKANALWN_DMA_BURST_ENABLE_BITS;
+	writel(unkanalwn_dma_burst_bits, mite->mmio + MITE_UNKANALWN_DMA_BURST_REG);
 
 	csigr_bits = readl(mite->mmio + MITE_CSIGR);
 	mite->num_channels = CSIGR_TO_DMAC(csigr_bits);
@@ -869,7 +869,7 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
  *
  * Called by a COMEDI drivers (*auto_attach).
  *
- * Returns a pointer to the MITE device on success, or NULL if the MITE cannot
+ * Returns a pointer to the MITE device on success, or NULL if the MITE cananalt
  * be allocated or remapped.
  */
 struct mite *mite_attach(struct comedi_device *dev, bool use_win1)

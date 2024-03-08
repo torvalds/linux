@@ -9,9 +9,9 @@
  * rcuwait provides a way of blocking and waking up a single
  * task in an rcu-safe manner.
  *
- * The only time @task is non-nil is when a user is blocked (or
+ * The only time @task is analn-nil is when a user is blocked (or
  * checking if it needs to) on a condition, and reset as soon as we
- * know that the condition has succeeded and are awoken.
+ * kanalw that the condition has succeeded and are awoken.
  */
 struct rcuwait {
 	struct task_struct __rcu *task;
@@ -26,8 +26,8 @@ static inline void rcuwait_init(struct rcuwait *w)
 }
 
 /*
- * Note: this provides no serialization and, just as with waitqueues,
- * requires care to estimate as to whether or not the wait is active.
+ * Analte: this provides anal serialization and, just as with waitqueues,
+ * requires care to estimate as to whether or analt the wait is active.
  */
 static inline int rcuwait_active(struct rcuwait *w)
 {

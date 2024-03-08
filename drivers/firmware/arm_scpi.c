@@ -59,10 +59,10 @@
 #define MAX_DVFS_OPPS		16
 
 #define PROTO_REV_MAJOR_MASK	GENMASK(31, 16)
-#define PROTO_REV_MINOR_MASK	GENMASK(15, 0)
+#define PROTO_REV_MIANALR_MASK	GENMASK(15, 0)
 
 #define FW_REV_MAJOR_MASK	GENMASK(31, 24)
-#define FW_REV_MINOR_MASK	GENMASK(23, 16)
+#define FW_REV_MIANALR_MASK	GENMASK(23, 16)
 #define FW_REV_PATCH_MASK	GENMASK(15, 0)
 
 #define MAX_RX_TIMEOUT		(msecs_to_jiffies(30))
@@ -76,9 +76,9 @@ enum scpi_error_codes {
 	SCPI_ERR_ACCESS = 5, /* Invalid access/permission denied */
 	SCPI_ERR_RANGE = 6, /* Value out of range */
 	SCPI_ERR_TIMEOUT = 7, /* Timeout has occurred */
-	SCPI_ERR_NOMEM = 8, /* Invalid memory area or pointer */
+	SCPI_ERR_ANALMEM = 8, /* Invalid memory area or pointer */
 	SCPI_ERR_PWRSTATE = 9, /* Invalid power state */
-	SCPI_ERR_SUPPORT = 10, /* Not supported or disabled */
+	SCPI_ERR_SUPPORT = 10, /* Analt supported or disabled */
 	SCPI_ERR_DEVICE = 11, /* Device error */
 	SCPI_ERR_BUSY = 12, /* Device busy */
 	SCPI_ERR_MAX
@@ -228,7 +228,7 @@ struct scpi_xfer {
 	void *rx_buf;
 	unsigned int tx_len;
 	unsigned int rx_len;
-	struct list_head node;
+	struct list_head analde;
 	struct completion done;
 };
 
@@ -333,23 +333,23 @@ static int scpi_linux_errmap[SCPI_ERR_MAX] = {
 	/* better than switch case as long as return value is continuous */
 	0, /* SCPI_SUCCESS */
 	-EINVAL, /* SCPI_ERR_PARAM */
-	-ENOEXEC, /* SCPI_ERR_ALIGN */
+	-EANALEXEC, /* SCPI_ERR_ALIGN */
 	-EMSGSIZE, /* SCPI_ERR_SIZE */
 	-EINVAL, /* SCPI_ERR_HANDLER */
 	-EACCES, /* SCPI_ERR_ACCESS */
 	-ERANGE, /* SCPI_ERR_RANGE */
 	-ETIMEDOUT, /* SCPI_ERR_TIMEOUT */
-	-ENOMEM, /* SCPI_ERR_NOMEM */
+	-EANALMEM, /* SCPI_ERR_ANALMEM */
 	-EINVAL, /* SCPI_ERR_PWRSTATE */
-	-EOPNOTSUPP, /* SCPI_ERR_SUPPORT */
+	-EOPANALTSUPP, /* SCPI_ERR_SUPPORT */
 	-EIO, /* SCPI_ERR_DEVICE */
 	-EBUSY, /* SCPI_ERR_BUSY */
 };
 
-static inline int scpi_to_linux_errno(int errno)
+static inline int scpi_to_linux_erranal(int erranal)
 {
-	if (errno >= SCPI_SUCCESS && errno < SCPI_ERR_MAX)
-		return scpi_linux_errmap[errno];
+	if (erranal >= SCPI_SUCCESS && erranal < SCPI_ERR_MAX)
+		return scpi_linux_errmap[erranal];
 	return -EIO;
 }
 
@@ -364,18 +364,18 @@ static void scpi_process_cmd(struct scpi_chan *ch, u32 cmd)
 		return;
 	}
 
-	/* Command type is not replied by the SCP Firmware in legacy Mode
+	/* Command type is analt replied by the SCP Firmware in legacy Mode
 	 * We should consider that command is the head of pending RX commands
-	 * if the list is not empty. In TX only mode, the list would be empty.
+	 * if the list is analt empty. In TX only mode, the list would be empty.
 	 */
 	if (scpi_info->is_legacy) {
 		match = list_first_entry(&ch->rx_pending, struct scpi_xfer,
-					 node);
-		list_del(&match->node);
+					 analde);
+		list_del(&match->analde);
 	} else {
-		list_for_each_entry(t, &ch->rx_pending, node)
+		list_for_each_entry(t, &ch->rx_pending, analde)
 			if (CMD_XTRACT_UNIQ(t->cmd) == CMD_XTRACT_UNIQ(cmd)) {
-				list_del(&t->node);
+				list_del(&t->analde);
 				match = t;
 				break;
 			}
@@ -388,7 +388,7 @@ static void scpi_process_cmd(struct scpi_chan *ch, u32 cmd)
 			struct legacy_scpi_shared_mem __iomem *mem =
 							ch->rx_payload;
 
-			/* RX Length is not replied by the legacy Firmware */
+			/* RX Length is analt replied by the legacy Firmware */
 			len = match->rx_len;
 
 			match->status = ioread32(&mem->status);
@@ -440,7 +440,7 @@ static void scpi_tx_prepare(struct mbox_client *c, void *msg)
 			++ch->token;
 		t->cmd |= FIELD_PREP(CMD_TOKEN_ID_MASK, ch->token);
 		spin_lock_irqsave(&ch->rx_lock, flags);
-		list_add_tail(&t->node, &ch->rx_pending);
+		list_add_tail(&t->analde, &ch->rx_pending);
 		spin_unlock_irqrestore(&ch->rx_lock, flags);
 	}
 
@@ -457,8 +457,8 @@ static struct scpi_xfer *get_scpi_xfer(struct scpi_chan *ch)
 		mutex_unlock(&ch->xfers_lock);
 		return NULL;
 	}
-	t = list_first_entry(&ch->xfers_list, struct scpi_xfer, node);
-	list_del(&t->node);
+	t = list_first_entry(&ch->xfers_list, struct scpi_xfer, analde);
+	list_del(&t->analde);
 	mutex_unlock(&ch->xfers_lock);
 	return t;
 }
@@ -466,7 +466,7 @@ static struct scpi_xfer *get_scpi_xfer(struct scpi_chan *ch)
 static void put_scpi_xfer(struct scpi_xfer *t, struct scpi_chan *ch)
 {
 	mutex_lock(&ch->xfers_lock);
-	list_add_tail(&t->node, &ch->xfers_list);
+	list_add_tail(&t->analde, &ch->xfers_list);
 	mutex_unlock(&ch->xfers_lock);
 }
 
@@ -480,7 +480,7 @@ static int scpi_send_message(u8 idx, void *tx_buf, unsigned int tx_len,
 	struct scpi_chan *scpi_chan;
 
 	if (scpi_info->commands[idx] < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cmd = scpi_info->commands[idx];
 
@@ -493,7 +493,7 @@ static int scpi_send_message(u8 idx, void *tx_buf, unsigned int tx_len,
 
 	msg = get_scpi_xfer(scpi_chan);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (scpi_info->is_legacy) {
 		msg->cmd = PACK_LEGACY_SCPI_CMD(cmd, tx_len);
@@ -523,7 +523,7 @@ out:
 
 	put_scpi_xfer(msg, scpi_chan);
 	/* SCPI error codes > 0, translate them to Linux scale*/
-	return ret > 0 ? scpi_to_linux_errno(ret) : ret;
+	return ret > 0 ? scpi_to_linux_erranal(ret) : ret;
 }
 
 static u32 scpi_get_version(void)
@@ -632,7 +632,7 @@ static struct scpi_dvfs_info *scpi_dvfs_get_info(u8 domain)
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	info->count = buf.opp_count;
 	info->latency = le16_to_cpu(buf.latency) * 1000; /* uS to nS */
@@ -640,7 +640,7 @@ static struct scpi_dvfs_info *scpi_dvfs_get_info(u8 domain)
 	info->opps = kcalloc(info->count, sizeof(*opp), GFP_KERNEL);
 	if (!info->opps) {
 		kfree(info);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	for (i = 0, opp = info->opps; i < info->count; i++, opp++) {
@@ -658,7 +658,7 @@ static int scpi_dev_domain_id(struct device *dev)
 {
 	struct of_phandle_args clkspec;
 
-	if (of_parse_phandle_with_args(dev->of_node, "clocks", "#clock-cells",
+	if (of_parse_phandle_with_args(dev->of_analde, "clocks", "#clock-cells",
 				       0, &clkspec))
 		return -EINVAL;
 
@@ -817,8 +817,8 @@ static int scpi_init_versions(struct scpi_drvinfo *info)
 		info->protocol_version = le32_to_cpu(caps.protocol_version);
 		info->firmware_version = le32_to_cpu(caps.platform_version);
 	}
-	/* Ignore error if not implemented */
-	if (info->is_legacy && ret == -EOPNOTSUPP)
+	/* Iganalre error if analt implemented */
+	if (info->is_legacy && ret == -EOPANALTSUPP)
 		return 0;
 
 	return ret;
@@ -831,7 +831,7 @@ static ssize_t protocol_version_show(struct device *dev,
 
 	return sprintf(buf, "%lu.%lu\n",
 		FIELD_GET(PROTO_REV_MAJOR_MASK, scpi_info->protocol_version),
-		FIELD_GET(PROTO_REV_MINOR_MASK, scpi_info->protocol_version));
+		FIELD_GET(PROTO_REV_MIANALR_MASK, scpi_info->protocol_version));
 }
 static DEVICE_ATTR_RO(protocol_version);
 
@@ -842,7 +842,7 @@ static ssize_t firmware_version_show(struct device *dev,
 
 	return sprintf(buf, "%lu.%lu.%lu\n",
 		FIELD_GET(FW_REV_MAJOR_MASK, scpi_info->firmware_version),
-		FIELD_GET(FW_REV_MINOR_MASK, scpi_info->firmware_version),
+		FIELD_GET(FW_REV_MIANALR_MASK, scpi_info->firmware_version),
 		FIELD_GET(FW_REV_PATCH_MASK, scpi_info->firmware_version));
 }
 static DEVICE_ATTR_RO(firmware_version);
@@ -884,12 +884,12 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 
 	xfers = devm_kcalloc(dev, MAX_SCPI_XFERS, sizeof(*xfers), GFP_KERNEL);
 	if (!xfers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ch->xfers = xfers;
 	for (i = 0; i < MAX_SCPI_XFERS; i++, xfers++) {
 		init_completion(&xfers->done);
-		list_add_tail(&xfers->node, &ch->xfers_list);
+		list_add_tail(&xfers->analde, &ch->xfers_list);
 	}
 
 	return 0;
@@ -898,7 +898,7 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 static const struct of_device_id shmem_of_match[] __maybe_unused = {
 	{ .compatible = "amlogic,meson-gxbb-scp-shmem", },
 	{ .compatible = "amlogic,meson-axg-scp-shmem", },
-	{ .compatible = "arm,juno-scp-shmem", },
+	{ .compatible = "arm,juanal-scp-shmem", },
 	{ .compatible = "arm,scp-shmem", },
 	{ }
 };
@@ -908,25 +908,25 @@ static int scpi_probe(struct platform_device *pdev)
 	int count, idx, ret;
 	struct resource res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct scpi_drvinfo *scpi_drvinfo;
 
 	scpi_drvinfo = devm_kzalloc(dev, sizeof(*scpi_drvinfo), GFP_KERNEL);
 	if (!scpi_drvinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scpi_drvinfo->is_legacy = !!device_get_match_data(dev);
 
 	count = of_count_phandle_with_args(np, "mboxes", "#mbox-cells");
 	if (count < 0) {
-		dev_err(dev, "no mboxes property in '%pOF'\n", np);
-		return -ENODEV;
+		dev_err(dev, "anal mboxes property in '%pOF'\n", np);
+		return -EANALDEV;
 	}
 
 	scpi_drvinfo->channels =
 		devm_kcalloc(dev, count, sizeof(struct scpi_chan), GFP_KERNEL);
 	if (!scpi_drvinfo->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_add_action(dev, scpi_free_channels, scpi_drvinfo);
 	if (ret)
@@ -937,13 +937,13 @@ static int scpi_probe(struct platform_device *pdev)
 		int idx = scpi_drvinfo->num_chans;
 		struct scpi_chan *pchan = scpi_drvinfo->channels + idx;
 		struct mbox_client *cl = &pchan->cl;
-		struct device_node *shmem = of_parse_phandle(np, "shmem", idx);
+		struct device_analde *shmem = of_parse_phandle(np, "shmem", idx);
 
-		if (!of_match_node(shmem_of_match, shmem))
+		if (!of_match_analde(shmem_of_match, shmem))
 			return -ENXIO;
 
 		ret = of_address_to_resource(shmem, 0, &res);
-		of_node_put(shmem);
+		of_analde_put(shmem);
 		if (ret) {
 			dev_err(dev, "failed to get SCPI payload mem resource\n");
 			return ret;
@@ -953,7 +953,7 @@ static int scpi_probe(struct platform_device *pdev)
 		pchan->rx_payload = devm_ioremap(dev, res.start, size);
 		if (!pchan->rx_payload) {
 			dev_err(dev, "failed to ioremap SCPI payload\n");
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		}
 		pchan->tx_payload = pchan->rx_payload + (size >> 1);
 
@@ -962,7 +962,7 @@ static int scpi_probe(struct platform_device *pdev)
 		cl->tx_prepare = scpi_tx_prepare;
 		cl->tx_block = true;
 		cl->tx_tout = 20;
-		cl->knows_txdone = false; /* controller can't ack */
+		cl->kanalws_txdone = false; /* controller can't ack */
 
 		INIT_LIST_HEAD(&pchan->rx_pending);
 		INIT_LIST_HEAD(&pchan->xfers_list);
@@ -1001,7 +1001,7 @@ static int scpi_probe(struct platform_device *pdev)
 
 	ret = scpi_init_versions(scpi_drvinfo);
 	if (ret) {
-		dev_err(dev, "incorrect or no SCP firmware found\n");
+		dev_err(dev, "incorrect or anal SCP firmware found\n");
 		scpi_info = NULL;
 		return ret;
 	}
@@ -1013,11 +1013,11 @@ static int scpi_probe(struct platform_device *pdev)
 		dev_info(dev, "SCP Protocol %lu.%lu Firmware %lu.%lu.%lu version\n",
 			 FIELD_GET(PROTO_REV_MAJOR_MASK,
 				   scpi_drvinfo->protocol_version),
-			 FIELD_GET(PROTO_REV_MINOR_MASK,
+			 FIELD_GET(PROTO_REV_MIANALR_MASK,
 				   scpi_drvinfo->protocol_version),
 			 FIELD_GET(FW_REV_MAJOR_MASK,
 				   scpi_drvinfo->firmware_version),
-			 FIELD_GET(FW_REV_MINOR_MASK,
+			 FIELD_GET(FW_REV_MIANALR_MASK,
 				   scpi_drvinfo->firmware_version),
 			 FIELD_GET(FW_REV_PATCH_MASK,
 				   scpi_drvinfo->firmware_version));

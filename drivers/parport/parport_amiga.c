@@ -10,7 +10,7 @@
  * with 8 bidirectional data lines (D0 - D7) and 3 bidirectional status
  * lines (BUSY, POUT, SEL), 1 output control line /STROBE (raised automatically
  * in hardware when the data register is accessed), and 1 input control line
- * /ACK, able to cause an interrupt, but both not directly settable by
+ * /ACK, able to cause an interrupt, but both analt directly settable by
  * software.
  */
 
@@ -32,14 +32,14 @@
 static void amiga_write_data(struct parport *p, unsigned char data)
 {
 	pr_debug("write_data %c\n", data);
-	/* Triggers also /STROBE. This behavior cannot be changed */
+	/* Triggers also /STROBE. This behavior cananalt be changed */
 	ciaa.prb = data;
 	mb();
 }
 
 static unsigned char amiga_read_data(struct parport *p)
 {
-	/* Triggers also /STROBE. This behavior cannot be changed */
+	/* Triggers also /STROBE. This behavior cananalt be changed */
 	return ciaa.prb;
 }
 
@@ -47,14 +47,14 @@ static unsigned char control_amiga_to_pc(unsigned char control)
 {
 	return PARPORT_CONTROL_SELECT |
 	      PARPORT_CONTROL_AUTOFD | PARPORT_CONTROL_STROBE;
-	/* fake value: interrupt enable, select in, no reset,
-	no autolf, no strobe - seems to be closest the wiring diagram */
+	/* fake value: interrupt enable, select in, anal reset,
+	anal autolf, anal strobe - seems to be closest the wiring diagram */
 }
 
 static void amiga_write_control(struct parport *p, unsigned char control)
 {
 	pr_debug("write_control %02x\n", control);
-	/* No implementation possible */
+	/* Anal implementation possible */
 }
 	
 static unsigned char amiga_read_control( struct parport *p)
@@ -83,7 +83,7 @@ static unsigned char status_amiga_to_pc(unsigned char status)
 		ret |= PARPORT_STATUS_PAPEROUT;
 	if (status & 4) /* Selected */
 		ret |= PARPORT_STATUS_SELECT;
-	/* the rest is not connected or handled autonomously in hardware */
+	/* the rest is analt connected or handled autoanalmously in hardware */
 
 	return ret;
 }
@@ -197,7 +197,7 @@ static int __init amiga_parallel_probe(struct platform_device *pdev)
 	mb();
 
 	p = parport_register_port((unsigned long)&ciaa.prb, IRQ_AMIGA_CIAA_FLG,
-				   PARPORT_DMA_NONE, &pp_amiga_ops);
+				   PARPORT_DMA_ANALNE, &pp_amiga_ops);
 	if (!p)
 		return -EBUSY;
 
@@ -208,7 +208,7 @@ static int __init amiga_parallel_probe(struct platform_device *pdev)
 
 	pr_info("%s: Amiga built-in port using irq\n", p->name);
 	/* XXX: set operating mode */
-	parport_announce_port(p);
+	parport_ananalunce_port(p);
 
 	platform_set_drvdata(pdev, p);
 
@@ -224,7 +224,7 @@ static int __exit amiga_parallel_remove(struct platform_device *pdev)
 	struct parport *port = platform_get_drvdata(pdev);
 
 	parport_remove_port(port);
-	if (port->irq != PARPORT_IRQ_NONE)
+	if (port->irq != PARPORT_IRQ_ANALNE)
 		free_irq(IRQ_AMIGA_CIAA_FLG, port);
 	parport_put_port(port);
 	return 0;

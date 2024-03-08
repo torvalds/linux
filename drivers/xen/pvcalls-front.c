@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * (c) 2017 Stefano Stabellini <stefano@aporeto.com>
+ * (c) 2017 Stefaanal Stabellini <stefaanal@aporeto.com>
  */
 
 #include <linux/module.h>
@@ -102,11 +102,11 @@ static inline struct sock_mapping *pvcalls_enter_sock(struct socket *sock)
 
 	if (!pvcalls_front_dev ||
 		dev_get_drvdata(&pvcalls_front_dev->dev) == NULL)
-		return ERR_PTR(-ENOTCONN);
+		return ERR_PTR(-EANALTCONN);
 
 	map = (struct sock_mapping *)sock->sk->sk_send_head;
 	if (map == NULL)
-		return ERR_PTR(-ENOTSOCK);
+		return ERR_PTR(-EANALTSOCK);
 
 	pvcalls_enter();
 	atomic_inc(&map->refcount);
@@ -138,7 +138,7 @@ static bool pvcalls_front_write_todo(struct sock_mapping *map)
 	int32_t error;
 
 	error = intf->out_error;
-	if (error == -ENOTCONN)
+	if (error == -EANALTCONN)
 		return false;
 	if (error != 0)
 		return true;
@@ -272,17 +272,17 @@ int pvcalls_front_socket(struct socket *sock)
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map = NULL;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret;
+	int analtify, req_id, ret;
 
 	/*
 	 * PVCalls only supports domain AF_INET,
-	 * type SOCK_STREAM and protocol 0 sockets for now.
+	 * type SOCK_STREAM and protocol 0 sockets for analw.
 	 *
 	 * Check socket type here, AF_INET and protocol checks are done
 	 * by the caller.
 	 */
 	if (sock->type != SOCK_STREAM)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pvcalls_enter();
 	if (!pvcalls_front_dev) {
@@ -294,7 +294,7 @@ int pvcalls_front_socket(struct socket *sock)
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL) {
 		pvcalls_exit();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock(&bedata->socket_lock);
@@ -308,7 +308,7 @@ int pvcalls_front_socket(struct socket *sock)
 	}
 
 	/*
-	 * sock->sk->sk_send_head is not used for ip sockets: reuse the
+	 * sock->sk->sk_send_head is analt used for ip sockets: reuse the
 	 * field to store a pointer to the struct sock_mapping
 	 * corresponding to the socket. This way, we can easily get the
 	 * struct sock_mapping from the struct socket.
@@ -325,10 +325,10 @@ int pvcalls_front_socket(struct socket *sock)
 	req->u.socket.protocol = IPPROTO_IP;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&bedata->ring, analtify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (analtify)
+		analtify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -375,7 +375,7 @@ static int alloc_active_ring(struct sock_mapping *map)
 
 out:
 	free_active_ring(map);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int create_active(struct sock_mapping *map, evtchn_port_t *evtchn)
@@ -425,11 +425,11 @@ int pvcalls_front_connect(struct socket *sock, struct sockaddr *addr,
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map = NULL;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret;
+	int analtify, req_id, ret;
 	evtchn_port_t evtchn;
 
 	if (addr->sa_family != AF_INET || sock->type != SOCK_STREAM)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	map = pvcalls_enter_sock(sock);
 	if (IS_ERR(map))
@@ -470,11 +470,11 @@ int pvcalls_front_connect(struct socket *sock, struct sockaddr *addr,
 	map->sock = sock;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&bedata->ring, analtify);
 	spin_unlock(&bedata->socket_lock);
 
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (analtify)
+		analtify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -547,7 +547,7 @@ int pvcalls_front_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	flags = msg->msg_flags;
 	if (flags & (MSG_CONFIRM|MSG_DONTROUTE|MSG_EOR|MSG_OOB))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	map = pvcalls_enter_sock(sock);
 	if (IS_ERR(map))
@@ -570,7 +570,7 @@ again:
 	if (sent > 0) {
 		len -= sent;
 		tot_sent += sent;
-		notify_remote_via_irq(map->active.irq);
+		analtify_remote_via_irq(map->active.irq);
 	}
 	if (sent >= 0 && len > 0 && count < PVCALLS_FRONT_MAX_SPIN)
 		goto again;
@@ -638,7 +638,7 @@ int pvcalls_front_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	struct sock_mapping *map;
 
 	if (flags & (MSG_CMSG_CLOEXEC|MSG_ERRQUEUE|MSG_OOB|MSG_TRUNC))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	map = pvcalls_enter_sock(sock);
 	if (IS_ERR(map))
@@ -656,10 +656,10 @@ int pvcalls_front_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			  &msg->msg_iter, len, flags);
 
 	if (ret > 0)
-		notify_remote_via_irq(map->active.irq);
+		analtify_remote_via_irq(map->active.irq);
 	if (ret == 0)
 		ret = (flags & MSG_DONTWAIT) ? -EAGAIN : 0;
-	if (ret == -ENOTCONN)
+	if (ret == -EANALTCONN)
 		ret = 0;
 
 	mutex_unlock(&map->active.in_mutex);
@@ -672,10 +672,10 @@ int pvcalls_front_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map = NULL;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret;
+	int analtify, req_id, ret;
 
 	if (addr->sa_family != AF_INET || sock->type != SOCK_STREAM)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	map = pvcalls_enter_sock(sock);
 	if (IS_ERR(map))
@@ -702,10 +702,10 @@ int pvcalls_front_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	map->active_socket = false;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&bedata->ring, analtify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (analtify)
+		analtify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -725,7 +725,7 @@ int pvcalls_front_listen(struct socket *sock, int backlog)
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret;
+	int analtify, req_id, ret;
 
 	map = pvcalls_enter_sock(sock);
 	if (IS_ERR(map))
@@ -734,7 +734,7 @@ int pvcalls_front_listen(struct socket *sock, int backlog)
 
 	if (map->passive.status != PVCALLS_STATUS_BIND) {
 		pvcalls_exit_sock(sock);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	spin_lock(&bedata->socket_lock);
@@ -751,10 +751,10 @@ int pvcalls_front_listen(struct socket *sock, int backlog)
 	req->u.listen.backlog = backlog;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&bedata->ring, analtify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (analtify)
+		analtify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -775,7 +775,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 	struct sock_mapping *map;
 	struct sock_mapping *map2 = NULL;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret, nonblock;
+	int analtify, req_id, ret, analnblock;
 	evtchn_port_t evtchn;
 
 	map = pvcalls_enter_sock(sock);
@@ -788,7 +788,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 		return -EINVAL;
 	}
 
-	nonblock = flags & SOCK_NONBLOCK;
+	analnblock = flags & SOCK_ANALNBLOCK;
 	/*
 	 * Backend only supports 1 inflight accept request, will return
 	 * errors for the others
@@ -801,7 +801,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 			map2 = map->passive.accept_map;
 			goto received;
 		}
-		if (nonblock) {
+		if (analnblock) {
 			pvcalls_exit_sock(sock);
 			return -EAGAIN;
 		}
@@ -818,7 +818,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 		clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
 			  (void *)&map->passive.flags);
 		pvcalls_exit_sock(sock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ret = alloc_active_ring(map2);
 	if (ret < 0) {
@@ -861,12 +861,12 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 	map->passive.accept_map = map2;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&bedata->ring, analtify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (analtify)
+		analtify_remote_via_irq(bedata->irq);
 	/* We could check if we have received a response before returning. */
-	if (nonblock) {
+	if (analnblock) {
 		WRITE_ONCE(map->passive.inflight_req_id, req_id);
 		pvcalls_exit_sock(sock);
 		return -EAGAIN;
@@ -890,7 +890,7 @@ received:
 			  (void *)&map->passive.flags);
 		pvcalls_front_free_map(bedata, map2);
 		pvcalls_exit_sock(sock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	newsock->sk->sk_send_head = (void *)map2;
 
@@ -910,7 +910,7 @@ static __poll_t pvcalls_front_poll_passive(struct file *file,
 					       struct sock_mapping *map,
 					       poll_table *wait)
 {
-	int notify, req_id, ret;
+	int analtify, req_id, ret;
 	struct xen_pvcalls_request *req;
 
 	if (test_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
@@ -919,7 +919,7 @@ static __poll_t pvcalls_front_poll_passive(struct file *file,
 
 		if (req_id != PVCALLS_INVALID_ID &&
 		    READ_ONCE(bedata->rsp[req_id].req_id) == req_id)
-			return EPOLLIN | EPOLLRDNORM;
+			return EPOLLIN | EPOLLRDANALRM;
 
 		poll_wait(file, &map->passive.inflight_accept_req, wait);
 		return 0;
@@ -927,10 +927,10 @@ static __poll_t pvcalls_front_poll_passive(struct file *file,
 
 	if (test_and_clear_bit(PVCALLS_FLAG_POLL_RET,
 			       (void *)&map->passive.flags))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
 	/*
-	 * First check RET, then INFLIGHT. No barriers necessary to
+	 * First check RET, then INFLIGHT. Anal barriers necessary to
 	 * ensure execution ordering because of the conditional
 	 * instructions creating control dependencies.
 	 */
@@ -953,10 +953,10 @@ static __poll_t pvcalls_front_poll_passive(struct file *file,
 	req->u.poll.id = (uintptr_t) map;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&bedata->ring, analtify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (analtify)
+		analtify_remote_via_irq(bedata->irq);
 
 	poll_wait(file, &bedata->inflight_req, wait);
 	return 0;
@@ -976,9 +976,9 @@ static __poll_t pvcalls_front_poll_active(struct file *file,
 
 	poll_wait(file, &map->active.inflight_conn_req, wait);
 	if (pvcalls_front_write_todo(map))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 	if (pvcalls_front_read_todo(map))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (in_error != 0 || out_error != 0)
 		mask |= EPOLLERR;
 
@@ -1009,7 +1009,7 @@ int pvcalls_front_release(struct socket *sock)
 {
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map;
-	int req_id, notify, ret;
+	int req_id, analtify, ret;
 	struct xen_pvcalls_request *req;
 
 	if (sock->sk == NULL)
@@ -1017,7 +1017,7 @@ int pvcalls_front_release(struct socket *sock)
 
 	map = pvcalls_enter_sock(sock);
 	if (IS_ERR(map)) {
-		if (PTR_ERR(map) == -ENOTCONN)
+		if (PTR_ERR(map) == -EANALTCONN)
 			return -EIO;
 		else
 			return 0;
@@ -1039,10 +1039,10 @@ int pvcalls_front_release(struct socket *sock)
 	req->u.release.id = (uintptr_t)map;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&bedata->ring, analtify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (analtify)
+		analtify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -1057,8 +1057,8 @@ int pvcalls_front_release(struct socket *sock)
 
 		/*
 		 * We need to make sure that sendmsg/recvmsg on this socket have
-		 * not started before we've cleared sk_send_head here. The
-		 * easiest way to guarantee this is to see that no pvcalls
+		 * analt started before we've cleared sk_send_head here. The
+		 * easiest way to guarantee this is to see that anal pvcalls
 		 * (other than us) is in progress on this socket.
 		 */
 		while (atomic_read(&map->refcount) > 1)
@@ -1117,7 +1117,7 @@ static void pvcalls_front_remove(struct xenbus_device *dev)
 		cpu_relax();
 	list_for_each_entry_safe(map, n, &bedata->socket_mappings, list) {
 		if (map->active_socket) {
-			/* No need to lock, refcount is 0 */
+			/* Anal need to lock, refcount is 0 */
 			pvcalls_front_free_map(bedata, map);
 		} else {
 			list_del(&map->list);
@@ -1134,7 +1134,7 @@ static void pvcalls_front_remove(struct xenbus_device *dev)
 static int pvcalls_front_probe(struct xenbus_device *dev,
 			  const struct xenbus_device_id *id)
 {
-	int ret = -ENOMEM, i;
+	int ret = -EANALMEM, i;
 	evtchn_port_t evtchn;
 	unsigned int max_page_order, function_calls, len;
 	char *versions;
@@ -1161,17 +1161,17 @@ static int pvcalls_front_probe(struct xenbus_device *dev,
 	max_page_order = xenbus_read_unsigned(dev->otherend,
 					      "max-page-order", 0);
 	if (max_page_order < PVCALLS_RING_ORDER)
-		return -ENODEV;
+		return -EANALDEV;
 	function_calls = xenbus_read_unsigned(dev->otherend,
 					      "function-calls", 0);
 	/* See XENBUS_FUNCTIONS_CALLS in pvcalls.h */
 	if (function_calls != 1)
-		return -ENODEV;
+		return -EANALDEV;
 	pr_info("%s max-page-order is %u\n", __func__, max_page_order);
 
 	bedata = kzalloc(sizeof(struct pvcalls_bedata), GFP_KERNEL);
 	if (!bedata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&dev->dev, bedata);
 	pvcalls_front_dev = dev;
@@ -1219,13 +1219,13 @@ static int pvcalls_front_probe(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		goto error;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, "version", "%u", 1);
+	ret = xenbus_printf(xbt, dev->analdename, "version", "%u", 1);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "ring-ref", "%d", bedata->ref);
+	ret = xenbus_printf(xbt, dev->analdename, "ring-ref", "%d", bedata->ref);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "port", "%u",
+	ret = xenbus_printf(xbt, dev->analdename, "port", "%u",
 			    evtchn);
 	if (ret)
 		goto error_xenbus;
@@ -1256,7 +1256,7 @@ static void pvcalls_front_changed(struct xenbus_device *dev,
 	case XenbusStateReconfigured:
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateUnknown:
+	case XenbusStateUnkanalwn:
 		break;
 
 	case XenbusStateInitWait:
@@ -1282,13 +1282,13 @@ static struct xenbus_driver pvcalls_front_driver = {
 	.probe = pvcalls_front_probe,
 	.remove = pvcalls_front_remove,
 	.otherend_changed = pvcalls_front_changed,
-	.not_essential = true,
+	.analt_essential = true,
 };
 
 static int __init pvcalls_frontend_init(void)
 {
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Initialising Xen pvcalls frontend driver\n");
 
@@ -1298,5 +1298,5 @@ static int __init pvcalls_frontend_init(void)
 module_init(pvcalls_frontend_init);
 
 MODULE_DESCRIPTION("Xen PV Calls frontend driver");
-MODULE_AUTHOR("Stefano Stabellini <sstabellini@kernel.org>");
+MODULE_AUTHOR("Stefaanal Stabellini <sstabellini@kernel.org>");
 MODULE_LICENSE("GPL");

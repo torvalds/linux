@@ -1,7 +1,7 @@
 |
 |	x_bsun.sa 3.3 7/1/91
 |
-|	fpsp_bsun --- FPSP handler for branch/set on unordered exception
+|	fpsp_bsun --- FPSP handler for branch/set on uanalrdered exception
 |
 |	Copy the PC to FPIAR to maintain 881/882 compatibility
 |

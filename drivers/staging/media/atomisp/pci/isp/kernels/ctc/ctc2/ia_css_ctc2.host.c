@@ -35,7 +35,7 @@ const struct ia_css_ctc2_config default_ctc2_config = {
  * -----------------------------------------------
  * Calculation of the Slope of a Line = ((y1 - y0) >> 8)/(x1 - x0)
  *
- * Note: y1, y0 , x1 & x0 must lie within the range 0 <-> 8191
+ * Analte: y1, y0 , x1 & x0 must lie within the range 0 <-> 8191
  */
 static int ctc2_slope(int y1, int y0, int x1, int x0)
 {

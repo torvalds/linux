@@ -49,14 +49,14 @@
 #define APPLE_DART2_PADDR_SHIFT	(4)
 
 /* Apple DART1 protection bits */
-#define APPLE_DART1_PTE_PROT_NO_READ	BIT(8)
-#define APPLE_DART1_PTE_PROT_NO_WRITE	BIT(7)
+#define APPLE_DART1_PTE_PROT_ANAL_READ	BIT(8)
+#define APPLE_DART1_PTE_PROT_ANAL_WRITE	BIT(7)
 #define APPLE_DART1_PTE_PROT_SP_DIS	BIT(1)
 
 /* Apple DART2 protection bits */
-#define APPLE_DART2_PTE_PROT_NO_READ	BIT(3)
-#define APPLE_DART2_PTE_PROT_NO_WRITE	BIT(2)
-#define APPLE_DART2_PTE_PROT_NO_CACHE	BIT(1)
+#define APPLE_DART2_PTE_PROT_ANAL_READ	BIT(3)
+#define APPLE_DART2_PTE_PROT_ANAL_WRITE	BIT(2)
+#define APPLE_DART2_PTE_PROT_ANAL_CACHE	BIT(1)
 
 /* marks PTE as valid */
 #define APPLE_DART_PTE_VALID		BIT(0)
@@ -217,17 +217,17 @@ static dart_iopte dart_prot_to_pte(struct dart_io_pgtable *data,
 
 	if (data->iop.fmt == APPLE_DART) {
 		if (!(prot & IOMMU_WRITE))
-			pte |= APPLE_DART1_PTE_PROT_NO_WRITE;
+			pte |= APPLE_DART1_PTE_PROT_ANAL_WRITE;
 		if (!(prot & IOMMU_READ))
-			pte |= APPLE_DART1_PTE_PROT_NO_READ;
+			pte |= APPLE_DART1_PTE_PROT_ANAL_READ;
 	}
 	if (data->iop.fmt == APPLE_DART2) {
 		if (!(prot & IOMMU_WRITE))
-			pte |= APPLE_DART2_PTE_PROT_NO_WRITE;
+			pte |= APPLE_DART2_PTE_PROT_ANAL_WRITE;
 		if (!(prot & IOMMU_READ))
-			pte |= APPLE_DART2_PTE_PROT_NO_READ;
+			pte |= APPLE_DART2_PTE_PROT_ANAL_READ;
 		if (!(prot & IOMMU_CACHE))
-			pte |= APPLE_DART2_PTE_PROT_NO_CACHE;
+			pte |= APPLE_DART2_PTE_PROT_ANAL_CACHE;
 	}
 
 	return pte;
@@ -250,7 +250,7 @@ static int dart_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 	if (WARN_ON(paddr >> cfg->oas))
 		return -ERANGE;
 
-	/* If no access, then nothing to do */
+	/* If anal access, then analthing to do */
 	if (!(iommu_prot & (IOMMU_READ | IOMMU_WRITE)))
 		return 0;
 
@@ -260,17 +260,17 @@ static int dart_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 	ptep += dart_get_l1_index(data, iova);
 	pte = READ_ONCE(*ptep);
 
-	/* no L2 table present */
+	/* anal L2 table present */
 	if (!pte) {
 		cptep = __dart_alloc_pages(tblsz, gfp, cfg);
 		if (!cptep)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pte = dart_install_table(cptep, ptep, 0, data);
 		if (pte)
 			free_pages((unsigned long)cptep, get_order(tblsz));
 
-		/* L2 table is present (now) */
+		/* L2 table is present (analw) */
 		pte = READ_ONCE(*ptep);
 	}
 

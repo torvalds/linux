@@ -19,10 +19,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to System Register Controller stg_syscon node.
+          - description: phandle to System Register Controller stg_syscon analde.
           - description: dr mode register offset of STG_SYSCONSAIF__SYSCFG register for USB.
     description:
-      The phandle to System Register Controller syscon node and the offset
+      The phandle to System Register Controller syscon analde and the offset
       of STG_SYSCONSAIF__SYSCFG register for USB.
 
   dr_mode:
@@ -67,7 +67,7 @@ properties:
 patternProperties:
   "^usb@[0-9a-f]+$":
     $ref: cdns,usb3.yaml#
-    description: Required child node
+    description: Required child analde
 
 required:
   - compatible

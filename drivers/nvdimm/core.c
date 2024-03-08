@@ -233,7 +233,7 @@ int nd_uuid_store(struct device *dev, uuid_t **uuid_out, const char *buf,
 	kfree(*uuid_out);
 	*uuid_out = kmemdup(&uuid, sizeof(uuid), GFP_KERNEL);
 	if (!(*uuid_out))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -302,7 +302,7 @@ static const char *nvdimm_bus_provider(struct nvdimm_bus *nvdimm_bus)
 	else if (parent)
 		return dev_name(parent);
 	else
-		return "unknown";
+		return "unkanalwn";
 }
 
 static ssize_t provider_show(struct device *dev,
@@ -366,7 +366,7 @@ static ssize_t capability_show(struct device *dev,
 	enum nvdimm_fwa_capability cap;
 
 	if (!nd_desc->fw_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cap = nd_desc->fw_ops->capability(nd_desc);
 
@@ -376,7 +376,7 @@ static ssize_t capability_show(struct device *dev,
 	case NVDIMM_FWA_CAP_LIVE:
 		return sprintf(buf, "live\n");
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -391,13 +391,13 @@ static ssize_t activate_show(struct device *dev,
 	enum nvdimm_fwa_state state;
 
 	if (!nd_desc->fw_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cap = nd_desc->fw_ops->capability(nd_desc);
 	state = nd_desc->fw_ops->activate_state(nd_desc);
 
 	if (cap < NVDIMM_FWA_CAP_QUIESCE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (state) {
 	case NVDIMM_FWA_IDLE:
@@ -430,7 +430,7 @@ static ssize_t activate_store(struct device *dev,
 	ssize_t rc;
 
 	if (!nd_desc->fw_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (sysfs_streq(buf, "live"))
 		quiesce = false;
@@ -472,7 +472,7 @@ static umode_t nvdimm_bus_firmware_visible(struct kobject *kobj, struct attribut
 	enum nvdimm_fwa_capability cap;
 
 	/*
-	 * Both 'activate' and 'capability' disappear when no ops
+	 * Both 'activate' and 'capability' disappear when anal ops
 	 * detected, or a negative capability is indicated.
 	 */
 	if (!nd_desc->fw_ops)

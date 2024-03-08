@@ -91,8 +91,8 @@ struct dbg_reg_def_t {
 #define DBG_MAX_REG_NUM 0
 #else
 extern struct dbg_reg_def_t dbg_reg_def[];
-extern char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs);
-extern int dbg_set_reg(int regno, void *mem, struct pt_regs *regs);
+extern char *dbg_get_reg(int reganal, void *mem, struct pt_regs *regs);
+extern int dbg_set_reg(int reganal, void *mem, struct pt_regs *regs);
 #endif
 #ifndef KGDB_MAX_BREAKPOINTS
 # define KGDB_MAX_BREAKPOINTS	1000
@@ -137,7 +137,7 @@ extern void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs);
  *
  *	Convert the register values of the sleeping process in @p to
  *	the format that GDB expects.
- *	This function is called when kgdb does not have access to the
+ *	This function is called when kgdb does analt have access to the
  *	&struct pt_regs and therefore it should fill the gdb registers
  *	@gdb_regs with what has	been saved in &struct thread_struct
  *	thread field during switch_to.
@@ -158,7 +158,7 @@ extern void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs);
 /**
  *	kgdb_arch_handle_exception - Handle architecture specific GDB packets.
  *	@vector: The error vector of the exception that happened.
- *	@signo: The signal number of the exception that happened.
+ *	@siganal: The signal number of the exception that happened.
  *	@err_code: The error code of the exception that happened.
  *	@remcom_in_buffer: The buffer of the packet we have read.
  *	@remcom_out_buffer: The buffer of %BUFMAX bytes to write a packet into.
@@ -172,7 +172,7 @@ extern void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs);
  *	kgdb callback.
  */
 extern int
-kgdb_arch_handle_exception(int vector, int signo, int err_code,
+kgdb_arch_handle_exception(int vector, int siganal, int err_code,
 			   char *remcom_in_buffer,
 			   char *remcom_out_buffer,
 			   struct pt_regs *regs);
@@ -190,25 +190,25 @@ kgdb_arch_handle_qxfer_pkt(char *remcom_in_buffer,
 
 /**
  *	kgdb_call_nmi_hook - Call kgdb_nmicallback() on the current CPU
- *	@ignored: This parameter is only here to match the prototype.
+ *	@iganalred: This parameter is only here to match the prototype.
  *
  *	If you're using the default implementation of kgdb_roundup_cpus()
  *	this function will be called per CPU.  If you don't implement
  *	kgdb_call_nmi_hook() a default will be used.
  */
 
-extern void kgdb_call_nmi_hook(void *ignored);
+extern void kgdb_call_nmi_hook(void *iganalred);
 
 /**
  *	kgdb_roundup_cpus - Get other CPUs into a holding pattern
  *
  *	On SMP systems, we need to get the attention of the other CPUs
- *	and get them into a known state.  This should do what is needed
- *	to get the other CPUs to call kgdb_wait(). Note that on some arches,
- *	the NMI approach is not used for rounding up all the CPUs.  Normally
- *	those architectures can just not implement this and get the default.
+ *	and get them into a kanalwn state.  This should do what is needed
+ *	to get the other CPUs to call kgdb_wait(). Analte that on some arches,
+ *	the NMI approach is analt used for rounding up all the CPUs.  Analrmally
+ *	those architectures can just analt implement this and get the default.
  *
- *	On non-SMP systems, this is not called.
+ *	On analn-SMP systems, this is analt called.
  */
 extern void kgdb_roundup_cpus(void);
 
@@ -234,7 +234,7 @@ extern int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt);
  *	This function will handle the late initialization of any
  *	architecture specific callbacks.  This is an optional function for
  *	handling things like late initialization of hw breakpoints.  The
- *	default implementation does nothing.
+ *	default implementation does analthing.
  */
 extern void kgdb_arch_late(void);
 
@@ -309,11 +309,11 @@ extern unsigned long kgdb_arch_pc(int exception, struct pt_regs *regs);
 #ifdef CONFIG_SERIAL_KGDB_NMI
 extern int kgdb_register_nmi_console(void);
 extern int kgdb_unregister_nmi_console(void);
-extern bool kgdb_nmi_poll_knock(void);
+extern bool kgdb_nmi_poll_kanalck(void);
 #else
 static inline int kgdb_register_nmi_console(void) { return 0; }
 static inline int kgdb_unregister_nmi_console(void) { return 0; }
-static inline bool kgdb_nmi_poll_knock(void) { return true; }
+static inline bool kgdb_nmi_poll_kanalck(void) { return true; }
 #endif
 
 extern int kgdb_register_io_module(struct kgdb_io *local_kgdb_io_ops);
@@ -328,7 +328,7 @@ extern int kgdb_isremovedbreak(unsigned long addr);
 extern int kgdb_has_hit_break(unsigned long addr);
 
 extern int
-kgdb_handle_exception(int ex_vector, int signo, int err_code,
+kgdb_handle_exception(int ex_vector, int siganal, int err_code,
 		      struct pt_regs *regs);
 extern int kgdb_nmicallback(int cpu, void *regs);
 extern int kgdb_nmicallin(int cpu, int trapnr, void *regs, int err_code,
@@ -338,14 +338,14 @@ extern void gdbstub_exit(int status);
 /*
  * kgdb and kprobes both use the same (kprobe) blocklist (which makes sense
  * given they are both typically hooked up to the same trap meaning on most
- * architectures one cannot be used to debug the other)
+ * architectures one cananalt be used to debug the other)
  *
- * However on architectures where kprobes is not (yet) implemented we permit
+ * However on architectures where kprobes is analt (yet) implemented we permit
  * breakpoints everywhere rather than blocking everything by default.
  */
 static inline bool kgdb_within_blocklist(unsigned long addr)
 {
-#ifdef CONFIG_KGDB_HONOUR_BLOCKLIST
+#ifdef CONFIG_KGDB_HOANALUR_BLOCKLIST
 	return within_kprobe_blacklist(addr);
 #else
 	return false;

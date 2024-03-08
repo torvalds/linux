@@ -16,7 +16,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -427,10 +427,10 @@ static int rdacm20_get_fmt(struct v4l2_subdev *sd,
 	mf->height		= OV10635_HEIGHT;
 	mf->code		= MEDIA_BUS_FMT_UYVY8_1X16;
 	mf->colorspace		= V4L2_COLORSPACE_RAW;
-	mf->field		= V4L2_FIELD_NONE;
+	mf->field		= V4L2_FIELD_ANALNE;
 	mf->ycbcr_enc		= V4L2_YCBCR_ENC_601;
 	mf->quantization	= V4L2_QUANTIZATION_FULL_RANGE;
-	mf->xfer_func		= V4L2_XFER_FUNC_NONE;
+	mf->xfer_func		= V4L2_XFER_FUNC_ANALNE;
 
 	return 0;
 }
@@ -550,13 +550,13 @@ again:
 	dev_info(dev->dev, "Identified RDACM20 camera module\n");
 
 	/*
-	 * Set reverse channel high threshold to increase noise immunity.
+	 * Set reverse channel high threshold to increase analise immunity.
 	 *
 	 * This should be compensated by increasing the reverse channel
 	 * amplitude on the remote deserializer side.
 	 *
 	 * TODO Inspect the embedded MCU programming sequence to make sure
-	 * there are no conflicts with the configuration applied here.
+	 * there are anal conflicts with the configuration applied here.
 	 *
 	 * TODO Clarify the embedded MCU startup delay to avoid write
 	 * collisions on the I2C bus.
@@ -571,11 +571,11 @@ static int rdacm20_probe(struct i2c_client *client)
 
 	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->dev = &client->dev;
 	dev->serializer.client = client;
 
-	ret = of_property_read_u32_array(client->dev.of_node, "reg",
+	ret = of_property_read_u32_array(client->dev.of_analde, "reg",
 					 dev->addrs, 2);
 	if (ret < 0) {
 		dev_err(dev->dev, "Invalid DT reg property: %d\n", ret);
@@ -597,7 +597,7 @@ static int rdacm20_probe(struct i2c_client *client)
 
 	/* Initialize and register the subdevice. */
 	v4l2_i2c_subdev_init(&dev->sd, client, &rdacm20_subdev_ops);
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	v4l2_ctrl_handler_init(&dev->ctrls, 1);
 	v4l2_ctrl_new_std(&dev->ctrls, NULL, V4L2_CID_PIXEL_RATE,
@@ -669,5 +669,5 @@ static struct i2c_driver rdacm20_i2c_driver = {
 module_i2c_driver(rdacm20_i2c_driver);
 
 MODULE_DESCRIPTION("GMSL Camera driver for RDACM20");
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Barianalv");
 MODULE_LICENSE("GPL");

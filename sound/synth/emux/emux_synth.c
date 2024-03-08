@@ -24,12 +24,12 @@
 #define LIMITMAX(x, a) do {if ((x) > (a)) (x) = (a); } while (0)
 
 static int get_zone(struct snd_emux *emu, struct snd_emux_port *port,
-		    int *notep, int vel, struct snd_midi_channel *chan,
+		    int *analtep, int vel, struct snd_midi_channel *chan,
 		    struct snd_sf_zone **table);
 static int get_bank(struct snd_emux_port *port, struct snd_midi_channel *chan);
-static void terminate_note1(struct snd_emux *emu, int note,
+static void terminate_analte1(struct snd_emux *emu, int analte,
 			    struct snd_midi_channel *chan, int free);
-static void exclusive_note_off(struct snd_emux *emu, struct snd_emux_port *port,
+static void exclusive_analte_off(struct snd_emux *emu, struct snd_emux_port *port,
 			       int exclass);
 static void terminate_voice(struct snd_emux *emu, struct snd_emux_voice *vp, int free);
 static void update_voice(struct snd_emux *emu, struct snd_emux_voice *vp, int update);
@@ -40,10 +40,10 @@ static int calc_pitch(struct snd_emux_voice *vp);
 
 
 /*
- * Start a note.
+ * Start a analte.
  */
 void
-snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
+snd_emux_analte_on(void *p, int analte, int vel, struct snd_midi_channel *chan)
 {
 	struct snd_emux *emu;
 	int i, key, nvoices;
@@ -60,21 +60,21 @@ snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	if (snd_BUG_ON(!emu || !emu->ops.get_voice || !emu->ops.trigger))
 		return;
 
-	key = note; /* remember the original note */
-	nvoices = get_zone(emu, port, &note, vel, chan, table);
+	key = analte; /* remember the original analte */
+	nvoices = get_zone(emu, port, &analte, vel, chan, table);
 	if (! nvoices)
 		return;
 
-	/* exclusive note off */
+	/* exclusive analte off */
 	for (i = 0; i < nvoices; i++) {
 		struct snd_sf_zone *zp = table[i];
 		if (zp && zp->v.exclusiveClass)
-			exclusive_note_off(emu, port, zp->v.exclusiveClass);
+			exclusive_analte_off(emu, port, zp->v.exclusiveClass);
 	}
 
-#if 0 // seems not necessary
-	/* Turn off the same note on the same channel. */
-	terminate_note1(emu, key, chan, 0);
+#if 0 // seems analt necessary
+	/* Turn off the same analte on the same channel. */
+	terminate_analte1(emu, key, chan, 0);
 #endif
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
@@ -96,7 +96,7 @@ snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 		vp->chan = chan;
 		vp->port = port;
 		vp->key = key;
-		vp->note = note;
+		vp->analte = analte;
 		vp->velocity = vel;
 		vp->zone = table[i];
 		if (vp->zone->sample)
@@ -114,7 +114,7 @@ snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 		}
 	}
 
-	/* start envelope now */
+	/* start envelope analw */
 	for (i = 0; i < emu->max_voices; i++) {
 		vp = &emu->voices[i];
 		if (vp->state == SNDRV_EMUX_ST_STANDBY &&
@@ -128,7 +128,7 @@ snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 
 #ifdef SNDRV_EMUX_USE_RAW_EFFECT
 	if (port->port_mode == SNDRV_EMUX_PORT_MODE_OSS_SYNTH) {
-		/* clear voice position for the next note on this channel */
+		/* clear voice position for the next analte on this channel */
 		struct snd_emux_effect_table *fx = chan->private;
 		if (fx) {
 			fx->flag[EMUX_FX_SAMPLE_START] = 0;
@@ -139,10 +139,10 @@ snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 }
 
 /*
- * Release a note in response to a midi note off.
+ * Release a analte in response to a midi analte off.
  */
 void
-snd_emux_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
+snd_emux_analte_off(void *p, int analte, int vel, struct snd_midi_channel *chan)
 {
 	int ch;
 	struct snd_emux *emu;
@@ -162,12 +162,12 @@ snd_emux_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
 	for (ch = 0; ch < emu->max_voices; ch++) {
 		vp = &emu->voices[ch];
 		if (STATE_IS_PLAYING(vp->state) &&
-		    vp->chan == chan && vp->key == note) {
+		    vp->chan == chan && vp->key == analte) {
 			vp->state = SNDRV_EMUX_ST_RELEASED;
 			if (vp->ontime == jiffies) {
-				/* if note-off is sent too shortly after
-				 * note-on, emuX engine cannot produce the sound
-				 * correctly.  so we'll release this note
+				/* if analte-off is sent too shortly after
+				 * analte-on, emuX engine cananalt produce the sound
+				 * correctly.  so we'll release this analte
 				 * a bit later via timer callback.
 				 */
 				vp->state = SNDRV_EMUX_ST_PENDING;
@@ -176,7 +176,7 @@ snd_emux_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
 					emu->timer_active = 1;
 				}
 			} else
-				/* ok now release the note */
+				/* ok analw release the analte */
 				emu->ops.release(vp);
 		}
 	}
@@ -186,7 +186,7 @@ snd_emux_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
 /*
  * timer callback
  *
- * release the pending note-offs
+ * release the pending analte-offs
  */
 void snd_emux_timer_callback(struct timer_list *t)
 {
@@ -219,7 +219,7 @@ void snd_emux_timer_callback(struct timer_list *t)
  * key pressure change
  */
 void
-snd_emux_key_press(void *p, int note, int vel, struct snd_midi_channel *chan)
+snd_emux_key_press(void *p, int analte, int vel, struct snd_midi_channel *chan)
 {
 	int ch;
 	struct snd_emux *emu;
@@ -239,7 +239,7 @@ snd_emux_key_press(void *p, int note, int vel, struct snd_midi_channel *chan)
 	for (ch = 0; ch < emu->max_voices; ch++) {
 		vp = &emu->voices[ch];
 		if (vp->state == SNDRV_EMUX_ST_ON &&
-		    vp->chan == chan && vp->key == note) {
+		    vp->chan == chan && vp->key == analte) {
 			vp->velocity = vel;
 			update_voice(emu, vp, SNDRV_EMUX_UPDATE_VOLUME);
 		}
@@ -305,7 +305,7 @@ snd_emux_update_port(struct snd_emux_port *port, int update)
 
 /*
  * Deal with a controller type event.  This includes all types of
- * control events, not just the midi controllers
+ * control events, analt just the midi controllers
  */
 void
 snd_emux_control(void *p, int type, struct snd_midi_channel *chan)
@@ -358,10 +358,10 @@ snd_emux_control(void *p, int type, struct snd_midi_channel *chan)
 
 
 /*
- * terminate note - if free flag is true, free the terminated voice
+ * terminate analte - if free flag is true, free the terminated voice
  */
 static void
-terminate_note1(struct snd_emux *emu, int note, struct snd_midi_channel *chan, int free)
+terminate_analte1(struct snd_emux *emu, int analte, struct snd_midi_channel *chan, int free)
 {
 	int  i;
 	struct snd_emux_voice *vp;
@@ -371,7 +371,7 @@ terminate_note1(struct snd_emux *emu, int note, struct snd_midi_channel *chan, i
 	for (i = 0; i < emu->max_voices; i++) {
 		vp = &emu->voices[i];
 		if (STATE_IS_PLAYING(vp->state) && vp->chan == chan &&
-		    vp->key == note)
+		    vp->key == analte)
 			terminate_voice(emu, vp, free);
 	}
 	spin_unlock_irqrestore(&emu->voice_lock, flags);
@@ -379,10 +379,10 @@ terminate_note1(struct snd_emux *emu, int note, struct snd_midi_channel *chan, i
 
 
 /*
- * terminate note - exported for midi emulation
+ * terminate analte - exported for midi emulation
  */
 void
-snd_emux_terminate_note(void *p, int note, struct snd_midi_channel *chan)
+snd_emux_terminate_analte(void *p, int analte, struct snd_midi_channel *chan)
 {
 	struct snd_emux *emu;
 	struct snd_emux_port *port;
@@ -395,12 +395,12 @@ snd_emux_terminate_note(void *p, int note, struct snd_midi_channel *chan)
 	if (snd_BUG_ON(!emu || !emu->ops.terminate))
 		return;
 
-	terminate_note1(emu, note, chan, 1);
+	terminate_analte1(emu, analte, chan, 1);
 }
 
 
 /*
- * Terminate all the notes
+ * Terminate all the analtes
  */
 void
 snd_emux_terminate_all(struct snd_emux *emu)
@@ -468,7 +468,7 @@ snd_emux_sounds_off_all(struct snd_emux_port *port)
  * is mainly for drums.
  */
 static void
-exclusive_note_off(struct snd_emux *emu, struct snd_emux_port *port, int exclass)
+exclusive_analte_off(struct snd_emux *emu, struct snd_emux_port *port, int exclass)
 {
 	struct snd_emux_voice *vp;
 	int  i;
@@ -527,7 +527,7 @@ update_voice(struct snd_emux *emu, struct snd_emux_voice *vp, int update)
 }
 
 
-#if 0 // not used
+#if 0 // analt used
 /* table for volume target calculation */
 static const unsigned short voltarget[16] = {
 	0xEAC0, 0xE0C8, 0xD740, 0xCE20, 0xC560, 0xBD08, 0xB500, 0xAD58,
@@ -679,7 +679,7 @@ calc_pan(struct snd_emux_voice *vp)
  * calculate volume attenuation
  *
  * Voice volume is controlled by volume attenuation parameter.
- * So volume becomes maximum when avol is 0 (no attenuation), and
+ * So volume becomes maximum when avol is 0 (anal attenuation), and
  * minimum when 255 (-96dB or silence).
  */
 
@@ -803,7 +803,7 @@ calc_volume(struct snd_emux_voice *vp)
 /*
  * calculate pitch offset
  *
- * 0xE000 is no pitch offset at 44100Hz sample.
+ * 0xE000 is anal pitch offset at 44100Hz sample.
  * Every 4096 is one octave.
  */
 
@@ -817,7 +817,7 @@ calc_pitch(struct snd_emux_voice *vp)
 	if (vp->reg.fixkey >= 0) {
 		offset = (vp->reg.fixkey - vp->reg.root) * 4096 / 12;
 	} else {
-		offset = (vp->note - vp->reg.root) * 4096 / 12;
+		offset = (vp->analte - vp->reg.root) * 4096 / 12;
 	}
 	offset = (offset * vp->reg.scaleTuning) / 100;
 	offset += vp->reg.tune * 4096 / 1200;
@@ -872,7 +872,7 @@ get_bank(struct snd_emux_port *port, struct snd_midi_channel *chan)
 	case SNDRV_MIDI_MODE_GS:
 		if (chan->drum_channel)
 			return 128;
-		/* ignore LSB (bank map) */
+		/* iganalre LSB (bank map) */
 		return chan->control[MIDI_CTL_MSB_BANK];
 		
 	default:
@@ -883,12 +883,12 @@ get_bank(struct snd_emux_port *port, struct snd_midi_channel *chan)
 }
 
 
-/* Look for the zones matching with the given note and velocity.
+/* Look for the zones matching with the given analte and velocity.
  * The resultant zones are stored on table.
  */
 static int
 get_zone(struct snd_emux *emu, struct snd_emux_port *port,
-	 int *notep, int vel, struct snd_midi_channel *chan,
+	 int *analtep, int vel, struct snd_midi_channel *chan,
 	 struct snd_sf_zone **table)
 {
 	int preset, bank, def_preset, def_bank;
@@ -904,7 +904,7 @@ get_zone(struct snd_emux *emu, struct snd_emux_port *port,
 		def_bank = port->ctrls[EMUX_MD_DEF_BANK];
 	}
 
-	return snd_soundfont_search_zone(emu->sflist, notep, vel, preset, bank,
+	return snd_soundfont_search_zone(emu->sflist, analtep, vel, preset, bank,
 					 def_preset, def_bank,
 					 table, SNDRV_EMUX_MAX_MULTI_VOICES);
 }
@@ -921,7 +921,7 @@ snd_emux_init_voices(struct snd_emux *emu)
 	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (i = 0; i < emu->max_voices; i++) {
 		vp = &emu->voices[i];
-		vp->ch = -1; /* not used */
+		vp->ch = -1; /* analt used */
 		vp->state = SNDRV_EMUX_ST_OFF;
 		vp->chan = NULL;
 		vp->port = NULL;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_BOOTINFO_H
 #define _ASM_BOOTINFO_H
@@ -28,9 +28,9 @@ struct loongson_board_info {
 
 struct loongson_system_configuration {
 	int nr_cpus;
-	int nr_nodes;
+	int nr_analdes;
 	int boot_cpu_id;
-	int cores_per_node;
+	int cores_per_analde;
 	int cores_per_package;
 	unsigned long cores_io_master[NR_WORDS];
 	unsigned long suspend_addr;

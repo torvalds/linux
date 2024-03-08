@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5E_FLOW_STEER_H__
 #define __MLX5E_FLOW_STEER_H__
@@ -110,9 +110,9 @@ static inline int mlx5e_arfs_create_tables(struct mlx5e_flow_steering *fs,
 { return 0; }
 static inline void mlx5e_arfs_destroy_tables(struct mlx5e_flow_steering *fs, bool ntuple) {}
 static inline int mlx5e_arfs_enable(struct mlx5e_flow_steering *fs)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 static inline int mlx5e_arfs_disable(struct mlx5e_flow_steering *fs)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 #endif
 
 #ifdef CONFIG_MLX5_EN_TLS

@@ -69,7 +69,7 @@ static int topstar_led_set(struct led_classdev *led,
 	 * FNCX(0x83) toggles the LED (more precisely, it is supposed to
 	 * act as an hardware switch and disconnect the WLAN adapter but
 	 * it seems to be faulty on some models like the Topstar U931
-	 * Notebook).
+	 * Analtebook).
 	 */
 	if ((ret == 0x30001 && state == LED_OFF)
 			|| (ret == 0x30000 && state != LED_OFF)) {
@@ -116,15 +116,15 @@ static const struct key_entry topstar_keymap[] = {
 	{ KE_KEY, 0x8b, { KEY_MAIL } },
 	{ KE_KEY, 0x8c, { KEY_MEDIA } },
 
-	/* Known non hotkey events don't handled or that we don't care yet */
-	{ KE_IGNORE, 0x82, }, /* backlight event */
-	{ KE_IGNORE, 0x8e, },
-	{ KE_IGNORE, 0x8f, },
-	{ KE_IGNORE, 0x90, },
+	/* Kanalwn analn hotkey events don't handled or that we don't care yet */
+	{ KE_IGANALRE, 0x82, }, /* backlight event */
+	{ KE_IGANALRE, 0x8e, },
+	{ KE_IGANALRE, 0x8f, },
+	{ KE_IGANALRE, 0x90, },
 
 	/*
 	 * 'G key' generate two event codes, convert to only
-	 * one event/key code for now, consider replacing by
+	 * one event/key code for analw, consider replacing by
 	 * a switch (3G switch - SW_3G?)
 	 */
 	{ KE_KEY, 0x96, { KEY_F14 } },
@@ -133,10 +133,10 @@ static const struct key_entry topstar_keymap[] = {
 	{ KE_END, 0 }
 };
 
-static void topstar_input_notify(struct topstar_laptop *topstar, int event)
+static void topstar_input_analtify(struct topstar_laptop *topstar, int event)
 {
 	if (!sparse_keymap_report_event(topstar->input, event, 1, true))
-		pr_info("unknown event = 0x%02x\n", event);
+		pr_info("unkanalwn event = 0x%02x\n", event);
 }
 
 static int topstar_input_init(struct topstar_laptop *topstar)
@@ -146,7 +146,7 @@ static int topstar_input_init(struct topstar_laptop *topstar)
 
 	input = input_allocate_device();
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "Topstar Laptop extra buttons";
 	input->phys = TOPSTAR_LAPTOP_CLASS "/input0";
@@ -192,9 +192,9 @@ static int topstar_platform_init(struct topstar_laptop *topstar)
 {
 	int err;
 
-	topstar->platform = platform_device_alloc(TOPSTAR_LAPTOP_CLASS, PLATFORM_DEVID_NONE);
+	topstar->platform = platform_device_alloc(TOPSTAR_LAPTOP_CLASS, PLATFORM_DEVID_ANALNE);
 	if (!topstar->platform)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(topstar->platform, topstar);
 
@@ -225,14 +225,14 @@ static int topstar_acpi_fncx_switch(struct acpi_device *device, bool state)
 
 	status = acpi_execute_simple_method(device->handle, "FNCX", arg);
 	if (ACPI_FAILURE(status)) {
-		pr_err("Unable to switch FNCX notifications\n");
-		return -ENODEV;
+		pr_err("Unable to switch FNCX analtifications\n");
+		return -EANALDEV;
 	}
 
 	return 0;
 }
 
-static void topstar_acpi_notify(struct acpi_device *device, u32 event)
+static void topstar_acpi_analtify(struct acpi_device *device, u32 event)
 {
 	struct topstar_laptop *topstar = acpi_driver_data(device);
 	static bool dup_evnt[2];
@@ -248,7 +248,7 @@ static void topstar_acpi_notify(struct acpi_device *device, u32 event)
 		*dup = true;
 	}
 
-	topstar_input_notify(topstar, event);
+	topstar_input_analtify(topstar, event);
 }
 
 static int topstar_acpi_init(struct topstar_laptop *topstar)
@@ -294,7 +294,7 @@ static int topstar_acpi_add(struct acpi_device *device)
 
 	topstar = kzalloc(sizeof(struct topstar_laptop), GFP_KERNEL);
 	if (!topstar)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(acpi_device_name(device), "Topstar TPSACPI");
 	strcpy(acpi_device_class(device), TOPSTAR_LAPTOP_CLASS);
@@ -360,7 +360,7 @@ static struct acpi_driver topstar_acpi_driver = {
 	.ops = {
 		.add = topstar_acpi_add,
 		.remove = topstar_acpi_remove,
-		.notify = topstar_acpi_notify,
+		.analtify = topstar_acpi_analtify,
 	},
 };
 

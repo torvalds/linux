@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _v4l2-meta-fmt-uvc:
 
@@ -13,7 +13,7 @@ Description
 ===========
 
 This format describes standard UVC metadata, extracted from UVC packet headers
-and provided by the UVC driver through metadata video nodes. That data includes
+and provided by the UVC driver through metadata video analdes. That data includes
 exact copies of the standard part of UVC Payload Header contents and auxiliary
 timing information, required for precise interpretation of timestamps, contained
 in those headers. See section "2.4.3.3 Video and Still Image Payload Headers" of
@@ -22,7 +22,7 @@ the "UVC 1.5 Class specification" for details.
 Each UVC payload header can be between 2 and 12 bytes large. Buffers can
 contain multiple headers, if multiple such headers have been transmitted by the
 camera for the respective frame. However, the driver may drop headers when the
-buffer is full, when they contain no useful information (e.g. those without the
+buffer is full, when they contain anal useful information (e.g. those without the
 SCR field or with that field identical to the previous header), or generally to
 perform rate limiting when the device sends a large number of headers.
 

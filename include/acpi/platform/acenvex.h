@@ -10,7 +10,7 @@
 #ifndef __ACENVEX_H__
 #define __ACENVEX_H__
 
-/*! [Begin] no source code translation */
+/*! [Begin] anal source code translation */
 
 /******************************************************************************
  *
@@ -26,7 +26,7 @@
 #include "acdragonflyex.h"
 
 /*
- * EFI applications can be built with -nostdlib, in this case, it must be
+ * EFI applications can be built with -analstdlib, in this case, it must be
  * included after including all other host environmental definitions, in
  * order to override the definitions.
  */
@@ -43,6 +43,6 @@
 
 #endif
 
-/*! [End] no source code translation !*/
+/*! [End] anal source code translation !*/
 
 #endif				/* __ACENVEX_H__ */

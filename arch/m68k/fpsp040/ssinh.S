@@ -2,7 +2,7 @@
 |	ssinh.sa 3.1 12/10/90
 |
 |       The entry point sSinh computes the hyperbolic sine of
-|       an input argument; sSinhd does the same except for denormalized
+|       an input argument; sSinhd does the same except for deanalrmalized
 |       input.
 |
 |       Input: Double-extended number X in location pointed to
@@ -10,10 +10,10 @@
 |
 |       Output: The value sinh(X) returned in floating-point register Fp0.
 |
-|       Accuracy and Monotonicity: The returned result is within 3 ulps in
+|       Accuracy and Moanaltonicity: The returned result is within 3 ulps in
 |               64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |               result is subsequently rounded to double precision. The
-|               result is provably monotonic in double precision.
+|               result is provably moanaltonic in double precision.
 |
 |       Speed: The program sSINH takes approximately 280 cycles.
 |
@@ -67,7 +67,7 @@ T2:	.long 0x3D6F90AE,0xB1E75CC7 | ... 16381 LOG2 TRAIL
 
 	.global	ssinhd
 ssinhd:
-|--SINH(X) = X FOR DENORMALIZED X
+|--SINH(X) = X FOR DEANALRMALIZED X
 
 	bra	t_extdnrm
 

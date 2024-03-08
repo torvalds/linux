@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Richard Weinberger <richrd@nod.at>
+ * Copyright (C) 2011 Richard Weinberger <richrd@anald.at>
  * Mostly copied from arch/x86/lib/delay.c
  */
 

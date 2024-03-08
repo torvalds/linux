@@ -358,7 +358,7 @@ static void hp_gain_ramp_set(struct snd_soc_component *cmpnt, int hp_gain_ctl)
 
 static void hp_zcd_enable(struct snd_soc_component *cmpnt)
 {
-	/* Enable ZCD, for minimize pop noise */
+	/* Enable ZCD, for minimize pop analise */
 	/* when adjust gain during HP buffer on */
 	regmap_update_bits(cmpnt->regmap, MT6351_ZCD_CON0, 0x7 << 8, 0x1 << 8);
 	regmap_update_bits(cmpnt->regmap, MT6351_ZCD_CON0, 0x1 << 7, 0x0 << 7);
@@ -468,7 +468,7 @@ static const struct snd_kcontrol_new rcv_in_mux_control =
 
 /* DAC In MUX */
 static const char *const dac_in_mux_map[] = {
-	"Normal Path", "Sgen",
+	"Analrmal Path", "Sgen",
 };
 
 static int dac_in_mux_map_value[] = {
@@ -536,7 +536,7 @@ static const struct snd_kcontrol_new adc_right_mux_control =
 
 /* PGA L MUX */
 static const char *const pga_left_mux_map[] = {
-	"None", "AIN0", "AIN1", "AIN2",
+	"Analne", "AIN0", "AIN1", "AIN2",
 };
 
 static int pga_left_mux_map_value[] = {
@@ -555,7 +555,7 @@ static const struct snd_kcontrol_new pga_left_mux_control =
 
 /* PGA R MUX */
 static const char *const pga_right_mux_map[] = {
-	"None", "AIN0", "AIN3", "AIN2",
+	"Analne", "AIN0", "AIN3", "AIN2",
 };
 
 static int pga_right_mux_map_value[] = {
@@ -720,7 +720,7 @@ static int mt_hp_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		priv->hp_en_counter++;
 		if (priv->hp_en_counter > 1)
-			break;	/* already enabled, do nothing */
+			break;	/* already enabled, do analthing */
 		else if (priv->hp_en_counter <= 0)
 			dev_err(priv->dev, "%s(), hp_en_counter %d <= 0\n",
 				__func__,
@@ -779,7 +779,7 @@ static int mt_hp_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(cmpnt->regmap, MT6351_AUDDEC_ANA_CON6,
 				   0x0700, 0x0300);
 
-		/* Enable ZCD, for minimize pop noise */
+		/* Enable ZCD, for minimize pop analise */
 		/* when adjust gain during HP buffer on */
 		hp_zcd_enable(cmpnt);
 
@@ -904,7 +904,7 @@ static int mt_adc_clkgen_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		/* Audio ADC clock gen. mode: 00_divided by 2 (Normal) */
+		/* Audio ADC clock gen. mode: 00_divided by 2 (Analrmal) */
 		regmap_update_bits(cmpnt->regmap, MT6351_AUDENC_ANA_CON3,
 				   0x3 << 4, 0x0);
 		break;
@@ -987,7 +987,7 @@ static int mt_mic_bias_0_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		/* MIC Bias 0 LowPower: 0_Normal */
+		/* MIC Bias 0 LowPower: 0_Analrmal */
 		regmap_update_bits(cmpnt->regmap, MT6351_AUDENC_ANA_CON9,
 				   0x3 << RG_AUDMICBIAS0LOWPEN, 0x0);
 		/* MISBIAS0 = 1P9V */
@@ -1015,7 +1015,7 @@ static int mt_mic_bias_1_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		/* MIC Bias 1 LowPower: 0_Normal */
+		/* MIC Bias 1 LowPower: 0_Analrmal */
 		regmap_update_bits(cmpnt->regmap, MT6351_AUDENC_ANA_CON10,
 				   0x3 << RG_AUDMICBIAS1LOWPEN, 0x0);
 		/* MISBIAS1 = 2P7V */
@@ -1043,7 +1043,7 @@ static int mt_mic_bias_2_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		/* MIC Bias 2 LowPower: 0_Normal */
+		/* MIC Bias 2 LowPower: 0_Analrmal */
 		regmap_update_bits(cmpnt->regmap, MT6351_AUDENC_ANA_CON9,
 				   0x3 << RG_AUDMICBIAS2LOWPEN, 0x0);
 		/* MISBIAS2 = 1P9V */
@@ -1082,7 +1082,7 @@ static const struct snd_soc_dapm_widget mt6351_dapm_widgets[] = {
 			    mt_ncp_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 
-	SND_SOC_DAPM_SUPPLY("DL Digital Clock", SND_SOC_NOPM,
+	SND_SOC_DAPM_SUPPLY("DL Digital Clock", SND_SOC_ANALPM,
 			    0, 0, NULL, 0),
 
 	/* Global Supply*/
@@ -1119,7 +1119,7 @@ static const struct snd_soc_dapm_widget mt6351_dapm_widgets[] = {
 			      mt_aif_in_event, SND_SOC_DAPM_PRE_PMU),
 
 	/* DL Supply */
-	SND_SOC_DAPM_SUPPLY("DL Power Supply", SND_SOC_NOPM,
+	SND_SOC_DAPM_SUPPLY("DL Power Supply", SND_SOC_ANALPM,
 			    0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("NV Regulator", MT6351_AUDDEC_ANA_CON10,
 			    RG_NVREG_EN_VAUDP32_BIT, 0, NULL, 0),
@@ -1133,7 +1133,7 @@ static const struct snd_soc_dapm_widget mt6351_dapm_widgets[] = {
 			    RG_LCLDO_DEC_REMOTE_SENSE_VA18_BIT, 0, NULL, 0),
 
 	/* DAC */
-	SND_SOC_DAPM_MUX("DAC In Mux", SND_SOC_NOPM, 0, 0, &dac_in_mux_control),
+	SND_SOC_DAPM_MUX("DAC In Mux", SND_SOC_ANALPM, 0, 0, &dac_in_mux_control),
 
 	SND_SOC_DAPM_DAC("DACL", NULL, MT6351_AUDDEC_ANA_CON0,
 			 RG_AUDDACLPWRUP_VAUDP32_BIT, 0),
@@ -1145,7 +1145,7 @@ static const struct snd_soc_dapm_widget mt6351_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("DACR_BIASGEN", MT6351_AUDDEC_ANA_CON0,
 			    RG_AUD_DAC_PWR_UP_VA32_BIT, 0, NULL, 0),
 	/* LOL */
-	SND_SOC_DAPM_MUX("LOL Mux", SND_SOC_NOPM, 0, 0, &lo_in_mux_control),
+	SND_SOC_DAPM_MUX("LOL Mux", SND_SOC_ANALPM, 0, 0, &lo_in_mux_control),
 
 	SND_SOC_DAPM_SUPPLY("LO Stability Enh", MT6351_AUDDEC_ANA_CON3,
 			    RG_LOOUTPUTSTBENH_VAUDP32_BIT, 0, NULL, 0),
@@ -1156,8 +1156,8 @@ static const struct snd_soc_dapm_widget mt6351_dapm_widgets[] = {
 			     RG_AUDLOLPWRUP_VAUDP32_BIT, 0, NULL, 0),
 
 	/* Headphone */
-	SND_SOC_DAPM_MUX("HPL Mux", SND_SOC_NOPM, 0, 0, &hpl_in_mux_control),
-	SND_SOC_DAPM_MUX("HPR Mux", SND_SOC_NOPM, 0, 0, &hpr_in_mux_control),
+	SND_SOC_DAPM_MUX("HPL Mux", SND_SOC_ANALPM, 0, 0, &hpl_in_mux_control),
+	SND_SOC_DAPM_MUX("HPR Mux", SND_SOC_ANALPM, 0, 0, &hpr_in_mux_control),
 
 	SND_SOC_DAPM_OUT_DRV_E("HPL Power", MT6351_AUDDEC_ANA_CON0,
 			       RG_AUDHPLPWRUP_VAUDP32_BIT, 0, NULL, 0,
@@ -1173,7 +1173,7 @@ static const struct snd_soc_dapm_widget mt6351_dapm_widgets[] = {
 			       SND_SOC_DAPM_POST_PMD),
 
 	/* Receiver */
-	SND_SOC_DAPM_MUX("RCV Mux", SND_SOC_NOPM, 0, 0, &rcv_in_mux_control),
+	SND_SOC_DAPM_MUX("RCV Mux", SND_SOC_ANALPM, 0, 0, &rcv_in_mux_control),
 
 	SND_SOC_DAPM_SUPPLY("RCV Stability Enh", MT6351_AUDDEC_ANA_CON1,
 			    RG_HSOUTPUTSTBENH_VAUDP32_BIT, 0, NULL, 0),
@@ -1226,12 +1226,12 @@ static const struct snd_soc_dapm_widget mt6351_dapm_widgets[] = {
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 
 	/* Uplinks MUX */
-	SND_SOC_DAPM_MUX("AIF Out Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF Out Mux", SND_SOC_ANALPM, 0, 0,
 			 &aif_out_mux_control),
 
-	SND_SOC_DAPM_MUX("ADC L Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC L Mux", SND_SOC_ANALPM, 0, 0,
 			 &adc_left_mux_control),
-	SND_SOC_DAPM_MUX("ADC R Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC R Mux", SND_SOC_ANALPM, 0, 0,
 			 &adc_right_mux_control),
 
 	SND_SOC_DAPM_ADC("ADC L", NULL,
@@ -1239,9 +1239,9 @@ static const struct snd_soc_dapm_widget mt6351_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC R", NULL,
 			 MT6351_AUDENC_ANA_CON1, RG_AUDADCRPWRUP, 0),
 
-	SND_SOC_DAPM_MUX("PGA L Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PGA L Mux", SND_SOC_ANALPM, 0, 0,
 			 &pga_left_mux_control),
-	SND_SOC_DAPM_MUX("PGA R Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PGA R Mux", SND_SOC_ANALPM, 0, 0,
 			 &pga_right_mux_control),
 
 	SND_SOC_DAPM_PGA_E("PGA L", MT6351_AUDENC_ANA_CON0, RG_AUDPREAMPLON, 0,
@@ -1298,8 +1298,8 @@ static const struct snd_soc_dapm_route mt6351_dapm_routes[] = {
 	{"AIF1TX", NULL, "AUDIO_TOP_PWR_CLK"},
 	{"AIF1TX", NULL, "AUDIO_TOP_PDN_RESERVED"},
 
-	{"AIF Out Mux", "Normal Path", "ADC L"},
-	{"AIF Out Mux", "Normal Path", "ADC R"},
+	{"AIF Out Mux", "Analrmal Path", "ADC L"},
+	{"AIF Out Mux", "Analrmal Path", "ADC R"},
 
 	{"ADC L", NULL, "ADC L Mux"},
 	{"ADC L", NULL, "AUD_CK"},
@@ -1358,7 +1358,7 @@ static const struct snd_soc_dapm_route mt6351_dapm_routes[] = {
 	{"AIF_RX", NULL, "DL Digital Clock"},
 
 	/* DL Path */
-	{"DAC In Mux", "Normal Path", "AIF_RX"},
+	{"DAC In Mux", "Analrmal Path", "AIF_RX"},
 
 	{"DAC In Mux", "Sgen", "SGEN DL"},
 	{"SGEN DL", NULL, "SGEN DL SRC"},
@@ -1456,7 +1456,7 @@ static int mt6351_codec_driver_probe(struct platform_device *pdev)
 			    sizeof(struct mt6351_priv),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, priv);
 
@@ -1464,7 +1464,7 @@ static int mt6351_codec_driver_probe(struct platform_device *pdev)
 
 	priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!priv->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(priv->dev, "%s(), dev name %s\n",
 		__func__, dev_name(&pdev->dev));

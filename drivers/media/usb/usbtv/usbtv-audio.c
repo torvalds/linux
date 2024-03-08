@@ -6,20 +6,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -32,7 +32,7 @@
  * Product web site:
  * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
  *
- * No physical hardware was harmed running Windows during the
+ * Anal physical hardware was harmed running Windows during the
  * reverse-engineering activity
  */
 
@@ -109,13 +109,13 @@ static void usbtv_audio_urb_received(struct urb *urb)
 	case 0:
 	case -ETIMEDOUT:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -EPROTO:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		return;
 	default:
-		dev_warn(chip->dev, "unknown audio urb status %i\n",
+		dev_warn(chip->dev, "unkanalwn audio urb status %i\n",
 			urb->status);
 	}
 
@@ -225,7 +225,7 @@ err_transfer_buffer:
 	chip->snd_bulk_urb = NULL;
 
 err_alloc_urb:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int usbtv_audio_stop(struct usbtv *chip)

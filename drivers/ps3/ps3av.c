@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 
@@ -213,7 +213,7 @@ static int ps3av_send_cmd_pkt(const struct ps3av_send_hdr *send_buf,
 	int event;
 
 	if (!ps3av)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* send pkt */
 	res = ps3av_vuart_write(ps3av->dev, send_buf, write_len);
@@ -518,7 +518,7 @@ static void ps3av_set_videomode_packet(u32 id)
 	/* send command using avb pkt */
 	len += offsetof(struct ps3av_pkt_avb_param, buf);
 	res = ps3av_cmd_avb_param(&avb_param, len);
-	if (res == PS3AV_STATUS_NO_SYNC_HEAD)
+	if (res == PS3AV_STATUS_ANAL_SYNC_HEAD)
 		printk(KERN_WARNING
 		       "%s: Command failed. Please try your request again.\n",
 		       __func__);
@@ -535,7 +535,7 @@ static void ps3av_set_videomode_cont(u32 id, u32 old_id)
 	ps3av_set_video_disable_sig();
 
 	/*
-	 * AV backend needs non-VESA mode setting at least one time
+	 * AV backend needs analn-VESA mode setting at least one time
 	 * when VESA mode is used.
 	 */
 	if (vesa == 0 && (id & PS3AV_MODE_MASK) >= PS3AV_MODE_WXGA) {
@@ -548,12 +548,12 @@ static void ps3av_set_videomode_cont(u32 id, u32 old_id)
 	if (id & PS3AV_MODE_HDCP_OFF) {
 		res = ps3av_cmd_av_hdmi_mode(PS3AV_CMD_AV_HDMI_HDCP_OFF);
 		if (res == PS3AV_STATUS_UNSUPPORTED_HDMI_MODE)
-			dev_dbg(&ps3av->dev->core, "Not supported\n");
+			dev_dbg(&ps3av->dev->core, "Analt supported\n");
 		else if (res)
 			dev_dbg(&ps3av->dev->core,
 				"ps3av_cmd_av_hdmi_mode failed\n");
 	} else if (old_id & PS3AV_MODE_HDCP_OFF) {
-		res = ps3av_cmd_av_hdmi_mode(PS3AV_CMD_AV_HDMI_MODE_NORMAL);
+		res = ps3av_cmd_av_hdmi_mode(PS3AV_CMD_AV_HDMI_MODE_ANALRMAL);
 		if (res < 0 && res != PS3AV_STATUS_UNSUPPORTED_HDMI_MODE)
 			dev_dbg(&ps3av->dev->core,
 				"ps3av_cmd_av_hdmi_mode failed\n");
@@ -601,7 +601,7 @@ static enum ps3av_mode_num ps3av_resbit2id(u32 res_50, u32 res_60,
 
 	/*
 	 * We mask off the resolution bits we care about and combine the
-	 * results in one bitfield, so make sure there's no overlap
+	 * results in one bitfield, so make sure there's anal overlap
 	 */
 	BUILD_BUG_ON(PS3AV_RES_MASK_50 << SHIFT_50 &
 		     PS3AV_RES_MASK_60 << SHIFT_60);
@@ -778,7 +778,7 @@ static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf)
 	}
 
 	if (!id) {
-		/* no HDMI interface or HDMI is off */
+		/* anal HDMI interface or HDMI is off */
 		if (ps3av->region & PS3AV_REGION_60)
 			id = PS3AV_DEFAULT_AVMULTI_MODE_ID_REG_60;
 		else
@@ -936,7 +936,7 @@ static int ps3av_probe(struct ps3_system_bus_device *dev)
 
 	ps3av = kzalloc(sizeof(*ps3av), GFP_KERNEL);
 	if (!ps3av)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ps3av->mutex);
 	ps3av->ps3av_mode = PS3AV_MODE_AUTO;
@@ -1030,7 +1030,7 @@ static int __init ps3av_module_init(void)
 	int error;
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 

@@ -49,7 +49,7 @@
 #define     AT91_UDP_TXCOMP	(1 <<  0)	/* Generates IN packet with data previously written in DPR */
 #define     AT91_UDP_RX_DATA_BK0 (1 <<  1)	/* Receive Data Bank 0 */
 #define     AT91_UDP_RXSETUP	(1 <<  2)	/* Send STALL to the host */
-#define     AT91_UDP_STALLSENT	(1 <<  3)	/* Stall Sent / Isochronous error (Isochronous endpoints) */
+#define     AT91_UDP_STALLSENT	(1 <<  3)	/* Stall Sent / Isochroanalus error (Isochroanalus endpoints) */
 #define     AT91_UDP_TXPKTRDY	(1 <<  4)	/* Transmit Packet Ready */
 #define     AT91_UDP_FORCESTALL	(1 <<  5)	/* Force Stall */
 #define     AT91_UDP_RX_DATA_BK1 (1 <<  6)	/* Receive Data Bank 1 */
@@ -110,12 +110,12 @@ struct at91_udc_caps {
 
 struct at91_udc_data {
 	struct gpio_desc  *vbus_pin;		/* high == host powering us */
-	u8	          vbus_polled;		/* Use polling, not interrupt */
+	u8	          vbus_polled;		/* Use polling, analt interrupt */
 	struct gpio_desc  *pullup_pin;		/* active == D+ pulled up */
 };
 
 /*
- * driver is non-SMP, and just blocks IRQs whenever it needs
+ * driver is analn-SMP, and just blocks IRQs whenever it needs
  * access protection for chip registers or driver state
  */
 struct at91_udc {

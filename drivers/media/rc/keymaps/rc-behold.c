@@ -10,7 +10,7 @@
 
 /*
  * Igor Kuznetsov <igk72@ya.ru>
- * Andrey J. Melnikov <temnota@kmv.ru>
+ * Andrey J. Melnikov <temanalta@kmv.ru>
  *
  * Keytable is used by BeholdTV 60x series, M6 series at
  * least, and probably other cards too.

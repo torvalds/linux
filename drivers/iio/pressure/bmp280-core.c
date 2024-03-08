@@ -16,7 +16,7 @@
  * https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf
  * https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp581-ds004.pdf
  *
- * Notice:
+ * Analtice:
  * The link to the bmp180 datasheet points to an outdated version missing these changes:
  * - Changed document referral from ANP015 to BST-MPS-AN004-00 on page 26
  * - Updated equation for B3 param on section 3.5 to ((((long)AC1 * 4 + X3) << oss) + 2) / 4
@@ -229,7 +229,7 @@ static int bme280_read_calib(struct bmp280_data *data)
 
 	/*
 	 * Read humidity calibration values.
-	 * Due to some odd register addressing we cannot just
+	 * Due to some odd register addressing we cananalt just
 	 * do a big bulk read. Instead, we have to read each Hx
 	 * value separately and sometimes do some bit shifting...
 	 * Humidity data is only available on BME280.
@@ -672,7 +672,7 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 	/*
 	 * Helper functions to update sensor running configuration.
 	 * If an error happens applying new settings, will try restore
-	 * previous parameters to ensure the sensor is left in a known
+	 * previous parameters to ensure the sensor is left in a kanalwn
 	 * working configuration.
 	 */
 	switch (mask) {
@@ -775,7 +775,7 @@ static int bmp280_chip_config(struct bmp280_data *data)
 				 BMP280_OSRS_TEMP_MASK |
 				 BMP280_OSRS_PRESS_MASK |
 				 BMP280_MODE_MASK,
-				 osrs | BMP280_MODE_NORMAL);
+				 osrs | BMP280_MODE_ANALRMAL);
 	if (ret < 0) {
 		dev_err(data->dev,
 			"failed to write ctrl_meas register\n");
@@ -899,7 +899,7 @@ static int bmp380_cmd(struct bmp280_data *data, u8 cmd)
 		return ret;
 	}
 	if (!(reg & BMP380_STATUS_CMD_RDY_MASK)) {
-		dev_err(data->dev, "device is not ready to accept commands\n");
+		dev_err(data->dev, "device is analt ready to accept commands\n");
 		return -EBUSY;
 	}
 
@@ -1182,7 +1182,7 @@ static int bmp380_chip_config(struct bmp280_data *data)
 		 * cycle. If the sampling frequency is too low, it's faster to reset
 		 * the measurement loop than wait until the next measurement is due.
 		 *
-		 * Resets sensor measurement loop toggling between sleep and normal
+		 * Resets sensor measurement loop toggling between sleep and analrmal
 		 * operating modes.
 		 */
 		ret = regmap_write_bits(data->regmap, BMP380_REG_POWER_CONTROL,
@@ -1195,9 +1195,9 @@ static int bmp380_chip_config(struct bmp280_data *data)
 		usleep_range(2000, 2500);
 		ret = regmap_write_bits(data->regmap, BMP380_REG_POWER_CONTROL,
 					BMP380_MODE_MASK,
-					FIELD_PREP(BMP380_MODE_MASK, BMP380_MODE_NORMAL));
+					FIELD_PREP(BMP380_MODE_MASK, BMP380_MODE_ANALRMAL));
 		if (ret) {
-			dev_err(data->dev, "failed to set normal mode\n");
+			dev_err(data->dev, "failed to set analrmal mode\n");
 			return ret;
 		}
 		/*
@@ -1311,7 +1311,7 @@ static int bmp580_nvm_operation(struct bmp280_data *data, bool is_write)
 		return ret;
 	}
 	if (!(reg & BMP580_STATUS_NVM_RDY_MASK)) {
-		dev_err(data->dev, "sensor's nvm is not ready\n");
+		dev_err(data->dev, "sensor's nvm is analt ready\n");
 		return -EIO;
 	}
 
@@ -1609,7 +1609,7 @@ static int bmp580_preinit(struct bmp280_data *data)
 	if (ret)
 		return ret;
 
-	/* Print warn message if we don't know the chip id */
+	/* Print warn message if we don't kanalw the chip id */
 	if (reg != BMP580_CHIP_ID && reg != BMP580_CHIP_ID_ALT)
 		dev_warn(data->dev, "preinit: unexpected chip_id\n");
 
@@ -1694,12 +1694,12 @@ static int bmp580_chip_config(struct bmp280_data *data)
 	}
 	change = change || aux;
 
-	/* Restore sensor to normal operation mode */
+	/* Restore sensor to analrmal operation mode */
 	ret = regmap_write_bits(data->regmap, BMP580_REG_ODR_CONFIG,
 				BMP580_MODE_MASK,
-				FIELD_PREP(BMP580_MODE_MASK, BMP580_MODE_NORMAL));
+				FIELD_PREP(BMP580_MODE_MASK, BMP580_MODE_ANALRMAL));
 	if (ret) {
-		dev_err(data->dev, "failed to set normal mode\n");
+		dev_err(data->dev, "failed to set analrmal mode\n");
 		return ret;
 	}
 	/* From datasheet's table 4: electrical characteristics */
@@ -1839,7 +1839,7 @@ static int bmp180_read_calib(struct bmp280_data *data)
 	if (ret < 0)
 		return ret;
 
-	/* None of the words has the value 0 or 0xFFFF */
+	/* Analne of the words has the value 0 or 0xFFFF */
 	for (i = 0; i < ARRAY_SIZE(data->bmp180_cal_buf); i++) {
 		if (data->bmp180_cal_buf[i] == cpu_to_be16(0) ||
 		    data->bmp180_cal_buf[i] == cpu_to_be16(0xffff))
@@ -2040,7 +2040,7 @@ static int bmp085_fetch_eoc_irq(struct device *dev,
 
 	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
 	if (irq_trig != IRQF_TRIGGER_RISING) {
-		dev_err(dev, "non-rising trigger given for EOC interrupt, trying to enforce it\n");
+		dev_err(dev, "analn-rising trigger given for EOC interrupt, trying to enforce it\n");
 		irq_trig = IRQF_TRIGGER_RISING;
 	}
 
@@ -2068,7 +2068,7 @@ static void bmp280_pm_disable(void *data)
 	struct device *dev = data;
 
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 }
 
@@ -2094,7 +2094,7 @@ int bmp280_common_probe(struct device *dev,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	mutex_init(&data->lock);
@@ -2158,13 +2158,13 @@ int bmp280_common_probe(struct device *dev,
 
 	for (i = 0; i < data->chip_info->num_chip_id; i++) {
 		if (chip_id == data->chip_info->chip_id[i]) {
-			dev_info(dev, "0x%x is a known chip id for %s\n", chip_id, name);
+			dev_info(dev, "0x%x is a kanalwn chip id for %s\n", chip_id, name);
 			break;
 		}
 	}
 
 	if (i == data->chip_info->num_chip_id)
-		dev_warn(dev, "bad chip id: 0x%x is not a known chip id\n", chip_id);
+		dev_warn(dev, "bad chip id: 0x%x is analt a kanalwn chip id\n", chip_id);
 
 	if (data->chip_info->preinit) {
 		ret = data->chip_info->preinit(data);
@@ -2181,8 +2181,8 @@ int bmp280_common_probe(struct device *dev,
 
 	/*
 	 * Some chips have calibration parameters "programmed into the devices'
-	 * non-volatile memory during production". Let's read them out at probe
-	 * time once. They will not change.
+	 * analn-volatile memory during production". Let's read them out at probe
+	 * time once. They will analt change.
 	 */
 
 	if (data->chip_info->read_calib) {
@@ -2204,7 +2204,7 @@ int bmp280_common_probe(struct device *dev,
 	}
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	/*

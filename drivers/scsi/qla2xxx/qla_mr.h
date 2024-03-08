@@ -129,7 +129,7 @@ struct abort_iocb_entry_fx00 {
 	uint32_t abort_handle;		/* System handle. */
 	__le32 reserved_2;
 
-	__le16 req_que_no;
+	__le16 req_que_anal;
 	uint8_t reserved_1[38];
 };
 
@@ -150,7 +150,7 @@ struct ioctl_iocb_entry_fx00 {
 	uint32_t adapid;		/* Adapter ID */
 	uint32_t dataword_r_extra;
 
-	__le32 seq_no;
+	__le32 seq_anal;
 	uint8_t reserved_2[20];
 	uint32_t residuallen;
 	__le32 status;
@@ -189,16 +189,16 @@ struct fxdisc_entry_fx00 {
 	__le32 dataword_extra;
 };
 
-struct qlafx00_tgt_node_info {
-	uint8_t tgt_node_wwpn[WWN_SIZE];
-	uint8_t tgt_node_wwnn[WWN_SIZE];
-	uint32_t tgt_node_state;
+struct qlafx00_tgt_analde_info {
+	uint8_t tgt_analde_wwpn[WWN_SIZE];
+	uint8_t tgt_analde_wwnn[WWN_SIZE];
+	uint32_t tgt_analde_state;
 	uint8_t reserved[128];
 	uint32_t reserved_1[8];
 	uint64_t reserved_2[4];
 } __packed;
 
-#define QLAFX00_TGT_NODE_INFO sizeof(struct qlafx00_tgt_node_info)
+#define QLAFX00_TGT_ANALDE_INFO sizeof(struct qlafx00_tgt_analde_info)
 
 #define QLAFX00_LINK_STATUS_DOWN	0x10
 #define QLAFX00_LINK_STATUS_UP		0x11
@@ -234,13 +234,13 @@ struct port_info_data {
 	uint16_t        adap_haddr;
 	uint8_t         tgt_disc;
 	uint8_t         log_tout;
-	uint8_t         node_name[8];
+	uint8_t         analde_name[8];
 	uint16_t        erisc_opt1;
 	uint8_t         resp_acc_tmr;
 	uint8_t         intr_del_tmr;
 	uint8_t         erisc_opt2;
 	uint8_t         alt_port_name[8];
-	uint8_t         alt_node_name[8];
+	uint8_t         alt_analde_name[8];
 	uint8_t         link_down_tout;
 	uint8_t         conn_type;
 	uint8_t         fc_fw_mode;
@@ -248,12 +248,12 @@ struct port_info_data {
 } __packed;
 
 /* OS Type Designations */
-#define OS_TYPE_UNKNOWN             0
+#define OS_TYPE_UNKANALWN             0
 #define OS_TYPE_LINUX               2
 
 /* Linux Info */
 #define SYSNAME_LENGTH              128
-#define NODENAME_LENGTH             64
+#define ANALDENAME_LENGTH             64
 #define RELEASE_LENGTH              64
 #define VERSION_LENGTH              64
 #define MACHINE_LENGTH              64
@@ -262,7 +262,7 @@ struct port_info_data {
 struct host_system_info {
 	uint32_t os_type;
 	char    sysname[SYSNAME_LENGTH];
-	char    nodename[NODENAME_LENGTH];
+	char    analdename[ANALDENAME_LENGTH];
 	char    release[RELEASE_LENGTH];
 	char    version[VERSION_LENGTH];
 	char    machine[MACHINE_LENGTH];
@@ -279,7 +279,7 @@ struct register_host_info {
 
 
 #define QLAFX00_PORT_DATA_INFO (sizeof(struct port_info_data))
-#define QLAFX00_TGT_NODE_LIST_SIZE (sizeof(uint32_t) * 32)
+#define QLAFX00_TGT_ANALDE_LIST_SIZE (sizeof(uint32_t) * 32)
 
 struct config_info_data {
 	uint8_t		model_num[16];
@@ -315,13 +315,13 @@ struct config_info_data {
 	uint64_t	cluster_slave_id;
 	uint8_t		cluster_flags;
 	uint32_t	enabled_capabilities;
-	uint32_t	nominal_temp_value;
+	uint32_t	analminal_temp_value;
 } __packed;
 
 #define FXDISC_GET_CONFIG_INFO		0x01
 #define FXDISC_GET_PORT_INFO		0x02
-#define FXDISC_GET_TGT_NODE_INFO	0x80
-#define FXDISC_GET_TGT_NODE_LIST	0x81
+#define FXDISC_GET_TGT_ANALDE_INFO	0x80
+#define FXDISC_GET_TGT_ANALDE_LIST	0x81
 #define FXDISC_REG_HOST_INFO		0x99
 #define FXDISC_ABORT_IOCTL		0xff
 
@@ -342,7 +342,7 @@ struct config_info_data {
 
 #define QLAFX00_MBA_SYSTEM_ERR		0x8002
 #define QLAFX00_MBA_TEMP_OVER		0x8005
-#define QLAFX00_MBA_TEMP_NORM		0x8006
+#define QLAFX00_MBA_TEMP_ANALRM		0x8006
 #define	QLAFX00_MBA_TEMP_CRIT		0x8007
 #define QLAFX00_MBA_LINK_UP		0x8011
 #define QLAFX00_MBA_LINK_DOWN		0x8012
@@ -475,7 +475,7 @@ struct mr_data_fx00 {
 	uint8_t	uboot_version[16];
 	uint8_t	fru_serial_num[32];
 	fc_port_t       fcport;		/* fcport used for requests
-					 * that are not linked
+					 * that are analt linked
 					 * to a particular target
 					 */
 	uint8_t fw_hbt_en;

@@ -5,7 +5,7 @@ config VIDEO_SUNXI
 	help
 	  If you have an Allwinner SoC based on the sunXi family, say Y.
 
-	  Note that this option doesn't include new drivers in the
+	  Analte that this option doesn't include new drivers in the
 	  kernel: saying N will just cause Kconfig to skip all the
 	  questions about Allwinner media devices.
 

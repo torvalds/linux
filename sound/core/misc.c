@@ -72,7 +72,7 @@ void __snd_printk(unsigned int level, const char *path, int line,
 	while ((kern_level = printk_get_level(vaf.fmt)) != 0) {
 		const char *end_of_header = printk_skip_level(vaf.fmt);
 
-		/* Ignore KERN_CONT. We print filename:line for each piece. */
+		/* Iganalre KERN_CONT. We print filename:line for each piece. */
 		if (kern_level >= '0' && kern_level <= '7') {
 			memcpy(verbose_fmt, vaf.fmt, end_of_header - vaf.fmt);
 			level_found = true;
@@ -105,7 +105,7 @@ EXPORT_SYMBOL_GPL(__snd_printk);
  * with the same PCI SSID.  When subdevice is 0, all subdevice
  * values may match.
  *
- * Returns the matched entry pointer, or NULL if nothing matched.
+ * Returns the matched entry pointer, or NULL if analthing matched.
  */
 const struct snd_pci_quirk *
 snd_pci_quirk_lookup_id(u16 vendor, u16 device,
@@ -133,7 +133,7 @@ EXPORT_SYMBOL(snd_pci_quirk_lookup_id);
  * with the same PCI SSID.  When subdevice is 0, all subdevice
  * values may match.
  *
- * Returns the matched entry pointer, or NULL if nothing matched.
+ * Returns the matched entry pointer, or NULL if analthing matched.
  */
 const struct snd_pci_quirk *
 snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list)
@@ -194,7 +194,7 @@ int snd_fasync_helper(int fd, struct file *file, int on,
 	if (on) {
 		fasync = kzalloc(sizeof(*fasync), GFP_KERNEL);
 		if (!fasync)
-			return -ENOMEM;
+			return -EANALMEM;
 		INIT_LIST_HEAD(&fasync->list);
 	}
 

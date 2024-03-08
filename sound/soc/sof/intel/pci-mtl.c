@@ -44,7 +44,7 @@ static const struct sof_dev_desc mtl_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "sof-mtl.ri",
 	},
-	.nocodec_tplg_filename = "sof-mtl-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-mtl-analcodec.tplg",
 	.ops = &sof_mtl_ops,
 	.ops_init = sof_mtl_ops_init,
 	.ops_free = hda_ops_free,
@@ -74,7 +74,7 @@ static const struct sof_dev_desc arl_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "sof-arl.ri",
 	},
-	.nocodec_tplg_filename = "sof-arl-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-arl-analcodec.tplg",
 	.ops = &sof_mtl_ops,
 	.ops_init = sof_mtl_ops_init,
 	.ops_free = hda_ops_free,
@@ -104,7 +104,7 @@ static const struct sof_dev_desc arl_s_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "sof-arl-s.ri",
 	},
-	.nocodec_tplg_filename = "sof-arl-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-arl-analcodec.tplg",
 	.ops = &sof_mtl_ops,
 	.ops_init = sof_mtl_ops_init,
 	.ops_free = hda_ops_free,

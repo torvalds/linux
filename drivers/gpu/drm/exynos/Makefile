@@ -3,25 +3,25 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-exynosdrm-y := exynos_drm_drv.o exynos_drm_crtc.o exynos_drm_fb.o \
-		exynos_drm_gem.o exynos_drm_plane.o exynos_drm_dma.o
+exyanalsdrm-y := exyanals_drm_drv.o exyanals_drm_crtc.o exyanals_drm_fb.o \
+		exyanals_drm_gem.o exyanals_drm_plane.o exyanals_drm_dma.o
 
-exynosdrm-$(CONFIG_DRM_FBDEV_EMULATION) += exynos_drm_fbdev.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_FIMD)	+= exynos_drm_fimd.o
-exynosdrm-$(CONFIG_DRM_EXYNOS5433_DECON)	+= exynos5433_drm_decon.o
-exynosdrm-$(CONFIG_DRM_EXYNOS7_DECON)	+= exynos7_drm_decon.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_DPI)	+= exynos_drm_dpi.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_DSI)	+= exynos_drm_dsi.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_DP)	+= exynos_dp.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_MIXER)	+= exynos_mixer.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_HDMI)	+= exynos_hdmi.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_VIDI)	+= exynos_drm_vidi.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_G2D)	+= exynos_drm_g2d.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_IPP)	+= exynos_drm_ipp.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_FIMC)	+= exynos_drm_fimc.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_ROTATOR)	+= exynos_drm_rotator.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_SCALER)	+= exynos_drm_scaler.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_GSC)	+= exynos_drm_gsc.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_MIC)     += exynos_drm_mic.o
+exyanalsdrm-$(CONFIG_DRM_FBDEV_EMULATION) += exyanals_drm_fbdev.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_FIMD)	+= exyanals_drm_fimd.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS5433_DECON)	+= exyanals5433_drm_decon.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS7_DECON)	+= exyanals7_drm_decon.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_DPI)	+= exyanals_drm_dpi.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_DSI)	+= exyanals_drm_dsi.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_DP)	+= exyanals_dp.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_MIXER)	+= exyanals_mixer.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_HDMI)	+= exyanals_hdmi.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_VIDI)	+= exyanals_drm_vidi.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_G2D)	+= exyanals_drm_g2d.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_IPP)	+= exyanals_drm_ipp.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_FIMC)	+= exyanals_drm_fimc.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_ROTATOR)	+= exyanals_drm_rotator.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_SCALER)	+= exyanals_drm_scaler.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_GSC)	+= exyanals_drm_gsc.o
+exyanalsdrm-$(CONFIG_DRM_EXYANALS_MIC)     += exyanals_drm_mic.o
 
-obj-$(CONFIG_DRM_EXYNOS)		+= exynosdrm.o
+obj-$(CONFIG_DRM_EXYANALS)		+= exyanalsdrm.o

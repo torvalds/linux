@@ -18,7 +18,7 @@ static __init int apic_ipi_shorthand(char *str)
 	get_option(&str, &apic_ipi_shorthand_off);
 	return 1;
 }
-__setup("no_ipi_broadcast=", apic_ipi_shorthand);
+__setup("anal_ipi_broadcast=", apic_ipi_shorthand);
 
 static int __init print_ipi_mode(void)
 {
@@ -31,10 +31,10 @@ late_initcall(print_ipi_mode);
 void apic_smt_update(void)
 {
 	/*
-	 * Do not switch to broadcast mode if:
+	 * Do analt switch to broadcast mode if:
 	 * - Disabled on the command line
 	 * - Only a single CPU is online
-	 * - Not all present CPUs have been at least booted once
+	 * - Analt all present CPUs have been at least booted once
 	 *
 	 * The latter is important as the local APIC might be in some
 	 * random state and a broadcast might cause havoc. That's
@@ -60,8 +60,8 @@ void apic_send_IPI_allbutself(unsigned int vector)
 }
 
 /*
- * Send a 'reschedule' IPI to another CPU. It goes straight through and
- * wastes no time serializing anything. Worst case is that we lose a
+ * Send a 'reschedule' IPI to aanalther CPU. It goes straight through and
+ * wastes anal time serializing anything. Worst case is that we lose a
  * reschedule ...
  */
 void native_smp_send_reschedule(int cpu)
@@ -133,7 +133,7 @@ void apic_mem_wait_icr_idle(void)
 
 /*
  * This is safe against interruption because it only writes the lower 32
- * bits of the APIC_ICR register. The destination field is ignored for
+ * bits of the APIC_ICR register. The destination field is iganalred for
  * short hand IPIs.
  *
  *  wait_icr_idle()
@@ -144,7 +144,7 @@ void apic_mem_wait_icr_idle(void)
  *	wait_icr_idle()
  *  write(ICR)
  *
- * This function does not need to disable interrupts as there is no ICR2
+ * This function does analt need to disable interrupts as there is anal ICR2
  * interaction. The memory write is direct except when the machine is
  * affected by the 11AP Pentium erratum, which turns the plain write into
  * an XCHG operation.
@@ -162,12 +162,12 @@ static void __default_send_IPI_shortcut(unsigned int shortcut, int vector)
 	else
 		apic_mem_wait_icr_idle();
 
-	/* Destination field (ICR2) and the destination mode are ignored */
+	/* Destination field (ICR2) and the destination mode are iganalred */
 	native_apic_mem_write(APIC_ICR, __prepare_ICR(shortcut, vector, 0));
 }
 
 /*
- * This is used to send an IPI with no shorthand notation (the destination is
+ * This is used to send an IPI with anal shorthand analtation (the destination is
  * specified in bits 56 to 63 of the ICR).
  */
 void __default_send_IPI_dest_field(unsigned int dest_mask, int vector,

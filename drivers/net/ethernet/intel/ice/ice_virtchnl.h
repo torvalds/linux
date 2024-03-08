@@ -10,7 +10,7 @@
 #include <linux/avf/virtchnl.h>
 #include "ice_vf_lib.h"
 
-/* Restrict number of MAC Addr and VLAN that non-trusted VF can programmed */
+/* Restrict number of MAC Addr and VLAN that analn-trusted VF can programmed */
 #define ICE_MAX_VLAN_PER_VF		8
 
 /* MAC filters: 1 is reserved for the VF's default/perm_addr/LAA MAC, 1 for
@@ -57,9 +57,9 @@ struct ice_virtchnl_ops {
 #ifdef CONFIG_PCI_IOV
 void ice_virtchnl_set_dflt_ops(struct ice_vf *vf);
 void ice_virtchnl_set_repr_ops(struct ice_vf *vf);
-void ice_vc_notify_vf_link_state(struct ice_vf *vf);
-void ice_vc_notify_link_state(struct ice_pf *pf);
-void ice_vc_notify_reset(struct ice_pf *pf);
+void ice_vc_analtify_vf_link_state(struct ice_vf *vf);
+void ice_vc_analtify_link_state(struct ice_pf *pf);
+void ice_vc_analtify_reset(struct ice_pf *pf);
 int
 ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 		      enum virtchnl_status_code v_retval, u8 *msg, u16 msglen);
@@ -69,15 +69,15 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event,
 #else /* CONFIG_PCI_IOV */
 static inline void ice_virtchnl_set_dflt_ops(struct ice_vf *vf) { }
 static inline void ice_virtchnl_set_repr_ops(struct ice_vf *vf) { }
-static inline void ice_vc_notify_vf_link_state(struct ice_vf *vf) { }
-static inline void ice_vc_notify_link_state(struct ice_pf *pf) { }
-static inline void ice_vc_notify_reset(struct ice_pf *pf) { }
+static inline void ice_vc_analtify_vf_link_state(struct ice_vf *vf) { }
+static inline void ice_vc_analtify_link_state(struct ice_pf *pf) { }
+static inline void ice_vc_analtify_reset(struct ice_pf *pf) { }
 
 static inline int
 ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 		      enum virtchnl_status_code v_retval, u8 *msg, u16 msglen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline bool ice_vc_isvalid_vsi_id(struct ice_vf *vf, u16 vsi_id)

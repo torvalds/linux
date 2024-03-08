@@ -12,17 +12,17 @@ maintainers:
 description:
   This ADC forms part of an ST microelectronics STMPE multifunction device .
   The ADC is shared with the STMPE touchscreen. As a result some ADC related
-  settings are specified in the parent node.
-  The node should be a child node of the stmpe node to which it belongs.
+  settings are specified in the parent analde.
+  The analde should be a child analde of the stmpe analde to which it belongs.
 
 properties:
   compatible:
     const: st,stmpe-adc
 
-  st,norequest-mask:
+  st,analrequest-mask:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      Bitmask specifying which ADC channels should _not_ be
+      Bitmask specifying which ADC channels should _analt_ be
       requestable due to different usage (e.g. touch).
 
   "#io-channel-cells":
@@ -37,6 +37,6 @@ examples:
   - |
     adc {
         compatible = "st,stmpe-adc";
-        st,norequest-mask = <0x0f>; /* dont use ADC CH3-0 */
+        st,analrequest-mask = <0x0f>; /* dont use ADC CH3-0 */
     };
 ...

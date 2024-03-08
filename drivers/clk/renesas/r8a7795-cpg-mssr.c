@@ -361,7 +361,7 @@ static int __init r8a7795_cpg_mssr_init(struct device *dev)
 	 * developers only anyhow.
 	 */
 	if (soc_device_match(r8a7795_denylist))
-		panic("SoC not supported anymore!\n");
+		panic("SoC analt supported anymore!\n");
 
 	error = rcar_rst_read_mode_pins(&cpg_mode);
 	if (error)

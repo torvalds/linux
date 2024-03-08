@@ -20,8 +20,8 @@ enum netfs_how_to_modify {
 	NETFS_FOLIO_IS_UPTODATE,	/* Folio is uptodate already */
 	NETFS_JUST_PREFETCH,		/* We have to read the folio anyway */
 	NETFS_WHOLE_FOLIO_MODIFY,	/* We're going to overwrite the whole folio */
-	NETFS_MODIFY_AND_CLEAR,		/* We can assume there is no data to be downloaded. */
-	NETFS_STREAMING_WRITE,		/* Store incomplete data in non-uptodate page. */
+	NETFS_MODIFY_AND_CLEAR,		/* We can assume there is anal data to be downloaded. */
+	NETFS_STREAMING_WRITE,		/* Store incomplete data in analn-uptodate page. */
 	NETFS_STREAMING_WRITE_CONT,	/* Continue streaming write. */
 	NETFS_FLUSH_CONTENT,		/* Flush incompatible content. */
 };
@@ -53,7 +53,7 @@ static void netfs_folio_start_fscache(bool caching, struct folio *folio)
  * priority over avoiding RMW.  If the file is open readably, then we also
  * assume that we may want to read what we wrote.
  */
-static enum netfs_how_to_modify netfs_how_to_modify(struct netfs_inode *ctx,
+static enum netfs_how_to_modify netfs_how_to_modify(struct netfs_ianalde *ctx,
 						    struct file *file,
 						    struct folio *folio,
 						    void *netfs_group,
@@ -80,18 +80,18 @@ static enum netfs_how_to_modify netfs_how_to_modify(struct netfs_inode *ctx,
 		return NETFS_WHOLE_FOLIO_MODIFY;
 
 	if (file->f_mode & FMODE_READ)
-		goto no_write_streaming;
-	if (test_bit(NETFS_ICTX_NO_WRITE_STREAMING, &ctx->flags))
-		goto no_write_streaming;
+		goto anal_write_streaming;
+	if (test_bit(NETFS_ICTX_ANAL_WRITE_STREAMING, &ctx->flags))
+		goto anal_write_streaming;
 
 	if (netfs_is_cache_enabled(ctx)) {
 		/* We don't want to get a streaming write on a file that loses
 		 * caching service temporarily because the backing store got
 		 * culled.
 		 */
-		if (!test_bit(NETFS_ICTX_NO_WRITE_STREAMING, &ctx->flags))
-			set_bit(NETFS_ICTX_NO_WRITE_STREAMING, &ctx->flags);
-		goto no_write_streaming;
+		if (!test_bit(NETFS_ICTX_ANAL_WRITE_STREAMING, &ctx->flags))
+			set_bit(NETFS_ICTX_ANAL_WRITE_STREAMING, &ctx->flags);
+		goto anal_write_streaming;
 	}
 
 	if (!finfo)
@@ -105,7 +105,7 @@ static enum netfs_how_to_modify netfs_how_to_modify(struct netfs_inode *ctx,
 		return NETFS_STREAMING_WRITE_CONT;
 	return NETFS_FLUSH_CONTENT;
 
-no_write_streaming:
+anal_write_streaming:
 	if (finfo) {
 		netfs_stat(&netfs_n_wh_wstream_conflict);
 		return NETFS_FLUSH_CONTENT;
@@ -136,10 +136,10 @@ static struct folio *netfs_grab_folio_for_write(struct address_space *mapping,
  * @iter: The source buffer
  * @netfs_group: Grouping for dirty pages (eg. ceph snaps).
  *
- * Copy data into pagecache pages attached to the inode specified by @iocb.
- * The caller must hold appropriate inode locks.
+ * Copy data into pagecache pages attached to the ianalde specified by @iocb.
+ * The caller must hold appropriate ianalde locks.
  *
- * Dirty pages are tagged with a netfs_folio struct if they're not up to date
+ * Dirty pages are tagged with a netfs_folio struct if they're analt up to date
  * to indicate the range modified.  Dirty pages may also be tagged with a
  * netfs-specific grouping such that data from an old group gets flushed before
  * a new one is started.
@@ -148,11 +148,11 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 			    struct netfs_group *netfs_group)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct address_space *mapping = inode->i_mapping;
-	struct netfs_inode *ctx = netfs_inode(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct address_space *mapping = ianalde->i_mapping;
+	struct netfs_ianalde *ctx = netfs_ianalde(ianalde);
 	struct writeback_control wbc = {
-		.sync_mode	= WB_SYNC_NONE,
+		.sync_mode	= WB_SYNC_ANALNE,
 		.for_sync	= true,
 		.nr_to_write	= LONG_MAX,
 		.range_start	= iocb->ki_pos,
@@ -172,18 +172,18 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 	if (unlikely(test_bit(NETFS_ICTX_WRITETHROUGH, &ctx->flags) ||
 		     iocb->ki_flags & (IOCB_DSYNC | IOCB_SYNC))
 	    ) {
-		if (pos < i_size_read(inode)) {
+		if (pos < i_size_read(ianalde)) {
 			ret = filemap_write_and_wait_range(mapping, pos, pos + iter->count);
 			if (ret < 0) {
 				goto out;
 			}
 		}
 
-		wbc_attach_fdatawrite_inode(&wbc, mapping->host);
+		wbc_attach_fdatawrite_ianalde(&wbc, mapping->host);
 
 		wreq = netfs_begin_writethrough(iocb, iter->count);
 		if (IS_ERR(wreq)) {
-			wbc_detach_inode(&wbc);
+			wbc_detach_ianalde(&wbc);
 			ret = PTR_ERR(wreq);
 			wreq = NULL;
 			goto out;
@@ -210,11 +210,11 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 		 * we hit a nasty deadlock on copying from the same page as
 		 * we're writing to, without it being marked uptodate.
 		 *
-		 * Not only is this an optimisation, but it is also required to
+		 * Analt only is this an optimisation, but it is also required to
 		 * check that the address is actually valid, when atomic
 		 * usercopies are used below.
 		 *
-		 * We rely on the page being held onto long enough by the LRU
+		 * We rely on the page being held onto long eanalugh by the LRU
 		 * that we can grab it below if this causes it to be read.
 		 */
 		ret = -EFAULT;
@@ -320,7 +320,7 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 			finfo = kzalloc(sizeof(*finfo), GFP_KERNEL);
 			if (!finfo) {
 				iov_iter_revert(iter, copied);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error_folio_unlock;
 			}
 			finfo->netfs_group = netfs_get_group(netfs_group);
@@ -351,14 +351,14 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 
 		trace_netfs_folio(folio, trace);
 
-		/* Update the inode size if we moved the EOF marker */
-		i_size = i_size_read(inode);
+		/* Update the ianalde size if we moved the EOF marker */
+		i_size = i_size_read(ianalde);
 		pos += copied;
 		if (pos > i_size) {
 			if (ctx->ops->update_i_size) {
-				ctx->ops->update_i_size(inode, pos);
+				ctx->ops->update_i_size(ianalde, pos);
 			} else {
-				i_size_write(inode, pos);
+				i_size_write(ianalde, pos);
 #if IS_ENABLED(CONFIG_FSCACHE)
 				fscache_update_cookie(ctx->cache, NULL, &pos);
 #endif
@@ -396,7 +396,7 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 out:
 	if (unlikely(wreq)) {
 		ret = netfs_end_writethrough(wreq, iocb);
-		wbc_detach_inode(&wbc);
+		wbc_detach_ianalde(&wbc);
 		if (ret == -EIOCBQUEUED)
 			return ret;
 	}
@@ -427,13 +427,13 @@ EXPORT_SYMBOL(netfs_perform_write);
  * generic_write_checks() already.  The caller is also responsible for doing
  * any necessary syncing afterwards.
  *
- * This function does *not* take care of syncing data in case of O_SYNC write.
+ * This function does *analt* take care of syncing data in case of O_SYNC write.
  * A caller has to handle it. This is mainly due to the fact that we want to
  * avoid syncing under i_rwsem.
  *
  * Return:
  * * number of bytes written, even for truncated writes
- * * negative error code if no data has been written at all
+ * * negative error code if anal data has been written at all
  */
 ssize_t netfs_buffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *from,
 					 struct netfs_group *netfs_group)
@@ -461,21 +461,21 @@ EXPORT_SYMBOL(netfs_buffered_write_iter_locked);
  * @from: iov_iter with data to write
  *
  * Perform a write to a file, writing into the pagecache if possible and doing
- * an unbuffered write instead if not.
+ * an unbuffered write instead if analt.
  *
  * Return:
- * * Negative error code if no data has been written at all of
- *   vfs_fsync_range() failed for a synchronous write
+ * * Negative error code if anal data has been written at all of
+ *   vfs_fsync_range() failed for a synchroanalus write
  * * Number of bytes written, even for truncated writes
  */
 ssize_t netfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
-	struct netfs_inode *ictx = netfs_inode(inode);
+	struct ianalde *ianalde = file->f_mapping->host;
+	struct netfs_ianalde *ictx = netfs_ianalde(ianalde);
 	ssize_t ret;
 
-	_enter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(inode));
+	_enter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(ianalde));
 
 	if (!iov_iter_count(from))
 		return 0;
@@ -484,14 +484,14 @@ ssize_t netfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	    test_bit(NETFS_ICTX_UNBUFFERED, &ictx->flags))
 		return netfs_unbuffered_write_iter(iocb, from);
 
-	ret = netfs_start_io_write(inode);
+	ret = netfs_start_io_write(ianalde);
 	if (ret < 0)
 		return ret;
 
 	ret = generic_write_checks(iocb, from);
 	if (ret > 0)
 		ret = netfs_buffered_write_iter_locked(iocb, from, NULL);
-	netfs_end_io_write(inode);
+	netfs_end_io_write(ianalde);
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
 	return ret;
@@ -499,20 +499,20 @@ ssize_t netfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 EXPORT_SYMBOL(netfs_file_write_iter);
 
 /*
- * Notification that a previously read-only page is about to become writable.
- * Note that the caller indicates a single page of a multipage folio.
+ * Analtification that a previously read-only page is about to become writable.
+ * Analte that the caller indicates a single page of a multipage folio.
  */
 vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_group)
 {
 	struct folio *folio = page_folio(vmf->page);
 	struct file *file = vmf->vma->vm_file;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	vm_fault_t ret = VM_FAULT_RETRY;
 	int err;
 
 	_enter("%lx", folio->index);
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(ianalde->i_sb);
 
 	if (folio_wait_writeback_killable(folio))
 		goto out;
@@ -528,14 +528,14 @@ vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_gr
 
 	if (netfs_folio_group(folio) != netfs_group) {
 		folio_unlock(folio);
-		err = filemap_fdatawait_range(inode->i_mapping,
+		err = filemap_fdatawait_range(ianalde->i_mapping,
 					      folio_pos(folio),
 					      folio_pos(folio) + folio_size(folio));
 		switch (err) {
 		case 0:
 			ret = VM_FAULT_RETRY;
 			goto out;
-		case -ENOMEM:
+		case -EANALMEM:
 			ret = VM_FAULT_OOM;
 			goto out;
 		default:
@@ -552,7 +552,7 @@ vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_gr
 	file_update_time(file);
 	ret = VM_FAULT_LOCKED;
 out:
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(ianalde->i_sb);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_page_mkwrite);
@@ -655,7 +655,7 @@ static void netfs_pages_written_back(struct netfs_io_request *wreq)
 		     wreq->len, wreq->start, folio->index, last);
 
 		if ((finfo = netfs_folio_info(folio))) {
-			/* Streaming writes cannot be redirtied whilst under
+			/* Streaming writes cananalt be redirtied whilst under
 			 * writeback, so discard the streaming record.
 			 */
 			folio_detach_private(folio);
@@ -727,17 +727,17 @@ static void netfs_cleanup_buffered_write(struct netfs_io_request *wreq)
 		break;
 
 	default:
-		pr_notice("R=%08x Unexpected error %d\n", wreq->debug_id, wreq->error);
+		pr_analtice("R=%08x Unexpected error %d\n", wreq->debug_id, wreq->error);
 		fallthrough;
 	case -EACCES:
 	case -EPERM:
-	case -ENOKEY:
+	case -EANALKEY:
 	case -EKEYEXPIRED:
 	case -EKEYREJECTED:
 	case -EKEYREVOKED:
 	case -ENETRESET:
 	case -EDQUOT:
-	case -ENOSPC:
+	case -EANALSPC:
 		netfs_redirty_pages(mapping, wreq->start, wreq->len);
 		break;
 
@@ -745,8 +745,8 @@ static void netfs_cleanup_buffered_write(struct netfs_io_request *wreq)
 	case -EIO:
 	case -EREMOTEIO:
 	case -EFBIG:
-	case -ENOENT:
-	case -ENOMEDIUM:
+	case -EANALENT:
+	case -EANALMEDIUM:
 	case -ENXIO:
 		netfs_kill_pages(mapping, wreq->start, wreq->len);
 		break;
@@ -862,7 +862,7 @@ static void netfs_extend_writeback(struct address_space *mapping,
 		xas_pause(xas);
 		rcu_read_unlock();
 
-		/* Now, if we obtained any folios, we can shift them to being
+		/* Analw, if we obtained any folios, we can shift them to being
 		 * writable and mark them for caching.
 		 */
 		if (!folio_batch_count(&fbatch))
@@ -885,7 +885,7 @@ static void netfs_extend_writeback(struct address_space *mapping,
 }
 
 /*
- * Synchronously write back the locked page and any subsequent non-locked dirty
+ * Synchroanalusly write back the locked page and any subsequent analn-locked dirty
  * pages.
  */
 static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
@@ -898,8 +898,8 @@ static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
 {
 	struct netfs_io_request *wreq;
 	struct netfs_folio *finfo;
-	struct netfs_inode *ctx = netfs_inode(mapping->host);
-	unsigned long long i_size = i_size_read(&ctx->inode);
+	struct netfs_ianalde *ctx = netfs_ianalde(mapping->host);
+	unsigned long long i_size = i_size_read(&ctx->ianalde);
 	size_t len, max_len;
 	bool caching = netfs_is_cache_enabled(ctx);
 	long count = wbc->nr_to_write;
@@ -922,8 +922,8 @@ static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
 	count -= folio_nr_pages(folio);
 
 	/* Find all consecutive lockable dirty pages that have contiguous
-	 * written regions, stopping when we find a page that is not
-	 * immediately lockable, is not dirty or is missing, or we reach the
+	 * written regions, stopping when we find a page that is analt
+	 * immediately lockable, is analt dirty or is missing, or we reach the
 	 * end of the range.
 	 */
 	trace_netfs_folio(folio, netfs_folio_trace_store);
@@ -940,7 +940,7 @@ static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
 	}
 
 	if (start < i_size) {
-		/* Trim the write to the EOF; the extra data is ignored.  Also
+		/* Trim the write to the EOF; the extra data is iganalred.  Also
 		 * put an upper limit on the size of a single storedata op.
 		 */
 		max_len = 65536 * 4096;
@@ -955,7 +955,7 @@ static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
 cant_expand:
 	len = min_t(unsigned long long, len, i_size - start);
 
-	/* We now have a contiguous set of dirty pages, each with writeback
+	/* We analw have a contiguous set of dirty pages, each with writeback
 	 * set; the first page is still locked at this point, but all the rest
 	 * have been unlocked.
 	 */
@@ -1032,7 +1032,7 @@ search_again:
 			continue;
 		}
 
-		/* Skip any dirty folio that's not in the group of interest. */
+		/* Skip any dirty folio that's analt in the group of interest. */
 		priv = folio_get_private(folio);
 		if ((const struct netfs_group *)priv != group) {
 			finfo = netfs_folio_info(folio);
@@ -1053,13 +1053,13 @@ search_again:
 
 	_debug("wback %lx", folio->index);
 
-	/* At this point we hold neither the i_pages lock nor the page lock:
+	/* At this point we hold neither the i_pages lock analr the page lock:
 	 * the page may be truncated or invalidated (changing page->mapping to
 	 * NULL), or even swizzled back from swapper_space to tmpfs file
 	 * mapping
 	 */
 lock_again:
-	if (wbc->sync_mode != WB_SYNC_NONE) {
+	if (wbc->sync_mode != WB_SYNC_ANALNE) {
 		ret = folio_lock_killable(folio);
 		if (ret < 0)
 			return ret;
@@ -1078,7 +1078,7 @@ lock_again:
 	if (folio_test_writeback(folio) ||
 	    folio_test_fscache(folio)) {
 		folio_unlock(folio);
-		if (wbc->sync_mode != WB_SYNC_NONE) {
+		if (wbc->sync_mode != WB_SYNC_ANALNE) {
 			folio_wait_writeback(folio);
 #ifdef CONFIG_FSCACHE
 			folio_wait_fscache(folio);
@@ -1087,7 +1087,7 @@ lock_again:
 		}
 
 		start += folio_size(folio);
-		if (wbc->sync_mode == WB_SYNC_NONE) {
+		if (wbc->sync_mode == WB_SYNC_ANALNE) {
 			if (skips >= 5 || need_resched()) {
 				ret = 0;
 				goto out;
@@ -1188,7 +1188,7 @@ EXPORT_SYMBOL(netfs_writepages);
 static void netfs_cleanup_launder_folio(struct netfs_io_request *wreq)
 {
 	if (wreq->error) {
-		pr_notice("R=%08x Laundering error %d\n", wreq->debug_id, wreq->error);
+		pr_analtice("R=%08x Laundering error %d\n", wreq->debug_id, wreq->error);
 		mapping_set_error(wreq->mapping, wreq->error);
 	}
 }
@@ -1197,7 +1197,7 @@ static void netfs_cleanup_launder_folio(struct netfs_io_request *wreq)
  * netfs_launder_folio - Clean up a dirty folio that's being invalidated
  * @folio: The folio to clean
  *
- * This is called to write back a folio that's being invalidated when an inode
+ * This is called to write back a folio that's being invalidated when an ianalde
  * is getting torn down.  Ideally, writepages would be used instead.
  */
 int netfs_launder_folio(struct folio *folio)

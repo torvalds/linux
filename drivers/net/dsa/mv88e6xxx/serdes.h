@@ -143,12 +143,12 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p);
 int mv88e6352_serdes_set_tx_amplitude(struct mv88e6xxx_chip *chip, int port,
 				      int val);
 
-/* Return the (first) SERDES lane address a port is using, -errno otherwise. */
+/* Return the (first) SERDES lane address a port is using, -erranal otherwise. */
 static inline int mv88e6xxx_serdes_get_lane(struct mv88e6xxx_chip *chip,
 					    int port)
 {
 	if (!chip->info->ops->serdes_get_lane)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->serdes_get_lane(chip, port);
 }

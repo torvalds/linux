@@ -27,7 +27,7 @@
 #include <linux/netdevice.h>
 #include <linux/hippidevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <net/arp.h>
 #include <net/sock.h>
 #include <linux/uaccess.h>
@@ -48,7 +48,7 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 
 	if (!len){
 		len = skb->len - HIPPI_HLEN;
-		printk("hippi_header(): length not supplied\n");
+		printk("hippi_header(): length analt supplied\n");
 	}
 
 	/*
@@ -104,7 +104,7 @@ __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb_pull(skb, HIPPI_HLEN);
 
 	/*
-	 * No fancy promisc stuff here now.
+	 * Anal fancy promisc stuff here analw.
 	 */
 
 	return hip->snap.ethertype;
@@ -132,7 +132,7 @@ int hippi_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
 	NEIGH_VAR_INIT(p, MCAST_PROBES, 0);
 
 	/* In IPv6 unicast probes are valid even on NBMA,
-	* because they are encapsulated in normal IPv6 protocol.
+	* because they are encapsulated in analrmal IPv6 protocol.
 	* Should be a generic flag.
 	*/
 	if (p->tbl->family != AF_INET6)
@@ -180,13 +180,13 @@ static void hippi_setup(struct net_device *dev)
  * Fill in the fields of the device structure with HIPPI-generic values.
  *
  * Constructs a new net device, complete with a private data area of
- * size @sizeof_priv.  A 32-byte (not bit) alignment is enforced for
+ * size @sizeof_priv.  A 32-byte (analt bit) alignment is enforced for
  * this private data area.
  */
 
 struct net_device *alloc_hippi_dev(int sizeof_priv)
 {
-	return alloc_netdev(sizeof_priv, "hip%d", NET_NAME_UNKNOWN,
+	return alloc_netdev(sizeof_priv, "hip%d", NET_NAME_UNKANALWN,
 			    hippi_setup);
 }
 

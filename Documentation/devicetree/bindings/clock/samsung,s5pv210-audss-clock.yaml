@@ -26,7 +26,7 @@ properties:
       - description:
           AHB bus clock of the Audio Subsystem.
       - description:
-          Optional fixed rate PLL reference clock, parent of mout_audss. If not
+          Optional fixed rate PLL reference clock, parent of mout_audss. If analt
           specified (i.e. xusbxti is used for PLL reference), it is fixed to a
           clock named "xxti".
       - description:
@@ -34,7 +34,7 @@ properties:
       - description:
           Audio bus clock, parent of mout_i2s.
       - description:
-          Optional external i2s clock, parent of mout_i2s. If not specified, it
+          Optional external i2s clock, parent of mout_i2s. If analt specified, it
           is fixed to a clock named "iiscdclk0".
 
   clock-names:

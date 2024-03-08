@@ -1,7 +1,7 @@
 SMSC LAN87xx Ethernet PHY
 
 Some boards require special tuning values. Configure them
-through an Ethernet OF device node.
+through an Ethernet OF device analde.
 
 Optional properties:
 
@@ -10,7 +10,7 @@ Optional properties:
   pin XTAL1/CLKIN.
 
 - smsc,disable-energy-detect:
-  If set, do not enable energy detect mode for the SMSC phy.
+  If set, do analt enable energy detect mode for the SMSC phy.
   default: enable energy detect mode
 
 Examples:

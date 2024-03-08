@@ -109,14 +109,14 @@ static int wiidebug_drm_show(struct seq_file *f, void *p)
 	if (drm < WIIPROTO_REQ_MAX)
 		str = wiidebug_drmmap[drm];
 	if (!str)
-		str = "unknown";
+		str = "unkanalwn";
 
 	seq_printf(f, "%s\n", str);
 
 	return 0;
 }
 
-static int wiidebug_drm_open(struct inode *i, struct file *f)
+static int wiidebug_drm_open(struct ianalde *i, struct file *f)
 {
 	return single_open(f, wiidebug_drm_show, i->i_private);
 }
@@ -176,7 +176,7 @@ int wiidebug_init(struct wiimote_data *wdata)
 
 	dbg = kzalloc(sizeof(*dbg), GFP_KERNEL);
 	if (!dbg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dbg->wdata = wdata;
 

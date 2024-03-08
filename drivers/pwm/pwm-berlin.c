@@ -1,7 +1,7 @@
 /*
  * Marvell Berlin PWM driver
  *
- * Copyright (C) 2015 Marvell Technology Group Ltd.
+ * Copyright (C) 2015 Marvell Techanallogy Group Ltd.
  *
  * Author: Antoine Tenart <antoine.tenart@free-electrons.com>
  *
@@ -120,7 +120,7 @@ static int berlin_pwm_set_polarity(struct pwm_chip *chip,
 
 	value = berlin_pwm_readl(bpc, pwm->hwpwm, BERLIN_PWM_CONTROL);
 
-	if (polarity == PWM_POLARITY_NORMAL)
+	if (polarity == PWM_POLARITY_ANALRMAL)
 		value &= ~BERLIN_PWM_INVERT_POLARITY;
 	else
 		value |= BERLIN_PWM_INVERT_POLARITY;
@@ -203,7 +203,7 @@ static int berlin_pwm_probe(struct platform_device *pdev)
 
 	bpc = devm_kzalloc(&pdev->dev, sizeof(*bpc), GFP_KERNEL);
 	if (!bpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bpc->base))

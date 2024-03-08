@@ -15,7 +15,7 @@ int __init nfc_llc_init(void)
 {
 	int r;
 
-	r = nfc_llc_nop_register();
+	r = nfc_llc_analp_register();
 	if (r)
 		goto exit;
 
@@ -47,12 +47,12 @@ int nfc_llc_register(const char *name, const struct nfc_llc_ops *ops)
 
 	llc_engine = kzalloc(sizeof(struct nfc_llc_engine), GFP_KERNEL);
 	if (llc_engine == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	llc_engine->name = kstrdup(name, GFP_KERNEL);
 	if (llc_engine->name == NULL) {
 		kfree(llc_engine);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	llc_engine->ops = ops;
 

@@ -47,7 +47,7 @@ static int inv_mpu_probe(struct spi_device *spi)
 		chip_type = (uintptr_t)match;
 		name = dev_name(&spi->dev);
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	regmap = devm_regmap_init_spi(spi, &inv_mpu_regmap_config);

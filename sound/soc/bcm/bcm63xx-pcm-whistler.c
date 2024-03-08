@@ -48,9 +48,9 @@ static int bcm63xx_pcm_hw_params(struct snd_soc_component *component,
 	struct i2s_dma_desc *dma_desc;
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
-	dma_desc = kzalloc(sizeof(*dma_desc), GFP_NOWAIT);
+	dma_desc = kzalloc(sizeof(*dma_desc), GFP_ANALWAIT);
 	if (!dma_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_dai_set_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream, dma_desc);
 
@@ -209,7 +209,7 @@ static int bcm63xx_pcm_open(struct snd_soc_component *component,
 	if (ret < 0)
 		goto out;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (!prtd)
 		goto out;
@@ -354,7 +354,7 @@ static int bcm63xx_soc_pcm_new(struct snd_soc_component *component,
 
 	i2s_priv = dev_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0)->dev);
 
-	of_dma_configure(pcm->card->dev, pcm->card->dev->of_node, 1);
+	of_dma_configure(pcm->card->dev, pcm->card->dev->of_analde, 1);
 
 	ret = dma_coerce_mask_and_coherent(pcm->card->dev, DMA_BIT_MASK(32));
 	if (ret)

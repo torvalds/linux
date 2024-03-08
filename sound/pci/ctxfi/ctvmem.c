@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File    ctvmem.c
  *
@@ -35,7 +35,7 @@ get_vm_block(struct ct_vm *vm, unsigned int size, struct ct_atc *atc)
 	size = CT_PAGE_ALIGN(size);
 	if (size > vm->size) {
 		dev_err(atc->card->dev,
-			"Fail! No sufficient device virtual memory space available!\n");
+			"Fail! Anal sufficient device virtual memory space available!\n");
 		return NULL;
 	}
 
@@ -43,13 +43,13 @@ get_vm_block(struct ct_vm *vm, unsigned int size, struct ct_atc *atc)
 	list_for_each(pos, &vm->unused) {
 		entry = list_entry(pos, struct ct_vm_block, list);
 		if (entry->size >= size)
-			break; /* found a block that is big enough */
+			break; /* found a block that is big eanalugh */
 	}
 	if (pos == &vm->unused)
 		goto out;
 
 	if (entry->size == size) {
-		/* Move the vm node from unused list to used list directly */
+		/* Move the vm analde from unused list to used list directly */
 		list_move(&entry->list, &vm->used);
 		vm->size -= size;
 		block = entry;
@@ -132,7 +132,7 @@ ct_vm_map(struct ct_vm *vm, struct snd_pcm_substream *substream, int size)
 	block = get_vm_block(vm, size, atc);
 	if (block == NULL) {
 		dev_err(atc->card->dev,
-			"No virtual memory block that is big enough to allocate!\n");
+			"Anal virtual memory block that is big eanalugh to allocate!\n");
 		return NULL;
 	}
 
@@ -176,7 +176,7 @@ int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci)
 
 	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&vm->lock);
 
@@ -189,9 +189,9 @@ int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci)
 			break;
 	}
 	if (err < 0) {
-		/* no page table pages are allocated */
+		/* anal page table pages are allocated */
 		ct_vm_destroy(vm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	vm->size = CT_ADDRS_PER_PAGE * i;
 	vm->map = ct_vm_map;
@@ -210,7 +210,7 @@ int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci)
 	return 0;
 }
 
-/* The caller must ensure no mapping pages are being used
+/* The caller must ensure anal mapping pages are being used
  * by hardware before calling this function */
 void ct_vm_destroy(struct ct_vm *vm)
 {
@@ -218,7 +218,7 @@ void ct_vm_destroy(struct ct_vm *vm)
 	struct list_head *pos;
 	struct ct_vm_block *entry;
 
-	/* free used and unused list nodes */
+	/* free used and unused list analdes */
 	while (!list_empty(&vm->used)) {
 		pos = vm->used.next;
 		list_del(pos);

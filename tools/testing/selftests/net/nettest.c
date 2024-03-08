@@ -27,7 +27,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 
 #include <linux/xfrm.h>
@@ -146,10 +146,10 @@ static int try_broadcast = 1;
 
 static char *timestamp(char *timebuf, int buflen)
 {
-	time_t now;
+	time_t analw;
 
-	now = time(NULL);
-	if (strftime(timebuf, buflen, "%T", localtime(&now)) == 0) {
+	analw = time(NULL);
+	if (strftime(timebuf, buflen, "%T", localtime(&analw)) == 0) {
 		memset(timebuf, 0, buflen);
 		strncpy(timebuf, "00:00:00", buflen-1);
 	}
@@ -193,7 +193,7 @@ static void log_error(const char *format, ...)
 	fflush(stderr);
 }
 
-static void log_err_errno(const char *fmt, ...)
+static void log_err_erranal(const char *fmt, ...)
 {
 	char timebuf[64];
 	va_list args;
@@ -208,7 +208,7 @@ static void log_err_errno(const char *fmt, ...)
 	vfprintf(stderr, fmt, args);
 	va_end(args);
 
-	fprintf(stderr, ": %d: %s\n", errno, strerror(errno));
+	fprintf(stderr, ": %d: %s\n", erranal, strerror(erranal));
 	fflush(stderr);
 }
 
@@ -252,7 +252,7 @@ static int switch_ns(const char *ns)
 	snprintf(path, sizeof(path), "%s%s", NS_PREFIX, ns);
 	fd = open(path, 0);
 	if (fd < 0) {
-		log_err_errno("Failed to open netns path; can not switch netns");
+		log_err_erranal("Failed to open netns path; can analt switch netns");
 		return 1;
 	}
 
@@ -293,11 +293,11 @@ static int tcp_md5sig(int sd, void *addr, socklen_t alen, struct sock_args *args
 
 	rc = setsockopt(sd, IPPROTO_TCP, opt, &md5sig, sizeof(md5sig));
 	if (rc < 0) {
-		/* ENOENT is harmless. Returned when a password is cleared */
-		if (errno == ENOENT)
+		/* EANALENT is harmless. Returned when a password is cleared */
+		if (erranal == EANALENT)
 			rc = 0;
 		else
-			log_err_errno("setsockopt(TCP_MD5SIG)");
+			log_err_erranal("setsockopt(TCP_MD5SIG)");
 	}
 
 	return rc;
@@ -328,7 +328,7 @@ static int tcp_md5_remote(int sd, struct sock_args *args)
 		alen = sizeof(sin6);
 		break;
 	default:
-		log_error("unknown address family\n");
+		log_error("unkanalwn address family\n");
 		exit(1);
 	}
 
@@ -352,14 +352,14 @@ static int get_ifidx(const char *ifname)
 
 	sd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (sd < 0) {
-		log_err_errno("socket failed");
+		log_err_erranal("socket failed");
 		return -1;
 	}
 
 	rc = ioctl(sd, SIOCGIFINDEX, (char *)&ifdata);
 	close(sd);
 	if (rc != 0) {
-		log_err_errno("ioctl(SIOCGIFINDEX) failed");
+		log_err_erranal("ioctl(SIOCGIFINDEX) failed");
 		return -1;
 	}
 
@@ -372,7 +372,7 @@ static int bind_to_device(int sd, const char *name)
 
 	rc = setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, name, strlen(name)+1);
 	if (rc < 0)
-		log_err_errno("setsockopt(SO_BINDTODEVICE)");
+		log_err_erranal("setsockopt(SO_BINDTODEVICE)");
 
 	return rc;
 }
@@ -385,7 +385,7 @@ static int get_bind_to_device(int sd, char *name, size_t len)
 	name[0] = '\0';
 	rc = getsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, name, &optlen);
 	if (rc < 0)
-		log_err_errno("setsockopt(SO_BINDTODEVICE)");
+		log_err_erranal("setsockopt(SO_BINDTODEVICE)");
 
 	return rc;
 }
@@ -401,7 +401,7 @@ static int check_device(int sd, struct sock_args *args)
 		ifindex = get_ifidx(name);
 
 	log_msg("    bound to device %s/%d\n",
-		*name ? name : "<none>", ifindex);
+		*name ? name : "<analne>", ifindex);
 
 	if (!args->expected_ifindex)
 		return 0;
@@ -424,8 +424,8 @@ static int set_pktinfo_v4(int sd)
 	int rc;
 
 	rc = setsockopt(sd, SOL_IP, IP_PKTINFO, &one, sizeof(one));
-	if (rc < 0 && rc != -ENOTSUP)
-		log_err_errno("setsockopt(IP_PKTINFO)");
+	if (rc < 0 && rc != -EANALTSUP)
+		log_err_erranal("setsockopt(IP_PKTINFO)");
 
 	return rc;
 }
@@ -436,8 +436,8 @@ static int set_recvpktinfo_v6(int sd)
 	int rc;
 
 	rc = setsockopt(sd, SOL_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));
-	if (rc < 0 && rc != -ENOTSUP)
-		log_err_errno("setsockopt(IPV6_RECVPKTINFO)");
+	if (rc < 0 && rc != -EANALTSUP)
+		log_err_erranal("setsockopt(IPV6_RECVPKTINFO)");
 
 	return rc;
 }
@@ -448,8 +448,8 @@ static int set_recverr_v4(int sd)
 	int rc;
 
 	rc = setsockopt(sd, SOL_IP, IP_RECVERR, &one, sizeof(one));
-	if (rc < 0 && rc != -ENOTSUP)
-		log_err_errno("setsockopt(IP_RECVERR)");
+	if (rc < 0 && rc != -EANALTSUP)
+		log_err_erranal("setsockopt(IP_RECVERR)");
 
 	return rc;
 }
@@ -460,8 +460,8 @@ static int set_recverr_v6(int sd)
 	int rc;
 
 	rc = setsockopt(sd, SOL_IPV6, IPV6_RECVERR, &one, sizeof(one));
-	if (rc < 0 && rc != -ENOTSUP)
-		log_err_errno("setsockopt(IPV6_RECVERR)");
+	if (rc < 0 && rc != -EANALTSUP)
+		log_err_erranal("setsockopt(IPV6_RECVERR)");
 
 	return rc;
 }
@@ -480,7 +480,7 @@ static int set_unicast_if(int sd, int ifindex, int version)
 	}
 	rc = setsockopt(sd, level, opt, &ifindex, sizeof(ifindex));
 	if (rc < 0)
-		log_err_errno("setsockopt(IP_UNICAST_IF)");
+		log_err_erranal("setsockopt(IP_UNICAST_IF)");
 
 	return rc;
 }
@@ -492,7 +492,7 @@ static int set_multicast_if(int sd, int ifindex)
 
 	rc = setsockopt(sd, SOL_IP, IP_MULTICAST_IF, &mreq, sizeof(mreq));
 	if (rc < 0)
-		log_err_errno("setsockopt(IP_MULTICAST_IF)");
+		log_err_erranal("setsockopt(IP_MULTICAST_IF)");
 
 	return rc;
 }
@@ -514,7 +514,7 @@ static int set_membership(int sd, uint32_t grp, uint32_t addr, int ifindex)
 
 	rc = setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
 	if (rc < 0) {
-		log_err_errno("setsockopt(IP_ADD_MEMBERSHIP)");
+		log_err_erranal("setsockopt(IP_ADD_MEMBERSHIP)");
 		return -1;
 	}
 
@@ -529,13 +529,13 @@ static int set_freebind(int sd, int version)
 	switch (version) {
 	case AF_INET:
 		if (setsockopt(sd, SOL_IP, IP_FREEBIND, &one, sizeof(one))) {
-			log_err_errno("setsockopt(IP_FREEBIND)");
+			log_err_erranal("setsockopt(IP_FREEBIND)");
 			rc = -1;
 		}
 		break;
 	case AF_INET6:
 		if (setsockopt(sd, SOL_IPV6, IPV6_FREEBIND, &one, sizeof(one))) {
-			log_err_errno("setsockopt(IPV6_FREEBIND");
+			log_err_erranal("setsockopt(IPV6_FREEBIND");
 			rc = -1;
 		}
 		break;
@@ -550,7 +550,7 @@ static int set_broadcast(int sd)
 	int rc = 0;
 
 	if (setsockopt(sd, SOL_SOCKET, SO_BROADCAST, &one, sizeof(one)) != 0) {
-		log_err_errno("setsockopt(SO_BROADCAST)");
+		log_err_erranal("setsockopt(SO_BROADCAST)");
 		rc = -1;
 	}
 
@@ -563,7 +563,7 @@ static int set_reuseport(int sd)
 	int rc = 0;
 
 	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)) != 0) {
-		log_err_errno("setsockopt(SO_REUSEPORT)");
+		log_err_erranal("setsockopt(SO_REUSEPORT)");
 		rc = -1;
 	}
 
@@ -576,7 +576,7 @@ static int set_reuseaddr(int sd)
 	int rc = 0;
 
 	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
-		log_err_errno("setsockopt(SO_REUSEADDR)");
+		log_err_erranal("setsockopt(SO_REUSEADDR)");
 		rc = -1;
 	}
 
@@ -592,7 +592,7 @@ static int set_dsfield(int sd, int version, int dsfield)
 	case AF_INET:
 		if (setsockopt(sd, SOL_IP, IP_TOS, &dsfield,
 			       sizeof(dsfield)) < 0) {
-			log_err_errno("setsockopt(IP_TOS)");
+			log_err_erranal("setsockopt(IP_TOS)");
 			return -1;
 		}
 		break;
@@ -600,7 +600,7 @@ static int set_dsfield(int sd, int version, int dsfield)
 	case AF_INET6:
 		if (setsockopt(sd, SOL_IPV6, IPV6_TCLASS, &dsfield,
 			       sizeof(dsfield)) < 0) {
-			log_err_errno("setsockopt(IPV6_TCLASS)");
+			log_err_erranal("setsockopt(IPV6_TCLASS)");
 			return -1;
 		}
 		break;
@@ -618,7 +618,7 @@ static int set_dontroute(int sd)
 	unsigned int one = 1;
 
 	if (setsockopt(sd, SOL_SOCKET, SO_DONTROUTE, &one, sizeof(one)) < 0) {
-		log_err_errno("setsockopt(SO_DONTROUTE)");
+		log_err_erranal("setsockopt(SO_DONTROUTE)");
 		return -1;
 	}
 
@@ -630,14 +630,14 @@ static int str_to_uint(const char *str, int min, int max, unsigned int *value)
 	int number;
 	char *end;
 
-	errno = 0;
+	erranal = 0;
 	number = (unsigned int) strtoul(str, &end, 0);
 
 	/* entire string should be consumed by conversion
 	 * and value should be between min and max
 	 */
 	if (((*end == '\0') || (*end == '\n')) && (end != str) &&
-	    (errno != ERANGE) && (min <= number) && (number <= max)) {
+	    (erranal != ERANGE) && (min <= number) && (number <= max)) {
 		*value = number;
 		return 0;
 	}
@@ -683,7 +683,7 @@ static int expected_addr_match(struct sockaddr *sa, void *expected,
 		struct in_addr *exp_in = (struct in_addr *) expected;
 
 		if (s->sin_addr.s_addr != exp_in->s_addr) {
-			log_error("%s address does not match expected %s\n",
+			log_error("%s address does analt match expected %s\n",
 				  desc,
 				  inet_ntop(AF_INET, exp_in,
 					    addrstr, sizeof(addrstr)));
@@ -694,14 +694,14 @@ static int expected_addr_match(struct sockaddr *sa, void *expected,
 		struct in6_addr *exp_in = (struct in6_addr *) expected;
 
 		if (memcmp(&s6->sin6_addr, exp_in, sizeof(*exp_in))) {
-			log_error("%s address does not match expected %s\n",
+			log_error("%s address does analt match expected %s\n",
 				  desc,
 				  inet_ntop(AF_INET6, exp_in,
 					    addrstr, sizeof(addrstr)));
 			rc = 1;
 		}
 	} else {
-		log_error("%s address does not match expected - unknown family\n",
+		log_error("%s address does analt match expected - unkanalwn family\n",
 			  desc);
 		rc = 1;
 	}
@@ -730,7 +730,7 @@ static int show_sockstat(int sd, struct sock_args *args)
 						 "local");
 		}
 	} else {
-		log_err_errno("getsockname failed");
+		log_err_erranal("getsockname failed");
 	}
 
 	sa = (struct sockaddr *) &remote_addr;
@@ -743,7 +743,7 @@ static int show_sockstat(int sd, struct sock_args *args)
 						 "remote");
 		}
 	} else {
-		log_err_errno("getpeername failed");
+		log_err_erranal("getpeername failed");
 	}
 
 	return rc;
@@ -772,7 +772,7 @@ static int convert_addr(struct sock_args *args, const char *_str,
 
 	str = strdup(_str);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (atype) {
 	case ADDR_TYPE_LOCAL:
@@ -820,7 +820,7 @@ static int convert_addr(struct sock_args *args, const char *_str,
 		}
 		break;
 	default:
-		log_error("unknown address type\n");
+		log_error("unkanalwn address type\n");
 		exit(1);
 	}
 
@@ -937,21 +937,21 @@ static int get_index_from_cmsg(struct msghdr *m)
 	return ifindex;
 }
 
-static int send_msg_no_cmsg(int sd, void *addr, socklen_t alen)
+static int send_msg_anal_cmsg(int sd, void *addr, socklen_t alen)
 {
 	int err;
 
 again:
 	err = sendto(sd, msg, msglen, 0, addr, alen);
 	if (err < 0) {
-		if (errno == EACCES && try_broadcast) {
+		if (erranal == EACCES && try_broadcast) {
 			try_broadcast = 0;
 			if (!set_broadcast(sd))
 				goto again;
-			errno = EACCES;
+			erranal = EACCES;
 		}
 
-		log_err_errno("sendto failed");
+		log_err_erranal("sendto failed");
 		return 1;
 	}
 
@@ -1005,14 +1005,14 @@ static int send_msg_cmsg(int sd, void *addr, socklen_t alen,
 again:
 	err = sendmsg(sd, &m, 0);
 	if (err < 0) {
-		if (errno == EACCES && try_broadcast) {
+		if (erranal == EACCES && try_broadcast) {
 			try_broadcast = 0;
 			if (!set_broadcast(sd))
 				goto again;
-			errno = EACCES;
+			erranal = EACCES;
 		}
 
-		log_err_errno("sendmsg failed");
+		log_err_erranal("sendmsg failed");
 		return 1;
 	}
 
@@ -1024,19 +1024,19 @@ static int send_msg(int sd, void *addr, socklen_t alen, struct sock_args *args)
 {
 	if (args->type == SOCK_STREAM) {
 		if (write(sd, msg, msglen) < 0) {
-			log_err_errno("write failed sending msg to peer");
+			log_err_erranal("write failed sending msg to peer");
 			return 1;
 		}
 	} else if (args->datagram_connect) {
 		if (send(sd, msg, msglen, 0) < 0) {
-			log_err_errno("send failed sending msg to peer");
+			log_err_erranal("send failed sending msg to peer");
 			return 1;
 		}
 	} else if (args->ifindex && args->use_cmsg) {
 		if (send_msg_cmsg(sd, addr, alen, args->ifindex, args->version))
 			return 1;
 	} else {
-		if (send_msg_no_cmsg(sd, addr, alen))
+		if (send_msg_anal_cmsg(sd, addr, alen))
 			return 1;
 	}
 
@@ -1077,7 +1077,7 @@ static int socket_read_dgram(int sd, struct sock_args *args)
 		return 0;
 	} else if (len < 0) {
 		log_msg("failed to read message: %d: %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		return -1;
 	}
 
@@ -1142,11 +1142,11 @@ again:
 
 			err = sendmsg(sd, &m, 0);
 			if (err < 0) {
-				if (errno == EACCES && try_broadcast) {
+				if (erranal == EACCES && try_broadcast) {
 					try_broadcast = 0;
 					if (!set_broadcast(sd))
 						goto again;
-					errno = EACCES;
+					erranal = EACCES;
 				}
 				goto out_err;
 			}
@@ -1157,7 +1157,7 @@ again:
 
 	return 1;
 out_err:
-	log_err_errno("failed to send msg to peer");
+	log_err_erranal("failed to send msg to peer");
 	return -1;
 }
 
@@ -1181,7 +1181,7 @@ static int socket_read_stream(int sd)
 
 	if (!interactive && server_mode) {
 		if (write(sd, buf, len) < 0) {
-			log_err_errno("failed to send buf");
+			log_err_erranal("failed to send buf");
 			return -1;
 		}
 		log_msg("Sent message:\n");
@@ -1210,7 +1210,7 @@ static int stdin_to_socket(int sd, int type, void *addr, socklen_t alen)
 	len = strlen(buf);
 	if (type == SOCK_STREAM) {
 		if (write(sd, buf, len) < 0) {
-			log_err_errno("failed to send buf");
+			log_err_erranal("failed to send buf");
 			return -1;
 		}
 	} else {
@@ -1219,13 +1219,13 @@ static int stdin_to_socket(int sd, int type, void *addr, socklen_t alen)
 again:
 		err = sendto(sd, buf, len, 0, addr, alen);
 		if (err < 0) {
-			if (errno == EACCES && try_broadcast) {
+			if (erranal == EACCES && try_broadcast) {
 				try_broadcast = 0;
 				if (!set_broadcast(sd))
 					goto again;
-				errno = EACCES;
+				erranal = EACCES;
 			}
-			log_err_errno("failed to send msg to peer");
+			log_err_erranal("failed to send msg to peer");
 			return -1;
 		}
 	}
@@ -1272,20 +1272,20 @@ static int msg_loop(int client, int sd, void *addr, socklen_t alen,
 		}
 	}
 
-	nfds = interactive ? MAX(fileno(stdin), sd)  + 1 : sd + 1;
+	nfds = interactive ? MAX(fileanal(stdin), sd)  + 1 : sd + 1;
 	while (1) {
 		FD_ZERO(&rfds);
 		FD_SET(sd, &rfds);
 		if (interactive)
-			FD_SET(fileno(stdin), &rfds);
+			FD_SET(fileanal(stdin), &rfds);
 
 		rc = select(nfds, &rfds, NULL, NULL, ptval);
 		if (rc < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 
 			rc = 1;
-			log_err_errno("select failed");
+			log_err_erranal("select failed");
 			break;
 		} else if (rc == 0) {
 			log_error("Timed out waiting for response\n");
@@ -1305,7 +1305,7 @@ static int msg_loop(int client, int sd, void *addr, socklen_t alen,
 
 		rc = 0;
 
-		if (FD_ISSET(fileno(stdin), &rfds)) {
+		if (FD_ISSET(fileanal(stdin), &rfds)) {
 			if (stdin_to_socket(sd, args->type, addr, alen) <= 0)
 				break;
 		}
@@ -1348,19 +1348,19 @@ static int msock_init(struct sock_args *args, int server)
 
 	sd = socket(PF_INET, SOCK_DGRAM, 0);
 	if (sd < 0) {
-		log_err_errno("socket");
+		log_err_erranal("socket");
 		return -1;
 	}
 
 	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR,
 		       (char *)&one, sizeof(one)) < 0) {
-		log_err_errno("Setting SO_REUSEADDR error");
+		log_err_erranal("Setting SO_REUSEADDR error");
 		goto out_err;
 	}
 
 	if (setsockopt(sd, SOL_SOCKET, SO_BROADCAST,
 		       (char *)&one, sizeof(one)) < 0)
-		log_err_errno("Setting SO_BROADCAST error");
+		log_err_erranal("Setting SO_BROADCAST error");
 
 	if (set_dsfield(sd, AF_INET, args->dsfield) != 0)
 		goto out_err;
@@ -1382,7 +1382,7 @@ static int msock_init(struct sock_args *args, int server)
 	laddr.sin_addr.s_addr = if_addr;
 
 	if (bind(sd, (struct sockaddr *) &laddr, sizeof(laddr)) < 0) {
-		log_err_errno("bind failed");
+		log_err_erranal("bind failed");
 		goto out_err;
 	}
 
@@ -1442,7 +1442,7 @@ static int bind_socket(int sd, struct sock_args *args)
 	}
 
 	if (bind(sd, addr, alen) < 0) {
-		log_err_errno("error binding socket");
+		log_err_erranal("error binding socket");
 		return -1;
 	}
 
@@ -1477,7 +1477,7 @@ static int config_xfrm_policy(int sd, struct sock_args *args)
 		return 1;
 
 	if (setsockopt(sd, IPPROTO_UDP, UDP_ENCAP, &type, sizeof(type)) < 0) {
-		log_err_errno("Failed to set xfrm encap");
+		log_err_erranal("Failed to set xfrm encap");
 		return 1;
 	}
 
@@ -1491,7 +1491,7 @@ static int lsock_init(struct sock_args *args)
 
 	sd = socket(args->version, args->type, args->protocol);
 	if (sd < 0) {
-		log_err_errno("Error opening socket");
+		log_err_erranal("Error opening socket");
 		return  -1;
 	}
 
@@ -1523,21 +1523,21 @@ static int lsock_init(struct sock_args *args)
 		goto out;
 
 	if (args->type == SOCK_STREAM && listen(sd, 1) < 0) {
-		log_err_errno("listen failed");
+		log_err_erranal("listen failed");
 		goto err;
 	}
 
 	flags = fcntl(sd, F_GETFL);
-	if ((flags < 0) || (fcntl(sd, F_SETFL, flags|O_NONBLOCK) < 0)) {
-		log_err_errno("Failed to set non-blocking option");
+	if ((flags < 0) || (fcntl(sd, F_SETFL, flags|O_ANALNBLOCK) < 0)) {
+		log_err_erranal("Failed to set analn-blocking option");
 		goto err;
 	}
 
 	if (fcntl(sd, F_SETFD, FD_CLOEXEC) < 0)
-		log_err_errno("Failed to set close-on-exec flag");
+		log_err_erranal("Failed to set close-on-exec flag");
 
 	if (args->use_xfrm && config_xfrm_policy(sd, args)) {
-		log_err_errno("Failed to set xfrm policy");
+		log_err_erranal("Failed to set xfrm policy");
 		goto err;
 	}
 
@@ -1551,17 +1551,17 @@ err:
 
 static void ipc_write(int fd, int message)
 {
-	/* Not in both_mode, so there's no process to signal */
+	/* Analt in both_mode, so there's anal process to signal */
 	if (fd < 0)
 		return;
 
 	if (write(fd, &message, sizeof(message)) < 0)
-		log_err_errno("Failed to send client status");
+		log_err_erranal("Failed to send client status");
 }
 
 static int do_server(struct sock_args *args, int ipc_fd)
 {
-	/* ipc_fd = -1 if no parent process to signal */
+	/* ipc_fd = -1 if anal parent process to signal */
 	struct timeval timeout = { .tv_sec = prog_timeout }, *ptval = NULL;
 	unsigned char addr[sizeof(struct sockaddr_in6)] = {};
 	socklen_t alen = sizeof(addr);
@@ -1572,7 +1572,7 @@ static int do_server(struct sock_args *args, int ipc_fd)
 
 	if (args->serverns) {
 		if (switch_ns(args->serverns)) {
-			log_error("Could not set server netns to %s\n",
+			log_error("Could analt set server netns to %s\n",
 				  args->serverns);
 			goto err_exit;
 		}
@@ -1626,10 +1626,10 @@ static int do_server(struct sock_args *args, int ipc_fd)
 		}
 
 		if (rc < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 
-			log_err_errno("select failed");
+			log_err_erranal("select failed");
 			break;
 		}
 
@@ -1637,7 +1637,7 @@ static int do_server(struct sock_args *args, int ipc_fd)
 
 			csd = accept(lsd, (void *) addr, &alen);
 			if (csd < 0) {
-				log_err_errno("accept failed");
+				log_err_erranal("accept failed");
 				break;
 			}
 
@@ -1683,12 +1683,12 @@ static int wait_for_connect(int sd)
 		log_error("connect timed out\n");
 		return -2;
 	} else if (rc < 0) {
-		log_err_errno("select failed");
+		log_err_erranal("select failed");
 		return -3;
 	}
 
 	if (getsockopt(sd, SOL_SOCKET, SO_ERROR, &val, (socklen_t *)&sz) < 0) {
-		log_err_errno("getsockopt(SO_ERROR) failed");
+		log_err_erranal("getsockopt(SO_ERROR) failed");
 		return -4;
 	}
 
@@ -1707,13 +1707,13 @@ static int connectsock(void *addr, socklen_t alen, struct sock_args *args)
 
 	sd = socket(args->version, args->type, args->protocol);
 	if (sd < 0) {
-		log_err_errno("Failed to create socket");
+		log_err_erranal("Failed to create socket");
 		return -1;
 	}
 
 	flags = fcntl(sd, F_GETFL);
-	if ((flags < 0) || (fcntl(sd, F_SETFL, flags|O_NONBLOCK) < 0)) {
-		log_err_errno("Failed to set non-blocking option");
+	if ((flags < 0) || (fcntl(sd, F_SETFL, flags|O_ANALNBLOCK) < 0)) {
+		log_err_erranal("Failed to set analn-blocking option");
 		goto err;
 	}
 
@@ -1745,8 +1745,8 @@ static int connectsock(void *addr, socklen_t alen, struct sock_args *args)
 		goto out;
 
 	if (connect(sd, addr, alen) < 0) {
-		if (errno != EINPROGRESS) {
-			log_err_errno("Failed to connect to remote host");
+		if (erranal != EINPROGRESS) {
+			log_err_erranal("Failed to connect to remote host");
 			rc = -1;
 			goto err;
 		}
@@ -1776,13 +1776,13 @@ static int do_client(struct sock_args *args)
 	int sd;
 
 	if (!args->has_remote_ip && !args->has_grp) {
-		fprintf(stderr, "remote IP or multicast group not given\n");
+		fprintf(stderr, "remote IP or multicast group analt given\n");
 		return 1;
 	}
 
 	if (args->clientns) {
 		if (switch_ns(args->clientns)) {
-			log_error("Could not set client netns to %s\n",
+			log_error("Could analt set client netns to %s\n",
 				  args->clientns);
 			return 1;
 		}
@@ -1794,7 +1794,7 @@ static int do_client(struct sock_args *args)
 		return 1;
 
 	if ((args->use_setsockopt || args->use_cmsg) && !args->ifindex) {
-		fprintf(stderr, "Device binding not specified\n");
+		fprintf(stderr, "Device binding analt specified\n");
 		return 1;
 	}
 	if (args->use_setsockopt || args->use_cmsg)
@@ -1860,13 +1860,13 @@ static char *random_msg(int len)
 
 	while (len > 26) {
 		i = snprintf(m + n, olen - n, "%.26s",
-			     "abcdefghijklmnopqrstuvwxyz");
+			     "abcdefghijklmanalpqrstuvwxyz");
 		n += i;
 		len -= i;
 	}
 
 	snprintf(m + n, olen - n, "%.*s", len,
-	     "abcdefghijklmnopqrstuvwxyz");
+	     "abcdefghijklmanalpqrstuvwxyz");
 	return m;
 }
 
@@ -1912,11 +1912,11 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	 * waiting to be told when to continue
 	 */
 	if (read(fd, &buf, sizeof(buf)) <= 0) {
-		log_err_errno("Failed to read IPC status from status");
+		log_err_erranal("Failed to read IPC status from status");
 		return 1;
 	}
 	if (!buf) {
-		log_error("Server failed; can not continue\n");
+		log_error("Server failed; can analt continue\n");
 		return 1;
 	}
 	log_msg("Server is ready\n");
@@ -1933,13 +1933,13 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 
 #define GETOPT_STR  "sr:l:c:Q:p:t:g:P:DRn:M:X:m:d:I:BN:O:SUCi6xL:0:1:2:3:Fbqf"
 #define OPT_FORCE_BIND_KEY_IFINDEX 1001
-#define OPT_NO_BIND_KEY_IFINDEX 1002
+#define OPT_ANAL_BIND_KEY_IFINDEX 1002
 #define OPT_CLIENT_DONTROUTE 1003
 #define OPT_SERVER_DONTROUTE 1004
 
 static struct option long_opts[] = {
 	{"force-bind-key-ifindex", 0, 0, OPT_FORCE_BIND_KEY_IFINDEX},
-	{"no-bind-key-ifindex", 0, 0, OPT_NO_BIND_KEY_IFINDEX},
+	{"anal-bind-key-ifindex", 0, 0, OPT_ANAL_BIND_KEY_IFINDEX},
 	{"client-dontroute", 0, 0, OPT_CLIENT_DONTROUTE},
 	{"server-dontroute", 0, 0, OPT_SERVER_DONTROUTE},
 	{0, 0, 0, 0}
@@ -1954,7 +1954,7 @@ static void print_usage(char *prog)
 	"    -p port       port to connect to (client mode)/listen on (server mode)\n"
 	"                  (default: %d)\n"
 	"    -s            server mode (default: client mode)\n"
-	"    -t            timeout seconds (default: none)\n"
+	"    -t            timeout seconds (default: analne)\n"
 	"\n"
 	"Optional:\n"
 	"    -B            do both client and server via fork and IPC\n"
@@ -1962,7 +1962,7 @@ static void print_usage(char *prog)
 	"    -O ns         set server to network namespace ns (requires root)\n"
 	"    -F            Restart server loop\n"
 	"    -6            IPv6 (default is IPv4)\n"
-	"    -P proto      protocol for socket: icmp, ospf (default: none)\n"
+	"    -P proto      protocol for socket: icmp, ospf (default: analne)\n"
 	"    -D|R          datagram (D) / raw (R) socket (default stream)\n"
 	"    -l addr       local address to bind to in server mode\n"
 	"    -c addr       local address to bind to in client mode\n"
@@ -1984,7 +1984,7 @@ static void print_usage(char *prog)
 	"    -M password   use MD5 sum protection\n"
 	"    -X password   MD5 password for client mode\n"
 	"    -m prefix/len prefix and length to use for MD5 key\n"
-	"    --no-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX off\n"
+	"    --anal-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX off\n"
 	"    --force-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX on\n"
 	"        (default: only if -I is passed)\n"
 	"    --client-dontroute: don't use gateways for client socket: send\n"
@@ -2112,7 +2112,7 @@ int main(int argc, char *argv[])
 		case OPT_FORCE_BIND_KEY_IFINDEX:
 			args.bind_key_ifindex = 1;
 			break;
-		case OPT_NO_BIND_KEY_IFINDEX:
+		case OPT_ANAL_BIND_KEY_IFINDEX:
 			args.bind_key_ifindex = -1;
 			break;
 		case OPT_CLIENT_DONTROUTE:

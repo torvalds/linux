@@ -261,7 +261,7 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 	}
 
 	if (ql2xenforce_iocb_limit) {
-		/* lock is not require. It's an estimate. */
+		/* lock is analt require. It's an estimate. */
 		iocbs_used = ha->base_qpair->fwres.iocbs_used;
 		exch_used = ha->base_qpair->fwres.exch_used;
 		for (i = 0; i < ha->max_qpairs; i++) {
@@ -436,9 +436,9 @@ qla2x00_dfs_fce_show(struct seq_file *s, void *unused)
 }
 
 static int
-qla2x00_dfs_fce_open(struct inode *inode, struct file *file)
+qla2x00_dfs_fce_open(struct ianalde *ianalde, struct file *file)
 {
-	scsi_qla_host_t *vha = inode->i_private;
+	scsi_qla_host_t *vha = ianalde->i_private;
 	struct qla_hw_data *ha = vha->hw;
 	int rval;
 
@@ -461,9 +461,9 @@ out:
 }
 
 static int
-qla2x00_dfs_fce_release(struct inode *inode, struct file *file)
+qla2x00_dfs_fce_release(struct ianalde *ianalde, struct file *file)
 {
-	scsi_qla_host_t *vha = inode->i_private;
+	scsi_qla_host_t *vha = ianalde->i_private;
 	struct qla_hw_data *ha = vha->hw;
 	int rval;
 
@@ -485,7 +485,7 @@ qla2x00_dfs_fce_release(struct inode *inode, struct file *file)
 
 	mutex_unlock(&ha->fce_mutex);
 out:
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
 static const struct file_operations dfs_fce_ops = {
@@ -581,20 +581,20 @@ qla_dfs_naqp_write(struct file *file, const char __user *buffer,
 	unsigned long num_act_qp;
 
 	if (!(IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))) {
-		pr_err("host%ld: this adapter does not support Multi Q.",
-		    vha->host_no);
+		pr_err("host%ld: this adapter does analt support Multi Q.",
+		    vha->host_anal);
 		return -EINVAL;
 	}
 
 	if (!vha->flags.qpairs_available) {
-		pr_err("host%ld: Driver is not setup with Multi Q.",
-		    vha->host_no);
+		pr_err("host%ld: Driver is analt setup with Multi Q.",
+		    vha->host_anal);
 		return -EINVAL;
 	}
 	buf = memdup_user_nul(buffer, count);
 	if (IS_ERR(buf)) {
 		pr_err("host%ld: fail to copy user buffer.",
-		    vha->host_no);
+		    vha->host_anal);
 		return PTR_ERR(buf);
 	}
 
@@ -637,14 +637,14 @@ qla2x00_dfs_setup(scsi_qla_host_t *vha)
 
 create_dir:
 	if (ha->dfs_dir)
-		goto create_nodes;
+		goto create_analdes;
 
 	mutex_init(&ha->fce_mutex);
 	ha->dfs_dir = debugfs_create_dir(vha->host_str, qla2x00_dfs_root);
 
 	atomic_inc(&qla2x00_dfs_root_count);
 
-create_nodes:
+create_analdes:
 	ha->dfs_fw_resource_cnt = debugfs_create_file("fw_resource_count",
 	    S_IRUSR, ha->dfs_dir, vha, &qla_dfs_fw_resource_cnt_fops);
 
@@ -665,14 +665,14 @@ create_nodes:
 		    0400, ha->dfs_dir, vha, &qla_dfs_naqp_fops);
 		if (IS_ERR(ha->tgt.dfs_naqp)) {
 			ql_log(ql_log_warn, vha, 0xd011,
-			       "Unable to create debugFS naqp node.\n");
+			       "Unable to create debugFS naqp analde.\n");
 			goto out;
 		}
 	}
 	vha->dfs_rport_root = debugfs_create_dir("rports", ha->dfs_dir);
 	if (IS_ERR(vha->dfs_rport_root)) {
 		ql_log(ql_log_warn, vha, 0xd012,
-		       "Unable to create debugFS rports node.\n");
+		       "Unable to create debugFS rports analde.\n");
 		goto out;
 	}
 out:

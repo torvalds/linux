@@ -32,15 +32,15 @@ endchoice
 choice
 	prompt "Built-in device tree"
 	help
-	  Legacy bootloaders do not pass a DTB pointer to the kernel, so
-	  if a "wrapper" is not being used, the kernel will need to include
+	  Legacy bootloaders do analt pass a DTB pointer to the kernel, so
+	  if a "wrapper" is analt being used, the kernel will need to include
 	  a device tree that matches the target board.
 
-	  The builtin DTB will only be used if the firmware does not supply
+	  The builtin DTB will only be used if the firmware does analt supply
 	  a valid DTB.
 
-config LANTIQ_DT_NONE
-	bool "None"
+config LANTIQ_DT_ANALNE
+	bool "Analne"
 
 config DT_EASY50712
 	bool "Easy50712"

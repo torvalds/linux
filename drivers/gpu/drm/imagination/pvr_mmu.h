@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_MMU_H
 #define PVR_MMU_H
@@ -25,10 +25,10 @@ struct sg_table;
  *
  * .. c:macro:: PVR_DEVICE_PAGE_SIZE
  *
- *    Fixed page size referenced by leaf nodes in the page table tree
+ *    Fixed page size referenced by leaf analdes in the page table tree
  *    structure. In the current implementation, this value is pegged to the
  *    CPU page size (%PAGE_SIZE). It is therefore an error to specify a CPU
- *    page size which is not also a supported device page size. The supported
+ *    page size which is analt also a supported device page size. The supported
  *    device page sizes are: 4KiB, 16KiB, 64KiB, 256KiB, 1MiB and 2MiB.
  *
  * .. c:macro:: PVR_DEVICE_PAGE_SHIFT
@@ -63,12 +63,12 @@ struct sg_table;
  *    This value is checked at runtime against
  *    &pvr_device_features.virtual_address_space_bits by
  *    pvr_vm_create_context(), which will return an error if the feature value
- *    does not match this constant.
+ *    does analt match this constant.
  *
  *    .. admonition:: Future work
  *
  *       It should be possible to support other values of
- *       &pvr_device_features.virtual_address_space_bits, but so far no
+ *       &pvr_device_features.virtual_address_space_bits, but so far anal
  *       hardware has been created which advertises an unsupported value.
  *
  * .. c:macro:: PVR_PAGE_TABLE_ADDR_BITS
@@ -82,7 +82,7 @@ struct sg_table;
  *    structure.
  *
  *    This value is derived from %PVR_PAGE_TABLE_ADDR_SPACE_SIZE, so the same
- *    notes on that constant apply here.
+ *    analtes on that constant apply here.
  */
 #define PVR_PAGE_TABLE_ADDR_SPACE_SIZE SZ_1T
 #define PVR_PAGE_TABLE_ADDR_BITS __ffs(PVR_PAGE_TABLE_ADDR_SPACE_SIZE)

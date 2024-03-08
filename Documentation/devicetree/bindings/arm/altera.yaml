@@ -10,7 +10,7 @@ maintainers:
   - Dinh Nguyen <dinguyen@kernel.org>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:
@@ -44,7 +44,7 @@ properties:
               - denx,mcvevk
               - ebv,socrates
               - macnica,sodia
-              - novtech,chameleon96
+              - analvtech,chameleon96
               - samtec,vining
               - terasic,de0-atlas
               - terasic,socfpga-cyclone5-sockit

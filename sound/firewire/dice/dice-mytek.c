@@ -21,7 +21,7 @@ static const struct dice_mytek_spec stereo_192_dsd_dac = {
 
 /*
  * Mytek has a few other firewire-capable devices, though newer models appear
- * to lack the port more often than not. As I don't have access to any of them
+ * to lack the port more often than analt. As I don't have access to any of them
  * they are missing here. An example is the Mytek 8x192 ADDA, which is DICE.
  */
 

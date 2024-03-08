@@ -103,13 +103,13 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 
 	lvds = devm_kzalloc(drm->dev, sizeof(*lvds), GFP_KERNEL);
 	if (!lvds)
-		return -ENOMEM;
+		return -EANALMEM;
 	encoder = &lvds->encoder;
 
-	ret = drm_of_find_panel_or_bridge(tcon->dev->of_node, 1, 0,
+	ret = drm_of_find_panel_or_bridge(tcon->dev->of_analde, 1, 0,
 					  &lvds->panel, &bridge);
 	if (ret) {
-		dev_info(drm->dev, "No panel or bridge found... LVDS output disabled\n");
+		dev_info(drm->dev, "Anal panel or bridge found... LVDS output disabled\n");
 		return 0;
 	}
 

@@ -61,7 +61,7 @@ properties:
   ti,op-mode:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
-       Operational mode for the PHY.  If this is not set then the operational
+       Operational mode for the PHY.  If this is analt set then the operational
        mode is set by the straps. see dt-bindings/net/ti-dp83869.h for values
 
   rx-internal-delay-ps:

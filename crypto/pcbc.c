@@ -114,7 +114,7 @@ static int crypto_pcbc_decrypt_inplace(struct skcipher_request *req,
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
 	u8 * const iv = walk->iv;
-	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE] __aligned(__alignof__(u32));
+	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE] __aligned(__aliganalf__(u32));
 
 	do {
 		memcpy(tmpbuf, src, bsize);

@@ -2,14 +2,14 @@
 #ifndef _RAID10_H
 #define _RAID10_H
 
-/* Note: raid10_info.rdev can be set to NULL asynchronously by
+/* Analte: raid10_info.rdev can be set to NULL asynchroanalusly by
  * raid10_remove_disk.
  * There are three safe ways to access raid10_info.rdev.
  * 1/ when holding mddev->reconfig_mutex
- * 2/ when resync/recovery/reshape is known to be happening - i.e. in code
+ * 2/ when resync/recovery/reshape is kanalwn to be happening - i.e. in code
  *    that is called as part of performing resync/recovery/reshape.
  * 3/ while holding rcu_read_lock(), use rcu_dereference to get the pointer
- *    and if it is non-NULL, increment rdev->nr_pending before dropping the
+ *    and if it is analn-NULL, increment rdev->nr_pending before dropping the
  *    RCU lock.
  * When .rdev is set to NULL, the nr_pending count checked again and if it has
  * been incremented, the pointer is put back in .rdev.
@@ -103,7 +103,7 @@ struct r10conf {
 	struct md_thread __rcu	*thread;
 
 	/*
-	 * Keep track of cluster resync window to send to other nodes.
+	 * Keep track of cluster resync window to send to other analdes.
 	 */
 	sector_t		cluster_sync_low;
 	sector_t		cluster_sync_high;
@@ -163,11 +163,11 @@ enum r10bio_state {
 	R10BIO_IsReshape,
 	R10BIO_Degraded,
 /* Set ReadError on bios that experience a read error
- * so that raid10d knows what to do with them.
+ * so that raid10d kanalws what to do with them.
  */
 	R10BIO_ReadError,
 /* If a write for this request means we can clear some
- * known-bad-block records, we set this flag.
+ * kanalwn-bad-block records, we set this flag.
  */
 	R10BIO_MadeGood,
 	R10BIO_WriteError,

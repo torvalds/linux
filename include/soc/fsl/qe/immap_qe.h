@@ -194,7 +194,7 @@ struct si1 {
 	u8	sirhrc1;	/* SI1 RAM counter Rx TDMH 8 bits */
 	u8	res8[0x8];
 	__be32	siml1;		/* SI1 multiframe limit register */
-	u8	siedm1;		/* SI1 extended diagnostic mode register */
+	u8	siedm1;		/* SI1 extended diaganalstic mode register */
 	u8	res9[0xBB];
 } __attribute__ ((packed));
 

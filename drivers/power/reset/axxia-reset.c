@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -28,7 +28,7 @@
 
 static struct regmap *syscon;
 
-static int axxia_restart_handler(struct notifier_block *this,
+static int axxia_restart_handler(struct analtifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	/* Access Key (0xab) */
@@ -41,11 +41,11 @@ static int axxia_restart_handler(struct notifier_block *this,
 	regmap_update_bits(syscon, SC_RESET_CONTROL,
 			   RSTCTL_RST_CHIP, RSTCTL_RST_CHIP);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block axxia_restart_nb = {
-	.notifier_call = axxia_restart_handler,
+static struct analtifier_block axxia_restart_nb = {
+	.analtifier_call = axxia_restart_handler,
 	.priority = 128,
 };
 
@@ -54,15 +54,15 @@ static int axxia_reset_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err;
 
-	syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	syscon = syscon_regmap_lookup_by_phandle(dev->of_analde, "syscon");
 	if (IS_ERR(syscon)) {
-		pr_err("%pOFn: syscon lookup failed\n", dev->of_node);
+		pr_err("%pOFn: syscon lookup failed\n", dev->of_analde);
 		return PTR_ERR(syscon);
 	}
 
 	err = register_restart_handler(&axxia_restart_nb);
 	if (err)
-		dev_err(dev, "cannot register restart handler (err=%d)\n", err);
+		dev_err(dev, "cananalt register restart handler (err=%d)\n", err);
 
 	return err;
 }

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2012 ARM Ltd.
  *
@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_AUXVEC_H
 #define __ASM_AUXVEC_H

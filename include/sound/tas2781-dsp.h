@@ -40,15 +40,15 @@
 enum tasdevice_dsp_dev_idx {
 	TASDEVICE_DSP_TAS_2555 = 0,
 	TASDEVICE_DSP_TAS_2555_STEREO,
-	TASDEVICE_DSP_TAS_2557_MONO,
-	TASDEVICE_DSP_TAS_2557_DUAL_MONO,
+	TASDEVICE_DSP_TAS_2557_MOANAL,
+	TASDEVICE_DSP_TAS_2557_DUAL_MOANAL,
 	TASDEVICE_DSP_TAS_2559,
 	TASDEVICE_DSP_TAS_2563,
-	TASDEVICE_DSP_TAS_2563_DUAL_MONO = 7,
+	TASDEVICE_DSP_TAS_2563_DUAL_MOANAL = 7,
 	TASDEVICE_DSP_TAS_2563_QUAD,
 	TASDEVICE_DSP_TAS_2563_21,
 	TASDEVICE_DSP_TAS_2781,
-	TASDEVICE_DSP_TAS_2781_DUAL_MONO,
+	TASDEVICE_DSP_TAS_2781_DUAL_MOANAL,
 	TASDEVICE_DSP_TAS_2781_21,
 	TASDEVICE_DSP_TAS_2781_QUAD,
 	TASDEVICE_DSP_TAS_MAX_DEVICE
@@ -118,7 +118,7 @@ struct tasdevice_fw {
 };
 
 enum tasdevice_dsp_fw_state {
-	TASDEVICE_DSP_FW_NONE = 0,
+	TASDEVICE_DSP_FW_ANALNE = 0,
 	TASDEVICE_DSP_FW_PENDING,
 	TASDEVICE_DSP_FW_FAIL,
 	TASDEVICE_DSP_FW_ALL_OK,
@@ -169,7 +169,7 @@ struct tasdevice_rca {
 	int profile_cfg_id;
 };
 
-void tasdevice_select_cfg_blk(void *context, int conf_no,
+void tasdevice_select_cfg_blk(void *context, int conf_anal,
 	unsigned char block_type);
 void tasdevice_config_info_remove(void *context);
 void tasdevice_dsp_remove(void *context);
@@ -178,9 +178,9 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw);
 void tasdevice_dsp_remove(void *context);
 void tasdevice_calbin_remove(void *context);
 int tasdevice_select_tuningprm_cfg(void *context, int prm,
-	int cfg_no, int rca_conf_no);
-int tasdevice_prmg_load(void *context, int prm_no);
-int tasdevice_prmg_calibdata_load(void *context, int prm_no);
+	int cfg_anal, int rca_conf_anal);
+int tasdevice_prmg_load(void *context, int prm_anal);
+int tasdevice_prmg_calibdata_load(void *context, int prm_anal);
 void tasdevice_tuning_switch(void *context, int state);
 int tas2781_load_calibration(void *context, char *file_name,
 	unsigned short i);

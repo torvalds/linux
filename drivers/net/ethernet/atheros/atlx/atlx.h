@@ -2,7 +2,7 @@
 /* atlx_hw.h -- common hardware definitions for Attansic network drivers
  *
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
- * Copyright(c) 2006 - 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2006 - 2007 Chris Sanalok <csanalok@redhat.com>
  * Copyright(c) 2006 - 2008 Jay Cliburn <jcliburn@gmail.com>
  * Copyright(c) 2007 Atheros Corporation. All rights reserved.
  *
@@ -46,7 +46,7 @@
 #define REG_VPD_DATA			0x70
 
 #define REG_SPI_FLASH_CTRL		0x200
-#define SPI_FLASH_CTRL_STS_NON_RDY	0x1
+#define SPI_FLASH_CTRL_STS_ANALN_RDY	0x1
 #define SPI_FLASH_CTRL_STS_WEN		0x2
 #define SPI_FLASH_CTRL_STS_WPEN		0x80
 #define SPI_FLASH_CTRL_DEV_STS_MASK	0xFF
@@ -121,7 +121,7 @@
 #define PCIE_PHYMISC_FORCE_RCV_DET	0x4
 
 #define REG_PCIE_DLL_TX_CTRL1		0x1104
-#define PCIE_DLL_TX_CTRL1_SEL_NOR_CLK	0x400
+#define PCIE_DLL_TX_CTRL1_SEL_ANALR_CLK	0x400
 #define PCIE_DLL_TX_CTRL1_DEF		0x568
 
 #define REG_LTSSM_TEST_MODE		0x12FC
@@ -176,11 +176,11 @@
 
 /* BIST Control and Status Register0 (for the Packet Memory) */
 #define REG_BIST0_CTRL			0x141C
-#define BIST0_NOW			0x1
+#define BIST0_ANALW			0x1
 #define BIST0_SRAM_FAIL			0x2
 #define BIST0_FUSE_FLAG			0x4
 #define REG_BIST1_CTRL			0x1420
-#define BIST1_NOW			0x1
+#define BIST1_ANALW			0x1
 #define BIST1_SRAM_FAIL			0x2
 #define BIST1_FUSE_FLAG			0x4
 
@@ -232,8 +232,8 @@
 #define MAC_HALF_DUPLX_CTRL_RETRY_SHIFT		12
 #define MAC_HALF_DUPLX_CTRL_RETRY_MASK		0xF
 #define MAC_HALF_DUPLX_CTRL_EXC_DEF_EN		0x10000
-#define MAC_HALF_DUPLX_CTRL_NO_BACK_C		0x20000
-#define MAC_HALF_DUPLX_CTRL_NO_BACK_P		0x40000
+#define MAC_HALF_DUPLX_CTRL_ANAL_BACK_C		0x20000
+#define MAC_HALF_DUPLX_CTRL_ANAL_BACK_P		0x40000
 #define MAC_HALF_DUPLX_CTRL_ABEBE		0x80000
 #define MAC_HALF_DUPLX_CTRL_ABEBT_SHIFT		20
 #define MAC_HALF_DUPLX_CTRL_ABEBT_MASK		0xF
@@ -308,8 +308,8 @@
 #define MII_CR_SPEED_SELECT_LSB		0x2000	/* bits 6,13: 10=1000, 01=100,
 						 * 00=10
 						 */
-#define MII_CR_LOOPBACK			0x4000	/* 0 = normal, 1 = loopback */
-#define MII_CR_RESET			0x8000	/* 0 = normal, 1 = PHY reset */
+#define MII_CR_LOOPBACK			0x4000	/* 0 = analrmal, 1 = loopback */
+#define MII_CR_RESET			0x8000	/* 0 = analrmal, 1 = PHY reset */
 #define MII_CR_SPEED_MASK		0x2040
 #define MII_CR_SPEED_1000		0x0040
 #define MII_CR_SPEED_100		0x2000
@@ -369,7 +369,7 @@
 #define MII_ATLX_CR_1000T_MS_ENABLE	0x1000	/* 1=Man Master/Slave config,
 						 * 0=Auto Master/Slave config
 						 */
-#define MII_ATLX_CR_1000T_TEST_MODE_NORMAL	0x0000	/* Normal Operation */
+#define MII_ATLX_CR_1000T_TEST_MODE_ANALRMAL	0x0000	/* Analrmal Operation */
 #define MII_ATLX_CR_1000T_TEST_MODE_1	0x2000	/* Transmit Waveform test */
 #define MII_ATLX_CR_1000T_TEST_MODE_2	0x4000	/* Master Xmit Jitter test */
 #define MII_ATLX_CR_1000T_TEST_MODE_3	0x6000	/* Slave Xmit Jitter test */
@@ -418,7 +418,7 @@
 							 * 10BASE-T distance
 							 * (Lower 10BASE-T RX
 							 * Threshold)
-							 * 0=Normal 10BASE-T RX
+							 * 0=Analrmal 10BASE-T RX
 							 * Threshold
 							 */
 #define MII_ATLX_PSCR_MII_5BIT_ENABLE	0x0100	/* 1=5-Bit interface in

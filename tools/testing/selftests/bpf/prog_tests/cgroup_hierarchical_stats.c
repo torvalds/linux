@@ -20,8 +20,8 @@
  *
  * Copyright 2022 Google LLC.
  */
-#include <asm-generic/errno.h>
-#include <errno.h>
+#include <asm-generic/erranal.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -62,7 +62,7 @@ static struct {
 };
 
 #define N_CGROUPS ARRAY_SIZE(cgroups)
-#define N_NON_LEAF_CGROUPS 3
+#define N_ANALN_LEAF_CGROUPS 3
 
 static int root_cgroup_fd;
 static bool mounted_bpffs;
@@ -93,7 +93,7 @@ static int setup_bpffs(void)
 	/* Mount bpffs */
 	err = mount("bpf", BPFFS_ROOT, "bpf", 0, NULL);
 	mounted_bpffs = !err;
-	if (ASSERT_FALSE(err && errno != EBUSY, "mount"))
+	if (ASSERT_FALSE(err && erranal != EBUSY, "mount"))
 		return err;
 
 	/* Create a directory to contain stat files in bpffs */
@@ -165,7 +165,7 @@ static int attach_processes(void)
 	int i, j, status;
 
 	/* In every leaf cgroup, attach 3 processes */
-	for (i = N_NON_LEAF_CGROUPS; i < N_CGROUPS; i++) {
+	for (i = N_ANALN_LEAF_CGROUPS; i < N_CGROUPS; i++) {
 		for (j = 0; j < PROCESSES_PER_CGROUP; j++) {
 			pid_t pid;
 
@@ -206,8 +206,8 @@ get_attach_counter(unsigned long long cgroup_id, const char *file_name)
 
 	/* Check that the cgroup_id is displayed correctly */
 	ASSERT_EQ(id, cgroup_id, "cgroup_id");
-	/* Check that the counter is non-zero */
-	ASSERT_GT(attach_counter, 0, "attach counter non-zero");
+	/* Check that the counter is analn-zero */
+	ASSERT_GT(attach_counter, 0, "attach counter analn-zero");
 	return attach_counter;
 }
 
@@ -224,7 +224,7 @@ static void check_attach_counters(void)
 	root_attach_counter = get_attach_counter(CG_ROOT_ID, CG_ROOT_NAME);
 
 	/* Check that all leafs cgroups have an attach counter of 3 */
-	for (i = N_NON_LEAF_CGROUPS; i < N_CGROUPS; i++)
+	for (i = N_ANALN_LEAF_CGROUPS; i < N_CGROUPS; i++)
 		ASSERT_EQ(attach_counters[i], PROCESSES_PER_CGROUP,
 			  "leaf cgroup attach counter");
 
@@ -241,7 +241,7 @@ static void check_attach_counters(void)
 	ASSERT_GE(root_attach_counter, attach_counters[1], "root_counter");
 }
 
-/* Creates iter link and pins in bpffs, returns 0 on success, -errno on failure.
+/* Creates iter link and pins in bpffs, returns 0 on success, -erranal on failure.
  */
 static int setup_cgroup_iter(struct cgroup_hierarchical_stats *obj,
 			     int cgroup_fd, const char *file_name)

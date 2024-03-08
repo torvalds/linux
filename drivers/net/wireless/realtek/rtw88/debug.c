@@ -74,12 +74,12 @@ static ssize_t rtw_debugfs_single_write(struct file *filp,
 	return debugfs_priv->cb_write(filp, buffer, count, loff);
 }
 
-static int rtw_debugfs_single_open_rw(struct inode *inode, struct file *filp)
+static int rtw_debugfs_single_open_rw(struct ianalde *ianalde, struct file *filp)
 {
-	return single_open(filp, rtw_debugfs_single_show, inode->i_private);
+	return single_open(filp, rtw_debugfs_single_show, ianalde->i_private);
 }
 
-static int rtw_debugfs_close(struct inode *inode, struct file *filp)
+static int rtw_debugfs_close(struct ianalde *ianalde, struct file *filp)
 {
 	return 0;
 }
@@ -261,7 +261,7 @@ static int rtw_debugfs_get_rsvd_page(struct seq_file *m, void *v)
 
 	buf = vzalloc(buf_size);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RSVD_PAGE, offset,
 			       buf_size, (u32 *)buf);
@@ -622,7 +622,7 @@ static void rtw_print_rate(struct seq_file *m, u8 rate)
 		rtw_print_vht_rate_txt(m, rate);
 		break;
 	default:
-		seq_printf(m, " Unknown rate=0x%x\n", rate);
+		seq_printf(m, " Unkanalwn rate=0x%x\n", rate);
 		break;
 	}
 }
@@ -645,7 +645,7 @@ static const char *rtw_get_regd_string(u8 regd)
 	case_REGD(CN);
 	case_REGD(WW);
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -670,15 +670,15 @@ static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
 
 	mutex_lock(&hal->tx_power_mutex);
 	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
-		/* there is no CCK rates used in 5G */
+		/* there is anal CCK rates used in 5G */
 		if (hal->current_band_type == RTW_BAND_5G)
 			rate = DESC_RATE6M;
 		else
 			rate = DESC_RATE1M;
 
-		/* now, not support vht 3ss and vht 4ss*/
+		/* analw, analt support vht 3ss and vht 4ss*/
 		for (; rate <= DESC_RATEVHT2SS_MCS9; rate++) {
-			/* now, not support ht 3ss and ht 4ss*/
+			/* analw, analt support ht 3ss and ht 4ss*/
 			if (rate > DESC_RATEMCS15 &&
 			    rate < DESC_RATEVHT1SS_MCS0)
 				continue;
@@ -1040,7 +1040,7 @@ static ssize_t rtw_debugfs_set_dm_cap(struct file *filp,
 	bit = abs(bit);
 
 	if (bit >= RTW_DM_CAP_NUM) {
-		rtw_warn(rtwdev, "unknown DM CAP %d\n", bit);
+		rtw_warn(rtwdev, "unkanalwn DM CAP %d\n", bit);
 		return -EINVAL;
 	}
 

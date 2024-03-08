@@ -112,7 +112,7 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 		   work for 32-bit userspace. TBH I don't really want
 		   to think about it at all. dwmw2. */
 		if (compat) {
-			net_warn_ratelimited("32-bit task cannot be atmsigd\n");
+			net_warn_ratelimited("32-bit task cananalt be atmsigd\n");
 			error = -EINVAL;
 			goto done;
 		}
@@ -150,7 +150,7 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 		break;
 	}
 
-	error = -ENOIOCTLCMD;
+	error = -EANALIOCTLCMD;
 
 	mutex_lock(&ioctl_mutex);
 	list_for_each(pos, &ioctl_list) {
@@ -158,13 +158,13 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 		if (try_module_get(ic->owner)) {
 			error = ic->ioctl(sock, cmd, arg);
 			module_put(ic->owner);
-			if (error != -ENOIOCTLCMD)
+			if (error != -EANALIOCTLCMD)
 				break;
 		}
 	}
 	mutex_unlock(&ioctl_mutex);
 
-	if (error != -ENOIOCTLCMD)
+	if (error != -EANALIOCTLCMD)
 		goto done;
 
 	if (cmd == ATM_GETNAMES) {
@@ -229,7 +229,7 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
  * moving the ioctl number translation into the actual handlers and
  * killing the conversion code.
  *
- * -arnd, November 2009
+ * -arnd, Analvember 2009
  */
 #define ATM_GETLINKRATE32 _IOW('a', ATMIOC_ITF+1, struct compat_atmif_sioc)
 #define ATM_GETNAMES32    _IOW('a', ATMIOC_ITF+3, struct compat_atm_iobuf)
@@ -357,7 +357,7 @@ int vcc_compat_ioctl(struct socket *sock, unsigned int cmd,
 	int ret;
 
 	ret = do_vcc_ioctl(sock, cmd, arg, 1);
-	if (ret != -ENOIOCTLCMD)
+	if (ret != -EANALIOCTLCMD)
 		return ret;
 
 	return do_atm_ioctl(sock, cmd, arg);

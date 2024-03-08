@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _DMX_QUERYBUF:
@@ -14,7 +14,7 @@ DMX_QUERYBUF - Query the status of a buffer
 
 .. warning:: this API is still experimental
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: DMX_QUERYBUF
@@ -56,7 +56,7 @@ buffer from the start of the device memory, the ``length`` field its size,
 and the ``bytesused`` the number of bytes occupied by data in the buffer
 (payload).
 
-On error it returns -1 and the ``errno`` variable is set
+On error it returns -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

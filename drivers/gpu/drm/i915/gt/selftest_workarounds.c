@@ -96,7 +96,7 @@ reference_lists_fini(struct intel_gt *gt, struct wa_lists *lists)
 }
 
 static struct drm_i915_gem_object *
-read_nonprivs(struct intel_context *ce)
+read_analnprivs(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = ce->engine;
 	const u32 base = engine->mmio_base;
@@ -146,15 +146,15 @@ read_nonprivs(struct intel_context *ce)
 	if (GRAPHICS_VER(engine->i915) >= 8)
 		srm++;
 
-	cs = intel_ring_begin(rq, 4 * RING_MAX_NONPRIV_SLOTS);
+	cs = intel_ring_begin(rq, 4 * RING_MAX_ANALNPRIV_SLOTS);
 	if (IS_ERR(cs)) {
 		err = PTR_ERR(cs);
 		goto err_req;
 	}
 
-	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++) {
+	for (i = 0; i < RING_MAX_ANALNPRIV_SLOTS; i++) {
 		*cs++ = srm;
-		*cs++ = i915_mmio_reg_offset(RING_FORCE_TO_NONPRIV(base, i));
+		*cs++ = i915_mmio_reg_offset(RING_FORCE_TO_ANALNPRIV(base, i));
 		*cs++ = i915_ggtt_offset(vma) + sizeof(u32) * i;
 		*cs++ = 0;
 	}
@@ -179,7 +179,7 @@ get_whitelist_reg(const struct intel_engine_cs *engine, unsigned int i)
 {
 	i915_reg_t reg = i < engine->whitelist.count ?
 			 engine->whitelist.list[i].reg :
-			 RING_NOPID(engine->mmio_base);
+			 RING_ANALPID(engine->mmio_base);
 
 	return i915_mmio_reg_offset(reg);
 }
@@ -189,11 +189,11 @@ print_results(const struct intel_engine_cs *engine, const u32 *results)
 {
 	unsigned int i;
 
-	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++) {
+	for (i = 0; i < RING_MAX_ANALNPRIV_SLOTS; i++) {
 		u32 expected = get_whitelist_reg(engine, i);
 		u32 actual = results[i];
 
-		pr_info("RING_NONPRIV[%d]: expected 0x%08x, found 0x%08x\n",
+		pr_info("RING_ANALNPRIV[%d]: expected 0x%08x, found 0x%08x\n",
 			i, expected, actual);
 	}
 }
@@ -207,7 +207,7 @@ static int check_whitelist(struct intel_context *ce)
 	int err;
 	int i;
 
-	results = read_nonprivs(ce);
+	results = read_analnprivs(ce);
 	if (IS_ERR(results))
 		return PTR_ERR(results);
 
@@ -227,13 +227,13 @@ static int check_whitelist(struct intel_context *ce)
 		goto out_put;
 	}
 
-	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++) {
+	for (i = 0; i < RING_MAX_ANALNPRIV_SLOTS; i++) {
 		u32 expected = get_whitelist_reg(engine, i);
 		u32 actual = vaddr[i];
 
 		if (expected != actual) {
 			print_results(engine, vaddr);
-			pr_err("Invalid RING_NONPRIV[%d], expected 0x%08x, found 0x%08x\n",
+			pr_err("Invalid RING_ANALNPRIV[%d], expected 0x%08x, found 0x%08x\n",
 			       i, expected, actual);
 
 			err = -EINVAL;
@@ -261,7 +261,7 @@ static int do_engine_reset(struct intel_engine_cs *engine)
 
 static int do_guc_reset(struct intel_engine_cs *engine)
 {
-	/* Currently a no-op as the reset is handled by GuC */
+	/* Currently a anal-op as the reset is handled by GuC */
 	return 0;
 }
 
@@ -277,7 +277,7 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
-	*rq = igt_spinner_create_request(spin, ce, MI_NOOP);
+	*rq = igt_spinner_create_request(spin, ce, MI_ANALOP);
 	intel_context_put(ce);
 
 	if (IS_ERR(*rq)) {
@@ -304,7 +304,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	intel_wakeref_t wakeref;
 	int err;
 
-	pr_info("Checking %d whitelisted registers on %s (RING_NONPRIV) [%s]\n",
+	pr_info("Checking %d whitelisted registers on %s (RING_ANALNPRIV) [%s]\n",
 		engine->whitelist.count, engine->name, name);
 
 	ce = intel_context_create(engine);
@@ -348,7 +348,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 
 	err = check_whitelist(ce);
 	if (err) {
-		pr_err("Whitelist not preserved in context across %s reset!\n",
+		pr_err("Whitelist analt preserved in context across %s reset!\n",
 		       name);
 		goto out_spin;
 	}
@@ -420,8 +420,8 @@ static bool wo_register(struct intel_engine_cs *engine, u32 reg)
 	enum intel_platform platform = INTEL_INFO(engine->i915)->platform;
 	int i;
 
-	if ((reg & RING_FORCE_TO_NONPRIV_ACCESS_MASK) ==
-	     RING_FORCE_TO_NONPRIV_ACCESS_WR)
+	if ((reg & RING_FORCE_TO_ANALNPRIV_ACCESS_MASK) ==
+	     RING_FORCE_TO_ANALNPRIV_ACCESS_WR)
 		return true;
 
 	for (i = 0; i < ARRAY_SIZE(wo_registers); i++) {
@@ -435,7 +435,7 @@ static bool wo_register(struct intel_engine_cs *engine, u32 reg)
 
 static bool timestamp(const struct intel_engine_cs *engine, u32 reg)
 {
-	reg = (reg - engine->mmio_base) & ~RING_FORCE_TO_NONPRIV_ACCESS_MASK;
+	reg = (reg - engine->mmio_base) & ~RING_FORCE_TO_ANALNPRIV_ACCESS_MASK;
 	switch (reg) {
 	case 0x358:
 	case 0x35c:
@@ -449,8 +449,8 @@ static bool timestamp(const struct intel_engine_cs *engine, u32 reg)
 
 static bool ro_register(u32 reg)
 {
-	if ((reg & RING_FORCE_TO_NONPRIV_ACCESS_MASK) ==
-	     RING_FORCE_TO_NONPRIV_ACCESS_RD)
+	if ((reg & RING_FORCE_TO_ANALNPRIV_ACCESS_MASK) ==
+	     RING_FORCE_TO_ANALNPRIV_ACCESS_RD)
 		return true;
 
 	return false;
@@ -557,8 +557,8 @@ retry:
 			goto out_unmap_batch;
 		}
 
-		/* Clear non priv flags */
-		reg &= RING_FORCE_TO_NONPRIV_ADDRESS_MASK;
+		/* Clear analn priv flags */
+		reg &= RING_FORCE_TO_ANALNPRIV_ADDRESS_MASK;
 
 		srm = MI_STORE_REGISTER_MEM;
 		lrm = MI_LOAD_REGISTER_MEM;
@@ -791,7 +791,7 @@ static int live_reset_whitelist(void *arg)
 	enum intel_engine_id id;
 	int err = 0;
 
-	/* If we reset the gpu, we should not lose the RING_NONPRIV */
+	/* If we reset the gpu, we should analt lose the RING_ANALNPRIV */
 	igt_global_reset_lock(gt);
 
 	for_each_engine(engine, gt, id) {
@@ -869,8 +869,8 @@ static int read_whitelisted_registers(struct intel_context *ce,
 		u64 offset = i915_vma_offset(results) + sizeof(u32) * i;
 		u32 reg = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
 
-		/* Clear non priv flags */
-		reg &= RING_FORCE_TO_NONPRIV_ADDRESS_MASK;
+		/* Clear analn priv flags */
+		reg &= RING_FORCE_TO_ANALNPRIV_ADDRESS_MASK;
 
 		*cs++ = srm;
 		*cs++ = reg;
@@ -908,8 +908,8 @@ static int scrub_whitelisted_registers(struct intel_context *ce)
 		if (ro_register(reg))
 			continue;
 
-		/* Clear non priv flags */
-		reg &= RING_FORCE_TO_NONPRIV_ADDRESS_MASK;
+		/* Clear analn priv flags */
+		reg &= RING_FORCE_TO_ANALNPRIV_ADDRESS_MASK;
 
 		*cs++ = reg;
 		*cs++ = 0xffffffff;
@@ -985,7 +985,7 @@ static bool result_eq(struct intel_engine_cs *engine,
 		      u32 a, u32 b, i915_reg_t reg)
 {
 	if (a != b && !pardon_reg(engine->i915, reg)) {
-		pr_err("Whitelisted register 0x%4x not context saved: A=%08x, B=%08x\n",
+		pr_err("Whitelisted register 0x%4x analt context saved: A=%08x, B=%08x\n",
 		       i915_mmio_reg_offset(reg), a, b);
 		return false;
 	}
@@ -995,7 +995,7 @@ static bool result_eq(struct intel_engine_cs *engine,
 
 static bool writeonly_reg(struct drm_i915_private *i915, i915_reg_t reg)
 {
-	/* Some registers do not seem to behave and our writes unreadable */
+	/* Some registers do analt seem to behave and our writes unreadable */
 	static const struct regmask wo[] = {
 		{ GEN9_SLICE_COMMON_ECO_CHICKEN1, 9 },
 	};
@@ -1041,7 +1041,7 @@ check_whitelisted_registers(struct intel_engine_cs *engine,
 		const struct i915_wa *wa = &engine->whitelist.list[i];
 
 		if (i915_mmio_reg_offset(wa->reg) &
-		    RING_FORCE_TO_NONPRIV_ACCESS_RD)
+		    RING_FORCE_TO_ANALNPRIV_ACCESS_RD)
 			continue;
 
 		if (!fn(engine, a[i], b[i], wa->reg))
@@ -1206,7 +1206,7 @@ live_gpu_reset_workarounds(void *arg)
 
 	lists = kzalloc(sizeof(*lists), GFP_KERNEL);
 	if (!lists)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("Verifying after GPU reset...\n");
 
@@ -1250,7 +1250,7 @@ live_engine_reset_workarounds(void *arg)
 
 	lists = kzalloc(sizeof(*lists), GFP_KERNEL);
 	if (!lists)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	igt_global_reset_lock(gt);
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
@@ -1299,7 +1299,7 @@ live_engine_reset_workarounds(void *arg)
 		if (ret)
 			goto err;
 
-		rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
+		rq = igt_spinner_create_request(&spin, ce, MI_ANALOP);
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
 			igt_spinner_fini(&spin);

@@ -61,9 +61,9 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 
 	if (priv->ch_id < 0) {
 		dev_err(ipc_wwan->dev,
-			"cannot connect wwan0 & id %d to the IPC mem layer",
+			"cananalt connect wwan0 & id %d to the IPC mem layer",
 			if_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* enable tx path, DL data may follow */
@@ -100,7 +100,7 @@ static netdev_tx_t ipc_wwan_link_transmit(struct sk_buff *skb,
 	int ret;
 
 	/* Interface IDs from 1 to 8 are for IP data
-	 * & from 257 to 261 are for non-IP data
+	 * & from 257 to 261 are for analn-IP data
 	 */
 	if (if_id < IP_MUX_SESSION_START ||
 	    if_id >= ARRAY_SIZE(ipc_wwan->sub_netlist))
@@ -149,12 +149,12 @@ static void ipc_wwan_setup(struct net_device *iosm_dev)
 	iosm_dev->hard_header_len = 0;
 	iosm_dev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
 
-	iosm_dev->type = ARPHRD_NONE;
+	iosm_dev->type = ARPHRD_ANALNE;
 	iosm_dev->mtu = ETH_DATA_LEN;
 	iosm_dev->min_mtu = ETH_MIN_MTU;
 	iosm_dev->max_mtu = ETH_MAX_MTU;
 
-	iosm_dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	iosm_dev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 	iosm_dev->needs_free_netdev = true;
 
 	iosm_dev->netdev_ops = &ipc_inm_ops;

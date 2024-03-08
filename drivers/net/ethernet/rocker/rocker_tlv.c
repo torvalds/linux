@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/rocker/rocker_tlv.c - Rocker switch device driver
- * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellaanalx.com>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
  */
 
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "rocker_hw.h"
 #include "rocker_tlv.h"

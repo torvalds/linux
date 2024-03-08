@@ -51,7 +51,7 @@ static const struct snd_pcm_hardware snd_ivtv_hw_capture = {
 	.periods_max = 98,		/* 12544, */
 };
 
-static void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc,
+static void ivtv_alsa_ananalunce_pcm_data(struct snd_ivtv_card *itvsc,
 					u8 *pcm_data,
 					size_t num_bytes)
 {
@@ -62,7 +62,7 @@ static void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc,
 	int period_elapsed = 0;
 	int length;
 
-	dprintk("ivtv alsa announce ptr=%p data=%p num_bytes=%zu\n", itvsc,
+	dprintk("ivtv alsa ananalunce ptr=%p data=%p num_bytes=%zu\n", itvsc,
 		pcm_data, num_bytes);
 
 	substream = itvsc->capture_pcm_substream;
@@ -90,7 +90,7 @@ static void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc,
 	}
 
 	if (runtime->dma_area == NULL) {
-		dprintk("dma area was NULL - ignoring\n");
+		dprintk("dma area was NULL - iganalring\n");
 		return;
 	}
 
@@ -154,7 +154,7 @@ static int snd_ivtv_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	/* See if the stream is available */
 	if (ivtv_claim_stream(&item, item.type)) {
-		/* No, it's already in use */
+		/* Anal, it's already in use */
 		v4l2_fh_exit(&item.fh);
 		snd_ivtv_unlock(itvsc);
 		return -EBUSY;
@@ -162,7 +162,7 @@ static int snd_ivtv_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	if (test_bit(IVTV_F_S_STREAMOFF, &s->s_flags) ||
 	    test_and_set_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
-		/* We're already streaming.  No additional action required */
+		/* We're already streaming.  Anal additional action required */
 		snd_ivtv_unlock(itvsc);
 		return 0;
 	}
@@ -173,9 +173,9 @@ static int snd_ivtv_pcm_capture_open(struct snd_pcm_substream *substream)
 	itvsc->capture_pcm_substream = substream;
 	runtime->private_data = itv;
 
-	itv->pcm_announce_callback = ivtv_alsa_announce_pcm_data;
+	itv->pcm_ananalunce_callback = ivtv_alsa_ananalunce_pcm_data;
 
-	/* Not currently streaming, so start it up */
+	/* Analt currently streaming, so start it up */
 	set_bit(IVTV_F_S_STREAMING, &s->s_flags);
 	ret = ivtv_start_v4l2_encode_stream(s);
 	snd_ivtv_unlock(itvsc);
@@ -198,7 +198,7 @@ static int snd_ivtv_pcm_capture_close(struct snd_pcm_substream *substream)
 
 	ivtv_release_stream(s);
 
-	itv->pcm_announce_callback = NULL;
+	itv->pcm_ananalunce_callback = NULL;
 	snd_ivtv_unlock(itvsc);
 
 	return 0;

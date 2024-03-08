@@ -19,7 +19,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/videobuf2-v4l2.h>
 
 /* Number of HW buffers */
@@ -63,7 +63,7 @@ enum rvin_isp_id {
 
 /**
  * enum rvin_dma_state - DMA states
- * @STOPPED:   No operation in progress
+ * @STOPPED:   Anal operation in progress
  * @STARTING:  Capture starting up
  * @RUNNING:   Operation in progress have buffers
  * @STOPPING:  Stopping operation
@@ -133,10 +133,10 @@ struct rvin_parallel_entity {
  * @csi:	CSI-2 receiver ID.
  * @chsel:	CHSEL register values that connects VIN group to CSI-2.
  *
- * .. note::
+ * .. analte::
  *	Each R-Car CSI-2 receiver has four output channels facing the VIN
  *	devices, each channel can carry one CSI-2 Virtual Channel (VC).
- *	There is no correlation between channel number and CSI-2 VC. It's
+ *	There is anal correlation between channel number and CSI-2 VC. It's
  *	up to the CSI-2 receiver driver to configure which VC is output
  *	on which channel, the VIN devices only care about output channels.
  */
@@ -150,7 +150,7 @@ struct rvin_group_route {
  * struct rvin_info - Information about the particular VIN implementation
  * @model:		VIN model
  * @use_mc:		use media controller instead of controlling subdevice
- * @use_isp:		the VIN is connected to the ISP and not to the CSI-2
+ * @use_isp:		the VIN is connected to the ISP and analt to the CSI-2
  * @nv12:		support outputing NV12 pixel format
  * @max_width:		max input width the VIN supports
  * @max_height:		max input height the VIN supports
@@ -179,7 +179,7 @@ struct rvin_info {
  * @vdev:		V4L2 video device associated with VIN
  * @v4l2_dev:		V4L2 device
  * @ctrl_handler:	V4L2 control handler
- * @notifier:		V4L2 asynchronous subdevs notifier
+ * @analtifier:		V4L2 asynchroanalus subdevs analtifier
  *
  * @parallel:		parallel input subdevice descriptor
  *
@@ -219,7 +219,7 @@ struct rvin_dev {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 
 	struct rvin_parallel_entity parallel;
 
@@ -270,9 +270,9 @@ struct rvin_dev {
  *
  * @mdev:		media device which represents the group
  *
- * @lock:		protects the count, notifier, vin and csi members
+ * @lock:		protects the count, analtifier, vin and csi members
  * @count:		number of enabled VIN instances found in DT
- * @notifier:		group notifier for CSI-2 async connections
+ * @analtifier:		group analtifier for CSI-2 async connections
  * @vin:		VIN instances which are part of the group
  * @link_setup:		Callback to create all links for the media graph
  * @remotes:		array of pairs of async connection and subdev pointers
@@ -285,7 +285,7 @@ struct rvin_group {
 
 	struct mutex lock;
 	unsigned int count;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct rvin_dev *vin[RCAR_VIN_NUM];
 
 	int (*link_setup)(struct rvin_dev *vin);

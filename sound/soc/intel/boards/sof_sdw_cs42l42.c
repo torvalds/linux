@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
@@ -23,7 +23,7 @@ static const struct snd_soc_dapm_widget cs42l42_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route cs42l42_map[] = {
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkanalwn if we have jack detection */
 	{"Headphone", NULL, "cs42l42 HP"},
 
 	/* other jacks */
@@ -59,7 +59,7 @@ static int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s hs:cs42l42",
 					  card->components);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_add_card_controls(card, cs42l42_controls,
 					ARRAY_SIZE(cs42l42_controls));

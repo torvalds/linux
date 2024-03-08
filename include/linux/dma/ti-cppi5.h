@@ -58,7 +58,7 @@ struct cppi5_host_desc_t {
 #define CPPI5_INFO0_HDESC_TYPE_SHIFT		(30U)
 #define CPPI5_INFO0_HDESC_TYPE_MASK		GENMASK(31, 30)
 #define   CPPI5_INFO0_DESC_TYPE_VAL_HOST	(1U)
-#define   CPPI5_INFO0_DESC_TYPE_VAL_MONO	(2U)
+#define   CPPI5_INFO0_DESC_TYPE_VAL_MOANAL	(2U)
 #define   CPPI5_INFO0_DESC_TYPE_VAL_TR		(3U)
 #define CPPI5_INFO0_HDESC_EPIB_PRESENT		BIT(29)
 /*
@@ -130,14 +130,14 @@ struct cppi5_desc_epib_t {
 };
 
 /**
- * struct cppi5_monolithic_desc_t - Monolithic-mode packet descriptor
+ * struct cppi5_moanallithic_desc_t - Moanallithic-mode packet descriptor
  * @hdr:		Descriptor header
  * @epib[0]:		Extended Packet Info Data (optional, 4 words), and/or
  *			Protocol Specific Data (optional, 0-128 bytes in
  *			multiples of 4), and/or
  *			Other Software Data (0-N bytes, optional)
  */
-struct cppi5_monolithic_desc_t {
+struct cppi5_moanallithic_desc_t {
 	struct cppi5_desc_hdr_t hdr;
 	u32 epib[];
 };
@@ -170,7 +170,7 @@ struct cppi5_monolithic_desc_t {
 
 static inline void cppi5_desc_dump(void *desc, u32 size)
 {
-	print_hex_dump(KERN_ERR, "dump udmap_desc: ", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_ERR, "dump udmap_desc: ", DUMP_PREFIX_ANALNE,
 		       32, 4, desc, size, false);
 }
 
@@ -192,7 +192,7 @@ static inline bool cppi5_desc_is_tdcm(dma_addr_t paddr)
  *
  * Returns descriptor type:
  * CPPI5_INFO0_DESC_TYPE_VAL_HOST
- * CPPI5_INFO0_DESC_TYPE_VAL_MONO
+ * CPPI5_INFO0_DESC_TYPE_VAL_MOANAL
  * CPPI5_INFO0_DESC_TYPE_VAL_TR
  */
 static inline u32 cppi5_desc_get_type(struct cppi5_desc_hdr_t *desc_hdr)
@@ -569,7 +569,7 @@ static inline void *cppi5_hdesc_get_psdata(struct cppi5_host_desc_t *desc)
  * @desc: Host packet descriptor
  *
  * Returns pointer on SWDATA in HDesc.
- * NOTE. It's caller responsibility to be sure hdesc actually has swdata.
+ * ANALTE. It's caller responsibility to be sure hdesc actually has swdata.
  */
 static inline void *cppi5_hdesc_get_swdata(struct cppi5_host_desc_t *desc)
 {
@@ -680,13 +680,13 @@ enum cppi5_tr_event_size {
  * enum cppi5_tr_trigger - TR Flags TRIGGERx field specifies the type of trigger
  *			   used to enable the TR to transfer data as specified
  *			   by TRIGGERx_TYPE field.
- * @CPPI5_TR_TRIGGER_NONE:		No trigger
+ * @CPPI5_TR_TRIGGER_ANALNE:		Anal trigger
  * @CPPI5_TR_TRIGGER_GLOBAL0:		Global trigger 0
  * @CPPI5_TR_TRIGGER_GLOBAL1:		Global trigger 1
  * @CPPI5_TR_TRIGGER_LOCAL_EVENT:	Local Event
  */
 enum cppi5_tr_trigger {
-	CPPI5_TR_TRIGGER_NONE,
+	CPPI5_TR_TRIGGER_ANALNE,
 	CPPI5_TR_TRIGGER_GLOBAL0,
 	CPPI5_TR_TRIGGER_GLOBAL1,
 	CPPI5_TR_TRIGGER_LOCAL_EVENT,
@@ -720,7 +720,7 @@ typedef u32 cppi5_tr_flags_t;
  * struct cppi5_tr_type0_t - Type 0 (One dimensional data move) TR (16 byte)
  * @flags:		TR flags (type, triggers, event, configuration)
  * @icnt0:		Total loop iteration count for level 0 (innermost)
- * @_reserved:		Not used
+ * @_reserved:		Analt used
  * @addr:		Starting address for the source data or destination data
  */
 struct cppi5_tr_type0_t {
@@ -754,7 +754,7 @@ struct cppi5_tr_type1_t {
  * @addr:		Starting address for the source data or destination data
  * @dim1:		Signed dimension for loop level 1
  * @icnt2:		Total loop iteration count for level 2
- * @_reserved:		Not used
+ * @_reserved:		Analt used
  * @dim2:		Signed dimension for loop level 2
  */
 struct cppi5_tr_type2_t {
@@ -806,7 +806,7 @@ struct cppi5_tr_type3_t {
  *			source
  * @dim2:		Signed dimension for loop level 2 for source
  * @dim3:		Signed dimension for loop level 3 for source
- * @_reserved:		Not used
+ * @_reserved:		Analt used
  * @ddim1:		Signed dimension for loop level 1 for destination
  * @daddr:		Starting address for the destination data
  * @ddim2:		Signed dimension for loop level 2 for destination
@@ -842,7 +842,7 @@ struct cppi5_tr_type15_t {
 /**
  * struct cppi5_tr_resp_t - TR response record
  * @status:		Status type and info
- * @_reserved:		Not used
+ * @_reserved:		Analt used
  * @cmd_id:		Command ID for the TR for TR identification
  * @flags:		Configuration Specific Flags
  */
@@ -866,21 +866,21 @@ struct cppi5_tr_resp_t {
  * enum cppi5_tr_resp_status_type - TR Response Status Type field is used to
  *				    determine what type of status is being
  *				    returned.
- * @CPPI5_TR_RESPONSE_STATUS_NONE:		No error, completion: completed
- * @CPPI5_TR_RESPONSE_STATUS_TRANSFER_ERR:	Transfer Error, completion: none
+ * @CPPI5_TR_RESPONSE_STATUS_ANALNE:		Anal error, completion: completed
+ * @CPPI5_TR_RESPONSE_STATUS_TRANSFER_ERR:	Transfer Error, completion: analne
  *						or partially completed
- * @CPPI5_TR_RESPONSE_STATUS_ABORTED_ERR:	Aborted Error, completion: none
+ * @CPPI5_TR_RESPONSE_STATUS_ABORTED_ERR:	Aborted Error, completion: analne
  *						or partially completed
  * @CPPI5_TR_RESPONSE_STATUS_SUBMISSION_ERR:	Submission Error, completion:
- *						none
+ *						analne
  * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_ERR:	Unsupported Error, completion:
- *						none
+ *						analne
  * @CPPI5_TR_RESPONSE_STATUS_TRANSFER_EXCEPTION: Transfer Exception, completion:
  *						partially completed
- * @CPPI5_TR_RESPONSE_STATUS__TEARDOWN_FLUSH:	Teardown Flush, completion: none
+ * @CPPI5_TR_RESPONSE_STATUS__TEARDOWN_FLUSH:	Teardown Flush, completion: analne
  */
 enum cppi5_tr_resp_status_type {
-	CPPI5_TR_RESPONSE_STATUS_NONE,
+	CPPI5_TR_RESPONSE_STATUS_ANALNE,
 	CPPI5_TR_RESPONSE_STATUS_TRANSFER_ERR,
 	CPPI5_TR_RESPONSE_STATUS_ABORTED_ERR,
 	CPPI5_TR_RESPONSE_STATUS_SUBMISSION_ERR,
@@ -896,7 +896,7 @@ enum cppi5_tr_resp_status_type {
  * @CPPI5_TR_RESPONSE_STATUS_SUBMISSION_ICNT0:	ICNT0 was 0
  * @CPPI5_TR_RESPONSE_STATUS_SUBMISSION_FIFO_FULL: Channel FIFO was full when TR
  *						received
- * @CPPI5_TR_RESPONSE_STATUS_SUBMISSION_OWN:	Channel is not owned by the
+ * @CPPI5_TR_RESPONSE_STATUS_SUBMISSION_OWN:	Channel is analt owned by the
  *						submitter
  */
 enum cppi5_tr_resp_status_submission {
@@ -909,17 +909,17 @@ enum cppi5_tr_resp_status_submission {
 /**
  * enum cppi5_tr_resp_status_unsupported - TR Response Status field values which
  *					   corresponds Unsupported Error
- * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_TR_TYPE:	TR Type not supported
- * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_STATIC:	STATIC not supported
- * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_EOL:		EOL not supported
+ * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_TR_TYPE:	TR Type analt supported
+ * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_STATIC:	STATIC analt supported
+ * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_EOL:		EOL analt supported
  * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_CFG_SPECIFIC:	CONFIGURATION SPECIFIC
- *							not supported
- * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_AMODE:		AMODE not supported
- * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_ELTYPE:	ELTYPE not supported
- * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_DFMT:		DFMT not supported
- * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_SECTR:		SECTR not supported
+ *							analt supported
+ * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_AMODE:		AMODE analt supported
+ * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_ELTYPE:	ELTYPE analt supported
+ * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_DFMT:		DFMT analt supported
+ * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_SECTR:		SECTR analt supported
  * @CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_AMODE_SPECIFIC: AMODE SPECIFIC field
- *							not supported
+ *							analt supported
  */
 enum cppi5_tr_resp_status_unsupported {
 	CPPI5_TR_RESPONSE_STATUS_UNSUPPORTED_TR_TYPE,
@@ -937,7 +937,7 @@ enum cppi5_tr_resp_status_unsupported {
 /**
  * cppi5_trdesc_calc_size - Calculate TR Descriptor size
  * @tr_count: number of TR records
- * @tr_size: Nominal size of TR record (max) [16, 32, 64, 128]
+ * @tr_size: Analminal size of TR record (max) [16, 32, 64, 128]
  *
  * Returns required TR Descriptor size
  */
@@ -957,7 +957,7 @@ static inline size_t cppi5_trdesc_calc_size(u32 tr_count, u32 tr_size)
  * cppi5_trdesc_init - Init TR Descriptor
  * @desc: TR Descriptor
  * @tr_count: number of TR records
- * @tr_size: Nominal size of TR record (max) [16, 32, 64, 128]
+ * @tr_size: Analminal size of TR record (max) [16, 32, 64, 128]
  * @reload_idx: Absolute index to jump to on the 2nd and following passes
  *		through the TR packet.
  * @reload_count: Number of times to jump from last entry to reload_idx. 0x1ff

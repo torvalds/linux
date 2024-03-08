@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA v0 core
+ * Copyright (c) 2018-2019 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare eDMA v0 core
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
  */
 
 #include <linux/debugfs.h>
@@ -136,7 +136,7 @@ static void dw_edma_debugfs_regs_ch(struct dw_edma *dw, enum dw_edma_dir dir,
 	dw_edma_debugfs_create_x32(dw, debugfs_regs, nr_entries, dent);
 }
 
-static noinline_for_stack void
+static analinline_for_stack void
 dw_edma_debugfs_regs_wr(struct dw_edma *dw, struct dentry *dent)
 {
 	const struct dw_edma_debugfs_entry debugfs_regs[] = {
@@ -198,7 +198,7 @@ dw_edma_debugfs_regs_wr(struct dw_edma *dw, struct dentry *dent)
 	}
 }
 
-static noinline_for_stack void dw_edma_debugfs_regs_rd(struct dw_edma *dw,
+static analinline_for_stack void dw_edma_debugfs_regs_rd(struct dw_edma *dw,
 						       struct dentry *dent)
 {
 	const struct dw_edma_debugfs_entry debugfs_regs[] = {

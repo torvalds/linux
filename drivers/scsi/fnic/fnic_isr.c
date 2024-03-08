@@ -4,7 +4,7 @@
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  */
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <scsi/libfc.h>
@@ -23,13 +23,13 @@ static irqreturn_t fnic_isr_legacy(int irq, void *data)
 
 	pba = vnic_intr_legacy_pba(fnic->legacy_pba);
 	if (!pba)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	fnic->fnic_stats.misc_stats.last_isr_time = jiffies;
 	atomic64_inc(&fnic->fnic_stats.misc_stats.isr_count);
 
-	if (pba & (1 << FNIC_INTX_NOTIFY)) {
-		vnic_intr_return_all_credits(&fnic->intr[FNIC_INTX_NOTIFY]);
+	if (pba & (1 << FNIC_INTX_ANALTIFY)) {
+		vnic_intr_return_all_credits(&fnic->intr[FNIC_INTX_ANALTIFY]);
 		fnic_handle_link_event(fnic);
 	}
 
@@ -136,7 +136,7 @@ static irqreturn_t fnic_isr_msix_wq_copy(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fnic_isr_msix_err_notify(int irq, void *data)
+static irqreturn_t fnic_isr_msix_err_analtify(int irq, void *data)
 {
 	struct fnic *fnic = data;
 
@@ -209,9 +209,9 @@ int fnic_request_intr(struct fnic *fnic)
 		}
 
 		sprintf(fnic->msix[fnic->err_intr_offset].devname,
-			"%.11s-err-notify", fnic->name);
+			"%.11s-err-analtify", fnic->name);
 		fnic->msix[fnic->err_intr_offset].isr =
-			fnic_isr_msix_err_notify;
+			fnic_isr_msix_err_analtify;
 		fnic->msix[fnic->err_intr_offset].devid = fnic;
 
 		for (i = 0; i < fnic->intr_count; i++) {
@@ -248,7 +248,7 @@ int fnic_set_intr_mode_msix(struct fnic *fnic)
 
 	/*
 	 * We need n RQs, m WQs, o Copy WQs, n+m+o CQs, and n+m+o+1 INTRs
-	 * (last INTR is used for WQ/RQ errors and notification area)
+	 * (last INTR is used for WQ/RQ errors and analtification area)
 	 */
 	FNIC_ISR_DBG(KERN_INFO, fnic->lport->host, fnic->fnic_num,
 		"rq-array size: %d wq-array size: %d copy-wq array size: %d\n",
@@ -276,7 +276,7 @@ int fnic_set_intr_mode_msix(struct fnic *fnic)
 				vec_count, vecs);
 				if (vec_count < min_irqs) {
 					FNIC_ISR_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
-								"no interrupts for copy wq\n");
+								"anal interrupts for copy wq\n");
 					return 1;
 				}
 			}
@@ -288,7 +288,7 @@ int fnic_set_intr_mode_msix(struct fnic *fnic)
 			fnic->wq_count = fnic->raw_wq_count + fnic->wq_copy_count;
 			if (fnic->cq_count != vec_count - 1) {
 				FNIC_ISR_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
-				"CQ count: %d does not match MSI-X vector count: %d\n",
+				"CQ count: %d does analt match MSI-X vector count: %d\n",
 				fnic->cq_count, vec_count);
 				fnic->cq_count = vec_count - 1;
 			}
@@ -362,7 +362,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 	 * Next try INTx
 	 * We need 1 RQ, 1 WQ, 1 WQ_COPY, 3 CQs, and 3 INTRs
 	 * 1 INTR is used for all 3 queues, 1 INTR for queue errors
-	 * 1 INTR for notification area
+	 * 1 INTR for analtification area
 	 */
 
 	if (fnic->rq_count >= 1 &&
@@ -384,7 +384,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 		return 0;
 	}
 
-	vnic_dev_set_intr_mode(fnic->vdev, VNIC_DEV_INTR_MODE_UNKNOWN);
+	vnic_dev_set_intr_mode(fnic->vdev, VNIC_DEV_INTR_MODE_UNKANALWN);
 
 	return -EINVAL;
 }

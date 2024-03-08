@@ -57,7 +57,7 @@ struct hd_geometry;
 struct iovec;
 struct kiocb;
 struct kobject;
-struct pipe_inode_info;
+struct pipe_ianalde_info;
 struct poll_table_struct;
 struct kstatfs;
 struct vm_area_struct;
@@ -67,7 +67,7 @@ struct swap_info_struct;
 struct seq_file;
 struct workqueue_struct;
 struct iov_iter;
-struct fscrypt_inode_info;
+struct fscrypt_ianalde_info;
 struct fscrypt_operations;
 struct fsverity_info;
 struct fsverity_operations;
@@ -76,8 +76,8 @@ struct fs_parameter_spec;
 struct fileattr;
 struct iomap_ops;
 
-extern void __init inode_init(void);
-extern void __init inode_init_early(void);
+extern void __init ianalde_init(void);
+extern void __init ianalde_init_early(void);
 extern void __init files_init(void);
 extern void __init files_maxfiles_init(void);
 
@@ -87,7 +87,7 @@ extern unsigned int sysctl_nr_open;
 typedef __kernel_rwf_t rwf_t;
 
 struct buffer_head;
-typedef int (get_block_t)(struct inode *inode, sector_t iblock,
+typedef int (get_block_t)(struct ianalde *ianalde, sector_t iblock,
 			struct buffer_head *bh_result, int create);
 typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 			ssize_t bytes, void *private);
@@ -100,10 +100,10 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 #define MAY_OPEN		0x00000020
 #define MAY_CHDIR		0x00000040
 /* called from RCU mode, don't block */
-#define MAY_NOT_BLOCK		0x00000080
+#define MAY_ANALT_BLOCK		0x00000080
 
 /*
- * flags in file.f_mode.  Note that FMODE_READ and FMODE_WRITE must correspond
+ * flags in file.f_mode.  Analte that FMODE_READ and FMODE_WRITE must correspond
  * to O_WRONLY and O_RDWR via the strange trick in do_dentry_open()
  */
 
@@ -130,7 +130,7 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  * Currently a special hack for the XFS open_by_handle ioctl, but we'll
  * hopefully graduate it to a proper O_CMTIME flag supported by open(2) soon.
  */
-#define FMODE_NOCMTIME		((__force fmode_t)0x800)
+#define FMODE_ANALCMTIME		((__force fmode_t)0x800)
 
 /* Expect random access pattern */
 #define FMODE_RANDOM		((__force fmode_t)0x1000)
@@ -138,7 +138,7 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 /* File is huge (eg. /dev/mem): treat loff_t as unsigned */
 #define FMODE_UNSIGNED_OFFSET	((__force fmode_t)0x2000)
 
-/* File is opened with O_PATH; almost nothing can be done with it */
+/* File is opened with O_PATH; almost analthing can be done with it */
 #define FMODE_PATH		((__force fmode_t)0x4000)
 
 /* File needs atomic accesses to f_pos */
@@ -159,30 +159,30 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 /* File supports DIRECT IO */
 #define	FMODE_CAN_ODIRECT	((__force fmode_t)0x400000)
 
-#define	FMODE_NOREUSE		((__force fmode_t)0x800000)
+#define	FMODE_ANALREUSE		((__force fmode_t)0x800000)
 
-/* File supports non-exclusive O_DIRECT writes from multiple threads */
+/* File supports analn-exclusive O_DIRECT writes from multiple threads */
 #define FMODE_DIO_PARALLEL_WRITE	((__force fmode_t)0x1000000)
 
 /* File is embedded in backing_file object */
 #define FMODE_BACKING		((__force fmode_t)0x2000000)
 
-/* File was opened by fanotify and shouldn't generate fanotify events */
-#define FMODE_NONOTIFY		((__force fmode_t)0x4000000)
+/* File was opened by faanaltify and shouldn't generate faanaltify events */
+#define FMODE_ANALANALTIFY		((__force fmode_t)0x4000000)
 
 /* File is capable of returning -EAGAIN if I/O will block */
-#define FMODE_NOWAIT		((__force fmode_t)0x8000000)
+#define FMODE_ANALWAIT		((__force fmode_t)0x8000000)
 
 /* File represents mount that needs unmounting */
 #define FMODE_NEED_UNMOUNT	((__force fmode_t)0x10000000)
 
-/* File does not contribute to nr_files count */
-#define FMODE_NOACCOUNT		((__force fmode_t)0x20000000)
+/* File does analt contribute to nr_files count */
+#define FMODE_ANALACCOUNT		((__force fmode_t)0x20000000)
 
 /* File supports async buffered reads */
 #define FMODE_BUF_RASYNC	((__force fmode_t)0x40000000)
 
-/* File supports async nowait buffered writes */
+/* File supports async analwait buffered writes */
 #define FMODE_BUF_WASYNC	((__force fmode_t)0x80000000)
 
 /*
@@ -198,7 +198,7 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 #define ATTR_CTIME	(1 << 6)
 #define ATTR_ATIME_SET	(1 << 7)
 #define ATTR_MTIME_SET	(1 << 8)
-#define ATTR_FORCE	(1 << 9) /* Not a change, but a change it */
+#define ATTR_FORCE	(1 << 9) /* Analt a change, but a change it */
 #define ATTR_KILL_SUID	(1 << 11)
 #define ATTR_KILL_SGID	(1 << 12)
 #define ATTR_FILE	(1 << 13)
@@ -215,8 +215,8 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 #define WHITEOUT_DEV 0
 
 /*
- * This is the Inode Attributes structure, used for notify_change().  It
- * uses the above definitions as flags, to know which values have changed.
+ * This is the Ianalde Attributes structure, used for analtify_change().  It
+ * uses the above definitions as flags, to kanalw which values have changed.
  * Also, in this manner, a Filesystem can look at only the values it cares
  * about.  Basically, these are the attributes that the VFS layer can
  * request to change from the FS layer.
@@ -227,7 +227,7 @@ struct iattr {
 	unsigned int	ia_valid;
 	umode_t		ia_mode;
 	/*
-	 * The two anonymous unions wrap structures with the same member.
+	 * The two aanalnymous unions wrap structures with the same member.
 	 *
 	 * Filesystems raising FS_ALLOW_IDMAP need to use ia_vfs{g,u}id which
 	 * are a dedicated type requiring the filesystem to use the dedicated
@@ -252,9 +252,9 @@ struct iattr {
 	struct timespec64 ia_ctime;
 
 	/*
-	 * Not an attribute, but an auxiliary info for filesystems wanting to
-	 * implement an ftruncate() like method.  NOTE: filesystem should
-	 * check for (ia_valid & ATTR_FILE), and not for (ia_file != NULL).
+	 * Analt an attribute, but an auxiliary info for filesystems wanting to
+	 * implement an ftruncate() like method.  ANALTE: filesystem should
+	 * check for (ia_valid & ATTR_FILE), and analt for (ia_file != NULL).
 	 */
 	struct file	*ia_file;
 };
@@ -286,7 +286,7 @@ struct iattr {
  *  			unlocked it and the page might have been truncated.
  *  			The caller should back up to acquiring a new page and
  *  			trying again.  The aop will be taking reasonable
- *  			precautions not to livelock.  If the caller held a page
+ *  			precautions analt to livelock.  If the caller held a page
  *  			reference, it should drop it before retrying.  Returned
  *  			by read_folio().
  *
@@ -311,11 +311,11 @@ struct readahead_control;
 
 /*
  * Write life time hint values.
- * Stored in struct inode as u8.
+ * Stored in struct ianalde as u8.
  */
 enum rw_hint {
-	WRITE_LIFE_NOT_SET	= 0,
-	WRITE_LIFE_NONE		= RWH_WRITE_LIFE_NONE,
+	WRITE_LIFE_ANALT_SET	= 0,
+	WRITE_LIFE_ANALNE		= RWH_WRITE_LIFE_ANALNE,
 	WRITE_LIFE_SHORT	= RWH_WRITE_LIFE_SHORT,
 	WRITE_LIFE_MEDIUM	= RWH_WRITE_LIFE_MEDIUM,
 	WRITE_LIFE_LONG		= RWH_WRITE_LIFE_LONG,
@@ -326,16 +326,16 @@ enum rw_hint {
 #define IOCB_HIPRI		(__force int) RWF_HIPRI
 #define IOCB_DSYNC		(__force int) RWF_DSYNC
 #define IOCB_SYNC		(__force int) RWF_SYNC
-#define IOCB_NOWAIT		(__force int) RWF_NOWAIT
+#define IOCB_ANALWAIT		(__force int) RWF_ANALWAIT
 #define IOCB_APPEND		(__force int) RWF_APPEND
 
-/* non-RWF related bits - start at 16 */
+/* analn-RWF related bits - start at 16 */
 #define IOCB_EVENTFD		(1 << 16)
 #define IOCB_DIRECT		(1 << 17)
 #define IOCB_WRITE		(1 << 18)
 /* iocb->ki_waitq is valid */
 #define IOCB_WAITQ		(1 << 19)
-#define IOCB_NOIO		(1 << 20)
+#define IOCB_ANALIO		(1 << 20)
 /* can use bio alloc cache */
 #define IOCB_ALLOC_CACHE	(1 << 21)
 /*
@@ -345,10 +345,10 @@ enum rw_hint {
  * flag is set, the bio completion handling may set iocb->dio_complete to a
  * handler function and iocb->private to context information for that handler.
  * The issuer should call the handler with that context information from task
- * context to complete the processing of the iocb. Note that while this
+ * context to complete the processing of the iocb. Analte that while this
  * provides a task context for the dio_complete() callback, it should only be
- * used on the completion side for non-IO generating completions. It's fine to
- * call blocking functions from this callback, but they should not wait for
+ * used on the completion side for analn-IO generating completions. It's fine to
+ * call blocking functions from this callback, but they should analt wait for
  * unrelated IO (like cache flushing, new IO generation, etc).
  */
 #define IOCB_DIO_CALLER_COMP	(1 << 22)
@@ -360,13 +360,13 @@ enum rw_hint {
 	{ IOCB_HIPRI,		"HIPRI" }, \
 	{ IOCB_DSYNC,		"DSYNC" }, \
 	{ IOCB_SYNC,		"SYNC" }, \
-	{ IOCB_NOWAIT,		"NOWAIT" }, \
+	{ IOCB_ANALWAIT,		"ANALWAIT" }, \
 	{ IOCB_APPEND,		"APPEND" }, \
 	{ IOCB_EVENTFD,		"EVENTFD"}, \
 	{ IOCB_DIRECT,		"DIRECT" }, \
 	{ IOCB_WRITE,		"WRITE" }, \
 	{ IOCB_WAITQ,		"WAITQ" }, \
-	{ IOCB_NOIO,		"NOIO" }, \
+	{ IOCB_ANALIO,		"ANALIO" }, \
 	{ IOCB_ALLOC_CACHE,	"ALLOC_CACHE" }, \
 	{ IOCB_DIO_CALLER_COMP,	"CALLER_COMP" }
 
@@ -379,7 +379,7 @@ struct kiocb {
 	u16			ki_ioprio; /* See linux/ioprio.h */
 	union {
 		/*
-		 * Only used for async buffered reads, where it denotes the
+		 * Only used for async buffered reads, where it deanaltes the
 		 * page waitqueue associated with completing the read. Valid
 		 * IFF IOCB_WAITQ is set.
 		 */
@@ -428,7 +428,7 @@ struct address_space_operations {
 	ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
 	/*
 	 * migrate the contents of a folio to the specified target. If
-	 * migrate_mode is MIGRATE_ASYNC, it must not block.
+	 * migrate_mode is MIGRATE_ASYNC, it must analt block.
 	 */
 	int (*migrate_folio)(struct address_space *, struct folio *dst,
 			struct folio *src, enum migrate_mode);
@@ -449,7 +449,7 @@ extern const struct address_space_operations empty_aops;
 
 /**
  * struct address_space - Contents of a cacheable, mappable object.
- * @host: Owner, either the inode or the block_device.
+ * @host: Owner, either the ianalde or the block_device.
  * @i_pages: Cached pages.
  * @invalidate_lock: Guards coherency between page cache contents and
  *   file offset->disk block mappings in the filesystem during invalidates.
@@ -457,7 +457,7 @@ extern const struct address_space_operations empty_aops;
  *   memory mappings.
  * @gfp_mask: Memory allocation flags to use for allocating pages.
  * @i_mmap_writable: Number of VM_SHARED, VM_MAYWRITE mappings.
- * @nr_thps: Number of THPs in the pagecache (non-shmem only).
+ * @nr_thps: Number of THPs in the pagecache (analn-shmem only).
  * @i_mmap: Tree of private and shared mappings.
  * @i_mmap_rwsem: Protects @i_mmap and @i_mmap_writable.
  * @nrpages: Number of page entries, protected by the i_pages lock.
@@ -470,13 +470,13 @@ extern const struct address_space_operations empty_aops;
  * @i_private_data: For use by the owner of the address_space.
  */
 struct address_space {
-	struct inode		*host;
+	struct ianalde		*host;
 	struct xarray		i_pages;
 	struct rw_semaphore	invalidate_lock;
 	gfp_t			gfp_mask;
 	atomic_t		i_mmap_writable;
 #ifdef CONFIG_READ_ONLY_THP_FOR_FS
-	/* number of thp, only for non-shmem files */
+	/* number of thp, only for analn-shmem files */
 	atomic_t		nr_thps;
 #endif
 	struct rb_root_cached	i_mmap;
@@ -493,7 +493,7 @@ struct address_space {
 	/*
 	 * On most architectures that alignment is already the case; but
 	 * must be enforced here for CRIS, to let the least significant bit
-	 * of struct page's "mapping" pointer be used for PAGE_MAPPING_ANON.
+	 * of struct page's "mapping" pointer be used for PAGE_MAPPING_AANALN.
 	 */
 
 /* XArray tags, for tagging dirty and writeback pages in the pagecache. */
@@ -559,12 +559,12 @@ static inline int mapping_mapped(struct address_space *mapping)
 
 /*
  * Might pages of this file have been modified in userspace?
- * Note that i_mmap_writable counts all VM_SHARED, VM_MAYWRITE vmas: do_mmap
+ * Analte that i_mmap_writable counts all VM_SHARED, VM_MAYWRITE vmas: do_mmap
  * marks vma as VM_SHARED if it is shared, and the file was opened for
- * writing i.e. vma may be mprotected writable even if now readonly.
+ * writing i.e. vma may be mprotected writable even if analw readonly.
  *
- * If i_mmap_writable is negative, no new writable mappings are allowed. You
- * can only deny writable mappings, if none exists right now.
+ * If i_mmap_writable is negative, anal new writable mappings are allowed. You
+ * can only deny writable mappings, if analne exists right analw.
  */
 static inline int mapping_writably_mapped(struct address_space *mapping)
 {
@@ -599,16 +599,16 @@ static inline void mapping_allow_writable(struct address_space *mapping)
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 #include <linux/seqlock.h>
 #define __NEED_I_SIZE_ORDERED
-#define i_size_ordered_init(inode) seqcount_init(&inode->i_size_seqcount)
+#define i_size_ordered_init(ianalde) seqcount_init(&ianalde->i_size_seqcount)
 #else
-#define i_size_ordered_init(inode) do { } while (0)
+#define i_size_ordered_init(ianalde) do { } while (0)
 #endif
 
 struct posix_acl;
-#define ACL_NOT_CACHED ((void *)(-1))
+#define ACL_ANALT_CACHED ((void *)(-1))
 /*
  * ACL_DONT_CACHE is for stacked filesystems, that rely on underlying fs to
- * cache the ACL.  This also means that ->get_inode_acl() can be called in RCU
+ * cache the ACL.  This also means that ->get_ianalde_acl() can be called in RCU
  * mode with the LOOKUP_RCU flag.
  */
 #define ACL_DONT_CACHE ((void *)(-3))
@@ -627,18 +627,18 @@ is_uncached_acl(struct posix_acl *acl)
 
 #define IOP_FASTPERM	0x0001
 #define IOP_LOOKUP	0x0002
-#define IOP_NOFOLLOW	0x0004
+#define IOP_ANALFOLLOW	0x0004
 #define IOP_XATTR	0x0008
 #define IOP_DEFAULT_READLINK	0x0010
 
-struct fsnotify_mark_connector;
+struct fsanaltify_mark_connector;
 
 /*
  * Keep mostly read-only and often accessed (especially for
  * the RCU path lookup and 'stat' data) fields at the beginning
- * of the 'struct inode'
+ * of the 'struct ianalde'
  */
-struct inode {
+struct ianalde {
 	umode_t			i_mode;
 	unsigned short		i_opflags;
 	kuid_t			i_uid;
@@ -650,7 +650,7 @@ struct inode {
 	struct posix_acl	*i_default_acl;
 #endif
 
-	const struct inode_operations	*i_op;
+	const struct ianalde_operations	*i_op;
 	struct super_block	*i_sb;
 	struct address_space	*i_mapping;
 
@@ -658,14 +658,14 @@ struct inode {
 	void			*i_security;
 #endif
 
-	/* Stat data, not accessed from path walking */
-	unsigned long		i_ino;
+	/* Stat data, analt accessed from path walking */
+	unsigned long		i_ianal;
 	/*
 	 * Filesystems may only read i_nlink directly.  They shall use the
 	 * following functions for modification:
 	 *
 	 *    (set|clear|inc|drop)_nlink
-	 *    inode_(inc|dec)_link_count
+	 *    ianalde_(inc|dec)_link_count
 	 */
 	union {
 		const unsigned int i_nlink;
@@ -675,7 +675,7 @@ struct inode {
 	loff_t			i_size;
 	struct timespec64	__i_atime;
 	struct timespec64	__i_mtime;
-	struct timespec64	__i_ctime; /* use inode_*_ctime accessors! */
+	struct timespec64	__i_ctime; /* use ianalde_*_ctime accessors! */
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
 	unsigned short          i_bytes;
 	u8			i_blkbits;
@@ -693,17 +693,17 @@ struct inode {
 	unsigned long		dirtied_when;	/* jiffies of first dirtying */
 	unsigned long		dirtied_time_when;
 
-	struct hlist_node	i_hash;
+	struct hlist_analde	i_hash;
 	struct list_head	i_io_list;	/* backing dev IO list */
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct bdi_writeback	*i_wb;		/* the associated cgroup wb */
 
-	/* foreign inode detection, see wbc_detach_inode() */
+	/* foreign ianalde detection, see wbc_detach_ianalde() */
 	int			i_wb_frn_winner;
 	u16			i_wb_frn_avg_time;
 	u16			i_wb_frn_history;
 #endif
-	struct list_head	i_lru;		/* inode LRU list */
+	struct list_head	i_lru;		/* ianalde LRU list */
 	struct list_head	i_sb_list;
 	struct list_head	i_wb_list;	/* backing dev writeback list */
 	union {
@@ -720,13 +720,13 @@ struct inode {
 #endif
 	union {
 		const struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
-		void (*free_inode)(struct inode *);
+		void (*free_ianalde)(struct ianalde *);
 	};
 	struct file_lock_context	*i_flctx;
 	struct address_space	i_data;
 	struct list_head	i_devices;
 	union {
-		struct pipe_inode_info	*i_pipe;
+		struct pipe_ianalde_info	*i_pipe;
 		struct cdev		*i_cdev;
 		char			*i_link;
 		unsigned		i_dir_seq;
@@ -734,13 +734,13 @@ struct inode {
 
 	__u32			i_generation;
 
-#ifdef CONFIG_FSNOTIFY
-	__u32			i_fsnotify_mask; /* all events this inode cares about */
-	struct fsnotify_mark_connector __rcu	*i_fsnotify_marks;
+#ifdef CONFIG_FSANALTIFY
+	__u32			i_fsanaltify_mask; /* all events this ianalde cares about */
+	struct fsanaltify_mark_connector __rcu	*i_fsanaltify_marks;
 #endif
 
 #ifdef CONFIG_FS_ENCRYPTION
-	struct fscrypt_inode_info	*i_crypt_info;
+	struct fscrypt_ianalde_info	*i_crypt_info;
 #endif
 
 #ifdef CONFIG_FS_VERITY
@@ -750,98 +750,98 @@ struct inode {
 	void			*i_private; /* fs or device private pointer */
 } __randomize_layout;
 
-struct timespec64 timestamp_truncate(struct timespec64 t, struct inode *inode);
+struct timespec64 timestamp_truncate(struct timespec64 t, struct ianalde *ianalde);
 
-static inline unsigned int i_blocksize(const struct inode *node)
+static inline unsigned int i_blocksize(const struct ianalde *analde)
 {
-	return (1 << node->i_blkbits);
+	return (1 << analde->i_blkbits);
 }
 
-static inline int inode_unhashed(struct inode *inode)
+static inline int ianalde_unhashed(struct ianalde *ianalde)
 {
-	return hlist_unhashed(&inode->i_hash);
+	return hlist_unhashed(&ianalde->i_hash);
 }
 
 /*
- * __mark_inode_dirty expects inodes to be hashed.  Since we don't
- * want special inodes in the fileset inode space, we make them
- * appear hashed, but do not put on any lists.  hlist_del()
- * will work fine and require no locking.
+ * __mark_ianalde_dirty expects ianaldes to be hashed.  Since we don't
+ * want special ianaldes in the fileset ianalde space, we make them
+ * appear hashed, but do analt put on any lists.  hlist_del()
+ * will work fine and require anal locking.
  */
-static inline void inode_fake_hash(struct inode *inode)
+static inline void ianalde_fake_hash(struct ianalde *ianalde)
 {
-	hlist_add_fake(&inode->i_hash);
+	hlist_add_fake(&ianalde->i_hash);
 }
 
 /*
- * inode->i_mutex nesting subclasses for the lock validator:
+ * ianalde->i_mutex nesting subclasses for the lock validator:
  *
  * 0: the object of the current VFS operation
  * 1: parent
  * 2: child/target
  * 3: xattr
- * 4: second non-directory
+ * 4: second analn-directory
  * 5: second parent (when locking independent directories in rename)
  *
- * I_MUTEX_NONDIR2 is for certain operations (such as rename) which lock two
- * non-directories at once.
+ * I_MUTEX_ANALNDIR2 is for certain operations (such as rename) which lock two
+ * analn-directories at once.
  *
  * The locking order between these classes is
- * parent[2] -> child -> grandchild -> normal -> xattr -> second non-directory
+ * parent[2] -> child -> grandchild -> analrmal -> xattr -> second analn-directory
  */
-enum inode_i_mutex_lock_class
+enum ianalde_i_mutex_lock_class
 {
-	I_MUTEX_NORMAL,
+	I_MUTEX_ANALRMAL,
 	I_MUTEX_PARENT,
 	I_MUTEX_CHILD,
 	I_MUTEX_XATTR,
-	I_MUTEX_NONDIR2,
+	I_MUTEX_ANALNDIR2,
 	I_MUTEX_PARENT2,
 };
 
-static inline void inode_lock(struct inode *inode)
+static inline void ianalde_lock(struct ianalde *ianalde)
 {
-	down_write(&inode->i_rwsem);
+	down_write(&ianalde->i_rwsem);
 }
 
-static inline void inode_unlock(struct inode *inode)
+static inline void ianalde_unlock(struct ianalde *ianalde)
 {
-	up_write(&inode->i_rwsem);
+	up_write(&ianalde->i_rwsem);
 }
 
-static inline void inode_lock_shared(struct inode *inode)
+static inline void ianalde_lock_shared(struct ianalde *ianalde)
 {
-	down_read(&inode->i_rwsem);
+	down_read(&ianalde->i_rwsem);
 }
 
-static inline void inode_unlock_shared(struct inode *inode)
+static inline void ianalde_unlock_shared(struct ianalde *ianalde)
 {
-	up_read(&inode->i_rwsem);
+	up_read(&ianalde->i_rwsem);
 }
 
-static inline int inode_trylock(struct inode *inode)
+static inline int ianalde_trylock(struct ianalde *ianalde)
 {
-	return down_write_trylock(&inode->i_rwsem);
+	return down_write_trylock(&ianalde->i_rwsem);
 }
 
-static inline int inode_trylock_shared(struct inode *inode)
+static inline int ianalde_trylock_shared(struct ianalde *ianalde)
 {
-	return down_read_trylock(&inode->i_rwsem);
+	return down_read_trylock(&ianalde->i_rwsem);
 }
 
-static inline int inode_is_locked(struct inode *inode)
+static inline int ianalde_is_locked(struct ianalde *ianalde)
 {
-	return rwsem_is_locked(&inode->i_rwsem);
+	return rwsem_is_locked(&ianalde->i_rwsem);
 }
 
-static inline void inode_lock_nested(struct inode *inode, unsigned subclass)
+static inline void ianalde_lock_nested(struct ianalde *ianalde, unsigned subclass)
 {
-	down_write_nested(&inode->i_rwsem, subclass);
+	down_write_nested(&ianalde->i_rwsem, subclass);
 }
 
-static inline void inode_lock_shared_nested(struct inode *inode, unsigned subclass)
+static inline void ianalde_lock_shared_nested(struct ianalde *ianalde, unsigned subclass)
 {
-	down_read_nested(&inode->i_rwsem, subclass);
+	down_read_nested(&ianalde->i_rwsem, subclass);
 }
 
 static inline void filemap_invalidate_lock(struct address_space *mapping)
@@ -871,8 +871,8 @@ static inline void filemap_invalidate_unlock_shared(
 	up_read(&mapping->invalidate_lock);
 }
 
-void lock_two_nondirectories(struct inode *, struct inode*);
-void unlock_two_nondirectories(struct inode *, struct inode*);
+void lock_two_analndirectories(struct ianalde *, struct ianalde*);
+void unlock_two_analndirectories(struct ianalde *, struct ianalde*);
 
 void filemap_invalidate_lock_two(struct address_space *mapping1,
 				 struct address_space *mapping2);
@@ -881,68 +881,68 @@ void filemap_invalidate_unlock_two(struct address_space *mapping1,
 
 
 /*
- * NOTE: in a 32bit arch with a preemptable kernel and
+ * ANALTE: in a 32bit arch with a preemptable kernel and
  * an UP compile the i_size_read/write must be atomic
  * with respect to the local cpu (unlike with preempt disabled),
  * but they don't need to be atomic with respect to other cpus like in
  * true SMP (so they need either to either locally disable irq around
  * the read or for example on x86 they can be still implemented as a
  * cmpxchg8b without the need of the lock prefix). For SMP compiles
- * and 64bit archs it makes no difference if preempt is enabled or not.
+ * and 64bit archs it makes anal difference if preempt is enabled or analt.
  */
-static inline loff_t i_size_read(const struct inode *inode)
+static inline loff_t i_size_read(const struct ianalde *ianalde)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	loff_t i_size;
 	unsigned int seq;
 
 	do {
-		seq = read_seqcount_begin(&inode->i_size_seqcount);
-		i_size = inode->i_size;
-	} while (read_seqcount_retry(&inode->i_size_seqcount, seq));
+		seq = read_seqcount_begin(&ianalde->i_size_seqcount);
+		i_size = ianalde->i_size;
+	} while (read_seqcount_retry(&ianalde->i_size_seqcount, seq));
 	return i_size;
 #elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 	loff_t i_size;
 
 	preempt_disable();
-	i_size = inode->i_size;
+	i_size = ianalde->i_size;
 	preempt_enable();
 	return i_size;
 #else
-	return inode->i_size;
+	return ianalde->i_size;
 #endif
 }
 
 /*
- * NOTE: unlike i_size_read(), i_size_write() does need locking around it
- * (normally i_mutex), otherwise on 32bit/SMP an update of i_size_seqcount
+ * ANALTE: unlike i_size_read(), i_size_write() does need locking around it
+ * (analrmally i_mutex), otherwise on 32bit/SMP an update of i_size_seqcount
  * can be lost, resulting in subsequent i_size_read() calls spinning forever.
  */
-static inline void i_size_write(struct inode *inode, loff_t i_size)
+static inline void i_size_write(struct ianalde *ianalde, loff_t i_size)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	preempt_disable();
-	write_seqcount_begin(&inode->i_size_seqcount);
-	inode->i_size = i_size;
-	write_seqcount_end(&inode->i_size_seqcount);
+	write_seqcount_begin(&ianalde->i_size_seqcount);
+	ianalde->i_size = i_size;
+	write_seqcount_end(&ianalde->i_size_seqcount);
 	preempt_enable();
 #elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 	preempt_disable();
-	inode->i_size = i_size;
+	ianalde->i_size = i_size;
 	preempt_enable();
 #else
-	inode->i_size = i_size;
+	ianalde->i_size = i_size;
 #endif
 }
 
-static inline unsigned iminor(const struct inode *inode)
+static inline unsigned imianalr(const struct ianalde *ianalde)
 {
-	return MINOR(inode->i_rdev);
+	return MIANALR(ianalde->i_rdev);
 }
 
-static inline unsigned imajor(const struct inode *inode)
+static inline unsigned imajor(const struct ianalde *ianalde)
 {
-	return MAJOR(inode->i_rdev);
+	return MAJOR(ianalde->i_rdev);
 }
 
 struct fown_struct {
@@ -957,7 +957,7 @@ struct fown_struct {
  * struct file_ra_state - Track a file's readahead state.
  * @start: Where the most recent readahead started.
  * @size: Number of pages read in the most recent readahead.
- * @async_size: Numer of pages that were/are not needed immediately
+ * @async_size: Numer of pages that were/are analt needed immediately
  *      and so were/are genuinely "ahead".  Start next readahead when
  *      the first of these pages is accessed.
  * @ra_pages: Maximum size of a readahead request, copied from the bdi.
@@ -989,20 +989,20 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
  * f_{lock,count,pos_lock} members can be highly contended and share
  * the same cacheline. f_{lock,mode} are very frequently used together
  * and so share the same cacheline as well. The read-mostly
- * f_{path,inode,op} are kept on a separate cacheline.
+ * f_{path,ianalde,op} are kept on a separate cacheline.
  */
 struct file {
 	union {
 		/* fput() uses task work when closing and freeing file (default). */
 		struct callback_head 	f_task_work;
 		/* fput() must use workqueue (most kernel threads). */
-		struct llist_node	f_llist;
+		struct llist_analde	f_llist;
 		unsigned int 		f_iocb_flags;
 	};
 
 	/*
 	 * Protects f_ep, f_flags.
-	 * Must not be taken from IRQ context.
+	 * Must analt be taken from IRQ context.
 	 */
 	spinlock_t		f_lock;
 	fmode_t			f_mode;
@@ -1014,7 +1014,7 @@ struct file {
 	const struct cred	*f_cred;
 	struct file_ra_state	f_ra;
 	struct path		f_path;
-	struct inode		*f_inode;	/* cached value */
+	struct ianalde		*f_ianalde;	/* cached value */
 	const struct file_operations	*f_op;
 
 	u64			f_version;
@@ -1052,7 +1052,7 @@ struct file *get_file_active(struct file **f);
 
 #define file_count(x)	atomic_long_read(&(x)->f_count)
 
-#define	MAX_NON_LFS	((1UL<<31) - 1)
+#define	MAX_ANALN_LFS	((1UL<<31) - 1)
 
 /* Page cache limit. The filesystems should put that into their s_maxbytes 
    limits, otherwise bad things can happen in VM. */ 
@@ -1075,14 +1075,14 @@ struct file_lock;
 
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 
-static inline struct inode *file_inode(const struct file *f)
+static inline struct ianalde *file_ianalde(const struct file *f)
 {
-	return f->f_inode;
+	return f->f_ianalde;
 }
 
 static inline struct dentry *file_dentry(const struct file *file)
 {
-	return d_real(file->f_path.dentry, file_inode(file));
+	return d_real(file->f_path.dentry, file_ianalde(file));
 }
 
 struct fasync_struct {
@@ -1113,23 +1113,23 @@ extern pid_t f_getown(struct file *filp);
 extern int send_sigurg(struct fown_struct *fown);
 
 /*
- * sb->s_flags.  Note that these mirror the equivalent MS_* flags where
+ * sb->s_flags.  Analte that these mirror the equivalent MS_* flags where
  * represented in both.
  */
 #define SB_RDONLY       BIT(0)	/* Mount read-only */
-#define SB_NOSUID       BIT(1)	/* Ignore suid and sgid bits */
-#define SB_NODEV        BIT(2)	/* Disallow access to device special files */
-#define SB_NOEXEC       BIT(3)	/* Disallow program execution */
-#define SB_SYNCHRONOUS  BIT(4)	/* Writes are synced at once */
+#define SB_ANALSUID       BIT(1)	/* Iganalre suid and sgid bits */
+#define SB_ANALDEV        BIT(2)	/* Disallow access to device special files */
+#define SB_ANALEXEC       BIT(3)	/* Disallow program execution */
+#define SB_SYNCHROANALUS  BIT(4)	/* Writes are synced at once */
 #define SB_MANDLOCK     BIT(6)	/* Allow mandatory locks on an FS */
-#define SB_DIRSYNC      BIT(7)	/* Directory modifications are synchronous */
-#define SB_NOATIME      BIT(10)	/* Do not update access times. */
-#define SB_NODIRATIME   BIT(11)	/* Do not update directory access times */
+#define SB_DIRSYNC      BIT(7)	/* Directory modifications are synchroanalus */
+#define SB_ANALATIME      BIT(10)	/* Do analt update access times. */
+#define SB_ANALDIRATIME   BIT(11)	/* Do analt update directory access times */
 #define SB_SILENT       BIT(15)
 #define SB_POSIXACL     BIT(16)	/* Supports POSIX ACLs */
 #define SB_INLINECRYPT  BIT(17)	/* Use blk-crypto for encrypted files */
 #define SB_KERNMOUNT    BIT(22)	/* this is a kern_mount call */
-#define SB_I_VERSION    BIT(23)	/* Update inode I_version field */
+#define SB_I_VERSION    BIT(23)	/* Update ianalde I_version field */
 #define SB_LAZYTIME     BIT(25)	/* Update the on-disk [acm]times lazily */
 
 /* These sb flags are internal to the kernel */
@@ -1137,10 +1137,10 @@ extern int send_sigurg(struct fown_struct *fown);
 #define SB_DYING        BIT(24)
 #define SB_SUBMOUNT     BIT(26)
 #define SB_FORCE        BIT(27)
-#define SB_NOSEC        BIT(28)
+#define SB_ANALSEC        BIT(28)
 #define SB_BORN         BIT(29)
 #define SB_ACTIVE       BIT(30)
-#define SB_NOUSER       BIT(31)
+#define SB_ANALUSER       BIT(31)
 
 /* These flags relate to encoding and casefolding */
 #define SB_ENC_STRICT_MODE_FL	(1 << 0)
@@ -1155,13 +1155,13 @@ extern int send_sigurg(struct fown_struct *fown);
 #define MNT_FORCE	0x00000001	/* Attempt to forcibily umount */
 #define MNT_DETACH	0x00000002	/* Just detach from the tree */
 #define MNT_EXPIRE	0x00000004	/* Mark for expiry */
-#define UMOUNT_NOFOLLOW	0x00000008	/* Don't follow symlink on umount */
+#define UMOUNT_ANALFOLLOW	0x00000008	/* Don't follow symlink on umount */
 #define UMOUNT_UNUSED	0x80000000	/* Flag guaranteed to be unused */
 
 /* sb->s_iflags */
 #define SB_I_CGROUPWB	0x00000001	/* cgroup-aware writeback enabled */
-#define SB_I_NOEXEC	0x00000002	/* Ignore executables on this fs */
-#define SB_I_NODEV	0x00000004	/* Ignore devices on this fs */
+#define SB_I_ANALEXEC	0x00000002	/* Iganalre executables on this fs */
+#define SB_I_ANALDEV	0x00000004	/* Iganalre devices on this fs */
 #define SB_I_STABLE_WRITES 0x00000008	/* don't modify blks until WB is done */
 
 /* sb->s_iflags to limit user namespace mounts */
@@ -1174,7 +1174,7 @@ extern int send_sigurg(struct fown_struct *fown);
 #define SB_I_PERSB_BDI	0x00000200	/* has a per-sb bdi */
 #define SB_I_TS_EXPIRY_WARNED 0x00000400 /* warned about timestamp range expiry */
 #define SB_I_RETIRED	0x00000800	/* superblock shouldn't be reused */
-#define SB_I_NOUMASK	0x00001000	/* VFS does not apply umask */
+#define SB_I_ANALUMASK	0x00001000	/* VFS does analt apply umask */
 
 /* Possible states of 'frozen' field */
 enum {
@@ -1197,7 +1197,7 @@ struct sb_writers {
 
 struct super_block {
 	struct list_head	s_list;		/* Keep this first */
-	dev_t			s_dev;		/* search index; _not_ kdev_t */
+	dev_t			s_dev;		/* search index; _analt_ kdev_t */
 	unsigned char		s_blocksize_bits;
 	unsigned long		s_blocksize;
 	loff_t			s_maxbytes;	/* Max file size */
@@ -1229,32 +1229,32 @@ struct super_block {
 	__u16 s_encoding_flags;
 #endif
 	struct hlist_bl_head	s_roots;	/* alternate root dentries for NFS */
-	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
+	struct list_head	s_mounts;	/* list of mounts; _analt_ for fs use */
 	struct block_device	*s_bdev;
 	struct bdev_handle	*s_bdev_handle;
 	struct backing_dev_info *s_bdi;
 	struct mtd_info		*s_mtd;
-	struct hlist_node	s_instances;
+	struct hlist_analde	s_instances;
 	unsigned int		s_quota_types;	/* Bitmask of supported quota types */
 	struct quota_info	s_dquot;	/* Diskquota specific options */
 
 	struct sb_writers	s_writers;
 
 	/*
-	 * Keep s_fs_info, s_time_gran, s_fsnotify_mask, and
-	 * s_fsnotify_marks together for cache efficiency. They are frequently
+	 * Keep s_fs_info, s_time_gran, s_fsanaltify_mask, and
+	 * s_fsanaltify_marks together for cache efficiency. They are frequently
 	 * accessed and rarely modified.
 	 */
 	void			*s_fs_info;	/* Filesystem private info */
 
-	/* Granularity of c/m/atime in ns (cannot be worse than a second) */
+	/* Granularity of c/m/atime in ns (cananalt be worse than a second) */
 	u32			s_time_gran;
 	/* Time limits for c/m/atime in seconds */
 	time64_t		   s_time_min;
 	time64_t		   s_time_max;
-#ifdef CONFIG_FSNOTIFY
-	__u32			s_fsnotify_mask;
-	struct fsnotify_mark_connector __rcu	*s_fsnotify_marks;
+#ifdef CONFIG_FSANALTIFY
+	__u32			s_fsanaltify_mask;
+	struct fsanaltify_mark_connector __rcu	*s_fsanaltify_marks;
 #endif
 
 	char			s_id[32];	/* Informational name */
@@ -1263,13 +1263,13 @@ struct super_block {
 	unsigned int		s_max_links;
 
 	/*
-	 * The next field is for VFS *only*. No filesystems have any business
+	 * The next field is for VFS *only*. Anal filesystems have any business
 	 * even looking at it. You had been warned.
 	 */
 	struct mutex s_vfs_rename_mutex;	/* Kludge */
 
 	/*
-	 * Filesystem subtype.  If non-empty the filesystem type field
+	 * Filesystem subtype.  If analn-empty the filesystem type field
 	 * in /proc/mounts will be "type.subtype"
 	 */
 	const char *s_subtype;
@@ -1278,14 +1278,14 @@ struct super_block {
 
 	struct shrinker *s_shrink;	/* per-sb shrinker handle */
 
-	/* Number of inodes with nlink == 0 but still referenced */
+	/* Number of ianaldes with nlink == 0 but still referenced */
 	atomic_long_t s_remove_count;
 
 	/*
-	 * Number of inode/mount/sb objects that are being watched, note that
-	 * inodes objects are currently double-accounted.
+	 * Number of ianalde/mount/sb objects that are being watched, analte that
+	 * ianaldes objects are currently double-accounted.
 	 */
-	atomic_long_t s_fsnotify_connectors;
+	atomic_long_t s_fsanaltify_connectors;
 
 	/* Read-only state of the superblock is being changed */
 	int s_readonly_remount;
@@ -1299,18 +1299,18 @@ struct super_block {
 
 	/*
 	 * Owning user namespace and default context in which to
-	 * interpret filesystem uids, gids, quotas, device nodes,
+	 * interpret filesystem uids, gids, quotas, device analdes,
 	 * xattrs and security labels.
 	 */
 	struct user_namespace *s_user_ns;
 
 	/*
 	 * The list_lru structure is essentially just a pointer to a table
-	 * of per-node lru lists, each of which has its own spinlock.
-	 * There is no need to put them into separate cachelines.
+	 * of per-analde lru lists, each of which has its own spinlock.
+	 * There is anal need to put them into separate cachelines.
 	 */
 	struct list_lru		s_dentry_lru;
-	struct list_lru		s_inode_lru;
+	struct list_lru		s_ianalde_lru;
 	struct rcu_head		rcu;
 	struct work_struct	destroy_work;
 
@@ -1321,174 +1321,174 @@ struct super_block {
 	 */
 	int s_stack_depth;
 
-	/* s_inode_list_lock protects s_inodes */
-	spinlock_t		s_inode_list_lock ____cacheline_aligned_in_smp;
-	struct list_head	s_inodes;	/* all inodes */
+	/* s_ianalde_list_lock protects s_ianaldes */
+	spinlock_t		s_ianalde_list_lock ____cacheline_aligned_in_smp;
+	struct list_head	s_ianaldes;	/* all ianaldes */
 
-	spinlock_t		s_inode_wblist_lock;
-	struct list_head	s_inodes_wb;	/* writeback inodes */
+	spinlock_t		s_ianalde_wblist_lock;
+	struct list_head	s_ianaldes_wb;	/* writeback ianaldes */
 } __randomize_layout;
 
-static inline struct user_namespace *i_user_ns(const struct inode *inode)
+static inline struct user_namespace *i_user_ns(const struct ianalde *ianalde)
 {
-	return inode->i_sb->s_user_ns;
+	return ianalde->i_sb->s_user_ns;
 }
 
 /* Helper functions so that in most cases filesystems will
- * not need to deal directly with kuid_t and kgid_t and can
+ * analt need to deal directly with kuid_t and kgid_t and can
  * instead deal with the raw numeric values that are stored
  * in the filesystem.
  */
-static inline uid_t i_uid_read(const struct inode *inode)
+static inline uid_t i_uid_read(const struct ianalde *ianalde)
 {
-	return from_kuid(i_user_ns(inode), inode->i_uid);
+	return from_kuid(i_user_ns(ianalde), ianalde->i_uid);
 }
 
-static inline gid_t i_gid_read(const struct inode *inode)
+static inline gid_t i_gid_read(const struct ianalde *ianalde)
 {
-	return from_kgid(i_user_ns(inode), inode->i_gid);
+	return from_kgid(i_user_ns(ianalde), ianalde->i_gid);
 }
 
-static inline void i_uid_write(struct inode *inode, uid_t uid)
+static inline void i_uid_write(struct ianalde *ianalde, uid_t uid)
 {
-	inode->i_uid = make_kuid(i_user_ns(inode), uid);
+	ianalde->i_uid = make_kuid(i_user_ns(ianalde), uid);
 }
 
-static inline void i_gid_write(struct inode *inode, gid_t gid)
+static inline void i_gid_write(struct ianalde *ianalde, gid_t gid)
 {
-	inode->i_gid = make_kgid(i_user_ns(inode), gid);
+	ianalde->i_gid = make_kgid(i_user_ns(ianalde), gid);
 }
 
 /**
- * i_uid_into_vfsuid - map an inode's i_uid down according to an idmapping
- * @idmap: idmap of the mount the inode was found from
- * @inode: inode to map
+ * i_uid_into_vfsuid - map an ianalde's i_uid down according to an idmapping
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: ianalde to map
  *
- * Return: whe inode's i_uid mapped down according to @idmap.
- * If the inode's i_uid has no mapping INVALID_VFSUID is returned.
+ * Return: whe ianalde's i_uid mapped down according to @idmap.
+ * If the ianalde's i_uid has anal mapping INVALID_VFSUID is returned.
  */
 static inline vfsuid_t i_uid_into_vfsuid(struct mnt_idmap *idmap,
-					 const struct inode *inode)
+					 const struct ianalde *ianalde)
 {
-	return make_vfsuid(idmap, i_user_ns(inode), inode->i_uid);
+	return make_vfsuid(idmap, i_user_ns(ianalde), ianalde->i_uid);
 }
 
 /**
- * i_uid_needs_update - check whether inode's i_uid needs to be updated
- * @idmap: idmap of the mount the inode was found from
- * @attr: the new attributes of @inode
- * @inode: the inode to update
+ * i_uid_needs_update - check whether ianalde's i_uid needs to be updated
+ * @idmap: idmap of the mount the ianalde was found from
+ * @attr: the new attributes of @ianalde
+ * @ianalde: the ianalde to update
  *
- * Check whether the $inode's i_uid field needs to be updated taking idmapped
+ * Check whether the $ianalde's i_uid field needs to be updated taking idmapped
  * mounts into account if the filesystem supports it.
  *
- * Return: true if @inode's i_uid field needs to be updated, false if not.
+ * Return: true if @ianalde's i_uid field needs to be updated, false if analt.
  */
 static inline bool i_uid_needs_update(struct mnt_idmap *idmap,
 				      const struct iattr *attr,
-				      const struct inode *inode)
+				      const struct ianalde *ianalde)
 {
 	return ((attr->ia_valid & ATTR_UID) &&
 		!vfsuid_eq(attr->ia_vfsuid,
-			   i_uid_into_vfsuid(idmap, inode)));
+			   i_uid_into_vfsuid(idmap, ianalde)));
 }
 
 /**
- * i_uid_update - update @inode's i_uid field
- * @idmap: idmap of the mount the inode was found from
- * @attr: the new attributes of @inode
- * @inode: the inode to update
+ * i_uid_update - update @ianalde's i_uid field
+ * @idmap: idmap of the mount the ianalde was found from
+ * @attr: the new attributes of @ianalde
+ * @ianalde: the ianalde to update
  *
- * Safely update @inode's i_uid field translating the vfsuid of any idmapped
+ * Safely update @ianalde's i_uid field translating the vfsuid of any idmapped
  * mount into the filesystem kuid.
  */
 static inline void i_uid_update(struct mnt_idmap *idmap,
 				const struct iattr *attr,
-				struct inode *inode)
+				struct ianalde *ianalde)
 {
 	if (attr->ia_valid & ATTR_UID)
-		inode->i_uid = from_vfsuid(idmap, i_user_ns(inode),
+		ianalde->i_uid = from_vfsuid(idmap, i_user_ns(ianalde),
 					   attr->ia_vfsuid);
 }
 
 /**
- * i_gid_into_vfsgid - map an inode's i_gid down according to an idmapping
- * @idmap: idmap of the mount the inode was found from
- * @inode: inode to map
+ * i_gid_into_vfsgid - map an ianalde's i_gid down according to an idmapping
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: ianalde to map
  *
- * Return: the inode's i_gid mapped down according to @idmap.
- * If the inode's i_gid has no mapping INVALID_VFSGID is returned.
+ * Return: the ianalde's i_gid mapped down according to @idmap.
+ * If the ianalde's i_gid has anal mapping INVALID_VFSGID is returned.
  */
 static inline vfsgid_t i_gid_into_vfsgid(struct mnt_idmap *idmap,
-					 const struct inode *inode)
+					 const struct ianalde *ianalde)
 {
-	return make_vfsgid(idmap, i_user_ns(inode), inode->i_gid);
+	return make_vfsgid(idmap, i_user_ns(ianalde), ianalde->i_gid);
 }
 
 /**
- * i_gid_needs_update - check whether inode's i_gid needs to be updated
- * @idmap: idmap of the mount the inode was found from
- * @attr: the new attributes of @inode
- * @inode: the inode to update
+ * i_gid_needs_update - check whether ianalde's i_gid needs to be updated
+ * @idmap: idmap of the mount the ianalde was found from
+ * @attr: the new attributes of @ianalde
+ * @ianalde: the ianalde to update
  *
- * Check whether the $inode's i_gid field needs to be updated taking idmapped
+ * Check whether the $ianalde's i_gid field needs to be updated taking idmapped
  * mounts into account if the filesystem supports it.
  *
- * Return: true if @inode's i_gid field needs to be updated, false if not.
+ * Return: true if @ianalde's i_gid field needs to be updated, false if analt.
  */
 static inline bool i_gid_needs_update(struct mnt_idmap *idmap,
 				      const struct iattr *attr,
-				      const struct inode *inode)
+				      const struct ianalde *ianalde)
 {
 	return ((attr->ia_valid & ATTR_GID) &&
 		!vfsgid_eq(attr->ia_vfsgid,
-			   i_gid_into_vfsgid(idmap, inode)));
+			   i_gid_into_vfsgid(idmap, ianalde)));
 }
 
 /**
- * i_gid_update - update @inode's i_gid field
- * @idmap: idmap of the mount the inode was found from
- * @attr: the new attributes of @inode
- * @inode: the inode to update
+ * i_gid_update - update @ianalde's i_gid field
+ * @idmap: idmap of the mount the ianalde was found from
+ * @attr: the new attributes of @ianalde
+ * @ianalde: the ianalde to update
  *
- * Safely update @inode's i_gid field translating the vfsgid of any idmapped
+ * Safely update @ianalde's i_gid field translating the vfsgid of any idmapped
  * mount into the filesystem kgid.
  */
 static inline void i_gid_update(struct mnt_idmap *idmap,
 				const struct iattr *attr,
-				struct inode *inode)
+				struct ianalde *ianalde)
 {
 	if (attr->ia_valid & ATTR_GID)
-		inode->i_gid = from_vfsgid(idmap, i_user_ns(inode),
+		ianalde->i_gid = from_vfsgid(idmap, i_user_ns(ianalde),
 					   attr->ia_vfsgid);
 }
 
 /**
- * inode_fsuid_set - initialize inode's i_uid field with callers fsuid
- * @inode: inode to initialize
- * @idmap: idmap of the mount the inode was found from
+ * ianalde_fsuid_set - initialize ianalde's i_uid field with callers fsuid
+ * @ianalde: ianalde to initialize
+ * @idmap: idmap of the mount the ianalde was found from
  *
- * Initialize the i_uid field of @inode. If the inode was found/created via
+ * Initialize the i_uid field of @ianalde. If the ianalde was found/created via
  * an idmapped mount map the caller's fsuid according to @idmap.
  */
-static inline void inode_fsuid_set(struct inode *inode,
+static inline void ianalde_fsuid_set(struct ianalde *ianalde,
 				   struct mnt_idmap *idmap)
 {
-	inode->i_uid = mapped_fsuid(idmap, i_user_ns(inode));
+	ianalde->i_uid = mapped_fsuid(idmap, i_user_ns(ianalde));
 }
 
 /**
- * inode_fsgid_set - initialize inode's i_gid field with callers fsgid
- * @inode: inode to initialize
- * @idmap: idmap of the mount the inode was found from
+ * ianalde_fsgid_set - initialize ianalde's i_gid field with callers fsgid
+ * @ianalde: ianalde to initialize
+ * @idmap: idmap of the mount the ianalde was found from
  *
- * Initialize the i_gid field of @inode. If the inode was found/created via
+ * Initialize the i_gid field of @ianalde. If the ianalde was found/created via
  * an idmapped mount map the caller's fsgid according to @idmap.
  */
-static inline void inode_fsgid_set(struct inode *inode,
+static inline void ianalde_fsgid_set(struct ianalde *ianalde,
 				   struct mnt_idmap *idmap)
 {
-	inode->i_gid = mapped_fsgid(idmap, i_user_ns(inode));
+	ianalde->i_gid = mapped_fsgid(idmap, i_user_ns(ianalde));
 }
 
 /**
@@ -1500,7 +1500,7 @@ static inline void inode_fsgid_set(struct inode *inode,
  * s_user_ns of the superblock @sb. If the caller is on an idmapped mount map
  * the caller's fsuid and fsgid according to the @idmap first.
  *
- * Return: true if fsuid and fsgid is mapped, false if not.
+ * Return: true if fsuid and fsgid is mapped, false if analt.
  */
 static inline bool fsuidgid_has_mapping(struct super_block *sb,
 					struct mnt_idmap *idmap)
@@ -1519,109 +1519,109 @@ static inline bool fsuidgid_has_mapping(struct super_block *sb,
 	       kgid_has_mapping(fs_userns, kgid);
 }
 
-struct timespec64 current_time(struct inode *inode);
-struct timespec64 inode_set_ctime_current(struct inode *inode);
+struct timespec64 current_time(struct ianalde *ianalde);
+struct timespec64 ianalde_set_ctime_current(struct ianalde *ianalde);
 
-static inline time64_t inode_get_atime_sec(const struct inode *inode)
+static inline time64_t ianalde_get_atime_sec(const struct ianalde *ianalde)
 {
-	return inode->__i_atime.tv_sec;
+	return ianalde->__i_atime.tv_sec;
 }
 
-static inline long inode_get_atime_nsec(const struct inode *inode)
+static inline long ianalde_get_atime_nsec(const struct ianalde *ianalde)
 {
-	return inode->__i_atime.tv_nsec;
+	return ianalde->__i_atime.tv_nsec;
 }
 
-static inline struct timespec64 inode_get_atime(const struct inode *inode)
+static inline struct timespec64 ianalde_get_atime(const struct ianalde *ianalde)
 {
-	return inode->__i_atime;
+	return ianalde->__i_atime;
 }
 
-static inline struct timespec64 inode_set_atime_to_ts(struct inode *inode,
+static inline struct timespec64 ianalde_set_atime_to_ts(struct ianalde *ianalde,
 						      struct timespec64 ts)
 {
-	inode->__i_atime = ts;
+	ianalde->__i_atime = ts;
 	return ts;
 }
 
-static inline struct timespec64 inode_set_atime(struct inode *inode,
+static inline struct timespec64 ianalde_set_atime(struct ianalde *ianalde,
 						time64_t sec, long nsec)
 {
 	struct timespec64 ts = { .tv_sec  = sec,
 				 .tv_nsec = nsec };
-	return inode_set_atime_to_ts(inode, ts);
+	return ianalde_set_atime_to_ts(ianalde, ts);
 }
 
-static inline time64_t inode_get_mtime_sec(const struct inode *inode)
+static inline time64_t ianalde_get_mtime_sec(const struct ianalde *ianalde)
 {
-	return inode->__i_mtime.tv_sec;
+	return ianalde->__i_mtime.tv_sec;
 }
 
-static inline long inode_get_mtime_nsec(const struct inode *inode)
+static inline long ianalde_get_mtime_nsec(const struct ianalde *ianalde)
 {
-	return inode->__i_mtime.tv_nsec;
+	return ianalde->__i_mtime.tv_nsec;
 }
 
-static inline struct timespec64 inode_get_mtime(const struct inode *inode)
+static inline struct timespec64 ianalde_get_mtime(const struct ianalde *ianalde)
 {
-	return inode->__i_mtime;
+	return ianalde->__i_mtime;
 }
 
-static inline struct timespec64 inode_set_mtime_to_ts(struct inode *inode,
+static inline struct timespec64 ianalde_set_mtime_to_ts(struct ianalde *ianalde,
 						      struct timespec64 ts)
 {
-	inode->__i_mtime = ts;
+	ianalde->__i_mtime = ts;
 	return ts;
 }
 
-static inline struct timespec64 inode_set_mtime(struct inode *inode,
+static inline struct timespec64 ianalde_set_mtime(struct ianalde *ianalde,
 						time64_t sec, long nsec)
 {
 	struct timespec64 ts = { .tv_sec  = sec,
 				 .tv_nsec = nsec };
-	return inode_set_mtime_to_ts(inode, ts);
+	return ianalde_set_mtime_to_ts(ianalde, ts);
 }
 
-static inline time64_t inode_get_ctime_sec(const struct inode *inode)
+static inline time64_t ianalde_get_ctime_sec(const struct ianalde *ianalde)
 {
-	return inode->__i_ctime.tv_sec;
+	return ianalde->__i_ctime.tv_sec;
 }
 
-static inline long inode_get_ctime_nsec(const struct inode *inode)
+static inline long ianalde_get_ctime_nsec(const struct ianalde *ianalde)
 {
-	return inode->__i_ctime.tv_nsec;
+	return ianalde->__i_ctime.tv_nsec;
 }
 
-static inline struct timespec64 inode_get_ctime(const struct inode *inode)
+static inline struct timespec64 ianalde_get_ctime(const struct ianalde *ianalde)
 {
-	return inode->__i_ctime;
+	return ianalde->__i_ctime;
 }
 
-static inline struct timespec64 inode_set_ctime_to_ts(struct inode *inode,
+static inline struct timespec64 ianalde_set_ctime_to_ts(struct ianalde *ianalde,
 						      struct timespec64 ts)
 {
-	inode->__i_ctime = ts;
+	ianalde->__i_ctime = ts;
 	return ts;
 }
 
 /**
- * inode_set_ctime - set the ctime in the inode
- * @inode: inode in which to set the ctime
+ * ianalde_set_ctime - set the ctime in the ianalde
+ * @ianalde: ianalde in which to set the ctime
  * @sec: tv_sec value to set
  * @nsec: tv_nsec value to set
  *
- * Set the ctime in @inode to { @sec, @nsec }
+ * Set the ctime in @ianalde to { @sec, @nsec }
  */
-static inline struct timespec64 inode_set_ctime(struct inode *inode,
+static inline struct timespec64 ianalde_set_ctime(struct ianalde *ianalde,
 						time64_t sec, long nsec)
 {
 	struct timespec64 ts = { .tv_sec  = sec,
 				 .tv_nsec = nsec };
 
-	return inode_set_ctime_to_ts(inode, ts);
+	return ianalde_set_ctime_to_ts(ianalde, ts);
 }
 
-struct timespec64 simple_inode_init_ts(struct inode *inode);
+struct timespec64 simple_ianalde_init_ts(struct ianalde *ianalde);
 
 /*
  * Snapshotting support.
@@ -1657,8 +1657,8 @@ static inline bool __sb_start_write_trylock(struct super_block *sb, int level)
  * @level: the freeze level
  *
  * * > 0 - sb freeze level is held
- * *   0 - sb freeze level is not held
- * * < 0 - !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN
+ * *   0 - sb freeze level is analt held
+ * * < 0 - !CONFIG_LOCKDEP/LOCK_STATE_UNKANALWN
  */
 static inline int __sb_write_started(const struct super_block *sb, int level)
 {
@@ -1669,7 +1669,7 @@ static inline int __sb_write_started(const struct super_block *sb, int level)
  * sb_write_started - check if SB_FREEZE_WRITE is held
  * @sb: the super we write to
  *
- * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKANALWN.
  */
 static inline bool sb_write_started(const struct super_block *sb)
 {
@@ -1677,12 +1677,12 @@ static inline bool sb_write_started(const struct super_block *sb)
 }
 
 /**
- * sb_write_not_started - check if SB_FREEZE_WRITE is not held
+ * sb_write_analt_started - check if SB_FREEZE_WRITE is analt held
  * @sb: the super we write to
  *
- * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKANALWN.
  */
-static inline bool sb_write_not_started(const struct super_block *sb)
+static inline bool sb_write_analt_started(const struct super_block *sb)
 {
 	return __sb_write_started(sb, SB_FREEZE_WRITE) <= 0;
 }
@@ -1691,30 +1691,30 @@ static inline bool sb_write_not_started(const struct super_block *sb)
  * file_write_started - check if SB_FREEZE_WRITE is held
  * @file: the file we write to
  *
- * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKANALWN.
  * May be false positive with !S_ISREG, because file_start_write() has
- * no effect on !S_ISREG.
+ * anal effect on !S_ISREG.
  */
 static inline bool file_write_started(const struct file *file)
 {
-	if (!S_ISREG(file_inode(file)->i_mode))
+	if (!S_ISREG(file_ianalde(file)->i_mode))
 		return true;
-	return sb_write_started(file_inode(file)->i_sb);
+	return sb_write_started(file_ianalde(file)->i_sb);
 }
 
 /**
- * file_write_not_started - check if SB_FREEZE_WRITE is not held
+ * file_write_analt_started - check if SB_FREEZE_WRITE is analt held
  * @file: the file we write to
  *
- * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKANALWN.
  * May be false positive with !S_ISREG, because file_start_write() has
- * no effect on !S_ISREG.
+ * anal effect on !S_ISREG.
  */
-static inline bool file_write_not_started(const struct file *file)
+static inline bool file_write_analt_started(const struct file *file)
 {
-	if (!S_ISREG(file_inode(file)->i_mode))
+	if (!S_ISREG(file_ianalde(file)->i_mode))
 		return true;
-	return sb_write_not_started(file_inode(file)->i_sb);
+	return sb_write_analt_started(file_ianalde(file)->i_sb);
 }
 
 /**
@@ -1758,7 +1758,7 @@ static inline void sb_end_intwrite(struct super_block *sb)
  * @sb: the super we write to
  *
  * When a process wants to write data or metadata to a file system (i.e. dirty
- * a page or an inode), it should embed the operation in a sb_start_write() -
+ * a page or an ianalde), it should embed the operation in a sb_start_write() -
  * sb_end_write() pair to get exclusion against file system freezing. This
  * function increments number of writers preventing freezing. If the file
  * system is already frozen, the function waits until the file system is
@@ -1829,54 +1829,54 @@ static inline bool sb_start_intwrite_trylock(struct super_block *sb)
 	return __sb_start_write_trylock(sb, SB_FREEZE_FS);
 }
 
-bool inode_owner_or_capable(struct mnt_idmap *idmap,
-			    const struct inode *inode);
+bool ianalde_owner_or_capable(struct mnt_idmap *idmap,
+			    const struct ianalde *ianalde);
 
 /*
  * VFS helper functions..
  */
-int vfs_create(struct mnt_idmap *, struct inode *,
+int vfs_create(struct mnt_idmap *, struct ianalde *,
 	       struct dentry *, umode_t, bool);
-int vfs_mkdir(struct mnt_idmap *, struct inode *,
+int vfs_mkdir(struct mnt_idmap *, struct ianalde *,
 	      struct dentry *, umode_t);
-int vfs_mknod(struct mnt_idmap *, struct inode *, struct dentry *,
+int vfs_mkanald(struct mnt_idmap *, struct ianalde *, struct dentry *,
               umode_t, dev_t);
-int vfs_symlink(struct mnt_idmap *, struct inode *,
+int vfs_symlink(struct mnt_idmap *, struct ianalde *,
 		struct dentry *, const char *);
-int vfs_link(struct dentry *, struct mnt_idmap *, struct inode *,
-	     struct dentry *, struct inode **);
-int vfs_rmdir(struct mnt_idmap *, struct inode *, struct dentry *);
-int vfs_unlink(struct mnt_idmap *, struct inode *, struct dentry *,
-	       struct inode **);
+int vfs_link(struct dentry *, struct mnt_idmap *, struct ianalde *,
+	     struct dentry *, struct ianalde **);
+int vfs_rmdir(struct mnt_idmap *, struct ianalde *, struct dentry *);
+int vfs_unlink(struct mnt_idmap *, struct ianalde *, struct dentry *,
+	       struct ianalde **);
 
 /**
  * struct renamedata - contains all information required for renaming
- * @old_mnt_idmap:     idmap of the old mount the inode was found from
+ * @old_mnt_idmap:     idmap of the old mount the ianalde was found from
  * @old_dir:           parent of source
  * @old_dentry:                source
- * @new_mnt_idmap:     idmap of the new mount the inode was found from
+ * @new_mnt_idmap:     idmap of the new mount the ianalde was found from
  * @new_dir:           parent of destination
  * @new_dentry:                destination
- * @delegated_inode:   returns an inode needing a delegation break
+ * @delegated_ianalde:   returns an ianalde needing a delegation break
  * @flags:             rename flags
  */
 struct renamedata {
 	struct mnt_idmap *old_mnt_idmap;
-	struct inode *old_dir;
+	struct ianalde *old_dir;
 	struct dentry *old_dentry;
 	struct mnt_idmap *new_mnt_idmap;
-	struct inode *new_dir;
+	struct ianalde *new_dir;
 	struct dentry *new_dentry;
-	struct inode **delegated_inode;
+	struct ianalde **delegated_ianalde;
 	unsigned int flags;
 } __randomize_layout;
 
 int vfs_rename(struct renamedata *);
 
 static inline int vfs_whiteout(struct mnt_idmap *idmap,
-			       struct inode *dir, struct dentry *dentry)
+			       struct ianalde *dir, struct dentry *dentry)
 {
-	return vfs_mknod(idmap, dir, dentry, S_IFCHR | WHITEOUT_MODE,
+	return vfs_mkanald(idmap, dir, dentry, S_IFCHR | WHITEOUT_MODE,
 			 WHITEOUT_DEV);
 }
 
@@ -1885,7 +1885,7 @@ struct file *kernel_tmpfile_open(struct mnt_idmap *idmap,
 				 umode_t mode, int open_flag,
 				 const struct cred *cred);
 struct file *kernel_file_open(const struct path *path, int flags,
-			      struct inode *inode, const struct cred *cred);
+			      struct ianalde *ianalde, const struct cred *cred);
 
 int vfs_mkobj(struct dentry *, umode_t,
 		int (*f)(struct dentry *, umode_t, void *),
@@ -1907,18 +1907,18 @@ extern long compat_ptr_ioctl(struct file *file, unsigned int cmd,
 /*
  * VFS file helper functions.
  */
-void inode_init_owner(struct mnt_idmap *idmap, struct inode *inode,
-		      const struct inode *dir, umode_t mode);
+void ianalde_init_owner(struct mnt_idmap *idmap, struct ianalde *ianalde,
+		      const struct ianalde *dir, umode_t mode);
 extern bool may_open_dev(const struct path *path);
 umode_t mode_strip_sgid(struct mnt_idmap *idmap,
-			const struct inode *dir, umode_t mode);
+			const struct ianalde *dir, umode_t mode);
 
 /*
  * This is the "filldir" function type, used by readdir() to let
  * the kernel specify what kind of dirent layout it wants to have.
  * This allows the kernel to read directories into kernel space or
  * to have different dirent layouts depending on the binary type.
- * Return 'true' to keep going and 'false' if there are no more entries.
+ * Return 'true' to keep going and 'false' if there are anal more entries.
  */
 struct dir_context;
 typedef bool (*filldir_t)(struct dir_context *, const char *, int, loff_t, u64,
@@ -1933,20 +1933,20 @@ struct dir_context {
  * These flags let !MMU mmap() govern direct device mapping vs immediate
  * copying more easily for MAP_PRIVATE, especially for ROM filesystems.
  *
- * NOMMU_MAP_COPY:	Copy can be mapped (MAP_PRIVATE)
- * NOMMU_MAP_DIRECT:	Can be mapped directly (MAP_SHARED)
- * NOMMU_MAP_READ:	Can be mapped for reading
- * NOMMU_MAP_WRITE:	Can be mapped for writing
- * NOMMU_MAP_EXEC:	Can be mapped for execution
+ * ANALMMU_MAP_COPY:	Copy can be mapped (MAP_PRIVATE)
+ * ANALMMU_MAP_DIRECT:	Can be mapped directly (MAP_SHARED)
+ * ANALMMU_MAP_READ:	Can be mapped for reading
+ * ANALMMU_MAP_WRITE:	Can be mapped for writing
+ * ANALMMU_MAP_EXEC:	Can be mapped for execution
  */
-#define NOMMU_MAP_COPY		0x00000001
-#define NOMMU_MAP_DIRECT	0x00000008
-#define NOMMU_MAP_READ		VM_MAYREAD
-#define NOMMU_MAP_WRITE		VM_MAYWRITE
-#define NOMMU_MAP_EXEC		VM_MAYEXEC
+#define ANALMMU_MAP_COPY		0x00000001
+#define ANALMMU_MAP_DIRECT	0x00000008
+#define ANALMMU_MAP_READ		VM_MAYREAD
+#define ANALMMU_MAP_WRITE		VM_MAYWRITE
+#define ANALMMU_MAP_EXEC		VM_MAYEXEC
 
-#define NOMMU_VMFLAGS \
-	(NOMMU_MAP_READ | NOMMU_MAP_WRITE | NOMMU_MAP_EXEC)
+#define ANALMMU_VMFLAGS \
+	(ANALMMU_MAP_READ | ANALMMU_MAP_WRITE | ANALMMU_MAP_EXEC)
 
 /*
  * These flags control the behavior of the remap_file_range function pointer.
@@ -1970,7 +1970,7 @@ struct dir_context {
 
 /*
  * These flags control the behavior of vfs_copy_file_range().
- * They are not available to the user via syscall.
+ * They are analt available to the user via syscall.
  *
  * COPY_FILE_SPLICE: call splice direct instead of fs clone/copy ops
  */
@@ -1995,17 +1995,17 @@ struct file_operations {
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
 	unsigned long mmap_supported_flags;
-	int (*open) (struct inode *, struct file *);
+	int (*open) (struct ianalde *, struct file *);
 	int (*flush) (struct file *, fl_owner_t id);
-	int (*release) (struct inode *, struct file *);
+	int (*release) (struct ianalde *, struct file *);
 	int (*fsync) (struct file *, loff_t, loff_t, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
 	int (*flock) (struct file *, int, struct file_lock *);
-	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
-	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
+	ssize_t (*splice_write)(struct pipe_ianalde_info *, struct file *, loff_t *, size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_ianalde_info *, size_t, unsigned int);
 	void (*splice_eof)(struct file *file);
 	int (*setlease)(struct file *, int, struct file_lock **, void **);
 	long (*fallocate)(struct file *file, int mode, loff_t offset,
@@ -2025,45 +2025,45 @@ struct file_operations {
 				unsigned int poll_flags);
 } __randomize_layout;
 
-/* Wrap a directory iterator that needs exclusive inode access */
+/* Wrap a directory iterator that needs exclusive ianalde access */
 int wrap_directory_iterator(struct file *, struct dir_context *,
 			    int (*) (struct file *, struct dir_context *));
 #define WRAP_DIR_ITER(x) \
 	static int shared_##x(struct file *file , struct dir_context *ctx) \
 	{ return wrap_directory_iterator(file, ctx, x); }
 
-struct inode_operations {
-	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
-	const char * (*get_link) (struct dentry *, struct inode *, struct delayed_call *);
-	int (*permission) (struct mnt_idmap *, struct inode *, int);
-	struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
+struct ianalde_operations {
+	struct dentry * (*lookup) (struct ianalde *,struct dentry *, unsigned int);
+	const char * (*get_link) (struct dentry *, struct ianalde *, struct delayed_call *);
+	int (*permission) (struct mnt_idmap *, struct ianalde *, int);
+	struct posix_acl * (*get_ianalde_acl)(struct ianalde *, int, bool);
 
 	int (*readlink) (struct dentry *, char __user *,int);
 
-	int (*create) (struct mnt_idmap *, struct inode *,struct dentry *,
+	int (*create) (struct mnt_idmap *, struct ianalde *,struct dentry *,
 		       umode_t, bool);
-	int (*link) (struct dentry *,struct inode *,struct dentry *);
-	int (*unlink) (struct inode *,struct dentry *);
-	int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,
+	int (*link) (struct dentry *,struct ianalde *,struct dentry *);
+	int (*unlink) (struct ianalde *,struct dentry *);
+	int (*symlink) (struct mnt_idmap *, struct ianalde *,struct dentry *,
 			const char *);
-	int (*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,
+	int (*mkdir) (struct mnt_idmap *, struct ianalde *,struct dentry *,
 		      umode_t);
-	int (*rmdir) (struct inode *,struct dentry *);
-	int (*mknod) (struct mnt_idmap *, struct inode *,struct dentry *,
+	int (*rmdir) (struct ianalde *,struct dentry *);
+	int (*mkanald) (struct mnt_idmap *, struct ianalde *,struct dentry *,
 		      umode_t,dev_t);
-	int (*rename) (struct mnt_idmap *, struct inode *, struct dentry *,
-			struct inode *, struct dentry *, unsigned int);
+	int (*rename) (struct mnt_idmap *, struct ianalde *, struct dentry *,
+			struct ianalde *, struct dentry *, unsigned int);
 	int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
 	int (*getattr) (struct mnt_idmap *, const struct path *,
 			struct kstat *, u32, unsigned int);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
-	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
+	int (*fiemap)(struct ianalde *, struct fiemap_extent_info *, u64 start,
 		      u64 len);
-	int (*update_time)(struct inode *, int);
-	int (*atomic_open)(struct inode *, struct dentry *,
+	int (*update_time)(struct ianalde *, int);
+	int (*atomic_open)(struct ianalde *, struct dentry *,
 			   struct file *, unsigned open_flag,
 			   umode_t create_mode);
-	int (*tmpfile) (struct mnt_idmap *, struct inode *,
+	int (*tmpfile) (struct mnt_idmap *, struct ianalde *,
 			struct file *, umode_t);
 	struct posix_acl *(*get_acl)(struct mnt_idmap *, struct dentry *,
 				     int);
@@ -2072,7 +2072,7 @@ struct inode_operations {
 	int (*fileattr_set)(struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct fileattr *fa);
 	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
-	struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
+	struct offset_ctx *(*get_offset_ctx)(struct ianalde *ianalde);
 } ____cacheline_aligned;
 
 static inline ssize_t call_read_iter(struct file *file, struct kiocb *kio,
@@ -2133,14 +2133,14 @@ enum freeze_holder {
 };
 
 struct super_operations {
-   	struct inode *(*alloc_inode)(struct super_block *sb);
-	void (*destroy_inode)(struct inode *);
-	void (*free_inode)(struct inode *);
+   	struct ianalde *(*alloc_ianalde)(struct super_block *sb);
+	void (*destroy_ianalde)(struct ianalde *);
+	void (*free_ianalde)(struct ianalde *);
 
-   	void (*dirty_inode) (struct inode *, int flags);
-	int (*write_inode) (struct inode *, struct writeback_control *wbc);
-	int (*drop_inode) (struct inode *);
-	void (*evict_inode) (struct inode *);
+   	void (*dirty_ianalde) (struct ianalde *, int flags);
+	int (*write_ianalde) (struct ianalde *, struct writeback_control *wbc);
+	int (*drop_ianalde) (struct ianalde *);
+	void (*evict_ianalde) (struct ianalde *);
 	void (*put_super) (struct super_block *);
 	int (*sync_fs)(struct super_block *sb, int wait);
 	int (*freeze_super) (struct super_block *, enum freeze_holder who);
@@ -2158,7 +2158,7 @@ struct super_operations {
 #ifdef CONFIG_QUOTA
 	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
-	struct dquot **(*get_dquots)(struct inode *);
+	struct dquot **(*get_dquots)(struct ianalde *);
 #endif
 	long (*nr_cached_objects)(struct super_block *,
 				  struct shrink_control *);
@@ -2168,21 +2168,21 @@ struct super_operations {
 };
 
 /*
- * Inode flags - they have no relation to superblock flags now
+ * Ianalde flags - they have anal relation to superblock flags analw
  */
 #define S_SYNC		(1 << 0)  /* Writes are synced at once */
-#define S_NOATIME	(1 << 1)  /* Do not update access times */
+#define S_ANALATIME	(1 << 1)  /* Do analt update access times */
 #define S_APPEND	(1 << 2)  /* Append-only file */
 #define S_IMMUTABLE	(1 << 3)  /* Immutable file */
 #define S_DEAD		(1 << 4)  /* removed, but still open directory */
-#define S_NOQUOTA	(1 << 5)  /* Inode is not counted to quota */
-#define S_DIRSYNC	(1 << 6)  /* Directory modifications are synchronous */
-#define S_NOCMTIME	(1 << 7)  /* Do not update file c/mtime */
-#define S_SWAPFILE	(1 << 8)  /* Do not truncate: swapon got its bmaps */
-#define S_PRIVATE	(1 << 9)  /* Inode is fs-internal */
-#define S_IMA		(1 << 10) /* Inode has an associated IMA struct */
+#define S_ANALQUOTA	(1 << 5)  /* Ianalde is analt counted to quota */
+#define S_DIRSYNC	(1 << 6)  /* Directory modifications are synchroanalus */
+#define S_ANALCMTIME	(1 << 7)  /* Do analt update file c/mtime */
+#define S_SWAPFILE	(1 << 8)  /* Do analt truncate: swapon got its bmaps */
+#define S_PRIVATE	(1 << 9)  /* Ianalde is fs-internal */
+#define S_IMA		(1 << 10) /* Ianalde has an associated IMA struct */
 #define S_AUTOMOUNT	(1 << 11) /* Automount/referral quasi-directory */
-#define S_NOSEC		(1 << 12) /* no suid or xattr security attributes */
+#define S_ANALSEC		(1 << 12) /* anal suid or xattr security attributes */
 #ifdef CONFIG_FS_DAX
 #define S_DAX		(1 << 13) /* Direct Access, avoiding the page cache */
 #else
@@ -2194,60 +2194,60 @@ struct super_operations {
 #define S_KERNEL_FILE	(1 << 17) /* File is in use by the kernel (eg. fs/cachefiles) */
 
 /*
- * Note that nosuid etc flags are inode-specific: setting some file-system
- * flags just means all the inodes inherit those flags by default. It might be
+ * Analte that analsuid etc flags are ianalde-specific: setting some file-system
+ * flags just means all the ianaldes inherit those flags by default. It might be
  * possible to override it selectively if you really wanted to with some
- * ioctl() that is not currently implemented.
+ * ioctl() that is analt currently implemented.
  *
  * Exception: SB_RDONLY is always applied to the entire file system.
  *
  * Unfortunately, it is possible to change a filesystems flags with it mounted
- * with files in use.  This means that all of the inodes will not have their
- * i_flags updated.  Hence, i_flags no longer inherit the superblock mount
+ * with files in use.  This means that all of the ianaldes will analt have their
+ * i_flags updated.  Hence, i_flags anal longer inherit the superblock mount
  * flags, so these have to be checked separately. -- rmk@arm.uk.linux.org
  */
-#define __IS_FLG(inode, flg)	((inode)->i_sb->s_flags & (flg))
+#define __IS_FLG(ianalde, flg)	((ianalde)->i_sb->s_flags & (flg))
 
 static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags & SB_RDONLY; }
-#define IS_RDONLY(inode)	sb_rdonly((inode)->i_sb)
-#define IS_SYNC(inode)		(__IS_FLG(inode, SB_SYNCHRONOUS) || \
-					((inode)->i_flags & S_SYNC))
-#define IS_DIRSYNC(inode)	(__IS_FLG(inode, SB_SYNCHRONOUS|SB_DIRSYNC) || \
-					((inode)->i_flags & (S_SYNC|S_DIRSYNC)))
-#define IS_MANDLOCK(inode)	__IS_FLG(inode, SB_MANDLOCK)
-#define IS_NOATIME(inode)	__IS_FLG(inode, SB_RDONLY|SB_NOATIME)
-#define IS_I_VERSION(inode)	__IS_FLG(inode, SB_I_VERSION)
+#define IS_RDONLY(ianalde)	sb_rdonly((ianalde)->i_sb)
+#define IS_SYNC(ianalde)		(__IS_FLG(ianalde, SB_SYNCHROANALUS) || \
+					((ianalde)->i_flags & S_SYNC))
+#define IS_DIRSYNC(ianalde)	(__IS_FLG(ianalde, SB_SYNCHROANALUS|SB_DIRSYNC) || \
+					((ianalde)->i_flags & (S_SYNC|S_DIRSYNC)))
+#define IS_MANDLOCK(ianalde)	__IS_FLG(ianalde, SB_MANDLOCK)
+#define IS_ANALATIME(ianalde)	__IS_FLG(ianalde, SB_RDONLY|SB_ANALATIME)
+#define IS_I_VERSION(ianalde)	__IS_FLG(ianalde, SB_I_VERSION)
 
-#define IS_NOQUOTA(inode)	((inode)->i_flags & S_NOQUOTA)
-#define IS_APPEND(inode)	((inode)->i_flags & S_APPEND)
-#define IS_IMMUTABLE(inode)	((inode)->i_flags & S_IMMUTABLE)
+#define IS_ANALQUOTA(ianalde)	((ianalde)->i_flags & S_ANALQUOTA)
+#define IS_APPEND(ianalde)	((ianalde)->i_flags & S_APPEND)
+#define IS_IMMUTABLE(ianalde)	((ianalde)->i_flags & S_IMMUTABLE)
 
 #ifdef CONFIG_FS_POSIX_ACL
-#define IS_POSIXACL(inode)	__IS_FLG(inode, SB_POSIXACL)
+#define IS_POSIXACL(ianalde)	__IS_FLG(ianalde, SB_POSIXACL)
 #else
-#define IS_POSIXACL(inode)	0
+#define IS_POSIXACL(ianalde)	0
 #endif
 
-#define IS_DEADDIR(inode)	((inode)->i_flags & S_DEAD)
-#define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
-#define IS_SWAPFILE(inode)	((inode)->i_flags & S_SWAPFILE)
-#define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
-#define IS_IMA(inode)		((inode)->i_flags & S_IMA)
-#define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
-#define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
-#define IS_DAX(inode)		((inode)->i_flags & S_DAX)
-#define IS_ENCRYPTED(inode)	((inode)->i_flags & S_ENCRYPTED)
-#define IS_CASEFOLDED(inode)	((inode)->i_flags & S_CASEFOLD)
-#define IS_VERITY(inode)	((inode)->i_flags & S_VERITY)
+#define IS_DEADDIR(ianalde)	((ianalde)->i_flags & S_DEAD)
+#define IS_ANALCMTIME(ianalde)	((ianalde)->i_flags & S_ANALCMTIME)
+#define IS_SWAPFILE(ianalde)	((ianalde)->i_flags & S_SWAPFILE)
+#define IS_PRIVATE(ianalde)	((ianalde)->i_flags & S_PRIVATE)
+#define IS_IMA(ianalde)		((ianalde)->i_flags & S_IMA)
+#define IS_AUTOMOUNT(ianalde)	((ianalde)->i_flags & S_AUTOMOUNT)
+#define IS_ANALSEC(ianalde)		((ianalde)->i_flags & S_ANALSEC)
+#define IS_DAX(ianalde)		((ianalde)->i_flags & S_DAX)
+#define IS_ENCRYPTED(ianalde)	((ianalde)->i_flags & S_ENCRYPTED)
+#define IS_CASEFOLDED(ianalde)	((ianalde)->i_flags & S_CASEFOLD)
+#define IS_VERITY(ianalde)	((ianalde)->i_flags & S_VERITY)
 
-#define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
-				 (inode)->i_rdev == WHITEOUT_DEV)
+#define IS_WHITEOUT(ianalde)	(S_ISCHR(ianalde->i_mode) && \
+				 (ianalde)->i_rdev == WHITEOUT_DEV)
 
 static inline bool HAS_UNMAPPED_ID(struct mnt_idmap *idmap,
-				   struct inode *inode)
+				   struct ianalde *ianalde)
 {
-	return !vfsuid_valid(i_uid_into_vfsuid(idmap, inode)) ||
-	       !vfsgid_valid(i_gid_into_vfsgid(idmap, inode));
+	return !vfsuid_valid(i_uid_into_vfsuid(idmap, ianalde)) ||
+	       !vfsgid_valid(i_gid_into_vfsgid(idmap, ianalde));
 }
 
 static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
@@ -2271,82 +2271,82 @@ static inline void kiocb_clone(struct kiocb *kiocb, struct kiocb *kiocb_src,
 }
 
 /*
- * Inode state bits.  Protected by inode->i_lock
+ * Ianalde state bits.  Protected by ianalde->i_lock
  *
- * Four bits determine the dirty state of the inode: I_DIRTY_SYNC,
+ * Four bits determine the dirty state of the ianalde: I_DIRTY_SYNC,
  * I_DIRTY_DATASYNC, I_DIRTY_PAGES, and I_DIRTY_TIME.
  *
- * Four bits define the lifetime of an inode.  Initially, inodes are I_NEW,
+ * Four bits define the lifetime of an ianalde.  Initially, ianaldes are I_NEW,
  * until that flag is cleared.  I_WILL_FREE, I_FREEING and I_CLEAR are set at
- * various stages of removing an inode.
+ * various stages of removing an ianalde.
  *
- * Two bits are used for locking and completion notification, I_NEW and I_SYNC.
+ * Two bits are used for locking and completion analtification, I_NEW and I_SYNC.
  *
- * I_DIRTY_SYNC		Inode is dirty, but doesn't have to be written on
+ * I_DIRTY_SYNC		Ianalde is dirty, but doesn't have to be written on
  *			fdatasync() (unless I_DIRTY_DATASYNC is also set).
  *			Timestamp updates are the usual cause.
- * I_DIRTY_DATASYNC	Data-related inode changes pending.  We keep track of
+ * I_DIRTY_DATASYNC	Data-related ianalde changes pending.  We keep track of
  *			these changes separately from I_DIRTY_SYNC so that we
- *			don't have to write inode on fdatasync() when only
+ *			don't have to write ianalde on fdatasync() when only
  *			e.g. the timestamps have changed.
- * I_DIRTY_PAGES	Inode has dirty pages.  Inode itself may be clean.
- * I_DIRTY_TIME		The inode itself has dirty timestamps, and the
+ * I_DIRTY_PAGES	Ianalde has dirty pages.  Ianalde itself may be clean.
+ * I_DIRTY_TIME		The ianalde itself has dirty timestamps, and the
  *			lazytime mount option is enabled.  We keep track of this
  *			separately from I_DIRTY_SYNC in order to implement
- *			lazytime.  This gets cleared if I_DIRTY_INODE
+ *			lazytime.  This gets cleared if I_DIRTY_IANALDE
  *			(I_DIRTY_SYNC and/or I_DIRTY_DATASYNC) gets set. But
  *			I_DIRTY_TIME can still be set if I_DIRTY_SYNC is already
  *			in place because writeback might already be in progress
  *			and we don't want to lose the time update
- * I_NEW		Serves as both a mutex and completion notification.
- *			New inodes set I_NEW.  If two processes both create
- *			the same inode, one of them will release its inode and
+ * I_NEW		Serves as both a mutex and completion analtification.
+ *			New ianaldes set I_NEW.  If two processes both create
+ *			the same ianalde, one of them will release its ianalde and
  *			wait for I_NEW to be released before returning.
- *			Inodes in I_WILL_FREE, I_FREEING or I_CLEAR state can
+ *			Ianaldes in I_WILL_FREE, I_FREEING or I_CLEAR state can
  *			also cause waiting on I_NEW, without I_NEW actually
- *			being set.  find_inode() uses this to prevent returning
- *			nearly-dead inodes.
- * I_WILL_FREE		Must be set when calling write_inode_now() if i_count
+ *			being set.  find_ianalde() uses this to prevent returning
+ *			nearly-dead ianaldes.
+ * I_WILL_FREE		Must be set when calling write_ianalde_analw() if i_count
  *			is zero.  I_FREEING must be set when I_WILL_FREE is
  *			cleared.
- * I_FREEING		Set when inode is about to be freed but still has dirty
- *			pages or buffers attached or the inode itself is still
+ * I_FREEING		Set when ianalde is about to be freed but still has dirty
+ *			pages or buffers attached or the ianalde itself is still
  *			dirty.
- * I_CLEAR		Added by clear_inode().  In this state the inode is
- *			clean and can be destroyed.  Inode keeps I_FREEING.
+ * I_CLEAR		Added by clear_ianalde().  In this state the ianalde is
+ *			clean and can be destroyed.  Ianalde keeps I_FREEING.
  *
- *			Inodes that are I_WILL_FREE, I_FREEING or I_CLEAR are
+ *			Ianaldes that are I_WILL_FREE, I_FREEING or I_CLEAR are
  *			prohibited for many purposes.  iget() must wait for
- *			the inode to be completely released, then create it
- *			anew.  Other functions will just ignore such inodes,
+ *			the ianalde to be completely released, then create it
+ *			anew.  Other functions will just iganalre such ianaldes,
  *			if appropriate.  I_NEW is used for waiting.
  *
- * I_SYNC		Writeback of inode is running. The bit is set during
+ * I_SYNC		Writeback of ianalde is running. The bit is set during
  *			data writeback, and cleared with a wakeup on the bit
  *			address once it is done. The bit is also used to pin
- *			the inode in memory for flusher thread.
+ *			the ianalde in memory for flusher thread.
  *
- * I_REFERENCED		Marks the inode as recently references on the LRU list.
+ * I_REFERENCED		Marks the ianalde as recently references on the LRU list.
  *
  * I_DIO_WAKEUP		Never set.  Only used as a key for wait_on_bit().
  *
  * I_WB_SWITCH		Cgroup bdi_writeback switching in progress.  Used to
  *			synchronize competing switching instances and to tell
  *			wb stat updates to grab the i_pages lock.  See
- *			inode_switch_wbs_work_fn() for details.
+ *			ianalde_switch_wbs_work_fn() for details.
  *
  * I_OVL_INUSE		Used by overlayfs to get exclusive ownership on upper
  *			and work dirs among overlayfs mounts.
  *
- * I_CREATING		New object's inode in the middle of setting up.
+ * I_CREATING		New object's ianalde in the middle of setting up.
  *
- * I_DONTCACHE		Evict inode as soon as it is not used anymore.
+ * I_DONTCACHE		Evict ianalde as soon as it is analt used anymore.
  *
- * I_SYNC_QUEUED	Inode is queued in b_io or b_more_io writeback lists.
- *			Used to detect that mark_inode_dirty() should not move
- * 			inode between dirty lists.
+ * I_SYNC_QUEUED	Ianalde is queued in b_io or b_more_io writeback lists.
+ *			Used to detect that mark_ianalde_dirty() should analt move
+ * 			ianalde between dirty lists.
  *
- * I_PINNING_FSCACHE_WB	Inode is pinning an fscache object for writeback.
+ * I_PINNING_FSCACHE_WB	Ianalde is pinning an fscache object for writeback.
  *
  * Q: What is the difference between I_WILL_FREE and I_FREEING?
  */
@@ -2372,51 +2372,51 @@ static inline void kiocb_clone(struct kiocb *kiocb, struct kiocb *kiocb_src,
 #define I_SYNC_QUEUED		(1 << 17)
 #define I_PINNING_NETFS_WB	(1 << 18)
 
-#define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
-#define I_DIRTY (I_DIRTY_INODE | I_DIRTY_PAGES)
+#define I_DIRTY_IANALDE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
+#define I_DIRTY (I_DIRTY_IANALDE | I_DIRTY_PAGES)
 #define I_DIRTY_ALL (I_DIRTY | I_DIRTY_TIME)
 
-extern void __mark_inode_dirty(struct inode *, int);
-static inline void mark_inode_dirty(struct inode *inode)
+extern void __mark_ianalde_dirty(struct ianalde *, int);
+static inline void mark_ianalde_dirty(struct ianalde *ianalde)
 {
-	__mark_inode_dirty(inode, I_DIRTY);
+	__mark_ianalde_dirty(ianalde, I_DIRTY);
 }
 
-static inline void mark_inode_dirty_sync(struct inode *inode)
+static inline void mark_ianalde_dirty_sync(struct ianalde *ianalde)
 {
-	__mark_inode_dirty(inode, I_DIRTY_SYNC);
+	__mark_ianalde_dirty(ianalde, I_DIRTY_SYNC);
 }
 
 /*
- * Returns true if the given inode itself only has dirty timestamps (its pages
+ * Returns true if the given ianalde itself only has dirty timestamps (its pages
  * may still be dirty) and isn't currently being allocated or freed.
- * Filesystems should call this if when writing an inode when lazytime is
- * enabled, they want to opportunistically write the timestamps of other inodes
- * located very nearby on-disk, e.g. in the same inode block.  This returns true
- * if the given inode is in need of such an opportunistic update.  Requires
+ * Filesystems should call this if when writing an ianalde when lazytime is
+ * enabled, they want to opportunistically write the timestamps of other ianaldes
+ * located very nearby on-disk, e.g. in the same ianalde block.  This returns true
+ * if the given ianalde is in need of such an opportunistic update.  Requires
  * i_lock, or at least later re-checking under i_lock.
  */
-static inline bool inode_is_dirtytime_only(struct inode *inode)
+static inline bool ianalde_is_dirtytime_only(struct ianalde *ianalde)
 {
-	return (inode->i_state & (I_DIRTY_TIME | I_NEW |
+	return (ianalde->i_state & (I_DIRTY_TIME | I_NEW |
 				  I_FREEING | I_WILL_FREE)) == I_DIRTY_TIME;
 }
 
-extern void inc_nlink(struct inode *inode);
-extern void drop_nlink(struct inode *inode);
-extern void clear_nlink(struct inode *inode);
-extern void set_nlink(struct inode *inode, unsigned int nlink);
+extern void inc_nlink(struct ianalde *ianalde);
+extern void drop_nlink(struct ianalde *ianalde);
+extern void clear_nlink(struct ianalde *ianalde);
+extern void set_nlink(struct ianalde *ianalde, unsigned int nlink);
 
-static inline void inode_inc_link_count(struct inode *inode)
+static inline void ianalde_inc_link_count(struct ianalde *ianalde)
 {
-	inc_nlink(inode);
-	mark_inode_dirty(inode);
+	inc_nlink(ianalde);
+	mark_ianalde_dirty(ianalde);
 }
 
-static inline void inode_dec_link_count(struct inode *inode)
+static inline void ianalde_dec_link_count(struct ianalde *ianalde)
 {
-	drop_nlink(inode);
-	mark_inode_dirty(inode);
+	drop_nlink(ianalde);
+	mark_ianalde_dirty(ianalde);
 }
 
 enum file_time_flags {
@@ -2426,20 +2426,20 @@ enum file_time_flags {
 	S_VERSION = 8,
 };
 
-extern bool atime_needs_update(const struct path *, struct inode *);
+extern bool atime_needs_update(const struct path *, struct ianalde *);
 extern void touch_atime(const struct path *);
-int inode_update_time(struct inode *inode, int flags);
+int ianalde_update_time(struct ianalde *ianalde, int flags);
 
 static inline void file_accessed(struct file *file)
 {
-	if (!(file->f_flags & O_NOATIME))
+	if (!(file->f_flags & O_ANALATIME))
 		touch_atime(&file->f_path);
 }
 
 extern int file_modified(struct file *file);
 int kiocb_modified(struct kiocb *iocb);
 
-int sync_inode_metadata(struct inode *inode, int wait);
+int sync_ianalde_metadata(struct ianalde *ianalde, int wait);
 
 struct file_system_type {
 	const char *name;
@@ -2448,7 +2448,7 @@ struct file_system_type {
 #define FS_BINARY_MOUNTDATA	2
 #define FS_HAS_SUBTYPE		4
 #define FS_USERNS_MOUNT		8	/* Can be mounted by userns root */
-#define FS_DISALLOW_NOTIFY_PERM	16	/* Disable fanotify permission events */
+#define FS_DISALLOW_ANALTIFY_PERM	16	/* Disable faanaltify permission events */
 #define FS_ALLOW_IDMAP         32      /* FS has been updated to handle vfs idmappings. */
 #define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move() during rename() internally. */
 	int (*init_fs_context)(struct fs_context *);
@@ -2479,21 +2479,21 @@ extern struct dentry *mount_bdev(struct file_system_type *fs_type,
 extern struct dentry *mount_single(struct file_system_type *fs_type,
 	int flags, void *data,
 	int (*fill_super)(struct super_block *, void *, int));
-extern struct dentry *mount_nodev(struct file_system_type *fs_type,
+extern struct dentry *mount_analdev(struct file_system_type *fs_type,
 	int flags, void *data,
 	int (*fill_super)(struct super_block *, void *, int));
 extern struct dentry *mount_subtree(struct vfsmount *mnt, const char *path);
 void retire_super(struct super_block *sb);
 void generic_shutdown_super(struct super_block *sb);
 void kill_block_super(struct super_block *sb);
-void kill_anon_super(struct super_block *sb);
+void kill_aanaln_super(struct super_block *sb);
 void kill_litter_super(struct super_block *sb);
 void deactivate_super(struct super_block *sb);
 void deactivate_locked_super(struct super_block *sb);
-int set_anon_super(struct super_block *s, void *data);
-int set_anon_super_fc(struct super_block *s, struct fs_context *fc);
-int get_anon_bdev(dev_t *);
-void free_anon_bdev(dev_t);
+int set_aanaln_super(struct super_block *s, void *data);
+int set_aanaln_super_fc(struct super_block *s, struct fs_context *fc);
+int get_aanaln_bdev(dev_t *);
+void free_aanaln_bdev(dev_t);
 struct super_block *sget_fc(struct fs_context *fc,
 			    int (*test)(struct super_block *, struct fs_context *),
 			    int (*set)(struct super_block *, struct fs_context *));
@@ -2503,14 +2503,14 @@ struct super_block *sget(struct file_system_type *type,
 			int flags, void *data);
 struct super_block *sget_dev(struct fs_context *fc, dev_t dev);
 
-/* Alas, no aliases. Too much hassle with bringing module.h everywhere */
+/* Alas, anal aliases. Too much hassle with bringing module.h everywhere */
 #define fops_get(fops) \
 	(((fops) && try_module_get((fops)->owner) ? (fops) : NULL))
 #define fops_put(fops) \
 	do { if (fops) module_put((fops)->owner); } while(0)
 /*
  * This one is to be used *ONLY* from ->open() instances.
- * fops must be non-NULL, pinned down *and* module dependencies
+ * fops must be analn-NULL, pinned down *and* module dependencies
  * should be sufficient to pin the caller down as well.
  */
 #define replace_fops(f, fops) \
@@ -2533,10 +2533,10 @@ extern int super_setup_bdi(struct super_block *sb);
 
 extern int current_umask(void);
 
-extern void ihold(struct inode * inode);
-extern void iput(struct inode *);
-int inode_update_timestamps(struct inode *inode, int flags);
-int generic_update_time(struct inode *, int);
+extern void ihold(struct ianalde * ianalde);
+extern void iput(struct ianalde *);
+int ianalde_update_timestamps(struct ianalde *ianalde, int flags);
+int generic_update_time(struct ianalde *, int);
 
 /* /sys/fs */
 extern struct kobject *fs_kobj;
@@ -2563,13 +2563,13 @@ static inline struct mnt_idmap *file_mnt_idmap(const struct file *file)
  * is_idmapped_mnt - check whether a mount is mapped
  * @mnt: the mount to check
  *
- * If @mnt has an non @nop_mnt_idmap attached to it then @mnt is mapped.
+ * If @mnt has an analn @analp_mnt_idmap attached to it then @mnt is mapped.
  *
- * Return: true if mount is mapped, false if not.
+ * Return: true if mount is mapped, false if analt.
  */
 static inline bool is_idmapped_mnt(const struct vfsmount *mnt)
 {
-	return mnt_idmap(mnt) != &nop_mnt_idmap;
+	return mnt_idmap(mnt) != &analp_mnt_idmap;
 }
 
 extern long vfs_truncate(const struct path *, loff_t);
@@ -2597,11 +2597,11 @@ struct path *backing_file_user_path(struct file *f);
 
 /*
  * When mmapping a file on a stackable filesystem (e.g., overlayfs), the file
- * stored in ->vm_file is a backing file whose f_inode is on the underlying
- * filesystem.  When the mapped file path and inode number are displayed to
+ * stored in ->vm_file is a backing file whose f_ianalde is on the underlying
+ * filesystem.  When the mapped file path and ianalde number are displayed to
  * user (e.g. via /proc/<pid>/maps), these helpers should be used to get the
- * path and inode number to display to the user, which is the path of the fd
- * that user has requested to map and the inode number that would be returned
+ * path and ianalde number to display to the user, which is the path of the fd
+ * that user has requested to map and the ianalde number that would be returned
  * by fstat() on that same fd.
  */
 /* Get the path to display in /proc/<pid>/maps */
@@ -2611,12 +2611,12 @@ static inline const struct path *file_user_path(struct file *f)
 		return backing_file_user_path(f);
 	return &f->f_path;
 }
-/* Get the inode whose inode number to display in /proc/<pid>/maps */
-static inline const struct inode *file_user_inode(struct file *f)
+/* Get the ianalde whose ianalde number to display in /proc/<pid>/maps */
+static inline const struct ianalde *file_user_ianalde(struct file *f)
 {
 	if (unlikely(f->f_mode & FMODE_BACKING))
-		return d_inode(backing_file_user_path(f)->dentry);
-	return file_inode(f);
+		return d_ianalde(backing_file_user_path(f)->dentry);
+	return file_ianalde(f);
 }
 
 static inline struct file *file_clone_open(struct file *file)
@@ -2632,8 +2632,8 @@ extern struct filename *getname_kernel(const char *);
 extern void putname(struct filename *name);
 
 extern int finish_open(struct file *file, struct dentry *dentry,
-			int (*open)(struct inode *, struct file *));
-extern int finish_no_open(struct file *file, struct dentry *dentry);
+			int (*open)(struct ianalde *, struct file *));
+extern int finish_anal_open(struct file *file, struct dentry *dentry);
 
 /* Helper for the simple case when original dentry is used */
 static inline int finish_open_simple(struct file *file, int error)
@@ -2674,10 +2674,10 @@ extern const struct file_operations def_chr_fops;
 
 extern int alloc_chrdev_region(dev_t *, unsigned, unsigned, const char *);
 extern int register_chrdev_region(dev_t, unsigned, const char *);
-extern int __register_chrdev(unsigned int major, unsigned int baseminor,
+extern int __register_chrdev(unsigned int major, unsigned int basemianalr,
 			     unsigned int count, const char *name,
 			     const struct file_operations *fops);
-extern void __unregister_chrdev(unsigned int major, unsigned int baseminor,
+extern void __unregister_chrdev(unsigned int major, unsigned int basemianalr,
 				unsigned int count, const char *name);
 extern void unregister_chrdev_region(dev_t, unsigned);
 extern void chrdev_show(struct seq_file *,off_t);
@@ -2693,11 +2693,11 @@ static inline void unregister_chrdev(unsigned int major, const char *name)
 	__unregister_chrdev(major, 0, 256, name);
 }
 
-extern void init_special_inode(struct inode *, umode_t, dev_t);
+extern void init_special_ianalde(struct ianalde *, umode_t, dev_t);
 
-/* Invalid inode operations -- fs/bad_inode.c */
-extern void make_bad_inode(struct inode *);
-extern bool is_bad_inode(struct inode *);
+/* Invalid ianalde operations -- fs/bad_ianalde.c */
+extern void make_bad_ianalde(struct ianalde *);
+extern bool is_bad_ianalde(struct ianalde *);
 
 extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
 						loff_t lend);
@@ -2724,7 +2724,7 @@ static inline bool iocb_is_dsync(const struct kiocb *iocb)
 }
 
 /*
- * Sync the bytes written if this was a synchronous write.  Expect ki_pos
+ * Sync the bytes written if this was a synchroanalus write.  Expect ki_pos
  * to already be updated for the write, and will return either the amount
  * of bytes passed in, or an error if syncing the file failed.
  */
@@ -2745,60 +2745,60 @@ extern void emergency_sync(void);
 extern void emergency_remount(void);
 
 #ifdef CONFIG_BLOCK
-extern int bmap(struct inode *inode, sector_t *block);
+extern int bmap(struct ianalde *ianalde, sector_t *block);
 #else
-static inline int bmap(struct inode *inode,  sector_t *block)
+static inline int bmap(struct ianalde *ianalde,  sector_t *block)
 {
 	return -EINVAL;
 }
 #endif
 
-int notify_change(struct mnt_idmap *, struct dentry *,
-		  struct iattr *, struct inode **);
-int inode_permission(struct mnt_idmap *, struct inode *, int);
-int generic_permission(struct mnt_idmap *, struct inode *, int);
+int analtify_change(struct mnt_idmap *, struct dentry *,
+		  struct iattr *, struct ianalde **);
+int ianalde_permission(struct mnt_idmap *, struct ianalde *, int);
+int generic_permission(struct mnt_idmap *, struct ianalde *, int);
 static inline int file_permission(struct file *file, int mask)
 {
-	return inode_permission(file_mnt_idmap(file),
-				file_inode(file), mask);
+	return ianalde_permission(file_mnt_idmap(file),
+				file_ianalde(file), mask);
 }
 static inline int path_permission(const struct path *path, int mask)
 {
-	return inode_permission(mnt_idmap(path->mnt),
-				d_inode(path->dentry), mask);
+	return ianalde_permission(mnt_idmap(path->mnt),
+				d_ianalde(path->dentry), mask);
 }
-int __check_sticky(struct mnt_idmap *idmap, struct inode *dir,
-		   struct inode *inode);
+int __check_sticky(struct mnt_idmap *idmap, struct ianalde *dir,
+		   struct ianalde *ianalde);
 
-static inline bool execute_ok(struct inode *inode)
+static inline bool execute_ok(struct ianalde *ianalde)
 {
-	return (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode);
+	return (ianalde->i_mode & S_IXUGO) || S_ISDIR(ianalde->i_mode);
 }
 
-static inline bool inode_wrong_type(const struct inode *inode, umode_t mode)
+static inline bool ianalde_wrong_type(const struct ianalde *ianalde, umode_t mode)
 {
-	return (inode->i_mode ^ mode) & S_IFMT;
+	return (ianalde->i_mode ^ mode) & S_IFMT;
 }
 
 /**
  * file_start_write - get write access to a superblock for regular file io
  * @file: the file we want to write to
  *
- * This is a variant of sb_start_write() which is a noop on non-regualr file.
+ * This is a variant of sb_start_write() which is a analop on analn-regualr file.
  * Should be matched with a call to file_end_write().
  */
 static inline void file_start_write(struct file *file)
 {
-	if (!S_ISREG(file_inode(file)->i_mode))
+	if (!S_ISREG(file_ianalde(file)->i_mode))
 		return;
-	sb_start_write(file_inode(file)->i_sb);
+	sb_start_write(file_ianalde(file)->i_sb);
 }
 
 static inline bool file_start_write_trylock(struct file *file)
 {
-	if (!S_ISREG(file_inode(file)->i_mode))
+	if (!S_ISREG(file_ianalde(file)->i_mode))
 		return true;
-	return sb_start_write_trylock(file_inode(file)->i_sb);
+	return sb_start_write_trylock(file_ianalde(file)->i_sb);
 }
 
 /**
@@ -2809,9 +2809,9 @@ static inline bool file_start_write_trylock(struct file *file)
  */
 static inline void file_end_write(struct file *file)
 {
-	if (!S_ISREG(file_inode(file)->i_mode))
+	if (!S_ISREG(file_ianalde(file)->i_mode))
 		return;
-	sb_end_write(file_inode(file)->i_sb);
+	sb_end_write(file_ianalde(file)->i_sb);
 }
 
 /**
@@ -2823,14 +2823,14 @@ static inline void file_end_write(struct file *file)
  */
 static inline void kiocb_start_write(struct kiocb *iocb)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
-	sb_start_write(inode->i_sb);
+	sb_start_write(ianalde->i_sb);
 	/*
 	 * Fool lockdep by telling it the lock got released so that it
 	 * doesn't complain about the held lock when we return to userspace.
 	 */
-	__sb_writers_release(inode->i_sb, SB_FREEZE_WRITE);
+	__sb_writers_release(ianalde->i_sb, SB_FREEZE_WRITE);
 }
 
 /**
@@ -2841,19 +2841,19 @@ static inline void kiocb_start_write(struct kiocb *iocb)
  */
 static inline void kiocb_end_write(struct kiocb *iocb)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
 	/*
 	 * Tell lockdep we inherited freeze protection from submission thread.
 	 */
-	__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
-	sb_end_write(inode->i_sb);
+	__sb_writers_acquired(ianalde->i_sb, SB_FREEZE_WRITE);
+	sb_end_write(ianalde->i_sb);
 }
 
 /*
  * This is used for regular files where some users -- especially the
  * currently executed binary in a process, previously handled via
- * VM_DENYWRITE -- cannot handle concurrent write (and maybe mmap
+ * VM_DENYWRITE -- cananalt handle concurrent write (and maybe mmap
  * read-write shared) accesses.
  *
  * get_write_access() gets write permission for a file.
@@ -2861,54 +2861,54 @@ static inline void kiocb_end_write(struct kiocb *iocb)
  * deny_write_access() denies write access to a file.
  * allow_write_access() re-enables write access to a file.
  *
- * The i_writecount field of an inode can have the following values:
- * 0: no write access, no denied write access
+ * The i_writecount field of an ianalde can have the following values:
+ * 0: anal write access, anal denied write access
  * < 0: (-i_writecount) users that denied write access to the file.
  * > 0: (i_writecount) users that have write access to the file.
  *
- * Normally we operate on that counter with atomic_{inc,dec} and it's safe
+ * Analrmally we operate on that counter with atomic_{inc,dec} and it's safe
  * except for the cases where we don't hold i_writecount yet. Then we need to
  * use {get,deny}_write_access() - these functions check the sign and refuse
  * to do the change if sign is wrong.
  */
-static inline int get_write_access(struct inode *inode)
+static inline int get_write_access(struct ianalde *ianalde)
 {
-	return atomic_inc_unless_negative(&inode->i_writecount) ? 0 : -ETXTBSY;
+	return atomic_inc_unless_negative(&ianalde->i_writecount) ? 0 : -ETXTBSY;
 }
 static inline int deny_write_access(struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	return atomic_dec_unless_positive(&inode->i_writecount) ? 0 : -ETXTBSY;
+	struct ianalde *ianalde = file_ianalde(file);
+	return atomic_dec_unless_positive(&ianalde->i_writecount) ? 0 : -ETXTBSY;
 }
-static inline void put_write_access(struct inode * inode)
+static inline void put_write_access(struct ianalde * ianalde)
 {
-	atomic_dec(&inode->i_writecount);
+	atomic_dec(&ianalde->i_writecount);
 }
 static inline void allow_write_access(struct file *file)
 {
 	if (file)
-		atomic_inc(&file_inode(file)->i_writecount);
+		atomic_inc(&file_ianalde(file)->i_writecount);
 }
-static inline bool inode_is_open_for_write(const struct inode *inode)
+static inline bool ianalde_is_open_for_write(const struct ianalde *ianalde)
 {
-	return atomic_read(&inode->i_writecount) > 0;
+	return atomic_read(&ianalde->i_writecount) > 0;
 }
 
 #if defined(CONFIG_IMA) || defined(CONFIG_FILE_LOCKING)
-static inline void i_readcount_dec(struct inode *inode)
+static inline void i_readcount_dec(struct ianalde *ianalde)
 {
-	BUG_ON(atomic_dec_return(&inode->i_readcount) < 0);
+	BUG_ON(atomic_dec_return(&ianalde->i_readcount) < 0);
 }
-static inline void i_readcount_inc(struct inode *inode)
+static inline void i_readcount_inc(struct ianalde *ianalde)
 {
-	atomic_inc(&inode->i_readcount);
+	atomic_inc(&ianalde->i_readcount);
 }
 #else
-static inline void i_readcount_dec(struct inode *inode)
+static inline void i_readcount_dec(struct ianalde *ianalde)
 {
 	return;
 }
-static inline void i_readcount_inc(struct inode *inode)
+static inline void i_readcount_inc(struct ianalde *ianalde)
 {
 	return;
 }
@@ -2934,56 +2934,56 @@ extern loff_t default_llseek(struct file *file, loff_t offset, int whence);
 
 extern loff_t vfs_llseek(struct file *file, loff_t offset, int whence);
 
-extern int inode_init_always(struct super_block *, struct inode *);
-extern void inode_init_once(struct inode *);
+extern int ianalde_init_always(struct super_block *, struct ianalde *);
+extern void ianalde_init_once(struct ianalde *);
 extern void address_space_init_once(struct address_space *mapping);
-extern struct inode * igrab(struct inode *);
-extern ino_t iunique(struct super_block *, ino_t);
-extern int inode_needs_sync(struct inode *inode);
-extern int generic_delete_inode(struct inode *inode);
-static inline int generic_drop_inode(struct inode *inode)
+extern struct ianalde * igrab(struct ianalde *);
+extern ianal_t iunique(struct super_block *, ianal_t);
+extern int ianalde_needs_sync(struct ianalde *ianalde);
+extern int generic_delete_ianalde(struct ianalde *ianalde);
+static inline int generic_drop_ianalde(struct ianalde *ianalde)
 {
-	return !inode->i_nlink || inode_unhashed(inode);
+	return !ianalde->i_nlink || ianalde_unhashed(ianalde);
 }
-extern void d_mark_dontcache(struct inode *inode);
+extern void d_mark_dontcache(struct ianalde *ianalde);
 
-extern struct inode *ilookup5_nowait(struct super_block *sb,
-		unsigned long hashval, int (*test)(struct inode *, void *),
+extern struct ianalde *ilookup5_analwait(struct super_block *sb,
+		unsigned long hashval, int (*test)(struct ianalde *, void *),
 		void *data);
-extern struct inode *ilookup5(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data);
-extern struct inode *ilookup(struct super_block *sb, unsigned long ino);
+extern struct ianalde *ilookup5(struct super_block *sb, unsigned long hashval,
+		int (*test)(struct ianalde *, void *), void *data);
+extern struct ianalde *ilookup(struct super_block *sb, unsigned long ianal);
 
-extern struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
-		int (*test)(struct inode *, void *),
-		int (*set)(struct inode *, void *),
+extern struct ianalde *ianalde_insert5(struct ianalde *ianalde, unsigned long hashval,
+		int (*test)(struct ianalde *, void *),
+		int (*set)(struct ianalde *, void *),
 		void *data);
-extern struct inode * iget5_locked(struct super_block *, unsigned long, int (*test)(struct inode *, void *), int (*set)(struct inode *, void *), void *);
-extern struct inode * iget_locked(struct super_block *, unsigned long);
-extern struct inode *find_inode_nowait(struct super_block *,
+extern struct ianalde * iget5_locked(struct super_block *, unsigned long, int (*test)(struct ianalde *, void *), int (*set)(struct ianalde *, void *), void *);
+extern struct ianalde * iget_locked(struct super_block *, unsigned long);
+extern struct ianalde *find_ianalde_analwait(struct super_block *,
 				       unsigned long,
-				       int (*match)(struct inode *,
+				       int (*match)(struct ianalde *,
 						    unsigned long, void *),
 				       void *data);
-extern struct inode *find_inode_rcu(struct super_block *, unsigned long,
-				    int (*)(struct inode *, void *), void *);
-extern struct inode *find_inode_by_ino_rcu(struct super_block *, unsigned long);
-extern int insert_inode_locked4(struct inode *, unsigned long, int (*test)(struct inode *, void *), void *);
-extern int insert_inode_locked(struct inode *);
+extern struct ianalde *find_ianalde_rcu(struct super_block *, unsigned long,
+				    int (*)(struct ianalde *, void *), void *);
+extern struct ianalde *find_ianalde_by_ianal_rcu(struct super_block *, unsigned long);
+extern int insert_ianalde_locked4(struct ianalde *, unsigned long, int (*test)(struct ianalde *, void *), void *);
+extern int insert_ianalde_locked(struct ianalde *);
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-extern void lockdep_annotate_inode_mutex_key(struct inode *inode);
+extern void lockdep_ananaltate_ianalde_mutex_key(struct ianalde *ianalde);
 #else
-static inline void lockdep_annotate_inode_mutex_key(struct inode *inode) { };
+static inline void lockdep_ananaltate_ianalde_mutex_key(struct ianalde *ianalde) { };
 #endif
-extern void unlock_new_inode(struct inode *);
-extern void discard_new_inode(struct inode *);
-extern unsigned int get_next_ino(void);
-extern void evict_inodes(struct super_block *sb);
+extern void unlock_new_ianalde(struct ianalde *);
+extern void discard_new_ianalde(struct ianalde *);
+extern unsigned int get_next_ianal(void);
+extern void evict_ianaldes(struct super_block *sb);
 void dump_mapping(const struct address_space *);
 
 /*
- * Userspace may rely on the inode number being non-zero. For example, glibc
- * simply ignores files with zero i_ino in unlink() and other places.
+ * Userspace may rely on the ianalde number being analn-zero. For example, glibc
+ * simply iganalres files with zero i_ianal in unlink() and other places.
  *
  * As an additional complication, if userspace was compiled with
  * _FILE_OFFSET_BITS=32 on a 64-bit kernel we'll only end up reading out the
@@ -2991,48 +2991,48 @@ void dump_mapping(const struct address_space *);
  * _FILE_OFFSET_BITS=64, this may cause some harmless false-negatives, but
  * better safe than sorry.
  */
-static inline bool is_zero_ino(ino_t ino)
+static inline bool is_zero_ianal(ianal_t ianal)
 {
-	return (u32)ino == 0;
+	return (u32)ianal == 0;
 }
 
-extern void __iget(struct inode * inode);
-extern void iget_failed(struct inode *);
-extern void clear_inode(struct inode *);
-extern void __destroy_inode(struct inode *);
-extern struct inode *new_inode_pseudo(struct super_block *sb);
-extern struct inode *new_inode(struct super_block *sb);
-extern void free_inode_nonrcu(struct inode *inode);
-extern int setattr_should_drop_suidgid(struct mnt_idmap *, struct inode *);
+extern void __iget(struct ianalde * ianalde);
+extern void iget_failed(struct ianalde *);
+extern void clear_ianalde(struct ianalde *);
+extern void __destroy_ianalde(struct ianalde *);
+extern struct ianalde *new_ianalde_pseudo(struct super_block *sb);
+extern struct ianalde *new_ianalde(struct super_block *sb);
+extern void free_ianalde_analnrcu(struct ianalde *ianalde);
+extern int setattr_should_drop_suidgid(struct mnt_idmap *, struct ianalde *);
 extern int file_remove_privs(struct file *);
 int setattr_should_drop_sgid(struct mnt_idmap *idmap,
-			     const struct inode *inode);
+			     const struct ianalde *ianalde);
 
 /*
- * This must be used for allocating filesystems specific inodes to set
- * up the inode reclaim context correctly.
+ * This must be used for allocating filesystems specific ianaldes to set
+ * up the ianalde reclaim context correctly.
  */
 static inline void *
-alloc_inode_sb(struct super_block *sb, struct kmem_cache *cache, gfp_t gfp)
+alloc_ianalde_sb(struct super_block *sb, struct kmem_cache *cache, gfp_t gfp)
 {
-	return kmem_cache_alloc_lru(cache, &sb->s_inode_lru, gfp);
+	return kmem_cache_alloc_lru(cache, &sb->s_ianalde_lru, gfp);
 }
 
-extern void __insert_inode_hash(struct inode *, unsigned long hashval);
-static inline void insert_inode_hash(struct inode *inode)
+extern void __insert_ianalde_hash(struct ianalde *, unsigned long hashval);
+static inline void insert_ianalde_hash(struct ianalde *ianalde)
 {
-	__insert_inode_hash(inode, inode->i_ino);
+	__insert_ianalde_hash(ianalde, ianalde->i_ianal);
 }
 
-extern void __remove_inode_hash(struct inode *);
-static inline void remove_inode_hash(struct inode *inode)
+extern void __remove_ianalde_hash(struct ianalde *);
+static inline void remove_ianalde_hash(struct ianalde *ianalde)
 {
-	if (!inode_unhashed(inode) && !hlist_fake(&inode->i_hash))
-		__remove_inode_hash(inode);
+	if (!ianalde_unhashed(ianalde) && !hlist_fake(&ianalde->i_hash))
+		__remove_ianalde_hash(ianalde);
 }
 
-extern void inode_sb_list_add(struct inode *inode);
-extern void inode_add_lru(struct inode *inode);
+extern void ianalde_sb_list_add(struct ianalde *ianalde);
+extern void ianalde_add_lru(struct ianalde *ianalde);
 
 extern int sb_set_blocksize(struct super_block *, int);
 extern int sb_min_blocksize(struct super_block *, int);
@@ -3065,88 +3065,88 @@ ssize_t vfs_iocb_iter_write(struct file *file, struct kiocb *iocb,
 
 /* fs/splice.c */
 ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
-			    struct pipe_inode_info *pipe,
+			    struct pipe_ianalde_info *pipe,
 			    size_t len, unsigned int flags);
 ssize_t copy_splice_read(struct file *in, loff_t *ppos,
-			 struct pipe_inode_info *pipe,
+			 struct pipe_ianalde_info *pipe,
 			 size_t len, unsigned int flags);
-extern ssize_t iter_file_splice_write(struct pipe_inode_info *,
+extern ssize_t iter_file_splice_write(struct pipe_ianalde_info *,
 		struct file *, loff_t *, size_t, unsigned int);
 
 
 extern void
 file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping);
-extern loff_t noop_llseek(struct file *file, loff_t offset, int whence);
-#define no_llseek NULL
+extern loff_t analop_llseek(struct file *file, loff_t offset, int whence);
+#define anal_llseek NULL
 extern loff_t vfs_setpos(struct file *file, loff_t offset, loff_t maxsize);
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
 extern loff_t generic_file_llseek_size(struct file *file, loff_t offset,
 		int whence, loff_t maxsize, loff_t eof);
 extern loff_t fixed_size_llseek(struct file *file, loff_t offset,
 		int whence, loff_t size);
-extern loff_t no_seek_end_llseek_size(struct file *, loff_t, int, loff_t);
-extern loff_t no_seek_end_llseek(struct file *, loff_t, int);
+extern loff_t anal_seek_end_llseek_size(struct file *, loff_t, int, loff_t);
+extern loff_t anal_seek_end_llseek(struct file *, loff_t, int);
 int rw_verify_area(int, struct file *, const loff_t *, size_t);
-extern int generic_file_open(struct inode * inode, struct file * filp);
-extern int nonseekable_open(struct inode * inode, struct file * filp);
-extern int stream_open(struct inode * inode, struct file * filp);
+extern int generic_file_open(struct ianalde * ianalde, struct file * filp);
+extern int analnseekable_open(struct ianalde * ianalde, struct file * filp);
+extern int stream_open(struct ianalde * ianalde, struct file * filp);
 
 #ifdef CONFIG_BLOCK
-typedef void (dio_submit_t)(struct bio *bio, struct inode *inode,
+typedef void (dio_submit_t)(struct bio *bio, struct ianalde *ianalde,
 			    loff_t file_offset);
 
 enum {
 	/* need locking between buffered and direct access */
 	DIO_LOCKING	= 0x01,
 
-	/* filesystem does not support filling holes */
+	/* filesystem does analt support filling holes */
 	DIO_SKIP_HOLES	= 0x02,
 };
 
-ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
+ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct ianalde *ianalde,
 			     struct block_device *bdev, struct iov_iter *iter,
 			     get_block_t get_block,
 			     dio_iodone_t end_io,
 			     int flags);
 
 static inline ssize_t blockdev_direct_IO(struct kiocb *iocb,
-					 struct inode *inode,
+					 struct ianalde *ianalde,
 					 struct iov_iter *iter,
 					 get_block_t get_block)
 {
-	return __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
+	return __blockdev_direct_IO(iocb, ianalde, ianalde->i_sb->s_bdev, iter,
 			get_block, NULL, DIO_LOCKING | DIO_SKIP_HOLES);
 }
 #endif
 
-void inode_dio_wait(struct inode *inode);
+void ianalde_dio_wait(struct ianalde *ianalde);
 
 /**
- * inode_dio_begin - signal start of a direct I/O requests
- * @inode: inode the direct I/O happens on
+ * ianalde_dio_begin - signal start of a direct I/O requests
+ * @ianalde: ianalde the direct I/O happens on
  *
  * This is called once we've finished processing a direct I/O request,
  * and is used to wake up callers waiting for direct I/O to be quiesced.
  */
-static inline void inode_dio_begin(struct inode *inode)
+static inline void ianalde_dio_begin(struct ianalde *ianalde)
 {
-	atomic_inc(&inode->i_dio_count);
+	atomic_inc(&ianalde->i_dio_count);
 }
 
 /**
- * inode_dio_end - signal finish of a direct I/O requests
- * @inode: inode the direct I/O happens on
+ * ianalde_dio_end - signal finish of a direct I/O requests
+ * @ianalde: ianalde the direct I/O happens on
  *
  * This is called once we've finished processing a direct I/O request,
  * and is used to wake up callers waiting for direct I/O to be quiesced.
  */
-static inline void inode_dio_end(struct inode *inode)
+static inline void ianalde_dio_end(struct ianalde *ianalde)
 {
-	if (atomic_dec_and_test(&inode->i_dio_count))
-		wake_up_bit(&inode->i_state, __I_DIO_WAKEUP);
+	if (atomic_dec_and_test(&ianalde->i_dio_count))
+		wake_up_bit(&ianalde->i_state, __I_DIO_WAKEUP);
 }
 
-extern void inode_set_flags(struct inode *inode, unsigned int flags,
+extern void ianalde_set_flags(struct ianalde *ianalde, unsigned int flags,
 			    unsigned int mask);
 
 extern const struct file_operations generic_ro_fops;
@@ -3155,29 +3155,29 @@ extern const struct file_operations generic_ro_fops;
 
 extern int readlink_copy(char __user *, int, const char *);
 extern int page_readlink(struct dentry *, char __user *, int);
-extern const char *page_get_link(struct dentry *, struct inode *,
+extern const char *page_get_link(struct dentry *, struct ianalde *,
 				 struct delayed_call *);
 extern void page_put_link(void *);
-extern int page_symlink(struct inode *inode, const char *symname, int len);
-extern const struct inode_operations page_symlink_inode_operations;
+extern int page_symlink(struct ianalde *ianalde, const char *symname, int len);
+extern const struct ianalde_operations page_symlink_ianalde_operations;
 extern void kfree_link(void *);
-void generic_fillattr(struct mnt_idmap *, u32, struct inode *, struct kstat *);
-void generic_fill_statx_attr(struct inode *inode, struct kstat *stat);
-extern int vfs_getattr_nosec(const struct path *, struct kstat *, u32, unsigned int);
+void generic_fillattr(struct mnt_idmap *, u32, struct ianalde *, struct kstat *);
+void generic_fill_statx_attr(struct ianalde *ianalde, struct kstat *stat);
+extern int vfs_getattr_analsec(const struct path *, struct kstat *, u32, unsigned int);
 extern int vfs_getattr(const struct path *, struct kstat *, u32, unsigned int);
-void __inode_add_bytes(struct inode *inode, loff_t bytes);
-void inode_add_bytes(struct inode *inode, loff_t bytes);
-void __inode_sub_bytes(struct inode *inode, loff_t bytes);
-void inode_sub_bytes(struct inode *inode, loff_t bytes);
-static inline loff_t __inode_get_bytes(struct inode *inode)
+void __ianalde_add_bytes(struct ianalde *ianalde, loff_t bytes);
+void ianalde_add_bytes(struct ianalde *ianalde, loff_t bytes);
+void __ianalde_sub_bytes(struct ianalde *ianalde, loff_t bytes);
+void ianalde_sub_bytes(struct ianalde *ianalde, loff_t bytes);
+static inline loff_t __ianalde_get_bytes(struct ianalde *ianalde)
 {
-	return (((loff_t)inode->i_blocks) << 9) + inode->i_bytes;
+	return (((loff_t)ianalde->i_blocks) << 9) + ianalde->i_bytes;
 }
-loff_t inode_get_bytes(struct inode *inode);
-void inode_set_bytes(struct inode *inode, loff_t bytes);
-const char *simple_get_link(struct dentry *, struct inode *,
+loff_t ianalde_get_bytes(struct ianalde *ianalde);
+void ianalde_set_bytes(struct ianalde *ianalde, loff_t bytes);
+const char *simple_get_link(struct dentry *, struct ianalde *,
 			    struct delayed_call *);
-extern const struct inode_operations simple_symlink_inode_operations;
+extern const struct ianalde_operations simple_symlink_ianalde_operations;
 
 extern int iterate_dir(struct file *, struct dir_context *);
 
@@ -3191,7 +3191,7 @@ static inline int vfs_stat(const char __user *filename, struct kstat *stat)
 }
 static inline int vfs_lstat(const char __user *name, struct kstat *stat)
 {
-	return vfs_fstatat(AT_FDCWD, name, stat, AT_SYMLINK_NOFOLLOW);
+	return vfs_fstatat(AT_FDCWD, name, stat, AT_SYMLINK_ANALFOLLOW);
 }
 
 extern const char *vfs_get_link(struct dentry *, struct delayed_call *);
@@ -3206,8 +3206,8 @@ extern void iterate_supers(void (*)(struct super_block *, void *), void *);
 extern void iterate_supers_type(struct file_system_type *,
 			        void (*)(struct super_block *, void *), void *);
 
-extern int dcache_dir_open(struct inode *, struct file *);
-extern int dcache_dir_close(struct inode *, struct file *);
+extern int dcache_dir_open(struct ianalde *, struct file *);
+extern int dcache_dir_close(struct ianalde *, struct file *);
 extern loff_t dcache_dir_lseek(struct file *, loff_t, int);
 extern int dcache_readdir(struct file *, struct dir_context *);
 extern int simple_setattr(struct mnt_idmap *, struct dentry *,
@@ -3215,37 +3215,37 @@ extern int simple_setattr(struct mnt_idmap *, struct dentry *,
 extern int simple_getattr(struct mnt_idmap *, const struct path *,
 			  struct kstat *, u32, unsigned int);
 extern int simple_statfs(struct dentry *, struct kstatfs *);
-extern int simple_open(struct inode *inode, struct file *file);
-extern int simple_link(struct dentry *, struct inode *, struct dentry *);
-extern int simple_unlink(struct inode *, struct dentry *);
-extern int simple_rmdir(struct inode *, struct dentry *);
-void simple_rename_timestamp(struct inode *old_dir, struct dentry *old_dentry,
-			     struct inode *new_dir, struct dentry *new_dentry);
-extern int simple_rename_exchange(struct inode *old_dir, struct dentry *old_dentry,
-				  struct inode *new_dir, struct dentry *new_dentry);
-extern int simple_rename(struct mnt_idmap *, struct inode *,
-			 struct dentry *, struct inode *, struct dentry *,
+extern int simple_open(struct ianalde *ianalde, struct file *file);
+extern int simple_link(struct dentry *, struct ianalde *, struct dentry *);
+extern int simple_unlink(struct ianalde *, struct dentry *);
+extern int simple_rmdir(struct ianalde *, struct dentry *);
+void simple_rename_timestamp(struct ianalde *old_dir, struct dentry *old_dentry,
+			     struct ianalde *new_dir, struct dentry *new_dentry);
+extern int simple_rename_exchange(struct ianalde *old_dir, struct dentry *old_dentry,
+				  struct ianalde *new_dir, struct dentry *new_dentry);
+extern int simple_rename(struct mnt_idmap *, struct ianalde *,
+			 struct dentry *, struct ianalde *, struct dentry *,
 			 unsigned int);
 extern void simple_recursive_removal(struct dentry *,
                               void (*callback)(struct dentry *));
-extern int noop_fsync(struct file *, loff_t, loff_t, int);
-extern ssize_t noop_direct_IO(struct kiocb *iocb, struct iov_iter *iter);
+extern int analop_fsync(struct file *, loff_t, loff_t, int);
+extern ssize_t analop_direct_IO(struct kiocb *iocb, struct iov_iter *iter);
 extern int simple_empty(struct dentry *);
 extern int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata);
 extern const struct address_space_operations ram_aops;
 extern int always_delete_dentry(const struct dentry *);
-extern struct inode *alloc_anon_inode(struct super_block *);
-extern int simple_nosetlease(struct file *, int, struct file_lock **, void **);
+extern struct ianalde *alloc_aanaln_ianalde(struct super_block *);
+extern int simple_analsetlease(struct file *, int, struct file_lock **, void **);
 extern const struct dentry_operations simple_dentry_operations;
 
-extern struct dentry *simple_lookup(struct inode *, struct dentry *, unsigned int flags);
+extern struct dentry *simple_lookup(struct ianalde *, struct dentry *, unsigned int flags);
 extern ssize_t generic_read_dir(struct file *, char __user *, size_t, loff_t *);
 extern const struct file_operations simple_dir_operations;
-extern const struct inode_operations simple_dir_inode_operations;
-extern void make_empty_dir_inode(struct inode *inode);
-extern bool is_empty_dir_inode(struct inode *inode);
+extern const struct ianalde_operations simple_dir_ianalde_operations;
+extern void make_empty_dir_ianalde(struct ianalde *ianalde);
+extern bool is_empty_dir_ianalde(struct ianalde *ianalde);
 struct tree_descr { const char *name; const struct file_operations *ops; int mode; };
 struct dentry *d_alloc_name(struct dentry *, const char *);
 extern int simple_fill_super(struct super_block *, unsigned long,
@@ -3266,9 +3266,9 @@ struct offset_ctx {
 void simple_offset_init(struct offset_ctx *octx);
 int simple_offset_add(struct offset_ctx *octx, struct dentry *dentry);
 void simple_offset_remove(struct offset_ctx *octx, struct dentry *dentry);
-int simple_offset_rename_exchange(struct inode *old_dir,
+int simple_offset_rename_exchange(struct ianalde *old_dir,
 				  struct dentry *old_dentry,
-				  struct inode *new_dir,
+				  struct ianalde *new_dir,
 				  struct dentry *new_dentry);
 void simple_offset_destroy(struct offset_ctx *octx);
 
@@ -3281,11 +3281,11 @@ extern int generic_check_addressable(unsigned, u64);
 
 extern void generic_set_encrypted_ci_d_ops(struct dentry *dentry);
 
-int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
+int may_setattr(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		unsigned int ia_valid);
 int setattr_prepare(struct mnt_idmap *, struct dentry *, struct iattr *);
-extern int inode_newsize_ok(const struct inode *, loff_t offset);
-void setattr_copy(struct mnt_idmap *, struct inode *inode,
+extern int ianalde_newsize_ok(const struct ianalde *, loff_t offset);
+void setattr_copy(struct mnt_idmap *, struct ianalde *ianalde,
 		  const struct iattr *attr);
 
 extern int file_update_time(struct file *file);
@@ -3297,14 +3297,14 @@ static inline bool vma_is_dax(const struct vm_area_struct *vma)
 
 static inline bool vma_is_fsdax(struct vm_area_struct *vma)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (!IS_ENABLED(CONFIG_FS_DAX) || !vma->vm_file)
 		return false;
 	if (!vma_is_dax(vma))
 		return false;
-	inode = file_inode(vma->vm_file);
-	if (S_ISCHR(inode->i_mode))
+	ianalde = file_ianalde(vma->vm_file);
+	if (S_ISCHR(ianalde->i_mode))
 		return false; /* device-dax */
 	return true;
 }
@@ -3327,18 +3327,18 @@ static inline int kiocb_set_rw_flags(struct kiocb *ki, rwf_t flags)
 {
 	int kiocb_flags = 0;
 
-	/* make sure there's no overlap between RWF and private IOCB flags */
+	/* make sure there's anal overlap between RWF and private IOCB flags */
 	BUILD_BUG_ON((__force int) RWF_SUPPORTED & IOCB_EVENTFD);
 
 	if (!flags)
 		return 0;
 	if (unlikely(flags & ~RWF_SUPPORTED))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (flags & RWF_NOWAIT) {
-		if (!(ki->ki_filp->f_mode & FMODE_NOWAIT))
-			return -EOPNOTSUPP;
-		kiocb_flags |= IOCB_NOIO;
+	if (flags & RWF_ANALWAIT) {
+		if (!(ki->ki_filp->f_mode & FMODE_ANALWAIT))
+			return -EOPANALTSUPP;
+		kiocb_flags |= IOCB_ANALIO;
 	}
 	kiocb_flags |= (__force int) (flags & RWF_SUPPORTED);
 	if (flags & RWF_SYNC)
@@ -3348,16 +3348,16 @@ static inline int kiocb_set_rw_flags(struct kiocb *ki, rwf_t flags)
 	return 0;
 }
 
-static inline ino_t parent_ino(struct dentry *dentry)
+static inline ianal_t parent_ianal(struct dentry *dentry)
 {
-	ino_t res;
+	ianal_t res;
 
 	/*
-	 * Don't strictly need d_lock here? If the parent ino could change
+	 * Don't strictly need d_lock here? If the parent ianal could change
 	 * then surely we'd have a deeper race in the caller?
 	 */
 	spin_lock(&dentry->d_lock);
-	res = dentry->d_parent->d_inode->i_ino;
+	res = dentry->d_parent->d_ianalde->i_ianal;
 	spin_unlock(&dentry->d_lock);
 	return res;
 }
@@ -3379,7 +3379,7 @@ char *simple_transaction_get(struct file *file, const char __user *buf,
 				size_t size);
 ssize_t simple_transaction_read(struct file *file, char __user *buf,
 				size_t size, loff_t *pos);
-int simple_transaction_release(struct inode *inode, struct file *file);
+int simple_transaction_release(struct ianalde *ianalde, struct file *file);
 
 void simple_transaction_set(struct file *file, size_t n);
 
@@ -3393,17 +3393,17 @@ void simple_transaction_set(struct file *file, size_t n);
  *
  * Reading from an attribute creates a buffer from the value that might get
  * read with multiple read calls. When the attribute has been read
- * completely, no further read calls are possible until the file is opened
+ * completely, anal further read calls are possible until the file is opened
  * again.
  *
  * All attributes contain a text representation of a numeric value
  * that are accessed with the get() and set() functions.
  */
 #define DEFINE_SIMPLE_ATTRIBUTE_XSIGNED(__fops, __get, __set, __fmt, __is_signed)	\
-static int __fops ## _open(struct inode *inode, struct file *file)	\
+static int __fops ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
 	__simple_attr_check_format(__fmt, 0ull);			\
-	return simple_attr_open(inode, file, __get, __set, __fmt);	\
+	return simple_attr_open(ianalde, file, __get, __set, __fmt);	\
 }									\
 static const struct file_operations __fops = {				\
 	.owner	 = THIS_MODULE,						\
@@ -3426,10 +3426,10 @@ void __simple_attr_check_format(const char *fmt, ...)
 	/* don't do anything, just let the compiler check the arguments; */
 }
 
-int simple_attr_open(struct inode *inode, struct file *file,
+int simple_attr_open(struct ianalde *ianalde, struct file *file,
 		     int (*get)(void *, u64 *), int (*set)(void *, u64),
 		     const char *fmt);
-int simple_attr_release(struct inode *inode, struct file *file);
+int simple_attr_release(struct ianalde *ianalde, struct file *file);
 ssize_t simple_attr_read(struct file *file, char __user *buf,
 			 size_t len, loff_t *ppos);
 ssize_t simple_attr_write(struct file *file, const char __user *buf,
@@ -3441,11 +3441,11 @@ struct ctl_table;
 int __init list_bdev_fs_names(char *buf, size_t size);
 
 #define __FMODE_EXEC		((__force int) FMODE_EXEC)
-#define __FMODE_NONOTIFY	((__force int) FMODE_NONOTIFY)
+#define __FMODE_ANALANALTIFY	((__force int) FMODE_ANALANALTIFY)
 
 #define ACC_MODE(x) ("\004\002\006\006"[(x)&O_ACCMODE])
 #define OPEN_FMODE(flag) ((__force fmode_t)(((flag + 1) & O_ACCMODE) | \
-					    (flag & __FMODE_NONOTIFY)))
+					    (flag & __FMODE_ANALANALTIFY)))
 
 static inline bool is_sxid(umode_t mode)
 {
@@ -3453,40 +3453,40 @@ static inline bool is_sxid(umode_t mode)
 }
 
 static inline int check_sticky(struct mnt_idmap *idmap,
-			       struct inode *dir, struct inode *inode)
+			       struct ianalde *dir, struct ianalde *ianalde)
 {
 	if (!(dir->i_mode & S_ISVTX))
 		return 0;
 
-	return __check_sticky(idmap, dir, inode);
+	return __check_sticky(idmap, dir, ianalde);
 }
 
-static inline void inode_has_no_xattr(struct inode *inode)
+static inline void ianalde_has_anal_xattr(struct ianalde *ianalde)
 {
-	if (!is_sxid(inode->i_mode) && (inode->i_sb->s_flags & SB_NOSEC))
-		inode->i_flags |= S_NOSEC;
+	if (!is_sxid(ianalde->i_mode) && (ianalde->i_sb->s_flags & SB_ANALSEC))
+		ianalde->i_flags |= S_ANALSEC;
 }
 
-static inline bool is_root_inode(struct inode *inode)
+static inline bool is_root_ianalde(struct ianalde *ianalde)
 {
-	return inode == inode->i_sb->s_root->d_inode;
+	return ianalde == ianalde->i_sb->s_root->d_ianalde;
 }
 
 static inline bool dir_emit(struct dir_context *ctx,
 			    const char *name, int namelen,
-			    u64 ino, unsigned type)
+			    u64 ianal, unsigned type)
 {
-	return ctx->actor(ctx, name, namelen, ctx->pos, ino, type);
+	return ctx->actor(ctx, name, namelen, ctx->pos, ianal, type);
 }
 static inline bool dir_emit_dot(struct file *file, struct dir_context *ctx)
 {
 	return ctx->actor(ctx, ".", 1, ctx->pos,
-			  file->f_path.dentry->d_inode->i_ino, DT_DIR);
+			  file->f_path.dentry->d_ianalde->i_ianal, DT_DIR);
 }
 static inline bool dir_emit_dotdot(struct file *file, struct dir_context *ctx)
 {
 	return ctx->actor(ctx, "..", 2, ctx->pos,
-			  parent_ino(file->f_path.dentry), DT_DIR);
+			  parent_ianal(file->f_path.dentry), DT_DIR);
 }
 static inline bool dir_emit_dots(struct file *file, struct dir_context *ctx)
 {
@@ -3502,22 +3502,22 @@ static inline bool dir_emit_dots(struct file *file, struct dir_context *ctx)
 	}
 	return true;
 }
-static inline bool dir_relax(struct inode *inode)
+static inline bool dir_relax(struct ianalde *ianalde)
 {
-	inode_unlock(inode);
-	inode_lock(inode);
-	return !IS_DEADDIR(inode);
+	ianalde_unlock(ianalde);
+	ianalde_lock(ianalde);
+	return !IS_DEADDIR(ianalde);
 }
 
-static inline bool dir_relax_shared(struct inode *inode)
+static inline bool dir_relax_shared(struct ianalde *ianalde)
 {
-	inode_unlock_shared(inode);
-	inode_lock_shared(inode);
-	return !IS_DEADDIR(inode);
+	ianalde_unlock_shared(ianalde);
+	ianalde_lock_shared(ianalde);
+	return !IS_DEADDIR(ianalde);
 }
 
-extern bool path_noexec(const struct path *path);
-extern void inode_nohighmem(struct inode *inode);
+extern bool path_analexec(const struct path *path);
+extern void ianalde_analhighmem(struct ianalde *ianalde);
 
 /* mm/fadvise.c */
 extern int vfs_fadvise(struct file *file, loff_t offset, loff_t len,

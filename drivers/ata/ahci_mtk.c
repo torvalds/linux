@@ -104,7 +104,7 @@ static int mtk_ahci_parse_property(struct ahci_host_priv *hpriv,
 				   struct device *dev)
 {
 	struct mtk_ahci_plat *plat = hpriv->plat_data;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	/* enable SATA function if needed */
 	if (of_property_present(np, "mediatek,phy-mode")) {
@@ -131,7 +131,7 @@ static int mtk_ahci_probe(struct platform_device *pdev)
 
 	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))

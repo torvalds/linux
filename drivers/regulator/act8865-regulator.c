@@ -190,20 +190,20 @@ static const struct regmap_range act8600_reg_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table act8600_write_ranges_table = {
-	.yes_ranges	= act8600_reg_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_ranges),
-	.no_ranges	= act8600_reg_ro_ranges,
-	.n_no_ranges	= ARRAY_SIZE(act8600_reg_ro_ranges),
+	.anal_ranges	= act8600_reg_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(act8600_reg_ranges),
+	.anal_ranges	= act8600_reg_ro_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(act8600_reg_ro_ranges),
 };
 
 static const struct regmap_access_table act8600_read_ranges_table = {
-	.yes_ranges	= act8600_reg_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_ranges),
+	.anal_ranges	= act8600_reg_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(act8600_reg_ranges),
 };
 
 static const struct regmap_access_table act8600_volatile_ranges_table = {
-	.yes_ranges	= act8600_reg_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_volatile_ranges),
+	.anal_ranges	= act8600_reg_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(act8600_reg_volatile_ranges),
 };
 
 static const struct regmap_config act8600_regmap_config = {
@@ -297,8 +297,8 @@ static unsigned int act8865_of_map_mode(unsigned int mode)
 	switch (mode) {
 	case ACT8865_REGULATOR_MODE_FIXED:
 		return REGULATOR_MODE_FAST;
-	case ACT8865_REGULATOR_MODE_NORMAL:
-		return REGULATOR_MODE_NORMAL;
+	case ACT8865_REGULATOR_MODE_ANALRMAL:
+		return REGULATOR_MODE_ANALRMAL;
 	case ACT8865_REGULATOR_MODE_LOWPOWER:
 		return REGULATOR_MODE_STANDBY;
 	default:
@@ -340,7 +340,7 @@ static int act8865_set_mode(struct regulator_dev *rdev, unsigned int mode)
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		if (id <= ACT8865_ID_DCDC3)
 			val = BIT(5);
 		break;
@@ -394,7 +394,7 @@ static unsigned int act8865_get_mode(struct regulator_dev *rdev)
 	if (id <= ACT8865_ID_DCDC3 && (val & BIT(5)))
 		return REGULATOR_MODE_FAST;
 	else if	(id > ACT8865_ID_DCDC3 && !(val & BIT(5)))
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	else
 		return REGULATOR_MODE_STANDBY;
 }
@@ -439,7 +439,7 @@ static const struct regulator_ops act8865_fixed_ldo_ops = {
 		.name			= _name,			\
 		.of_match		= of_match_ptr(_name),		\
 		.of_map_mode		= act8865_of_map_mode,		\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_analde	= of_match_ptr("regulators"),	\
 		.supply_name		= _supply,			\
 		.id			= _family##_ID_##_id,		\
 		.type			= REGULATOR_VOLTAGE,		\
@@ -469,7 +469,7 @@ static const struct regulator_desc act8600_regulators[] = {
 	{
 		.name = "SUDCDC_REG4",
 		.of_match = of_match_ptr("SUDCDC_REG4"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = ACT8600_ID_SUDCDC4,
 		.ops = &act8865_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -489,7 +489,7 @@ static const struct regulator_desc act8600_regulators[] = {
 	{
 		.name = "LDO_REG9",
 		.of_match = of_match_ptr("LDO_REG9"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = ACT8600_ID_LDO9,
 		.ops = &act8865_fixed_ldo_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -502,7 +502,7 @@ static const struct regulator_desc act8600_regulators[] = {
 	{
 		.name = "LDO_REG10",
 		.of_match = of_match_ptr("LDO_REG10"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = ACT8600_ID_LDO10,
 		.ops = &act8865_fixed_ldo_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -598,11 +598,11 @@ static int act8600_charger_get_status(struct regmap *map)
 	if (state0 && !state1)
 		return POWER_SUPPLY_STATUS_CHARGING;
 	if (!state0 && state1)
-		return POWER_SUPPLY_STATUS_NOT_CHARGING;
+		return POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	if (!state0 && !state1)
 		return POWER_SUPPLY_STATUS_DISCHARGING;
 
-	return POWER_SUPPLY_STATUS_UNKNOWN;
+	return POWER_SUPPLY_STATUS_UNKANALWN;
 }
 
 static int act8600_charger_get_property(struct power_supply *psy,
@@ -643,7 +643,7 @@ static int act8600_charger_probe(struct device *dev, struct regmap *regmap)
 	struct power_supply *charger;
 	struct power_supply_config cfg = {
 		.drv_data = regmap,
-		.of_node = dev->of_node,
+		.of_analde = dev->of_analde,
 	};
 
 	charger = devm_power_supply_register(dev, &act8600_charger_desc, &cfg);
@@ -664,16 +664,16 @@ static int act8865_pmic_probe(struct i2c_client *client)
 	int off_reg, off_mask;
 	int voltage_select = 0;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		const struct of_device_id *id;
 
 		id = of_match_device(of_match_ptr(act8865_dt_ids), dev);
 		if (!id)
-			return -ENODEV;
+			return -EANALDEV;
 
 		type = (unsigned long) id->data;
 
-		voltage_select = !!of_get_property(dev->of_node,
+		voltage_select = !!of_get_property(dev->of_analde,
 						   "active-semi,vsel-high",
 						   NULL);
 	} else {
@@ -715,7 +715,7 @@ static int act8865_pmic_probe(struct i2c_client *client)
 
 	act8865 = devm_kzalloc(dev, sizeof(struct act8865), GFP_KERNEL);
 	if (!act8865)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	act8865->regmap = devm_regmap_init_i2c(client, regmap_config);
 	if (IS_ERR(act8865->regmap)) {
@@ -724,7 +724,7 @@ static int act8865_pmic_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (of_device_is_system_power_controller(dev->of_node)) {
+	if (of_device_is_system_power_controller(dev->of_analde)) {
 		if (!pm_power_off && (off_reg > 0)) {
 			act8865_i2c_client = client;
 			act8865->off_reg = off_reg;
@@ -751,7 +751,7 @@ static int act8865_pmic_probe(struct i2c_client *client)
 			rdata = act8865_get_regulator_data(desc->id, pdata);
 			if (rdata) {
 				config.init_data = rdata->init_data;
-				config.of_node = rdata->of_node;
+				config.of_analde = rdata->of_analde;
 			}
 		}
 
@@ -789,7 +789,7 @@ MODULE_DEVICE_TABLE(i2c, act8865_ids);
 static struct i2c_driver act8865_pmic_driver = {
 	.driver	= {
 		.name	= "act8865",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= act8865_pmic_probe,
 	.id_table	= act8865_ids,

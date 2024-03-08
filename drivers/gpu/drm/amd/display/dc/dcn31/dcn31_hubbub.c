@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -162,7 +162,7 @@ static uint32_t convert_and_clamp(
 	ret_val /= 1000;
 
 	if (ret_val > clamp_value) {
-		/* clamping WMs is abnormal, unexpected and may lead to underflow*/
+		/* clamping WMs is abanalrmal, unexpected and may lead to underflow*/
 		ASSERT(0);
 		ret_val = clamp_value;
 	}
@@ -206,14 +206,14 @@ static bool hubbub31_program_urgent_watermarks(
 			< hubbub2->watermarks.a.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub2->watermarks.a.frac_urg_bw_nom) {
-		hubbub2->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_analm
+			> hubbub2->watermarks.a.frac_urg_bw_analm) {
+		hubbub2->watermarks.a.frac_urg_bw_analm = watermarks->a.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, watermarks->a.frac_urg_bw_nom);
-	} else if (watermarks->a.frac_urg_bw_nom
-			< hubbub2->watermarks.a.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A, watermarks->a.frac_urg_bw_analm);
+	} else if (watermarks->a.frac_urg_bw_analm
+			< hubbub2->watermarks.a.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->a.urgent_latency_ns > hubbub2->watermarks.a.urgent_latency_ns) {
@@ -250,14 +250,14 @@ static bool hubbub31_program_urgent_watermarks(
 			< hubbub2->watermarks.b.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->b.frac_urg_bw_nom
-			> hubbub2->watermarks.b.frac_urg_bw_nom) {
-		hubbub2->watermarks.b.frac_urg_bw_nom = watermarks->b.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->b.frac_urg_bw_analm
+			> hubbub2->watermarks.b.frac_urg_bw_analm) {
+		hubbub2->watermarks.b.frac_urg_bw_analm = watermarks->b.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, watermarks->b.frac_urg_bw_nom);
-	} else if (watermarks->b.frac_urg_bw_nom
-			< hubbub2->watermarks.b.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B, watermarks->b.frac_urg_bw_analm);
+	} else if (watermarks->b.frac_urg_bw_analm
+			< hubbub2->watermarks.b.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->b.urgent_latency_ns > hubbub2->watermarks.b.urgent_latency_ns) {
@@ -294,14 +294,14 @@ static bool hubbub31_program_urgent_watermarks(
 			< hubbub2->watermarks.c.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->c.frac_urg_bw_nom
-			> hubbub2->watermarks.c.frac_urg_bw_nom) {
-		hubbub2->watermarks.c.frac_urg_bw_nom = watermarks->c.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->c.frac_urg_bw_analm
+			> hubbub2->watermarks.c.frac_urg_bw_analm) {
+		hubbub2->watermarks.c.frac_urg_bw_analm = watermarks->c.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, watermarks->c.frac_urg_bw_nom);
-	} else if (watermarks->c.frac_urg_bw_nom
-			< hubbub2->watermarks.c.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C, watermarks->c.frac_urg_bw_analm);
+	} else if (watermarks->c.frac_urg_bw_analm
+			< hubbub2->watermarks.c.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->c.urgent_latency_ns > hubbub2->watermarks.c.urgent_latency_ns) {
@@ -338,14 +338,14 @@ static bool hubbub31_program_urgent_watermarks(
 			< hubbub2->watermarks.d.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->d.frac_urg_bw_nom
-			> hubbub2->watermarks.d.frac_urg_bw_nom) {
-		hubbub2->watermarks.d.frac_urg_bw_nom = watermarks->d.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->d.frac_urg_bw_analm
+			> hubbub2->watermarks.d.frac_urg_bw_analm) {
+		hubbub2->watermarks.d.frac_urg_bw_analm = watermarks->d.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, watermarks->d.frac_urg_bw_nom);
-	} else if (watermarks->d.frac_urg_bw_nom
-			< hubbub2->watermarks.d.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D, watermarks->d.frac_urg_bw_analm);
+	} else if (watermarks->d.frac_urg_bw_analm
+			< hubbub2->watermarks.d.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->d.urgent_latency_ns > hubbub2->watermarks.d.urgent_latency_ns) {
@@ -743,7 +743,7 @@ static bool hubbub31_program_watermarks(
 	 * the slack of the next winner is compared with the ARB_SAT_LEVEL in DLG RefClk cycles.
 	 *
 	 * TODO: Revisit request limit after figure out right number. request limit for RM isn't decided yet, set maximum value (0x1FF)
-	 * to turn off it for now.
+	 * to turn off it for analw.
 	 */
 	/*REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
@@ -845,10 +845,10 @@ static bool hubbub31_get_dcc_compression_cap(struct hubbub *hubbub,
 			dcc_control = dcc_control__256_64_64;
 	} else {
 		if ((req128_horz_wc &&
-			segment_order_horz == segment_order__non_contiguous) ||
+			segment_order_horz == segment_order__analn_contiguous) ||
 			(req128_vert_wc &&
-			segment_order_vert == segment_order__non_contiguous))
-			/* access_dir not known, must use most constraining */
+			segment_order_vert == segment_order__analn_contiguous))
+			/* access_dir analt kanalwn, must use most constraining */
 			dcc_control = dcc_control__256_64_64;
 		else
 			/* reg128 is true for either horz and vert
@@ -978,7 +978,7 @@ static bool hubbub31_verify_allow_pstate_change_high(struct hubbub *hubbub)
 
 	/*
 	 * Pstate latency is ~20us so if we wait over 40us and pstate allow
-	 * still not asserted, we are probably stuck and going to hang
+	 * still analt asserted, we are probably stuck and going to hang
 	 */
 	const unsigned int pstate_wait_timeout_us = 100;
 	const unsigned int pstate_wait_expected_timeout_us = 40;

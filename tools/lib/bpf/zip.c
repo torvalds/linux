@@ -5,7 +5,7 @@
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -16,16 +16,16 @@
 #include "libbpf_internal.h"
 #include "zip.h"
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpacked"
-#pragma GCC diagnostic ignored "-Wattributes"
+#pragma GCC diaganalstic push
+#pragma GCC diaganalstic iganalred "-Wpacked"
+#pragma GCC diaganalstic iganalred "-Wattributes"
 
 /* Specification of ZIP file format can be found here:
- * https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
+ * https://pkware.cachefly.net/webdocs/casestudies/APPANALTE.TXT
  * For a high level overview of the structure of a ZIP file see
  * sections 4.3.1 - 4.3.6.
  *
- * Data structures appearing in ZIP files do not contain any
+ * Data structures appearing in ZIP files do analt contain any
  * padding and they might be misaligned. To allow us to safely
  * operate on pointers to such structures and their members, we
  * declare the types as packed.
@@ -123,7 +123,7 @@ struct local_file_header {
 	__u16 extra_field_length;
 } __attribute__((packed));
 
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 struct zip_archive {
 	void *data;
@@ -140,8 +140,8 @@ static void *check_access(struct zip_archive *archive, __u32 offset, __u32 size)
 	return archive->data + offset;
 }
 
-/* Returns 0 on success, -EINVAL on error and -ENOTSUP if the eocd indicates the
- * archive uses features which are not supported.
+/* Returns 0 on success, -EINVAL on error and -EANALTSUP if the eocd indicates the
+ * archive uses features which are analt supported.
  */
 static int try_parse_end_of_cd(struct zip_archive *archive, __u32 offset)
 {
@@ -159,8 +159,8 @@ static int try_parse_end_of_cd(struct zip_archive *archive, __u32 offset)
 
 	cd_records = eocd->cd_records;
 	if (eocd->this_disk != 0 || eocd->cd_disk != 0 || eocd->cd_records_total != cd_records)
-		/* This is a valid eocd, but we only support single-file non-ZIP64 archives. */
-		return -ENOTSUP;
+		/* This is a valid eocd, but we only support single-file analn-ZIP64 archives. */
+		return -EANALTSUP;
 
 	cd_offset = eocd->cd_offset;
 	cd_size = eocd->cd_size;
@@ -181,7 +181,7 @@ static int find_cd(struct zip_archive *archive)
 		return -EINVAL;
 
 	/* Because the end of central directory ends with a variable length array of
-	 * up to 0xFFFF bytes we can't know exactly where it starts and need to
+	 * up to 0xFFFF bytes we can't kanalw exactly where it starts and need to
 	 * search for it at the end of the file, scanning the (limit, offset] range.
 	 */
 	offset = archive->size - sizeof(struct end_of_cd_record);
@@ -189,7 +189,7 @@ static int find_cd(struct zip_archive *archive)
 
 	for (; offset >= 0 && offset > limit && rc != 0; offset--) {
 		rc = try_parse_end_of_cd(archive, offset);
-		if (rc == -ENOTSUP)
+		if (rc == -EANALTSUP)
 			break;
 	}
 	return rc;
@@ -204,7 +204,7 @@ struct zip_archive *zip_archive_open(const char *path)
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
-		return ERR_PTR(-errno);
+		return ERR_PTR(-erranal);
 
 	size = lseek(fd, 0, SEEK_END);
 	if (size == (off_t)-1 || size > UINT32_MAX) {
@@ -213,7 +213,7 @@ struct zip_archive *zip_archive_open(const char *path)
 	}
 
 	data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-	err = -errno;
+	err = -erranal;
 	close(fd);
 
 	if (data == MAP_FAILED)
@@ -222,7 +222,7 @@ struct zip_archive *zip_archive_open(const char *path)
 	archive = malloc(sizeof(*archive));
 	if (!archive) {
 		munmap(data, size);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	};
 
 	archive->data = data;
@@ -329,5 +329,5 @@ int zip_archive_find_entry(struct zip_archive *archive, const char *file_name,
 		offset += cdfh->file_comment_length;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }

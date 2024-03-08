@@ -2,7 +2,7 @@
 /******************************************************************************
  * Guest OS interface to ARM Xen.
  *
- * Stefano Stabellini <stefano.stabellini@eu.citrix.com>, Citrix, 2012
+ * Stefaanal Stabellini <stefaanal.stabellini@eu.citrix.com>, Citrix, 2012
  */
 
 #ifndef _ASM_ARM_XEN_INTERFACE_H
@@ -33,8 +33,8 @@
 #ifndef __ASSEMBLY__
 /* Explicitly size integers that represent pfns in the interface with
  * Xen so that we can have one ABI that works for 32 and 64 bit guests.
- * Note that this means that the xen_pfn_t type may be capable of
- * representing pfn's which the guest cannot represent in its own pfn
+ * Analte that this means that the xen_pfn_t type may be capable of
+ * representing pfn's which the guest cananalt represent in its own pfn
  * type. However since pfn space is controlled by the guest this is
  * fine since it simply wouldn't be able to create any sure pfns in
  * the first place.
@@ -74,7 +74,7 @@ struct pvclock_vcpu_time_info {
 	u8    pad[2];
 } __attribute__((__packed__)); /* 32 bytes */
 
-/* It is OK to have a 12 bytes struct with no padding because it is packed */
+/* It is OK to have a 12 bytes struct with anal padding because it is packed */
 struct pvclock_wall_clock {
 	u32   version;
 	u32   sec;

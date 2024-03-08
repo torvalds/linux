@@ -35,7 +35,7 @@ static const struct snd_soc_dapm_widget ssm2305_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("L_OUT"),
 	SND_SOC_DAPM_OUTPUT("R_OUT"),
 
-	SND_SOC_DAPM_SUPPLY("Power", SND_SOC_NOPM, 0, 0, ssm2305_power_event,
+	SND_SOC_DAPM_SUPPLY("Power", SND_SOC_ANALPM, 0, 0, ssm2305_power_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
@@ -61,7 +61,7 @@ static int ssm2305_probe(struct platform_device *pdev)
 	/* Allocate the private data */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 

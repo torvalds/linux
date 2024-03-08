@@ -14,7 +14,7 @@
  */
 static u8 _rtl_rc_get_highest_rix(struct rtl_priv *rtlpriv,
 				  struct ieee80211_sta *sta,
-				  struct sk_buff *skb, bool not_data)
+				  struct sk_buff *skb, bool analt_data)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -39,11 +39,11 @@ static u8 _rtl_rc_get_highest_rix(struct rtl_priv *rtlpriv,
 	}
 
 	/*
-	 *this rate is no use for true rate, firmware
+	 *this rate is anal use for true rate, firmware
 	 *will control rate at all it just used for
 	 *1.show in iwconfig in B/G mode
 	 *2.in rtl_get_tcb_desc when we check rate is
-	 *      1M we will not use FW rate but user rate.
+	 *      1M we will analt use FW rate but user rate.
 	 */
 
 	if (sta) {
@@ -52,7 +52,7 @@ static u8 _rtl_rc_get_highest_rix(struct rtl_priv *rtlpriv,
 	}
 
 	if (rtl_is_special_data(rtlpriv->mac80211.hw, skb, true, false) ||
-	    not_data) {
+	    analt_data) {
 		return 0;
 	} else {
 		if (rtlhal->current_bandtype == BAND_ON_2_4G) {
@@ -113,7 +113,7 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 				    struct ieee80211_tx_rate *rate,
 				    struct ieee80211_tx_rate_control *txrc,
 				    u8 tries, s8 rix, int rtsctsenable,
-				    bool not_data)
+				    bool analt_data)
 {
 	struct rtl_mac *mac = rtl_mac(rtlpriv);
 	struct rtl_sta_info *sta_entry = NULL;
@@ -130,7 +130,7 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 	rate->count = tries;
 	rate->idx = rix >= 0x00 ? rix : 0x00;
 
-	if (!not_data) {
+	if (!analt_data) {
 		if (txrc->short_preamble)
 			rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
 		if (mac->opmode == NL80211_IFTYPE_AP ||
@@ -171,18 +171,18 @@ static void rtl_get_rate(void *ppriv, struct ieee80211_sta *sta,
 	struct ieee80211_tx_rate *rates = tx_info->control.rates;
 	__le16 fc = rtl_get_fc(skb);
 	u8 try_per_rate, i, rix;
-	bool not_data = !ieee80211_is_data(fc);
+	bool analt_data = !ieee80211_is_data(fc);
 
-	rix = _rtl_rc_get_highest_rix(rtlpriv, sta, skb, not_data);
+	rix = _rtl_rc_get_highest_rix(rtlpriv, sta, skb, analt_data);
 	try_per_rate = 1;
 	_rtl_rc_rate_set_series(rtlpriv, sta, &rates[0], txrc,
-				try_per_rate, rix, 1, not_data);
+				try_per_rate, rix, 1, analt_data);
 
-	if (!not_data) {
+	if (!analt_data) {
 		for (i = 1; i < 4; i++)
 			_rtl_rc_rate_set_series(rtlpriv, sta, &rates[i],
 						txrc, i, (rix - i), 1,
-						not_data);
+						analt_data);
 	}
 }
 

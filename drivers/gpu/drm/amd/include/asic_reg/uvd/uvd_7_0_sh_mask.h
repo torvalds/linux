@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -45,15 +45,15 @@
 //UVD_DPG_RBC_RB_CNTL
 #define UVD_DPG_RBC_RB_CNTL__RB_BUFSZ__SHIFT                                                                  0x0
 #define UVD_DPG_RBC_RB_CNTL__RB_BLKSZ__SHIFT                                                                  0x8
-#define UVD_DPG_RBC_RB_CNTL__RB_NO_FETCH__SHIFT                                                               0x10
+#define UVD_DPG_RBC_RB_CNTL__RB_ANAL_FETCH__SHIFT                                                               0x10
 #define UVD_DPG_RBC_RB_CNTL__RB_WPTR_POLL_EN__SHIFT                                                           0x14
-#define UVD_DPG_RBC_RB_CNTL__RB_NO_UPDATE__SHIFT                                                              0x18
+#define UVD_DPG_RBC_RB_CNTL__RB_ANAL_UPDATE__SHIFT                                                              0x18
 #define UVD_DPG_RBC_RB_CNTL__RB_RPTR_WR_EN__SHIFT                                                             0x1c
 #define UVD_DPG_RBC_RB_CNTL__RB_BUFSZ_MASK                                                                    0x0000001FL
 #define UVD_DPG_RBC_RB_CNTL__RB_BLKSZ_MASK                                                                    0x00001F00L
-#define UVD_DPG_RBC_RB_CNTL__RB_NO_FETCH_MASK                                                                 0x00010000L
+#define UVD_DPG_RBC_RB_CNTL__RB_ANAL_FETCH_MASK                                                                 0x00010000L
 #define UVD_DPG_RBC_RB_CNTL__RB_WPTR_POLL_EN_MASK                                                             0x00100000L
-#define UVD_DPG_RBC_RB_CNTL__RB_NO_UPDATE_MASK                                                                0x01000000L
+#define UVD_DPG_RBC_RB_CNTL__RB_ANAL_UPDATE_MASK                                                                0x01000000L
 #define UVD_DPG_RBC_RB_CNTL__RB_RPTR_WR_EN_MASK                                                               0x10000000L
 //UVD_DPG_RBC_RB_BASE_LOW
 #define UVD_DPG_RBC_RB_BASE_LOW__RB_BASE_LOW__SHIFT                                                           0x0
@@ -276,9 +276,9 @@
 //UVD_POWER_STATUS_U
 #define UVD_POWER_STATUS_U__UVD_POWER_STATUS__SHIFT                                                           0x0
 #define UVD_POWER_STATUS_U__UVD_POWER_STATUS_MASK                                                             0x00000003L
-//UVD_NO_OP
-#define UVD_NO_OP__NO_OP__SHIFT                                                                               0x0
-#define UVD_NO_OP__NO_OP_MASK                                                                                 0xFFFFFFFFL
+//UVD_ANAL_OP
+#define UVD_ANAL_OP__ANAL_OP__SHIFT                                                                               0x0
+#define UVD_ANAL_OP__ANAL_OP_MASK                                                                                 0xFFFFFFFFL
 //UVD_GP_SCRATCH8
 #define UVD_GP_SCRATCH8__DATA__SHIFT                                                                          0x0
 #define UVD_GP_SCRATCH8__DATA_MASK                                                                            0xFFFFFFFFL
@@ -734,15 +734,15 @@
 //UVD_RBC_RB_CNTL
 #define UVD_RBC_RB_CNTL__RB_BUFSZ__SHIFT                                                                      0x0
 #define UVD_RBC_RB_CNTL__RB_BLKSZ__SHIFT                                                                      0x8
-#define UVD_RBC_RB_CNTL__RB_NO_FETCH__SHIFT                                                                   0x10
+#define UVD_RBC_RB_CNTL__RB_ANAL_FETCH__SHIFT                                                                   0x10
 #define UVD_RBC_RB_CNTL__RB_WPTR_POLL_EN__SHIFT                                                               0x14
-#define UVD_RBC_RB_CNTL__RB_NO_UPDATE__SHIFT                                                                  0x18
+#define UVD_RBC_RB_CNTL__RB_ANAL_UPDATE__SHIFT                                                                  0x18
 #define UVD_RBC_RB_CNTL__RB_RPTR_WR_EN__SHIFT                                                                 0x1c
 #define UVD_RBC_RB_CNTL__RB_BUFSZ_MASK                                                                        0x0000001FL
 #define UVD_RBC_RB_CNTL__RB_BLKSZ_MASK                                                                        0x00001F00L
-#define UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK                                                                     0x00010000L
+#define UVD_RBC_RB_CNTL__RB_ANAL_FETCH_MASK                                                                     0x00010000L
 #define UVD_RBC_RB_CNTL__RB_WPTR_POLL_EN_MASK                                                                 0x00100000L
-#define UVD_RBC_RB_CNTL__RB_NO_UPDATE_MASK                                                                    0x01000000L
+#define UVD_RBC_RB_CNTL__RB_ANAL_UPDATE_MASK                                                                    0x01000000L
 #define UVD_RBC_RB_CNTL__RB_RPTR_WR_EN_MASK                                                                   0x10000000L
 //UVD_RBC_RB_RPTR_ADDR
 #define UVD_RBC_RB_RPTR_ADDR__RB_RPTR_ADDR__SHIFT                                                             0x0
@@ -816,7 +816,7 @@
 #define UVD_FW_STATUS__FAIL__SHIFT                                                                            0x11
 #define UVD_FW_STATUS__INVALID_LEN__SHIFT                                                                     0x12
 #define UVD_FW_STATUS__INVALID_0_PADDING__SHIFT                                                               0x13
-#define UVD_FW_STATUS__INVALID_NONCE__SHIFT                                                                   0x14
+#define UVD_FW_STATUS__INVALID_ANALNCE__SHIFT                                                                   0x14
 #define UVD_FW_STATUS__BUSY_MASK                                                                              0x00000001L
 #define UVD_FW_STATUS__ACTIVE_MASK                                                                            0x00000002L
 #define UVD_FW_STATUS__SEND_EFUSE_REQ_MASK                                                                    0x00000004L
@@ -825,7 +825,7 @@
 #define UVD_FW_STATUS__FAIL_MASK                                                                              0x00020000L
 #define UVD_FW_STATUS__INVALID_LEN_MASK                                                                       0x00040000L
 #define UVD_FW_STATUS__INVALID_0_PADDING_MASK                                                                 0x00080000L
-#define UVD_FW_STATUS__INVALID_NONCE_MASK                                                                     0x00100000L
+#define UVD_FW_STATUS__INVALID_ANALNCE_MASK                                                                     0x00100000L
 
 
 #endif

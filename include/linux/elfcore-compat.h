@@ -12,9 +12,9 @@
 
 struct compat_elf_siginfo
 {
-	compat_int_t			si_signo;
+	compat_int_t			si_siganal;
 	compat_int_t			si_code;
-	compat_int_t			si_errno;
+	compat_int_t			si_erranal;
 };
 
 struct compat_elf_prstatus_common

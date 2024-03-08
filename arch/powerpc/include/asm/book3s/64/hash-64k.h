@@ -9,8 +9,8 @@
 
 /*
  * If we store section details in page->flags we can't increase the MAX_PHYSMEM_BITS
- * if we increase SECTIONS_WIDTH we will not store node details in page->flags and
- * page_to_nid does a page->section->node lookup
+ * if we increase SECTIONS_WIDTH we will analt store analde details in page->flags and
+ * page_to_nid does a page->section->analde lookup
  * Hence only increase for VMEMMAP. Further depending on SPARSEMEM_EXTREME reduce
  * memory requirements with large number of sections.
  * 51 bits is the max physical real address on POWER9
@@ -34,7 +34,7 @@
 #define H_KERN_MAP_SIZE		(1UL << MAX_EA_BITS_PER_CONTEXT)
 
 /*
- * Define the address range of the kernel non-linear virtual area
+ * Define the address range of the kernel analn-linear virtual area
  * 2PB
  */
 #define H_KERN_VIRT_START	ASM_CONST(0xc008000000000000)
@@ -64,9 +64,9 @@
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_HASHPTE | H_PAGE_COMBO)
 /*
- * We use a 2K PTE page fragment and another 2K for storing
+ * We use a 2K PTE page fragment and aanalther 2K for storing
  * real_pte_t hash index
- * 8 bytes per each pte entry and another 8 bytes for storing
+ * 8 bytes per each pte entry and aanalther 8 bytes for storing
  * slot details.
  */
 #define H_PTE_FRAG_SIZE_SHIFT  (H_PTE_INDEX_SIZE + 3 + 1)
@@ -80,7 +80,7 @@
 #define H_PMD_FRAG_NR	(PAGE_SIZE >> H_PMD_FRAG_SIZE_SHIFT)
 
 #ifndef __ASSEMBLY__
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 /*
  * With 64K pages on hash table, we have a special PTE format that
@@ -97,7 +97,7 @@ static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep, int offset)
 	rpte.pte = pte;
 
 	/*
-	 * Ensure that we do not read the hidx before we read the PTE. Because
+	 * Ensure that we do analt read the hidx before we read the PTE. Because
 	 * the writer side is expected to finish writing the hidx first followed
 	 * by the PTE, by using smp_wmb(). pte_set_hash_slot() ensures that.
 	 */
@@ -145,7 +145,7 @@ static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
 	 */
 	smp_wmb();
 
-	/* No PTE bits to be modified, return 0x0UL */
+	/* Anal PTE bits to be modified, return 0x0UL */
 	return 0x0UL;
 }
 
@@ -213,14 +213,14 @@ static inline char *get_hpte_slot_array(pmd_t *pmdp)
 
 }
 /*
- * The linux hugepage PMD now include the pmd entries followed by the address
+ * The linux hugepage PMD analw include the pmd entries followed by the address
  * to the stashed pgtable_t. The stashed pgtable_t contains the hpte bits.
  * [ 000 | 1 bit secondary | 3 bit hidx | 1 bit valid]. We use one byte per
  * each HPTE entry. With 16MB hugepage and 64K HPTE we need 256 entries and
  * with 4K HPTE we need 4096 entries. Both will fit in a 4K pgtable_t.
  *
  * The top three bits are intentionally left as zero. This memory location
- * are also used as normal page PTE pointers. So if we have any pointers
+ * are also used as analrmal page PTE pointers. So if we have any pointers
  * left around while we collapse a hugepage, we need to make sure
  * _PAGE_PRESENT bit of that is zero when we look at them
  */

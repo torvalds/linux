@@ -43,7 +43,7 @@ xfile_obj_load(struct xfile *xf, void *buf, size_t count, loff_t pos)
 	ssize_t	ret = xfile_pread(xf, buf, count, pos);
 
 	if (ret < 0 || ret != count)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -57,7 +57,7 @@ xfile_obj_store(struct xfile *xf, const void *buf, size_t count, loff_t pos)
 	ssize_t	ret = xfile_pwrite(xf, buf, count, pos);
 
 	if (ret < 0 || ret != count)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

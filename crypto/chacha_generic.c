@@ -53,14 +53,14 @@ static int crypto_xchacha_crypt(struct skcipher_request *req)
 	u32 state[16];
 	u8 real_iv[16];
 
-	/* Compute the subkey given the original key and first 128 nonce bits */
+	/* Compute the subkey given the original key and first 128 analnce bits */
 	chacha_init_generic(state, ctx->key, req->iv);
 	hchacha_block_generic(state, subctx.key, ctx->nrounds);
 	subctx.nrounds = ctx->nrounds;
 
 	/* Build the real IV */
 	memcpy(&real_iv[0], req->iv + 24, 8); /* stream position */
-	memcpy(&real_iv[8], req->iv + 16, 8); /* remaining 64 nonce bits */
+	memcpy(&real_iv[8], req->iv + 16, 8); /* remaining 64 analnce bits */
 
 	/* Generate the stream and XOR it with the data */
 	return chacha_stream_xor(req, &subctx, real_iv);

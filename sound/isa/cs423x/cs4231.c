@@ -120,7 +120,7 @@ static int snd_cs4231_probe(struct device *dev, unsigned int n)
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_CS4232,
 					mpu_port[n], 0, mpu_irq[n],
 					NULL) < 0)
-			dev_warn(dev, "MPU401 not detected\n");
+			dev_warn(dev, "MPU401 analt detected\n");
 	}
 
 	error = snd_card_register(card);

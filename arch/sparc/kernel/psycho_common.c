@@ -50,7 +50,7 @@ static void psycho_check_stc_error(struct pci_pbm_info *pbm)
 	spin_lock(&stc_buf_lock);
 
 	/* This is __REALLY__ dangerous.  When we put the streaming
-	 * buffer into diagnostic mode to probe it's tags and error
+	 * buffer into diaganalstic mode to probe it's tags and error
 	 * status, we _must_ clear all of the line tag valid bits
 	 * before re-enabling the streaming buffer.  If any dirty data
 	 * lives in the STC when we do this, we will end up
@@ -73,7 +73,7 @@ static void psycho_check_stc_error(struct pci_pbm_info *pbm)
 		upa_writeq(0UL, line_base + (i * 8UL));
 	}
 
-	/* OK, state is logged, exit diagnostic mode. */
+	/* OK, state is logged, exit diaganalstic mode. */
 	upa_writeq(control, strbuf->strbuf_control);
 
 	for (i = 0; i < 16; i++) {
@@ -136,7 +136,7 @@ static void psycho_record_iommu_tags_and_data(struct pci_pbm_info *pbm,
 		tag[i] = upa_readq(base + PSYCHO_IOMMU_TAG+off);
 		data[i] = upa_readq(base + PSYCHO_IOMMU_DATA+off);
 
-		/* Now clear out the entry. */
+		/* Analw clear out the entry. */
 		upa_writeq(0, base + PSYCHO_IOMMU_TAG + off);
 		upa_writeq(0, base + PSYCHO_IOMMU_DATA + off);
 	}
@@ -235,11 +235,11 @@ void psycho_check_iommu_error(struct pci_pbm_info *pbm,
 		printk(KERN_ERR "%s: IOMMU Error, type[%s]\n",
 		       pbm->name, type_str);
 
-		/* It is very possible for another DVMA to occur while
+		/* It is very possible for aanalther DVMA to occur while
 		 * we do this probe, and corrupt the system further.
 		 * But we are so screwed at this point that we are
 		 * likely to crash hard anyways, so get as much
-		 * diagnostic information to the console as we can.
+		 * diaganalstic information to the console as we can.
 		 */
 		psycho_record_iommu_tags_and_data(pbm, iommu_tag, iommu_data);
 		psycho_dump_iommu_tags_and_data(pbm, iommu_tag, iommu_data);
@@ -253,7 +253,7 @@ void psycho_check_iommu_error(struct pci_pbm_info *pbm,
 
 static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u64 csr, csr_error_bits;
 	u16 stat, *addr;
 
@@ -272,7 +272,7 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm)
 			       pbm->name);
 		ret = IRQ_HANDLED;
 	}
-	addr = psycho_pci_config_mkaddr(pbm, pbm->pci_first_busno,
+	addr = psycho_pci_config_mkaddr(pbm, pbm->pci_first_busanal,
 					0, PCI_STATUS);
 	pci_config_read16(addr, &stat);
 	if (stat & (PCI_STATUS_PARITY |
@@ -354,7 +354,7 @@ irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 		printk("(Parity Error)");
 	}
 	if (!reported)
-		printk("(none)");
+		printk("(analne)");
 	printk("]\n");
 
 	if (error_bits & (PSYCHO_PCIAFSR_PTA | PSYCHO_PCIAFSR_STA)) {
@@ -423,7 +423,7 @@ int psycho_iommu_init(struct pci_pbm_info *pbm, int tsbsize,
 
 	/* Leave diag mode enabled for full-flushing done in pci_iommu.c */
 	err = iommu_table_init(iommu, tsbsize * 1024 * 8,
-			       dvma_offset, dma_mask, pbm->numa_node);
+			       dvma_offset, dma_mask, pbm->numa_analde);
 	if (err)
 		return err;
 
@@ -453,10 +453,10 @@ int psycho_iommu_init(struct pci_pbm_info *pbm, int tsbsize,
 void psycho_pbm_init_common(struct pci_pbm_info *pbm, struct platform_device *op,
 			    const char *chip_name, int chip_type)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 
 	pbm->name = dp->full_name;
-	pbm->numa_node = NUMA_NO_NODE;
+	pbm->numa_analde = NUMA_ANAL_ANALDE;
 	pbm->chip_type = chip_type;
 	pbm->chip_version = of_getintprop_default(dp, "version#", 0);
 	pbm->chip_revision = of_getintprop_default(dp, "module-revision#", 0);

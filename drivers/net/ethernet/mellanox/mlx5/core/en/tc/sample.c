@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2021 Mellanox Technologies. */
+/* Copyright (c) 2021 Mellaanalx Techanallogies. */
 
 #include <linux/skbuff.h>
 #include <net/psample.h>
@@ -32,7 +32,7 @@ struct mlx5e_tc_psample {
 };
 
 struct mlx5e_sampler {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	u32 sampler_id;
 	u32 sample_ratio;
 	u32 sample_table_id;
@@ -50,7 +50,7 @@ struct mlx5e_sample_flow {
 };
 
 struct mlx5e_sample_restore {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_flow_handle *rule;
 	u32 obj_id;
@@ -69,14 +69,14 @@ sampler_termtbl_create(struct mlx5e_tc_psample *tc_psample)
 	int err;
 
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(dev, termination_table))  {
-		mlx5_core_warn(dev, "termination table is not supported\n");
-		return -EOPNOTSUPP;
+		mlx5_core_warn(dev, "termination table is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
 		mlx5_core_warn(dev, "failed to get FDB flow namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ft_attr.flags = MLX5_FLOW_TABLE_TERMINATION | MLX5_FLOW_TABLE_UNMANAGED;
@@ -123,13 +123,13 @@ sampler_obj_create(struct mlx5_core_dev *mdev, struct mlx5e_sampler *sampler)
 
 	general_obj_types = MLX5_CAP_GEN_64(mdev, general_obj_types);
 	if (!(general_obj_types & MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_SAMPLER))
-		return -EOPNOTSUPP;
-	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, ignore_flow_level))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
+	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, iganalre_flow_level))
+		return -EOPANALTSUPP;
 
 	obj = MLX5_ADDR_OF(create_sampler_obj_in, in, sampler_object);
 	MLX5_SET(sampler_obj, obj, table_type, FS_FT_FDB);
-	MLX5_SET(sampler_obj, obj, ignore_flow_level, 1);
+	MLX5_SET(sampler_obj, obj, iganalre_flow_level, 1);
 	MLX5_SET(sampler_obj, obj, level, 1);
 	MLX5_SET(sampler_obj, obj, sample_ratio, sampler->sample_ratio);
 	MLX5_SET(sampler_obj, obj, sample_table_id, sampler->sample_table_id);
@@ -185,7 +185,7 @@ sampler_get(struct mlx5e_tc_psample *tc_psample, u32 sample_ratio, u32 default_t
 
 	sampler = kzalloc(sizeof(*sampler), GFP_KERNEL);
 	if (!sampler) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -275,7 +275,7 @@ sample_restore_get(struct mlx5e_tc_psample *tc_psample, u32 obj_id,
 
 	restore = kzalloc(sizeof(*restore), GFP_KERNEL);
 	if (!restore) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 	restore->obj_id = obj_id;
@@ -368,7 +368,7 @@ add_post_rule(struct mlx5_eswitch *esw, struct mlx5e_sample_flow *sample_flow,
 
 	post_attr = mlx5_alloc_flow_attr(MLX5_FLOW_NAMESPACE_FDB);
 	if (!post_attr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_attr;
 	}
 	sample_flow->post_attr = post_attr;
@@ -379,12 +379,12 @@ add_post_rule(struct mlx5_eswitch *esw, struct mlx5e_sample_flow *sample_flow,
 	post_attr->chain = 0;
 	post_attr->prio = 0;
 	post_attr->ft = default_tbl;
-	post_attr->flags = MLX5_ATTR_FLAG_NO_IN_PORT;
+	post_attr->flags = MLX5_ATTR_FLAG_ANAL_IN_PORT;
 
-	/* When offloading sample and encap action, if there is no valid
+	/* When offloading sample and encap action, if there is anal valid
 	 * neigh data struct, a slow path rule is offloaded first. Source
 	 * port metadata match is set at that time. A per vport table is
-	 * already allocated. No need to match it again. So clear the source
+	 * already allocated. Anal need to match it again. So clear the source
 	 * port metadata match.
 	 */
 	mlx5_eswitch_clear_rule_source_port(esw, spec);
@@ -483,11 +483,11 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	int err;
 
 	if (IS_ERR_OR_NULL(tc_psample))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	sample_flow = kzalloc(sizeof(*sample_flow), GFP_KERNEL);
 	if (!sample_flow)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	sample_attr = &attr->sample_attr;
 	sample_attr->sample_flow = sample_flow;
 
@@ -540,7 +540,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	 */
 	pre_attr = mlx5_alloc_flow_attr(MLX5_FLOW_NAMESPACE_FDB);
 	if (!pre_attr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_pre_flow_attr;
 	}
 	pre_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
@@ -586,7 +586,7 @@ err_post_rule:
 }
 
 void
-mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
+mlx5e_tc_sample_uanalffload(struct mlx5e_tc_psample *tc_psample,
 			  struct mlx5_flow_handle *rule,
 			  struct mlx5_flow_attr *attr)
 {
@@ -621,7 +621,7 @@ mlx5e_tc_sample_init(struct mlx5_eswitch *esw, struct mlx5e_post_act *post_act)
 
 	tc_psample = kzalloc(sizeof(*tc_psample), GFP_KERNEL);
 	if (!tc_psample)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (IS_ERR_OR_NULL(post_act)) {
 		err = PTR_ERR(post_act);
 		goto err_post_act;

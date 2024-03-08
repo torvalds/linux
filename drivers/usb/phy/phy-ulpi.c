@@ -85,16 +85,16 @@ static int ulpi_set_fc_flags(struct usb_phy *phy)
 
 	/*
 	 * ULPI Specification rev.1.1 default
-	 * for OpMode is Normal Operation.
+	 * for OpMode is Analrmal Operation.
 	 */
-	if (phy->flags & ULPI_FC_OP_NODRV)
-		flags |= ULPI_FUNC_CTRL_OPMODE_NONDRIVING;
+	if (phy->flags & ULPI_FC_OP_ANALDRV)
+		flags |= ULPI_FUNC_CTRL_OPMODE_ANALNDRIVING;
 	else if (phy->flags & ULPI_FC_OP_DIS_NRZI)
 		flags |= ULPI_FUNC_CTRL_OPMODE_DISABLE_NRZI;
 	else if (phy->flags & ULPI_FC_OP_NSYNC_NEOP)
-		flags |= ULPI_FUNC_CTRL_OPMODE_NOSYNC_NOEOP;
+		flags |= ULPI_FUNC_CTRL_OPMODE_ANALSYNC_ANALEOP;
 	else
-		flags |= ULPI_FUNC_CTRL_OPMODE_NORMAL;
+		flags |= ULPI_FUNC_CTRL_OPMODE_ANALRMAL;
 
 	/*
 	 * ULPI Specification rev.1.1 default
@@ -155,7 +155,7 @@ static int ulpi_check_integrity(struct usb_phy *phy)
 
 		if (ret != val) {
 			pr_err("ULPI integrity check: failed!");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		val = val << 1;
 	}

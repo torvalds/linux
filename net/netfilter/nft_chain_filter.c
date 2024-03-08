@@ -348,15 +348,15 @@ static void nft_netdev_event(unsigned long event, struct net_device *dev,
 	 *
 	 * Although nf_tables core releases all tables/chains, only this event
 	 * handler provides guarantee that hook->ops.dev is still accessible,
-	 * so we cannot skip exiting net namespaces.
+	 * so we cananalt skip exiting net namespaces.
 	 */
 	__nft_release_basechain(ctx);
 }
 
-static int nf_tables_netdev_event(struct notifier_block *this,
+static int nf_tables_netdev_event(struct analtifier_block *this,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct nft_base_chain *basechain;
 	struct nftables_pernet *nft_net;
 	struct nft_chain *chain, *nr;
@@ -367,7 +367,7 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 
 	if (event != NETDEV_UNREGISTER &&
 	    event != NETDEV_CHANGENAME)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	nft_net = nft_pernet(ctx.net);
 	mutex_lock(&nft_net->commit_mutex);
@@ -393,11 +393,11 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 	}
 	mutex_unlock(&nft_net->commit_mutex);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block nf_tables_netdev_notifier = {
-	.notifier_call	= nf_tables_netdev_event,
+static struct analtifier_block nf_tables_netdev_analtifier = {
+	.analtifier_call	= nf_tables_netdev_event,
 };
 
 static int nft_chain_filter_netdev_init(void)
@@ -406,13 +406,13 @@ static int nft_chain_filter_netdev_init(void)
 
 	nft_register_chain_type(&nft_chain_filter_netdev);
 
-	err = register_netdevice_notifier(&nf_tables_netdev_notifier);
+	err = register_netdevice_analtifier(&nf_tables_netdev_analtifier);
 	if (err)
-		goto err_register_netdevice_notifier;
+		goto err_register_netdevice_analtifier;
 
 	return 0;
 
-err_register_netdevice_notifier:
+err_register_netdevice_analtifier:
 	nft_unregister_chain_type(&nft_chain_filter_netdev);
 
 	return err;
@@ -421,7 +421,7 @@ err_register_netdevice_notifier:
 static void nft_chain_filter_netdev_fini(void)
 {
 	nft_unregister_chain_type(&nft_chain_filter_netdev);
-	unregister_netdevice_notifier(&nf_tables_netdev_notifier);
+	unregister_netdevice_analtifier(&nf_tables_netdev_analtifier);
 }
 #else
 static inline int nft_chain_filter_netdev_init(void) { return 0; }

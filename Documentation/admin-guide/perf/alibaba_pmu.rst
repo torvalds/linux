@@ -38,11 +38,11 @@ four groups:
 - Group 3: PMU Common Counters. This group has 16 counters, that are used
   to count the common events.
 
-For now, the Driveway PMU driver only uses counters in group 0 and group 3.
+For analw, the Driveway PMU driver only uses counters in group 0 and group 3.
 
 The DDR Controller (DDRCTL) and DDR PHY combine to create a complete solution
 for connecting an SoC application bus to DDR memory devices. The DDRCTL
-receives transactions Host Interface (HIF) which is custom-defined by Synopsys.
+receives transactions Host Interface (HIF) which is custom-defined by Syanalpsys.
 These transactions are queued internally and scheduled for access while
 satisfying the SDRAM protocol timing requirements, transaction priorities, and
 dependencies between the transactions. The DDRCTL in turn issues commands on
@@ -100,6 +100,6 @@ The average DRAM bandwidth can be calculated as follows:
 
 Here, DDRC_WIDTH = 64 bytes.
 
-The current driver does not support sampling. So "perf record" is
+The current driver does analt support sampling. So "perf record" is
 unsupported.  Also attach to a task is unsupported as the events are all
 uncore.

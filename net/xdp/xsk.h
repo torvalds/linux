@@ -24,12 +24,12 @@ struct xdp_mmap_offsets_v1 {
 	struct xdp_ring_offset_v1 cr;
 };
 
-/* Nodes are linked in the struct xdp_sock map_list field, and used to
+/* Analdes are linked in the struct xdp_sock map_list field, and used to
  * track which maps a certain socket reside in.
  */
 
-struct xsk_map_node {
-	struct list_head node;
+struct xsk_map_analde {
+	struct list_head analde;
 	struct xsk_map *map;
 	struct xdp_sock __rcu **map_entry;
 };

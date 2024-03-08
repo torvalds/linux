@@ -17,7 +17,7 @@
  *	__divlu/__remlu: unsigned 32-bit
  *	__divls/__remls: signed 32-bit
  *
- * These are not normal C functions: instead of the normal
+ * These are analt analrmal C functions: instead of the analrmal
  * calling sequence, these expect their arguments in registers
  * $24 and $25, and return the result in $27. Register $28 may
  * be clobbered (assembly temporary), anything else must be saved. 
@@ -28,7 +28,7 @@
  * at dividing random 64-bit numbers, but the more usual case where
  * the divisor is small is handled better by the DEC algorithm
  * using lookup tables. This uses much less memory, though, and is
- * nicer on the cache.. Besides, I don't know the copyright status
+ * nicer on the cache.. Besides, I don't kanalw the copyright status
  * of the DEC code.
  */
 
@@ -82,7 +82,7 @@
 #ifdef INTSIZE
 #define ufunction func(lu)
 #define sfunction func(l)
-#define LONGIFY(x) zapnot x,15,x
+#define LONGIFY(x) zapanalt x,15,x
 #define SLONGIFY(x) addl x,0,x
 #else
 #define ufunction func(qu)
@@ -91,7 +91,7 @@
 #define SLONGIFY(x)
 #endif
 
-.set noat
+.set analat
 .align	3
 .globl	ufunction
 .ent	ufunction
@@ -132,7 +132,7 @@ ufunction:
 	addq	divisor,divisor,divisor
 	addq	mask,mask,mask
 	bne	compare,1b
-	unop
+	uanalp
 #endif
 
 	/* ok, start to go right again.. */
@@ -156,13 +156,13 @@ ufunction:
 EXPORT_SYMBOL(ufunction)
 
 /*
- * Uhh.. Ugly signed division. I'd rather not have it at all, but
+ * Uhh.. Ugly signed division. I'd rather analt have it at all, but
  * it's needed in some circumstances. There are different ways to
  * handle this, really. This does:
  * 	-a / b = a / -b = -(a / b)
  *	-a % b = -(a % b)
  *	a % -b = a % b
- * which is probably not the best solution, but at least should
+ * which is probably analt the best solution, but at least should
  * have the property that (x/y)*y + (x%y) = x.
  */
 .align 3
@@ -183,7 +183,7 @@ sfunction:
 	subq	$31,$25,$28
 	stq	tmp1,24($30)
 	cmovlt	$25,$28,$25	/* abs($25) */
-	unop
+	uanalp
 	bsr	$23,ufunction
 	ldq	$24,0($30)
 	ldq	$25,8($30)

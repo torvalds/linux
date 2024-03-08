@@ -28,7 +28,7 @@ typedef unsigned char cisdata_t;
 #define CISTPL_LONGLINK_A	0x11
 #define CISTPL_LONGLINK_C	0x12
 #define CISTPL_LINKTARGET	0x13
-#define CISTPL_NO_LINK		0x14
+#define CISTPL_ANAL_LINK		0x14
 #define CISTPL_VERS_1		0x15
 #define CISTPL_ALTSTR		0x16
 #define CISTPL_DEVICE_A		0x17
@@ -122,7 +122,7 @@ typedef struct cistpl_device_o_t {
 
 typedef struct cistpl_vers_1_t {
     u_char	major;
-    u_char	minor;
+    u_char	mianalr;
     u_char	ns;
     u_char	ofs[CISTPL_VERS_1_MAX_PROD_STRINGS];
     char	str[254];
@@ -282,10 +282,10 @@ typedef struct cistpl_voice_serv_t {
 #define CISTPL_FUNCE_LAN_TECH		0x01
 #define CISTPL_FUNCE_LAN_SPEED		0x02
 #define CISTPL_FUNCE_LAN_MEDIA		0x03
-#define CISTPL_FUNCE_LAN_NODE_ID	0x04
+#define CISTPL_FUNCE_LAN_ANALDE_ID	0x04
 #define CISTPL_FUNCE_LAN_CONNECTOR	0x05
 
-/* LAN technologies */
+/* LAN techanallogies */
 #define CISTPL_LAN_TECH_ARCNET		0x01
 #define CISTPL_LAN_TECH_ETHERNET	0x02
 #define CISTPL_LAN_TECH_TOKENRING	0x03
@@ -318,10 +318,10 @@ typedef struct cistpl_lan_media_t {
     u_char	media;
 } cistpl_lan_media_t;
 
-typedef struct cistpl_lan_node_id_t {
+typedef struct cistpl_lan_analde_id_t {
     u_char	nb;
     u_char	id[16];
-} cistpl_lan_node_id_t;
+} cistpl_lan_analde_id_t;
 
 typedef struct cistpl_lan_connector_t {
     u_char	code;
@@ -387,7 +387,7 @@ typedef struct cistpl_config_t {
 } cistpl_config_t;
 
 /* These are bits in the 'present' field, and indices in 'param' */
-#define CISTPL_POWER_VNOM	0
+#define CISTPL_POWER_VANALM	0
 #define CISTPL_POWER_VMIN	1
 #define CISTPL_POWER_VMAX	2
 #define CISTPL_POWER_ISTATIC	3
@@ -525,7 +525,7 @@ typedef struct cistpl_format_t {
 #define CISTPL_FORMAT_DISK	0x00
 #define CISTPL_FORMAT_MEM	0x01
 
-#define CISTPL_EDC_NONE		0x00
+#define CISTPL_EDC_ANALNE		0x00
 #define CISTPL_EDC_CKSUM	0x01
 #define CISTPL_EDC_CRC		0x02
 #define CISTPL_EDC_PCC		0x03

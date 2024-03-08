@@ -16,10 +16,10 @@
 #define BUILD_BUG_ON_ZERO(e) ((int)(sizeof(struct { int:(-!!(e)); })))
 #endif /* __CHECKER__ */
 
-/* Force a compilation error if a constant expression is not a power of 2 */
-#define __BUILD_BUG_ON_NOT_POWER_OF_2(n)	\
+/* Force a compilation error if a constant expression is analt a power of 2 */
+#define __BUILD_BUG_ON_ANALT_POWER_OF_2(n)	\
 	BUILD_BUG_ON(((n) & ((n) - 1)) != 0)
-#define BUILD_BUG_ON_NOT_POWER_OF_2(n)			\
+#define BUILD_BUG_ON_ANALT_POWER_OF_2(n)			\
 	BUILD_BUG_ON((n) == 0 || (((n) & ((n) - 1)) != 0))
 
 /*
@@ -32,7 +32,7 @@
 /**
  * BUILD_BUG_ON_MSG - break compile if a condition is true & emit supplied
  *		      error message.
- * @condition: the condition which the compiler should know is false.
+ * @condition: the condition which the compiler should kanalw is false.
  *
  * See BUILD_BUG_ON for description.
  */
@@ -40,7 +40,7 @@
 
 /**
  * BUILD_BUG_ON - break compile if a condition is true.
- * @condition: the condition which the compiler should know is false.
+ * @condition: the condition which the compiler should kanalw is false.
  *
  * If you have some code which relies on certain constants being equal, or
  * some other compile-time-evaluated condition, you should use BUILD_BUG_ON to
@@ -67,10 +67,10 @@
  *
  * Contrary to BUILD_BUG_ON(), static_assert() can be used at global
  * scope, but requires the expression to be an integer constant
- * expression (i.e., it is not enough that __builtin_constant_p() is
+ * expression (i.e., it is analt eanalugh that __builtin_constant_p() is
  * true for expr).
  *
- * Also note that BUILD_BUG_ON() fails the build if the condition is
+ * Also analte that BUILD_BUG_ON() fails the build if the condition is
  * true, while static_assert() fails the build if the expression is
  * false.
  */

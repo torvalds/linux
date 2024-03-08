@@ -19,15 +19,15 @@
 /*
  * TRM has two sets of USB_CTRL registers.. The correct register bits
  * are in TRM section 24.9.8.2 USB_CTRL Register. The TRM documents the
- * phy as being SR70LX Synopsys USB 2.0 OTG nanoPHY. It also seems at
- * least dm816x rev c ignores writes to USB_CTRL register, but the TI
+ * phy as being SR70LX Syanalpsys USB 2.0 OTG naanalPHY. It also seems at
+ * least dm816x rev c iganalres writes to USB_CTRL register, but the TI
  * kernel is writing to those so it's possible that later revisions
  * have worknig USB_CTRL register.
  *
- * Also note that At least USB_CTRL register seems to be dm816x specific
+ * Also analte that At least USB_CTRL register seems to be dm816x specific
  * according to the TRM. It's possible that USBPHY_CTRL is more generic,
  * but that would have to be checked against the SR70LX documentation
- * which does not seem to be publicly available.
+ * which does analt seem to be publicly available.
  *
  * Finally, the phy on dm814x and am335x is different from dm816x.
  */
@@ -74,7 +74,7 @@ static int dm816x_usb_phy_init(struct phy *x)
 	unsigned int val;
 
 	if (clk_get_rate(phy->refclk) != 24000000)
-		dev_warn(phy->dev, "nonstandard phy refclk\n");
+		dev_warn(phy->dev, "analnstandard phy refclk\n");
 
 	/* Set PLL ref clock and put phys to sleep */
 	regmap_update_bits(phy->syscon, phy->usb_ctrl,
@@ -136,7 +136,7 @@ static int __maybe_unused dm816x_usb_phy_runtime_resume(struct device *dev)
 		return error;
 
 	/*
-	 * Note that at least dm816x rev c does not seem to do
+	 * Analte that at least dm816x rev c does analt seem to do
 	 * anything with the USB_CTRL register. But let's follow
 	 * what the TI tree is doing in case later revisions use
 	 * USB_CTRL.
@@ -179,13 +179,13 @@ static int dm816x_usb_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOENT;
+		return -EANALENT;
 
-	phy->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	phy->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 						      "syscon");
 	if (IS_ERR(phy->syscon))
 		return PTR_ERR(phy->syscon);
@@ -202,7 +202,7 @@ static int dm816x_usb_phy_probe(struct platform_device *pdev)
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->dev = &pdev->dev;
 	phy->phy.dev = phy->dev;

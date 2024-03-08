@@ -48,7 +48,7 @@ static void mdp_m2m_process_done(void *priv, int vb_state)
 			v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 	dst_vbuf = (struct vb2_v4l2_buffer *)
 			v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
-	ctx->curr_param.frame_no = ctx->frame_count[MDP_M2M_SRC];
+	ctx->curr_param.frame_anal = ctx->frame_count[MDP_M2M_SRC];
 	src_vbuf->sequence = ctx->frame_count[MDP_M2M_SRC]++;
 	dst_vbuf->sequence = ctx->frame_count[MDP_M2M_DST]++;
 	v4l2_m2m_buf_copy_metadata(src_vbuf, dst_vbuf, true);
@@ -74,7 +74,7 @@ static void mdp_m2m_device_run(void *priv)
 		goto worker_end;
 	}
 
-	param.frame_no = ctx->curr_param.frame_no;
+	param.frame_anal = ctx->curr_param.frame_anal;
 	param.type = ctx->curr_param.type;
 	param.num_inputs = 1;
 	param.num_outputs = 1;
@@ -218,7 +218,7 @@ static int mdp_m2m_buf_prepare(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *v4l2_buf = to_vb2_v4l2_buffer(vb);
 	u32 i;
 
-	v4l2_buf->field = V4L2_FIELD_NONE;
+	v4l2_buf->field = V4L2_FIELD_ANALNE;
 
 	if (V4L2_TYPE_IS_CAPTURE(vb->type)) {
 		pix_mp = &ctx_get_frame(ctx, vb->type)->format.fmt.pix_mp;
@@ -234,7 +234,7 @@ static int mdp_m2m_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *v4l2_buf = to_vb2_v4l2_buffer(vb);
 
-	v4l2_buf->field = V4L2_FIELD_NONE;
+	v4l2_buf->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -244,7 +244,7 @@ static void mdp_m2m_buf_queue(struct vb2_buffer *vb)
 	struct mdp_m2m_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *v4l2_buf = to_vb2_v4l2_buffer(vb);
 
-	v4l2_buf->field = V4L2_FIELD_NONE;
+	v4l2_buf->field = V4L2_FIELD_ANALNE;
 
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, to_vb2_v4l2_buffer(vb));
 }
@@ -557,7 +557,7 @@ static int mdp_m2m_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mutex_lock_interruptible(&mdp->m2m_lock)) {
 		ret = -ERESTARTSYS;
@@ -672,7 +672,7 @@ int mdp_m2m_device_register(struct mdp_dev *mdp)
 	mdp->m2m_vdev = video_device_alloc();
 	if (!mdp->m2m_vdev) {
 		dev_err(dev, "Failed to allocate video device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_video_alloc;
 	}
 	mdp->m2m_vdev->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE |

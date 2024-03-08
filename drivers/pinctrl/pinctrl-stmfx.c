@@ -49,7 +49,7 @@
 #define get_mask(offset)		(BIT(get_shift(offset)))
 
 /*
- * STMFX pinctrl can have up to 24 pins if STMFX other functions are not used.
+ * STMFX pinctrl can have up to 24 pins if STMFX other functions are analt used.
  * Pins availability is managed thanks to gpio-ranges property.
  */
 static const struct pinctrl_pin_desc stmfx_pins[] = {
@@ -221,7 +221,7 @@ static int stmfx_pinconf_get(struct pinctrl_dev *pctldev,
 	u32 arg = 0;
 	int ret, dir, type, pupd;
 
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	range = pinctrl_find_gpio_range_from_pin_anallock(pctldev, pin);
 	if (!range)
 		return -EINVAL;
 
@@ -230,7 +230,7 @@ static int stmfx_pinconf_get(struct pinctrl_dev *pctldev,
 		return dir;
 
 	/*
-	 * Currently the gpiolib IN is 1 and OUT is 0 but let's not count
+	 * Currently the gpiolib IN is 1 and OUT is 0 but let's analt count
 	 * on it just to be on the safe side also in the future :)
 	 */
 	dir = (dir == GPIO_LINE_DIRECTION_IN) ? 1 : 0;
@@ -274,7 +274,7 @@ static int stmfx_pinconf_get(struct pinctrl_dev *pctldev,
 		arg = ret;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -291,9 +291,9 @@ static int stmfx_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	u32 arg;
 	int i, ret;
 
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	range = pinctrl_find_gpio_range_from_pin_anallock(pctldev, pin);
 	if (!range) {
-		dev_err(pctldev->dev, "pin %d is not available\n", pin);
+		dev_err(pctldev->dev, "pin %d is analt available\n", pin);
 		return -EINVAL;
 	}
 
@@ -337,7 +337,7 @@ static int stmfx_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return ret;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -351,7 +351,7 @@ static void stmfx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	struct pinctrl_gpio_range *range;
 	int dir, type, pupd, val;
 
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, offset);
+	range = pinctrl_find_gpio_range_from_pin_anallock(pctldev, offset);
 	if (!range)
 		return;
 
@@ -374,7 +374,7 @@ static void stmfx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 			seq_printf(s, "open drain %s internal pull-up ",
 				   pupd ? "with" : "without");
 		else
-			seq_puts(s, "push pull no pull ");
+			seq_puts(s, "push pull anal pull ");
 	} else {
 		seq_printf(s, "input %s ", val ? "high" : "low");
 		if (type)
@@ -407,14 +407,14 @@ static int stmfx_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 					const unsigned int **pins,
 					unsigned int *num_pins)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct pinctrl_ops stmfx_pinctrl_ops = {
 	.get_groups_count = stmfx_pinctrl_get_groups_count,
 	.get_group_name = stmfx_pinctrl_get_group_name,
 	.get_group_pins = stmfx_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -447,7 +447,7 @@ static int stmfx_pinctrl_irq_set_type(struct irq_data *data, unsigned int type)
 	u32 reg = get_reg(data->hwirq);
 	u32 mask = get_mask(data->hwirq);
 
-	if (type == IRQ_TYPE_NONE)
+	if (type == IRQ_TYPE_ANALNE)
 		return -EINVAL;
 
 	if (type & IRQ_TYPE_EDGE_BOTH) {
@@ -464,7 +464,7 @@ static int stmfx_pinctrl_irq_set_type(struct irq_data *data, unsigned int type)
 		pctl->irq_gpi_type[reg] &= ~mask;
 
 	/*
-	 * In case of (type & IRQ_TYPE_EDGE_BOTH), we need to know current
+	 * In case of (type & IRQ_TYPE_EDGE_BOTH), we need to kanalw current
 	 * GPIO value to set the right edge trigger. But in atomic context
 	 * here we can't access registers over I2C. That's why (type &
 	 * IRQ_TYPE_EDGE_BOTH) will be managed in .irq_sync_unlock.
@@ -574,7 +574,7 @@ static irqreturn_t stmfx_pinctrl_irq_thread_fn(int irq, void *dev_id)
 	ret = regmap_bulk_read(pctl->stmfx->map, STMFX_REG_IRQ_GPI_PENDING,
 			       &pending, NR_GPIO_REGS);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regmap_bulk_write(pctl->stmfx->map, STMFX_REG_IRQ_GPI_SRC,
 			  src, NR_GPIO_REGS);
@@ -639,14 +639,14 @@ static int stmfx_pinctrl_gpio_function_enable(struct stmfx_pinctrl *pctl)
 static int stmfx_pinctrl_probe(struct platform_device *pdev)
 {
 	struct stmfx *stmfx = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct stmfx_pinctrl *pctl;
 	struct gpio_irq_chip *girq;
 	int irq, ret;
 
 	pctl = devm_kzalloc(stmfx->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pctl);
 
@@ -705,7 +705,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 	girq->threaded = true;
 
@@ -724,7 +724,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 					IRQF_ONESHOT,
 					dev_name(pctl->dev), pctl);
 	if (ret) {
-		dev_err(pctl->dev, "cannot request irq%d\n", irq);
+		dev_err(pctl->dev, "cananalt request irq%d\n", irq);
 		return ret;
 	}
 

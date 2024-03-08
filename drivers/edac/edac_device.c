@@ -6,7 +6,7 @@
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *
- * Written by Doug Thompson <norsk5@xmission.com>
+ * Written by Doug Thompson <analrsk5@xmission.com>
  *
  * edac_device API implementation
  * 19 Jan 2007
@@ -133,7 +133,7 @@ edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instance
 			edac_dbg(4, "instance=%d inst_p=%p block=#%d block_p=%p name='%s'\n",
 				 instance, inst, block, blk, blk->name);
 
-			/* if there are NO attributes OR no attribute pointer
+			/* if there are ANAL attributes OR anal attribute pointer
 			 * then continue on to next block iteration
 			 */
 			if ((nr_attrib == 0) || (attrib_spec == NULL))
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(edac_device_free_ctl_info);
  *
  *	Return:
  *		pointer to control structure managing 'dev'
- *		NULL if not found on list
+ *		NULL if analt found on list
  */
 static struct edac_device_ctl_info *find_edac_device_by_dev(struct device *dev)
 {
@@ -364,7 +364,7 @@ static void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
 
 	INIT_DELAYED_WORK(&edac_dev->work, edac_device_workq_function);
 
-	/* optimize here for the 1 second case, which will be normal value, to
+	/* optimize here for the 1 second case, which will be analrmal value, to
 	 * fire ON the 1 second time event. This helps reduce all sorts of
 	 * timers firing on sub-second basis, while they are happy
 	 * to fire together on the 1 second exactly
@@ -442,7 +442,7 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev)
 
 	/* If there IS a check routine, then we are running POLLED */
 	if (edac_dev->edac_check != NULL) {
-		/* This instance is NOW RUNNING */
+		/* This instance is ANALW RUNNING */
 		edac_dev->op_state = OP_RUNNING_POLL;
 
 		edac_device_workq_setup(edac_dev, edac_dev->poll_msec ?: DEFAULT_POLL_INTERVAL);
@@ -477,7 +477,7 @@ struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 
 	mutex_lock(&device_ctls_mutex);
 
-	/* Find the structure on the list, if not there, then leave */
+	/* Find the structure on the list, if analt there, then leave */
 	edac_dev = find_edac_device_by_dev(dev);
 	if (edac_dev == NULL) {
 		mutex_unlock(&device_ctls_mutex);

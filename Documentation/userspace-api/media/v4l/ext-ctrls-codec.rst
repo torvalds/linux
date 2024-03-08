@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _codec-controls:
 
@@ -9,9 +9,9 @@ Codec Control Reference
 Below all controls within the Codec control class are described. First
 the generic controls, then controls specific for certain hardware.
 
-.. note::
+.. analte::
 
-   These controls are applicable to all codecs and not just MPEG. The
+   These controls are applicable to all codecs and analt just MPEG. The
    defines are prefixed with V4L2_CID_MPEG/V4L2_MPEG as the controls
    were originally made for MPEG codecs and later extended to cover all
    encoding formats.
@@ -38,7 +38,7 @@ Codec Control IDs
     (enum)
 
 enum v4l2_mpeg_stream_type -
-    The MPEG-1, -2 or -4 output stream type. One cannot assume anything
+    The MPEG-1, -2 or -4 output stream type. One cananalt assume anything
     here. Each hardware MPEG encoder tends to support different subsets
     of the available MPEG stream types. This control is specific to
     multiplexed MPEG streams. The currently defined stream types are:
@@ -104,8 +104,8 @@ enum v4l2_mpeg_stream_vbi_fmt -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_STREAM_VBI_FMT_NONE``
-      - No VBI in the MPEG stream
+    * - ``V4L2_MPEG_STREAM_VBI_FMT_ANALNE``
+      - Anal VBI in the MPEG stream
     * - ``V4L2_MPEG_STREAM_VBI_FMT_IVTV``
       - VBI in private packets, IVTV format (documented in the kernel
 	sources in the file
@@ -377,8 +377,8 @@ enum v4l2_mpeg_audio_mode -
       - Joint Stereo
     * - ``V4L2_MPEG_AUDIO_MODE_DUAL``
       - Bilingual
-    * - ``V4L2_MPEG_AUDIO_MODE_MONO``
-      - Mono
+    * - ``V4L2_MPEG_AUDIO_MODE_MOANAL``
+      - Moanal
 
 
 
@@ -390,7 +390,7 @@ enum v4l2_mpeg_audio_mode -
 enum v4l2_mpeg_audio_mode_extension -
     Joint Stereo audio mode extension. In Layer I and II they indicate
     which subbands are in intensity stereo. All other subbands are coded
-    in stereo. Layer III is not (yet) supported. Possible values are:
+    in stereo. Layer III is analt (yet) supported. Possible values are:
 
 .. tabularcolumns:: |p{9.1cm}|p{8.4cm}|
 
@@ -423,8 +423,8 @@ enum v4l2_mpeg_audio_emphasis -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_AUDIO_EMPHASIS_NONE``
-      - None
+    * - ``V4L2_MPEG_AUDIO_EMPHASIS_ANALNE``
+      - Analne
     * - ``V4L2_MPEG_AUDIO_EMPHASIS_50_DIV_15_uS``
       - 50/15 microsecond emphasis
     * - ``V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17``
@@ -446,15 +446,15 @@ enum v4l2_mpeg_audio_crc -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_AUDIO_CRC_NONE``
-      - None
+    * - ``V4L2_MPEG_AUDIO_CRC_ANALNE``
+      - Analne
     * - ``V4L2_MPEG_AUDIO_CRC_CRC16``
       - 16 bit parity check
 
 
 
 ``V4L2_CID_MPEG_AUDIO_MUTE (boolean)``
-    Mutes the audio when capturing. This is not done by muting audio
+    Mutes the audio when capturing. This is analt done by muting audio
     hardware, which can still produce a slight hiss, but in the encoder
     itself, guaranteeing a fixed and reproducible audio bitstream. 0 =
     unmuted, 1 = muted.
@@ -465,7 +465,7 @@ enum v4l2_mpeg_audio_crc -
     (enum)
 
 enum v4l2_mpeg_audio_dec_playback -
-    Determines how monolingual audio should be played back. Possible
+    Determines how moanallingual audio should be played back. Possible
     values are:
 
 
@@ -484,8 +484,8 @@ enum v4l2_mpeg_audio_dec_playback -
       - Left channel playback.
     * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_RIGHT``
       - Right channel playback.
-    * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_MONO``
-      - Mono playback.
+    * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_MOANAL``
+      - Moanal playback.
     * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO``
       - Stereo playback with swapped left and right channels.
 
@@ -584,7 +584,7 @@ enum v4l2_mpeg_video_bitrate_mode -
 
 ``V4L2_CID_MPEG_VIDEO_BITRATE_PEAK (integer)``
     Peak video bitrate in bits per second. Must be larger or equal to
-    the average video bitrate. It is ignored if the video bitrate mode
+    the average video bitrate. It is iganalred if the video bitrate mode
     is set to constant bitrate.
 
 ``V4L2_CID_MPEG_VIDEO_CONSTANT_QUALITY (integer)``
@@ -627,7 +627,7 @@ enum v4l2_mpeg_video_frame_skip_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION (integer)``
     For every captured frame, skip this many subsequent frames (default
@@ -975,7 +975,7 @@ enum v4l2_mpeg_video_h264_profile -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _v4l2-mpeg-video-mpeg2-profile:
 
@@ -1012,7 +1012,7 @@ enum v4l2_mpeg_video_mpeg2_profile -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _v4l2-mpeg-video-mpeg4-profile:
 
@@ -1046,7 +1046,7 @@ enum v4l2_mpeg_video_mpeg4_profile -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_MPEG_VIDEO_MAX_REF_PIC (integer)``
     The maximum number of reference pictures used for encoding.
@@ -1117,7 +1117,7 @@ enum v4l2_mpeg_video_h264_loop_filter_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA (integer)``
@@ -1175,9 +1175,9 @@ enum v4l2_mpeg_video_h264_entropy_mode -
     macroblocks refreshed every frame. Each frame a successive set of
     macroblocks is refreshed until the cycle completes and starts from
     the top of the frame. Setting this control to zero means that
-    macroblocks will not be refreshed.  Note that this control will not
+    macroblocks will analt be refreshed.  Analte that this control will analt
     take effect when ``V4L2_CID_MPEG_VIDEO_INTRA_REFRESH_PERIOD`` control
-    is set to non zero value.
+    is set to analn zero value.
     Applicable to H264, H263 and MPEG4 encoder.
 
 ``V4L2_CID_MPEG_VIDEO_INTRA_REFRESH_PERIOD_TYPE (enum)``
@@ -1185,7 +1185,7 @@ enum v4l2_mpeg_video_h264_entropy_mode -
 enum v4l2_mpeg_video_intra_refresh_period_type -
     Sets the type of intra refresh. The period to refresh
     the whole frame is specified by V4L2_CID_MPEG_VIDEO_INTRA_REFRESH_PERIOD.
-    Note that if this control is not present, then it is undefined what
+    Analte that if this control is analt present, then it is undefined what
     refresh type is used and it is up to the driver to decide.
     Applicable to H264 and HEVC encoders. Possible values are:
 
@@ -1210,10 +1210,10 @@ enum v4l2_mpeg_video_intra_refresh_period_type -
     setting period to 2 means that the half of macroblocks will be
     intra-refreshed on frameX and the other half of macroblocks
     will be refreshed in frameX + 1 and so on. Setting the period to
-    zero means no period is specified.
-    Note that if the client sets this control to non zero value the
+    zero means anal period is specified.
+    Analte that if the client sets this control to analn zero value the
     ``V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB`` control shall be
-    ignored. Applicable to H264 and HEVC encoders.
+    iganalred. Applicable to H264 and HEVC encoders.
 
 ``V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE (boolean)``
     Frame level rate control enable. If this control is disabled then
@@ -1360,7 +1360,7 @@ enum v4l2_mpeg_video_intra_refresh_period_type -
 
 ``V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME (button)``
     Force a key frame for the next queued buffer. Applicable to
-    encoders. This is a general, codec-agnostic keyframe control.
+    encoders. This is a general, codec-aganalstic keyframe control.
 
 .. _v4l2-mpeg-video-h264-cpb-size:
 
@@ -1375,7 +1375,7 @@ enum v4l2_mpeg_video_intra_refresh_period_type -
     GOP this is the period between two I-frames. The period between IDR
     (Instantaneous Decoding Refresh) frames is taken from the GOP_SIZE
     control. An IDR frame, which stands for Instantaneous Decoding
-    Refresh is an I-frame after which no prior frames are referenced.
+    Refresh is an I-frame after which anal prior frames are referenced.
     This means that a stream can be restarted from an IDR frame without
     the need to store or decode any previous frames. Applicable to the
     H264 encoder.
@@ -1408,7 +1408,7 @@ enum v4l2_mpeg_video_header_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER (boolean)``
@@ -1472,7 +1472,7 @@ enum v4l2_mpeg_video_h264_sei_fp_arrangement_type -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 
@@ -1505,7 +1505,7 @@ enum v4l2_mpeg_video_h264_fmo_map_type -
       - Slices are interleaved one after other with macroblocks in run
 	length order.
     * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_SCATTERED_SLICES``
-      - Scatters the macroblocks based on a mathematical function known to
+      - Scatters the macroblocks based on a mathematical function kanalwn to
 	both encoder and decoder.
     * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_FOREGROUND_WITH_LEFT_OVER``
       - Macroblocks arranged in rectangular areas or regions of interest.
@@ -1520,7 +1520,7 @@ enum v4l2_mpeg_video_h264_fmo_map_type -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 
@@ -1655,7 +1655,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 MFC 5.1 MPEG Controls
@@ -1679,7 +1679,7 @@ MFC 5.1 Control IDs
     feature can be used for example for generating thumbnails of videos.
     Applicable to the H264 decoder.
 
-    .. note::
+    .. analte::
 
        This control is deprecated. Use the standard
        ``V4L2_CID_MPEG_VIDEO_DEC_DISPLAY_DELAY_ENABLE`` control instead.
@@ -1691,7 +1691,7 @@ MFC 5.1 Control IDs
     of display order, in addition the hardware may still be using the
     returned buffer as a reference picture for subsequent frames.
 
-    .. note::
+    .. analte::
 
        This control is deprecated. Use the standard
        ``V4L2_CID_MPEG_VIDEO_DEC_DISPLAY_DELAY`` control instead.
@@ -1729,14 +1729,14 @@ MFC 5.1 Control IDs
 ``V4L2_CID_MPEG_MFC51_VIDEO_RC_REACTION_COEFF (integer)``
     Reaction coefficient for MFC rate control. Applicable to encoders.
 
-    .. note::
+    .. analte::
 
        #. Valid only when the frame level RC is enabled.
 
        #. For tight CBR, this field must be small (ex. 2 ~ 10). For
 	  VBR, this field must be large (ex. 100 ~ 1000).
 
-       #. It is not recommended to use the greater number than
+       #. It is analt recommended to use the greater number than
 	  FRAME_RATE * (10^9 / BIT_RATE).
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_H264_ADAPTIVE_RC_DARK (boolean)``
@@ -1768,7 +1768,7 @@ MFC 5.1 Control IDs
 ``V4L2_CID_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE``
     (enum)
 
-    .. note::
+    .. analte::
 
        This control is deprecated. Use the standard
        ``V4L2_CID_MPEG_VIDEO_FRAME_SKIP_MODE`` control instead.
@@ -1801,7 +1801,7 @@ enum v4l2_mpeg_mfc51_video_frame_skip_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_RC_FIXED_TARGET_BIT (integer)``
     Enable rate-control with fixed target bit. If this setting is
@@ -1834,8 +1834,8 @@ enum v4l2_mpeg_mfc51_video_force_frame_type -
       - Forcing a specific frame type disabled.
     * - ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_I_FRAME``
       - Force an I-frame.
-    * - ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_NOT_CODED``
-      - Force a non-coded frame.
+    * - ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_ANALT_CODED``
+      - Force a analn-coded frame.
 
 
 CX2341x MPEG Controls
@@ -1890,26 +1890,26 @@ enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type -
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
 
     * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF``
-      - No filter
+      - Anal filter
     * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_HOR``
       - One-dimensional horizontal
     * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_VERT``
       - One-dimensional vertical
     * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_HV_SEPARABLE``
       - Two-dimensional separable
-    * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE``
-      - Two-dimensional symmetrical non-separable
+    * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_ANALN_SEPARABLE``
+      - Two-dimensional symmetrical analn-separable
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _chroma-spatial-filter-type:
 
@@ -1922,7 +1922,7 @@ enum v4l2_mpeg_cx2341x_video_chroma_spatial_filter_type -
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{11.0cm}|p{6.5cm}|
 
@@ -1931,13 +1931,13 @@ enum v4l2_mpeg_cx2341x_video_chroma_spatial_filter_type -
     :stub-columns: 0
 
     * - ``V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_OFF``
-      - No filter
+      - Anal filter
     * - ``V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_1D_HOR``
       - One-dimensional horizontal
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _v4l2-mpeg-cx2341x-video-temporal-filter-mode:
 
@@ -1950,7 +1950,7 @@ enum v4l2_mpeg_cx2341x_video_temporal_filter_mode -
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. flat-table::
     :header-rows:  0
@@ -1963,7 +1963,7 @@ enum v4l2_mpeg_cx2341x_video_temporal_filter_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER (integer (0-31))``
     The setting for the Temporal Filter. 0 = off, 31 = maximum. (Default
@@ -1989,7 +1989,7 @@ enum v4l2_mpeg_cx2341x_video_median_filter_type -
     :stub-columns: 0
 
     * - ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF``
-      - No filter
+      - Anal filter
     * - ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_HOR``
       - Horizontal filter
     * - ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_VERT``
@@ -2001,7 +2001,7 @@ enum v4l2_mpeg_cx2341x_video_median_filter_type -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_BOTTOM (integer (0-255))``
     Threshold above which the luminance median filter is enabled
@@ -2025,7 +2025,7 @@ enum v4l2_mpeg_cx2341x_video_median_filter_type -
     bytes, including the packet_start_code_prefix and stream_id
     fields. The stream_id is 0xBF (private stream 2). The payload
     consists of 0x00 bytes, to be filled in by the application. 0 = do
-    not insert, 1 = insert packets.
+    analt insert, 1 = insert packets.
 
 
 VPX Control Reference
@@ -2100,7 +2100,7 @@ enum v4l2_vp8_num_ref_frames -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 
@@ -2149,7 +2149,7 @@ enum v4l2_vp8_golden_frame_sel -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_VPX_MIN_QP (integer)``
@@ -2341,7 +2341,7 @@ enum v4l2_mpeg_video_hevc_hier_coding_type -
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{8.2cm}|p{9.3cm}|
 
@@ -2356,12 +2356,12 @@ enum v4l2_mpeg_video_hevc_hier_coding_type -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_LAYER (integer)``
-    Selects the hierarchical coding layer. In normal encoding
-    (non-hierarchial coding), it should be zero. Possible values are [0, 6].
+    Selects the hierarchical coding layer. In analrmal encoding
+    (analn-hierarchial coding), it should be zero. Possible values are [0, 6].
     0 indicates HIERARCHICAL CODING LAYER 0, 1 indicates HIERARCHICAL CODING
     LAYER 1 and so on.
 
@@ -2410,7 +2410,7 @@ enum v4l2_mpeg_video_hevc_profile -
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{9.0cm}|p{8.5cm}|
 
@@ -2427,7 +2427,7 @@ enum v4l2_mpeg_video_hevc_profile -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 .. _v4l2-hevc-level:
@@ -2490,7 +2490,7 @@ enum v4l2_mpeg_video_hevc_loop_filter_mode -
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{12.1cm}|p{5.4cm}|
 
@@ -2507,7 +2507,7 @@ enum v4l2_mpeg_video_hevc_loop_filter_mode -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_LF_BETA_OFFSET_DIV2 (integer)``
@@ -2528,7 +2528,7 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{6.2cm}|p{11.3cm}|
 
@@ -2536,7 +2536,7 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_VIDEO_HEVC_REFRESH_NONE``
+    * - ``V4L2_MPEG_VIDEO_HEVC_REFRESH_ANALNE``
       - Use the B frame for hierarchical coding.
     * - ``V4L2_MPEG_VIDEO_HEVC_REFRESH_CRA``
       - Use CRA (Clean Random Access Unit) picture encoding.
@@ -2545,13 +2545,13 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_PERIOD (integer)``
     Selects the refresh period for HEVC encoder.
     This specifies the number of I pictures between two CRA/IDR pictures.
-    This is valid only if REFRESH_TYPE is not 0.
+    This is valid only if REFRESH_TYPE is analt 0.
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_LOSSLESS_CU (boolean)``
     Indicates HEVC lossless encoding. Setting it to 0 disables lossless
@@ -2580,7 +2580,7 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
 ``V4L2_CID_MPEG_VIDEO_HEVC_STRONG_SMOOTHING (boolean)``
     Indicates bi-linear interpolation is conditionally used in the intra
     prediction filtering process in the CVS when set to 1. Indicates bi-linear
-    interpolation is not used in the CVS when set to 0.
+    interpolation is analt used in the CVS when set to 0.
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_MAX_NUM_MERGE_MV_MINUS1 (integer)``
     Indicates maximum number of merge candidate motion vectors.
@@ -2608,7 +2608,7 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{5.5cm}|p{12.0cm}|
 
@@ -2617,7 +2617,7 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
     :stub-columns: 0
 
     * - ``V4L2_MPEG_VIDEO_HEVC_SIZE_0``
-      - Generate start code pattern (Normal).
+      - Generate start code pattern (Analrmal).
     * - ``V4L2_MPEG_VIDEO_HEVC_SIZE_1``
       - Generate size of length field instead of start code pattern and length is 1.
     * - ``V4L2_MPEG_VIDEO_HEVC_SIZE_2``
@@ -2627,7 +2627,7 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_BR (integer)``
     Indicates bit rate for hierarchical coding layer 0 for HEVC encoder.

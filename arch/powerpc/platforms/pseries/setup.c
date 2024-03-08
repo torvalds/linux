@@ -13,7 +13,7 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -87,13 +87,13 @@ struct static_key paravirt_steal_enabled;
 struct static_key paravirt_steal_rq_enabled;
 
 static bool steal_acc = true;
-static int __init parse_no_stealacc(char *arg)
+static int __init parse_anal_stealacc(char *arg)
 {
 	steal_acc = false;
 	return 0;
 }
 
-early_param("no-steal-acc", parse_no_stealacc);
+early_param("anal-steal-acc", parse_anal_stealacc);
 #endif
 
 int CMO_PrPSP = -1;
@@ -107,21 +107,21 @@ u32 pseries_security_flavor;
 
 static void pSeries_show_cpuinfo(struct seq_file *m)
 {
-	struct device_node *root;
+	struct device_analde *root;
 	const char *model = "";
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
-	of_node_put(root);
+	of_analde_put(root);
 	if (radix_enabled())
 		seq_printf(m, "MMU\t\t: Radix\n");
 	else
 		seq_printf(m, "MMU\t\t: Hash\n");
 }
 
-/* Initialize firmware assisted non-maskable interrupts if
+/* Initialize firmware assisted analn-maskable interrupts if
  * the firmware supports this feature.
  */
 static void __init fwnmi_init(void)
@@ -137,14 +137,14 @@ static void __init fwnmi_init(void)
 	int ibm_nmi_register_token;
 
 	ibm_nmi_register_token = rtas_function_token(RTAS_FN_IBM_NMI_REGISTER);
-	if (ibm_nmi_register_token == RTAS_UNKNOWN_SERVICE)
+	if (ibm_nmi_register_token == RTAS_UNKANALWN_SERVICE)
 		return;
 
 	ibm_nmi_interlock_token = rtas_function_token(RTAS_FN_IBM_NMI_INTERLOCK);
-	if (WARN_ON(ibm_nmi_interlock_token == RTAS_UNKNOWN_SERVICE))
+	if (WARN_ON(ibm_nmi_interlock_token == RTAS_UNKANALWN_SERVICE))
 		return;
 
-	/* If the kernel's not linked at zero we point the firmware at low
+	/* If the kernel's analt linked at zero we point the firmware at low
 	 * addresses anyway, and use a trampoline to get to the real code. */
 	system_reset_addr  = __pa(system_reset_fwnmi) - PHYSICAL_START;
 	machine_check_addr = __pa(machine_check_fwnmi) - PHYSICAL_START;
@@ -160,7 +160,7 @@ static void __init fwnmi_init(void)
 	 */
 	mce_data_buf = memblock_alloc_try_nid_raw(RTAS_ERROR_LOG_MAX * nr_cpus,
 					RTAS_ERROR_LOG_MAX, MEMBLOCK_LOW_LIMIT,
-					ppc64_rma_size, NUMA_NO_NODE);
+					ppc64_rma_size, NUMA_ANAL_ANALDE);
 	if (!mce_data_buf)
 		panic("Failed to allocate %d bytes below %pa for MCE buffer\n",
 		      RTAS_ERROR_LOG_MAX * nr_cpus, &ppc64_rma_size);
@@ -176,7 +176,7 @@ static void __init fwnmi_init(void)
 		size = sizeof(struct slb_entry) * mmu_slb_size * nr_cpus;
 		slb_ptr = memblock_alloc_try_nid_raw(size,
 				sizeof(struct slb_entry), MEMBLOCK_LOW_LIMIT,
-				ppc64_rma_size, NUMA_NO_NODE);
+				ppc64_rma_size, NUMA_ANAL_ANALDE);
 		if (!slb_ptr)
 			panic("Failed to allocate %zu bytes below %pa for slb area\n",
 			      size, &ppc64_rma_size);
@@ -212,13 +212,13 @@ static void pseries_8259_cascade(struct irq_desc *desc)
 
 static void __init pseries_setup_i8259_cascade(void)
 {
-	struct device_node *np, *old, *found = NULL;
+	struct device_analde *np, *old, *found = NULL;
 	unsigned int cascade;
 	const u32 *addrp;
 	unsigned long intack = 0;
 	int naddr;
 
-	for_each_node_by_type(np, "interrupt-controller") {
+	for_each_analde_by_type(np, "interrupt-controller") {
 		if (of_device_is_compatible(np, "chrp,iic")) {
 			found = np;
 			break;
@@ -226,7 +226,7 @@ static void __init pseries_setup_i8259_cascade(void)
 	}
 
 	if (found == NULL) {
-		printk(KERN_DEBUG "pic: no ISA interrupt controller\n");
+		printk(KERN_DEBUG "pic: anal ISA interrupt controller\n");
 		return;
 	}
 
@@ -237,14 +237,14 @@ static void __init pseries_setup_i8259_cascade(void)
 	}
 	pr_debug("pic: cascade mapped to irq %d\n", cascade);
 
-	for (old = of_node_get(found); old != NULL ; old = np) {
+	for (old = of_analde_get(found); old != NULL ; old = np) {
 		np = of_get_parent(old);
-		of_node_put(old);
+		of_analde_put(old);
 		if (np == NULL)
 			break;
-		if (!of_node_name_eq(np, "pci"))
+		if (!of_analde_name_eq(np, "pci"))
 			continue;
-		addrp = of_get_property(np, "8259-interrupt-acknowledge", NULL);
+		addrp = of_get_property(np, "8259-interrupt-ackanalwledge", NULL);
 		if (addrp == NULL)
 			continue;
 		naddr = of_n_addr_cells(np);
@@ -255,7 +255,7 @@ static void __init pseries_setup_i8259_cascade(void)
 	if (intack)
 		printk(KERN_DEBUG "pic: PCI 8259 intack at 0x%016lx\n", intack);
 	i8259_init(found, intack);
-	of_node_put(found);
+	of_analde_put(found);
 	irq_set_chained_handler(cascade, pseries_8259_cascade);
 }
 
@@ -274,39 +274,39 @@ static void pseries_lpar_enable_pmcs(void)
 
 	set = 1UL << 63;
 	reset = 0;
-	plpar_hcall_norets(H_PERFMON, set, reset);
+	plpar_hcall_analrets(H_PERFMON, set, reset);
 }
 
-static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *data)
+static int pci_dn_reconfig_analtifier(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	struct of_reconfig_data *rd = data;
-	struct device_node *parent, *np = rd->dn;
+	struct device_analde *parent, *np = rd->dn;
 	struct pci_dn *pdn;
-	int err = NOTIFY_OK;
+	int err = ANALTIFY_OK;
 
 	switch (action) {
-	case OF_RECONFIG_ATTACH_NODE:
+	case OF_RECONFIG_ATTACH_ANALDE:
 		parent = of_get_parent(np);
 		pdn = parent ? PCI_DN(parent) : NULL;
 		if (pdn)
-			pci_add_device_node_info(pdn->phb, np);
+			pci_add_device_analde_info(pdn->phb, np);
 
-		of_node_put(parent);
+		of_analde_put(parent);
 		break;
-	case OF_RECONFIG_DETACH_NODE:
+	case OF_RECONFIG_DETACH_ANALDE:
 		pdn = PCI_DN(np);
 		if (pdn)
 			list_del(&pdn->list);
 		break;
 	default:
-		err = NOTIFY_DONE;
+		err = ANALTIFY_DONE;
 		break;
 	}
 	return err;
 }
 
-static struct notifier_block pci_dn_reconfig_nb = {
-	.notifier_call = pci_dn_reconfig_notifier,
+static struct analtifier_block pci_dn_reconfig_nb = {
+	.analtifier_call = pci_dn_reconfig_analtifier,
 };
 
 struct kmem_cache *dtl_cache;
@@ -374,7 +374,7 @@ static void pseries_lpar_idle(void)
 	/*
 	 * Yield the processor to the hypervisor.  We return if
 	 * an external interrupt occurs (which are driven prior
-	 * to returning here) or if a prod occurs from another
+	 * to returning here) or if a prod occurs from aanalther
 	 * processor. When returning here, external interrupts
 	 * are enabled.
 	 */
@@ -407,7 +407,7 @@ bool pseries_enable_reloc_on_exc(void)
 		rc = enable_reloc_on_exceptions();
 		if (!H_IS_LONG_BUSY(rc)) {
 			if (rc == H_P2) {
-				pr_info("Relocation on exceptions not"
+				pr_info("Relocation on exceptions analt"
 					" supported\n");
 				return false;
 			} else if (rc != H_SUCCESS) {
@@ -469,13 +469,13 @@ void pseries_big_endian_exceptions(void)
 	 * but at least this will stop us from continuing on further
 	 * and creating an even more difficult to debug situation.
 	 *
-	 * There is a known problem when kdump'ing, if cpus are offline
+	 * There is a kanalwn problem when kdump'ing, if cpus are offline
 	 * the above call will fail. Rather than panicking again, keep
 	 * going and hope the kdump kernel is also little endian, which
 	 * it usually is.
 	 */
 	if (rc && !kdump_in_progress())
-		panic("Could not enable big endian exceptions");
+		panic("Could analt enable big endian exceptions");
 }
 
 void __init pseries_little_endian_exceptions(void)
@@ -490,37 +490,37 @@ void __init pseries_little_endian_exceptions(void)
 	}
 	if (rc) {
 		ppc_md.progress("H_SET_MODE LE exception fail", 0);
-		panic("Could not enable little endian exceptions");
+		panic("Could analt enable little endian exceptions");
 	}
 }
 #endif
 
 static void __init pSeries_discover_phbs(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct pci_controller *phb;
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_analde *root = of_find_analde_by_path("/");
 
-	for_each_child_of_node(root, node) {
-		if (!of_node_is_type(node, "pci") &&
-		    !of_node_is_type(node, "pciex"))
+	for_each_child_of_analde(root, analde) {
+		if (!of_analde_is_type(analde, "pci") &&
+		    !of_analde_is_type(analde, "pciex"))
 			continue;
 
-		phb = pcibios_alloc_controller(node);
+		phb = pcibios_alloc_controller(analde);
 		if (!phb)
 			continue;
 		rtas_setup_phb(phb);
-		pci_process_bridge_OF_ranges(phb, node, 0);
+		pci_process_bridge_OF_ranges(phb, analde, 0);
 		isa_bridge_find_early(phb);
 		phb->controller_ops = pseries_pci_controller_ops;
 
-		/* create pci_dn's for DT nodes under this PHB */
+		/* create pci_dn's for DT analdes under this PHB */
 		pci_devs_phb_init_dynamic(phb);
 
 		pseries_msi_allocate_domains(phb);
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 
 	/*
 	 * PCI_PROBE_ONLY and PCI_REASSIGN_ALL_BUS can be set via properties
@@ -582,13 +582,13 @@ static void init_cpu_char_feature_flags(struct h_cpu_char_result *result)
 	if (!(result->behaviour & H_CPU_BEHAV_L1D_FLUSH_PR))
 		security_ftr_clear(SEC_FTR_L1D_FLUSH_PR);
 
-	if (result->behaviour & H_CPU_BEHAV_NO_L1D_FLUSH_ENTRY)
+	if (result->behaviour & H_CPU_BEHAV_ANAL_L1D_FLUSH_ENTRY)
 		security_ftr_clear(SEC_FTR_L1D_FLUSH_ENTRY);
 
-	if (result->behaviour & H_CPU_BEHAV_NO_L1D_FLUSH_UACCESS)
+	if (result->behaviour & H_CPU_BEHAV_ANAL_L1D_FLUSH_UACCESS)
 		security_ftr_clear(SEC_FTR_L1D_FLUSH_UACCESS);
 
-	if (result->behaviour & H_CPU_BEHAV_NO_STF_BARRIER)
+	if (result->behaviour & H_CPU_BEHAV_ANAL_STF_BARRIER)
 		security_ftr_clear(SEC_FTR_STF_BARRIER);
 
 	if (!(result->behaviour & H_CPU_BEHAV_BNDS_CHK_SPEC_BAR))
@@ -605,7 +605,7 @@ void pseries_setup_security_mitigations(void)
 	/*
 	 * Set features to the defaults assumed by init_cpu_char_feature_flags()
 	 * so it can set/clear again any features that might have changed after
-	 * migration, and in case the hypercall fails and it is not even called.
+	 * migration, and in case the hypercall fails and it is analt even called.
 	 */
 	powerpc_security_features = SEC_FTR_DEFAULT;
 
@@ -660,11 +660,11 @@ enum get_iov_fw_value_index {
 	WDW_SIZE      = 3     /*  Get Window Size */
 };
 
-static resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
+static resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resanal,
 						enum get_iov_fw_value_index value)
 {
 	const int *indexes;
-	struct device_node *dn = pci_device_to_OF_node(dev);
+	struct device_analde *dn = pci_device_to_OF_analde(dev);
 	int i, num_res, ret = 0;
 
 	indexes = of_get_property(dn, "ibm,open-sriov-vf-bar-info", NULL);
@@ -677,10 +677,10 @@ static resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
 	 * bar
 	 */
 	num_res = of_read_number(&indexes[NUM_RES_PROPERTY], 1);
-	if (resno >= num_res)
+	if (resanal >= num_res)
 		return 0; /* or an error */
 
-	i = START_OF_ENTRIES + NEXT_ENTRY * resno;
+	i = START_OF_ENTRIES + NEXT_ENTRY * resanal;
 	switch (value) {
 	case BAR_ADDRS:
 		ret = of_read_number(&indexes[i], 2);
@@ -757,7 +757,7 @@ static void pseries_disable_sriov_resources(struct pci_dev *pdev)
 {
 	int i;
 
-	pci_warn(pdev, "No hypervisor support for SR-IOV on this device, IOV BARs disabled.\n");
+	pci_warn(pdev, "Anal hypervisor support for SR-IOV on this device, IOV BARs disabled.\n");
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++)
 		pdev->resource[i + PCI_IOV_RESOURCES].flags = 0;
 }
@@ -765,7 +765,7 @@ static void pseries_disable_sriov_resources(struct pci_dev *pdev)
 static void pseries_pci_fixup_resources(struct pci_dev *pdev)
 {
 	const int *indexes;
-	struct device_node *dn = pci_device_to_OF_node(pdev);
+	struct device_analde *dn = pci_device_to_OF_analde(pdev);
 
 	/*Firmware must support open sriov otherwise dont configure*/
 	indexes = of_get_property(dn, "ibm,open-sriov-vf-bar-info", NULL);
@@ -778,7 +778,7 @@ static void pseries_pci_fixup_resources(struct pci_dev *pdev)
 static void pseries_pci_fixup_iov_resources(struct pci_dev *pdev)
 {
 	const int *indexes;
-	struct device_node *dn = pci_device_to_OF_node(pdev);
+	struct device_analde *dn = pci_device_to_OF_analde(pdev);
 
 	if (!pdev->is_physfn)
 		return;
@@ -791,20 +791,20 @@ static void pseries_pci_fixup_iov_resources(struct pci_dev *pdev)
 }
 
 static resource_size_t pseries_pci_iov_resource_alignment(struct pci_dev *pdev,
-							  int resno)
+							  int resanal)
 {
 	const __be32 *reg;
-	struct device_node *dn = pci_device_to_OF_node(pdev);
+	struct device_analde *dn = pci_device_to_OF_analde(pdev);
 
 	/*Firmware must support open sriov otherwise report regular alignment*/
 	reg = of_get_property(dn, "ibm,is-open-sriov-pf", NULL);
 	if (!reg)
-		return pci_iov_resource_size(pdev, resno);
+		return pci_iov_resource_size(pdev, resanal);
 
 	if (!pdev->is_physfn)
 		return 0;
 	return pseries_get_iov_fw_value(pdev,
-					resno - PCI_IOV_RESOURCES,
+					resanal - PCI_IOV_RESOURCES,
 					APERTURE_SIZE);
 }
 #endif
@@ -842,7 +842,7 @@ static void __init pSeries_setup_arch(void)
 
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
-	of_reconfig_notifier_register(&pci_dn_reconfig_nb);
+	of_reconfig_analtifier_register(&pci_dn_reconfig_nb);
 
 	pSeries_nvram_init();
 
@@ -870,7 +870,7 @@ static void __init pSeries_setup_arch(void)
 			pseries_pci_iov_resource_alignment;
 #endif
 	} else {
-		/* No special idle routine */
+		/* Anal special idle routine */
 		ppc_md.enable_pmcs = power4_enable_pmcs;
 	}
 
@@ -900,7 +900,7 @@ machine_arch_initcall(pseries, pSeries_init_panel);
 
 static int pseries_set_dabr(unsigned long dabr, unsigned long dabrx)
 {
-	return plpar_hcall_norets(H_SET_DABR, dabr);
+	return plpar_hcall_analrets(H_SET_DABR, dabr);
 }
 
 static int pseries_set_xdabr(unsigned long dabr, unsigned long dabrx)
@@ -911,7 +911,7 @@ static int pseries_set_xdabr(unsigned long dabr, unsigned long dabrx)
 	/* PAPR says we can only set kernel and user bits */
 	dabrx &= DABRX_KERNEL | DABRX_USER;
 
-	return plpar_hcall_norets(H_SET_XDABR, dabr, dabrx);
+	return plpar_hcall_analrets(H_SET_XDABR, dabr, dabrx);
 }
 
 static int pseries_set_dawr(int nr, unsigned long dawr, unsigned long dawrx)
@@ -939,7 +939,7 @@ void pSeries_coalesce_init(void)
 }
 
 /**
- * fw_cmo_feature_init - FW_FEATURE_CMO is not stored in ibm,hypertas-functions,
+ * fw_cmo_feature_init - FW_FEATURE_CMO is analt stored in ibm,hypertas-functions,
  * handle that here. (Stolen from parse_system_parameter_string)
  */
 static void __init pSeries_cmo_feature_init(void)
@@ -952,7 +952,7 @@ static void __init pSeries_cmo_feature_init(void)
 	pr_debug(" -> fw_cmo_feature_init()\n");
 
 	if (papr_sysparm_get(PAPR_SYSPARM_COOP_MEM_OVERCOMMIT_ATTRS, &buf)) {
-		pr_debug("CMO not available\n");
+		pr_debug("CMO analt available\n");
 		pr_debug(" <- fw_cmo_feature_init()\n");
 		return;
 	}
@@ -1002,30 +1002,30 @@ static void __init pSeries_cmo_feature_init(void)
 		powerpc_firmware_features |= FW_FEATURE_CMO;
 		pSeries_coalesce_init();
 	} else
-		pr_debug("CMO not enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
+		pr_debug("CMO analt enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
 		         CMO_SecPSP);
 	pr_debug(" <- fw_cmo_feature_init()\n");
 }
 
 static void __init pseries_add_hw_description(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	const char *s;
 
-	dn = of_find_node_by_path("/openprom");
+	dn = of_find_analde_by_path("/openprom");
 	if (dn) {
 		if (of_property_read_string(dn, "model", &s) == 0)
 			seq_buf_printf(&ppc_hw_desc, "of:%s ", s);
 
-		of_node_put(dn);
+		of_analde_put(dn);
 	}
 
-	dn = of_find_node_by_path("/hypervisor");
+	dn = of_find_analde_by_path("/hypervisor");
 	if (dn) {
 		if (of_property_read_string(dn, "compatible", &s) == 0)
 			seq_buf_printf(&ppc_hw_desc, "hv:%s ", s);
 
-		of_node_put(dn);
+		of_analde_put(dn);
 		return;
 	}
 
@@ -1035,7 +1035,7 @@ static void __init pseries_add_hw_description(void)
 }
 
 /*
- * Early initialization.  Relocation is on but do not reference unbolted pages
+ * Early initialization.  Relocation is on but do analt reference unbolted pages
  */
 static void __init pseries_init(void)
 {
@@ -1064,7 +1064,7 @@ static void __init pseries_init(void)
 /**
  * pseries_power_off - tell firmware about how to power off the system.
  *
- * This function calls either the power-off rtas token in normal cases
+ * This function calls either the power-off rtas token in analrmal cases
  * or the ibm,power-off-ups token (if present & requested) in case of
  * a power failure. If power-off token is used, power on will only be
  * possible with power button press. If ibm,power-off-ups token is used
@@ -1079,7 +1079,7 @@ static void pseries_power_off(void)
 		rtas_flash_term_hook(SYS_POWER_OFF);
 
 	if (rtas_poweron_auto == 0 ||
-		rtas_poweroff_ups_token == RTAS_UNKNOWN_SERVICE) {
+		rtas_poweroff_ups_token == RTAS_UNKANALWN_SERVICE) {
 		rc = rtas_call(rtas_function_token(RTAS_FN_POWER_OFF), 2, 1, NULL, -1, -1);
 		printk(KERN_INFO "RTAS power-off returned %d\n", rc);
 	} else {
@@ -1091,10 +1091,10 @@ static void pseries_power_off(void)
 
 static int __init pSeries_probe(void)
 {
-	if (!of_node_is_type(of_root, "chrp"))
+	if (!of_analde_is_type(of_root, "chrp"))
 		return 0;
 
-	/* Cell blades firmware claims to be chrp while it's not. Until this
+	/* Cell blades firmware claims to be chrp while it's analt. Until this
 	 * is fixed, we need to avoid those here.
 	 */
 	if (of_machine_is_compatible("IBM,CPBW-1.0") ||
@@ -1104,7 +1104,7 @@ static int __init pSeries_probe(void)
 	pm_power_off = pseries_power_off;
 
 	pr_debug("Machine is%s LPAR !\n",
-	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
+	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " analt");
 
 	pseries_init();
 
@@ -1115,7 +1115,7 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 {
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		return PCI_PROBE_DEVTREE;
-	return PCI_PROBE_NORMAL;
+	return PCI_PROBE_ANALRMAL;
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

@@ -72,7 +72,7 @@ struct dw_i3c_platform_ops {
 	 * to perform any device workarounds on the DAT entry before
 	 * inserting into the hardware table.
 	 *
-	 * Called with the DAT lock held; must not sleep.
+	 * Called with the DAT lock held; must analt sleep.
 	 */
 	void (*set_dat_ibi)(struct dw_i3c_master *i3c,
 			    struct i3c_dev_desc *dev, bool enable, u32 *reg);

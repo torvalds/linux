@@ -22,7 +22,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-ioctl.h>
 
 /*
@@ -110,7 +110,7 @@
 #define ISL7998X_REG_PX_DEC_CORING(pg)		ISL7998X_REG((pg), 0x18)
 #define ISL7998X_REG_PX_DEC_SDT(pg)		ISL7998X_REG((pg), 0x1c)
 #define ISL7998X_REG_PX_DEC_SDT_DET		BIT(7)
-#define ISL7998X_REG_PX_DEC_SDT_NOW		GENMASK(6, 4)
+#define ISL7998X_REG_PX_DEC_SDT_ANALW		GENMASK(6, 4)
 #define ISL7998X_REG_PX_DEC_SDT_STANDARD	GENMASK(2, 0)
 #define ISL7998X_REG_PX_DEC_SDT_STANDARD_NTSC_M		0
 #define ISL7998X_REG_PX_DEC_SDT_STANDARD_PAL		1
@@ -119,7 +119,7 @@
 #define ISL7998X_REG_PX_DEC_SDT_STANDARD_PAL_M		4
 #define ISL7998X_REG_PX_DEC_SDT_STANDARD_PAL_CN		5
 #define ISL7998X_REG_PX_DEC_SDT_STANDARD_PAL_60		6
-#define ISL7998X_REG_PX_DEC_SDT_STANDARD_UNKNOWN	7
+#define ISL7998X_REG_PX_DEC_SDT_STANDARD_UNKANALWN	7
 #define ISL7998X_REG_PX_DEC_SDTR(pg)		ISL7998X_REG((pg), 0x1d)
 #define ISL7998X_REG_PX_DEC_SDTR_ATSTART	BIT(7)
 #define ISL7998X_REG_PX_DEC_CLMPG(pg)		ISL7998X_REG((pg), 0x20)
@@ -475,7 +475,7 @@ static const struct isl7998x_mode supported_modes[] = {
 };
 
 static const struct isl7998x_video_std {
-	const v4l2_std_id norm;
+	const v4l2_std_id analrm;
 	unsigned int id;
 	const struct isl7998x_mode *mode;
 } isl7998x_std_res[] = {
@@ -503,8 +503,8 @@ static const struct isl7998x_video_std {
 	{ V4L2_STD_SECAM,
 	  ISL7998X_REG_PX_DEC_SDT_STANDARD_SECAM,
 	  &supported_modes[0] },
-	{ V4L2_STD_UNKNOWN,
-	  ISL7998X_REG_PX_DEC_SDT_STANDARD_UNKNOWN,
+	{ V4L2_STD_UNKANALWN,
+	  ISL7998X_REG_PX_DEC_SDT_STANDARD_UNKANALWN,
 	  &supported_modes[1] },
 };
 
@@ -517,12 +517,12 @@ struct isl7998x {
 	u32				nr_inputs;
 
 	const struct isl7998x_datafmt	*fmt;
-	v4l2_std_id			norm;
+	v4l2_std_id			analrm;
 	struct media_pad		pads[ISL7998X_NUM_PADS];
 
 	int				enabled;
 
-	/* protect fmt, norm, enabled */
+	/* protect fmt, analrm, enabled */
 	struct mutex			lock;
 
 	struct v4l2_ctrl_handler	ctrl_handler;
@@ -547,25 +547,25 @@ static struct isl7998x *i2c_to_isl7998x(const struct i2c_client *client)
 	return sd_to_isl7998x(i2c_get_clientdata(client));
 }
 
-static unsigned int isl7998x_norm_to_val(v4l2_std_id norm)
+static unsigned int isl7998x_analrm_to_val(v4l2_std_id analrm)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(isl7998x_std_res); i++)
-		if (isl7998x_std_res[i].norm & norm)
+		if (isl7998x_std_res[i].analrm & analrm)
 			break;
 	if (i == ARRAY_SIZE(isl7998x_std_res))
-		return ISL7998X_REG_PX_DEC_SDT_STANDARD_UNKNOWN;
+		return ISL7998X_REG_PX_DEC_SDT_STANDARD_UNKANALWN;
 
 	return isl7998x_std_res[i].id;
 }
 
-static const struct isl7998x_mode *isl7998x_norm_to_mode(v4l2_std_id norm)
+static const struct isl7998x_mode *isl7998x_analrm_to_mode(v4l2_std_id analrm)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(isl7998x_std_res); i++)
-		if (isl7998x_std_res[i].norm & norm)
+		if (isl7998x_std_res[i].analrm & analrm)
 			break;
 	/* Use NTSC default resolution during standard detection */
 	if (i == ARRAY_SIZE(isl7998x_std_res))
@@ -574,27 +574,27 @@ static const struct isl7998x_mode *isl7998x_norm_to_mode(v4l2_std_id norm)
 	return isl7998x_std_res[i].mode;
 }
 
-static int isl7998x_get_nr_inputs(struct device_node *of_node)
+static int isl7998x_get_nr_inputs(struct device_analde *of_analde)
 {
-	struct device_node *port;
+	struct device_analde *port;
 	unsigned int inputs = 0;
 	unsigned int i;
 
-	if (of_graph_get_endpoint_count(of_node) > ISL7998X_NUM_PADS)
+	if (of_graph_get_endpoint_count(of_analde) > ISL7998X_NUM_PADS)
 		return -EINVAL;
 
 	/*
-	 * The driver does not provide means to remap the input ports. It
+	 * The driver does analt provide means to remap the input ports. It
 	 * always configures input ports to start from VID1. Ensure that the
 	 * device tree is correct.
 	 */
 	for (i = ISL7998X_PAD_VIN1; i <= ISL7998X_PAD_VIN4; i++) {
-		port = of_graph_get_port_by_id(of_node, i);
+		port = of_graph_get_port_by_id(of_analde, i);
 		if (!port)
 			continue;
 
 		inputs |= BIT(i);
-		of_node_put(port);
+		of_analde_put(port);
 	}
 
 	switch (inputs) {
@@ -630,10 +630,10 @@ static int isl7998x_wait_power_on(struct isl7998x *isl7998x)
 	return ret;
 }
 
-static int isl7998x_set_standard(struct isl7998x *isl7998x, v4l2_std_id norm)
+static int isl7998x_set_standard(struct isl7998x *isl7998x, v4l2_std_id analrm)
 {
-	const struct isl7998x_mode *mode = isl7998x_norm_to_mode(norm);
-	unsigned int val = isl7998x_norm_to_val(norm);
+	const struct isl7998x_mode *mode = isl7998x_analrm_to_mode(analrm);
+	unsigned int val = isl7998x_analrm_to_val(analrm);
 	unsigned int width = mode->width;
 	unsigned int i;
 	int ret;
@@ -678,9 +678,9 @@ static int isl7998x_init(struct isl7998x *isl7998x)
 	struct regmap *regmap = isl7998x->regmap;
 	int ret;
 
-	dev_dbg(dev, "configuring %d lanes for %d inputs (norm %s)\n",
+	dev_dbg(dev, "configuring %d lanes for %d inputs (analrm %s)\n",
 		isl7998x->nr_mipi_lanes, isl7998x->nr_inputs,
-		v4l2_norm_to_name(isl7998x->norm));
+		v4l2_analrm_to_name(isl7998x->analrm));
 
 	ret = regmap_register_patch(regmap, isl7998x_init_seq_1,
 				    ARRAY_SIZE(isl7998x_init_seq_1));
@@ -688,7 +688,7 @@ static int isl7998x_init(struct isl7998x *isl7998x)
 		return ret;
 
 	mutex_lock(&isl7998x->lock);
-	ret = isl7998x_set_standard(isl7998x, isl7998x->norm);
+	ret = isl7998x_set_standard(isl7998x, isl7998x->analrm);
 	mutex_unlock(&isl7998x->lock);
 	if (ret)
 		return ret;
@@ -712,7 +712,7 @@ static int isl7998x_set_test_pattern(struct isl7998x *isl7998x)
 		{ ISL7998X_REG_P5_TP_GEN_BAR_PATTERN,
 		  isl7998x->test_pattern_bars << 6 },
 		{ ISL7998X_REG_P5_LI_ENGINE_CTL_2,
-		  isl7998x->norm & V4L2_STD_PAL ? BIT(2) : 0 },
+		  isl7998x->analrm & V4L2_STD_PAL ? BIT(2) : 0 },
 		{ ISL7998X_REG_P5_LI_ENGINE_TP_GEN_CTL,
 		  (isl7998x->test_pattern_chans << 4) |
 		  (isl7998x->test_pattern_color << 2) }
@@ -768,18 +768,18 @@ static int isl7998x_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static int isl7998x_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int isl7998x_g_std(struct v4l2_subdev *sd, v4l2_std_id *analrm)
 {
 	struct isl7998x *isl7998x = sd_to_isl7998x(sd);
 
 	mutex_lock(&isl7998x->lock);
-	*norm = isl7998x->norm;
+	*analrm = isl7998x->analrm;
 	mutex_unlock(&isl7998x->lock);
 
 	return 0;
 }
 
-static int isl7998x_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int isl7998x_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct isl7998x *isl7998x = sd_to_isl7998x(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -792,13 +792,13 @@ static int isl7998x_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 		mutex_unlock(&isl7998x->lock);
 		return ret;
 	}
-	isl7998x->norm = norm;
+	isl7998x->analrm = analrm;
 	mutex_unlock(&isl7998x->lock);
 
 	if (pm_runtime_get_if_in_use(dev) <= 0)
 		return ret;
 
-	ret = isl7998x_set_standard(isl7998x, norm);
+	ret = isl7998x_set_standard(isl7998x, analrm);
 
 	pm_runtime_put(dev);
 
@@ -827,7 +827,7 @@ static int isl7998x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 		goto out_unlock;
 	}
 
-	ret = isl7998x_set_standard(isl7998x, V4L2_STD_UNKNOWN);
+	ret = isl7998x_set_standard(isl7998x, V4L2_STD_UNKANALWN);
 	if (ret)
 		goto out_unlock;
 
@@ -847,7 +847,7 @@ static int isl7998x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 					       2000, 500 * USEC_PER_MSEC);
 		if (ret)
 			goto out_reset_std;
-		std_id[i] = FIELD_GET(ISL7998X_REG_PX_DEC_SDT_NOW, reg);
+		std_id[i] = FIELD_GET(ISL7998X_REG_PX_DEC_SDT_ANALW, reg);
 	}
 
 	/*
@@ -856,18 +856,18 @@ static int isl7998x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	 */
 	for (i = 0; i < isl7998x->nr_inputs; i++) {
 		dev_dbg(dev, "input %d: detected %s\n",
-			i, v4l2_norm_to_name(isl7998x_std_res[std_id[i]].norm));
+			i, v4l2_analrm_to_name(isl7998x_std_res[std_id[i]].analrm));
 		if (std_id[0] != std_id[i])
 			dev_warn(dev,
 				 "incompatible standards: %s on input %d (expected %s)\n",
-				 v4l2_norm_to_name(isl7998x_std_res[std_id[i]].norm), i,
-				 v4l2_norm_to_name(isl7998x_std_res[std_id[0]].norm));
+				 v4l2_analrm_to_name(isl7998x_std_res[std_id[i]].analrm), i,
+				 v4l2_analrm_to_name(isl7998x_std_res[std_id[0]].analrm));
 	}
 
-	*std = isl7998x_std_res[std_id[0]].norm;
+	*std = isl7998x_std_res[std_id[0]].analrm;
 
 out_reset_std:
-	isl7998x_set_standard(isl7998x, isl7998x->norm);
+	isl7998x_set_standard(isl7998x, isl7998x->analrm);
 out_unlock:
 	mutex_unlock(&isl7998x->lock);
 	pm_runtime_put(dev);
@@ -875,7 +875,7 @@ out_unlock:
 	return ret;
 }
 
-static int isl7998x_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *std)
+static int isl7998x_g_tvanalrms(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	*std = V4L2_STD_ALL;
 
@@ -892,7 +892,7 @@ static int isl7998x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	u32 reg;
 
 	if (!pm_runtime_active(dev)) {
-		*status |= V4L2_IN_ST_NO_POWER;
+		*status |= V4L2_IN_ST_ANAL_POWER;
 		return 0;
 	}
 
@@ -901,11 +901,11 @@ static int isl7998x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 				  ISL7998X_REG_PX_DEC_STATUS_1(i + 1), &reg);
 		if (!ret) {
 			if (reg & ISL7998X_REG_PX_DEC_STATUS_1_VDLOSS)
-				*status |= V4L2_IN_ST_NO_SIGNAL;
+				*status |= V4L2_IN_ST_ANAL_SIGNAL;
 			if (!(reg & ISL7998X_REG_PX_DEC_STATUS_1_HLOCK))
-				*status |= V4L2_IN_ST_NO_H_LOCK;
+				*status |= V4L2_IN_ST_ANAL_H_LOCK;
 			if (!(reg & ISL7998X_REG_PX_DEC_STATUS_1_VLOCK))
-				*status |= V4L2_IN_ST_NO_V_LOCK;
+				*status |= V4L2_IN_ST_ANAL_V_LOCK;
 		}
 	}
 
@@ -1012,7 +1012,7 @@ static int isl7998x_get_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	mode = isl7998x_norm_to_mode(isl7998x->norm);
+	mode = isl7998x_analrm_to_mode(isl7998x->analrm);
 
 	mf->width	= mode->width;
 	mf->height	= mode->height;
@@ -1036,7 +1036,7 @@ static int isl7998x_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&isl7998x->lock);
 
-	mode = isl7998x_norm_to_mode(isl7998x->norm);
+	mode = isl7998x_analrm_to_mode(isl7998x->analrm);
 
 	mf->width = mode->width;
 	mf->height = mode->height;
@@ -1098,7 +1098,7 @@ static const struct v4l2_subdev_video_ops isl7998x_subdev_video_ops = {
 	.g_std		= isl7998x_g_std,
 	.s_std		= isl7998x_s_std,
 	.querystd	= isl7998x_querystd,
-	.g_tvnorms	= isl7998x_g_tvnorms,
+	.g_tvanalrms	= isl7998x_g_tvanalrms,
 	.g_input_status	= isl7998x_g_input_status,
 	.s_stream	= isl7998x_s_stream,
 	.pre_streamon	= isl7998x_pre_streamon,
@@ -1303,18 +1303,18 @@ static const struct regmap_range isl7998x_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table isl7998x_readable_table = {
-	.yes_ranges = isl7998x_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(isl7998x_readable_ranges),
+	.anal_ranges = isl7998x_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(isl7998x_readable_ranges),
 };
 
 static const struct regmap_access_table isl7998x_writeable_table = {
-	.yes_ranges = isl7998x_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(isl7998x_writeable_ranges),
+	.anal_ranges = isl7998x_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(isl7998x_writeable_ranges),
 };
 
 static const struct regmap_access_table isl7998x_volatile_table = {
-	.yes_ranges = isl7998x_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(isl7998x_volatile_ranges),
+	.anal_ranges = isl7998x_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(isl7998x_volatile_ranges),
 };
 
 static const struct regmap_range_cfg isl7998x_ranges[] = {
@@ -1451,10 +1451,10 @@ err:
 static int isl7998x_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct v4l2_fwnode_endpoint endpoint = {
+	struct v4l2_fwanalde_endpoint endpoint = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	struct isl7998x *isl7998x;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	int nr_inputs;
@@ -1469,7 +1469,7 @@ static int isl7998x_probe(struct i2c_client *client)
 
 	isl7998x = devm_kzalloc(dev, sizeof(*isl7998x), GFP_KERNEL);
 	if (!isl7998x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isl7998x->pd_gpio = devm_gpiod_get_optional(dev, "powerdown",
 						    GPIOD_OUT_HIGH);
@@ -1488,13 +1488,13 @@ static int isl7998x_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(isl7998x->regmap),
 				     "Failed to allocate register map\n");
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev),
 					     ISL7998X_PAD_OUT, 0, 0);
 	if (!ep)
-		return dev_err_probe(dev, -EINVAL, "Missing endpoint node\n");
+		return dev_err_probe(dev, -EINVAL, "Missing endpoint analde\n");
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &endpoint);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &endpoint);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to parse endpoint\n");
 
@@ -1505,21 +1505,21 @@ static int isl7998x_probe(struct i2c_client *client)
 
 	isl7998x->nr_mipi_lanes = endpoint.bus.mipi_csi2.num_data_lanes;
 
-	nr_inputs = isl7998x_get_nr_inputs(dev->of_node);
+	nr_inputs = isl7998x_get_nr_inputs(dev->of_analde);
 	if (nr_inputs < 0)
 		return dev_err_probe(dev, nr_inputs,
 				     "Invalid number of input ports\n");
 	isl7998x->nr_inputs = nr_inputs;
 
 	v4l2_i2c_subdev_init(&isl7998x->subdev, client, &isl7998x_subdev_ops);
-	isl7998x->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	isl7998x->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	ret = isl7998x_mc_init(isl7998x);
 	if (ret < 0)
 		return ret;
 
 	isl7998x->fmt = &isl7998x_colour_fmts[0];
-	isl7998x->norm = V4L2_STD_NTSC;
+	isl7998x->analrm = V4L2_STD_NTSC;
 	isl7998x->enabled = 0;
 
 	mutex_init(&isl7998x->lock);

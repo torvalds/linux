@@ -83,7 +83,7 @@ struct tda1004x_config
 	u8 tuner_address;
 	u8 antenna_switch;
 
-	/* if the board uses another I2c Bridge (tda8290), its address */
+	/* if the board uses aanalther I2c Bridge (tda8290), its address */
 	u8 i2c_gate;
 
 	/* request firmware for device */

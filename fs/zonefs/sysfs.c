@@ -122,7 +122,7 @@ int __init zonefs_sysfs_init(void)
 {
 	zonefs_sysfs_root = kobject_create_and_add("zonefs", fs_kobj);
 	if (!zonefs_sysfs_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

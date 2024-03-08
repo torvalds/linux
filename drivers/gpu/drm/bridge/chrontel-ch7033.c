@@ -239,7 +239,7 @@ static int ch7033_connector_get_modes(struct drm_connector *connector)
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	} else {
-		ret = drm_add_modes_noedid(connector, 1920, 1080);
+		ret = drm_add_modes_analedid(connector, 1920, 1080);
 		drm_set_preferred_mode(connector, 1024, 768);
 	}
 
@@ -275,11 +275,11 @@ static int ch7033_bridge_attach(struct drm_bridge *bridge,
 	int ret;
 
 	ret = drm_bridge_attach(bridge->encoder, priv->next_bridge, bridge,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret)
 		return ret;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)
 		return 0;
 
 	if (priv->next_bridge->ops & DRM_BRIDGE_OP_DETECT) {
@@ -444,7 +444,7 @@ static void ch7033_bridge_mode_set(struct drm_bridge *bridge,
 	regmap_write(priv->regmap, 0x58, vbporch);
 	regmap_write(priv->regmap, 0x59, vsynclen);
 
-	/* Pick HDMI, not LVDS. */
+	/* Pick HDMI, analt LVDS. */
 	regmap_update_bits(priv->regmap, 0x7e, HDMI_LVDS_SEL, HDMI_LVDS_SEL);
 
 	/*
@@ -452,7 +452,7 @@ static void ch7033_bridge_mode_set(struct drm_bridge *bridge,
 	 */
 	regmap_write(priv->regmap, 0x03, 0x01);
 
-	/* No idea what these do, but VGA is wobbly and blinky without them. */
+	/* Anal idea what these do, but VGA is wobbly and blinky without them. */
 	regmap_update_bits(priv->regmap, 0x07, CKINV, CKINV);
 	regmap_update_bits(priv->regmap, 0x08, DISPON, DISPON);
 
@@ -496,7 +496,7 @@ static void ch7033_bridge_mode_set(struct drm_bridge *bridge,
 	 */
 	regmap_write(priv->regmap, 0x03, 0x03);
 
-	/* More bypasses and apparently another HDMI/LVDS selector. */
+	/* More bypasses and apparently aanalther HDMI/LVDS selector. */
 	regmap_update_bits(priv->regmap, 0x28, VGACLK_BP | HM_LV_SEL,
 					       VGACLK_BP | HM_LV_SEL);
 	regmap_update_bits(priv->regmap, 0x2a, HDMICLK_BP | HDMI_BP,
@@ -537,11 +537,11 @@ static int ch7033_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, priv);
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1, NULL,
+	ret = drm_of_find_panel_or_bridge(dev->of_analde, 1, -1, NULL,
 					  &priv->next_bridge);
 	if (ret)
 		return ret;
@@ -558,8 +558,8 @@ static int ch7033_probe(struct i2c_client *client)
 		return ret;
 	}
 	if ((val & 0xf7) != 0x56) {
-		dev_err(&client->dev, "the device is not a ch7033\n");
-		return -ENODEV;
+		dev_err(&client->dev, "the device is analt a ch7033\n");
+		return -EANALDEV;
 	}
 
 	regmap_write(priv->regmap, 0x03, 0x04);
@@ -569,13 +569,13 @@ static int ch7033_probe(struct i2c_client *client)
 		return ret;
 	}
 	if ((val & 0x0f) != 3) {
-		dev_err(&client->dev, "unknown revision %u\n", val);
-		return -ENODEV;
+		dev_err(&client->dev, "unkanalwn revision %u\n", val);
+		return -EANALDEV;
 	}
 
 	INIT_LIST_HEAD(&priv->bridge.list);
 	priv->bridge.funcs = &ch7033_bridge_funcs;
-	priv->bridge.of_node = dev->of_node;
+	priv->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&priv->bridge);
 
 	dev_info(dev, "Chrontel CH7033 Video Encoder\n");

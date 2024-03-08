@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2019 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2019 Syanalpsys, Inc. and/or its affiliates.
  * stmmac Selftests Support
  *
- * Author: Jose Abreu <joabreu@synopsys.com>
+ * Author: Jose Abreu <joabreu@syanalpsys.com>
  *
  * Ported from stmmac by:
  * Copyright (C) 2021 Oleksij Rempel <o.rempel@pengutronix.de>
@@ -246,7 +246,7 @@ static int __net_test_loopback(struct net_device *ndev,
 
 	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
 	if (!tpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpriv->ok = false;
 	init_completion(&tpriv->comp);
@@ -260,7 +260,7 @@ static int __net_test_loopback(struct net_device *ndev,
 
 	skb = net_test_get_skb(ndev, attr);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -286,18 +286,18 @@ cleanup:
 
 static int net_test_netif_carrier(struct net_device *ndev)
 {
-	return netif_carrier_ok(ndev) ? 0 : -ENOLINK;
+	return netif_carrier_ok(ndev) ? 0 : -EANALLINK;
 }
 
 static int net_test_phy_phydev(struct net_device *ndev)
 {
-	return ndev->phydev ? 0 : -EOPNOTSUPP;
+	return ndev->phydev ? 0 : -EOPANALTSUPP;
 }
 
 static int net_test_phy_loopback_enable(struct net_device *ndev)
 {
 	if (!ndev->phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phy_loopback(ndev->phydev, true);
 }
@@ -305,7 +305,7 @@ static int net_test_phy_loopback_enable(struct net_device *ndev)
 static int net_test_phy_loopback_disable(struct net_device *ndev)
 {
 	if (!ndev->phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phy_loopback(ndev->phydev, false);
 }
@@ -383,7 +383,7 @@ void net_selftest(struct net_device *ndev, struct ethtool_test *etest, u64 *buf)
 
 	for (i = 0; i < count; i++) {
 		buf[i] = net_selftests[i].fn(ndev);
-		if (buf[i] && (buf[i] != -EOPNOTSUPP))
+		if (buf[i] && (buf[i] != -EOPANALTSUPP))
 			etest->flags |= ETH_TEST_FL_FAILED;
 	}
 }

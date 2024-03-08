@@ -20,14 +20,14 @@ Required properties:
 	- "amlogic,meson-gx-pwrc-vpu" for the Meson GX SoCs
 	- "amlogic,meson-g12a-pwrc-vpu" for the Meson G12A SoCs
 - #power-domain-cells: should be 0
-- amlogic,hhi-sysctrl: phandle to the HHI sysctrl node
+- amlogic,hhi-sysctrl: phandle to the HHI sysctrl analde
 - resets: phandles to the reset lines needed for this power demain sequence
 	as described in ../reset/reset.txt
 - clocks: from common clock binding: handle to VPU and VAPB clocks
 - clock-names: from common clock binding: must contain "vpu", "vapb"
 	corresponding to entry in the clocks property.
 
-Parent node should have the following properties :
+Parent analde should have the following properties :
 - compatible: "amlogic,meson-gx-ao-sysctrl", "syscon", "simple-mfd"
 - reg: base address and size of the AO system control register space.
 

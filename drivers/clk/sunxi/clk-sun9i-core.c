@@ -29,7 +29,7 @@ static void sun9i_a80_get_pll4_factors(struct factors_request *req)
 	int m = 1;
 	int p = 1;
 
-	/* Normalize value to a 6 MHz multiple (24 MHz / 4) */
+	/* Analrmalize value to a 6 MHz multiple (24 MHz / 4) */
 	n = DIV_ROUND_UP(req->rate, 6000000);
 
 	/* If n is too large switch to steps of 12 MHz */
@@ -73,18 +73,18 @@ static const struct factors_data sun9i_a80_pll4_data __initconst = {
 
 static DEFINE_SPINLOCK(sun9i_a80_pll4_lock);
 
-static void __init sun9i_a80_pll4_setup(struct device_node *node)
+static void __init sun9i_a80_pll4_setup(struct device_analde *analde)
 {
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-pll4-clk: %pOFn\n",
-		       node);
+		pr_err("Could analt get registers for a80-pll4-clk: %pOFn\n",
+		       analde);
 		return;
 	}
 
-	sunxi_factors_register(node, &sun9i_a80_pll4_data,
+	sunxi_factors_register(analde, &sun9i_a80_pll4_data,
 			       &sun9i_a80_pll4_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_pll4, "allwinner,sun9i-a80-pll4-clk", sun9i_a80_pll4_setup);
@@ -127,19 +127,19 @@ static const struct factors_data sun9i_a80_gt_data __initconst = {
 
 static DEFINE_SPINLOCK(sun9i_a80_gt_lock);
 
-static void __init sun9i_a80_gt_setup(struct device_node *node)
+static void __init sun9i_a80_gt_setup(struct device_analde *analde)
 {
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-gt-clk: %pOFn\n",
-		       node);
+		pr_err("Could analt get registers for a80-gt-clk: %pOFn\n",
+		       analde);
 		return;
 	}
 
 	/* The GT bus clock needs to be always enabled */
-	sunxi_factors_register_critical(node, &sun9i_a80_gt_data,
+	sunxi_factors_register_critical(analde, &sun9i_a80_gt_data,
 					&sun9i_a80_gt_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_gt, "allwinner,sun9i-a80-gt-clk", sun9i_a80_gt_setup);
@@ -182,18 +182,18 @@ static const struct factors_data sun9i_a80_ahb_data __initconst = {
 
 static DEFINE_SPINLOCK(sun9i_a80_ahb_lock);
 
-static void __init sun9i_a80_ahb_setup(struct device_node *node)
+static void __init sun9i_a80_ahb_setup(struct device_analde *analde)
 {
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-ahb-clk: %pOFn\n",
-		       node);
+		pr_err("Could analt get registers for a80-ahb-clk: %pOFn\n",
+		       analde);
 		return;
 	}
 
-	sunxi_factors_register(node, &sun9i_a80_ahb_data,
+	sunxi_factors_register(analde, &sun9i_a80_ahb_data,
 			       &sun9i_a80_ahb_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_ahb, "allwinner,sun9i-a80-ahb-clk", sun9i_a80_ahb_setup);
@@ -208,18 +208,18 @@ static const struct factors_data sun9i_a80_apb0_data __initconst = {
 
 static DEFINE_SPINLOCK(sun9i_a80_apb0_lock);
 
-static void __init sun9i_a80_apb0_setup(struct device_node *node)
+static void __init sun9i_a80_apb0_setup(struct device_analde *analde)
 {
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-apb0-clk: %pOFn\n",
-		       node);
+		pr_err("Could analt get registers for a80-apb0-clk: %pOFn\n",
+		       analde);
 		return;
 	}
 
-	sunxi_factors_register(node, &sun9i_a80_apb0_data,
+	sunxi_factors_register(analde, &sun9i_a80_apb0_data,
 			       &sun9i_a80_apb0_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_apb0, "allwinner,sun9i-a80-apb0-clk", sun9i_a80_apb0_setup);
@@ -265,18 +265,18 @@ static const struct factors_data sun9i_a80_apb1_data __initconst = {
 
 static DEFINE_SPINLOCK(sun9i_a80_apb1_lock);
 
-static void __init sun9i_a80_apb1_setup(struct device_node *node)
+static void __init sun9i_a80_apb1_setup(struct device_analde *analde)
 {
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-apb1-clk: %pOFn\n",
-		       node);
+		pr_err("Could analt get registers for a80-apb1-clk: %pOFn\n",
+		       analde);
 		return;
 	}
 
-	sunxi_factors_register(node, &sun9i_a80_apb1_data,
+	sunxi_factors_register(analde, &sun9i_a80_apb1_data,
 			       &sun9i_a80_apb1_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_apb1, "allwinner,sun9i-a80-apb1-clk", sun9i_a80_apb1_setup);

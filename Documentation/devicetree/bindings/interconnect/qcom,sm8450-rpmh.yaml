@@ -12,24 +12,24 @@ maintainers:
 
 description: |
   RPMh interconnect providers support system bandwidth requirements through
-  RPMh hardware accelerators known as Bus Clock Manager (BCM).
+  RPMh hardware accelerators kanalwn as Bus Clock Manager (BCM).
 
   See also:: include/dt-bindings/interconnect/qcom,sm8450.h
 
 properties:
   compatible:
     enum:
-      - qcom,sm8450-aggre1-noc
-      - qcom,sm8450-aggre2-noc
+      - qcom,sm8450-aggre1-analc
+      - qcom,sm8450-aggre2-analc
       - qcom,sm8450-clk-virt
-      - qcom,sm8450-config-noc
-      - qcom,sm8450-gem-noc
-      - qcom,sm8450-lpass-ag-noc
+      - qcom,sm8450-config-analc
+      - qcom,sm8450-gem-analc
+      - qcom,sm8450-lpass-ag-analc
       - qcom,sm8450-mc-virt
-      - qcom,sm8450-mmss-noc
-      - qcom,sm8450-nsp-noc
-      - qcom,sm8450-pcie-anoc
-      - qcom,sm8450-system-noc
+      - qcom,sm8450-mmss-analc
+      - qcom,sm8450-nsp-analc
+      - qcom,sm8450-pcie-aanalc
+      - qcom,sm8450-system-analc
 
   reg:
     maxItems: 1
@@ -62,7 +62,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8450-aggre1-noc
+              - qcom,sm8450-aggre1-analc
     then:
       properties:
         clocks:
@@ -75,13 +75,13 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8450-aggre2-noc
+              - qcom,sm8450-aggre2-analc
     then:
       properties:
         clocks:
           items:
-            - description: aggre-NOC PCIe 0 AXI clock
-            - description: aggre-NOC PCIe 1 AXI clock
+            - description: aggre-ANALC PCIe 0 AXI clock
+            - description: aggre-ANALC PCIe 1 AXI clock
             - description: aggre UFS PHY AXI clock
             - description: RPMH CC IPA clock
 
@@ -90,8 +90,8 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8450-aggre1-noc
-              - qcom,sm8450-aggre2-noc
+              - qcom,sm8450-aggre1-analc
+              - qcom,sm8450-aggre2-analc
     then:
       required:
         - clocks
@@ -113,12 +113,12 @@ examples:
     };
 
     interconnect@1700000 {
-        compatible = "qcom,sm8450-aggre2-noc";
+        compatible = "qcom,sm8450-aggre2-analc";
         reg = <0x01700000 0x31080>;
         #interconnect-cells = <2>;
         qcom,bcm-voters = <&apps_bcm_voter>;
-        clocks = <&gcc GCC_AGGRE_NOC_PCIE_0_AXI_CLK>,
-                 <&gcc GCC_AGGRE_NOC_PCIE_1_AXI_CLK>,
+        clocks = <&gcc GCC_AGGRE_ANALC_PCIE_0_AXI_CLK>,
+                 <&gcc GCC_AGGRE_ANALC_PCIE_1_AXI_CLK>,
                  <&gcc GCC_AGGRE_UFS_PHY_AXI_CLK>,
                  <&rpmhcc RPMH_IPA_CLK>;
     };

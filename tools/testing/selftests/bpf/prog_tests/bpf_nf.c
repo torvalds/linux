@@ -18,7 +18,7 @@ struct {
 	{ "set_status_after_insert", "kernel function bpf_ct_set_status args#0 expected pointer to STRUCT nf_conn___init but" },
 	{ "change_timeout_after_alloc", "kernel function bpf_ct_change_timeout args#0 expected pointer to STRUCT nf_conn but" },
 	{ "change_status_after_alloc", "kernel function bpf_ct_change_status args#0 expected pointer to STRUCT nf_conn but" },
-	{ "write_not_allowlisted_field", "no write support to nf_conn at off" },
+	{ "write_analt_allowlisted_field", "anal write support to nf_conn at off" },
 };
 
 enum {
@@ -103,13 +103,13 @@ static void test_bpf_nf_ct(int mode)
 		goto end;
 
 	ASSERT_EQ(skel->bss->test_einval_bpf_tuple, -EINVAL, "Test EINVAL for NULL bpf_tuple");
-	ASSERT_EQ(skel->bss->test_einval_reserved, -EINVAL, "Test EINVAL for reserved not set to 0");
+	ASSERT_EQ(skel->bss->test_einval_reserved, -EINVAL, "Test EINVAL for reserved analt set to 0");
 	ASSERT_EQ(skel->bss->test_einval_netns_id, -EINVAL, "Test EINVAL for netns_id < -1");
 	ASSERT_EQ(skel->bss->test_einval_len_opts, -EINVAL, "Test EINVAL for len__opts != NF_BPF_CT_OPTS_SZ");
 	ASSERT_EQ(skel->bss->test_eproto_l4proto, -EPROTO, "Test EPROTO for l4proto != TCP or UDP");
-	ASSERT_EQ(skel->bss->test_enonet_netns_id, -ENONET, "Test ENONET for bad but valid netns_id");
-	ASSERT_EQ(skel->bss->test_enoent_lookup, -ENOENT, "Test ENOENT for failed lookup");
-	ASSERT_EQ(skel->bss->test_eafnosupport, -EAFNOSUPPORT, "Test EAFNOSUPPORT for invalid len__tuple");
+	ASSERT_EQ(skel->bss->test_eanalnet_netns_id, -EANALNET, "Test EANALNET for bad but valid netns_id");
+	ASSERT_EQ(skel->bss->test_eanalent_lookup, -EANALENT, "Test EANALENT for failed lookup");
+	ASSERT_EQ(skel->bss->test_eafanalsupport, -EAFANALSUPPORT, "Test EAFANALSUPPORT for invalid len__tuple");
 	ASSERT_EQ(skel->data->test_alloc_entry, 0, "Test for alloc new entry");
 	ASSERT_EQ(skel->data->test_insert_entry, 0, "Test for insert new entry");
 	ASSERT_EQ(skel->data->test_succ_lookup, 0, "Test for successful lookup");

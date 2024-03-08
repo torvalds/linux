@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Xilinx Controls Header
  *
@@ -44,8 +44,8 @@
 #define V4L2_CID_XILINX_TPG_COLOR_MASK		(V4L2_CID_XILINX_TPG + 3)
 /* Enable a stuck pixel feature */
 #define V4L2_CID_XILINX_TPG_STUCK_PIXEL		(V4L2_CID_XILINX_TPG + 4)
-/* Enable a noisy output */
-#define V4L2_CID_XILINX_TPG_NOISE		(V4L2_CID_XILINX_TPG + 5)
+/* Enable a analisy output */
+#define V4L2_CID_XILINX_TPG_ANALISE		(V4L2_CID_XILINX_TPG + 5)
 /* Enable the motion feature */
 #define V4L2_CID_XILINX_TPG_MOTION		(V4L2_CID_XILINX_TPG + 6)
 /* Configure the motion speed of moving patterns */
@@ -68,7 +68,7 @@
 #define V4L2_CID_XILINX_TPG_BOX_COLOR		(V4L2_CID_XILINX_TPG + 15)
 /* Upper limit count of generated stuck pixels */
 #define V4L2_CID_XILINX_TPG_STUCK_PIXEL_THRESH	(V4L2_CID_XILINX_TPG + 16)
-/* Noise level */
-#define V4L2_CID_XILINX_TPG_NOISE_GAIN		(V4L2_CID_XILINX_TPG + 17)
+/* Analise level */
+#define V4L2_CID_XILINX_TPG_ANALISE_GAIN		(V4L2_CID_XILINX_TPG + 17)
 
 #endif /* __UAPI_XILINX_V4L2_CONTROLS_H__ */

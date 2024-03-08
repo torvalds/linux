@@ -12,8 +12,8 @@
  * struct mcfqspi_cs_control - chip select control for the coldfire qspi driver
  * @setup: setup the control; allocate gpio's, etc. May be NULL.
  * @teardown: finish with the control; free gpio's, etc. May be NULL.
- * @select: output the signals to select the device.  Can not be NULL.
- * @deselect: output the signals to deselect the device. Can not be NULL.
+ * @select: output the signals to select the device.  Can analt be NULL.
+ * @deselect: output the signals to deselect the device. Can analt be NULL.
  *
  * The QSPI module has 4 hardware chip selects.  We don't use them.  Instead
  * platforms are required to supply a mcfqspi_cs_control as a part of the

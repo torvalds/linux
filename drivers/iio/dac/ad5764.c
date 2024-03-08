@@ -18,7 +18,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#define AD5764_REG_SF_NOP			0x0
+#define AD5764_REG_SF_ANALP			0x0
 #define AD5764_REG_SF_CONFIG			0x1
 #define AD5764_REG_SF_CLEAR			0x4
 #define AD5764_REG_SF_LOAD			0x5
@@ -280,7 +280,7 @@ static int ad5764_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	st = iio_priv(indio_dev);

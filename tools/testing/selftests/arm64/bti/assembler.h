@@ -26,7 +26,7 @@
 .endm
 
 .macro emit_aarch64_feature_1_and
-	.pushsection .note.gnu.property, "a"
+	.pushsection .analte.gnu.property, "a"
 	.align	3
 	.long	2f - 1f
 	.long	6f - 3f

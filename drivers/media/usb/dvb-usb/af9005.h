@@ -1849,22 +1849,22 @@ enum {
 #define	reg_trigger_set_sel_fd_pos 0
 #define	reg_trigger_set_sel_fd_len 6
 #define	reg_trigger_set_sel_fd_lsb 0
-#define xd_p_reg_fd_noname_7_0	0xA2BC
-#define	reg_fd_noname_7_0_pos 0
-#define	reg_fd_noname_7_0_len 8
-#define	reg_fd_noname_7_0_lsb 0
-#define xd_p_reg_fd_noname_15_8	0xA2BD
-#define	reg_fd_noname_15_8_pos 0
-#define	reg_fd_noname_15_8_len 8
-#define	reg_fd_noname_15_8_lsb 8
-#define xd_p_reg_fd_noname_23_16	0xA2BE
-#define	reg_fd_noname_23_16_pos 0
-#define	reg_fd_noname_23_16_len 8
-#define	reg_fd_noname_23_16_lsb 16
-#define xd_p_reg_fd_noname_31_24	0xA2BF
-#define	reg_fd_noname_31_24_pos 0
-#define	reg_fd_noname_31_24_len 8
-#define	reg_fd_noname_31_24_lsb 24
+#define xd_p_reg_fd_analname_7_0	0xA2BC
+#define	reg_fd_analname_7_0_pos 0
+#define	reg_fd_analname_7_0_len 8
+#define	reg_fd_analname_7_0_lsb 0
+#define xd_p_reg_fd_analname_15_8	0xA2BD
+#define	reg_fd_analname_15_8_pos 0
+#define	reg_fd_analname_15_8_len 8
+#define	reg_fd_analname_15_8_lsb 8
+#define xd_p_reg_fd_analname_23_16	0xA2BE
+#define	reg_fd_analname_23_16_pos 0
+#define	reg_fd_analname_23_16_len 8
+#define	reg_fd_analname_23_16_lsb 16
+#define xd_p_reg_fd_analname_31_24	0xA2BF
+#define	reg_fd_analname_31_24_pos 0
+#define	reg_fd_analname_31_24_len 8
+#define	reg_fd_analname_31_24_lsb 24
 #define xd_r_fd_fpcc_cp_corr_signn	0xA2C0
 #define	fd_fpcc_cp_corr_signn_pos 0
 #define	fd_fpcc_cp_corr_signn_len 8
@@ -2133,18 +2133,18 @@ enum {
 #define	fd_sqi_dummy_reg_1_pos 0
 #define	fd_sqi_dummy_reg_1_len 1
 #define	fd_sqi_dummy_reg_1_lsb 0
-#define xd_p_fd_inr_ignore	0xA33D
-#define	fd_inr_ignore_pos 1
-#define	fd_inr_ignore_len 1
-#define	fd_inr_ignore_lsb 0
-#define xd_p_fd_pilot_ignore	0xA33D
-#define	fd_pilot_ignore_pos 2
-#define	fd_pilot_ignore_len 1
-#define	fd_pilot_ignore_lsb 0
-#define xd_p_fd_etps_ignore	0xA33D
-#define	fd_etps_ignore_pos 3
-#define	fd_etps_ignore_len 1
-#define	fd_etps_ignore_lsb 0
+#define xd_p_fd_inr_iganalre	0xA33D
+#define	fd_inr_iganalre_pos 1
+#define	fd_inr_iganalre_len 1
+#define	fd_inr_iganalre_lsb 0
+#define xd_p_fd_pilot_iganalre	0xA33D
+#define	fd_pilot_iganalre_pos 2
+#define	fd_pilot_iganalre_len 1
+#define	fd_pilot_iganalre_lsb 0
+#define xd_p_fd_etps_iganalre	0xA33D
+#define	fd_etps_iganalre_pos 3
+#define	fd_etps_iganalre_len 1
+#define	fd_etps_iganalre_lsb 0
 #define xd_p_fd_sqi_s1	0xA33D
 #define	fd_sqi_s1_pos 4
 #define	fd_sqi_s1_len 4
@@ -2797,10 +2797,10 @@ enum {
 #define	mp2if_sync_byte_locked_pos 3
 #define	mp2if_sync_byte_locked_len 1
 #define	mp2if_sync_byte_locked_lsb 0
-#define xd_r_mp2if_ts_not_188	0xA500
-#define	mp2if_ts_not_188_pos 4
-#define	mp2if_ts_not_188_len 1
-#define	mp2if_ts_not_188_lsb 0
+#define xd_r_mp2if_ts_analt_188	0xA500
+#define	mp2if_ts_analt_188_pos 4
+#define	mp2if_ts_analt_188_len 1
+#define	mp2if_ts_analt_188_lsb 0
 #define xd_r_mp2if_psb_empty	0xA500
 #define	mp2if_psb_empty_pos 5
 #define	mp2if_psb_empty_len 1
@@ -3470,7 +3470,7 @@ extern int af9005_send_command(struct dvb_usb_device *d, u8 command,
 extern int af9005_read_eeprom(struct dvb_usb_device *d, u8 address,
 			      u8 * values, int len);
 extern int af9005_tuner_attach(struct dvb_usb_adapter *adap);
-extern int af9005_led_control(struct dvb_usb_device *d, int onoff);
+extern int af9005_led_control(struct dvb_usb_device *d, int oanalff);
 
 extern u8 regmask[8];
 

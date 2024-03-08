@@ -80,7 +80,7 @@ static int do_one_sve_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 	head = get_header(head, SVE_MAGIC, GET_BUF_RESV_SIZE(context),
 			  &offset);
 	if (!head) {
-		fprintf(stderr, "No SVE context\n");
+		fprintf(stderr, "Anal SVE context\n");
 		return 1;
 	}
 

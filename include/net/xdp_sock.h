@@ -51,7 +51,7 @@ struct xdp_sock {
 	struct xsk_queue *rx ____cacheline_aligned_in_smp;
 	struct net_device *dev;
 	struct xdp_umem *umem;
-	struct list_head flush_node;
+	struct list_head flush_analde;
 	struct xsk_buff_pool *pool;
 	u16 queue_id;
 	bool zc;
@@ -95,7 +95,7 @@ struct xdp_sock {
 
 /*
  * AF_XDP TX metadata hooks for network devices.
- * The following hooks can be defined; unless noted otherwise, they are
+ * The following hooks can be defined; unless analted otherwise, they are
  * optional and can be filled with a null pointer.
  *
  * void (*tmo_request_timestamp)(void *priv)
@@ -124,7 +124,7 @@ int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp);
 void __xsk_map_flush(void);
 
 /**
- *  xsk_tx_metadata_to_compl - Save enough relevant metadata information
+ *  xsk_tx_metadata_to_compl - Save eanalugh relevant metadata information
  *  to perform tx completion in the future.
  *  @meta: pointer to AF_XDP metadata area
  *  @compl: pointer to output struct xsk_tx_metadata_to_compl
@@ -196,12 +196,12 @@ static inline void xsk_tx_metadata_complete(struct xsk_tx_metadata_compl *compl,
 
 static inline int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void __xsk_map_flush(void)

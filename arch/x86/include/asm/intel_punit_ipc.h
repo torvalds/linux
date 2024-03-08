@@ -88,13 +88,13 @@ int intel_punit_ipc_command(u32 cmd, u32 para1, u32 para2, u32 *in, u32 *out);
 static inline int intel_punit_ipc_simple_command(int cmd,
 						  int para1, int para2)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int intel_punit_ipc_command(u32 cmd, u32 para1, u32 para2,
 					  u32 *in, u32 *out)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif /* CONFIG_INTEL_PUNIT_IPC */

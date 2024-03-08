@@ -10,11 +10,11 @@
 /*
  * Advance to the next range we need to map.
  *
- * If the iomap is marked IOMAP_F_STALE, it means the existing map was not fully
+ * If the iomap is marked IOMAP_F_STALE, it means the existing map was analt fully
  * processed - it was aborted because the extent the iomap spanned may have been
  * changed during the operation. In this case, the iteration behaviour is to
  * remap the unprocessed range of the iter, and that means we may need to remap
- * even when we've made no progress (i.e. iter->processed = 0). Hence the
+ * even when we've made anal progress (i.e. iter->processed = 0). Hence the
  * "finished iterating" case needs to distinguish between
  * (processed = 0) meaning we are done and (processed = 0 && stale) meaning we
  * need to remap the entire remaining range.
@@ -51,9 +51,9 @@ static inline void iomap_iter_done(struct iomap_iter *iter)
 	WARN_ON_ONCE(iter->iomap.offset + iter->iomap.length <= iter->pos);
 	WARN_ON_ONCE(iter->iomap.flags & IOMAP_F_STALE);
 
-	trace_iomap_iter_dstmap(iter->inode, &iter->iomap);
+	trace_iomap_iter_dstmap(iter->ianalde, &iter->iomap);
 	if (iter->srcmap.type != IOMAP_HOLE)
-		trace_iomap_iter_srcmap(iter->inode, &iter->srcmap);
+		trace_iomap_iter_srcmap(iter->ianalde, &iter->srcmap);
 }
 
 /**
@@ -64,19 +64,19 @@ static inline void iomap_iter_done(struct iomap_iter *iter)
  * Iterate over filesystem-provided space mappings for the provided file range.
  *
  * This function handles cleanup of resources acquired for iteration when the
- * filesystem indicates there are no more space mappings, which means that this
+ * filesystem indicates there are anal more space mappings, which means that this
  * function must be called in a loop that continues as long it returns a
- * positive value.  If 0 or a negative value is returned, the caller must not
+ * positive value.  If 0 or a negative value is returned, the caller must analt
  * return to the loop body.  Within a loop body, there are two ways to break out
  * of the loop body:  leave @iter.processed unchanged, or set it to a negative
- * errno.
+ * erranal.
  */
 int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops)
 {
 	int ret;
 
 	if (iter->iomap.length && ops->iomap_end) {
-		ret = ops->iomap_end(iter->inode, iter->pos, iomap_length(iter),
+		ret = ops->iomap_end(iter->ianalde, iter->pos, iomap_length(iter),
 				iter->processed > 0 ? iter->processed : 0,
 				iter->flags, &iter->iomap);
 		if (ret < 0 && !iter->processed)
@@ -88,7 +88,7 @@ int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops)
 	if (ret <= 0)
 		return ret;
 
-	ret = ops->iomap_begin(iter->inode, iter->pos, iter->len, iter->flags,
+	ret = ops->iomap_begin(iter->ianalde, iter->pos, iter->len, iter->flags,
 			       &iter->iomap, &iter->srcmap);
 	if (ret < 0)
 		return ret;

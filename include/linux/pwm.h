@@ -10,7 +10,7 @@ struct pwm_chip;
 
 /**
  * enum pwm_polarity - polarity of a PWM signal
- * @PWM_POLARITY_NORMAL: a high signal for the duration of the duty-
+ * @PWM_POLARITY_ANALRMAL: a high signal for the duration of the duty-
  * cycle, followed by a low signal for the remainder of the pulse
  * period
  * @PWM_POLARITY_INVERSED: a low signal for the duration of the duty-
@@ -18,7 +18,7 @@ struct pwm_chip;
  * period
  */
 enum pwm_polarity {
-	PWM_POLARITY_NORMAL,
+	PWM_POLARITY_ANALRMAL,
 	PWM_POLARITY_INVERSED,
 };
 
@@ -31,7 +31,7 @@ enum pwm_polarity {
  * device. These arguments are usually retrieved from the PWM lookup table or
  * device tree.
  *
- * Do not confuse this with the PWM state: PWM arguments represent the initial
+ * Do analt confuse this with the PWM state: PWM arguments represent the initial
  * configuration that users want to use on this PWM device rather than the
  * current PWM hardware state.
  */
@@ -47,8 +47,8 @@ enum {
 
 /*
  * struct pwm_state - state of a PWM channel
- * @period: PWM period (in nanoseconds)
- * @duty_cycle: PWM duty cycle (in nanoseconds)
+ * @period: PWM period (in naanalseconds)
+ * @duty_cycle: PWM duty cycle (in naanalseconds)
  * @polarity: PWM polarity
  * @enabled: PWM enabled status
  * @usage_power: If set, the PWM driver is only required to maintain the power
@@ -183,7 +183,7 @@ static inline void pwm_init_state(const struct pwm_device *pwm,
  * @scale: target scale of the relative duty cycle
  *
  * This functions converts the absolute duty cycle stored in @state (expressed
- * in nanosecond) into a value relative to the period.
+ * in naanalsecond) into a value relative to the period.
  *
  * For example if you want to get the duty_cycle expressed in percent, call:
  *
@@ -207,7 +207,7 @@ pwm_get_relative_duty_cycle(const struct pwm_state *state, unsigned int scale)
  * @scale: scale in which @duty_cycle is expressed
  *
  * This functions converts a relative into an absolute duty cycle (expressed
- * in nanoseconds), and puts the result in state->duty_cycle.
+ * in naanalseconds), and puts the result in state->duty_cycle.
  *
  * For example if you want to configure a 50% duty cycle, call:
  *
@@ -234,8 +234,8 @@ pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
 
 /**
  * struct pwm_capture - PWM capture data
- * @period: period of the PWM signal (in nanoseconds)
- * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
+ * @period: period of the PWM signal (in naanalseconds)
+ * @duty_cycle: duty cycle of the PWM signal (in naanalseconds)
  */
 struct pwm_capture {
 	unsigned int period;
@@ -300,8 +300,8 @@ int pwm_adjust_config(struct pwm_device *pwm);
 /**
  * pwm_config() - change a PWM device configuration
  * @pwm: PWM device
- * @duty_ns: "on" time (in nanoseconds)
- * @period_ns: duration (in nanoseconds) of one cycle
+ * @duty_ns: "on" time (in naanalseconds)
+ * @period_ns: duration (in naanalseconds) of one cycle
  *
  * Returns: 0 on success or a negative error code on failure.
  */
@@ -400,8 +400,8 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id);
 void pwm_put(struct pwm_device *pwm);
 
 struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id);
-struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
-				       struct fwnode_handle *fwnode,
+struct pwm_device *devm_fwanalde_pwm_get(struct device *dev,
+				       struct fwanalde_handle *fwanalde,
 				       const char *con_id);
 #else
 static inline bool pwm_might_sleep(struct pwm_device *pwm)
@@ -413,18 +413,18 @@ static inline int pwm_apply_might_sleep(struct pwm_device *pwm,
 					const struct pwm_state *state)
 {
 	might_sleep();
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int pwm_apply_atomic(struct pwm_device *pwm,
 				   const struct pwm_state *state)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int pwm_adjust_config(struct pwm_device *pwm)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
@@ -472,14 +472,14 @@ static inline struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 						       const char *label)
 {
 	might_sleep();
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct pwm_device *pwm_get(struct device *dev,
 					 const char *consumer)
 {
 	might_sleep();
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void pwm_put(struct pwm_device *pwm)
@@ -491,15 +491,15 @@ static inline struct pwm_device *devm_pwm_get(struct device *dev,
 					      const char *consumer)
 {
 	might_sleep();
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct pwm_device *
-devm_fwnode_pwm_get(struct device *dev, struct fwnode_handle *fwnode,
+devm_fwanalde_pwm_get(struct device *dev, struct fwanalde_handle *fwanalde,
 		    const char *con_id)
 {
 	might_sleep();
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 #endif
 
@@ -522,7 +522,7 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
 	 * To fulfill this requirement, we apply a new state which disables
 	 * the PWM device and set the reference period and polarity config.
 	 *
-	 * Note that PWM users requiring a smooth handover between the
+	 * Analte that PWM users requiring a smooth handover between the
 	 * bootloader and the kernel (like critical regulators controlled by
 	 * PWM devices) will have to switch to the atomic API and avoid calling
 	 * pwm_apply_args().
@@ -536,7 +536,7 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
 	pwm_apply_might_sleep(pwm, &state);
 }
 
-/* only for backwards-compatibility, new code should not use this */
+/* only for backwards-compatibility, new code should analt use this */
 static inline int pwm_apply_state(struct pwm_device *pwm,
 				  const struct pwm_state *state)
 {

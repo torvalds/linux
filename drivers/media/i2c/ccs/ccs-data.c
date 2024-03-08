@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/limits.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -15,7 +15,7 @@
 
 struct bin_container {
 	void *base;
-	void *now;
+	void *analw;
 	void *end;
 	size_t size;
 };
@@ -26,11 +26,11 @@ static void *bin_alloc(struct bin_container *bin, size_t len)
 
 	len = ALIGN(len, 8);
 
-	if (bin->end - bin->now < len)
+	if (bin->end - bin->analw < len)
 		return NULL;
 
-	ptr = bin->now;
-	bin->now += len;
+	ptr = bin->analw;
+	bin->analw += len;
 
 	return ptr;
 }
@@ -42,9 +42,9 @@ static void bin_reserve(struct bin_container *bin, size_t len)
 
 static int bin_backing_alloc(struct bin_container *bin)
 {
-	bin->base = bin->now = kvzalloc(bin->size, GFP_KERNEL);
+	bin->base = bin->analw = kvzalloc(bin->size, GFP_KERNEL);
 	if (!bin->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bin->end = bin->base + bin->size;
 
@@ -66,7 +66,7 @@ ccs_data_parse_length_specifier(const struct __ccs_data_length_specifier *__len,
 	size_t hlen, plen;
 
 	if (!is_contained(__len, endp))
-		return -ENODATA;
+		return -EANALDATA;
 
 	switch (__len->length >> CCS_DATA_LENGTH_SPECIFIER_SIZE_SHIFT) {
 	case CCS_DATA_LENGTH_SPECIFIER_1:
@@ -78,7 +78,7 @@ ccs_data_parse_length_specifier(const struct __ccs_data_length_specifier *__len,
 		struct __ccs_data_length_specifier2 *__len2 = (void *)__len;
 
 		if (!is_contained(__len2, endp))
-			return -ENODATA;
+			return -EANALDATA;
 
 		hlen = sizeof(*__len2);
 		plen = ((size_t)
@@ -91,7 +91,7 @@ ccs_data_parse_length_specifier(const struct __ccs_data_length_specifier *__len,
 		struct __ccs_data_length_specifier3 *__len3 = (void *)__len;
 
 		if (!is_contained(__len3, endp))
-			return -ENODATA;
+			return -EANALDATA;
 
 		hlen = sizeof(*__len3);
 		plen = ((size_t)
@@ -105,7 +105,7 @@ ccs_data_parse_length_specifier(const struct __ccs_data_length_specifier *__len,
 	}
 
 	if (!has_headroom(__len, hlen + plen, endp))
-		return -ENODATA;
+		return -EANALDATA;
 
 	*__hlen = hlen;
 	*__plen = plen;
@@ -136,7 +136,7 @@ static int ccs_data_parse_version(struct bin_container *bin,
 	struct ccs_data_block_version *vv;
 
 	if (v + 1 != endp)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (!bin->base) {
 		bin_reserve(bin, sizeof(*ccsdata->version));
@@ -145,13 +145,13 @@ static int ccs_data_parse_version(struct bin_container *bin,
 
 	ccsdata->version = bin_alloc(bin, sizeof(*ccsdata->version));
 	if (!ccsdata->version)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vv = ccsdata->version;
 	vv->version_major = ((u16)v->static_data_version_major[0] << 8) +
 		v->static_data_version_major[1];
-	vv->version_minor = ((u16)v->static_data_version_minor[0] << 8) +
-		v->static_data_version_minor[1];
+	vv->version_mianalr = ((u16)v->static_data_version_mianalr[0] << 8) +
+		v->static_data_version_mianalr[1];
 	vv->date_year =  ((u16)v->year[0] << 8) + v->year[1];
 	vv->date_month = v->month;
 	vv->date_day = v->day;
@@ -164,7 +164,7 @@ static void print_ccs_data_version(struct device *dev,
 {
 	dev_dbg(dev,
 		"static data version %4.4x.%4.4x, date %4.4u-%2.2u-%2.2u\n",
-		v->version_major, v->version_minor,
+		v->version_major, v->version_mianalr,
 		v->date_year, v->date_month, v->date_day);
 }
 
@@ -180,7 +180,7 @@ static int ccs_data_block_parse_header(const struct __ccs_data_block *block,
 	int rval;
 
 	if (!is_contained(block, endp))
-		return -ENODATA;
+		return -EANALDATA;
 
 	rval = ccs_data_parse_length_specifier(&block->length, &hlen, &plen,
 					       endp);
@@ -195,7 +195,7 @@ static int ccs_data_block_parse_header(const struct __ccs_data_block *block,
 			block_id, hlen, plen);
 
 	if (!has_headroom(&block->length, hlen + plen, endp))
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (__block_id)
 		*__block_id = block_id;
@@ -221,7 +221,7 @@ static int ccs_data_parse_regs(struct bin_container *bin,
 	if (bin->base && __regs) {
 		regs = regs_base = bin_alloc(bin, sizeof(*regs) * *__num_regs);
 		if (!regs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	while (payload < endp && num_regs < INT_MAX) {
@@ -230,7 +230,7 @@ static int ccs_data_parse_regs(struct bin_container *bin,
 		const void *data;
 
 		if (!is_contained(r, endp))
-			return -ENODATA;
+			return -EANALDATA;
 
 		switch (r->reg_len >> CCS_DATA_BLOCK_REGS_SEL_SHIFT) {
 		case CCS_DATA_BLOCK_REGS_SEL_REGS:
@@ -239,7 +239,7 @@ static int ccs_data_parse_regs(struct bin_container *bin,
 			       >> CCS_DATA_BLOCK_REGS_LEN_SHIFT) + 1;
 
 			if (!is_contained_with_headroom(r, len, endp))
-				return -ENODATA;
+				return -EANALDATA;
 
 			data = r + 1;
 			break;
@@ -247,7 +247,7 @@ static int ccs_data_parse_regs(struct bin_container *bin,
 			const struct __ccs_data_block_regs2 *r2 = payload;
 
 			if (!is_contained(r2, endp))
-				return -ENODATA;
+				return -EANALDATA;
 
 			addr += ((u16)(r2->reg_len &
 				       CCS_DATA_BLOCK_REGS_2_ADDR_MASK) << 8)
@@ -256,7 +256,7 @@ static int ccs_data_parse_regs(struct bin_container *bin,
 			       >> CCS_DATA_BLOCK_REGS_2_LEN_SHIFT) + 1;
 
 			if (!is_contained_with_headroom(r2, len, endp))
-				return -ENODATA;
+				return -EANALDATA;
 
 			data = r2 + 1;
 			break;
@@ -265,13 +265,13 @@ static int ccs_data_parse_regs(struct bin_container *bin,
 			const struct __ccs_data_block_regs3 *r3 = payload;
 
 			if (!is_contained(r3, endp))
-				return -ENODATA;
+				return -EANALDATA;
 
 			addr = ((u16)r3->addr[0] << 8) + r3->addr[1];
 			len = (r3->reg_len & CCS_DATA_BLOCK_REGS_3_LEN_MASK) + 1;
 
 			if (!is_contained_with_headroom(r3, len, endp))
-				return -ENODATA;
+				return -EANALDATA;
 
 			data = r3 + 1;
 			break;
@@ -292,7 +292,7 @@ static int ccs_data_parse_regs(struct bin_container *bin,
 			regs->len = len;
 			regs->value = bin_alloc(bin, len);
 			if (!regs->value)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			memcpy(regs->value, data, len);
 			regs++;
@@ -354,13 +354,13 @@ static int ccs_data_parse_ffd(struct bin_container *bin,
 	unsigned int i;
 
 	if (!is_contained(__ffd, endp))
-		return -ENODATA;
+		return -EANALDATA;
 
 	if ((void *)__ffd + sizeof(*__ffd) +
 	    ((u32)__ffd->num_column_descs +
 	     (u32)__ffd->num_row_descs) *
 	    sizeof(struct __ccs_data_block_ffd_entry) != endp)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (!bin->base) {
 		bin_reserve(bin, sizeof(**ffd));
@@ -374,7 +374,7 @@ static int ccs_data_parse_ffd(struct bin_container *bin,
 
 	*ffd = bin_alloc(bin, sizeof(**ffd));
 	if (!*ffd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*ffd)->num_column_descs = __ffd->num_column_descs;
 	(*ffd)->num_row_descs = __ffd->num_row_descs;
@@ -383,7 +383,7 @@ static int ccs_data_parse_ffd(struct bin_container *bin,
 	(*ffd)->column_descs = bin_alloc(bin, __ffd->num_column_descs *
 					 sizeof(*(*ffd)->column_descs));
 	if (!(*ffd)->column_descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < __ffd->num_column_descs; i++, __entry++)
 		assign_ffd_entry(&(*ffd)->column_descs[i], __entry);
@@ -391,7 +391,7 @@ static int ccs_data_parse_ffd(struct bin_container *bin,
 	(*ffd)->row_descs = bin_alloc(bin, __ffd->num_row_descs *
 				      sizeof(*(*ffd)->row_descs));
 	if (!(*ffd)->row_descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < __ffd->num_row_descs; i++, __entry++)
 		assign_ffd_entry(&(*ffd)->row_descs[i], __entry);
@@ -410,14 +410,14 @@ static int ccs_data_parse_pdaf_readout(struct bin_container *bin,
 	const struct __ccs_data_block_pdaf_readout *__pdaf = payload;
 
 	if (!is_contained(__pdaf, endp))
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (!bin->base) {
 		bin_reserve(bin, sizeof(**pdaf_readout));
 	} else {
 		*pdaf_readout = bin_alloc(bin, sizeof(**pdaf_readout));
 		if (!*pdaf_readout)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		(*pdaf_readout)->pdaf_readout_info_order =
 			__pdaf->pdaf_readout_info_order;
@@ -441,7 +441,7 @@ static int ccs_data_parse_rules(struct bin_container *bin,
 		rules_base = next_rule =
 			bin_alloc(bin, sizeof(*rules) * *__num_rules);
 		if (!rules_base)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	while (__next_rule < endp) {
@@ -459,7 +459,7 @@ static int ccs_data_parse_rules(struct bin_container *bin,
 		__rule_type = __next_rule + rule_hlen;
 
 		if (!is_contained(__rule_type, endp))
-			return -ENODATA;
+			return -EANALDATA;
 
 		rule_payload = __rule_type + 1;
 		rule_plen2 = rule_plen - sizeof(*__rule_type);
@@ -474,9 +474,9 @@ static int ccs_data_parse_rules(struct bin_container *bin,
 			if (!has_headroom(__if_rules,
 					  sizeof(*__if_rules) * __num_if_rules,
 					  rule_payload + rule_plen2))
-				return -ENODATA;
+				return -EANALDATA;
 
-			/* Also check there is no extra data */
+			/* Also check there is anal extra data */
 			if (__if_rules + __num_if_rules !=
 			    rule_payload + rule_plen2)
 				return -EINVAL;
@@ -499,7 +499,7 @@ static int ccs_data_parse_rules(struct bin_container *bin,
 						    sizeof(*if_rule) *
 						    __num_if_rules);
 				if (!if_rule)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				for (i = 0; i < __num_if_rules; i++) {
 					if_rule[i].addr =
@@ -564,7 +564,7 @@ static int ccs_data_parse_rules(struct bin_container *bin,
 				break;
 			default:
 				dev_dbg(dev,
-					"Don't know how to handle rule type %u!\n",
+					"Don't kanalw how to handle rule type %u!\n",
 					*__rule_type);
 				return -EINVAL;
 			}
@@ -598,12 +598,12 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 	const u8 *__num_pixel_descs;
 
 	if (!is_contained(__pdaf, endp))
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (bin->base) {
 		*pdaf = bin_alloc(bin, sizeof(**pdaf));
 		if (!*pdaf)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		bin_reserve(bin, sizeof(**pdaf));
 	}
@@ -633,7 +633,7 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 				  sizeof(struct ccs_pdaf_pix_loc_block_desc_group) *
 				  num_block_desc_groups);
 		if (!(*pdaf)->block_desc_groups)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		bin_reserve(bin, sizeof(struct ccs_pdaf_pix_loc_block_desc_group) *
 			    num_block_desc_groups);
@@ -645,7 +645,7 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 		unsigned int j;
 
 		if (!is_contained(__bdesc_group, endp))
-			return -ENODATA;
+			return -EANALDATA;
 
 		num_block_descs =
 			((u16)__bdesc_group->num_block_descs[0] << 8) +
@@ -666,7 +666,7 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 					  sizeof(struct ccs_pdaf_pix_loc_block_desc) *
 					  num_block_descs);
 			if (!(*pdaf)->block_desc_groups[i].block_descs)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
 			bin_reserve(bin, sizeof(struct ccs_pdaf_pix_loc_block_desc) *
 				    num_block_descs);
@@ -676,7 +676,7 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 			struct ccs_pdaf_pix_loc_block_desc *bdesc;
 
 			if (!is_contained(__bdesc, endp))
-				return -ENODATA;
+				return -EANALDATA;
 
 			if (max_block_type_id <= __bdesc->block_type_id)
 				max_block_type_id = __bdesc->block_type_id + 1;
@@ -706,7 +706,7 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 				  sizeof(struct ccs_pdaf_pix_loc_pixel_desc_group) *
 				  max_block_type_id);
 		if (!(*pdaf)->pixel_desc_groups)
-			return -ENOMEM;
+			return -EANALMEM;
 		(*pdaf)->num_pixel_desc_grups = max_block_type_id;
 	} else {
 		bin_reserve(bin, sizeof(struct ccs_pdaf_pix_loc_pixel_desc_group) *
@@ -718,7 +718,7 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 		unsigned int j;
 
 		if (!is_contained(__num_pixel_descs, endp))
-			return -ENODATA;
+			return -EANALDATA;
 
 		if (bin->base) {
 			pdgroup = &(*pdaf)->pixel_desc_groups[i];
@@ -727,7 +727,7 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 					  sizeof(struct ccs_pdaf_pix_loc_pixel_desc) *
 					  *__num_pixel_descs);
 			if (!pdgroup->descs)
-				return -ENOMEM;
+				return -EANALMEM;
 			pdgroup->num_descs = *__num_pixel_descs;
 		} else {
 			bin_reserve(bin, sizeof(struct ccs_pdaf_pix_loc_pixel_desc) *
@@ -740,7 +740,7 @@ static int ccs_data_parse_pdaf(struct bin_container *bin, struct ccs_pdaf_pix_lo
 			struct ccs_pdaf_pix_loc_pixel_desc *pdesc;
 
 			if (!is_contained(__pixel_desc, endp))
-				return -ENODATA;
+				return -EANALDATA;
 
 			if (!bin->base)
 				continue;
@@ -775,7 +775,7 @@ static int ccs_data_parse_license(struct bin_container *bin,
 
 	license = bin_alloc(bin, size);
 	if (!license)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(license, payload, size);
 
@@ -793,7 +793,7 @@ static int ccs_data_parse_end(bool *end, const void *payload, const void *endp,
 	if (__end + 1 != endp) {
 		dev_dbg(dev, "Invalid end block length %u\n",
 			(unsigned int)(endp - payload));
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	*end = true;
@@ -814,7 +814,7 @@ static int __ccs_data_parse(struct bin_container *bin,
 
 	version = ccs_data_parse_format_version(block);
 	if (version != CCS_STATIC_DATA_VERSION) {
-		dev_dbg(dev, "Don't know how to handle version %u\n", version);
+		dev_dbg(dev, "Don't kanalw how to handle version %u\n", version);
 		return -EINVAL;
 	}
 
@@ -920,7 +920,7 @@ static int __ccs_data_parse(struct bin_container *bin,
 				return rval;
 			break;
 		default:
-			dev_dbg(dev, "WARNING: not handling block ID 0x%2.2x\n",
+			dev_dbg(dev, "WARNING: analt handling block ID 0x%2.2x\n",
 				block_id);
 		}
 
@@ -938,7 +938,7 @@ static int __ccs_data_parse(struct bin_container *bin,
  * @data:	CCS static data binary
  * @len:	Length of @data
  * @dev:	Device the data is related to (used for printing debug messages)
- * @verbose:	Whether to be verbose or not
+ * @verbose:	Whether to be verbose or analt
  */
 int ccs_data_parse(struct ccs_data_container *ccsdata, const void *data,
 		   size_t len, struct device *dev, bool verbose)
@@ -961,10 +961,10 @@ int ccs_data_parse(struct ccs_data_container *ccsdata, const void *data,
 	if (verbose && ccsdata->version)
 		print_ccs_data_version(dev, ccsdata->version);
 
-	if (bin.now != bin.end) {
+	if (bin.analw != bin.end) {
 		rval = -EPROTO;
-		dev_dbg(dev, "parsing mismatch; base %p; now %p; end %p\n",
-			bin.base, bin.now, bin.end);
+		dev_dbg(dev, "parsing mismatch; base %p; analw %p; end %p\n",
+			bin.base, bin.analw, bin.end);
 		goto out_free;
 	}
 

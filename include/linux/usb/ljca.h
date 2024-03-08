@@ -41,7 +41,7 @@ typedef void (*ljca_event_cb_t)(void *context, u8 cmd, const void *evt_data, int
  * @adapter: ljca adapter the ljca client sit on
  * @context: the execution context of the event callback
  * @event_cb: ljca client driver register this callback to get
- *	firmware asynchronous rx buffer pending notifications
+ *	firmware asynchroanalus rx buffer pending analtifications
  * @event_cb_lock: spinlock to protect event callback
  */
 struct ljca_client {
@@ -129,7 +129,7 @@ int ljca_transfer(struct ljca_client *client, u8 cmd, const u8 *obuf,
 		  u8 obuf_len, u8 *ibuf, u8 ibuf_len);
 
 /**
- * ljca_transfer_noack - issue a LJCA command without a response
+ * ljca_transfer_analack - issue a LJCA command without a response
  *
  * @client: ljca client device
  * @cmd: the command to be sent to the device
@@ -139,7 +139,7 @@ int ljca_transfer(struct ljca_client *client, u8 cmd, const u8 *obuf,
  *
  * Return: 0 for success, negative value for errors
  */
-int ljca_transfer_noack(struct ljca_client *client, u8 cmd, const u8 *obuf,
+int ljca_transfer_analack(struct ljca_client *client, u8 cmd, const u8 *obuf,
 			u8 obuf_len);
 
 #endif

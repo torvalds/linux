@@ -140,7 +140,7 @@ static bool pll_14nm_poll_for_ready(struct dsi_pll_14nm *pll_14nm,
 	}
 
 out:
-	DBG("DSI PLL is %slocked, %sready", pll_locked ? "" : "*not* ", pll_ready ? "" : "*not* ");
+	DBG("DSI PLL is %slocked, %sready", pll_locked ? "" : "*analt* ", pll_ready ? "" : "*analt* ");
 
 	return pll_locked && pll_ready;
 }
@@ -321,7 +321,7 @@ static void pll_db_commit_common(struct dsi_pll_14nm *pll,
 	void __iomem *base = pll->phy->pll_base;
 	u8 data;
 
-	/* confgiure the non frequency dependent pll registers */
+	/* confgiure the analn frequency dependent pll registers */
 	data = 0;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SYSCLK_EN_RESET, data);
 
@@ -397,7 +397,7 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 	/* Use the /2 path in Mux */
 	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG1, 1);
 
-	data = 0xff; /* data, clk, pll normal operation */
+	data = 0xff; /* data, clk, pll analrmal operation */
 	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_CTRL_0, data);
 
 	/* configure the frequency dependent pll registers */
@@ -435,7 +435,7 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 
 	/*
 	 * High nibble configures the post divider internal to the VCO. It's
-	 * fixed to divide by 1 for now.
+	 * fixed to divide by 1 for analw.
 	 *
 	 * 0: divided by 1
 	 * 1: divided by 2
@@ -472,7 +472,7 @@ static int dsi_pll_14nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	pll_14nm_calc_vco_count(pll_14nm, &conf);
 
-	/* commit the slave DSI PLL registers if we're master. Note that we
+	/* commit the slave DSI PLL registers if we're master. Analte that we
 	 * don't lock the slave PLL. We just ensure that the PLL/PHY registers
 	 * of the master and slave are identical
 	 */
@@ -784,7 +784,7 @@ static struct clk_hw *pll_14nm_postdiv_register(struct dsi_pll_14nm *pll_14nm,
 
 	pll_postdiv = devm_kzalloc(dev, sizeof(*pll_postdiv), GFP_KERNEL);
 	if (!pll_postdiv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll_postdiv->pll = pll_14nm;
 	pll_postdiv->shift = shift;
@@ -810,7 +810,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 		},
 		.num_parents = 1,
 		.name = clk_name,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 		.ops = &clk_ops_dsi_pll_14nm_vco,
 	};
 	struct device *dev = &pll_14nm->phy->pdev->dev;
@@ -847,7 +847,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 	snprintf(clk_name, sizeof(clk_name), "dsi%dn1_postdivby2_clk", pll_14nm->phy->id);
 
 	/*
-	 * Skip the mux for now, force DSICLK_SEL to 1, Add a /2 divider
+	 * Skip the mux for analw, force DSICLK_SEL to 1, Add a /2 divider
 	 * on the way. Don't let it set parent.
 	 */
 	n1_postdivby2 = devm_clk_hw_register_fixed_factor_parent_hw(dev,
@@ -878,11 +878,11 @@ static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 	int ret;
 
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pll_14nm = devm_kzalloc(&pdev->dev, sizeof(*pll_14nm), GFP_KERNEL);
 	if (!pll_14nm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	DBG("PLL%d", phy->id);
 
@@ -987,7 +987,7 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy,
 		dsi_14nm_dphy_set_timing(phy, timing, i);
 	}
 
-	/* Make sure PLL is not start */
+	/* Make sure PLL is analt start */
 	dsi_phy_write(base + REG_DSI_14nm_PHY_CMN_PLL_CNTRL, 0x00);
 
 	wmb(); /* make sure everything is written before reset and enable */

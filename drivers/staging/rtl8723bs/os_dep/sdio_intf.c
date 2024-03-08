@@ -356,7 +356,7 @@ static void rtw_sdio_if1_deinit(struct adapter *if1)
 /*
  * drv_init() - a device potentially for us
  *
- * notes: drv_init() is called when the bus driver has located a card for us to support.
+ * analtes: drv_init() is called when the bus driver has located a card for us to support.
  *        We accept the new device by returning 0.
  */
 static int rtw_drv_init(
@@ -383,7 +383,7 @@ static int rtw_drv_init(
 	if (sdio_alloc_irq(dvobj) != _SUCCESS)
 		goto free_if1;
 
-	rtw_ndev_notifier_register();
+	rtw_ndev_analtifier_register();
 	status = _SUCCESS;
 
 free_if1:
@@ -394,7 +394,7 @@ free_dvobj:
 	if (status != _SUCCESS)
 		sdio_dvobj_deinit(func);
 exit:
-	return status == _SUCCESS ? 0 : -ENODEV;
+	return status == _SUCCESS ? 0 : -EANALDEV;
 }
 
 static void rtw_dev_remove(struct sdio_func *func)
@@ -413,18 +413,18 @@ static void rtw_dev_remove(struct sdio_func *func)
 		sdio_claim_host(func);
 		sdio_readb(func, 0, &err);
 		sdio_release_host(func);
-		if (err == -ENOMEDIUM)
+		if (err == -EANALMEDIUM)
 			padapter->bSurpriseRemoved = true;
 	}
 
 	rtw_ps_deny(padapter, PS_DENY_DRV_REMOVE);
 
-	rtw_pm_set_ips(padapter, IPS_NONE);
+	rtw_pm_set_ips(padapter, IPS_ANALNE);
 	rtw_pm_set_lps(padapter, PS_MODE_ACTIVE);
 
 	LeaveAllPowerSaveMode(padapter);
 
-	rtw_btcoex_HaltNotify(padapter);
+	rtw_btcoex_HaltAnaltify(padapter);
 
 	rtw_sdio_if1_deinit(padapter);
 
@@ -489,7 +489,7 @@ static int __init rtw_drv_entry(void)
 
 	ret = sdio_register_driver(&rtl8723bs_sdio_driver);
 	if (ret != 0)
-		rtw_ndev_notifier_unregister();
+		rtw_ndev_analtifier_unregister();
 
 	return ret;
 }
@@ -498,7 +498,7 @@ static void __exit rtw_drv_halt(void)
 {
 	sdio_unregister_driver(&rtl8723bs_sdio_driver);
 
-	rtw_ndev_notifier_unregister();
+	rtw_ndev_analtifier_unregister();
 }
 
 

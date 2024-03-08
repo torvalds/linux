@@ -14,12 +14,12 @@
  * @IWL_MVM_DQA_AUX_QUEUE: a queue reserved for aux frames
  * @IWL_MVM_DQA_P2P_DEVICE_QUEUE: a queue reserved for P2P device frames
  * @IWL_MVM_DQA_INJECT_MONITOR_QUEUE: a queue reserved for injection using
- *	monitor mode. Note this queue is the same as the queue for P2P device
+ *	monitor mode. Analte this queue is the same as the queue for P2P device
  *	but we can't have active monitor mode along with P2P device anyway.
  * @IWL_MVM_DQA_GCAST_QUEUE: a queue reserved for P2P GO/SoftAP GCAST frames
  * @IWL_MVM_DQA_BSS_CLIENT_QUEUE: a queue reserved for BSS activity, to ensure
  *	that we are never left without the possibility to connect to an AP.
- * @IWL_MVM_DQA_MIN_MGMT_QUEUE: first TXQ in pool for MGMT and non-QOS frames.
+ * @IWL_MVM_DQA_MIN_MGMT_QUEUE: first TXQ in pool for MGMT and analn-QOS frames.
  *	Each MGMT queue is mapped to a single STA
  *	MGMT frames are frames that return true on ieee80211_is_mgmt()
  * @IWL_MVM_DQA_MAX_MGMT_QUEUE: last TXQ in pool for MGMT frames

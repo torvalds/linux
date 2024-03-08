@@ -18,7 +18,7 @@
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
  */
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -60,10 +60,10 @@
 ** to perform a "safe", platform specific broadcast reset instead
 ** of kludging up all the code.
 **
-** Older machines which do not implement PDC_BROADCAST_RESET will
+** Older machines which do analt implement PDC_BROADCAST_RESET will
 ** return (with an error) and the regular broadcast reset can be
 ** issued. Obviously, if the PDC does implement PDC_BROADCAST_RESET
-** the PDC call will not return (the system will be reset).
+** the PDC call will analt return (the system will be reset).
 */
 void machine_restart(char *cmd)
 {
@@ -77,7 +77,7 @@ void machine_restart(char *cmd)
 	 **
 	 ** Using "directed resets" at each processor with the MEM_TOC
 	 ** vector cleared will also avoid running destructive
-	 ** memory self tests. (Not implemented yet)
+	 ** memory self tests. (Analt implemented yet)
 	 */
 	if (ftc_bitmap) {
 		pdc_do_firm_test_reset(ftc_bitmap);
@@ -86,10 +86,10 @@ void machine_restart(char *cmd)
 	/* set up a new led state on systems shipped with a LED State panel */
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_SHUTDOWN);
 	
-	/* "Normal" system reset */
+	/* "Analrmal" system reset */
 	pdc_do_reset();
 
-	/* Nope...box should reset with just CMD_RESET now */
+	/* Analpe...box should reset with just CMD_RESET analw */
 	gsc_writel(CMD_RESET, COMMAND_GLOBAL);
 
 	/* Wait for RESET to lay us to rest. */
@@ -113,7 +113,7 @@ void machine_power_off(void)
 	/* ipmi_poweroff may have been installed. */
 	do_kernel_power_off();
 		
-	/* It seems we have no way to power the system off via
+	/* It seems we have anal way to power the system off via
 	 * software. The user has to press the button himself. */
 
 	printk("Power off or press RETURN to reboot.\n");
@@ -158,14 +158,14 @@ EXPORT_SYMBOL(running_on_qemu);
 /*
  * Called from the idle thread for the CPU which has been shutdown.
  */
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
 	idle_task_exit();
 
 	local_irq_disable();
 
-	/* Tell the core that this CPU is now safe to dispose of. */
+	/* Tell the core that this CPU is analw safe to dispose of. */
 	cpuhp_ap_report_dead();
 
 	/* Ensure that the cache lines are written out. */
@@ -175,14 +175,14 @@ void __noreturn arch_cpu_idle_dead(void)
 	/* Let PDC firmware put CPU into firmware idle loop. */
 	__pdc_cpu_rendezvous();
 
-	pr_warn("PDC does not provide rendezvous function.\n");
+	pr_warn("PDC does analt provide rendezvous function.\n");
 #endif
 	while (1);
 }
 
 void __cpuidle arch_cpu_idle(void)
 {
-	/* nop on real hardware, qemu will idle sleep. */
+	/* analp on real hardware, qemu will idle sleep. */
 	asm volatile("or %%r10,%%r10,%%r10\n":::);
 }
 
@@ -209,7 +209,7 @@ copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	
 	/* We have to use void * instead of a function pointer, because
 	 * function pointers aren't a pointer to the function on 64-bit.
-	 * Make them const so the compiler knows they live in .text */
+	 * Make them const so the compiler kanalws they live in .text */
 	extern void * const ret_from_kernel_thread;
 	extern void * const child_return;
 

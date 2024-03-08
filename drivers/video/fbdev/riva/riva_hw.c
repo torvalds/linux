@@ -2,23 +2,23 @@
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
-|*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
+|*     ANALTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a analnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  analtices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
-|*     NVIDIA, CORPORATION MAKES NO REPRESENTATION ABOUT THE SUITABILITY     *|
+|*     NVIDIA, CORPORATION MAKES ANAL REPRESENTATION ABOUT THE SUITABILITY     *|
 |*     OF  THIS SOURCE  CODE  FOR ANY PURPOSE.  IT IS  PROVIDED  "AS IS"     *|
 |*     WITHOUT EXPRESS OR IMPLIED WARRANTY OF ANY KIND.  NVIDIA, CORPOR-     *|
 |*     ATION DISCLAIMS ALL WARRANTIES  WITH REGARD  TO THIS SOURCE CODE,     *|
-|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGE-     *|
-|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN NO EVENT SHALL     *|
+|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, ANALNINFRINGE-     *|
+|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN ANAL EVENT SHALL     *|
 |*     NVIDIA, CORPORATION  BE LIABLE FOR ANY SPECIAL,  INDIRECT,  INCI-     *|
 |*     DENTAL, OR CONSEQUENTIAL DAMAGES,  OR ANY DAMAGES  WHATSOEVER RE-     *|
 |*     SULTING FROM LOSS OF USE,  DATA OR PROFITS,  WHETHER IN AN ACTION     *|
@@ -38,10 +38,10 @@
  \***************************************************************************/
 
 /*
- * GPL licensing note -- nVidia is allowing a liberal interpretation of
+ * GPL licensing analte -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
- * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
+ * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Analv/99 
  */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_hw.c,v 1.33 2002/08/05 20:47:06 mvojkovi Exp $ */
@@ -54,7 +54,7 @@
 #include "nv_type.h"
 
 /*
- * This file is an OS-agnostic file used to make RIVA 128 and RIVA TNT
+ * This file is an OS-aganalstic file used to make RIVA 128 and RIVA TNT
  * operate identically (except TNT has more memory and better 3D quality.
  */
 static int nv3Busy
@@ -134,7 +134,7 @@ static int ShowHideCursor
 /****************************************************************************\
 *                                                                            *
 * The video arbitration routines calculate some "magic" numbers.  Fixes      *
-* the snow seen when accessing the framebuffer without it.                   *
+* the sanalw seen when accessing the framebuffer without it.                   *
 * It just works (I hope).                                                    *
 *                                                                            *
 \****************************************************************************/
@@ -962,7 +962,7 @@ static void nv10CalcArbitration
 
   /*
           //
-          // Another concern, only for high pclks so don't do this
+          // Aanalther concern, only for high pclks so don't do this
           // with video:
           // What happens if the latency to fetch the cbs is so large that
           // fifo empties.  In that case we need to have an alternate clwm value
@@ -1205,7 +1205,7 @@ static int CalcVClock
     }
     }
 
-    /* non-zero: M/N/P/clock values assigned.  zero: error (not set) */
+    /* analn-zero: M/N/P/clock values assigned.  zero: error (analt set) */
     return (DeltaOld != 0xFFFFFFFF);
 }
 /*
@@ -1230,7 +1230,7 @@ int CalcStateExt
     /*
      * Save mode parameters.
      */
-    state->bpp    = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
+    state->bpp    = bpp;    /* this is analt bitsPerPixel, it's 8,15,16,32 */
     state->width  = width;
     state->height = height;
     /*
@@ -2195,7 +2195,7 @@ int RivaGetConfig
 )
 {
     /*
-     * Save this so future SW know whats it's dealing with.
+     * Save this so future SW kanalw whats it's dealing with.
      */
     chip->Version = RIVA_SW_VERSION;
     /*

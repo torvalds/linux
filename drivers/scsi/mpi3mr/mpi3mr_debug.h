@@ -40,8 +40,8 @@
 
 #define ioc_err(ioc, fmt, ...) \
 	pr_err("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
-#define ioc_notice(ioc, fmt, ...) \
-	pr_notice("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
+#define ioc_analtice(ioc, fmt, ...) \
+	pr_analtice("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
 #define ioc_warn(ioc, fmt, ...) \
 	pr_warn("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
 #define ioc_info(ioc, fmt, ...) \

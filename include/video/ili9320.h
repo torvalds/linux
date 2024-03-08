@@ -180,7 +180,7 @@ struct ili9320_platdata {
 
 	enum ili9320_suspend suspend;
 
-	/* set the reset line, 0 = reset asserted, 1 = normal */
+	/* set the reset line, 0 = reset asserted, 1 = analrmal */
 	void		(*reset)(unsigned int val);
 
 	unsigned short	entry_mode;

@@ -18,11 +18,11 @@
 
 /* values for pdc_chassis_lcd_info_ret_block.model: */
 #define DISPLAY_MODEL_LCD  0		/* KittyHawk LED or LCD */
-#define DISPLAY_MODEL_NONE 1		/* no LED or LCD */
+#define DISPLAY_MODEL_ANALNE 1		/* anal LED or LCD */
 #define DISPLAY_MODEL_LASI 2		/* LASI style 8 bit LED */
 #define DISPLAY_MODEL_OLD_ASP 0x7F	/* faked: ASP style 8 x 1 bit LED (only very old ASP versions) */
 
-#define LED_CMD_REG_NONE 0		/* NULL == no addr for the cmd register */
+#define LED_CMD_REG_ANALNE 0		/* NULL == anal addr for the cmd register */
 
 /* register_led_driver() */
 int register_led_driver(int model, unsigned long cmd_reg, unsigned long data_reg);

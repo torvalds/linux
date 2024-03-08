@@ -163,7 +163,7 @@
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
-#define DEV_DB_NON_PERSISTENT	0
+#define DEV_DB_ANALN_PERSISTENT	0
 #define DEV_DB_PERSISTENT	1
 
 #define QL4_ISP_REG_DISCONNECT 0xffffffffU
@@ -216,8 +216,8 @@
 #define LINK_UP_COMP_TOV		30
 
 /*
- * Note: the data structure below does not have a struct iscsi_cmd member since
- * the qla4xxx driver does not use libiscsi for SCSI I/O.
+ * Analte: the data structure below does analt have a struct iscsi_cmd member since
+ * the qla4xxx driver does analt use libiscsi for SCSI I/O.
  */
 struct qla4xxx_cmd_priv {
 	struct srb *srb;
@@ -241,7 +241,7 @@ struct srb {
 #define SRB_GOT_SENSE		BIT_4	/* sense data received. */
 	uint8_t state;		/* (1) Status flags. */
 
-#define SRB_NO_QUEUE_STATE	 0	/* Request is in between states */
+#define SRB_ANAL_QUEUE_STATE	 0	/* Request is in between states */
 #define SRB_FREE_STATE		 1
 #define SRB_ACTIVE_STATE	 3
 #define SRB_ACTIVE_TIMEOUT_STATE 4
@@ -277,7 +277,7 @@ struct mrb {
 };
 
 /*
- * Asynchronous Event Queue structure
+ * Asynchroanalus Event Queue structure
  */
 struct aen {
         uint32_t mbox_sts[MBOX_AEN_REG_COUNT];
@@ -347,7 +347,7 @@ struct ql4_tuple_ddb {
 /*
  * DDB states.
  */
-#define DDB_STATE_DEAD		0	/* We can no longer talk to
+#define DDB_STATE_DEAD		0	/* We can anal longer talk to
 					 * this device */
 #define DDB_STATE_ONLINE	1	/* Device ready to accept
 					 * commands */
@@ -387,7 +387,7 @@ struct qla4_work_evt {
 };
 
 struct ql82xx_hw_data {
-	/* Offsets for flash/nvram access (set to ~0 if not used). */
+	/* Offsets for flash/nvram access (set to ~0 if analt used). */
 	uint32_t flash_conf_off;
 	uint32_t flash_data_off;
 
@@ -570,7 +570,7 @@ struct scsi_qla_host {
 #define AF_IRQ_ATTACHED			10 /* 0x00000400 */
 #define AF_DISABLE_ACB_COMPLETE		11 /* 0x00000800 */
 #define AF_HA_REMOVAL			12 /* 0x00001000 */
-#define AF_MBOX_COMMAND_NOPOLL		18 /* 0x00040000 */
+#define AF_MBOX_COMMAND_ANALPOLL		18 /* 0x00040000 */
 #define AF_FW_RECOVERY			19 /* 0x00080000 */
 #define AF_EEH_BUSY			20 /* 0x00100000 */
 #define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
@@ -619,7 +619,7 @@ struct scsi_qla_host {
 
 	uint16_t req_q_count;
 
-	unsigned long host_no;
+	unsigned long host_anal;
 
 	/* NVRAM registers */
 	struct eeprom_data *nvram;
@@ -822,8 +822,8 @@ struct scsi_qla_host {
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
 	struct addr_ctrl_blk *saved_acb;
-	int notify_idc_comp;
-	int notify_link_up_comp;
+	int analtify_idc_comp;
+	int analtify_link_up_comp;
 	int idc_extend_tmo;
 	struct completion idc_comp;
 	struct completion link_up_comp;

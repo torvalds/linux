@@ -22,7 +22,7 @@ struct eeprom_header
 	u_int8_t  ver_maj;
 	u_int8_t  ver_min;
 	u_int8_t  num_slots;        /* number of EISA slots in system */
-	u_int16_t csum;             /* checksum, I don't know how to calculate this */
+	u_int16_t csum;             /* checksum, I don't kanalw how to calculate this */
 	u_int8_t  pad[10];
 } __attribute__ ((packed));
 
@@ -39,7 +39,7 @@ struct eeprom_eisa_slot_info
 	/* bits 0..3 are the duplicate slot id */ 
 #define HPEE_SLOT_INFO_EMBEDDED  0x10
 #define HPEE_SLOT_INFO_VIRTUAL   0x20
-#define HPEE_SLOT_INFO_NO_READID 0x40
+#define HPEE_SLOT_INFO_ANAL_READID 0x40
 #define HPEE_SLOT_INFO_DUPLICATE 0x80
 	u_int8_t slot_info;
 	
@@ -66,7 +66,7 @@ struct eeprom_eisa_slot_info
 #define HPEE_FUNCTION_INFO_CFG_FREE_FORM  0x40
 	u_int8_t  function_info;
 
-#define HPEE_FLAG_BOARD_IS_ISA		  0x01 /* flag and minor version for isa board */
+#define HPEE_FLAG_BOARD_IS_ISA		  0x01 /* flag and mianalr version for isa board */
 	u_int8_t  flags;
 	u_int8_t  pad[24];
 } __attribute__ ((packed));

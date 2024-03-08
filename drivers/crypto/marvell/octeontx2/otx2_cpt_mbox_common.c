@@ -219,7 +219,7 @@ int otx2_cpt_sync_mbox_msg(struct otx2_mbox *mbox)
 {
 	int err;
 
-	if (!otx2_mbox_nonempty(mbox, 0))
+	if (!otx2_mbox_analnempty(mbox, 0))
 		return 0;
 	otx2_mbox_msg_send(mbox, 0);
 	err = otx2_mbox_wait_for_rsp(mbox, 0);

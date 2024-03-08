@@ -69,14 +69,14 @@ static const struct reg_default wm8985_reg_defaults[] = {
 	{ 22, 0x002C },     /* R22 - EQ5 - high shelf */
 	{ 24, 0x0032 },     /* R24 - DAC Limiter 1 */
 	{ 25, 0x0000 },     /* R25 - DAC Limiter 2 */
-	{ 27, 0x0000 },     /* R27 - Notch Filter 1 */
-	{ 28, 0x0000 },     /* R28 - Notch Filter 2 */
-	{ 29, 0x0000 },     /* R29 - Notch Filter 3 */
-	{ 30, 0x0000 },     /* R30 - Notch Filter 4 */
+	{ 27, 0x0000 },     /* R27 - Analtch Filter 1 */
+	{ 28, 0x0000 },     /* R28 - Analtch Filter 2 */
+	{ 29, 0x0000 },     /* R29 - Analtch Filter 3 */
+	{ 30, 0x0000 },     /* R30 - Analtch Filter 4 */
 	{ 32, 0x0038 },     /* R32 - ALC control 1 */
 	{ 33, 0x000B },     /* R33 - ALC control 2 */
 	{ 34, 0x0032 },     /* R34 - ALC control 3 */
-	{ 35, 0x0000 },     /* R35 - Noise Gate */
+	{ 35, 0x0000 },     /* R35 - Analise Gate */
 	{ 36, 0x0008 },     /* R36 - PLL N */
 	{ 37, 0x000C },     /* R37 - PLL K 1 */
 	{ 38, 0x0093 },     /* R38 - PLL K 2 */
@@ -97,7 +97,7 @@ static const struct reg_default wm8985_reg_defaults[] = {
 	{ 54, 0x0039 },     /* R54 - LOUT2 (SPK) volume ctrl */
 	{ 55, 0x0039 },     /* R55 - ROUT2 (SPK) volume ctrl */
 	{ 56, 0x0001 },     /* R56 - OUT3 mixer ctrl */
-	{ 57, 0x0001 },     /* R57 - OUT4 (MONO) mix ctrl */
+	{ 57, 0x0001 },     /* R57 - OUT4 (MOANAL) mix ctrl */
 	{ 60, 0x0004 },     /* R60 - OUTPUT ctrl */
 	{ 61, 0x0000 },     /* R61 - BIAS CTRL */
 };
@@ -129,14 +129,14 @@ static bool wm8985_writeable(struct device *dev, unsigned int reg)
 	case WM8985_EQ5_HIGH_SHELF:
 	case WM8985_DAC_LIMITER_1:
 	case WM8985_DAC_LIMITER_2:
-	case WM8985_NOTCH_FILTER_1:
-	case WM8985_NOTCH_FILTER_2:
-	case WM8985_NOTCH_FILTER_3:
-	case WM8985_NOTCH_FILTER_4:
+	case WM8985_ANALTCH_FILTER_1:
+	case WM8985_ANALTCH_FILTER_2:
+	case WM8985_ANALTCH_FILTER_3:
+	case WM8985_ANALTCH_FILTER_4:
 	case WM8985_ALC_CONTROL_1:
 	case WM8985_ALC_CONTROL_2:
 	case WM8985_ALC_CONTROL_3:
-	case WM8985_NOISE_GATE:
+	case WM8985_ANALISE_GATE:
 	case WM8985_PLL_N:
 	case WM8985_PLL_K_1:
 	case WM8985_PLL_K_2:
@@ -157,7 +157,7 @@ static bool wm8985_writeable(struct device *dev, unsigned int reg)
 	case WM8985_LOUT2_SPK_VOLUME_CTRL:
 	case WM8985_ROUT2_SPK_VOLUME_CTRL:
 	case WM8985_OUT3_MIXER_CTRL:
-	case WM8985_OUT4_MONO_MIX_CTRL:
+	case WM8985_OUT4_MOANAL_MIX_CTRL:
 	case WM8985_OUTPUT_CTRL1:
 	case WM8985_BIAS_CTRL:
 		return true;
@@ -310,9 +310,9 @@ static const struct snd_kcontrol_new wm8985_common_snd_controls[] = {
 	SOC_SINGLE("ALC Capture Hold", WM8985_ALC_CONTROL_2, 4, 10, 0),
 	SOC_SINGLE("ALC Capture Decay", WM8985_ALC_CONTROL_3, 4, 10, 0),
 	SOC_ENUM("ALC Mode", alc_mode),
-	SOC_SINGLE("ALC Capture NG Switch", WM8985_NOISE_GATE,
+	SOC_SINGLE("ALC Capture NG Switch", WM8985_ANALISE_GATE,
 		3, 1, 0),
-	SOC_SINGLE("ALC Capture NG Threshold", WM8985_NOISE_GATE,
+	SOC_SINGLE("ALC Capture NG Threshold", WM8985_ANALISE_GATE,
 		0, 7, 1),
 
 	SOC_DOUBLE_R_TLV("Capture Volume", WM8985_LEFT_ADC_DIGITAL_VOL,
@@ -680,7 +680,7 @@ static int wm8985_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		format = 0x3;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown dai format\n");
+		dev_err(dai->dev, "Unkanalwn dai format\n");
 		return -EINVAL;
 	}
 
@@ -695,14 +695,14 @@ static int wm8985_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		master = 0;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown master/slave configuration\n");
+		dev_err(dai->dev, "Unkanalwn master/slave configuration\n");
 		return -EINVAL;
 	}
 
 	snd_soc_component_update_bits(component, WM8985_CLOCK_GEN_CONTROL,
 			    WM8985_MS_MASK, master << WM8985_MS_SHIFT);
 
-	/* frame inversion is not valid for dsp modes */
+	/* frame inversion is analt valid for dsp modes */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
@@ -732,7 +732,7 @@ static int wm8985_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		lrp = 1;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown polarity configuration\n");
+		dev_err(dai->dev, "Unkanalwn polarity configuration\n");
 		return -EINVAL;
 	}
 
@@ -827,7 +827,7 @@ static int wm8985_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (i == ARRAY_SIZE(bclk_divs)) {
-		dev_err(dai->dev, "No matching BCLK divider found\n");
+		dev_err(dai->dev, "Anal matching BCLK divider found\n");
 		return -EINVAL;
 	}
 
@@ -859,7 +859,7 @@ static int pll_factors(struct pll_div *pll_div, unsigned int target,
 	}
 
 	if (Ndiv < 6 || Ndiv > 12) {
-		printk(KERN_ERR "%s: WM8985 N value is not within"
+		printk(KERN_ERR "%s: WM8985 N value is analt within"
 		       " the recommended range: %lu\n", __func__, Ndiv);
 		return -EINVAL;
 	}
@@ -936,7 +936,7 @@ static int wm8985_set_sysclk(struct snd_soc_dai *dai,
 				    WM8985_CLKSEL_MASK, WM8985_CLKSEL);
 		break;
 	default:
-		dev_err(dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(dai->dev, "Unkanalwn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1077,7 +1077,7 @@ static const struct snd_soc_dai_ops wm8985_dai_ops = {
 	.set_fmt = wm8985_set_fmt,
 	.set_sysclk = wm8985_set_sysclk,
 	.set_pll = wm8985_set_pll,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define WM8985_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
@@ -1138,7 +1138,7 @@ static int wm8985_spi_probe(struct spi_device *spi)
 
 	wm8985 = devm_kzalloc(&spi->dev, sizeof *wm8985, GFP_KERNEL);
 	if (!wm8985)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, wm8985);
 
@@ -1176,7 +1176,7 @@ static int wm8985_i2c_probe(struct i2c_client *i2c)
 
 	wm8985 = devm_kzalloc(&i2c->dev, sizeof *wm8985, GFP_KERNEL);
 	if (!wm8985)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, wm8985);
 

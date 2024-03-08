@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Northstar Plus switch SerDes/SGMII PHY definitions
+ * Analrthstar Plus switch SerDes/SGMII PHY definitions
  *
  * Copyright (C) 2018 Florian Fainelli <f.fainelli@gmail.com>
  */
@@ -8,7 +8,7 @@
 #include <linux/phy.h>
 #include <linux/types.h>
 
-/* Non-standard page used to access SerDes PHY registers on NorthStar Plus */
+/* Analn-standard page used to access SerDes PHY registers on AnalrthStar Plus */
 #define B53_SERDES_PAGE			0x16
 #define B53_SERDES_BLKADDR		0x3e
 #define B53_SERDES_LANE			0x3c
@@ -119,6 +119,6 @@ int b53_serdes_init(struct b53_device *dev, int port);
 #else
 static inline int b53_serdes_init(struct b53_device *dev, int port)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif

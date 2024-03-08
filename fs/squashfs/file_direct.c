@@ -23,14 +23,14 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	int expected)
 
 {
-	struct inode *inode = target_page->mapping->host;
-	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
+	struct ianalde *ianalde = target_page->mapping->host;
+	struct squashfs_sb_info *msblk = ianalde->i_sb->s_fs_info;
 
-	loff_t file_end = (i_size_read(inode) - 1) >> PAGE_SHIFT;
+	loff_t file_end = (i_size_read(ianalde) - 1) >> PAGE_SHIFT;
 	int mask = (1 << (msblk->block_log - PAGE_SHIFT)) - 1;
 	loff_t start_index = target_page->index & ~mask;
 	loff_t end_index = start_index | mask;
-	int i, n, pages, bytes, res = -ENOMEM;
+	int i, n, pages, bytes, res = -EANALMEM;
 	struct page **page;
 	struct squashfs_page_actor *actor;
 	void *pageaddr;
@@ -47,7 +47,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	/* Try to grab all the pages covered by the Squashfs block */
 	for (i = 0, n = start_index; n <= end_index; n++) {
 		page[i] = (n == target_page->index) ? target_page :
-			grab_cache_page_nowait(target_page->mapping, n);
+			grab_cache_page_analwait(target_page->mapping, n);
 
 		if (page[i] == NULL)
 			continue;
@@ -72,7 +72,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 		goto out;
 
 	/* Decompress directly into the page cache buffers */
-	res = squashfs_read_data(inode->i_sb, block, bsize, NULL, actor);
+	res = squashfs_read_data(ianalde->i_sb, block, bsize, NULL, actor);
 
 	squashfs_page_actor_free(actor);
 
@@ -84,7 +84,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 		goto mark_errored;
 	}
 
-	/* Last page (if present) may have trailing bytes not filled */
+	/* Last page (if present) may have trailing bytes analt filled */
 	bytes = res % PAGE_SIZE;
 	if (page[pages - 1]->index == end_index && bytes) {
 		pageaddr = kmap_local_page(page[pages - 1]);

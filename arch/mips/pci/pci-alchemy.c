@@ -47,7 +47,7 @@ struct alchemy_pci_context {
 };
 
 /* for syscore_ops. There's only one PCI controller on Alchemy chips, so this
- * should suffice for now.
+ * should suffice for analw.
  */
 static struct alchemy_pci_context *__alchemy_pci_ctx;
 
@@ -372,27 +372,27 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 	/* need at least PCI IRQ mapping table */
 	if (!pd) {
 		dev_err(&pdev->dev, "need platform data for PCI setup\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		dev_err(&pdev->dev, "no memory for pcictl context\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "anal memory for pcictl context\n");
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no	 pcictl ctrl regs resource\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "anal	 pcictl ctrl regs resource\n");
+		ret = -EANALDEV;
 		goto out1;
 	}
 
 	if (!request_mem_region(r->start, resource_size(r), pdev->name)) {
-		dev_err(&pdev->dev, "cannot claim pci regs\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "cananalt claim pci regs\n");
+		ret = -EANALDEV;
 		goto out1;
 	}
 
@@ -405,14 +405,14 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(c);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot enable PCI clock\n");
+		dev_err(&pdev->dev, "cananalt enable PCI clock\n");
 		goto out6;
 	}
 
 	ctx->regs = ioremap(r->start, resource_size(r));
 	if (!ctx->regs) {
-		dev_err(&pdev->dev, "cannot map pci regs\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "cananalt map pci regs\n");
+		ret = -EANALDEV;
 		goto out5;
 	}
 
@@ -422,8 +422,8 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 	 */
 	virt_io = ioremap(AU1500_PCI_IO_PHYS_ADDR, 0x00100000);
 	if (!virt_io) {
-		dev_err(&pdev->dev, "cannot remap pci io space\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "cananalt remap pci io space\n");
+		ret = -EANALDEV;
 		goto out3;
 	}
 	ctx->alchemy_pci_ctrl.io_map_base = (unsigned long)virt_io;
@@ -435,7 +435,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 		val |= PCI_CONFIG_NC;
 		__raw_writel(val, ctx->regs + PCI_REG_CONFIG);
 		wmb();
-		dev_info(&pdev->dev, "non-coherent PCI on Au1500 AA/AB/AC\n");
+		dev_info(&pdev->dev, "analn-coherent PCI on Au1500 AA/AB/AC\n");
 	}
 
 	if (pd->board_map_irq)
@@ -452,7 +452,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 	ctx->alchemy_pci_ctrl.io_resource = &alchemy_pci_def_iores;
 
 	/* we can't ioremap the entire pci config space because it's too large,
-	 * nor can we dynamically ioremap it because some drivers use the
+	 * analr can we dynamically ioremap it because some drivers use the
 	 * PCI config routines from within atomic context and that becomes a
 	 * problem in get_vm_area().  Instead we use one wired TLB entry to
 	 * handle all config accesses for all busses.
@@ -460,7 +460,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 	ctx->pci_cfg_vm = get_vm_area(0x2000, VM_IOREMAP);
 	if (!ctx->pci_cfg_vm) {
 		dev_err(&pdev->dev, "unable to get vm area\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out4;
 	}
 	ctx->wired_entry = 8191;	/* impossibly high value */
@@ -468,7 +468,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 
 	set_io_port_base((unsigned long)ctx->alchemy_pci_ctrl.io_map_base);
 
-	/* board may want to modify bits in the config register, do it now */
+	/* board may want to modify bits in the config register, do it analw */
 	val = __raw_readl(ctx->regs + PCI_REG_CONFIG);
 	val &= ~pd->pci_cfg_clr;
 	val |= pd->pci_cfg_set;

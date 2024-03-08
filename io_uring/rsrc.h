@@ -6,7 +6,7 @@
 
 #include "alloc_cache.h"
 
-#define IO_NODE_ALLOC_CACHE_MAX 32
+#define IO_ANALDE_ALLOC_CACHE_MAX 32
 
 #define IO_RSRC_TAG_TABLE_SHIFT	(PAGE_SHIFT - 3)
 #define IO_RSRC_TAG_TABLE_MAX	(1U << IO_RSRC_TAG_TABLE_SHIFT)
@@ -37,7 +37,7 @@ struct io_rsrc_data {
 	bool				quiesce;
 };
 
-struct io_rsrc_node {
+struct io_rsrc_analde {
 	union {
 		struct io_cache_entry		cache;
 		struct io_ring_ctx		*ctx;
@@ -45,7 +45,7 @@ struct io_rsrc_node {
 	int				refs;
 	bool				empty;
 	u16				type;
-	struct list_head		node;
+	struct list_head		analde;
 	struct io_rsrc_put		item;
 };
 
@@ -57,9 +57,9 @@ struct io_mapped_ubuf {
 	struct bio_vec	bvec[] __counted_by(nr_bvecs);
 };
 
-void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
-void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *ref_node);
-struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);
+void io_rsrc_analde_ref_zero(struct io_rsrc_analde *analde);
+void io_rsrc_analde_destroy(struct io_ring_ctx *ctx, struct io_rsrc_analde *ref_analde);
+struct io_rsrc_analde *io_rsrc_analde_alloc(struct io_ring_ctx *ctx);
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc);
 
 int io_import_fixed(int ddir, struct iov_iter *iter,
@@ -82,41 +82,41 @@ int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
 int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 			unsigned int size, unsigned int type);
 
-static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
+static inline void io_put_rsrc_analde(struct io_ring_ctx *ctx, struct io_rsrc_analde *analde)
 {
 	lockdep_assert_held(&ctx->uring_lock);
 
-	if (node && !--node->refs)
-		io_rsrc_node_ref_zero(node);
+	if (analde && !--analde->refs)
+		io_rsrc_analde_ref_zero(analde);
 }
 
 static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
 					  struct io_ring_ctx *ctx)
 {
-	io_put_rsrc_node(ctx, req->rsrc_node);
+	io_put_rsrc_analde(ctx, req->rsrc_analde);
 }
 
-static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
-				       struct io_rsrc_node *node)
+static inline void io_charge_rsrc_analde(struct io_ring_ctx *ctx,
+				       struct io_rsrc_analde *analde)
 {
-	node->refs++;
+	analde->refs++;
 }
 
-static inline void __io_req_set_rsrc_node(struct io_kiocb *req,
+static inline void __io_req_set_rsrc_analde(struct io_kiocb *req,
 					  struct io_ring_ctx *ctx)
 {
 	lockdep_assert_held(&ctx->uring_lock);
-	req->rsrc_node = ctx->rsrc_node;
-	io_charge_rsrc_node(ctx, ctx->rsrc_node);
+	req->rsrc_analde = ctx->rsrc_analde;
+	io_charge_rsrc_analde(ctx, ctx->rsrc_analde);
 }
 
-static inline void io_req_set_rsrc_node(struct io_kiocb *req,
+static inline void io_req_set_rsrc_analde(struct io_kiocb *req,
 					struct io_ring_ctx *ctx,
 					unsigned int issue_flags)
 {
-	if (!req->rsrc_node) {
+	if (!req->rsrc_analde) {
 		io_ring_submit_lock(ctx, issue_flags);
-		__io_req_set_rsrc_node(req, ctx);
+		__io_req_set_rsrc_analde(req, ctx);
 		io_ring_submit_unlock(ctx, issue_flags);
 	}
 }
@@ -131,8 +131,8 @@ static inline u64 *io_get_tag_slot(struct io_rsrc_data *data, unsigned int idx)
 
 static inline int io_rsrc_init(struct io_ring_ctx *ctx)
 {
-	ctx->rsrc_node = io_rsrc_node_alloc(ctx);
-	return ctx->rsrc_node ? 0 : -ENOMEM;
+	ctx->rsrc_analde = io_rsrc_analde_alloc(ctx);
+	return ctx->rsrc_analde ? 0 : -EANALMEM;
 }
 
 int io_files_update(struct io_kiocb *req, unsigned int issue_flags);

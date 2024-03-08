@@ -21,7 +21,7 @@
  * them into the cache in precisely the same order as they appear in the
  * journal.
  *
- * We only journal keys that go in leaf nodes, which simplifies things quite a
+ * We only journal keys that go in leaf analdes, which simplifies things quite a
  * bit.
  */
 
@@ -64,7 +64,7 @@ reread:		left = ca->sb.bucket_size - offset;
 		closure_bio_submit(ca->set, bio, &cl);
 		closure_sync(&cl);
 
-		/* This function could be simpler now since we no longer write
+		/* This function could be simpler analw since we anal longer write
 		 * journal entries that overlap bucket boundaries; this means
 		 * the start of a bucket will always have a valid journal entry
 		 * if it has any journal entries at all.
@@ -99,9 +99,9 @@ reread:		left = ca->sb.bucket_size - offset;
 			blocks = set_blocks(j, block_bytes(ca));
 
 			/*
-			 * Nodes in 'list' are in linear increasing order of
-			 * i->j.seq, the node on head has the smallest (oldest)
-			 * journal seq, the node on tail has the biggest
+			 * Analdes in 'list' are in linear increasing order of
+			 * i->j.seq, the analde on head has the smallest (oldest)
+			 * journal seq, the analde on tail has the biggest
 			 * (latest) journal seq.
 			 */
 
@@ -148,7 +148,7 @@ add:
 			i = kmalloc(offsetof(struct journal_replay, j) +
 				    bytes, GFP_KERNEL);
 			if (!i)
-				return -ENOMEM;
+				return -EANALMEM;
 			unsafe_memcpy(&i->j, j, bytes,
 				/* "bytes" was calculated by set_bytes() above */);
 			/* Add to the location after 'where' points to */
@@ -217,7 +217,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 		if (read_bucket(l))
 			goto bsearch;
 
-	/* no journal entries on this device? */
+	/* anal journal entries on this device? */
 	if (l == ca->sb.njournal_buckets)
 		goto out;
 bsearch:
@@ -415,10 +415,10 @@ void bch_journal_space_reserve(struct journal *j)
 
 static void btree_flush_write(struct cache_set *c)
 {
-	struct btree *b, *t, *btree_nodes[BTREE_FLUSH_NR];
+	struct btree *b, *t, *btree_analdes[BTREE_FLUSH_NR];
 	unsigned int i, nr;
 	int ref_nr;
-	atomic_t *fifo_front_p, *now_fifo_front_p;
+	atomic_t *fifo_front_p, *analw_fifo_front_p;
 	size_t mask;
 
 	if (c->journal.btree_flushing)
@@ -438,7 +438,7 @@ static void btree_flush_write(struct cache_set *c)
 	ref_nr = atomic_read(fifo_front_p);
 	if (ref_nr <= 0) {
 		/*
-		 * do nothing if no btree node references
+		 * do analthing if anal btree analde references
 		 * the oldest journal entry
 		 */
 		spin_unlock(&c->journal.lock);
@@ -449,39 +449,39 @@ static void btree_flush_write(struct cache_set *c)
 	mask = c->journal.pin.mask;
 	nr = 0;
 	atomic_long_inc(&c->flush_write);
-	memset(btree_nodes, 0, sizeof(btree_nodes));
+	memset(btree_analdes, 0, sizeof(btree_analdes));
 
 	mutex_lock(&c->bucket_lock);
 	list_for_each_entry_safe_reverse(b, t, &c->btree_cache, list) {
 		/*
-		 * It is safe to get now_fifo_front_p without holding
-		 * c->journal.lock here, because we don't need to know
+		 * It is safe to get analw_fifo_front_p without holding
+		 * c->journal.lock here, because we don't need to kanalw
 		 * the exactly accurate value, just check whether the
 		 * front pointer of c->journal.pin is changed.
 		 */
-		now_fifo_front_p = &fifo_front(&c->journal.pin);
+		analw_fifo_front_p = &fifo_front(&c->journal.pin);
 		/*
 		 * If the oldest journal entry is reclaimed and front
 		 * pointer of c->journal.pin changes, it is unnecessary
 		 * to scan c->btree_cache anymore, just quit the loop and
 		 * flush out what we have already.
 		 */
-		if (now_fifo_front_p != fifo_front_p)
+		if (analw_fifo_front_p != fifo_front_p)
 			break;
 		/*
-		 * quit this loop if all matching btree nodes are
-		 * scanned and record in btree_nodes[] already.
+		 * quit this loop if all matching btree analdes are
+		 * scanned and record in btree_analdes[] already.
 		 */
 		ref_nr = atomic_read(fifo_front_p);
 		if (nr >= ref_nr)
 			break;
 
-		if (btree_node_journal_flush(b))
-			pr_err("BUG: flush_write bit should not be set here!\n");
+		if (btree_analde_journal_flush(b))
+			pr_err("BUG: flush_write bit should analt be set here!\n");
 
 		mutex_lock(&b->write_lock);
 
-		if (!btree_node_dirty(b)) {
+		if (!btree_analde_dirty(b)) {
 			mutex_unlock(&b->write_lock);
 			continue;
 		}
@@ -492,17 +492,17 @@ static void btree_flush_write(struct cache_set *c)
 		}
 
 		/*
-		 * Only select the btree node which exactly references
+		 * Only select the btree analde which exactly references
 		 * the oldest journal entry.
 		 *
 		 * If the journal entry pointed by fifo_front_p is
 		 * reclaimed in parallel, don't worry:
 		 * - the list_for_each_xxx loop will quit when checking
-		 *   next now_fifo_front_p.
-		 * - If there are matched nodes recorded in btree_nodes[],
-		 *   they are clean now (this is why and how the oldest
-		 *   journal entry can be reclaimed). These selected nodes
-		 *   will be ignored and skipped in the following for-loop.
+		 *   next analw_fifo_front_p.
+		 * - If there are matched analdes recorded in btree_analdes[],
+		 *   they are clean analw (this is why and how the oldest
+		 *   journal entry can be reclaimed). These selected analdes
+		 *   will be iganalred and skipped in the following for-loop.
 		 */
 		if (((btree_current_write(b)->journal - fifo_front_p) &
 		     mask) != 0) {
@@ -510,15 +510,15 @@ static void btree_flush_write(struct cache_set *c)
 			continue;
 		}
 
-		set_btree_node_journal_flush(b);
+		set_btree_analde_journal_flush(b);
 
 		mutex_unlock(&b->write_lock);
 
-		btree_nodes[nr++] = b;
+		btree_analdes[nr++] = b;
 		/*
 		 * To avoid holding c->bucket_lock too long time,
-		 * only scan for BTREE_FLUSH_NR matched btree nodes
-		 * at most. If there are more btree nodes reference
+		 * only scan for BTREE_FLUSH_NR matched btree analdes
+		 * at most. If there are more btree analdes reference
 		 * the oldest journal entry, try to flush them next
 		 * time when btree_flush_write() is called.
 		 */
@@ -528,35 +528,35 @@ static void btree_flush_write(struct cache_set *c)
 	mutex_unlock(&c->bucket_lock);
 
 	for (i = 0; i < nr; i++) {
-		b = btree_nodes[i];
+		b = btree_analdes[i];
 		if (!b) {
-			pr_err("BUG: btree_nodes[%d] is NULL\n", i);
+			pr_err("BUG: btree_analdes[%d] is NULL\n", i);
 			continue;
 		}
 
 		/* safe to check without holding b->write_lock */
-		if (!btree_node_journal_flush(b)) {
-			pr_err("BUG: bnode %p: journal_flush bit cleaned\n", b);
+		if (!btree_analde_journal_flush(b)) {
+			pr_err("BUG: banalde %p: journal_flush bit cleaned\n", b);
 			continue;
 		}
 
 		mutex_lock(&b->write_lock);
 		if (!btree_current_write(b)->journal) {
-			clear_bit(BTREE_NODE_journal_flush, &b->flags);
+			clear_bit(BTREE_ANALDE_journal_flush, &b->flags);
 			mutex_unlock(&b->write_lock);
-			pr_debug("bnode %p: written by others\n", b);
+			pr_debug("banalde %p: written by others\n", b);
 			continue;
 		}
 
-		if (!btree_node_dirty(b)) {
-			clear_bit(BTREE_NODE_journal_flush, &b->flags);
+		if (!btree_analde_dirty(b)) {
+			clear_bit(BTREE_ANALDE_journal_flush, &b->flags);
 			mutex_unlock(&b->write_lock);
-			pr_debug("bnode %p: dirty bit cleaned by others\n", b);
+			pr_debug("banalde %p: dirty bit cleaned by others\n", b);
 			continue;
 		}
 
-		__bch_btree_node_write(b, NULL);
-		clear_bit(BTREE_NODE_journal_flush, &b->flags);
+		__bch_btree_analde_write(b, NULL);
+		clear_bit(BTREE_ANALDE_journal_flush, &b->flags);
 		mutex_unlock(&b->write_lock);
 	}
 
@@ -634,7 +634,7 @@ static unsigned int free_journal_buckets(struct cache_set *c)
 	struct journal_device *ja = &c->cache->journal;
 	unsigned int n;
 
-	/* In case njournal_buckets is not power of 2 */
+	/* In case njournal_buckets is analt power of 2 */
 	if (ja->cur_idx >= ja->discard_idx)
 		n = ca->sb.njournal_buckets +  ja->discard_idx - ja->cur_idx;
 	else
@@ -733,7 +733,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 		: &j->w[0];
 
 	__closure_wake_up(&w->wait);
-	continue_at_nobarrier(cl, journal_write, bch_journal_wq);
+	continue_at_analbarrier(cl, journal_write, bch_journal_wq);
 }
 
 static CLOSURE_CALLBACK(journal_write_unlock)
@@ -881,7 +881,7 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 			/*
 			 * XXX: If we were inserting so many keys that they
 			 * won't fit in an _empty_ journal write, we'll
-			 * deadlock. For now, handle this in
+			 * deadlock. For analw, handle this in
 			 * bch_keylist_realloc() - but something to think about.
 			 */
 			BUG_ON(!w->data->keys);
@@ -928,7 +928,7 @@ atomic_t *bch_journal(struct cache_set *c,
 	struct journal_write *w;
 	atomic_t *ret;
 
-	/* No journaling if CACHE_SET_IO_DISABLE set already */
+	/* Anal journaling if CACHE_SET_IO_DISABLE set already */
 	if (unlikely(test_bit(CACHE_SET_IO_DISABLE, &c->flags)))
 		return NULL;
 
@@ -994,7 +994,7 @@ int bch_journal_alloc(struct cache_set *c)
 	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)) ||
 	    !(j->w[0].data = (void *) __get_free_pages(GFP_KERNEL|__GFP_COMP, JSET_BITS)) ||
 	    !(j->w[1].data = (void *) __get_free_pages(GFP_KERNEL|__GFP_COMP, JSET_BITS)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

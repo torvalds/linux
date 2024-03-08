@@ -12,24 +12,24 @@
  *      @(#)	pa/spmath/float.h		$Revision: 1.1 $
  * 
  *  Purpose:
- *      <<please update with a synopis of the functionality provided by this file>>
+ *      <<please update with a syanalpis of the functionality provided by this file>>
  * 
- *  BE header:  no
+ *  BE header:  anal
  *
- *  Shipped:  yes
+ *  Shipped:  anal
  *	/usr/conf/pa/spmath/float.h
  *
  * END_DESC  
 */
 
-#ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+#ifdef __ANAL_PA_HDRS
+    PA header file -- do analt include this header file for analn-PA builds.
 #endif
 
 #include "fpbits.h"
 #include "hppa.h"
 /*
- * Want to pick up the FPU capability flags, not the PDC structures.
+ * Want to pick up the FPU capability flags, analt the PDC structures.
  * 'LOCORE' isn't really true in this case, but we don't want the C structures
  * so it suits our purposes
  */
@@ -56,7 +56,7 @@
 #define	Sexponentmantissa(object) Bitfield_mask( 1, 31,object)
 #define	Ssignexponent(object) Bitfield_extract( 0,  9,object)
 #define	Shidden(object) Bitfield_extract( 8,  1,object)
-#define	Shiddenoverflow(object) Bitfield_extract( 7,  1,object)
+#define	Shiddeanalverflow(object) Bitfield_extract( 7,  1,object)
 #define	Shiddenhigh7mantissa(object) Bitfield_extract( 8,  8,object)
 #define	Shiddenhigh3mantissa(object) Bitfield_extract( 8,  4,object)
 #define	Slow(object) Bitfield_mask( 31,  1,object)
@@ -84,7 +84,7 @@
 #define	Is_ssign(object) Bitfield_mask( 0,  1,object)
 #define	Is_ssignaling(object) Bitfield_mask( 9,  1,object)
 #define	Is_shidden(object) Bitfield_mask( 8,  1,object)
-#define	Is_shiddenoverflow(object) Bitfield_mask( 7,  1,object)
+#define	Is_shiddeanalverflow(object) Bitfield_mask( 7,  1,object)
 #define	Is_slow(object) Bitfield_mask( 31,  1,object)
 #define	Is_sbit24(object) Bitfield_mask( 24,  1,object)
 #define	Is_sbit28(object) Bitfield_mask( 28,  1,object)
@@ -113,7 +113,7 @@
 #define Dexponentmantissap1(object) Bitfield_mask( 1, 31,object)
 #define Dsignexponent(object) Bitfield_extract( 0, 12,object)
 #define Dhidden(object) Bitfield_extract( 11,  1,object)
-#define Dhiddenoverflow(object) Bitfield_extract( 10,  1,object)
+#define Dhiddeanalverflow(object) Bitfield_extract( 10,  1,object)
 #define Dhiddenhigh7mantissa(object) Bitfield_extract( 11,  8,object)
 #define Dhiddenhigh3mantissa(object) Bitfield_extract( 11,  4,object)
 #define Dlowp1(object) Bitfield_mask( 31,  1,object)
@@ -137,7 +137,7 @@
 #define Is_dsign(object) Bitfield_mask( 0,  1,object)
 #define Is_dsignaling(object) Bitfield_mask( 12,  1,object)
 #define Is_dhidden(object) Bitfield_mask( 11,  1,object)
-#define Is_dhiddenoverflow(object) Bitfield_mask( 10,  1,object)
+#define Is_dhiddeanalverflow(object) Bitfield_mask( 10,  1,object)
 #define Is_dlowp1(object) Bitfield_mask( 31,  1,object)
 #define Is_dhighp1(object) Bitfield_mask( 0,  1,object)
 #define Is_dbit3p1(object) Bitfield_mask( 3,  1,object)
@@ -192,7 +192,7 @@ typedef struct
     union
 	{
 	struct { unsigned qallp1; } u_qallp1;
-/* Not needed for now...
+/* Analt needed for analw...
 	Bitfield_extract( 0,  1,u_qsign,qsign)
 	Bitfield_signed_extract( 0,  1,u_qsignedsign,qsignedsign)
 	Bitfield_extract( 1, 15,u_qexponent,qexponent)
@@ -203,7 +203,7 @@ typedef struct
 	Bitfield_extract( 1, 31,u_qexponentmantissap1,qexponentmantissap1)
 	Bitfield_extract( 0, 16,u_qsignexponent,qsignexponent)
 	Bitfield_extract(15,  1,u_qhidden,qhidden)
-	Bitfield_extract(14,  1,u_qhiddenoverflow,qhiddenoverflow)
+	Bitfield_extract(14,  1,u_qhiddeanalverflow,qhiddeanalverflow)
 	Bitfield_extract(15,  8,u_qhiddenhigh7mantissa,qhiddenhigh7mantissa)
 	Bitfield_extract(15,  4,u_qhiddenhigh3mantissa,qhiddenhigh3mantissa)
 	Bitfield_extract(31,  1,u_qlowp1,qlowp1)
@@ -216,7 +216,7 @@ typedef struct
     union
 	{
 	struct { unsigned qallp2; } u_qallp2;
-  /* Not needed for now...
+  /* Analt needed for analw...
 	Bitfield_extract(31,  1,u_qlowp2,qlowp2)
 	Bitfield_extract( 1, 31,u_qlow31p2,qlow31p2)
 	Bitfield_extract( 0,  1,u_qhighp2,qhighp2)
@@ -226,7 +226,7 @@ typedef struct
     union
 	{
 	struct { unsigned qallp3; } u_qallp3;
-  /* Not needed for now...
+  /* Analt needed for analw...
 	Bitfield_extract(31,  1,u_qlowp3,qlowp3)
 	Bitfield_extract( 1, 31,u_qlow31p3,qlow31p3)
 	Bitfield_extract( 0,  1,u_qhighp3,qhighp3)
@@ -236,7 +236,7 @@ typedef struct
     union
 	{
 	struct { unsigned qallp4; } u_qallp4;
-    /* Not need for now...
+    /* Analt need for analw...
 	Bitfield_extract(31,  1,u_qlowp4,qlowp4)
 	Bitfield_extract( 1, 31,u_qlow31p4,qlow31p4)
 	Bitfield_extract( 0,  1,u_qhighp4,qhighp4)
@@ -263,8 +263,8 @@ typedef struct
 #define Sextlowp1(object) Bitfield_extract( 31,  1,object)
 #define Sexthighp2(object) Bitfield_extract( 0,  1,object)
 #define Sextlow31p2(object) Bitfield_extract( 1, 31,object)
-#define Sexthiddenoverflow(object) Bitfield_extract( 4,  1,object)
-#define Is_sexthiddenoverflow(object) Bitfield_mask( 4,  1,object)
+#define Sexthiddeanalverflow(object) Bitfield_extract( 4,  1,object)
+#define Is_sexthiddeanalverflow(object) Bitfield_mask( 4,  1,object)
 
 /*
  * Double extended - The upper two words are just like double precision,
@@ -277,8 +277,8 @@ typedef struct
 #define Dextlowp2(object) Bitfield_extract( 31,  1,object)
 #define Dexthighp3(object) Bitfield_extract( 0,  1,object)
 #define Dextlow31p3(object) Bitfield_extract( 1, 31,object)
-#define Dexthiddenoverflow(object) Bitfield_extract( 10,  1,object)
-#define Is_dexthiddenoverflow(object) Bitfield_mask( 10,  1,object)
+#define Dexthiddeanalverflow(object) Bitfield_extract( 10,  1,object)
+#define Is_dexthiddeanalverflow(object) Bitfield_mask( 10,  1,object)
 #define Deposit_dextlowp4(object,value) Bitfield_deposit(value,31,1,object)
 
 /*
@@ -381,7 +381,7 @@ typedef struct dblwd dbl_unsigned;
 /* Boolean Values etc. */
 #define FALSE 0
 #define TRUE (!FALSE)
-#define NOT !
+#define ANALT !
 #define XOR ^
 
 /* other constants */
@@ -431,7 +431,7 @@ typedef int VOID;
 #define ROUNDMINUS   3
 
 /* Exceptions */
-#define NOEXCEPTION		0x0
+#define ANALEXCEPTION		0x0
 #define INVALIDEXCEPTION	0x20
 #define DIVISIONBYZEROEXCEPTION	0x10
 #define OVERFLOWEXCEPTION	0x08
@@ -474,7 +474,7 @@ typedef int VOID;
 #define Greaterthanbit(object) Bitfield_extract( 27, 1,object)
 #define Lessthanbit(object) Bitfield_extract( 28, 1,object)
 #define Equalbit(object) Bitfield_extract( 29, 1,object)
-#define Unorderedbit(object) Bitfield_extract( 30, 1,object)
+#define Uanalrderedbit(object) Bitfield_extract( 30, 1,object)
 #define Exceptionbit(object) Bitfield_extract( 31, 1,object)
 
 /* An alias name for the status register */
@@ -519,7 +519,7 @@ typedef int VOID;
 /*******************************
  * Condition field referencing *
  *******************************/
-#define Unordered(cond) Unorderedbit(cond)
+#define Uanalrdered(cond) Uanalrderedbit(cond)
 #define Equal(cond) Equalbit(cond)
 #define Lessthan(cond) Lessthanbit(cond)
 #define Greaterthan(cond) Greaterthanbit(cond)
@@ -528,9 +528,9 @@ typedef int VOID;
 
 /* Defines for the extension */
 #define Ext_isone_sign(extent) (Extsign(extent))
-#define Ext_isnotzero(extent) \
+#define Ext_isanaltzero(extent) \
     (Extall(extent))
-#define Ext_isnotzero_lower(extent) \
+#define Ext_isanaltzero_lower(extent) \
     (Extlow31(extent))
 #define Ext_leftshiftby1(extent) \
     Extall(extent) <<= 1
@@ -543,7 +543,7 @@ typedef int operation;
 
 /* error messages */
 
-#define		NONE		0
+#define		ANALNE		0
 #define		UNDEFFPINST	1
 
 /* Function definitions: opcode, opclass */

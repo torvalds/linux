@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/samsung,exynos-audss-clock.yaml#
+$id: http://devicetree.org/schemas/clock/samsung,exyanals-audss-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC Audio SubSystem clock controller
+title: Samsung Exyanals SoC Audio SubSystem clock controller
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
@@ -14,32 +14,32 @@ maintainers:
 
 description: |
   All available clocks are defined as preprocessor macros in
-  include/dt-bindings/clock/exynos-audss-clk.h header.
+  include/dt-bindings/clock/exyanals-audss-clk.h header.
 
 properties:
   compatible:
     enum:
-      - samsung,exynos4210-audss-clock
-      - samsung,exynos5250-audss-clock
-      - samsung,exynos5410-audss-clock
-      - samsung,exynos5420-audss-clock
+      - samsung,exyanals4210-audss-clock
+      - samsung,exyanals5250-audss-clock
+      - samsung,exyanals5410-audss-clock
+      - samsung,exyanals5420-audss-clock
 
   clocks:
     minItems: 2
     items:
       - description:
           Fixed rate PLL reference clock, parent of mout_audss. "fin_pll" is
-          used if not specified.
+          used if analt specified.
       - description:
           Input PLL to the AudioSS block, parent of mout_audss. "fout_epll" is
-          used if not specified.
+          used if analt specified.
       - description:
-          Audio bus clock, parent of mout_i2s. "sclk_audio0" is used if not
+          Audio bus clock, parent of mout_i2s. "sclk_audio0" is used if analt
           specified.
       - description:
-          PCM clock, parent of sclk_pcm.  "sclk_pcm0" is used if not specified.
+          PCM clock, parent of sclk_pcm.  "sclk_pcm0" is used if analt specified.
       - description:
-          External i2s clock, parent of mout_i2s. "cdclk0" is used if not
+          External i2s clock, parent of mout_i2s. "cdclk0" is used if analt
           specified.
 
   clock-names:
@@ -72,7 +72,7 @@ additionalProperties: false
 examples:
   - |
     clock-controller@3810000 {
-        compatible = "samsung,exynos5250-audss-clock";
+        compatible = "samsung,exyanals5250-audss-clock";
         reg = <0x03810000 0x0c>;
         #clock-cells = <1>;
         clocks = <&clock 1>, <&clock 7>, <&clock 138>, <&clock 160>, <&ext_i2s_clk>;

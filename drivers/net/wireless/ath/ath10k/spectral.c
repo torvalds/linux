@@ -38,7 +38,7 @@ static uint8_t get_max_exp(s8 max_index, u16 max_magnitude, size_t bin_len,
 			break;
 	}
 
-	/* max_exp not found */
+	/* max_exp analt found */
 	if (data[dc_pos + max_index] != (max_magnitude >> max_exp))
 		return 0;
 
@@ -100,7 +100,7 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 		/* TODO: As experiments with an analogue sender and various
 		 * configurations (fft-sizes of 64/128/256 and 20/40/80 Mhz)
 		 * show, the particular configuration of 80 MHz/64 bins does
-		 * not match with the other samples at all. Until the reason
+		 * analt match with the other samples at all. Until the reason
 		 * for that is found, don't report these samples.
 		 */
 		if (bin_len == 64)
@@ -131,7 +131,7 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 
 	chain_idx = MS(reg0, SEARCH_FFT_REPORT_REG0_FFT_CHN_IDX);
 
-	fft_sample->noise = __cpu_to_be16(phyerr->nf_chains[chain_idx]);
+	fft_sample->analise = __cpu_to_be16(phyerr->nf_chains[chain_idx]);
 
 	bins = (u8 *)fftr;
 	bins += sizeof(*fftr) + ar->hw_params.spectral_bin_offset;
@@ -186,7 +186,7 @@ static int ath10k_spectral_scan_trigger(struct ath10k *ar)
 
 	arvif = ath10k_get_spectral_vdev(ar);
 	if (!arvif)
-		return -ENODEV;
+		return -EANALDEV;
 	vdev_id = arvif->vdev_id;
 
 	if (ar->spectral.mode == SPECTRAL_DISABLED)
@@ -218,7 +218,7 @@ static int ath10k_spectral_scan_config(struct ath10k *ar,
 
 	arvif = ath10k_get_spectral_vdev(ar);
 	if (!arvif)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vdev_id = arvif->vdev_id;
 
@@ -248,7 +248,7 @@ static int ath10k_spectral_scan_config(struct ath10k *ar,
 	arg.scan_fft_size = ar->spectral.config.fft_size;
 	arg.scan_gc_ena = WMI_SPECTRAL_GC_ENA_DEFAULT;
 	arg.scan_restart_ena = WMI_SPECTRAL_RESTART_ENA_DEFAULT;
-	arg.scan_noise_floor_ref = WMI_SPECTRAL_NOISE_FLOOR_REF_DEFAULT;
+	arg.scan_analise_floor_ref = WMI_SPECTRAL_ANALISE_FLOOR_REF_DEFAULT;
 	arg.scan_init_delay = WMI_SPECTRAL_INIT_DELAY_DEFAULT;
 	arg.scan_nb_tone_thr = WMI_SPECTRAL_NB_TONE_THR_DEFAULT;
 	arg.scan_str_bin_thr = WMI_SPECTRAL_STR_BIN_THR_DEFAULT;

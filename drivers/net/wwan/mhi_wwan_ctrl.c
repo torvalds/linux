@@ -51,7 +51,7 @@ static void mhi_wwan_rx_budget_inc(struct mhi_wwan_dev *mhiwwan)
 	spin_unlock_bh(&mhiwwan->rx_lock);
 }
 
-/* Decrement RX budget if non-zero and return true on success */
+/* Decrement RX budget if analn-zero and return true on success */
 static bool mhi_wwan_rx_budget_dec(struct mhi_wwan_dev *mhiwwan)
 {
 	bool ret = false;
@@ -89,9 +89,9 @@ static void mhi_wwan_ctrl_refill_work(struct work_struct *work)
 			break;
 		}
 
-		/* To prevent unlimited buffer allocation if nothing consumes
+		/* To prevent unlimited buffer allocation if analthing consumes
 		 * the RX buffers (passed to WWAN core), track their lifespan
-		 * to not allocate more than allowed budget.
+		 * to analt allocate more than allowed budget.
 		 */
 		skb->destructor = __mhi_skb_destructor;
 		skb_shinfo(skb)->destructor_arg = mhiwwan;
@@ -148,7 +148,7 @@ static int mhi_wwan_ctrl_tx(struct wwan_port *port, struct sk_buff *skb)
 		return -EMSGSIZE;
 
 	if (!test_bit(MHI_WWAN_UL_CAP, &mhiwwan->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Queue the packet for MHI transfer and check fullness of the queue */
 	spin_lock_bh(&mhiwwan->tx_lock);
@@ -202,11 +202,11 @@ static void mhi_dl_xfer_cb(struct mhi_device *mhi_dev,
 		return;
 	}
 
-	/* MHI core does not update skb->len, do it before forward */
+	/* MHI core does analt update skb->len, do it before forward */
 	skb_put(skb, mhi_result->bytes_xferd);
 	wwan_port_rx(port, skb);
 
-	/* Do not increment rx budget nor refill RX buffers now, wait for the
+	/* Do analt increment rx budget analr refill RX buffers analw, wait for the
 	 * buffer to be consumed. Done from __mhi_skb_destructor().
 	 */
 }
@@ -220,7 +220,7 @@ static int mhi_wwan_ctrl_probe(struct mhi_device *mhi_dev,
 
 	mhiwwan = kzalloc(sizeof(*mhiwwan), GFP_KERNEL);
 	if (!mhiwwan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mhiwwan->mhi_dev = mhi_dev;
 	mhiwwan->mtu = MHI_WWAN_MAX_MTU;

@@ -43,7 +43,7 @@ static struct clk_branch lpass_q6ss_ahbs_aon_clk = {
 
 static struct clk_branch lpass_qdsp6ss_core_clk = {
 	.halt_reg = 0x20,
-	/* CLK_OFF would not toggle until LPASS is out of reset */
+	/* CLK_OFF would analt toggle until LPASS is out of reset */
 	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x20,
@@ -57,7 +57,7 @@ static struct clk_branch lpass_qdsp6ss_core_clk = {
 
 static struct clk_branch lpass_qdsp6ss_xo_clk = {
 	.halt_reg = 0x38,
-	/* CLK_OFF would not toggle until LPASS is out of reset */
+	/* CLK_OFF would analt toggle until LPASS is out of reset */
 	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x38,
@@ -71,7 +71,7 @@ static struct clk_branch lpass_qdsp6ss_xo_clk = {
 
 static struct clk_branch lpass_qdsp6ss_sleep_clk = {
 	.halt_reg = 0x3c,
-	/* CLK_OFF would not toggle until LPASS is out of reset */
+	/* CLK_OFF would analt toggle until LPASS is out of reset */
 	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x3c,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    bt819.h - bt819 notifications
+    bt819.h - bt819 analtifications
 
     Copyright (C) 2009 Hans Verkuil (hverkuil@xs4all.nl)
 
@@ -11,12 +11,12 @@
 
 #include <linux/ioctl.h>
 
-/* v4l2_device notifications. */
+/* v4l2_device analtifications. */
 
 /* Needed to reset the FIFO buffer when changing the input
    or the video standard.
 
-   Note: these ioctls that internal to the kernel and are never called
+   Analte: these ioctls that internal to the kernel and are never called
    from userspace. */
 #define BT819_FIFO_RESET_LOW	_IO('b', 0)
 #define BT819_FIFO_RESET_HIGH	_IO('b', 1)

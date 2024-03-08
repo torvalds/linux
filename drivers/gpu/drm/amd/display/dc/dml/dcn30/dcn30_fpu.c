@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -148,8 +148,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_0_soc = {
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 80.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 60.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 40.0,
-	.max_avg_sdp_bw_use_normal_percent = 60.0,
-	.max_avg_dram_bw_use_normal_percent = 40.0,
+	.max_avg_sdp_bw_use_analrmal_percent = 60.0,
+	.max_avg_dram_bw_use_analrmal_percent = 40.0,
 	.writeback_latency_us = 12.0,
 	.max_request_size_bytes = 256,
 	.fabric_datapath_to_dcn_data_return_bytes = 64,
@@ -197,7 +197,7 @@ void optc3_fpu_set_vrr_m_const(struct timing_generator *optc,
 	vtotal_max = dcn_bw_ceil(vtotal_avg);
 
 	/* Check that bottom VBLANK is at least 2 lines tall when running with
-	 * VTOTAL_MIN. Note that VTOTAL registers are defined as 'total number
+	 * VTOTAL_MIN. Analte that VTOTAL registers are defined as 'total number
 	 * of lines in a frame - 1'.
 	 */
 	REG_GET(OTG_V_BLANK_START_END, OTG_V_BLANK_START,
@@ -397,7 +397,7 @@ void dcn30_fpu_calculate_wm_and_dlg(
 	}
 
 	if (!pstate_en) {
-		/* only when the mclk switch can not be natural, is the fw based vblank stretch attempted */
+		/* only when the mclk switch can analt be natural, is the fw based vblank stretch attempted */
 		context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching =
 			dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(dc, context);
 
@@ -443,7 +443,7 @@ void dcn30_fpu_calculate_wm_and_dlg(
 	context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_analm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 
@@ -466,7 +466,7 @@ void dcn30_fpu_calculate_wm_and_dlg(
 	context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.d.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_analm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.d.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	*/
@@ -513,12 +513,12 @@ void dcn30_fpu_calculate_wm_and_dlg(
 	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_analm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 
 	if (!pstate_en) {
-		/* The only difference between A and C is p-state latency, if p-state is not supported we want to
+		/* The only difference between A and C is p-state latency, if p-state is analt supported we want to
 		 * calculate DLG based on dummy p-state latency, and max out the set A p-state watermark
 		 */
 		context->bw_ctx.bw.dcn.watermarks.a = context->bw_ctx.bw.dcn.watermarks.c;
@@ -536,7 +536,7 @@ void dcn30_fpu_calculate_wm_and_dlg(
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-		context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+		context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_analm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	}
@@ -565,7 +565,7 @@ void dcn30_fpu_calculate_wm_and_dlg(
 		pipe_idx++;
 	}
 
-	// WA: restrict FPO to use first non-strobe mode (NV24 BW issue)
+	// WA: restrict FPO to use first analn-strobe mode (NV24 BW issue)
 	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching &&
 			dc->dml.soc.num_chans <= 4 &&
 			context->bw_ctx.dml.vba.DRAMSpeed <= 1700 &&
@@ -621,19 +621,19 @@ void dcn30_fpu_get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
 	dc_assert_fp_enabled();
 
 	bw_from_dram1 = uclk_mts * dcn3_0_soc.num_chans *
-		dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_dram_bw_use_normal_percent / 100);
+		dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_dram_bw_use_analrmal_percent / 100);
 	bw_from_dram2 = uclk_mts * dcn3_0_soc.num_chans *
-		dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100);
+		dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_analrmal_percent / 100);
 
 	bw_from_dram = (bw_from_dram1 < bw_from_dram2) ? bw_from_dram1 : bw_from_dram2;
 
 	if (optimal_fclk)
 		*optimal_fclk = bw_from_dram /
-		(dcn3_0_soc.fabric_datapath_to_dcn_data_return_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100));
+		(dcn3_0_soc.fabric_datapath_to_dcn_data_return_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_analrmal_percent / 100));
 
 	if (optimal_dcfclk)
 		*optimal_dcfclk =  bw_from_dram /
-		(dcn3_0_soc.return_bus_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100));
+		(dcn3_0_soc.return_bus_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_analrmal_percent / 100));
 }
 
 void dcn30_fpu_update_bw_bounding_box(struct dc *dc,
@@ -660,7 +660,7 @@ void dcn30_fpu_update_bw_bounding_box(struct dc *dc,
 		dcn3_0_soc.clock_limits[i].dppclk_mhz  = dcn30_bb_max_clk->max_dppclk_mhz;
 		dcn3_0_soc.clock_limits[i].phyclk_mhz  = dcn30_bb_max_clk->max_phyclk_mhz;
 		dcn3_0_soc.clock_limits[i].dtbclk_mhz = dcn3_0_soc.clock_limits[0].dtbclk_mhz;
-		/* These clocks cannot come from bw_params, always fill from dcn3_0_soc[1] */
+		/* These clocks cananalt come from bw_params, always fill from dcn3_0_soc[1] */
 		/* FCLK, PHYCLK_D18, SOCCLK, DSCCLK */
 		dcn3_0_soc.clock_limits[i].phyclk_d18_mhz = dcn3_0_soc.clock_limits[0].phyclk_d18_mhz;
 		dcn3_0_soc.clock_limits[i].socclk_mhz = dcn3_0_soc.clock_limits[0].socclk_mhz;
@@ -714,7 +714,7 @@ int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
 	if (dummy_latency_index == max_latency_table_entries) {
 		ASSERT(dummy_latency_index != max_latency_table_entries);
 		/* If the execution gets here, it means dummy p_states are
-		 * not possible. This should never happen and would mean
+		 * analt possible. This should never happen and would mean
 		 * something is severely wrong.
 		 * Here we reset dummy_latency_index to 3, because it is
 		 * better to have underflows than system crashes.
@@ -735,7 +735,7 @@ void dcn3_fpu_build_wm_range_table(struct clk_mgr *base)
 
 	dc_assert_fp_enabled();
 
-	/* Set A - Normal - default values*/
+	/* Set A - Analrmal - default values*/
 	base->bw_params->wm_table.nv_entries[WM_A].valid = true;
 	base->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us = pstate_latency_us;
 	base->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us = sr_exit_time_us;

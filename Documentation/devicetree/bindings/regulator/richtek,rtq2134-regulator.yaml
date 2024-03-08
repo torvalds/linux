@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The RTQ2134 is a multi-phase, programmable power management IC that
-  integrates with four high efficient, synchronous step-down converter cores.
+  integrates with four high efficient, synchroanalus step-down converter cores.
 
   Datasheet is available at
   https://www.richtek.com/assets/product_file/RTQ2134-QA/DSQ2134-QA-01.pdf

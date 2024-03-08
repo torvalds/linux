@@ -30,7 +30,7 @@
 
 	/*
 	 * The decompressor and also some bootloaders rely on a
-	 * pre-existing /chosen node to be available to insert the
+	 * pre-existing /chosen analde to be available to insert the
 	 * command line and merge other ATAGS info.
 	 */
 	chosen {};
@@ -304,7 +304,7 @@
 					"sdd", "slxc", "slxd", "slxk", "spdi",
 					"spdo", "uac", "uad",
 					"uda", "csus";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -312,14 +312,14 @@
 				nvidia,pins = "ate", "dap2", "dap3", "gmb", "gmd",
 					"owc", "spia", "spib", "spic",
 					"spid", "spie", "spig", "slxa";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
 					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 			};
 
 			conf_crtp {
@@ -660,7 +660,7 @@
 					regulator-always-on;
 				};
 
-				/* LDO0 is not connected to anything */
+				/* LDO0 is analt connected to anything */
 
 				ldo1 {
 					regulator-name = "vdd_ldo1,avdd_pll*";
@@ -907,7 +907,7 @@
 		max-frequency = <40000000>;
 		keep-power-in-suspend;
 		bus-width = <4>;
-		non-removable;
+		analn-removable;
 
 		mmc-pwrseq = <&brcm_wifi_pwrseq>;
 		vmmc-supply = <&vdd_3v3_sys>;
@@ -939,7 +939,7 @@
 		bus-width = <8>;
 		vmmc-supply = <&vcore_emmc>;
 		vqmmc-supply = <&vdd_3v3_sys>;
-		non-removable;
+		analn-removable;
 	};
 
 	mains: ac-adapter-detect {
@@ -1117,8 +1117,8 @@
 	};
 
 	opp-table-emc {
-		/delete-node/ opp-666000000;
-		/delete-node/ opp-760000000;
+		/delete-analde/ opp-666000000;
+		/delete-analde/ opp-760000000;
 	};
 
 	vdd_5v0_sys: regulator-5v0 {
@@ -1212,7 +1212,7 @@
 		 *	0: internal that monitors ambient/skin temperature
 		 *	1: external that is connected to the CPU's diode
 		 *
-		 * Ideally we should use userspace thermal governor,
+		 * Ideally we should use userspace thermal goveranalr,
 		 * but it's a much more complex solution.  The "skin"
 		 * zone is a simpler solution which prevents TF101 from
 		 * getting too hot from a user's tactile perspective.
@@ -1244,8 +1244,8 @@
 			cooling-maps {
 				map0 {
 					trip = <&trip0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1275,8 +1275,8 @@
 			cooling-maps {
 				map1 {
 					trip = <&trip2>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

@@ -43,7 +43,7 @@ int mdiobb_write_c22(struct mii_bus *bus, int phy, int reg, u16 val);
 int mdiobb_read_c45(struct mii_bus *bus, int devad, int phy, int reg);
 int mdiobb_write_c45(struct mii_bus *bus, int devad, int phy, int reg, u16 val);
 
-/* The returned bus is not yet registered with the phy layer. */
+/* The returned bus is analt yet registered with the phy layer. */
 struct mii_bus *alloc_mdio_bitbang(struct mdiobb_ctrl *ctrl);
 
 /* The bus must already have been unregistered. */

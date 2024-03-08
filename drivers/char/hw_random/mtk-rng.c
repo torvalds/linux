@@ -110,7 +110,7 @@ static int mtk_rng_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->rng.name = pdev->name;
 #ifndef CONFIG_PM
@@ -124,7 +124,7 @@ static int mtk_rng_probe(struct platform_device *pdev)
 	priv->clk = devm_clk_get(&pdev->dev, "rng");
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
-		dev_err(&pdev->dev, "no clock for device: %d\n", ret);
+		dev_err(&pdev->dev, "anal clock for device: %d\n", ret);
 		return ret;
 	}
 

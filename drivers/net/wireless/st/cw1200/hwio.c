@@ -3,12 +3,12 @@
  * Low-level device IO routines for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  *
  * Based on:
  * ST-Ericsson UMAC CW1200 driver, which is
  * Copyright (c) 2010, ST-Ericsson
- * Author: Ajitpal Singh <ajitpal.singh@lockless.no>
+ * Author: Ajitpal Singh <ajitpal.singh@lockless.anal>
  */
 
 #include <linux/types.h>
@@ -35,7 +35,7 @@ static int __cw1200_reg_read(struct cw1200_common *priv, u16 addr,
 
 	/* Check if buffer is aligned to 4 byte boundary */
 	if (WARN_ON(((unsigned long)buf & 3) && (buf_len > 4))) {
-		pr_err("buffer is not aligned.\n");
+		pr_err("buffer is analt aligned.\n");
 		return -EINVAL;
 	}
 
@@ -216,7 +216,7 @@ int cw1200_indirect_read(struct cw1200_common *priv, u32 addr, void *buf,
 	}
 
 	if (val32 & prefetch) {
-		pr_err("Prefetch bit is not cleared.\n");
+		pr_err("Prefetch bit is analt cleared.\n");
 		goto out;
 	}
 

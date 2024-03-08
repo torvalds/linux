@@ -7,8 +7,8 @@
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
  * This is useful for systems with mixed controllable and
- * non-controllable regulators, as well as for allowing testing on
- * systems with no controllable regulators.
+ * analn-controllable regulators, as well as for allowing testing on
+ * systems with anal controllable regulators.
  */
 
 #ifndef _DUMMY_H

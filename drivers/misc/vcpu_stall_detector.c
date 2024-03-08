@@ -71,7 +71,7 @@ vcpu_stall_detect_timer_fn(struct hrtimer *hrtimer)
 
 	ping_timeout_ms = vcpu_stall_config.stall_timeout_sec *
 			  MSEC_PER_SEC / 2;
-	hrtimer_forward_now(hrtimer,
+	hrtimer_forward_analw(hrtimer,
 			    ms_to_ktime(ping_timeout_ms));
 
 	return HRTIMER_RESTART;
@@ -104,7 +104,7 @@ static int start_stall_detector_cpu(unsigned int cpu)
 	ping_timeout_ms = vcpu_stall_config.stall_timeout_sec *
 			  MSEC_PER_SEC / 2;
 
-	hrtimer_init(vcpu_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(vcpu_hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	vcpu_hrtimer->function = vcpu_stall_detect_timer_fn;
 	vcpu_stall_detector->is_initialized = true;
 
@@ -137,12 +137,12 @@ static int vcpu_stall_detect_probe(struct platform_device *pdev)
 	void __iomem *membase;
 	u32 clock_freq_hz = VCPU_STALL_DEFAULT_CLOCK_HZ;
 	u32 stall_timeout_sec = VCPU_STALL_DEFAULT_TIMEOUT_SEC;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	vcpu_stall_detectors = devm_alloc_percpu(&pdev->dev,
 						 typeof(struct vcpu_stall_priv));
 	if (!vcpu_stall_detectors)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	membase = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(membase)) {

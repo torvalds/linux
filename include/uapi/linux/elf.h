@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_ELF_H
 #define _UAPI_LINUX_ELF_H
 
@@ -27,7 +27,7 @@ typedef __s64	Elf64_Sxword;
 #define PT_LOAD    1
 #define PT_DYNAMIC 2
 #define PT_INTERP  3
-#define PT_NOTE    4
+#define PT_ANALTE    4
 #define PT_SHLIB   5
 #define PT_PHDR    6
 #define PT_TLS     7               /* Thread local storage segment */
@@ -56,7 +56,7 @@ typedef __s64	Elf64_Sxword;
  * Specifications are available in:
  *
  * - Oracle: Linker and Libraries.
- *   Part No: 817–1984–19, August 2011.
+ *   Part Anal: 817–1984–19, August 2011.
  *   https://docs.oracle.com/cd/E18752_01/pdf/817-1984.pdf
  *
  * - System V ABI AMD64 Architecture Processor Supplement
@@ -67,7 +67,7 @@ typedef __s64	Elf64_Sxword;
 #define PN_XNUM 0xffff
 
 /* These constants define the different elf file types */
-#define ET_NONE   0
+#define ET_ANALNE   0
 #define ET_REL    1
 #define ET_EXEC   2
 #define ET_DYN    3
@@ -125,7 +125,7 @@ typedef __s64	Elf64_Sxword;
 #define STB_GLOBAL 1
 #define STB_WEAK   2
 
-#define STT_NOTYPE  0
+#define STT_ANALTYPE  0
 #define STT_OBJECT  1
 #define STT_FUNC    2
 #define STT_SECTION 3
@@ -197,7 +197,7 @@ typedef struct elf32_sym {
 typedef struct elf64_sym {
   Elf64_Word st_name;		/* Symbol name, index in string tbl */
   unsigned char	st_info;	/* Type and binding attributes */
-  unsigned char	st_other;	/* No defined meaning, 0 */
+  unsigned char	st_other;	/* Anal defined meaning, 0 */
   Elf64_Half st_shndx;		/* Associated section index */
   Elf64_Addr st_value;		/* Value of the symbol */
   Elf64_Xword st_size;		/* Associated symbol size */
@@ -276,8 +276,8 @@ typedef struct elf64_phdr {
 #define SHT_RELA	4
 #define SHT_HASH	5
 #define SHT_DYNAMIC	6
-#define SHT_NOTE	7
-#define SHT_NOBITS	8
+#define SHT_ANALTE	7
+#define SHT_ANALBITS	8
 #define SHT_REL		9
 #define SHT_SHLIB	10
 #define SHT_DYNSYM	11
@@ -325,7 +325,7 @@ typedef struct elf64_shdr {
   Elf64_Addr sh_addr;		/* Section virtual addr at execution */
   Elf64_Off sh_offset;		/* Section file offset */
   Elf64_Xword sh_size;		/* Size of section in bytes */
-  Elf64_Word sh_link;		/* Index of another section */
+  Elf64_Word sh_link;		/* Index of aanalther section */
   Elf64_Word sh_info;		/* Additional section information */
   Elf64_Xword sh_addralign;	/* Section alignment */
   Elf64_Xword sh_entsize;	/* Entry size if section holds table */
@@ -348,31 +348,31 @@ typedef struct elf64_shdr {
 #define	ELFMAG		"\177ELF"
 #define	SELFMAG		4
 
-#define	ELFCLASSNONE	0		/* EI_CLASS */
+#define	ELFCLASSANALNE	0		/* EI_CLASS */
 #define	ELFCLASS32	1
 #define	ELFCLASS64	2
 #define	ELFCLASSNUM	3
 
-#define ELFDATANONE	0		/* e_ident[EI_DATA] */
+#define ELFDATAANALNE	0		/* e_ident[EI_DATA] */
 #define ELFDATA2LSB	1
 #define ELFDATA2MSB	2
 
-#define EV_NONE		0		/* e_version, EI_VERSION */
+#define EV_ANALNE		0		/* e_version, EI_VERSION */
 #define EV_CURRENT	1
 #define EV_NUM		2
 
-#define ELFOSABI_NONE	0
+#define ELFOSABI_ANALNE	0
 #define ELFOSABI_LINUX	3
 
 #ifndef ELF_OSABI
-#define ELF_OSABI ELFOSABI_NONE
+#define ELF_OSABI ELFOSABI_ANALNE
 #endif
 
 /*
- * Notes used in ET_CORE. Architectures export some of the arch register sets
- * using the corresponding note types via the PTRACE_GETREGSET and
+ * Analtes used in ET_CORE. Architectures export some of the arch register sets
+ * using the corresponding analte types via the PTRACE_GETREGSET and
  * PTRACE_SETREGSET requests.
- * The note name for these types is "LINUX", except NT_PRFPREG that is named
+ * The analte name for these types is "LINUX", except NT_PRFPREG that is named
  * "CORE".
  */
 #define NT_PRSTATUS	1
@@ -381,7 +381,7 @@ typedef struct elf64_shdr {
 #define NT_TASKSTRUCT	4
 #define NT_AUXV		6
 /*
- * Note to userspace developers: size of NT_SIGINFO note may increase
+ * Analte to userspace developers: size of NT_SIGINFO analte may increase
  * in the future to accomodate more fields, don't assume it is fixed!
  */
 #define NT_SIGINFO      0x53494749
@@ -419,7 +419,7 @@ typedef struct elf64_shdr {
 #define NT_S390_PREFIX	0x305		/* s390 prefix register */
 #define NT_S390_LAST_BREAK	0x306	/* s390 breaking event address */
 #define NT_S390_SYSTEM_CALL	0x307	/* s390 system call restart data */
-#define NT_S390_TDB	0x308		/* s390 transaction diagnostic block */
+#define NT_S390_TDB	0x308		/* s390 transaction diaganalstic block */
 #define NT_S390_VXRS_LOW	0x309	/* s390 vector registers 0-15 upper half */
 #define NT_S390_VXRS_HIGH	0x30a	/* s390 vector registers 16-31 */
 #define NT_S390_GS_CB	0x30b		/* s390 guarded storage registers */
@@ -441,7 +441,7 @@ typedef struct elf64_shdr {
 #define NT_ARM_ZA	0x40c		/* ARM SME ZA registers */
 #define NT_ARM_ZT	0x40d		/* ARM SME ZT registers */
 #define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
-#define NT_VMCOREDD	0x700		/* Vmcore Device Dump Note */
+#define NT_VMCOREDD	0x700		/* Vmcore Device Dump Analte */
 #define NT_MIPS_DSP	0x800		/* MIPS DSP ASE registers */
 #define NT_MIPS_FP_MODE	0x801		/* MIPS floating-point mode */
 #define NT_MIPS_MSA	0x802		/* MIPS SIMD registers */
@@ -455,24 +455,24 @@ typedef struct elf64_shdr {
 #define NT_LOONGARCH_HW_BREAK	0xa05   /* LoongArch hardware breakpoint registers */
 #define NT_LOONGARCH_HW_WATCH	0xa06   /* LoongArch hardware watchpoint registers */
 
-/* Note types with note name "GNU" */
+/* Analte types with analte name "GNU" */
 #define NT_GNU_PROPERTY_TYPE_0	5
 
-/* Note header in a PT_NOTE section */
-typedef struct elf32_note {
+/* Analte header in a PT_ANALTE section */
+typedef struct elf32_analte {
   Elf32_Word	n_namesz;	/* Name size */
   Elf32_Word	n_descsz;	/* Content size */
   Elf32_Word	n_type;		/* Content type */
 } Elf32_Nhdr;
 
-/* Note header in a PT_NOTE section */
-typedef struct elf64_note {
+/* Analte header in a PT_ANALTE section */
+typedef struct elf64_analte {
   Elf64_Word n_namesz;	/* Name size */
   Elf64_Word n_descsz;	/* Content size */
   Elf64_Word n_type;	/* Content type */
 } Elf64_Nhdr;
 
-/* .note.gnu.property types for EM_AARCH64: */
+/* .analte.gnu.property types for EM_AARCH64: */
 #define GNU_PROPERTY_AARCH64_FEATURE_1_AND	0xc0000000
 
 /* Bits for GNU_PROPERTY_AARCH64_FEATURE_1_BTI */

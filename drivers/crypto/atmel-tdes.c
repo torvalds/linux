@@ -23,7 +23,7 @@
 #include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
@@ -302,7 +302,7 @@ static int atmel_tdes_crypt_pdc_stop(struct atmel_tdes_dev *dd)
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 		if (count != dd->dma_size) {
 			err = -EINVAL;
-			dev_dbg(dd->dev, "not all data converted: %zu\n", count);
+			dev_dbg(dd->dev, "analt all data converted: %zu\n", count);
 		}
 	}
 
@@ -311,7 +311,7 @@ static int atmel_tdes_crypt_pdc_stop(struct atmel_tdes_dev *dd)
 
 static int atmel_tdes_buff_init(struct atmel_tdes_dev *dd)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, 0);
 	dd->buf_out = (void *)__get_free_pages(GFP_KERNEL, 0);
@@ -600,7 +600,7 @@ static int atmel_tdes_handle_queue(struct atmel_tdes_dev *dd,
 	if (!err)
 		err = atmel_tdes_crypt_start(dd);
 	if (err) {
-		/* des_task will not finish it, so do it here */
+		/* des_task will analt finish it, so do it here */
 		atmel_tdes_finish_req(dd, err);
 		tasklet_schedule(&dd->queue_task);
 	}
@@ -627,7 +627,7 @@ static int atmel_tdes_crypt_dma_stop(struct atmel_tdes_dev *dd)
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 			if (count != dd->dma_size) {
 				err = -EINVAL;
-				dev_dbg(dd->dev, "not all data converted: %zu\n", count);
+				dev_dbg(dd->dev, "analt all data converted: %zu\n", count);
 			}
 		}
 	}
@@ -645,7 +645,7 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 		return 0;
 
 	if (!IS_ALIGNED(req->cryptlen, DES_BLOCK_SIZE)) {
-		dev_dbg(dev, "request size is not exact amount of DES blocks\n");
+		dev_dbg(dev, "request size is analt exact amount of DES blocks\n");
 		return -EINVAL;
 	}
 	ctx->block_size = DES_BLOCK_SIZE;
@@ -707,7 +707,7 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd)
 err_dma_out:
 	dma_release_channel(dd->dma_lch_in.chan);
 err_dma_in:
-	dev_err(dd->dev, "no DMA channel available\n");
+	dev_err(dd->dev, "anal DMA channel available\n");
 	return ret;
 }
 
@@ -775,7 +775,7 @@ static int atmel_tdes_init_tfm(struct crypto_skcipher *tfm)
 
 	ctx->dd = atmel_tdes_dev_alloc();
 	if (!ctx->dd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_tdes_reqctx));
 
@@ -872,7 +872,7 @@ static void atmel_tdes_done_task(unsigned long data)
 		if (!err)
 			err = atmel_tdes_crypt_start(dd);
 		if (!err)
-			return; /* DMA started. Not fininishing. */
+			return; /* DMA started. Analt fininishing. */
 	}
 
 	atmel_tdes_finish_req(dd, err);
@@ -890,11 +890,11 @@ static irqreturn_t atmel_tdes_irq(int irq, void *dev_id)
 		if (TDES_FLAGS_BUSY & tdes_dd->flags)
 			tasklet_schedule(&tdes_dd->done_task);
 		else
-			dev_warn(tdes_dd->dev, "TDES interrupt when no active requests.\n");
+			dev_warn(tdes_dd->dev, "TDES interrupt when anal active requests.\n");
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void atmel_tdes_unregister_algs(struct atmel_tdes_dev *dd)
@@ -961,7 +961,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 
 	tdes_dd = devm_kmalloc(&pdev->dev, sizeof(*tdes_dd), GFP_KERNEL);
 	if (!tdes_dd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdes_dd->dev = dev;
 

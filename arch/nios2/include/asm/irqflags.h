@@ -13,7 +13,7 @@ static inline unsigned long arch_local_save_flags(void)
 }
 
 /*
- * This will restore ALL status register flags, not only the interrupt
+ * This will restore ALL status register flags, analt only the interrupt
  * mask flag.
  */
 static inline void arch_local_irq_restore(unsigned long flags)

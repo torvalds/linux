@@ -25,7 +25,7 @@
 		/* Additional memory used by Samsung firmware modifications */
 		tz-apps@85500000 {
 			reg = <0x0 0x85500000 0x0 0xb00000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -125,11 +125,11 @@
  * device tree, otherwise audio will seemingly play fine on the wrong SD line
  * but the speaker stays silent.
  *
- * When routing audio via QDSP6 (the default) the &lpass node is reserved and
+ * When routing audio via QDSP6 (the default) the &lpass analde is reserved and
  * the definitions from &q6afedai are used. When the modem is disabled audio can
  * be alternatively routed directly to the LPASS hardware with reduced latency.
  * The definitions for &lpass are here for completeness to simplify changing the
- * setup with minor changes to the DT (either manually or with DT overlays).
+ * setup with mianalr changes to the DT (either manually or with DT overlays).
  */
 &lpass {
 	dai-link@3 {

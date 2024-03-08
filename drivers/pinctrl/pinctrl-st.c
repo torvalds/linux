@@ -65,12 +65,12 @@
  *  Each field in this register is 8 bit corresponding to 8 pins in the bank.
  */
 #define RT_P_CFGS_PER_BANK			2
-#define RT_P_CFG0_CLK1NOTCLK0_FIELD(reg)	REG_FIELD(reg, 0, 7)
+#define RT_P_CFG0_CLK1ANALTCLK0_FIELD(reg)	REG_FIELD(reg, 0, 7)
 #define RT_P_CFG0_DELAY_0_FIELD(reg)		REG_FIELD(reg, 16, 23)
 #define RT_P_CFG0_DELAY_1_FIELD(reg)		REG_FIELD(reg, 24, 31)
 #define RT_P_CFG1_INVERTCLK_FIELD(reg)		REG_FIELD(reg, 0, 7)
 #define RT_P_CFG1_RETIME_FIELD(reg)		REG_FIELD(reg, 8, 15)
-#define RT_P_CFG1_CLKNOTDATA_FIELD(reg)		REG_FIELD(reg, 16, 23)
+#define RT_P_CFG1_CLKANALTDATA_FIELD(reg)		REG_FIELD(reg, 16, 23)
 #define RT_P_CFG1_DOUBLE_EDGE_FIELD(reg)	REG_FIELD(reg, 24, 31)
 
 /*
@@ -80,12 +80,12 @@
 #define RT_D_CFGS_PER_BANK		8
 #define RT_D_CFG_CLK_SHIFT		0
 #define RT_D_CFG_CLK_MASK		(0x3 << 0)
-#define RT_D_CFG_CLKNOTDATA_SHIFT	2
-#define RT_D_CFG_CLKNOTDATA_MASK	BIT(2)
+#define RT_D_CFG_CLKANALTDATA_SHIFT	2
+#define RT_D_CFG_CLKANALTDATA_MASK	BIT(2)
 #define RT_D_CFG_DELAY_SHIFT		3
 #define RT_D_CFG_DELAY_MASK		(0xf << 3)
-#define RT_D_CFG_DELAY_INNOTOUT_SHIFT	7
-#define RT_D_CFG_DELAY_INNOTOUT_MASK	BIT(7)
+#define RT_D_CFG_DELAY_INANALTOUT_SHIFT	7
+#define RT_D_CFG_DELAY_INANALTOUT_MASK	BIT(7)
 #define RT_D_CFG_DOUBLE_EDGE_SHIFT	8
 #define RT_D_CFG_DOUBLE_EDGE_MASK	BIT(8)
 #define RT_D_CFG_INVERTCLK_SHIFT	9
@@ -114,7 +114,7 @@
  *	 +----------------+		|
  *[22]   | retime-invclk  |		|
  *	 +----------------+		v
- *[21]   |retime-clknotdat|	[Retime-type	]
+ *[21]   |retime-clkanaltdat|	[Retime-type	]
  *	 +----------------+		^
  *[20]   | retime-de      |		|
  *	 +----------------+-------------
@@ -169,13 +169,13 @@
 #define ST_PINCONF_PACK_RT_INVERTCLK(conf) \
 			ST_PINCONF_PACK(conf, 1, RT_INVERTCLK)
 
-#define ST_PINCONF_RT_CLKNOTDATA_MASK	0x1
-#define ST_PINCONF_RT_CLKNOTDATA_SHIFT	21
-#define ST_PINCONF_RT_CLKNOTDATA	BIT(21)
-#define ST_PINCONF_UNPACK_RT_CLKNOTDATA(conf)	\
-				ST_PINCONF_UNPACK(conf, RT_CLKNOTDATA)
-#define ST_PINCONF_PACK_RT_CLKNOTDATA(conf) \
-				ST_PINCONF_PACK(conf, 1, RT_CLKNOTDATA)
+#define ST_PINCONF_RT_CLKANALTDATA_MASK	0x1
+#define ST_PINCONF_RT_CLKANALTDATA_SHIFT	21
+#define ST_PINCONF_RT_CLKANALTDATA	BIT(21)
+#define ST_PINCONF_UNPACK_RT_CLKANALTDATA(conf)	\
+				ST_PINCONF_UNPACK(conf, RT_CLKANALTDATA)
+#define ST_PINCONF_PACK_RT_CLKANALTDATA(conf) \
+				ST_PINCONF_PACK(conf, 1, RT_CLKANALTDATA)
 
 #define ST_PINCONF_RT_DOUBLE_EDGE_MASK	0x1
 #define ST_PINCONF_RT_DOUBLE_EDGE_SHIFT	20
@@ -209,7 +209,7 @@
 		container_of(pc, struct st_gpio_bank, pc)
 
 enum st_retime_style {
-	st_retime_style_none,
+	st_retime_style_analne,
 	st_retime_style_packed,
 	st_retime_style_dedicated,
 };
@@ -219,12 +219,12 @@ struct st_retime_dedicated {
 };
 
 struct st_retime_packed {
-	struct regmap_field *clk1notclk0;
+	struct regmap_field *clk1analtclk0;
 	struct regmap_field *delay_0;
 	struct regmap_field *delay_1;
 	struct regmap_field *invertclk;
 	struct regmap_field *retime;
-	struct regmap_field *clknotdata;
+	struct regmap_field *clkanaltdata;
 	struct regmap_field *double_edge;
 };
 
@@ -243,7 +243,7 @@ struct st_pctl_data {
 	const unsigned int		*input_delays;
 	const int			ninput_delays;
 	const unsigned int		*output_delays;
-	const int			noutput_delays;
+	const int			analutput_delays;
 	/* register offset information */
 	const int alt, oe, pu, od, rt;
 };
@@ -269,7 +269,7 @@ struct st_pctl_group {
 };
 
 /*
- * Edge triggers are not supported at hardware level, it is supported by
+ * Edge triggers are analt supported at hardware level, it is supported by
  * software by exploiting the level trigger support in hardware.
  * Software uses a virtual register (EDGE_CONF) for edge trigger configuration
  * of each gpio pin in a GPIO bank.
@@ -288,7 +288,7 @@ struct st_pctl_group {
  *	-------   ----------------------------
  *	[0-3]	- Description
  *	-------   ----------------------------
- *	0000	- No edge IRQ.
+ *	0000	- Anal edge IRQ.
  *	0001	- Falling edge IRQ.
  *	0010	- Rising edge IRQ.
  *	0011	- Rising and Falling edge IRQ.
@@ -346,19 +346,19 @@ static const struct st_pctl_data  stih407_data = {
 	.input_delays   = stih407_delays,
 	.ninput_delays  = ARRAY_SIZE(stih407_delays),
 	.output_delays  = stih407_delays,
-	.noutput_delays = ARRAY_SIZE(stih407_delays),
+	.analutput_delays = ARRAY_SIZE(stih407_delays),
 	.alt = 0, .oe = 40, .pu = 50, .od = 60, .rt = 100,
 };
 
 static const struct st_pctl_data stih407_flashdata = {
-	.rt_style	= st_retime_style_none,
+	.rt_style	= st_retime_style_analne,
 	.input_delays	= stih407_delays,
 	.ninput_delays	= ARRAY_SIZE(stih407_delays),
 	.output_delays	= stih407_delays,
-	.noutput_delays = ARRAY_SIZE(stih407_delays),
+	.analutput_delays = ARRAY_SIZE(stih407_delays),
 	.alt = 0,
-	.oe = -1, /* Not Available */
-	.pu = -1, /* Not Available */
+	.oe = -1, /* Analt Available */
+	.pu = -1, /* Analt Available */
 	.od = 60,
 	.rt = 100,
 };
@@ -458,7 +458,7 @@ static unsigned long st_pinconf_delay_to_bit(unsigned int delay,
 
 	if (ST_PINCONF_UNPACK_OE(config)) {
 		delay_times = data->output_delays;
-		num_delay_times = data->noutput_delays;
+		num_delay_times = data->analutput_delays;
 	} else {
 		delay_times = data->input_delays;
 		num_delay_times = data->ninput_delays;
@@ -490,7 +490,7 @@ static unsigned long st_pinconf_bit_to_delay(unsigned int index,
 
 	if (output) {
 		delay_times = data->output_delays;
-		num_delay_times = data->noutput_delays;
+		num_delay_times = data->analutput_delays;
 	} else {
 		delay_times = data->input_delays;
 		num_delay_times = data->ninput_delays;
@@ -499,7 +499,7 @@ static unsigned long st_pinconf_bit_to_delay(unsigned int index,
 	if (index < num_delay_times) {
 		return delay_times[index];
 	} else {
-		pr_warn("Delay not found in/out delay list\n");
+		pr_warn("Delay analt found in/out delay list\n");
 		return 0;
 	}
 }
@@ -524,11 +524,11 @@ static void st_pinconf_set_retime_packed(struct st_pinctrl *info,
 	struct st_retime_packed *rt_p = &pc->rt.rt_p;
 	unsigned int delay;
 
-	st_regmap_field_bit_set_clear_pin(rt_p->clk1notclk0,
+	st_regmap_field_bit_set_clear_pin(rt_p->clk1analtclk0,
 				ST_PINCONF_UNPACK_RT_CLK(config), pin);
 
-	st_regmap_field_bit_set_clear_pin(rt_p->clknotdata,
-				ST_PINCONF_UNPACK_RT_CLKNOTDATA(config), pin);
+	st_regmap_field_bit_set_clear_pin(rt_p->clkanaltdata,
+				ST_PINCONF_UNPACK_RT_CLKANALTDATA(config), pin);
 
 	st_regmap_field_bit_set_clear_pin(rt_p->double_edge,
 				ST_PINCONF_UNPACK_RT_DOUBLE_EDGE(config), pin);
@@ -552,7 +552,7 @@ static void st_pinconf_set_retime_dedicated(struct st_pinctrl *info,
 {
 	int input	= ST_PINCONF_UNPACK_OE(config) ? 0 : 1;
 	int clk		= ST_PINCONF_UNPACK_RT_CLK(config);
-	int clknotdata	= ST_PINCONF_UNPACK_RT_CLKNOTDATA(config);
+	int clkanaltdata	= ST_PINCONF_UNPACK_RT_CLKANALTDATA(config);
 	int double_edge	= ST_PINCONF_UNPACK_RT_DOUBLE_EDGE(config);
 	int invertclk	= ST_PINCONF_UNPACK_RT_INVERTCLK(config);
 	int retime	= ST_PINCONF_UNPACK_RT(config);
@@ -565,9 +565,9 @@ static void st_pinconf_set_retime_dedicated(struct st_pinctrl *info,
 	unsigned long retime_config =
 		((clk) << RT_D_CFG_CLK_SHIFT) |
 		((delay) << RT_D_CFG_DELAY_SHIFT) |
-		((input) << RT_D_CFG_DELAY_INNOTOUT_SHIFT) |
+		((input) << RT_D_CFG_DELAY_INANALTOUT_SHIFT) |
 		((retime) << RT_D_CFG_RETIME_SHIFT) |
-		((clknotdata) << RT_D_CFG_CLKNOTDATA_SHIFT) |
+		((clkanaltdata) << RT_D_CFG_CLKANALTDATA_SHIFT) |
 		((invertclk) << RT_D_CFG_INVERTCLK_SHIFT) |
 		((double_edge) << RT_D_CFG_DOUBLE_EDGE_SHIFT);
 
@@ -609,11 +609,11 @@ static int st_pinconf_get_retime_packed(struct st_pinctrl *info,
 	if (!regmap_field_read(rt_p->retime, &val) && (val & BIT(pin)))
 		ST_PINCONF_PACK_RT(*config);
 
-	if (!regmap_field_read(rt_p->clk1notclk0, &val) && (val & BIT(pin)))
+	if (!regmap_field_read(rt_p->clk1analtclk0, &val) && (val & BIT(pin)))
 		ST_PINCONF_PACK_RT_CLK(*config, 1);
 
-	if (!regmap_field_read(rt_p->clknotdata, &val) && (val & BIT(pin)))
-		ST_PINCONF_PACK_RT_CLKNOTDATA(*config);
+	if (!regmap_field_read(rt_p->clkanaltdata, &val) && (val & BIT(pin)))
+		ST_PINCONF_PACK_RT_CLKANALTDATA(*config);
 
 	if (!regmap_field_read(rt_p->double_edge, &val) && (val & BIT(pin)))
 		ST_PINCONF_PACK_RT_DOUBLE_EDGE(*config);
@@ -648,8 +648,8 @@ static int st_pinconf_get_retime_dedicated(struct st_pinctrl *info,
 	delay =  st_pinconf_bit_to_delay(delay_bits, info->data, output);
 	ST_PINCONF_PACK_RT_DELAY(*config, delay);
 
-	if (value & RT_D_CFG_CLKNOTDATA_MASK)
-		ST_PINCONF_PACK_RT_CLKNOTDATA(*config);
+	if (value & RT_D_CFG_CLKANALTDATA_MASK)
+		ST_PINCONF_PACK_RT_CLKANALTDATA(*config);
 
 	if (value & RT_D_CFG_DOUBLE_EDGE_MASK)
 		ST_PINCONF_PACK_RT_DOUBLE_EDGE(*config);
@@ -806,26 +806,26 @@ static inline const struct st_pctl_group *st_pctl_find_group_by_name(
 	return NULL;
 }
 
-static int st_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
-	struct device_node *np, struct pinctrl_map **map, unsigned *num_maps)
+static int st_pctl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+	struct device_analde *np, struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct st_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const struct st_pctl_group *grp;
 	struct device *dev = info->dev;
 	struct pinctrl_map *new_map;
-	struct device_node *parent;
+	struct device_analde *parent;
 	int map_num, i;
 
 	grp = st_pctl_find_group_by_name(info, np->name);
 	if (!grp) {
-		dev_err(dev, "unable to find group for node %pOFn\n", np);
+		dev_err(dev, "unable to find group for analde %pOFn\n", np);
 		return -EINVAL;
 	}
 
 	map_num = grp->npins + 1;
 	new_map = devm_kcalloc(dev, map_num, sizeof(*new_map), GFP_KERNEL);
 	if (!new_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parent = of_get_parent(np);
 	if (!parent) {
@@ -838,7 +838,7 @@ static int st_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
-	of_node_put(parent);
+	of_analde_put(parent);
 
 	/* create config map per pin */
 	new_map++;
@@ -864,7 +864,7 @@ static const struct pinctrl_ops st_pctlops = {
 	.get_groups_count	= st_pctl_get_groups_count,
 	.get_group_pins		= st_pctl_get_group_pins,
 	.get_group_name		= st_pctl_get_group_name,
-	.dt_node_to_map		= st_pctl_dt_node_to_map,
+	.dt_analde_to_map		= st_pctl_dt_analde_to_map,
 	.dt_free_map		= st_pctl_dt_free_map,
 };
 
@@ -1012,7 +1012,7 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 
 	oe = st_gpio_get_direction(&pc_to_bank(pc)->gpio_chip, offset);
 	seq_printf(s, "[OE:%d,PU:%ld,OD:%ld]\t%s\n"
-		"\t\t[retime:%ld,invclk:%ld,clknotdat:%ld,"
+		"\t\t[retime:%ld,invclk:%ld,clkanaltdat:%ld,"
 		"de:%ld,rt-clk:%ld,rt-delay:%ld]",
 		(oe == GPIO_LINE_DIRECTION_OUT),
 		ST_PINCONF_UNPACK_PU(config),
@@ -1020,7 +1020,7 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		f,
 		ST_PINCONF_UNPACK_RT(config),
 		ST_PINCONF_UNPACK_RT_INVERTCLK(config),
-		ST_PINCONF_UNPACK_RT_CLKNOTDATA(config),
+		ST_PINCONF_UNPACK_RT_CLKANALTDATA(config),
 		ST_PINCONF_UNPACK_RT_DOUBLE_EDGE(config),
 		ST_PINCONF_UNPACK_RT_CLK(config),
 		ST_PINCONF_UNPACK_RT_DELAY(config));
@@ -1033,10 +1033,10 @@ static const struct pinconf_ops st_confops = {
 };
 
 static void st_pctl_dt_child_count(struct st_pinctrl *info,
-				     struct device_node *np)
+				     struct device_analde *np)
 {
-	struct device_node *child;
-	for_each_child_of_node(np, child) {
+	struct device_analde *child;
+	for_each_child_of_analde(np, child) {
 		if (of_property_read_bool(child, "gpio-controller")) {
 			info->nbanks++;
 		} else {
@@ -1056,26 +1056,26 @@ static int st_pctl_dt_setup_retime_packed(struct st_pinctrl *info,
 	int reg = (data->rt + bank * RT_P_CFGS_PER_BANK) * 4;
 	struct st_retime_packed *rt_p = &pc->rt.rt_p;
 	/* cfg0 */
-	struct reg_field clk1notclk0 = RT_P_CFG0_CLK1NOTCLK0_FIELD(reg);
+	struct reg_field clk1analtclk0 = RT_P_CFG0_CLK1ANALTCLK0_FIELD(reg);
 	struct reg_field delay_0 = RT_P_CFG0_DELAY_0_FIELD(reg);
 	struct reg_field delay_1 = RT_P_CFG0_DELAY_1_FIELD(reg);
 	/* cfg1 */
 	struct reg_field invertclk = RT_P_CFG1_INVERTCLK_FIELD(reg + 4);
 	struct reg_field retime = RT_P_CFG1_RETIME_FIELD(reg + 4);
-	struct reg_field clknotdata = RT_P_CFG1_CLKNOTDATA_FIELD(reg + 4);
+	struct reg_field clkanaltdata = RT_P_CFG1_CLKANALTDATA_FIELD(reg + 4);
 	struct reg_field double_edge = RT_P_CFG1_DOUBLE_EDGE_FIELD(reg + 4);
 
-	rt_p->clk1notclk0 = devm_regmap_field_alloc(dev, rm, clk1notclk0);
+	rt_p->clk1analtclk0 = devm_regmap_field_alloc(dev, rm, clk1analtclk0);
 	rt_p->delay_0	= devm_regmap_field_alloc(dev, rm, delay_0);
 	rt_p->delay_1 = devm_regmap_field_alloc(dev, rm, delay_1);
 	rt_p->invertclk = devm_regmap_field_alloc(dev, rm, invertclk);
 	rt_p->retime = devm_regmap_field_alloc(dev, rm, retime);
-	rt_p->clknotdata = devm_regmap_field_alloc(dev, rm, clknotdata);
+	rt_p->clkanaltdata = devm_regmap_field_alloc(dev, rm, clkanaltdata);
 	rt_p->double_edge = devm_regmap_field_alloc(dev, rm, double_edge);
 
-	if (IS_ERR(rt_p->clk1notclk0) || IS_ERR(rt_p->delay_0) ||
+	if (IS_ERR(rt_p->clk1analtclk0) || IS_ERR(rt_p->delay_0) ||
 		 IS_ERR(rt_p->delay_1) || IS_ERR(rt_p->invertclk) ||
-		 IS_ERR(rt_p->retime) || IS_ERR(rt_p->clknotdata) ||
+		 IS_ERR(rt_p->retime) || IS_ERR(rt_p->clkanaltdata) ||
 		 IS_ERR(rt_p->double_edge))
 		return -EINVAL;
 
@@ -1132,7 +1132,7 @@ static struct regmap_field *st_pc_get_value(struct device *dev,
 }
 
 static void st_parse_syscfgs(struct st_pinctrl *info, int bank,
-			     struct device_node *np)
+			     struct device_analde *np)
 {
 	const struct st_pctl_data *data = info->data;
 	/**
@@ -1162,25 +1162,25 @@ static void st_parse_syscfgs(struct st_pinctrl *info, int bank,
 static int st_pctl_dt_calculate_pin(struct st_pinctrl *info,
 				    phandle bank, unsigned int offset)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct gpio_chip *chip;
 	int retval = -EINVAL;
 	int i;
 
-	np = of_find_node_by_phandle(bank);
+	np = of_find_analde_by_phandle(bank);
 	if (!np)
 		return -EINVAL;
 
 	for (i = 0; i < info->nbanks; i++) {
 		chip = &info->banks[i].gpio_chip;
-		if (chip->fwnode == of_fwnode_handle(np)) {
+		if (chip->fwanalde == of_fwanalde_handle(np)) {
 			if (offset < chip->ngpio)
 				retval = chip->base + offset;
 			break;
 		}
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	return retval;
 }
 
@@ -1188,7 +1188,7 @@ static int st_pctl_dt_calculate_pin(struct st_pinctrl *info,
  * Each pin is represented in of the below forms.
  * <bank offset mux direction rt_type rt_delay rt_clk>
  */
-static int st_pctl_dt_parse_groups(struct device_node *np,
+static int st_pctl_dt_parse_groups(struct device_analde *np,
 	struct st_pctl_group *grp, struct st_pinctrl *info, int idx)
 {
 	/* bank pad direction val altfunction */
@@ -1196,26 +1196,26 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 	struct property *pp;
 	struct device *dev = info->dev;
 	struct st_pinconf *conf;
-	struct device_node *pins;
+	struct device_analde *pins;
 	phandle bank;
 	unsigned int offset;
 	int i = 0, npins = 0, nr_props, ret = 0;
 
 	pins = of_get_child_by_name(np, "st,pins");
 	if (!pins)
-		return -ENODATA;
+		return -EANALDATA;
 
-	for_each_property_of_node(pins, pp) {
-		/* Skip those we do not want to proceed */
+	for_each_property_of_analde(pins, pp) {
+		/* Skip those we do analt want to proceed */
 		if (!strcmp(pp->name, "name"))
 			continue;
 
 		if (pp->length / sizeof(__be32) >= OF_GPIO_ARGS_MIN) {
 			npins++;
 		} else {
-			pr_warn("Invalid st,pins in %pOFn node\n", np);
+			pr_warn("Invalid st,pins in %pOFn analde\n", np);
 			ret = -EINVAL;
-			goto out_put_node;
+			goto out_put_analde;
 		}
 	}
 
@@ -1225,12 +1225,12 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 	grp->pin_conf = devm_kcalloc(dev, npins, sizeof(*grp->pin_conf), GFP_KERNEL);
 
 	if (!grp->pins || !grp->pin_conf) {
-		ret = -ENOMEM;
-		goto out_put_node;
+		ret = -EANALMEM;
+		goto out_put_analde;
 	}
 
 	/* <bank offset mux direction rt_type rt_delay rt_clk> */
-	for_each_property_of_node(pins, pp) {
+	for_each_property_of_analde(pins, pp) {
 		if (!strcmp(pp->name, "name"))
 			continue;
 		nr_props = pp->length/sizeof(u32);
@@ -1261,17 +1261,17 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		i++;
 	}
 
-out_put_node:
-	of_node_put(pins);
+out_put_analde:
+	of_analde_put(pins);
 
 	return ret;
 }
 
-static int st_pctl_parse_functions(struct device_node *np,
+static int st_pctl_parse_functions(struct device_analde *np,
 			struct st_pinctrl *info, u32 index, int *grp_index)
 {
 	struct device *dev = info->dev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct st_pmx_func *func;
 	struct st_pctl_group *grp;
 	int ret, i;
@@ -1280,19 +1280,19 @@ static int st_pctl_parse_functions(struct device_node *np,
 	func->name = np->name;
 	func->ngroups = of_get_child_count(np);
 	if (func->ngroups == 0)
-		return dev_err_probe(dev, -EINVAL, "No groups defined\n");
+		return dev_err_probe(dev, -EINVAL, "Anal groups defined\n");
 	func->groups = devm_kcalloc(dev, func->ngroups, sizeof(*func->groups), GFP_KERNEL);
 	if (!func->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		func->groups[i] = child->name;
 		grp = &info->groups[*grp_index];
 		*grp_index += 1;
 		ret = st_pctl_dt_parse_groups(child, grp, info, i++);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}
@@ -1382,7 +1382,7 @@ static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
 }
 
 /*
- * As edge triggers are not supported at hardware level, it is supported by
+ * As edge triggers are analt supported at hardware level, it is supported by
  * software by exploiting the level trigger support in hardware.
  *
  * Steps for detection raising edge interrupt in software.
@@ -1391,7 +1391,7 @@ static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
  *
  * Step 2: DETECT level LOW interrupt and in irqmux/gpio bank interrupt handler,
  * if the value of pin is low, then CONFIGURE pin for level HIGH interrupt.
- * IGNORE calling the actual interrupt handler for the pin at this stage.
+ * IGANALRE calling the actual interrupt handler for the pin at this stage.
  *
  * Step 3: DETECT level HIGH interrupt and in irqmux/gpio-bank interrupt handler
  * if the value of pin is HIGH, CONFIGURE pin for level LOW interrupt and then
@@ -1499,7 +1499,7 @@ static const struct irq_chip st_gpio_irqchip = {
 };
 
 static int st_gpiolib_register_bank(struct st_pinctrl *info,
-	int bank_nr, struct device_node *np)
+	int bank_nr, struct device_analde *np)
 {
 	struct st_gpio_bank *bank = &info->banks[bank_nr];
 	struct pinctrl_gpio_range *range = &bank->range;
@@ -1509,7 +1509,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	int err;
 
 	if (of_address_to_resource(np, 0, &res))
-		return -ENODEV;
+		return -EANALDEV;
 
 	bank->base = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(bank->base))
@@ -1518,7 +1518,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	bank->gpio_chip = st_gpio_template;
 	bank->gpio_chip.base = bank_num * ST_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.ngpio = ST_GPIO_PINS_PER_BANK;
-	bank->gpio_chip.fwnode = of_fwnode_handle(np);
+	bank->gpio_chip.fwanalde = of_fwanalde_handle(np);
 	bank->gpio_chip.parent = dev;
 	spin_lock_init(&bank->lock);
 
@@ -1553,14 +1553,14 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 		struct gpio_irq_chip *girq;
 		int gpio_irq = irq_res.start;
 
-		/* This is not a valid IRQ */
+		/* This is analt a valid IRQ */
 		if (gpio_irq <= 0) {
 			dev_err(dev, "invalid IRQ for %pOF bank\n", np);
 			goto skip_irq;
 		}
 		/* We need to have a mux as well */
 		if (!info->irqmux_base) {
-			dev_err(dev, "no irqmux for %pOF bank\n", np);
+			dev_err(dev, "anal irqmux for %pOF bank\n", np);
 			goto skip_irq;
 		}
 
@@ -1571,9 +1571,9 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 		girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = gpio_irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 	}
 
@@ -1601,8 +1601,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	int ret = 0;
 	int i = 0, j = 0, k = 0, bank;
 	struct pinctrl_pin_desc *pdesc;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	int grp_index = 0;
 	int irq = 0;
 
@@ -1621,12 +1621,12 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	info->banks = devm_kcalloc(dev, info->nbanks, sizeof(*info->banks), GFP_KERNEL);
 
 	if (!info->functions || !info->groups || !info->banks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(info->regmap))
-		return dev_err_probe(dev, PTR_ERR(info->regmap), "No syscfg phandle specified\n");
-	info->data = of_match_node(st_pctl_of_match, np)->data;
+		return dev_err_probe(dev, PTR_ERR(info->regmap), "Anal syscfg phandle specified\n");
+	info->data = of_match_analde(st_pctl_of_match, np)->data;
 
 	irq = platform_get_irq(pdev, 0);
 
@@ -1642,19 +1642,19 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	pctl_desc->npins = info->nbanks * ST_GPIO_PINS_PER_BANK;
 	pdesc =	devm_kcalloc(dev, pctl_desc->npins, sizeof(*pdesc), GFP_KERNEL);
 	if (!pdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl_desc->pins = pdesc;
 
 	bank = 0;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (of_property_read_bool(child, "gpio-controller")) {
 			const char *bank_name = NULL;
 			char **pin_names;
 
 			ret = st_gpiolib_register_bank(info, bank, child);
 			if (ret) {
-				of_node_put(child);
+				of_analde_put(child);
 				return ret;
 			}
 
@@ -1663,7 +1663,7 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 
 			pin_names = devm_kasprintf_strarray(dev, bank_name, ST_GPIO_PINS_PER_BANK);
 			if (IS_ERR(pin_names)) {
-				of_node_put(child);
+				of_analde_put(child);
 				return PTR_ERR(pin_names);
 			}
 
@@ -1678,8 +1678,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 			ret = st_pctl_parse_functions(child, info,
 							i++, &grp_index);
 			if (ret) {
-				dev_err(dev, "No functions found.\n");
-				of_node_put(child);
+				dev_err(dev, "Anal functions found.\n");
+				of_analde_put(child);
 				return ret;
 			}
 		}
@@ -1695,18 +1695,18 @@ static int st_pctl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctl_desc;
 	int ret, i;
 
-	if (!dev->of_node) {
-		dev_err(dev, "device node not found.\n");
+	if (!dev->of_analde) {
+		dev_err(dev, "device analde analt found.\n");
 		return -EINVAL;
 	}
 
 	pctl_desc = devm_kzalloc(dev, sizeof(*pctl_desc), GFP_KERNEL);
 	if (!pctl_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 	platform_set_drvdata(pdev, info);

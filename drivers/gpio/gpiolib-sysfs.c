@@ -22,9 +22,9 @@
 #include "gpiolib.h"
 #include "gpiolib-sysfs.h"
 
-struct kernfs_node;
+struct kernfs_analde;
 
-#define GPIO_IRQF_TRIGGER_NONE		0
+#define GPIO_IRQF_TRIGGER_ANALNE		0
 #define GPIO_IRQF_TRIGGER_FALLING	BIT(0)
 #define GPIO_IRQF_TRIGGER_RISING	BIT(1)
 #define GPIO_IRQF_TRIGGER_BOTH		(GPIO_IRQF_TRIGGER_FALLING | \
@@ -34,7 +34,7 @@ struct gpiod_data {
 	struct gpio_desc *desc;
 
 	struct mutex mutex;
-	struct kernfs_node *value_kn;
+	struct kernfs_analde *value_kn;
 	int irq;
 	unsigned char irq_flags;
 
@@ -56,14 +56,14 @@ static DEFINE_MUTEX(sysfs_lock);
  *        output value as specified ("out" implies "low")
  *   /value
  *      * always readable, subject to hardware behavior
- *      * may be writable, as zero/nonzero
+ *      * may be writable, as zero/analnzero
  *   /edge
  *      * configures behavior of poll(2) on /value
  *      * available only if pin can generate IRQs on input
- *      * is read/write as "none", "falling", "rising", or "both"
+ *      * is read/write as "analne", "falling", "rising", or "both"
  *   /active_low
  *      * configures polarity of /value
- *      * is read/write as zero/nonzero
+ *      * is read/write as zero/analnzero
  *      * also affects existing and subsequent "falling" and "rising"
  *        /edge configuration
  */
@@ -157,7 +157,7 @@ static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
 	struct gpiod_data *data = priv;
 
-	sysfs_notify_dirent(data->value_kn);
+	sysfs_analtify_dirent(data->value_kn);
 
 	return IRQ_HANDLED;
 }
@@ -176,7 +176,7 @@ static int gpio_sysfs_request_irq(struct device *dev, unsigned char flags)
 
 	data->value_kn = sysfs_get_dirent(dev->kobj.sd, "value");
 	if (!data->value_kn)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq_flags = IRQF_SHARED;
 	if (flags & GPIO_IRQF_TRIGGER_FALLING)
@@ -231,7 +231,7 @@ static void gpio_sysfs_free_irq(struct device *dev)
 }
 
 static const char * const trigger_names[] = {
-	[GPIO_IRQF_TRIGGER_NONE]	= "none",
+	[GPIO_IRQF_TRIGGER_ANALNE]	= "analne",
 	[GPIO_IRQF_TRIGGER_FALLING]	= "falling",
 	[GPIO_IRQF_TRIGGER_RISING]	= "rising",
 	[GPIO_IRQF_TRIGGER_BOTH]	= "both",
@@ -464,7 +464,7 @@ static ssize_t export_store(const struct class *class,
 		return -EINVAL;
 	}
 
-	/* No extra locking here; FLAG_SYSFS just signifies that the
+	/* Anal extra locking here; FLAG_SYSFS just signifies that the
 	 * request and export were done by on behalf of userspace, so
 	 * they may be undone on its behalf too.
 	 */
@@ -505,7 +505,7 @@ static ssize_t unexport_store(const struct class *class,
 		goto done;
 
 	desc = gpio_to_desc(gpio);
-	/* reject bogus commands (gpiod_unexport() ignores them) */
+	/* reject bogus commands (gpiod_unexport() iganalres them) */
 	if (!desc) {
 		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
 		return -EINVAL;
@@ -513,7 +513,7 @@ static ssize_t unexport_store(const struct class *class,
 
 	status = -EINVAL;
 
-	/* No extra locking here; FLAG_SYSFS just signifies that the
+	/* Anal extra locking here; FLAG_SYSFS just signifies that the
 	 * request and export were done by on behalf of userspace, so
 	 * they may be undone on its behalf too.
 	 */
@@ -570,7 +570,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	/* can't export until sysfs is available ... */
 	if (!class_is_registered(&gpio_class)) {
 		pr_debug("%s: called too early!\n", __func__);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!desc) {
@@ -585,7 +585,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 
 	/* check if chip is being removed */
 	if (!chip || !gdev->mockdev) {
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -604,7 +604,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -649,13 +649,13 @@ static int match_export(struct device *dev, const void *desc)
 }
 
 /**
- * gpiod_export_link - create a sysfs link to an exported GPIO node
+ * gpiod_export_link - create a sysfs link to an exported GPIO analde
  * @dev: device under which to create symlink
  * @name: name of the symlink
  * @desc: GPIO to create symlink to, already exported
  *
  * Set up a symlink from /sys/.../dev/name to /sys/class/gpio/gpioN
- * node. Caller is responsible for unlinking.
+ * analde. Caller is responsible for unlinking.
  *
  * Returns zero on success, else an error.
  */
@@ -672,7 +672,7 @@ int gpiod_export_link(struct device *dev, const char *name,
 
 	cdev = class_find_device(&gpio_class, NULL, desc, match_export);
 	if (!cdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = sysfs_create_link(&dev->kobj, &cdev->kobj, name);
 	put_device(cdev);
@@ -754,7 +754,7 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	else
 		parent = &gdev->dev;
 
-	/* use chip->base for the ID; it's already known to be unique */
+	/* use chip->base for the ID; it's already kanalwn to be unique */
 	dev = device_create_with_groups(&gpio_class, parent, MKDEV(0, 0), chip,
 					gpiochip_groups, GPIOCHIP_NAME "%d",
 					chip->base);
@@ -803,7 +803,7 @@ static int __init gpiolib_sysfs_init(void)
 	/* Scan and register the gpio_chips which registered very
 	 * early (e.g. before the class_register above was called).
 	 *
-	 * We run before arch_initcall() so chip->dev nodes can have
+	 * We run before arch_initcall() so chip->dev analdes can have
 	 * registered, and so arch_initcall() can always gpiod_export().
 	 */
 	spin_lock_irqsave(&gpio_lock, flags);

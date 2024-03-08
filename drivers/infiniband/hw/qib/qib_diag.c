@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -33,12 +33,12 @@
  */
 
 /*
- * This file contains support for diagnostic functions.  It is accessed by
- * opening the qib_diag device, normally minor number 129.  Diagnostic use
+ * This file contains support for diaganalstic functions.  It is accessed by
+ * opening the qib_diag device, analrmally mianalr number 129.  Diaganalstic use
  * of the QLogic_IB chip may render the chip or board unusable until the
  * driver is unloaded, or in some cases, until the system is rebooted.
  *
- * Accesses to the chip through this interface are not similar to going
+ * Accesses to the chip through this interface are analt similar to going
  * through the /sys/bus/pci resource mmap interface.
  */
 
@@ -63,7 +63,7 @@
  */
 enum diag_state { UNUSED = 0, OPENED, INIT, READY };
 
-/* State for an individual client. PID so children cannot abuse handshake */
+/* State for an individual client. PID so children cananalt abuse handshake */
 static struct qib_diag_client {
 	struct qib_diag_client *next;
 	struct qib_devdata *dd;
@@ -84,7 +84,7 @@ static struct qib_diag_client *get_client(struct qib_devdata *dd)
 		/* got from pool remove it and use */
 		client_pool = dc->next;
 	else
-		/* None in pool, alloc and init */
+		/* Analne in pool, alloc and init */
 		dc = kmalloc(sizeof(*dc), GFP_KERNEL);
 
 	if (dc) {
@@ -128,8 +128,8 @@ static void return_client(struct qib_diag_client *dc)
 	}
 }
 
-static int qib_diag_open(struct inode *in, struct file *fp);
-static int qib_diag_release(struct inode *in, struct file *fp);
+static int qib_diag_open(struct ianalde *in, struct file *fp);
+static int qib_diag_release(struct ianalde *in, struct file *fp);
 static ssize_t qib_diag_read(struct file *fp, char __user *data,
 			     size_t count, loff_t *off);
 static ssize_t qib_diag_write(struct file *fp, const char __user *data,
@@ -154,7 +154,7 @@ static ssize_t qib_diagpkt_write(struct file *fp, const char __user *data,
 static const struct file_operations diagpkt_file_ops = {
 	.owner = THIS_MODULE,
 	.write = qib_diagpkt_write,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 int qib_diag_add(struct qib_devdata *dd)
@@ -163,7 +163,7 @@ int qib_diag_add(struct qib_devdata *dd)
 	int ret = 0;
 
 	if (atomic_inc_return(&diagpkt_count) == 1) {
-		ret = qib_cdev_init(QIB_DIAGPKT_MINOR, "ipath_diagpkt",
+		ret = qib_cdev_init(QIB_DIAGPKT_MIANALR, "ipath_diagpkt",
 				    &diagpkt_file_ops, &diagpkt_cdev,
 				    &diagpkt_device);
 		if (ret)
@@ -171,7 +171,7 @@ int qib_diag_add(struct qib_devdata *dd)
 	}
 
 	snprintf(name, sizeof(name), "ipath_diag%d", dd->unit);
-	ret = qib_cdev_init(QIB_DIAG_MINOR_BASE + dd->unit, name,
+	ret = qib_cdev_init(QIB_DIAG_MIANALR_BASE + dd->unit, name,
 			    &diag_file_ops, &dd->diag_cdev,
 			    &dd->diag_device);
 done:
@@ -190,13 +190,13 @@ void qib_diag_remove(struct qib_devdata *dd)
 	qib_cdev_cleanup(&dd->diag_cdev, &dd->diag_device);
 
 	/*
-	 * Return all diag_clients of this device. There should be none,
-	 * as we are "guaranteed" that no clients are still open
+	 * Return all diag_clients of this device. There should be analne,
+	 * as we are "guaranteed" that anal clients are still open
 	 */
 	while (dd->diag_client)
 		return_client(dd->diag_client);
 
-	/* Now clean up all unused client structs */
+	/* Analw clean up all unused client structs */
 	while (client_pool) {
 		dc = client_pool;
 		client_pool = dc->next;
@@ -214,7 +214,7 @@ void qib_diag_remove(struct qib_devdata *dd)
  * This returns a u32 __iomem * so it can be used for both 64 and 32-bit
  * mapping. It is needed because with the use of PAT for control of
  * write-combining, the logically contiguous address-space of the chip
- * may be split into virtually non-contiguous spaces, with different
+ * may be split into virtually analn-contiguous spaces, with different
  * attributes, which are them mapped to contiguous physical space
  * based from the first BAR.
  *
@@ -228,8 +228,8 @@ void qib_diag_remove(struct qib_devdata *dd)
  *		- piobufs (2K and 4K bufs in either order)
  *		- uregs
  *
- * If cntp is non-NULL, returns how many bytes from offset can be accessed
- * Returns 0 if the offset is not mapped.
+ * If cntp is analn-NULL, returns how many bytes from offset can be accessed
+ * Returns 0 if the offset is analt mapped.
  */
 static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 				       u32 *cntp)
@@ -251,7 +251,7 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 
 	/*
 	 * Next check for user regs, the next most common case,
-	 * and a cheap check because if they are not in the first map
+	 * and a cheap check because if they are analt in the first map
 	 * they are last in chip.
 	 */
 	if (dd->userbase) {
@@ -271,11 +271,11 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 	/*
 	 * Lastly, check for offset within Send Buffers.
 	 * This is gnarly because struct devdata is deliberately vague
-	 * about things like 7322 VL15 buffers, and we are not in
-	 * chip-specific code here, so should not make many assumptions.
+	 * about things like 7322 VL15 buffers, and we are analt in
+	 * chip-specific code here, so should analt make many assumptions.
 	 * The one we _do_ make is that the only chip that has more sndbufs
 	 * than we admit is the 7322, and it has userregs above that, so
-	 * we know the snd_lim.
+	 * we kanalw the snd_lim.
 	 */
 	/* Assume 2K buffers are first. */
 	snd_bottom = dd->pio2k_bufbase;
@@ -299,8 +299,8 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 		}
 	}
 	/*
-	 * Judgement call: can we ignore the space between SendBuffs and
-	 * UserRegs, where we would like to see vl15 buffs, but not more?
+	 * Judgement call: can we iganalre the space between SendBuffs and
+	 * UserRegs, where we would like to see vl15 buffs, but analt more?
 	 */
 	if (offset >= snd_bottom && offset < snd_lim) {
 		offset -= snd_bottom;
@@ -327,14 +327,14 @@ mapped:
  * qib_read_umem64 - read a 64-bit quantity from the chip into user space
  * @dd: the qlogic_ib device
  * @uaddr: the location to store the data in user memory
- * @regoffs: the offset from BAR0 (_NOT_ full pointer, anymore)
+ * @regoffs: the offset from BAR0 (_ANALT_ full pointer, anymore)
  * @count: number of bytes to copy (multiple of 32 bits)
  *
  * This function also localizes all chip memory accesses.
  * The copy should be written such that we read full cacheline packets
  * from the chip.  This is usually used for a single qword
  *
- * NOTE:  This assumes the chip address is 64-bit aligned.
+ * ANALTE:  This assumes the chip address is 64-bit aligned.
  */
 static int qib_read_umem64(struct qib_devdata *dd, void __user *uaddr,
 			   u32 regoffs, size_t count)
@@ -353,7 +353,7 @@ static int qib_read_umem64(struct qib_devdata *dd, void __user *uaddr,
 		count = limit;
 	reg_end = reg_addr + (count / sizeof(u64));
 
-	/* not very efficient, but it works for now */
+	/* analt very efficient, but it works for analw */
 	while (reg_addr < reg_end) {
 		u64 data = readq(reg_addr);
 
@@ -372,12 +372,12 @@ bail:
 /*
  * qib_write_umem64 - write a 64-bit quantity to the chip from user space
  * @dd: the qlogic_ib device
- * @regoffs: the offset from BAR0 (_NOT_ full pointer, anymore)
+ * @regoffs: the offset from BAR0 (_ANALT_ full pointer, anymore)
  * @uaddr: the source of the data in user memory
  * @count: the number of bytes to copy (multiple of 32 bits)
  *
  * This is usually used for a single qword
- * NOTE:  This assumes the chip address is 64-bit aligned.
+ * ANALTE:  This assumes the chip address is 64-bit aligned.
  */
 
 static int qib_write_umem64(struct qib_devdata *dd, u32 regoffs,
@@ -397,7 +397,7 @@ static int qib_write_umem64(struct qib_devdata *dd, u32 regoffs,
 		count = limit;
 	reg_end = reg_addr + (count / sizeof(u64));
 
-	/* not very efficient, but it works for now */
+	/* analt very efficient, but it works for analw */
 	while (reg_addr < reg_end) {
 		u64 data;
 
@@ -419,10 +419,10 @@ bail:
  * qib_read_umem32 - read a 32-bit quantity from the chip into user space
  * @dd: the qlogic_ib device
  * @uaddr: the location to store the data in user memory
- * @regoffs: the offset from BAR0 (_NOT_ full pointer, anymore)
+ * @regoffs: the offset from BAR0 (_ANALT_ full pointer, anymore)
  * @count: number of bytes to copy
  *
- * read 32 bit values, not 64 bit; for memories that only
+ * read 32 bit values, analt 64 bit; for memories that only
  * support 32 bit reads; usually a single dword.
  */
 static int qib_read_umem32(struct qib_devdata *dd, void __user *uaddr,
@@ -442,7 +442,7 @@ static int qib_read_umem32(struct qib_devdata *dd, void __user *uaddr,
 		count = limit;
 	reg_end = reg_addr + (count / sizeof(u32));
 
-	/* not very efficient, but it works for now */
+	/* analt very efficient, but it works for analw */
 	while (reg_addr < reg_end) {
 		u32 data = readl(reg_addr);
 
@@ -463,11 +463,11 @@ bail:
 /*
  * qib_write_umem32 - write a 32-bit quantity to the chip from user space
  * @dd: the qlogic_ib device
- * @regoffs: the offset from BAR0 (_NOT_ full pointer, anymore)
+ * @regoffs: the offset from BAR0 (_ANALT_ full pointer, anymore)
  * @uaddr: the source of the data in user memory
  * @count: number of bytes to copy
  *
- * write 32 bit values, not 64 bit; for memories that only
+ * write 32 bit values, analt 64 bit; for memories that only
  * support 32 bit write; usually a single dword.
  */
 
@@ -505,9 +505,9 @@ bail:
 	return ret;
 }
 
-static int qib_diag_open(struct inode *in, struct file *fp)
+static int qib_diag_open(struct ianalde *in, struct file *fp)
 {
-	int unit = iminor(in) - QIB_DIAG_MINOR_BASE;
+	int unit = imianalr(in) - QIB_DIAG_MIANALR_BASE;
 	struct qib_devdata *dd;
 	struct qib_diag_client *dc;
 	int ret;
@@ -518,13 +518,13 @@ static int qib_diag_open(struct inode *in, struct file *fp)
 
 	if (dd == NULL || !(dd->flags & QIB_PRESENT) ||
 	    !dd->kregbase) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto bail;
 	}
 
 	dc = get_client(dd);
 	if (!dc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail;
 	}
 	dc->next = dd->diag_client;
@@ -567,12 +567,12 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 
 	dd = qib_lookup(dp.unit);
 	if (!dd || !(dd->flags & QIB_PRESENT) || !dd->kregbase) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto bail;
 	}
 	if (!(dd->flags & QIB_INITTED)) {
-		/* no hardware, freeze, etc. */
-		ret = -ENODEV;
+		/* anal hardware, freeze, etc. */
+		ret = -EANALDEV;
 		goto bail;
 	}
 
@@ -595,7 +595,7 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 
 	/*
 	 * need total length before first word written, plus 2 Dwords. One Dword
-	 * is for padding so we get the full user data when not aligned on
+	 * is for padding so we get the full user data when analt aligned on
 	 * a word boundary. The other Dword is to make sure we have room for the
 	 * ICRC which gets tacked on later.
 	 */
@@ -609,7 +609,7 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 
 	tmpbuf = vmalloc(plen);
 	if (!tmpbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail;
 	}
 
@@ -673,7 +673,7 @@ bail:
 	return ret;
 }
 
-static int qib_diag_release(struct inode *in, struct file *fp)
+static int qib_diag_release(struct ianalde *in, struct file *fp)
 {
 	mutex_lock(&qib_mutex);
 	return_client(fp->private_data);
@@ -701,7 +701,7 @@ int qib_register_observer(struct qib_devdata *dd,
 		return -EINVAL;
 	olp = vmalloc(sizeof(*olp));
 	if (!olp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&dd->qib_diag_trans_lock, flags);
 	olp->op = op;
@@ -771,7 +771,7 @@ static ssize_t qib_diag_read(struct file *fp, char __user *data,
 	if (count == 0)
 		ret = 0;
 	else if ((count % 4) || (*off % 4))
-		/* address or length is not 32-bit aligned, hence invalid */
+		/* address or length is analt 32-bit aligned, hence invalid */
 		ret = -EINVAL;
 	else if (dc->state < READY && (*off || count != 8))
 		ret = -EINVAL;  /* prevent cat /dev/qib_diag* */
@@ -803,7 +803,7 @@ static ssize_t qib_diag_read(struct file *fp, char __user *data,
 		if (!op) {
 			if (use_32)
 				/*
-				 * Address or length is not 64-bit aligned;
+				 * Address or length is analt 64-bit aligned;
 				 * do 32-bit rd
 				 */
 				ret = qib_read_umem32(dd, data, (u32) *off,
@@ -845,11 +845,11 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 	if (count == 0)
 		ret = 0;
 	else if ((count % 4) || (*off % 4))
-		/* address or length is not 32-bit aligned, hence invalid */
+		/* address or length is analt 32-bit aligned, hence invalid */
 		ret = -EINVAL;
 	else if (dc->state < READY &&
 		((*off || count != 8) || dc->state != INIT))
-		/* No writes except second-step of init seq */
+		/* Anal writes except second-step of init seq */
 		ret = -EINVAL;  /* before any other write allowed */
 	else {
 		unsigned long flags;
@@ -862,7 +862,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 		 * via observer, currently. This helps, because
 		 * we would otherwise have to jump through hoops
 		 * to make "diag transaction" meaningful when we
-		 * cannot do a copy_from_user while holding the lock.
+		 * cananalt do a copy_from_user while holding the lock.
 		 */
 		if (count == 4 || count == 8) {
 			u64 data64;
@@ -884,7 +884,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 		if (!op) {
 			if (use_32)
 				/*
-				 * Address or length is not 64-bit aligned;
+				 * Address or length is analt 64-bit aligned;
 				 * do 32-bit write
 				 */
 				ret = qib_write_umem32(dd, (u32) *off, data,
@@ -899,7 +899,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 		*off += count;
 		ret = count;
 		if (dc->state == INIT)
-			dc->state = READY; /* all read/write OK now */
+			dc->state = READY; /* all read/write OK analw */
 	}
 bail:
 	return ret;

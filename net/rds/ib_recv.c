@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -106,7 +106,7 @@ static int rds_ib_recv_alloc_cache(struct rds_ib_refill_cache *cache, gfp_t gfp)
 
 	cache->percpu = alloc_percpu_gfp(struct rds_ib_cache_head, gfp);
 	if (!cache->percpu)
-	       return -ENOMEM;
+	       return -EANALMEM;
 
 	for_each_possible_cpu(cpu) {
 		head = per_cpu_ptr(cache->percpu, cpu);
@@ -310,7 +310,7 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct ib_sge *sge;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	gfp_t slab_mask = gfp;
 	gfp_t page_mask = gfp;
 
@@ -400,7 +400,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 	while ((prefill || rds_conn_up(conn)) &&
 	       rds_ib_ring_alloc(&ic->i_recv_ring, 1, &pos)) {
 		if (pos >= ic->i_recv_ring.w_nr) {
-			printk(KERN_NOTICE "Argh - ring alloc returned pos=%u\n",
+			printk(KERN_ANALTICE "Argh - ring alloc returned pos=%u\n",
 					pos);
 			break;
 		}
@@ -443,7 +443,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 
 	release_refill(conn);
 
-	/* if we're called from the softirq handler, we'll be GFP_NOWAIT.
+	/* if we're called from the softirq handler, we'll be GFP_ANALWAIT.
 	 * in this case the ring being low is going to lead to more interrupts
 	 * and we can safely let the softirq code take care of it unless the
 	 * ring is completely empty.
@@ -469,7 +469,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
  * the recyclee, as well as the cache to put it on.
  *
  * First, we put the memory on a percpu list. When this reaches a certain size,
- * We move it to an intermediate non-percpu list in a lockless manner, with some
+ * We move it to an intermediate analn-percpu list in a lockless manner, with some
  * xchg/compxchg wizardry.
  *
  * N.B. Instead of a list_head as the anchor, we use a single pointer, which can
@@ -594,20 +594,20 @@ void rds_ib_recv_init_ack(struct rds_ib_connection *ic)
  * an ack message before it has DMAed the message into memory.  This creates a
  * potential message loss if the HCA is disabled for any reason between when it
  * sends the ack and before the message is DMAed and processed.  This is only a
- * potential issue if another HCA is available for fail-over.
+ * potential issue if aanalther HCA is available for fail-over.
  *
  * When the remote host receives our ack they'll free the sent message from
  * their send queue.  To decrease the latency of this we always send an ack
  * immediately after we've received messages.
  *
  * For simplicity, we only have one ack in flight at a time.  This puts
- * pressure on senders to have deep enough send queues to absorb the latency of
- * a single ack frame being in flight.  This might not be good enough.
+ * pressure on senders to have deep eanalugh send queues to absorb the latency of
+ * a single ack frame being in flight.  This might analt be good eanalugh.
  *
  * This is implemented by have a long-lived send_wr and sge which point to a
- * statically allocated ack frame.  This ack wr does not fall under the ring
+ * statically allocated ack frame.  This ack wr does analt fall under the ring
  * accounting that the tx and rx wrs do.  The QP attribute specifically makes
- * room for it beyond the ring size.  Send completion notices its special
+ * room for it beyond the ring size.  Send completion analtices its special
  * wr_id and avoids working with the ring in that case.
  */
 #ifndef KERNEL_HAS_ATOMIC64
@@ -679,7 +679,7 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
 	ret = ib_post_send(ic->i_cm_id->qp, &ic->i_ack_wr, NULL);
 	if (unlikely(ret)) {
 		/* Failed to send. Release the WR, and
-		 * force another ACK.
+		 * force aanalther ACK.
 		 */
 		clear_bit(IB_ACK_IN_FLIGHT, &ic->i_ack_flags);
 		set_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
@@ -692,28 +692,28 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
 }
 
 /*
- * There are 3 ways of getting acknowledgements to the peer:
+ * There are 3 ways of getting ackanalwledgements to the peer:
  *  1.	We call rds_ib_attempt_ack from the recv completion handler
  *	to send an ACK-only frame.
  *	However, there can be only one such frame in the send queue
  *	at any time, so we may have to postpone it.
- *  2.	When another (data) packet is transmitted while there's
+ *  2.	When aanalther (data) packet is transmitted while there's
  *	an ACK in the queue, we piggyback the ACK sequence number
  *	on the data packet.
  *  3.	If the ACK WR is done sending, we get called from the
  *	send queue completion handler, and check whether there's
- *	another ACK pending (postponed because the WR was on the
+ *	aanalther ACK pending (postponed because the WR was on the
  *	queue). If so, we transmit it.
  *
  * We maintain 2 variables:
  *  -	i_ack_flags, which keeps track of whether the ACK WR
- *	is currently in the send queue or not (IB_ACK_IN_FLIGHT)
+ *	is currently in the send queue or analt (IB_ACK_IN_FLIGHT)
  *  -	i_ack_next, which is the last sequence number we received
  *
  * Potentially, send queue and receive queue handlers can run concurrently.
- * It would be nice to not have to use a spinlock to synchronize things,
+ * It would be nice to analt have to use a spinlock to synchronize things,
  * but the one problem that rules this out is that 64bit updates are
- * not atomic on all platforms. Things would be a lot simpler if
+ * analt atomic on all platforms. Things would be a lot simpler if
  * we had atomic64 or maybe cmpxchg64 everywhere.
  *
  * Reconnecting complicates this picture just slightly. When we
@@ -722,7 +722,7 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
  * them. It is important that we ACK these.
  *
  * ACK mitigation adds a header flag "ACK_REQUIRED"; any packet with
- * this flag set *MUST* be acknowledged immediately.
+ * this flag set *MUST* be ackanalwledged immediately.
  */
 
 /*
@@ -1015,10 +1015,10 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	}
 
 	/* rds_ib_process_recv() doesn't always consume the frag, and
-	 * we might not have called it at all if the wc didn't indicate
+	 * we might analt have called it at all if the wc didn't indicate
 	 * success. We already unmapped the frag's pages, though, and
 	 * the following rds_ib_ring_free() call tells the refill path
-	 * that it will not find an allocated frag here. Make sure we
+	 * that it will analt find an allocated frag here. Make sure we
 	 * keep that promise by freeing a frag that's still on the ring.
 	 */
 	if (recv->r_frag) {
@@ -1034,7 +1034,7 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 		rds_ib_stats_inc(s_ib_rx_ring_empty);
 
 	if (rds_ib_ring_low(&ic->i_recv_ring)) {
-		rds_ib_recv_refill(conn, 0, GFP_NOWAIT | __GFP_NOWARN);
+		rds_ib_recv_refill(conn, 0, GFP_ANALWAIT | __GFP_ANALWARN);
 		rds_ib_stats_inc(s_ib_rx_refill_from_cq);
 	}
 }
@@ -1057,7 +1057,7 @@ int rds_ib_recv_path(struct rds_conn_path *cp)
 int rds_ib_recv_init(void)
 {
 	struct sysinfo si;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	/* Default to 30% of all available RAM for recv memory */
 	si_meminfo(&si);

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -89,26 +89,26 @@ struct drm_prime_member {
 	struct dma_buf *dma_buf;
 	uint32_t handle;
 
-	struct rb_node dmabuf_rb;
-	struct rb_node handle_rb;
+	struct rb_analde dmabuf_rb;
+	struct rb_analde handle_rb;
 };
 
 static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 				    struct dma_buf *dma_buf, uint32_t handle)
 {
 	struct drm_prime_member *member;
-	struct rb_node **p, *rb;
+	struct rb_analde **p, *rb;
 
 	member = kmalloc(sizeof(*member), GFP_KERNEL);
 	if (!member)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	get_dma_buf(dma_buf);
 	member->dma_buf = dma_buf;
 	member->handle = handle;
 
 	rb = NULL;
-	p = &prime_fpriv->dmabufs.rb_node;
+	p = &prime_fpriv->dmabufs.rb_analde;
 	while (*p) {
 		struct drm_prime_member *pos;
 
@@ -119,11 +119,11 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 		else
 			p = &rb->rb_left;
 	}
-	rb_link_node(&member->dmabuf_rb, rb, p);
+	rb_link_analde(&member->dmabuf_rb, rb, p);
 	rb_insert_color(&member->dmabuf_rb, &prime_fpriv->dmabufs);
 
 	rb = NULL;
-	p = &prime_fpriv->handles.rb_node;
+	p = &prime_fpriv->handles.rb_analde;
 	while (*p) {
 		struct drm_prime_member *pos;
 
@@ -134,7 +134,7 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 		else
 			p = &rb->rb_left;
 	}
-	rb_link_node(&member->handle_rb, rb, p);
+	rb_link_analde(&member->handle_rb, rb, p);
 	rb_insert_color(&member->handle_rb, &prime_fpriv->handles);
 
 	return 0;
@@ -143,9 +143,9 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 static struct dma_buf *drm_prime_lookup_buf_by_handle(struct drm_prime_file_private *prime_fpriv,
 						      uint32_t handle)
 {
-	struct rb_node *rb;
+	struct rb_analde *rb;
 
-	rb = prime_fpriv->handles.rb_node;
+	rb = prime_fpriv->handles.rb_analde;
 	while (rb) {
 		struct drm_prime_member *member;
 
@@ -165,9 +165,9 @@ static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpri
 				       struct dma_buf *dma_buf,
 				       uint32_t *handle)
 {
-	struct rb_node *rb;
+	struct rb_analde *rb;
 
-	rb = prime_fpriv->dmabufs.rb_node;
+	rb = prime_fpriv->dmabufs.rb_analde;
 	while (rb) {
 		struct drm_prime_member *member;
 
@@ -182,17 +182,17 @@ static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpri
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv,
 				 uint32_t handle)
 {
-	struct rb_node *rb;
+	struct rb_analde *rb;
 
 	mutex_lock(&prime_fpriv->lock);
 
-	rb = prime_fpriv->handles.rb_node;
+	rb = prime_fpriv->handles.rb_analde;
 	while (rb) {
 		struct drm_prime_member *member;
 
@@ -223,7 +223,7 @@ void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv)
 
 void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 {
-	/* by now drm_gem_release should've made sure the list is empty */
+	/* by analw drm_gem_release should've made sure the list is empty */
 	WARN_ON(!RB_EMPTY_ROOT(&prime_fpriv->dmabufs));
 }
 
@@ -251,7 +251,7 @@ struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 
 	drm_dev_get(dev);
 	drm_gem_object_get(obj);
-	dma_buf->file->f_mapping = obj->dev->anon_inode->i_mapping;
+	dma_buf->file->f_mapping = obj->dev->aanaln_ianalde->i_mapping;
 
 	return dma_buf;
 }
@@ -383,7 +383,7 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 
 	/* prevent races with concurrent gem_close. */
 	if (obj->handle_count == 0) {
-		dmabuf = ERR_PTR(-ENOENT);
+		dmabuf = ERR_PTR(-EANALENT);
 		return dmabuf;
 	}
 
@@ -392,14 +392,14 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 	else
 		dmabuf = drm_gem_prime_export(obj, flags);
 	if (IS_ERR(dmabuf)) {
-		/* normally the created dma-buf takes ownership of the ref,
+		/* analrmally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
 		 */
 		return dmabuf;
 	}
 
 	/*
-	 * Note that callers do not need to clean up the export cache
+	 * Analte that callers do analt need to clean up the export cache
 	 * since the check for obj->handle_count guarantees that someone
 	 * will clean it up.
 	 */
@@ -434,7 +434,7 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	mutex_lock(&file_priv->prime.lock);
 	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj)  {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_unlock;
 	}
 
@@ -460,7 +460,7 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 
 	dmabuf = export_and_register_object(dev, obj, flags);
 	if (IS_ERR(dmabuf)) {
-		/* normally the created dma-buf takes ownership of the ref,
+		/* analrmally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
 		 */
 		ret = PTR_ERR(dmabuf);
@@ -484,7 +484,7 @@ out_have_obj:
 out_have_handle:
 	ret = dma_buf_fd(dmabuf, flags);
 	/*
-	 * We must _not_ remove the buffer from the handle cache since the newly
+	 * We must _analt_ remove the buffer from the handle cache since the newly
 	 * created dma buf is already linked in the global obj->dma_buf pointer,
 	 * and that is invariant as long as a userspace gem handle exists.
 	 * Closing the handle will clean out the cache anyway, so we don't leak.
@@ -543,13 +543,13 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  * drm_gem_map_attach() and drm_gem_map_detach(). Backing storage itself is
  * handled by drm_gem_map_dma_buf() and drm_gem_unmap_dma_buf(), which relies on
  * &drm_gem_object_funcs.get_sg_table. If &drm_gem_object_funcs.get_sg_table is
- * unimplemented, exports into another device are rejected.
+ * unimplemented, exports into aanalther device are rejected.
  *
  * For kernel-internal access there's drm_gem_dmabuf_vmap() and
  * drm_gem_dmabuf_vunmap(). Userspace mmap support is provided by
  * drm_gem_dmabuf_mmap().
  *
- * Note that these export helpers can only be used if the underlying backing
+ * Analte that these export helpers can only be used if the underlying backing
  * storage is fully coherent and either permanently pinned, or it is safe to pin
  * it indefinitely.
  *
@@ -561,8 +561,8 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  * Importing dma-bufs using drm_gem_prime_import() relies on
  * &drm_driver.gem_prime_import_sg_table.
  *
- * Note that similarly to the export helpers this permanently pins the
- * underlying backing storage. Which is ok for scanout, but is not the best
+ * Analte that similarly to the export helpers this permanently pins the
+ * underlying backing storage. Which is ok for scaanalut, but is analt the best
  * option for sharing lots of buffers for rendering.
  */
 
@@ -583,7 +583,7 @@ int drm_gem_map_attach(struct dma_buf *dma_buf,
 	struct drm_gem_object *obj = dma_buf->priv;
 
 	if (!obj->funcs->get_sg_table)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return drm_gem_pin(obj);
 }
@@ -626,11 +626,11 @@ struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 	struct sg_table *sgt;
 	int ret;
 
-	if (WARN_ON(dir == DMA_NONE))
+	if (WARN_ON(dir == DMA_ANALNE))
 		return ERR_PTR(-EINVAL);
 
 	if (WARN_ON(!obj->funcs->get_sg_table))
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EANALSYS);
 
 	sgt = obj->funcs->get_sg_table(obj);
 	if (IS_ERR(sgt))
@@ -678,7 +678,7 @@ EXPORT_SYMBOL(drm_gem_unmap_dma_buf);
  * callback. Calls into &drm_gem_object_funcs.vmap for device specific handling.
  * The kernel virtual address is returned in map.
  *
- * Returns 0 on success or a negative errno code otherwise.
+ * Returns 0 on success or a negative erranal code otherwise.
  */
 int drm_gem_dmabuf_vmap(struct dma_buf *dma_buf, struct iosys_map *map)
 {
@@ -721,7 +721,7 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	int ret;
 
 	/* Add the fake offset */
-	vma->vm_pgoff += drm_vma_node_start(&obj->vma_node);
+	vma->vm_pgoff += drm_vma_analde_start(&obj->vma_analde);
 
 	if (obj->funcs && obj->funcs->mmap) {
 		vma->vm_ops = obj->funcs->vm_ops;
@@ -739,21 +739,21 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	fil = kzalloc(sizeof(*fil), GFP_KERNEL);
 	if (!priv || !fil) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	/* Used by drm_gem_mmap() to lookup the GEM object */
-	priv->minor = obj->dev->primary;
+	priv->mianalr = obj->dev->primary;
 	fil->private_data = priv;
 
-	ret = drm_vma_node_allow(&obj->vma_node, priv);
+	ret = drm_vma_analde_allow(&obj->vma_analde, priv);
 	if (ret)
 		goto out;
 
 	ret = obj->dev->driver->fops->mmap(fil, vma);
 
-	drm_vma_node_revoke(&obj->vma_node, priv);
+	drm_vma_analde_revoke(&obj->vma_analde, priv);
 out:
 	kfree(priv);
 	kfree(fil);
@@ -813,7 +813,7 @@ struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 
 	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!sg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (dev)
 		max_segment = dma_max_mapping_size(dev->dev);
@@ -989,7 +989,7 @@ EXPORT_SYMBOL(drm_gem_prime_import);
  *
  * This function is deprecated and strongly discouraged to be used.
  * The page array is only useful for page faults and those can corrupt fields
- * in the struct page if they are not handled by the exporting driver.
+ * in the struct page if they are analt handled by the exporting driver.
  */
 int __deprecated drm_prime_sg_to_page_array(struct sg_table *sgt,
 					    struct page **pages,

@@ -32,7 +32,7 @@ static int unwind_frame_kernel(struct stackframe *frame)
 	return 0;
 }
 
-static void notrace walk_stackframe(struct stackframe *fr,
+static void analtrace walk_stackframe(struct stackframe *fr,
 			struct perf_callchain_entry_ctx *entry)
 {
 	do {
@@ -81,7 +81,7 @@ static unsigned long user_backtrace(struct perf_callchain_entry_ctx *entry,
  *
  * On C-SKY platform, the program being sampled and the C library
  * need to be compiled with * -mbacktrace, otherwise the user
- * stack will not contain function frame.
+ * stack will analt contain function frame.
  */
 void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
@@ -92,8 +92,8 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	perf_callchain_store(entry, regs->pc);
 
 	/*
-	 * While backtrace from leaf function, lr is normally
-	 * not saved inside frame on C-SKY, so get lr from pt_regs
+	 * While backtrace from leaf function, lr is analrmally
+	 * analt saved inside frame on C-SKY, so get lr from pt_regs
 	 * at the sample point. However, lr value can be incorrect if
 	 * lr is used as temp register
 	 */

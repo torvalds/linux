@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2021 Flextronics International Sweden AB
  *
- * Even though the specification does not specifically mention it,
+ * Even though the specification does analt specifically mention it,
  * extensive empirical testing has revealed that auto-detection of
  * limit-registers will fail in a random fashion unless the delay
  * parameter is set to above about 80us. The default delay is set
@@ -148,7 +148,7 @@ static int max15301_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
 				     | I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = i2c_smbus_read_block_data(client, PMBUS_IC_DEVICE_ID, device_id);
 	if (status < 0) {
@@ -161,7 +161,7 @@ static int max15301_probe(struct i2c_client *client)
 	}
 	if (!mid->name[0]) {
 		dev_err(&client->dev, "Unsupported device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	max15301_data.delay = delay;

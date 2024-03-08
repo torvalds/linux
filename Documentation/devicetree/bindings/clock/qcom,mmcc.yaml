@@ -230,7 +230,7 @@ allOf:
           items:
             - description: Board XO source
             - description: Global PLL 0 clock
-            - description: MMSS NoC AHB clock
+            - description: MMSS AnalC AHB clock
             - description: GFX3D clock
             - description: DSI phy instance 0 dsi clock
             - description: DSI phy instance 0 byte clock
@@ -242,7 +242,7 @@ allOf:
           items:
             - const: xo
             - const: gpll0
-            - const: mmssnoc_ahb
+            - const: mmssanalc_ahb
             - const: oxili_gfx3d_clk_src
             - const: dsi0pll
             - const: dsi0pllbyte
@@ -261,7 +261,7 @@ allOf:
           items:
             - description: Board XO source
             - description: Global PLL 0 clock
-            - description: MMSS NoC AHB clock
+            - description: MMSS AnalC AHB clock
             - description: DSI phy instance 0 dsi clock
             - description: DSI phy instance 0 byte clock
             - description: DSI phy instance 1 dsi clock
@@ -272,7 +272,7 @@ allOf:
           items:
             - const: xo
             - const: gpll0
-            - const: gcc_mmss_noc_cfg_ahb_clk
+            - const: gcc_mmss_analc_cfg_ahb_clk
             - const: dsi0pll
             - const: dsi0pllbyte
             - const: dsi1pll

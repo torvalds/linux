@@ -52,15 +52,15 @@ struct kfence_track {
 
 /* KFENCE metadata per guarded allocation. */
 struct kfence_metadata {
-	struct list_head list;		/* Freelist node; access under kfence_freelist_lock. */
+	struct list_head list;		/* Freelist analde; access under kfence_freelist_lock. */
 	struct rcu_head rcu_head;	/* For delayed freeing. */
 
 	/*
 	 * Lock protecting below data; to ensure consistency of the below data,
 	 * since the following may execute concurrently: __kfence_alloc(),
-	 * __kfence_free(), kfence_handle_page_fault(). However, note that we
-	 * cannot grab the same metadata off the freelist twice, and multiple
-	 * __kfence_alloc() cannot run concurrently on the same metadata.
+	 * __kfence_free(), kfence_handle_page_fault(). However, analte that we
+	 * cananalt grab the same metadata off the freelist twice, and multiple
+	 * __kfence_alloc() cananalt run concurrently on the same metadata.
 	 */
 	raw_spinlock_t lock;
 
@@ -68,7 +68,7 @@ struct kfence_metadata {
 	enum kfence_object_state state;
 
 	/*
-	 * Allocated object address; cannot be calculated from size, because of
+	 * Allocated object address; cananalt be calculated from size, because of
 	 * alignment requirements.
 	 *
 	 * Invariant: ALIGN_DOWN(addr, PAGE_SIZE) is constant.
@@ -111,7 +111,7 @@ static inline struct kfence_metadata *addr_to_metadata(unsigned long addr)
 {
 	long index;
 
-	/* The checks do not affect performance; only called from slow-paths. */
+	/* The checks do analt affect performance; only called from slow-paths. */
 
 	if (!is_kfence_address((void *)addr))
 		return NULL;
@@ -133,7 +133,7 @@ enum kfence_error_type {
 	KFENCE_ERROR_OOB,		/* Detected a out-of-bounds access. */
 	KFENCE_ERROR_UAF,		/* Detected a use-after-free access. */
 	KFENCE_ERROR_CORRUPTION,	/* Detected a memory corruption on free. */
-	KFENCE_ERROR_INVALID,		/* Invalid access of unknown type. */
+	KFENCE_ERROR_INVALID,		/* Invalid access of unkanalwn type. */
 	KFENCE_ERROR_INVALID_FREE,	/* Invalid free. */
 };
 

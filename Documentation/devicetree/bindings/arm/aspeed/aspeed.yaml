@@ -10,7 +10,7 @@ maintainers:
   - Joel Stanley <joel@jms.id.au>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -31,7 +31,7 @@ properties:
         items:
           - enum:
               - amd,daytonax-bmc
-              - amd,ethanolx-bmc
+              - amd,ethaanallx-bmc
               - ampere,mtjade-bmc
               - aspeed,ast2500-evb
               - asrock,e3c246d4i-bmc
@@ -55,8 +55,8 @@ properties:
               - inspur,on5263m5-bmc
               - intel,s2600wf-bmc
               - inventec,lanyang-bmc
-              - lenovo,hr630-bmc
-              - lenovo,hr855xg2-bmc
+              - leanalvo,hr630-bmc
+              - leanalvo,hr855xg2-bmc
               - portwell,neptune-bmc
               - qcom,centriq2400-rep-bmc
               - supermicro,x11spi-bmc

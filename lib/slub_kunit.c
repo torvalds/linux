@@ -20,7 +20,7 @@ static struct kmem_cache *test_kmem_cache_create(const char *name,
 				unsigned int size, slab_flags_t flags)
 {
 	struct kmem_cache *s = kmem_cache_create(name, size, 0,
-					(flags | SLAB_NO_USER_FLAGS), NULL);
+					(flags | SLAB_ANAL_USER_FLAGS), NULL);
 	s->flags |= SLAB_SKIP_KFENCE;
 	return s;
 }
@@ -79,7 +79,7 @@ static void test_next_pointer(struct kunit *test)
 
 	/*
 	 * Previous validation repaired the count of objects in use.
-	 * Now expecting no error.
+	 * Analw expecting anal error.
 	 */
 	slab_errors = 0;
 	validate_slab_cache(s);

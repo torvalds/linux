@@ -22,12 +22,12 @@ properties:
       maxItems: 2
     description:
       List of supported frequency ranges in KHz. This can be used for devices
-      that in a given config support less channels than normally. It may happen
+      that in a given config support less channels than analrmally. It may happen
       chipset supports a wide wireless band but it is limited to some part of
       it due to used antennas or power amplifier. An example case for this
       can be tri-band wireless router with two identical chipsets used for two
-      different 5 GHz subbands. Using them incorrectly could not work or
-      decrease performance noticeably
+      different 5 GHz subbands. Using them incorrectly could analt work or
+      decrease performance analticeably
 
 additionalProperties: true
 

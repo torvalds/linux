@@ -10,7 +10,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -34,7 +34,7 @@ int gsc_alloc_irq(struct gsc_irq *i)
 {
 	int irq = txn_alloc_irq(GSC_EIM_WIDTH);
 	if (irq < 0) {
-		printk("cannot get irq\n");
+		printk("cananalt get irq\n");
 		return irq;
 	}
 
@@ -53,7 +53,7 @@ int gsc_claim_irq(struct gsc_irq *i, int irq)
 
 	irq = txn_claim_irq(irq);
 	if (irq < 0) {
-		printk("cannot claim irq %d\n", c);
+		printk("cananalt claim irq %d\n", c);
 		return irq;
 	}
 
@@ -75,7 +75,7 @@ irqreturn_t gsc_asic_intr(int gsc_asic_irq, void *dev)
 
 	irr = gsc_readl(gsc_asic->hpa + OFFSET_IRR);
 	if (irr == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	DEBPRINTK("%s intr, mask=0x%x\n", gsc_asic->name, irr);
 
@@ -98,7 +98,7 @@ int gsc_find_local_irq(unsigned int irq, int *global_irqs, int limit)
 			return local_irq;
 	}
 
-	return NO_IRQ;
+	return ANAL_IRQ;
 }
 
 static void gsc_asic_mask_irq(struct irq_data *d)
@@ -177,7 +177,7 @@ int gsc_assign_irq(struct irq_chip *type, void *data)
 	static int irq = GSC_IRQ_BASE;
 
 	if (irq > GSC_IRQ_MAX)
-		return NO_IRQ;
+		return ANAL_IRQ;
 
 	irq_set_chip_and_handler(irq, type, handle_simple_irq);
 	irq_set_chip_data(irq, data);
@@ -191,7 +191,7 @@ void gsc_asic_assign_irq(struct gsc_asic *asic, int local_irq, int *irqp)
 	
 	if (irq <= 0) {
 		irq = gsc_assign_irq(&gsc_asic_interrupt_type, asic);
-		if (irq == NO_IRQ)
+		if (irq == ANAL_IRQ)
 			return;
 
 		asic->global_irq[local_irq] = irq;
@@ -238,20 +238,20 @@ int gsc_common_setup(struct parisc_device *parent, struct gsc_asic *gsc_asic)
 
 	/* Initialise local irq -> global irq mapping */
 	for (i = 0; i < 32; i++) {
-		gsc_asic->global_irq[i] = NO_IRQ;
+		gsc_asic->global_irq[i] = ANAL_IRQ;
 	}
 
 	/* allocate resource region */
 	res = request_mem_region(gsc_asic->hpa, 0x100000, gsc_asic->name);
 	if (res) {
-		res->flags = IORESOURCE_MEM; 	/* do not mark it busy ! */
+		res->flags = IORESOURCE_MEM; 	/* do analt mark it busy ! */
 	}
 
 #if 0
 	printk(KERN_WARNING "%s IRQ %d EIM 0x%x", gsc_asic->name,
 			parent->irq, gsc_asic->eim);
 	if (gsc_readl(gsc_asic->hpa + OFFSET_IMR))
-		printk("  IMR is non-zero! (0x%x)",
+		printk("  IMR is analn-zero! (0x%x)",
 				gsc_readl(gsc_asic->hpa + OFFSET_IMR));
 	printk("\n");
 #endif

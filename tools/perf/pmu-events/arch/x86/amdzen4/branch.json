@@ -37,7 +37,7 @@
   {
     "EventName": "ex_ret_brn_far",
     "EventCode": "0xc6",
-    "BriefDescription": "Retired far control transfers (far call/jump/return, IRET, SYSCALL and SYSRET, plus exceptions and interrupts). Far control transfers are not subject to branch prediction."
+    "BriefDescription": "Retired far control transfers (far call/jump/return, IRET, SYSCALL and SYSRET, plus exceptions and interrupts). Far control transfers are analt subject to branch prediction."
   },
   {
     "EventName": "ex_ret_near_ret",

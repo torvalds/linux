@@ -25,13 +25,13 @@
 	};
 
 	reserved-memory {
-		/delete-node/ reserved@86680000;
-		/delete-node/ rmtfs@86700000;
+		/delete-analde/ reserved@86680000;
+		/delete-analde/ rmtfs@86700000;
 
 		rmtfs: rmtfs@86680000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x86680000 0x0 0x160000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 		};
@@ -225,7 +225,7 @@
 	qcom,micbias-lvl = <2800>;
 	qcom,mbhc-vthreshold-low = <75 100 120 180 500>;
 	qcom,mbhc-vthreshold-high = <75 100 120 180 500>;
-	qcom,hphl-jack-type-normally-open;
+	qcom,hphl-jack-type-analrmally-open;
 };
 
 &pm8916_resin {
@@ -303,7 +303,7 @@
 };
 
 &sound_link_backend0 {
-	/* Primary MI2S is not used, replace with Secondary MI2S for headphones */
+	/* Primary MI2S is analt used, replace with Secondary MI2S for headphones */
 	link-name = "Secondary MI2S";
 
 	cpu {
@@ -404,8 +404,8 @@
 
 	/*
 	 * The OEM wired an additional GPIO to be asserted so that
-	 * the si-en,sn3190 LED IC works. Since this GPIO is not
-	 * part of the IC datasheet nor supported by the driver,
+	 * the si-en,sn3190 LED IC works. Since this GPIO is analt
+	 * part of the IC datasheet analr supported by the driver,
 	 * force it asserted here.
 	 */
 	led_enable_default: led-enable-default-state {

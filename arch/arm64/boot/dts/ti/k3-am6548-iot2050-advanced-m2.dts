@@ -22,7 +22,7 @@
 };
 
 &mcu_r5fss0 {
-	/* lock-step mode not supported on this board */
+	/* lock-step mode analt supported on this board */
 	ti,cluster-mode = <0>;
 };
 

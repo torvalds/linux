@@ -8,21 +8,21 @@
  *  are met:
  *
  *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      analtice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in
+ *      analtice, this list of conditions and the following disclaimer in
  *      the documentation and/or other materials provided with the
  *      distribution.
- *    * Neither the name of Broadcom Corporation nor the names of its
+ *    * Neither the name of Broadcom Corporation analr the names of its
  *      contributors may be used to endorse or promote products derived
  *      from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -35,7 +35,7 @@
 #include "bcm-nsp.dtsi"
 
 / {
-	model = "NorthStar Plus SVK (BCM958625K)";
+	model = "AnalrthStar Plus SVK (BCM958625K)";
 	compatible = "brcm,bcm958625k", "brcm,bcm58625", "brcm,nsp";
 
 	chosen {
@@ -201,14 +201,14 @@
 
 /*
  * By default the sd slot is functional. For emmc to work add "<&emmc_sel>"
- * and delete "<&nand_sel>" in "pinctrl-0" property of pinctrl node. Remove the
- * bus-width property here and disable the nand node with status = "disabled";.
+ * and delete "<&nand_sel>" in "pinctrl-0" property of pinctrl analde. Remove the
+ * bus-width property here and disable the nand analde with status = "disabled";.
  *
  * Ex: pinctrl-0 = <&emmc_sel>, <&gpiobs>, <&pwmc>;
  */
 &sdio {
 	bus-width = <4>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 

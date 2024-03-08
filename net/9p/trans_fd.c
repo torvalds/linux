@@ -5,7 +5,7 @@
  *  Copyright (C) 2006 by Russ Cox <rsc@swtch.com>
  *  Copyright (C) 2004-2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004-2008 by Eric Van Hensbergen <ericvh@gmail.com>
- *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@sarnoff.com>
+ *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@saranalff.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -15,7 +15,7 @@
 #include <linux/net.h>
 #include <linux/ipv6.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/un.h>
 #include <linux/uaccess.h>
@@ -59,15 +59,15 @@ struct p9_fd_opts {
 
 enum {
 	/* Options that take integer arguments */
-	Opt_port, Opt_rfdno, Opt_wfdno, Opt_err,
-	/* Options that take no arguments */
+	Opt_port, Opt_rfdanal, Opt_wfdanal, Opt_err,
+	/* Options that take anal arguments */
 	Opt_privport,
 };
 
 static const match_table_t tokens = {
 	{Opt_port, "port=%u"},
-	{Opt_rfdno, "rfdno=%u"},
-	{Opt_wfdno, "wfdno=%u"},
+	{Opt_rfdanal, "rfdanal=%u"},
+	{Opt_wfdanal, "wfdanal=%u"},
 	{Opt_privport, "privport"},
 	{Opt_err, NULL},
 };
@@ -260,7 +260,7 @@ static int p9_fd_read(struct p9_client *client, void *v, int len)
 	if (!ts)
 		return -EREMOTEIO;
 
-	if (!(ts->rd->f_flags & O_NONBLOCK))
+	if (!(ts->rd->f_flags & O_ANALNBLOCK))
 		p9_debug(P9_DEBUG_ERROR, "blocking read ...\n");
 
 	pos = ts->rd->f_pos;
@@ -345,7 +345,7 @@ static void p9_read_work(struct work_struct *work)
 
 		if (!m->rreq->rc.sdata) {
 			p9_debug(P9_DEBUG_ERROR,
-				 "No recv fcall for tag %d (req %p), disconnecting!\n",
+				 "Anal recv fcall for tag %d (req %p), disconnecting!\n",
 				 m->rc.tag, m->rreq);
 			p9_req_put(m->client, m->rreq);
 			m->rreq = NULL;
@@ -358,7 +358,7 @@ static void p9_read_work(struct work_struct *work)
 	}
 
 	/* packet is read in
-	 * not an else because some packets (like clunk) have no payload
+	 * analt an else because some packets (like clunk) have anal payload
 	 */
 	if ((m->rreq) && (m->rc.offset == m->rc.capacity)) {
 		p9_debug(P9_DEBUG_TRANS, "got new packet\n");
@@ -368,9 +368,9 @@ static void p9_read_work(struct work_struct *work)
 			list_del(&m->rreq->req_list);
 			p9_client_cb(m->client, m->rreq, REQ_STATUS_RCVD);
 		} else if (m->rreq->status == REQ_STATUS_FLSHD) {
-			/* Ignore replies associated with a cancelled request. */
+			/* Iganalre replies associated with a cancelled request. */
 			p9_debug(P9_DEBUG_TRANS,
-				 "Ignore replies associated with a cancelled request\n");
+				 "Iganalre replies associated with a cancelled request\n");
 		} else {
 			spin_unlock(&m->req_lock);
 			p9_debug(P9_DEBUG_ERROR,
@@ -427,7 +427,7 @@ static int p9_fd_write(struct p9_client *client, void *v, int len)
 	if (!ts)
 		return -EREMOTEIO;
 
-	if (!(ts->wr->f_flags & O_NONBLOCK))
+	if (!(ts->wr->f_flags & O_ANALNBLOCK))
 		p9_debug(P9_DEBUG_ERROR, "blocking write ...\n");
 
 	ret = kernel_write(ts->wr, v, len, &ts->wr->f_pos);
@@ -564,7 +564,7 @@ p9_pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *p)
 	}
 
 	if (!pwait) {
-		p9_debug(P9_DEBUG_ERROR, "not enough wait_address slots\n");
+		p9_debug(P9_DEBUG_ERROR, "analt eanalugh wait_address slots\n");
 		return;
 	}
 
@@ -578,7 +578,7 @@ p9_pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *p)
  * p9_conn_create - initialize the per-session mux data
  * @client: client instance
  *
- * Note: Creates the polling task if this is the first session.
+ * Analte: Creates the polling task if this is the first session.
  */
 
 static void p9_conn_create(struct p9_client *client)
@@ -655,7 +655,7 @@ static void p9_poll_mux(struct p9_conn *m)
 /**
  * p9_fd_request - send 9P request
  * The function can sleep until the request is scheduled for sending.
- * The function can be interrupted. Return from the function is not
+ * The function can be interrupted. Return from the function is analt
  * a guarantee that the request is sent successfully.
  *
  * @client: client instance
@@ -723,7 +723,7 @@ static int p9_fd_cancelled(struct p9_client *client, struct p9_req_t *req)
 	p9_debug(P9_DEBUG_TRANS, "client %p req %p\n", client, req);
 
 	spin_lock(&m->req_lock);
-	/* Ignore cancelled request if message has been received
+	/* Iganalre cancelled request if message has been received
 	 * before lock.
 	 */
 	if (req->status == REQ_STATUS_RCVD) {
@@ -762,7 +762,7 @@ static int p9_fd_show_options(struct seq_file *m, struct p9_client *clnt)
  * @params: options string passed from mount
  * @opts: fd transport-specific structure to parse options into
  *
- * Returns 0 upon success, -ERRNO upon failure
+ * Returns 0 upon success, -ERRANAL upon failure
  */
 
 static int parse_opts(char *params, struct p9_fd_opts *opts)
@@ -784,7 +784,7 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 	if (!tmp_options) {
 		p9_debug(P9_DEBUG_ERROR,
 			 "failed to allocate copy of option string\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	options = tmp_options;
 
@@ -798,7 +798,7 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but anal integer?\n");
 				continue;
 			}
 		}
@@ -806,10 +806,10 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 		case Opt_port:
 			opts->port = option;
 			break;
-		case Opt_rfdno:
+		case Opt_rfdanal:
 			opts->rfd = option;
 			break;
-		case Opt_wfdno:
+		case Opt_wfdanal:
 			opts->wfd = option;
 			break;
 		case Opt_privport:
@@ -829,7 +829,7 @@ static int p9_fd_open(struct p9_client *client, int rfd, int wfd)
 	struct p9_trans_fd *ts = kzalloc(sizeof(struct p9_trans_fd),
 					   GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->rd = fget(rfd);
 	if (!ts->rd)
@@ -840,17 +840,17 @@ static int p9_fd_open(struct p9_client *client, int rfd, int wfd)
 	 * It's technically possible for userspace or concurrent mounts to
 	 * modify this flag concurrently, which will likely result in a
 	 * broken filesystem. However, just having bad flags here should
-	 * not crash the kernel or cause any other sort of bug, so mark this
+	 * analt crash the kernel or cause any other sort of bug, so mark this
 	 * particular data race as intentional so that tooling (like KCSAN)
 	 * can allow it and detect further problems.
 	 */
-	data_race(ts->rd->f_flags |= O_NONBLOCK);
+	data_race(ts->rd->f_flags |= O_ANALNBLOCK);
 	ts->wr = fget(wfd);
 	if (!ts->wr)
 		goto out_put_rd;
 	if (!(ts->wr->f_mode & FMODE_WRITE))
 		goto out_put_wr;
-	data_race(ts->wr->f_flags |= O_NONBLOCK);
+	data_race(ts->wr->f_flags |= O_ANALNBLOCK);
 
 	client->trans = ts;
 	client->status = Connected;
@@ -874,10 +874,10 @@ static int p9_socket_open(struct p9_client *client, struct socket *csocket)
 	p = kzalloc(sizeof(struct p9_trans_fd), GFP_KERNEL);
 	if (!p) {
 		sock_release(csocket);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	csocket->sk->sk_allocation = GFP_NOIO;
+	csocket->sk->sk_allocation = GFP_ANALIO;
 	csocket->sk->sk_use_task_frag = false;
 	file = sock_alloc_file(csocket, 0, NULL);
 	if (IS_ERR(file)) {
@@ -892,7 +892,7 @@ static int p9_socket_open(struct p9_client *client, struct socket *csocket)
 	client->trans = p;
 	client->status = Connected;
 
-	p->rd->f_flags |= O_NONBLOCK;
+	p->rd->f_flags |= O_ANALNBLOCK;
 
 	p9_conn_create(client);
 	return 0;
@@ -1097,7 +1097,7 @@ p9_fd_create(struct p9_client *client, const char *addr, char *args)
 
 	if (opts.rfd == ~0 || opts.wfd == ~0) {
 		pr_err("Insufficient options for proto=fd\n");
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	err = p9_fd_open(client, opts.rfd, opts.wfd);

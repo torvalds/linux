@@ -50,16 +50,16 @@ struct tblock {
 					 * event for group commit completion.
 					 */
 	union {
-		struct inode *ip; /* inode being deleted */
-		pxd_t ixpxd;	/* pxd of inode extent for created inode */
+		struct ianalde *ip; /* ianalde being deleted */
+		pxd_t ixpxd;	/* pxd of ianalde extent for created ianalde */
 	} u;
-	u32 ino;		/* inode number being created */
+	u32 ianal;		/* ianalde number being created */
 };
 
 extern struct tblock *TxBlock;	/* transaction block table */
 
 /* commit flags: tblk->xflag */
-#define	COMMIT_SYNC	0x0001	/* synchronous commit */
+#define	COMMIT_SYNC	0x0001	/* synchroanalus commit */
 #define	COMMIT_FORCE	0x0002	/* force pageout at end of commit */
 #define	COMMIT_FLUSH	0x0004	/* init flush at end of commit */
 #define COMMIT_MAP	0x00f0
@@ -67,12 +67,12 @@ extern struct tblock *TxBlock;	/* transaction block table */
 #define	COMMIT_WMAP	0x0020	/* update wmap */
 #define	COMMIT_PWMAP	0x0040	/* update pwmap */
 #define	COMMIT_FREE	0x0f00
-#define	COMMIT_DELETE	0x0100	/* inode delete */
+#define	COMMIT_DELETE	0x0100	/* ianalde delete */
 #define	COMMIT_TRUNCATE	0x0200	/* file truncation */
-#define	COMMIT_CREATE	0x0400	/* inode create */
+#define	COMMIT_CREATE	0x0400	/* ianalde create */
 #define	COMMIT_LAZY	0x0800	/* lazy commit */
 #define COMMIT_PAGE	0x1000	/* Identifies element as metapage */
-#define COMMIT_INODE	0x2000	/* Identifies element as inode */
+#define COMMIT_IANALDE	0x2000	/* Identifies element as ianalde */
 
 /* group commit flags tblk->flag: see jfs_logmgr.h */
 
@@ -89,7 +89,7 @@ struct tlock {
 	u16 type;		/* 2: log type */
 
 	struct metapage *mp;	/* 4/8: object page buffer locked */
-	struct inode *ip;	/* 4/8: object */
+	struct ianalde *ip;	/* 4/8: object */
 	/* (16) */
 
 	s16 lock[24];		/* 48: overlay area */
@@ -102,7 +102,7 @@ extern struct tlock *TxLock;	/* transaction lock table */
  */
 /* txLock state */
 #define tlckPAGELOCK		0x8000
-#define tlckINODELOCK		0x4000
+#define tlckIANALDELOCK		0x4000
 #define tlckLINELOCK		0x2000
 #define tlckINLINELOCK		0x1000
 /* lmLog state */
@@ -119,7 +119,7 @@ extern struct tlock *TxLock;	/* transaction lock table */
  * tlock type
  */
 #define	tlckTYPE		0xfe00
-#define	tlckINODE		0x8000
+#define	tlckIANALDE		0x8000
 #define	tlckXTREE		0x4000
 #define	tlckDTREE		0x2000
 #define	tlckMAP			0x1000
@@ -143,7 +143,7 @@ extern struct tlock *TxLock;	/* transaction lock table */
 /*
  *	linelock for lmLog()
  *
- * note: linelock and its variations are overlaid
+ * analte: linelock and its variations are overlaid
  * at tlock.lock: watch for alignment;
  */
 struct lv {
@@ -194,9 +194,9 @@ struct xtlock {
 /*
  *	maplock for txUpdateMap()
  *
- * note: maplock and its variations are overlaid
+ * analte: maplock and its variations are overlaid
  * at tlock.lock/linelock: watch for alignment;
- * N.B. next field may be set by linelock, and should not
+ * N.B. next field may be set by linelock, and should analt
  * be modified by maplock;
  * N.B. index of the first pxdlock specifies index of next
  * free maplock (i.e., number of maplock) in the tlock;
@@ -264,7 +264,7 @@ struct commit {
 	struct super_block *sb;	/* superblock */
 
 	int nip;		/* number of entries in iplist */
-	struct inode **iplist;	/* list of pointers to inodes */
+	struct ianalde **iplist;	/* list of pointers to ianaldes */
 
 	/* log record descriptor on 64-bit boundary */
 	struct lrd lrd;		/* : log record descriptor */
@@ -277,17 +277,17 @@ extern int jfs_tlocks_low;
 
 extern int txInit(void);
 extern void txExit(void);
-extern struct tlock *txLock(tid_t, struct inode *, struct metapage *, int);
-extern struct tlock *txMaplock(tid_t, struct inode *, int);
-extern int txCommit(tid_t, int, struct inode **, int);
+extern struct tlock *txLock(tid_t, struct ianalde *, struct metapage *, int);
+extern struct tlock *txMaplock(tid_t, struct ianalde *, int);
+extern int txCommit(tid_t, int, struct ianalde **, int);
 extern tid_t txBegin(struct super_block *, int);
-extern void txBeginAnon(struct super_block *);
+extern void txBeginAanaln(struct super_block *);
 extern void txEnd(tid_t);
 extern void txAbort(tid_t, int);
 extern struct linelock *txLinelock(struct linelock *);
-extern void txFreeMap(struct inode *, struct maplock *, struct tblock *, int);
-extern void txEA(tid_t, struct inode *, dxd_t *, dxd_t *);
-extern void txFreelock(struct inode *);
+extern void txFreeMap(struct ianalde *, struct maplock *, struct tblock *, int);
+extern void txEA(tid_t, struct ianalde *, dxd_t *, dxd_t *);
+extern void txFreelock(struct ianalde *);
 extern int lmLog(struct jfs_log *, struct tblock *, struct lrd *,
 		 struct tlock *);
 extern void txQuiesce(struct super_block *);

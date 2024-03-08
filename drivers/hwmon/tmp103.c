@@ -69,7 +69,7 @@ static int tmp103_read(struct device *dev, enum hwmon_sensor_types type,
 		reg = TMP103_THIGH_REG;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = regmap_read(regmap, reg, &regval);
@@ -95,7 +95,7 @@ static int tmp103_write(struct device *dev, enum hwmon_sensor_types type,
 		reg = TMP103_THIGH_REG;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	temp = clamp_val(temp, -55000, 127000);

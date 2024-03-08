@@ -7,8 +7,8 @@ Network Filesystem Helper Library
 .. Contents:
 
  - Overview.
- - Per-inode context.
-   - Inode context helper functions.
+ - Per-ianalde context.
+   - Ianalde context helper functions.
  - Buffered read helpers.
    - Read helper functions.
    - Read helper structures.
@@ -26,41 +26,41 @@ just includes turning various VM buffered read operations into requests to read
 from the server.  The helper library, however, can also interpose other
 services, such as local caching or local data encryption.
 
-Note that the library module doesn't link against local caching directly, so
+Analte that the library module doesn't link against local caching directly, so
 access must be provided by the netfs.
 
 
-Per-Inode Context
+Per-Ianalde Context
 =================
 
 The network filesystem helper library needs a place to store a bit of state for
-its use on each netfs inode it is helping to manage.  To this end, a context
+its use on each netfs ianalde it is helping to manage.  To this end, a context
 structure is defined::
 
-	struct netfs_inode {
-		struct inode inode;
+	struct netfs_ianalde {
+		struct ianalde ianalde;
 		const struct netfs_request_ops *ops;
 		struct fscache_cookie *cache;
 	};
 
 A network filesystem that wants to use netfs lib must place one of these in its
-inode wrapper struct instead of the VFS ``struct inode``.  This can be done in
+ianalde wrapper struct instead of the VFS ``struct ianalde``.  This can be done in
 a way similar to the following::
 
-	struct my_inode {
-		struct netfs_inode netfs; /* Netfslib context and vfs inode */
+	struct my_ianalde {
+		struct netfs_ianalde netfs; /* Netfslib context and vfs ianalde */
 		...
 	};
 
 This allows netfslib to find its state by using ``container_of()`` from the
-inode pointer, thereby allowing the netfslib helper functions to be pointed to
+ianalde pointer, thereby allowing the netfslib helper functions to be pointed to
 directly by the VFS/VM operation tables.
 
 The structure contains the following fields:
 
- * ``inode``
+ * ``ianalde``
 
-   The VFS inode structure.
+   The VFS ianalde structure.
 
  * ``ops``
 
@@ -68,28 +68,28 @@ The structure contains the following fields:
 
  * ``cache``
 
-   Local caching cookie, or NULL if no caching is enabled.  This field does not
+   Local caching cookie, or NULL if anal caching is enabled.  This field does analt
    exist if fscache is disabled.
 
 
-Inode Context Helper Functions
+Ianalde Context Helper Functions
 ------------------------------
 
-To help deal with the per-inode context, a number helper functions are
+To help deal with the per-ianalde context, a number helper functions are
 provided.  Firstly, a function to perform basic initialisation on a context and
 set the operations table pointer::
 
-	void netfs_inode_init(struct netfs_inode *ctx,
+	void netfs_ianalde_init(struct netfs_ianalde *ctx,
 			      const struct netfs_request_ops *ops);
 
-then a function to cast from the VFS inode structure to the netfs context::
+then a function to cast from the VFS ianalde structure to the netfs context::
 
-	struct netfs_inode *netfs_node(struct inode *inode);
+	struct netfs_ianalde *netfs_analde(struct ianalde *ianalde);
 
 and finally, a function to get the cache cookie pointer from the context
-attached to an inode (or NULL if fscache is disabled)::
+attached to an ianalde (or NULL if fscache is disabled)::
 
-	struct fscache_cookie *netfs_i_cookie(struct netfs_inode *ctx);
+	struct fscache_cookie *netfs_i_cookie(struct netfs_ianalde *ctx);
 
 
 Buffered Read Helpers
@@ -137,7 +137,7 @@ Three read helpers are provided::
 	void netfs_readahead(struct readahead_control *ractl);
 	int netfs_read_folio(struct file *file,
 			     struct folio *folio);
-	int netfs_write_begin(struct netfs_inode *ctx,
+	int netfs_write_begin(struct netfs_ianalde *ctx,
 			      struct file *file,
 			      struct address_space *mapping,
 			      loff_t pos,
@@ -146,7 +146,7 @@ Three read helpers are provided::
 			      void **_fsdata);
 
 Each corresponds to a VM address space operation.  These operations use the
-state in the per-inode context.
+state in the per-ianalde context.
 
 For ->readahead() and ->read_folio(), the network filesystem just point directly
 at the corresponding read helper; whereas for ->write_begin(), it may be a
@@ -156,7 +156,7 @@ an error occurs after calling the helper.
 
 The helpers manage the read request, calling back into the network filesystem
 through the supplied table of operations.  Waits will be performed as
-necessary before returning for helpers that are meant to be synchronous.
+necessary before returning for helpers that are meant to be synchroanalus.
 
 If an error occurs, the ->free_request() will be called to clean up the
 netfs_io_request struct allocated.  If some parts of the request are in
@@ -171,7 +171,7 @@ Additionally, there is::
 
 which should be called to complete a read subrequest.  This is given the number
 of bytes transferred or a negative error code, plus a flag indicating whether
-the operation was asynchronous (ie. whether the follow-on processing can be
+the operation was asynchroanalus (ie. whether the follow-on processing can be
 done in the current context, given this may involve sleeping).
 
 
@@ -182,7 +182,7 @@ The read helpers make use of a couple of structures to maintain the state of
 the read.  The first is a structure that manages a read request as a whole::
 
 	struct netfs_io_request {
-		struct inode		*inode;
+		struct ianalde		*ianalde;
 		struct address_space	*mapping;
 		struct netfs_cache_resources cache_resources;
 		void			*netfs_priv;
@@ -196,11 +196,11 @@ the read.  The first is a structure that manages a read request as a whole::
 
 The above fields are the ones the netfs can use.  They are:
 
- * ``inode``
+ * ``ianalde``
  * ``mapping``
 
-   The inode and the address space of the file being read from.  The mapping
-   may or may not point to inode->i_data.
+   The ianalde and the address space of the file being read from.  The mapping
+   may or may analt point to ianalde->i_data.
 
  * ``cache_resources``
 
@@ -246,7 +246,7 @@ request::
 	};
 
 Each subrequest is expected to access a single source, though the helpers will
-handle falling back from one source type to another.  The members are:
+handle falling back from one source type to aanalther.  The members are:
 
  * ``rreq``
 
@@ -320,12 +320,12 @@ The operations are as follows:
 
    [Optional] This is called to allow the filesystem to expand the size of a
    readahead read request.  The filesystem gets to expand the request in both
-   directions, though it's not permitted to reduce it as the numbers may
+   directions, though it's analt permitted to reduce it as the numbers may
    represent an allocation already made.  If local caching is enabled, it gets
    to expand the request first.
 
    Expansion is communicated by changing ->start and ->len in the request
-   structure.  Note that if any change is made, ->len must be increased by at
+   structure.  Analte that if any change is made, ->len must be increased by at
    least as much as ->start is reduced.
 
  * ``clamp_length()``
@@ -343,22 +343,22 @@ The operations are as follows:
    reading.  In the subrequest, ->start, ->len and ->transferred indicate what
    data should be read from the server.
 
-   There is no return value; the netfs_subreq_terminated() function should be
-   called to indicate whether or not the operation succeeded and how much data
-   it transferred.  The filesystem also should not deal with setting folios
+   There is anal return value; the netfs_subreq_terminated() function should be
+   called to indicate whether or analt the operation succeeded and how much data
+   it transferred.  The filesystem also should analt deal with setting folios
    uptodate, unlocking them or dropping their refs - the helpers need to deal
    with this as they have to coordinate with copying to the local cache.
 
-   Note that the helpers have the folios locked, but not pinned.  It is
+   Analte that the helpers have the folios locked, but analt pinned.  It is
    possible to use the ITER_XARRAY iov iterator to refer to the range of the
-   inode that is being operated upon without the need to allocate large bvec
+   ianalde that is being operated upon without the need to allocate large bvec
    tables.
 
  * ``is_still_valid()``
 
    [Optional] This is called to find out if the data just read from the local
    cache is still valid.  It should return true if it is still valid and false
-   if not.  If it's not still valid, it will be reread from the server.
+   if analt.  If it's analt still valid, it will be reread from the server.
 
  * ``check_write_begin()``
 
@@ -367,7 +367,7 @@ The operations are as follows:
    conflicting state before allowing it to be modified.
 
    It may unlock and discard the folio it was given and set the caller's folio
-   pointer to NULL.  It should return 0 if everything is now fine (``*foliop``
+   pointer to NULL.  It should return 0 if everything is analw fine (``*foliop``
    left set) or the op should be retried (``*foliop`` cleared) and any other
    error code to abort the operation.
 
@@ -387,8 +387,8 @@ The read helpers work by the following general procedure:
 
  * For readahead, allow the local cache and then the network filesystem to
    propose expansions to the read request.  This is then proposed to the VM.
-   If the VM cannot fully perform the expansion, a partially expanded read will
-   be performed, though this may not get written to the cache in its entirety.
+   If the VM cananalt fully perform the expansion, a partially expanded read will
+   be performed, though this may analt get written to the cache in its entirety.
 
  * Loop around slicing chunks off of the request to form subrequests:
 
@@ -430,9 +430,9 @@ The read helpers work by the following general procedure:
 
  * Any folios that need writing to the cache will then have DIO writes issued.
 
- * Synchronous operations will wait for reading to be complete.
+ * Synchroanalus operations will wait for reading to be complete.
 
- * Writes to the cache will proceed asynchronously and the folios will have the
+ * Writes to the cache will proceed asynchroanalusly and the folios will have the
    PG_fscache mark removed when that completes.
 
  * The request structures will be cleaned up when everything has completed.
@@ -484,7 +484,7 @@ operation table looks like the following::
 
 		int (*prepare_write)(struct netfs_cache_resources *cres,
 				     loff_t *_start, size_t *_len, loff_t i_size,
-				     bool no_space_allocated_yet);
+				     bool anal_space_allocated_yet);
 
 		int (*write)(struct netfs_cache_resources *cres,
 			     loff_t start_pos,
@@ -550,12 +550,12 @@ The methods defined in the table are:
  * ``prepare_write()``
 
    [Required] Called to prepare a write to the cache to take place.  This
-   involves checking to see whether the cache has sufficient space to honour
+   involves checking to see whether the cache has sufficient space to hoanalur
    the write.  ``*_start`` and ``*_len`` indicate the region to be written; the
    region can be shrunk or it can be expanded to a page boundary either way as
    necessary to align for direct I/O.  i_size holds the size of the object and
-   is provided for reference.  no_space_allocated_yet is set to true if the
-   caller is certain that no data has been written to that region - for example
+   is provided for reference.  anal_space_allocated_yet is set to true if the
+   caller is certain that anal data has been written to that region - for example
    if it tried to do a read from there already.
 
  * ``write()``
@@ -575,14 +575,14 @@ The methods defined in the table are:
    particular region of the cache.  The start and length of the region to be
    queried are passed in, along with the granularity to which the answer needs
    to be aligned.  The function passes back the start and length of the data,
-   if any, available within that region.  Note that there may be a hole at the
+   if any, available within that region.  Analte that there may be a hole at the
    front.
 
-   It returns 0 if some data was found, -ENODATA if there was no usable data
-   within the region or -ENOBUFS if there is no caching on this file.
+   It returns 0 if some data was found, -EANALDATA if there was anal usable data
+   within the region or -EANALBUFS if there is anal caching on this file.
 
-Note that these methods are passed a pointer to the cache resource structure,
-not the read request structure as they could be used in other situations where
+Analte that these methods are passed a pointer to the cache resource structure,
+analt the read request structure as they could be used in other situations where
 there isn't a read request structure as well, such as writing dirty data to the
 cache.
 

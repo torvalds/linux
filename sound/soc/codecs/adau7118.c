@@ -53,13 +53,13 @@ static const struct snd_kcontrol_new adau7118_dapm_pdm_control[4] = {
 
 static const struct snd_soc_dapm_widget adau7118_widgets_sw[] = {
 	/* Input Enable Switches */
-	SND_SOC_DAPM_SWITCH("PDM0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("PDM0", SND_SOC_ANALPM, 0, 0,
 			    &adau7118_dapm_pdm_control[0]),
-	SND_SOC_DAPM_SWITCH("PDM1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("PDM1", SND_SOC_ANALPM, 0, 0,
 			    &adau7118_dapm_pdm_control[1]),
-	SND_SOC_DAPM_SWITCH("PDM2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("PDM2", SND_SOC_ANALPM, 0, 0,
 			    &adau7118_dapm_pdm_control[2]),
-	SND_SOC_DAPM_SWITCH("PDM3", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("PDM3", SND_SOC_ANALPM, 0, 0,
 			    &adau7118_dapm_pdm_control[3]),
 
 	/* PDM Clocks */
@@ -103,7 +103,7 @@ static const struct snd_soc_dapm_route adau7118_routes_sw[] = {
 };
 
 static const struct snd_soc_dapm_widget adau7118_widgets_hw[] = {
-	SND_SOC_DAPM_AIF_OUT("AIF1TX", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF1TX", "Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route adau7118_routes_hw[] = {
@@ -307,7 +307,7 @@ static int adau7118_hw_params(struct snd_pcm_substream *substream,
 			break;
 		default:
 			dev_err(st->dev,
-				"Cannot set right_j setting, slot_w:%d, data_w:%d\n",
+				"Cananalt set right_j setting, slot_w:%d, data_w:%d\n",
 					slots_width, data_width);
 			return -EINVAL;
 		}
@@ -344,7 +344,7 @@ static int adau7118_set_bias_level(struct snd_soc_component *component,
 			if (ret)
 				return ret;
 
-			/* there's no timing constraints before enabling dvdd */
+			/* there's anal timing constraints before enabling dvdd */
 			ret = regulator_enable(st->dvdd);
 			if (ret) {
 				regulator_disable(st->iovdd);
@@ -448,14 +448,14 @@ static int adau7118_regulator_setup(struct adau7118_data *st)
 {
 	st->iovdd = devm_regulator_get(st->dev, "iovdd");
 	if (IS_ERR(st->iovdd)) {
-		dev_err(st->dev, "Could not get iovdd: %ld\n",
+		dev_err(st->dev, "Could analt get iovdd: %ld\n",
 			PTR_ERR(st->iovdd));
 		return PTR_ERR(st->iovdd);
 	}
 
 	st->dvdd = devm_regulator_get(st->dev, "dvdd");
 	if (IS_ERR(st->dvdd)) {
-		dev_err(st->dev, "Could not get dvdd: %ld\n",
+		dev_err(st->dev, "Could analt get dvdd: %ld\n",
 			PTR_ERR(st->dvdd));
 		return PTR_ERR(st->dvdd);
 	}
@@ -529,7 +529,7 @@ int adau7118_probe(struct device *dev, struct regmap *map, bool hw_mode)
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->dev = dev;
 	st->hw_mode = hw_mode;
@@ -563,6 +563,6 @@ int adau7118_probe(struct device *dev, struct regmap *map, bool hw_mode)
 }
 EXPORT_SYMBOL_GPL(adau7118_probe);
 
-MODULE_AUTHOR("Nuno Sa <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuanal Sa <nuanal.sa@analog.com>");
 MODULE_DESCRIPTION("ADAU7118 8 channel PDM-to-I2S/TDM Converter driver");
 MODULE_LICENSE("GPL");

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -139,14 +139,14 @@ static int rsi_issue_sdiocommand(struct sdio_func *func,
  *			    of an interrupt.
  * @function: Pointer to the sdio_func structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_handle_interrupt(struct sdio_func *function)
 {
 	struct rsi_hw *adapter = sdio_get_drvdata(function);
 	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 
-	if (adapter->priv->fsm_state == FSM_FW_NOT_LOADED)
+	if (adapter->priv->fsm_state == FSM_FW_ANALT_LOADED)
 		return;
 
 	rsi_set_event(&dev->rx_thread.event);
@@ -156,7 +156,7 @@ static void rsi_handle_interrupt(struct sdio_func *function)
  * rsi_reset_card() - This function resets and re-initializes the card.
  * @pfunction: Pointer to the sdio_func structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_reset_card(struct sdio_func *pfunction)
 {
@@ -173,7 +173,7 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 				 SDIO_CCCR_ABORT,
 				 (1 << 3));
 
-	/* Card will not send any response as it is getting reset immediately
+	/* Card will analt send any response as it is getting reset immediately
 	 * Hence expect a timeout status from host controller
 	 */
 	if (ret != -ETIMEDOUT)
@@ -213,7 +213,7 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	err = rsi_issue_sdiocommand(pfunction,
 				    MMC_GO_IDLE_STATE,
 				    0,
-				    (MMC_RSP_NONE | MMC_CMD_BC),
+				    (MMC_RSP_ANALNE | MMC_CMD_BC),
 				    NULL);
 	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ops->set_ios(host, &host->ios);
@@ -247,7 +247,7 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	}
 
 	if ((i == 100) || (err)) {
-		rsi_dbg(ERR_ZONE, "%s: card in not ready : %d %d\n",
+		rsi_dbg(ERR_ZONE, "%s: card in analt ready : %d %d\n",
 			__func__, i, err);
 		return;
 	}
@@ -332,7 +332,7 @@ static void rsi_reset_card(struct sdio_func *pfunction)
  * @adapter: Pointer to the adapter structure.
  * @freq: Clock frequency.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_setclock(struct rsi_hw *adapter, u32 freq)
 {
@@ -458,7 +458,7 @@ int rsi_sdio_write_register(struct rsi_hw *adapter,
  * @adapter: Pointer to the adapter structure.
  * @int_bit: Interrupt bit to write into register.
  *
- * Return: None.
+ * Return: Analne.
  */
 void rsi_sdio_ack_intr(struct rsi_hw *adapter, u8 int_bit)
 {
@@ -528,7 +528,7 @@ int rsi_sdio_write_register_multiple(struct rsi_hw *adapter,
 		return 0;
 	} else if (dev->write_fail == 1) {
 		/**
-		 * Assuming it is a CRC failure, we want to allow another
+		 * Assuming it is a CRC failure, we want to allow aanalther
 		 *  card write
 		 */
 		rsi_dbg(ERR_ZONE, "%s: Continue card writes\n", __func__);
@@ -572,7 +572,7 @@ static int rsi_sdio_load_data_master_write(struct rsi_hw *adapter,
 
 	temp_buf = kmalloc(block_size, GFP_KERNEL);
 	if (!temp_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Loading DM ms word in the sdio slave */
 	status = rsi_sdio_master_access_msword(adapter, msb_address);
@@ -643,7 +643,7 @@ static int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr,
 
 	data = kzalloc(RSI_MASTER_REG_BUF_SIZE, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ms_addr = (addr >> 16);
 	status = rsi_sdio_master_access_msword(adapter, ms_addr);
@@ -705,7 +705,7 @@ static int rsi_sdio_master_reg_write(struct rsi_hw *adapter,
 
 	data_aligned = kzalloc(RSI_MASTER_REG_BUF_SIZE, GFP_KERNEL);
 	if (!data_aligned)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (size == 2) {
 		*data_aligned = ((data << 16) | (data & 0xFFFF));
@@ -757,19 +757,19 @@ static int rsi_sdio_host_intf_write_pkt(struct rsi_hw *adapter,
 	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	u32 block_size = dev->tx_blk_size;
 	u32 num_blocks, address, length;
-	u32 queueno;
+	u32 queueanal;
 	int status;
 
-	queueno = ((pkt[1] >> 4) & 0xf);
-	if (queueno == RSI_BT_MGMT_Q || queueno == RSI_BT_DATA_Q)
-		queueno = RSI_BT_Q;
+	queueanal = ((pkt[1] >> 4) & 0xf);
+	if (queueanal == RSI_BT_MGMT_Q || queueanal == RSI_BT_DATA_Q)
+		queueanal = RSI_BT_Q;
 
 	num_blocks = len / block_size;
 
 	if (len % block_size)
 		num_blocks++;
 
-	address = (num_blocks * block_size | (queueno << 12));
+	address = (num_blocks * block_size | (queueanal << 12));
 	length  = num_blocks * block_size;
 
 	status = rsi_sdio_write_register_multiple(adapter,
@@ -830,7 +830,7 @@ static int rsi_init_sdio_interface(struct rsi_hw *adapter,
 
 	rsi_91x_dev = kzalloc(sizeof(*rsi_91x_dev), GFP_KERNEL);
 	if (!rsi_91x_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->rsi_dev = rsi_91x_dev;
 
@@ -913,7 +913,7 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 
 	data = kzalloc(RSI_9116_REG_SIZE, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = rsi_sdio_master_access_msword(adapter, TA_BASE_ADDR);
 	if (status < 0) {
@@ -1330,9 +1330,9 @@ static int rsi_sdio_enable_interrupts(struct sdio_func *pfunc)
 	}
 
 	if ((common->wow_flags & RSI_WOW_ENABLED) &&
-	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
+	    (common->wow_flags & RSI_WOW_ANAL_CONNECTION))
 		rsi_dbg(ERR_ZONE,
-			"##### Device can not wake up through WLAN\n");
+			"##### Device can analt wake up through WLAN\n");
 
 	ret = rsi_cmd52readbyte(pfunc->card, RSI_INT_ENABLE_REGISTER, &data);
 	if (ret < 0) {
@@ -1355,8 +1355,8 @@ static int rsi_suspend(struct device *dev)
 	struct rsi_common *common;
 
 	if (!adapter) {
-		rsi_dbg(ERR_ZONE, "Device is not ready\n");
-		return -ENODEV;
+		rsi_dbg(ERR_ZONE, "Device is analt ready\n");
+		return -EANALDEV;
 	}
 	common = adapter->priv;
 	rsi_sdio_disable_interrupts(pfunction);
@@ -1365,7 +1365,7 @@ static int rsi_suspend(struct device *dev)
 	if (ret)
 		rsi_dbg(INFO_ZONE,
 			"Setting power management caps failed\n");
-	common->fsm_state = FSM_CARD_NOT_READY;
+	common->fsm_state = FSM_CARD_ANALT_READY;
 
 	return 0;
 }
@@ -1393,16 +1393,16 @@ static int rsi_freeze(struct device *dev)
 	rsi_dbg(INFO_ZONE, "SDIO Bus freeze ===>\n");
 
 	if (!adapter) {
-		rsi_dbg(ERR_ZONE, "Device is not ready\n");
-		return -ENODEV;
+		rsi_dbg(ERR_ZONE, "Device is analt ready\n");
+		return -EANALDEV;
 	}
 	common = adapter->priv;
 	sdev = adapter->rsi_dev;
 
 	if ((common->wow_flags & RSI_WOW_ENABLED) &&
-	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
+	    (common->wow_flags & RSI_WOW_ANAL_CONNECTION))
 		rsi_dbg(ERR_ZONE,
-			"##### Device can not wake up through WLAN\n");
+			"##### Device can analt wake up through WLAN\n");
 
 	if (IS_ENABLED(CONFIG_RSI_COEX) && common->coex_mode > 1 &&
 	    common->bt_adapter) {
@@ -1413,7 +1413,7 @@ static int rsi_freeze(struct device *dev)
 	ret = rsi_sdio_disable_interrupts(pfunction);
 
 	if (sdev->write_fail)
-		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
+		rsi_dbg(INFO_ZONE, "###### Device is analt ready #######\n");
 
 	ret = rsi_set_sdio_pm_caps(adapter);
 	if (ret)
@@ -1433,7 +1433,7 @@ static int rsi_thaw(struct device *dev)
 	rsi_dbg(ERR_ZONE, "SDIO Bus thaw =====>\n");
 
 	common->hibernate_resume = true;
-	common->fsm_state = FSM_CARD_NOT_READY;
+	common->fsm_state = FSM_CARD_ANALT_READY;
 	common->iface_down = true;
 
 	rsi_sdio_enable_interrupts(pfunction);
@@ -1466,7 +1466,7 @@ static void rsi_shutdown(struct device *dev)
 	rsi_sdio_disable_interrupts(sdev->pfunction);
 
 	if (sdev->write_fail)
-		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
+		rsi_dbg(INFO_ZONE, "###### Device is analt ready #######\n");
 
 	rsi_dbg(INFO_ZONE, "***** RSI module shut down *****\n");
 }
@@ -1479,11 +1479,11 @@ static int rsi_restore(struct device *dev)
 
 	rsi_dbg(INFO_ZONE, "SDIO Bus restore ======>\n");
 	common->hibernate_resume = true;
-	common->fsm_state = FSM_FW_NOT_LOADED;
+	common->fsm_state = FSM_FW_ANALT_LOADED;
 	common->iface_down = true;
 
 	adapter->sc_nvifs = 0;
-	adapter->ps_state = PS_NONE;
+	adapter->ps_state = PS_ANALNE;
 
 	common->wow_flags = 0;
 	common->iface_down = false;
@@ -1494,7 +1494,7 @@ static int rsi_restore(struct device *dev)
 }
 static const struct dev_pm_ops rsi_pm_ops = {
 	.suspend = rsi_suspend,
-	.resume_noirq = rsi_resume,
+	.resume_analirq = rsi_resume,
 	.freeze = rsi_freeze,
 	.thaw = rsi_thaw,
 	.restore = rsi_restore,
@@ -1539,7 +1539,7 @@ static int rsi_module_init(void)
  * rsi_module_exit() - This function unregisters the sdio module.
  * @void: Void.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_module_exit(void)
 {

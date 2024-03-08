@@ -100,13 +100,13 @@ virtio_gpu_parse_deps(struct virtio_gpu_submit *submit)
 
 	/*
 	 * kvalloc at first tries to allocate memory using kmalloc and
-	 * falls back to vmalloc only on failure. It also uses __GFP_NOWARN
+	 * falls back to vmalloc only on failure. It also uses __GFP_ANALWARN
 	 * internally for allocations larger than a page size, preventing
 	 * storm of KMSG warnings.
 	 */
 	syncobjs = kvcalloc(num_in_syncobjs, sizeof(*syncobjs), GFP_KERNEL);
 	if (!syncobjs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_in_syncobjs; i++) {
 		u64 address = exbuf->in_syncobjs + i * syncobj_stride;
@@ -197,7 +197,7 @@ static int virtio_gpu_parse_post_deps(struct virtio_gpu_submit *submit)
 
 	post_deps = kvcalloc(num_out_syncobjs, sizeof(*post_deps), GFP_KERNEL);
 	if (!post_deps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_out_syncobjs; i++) {
 		u64 address = exbuf->out_syncobjs + i * syncobj_stride;
@@ -221,7 +221,7 @@ static int virtio_gpu_parse_post_deps(struct virtio_gpu_submit *submit)
 		if (syncobj_desc.point) {
 			post_deps[i].chain = dma_fence_chain_alloc();
 			if (!post_deps[i].chain) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 		}
@@ -279,7 +279,7 @@ static int virtio_gpu_fence_event_create(struct drm_device *dev,
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	e->event.type = VIRTGPU_EVENT_FENCE_SIGNALED;
 	e->event.length = sizeof(e->event);
@@ -306,7 +306,7 @@ static int virtio_gpu_init_submit_buflist(struct virtio_gpu_submit *submit)
 	bo_handles = kvmalloc_array(exbuf->num_bo_handles, sizeof(*bo_handles),
 				    GFP_KERNEL);
 	if (!bo_handles)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(bo_handles, u64_to_user_ptr(exbuf->bo_handles),
 			   exbuf->num_bo_handles * sizeof(*bo_handles))) {
@@ -318,7 +318,7 @@ static int virtio_gpu_init_submit_buflist(struct virtio_gpu_submit *submit)
 							exbuf->num_bo_handles);
 	if (!submit->buflist) {
 		kvfree(bo_handles);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	kvfree(bo_handles);
@@ -353,7 +353,7 @@ static void virtio_gpu_submit(struct virtio_gpu_submit *submit)
 	virtio_gpu_cmd_submit(submit->vgdev, submit->buf, submit->exbuf->size,
 			      submit->vfpriv->ctx_id, submit->buflist,
 			      submit->out_fence);
-	virtio_gpu_notify(submit->vgdev);
+	virtio_gpu_analtify(submit->vgdev);
 }
 
 static void virtio_gpu_complete_submit(struct virtio_gpu_submit *submit)
@@ -426,7 +426,7 @@ static int virtio_gpu_init_submit(struct virtio_gpu_submit *submit,
 
 		submit->sync_file = sync_file_create(&out_fence->f);
 		if (!submit->sync_file)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -482,7 +482,7 @@ int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	int ret = -EINVAL;
 
 	if (!vgdev->has_virgl_3d)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (exbuf->flags & ~VIRTGPU_EXECBUF_FLAGS)
 		return ret;

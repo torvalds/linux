@@ -90,7 +90,7 @@ static irqreturn_t spi_clps711x_isr(int irq, void *dev_id)
 
 static int spi_clps711x_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spi_clps711x_data *hw;
 	struct spi_controller *host;
 	int irq, ret;
@@ -101,13 +101,13 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*hw));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->use_gpio_descriptors = true;
 	host->bus_num = -1;
 	host->mode_bits = SPI_CPHA | SPI_CS_HIGH;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 8);
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->prepare_message = spi_clps711x_prepare_message;
 	host->transfer_one = spi_clps711x_transfer_one;
 

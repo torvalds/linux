@@ -39,7 +39,7 @@ properties:
   spi-cpol: true
 
   spi-max-frequency:
-    description: inherited as a SPI client node, the datasheet specifies
+    description: inherited as a SPI client analde, the datasheet specifies
       maximum 300 ns minimum cycle which gives around 3 MHz max frequency
     maximum: 3000000
 

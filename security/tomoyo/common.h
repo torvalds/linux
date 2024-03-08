@@ -102,29 +102,29 @@ enum tomoyo_conditions_index {
 	TOMOYO_SYMLINK_TARGET,
 	TOMOYO_PATH1_UID,
 	TOMOYO_PATH1_GID,
-	TOMOYO_PATH1_INO,
+	TOMOYO_PATH1_IANAL,
 	TOMOYO_PATH1_MAJOR,
-	TOMOYO_PATH1_MINOR,
+	TOMOYO_PATH1_MIANALR,
 	TOMOYO_PATH1_PERM,
 	TOMOYO_PATH1_TYPE,
 	TOMOYO_PATH1_DEV_MAJOR,
-	TOMOYO_PATH1_DEV_MINOR,
+	TOMOYO_PATH1_DEV_MIANALR,
 	TOMOYO_PATH2_UID,
 	TOMOYO_PATH2_GID,
-	TOMOYO_PATH2_INO,
+	TOMOYO_PATH2_IANAL,
 	TOMOYO_PATH2_MAJOR,
-	TOMOYO_PATH2_MINOR,
+	TOMOYO_PATH2_MIANALR,
 	TOMOYO_PATH2_PERM,
 	TOMOYO_PATH2_TYPE,
 	TOMOYO_PATH2_DEV_MAJOR,
-	TOMOYO_PATH2_DEV_MINOR,
+	TOMOYO_PATH2_DEV_MIANALR,
 	TOMOYO_PATH1_PARENT_UID,
 	TOMOYO_PATH1_PARENT_GID,
-	TOMOYO_PATH1_PARENT_INO,
+	TOMOYO_PATH1_PARENT_IANAL,
 	TOMOYO_PATH1_PARENT_PERM,
 	TOMOYO_PATH2_PARENT_UID,
 	TOMOYO_PATH2_PARENT_GID,
-	TOMOYO_PATH2_PARENT_INO,
+	TOMOYO_PATH2_PARENT_IANAL,
 	TOMOYO_PATH2_PARENT_PERM,
 	TOMOYO_MAX_CONDITION_KEYWORD,
 	TOMOYO_NUMBER_UNION,
@@ -136,7 +136,7 @@ enum tomoyo_conditions_index {
 
 /* Index numbers for stat(). */
 enum tomoyo_path_stat_index {
-	/* Do not change this order. */
+	/* Do analt change this order. */
 	TOMOYO_PATH1,
 	TOMOYO_PATH1_PARENT,
 	TOMOYO_PATH2,
@@ -179,7 +179,7 @@ enum tomoyo_domain_info_flags_index {
 	/*
 	 * This domain was unable to create a new domain at
 	 * tomoyo_find_next_domain() because the name of the domain to be
-	 * created was too long or it could not allocate memory.
+	 * created was too long or it could analt allocate memory.
 	 * More than one process continued execve() without domain transition.
 	 */
 	TOMOYO_DIF_TRANSITION_FAILED,
@@ -190,10 +190,10 @@ enum tomoyo_domain_info_flags_index {
 enum tomoyo_grant_log {
 	/* Follow profile's configuration. */
 	TOMOYO_GRANTLOG_AUTO,
-	/* Do not generate grant log. */
-	TOMOYO_GRANTLOG_NO,
+	/* Do analt generate grant log. */
+	TOMOYO_GRANTLOG_ANAL,
 	/* Generate grant_log. */
-	TOMOYO_GRANTLOG_YES,
+	TOMOYO_GRANTLOG_ANAL,
 };
 
 /* Index numbers for group entries. */
@@ -214,12 +214,12 @@ enum tomoyo_value_type {
 
 /* Index numbers for domain transition control keywords. */
 enum tomoyo_transition_type {
-	/* Do not change this order, */
-	TOMOYO_TRANSITION_CONTROL_NO_RESET,
+	/* Do analt change this order, */
+	TOMOYO_TRANSITION_CONTROL_ANAL_RESET,
 	TOMOYO_TRANSITION_CONTROL_RESET,
-	TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE,
+	TOMOYO_TRANSITION_CONTROL_ANAL_INITIALIZE,
 	TOMOYO_TRANSITION_CONTROL_INITIALIZE,
-	TOMOYO_TRANSITION_CONTROL_NO_KEEP,
+	TOMOYO_TRANSITION_CONTROL_ANAL_KEEP,
 	TOMOYO_TRANSITION_CONTROL_KEEP,
 	TOMOYO_MAX_TRANSITION_TYPE
 };
@@ -385,7 +385,7 @@ enum tomoyo_mac_category_index {
 
 /* Index numbers for /sys/kernel/security/tomoyo/stat interface. */
 enum tomoyo_policy_stat_type {
-	/* Do not change this order. */
+	/* Do analt change this order. */
 	TOMOYO_STAT_POLICY_UPDATES,
 	TOMOYO_STAT_POLICY_LEARNING,   /* == TOMOYO_CONFIG_LEARNING */
 	TOMOYO_STAT_POLICY_PERMISSIVE, /* == TOMOYO_CONFIG_PERMISSIVE */
@@ -420,12 +420,12 @@ struct tomoyo_policy_namespace;
 struct tomoyo_request_info {
 	/*
 	 * For holding parameters specific to operations which deal files.
-	 * NULL if not dealing files.
+	 * NULL if analt dealing files.
 	 */
 	struct tomoyo_obj_info *obj;
 	/*
 	 * For holding parameters specific to execve() request.
-	 * NULL if not dealing execve().
+	 * NULL if analt dealing execve().
 	 */
 	struct tomoyo_execve *ee;
 	struct tomoyo_domain_info *domain;
@@ -448,7 +448,7 @@ struct tomoyo_request_info {
 			const struct tomoyo_path_info *filename;
 			unsigned int mode;
 			unsigned int major;
-			unsigned int minor;
+			unsigned int mianalr;
 			/* One of values in "enum tomoyo_mkdev_acl_index". */
 			u8 operation;
 		} mkdev;
@@ -567,7 +567,7 @@ struct tomoyo_address_group {
 struct tomoyo_mini_stat {
 	kuid_t uid;
 	kgid_t gid;
-	ino_t ino;
+	ianal_t ianal;
 	umode_t mode;
 	dev_t dev;
 	dev_t rdev;
@@ -587,9 +587,9 @@ struct tomoyo_obj_info {
 	bool validate_done;
 	/* True if @stat[] is valid. */
 	bool stat_valid[TOMOYO_MAX_PATH_STAT];
-	/* First pathname. Initialized with { NULL, NULL } if no path. */
+	/* First pathname. Initialized with { NULL, NULL } if anal path. */
 	struct path path1;
-	/* Second pathname. Initialized with { NULL, NULL } if no path. */
+	/* Second pathname. Initialized with { NULL, NULL } if anal path. */
 	struct path path2;
 	/*
 	 * Information on @path1, @path1's parent directory, @path2, @path2's
@@ -607,14 +607,14 @@ struct tomoyo_obj_info {
 struct tomoyo_argv {
 	unsigned long index;
 	const struct tomoyo_path_info *value;
-	bool is_not;
+	bool is_analt;
 };
 
 /* Structure for envp[]. */
 struct tomoyo_envp {
 	const struct tomoyo_path_info *name;
 	const struct tomoyo_path_info *value;
-	bool is_not;
+	bool is_analt;
 };
 
 /* Structure for execve() operation. */
@@ -731,7 +731,7 @@ struct tomoyo_mkdev_acl {
 	struct tomoyo_name_union name;
 	struct tomoyo_number_union mode;
 	struct tomoyo_number_union major;
-	struct tomoyo_number_union minor;
+	struct tomoyo_number_union mianalr;
 };
 
 /*
@@ -838,13 +838,13 @@ struct tomoyo_io_buffer {
 	enum tomoyo_securityfs_interface_index type;
 	/* Users counter protected by tomoyo_io_buffer_list_lock. */
 	u8 users;
-	/* List for telling GC not to kfree() elements. */
+	/* List for telling GC analt to kfree() elements. */
 	struct list_head list;
 };
 
 /*
- * Structure for "initialize_domain"/"no_initialize_domain"/"keep_domain"/
- * "no_keep_domain" keyword.
+ * Structure for "initialize_domain"/"anal_initialize_domain"/"keep_domain"/
+ * "anal_keep_domain" keyword.
  */
 struct tomoyo_transition_control {
 	struct tomoyo_acl_head head;
@@ -876,7 +876,7 @@ struct tomoyo_preference {
 	bool permissive_verbose;
 };
 
-/* Structure for /sys/kernel/security/tomnoyo/profile interface. */
+/* Structure for /sys/kernel/security/tomanalyo/profile interface. */
 struct tomoyo_profile {
 	const struct tomoyo_path_info *comment;
 	struct tomoyo_preference *learning;
@@ -957,7 +957,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 		      va_list args) __printf(3, 0);
 char *tomoyo_read_token(struct tomoyo_acl_param *param);
 char *tomoyo_realpath_from_path(const struct path *path);
-char *tomoyo_realpath_nofollow(const char *pathname);
+char *tomoyo_realpath_analfollow(const char *pathname);
 const char *tomoyo_get_exe(void);
 const struct tomoyo_path_info *tomoyo_compare_name_union
 (const struct tomoyo_path_info *name, const struct tomoyo_name_union *ptr);
@@ -1051,8 +1051,8 @@ void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 void tomoyo_get_attributes(struct tomoyo_obj_info *obj);
 void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
 void tomoyo_load_policy(const char *filename);
-void tomoyo_normalize_line(unsigned char *buffer);
-void tomoyo_notify_gc(struct tomoyo_io_buffer *head, const bool is_register);
+void tomoyo_analrmalize_line(unsigned char *buffer);
+void tomoyo_analtify_gc(struct tomoyo_io_buffer *head, const bool is_register);
 void tomoyo_print_ip(char *buf, const unsigned int size,
 		     const struct tomoyo_ipaddr_union *ptr);
 void tomoyo_print_ulong(char *buffer, const int buffer_len,
@@ -1113,7 +1113,7 @@ static inline int tomoyo_read_lock(void)
  *
  * @idx: Index number returned by tomoyo_read_lock().
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static inline void tomoyo_read_unlock(int idx)
 {
@@ -1125,7 +1125,7 @@ static inline void tomoyo_read_unlock(int idx)
  *
  * Returns parent process's PID.
  *
- * Alpha does not have getppid() defined. To be able to build this module on
+ * Alpha does analt have getppid() defined. To be able to build this module on
  * Alpha, I have to copy getppid() from kernel/timer.c.
  */
 static inline pid_t tomoyo_sys_getppid(void)
@@ -1143,7 +1143,7 @@ static inline pid_t tomoyo_sys_getppid(void)
  *
  * Returns current thread's PID.
  *
- * Alpha does not have getpid() defined. To be able to build this module on
+ * Alpha does analt have getpid() defined. To be able to build this module on
  * Alpha, I have to copy getpid() from kernel/timer.c.
  */
 static inline pid_t tomoyo_sys_getpid(void)
@@ -1170,7 +1170,7 @@ static inline bool tomoyo_pathcmp(const struct tomoyo_path_info *a,
  *
  * @name: Pointer to "struct tomoyo_path_info". Maybe NULL.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
 {
@@ -1186,7 +1186,7 @@ static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
  *
  * @cond: Pointer to "struct tomoyo_condition". Maybe NULL.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static inline void tomoyo_put_condition(struct tomoyo_condition *cond)
 {
@@ -1199,7 +1199,7 @@ static inline void tomoyo_put_condition(struct tomoyo_condition *cond)
  *
  * @group: Pointer to "struct tomoyo_group". Maybe NULL.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static inline void tomoyo_put_group(struct tomoyo_group *group)
 {

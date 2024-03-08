@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/pm_wakeup.h>
 
 #include "ipa_version.h"
@@ -33,8 +33,8 @@ struct ipa_interrupt;
  * @version:		IPA hardware version
  * @pdev:		Platform device
  * @completion:		Used to signal pipeline clear transfer complete
- * @nb:			Notifier block used for remoteproc SSR
- * @notifier:		Remoteproc SSR notifier
+ * @nb:			Analtifier block used for remoteproc SSR
+ * @analtifier:		Remoteproc SSR analtifier
  * @smp2p:		SMP2P information
  * @power:		IPA power information
  * @table_addr:		DMA address of filter/route table content
@@ -81,8 +81,8 @@ struct ipa {
 	enum ipa_version version;
 	struct platform_device *pdev;
 	struct completion completion;
-	struct notifier_block nb;
-	void *notifier;
+	struct analtifier_block nb;
+	void *analtifier;
 	struct ipa_smp2p *smp2p;
 	struct ipa_power *power;
 
@@ -164,7 +164,7 @@ struct ipa {
  * verification was successful, the GSI layer is ready and ipa_setup()
  * implements the setup phase of initialization.
  *
- * If the modem performs early GSI initialization, the AP needs to know
+ * If the modem performs early GSI initialization, the AP needs to kanalw
  * when this has occurred.  An SMP2P interrupt is used for this purpose,
  * and receipt of that interrupt triggers the call to ipa_setup().
  */

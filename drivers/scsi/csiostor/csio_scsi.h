@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -59,10 +59,10 @@ extern uint32_t csio_delta_scan_tmo;
 extern int csio_lun_qdepth;
 
 /*
- **************************** NOTE *******************************
+ **************************** ANALTE *******************************
  * How do we calculate MAX FCoE SCSI SGEs? Here is the math:
  * Max Egress WR size = 512 bytes
- * One SCSI egress WR has the following fixed no of bytes:
+ * One SCSI egress WR has the following fixed anal of bytes:
  *      48 (sizeof(struct fw_scsi_write[read]_wr)) - FW WR
  *    + 32 (sizeof(struct fc_fcp_cmnd)) - Immediate FCP_CMD
  *    ------
@@ -93,55 +93,55 @@ extern int csio_lun_qdepth;
 
 struct csio_scsi_stats {
 	uint64_t		n_tot_success;	/* Total number of good I/Os */
-	uint32_t		n_rn_nr_error;	/* No. of remote-node-not-
+	uint32_t		n_rn_nr_error;	/* Anal. of remote-analde-analt-
 						 * ready errors
 						 */
-	uint32_t		n_hw_nr_error;	/* No. of hw-module-not-
+	uint32_t		n_hw_nr_error;	/* Anal. of hw-module-analt-
 						 * ready errors
 						 */
-	uint32_t		n_dmamap_error;	/* No. of DMA map erros */
-	uint32_t		n_unsupp_sge_error; /* No. of too-many-SGes
+	uint32_t		n_dmamap_error;	/* Anal. of DMA map erros */
+	uint32_t		n_unsupp_sge_error; /* Anal. of too-many-SGes
 						     * errors.
 						     */
-	uint32_t		n_no_req_error;	/* No. of Out-of-ioreqs error */
-	uint32_t		n_busy_error;	/* No. of -EBUSY errors */
-	uint32_t		n_hosterror;	/* No. of FW_HOSTERROR I/O */
-	uint32_t		n_rsperror;	/* No. of response errors */
-	uint32_t		n_autosense;	/* No. of auto sense replies */
-	uint32_t		n_ovflerror;	/* No. of overflow errors */
-	uint32_t		n_unflerror;	/* No. of underflow errors */
-	uint32_t		n_rdev_nr_error;/* No. of rdev not
+	uint32_t		n_anal_req_error;	/* Anal. of Out-of-ioreqs error */
+	uint32_t		n_busy_error;	/* Anal. of -EBUSY errors */
+	uint32_t		n_hosterror;	/* Anal. of FW_HOSTERROR I/O */
+	uint32_t		n_rsperror;	/* Anal. of response errors */
+	uint32_t		n_autosense;	/* Anal. of auto sense replies */
+	uint32_t		n_ovflerror;	/* Anal. of overflow errors */
+	uint32_t		n_unflerror;	/* Anal. of underflow errors */
+	uint32_t		n_rdev_nr_error;/* Anal. of rdev analt
 						 * ready errors
 						 */
-	uint32_t		n_rdev_lost_error;/* No. of rdev lost errors */
-	uint32_t		n_rdev_logo_error;/* No. of rdev logo errors */
-	uint32_t		n_link_down_error;/* No. of link down errors */
-	uint32_t		n_no_xchg_error; /* No. no exchange error */
-	uint32_t		n_unknown_error;/* No. of unhandled errors */
-	uint32_t		n_aborted;	/* No. of aborted I/Os */
-	uint32_t		n_abrt_timedout; /* No. of abort timedouts */
-	uint32_t		n_abrt_fail;	/* No. of abort failures */
-	uint32_t		n_abrt_dups;	/* No. of duplicate aborts */
-	uint32_t		n_abrt_race_comp; /* No. of aborts that raced
+	uint32_t		n_rdev_lost_error;/* Anal. of rdev lost errors */
+	uint32_t		n_rdev_logo_error;/* Anal. of rdev logo errors */
+	uint32_t		n_link_down_error;/* Anal. of link down errors */
+	uint32_t		n_anal_xchg_error; /* Anal. anal exchange error */
+	uint32_t		n_unkanalwn_error;/* Anal. of unhandled errors */
+	uint32_t		n_aborted;	/* Anal. of aborted I/Os */
+	uint32_t		n_abrt_timedout; /* Anal. of abort timedouts */
+	uint32_t		n_abrt_fail;	/* Anal. of abort failures */
+	uint32_t		n_abrt_dups;	/* Anal. of duplicate aborts */
+	uint32_t		n_abrt_race_comp; /* Anal. of aborts that raced
 						   * with completions.
 						   */
-	uint32_t		n_abrt_busy_error;/* No. of abort failures
+	uint32_t		n_abrt_busy_error;/* Anal. of abort failures
 						   * due to -EBUSY.
 						   */
-	uint32_t		n_closed;	/* No. of closed I/Os */
-	uint32_t		n_cls_busy_error; /* No. of close failures
+	uint32_t		n_closed;	/* Anal. of closed I/Os */
+	uint32_t		n_cls_busy_error; /* Anal. of close failures
 						   * due to -EBUSY.
 						   */
-	uint32_t		n_active;	/* No. of IOs in active_q */
-	uint32_t		n_tm_active;	/* No. of TMs in active_q */
-	uint32_t		n_wcbfn;	/* No. of I/Os in worker
+	uint32_t		n_active;	/* Anal. of IOs in active_q */
+	uint32_t		n_tm_active;	/* Anal. of TMs in active_q */
+	uint32_t		n_wcbfn;	/* Anal. of I/Os in worker
 						 * cbfn q
 						 */
-	uint32_t		n_free_ioreq;	/* No. of freelist entries */
-	uint32_t		n_free_ddp;	/* No. of DDP freelist */
-	uint32_t		n_unaligned;	/* No. of Unaligned SGls */
-	uint32_t		n_inval_cplop;	/* No. invalid CPL op's in IQ */
-	uint32_t		n_inval_scsiop;	/* No. invalid scsi op's in IQ*/
+	uint32_t		n_free_ioreq;	/* Anal. of freelist entries */
+	uint32_t		n_free_ddp;	/* Anal. of DDP freelist */
+	uint32_t		n_unaligned;	/* Anal. of Unaligned SGls */
+	uint32_t		n_inval_cplop;	/* Anal. invalid CPL op's in IQ */
+	uint32_t		n_inval_scsiop;	/* Anal. invalid scsi op's in IQ*/
 };
 
 struct csio_scsim {
@@ -176,15 +176,15 @@ enum csio_scsi_ev {
 
 enum csio_scsi_lev {
 	CSIO_LEV_ALL = 1,
-	CSIO_LEV_LNODE,
-	CSIO_LEV_RNODE,
+	CSIO_LEV_LANALDE,
+	CSIO_LEV_RANALDE,
 	CSIO_LEV_LUN,
 };
 
 struct csio_scsi_level_data {
 	enum csio_scsi_lev	level;
-	struct csio_rnode	*rnode;
-	struct csio_lnode	*lnode;
+	struct csio_ranalde	*ranalde;
+	struct csio_lanalde	*lanalde;
 	uint64_t		oslun;
 };
 
@@ -340,8 +340,8 @@ csio_scsi_close(struct csio_ioreq *ioreq)
 
 void csio_scsi_cleanup_io_q(struct csio_scsim *, struct list_head *);
 int csio_scsim_cleanup_io(struct csio_scsim *, bool abort);
-int csio_scsim_cleanup_io_lnode(struct csio_scsim *,
-					  struct csio_lnode *);
+int csio_scsim_cleanup_io_lanalde(struct csio_scsim *,
+					  struct csio_lanalde *);
 struct csio_ioreq *csio_scsi_cmpl_handler(struct csio_hw *, void *, uint32_t,
 					  struct csio_fl_dma_buf *,
 					  void *, uint8_t **);

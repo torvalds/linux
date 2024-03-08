@@ -13,7 +13,7 @@
 
 /*
  * The SDK7786 FPGA supports mangling of most of the slots in some way or
- * another. Slots 3/4 are special in that only one can be supported at a
+ * aanalther. Slots 3/4 are special in that only one can be supported at a
  * time, and both appear on port 3 to the PCI bus scan. Enabling slot 4
  * (the horizontal edge connector) will disable slot 3 entirely.
  *
@@ -40,7 +40,7 @@ static int __init sdk7786_pci_init(void)
 	 * Enable slot #4 if it's been specified on the command line.
 	 *
 	 * Optionally reroute if slot #4 has a card present while slot #3
-	 * does not, regardless of command line value.
+	 * does analt, regardless of command line value.
 	 *
 	 * Card presence is logically inverted.
 	 */

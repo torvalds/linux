@@ -4,7 +4,7 @@
  *
  * Author: Jianmin Lv <lvjianmin@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/init.h>
@@ -20,10 +20,10 @@
 
 int acpi_disabled;
 EXPORT_SYMBOL(acpi_disabled);
-int acpi_noirq;
+int acpi_analirq;
 int acpi_pci_disabled;
 EXPORT_SYMBOL(acpi_pci_disabled);
-int acpi_strict = 1; /* We have no workarounds on LoongArch */
+int acpi_strict = 1; /* We have anal workarounds on LoongArch */
 int num_processors;
 int disabled_cpus;
 
@@ -65,9 +65,9 @@ static int set_processor_mask(u32 id, u32 flags)
 
 	if (num_processors >= nr_cpu_ids) {
 		pr_warn(PREFIX "nr_cpus/possible_cpus limit of %i reached."
-			" processor 0x%x ignored.\n", nr_cpu_ids, cpuid);
+			" processor 0x%x iganalred.\n", nr_cpu_ids, cpuid);
 
-		return -ENODEV;
+		return -EANALDEV;
 
 	}
 	if (cpuid == loongson_sysconf.boot_cpu_id)
@@ -116,7 +116,7 @@ acpi_parse_eio_master(union acpi_subtable_headers *header, const unsigned long e
 	if (BAD_MADT_ENTRY(eiointc, end))
 		return -EINVAL;
 
-	core = eiointc->node * CORES_PER_EIO_NODE;
+	core = eiointc->analde * CORES_PER_EIO_ANALDE;
 	set_bit(core, loongson_sysconf.cores_io_master);
 
 	return 0;
@@ -151,7 +151,7 @@ int __init parse_acpi_topology(void)
 		topology_id = find_acpi_cpu_topology(cpu, 0);
 		if (topology_id < 0) {
 			pr_warn("Invalid BIOS PPTT\n");
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		if (acpi_pptt_cpu_is_thread(cpu) <= 0)
@@ -159,7 +159,7 @@ int __init parse_acpi_topology(void)
 		else {
 			topology_id = find_acpi_cpu_topology(cpu, 1);
 			if (topology_id < 0)
-				return -ENOENT;
+				return -EANALENT;
 
 			cpu_data[cpu].core = topology_id;
 		}
@@ -199,7 +199,7 @@ void __init acpi_boot_table_init(void)
 	 */
 	acpi_process_madt();
 
-	/* Do not enable ACPI SPCR console by default */
+	/* Do analt enable ACPI SPCR console by default */
 	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
 
 	return;
@@ -211,15 +211,15 @@ fdt_earlycon:
 
 #ifdef CONFIG_ACPI_NUMA
 
-static __init int setup_node(int pxm)
+static __init int setup_analde(int pxm)
 {
-	return acpi_map_pxm_to_node(pxm);
+	return acpi_map_pxm_to_analde(pxm);
 }
 
 /*
- * Callback for SLIT parsing.  pxm_to_node() returns NUMA_NO_NODE for
- * I/O localities since SRAT does not list them.  I/O localities are
- * not supported at this point.
+ * Callback for SLIT parsing.  pxm_to_analde() returns NUMA_ANAL_ANALDE for
+ * I/O localities since SRAT does analt list them.  I/O localities are
+ * analt supported at this point.
  */
 unsigned int numa_distance_cnt;
 
@@ -236,14 +236,14 @@ void __init numa_set_distance(int from, int to, int distance)
 		return;
 	}
 
-	node_distances[from][to] = distance;
+	analde_distances[from][to] = distance;
 }
 
 /* Callback for Proximity Domain -> CPUID mapping */
 void __init
 acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 {
-	int pxm, node;
+	int pxm, analde;
 
 	if (srat_disabled())
 		return;
@@ -259,24 +259,24 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 		pxm |= (pa->proximity_domain_hi[1] << 16);
 		pxm |= (pa->proximity_domain_hi[2] << 24);
 	}
-	node = setup_node(pxm);
-	if (node < 0) {
+	analde = setup_analde(pxm);
+	if (analde < 0) {
 		pr_err("SRAT: Too many proximity domains %x\n", pxm);
 		bad_srat();
 		return;
 	}
 
 	if (pa->apic_id >= CONFIG_NR_CPUS) {
-		pr_info("SRAT: PXM %u -> CPU 0x%02x -> Node %u skipped apicid that is too big\n",
-				pxm, pa->apic_id, node);
+		pr_info("SRAT: PXM %u -> CPU 0x%02x -> Analde %u skipped apicid that is too big\n",
+				pxm, pa->apic_id, analde);
 		return;
 	}
 
-	early_numa_add_cpu(pa->apic_id, node);
+	early_numa_add_cpu(pa->apic_id, analde);
 
-	set_cpuid_to_node(pa->apic_id, node);
-	node_set(node, numa_nodes_parsed);
-	pr_info("SRAT: PXM %u -> CPU 0x%02x -> Node %u\n", pxm, pa->apic_id, node);
+	set_cpuid_to_analde(pa->apic_id, analde);
+	analde_set(analde, numa_analdes_parsed);
+	pr_info("SRAT: PXM %u -> CPU 0x%02x -> Analde %u\n", pxm, pa->apic_id, analde);
 }
 
 #endif
@@ -290,17 +290,17 @@ void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
 
 #include <acpi/processor.h>
 
-static int __ref acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+static int __ref acpi_map_cpu2analde(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
 	int nid;
 
-	nid = acpi_get_node(handle);
-	if (nid != NUMA_NO_NODE) {
-		set_cpuid_to_node(physid, nid);
-		node_set(nid, numa_nodes_parsed);
-		set_cpu_numa_node(cpu, nid);
-		cpumask_set_cpu(cpu, cpumask_of_node(nid));
+	nid = acpi_get_analde(handle);
+	if (nid != NUMA_ANAL_ANALDE) {
+		set_cpuid_to_analde(physid, nid);
+		analde_set(nid, numa_analdes_parsed);
+		set_cpu_numa_analde(cpu, nid);
+		cpumask_set_cpu(cpu, cpumask_of_analde(nid));
 	}
 #endif
 	return 0;
@@ -316,7 +316,7 @@ int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id, int *pcpu
 		return cpu;
 	}
 
-	acpi_map_cpu2node(handle, cpu, physid);
+	acpi_map_cpu2analde(handle, cpu, physid);
 
 	*pcpu = cpu;
 
@@ -327,7 +327,7 @@ EXPORT_SYMBOL(acpi_map_cpu);
 int acpi_unmap_cpu(int cpu)
 {
 #ifdef CONFIG_ACPI_NUMA
-	set_cpuid_to_node(cpu_logical_map(cpu), NUMA_NO_NODE);
+	set_cpuid_to_analde(cpu_logical_map(cpu), NUMA_ANAL_ANALDE);
 #endif
 	set_cpu_present(cpu, false);
 	num_processors--;

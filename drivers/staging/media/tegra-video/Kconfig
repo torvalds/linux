@@ -5,7 +5,7 @@ config VIDEO_TEGRA
 	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
 	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Choose this option if you have an NVIDIA Tegra SoC.
 
@@ -17,4 +17,4 @@ config VIDEO_TEGRA_TPG
 	depends on VIDEO_TEGRA
 	depends on ARCH_TEGRA_210_SOC
 	help
-	  Say yes here to enable Tegra internal TPG mode
+	  Say anal here to enable Tegra internal TPG mode

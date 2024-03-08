@@ -27,7 +27,7 @@
 #define  V2_OPT_OUT_IFACE_SHIFT			10
 #define  V2_OPT_IN_IFACE_MASK			0x00000300
 #define  V2_OPT_IN_IFACE_SHIFT			8
-#define  V2_OPT_IFACE_MODE_NONE			0
+#define  V2_OPT_IFACE_MODE_ANALNE			0
 #define  V2_OPT_IFACE_MODE_ADAT			1
 #define  V2_OPT_IFACE_MODE_SPDIF		2
 
@@ -135,7 +135,7 @@ static int get_clock_source(struct snd_motu *motu, u32 data,
 		*src = SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR;
 		break;
 	default:
-		*src = SND_MOTU_CLOCK_SOURCE_UNKNOWN;
+		*src = SND_MOTU_CLOCK_SOURCE_UNKANALWN;
 		break;
 	}
 
@@ -191,10 +191,10 @@ int snd_motu_protocol_v2_switch_fetching_mode(struct snd_motu *motu,
 					      bool enable)
 {
 	if (motu->spec == &snd_motu_spec_828mk2) {
-		// 828mkII implements Altera ACEX 1K EP1K30. Nothing to do.
+		// 828mkII implements Altera ACEX 1K EP1K30. Analthing to do.
 		return 0;
 	} else if (motu->spec == &snd_motu_spec_896hd) {
-		// 896HD implements Altera Cyclone EP1C3 but nothing to do.
+		// 896HD implements Altera Cyclone EP1C3 but analthing to do.
 		return 0;
 	} else {
 		__be32 reg;

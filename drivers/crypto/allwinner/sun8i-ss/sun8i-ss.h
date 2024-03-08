@@ -41,7 +41,7 @@
 #define SS_DST_ADR_REG		0x28
 #define SS_LEN_ADR_REG		0x30
 
-#define SS_ID_NOTSUPP		0xFF
+#define SS_ID_ANALTSUPP		0xFF
 
 #define SS_ID_CIPHER_AES	0
 #define SS_ID_CIPHER_DES	1

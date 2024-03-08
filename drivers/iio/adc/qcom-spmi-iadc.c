@@ -35,7 +35,7 @@
 
 #define IADC_MODE_CTL				0x40
 #define IADC_OP_MODE_SHIFT			3
-#define IADC_OP_MODE_NORMAL			0
+#define IADC_OP_MODE_ANALRMAL			0
 #define IADC_TRIM_EN				BIT(0)
 
 #define IADC_EN_CTL1				0x46
@@ -63,12 +63,12 @@
 #define IADC_SEC_ACCESS				0xd0
 #define IADC_SEC_ACCESS_DATA			0xa5
 
-#define IADC_NOMINAL_RSENSE			0xf4
-#define IADC_NOMINAL_RSENSE_SIGN_MASK		BIT(7)
+#define IADC_ANALMINAL_RSENSE			0xf4
+#define IADC_ANALMINAL_RSENSE_SIGN_MASK		BIT(7)
 
 #define IADC_REF_GAIN_MICRO_VOLTS		17857
 
-#define IADC_INT_RSENSE_DEVIATION		15625	/* nano Ohms per bit */
+#define IADC_INT_RSENSE_DEVIATION		15625	/* naanal Ohms per bit */
 
 #define IADC_INT_RSENSE_IDEAL_VALUE		10000	/* micro Ohms */
 #define IADC_INT_RSENSE_DEFAULT_VALUE		7800	/* micro Ohms */
@@ -100,7 +100,7 @@
  * @offset: Raw offset values for the internal and external channels.
  * @gain: Raw gain of the channels.
  * @lock: ADC lock for access to the peripheral.
- * @complete: ADC notification after end of conversion interrupt is received.
+ * @complete: ADC analtification after end of conversion interrupt is received.
  */
 struct iadc_chip {
 	struct regmap	*regmap;
@@ -199,7 +199,7 @@ static int iadc_configure(struct iadc_chip *iadc, int channel)
 	int ret;
 
 	/* Mode selection */
-	mode = (IADC_OP_MODE_NORMAL << IADC_OP_MODE_SHIFT) | IADC_TRIM_EN;
+	mode = (IADC_OP_MODE_ANALRMAL << IADC_OP_MODE_SHIFT) | IADC_TRIM_EN;
 	ret = iadc_write(iadc, IADC_MODE_CTL, mode);
 	if (ret < 0)
 		return ret;
@@ -401,7 +401,7 @@ static int iadc_version_check(struct iadc_chip *iadc)
 		return ret;
 
 	if (val < IADC_PERPH_TYPE_ADC) {
-		dev_err(iadc->dev, "%d is not ADC\n", val);
+		dev_err(iadc->dev, "%d is analt ADC\n", val);
 		return -EINVAL;
 	}
 
@@ -410,7 +410,7 @@ static int iadc_version_check(struct iadc_chip *iadc)
 		return ret;
 
 	if (val < IADC_PERPH_SUBTYPE_IADC) {
-		dev_err(iadc->dev, "%d is not IADC\n", val);
+		dev_err(iadc->dev, "%d is analt IADC\n", val);
 		return -EINVAL;
 	}
 
@@ -419,19 +419,19 @@ static int iadc_version_check(struct iadc_chip *iadc)
 		return ret;
 
 	if (val < IADC_REVISION2_SUPPORTED_IADC) {
-		dev_err(iadc->dev, "revision %d not supported\n", val);
+		dev_err(iadc->dev, "revision %d analt supported\n", val);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int iadc_rsense_read(struct iadc_chip *iadc, struct device_node *node)
+static int iadc_rsense_read(struct iadc_chip *iadc, struct device_analde *analde)
 {
 	int ret, sign, int_sense;
 	u8 deviation;
 
-	ret = of_property_read_u32(node, "qcom,external-resistor-micro-ohms",
+	ret = of_property_read_u32(analde, "qcom,external-resistor-micro-ohms",
 				   &iadc->rsense[IADC_EXT_RSENSE]);
 	if (ret < 0)
 		iadc->rsense[IADC_EXT_RSENSE] = IADC_INT_RSENSE_IDEAL_VALUE;
@@ -441,19 +441,19 @@ static int iadc_rsense_read(struct iadc_chip *iadc, struct device_node *node)
 		return -EINVAL;
 	}
 
-	ret = iadc_read(iadc, IADC_NOMINAL_RSENSE, &deviation);
+	ret = iadc_read(iadc, IADC_ANALMINAL_RSENSE, &deviation);
 	if (ret < 0)
 		return ret;
 
 	/*
 	 * Deviation value stored is an offset from 10 mili Ohms, bit 7 is
-	 * the sign, the remaining bits have an LSB of 15625 nano Ohms.
+	 * the sign, the remaining bits have an LSB of 15625 naanal Ohms.
 	 */
-	sign = (deviation & IADC_NOMINAL_RSENSE_SIGN_MASK) ? -1 : 1;
+	sign = (deviation & IADC_ANALMINAL_RSENSE_SIGN_MASK) ? -1 : 1;
 
-	deviation &= ~IADC_NOMINAL_RSENSE_SIGN_MASK;
+	deviation &= ~IADC_ANALMINAL_RSENSE_SIGN_MASK;
 
-	/* Scale it to nono Ohms */
+	/* Scale it to analanal Ohms */
 	int_sense = IADC_INT_RSENSE_IDEAL_VALUE * 1000;
 	int_sense += sign * deviation * IADC_INT_RSENSE_DEVIATION;
 	int_sense /= 1000; /* micro Ohms */
@@ -483,7 +483,7 @@ static const struct iio_chan_spec iadc_channels[] = {
 
 static int iadc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct iio_dev *indio_dev;
 	struct iadc_chip *iadc;
@@ -492,31 +492,31 @@ static int iadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*iadc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iadc = iio_priv(indio_dev);
 	iadc->dev = dev;
 
 	iadc->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!iadc->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	init_completion(&iadc->complete);
 	mutex_init(&iadc->lock);
 
-	ret = of_property_read_u32(node, "reg", &res);
+	ret = of_property_read_u32(analde, "reg", &res);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	iadc->base = res;
 
 	ret = iadc_version_check(iadc);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = iadc_rsense_read(iadc, node);
+	ret = iadc_rsense_read(iadc, analde);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(iadc->dev, "sense resistors %d and %d micro Ohm\n",
 		iadc->rsense[IADC_INT_RSENSE],
@@ -581,4 +581,4 @@ module_platform_driver(iadc_driver);
 MODULE_ALIAS("platform:qcom-spmi-iadc");
 MODULE_DESCRIPTION("Qualcomm SPMI PMIC current ADC driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Ivan T. Ivanov <iivanov@mm-sol.com>");
+MODULE_AUTHOR("Ivan T. Ivaanalv <iivaanalv@mm-sol.com>");

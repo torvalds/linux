@@ -35,7 +35,7 @@
  * @cur_c_fb_dma:	current plane C frame buffer dma address
  * @bs_dma:		bitstream dma address
  * @bs_sz:		bitstream size
- * @resolution_changed:resolution change flag 1 - changed,  0 - not change
+ * @resolution_changed:resolution change flag 1 - changed,  0 - analt change
  * @frame_header_type:	current frame header type
  * @wait_key_frame:	wait key frame coming
  * @crc:		used to check whether hardware's status is right
@@ -152,7 +152,7 @@ static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
 	mem->size = VP8_SEG_ID_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vdec_err(inst->ctx, "Cannot allocate working buffer");
+		mtk_vdec_err(inst->ctx, "Cananalt allocate working buffer");
 		return err;
 	}
 	inst->vsi->dec.seg_id_buf_dma = (u64)mem->dma_addr;
@@ -161,7 +161,7 @@ static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
 	mem->size = VP8_PP_WRAPY_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vdec_err(inst->ctx, "cannot allocate WRAP Y buffer");
+		mtk_vdec_err(inst->ctx, "cananalt allocate WRAP Y buffer");
 		return err;
 	}
 	inst->vsi->dec.wrap_y_dma = (u64)mem->dma_addr;
@@ -170,7 +170,7 @@ static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
 	mem->size = VP8_PP_WRAPC_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vdec_err(inst->ctx, "cannot allocate WRAP C buffer");
+		mtk_vdec_err(inst->ctx, "cananalt allocate WRAP C buffer");
 		return err;
 	}
 	inst->vsi->dec.wrap_c_dma = (u64)mem->dma_addr;
@@ -179,7 +179,7 @@ static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
 	mem->size = VP8_VLD_PRED_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vdec_err(inst->ctx, "cannot allocate vld wrapper buffer");
+		mtk_vdec_err(inst->ctx, "cananalt allocate vld wrapper buffer");
 		return err;
 	}
 	inst->vsi->dec.vld_wrapper_dma = (u64)mem->dma_addr;
@@ -278,7 +278,7 @@ static int vdec_vp8_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inst->ctx = ctx;
 
@@ -403,7 +403,7 @@ static int vdec_vp8_slice_get_param(void *h_vdec, enum vdec_get_param_type type,
 		vdec_vp8_slice_get_pic_info(inst);
 		break;
 	case GET_PARAM_CROP_INFO:
-		mtk_vdec_debug(inst->ctx, "No need to get vp8 crop information.");
+		mtk_vdec_debug(inst->ctx, "Anal need to get vp8 crop information.");
 		break;
 	case GET_PARAM_DPB_SIZE:
 		*((unsigned int *)out) = VP8_DPB_SIZE;

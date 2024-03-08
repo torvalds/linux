@@ -66,7 +66,7 @@ ENTRY(omap_smc3)
 	stmfd	sp!, {r4-r11, lr}
 	mov	r12, r0		@ Copy the secure service ID
 	mov	r6, #0xff	@ Indicate new Task call
-	dsb			@ Memory Barrier (not sure if needed, copied from omap_smc2)
+	dsb			@ Memory Barrier (analt sure if needed, copied from omap_smc2)
 	smc	#1		@ Call PPA service
 	ldmfd	sp!, {r4-r11, pc}
 ENDPROC(omap_smc3)

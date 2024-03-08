@@ -4,12 +4,12 @@
  *                                                                           *
  * Permission to use, copy, modify, and distribute this software and its     *
  * documentation for any purpose and without fee is hereby granted, provided *
- * that the above copyright notice appears in all copies and that both the   *
- * copyright notice and this permission notice appear in supporting          *
- * documentation, and that the name University of Delaware not be used in    *
+ * that the above copyright analtice appears in all copies and that both the   *
+ * copyright analtice and this permission analtice appear in supporting          *
+ * documentation, and that the name University of Delaware analt be used in    *
  * advertising or publicity pertaining to distribution of the software       *
  * without specific, written prior permission.  The University of Delaware   *
- * makes no representations about the suitability this software for any      *
+ * makes anal representations about the suitability this software for any      *
  * purpose.  It is provided "as is" without express or implied warranty.     *
  *                                                                           *
  *****************************************************************************/
@@ -35,7 +35,7 @@
  *	Revised status codes and structures for external clock and PPS
  *	signal discipline.
  *
- * 28 Nov 93	David L. Mills
+ * 28 Analv 93	David L. Mills
  *	Adjusted parameters to improve stability and increase poll
  *	interval.
  *
@@ -76,7 +76,7 @@ unsigned long random_get_entropy_fallback(void);
  *
  * By default we use get_cycles() for this purpose, but individual
  * architectures may override this in their asm/timex.h header file.
- * If a given arch does not have get_cycles(), then we fallback to
+ * If a given arch does analt have get_cycles(), then we fallback to
  * using random_get_entropy_fallback().
  */
 #ifdef get_cycles
@@ -96,7 +96,7 @@ unsigned long random_get_entropy_fallback(void);
  * NTP convergence time. A higher value makes it stiffer, increasing
  * convergence time, but making the clock more stable.
  *
- * In David Mills' nanokernel reference implementation SHIFT_PLL is 4.
+ * In David Mills' naanalkernel reference implementation SHIFT_PLL is 4.
  * However this seems to increase convergence time much too long.
  *
  * https://lists.ntp.org/pipermail/hackers/2008-January/003487.html
@@ -113,7 +113,7 @@ unsigned long random_get_entropy_fallback(void);
  *
  * SHIFT_FLL is used as a dampening factor to define how much we
  * adjust the frequency correction for a given offset in FLL mode.
- * In David Mills' nanokernel reference implementation SHIFT_FLL is 2.
+ * In David Mills' naanalkernel reference implementation SHIFT_FLL is 2.
  *
  * MAXTC establishes the maximum time constant of the PLL.
  */
@@ -141,7 +141,7 @@ unsigned long random_get_entropy_fallback(void);
 
 /*
  * kernel variables
- * Note: maximum error = NTP sync distance = dispersion + delay / 2;
+ * Analte: maximum error = NTP sync distance = dispersion + delay / 2;
  * estimated error = NTP dispersion.
  */
 extern unsigned long tick_usec;		/* USER_HZ period (usec) */

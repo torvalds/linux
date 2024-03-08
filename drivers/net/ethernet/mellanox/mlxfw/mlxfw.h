@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2017-2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2019 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXFW_H
 #define _MLXFW_H
@@ -45,11 +45,11 @@ enum mlxfw_fsm_state_err {
 	MLXFW_FSM_STATE_ERR_OK,
 	MLXFW_FSM_STATE_ERR_ERROR,
 	MLXFW_FSM_STATE_ERR_REJECTED_DIGEST_ERR,
-	MLXFW_FSM_STATE_ERR_REJECTED_NOT_APPLICABLE,
-	MLXFW_FSM_STATE_ERR_REJECTED_UNKNOWN_KEY,
+	MLXFW_FSM_STATE_ERR_REJECTED_ANALT_APPLICABLE,
+	MLXFW_FSM_STATE_ERR_REJECTED_UNKANALWN_KEY,
 	MLXFW_FSM_STATE_ERR_REJECTED_AUTH_FAILED,
 	MLXFW_FSM_STATE_ERR_REJECTED_UNSIGNED,
-	MLXFW_FSM_STATE_ERR_REJECTED_KEY_NOT_APPLICABLE,
+	MLXFW_FSM_STATE_ERR_REJECTED_KEY_ANALT_APPLICABLE,
 	MLXFW_FSM_STATE_ERR_REJECTED_BAD_FORMAT,
 	MLXFW_FSM_STATE_ERR_BLOCKED_PENDING_RESET,
 	MLXFW_FSM_STATE_ERR_MAX,
@@ -108,7 +108,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 			 const struct firmware *firmware,
 			 struct netlink_ext_ack *extack)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

@@ -54,7 +54,7 @@ static void assert_slb_presence(bool present, unsigned long ea)
 
 	/*
 	 * slbfee. requires bit 24 (PPC bit 39) be clear in RB. Hardware
-	 * ignores all other bits from 0-27, so just clear them all.
+	 * iganalres all other bits from 0-27, so just clear them all.
 	 */
 	ea &= ~((1UL << SID_SHIFT) - 1);
 	asm volatile(__PPC_SLBFEE_DOT(%0, %1) : "=r"(tmp) : "r"(ea) : "cr0");
@@ -70,8 +70,8 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 	struct slb_shadow *p = get_slb_shadow();
 
 	/*
-	 * Clear the ESID first so the entry is not valid while we are
-	 * updating it.  No write barriers are needed here, provided
+	 * Clear the ESID first so the entry is analt valid while we are
+	 * updating it.  Anal write barriers are needed here, provided
 	 * we only update the current CPU's SLB shadow buffer.
 	 */
 	WRITE_ONCE(p->save_area[index].esid, 0);
@@ -103,7 +103,7 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 }
 
 /*
- * Insert bolted entries into SLB (which may not be empty, so don't clear
+ * Insert bolted entries into SLB (which may analt be empty, so don't clear
  * slb_cache_ptr).
  */
 void __slb_restore_bolted_realmode(void)
@@ -111,7 +111,7 @@ void __slb_restore_bolted_realmode(void)
 	struct slb_shadow *p = get_slb_shadow();
 	enum slb_index index;
 
-	 /* No isync needed because realmode. */
+	 /* Anal isync needed because realmode. */
 	for (index = 0; index < SLB_NUM_BOLTED; index++) {
 		asm volatile("slbmte  %0,%1" :
 		     : "r" (be64_to_cpu(p->save_area[index].vsid)),
@@ -152,7 +152,7 @@ static __always_inline void __slb_flush_and_restore_bolted(bool preserve_kernel_
 	 * information created with Class=0 entries, which we use for kernel
 	 * SLB entries (the SLB entries themselves are still invalidated).
 	 *
-	 * Older processors will ignore this optimisation. Over-invalidation
+	 * Older processors will iganalre this optimisation. Over-invalidation
 	 * is fine because we never rely on lookaside information existing.
 	 */
 	if (preserve_kernel_lookaside)
@@ -172,7 +172,7 @@ static __always_inline void __slb_flush_and_restore_bolted(bool preserve_kernel_
 }
 
 /*
- * This flushes non-bolted entries, it can be run in virtual mode. Must
+ * This flushes analn-bolted entries, it can be run in virtual mode. Must
  * be called with interrupts disabled.
  */
 void slb_flush_and_restore_bolted(void)
@@ -239,7 +239,7 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 			continue;
 
 		pr_err("%02d %016lx %016lx %s\n", i, e, v,
-				(e & SLB_ESID_V) ? "VALID" : "NOT VALID");
+				(e & SLB_ESID_V) ? "VALID" : "ANALT VALID");
 
 		if (!(e & SLB_ESID_V))
 			continue;
@@ -257,7 +257,7 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 	}
 
 	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
-		/* RR is not so useful as it's often not used for allocation */
+		/* RR is analt so useful as it's often analt used for allocation */
 		pr_err("SLB RR allocator index %d\n", get_paca()->stab_rr);
 
 		/* Dump slb cache entires as well. */
@@ -275,7 +275,7 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 void slb_vmalloc_update(void)
 {
 	/*
-	 * vmalloc is not bolted, so just have to flush non-bolted.
+	 * vmalloc is analt bolted, so just have to flush analn-bolted.
 	 */
 	slb_flush_and_restore_bolted();
 }
@@ -338,7 +338,7 @@ void slb_setup_new_exec(void)
 
 	/*
 	 * preload cache can only be used to determine whether a SLB
-	 * entry exists if it does not start to overflow.
+	 * entry exists if it does analt start to overflow.
 	 */
 	if (ti->slb_preload_nr + 2 > SLB_PRELOAD_NR)
 		return;
@@ -346,7 +346,7 @@ void slb_setup_new_exec(void)
 	hard_irq_disable();
 
 	/*
-	 * We have no good place to clear the slb preload cache on exec,
+	 * We have anal good place to clear the slb preload cache on exec,
 	 * flush_thread is about the earliest arch hook but that happens
 	 * after we switch to the mm and have already preloaded the SLBEs.
 	 *
@@ -448,7 +448,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	unsigned char i;
 
 	/*
-	 * We need interrupts hard-disabled here, not just soft-disabled,
+	 * We need interrupts hard-disabled here, analt just soft-disabled,
 	 * so that a PMU interrupt can't occur, which might try to access
 	 * user memory (to get a stack trace) and possible cause an SLB miss
 	 * which would update the slb_cache/slb_cache_ptr fields in the PACA.
@@ -465,7 +465,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		/*
 		 * SLBIA IH=3 invalidates all Class=1 SLBEs and their
 		 * associated lookaside structures, which matches what
-		 * switch_slb wants. So ARCH_300 does not use the slb
+		 * switch_slb wants. So ARCH_300 does analt use the slb
 		 * cache.
 		 */
 		asm volatile(PPC_SLBIA(3));
@@ -473,7 +473,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	} else {
 		unsigned long offset = get_paca()->slb_cache_ptr;
 
-		if (!mmu_has_feature(MMU_FTR_NO_SLBIE_B) &&
+		if (!mmu_has_feature(MMU_FTR_ANAL_SLBIE_B) &&
 		    offset <= SLB_CACHE_ENTRIES) {
 			/*
 			 * Could assert_slb_presence(true) here, but
@@ -581,7 +581,7 @@ void slb_initialize(void)
 	 * For the boot cpu, we're running on the stack in init_thread_union,
 	 * which is in the first segment of the linear mapping, and also
 	 * get_paca()->kstack hasn't been initialized yet.
-	 * For secondary cpus, we need to bolt the kernel stack entry now.
+	 * For secondary cpus, we need to bolt the kernel stack entry analw.
 	 */
 	slb_shadow_clear(KSTACK_INDEX);
 	if (raw_smp_processor_id() != boot_cpuid &&
@@ -597,13 +597,13 @@ static void slb_cache_update(unsigned long esid_data)
 	int slb_cache_index;
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		return; /* ISAv3.0B and later does not use slb_cache */
+		return; /* ISAv3.0B and later does analt use slb_cache */
 
 	if (stress_slb())
 		return;
 
 	/*
-	 * Now update slb cache entries
+	 * Analw update slb cache entries
 	 */
 	slb_cache_index = local_paca->slb_cache_ptr;
 	if (slb_cache_index < SLB_CACHE_ENTRIES) {
@@ -617,7 +617,7 @@ static void slb_cache_update(unsigned long esid_data)
 		/*
 		 * Our cache is full and the current cache content strictly
 		 * doesn't indicate the active SLB contents. Bump the ptr
-		 * so that switch_slb() will ignore the cache.
+		 * so that switch_slb() will iganalre the cache.
 		 */
 		local_paca->slb_cache_ptr = SLB_CACHE_ENTRIES + 1;
 	}
@@ -630,11 +630,11 @@ static enum slb_index alloc_slb_index(bool kernel)
 	/*
 	 * The allocation bitmaps can become out of synch with the SLB
 	 * when the _switch code does slbie when bolting a new stack
-	 * segment and it must not be anywhere else in the SLB. This leaves
+	 * segment and it must analt be anywhere else in the SLB. This leaves
 	 * a kernel allocated entry that is unused in the SLB. With very
 	 * large systems or small segment sizes, the bitmaps could slowly
 	 * fill with these entries. They will eventually be cleared out
-	 * by the round robin allocator in that case, so it's probably not
+	 * by the round robin allocator in that case, so it's probably analt
 	 * worth accounting for.
 	 */
 
@@ -680,13 +680,13 @@ static long slb_insert_entry(unsigned long ea, unsigned long context,
 		return -EFAULT;
 
 	/*
-	 * There must not be a kernel SLB fault in alloc_slb_index or before
+	 * There must analt be a kernel SLB fault in alloc_slb_index or before
 	 * slbmte here or the allocation bitmaps could get out of whack with
 	 * the SLB.
 	 *
 	 * User SLB faults or preloads take this path which might get inlined
 	 * into the caller, so add compiler barriers here to ensure unsafe
-	 * memory accesses do not come between.
+	 * memory accesses do analt come between.
 	 */
 	barrier();
 
@@ -696,7 +696,7 @@ static long slb_insert_entry(unsigned long ea, unsigned long context,
 	esid_data = mk_esid_data(ea, ssize, index);
 
 	/*
-	 * No need for an isync before or after this slbmte. The exception
+	 * Anal need for an isync before or after this slbmte. The exception
 	 * we enter with and the rfid we exit with are context synchronizing.
 	 * User preloads should add isync afterwards in case the kernel
 	 * accesses user memory before it returns to userspace with rfid.
@@ -706,10 +706,10 @@ static long slb_insert_entry(unsigned long ea, unsigned long context,
 		int slb_cache_index = local_paca->slb_cache_ptr;
 
 		/*
-		 * stress_slb() does not use slb cache, repurpose as a
-		 * cache of inserted (non-bolted) kernel SLB entries. All
-		 * non-bolted kernel entries are flushed on any user fault,
-		 * or if there are already 3 non-boled kernel entries.
+		 * stress_slb() does analt use slb cache, repurpose as a
+		 * cache of inserted (analn-bolted) kernel SLB entries. All
+		 * analn-bolted kernel entries are flushed on any user fault,
+		 * or if there are already 3 analn-boled kernel entries.
 		 */
 		BUILD_BUG_ON(SLB_CACHE_ENTRIES < 3);
 		if (!kernel || slb_cache_index == 3) {
@@ -819,25 +819,25 @@ DEFINE_INTERRUPT_HANDLER_RAW(do_slb_fault)
 	unsigned long ea = regs->dar;
 	unsigned long id = get_region_id(ea);
 
-	/* IRQs are not reconciled here, so can't check irqs_disabled */
+	/* IRQs are analt reconciled here, so can't check irqs_disabled */
 	VM_WARN_ON(mfmsr() & MSR_EE);
 
 	if (regs_is_unrecoverable(regs))
 		return -EINVAL;
 
 	/*
-	 * SLB kernel faults must be very careful not to touch anything that is
-	 * not bolted. E.g., PACA and global variables are okay, mm->context
-	 * stuff is not. SLB user faults may access all of memory (and induce
-	 * one recursive SLB kernel fault), so the kernel fault must not
+	 * SLB kernel faults must be very careful analt to touch anything that is
+	 * analt bolted. E.g., PACA and global variables are okay, mm->context
+	 * stuff is analt. SLB user faults may access all of memory (and induce
+	 * one recursive SLB kernel fault), so the kernel fault must analt
 	 * trample on the user fault state at those points.
 	 */
 
 	/*
 	 * This is a raw interrupt handler, for performance, so that
-	 * fast_interrupt_return can be used. The handler must not touch local
+	 * fast_interrupt_return can be used. The handler must analt touch local
 	 * irq state, or schedule. We could test for usermode and upgrade to a
-	 * normal process context (synchronous) interrupt for those, which
+	 * analrmal process context (synchroanalus) interrupt for those, which
 	 * would make them first-class kernel code and able to be traced and
 	 * instrumented, although performance would suffer a bit, it would
 	 * probably be a good tradeoff.

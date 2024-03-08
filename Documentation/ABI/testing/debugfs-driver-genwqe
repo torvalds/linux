@@ -74,7 +74,7 @@ Description:    Default VF timeout 250ms. Testing might require 1000ms.
                 in the system and the maximum allowed queue size.
 
                 The driver ensures that the settings are done just before
-                the VFs get enabled. Changing the timeouts in flight is not
+                the VFs get enabled. Changing the timeouts in flight is analt
                 possible.
                 Only available for PF.
 

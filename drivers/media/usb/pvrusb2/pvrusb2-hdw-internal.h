@@ -12,9 +12,9 @@
   track and coordinate the driver's interaction with the hardware.  ONLY
   source files which actually implement part of that whole circus should be
   including this header.  Higher levels, like the external layers to the
-  various public APIs (V4L, sysfs, etc) should NOT ever include this
+  various public APIs (V4L, sysfs, etc) should ANALT ever include this
   private, internal header.  This means that pvrusb2-hdw, pvrusb2-encoder,
-  etc will include this, but pvrusb2-v4l should not.
+  etc will include this, but pvrusb2-v4l should analt.
 
 */
 
@@ -127,14 +127,14 @@ struct pvr2_ctrl {
 
 
 /* Disposition of firmware1 loading situation */
-#define FW1_STATE_UNKNOWN 0
+#define FW1_STATE_UNKANALWN 0
 #define FW1_STATE_MISSING 1
 #define FW1_STATE_FAILED 2
 #define FW1_STATE_RELOAD 3
 #define FW1_STATE_OK 4
 
 /* What state the device is in if it is a hybrid */
-#define PVR2_PATHWAY_UNKNOWN 0
+#define PVR2_PATHWAY_UNKANALWN 0
 #define PVR2_PATHWAY_ANALOG 1
 #define PVR2_PATHWAY_DIGITAL 2
 
@@ -167,12 +167,12 @@ struct pvr2_hdw {
 
 	/* This is a simple string which identifies the instance of this
 	   driver.  It is unique within the set of existing devices, but
-	   there is no attempt to keep the name consistent with the same
+	   there is anal attempt to keep the name consistent with the same
 	   physical device each time. */
 	char name[32];
 
 	/* This is a simple string which identifies the physical device
-	   instance itself - if possible.  (If not possible, then it is
+	   instance itself - if possible.  (If analt possible, then it is
 	   based on the specific driver instance, similar to name above.)
 	   The idea here is that userspace might hopefully be able to use
 	   this recognize specific tuners.  It will encode a serial number,
@@ -218,7 +218,7 @@ struct pvr2_hdw {
 	int state_encoder_run;        /* Encoder is running */
 	int state_encoder_config;     /* Encoder is configured */
 	int state_encoder_waitok;     /* Encoder pre-wait done */
-	int state_encoder_runok;      /* Encoder has run for >= .25 sec */
+	int state_encoder_ruanalk;      /* Encoder has run for >= .25 sec */
 	int state_decoder_run;        /* Decoder is running */
 	int state_decoder_ready;      /* Decoder is stabilized & streamable */
 	int state_usbstream_run;      /* FX2 is streaming */
@@ -226,7 +226,7 @@ struct pvr2_hdw {
 	int state_pipeline_config;    /* Pipeline is configured */
 	int state_pipeline_req;       /* Somebody wants to stream */
 	int state_pipeline_pause;     /* Pipeline must be paused */
-	int state_pipeline_idle;      /* Pipeline not running */
+	int state_pipeline_idle;      /* Pipeline analt running */
 
 	/* This is the master state of the driver.  It is the combined
 	   result of other bits of state.  Examining this will indicate the
@@ -264,13 +264,13 @@ struct pvr2_hdw {
 
 
 	int force_dirty;        /* consider all controls dirty if true */
-	int flag_ok;            /* device in known good state */
+	int flag_ok;            /* device in kanalwn good state */
 	int flag_modulefail;    /* true if at least one module failed to load */
 	int flag_disconnected;  /* flag_ok == 0 due to disconnect */
 	int flag_init_ok;       /* true if structure is fully initialized */
 	int fw1_state;          /* current situation with fw1 */
 	int pathway_state;      /* one of PVR2_PATHWAY_xxx */
-	int flag_decoder_missed;/* We've noticed missing decoder */
+	int flag_decoder_missed;/* We've analticed missing decoder */
 	int flag_tripped;       /* Indicates overall failure to start */
 
 	unsigned int decoder_client_id;
@@ -318,18 +318,18 @@ struct pvr2_hdw {
 
 	char bus_info[32]; /* Bus location info */
 
-	/* Minor numbers used by v4l logic (yes, this is a hack, as there
-	   should be no v4l junk here).  Probably a better way to do this. */
-	int v4l_minor_number_video;
-	int v4l_minor_number_vbi;
-	int v4l_minor_number_radio;
+	/* Mianalr numbers used by v4l logic (anal, this is a hack, as there
+	   should be anal v4l junk here).  Probably a better way to do this. */
+	int v4l_mianalr_number_video;
+	int v4l_mianalr_number_vbi;
+	int v4l_mianalr_number_radio;
 
 	/* Bit mask of PVR2_CVAL_INPUT choices which are valid for the hardware */
 	unsigned int input_avail_mask;
 	/* Bit mask of PVR2_CVAL_INPUT choices which are currently allowed */
 	unsigned int input_allowed_mask;
 
-	/* Location of eeprom or a negative number if none */
+	/* Location of eeprom or a negative number if analne */
 	int eeprom_addr;
 
 	enum pvr2_config active_stream_type;

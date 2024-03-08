@@ -62,7 +62,7 @@ static void pxav2_reset(struct sdhci_host *host, u8 mask)
 
 		/*
 		 * tune timing of read data/command when crc error happen
-		 * no performance impact
+		 * anal performance impact
 		 */
 		if (pdata && pdata->clk_delay_sel == 1) {
 			tmp = readw(host->ioaddr + SD_CLOCK_BURST_SIZE_SETUP);
@@ -134,7 +134,7 @@ static void pxav1_request_done(struct sdhci_host *host, struct mmc_request *mrq)
 		tmp |= 0x400;
 		writew(tmp, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 
-		/* Clock is now stopped, so restart it by sending a dummy CMD0 */
+		/* Clock is analw stopped, so restart it by sending a dummy CMD0 */
 		pxav2_host = sdhci_pltfm_priv(sdhci_priv(host));
 		pxav2_host->sdio_mrq = mrq;
 
@@ -144,7 +144,7 @@ static void pxav1_request_done(struct sdhci_host *host, struct mmc_request *mrq)
 
 		sdhci_writel(host, 0, SDHCI_ARGUMENT);
 		sdhci_writew(host, 0, SDHCI_TRANSFER_MODE);
-		sdhci_writew(host, SDHCI_MAKE_CMD(MMC_GO_IDLE_STATE, SDHCI_CMD_RESP_NONE),
+		sdhci_writew(host, SDHCI_MAKE_CMD(MMC_GO_IDLE_STATE, SDHCI_CMD_RESP_ANALNE),
 			     SDHCI_COMMAND);
 
 		/* Don't finish this request until the dummy CMD0 finishes */
@@ -193,7 +193,7 @@ static const struct sdhci_ops pxav1_sdhci_ops = {
 
 static const struct sdhci_pxa_variant __maybe_unused pxav1_variant = {
 	.ops = &pxav1_sdhci_ops,
-	.extra_quirks = SDHCI_QUIRK_NO_BUSY_IRQ | SDHCI_QUIRK_32BIT_DMA_SIZE,
+	.extra_quirks = SDHCI_QUIRK_ANAL_BUSY_IRQ | SDHCI_QUIRK_32BIT_DMA_SIZE,
 };
 
 static const struct sdhci_ops pxav2_sdhci_ops = {
@@ -219,7 +219,7 @@ MODULE_DEVICE_TABLE(of, sdhci_pxav2_of_match);
 static struct sdhci_pxa_platdata *pxav2_get_mmc_pdata(struct device *dev)
 {
 	struct sdhci_pxa_platdata *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 bus_width;
 	u32 clk_delay_cycles;
 
@@ -227,7 +227,7 @@ static struct sdhci_pxa_platdata *pxav2_get_mmc_pdata(struct device *dev)
 	if (!pdata)
 		return NULL;
 
-	if (of_property_read_bool(np, "non-removable"))
+	if (of_property_read_bool(np, "analn-removable"))
 		pdata->flags |= PXA_FLAG_CARD_PERMANENT;
 
 	of_property_read_u32(np, "bus-width", &bus_width);
@@ -299,7 +299,7 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 		if (pdata->flags & PXA_FLAG_CARD_PERMANENT) {
 			/* on-chip device */
 			host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
-			host->mmc->caps |= MMC_CAP_NONREMOVABLE;
+			host->mmc->caps |= MMC_CAP_ANALNREMOVABLE;
 		}
 
 		/* If slot design supports 8 bit data, indicate this to MMC. */
@@ -346,7 +346,7 @@ free:
 static struct platform_driver sdhci_pxav2_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav2",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(sdhci_pxav2_of_match),
 		.pm	= &sdhci_pltfm_pmops,
 	},

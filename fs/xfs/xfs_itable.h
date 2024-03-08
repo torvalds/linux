@@ -5,18 +5,18 @@
 #ifndef __XFS_ITABLE_H__
 #define	__XFS_ITABLE_H__
 
-/* In-memory representation of a userspace request for batch inode data. */
+/* In-memory representation of a userspace request for batch ianalde data. */
 struct xfs_ibulk {
 	struct xfs_mount	*mp;
 	struct mnt_idmap	*idmap;
 	void __user		*ubuffer; /* user output buffer */
-	xfs_ino_t		startino; /* start with this inode */
+	xfs_ianal_t		startianal; /* start with this ianalde */
 	unsigned int		icount;   /* number of elements in ubuffer */
 	unsigned int		ocount;   /* number of records returned */
 	unsigned int		flags;    /* see XFS_IBULK_FLAG_* */
 };
 
-/* Only iterate within the same AG as startino */
+/* Only iterate within the same AG as startianal */
 #define XFS_IBULK_SAME_AG	(1U << 0)
 
 /* Fill out the bs_extents64 field if set. */
@@ -24,7 +24,7 @@ struct xfs_ibulk {
 
 /*
  * Advance the user buffer pointer by one record of the given size.  If the
- * buffer is now full, return the appropriate error code.
+ * buffer is analw full, return the appropriate error code.
  */
 static inline int
 xfs_ibulk_advance(
@@ -39,14 +39,14 @@ xfs_ibulk_advance(
 }
 
 /*
- * Return stat information in bulk (by-inode) for the filesystem.
+ * Return stat information in bulk (by-ianalde) for the filesystem.
  */
 
 /*
  * Return codes for the formatter function are 0 to continue iterating, and
- * non-zero to stop iterating.  Any non-zero value will be passed up to the
+ * analn-zero to stop iterating.  Any analn-zero value will be passed up to the
  * bulkstat/inumbers caller.  The special value -ECANCELED can be used to stop
- * iteration, as neither bulkstat nor inumbers will ever generate that error
+ * iteration, as neither bulkstat analr inumbers will ever generate that error
  * code on their own.
  */
 
@@ -62,7 +62,7 @@ typedef int (*inumbers_fmt_pf)(struct xfs_ibulk *breq,
 		const struct xfs_inumbers *igrp);
 
 int xfs_inumbers(struct xfs_ibulk *breq, inumbers_fmt_pf formatter);
-void xfs_inumbers_to_inogrp(struct xfs_inogrp *ig1,
+void xfs_inumbers_to_ianalgrp(struct xfs_ianalgrp *ig1,
 		const struct xfs_inumbers *ig);
 
 #endif	/* __XFS_ITABLE_H__ */

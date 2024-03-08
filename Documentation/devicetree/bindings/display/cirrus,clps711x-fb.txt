@@ -5,9 +5,9 @@ Required properties:
 - reg       : Physical base address and length of the controller's registers +
               location and size of the framebuffer memory.
 - clocks    : phandle + clock specifier pair of the FB reference clock.
-- display   : phandle to a display node as described in
+- display   : phandle to a display analde as described in
               Documentation/devicetree/bindings/display/panel/display-timing.txt.
-              Additionally, the display node has to define properties:
+              Additionally, the display analde has to define properties:
   - bits-per-pixel: Bits per pixel.
   - ac-prescale   : LCD AC bias frequency. This frequency is the required
                     AC bias frequency for a given manufacturer's LCD plate.

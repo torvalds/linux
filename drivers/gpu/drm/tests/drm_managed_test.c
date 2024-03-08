@@ -8,7 +8,7 @@
 
 #include <linux/device.h>
 
-/* Ought to be enough for anybody */
+/* Ought to be eanalugh for anybody */
 #define TEST_TIMEOUT_MS	100
 
 struct managed_test_priv {
@@ -32,14 +32,14 @@ static void drm_test_managed_run_action(struct kunit *test)
 	int ret;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv);
 	init_waitqueue_head(&priv->action_wq);
 
 	dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*drm), 0, DRIVER_MODESET);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, drm);
 
 	ret = drmm_add_action_or_reset(drm, drm_action, priv);
 	KUNIT_EXPECT_EQ(test, ret, 0);
@@ -67,5 +67,5 @@ static struct kunit_suite drm_managed_test_suite = {
 
 kunit_test_suite(drm_managed_test_suite);
 
-MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_AUTHOR("Maxime Ripard <maxime@ceranal.tech>");
 MODULE_LICENSE("GPL");

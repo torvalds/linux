@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
-/* Packet transmit logic for Mellanox Gigabit Ethernet driver
+/* Packet transmit logic for Mellaanalx Gigabit Ethernet driver
  *
  * Copyright (C) 2020-2021 NVIDIA CORPORATION & AFFILIATES
  */
@@ -23,7 +23,7 @@ int mlxbf_gige_tx_init(struct mlxbf_gige *priv)
 					       &priv->tx_wqe_base_dma,
 					       GFP_KERNEL);
 	if (!priv->tx_wqe_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->tx_wqe_next = priv->tx_wqe_base;
 
@@ -36,7 +36,7 @@ int mlxbf_gige_tx_init(struct mlxbf_gige *priv)
 	if (!priv->tx_cc) {
 		dma_free_coherent(priv->dev, size,
 				  priv->tx_wqe_base, priv->tx_wqe_base_dma);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Write TX CC base address into MMIO reg */
@@ -90,13 +90,13 @@ void mlxbf_gige_tx_deinit(struct mlxbf_gige *priv)
 }
 
 /* Function that returns status of TX ring:
- *          0: TX ring is full, i.e. there are no
+ *          0: TX ring is full, i.e. there are anal
  *             available un-used entries in TX ring.
- *   non-null: TX ring is not full, i.e. there are
+ *   analn-null: TX ring is analt full, i.e. there are
  *             some available entries in TX ring.
- *             The non-null value is a measure of
+ *             The analn-null value is a measure of
  *             how many TX entries are available, but
- *             it is not the exact number of available
+ *             it is analt the exact number of available
  *             entries (see below).
  *
  * The algorithm makes the assumption that if
@@ -165,7 +165,7 @@ bool mlxbf_gige_handle_tx_complete(struct mlxbf_gige *priv)
 	}
 
 	/* Since the TX ring was likely just drained, check if TX queue
-	 * had previously been stopped and now that there are TX buffers
+	 * had previously been stopped and analw that there are TX buffers
 	 * available the TX queue can be awakened.
 	 */
 	if (netif_queue_stopped(priv->netdev) &&
@@ -211,14 +211,14 @@ netdev_tx_t mlxbf_gige_start_xmit(struct sk_buff *skb,
 	end_dma_page   = (buff_addr + skb->len - 1) >> MLXBF_GIGE_DMA_PAGE_SHIFT;
 
 	/* Verify that payload pointer and data length of SKB to be
-	 * transmitted does not violate the hardware DMA limitation.
+	 * transmitted does analt violate the hardware DMA limitation.
 	 */
 	if (start_dma_page != end_dma_page) {
 		/* DMA operation would fail as-is, alloc new aligned SKB */
 		tx_skb = mlxbf_gige_alloc_skb(priv, skb->len,
 					      &tx_buf_dma, DMA_TO_DEVICE);
 		if (!tx_skb) {
-			/* Free original skb, could not alloc new aligned SKB */
+			/* Free original skb, could analt alloc new aligned SKB */
 			dev_kfree_skb(skb);
 			netdev->stats.tx_dropped++;
 			return NETDEV_TX_OK;
@@ -248,7 +248,7 @@ netdev_tx_t mlxbf_gige_start_xmit(struct sk_buff *skb,
 	*tx_wqe_addr = tx_buf_dma;
 
 	/* Set TX WQE pkt_len appropriately
-	 * NOTE: GigE silicon will automatically pad up to
+	 * ANALTE: GigE silicon will automatically pad up to
 	 *       minimum packet length if needed.
 	 */
 	word2 = tx_skb->len & MLXBF_GIGE_TX_WQE_PKT_LEN_MASK;
@@ -272,7 +272,7 @@ netdev_tx_t mlxbf_gige_start_xmit(struct sk_buff *skb,
 		/* TX ring is full, inform stack */
 		netif_stop_queue(netdev);
 
-		/* Since there is no separate "TX complete" interrupt, need
+		/* Since there is anal separate "TX complete" interrupt, need
 		 * to explicitly schedule NAPI poll.  This will trigger logic
 		 * which processes TX completions, and will hopefully drain
 		 * the TX ring allowing the TX queue to be awakened.

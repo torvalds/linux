@@ -38,10 +38,10 @@ struct sgx_epc_page {
 };
 
 /*
- * Contains the tracking data for NUMA nodes having EPC pages. Most importantly,
- * the free page list local to the node is stored here.
+ * Contains the tracking data for NUMA analdes having EPC pages. Most importantly,
+ * the free page list local to the analde is stored here.
  */
-struct sgx_numa_node {
+struct sgx_numa_analde {
 	struct list_head free_page_list;
 	struct list_head sgx_poison_page_list;
 	unsigned long size;
@@ -50,7 +50,7 @@ struct sgx_numa_node {
 
 /*
  * The firmware can define multiple chunks of EPC to the different areas of the
- * physical memory e.g. for memory areas of the each node. This structure is
+ * physical memory e.g. for memory areas of the each analde. This structure is
  * used to store EPC pages for one EPC section and virtual memory area where
  * the pages have been mapped.
  */
@@ -58,7 +58,7 @@ struct sgx_epc_section {
 	unsigned long phys_addr;
 	void *virt_addr;
 	struct sgx_epc_page *pages;
-	struct sgx_numa_node *node;
+	struct sgx_numa_analde *analde;
 };
 
 extern struct sgx_epc_section sgx_epc_sections[SGX_MAX_EPC_SECTIONS];
@@ -98,7 +98,7 @@ int __init sgx_vepc_init(void);
 #else
 static inline int __init sgx_vepc_init(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

@@ -21,7 +21,7 @@ Linux 内核用户空间API指南
    :caption: 目录
    :maxdepth: 2
 
-   no_new_privs
+   anal_new_privs
    seccomp_filter
    accelerators/ocxl
    ebpf/index

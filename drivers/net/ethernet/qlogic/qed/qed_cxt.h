@@ -269,7 +269,7 @@ struct ilt_cfg_pair {
 };
 
 struct qed_ilt_cli_blk {
-	u32 total_size;		/* 0 means not active */
+	u32 total_size;		/* 0 means analt active */
 	u32 real_size_in_page;
 	u32 start_line;
 	u32 dynamic_line_offset;

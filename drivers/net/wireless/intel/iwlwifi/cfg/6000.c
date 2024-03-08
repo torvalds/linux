@@ -9,7 +9,7 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-agn-hw.h"
-#include "dvm/commands.h" /* needed for BT for now */
+#include "dvm/commands.h" /* needed for BT for analw */
 
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 6
@@ -121,41 +121,41 @@ static const struct iwl_eeprom_params iwl6000_eeprom_params = {
 	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl6005_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205 AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6205 AGN",
 	IWL_DEVICE_6005,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6005_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205 ABG",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6205 ABG",
 	IWL_DEVICE_6005,
 };
 
 const struct iwl_cfg iwl6005_2bg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205 BG",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6205 BG",
 	IWL_DEVICE_6005,
 };
 
 const struct iwl_cfg iwl6005_2agn_sff_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205S AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6205S AGN",
 	IWL_DEVICE_6005,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6005_2agn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205D AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6205D AGN",
 	IWL_DEVICE_6005,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6005_2agn_mow1_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6206 AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6206 AGN",
 	IWL_DEVICE_6005,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6005_2agn_mow2_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6207 AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6207 AGN",
 	IWL_DEVICE_6005,
 	.ht_params = &iwl6000_ht_params,
 };
@@ -174,24 +174,24 @@ const struct iwl_cfg iwl6005_2agn_mow2_cfg = {
 	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl6030_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6230 AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6230 AGN",
 	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6030_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6230 ABG",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6230 ABG",
 	IWL_DEVICE_6030,
 };
 
 const struct iwl_cfg iwl6030_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6230 BGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6230 BGN",
 	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6030_2bg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6230 BG",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6230 BG",
 	IWL_DEVICE_6030,
 };
 
@@ -209,37 +209,37 @@ const struct iwl_cfg iwl6030_2bg_cfg = {
 	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl6035_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6235 AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6235 AGN",
 	IWL_DEVICE_6035,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6035_2agn_sff_cfg = {
-	.name = "Intel(R) Centrino(R) Ultimate-N 6235 AGN",
+	.name = "Intel(R) Centrianal(R) Ultimate-N 6235 AGN",
 	IWL_DEVICE_6035,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl1030_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1030 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 1030 BGN",
 	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl1030_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1030 BG",
+	.name = "Intel(R) Centrianal(R) Wireless-N 1030 BG",
 	IWL_DEVICE_6030,
 };
 
 const struct iwl_cfg iwl130_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 130 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 130 BGN",
 	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
 	.rx_with_siso_diversity = true,
 };
 
 const struct iwl_cfg iwl130_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 130 BG",
+	.name = "Intel(R) Centrianal(R) Wireless-N 130 BG",
 	IWL_DEVICE_6030,
 	.rx_with_siso_diversity = true,
 };
@@ -263,18 +263,18 @@ const struct iwl_cfg iwl130_bg_cfg = {
 	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl6000i_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6200 AGN",
 	IWL_DEVICE_6000i,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6000i_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6200 ABG",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6200 ABG",
 	IWL_DEVICE_6000i,
 };
 
 const struct iwl_cfg iwl6000i_2bg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6200 BG",
+	.name = "Intel(R) Centrianal(R) Advanced-N 6200 BG",
 	IWL_DEVICE_6000i,
 };
 
@@ -295,13 +295,13 @@ const struct iwl_cfg iwl6000i_2bg_cfg = {
 	.internal_wimax_coex = true
 
 const struct iwl_cfg iwl6050_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN",
+	.name = "Intel(R) Centrianal(R) Advanced-N + WiMAX 6250 AGN",
 	IWL_DEVICE_6050,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6050_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 ABG",
+	.name = "Intel(R) Centrianal(R) Advanced-N + WiMAX 6250 ABG",
 	IWL_DEVICE_6050,
 };
 
@@ -320,18 +320,18 @@ const struct iwl_cfg iwl6050_2abg_cfg = {
 	.internal_wimax_coex = true
 
 const struct iwl_cfg iwl6150_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N + WiMAX 6150 BGN",
 	IWL_DEVICE_6150,
 	.ht_params = &iwl6000_ht_params,
 };
 
 const struct iwl_cfg iwl6150_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BG",
+	.name = "Intel(R) Centrianal(R) Wireless-N + WiMAX 6150 BG",
 	IWL_DEVICE_6150,
 };
 
 const struct iwl_cfg iwl6000_3agn_cfg = {
-	.name = "Intel(R) Centrino(R) Ultimate-N 6300 AGN",
+	.name = "Intel(R) Centrianal(R) Ultimate-N 6300 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,

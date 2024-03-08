@@ -15,7 +15,7 @@
 
 struct saa6588_command {
 	unsigned int  block_count;
-	bool          nonblocking;
+	bool          analnblocking;
 	int           result;
 	unsigned char __user *buffer;
 	struct file   *instance;

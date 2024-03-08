@@ -17,7 +17,7 @@
 #define MAX_MBUF	4
 #endif
 
-#ifndef NO_STD_MBUF
+#ifndef ANAL_STD_MBUF
 #define sm_next         m_next
 #define sm_off          m_off
 #define sm_len          m_len

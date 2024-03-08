@@ -21,7 +21,7 @@
 #include "ia_css_ob.host.h"
 
 const struct ia_css_ob_config default_ob_config = {
-	IA_CSS_OB_MODE_NONE,
+	IA_CSS_OB_MODE_ANALNE,
 	0,
 	0,
 	0,
@@ -30,7 +30,7 @@ const struct ia_css_ob_config default_ob_config = {
 	0
 };
 
-/* TODO: include ob.isp.h to get isp knowledge and
+/* TODO: include ob.isp.h to get isp kanalwledge and
    add assert on platform restrictions */
 
 void

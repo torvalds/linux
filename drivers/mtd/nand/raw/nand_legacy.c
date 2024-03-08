@@ -53,7 +53,7 @@ static void nand_select_chip(struct nand_chip *chip, int chipnr)
 {
 	switch (chipnr) {
 	case -1:
-		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
+		chip->legacy.cmd_ctrl(chip, NAND_CMD_ANALNE,
 				      0 | NAND_CTRL_CHANGE);
 		break;
 	case 0:
@@ -88,7 +88,7 @@ static void nand_write_byte16(struct nand_chip *chip, uint8_t byte)
 	uint16_t word = byte;
 
 	/*
-	 * It's not entirely clear what should happen to I/O[15:8] when writing
+	 * It's analt entirely clear what should happen to I/O[15:8] when writing
 	 * a byte. The ONFi spec (Revision 3.1; 2012-09-19, Section 2.16) reads:
 	 *
 	 *    When the host supports a 16-bit bus width, only data is
@@ -100,7 +100,7 @@ static void nand_write_byte16(struct nand_chip *chip, uint8_t byte)
 	 *
 	 * One user of the write_byte callback is nand_set_features. The
 	 * four parameters are specified to be written to I/O[7:0], but this is
-	 * neither an address nor a command transfer. Let's assume a 0 on the
+	 * neither an address analr a command transfer. Let's assume a 0 on the
 	 * upper I/O lines is OK.
 	 */
 	chip->legacy.write_buf(chip, (uint8_t *)&word, 2);
@@ -241,8 +241,8 @@ static void nand_wait_status_ready(struct nand_chip *chip, unsigned long timeo)
  * nand_command - [DEFAULT] Send command to NAND device
  * @chip: NAND chip object
  * @command: the command to be sent
- * @column: the column address for this command, -1 if none
- * @page_addr: the page address for this command, -1 if none
+ * @column: the column address for this command, -1 if analne
+ * @page_addr: the page address for this command, -1 if analne
  *
  * Send command to NAND device. This function is used for small page devices
  * (512 Bytes per page).
@@ -271,7 +271,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		chip->legacy.cmd_ctrl(chip, readcmd, ctrl);
 		ctrl &= ~NAND_CTRL_CHANGE;
 	}
-	if (command != NAND_CMD_NONE)
+	if (command != NAND_CMD_ANALNE)
 		chip->legacy.cmd_ctrl(chip, command, ctrl);
 
 	/* Address cycle, when necessary */
@@ -292,16 +292,16 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		if (chip->options & NAND_ROW_ADDR_3)
 			chip->legacy.cmd_ctrl(chip, page_addr >> 16, ctrl);
 	}
-	chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
+	chip->legacy.cmd_ctrl(chip, NAND_CMD_ANALNE,
 			      NAND_NCE | NAND_CTRL_CHANGE);
 
 	/*
 	 * Program and erase have their own busy handlers status and sequential
-	 * in needs no delay
+	 * in needs anal delay
 	 */
 	switch (command) {
 
-	case NAND_CMD_NONE:
+	case NAND_CMD_ANALNE:
 	case NAND_CMD_PAGEPROG:
 	case NAND_CMD_ERASE1:
 	case NAND_CMD_ERASE2:
@@ -317,7 +317,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		udelay(chip->legacy.chip_delay);
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_STATUS,
 				      NAND_CTRL_CLE | NAND_CTRL_CHANGE);
-		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
+		chip->legacy.cmd_ctrl(chip, NAND_CMD_ANALNE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
 		nand_wait_status_ready(chip, 250);
@@ -327,8 +327,8 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 	case NAND_CMD_READ0:
 		/*
 		 * READ0 is sometimes used to exit GET STATUS mode. When this
-		 * is the case no address cycles are requested, and we can use
-		 * this information to detect that we should not wait for the
+		 * is the case anal address cycles are requested, and we can use
+		 * this information to detect that we should analt wait for the
 		 * device to be ready.
 		 */
 		if (column == -1 && page_addr == -1)
@@ -379,8 +379,8 @@ static void nand_ccs_delay(struct nand_chip *chip)
  * nand_command_lp - [DEFAULT] Send command to NAND large page device
  * @chip: NAND chip object
  * @command: the command to be sent
- * @column: the column address for this command, -1 if none
- * @page_addr: the page address for this command, -1 if none
+ * @column: the column address for this command, -1 if analne
+ * @page_addr: the page address for this command, -1 if analne
  *
  * Send command to NAND device. This is the version for the new large page
  * devices. We don't have the separate regions as we have in the small page
@@ -398,7 +398,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 	}
 
 	/* Command latch cycle */
-	if (command != NAND_CMD_NONE)
+	if (command != NAND_CMD_ANALNE)
 		chip->legacy.cmd_ctrl(chip, command,
 				      NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
 
@@ -427,16 +427,16 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 						      NAND_NCE | NAND_ALE);
 		}
 	}
-	chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
+	chip->legacy.cmd_ctrl(chip, NAND_CMD_ANALNE,
 			      NAND_NCE | NAND_CTRL_CHANGE);
 
 	/*
 	 * Program and erase have their own busy handlers status, sequential
-	 * in and status need no delay.
+	 * in and status need anal delay.
 	 */
 	switch (command) {
 
-	case NAND_CMD_NONE:
+	case NAND_CMD_ANALNE:
 	case NAND_CMD_CACHEDPROG:
 	case NAND_CMD_PAGEPROG:
 	case NAND_CMD_ERASE1:
@@ -457,17 +457,17 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 		udelay(chip->legacy.chip_delay);
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_STATUS,
 				      NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
-		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
+		chip->legacy.cmd_ctrl(chip, NAND_CMD_ANALNE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
 		nand_wait_status_ready(chip, 250);
 		return;
 
 	case NAND_CMD_RNDOUT:
-		/* No ready / busy check necessary */
+		/* Anal ready / busy check necessary */
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_RNDOUTSTART,
 				      NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
-		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
+		chip->legacy.cmd_ctrl(chip, NAND_CMD_ANALNE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 
 		nand_ccs_delay(chip);
@@ -476,8 +476,8 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 	case NAND_CMD_READ0:
 		/*
 		 * READ0 is sometimes used to exit GET STATUS mode. When this
-		 * is the case no address cycles are requested, and we can use
-		 * this information to detect that READSTART should not be
+		 * is the case anal address cycles are requested, and we can use
+		 * this information to detect that READSTART should analt be
 		 * issued.
 		 */
 		if (column == -1 && page_addr == -1)
@@ -485,7 +485,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_READSTART,
 				      NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
-		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
+		chip->legacy.cmd_ctrl(chip, NAND_CMD_ANALNE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 		fallthrough;	/* This applies to read commands */
 	default:
@@ -509,20 +509,20 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 }
 
 /**
- * nand_get_set_features_notsupp - set/get features stub returning -ENOTSUPP
+ * nand_get_set_features_analtsupp - set/get features stub returning -EANALTSUPP
  * @chip: nand chip info structure
  * @addr: feature address.
  * @subfeature_param: the subfeature parameters, a four bytes array.
  *
- * Should be used by NAND controller drivers that do not support the SET/GET
+ * Should be used by NAND controller drivers that do analt support the SET/GET
  * FEATURES operations.
  */
-int nand_get_set_features_notsupp(struct nand_chip *chip, int addr,
+int nand_get_set_features_analtsupp(struct nand_chip *chip, int addr,
 				  u8 *subfeature_param)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
-EXPORT_SYMBOL(nand_get_set_features_notsupp);
+EXPORT_SYMBOL(nand_get_set_features_analtsupp);
 
 /**
  * nand_wait - [DEFAULT] wait until the command is done
@@ -585,7 +585,7 @@ void nand_legacy_set_defaults(struct nand_chip *chip)
 	if (nand_has_exec_op(chip))
 		return;
 
-	/* check for proper chip_delay setup, set 20us if not */
+	/* check for proper chip_delay setup, set 20us if analt */
 	if (!chip->legacy.chip_delay)
 		chip->legacy.chip_delay = 20;
 
@@ -615,7 +615,7 @@ void nand_legacy_adjust_cmdfunc(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
-	/* Do not replace user supplied command function! */
+	/* Do analt replace user supplied command function! */
 	if (mtd->writesize > 512 && chip->legacy.cmdfunc == nand_command)
 		chip->legacy.cmdfunc = nand_command_lp;
 }
@@ -624,7 +624,7 @@ int nand_legacy_check_hooks(struct nand_chip *chip)
 {
 	/*
 	 * ->legacy.cmdfunc() is legacy and will only be used if ->exec_op() is
-	 * not populated.
+	 * analt populated.
 	 */
 	if (nand_has_exec_op(chip))
 		return 0;

@@ -10,7 +10,7 @@
 struct option;
 
 struct cgroup {
-	struct rb_node		node;
+	struct rb_analde		analde;
 	u64			id;
 	char			*name;
 	int			fd;

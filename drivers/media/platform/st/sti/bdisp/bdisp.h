@@ -18,12 +18,12 @@
 #define BDISP_NAME              "bdisp"
 
 /*
- *  Max nb of nodes in node-list:
- *   - 2 nodes to handle wide 4K pictures
- *   - 2 nodes to handle two planes (Y & CbCr) */
+ *  Max nb of analdes in analde-list:
+ *   - 2 analdes to handle wide 4K pictures
+ *   - 2 analdes to handle two planes (Y & CbCr) */
 #define MAX_OUTPUT_PLANES       2
 #define MAX_VERTICAL_STRIDES    2
-#define MAX_NB_NODE             (MAX_OUTPUT_PLANES * MAX_VERTICAL_STRIDES)
+#define MAX_NB_ANALDE             (MAX_OUTPUT_PLANES * MAX_VERTICAL_STRIDES)
 
 /* struct bdisp_ctrls - bdisp control set
  * @hflip:      horizontal flip
@@ -103,8 +103,8 @@ struct bdisp_request {
  * @hflip:      horizontal flip
  * @vflip:      vertical flip
  * @bdisp_dev:  the device this context applies to
- * @node:       node array
- * @node_paddr: node physical address array
+ * @analde:       analde array
+ * @analde_paddr: analde physical address array
  * @fh:         v4l2 file handle
  * @ctrl_handler: v4l2 controls handler
  * @bdisp_ctrls: bdisp control set
@@ -117,8 +117,8 @@ struct bdisp_ctx {
 	unsigned int            hflip:1;
 	unsigned int            vflip:1;
 	struct bdisp_dev        *bdisp_dev;
-	struct bdisp_node       *node[MAX_NB_NODE];
-	dma_addr_t              node_paddr[MAX_NB_NODE];
+	struct bdisp_analde       *analde[MAX_NB_ANALDE];
+	dma_addr_t              analde_paddr[MAX_NB_ANALDE];
 	struct v4l2_fh          fh;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct bdisp_ctrls      bdisp_ctrls;
@@ -128,7 +128,7 @@ struct bdisp_ctx {
 /**
  * struct bdisp_m2m_device - v4l2 memory-to-memory device data
  *
- * @vdev:       video device node for v4l2 m2m mode
+ * @vdev:       video device analde for v4l2 m2m mode
  * @m2m_dev:    v4l2 m2m device data
  * @ctx:        hardware context data
  * @refcnt:     reference counter
@@ -144,7 +144,7 @@ struct bdisp_m2m_device {
  * struct bdisp_dbg - debug info
  *
  * @debugfs_entry: debugfs
- * @copy_node:     array of last used nodes
+ * @copy_analde:     array of last used analdes
  * @copy_request:  last bdisp request
  * @hw_start:      start time of last HW request
  * @last_duration: last HW processing duration in microsecs
@@ -154,7 +154,7 @@ struct bdisp_m2m_device {
  */
 struct bdisp_dbg {
 	struct dentry           *debugfs_entry;
-	struct bdisp_node       *copy_node[MAX_NB_NODE];
+	struct bdisp_analde       *copy_analde[MAX_NB_ANALDE];
 	struct bdisp_request    copy_request;
 	ktime_t                 hw_start;
 	s64                     last_duration;
@@ -200,8 +200,8 @@ struct bdisp_dev {
 	struct bdisp_dbg        dbg;
 };
 
-void bdisp_hw_free_nodes(struct bdisp_ctx *ctx);
-int bdisp_hw_alloc_nodes(struct bdisp_ctx *ctx);
+void bdisp_hw_free_analdes(struct bdisp_ctx *ctx);
+int bdisp_hw_alloc_analdes(struct bdisp_ctx *ctx);
 void bdisp_hw_free_filters(struct device *dev);
 int bdisp_hw_alloc_filters(struct device *dev);
 int bdisp_hw_reset(struct bdisp_dev *bdisp);

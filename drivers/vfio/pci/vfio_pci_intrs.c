@@ -41,7 +41,7 @@ static bool is_intx(struct vfio_pci_core_device *vdev)
 	return vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX;
 }
 
-static bool is_irq_none(struct vfio_pci_core_device *vdev)
+static bool is_irq_analne(struct vfio_pci_core_device *vdev)
 {
 	return !(vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX ||
 		 vdev->irq_type == VFIO_PCI_MSI_IRQ_INDEX ||
@@ -111,7 +111,7 @@ bool vfio_pci_intx_mask(struct vfio_pci_core_device *vdev)
 	/*
 	 * Masking can come from interrupt, ioctl, or config space
 	 * via INTx disable.  The latter means this can get called
-	 * even when not using intx delivery.  In this case, just
+	 * even when analt using intx delivery.  In this case, just
 	 * try to have the physical bit follow the virtual bit.
 	 */
 	if (unlikely(!is_intx(vdev))) {
@@ -127,12 +127,12 @@ bool vfio_pci_intx_mask(struct vfio_pci_core_device *vdev)
 	if (!ctx->masked) {
 		/*
 		 * Can't use check_and_mask here because we always want to
-		 * mask, not just when something is pending.
+		 * mask, analt just when something is pending.
 		 */
 		if (vdev->pci_2_3)
 			pci_intx(pdev, 0);
 		else
-			disable_irq_nosync(pdev->irq);
+			disable_irq_analsync(pdev->irq);
 
 		ctx->masked = true;
 		masked_changed = true;
@@ -161,7 +161,7 @@ static int vfio_pci_intx_unmask_handler(void *opaque, void *unused)
 
 	/*
 	 * Unmasking comes from ioctl or config, so again, have the
-	 * physical bit follow the virtual even when not using INTx.
+	 * physical bit follow the virtual even when analt using INTx.
 	 */
 	if (unlikely(!is_intx(vdev))) {
 		if (vdev->pci_2_3)
@@ -205,7 +205,7 @@ static irqreturn_t vfio_intx_handler(int irq, void *dev_id)
 	struct vfio_pci_core_device *vdev = dev_id;
 	struct vfio_pci_irq_ctx *ctx;
 	unsigned long flags;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	ctx = vfio_irq_ctx_get(vdev, 0);
 	if (WARN_ON_ONCE(!ctx))
@@ -214,7 +214,7 @@ static irqreturn_t vfio_intx_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&vdev->irqlock, flags);
 
 	if (!vdev->pci_2_3) {
-		disable_irq_nosync(vdev->pdev->irq);
+		disable_irq_analsync(vdev->pdev->irq);
 		ctx->masked = true;
 		ret = IRQ_HANDLED;
 	} else if (!ctx->masked &&  /* may be shared */
@@ -235,20 +235,20 @@ static int vfio_intx_enable(struct vfio_pci_core_device *vdev)
 {
 	struct vfio_pci_irq_ctx *ctx;
 
-	if (!is_irq_none(vdev))
+	if (!is_irq_analne(vdev))
 		return -EINVAL;
 
 	if (!vdev->pdev->irq)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctx = vfio_irq_ctx_alloc(vdev, 0);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * If the virtual interrupt is masked, restore it.  Devices
 	 * supporting DisINTx can be masked at the hardware level
-	 * here, non-PCI-2.3 devices will have to wait until the
+	 * here, analn-PCI-2.3 devices will have to wait until the
 	 * interrupt is enabled.
 	 */
 	ctx->masked = vdev->virq_disabled;
@@ -286,7 +286,7 @@ static int vfio_intx_set_signal(struct vfio_pci_core_device *vdev, int fd)
 	ctx->name = kasprintf(GFP_KERNEL_ACCOUNT, "vfio-intx(%s)",
 			      pci_name(pdev));
 	if (!ctx->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trigger = eventfd_ctx_fdget(fd);
 	if (IS_ERR(trigger)) {
@@ -314,7 +314,7 @@ static int vfio_intx_set_signal(struct vfio_pci_core_device *vdev, int fd)
 	 */
 	spin_lock_irqsave(&vdev->irqlock, flags);
 	if (!vdev->pci_2_3 && ctx->masked)
-		disable_irq_nosync(pdev->irq);
+		disable_irq_analsync(pdev->irq);
 	spin_unlock_irqrestore(&vdev->irqlock, flags);
 
 	return 0;
@@ -353,7 +353,7 @@ static int vfio_msi_enable(struct vfio_pci_core_device *vdev, int nvec, bool msi
 	int ret;
 	u16 cmd;
 
-	if (!is_irq_none(vdev))
+	if (!is_irq_analne(vdev))
 		return -EINVAL;
 
 	/* return the number of supported vectors if we can't get all: */
@@ -383,7 +383,7 @@ static int vfio_msi_enable(struct vfio_pci_core_device *vdev, int nvec, bool msi
 
 /*
  * vfio_msi_alloc_irq() returns the Linux IRQ number of an MSI or MSI-X device
- * interrupt vector. If a Linux IRQ number is not available then a new
+ * interrupt vector. If a Linux IRQ number is analt available then a new
  * interrupt is allocated if dynamic MSI-X is supported.
  *
  * Where is vfio_msi_free_irq()? Allocated interrupts are maintained,
@@ -447,12 +447,12 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_core_device *vdev,
 
 	ctx = vfio_irq_ctx_alloc(vdev, vector);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->name = kasprintf(GFP_KERNEL_ACCOUNT, "vfio-msi%s[%d](%s)",
 			      msix ? "x" : "", vector, pci_name(pdev));
 	if (!ctx->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_ctx;
 	}
 
@@ -541,9 +541,9 @@ static void vfio_msi_disable(struct vfio_pci_core_device *vdev, bool msix)
 
 	/*
 	 * Both disable paths above use pci_intx_for_msi() to clear DisINTx
-	 * via their shutdown paths.  Restore for NoINTx devices.
+	 * via their shutdown paths.  Restore for AnalINTx devices.
 	 */
-	if (vdev->nointx)
+	if (vdev->analintx)
 		pci_intx(pdev, 0);
 
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
@@ -559,7 +559,7 @@ static int vfio_pci_set_intx_unmask(struct vfio_pci_core_device *vdev,
 	if (!is_intx(vdev) || start != 0 || count != 1)
 		return -EINVAL;
 
-	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+	if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 		vfio_pci_intx_unmask(vdev);
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 		uint8_t unmask = *(uint8_t *)data;
@@ -590,14 +590,14 @@ static int vfio_pci_set_intx_mask(struct vfio_pci_core_device *vdev,
 	if (!is_intx(vdev) || start != 0 || count != 1)
 		return -EINVAL;
 
-	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+	if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 		vfio_pci_intx_mask(vdev);
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 		uint8_t mask = *(uint8_t *)data;
 		if (mask)
 			vfio_pci_intx_mask(vdev);
 	} else if (flags & VFIO_IRQ_SET_DATA_EVENTFD) {
-		return -ENOTTY; /* XXX implement me */
+		return -EANALTTY; /* XXX implement me */
 	}
 
 	return 0;
@@ -607,12 +607,12 @@ static int vfio_pci_set_intx_trigger(struct vfio_pci_core_device *vdev,
 				     unsigned index, unsigned start,
 				     unsigned count, uint32_t flags, void *data)
 {
-	if (is_intx(vdev) && !count && (flags & VFIO_IRQ_SET_DATA_NONE)) {
+	if (is_intx(vdev) && !count && (flags & VFIO_IRQ_SET_DATA_ANALNE)) {
 		vfio_intx_disable(vdev);
 		return 0;
 	}
 
-	if (!(is_intx(vdev) || is_irq_none(vdev)) || start != 0 || count != 1)
+	if (!(is_intx(vdev) || is_irq_analne(vdev)) || start != 0 || count != 1)
 		return -EINVAL;
 
 	if (flags & VFIO_IRQ_SET_DATA_EVENTFD) {
@@ -636,7 +636,7 @@ static int vfio_pci_set_intx_trigger(struct vfio_pci_core_device *vdev,
 	if (!is_intx(vdev))
 		return -EINVAL;
 
-	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+	if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 		vfio_send_intx_eventfd(vdev, NULL);
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 		uint8_t trigger = *(uint8_t *)data;
@@ -654,12 +654,12 @@ static int vfio_pci_set_msi_trigger(struct vfio_pci_core_device *vdev,
 	unsigned int i;
 	bool msix = (index == VFIO_PCI_MSIX_IRQ_INDEX) ? true : false;
 
-	if (irq_is(vdev, index) && !count && (flags & VFIO_IRQ_SET_DATA_NONE)) {
+	if (irq_is(vdev, index) && !count && (flags & VFIO_IRQ_SET_DATA_ANALNE)) {
 		vfio_msi_disable(vdev, msix);
 		return 0;
 	}
 
-	if (!(irq_is(vdev, index) || is_irq_none(vdev)))
+	if (!(irq_is(vdev, index) || is_irq_analne(vdev)))
 		return -EINVAL;
 
 	if (flags & VFIO_IRQ_SET_DATA_EVENTFD) {
@@ -688,7 +688,7 @@ static int vfio_pci_set_msi_trigger(struct vfio_pci_core_device *vdev,
 		ctx = vfio_irq_ctx_get(vdev, i);
 		if (!ctx)
 			continue;
-		if (flags & VFIO_IRQ_SET_DATA_NONE) {
+		if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 			eventfd_signal(ctx->trigger);
 		} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 			uint8_t *bools = data;
@@ -703,8 +703,8 @@ static int vfio_pci_set_ctx_trigger_single(struct eventfd_ctx **ctx,
 					   unsigned int count, uint32_t flags,
 					   void *data)
 {
-	/* DATA_NONE/DATA_BOOL enables loopback testing */
-	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+	/* DATA_ANALNE/DATA_BOOL enables loopback testing */
+	if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 		if (*ctx) {
 			if (count) {
 				eventfd_signal(*ctx);
@@ -828,7 +828,7 @@ int vfio_pci_set_irqs_ioctl(struct vfio_pci_core_device *vdev, uint32_t flags,
 	}
 
 	if (!func)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return func(vdev, index, start, count, flags, data);
 }

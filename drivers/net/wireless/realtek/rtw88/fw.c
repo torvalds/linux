@@ -116,7 +116,7 @@ static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 
 static u16 get_max_amsdu_len(u32 bit_rate)
 {
-	/* lower than ofdm, do not aggregate */
+	/* lower than ofdm, do analt aggregate */
 	if (bit_rate < 550)
 		return 1;
 
@@ -128,7 +128,7 @@ static u16 get_max_amsdu_len(u32 bit_rate)
 	if (bit_rate < 4000)
 		return 2600;
 
-	/* not yet 80M 2ss mcs8/9, make it twice regular packet size */
+	/* analt yet 80M 2ss mcs8/9, make it twice regular packet size */
 	if (bit_rate < 7000)
 		return 3500;
 
@@ -213,21 +213,21 @@ struct rtw_beacon_filter_iter_data {
 	u8 *payload;
 };
 
-static void rtw_fw_bcn_filter_notify_vif_iter(void *data,
+static void rtw_fw_bcn_filter_analtify_vif_iter(void *data,
 					      struct ieee80211_vif *vif)
 {
 	struct rtw_beacon_filter_iter_data *iter_data = data;
 	struct rtw_dev *rtwdev = iter_data->rtwdev;
 	u8 *payload = iter_data->payload;
-	u8 type = GET_BCN_FILTER_NOTIFY_TYPE(payload);
-	u8 event = GET_BCN_FILTER_NOTIFY_EVENT(payload);
-	s8 sig = (s8)GET_BCN_FILTER_NOTIFY_RSSI(payload);
+	u8 type = GET_BCN_FILTER_ANALTIFY_TYPE(payload);
+	u8 event = GET_BCN_FILTER_ANALTIFY_EVENT(payload);
+	s8 sig = (s8)GET_BCN_FILTER_ANALTIFY_RSSI(payload);
 
 	switch (type) {
-	case BCN_FILTER_NOTIFY_SIGNAL_CHANGE:
+	case BCN_FILTER_ANALTIFY_SIGNAL_CHANGE:
 		event = event ? NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH :
 			NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
-		ieee80211_cqm_rssi_notify(vif, event, sig, GFP_KERNEL);
+		ieee80211_cqm_rssi_analtify(vif, event, sig, GFP_KERNEL);
 		break;
 	case BCN_FILTER_CONNECTION_LOSS:
 		ieee80211_connection_loss(vif);
@@ -235,21 +235,21 @@ static void rtw_fw_bcn_filter_notify_vif_iter(void *data,
 	case BCN_FILTER_CONNECTED:
 		rtwdev->beacon_loss = false;
 		break;
-	case BCN_FILTER_NOTIFY_BEACON_LOSS:
+	case BCN_FILTER_ANALTIFY_BEACON_LOSS:
 		rtwdev->beacon_loss = true;
 		rtw_leave_lps(rtwdev);
 		break;
 	}
 }
 
-static void rtw_fw_bcn_filter_notify(struct rtw_dev *rtwdev, u8 *payload,
+static void rtw_fw_bcn_filter_analtify(struct rtw_dev *rtwdev, u8 *payload,
 				     u8 length)
 {
 	struct rtw_beacon_filter_iter_data dev_iter_data;
 
 	dev_iter_data.rtwdev = rtwdev;
 	dev_iter_data.payload = payload;
-	rtw_iterate_vifs(rtwdev, rtw_fw_bcn_filter_notify_vif_iter,
+	rtw_iterate_vifs(rtwdev, rtw_fw_bcn_filter_analtify_vif_iter,
 			 &dev_iter_data);
 }
 
@@ -306,16 +306,16 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		rtw_tx_report_handle(rtwdev, skb, C2H_CCX_TX_RPT);
 		break;
 	case C2H_BT_INFO:
-		rtw_coex_bt_info_notify(rtwdev, c2h->payload, len);
+		rtw_coex_bt_info_analtify(rtwdev, c2h->payload, len);
 		break;
 	case C2H_BT_HID_INFO:
-		rtw_coex_bt_hid_info_notify(rtwdev, c2h->payload, len);
+		rtw_coex_bt_hid_info_analtify(rtwdev, c2h->payload, len);
 		break;
 	case C2H_WLAN_INFO:
-		rtw_coex_wl_fwdbginfo_notify(rtwdev, c2h->payload, len);
+		rtw_coex_wl_fwdbginfo_analtify(rtwdev, c2h->payload, len);
 		break;
-	case C2H_BCN_FILTER_NOTIFY:
-		rtw_fw_bcn_filter_notify(rtwdev, c2h->payload, len);
+	case C2H_BCN_FILTER_ANALTIFY:
+		rtw_fw_bcn_filter_analtify(rtwdev, c2h->payload, len);
 		break;
 	case C2H_HALMAC:
 		rtw_fw_c2h_cmd_handle_ext(rtwdev, skb);
@@ -651,13 +651,13 @@ void rtw_fw_force_bt_tx_power(struct rtw_dev *rtwdev, u8 bt_pwr_dec_lvl)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
-void rtw_fw_bt_ignore_wlan_action(struct rtw_dev *rtwdev, bool enable)
+void rtw_fw_bt_iganalre_wlan_action(struct rtw_dev *rtwdev, bool enable)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 
-	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_IGNORE_WLAN_ACTION);
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_IGANALRE_WLAN_ACTION);
 
-	SET_IGNORE_WLAN_ACTION_EN(h2c_pkt, enable);
+	SET_IGANALRE_WLAN_ACTION_EN(h2c_pkt, enable);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
@@ -736,7 +736,7 @@ void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 	SET_RA_INFO_SGI_EN(h2c_pkt, si->sgi_enable);
 	SET_RA_INFO_BW_MODE(h2c_pkt, si->bw_mode);
 	SET_RA_INFO_LDPC(h2c_pkt, !!si->ldpc_en);
-	SET_RA_INFO_NO_UPDATE(h2c_pkt, !reset_ra_mask);
+	SET_RA_INFO_ANAL_UPDATE(h2c_pkt, !reset_ra_mask);
 	SET_RA_INFO_VHT_EN(h2c_pkt, si->vht_enable);
 	SET_RA_INFO_DIS_PT(h2c_pkt, disable_pt);
 	SET_RA_INFO_RA_MASK0(h2c_pkt, (si->ra_mask & 0xff));
@@ -919,7 +919,7 @@ void rtw_fw_set_remote_wake_ctrl_cmd(struct rtw_dev *rtwdev, bool enable)
 
 	SET_REMOTE_WAKECTRL_ENABLE(h2c_pkt, enable);
 
-	if (rtw_wow_no_link(rtwdev))
+	if (rtw_wow_anal_link(rtwdev))
 		SET_REMOTE_WAKE_CTRL_NLO_OFFLOAD_EN(h2c_pkt, enable);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
@@ -950,9 +950,9 @@ void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable)
 
 	SET_NLO_FUN_EN(h2c_pkt, enable);
 	if (enable) {
-		if (rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_NONE)
+		if (rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_ANALNE)
 			SET_NLO_PS_32K(h2c_pkt, enable);
-		SET_NLO_IGNORE_SECURITY(h2c_pkt, enable);
+		SET_NLO_IGANALRE_SECURITY(h2c_pkt, enable);
 		SET_NLO_LOC_NLO_INFO(h2c_pkt, loc_nlo);
 	}
 
@@ -1052,7 +1052,7 @@ static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_pno_request *pno_req = &rtwdev->wow.pno_req;
+	struct rtw_panal_request *panal_req = &rtwdev->wow.panal_req;
 	struct rtw_nlo_info_hdr *nlo_hdr;
 	struct cfg80211_ssid *ssid;
 	struct sk_buff *skb;
@@ -1060,10 +1060,10 @@ static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
 	u32 size;
 	int i;
 
-	if (!pno_req->inited || !pno_req->match_set_cnt)
+	if (!panal_req->inited || !panal_req->match_set_cnt)
 		return NULL;
 
-	size = sizeof(struct rtw_nlo_info_hdr) + pno_req->match_set_cnt *
+	size = sizeof(struct rtw_nlo_info_hdr) + panal_req->match_set_cnt *
 		      IEEE80211_MAX_SSID_LEN + chip->tx_pkt_desc_sz;
 
 	skb = alloc_skb(size, GFP_KERNEL);
@@ -1074,17 +1074,17 @@ static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
 
 	nlo_hdr = skb_put_zero(skb, sizeof(struct rtw_nlo_info_hdr));
 
-	nlo_hdr->nlo_count = pno_req->match_set_cnt;
-	nlo_hdr->hidden_ap_count = pno_req->match_set_cnt;
+	nlo_hdr->nlo_count = panal_req->match_set_cnt;
+	nlo_hdr->hidden_ap_count = panal_req->match_set_cnt;
 
 	/* pattern check for firmware */
 	memset(nlo_hdr->pattern_check, 0xA5, FW_NLO_INFO_CHECK_SIZE);
 
-	for (i = 0; i < pno_req->match_set_cnt; i++)
-		nlo_hdr->ssid_len[i] = pno_req->match_sets[i].ssid.ssid_len;
+	for (i = 0; i < panal_req->match_set_cnt; i++)
+		nlo_hdr->ssid_len[i] = panal_req->match_sets[i].ssid.ssid_len;
 
-	for (i = 0; i < pno_req->match_set_cnt; i++) {
-		ssid = &pno_req->match_sets[i].ssid;
+	for (i = 0; i < panal_req->match_set_cnt; i++) {
+		ssid = &panal_req->match_sets[i].ssid;
 		loc  = rtw_get_rsvd_page_probe_req_location(rtwdev, ssid);
 		if (!loc) {
 			rtw_err(rtwdev, "failed to get probe req rsvd loc\n");
@@ -1094,10 +1094,10 @@ static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
 		nlo_hdr->location[i] = loc;
 	}
 
-	for (i = 0; i < pno_req->match_set_cnt; i++) {
+	for (i = 0; i < panal_req->match_set_cnt; i++) {
 		pos = skb_put_zero(skb, IEEE80211_MAX_SSID_LEN);
-		memcpy(pos, pno_req->match_sets[i].ssid.ssid,
-		       pno_req->match_sets[i].ssid.ssid_len);
+		memcpy(pos, panal_req->match_sets[i].ssid.ssid,
+		       panal_req->match_sets[i].ssid.ssid_len);
 	}
 
 	return skb;
@@ -1107,10 +1107,10 @@ static struct sk_buff *rtw_cs_channel_info_get(struct ieee80211_hw *hw)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_pno_request *pno_req = &rtwdev->wow.pno_req;
-	struct ieee80211_channel *channels = pno_req->channels;
+	struct rtw_panal_request *panal_req = &rtwdev->wow.panal_req;
+	struct ieee80211_channel *channels = panal_req->channels;
 	struct sk_buff *skb;
-	int count =  pno_req->channel_cnt;
+	int count =  panal_req->channel_cnt;
 	u8 *pos;
 	int i = 0;
 
@@ -1383,7 +1383,7 @@ void rtw_add_rsvd_page_bcn(struct rtw_dev *rtwdev,
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_ADHOC &&
 	    vif->type != NL80211_IFTYPE_MESH_POINT) {
-		rtw_warn(rtwdev, "Cannot add beacon rsvd page for %d\n",
+		rtw_warn(rtwdev, "Cananalt add beacon rsvd page for %d\n",
 			 vif->type);
 		return;
 	}
@@ -1391,23 +1391,23 @@ void rtw_add_rsvd_page_bcn(struct rtw_dev *rtwdev,
 	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_BEACON, false);
 }
 
-void rtw_add_rsvd_page_pno(struct rtw_dev *rtwdev,
+void rtw_add_rsvd_page_panal(struct rtw_dev *rtwdev,
 			   struct rtw_vif *rtwvif)
 {
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
-	struct rtw_pno_request *rtw_pno_req = &rtw_wow->pno_req;
+	struct rtw_panal_request *rtw_panal_req = &rtw_wow->panal_req;
 	struct cfg80211_ssid *ssid;
 	int i;
 
 	if (vif->type != NL80211_IFTYPE_STATION) {
-		rtw_warn(rtwdev, "Cannot add PNO rsvd page for %d\n",
+		rtw_warn(rtwdev, "Cananalt add PANAL rsvd page for %d\n",
 			 vif->type);
 		return;
 	}
 
-	for (i = 0 ; i < rtw_pno_req->match_set_cnt; i++) {
-		ssid = &rtw_pno_req->match_sets[i].ssid;
+	for (i = 0 ; i < rtw_panal_req->match_set_cnt; i++) {
+		ssid = &rtw_panal_req->match_sets[i].ssid;
 		rtw_add_rsvd_page_probe_req(rtwdev, rtwvif, ssid);
 	}
 
@@ -1422,7 +1422,7 @@ void rtw_add_rsvd_page_sta(struct rtw_dev *rtwdev,
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 
 	if (vif->type != NL80211_IFTYPE_STATION) {
-		rtw_warn(rtwdev, "Cannot add sta rsvd page for %d\n",
+		rtw_warn(rtwdev, "Cananalt add sta rsvd page for %d\n",
 			 vif->type);
 		return;
 	}
@@ -1505,7 +1505,7 @@ static int rtw_download_drv_rsvd_page(struct rtw_dev *rtwdev, u8 *buf, u32 size)
 	pg_size = rtwdev->chip->page_size;
 	pg_num = size / pg_size + ((size & (pg_size - 1)) ? 1 : 0);
 	if (pg_num > rtwdev->fifo.rsvd_drv_pg_num)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pg_addr = rtwdev->fifo.rsvd_drv_addr;
 
@@ -1535,7 +1535,7 @@ static void rtw_build_rsvd_page_iter(void *data, u8 *mac,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	struct rtw_rsvd_page *rsvd_pkt;
 
-	/* AP not yet started, don't gather its rsvd pages */
+	/* AP analt yet started, don't gather its rsvd pages */
 	if (vif->type == NL80211_IFTYPE_AP && !rtwdev->ap_active)
 		return;
 
@@ -1561,7 +1561,7 @@ static int  __rtw_build_rsvd_page_from_vifs(struct rtw_dev *rtwdev)
 	rsvd_pkt = list_first_entry_or_null(&rtwdev->rsvd_page_list,
 					    struct rtw_rsvd_page, build_list);
 	if (!rsvd_pkt) {
-		WARN(1, "Should not have an empty reserved page\n");
+		WARN(1, "Should analt have an empty reserved page\n");
 		return -EINVAL;
 	}
 
@@ -1572,7 +1572,7 @@ static int  __rtw_build_rsvd_page_from_vifs(struct rtw_dev *rtwdev)
 		dummy_pkt = rtw_alloc_rsvd_page(rtwdev, RSVD_DUMMY, false);
 		if (!dummy_pkt) {
 			rtw_err(rtwdev, "failed to alloc dummy rsvd page\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		list_add(&dummy_pkt->build_list, &rtwdev->rsvd_page_list);
@@ -1622,7 +1622,7 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev, u32 *size)
 
 		/* Reserved page is downloaded via TX path, and TX path will
 		 * generate a tx_desc at the header to describe length of
-		 * the buffer. If we are not counting page numbers with the
+		 * the buffer. If we are analt counting page numbers with the
 		 * size of tx_desc added at the first rsvd_pkt (usually a
 		 * beacon, firmware default refer to the first page as the
 		 * content of beacon), we could generate a buffer which size
@@ -1654,8 +1654,8 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev, u32 *size)
 	/* Copy the content of each rsvd_pkt to the buf, and they should
 	 * be aligned to the pages.
 	 *
-	 * Note that the first rsvd_pkt is a beacon no matter what vif->type.
-	 * And that rsvd_pkt does not require tx_desc because when it goes
+	 * Analte that the first rsvd_pkt is a beacon anal matter what vif->type.
+	 * And that rsvd_pkt does analt require tx_desc because when it goes
 	 * through TX path, the TX path will generate one for it.
 	 */
 	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, build_list) {
@@ -1693,7 +1693,7 @@ static int rtw_download_beacon(struct rtw_dev *rtwdev)
 					    struct rtw_rsvd_page, build_list);
 	if (!rsvd_pkt) {
 		rtw_err(rtwdev, "failed to get rsvd page from build list\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (rsvd_pkt->type != RSVD_BEACON &&
@@ -1706,7 +1706,7 @@ static int rtw_download_beacon(struct rtw_dev *rtwdev)
 	skb = rtw_get_rsvd_page_skb(hw, rsvd_pkt);
 	if (!skb) {
 		rtw_err(rtwdev, "failed to get beacon skb\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = rtw_download_drv_rsvd_page(rtwdev, skb->data, skb->len);
@@ -1727,7 +1727,7 @@ int rtw_fw_download_rsvd_page(struct rtw_dev *rtwdev)
 	buf = rtw_build_rsvd_page(rtwdev, &size);
 	if (!buf) {
 		rtw_err(rtwdev, "failed to build rsvd page pkt\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = rtw_download_drv_rsvd_page(rtwdev, buf, size);
@@ -1833,15 +1833,15 @@ int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
 		     u32 *buffer)
 {
 	if (!rtwdev->chip->fw_fifo_addr[0]) {
-		rtw_dbg(rtwdev, RTW_DBG_FW, "chip not support dump fw fifo\n");
-		return -ENOTSUPP;
+		rtw_dbg(rtwdev, RTW_DBG_FW, "chip analt support dump fw fifo\n");
+		return -EANALTSUPP;
 	}
 
 	if (size == 0 || !buffer)
 		return -EINVAL;
 
 	if (size & 0x3) {
-		rtw_dbg(rtwdev, RTW_DBG_FW, "not 4byte alignment\n");
+		rtw_dbg(rtwdev, RTW_DBG_FW, "analt 4byte alignment\n");
 		return -EINVAL;
 	}
 
@@ -1898,7 +1898,7 @@ void rtw_fw_update_pkt_probe_req(struct rtw_dev *rtwdev,
 
 void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable)
 {
-	struct rtw_pno_request *rtw_pno_req = &rtwdev->wow.pno_req;
+	struct rtw_panal_request *rtw_panal_req = &rtwdev->wow.panal_req;
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 	u16 total_size = H2C_PKT_HDR_SIZE + H2C_PKT_CH_SWITCH_LEN;
 	u8 loc_ch_info;
@@ -1906,9 +1906,9 @@ void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable)
 		.dest_ch_en = 1,
 		.dest_ch = 1,
 		.periodic_option = 2,
-		.normal_period = 5,
-		.normal_period_sel = 0,
-		.normal_cycle = 10,
+		.analrmal_period = 5,
+		.analrmal_period_sel = 0,
+		.analrmal_cycle = 10,
 		.slow_period = 1,
 		.slow_period_sel = 1,
 	};
@@ -1919,15 +1919,15 @@ void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable)
 	CH_SWITCH_SET_START(h2c_pkt, enable);
 	CH_SWITCH_SET_DEST_CH_EN(h2c_pkt, cs_option.dest_ch_en);
 	CH_SWITCH_SET_DEST_CH(h2c_pkt, cs_option.dest_ch);
-	CH_SWITCH_SET_NORMAL_PERIOD(h2c_pkt, cs_option.normal_period);
-	CH_SWITCH_SET_NORMAL_PERIOD_SEL(h2c_pkt, cs_option.normal_period_sel);
+	CH_SWITCH_SET_ANALRMAL_PERIOD(h2c_pkt, cs_option.analrmal_period);
+	CH_SWITCH_SET_ANALRMAL_PERIOD_SEL(h2c_pkt, cs_option.analrmal_period_sel);
 	CH_SWITCH_SET_SLOW_PERIOD(h2c_pkt, cs_option.slow_period);
 	CH_SWITCH_SET_SLOW_PERIOD_SEL(h2c_pkt, cs_option.slow_period_sel);
-	CH_SWITCH_SET_NORMAL_CYCLE(h2c_pkt, cs_option.normal_cycle);
+	CH_SWITCH_SET_ANALRMAL_CYCLE(h2c_pkt, cs_option.analrmal_cycle);
 	CH_SWITCH_SET_PERIODIC_OPT(h2c_pkt, cs_option.periodic_option);
 
-	CH_SWITCH_SET_CH_NUM(h2c_pkt, rtw_pno_req->channel_cnt);
-	CH_SWITCH_SET_INFO_SIZE(h2c_pkt, rtw_pno_req->channel_cnt * 4);
+	CH_SWITCH_SET_CH_NUM(h2c_pkt, rtw_panal_req->channel_cnt);
+	CH_SWITCH_SET_INFO_SIZE(h2c_pkt, rtw_panal_req->channel_cnt * 4);
 
 	loc_ch_info = rtw_get_rsvd_page_location(rtwdev, RSVD_CH_INFO);
 	CH_SWITCH_SET_INFO_LOC(h2c_pkt, loc_ch_info);
@@ -1941,7 +1941,7 @@ void rtw_fw_adaptivity(struct rtw_dev *rtwdev)
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 
 	if (!rtw_edcca_enabled) {
-		dm_info->edcca_mode = RTW_EDCCA_NORMAL;
+		dm_info->edcca_mode = RTW_EDCCA_ANALRMAL;
 		rtw_dbg(rtwdev, RTW_DBG_ADAPTIVITY,
 			"EDCCA disabled by debugfs\n");
 	}
@@ -1956,7 +1956,7 @@ void rtw_fw_adaptivity(struct rtw_dev *rtwdev)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
-void rtw_fw_scan_notify(struct rtw_dev *rtwdev, bool start)
+void rtw_fw_scan_analtify(struct rtw_dev *rtwdev, bool start)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 
@@ -1980,7 +1980,7 @@ static int rtw_append_probe_req_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
 			continue;
 		new = skb_copy(skb, GFP_KERNEL);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		skb_put_data(new, ies->ies[idx], ies->len[idx]);
 		skb_put_data(new, ies->common_ies, ies->common_ie_len);
 		skb_queue_tail(list, new);
@@ -2012,7 +2012,7 @@ static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 
 	buf = kzalloc(page_size * pages, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf_offset -= tx_desc_sz;
 	skb_queue_walk_safe(probe_req_list, skb, tmp) {
@@ -2064,7 +2064,7 @@ static int rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev,
 					     req->ssids[i].ssid_len,
 					     req->ie_len);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		ret = rtw_append_probe_req_ie(rtwdev, skb, &list, &bands,
@@ -2091,7 +2091,7 @@ static int rtw_add_chan_info(struct rtw_dev *rtwdev, struct rtw_chan_info *info,
 	u8 info_size = RTW_CH_INFO_SIZE;
 
 	if (list->size > list->buf_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	CH_INFO_SET_CH(chan, info->channel);
 	CH_INFO_SET_PRI_CH_IDX(chan, info->pri_ch_idx);
@@ -2131,7 +2131,7 @@ static int rtw_add_chan_list(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 		ch_info.timeout = req->duration_mandatory ?
 				  req->duration : RTW_CHANNEL_TIME;
 
-		if (channel->flags & (IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IR)) {
+		if (channel->flags & (IEEE80211_CHAN_RADAR | IEEE80211_CHAN_ANAL_IR)) {
 			ch_info.action_id = RTW_CHANNEL_RADAR;
 			ch_info.extra_info = 1;
 			/* Overwrite duration for passive scans if necessary */
@@ -2178,7 +2178,7 @@ static void rtw_fw_set_scan_offload(struct rtw_dev *rtwdev,
 	SCAN_OFFLOAD_SET_START(h2c_pkt, opt->switch_en);
 	SCAN_OFFLOAD_SET_BACK_OP_EN(h2c_pkt, opt->back_op_en);
 	SCAN_OFFLOAD_SET_RANDOM_SEQ_EN(h2c_pkt, random_seq);
-	SCAN_OFFLOAD_SET_NO_CCK_EN(h2c_pkt, req->no_cck);
+	SCAN_OFFLOAD_SET_ANAL_CCK_EN(h2c_pkt, req->anal_cck);
 	SCAN_OFFLOAD_SET_CH_NUM(h2c_pkt, list->ch_num);
 	SCAN_OFFLOAD_SET_CH_INFO_SIZE(h2c_pkt, list->size);
 	SCAN_OFFLOAD_SET_CH_INFO_LOC(h2c_pkt, list->addr - fifo->rsvd_boundary);
@@ -2263,7 +2263,7 @@ static int rtw_hw_scan_prehandle(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rtw_hw_scan_update_probe_req(rtwdev, rtwvif);
 	if (ret) {
@@ -2381,7 +2381,7 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_c2h_cmd *c2h;
-	enum rtw_scan_notify_id id;
+	enum rtw_scan_analtify_id id;
 	u8 chan, band, status;
 
 	if (!test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
@@ -2392,7 +2392,7 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	id = GET_CHAN_SWITCH_ID(c2h->payload);
 	status = GET_CHAN_SWITCH_STATUS(c2h->payload);
 
-	if (id == RTW_SCAN_NOTIFY_ID_POSTSWITCH) {
+	if (id == RTW_SCAN_ANALTIFY_ID_POSTSWITCH) {
 		band = chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
 		rtw_update_channel(rtwdev, chan, chan, band,
 				   RTW_CHANNEL_WIDTH_20);
@@ -2401,21 +2401,21 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 			ieee80211_wake_queues(rtwdev->hw);
 			rtw_core_enable_beacon(rtwdev, true);
 		}
-	} else if (id == RTW_SCAN_NOTIFY_ID_PRESWITCH) {
+	} else if (id == RTW_SCAN_ANALTIFY_ID_PRESWITCH) {
 		if (IS_CH_5G_BAND(chan)) {
-			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_5G);
+			rtw_coex_switchband_analtify(rtwdev, COEX_SWITCH_TO_5G);
 		} else if (IS_CH_2G_BAND(chan)) {
 			u8 chan_type;
 
 			if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
 				chan_type = COEX_SWITCH_TO_24G;
 			else
-				chan_type = COEX_SWITCH_TO_24G_NOFORSCAN;
-			rtw_coex_switchband_notify(rtwdev, chan_type);
+				chan_type = COEX_SWITCH_TO_24G_ANALFORSCAN;
+			rtw_coex_switchband_analtify(rtwdev, chan_type);
 		}
-		/* The channel of C2H RTW_SCAN_NOTIFY_ID_PRESWITCH is next
+		/* The channel of C2H RTW_SCAN_ANALTIFY_ID_PRESWITCH is next
 		 * channel that hardware will switch. We need to stop queue
-		 * if next channel is non-op channel.
+		 * if next channel is analn-op channel.
 		 */
 		if (!rtw_is_op_chan(rtwdev, chan) &&
 		    rtw_is_op_chan(rtwdev, hal->current_channel)) {

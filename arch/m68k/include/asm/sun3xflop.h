@@ -25,7 +25,7 @@
 #define FCR_DSEL1 0x8
 #define FCR_DSEL0 0x10
 
-/* We don't need no stinkin' I/O port allocation crap. */
+/* We don't need anal stinkin' I/O port allocation crap. */
 #undef release_region
 #undef request_region
 #define release_region(X, Y)	do { } while(0)
@@ -39,7 +39,7 @@ struct sun3xflop_private {
 	unsigned char fcr;
 } sun3x_fdc;
 
-/* Super paranoid... */
+/* Super paraanalid... */
 #undef HAVE_DISABLE_HLT
 
 /* Routines unique to each controller type on a Sun. */
@@ -49,7 +49,7 @@ static unsigned char sun3x_82072_fd_inb(int port)
 //	udelay(5);
 	switch(port & 7) {
 	default:
-		pr_crit("floppy: Asked to read unknown port %d\n", port);
+		pr_crit("floppy: Asked to read unkanalwn port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 4: /* FD_STATUS */
 		return (*sun3x_fdc.status_r) & ~STATUS_DMA;
@@ -71,10 +71,10 @@ static void sun3x_82072_fd_outb(unsigned char value, int port)
 //	udelay(5);
 	switch(port & 7) {
 	default:
-		pr_crit("floppy: Asked to write to unknown port %d\n", port);
+		pr_crit("floppy: Asked to write to unkanalwn port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 2: /* FD_DOR */
-		/* Oh geese, 82072 on the Sun has no DOR register,
+		/* Oh geese, 82072 on the Sun has anal DOR register,
 		 * so we make do with taunting the FCR.
 		 *
 		 * ASSUMPTIONS:  There will only ever be one floppy
@@ -116,7 +116,7 @@ asmlinkage irqreturn_t sun3xflop_hardint(int irq, void *dev_id)
 	register unsigned char st;
 
 #undef TRACE_FLPY_INT
-#define NO_FLOPPY_ASSEMBLER
+#define ANAL_FLOPPY_ASSEMBLER
 
 #ifdef TRACE_FLPY_INT
 	static int calls=0;
@@ -238,12 +238,12 @@ static int sun3xflop_init(void)
 	*sun3x_fdc.fcr_r = 0;
 
 	/* Success... */
-	floppy_set_flags(NULL, 1, FD_BROKEN_DCL); // I don't know how to detect this.
+	floppy_set_flags(NULL, 1, FD_BROKEN_DCL); // I don't kanalw how to detect this.
 	allowed_drive_mask = 0x01;
 	return (int) SUN3X_FDC;
 }
 
-/* I'm not precisely sure this eject routine works */
+/* I'm analt precisely sure this eject routine works */
 static int sun3x_eject(void)
 {
 	if(MACH_IS_SUN3X) {

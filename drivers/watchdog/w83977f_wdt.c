@@ -2,7 +2,7 @@
 /*
  *	W83977F Watchdog Timer Driver for Winbond W83977F I/O Chip
  *
- *	(c) Copyright 2005  Jose Goncalves <jose.goncalves@inov.pt>
+ *	(c) Copyright 2005  Jose Goncalves <jose.goncalves@ianalv.pt>
  *
  *      Based on w83877f_wdt.c by Scott Jennings,
  *           and wdt977.c by Woody Suwalski
@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -51,13 +51,13 @@ MODULE_PARM_DESC(timeout,
 		"Watchdog timeout in seconds (15..7635), default="
 				__MODULE_STRING(DEFAULT_TIMEOUT) ")");
 module_param(testmode, int, 0);
-MODULE_PARM_DESC(testmode, "Watchdog testmode (1 = no reboot), default=0");
+MODULE_PARM_DESC(testmode, "Watchdog testmode (1 = anal reboot), default=0");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  * Start the watchdog
@@ -283,31 +283,31 @@ static int wdt_get_status(int *status)
  *	/dev/watchdog handling
  */
 
-static int wdt_open(struct inode *inode, struct file *file)
+static int wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	/* If the watchdog is alive we don't need to start it again */
 	if (test_and_set_bit(0, &timer_alive))
 		return -EBUSY;
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
 	wdt_start();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int wdt_release(struct inode *inode, struct file *file)
+static int wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	/*
 	 * Shut off the timer.
-	 * Lock it in if it's a module and we set nowayout
+	 * Lock it in if it's a module and we set analwayout
 	 */
 	if (expect_close == 42) {
 		wdt_stop();
 		clear_bit(0, &timer_alive);
 	} else {
 		wdt_keepalive();
-		pr_crit("unexpected close, not stopping watchdog!\n");
+		pr_crit("unexpected close, analt stopping watchdog!\n");
 	}
 	expect_close = 0;
 	return 0;
@@ -316,9 +316,9 @@ static int wdt_release(struct inode *inode, struct file *file)
 /*
  *      wdt_write:
  *      @file: file handle to the watchdog
- *      @buf: buffer to write (unused as data does not matter here
+ *      @buf: buffer to write (unused as data does analt matter here
  *      @count: count of bytes
- *      @ppos: pointer to the position to write. No seeks allowed
+ *      @ppos: pointer to the position to write. Anal seeks allowed
  *
  *      A write to a watchdog device is defined as a keepalive signal. Any
  *      write of data will do, as we don't define content meaning.
@@ -329,14 +329,14 @@ static ssize_t wdt_write(struct file *file, const char __user *buf,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t ofs;
 
-			/* note: just in case someone wrote the
+			/* analte: just in case someone wrote the
 			   magic character long ago */
 			expect_close = 0;
 
-			/* scan to see whether or not we got the
+			/* scan to see whether or analt we got the
 			   magic character */
 			for (ofs = 0; ofs != count; ofs++) {
 				char c;
@@ -355,7 +355,7 @@ static ssize_t wdt_write(struct file *file, const char __user *buf,
 
 /*
  *      wdt_ioctl:
- *      @inode: inode of the device
+ *      @ianalde: ianalde of the device
  *      @file: file handle to the device
  *      @cmd: watchdog command
  *      @arg: argument pointer
@@ -428,22 +428,22 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(timeout, uarg.i);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 
 	}
 }
 
-static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
+static int wdt_analtify_sys(struct analtifier_block *this, unsigned long code,
 	void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		wdt_stop();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct file_operations wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= wdt_write,
 	.unlocked_ioctl	= wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -452,13 +452,13 @@ static const struct file_operations wdt_fops = {
 };
 
 static struct miscdevice wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &wdt_fops,
 };
 
-static struct notifier_block wdt_notifier = {
-	.notifier_call = wdt_notify_sys,
+static struct analtifier_block wdt_analtifier = {
+	.analtifier_call = wdt_analtify_sys,
 };
 
 static int __init w83977f_wdt_init(void)
@@ -469,7 +469,7 @@ static int __init w83977f_wdt_init(void)
 
 	/*
 	 * Check that the timeout value is within it's range;
-	 * if not reset to the default
+	 * if analt reset to the default
 	 */
 	if (wdt_set_timeout(timeout)) {
 		wdt_set_timeout(DEFAULT_TIMEOUT);
@@ -483,26 +483,26 @@ static int __init w83977f_wdt_init(void)
 		goto err_out;
 	}
 
-	rc = register_reboot_notifier(&wdt_notifier);
+	rc = register_reboot_analtifier(&wdt_analtifier);
 	if (rc) {
-		pr_err("cannot register reboot notifier (err=%d)\n", rc);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", rc);
 		goto err_out_region;
 	}
 
 	rc = misc_register(&wdt_miscdev);
 	if (rc) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       wdt_miscdev.minor, rc);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       wdt_miscdev.mianalr, rc);
 		goto err_out_reboot;
 	}
 
-	pr_info("initialized. timeout=%d sec (nowayout=%d testmode=%d)\n",
-		timeout, nowayout, testmode);
+	pr_info("initialized. timeout=%d sec (analwayout=%d testmode=%d)\n",
+		timeout, analwayout, testmode);
 
 	return 0;
 
 err_out_reboot:
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_analtifier(&wdt_analtifier);
 err_out_region:
 	release_region(IO_INDEX_PORT, 2);
 err_out:
@@ -513,13 +513,13 @@ static void __exit w83977f_wdt_exit(void)
 {
 	wdt_stop();
 	misc_deregister(&wdt_miscdev);
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_analtifier(&wdt_analtifier);
 	release_region(IO_INDEX_PORT, 2);
 }
 
 module_init(w83977f_wdt_init);
 module_exit(w83977f_wdt_exit);
 
-MODULE_AUTHOR("Jose Goncalves <jose.goncalves@inov.pt>");
+MODULE_AUTHOR("Jose Goncalves <jose.goncalves@ianalv.pt>");
 MODULE_DESCRIPTION("Driver for watchdog timer in W83977F I/O chip");
 MODULE_LICENSE("GPL");

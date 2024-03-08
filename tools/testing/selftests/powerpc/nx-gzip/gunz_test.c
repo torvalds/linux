@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /* P9 gunzip sample code for demonstrating the P9 NX hardware
- * interface.  Not intended for productive uses or for performance or
- * compression ratio measurements.  Note also that /dev/crypto/gzip,
+ * interface.  Analt intended for productive uses or for performance or
+ * compression ratio measurements.  Analte also that /dev/crypto/gzip,
  * VAS and skiboot support are required
  *
  * Copyright 2020 IBM Corp.
@@ -53,7 +53,7 @@
 #include <bits/endian.h>
 #include <sys/ioctl.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include "nxu.h"
 #include "nx.h"
@@ -165,7 +165,7 @@ static inline uint32_t nx_append_dde(struct nx_dde_t *ddl, void *addr,
 /*
  * Touch specified number of pages represented in number bytes
  * beginning from the first buffer in a dde list.
- * Do not touch the pages past buf_sz-th byte's page.
+ * Do analt touch the pages past buf_sz-th byte's page.
  *
  * Set buf_sz = 0 to touch all pages described by the ddep.
  */
@@ -320,7 +320,7 @@ int decompress_file(int argc, char **argv, void *devhandle)
 			return -1;
 		}
 
-		/* Make a new file name to write to.  Ignoring '.gz' */
+		/* Make a new file name to write to.  Iganalring '.gz' */
 		wp = (NULL != (wp = strrchr(argv[1], '/'))) ? (wp+1) : argv[1];
 		strcpy(w, wp);
 		strcat(w, ".nx.gunzip");
@@ -352,7 +352,7 @@ int decompress_file(int argc, char **argv, void *devhandle)
 
 	fprintf(stderr, "gzHeader FLG %x\n", flg);
 
-	/* Read 6 bytes; ignoring the MTIME, XFL, OS fields in this
+	/* Read 6 bytes; iganalring the MTIME, XFL, OS fields in this
 	 * sample code.
 	 */
 	for (i = 0; i < 6; i++) {
@@ -365,7 +365,7 @@ int decompress_file(int argc, char **argv, void *devhandle)
 		if (i == 5)
 			fprintf(stderr, "\n");
 	}
-	fprintf(stderr, "gzHeader MTIME, XFL, OS ignored\n");
+	fprintf(stderr, "gzHeader MTIME, XFL, OS iganalred\n");
 
 	/* FNAME */
 	if (flg & 0x8) {
@@ -388,7 +388,7 @@ int decompress_file(int argc, char **argv, void *devhandle)
 		c = GETINPC(inpf);
 		if (c == EOF)
 			goto err3;
-		fprintf(stderr, "gzHeader FHCRC: ignored\n");
+		fprintf(stderr, "gzHeader FHCRC: iganalred\n");
 	}
 
 	used_in = cur_in = used_out = cur_out = 0;
@@ -618,7 +618,7 @@ decomp_state:
 	first_free = fifo_free_first_bytes(cur_out, used_out, fifo_out_len);
 	last_free = fifo_free_last_bytes(cur_out, used_out, fifo_out_len);
 
-	/* Reduce output free space amount not to overwrite the history */
+	/* Reduce output free space amount analt to overwrite the history */
 	int target_max = NX_MAX(0, fifo_free_bytes(used_out, fifo_out_len)
 				- (1<<16));
 
@@ -720,7 +720,7 @@ restart_nx:
 			--pgfault_retries;
 			goto restart_nx;
 		} else {
-			fprintf(stderr, "cannot make progress; too many ");
+			fprintf(stderr, "cananalt make progress; too many ");
 			fprintf(stderr, "page fault retries cc= %d\n", cc);
 			rc = -1;
 			goto err5;
@@ -731,7 +731,7 @@ restart_nx:
 		NXPRT(fprintf(stderr, "ERR_NX_DATA_LENGTH; "));
 		NXPRT(fprintf(stderr, "stream may have trailing data\n"));
 
-		/* Not an error in the most common case; it just says
+		/* Analt an error in the most common case; it just says
 		 * there is trailing data that we must examine.
 		 *
 		 * CC=3 CE(1)=0 CE(0)=1 indicates partial completion
@@ -750,7 +750,7 @@ restart_nx:
 			tpbc = get32(cmdp->crb.csb, tpbc);
 			assert(target_max >= tpbc);
 
-			goto ok_cc3; /* not an error */
+			goto ok_cc3; /* analt an error */
 		} else {
 			/* History length error when CE(1)=1 CE(0)=0. */
 			rc = -1;
@@ -760,8 +760,8 @@ restart_nx:
 
 	case ERR_NX_TARGET_SPACE:
 
-		/* Target buffer not large enough; retry smaller input
-		 * data; give at least 1 byte.  SPBC/TPBC are not valid.
+		/* Target buffer analt large eanalugh; retry smaller input
+		 * data; give at least 1 byte.  SPBC/TPBC are analt valid.
 		 */
 		assert(source_sz > history_len);
 		source_sz = ((source_sz - history_len + 2) / 2) + history_len;
@@ -772,7 +772,7 @@ restart_nx:
 
 	case ERR_NX_OK:
 
-		/* This should not happen for gzip formatted data;
+		/* This should analt happen for gzip formatted data;
 		 * we need trailing crc and isize
 		 */
 		fprintf(stderr, "ERR_NX_OK\n");
@@ -799,7 +799,7 @@ ok_cc3:
 	/* Table 6-4: Source Final Block Type (SFBT) describes the
 	 * last processed deflate block and clues the software how to
 	 * resume the next job.  SUBC indicates how many input bits NX
-	 * consumed but did not process.  SPBC indicates how many
+	 * consumed but did analt process.  SPBC indicates how many
 	 * bytes of source were given to the accelerator including
 	 * history bytes.
 	 */
@@ -890,7 +890,7 @@ ok_cc3:
 		putnn(cmdp->cpb, in_subc, subc % 8);
 		putnn(cmdp->cpb, in_sfbt, sfbt);
 
-		/* Engine did not process any data */
+		/* Engine did analt process any data */
 		if (is_eof && (source_sz == 0))
 			is_final = 1;
 	}
@@ -913,7 +913,7 @@ offsets_state:
 
 	total_out = total_out + tpbc;
 
-	/* Deflate history is 32KB max.  No need to supply more
+	/* Deflate history is 32KB max.  Anal need to supply more
 	 * than 32KB on a resume.
 	 */
 	history_len = (total_out > window_max) ? window_max : total_out;
@@ -975,12 +975,12 @@ finish_state:
 	return -1;
 
 err1:
-	fprintf(stderr, "error: not a gzip file, expect %x, read %x\n",
+	fprintf(stderr, "error: analt a gzip file, expect %x, read %x\n",
 		expect, c);
 	return -1;
 
 err2:
-	fprintf(stderr, "error: the FLG byte is wrong or not being handled\n");
+	fprintf(stderr, "error: the FLG byte is wrong or analt being handled\n");
 	return -1;
 
 err3:
@@ -1016,7 +1016,7 @@ int main(int argc, char **argv)
 
 	handle = nx_function_begin(NX_FUNC_COMP_GZIP, 0);
 	if (!handle) {
-		fprintf(stderr, "Unable to init NX, errno %d\n", errno);
+		fprintf(stderr, "Unable to init NX, erranal %d\n", erranal);
 		exit(-1);
 	}
 

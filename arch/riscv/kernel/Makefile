@@ -9,14 +9,14 @@ CFLAGS_REMOVE_patch.o	= $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_sbi.o	= $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_return_address.o	= $(CC_FLAGS_FTRACE)
 endif
-CFLAGS_syscall_table.o	+= $(call cc-option,-Wno-override-init,)
-CFLAGS_compat_syscall_table.o += $(call cc-option,-Wno-override-init,)
+CFLAGS_syscall_table.o	+= $(call cc-option,-Wanal-override-init,)
+CFLAGS_compat_syscall_table.o += $(call cc-option,-Wanal-override-init,)
 
 ifdef CONFIG_KEXEC_CORE
-AFLAGS_kexec_relocate.o := -mcmodel=medany $(call cc-option,-mno-relax)
+AFLAGS_kexec_relocate.o := -mcmodel=medany $(call cc-option,-manal-relax)
 endif
 
-# cmodel=medany and notrace when patching early
+# cmodel=medany and analtrace when patching early
 ifdef CONFIG_RISCV_ALTERNATIVE_EARLY
 CFLAGS_alternative.o := -mcmodel=medany
 CFLAGS_cpufeature.o := -mcmodel=medany
@@ -25,8 +25,8 @@ CFLAGS_REMOVE_alternative.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_cpufeature.o = $(CC_FLAGS_FTRACE)
 endif
 ifdef CONFIG_RELOCATABLE
-CFLAGS_alternative.o += -fno-pie
-CFLAGS_cpufeature.o += -fno-pie
+CFLAGS_alternative.o += -fanal-pie
+CFLAGS_cpufeature.o += -fanal-pie
 endif
 ifdef CONFIG_KASAN
 KASAN_SANITIZE_alternative.o := n

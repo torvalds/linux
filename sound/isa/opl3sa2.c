@@ -66,7 +66,7 @@ MODULE_PARM_DESC(dma1, "DMA1 # for OPL3-SA driver.");
 module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for OPL3-SA driver.");
 module_param_array(opl3sa3_ymode, int, NULL, 0444);
-MODULE_PARM_DESC(opl3sa3_ymode, "Speaker size selection for 3D Enhancement mode: Desktop/Large Notebook/Small Notebook/HiFi.");
+MODULE_PARM_DESC(opl3sa3_ymode, "Speaker size selection for 3D Enhancement mode: Desktop/Large Analtebook/Small Analtebook/HiFi.");
 
 #ifdef CONFIG_PNP
 static int isa_registered;
@@ -222,7 +222,7 @@ static int snd_opl3sa2_detect(struct snd_card *card)
 	tmp = snd_opl3sa2_read(chip, OPL3SA2_MISC);
 	if (tmp == 0xff) {
 		snd_printd("OPL3-SA [0x%lx] detect = 0x%x\n", port, tmp);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	switch (tmp & 0x07) {
 	case 0x01:
@@ -234,7 +234,7 @@ static int snd_opl3sa2_detect(struct snd_card *card)
 		/* 0x03 - YM715B */
 		/* 0x04 - YM719 - OPL-SA4? */
 		/* 0x05 - OPL3-SA3 - Libretto 100 */
-		/* 0x07 - unknown - Neomagic MagicWave 3D */
+		/* 0x07 - unkanalwn - Neomagic MagicWave 3D */
 		break;
 	}
 	str[0] = chip->version + '0';
@@ -244,7 +244,7 @@ static int snd_opl3sa2_detect(struct snd_card *card)
 	tmp1 = snd_opl3sa2_read(chip, OPL3SA2_MISC);
 	if (tmp1 != tmp) {
 		snd_printd("OPL3-SA [0x%lx] detect (1) = 0x%x (0x%x)\n", port, tmp, tmp1);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* try if the MIC register is accessible */
 	tmp = snd_opl3sa2_read(chip, OPL3SA2_MIC);
@@ -252,7 +252,7 @@ static int snd_opl3sa2_detect(struct snd_card *card)
 	tmp1 = snd_opl3sa2_read(chip, OPL3SA2_MIC);
 	if ((tmp1 & 0x9f) != 0x8a) {
 		snd_printd("OPL3-SA [0x%lx] detect (2) = 0x%x (0x%x)\n", port, tmp, tmp1);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	snd_opl3sa2_write(chip, OPL3SA2_MIC, 0x9f);
 	/* initialization */
@@ -287,7 +287,7 @@ static irqreturn_t snd_opl3sa2_interrupt(int irq, void *dev_id)
 	int handled = 0;
 
 	if (card == NULL)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	chip = card->private_data;
 	status = snd_opl3sa2_read(chip, OPL3SA2_IRQ_STATUS);
@@ -313,9 +313,9 @@ static irqreturn_t snd_opl3sa2_interrupt(int irq, void *dev_id)
 		snd_opl3sa2_read(chip, OPL3SA2_MASTER_RIGHT);
 		snd_opl3sa2_read(chip, OPL3SA2_MASTER_LEFT);
 		if (chip->master_switch && chip->master_volume) {
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->master_switch->id);
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->master_volume->id);
 		}
 	}
@@ -495,14 +495,14 @@ static int snd_opl3sa2_mixer(struct snd_card *card)
         strcpy(id2.name, "CD Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		snd_printk(KERN_ERR "Cananalt rename opl3sa2 control\n");
                 return err;
 	}
         strcpy(id1.name, "Aux Playback Volume");
         strcpy(id2.name, "CD Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		snd_printk(KERN_ERR "Cananalt rename opl3sa2 control\n");
                 return err;
 	}
 	/* reassign AUX1 to FM */
@@ -510,14 +510,14 @@ static int snd_opl3sa2_mixer(struct snd_card *card)
         strcpy(id2.name, "FM Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		snd_printk(KERN_ERR "Cananalt rename opl3sa2 control\n");
                 return err;
 	}
         strcpy(id1.name, "Aux Playback Volume");
         strcpy(id2.name, "FM Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		snd_printk(KERN_ERR "Cananalt rename opl3sa2 control\n");
                 return err;
 	}
 	/* add OPL3SA2 controls */
@@ -654,7 +654,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 			       "OPL3-SA2", card);
 	if (err) {
 		snd_printk(KERN_ERR PFX "can't grab IRQ %d\n", xirq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	chip->irq = xirq;
 	card->sync_irq = chip->irq;
@@ -663,7 +663,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 			     xirq, xdma1, xdma2,
 			     WSS_HW_OPL3SA2, WSS_HWSHARE_IRQ, &wss);
 	if (err < 0) {
-		snd_printd("Oops, WSS not detected at 0x%lx\n", wss_port[dev] + 4);
+		snd_printd("Oops, WSS analt detected at 0x%lx\n", wss_port[dev] + 4);
 		return err;
 	}
 	chip->wss = wss;
@@ -717,13 +717,13 @@ static int snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
 	struct snd_card *card;
 
 	if (pnp_device_is_isapnp(pdev))
-		return -ENOENT;	/* we have another procedure - card */
+		return -EANALENT;	/* we have aanalther procedure - card */
 	for (; dev < SNDRV_CARDS; dev++) {
 		if (enable[dev] && isapnp[dev])
 			break;
 	}
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = snd_opl3sa2_card_new(&pdev->dev, dev, &card);
 	if (err < 0)
@@ -779,7 +779,7 @@ static int snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
 			break;
 	}
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = snd_opl3sa2_card_new(&pdev->dev, dev, &card);
 	if (err < 0)

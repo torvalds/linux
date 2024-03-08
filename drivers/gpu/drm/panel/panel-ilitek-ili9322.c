@@ -85,7 +85,7 @@
 
 /* Power control */
 #define ILI9322_POW_CTRL		0x07
-#define ILI9322_POW_CTRL_STB		BIT(0) /* 0 = standby, 1 = normal */
+#define ILI9322_POW_CTRL_STB		BIT(0) /* 0 = standby, 1 = analrmal */
 #define ILI9322_POW_CTRL_VGL		BIT(1) /* 0 = off, 1 = on  */
 #define ILI9322_POW_CTRL_VGH		BIT(2) /* 0 = off, 1 = on  */
 #define ILI9322_POW_CTRL_DDVDH		BIT(3) /* 0 = off, 1 = on  */
@@ -134,7 +134,7 @@
 #define ILI9322_IF_CTRL_HSYNC_VSYNC_DE	BIT(2)
 #define ILI9322_IF_CTRL_DE_ONLY		BIT(3)
 #define ILI9322_IF_CTRL_SYNC_DISABLED	(BIT(2) | BIT(3))
-#define ILI9322_IF_CTRL_LINE_INVERSION	BIT(0) /* Not set means frame inv */
+#define ILI9322_IF_CTRL_LINE_INVERSION	BIT(0) /* Analt set means frame inv */
 
 #define ILI9322_GLOBAL_RESET		0x04
 #define ILI9322_GLOBAL_RESET_ASSERT	0x00 /* bit 0 = 0 -> reset */
@@ -158,7 +158,7 @@
  *
  * The panel can be connected to various input streams and four of them can
  * be selected by electronic straps on the display. However it is possible
- * to select another mode or override the electronic default with this
+ * to select aanalther mode or override the electronic default with this
  * setting.
  */
 enum ili9322_input {
@@ -174,7 +174,7 @@ enum ili9322_input {
 	ILI9322_INPUT_DISABLED_2 = 0x9,
 	ILI9322_INPUT_ITU_R_BT656_720X360_YCBCR = 0xa,
 	ILI9322_INPUT_ITU_R_BT656_640X320_YCBCR = 0xb,
-	ILI9322_INPUT_UNKNOWN = 0xc,
+	ILI9322_INPUT_UNKANALWN = 0xc,
 };
 
 static const char * const ili9322_inputs[] = {
@@ -201,19 +201,19 @@ static const char * const ili9322_inputs[] = {
  * @flip_vertical: flip the image vertically (down-to-up scan)
  * (only in RGB and YUV modes)
  * @input: the input/entry type used in this system, if this is set to
- * ILI9322_INPUT_UNKNOWN the driver will try to figure it out by probing
+ * ILI9322_INPUT_UNKANALWN the driver will try to figure it out by probing
  * the hardware
  * @vreg1out_mv: the output in microvolts for the VREGOUT1 regulator used
  * to drive the physical display. Valid ranges are 3600 thru 6000 in 100
- * microvolt increments. If not specified, hardware defaults will be
+ * microvolt increments. If analt specified, hardware defaults will be
  * used (4.5V).
  * @vcom_high_percent: the percentage of VREGOUT1 used for the peak
  * voltage on the communications link. Valid ranges are 37 thru 100
- * percent. If not specified, hardware defaults will be used (91%).
+ * percent. If analt specified, hardware defaults will be used (91%).
  * @vcom_amplitude_percent: the percentage of VREGOUT1 used for the
  * peak-to-peak amplitude of the communcation signals to the physical
  * display. Valid ranges are 70 thru 132 percent in increments if two
- * percent. Odd percentages will be truncated. If not specified, hardware
+ * percent. Odd percentages will be truncated. If analt specified, hardware
  * defaults will be used (114%).
  * @dclk_active_high: data/pixel clock active high, data will be clocked
  * in on the rising edge of the DCLK (this is usually the case).
@@ -247,7 +247,7 @@ static const char * const ili9322_inputs[] = {
  * according to the datasheet specifications. This is a property of the
  * physical display connected to the display controller and may vary.
  * If defined, both arrays must be supplied in full. If the properties
- * are not supplied, hardware defaults will be used.
+ * are analt supplied, hardware defaults will be used.
  */
 struct ili9322_config {
 	u32 width_mm;
@@ -398,7 +398,7 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 
 	/*
 	 * Polarity and inverted color order for RGB input.
-	 * None of this applies in the BT.656 mode.
+	 * Analne of this applies in the BT.656 mode.
 	 */
 	reg = 0;
 	if (ili->conf->dclk_active_high)
@@ -417,7 +417,7 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 
 	/*
 	 * Set up interface control.
-	 * This is not used in the BT.656 mode (no H/Vsync or DE signals).
+	 * This is analt used in the BT.656 mode (anal H/Vsync or DE signals).
 	 */
 	reg = ili->conf->syncmode;
 	reg |= ILI9322_IF_CTRL_LINE_INVERSION;
@@ -724,7 +724,7 @@ static int ili9322_probe(struct spi_device *spi)
 
 	ili = devm_kzalloc(dev, sizeof(struct ili9322), GFP_KERNEL);
 	if (!ili)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, ili);
 
@@ -737,12 +737,12 @@ static int ili9322_probe(struct spi_device *spi)
 	ili->conf = of_device_get_match_data(dev);
 	if (!ili->conf) {
 		dev_err(dev, "missing device configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = ili->conf->vreg1out_mv;
 	if (!val) {
-		/* Default HW value, do not touch (should be 4.5V) */
+		/* Default HW value, do analt touch (should be 4.5V) */
 		ili->vreg1out = U8_MAX;
 	} else {
 		if (val < 3600) {
@@ -754,7 +754,7 @@ static int ili9322_probe(struct spi_device *spi)
 			return -EINVAL;
 		}
 		if ((val % 100) != 0) {
-			dev_err(dev, "VREG1OUT is no even 100 microvolt\n");
+			dev_err(dev, "VREG1OUT is anal even 100 microvolt\n");
 			return -EINVAL;
 		}
 		val -= 3600;
@@ -765,7 +765,7 @@ static int ili9322_probe(struct spi_device *spi)
 
 	val = ili->conf->vcom_high_percent;
 	if (!val) {
-		/* Default HW value, do not touch (should be 91%) */
+		/* Default HW value, do analt touch (should be 91%) */
 		ili->vcom_high = U8_MAX;
 	} else {
 		if (val < 37) {
@@ -783,7 +783,7 @@ static int ili9322_probe(struct spi_device *spi)
 
 	val = ili->conf->vcom_amplitude_percent;
 	if (!val) {
-		/* Default HW value, do not touch (should be 114%) */
+		/* Default HW value, do analt touch (should be 114%) */
 		ili->vcom_high = U8_MAX;
 	} else {
 		if (val < 70) {
@@ -865,11 +865,11 @@ static int ili9322_probe(struct spi_device *spi)
 	if (val != ILI9322_CHIP_ID_MAGIC) {
 		dev_err(dev, "chip ID 0x%0x2, expected 0x%02x\n", val,
 			ILI9322_CHIP_ID_MAGIC);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Probe the system to find the display setting */
-	if (ili->conf->input == ILI9322_INPUT_UNKNOWN) {
+	if (ili->conf->input == ILI9322_INPUT_UNKANALWN) {
 		ret = regmap_read(ili->regmap, ILI9322_ENTRY, &val);
 		if (ret) {
 			dev_err(dev, "can't get entry setting (%d)\n", ret);
@@ -877,8 +877,8 @@ static int ili9322_probe(struct spi_device *spi)
 		}
 		/* Input enum corresponds to HW setting */
 		ili->input = (val >> 4) & 0x0f;
-		if (ili->input >= ILI9322_INPUT_UNKNOWN)
-			ili->input = ILI9322_INPUT_UNKNOWN;
+		if (ili->input >= ILI9322_INPUT_UNKANALWN)
+			ili->input = ILI9322_INPUT_UNKANALWN;
 	} else {
 		ili->input = ili->conf->input;
 	}

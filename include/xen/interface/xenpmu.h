@@ -8,7 +8,7 @@
 #define XENPMU_VER_MIN    1
 
 /*
- * ` enum neg_errnoval
+ * ` enum neg_erranalval
  * ` HYPERVISOR_xenpmu_op(enum xenpmu_op cmd, struct xenpmu_params *args);
  *
  * @cmd  == XENPMU_* (PMU operation)
@@ -41,7 +41,7 @@ struct xen_pmu_params {
 };
 
 /* PMU modes:
- * - XENPMU_MODE_OFF:   No PMU virtualization
+ * - XENPMU_MODE_OFF:   Anal PMU virtualization
  * - XENPMU_MODE_SELF:  Guests can profile themselves
  * - XENPMU_MODE_HV:    Guests can profile themselves, dom0 profiles
  *                      itself and Xen
@@ -55,7 +55,7 @@ struct xen_pmu_params {
 
 /*
  * PMU features:
- * - XENPMU_FEATURE_INTEL_BTS: Intel BTS support (ignored on AMD)
+ * - XENPMU_FEATURE_INTEL_BTS: Intel BTS support (iganalred on AMD)
  */
 #define XENPMU_FEATURE_INTEL_BTS  1
 
@@ -73,16 +73,16 @@ struct xen_pmu_data {
 	uint32_t vcpu_id;
 
 	/*
-	 * Physical processor on which the interrupt occurred. On non-privileged
+	 * Physical processor on which the interrupt occurred. On analn-privileged
 	 * guests set to vcpu_id;
 	 */
 	uint32_t pcpu_id;
 
 	/*
-	 * Domain that was interrupted. On non-privileged guests set to
+	 * Domain that was interrupted. On analn-privileged guests set to
 	 * DOMID_SELF.
 	 * On privileged guests can be DOMID_SELF, DOMID_XEN, or, when in
-	 * XENPMU_MODE_ALL mode, domain ID of another domain.
+	 * XENPMU_MODE_ALL mode, domain ID of aanalther domain.
 	 */
 	domid_t  domain_id;
 

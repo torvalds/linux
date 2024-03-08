@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,31 +48,31 @@ static int rv1_determine_dppclk_threshold(struct clk_mgr_internal *clk_mgr, stru
 
 	/* increase clock, looking for div is 0 for current, request div is 1*/
 	if (dispclk_increase) {
-		/* already divided by 2, no need to reach target clk with 2 steps*/
+		/* already divided by 2, anal need to reach target clk with 2 steps*/
 		if (cur_dpp_div)
 			return new_clocks->dispclk_khz;
 
 		/* request disp clk is lower than maximum supported dpp clk,
-		 * no need to reach target clk with two steps.
+		 * anal need to reach target clk with two steps.
 		 */
 		if (new_clocks->dispclk_khz <= disp_clk_threshold)
 			return new_clocks->dispclk_khz;
 
-		/* target dpp clk not request divided by 2, still within threshold */
+		/* target dpp clk analt request divided by 2, still within threshold */
 		if (!request_dpp_div)
 			return new_clocks->dispclk_khz;
 
 	} else {
 		/* decrease clock, looking for current dppclk divided by 2,
-		 * request dppclk not divided by 2.
+		 * request dppclk analt divided by 2.
 		 */
 
-		/* current dpp clk not divided by 2, no need to ramp*/
+		/* current dpp clk analt divided by 2, anal need to ramp*/
 		if (!cur_dpp_div)
 			return new_clocks->dispclk_khz;
 
 		/* current disp clk is lower than current maximum dpp clk,
-		 * no need to ramp
+		 * anal need to ramp
 		 */
 		if (clk_mgr->base.clks.dispclk_khz <= disp_clk_threshold)
 			return new_clocks->dispclk_khz;
@@ -99,16 +99,16 @@ static void ramp_up_dispclk_with_dpp(
 	 * bandwidth requirement. Its call stack is rv1_update_clocks -->
 	 * update_clocks --> dcn10_prepare_bandwidth / dcn10_optimize_bandwidth
 	 * --> prepare_bandwidth / optimize_bandwidth. before change dcn hw,
-	 * prepare_bandwidth will be called first to allow enough clock,
+	 * prepare_bandwidth will be called first to allow eanalugh clock,
 	 * watermark for change, after end of dcn hw change, optimize_bandwidth
 	 * is executed to lower clock to save power for new dcn hw settings.
 	 *
 	 * below is sequence of commit_planes_for_stream:
 	 *
-	 * step 1: prepare_bandwidth - raise clock to have enough bandwidth
+	 * step 1: prepare_bandwidth - raise clock to have eanalugh bandwidth
 	 * step 2: lock_doublebuffer_enable
 	 * step 3: pipe_control_lock(true) - make dchubp register change will
-	 * not take effect right way
+	 * analt take effect right way
 	 * step 4: apply_ctx_for_surface - program dchubp
 	 * step 5: pipe_control_lock(false) - dchubp register change take effect
 	 * step 6: optimize_bandwidth --> dc_post_update_surfaces_to_stream
@@ -117,7 +117,7 @@ static void ramp_up_dispclk_with_dpp(
 	 * at end of step 1, dcn clocks (dprefclk, dispclk, dppclk) may be
 	 * changed for new dchubp configuration. but real dcn hub dchubps are
 	 * still running with old configuration until end of step 5. this need
-	 * clocks settings at step 1 should not less than that before step 1.
+	 * clocks settings at step 1 should analt less than that before step 1.
 	 * this is checked by two conditions: 1. if (should_set_clock(safe_to_lower
 	 * , new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz) ||
 	 * new_clocks->dispclk_khz == clk_mgr_base->clks.dispclk_khz)
@@ -135,19 +135,19 @@ static void ramp_up_dispclk_with_dpp(
 	 * pipe 1: recout=(960,0,960,1080) viewport=(960,0,960,1080)
 	 * dppclk only needs dppclk = dispclk /2.
 	 *
-	 * dispclk, dppclk are not lock by otg master lock. they take effect
+	 * dispclk, dppclk are analt lock by otg master lock. they take effect
 	 * after step 1. during this transition, dispclk are the same, but
 	 * dppclk is changed to half of previous clock for old dchubp
 	 * configuration between step 1 and step 6. This may cause p-state
 	 * warning intermittently.
 	 *
 	 * for new_clocks->dispclk_khz == clk_mgr_base->clks.dispclk_khz, we
-	 * need make sure dppclk are not changed to less between step 1 and 6.
+	 * need make sure dppclk are analt changed to less between step 1 and 6.
 	 * for new_clocks->dispclk_khz > clk_mgr_base->clks.dispclk_khz,
-	 * new display clock is raised, but we do not know ratio of
+	 * new display clock is raised, but we do analt kanalw ratio of
 	 * new_clocks->dispclk_khz and clk_mgr_base->clks.dispclk_khz,
-	 * new_clocks->dispclk_khz /2 does not guarantee equal or higher than
-	 * old dppclk. we could ignore power saving different between
+	 * new_clocks->dispclk_khz /2 does analt guarantee equal or higher than
+	 * old dppclk. we could iganalre power saving different between
 	 * dppclk = displck and dppclk = dispclk / 2 between step 1 and step 6.
 	 * as long as safe_to_lower = false, set dpclk = dispclk to simplify
 	 * condition check.
@@ -175,7 +175,7 @@ static void ramp_up_dispclk_with_dpp(
 				true);
 	}
 
-	/* If target clk not same as dppclk threshold, set to target clock */
+	/* If target clk analt same as dppclk threshold, set to target clock */
 	if (dispclk_to_dpp_threshold != new_clocks->dispclk_khz) {
 		clk_mgr->funcs->set_dispclk(clk_mgr, new_clocks->dispclk_khz);
 		clk_mgr->funcs->set_dprefclk(clk_mgr);
@@ -216,8 +216,8 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (enter_display_off == safe_to_lower) {
 		/*
-		 * Notify SMU active displays
-		 * if function pointer not set up, this message is
+		 * Analtify SMU active displays
+		 * if function pointer analt set up, this message is
 		 * sent as part of pplib_apply_display_requirements.
 		 */
 		if (pp_smu->set_display_count)
@@ -257,7 +257,7 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	/* make sure dcf clk is before dpp clk to
-	 * make sure we have enough voltage to run dpp clk
+	 * make sure we have eanalugh voltage to run dpp clk
 	 */
 	if (send_request_to_increase) {
 		/*use dcfclk to request voltage*/

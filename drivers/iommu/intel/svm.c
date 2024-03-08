@@ -5,7 +5,7 @@
  * Authors: David Woodhouse <dwmw2@infradead.org>
  */
 
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
@@ -71,11 +71,11 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 	if (!pages) {
 		pr_warn("IOMMU: %s: Failed to allocate page request queue\n",
 			iommu->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	iommu->prq = page_address(pages);
 
-	irq = dmar_alloc_hwirq(IOMMU_IRQ_ID_OFFSET_PRQ + iommu->seq_id, iommu->node, iommu);
+	irq = dmar_alloc_hwirq(IOMMU_IRQ_ID_OFFSET_PRQ + iommu->seq_id, iommu->analde, iommu);
 	if (irq <= 0) {
 		pr_err("IOMMU: %s: Failed to create IRQ vector for page request queue\n",
 		       iommu->name);
@@ -89,7 +89,7 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 	iopfq = iopf_queue_alloc(iommu->iopfq_name);
 	if (!iopfq) {
 		pr_err("IOMMU: %s: Failed to allocate iopf queue\n", iommu->name);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_hwirq;
 	}
 	iommu->iopf_queue = iopfq;
@@ -238,11 +238,11 @@ static void intel_flush_svm_all(struct intel_svm *svm)
 }
 
 /* Pages have been freed at this point */
-static void intel_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
+static void intel_arch_invalidate_secondary_tlbs(struct mmu_analtifier *mn,
 					struct mm_struct *mm,
 					unsigned long start, unsigned long end)
 {
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
+	struct intel_svm *svm = container_of(mn, struct intel_svm, analtifier);
 
 	if (start == 0 && end == -1UL) {
 		intel_flush_svm_all(svm);
@@ -253,14 +253,14 @@ static void intel_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
 			      (end - start + PAGE_SIZE - 1) >> VTD_PAGE_SHIFT, 0);
 }
 
-static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+static void intel_mm_release(struct mmu_analtifier *mn, struct mm_struct *mm)
 {
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
+	struct intel_svm *svm = container_of(mn, struct intel_svm, analtifier);
 	struct intel_svm_dev *sdev;
 
 	/* This might end up being called from exit_mmap(), *before* the page
-	 * tables are cleared. And __mmu_notifier_release() will delete us from
-	 * the list of notifiers so that our invalidate_range() callback doesn't
+	 * tables are cleared. And __mmu_analtifier_release() will delete us from
+	 * the list of analtifiers so that our invalidate_range() callback doesn't
 	 * get called when the page tables are cleared. So we need to protect
 	 * against hardware accessing those page tables.
 	 *
@@ -278,7 +278,7 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 
 }
 
-static const struct mmu_notifier_ops intel_mmuops = {
+static const struct mmu_analtifier_ops intel_mmuops = {
 	.release = intel_mm_release,
 	.arch_invalidate_secondary_tlbs = intel_arch_invalidate_secondary_tlbs,
 };
@@ -329,14 +329,14 @@ static int intel_svm_bind_mm(struct intel_iommu *iommu, struct device *dev,
 	if (!svm) {
 		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
 		if (!svm)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		svm->pasid = pasid;
 		svm->mm = mm;
 		INIT_LIST_HEAD_RCU(&svm->devs);
 
-		svm->notifier.ops = &intel_mmuops;
-		ret = mmu_notifier_register(&svm->notifier, mm);
+		svm->analtifier.ops = &intel_mmuops;
+		ret = mmu_analtifier_register(&svm->analtifier, mm);
 		if (ret) {
 			kfree(svm);
 			return ret;
@@ -344,7 +344,7 @@ static int intel_svm_bind_mm(struct intel_iommu *iommu, struct device *dev,
 
 		ret = pasid_private_add(svm->pasid, svm);
 		if (ret) {
-			mmu_notifier_unregister(&svm->notifier, mm);
+			mmu_analtifier_unregister(&svm->analtifier, mm);
 			kfree(svm);
 			return ret;
 		}
@@ -352,7 +352,7 @@ static int intel_svm_bind_mm(struct intel_iommu *iommu, struct device *dev,
 
 	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_svm;
 	}
 
@@ -382,7 +382,7 @@ free_sdev:
 	kfree(sdev);
 free_svm:
 	if (list_empty(&svm->devs)) {
-		mmu_notifier_unregister(&svm->notifier, mm);
+		mmu_analtifier_unregister(&svm->analtifier, mm);
 		pasid_private_remove(pasid);
 		kfree(svm);
 	}
@@ -405,13 +405,13 @@ void intel_svm_remove_dev_pasid(struct device *dev, u32 pasid)
 		kfree_rcu(sdev, rcu);
 
 		if (list_empty(&svm->devs)) {
-			if (svm->notifier.ops)
-				mmu_notifier_unregister(&svm->notifier, mm);
+			if (svm->analtifier.ops)
+				mmu_analtifier_unregister(&svm->analtifier, mm);
 			pasid_private_remove(svm->pasid);
 			/*
-			 * We mandate that no page faults may be outstanding
+			 * We mandate that anal page faults may be outstanding
 			 * for the PASID when intel_svm_unbind_mm() is called.
-			 * If that is not obeyed, subtle errors will happen.
+			 * If that is analt obeyed, subtle errors will happen.
 			 * Let's make them less subtle...
 			 */
 			memset(svm, 0x6b, sizeof(*svm));
@@ -449,7 +449,7 @@ struct page_req_dsc {
 	u64 priv_data[2];
 };
 
-static bool is_canonical_address(u64 addr)
+static bool is_caanalnical_address(u64 addr)
 {
 	int shift = 64 - (__VIRTUAL_MASK_SHIFT + 1);
 	long saddr = (long) addr;
@@ -530,7 +530,7 @@ prq_retry:
 			QI_IWD_TYPE;
 	desc[1].qw0 = QI_EIOTLB_PASID(pasid) |
 			QI_EIOTLB_DID(did) |
-			QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) |
+			QI_EIOTLB_GRAN(QI_GRAN_ANALNG_PASID) |
 			QI_EIOTLB_TYPE;
 	desc[2].qw0 = QI_DEV_EIOTLB_PASID(pasid) |
 			QI_DEV_EIOTLB_SID(sid) |
@@ -568,7 +568,7 @@ static int intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
 	struct iommu_fault_event event;
 
 	if (!dev || !dev_is_pci(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Fill in event data for device specific processing */
 	memset(&event, 0, sizeof(struct iommu_fault_event));
@@ -597,7 +597,7 @@ static int intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
 		event.fault.prm.private_data[1] = desc->priv_data[1];
 	} else if (dmar_latency_enabled(iommu, DMAR_LATENCY_PRQ)) {
 		/*
-		 * If the private data fields are not used by hardware, use it
+		 * If the private data fields are analt used by hardware, use it
 		 * to monitor the prq handle latency.
 		 */
 		event.fault.prm.private_data[0] = ktime_to_ns(ktime_get());
@@ -674,8 +674,8 @@ bad_req:
 			goto prq_advance;
 		}
 
-		if (unlikely(!is_canonical_address(address))) {
-			pr_err("IOMMU: %s: Address is not canonical\n",
+		if (unlikely(!is_caanalnical_address(address))) {
+			pr_err("IOMMU: %s: Address is analt caanalnical\n",
 			       iommu->name);
 			goto bad_req;
 		}
@@ -687,12 +687,12 @@ bad_req:
 		}
 
 		if (unlikely(req->exe_req && req->rd_req)) {
-			pr_err("IOMMU: %s: Execution request not supported\n",
+			pr_err("IOMMU: %s: Execution request analt supported\n",
 			       iommu->name);
 			goto bad_req;
 		}
 
-		/* Drop Stop Marker message. No need for a response. */
+		/* Drop Stop Marker message. Anal need for a response. */
 		if (unlikely(req->lpig && !req->rd_req && !req->wr_req))
 			goto prq_advance;
 
@@ -701,7 +701,7 @@ bad_req:
 						   req->rid & 0xff);
 		/*
 		 * If prq is to be handled outside iommu driver via receiver of
-		 * the fault notifiers, we skip the page response here.
+		 * the fault analtifiers, we skip the page response here.
 		 */
 		if (!pdev)
 			goto bad_req;

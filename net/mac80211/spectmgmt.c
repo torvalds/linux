@@ -28,7 +28,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 {
 	enum nl80211_band new_band = current_band;
 	int new_freq;
-	u8 new_chan_no;
+	u8 new_chan_anal;
 	struct ieee80211_channel *new_chan;
 	struct cfg80211_chan_def new_vht_chandef = {};
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
@@ -56,18 +56,18 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				elems->ext_chansw_ie->new_operating_class,
 				&new_band)) {
 			sdata_info(sdata,
-				   "cannot understand ECSA IE operating class, %d, ignoring\n",
+				   "cananalt understand ECSA IE operating class, %d, iganalring\n",
 				   elems->ext_chansw_ie->new_operating_class);
 		}
-		new_chan_no = elems->ext_chansw_ie->new_ch_num;
+		new_chan_anal = elems->ext_chansw_ie->new_ch_num;
 		csa_ie->count = elems->ext_chansw_ie->count;
 		csa_ie->mode = elems->ext_chansw_ie->mode;
 	} else if (elems->ch_switch_ie) {
-		new_chan_no = elems->ch_switch_ie->new_ch_num;
+		new_chan_anal = elems->ch_switch_ie->new_ch_num;
 		csa_ie->count = elems->ch_switch_ie->count;
 		csa_ie->mode = elems->ch_switch_ie->mode;
 	} else {
-		/* nothing here we understand */
+		/* analthing here we understand */
 		return 1;
 	}
 
@@ -84,7 +84,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				elems->mesh_chansw_params_ie->mesh_reason);
 	}
 
-	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);
+	new_freq = ieee80211_channel_to_frequency(new_chan_anal, new_band);
 	new_chan = ieee80211_get_channel(sdata->local->hw.wiphy, new_freq);
 	if (!new_chan || new_chan->flags & IEEE80211_CHAN_DISABLED) {
 		sdata_info(sdata,
@@ -96,17 +96,17 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	if (sec_chan_offs) {
 		secondary_channel_offset = sec_chan_offs->sec_chan_offs;
 	} else if (!(conn_flags & IEEE80211_CONN_DISABLE_HT)) {
-		/* If the secondary channel offset IE is not present,
-		 * we can't know what's the post-CSA offset, so the
+		/* If the secondary channel offset IE is analt present,
+		 * we can't kanalw what's the post-CSA offset, so the
 		 * best we can do is use 20MHz.
 		*/
-		secondary_channel_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		secondary_channel_offset = IEEE80211_HT_PARAM_CHA_SEC_ANALNE;
 	}
 
 	switch (secondary_channel_offset) {
 	default:
 		/* secondary_channel_offset was present but is invalid */
-	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
+	case IEEE80211_HT_PARAM_CHA_SEC_ANALNE:
 		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
 					NL80211_CHAN_HT20);
 		break;
@@ -120,7 +120,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		break;
 	case -1:
 		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
-					NL80211_CHAN_NO_HT);
+					NL80211_CHAN_ANAL_HT);
 		/* keep width for 5/10 MHz channels */
 		switch (sdata->vif.bss_conf.chandef.width) {
 		case NL80211_CHAN_WIDTH_5:
@@ -162,7 +162,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		 */
 		new_vht_chandef = csa_ie->chandef;
 
-		/* ignore if parsing fails */
+		/* iganalre if parsing fails */
 		if (!ieee80211_chandef_vht_oper(&sdata->local->hw,
 						vht_cap_info,
 						&vht_oper, &ht_oper,
@@ -245,10 +245,10 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       size_t len)
 {
 	/*
-	 * Ignoring measurement request is spec violation.
+	 * Iganalring measurement request is spec violation.
 	 * Mandatory measurements must be reported optional
 	 * measurements might be refused or reported incapable
-	 * For now just refuse
+	 * For analw just refuse
 	 * TODO: Answer basic measurement as unmeasured
 	 */
 	ieee80211_send_refuse_measurement_request(sdata,

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Definitions for the NVM Express ioctl interface
  * Copyright (c) 2011-2014, Intel Corporation.
@@ -56,7 +56,7 @@ struct nvme_passthru_cmd64 {
 	__u64	addr;
 	__u32	metadata_len;
 	union {
-		__u32	data_len; /* for non-vectored io */
+		__u32	data_len; /* for analn-vectored io */
 		__u32	vec_cnt; /* for vectored io */
 	};
 	__u32	cdw10;

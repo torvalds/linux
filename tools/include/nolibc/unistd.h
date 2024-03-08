@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * unistd function definitions for NOLIBC
+ * unistd function definitions for ANALLIBC
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_UNISTD_H
-#define _NOLIBC_UNISTD_H
+#ifndef _ANALLIBC_UNISTD_H
+#define _ANALLIBC_UNISTD_H
 
 #include "std.h"
 #include "arch.h"
@@ -13,9 +13,9 @@
 #include "sys.h"
 
 
-#define STDIN_FILENO  0
-#define STDOUT_FILENO 1
-#define STDERR_FILENO 2
+#define STDIN_FILEANAL  0
+#define STDOUT_FILEANAL 1
+#define STDERR_FILEANAL 2
 
 
 static __attribute__((unused))
@@ -63,6 +63,6 @@ int tcsetpgrp(int fd, pid_t pid)
 #define syscall(...) _syscall_n(_syscall_narg(__VA_ARGS__), ##__VA_ARGS__)
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_UNISTD_H */
+#endif /* _ANALLIBC_UNISTD_H */

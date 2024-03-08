@@ -31,7 +31,7 @@ static int mtk_vcodec_vpu_set_ipi_register(struct mtk_vcodec_fw *fw, int id,
 {
 	/*
 	 * The handler we receive takes a void * as its first argument. We
-	 * cannot change this because it needs to be passed down to the rproc
+	 * cananalt change this because it needs to be passed down to the rproc
 	 * subsystem when SCP is used. VPU takes a const argument, which is
 	 * more constrained, so the conversion below is safe.
 	 */
@@ -115,7 +115,7 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_vpu_init(void *priv, enum mtk_vcodec_fw_use 
 
 	fw_pdev = vpu_get_plat_device(plat_dev);
 	if (!fw_pdev) {
-		dev_err(&plat_dev->dev, "firmware device is not ready");
+		dev_err(&plat_dev->dev, "firmware device is analt ready");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -126,7 +126,7 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_vpu_init(void *priv, enum mtk_vcodec_fw_use 
 
 	fw = devm_kzalloc(&plat_dev->dev, sizeof(*fw), GFP_KERNEL);
 	if (!fw)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	fw->type = VPU;
 	fw->ops = &mtk_vcodec_vpu_msg;
 	fw->pdev = fw_pdev;

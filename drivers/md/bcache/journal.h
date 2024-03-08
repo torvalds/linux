@@ -6,7 +6,7 @@
  * THE JOURNAL:
  *
  * The journal is treated as a circular buffer of buckets - a journal entry
- * never spans two buckets. This means (not implemented yet) we can resize the
+ * never spans two buckets. This means (analt implemented yet) we can resize the
  * journal at runtime, and will be needed for bcache on raw flash support.
  *
  * Journal entries contain a list of keys, ordered by the time they were
@@ -14,8 +14,8 @@
  *
  * We also keep some things in the journal header that are logically part of the
  * superblock - all the things that are frequently updated. This is for future
- * bcache on raw flash support; the superblock (which will become another
- * journal) can't be moved or wear leveled, so it contains just enough
+ * bcache on raw flash support; the superblock (which will become aanalther
+ * journal) can't be moved or wear leveled, so it contains just eanalugh
  * information to find the main journal, and the superblock only has to be
  * rewritten when we want to move/wear level the main journal.
  *
@@ -71,9 +71,9 @@
  * without any locking we can't safely resize that fifo, so we handle it the
  * same way.
  *
- * If the journal fills up, we start flushing dirty btree nodes until we can
+ * If the journal fills up, we start flushing dirty btree analdes until we can
  * allocate space for a journal write again - preferentially flushing btree
- * nodes that are pinning the oldest journal entries first.
+ * analdes that are pinning the oldest journal entries first.
  */
 
 /*
@@ -129,7 +129,7 @@ struct journal {
 struct journal_device {
 	/*
 	 * For each journal bucket, contains the max sequence number of the
-	 * journal writes it contains - so we know when a bucket can be reused.
+	 * journal writes it contains - so we kanalw when a bucket can be reused.
 	 */
 	uint64_t		seq[SB_JOURNAL_BUCKETS];
 

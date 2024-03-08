@@ -14,24 +14,24 @@
 /*
  * This header file contains macro defintions to support portability.
  * This header is shared between C and ASM code, so it MUST only
- * contain macro definitions. It MUST not contain any C code.
+ * contain macro definitions. It MUST analt contain any C code.
  *
  * This header ONLY defines macros to detect platforms/feature support.
  *
  */
 
 
-/* compat. with non-clang compilers */
+/* compat. with analn-clang compilers */
 #ifndef __has_attribute
   #define __has_attribute(x) 0
 #endif
 
-/* compat. with non-clang compilers */
+/* compat. with analn-clang compilers */
 #ifndef __has_builtin
 #  define __has_builtin(x) 0
 #endif
 
-/* compat. with non-clang compilers */
+/* compat. with analn-clang compilers */
 #ifndef __has_feature
 #  define __has_feature(x) 0
 #endif
@@ -55,7 +55,7 @@
 #ifndef DYNAMIC_BMI2
   #if ((defined(__clang__) && __has_attribute(__target__)) \
       || (defined(__GNUC__) \
-          && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
+          && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MIANALR__ >= 8)))) \
       && (defined(__x86_64__) || defined(_M_X64)) \
       && !defined(__BMI2__)
   #  define DYNAMIC_BMI2 1
@@ -66,7 +66,7 @@
 
 /*
  * Only enable assembly for GNUC comptabile compilers,
- * because other platforms may not support GAS assembly syntax.
+ * because other platforms may analt support GAS assembly syntax.
  *
  * Only enable assembly for Linux / MacOS, other platforms may
  * work, but they haven't been tested. This could likely be

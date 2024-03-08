@@ -251,11 +251,11 @@ static int setup_pcm_protdesc(struct snd_soc_dai *dai,
 		prot_desc->tx_data_delay = MSP_DELAY_0;
 	}
 
-	prot_desc->rx_half_word_swap = MSP_SWAP_NONE;
-	prot_desc->tx_half_word_swap = MSP_SWAP_NONE;
+	prot_desc->rx_half_word_swap = MSP_SWAP_ANALNE;
+	prot_desc->tx_half_word_swap = MSP_SWAP_ANALNE;
 	prot_desc->compression_mode = MSP_COMPRESS_MODE_LINEAR;
 	prot_desc->expansion_mode = MSP_EXPAND_MODE_LINEAR;
-	prot_desc->frame_sync_ignore = MSP_FSYNC_IGNORE;
+	prot_desc->frame_sync_iganalre = MSP_FSYNC_IGANALRE;
 
 	return 0;
 }
@@ -286,11 +286,11 @@ static int setup_i2s_protdesc(struct msp_protdesc *prot_desc)
 	prot_desc->rx_data_delay = MSP_DELAY_0;
 	prot_desc->tx_data_delay = MSP_DELAY_0;
 
-	prot_desc->tx_half_word_swap = MSP_SWAP_NONE;
-	prot_desc->rx_half_word_swap = MSP_SWAP_NONE;
+	prot_desc->tx_half_word_swap = MSP_SWAP_ANALNE;
+	prot_desc->rx_half_word_swap = MSP_SWAP_ANALNE;
 	prot_desc->compression_mode = MSP_COMPRESS_MODE_LINEAR;
 	prot_desc->expansion_mode = MSP_EXPAND_MODE_LINEAR;
-	prot_desc->frame_sync_ignore = MSP_FSYNC_IGNORE;
+	prot_desc->frame_sync_iganalre = MSP_FSYNC_IGANALRE;
 
 	return 0;
 }
@@ -662,13 +662,13 @@ static int ux500_msp_dai_of_probe(struct snd_soc_dai *dai)
 					 sizeof(*playback_dma_data),
 					 GFP_KERNEL);
 	if (!playback_dma_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	capture_dma_data = devm_kzalloc(dai->dev,
 					sizeof(*capture_dma_data),
 					GFP_KERNEL);
 	if (!capture_dma_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	playback_dma_data->addr = drvdata->msp->tx_rx_addr;
 	capture_dma_data->addr = drvdata->msp->tx_rx_addr;
@@ -722,7 +722,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 				sizeof(struct ux500_msp_i2s_drvdata),
 				GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->fmt = 0;
 	drvdata->slots = 1;

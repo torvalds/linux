@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ nvkm_uvmm_mthd_pfnclr(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		struct nvif_vmm_pfnclr_v0 v0;
 	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u64 addr, size;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
@@ -77,7 +77,7 @@ nvkm_uvmm_mthd_pfnmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		struct nvif_vmm_pfnmap_v0 v0;
 	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u64 addr, size, *phys;
 	u8  page;
 
@@ -111,7 +111,7 @@ nvkm_uvmm_mthd_unmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma *vma;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u64 addr;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
@@ -123,14 +123,14 @@ nvkm_uvmm_mthd_unmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		return -EINVAL;
 
 	mutex_lock(&vmm->mutex.vmm);
-	vma = nvkm_vmm_node_search(vmm, addr);
-	if (ret = -ENOENT, !vma || vma->addr != addr) {
+	vma = nvkm_vmm_analde_search(vmm, addr);
+	if (ret = -EANALENT, !vma || vma->addr != addr) {
 		VMM_DEBUG(vmm, "lookup %016llx: %016llx",
 			  addr, vma ? vma->addr : ~0ULL);
 		goto done;
 	}
 
-	if (ret = -ENOENT, vma->busy) {
+	if (ret = -EANALENT, vma->busy) {
 		VMM_DEBUG(vmm, "denied %016llx: %d", addr, vma->busy);
 		goto done;
 	}
@@ -158,7 +158,7 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma *vma;
 	struct nvkm_memory *memory;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, true))) {
 		addr = args->v0.addr;
@@ -178,12 +178,12 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	}
 
 	mutex_lock(&vmm->mutex.vmm);
-	if (ret = -ENOENT, !(vma = nvkm_vmm_node_search(vmm, addr))) {
+	if (ret = -EANALENT, !(vma = nvkm_vmm_analde_search(vmm, addr))) {
 		VMM_DEBUG(vmm, "lookup %016llx", addr);
 		goto fail;
 	}
 
-	if (ret = -ENOENT, vma->busy) {
+	if (ret = -EANALENT, vma->busy) {
 		VMM_DEBUG(vmm, "denied %016llx: %d", addr, vma->busy);
 		goto fail;
 	}
@@ -195,7 +195,7 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 
 	if (ret = -EINVAL, vma->addr != addr || vma->size != size) {
 		if (addr + size > vma->addr + vma->size || vma->memory ||
-		    (vma->refd == NVKM_VMA_PAGE_NONE && !vma->mapref)) {
+		    (vma->refd == NVKM_VMA_PAGE_ANALNE && !vma->mapref)) {
 			VMM_DEBUG(vmm, "split %d %d %d "
 				       "%016llx %016llx %016llx %016llx",
 				  !!vma->memory, vma->refd, vma->mapref,
@@ -203,9 +203,9 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 			goto fail;
 		}
 
-		vma = nvkm_vmm_node_split(vmm, vma, addr, size);
+		vma = nvkm_vmm_analde_split(vmm, vma, addr, size);
 		if (!vma) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 	}
@@ -236,7 +236,7 @@ nvkm_uvmm_mthd_put(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma *vma;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u64 addr;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
@@ -245,14 +245,14 @@ nvkm_uvmm_mthd_put(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		return ret;
 
 	mutex_lock(&vmm->mutex.vmm);
-	vma = nvkm_vmm_node_search(vmm, args->v0.addr);
-	if (ret = -ENOENT, !vma || vma->addr != addr || vma->part) {
+	vma = nvkm_vmm_analde_search(vmm, args->v0.addr);
+	if (ret = -EANALENT, !vma || vma->addr != addr || vma->part) {
 		VMM_DEBUG(vmm, "lookup %016llx: %016llx %d", addr,
 			  vma ? vma->addr : ~0ULL, vma ? vma->part : 0);
 		goto done;
 	}
 
-	if (ret = -ENOENT, vma->busy) {
+	if (ret = -EANALENT, vma->busy) {
 		VMM_DEBUG(vmm, "denied %016llx: %d", addr, vma->busy);
 		goto done;
 	}
@@ -272,7 +272,7 @@ nvkm_uvmm_mthd_get(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma *vma;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	bool getref, mapref, sparse;
 	u8 page, align;
 	u64 size;
@@ -305,7 +305,7 @@ nvkm_uvmm_mthd_page(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		struct nvif_vmm_page_v0 v0;
 	} *args = argv;
 	const struct nvkm_vmm_page *page;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u8 type, index, nr;
 
 	page = uvmm->vmm->func->page;
@@ -321,7 +321,7 @@ nvkm_uvmm_mthd_page(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		args->v0.host = !!(type & NVKM_VMM_PAGE_HOST);
 		args->v0.comp = !!(type & NVKM_VMM_PAGE_COMP);
 	} else
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return 0;
 }
@@ -396,7 +396,7 @@ nvkm_uvmm_mthd_raw_map(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
 		.size = args->size,
 		.used = true,
 		.mapref = false,
-		.no_comp = true,
+		.anal_comp = true,
 	};
 	struct nvkm_memory *memory;
 	void *argv = (void *)(uintptr_t)args->argv;
@@ -464,7 +464,7 @@ nvkm_uvmm_mthd_raw(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	union {
 		struct nvif_vmm_raw_v0 v0;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if (!uvmm->vmm->managed.raw)
 		return -EINVAL;
@@ -539,7 +539,7 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	} *args = argv;
 	const struct nvkm_vmm_page *page;
 	struct nvkm_uvmm *uvmm;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u64 addr, size;
 	bool managed, raw;
 
@@ -552,7 +552,7 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		return ret;
 
 	if (!(uvmm = kzalloc(sizeof(*uvmm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_object_ctor(&nvkm_uvmm, oclass, &uvmm->object);
 	*pobject = &uvmm->object;

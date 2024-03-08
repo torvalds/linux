@@ -38,7 +38,7 @@ static int dw_spi_pci_mid_init(struct dw_spi *dws)
 
 	clk_reg = ioremap(MRST_CLK_SPI_REG, 16);
 	if (!clk_reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get SPI controller operating freq info */
 	clk_cdiv = readl(clk_reg + dws->bus_num * sizeof(u32));
@@ -92,7 +92,7 @@ static int dw_spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 
 	dws = devm_kzalloc(&pdev->dev, sizeof(*dws), GFP_KERNEL);
 	if (!dws)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get basic io resource and map it */
 	dws->paddr = pci_resource_start(pdev, pci_bar);
@@ -124,7 +124,7 @@ static int dw_spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 				goto err_free_irq_vectors;
 		}
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_irq_vectors;
 	}
 
@@ -155,7 +155,7 @@ static void dw_spi_pci_remove(struct pci_dev *pdev)
 	struct dw_spi *dws = pci_get_drvdata(pdev);
 
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	dw_spi_remove_host(dws);
 	pci_free_irq_vectors(pdev);

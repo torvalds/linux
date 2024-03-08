@@ -56,13 +56,13 @@ static int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 		xgmac_regs->ioaddr =
 			ioremap(xgmac_regs->addr, xgmac_regs->size);
 		if (!xgmac_regs->ioaddr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (!xpcs_regs->ioaddr) {
 		xpcs_regs->ioaddr =
 			ioremap(xpcs_regs->addr, xpcs_regs->size);
 		if (!xpcs_regs->ioaddr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* reset the PHY through MDIO*/

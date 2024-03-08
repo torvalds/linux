@@ -4,7 +4,7 @@
  *
  * Allows Linux userland access to host in absence of any peripherals.
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/fs.h>		/* file_operations */
@@ -17,7 +17,7 @@ static unsigned char __HOSTLINK__[4 * PAGE_SIZE] __aligned(PAGE_SIZE);
 
 static int arc_hl_mmap(struct file *fp, struct vm_area_struct *vma)
 {
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start,
@@ -42,7 +42,7 @@ static const struct file_operations arc_hl_fops = {
 };
 
 static struct miscdevice arc_hl_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name	= "hostlink",
 	.fops	= &arc_hl_fops
 };

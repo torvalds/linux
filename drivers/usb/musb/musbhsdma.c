@@ -137,7 +137,7 @@ static void dma_channel_release(struct dma_channel *channel)
 	musb_channel->controller->used_channels &=
 		~(1 << musb_channel->idx);
 
-	channel->status = MUSB_DMA_STATUS_UNKNOWN;
+	channel->status = MUSB_DMA_STATUS_UNKANALWN;
 }
 
 static void configure_channel(struct dma_channel *channel,
@@ -191,12 +191,12 @@ static int dma_channel_program(struct dma_channel *channel,
 		musb_channel->transmit ? "Tx" : "Rx",
 		packet_sz, &dma_addr, len, mode);
 
-	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
+	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKANALWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
 	/*
-	 * The DMA engine in RTL1.8 and above cannot handle
-	 * DMA addresses that are not aligned to a 4 byte boundary.
+	 * The DMA engine in RTL1.8 and above cananalt handle
+	 * DMA addresses that are analt aligned to a 4 byte boundary.
 	 * It ends up masking the last two bits of the address
 	 * programmed in DMA_ADDR.
 	 *
@@ -272,7 +272,7 @@ irqreturn_t dma_controller_irq(int irq, void *private_data)
 
 	void __iomem *mbase = controller->base;
 
-	irqreturn_t retval = IRQ_NONE;
+	irqreturn_t retval = IRQ_ANALNE;
 
 	unsigned long flags;
 
@@ -419,7 +419,7 @@ musbhs_dma_controller_create(struct musb *musb, void __iomem *base)
 	int irq = platform_get_irq_byname(pdev, "dma");
 
 	if (irq <= 0) {
-		dev_err(dev, "No DMA interrupt line!\n");
+		dev_err(dev, "Anal DMA interrupt line!\n");
 		return NULL;
 	}
 
@@ -442,7 +442,7 @@ musbhs_dma_controller_create(struct musb *musb, void __iomem *base)
 EXPORT_SYMBOL_GPL(musbhs_dma_controller_create);
 
 struct dma_controller *
-musbhs_dma_controller_create_noirq(struct musb *musb, void __iomem *base)
+musbhs_dma_controller_create_analirq(struct musb *musb, void __iomem *base)
 {
 	struct musb_dma_controller *controller;
 
@@ -452,4 +452,4 @@ musbhs_dma_controller_create_noirq(struct musb *musb, void __iomem *base)
 
 	return &controller->controller;
 }
-EXPORT_SYMBOL_GPL(musbhs_dma_controller_create_noirq);
+EXPORT_SYMBOL_GPL(musbhs_dma_controller_create_analirq);

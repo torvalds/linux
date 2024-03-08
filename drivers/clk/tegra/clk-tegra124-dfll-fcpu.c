@@ -523,12 +523,12 @@ static const struct of_device_id tegra124_dfll_fcpu_of_match[] = {
 static void get_alignment_from_dt(struct device *dev,
 				  struct rail_alignment *align)
 {
-	if (of_property_read_u32(dev->of_node,
+	if (of_property_read_u32(dev->of_analde,
 				 "nvidia,pwm-voltage-step-microvolts",
 				 &align->step_uv))
 		align->step_uv = 0;
 
-	if (of_property_read_u32(dev->of_node,
+	if (of_property_read_u32(dev->of_analde,
 				 "nvidia,pwm-min-microvolts",
 				 &align->offset_uv))
 		align->offset_uv = 0;
@@ -559,29 +559,29 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 
 	fcpu_data = of_device_get_match_data(&pdev->dev);
 	if (!fcpu_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	process_id = tegra_sku_info.cpu_process_id;
 	speedo_id = tegra_sku_info.cpu_speedo_id;
 	speedo_value = tegra_sku_info.cpu_speedo_value;
 
 	if (speedo_id >= fcpu_data->cpu_max_freq_table_size) {
-		dev_err(&pdev->dev, "unknown max CPU freq for speedo_id=%d\n",
+		dev_err(&pdev->dev, "unkanalwn max CPU freq for speedo_id=%d\n",
 			speedo_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	soc = devm_kzalloc(&pdev->dev, sizeof(*soc), GFP_KERNEL);
 	if (!soc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc->dev = get_cpu_device(0);
 	if (!soc->dev) {
-		dev_err(&pdev->dev, "no CPU0 device\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal CPU0 device\n");
+		return -EANALDEV;
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node, "nvidia,pwm-to-pmic")) {
+	if (of_property_read_bool(pdev->dev.of_analde, "nvidia,pwm-to-pmic")) {
 		get_alignment_from_dt(&pdev->dev, &align);
 	} else {
 		err = get_alignment_from_regulator(&pdev->dev, &align);
@@ -617,7 +617,7 @@ static void tegra124_dfll_fcpu_remove(struct platform_device *pdev)
 	struct tegra_dfll_soc_data *soc;
 
 	/*
-	 * Note that exiting early here is dangerous as after this function
+	 * Analte that exiting early here is dangerous as after this function
 	 * returns *soc is freed.
 	 */
 	soc = tegra_dfll_unregister(pdev);

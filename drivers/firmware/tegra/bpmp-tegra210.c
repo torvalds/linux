@@ -114,7 +114,7 @@ static int tegra210_bpmp_ring_doorbell(struct tegra_bpmp *bpmp)
 	struct irq_data *irq_data = priv->tx_irq_data;
 
 	/*
-	 * Tegra Legacy Interrupt Controller (LIC) is used to notify BPMP of
+	 * Tegra Legacy Interrupt Controller (LIC) is used to analtify BPMP of
 	 * available messages
 	 */
 	if (irq_data->chip->irq_retrigger)
@@ -147,7 +147,7 @@ static int tegra210_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 
 	p = devm_ioremap(bpmp->dev, address, 0x80);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iosys_map_set_vaddr_iomem(&channel->ib, p);
 	iosys_map_set_vaddr_iomem(&channel->ob, p);
@@ -168,7 +168,7 @@ static int tegra210_bpmp_init(struct tegra_bpmp *bpmp)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpmp->priv = priv;
 
@@ -206,7 +206,7 @@ static int tegra210_bpmp_init(struct tegra_bpmp *bpmp)
 	priv->tx_irq_data = irq_get_irq_data(err);
 	if (!priv->tx_irq_data) {
 		dev_err(&pdev->dev, "failed to get IRQ data for TX IRQ\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = platform_get_irq_byname(pdev, "rx");
@@ -214,7 +214,7 @@ static int tegra210_bpmp_init(struct tegra_bpmp *bpmp)
 		return err;
 
 	err = devm_request_irq(&pdev->dev, err, rx_irq,
-			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), bpmp);
+			       IRQF_ANAL_SUSPEND, dev_name(&pdev->dev), bpmp);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ: %d\n", err);
 		return err;

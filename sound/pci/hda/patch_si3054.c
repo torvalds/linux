@@ -17,10 +17,10 @@
 #include "hda_local.h"
 
 /* si3054 verbs */
-#define SI3054_VERB_READ_NODE  0x900
-#define SI3054_VERB_WRITE_NODE 0x100
+#define SI3054_VERB_READ_ANALDE  0x900
+#define SI3054_VERB_WRITE_ANALDE 0x100
 
-/* si3054 nodes (registers) */
+/* si3054 analdes (registers) */
 #define SI3054_EXTENDED_MID    2
 #define SI3054_LINE_RATE       3
 #define SI3054_LINE_LEVEL      4
@@ -60,11 +60,11 @@
 #define SI3054_CHIPID_DAA_ID         0x0f00
 #define SI3054_CHIPID_CODEC_ID      (1<<12)
 
-/* si3054 codec registers (nodes) access macros */
-#define GET_REG(codec,reg) (snd_hda_codec_read(codec,reg,0,SI3054_VERB_READ_NODE,0))
-#define SET_REG(codec,reg,val) (snd_hda_codec_write(codec,reg,0,SI3054_VERB_WRITE_NODE,val))
+/* si3054 codec registers (analdes) access macros */
+#define GET_REG(codec,reg) (snd_hda_codec_read(codec,reg,0,SI3054_VERB_READ_ANALDE,0))
+#define SET_REG(codec,reg,val) (snd_hda_codec_write(codec,reg,0,SI3054_VERB_WRITE_ANALDE,val))
 #define SET_REG_CACHE(codec,reg,val) \
-	snd_hda_codec_write_cache(codec,reg,0,SI3054_VERB_WRITE_NODE,val)
+	snd_hda_codec_write_cache(codec,reg,0,SI3054_VERB_WRITE_ANALDE,val)
 
 
 struct si3054_spec {
@@ -80,7 +80,7 @@ struct si3054_spec {
 #define PRIVATE_REG(val) ((val>>16)&0xffff)
 #define PRIVATE_MASK(val) (val&0xffff)
 
-#define si3054_switch_info	snd_ctl_boolean_mono_info
+#define si3054_switch_info	snd_ctl_boolean_moanal_info
 
 static int si3054_switch_get(struct snd_kcontrol *kcontrol,
 		               struct snd_ctl_elem_value *uvalue)
@@ -172,7 +172,7 @@ static const struct hda_pcm_stream si3054_pcm = {
 	.channels_min = 1,
 	.channels_max = 1,
 	.nid = 0x1,
-	.rates = SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|SNDRV_PCM_RATE_KNOT,
+	.rates = SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|SNDRV_PCM_RATE_KANALT,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.maxbps = 16,
 	.ops = {
@@ -188,7 +188,7 @@ static int si3054_build_pcms(struct hda_codec *codec)
 
 	info = snd_hda_codec_pcm_new(codec, "Si3054 Modem");
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE]  = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = codec->core.mfg;
@@ -209,10 +209,10 @@ static int si3054_init(struct hda_codec *codec)
 	u16 val;
 
 	if (snd_hdac_regmap_add_vendor_verb(&codec->core,
-					    SI3054_VERB_WRITE_NODE))
-		return -ENOMEM;
+					    SI3054_VERB_WRITE_ANALDE))
+		return -EANALMEM;
 
-	snd_hda_codec_write(codec, AC_NODE_ROOT, 0, AC_VERB_SET_CODEC_RESET, 0);
+	snd_hda_codec_write(codec, AC_ANALDE_ROOT, 0, AC_VERB_SET_CODEC_RESET, 0);
 	snd_hda_codec_write(codec, codec->core.mfg, 0, AC_VERB_SET_STREAM_FORMAT, 0);
 	SET_REG(codec, SI3054_LINE_RATE, 9600);
 	SET_REG(codec, SI3054_LINE_LEVEL, SI3054_DTAG_MASK|SI3054_ATAG_MASK);
@@ -225,8 +225,8 @@ static int si3054_init(struct hda_codec *codec)
 	} while ((val & SI3054_MEI_READY) != SI3054_MEI_READY && wait_count--);
 
 	if((val&SI3054_MEI_READY) != SI3054_MEI_READY) {
-		codec_err(codec, "si3054: cannot initialize. EXT MID = %04x\n", val);
-		/* let's pray that this is no fatal error */
+		codec_err(codec, "si3054: cananalt initialize. EXT MID = %04x\n", val);
+		/* let's pray that this is anal fatal error */
 		/* return -EACCES; */
 	}
 
@@ -237,7 +237,7 @@ static int si3054_init(struct hda_codec *codec)
 
 	if((GET_REG(codec,SI3054_LINE_STATUS) & (1<<6)) == 0) {
 		codec_dbg(codec,
-			  "Link Frame Detect(FDT) is not ready (line status: %04x)\n",
+			  "Link Frame Detect(FDT) is analt ready (line status: %04x)\n",
 				GET_REG(codec,SI3054_LINE_STATUS));
 	}
 
@@ -266,7 +266,7 @@ static int patch_si3054(struct hda_codec *codec)
 {
 	struct si3054_spec *spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	codec->spec = spec;
 	codec->patch_ops = si3054_patch_ops;
 	return 0;

@@ -27,7 +27,7 @@ static __always_inline bool check_thread_id(void)
  * finit_module()
  *   load_module()
  *     prepare_coming_module()
- *       notifier_call(MODULE_STATE_COMING)
+ *       analtifier_call(MODULE_STATE_COMING)
  *         btf_parse_module()
  *         btf_alloc_id()		// Visible to userspace at this point
  *         list_add(btf_mod->list, &btf_modules)
@@ -42,7 +42,7 @@ static __always_inline bool check_thread_id(void)
  *         free_module()
  * return ret
  *
- * At this point, module loading thread is blocked, we now load the program:
+ * At this point, module loading thread is blocked, we analw load the program:
  *
  * bpf_check
  *   add_kfunc_call/check_pseudo_btf_id
@@ -60,10 +60,10 @@ static __always_inline bool check_thread_id(void)
  *   ...
  * return fd
  *
- * Now, if we inject an error in the blocked program, our module will be freed
+ * Analw, if we inject an error in the blocked program, our module will be freed
  * (going straight from MODULE_STATE_COMING to MODULE_STATE_GOING).
  * Later, when bpf program is freed, it will try to module_put already freed
- * module. This is why try_get_module_live returns false if mod->state is not
+ * module. This is why try_get_module_live returns false if mod->state is analt
  * MODULE_STATE_LIVE.
  */
 

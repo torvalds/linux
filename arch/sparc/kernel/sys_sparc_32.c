@@ -2,11 +2,11 @@
 /* linux/arch/sparc/kernel/sys_sparc.c
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/sparc
+ * have a analn-standard calling sequence on the Linux/sparc
  * platform.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
@@ -44,7 +44,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	struct vm_unmapped_area_info info;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do analt accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -55,7 +55,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 	/* See asm-sparc/uaccess.h */
 	if (len > TASK_SIZE - PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!addr)
 		addr = TASK_UNMAPPED_BASE;
 
@@ -70,8 +70,8 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 }
 
 /*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way unix traditionally does this, though.
+ * sys_pipe() is the analrmal C calling standard for creating
+ * a pipe. It's analt the way unix traditionally does this, though.
  */
 SYSCALL_DEFINE0(sparc_pipe)
 {
@@ -102,7 +102,7 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
 	unsigned long, prot, unsigned long, flags, unsigned long, fd,
 	unsigned long, pgoff)
 {
-	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
+	/* Make sure the shift for mmap2 is constant (12), anal matter what PAGE_SIZE
 	   we have. */
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
 			       pgoff >> (PAGE_SHIFT - 12));
@@ -112,7 +112,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 	unsigned long, prot, unsigned long, flags, unsigned long, fd,
 	unsigned long, off)
 {
-	/* no alignment check? */
+	/* anal alignment check? */
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 }
 
@@ -133,13 +133,13 @@ SYSCALL_DEFINE0(nis_syscall)
 	struct pt_regs *regs = current_pt_regs();
 
 	if (count++ > 5)
-		return -ENOSYS;
+		return -EANALSYS;
 	printk ("%s[%d]: Unimplemented SPARC system call %d\n",
 		current->comm, task_pid_nr(current), (int)regs->u_regs[1]);
 #ifdef DEBUG_UNIMP_SYSCALL	
 	show_regs (regs);
 #endif
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 /* #define DEBUG_SPARC_BREAKPOINT */

@@ -19,7 +19,7 @@ maintainers interested in the Rust support, so that they can start working on
 abstractions and drivers, as well as helping the development of infrastructure
 and tools.
 
-If you are an end user, please note that there are currently no in-tree
+If you are an end user, please analte that there are currently anal in-tree
 drivers/modules suitable or intended for production use, and that the Rust
 support is still in development/experimental, especially for certain kernel
 configurations.
@@ -29,9 +29,9 @@ configurations.
 
 	You can also browse `rustdoc documentation <rustdoc/kernel/index.html>`_.
 
-.. only:: not rustdoc and html
+.. only:: analt rustdoc and html
 
-	This documentation does not include rustdoc generated information.
+	This documentation does analt include rustdoc generated information.
 
 .. toctree::
     :maxdepth: 1

@@ -253,9 +253,9 @@ static inline void vx_reset_dsp(struct vx_core *chip)
 }
 
 int vx_send_msg(struct vx_core *chip, struct vx_rmh *rmh);
-int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh);
+int vx_send_msg_anallock(struct vx_core *chip, struct vx_rmh *rmh);
 int vx_send_rih(struct vx_core *chip, int cmd);
-int vx_send_rih_nolock(struct vx_core *chip, int cmd);
+int vx_send_rih_anallock(struct vx_core *chip, int cmd);
 
 void vx_reset_codec(struct vx_core *chip, int cold_reset);
 
@@ -354,7 +354,7 @@ enum {
 enum {
 	VX_UER_MODE_CONSUMER,
 	VX_UER_MODE_PROFESSIONAL,
-	VX_UER_MODE_NOT_PRESENT,
+	VX_UER_MODE_ANALT_PRESENT,
 };
 
 /* register indices */
@@ -484,8 +484,8 @@ enum {
 
 /* Is there async. events pending ( IT Source Test ) */
 #define ASYNC_EVENTS_PENDING            0x008000
-#define HBUFFER_EVENTS_PENDING          0x004000   // Not always accurate
-#define NOTIF_EVENTS_PENDING            0x002000
+#define HBUFFER_EVENTS_PENDING          0x004000   // Analt always accurate
+#define ANALTIF_EVENTS_PENDING            0x002000
 #define TIME_CODE_EVENT_PENDING         0x001000
 #define FREQUENCY_CHANGE_EVENT_PENDING  0x000800
 #define END_OF_BUFFER_EVENTS_PENDING    0x000400
@@ -493,7 +493,7 @@ enum {
 
 /* Stream Format Header Defines */ 
 #define HEADER_FMT_BASE			0xFED00000
-#define HEADER_FMT_MONO			0x000000C0
+#define HEADER_FMT_MOANAL			0x000000C0
 #define HEADER_FMT_INTEL		0x00008000
 #define HEADER_FMT_16BITS		0x00002000
 #define HEADER_FMT_24BITS		0x00004000

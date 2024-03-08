@@ -17,7 +17,7 @@ description: |
   controller.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^gpio@[0-9a-f]+$"
 
   compatible:
@@ -64,7 +64,7 @@ properties:
     description: The sgpio controller frequency (Hz). This dictates
       the serial bitstream speed, which again affects the latency in
       getting control signals back and forth between external shift
-      registers. The speed must be no larger than half the system
+      registers. The speed must be anal larger than half the system
       clock, and larger than zero.
     default: 12500000
 
@@ -92,7 +92,7 @@ patternProperties:
 
       '#gpio-cells':
         description: |
-         Specifies the pin (port and bit) and flags. Note that the
+         Specifies the pin (port and bit) and flags. Analte that the
          SGIO pin is defined by *2* numbers, a port number between 0
          and 31, and a bit index, 0 to 3. The maximum bit number is
          controlled indirectly by the "ngpios" property: (ngpios/32).

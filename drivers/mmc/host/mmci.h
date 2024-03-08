@@ -11,7 +11,7 @@
 #define MCI_OD			(1 << 6)
 #define MCI_ROD			(1 << 7)
 /*
- * The ST Micro version does not have ROD and reuse the voltage registers for
+ * The ST Micro version does analt have ROD and reuse the voltage registers for
  * direction settings.
  */
 #define MCI_ST_DATA2DIREN	(1 << 2)
@@ -21,7 +21,7 @@
 #define MCI_ST_FBCLKEN		(1 << 7)
 #define MCI_ST_DATA74DIREN	(1 << 8)
 /*
- * The STM32 sdmmc does not have PWR_UP/OD/ROD
+ * The STM32 sdmmc does analt have PWR_UP/OD/ROD
  * and uses the power register for
  */
 #define MCI_STM32_PWR_CYC	0x02
@@ -94,7 +94,7 @@
 #define MCI_CPSM_STM32_CMDTRANS		BIT(6)
 #define MCI_CPSM_STM32_CMDSTOP		BIT(7)
 #define MCI_CPSM_STM32_WAITRESP_MASK	GENMASK(9, 8)
-#define MCI_CPSM_STM32_NORSP		(0 << 8)
+#define MCI_CPSM_STM32_ANALRSP		(0 << 8)
 #define MCI_CPSM_STM32_SRSP_CRC		(1 << 8)
 #define MCI_CPSM_STM32_SRSP		(2 << 8)
 #define MCI_CPSM_STM32_LRSP_CRC		(3 << 8)
@@ -305,7 +305,7 @@ enum mmci_busy_state {
  *		  odd packets.
  * @dma_power_of_2: DMA only works with blocks that are a power of 2.
  * @datactrl_first: true if data must be setup before send command
- * @datacnt_useless: true if you could not use datacnt register to read
+ * @datacnt_useless: true if you could analt use datacnt register to read
  *		     remaining data
  * @pwrreg_powerup: power up value for MMCIPOWER register
  * @f_max: maximum clk frequency supported by the controller.
@@ -319,7 +319,7 @@ enum mmci_busy_state {
  *		      indicating that the card is busy
  * @busy_detect_mask: bitmask identifying the bit in the MMCIMASK0 to mask for
  *		      getting busy end detection interrupts
- * @pwrreg_nopower: bits in MMCIPOWER don't controls ext. power supply
+ * @pwrreg_analpower: bits in MMCIPOWER don't controls ext. power supply
  * @explicit_mclk_control: enable explicit mclk control in driver.
  * @qcom_fifo: enables qcom specific fifo pio read logic.
  * @qcom_dml: enables qcom specific dma glue for dma transfers.
@@ -368,7 +368,7 @@ struct variant_data {
 	u32			busy_dpsm_flag;
 	u32			busy_detect_flag;
 	u32			busy_detect_mask;
-	u8			pwrreg_nopower:1;
+	u8			pwrreg_analpower:1;
 	u8			explicit_mclk_control:1;
 	u8			qcom_fifo:1;
 	u8			qcom_dml:1;

@@ -14,8 +14,8 @@ Required properties:
 
 Optional properties:
 - trigger-gpios:	phandle + gpio-specifier for the GPIO connected to the
-			chip's trigger line. If this property is not set, the
-			trigger function is ignored and the chip is kept alive
+			chip's trigger line. If this property is analt set, the
+			trigger function is iganalred and the chip is kept alive
 			until an explicit kill signal is received
 - trigger-delay-ms	The number of milliseconds to wait after trigger line
 			assertion before executing shut down procedure.

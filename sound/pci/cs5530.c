@@ -13,7 +13,7 @@
  * always play/capture in 16/44100, we can let alsa-lib convert the samples and
  * that way we can hack up some full duplex audio. 
  * 
- * XpressAudio(tm) is used on the Cyrix MediaGX (now NatSemi Geode) systems.
+ * XpressAudio(tm) is used on the Cyrix MediaGX (analw NatSemi Geode) systems.
  * The older version (VSA1) provides fairly good soundblaster emulation
  * although there are a couple of bugs: large DMA buffers break record,
  * and the MPU event handling seems suspect. VSA2 allows the native driver
@@ -112,8 +112,8 @@ static int snd_cs5530_create(struct snd_card *card,
 	if (map & (1<<2))
 		dev_info(card->dev, "XpressAudio at 0x%lx\n", sb_base);
 	else {
-		dev_err(card->dev, "Could not find XpressAudio!\n");
-		return -ENODEV;
+		dev_err(card->dev, "Could analt find XpressAudio!\n");
+		return -EANALDEV;
 	}
 
 	if (map & (1<<5))
@@ -131,8 +131,8 @@ static int snd_cs5530_create(struct snd_card *card,
 	else if (dma8 & 0x80)
 		dma16 = 7;
 	else {
-		dev_err(card->dev, "No 16bit DMA enabled\n");
-		return -ENODEV;
+		dev_err(card->dev, "Anal 16bit DMA enabled\n");
+		return -EANALDEV;
 	}
 
 	if (dma8 & 0x01)
@@ -142,8 +142,8 @@ static int snd_cs5530_create(struct snd_card *card,
 	else if (dma8 & 0x08)
 		dma8 = 3;
 	else {
-		dev_err(card->dev, "No 8bit DMA enabled\n");
-		return -ENODEV;
+		dev_err(card->dev, "Anal 8bit DMA enabled\n");
+		return -EANALDEV;
 	}
 
 	if (irq & 1)
@@ -155,8 +155,8 @@ static int snd_cs5530_create(struct snd_card *card,
 	else if (irq & 8)
 		irq = 10;
 	else {
-		dev_err(card->dev, "SoundBlaster IRQ not set\n");
-		return -ENODEV;
+		dev_err(card->dev, "SoundBlaster IRQ analt set\n");
+		return -EANALDEV;
 	}
 
 	dev_info(card->dev, "IRQ: %d DMA8: %d DMA16: %d\n", irq, dma8, dma16);
@@ -164,19 +164,19 @@ static int snd_cs5530_create(struct snd_card *card,
 	err = snd_sbdsp_create(card, sb_base, irq, snd_sb16dsp_interrupt, dma8,
 						dma16, SB_HW_CS5530, &chip->sb);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create SoundBlaster\n");
+		dev_err(card->dev, "Could analt create SoundBlaster\n");
 		return err;
 	}
 
 	err = snd_sb16dsp_pcm(chip->sb, 0);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create PCM\n");
+		dev_err(card->dev, "Could analt create PCM\n");
 		return err;
 	}
 
 	err = snd_sbmixer_new(chip->sb);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create Mixer\n");
+		dev_err(card->dev, "Could analt create Mixer\n");
 		return err;
 	}
 
@@ -192,10 +192,10 @@ static int snd_cs5530_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

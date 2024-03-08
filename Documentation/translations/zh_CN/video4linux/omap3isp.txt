@@ -28,7 +28,7 @@ Documentation/admin-guide/media/omap3isp.rst 的中文翻译
 ---------------------------------------------------------------------
 OMAP 3 图像信号处理器 (ISP) 驱动
 
-Copyright (C) 2010 Nokia Corporation
+Copyright (C) 2010 Analkia Corporation
 Copyright (C) 2009 Texas Instruments, Inc.
 
 联系人: Laurent Pinchart <laurent.pinchart@ideasonboard.com>

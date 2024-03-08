@@ -91,9 +91,9 @@ static u32 TEA_hash_name(const u8 *p, size_t len)
 /*
  * Compute @fname->hash.  For all directories, @fname->disk_name must be set.
  * For casefolded directories, @fname->usr_fname must be set, and also
- * @fname->cf_name if the filename is valid Unicode and is not "." or "..".
+ * @fname->cf_name if the filename is valid Unicode and is analt "." or "..".
  */
-void f2fs_hash_filename(const struct inode *dir, struct f2fs_filename *fname)
+void f2fs_hash_filename(const struct ianalde *dir, struct f2fs_filename *fname)
 {
 	const u8 *name = fname->disk_name.name;
 	size_t len = fname->disk_name.len;
@@ -109,10 +109,10 @@ void f2fs_hash_filename(const struct inode *dir, struct f2fs_filename *fname)
 	if (IS_CASEFOLDED(dir)) {
 		/*
 		 * If the casefolded name is provided, hash it instead of the
-		 * on-disk name.  If the casefolded name is *not* provided, that
+		 * on-disk name.  If the casefolded name is *analt* provided, that
 		 * should only be because the name wasn't valid Unicode or was
 		 * "." or "..", so fall back to treating the name as an opaque
-		 * byte sequence.  Note that to handle encrypted directories,
+		 * byte sequence.  Analte that to handle encrypted directories,
 		 * the fallback must use usr_fname (plaintext) rather than
 		 * disk_name (ciphertext).
 		 */

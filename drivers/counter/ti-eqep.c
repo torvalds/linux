@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2019 David Lechner <david@lechnology.com>
+ * Copyright (C) 2019 David Lechner <david@lechanallogy.com>
  *
  * Counter driver for Texas Instruments Enhanced Quadrature Encoder Pulse (eQEP)
  */
@@ -203,7 +203,7 @@ static int ti_eqep_action_read(struct counter_device *counter,
 			*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
 			return 0;
 		case TI_EQEP_SIGNAL_QEPB:
-			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 			return 0;
 		default:
 			/* should never reach this path */
@@ -211,7 +211,7 @@ static int ti_eqep_action_read(struct counter_device *counter,
 		}
 	case COUNTER_FUNCTION_INCREASE:
 	case COUNTER_FUNCTION_DECREASE:
-		/* In up/down-count modes only QEPA is counted and QEPB is not
+		/* In up/down-count modes only QEPA is counted and QEPB is analt
 		 * used.
 		 */
 		switch (synapse->signal->id) {
@@ -226,7 +226,7 @@ static int ti_eqep_action_read(struct counter_device *counter,
 				*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
 			return 0;
 		case TI_EQEP_SIGNAL_QEPB:
-			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 			return 0;
 		default:
 			/* should never reach this path */
@@ -325,7 +325,7 @@ static const enum counter_function ti_eqep_position_functions[] = {
 static const enum counter_synapse_action ti_eqep_position_synapse_actions[] = {
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
 	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 };
 
 static struct counter_synapse ti_eqep_position_synapses[] = {
@@ -380,7 +380,7 @@ static int ti_eqep_probe(struct platform_device *pdev)
 
 	counter = devm_counter_alloc(dev, sizeof(*priv));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = counter_priv(counter);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -453,7 +453,7 @@ static struct platform_driver ti_eqep_driver = {
 };
 module_platform_driver(ti_eqep_driver);
 
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechanallogy.com>");
 MODULE_DESCRIPTION("TI eQEP counter driver");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(COUNTER);

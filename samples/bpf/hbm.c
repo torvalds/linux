@@ -16,7 +16,7 @@
  *    -l	Also limit flows doing loopback
  *    -n <#>	To create cgroup \"/hbm#\" and attach prog
  *		Default is /hbm1
- *    --no_cn   Do not return cn notifications
+ *    --anal_cn   Do analt return cn analtifications
  *    -r <rate>	Rate limit in Mbps
  *    -s	Get HBM stats (marked, dropped, etc.)
  *    -t <time>	Exit after specified seconds (default is 0)
@@ -36,7 +36,7 @@
 #include <assert.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/unistd.h>
 #include <linux/compiler.h>
@@ -58,12 +58,12 @@ bool stats_flag;
 bool loopback_flag;
 bool debugFlag;
 bool work_conserving_flag;
-bool no_cn_flag;
+bool anal_cn_flag;
 bool edt_flag;
 
 static void Usage(void);
 static void read_trace_pipe2(void);
-static void do_error(char *msg, bool errno_flag);
+static void do_error(char *msg, bool erranal_flag);
 
 #define TRACEFS "/sys/kernel/tracing/"
 
@@ -107,10 +107,10 @@ static void read_trace_pipe2(void)
 	}
 }
 
-static void do_error(char *msg, bool errno_flag)
+static void do_error(char *msg, bool erranal_flag)
 {
-	if (errno_flag)
-		printf("ERROR: %s, errno: %d\n", msg, errno);
+	if (erranal_flag)
+		printf("ERROR: %s, erranal: %d\n", msg, erranal);
 	else
 		printf("ERROR: %s\n", msg);
 	exit(1);
@@ -189,9 +189,9 @@ static int run_bpf_prog(char *prog, int cg_id)
 	qstats.rate = rate;
 	qstats.stats = stats_flag ? 1 : 0;
 	qstats.loopback = loopback_flag ? 1 : 0;
-	qstats.no_cn = no_cn_flag ? 1 : 0;
+	qstats.anal_cn = anal_cn_flag ? 1 : 0;
 	if (bpf_map_update_elem(queue_stats_fd, &key, &qstats, BPF_ANY)) {
-		printf("ERROR: Could not update map element\n");
+		printf("ERROR: Could analt update map element\n");
 		goto err;
 	}
 
@@ -261,7 +261,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 			if (delta_rate < RATE_THRESHOLD) {
 				/* can increase cgroup rate limit, but first
 				 * check if we are using the current limit.
-				 * Currently increasing by 6.25%, unknown
+				 * Currently increasing by 6.25%, unkanalwn
 				 * if that is the optimal rate.
 				 */
 				int rate_diff100;
@@ -288,7 +288,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 				}
 			} else {
 				/* Need to decrease cgroup rate limit.
-				 * Currently decreasing by 12.5%, unknown
+				 * Currently decreasing by 12.5%, unkanalwn
 				 * if that is optimal
 				 */
 				printf(" DEC\n");
@@ -314,7 +314,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 			sprintf(fname, "hbm.%d.out", cg_id);
 		fout = fopen(fname, "w");
 		fprintf(fout, "id:%d\n", cg_id);
-		fprintf(fout, "ERROR: Could not lookup queue_stats\n");
+		fprintf(fout, "ERROR: Could analt lookup queue_stats\n");
 		fclose(fout);
 	} else if (stats_flag && qstats.lastPacketTime >
 		   qstats.firstPacketTime) {
@@ -424,7 +424,7 @@ static void Usage(void)
 {
 	printf("This program loads a cgroup skb BPF program to enforce\n"
 	       "cgroup output (egress) bandwidth limits.\n\n"
-	       "USAGE: hbm [-o] [-d]  [-l] [-n <id>] [--no_cn] [-r <rate>]\n"
+	       "USAGE: hbm [-o] [-d]  [-l] [-n <id>] [--anal_cn] [-r <rate>]\n"
 	       "           [-s] [-t <secs>] [-w] [-h] [prog]\n"
 	       "  Where:\n"
 	       "    -o         indicates egress direction (default)\n"
@@ -433,7 +433,7 @@ static void Usage(void)
 	       "    -l         also limit flows using loopback\n"
 	       "    -n <#>     to create cgroup \"/hbm#\" and attach prog\n"
 	       "               Default is /hbm1\n"
-	       "    --no_cn    disable CN notifications\n"
+	       "    --anal_cn    disable CN analtifications\n"
 	       "    -r <rate>  Rate in Mbps\n"
 	       "    -s         Update HBM stats\n"
 	       "    -t <time>  Exit after specified seconds (default is 0)\n"
@@ -454,7 +454,7 @@ int main(int argc, char **argv)
 	int cg_id = 1;
 	char *optstring = "iodln:r:st:wh";
 	struct option loptions[] = {
-		{"no_cn", 0, NULL, 1},
+		{"anal_cn", 0, NULL, 1},
 		{"edt", 0, NULL, 2},
 		{NULL, 0, NULL, 0}
 	};
@@ -462,7 +462,7 @@ int main(int argc, char **argv)
 	while ((k = getopt_long(argc, argv, optstring, loptions, NULL)) != -1) {
 		switch (k) {
 		case 1:
-			no_cn_flag = true;
+			anal_cn_flag = true;
 			break;
 		case 2:
 			prog = "hbm_edt_kern.o";

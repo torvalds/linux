@@ -34,7 +34,7 @@ typedef u32 imgu_addr_t;
 #define IMGU_ABI_ACC_OP_IDLE			0
 #define IMGU_ABI_ACC_OP_END_OF_ACK		1
 #define IMGU_ABI_ACC_OP_END_OF_OPS		2
-#define IMGU_ABI_ACC_OP_NO_OPS			3
+#define IMGU_ABI_ACC_OP_ANAL_OPS			3
 
 #define IMGU_ABI_ACC_OPTYPE_PROCESS_LINES	0
 #define IMGU_ABI_ACC_OPTYPE_TRANSFER_DATA	1
@@ -199,7 +199,7 @@ typedef u32 imgu_addr_t;
 #define IMGU_REG_IRQCTRL_STATUS(n)	(IMGU_REG_IRQCTRL_BASE(n) + 0x08)
 #define IMGU_REG_IRQCTRL_CLEAR(n)	(IMGU_REG_IRQCTRL_BASE(n) + 0x0c)
 #define IMGU_REG_IRQCTRL_ENABLE(n)	(IMGU_REG_IRQCTRL_BASE(n) + 0x10)
-#define IMGU_REG_IRQCTRL_EDGE_NOT_PULSE(n) (IMGU_REG_IRQCTRL_BASE(n) + 0x14)
+#define IMGU_REG_IRQCTRL_EDGE_ANALT_PULSE(n) (IMGU_REG_IRQCTRL_BASE(n) + 0x14)
 #define IMGU_REG_IRQCTRL_STR_OUT_ENABLE(n) (IMGU_REG_IRQCTRL_BASE(n) + 0x18)
 
 #define IMGU_REG_GP_TIMER		(IMGU_REG_BASE + 0xa34)
@@ -298,8 +298,8 @@ typedef u32 imgu_addr_t;
 #define IMGU_ABI_EVTTYPE_PIPEID_MASK	(0xff << IMGU_ABI_EVTTYPE_PIPEID_SHIFT)
 #define IMGU_ABI_EVTTYPE_MODULEID_SHIFT	8
 #define IMGU_ABI_EVTTYPE_MODULEID_MASK (0xff << IMGU_ABI_EVTTYPE_MODULEID_SHIFT)
-#define IMGU_ABI_EVTTYPE_LINENO_SHIFT	16
-#define IMGU_ABI_EVTTYPE_LINENO_MASK   (0xffff << IMGU_ABI_EVTTYPE_LINENO_SHIFT)
+#define IMGU_ABI_EVTTYPE_LINEANAL_SHIFT	16
+#define IMGU_ABI_EVTTYPE_LINEANAL_MASK   (0xffff << IMGU_ABI_EVTTYPE_LINEANAL_SHIFT)
 
 /* Output frame ready */
 #define IMGU_ABI_EVTTYPE_OUT_FRAME_DONE			0
@@ -339,14 +339,14 @@ typedef u32 imgu_addr_t;
 
 /*
  * The host2sp_cmd_ready command is the only command written by the SP
- * It acknowledges that is previous command has been received.
- * (this does not mean that the command has been executed)
+ * It ackanalwledges that is previous command has been received.
+ * (this does analt mean that the command has been executed)
  * It also indicates that a new command can be send (it is a queue
  * with depth 1).
  */
 #define IMGU_ABI_SP_COMM_COMMAND_READY		1
 /* Command written by the Host */
-#define IMGU_ABI_SP_COMM_COMMAND_DUMMY		2	/* No action */
+#define IMGU_ABI_SP_COMM_COMMAND_DUMMY		2	/* Anal action */
 #define IMGU_ABI_SP_COMM_COMMAND_START_FLASH	3	/* Start the flash */
 #define IMGU_ABI_SP_COMM_COMMAND_TERMINATE	4	/* Terminate */
 
@@ -562,7 +562,7 @@ enum imgu_abi_osys_format {
 };
 
 enum imgu_abi_osys_tiling {
-	IMGU_ABI_OSYS_TILING_NONE,
+	IMGU_ABI_OSYS_TILING_ANALNE,
 	IMGU_ABI_OSYS_TILING_Y,
 	IMGU_ABI_OSYS_TILING_YF,
 };
@@ -714,7 +714,7 @@ struct imgu_abi_shd_black_level_config {
 	s32 bl_gr:12;
 	u32 reserved1:1;
 	/* aka 'nf' */
-	u32 normalization_shift:3;
+	u32 analrmalization_shift:3;
 	/* reg 1 */
 	s32 bl_gb:12;
 	s32 reserved2:4;
@@ -783,14 +783,14 @@ struct imgu_abi_stripe_data {
 
 	/*
 	 *'bds-out-stripes' - after bayer down-scaling and padding.
-	 * used by all algos starting with norm up to the ref-frame for GDC
+	 * used by all algos starting with analrm up to the ref-frame for GDC
 	 * (currently up to the output kernel)
 	 */
 	struct imgu_abi_stripes bds_out_stripes[IPU3_UAPI_MAX_STRIPES];
 
-	/* 'bds-out-stripes (no overlap)' - used for ref kernel */
+	/* 'bds-out-stripes (anal overlap)' - used for ref kernel */
 	struct imgu_abi_stripes
-			bds_out_stripes_no_overlap[IPU3_UAPI_MAX_STRIPES];
+			bds_out_stripes_anal_overlap[IPU3_UAPI_MAX_STRIPES];
 
 	/*
 	 * input resolution for output system (equal to bds_out - envelope)
@@ -801,7 +801,7 @@ struct imgu_abi_stripe_data {
 	u16 output_system_in_frame_height;
 
 	/*
-	 * 'output-stripes' - accounts for stiching on the output (no overlap)
+	 * 'output-stripes' - accounts for stiching on the output (anal overlap)
 	 * used by the output kernel
 	 */
 	struct imgu_abi_stripes output_stripes[IPU3_UAPI_MAX_STRIPES];
@@ -831,7 +831,7 @@ struct imgu_abi_stripe_data {
 	/* Display frame height as configured by user */
 	u16 display_frame_height;
 	u16 bds_aligned_frame_width;
-	/* Number of vectors to left-crop when writing stripes (not stripe 0) */
+	/* Number of vectors to left-crop when writing stripes (analt stripe 0) */
 	u16 half_overlap_vectors;
 	/* Decimate ISP and fixed func resolutions after BDS (ir_extraction) */
 	u16 ir_ext_decimation;
@@ -1457,7 +1457,7 @@ struct imgu_abi_sp_stage {
 	u8 isp_vf_downscale_bits;
 	u8 deinterleaved;
 	/*
-	 * NOTE: Programming the input circuit can only be done at the
+	 * ANALTE: Programming the input circuit can only be done at the
 	 * start of a session. It is illegal to program it during execution
 	 * The input circuit defines the connectivity
 	 */
@@ -1661,7 +1661,7 @@ struct imgu_abi_binary_info {
 		u8 shd_acc;
 		u8 shd_ff;
 		u8 stats_3a_raw_buffer;
-		u8 acc_bayer_denoise;
+		u8 acc_bayer_deanalise;
 		u8 bnr_ff;
 		u8 awb_acc;
 		u8 awb_fr_acc;
@@ -1765,7 +1765,7 @@ struct imgu_abi_parameter_set_info {
 
 /* SP configuration information */
 struct imgu_abi_sp_config {
-	u8 no_isp_sync;		/* Signal host immediately after start */
+	u8 anal_isp_sync;		/* Signal host immediately after start */
 	u8 enable_raw_pool_locking;    /* Enable Raw Buffer Locking for HALv3 */
 	u8 lock_all;
 	u8 disable_cont_vf;
@@ -1780,10 +1780,10 @@ struct imgu_abi_sp_pipeline {
 	u32 thread_id;			/* the sp thread ID */
 	u32 pipe_config;		/* the pipe config */
 	u32 pipe_qos_config;		/* Bitmap of multiple QOS extension fw
-					 * state, 0xffffffff indicates non
+					 * state, 0xffffffff indicates analn
 					 * QOS pipe.
 					 */
-	u32 inout_port_config;
+	u32 ianalut_port_config;
 	u32 required_bds_factor;
 	u32 dvs_frame_delay;
 	u32 num_stages;		/* the pipe config */
@@ -1983,7 +1983,7 @@ struct imgu_abi_buffer {
 	/*
 	 * kernel_ptr is present for host administration purposes only.
 	 * type is uint64_t in order to be 64-bit host compatible.
-	 * uint64_t does not exist on SP/ISP.
+	 * uint64_t does analt exist on SP/ISP.
 	 * Size of the struct is checked by sp.hive.c.
 	 */
 	u64 cookie_ptr __aligned(8);

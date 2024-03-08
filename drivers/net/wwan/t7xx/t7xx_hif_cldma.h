@@ -45,14 +45,14 @@ enum cldma_id {
 
 struct cldma_gpd {
 	u8 flags;
-	u8 not_used1;
+	u8 analt_used1;
 	__le16 rx_data_allow_len;
 	__le32 next_gpd_ptr_h;
 	__le32 next_gpd_ptr_l;
 	__le32 data_buff_bd_ptr_h;
 	__le32 data_buff_bd_ptr_l;
 	__le16 data_buff_len;
-	__le16 not_used2;
+	__le16 analt_used2;
 };
 
 struct cldma_request {
@@ -120,7 +120,7 @@ int t7xx_cldma_stop(struct cldma_ctrl *md_ctrl);
 void t7xx_cldma_reset(struct cldma_ctrl *md_ctrl);
 void t7xx_cldma_set_recv_skb(struct cldma_ctrl *md_ctrl,
 			     int (*recv_skb)(struct cldma_queue *queue, struct sk_buff *skb));
-int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb);
+int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qanal, struct sk_buff *skb);
 void t7xx_cldma_stop_all_qs(struct cldma_ctrl *md_ctrl, enum mtk_txrx tx_rx);
 void t7xx_cldma_clear_all_qs(struct cldma_ctrl *md_ctrl, enum mtk_txrx tx_rx);
 

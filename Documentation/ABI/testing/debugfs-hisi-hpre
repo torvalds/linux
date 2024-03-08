@@ -15,7 +15,7 @@ What:		/sys/kernel/debug/hisi_hpre/<bdf>/rdclr_en
 Date:		Sep 2019
 Contact:	linux-crypto@vger.kernel.org
 Description:	HPRE cores debug registers read clear control. 1 means enable
-		register read clear, otherwise 0. Writing to this file has no
+		register read clear, otherwise 0. Writing to this file has anal
 		functional effect, only enable or disable counters clear after
 		reading of these registers.
 		Only available for PF.
@@ -62,7 +62,7 @@ Date:		Sep 2019
 Contact:	linux-crypto@vger.kernel.org
 Description:	QM debug registers(regs) read clear control. 1 means enable
 		register read clear, otherwise 0.
-		Writing to this file has no functional effect, only enable or
+		Writing to this file has anal functional effect, only enable or
 		disable counters clear after reading of these registers.
 		Only available for PF.
 
@@ -71,83 +71,83 @@ Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the number of invalid interrupts for
 		QM task completion.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/aeq_irq
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the number of QM async event queue interrupts.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
-What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/abnormal_irq
+What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/abanalrmal_irq
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
-Description:	Dump the number of interrupts for QM abnormal event.
-		Available for both PF and VF, and take no other effect on HPRE.
+Description:	Dump the number of interrupts for QM abanalrmal event.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/create_qp_err
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the number of queue allocation errors.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/mb_err
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the number of failed QM mailbox commands.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/status
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the status of the QM.
 		Two states: work, stop.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/diff_regs
 Date:		Mar 2022
 Contact:	linux-crypto@vger.kernel.org
 Description:	QM debug registers(regs) read hardware register value. This
-		node is used to show the change of the qm register values. This
-		node can be help users to check the change of register values.
+		analde is used to show the change of the qm register values. This
+		analde can be help users to check the change of register values.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/diff_regs
 Date:		Mar 2022
 Contact:	linux-crypto@vger.kernel.org
 Description:	HPRE debug registers(regs) read hardware register value. This
-		node is used to show the change of the register values. This
-		node can be help users to check the change of register values.
+		analde is used to show the change of the register values. This
+		analde can be help users to check the change of register values.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/send_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of sent requests.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/recv_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of received requests.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/send_busy_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of requests sent
 		with returning busy.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/send_fail_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of completed but error requests.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/invalid_req_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of invalid requests being received.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/overtime_thrhld
 Date:		Apr 2020
@@ -155,10 +155,10 @@ Contact:	linux-crypto@vger.kernel.org
 Description:	Set the threshold time for counting the request which is
 		processed longer than the threshold.
 		0: disable(default), 1: 1 microsecond.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.
 
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/over_thrhld_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of time out requests.
-		Available for both PF and VF, and take no other effect on HPRE.
+		Available for both PF and VF, and take anal other effect on HPRE.

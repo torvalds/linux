@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * VAS user space API for its accelerators (Only NX-GZIP is supported now)
+ * VAS user space API for its accelerators (Only NX-GZIP is supported analw)
  * Copyright (C) 2019 Haren Myneni, IBM Corp
  */
 
@@ -20,7 +20,7 @@
 #include <uapi/asm/vas-api.h>
 
 /*
- * The driver creates the device node that can be used as follows:
+ * The driver creates the device analde that can be used as follows:
  * For NX-GZIP
  *
  *	fd = open("/dev/crypto/nx-gzip", O_RDWR);
@@ -38,7 +38,7 @@
 
 /*
  * Wrapper object for the nx-gzip device - there is just one instance of
- * this node for the whole system.
+ * this analde for the whole system.
  */
 static struct coproc_dev {
 	struct cdev cdev;
@@ -55,7 +55,7 @@ struct coproc_instance {
 	struct vas_window *txwin;
 };
 
-static char *coproc_devnode(const struct device *dev, umode_t *mode)
+static char *coproc_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "crypto/%s", dev_name(dev));
 }
@@ -66,11 +66,11 @@ static char *coproc_devnode(const struct device *dev, umode_t *mode)
 int get_vas_user_win_ref(struct vas_user_win_ref *task_ref)
 {
 	/*
-	 * Window opened by a child thread may not be closed when
+	 * Window opened by a child thread may analt be closed when
 	 * it exits. So take reference to its pid and release it
 	 * when the window is free by parent thread.
 	 * Acquire a reference to the task's pid to make sure
-	 * pid will not be re-used - needed only for multithread
+	 * pid will analt be re-used - needed only for multithread
 	 * applications.
 	 */
 	task_ref->pid = get_task_pid(current, PIDTYPE_PID);
@@ -80,7 +80,7 @@ int get_vas_user_win_ref(struct vas_user_win_ref *task_ref)
 	task_ref->mm = get_task_mm(current);
 	if (!task_ref->mm) {
 		put_pid(task_ref->pid);
-		pr_err("pid(%d): mm_struct is not found\n",
+		pr_err("pid(%d): mm_struct is analt found\n",
 				current->pid);
 		return -EPERM;
 	}
@@ -91,7 +91,7 @@ int get_vas_user_win_ref(struct vas_user_win_ref *task_ref)
 	 * Process closes window during exit. In the case of
 	 * multithread application, the child thread can open
 	 * window and can exit without closing it. So takes tgid
-	 * reference until window closed to make sure tgid is not
+	 * reference until window closed to make sure tgid is analt
 	 * reused.
 	 */
 	task_ref->tgid = find_get_pid(task_tgid_vnr(current));
@@ -116,7 +116,7 @@ static bool ref_get_pid_and_task(struct vas_user_win_ref *task_ref,
 		tsk = get_pid_task(pid, PIDTYPE_PID);
 		/*
 		 * Parent thread (tgid) will be closing window when it
-		 * exits. So should not get here.
+		 * exits. So should analt get here.
 		 */
 		if (WARN_ON_ONCE(!tsk))
 			return false;
@@ -156,8 +156,8 @@ void vas_update_csb(struct coprocessor_request_block *crb,
 	int rc;
 
 	/*
-	 * NX user space windows can not be opened for task->mm=NULL
-	 * and faults will not be generated for kernel requests.
+	 * NX user space windows can analt be opened for task->mm=NULL
+	 * and faults will analt be generated for kernel requests.
 	 */
 	if (WARN_ON_ONCE(!task_ref->mm))
 		return;
@@ -187,7 +187,7 @@ void vas_update_csb(struct coprocessor_request_block *crb,
 	 * pages faults on these requests. Update CSB with translation
 	 * error and fault address. If csb_addr passed by user space is
 	 * invalid, send SEGV signal to pid saved in window. If the
-	 * child thread is not running, send the signal to tgid.
+	 * child thread is analt running, send the signal to tgid.
 	 * Parent thread (tgid) will close this window upon its exit.
 	 *
 	 * pid and mm references are taken when window is opened by
@@ -206,7 +206,7 @@ void vas_update_csb(struct coprocessor_request_block *crb,
 	 */
 	if (!rc) {
 		csb.flags = CSB_V;
-		/* Make sure update to csb.flags is visible now */
+		/* Make sure update to csb.flags is visible analw */
 		smp_mb();
 		rc = copy_to_user(csb_addr, &csb, sizeof(u8));
 	}
@@ -222,15 +222,15 @@ void vas_update_csb(struct coprocessor_request_block *crb,
 			csb_addr, pid_vnr(pid));
 
 	clear_siginfo(&info);
-	info.si_signo = SIGSEGV;
-	info.si_errno = EFAULT;
+	info.si_siganal = SIGSEGV;
+	info.si_erranal = EFAULT;
 	info.si_code = SEGV_MAPERR;
 	info.si_addr = csb_addr;
 	/*
 	 * process will be polling on csb.flags after request is sent to
-	 * NX. So generally CSB update should not fail except when an
+	 * NX. So generally CSB update should analt fail except when an
 	 * application passes invalid csb_addr. So an error message will
-	 * be displayed and leave it to user space whether to ignore or
+	 * be displayed and leave it to user space whether to iganalre or
 	 * handle this signal.
 	 */
 	rcu_read_lock();
@@ -262,15 +262,15 @@ void vas_dump_crb(struct coprocessor_request_block *crb)
 		nx->flags, nx->fault_status);
 }
 
-static int coproc_open(struct inode *inode, struct file *fp)
+static int coproc_open(struct ianalde *ianalde, struct file *fp)
 {
 	struct coproc_instance *cp_inst;
 
 	cp_inst = kzalloc(sizeof(*cp_inst), GFP_KERNEL);
 	if (!cp_inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cp_inst->coproc = container_of(inode->i_cdev, struct coproc_dev,
+	cp_inst->coproc = container_of(ianalde->i_cdev, struct coproc_dev,
 					cdev);
 	fp->private_data = cp_inst;
 
@@ -305,7 +305,7 @@ static int coproc_ioc_tx_win_open(struct file *fp, unsigned long arg)
 	}
 
 	if (!cp_inst->coproc->vops || !cp_inst->coproc->vops->open_win) {
-		pr_err("VAS API is not registered\n");
+		pr_err("VAS API is analt registered\n");
 		return -EACCES;
 	}
 
@@ -323,7 +323,7 @@ static int coproc_ioc_tx_win_open(struct file *fp, unsigned long arg)
 	return 0;
 }
 
-static int coproc_release(struct inode *inode, struct file *fp)
+static int coproc_release(struct ianalde *ianalde, struct file *fp)
 {
 	struct coproc_instance *cp_inst = fp->private_data;
 	int rc;
@@ -342,7 +342,7 @@ static int coproc_release(struct inode *inode, struct file *fp)
 	fp->private_data = NULL;
 
 	/*
-	 * We don't know here if user has other receive windows
+	 * We don't kanalw here if user has other receive windows
 	 * open, so we can't really call clear_thread_tidr().
 	 * So, once the process calls set_thread_tidr(), the
 	 * TIDR value sticks around until process exits, resulting
@@ -376,10 +376,10 @@ static int do_fail_paste(void)
 		return -EAGAIN;
 
 	/*
-	 * Not a paste instruction, driver may fail the fault.
+	 * Analt a paste instruction, driver may fail the fault.
 	 */
 	if ((instword & PPC_INST_PASTE_MASK) != PPC_INST_PASTE)
-		return -ENOENT;
+		return -EANALENT;
 
 	regs->ccr &= ~0xe0000000;	/* Clear CR0[0-2] to fail paste */
 	regs_add_return_ip(regs, 4);	/* Emulate the paste */
@@ -390,7 +390,7 @@ static int do_fail_paste(void)
 /*
  * This fault handler is invoked when the core generates page fault on
  * the paste address. Happens if the kernel closes window in hypervisor
- * (on pseries) due to lost credit or the paste address is not mapped.
+ * (on pseries) due to lost credit or the paste address is analt mapped.
  */
 static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 {
@@ -403,7 +403,7 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 	int ret;
 
 	/*
-	 * window is not opened. Shouldn't expect this error.
+	 * window is analt opened. Shouldn't expect this error.
 	 */
 	if (!cp_inst || !cp_inst->txwin) {
 		pr_err("Unexpected fault on paste address with TX window closed\n");
@@ -421,7 +421,7 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 	 * issue NX request.
 	 */
 	if (txwin->task_ref.vma != vmf->vma) {
-		pr_err("No previous mapping with paste address\n");
+		pr_err("Anal previous mapping with paste address\n");
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -446,7 +446,7 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 	/*
 	 * Received this fault due to closing the actual window.
 	 * It can happen during migration or lost credits.
-	 * Since no mapping, return the paste instruction failure
+	 * Since anal mapping, return the paste instruction failure
 	 * to the user space.
 	 */
 	ret = do_fail_paste();
@@ -459,7 +459,7 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 	 * nr_used_credits > nr_total_credits when lost credits
 	 */
 	if (!ret || (ret == -EAGAIN))
-		return VM_FAULT_NOPAGE;
+		return VM_FAULT_ANALPAGE;
 
 	return VM_FAULT_SIGBUS;
 }
@@ -487,12 +487,12 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 
 	/* Ensure instance has an open send window */
 	if (!txwin) {
-		pr_err("No send window open?\n");
+		pr_err("Anal send window open?\n");
 		return -EINVAL;
 	}
 
 	if (!cp_inst->coproc->vops || !cp_inst->coproc->vops->paste_addr) {
-		pr_err("VAS API is not registered\n");
+		pr_err("VAS API is analt registered\n");
 		return -EACCES;
 	}
 
@@ -500,7 +500,7 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 	 * The initial mmap is done after the window is opened
 	 * with ioctl. But before mmap(), this window can be closed in
 	 * the hypervisor due to lost credit (core removal on pseries).
-	 * So if the window is not active, return mmap() failure with
+	 * So if the window is analt active, return mmap() failure with
 	 * -EACCES and expects the user space reissue mmap() when it
 	 * is active again or open new window when the credit is available.
 	 * mmap_mutex protects the paste address mmap() with DLPAR
@@ -509,7 +509,7 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 	 */
 	mutex_lock(&txwin->task_ref.mmap_mutex);
 	if (txwin->status != VAS_WIN_ACTIVE) {
-		pr_err("Window is not active\n");
+		pr_err("Window is analt active\n");
 		rc = -EACCES;
 		goto out;
 	}
@@ -561,7 +561,7 @@ static struct file_operations coproc_fops = {
 };
 
 /*
- * Supporting only nx-gzip coprocessor type now, but this API code
+ * Supporting only nx-gzip coprocessor type analw, but this API code
  * extended to other coprocessor types later.
  */
 int vas_register_coproc_api(struct module *mod, enum vas_cop_type cop_type,
@@ -569,7 +569,7 @@ int vas_register_coproc_api(struct module *mod, enum vas_cop_type cop_type,
 			    const struct vas_user_win_ops *vops)
 {
 	int rc = -EINVAL;
-	dev_t devno;
+	dev_t devanal;
 
 	rc = alloc_chrdev_region(&coproc_device.devt, 1, 1, name);
 	if (rc) {
@@ -578,7 +578,7 @@ int vas_register_coproc_api(struct module *mod, enum vas_cop_type cop_type,
 	}
 
 	pr_devel("%s device allocated, dev [%i,%i]\n", name,
-			MAJOR(coproc_device.devt), MINOR(coproc_device.devt));
+			MAJOR(coproc_device.devt), MIANALR(coproc_device.devt));
 
 	coproc_device.class = class_create(name);
 	if (IS_ERR(coproc_device.class)) {
@@ -586,29 +586,29 @@ int vas_register_coproc_api(struct module *mod, enum vas_cop_type cop_type,
 		pr_err("Unable to create %s class %d\n", name, rc);
 		goto err_class;
 	}
-	coproc_device.class->devnode = coproc_devnode;
+	coproc_device.class->devanalde = coproc_devanalde;
 	coproc_device.cop_type = cop_type;
 	coproc_device.vops = vops;
 
 	coproc_fops.owner = mod;
 	cdev_init(&coproc_device.cdev, &coproc_fops);
 
-	devno = MKDEV(MAJOR(coproc_device.devt), 0);
-	rc = cdev_add(&coproc_device.cdev, devno, 1);
+	devanal = MKDEV(MAJOR(coproc_device.devt), 0);
+	rc = cdev_add(&coproc_device.cdev, devanal, 1);
 	if (rc) {
 		pr_err("cdev_add() failed %d\n", rc);
 		goto err_cdev;
 	}
 
 	coproc_device.device = device_create(coproc_device.class, NULL,
-			devno, NULL, name, MINOR(devno));
+			devanal, NULL, name, MIANALR(devanal));
 	if (IS_ERR(coproc_device.device)) {
 		rc = PTR_ERR(coproc_device.device);
-		pr_err("Unable to create coproc-%d %d\n", MINOR(devno), rc);
+		pr_err("Unable to create coproc-%d %d\n", MIANALR(devanal), rc);
 		goto err;
 	}
 
-	pr_devel("Added dev [%d,%d]\n", MAJOR(devno), MINOR(devno));
+	pr_devel("Added dev [%d,%d]\n", MAJOR(devanal), MIANALR(devanal));
 
 	return 0;
 
@@ -623,11 +623,11 @@ err_class:
 
 void vas_unregister_coproc_api(void)
 {
-	dev_t devno;
+	dev_t devanal;
 
 	cdev_del(&coproc_device.cdev);
-	devno = MKDEV(MAJOR(coproc_device.devt), 0);
-	device_destroy(coproc_device.class, devno);
+	devanal = MKDEV(MAJOR(coproc_device.devt), 0);
+	device_destroy(coproc_device.class, devanal);
 
 	class_destroy(coproc_device.class);
 	unregister_chrdev_region(coproc_device.devt, 1);

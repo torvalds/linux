@@ -61,7 +61,7 @@ struct xe_gt *xe_gt_alloc(struct xe_tile *tile)
 
 	gt = drmm_kzalloc(&tile_to_xe(tile)->drm, sizeof(*gt), GFP_KERNEL);
 	if (!gt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gt->tile = tile;
 	gt->ordered_wq = alloc_ordered_workqueue("gt-ordered-wq", 0);
@@ -72,7 +72,7 @@ struct xe_gt *xe_gt_alloc(struct xe_tile *tile)
 void xe_gt_sanitize(struct xe_gt *gt)
 {
 	/*
-	 * FIXME: if xe_uc_sanitize is called here, on TGL driver will not
+	 * FIXME: if xe_uc_sanitize is called here, on TGL driver will analt
 	 * reload
 	 */
 	gt->uc.guc.submission_state.enabled = false;
@@ -91,7 +91,7 @@ static void gt_fini(struct drm_device *drm, void *arg)
 
 static void gt_reset_worker(struct work_struct *w);
 
-static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
+static int emit_analp_job(struct xe_gt *gt, struct xe_exec_queue *q)
 {
 	struct xe_sched_job *job;
 	struct xe_bb *bb;
@@ -144,7 +144,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	int count = 0;
 
 	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
-		/* Big enough to emit all of the context's 3DSTATE */
+		/* Big eanalugh to emit all of the context's 3DSTATE */
 		bb = xe_bb_new(gt, xe_lrc_size(gt_to_xe(gt), q->hwe->class), false);
 	else
 		/* Just pick a large BB size */
@@ -167,7 +167,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 			u32 val;
 
 			/*
-			 * Skip reading the register if it's not really needed
+			 * Skip reading the register if it's analt really needed
 			 */
 			if (reg.masked)
 				val = entry->clr_bits << 16;
@@ -217,7 +217,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 	int err = 0;
 
 	for_each_hw_engine(hwe, gt, id) {
-		struct xe_exec_queue *q, *nop_q;
+		struct xe_exec_queue *q, *analp_q;
 		void *default_lrc;
 
 		if (gt->default_lrc[hwe->class])
@@ -232,7 +232,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 					   xe_lrc_size(xe, hwe->class),
 					   GFP_KERNEL);
 		if (!default_lrc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance), 1,
 					 hwe, EXEC_QUEUE_FLAG_KERNEL);
@@ -243,7 +243,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 			return err;
 		}
 
-		/* Prime golden LRC with known good state */
+		/* Prime golden LRC with kanalwn good state */
 		err = emit_wa_job(gt, q);
 		if (err) {
 			xe_gt_err(gt, "hwe %s: emit_wa_job failed (%pe) guc_id=%u\n",
@@ -251,29 +251,29 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 			goto put_exec_queue;
 		}
 
-		nop_q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance),
+		analp_q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance),
 					     1, hwe, EXEC_QUEUE_FLAG_KERNEL);
-		if (IS_ERR(nop_q)) {
-			err = PTR_ERR(nop_q);
-			xe_gt_err(gt, "hwe %s: nop xe_exec_queue_create failed (%pe)\n",
-				  hwe->name, nop_q);
+		if (IS_ERR(analp_q)) {
+			err = PTR_ERR(analp_q);
+			xe_gt_err(gt, "hwe %s: analp xe_exec_queue_create failed (%pe)\n",
+				  hwe->name, analp_q);
 			goto put_exec_queue;
 		}
 
 		/* Switch to different LRC */
-		err = emit_nop_job(gt, nop_q);
+		err = emit_analp_job(gt, analp_q);
 		if (err) {
-			xe_gt_err(gt, "hwe %s: nop emit_nop_job failed (%pe) guc_id=%u\n",
-				  hwe->name, ERR_PTR(err), nop_q->guc->id);
-			goto put_nop_q;
+			xe_gt_err(gt, "hwe %s: analp emit_analp_job failed (%pe) guc_id=%u\n",
+				  hwe->name, ERR_PTR(err), analp_q->guc->id);
+			goto put_analp_q;
 		}
 
 		/* Reload golden LRC to record the effect of any indirect W/A */
-		err = emit_nop_job(gt, q);
+		err = emit_analp_job(gt, q);
 		if (err) {
-			xe_gt_err(gt, "hwe %s: emit_nop_job failed (%pe) guc_id=%u\n",
+			xe_gt_err(gt, "hwe %s: emit_analp_job failed (%pe) guc_id=%u\n",
 				  hwe->name, ERR_PTR(err), q->guc->id);
-			goto put_nop_q;
+			goto put_analp_q;
 		}
 
 		xe_map_memcpy_from(xe, default_lrc,
@@ -282,8 +282,8 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 				   xe_lrc_size(xe, hwe->class));
 
 		gt->default_lrc[hwe->class] = default_lrc;
-put_nop_q:
-		xe_exec_queue_put(nop_q);
+put_analp_q:
+		xe_exec_queue_put(analp_q);
 put_exec_queue:
 		xe_exec_queue_put(q);
 		if (err)
@@ -370,7 +370,7 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	/* Enable per hw engine IRQs */
 	xe_irq_enable_hwe(gt);
 
-	/* Rerun MCR init as we now have hw engine list */
+	/* Rerun MCR init as we analw have hw engine list */
 	xe_gt_mcr_init(gt);
 
 	err = xe_hw_engines_init_early(gt);
@@ -434,7 +434,7 @@ static int all_fw_domain_init(struct xe_gt *gt)
 
 	if (!xe_gt_is_media_type(gt)) {
 		/*
-		 * USM has its only SA pool to non-block behind user operations
+		 * USM has its only SA pool to analn-block behind user operations
 		 */
 		if (gt_to_xe(gt)->info.has_usm) {
 			struct xe_device *xe = gt_to_xe(gt);
@@ -598,7 +598,7 @@ static int gt_reset(struct xe_gt *gt)
 
 	/* We only support GT resets with GuC submission */
 	if (!xe_device_uc_enabled(gt_to_xe(gt)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	xe_gt_info(gt, "reset started\n");
 

@@ -466,21 +466,21 @@ static struct map_desc da830_io_desc[] = {
 static struct davinci_id da830_ids[] = {
 	{
 		.variant	= 0x0,
-		.part_no	= 0xb7df,
+		.part_anal	= 0xb7df,
 		.manufacturer	= 0x017,	/* 0x02f >> 1 */
 		.cpu_id		= DAVINCI_CPU_ID_DA830,
 		.name		= "da830/omap-l137 rev1.0",
 	},
 	{
 		.variant	= 0x8,
-		.part_no	= 0xb7df,
+		.part_anal	= 0xb7df,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DA830,
 		.name		= "da830/omap-l137 rev1.1",
 	},
 	{
 		.variant	= 0x9,
-		.part_no	= 0xb7df,
+		.part_anal	= 0xb7df,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DA830,
 		.name		= "da830/omap-l137 rev2.0",

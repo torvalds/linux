@@ -76,7 +76,7 @@ properties:
       Sequence of ULPI address and value pairs to
       program into the ULPI_EXT_VENDOR_SPECIFIC area.
       This is related to Device Mode Eye Diagram test.
-    maxItems: 32 # no hard limit
+    maxItems: 32 # anal hard limit
     items:
       items:
         - description: >

@@ -34,7 +34,7 @@ enum {
 	BCM54XX_FIBER,
 	BCM54XX_GBIC,
 	BCM54XX_SGMII,
-	BCM54XX_UNKNOWN,
+	BCM54XX_UNKANALWN,
 };
 
 /* An instance of a PHY, partially borrowed from mii_if_info */
@@ -47,7 +47,7 @@ struct mii_phy
 	/* 1: autoneg enabled, 0: disabled */
 	int			autoneg;
 
-	/* forced speed & duplex (no autoneg)
+	/* forced speed & duplex (anal autoneg)
 	 * partner speed & duplex & pause (autoneg)
 	 */
 	int			speed;

@@ -37,7 +37,7 @@ static inline int mc13xxx_irq_ack(struct mc13xxx *mc13xxx, int irq)
 	return 0;
 }
 
-static inline int mc13xxx_irq_request_nounmask(struct mc13xxx *mc13xxx, int irq,
+static inline int mc13xxx_irq_request_analunmask(struct mc13xxx *mc13xxx, int irq,
 					       irq_handler_t handler,
 					       const char *name, void *dev)
 {
@@ -81,7 +81,7 @@ struct regulator_init_data;
 struct mc13xxx_regulator_init_data {
 	int id;
 	struct regulator_init_data *init_data;
-	struct device_node *node;
+	struct device_analde *analde;
 };
 
 struct mc13xxx_regulator_platform_data {

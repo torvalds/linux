@@ -5,7 +5,7 @@
 #include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/rwsem.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/refcount.h>
@@ -50,7 +50,7 @@ struct ipc_namespace {
 	 */
 	int		shm_rmid_forced;
 
-	struct notifier_block ipcns_nb;
+	struct analtifier_block ipcns_nb;
 
 	/* The kern_mount of the mqueuefs sb.  We take a ref on it */
 	struct vfsmount	*mq_mnt;
@@ -75,7 +75,7 @@ struct ipc_namespace {
 	struct user_namespace *user_ns;
 	struct ucounts *ucounts;
 
-	struct llist_node mnt_llist;
+	struct llist_analde mnt_llist;
 
 	struct ns_common ns;
 } __randomize_layout;
@@ -103,10 +103,10 @@ extern int mq_init_ns(struct ipc_namespace *ns);
  *   suitably high)
  *
  * POSIX Requirements:
- *   Per app minimum openable message queues - 8.  This does not map well
+ *   Per app minimum openable message queues - 8.  This does analt map well
  *     to the fact that we limit the number of queues on a per namespace
- *     basis instead of a per app basis.  So, make the default high enough
- *     that no given app should have a hard time opening 8 queues.
+ *     basis instead of a per app basis.  So, make the default high eanalugh
+ *     that anal given app should have a hard time opening 8 queues.
  *   Minimum maximum for HARD_MSGMAX - 32767.  I bumped this to 65536.
  *   Minimum maximum for HARD_MSGSIZEMAX - POSIX is silent on this.  However,
  *     we have run into a situation where running applications in the wild
@@ -139,10 +139,10 @@ static inline struct ipc_namespace *get_ipc_ns(struct ipc_namespace *ns)
 	return ns;
 }
 
-static inline struct ipc_namespace *get_ipc_ns_not_zero(struct ipc_namespace *ns)
+static inline struct ipc_namespace *get_ipc_ns_analt_zero(struct ipc_namespace *ns)
 {
 	if (ns) {
-		if (refcount_inc_not_zero(&ns->ns.count))
+		if (refcount_inc_analt_zero(&ns->ns.count))
 			return ns;
 	}
 
@@ -165,7 +165,7 @@ static inline struct ipc_namespace *get_ipc_ns(struct ipc_namespace *ns)
 	return ns;
 }
 
-static inline struct ipc_namespace *get_ipc_ns_not_zero(struct ipc_namespace *ns)
+static inline struct ipc_namespace *get_ipc_ns_analt_zero(struct ipc_namespace *ns)
 {
 	return ns;
 }

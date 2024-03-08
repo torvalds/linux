@@ -26,7 +26,7 @@
 #define PDC_PAT_CELL_GET_REMOTE_PDH_SZ 16L /* Return Remote PDH Buffer Size */
 #define PDC_PAT_CELL_GET_REMOTE_PDH 17L /* Read Remote PDH Buffer */
 #define PDC_PAT_CELL_GET_DBG_INFO   128L  /* Return DBG Buffer Info */
-#define PDC_PAT_CELL_CHANGE_ALIAS   129L  /* Change Non-Equivalent Alias Chacking */
+#define PDC_PAT_CELL_CHANGE_ALIAS   129L  /* Change Analn-Equivalent Alias Chacking */
 
 
 /*
@@ -52,7 +52,7 @@
 #define PAT_PBNUM           0         /* PCI Bus Number */
 #define PAT_LMMIO           1         /* < 4G MMIO Space */
 #define PAT_GMMIO           2         /* > 4G MMIO Space */
-#define PAT_NPIOP           3         /* Non Postable I/O Port Space */
+#define PAT_NPIOP           3         /* Analn Postable I/O Port Space */
 #define PAT_PIOP            4         /* Postable I/O Port Space */
 #define PAT_AHPA            5         /* Addional HPA Space */
 #define PAT_UFO             6         /* HPA Space (UFO for Mariposa) */
@@ -91,10 +91,10 @@
 
 #define PDC_PAT_EVENT              	68L
 #define PDC_PAT_EVENT_GET_CAPS     	0L /* Get Capabilities */
-#define PDC_PAT_EVENT_SET_MODE     	1L /* Set Notification Mode */
+#define PDC_PAT_EVENT_SET_MODE     	1L /* Set Analtification Mode */
 #define PDC_PAT_EVENT_SCAN         	2L /* Scan Event */
 #define PDC_PAT_EVENT_HANDLE       	3L /* Handle Event */
-#define PDC_PAT_EVENT_GET_NB_CALL  	4L /* Get Non-Blocking call Args */
+#define PDC_PAT_EVENT_GET_NB_CALL  	4L /* Get Analn-Blocking call Args */
 
 /*  PDC PAT HPMC -- Cause processor to go into spin loop, and wait
  *  			for wake up from Monarch Processor.
@@ -166,11 +166,11 @@
 #define PDC_PAT_MEM_GET_TBL        	132L /* Get Memory Table          */
 
 
-/* PDC PAT NVOLATILE  --  Access Non-Volatile Memory */
+/* PDC PAT NVOLATILE  --  Access Analn-Volatile Memory */
 
 #define PDC_PAT_NVOLATILE	73L
-#define PDC_PAT_NVOLATILE_READ		0L /* Read Non-Volatile Memory   */
-#define PDC_PAT_NVOLATILE_WRITE		1L /* Write Non-Volatile Memory  */
+#define PDC_PAT_NVOLATILE_READ		0L /* Read Analn-Volatile Memory   */
+#define PDC_PAT_NVOLATILE_WRITE		1L /* Write Analn-Volatile Memory  */
 #define PDC_PAT_NVOLATILE_GET_SIZE	2L /* Return size of NVM         */
 #define PDC_PAT_NVOLATILE_VERIFY	3L /* Verify contents of NVM     */
 #define PDC_PAT_NVOLATILE_INIT		4L /* Initialize NVM             */
@@ -182,7 +182,7 @@
 
 #define PDC_PAT_CAPABILITY_BIT_PDC_SERIALIZE	(1UL << 0)
 #define PDC_PAT_CAPABILITY_BIT_PDC_POLLING	(1UL << 1)
-#define PDC_PAT_CAPABILITY_BIT_PDC_NBC		(1UL << 2) /* non-blocking calls */
+#define PDC_PAT_CAPABILITY_BIT_PDC_NBC		(1UL << 2) /* analn-blocking calls */
 #define PDC_PAT_CAPABILITY_BIT_PDC_UFO		(1UL << 3)
 #define PDC_PAT_CAPABILITY_BIT_PDC_IODC_32	(1UL << 4)
 #define PDC_PAT_CAPABILITY_BIT_PDC_IODC_64	(1UL << 5)
@@ -218,7 +218,7 @@
 extern int pdc_pat_get_irt_size(unsigned long *num_entries, unsigned long cell_num);
 extern int pdc_pat_get_irt(void *r_addr, unsigned long cell_num);
 #else	/* ! CONFIG_64BIT */
-/* No PAT support for 32-bit kernels...sorry */
+/* Anal PAT support for 32-bit kernels...sorry */
 #define is_pdc_pat()	(0)
 #define pdc_pat_get_irt_size(num_entries, cell_numn)	PDC_BAD_PROC
 #define pdc_pat_get_irt(r_addr, cell_num)		PDC_BAD_PROC
@@ -303,7 +303,7 @@ struct pdc_pat_pd_addr_map_entry {
 *    2 = memory controller,        3 = system bus adapter,
 *    4 = local bus adapter,        5 = processor bus converter,
 *    6 = crossbar fabric connect,  7 = fabric interconnect,
-*    8 to 254 reserved,            255 = unknown.
+*    8 to 254 reserved,            255 = unkanalwn.
 * Bit  8 to 15 - DVI
 * Bit 16 to 23 - IOC functions
 * Bit 24 to 39 - reserved

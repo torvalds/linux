@@ -101,7 +101,7 @@ r8a779f0_eth_serdes_common_setting(struct r8a779f0_eth_serdes_channel *channel)
 		r8a779f0_eth_serdes_write32(dd->addr, 0x01e0, 0x180, 0x003d);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -156,7 +156,7 @@ r8a779f0_eth_serdes_chan_setting(struct r8a779f0_eth_serdes_channel *channel)
 		r8a779f0_eth_serdes_write32(channel->addr, 0x0000, 0x1f80, 0x0208);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -180,7 +180,7 @@ r8a779f0_eth_serdes_chan_speed(struct r8a779f0_eth_serdes_channel *channel)
 		r8a779f0_eth_serdes_write32(channel->addr, 0x0008, 0x1f80, 0x0000);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -303,7 +303,7 @@ static int r8a779f0_eth_serdes_set_mode(struct phy *p, enum phy_mode mode,
 	struct r8a779f0_eth_serdes_channel *channel = phy_get_drvdata(p);
 
 	if (mode != PHY_MODE_ETHERNET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (submode) {
 	case PHY_INTERFACE_MODE_GMII:
@@ -312,7 +312,7 @@ static int r8a779f0_eth_serdes_set_mode(struct phy *p, enum phy_mode mode,
 		channel->phy_interface = submode;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -339,7 +339,7 @@ static struct phy *r8a779f0_eth_serdes_xlate(struct device *dev,
 	struct r8a779f0_eth_serdes_drv_data *dd = dev_get_drvdata(dev);
 
 	if (args->args[0] >= R8A779F0_ETH_SERDES_NUM)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return dd->channel[args->args[0]].phy;
 }
@@ -358,7 +358,7 @@ static int r8a779f0_eth_serdes_probe(struct platform_device *pdev)
 
 	dd = devm_kzalloc(&pdev->dev, sizeof(*dd), GFP_KERNEL);
 	if (!dd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dd);
 	dd->pdev = pdev;

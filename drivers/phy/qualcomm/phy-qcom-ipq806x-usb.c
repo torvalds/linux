@@ -23,7 +23,7 @@
 #define HSUSB_CTRL_UTMI_OTG_VBUS_VALID	BIT(20)
 #define HSUSB_CTRL_USE_CLKCORE		BIT(18)
 #define HSUSB_CTRL_DPSEHV_CLAMP		BIT(17)
-#define HSUSB_CTRL_COMMONONN		BIT(11)
+#define HSUSB_CTRL_COMMOANALNN		BIT(11)
 #define HSUSB_CTRL_ID_HV_CLAMP		BIT(9)
 #define HSUSB_CTRL_OTGSESSVLD_CLAMP	BIT(8)
 #define HSUSB_CTRL_CLAMP_EN		BIT(7)
@@ -226,7 +226,7 @@ static int usb_ss_read_phycreg(struct usb_phy *phy_dwc3,
 	/*
 	 * Due to hardware bug, first read of SSPHY register might be
 	 * incorrect. Hence as workaround, SW should perform SSPHY register
-	 * read twice, but use only second read and ignore first read.
+	 * read twice, but use only second read and iganalre first read.
 	 */
 	writel(SS_CR_READ_REG, phy_dwc3->base + CR_PROTOCOL_READ_REG);
 
@@ -270,12 +270,12 @@ static int qcom_ipq806x_usb_hs_phy_init(struct phy *phy)
 	 * enable clamping, and disable RETENTION (power-on default is ENABLED)
 	 */
 	val = HSUSB_CTRL_DPSEHV_CLAMP | HSUSB_CTRL_DMSEHV_CLAMP |
-		HSUSB_CTRL_RETENABLEN  | HSUSB_CTRL_COMMONONN |
+		HSUSB_CTRL_RETENABLEN  | HSUSB_CTRL_COMMOANALNN |
 		HSUSB_CTRL_OTGSESSVLD_CLAMP | HSUSB_CTRL_ID_HV_CLAMP |
 		HSUSB_CTRL_UTMI_OTG_VBUS_VALID | HSUSB_CTRL_UTMI_CLK_EN |
 		HSUSB_CTRL_CLAMP_EN | 0x70;
 
-	/* use core clock if external reference is not present */
+	/* use core clock if external reference is analt present */
 	if (!phy_dwc3->xo_clk)
 		val |= HSUSB_CTRL_USE_CLKCORE;
 
@@ -489,7 +489,7 @@ static int qcom_ipq806x_usb_phy_probe(struct platform_device *pdev)
 
 	phy_dwc3 = devm_kzalloc(&pdev->dev, sizeof(*phy_dwc3), GFP_KERNEL);
 	if (!phy_dwc3)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = of_device_get_match_data(&pdev->dev);
 
@@ -503,12 +503,12 @@ static int qcom_ipq806x_usb_phy_probe(struct platform_device *pdev)
 
 	if (!phy_dwc3->base) {
 		dev_err(phy_dwc3->dev, "failed to map reg\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	phy_dwc3->ref_clk = devm_clk_get(phy_dwc3->dev, "ref");
 	if (IS_ERR(phy_dwc3->ref_clk)) {
-		dev_dbg(phy_dwc3->dev, "cannot get reference clock\n");
+		dev_dbg(phy_dwc3->dev, "cananalt get reference clock\n");
 		return PTR_ERR(phy_dwc3->ref_clk);
 	}
 
@@ -516,11 +516,11 @@ static int qcom_ipq806x_usb_phy_probe(struct platform_device *pdev)
 
 	phy_dwc3->xo_clk = devm_clk_get(phy_dwc3->dev, "xo");
 	if (IS_ERR(phy_dwc3->xo_clk)) {
-		dev_dbg(phy_dwc3->dev, "cannot get TCXO clock\n");
+		dev_dbg(phy_dwc3->dev, "cananalt get TCXO clock\n");
 		phy_dwc3->xo_clk = NULL;
 	}
 
-	/* Parse device node to probe HSIO settings */
+	/* Parse device analde to probe HSIO settings */
 	if (device_property_read_u32(&pdev->dev, "qcom,rx-eq",
 				     &phy_dwc3->rx_eq))
 		phy_dwc3->rx_eq = SSPHY_RX_EQ_VALUE;
@@ -532,7 +532,7 @@ static int qcom_ipq806x_usb_phy_probe(struct platform_device *pdev)
 	if (device_property_read_u32(&pdev->dev, "qcom,mpll", &phy_dwc3->mpll))
 		phy_dwc3->mpll = SSPHY_MPLL_VALUE;
 
-	generic_phy = devm_phy_create(phy_dwc3->dev, pdev->dev.of_node, &data->ops);
+	generic_phy = devm_phy_create(phy_dwc3->dev, pdev->dev.of_analde, &data->ops);
 
 	if (IS_ERR(generic_phy))
 		return PTR_ERR(generic_phy);
@@ -562,5 +562,5 @@ module_platform_driver(qcom_ipq806x_usb_phy_driver);
 MODULE_ALIAS("platform:phy-qcom-ipq806x-usb");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Andy Gross <agross@codeaurora.org>");
-MODULE_AUTHOR("Ivan T. Ivanov <iivanov@mm-sol.com>");
+MODULE_AUTHOR("Ivan T. Ivaanalv <iivaanalv@mm-sol.com>");
 MODULE_DESCRIPTION("DesignWare USB3 QCOM PHY driver");

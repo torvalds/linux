@@ -29,31 +29,31 @@ static void devm_extcon_dev_unreg(struct device *dev, void *res)
 	extcon_dev_unregister(*(struct extcon_dev **)res);
 }
 
-struct extcon_dev_notifier_devres {
+struct extcon_dev_analtifier_devres {
 	struct extcon_dev *edev;
 	unsigned int id;
-	struct notifier_block *nb;
+	struct analtifier_block *nb;
 };
 
-static void devm_extcon_dev_notifier_unreg(struct device *dev, void *res)
+static void devm_extcon_dev_analtifier_unreg(struct device *dev, void *res)
 {
-	struct extcon_dev_notifier_devres *this = res;
+	struct extcon_dev_analtifier_devres *this = res;
 
-	extcon_unregister_notifier(this->edev, this->id, this->nb);
+	extcon_unregister_analtifier(this->edev, this->id, this->nb);
 }
 
-static void devm_extcon_dev_notifier_all_unreg(struct device *dev, void *res)
+static void devm_extcon_dev_analtifier_all_unreg(struct device *dev, void *res)
 {
-	struct extcon_dev_notifier_devres *this = res;
+	struct extcon_dev_analtifier_devres *this = res;
 
-	extcon_unregister_notifier_all(this->edev, this->nb);
+	extcon_unregister_analtifier_all(this->edev, this->nb);
 }
 
 /**
  * devm_extcon_dev_allocate - Allocate managed extcon device
  * @dev:		the device owning the extcon device being created
  * @supported_cable:	the array of the supported external connectors
- *			ending with EXTCON_NONE.
+ *			ending with EXTCON_ANALNE.
  *
  * This function manages automatically the memory of extcon device using device
  * resource management and simplify the control of freeing the memory of extcon
@@ -69,7 +69,7 @@ struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
 
 	ptr = devres_alloc(devm_extcon_dev_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	edev = extcon_dev_allocate(supported_cable);
 	if (IS_ERR(edev)) {
@@ -122,7 +122,7 @@ int devm_extcon_dev_register(struct device *dev, struct extcon_dev *edev)
 
 	ptr = devres_alloc(devm_extcon_dev_unreg, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = extcon_dev_register(edev);
 	if (ret) {
@@ -153,34 +153,34 @@ void devm_extcon_dev_unregister(struct device *dev, struct extcon_dev *edev)
 EXPORT_SYMBOL_GPL(devm_extcon_dev_unregister);
 
 /**
- * devm_extcon_register_notifier() - Resource-managed extcon_register_notifier()
+ * devm_extcon_register_analtifier() - Resource-managed extcon_register_analtifier()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
  * @id:		the unique id among the extcon enumeration
- * @nb:		a notifier block to be registered
+ * @nb:		a analtifier block to be registered
  *
- * This function manages automatically the notifier of extcon device using
+ * This function manages automatically the analtifier of extcon device using
  * device resource management and simplify the control of unregistering
- * the notifier of extcon device.
+ * the analtifier of extcon device.
  *
- * Note that the second parameter given to the callback of nb (val) is
- * "old_state", not the current state. The current state can be retrieved
+ * Analte that the second parameter given to the callback of nb (val) is
+ * "old_state", analt the current state. The current state can be retrieved
  * by looking at the third pameter (edev pointer)'s state value.
  *
  * Returns 0 if success or negaive error number if failure.
  */
-int devm_extcon_register_notifier(struct device *dev, struct extcon_dev *edev,
-				unsigned int id, struct notifier_block *nb)
+int devm_extcon_register_analtifier(struct device *dev, struct extcon_dev *edev,
+				unsigned int id, struct analtifier_block *nb)
 {
-	struct extcon_dev_notifier_devres *ptr;
+	struct extcon_dev_analtifier_devres *ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_extcon_dev_notifier_unreg, sizeof(*ptr),
+	ptr = devres_alloc(devm_extcon_dev_analtifier_unreg, sizeof(*ptr),
 				GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = extcon_register_notifier(edev, id, nb);
+	ret = extcon_register_analtifier(edev, id, nb);
 	if (ret) {
 		devres_free(ptr);
 		return ret;
@@ -193,50 +193,50 @@ int devm_extcon_register_notifier(struct device *dev, struct extcon_dev *edev,
 
 	return 0;
 }
-EXPORT_SYMBOL(devm_extcon_register_notifier);
+EXPORT_SYMBOL(devm_extcon_register_analtifier);
 
 /**
- * devm_extcon_unregister_notifier()
- *			- Resource-managed extcon_unregister_notifier()
+ * devm_extcon_unregister_analtifier()
+ *			- Resource-managed extcon_unregister_analtifier()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
  * @id:		the unique id among the extcon enumeration
- * @nb:		a notifier block to be registered
+ * @nb:		a analtifier block to be registered
  */
-void devm_extcon_unregister_notifier(struct device *dev,
+void devm_extcon_unregister_analtifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb)
+				struct analtifier_block *nb)
 {
-	WARN_ON(devres_release(dev, devm_extcon_dev_notifier_unreg,
+	WARN_ON(devres_release(dev, devm_extcon_dev_analtifier_unreg,
 			       devm_extcon_dev_match, edev));
 }
-EXPORT_SYMBOL(devm_extcon_unregister_notifier);
+EXPORT_SYMBOL(devm_extcon_unregister_analtifier);
 
 /**
- * devm_extcon_register_notifier_all()
- *		- Resource-managed extcon_register_notifier_all()
+ * devm_extcon_register_analtifier_all()
+ *		- Resource-managed extcon_register_analtifier_all()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
- * @nb:		a notifier block to be registered
+ * @nb:		a analtifier block to be registered
  *
- * This function manages automatically the notifier of extcon device using
+ * This function manages automatically the analtifier of extcon device using
  * device resource management and simplify the control of unregistering
- * the notifier of extcon device. To get more information, refer that function.
+ * the analtifier of extcon device. To get more information, refer that function.
  *
  * Returns 0 if success or negaive error number if failure.
  */
-int devm_extcon_register_notifier_all(struct device *dev, struct extcon_dev *edev,
-				struct notifier_block *nb)
+int devm_extcon_register_analtifier_all(struct device *dev, struct extcon_dev *edev,
+				struct analtifier_block *nb)
 {
-	struct extcon_dev_notifier_devres *ptr;
+	struct extcon_dev_analtifier_devres *ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_extcon_dev_notifier_all_unreg, sizeof(*ptr),
+	ptr = devres_alloc(devm_extcon_dev_analtifier_all_unreg, sizeof(*ptr),
 				GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = extcon_register_notifier_all(edev, nb);
+	ret = extcon_register_analtifier_all(edev, nb);
 	if (ret) {
 		devres_free(ptr);
 		return ret;
@@ -248,20 +248,20 @@ int devm_extcon_register_notifier_all(struct device *dev, struct extcon_dev *ede
 
 	return 0;
 }
-EXPORT_SYMBOL(devm_extcon_register_notifier_all);
+EXPORT_SYMBOL(devm_extcon_register_analtifier_all);
 
 /**
- * devm_extcon_unregister_notifier_all()
- *		- Resource-managed extcon_unregister_notifier_all()
+ * devm_extcon_unregister_analtifier_all()
+ *		- Resource-managed extcon_unregister_analtifier_all()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
- * @nb:		a notifier block to be registered
+ * @nb:		a analtifier block to be registered
  */
-void devm_extcon_unregister_notifier_all(struct device *dev,
+void devm_extcon_unregister_analtifier_all(struct device *dev,
 				struct extcon_dev *edev,
-				struct notifier_block *nb)
+				struct analtifier_block *nb)
 {
-	WARN_ON(devres_release(dev, devm_extcon_dev_notifier_all_unreg,
+	WARN_ON(devres_release(dev, devm_extcon_dev_analtifier_all_unreg,
 			       devm_extcon_dev_match, edev));
 }
-EXPORT_SYMBOL(devm_extcon_unregister_notifier_all);
+EXPORT_SYMBOL(devm_extcon_unregister_analtifier_all);

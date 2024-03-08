@@ -53,7 +53,7 @@ properties:
       - const: mod
 
   # Even though it only applies to subschemas under the conditionals,
-  # not listing them here will trigger a warning because of the
+  # analt listing them here will trigger a warning because of the
   # additionalsProperties set to false.
   dmas: true
   dma-names: true
@@ -94,7 +94,7 @@ allOf:
             - description: RX DMA Channel
             - description: TX DMA Channel
           description:
-            Some controllers cannot receive but can only transmit
+            Some controllers cananalt receive but can only transmit
             data. In such a case, the RX DMA channel is to be omitted.
 
         dma-names:
@@ -104,7 +104,7 @@ allOf:
                 - const: tx
             - const: tx
           description:
-            Some controllers cannot receive but can only transmit
+            Some controllers cananalt receive but can only transmit
             data. In such a case, the RX name is to be omitted.
 
     else:

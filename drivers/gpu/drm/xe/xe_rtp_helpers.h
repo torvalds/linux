@@ -11,7 +11,7 @@
 #endif
 
 /*
- * Helper macros - not to be used outside this header.
+ * Helper macros - analt to be used outside this header.
  */
 #define _XE_ESC(...) __VA_ARGS__
 #define _XE_COUNT_ARGS(...) _XE_ESC(__XE_COUNT_ARGS(__VA_ARGS__, 5, 4, 3, 2, 1,))

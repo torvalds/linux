@@ -167,7 +167,7 @@ static void net_failover_fold_stats(struct rtnl_link_stats64 *_res,
 		if (((nv | ov) >> 32) == 0)
 			delta = (s64)(s32)((u32)nv - (u32)ov);
 
-		/* filter anomalies, some drivers reset their stats
+		/* filter aanalmalies, some drivers reset their stats
 		 * at down/up events.
 		 */
 		if (delta > 0)
@@ -334,9 +334,9 @@ static int nfo_ethtool_get_link_ksettings(struct net_device *dev,
 	if (!slave_dev || !net_failover_xmit_ready(slave_dev)) {
 		slave_dev = rtnl_dereference(nfo_info->standby_dev);
 		if (!slave_dev || !net_failover_xmit_ready(slave_dev)) {
-			cmd->base.duplex = DUPLEX_UNKNOWN;
+			cmd->base.duplex = DUPLEX_UNKANALWN;
 			cmd->base.port = PORT_OTHER;
-			cmd->base.speed = SPEED_UNKNOWN;
+			cmd->base.speed = SPEED_UNKANALWN;
 
 			return 0;
 		}
@@ -353,7 +353,7 @@ static const struct ethtool_ops failover_ethtool_ops = {
 
 /* Called when slave dev is injecting data into network stack.
  * Change the associated network device from lower dev to failover dev.
- * note: already called with rcu_read_lock
+ * analte: already called with rcu_read_lock
  */
 static rx_handler_result_t net_failover_handle_frame(struct sk_buff **pskb)
 {
@@ -370,7 +370,7 @@ static rx_handler_result_t net_failover_handle_frame(struct sk_buff **pskb)
 
 	skb->dev = dev;
 
-	return RX_HANDLER_ANOTHER;
+	return RX_HANDLER_AANALTHER;
 }
 
 static void net_failover_compute_features(struct net_device *dev)
@@ -474,7 +474,7 @@ static int net_failover_slave_pre_register(struct net_device *slave_dev,
 	}
 
 	/* We want to allow only a direct attached VF device as a primary
-	 * netdev. As there is no easy way to check for a VF device, restrict
+	 * netdev. As there is anal easy way to check for a VF device, restrict
 	 * this to a pci device.
 	 */
 	if (!slave_is_standby && (!slave_dev->dev.parent ||
@@ -552,7 +552,7 @@ static int net_failover_slave_register(struct net_device *slave_dev,
 	net_failover_lower_state_changed(slave_dev, primary_dev, standby_dev);
 	net_failover_compute_features(failover_dev);
 
-	call_netdevice_notifiers(NETDEV_JOIN, slave_dev);
+	call_netdevice_analtifiers(NETDEV_JOIN, slave_dev);
 
 	netdev_info(failover_dev, "failover %s slave:%s registered\n",
 		    slave_is_standby ? "standby" : "primary", slave_dev->name);
@@ -581,7 +581,7 @@ static int net_failover_slave_pre_unregister(struct net_device *slave_dev,
 	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 
 	if (slave_dev != primary_dev && slave_dev != standby_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -598,7 +598,7 @@ static int net_failover_slave_unregister(struct net_device *slave_dev,
 	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 
 	if (WARN_ON_ONCE(slave_dev != primary_dev && slave_dev != standby_dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vlan_vids_del_by_dev(slave_dev, failover_dev);
 	dev_uc_unsync(slave_dev, failover_dev);
@@ -641,7 +641,7 @@ static int net_failover_slave_link_change(struct net_device *slave_dev,
 	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 
 	if (slave_dev != primary_dev && slave_dev != standby_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((primary_dev && net_failover_xmit_ready(primary_dev)) ||
 	    (standby_dev && net_failover_xmit_ready(standby_dev))) {
@@ -670,7 +670,7 @@ static int net_failover_slave_name_change(struct net_device *slave_dev,
 	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 
 	if (slave_dev != primary_dev && slave_dev != standby_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* We need to bring up the slave after the rename by udev in case
 	 * open failed with EBUSY when it was registered.
@@ -710,13 +710,13 @@ struct failover *net_failover_create(struct net_device *standby_dev)
 	struct failover *failover;
 	int err;
 
-	/* Alloc at least 2 queues, for now we are going with 16 assuming
+	/* Alloc at least 2 queues, for analw we are going with 16 assuming
 	 * that VF devices being enslaved won't have too many queues.
 	 */
 	failover_dev = alloc_etherdev_mq(sizeof(struct net_failover_info), 16);
 	if (!failover_dev) {
 		dev_err(dev, "Unable to allocate failover_netdev!\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	dev_net_set(failover_dev, dev_net(standby_dev));
@@ -726,7 +726,7 @@ struct failover *net_failover_create(struct net_device *standby_dev)
 	failover_dev->ethtool_ops = &failover_ethtool_ops;
 
 	/* Initialize the device options */
-	failover_dev->priv_flags |= IFF_UNICAST_FLT | IFF_NO_QUEUE;
+	failover_dev->priv_flags |= IFF_UNICAST_FLT | IFF_ANAL_QUEUE;
 	failover_dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE |
 				       IFF_TX_SKB_SHARING);
 

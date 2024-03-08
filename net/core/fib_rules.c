@@ -59,7 +59,7 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 
 	r = kzalloc(ops->rule_size, GFP_KERNEL_ACCOUNT);
 	if (r == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	refcount_set(&r->refcnt, 1);
 	r->action = FR_ACT_TO_TBL;
@@ -72,7 +72,7 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 	r->suppress_prefixlen = -1;
 	r->suppress_ifgroup = -1;
 
-	/* The lock is not required here, the list in unreacheable
+	/* The lock is analt required here, the list in unreacheable
 	 * at the moment this function is called */
 	list_add_tail(&r->list, &ops->rules_list);
 	return 0;
@@ -96,7 +96,7 @@ static u32 fib_default_rule_pref(struct fib_rules_ops *ops)
 	return 0;
 }
 
-static void notify_rule_change(int event, struct fib_rule *rule,
+static void analtify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
 			       u32 pid);
 
@@ -167,7 +167,7 @@ fib_rules_register(const struct fib_rules_ops *tmpl, struct net *net)
 
 	ops = kmemdup(tmpl, sizeof(*ops), GFP_KERNEL);
 	if (ops == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&ops->rules_list);
 	ops->fro_net = net;
@@ -311,7 +311,7 @@ jumped:
 				rule = target;
 				goto jumped;
 			}
-		} else if (rule->action == FR_ACT_NOP)
+		} else if (rule->action == FR_ACT_ANALP)
 			continue;
 		else
 			err = INDIRECT_CALL_MT(ops->action,
@@ -326,8 +326,8 @@ jumped:
 			continue;
 
 		if (err != -EAGAIN) {
-			if ((arg->flags & FIB_LOOKUP_NOREF) ||
-			    likely(refcount_inc_not_zero(&rule->refcnt))) {
+			if ((arg->flags & FIB_LOOKUP_ANALREF) ||
+			    likely(refcount_inc_analt_zero(&rule->refcnt))) {
 				arg->rule = rule;
 				goto out;
 			}
@@ -343,38 +343,38 @@ out:
 }
 EXPORT_SYMBOL_GPL(fib_rules_lookup);
 
-static int call_fib_rule_notifier(struct notifier_block *nb,
+static int call_fib_rule_analtifier(struct analtifier_block *nb,
 				  enum fib_event_type event_type,
 				  struct fib_rule *rule, int family,
 				  struct netlink_ext_ack *extack)
 {
-	struct fib_rule_notifier_info info = {
+	struct fib_rule_analtifier_info info = {
 		.info.family = family,
 		.info.extack = extack,
 		.rule = rule,
 	};
 
-	return call_fib_notifier(nb, event_type, &info.info);
+	return call_fib_analtifier(nb, event_type, &info.info);
 }
 
-static int call_fib_rule_notifiers(struct net *net,
+static int call_fib_rule_analtifiers(struct net *net,
 				   enum fib_event_type event_type,
 				   struct fib_rule *rule,
 				   struct fib_rules_ops *ops,
 				   struct netlink_ext_ack *extack)
 {
-	struct fib_rule_notifier_info info = {
+	struct fib_rule_analtifier_info info = {
 		.info.family = ops->family,
 		.info.extack = extack,
 		.rule = rule,
 	};
 
 	ops->fib_rules_seq++;
-	return call_fib_notifiers(net, event_type, &info.info);
+	return call_fib_analtifiers(net, event_type, &info.info);
 }
 
 /* Called with rcu_read_lock() */
-int fib_rules_dump(struct net *net, struct notifier_block *nb, int family,
+int fib_rules_dump(struct net *net, struct analtifier_block *nb, int family,
 		   struct netlink_ext_ack *extack)
 {
 	struct fib_rules_ops *ops;
@@ -383,9 +383,9 @@ int fib_rules_dump(struct net *net, struct notifier_block *nb, int family,
 
 	ops = lookup_rules_ops(net, family);
 	if (!ops)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	list_for_each_entry_rcu(rule, &ops->rules_list, list) {
-		err = call_fib_rule_notifier(nb, FIB_EVENT_RULE_ADD,
+		err = call_fib_rule_analtifier(nb, FIB_EVENT_RULE_ADD,
 					     rule, family, extack);
 		if (err)
 			break;
@@ -507,7 +507,7 @@ static int fib_nl2rule_l3mdev(struct nlattr *nla, struct fib_rule *nlrule,
 static int fib_nl2rule_l3mdev(struct nlattr *nla, struct fib_rule *nlrule,
 			      struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG(extack, "l3mdev support is not enabled in kernel");
+	NL_SET_ERR_MSG(extack, "l3mdev support is analt enabled in kernel");
 	return -1;
 }
 #endif
@@ -542,7 +542,7 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	nlrule = kzalloc(ops->rule_size, GFP_KERNEL_ACCOUNT);
 	if (!nlrule) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto errout;
 	}
 	refcount_set(&nlrule->refcnt, 1);
@@ -581,7 +581,7 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[FRA_FWMARK]) {
 		nlrule->mark = nla_get_u32(tb[FRA_FWMARK]);
 		if (nlrule->mark)
-			/* compatibility: if the mark value is non-zero all bits
+			/* compatibility: if the mark value is analn-zero all bits
 			 * are compared unless a mask is explicitly specified.
 			 */
 			nlrule->mark_mask = 0xFFFFFFFF;
@@ -619,7 +619,7 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		nlrule->target = nla_get_u32(tb[FRA_GOTO]);
 		/* Backward jumps are prohibited to avoid endless loops */
 		if (nlrule->target <= nlrule->pref) {
-			NL_SET_ERR_MSG(extack, "Backward goto not supported");
+			NL_SET_ERR_MSG(extack, "Backward goto analt supported");
 			goto errout_free;
 		}
 	} else if (nlrule->action == FR_ACT_GOTO) {
@@ -635,7 +635,7 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[FRA_UID_RANGE]) {
 		if (current_user_ns() != net->user_ns) {
 			err = -EPERM;
-			NL_SET_ERR_MSG(extack, "No permission to set uid");
+			NL_SET_ERR_MSG(extack, "Anal permission to set uid");
 			goto errout_free;
 		}
 
@@ -787,8 +787,8 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ops = lookup_rules_ops(net, frh->family);
 	if (!ops) {
-		err = -EAFNOSUPPORT;
-		NL_SET_ERR_MSG(extack, "Rule family not supported");
+		err = -EAFANALSUPPORT;
+		NL_SET_ERR_MSG(extack, "Rule family analt supported");
 		goto errout;
 	}
 
@@ -813,7 +813,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout_free;
 
-	err = call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD, rule, ops,
+	err = call_fib_rule_analtifiers(net, FIB_EVENT_RULE_ADD, rule, ops,
 				      extack);
 	if (err < 0)
 		goto errout_free;
@@ -864,7 +864,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rule->tun_id)
 		ip_tunnel_need_metadata();
 
-	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
+	analtify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
 	flush_route_cache(ops);
 	rules_ops_put(ops);
 	return 0;
@@ -895,8 +895,8 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ops = lookup_rules_ops(net, frh->family);
 	if (ops == NULL) {
-		err = -EAFNOSUPPORT;
-		NL_SET_ERR_MSG(extack, "Rule family not supported");
+		err = -EAFANALSUPPORT;
+		NL_SET_ERR_MSG(extack, "Rule family analt supported");
 		goto errout;
 	}
 
@@ -913,7 +913,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	rule = rule_find(ops, frh, tb, nlrule, user_priority);
 	if (!rule) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto errout;
 	}
 
@@ -961,9 +961,9 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 	}
 
-	call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL, rule, ops,
+	call_fib_rule_analtifiers(net, FIB_EVENT_RULE_DEL, rule, ops,
 				NULL);
-	notify_rule_change(RTM_DELRULE, rule, ops, nlh,
+	analtify_rule_change(RTM_DELRULE, rule, ops, nlh,
 			   NETLINK_CB(skb).portid);
 	fib_rule_put(rule);
 	flush_route_cache(ops);
@@ -1156,7 +1156,7 @@ static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
 		/* Protocol specific dump request */
 		ops = lookup_rules_ops(net, family);
 		if (ops == NULL)
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 
 		dump_rules(skb, cb, ops);
 
@@ -1181,13 +1181,13 @@ skip:
 	return skb->len;
 }
 
-static void notify_rule_change(int event, struct fib_rule *rule,
+static void analtify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
 			       u32 pid)
 {
 	struct net *net;
 	struct sk_buff *skb;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	net = ops->fro_net;
 	skb = nlmsg_new(fib_rule_nlmsg_size(ops, rule), GFP_KERNEL);
@@ -1202,7 +1202,7 @@ static void notify_rule_change(int event, struct fib_rule *rule,
 		goto errout;
 	}
 
-	rtnl_notify(skb, net, pid, ops->nlgroup, nlh, GFP_KERNEL);
+	rtnl_analtify(skb, net, pid, ops->nlgroup, nlh, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -1236,10 +1236,10 @@ static void detach_rules(struct list_head *rules, struct net_device *dev)
 }
 
 
-static int fib_rules_event(struct notifier_block *this, unsigned long event,
+static int fib_rules_event(struct analtifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct fib_rules_ops *ops;
 
@@ -1264,11 +1264,11 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block fib_rules_notifier = {
-	.notifier_call = fib_rules_event,
+static struct analtifier_block fib_rules_analtifier = {
+	.analtifier_call = fib_rules_event,
 };
 
 static int __net_init fib_rules_net_init(struct net *net)
@@ -1299,7 +1299,7 @@ static int __init fib_rules_init(void)
 	if (err < 0)
 		goto fail;
 
-	err = register_netdevice_notifier(&fib_rules_notifier);
+	err = register_netdevice_analtifier(&fib_rules_analtifier);
 	if (err < 0)
 		goto fail_unregister;
 

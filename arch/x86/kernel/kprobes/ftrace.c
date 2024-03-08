@@ -42,7 +42,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 		if (!p->pre_handler || !p->pre_handler(p, regs)) {
 			/*
 			 * Emulate singlestep (and also recover regs->ip)
-			 * as if there is a 5byte nop
+			 * as if there is a 5byte analp
 			 */
 			regs->ip = (unsigned long)p->addr + MCOUNT_INSN_SIZE;
 			if (unlikely(p->post_handler)) {
@@ -60,7 +60,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 out:
 	ftrace_test_recursion_unlock(bit);
 }
-NOKPROBE_SYMBOL(kprobe_ftrace_handler);
+ANALKPROBE_SYMBOL(kprobe_ftrace_handler);
 
 int arch_prepare_kprobe_ftrace(struct kprobe *p)
 {

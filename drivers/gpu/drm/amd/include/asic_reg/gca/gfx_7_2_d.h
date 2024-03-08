@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -829,7 +829,7 @@
 #define mmGRBM_SCRATCH_REG7                                                     0x2047
 #define mmDEBUG_INDEX                                                           0x203c
 #define mmDEBUG_DATA                                                            0x203d
-#define mmGRBM_NOWHERE                                                          0x203f
+#define mmGRBM_ANALWHERE                                                          0x203f
 #define mmPA_CL_VPORT_XSCALE                                                    0xa10f
 #define mmPA_CL_VPORT_XOFFSET                                                   0xa110
 #define mmPA_CL_VPORT_YSCALE                                                    0xa111
@@ -1312,11 +1312,11 @@
 #define mmRLC_SERDES_RD_DATA_1                                                  0x311b
 #define mmRLC_SERDES_RD_DATA_2                                                  0x311c
 #define mmRLC_SERDES_WR_CU_MASTER_MASK                                          0x311d
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK                                       0x311e
+#define mmRLC_SERDES_WR_ANALNCU_MASTER_MASK                                       0x311e
 #define mmRLC_SERDES_WR_CTRL                                                    0x311f
 #define mmRLC_SERDES_WR_DATA                                                    0x3120
 #define mmRLC_SERDES_CU_MASTER_BUSY                                             0x3121
-#define mmRLC_SERDES_NONCU_MASTER_BUSY                                          0x3122
+#define mmRLC_SERDES_ANALNCU_MASTER_BUSY                                          0x3122
 #define mmRLC_GPM_GENERAL_0                                                     0x3123
 #define mmRLC_GPM_GENERAL_1                                                     0x3124
 #define mmRLC_GPM_GENERAL_2                                                     0x3125

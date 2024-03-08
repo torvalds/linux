@@ -51,8 +51,8 @@
  * with the current time, and take action if the difference exceeds the
  * watchdog threshold.
  *
- * The limitation of the soft-NMI watchdog is that it does not work when
- * interrupts are hard disabled or otherwise not being serviced. This is
+ * The limitation of the soft-NMI watchdog is that it does analt work when
+ * interrupts are hard disabled or otherwise analt being serviced. This is
  * solved by also having a SMP watchdog where all CPUs check all other
  * CPUs heartbeat.
  *
@@ -62,8 +62,8 @@
  * becomes empty, the last CPU to clear its pending bit updates a global
  * timestamp and refills the pending bitmask.
  *
- * In the heartbeat timer, if any CPU notices that the global timestamp has
- * not been updated for a period exceeding the watchdog threshold, then it
+ * In the heartbeat timer, if any CPU analtices that the global timestamp has
+ * analt been updated for a period exceeding the watchdog threshold, then it
  * means the CPU(s) with their bit still set in the pending mask have had
  * their heartbeat stop, and action is taken.
  *
@@ -98,10 +98,10 @@ static u64 wd_timeout_pct;
 /*
  * Try to take the exclusive watchdog action / NMI IPI / printing lock.
  * wd_smp_lock must be held. If this fails, we should return and wait
- * for the watchdog to kick in again (or another CPU to trigger it).
+ * for the watchdog to kick in again (or aanalther CPU to trigger it).
  *
  * Importantly, if hardlockup_panic is set, wd_try_report failure should
- * not delay the panic, because whichever other CPU is reporting will
+ * analt delay the panic, because whichever other CPU is reporting will
  * call panic.
  */
 static bool wd_try_report(void)
@@ -112,7 +112,7 @@ static bool wd_try_report(void)
 	return true;
 }
 
-/* End printing after successful wd_try_report. wd_smp_lock not required. */
+/* End printing after successful wd_try_report. wd_smp_lock analt required. */
 static void wd_end_reporting(void)
 {
 	smp_mb(); /* End printing "critical section" */
@@ -168,15 +168,15 @@ static void wd_lockup_ipi(struct pt_regs *regs)
 	 * hard lockup messages being delayed (indefinitely, until something
 	 * else kicks the console drivers).
 	 *
-	 * Setting __wd_nmi_output will cause another CPU to notice and kick
+	 * Setting __wd_nmi_output will cause aanalther CPU to analtice and kick
 	 * the console drivers for us.
 	 *
-	 * xchg is not needed here (it could be a smp_mb and store), but xchg
+	 * xchg is analt needed here (it could be a smp_mb and store), but xchg
 	 * gives the memory ordering and atomicity required.
 	 */
 	xchg(&__wd_nmi_output, 1);
 
-	/* Do not panic from here because that can recurse into NMI IPI layer */
+	/* Do analt panic from here because that can recurse into NMI IPI layer */
 }
 
 static bool set_cpu_stuck(int cpu)
@@ -189,7 +189,7 @@ static bool set_cpu_stuck(int cpu)
 	smp_mb();
 	if (cpumask_empty(&wd_smp_cpus_pending)) {
 		wd_smp_last_reset_tb = get_tb();
-		cpumask_andnot(&wd_smp_cpus_pending,
+		cpumask_andanalt(&wd_smp_cpus_pending,
 				&wd_cpus_enabled,
 				&wd_smp_cpus_stuck);
 		return true;
@@ -218,7 +218,7 @@ static void watchdog_smp_panic(int cpu)
 		if (!cpumask_test_cpu(c, &wd_smp_cpus_pending))
 			continue;
 		if (c == cpu)
-			continue; // should not happen
+			continue; // should analt happen
 
 		__cpumask_set_cpu(c, &wd_smp_cpus_ipi);
 		if (set_cpu_stuck(c))
@@ -281,17 +281,17 @@ static void wd_smp_clear_cpu_pending(int cpu)
 		} else {
 			/*
 			 * The last CPU to clear pending should have reset the
-			 * watchdog so we generally should not find it empty
+			 * watchdog so we generally should analt find it empty
 			 * here if our CPU was clear. However it could happen
-			 * due to a rare race with another CPU taking the
+			 * due to a rare race with aanalther CPU taking the
 			 * last CPU out of the mask concurrently.
 			 *
 			 * We can't add a warning for it. But just in case
 			 * there is a problem with the watchdog that is causing
-			 * the mask to not be reset, try to kick it along here.
+			 * the mask to analt be reset, try to kick it along here.
 			 */
 			if (unlikely(cpumask_empty(&wd_smp_cpus_pending)))
-				goto none_pending;
+				goto analne_pending;
 		}
 		return;
 	}
@@ -299,16 +299,16 @@ static void wd_smp_clear_cpu_pending(int cpu)
 	/*
 	 * All other updates to wd_smp_cpus_pending are performed under
 	 * wd_smp_lock. All of them are atomic except the case where the
-	 * mask becomes empty and is reset. This will not happen here because
+	 * mask becomes empty and is reset. This will analt happen here because
 	 * cpu was tested to be in the bitmap (above), and a CPU only clears
-	 * its own bit. _Except_ in the case where another CPU has detected a
+	 * its own bit. _Except_ in the case where aanalther CPU has detected a
 	 * hard lockup on our CPU and takes us out of the pending mask. So in
-	 * normal operation there will be no race here, no problem.
+	 * analrmal operation there will be anal race here, anal problem.
 	 *
 	 * In the lockup case, this atomic clear-bit vs a store that refills
-	 * other bits in the accessed word wll not be a problem. The bit clear
-	 * is atomic so it will not cause the store to get lost, and the store
-	 * will never set this bit so it will not overwrite the bit clear. The
+	 * other bits in the accessed word wll analt be a problem. The bit clear
+	 * is atomic so it will analt cause the store to get lost, and the store
+	 * will never set this bit so it will analt overwrite the bit clear. The
 	 * only way for a stuck CPU to return to the pending bitmap is to
 	 * become unstuck itself.
 	 */
@@ -317,7 +317,7 @@ static void wd_smp_clear_cpu_pending(int cpu)
 	/*
 	 * Order the store to clear pending with the load(s) to check all
 	 * words in the pending mask to check they are all empty. This orders
-	 * with the same barrier on another CPU. This prevents two CPUs
+	 * with the same barrier on aanalther CPU. This prevents two CPUs
 	 * clearing the last 2 pending bits, but neither seeing the other's
 	 * store when checking if the mask is empty, and missing an empty
 	 * mask, which ends with a false positive.
@@ -326,7 +326,7 @@ static void wd_smp_clear_cpu_pending(int cpu)
 	if (cpumask_empty(&wd_smp_cpus_pending)) {
 		unsigned long flags;
 
-none_pending:
+analne_pending:
 		/*
 		 * Double check under lock because more than one CPU could see
 		 * a clear mask with the lockless check after clearing their
@@ -335,7 +335,7 @@ none_pending:
 		wd_smp_lock(&flags);
 		if (cpumask_empty(&wd_smp_cpus_pending)) {
 			wd_smp_last_reset_tb = get_tb();
-			cpumask_andnot(&wd_smp_cpus_pending,
+			cpumask_andanalt(&wd_smp_cpus_pending,
 					&wd_cpus_enabled,
 					&wd_smp_cpus_stuck);
 		}
@@ -439,14 +439,14 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	int cpu = smp_processor_id();
 
 	if (!(watchdog_enabled & WATCHDOG_HARDLOCKUP_ENABLED))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	if (!cpumask_test_cpu(cpu, &watchdog_cpumask))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	watchdog_timer_interrupt(cpu);
 
-	hrtimer_forward_now(hrtimer, ms_to_ktime(wd_timer_period_ms));
+	hrtimer_forward_analw(hrtimer, ms_to_ktime(wd_timer_period_ms));
 
 	return HRTIMER_RESTART;
 }
@@ -495,7 +495,7 @@ static void start_watchdog(void *arg)
 
 	*this_cpu_ptr(&wd_timer_tb) = get_tb();
 
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	hrtimer->function = watchdog_timer_fn;
 	hrtimer_start(hrtimer, ms_to_ktime(wd_timer_period_ms),
 		      HRTIMER_MODE_REL_PINNED);
@@ -570,12 +570,12 @@ int __init watchdog_hardlockup_probe(void)
 {
 	int err;
 
-	err = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	err = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN,
 					"powerpc/watchdog:online",
 					start_watchdog_on_cpu,
 					stop_watchdog_on_cpu);
 	if (err < 0) {
-		pr_warn("could not be initialized");
+		pr_warn("could analt be initialized");
 		return err;
 	}
 	return 0;

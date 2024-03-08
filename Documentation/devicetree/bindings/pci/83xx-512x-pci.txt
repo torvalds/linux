@@ -2,7 +2,7 @@
 
 Freescale 83xx and 512x SOCs include the same PCI bridge core.
 
-83xx/512x specific notes:
+83xx/512x specific analtes:
 - reg: should contain two address length tuples
     The first is for the internal PCI bridge registers
     The second is for the PCI config space access registers

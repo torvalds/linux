@@ -24,34 +24,34 @@
 static struct acpi_table_header *apmt_table;
 
 static int __init apmt_init_resources(struct resource *res,
-				      struct acpi_apmt_node *node)
+				      struct acpi_apmt_analde *analde)
 {
 	int irq, trigger;
 	int num_res = 0;
 
-	res[num_res].start = node->base_address0;
-	res[num_res].end = node->base_address0 + SZ_4K - 1;
+	res[num_res].start = analde->base_address0;
+	res[num_res].end = analde->base_address0 + SZ_4K - 1;
 	res[num_res].flags = IORESOURCE_MEM;
 
 	num_res++;
 
-	if (node->flags & ACPI_APMT_FLAGS_DUAL_PAGE) {
-		res[num_res].start = node->base_address1;
-		res[num_res].end = node->base_address1 + SZ_4K - 1;
+	if (analde->flags & ACPI_APMT_FLAGS_DUAL_PAGE) {
+		res[num_res].start = analde->base_address1;
+		res[num_res].end = analde->base_address1 + SZ_4K - 1;
 		res[num_res].flags = IORESOURCE_MEM;
 
 		num_res++;
 	}
 
-	if (node->ovflw_irq != 0) {
-		trigger = (node->ovflw_irq_flags & ACPI_APMT_OVFLW_IRQ_FLAGS_MODE);
+	if (analde->ovflw_irq != 0) {
+		trigger = (analde->ovflw_irq_flags & ACPI_APMT_OVFLW_IRQ_FLAGS_MODE);
 		trigger = (trigger == ACPI_APMT_OVFLW_IRQ_FLAGS_MODE_LEVEL) ?
 			ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE;
-		irq = acpi_register_gsi(NULL, node->ovflw_irq, trigger,
+		irq = acpi_register_gsi(NULL, analde->ovflw_irq, trigger,
 						ACPI_ACTIVE_HIGH);
 
 		if (irq <= 0) {
-			pr_warn("APMT could not register gsi hwirq %d\n", irq);
+			pr_warn("APMT could analt register gsi hwirq %d\n", irq);
 			return num_res;
 		}
 
@@ -66,14 +66,14 @@ static int __init apmt_init_resources(struct resource *res,
 }
 
 /**
- * apmt_add_platform_device() - Allocate a platform device for APMT node
- * @node: Pointer to device ACPI APMT node
- * @fwnode: fwnode associated with the APMT node
+ * apmt_add_platform_device() - Allocate a platform device for APMT analde
+ * @analde: Pointer to device ACPI APMT analde
+ * @fwanalde: fwanalde associated with the APMT analde
  *
  * Returns: 0 on success, <0 failure
  */
-static int __init apmt_add_platform_device(struct acpi_apmt_node *node,
-					   struct fwnode_handle *fwnode)
+static int __init apmt_add_platform_device(struct acpi_apmt_analde *analde,
+					   struct fwanalde_handle *fwanalde)
 {
 	struct platform_device *pdev;
 	int ret, count;
@@ -81,25 +81,25 @@ static int __init apmt_add_platform_device(struct acpi_apmt_node *node,
 
 	pdev = platform_device_alloc(DEV_NAME, PLATFORM_DEVID_AUTO);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(res, 0, sizeof(res));
 
-	count = apmt_init_resources(res, node);
+	count = apmt_init_resources(res, analde);
 
 	ret = platform_device_add_resources(pdev, res, count);
 	if (ret)
 		goto dev_put;
 
 	/*
-	 * Add a copy of APMT node pointer to platform_data to be used to
+	 * Add a copy of APMT analde pointer to platform_data to be used to
 	 * retrieve APMT data information.
 	 */
-	ret = platform_device_add_data(pdev, &node, sizeof(node));
+	ret = platform_device_add_data(pdev, &analde, sizeof(analde));
 	if (ret)
 		goto dev_put;
 
-	pdev->dev.fwnode = fwnode;
+	pdev->dev.fwanalde = fwanalde;
 
 	ret = platform_device_add(pdev);
 
@@ -116,9 +116,9 @@ dev_put:
 
 static int __init apmt_init_platform_devices(void)
 {
-	struct acpi_apmt_node *apmt_node;
+	struct acpi_apmt_analde *apmt_analde;
 	struct acpi_table_apmt *apmt;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	u64 offset, end;
 	int ret;
 
@@ -131,20 +131,20 @@ static int __init apmt_init_platform_devices(void)
 	end = apmt->header.length;
 
 	while (offset < end) {
-		apmt_node = ACPI_ADD_PTR(struct acpi_apmt_node, apmt,
+		apmt_analde = ACPI_ADD_PTR(struct acpi_apmt_analde, apmt,
 				 offset);
 
-		fwnode = acpi_alloc_fwnode_static();
-		if (!fwnode)
-			return -ENOMEM;
+		fwanalde = acpi_alloc_fwanalde_static();
+		if (!fwanalde)
+			return -EANALMEM;
 
-		ret = apmt_add_platform_device(apmt_node, fwnode);
+		ret = apmt_add_platform_device(apmt_analde, fwanalde);
 		if (ret) {
-			acpi_free_fwnode_static(fwnode);
+			acpi_free_fwanalde_static(fwanalde);
 			return ret;
 		}
 
-		offset += apmt_node->length;
+		offset += apmt_analde->length;
 	}
 
 	return 0;
@@ -156,14 +156,14 @@ void __init acpi_apmt_init(void)
 	int ret;
 
 	/**
-	 * APMT table nodes will be used at runtime after the apmt init,
+	 * APMT table analdes will be used at runtime after the apmt init,
 	 * so we don't need to call acpi_put_table() to release
 	 * the APMT table mapping.
 	 */
 	status = acpi_get_table(ACPI_SIG_APMT, 0, &apmt_table);
 
 	if (ACPI_FAILURE(status)) {
-		if (status != AE_NOT_FOUND) {
+		if (status != AE_ANALT_FOUND) {
 			const char *msg = acpi_format_exception(status);
 
 			pr_err("Failed to get APMT table, %s\n", msg);

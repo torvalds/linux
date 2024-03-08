@@ -40,7 +40,7 @@ properties:
         unevaluatedProperties: false
 
         properties:
-          clock-noncontinuous: true
+          clock-analncontinuous: true
 
 required:
   - compatible

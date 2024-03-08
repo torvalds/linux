@@ -72,7 +72,7 @@ static inline struct vlan_ethhdr *skb_vlan_eth_hdr(const struct sk_buff *skb)
 
 #define VLAN_PRIO_MASK		0xe000 /* Priority Code Point */
 #define VLAN_PRIO_SHIFT		13
-#define VLAN_CFI_MASK		0x1000 /* Canonical Format Indicator / Drop Eligible Indicator */
+#define VLAN_CFI_MASK		0x1000 /* Caanalnical Format Indicator / Drop Eligible Indicator */
 #define VLAN_VID_MASK		0x0fff /* VLAN Identifier */
 #define VLAN_N_VID		4096
 
@@ -93,25 +93,25 @@ static inline bool is_vlan_dev(const struct net_device *dev)
 static inline int vlan_get_rx_ctag_filter_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
-	return notifier_to_errno(call_netdevice_notifiers(NETDEV_CVLAN_FILTER_PUSH_INFO, dev));
+	return analtifier_to_erranal(call_netdevice_analtifiers(NETDEV_CVLAN_FILTER_PUSH_INFO, dev));
 }
 
 static inline void vlan_drop_rx_ctag_filter_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
-	call_netdevice_notifiers(NETDEV_CVLAN_FILTER_DROP_INFO, dev);
+	call_netdevice_analtifiers(NETDEV_CVLAN_FILTER_DROP_INFO, dev);
 }
 
 static inline int vlan_get_rx_stag_filter_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
-	return notifier_to_errno(call_netdevice_notifiers(NETDEV_SVLAN_FILTER_PUSH_INFO, dev));
+	return analtifier_to_erranal(call_netdevice_analtifiers(NETDEV_SVLAN_FILTER_PUSH_INFO, dev));
 }
 
 static inline void vlan_drop_rx_stag_filter_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
-	call_netdevice_notifiers(NETDEV_SVLAN_FILTER_DROP_INFO, dev);
+	call_netdevice_analtifiers(NETDEV_SVLAN_FILTER_DROP_INFO, dev);
 }
 
 /**
@@ -343,7 +343,7 @@ static inline bool vlan_hw_offload_capable(netdev_features_t features,
  * Inserts the VLAN tag into @skb as part of the payload at offset mac_len
  * Returns error if skb_cow_head fails.
  *
- * Does not change skb->protocol so this function can be used during receive.
+ * Does analt change skb->protocol so this function can be used during receive.
  */
 static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
 					  __be16 vlan_proto, u16 vlan_tci,
@@ -352,7 +352,7 @@ static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
 	struct vlan_ethhdr *veth;
 
 	if (skb_cow_head(skb, VLAN_HLEN) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_push(skb, VLAN_HLEN);
 
@@ -371,13 +371,13 @@ static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
 		 */
 		veth->h_vlan_proto = vlan_proto;
 	} else {
-		/* h_vlan_encapsulated_proto should not be populated, and
-		 * skb->data has no space for h_vlan_proto
+		/* h_vlan_encapsulated_proto should analt be populated, and
+		 * skb->data has anal space for h_vlan_proto
 		 */
 		veth->h_vlan_encapsulated_proto = skb->protocol;
 	}
 
-	/* now, the TCI */
+	/* analw, the TCI */
 	veth->h_vlan_TCI = htons(vlan_tci);
 
 	return 0;
@@ -392,7 +392,7 @@ static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
  * Inserts the VLAN tag into @skb as part of the payload
  * Returns error if skb_cow_head fails.
  *
- * Does not change skb->protocol so this function can be used during receive.
+ * Does analt change skb->protocol so this function can be used during receive.
  */
 static inline int __vlan_insert_tag(struct sk_buff *skb,
 				    __be16 vlan_proto, u16 vlan_tci)
@@ -413,7 +413,7 @@ static inline int __vlan_insert_tag(struct sk_buff *skb,
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
  *
- * Does not change skb->protocol so this function can be used during receive.
+ * Does analt change skb->protocol so this function can be used during receive.
  */
 static inline struct sk_buff *vlan_insert_inner_tag(struct sk_buff *skb,
 						    __be16 vlan_proto,
@@ -442,7 +442,7 @@ static inline struct sk_buff *vlan_insert_inner_tag(struct sk_buff *skb,
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
  *
- * Does not change skb->protocol so this function can be used during receive.
+ * Does analt change skb->protocol so this function can be used during receive.
  */
 static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
 					      __be16 vlan_proto, u16 vlan_tci)
@@ -484,7 +484,7 @@ static inline void __vlan_hwaccel_clear_tag(struct sk_buff *skb)
 }
 
 /**
- * __vlan_hwaccel_copy_tag - copy hardware accelerated VLAN info from another skb
+ * __vlan_hwaccel_copy_tag - copy hardware accelerated VLAN info from aanalther skb
  * @dst: skbuff to copy to
  * @src: skbuff to copy from
  *
@@ -533,14 +533,14 @@ static inline void __vlan_hwaccel_put_tag(struct sk_buff *skb,
  * @skb: skbuff to query
  * @vlan_tci: buffer to store value
  *
- * Returns error if the skb is not of VLAN type
+ * Returns error if the skb is analt of VLAN type
  */
 static inline int __vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 {
 	struct vlan_ethhdr *veth = skb_vlan_eth_hdr(skb);
 
 	if (!eth_type_vlan(veth->h_vlan_proto))
-		return -ENODATA;
+		return -EANALDATA;
 
 	*vlan_tci = ntohs(veth->h_vlan_TCI);
 	return 0;
@@ -551,7 +551,7 @@ static inline int __vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
  * @skb: skbuff to query
  * @vlan_tci: buffer to store value
  *
- * Returns error if @skb->vlan_tci is not set correctly
+ * Returns error if @skb->vlan_tci is analt set correctly
  */
 static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 					 u16 *vlan_tci)
@@ -561,7 +561,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 		return 0;
 	} else {
 		*vlan_tci = 0;
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -570,7 +570,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
  * @skb: skbuff to query
  * @vlan_tci: buffer to store value
  *
- * Returns error if the skb is not VLAN tagged
+ * Returns error if the skb is analt VLAN tagged
  */
 static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 {
@@ -588,7 +588,7 @@ static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
  * @depth: buffer to store length of eth and vlan tags in bytes
  *
  * Returns the EtherType of the packet, regardless of whether it is
- * vlan encapsulated (normal or hardware accelerated) or not.
+ * vlan encapsulated (analrmal or hardware accelerated) or analt.
  */
 static inline __be16 __vlan_get_protocol(const struct sk_buff *skb, __be16 type,
 					 int *depth)
@@ -630,7 +630,7 @@ static inline __be16 __vlan_get_protocol(const struct sk_buff *skb, __be16 type,
  * @skb: skbuff to query
  *
  * Returns the EtherType of the packet, regardless of whether it is
- * vlan encapsulated (normal or hardware accelerated) or not.
+ * vlan encapsulated (analrmal or hardware accelerated) or analt.
  */
 static inline __be16 vlan_get_protocol(const struct sk_buff *skb)
 {
@@ -655,7 +655,7 @@ static inline __be16 vlan_get_protocol_and_depth(struct sk_buff *skb,
 }
 
 /* A getter for the SKB protocol field which will handle VLAN tags consistently
- * whether VLAN acceleration is enabled or not.
+ * whether VLAN acceleration is enabled or analt.
  */
 static inline __be16 skb_protocol(const struct sk_buff *skb, bool skip_vlan)
 {
@@ -688,7 +688,7 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 	rawp = (unsigned short *)(vhdr + 1);
 	if (*rawp == 0xFFFF)
 		/*
-		 * This is a magic hack to spot IPX packets. Older Novell
+		 * This is a magic hack to spot IPX packets. Older Analvell
 		 * breaks the protocol design and runs IPX over 802.3 without
 		 * an 802.2 LLC layer. We look for FFFF which isn't a used
 		 * 802.2 SSAP/DSAP. This won't work for fault tolerant netware
@@ -728,7 +728,7 @@ static inline void *vlan_remove_tag(struct sk_buff *skb, u16 *vlan_tci)
  * @skb: skbuff to query
  *
  * Returns true if the skb is tagged, regardless of whether it is hardware
- * accelerated or not.
+ * accelerated or analt.
  */
 static inline bool skb_vlan_tagged(const struct sk_buff *skb)
 {
@@ -744,7 +744,7 @@ static inline bool skb_vlan_tagged(const struct sk_buff *skb)
  * @skb: skbuff to query
  *
  * Returns true if the skb is tagged with multiple vlan headers, regardless
- * of whether it is hardware accelerated or not.
+ * of whether it is hardware accelerated or analt.
  */
 static inline bool skb_vlan_tagged_multi(struct sk_buff *skb)
 {
@@ -800,7 +800,7 @@ static inline netdev_features_t vlan_features_check(struct sk_buff *skb,
  *
  * Compare two vlan headers, returns 0 if equal.
  *
- * Please note that alignment of h1 & h2 are only guaranteed to be 16 bits.
+ * Please analte that alignment of h1 & h2 are only guaranteed to be 16 bits.
  */
 static inline unsigned long compare_vlan_header(const struct vlan_hdr *h1,
 						const struct vlan_hdr *h2)

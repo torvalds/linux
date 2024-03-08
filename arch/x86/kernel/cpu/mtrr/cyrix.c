@@ -36,7 +36,7 @@ cyrix_get_arr(unsigned int reg, unsigned long *base,
 
 	/*
 	 * Power of two, at least 4K on ARR0-ARR6, 256K on ARR7
-	 * Note: shift==0xf means 4G, this is unsupported.
+	 * Analte: shift==0xf means 4G, this is unsupported.
 	 */
 	if (shift)
 		*size = (reg < 7 ? 0x1UL : 0x40UL) << (shift - 1);
@@ -129,7 +129,7 @@ cyrix_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 		if ((lsize == 0) && (size >= 0x40))
 			return i;
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static u32 cr4, ccr3;
@@ -146,7 +146,7 @@ static void prepare_set(void)
 
 	/*
 	 * Disable and flush caches.
-	 * Note that wbinvd flushes the TLBs as a side-effect
+	 * Analte that wbinvd flushes the TLBs as a side-effect
 	 */
 	cr0 = read_cr0() | X86_CR0_CD;
 	wbinvd();

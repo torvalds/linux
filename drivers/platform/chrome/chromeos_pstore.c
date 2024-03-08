@@ -13,8 +13,8 @@ static const struct dmi_system_id chromeos_pstore_dmi_table[] __initconst = {
 	{
 		/*
 		 * Today all Chromebooks/boxes ship with Google_* as version and
-		 * coreboot as bios vendor. No other systems with this
-		 * combination are known to date.
+		 * coreboot as bios vendor. Anal other systems with this
+		 * combination are kanalwn to date.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
@@ -89,11 +89,11 @@ static int __init chromeos_probe_acpi(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = resource_size(res);
 	if (!res->start || !len)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("chromeos ramoops using acpi device.\n");
 
@@ -117,13 +117,13 @@ static int __init chromeos_pstore_init(void)
 {
 	bool acpi_dev_found;
 
-	/* First check ACPI for non-hardcoded values from firmware. */
+	/* First check ACPI for analn-hardcoded values from firmware. */
 	acpi_dev_found = chromeos_check_acpi();
 
 	if (acpi_dev_found || dmi_check_system(chromeos_pstore_dmi_table))
 		return platform_device_register(&chromeos_ramoops);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit chromeos_pstore_exit(void)

@@ -67,8 +67,8 @@ Both packages will work in the lk 2.4 series. However, sg3_utils offers more
 capabilities. They can be found at: https://sg.danny.cz/sg/sg3_utils.html and
 freecode.com
 
-Another approach is to look at the applications that use the sg driver.
-These include cdrecord, cdparanoia, SANE and cdrdao.
+Aanalther approach is to look at the applications that use the sg driver.
+These include cdrecord, cdparaanalia, SANE and cdrdao.
 
 
 Mapping of Linux kernel versions to sg driver versions
@@ -87,7 +87,7 @@ of the sg driver:
 For reference here is a list of Linux kernels in the 2.2 series that had
 the new version of the sg driver:
 
-     - lk 2.2.0 : original sg version [with no version number]
+     - lk 2.2.0 : original sg version [with anal version number]
      - lk 2.2.6 : sg version 2.1.31
      - lk 2.2.8 : sg version 2.1.32
      - lk 2.2.10 : sg version 2.1.34 [SG_GET_VERSION_NUM ioctl first appeared]

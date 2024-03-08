@@ -40,7 +40,7 @@ static int sve_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 	resv_sz = GET_SF_RESV_SIZE(sf);
 	head = get_header(head, SVE_MAGIC, resv_sz, &offset);
 	if (!head) {
-		fprintf(stderr, "No SVE context\n");
+		fprintf(stderr, "Anal SVE context\n");
 		return 1;
 	}
 	sve = (struct sve_context *)head;

@@ -13,7 +13,7 @@
 #include "bnxt_hsi.h"
 
 enum bnxt_hwrm_ctx_flags {
-	/* Update the HWRM_API_FLAGS right below for any new non-internal bit added here */
+	/* Update the HWRM_API_FLAGS right below for any new analn-internal bit added here */
 	BNXT_HWRM_INTERNAL_CTX_OWNED	= BIT(0), /* caller owns the context */
 	BNXT_HWRM_INTERNAL_RESP_DIRTY	= BIT(1), /* response contains data */
 	BNXT_HWRM_CTX_SILENT		= BIT(2), /* squelch firmware errors */
@@ -48,7 +48,7 @@ enum bnxt_hwrm_chnl { BNXT_HWRM_CHNL_CHIMP, BNXT_HWRM_CHNL_KONG };
 
 struct bnxt_hwrm_wait_token {
 	struct rcu_head rcu;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	enum bnxt_hwrm_wait_state state;
 	enum bnxt_hwrm_chnl dst;
 	u16 seq_id;
@@ -63,7 +63,7 @@ void hwrm_update_token(struct bnxt *bp, u16 seq, enum bnxt_hwrm_wait_state s);
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
 #define BNXT_HWRM_TARGET		0xffff
-#define BNXT_HWRM_NO_CMPL_RING		-1
+#define BNXT_HWRM_ANAL_CMPL_RING		-1
 #define BNXT_HWRM_REQ_MAX_SIZE		128
 #define BNXT_HWRM_DMA_SIZE		(2 * PAGE_SIZE) /* space for req+resp */
 #define BNXT_HWRM_RESP_RESERVED		PAGE_SIZE

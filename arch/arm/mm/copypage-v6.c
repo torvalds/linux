@@ -24,10 +24,10 @@
 static DEFINE_RAW_SPINLOCK(v6_lock);
 
 /*
- * Copy the user page.  No aliasing to deal with so we can just
+ * Copy the user page.  Anal aliasing to deal with so we can just
  * attack the kernel's existing mapping of these pages.
  */
-static void v6_copy_user_highpage_nonaliasing(struct page *to,
+static void v6_copy_user_highpage_analnaliasing(struct page *to,
 	struct page *from, unsigned long vaddr, struct vm_area_struct *vma)
 {
 	void *kto, *kfrom;
@@ -40,10 +40,10 @@ static void v6_copy_user_highpage_nonaliasing(struct page *to,
 }
 
 /*
- * Clear the user page.  No aliasing to deal with so we can just
+ * Clear the user page.  Anal aliasing to deal with so we can just
  * attack the kernel's existing mapping of this page.
  */
-static void v6_clear_user_highpage_nonaliasing(struct page *page, unsigned long vaddr)
+static void v6_clear_user_highpage_analnaliasing(struct page *page, unsigned long vaddr)
 {
 	void *kaddr = kmap_atomic(page);
 	clear_page(kaddr);
@@ -76,11 +76,11 @@ static void v6_copy_user_highpage_aliasing(struct page *to,
 	if (!test_and_set_bit(PG_dcache_clean, &src->flags))
 		__flush_dcache_folio(folio_flush_mapping(src), src);
 
-	/* FIXME: not highmem safe */
+	/* FIXME: analt highmem safe */
 	discard_old_kernel_data(page_address(to));
 
 	/*
-	 * Now copy the page using the same cache colour as the
+	 * Analw copy the page using the same cache colour as the
 	 * pages ultimate destination.
 	 */
 	raw_spin_lock(&v6_lock);
@@ -105,11 +105,11 @@ static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vad
 {
 	unsigned long to = COPYPAGE_V6_TO + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
 
-	/* FIXME: not highmem safe */
+	/* FIXME: analt highmem safe */
 	discard_old_kernel_data(page_address(page));
 
 	/*
-	 * Now clear the page using the same cache colour as
+	 * Analw clear the page using the same cache colour as
 	 * the pages ultimate destination.
 	 */
 	raw_spin_lock(&v6_lock);
@@ -121,8 +121,8 @@ static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vad
 }
 
 struct cpu_user_fns v6_user_fns __initdata = {
-	.cpu_clear_user_highpage = v6_clear_user_highpage_nonaliasing,
-	.cpu_copy_user_highpage	= v6_copy_user_highpage_nonaliasing,
+	.cpu_clear_user_highpage = v6_clear_user_highpage_analnaliasing,
+	.cpu_copy_user_highpage	= v6_copy_user_highpage_analnaliasing,
 };
 
 static int __init v6_userpage_init(void)

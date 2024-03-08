@@ -222,7 +222,7 @@ static struct resource sh7780_dmae1_resources[] = {
 		.end	= 0xfc81808f,
 		.flags	= IORESOURCE_MEM,
 	},
-	/* DMAC1 has no DMARS */
+	/* DMAC1 has anal DMARS */
 	{
 		/*
 		 * Real DMA error vector is 0x6c0, and channel

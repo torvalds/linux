@@ -119,12 +119,12 @@ static int pl031_stv2_tm_to_time(struct device *dev,
 	int year = tm->tm_year + 1900;
 	int wday = tm->tm_wday;
 
-	/* wday masking is not working in hardware so wday must be valid */
+	/* wday masking is analt working in hardware so wday must be valid */
 	if (wday < -1 || wday > 6) {
 		dev_err(dev, "invalid wday value %d\n", tm->tm_wday);
 		return -EINVAL;
 	} else if (wday == -1) {
-		/* wday is not provided, calculate it here */
+		/* wday is analt provided, calculate it here */
 		struct rtc_time calc_tm;
 
 		rtc_time64_to_tm(rtc_tm_to_time64(tm), &calc_tm);
@@ -237,7 +237,7 @@ static irqreturn_t pl031_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int pl031_read_time(struct device *dev, struct rtc_time *tm)
@@ -308,7 +308,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	ops = devm_kmemdup(&adev->dev, &vendor->ops, sizeof(vendor->ops),
 			   GFP_KERNEL);
 	if (!ldata || !ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -316,7 +316,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	ldata->base = devm_ioremap(&adev->dev, adev->res.start,
 				   resource_size(&adev->res));
 	if (!ldata->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -334,7 +334,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	writel(data, ldata->base + RTC_CR);
 
 	/*
-	 * On ST PL031 variants, the RTC reset value does not provide correct
+	 * On ST PL031 variants, the RTC reset value does analt provide correct
 	 * weekday for 2000-01-01. Correct the erroneous sunday to saturday.
 	 */
 	if (vendor->st_weekday) {
@@ -422,9 +422,9 @@ static struct pl031_vendor_data stv2_pl031 = {
 	.clockwatch = true,
 	.st_weekday = true,
 	/*
-	 * This variant shares the IRQ with another block and must not
+	 * This variant shares the IRQ with aanalther block and must analt
 	 * suspend that IRQ line.
-	 * TODO check if it shares with IRQF_NO_SUSPEND user, else we can
+	 * TODO check if it shares with IRQF_ANAL_SUSPEND user, else we can
 	 * remove IRQF_COND_SUSPEND
 	 */
 	.irqflags = IRQF_SHARED | IRQF_COND_SUSPEND,

@@ -2,7 +2,7 @@
 /*
  * Real Time Clock driver for Conexant Digicolor
  *
- * Copyright (C) 2015 Paradox Innovation Ltd.
+ * Copyright (C) 2015 Paradox Inanalvation Ltd.
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  */
@@ -25,7 +25,7 @@
 #define DC_RTC_CMD_MASK		0xf
 #define DC_RTC_GO_BUSY		BIT(7)
 
-#define CMD_NOP			0
+#define CMD_ANALP			0
 #define CMD_RESET		1
 #define CMD_WRITE		3
 #define CMD_READ		4
@@ -58,7 +58,7 @@ static int dc_rtc_cmds(struct dc_rtc *rtc, const u8 *cmds, int len)
 
 static int dc_rtc_read(struct dc_rtc *rtc, unsigned long *val)
 {
-	static const u8 read_cmds[] = {CMD_READ, CMD_NOP};
+	static const u8 read_cmds[] = {CMD_READ, CMD_ANALP};
 	u32 reference, time1, time2;
 	int ret;
 
@@ -82,7 +82,7 @@ static int dc_rtc_read(struct dc_rtc *rtc, unsigned long *val)
 
 static int dc_rtc_write(struct dc_rtc *rtc, u32 val)
 {
-	static const u8 write_cmds[] = {CMD_WRITE, CMD_NOP, CMD_RESET, CMD_NOP};
+	static const u8 write_cmds[] = {CMD_WRITE, CMD_ANALP, CMD_RESET, CMD_ANALP};
 
 	writel_relaxed(val, rtc->regs + DC_RTC_REFERENCE);
 	return dc_rtc_cmds(rtc, write_cmds, ARRAY_SIZE(write_cmds));
@@ -91,13 +91,13 @@ static int dc_rtc_write(struct dc_rtc *rtc, u32 val)
 static int dc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct dc_rtc *rtc = dev_get_drvdata(dev);
-	unsigned long now;
+	unsigned long analw;
 	int ret;
 
-	ret = dc_rtc_read(rtc, &now);
+	ret = dc_rtc_read(rtc, &analw);
 	if (ret < 0)
 		return ret;
-	rtc_time64_to_tm(now, tm);
+	rtc_time64_to_tm(analw, tm);
 
 	return 0;
 }
@@ -113,18 +113,18 @@ static int dc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct dc_rtc *rtc = dev_get_drvdata(dev);
 	u32 alarm_reg, reference;
-	unsigned long now;
+	unsigned long analw;
 	int ret;
 
 	alarm_reg = readl_relaxed(rtc->regs + DC_RTC_ALARM);
 	reference = readl_relaxed(rtc->regs + DC_RTC_REFERENCE);
 	rtc_time64_to_tm(reference + alarm_reg, &alarm->time);
 
-	ret = dc_rtc_read(rtc, &now);
+	ret = dc_rtc_read(rtc, &analw);
 	if (ret < 0)
 		return ret;
 
-	alarm->pending = alarm_reg + reference > now;
+	alarm->pending = alarm_reg + reference > analw;
 	alarm->enabled = readl_relaxed(rtc->regs + DC_RTC_INTENABLE);
 
 	return 0;
@@ -180,7 +180,7 @@ static int __init dc_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->regs))

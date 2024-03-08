@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -112,7 +112,7 @@ void rs690_pm_info(struct radeon_device *rdev)
 			rdev->pm.igp_system_mclk.full = dfixed_const(200);
 			rdev->pm.igp_ht_link_clk.full = dfixed_const(1000);
 			rdev->pm.igp_ht_link_width.full = dfixed_const(8);
-			DRM_ERROR("No integrated system info for your GPU, using safe default\n");
+			DRM_ERROR("Anal integrated system info for your GPU, using safe default\n");
 			break;
 		}
 	} else {
@@ -121,7 +121,7 @@ void rs690_pm_info(struct radeon_device *rdev)
 		rdev->pm.igp_system_mclk.full = dfixed_const(200);
 		rdev->pm.igp_ht_link_clk.full = dfixed_const(1000);
 		rdev->pm.igp_ht_link_width.full = dfixed_const(8);
-		DRM_ERROR("No integrated system info for your GPU, using safe default\n");
+		DRM_ERROR("Anal integrated system info for your GPU, using safe default\n");
 	}
 	/* Compute various bandwidth */
 	/* k8_bandwidth = (memory_clk / 2) * 2 * 8 * 0.5 = memory_clk * 4  */
@@ -248,7 +248,7 @@ void rs690_line_buffer_adjust(struct radeon_device *rdev,
 	}
 	WREG32(R_006520_DC_LB_MEMORY_SPLIT, tmp);
 
-	/* Save number of lines the linebuffer leads before the scanout */
+	/* Save number of lines the linebuffer leads before the scaanalut */
 	if (mode1)
 		rdev->mode_info.crtcs[0]->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode1->crtc_hdisplay);
 
@@ -754,7 +754,7 @@ int rs690_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are analt working */
 	rs400_gart_disable(rdev);
 	/* Resume clock before doing reset */
 	rv515_clock_startup(rdev);
@@ -840,7 +840,7 @@ int rs690_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or analt */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 

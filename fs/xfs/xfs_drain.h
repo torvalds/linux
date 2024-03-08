@@ -36,7 +36,7 @@ void xfs_drain_wait_enable(void);
  * buffer locks will cycle during a transaction roll to get from one intent
  * item to the next in a chain.  Although scrub takes all AG header buffer
  * locks, this isn't sufficient to guard against scrub checking an AG while
- * that writer thread is in the middle of finishing a chain because there's no
+ * that writer thread is in the middle of finishing a chain because there's anal
  * higher level locking primitive guarding allocation groups.
  *
  * When there's a collision, cross-referencing between data structures (e.g.
@@ -58,11 +58,11 @@ void xfs_drain_wait_enable(void);
  *
  * Therefore, the intent count tracks entire lifetimes of deferred work items.
  * All functions that create work items must increment the intent counter as
- * soon as the item is added to the transaction and cannot drop the counter
+ * soon as the item is added to the transaction and cananalt drop the counter
  * until the item is finished or cancelled.
  */
 struct xfs_perag *xfs_perag_intent_get(struct xfs_mount *mp,
-		xfs_agnumber_t agno);
+		xfs_agnumber_t aganal);
 void xfs_perag_intent_put(struct xfs_perag *pag);
 
 void xfs_perag_intent_hold(struct xfs_perag *pag);
@@ -76,7 +76,7 @@ struct xfs_defer_drain { /* empty */ };
 #define xfs_defer_drain_free(dr)		((void)0)
 #define xfs_defer_drain_init(dr)		((void)0)
 
-#define xfs_perag_intent_get(mp, agno)		xfs_perag_get((mp), (agno))
+#define xfs_perag_intent_get(mp, aganal)		xfs_perag_get((mp), (aganal))
 #define xfs_perag_intent_put(pag)		xfs_perag_put(pag)
 
 static inline void xfs_perag_intent_hold(struct xfs_perag *pag) { }

@@ -74,10 +74,10 @@
 #define MSGF_MISC_SR_I_ADDR_ERR		BIT(6)
 #define MSGF_MISC_SR_E_ADDR_ERR		BIT(7)
 #define MSGF_MISC_SR_FATAL_AER		BIT(16)
-#define MSGF_MISC_SR_NON_FATAL_AER	BIT(17)
+#define MSGF_MISC_SR_ANALN_FATAL_AER	BIT(17)
 #define MSGF_MISC_SR_CORR_AER		BIT(18)
 #define MSGF_MISC_SR_UR_DETECT		BIT(20)
-#define MSGF_MISC_SR_NON_FATAL_DEV	BIT(22)
+#define MSGF_MISC_SR_ANALN_FATAL_DEV	BIT(22)
 #define MSGF_MISC_SR_FATAL_DEV		BIT(23)
 #define MSGF_MISC_SR_LINK_DOWN		BIT(24)
 #define MSGF_MSIC_SR_LINK_AUTO_BWIDTH	BIT(25)
@@ -90,10 +90,10 @@
 					MSGF_MISC_SR_I_ADDR_ERR | \
 					MSGF_MISC_SR_E_ADDR_ERR | \
 					MSGF_MISC_SR_FATAL_AER | \
-					MSGF_MISC_SR_NON_FATAL_AER | \
+					MSGF_MISC_SR_ANALN_FATAL_AER | \
 					MSGF_MISC_SR_CORR_AER | \
 					MSGF_MISC_SR_UR_DETECT | \
-					MSGF_MISC_SR_NON_FATAL_DEV | \
+					MSGF_MISC_SR_ANALN_FATAL_DEV | \
 					MSGF_MISC_SR_FATAL_DEV | \
 					MSGF_MISC_SR_LINK_DOWN | \
 					MSGF_MSIC_SR_LINK_AUTO_BWIDTH | \
@@ -200,7 +200,7 @@ static int nwl_wait_for_link(struct nwl_pcie *pcie)
 	struct device *dev = pcie->dev;
 	int retries;
 
-	/* check if the link is up or not */
+	/* check if the link is up or analt */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (nwl_phy_link_up(pcie))
 			return 0;
@@ -264,7 +264,7 @@ static irqreturn_t nwl_pcie_misc_handler(int irq, void *data)
 	misc_stat = nwl_bridge_readl(pcie, MSGF_MISC_STATUS) &
 				     MSGF_MISC_SR_MASKALL;
 	if (!misc_stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (misc_stat & MSGF_MISC_SR_RXMSG_OVER)
 		dev_err(dev, "Received Message FIFO Overflow\n");
@@ -284,8 +284,8 @@ static irqreturn_t nwl_pcie_misc_handler(int irq, void *data)
 	if (misc_stat & MSGF_MISC_SR_FATAL_AER)
 		dev_err(dev, "Fatal Error in AER Capability\n");
 
-	if (misc_stat & MSGF_MISC_SR_NON_FATAL_AER)
-		dev_err(dev, "Non-Fatal Error in AER Capability\n");
+	if (misc_stat & MSGF_MISC_SR_ANALN_FATAL_AER)
+		dev_err(dev, "Analn-Fatal Error in AER Capability\n");
 
 	if (misc_stat & MSGF_MISC_SR_CORR_AER)
 		dev_err(dev, "Correctable Error in AER Capability\n");
@@ -293,14 +293,14 @@ static irqreturn_t nwl_pcie_misc_handler(int irq, void *data)
 	if (misc_stat & MSGF_MISC_SR_UR_DETECT)
 		dev_err(dev, "Unsupported request Detected\n");
 
-	if (misc_stat & MSGF_MISC_SR_NON_FATAL_DEV)
-		dev_err(dev, "Non-Fatal Error Detected\n");
+	if (misc_stat & MSGF_MISC_SR_ANALN_FATAL_DEV)
+		dev_err(dev, "Analn-Fatal Error Detected\n");
 
 	if (misc_stat & MSGF_MISC_SR_FATAL_DEV)
 		dev_err(dev, "Fatal Error Detected\n");
 
 	if (misc_stat & MSGF_MSIC_SR_LINK_AUTO_BWIDTH)
-		dev_info(dev, "Link Autonomous Bandwidth Management Status bit set\n");
+		dev_info(dev, "Link Autoanalmous Bandwidth Management Status bit set\n");
 
 	if (misc_stat & MSGF_MSIC_SR_LINK_BWIDTH)
 		dev_info(dev, "Link Bandwidth Management Status bit set\n");
@@ -466,7 +466,7 @@ static int nwl_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				      get_count_order(nr_irqs));
 	if (bit < 0) {
 		mutex_unlock(&msi->lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	for (i = 0; i < nr_irqs; i++) {
@@ -500,22 +500,22 @@ static int nwl_pcie_init_msi_irq_domain(struct nwl_pcie *pcie)
 {
 #ifdef CONFIG_PCI_MSI
 	struct device *dev = pcie->dev;
-	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
+	struct fwanalde_handle *fwanalde = of_analde_to_fwanalde(dev->of_analde);
 	struct nwl_msi *msi = &pcie->msi;
 
 	msi->dev_domain = irq_domain_add_linear(NULL, INT_PCI_MSI_NR,
 						&dev_msi_domain_ops, pcie);
 	if (!msi->dev_domain) {
 		dev_err(dev, "failed to create dev IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
+	msi->msi_domain = pci_msi_create_irq_domain(fwanalde,
 						    &nwl_msi_domain_info,
 						    msi->dev_domain);
 	if (!msi->msi_domain) {
 		dev_err(dev, "failed to create msi IRQ domain\n");
 		irq_domain_remove(msi->dev_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 	return 0;
@@ -524,23 +524,23 @@ static int nwl_pcie_init_msi_irq_domain(struct nwl_pcie *pcie)
 static int nwl_pcie_init_irq_domain(struct nwl_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *intc_node;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *intc_analde;
 
-	intc_node = of_get_next_child(node, NULL);
-	if (!intc_node) {
-		dev_err(dev, "No legacy intc node found\n");
+	intc_analde = of_get_next_child(analde, NULL);
+	if (!intc_analde) {
+		dev_err(dev, "Anal legacy intc analde found\n");
 		return -EINVAL;
 	}
 
-	pcie->intx_irq_domain = irq_domain_add_linear(intc_node,
+	pcie->intx_irq_domain = irq_domain_add_linear(intc_analde,
 						      PCI_NUM_INTX,
 						      &intx_domain_ops,
 						      pcie);
-	of_node_put(intc_node);
+	of_analde_put(intc_analde);
 	if (!pcie->intx_irq_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	raw_spin_lock_init(&pcie->leg_mask_lock);
@@ -577,7 +577,7 @@ static int nwl_pcie_enable_msi(struct nwl_pcie *pcie)
 	/* Check for msii_present bit */
 	ret = nwl_bridge_readl(pcie, I_MSII_CAPABILITIES) & MSII_PRESENT;
 	if (!ret) {
-		dev_err(dev, "MSI not present\n");
+		dev_err(dev, "MSI analt present\n");
 		return -EIO;
 	}
 
@@ -628,7 +628,7 @@ static int nwl_pcie_bridge_init(struct nwl_pcie *pcie)
 
 	breg_val = nwl_bridge_readl(pcie, E_BREG_CAPABILITIES) & BREG_PRESENT;
 	if (!breg_val) {
-		dev_err(dev, "BREG is not present\n");
+		dev_err(dev, "BREG is analt present\n");
 		return breg_val;
 	}
 
@@ -654,7 +654,7 @@ static int nwl_pcie_bridge_init(struct nwl_pcie *pcie)
 			  BRCFG_PCIE_RX_MSG_FILTER);
 
 	/* This routes the PCIe DMA traffic to go through CCI path */
-	if (of_dma_is_coherent(dev->of_node))
+	if (of_dma_is_coherent(dev->of_analde))
 		nwl_bridge_writel(pcie, nwl_bridge_readl(pcie, BRCFG_PCIE_RX1) |
 				  CFG_PCIE_CACHE, BRCFG_PCIE_RX1);
 
@@ -664,7 +664,7 @@ static int nwl_pcie_bridge_init(struct nwl_pcie *pcie)
 
 	ecam_val = nwl_bridge_readl(pcie, E_ECAM_CAPABILITIES) & E_ECAM_PRESENT;
 	if (!ecam_val) {
-		dev_err(dev, "ECAM is not present\n");
+		dev_err(dev, "ECAM is analt present\n");
 		return ecam_val;
 	}
 
@@ -776,7 +776,7 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcie = pci_host_bridge_priv(bridge);
 

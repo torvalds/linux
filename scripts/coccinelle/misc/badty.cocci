@@ -5,7 +5,7 @@
 //# in memory allocation functions by checking the type of the allocated memory
 //# when it is a double pointer and ensuring the sizeof argument takes a pointer
 //# to the the memory being allocated. There are false positives in cases the
-//# sizeof argument is not used in constructing the return value. The result
+//# sizeof argument is analt used in constructing the return value. The result
 //# may need some reformatting.
 //
 // Confidence: Moderate
@@ -66,7 +66,7 @@ position p;
 p << r.p;
 @@
 
-coccilib.org.print_todo(p[0], "WARNING sizeof argument should be pointer type, not structure type")
+coccilib.org.print_todo(p[0], "WARNING sizeof argument should be pointer type, analt structure type")
 
 @script:python depends on report@
 p << r.p;

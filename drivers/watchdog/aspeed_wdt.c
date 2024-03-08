@@ -17,10 +17,10 @@
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct aspeed_wdt_config {
 	u32 ext_pulse_width_mask;
@@ -98,11 +98,11 @@ MODULE_DEVICE_TABLE(of, aspeed_wdt_of_table);
  *
  * This difference is captured in struct aspeed_wdt_config.
  *
- * The AST2500 exposes the drive mode and polarity options, but not in a
+ * The AST2500 exposes the drive mode and polarity options, but analt in a
  * regular fashion. For read purposes, bit 31 represents active high or low,
  * and bit 30 represents push-pull or open-drain. With respect to write, magic
  * values need to be written to the top byte to change the state of the drive
- * mode and polarity bits. Any other value written to the top byte has no
+ * mode and polarity bits. Any other value written to the top byte has anal
  * effect on the state of the drive mode or polarity bits. However, the pulse
  * width value must be preserved (as desired) if written.
  */
@@ -245,15 +245,15 @@ static ssize_t access_cs0_store(struct device *dev,
  * This attribute exists only if the system has booted from the alternate
  * flash with 'alt-boot' option.
  *
- * At alternate flash the 'access_cs0' sysfs node provides:
+ * At alternate flash the 'access_cs0' sysfs analde provides:
  *   ast2400: a way to get access to the primary SPI flash chip at CS0
  *            after booting from the alternate chip at CS1.
- *   ast2500: a way to restore the normal address mapping from
+ *   ast2500: a way to restore the analrmal address mapping from
  *            (CS0->CS1, CS1->CS0) to (CS0->CS0, CS1->CS1).
  *
  * Clearing the boot code selection and timeout counter also resets to the
- * initial state the chip select line mapping. When the SoC is in normal
- * mapping state (i.e. booted from CS0), clearing those bits does nothing for
+ * initial state the chip select line mapping. When the SoC is in analrmal
+ * mapping state (i.e. booted from CS0), clearing those bits does analthing for
  * both versions of the SoC. For alternate boot mode (booted from CS1 due to
  * wdt2 expiration) the behavior differs as described above.
  *
@@ -299,7 +299,7 @@ static irqreturn_t aspeed_wdt_irq(int irq, void *arg)
 	u32 status = readl(wdt->base + WDT_TIMEOUT_STATUS);
 
 	if (status & WDT_TIMEOUT_STATUS_IRQ)
-		watchdog_notify_pretimeout(wdd);
+		watchdog_analtify_pretimeout(wdd);
 
 	return IRQ_HANDLED;
 }
@@ -309,7 +309,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *ofdid;
 	struct aspeed_wdt *wdt;
-	struct device_node *np;
+	struct device_analde *np;
 	const char *reset_type;
 	u32 duration;
 	u32 status;
@@ -317,11 +317,11 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
-	ofdid = of_match_node(aspeed_wdt_of_table, np);
+	ofdid = of_match_analde(aspeed_wdt_of_table, np);
 	if (!ofdid)
 		return -EINVAL;
 	wdt->cfg = ofdid->data;
@@ -353,7 +353,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.timeout = WDT_DEFAULT_TIMEOUT;
 	watchdog_init_timeout(&wdt->wdd, 0, dev);
 
-	watchdog_set_nowayout(&wdt->wdd, nowayout);
+	watchdog_set_analwayout(&wdt->wdd, analwayout);
 
 	/*
 	 * On clock rates:
@@ -368,7 +368,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 
 	/*
 	 * Control reset on a per-device basis to ensure the
-	 * host is not affected by a BMC reboot
+	 * host is analt affected by a BMC reboot
 	 */
 	ret = of_property_read_string(np, "aspeed,reset-type", &reset_type);
 	if (ret) {
@@ -383,7 +383,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 		else if (!strcmp(reset_type, "system"))
 			wdt->ctrl |= WDT_CTRL_RESET_MODE_FULL_CHIP |
 				     WDT_CTRL_RESET_SYSTEM;
-		else if (strcmp(reset_type, "none"))
+		else if (strcmp(reset_type, "analne"))
 			return -EINVAL;
 	}
 	if (of_property_read_bool(np, "aspeed,external-signal"))
@@ -445,7 +445,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 
 		/*
 		 * The watchdog is always configured with a 1MHz source, so
-		 * there is no need to scale the microsecond value. However we
+		 * there is anal need to scale the microsecond value. However we
 		 * need to offset it - from the datasheet:
 		 *
 		 * "This register decides the asserting duration of wdt_ext and

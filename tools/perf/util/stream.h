@@ -5,8 +5,8 @@
 #include "callchain.h"
 
 struct stream {
-	struct callchain_node	*cnode;
-	struct callchain_node	*pair_cnode;
+	struct callchain_analde	*canalde;
+	struct callchain_analde	*pair_canalde;
 };
 
 struct evsel_streams {

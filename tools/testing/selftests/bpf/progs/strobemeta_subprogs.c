@@ -5,6 +5,6 @@
 #define STROBE_MAX_STRS 25
 #define STROBE_MAX_MAPS 13
 #define STROBE_MAX_MAP_ENTRIES 20
-#define NO_UNROLL
+#define ANAL_UNROLL
 #define SUBPROGS
 #include "strobemeta.h"

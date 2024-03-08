@@ -151,7 +151,7 @@
 /*
  * HBM virtual address space
  * Gaudi2 has 6 HBM devices, each supporting 16GB total of 96GB at most.
- * No core separation is supported so we can have one chunk of virtual address
+ * Anal core separation is supported so we can have one chunk of virtual address
  * space just above the physical ones.
  * The virtual address space starts immediately after the end of the physical
  * address space which is determined at run-time.

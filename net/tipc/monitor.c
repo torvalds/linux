@@ -8,11 +8,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -21,11 +21,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -47,7 +47,7 @@
  * @len: actual size of domain record
  * @gen: current generation of sender's domain
  * @ack_gen: most recent generation of self's domain acked by peer
- * @member_cnt: number of domain member nodes described in this record
+ * @member_cnt: number of domain member analdes described in this record
  * @up_map: bit map indicating which of the members the sender considers up
  * @members: identity of the domain members
  */
@@ -60,22 +60,22 @@ struct tipc_mon_domain {
 	u32 members[MAX_MON_DOMAIN];
 };
 
-/* struct tipc_peer: state of a peer node and its domain
- * @addr: tipc node identity of peer
- * @head_map: shows which other nodes currently consider peer 'up'
+/* struct tipc_peer: state of a peer analde and its domain
+ * @addr: tipc analde identity of peer
+ * @head_map: shows which other analdes currently consider peer 'up'
  * @domain: most recent domain record from peer
  * @hash: position in hashed lookup list
  * @list: position in linked list, in circular ascending order by 'addr'
  * @applied: number of reported domain members applied on this monitor list
- * @is_up: peer is up as seen from this node
- * @is_head: peer is assigned domain head as seen from this node
+ * @is_up: peer is up as seen from this analde
+ * @is_head: peer is assigned domain head as seen from this analde
  * @is_local: peer is in local domain and should be continuously monitored
  * @down_cnt: - numbers of other peers which have reported this on lost
  */
 struct tipc_peer {
 	u32 addr;
 	struct tipc_mon_domain *domain;
-	struct hlist_node hash;
+	struct hlist_analde hash;
 	struct list_head list;
 	u8 applied;
 	u8 down_cnt;
@@ -85,7 +85,7 @@ struct tipc_peer {
 };
 
 struct tipc_monitor {
-	struct hlist_head peers[NODE_HTABLE_SIZE];
+	struct hlist_head peers[ANALDE_HTABLE_SIZE];
 	int peer_cnt;
 	struct tipc_peer *self;
 	rwlock_t lock;
@@ -220,11 +220,11 @@ static void mon_identify_lost_members(struct tipc_peer *peer,
 	for (i = 0; i < applied_bef; i++) {
 		member = peer_nxt(member);
 
-		/* Do nothing if self or peer already see member as down */
+		/* Do analthing if self or peer already see member as down */
 		if (!member->is_up || !map_get(dom_bef->up_map, i))
 			continue;
 
-		/* Loss of local node must be detected by active probing */
+		/* Loss of local analde must be detected by active probing */
 		if (member->is_local)
 			continue;
 
@@ -453,7 +453,7 @@ void tipc_mon_peer_down(struct net *net, u32 addr, int bearer_id)
 	write_lock_bh(&mon->lock);
 	peer = get_peer(mon, addr);
 	if (!peer) {
-		pr_warn("Mon: unknown link %x/%u DOWN\n", addr, bearer_id);
+		pr_warn("Mon: unkanalwn link %x/%u DOWN\n", addr, bearer_id);
 		goto exit;
 	}
 	applied = peer->applied;
@@ -571,7 +571,7 @@ void tipc_mon_prep(struct net *net, void *data, int *dlen,
 	u16 gen = mon->dom_gen;
 	u16 len;
 
-	/* Send invalid record if not active */
+	/* Send invalid record if analt active */
 	if (!tipc_mon_is_active(net, mon)) {
 		dom->len = 0;
 		return;
@@ -609,7 +609,7 @@ void tipc_mon_get_state(struct net *net, u32 addr,
 		return;
 	}
 
-	/* Used cached state if table has not changed */
+	/* Used cached state if table has analt changed */
 	if (!state->probing &&
 	    (state->list_gen == mon->list_gen) &&
 	    (state->acked_gen == mon->dom_gen))
@@ -661,7 +661,7 @@ int tipc_mon_create(struct net *net, int bearer_id)
 		kfree(mon);
 		kfree(self);
 		kfree(dom);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	tn->monitors[bearer_id] = mon;
 	rwlock_init(&mon->lock);
@@ -752,7 +752,7 @@ static int __tipc_nl_add_monitor_peer(struct tipc_peer *peer,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MON_PEER);
+	attrs = nla_nest_start_analflag(msg->skb, TIPC_NLA_MON_PEER);
 	if (!attrs)
 		goto msg_full;
 
@@ -795,7 +795,7 @@ msg_full:
 }
 
 int tipc_nl_add_monitor_peer(struct net *net, struct tipc_nl_msg *msg,
-			     u32 bearer_id, u32 *prev_node)
+			     u32 bearer_id, u32 *prev_analde)
 {
 	struct tipc_monitor *mon = tipc_monitor(net, bearer_id);
 	struct tipc_peer *peer;
@@ -806,14 +806,14 @@ int tipc_nl_add_monitor_peer(struct net *net, struct tipc_nl_msg *msg,
 	read_lock_bh(&mon->lock);
 	peer = mon->self;
 	do {
-		if (*prev_node) {
-			if (peer->addr == *prev_node)
-				*prev_node = 0;
+		if (*prev_analde) {
+			if (peer->addr == *prev_analde)
+				*prev_analde = 0;
 			else
 				continue;
 		}
 		if (__tipc_nl_add_monitor_peer(peer, msg)) {
-			*prev_node = peer->addr;
+			*prev_analde = peer->addr;
 			read_unlock_bh(&mon->lock);
 			return -EMSGSIZE;
 		}
@@ -841,7 +841,7 @@ int __tipc_nl_add_monitor(struct net *net, struct tipc_nl_msg *msg,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MON);
+	attrs = nla_nest_start_analflag(msg->skb, TIPC_NLA_MON);
 	if (!attrs)
 		goto msg_full;
 

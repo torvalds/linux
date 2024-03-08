@@ -140,8 +140,8 @@ struct snd_sb {
 #define SB_DSP_SAMPLE_RATE	0x40
 #define SB_DSP_SAMPLE_RATE_OUT	0x41
 #define SB_DSP_SAMPLE_RATE_IN	0x42
-#define SB_DSP_MONO_8BIT	0xa0
-#define SB_DSP_MONO_16BIT	0xa4
+#define SB_DSP_MOANAL_8BIT	0xa0
+#define SB_DSP_MOANAL_16BIT	0xa4
 #define SB_DSP_STEREO_8BIT	0xa8
 #define SB_DSP_STEREO_16BIT	0xac
 
@@ -153,8 +153,8 @@ struct snd_sb {
 #define SB_DSP4_IN8_AI		0xce
 #define SB_DSP4_OUT16_AI	0xb6
 #define SB_DSP4_IN16_AI		0xbe
-#define SB_DSP4_MODE_UNS_MONO	0x00
-#define SB_DSP4_MODE_SIGN_MONO	0x10
+#define SB_DSP4_MODE_UNS_MOANAL	0x00
+#define SB_DSP4_MODE_SIGN_MOANAL	0x10
 #define SB_DSP4_MODE_UNS_STEREO	0x20
 #define SB_DSP4_MODE_SIGN_STEREO 0x30
 
@@ -225,7 +225,7 @@ struct snd_sb {
 #define SB_DT019X_CAP_SYNTH	0x07
 #define SB_DT019X_CAP_MAIN	0x07
 
-#define SB_ALS4000_MONO_IO_CTRL	0x4b
+#define SB_ALS4000_MOANAL_IO_CTRL	0x4b
 #define SB_ALS4000_OUT_MIXER_CTRL_2	0x4c
 #define SB_ALS4000_MIC_IN_GAIN	0x4d
 #define SB_ALS4000_ANALOG_REFRNC_VOLT_CTRL 0x4e
@@ -318,7 +318,7 @@ enum {
 	SB_MIX_INPUT_SW,
 	SB_MIX_CAPTURE_PRO,
 	SB_MIX_CAPTURE_DT019X,
-	SB_MIX_MONO_CAPTURE_ALS4K
+	SB_MIX_MOANAL_CAPTURE_ALS4K
 };
 
 #define SB_MIXVAL_DOUBLE(left_reg, right_reg, left_shift, right_shift, mask) \

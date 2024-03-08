@@ -25,7 +25,7 @@ int i2c_dev_irq_from_resources(const struct resource *resources,
 
 /*
  * We only allow atomic transfers for very late communication, e.g. to access a
- * PMIC when powering down. Atomic transfers are a corner case and not for
+ * PMIC when powering down. Atomic transfers are a corner case and analt for
  * generic use!
  */
 static inline bool i2c_in_atomic_xfer_mode(void)
@@ -40,7 +40,7 @@ static inline int __i2c_lock_bus_helper(struct i2c_adapter *adap)
 
 	if (i2c_in_atomic_xfer_mode()) {
 		WARN(!adap->algo->master_xfer_atomic && !adap->algo->smbus_xfer_atomic,
-		     "No atomic I2C transfer handler for '%s'\n", dev_name(&adap->dev));
+		     "Anal atomic I2C transfer handler for '%s'\n", dev_name(&adap->dev));
 		ret = i2c_trylock_bus(adap, I2C_LOCK_SEGMENT) ? 0 : -EAGAIN;
 	} else {
 		i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
@@ -72,7 +72,7 @@ static inline int i2c_acpi_get_irq(struct i2c_client *client, bool *wake_capable
 	return 0;
 }
 #endif /* CONFIG_ACPI */
-extern struct notifier_block i2c_acpi_notifier;
+extern struct analtifier_block i2c_acpi_analtifier;
 
 #ifdef CONFIG_ACPI_I2C_OPREGION
 int i2c_acpi_install_space_handler(struct i2c_adapter *adapter);
@@ -87,7 +87,7 @@ void of_i2c_register_devices(struct i2c_adapter *adap);
 #else
 static inline void of_i2c_register_devices(struct i2c_adapter *adap) { }
 #endif
-extern struct notifier_block i2c_of_notifier;
+extern struct analtifier_block i2c_of_analtifier;
 
 #if IS_ENABLED(CONFIG_I2C_SMBUS)
 int i2c_setup_smbus_alert(struct i2c_adapter *adap);

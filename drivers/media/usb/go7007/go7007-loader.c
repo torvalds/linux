@@ -98,7 +98,7 @@ static int go7007_loader_probe(struct usb_interface *interface,
 failed2:
 	usb_put_dev(usbdev);
 	dev_err(&interface->dev, "probe failed\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void go7007_loader_disconnect(struct usb_interface *interface)

@@ -877,19 +877,19 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 	int idx, base;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	pmu = uncore_event_to_pmu(event);
-	/* no device found for this pmu */
+	/* anal device found for this pmu */
 	if (pmu->func_id < 0)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* Sampling not supported yet */
+	/* Sampling analt supported yet */
 	if (hwc->sample_period)
 		return -EINVAL;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* anal sampling */
 		return -EINVAL;
 
 	/*
@@ -914,10 +914,10 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 
 	event->hw.idx = -1;
 	event->hw.last_tag = ~0ULL;
-	event->hw.extra_reg.idx = EXTRA_REG_NONE;
-	event->hw.branch_reg.idx = EXTRA_REG_NONE;
+	event->hw.extra_reg.idx = EXTRA_REG_ANALNE;
+	event->hw.branch_reg.idx = EXTRA_REG_ANALNE;
 	/*
-	 * check event is known (whitelist, determines counter)
+	 * check event is kanalwn (whitelist, determines counter)
 	 */
 	switch (cfg) {
 	case SNB_UNCORE_PCI_IMC_DATA_READS:
@@ -951,7 +951,7 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 	/* Convert to standard encoding format for freerunning counters */
 	event->hw.config = ((cfg - 1) << 8) | 0x10ff;
 
-	/* no group validation needed, we have free running counters */
+	/* anal group validation needed, we have free running counters */
 
 	return 0;
 }
@@ -969,7 +969,7 @@ int snb_pci2phy_map_init(int devid)
 
 	dev = pci_get_device(PCI_VENDOR_ID_INTEL, devid, dev);
 	if (!dev)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	bus = dev->bus->number;
 	segment = pci_domain_nr(dev->bus);
@@ -979,7 +979,7 @@ int snb_pci2phy_map_init(int devid)
 	if (!map) {
 		raw_spin_unlock(&pci2phy_map_lock);
 		pci_dev_put(dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	map->pbus_to_dieid[bus] = 0;
 	raw_spin_unlock(&pci2phy_map_lock);
@@ -999,7 +999,7 @@ static u64 snb_uncore_imc_read_counter(struct intel_uncore_box *box, struct perf
 	 * using readq() from uncore_mmio_read_counter() causes problems
 	 * because it is reading 64-bit at a time. This is okay for the
 	 * uncore_perf_event_update() function because it drops the upper
-	 * 32-bits but not okay for plain uncore_read_counter() as invoked
+	 * 32-bits but analt okay for plain uncore_read_counter() as invoked
 	 * in uncore_pmu_event_start().
 	 */
 	return (u64)readl(box->io_addr + hwc->event_base);
@@ -1013,7 +1013,7 @@ static struct pmu snb_uncore_imc_pmu = {
 	.start		= uncore_pmu_event_start,
 	.stop		= uncore_pmu_event_stop,
 	.read		= uncore_pmu_event_read,
-	.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 };
 
 static struct intel_uncore_ops snb_uncore_imc_ops = {
@@ -1240,7 +1240,7 @@ static int imc_uncore_pci_init(void)
 	struct pci_driver *imc_drv = imc_uncore_find_dev();
 
 	if (!imc_drv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	uncore_pci_uncores = snb_pci_uncores;
 	uncore_pci_driver = imc_drv;
@@ -1312,7 +1312,7 @@ static const struct attribute_group nhm_uncore_format_group = {
 static struct uncore_event_desc nhm_uncore_events[] = {
 	INTEL_UNCORE_EVENT_DESC(clockticks,                "event=0xff,umask=0x00"),
 	INTEL_UNCORE_EVENT_DESC(qmc_writes_full_any,       "event=0x2f,umask=0x0f"),
-	INTEL_UNCORE_EVENT_DESC(qmc_normal_reads_any,      "event=0x2c,umask=0x0f"),
+	INTEL_UNCORE_EVENT_DESC(qmc_analrmal_reads_any,      "event=0x2c,umask=0x0f"),
 	INTEL_UNCORE_EVENT_DESC(qhl_request_ioh_reads,     "event=0x20,umask=0x01"),
 	INTEL_UNCORE_EVENT_DESC(qhl_request_ioh_writes,    "event=0x20,umask=0x02"),
 	INTEL_UNCORE_EVENT_DESC(qhl_request_remote_reads,  "event=0x20,umask=0x04"),
@@ -1491,7 +1491,7 @@ static void __uncore_imc_init_box(struct intel_uncore_box *box,
 	u32 mch_bar;
 
 	if (!pdev) {
-		pr_warn("perf uncore: Cannot find matched IMC device.\n");
+		pr_warn("perf uncore: Cananalt find matched IMC device.\n");
 		return;
 	}
 

@@ -20,7 +20,7 @@ static int request_add_spin(struct i915_request *rq, struct igt_spinner *spin)
 	return err;
 }
 
-static struct i915_request *nop_user_request(struct intel_context *ce,
+static struct i915_request *analp_user_request(struct intel_context *ce,
 					     struct i915_request *from)
 {
 	struct i915_request *rq;
@@ -83,7 +83,7 @@ static int intel_guc_scrub_ctbs(void *arg)
 			break;
 		}
 
-		rq = nop_user_request(ce, NULL);
+		rq = analp_user_request(ce, NULL);
 		intel_context_put(ce);
 
 		if (IS_ERR(rq)) {
@@ -112,7 +112,7 @@ static int intel_guc_scrub_ctbs(void *arg)
 	/* Scrub missing G2H */
 	intel_gt_handle_error(engine->gt, -1, 0, "selftest reset");
 
-	/* GT will not idle if G2H are lost */
+	/* GT will analt idle if G2H are lost */
 	ret = intel_gt_wait_for_idle(gt, HZ);
 	if (ret < 0) {
 		gt_err(gt, "GT failed to idle: %pe\n", ERR_PTR(ret));
@@ -132,11 +132,11 @@ err:
  * intel_guc_steal_guc_ids - Test to exhaust all guc_ids and then steal one
  *
  * This test creates a spinner which is used to block all subsequent submissions
- * until it completes. Next, a loop creates a context and a NOP request each
+ * until it completes. Next, a loop creates a context and a ANALP request each
  * iteration until the guc_ids are exhausted (request creation returns -EAGAIN).
  * The spinner is ended, unblocking all requests created in the loop. At this
  * point all guc_ids are exhausted but are available to steal. Try to create
- * another request which should successfully steal a guc_id. Wait on last
+ * aanalther request which should successfully steal a guc_id. Wait on last
  * request to complete, idle GPU, verify a guc_id was stolen via a counter, and
  * exit the test. Test also artificially reduces the number of guc_ids so the
  * test runs in a timely manner.
@@ -156,7 +156,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 	ce = kcalloc(GUC_MAX_CONTEXT_ID, sizeof(*ce), GFP_KERNEL);
 	if (!ce) {
 		guc_err(guc, "Context array allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
@@ -200,7 +200,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 			goto err_spin_rq;
 		}
 
-		rq = nop_user_request(ce[context_index], spin_rq);
+		rq = analp_user_request(ce[context_index], spin_rq);
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
 			rq = NULL;
@@ -237,7 +237,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 	}
 
 	/* Try to steal guc_id */
-	rq = nop_user_request(ce[context_index], NULL);
+	rq = analp_user_request(ce[context_index], NULL);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
 		guc_err(guc, "Failed to steal guc_id %d: %pe\n", context_index, rq);
@@ -261,7 +261,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 
 	/* Verify a guc_id was stolen */
 	if (guc->number_guc_id_stolen == number_guc_id_stolen) {
-		guc_err(guc, "No guc_id was stolen");
+		guc_err(guc, "Anal guc_id was stolen");
 		ret = -EINVAL;
 	} else {
 		ret = 0;
@@ -302,8 +302,8 @@ static int bad_h2g(struct intel_guc *guc)
 
 /*
  * Set a spinner running to make sure the system is alive and active,
- * then send a bad but asynchronous H2G command and wait to see if an
- * error response is returned. If no response is received or if the
+ * then send a bad but asynchroanalus H2G command and wait to see if an
+ * error response is returned. If anal response is received or if the
  * spinner dies then the test will fail.
  */
 #define FAST_RESPONSE_TIMEOUT_MS	1000

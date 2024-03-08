@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2023. Huawei Techanallogies Co., Ltd */
 #include <argp.h>
 #include <stdbool.h>
 #include <pthread.h>
@@ -23,7 +23,7 @@ struct htab_mem_use_case {
 static struct htab_mem_ctx {
 	const struct htab_mem_use_case *uc;
 	struct htab_mem_bench *skel;
-	pthread_barrier_t *notify;
+	pthread_barrier_t *analtify;
 	int fd;
 } ctx;
 
@@ -74,7 +74,7 @@ static error_t htab_mem_parse_arg(int key, char *arg, struct argp_state *state)
 	case ARG_USE_CASE:
 		args.use_case = strdup(arg);
 		if (!args.use_case) {
-			fprintf(stderr, "no mem for use-case\n");
+			fprintf(stderr, "anal mem for use-case\n");
 			argp_usage(state);
 		}
 		break;
@@ -82,7 +82,7 @@ static error_t htab_mem_parse_arg(int key, char *arg, struct argp_state *state)
 		args.preallocated = true;
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 
 	return 0;
@@ -118,7 +118,7 @@ static int htab_mem_bench_init_barriers(void)
 	for (i = 0; i < nr; i++)
 		pthread_barrier_init(&barriers[i], NULL, 2);
 
-	ctx.notify = barriers;
+	ctx.analtify = barriers;
 	return 0;
 }
 
@@ -126,13 +126,13 @@ static void htab_mem_bench_exit_barriers(void)
 {
 	unsigned int i, nr;
 
-	if (!ctx.notify)
+	if (!ctx.analtify)
 		return;
 
 	nr = (env.producer_cnt + 1) / 2;
 	for (i = 0; i < nr; i++)
-		pthread_barrier_destroy(&ctx.notify[i]);
-	free(ctx.notify);
+		pthread_barrier_destroy(&ctx.analtify[i]);
+	free(ctx.analtify);
 }
 
 static const struct htab_mem_use_case *htab_mem_find_use_case_or_exit(const char *name)
@@ -144,7 +144,7 @@ static const struct htab_mem_use_case *htab_mem_find_use_case_or_exit(const char
 			return &use_cases[i];
 	}
 
-	fprintf(stderr, "no such use-case: %s\n", name);
+	fprintf(stderr, "anal such use-case: %s\n", name);
 	fprintf(stderr, "available use case:");
 	for (i = 0; i < ARRAY_SIZE(use_cases); i++)
 		fprintf(stderr, " %s", use_cases[i].name);
@@ -182,7 +182,7 @@ static void htab_mem_setup(void)
 	/* Ensure that different CPUs can operate on different subset */
 	bpf_map__set_max_entries(map, MAX(8192, 64 * env.nr_cpus));
 	if (args.preallocated)
-		bpf_map__set_map_flags(map, bpf_map__map_flags(map) & ~BPF_F_NO_PREALLOC);
+		bpf_map__set_map_flags(map, bpf_map__map_flags(map) & ~BPF_F_ANAL_PREALLOC);
 
 	names = ctx.uc->progs;
 	while (*names) {
@@ -190,7 +190,7 @@ static void htab_mem_setup(void)
 
 		prog = bpf_object__find_program_by_name(ctx.skel->obj, *names);
 		if (!prog) {
-			fprintf(stderr, "no such program %s\n", *names);
+			fprintf(stderr, "anal such program %s\n", *names);
 			goto cleanup;
 		}
 		bpf_program__set_autoload(prog, true);
@@ -220,33 +220,33 @@ cleanup:
 	exit(1);
 }
 
-static void htab_mem_add_fn(pthread_barrier_t *notify)
+static void htab_mem_add_fn(pthread_barrier_t *analtify)
 {
 	while (true) {
 		/* Do addition */
 		(void)syscall(__NR_getpgid, 0);
-		/* Notify deletion thread to do deletion */
-		pthread_barrier_wait(notify);
+		/* Analtify deletion thread to do deletion */
+		pthread_barrier_wait(analtify);
 		/* Wait for deletion to complete */
-		pthread_barrier_wait(notify);
+		pthread_barrier_wait(analtify);
 	}
 }
 
-static void htab_mem_delete_fn(pthread_barrier_t *notify)
+static void htab_mem_delete_fn(pthread_barrier_t *analtify)
 {
 	while (true) {
 		/* Wait for addition to complete */
-		pthread_barrier_wait(notify);
+		pthread_barrier_wait(analtify);
 		/* Do deletion */
 		(void)syscall(__NR_getppid);
-		/* Notify addition thread to do addition */
-		pthread_barrier_wait(notify);
+		/* Analtify addition thread to do addition */
+		pthread_barrier_wait(analtify);
 	}
 }
 
 static void *htab_mem_producer(void *arg)
 {
-	pthread_barrier_t *notify;
+	pthread_barrier_t *analtify;
 	int seq;
 
 	if (!ctx.uc->need_sync) {
@@ -256,11 +256,11 @@ static void *htab_mem_producer(void *arg)
 	}
 
 	seq = (long)arg;
-	notify = &ctx.notify[seq / 2];
+	analtify = &ctx.analtify[seq / 2];
 	if (seq & 1)
-		htab_mem_delete_fn(notify);
+		htab_mem_delete_fn(analtify);
 	else
-		htab_mem_add_fn(notify);
+		htab_mem_add_fn(analtify);
 	return NULL;
 }
 
@@ -273,7 +273,7 @@ static void htab_mem_read_mem_cgrp_file(const char *name, unsigned long *value)
 	fd = openat(ctx.fd, name, O_RDONLY);
 	if (fd < 0) {
 		/* cgroup v1 ? */
-		fprintf(stderr, "no %s\n", name);
+		fprintf(stderr, "anal %s\n", name);
 		*value = 0;
 		return;
 	}

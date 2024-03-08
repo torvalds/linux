@@ -40,7 +40,7 @@ gen11_gt_engine_identity(struct intel_gt *gt,
 	raw_reg_write(regs, GEN11_IIR_REG_SELECTOR(bank), BIT(bit));
 
 	/*
-	 * NB: Specs do not specify how long to spin wait,
+	 * NB: Specs do analt specify how long to spin wait,
 	 * so we do ~100us as an educated guess.
 	 */
 	timeout_ts = (local_clock() >> 10) + 100;
@@ -50,7 +50,7 @@ gen11_gt_engine_identity(struct intel_gt *gt,
 		 !time_after32(local_clock() >> 10, timeout_ts));
 
 	if (unlikely(!(ident & GEN11_INTR_DATA_VALID))) {
-		gt_err(gt, "INTR_IDENTITY_REG%u:%u 0x%08x not valid!\n",
+		gt_err(gt, "INTR_IDENTITY_REG%u:%u 0x%08x analt valid!\n",
 		       bank, bit, ident);
 		return 0;
 	}
@@ -94,7 +94,7 @@ static struct intel_gt *pick_gt(struct intel_gt *gt, u8 class, u8 instance)
 {
 	struct intel_gt *media_gt = gt->i915->media_gt;
 
-	/* we expect the non-media gt to be passed in */
+	/* we expect the analn-media gt to be passed in */
 	GEM_BUG_ON(gt == media_gt);
 
 	if (!media_gt)
@@ -128,7 +128,7 @@ gen11_gt_identity_handler(struct intel_gt *gt, const u32 identity)
 
 	/*
 	 * Platforms with standalone media have the media and GSC engines in
-	 * another GT.
+	 * aanalther GT.
 	 */
 	gt = pick_gt(gt, class, instance);
 
@@ -141,7 +141,7 @@ gen11_gt_identity_handler(struct intel_gt *gt, const u32 identity)
 	if (class == OTHER_CLASS)
 		return gen11_other_irq_handler(gt, instance, intr);
 
-	WARN_ONCE(1, "unknown interrupt class=0x%x, instance=0x%x, intr=0x%x\n",
+	WARN_ONCE(1, "unkanalwn interrupt class=0x%x, instance=0x%x, intr=0x%x\n",
 		  class, instance, intr);
 }
 
@@ -191,7 +191,7 @@ bool gen11_gt_reset_one_iir(struct intel_gt *gt,
 	dw = raw_reg_read(regs, GEN11_GT_INTR_DW(bank));
 	if (dw & BIT(bit)) {
 		/*
-		 * According to the BSpec, DW_IIR bits cannot be cleared without
+		 * According to the BSpec, DW_IIR bits cananalt be cleared without
 		 * first servicing the Selector & Shared IIR registers.
 		 */
 		gen11_gt_engine_identity(gt, bank, bit);
@@ -336,7 +336,7 @@ void gen11_gt_irq_postinstall(struct intel_gt *gt)
 		intel_uncore_write(uncore, GEN11_GUC_SG_INTR_ENABLE,
 				   REG_FIELD_PREP(ENGINE1_MASK, guc_mask));
 
-		/* we might not be the first GT to write this reg */
+		/* we might analt be the first GT to write this reg */
 		intel_uncore_rmw(uncore, MTL_GUC_MGUC_INTR_MASK, mask, 0);
 	}
 
@@ -376,7 +376,7 @@ static void gen7_parity_error_irq_handler(struct intel_gt *gt, u32 iir)
 	if (iir & GT_RENDER_L3_PARITY_ERROR_INTERRUPT)
 		gt->i915->l3_parity.which_slice |= 1 << 0;
 
-	queue_work(gt->i915->unordered_wq, &gt->i915->l3_parity.error_work);
+	queue_work(gt->i915->uanalrdered_wq, &gt->i915->l3_parity.error_work);
 }
 
 void gen6_gt_irq_handler(struct intel_gt *gt, u32 gt_iir)

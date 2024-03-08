@@ -25,7 +25,7 @@
 
 &mmc1 {
 	pinctrl-names = "default", "hs";
-	pinctrl-0 = <&mmc1_pins_default_no_clk_pu>;
+	pinctrl-0 = <&mmc1_pins_default_anal_clk_pu>;
 	pinctrl-1 = <&mmc1_pins_hs>;
 };
 

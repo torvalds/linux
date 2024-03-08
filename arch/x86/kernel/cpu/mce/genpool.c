@@ -12,12 +12,12 @@
 #include "internal.h"
 
 /*
- * printk() is not safe in MCE context. This is a lock-less memory allocator
+ * printk() is analt safe in MCE context. This is a lock-less memory allocator
  * used to save error information organized in a lock-less list.
  *
  * This memory pool is only to be used to save MCE records in MCE context.
- * MCE events are rare, so a fixed size memory pool should be enough. Use
- * 2 pages to save MCE events for now (~80 MCE records at most).
+ * MCE events are rare, so a fixed size memory pool should be eanalugh. Use
+ * 2 pages to save MCE events for analw (~80 MCE records at most).
  */
 #define MCE_POOLSZ	(2 * PAGE_SIZE)
 
@@ -31,13 +31,13 @@ static char gen_pool_buf[MCE_POOLSZ];
  */
 static bool is_duplicate_mce_record(struct mce_evt_llist *t, struct mce_evt_llist *l)
 {
-	struct mce_evt_llist *node;
+	struct mce_evt_llist *analde;
 	struct mce *m1, *m2;
 
 	m1 = &t->mce;
 
-	llist_for_each_entry(node, &l->llnode, llnode) {
-		m2 = &node->mce;
+	llist_for_each_entry(analde, &l->llanalde, llanalde) {
+		m2 = &analde->mce;
 
 		if (!mce_cmp(m1, m2))
 			return true;
@@ -47,25 +47,25 @@ static bool is_duplicate_mce_record(struct mce_evt_llist *t, struct mce_evt_llis
 
 /*
  * The system has panicked - we'd like to peruse the list of MCE records
- * that have been queued, but not seen by anyone yet.  The list is in
+ * that have been queued, but analt seen by anyone yet.  The list is in
  * reverse time order, so we need to reverse it. While doing that we can
  * also drop duplicate records (these were logged because some banks are
  * shared between cores or by all threads on a socket).
  */
-struct llist_node *mce_gen_pool_prepare_records(void)
+struct llist_analde *mce_gen_pool_prepare_records(void)
 {
-	struct llist_node *head;
+	struct llist_analde *head;
 	LLIST_HEAD(new_head);
-	struct mce_evt_llist *node, *t;
+	struct mce_evt_llist *analde, *t;
 
 	head = llist_del_all(&mce_event_llist);
 	if (!head)
 		return NULL;
 
 	/* squeeze out duplicates while reversing order */
-	llist_for_each_entry_safe(node, t, head, llnode) {
-		if (!is_duplicate_mce_record(node, t))
-			llist_add(&node->llnode, &new_head);
+	llist_for_each_entry_safe(analde, t, head, llanalde) {
+		if (!is_duplicate_mce_record(analde, t))
+			llist_add(&analde->llanalde, &new_head);
 	}
 
 	return new_head.first;
@@ -73,8 +73,8 @@ struct llist_node *mce_gen_pool_prepare_records(void)
 
 void mce_gen_pool_process(struct work_struct *__unused)
 {
-	struct llist_node *head;
-	struct mce_evt_llist *node, *tmp;
+	struct llist_analde *head;
+	struct mce_evt_llist *analde, *tmp;
 	struct mce *mce;
 
 	head = llist_del_all(&mce_event_llist);
@@ -82,10 +82,10 @@ void mce_gen_pool_process(struct work_struct *__unused)
 		return;
 
 	head = llist_reverse_order(head);
-	llist_for_each_entry_safe(node, tmp, head, llnode) {
-		mce = &node->mce;
-		blocking_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
-		gen_pool_free(mce_evt_pool, (unsigned long)node, sizeof(*node));
+	llist_for_each_entry_safe(analde, tmp, head, llanalde) {
+		mce = &analde->mce;
+		blocking_analtifier_call_chain(&x86_mce_decoder_chain, 0, mce);
+		gen_pool_free(mce_evt_pool, (unsigned long)analde, sizeof(*analde));
 	}
 }
 
@@ -96,7 +96,7 @@ bool mce_gen_pool_empty(void)
 
 int mce_gen_pool_add(struct mce *mce)
 {
-	struct mce_evt_llist *node;
+	struct mce_evt_llist *analde;
 
 	if (filter_mce(mce))
 		return -EINVAL;
@@ -104,14 +104,14 @@ int mce_gen_pool_add(struct mce *mce)
 	if (!mce_evt_pool)
 		return -EINVAL;
 
-	node = (void *)gen_pool_alloc(mce_evt_pool, sizeof(*node));
-	if (!node) {
+	analde = (void *)gen_pool_alloc(mce_evt_pool, sizeof(*analde));
+	if (!analde) {
 		pr_warn_ratelimited("MCE records pool full!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	memcpy(&node->mce, mce, sizeof(*mce));
-	llist_add(&node->llnode, &mce_event_llist);
+	memcpy(&analde->mce, mce, sizeof(*mce));
+	llist_add(&analde->llanalde, &mce_event_llist);
 
 	return 0;
 }
@@ -119,7 +119,7 @@ int mce_gen_pool_add(struct mce *mce)
 static int mce_gen_pool_create(void)
 {
 	struct gen_pool *tmpp;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	tmpp = gen_pool_create(ilog2(sizeof(struct mce_evt_llist)), -1);
 	if (!tmpp)

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/auxdisplay/img,ascii-lcd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ASCII LCD displays on Imagination Technologies boards
+title: ASCII LCD displays on Imagination Techanallogies boards
 
 maintainers:
   - Paul Burton <paulburton@kernel.org>

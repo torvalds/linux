@@ -15,7 +15,7 @@ enum vivid_hw_seek_modes {
 };
 
 int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
-		bool show_ccs_out, bool no_error_inj,
+		bool show_ccs_out, bool anal_error_inj,
 		bool has_sdtv, bool has_hdmi);
 void vivid_free_controls(struct vivid_dev *dev);
 

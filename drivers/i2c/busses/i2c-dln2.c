@@ -44,7 +44,7 @@ struct dln2_i2c {
 	struct i2c_adapter adapter;
 	u8 port;
 	/*
-	 * Buffer to hold the packet for read or write transfers. One is enough
+	 * Buffer to hold the packet for read or write transfers. One is eanalugh
 	 * since we can't have multiple transfers in parallel on the i2c bus.
 	 */
 	void *buf;
@@ -193,11 +193,11 @@ static int dln2_i2c_probe(struct platform_device *pdev)
 
 	dln2 = devm_kzalloc(dev, sizeof(*dln2), GFP_KERNEL);
 	if (!dln2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dln2->buf = devm_kmalloc(dev, DLN2_I2C_BUF_SIZE, GFP_KERNEL);
 	if (!dln2->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dln2->pdev = pdev;
 	dln2->port = pdata->port;
@@ -209,7 +209,7 @@ static int dln2_i2c_probe(struct platform_device *pdev)
 	dln2->adapter.quirks = &dln2_i2c_quirks;
 	dln2->adapter.dev.parent = dev;
 	ACPI_COMPANION_SET(&dln2->adapter.dev, ACPI_COMPANION(&pdev->dev));
-	dln2->adapter.dev.of_node = dev->of_node;
+	dln2->adapter.dev.of_analde = dev->of_analde;
 	i2c_set_adapdata(&dln2->adapter, dln2);
 	snprintf(dln2->adapter.name, sizeof(dln2->adapter.name), "%s-%s-%d",
 		 "dln2-i2c", dev_name(pdev->dev.parent), dln2->port);

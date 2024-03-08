@@ -170,7 +170,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c)
 	max77686 = devm_kzalloc(&i2c->dev,
 				sizeof(struct max77686_dev), GFP_KERNEL);
 	if (!max77686)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max77686);
 	max77686->type = (unsigned long)of_device_get_match_data(&i2c->dev);
@@ -202,8 +202,8 @@ static int max77686_i2c_probe(struct i2c_client *i2c)
 	ret = regmap_read(max77686->regmap, MAX77686_REG_DEVICE_ID, &data);
 	if (ret < 0) {
 		dev_err(max77686->dev,
-			"device not found on this channel (this is not an error)\n");
-		return -ENODEV;
+			"device analt found on this channel (this is analt an error)\n");
+		return -EANALDEV;
 	}
 
 	ret = devm_regmap_add_irq_chip(&i2c->dev, max77686->regmap,

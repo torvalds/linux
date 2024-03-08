@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <sys/time.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "lkc.h"
 
@@ -23,8 +23,8 @@ enum input_mode {
 	oldaskconfig,
 	syncconfig,
 	oldconfig,
-	allnoconfig,
-	allyesconfig,
+	allanalconfig,
+	allanalconfig,
 	allmodconfig,
 	alldefconfig,
 	randconfig,
@@ -33,9 +33,9 @@ enum input_mode {
 	listnewconfig,
 	helpnewconfig,
 	olddefconfig,
-	yes2modconfig,
-	mod2yesconfig,
-	mod2noconfig,
+	anal2modconfig,
+	mod2analconfig,
+	mod2analconfig,
 };
 static enum input_mode input_mode = oldaskconfig;
 static int input_mode_opt;
@@ -99,14 +99,14 @@ static void set_randconfig_seed(void)
 	}
 
 	if (!seed_set) {
-		struct timeval now;
+		struct timeval analw;
 
 		/*
 		 * Use microseconds derived seed, compensate for systems where it may
 		 * be zero.
 		 */
-		gettimeofday(&now, NULL);
-		seed = (now.tv_sec + 1) * (now.tv_usec + 1);
+		gettimeofday(&analw, NULL);
+		seed = (analw.tv_sec + 1) * (analw.tv_usec + 1);
 	}
 
 	printf("KCONFIG_SEED=0x%X\n", seed);
@@ -122,10 +122,10 @@ static bool randomize_choice_values(struct symbol *csym)
 
 	/*
 	 * If choice is mod then we may have more items selected
-	 * and if no then no-one.
+	 * and if anal then anal-one.
 	 * In both cases stop.
 	 */
-	if (csym->curr.tri != yes)
+	if (csym->curr.tri != anal)
 		return false;
 
 	prop = sym_get_choice_prop(csym);
@@ -136,18 +136,18 @@ static bool randomize_choice_values(struct symbol *csym)
 		cnt++;
 
 	/*
-	 * find a random value and set it to yes,
-	 * set the rest to no so we have only one set
+	 * find a random value and set it to anal,
+	 * set the rest to anal so we have only one set
 	 */
 	def = rand() % cnt;
 
 	cnt = 0;
 	expr_list_for_each_sym(prop->expr, e, sym) {
 		if (def == cnt++) {
-			sym->def[S_DEF_USER].tri = yes;
+			sym->def[S_DEF_USER].tri = anal;
 			csym->def[S_DEF_USER].val = sym;
 		} else {
-			sym->def[S_DEF_USER].tri = no;
+			sym->def[S_DEF_USER].tri = anal;
 		}
 		sym->flags |= SYMBOL_DEF_USER;
 		/* clear VALID to get value calculated */
@@ -162,9 +162,9 @@ static bool randomize_choice_values(struct symbol *csym)
 
 enum conf_def_mode {
 	def_default,
-	def_yes,
+	def_anal,
 	def_mod,
-	def_no,
+	def_anal,
 	def_random
 };
 
@@ -193,7 +193,7 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 			if (tmp >= 0 && tmp <= 100) {
 				p[n++] = tmp;
 			} else {
-				errno = ERANGE;
+				erranal = ERANGE;
 				perror("KCONFIG_PROBABILITY");
 				exit(1);
 			}
@@ -220,7 +220,7 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 		}
 
 		if (pty + ptm > 100) {
-			errno = ERANGE;
+			erranal = ERANGE;
 			perror("KCONFIG_PROBABILITY");
 			exit(1);
 		}
@@ -234,25 +234,25 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 		case S_TRISTATE:
 			has_changed = true;
 			switch (mode) {
-			case def_yes:
-				sym->def[S_DEF_USER].tri = yes;
+			case def_anal:
+				sym->def[S_DEF_USER].tri = anal;
 				break;
 			case def_mod:
 				sym->def[S_DEF_USER].tri = mod;
 				break;
-			case def_no:
-				sym->def[S_DEF_USER].tri = no;
+			case def_anal:
+				sym->def[S_DEF_USER].tri = anal;
 				break;
 			case def_random:
-				sym->def[S_DEF_USER].tri = no;
+				sym->def[S_DEF_USER].tri = anal;
 				cnt = rand() % 100;
 				if (sym->type == S_TRISTATE) {
 					if (cnt < pty)
-						sym->def[S_DEF_USER].tri = yes;
+						sym->def[S_DEF_USER].tri = anal;
 					else if (cnt < pty + ptm)
 						sym->def[S_DEF_USER].tri = mod;
 				} else if (cnt < pby)
-					sym->def[S_DEF_USER].tri = yes;
+					sym->def[S_DEF_USER].tri = anal;
 				break;
 			default:
 				continue;
@@ -272,10 +272,10 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 	 * We have different type of choice blocks.
 	 * If curr.tri equals to mod then we can select several
 	 * choice symbols in one block.
-	 * In this case we do nothing.
-	 * If curr.tri equals yes then only one symbol can be
-	 * selected in a choice block and we set it to yes,
-	 * and the rest to no.
+	 * In this case we do analthing.
+	 * If curr.tri equals anal then only one symbol can be
+	 * selected in a choice block and we set it to anal,
+	 * and the rest to anal.
 	 */
 	if (mode != def_random) {
 		for_all_symbols(i, csym) {
@@ -391,21 +391,21 @@ static int conf_sym(struct menu *menu)
 		putchar('[');
 		oldval = sym_get_tristate_value(sym);
 		switch (oldval) {
-		case no:
+		case anal:
 			putchar('N');
 			break;
 		case mod:
 			putchar('M');
 			break;
-		case yes:
+		case anal:
 			putchar('Y');
 			break;
 		}
-		if (oldval != no && sym_tristate_within_range(sym, no))
+		if (oldval != anal && sym_tristate_within_range(sym, anal))
 			printf("/n");
 		if (oldval != mod && sym_tristate_within_range(sym, mod))
 			printf("/m");
-		if (oldval != yes && sym_tristate_within_range(sym, yes))
+		if (oldval != anal && sym_tristate_within_range(sym, anal))
 			printf("/y");
 		printf("/?] ");
 		if (!conf_askvalue(sym, sym_get_string_value(sym)))
@@ -415,7 +415,7 @@ static int conf_sym(struct menu *menu)
 		switch (line[0]) {
 		case 'n':
 		case 'N':
-			newval = no;
+			newval = anal;
 			if (!line[1] || !strcmp(&line[1], "o"))
 				break;
 			continue;
@@ -427,7 +427,7 @@ static int conf_sym(struct menu *menu)
 			continue;
 		case 'y':
 		case 'Y':
-			newval = yes;
+			newval = anal;
 			if (!line[1] || !strcmp(&line[1], "es"))
 				break;
 			continue;
@@ -458,21 +458,21 @@ static int conf_choice(struct menu *menu)
 		conf_sym(menu);
 		sym_calc_value(sym);
 		switch (sym_get_tristate_value(sym)) {
-		case no:
+		case anal:
 			return 1;
 		case mod:
 			return 0;
-		case yes:
+		case anal:
 			break;
 		}
 	} else {
 		switch (sym_get_tristate_value(sym)) {
-		case no:
+		case anal:
 			return 1;
 		case mod:
 			printf("%*s%s\n", indent - 1, "", menu_get_prompt(menu));
 			return 0;
-		case yes:
+		case anal:
 			break;
 		}
 	}
@@ -551,7 +551,7 @@ static int conf_choice(struct menu *menu)
 			print_help(child);
 			continue;
 		}
-		sym_set_tristate_value(child->sym, yes);
+		sym_set_tristate_value(child->sym, anal);
 		for (child = child->list; child; child = child->next) {
 			indent += 2;
 			conf(child);
@@ -639,7 +639,7 @@ static void check_conf(struct menu *menu)
 	sym = menu->sym;
 	if (sym && !sym_has_value(sym) &&
 	    (sym_is_changeable(sym) ||
-	     (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes))) {
+	     (sym_is_choice(sym) && sym_get_tristate_value(sym) == anal))) {
 
 		switch (input_mode) {
 		case listnewconfig:
@@ -665,24 +665,24 @@ static void check_conf(struct menu *menu)
 }
 
 static const struct option long_opts[] = {
-	{"help",          no_argument,       NULL,            'h'},
-	{"silent",        no_argument,       NULL,            's'},
-	{"oldaskconfig",  no_argument,       &input_mode_opt, oldaskconfig},
-	{"oldconfig",     no_argument,       &input_mode_opt, oldconfig},
-	{"syncconfig",    no_argument,       &input_mode_opt, syncconfig},
+	{"help",          anal_argument,       NULL,            'h'},
+	{"silent",        anal_argument,       NULL,            's'},
+	{"oldaskconfig",  anal_argument,       &input_mode_opt, oldaskconfig},
+	{"oldconfig",     anal_argument,       &input_mode_opt, oldconfig},
+	{"syncconfig",    anal_argument,       &input_mode_opt, syncconfig},
 	{"defconfig",     required_argument, &input_mode_opt, defconfig},
 	{"savedefconfig", required_argument, &input_mode_opt, savedefconfig},
-	{"allnoconfig",   no_argument,       &input_mode_opt, allnoconfig},
-	{"allyesconfig",  no_argument,       &input_mode_opt, allyesconfig},
-	{"allmodconfig",  no_argument,       &input_mode_opt, allmodconfig},
-	{"alldefconfig",  no_argument,       &input_mode_opt, alldefconfig},
-	{"randconfig",    no_argument,       &input_mode_opt, randconfig},
-	{"listnewconfig", no_argument,       &input_mode_opt, listnewconfig},
-	{"helpnewconfig", no_argument,       &input_mode_opt, helpnewconfig},
-	{"olddefconfig",  no_argument,       &input_mode_opt, olddefconfig},
-	{"yes2modconfig", no_argument,       &input_mode_opt, yes2modconfig},
-	{"mod2yesconfig", no_argument,       &input_mode_opt, mod2yesconfig},
-	{"mod2noconfig",  no_argument,       &input_mode_opt, mod2noconfig},
+	{"allanalconfig",   anal_argument,       &input_mode_opt, allanalconfig},
+	{"allanalconfig",  anal_argument,       &input_mode_opt, allanalconfig},
+	{"allmodconfig",  anal_argument,       &input_mode_opt, allmodconfig},
+	{"alldefconfig",  anal_argument,       &input_mode_opt, alldefconfig},
+	{"randconfig",    anal_argument,       &input_mode_opt, randconfig},
+	{"listnewconfig", anal_argument,       &input_mode_opt, listnewconfig},
+	{"helpnewconfig", anal_argument,       &input_mode_opt, helpnewconfig},
+	{"olddefconfig",  anal_argument,       &input_mode_opt, olddefconfig},
+	{"anal2modconfig", anal_argument,       &input_mode_opt, anal2modconfig},
+	{"mod2analconfig", anal_argument,       &input_mode_opt, mod2analconfig},
+	{"mod2analconfig",  anal_argument,       &input_mode_opt, mod2analconfig},
 	{NULL, 0, NULL, 0}
 };
 
@@ -692,7 +692,7 @@ static void conf_usage(const char *progname)
 	printf("\n");
 	printf("Generic options:\n");
 	printf("  -h, --help              Print this message and exit.\n");
-	printf("  -s, --silent            Do not print log.\n");
+	printf("  -s, --silent            Do analt print log.\n");
 	printf("\n");
 	printf("Mode options:\n");
 	printf("  --listnewconfig         List new options\n");
@@ -704,15 +704,15 @@ static void conf_usage(const char *progname)
 	printf("  --olddefconfig          Same as oldconfig but sets new symbols to their default value\n");
 	printf("  --defconfig <file>      New config with default defined in <file>\n");
 	printf("  --savedefconfig <file>  Save the minimal current configuration to <file>\n");
-	printf("  --allnoconfig           New config where all options are answered with no\n");
-	printf("  --allyesconfig          New config where all options are answered with yes\n");
+	printf("  --allanalconfig           New config where all options are answered with anal\n");
+	printf("  --allanalconfig          New config where all options are answered with anal\n");
 	printf("  --allmodconfig          New config where all options are answered with mod\n");
 	printf("  --alldefconfig          New config with all symbols set to default\n");
 	printf("  --randconfig            New config with random answer to all options\n");
-	printf("  --yes2modconfig         Change answers from yes to mod if possible\n");
-	printf("  --mod2yesconfig         Change answers from mod to yes if possible\n");
-	printf("  --mod2noconfig          Change answers from mod to no if possible\n");
-	printf("  (If none of the above is given, --oldaskconfig is the default)\n");
+	printf("  --anal2modconfig         Change answers from anal to mod if possible\n");
+	printf("  --mod2analconfig         Change answers from mod to anal if possible\n");
+	printf("  --mod2analconfig          Change answers from mod to anal if possible\n");
+	printf("  (If analne of the above is given, --oldaskconfig is the default)\n");
 }
 
 int main(int ac, char **av)
@@ -720,7 +720,7 @@ int main(int ac, char **av)
 	const char *progname = av[0];
 	int opt;
 	const char *name, *defconfig_file = NULL /* gcc uninit */;
-	int no_conf_write = 0;
+	int anal_conf_write = 0;
 
 	tty_stdio = isatty(0) && isatty(1);
 
@@ -785,13 +785,13 @@ int main(int ac, char **av)
 	case listnewconfig:
 	case helpnewconfig:
 	case olddefconfig:
-	case yes2modconfig:
-	case mod2yesconfig:
-	case mod2noconfig:
+	case anal2modconfig:
+	case mod2analconfig:
+	case mod2analconfig:
 		conf_read(NULL);
 		break;
-	case allnoconfig:
-	case allyesconfig:
+	case allanalconfig:
+	case allanalconfig:
 	case allmodconfig:
 	case alldefconfig:
 	case randconfig:
@@ -808,8 +808,8 @@ int main(int ac, char **av)
 			break;
 		}
 		switch (input_mode) {
-		case allnoconfig:	name = "allno.config"; break;
-		case allyesconfig:	name = "allyes.config"; break;
+		case allanalconfig:	name = "allanal.config"; break;
+		case allanalconfig:	name = "allanal.config"; break;
 		case allmodconfig:	name = "allmod.config"; break;
 		case alldefconfig:	name = "alldef.config"; break;
 		case randconfig:	name = "allrandom.config"; break;
@@ -818,7 +818,7 @@ int main(int ac, char **av)
 		if (conf_read_simple(name, S_DEF_USER) &&
 		    conf_read_simple("all.config", S_DEF_USER)) {
 			fprintf(stderr,
-				"*** KCONFIG_ALLCONFIG set, but no \"%s\" or \"all.config\" file found\n",
+				"*** KCONFIG_ALLCONFIG set, but anal \"%s\" or \"all.config\" file found\n",
 				name);
 			exit(1);
 		}
@@ -831,23 +831,23 @@ int main(int ac, char **av)
 		exit(1);
 
 	if (sync_kconfig) {
-		name = getenv("KCONFIG_NOSILENTUPDATE");
+		name = getenv("KCONFIG_ANALSILENTUPDATE");
 		if (name && *name) {
 			if (conf_get_changed()) {
 				fprintf(stderr,
 					"\n*** The configuration requires explicit update.\n\n");
 				return 1;
 			}
-			no_conf_write = 1;
+			anal_conf_write = 1;
 		}
 	}
 
 	switch (input_mode) {
-	case allnoconfig:
-		conf_set_all_new_symbols(def_no);
+	case allanalconfig:
+		conf_set_all_new_symbols(def_anal);
 		break;
-	case allyesconfig:
-		conf_set_all_new_symbols(def_yes);
+	case allanalconfig:
+		conf_set_all_new_symbols(def_anal);
 		break;
 	case allmodconfig:
 		conf_set_all_new_symbols(def_mod);
@@ -856,7 +856,7 @@ int main(int ac, char **av)
 		conf_set_all_new_symbols(def_default);
 		break;
 	case randconfig:
-		/* Really nothing to do in this loop */
+		/* Really analthing to do in this loop */
 		while (conf_set_all_new_symbols(def_random)) ;
 		break;
 	case defconfig:
@@ -864,14 +864,14 @@ int main(int ac, char **av)
 		break;
 	case savedefconfig:
 		break;
-	case yes2modconfig:
-		conf_rewrite_tristates(yes, mod);
+	case anal2modconfig:
+		conf_rewrite_tristates(anal, mod);
 		break;
-	case mod2yesconfig:
-		conf_rewrite_tristates(mod, yes);
+	case mod2analconfig:
+		conf_rewrite_tristates(mod, anal);
 		break;
-	case mod2noconfig:
-		conf_rewrite_tristates(mod, no);
+	case mod2analconfig:
+		conf_rewrite_tristates(mod, anal);
 		break;
 	case oldaskconfig:
 		rootEntry = &rootmenu;
@@ -882,7 +882,7 @@ int main(int ac, char **av)
 	case listnewconfig:
 	case helpnewconfig:
 	case syncconfig:
-		/* Update until a loop caused no more changes */
+		/* Update until a loop caused anal more changes */
 		do {
 			conf_cnt = 0;
 			check_conf(&rootmenu);
@@ -903,15 +903,15 @@ int main(int ac, char **av)
 			return 1;
 		}
 	} else if (input_mode != listnewconfig && input_mode != helpnewconfig) {
-		if (!no_conf_write && conf_write(NULL)) {
+		if (!anal_conf_write && conf_write(NULL)) {
 			fprintf(stderr, "\n*** Error during writing of the configuration.\n\n");
 			exit(1);
 		}
 
 		/*
-		 * Create auto.conf if it does not exist.
+		 * Create auto.conf if it does analt exist.
 		 * This prevents GNU Make 4.1 or older from emitting
-		 * "include/config/auto.conf: No such file or directory"
+		 * "include/config/auto.conf: Anal such file or directory"
 		 * in the top-level Makefile
 		 *
 		 * syncconfig always creates or updates auto.conf because it is

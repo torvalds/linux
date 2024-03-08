@@ -4,7 +4,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/phy.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <uapi/linux/ethtool.h>
 
 #define ASP_INTR2_OFFSET			0x1000
@@ -129,7 +129,7 @@ enum asp_rx_net_filter_block {
 #define ASP_EDPKT_RX_TS_COUNTER			0x38
 #define  ASP_EDPKT_ENDI				0x48
 #define   ASP_EDPKT_ENDI_DESC_SHIFT		8
-#define   ASP_EDPKT_ENDI_NO_BT_SWP		0
+#define   ASP_EDPKT_ENDI_ANAL_BT_SWP		0
 #define   ASP_EDPKT_ENDI_BT_SWP_WD		1
 #define ASP_EDPKT_RX_PKT_CNT			0x138
 #define ASP_EDPKT_HDR_EXTR_CNT			0x13c
@@ -185,13 +185,13 @@ struct bcmasp_desc {
 	#define DESC_CHKSUM	BIT_ULL(40)
 	#define DESC_CRC_ERR	BIT_ULL(41)
 	#define DESC_RX_SYM_ERR	BIT_ULL(42)
-	#define DESC_NO_OCT_ALN BIT_ULL(43)
+	#define DESC_ANAL_OCT_ALN BIT_ULL(43)
 	#define DESC_PKT_TRUC	BIT_ULL(44)
 	/*  39:0 (TX/RX) bits 0-39 of buf addr
 	 *    40 (RX) checksum
 	 *    41 (RX) crc_error
 	 *    42 (RX) rx_symbol_error
-	 *    43 (RX) non_octet_aligned
+	 *    43 (RX) analn_octet_aligned
 	 *    44 (RX) pkt_truncated
 	 *    45 Reserved
 	 * 56:46 (RX) mac_filter_id
@@ -317,8 +317,8 @@ struct bcmasp_intf {
 	unsigned int			crc_fwd;
 
 	/* PHY device */
-	struct device_node		*phy_dn;
-	struct device_node		*ndev_dn;
+	struct device_analde		*phy_dn;
+	struct device_analde		*ndev_dn;
 	phy_interface_t			phy_interface;
 	bool				internal_phy;
 	int				old_pause;
@@ -480,7 +480,7 @@ BCMASP_FP_IO_MACRO_Q(tx_spb_dma);
 BCMASP_FP_IO_MACRO_Q(rx_edpkt_dma);
 BCMASP_FP_IO_MACRO_Q(rx_edpkt_cfg);
 
-#define PKT_OFFLOAD_NOP			(0 << 28)
+#define PKT_OFFLOAD_ANALP			(0 << 28)
 #define PKT_OFFLOAD_HDR_OP		(1 << 28)
 #define  PKT_OFFLOAD_HDR_WRBACK		BIT(19)
 #define  PKT_OFFLOAD_HDR_COUNT(x)	((x) << 16)
@@ -503,7 +503,7 @@ BCMASP_FP_IO_MACRO_Q(rx_edpkt_cfg);
 #define PKT_OFFLOAD_END_OP		(7 << 28)
 
 struct bcmasp_pkt_offload {
-	__be32		nop;
+	__be32		analp;
 	__be32		header;
 	__be32		header2;
 	__be32		epkt;
@@ -533,7 +533,7 @@ BCMASP_CORE_IO_MACRO(rx_edpkt, ASP_EDPKT_OFFSET);
 BCMASP_CORE_IO_MACRO(ctrl, ASP_CTRL);
 
 struct bcmasp_intf *bcmasp_interface_create(struct bcmasp_priv *priv,
-					    struct device_node *ndev_dn, int i);
+					    struct device_analde *ndev_dn, int i);
 
 void bcmasp_interface_destroy(struct bcmasp_intf *intf);
 

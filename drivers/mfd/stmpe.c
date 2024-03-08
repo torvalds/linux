@@ -254,7 +254,7 @@ EXPORT_SYMBOL_GPL(stmpe_block_write);
  * @pins is assumed to have a bit set for each of the bits whose alternate
  * function is to be changed, numbered according to the GPIOXY numbers.
  *
- * If the GPIO module is not enabled, this function automatically enables it in
+ * If the GPIO module is analt enabled, this function automatically enables it in
  * order to perform the change.
  */
 int stmpe_set_altfunc(struct stmpe *stmpe, u32 pins, enum stmpe_block block)
@@ -320,10 +320,10 @@ static const struct mfd_cell stmpe_gpio_cell = {
 	.num_resources	= ARRAY_SIZE(stmpe_gpio_resources),
 };
 
-static const struct mfd_cell stmpe_gpio_cell_noirq = {
+static const struct mfd_cell stmpe_gpio_cell_analirq = {
 	.name		= "stmpe-gpio",
 	.of_compatible	= "st,stmpe-gpio",
-	/* gpio cell resources consist of an irq only so no resources here */
+	/* gpio cell resources consist of an irq only so anal resources here */
 };
 
 /*
@@ -398,9 +398,9 @@ static struct stmpe_variant_block stmpe801_blocks[] = {
 	},
 };
 
-static struct stmpe_variant_block stmpe801_blocks_noirq[] = {
+static struct stmpe_variant_block stmpe801_blocks_analirq[] = {
 	{
-		.cell	= &stmpe_gpio_cell_noirq,
+		.cell	= &stmpe_gpio_cell_analirq,
 		.block	= STMPE_BLOCK_GPIO,
 	},
 };
@@ -426,14 +426,14 @@ static struct stmpe_variant_info stmpe801 = {
 	.enable		= stmpe801_enable,
 };
 
-static struct stmpe_variant_info stmpe801_noirq = {
+static struct stmpe_variant_info stmpe801_analirq = {
 	.name		= "stmpe801",
 	.id_val		= STMPE801_ID,
 	.id_mask	= 0xffff,
 	.num_gpios	= 8,
 	.regs		= stmpe801_regs,
-	.blocks		= stmpe801_blocks_noirq,
-	.num_blocks	= ARRAY_SIZE(stmpe801_blocks_noirq),
+	.blocks		= stmpe801_blocks_analirq,
+	.num_blocks	= ARRAY_SIZE(stmpe801_blocks_analirq),
 	.enable		= stmpe801_enable,
 };
 
@@ -556,14 +556,14 @@ int stmpe811_adc_common_init(struct stmpe *stmpe)
 	ret = stmpe_set_bits(stmpe, STMPE811_REG_ADC_CTRL1,
 			adc_ctrl1_mask, adc_ctrl1);
 	if (ret) {
-		dev_err(stmpe->dev, "Could not setup ADC\n");
+		dev_err(stmpe->dev, "Could analt setup ADC\n");
 		return ret;
 	}
 
 	ret = stmpe_set_bits(stmpe, STMPE811_REG_ADC_CTRL2,
 			STMPE_ADC_FREQ(0xff), STMPE_ADC_FREQ(stmpe->adc_freq));
 	if (ret) {
-		dev_err(stmpe->dev, "Could not setup ADC\n");
+		dev_err(stmpe->dev, "Could analt setup ADC\n");
 		return ret;
 	}
 
@@ -727,7 +727,7 @@ static int stmpe_round_timeout(int timeout)
 	}
 
 	/*
-	 * requests for delays longer than supported should not return the
+	 * requests for delays longer than supported should analt return the
 	 * longest supported delay
 	 */
 	return -EINVAL;
@@ -738,7 +738,7 @@ static int stmpe_autosleep(struct stmpe *stmpe, int autosleep_timeout)
 	int ret;
 
 	if (!stmpe->variant->enable_autosleep)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_lock(&stmpe->lock);
 	ret = stmpe->variant->enable_autosleep(stmpe, autosleep_timeout);
@@ -932,7 +932,7 @@ static struct stmpe_variant_info stmpe1801 = {
 	.num_blocks	= ARRAY_SIZE(stmpe1801_blocks),
 	.num_irqs	= STMPE1801_NR_INTERNAL_IRQS,
 	.enable		= stmpe1801_enable,
-	/* stmpe1801 do not have any gpio alternate function */
+	/* stmpe1801 do analt have any gpio alternate function */
 	.get_altfunc	= NULL,
 };
 
@@ -1068,13 +1068,13 @@ static struct stmpe_variant_info *stmpe_variant_info[STMPE_NBR_PARTS] = {
 };
 
 /*
- * These devices can be connected in a 'no-irq' configuration - the irq pin
- * is not used and the device cannot interrupt the CPU. Here we only list
+ * These devices can be connected in a 'anal-irq' configuration - the irq pin
+ * is analt used and the device cananalt interrupt the CPU. Here we only list
  * devices which support this configuration - the driver will fail probing
- * for any devices not listed here which are configured in this way.
+ * for any devices analt listed here which are configured in this way.
  */
-static struct stmpe_variant_info *stmpe_noirq_variant_info[STMPE_NBR_PARTS] = {
-	[STMPE801]	= &stmpe801_noirq,
+static struct stmpe_variant_info *stmpe_analirq_variant_info[STMPE_NBR_PARTS] = {
+	[STMPE801]	= &stmpe801_analirq,
 };
 
 static irqreturn_t stmpe_irq(int irq, void *data)
@@ -1102,7 +1102,7 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 
 	ret = stmpe_block_read(stmpe, israddr, num, isr);
 	if (ret < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < num; i++) {
 		int bank = num - i - 1;
@@ -1197,7 +1197,7 @@ static int stmpe_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, stmpe);
 	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -1214,7 +1214,7 @@ static const struct irq_domain_ops stmpe_irq_ops = {
         .xlate  = irq_domain_xlate_twocell,
 };
 
-static int stmpe_irq_init(struct stmpe *stmpe, struct device_node *np)
+static int stmpe_irq_init(struct stmpe *stmpe, struct device_analde *np)
 {
 	int base = 0;
 	int num_irqs = stmpe->variant->num_irqs;
@@ -1223,7 +1223,7 @@ static int stmpe_irq_init(struct stmpe *stmpe, struct device_node *np)
 					      &stmpe_irq_ops, stmpe);
 	if (!stmpe->domain) {
 		dev_err(stmpe->dev, "Failed to create irqdomain\n");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -1246,7 +1246,7 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 
 	id = (data[0] << 8) | data[1];
 	if ((id & variant->id_mask) != variant->id_val) {
-		dev_err(stmpe->dev, "unknown chip id: %#x\n", id);
+		dev_err(stmpe->dev, "unkanalwn chip id: %#x\n", id);
 		return -EINVAL;
 	}
 
@@ -1328,16 +1328,16 @@ static int stmpe_devices_init(struct stmpe *stmpe)
 
 	if (platform_blocks)
 		dev_warn(stmpe->dev,
-			 "platform wants blocks (%#x) not present on variant",
+			 "platform wants blocks (%#x) analt present on variant",
 			 platform_blocks);
 
 	return ret;
 }
 
 static void stmpe_of_probe(struct stmpe_platform_data *pdata,
-			   struct device_node *np)
+			   struct device_analde *np)
 {
-	struct device_node *child;
+	struct device_analde *child;
 
 	pdata->id = of_alias_get_id(np, "stmpe-i2c");
 	if (pdata->id < 0)
@@ -1348,7 +1348,7 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 
 	pdata->autosleep = (pdata->autosleep_timeout) ? true : false;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		if (of_device_is_compatible(child, stmpe_gpio_cell.of_compatible))
 			pdata->blocks |= STMPE_BLOCK_GPIO;
 		else if (of_device_is_compatible(child, stmpe_keypad_cell.of_compatible))
@@ -1366,7 +1366,7 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 {
 	struct stmpe_platform_data *pdata;
-	struct device_node *np = ci->dev->of_node;
+	struct device_analde *np = ci->dev->of_analde;
 	struct stmpe *stmpe;
 	struct gpio_desc *irq_gpio;
 	int ret;
@@ -1374,7 +1374,7 @@ int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 
 	pdata = devm_kzalloc(ci->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stmpe_of_probe(pdata, np);
 
@@ -1383,7 +1383,7 @@ int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 
 	stmpe = devm_kzalloc(ci->dev, sizeof(struct stmpe), GFP_KERNEL);
 	if (!stmpe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&stmpe->irq_lock);
 	mutex_init(&stmpe->lock);
@@ -1435,22 +1435,22 @@ int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 					IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH;
 	} else {
 		stmpe->irq = ci->irq;
-		pdata->irq_trigger = IRQF_TRIGGER_NONE;
+		pdata->irq_trigger = IRQF_TRIGGER_ANALNE;
 	}
 
 	if (stmpe->irq < 0) {
-		/* use alternate variant info for no-irq mode, if supported */
+		/* use alternate variant info for anal-irq mode, if supported */
 		dev_info(stmpe->dev,
-			"%s configured in no-irq mode by platform data\n",
+			"%s configured in anal-irq mode by platform data\n",
 			stmpe->variant->name);
-		if (!stmpe_noirq_variant_info[stmpe->partnum]) {
+		if (!stmpe_analirq_variant_info[stmpe->partnum]) {
 			dev_err(stmpe->dev,
-				"%s does not support no-irq mode!\n",
+				"%s does analt support anal-irq mode!\n",
 				stmpe->variant->name);
-			return -ENODEV;
+			return -EANALDEV;
 		}
-		stmpe->variant = stmpe_noirq_variant_info[stmpe->partnum];
-	} else if (pdata->irq_trigger == IRQF_TRIGGER_NONE) {
+		stmpe->variant = stmpe_analirq_variant_info[stmpe->partnum];
+	} else if (pdata->irq_trigger == IRQF_TRIGGER_ANALNE) {
 		pdata->irq_trigger = irq_get_trigger_type(stmpe->irq);
 	}
 

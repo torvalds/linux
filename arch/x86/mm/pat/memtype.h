@@ -12,7 +12,7 @@ struct memtype {
 	u64			end;
 	u64			subtree_max_end;
 	enum page_cache_mode	type;
-	struct rb_node		rb;
+	struct rb_analde		rb;
 };
 
 static inline char *cattr_name(enum page_cache_mode pcm)

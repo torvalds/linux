@@ -43,7 +43,7 @@ static irqreturn_t sensehat_joystick_report(int irq, void *cookie)
 	if (error < 0) {
 		dev_err(&sensehat_joystick->pdev->dev,
 			"Failed to read joystick state: %d", error);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	curr_states = keys;
 	bitmap_xor(&changes, &curr_states, &sensehat_joystick->prev_states,
@@ -66,20 +66,20 @@ static int sensehat_joystick_probe(struct platform_device *pdev)
 	sensehat_joystick = devm_kzalloc(&pdev->dev, sizeof(*sensehat_joystick),
 					 GFP_KERNEL);
 	if (!sensehat_joystick)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensehat_joystick->pdev = pdev;
 
 	sensehat_joystick->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!sensehat_joystick->regmap) {
 		dev_err(&pdev->dev, "unable to get sensehat regmap");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sensehat_joystick->keys_dev = devm_input_allocate_device(&pdev->dev);
 	if (!sensehat_joystick->keys_dev) {
-		dev_err(&pdev->dev, "Could not allocate input device");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Could analt allocate input device");
+		return -EANALMEM;
 	}
 
 	sensehat_joystick->keys_dev->name = "Raspberry Pi Sense HAT Joystick";
@@ -93,7 +93,7 @@ static int sensehat_joystick_probe(struct platform_device *pdev)
 
 	error = input_register_device(sensehat_joystick->keys_dev);
 	if (error) {
-		dev_err(&pdev->dev, "Could not register input device");
+		dev_err(&pdev->dev, "Could analt register input device");
 		return error;
 	}
 

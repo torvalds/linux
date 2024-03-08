@@ -137,7 +137,7 @@ int unshare_fs_struct(void)
 	int kill;
 
 	if (!new_fs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	task_lock(current);
 	spin_lock(&fs->lock);

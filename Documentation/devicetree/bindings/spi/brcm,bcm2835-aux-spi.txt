@@ -1,7 +1,7 @@
 Broadcom BCM2835 auxiliary SPI1/2 controller
 
-The BCM2835 contains two forms of SPI master controller, one known simply as
-SPI0, and the other known as the "Universal SPI Master"; part of the
+The BCM2835 contains two forms of SPI master controller, one kanalwn simply as
+SPI0, and the other kanalwn as the "Universal SPI Master"; part of the
 auxiliary block. This binding applies to the SPI1/2 controller.
 
 Required properties:
@@ -12,7 +12,7 @@ Required properties:
 	  point to the auxiliary clock driver of the bcm2835,
 	  as this clock will enable the output gate for the specific
 	  clock.
-- cs-gpios: the cs-gpios (native cs is NOT supported)
+- cs-gpios: the cs-gpios (native cs is ANALT supported)
 	    see also spi-bus.txt
 
 Example:

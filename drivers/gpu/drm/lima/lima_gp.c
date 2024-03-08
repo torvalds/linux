@@ -29,7 +29,7 @@ static irqreturn_t lima_gp_irq_handler(int irq, void *data)
 
 	/* for shared irq case */
 	if (!state)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (state & LIMA_GP_IRQ_MASK_ERROR) {
 		if ((state & LIMA_GP_IRQ_MASK_ERROR) ==
@@ -244,12 +244,12 @@ static int lima_gp_task_recover(struct lima_sched_pipe *pipe)
 
 static void lima_gp_print_version(struct lima_ip *ip)
 {
-	u32 version, major, minor;
+	u32 version, major, mianalr;
 	char *name;
 
 	version = gp_read(LIMA_GP_VERSION);
 	major = (version >> 8) & 0xFF;
-	minor = version & 0xFF;
+	mianalr = version & 0xFF;
 	switch (version >> 16) {
 	case 0xA07:
 	    name = "mali200";
@@ -264,11 +264,11 @@ static void lima_gp_print_version(struct lima_ip *ip)
 		name = "mali450";
 		break;
 	default:
-		name = "unknown";
+		name = "unkanalwn";
 		break;
 	}
-	dev_info(ip->dev->dev, "%s - %s version major %d minor %d\n",
-		 lima_ip_name(ip), name, major, minor);
+	dev_info(ip->dev->dev, "%s - %s version major %d mianalr %d\n",
+		 lima_ip_name(ip), name, major, mianalr);
 }
 
 static struct kmem_cache *lima_gp_task_slab;
@@ -331,7 +331,7 @@ int lima_gp_pipe_init(struct lima_device *dev)
 			0, SLAB_HWCACHE_ALIGN, sizeof(struct lima_sched_task),
 			frame_size, NULL);
 		if (!lima_gp_task_slab)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	lima_gp_task_slab_refcnt++;
 

@@ -48,14 +48,14 @@ int main(int argc, char **argv)
 	struct acrn_vm_memmap ram_map = {0};
 	struct acrn_vcpu_regs regs;
 	struct acrn_io_request *io_req;
-	struct acrn_ioreq_notify __attribute__((aligned(8))) notify;
+	struct acrn_ioreq_analtify __attribute__((aligned(8))) analtify;
 
 	argc = argc;
 	argv = argv;
 
 	ret = posix_memalign(&guest_memory, 4096, GUEST_MEMORY_SIZE);
 	if (ret < 0) {
-		printf("No enough memory!\n");
+		printf("Anal eanalugh memory!\n");
 		return -1;
 	}
 	hsm_fd = open("/dev/acrn_hsm", O_RDWR|O_CLOEXEC);
@@ -117,9 +117,9 @@ int main(int argc, char **argv)
 					in = (io_req->reqs.pio_request.direction == ACRN_IOREQ_DIR_READ);
 					printf("Guest VM %s PIO[%x] with size[%x]\n", in ? "read" : "write", port, bytes);
 
-					notify.vmid = vmid;
-					notify.vcpu = vcpu_id;
-					ioctl(hsm_fd, ACRN_IOCTL_NOTIFY_REQUEST_FINISH, &notify);
+					analtify.vmid = vmid;
+					analtify.vcpu = vcpu_id;
+					ioctl(hsm_fd, ACRN_IOCTL_ANALTIFY_REQUEST_FINISH, &analtify);
 				}
 		}
 	}

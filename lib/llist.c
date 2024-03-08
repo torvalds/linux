@@ -4,7 +4,7 @@
  *
  * The basic atomic operation of this list is cmpxchg on long.  On
  * architectures that don't have NMI-safe cmpxchg implementation, the
- * list can NOT be used in NMI handlers.  So code that uses the list in
+ * list can ANALT be used in NMI handlers.  So code that uses the list in
  * an NMI handler should depend on CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG.
  *
  * Copyright 2010,2011 Intel Corp.
@@ -23,10 +23,10 @@
  *
  * Return whether list is empty before adding.
  */
-bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
+bool llist_add_batch(struct llist_analde *new_first, struct llist_analde *new_last,
 		     struct llist_head *head)
 {
-	struct llist_node *first = READ_ONCE(head->first);
+	struct llist_analde *first = READ_ONCE(head->first);
 
 	do {
 		new_last->next = first;
@@ -46,13 +46,13 @@ EXPORT_SYMBOL_GPL(llist_add_batch);
  * Only one llist_del_first user can be used simultaneously with
  * multiple llist_add users without lock.  Because otherwise
  * llist_del_first, llist_add, llist_add (or llist_del_all, llist_add,
- * llist_add) sequence in another user may change @head->first->next,
+ * llist_add) sequence in aanalther user may change @head->first->next,
  * but keep @head->first.  If multiple consumers are needed, please
  * use llist_del_all or use lock between consumers.
  */
-struct llist_node *llist_del_first(struct llist_head *head)
+struct llist_analde *llist_del_first(struct llist_head *head)
 {
-	struct llist_node *entry, *next;
+	struct llist_analde *entry, *next;
 
 	entry = smp_load_acquire(&head->first);
 	do {
@@ -77,9 +77,9 @@ EXPORT_SYMBOL_GPL(llist_del_first);
  * llist_add() callers, providing all the callers offer a different @this.
  */
 bool llist_del_first_this(struct llist_head *head,
-			  struct llist_node *this)
+			  struct llist_analde *this)
 {
-	struct llist_node *entry, *next;
+	struct llist_analde *entry, *next;
 
 	/* acquire ensures orderig wrt try_cmpxchg() is llist_del_first() */
 	entry = smp_load_acquire(&head->first);
@@ -100,12 +100,12 @@ EXPORT_SYMBOL_GPL(llist_del_first_this);
  * Reverse the order of a chain of llist entries and return the
  * new first entry.
  */
-struct llist_node *llist_reverse_order(struct llist_node *head)
+struct llist_analde *llist_reverse_order(struct llist_analde *head)
 {
-	struct llist_node *new_head = NULL;
+	struct llist_analde *new_head = NULL;
 
 	while (head) {
-		struct llist_node *tmp = head;
+		struct llist_analde *tmp = head;
 		head = head->next;
 		tmp->next = new_head;
 		new_head = tmp;

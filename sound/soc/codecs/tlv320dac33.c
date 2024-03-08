@@ -4,7 +4,7 @@
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
- * Copyright:   (C) 2009 Nokia Corporation
+ * Copyright:   (C) 2009 Analkia Corporation
  */
 
 #include <linux/module.h>
@@ -288,7 +288,7 @@ static void dac33_init_chip(struct snd_soc_component *component)
 
 	/* A : DAC sample rate Fsref/1.5 */
 	dac33_write(component, DAC33_DAC_CTRL_A, DAC33_DACRATE(0));
-	/* B : DAC src=normal, not muted */
+	/* B : DAC src=analrmal, analt muted */
 	dac33_write(component, DAC33_DAC_CTRL_B, DAC33_DACSRCR_RIGHT |
 					     DAC33_DACSRCL_LEFT);
 	/* C : (defaults) */
@@ -448,7 +448,7 @@ static int dac33_set_fifo_mode(struct snd_kcontrol *kcontrol,
 
 	if (dac33->fifo_mode == ucontrol->value.enumerated.item[0])
 		return 0;
-	/* Do not allow changes while stream is running*/
+	/* Do analt allow changes while stream is running*/
 	if (snd_soc_component_active(component))
 		return -EPERM;
 
@@ -538,26 +538,26 @@ static const struct snd_soc_dapm_widget dac33_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINEL"),
 	SND_SOC_DAPM_INPUT("LINER"),
 
-	SND_SOC_DAPM_DAC("DACL", "Left Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DACR", "Right Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACL", "Left Playback", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACR", "Right Playback", SND_SOC_ANALPM, 0, 0),
 
 	/* Analog bypass */
-	SND_SOC_DAPM_SWITCH("Analog Left Bypass", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Analog Left Bypass", SND_SOC_ANALPM, 0, 0,
 				&dac33_dapm_abypassl_control),
-	SND_SOC_DAPM_SWITCH("Analog Right Bypass", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Analog Right Bypass", SND_SOC_ANALPM, 0, 0,
 				&dac33_dapm_abypassr_control),
 
-	SND_SOC_DAPM_MUX("Left LOM Inverted From", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Left LOM Inverted From", SND_SOC_ANALPM, 0, 0,
 		&dac33_dapm_left_lom_control),
-	SND_SOC_DAPM_MUX("Right LOM Inverted From", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Right LOM Inverted From", SND_SOC_ANALPM, 0, 0,
 		&dac33_dapm_right_lom_control),
 	/*
 	 * For DAPM path, when only the anlog bypass path is enabled, and the
 	 * LOP inverted from the corresponding DAC side.
 	 * This is needed, so we can attach the DAC power supply in this case.
 	 */
-	SND_SOC_DAPM_PGA("Left Bypass PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Bypass PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Left Bypass PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Right Bypass PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_REG(snd_soc_dapm_mixer, "Output Left Amplifier",
 			 DAC33_OUT_AMP_PWR_CTRL, 6, 3, 3, 0),
@@ -630,7 +630,7 @@ static int dac33_set_bias_level(struct snd_soc_component *component,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* Do not power off, when the component is already off */
+		/* Do analt power off, when the component is already off */
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
 			return 0;
 		ret = dac33_hard_power(component, 0);
@@ -704,7 +704,7 @@ static inline void dac33_playback_handler(struct tlv320dac33_priv *dac33)
 				DAC33_THRREG(dac33->nsample));
 		break;
 	case DAC33_FIFO_MODE7:
-		/* At the moment we are not using interrupts in mode7 */
+		/* At the moment we are analt using interrupts in mode7 */
 		break;
 	default:
 		dev_warn(component->dev, "Unhandled FIFO mode: %d\n",
@@ -757,7 +757,7 @@ static irqreturn_t dac33_interrupt_handler(int irq, void *dev)
 	dac33->t_stamp1 = ktime_to_us(ktime_get());
 	spin_unlock_irqrestore(&dac33->lock, flags);
 
-	/* Do not schedule the workqueue in Mode7 */
+	/* Do analt schedule the workqueue in Mode7 */
 	if (dac33->fifo_mode != DAC33_FIFO_MODE7)
 		schedule_work(&dac33->work);
 
@@ -772,8 +772,8 @@ static void dac33_oscwait(struct snd_soc_component *component)
 	do {
 		usleep_range(1000, 2000);
 		dac33_read(component, DAC33_INT_OSC_STATUS, &reg);
-	} while (((reg & 0x03) != DAC33_OSCSTATUS_NORMAL) && timeout--);
-	if ((reg & 0x03) != DAC33_OSCSTATUS_NORMAL)
+	} while (((reg & 0x03) != DAC33_OSCSTATUS_ANALRMAL) && timeout--);
+	if ((reg & 0x03) != DAC33_OSCSTATUS_ANALRMAL)
 		dev_err(component->dev,
 			"internal oscillator calibration failed\n");
 }
@@ -844,8 +844,8 @@ static int dac33_hw_params(struct snd_pcm_substream *substream,
 
 /*
  * tlv320dac33 is strict on the sequence of the register writes, if the register
- * writes happens in different order, than dac33 might end up in unknown state.
- * Use the known, working sequence of register writes to initialize the dac33.
+ * writes happens in different order, than dac33 might end up in unkanalwn state.
+ * Use the kanalwn, working sequence of register writes to initialize the dac33.
  */
 static int dac33_prepare_chip(struct snd_pcm_substream *substream,
 			      struct snd_soc_component *component)
@@ -893,7 +893,7 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream,
 
 	if (!dac33->chip_power) {
 		/*
-		 * Chip is not powered yet.
+		 * Chip is analt powered yet.
 		 * Do the init in the dac33_set_bias_level later.
 		 */
 		mutex_unlock(&dac33->mutex);
@@ -954,7 +954,7 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream,
 			DAC33_UTM(DAC33_FIFO_IRQ_MODE_LEVEL));
 		break;
 	default:
-		/* in FIFO bypass mode, the interrupts are not used */
+		/* in FIFO bypass mode, the interrupts are analt used */
 		break;
 	}
 
@@ -1139,7 +1139,7 @@ static snd_pcm_sframes_t dac33_dai_delay(
 {
 	struct snd_soc_component *component = dai->component;
 	struct tlv320dac33_priv *dac33 = snd_soc_component_get_drvdata(component);
-	unsigned long long t0, t1, t_now;
+	unsigned long long t0, t1, t_analw;
 	unsigned int time_delta, uthr;
 	int samples_out, samples_in, samples;
 	snd_pcm_sframes_t delay = 0;
@@ -1153,9 +1153,9 @@ static snd_pcm_sframes_t dac33_dai_delay(
 		t0 = dac33->t_stamp1;
 		t1 = dac33->t_stamp2;
 		spin_unlock_irqrestore(&dac33->lock, flags);
-		t_now = ktime_to_us(ktime_get());
+		t_analw = ktime_to_us(ktime_get());
 
-		/* We have not started to fill the FIFO yet, delay is 0 */
+		/* We have analt started to fill the FIFO yet, delay is 0 */
 		if (!t1)
 			goto out;
 
@@ -1164,7 +1164,7 @@ static snd_pcm_sframes_t dac33_dai_delay(
 			 * Phase 1:
 			 * After Alarm threshold, and before nSample write
 			 */
-			time_delta = t_now - t0;
+			time_delta = t_analw - t0;
 			samples_out = time_delta ? US_TO_SAMPLES(
 						substream->runtime->rate,
 						time_delta) : 0;
@@ -1173,17 +1173,17 @@ static snd_pcm_sframes_t dac33_dai_delay(
 				delay = dac33->alarm_threshold - samples_out;
 			else
 				delay = 0;
-		} else if ((t_now - t1) <= dac33->mode1_us_burst) {
+		} else if ((t_analw - t1) <= dac33->mode1_us_burst) {
 			/*
 			 * Phase 2:
 			 * After nSample write (during burst operation)
 			 */
-			time_delta = t_now - t0;
+			time_delta = t_analw - t0;
 			samples_out = time_delta ? US_TO_SAMPLES(
 						substream->runtime->rate,
 						time_delta) : 0;
 
-			time_delta = t_now - t1;
+			time_delta = t_analw - t1;
 			samples_in = time_delta ? US_TO_SAMPLES(
 						dac33->burst_rate,
 						time_delta) : 0;
@@ -1200,7 +1200,7 @@ static snd_pcm_sframes_t dac33_dai_delay(
 			 * Phase 3:
 			 * After burst operation, before next alarm threshold
 			 */
-			time_delta = t_now - t0;
+			time_delta = t_analw - t0;
 			samples_out = time_delta ? US_TO_SAMPLES(
 						substream->runtime->rate,
 						time_delta) : 0;
@@ -1221,13 +1221,13 @@ static snd_pcm_sframes_t dac33_dai_delay(
 		t0 = dac33->t_stamp1;
 		uthr = dac33->uthr;
 		spin_unlock_irqrestore(&dac33->lock, flags);
-		t_now = ktime_to_us(ktime_get());
+		t_analw = ktime_to_us(ktime_get());
 
-		/* We have not started to fill the FIFO yet, delay is 0 */
+		/* We have analt started to fill the FIFO yet, delay is 0 */
 		if (!t0)
 			goto out;
 
-		if (t_now <= t0) {
+		if (t_analw <= t0) {
 			/*
 			 * Either the timestamps are messed or equal. Report
 			 * maximum delay
@@ -1236,7 +1236,7 @@ static snd_pcm_sframes_t dac33_dai_delay(
 			goto out;
 		}
 
-		time_delta = t_now - t0;
+		time_delta = t_analw - t0;
 		if (time_delta <= dac33->mode7_us_to_lthr) {
 			/*
 			* Phase 1:
@@ -1379,7 +1379,7 @@ static int dac33_soc_probe(struct snd_soc_component *component)
 
 	if (ret < 0) {
 		dev_err(component->dev, "Failed to read chip ID: %d\n", ret);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_power;
 	}
 
@@ -1389,7 +1389,7 @@ static int dac33_soc_probe(struct snd_soc_component *component)
 				  IRQF_TRIGGER_RISING,
 				  component->name, component);
 		if (ret < 0) {
-			dev_err(component->dev, "Could not request IRQ%d (%d)\n",
+			dev_err(component->dev, "Could analt request IRQ%d (%d)\n",
 						dac33->irq, ret);
 			dac33->irq = -1;
 		}
@@ -1467,22 +1467,22 @@ static int dac33_i2c_probe(struct i2c_client *client)
 	int ret, i;
 
 	if (client->dev.platform_data == NULL) {
-		dev_err(&client->dev, "Platform data not set\n");
-		return -ENODEV;
+		dev_err(&client->dev, "Platform data analt set\n");
+		return -EANALDEV;
 	}
 	pdata = client->dev.platform_data;
 
 	dac33 = devm_kzalloc(&client->dev, sizeof(struct tlv320dac33_priv),
 			     GFP_KERNEL);
 	if (dac33 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dac33->reg_cache = devm_kmemdup(&client->dev,
 					dac33_reg,
 					ARRAY_SIZE(dac33_reg) * sizeof(u8),
 					GFP_KERNEL);
 	if (!dac33->reg_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dac33->i2c = client;
 	mutex_init(&dac33->mutex);

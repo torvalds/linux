@@ -658,7 +658,7 @@ static void stb0899_init_calc(struct stb0899_state *state)
 	internal->av_frame_fine		= 20;
 	internal->step_size		= 2;
 /*
-	if ((pParams->SpectralInv == FE_IQ_NORMAL) || (pParams->SpectralInv == FE_IQ_AUTO))
+	if ((pParams->SpectralInv == FE_IQ_ANALRMAL) || (pParams->SpectralInv == FE_IQ_AUTO))
 		pParams->IQLocked = 0;
 	else
 		pParams->IQLocked = 1;
@@ -1138,7 +1138,7 @@ static int stb0899_read_ber(struct dvb_frontend *fe, u32 *ber)
 				/* Error Rate		*/
 				*ber *= 9766;
 				/* ber = ber * 10 ^ 7	*/
-				*ber /= (-1 + (1 << (2 * STB0899_GETFIELD(NOE, internal->err_ctrl))));
+				*ber /= (-1 + (1 << (2 * STB0899_GETFIELD(ANALE, internal->err_ctrl))));
 				*ber /= 8;
 			}
 		}
@@ -1150,7 +1150,7 @@ static int stb0899_read_ber(struct dvb_frontend *fe, u32 *ber)
 			*ber = MAKEWORD16(msb, lsb);
 			/* ber = ber * 10 ^ 7	*/
 			*ber *= 10000000;
-			*ber /= (-1 + (1 << (4 + 2 * STB0899_GETFIELD(NOE, internal->err_ctrl))));
+			*ber /= (-1 + (1 << (4 + 2 * STB0899_GETFIELD(ANALE, internal->err_ctrl))));
 		}
 		break;
 	default:
@@ -1280,7 +1280,7 @@ static int stb0899_get_dev_id(struct stb0899_state *state)
 	if (! (chip_id > 0)) {
 		dprintk(state->verbose, FE_ERROR, 1, "couldn't find a STB 0899");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dprintk(state->verbose, FE_ERROR, 1, "FEC Core ID=[%s], Version=[%d]", (char*) &fec_str, fec_ver);
 
@@ -1464,7 +1464,7 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe)
 			internal->srch_range	= SearchRange + 1500000 + (i_params->srate / 5);
 			internal->derot_percent	= 30;
 
-			/* What to do for tuners having no bandwidth setup ?	*/
+			/* What to do for tuners having anal bandwidth setup ?	*/
 			/* enable tuner I/O */
 			stb0899_i2c_gate_ctrl(&state->frontend, 1);
 
@@ -1626,7 +1626,7 @@ struct dvb_frontend *stb0899_attach(struct stb0899_config *config, struct i2c_ad
 	state->internal.inversion		= config->inversion;
 
 	stb0899_wakeup(&state->frontend);
-	if (stb0899_get_dev_id(state) == -ENODEV) {
+	if (stb0899_get_dev_id(state) == -EANALDEV) {
 		printk("%s: Exiting .. !\n", __func__);
 		goto error;
 	}

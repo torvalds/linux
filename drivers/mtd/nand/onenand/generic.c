@@ -16,7 +16,7 @@
 #include <linux/io.h>
 
 /*
- * Note: Driver name and platform data format have been updated!
+ * Analte: Driver name and platform data format have been updated!
  *
  * This version of the driver is named "onenand-flash" and takes struct
  * onenand_platform_data as platform data. The old ARM-specific version
@@ -39,7 +39,7 @@ static int generic_onenand_probe(struct platform_device *pdev)
 
 	info = kzalloc(sizeof(struct onenand_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!request_mem_region(res->start, size, dev_name(&pdev->dev))) {
 		err = -EBUSY;
@@ -48,7 +48,7 @@ static int generic_onenand_probe(struct platform_device *pdev)
 
 	info->onenand.base = ioremap(res->start, size);
 	if (!info->onenand.base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_release_mem_region;
 	}
 

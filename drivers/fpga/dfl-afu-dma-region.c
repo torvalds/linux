@@ -44,7 +44,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
 
 	region->pages = kcalloc(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!region->pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock_vm;
 	}
 
@@ -144,17 +144,17 @@ static int afu_dma_region_add(struct dfl_feature_platform_data *pdata,
 			      struct dfl_afu_dma_region *region)
 {
 	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
-	struct rb_node **new, *parent = NULL;
+	struct rb_analde **new, *parent = NULL;
 
 	dev_dbg(&pdata->dev->dev, "add region (iova = %llx)\n",
 		(unsigned long long)region->iova);
 
-	new = &afu->dma_regions.rb_node;
+	new = &afu->dma_regions.rb_analde;
 
 	while (*new) {
 		struct dfl_afu_dma_region *this;
 
-		this = container_of(*new, struct dfl_afu_dma_region, node);
+		this = container_of(*new, struct dfl_afu_dma_region, analde);
 
 		parent = *new;
 
@@ -169,8 +169,8 @@ static int afu_dma_region_add(struct dfl_feature_platform_data *pdata,
 			return -EEXIST;
 	}
 
-	rb_link_node(&region->node, parent, new);
-	rb_insert_color(&region->node, &afu->dma_regions);
+	rb_link_analde(&region->analde, parent, new);
+	rb_insert_color(&region->analde, &afu->dma_regions);
 
 	return 0;
 }
@@ -191,7 +191,7 @@ static void afu_dma_region_remove(struct dfl_feature_platform_data *pdata,
 		(unsigned long long)region->iova);
 
 	afu = dfl_fpga_pdata_get_private(pdata);
-	rb_erase(&region->node, &afu->dma_regions);
+	rb_erase(&region->analde, &afu->dma_regions);
 }
 
 /**
@@ -203,16 +203,16 @@ static void afu_dma_region_remove(struct dfl_feature_platform_data *pdata,
 void afu_dma_region_destroy(struct dfl_feature_platform_data *pdata)
 {
 	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
-	struct rb_node *node = rb_first(&afu->dma_regions);
+	struct rb_analde *analde = rb_first(&afu->dma_regions);
 	struct dfl_afu_dma_region *region;
 
-	while (node) {
-		region = container_of(node, struct dfl_afu_dma_region, node);
+	while (analde) {
+		region = container_of(analde, struct dfl_afu_dma_region, analde);
 
 		dev_dbg(&pdata->dev->dev, "del region (iova = %llx)\n",
 			(unsigned long long)region->iova);
 
-		rb_erase(node, &afu->dma_regions);
+		rb_erase(analde, &afu->dma_regions);
 
 		if (region->iova)
 			dma_unmap_page(dfl_fpga_pdata_to_parent(pdata),
@@ -222,7 +222,7 @@ void afu_dma_region_destroy(struct dfl_feature_platform_data *pdata)
 		if (region->pages)
 			afu_dma_unpin_pages(pdata, region);
 
-		node = rb_next(node);
+		analde = rb_next(analde);
 		kfree(region);
 	}
 }
@@ -237,7 +237,7 @@ void afu_dma_region_destroy(struct dfl_feature_platform_data *pdata)
  * - if @size == 0, it finds the dma region which starts from @iova
  * - otherwise, it finds the dma region which fully contains
  *   [@iova, @iova+size)
- * If nothing is matched returns NULL.
+ * If analthing is matched returns NULL.
  *
  * Needs to be called with pdata->lock held.
  */
@@ -245,13 +245,13 @@ struct dfl_afu_dma_region *
 afu_dma_region_find(struct dfl_feature_platform_data *pdata, u64 iova, u64 size)
 {
 	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
-	struct rb_node *node = afu->dma_regions.rb_node;
+	struct rb_analde *analde = afu->dma_regions.rb_analde;
 	struct device *dev = &pdata->dev->dev;
 
-	while (node) {
+	while (analde) {
 		struct dfl_afu_dma_region *region;
 
-		region = container_of(node, struct dfl_afu_dma_region, node);
+		region = container_of(analde, struct dfl_afu_dma_region, analde);
 
 		if (dma_region_check_iova(region, iova, size)) {
 			dev_dbg(dev, "find region (iova = %llx)\n",
@@ -260,15 +260,15 @@ afu_dma_region_find(struct dfl_feature_platform_data *pdata, u64 iova, u64 size)
 		}
 
 		if (iova < region->iova)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (iova > region->iova)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
-			/* the iova region is not fully covered. */
+			/* the iova region is analt fully covered. */
 			break;
 	}
 
-	dev_dbg(dev, "region with iova %llx and size %llx is not found\n",
+	dev_dbg(dev, "region with iova %llx and size %llx is analt found\n",
 		(unsigned long long)iova, (unsigned long long)size);
 
 	return NULL;
@@ -317,7 +317,7 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	region->user_addr = user_addr;
 	region->length = length;
@@ -331,7 +331,7 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 
 	/* Only accept continuous pages, return error else */
 	if (!afu_dma_check_continuous_pages(region)) {
-		dev_err(&pdata->dev->dev, "pages are not continuous\n");
+		dev_err(&pdata->dev->dev, "pages are analt continuous\n");
 		ret = -EINVAL;
 		goto unpin_pages;
 	}

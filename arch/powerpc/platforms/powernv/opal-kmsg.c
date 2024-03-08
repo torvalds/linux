@@ -15,8 +15,8 @@
 /*
  * Console output is controlled by OPAL firmware.  The kernel regularly calls
  * OPAL_POLL_EVENTS, which flushes some console output.  In a panic state,
- * however, the kernel no longer calls OPAL_POLL_EVENTS and the panic message
- * may not be completely printed.  This function does not actually dump the
+ * however, the kernel anal longer calls OPAL_POLL_EVENTS and the panic message
+ * may analt be completely printed.  This function does analt actually dump the
  * message, it just ensures that OPAL completely flushes the console buffer.
  */
 static void kmsg_dump_opal_console_flush(struct kmsg_dumper *dumper,

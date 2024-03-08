@@ -3,7 +3,7 @@
  * ecryptfs_format.c: helper functions for the encrypted key type
  *
  * Copyright (C) 2006 International Business Machines Corp.
- * Copyright (C) 2010 Politecnico di Torino, Italy
+ * Copyright (C) 2010 Politecnico di Torianal, Italy
  *                    TORSEC group -- https://security.polito.it
  *
  * Authors:
@@ -28,10 +28,10 @@ EXPORT_SYMBOL(ecryptfs_get_auth_tok_key);
  * Source code taken from the software 'ecryptfs-utils' version 83.
  *
  */
-void ecryptfs_get_versions(int *major, int *minor, int *file_version)
+void ecryptfs_get_versions(int *major, int *mianalr, int *file_version)
 {
 	*major = ECRYPTFS_VERSION_MAJOR;
-	*minor = ECRYPTFS_VERSION_MINOR;
+	*mianalr = ECRYPTFS_VERSION_MIANALR;
 	if (file_version)
 		*file_version = ECRYPTFS_SUPPORTED_FILE_VERSION;
 }
@@ -48,11 +48,11 @@ EXPORT_SYMBOL(ecryptfs_get_versions);
 int ecryptfs_fill_auth_tok(struct ecryptfs_auth_tok *auth_tok,
 			   const char *key_desc)
 {
-	int major, minor;
+	int major, mianalr;
 
-	ecryptfs_get_versions(&major, &minor, NULL);
+	ecryptfs_get_versions(&major, &mianalr, NULL);
 	auth_tok->version = (((uint16_t)(major << 8) & 0xFF00)
-			     | ((uint16_t)minor & 0x00FF));
+			     | ((uint16_t)mianalr & 0x00FF));
 	auth_tok->token_type = ECRYPTFS_PASSWORD;
 	strncpy((char *)auth_tok->token.password.signature, key_desc,
 		ECRYPTFS_PASSWORD_SIG_SIZE);

@@ -8,5 +8,5 @@ Description:	Bus scanning interval, microseconds component.
 		are required.
 
 		see Documentation/w1/w1-generic.rst for detailed information.
-Users:		any user space application which wants to know bus scanning
+Users:		any user space application which wants to kanalw bus scanning
 		interval

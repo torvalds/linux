@@ -93,7 +93,7 @@ static int max5432_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct max5432_data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 

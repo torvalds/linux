@@ -23,7 +23,7 @@
 
 struct gpio_rcar_bank_info {
 	u32 iointsel;
-	u32 inoutsel;
+	u32 ianalutsel;
 	u32 outdt;
 	u32 posneg;
 	u32 edglevel;
@@ -50,7 +50,7 @@ struct gpio_rcar_priv {
 };
 
 #define IOINTSEL	0x00	/* General IO/Interrupt Switching Register */
-#define INOUTSEL	0x04	/* General Input/Output Switching Register */
+#define IANALUTSEL	0x04	/* General Input/Output Switching Register */
 #define OUTDT		0x08	/* General Output Register */
 #define INDT		0x0c	/* General Input Register */
 #define INTDT		0x10	/* Interrupt Display Register */
@@ -59,7 +59,7 @@ struct gpio_rcar_priv {
 #define MSKCLR		0x1c	/* Interrupt Mask Clear Register */
 #define POSNEG		0x20	/* Positive/Negative Logic Select Register */
 #define EDGLEVEL	0x24	/* Edge/level Select Register */
-#define FILONOFF	0x28	/* Chattering Prevention On/Off Register */
+#define FILOANALFF	0x28	/* Chattering Prevention On/Off Register */
 #define OUTDTSEL	0x40	/* Output Data Select Register */
 #define BOTHEDGE	0x4c	/* One Edge/Both Edge Select Register */
 #define INEN		0x50	/* General Input Enable Register */
@@ -231,7 +231,7 @@ static irqreturn_t gpio_rcar_irq_handler(int irq, void *dev_id)
 		irqs_handled++;
 	}
 
-	return irqs_handled ? IRQ_HANDLED : IRQ_NONE;
+	return irqs_handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
@@ -254,8 +254,8 @@ static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
 	/* Select "General Input/Output Mode" in IOINTSEL */
 	gpio_rcar_modify_bit(p, IOINTSEL, gpio, false);
 
-	/* Select Input Mode or Output Mode in INOUTSEL */
-	gpio_rcar_modify_bit(p, INOUTSEL, gpio, output);
+	/* Select Input Mode or Output Mode in IANALUTSEL */
+	gpio_rcar_modify_bit(p, IANALUTSEL, gpio, output);
 
 	/* Select General Output Register to output data in OUTDTSEL */
 	if (p->info.has_outdtsel && output)
@@ -301,7 +301,7 @@ static int gpio_rcar_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 
-	if (gpio_rcar_read(p, INOUTSEL) & BIT(offset))
+	if (gpio_rcar_read(p, IANALUTSEL) & BIT(offset))
 		return GPIO_LINE_DIRECTION_OUT;
 
 	return GPIO_LINE_DIRECTION_IN;
@@ -319,10 +319,10 @@ static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 	u32 bit = BIT(offset);
 
 	/*
-	 * Before R-Car Gen3, INDT does not show correct pin state when
+	 * Before R-Car Gen3, INDT does analt show correct pin state when
 	 * configured as output, so use OUTDT in case of output pins
 	 */
-	if (!p->info.has_always_in && (gpio_rcar_read(p, INOUTSEL) & bit))
+	if (!p->info.has_always_in && (gpio_rcar_read(p, IANALUTSEL) & bit))
 		return !!(gpio_rcar_read(p, OUTDT) & bit);
 	else
 		return !!(gpio_rcar_read(p, INDT) & bit);
@@ -348,7 +348,7 @@ static int gpio_rcar_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 	}
 
 	spin_lock_irqsave(&p->lock, flags);
-	outputs = gpio_rcar_read(p, INOUTSEL);
+	outputs = gpio_rcar_read(p, IANALUTSEL);
 	m = outputs & bankmask;
 	if (m)
 		val |= gpio_rcar_read(p, OUTDT) & m;
@@ -459,7 +459,7 @@ MODULE_DEVICE_TABLE(of, gpio_rcar_of_table);
 
 static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 {
-	struct device_node *np = p->dev->of_node;
+	struct device_analde *np = p->dev->of_analde;
 	const struct gpio_rcar_info *info;
 	struct of_phandle_args args;
 	int ret;
@@ -502,12 +502,12 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->dev = dev;
 	spin_lock_init(&p->lock);
 
-	/* Get device configuration from DT node */
+	/* Get device configuration from DT analde */
 	ret = gpio_rcar_parse_dt(p, &npins);
 	if (ret < 0)
 		return ret;
@@ -549,7 +549,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
 
 	ret = gpiochip_add_data(gpio_chip, p);
@@ -598,7 +598,7 @@ static int gpio_rcar_suspend(struct device *dev)
 	struct gpio_rcar_priv *p = dev_get_drvdata(dev);
 
 	p->bank_info.iointsel = gpio_rcar_read(p, IOINTSEL);
-	p->bank_info.inoutsel = gpio_rcar_read(p, INOUTSEL);
+	p->bank_info.ianalutsel = gpio_rcar_read(p, IANALUTSEL);
 	p->bank_info.outdt = gpio_rcar_read(p, OUTDT);
 	p->bank_info.intmsk = gpio_rcar_read(p, INTMSK);
 	p->bank_info.posneg = gpio_rcar_read(p, POSNEG);
@@ -625,7 +625,7 @@ static int gpio_rcar_resume(struct device *dev)
 		mask = BIT(offset);
 		/* I/O pin */
 		if (!(p->bank_info.iointsel & mask)) {
-			if (p->bank_info.inoutsel & mask)
+			if (p->bank_info.ianalutsel & mask)
 				gpio_rcar_direction_output(
 					&p->gpio_chip, offset,
 					!!(p->bank_info.outdt & mask));

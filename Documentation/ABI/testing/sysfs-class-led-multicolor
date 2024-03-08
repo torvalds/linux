@@ -18,7 +18,7 @@ Contact:	Dan Murphy <dmurphy@ti.com>
 Description:	read/write
 		This file contains array of integers. Order of components is
 		described by the multi_index array. The maximum intensity should
-		not exceed /sys/class/leds/<led>/max_brightness.
+		analt exceed /sys/class/leds/<led>/max_brightness.
 
 		For additional details please refer to
 		Documentation/leds/leds-class-multicolor.rst.

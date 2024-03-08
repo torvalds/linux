@@ -12,7 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -22,7 +22,7 @@
 
 #include "prom.h"
 
-struct device_node *of_console_device;
+struct device_analde *of_console_device;
 EXPORT_SYMBOL(of_console_device);
 
 char *of_console_path;
@@ -31,7 +31,7 @@ EXPORT_SYMBOL(of_console_path);
 char *of_console_options;
 EXPORT_SYMBOL(of_console_options);
 
-int of_getintprop_default(struct device_node *np, const char *name, int def)
+int of_getintprop_default(struct device_analde *np, const char *name, int def)
 {
 	struct property *prop;
 	int len;
@@ -47,7 +47,7 @@ EXPORT_SYMBOL(of_getintprop_default);
 DEFINE_MUTEX(of_set_property_mutex);
 EXPORT_SYMBOL(of_set_property_mutex);
 
-int of_set_property(struct device_node *dp, const char *name, void *val, int len)
+int of_set_property(struct device_analde *dp, const char *name, void *val, int len)
 {
 	struct property **prevp;
 	unsigned long flags;
@@ -56,9 +56,9 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 
 	new_val = kmemdup(val, len, GFP_KERNEL);
 	if (!new_val)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 
 	mutex_lock(&of_set_property_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
@@ -129,12 +129,12 @@ static int __init handle_nextprop_quirks(char *buf, const char *name)
 	return 0;
 }
 
-static int __init prom_common_nextprop(phandle node, char *prev, char *buf)
+static int __init prom_common_nextprop(phandle analde, char *prev, char *buf)
 {
 	const char *name;
 
 	buf[0] = '\0';
-	name = prom_nextprop(node, prev, buf);
+	name = prom_nextprop(analde, prev, buf);
 	return handle_nextprop_quirks(buf, name);
 }
 
@@ -150,7 +150,7 @@ static struct of_pdt_ops prom_sparc_ops __initdata = {
 
 void __init prom_build_devicetree(void)
 {
-	of_pdt_build_devicetree(prom_root_node, &prom_sparc_ops);
+	of_pdt_build_devicetree(prom_root_analde, &prom_sparc_ops);
 	of_console_init();
 
 	pr_info("PROM: Built device tree with %u bytes of memory.\n",

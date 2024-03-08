@@ -30,19 +30,19 @@ struct sof_msg_inject_priv {
 	void *rx_buffer;
 };
 
-static int sof_msg_inject_dfs_open(struct inode *inode, struct file *file)
+static int sof_msg_inject_dfs_open(struct ianalde *ianalde, struct file *file)
 {
-	struct sof_client_dev *cdev = inode->i_private;
+	struct sof_client_dev *cdev = ianalde->i_private;
 	int ret;
 
 	if (sof_client_get_fw_state(cdev) == SOF_FW_CRASHED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = debugfs_file_get(file->f_path.dentry);
 	if (unlikely(ret))
 		return ret;
 
-	ret = simple_open(inode, file);
+	ret = simple_open(ianalde, file);
 	if (ret)
 		debugfs_file_put(file->f_path.dentry);
 
@@ -84,7 +84,7 @@ static ssize_t sof_msg_inject_ipc4_dfs_read(struct file *file,
 
 	/* we need space for the header at minimum (u64) */
 	if (count < header_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	remaining = header_size;
 
@@ -221,7 +221,7 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 	return count;
 };
 
-static int sof_msg_inject_dfs_release(struct inode *inode, struct file *file)
+static int sof_msg_inject_dfs_release(struct ianalde *ianalde, struct file *file)
 {
 	debugfs_file_put(file->f_path.dentry);
 
@@ -261,7 +261,7 @@ static int sof_msg_inject_probe(struct auxiliary_device *auxdev,
 	/* allocate memory for client data */
 	priv = devm_kzalloc(&auxdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ipc_type = sof_client_get_ipc_type(cdev);
 	priv->max_msg_size = sof_client_get_ipc_max_payload_size(cdev);
@@ -273,7 +273,7 @@ static int sof_msg_inject_probe(struct auxiliary_device *auxdev,
 	priv->tx_buffer = devm_kmalloc(dev, alloc_size, GFP_KERNEL);
 	priv->rx_buffer = devm_kzalloc(dev, alloc_size, GFP_KERNEL);
 	if (!priv->tx_buffer || !priv->rx_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (priv->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_msg *ipc4_msg;
@@ -321,8 +321,8 @@ static const struct auxiliary_device_id sof_msg_inject_client_id_table[] = {
 MODULE_DEVICE_TABLE(auxiliary, sof_msg_inject_client_id_table);
 
 /*
- * No need for driver pm_ops as the generic pm callbacks in the auxiliary bus
- * type are enough to ensure that the parent SOF device resumes to bring the DSP
+ * Anal need for driver pm_ops as the generic pm callbacks in the auxiliary bus
+ * type are eanalugh to ensure that the parent SOF device resumes to bring the DSP
  * back to D0.
  * Driver name will be set based on KBUILD_MODNAME.
  */

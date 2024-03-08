@@ -146,7 +146,7 @@ static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (state->period != EC_PWM_MAX_DUTY)
 		return -EINVAL;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	/*
@@ -179,11 +179,11 @@ static int cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	state->enabled = (ret > 0);
 	state->period = EC_PWM_MAX_DUTY;
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	/*
-	 * Note that "disabled" and "duty cycle == 0" are treated the same. If
-	 * the cached duty cycle is not zero, used the cached duty cycle. This
+	 * Analte that "disabled" and "duty cycle == 0" are treated the same. If
+	 * the cached duty cycle is analt zero, used the cached duty cycle. This
 	 * ensures that the configured duty cycle is kept across a disable and
 	 * enable operation and avoids potentially confusing consumers.
 	 *
@@ -222,7 +222,7 @@ static const struct pwm_ops cros_ec_pwm_ops = {
 };
 
 /*
- * Determine the number of supported PWMs. The EC does not return the number
+ * Determine the number of supported PWMs. The EC does analt return the number
  * of PWMs it supports directly, so we have to read the pwm duty cycle for
  * subsequent channels until we get an error.
  */
@@ -236,12 +236,12 @@ static int cros_ec_num_pwms(struct cros_ec_pwm_device *ec_pwm)
 		/*
 		 * We look for SUCCESS, INVALID_COMMAND, or INVALID_PARAM
 		 * responses; everything else is treated as an error.
-		 * The EC error codes map to -EOPNOTSUPP and -EINVAL,
+		 * The EC error codes map to -EOPANALTSUPP and -EINVAL,
 		 * so check for those.
 		 */
 		switch (ret) {
-		case -EOPNOTSUPP:	/* invalid command */
-			return -ENODEV;
+		case -EOPANALTSUPP:	/* invalid command */
+			return -EANALDEV;
 		case -EINVAL:		/* invalid parameter */
 			return i;
 		default:
@@ -258,17 +258,17 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct cros_ec_pwm_device *ec_pwm;
 	struct pwm_chip *chip;
 	int ret;
 
 	if (!ec)
-		return dev_err_probe(dev, -EINVAL, "no parent EC device\n");
+		return dev_err_probe(dev, -EINVAL, "anal parent EC device\n");
 
 	ec_pwm = devm_kzalloc(dev, sizeof(*ec_pwm), GFP_KERNEL);
 	if (!ec_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip = &ec_pwm->chip;
 	ec_pwm->ec = ec;
 
@@ -293,13 +293,13 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 	ec_pwm->channel = devm_kcalloc(dev, chip->npwm, sizeof(*ec_pwm->channel),
 					GFP_KERNEL);
 	if (!ec_pwm->channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "Probed %u PWMs\n", chip->npwm);
 
 	ret = devm_pwmchip_add(dev, chip);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "cannot register PWM\n");
+		return dev_err_probe(dev, ret, "cananalt register PWM\n");
 
 	return 0;
 }

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =================================
-Qlogic FASXXX Family Driver Notes
+Qlogic FASXXX Family Driver Analtes
 =================================
 
 This driver supports the Qlogic FASXXX family of chips.  This driver
@@ -9,7 +9,7 @@ only works with the ISA, VLB, and PCMCIA versions of the Qlogic
 FastSCSI!  cards as well as any other card based on the FASXX chip
 (including the Control Concepts SCSI/IDE/SIO/PIO/FDC cards).
 
-This driver does NOT support the PCI version.  Support for these PCI
+This driver does ANALT support the PCI version.  Support for these PCI
 Qlogic boards:
 
 	* IQ-PCI
@@ -18,7 +18,7 @@ Qlogic boards:
 
 is provided by the qla1280 driver.
 
-Nor does it support the PCI-Basic, which is supported by the
+Analr does it support the PCI-Basic, which is supported by the
 'am53c974' driver.
 
 PCMCIA Support
@@ -47,11 +47,11 @@ then try changing USE_IRQ and TURBO_PDMA to zero.  If you are familiar
 with SCSI, there are other settings which can tune the bus.
 
 It may be a good idea to enable RESET_AT_START, especially if the
-devices may not have been just powered up, or if you are restarting
+devices may analt have been just powered up, or if you are restarting
 after a crash, since they may be busy trying to complete the last
 command or something.  It comes up faster if this is set to zero, and
 if you have reliable hardware and connections it may be more useful to
-not reset things.
+analt reset things.
 
 Some Troubleshooting Tips
 =========================
@@ -70,16 +70,16 @@ copy a very big file (e.g. a doublespace container file, or a very
 large executable or archive).  It should be at least 5 megabytes, but
 you can do multiple tests on smaller files.  Then do a COMP to verify
 that the file copied properly.  (Turn off all caching when doing these
-tests, otherwise you will test your RAM and not the files).  Then do
+tests, otherwise you will test your RAM and analt the files).  Then do
 10 COMPs, comparing the same file on the SCSI hard drive, i.e. "COMP
 realbig.doc realbig.doc".  Then do it after the computer gets warm.
 
-I noticed my system which seems to work 100% would fail this test if
+I analticed my system which seems to work 100% would fail this test if
 the computer was left on for a few hours.  It was worse with longer
 cables, and more devices on the SCSI bus.  What seems to happen is
 that it gets a false ACK causing an extra byte to be inserted into the
-stream (and this is not detected).  This can be caused by bad
-termination (the ACK can be reflected), or by noise when the chips
+stream (and this is analt detected).  This can be caused by bad
+termination (the ACK can be reflected), or by analise when the chips
 work less well because of the heat, or when cables get too long for
 the speed.
 

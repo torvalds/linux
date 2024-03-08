@@ -17,7 +17,7 @@
 *******************************************************************************/
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>
@@ -42,7 +42,7 @@
 #define DRV_NAME        "libipw"
 #define DRV_PROCNAME	"ieee80211"
 #define DRV_VERSION	LIBIPW_VERSION
-#define DRV_COPYRIGHT   "Copyright (C) 2004-2005 Intel Corporation <jketreno@linux.intel.com>"
+#define DRV_COPYRIGHT   "Copyright (C) 2004-2005 Intel Corporation <jketreanal@linux.intel.com>"
 
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
@@ -63,7 +63,7 @@ static int libipw_networks_allocate(struct libipw_device *ieee)
 			LIBIPW_ERROR("Out of memory allocating beacons\n");
 			for (j = 0; j < i; j++)
 				kfree(ieee->networks[j]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -130,7 +130,7 @@ struct net_device *alloc_libipw(int sizeof_priv, int monitor)
 		ieee->dev->ieee80211_ptr = &ieee->wdev;
 		ieee->wdev.iftype = NL80211_IFTYPE_STATION;
 
-		/* Fill-out wiphy structure bits we know...  Not enough info
+		/* Fill-out wiphy structure bits we kanalw...  Analt eanalugh info
 		   here to call set_wiphy_dev or set MAC address or channel info
 		   -- have to do that in ->ndo_init... */
 		ieee->wdev.wiphy->privid = libipw_wiphy_privid;
@@ -160,7 +160,7 @@ struct net_device *alloc_libipw(int sizeof_priv, int monitor)
 	ieee->host_mc_decrypt = 1;
 
 	/* Host fragmentation in Open mode. Default is enabled.
-	 * Note: host fragmentation is always enabled if host encryption
+	 * Analte: host fragmentation is always enabled if host encryption
 	 * is enabled. For cards can do hardware encryption, they must do
 	 * hardware fragmentation as well. So we don't need a variable
 	 * like host_enc_frag. */
@@ -216,7 +216,7 @@ static int debug_level_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int debug_level_proc_open(struct inode *inode, struct file *file)
+static int debug_level_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, debug_level_proc_show, NULL);
 }
@@ -233,7 +233,7 @@ static ssize_t debug_level_proc_write(struct file *file,
 	buf[len] = 0;
 	if (sscanf(buf, "%li", &val) != 1)
 		printk(KERN_INFO DRV_NAME
-		       ": %s is not in hex or decimal form.\n", buf);
+		       ": %s is analt in hex or decimal form.\n", buf);
 	else
 		libipw_debug_level = val;
 

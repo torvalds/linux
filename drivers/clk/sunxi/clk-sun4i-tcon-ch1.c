@@ -221,10 +221,10 @@ static const struct clk_ops tcon_ch1_ops = {
 	.set_rate	= tcon_ch1_set_rate,
 };
 
-static void __init tcon_ch1_setup(struct device_node *node)
+static void __init tcon_ch1_setup(struct device_analde *analde)
 {
 	const char *parents[TCON_CH1_SCLK2_PARENTS];
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	struct clk_init_data init;
 	struct tcon_ch1_clk *tclk;
 	struct resource res;
@@ -232,17 +232,17 @@ static void __init tcon_ch1_setup(struct device_node *node)
 	void __iomem *reg;
 	int ret;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
-		pr_err("%s: Could not map the clock registers\n", clk_name);
+		pr_err("%s: Could analt map the clock registers\n", clk_name);
 		return;
 	}
 
-	ret = of_clk_parent_fill(node, parents, TCON_CH1_SCLK2_PARENTS);
+	ret = of_clk_parent_fill(analde, parents, TCON_CH1_SCLK2_PARENTS);
 	if (ret != TCON_CH1_SCLK2_PARENTS) {
-		pr_err("%s Could not retrieve the parents\n", clk_name);
+		pr_err("%s Could analt retrieve the parents\n", clk_name);
 		goto err_unmap;
 	}
 
@@ -266,7 +266,7 @@ static void __init tcon_ch1_setup(struct device_node *node)
 		goto err_free_data;
 	}
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 	if (ret) {
 		pr_err("%s: Couldn't register our clock provider\n", clk_name);
 		goto err_unregister_clk;
@@ -280,7 +280,7 @@ err_free_data:
 	kfree(tclk);
 err_unmap:
 	iounmap(reg);
-	of_address_to_resource(node, 0, &res);
+	of_address_to_resource(analde, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
 }
 

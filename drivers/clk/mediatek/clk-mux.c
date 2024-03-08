@@ -45,7 +45,7 @@ static int mtk_clk_mux_enable_setclr(struct clk_hw *hw)
 
 	/*
 	 * If the parent has been changed when the clock was disabled, it will
-	 * not be effective yet. Set the update bit to ensure the mux gets
+	 * analt be effective yet. Set the update bit to ensure the mux gets
 	 * updated.
 	 */
 	if (mux->reparent && mux->data->upd_shift >= 0) {
@@ -96,7 +96,7 @@ static u8 mtk_clk_mux_get_parent(struct clk_hw *hw)
 			if (mux->data->parent_index[i] == val)
 				return i;
 
-		/* Not found: return an impossible index to generate error */
+		/* Analt found: return an impossible index to generate error */
 		return mux->data->num_parents + 1;
 	}
 
@@ -179,7 +179,7 @@ static struct clk_hw *mtk_clk_register_mux(struct device *dev,
 
 	clk_mux = kzalloc(sizeof(*clk_mux), GFP_KERNEL);
 	if (!clk_mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = mux->name;
 	init.flags = mux->flags;
@@ -215,7 +215,7 @@ static void mtk_clk_unregister_mux(struct clk_hw *hw)
 
 int mtk_clk_register_muxes(struct device *dev,
 			   const struct mtk_mux *muxes,
-			   int num, struct device_node *node,
+			   int num, struct device_analde *analde,
 			   spinlock_t *lock,
 			   struct clk_hw_onecell_data *clk_data)
 {
@@ -223,9 +223,9 @@ int mtk_clk_register_muxes(struct device *dev,
 	struct clk_hw *hw;
 	int i;
 
-	regmap = device_node_to_regmap(node);
+	regmap = device_analde_to_regmap(analde);
 	if (IS_ERR(regmap)) {
-		pr_err("Cannot find regmap for %pOF: %pe\n", node, regmap);
+		pr_err("Cananalt find regmap for %pOF: %pe\n", analde, regmap);
 		return PTR_ERR(regmap);
 	}
 
@@ -234,7 +234,7 @@ int mtk_clk_register_muxes(struct device *dev,
 
 		if (!IS_ERR_OR_NULL(clk_data->hws[mux->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
-				node, mux->id);
+				analde, mux->id);
 			continue;
 		}
 
@@ -259,7 +259,7 @@ err:
 			continue;
 
 		mtk_clk_unregister_mux(clk_data->hws[mux->id]);
-		clk_data->hws[mux->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[mux->id] = ERR_PTR(-EANALENT);
 	}
 
 	return PTR_ERR(hw);
@@ -281,21 +281,21 @@ void mtk_clk_unregister_muxes(const struct mtk_mux *muxes, int num,
 			continue;
 
 		mtk_clk_unregister_mux(clk_data->hws[mux->id]);
-		clk_data->hws[mux->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[mux->id] = ERR_PTR(-EANALENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_muxes);
 
 /*
- * This clock notifier is called when the frequency of the parent
+ * This clock analtifier is called when the frequency of the parent
  * PLL clock is to be changed. The idea is to switch the parent to a
  * stable clock, such as the main oscillator, while the PLL frequency
  * stabilizes.
  */
-static int mtk_clk_mux_notifier_cb(struct notifier_block *nb,
+static int mtk_clk_mux_analtifier_cb(struct analtifier_block *nb,
 				   unsigned long event, void *_data)
 {
-	struct clk_notifier_data *data = _data;
+	struct clk_analtifier_data *data = _data;
 	struct clk_hw *hw = __clk_get_hw(data->clk);
 	struct mtk_mux_nb *mux_nb = to_mtk_mux_nb(nb);
 	int ret = 0;
@@ -311,16 +311,16 @@ static int mtk_clk_mux_notifier_cb(struct notifier_block *nb,
 		break;
 	}
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-int devm_mtk_clk_mux_notifier_register(struct device *dev, struct clk *clk,
+int devm_mtk_clk_mux_analtifier_register(struct device *dev, struct clk *clk,
 				       struct mtk_mux_nb *mux_nb)
 {
-	mux_nb->nb.notifier_call = mtk_clk_mux_notifier_cb;
+	mux_nb->nb.analtifier_call = mtk_clk_mux_analtifier_cb;
 
-	return devm_clk_notifier_register(dev, clk, &mux_nb->nb);
+	return devm_clk_analtifier_register(dev, clk, &mux_nb->nb);
 }
-EXPORT_SYMBOL_GPL(devm_mtk_clk_mux_notifier_register);
+EXPORT_SYMBOL_GPL(devm_mtk_clk_mux_analtifier_register);
 
 MODULE_LICENSE("GPL");

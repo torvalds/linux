@@ -104,7 +104,7 @@ static void sta2x11_setup_pdev(struct pci_dev *pdev)
 {
 	struct sta2x11_instance *instance = sta2x11_pdev_to_instance(pdev);
 
-	if (!instance) /* either a sta2x11 bridge or another ST device */
+	if (!instance) /* either a sta2x11 bridge or aanalther ST device */
 		return;
 
 	/* We must enable all devices as master, for audio DMA to work */
@@ -123,7 +123,7 @@ DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_STMICRO, PCI_ANY_ID, sta2x11_setup_pdev);
 #define AHB_CRW_ENABLE			(1 << 0)
 #define AHB_CRW_WTYPE_MEM		(2 << 1)
 #define AHB_CRW_ROE			(1UL << 3)	/* Relax Order Ena */
-#define AHB_CRW_NSE			(1UL << 4)	/* No Snoop Enable */
+#define AHB_CRW_NSE			(1UL << 4)	/* Anal Sanalop Enable */
 #define AHB_BASE(i)		(AHB_MAPB + 4  + (i) * 0x10)
 #define AHB_PEXLBASE(i)		(AHB_MAPB + 8  + (i) * 0x10)
 #define AHB_PEXHBASE(i)		(AHB_MAPB + 12 + (i) * 0x10)
@@ -144,7 +144,7 @@ static void sta2x11_map_ep(struct pci_dev *pdev)
 
 	ret = dma_direct_set_offset(dev, 0, amba_base, STA2X11_AMBA_SIZE);
 	if (ret)
-		dev_err(dev, "sta2x11: could not set DMA offset\n");
+		dev_err(dev, "sta2x11: could analt set DMA offset\n");
 
 	dev->bus_dma_limit = max_amba_addr;
 	dma_set_mask_and_coherent(&pdev->dev, max_amba_addr);

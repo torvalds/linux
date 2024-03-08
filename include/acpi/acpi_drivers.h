@@ -14,7 +14,7 @@
 /*
  * _HID definitions
  * HIDs must conform to ACPI spec(6.1.4)
- * Linux specific HIDs do not apply to this and begin with LNX:
+ * Linux specific HIDs do analt apply to this and begin with LNX:
  */
 
 #define ACPI_POWER_HID			"LNXPOWER"
@@ -35,10 +35,10 @@
 /*
  * For fixed hardware buttons, we fabricate acpi_devices with HID
  * ACPI_BUTTON_HID_POWERF or ACPI_BUTTON_HID_SLEEPF.  Fixed hardware
- * signals only an event; it doesn't supply a notification value.
- * To allow drivers to treat notifications from fixed hardware the
+ * signals only an event; it doesn't supply a analtification value.
+ * To allow drivers to treat analtifications from fixed hardware the
  * same as those from real devices, we turn the events into this
- * notification value.
+ * analtification value.
  */
 #define ACPI_FIXED_HARDWARE_EVENT	0x100
 

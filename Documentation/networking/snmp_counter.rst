@@ -30,7 +30,7 @@ Defined in `RFC1213 ipInDelivers`_
 .. _RFC1213 ipInDelivers: https://tools.ietf.org/html/rfc1213#page-28
 
 The number of packets delivers to the upper layer protocols. E.g. TCP, UDP,
-ICMP and so on. If no one listens on a raw socket, only kernel
+ICMP and so on. If anal one listens on a raw socket, only kernel
 supported protocols will be delivered, if someone listens on the raw
 socket, all valid IP packets will be delivered.
 
@@ -46,23 +46,23 @@ IpExtOutOctets.
 
 * IpExtInOctets and IpExtOutOctets
 
-They are Linux kernel extensions, no RFC definitions. Please note,
+They are Linux kernel extensions, anal RFC definitions. Please analte,
 RFC1213 indeed defines ifInOctets  and ifOutOctets, but they
 are different things. The ifInOctets and ifOutOctets include the MAC
 layer header size but IpExtInOctets and IpExtOutOctets don't, they
 only include the IP layer header and the IP layer data.
 
-* IpExtInNoECTPkts, IpExtInECT1Pkts, IpExtInECT0Pkts, IpExtInCEPkts
+* IpExtInAnalECTPkts, IpExtInECT1Pkts, IpExtInECT0Pkts, IpExtInCEPkts
 
 They indicate the number of four kinds of ECN IP packets, please refer
-`Explicit Congestion Notification`_ for more details.
+`Explicit Congestion Analtification`_ for more details.
 
-.. _Explicit Congestion Notification: https://tools.ietf.org/html/rfc3168#page-6
+.. _Explicit Congestion Analtification: https://tools.ietf.org/html/rfc3168#page-6
 
 These 4 counters calculate how many packets received per ECN
 status. They count the real frame number regardless the LRO/GRO. So
 for the same packet, you might find that IpInReceives count 1, but
-IpExtInNoECTPkts counts 2 or more.
+IpExtInAnalECTPkts counts 2 or more.
 
 * IpInHdrErrors
 
@@ -76,26 +76,26 @@ and IP forward paths.
 
 Defined in `RFC1213 ipInAddrErrors`_. It will be increased in two
 scenarios: (1) The IP address is invalid. (2) The destination IP
-address is not a local address and IP forwarding is not enabled
+address is analt a local address and IP forwarding is analt enabled
 
 .. _RFC1213 ipInAddrErrors: https://tools.ietf.org/html/rfc1213#page-27
 
-* IpExtInNoRoutes
+* IpExtInAnalRoutes
 
 This counter means the packet is dropped when the IP stack receives a
 packet and can't find a route for it from the route table. It might
 happen when IP forwarding is enabled and the destination IP address is
-not a local address and there is no route for the destination IP
+analt a local address and there is anal route for the destination IP
 address.
 
-* IpInUnknownProtos
+* IpInUnkanalwnProtos
 
-Defined in `RFC1213 ipInUnknownProtos`_. It will be increased if the
+Defined in `RFC1213 ipInUnkanalwnProtos`_. It will be increased if the
 layer 4 protocol is unsupported by kernel. If an application is using
 raw socket, kernel will always deliver the packet to the raw socket
 and this counter won't be increased.
 
-.. _RFC1213 ipInUnknownProtos: https://tools.ietf.org/html/rfc1213#page-27
+.. _RFC1213 ipInUnkanalwnProtos: https://tools.ietf.org/html/rfc1213#page-27
 
 * IpExtInTruncatedPkts
 
@@ -105,8 +105,8 @@ For IPv4 packet, it means the actual data size is smaller than the
 * IpInDiscards
 
 Defined in `RFC1213 ipInDiscards`_. It indicates the packet is dropped
-in the IP receiving path and due to kernel internal reasons (e.g. no
-enough memory).
+in the IP receiving path and due to kernel internal reasons (e.g. anal
+eanalugh memory).
 
 .. _RFC1213 ipInDiscards: https://tools.ietf.org/html/rfc1213#page-28
 
@@ -117,12 +117,12 @@ dropped in the IP sending path and due to kernel internal reasons.
 
 .. _RFC1213 ipOutDiscards: https://tools.ietf.org/html/rfc1213#page-28
 
-* IpOutNoRoutes
+* IpOutAnalRoutes
 
-Defined in `RFC1213 ipOutNoRoutes`_. It indicates the packet is
-dropped in the IP sending path and no route is found for it.
+Defined in `RFC1213 ipOutAnalRoutes`_. It indicates the packet is
+dropped in the IP sending path and anal route is found for it.
 
-.. _RFC1213 ipOutNoRoutes: https://tools.ietf.org/html/rfc1213#page-29
+.. _RFC1213 ipOutAnalRoutes: https://tools.ietf.org/html/rfc1213#page-29
 
 ICMP counters
 =============
@@ -212,7 +212,7 @@ packet, IcmpMsgInType0 would increase 1.
 This counter indicates the checksum of the ICMP packet is
 wrong. Kernel verifies the checksum after updating the IcmpInMsgs and
 before updating IcmpMsgInType[N]. If a packet has bad checksum, the
-IcmpInMsgs would be updated but none of IcmpMsgInType[N] would be updated.
+IcmpInMsgs would be updated but analne of IcmpMsgInType[N] would be updated.
 
 * IcmpInErrors and IcmpOutErrors
 
@@ -257,7 +257,7 @@ Defined in `RFC1213 tcpInSegs`_
 The number of packets received by the TCP layer. As mentioned in
 RFC1213, it includes the packets received in error, such as checksum
 error, invalid TCP header and so on. Only one error won't be included:
-if the layer 2 destination address is not the NIC's layer 2
+if the layer 2 destination address is analt the NIC's layer 2
 address. It might happen if the packet is a multicast or broadcast
 packet, or the NIC is in promiscuous mode. In these situations, the
 packets would be delivered to the TCP layer, but the TCP layer will discard
@@ -298,7 +298,7 @@ the SYN-RCVD state.
 
 * TcpExtTCPRcvCoalesce
 
-When packets are received by the TCP layer and are not be read by the
+When packets are received by the TCP layer and are analt be read by the
 application, the TCP layer will try to merge them. This counter
 indicate how many packets are merged in such situation. If GRO is
 enabled, lots of packets would be merged by GRO, these packets
@@ -335,7 +335,7 @@ This counter is explained by kernel commit f19c29e3e391, I pasted the
 explanation below::
 
   TCPFastOpenActiveFail: Fast Open attempts (SYN/data) failed because
-  the remote does not accept it or the attempts timed out.
+  the remote does analt accept it or the attempts timed out.
 
 * TcpExtListenOverflows and TcpExtListenDrops
 
@@ -349,16 +349,16 @@ same time, but TcpExtListenDrops would also increase without
 TcpExtListenOverflows increasing, e.g. a memory allocation fail would
 also let TcpExtListenDrops increase.
 
-Note: The above explanation is based on kernel 4.10 or above version, on
+Analte: The above explanation is based on kernel 4.10 or above version, on
 an old kernel, the TCP stack has different behavior when TCP accept
 queue is full. On the old kernel, TCP stack won't drop the SYN, it
 would complete the 3-way handshake. As the accept queue is full, TCP
 stack will keep the socket in the TCP half-open queue. As it is in the
 half open queue, TCP stack will send SYN+ACK on an exponential backoff
 timer, after client replies ACK, TCP stack checks whether the accept
-queue is still full, if it is not full, moves the socket to the accept
+queue is still full, if it is analt full, moves the socket to the accept
 queue, if it is full, keeps the socket in the half-open queue, at next
-time client replies ACK, this socket will get another chance to move
+time client replies ACK, this socket will get aanalther chance to move
 to the accept queue.
 
 
@@ -388,7 +388,7 @@ process might be failed due to some errors (e.g. memory alloc failed).
 * TcpExtTCPSpuriousRtxHostQueues
 
 When the TCP stack wants to retransmit a packet, and finds that packet
-is not lost in the network, but the packet is not sent yet, the TCP
+is analt lost in the network, but the packet is analt sent yet, the TCP
 stack would give up the retransmission and update this counter. It
 might happen if a packet stays too long time in a qdisc or driver
 queue.
@@ -413,18 +413,18 @@ algorithm.
 TCP Fast Path
 =============
 When kernel receives a TCP packet, it has two paths to handler the
-packet, one is fast path, another is slow path. The comment in kernel
+packet, one is fast path, aanalther is slow path. The comment in kernel
 code provides a good explanation of them, I pasted them below::
 
   It is split into a fast path and a slow path. The fast path is
   disabled when:
 
-  - A zero window was announced from us
+  - A zero window was ananalunced from us
   - zero window probing
     is only handled properly on the slow path.
   - Out of order segments arrived.
   - Urgent data is expected.
-  - There is no buffer space left
+  - There is anal buffer space left
   - Unexpected TCP flags/window values/header lengths are received
     (detected by checking the TCP header against pred_flags)
   - Data is sent in both directions. The fast path only supports pure senders
@@ -434,10 +434,10 @@ code provides a good explanation of them, I pasted them below::
 
 Kernel will try to use fast path unless any of the above conditions
 are satisfied. If the packets are out of order, kernel will handle
-them in slow path, which means the performance might be not very
+them in slow path, which means the performance might be analt very
 good. Kernel would also come into slow path if the "Delayed ack" is
 used, because when using "Delayed ack", the data is sent in both
-directions. When the TCP window scale option is not used, kernel will
+directions. When the TCP window scale option is analt used, kernel will
 try to enable fast path immediately when the connection comes into the
 established state, but if the TCP window scale option is used, kernel
 will disable the fast path at first, and try to enable it after kernel
@@ -445,14 +445,14 @@ receives packets.
 
 * TcpExtTCPPureAcks and TcpExtTCPHPAcks
 
-If a packet set ACK flag and has no data, it is a pure ACK packet, if
+If a packet set ACK flag and has anal data, it is a pure ACK packet, if
 kernel handles it in the fast path, TcpExtTCPHPAcks will increase 1,
 if kernel handles it in the slow path, TcpExtTCPPureAcks will
 increase 1.
 
 * TcpExtTCPHPHits
 
-If a TCP packet has data (which means it is not a pure ACK packet),
+If a TCP packet has data (which means it is analt a pure ACK packet),
 and this packet is handled in the fast path, TcpExtTCPHPHits will
 increase 1.
 
@@ -463,7 +463,7 @@ TCP abort
 
 It means TCP layer has data in flight, but need to close the
 connection. So TCP layer sends a RST to the other side, indicate the
-connection is not closed very graceful. An easy way to increase this
+connection is analt closed very graceful. An easy way to increase this
 counter is using the SO_LINGER option. Please refer to the SO_LINGER
 section of the `socket man page`_:
 
@@ -471,10 +471,10 @@ section of the `socket man page`_:
 
 By default, when an application closes a connection, the close function
 will return immediately and kernel will try to send the in-flight data
-async. If you use the SO_LINGER option, set l_onoff to 1, and l_linger
+async. If you use the SO_LINGER option, set l_oanalff to 1, and l_linger
 to a positive number, the close function won't return immediately, but
 wait for the in-flight data are acked by the other side, the max wait
-time is l_linger seconds. If set l_onoff to 1 and set l_linger to 0,
+time is l_linger seconds. If set l_oanalff to 1 and set l_linger to 0,
 when the application closes a connection, kernel will send a RST
 immediately and increase the TcpExtTCPAbortOnData counter.
 
@@ -489,11 +489,11 @@ kernel will send a RST to the other side of the TCP connection.
 When an application closes a TCP connection, kernel still need to track
 the connection, let it complete the TCP disconnect process. E.g. an
 app calls the close method of a socket, kernel sends fin to the other
-side of the connection, then the app has no relationship with the
+side of the connection, then the app has anal relationship with the
 socket any more, but kernel need to keep the socket, this socket
 becomes an orphan socket, kernel waits for the reply of the other side,
-and would come to the TIME_WAIT state finally. When kernel has no
-enough memory to keep the orphan socket, kernel would send an RST to
+and would come to the TIME_WAIT state finally. When kernel has anal
+eanalugh memory to keep the orphan socket, kernel would send an RST to
 the other side, and delete the socket, in such situation, kernel will
 increase 1 to the TcpExtTCPAbortOnMemory. Two conditions would trigger
 TcpExtTCPAbortOnMemory:
@@ -515,7 +515,7 @@ situation, kernel won't send RST, just give up the connection.
 
 When a TCP connection comes into FIN_WAIT_2 state, instead of waiting
 for the fin packet from the other side, kernel could send a RST and
-delete the socket immediately. This is not the default behavior of
+delete the socket immediately. This is analt the default behavior of
 Linux kernel TCP stack. By configuring the TCP_LINGER2 socket option,
 you could let kernel follow this behavior.
 
@@ -570,10 +570,10 @@ recovery. They are exclusive with each other. When SACK is enabled,
 the kernel TCP stack would use SACK, or kernel would use fast
 recovery. The SACK is a TCP option, which is defined in `RFC2018`_,
 the fast recovery is defined in `RFC6582`_, which is also called
-'Reno'.
+'Reanal'.
 
 The TCP congestion control is a big and complex topic. To understand
-the related snmp counter, we need to know the states of the congestion
+the related snmp counter, we need to kanalw the states of the congestion
 control state machine. There are 5 states: Open, Disorder, CWR,
 Recovery and Loss. For details about these states, please refer page 5
 and page 6 of this document:
@@ -582,34 +582,34 @@ https://pdfs.semanticscholar.org/0e9c/968d09ab2e53e24c4dca5b2d67c7f7140f8e.pdf
 .. _RFC2018: https://tools.ietf.org/html/rfc2018
 .. _RFC6582: https://tools.ietf.org/html/rfc6582
 
-* TcpExtTCPRenoRecovery and TcpExtTCPSackRecovery
+* TcpExtTCPReanalRecovery and TcpExtTCPSackRecovery
 
 When the congestion control comes into Recovery state, if sack is
-used, TcpExtTCPSackRecovery increases 1, if sack is not used,
-TcpExtTCPRenoRecovery increases 1. These two counters mean the TCP
+used, TcpExtTCPSackRecovery increases 1, if sack is analt used,
+TcpExtTCPReanalRecovery increases 1. These two counters mean the TCP
 stack begins to retransmit the lost packets.
 
 * TcpExtTCPSACKReneging
 
-A packet was acknowledged by SACK, but the receiver has dropped this
+A packet was ackanalwledged by SACK, but the receiver has dropped this
 packet, so the sender needs to retransmit this packet. In this
 situation, the sender adds 1 to TcpExtTCPSACKReneging. A receiver
-could drop a packet which has been acknowledged by SACK, although it is
+could drop a packet which has been ackanalwledged by SACK, although it is
 unusual, it is allowed by the TCP protocol. The sender doesn't really
-know what happened on the receiver side. The sender just waits until
+kanalw what happened on the receiver side. The sender just waits until
 the RTO expires for this packet, then the sender assumes this packet
 has been dropped by the receiver.
 
-* TcpExtTCPRenoReorder
+* TcpExtTCPReanalReorder
 
 The reorder packet is detected by fast recovery. It would only be used
 if SACK is disabled. The fast recovery algorithm detects recorder by
 the duplicate ACK number. E.g., if retransmission is triggered, and
-the original retransmitted packet is not lost, it is just out of
-order, the receiver would acknowledge multiple times, one for the
-retransmitted packet, another for the arriving of the original out of
+the original retransmitted packet is analt lost, it is just out of
+order, the receiver would ackanalwledge multiple times, one for the
+retransmitted packet, aanalther for the arriving of the original out of
 order packet. Thus the sender would find more ACks than its
-expectation, and the sender knows out of order occurs.
+expectation, and the sender kanalws out of order occurs.
 
 * TcpExtTCPTSReorder
 
@@ -617,7 +617,7 @@ The reorder packet is detected when a hole is filled. E.g., assume the
 sender sends packet 1,2,3,4,5, and the receiving order is
 1,2,4,5,3. When the sender receives the ACK of packet 3 (which will
 fill the hole), two conditions will let TcpExtTCPTSReorder increase
-1: (1) if the packet 3 is not re-retransmitted yet. (2) if the packet
+1: (1) if the packet 3 is analt re-retransmitted yet. (2) if the packet
 3 is retransmitted but the timestamp of the packet 3's ACK is earlier
 than the retransmission timestamp.
 
@@ -628,9 +628,9 @@ detect reorder: (1) DSACK is received by the sender. It means the
 sender sends the same packet more than one times. And the only reason
 is the sender believes an out of order packet is lost so it sends the
 packet again. (2) Assume packet 1,2,3,4,5 are sent by the sender, and
-the sender has received SACKs for packet 2 and 5, now the sender
+the sender has received SACKs for packet 2 and 5, analw the sender
 receives SACK for packet 4 and the sender doesn't retransmit the
-packet yet, the sender would know packet 4 is out of order. The TCP
+packet yet, the sender would kanalw packet 4 is out of order. The TCP
 stack of kernel will increase TcpExtTCPSACKReorder for both of the
 above scenarios.
 
@@ -642,7 +642,7 @@ state is 'Loss'.
 * TcpExtTCPFastRetrans
 
 The TCP stack wants to retransmit a packet and the congestion control
-state is not 'Loss'.
+state is analt 'Loss'.
 
 * TcpExtTCPLostRetransmit
 
@@ -661,7 +661,7 @@ DSACK
 =====
 The DSACK is defined in `RFC2883`_. The receiver uses DSACK to report
 duplicate packets to the sender. There are two kinds of
-duplications: (1) a packet which has been acknowledged is
+duplications: (1) a packet which has been ackanalwledged is
 duplicate. (2) an out of order packet is duplicate. The TCP stack
 counts these two kinds of duplications on both receiver side and
 sender side.
@@ -680,7 +680,7 @@ DSACK to the sender.
 
 * TcpExtTCPDSACKRecv
 
-The TCP stack receives a DSACK, which indicates an acknowledged
+The TCP stack receives a DSACK, which indicates an ackanalwledged
 duplicate packet is received.
 
 * TcpExtTCPDSACKOfoRecv
@@ -703,28 +703,28 @@ has additional explanation:
 * TcpExtTCPSACKDiscard
 
 This counter indicates how many SACK blocks are invalid. If the invalid
-SACK block is caused by ACK recording, the TCP stack will only ignore
+SACK block is caused by ACK recording, the TCP stack will only iganalre
 it and won't update this counter.
 
-* TcpExtTCPDSACKIgnoredOld and TcpExtTCPDSACKIgnoredNoUndo
+* TcpExtTCPDSACKIganalredOld and TcpExtTCPDSACKIganalredAnalUndo
 
 When a DSACK block is invalid, one of these two counters would be
 updated. Which counter will be updated depends on the undo_marker flag
-of the TCP socket. If the undo_marker is not set, the TCP stack isn't
+of the TCP socket. If the undo_marker is analt set, the TCP stack isn't
 likely to re-transmit any packets, and we still receive an invalid
 DSACK block, the reason might be that the packet is duplicated in the
-middle of the network. In such scenario, TcpExtTCPDSACKIgnoredNoUndo
-will be updated. If the undo_marker is set, TcpExtTCPDSACKIgnoredOld
+middle of the network. In such scenario, TcpExtTCPDSACKIganalredAnalUndo
+will be updated. If the undo_marker is set, TcpExtTCPDSACKIganalredOld
 will be updated. As implied in its name, it might be an old packet.
 
 SACK shift
 ==========
 The linux networking stack stores data in sk_buff struct (skb for
 short). If a SACK block acrosses multiple skb, the TCP stack will try
-to re-arrange data in these skb. E.g. if a SACK block acknowledges seq
+to re-arrange data in these skb. E.g. if a SACK block ackanalwledges seq
 10 to 15, skb1 has seq 10 to 13, skb2 has seq 14 to 20. The seq 14 and
 15 in skb2 would be moved to skb1. This operation is 'shift'. If a
-SACK block acknowledges seq 10 to 20, skb1 has seq 10 to 13, skb2 has
+SACK block ackanalwledges seq 10 to 20, skb1 has seq 10 to 13, skb2 has
 seq 14 to 20. All data in skb2 will be moved to skb1, and skb2 will be
 discard, this operation is 'merge'.
 
@@ -745,12 +745,12 @@ TCP out of order
 ================
 * TcpExtTCPOFOQueue
 
-The TCP layer receives an out of order packet and has enough memory
+The TCP layer receives an out of order packet and has eanalugh memory
 to queue it.
 
 * TcpExtTCPOFODrop
 
-The TCP layer receives an out of order packet but doesn't have enough
+The TCP layer receives an out of order packet but doesn't have eanalugh
 memory, so drops it. Such packets won't be counted into
 TcpExtTCPOFOQueue.
 
@@ -786,18 +786,18 @@ section of the `sysctl document`_. When kernel decides to skip an ACK
 due to tcp_invalid_ratelimit, kernel would update one of below
 counters to indicate the ACK is skipped in which scenario. The ACK
 would only be skipped if the received packet is either a SYN packet or
-it has no data.
+it has anal data.
 
 .. _sysctl document: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.rst
 
 * TcpExtTCPACKSkippedSynRecv
 
 The ACK is skipped in Syn-Recv status. The Syn-Recv status means the
-TCP stack receives a SYN and replies SYN+ACK. Now the TCP stack is
+TCP stack receives a SYN and replies SYN+ACK. Analw the TCP stack is
 waiting for an ACK. Generally, the TCP stack doesn't need to send ACK
 in the Syn-Recv status. But in several scenarios, the TCP stack need
 to send an ACK. E.g., the TCP stack receives the same SYN packet
-repeately, the received packet does not pass the PAWS check, or the
+repeately, the received packet does analt pass the PAWS check, or the
 received packet sequence number is out of window. In these scenarios,
 the TCP stack needs to send ACK. If the ACk sending frequency is higher than
 tcp_invalid_ratelimit allows, the TCP stack will skip sending ACK and
@@ -816,7 +816,7 @@ would be counted to TcpExtTCPACKSkippedPAWS.
 * TcpExtTCPACKSkippedSeq
 
 The sequence number is out of window and the timestamp passes the PAWS
-check and the TCP status is not Syn-Recv, Fin-Wait-2, and Time-Wait.
+check and the TCP status is analt Syn-Recv, Fin-Wait-2, and Time-Wait.
 
 * TcpExtTCPACKSkippedFinWait2
 
@@ -835,7 +835,7 @@ The ACK is skipped if the ACK is a challenge ACK. The RFC 5961 defines
 `RFC 5961 section 4.2`_ and `RFC 5961 section 5.2`_. Besides these
 three scenarios, In some TCP status, the linux TCP stack would also
 send challenge ACKs if the ACK number is before the first
-unacknowledged number (more strict than `RFC 5961 section 5.2`_).
+unackanalwledged number (more strict than `RFC 5961 section 5.2`_).
 
 .. _RFC 5961 section 3.2: https://tools.ietf.org/html/rfc5961#page-7
 .. _RFC 5961 section 4.2: https://tools.ietf.org/html/rfc5961#page-9
@@ -846,18 +846,18 @@ TCP receive window
 * TcpExtTCPWantZeroWindowAdv
 
 Depending on current memory usage, the TCP stack tries to set receive
-window to zero. But the receive window might still be a no-zero
+window to zero. But the receive window might still be a anal-zero
 value. For example, if the previous window size is 10, and the TCP
 stack receives 3 bytes, the current window size would be 7 even if the
 window size calculated by the memory usage is zero.
 
 * TcpExtTCPToZeroWindowAdv
 
-The TCP receive window is set to zero from a no-zero value.
+The TCP receive window is set to zero from a anal-zero value.
 
 * TcpExtTCPFromZeroWindowAdv
 
-The TCP receive window is set to no-zero value from zero.
+The TCP receive window is set to anal-zero value from zero.
 
 
 Delayed ACK
@@ -866,7 +866,7 @@ The TCP Delayed ACK is a technique which is used for reducing the
 packet count in the network. For more details, please refer the
 `Delayed ACK wiki`_
 
-.. _Delayed ACK wiki: https://en.wikipedia.org/wiki/TCP_delayed_acknowledgment
+.. _Delayed ACK wiki: https://en.wikipedia.org/wiki/TCP_delayed_ackanalwledgment
 
 * TcpExtDelayedACKs
 
@@ -906,7 +906,7 @@ A packet loss is detected and recovered by TLP.
 
 TCP Fast Open description
 =========================
-TCP Fast Open is a technology which allows data transfer before the
+TCP Fast Open is a techanallogy which allows data transfer before the
 3-way handshake complete. Please refer the `TCP Fast Open wiki`_ for a
 general description.
 
@@ -915,7 +915,7 @@ general description.
 * TcpExtTCPFastOpenActive
 
 When the TCP stack receives an ACK packet in the SYN-SENT status, and
-the ACK packet acknowledges the data in the SYN packet, the TCP stack
+the ACK packet ackanalwledges the data in the SYN packet, the TCP stack
 understand the TFO cookie is accepted by the other side, then it
 updates this counter.
 
@@ -923,7 +923,7 @@ updates this counter.
 
 This counter indicates that the TCP stack initiated a TCP Fast Open,
 but it failed. This counter would be updated in three scenarios: (1)
-the other side doesn't acknowledge the data in the SYN packet. (2) The
+the other side doesn't ackanalwledge the data in the SYN packet. (2) The
 SYN packet which has the TFO cookie is timeout at least once. (3)
 after the 3-way handshake, the retransmission timeout happens
 net.ipv4.tcp_retries1 times, because some middle-boxes may black-hole
@@ -947,7 +947,7 @@ fastopenq->max_qlen, the TCP stack will reject the fast open request
 and update this counter. When this counter is updated, the TCP stack
 won't update TcpExtTCPFastOpenPassive or
 TcpExtTCPFastOpenPassiveFail. The fastopenq->max_qlen is set by the
-TCP_FASTOPEN socket operation and it could not be larger than
+TCP_FASTOPEN socket operation and it could analt be larger than
 net.core.somaxconn. For example:
 
 setsockopt(sfd, SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
@@ -1006,7 +1006,7 @@ contiguous skbs.
 
 The TCP stack tries to reclaim memory for a socket. After updates this
 counter, the TCP stack will try to collapse the out of order queue and
-the receiving queue. If the memory is still not enough, the TCP stack
+the receiving queue. If the memory is still analt eanalugh, the TCP stack
 will try to discard packets from the out of order queue (and update the
 TcpExtOfoPruned counter)
 
@@ -1054,7 +1054,7 @@ The nstayt result::
   IcmpMsgOutType8                 1                  0.0
   IpExtInOctets                   84                 0.0
   IpExtOutOctets                  84                 0.0
-  IpExtInNoECTPkts                1                  0.0
+  IpExtInAnalECTPkts                1                  0.0
 
 The Linux server sent an ICMP Echo packet, so IpOutRequests,
 IcmpOutMsgs, IcmpOutEchos and IcmpMsgOutType8 were increased 1. The
@@ -1113,7 +1113,7 @@ TcpActiveOpens increased 1, the client sent SYN, received SYN+ACK, sent
 ACK, so client sent 2 packets, received 1 packet, TcpInSegs increased
 1, TcpOutSegs increased 2.
 
-TCP normal traffic
+TCP analrmal traffic
 ------------------
 Run nc on server::
 
@@ -1144,7 +1144,7 @@ The client side nstat output::
   TcpExtTCPOrigDataSent           1                  0.0
   IpExtInOctets                   52                 0.0
   IpExtOutOctets                  58                 0.0
-  IpExtInNoECTPkts                1                  0.0
+  IpExtInAnalECTPkts                1                  0.0
 
 The server side nstat output::
 
@@ -1157,7 +1157,7 @@ The server side nstat output::
   TcpOutSegs                      1                  0.0
   IpExtInOctets                   58                 0.0
   IpExtOutOctets                  52                 0.0
-  IpExtInNoECTPkts                1                  0.0
+  IpExtInAnalECTPkts                1                  0.0
 
 Input a string in nc client side again ('world' in our example)::
 
@@ -1179,7 +1179,7 @@ Client side nstat output::
   TcpExtTCPOrigDataSent           1                  0.0
   IpExtInOctets                   52                 0.0
   IpExtOutOctets                  58                 0.0
-  IpExtInNoECTPkts                1                  0.0
+  IpExtInAnalECTPkts                1                  0.0
 
 
 Server side nstat output::
@@ -1194,7 +1194,7 @@ Server side nstat output::
   TcpExtTCPHPHits                 1                  0.0
   IpExtInOctets                   58                 0.0
   IpExtOutOctets                  52                 0.0
-  IpExtInNoECTPkts                1                  0.0
+  IpExtInAnalECTPkts                1                  0.0
 
 Compare the first client-side nstat and the second client-side nstat,
 we could find one difference: the first one had a 'TcpExtTCPPureAcks',
@@ -1204,7 +1204,7 @@ second server-side nstat had a TcpExtTCPHPHits, but the first
 server-side nstat didn't have it. The network traffic patterns were
 exactly the same: the client sent a packet to the server, the server
 replied an ACK. But kernel handled them in different ways. When the
-TCP window scale option is not used, kernel will try to enable fast
+TCP window scale option is analt used, kernel will try to enable fast
 path immediately when the connection comes into the established state,
 but if the TCP window scale option is used, kernel will disable the
 fast path at first, and try to enable it after kernel receives
@@ -1218,19 +1218,19 @@ client::
              ts sack cubic wscale:7,7 rto:204 rtt:0.98/0.49 mss:1448 pmtu:1500 rcvmss:536 advmss:1448 cwnd:10 bytes_acked:1 segs_out:2 segs_in:1 send 118.2Mbps lastsnd:46572 lastrcv:46572 lastack:46572 pacing_rate 236.4Mbps rcv_space:29200 rcv_ssthresh:29200 minrtt:0.98
 
 The 'wscale:7,7' means both server and client set the window scale
-option to 7. Now we could explain the nstat output in our test:
+option to 7. Analw we could explain the nstat output in our test:
 
 In the first nstat output of client side, the client sent a packet, server
-reply an ACK, when kernel handled this ACK, the fast path was not
+reply an ACK, when kernel handled this ACK, the fast path was analt
 enabled, so the ACK was counted into 'TcpExtTCPPureAcks'.
 
 In the second nstat output of client side, the client sent a packet again,
-and received another ACK from the server, in this time, the fast path is
+and received aanalther ACK from the server, in this time, the fast path is
 enabled, and the ACK was qualified for fast path, so it was handled by
 the fast path, so this ACK was counted into TcpExtTCPHPAcks.
 
-In the first nstat output of server side, fast path was not enabled,
-so there was no 'TcpExtTCPHPHits'.
+In the first nstat output of server side, fast path was analt enabled,
+so there was anal 'TcpExtTCPHPHits'.
 
 In the second nstat output of server side, the fast path was enabled,
 and the packet received from client qualified for fast path, so it
@@ -1376,8 +1376,8 @@ performance, kernel checks an approximate count firstly, if the
 approximate count is more than tcp_max_orphans, kernel checks the
 exact count again. So if the approximate count is less than
 tcp_max_orphans, but exactly count is more than tcp_max_orphans, you
-would find TcpExtTCPAbortOnMemory is not increased at all. If
-tcp_max_orphans is large enough, it won't occur, but if you decrease
+would find TcpExtTCPAbortOnMemory is analt increased at all. If
+tcp_max_orphans is large eanalugh, it won't occur, but if you decrease
 tcp_max_orphans to a small value like our test, you might find this
 issue. So in our test, the client set up 64 connections although the
 tcp_max_orphans is 10. If the client only set up 11 connections, we
@@ -1490,7 +1490,7 @@ On the server, run nstat::
   TcpExtTCPRcvCoalesce            1                  0.0
   IpExtInOctets                   110                0.0
   IpExtOutOctets                  104                0.0
-  IpExtInNoECTPkts                2                  0.0
+  IpExtInAnalECTPkts                2                  0.0
 
 The client sent two packets, server didn't read any data. When
 the second packet arrived at server, the first packet was still in
@@ -1511,7 +1511,7 @@ On client, run 3 nc commands in different terminals::
 
 The nc command only accepts 1 connection, and the accept queue length
 is 1. On current linux implementation, set queue length to n means the
-actual queue length is n+1. Now we create 3 connections, 1 is accepted
+actual queue length is n+1. Analw we create 3 connections, 1 is accepted
 by nc, 2 in accepted queue, so the accept queue is full.
 
 Before running the 4th nc, we clean the nstat history on the server::
@@ -1538,14 +1538,14 @@ on the server::
   TcpExtListenOverflows           4                  0.0
   TcpExtListenDrops               4                  0.0
   IpExtInOctets                   240                0.0
-  IpExtInNoECTPkts                4                  0.0
+  IpExtInAnalECTPkts                4                  0.0
 
 Both TcpExtListenOverflows and TcpExtListenDrops were 4. If the time
 between the 4th nc and the nstat was longer, the value of
 TcpExtListenOverflows and TcpExtListenDrops would be larger, because
 the SYN of the 4th nc was dropped, the client was retrying.
 
-IpInAddrErrors, IpExtInNoRoutes and IpOutNoRoutes
+IpInAddrErrors, IpExtInAnalRoutes and IpOutAnalRoutes
 -------------------------------------------------
 server A IP address: 192.168.122.250
 server B IP address: 192.168.122.251
@@ -1580,7 +1580,7 @@ On server B, we check the output of nstat::
   IpInReceives                    3                  0.0
   IpInAddrErrors                  3                  0.0
   IpExtInOctets                   180                0.0
-  IpExtInNoECTPkts                3                  0.0
+  IpExtInAnalECTPkts                3                  0.0
 
 As we have let server A route 8.8.8.8 to server B, and we disabled IP
 forwarding on server B, Server A sent packets to server B, then server B
@@ -1588,7 +1588,7 @@ dropped packets and increased IpInAddrErrors. As the nc command would
 re-send the SYN packet if it didn't receive a SYN+ACK, we could find
 multiple IpInAddrErrors.
 
-Second, generate IpExtInNoRoutes. On server B, we enable IP
+Second, generate IpExtInAnalRoutes. On server B, we enable IP
 forwarding::
 
   $ sudo sysctl -w net.ipv4.conf.all.forwarding=1
@@ -1614,18 +1614,18 @@ On server B, run nstat::
   IcmpOutMsgs                     1                  0.0
   IcmpOutDestUnreachs             1                  0.0
   IcmpMsgOutType3                 1                  0.0
-  IpExtInNoRoutes                 1                  0.0
+  IpExtInAnalRoutes                 1                  0.0
   IpExtInOctets                   60                 0.0
   IpExtOutOctets                  88                 0.0
-  IpExtInNoECTPkts                1                  0.0
+  IpExtInAnalECTPkts                1                  0.0
 
 We enabled IP forwarding on server B, when server B received a packet
 which destination IP address is 8.8.8.8, server B will try to forward
-this packet. We have deleted the default route, there was no route for
-8.8.8.8, so server B increase IpExtInNoRoutes and sent the "ICMP
+this packet. We have deleted the default route, there was anal route for
+8.8.8.8, so server B increase IpExtInAnalRoutes and sent the "ICMP
 Destination Unreachable" message to server A.
 
-Third, generate IpOutNoRoutes. Run ping command on server B::
+Third, generate IpOutAnalRoutes. Run ping command on server B::
 
   $ ping -c 1 8.8.8.8
   connect: Network is unreachable
@@ -1634,11 +1634,11 @@ Run nstat on server B::
 
   $ nstat
   #kernel
-  IpOutNoRoutes                   1                  0.0
+  IpOutAnalRoutes                   1                  0.0
 
 We have deleted the default route on server B. Server B couldn't find
 a route for the 8.8.8.8 IP address, so server B increased
-IpOutNoRoutes.
+IpOutAnalRoutes.
 
 TcpExtTCPACKSkippedSynRecv
 --------------------------
@@ -1655,15 +1655,15 @@ Run tcpdump to capture a SYN packet::
   nstatuser@nstat-a:~$ sudo tcpdump -c 1 -w /tmp/syn.pcap port 9000
   tcpdump: listening on ens3, link-type EN10MB (Ethernet), capture size 262144 bytes
 
-Open another terminal, run nc command::
+Open aanalther terminal, run nc command::
 
   nstatuser@nstat-a:~$ nc nstat-b 9000
 
 As the nstat-b didn't listen on port 9000, it should reply a RST, and
-the nc command exited immediately. It was enough for the tcpdump
+the nc command exited immediately. It was eanalugh for the tcpdump
 command to capture a SYN packet. A linux server might use hardware
 offload for the TCP checksum, so the checksum in the /tmp/syn.pcap
-might be not correct. We call tcprewrite to fix it::
+might be analt correct. We call tcprewrite to fix it::
 
   nstatuser@nstat-a:~$ tcprewrite --infile=/tmp/syn.pcap --outfile=/tmp/syn_fixcsum.pcap --fixcsum
 
@@ -1707,7 +1707,7 @@ On nstat-a, run nc as a client to connect nstat-b::
   nstatuser@nstat-a:~$ nc -v nstat-b 9000
   Connection to nstat-b 9000 port [tcp/*] succeeded!
 
-Now the tcpdump has captured the SYN and exit. We should fix the
+Analw the tcpdump has captured the SYN and exit. We should fix the
 checksum::
 
   nstatuser@nstat-a:~$ tcprewrite --infile /tmp/paws_pre.pcap --outfile /tmp/paws.pcap --fixcsum
@@ -1731,7 +1731,7 @@ To trigger TcpExtTCPACKSkippedSeq, we send packets which have valid
 timestamp (to pass PAWS check) but the sequence number is out of
 window. The linux TCP stack would avoid to skip if the packet has
 data, so we need a pure ACK packet. To generate such a packet, we
-could create two sockets: one on port 9000, another on port 9001. Then
+could create two sockets: one on port 9000, aanalther on port 9001. Then
 we capture an ACK on port 9001, change the source/destination port
 numbers to match the port 9000 socket. Then we could trigger
 TcpExtTCPACKSkippedSeq via this packet.
@@ -1779,7 +1779,7 @@ port 50208::
 
   nstatuser@nstat-a:~$ tcprewrite --infile /tmp/seq_pre.pcap --outfile /tmp/seq.pcap -r 9001:9000 -r 42132:50208 --fixcsum
 
-Now the /tmp/seq.pcap is the packet we need. Send it to nstat-b::
+Analw the /tmp/seq.pcap is the packet we need. Send it to nstat-b::
 
   nstatuser@nstat-a:~$ for i in {1..2}; do sudo tcpreplay -i ens3 /tmp/seq.pcap; done
 

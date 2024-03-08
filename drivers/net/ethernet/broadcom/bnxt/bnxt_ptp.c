@@ -7,7 +7,7 @@
  * the Free Software Foundation.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -77,7 +77,7 @@ static int bnxt_refclk_read(struct bnxt *bp, struct ptp_system_timestamp *sts,
 			    u64 *ns)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
-	u32 high_before, high_now, low;
+	u32 high_before, high_analw, low;
 
 	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 		return -EIO;
@@ -86,13 +86,13 @@ static int bnxt_refclk_read(struct bnxt *bp, struct ptp_system_timestamp *sts,
 	ptp_read_system_prets(sts);
 	low = readl(bp->bar0 + ptp->refclk_mapped_regs[0]);
 	ptp_read_system_postts(sts);
-	high_now = readl(bp->bar0 + ptp->refclk_mapped_regs[1]);
-	if (high_now != high_before) {
+	high_analw = readl(bp->bar0 + ptp->refclk_mapped_regs[1]);
+	if (high_analw != high_before) {
 		ptp_read_system_prets(sts);
 		low = readl(bp->bar0 + ptp->refclk_mapped_regs[0]);
 		ptp_read_system_postts(sts);
 	}
-	*ns = ((u64)high_now << 32) | low;
+	*ns = ((u64)high_analw << 32) | low;
 
 	return 0;
 }
@@ -271,14 +271,14 @@ static int bnxt_ptp_cfg_pin(struct bnxt *bp, u8 pin, u8 usage)
 {
 	struct hwrm_func_ptp_pin_cfg_input *req;
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
-	u8 state = usage != BNXT_PPS_PIN_NONE;
+	u8 state = usage != BNXT_PPS_PIN_ANALNE;
 	u8 *pin_state, *pin_usg;
 	u32 enables;
 	int rc;
 
 	if (!TSIO_PIN_VALID(pin)) {
 		netdev_err(ptp->bp->dev, "1PPS: Invalid pin. Check pin-function configuration\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rc = hwrm_req_init(ptp->bp, req, HWRM_FUNC_PTP_PIN_CFG);
@@ -384,20 +384,20 @@ void bnxt_ptp_reapply_pps(struct bnxt *bp)
 static int bnxt_get_target_cycles(struct bnxt_ptp_cfg *ptp, u64 target_ns,
 				  u64 *cycles_delta)
 {
-	u64 cycles_now;
-	u64 nsec_now, nsec_delta;
+	u64 cycles_analw;
+	u64 nsec_analw, nsec_delta;
 	int rc;
 
 	spin_lock_bh(&ptp->ptp_lock);
-	rc = bnxt_refclk_read(ptp->bp, NULL, &cycles_now);
+	rc = bnxt_refclk_read(ptp->bp, NULL, &cycles_analw);
 	if (rc) {
 		spin_unlock_bh(&ptp->ptp_lock);
 		return rc;
 	}
-	nsec_now = timecounter_cyc2time(&ptp->tc, cycles_now);
+	nsec_analw = timecounter_cyc2time(&ptp->tc, cycles_analw);
 	spin_unlock_bh(&ptp->ptp_lock);
 
-	nsec_delta = target_ns - nsec_now;
+	nsec_delta = target_ns - nsec_analw;
 	*cycles_delta = div64_u64(nsec_delta << ptp->cc.shift, ptp->cc.mult);
 	return 0;
 }
@@ -453,7 +453,7 @@ static int bnxt_ptp_enable(struct ptp_clock_info *ptp_info,
 		pin_id = ptp_find_pin(ptp->ptp_clock, PTP_PF_EXTTS,
 				      rq->extts.index);
 		if (!TSIO_PIN_VALID(pin_id))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!on)
 			break;
 		rc = bnxt_ptp_cfg_pin(bp, pin_id, BNXT_PPS_PIN_PPS_IN);
@@ -468,7 +468,7 @@ static int bnxt_ptp_enable(struct ptp_clock_info *ptp_info,
 		pin_id = ptp_find_pin(ptp->ptp_clock, PTP_PF_PEROUT,
 				      rq->perout.index);
 		if (!TSIO_PIN_VALID(pin_id))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!on)
 			break;
 
@@ -488,10 +488,10 @@ static int bnxt_ptp_enable(struct ptp_clock_info *ptp_info,
 		return rc;
 	default:
 		netdev_err(ptp->bp->dev, "Unrecognized PIN function\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return bnxt_ptp_cfg_pin(bp, pin_id, BNXT_PPS_PIN_NONE);
+	return bnxt_ptp_cfg_pin(bp, pin_id, BNXT_PPS_PIN_ANALNE);
 }
 
 static int bnxt_hwrm_ptp_cfg(struct bnxt *bp)
@@ -503,7 +503,7 @@ static int bnxt_hwrm_ptp_cfg(struct bnxt *bp)
 	case HWTSTAMP_FILTER_ALL:
 		flags = PORT_MAC_CFG_REQ_FLAGS_ALL_RX_TS_CAPTURE_ENABLE;
 		break;
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		flags = PORT_MAC_CFG_REQ_FLAGS_PTP_RX_TS_CAPTURE_DISABLE;
 		if (bp->fw_cap & BNXT_FW_CAP_RX_ALL_PKT_TS)
 			flags |= PORT_MAC_CFG_REQ_FLAGS_ALL_RX_TS_CAPTURE_DISABLE;
@@ -536,7 +536,7 @@ int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 
 	ptp = bp->ptp_cfg;
 	if (!ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&stmpconf, ifr->ifr_data, sizeof(stmpconf)))
 		return -EFAULT;
@@ -549,16 +549,16 @@ int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	old_rxctl = ptp->rxctl;
 	old_tx_tstamp_en = ptp->tx_tstamp_en;
 	switch (stmpconf.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		ptp->rxctl = 0;
-		ptp->rx_filter = HWTSTAMP_FILTER_NONE;
+		ptp->rx_filter = HWTSTAMP_FILTER_ANALNE;
 		break;
 	case HWTSTAMP_FILTER_ALL:
 		if (bp->fw_cap & BNXT_FW_CAP_RX_ALL_PKT_TS) {
 			ptp->rx_filter = HWTSTAMP_FILTER_ALL;
 			break;
 		}
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
@@ -609,7 +609,7 @@ int bnxt_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 
 	ptp = bp->ptp_cfg;
 	if (!ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	stmpconf.flags = 0;
 	stmpconf.tx_type = ptp->tx_tstamp_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
@@ -650,7 +650,7 @@ static int bnxt_map_ptp_regs(struct bnxt *bp)
 				(ptp->refclk_regs[i] & BNXT_GRC_OFFSET_MASK);
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void bnxt_unmap_ptp_regs(struct bnxt *bp)
@@ -697,22 +697,22 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 {
 	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
 						ptp_info);
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	struct bnxt *bp = ptp->bp;
 
 	if (ptp->tx_skb)
 		bnxt_stamp_tx_skb(bp, ptp->tx_skb);
 
-	if (!time_after_eq(now, ptp->next_period))
-		return ptp->next_period - now;
+	if (!time_after_eq(analw, ptp->next_period))
+		return ptp->next_period - analw;
 
 	bnxt_ptp_get_current_time(bp);
-	ptp->next_period = now + HZ;
-	if (time_after_eq(now, ptp->next_overflow_check)) {
+	ptp->next_period = analw + HZ;
+	if (time_after_eq(analw, ptp->next_overflow_check)) {
 		spin_lock_bh(&ptp->ptp_lock);
 		timecounter_read(&ptp->tc);
 		spin_unlock_bh(&ptp->ptp_lock);
-		ptp->next_overflow_check = now + BNXT_PHC_OVERFLOW_PERIOD;
+		ptp->next_overflow_check = analw + BNXT_PHC_OVERFLOW_PERIOD;
 	}
 	return HZ;
 }
@@ -736,7 +736,7 @@ int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts)
 	u64 time;
 
 	if (!ptp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	BNXT_READ_TIME64(ptp, time, ptp->old_time);
 	*ts = (time & BNXT_HI_TIMER_MASK) | pkt_ts;
@@ -773,7 +773,7 @@ static int bnxt_ptp_verify(struct ptp_clock_info *ptp_info, unsigned int pin,
 	    func != PTP_PF_PHYSYNC)
 		return 0;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static int bnxt_ptp_pps_init(struct bnxt *bp)
@@ -795,7 +795,7 @@ static int bnxt_ptp_pps_init(struct bnxt *bp)
 	rc = hwrm_req_send(bp, req);
 	if (rc || !resp->num_pins) {
 		hwrm_req_drop(bp, req);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ptp_info = &ptp->ptp_info;
@@ -807,7 +807,7 @@ static int bnxt_ptp_pps_init(struct bnxt *bp)
 				       GFP_KERNEL);
 	if (!ptp_info->pin_config) {
 		hwrm_req_drop(bp, req);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Report the TSIO capability to kernel */
@@ -822,7 +822,7 @@ static int bnxt_ptp_pps_init(struct bnxt *bp)
 		else if (*pin_usg == BNXT_PPS_PIN_PPS_OUT)
 			ptp_info->pin_config[i].func = PTP_PF_PEROUT;
 		else
-			ptp_info->pin_config[i].func = PTP_PF_NONE;
+			ptp_info->pin_config[i].func = PTP_PF_ANALNE;
 
 		pps_info->pins[i].usage = *pin_usg;
 	}
@@ -853,7 +853,7 @@ static void bnxt_ptp_timecounter_init(struct bnxt *bp, bool init_tc)
 		ptp->cc.read = bnxt_cc_read;
 		ptp->cc.mask = CYCLECOUNTER_MASK(48);
 		if (BNXT_MH(bp)) {
-			/* Use timecounter based non-real time mode */
+			/* Use timecounter based analn-real time mode */
 			ptp->cc.shift = BNXT_CYCLES_SHIFT;
 			ptp->cc.mult = clocksource_khz2mult(BNXT_DEVCLK_FREQ, ptp->cc.shift);
 			ptp->cmult = ptp->cc.mult;
@@ -882,7 +882,7 @@ int bnxt_ptp_init_rtc(struct bnxt *bp, bool phc_cfg)
 	int rc;
 
 	if (!bp->ptp_cfg || !BNXT_PTP_USE_RTC(bp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!phc_cfg) {
 		ktime_get_real_ts64(&tsp);
@@ -948,7 +948,7 @@ int bnxt_ptp_init(struct bnxt *bp, bool phc_cfg)
 	ptp->ptp_info = bnxt_ptp_caps;
 	if ((bp->fw_cap & BNXT_FW_CAP_PTP_PPS)) {
 		if (bnxt_ptp_pps_init(bp))
-			netdev_err(bp->dev, "1pps not initialized, continuing without 1pps support\n");
+			netdev_err(bp->dev, "1pps analt initialized, continuing without 1pps support\n");
 	}
 	ptp->ptp_clock = ptp_clock_register(&ptp->ptp_info, &bp->pdev->dev);
 	if (IS_ERR(ptp->ptp_clock)) {

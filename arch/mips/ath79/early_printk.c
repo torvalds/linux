@@ -7,7 +7,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <asm/addrspace.h>
@@ -51,7 +51,7 @@ static void prom_putchar_ar933x(char ch)
 
 static void prom_putchar_dummy(char ch)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static void prom_enable_uart(u32 id)

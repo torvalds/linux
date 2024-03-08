@@ -32,7 +32,7 @@ struct fcoe_sysfs_function_template {
 	container_of((d), struct fcoe_ctlr_device, dev)
 
 enum fip_conn_type {
-	FIP_CONN_TYPE_UNKNOWN,
+	FIP_CONN_TYPE_UNKANALWN,
 	FIP_CONN_TYPE_FABRIC,
 	FIP_CONN_TYPE_VN2VN,
 };
@@ -72,7 +72,7 @@ static inline void *fcoe_ctlr_device_priv(const struct fcoe_ctlr_device *ctlr)
 
 /* fcf states */
 enum fcf_state {
-	FCOE_FCF_STATE_UNKNOWN,
+	FCOE_FCF_STATE_UNKANALWN,
 	FCOE_FCF_STATE_DISCONNECTED,
 	FCOE_FCF_STATE_CONNECTED,
 	FCOE_FCF_STATE_DELETED,

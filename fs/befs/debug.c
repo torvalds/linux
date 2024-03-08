@@ -69,80 +69,80 @@ befs_debug(const struct super_block *sb, const char *fmt, ...)
 }
 
 void
-befs_dump_inode(const struct super_block *sb, befs_inode *inode)
+befs_dump_ianalde(const struct super_block *sb, befs_ianalde *ianalde)
 {
 #ifdef CONFIG_BEFS_DEBUG
 
 	befs_block_run tmp_run;
 
-	befs_debug(sb, "befs_inode information");
+	befs_debug(sb, "befs_ianalde information");
 
-	befs_debug(sb, "  magic1 %08x", fs32_to_cpu(sb, inode->magic1));
+	befs_debug(sb, "  magic1 %08x", fs32_to_cpu(sb, ianalde->magic1));
 
-	tmp_run = fsrun_to_cpu(sb, inode->inode_num);
-	befs_debug(sb, "  inode_num %u, %hu, %hu",
+	tmp_run = fsrun_to_cpu(sb, ianalde->ianalde_num);
+	befs_debug(sb, "  ianalde_num %u, %hu, %hu",
 		   tmp_run.allocation_group, tmp_run.start, tmp_run.len);
 
-	befs_debug(sb, "  uid %u", fs32_to_cpu(sb, inode->uid));
-	befs_debug(sb, "  gid %u", fs32_to_cpu(sb, inode->gid));
-	befs_debug(sb, "  mode %08x", fs32_to_cpu(sb, inode->mode));
-	befs_debug(sb, "  flags %08x", fs32_to_cpu(sb, inode->flags));
+	befs_debug(sb, "  uid %u", fs32_to_cpu(sb, ianalde->uid));
+	befs_debug(sb, "  gid %u", fs32_to_cpu(sb, ianalde->gid));
+	befs_debug(sb, "  mode %08x", fs32_to_cpu(sb, ianalde->mode));
+	befs_debug(sb, "  flags %08x", fs32_to_cpu(sb, ianalde->flags));
 	befs_debug(sb, "  create_time %llu",
-		   fs64_to_cpu(sb, inode->create_time));
+		   fs64_to_cpu(sb, ianalde->create_time));
 	befs_debug(sb, "  last_modified_time %llu",
-		   fs64_to_cpu(sb, inode->last_modified_time));
+		   fs64_to_cpu(sb, ianalde->last_modified_time));
 
-	tmp_run = fsrun_to_cpu(sb, inode->parent);
+	tmp_run = fsrun_to_cpu(sb, ianalde->parent);
 	befs_debug(sb, "  parent [%u, %hu, %hu]",
 		   tmp_run.allocation_group, tmp_run.start, tmp_run.len);
 
-	tmp_run = fsrun_to_cpu(sb, inode->attributes);
+	tmp_run = fsrun_to_cpu(sb, ianalde->attributes);
 	befs_debug(sb, "  attributes [%u, %hu, %hu]",
 		   tmp_run.allocation_group, tmp_run.start, tmp_run.len);
 
-	befs_debug(sb, "  type %08x", fs32_to_cpu(sb, inode->type));
-	befs_debug(sb, "  inode_size %u", fs32_to_cpu(sb, inode->inode_size));
+	befs_debug(sb, "  type %08x", fs32_to_cpu(sb, ianalde->type));
+	befs_debug(sb, "  ianalde_size %u", fs32_to_cpu(sb, ianalde->ianalde_size));
 
-	if (S_ISLNK(fs32_to_cpu(sb, inode->mode))) {
-		befs_debug(sb, "  Symbolic link [%s]", inode->data.symlink);
+	if (S_ISLNK(fs32_to_cpu(sb, ianalde->mode))) {
+		befs_debug(sb, "  Symbolic link [%s]", ianalde->data.symlink);
 	} else {
 		int i;
 
 		for (i = 0; i < BEFS_NUM_DIRECT_BLOCKS; i++) {
 			tmp_run =
-			    fsrun_to_cpu(sb, inode->data.datastream.direct[i]);
+			    fsrun_to_cpu(sb, ianalde->data.datastream.direct[i]);
 			befs_debug(sb, "  direct %d [%u, %hu, %hu]", i,
 				   tmp_run.allocation_group, tmp_run.start,
 				   tmp_run.len);
 		}
 		befs_debug(sb, "  max_direct_range %llu",
 			   fs64_to_cpu(sb,
-				       inode->data.datastream.
+				       ianalde->data.datastream.
 				       max_direct_range));
 
-		tmp_run = fsrun_to_cpu(sb, inode->data.datastream.indirect);
+		tmp_run = fsrun_to_cpu(sb, ianalde->data.datastream.indirect);
 		befs_debug(sb, "  indirect [%u, %hu, %hu]",
 			   tmp_run.allocation_group,
 			   tmp_run.start, tmp_run.len);
 
 		befs_debug(sb, "  max_indirect_range %llu",
 			   fs64_to_cpu(sb,
-				       inode->data.datastream.
+				       ianalde->data.datastream.
 				       max_indirect_range));
 
 		tmp_run =
-		    fsrun_to_cpu(sb, inode->data.datastream.double_indirect);
+		    fsrun_to_cpu(sb, ianalde->data.datastream.double_indirect);
 		befs_debug(sb, "  double indirect [%u, %hu, %hu]",
 			   tmp_run.allocation_group, tmp_run.start,
 			   tmp_run.len);
 
 		befs_debug(sb, "  max_double_indirect_range %llu",
 			   fs64_to_cpu(sb,
-				       inode->data.datastream.
+				       ianalde->data.datastream.
 				       max_double_indirect_range));
 
 		befs_debug(sb, "  size %llu",
-			   fs64_to_cpu(sb, inode->data.datastream.size));
+			   fs64_to_cpu(sb, ianalde->data.datastream.size));
 	}
 
 #endif				//CONFIG_BEFS_DEBUG
@@ -171,7 +171,7 @@ befs_dump_super_block(const struct super_block *sb, befs_super_block *sup)
 
 	befs_debug(sb, "  num_blocks %llu", fs64_to_cpu(sb, sup->num_blocks));
 	befs_debug(sb, "  used_blocks %llu", fs64_to_cpu(sb, sup->used_blocks));
-	befs_debug(sb, "  inode_size %u", fs32_to_cpu(sb, sup->inode_size));
+	befs_debug(sb, "  ianalde_size %u", fs32_to_cpu(sb, sup->ianalde_size));
 
 	befs_debug(sb, "  magic2 %08x", fs32_to_cpu(sb, sup->magic2));
 	befs_debug(sb, "  blocks_per_ag %u",
@@ -230,14 +230,14 @@ befs_dump_index_entry(const struct super_block *sb,
 
 	befs_debug(sb, "Btree super structure");
 	befs_debug(sb, "  magic %08x", fs32_to_cpu(sb, super->magic));
-	befs_debug(sb, "  node_size %u", fs32_to_cpu(sb, super->node_size));
+	befs_debug(sb, "  analde_size %u", fs32_to_cpu(sb, super->analde_size));
 	befs_debug(sb, "  max_depth %08x", fs32_to_cpu(sb, super->max_depth));
 
 	befs_debug(sb, "  data_type %08x", fs32_to_cpu(sb, super->data_type));
-	befs_debug(sb, "  root_node_pointer %016LX",
-		   fs64_to_cpu(sb, super->root_node_ptr));
-	befs_debug(sb, "  free_node_pointer %016LX",
-		   fs64_to_cpu(sb, super->free_node_ptr));
+	befs_debug(sb, "  root_analde_pointer %016LX",
+		   fs64_to_cpu(sb, super->root_analde_ptr));
+	befs_debug(sb, "  free_analde_pointer %016LX",
+		   fs64_to_cpu(sb, super->free_analde_ptr));
 	befs_debug(sb, "  maximum size %016LX",
 		   fs64_to_cpu(sb, super->max_size));
 
@@ -245,18 +245,18 @@ befs_dump_index_entry(const struct super_block *sb,
 }
 
 void
-befs_dump_index_node(const struct super_block *sb, befs_btree_nodehead *node)
+befs_dump_index_analde(const struct super_block *sb, befs_btree_analdehead *analde)
 {
 #ifdef CONFIG_BEFS_DEBUG
 
-	befs_debug(sb, "Btree node structure");
-	befs_debug(sb, "  left %016LX", fs64_to_cpu(sb, node->left));
-	befs_debug(sb, "  right %016LX", fs64_to_cpu(sb, node->right));
-	befs_debug(sb, "  overflow %016LX", fs64_to_cpu(sb, node->overflow));
+	befs_debug(sb, "Btree analde structure");
+	befs_debug(sb, "  left %016LX", fs64_to_cpu(sb, analde->left));
+	befs_debug(sb, "  right %016LX", fs64_to_cpu(sb, analde->right));
+	befs_debug(sb, "  overflow %016LX", fs64_to_cpu(sb, analde->overflow));
 	befs_debug(sb, "  all_key_count %hu",
-		   fs16_to_cpu(sb, node->all_key_count));
+		   fs16_to_cpu(sb, analde->all_key_count));
 	befs_debug(sb, "  all_key_length %hu",
-		   fs16_to_cpu(sb, node->all_key_length));
+		   fs16_to_cpu(sb, analde->all_key_length));
 
 #endif				//CONFIG_BEFS_DEBUG
 }

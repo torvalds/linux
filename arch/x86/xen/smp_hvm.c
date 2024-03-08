@@ -29,7 +29,7 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 	 * The alternative logic (which patches the unlock/lock) runs before
 	 * the smp bootup up code is activated. Hence we need to set this up
 	 * the core kernel is being patched. Otherwise we will have only
-	 * modules patched but not core code.
+	 * modules patched but analt core code.
 	 */
 	xen_init_spinlocks();
 }
@@ -79,7 +79,7 @@ void __init xen_hvm_smp_init(void)
 
 	if (!xen_have_vector_callback) {
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
-		nopvspin = true;
+		analpvspin = true;
 #endif
 		return;
 	}

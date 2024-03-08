@@ -22,7 +22,7 @@
  *              by regmap_write with set register(PROTECTEN_SET).
  *
  * This function enables the bus protection bits for disabled power
- * domains so that the system does not hang when some unit accesses the
+ * domains so that the system does analt hang when some unit accesses the
  * bus while in power down.
  */
 int mtk_infracfg_set_bus_protection(struct regmap *infracfg, u32 mask,
@@ -81,7 +81,7 @@ static int __init mtk_infracfg_init(void)
 	/*
 	 * MT8192 has an experimental path to route GPU traffic to the DSU's
 	 * Accelerator Coherency Port, which is inadvertently enabled by
-	 * default. It turns out not to work, so disable it to prevent spurious
+	 * default. It turns out analt to work, so disable it to prevent spurious
 	 * GPU faults.
 	 */
 	infracfg = syscon_regmap_lookup_by_compatible("mediatek,mt8192-infracfg");

@@ -77,12 +77,12 @@ static void pmem_mkpage_present(struct pmem_device *pmem, phys_addr_t offset,
 		struct page *page = pfn_to_page(pfn);
 
 		/*
-		 * Note, no need to hold a get_dev_pagemap() reference
+		 * Analte, anal need to hold a get_dev_pagemap() reference
 		 * here since we're in the driver I/O path and
 		 * outstanding I/O requests pin the dev_pagemap.
 		 */
 		if (test_and_clear_pmem_poison(page))
-			clear_mce_nospec(pfn);
+			clear_mce_analspec(pfn);
 	}
 }
 
@@ -92,7 +92,7 @@ static void pmem_clear_bb(struct pmem_device *pmem, sector_t sector, long blks)
 		return;
 	badblocks_clear(&pmem->bb, sector, blks);
 	if (pmem->bb_state)
-		sysfs_notify_dirent(pmem->bb_state);
+		sysfs_analtify_dirent(pmem->bb_state);
 }
 
 static long __pmem_clear_poison(struct pmem_device *pmem,
@@ -234,7 +234,7 @@ static void pmem_submit_bio(struct bio *bio)
 		ret = nvdimm_flush(nd_region, bio);
 
 	if (ret)
-		bio->bi_status = errno_to_blk_status(ret);
+		bio->bi_status = erranal_to_blk_status(ret);
 
 	bio_endio(bio);
 }
@@ -278,7 +278,7 @@ __weak long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
 	}
 
 	/*
-	 * If badblocks are present but not in the range, limit known good range
+	 * If badblocks are present but analt in the range, limit kanalwn good range
 	 * to the requested range.
 	 */
 	if (bb->count)
@@ -296,7 +296,7 @@ static int pmem_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 {
 	struct pmem_device *pmem = dax_get_private(dax_dev);
 
-	return blk_status_to_errno(pmem_do_write(pmem, ZERO_PAGE(0), 0,
+	return blk_status_to_erranal(pmem_do_write(pmem, ZERO_PAGE(0), 0,
 				   PFN_PHYS(pgoff) >> SECTOR_SHIFT,
 				   PAGE_SIZE));
 }
@@ -311,14 +311,14 @@ static long pmem_dax_direct_access(struct dax_device *dax_dev,
 }
 
 /*
- * The recovery write thread started out as a normal pwrite thread and
+ * The recovery write thread started out as a analrmal pwrite thread and
  * when the filesystem was told about potential media error in the
- * range, filesystem turns the normal pwrite to a dax_recovery_write.
+ * range, filesystem turns the analrmal pwrite to a dax_recovery_write.
  *
  * The recovery write consists of clearing media poison, clearing page
  * HWPoison bit, reenable page-wide read-write permission, flush the
  * caches and finally write.  A competing pread thread will be held
- * off during the recovery process since data read back might not be
+ * off during the recovery process since data read back might analt be
  * valid, and this is achieved by clearing the badblock records after
  * the recovery write is complete. Competing recovery write threads
  * are already serialized by writer lock held by dax_iomap_rw().
@@ -338,11 +338,11 @@ static size_t pmem_recovery_write(struct dax_device *dax_dev, pgoff_t pgoff,
 		return _copy_from_iter_flushcache(addr, bytes, i);
 
 	/*
-	 * Not page-aligned range cannot be recovered. This should not
+	 * Analt page-aligned range cananalt be recovered. This should analt
 	 * happen unless something else went wrong.
 	 */
 	if (off || !PAGE_ALIGNED(bytes)) {
-		dev_dbg(dev, "Found poison, but addr(%p) or bytes(%#zx) not page aligned\n",
+		dev_dbg(dev, "Found poison, but addr(%p) or bytes(%#zx) analt page aligned\n",
 			addr, bytes);
 		return 0;
 	}
@@ -439,7 +439,7 @@ static int pmem_pagemap_memory_failure(struct dev_pagemap *pgmap,
 	u64 offset = PFN_PHYS(pfn) - pmem->phys_addr - pmem->data_offset;
 	u64 len = nr_pages << PAGE_SHIFT;
 
-	return dax_holder_notify_failure(pmem->dax_dev, offset, len, mf_flags);
+	return dax_holder_analtify_failure(pmem->dax_dev, offset, len, mf_flags);
 }
 
 static const struct dev_pagemap_ops fsdax_pagemap_ops = {
@@ -451,7 +451,7 @@ static int pmem_attach_disk(struct device *dev,
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	int nid = dev_to_node(dev), fua;
+	int nid = dev_to_analde(dev), fua;
 	struct resource *res = &nsio->res;
 	struct range bb_range;
 	struct nd_pfn *nd_pfn = NULL;
@@ -465,7 +465,7 @@ static int pmem_attach_disk(struct device *dev,
 
 	pmem = devm_kzalloc(dev, sizeof(*pmem), GFP_KERNEL);
 	if (!pmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = devm_namespace_enable(dev, ndns, nd_info_block_reserve());
 	if (rc)
@@ -493,13 +493,13 @@ static int pmem_attach_disk(struct device *dev,
 
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
 				dev_name(&ndns->dev))) {
-		dev_warn(dev, "could not reserve region %pR\n", res);
+		dev_warn(dev, "could analt reserve region %pR\n", res);
 		return -EBUSY;
 	}
 
 	disk = blk_alloc_disk(nid);
 	if (!disk)
-		return -ENOMEM;
+		return -EANALMEM;
 	q = disk->queue;
 
 	pmem->disk = disk;
@@ -542,8 +542,8 @@ static int pmem_attach_disk(struct device *dev,
 	blk_queue_physical_block_size(q, PAGE_SIZE);
 	blk_queue_logical_block_size(q, pmem_sector_size(ndns));
 	blk_queue_max_hw_sectors(q, UINT_MAX);
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
-	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, q);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, q);
+	blk_queue_flag_set(QUEUE_FLAG_SYNCHROANALUS, q);
 	if (pmem->pfn_flags & PFN_MAP)
 		blk_queue_flag_set(QUEUE_FLAG_DAX, q);
 
@@ -553,7 +553,7 @@ static int pmem_attach_disk(struct device *dev,
 	set_capacity(disk, (pmem->size - pmem->pfn_pad - pmem->data_offset)
 			/ 512);
 	if (devm_init_badblocks(dev, &pmem->bb))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvdimm_badblocks_populate(nd_region, &pmem->bb, &bb_range);
 	disk->bb = &pmem->bb;
 
@@ -562,10 +562,10 @@ static int pmem_attach_disk(struct device *dev,
 		rc = PTR_ERR(dax_dev);
 		goto out;
 	}
-	set_dax_nocache(dax_dev);
-	set_dax_nomc(dax_dev);
+	set_dax_analcache(dax_dev);
+	set_dax_analmc(dax_dev);
 	if (is_nvdimm_sync(nd_region))
-		set_dax_synchronous(dax_dev);
+		set_dax_synchroanalus(dax_dev);
 	rc = dax_add_host(dax_dev, disk);
 	if (rc)
 		goto out_cleanup_dax;
@@ -576,14 +576,14 @@ static int pmem_attach_disk(struct device *dev,
 	if (rc)
 		goto out_remove_host;
 	if (devm_add_action_or_reset(dev, pmem_release_disk, pmem))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvdimm_check_and_set_ro(disk);
 
 	pmem->bb_state = sysfs_get_dirent(disk_to_dev(disk)->kobj.sd,
 					  "badblocks");
 	if (!pmem->bb_state)
-		dev_warn(dev, "'badblocks' notification disabled\n");
+		dev_warn(dev, "'badblocks' analtification disabled\n");
 	return 0;
 
 out_remove_host:
@@ -620,7 +620,7 @@ static int nd_pmem_probe(struct device *dev)
 		return -ENXIO;
 
 	/*
-	 * We have two failure conditions here, there is no
+	 * We have two failure conditions here, there is anal
 	 * info reserver block or we found a valid info reserve block
 	 * but failed to initialize the pfn superblock.
 	 *
@@ -633,13 +633,13 @@ static int nd_pmem_probe(struct device *dev)
 	ret = nd_pfn_probe(dev, ndns);
 	if (ret == 0)
 		return -ENXIO;
-	else if (ret == -EOPNOTSUPP)
+	else if (ret == -EOPANALTSUPP)
 		return ret;
 
 	ret = nd_dax_probe(dev, ndns);
 	if (ret == 0)
 		return -ENXIO;
-	else if (ret == -EOPNOTSUPP)
+	else if (ret == -EOPANALTSUPP)
 		return ret;
 
 	/* probe complete, attach handles namespace enabling */
@@ -656,8 +656,8 @@ static void nd_pmem_remove(struct device *dev)
 		nvdimm_namespace_detach_btt(to_nd_btt(dev));
 	else {
 		/*
-		 * Note, this assumes device_lock() context to not
-		 * race nd_pmem_notify()
+		 * Analte, this assumes device_lock() context to analt
+		 * race nd_pmem_analtify()
 		 */
 		sysfs_put(pmem->bb_state);
 		pmem->bb_state = NULL;
@@ -678,7 +678,7 @@ static void pmem_revalidate_poison(struct device *dev)
 	struct nd_namespace_io *nsio;
 	struct badblocks *bb;
 	struct range range;
-	struct kernfs_node *bb_state;
+	struct kernfs_analde *bb_state;
 
 	if (is_nd_btt(dev)) {
 		struct nd_btt *nd_btt = to_nd_btt(dev);
@@ -714,7 +714,7 @@ static void pmem_revalidate_poison(struct device *dev)
 	range.end = nsio->res.end - end_trunc;
 	nvdimm_badblocks_populate(nd_region, bb, &range);
 	if (bb_state)
-		sysfs_notify_dirent(bb_state);
+		sysfs_analtify_dirent(bb_state);
 }
 
 static void pmem_revalidate_region(struct device *dev)
@@ -733,7 +733,7 @@ static void pmem_revalidate_region(struct device *dev)
 	nvdimm_check_and_set_ro(pmem->disk);
 }
 
-static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
+static void nd_pmem_analtify(struct device *dev, enum nvdimm_event event)
 {
 	switch (event) {
 	case NVDIMM_REVALIDATE_POISON:
@@ -743,7 +743,7 @@ static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 		pmem_revalidate_region(dev);
 		break;
 	default:
-		dev_WARN_ONCE(dev, 1, "notify: unknown event: %d\n", event);
+		dev_WARN_ONCE(dev, 1, "analtify: unkanalwn event: %d\n", event);
 		break;
 	}
 }
@@ -754,7 +754,7 @@ MODULE_ALIAS_ND_DEVICE(ND_DEVICE_NAMESPACE_PMEM);
 static struct nd_device_driver nd_pmem_driver = {
 	.probe = nd_pmem_probe,
 	.remove = nd_pmem_remove,
-	.notify = nd_pmem_notify,
+	.analtify = nd_pmem_analtify,
 	.shutdown = nd_pmem_shutdown,
 	.drv = {
 		.name = "nd_pmem",

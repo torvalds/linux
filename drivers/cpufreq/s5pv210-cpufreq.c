@@ -92,7 +92,7 @@ static DEFINE_MUTEX(set_freq_lock);
 #define SLEEP_FREQ	(800 * 1000)
 
 /* Tracks if CPU frequency can be updated anymore */
-static bool no_cpufreq_access;
+static bool anal_cpufreq_access;
 
 /*
  * DRAM configurations to calculate refresh counter for changing
@@ -204,7 +204,7 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	} else if (ch == DMC1) {
 		reg = (dmc_base[1] + 0x30);
 	} else {
-		pr_err("Cannot find DMC port\n");
+		pr_err("Cananalt find DMC port\n");
 		return;
 	}
 
@@ -232,7 +232,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 
 	mutex_lock(&set_freq_lock);
 
-	if (no_cpufreq_access) {
+	if (anal_cpufreq_access) {
 		pr_err("Denied access to %s as it is disabled temporarily\n",
 		       __func__);
 		ret = -EINVAL;
@@ -285,8 +285,8 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 	/*
 	 * APLL should be changed in this level
 	 * APLL -> MPLL(for stable transition) -> APLL
-	 * Some clock source's clock API are not prepared.
-	 * Do not use clock API in below code.
+	 * Some clock source's clock API are analt prepared.
+	 * Do analt use clock API in below code.
 	 */
 	if (pll_changing) {
 		/*
@@ -523,7 +523,7 @@ static int s5pv210_cpu_init(struct cpufreq_policy *policy)
 
 	/*
 	 * check_mem_type : This driver only support LPDDR & LPDDR2.
-	 * other memory type is not supported.
+	 * other memory type is analt supported.
 	 */
 	mem_type = check_mem_type(dmc_base[0]);
 
@@ -551,7 +551,7 @@ out_dmc0:
 	return ret;
 }
 
-static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
+static int s5pv210_cpufreq_reboot_analtifier_event(struct analtifier_block *this,
 						 unsigned long event, void *ptr)
 {
 	int ret;
@@ -559,18 +559,18 @@ static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
 
 	policy = cpufreq_cpu_get(0);
 	if (!policy) {
-		pr_debug("cpufreq: get no policy for cpu0\n");
-		return NOTIFY_BAD;
+		pr_debug("cpufreq: get anal policy for cpu0\n");
+		return ANALTIFY_BAD;
 	}
 
 	ret = cpufreq_driver_target(policy, SLEEP_FREQ, 0);
 	cpufreq_cpu_put(policy);
 
 	if (ret < 0)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
-	no_cpufreq_access = true;
-	return NOTIFY_DONE;
+	anal_cpufreq_access = true;
+	return ANALTIFY_DONE;
 }
 
 static struct cpufreq_driver s5pv210_driver = {
@@ -584,14 +584,14 @@ static struct cpufreq_driver s5pv210_driver = {
 	.resume		= cpufreq_generic_suspend, /* We need to set SLEEP FREQ again */
 };
 
-static struct notifier_block s5pv210_cpufreq_reboot_notifier = {
-	.notifier_call = s5pv210_cpufreq_reboot_notifier_event,
+static struct analtifier_block s5pv210_cpufreq_reboot_analtifier = {
+	.analtifier_call = s5pv210_cpufreq_reboot_analtifier_event,
 };
 
 static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	int id, result = 0;
 
 	/*
@@ -614,26 +614,26 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 		goto err_int_regulator;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "samsung,s5pv210-clock");
+	np = of_find_compatible_analde(NULL, NULL, "samsung,s5pv210-clock");
 	if (!np) {
-		dev_err(dev, "failed to find clock controller DT node\n");
-		result = -ENODEV;
+		dev_err(dev, "failed to find clock controller DT analde\n");
+		result = -EANALDEV;
 		goto err_clock;
 	}
 
 	clk_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!clk_base) {
 		dev_err(dev, "failed to map clock registers\n");
 		result = -EFAULT;
 		goto err_clock;
 	}
 
-	for_each_compatible_node(np, NULL, "samsung,s5pv210-dmc") {
+	for_each_compatible_analde(np, NULL, "samsung,s5pv210-dmc") {
 		id = of_alias_get_id(np, "dmc");
 		if (id < 0 || id >= ARRAY_SIZE(dmc_base)) {
-			dev_err(dev, "failed to get alias of dmc node '%pOFn'\n", np);
-			of_node_put(np);
+			dev_err(dev, "failed to get alias of dmc analde '%pOFn'\n", np);
+			of_analde_put(np);
 			result = id;
 			goto err_clk_base;
 		}
@@ -641,7 +641,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 		dmc_base[id] = of_iomap(np, 0);
 		if (!dmc_base[id]) {
 			dev_err(dev, "failed to map dmc%d registers\n", id);
-			of_node_put(np);
+			of_analde_put(np);
 			result = -EFAULT;
 			goto err_dmc;
 		}
@@ -649,13 +649,13 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 
 	for (id = 0; id < ARRAY_SIZE(dmc_base); ++id) {
 		if (!dmc_base[id]) {
-			dev_err(dev, "failed to find dmc%d node\n", id);
-			result = -ENODEV;
+			dev_err(dev, "failed to find dmc%d analde\n", id);
+			result = -EANALDEV;
 			goto err_dmc;
 		}
 	}
 
-	register_reboot_notifier(&s5pv210_cpufreq_reboot_notifier);
+	register_reboot_analtifier(&s5pv210_cpufreq_reboot_analtifier);
 
 	return cpufreq_register_driver(&s5pv210_driver);
 

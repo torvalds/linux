@@ -10,7 +10,7 @@
 struct tty_buffer {
 	union {
 		struct tty_buffer *next;
-		struct llist_node free;
+		struct llist_analde free;
 	};
 	unsigned int used;
 	unsigned int size;
@@ -48,7 +48,7 @@ struct tty_bufhead {
  * When a break, frame error, or parity error happens, these codes are
  * stuffed into the flags buffer.
  */
-#define TTY_NORMAL	0
+#define TTY_ANALRMAL	0
 #define TTY_BREAK	1
 #define TTY_FRAME	2
 #define TTY_PARITY	3

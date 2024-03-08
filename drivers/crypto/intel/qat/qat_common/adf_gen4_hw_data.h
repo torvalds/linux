@@ -182,7 +182,7 @@ do { \
 #define ADF_GEN4_ERRMSK2	(0x41A218)
 #define ADF_GEN4_ERRMSK3	(0x41A21C)
 
-#define ADF_GEN4_VFLNOTIFY	BIT(7)
+#define ADF_GEN4_VFLANALTIFY	BIT(7)
 
 /* Number of heartbeat counter pairs */
 #define ADF_NUM_HB_CNT_PER_AE ADF_NUM_THREADS_PER_AE

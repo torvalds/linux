@@ -13,7 +13,7 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <sys/ucontext.h>
-#include <errno.h>
+#include <erranal.h>
 #include <err.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -71,9 +71,9 @@ getcpu_t vdso_getcpu;
 
 static void init_vdso(void)
 {
-	void *vdso = dlopen("linux-vdso.so.1", RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+	void *vdso = dlopen("linux-vdso.so.1", RTLD_LAZY | RTLD_LOCAL | RTLD_ANALLOAD);
 	if (!vdso)
-		vdso = dlopen("linux-gate.so.1", RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+		vdso = dlopen("linux-gate.so.1", RTLD_LAZY | RTLD_LOCAL | RTLD_ANALLOAD);
 	if (!vdso) {
 		printf("[WARN]\tfailed to find vDSO\n");
 		return;
@@ -106,7 +106,7 @@ static int init_vsys(void)
 
 	maps = fopen("/proc/self/maps", "r");
 	if (!maps) {
-		printf("[WARN]\tCould not open /proc/self/maps -- assuming vsyscall is r-x\n");
+		printf("[WARN]\tCould analt open /proc/self/maps -- assuming vsyscall is r-x\n");
 		vsyscall_map_r = true;
 		return 0;
 	}
@@ -128,7 +128,7 @@ static int init_vsys(void)
 
 		if (start != (void *)0xffffffffff600000 ||
 		    end != (void *)0xffffffffff601000) {
-			printf("[FAIL]\taddress range is nonsense\n");
+			printf("[FAIL]\taddress range is analnsense\n");
 			nerrs++;
 		}
 
@@ -143,7 +143,7 @@ static int init_vsys(void)
 	fclose(maps);
 
 	if (!found) {
-		printf("\tno vsyscall map in /proc/self/maps\n");
+		printf("\tanal vsyscall map in /proc/self/maps\n");
 		vsyscall_map_r = false;
 		vsyscall_map_x = false;
 	}
@@ -170,10 +170,10 @@ static inline long sys_time(time_t *t)
 	return syscall(SYS_time, t);
 }
 
-static inline long sys_getcpu(unsigned * cpu, unsigned * node,
+static inline long sys_getcpu(unsigned * cpu, unsigned * analde,
 			      void* cache)
 {
-	return syscall(SYS_getcpu, cpu, node, cache);
+	return syscall(SYS_getcpu, cpu, analde, cache);
 }
 
 static jmp_buf jmpbuf;
@@ -322,14 +322,14 @@ static int test_getcpu(int cpu)
 		return nerrs;
 	}
 
-	unsigned cpu_sys, cpu_vdso, cpu_vsys, node_sys, node_vdso, node_vsys;
-	unsigned node = 0;
-	bool have_node = false;
-	ret_sys = sys_getcpu(&cpu_sys, &node_sys, 0);
+	unsigned cpu_sys, cpu_vdso, cpu_vsys, analde_sys, analde_vdso, analde_vsys;
+	unsigned analde = 0;
+	bool have_analde = false;
+	ret_sys = sys_getcpu(&cpu_sys, &analde_sys, 0);
 	if (vdso_getcpu)
-		ret_vdso = vdso_getcpu(&cpu_vdso, &node_vdso, 0);
+		ret_vdso = vdso_getcpu(&cpu_vdso, &analde_vdso, 0);
 	if (vsyscall_map_x)
-		ret_vsys = vgetcpu(&cpu_vsys, &node_vsys, 0);
+		ret_vsys = vgetcpu(&cpu_vsys, &analde_vsys, 0);
 
 	if (ret_sys == 0) {
 		if (cpu_sys != cpu) {
@@ -337,8 +337,8 @@ static int test_getcpu(int cpu)
 			nerrs++;
 		}
 
-		have_node = true;
-		node = node_sys;
+		have_analde = true;
+		analde = analde_sys;
 	}
 
 	if (vdso_getcpu) {
@@ -346,9 +346,9 @@ static int test_getcpu(int cpu)
 			printf("[FAIL]\tvDSO getcpu() failed\n");
 			nerrs++;
 		} else {
-			if (!have_node) {
-				have_node = true;
-				node = node_vdso;
+			if (!have_analde) {
+				have_analde = true;
+				analde = analde_vdso;
 			}
 
 			if (cpu_vdso != cpu) {
@@ -358,11 +358,11 @@ static int test_getcpu(int cpu)
 				printf("[OK]\tvDSO reported correct CPU\n");
 			}
 
-			if (node_vdso != node) {
-				printf("[FAIL]\tvDSO reported node %hu but should be %hu\n", node_vdso, node);
+			if (analde_vdso != analde) {
+				printf("[FAIL]\tvDSO reported analde %hu but should be %hu\n", analde_vdso, analde);
 				nerrs++;
 			} else {
-				printf("[OK]\tvDSO reported correct node\n");
+				printf("[OK]\tvDSO reported correct analde\n");
 			}
 		}
 	}
@@ -372,9 +372,9 @@ static int test_getcpu(int cpu)
 			printf("[FAIL]\tvsyscall getcpu() failed\n");
 			nerrs++;
 		} else {
-			if (!have_node) {
-				have_node = true;
-				node = node_vsys;
+			if (!have_analde) {
+				have_analde = true;
+				analde = analde_vsys;
 			}
 
 			if (cpu_vsys != cpu) {
@@ -384,11 +384,11 @@ static int test_getcpu(int cpu)
 				printf("[OK]\tvsyscall reported correct CPU\n");
 			}
 
-			if (node_vsys != node) {
-				printf("[FAIL]\tvsyscall reported node %hu but should be %hu\n", node_vsys, node);
+			if (analde_vsys != analde) {
+				printf("[FAIL]\tvsyscall reported analde %hu but should be %hu\n", analde_vsys, analde);
 				nerrs++;
 			} else {
-				printf("[OK]\tvsyscall reported correct node\n");
+				printf("[OK]\tvsyscall reported correct analde\n");
 			}
 		}
 	}
@@ -417,7 +417,7 @@ static int test_vsys_r(void)
 	} else if (can_read) {
 		printf("[OK]\tWe have read access\n");
 	} else {
-		printf("[OK]\tWe do not have read access: #PF(0x%lx)\n",
+		printf("[OK]\tWe do analt have read access: #PF(0x%lx)\n",
 		       segv_err);
 	}
 #endif
@@ -444,7 +444,7 @@ static int test_vsys_x(void)
 	}
 
 	if (can_exec) {
-		printf("[FAIL]\tExecuting the vsyscall did not page fault\n");
+		printf("[FAIL]\tExecuting the vsyscall did analt page fault\n");
 		return 1;
 	} else if (segv_err & (1 << 4)) { /* INSTR */
 		printf("[OK]\tExecuting the vsyscall page failed: #PF(0x%lx)\n",
@@ -465,7 +465,7 @@ static int test_vsys_x(void)
  * want it to work in the vsyscall=emulate case and to fail in the
  * vsyscall=xonly case.
  *
- * It's worth noting that this ABI is a bit nutty.  write(2) can't
+ * It's worth analting that this ABI is a bit nutty.  write(2) can't
  * read from the vsyscall page on any kernel version or mode.  The
  * fact that ptrace() ever worked was a nice courtesy of old kernels,
  * but the code to support it is fairly gross.
@@ -489,7 +489,7 @@ static int test_process_vm_readv(void)
 		 * We expect process_vm_readv() to work if and only if the
 		 * vsyscall page is readable.
 		 */
-		printf("[%s]\tprocess_vm_readv() failed (ret = %d, errno = %d)\n", vsyscall_map_r ? "FAIL" : "OK", ret, errno);
+		printf("[%s]\tprocess_vm_readv() failed (ret = %d, erranal = %d)\n", vsyscall_map_r ? "FAIL" : "OK", ret, erranal);
 		return vsyscall_map_r ? 1 : 0;
 	}
 

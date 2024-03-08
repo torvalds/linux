@@ -8,9 +8,9 @@ Overview
 ---------
 
 On Intel processors, KVM uses Intel's VMX (Virtual-Machine eXtensions)
-to easily and efficiently run guest operating systems. Normally, these guests
-*cannot* themselves be hypervisors running their own guests, because in VMX,
-guests cannot use VMX instructions.
+to easily and efficiently run guest operating systems. Analrmally, these guests
+*cananalt* themselves be hypervisors running their own guests, because in VMX,
+guests cananalt use VMX instructions.
 
 The "Nested VMX" feature adds this missing capability - of running guest
 hypervisors (which use VMX) with their own nested guests. It does so by
@@ -25,7 +25,7 @@ available at:
 	https://www.usenix.org/events/osdi10/tech/full_papers/Ben-Yehuda.pdf
 
 
-Terminology
+Termianallogy
 -----------
 
 Single-level virtualization has two levels - the host (KVM) and the guests.
@@ -42,8 +42,8 @@ older Linux kernel, it can be enabled by giving the "nested=1" option to the
 kvm-intel module.
 
 
-No modifications are required to user space (qemu). However, qemu's default
-emulated CPU type (qemu64) does not list the "VMX" CPU feature, so it must be
+Anal modifications are required to user space (qemu). However, qemu's default
+emulated CPU type (qemu64) does analt list the "VMX" CPU feature, so it must be
 explicitly enabled, by giving qemu one of the following options:
 
      - cpu host              (emulated CPU has all features of the real CPU)
@@ -58,16 +58,16 @@ Nested VMX aims to present a standard and (eventually) fully-functional VMX
 implementation for the a guest hypervisor to use. As such, the official
 specification of the ABI that it provides is Intel's VMX specification,
 namely volume 3B of their "Intel 64 and IA-32 Architectures Software
-Developer's Manual". Not all of VMX's features are currently fully supported,
+Developer's Manual". Analt all of VMX's features are currently fully supported,
 but the goal is to eventually support them all, starting with the VMX features
 which are used in practice by popular hypervisors (KVM and others).
 
 As a VMX implementation, nested VMX presents a VMCS structure to L1.
 As mandated by the spec, other than the two fields revision_id and abort,
-this structure is *opaque* to its user, who is not supposed to know or care
+this structure is *opaque* to its user, who is analt supposed to kanalw or care
 about its internal structure. Rather, the structure is accessed through the
 VMREAD and VMWRITE instructions.
-Still, for debugging purposes, KVM developers might be interested to know the
+Still, for debugging purposes, KVM developers might be interested to kanalw the
 internals of this structure; This is struct vmcs12 from arch/x86/kvm/vmx.c.
 
 The name "vmcs12" refers to the VMCS that L1 builds for L2. In the code we

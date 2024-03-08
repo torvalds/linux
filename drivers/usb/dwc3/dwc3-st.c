@@ -11,7 +11,7 @@
  * Contributors: Aymen Bouattay <aymen.bouattay@st.com>
  *               Peter Griffin <peter.griffin@linaro.org>
  *
- * Inspired by dwc3-omap.c and dwc3-exynos.c.
+ * Inspired by dwc3-omap.c and dwc3-exyanals.c.
  */
 
 #include <linux/delay.h>
@@ -64,7 +64,7 @@
 /* Static DRD configuration */
 #define USB3_CONTROL_MASK		0xf77
 
-#define USB3_DEVICE_NOT_HOST		BIT(0)
+#define USB3_DEVICE_ANALT_HOST		BIT(0)
 #define USB3_FORCE_VBUSVALID		BIT(1)
 #define USB3_DELAY_VBUSVALID		BIT(2)
 #define USB3_SEL_FORCE_OPMODE		BIT(4)
@@ -110,7 +110,7 @@ static inline void st_dwc3_writel(void __iomem *base, u32 offset, u32 value)
  * @dwc3_data: driver private structure
  * Description: this function is to program the port as either host or device
  * according to the static configuration passed from devicetree.
- * OTG and dual role are not yet supported!
+ * OTG and dual role are analt yet supported!
  */
 static int st_dwc3_drd_init(struct st_dwc3 *dwc3_data)
 {
@@ -133,16 +133,16 @@ static int st_dwc3_drd_init(struct st_dwc3 *dwc3_data)
 
 		/*
 		 * USB3_PORT2_FORCE_VBUSVALID When '1' and when
-		 * USB3_PORT2_DEVICE_NOT_HOST = 1, forces VBUSVLDEXT2 input
+		 * USB3_PORT2_DEVICE_ANALT_HOST = 1, forces VBUSVLDEXT2 input
 		 * of the pico PHY to 1.
 		 */
 
-		val |= USB3_DEVICE_NOT_HOST | USB3_FORCE_VBUSVALID;
+		val |= USB3_DEVICE_ANALT_HOST | USB3_FORCE_VBUSVALID;
 		break;
 
 	case USB_DR_MODE_HOST:
 
-		val &= ~(USB3_DEVICE_NOT_HOST | USB3_FORCE_VBUSVALID
+		val &= ~(USB3_DEVICE_ANALT_HOST | USB3_FORCE_VBUSVALID
 			| USB3_SEL_FORCE_OPMODE	| USB3_FORCE_OPMODE(0x3)
 			| USB3_SEL_FORCE_DPPULLDOWN2 | USB3_FORCE_DPPULLDOWN2
 			| USB3_SEL_FORCE_DMPULLDOWN2 | USB3_FORCE_DMPULLDOWN2);
@@ -197,21 +197,21 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	struct st_dwc3 *dwc3_data;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node, *child;
+	struct device_analde *analde = dev->of_analde, *child;
 	struct platform_device *child_pdev;
 	struct regmap *regmap;
 	int ret;
 
 	dwc3_data = devm_kzalloc(dev, sizeof(*dwc3_data), GFP_KERNEL);
 	if (!dwc3_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwc3_data->glue_base =
 		devm_platform_ioremap_resource_byname(pdev, "reg-glue");
 	if (IS_ERR(dwc3_data->glue_base))
 		return PTR_ERR(dwc3_data->glue_base);
 
-	regmap = syscon_regmap_lookup_by_phandle(node, "st,syscfg");
+	regmap = syscon_regmap_lookup_by_phandle(analde, "st,syscfg");
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -232,7 +232,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	dwc3_data->rstc_pwrdn =
 		devm_reset_control_get_exclusive(dev, "powerdown");
 	if (IS_ERR(dwc3_data->rstc_pwrdn)) {
-		dev_err(&pdev->dev, "could not get power controller\n");
+		dev_err(&pdev->dev, "could analt get power controller\n");
 		ret = PTR_ERR(dwc3_data->rstc_pwrdn);
 		goto undo_platform_dev_alloc;
 	}
@@ -243,7 +243,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	dwc3_data->rstc_rst =
 		devm_reset_control_get_shared(dev, "softreset");
 	if (IS_ERR(dwc3_data->rstc_rst)) {
-		dev_err(&pdev->dev, "could not get reset controller\n");
+		dev_err(&pdev->dev, "could analt get reset controller\n");
 		ret = PTR_ERR(dwc3_data->rstc_rst);
 		goto undo_powerdown;
 	}
@@ -251,29 +251,29 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	/* Manage SoftReset */
 	reset_control_deassert(dwc3_data->rstc_rst);
 
-	child = of_get_compatible_child(node, "snps,dwc3");
+	child = of_get_compatible_child(analde, "snps,dwc3");
 	if (!child) {
-		dev_err(&pdev->dev, "failed to find dwc3 core node\n");
-		ret = -ENODEV;
-		goto err_node_put;
+		dev_err(&pdev->dev, "failed to find dwc3 core analde\n");
+		ret = -EANALDEV;
+		goto err_analde_put;
 	}
 
 	/* Allocate and initialize the core */
-	ret = of_platform_populate(node, NULL, NULL, dev);
+	ret = of_platform_populate(analde, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to add dwc3 core\n");
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
-	child_pdev = of_find_device_by_node(child);
+	child_pdev = of_find_device_by_analde(child);
 	if (!child_pdev) {
 		dev_err(dev, "failed to find dwc3 core device\n");
-		ret = -ENODEV;
-		goto err_node_put;
+		ret = -EANALDEV;
+		goto err_analde_put;
 	}
 
 	dwc3_data->dr_mode = usb_get_dr_mode(&child_pdev->dev);
-	of_node_put(child);
+	of_analde_put(child);
 	platform_device_put(child_pdev);
 
 	/*
@@ -294,8 +294,8 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dwc3_data);
 	return 0;
 
-err_node_put:
-	of_node_put(child);
+err_analde_put:
+	of_analde_put(child);
 undo_softreset:
 	reset_control_assert(dwc3_data->rstc_rst);
 undo_powerdown:

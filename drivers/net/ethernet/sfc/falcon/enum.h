@@ -9,7 +9,7 @@
 
 /**
  * enum ef4_loopback_mode - loopback modes
- * @LOOPBACK_NONE: no loopback
+ * @LOOPBACK_ANALNE: anal loopback
  * @LOOPBACK_DATA: data path loopback
  * @LOOPBACK_GMAC: loopback within GMAC
  * @LOOPBACK_XGMII: loopback after XMAC
@@ -39,7 +39,7 @@
  */
 /* Please keep up-to-date w.r.t the following two #defines */
 enum ef4_loopback_mode {
-	LOOPBACK_NONE = 0,
+	LOOPBACK_ANALNE = 0,
 	LOOPBACK_DATA = 1,
 	LOOPBACK_GMAC = 2,
 	LOOPBACK_XGMII = 3,
@@ -103,7 +103,7 @@ enum ef4_loopback_mode {
 
 #define LOOPBACKS_EXTERNAL(_efx)					\
 	((_efx)->loopback_modes & ~LOOPBACKS_INTERNAL &			\
-	 ~(1 << LOOPBACK_NONE))
+	 ~(1 << LOOPBACK_ANALNE))
 
 #define LOOPBACK_MASK(_efx)			\
 	(1 << (_efx)->loopback_mode)

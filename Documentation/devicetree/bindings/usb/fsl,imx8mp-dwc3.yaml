@@ -74,7 +74,7 @@ properties:
   power-domains:
     maxItems: 1
 
-# Required child node:
+# Required child analde:
 
 patternProperties:
   "^usb@[0-9a-f]+$":

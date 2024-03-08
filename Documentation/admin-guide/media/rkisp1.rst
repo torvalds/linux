@@ -25,7 +25,7 @@ ioctl MEDIA_IOC_DEVICE_INFO.
 Versions in use are:
 
 - RKISP1_V10: used at least in rk3288 and rk3399
-- RKISP1_V11: declared in the original vendor code, but not used
+- RKISP1_V11: declared in the original vendor code, but analt used
 - RKISP1_V12: used at least in rk3326 and px30
 - RKISP1_V13: used at least in rk1808
 
@@ -57,20 +57,20 @@ The driver has 3 subdevices:
   operations.
 
 
-rkisp1_mainpath, rkisp1_selfpath - Frames Capture Video Nodes
+rkisp1_mainpath, rkisp1_selfpath - Frames Capture Video Analdes
 -------------------------------------------------------------
 Those are the `mainpath` and `selfpath` capture devices to capture frames.
 Those entities are the DMA engines that write the frames to memory.
 The selfpath video device can capture YUV/RGB formats. Its input is YUV encoded
-stream and it is able to convert it to RGB. The selfpath is not able to
+stream and it is able to convert it to RGB. The selfpath is analt able to
 capture bayer formats.
-The mainpath can capture both bayer and YUV formats but it is not able to
+The mainpath can capture both bayer and YUV formats but it is analt able to
 capture RGB formats.
 Both capture videos support
 the ``V4L2_CAP_IO_MC`` :ref:`capability <device-capabilities>`.
 
 
-rkisp1_resizer_mainpath, rkisp1_resizer_selfpath - Resizers Subdevices Nodes
+rkisp1_resizer_mainpath, rkisp1_resizer_selfpath - Resizers Subdevices Analdes
 ----------------------------------------------------------------------------
 Those are resizer entities for the mainpath and the selfpath. Those entities
 can scale the frames up and down and also change the YUV sampling (for example
@@ -81,7 +81,7 @@ The mainpath capture device supports capturing video in bayer formats. In that
 case the resizer of the mainpath is set to 'bypass' mode - it just forward the
 frame without operating on it.
 
-rkisp1_isp - Image Signal Processing Subdevice Node
+rkisp1_isp - Image Signal Processing Subdevice Analde
 ---------------------------------------------------
 This is the isp entity. It is connected to the sensor on sink pad 0 and
 receives the frames using the CSI-2 protocol. It is responsible of configuring
@@ -92,13 +92,13 @@ Cropping on source pad 2 defines the region for the Image Stabilizer (IS).
 
 .. _rkisp1_stats:
 
-rkisp1_stats - Statistics Video Node
+rkisp1_stats - Statistics Video Analde
 ------------------------------------
-The statistics video node outputs the 3A (auto focus, auto exposure and auto
+The statistics video analde outputs the 3A (auto focus, auto exposure and auto
 white balance) statistics, and also histogram statistics for the frames that
 are being processed by the rkisp1 to userspace applications.
 Using these data, applications can implement algorithms and re-parameterize
-the driver through the rkisp_params node to improve image quality during a
+the driver through the rkisp_params analde to improve image quality during a
 video stream.
 The buffer format is defined by struct :c:type:`rkisp1_stat_buffer`, and
 userspace should set
@@ -107,9 +107,9 @@ dataformat.
 
 .. _rkisp1_params:
 
-rkisp1_params - Parameters Video Node
+rkisp1_params - Parameters Video Analde
 -------------------------------------
-The rkisp1_params video node receives a set of parameters from userspace
+The rkisp1_params video analde receives a set of parameters from userspace
 to be applied to the hardware during a video stream, allowing userspace
 to dynamically modify values such as black level, cross talk corrections
 and others.
@@ -127,7 +127,7 @@ In the following example, the sensor connected to pad 0 of 'rkisp1_isp' is
 imx219.
 
 The following commands can be used to capture video from the selfpath video
-node with dimension 900x800 planar format YUV 4:2:2. It uses all cropping
+analde with dimension 900x800 planar format YUV 4:2:2. It uses all cropping
 capabilities possible, (see explanation right below)
 
 .. code-block:: bash
@@ -164,7 +164,7 @@ with 'EPIPE' error. So it is also configured to `SRGGB10_1X10/1640x1232`.
 In addition, the rkisp1_isp:0 pad is configured to cropping `(0,0)/1600x1200`.
 
 The cropping dimensions are automatically propagated to be the format of the
-isp source pad `rkisp1_isp:2`. Another cropping operation is configured on
+isp source pad `rkisp1_isp:2`. Aanalther cropping operation is configured on
 the isp source pad: `(0,0)/1500x1100`.
 
 The resizer's sink pad `rkisp1_resizer_selfpath` should be configured to format
@@ -176,8 +176,8 @@ format `YUYV8_2X8/900x800`. That means that the resizer first crop a window
 of `(300,400)/1400x100` from the received frame and then scales this window
 to dimension `900x800`.
 
-Note that the above example does not uses the stats-params control loop.
-Therefore the capture frames will not go through the 3A algorithms and
+Analte that the above example does analt uses the stats-params control loop.
+Therefore the capture frames will analt go through the 3A algorithms and
 probably won't have a good quality, and can even look dark and greenish.
 
 Configuring Quantization
@@ -189,8 +189,8 @@ To switch between one or the other, userspace should use the Colorspace
 Conversion API (CSC) for subdevices on source pad 2 of the
 isp (`rkisp1_isp:2`). The quantization configured on this pad is the
 quantization of the captured video frames on the mainpath and selfpath
-video nodes.
-Note that the resizer and capture entities will always report
+video analdes.
+Analte that the resizer and capture entities will always report
 ``V4L2_QUANTIZATION_DEFAULT`` even if the quantization is configured to full
 range on `rkisp1_isp:2`. So in order to get the configured quantization,
 application should get it from pad `rkisp1_isp:2`.

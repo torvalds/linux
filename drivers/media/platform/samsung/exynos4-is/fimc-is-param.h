@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung EXYANALS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * Copyright (C) 2011 - 2013 Samsung Electronics Co., Ltd.
  *
@@ -114,7 +114,7 @@ enum is_param_bit {
 #define CONTROL_BYPASS_DISABLE			0
 #define CONTROL_BYPASS_ENABLE			1
 
-#define CONTROL_ERROR_NONE			0
+#define CONTROL_ERROR_ANALNE			0
 
 /* OTF (On-The-Fly) input interface commands */
 #define OTF_INPUT_COMMAND_DISABLE		0
@@ -133,7 +133,7 @@ enum oft_input_fmt {
 #define OTF_INPUT_ORDER_BAYER_GR_BG		0
 
 /* OTF input error codes */
-#define OTF_INPUT_ERROR_NONE			0 /* Input setting is done */
+#define OTF_INPUT_ERROR_ANALNE			0 /* Input setting is done */
 
 /* DMA input commands */
 #define DMA_INPUT_COMMAND_DISABLE		0
@@ -149,7 +149,7 @@ enum dma_input_fmt {
 
 enum dma_input_order {
 	/* (for DMA_INPUT_PLANE_3) */
-	DMA_INPUT_ORDER_NO	= 0,
+	DMA_INPUT_ORDER_ANAL	= 0,
 	/* (only valid at DMA_INPUT_PLANE_2) */
 	DMA_INPUT_ORDER_CBCR	= 1,
 	/* (only valid at DMA_INPUT_PLANE_2) */
@@ -170,7 +170,7 @@ enum dma_input_order {
 	DMA_INPUT_ORDER_GR_BG	= 9
 };
 
-#define DMA_INPUT_ERROR_NONE			0 /* DMA input setting
+#define DMA_INPUT_ERROR_ANALNE			0 /* DMA input setting
 						     is done */
 /*
  * Data output parameter definitions
@@ -190,7 +190,7 @@ enum otf_output_fmt {
 
 #define OTF_OUTPUT_ORDER_BAYER_GR_BG		0
 
-#define OTF_OUTPUT_ERROR_NONE			0 /* Output Setting is done */
+#define OTF_OUTPUT_ERROR_ANALNE			0 /* Output Setting is done */
 
 #define DMA_OUTPUT_COMMAND_DISABLE		0
 #define DMA_OUTPUT_COMMAND_ENABLE		1
@@ -204,7 +204,7 @@ enum dma_output_fmt {
 };
 
 enum dma_output_order {
-	DMA_OUTPUT_ORDER_NO		= 0,
+	DMA_OUTPUT_ORDER_ANAL		= 0,
 	/* for DMA_OUTPUT_PLANE_3 */
 	DMA_OUTPUT_ORDER_CBCR		= 1,
 	/* only valid at DMA_INPUT_PLANE_2) */
@@ -238,16 +238,16 @@ enum dma_output_order {
 	/* only valid at DMA_OUTPUT_FORMAT_BAYER */
 };
 
-/* enum dma_output_notify_dma_done */
-#define DMA_OUTPUT_NOTIFY_DMA_DONE_DISABLE	0
-#define DMA_OUTPUT_NOTIFY_DMA_DONE_ENABLE	1
+/* enum dma_output_analtify_dma_done */
+#define DMA_OUTPUT_ANALTIFY_DMA_DONE_DISABLE	0
+#define DMA_OUTPUT_ANALTIFY_DMA_DONE_ENABLE	1
 
 /* DMA output error codes */
-#define DMA_OUTPUT_ERROR_NONE			0 /* DMA output setting
+#define DMA_OUTPUT_ERROR_ANALNE			0 /* DMA output setting
 						     is done */
 
 /* ----------------------  Global  ----------------------------------- */
-#define GLOBAL_SHOTMODE_ERROR_NONE		0 /* shot-mode setting
+#define GLOBAL_SHOTMODE_ERROR_ANALNE		0 /* shot-mode setting
 						     is done */
 /* 3A lock commands */
 #define ISP_AA_COMMAND_START			0
@@ -274,7 +274,7 @@ enum isp_af_mode {
 #define ISP_AF_FACE_ENABLE			1
 
 /* AF range */
-#define ISP_AF_RANGE_NORMAL			0
+#define ISP_AF_RANGE_ANALRMAL			0
 #define ISP_AF_RANGE_MACRO			1
 
 /* AF sleep */
@@ -286,8 +286,8 @@ enum isp_af_mode {
 #define ISP_AF_CONTINUOUS_ENABLE		1
 
 /* ISP AF error codes */
-#define ISP_AF_ERROR_NONE			0 /* AF mode change is done */
-#define ISP_AF_ERROR_NONE_LOCK_DONE		1 /* AF lock is done */
+#define ISP_AF_ERROR_ANALNE			0 /* AF mode change is done */
+#define ISP_AF_ERROR_ANALNE_LOCK_DONE		1 /* AF lock is done */
 
 /* Flash commands */
 #define ISP_FLASH_COMMAND_DISABLE		0
@@ -300,7 +300,7 @@ enum isp_af_mode {
 #define ISP_FLASH_REDEYE_ENABLE			1
 
 /* Flash error codes */
-#define ISP_FLASH_ERROR_NONE			0 /* Flash setting is done */
+#define ISP_FLASH_ERROR_ANALNE			0 /* Flash setting is done */
 
 /* --------------------------  AWB  ------------------------------------ */
 enum isp_awb_command {
@@ -317,26 +317,26 @@ enum isp_awb_illumination {
 };
 
 /* ISP AWN error codes */
-#define ISP_AWB_ERROR_NONE			0 /* AWB setting is done */
+#define ISP_AWB_ERROR_ANALNE			0 /* AWB setting is done */
 
 /* --------------------------  Effect  ----------------------------------- */
 enum isp_imageeffect_command {
 	ISP_IMAGE_EFFECT_DISABLE		= 0,
-	ISP_IMAGE_EFFECT_MONOCHROME		= 1,
-	ISP_IMAGE_EFFECT_NEGATIVE_MONO		= 2,
+	ISP_IMAGE_EFFECT_MOANALCHROME		= 1,
+	ISP_IMAGE_EFFECT_NEGATIVE_MOANAL		= 2,
 	ISP_IMAGE_EFFECT_NEGATIVE_COLOR		= 3,
 	ISP_IMAGE_EFFECT_SEPIA			= 4
 };
 
 /* Image effect error codes */
-#define ISP_IMAGE_EFFECT_ERROR_NONE		0 /* Image effect setting
+#define ISP_IMAGE_EFFECT_ERROR_ANALNE		0 /* Image effect setting
 						     is done */
 /* ISO commands */
 #define ISP_ISO_COMMAND_AUTO			0
 #define ISP_ISO_COMMAND_MANUAL			1
 
 /* ISO error codes */
-#define ISP_ISO_ERROR_NONE			0 /* ISO setting is done */
+#define ISP_ISO_ERROR_ANALNE			0 /* ISO setting is done */
 
 /* ISP adjust commands */
 #define ISP_ADJUST_COMMAND_AUTO			(0 << 0)
@@ -349,7 +349,7 @@ enum isp_imageeffect_command {
 #define ISP_ADJUST_COMMAND_MANUAL_ALL		0x7f
 
 /* ISP adjustment error codes */
-#define ISP_ADJUST_ERROR_NONE			0 /* Adjust setting is done */
+#define ISP_ADJUST_ERROR_ANALNE			0 /* Adjust setting is done */
 
 /*
  *  Exposure metering
@@ -362,7 +362,7 @@ enum isp_metering_command {
 };
 
 /* ISP metering error codes */
-#define ISP_METERING_ERROR_NONE		0 /* Metering setting is done */
+#define ISP_METERING_ERROR_ANALNE		0 /* Metering setting is done */
 
 /*
  * AFC
@@ -378,12 +378,12 @@ enum isp_afc_command {
 
 /* ------------------------  SCENE MODE--------------------------------- */
 enum isp_scene_mode {
-	ISP_SCENE_NONE			= 0,
+	ISP_SCENE_ANALNE			= 0,
 	ISP_SCENE_PORTRAIT		= 1,
 	ISP_SCENE_LANDSCAPE		= 2,
 	ISP_SCENE_SPORTS		= 3,
 	ISP_SCENE_PARTYINDOOR		= 4,
-	ISP_SCENE_BEACHSNOW		= 5,
+	ISP_SCENE_BEACHSANALW		= 5,
 	ISP_SCENE_SUNSET		= 6,
 	ISP_SCENE_DAWN			= 7,
 	ISP_SCENE_FALL			= 8,
@@ -396,7 +396,7 @@ enum isp_scene_mode {
 };
 
 /* AFC error codes */
-#define ISP_AFC_ERROR_NONE		0 /* AFC setting is done */
+#define ISP_AFC_ERROR_ANALNE		0 /* AFC setting is done */
 
 /* ----------------------------  FD  ------------------------------------- */
 enum fd_config_command {
@@ -405,7 +405,7 @@ enum fd_config_command {
 	FD_CONFIG_COMMAND_YAW_ANGLE		= 0x4,
 	FD_CONFIG_COMMAND_SMILE_MODE		= 0x8,
 	FD_CONFIG_COMMAND_BLINK_MODE		= 0x10,
-	FD_CONFIG_COMMAND_EYES_DETECT		= 0x20,
+	FD_CONFIG_COMMAND_EANAL_DETECT		= 0x20,
 	FD_CONFIG_COMMAND_MOUTH_DETECT		= 0x40,
 	FD_CONFIG_COMMAND_ORIENTATION		= 0x80,
 	FD_CONFIG_COMMAND_ORIENTATION_VALUE	= 0x100
@@ -435,9 +435,9 @@ enum fd_config_yaw_angle {
 #define FD_CONFIG_BLINK_MODE_DISABLE		0
 #define FD_CONFIG_BLINK_MODE_ENABLE		1
 
-/* Eyes detection configuration */
-#define FD_CONFIG_EYES_DETECT_DISABLE		0
-#define FD_CONFIG_EYES_DETECT_ENABLE		1
+/* Eanal detection configuration */
+#define FD_CONFIG_EANAL_DETECT_DISABLE		0
+#define FD_CONFIG_EANAL_DETECT_ENABLE		1
 
 /* Mouth detection configuration */
 #define FD_CONFIG_MOUTH_DETECT_DISABLE		0
@@ -508,7 +508,7 @@ struct param_dma_output {
 	u32 order;
 	u32 buffer_number;
 	u32 buffer_address;
-	u32 notify_dma_done;
+	u32 analtify_dma_done;
 	u32 dma_out_mask;
 	u32 reserved[FIMC_IS_PARAM_MAX_ENTRIES - 12];
 	u32 err;
@@ -800,8 +800,8 @@ struct is_tune_isp {
 	s32 despeckle;
 	/* Edge color supression: range -127...127, default 0. */
 	s32 edge_color_supression;
-	/* Noise reduction: range -127...127, default 0. */
-	s32 noise_reduction;
+	/* Analise reduction: range -127...127, default 0. */
+	s32 analise_reduction;
 	/* (32 * 4 + 9) * 4 = 548 bytes */
 } __packed;
 
@@ -821,24 +821,24 @@ struct srational {
 };
 
 #define FLASH_FIRED_SHIFT			0
-#define FLASH_NOT_FIRED				0
+#define FLASH_ANALT_FIRED				0
 #define FLASH_FIRED				1
 
 #define FLASH_STROBE_SHIFT			1
-#define FLASH_STROBE_NO_DETECTION		0
+#define FLASH_STROBE_ANAL_DETECTION		0
 #define FLASH_STROBE_RESERVED			1
-#define FLASH_STROBE_RETURN_LIGHT_NOT_DETECTED	2
+#define FLASH_STROBE_RETURN_LIGHT_ANALT_DETECTED	2
 #define FLASH_STROBE_RETURN_LIGHT_DETECTED	3
 
 #define FLASH_MODE_SHIFT			3
-#define FLASH_MODE_UNKNOWN			0
+#define FLASH_MODE_UNKANALWN			0
 #define FLASH_MODE_COMPULSORY_FLASH_FIRING	1
 #define FLASH_MODE_COMPULSORY_FLASH_SUPPRESSION	2
 #define FLASH_MODE_AUTO_MODE			3
 
 #define FLASH_FUNCTION_SHIFT			5
 #define FLASH_FUNCTION_PRESENT			0
-#define FLASH_FUNCTION_NONE			1
+#define FLASH_FUNCTION_ANALNE			1
 
 #define FLASH_RED_EYE_SHIFT			6
 #define FLASH_RED_EYE_DISABLED			0
@@ -942,14 +942,14 @@ struct is_share_region {
 
 	u32 af_position;
 	u32 af_status;
-	/* 0 : SIRC_ISP_CAMERA_AUTOFOCUSMESSAGE_NOMESSAGE */
+	/* 0 : SIRC_ISP_CAMERA_AUTOFOCUSMESSAGE_ANALMESSAGE */
 	/* 1 : SIRC_ISP_CAMERA_AUTOFOCUSMESSAGE_REACHED */
 	/* 2 : SIRC_ISP_CAMERA_AUTOFOCUSMESSAGE_UNABLETOREACH */
 	/* 3 : SIRC_ISP_CAMERA_AUTOFOCUSMESSAGE_LOST */
-	/* default : unknown */
+	/* default : unkanalwn */
 	u32 af_scene_type;
 
-	u32 frame_descp_onoff_control;
+	u32 frame_descp_oanalff_control;
 	u32 frame_descp_update_done;
 	u32 frame_descp_idx;
 	u32 frame_descp_max_idx;
@@ -957,19 +957,19 @@ struct is_share_region {
 		dbg_frame_descp_ctx[MAX_FRAMEDESCRIPTOR_CONTEXT_NUM];
 
 	u32 chip_id;
-	u32 chip_rev_no;
-	u8 isp_fw_ver_no[MAX_VERSION_DISPLAY_BUF];
+	u32 chip_rev_anal;
+	u8 isp_fw_ver_anal[MAX_VERSION_DISPLAY_BUF];
 	u8 isp_fw_ver_date[MAX_VERSION_DISPLAY_BUF];
-	u8 sirc_sdk_ver_no[MAX_VERSION_DISPLAY_BUF];
-	u8 sirc_sdk_rev_no[MAX_VERSION_DISPLAY_BUF];
+	u8 sirc_sdk_ver_anal[MAX_VERSION_DISPLAY_BUF];
+	u8 sirc_sdk_rev_anal[MAX_VERSION_DISPLAY_BUF];
 	u8 sirc_sdk_rev_date[MAX_VERSION_DISPLAY_BUF];
 } __packed;
 
 struct is_debug_control {
 	u32 write_point;	/* 0~ 500KB boundary */
-	u32 assert_flag;	/* 0: Not invoked, 1: Invoked */
-	u32 pabort_flag;	/* 0: Not invoked, 1: Invoked */
-	u32 dabort_flag;	/* 0: Not invoked, 1: Invoked */
+	u32 assert_flag;	/* 0: Analt invoked, 1: Invoked */
+	u32 pabort_flag;	/* 0: Analt invoked, 1: Invoked */
+	u32 dabort_flag;	/* 0: Analt invoked, 1: Invoked */
 };
 
 struct sensor_open_extended {
@@ -977,7 +977,7 @@ struct sensor_open_extended {
 	u32 mclk;
 	u32 mipi_lane_num;
 	u32 mipi_speed;
-	/* Skip setfile loading when fast_open_sensor is not 0 */
+	/* Skip setfile loading when fast_open_sensor is analt 0 */
 	u32 fast_open_sensor;
 	/* Activating sensor self calibration mode (6A3) */
 	u32 self_calibration_mode;

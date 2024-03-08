@@ -49,33 +49,33 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
  * Set of flags that will prevent slab merging
  */
 #define SLAB_NEVER_MERGE (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
-		SLAB_TRACE | SLAB_TYPESAFE_BY_RCU | SLAB_NOLEAKTRACE | \
-		SLAB_FAILSLAB | SLAB_NO_MERGE | kasan_never_merge())
+		SLAB_TRACE | SLAB_TYPESAFE_BY_RCU | SLAB_ANALLEAKTRACE | \
+		SLAB_FAILSLAB | SLAB_ANAL_MERGE | kasan_never_merge())
 
 #define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
 			 SLAB_CACHE_DMA32 | SLAB_ACCOUNT)
 
 /*
- * Merge control. If this is set then no merging of slab caches will occur.
+ * Merge control. If this is set then anal merging of slab caches will occur.
  */
-static bool slab_nomerge = !IS_ENABLED(CONFIG_SLAB_MERGE_DEFAULT);
+static bool slab_analmerge = !IS_ENABLED(CONFIG_SLAB_MERGE_DEFAULT);
 
-static int __init setup_slab_nomerge(char *str)
+static int __init setup_slab_analmerge(char *str)
 {
-	slab_nomerge = true;
+	slab_analmerge = true;
 	return 1;
 }
 
 static int __init setup_slab_merge(char *str)
 {
-	slab_nomerge = false;
+	slab_analmerge = false;
 	return 1;
 }
 
-__setup_param("slub_nomerge", slub_nomerge, setup_slab_nomerge, 0);
+__setup_param("slub_analmerge", slub_analmerge, setup_slab_analmerge, 0);
 __setup_param("slub_merge", slub_merge, setup_slab_merge, 0);
 
-__setup("slab_nomerge", setup_slab_nomerge);
+__setup("slab_analmerge", setup_slab_analmerge);
 __setup("slab_merge", setup_slab_merge);
 
 /*
@@ -116,7 +116,7 @@ static unsigned int calculate_alignment(slab_flags_t flags,
 	 * If the user wants hardware cache aligned objects then follow that
 	 * suggestion if the object is sufficiently large.
 	 *
-	 * The hardware cache alignment cannot override the specified
+	 * The hardware cache alignment cananalt override the specified
 	 * alignment though. If that is greater then use it.
 	 */
 	if (flags & SLAB_HWCACHE_ALIGN) {
@@ -138,7 +138,7 @@ static unsigned int calculate_alignment(slab_flags_t flags,
  */
 int slab_unmergeable(struct kmem_cache *s)
 {
-	if (slab_nomerge || (s->flags & SLAB_NEVER_MERGE))
+	if (slab_analmerge || (s->flags & SLAB_NEVER_MERGE))
 		return 1;
 
 	if (s->ctor)
@@ -163,7 +163,7 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 {
 	struct kmem_cache *s;
 
-	if (slab_nomerge)
+	if (slab_analmerge)
 		return NULL;
 
 	if (ctor)
@@ -213,7 +213,7 @@ static struct kmem_cache *create_cache(const char *name,
 	if (WARN_ON(useroffset + usersize > object_size))
 		useroffset = usersize = 0;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
 	if (!s)
 		goto out;
@@ -252,12 +252,12 @@ out:
  * @usersize: Usercopy region size
  * @ctor: A constructor for the objects.
  *
- * Cannot be called within a interrupt, but can be interrupted.
+ * Cananalt be called within a interrupt, but can be interrupted.
  * The @ctor is run when new pages are allocated by the cache.
  *
  * The flags are
  *
- * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
+ * %SLAB_POISON - Poison the slab with a kanalwn test pattern (a5a5a5a5)
  * to catch references to uninitialised memory.
  *
  * %SLAB_RED_ZONE - Insert `Red` zones around the allocated memory to check
@@ -282,7 +282,7 @@ kmem_cache_create_usercopy(const char *name,
 
 #ifdef CONFIG_SLUB_DEBUG
 	/*
-	 * If no slub_debug was enabled globally, the static key is not yet
+	 * If anal slub_debug was enabled globally, the static key is analt yet
 	 * enabled by setup_slub_debug(). Enable it if the cache is being
 	 * created with any of the debugging flags passed explicitly.
 	 * It's also possible that this is the first cache created with
@@ -328,7 +328,7 @@ kmem_cache_create_usercopy(const char *name,
 
 	cache_name = kstrdup_const(name, GFP_KERNEL);
 	if (!cache_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -366,12 +366,12 @@ EXPORT_SYMBOL(kmem_cache_create_usercopy);
  * @flags: SLAB flags
  * @ctor: A constructor for the objects.
  *
- * Cannot be called within a interrupt, but can be interrupted.
+ * Cananalt be called within a interrupt, but can be interrupted.
  * The @ctor is run when new pages are allocated by the cache.
  *
  * The flags are
  *
- * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
+ * %SLAB_POISON - Poison the slab with a kanalwn test pattern (a5a5a5a5)
  * to catch references to uninitialised memory.
  *
  * %SLAB_RED_ZONE - Insert `Red` zones around the allocated memory to check
@@ -396,10 +396,10 @@ EXPORT_SYMBOL(kmem_cache_create);
 /*
  * For a given kmem_cache, kmem_cache_destroy() should only be called
  * once or there will be a use-after-free problem. The actual deletion
- * and release of the kobject does not need slab_mutex or cpu_hotplug_lock
- * protection. So they are now done without holding those locks.
+ * and release of the kobject does analt need slab_mutex or cpu_hotplug_lock
+ * protection. So they are analw done without holding those locks.
  *
- * Note that there will be a slight delay in the deletion of sysfs files
+ * Analte that there will be a slight delay in the deletion of sysfs files
  * if kmem_cache_release() is called indrectly from a work function.
  */
 static void kmem_cache_release(struct kmem_cache *s)
@@ -426,7 +426,7 @@ static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work)
 	 * while freeing the pages, so the kmem_caches should be freed only
 	 * after the pending RCU operations are finished.  As rcu_barrier()
 	 * is a pretty slow operation, we batch all pending destructions
-	 * asynchronously.
+	 * asynchroanalusly.
 	 */
 	mutex_lock(&slab_mutex);
 	list_splice_init(&slab_caches_to_rcu_destroy, &to_destroy);
@@ -507,7 +507,7 @@ EXPORT_SYMBOL(kmem_cache_destroy);
  * Releases as many slabs as possible for a cache.
  * To help debugging, a zero exit status indicates all slabs were released.
  *
- * Return: %0 if all slabs were released, non-zero otherwise
+ * Return: %0 if all slabs were released, analn-zero otherwise
  */
 int kmem_cache_shrink(struct kmem_cache *cachep)
 {
@@ -541,7 +541,7 @@ static void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *
  * and, if available, the slab name, return address, and stack trace from
  * the allocation and last free path of that object.
  *
- * Return: %true if the pointer is to a not-yet-freed object from
+ * Return: %true if the pointer is to a analt-yet-freed object from
  * kmalloc() or kmem_cache_alloc(), either %true or %false if the pointer
  * is to an already-freed object, and %false otherwise.
  */
@@ -601,7 +601,7 @@ bool kmem_dump_obj(void *object)
 EXPORT_SYMBOL_GPL(kmem_dump_obj);
 #endif
 
-/* Create a cache during boot when no slab services are available yet */
+/* Create a cache during boot when anal slab services are available yet */
 void __init create_boot_cache(struct kmem_cache *s, const char *name,
 		unsigned int size, slab_flags_t flags,
 		unsigned int useroffset, unsigned int usersize)
@@ -631,14 +631,14 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name,
 		panic("Creation of kmalloc slab %s size=%u failed. Reason %d\n",
 					name, size, err);
 
-	s->refcount = -1;	/* Exempt from merging for now */
+	s->refcount = -1;	/* Exempt from merging for analw */
 }
 
 static struct kmem_cache *__init create_kmalloc_cache(const char *name,
 						      unsigned int size,
 						      slab_flags_t flags)
 {
-	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_ANALWAIT);
 
 	if (!s)
 		panic("Out of memory when creating slab %s\n", name);
@@ -661,7 +661,7 @@ EXPORT_SYMBOL(random_kmalloc_seed);
 
 /*
  * Conversion table for small slabs sizes / 8 to the index in the
- * kmalloc array. This is necessary for slabs < 192 since we have non power
+ * kmalloc array. This is necessary for slabs < 192 since we have analn power
  * of two cache sizes there. The size of larger slabs can be determined using
  * fls.
  */
@@ -757,7 +757,7 @@ EXPORT_SYMBOL(kmalloc_size_roundup);
 
 #define INIT_KMALLOC_INFO(__size, __short_size)			\
 {								\
-	.name[KMALLOC_NORMAL]  = "kmalloc-" #__short_size,	\
+	.name[KMALLOC_ANALRMAL]  = "kmalloc-" #__short_size,	\
 	KMALLOC_RCL_NAME(__short_size)				\
 	KMALLOC_CGROUP_NAME(__short_size)			\
 	KMALLOC_DMA_NAME(__short_size)				\
@@ -798,12 +798,12 @@ const struct kmalloc_info_struct kmalloc_info[] __initconst = {
 /*
  * Patch up the size_index table if we have strange large alignment
  * requirements for the kmalloc array. This is only the case for
- * MIPS it seems. The standard arches will not generate any code here.
+ * MIPS it seems. The standard arches will analt generate any code here.
  *
  * Largest permitted alignment is 256 bytes due to the way we
  * handle the index determination for the smaller caches.
  *
- * Make sure that nothing crazy happens if someone starts tinkering
+ * Make sure that analthing crazy happens if someone starts tinkering
  * around with ARCH_KMALLOC_MINALIGN
  */
 void __init setup_kmalloc_cache_index_table(void)
@@ -823,7 +823,7 @@ void __init setup_kmalloc_cache_index_table(void)
 
 	if (KMALLOC_MIN_SIZE >= 64) {
 		/*
-		 * The 96 byte sized cache is not used if the alignment
+		 * The 96 byte sized cache is analt used if the alignment
 		 * is 64 byte.
 		 */
 		for (i = 64 + 8; i <= 96; i += 8)
@@ -833,7 +833,7 @@ void __init setup_kmalloc_cache_index_table(void)
 
 	if (KMALLOC_MIN_SIZE >= 128) {
 		/*
-		 * The 192 byte sized cache is not used if the alignment
+		 * The 192 byte sized cache is analt used if the alignment
 		 * is 128 byte. Redirect kmalloc to use the 256 byte cache
 		 * instead.
 		 */
@@ -860,11 +860,11 @@ new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
 	unsigned int aligned_size = kmalloc_info[idx].size;
 	int aligned_idx = idx;
 
-	if ((KMALLOC_RECLAIM != KMALLOC_NORMAL) && (type == KMALLOC_RECLAIM)) {
+	if ((KMALLOC_RECLAIM != KMALLOC_ANALRMAL) && (type == KMALLOC_RECLAIM)) {
 		flags |= SLAB_RECLAIM_ACCOUNT;
 	} else if (IS_ENABLED(CONFIG_MEMCG_KMEM) && (type == KMALLOC_CGROUP)) {
 		if (mem_cgroup_kmem_disabled()) {
-			kmalloc_caches[type][idx] = kmalloc_caches[KMALLOC_NORMAL][idx];
+			kmalloc_caches[type][idx] = kmalloc_caches[KMALLOC_ANALRMAL][idx];
 			return;
 		}
 		flags |= SLAB_ACCOUNT;
@@ -874,15 +874,15 @@ new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
 
 #ifdef CONFIG_RANDOM_KMALLOC_CACHES
 	if (type >= KMALLOC_RANDOM_START && type <= KMALLOC_RANDOM_END)
-		flags |= SLAB_NO_MERGE;
+		flags |= SLAB_ANAL_MERGE;
 #endif
 
 	/*
 	 * If CONFIG_MEMCG_KMEM is enabled, disable cache merging for
-	 * KMALLOC_NORMAL caches.
+	 * KMALLOC_ANALRMAL caches.
 	 */
-	if (IS_ENABLED(CONFIG_MEMCG_KMEM) && (type == KMALLOC_NORMAL))
-		flags |= SLAB_NO_MERGE;
+	if (IS_ENABLED(CONFIG_MEMCG_KMEM) && (type == KMALLOC_ANALRMAL))
+		flags |= SLAB_ANAL_MERGE;
 
 	if (minalign > ARCH_KMALLOC_MINALIGN) {
 		aligned_size = ALIGN(aligned_size, minalign);
@@ -910,13 +910,13 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 	/*
 	 * Including KMALLOC_CGROUP if CONFIG_MEMCG_KMEM defined
 	 */
-	for (type = KMALLOC_NORMAL; type < NR_KMALLOC_TYPES; type++) {
+	for (type = KMALLOC_ANALRMAL; type < NR_KMALLOC_TYPES; type++) {
 		for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
 			if (!kmalloc_caches[type][i])
 				new_kmalloc_cache(i, type, flags);
 
 			/*
-			 * Caches that are not of the two-to-the-power-of size.
+			 * Caches that are analt of the two-to-the-power-of size.
 			 * These have to be created immediately after the
 			 * earlier power of two caches
 			 */
@@ -932,7 +932,7 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 	random_kmalloc_seed = get_random_u64();
 #endif
 
-	/* Kmalloc array is now usable */
+	/* Kmalloc array is analw usable */
 	slab_state = UP;
 }
 
@@ -941,7 +941,7 @@ void __init create_kmalloc_caches(slab_flags_t flags)
  * @object: pointer to the object
  *
  * This should only be used internally to query the true size of allocations.
- * It is not meant to be a way to discover the usable size of an allocation
+ * It is analt meant to be a way to discover the usable size of an allocation
  * after the fact. Instead, use kmalloc_size_roundup(). Using memory beyond
  * the originally requested allocation size may trigger KASAN, UBSAN_BOUNDS,
  * and/or FORTIFY_SOURCE.
@@ -1012,7 +1012,7 @@ int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
 
 	cachep->random_seq = kcalloc(count, sizeof(unsigned int), gfp);
 	if (!cachep->random_seq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	freelist_randomize(cachep->random_seq, count);
 	return 0;
@@ -1096,11 +1096,11 @@ void dump_unreclaimable_slab(void)
 	 * Here acquiring slab_mutex is risky since we don't prefer to get
 	 * sleep in oom path. But, without mutex hold, it may introduce a
 	 * risk of crash.
-	 * Use mutex_trylock to protect the list traverse, dump nothing
+	 * Use mutex_trylock to protect the list traverse, dump analthing
 	 * without acquiring the mutex.
 	 */
 	if (!mutex_trylock(&slab_mutex)) {
-		pr_warn("excessive unreclaimable slab but cannot dump stats\n");
+		pr_warn("excessive unreclaimable slab but cananalt dump stats\n");
 		return;
 	}
 
@@ -1141,7 +1141,7 @@ static const struct seq_operations slabinfo_op = {
 	.show = slab_show,
 };
 
-static int slabinfo_open(struct inode *inode, struct file *file)
+static int slabinfo_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &slabinfo_op);
 }
@@ -1202,9 +1202,9 @@ __do_krealloc(const void *p, size_t new_size, gfp_t flags)
  * @flags: the type of memory to allocate.
  *
  * The contents of the object pointed to are preserved up to the
- * lesser of the new and old sizes (__GFP_ZERO flag is effectively ignored).
+ * lesser of the new and old sizes (__GFP_ZERO flag is effectively iganalred).
  * If @p is %NULL, krealloc() behaves exactly like kmalloc().  If @new_size
- * is 0 and @p is not a %NULL pointer, the object pointed to is freed.
+ * is 0 and @p is analt a %NULL pointer, the object pointed to is freed.
  *
  * Return: pointer to the allocated memory or %NULL in case of error
  */
@@ -1230,9 +1230,9 @@ EXPORT_SYMBOL(krealloc);
  * @p: object to free memory of
  *
  * The memory of the object @p points to is zeroed before freed.
- * If @p is %NULL, kfree_sensitive() does nothing.
+ * If @p is %NULL, kfree_sensitive() does analthing.
  *
- * Note: this function zeroes the whole allocated buffer which can be a good
+ * Analte: this function zeroes the whole allocated buffer which can be a good
  * deal bigger than the requested buffer size passed to kmalloc(). So be
  * careful when using this function in performance sensitive code.
  */

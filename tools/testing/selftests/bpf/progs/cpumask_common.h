@@ -4,7 +4,7 @@
 #ifndef _CPUMASK_COMMON_H
 #define _CPUMASK_COMMON_H
 
-#include "errno.h"
+#include "erranal.h"
 #include <stdbool.h>
 
 int err;
@@ -107,7 +107,7 @@ static inline int cpumask_map_insert(struct bpf_cpumask *mask)
 	v = bpf_map_lookup_elem(&__cpumask_map, &key);
 	if (!v) {
 		bpf_cpumask_release(mask);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	old = bpf_kptr_xchg(&v->cpumask, mask);

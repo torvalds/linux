@@ -27,7 +27,7 @@
 #define AD5766_DITHER_INVERT_MASK(ch)		BIT(ch)
 #define AD5766_DITHER_INVERT(ch, state)		(state << ch)
 
-#define AD5766_CMD_NOP_MUX_OUT			0x00
+#define AD5766_CMD_ANALP_MUX_OUT			0x00
 #define AD5766_CMD_SDO_CNTRL			0x01
 #define AD5766_CMD_WR_IN_REG(x)			(0x10 | ((x) & GENMASK(3, 0)))
 #define AD5766_CMD_WR_DAC_REG(x)		(0x20 | ((x) & GENMASK(3, 0)))
@@ -98,7 +98,7 @@ static const char * const ad5766_dither_scales[] = {
  * @crt_range:		Current selected output range
  * @dither_enable:	Power enable bit for each channel dither block (for
  *			example, D15 = DAC 15,D8 = DAC 8, and D0 = DAC 0)
- *			0 - Normal operation, 1 - Power down
+ *			0 - Analrmal operation, 1 - Power down
  * @dither_invert:	Inverts the dither signal applied to the selected DAC
  *			outputs
  * @dither_source:	Selects between 2 possible sources:
@@ -160,7 +160,7 @@ static int __ad5766_spi_read(struct ad5766_state *st, u8 dac, int *val)
 	};
 
 	st->data[0].d32 = AD5766_CMD_READBACK_REG(dac);
-	st->data[1].d32 = AD5766_CMD_NOP_MUX_OUT;
+	st->data[1].d32 = AD5766_CMD_ANALP_MUX_OUT;
 
 	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret)
@@ -595,7 +595,7 @@ static irqreturn_t ad5766_trigger_handler(int irq, void *p)
 	mutex_unlock(&st->lock);
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -609,7 +609,7 @@ static int ad5766_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);

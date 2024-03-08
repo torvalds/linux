@@ -32,7 +32,7 @@ struct platform_device *__init gpio_led_register_device(
 	_pdata.leds = kmemdup(pdata->leds,
 			pdata->num_leds * sizeof(*pdata->leds), GFP_KERNEL);
 	if (!_pdata.leds)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = platform_device_register_resndata(NULL, "leds-gpio", id,
 			NULL, 0, &_pdata, sizeof(_pdata));

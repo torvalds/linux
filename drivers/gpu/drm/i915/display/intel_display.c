@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -471,7 +471,7 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 
 	/*
 	 * Double wide has implications for planes
-	 * so best keep it disabled when not needed.
+	 * so best keep it disabled when analt needed.
 	 */
 	if (old_crtc_state->double_wide)
 		val &= ~TRANSCONF_DOUBLE_WIDE;
@@ -533,7 +533,7 @@ bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 
 	return DISPLAY_VER(dev_priv) < 4 ||
 		(plane->fbc &&
-		 plane_state->view.gtt.type == I915_GTT_VIEW_NORMAL);
+		 plane_state->view.gtt.type == I915_GTT_VIEW_ANALRMAL);
 }
 
 /*
@@ -556,7 +556,7 @@ u32 intel_fb_xy_to_linear(int x, int y,
 /*
  * Add the x/y offsets derived from fb->offsets[] to the user
  * specified plane src x/y offsets. The resulting x/y offsets
- * specify the start of scanout from the beginning of the gtt mapping.
+ * specify the start of scaanalut from the beginning of the gtt mapping.
  */
 void intel_add_fb_offsets(int *x, int *y,
 			  const struct intel_plane_state *state,
@@ -625,7 +625,7 @@ void intel_plane_fixup_bitmasks(struct intel_crtc_state *crtc_state)
 	}
 }
 
-void intel_plane_disable_noatomic(struct intel_crtc *crtc,
+void intel_plane_disable_analatomic(struct intel_crtc *crtc,
 				  struct intel_plane *plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -754,7 +754,7 @@ bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv)
 
 /*
  * Finds the encoder associated with the given CRTC. This can only be
- * used when we know that the CRTC isn't feeding multiple encoders!
+ * used when we kanalw that the CRTC isn't feeding multiple encoders!
  */
 struct intel_encoder *
 intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
@@ -1207,7 +1207,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 		 * to the final 'target' values and we'll do this again to get the
 		 * optimal watermarks.  For gen9+ platforms, the values we program here
 		 * will be the final target values which will get automatically latched
-		 * at vblank time; no further programming will be necessary.
+		 * at vblank time; anal further programming will be necessary.
 		 *
 		 * If a platform hasn't been transitioned to atomic watermarks yet,
 		 * we'll continue to update watermarks the old way, if flags tell
@@ -1273,7 +1273,7 @@ static void intel_encoders_update_prepare(struct intel_atomic_state *state)
 	int i;
 
 	/*
-	 * Make sure the DPLL state is up-to-date for fastset TypeC ports after non-blocking commits.
+	 * Make sure the DPLL state is up-to-date for fastset TypeC ports after analn-blocking commits.
 	 * TODO: Update the DPLL state for all cases in the encoder->update_prepare() hook.
 	 */
 	if (i915->display.dpll.mgr) {
@@ -1350,7 +1350,7 @@ static void intel_encoders_enable(struct intel_atomic_state *state,
 		if (encoder->enable)
 			encoder->enable(state, encoder,
 					crtc_state, conn_state);
-		intel_opregion_notify_encoder(encoder, true);
+		intel_opregion_analtify_encoder(encoder, true);
 	}
 }
 
@@ -1370,7 +1370,7 @@ static void intel_encoders_disable(struct intel_atomic_state *state,
 		if (old_conn_state->crtc != &crtc->base)
 			continue;
 
-		intel_opregion_notify_encoder(encoder, false);
+		intel_opregion_analtify_encoder(encoder, false);
 		if (encoder->disable)
 			encoder->disable(state, encoder,
 					 old_crtc_state, old_conn_state);
@@ -1517,7 +1517,7 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	 * clocks enabled
 	 */
 	intel_color_load_luts(new_crtc_state);
-	intel_color_commit_noarm(new_crtc_state);
+	intel_color_commit_analarm(new_crtc_state);
 	intel_color_commit_arm(new_crtc_state);
 	/* update DSPCNTR to configure gamma for pipe bottom color */
 	intel_disable_primary_plane(new_crtc_state);
@@ -1539,7 +1539,7 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	 * Must wait for vblank to avoid spurious PCH FIFO underruns.
 	 * And a second vblank wait is needed at least on ILK with
 	 * some interlaced HDMI modes. Let's do the double wait always
-	 * in case there are more corner cases we don't know about.
+	 * in case there are more corner cases we don't kanalw about.
 	 */
 	if (new_crtc_state->has_pch_encoder) {
 		intel_crtc_wait_for_next_vblank(crtc);
@@ -1687,7 +1687,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	 * clocks enabled
 	 */
 	intel_color_load_luts(new_crtc_state);
-	intel_color_commit_noarm(new_crtc_state);
+	intel_color_commit_analarm(new_crtc_state);
 	intel_color_commit_arm(new_crtc_state);
 	/* update DSPCNTR to configure gamma/csc for pipe bottom color */
 	if (DISPLAY_VER(dev_priv) < 9)
@@ -1835,7 +1835,7 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 
 bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
 {
-	if (phy == PHY_NONE)
+	if (phy == PHY_ANALNE)
 		return false;
 	else if (IS_ALDERLAKE_S(dev_priv))
 		return phy <= PHY_E;
@@ -1878,9 +1878,9 @@ bool intel_phy_is_snps(struct drm_i915_private *dev_priv, enum phy phy)
 {
 	/*
 	 * For DG2, and for DG2 only, all four "combo" ports and the TC1 port
-	 * (PHY E) use Synopsis PHYs. See intel_phy_is_tc().
+	 * (PHY E) use Syanalpsis PHYs. See intel_phy_is_tc().
 	 */
-	return IS_DG2(dev_priv) && phy > PHY_NONE && phy <= PHY_E;
+	return IS_DG2(dev_priv) && phy > PHY_ANALNE && phy <= PHY_E;
 }
 
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
@@ -1903,7 +1903,7 @@ enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
 enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv, enum port port)
 {
 	if (!intel_phy_is_tc(dev_priv, intel_port_to_phy(dev_priv, port)))
-		return TC_PORT_NONE;
+		return TC_PORT_ANALNE;
 
 	if (DISPLAY_VER(dev_priv) >= 12)
 		return TC_PORT_1 + port - PORT_TC1;
@@ -1969,11 +1969,11 @@ void intel_modeset_get_crtc_power_domains(struct intel_crtc_state *crtc_state,
 
 	get_crtc_power_domains(crtc_state, &domains);
 
-	bitmap_andnot(new_domains.bits,
+	bitmap_andanalt(new_domains.bits,
 		      domains.bits,
 		      crtc->enabled_power_domains.mask.bits,
 		      POWER_DOMAIN_NUM);
-	bitmap_andnot(old_domains->bits,
+	bitmap_andanalt(old_domains->bits,
 		      crtc->enabled_power_domains.mask.bits,
 		      domains.bits,
 		      POWER_DOMAIN_NUM);
@@ -2047,7 +2047,7 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 	i9xx_pfit_enable(new_crtc_state);
 
 	intel_color_load_luts(new_crtc_state);
-	intel_color_commit_noarm(new_crtc_state);
+	intel_color_commit_analarm(new_crtc_state);
 	intel_color_commit_arm(new_crtc_state);
 	/* update DSPCNTR to configure gamma for pipe bottom color */
 	intel_disable_primary_plane(new_crtc_state);
@@ -2087,7 +2087,7 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 	i9xx_pfit_enable(new_crtc_state);
 
 	intel_color_load_luts(new_crtc_state);
-	intel_color_commit_noarm(new_crtc_state);
+	intel_color_commit_analarm(new_crtc_state);
 	intel_color_commit_arm(new_crtc_state);
 	/* update DSPCNTR to configure gamma for pipe bottom color */
 	intel_disable_primary_plane(new_crtc_state);
@@ -2296,7 +2296,7 @@ static void intel_crtc_readout_derived_state(struct intel_crtc_state *crtc_state
 	intel_splitter_adjust_timings(crtc_state, pipe_mode);
 
 	/*
-	 * We want the full numbers in adjusted_mode normal timings,
+	 * We want the full numbers in adjusted_mode analrmal timings,
 	 * adjusted_mode crtc timings are left with the raw transcoder
 	 * timings.
 	 */
@@ -2355,7 +2355,7 @@ static int intel_crtc_compute_pipe_src(struct intel_crtc_state *crtc_state)
 	if (drm_rect_width(&crtc_state->pipe_src) & 1) {
 		if (crtc_state->double_wide) {
 			drm_dbg_kms(&i915->drm,
-				    "[CRTC:%d:%s] Odd pipe source width not supported with double wide pipe\n",
+				    "[CRTC:%d:%s] Odd pipe source width analt supported with double wide pipe\n",
 				    crtc->base.base.id, crtc->base.name);
 			return -EINVAL;
 		}
@@ -2363,7 +2363,7 @@ static int intel_crtc_compute_pipe_src(struct intel_crtc_state *crtc_state)
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 		    intel_is_dual_link_lvds(i915)) {
 			drm_dbg_kms(&i915->drm,
-				    "[CRTC:%d:%s] Odd pipe source width not supported with dual link LVDS\n",
+				    "[CRTC:%d:%s] Odd pipe source width analt supported with dual link LVDS\n",
 				    crtc->base.base.id, crtc->base.name);
 			return -EINVAL;
 		}
@@ -2412,7 +2412,7 @@ static int intel_crtc_compute_pipe_mode(struct intel_crtc_state *crtc_state)
 			    "[CRTC:%d:%s] requested pixel clock (%d kHz) too high (max: %d kHz, double wide: %s)\n",
 			    crtc->base.base.id, crtc->base.name,
 			    pipe_mode->crtc_clock, clock_limit,
-			    str_yes_no(crtc_state->double_wide));
+			    str_anal_anal(crtc_state->double_wide));
 		return -EINVAL;
 	}
 
@@ -2499,7 +2499,7 @@ intel_link_compute_m_n(u16 bits_per_pixel_x16, int nlanes,
 void intel_panel_sanitize_ssc(struct drm_i915_private *dev_priv)
 {
 	/*
-	 * There may be no VBT; and if the BIOS enabled SSC we can
+	 * There may be anal VBT; and if the BIOS enabled SSC we can
 	 * just keep using it to avoid unnecessary flicker.  Whereas if the
 	 * BIOS isn't using it, don't assume it will work even if the VBT
 	 * indicates as much.
@@ -2591,7 +2591,7 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 	u32 crtc_vdisplay, crtc_vtotal, crtc_vblank_start, crtc_vblank_end;
 	int vsyncshift = 0;
 
-	/* We need to be careful not to changed the adjusted mode, for otherwise
+	/* We need to be careful analt to changed the adjusted mode, for otherwise
 	 * the hw state checker will get angry at the mismatch. */
 	crtc_vdisplay = adjusted_mode->crtc_vdisplay;
 	crtc_vtotal = adjusted_mode->crtc_vtotal;
@@ -2613,7 +2613,7 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 	}
 
 	/*
-	 * VBLANK_START no longer works on ADL+, instead we must use
+	 * VBLANK_START anal longer works on ADL+, instead we must use
 	 * TRANS_SET_CONTEXT_LATENCY to configure the pipe vblank start.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 13) {
@@ -2621,7 +2621,7 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 			       crtc_vblank_start - crtc_vdisplay);
 
 		/*
-		 * VBLANK_START not used by hw, just clear it
+		 * VBLANK_START analt used by hw, just clear it
 		 * to make it stand out in register dumps.
 		 */
 		crtc_vblank_start = 1;
@@ -2678,7 +2678,7 @@ static void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc
 	drm_WARN_ON(&dev_priv->drm, adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
 
 	/*
-	 * The hardware actually ignores TRANS_VBLANK.VBLANK_END in DP mode.
+	 * The hardware actually iganalres TRANS_VBLANK.VBLANK_END in DP mode.
 	 * But let's write it anyway to keep the state checker happy.
 	 */
 	intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
@@ -2997,7 +2997,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	i9xx_get_pfit_config(pipe_config);
 
 	if (DISPLAY_VER(dev_priv) >= 4) {
-		/* No way to read it out on pipes B and C */
+		/* Anal way to read it out on pipes B and C */
 		if (IS_CHERRYVIEW(dev_priv) && crtc->pipe != PIPE_A)
 			tmp = dev_priv->display.state.chv_dpll_md[crtc->pipe];
 		else
@@ -3013,7 +3013,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 			((tmp & SDVO_MULTIPLIER_MASK)
 			 >> SDVO_MULTIPLIER_SHIFT_HIRES) + 1;
 	} else {
-		/* Note that on i915G/GM the pixel multiplier is in the sdvo
+		/* Analte that on i915G/GM the pixel multiplier is in the sdvo
 		 * port and will be fixed up in the encoder->get_config
 		 * function. */
 		pipe_config->pixel_multiplier = 1;
@@ -3040,7 +3040,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		i9xx_crtc_clock_get(crtc, pipe_config);
 
 	/*
-	 * Normally the dotclock is filled in by the encoder .get_config()
+	 * Analrmally the dotclock is filled in by the encoder .get_config()
 	 * but in case the pipe is enabled w/o any ports we need a sane
 	 * default.
 	 */
@@ -3219,7 +3219,7 @@ int bdw_get_pipe_misc_bpp(struct intel_crtc *crtc)
 	 * TODO:
 	 * For previous platforms with DSI interface, bits 5:7
 	 * are used for storing pipe_bpp irrespective of dithering.
-	 * Since the value of 12 BPC is not defined for these bits
+	 * Since the value of 12 BPC is analt defined for these bits
 	 * on older platforms, need to find a workaround for 12 BPC
 	 * MIPI DSI HW readout.
 	 */
@@ -3315,9 +3315,9 @@ static void ilk_get_pfit_config(struct intel_crtc_state *crtc_state)
 		      REG_FIELD_GET(PF_WIN_YSIZE_MASK, size));
 
 	/*
-	 * We currently do not free assignements of panel fitters on
+	 * We currently do analt free assignements of panel fitters on
 	 * ivb/hsw (since we don't use the higher upscaling modes which
-	 * differentiates them) so just WARN about this case for now.
+	 * differentiates them) so just WARN about this case for analw.
 	 */
 	drm_WARN_ON(&dev_priv->drm, pipe != crtc->pipe);
 }
@@ -3483,7 +3483,7 @@ static enum pipe get_bigjoiner_master_pipe(enum pipe pipe, u8 master_pipes, u8 s
 	if ((slave_pipes & BIT(pipe)) == 0)
 		return pipe;
 
-	/* ignore everything above our pipe */
+	/* iganalre everything above our pipe */
 	master_pipes &= ~GENMASK(7, pipe);
 
 	/* highest remaining bit should be our master pipe */
@@ -3499,7 +3499,7 @@ static u8 get_bigjoiner_slave_pipes(enum pipe pipe, u8 master_pipes, u8 slave_pi
 	if ((master_pipes & BIT(master_pipe)) == 0)
 		return 0;
 
-	/* ignore our master pipe and everything below it */
+	/* iganalre our master pipe and everything below it */
 	master_pipes &= ~GENMASK(master_pipe, 0);
 	/* make sure a high bit is set for the ffs() */
 	master_pipes |= BIT(7);
@@ -3549,20 +3549,20 @@ static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		default:
 			drm_WARN(dev, 1,
-				 "unknown pipe linked to transcoder %s\n",
+				 "unkanalwn pipe linked to transcoder %s\n",
 				 transcoder_name(cpu_transcoder));
 			fallthrough;
-		case TRANS_DDI_EDP_INPUT_A_ONOFF:
+		case TRANS_DDI_EDP_INPUT_A_OANALFF:
 		case TRANS_DDI_EDP_INPUT_A_ON:
 			trans_pipe = PIPE_A;
 			break;
-		case TRANS_DDI_EDP_INPUT_B_ONOFF:
+		case TRANS_DDI_EDP_INPUT_B_OANALFF:
 			trans_pipe = PIPE_B;
 			break;
-		case TRANS_DDI_EDP_INPUT_C_ONOFF:
+		case TRANS_DDI_EDP_INPUT_C_OANALFF:
 			trans_pipe = PIPE_C;
 			break;
-		case TRANS_DDI_EDP_INPUT_D_ONOFF:
+		case TRANS_DDI_EDP_INPUT_D_OANALFF:
 			trans_pipe = PIPE_D;
 			break;
 		}
@@ -3650,7 +3650,7 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	if (hsw_panel_transcoders(dev_priv) & BIT(pipe_config->cpu_transcoder)) {
 		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
 
-		if ((tmp & TRANS_DDI_EDP_INPUT_MASK) == TRANS_DDI_EDP_INPUT_A_ONOFF)
+		if ((tmp & TRANS_DDI_EDP_INPUT_MASK) == TRANS_DDI_EDP_INPUT_A_OANALFF)
 			pipe_config->pch_pfit.force_thru = true;
 	}
 
@@ -3682,7 +3682,7 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 		/*
 		 * The PLL needs to be enabled with a valid divider
 		 * configuration, otherwise accessing DSI registers will hang
-		 * the machine. See BSpec North Display Engine
+		 * the machine. See BSpec Analrth Display Engine
 		 * registers/MIPI[BXT]. We can break out here early, since we
 		 * need the same DSI PLL to be enabled for both DSI ports.
 		 */
@@ -3805,7 +3805,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 
 		pipe_config->framestart_delay = REG_FIELD_GET(HSW_FRAME_START_DELAY_MASK, tmp) + 1;
 	} else {
-		/* no idea if this is correct */
+		/* anal idea if this is correct */
 		pipe_config->framestart_delay = 1;
 	}
 
@@ -4213,7 +4213,7 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	ret = intel_compute_intermediate_wm(state, crtc);
 	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "No valid intermediate pipe watermarks are possible\n");
+			    "Anal valid intermediate pipe watermarks are possible\n");
 		return ret;
 	}
 
@@ -4399,7 +4399,7 @@ static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 }
 
 static void
-intel_crtc_copy_uapi_to_hw_state_nomodeset(struct intel_atomic_state *state,
+intel_crtc_copy_uapi_to_hw_state_analmodeset(struct intel_atomic_state *state,
 					   struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *crtc_state =
@@ -4432,11 +4432,11 @@ intel_crtc_copy_uapi_to_hw_state_modeset(struct intel_atomic_state *state,
 		      &crtc_state->uapi.adjusted_mode);
 	crtc_state->hw.scaling_filter = crtc_state->uapi.scaling_filter;
 
-	intel_crtc_copy_uapi_to_hw_state_nomodeset(state, crtc);
+	intel_crtc_copy_uapi_to_hw_state_analmodeset(state, crtc);
 }
 
 static void
-copy_bigjoiner_crtc_state_nomodeset(struct intel_atomic_state *state,
+copy_bigjoiner_crtc_state_analmodeset(struct intel_atomic_state *state,
 				    struct intel_crtc *slave_crtc)
 {
 	struct intel_crtc_state *slave_crtc_state =
@@ -4471,7 +4471,7 @@ copy_bigjoiner_crtc_state_modeset(struct intel_atomic_state *state,
 
 	saved_state = kmemdup(master_crtc_state, sizeof(*saved_state), GFP_KERNEL);
 	if (!saved_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* preserve some things from the slave's original crtc state */
 	saved_state->uapi = slave_crtc_state->uapi;
@@ -4495,7 +4495,7 @@ copy_bigjoiner_crtc_state_modeset(struct intel_atomic_state *state,
 		      &master_crtc_state->hw.adjusted_mode);
 	slave_crtc_state->hw.scaling_filter = master_crtc_state->hw.scaling_filter;
 
-	copy_bigjoiner_crtc_state_nomodeset(state, slave_crtc);
+	copy_bigjoiner_crtc_state_analmodeset(state, slave_crtc);
 
 	slave_crtc_state->uapi.mode_changed = master_crtc_state->uapi.mode_changed;
 	slave_crtc_state->uapi.connectors_changed = master_crtc_state->uapi.connectors_changed;
@@ -4518,15 +4518,15 @@ intel_crtc_prepare_cleared_state(struct intel_atomic_state *state,
 
 	saved_state = intel_crtc_state_alloc(crtc);
 	if (!saved_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* free the old crtc_state->hw members */
 	intel_crtc_free_hw_state(crtc_state);
 
 	/* FIXME: before the switch to atomic started, a new pipe_config was
 	 * kzalloc'd. Code that depends on any field being zero should be
-	 * fixed, so that the crtc_state can be safely duplicated. For now,
-	 * only fields that are know to not cause problems are preserved. */
+	 * fixed, so that the crtc_state can be safely duplicated. For analw,
+	 * only fields that are kanalw to analt cause problems are preserved. */
 
 	saved_state->uapi = crtc_state->uapi;
 	saved_state->inherited = crtc_state->inherited;
@@ -4596,7 +4596,7 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 	base_bpp = crtc_state->pipe_bpp;
 
 	/*
-	 * Determine the real pipe dimensions. Note that stereo modes can
+	 * Determine the real pipe dimensions. Analte that stereo modes can
 	 * increase the actual pipe size due to the frame doubling and
 	 * insertion of additional space for blanks between the frame. This
 	 * is stored in the crtc timings. We use the requested mode to do this
@@ -4664,7 +4664,7 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 		}
 	}
 
-	/* Set default port clock if not overwritten by the encoder. Needs to be
+	/* Set default port clock if analt overwritten by the encoder. Needs to be
 	 * done afterwards in case the encoder adjusts the mode. */
 	if (!crtc_state->port_clock)
 		crtc_state->port_clock = crtc_state->hw.adjusted_mode.crtc_clock
@@ -4679,8 +4679,8 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 		return ret;
 	}
 
-	/* Dithering seems to not pass-through bits correctly when it should, so
-	 * only enable it on 6bpc panels and when its not a compliance
+	/* Dithering seems to analt pass-through bits correctly when it should, so
+	 * only enable it on 6bpc panels and when its analt a compliance
 	 * test requesting 6bpc video pattern.
 	 */
 	crtc_state->dither = (crtc_state->pipe_bpp == 6*3) &&
@@ -4784,7 +4784,7 @@ pipe_config_infoframe_mismatch(struct drm_i915_private *dev_priv,
 			return;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "fastset requirement not met in %s infoframe\n", name);
+			    "fastset requirement analt met in %s infoframe\n", name);
 		drm_dbg_kms(&dev_priv->drm, "expected:\n");
 		hdmi_infoframe_log(KERN_DEBUG, dev_priv->drm.dev, a);
 		drm_dbg_kms(&dev_priv->drm, "found:\n");
@@ -4809,7 +4809,7 @@ pipe_config_dp_vsc_sdp_mismatch(struct drm_i915_private *dev_priv,
 			return;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "fastset requirement not met in %s dp sdp\n", name);
+			    "fastset requirement analt met in %s dp sdp\n", name);
 		drm_dbg_kms(&dev_priv->drm, "expected:\n");
 		drm_dp_vsc_sdp_log(KERN_DEBUG, dev_priv->drm.dev, a);
 		drm_dbg_kms(&dev_priv->drm, "found:\n");
@@ -4850,19 +4850,19 @@ pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
 		len = memcmp_diff_len(a, b, len);
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "fastset requirement not met in %s buffer\n", name);
-		print_hex_dump(KERN_DEBUG, "expected: ", DUMP_PREFIX_NONE,
+			    "fastset requirement analt met in %s buffer\n", name);
+		print_hex_dump(KERN_DEBUG, "expected: ", DUMP_PREFIX_ANALNE,
 			       16, 0, a, len, false);
-		print_hex_dump(KERN_DEBUG, "found: ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_DEBUG, "found: ", DUMP_PREFIX_ANALNE,
 			       16, 0, b, len, false);
 	} else {
 		/* only dump up to the last difference */
 		len = memcmp_diff_len(a, b, len);
 
 		drm_err(&dev_priv->drm, "mismatch in %s buffer\n", name);
-		print_hex_dump(KERN_ERR, "expected: ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_ERR, "expected: ", DUMP_PREFIX_ANALNE,
 			       16, 0, a, len, false);
-		print_hex_dump(KERN_ERR, "found: ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_ERR, "found: ", DUMP_PREFIX_ANALNE,
 			       16, 0, b, len, false);
 	}
 }
@@ -4881,7 +4881,7 @@ pipe_config_mismatch(bool fastset, const struct intel_crtc *crtc,
 
 	if (fastset)
 		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] fastset requirement not met in %s %pV\n",
+			    "[CRTC:%d:%s] fastset requirement analt met in %s %pV\n",
 			    crtc->base.base.id, crtc->base.name, name, &vaf);
 	else
 		drm_err(&i915->drm, "[CRTC:%d:%s] mismatch in %s %pV\n",
@@ -4917,7 +4917,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	if (fixup_inherited && !fastboot_enabled(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "initial modeset and fastboot not set\n");
+			    "initial modeset and fastboot analt set\n");
 		ret = false;
 	}
 
@@ -4960,11 +4960,11 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_BOOL(name) do { \
 	if (current_config->name != pipe_config->name) { \
 		BUILD_BUG_ON_MSG(!__same_type(current_config->name, bool), \
-				 __stringify(name) " is not bool");	\
+				 __stringify(name) " is analt bool");	\
 		pipe_config_mismatch(fastset, crtc,  __stringify(name), \
 				     "(expected %s, found %s)", \
-				     str_yes_no(current_config->name), \
-				     str_yes_no(pipe_config->name)); \
+				     str_anal_anal(current_config->name), \
+				     str_anal_anal(pipe_config->name)); \
 		ret = false; \
 	} \
 } while (0)
@@ -5169,7 +5169,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	/*
 	 * Changing the EDP transcoder input mux
-	 * (A_ONOFF vs. A_ON) requires a full modeset.
+	 * (A_OANALFF vs. A_ON) requires a full modeset.
 	 */
 	PIPE_CONF_CHECK_BOOL(pch_pfit.force_thru);
 
@@ -5473,8 +5473,8 @@ int intel_modeset_all_pipes_late(struct intel_atomic_state *state,
 }
 
 /*
- * This implements the workaround described in the "notes" section of the mode
- * set sequence documentation. When going from no pipes or single pipe to
+ * This implements the workaround described in the "analtes" section of the mode
+ * set sequence documentation. When going from anal pipes or single pipe to
  * multiple pipes, and planes are enabled after the pipe, we need to wait at
  * least 2 vblanks on the first pipe before enabling planes on the second pipe.
  */
@@ -5502,7 +5502,7 @@ static int hsw_mode_set_planes_workaround(struct intel_atomic_state *state)
 		}
 	}
 
-	/* No workaround needed? */
+	/* Anal workaround needed? */
 	if (!first_crtc_state)
 		return 0;
 
@@ -5518,7 +5518,7 @@ static int hsw_mode_set_planes_workaround(struct intel_atomic_state *state)
 		    intel_crtc_needs_modeset(crtc_state))
 			continue;
 
-		/* 2 or more enabled crtcs means no need for w/a */
+		/* 2 or more enabled crtcs means anal need for w/a */
 		if (enabled_pipe != INVALID_PIPE)
 			return 0;
 
@@ -5572,7 +5572,7 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 		new_crtc_state->update_lrr = false;
 
 	if (!intel_pipe_config_compare(old_crtc_state, new_crtc_state, true))
-		drm_dbg_kms(&i915->drm, "fastset requirement not met, forcing full modeset\n");
+		drm_dbg_kms(&i915->drm, "fastset requirement analt met, forcing full modeset\n");
 	else
 		new_crtc_state->uapi.mode_changed = false;
 
@@ -5806,7 +5806,7 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 
 	if (master_crtc_state->bigjoiner_pipes & ~bigjoiner_pipes(i915)) {
 		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] Cannot act as big joiner master "
+			    "[CRTC:%d:%s] Cananalt act as big joiner master "
 			    "(need 0x%x as pipes, only 0x%x possible)\n",
 			    master_crtc->base.base.id, master_crtc->base.name,
 			    master_crtc_state->bigjoiner_pipes, bigjoiner_pipes(i915));
@@ -5825,7 +5825,7 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 		/* master being enabled, slave was already configured? */
 		if (slave_crtc_state->uapi.enable) {
 			drm_dbg_kms(&i915->drm,
-				    "[CRTC:%d:%s] Slave is enabled as normal CRTC, but "
+				    "[CRTC:%d:%s] Slave is enabled as analrmal CRTC, but "
 				    "[CRTC:%d:%s] claiming this CRTC for bigjoiner.\n",
 				    slave_crtc->base.base.id, slave_crtc->base.name,
 				    master_crtc->base.base.id, master_crtc->base.name);
@@ -5881,9 +5881,9 @@ static void kill_bigjoiner_slave(struct intel_atomic_state *state,
 }
 
 /**
- * DOC: asynchronous flip implementation
+ * DOC: asynchroanalus flip implementation
  *
- * Asynchronous page flip is the implementation for the DRM_MODE_PAGE_FLIP_ASYNC
+ * Asynchroanalus page flip is the implementation for the DRM_MODE_PAGE_FLIP_ASYNC
  * flag. Currently async flip is only supported via the drmModePageFlip IOCTL.
  * Correspondingly, support is currently added for primary plane only.
  *
@@ -5895,7 +5895,7 @@ static void kill_bigjoiner_slave(struct intel_atomic_state *state,
  * As soon as the surface address register is written, flip done interrupt is
  * generated and the requested events are sent to the usersapce in the interrupt
  * handler itself. The timestamp and sequence sent during the flip done event
- * correspond to the last vblank and have no relation to the actual time when
+ * correspond to the last vblank and have anal relation to the actual time when
  * the flip done event was sent.
  */
 static int intel_async_flip_check_uapi(struct intel_atomic_state *state,
@@ -5914,7 +5914,7 @@ static int intel_async_flip_check_uapi(struct intel_atomic_state *state,
 
 	if (!new_crtc_state->uapi.active) {
 		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] not active\n",
+			    "[CRTC:%d:%s] analt active\n",
 			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
@@ -5944,21 +5944,21 @@ static int intel_async_flip_check_uapi(struct intel_atomic_state *state,
 
 		/*
 		 * TODO: Async flip is only supported through the page flip IOCTL
-		 * as of now. So support currently added for primary plane only.
+		 * as of analw. So support currently added for primary plane only.
 		 * Support for other planes on platforms on which supports
 		 * this(vlv/chv and icl+) should be added when async flip is
 		 * enabled in the atomic IOCTL path.
 		 */
 		if (!plane->async_flip) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] async flip not supported\n",
+				    "[PLANE:%d:%s] async flip analt supported\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (!old_plane_state->uapi.fb || !new_plane_state->uapi.fb) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] no old or new framebuffer\n",
+				    "[PLANE:%d:%s] anal old or new framebuffer\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
@@ -5983,7 +5983,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 
 	if (!new_crtc_state->hw.active) {
 		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] not active\n",
+			    "[CRTC:%d:%s] analt active\n",
 			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
@@ -5997,7 +5997,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 
 	if (old_crtc_state->active_planes != new_crtc_state->active_planes) {
 		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] Active planes cannot be in async flip\n",
+			    "[CRTC:%d:%s] Active planes cananalt be in async flip\n",
 			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
@@ -6042,7 +6042,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 			 */
 			if (DISPLAY_VER(i915) < 12) {
 				drm_dbg_kms(&i915->drm,
-					    "[PLANE:%d:%s] Modifier 0x%llx does not support async flip on display ver %d\n",
+					    "[PLANE:%d:%s] Modifier 0x%llx does analt support async flip on display ver %d\n",
 					    plane->base.base.id, plane->base.name,
 					    new_plane_state->hw.fb->modifier, DISPLAY_VER(i915));
 				return -EINVAL;
@@ -6056,7 +6056,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 			break;
 		default:
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Modifier 0x%llx does not support async flip\n",
+				    "[PLANE:%d:%s] Modifier 0x%llx does analt support async flip\n",
 				    plane->base.base.id, plane->base.name,
 				    new_plane_state->hw.fb->modifier);
 			return -EINVAL;
@@ -6064,7 +6064,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 
 		if (new_plane_state->hw.fb->format->num_planes > 1) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Planar formats do not support async flips\n",
+				    "[PLANE:%d:%s] Planar formats do analt support async flips\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
@@ -6072,7 +6072,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		if (old_plane_state->view.color_plane[0].mapping_stride !=
 		    new_plane_state->view.color_plane[0].mapping_stride) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Stride cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Stride cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
@@ -6080,7 +6080,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		if (old_plane_state->hw.fb->modifier !=
 		    new_plane_state->hw.fb->modifier) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Modifier cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Modifier cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
@@ -6088,7 +6088,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		if (old_plane_state->hw.fb->format !=
 		    new_plane_state->hw.fb->format) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Pixel format cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Pixel format cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
@@ -6096,7 +6096,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		if (old_plane_state->hw.rotation !=
 		    new_plane_state->hw.rotation) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Rotation cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Rotation cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
@@ -6104,14 +6104,14 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		if (!drm_rect_equals(&old_plane_state->uapi.src, &new_plane_state->uapi.src) ||
 		    !drm_rect_equals(&old_plane_state->uapi.dst, &new_plane_state->uapi.dst)) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Size/co-ordinates cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Size/co-ordinates cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.alpha != new_plane_state->hw.alpha) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANES:%d:%s] Alpha value cannot be changed in async flip\n",
+				    "[PLANES:%d:%s] Alpha value cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
@@ -6119,29 +6119,29 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		if (old_plane_state->hw.pixel_blend_mode !=
 		    new_plane_state->hw.pixel_blend_mode) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Pixel blend mode cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Pixel blend mode cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.color_encoding != new_plane_state->hw.color_encoding) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Color encoding cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Color encoding cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.color_range != new_plane_state->hw.color_range) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Color range cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Color range cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
-		/* plane decryption is allow to change only in synchronous flips */
+		/* plane decryption is allow to change only in synchroanalus flips */
 		if (old_plane_state->decrypt != new_plane_state->decrypt) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] Decryption cannot be changed in async flip\n",
+				    "[PLANE:%d:%s] Decryption cananalt be changed in async flip\n",
 				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
@@ -6220,9 +6220,9 @@ static int intel_atomic_check_config(struct intel_atomic_state *state,
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (!intel_crtc_needs_modeset(new_crtc_state)) {
 			if (intel_crtc_is_bigjoiner_slave(new_crtc_state))
-				copy_bigjoiner_crtc_state_nomodeset(state, crtc);
+				copy_bigjoiner_crtc_state_analmodeset(state, crtc);
 			else
-				intel_crtc_copy_uapi_to_hw_state_nomodeset(state, crtc);
+				intel_crtc_copy_uapi_to_hw_state_analmodeset(state, crtc);
 			continue;
 		}
 
@@ -6310,7 +6310,7 @@ int intel_atomic_check(struct drm_device *dev,
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		/*
-		 * crtc's state no longer considered to be inherited
+		 * crtc's state anal longer considered to be inherited
 		 * after the first userspace/client initiated commit.
 		 */
 		if (!state->internal)
@@ -6358,8 +6358,8 @@ int intel_atomic_check(struct drm_device *dev,
 	 * Check if fastset is allowed by external dependencies like other
 	 * pipes and transcoders.
 	 *
-	 * Right now it only forces a fullmodeset when the MST master
-	 * transcoder did not changed but the pipe of the master transcoder
+	 * Right analw it only forces a fullmodeset when the MST master
+	 * transcoder did analt changed but the pipe of the master transcoder
 	 * needs a fullmodeset so all slaves also needs to do a fullmodeset or
 	 * in case of port synced crtcs, if one of the synced crtcs
 	 * needs a full modeset, all other synced crtcs should be
@@ -6482,7 +6482,7 @@ int intel_atomic_check(struct drm_device *dev,
 		return ret;
 
 	/*
-	 * FIXME would probably be nice to know which crtc specifically
+	 * FIXME would probably be nice to kanalw which crtc specifically
 	 * caused the failure, in cases where we can pinpoint it.
 	 */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
@@ -6534,7 +6534,7 @@ static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
 
 	/*
 	 * Update pipe size and adjust fitter if needed: the reason for this is
-	 * that in compute_mode_changes we check the native mode (not the pfit
+	 * that in compute_mode_changes we check the native mode (analt the pfit
 	 * mode) to see if we can flip rather than do a full mode set. In the
 	 * fastboot case, we'll flip, but if we don't update the pipesrc and
 	 * pfit state, we'll end up with a big fb scanned out into the wrong
@@ -6555,11 +6555,11 @@ static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
 
 	/*
 	 * The register is supposedly single buffered so perhaps
-	 * not 100% correct to do this here. But SKL+ calculate
+	 * analt 100% correct to do this here. But SKL+ calculate
 	 * this based on the adjust pixel rate so pfit changes do
 	 * affect it and so it must be updated for fastsets.
 	 * HSW/BDW only really need this here for fastboot, after
-	 * that the value should not change without a full modeset.
+	 * that the value should analt change without a full modeset.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 9 ||
 	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
@@ -6687,9 +6687,9 @@ static void intel_pre_update_crtc(struct intel_atomic_state *state,
 
 	if (!modeset &&
 	    intel_crtc_needs_color_update(new_crtc_state))
-		intel_color_commit_noarm(new_crtc_state);
+		intel_color_commit_analarm(new_crtc_state);
 
-	intel_crtc_planes_update_noarm(state, crtc);
+	intel_crtc_planes_update_analarm(state, crtc);
 }
 
 static void intel_update_crtc(struct intel_atomic_state *state,
@@ -6849,7 +6849,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		if (!new_crtc_state->hw.active)
 			continue;
 
-		/* ignore allocations for crtc's that have been turned off. */
+		/* iganalre allocations for crtc's that have been turned off. */
 		if (!intel_crtc_needs_modeset(new_crtc_state)) {
 			entries[pipe] = old_crtc_state->wm.skl.ddb;
 			update_pipes |= BIT(pipe);
@@ -6864,7 +6864,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	 * never overlap with each other between CRTC updates. Otherwise we'll
 	 * cause pipe underruns and other bad stuff.
 	 *
-	 * So first lets enable all pipes that do not need a fullmodeset as
+	 * So first lets enable all pipes that do analt need a fullmodeset as
 	 * those don't have any external dependency.
 	 */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -6909,7 +6909,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	update_pipes = modeset_pipes;
 
 	/*
-	 * Enable all pipes that needs a modeset and do not depends on other
+	 * Enable all pipes that needs a modeset and do analt depends on other
 	 * pipes
 	 */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -7072,15 +7072,15 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	/*
 	 * During full modesets we write a lot of registers, wait
 	 * for PLLs, etc. Doing that while DC states are enabled
-	 * is not a good idea.
+	 * is analt a good idea.
 	 *
 	 * During fastsets and other updates we also need to
 	 * disable DC states due to the following scenario:
 	 * 1. DC5 exit and PSR exit happen
-	 * 2. Some or all _noarm() registers are written
+	 * 2. Some or all _analarm() registers are written
 	 * 3. Due to some long delay PSR is re-entered
 	 * 4. DC5 entry -> DMC saves the already written new
-	 *    _noarm() registers and the old not yet written
+	 *    _analarm() registers and the old analt yet written
 	 *    _arm() registers
 	 * 5. DC5 exit -> DMC restores a mixture of old and
 	 *    new register values and arms the update
@@ -7090,11 +7090,11 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	 * 8. Hardware finally latches a complete set of new
 	 *    register values, and subsequent frames will be OK again
 	 *
-	 * Also note that due to the pipe CSC hardware issues on
+	 * Also analte that due to the pipe CSC hardware issues on
 	 * SKL/GLK DC states must remain off until the pipe CSC
 	 * state readout has happened. Otherwise we risk corrupting
 	 * the CSC latched register values with the readout (see
-	 * skl_read_csc() and skl_color_commit_noarm()).
+	 * skl_read_csc() and skl_color_commit_analarm()).
 	 */
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DC_OFF);
 
@@ -7131,11 +7131,11 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	intel_sagv_pre_plane_update(state);
 
-	/* Complete the events for pipes that have now been disabled */
+	/* Complete the events for pipes that have analw been disabled */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		bool modeset = intel_crtc_needs_modeset(new_crtc_state);
 
-		/* Complete events for now disable pipes here. */
+		/* Complete events for analw disable pipes here. */
 		if (modeset && !new_crtc_state->hw.active && new_crtc_state->uapi.event) {
 			spin_lock_irq(&dev->event_lock);
 			drm_crtc_send_vblank_event(&crtc->base,
@@ -7156,7 +7156,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 			intel_crtc_enable_flip_done(state, crtc);
 	}
 
-	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
+	/* Analw enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display.funcs.display->commit_modeset_enables(state);
 
 	if (state->modeset)
@@ -7183,7 +7183,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	}
 
 	/*
-	 * Now that the vblank has passed, we can go ahead and program the
+	 * Analw that the vblank has passed, we can go ahead and program the
 	 * optimal watermarks on platforms that need two-step watermark
 	 * programming.
 	 *
@@ -7262,9 +7262,9 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
 
 	/*
-	 * Defer the cleanup of the old state to a separate worker to not
+	 * Defer the cleanup of the old state to a separate worker to analt
 	 * impede the current task (userspace for blocking modesets) that
-	 * are executed inline. For out-of-line asynchronous modesets/flips,
+	 * are executed inline. For out-of-line asynchroanalus modesets/flips,
 	 * deferring to a new worker seems overkill, but we would place a
 	 * schedule point (cond_resched()) here anyway to keep latencies
 	 * down.
@@ -7295,7 +7295,7 @@ static void intel_atomic_track_fbs(struct intel_atomic_state *state)
 }
 
 int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
-			bool nonblock)
+			bool analnblock)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -7313,7 +7313,7 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 	 *
 	 * Unset state->legacy_cursor_update before the call to
 	 * drm_atomic_helper_setup_commit() because otherwise
-	 * drm_atomic_helper_wait_for_flip_done() is a noop and
+	 * drm_atomic_helper_wait_for_flip_done() is a analop and
 	 * we get FIFO underruns because we didn't wait
 	 * for vblank.
 	 *
@@ -7339,7 +7339,7 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 		return ret;
 	}
 
-	ret = drm_atomic_helper_setup_commit(&state->base, nonblock);
+	ret = drm_atomic_helper_setup_commit(&state->base, analnblock);
 	if (!ret)
 		ret = drm_atomic_helper_swap_state(&state->base, true);
 	if (!ret)
@@ -7363,9 +7363,9 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 	drm_atomic_state_get(&state->base);
 	INIT_WORK(&state->base.commit_work, intel_atomic_commit_work);
 
-	if (nonblock && state->modeset) {
+	if (analnblock && state->modeset) {
 		queue_work(dev_priv->display.wq.modeset, &state->base.commit_work);
-	} else if (nonblock) {
+	} else if (analnblock) {
 		queue_work(dev_priv->display.wq.flip, &state->base.commit_work);
 	} else {
 		if (state->modeset)
@@ -7398,7 +7398,7 @@ int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
 
 	drmmode_crtc = drm_crtc_find(dev, file, pipe_from_crtc_id->crtc_id);
 	if (!drmmode_crtc)
-		return -ENOENT;
+		return -EANALENT;
 
 	crtc = to_intel_crtc(drmmode_crtc);
 	pipe_from_crtc_id->pipe = crtc->pipe;
@@ -7471,7 +7471,7 @@ static bool intel_ddi_crt_present(struct drm_i915_private *dev_priv)
 bool assert_port_valid(struct drm_i915_private *i915, enum port port)
 {
 	return !drm_WARN(&i915->drm, !(DISPLAY_RUNTIME_INFO(i915)->port_mask & BIT(port)),
-			 "Platform does not support port %c\n", port_name(port));
+			 "Platform does analt support port %c\n", port_name(port));
 }
 
 void intel_setup_outputs(struct drm_i915_private *dev_priv)
@@ -7537,7 +7537,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		/*
 		 * The DP_DETECTED bit is the latched state of the DDC
 		 * SDA pin at boot. However since eDP doesn't require DDC
-		 * (no way to plug in a DP->HDMI dongle) the DDC pins for
+		 * (anal way to plug in a DP->HDMI dongle) the DDC pins for
 		 * eDP ports may have been muxed to an alternate function.
 		 * Thus we can't rely on the DP_DETECTED bit alone to detect
 		 * eDP ports. Consult the VBT as well as DP_DETECTED to
@@ -7565,8 +7565,8 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 		if (IS_CHERRYVIEW(dev_priv)) {
 			/*
-			 * eDP not supported on port D,
-			 * so no need to worry about it
+			 * eDP analt supported on port D,
+			 * so anal need to worry about it
 			 */
 			has_port = intel_bios_is_port_present(dev_priv, PORT_D);
 			if (intel_de_read(dev_priv, CHV_DP_D) & DP_DETECTED || has_port)
@@ -7667,7 +7667,7 @@ enum drm_mode_status intel_mode_valid(struct drm_device *dev,
 	 * the scaling mode property on the connector. And they don't
 	 * ask the kernel to validate those modes in any way until
 	 * modeset time at which point the client gets a protocol error.
-	 * So in order to not upset those clients we silently ignore the
+	 * So in order to analt upset those clients we silently iganalre the
 	 * DBLSCAN flag on such connectors. For other connectors we will
 	 * reject modes with the DBLSCAN flag in encoder->compute_config().
 	 * And we always reject DBLSCAN modes in connector->mode_valid()
@@ -7675,7 +7675,7 @@ enum drm_mode_status intel_mode_valid(struct drm_device *dev,
 	 */
 
 	if (mode->vscan > 1)
-		return MODE_NO_VSCAN;
+		return MODE_ANAL_VSCAN;
 
 	if (mode->flags & DRM_MODE_FLAG_HSKEW)
 		return MODE_H_ILLEGAL;
@@ -7759,7 +7759,7 @@ enum drm_mode_status intel_cpu_transcoder_mode_valid(struct drm_i915_private *de
 	}
 
 	/*
-	 * Cantiga+ cannot handle modes with a hsync front porch of 0.
+	 * Cantiga+ cananalt handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
 	 */
 	if ((DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv)) &&
@@ -7785,7 +7785,7 @@ intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 
 	/*
 	 * Most people will probably want a fullscreen
-	 * plane so let's not advertize modes that are
+	 * plane so let's analt advertize modes that are
 	 * too big for that.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 11) {
@@ -7874,7 +7874,7 @@ int intel_initial_commit(struct drm_device *dev)
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -8061,7 +8061,7 @@ void intel_hpd_poll_fini(struct drm_i915_private *i915)
 	drm_connector_list_iter_end(&conn_iter);
 }
 
-bool intel_scanout_needs_vtd_wa(struct drm_i915_private *i915)
+bool intel_scaanalut_needs_vtd_wa(struct drm_i915_private *i915)
 {
 	return DISPLAY_VER(i915) >= 6 && i915_vtd_active(i915);
 }

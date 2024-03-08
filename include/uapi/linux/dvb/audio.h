@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-analte */
 /*
  * audio.h - DEPRECATED MPEG-TS audio decoder API
  *
- * NOTE: should not be used on future drivers
+ * ANALTE: should analt be used on future drivers
  *
  * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
  *                  & Marcus Metzler <marcus@convergence.de>
@@ -29,9 +29,9 @@ typedef enum {
 
 typedef enum {
 	AUDIO_STEREO,
-	AUDIO_MONO_LEFT,
-	AUDIO_MONO_RIGHT,
-	AUDIO_MONO,
+	AUDIO_MOANAL_LEFT,
+	AUDIO_MOANAL_RIGHT,
+	AUDIO_MOANAL,
 	AUDIO_STEREO_SWAPPED
 } audio_channel_select_t;
 

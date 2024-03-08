@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 1995-2009 Russell King
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/random.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
@@ -44,7 +44,7 @@ static int preserve_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
 	} else {
 		/*
 		 * For bug-compatibility with older kernels, some space
-		 * has to be reserved for iWMMXt even if it's not used.
+		 * has to be reserved for iWMMXt even if it's analt used.
 		 * Set the magic and size appropriately so that properly
 		 * written userspace can skip it reliably:
 		 */
@@ -72,10 +72,10 @@ static int restore_iwmmxt_context(char __user **auxp)
 		return -1;
 
 	/*
-	 * For non-iWMMXt threads: a single iwmmxt_sigframe-sized dummy
+	 * For analn-iWMMXt threads: a single iwmmxt_sigframe-sized dummy
 	 * block is discarded for compatibility with setup_sigframe() if
 	 * present, but we don't mandate its presence.  If some other
-	 * magic is here, it's not for us:
+	 * magic is here, it's analt for us:
 	 */
 	if (!test_thread_flag(TIF_USING_IWMMXT) &&
 	    kframe->magic != DUMMY_MAGIC)
@@ -189,12 +189,12 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 	struct sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * analt, then the user is trying to mess with us.
 	 */
 	if (regs->ARM_sp & 7)
 		goto badframe;
@@ -219,12 +219,12 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	struct rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * analt, then the user is trying to mess with us.
 	 */
 	if (regs->ARM_sp & 7)
 		goto badframe;
@@ -273,7 +273,7 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 		.arm_pc        = regs->ARM_pc,
 		.arm_cpsr      = regs->ARM_cpsr,
 
-		.trap_no       = current->thread.trap_no,
+		.trap_anal       = current->thread.trap_anal,
 		.error_code    = current->thread.error_code,
 		.fault_address = current->thread.address,
 		.oldmask       = set->sig[0],
@@ -399,7 +399,7 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 			idx += 3;
 
 		/*
-		 * Put the sigreturn code on the stack no matter which return
+		 * Put the sigreturn code on the stack anal matter which return
 		 * mechanism we use in order to remain ABI compliant
 		 */
 		if (__put_user(sigreturn_codes[idx],   rc) ||
@@ -453,7 +453,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 		return 1;
 
 	/*
-	 * Set uc.uc_flags to a value which sc.trap_no would never have.
+	 * Set uc.uc_flags to a value which sc.trap_anal would never have.
 	 */
 	err = __put_user(0x5ac3c35a, &frame->uc.uc_flags);
 
@@ -526,11 +526,11 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 }
 
 /*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  *
- * Note that we go through the signals twice: once to check the signals that
+ * Analte that we go through the signals twice: once to check the signals that
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
@@ -556,9 +556,9 @@ static int do_signal(struct pt_regs *regs, int syscall)
 		case -ERESTART_RESTARTBLOCK:
 			restart -= 2;
 			fallthrough;
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			restart++;
 			regs->ARM_r0 = regs->ARM_ORIG_r0;
 			regs->ARM_pc = restart_addr;
@@ -578,7 +578,7 @@ static int do_signal(struct pt_regs *regs, int syscall)
 	if (get_signal(&ksig)) {
 		/* handler */
 		if (unlikely(restart) && regs->ARM_pc == restart_addr) {
-			if (retval == -ERESTARTNOHAND ||
+			if (retval == -ERESTARTANALHAND ||
 			    retval == -ERESTART_RESTARTBLOCK
 			    || (retval == -ERESTARTSYS
 				&& !(ksig.ka.sa.sa_flags & SA_RESTART))) {
@@ -588,7 +588,7 @@ static int do_signal(struct pt_regs *regs, int syscall)
 		}
 		handle_signal(&ksig, regs);
 	} else {
-		/* no handler */
+		/* anal handler */
 		restore_saved_sigmask();
 		if (unlikely(restart) && regs->ARM_pc == restart_addr) {
 			regs->ARM_pc = continue_addr;
@@ -614,7 +614,7 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 			if (unlikely(!user_mode(regs)))
 				return 0;
 			local_irq_enable();
-			if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL)) {
+			if (thread_flags & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL)) {
 				int restart = do_signal(regs, syscall);
 				if (unlikely(restart)) {
 					/*
@@ -626,7 +626,7 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 				}
 				syscall = 0;
 			} else if (thread_flags & _TIF_UPROBE) {
-				uprobe_notify_resume(regs);
+				uprobe_analtify_resume(regs);
 			} else {
 				resume_user_mode_work(regs);
 			}
@@ -688,9 +688,9 @@ static_assert(NSIGTRAP	== 6);
 static_assert(NSIGCHLD	== 6);
 static_assert(NSIGSYS	== 2);
 static_assert(sizeof(siginfo_t) == 128);
-static_assert(__alignof__(siginfo_t) == 4);
-static_assert(offsetof(siginfo_t, si_signo)	== 0x00);
-static_assert(offsetof(siginfo_t, si_errno)	== 0x04);
+static_assert(__aliganalf__(siginfo_t) == 4);
+static_assert(offsetof(siginfo_t, si_siganal)	== 0x00);
+static_assert(offsetof(siginfo_t, si_erranal)	== 0x04);
 static_assert(offsetof(siginfo_t, si_code)	== 0x08);
 static_assert(offsetof(siginfo_t, si_pid)	== 0x0c);
 static_assert(offsetof(siginfo_t, si_uid)	== 0x10);

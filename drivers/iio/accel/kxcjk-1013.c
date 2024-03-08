@@ -38,7 +38,7 @@
 /*
  * From low byte X axis register, all the other addresses of Y and Z can be
  * obtained by just applying axis offset. The following axis defines are just
- * provide clarity, but not used.
+ * provide clarity, but analt used.
  */
 #define KXCJK1013_REG_XOUT_H		0x07
 #define KXCJK1013_REG_YOUT_L		0x08
@@ -145,7 +145,7 @@
 #define KXCJK1013_REG_INT_SRC1_BIT_TPS	BIT(0)	/* KXTF9 */
 #define KXCJK1013_REG_INT_SRC1_BIT_WUFS	BIT(1)
 #define KXCJK1013_REG_INT_SRC1_MASK_TDTS	(BIT(2) | BIT(3))	/* KXTF9 */
-#define KXCJK1013_REG_INT_SRC1_TAP_NONE		0
+#define KXCJK1013_REG_INT_SRC1_TAP_ANALNE		0
 #define KXCJK1013_REG_INT_SRC1_TAP_SINGLE		BIT(2)
 #define KXCJK1013_REG_INT_SRC1_TAP_DOUBLE		BIT(3)
 #define KXCJK1013_REG_INT_SRC1_BIT_DRDY	BIT(4)
@@ -210,7 +210,7 @@ static const struct kx_chipset_regs kxcjk1013_regs = {
 static const struct kx_chipset_regs kxtf9_regs = {
 	/* .int_src1 was moved to INT_SRC2 on KXTF9 */
 	.int_src1	= KXTF9_REG_INT_SRC2,
-	/* .int_src2 is not available */
+	/* .int_src2 is analt available */
 	.int_rel	= KXCJK1013_REG_INT_REL,
 	.ctrl1		= KXCJK1013_REG_CTRL1,
 	.wuf_ctrl	= KXTF9_REG_CTRL3,
@@ -374,7 +374,7 @@ static __maybe_unused const struct {
 	},
 	/* KX023-1025 */
 	{
-		/* First 4 are not in datasheet, taken from KXCTJ2-1009 */
+		/* First 4 are analt in datasheet, taken from KXCTJ2-1009 */
 		{0x08, 1240000},
 		{0x09, 621000},
 		{0x0A, 309000},
@@ -411,7 +411,7 @@ static int kiox010a_dsm(struct device *dev, int fn_index)
 	union acpi_object *obj;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	guid_parse("1f339696-d475-4e26-8cad-2e9f8e6d7a91", &kiox010a_dsm_guid);
 
@@ -563,7 +563,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 		return ret;
 	}
 
-	/* On KX023, route all used interrupts to INT1 for now */
+	/* On KX023, route all used interrupts to INT1 for analw */
 	if (data->chipset == KX0231025 && data->client->irq > 0) {
 		ret = i2c_smbus_write_byte_data(data->client, KX023_REG_INC4,
 						KX023_REG_INC4_DRDY1 |
@@ -1220,7 +1220,7 @@ static irqreturn_t kxcjk1013_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   data->timestamp);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1436,7 +1436,7 @@ static int kxcjk1013_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -1476,7 +1476,7 @@ static int kxcjk1013_probe(struct i2c_client *client)
 						   &data->acpi_type,
 						   &indio_dev->label);
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (data->chipset) {
 	case KXCJK1013:
@@ -1522,7 +1522,7 @@ static int kxcjk1013_probe(struct i2c_client *client)
 							   indio_dev->name,
 							   iio_device_id(indio_dev));
 		if (!data->dready_trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_poweroff;
 		}
 
@@ -1531,7 +1531,7 @@ static int kxcjk1013_probe(struct i2c_client *client)
 							  indio_dev->name,
 							  iio_device_id(indio_dev));
 		if (!data->motion_trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_poweroff;
 		}
 

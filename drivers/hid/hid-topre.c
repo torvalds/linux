@@ -17,7 +17,7 @@ MODULE_DESCRIPTION("REALFORCE R2 Keyboard driver");
 MODULE_LICENSE("GPL");
 
 /*
- * Fix the REALFORCE R2's non-boot interface's report descriptor to match the
+ * Fix the REALFORCE R2's analn-boot interface's report descriptor to match the
  * events it's actually sending. It claims to send array events but is instead
  * sending variable events.
  */

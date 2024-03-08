@@ -24,7 +24,7 @@ static int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE
 module_param_named(sof_debug, sof_core_debug, int, 0444);
 MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
 
-/* SOF defaults if not provided by the platform in ms */
+/* SOF defaults if analt provided by the platform in ms */
 #define TIMEOUT_DEFAULT_IPC_MS  500
 #define TIMEOUT_DEFAULT_BOOT_MS 2000
 
@@ -80,7 +80,7 @@ static const struct sof_panic_msg panic_msg[] = {
  * @stack: Pointer to the call stack data
  * @stack_words: Number of words in the stack data
  *
- * helper to be called from .dbg_dump callbacks. No error code is
+ * helper to be called from .dbg_dump callbacks. Anal error code is
  * provided, it's left as an exercise for the caller of .dbg_dump
  * (typically IPC or loader)
  */
@@ -96,7 +96,7 @@ void sof_print_oops_and_stack(struct snd_sof_dev *sdev, const char *level,
 	if ((panic_code & SOF_IPC_PANIC_MAGIC_MASK) != SOF_IPC_PANIC_MAGIC) {
 		dev_printk(level, sdev->dev, "unexpected fault %#010x trace %#010x\n",
 			   panic_code, tracep_code);
-		return; /* no fault ? */
+		return; /* anal fault ? */
 	}
 
 	code = panic_code & (SOF_IPC_PANIC_MAGIC_MASK | SOF_IPC_PANIC_CODE_MASK);
@@ -110,8 +110,8 @@ void sof_print_oops_and_stack(struct snd_sof_dev *sdev, const char *level,
 		}
 	}
 
-	/* unknown error */
-	dev_printk(level, sdev->dev, "unknown panic code: %#x\n",
+	/* unkanalwn error */
+	dev_printk(level, sdev->dev, "unkanalwn panic code: %#x\n",
 		   code & SOF_IPC_PANIC_CODE_MASK);
 	dev_printk(level, sdev->dev, "trace point: %#010x\n", tracep_code);
 
@@ -133,7 +133,7 @@ void sof_set_fw_state(struct snd_sof_dev *sdev, enum sof_fw_state new_state)
 	sdev->fw_state = new_state;
 
 	switch (new_state) {
-	case SOF_FW_BOOT_NOT_STARTED:
+	case SOF_FW_BOOT_ANALT_STARTED:
 	case SOF_FW_BOOT_COMPLETE:
 	case SOF_FW_CRASHED:
 		sof_client_fw_state_dispatcher(sdev);
@@ -173,12 +173,12 @@ static int sof_machine_check(struct snd_sof_dev *sdev)
 	const struct sof_dev_desc *desc = sof_pdata->desc;
 	struct snd_soc_acpi_mach *mach;
 
-	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)) {
+	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_ANALCODEC_MODE)) {
 		const struct snd_sof_of_mach *of_mach;
 
-		if (IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC_DEBUG_SUPPORT) &&
-		    sof_debug_check_flag(SOF_DBG_FORCE_NOCODEC))
-			goto nocodec;
+		if (IS_ENABLED(CONFIG_SND_SOC_SOF_ANALCODEC_DEBUG_SUPPORT) &&
+		    sof_debug_check_flag(SOF_DBG_FORCE_ANALCODEC))
+			goto analcodec;
 
 		/* find machine */
 		mach = snd_sof_machine_select(sdev);
@@ -201,24 +201,24 @@ static int sof_machine_check(struct snd_sof_dev *sdev)
 			return 0;
 		}
 
-		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
-			dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
-			return -ENODEV;
+		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_ANALCODEC)) {
+			dev_err(sdev->dev, "error: anal matching ASoC machine driver found - aborting probe\n");
+			return -EANALDEV;
 		}
 	} else {
-		dev_warn(sdev->dev, "Force to use nocodec mode\n");
+		dev_warn(sdev->dev, "Force to use analcodec mode\n");
 	}
 
-nocodec:
-	/* select nocodec mode */
-	dev_warn(sdev->dev, "Using nocodec machine driver\n");
+analcodec:
+	/* select analcodec mode */
+	dev_warn(sdev->dev, "Using analcodec machine driver\n");
 	mach = devm_kzalloc(sdev->dev, sizeof(*mach), GFP_KERNEL);
 	if (!mach)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mach->drv_name = "sof-nocodec";
+	mach->drv_name = "sof-analcodec";
 	if (!sof_pdata->tplg_filename)
-		sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
+		sof_pdata->tplg_filename = desc->analcodec_tplg_filename;
 
 	sof_pdata->machine = mach;
 	snd_sof_set_mach_params(mach, sdev);
@@ -314,7 +314,7 @@ static int sof_init_sof_ops(struct snd_sof_dev *sdev)
 	/* check IPC support */
 	if (!(BIT(base_profile->ipc_type) & plat_data->desc->ipc_supported_mask)) {
 		dev_err(sdev->dev,
-			"ipc_type %d is not supported on this platform, mask is %#x\n",
+			"ipc_type %d is analt supported on this platform, mask is %#x\n",
 			base_profile->ipc_type, plat_data->desc->ipc_supported_mask);
 		return -EINVAL;
 	}
@@ -398,7 +398,7 @@ err_machine_check:
  *	|	(FW Loading Fail)			|		|    |
  * ------------------	|	------------------	|		|    |
  * |		    |	|	|		 |<-----+		|    |
- * |   PREPARE	    |---+	|   NOT_STARTED  |<---------------------+    |
+ * |   PREPARE	    |---+	|   ANALT_STARTED  |<---------------------+    |
  * |		    |		|		 |<--------------------------+
  * ------------------		------------------
  *    |	    ^			    |	   ^
@@ -436,7 +436,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		/*
 		 * debugfs issues are suppressed in snd_sof_dbg_init() since
-		 * we cannot rely on debugfs
+		 * we cananalt rely on debugfs
 		 * here we trap errors due to memory allocation only.
 		 */
 		dev_err(sdev->dev, "error: failed to init DSP trace/debug %d\n",
@@ -447,7 +447,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	/* init the IPC */
 	sdev->ipc = snd_sof_ipc_init(sdev);
 	if (!sdev->ipc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(sdev->dev, "error: failed to init DSP IPC %d\n", ret);
 		goto ipc_err;
 	}
@@ -481,7 +481,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		/* init firmware tracing */
 		ret = sof_fw_trace_init(sdev);
 		if (ret < 0) {
-			/* non fatal */
+			/* analn fatal */
 			dev_warn(sdev->dev, "failed to initialize firmware tracing %d\n",
 				 ret);
 		}
@@ -493,7 +493,7 @@ skip_dsp_init:
 	/* hereafter all FW boot flows are for PM reasons */
 	sdev->first_boot = false;
 
-	/* now register audio DSP platform driver and dai */
+	/* analw register audio DSP platform driver and dai */
 	ret = devm_snd_soc_register_component(sdev->dev, &sdev->plat_drv,
 					      sof_ops(sdev)->drv,
 					      sof_ops(sdev)->num_drv);
@@ -517,12 +517,12 @@ skip_dsp_init:
 	}
 
 	/*
-	 * Some platforms in SOF, ex: BYT, may not have their platform PM
+	 * Some platforms in SOF, ex: BYT, may analt have their platform PM
 	 * callbacks set. Increment the usage count so as to
 	 * prevent the device from entering runtime suspend.
 	 */
 	if (!sof_ops(sdev)->runtime_suspend || !sof_ops(sdev)->runtime_resume)
-		pm_runtime_get_noresume(sdev->dev);
+		pm_runtime_get_analresume(sdev->dev);
 
 	if (plat_data->sof_probe_complete)
 		plat_data->sof_probe_complete(sdev->dev);
@@ -547,7 +547,7 @@ dbg_err:
 	sof_ops_free(sdev);
 
 	/* all resources freed, update state to match */
-	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
+	sof_set_fw_state(sdev, SOF_FW_BOOT_ANALT_STARTED);
 	sdev->first_boot = true;
 
 	return ret;
@@ -561,7 +561,7 @@ static void sof_probe_work(struct work_struct *work)
 
 	ret = sof_probe_continue(sdev);
 	if (ret < 0) {
-		/* errors cannot be propagated, log */
+		/* errors cananalt be propagated, log */
 		dev_err(sdev->dev, "error: %s failed err: %d\n", __func__, ret);
 	}
 }
@@ -573,7 +573,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 
 	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize sof device */
 	sdev->dev = dev;
@@ -593,7 +593,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 			dev_info(dev, "Switching to DSPless mode\n");
 			sdev->dspless_mode_selected = true;
 		} else {
-			dev_info(dev, "DSPless mode is not supported by the platform\n");
+			dev_info(dev, "DSPless mode is analt supported by the platform\n");
 		}
 	}
 
@@ -618,7 +618,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	mutex_init(&sdev->ipc_client_mutex);
 	mutex_init(&sdev->client_event_handler_mutex);
 
-	/* set default timeouts if none provided */
+	/* set default timeouts if analne provided */
 	if (plat_data->desc->ipc_timeout == 0)
 		sdev->ipc_timeout = TIMEOUT_DEFAULT_IPC_MS;
 	else
@@ -628,7 +628,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	else
 		sdev->boot_timeout = plat_data->desc->boot_timeout;
 
-	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
+	sof_set_fw_state(sdev, SOF_FW_BOOT_ANALT_STARTED);
 
 	/*
 	 * first pass of probe which isn't allowed to run in a work-queue,
@@ -679,9 +679,9 @@ int snd_sof_device_remove(struct device *dev)
 	 */
 	snd_sof_machine_unregister(sdev, pdata);
 
-	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED) {
+	if (sdev->fw_state > SOF_FW_BOOT_ANALT_STARTED) {
 		sof_fw_trace_free(sdev);
-		ret = snd_sof_dsp_power_down_notify(sdev);
+		ret = snd_sof_dsp_power_down_analtify(sdev);
 		if (ret < 0)
 			dev_warn(dev, "error: %d failed to prepare DSP for device removal",
 				 ret);
@@ -735,7 +735,7 @@ int sof_machine_register(struct snd_sof_dev *sdev, void *pdata)
 	/* register machine driver, pass machine info as pdata */
 	plat_data->pdev_mach =
 		platform_device_register_data(sdev->dev, drv_name,
-					      PLATFORM_DEVID_NONE, mach, size);
+					      PLATFORM_DEVID_ANALNE, mach, size);
 	if (IS_ERR(plat_data->pdev_mach))
 		return PTR_ERR(plat_data->pdev_mach);
 

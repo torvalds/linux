@@ -32,12 +32,12 @@
  *
  * 0.3
  *  - hardware accelerated clear and move for 2200 and above (dok)
- *  - maximum allowed dotclock is handled now (dok)
+ *  - maximum allowed dotclock is handled analw (dok)
  *
  * 0.2.1
  *  - correct panning after X usage (dok)
  *  - added module and kernel parameters (dok)
- *  - no stretching if external display is enabled (dok)
+ *  - anal stretching if external display is enabled (dok)
  *
  * 0.2
  *  - initial version (dok)
@@ -57,7 +57,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -81,8 +81,8 @@
 static bool internal;
 static bool external;
 static bool libretto;
-static bool nostretch;
-static bool nopciburst;
+static bool analstretch;
+static bool analpciburst;
 static char *mode_option = NULL;
 
 #ifdef MODULE
@@ -96,11 +96,11 @@ module_param(external, bool, 0);
 MODULE_PARM_DESC(external, "Enable output on external CRT.");
 module_param(libretto, bool, 0);
 MODULE_PARM_DESC(libretto, "Force Libretto 100/110 800x480 LCD.");
-module_param(nostretch, bool, 0);
-MODULE_PARM_DESC(nostretch,
+module_param(analstretch, bool, 0);
+MODULE_PARM_DESC(analstretch,
 		 "Disable stretching of modes smaller than LCD.");
-module_param(nopciburst, bool, 0);
-MODULE_PARM_DESC(nopciburst, "Disable PCI burst mode.");
+module_param(analpciburst, bool, 0);
+MODULE_PARM_DESC(analpciburst, "Disable PCI burst mode.");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Preferred video mode ('640x480-8@60', etc)");
 
@@ -133,7 +133,7 @@ static biosMode bios24[] = {
 	{1024, 768, 0x38}
 };
 
-#ifdef NO_32BIT_SUPPORT_YET
+#ifdef ANAL_32BIT_SUPPORT_YET
 /* FIXME: guessed values, wrong */
 static biosMode bios32[] = {
 	{640, 480, 0x33},
@@ -166,7 +166,7 @@ static int neoFindMode(int xres, int yres, int depth)
 		size = ARRAY_SIZE(bios24);
 		mode = bios24;
 		break;
-#ifdef NO_32BIT_SUPPORT_YET
+#ifdef ANAL_32BIT_SUPPORT_YET
 	case 32:
 		size = ARRAY_SIZE(bios32);
 		mode = bios32;
@@ -228,21 +228,21 @@ static void neoCalcVCLK(const struct fb_info *info,
 	    info->fix.accel == FB_ACCEL_NEOMAGIC_NM2230 ||
 	    info->fix.accel == FB_ACCEL_NEOMAGIC_NM2360 ||
 	    info->fix.accel == FB_ACCEL_NEOMAGIC_NM2380) {
-		/* NOT_DONE:  We are trying the full range of the 2200 clock.
+		/* ANALT_DONE:  We are trying the full range of the 2200 clock.
 		   We should be able to try n up to 2047 */
 		par->VCLK3NumeratorLow = n_best;
 		par->VCLK3NumeratorHigh = (f_best << 7);
 	} else
 		par->VCLK3NumeratorLow = n_best | (f_best << 7);
 
-	par->VCLK3Denominator = d_best;
+	par->VCLK3Deanalminator = d_best;
 
 #ifdef NEOFB_DEBUG
 	printk(KERN_DEBUG "neoVCLK: f:%ld NumLow=%d NumHi=%d Den=%d Df=%ld\n",
 	       freq,
 	       par->VCLK3NumeratorLow,
 	       par->VCLK3NumeratorHigh,
-	       par->VCLK3Denominator, f_best_diff);
+	       par->VCLK3Deanalminator, f_best_diff);
 #endif
 }
 
@@ -425,7 +425,7 @@ static void vgaHWProtect(int on)
 		/*
 		 * Turn off screen and disable sequencer.
 		 */
-		vga_wseq(NULL, 0x00, 0x01);		/* Synchronous Reset */
+		vga_wseq(NULL, 0x00, 0x01);		/* Synchroanalus Reset */
 		vga_wseq(NULL, 0x01, tmp | 0x20);	/* disable the display */
 
 		VGAenablePalette();
@@ -434,7 +434,7 @@ static void vgaHWProtect(int on)
 		 * Reenable sequencer, then turn on screen.
 		 */
 		vga_wseq(NULL, 0x01, tmp & ~0x20);	/* reenable display */
-		vga_wseq(NULL, 0x00, 0x03);		/* clear synchronousreset */
+		vga_wseq(NULL, 0x00, 0x03);		/* clear synchroanalusreset */
 
 		VGAdisablePalette();
 	}
@@ -488,7 +488,7 @@ static inline void neo2200_wait_fifo(struct fb_info *info,
 	//  ndev->neo.waitfifo_calls++;
 	//  ndev->neo.waitfifo_sum += requested_fifo_space;
 
-	/* FIXME: does not work
+	/* FIXME: does analt work
 	   if (neo_fifo_space < requested_fifo_space)
 	   {
 	   neo_fifo_waitcycles++;
@@ -666,7 +666,7 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->blue.length = 8;
 		break;
 
-#ifdef NO_32BIT_SUPPORT_YET
+#ifdef ANAL_32BIT_SUPPORT_YET
 	case 32:		/* TRUECOLOUR, 16m */
 		var->transp.offset = 24;
 		var->transp.length = 8;
@@ -679,7 +679,7 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 #endif
 	default:
-		printk(KERN_WARNING "neofb: no support for %dbpp\n",
+		printk(KERN_WARNING "neofb: anal support for %dbpp\n",
 		       var->bits_per_pixel);
 		return -EINVAL;
 	}
@@ -709,7 +709,7 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (var->yoffset + var->yres > var->yres_virtual)
 		var->yoffset = var->yres_virtual - var->yres;
 
-	var->nonstd = 0;
+	var->analnstd = 0;
 	var->height = -1;
 	var->width = -1;
 
@@ -746,7 +746,7 @@ static int neofb_set_par(struct fb_info *info)
 
 	/*
 	 * The default value assigned by vgaHW.c is 0x41, but this does
-	 * not work for NeoMagic.
+	 * analt work for NeoMagic.
 	 */
 	par->Attribute[16] = 0x01;
 
@@ -766,7 +766,7 @@ static int neofb_set_par(struct fb_info *info)
 		par->ExtCRTOffset = (info->var.xres_virtual * 3) >> 11;
 		par->ExtColorModeSelect = 0x14;
 		break;
-#ifdef NO_32BIT_SUPPORT_YET
+#ifdef ANAL_32BIT_SUPPORT_YET
 	case 32:		/* FIXME: guessed values */
 		par->CRTC[0x13] = info->var.xres_virtual >> 1;
 		par->ExtCRTOffset = info->var.xres_virtual >> 9;
@@ -803,7 +803,7 @@ static int neofb_set_par(struct fb_info *info)
 	if (par->external_display)
 		par->PanelDispCntlReg1 |= 0x01;
 
-	/* If the user did not specify any display devices, then... */
+	/* If the user did analt specify any display devices, then... */
 	if (par->PanelDispCntlReg1 == 0x00) {
 		/* Default to internal (i.e., LCD) only. */
 		par->PanelDispCntlReg1 = vga_rgfx(NULL, 0x20) & 0x03;
@@ -862,7 +862,7 @@ static int neofb_set_par(struct fb_info *info)
 			break;
 		default:
 			lcd_stretch = 0;
-			/* No stretching in these modes. */
+			/* Anal stretching in these modes. */
 		}
 	} else
 		lcd_stretch = 0;
@@ -886,7 +886,7 @@ static int neofb_set_par(struct fb_info *info)
 	if (par->PanelDispCntlReg1 & 0x02) {
 		if (info->var.xres == par->NeoPanelWidth) {
 			/*
-			 * No centering required when the requested display width
+			 * Anal centering required when the requested display width
 			 * equals the panel width.
 			 */
 		} else {
@@ -902,7 +902,7 @@ static int neofb_set_par(struct fb_info *info)
 				    ((par->NeoPanelHeight -
 				      info->var.yres) >> 1) - 2;
 			} else {
-				/* Stretched modes cannot be centered. */
+				/* Stretched modes cananalt be centered. */
 				hoffset = 0;
 				voffset = 0;
 			}
@@ -930,7 +930,7 @@ static int neofb_set_par(struct fb_info *info)
 				break;
 			case 1280:
 			default:
-				/* No centering in these modes. */
+				/* Anal centering in these modes. */
 				break;
 			}
 		}
@@ -952,7 +952,7 @@ static int neofb_set_par(struct fb_info *info)
 	/* alread unlocked above */
 	/* BOGUS  vga_wgfx(NULL, 0x09, 0x26); */
 
-	/* don't know what this is, but it's 0 from bootup anyway */
+	/* don't kanalw what this is, but it's 0 from bootup anyway */
 	vga_wgfx(NULL, 0x15, 0x00);
 
 	/* was set to 0x01 by my bios in text and vesa modes */
@@ -962,7 +962,7 @@ static int neofb_set_par(struct fb_info *info)
 	 * The color mode needs to be set before calling vgaHWRestore
 	 * to ensure the DAC is initialized properly.
 	 *
-	 * NOTE: Make sure we don't change bits make sure we don't change
+	 * ANALTE: Make sure we don't change bits make sure we don't change
 	 * any reserved bits.
 	 */
 	temp = vga_rgfx(NULL, 0x90);
@@ -1010,7 +1010,7 @@ static int neofb_set_par(struct fb_info *info)
 	 * This function handles restoring the generic VGA registers.  */
 	vgaHWRestore(info, par);
 
-	/* linear colormap for non palettized modes */
+	/* linear colormap for analn palettized modes */
 	switch (info->var.bits_per_pixel) {
 	case 8:
 		/* PseudoColor, 256 */
@@ -1029,7 +1029,7 @@ static int neofb_set_par(struct fb_info *info)
 		}
 		break;
 	case 24:
-#ifdef NO_32BIT_SUPPORT_YET
+#ifdef ANAL_32BIT_SUPPORT_YET
 	case 32:
 #endif
 		/* TrueColor, 16m */
@@ -1118,7 +1118,7 @@ static int neofb_set_par(struct fb_info *info)
 
 	/* Program VCLK3 if needed. */
 	if (par->ProgramVCLK && ((vga_rgfx(NULL, 0x9B) != par->VCLK3NumeratorLow)
-				 || (vga_rgfx(NULL, 0x9F) != par->VCLK3Denominator)
+				 || (vga_rgfx(NULL, 0x9F) != par->VCLK3Deanalminator)
 				 || (clock_hi && ((vga_rgfx(NULL, 0x8F) & ~0x0f)
 						  != (par->VCLK3NumeratorHigh &
 						      ~0x0F))))) {
@@ -1129,7 +1129,7 @@ static int neofb_set_par(struct fb_info *info)
 			temp |= (par->VCLK3NumeratorHigh & ~0x0F);
 			vga_wgfx(NULL, 0x8F, temp);
 		}
-		vga_wgfx(NULL, 0x9F, par->VCLK3Denominator);
+		vga_wgfx(NULL, 0x9F, par->VCLK3Deanalminator);
 	}
 
 	if (par->biosMode)
@@ -1192,7 +1192,7 @@ static int neofb_pan_display(struct fb_var_screeninfo *var,
 
 	/*
 	 * Make sure we don't clobber some other bits that might already
-	 * have been set. NOTE: NM2200 has a writable bit 3, but it shouldn't
+	 * have been set. ANALTE: NM2200 has a writable bit 3, but it shouldn't
 	 * be needed.
 	 */
 	oldExtCRTDispAddr = vga_rgfx(NULL, 0x0E);
@@ -1203,33 +1203,33 @@ static int neofb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static int neofb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int neofb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			   u_int transp, struct fb_info *fb)
 {
-	if (regno >= fb->cmap.len || regno > 255)
+	if (reganal >= fb->cmap.len || reganal > 255)
 		return -EINVAL;
 
 	if (fb->var.bits_per_pixel <= 8) {
-		outb(regno, 0x3c8);
+		outb(reganal, 0x3c8);
 
 		outb(red >> 10, 0x3c9);
 		outb(green >> 10, 0x3c9);
 		outb(blue >> 10, 0x3c9);
-	} else if (regno < 16) {
+	} else if (reganal < 16) {
 		switch (fb->var.bits_per_pixel) {
 		case 16:
-			((u32 *) fb->pseudo_palette)[regno] =
+			((u32 *) fb->pseudo_palette)[reganal] =
 				((red & 0xf800)) | ((green & 0xfc00) >> 5) |
 				((blue & 0xf800) >> 11);
 			break;
 		case 24:
-			((u32 *) fb->pseudo_palette)[regno] =
+			((u32 *) fb->pseudo_palette)[reganal] =
 				((red & 0xff00) << 8) | ((green & 0xff00)) |
 				((blue & 0xff00) >> 8);
 			break;
-#ifdef NO_32BIT_SUPPORT_YET
+#ifdef ANAL_32BIT_SUPPORT_YET
 		case 32:
-			((u32 *) fb->pseudo_palette)[regno] =
+			((u32 *) fb->pseudo_palette)[reganal] =
 				((transp & 0xff00) << 16) | ((red & 0xff00) << 8) |
 				((green & 0xff00)) | ((blue & 0xff00) >> 8);
 			break;
@@ -1310,7 +1310,7 @@ static int neofb_blank(int blank_mode, struct fb_info *info)
 		lcdflags = 0;			/* LCD off */
 		dpmsflags = NEO_GR01_SUPPRESS_VSYNC;
 		break;
-	case FB_BLANK_NORMAL:		/* just blank screen (backlight stays on) */
+	case FB_BLANK_ANALRMAL:		/* just blank screen (backlight stays on) */
 		seqflags = VGA_SR01_SCREEN_OFF;	/* Disable sequencer */
 		/*
 		 * During a blank operation with the LID shut, we might store "LCD off"
@@ -1321,13 +1321,13 @@ static int neofb_blank(int blank_mode, struct fb_info *info)
 		 * of unblanking, and the LCD bit is unset in the driver but set in the
 		 * register, we must keep it.
 		 */
-		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD normal */
-		dpmsflags = 0x00;	/* no hsync/vsync suppression */
+		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD analrmal */
+		dpmsflags = 0x00;	/* anal hsync/vsync suppression */
 		break;
 	case FB_BLANK_UNBLANK:		/* unblank */
 		seqflags = 0;			/* Enable sequencer */
-		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD normal */
-		dpmsflags = 0x00;	/* no hsync/vsync suppression */
+		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD analrmal */
+		dpmsflags = 0x00;	/* anal hsync/vsync suppression */
 #ifdef CONFIG_TOSHIBA
 		/* Do we still need this ? */
 		/* attempt to re-enable backlight/external on toshiba */
@@ -1446,11 +1446,11 @@ neo2200_imageblit(struct fb_info *info, const struct fb_image *image)
 			 * transfers in 24 bit mode if the image being transferred
 			 * is less than 16 bits wide. This is due to insufficient
 			 * padding when writing the image. We need to adjust
-			 * struct fb_pixmap. Not yet done. */
+			 * struct fb_pixmap. Analt yet done. */
 			cfb_imageblit(info, image);
 			return;
 		}
-		bltCntl_flags = NEO_BC0_SRC_MONO;
+		bltCntl_flags = NEO_BC0_SRC_MOANAL;
 	} else if (image->depth == info->var.bits_per_pixel) {
 		bltCntl_flags = 0;
 	} else {
@@ -1640,7 +1640,7 @@ static struct fb_videomode mode800x480 = {
 	.hsync_len      = 128,
 	.vsync_len      = 4,
 	.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	.vmode          = FB_VMODE_NONINTERLACED
+	.vmode          = FB_VMODE_ANALNINTERLACED
 };
 
 static int neo_map_mmio(struct fb_info *info, struct pci_dev *dev)
@@ -1683,7 +1683,7 @@ static int neo_map_mmio(struct fb_info *info, struct pci_dev *dev)
 		printk("neofb: unable to map memory mapped IO\n");
 		release_mem_region(info->fix.mmio_start,
 				   info->fix.mmio_len);
-		return -ENOMEM;
+		return -EANALMEM;
 	} else
 		printk(KERN_INFO "neofb: mapped io at %p\n",
 		       par->mmio_vbase);
@@ -1726,7 +1726,7 @@ static int neo_map_video(struct fb_info *info, struct pci_dev *dev,
 		printk("neofb: unable to map screen memory\n");
 		release_mem_region(info->fix.smem_start,
 				   info->fix.smem_len);
-		return -ENOMEM;
+		return -EANALMEM;
 	} else
 		printk(KERN_INFO "neofb: mapped framebuffer at %p\n",
 		       info->screen_base);
@@ -1770,7 +1770,7 @@ static int neo_scan_monitor(struct fb_info *info)
 	// Eventually we will have i2c support.
 	info->monspecs.modedb = kmalloc(sizeof(struct fb_videomode), GFP_KERNEL);
 	if (!info->monspecs.modedb)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->monspecs.modedb_len = 1;
 
 	/* Determine the panel type */
@@ -1814,7 +1814,7 @@ static int neo_scan_monitor(struct fb_info *info)
 		break;
 	case 0x03:
 		/* 1280x1024@60 panel support needs to be added */
-#ifdef NOT_DONE
+#ifdef ANALT_DONE
 		par->NeoPanelWidth = 1280;
 		par->NeoPanelHeight = 1024;
 		memcpy(info->monspecs.modedb, &vesa_modes[20], sizeof(struct fb_videomode));
@@ -1836,7 +1836,7 @@ static int neo_scan_monitor(struct fb_info *info)
 	printk(KERN_INFO "Panel is a %dx%d %s %s display\n",
 	       par->NeoPanelWidth,
 	       par->NeoPanelHeight,
-	       (type & 0x02) ? "color" : "monochrome",
+	       (type & 0x02) ? "color" : "moanalchrome",
 	       (type & 0x10) ? "TFT" : "dual scan");
 	return 0;
 }
@@ -1940,8 +1940,8 @@ static struct fb_info *neo_alloc_fb_info(struct pci_dev *dev,
 
 	info->fix.accel = id->driver_data;
 
-	par->pci_burst = !nopciburst;
-	par->lcd_stretch = !nostretch;
+	par->pci_burst = !analpciburst;
+	par->lcd_stretch = !analstretch;
 	par->libretto = libretto;
 
 	par->internal_display = internal;
@@ -2031,7 +2031,7 @@ static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		return err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	info = neo_alloc_fb_info(dev, id);
 	if (!info)
 		return err;
@@ -2062,7 +2062,7 @@ static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/*
-	 * Calculate the hsync and vsync frequencies.  Note that
+	 * Calculate the hsync and vsync frequencies.  Analte that
 	 * we split the 1e12 constant up so that we can preserve
 	 * the precision and fit the results into 32-bit registers.
 	 *  (1953125000 * 512 = 1e12)
@@ -2185,10 +2185,10 @@ static int __init neofb_setup(char *options)
 			internal = 1;
 		else if (!strncmp(this_opt, "external", 8))
 			external = 1;
-		else if (!strncmp(this_opt, "nostretch", 9))
-			nostretch = 1;
-		else if (!strncmp(this_opt, "nopciburst", 10))
-			nopciburst = 1;
+		else if (!strncmp(this_opt, "analstretch", 9))
+			analstretch = 1;
+		else if (!strncmp(this_opt, "analpciburst", 10))
+			analpciburst = 1;
 		else if (!strncmp(this_opt, "libretto", 8))
 			libretto = 1;
 		else
@@ -2205,11 +2205,11 @@ static int __init neofb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("neofb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("neofb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	neofb_setup(option);
 #endif
 	return pci_register_driver(&neofb_driver);

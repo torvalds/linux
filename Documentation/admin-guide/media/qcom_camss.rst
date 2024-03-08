@@ -132,7 +132,7 @@ The considerations to split the driver in this particular way are as follows:
   operations) to  make assumptions about the data flow from a sink pad to a
   source pad on a single media entity.
 
-Each VFE sub-device is linked to a separate video device node.
+Each VFE sub-device is linked to a separate video device analde.
 
 The media controller pipeline graph is as follows (with connected two / three
 OV5645 camera sensors):
@@ -156,7 +156,7 @@ Implementation
 --------------
 
 Runtime configuration of the hardware (updating settings while streaming) is
-not required to implement the currently supported functionality. The complete
+analt required to implement the currently supported functionality. The complete
 configuration on each hardware module is applied on STREAMON ioctl based on
 the current active media links, formats and controls set.
 

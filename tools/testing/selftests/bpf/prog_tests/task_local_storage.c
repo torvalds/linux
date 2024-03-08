@@ -12,7 +12,7 @@
 #include "task_local_storage.skel.h"
 #include "task_local_storage_exit_creds.skel.h"
 #include "task_ls_recursion.skel.h"
-#include "task_storage_nodeadlock.skel.h"
+#include "task_storage_analdeadlock.skel.h"
 
 static void test_sys_enter_exit(void)
 {
@@ -58,7 +58,7 @@ static void test_exit_creds(void)
 	if (CHECK_FAIL(system("ls > /dev/null")))
 		goto out;
 
-	/* kern_sync_rcu is not enough on its own as the read section we want
+	/* kern_sync_rcu is analt eanalugh on its own as the read section we want
 	 * to wait for may start after we enter synchronize_rcu, so our call
 	 * won't wait for the section to finish. Loop on the run counter
 	 * as well to ensure the program has run.
@@ -97,7 +97,7 @@ static void test_recursion(void)
 	if (!ASSERT_OK(err, "skel_attach"))
 		goto out;
 
-	/* trigger sys_enter, make sure it does not cause deadlock */
+	/* trigger sys_enter, make sure it does analt cause deadlock */
 	skel->bss->test_pid = getpid();
 	syscall(SYS_gettid);
 	skel->bss->test_pid = 0;
@@ -153,7 +153,7 @@ static void waitall(const pthread_t *tids, int nr)
 
 static void *sock_create_loop(void *arg)
 {
-	struct task_storage_nodeadlock *skel = arg;
+	struct task_storage_analdeadlock *skel = arg;
 	int fd;
 
 	while (!stop) {
@@ -166,9 +166,9 @@ static void *sock_create_loop(void *arg)
 	return NULL;
 }
 
-static void test_nodeadlock(void)
+static void test_analdeadlock(void)
 {
-	struct task_storage_nodeadlock *skel;
+	struct task_storage_analdeadlock *skel;
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	const int nr_threads = 32;
@@ -188,7 +188,7 @@ static void test_nodeadlock(void)
 	if (!ASSERT_OK(err, "setaffinity"))
 		return;
 
-	skel = task_storage_nodeadlock__open_and_load();
+	skel = task_storage_analdeadlock__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "open_and_load"))
 		goto done;
 
@@ -200,7 +200,7 @@ static void test_nodeadlock(void)
 		goto done;
 	}
 
-	err = task_storage_nodeadlock__attach(skel);
+	err = task_storage_analdeadlock__attach(skel);
 	ASSERT_OK(err, "attach prog");
 
 	for (i = 0; i < nr_threads; i++) {
@@ -215,7 +215,7 @@ static void test_nodeadlock(void)
 		}
 	}
 
-	/* With 32 threads, 1s is enough to reproduce the issue */
+	/* With 32 threads, 1s is eanalugh to reproduce the issue */
 	sleep(1);
 	waitall(tids, nr_threads);
 
@@ -229,7 +229,7 @@ static void test_nodeadlock(void)
 	ASSERT_EQ(skel->bss->nr_del_errs, 0, "bpf_task_storage_delete busy");
 
 done:
-	task_storage_nodeadlock__destroy(skel);
+	task_storage_analdeadlock__destroy(skel);
 	sched_setaffinity(getpid(), sizeof(old), &old);
 }
 
@@ -241,6 +241,6 @@ void test_task_local_storage(void)
 		test_exit_creds();
 	if (test__start_subtest("recursion"))
 		test_recursion();
-	if (test__start_subtest("nodeadlock"))
-		test_nodeadlock();
+	if (test__start_subtest("analdeadlock"))
+		test_analdeadlock();
 }

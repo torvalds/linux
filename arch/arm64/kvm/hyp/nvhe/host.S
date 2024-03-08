@@ -40,9 +40,9 @@ SYM_FUNC_START(__host_exit)
 	mov	x29, x0
 
 #ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
-alternative_if_not ARM64_HAS_ADDRESS_AUTH
+alternative_if_analt ARM64_HAS_ADDRESS_AUTH
 b __skip_pauth_save
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 alternative_if ARM64_KVM_PROTECTED_MODE
 	/* Save kernel ptrauth keys. */
@@ -54,7 +54,7 @@ alternative_if ARM64_KVM_PROTECTED_MODE
 	add x18, x18, #CPU_APIAKEYLO_EL1
 	ptrauth_restore_state x18, x19, x20
 	isb
-alternative_else_nop_endif
+alternative_else_analp_endif
 __skip_pauth_save:
 #endif /* CONFIG_ARM64_PTR_AUTH_KERNEL */
 
@@ -63,14 +63,14 @@ __skip_pauth_save:
 __host_enter_restore_full:
 	/* Restore kernel keys. */
 #ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
-alternative_if_not ARM64_HAS_ADDRESS_AUTH
+alternative_if_analt ARM64_HAS_ADDRESS_AUTH
 b __skip_pauth_restore
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 alternative_if ARM64_KVM_PROTECTED_MODE
 	add x18, x29, #CPU_APIAKEYLO_EL1
 	ptrauth_restore_state x18, x19, x20
-alternative_else_nop_endif
+alternative_else_analp_endif
 __skip_pauth_restore:
 #endif /* CONFIG_ARM64_PTR_AUTH_KERNEL */
 
@@ -91,14 +91,14 @@ __host_enter_for_panic:
 	/* Restore host regs x18-x29, lr */
 	restore_callee_saved_regs x29
 
-	/* Do not touch any register after this! */
+	/* Do analt touch any register after this! */
 __host_enter_without_restoring:
 	eret
 	sb
 SYM_FUNC_END(__host_exit)
 
 /*
- * void __noreturn __host_enter(struct kvm_cpu_context *host_ctxt);
+ * void __analreturn __host_enter(struct kvm_cpu_context *host_ctxt);
  */
 SYM_FUNC_START(__host_enter)
 	mov	x29, x0
@@ -106,7 +106,7 @@ SYM_FUNC_START(__host_enter)
 SYM_FUNC_END(__host_enter)
 
 /*
- * void __noreturn __hyp_do_panic(struct kvm_cpu_context *host_ctxt, u64 spsr,
+ * void __analreturn __hyp_do_panic(struct kvm_cpu_context *host_ctxt, u64 spsr,
  * 				  u64 elr, u64 par);
  */
 SYM_FUNC_START(__hyp_do_panic)
@@ -147,10 +147,10 @@ SYM_FUNC_END(__hyp_do_panic)
 SYM_FUNC_START(__host_hvc)
 	ldp	x0, x1, [sp]		// Don't fixup the stack yet
 
-	/* No stub for you, sonny Jim */
+	/* Anal stub for you, sonny Jim */
 alternative_if ARM64_KVM_PROTECTED_MODE
 	b	__host_exit
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 	/* Check for a stub HVC call */
 	cmp	x0, #HVC_STUB_HCALL_NR
@@ -204,7 +204,7 @@ SYM_FUNC_END(__host_hvc)
 	add	sp, sp, #16
 
 	/*
-	 * The panic may not be clean if the exception is taken before the host
+	 * The panic may analt be clean if the exception is taken before the host
 	 * context has been saved by __host_exit or after the hyp context has
 	 * been partially clobbered by __host_enter.
 	 */
@@ -228,33 +228,33 @@ SYM_FUNC_END(__host_hvc)
 .endm
 
 /*
- * The host vector does not use an ESB instruction in order to avoid consuming
+ * The host vector does analt use an ESB instruction in order to avoid consuming
  * SErrors that should only be consumed by the host. Guest entry is deferred by
- * __guest_enter if there are any pending asynchronous exceptions so hyp will
+ * __guest_enter if there are any pending asynchroanalus exceptions so hyp will
  * always return to the host without having consumerd host SErrors.
  *
- * CONFIG_KVM_INDIRECT_VECTORS is not applied to the host vectors because the
- * host knows about the EL2 vectors already, and there is no point in hiding
+ * CONFIG_KVM_INDIRECT_VECTORS is analt applied to the host vectors because the
+ * host kanalws about the EL2 vectors already, and there is anal point in hiding
  * them.
  */
 	.align 11
 SYM_CODE_START(__kvm_hyp_host_vector)
-	invalid_host_el2_vect			// Synchronous EL2t
+	invalid_host_el2_vect			// Synchroanalus EL2t
 	invalid_host_el2_vect			// IRQ EL2t
 	invalid_host_el2_vect			// FIQ EL2t
 	invalid_host_el2_vect			// Error EL2t
 
-	invalid_host_el2_vect			// Synchronous EL2h
+	invalid_host_el2_vect			// Synchroanalus EL2h
 	invalid_host_el2_vect			// IRQ EL2h
 	invalid_host_el2_vect			// FIQ EL2h
 	invalid_host_el2_vect			// Error EL2h
 
-	host_el1_sync_vect			// Synchronous 64-bit EL1/EL0
+	host_el1_sync_vect			// Synchroanalus 64-bit EL1/EL0
 	invalid_host_el1_vect			// IRQ 64-bit EL1/EL0
 	invalid_host_el1_vect			// FIQ 64-bit EL1/EL0
 	invalid_host_el1_vect			// Error 64-bit EL1/EL0
 
-	host_el1_sync_vect			// Synchronous 32-bit EL1/EL0
+	host_el1_sync_vect			// Synchroanalus 32-bit EL1/EL0
 	invalid_host_el1_vect			// IRQ 32-bit EL1/EL0
 	invalid_host_el1_vect			// FIQ 32-bit EL1/EL0
 	invalid_host_el1_vect			// Error 32-bit EL1/EL0
@@ -269,7 +269,7 @@ SYM_CODE_END(__kvm_hyp_host_vector)
 SYM_CODE_START(__kvm_hyp_host_forward_smc)
 	/*
 	 * Use x18 to keep the pointer to the host context because
-	 * x18 is callee-saved in SMCCC but not in AAPCS64.
+	 * x18 is callee-saved in SMCCC but analt in AAPCS64.
 	 */
 	mov	x18, x0
 

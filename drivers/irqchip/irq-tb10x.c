@@ -57,7 +57,7 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	case IRQ_TYPE_LEVEL_HIGH:
 		mod ^= im;
 		break;
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		flow_type = IRQ_TYPE_LEVEL_LOW;
 		fallthrough;
 	case IRQ_TYPE_LEVEL_LOW:
@@ -68,7 +68,7 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 		break;
 	default:
 		irq_gc_unlock(gc);
-		pr_err("%s: Cannot assign multiple trigger modes to IRQ %d.\n",
+		pr_err("%s: Cananalt assign multiple trigger modes to IRQ %d.\n",
 			__func__, data->irq);
 		return -EBADR;
 	}
@@ -93,8 +93,8 @@ static void tb10x_irq_cascade(struct irq_desc *desc)
 	generic_handle_domain_irq(domain, irq);
 }
 
-static int __init of_tb10x_init_irq(struct device_node *ictl,
-					struct device_node *parent)
+static int __init of_tb10x_init_irq(struct device_analde *ictl,
+					struct device_analde *parent)
 {
 	int i, ret, nrirqs = of_irq_count(ictl);
 	struct resource mem;
@@ -103,7 +103,7 @@ static int __init of_tb10x_init_irq(struct device_node *ictl,
 	void __iomem *reg_base;
 
 	if (of_address_to_resource(ictl, 0, &mem)) {
-		pr_err("%pOFn: No registers declared in DeviceTree.\n",
+		pr_err("%pOFn: Anal registers declared in DeviceTree.\n",
 			ictl);
 		return -EINVAL;
 	}
@@ -124,18 +124,18 @@ static int __init of_tb10x_init_irq(struct device_node *ictl,
 	domain = irq_domain_add_linear(ictl, AB_IRQCTL_MAXIRQ,
 					&irq_generic_chip_ops, NULL);
 	if (!domain) {
-		ret = -ENOMEM;
-		pr_err("%pOFn: Could not register interrupt domain.\n",
+		ret = -EANALMEM;
+		pr_err("%pOFn: Could analt register interrupt domain.\n",
 			ictl);
 		goto irq_domain_add_fail;
 	}
 
 	ret = irq_alloc_domain_generic_chips(domain, AB_IRQCTL_MAXIRQ,
 				2, ictl->name, handle_level_irq,
-				IRQ_NOREQUEST, IRQ_NOPROBE,
+				IRQ_ANALREQUEST, IRQ_ANALPROBE,
 				IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
-		pr_err("%pOFn: Could not allocate generic interrupt chip.\n",
+		pr_err("%pOFn: Could analt allocate generic interrupt chip.\n",
 			ictl);
 		goto gc_alloc_fail;
 	}

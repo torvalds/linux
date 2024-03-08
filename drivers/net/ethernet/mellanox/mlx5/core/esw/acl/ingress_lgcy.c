@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Inc. All rights reserved. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Inc. All rights reserved. */
 
 #include "mlx5_core.h"
 #include "eswitch.h"
@@ -27,7 +27,7 @@ static int esw_acl_ingress_lgcy_groups_create(struct mlx5_eswitch *esw,
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
 
@@ -202,7 +202,7 @@ int esw_acl_ingress_lgcy_setup(struct mlx5_eswitch *esw,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

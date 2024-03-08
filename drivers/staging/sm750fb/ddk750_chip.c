@@ -27,7 +27,7 @@ void sm750_set_chip_type(unsigned short dev_id, u8 rev_id)
 			pr_info("found sm750le\n");
 		}
 	} else {
-		chip = SM_UNKNOWN;
+		chip = SM_UNKANALWN;
 	}
 }
 
@@ -57,7 +57,7 @@ static void set_chip_clock(unsigned int frequency)
 {
 	struct pll_value pll;
 
-	/* Cheok_0509: For SM750LE, the chip clock is fixed. Nothing to set. */
+	/* Cheok_0509: For SM750LE, the chip clock is fixed. Analthing to set. */
 	if (sm750_get_chip_type() == SM750LE)
 		return;
 
@@ -70,7 +70,7 @@ static void set_chip_clock(unsigned int frequency)
 
 		/*
 		 * Call sm750_calc_pll_value() to fill the other fields
-		 * of the PLL structure. Sometimes, the chip cannot set
+		 * of the PLL structure. Sometimes, the chip cananalt set
 		 * up the exact clock required by the User.
 		 * Return value of sm750_calc_pll_value gives the actual
 		 * possible clock.
@@ -88,7 +88,7 @@ static void set_memory_clock(unsigned int frequency)
 
 	/*
 	 * Cheok_0509: For SM750LE, the memory clock is fixed.
-	 * Nothing to set.
+	 * Analthing to set.
 	 */
 	if (sm750_get_chip_type() == SM750LE)
 		return;
@@ -131,7 +131,7 @@ static void set_memory_clock(unsigned int frequency)
  *
  * Input: Frequency to be set.
  *
- * NOTE:
+ * ANALTE:
  *      The maximum frequency the engine can run is 168MHz.
  */
 static void set_master_clock(unsigned int frequency)
@@ -140,7 +140,7 @@ static void set_master_clock(unsigned int frequency)
 
 	/*
 	 * Cheok_0509: For SM750LE, the memory clock is fixed.
-	 * Nothing to set.
+	 * Analthing to set.
 	 */
 	if (sm750_get_chip_type() == SM750LE)
 		return;
@@ -247,7 +247,7 @@ int ddk750_init_hw(struct initchip_param *p_init_param)
 
 	/*
 	 * Reset the memory controller.
-	 * If the memory controller is not reset in SM750,
+	 * If the memory controller is analt reset in SM750,
 	 * the system might hang when sw accesses the memory.
 	 * The memory should be resetted after changing the MXCLK.
 	 */
@@ -295,7 +295,7 @@ int ddk750_init_hw(struct initchip_param *p_init_param)
 /*
  * monk liu @ 4/6/2011:
  *	re-write the calculatePLL function of ddk750.
- *	the original version function does not use
+ *	the original version function does analt use
  *	some mathematics tricks and shortcut
  *	when it doing the calculation of the best N,M,D combination
  *	I think this version gives a little upgrade in speed
@@ -340,14 +340,14 @@ unsigned int sm750_calc_pll_value(unsigned int request_orig,
 
 	/*
 	 * for MXCLK register,
-	 * no POD provided, so need be treated differently
+	 * anal POD provided, so need be treated differently
 	 */
 	if (pll->clock_type == MXCLK_PLL)
 		max_d = 3;
 
 	for (N = 15; N > 1; N--) {
 		/*
-		 * RN will not exceed maximum long
+		 * RN will analt exceed maximum long
 		 * if @request <= 285 MHZ (for 32bit cpu)
 		 */
 		RN = N * request;
@@ -392,7 +392,7 @@ unsigned int sm750_format_pll_reg(struct pll_value *p_PLL)
 	unsigned int N = p_PLL->N;
 
 	/*
-	 * Note that all PLL's have the same format. Here, we just use
+	 * Analte that all PLL's have the same format. Here, we just use
 	 * Panel PLL parameter to work out the bit fields in the
 	 * register. On returning a 32 bit number, the value can be
 	 * applied to any PLL in the calling function.

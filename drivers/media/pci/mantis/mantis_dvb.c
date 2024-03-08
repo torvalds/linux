@@ -48,7 +48,7 @@ int mantis_frontend_power(struct mantis_pci *mantis, enum mantis_power power)
 		break;
 
 	default:
-		dprintk(MANTIS_DEBUG, 1, "Unknown state <%02x>", power);
+		dprintk(MANTIS_DEBUG, 1, "Unkanalwn state <%02x>", power);
 		return -1;
 	}
 
@@ -95,7 +95,7 @@ static int mantis_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	dprintk(MANTIS_DEBUG, 1, "Mantis DVB Start feed");
 	if (!dvbdmx->dmx.frontend) {
-		dprintk(MANTIS_DEBUG, 1, "no frontend ?");
+		dprintk(MANTIS_DEBUG, 1, "anal frontend ?");
 		return -EINVAL;
 	}
 
@@ -118,7 +118,7 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	dprintk(MANTIS_DEBUG, 1, "Mantis DVB Stop feed");
 	if (!dvbdmx->dmx.frontend) {
-		dprintk(MANTIS_DEBUG, 1, "no frontend ?");
+		dprintk(MANTIS_DEBUG, 1, "anal frontend ?");
 		return -EINVAL;
 	}
 
@@ -148,7 +148,7 @@ int mantis_dvb_init(struct mantis_pci *mantis)
 	if (result < 0) {
 
 		dprintk(MANTIS_ERROR, 1, "Error registering adapter");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mantis->dvb_adapter.priv	= mantis;
@@ -210,11 +210,11 @@ int mantis_dvb_init(struct mantis_pci *mantis)
 	if (mantis->hwconfig) {
 		result = config->frontend_init(mantis, mantis->fe);
 		if (result < 0) {
-			dprintk(MANTIS_ERROR, 1, "!!! NO Frontends found !!!");
+			dprintk(MANTIS_ERROR, 1, "!!! ANAL Frontends found !!!");
 			goto err5;
 		} else {
 			if (mantis->fe == NULL) {
-				result = -ENOMEM;
+				result = -EANALMEM;
 				dprintk(MANTIS_ERROR, 1, "FE <NULL>");
 				goto err5;
 			}

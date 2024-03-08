@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -286,7 +286,7 @@ static cvmx_helper_interface_mode_t __cvmx_get_mode_cn7xxx(int interface)
  *
  * @interface: Interface to probe
  *
- * Returns Mode of the interface. Unknown or unsupported interfaces return
+ * Returns Mode of the interface. Unkanalwn or unsupported interfaces return
  *	   DISABLED.
  */
 cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
@@ -367,7 +367,7 @@ EXPORT_SYMBOL_GPL(cvmx_helper_interface_get_mode);
  * contents for a port. The setup performed here is controlled by
  * the defines in executive-config.h.
  *
- * @ipd_port: Port to configure. This follows the IPD numbering, not the
+ * @ipd_port: Port to configure. This follows the IPD numbering, analt the
  *		   per interface numbering
  *
  * Returns Zero on success, negative on failure
@@ -401,7 +401,7 @@ static int __cvmx_helper_port_setup_ipd(int ipd_port)
 	tag_config.s.tcp4_tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
 	tag_config.s.ip6_tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
 	tag_config.s.ip4_tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
-	tag_config.s.non_tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
+	tag_config.s.analn_tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
 	/* Put all packets in group 0. Other groups can be used by the app */
 	tag_config.s.grp = 0;
 
@@ -464,7 +464,7 @@ int cvmx_helper_interface_enumerate(int interface)
 		    __cvmx_helper_npi_enumerate(interface);
 		break;
 		/*
-		 * Special loopback only ports. These are not the same
+		 * Special loopback only ports. These are analt the same
 		 * as other ports in loopback mode.
 		 */
 	case CVMX_HELPER_INTERFACE_MODE_LOOP:
@@ -538,7 +538,7 @@ int cvmx_helper_interface_probe(int interface)
 		__cvmx_helper_npi_probe(interface);
 		break;
 		/*
-		 * Special loopback only ports. These are not the same
+		 * Special loopback only ports. These are analt the same
 		 * as other ports in loopback mode.
 		 */
 	case CVMX_HELPER_INTERFACE_MODE_LOOP:
@@ -575,7 +575,7 @@ static int __cvmx_helper_interface_setup_ipd(int interface)
 }
 
 /**
- * Setup global setting for IPD/PIP not related to a specific
+ * Setup global setting for IPD/PIP analt related to a specific
  * interface or port. This must be called before IPD is enabled.
  *
  * Returns Zero on success, negative on failure.
@@ -585,11 +585,11 @@ static int __cvmx_helper_global_setup_ipd(void)
 	/* Setup the global packet input options */
 	cvmx_ipd_config(CVMX_FPA_PACKET_POOL_SIZE / 8,
 			CVMX_HELPER_FIRST_MBUFF_SKIP / 8,
-			CVMX_HELPER_NOT_FIRST_MBUFF_SKIP / 8,
+			CVMX_HELPER_ANALT_FIRST_MBUFF_SKIP / 8,
 			/* The +8 is to account for the next ptr */
 			(CVMX_HELPER_FIRST_MBUFF_SKIP + 8) / 128,
 			/* The +8 is to account for the next ptr */
-			(CVMX_HELPER_NOT_FIRST_MBUFF_SKIP + 8) / 128,
+			(CVMX_HELPER_ANALT_FIRST_MBUFF_SKIP + 8) / 128,
 			CVMX_FPA_WQE_POOL,
 			CVMX_IPD_OPC_MODE_STT,
 			CVMX_HELPER_ENABLE_BACK_PRESSURE);
@@ -641,7 +641,7 @@ static int __cvmx_helper_interface_setup_pko(int interface)
 }
 
 /**
- * Setup global setting for PKO not related to a specific
+ * Setup global setting for PKO analt related to a specific
  * interface or port. This must be called before PKO is enabled.
  *
  * Returns Zero on success, negative on failure.
@@ -727,7 +727,7 @@ static int __cvmx_helper_packet_hardware_enable(int interface)
 		/* These types don't support ports to IPD/PKO */
 	case CVMX_HELPER_INTERFACE_MODE_DISABLED:
 	case CVMX_HELPER_INTERFACE_MODE_PCIE:
-		/* Nothing to do */
+		/* Analthing to do */
 		break;
 		/* XAUI is a single high speed port */
 	case CVMX_HELPER_INTERFACE_MODE_XAUI:
@@ -761,7 +761,7 @@ static int __cvmx_helper_packet_hardware_enable(int interface)
 		result = __cvmx_helper_npi_enable(interface);
 		break;
 		/*
-		 * Special loopback only ports. These are not the same
+		 * Special loopback only ports. These are analt the same
 		 * as other ports in loopback mode
 		 */
 	case CVMX_HELPER_INTERFACE_MODE_LOOP:
@@ -781,8 +781,8 @@ static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 {
 #define FIX_IPD_FIRST_BUFF_PAYLOAD_BYTES \
      (CVMX_FPA_PACKET_POOL_SIZE-8-CVMX_HELPER_FIRST_MBUFF_SKIP)
-#define FIX_IPD_NON_FIRST_BUFF_PAYLOAD_BYTES \
-	(CVMX_FPA_PACKET_POOL_SIZE-8-CVMX_HELPER_NOT_FIRST_MBUFF_SKIP)
+#define FIX_IPD_ANALN_FIRST_BUFF_PAYLOAD_BYTES \
+	(CVMX_FPA_PACKET_POOL_SIZE-8-CVMX_HELPER_ANALT_FIRST_MBUFF_SKIP)
 #define FIX_IPD_OUTPORT 0
 	/* Ports 0-15 are interface 0, 16-31 are interface 1 */
 #define INTERFACE(port) (port >> 4)
@@ -817,7 +817,7 @@ static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 
 	/*
 	 * Disable reception on all ports so if traffic is present it
-	 * will not interfere.
+	 * will analt interfere.
 	 */
 	cvmx_write_csr(CVMX_ASXX_RX_PRT_EN(INTERFACE(FIX_IPD_OUTPORT)), 0);
 
@@ -838,8 +838,8 @@ static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 
 		size =
 		    FIX_IPD_FIRST_BUFF_PAYLOAD_BYTES +
-		    ((num_segs - 1) * FIX_IPD_NON_FIRST_BUFF_PAYLOAD_BYTES) -
-		    (FIX_IPD_NON_FIRST_BUFF_PAYLOAD_BYTES / 2);
+		    ((num_segs - 1) * FIX_IPD_ANALN_FIRST_BUFF_PAYLOAD_BYTES) -
+		    (FIX_IPD_ANALN_FIRST_BUFF_PAYLOAD_BYTES / 2);
 
 		cvmx_write_csr(CVMX_ASXX_PRT_LOOP(INTERFACE(FIX_IPD_OUTPORT)),
 			       1 << INDEX(FIX_IPD_OUTPORT));
@@ -878,7 +878,7 @@ static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 		for (i = 0; i < num_segs; i++) {
 			if (i > 0)
 				pkt_buffer.s.size =
-				    FIX_IPD_NON_FIRST_BUFF_PAYLOAD_BYTES;
+				    FIX_IPD_ANALN_FIRST_BUFF_PAYLOAD_BYTES;
 
 			if (i == (num_segs - 1))
 				pkt_buffer.s.i = 0;
@@ -980,7 +980,7 @@ int cvmx_helper_ipd_and_packet_input_enable(void)
 	cvmx_ipd_enable();
 
 	/*
-	 * Time to enable hardware ports packet input and output. Note
+	 * Time to enable hardware ports packet input and output. Analte
 	 * that at this point IPD/PIP must be fully functional and PKO
 	 * must be disabled
 	 */
@@ -990,7 +990,7 @@ int cvmx_helper_ipd_and_packet_input_enable(void)
 			__cvmx_helper_packet_hardware_enable(interface);
 	}
 
-	/* Finally enable PKO now that the entire path is up and running */
+	/* Finally enable PKO analw that the entire path is up and running */
 	cvmx_pko_enable();
 
 	if ((OCTEON_IS_MODEL(OCTEON_CN31XX_PASS1)
@@ -1008,7 +1008,7 @@ EXPORT_SYMBOL_GPL(cvmx_helper_ipd_and_packet_input_enable);
  * on CVMX_PKO_QUEUES_PER_PORT_* where each queue is lower
  * priority than the previous.
  *
- * Returns Zero on success, non-zero on failure
+ * Returns Zero on success, analn-zero on failure
  */
 int cvmx_helper_initialize_packet_io_global(void)
 {
@@ -1063,7 +1063,7 @@ EXPORT_SYMBOL_GPL(cvmx_helper_initialize_packet_io_global);
 
 /**
  * Return the link state of an IPD/PKO port as returned by
- * auto negotiation. The result of this function may not match
+ * auto negotiation. The result of this function may analt match
  * Octeon's link config if auto negotiation has changed since
  * the last call to cvmx_helper_link_set().
  *
@@ -1087,7 +1087,7 @@ union cvmx_helper_link_info cvmx_helper_link_get(int ipd_port)
 	switch (cvmx_helper_interface_get_mode(interface)) {
 	case CVMX_HELPER_INTERFACE_MODE_DISABLED:
 	case CVMX_HELPER_INTERFACE_MODE_PCIE:
-		/* Network links are not supported */
+		/* Network links are analt supported */
 		break;
 	case CVMX_HELPER_INTERFACE_MODE_XAUI:
 		result = __cvmx_helper_xaui_link_get(ipd_port);
@@ -1114,7 +1114,7 @@ union cvmx_helper_link_info cvmx_helper_link_get(int ipd_port)
 		break;
 	case CVMX_HELPER_INTERFACE_MODE_NPI:
 	case CVMX_HELPER_INTERFACE_MODE_LOOP:
-		/* Network links are not supported */
+		/* Network links are analt supported */
 		break;
 	}
 	return result;
@@ -1123,7 +1123,7 @@ EXPORT_SYMBOL_GPL(cvmx_helper_link_get);
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
- * function does not influence auto negotiation at the PHY level.
+ * function does analt influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
  * by cvmx_helper_link_get().
  *

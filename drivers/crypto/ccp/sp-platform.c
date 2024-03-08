@@ -61,7 +61,7 @@ static struct sp_dev_vdata *sp_get_of_version(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	const struct of_device_id *match;
 
-	match = of_match_node(sp_of_match, pdev->dev.of_node);
+	match = of_match_analde(sp_of_match, pdev->dev.of_analde);
 	if (match && match->data)
 		return (struct sp_dev_vdata *)match->data;
 #endif
@@ -91,7 +91,7 @@ static int sp_get_irqs(struct sp_device *sp)
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_notice(dev, "unable to get IRQ (%d)\n", ret);
+		dev_analtice(dev, "unable to get IRQ (%d)\n", ret);
 		return ret;
 	}
 
@@ -101,7 +101,7 @@ static int sp_get_irqs(struct sp_device *sp)
 	} else {
 		ret = platform_get_irq(pdev, 1);
 		if (ret < 0) {
-			dev_notice(dev, "unable to get IRQ (%d)\n", ret);
+			dev_analtice(dev, "unable to get IRQ (%d)\n", ret);
 			return ret;
 		}
 
@@ -119,7 +119,7 @@ static int sp_platform_probe(struct platform_device *pdev)
 	enum dev_dma_attr attr;
 	int ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	sp = sp_alloc_struct(dev);
 	if (!sp)
 		goto e_err;
@@ -129,10 +129,10 @@ static int sp_platform_probe(struct platform_device *pdev)
 		goto e_err;
 
 	sp->dev_specific = sp_platform;
-	sp->dev_vdata = pdev->dev.of_node ? sp_get_of_version(pdev)
+	sp->dev_vdata = pdev->dev.of_analde ? sp_get_of_version(pdev)
 					 : sp_get_acpi_version(pdev);
 	if (!sp->dev_vdata) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "missing driver data\n");
 		goto e_err;
 	}
@@ -144,16 +144,16 @@ static int sp_platform_probe(struct platform_device *pdev)
 	}
 
 	attr = device_get_dma_attr(dev);
-	if (attr == DEV_DMA_NOT_SUPPORTED) {
-		dev_err(dev, "DMA is not supported");
+	if (attr == DEV_DMA_ANALT_SUPPORTED) {
+		dev_err(dev, "DMA is analt supported");
 		goto e_err;
 	}
 
 	sp_platform->coherent = (attr == DEV_DMA_COHERENT);
 	if (sp_platform->coherent)
-		sp->axcache = CACHE_WB_NO_ALLOC;
+		sp->axcache = CACHE_WB_ANAL_ALLOC;
 	else
-		sp->axcache = CACHE_NONE;
+		sp->axcache = CACHE_ANALNE;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
@@ -171,12 +171,12 @@ static int sp_platform_probe(struct platform_device *pdev)
 	if (ret)
 		goto e_err;
 
-	dev_notice(dev, "enabled\n");
+	dev_analtice(dev, "enabled\n");
 
 	return 0;
 
 e_err:
-	dev_notice(dev, "initialization failed\n");
+	dev_analtice(dev, "initialization failed\n");
 	return ret;
 }
 
@@ -187,7 +187,7 @@ static void sp_platform_remove(struct platform_device *pdev)
 
 	sp_destroy(sp);
 
-	dev_notice(dev, "disabled\n");
+	dev_analtice(dev, "disabled\n");
 }
 
 #ifdef CONFIG_PM

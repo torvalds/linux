@@ -8,9 +8,9 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  * - stlc45xx driver
- *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *   Copyright (C) 2008 Analkia Corporation and/or its subsidiary(-ies).
  */
 
 #include <linux/slab.h>
@@ -23,9 +23,9 @@
 #include "p54.h"
 #include "lmac.h"
 
-static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static bool modparam_analhwcrypt;
+module_param_named(analhwcrypt, modparam_analhwcrypt, bool, 0444);
+MODULE_PARM_DESC(analhwcrypt, "Disable hardware encryption.");
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_DESCRIPTION("Softmac Prism54 common code");
 MODULE_LICENSE("GPL");
@@ -38,7 +38,7 @@ static int p54_sta_add_remove(struct ieee80211_hw *hw,
 	struct p54_common *priv = hw->priv;
 
 	/*
-	 * Notify the firmware that we don't want or we don't
+	 * Analtify the firmware that we don't want or we don't
 	 * need to buffer frames for this station anymore.
 	 */
 
@@ -47,14 +47,14 @@ static int p54_sta_add_remove(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void p54_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
-			      enum sta_notify_cmd notify_cmd,
+static void p54_sta_analtify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
+			      enum sta_analtify_cmd analtify_cmd,
 			      struct ieee80211_sta *sta)
 {
 	struct p54_common *priv = dev->priv;
 
-	switch (notify_cmd) {
-	case STA_NOTIFY_AWAKE:
+	switch (analtify_cmd) {
+	case STA_ANALTIFY_AWAKE:
 		/* update the firmware's filter table */
 		p54_sta_unlock(priv, sta->addr);
 		break;
@@ -141,7 +141,7 @@ static int p54_beacon_update(struct p54_common *priv,
 
 	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = p54_beacon_format_ie_tim(beacon);
 	if (ret)
 		return ret;
@@ -151,7 +151,7 @@ static int p54_beacon_update(struct p54_common *priv,
 	 * The driver only needs to upload a new beacon template, once
 	 * the template was changed by the stack or userspace.
 	 *
-	 * LMAC API 3.2.2 also specifies that the driver does not need
+	 * LMAC API 3.2.2 also specifies that the driver does analt need
 	 * to cancel the old beacon template by hand, instead the firmware
 	 * will release the previous one through the feedback mechanism.
 	 */
@@ -231,7 +231,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 	mutex_lock(&priv->conf_mutex);
 	if (priv->mode != NL80211_IFTYPE_MONITOR) {
 		mutex_unlock(&priv->conf_mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->vif = vif;
@@ -245,7 +245,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 		break;
 	default:
 		mutex_unlock(&priv->conf_mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
@@ -371,7 +371,7 @@ static u64 p54_prepare_multicast(struct ieee80211_hw *dev,
 		ARRAY_SIZE(((struct p54_group_address_table *)NULL)->mac_list));
 	/*
 	 * The first entry is reserved for the global broadcast MAC.
-	 * Otherwise the firmware will drop it and ARP will no longer work.
+	 * Otherwise the firmware will drop it and ARP will anal longer work.
 	 */
 	i = 1;
 	priv->mc_maclist_num = netdev_hw_addr_list_count(mc_list) + i;
@@ -504,8 +504,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 	u8 algo = 0;
 	u8 *addr = NULL;
 
-	if (modparam_nohwcrypt)
-		return -EOPNOTSUPP;
+	if (modparam_analhwcrypt)
+		return -EOPANALTSUPP;
 
 	if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT) {
 		/*
@@ -515,7 +515,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		 * corrupted. So, we can't have firmware supported crypto
 		 * offload in this case.
 		 */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&priv->conf_mutex);
@@ -524,7 +524,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		case WLAN_CIPHER_SUITE_TKIP:
 			if (!(priv->privacy_caps & (BR_DESC_PRIV_CAP_MICHAEL |
 			      BR_DESC_PRIV_CAP_TKIP))) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto out_unlock;
 			}
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -533,7 +533,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
 			if (!(priv->privacy_caps & BR_DESC_PRIV_CAP_WEP)) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto out_unlock;
 			}
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -541,14 +541,14 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
 			if (!(priv->privacy_caps & BR_DESC_PRIV_CAP_AESCCMP)) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto out_unlock;
 			}
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 			algo = P54_CRYPTO_AESCCMP;
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto out_unlock;
 		}
 		slot = bitmap_find_free_region(priv->used_rxkeys,
@@ -557,7 +557,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		if (slot < 0) {
 			/*
 			 * The device supports the chosen algorithm, but the
-			 * firmware does not provide enough key slots to store
+			 * firmware does analt provide eanalugh key slots to store
 			 * all of them.
 			 * But encryption offload for outgoing frames is always
 			 * possible, so we just pretend that the upload was
@@ -574,7 +574,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		slot = key->hw_key_idx;
 
 		if (slot == 0xff) {
-			/* This key was not uploaded into the rx key cache. */
+			/* This key was analt uploaded into the rx key cache. */
 
 			goto out_unlock;
 		}
@@ -590,7 +590,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			     key->keylen, addr, key->key);
 	if (ret) {
 		bitmap_release_region(priv->used_rxkeys, slot, 0);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out_unlock;
 	}
 
@@ -610,7 +610,7 @@ static int p54_get_survey(struct ieee80211_hw *dev, int idx,
 	bool in_use = false;
 
 	if (idx >= priv->chan_num)
-		return -ENOENT;
+		return -EANALENT;
 
 #define MAX_TRIES 1
 	for (tries = 0; tries < MAX_TRIES; tries++) {
@@ -633,9 +633,9 @@ static int p54_get_survey(struct ieee80211_hw *dev, int idx,
 				survey->filled |= SURVEY_INFO_IN_USE;
 			} else {
 				/*
-				 * hw/fw has not accumulated enough sample sets.
-				 * Wait for 100ms, this ought to be enough to
-				 * get at least one non-null set of channel
+				 * hw/fw has analt accumulated eanalugh sample sets.
+				 * Wait for 100ms, this ought to be eanalugh to
+				 * get at least one analn-null set of channel
 				 * usage statistics.
 				 */
 				msleep(100);
@@ -679,8 +679,8 @@ static void p54_flush(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 	i = P54_STATISTICS_UPDATE * 2 / 20;
 
 	/*
-	 * In this case no locking is required because as we speak the
-	 * queues have already been stopped and no new frames can sneak
+	 * In this case anal locking is required because as we speak the
+	 * queues have already been stopped and anal new frames can sneak
 	 * up from behind.
 	 */
 	while ((total = p54_flush_count(priv)) && i--) {
@@ -711,7 +711,7 @@ static const struct ieee80211_ops p54_ops = {
 	.add_interface		= p54_add_interface,
 	.remove_interface	= p54_remove_interface,
 	.set_tim		= p54_set_tim,
-	.sta_notify		= p54_sta_notify,
+	.sta_analtify		= p54_sta_analtify,
 	.sta_add		= p54_sta_add_remove,
 	.sta_remove		= p54_sta_add_remove,
 	.set_key		= p54_set_key,
@@ -761,10 +761,10 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv->tx_stats[P54_QUEUE_CAB].limit = 3;
 	priv->tx_stats[P54_QUEUE_DATA].limit = 5;
 	dev->queues = 1;
-	priv->noise = -94;
+	priv->analise = -94;
 	/*
-	 * We support at most 8 tries no matter which rate they're at,
-	 * we cannot support max_rates * max_rate_tries as we set it
+	 * We support at most 8 tries anal matter which rate they're at,
+	 * we cananalt support max_rates * max_rate_tries as we set it
 	 * here, but setting it correctly to 4/2 or so would limit us
 	 * artificially if the RC algorithm wants just two rates, so
 	 * let's say 4/7, we'll redistribute it at TX time, see the
@@ -776,7 +776,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 				 sizeof(struct p54_tx_data);
 
 	/*
-	 * For now, disable PS by default because it affects
+	 * For analw, disable PS by default because it affects
 	 * link stability significantly.
 	 */
 	dev->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -802,7 +802,7 @@ int p54_register_common(struct ieee80211_hw *dev, struct device *pdev)
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		dev_err(pdev, "Cannot register device (%d).\n", err);
+		dev_err(pdev, "Cananalt register device (%d).\n", err);
 		return err;
 	}
 	priv->registered = true;

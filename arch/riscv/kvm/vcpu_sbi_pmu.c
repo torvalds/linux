@@ -6,7 +6,7 @@
  *     Atish Patra <atishp@rivosinc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <asm/csr.h>
@@ -23,7 +23,7 @@ static int kvm_sbi_ext_pmu_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	u64 temp;
 
 	if (!kvpmu->init_done) {
-		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
+		retdata->err_val = SBI_ERR_ANALT_SUPPORTED;
 		return 0;
 	}
 
@@ -65,7 +65,7 @@ static int kvm_sbi_ext_pmu_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		ret = kvm_riscv_vcpu_pmu_ctr_read(vcpu, cp->a0, retdata);
 		break;
 	default:
-		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
+		retdata->err_val = SBI_ERR_ANALT_SUPPORTED;
 	}
 
 	return ret;

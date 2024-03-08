@@ -207,7 +207,7 @@ void solo_update_mode(struct solo_enc_dev *solo_enc)
 
 	solo_enc->vop_len = vop_len;
 
-	/* Now handle the jpeg header */
+	/* Analw handle the jpeg header */
 	vop = solo_enc->jpeg_header;
 	vop[SOF0_START + 5] = 0xff & (solo_enc->height >> 8);
 	vop[SOF0_START + 6] = 0xff & solo_enc->height;
@@ -493,7 +493,7 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 		vb2_set_plane_payload(vb, 0, vop_mpeg_size(vh));
 	}
 
-	/* Now get the actual mpeg payload */
+	/* Analw get the actual mpeg payload */
 	frame_off = (vop_mpeg_offset(vh) - SOLO_MP4E_EXT_ADDR(solo_dev) +
 		sizeof(*vh)) % SOLO_MP4E_EXT_SIZE(solo_dev);
 	frame_size = ALIGN(vop_mpeg_size(vh) + skip, DMA_ALIGN);
@@ -783,10 +783,10 @@ static int solo_enc_enum_input(struct file *file, void *priv,
 	snprintf(input->name, sizeof(input->name), "Encoder %d",
 		 solo_enc->ch + 1);
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	input->std = solo_enc->vfd->tvnorms;
+	input->std = solo_enc->vfd->tvanalrms;
 
 	if (!tw28_get_video_status(solo_dev, solo_enc->ch))
-		input->status = V4L2_IN_ST_NO_SIGNAL;
+		input->status = V4L2_IN_ST_ANAL_SIGNAL;
 
 	return 0;
 }
@@ -863,7 +863,7 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 	}
 
 	switch (pix->field) {
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 	case V4L2_FIELD_INTERLACED:
 		break;
 	case V4L2_FIELD_ANY:
@@ -900,7 +900,7 @@ static int solo_enc_set_fmt_cap(struct file *file, void *priv,
 	else
 		solo_enc->mode = SOLO_ENC_MODE_CIF;
 
-	/* This does not change the encoder at all */
+	/* This does analt change the encoder at all */
 	solo_enc->fmt = pix->pixelformat;
 
 	/*
@@ -908,7 +908,7 @@ static int solo_enc_set_fmt_cap(struct file *file, void *priv,
 	 * as I can tell these are basically additional video streams with
 	 * different MPEG encoding attributes that can run in parallel with
 	 * the main stream. If so, then this should be implemented as a
-	 * second video node. Abusing priv like this is certainly not the
+	 * second video analde. Abusing priv like this is certainly analt the
 	 * right approach.
 	if (pix->priv)
 		solo_enc->type = SOLO_ENC_TYPE_EXT;
@@ -927,7 +927,7 @@ static int solo_enc_get_fmt_cap(struct file *file, void *priv,
 	pix->height = solo_enc->height;
 	pix->pixelformat = solo_enc->fmt;
 	pix->field = solo_enc->interlaced ? V4L2_FIELD_INTERLACED :
-		     V4L2_FIELD_NONE;
+		     V4L2_FIELD_ANALNE;
 	pix->sizeimage = FRAME_BUF_SIZE;
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
@@ -999,13 +999,13 @@ static int solo_enum_frameintervals(struct file *file, void *priv,
 	fintv->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 
 	fintv->stepwise.min.numerator = 1;
-	fintv->stepwise.min.denominator = solo_dev->fps;
+	fintv->stepwise.min.deanalminator = solo_dev->fps;
 
 	fintv->stepwise.max.numerator = 15;
-	fintv->stepwise.max.denominator = solo_dev->fps;
+	fintv->stepwise.max.deanalminator = solo_dev->fps;
 
 	fintv->stepwise.step.numerator = 1;
-	fintv->stepwise.step.denominator = solo_dev->fps;
+	fintv->stepwise.step.deanalminator = solo_dev->fps;
 
 	return 0;
 }
@@ -1018,7 +1018,7 @@ static int solo_g_parm(struct file *file, void *priv,
 
 	cp->capability = V4L2_CAP_TIMEPERFRAME;
 	cp->timeperframe.numerator = solo_enc->interval;
-	cp->timeperframe.denominator = solo_enc->solo_dev->fps;
+	cp->timeperframe.deanalminator = solo_enc->solo_dev->fps;
 	cp->capturemode = 0;
 	/* XXX: Shouldn't we be able to get/set this from vb2? */
 	cp->readbuffers = 2;
@@ -1046,7 +1046,7 @@ static int solo_s_parm(struct file *file, void *priv,
 	if (vb2_is_streaming(&solo_enc->vidq))
 		return -EBUSY;
 
-	solo_enc->interval = calc_interval(fps, t->numerator, t->denominator);
+	solo_enc->interval = calc_interval(fps, t->numerator, t->deanalminator);
 	solo_update_mode(solo_enc);
 	return solo_g_parm(file, priv, sp);
 }
@@ -1173,9 +1173,9 @@ static const struct video_device solo_enc_template = {
 	.name			= SOLO6X10_NAME,
 	.fops			= &solo_enc_fops,
 	.ioctl_ops		= &solo_enc_ioctl_ops,
-	.minor			= -1,
+	.mianalr			= -1,
 	.release		= video_device_release,
-	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.tvanalrms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
 	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 				  V4L2_CAP_STREAMING,
 };
@@ -1212,7 +1212,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 
 	solo_enc = kzalloc(sizeof(*solo_enc), GFP_KERNEL);
 	if (!solo_enc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hdl = &solo_enc->hdl;
 	v4l2_ctrl_handler_init(hdl, 10);
@@ -1267,7 +1267,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	solo_enc->vidq.mem_ops = &vb2_dma_sg_memops;
 	solo_enc->vidq.drv_priv = solo_enc;
 	solo_enc->vidq.gfp_flags = __GFP_DMA32 | __GFP_KSWAPD_RECLAIM;
-	solo_enc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	solo_enc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	solo_enc->vidq.buf_struct_size = sizeof(struct solo_vb2_buf);
 	solo_enc->vidq.lock = &solo_enc->lock;
 	solo_enc->vidq.dev = &solo_dev->pdev->dev;
@@ -1288,7 +1288,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 						  solo_enc->desc_nelts,
 						  &solo_enc->desc_dma,
 						  GFP_KERNEL);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (solo_enc->desc_items == NULL)
 		goto hdl_free;
 
@@ -1348,7 +1348,7 @@ int solo_enc_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 					      solo_dev->vh_size,
 					      &solo_dev->vh_dma, GFP_KERNEL);
 	if (solo_dev->vh_buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < solo_dev->nr_chans; i++) {
 		solo_dev->v4l2_enc[i] = solo_enc_alloc(solo_dev, i, nr);

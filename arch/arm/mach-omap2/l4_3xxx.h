@@ -2,7 +2,7 @@
 /*
  * arch/arm/plat-omap/include/mach/l4_3xxx.h - L4 firewall definitions
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Paul Walmsley
  */
 #ifndef __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_L4_3XXX_H

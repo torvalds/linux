@@ -23,9 +23,9 @@ TMPFILE=$OUTFILE.tmp
 
 trap 'rm -f $OUTFILE $TMPFILE' EXIT
 
-# SPDX-License-Identifier with GPL variants must have "WITH Linux-syscall-note"
-if [ -n "$(sed -n -e "/SPDX-License-Identifier:.*GPL-/{/WITH Linux-syscall-note/!p}" $INFILE)" ]; then
-	echo "error: $INFILE: missing \"WITH Linux-syscall-note\" for SPDX-License-Identifier" >&2
+# SPDX-License-Identifier with GPL variants must have "WITH Linux-syscall-analte"
+if [ -n "$(sed -n -e "/SPDX-License-Identifier:.*GPL-/{/WITH Linux-syscall-analte/!p}" $INFILE)" ]; then
+	echo "error: $INFILE: missing \"WITH Linux-syscall-analte\" for SPDX-License-Identifier" >&2
 	exit 1
 fi
 
@@ -64,18 +64,18 @@ configs=$(sed -e '
 	d
 ' $OUTFILE)
 
-# The entries in the following list do not result in an error.
-# Please do not add a new entry. This list is only for existing ones.
+# The entries in the following list do analt result in an error.
+# Please do analt add a new entry. This list is only for existing ones.
 # The list will be reduced gradually, and deleted eventually. (hopefully)
 #
 # The format is <file-name>:<CONFIG-option> in each line.
-config_leak_ignores="
+config_leak_iganalres="
 arch/arc/include/uapi/asm/page.h:CONFIG_ARC_PAGE_SIZE_16K
 arch/arc/include/uapi/asm/page.h:CONFIG_ARC_PAGE_SIZE_4K
 arch/arc/include/uapi/asm/swab.h:CONFIG_ARC_HAS_SWAPE
 arch/arm/include/uapi/asm/ptrace.h:CONFIG_CPU_ENDIAN_BE8
 arch/m68k/include/uapi/asm/ptrace.h:CONFIG_COLDFIRE
-arch/nios2/include/uapi/asm/swab.h:CONFIG_NIOS2_CI_SWAB_NO
+arch/nios2/include/uapi/asm/swab.h:CONFIG_NIOS2_CI_SWAB_ANAL
 arch/nios2/include/uapi/asm/swab.h:CONFIG_NIOS2_CI_SWAB_SUPPORT
 arch/x86/include/uapi/asm/auxvec.h:CONFIG_IA32_EMULATION
 arch/x86/include/uapi/asm/auxvec.h:CONFIG_X86_64
@@ -85,9 +85,9 @@ for c in $configs
 do
 	leak_error=1
 
-	for ignore in $config_leak_ignores
+	for iganalre in $config_leak_iganalres
 	do
-		if echo "$INFILE:$c" | grep -q "$ignore$"; then
+		if echo "$INFILE:$c" | grep -q "$iganalre$"; then
 			leak_error=
 			break
 		fi

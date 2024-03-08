@@ -19,7 +19,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
  	struct mm_context *from_mm = NULL;
 	struct mm_context *to_mm = &mm->context;
 	unsigned long stack = 0;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	stack = __get_free_pages(GFP_KERNEL | __GFP_ZERO, ilog2(STUB_DATA_PAGES));
 	if (stack == 0)
@@ -44,7 +44,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	ret = init_new_ldt(to_mm, from_mm);
 	if (ret < 0) {
 		printk(KERN_ERR "init_new_context_skas - init_ldt"
-		       " failed, errno = %d\n", ret);
+		       " failed, erranal = %d\n", ret);
 		goto out_free;
 	}
 

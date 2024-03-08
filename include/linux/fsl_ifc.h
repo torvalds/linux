@@ -50,8 +50,8 @@
 /* Machine Select */
 #define CSPR_MSEL			0x00000006
 #define CSPR_MSEL_SHIFT			1
-/* NOR */
-#define CSPR_MSEL_NOR			0x00000000
+/* ANALR */
+#define CSPR_MSEL_ANALR			0x00000000
 /* NAND */
 #define CSPR_MSEL_NAND			0x00000002
 /* GPCM */
@@ -120,37 +120,37 @@
 #define CSOR_NAND_BCTLD			0x00000001
 
 /*
- * Chip Select Option Register - NOR Flash Mode
+ * Chip Select Option Register - ANALR Flash Mode
  */
 /* Enable Address shift Mode */
-#define CSOR_NOR_ADM_SHFT_MODE_EN	0x80000000
-/* Page Read Enable from NOR device */
-#define CSOR_NOR_PGRD_EN		0x10000000
+#define CSOR_ANALR_ADM_SHFT_MODE_EN	0x80000000
+/* Page Read Enable from ANALR device */
+#define CSOR_ANALR_PGRD_EN		0x10000000
 /* AVD Toggle Enable during Burst Program */
-#define CSOR_NOR_AVD_TGL_PGM_EN		0x01000000
+#define CSOR_ANALR_AVD_TGL_PGM_EN		0x01000000
 /* Address Data Multiplexing Shift */
-#define CSOR_NOR_ADM_MASK		0x0003E000
-#define CSOR_NOR_ADM_SHIFT_SHIFT	13
-#define CSOR_NOR_ADM_SHIFT(n)	((n) << CSOR_NOR_ADM_SHIFT_SHIFT)
-/* Type of the NOR device hooked */
-#define CSOR_NOR_NOR_MODE_AYSNC_NOR	0x00000000
-#define CSOR_NOR_NOR_MODE_AVD_NOR	0x00000020
+#define CSOR_ANALR_ADM_MASK		0x0003E000
+#define CSOR_ANALR_ADM_SHIFT_SHIFT	13
+#define CSOR_ANALR_ADM_SHIFT(n)	((n) << CSOR_ANALR_ADM_SHIFT_SHIFT)
+/* Type of the ANALR device hooked */
+#define CSOR_ANALR_ANALR_MODE_AYSNC_ANALR	0x00000000
+#define CSOR_ANALR_ANALR_MODE_AVD_ANALR	0x00000020
 /* Time for Read Enable High to Output High Impedance */
-#define CSOR_NOR_TRHZ_MASK		0x0000001C
-#define CSOR_NOR_TRHZ_SHIFT		2
-#define CSOR_NOR_TRHZ_20		0x00000000
-#define CSOR_NOR_TRHZ_40		0x00000004
-#define CSOR_NOR_TRHZ_60		0x00000008
-#define CSOR_NOR_TRHZ_80		0x0000000C
-#define CSOR_NOR_TRHZ_100		0x00000010
+#define CSOR_ANALR_TRHZ_MASK		0x0000001C
+#define CSOR_ANALR_TRHZ_SHIFT		2
+#define CSOR_ANALR_TRHZ_20		0x00000000
+#define CSOR_ANALR_TRHZ_40		0x00000004
+#define CSOR_ANALR_TRHZ_60		0x00000008
+#define CSOR_ANALR_TRHZ_80		0x0000000C
+#define CSOR_ANALR_TRHZ_100		0x00000010
 /* Buffer control disable */
-#define CSOR_NOR_BCTLD			0x00000001
+#define CSOR_ANALR_BCTLD			0x00000001
 
 /*
  * Chip Select Option Register - GPCM Mode
  */
-/* GPCM Mode - Normal */
-#define CSOR_GPCM_GPMODE_NORMAL		0x00000000
+/* GPCM Mode - Analrmal */
+#define CSOR_GPCM_GPMODE_ANALRMAL		0x00000000
 /* GPCM Mode - GenericASIC */
 #define CSOR_GPCM_GPMODE_ASIC		0x80000000
 /* Parity Mode odd/even */
@@ -350,7 +350,7 @@
  * in FIR registers- 6bits
  */
 enum ifc_nand_fir_opcodes {
-	IFC_FIR_OP_NOP,
+	IFC_FIR_OP_ANALP,
 	IFC_FIR_OP_CA0,
 	IFC_FIR_OP_CA1,
 	IFC_FIR_OP_CA2,
@@ -551,71 +551,71 @@ enum ifc_nand_fir_opcodes {
 #define IFC_NAND_MDR_RDATA1		0x00FF0000
 
 /*
- * NOR Machine Specific Registers
+ * ANALR Machine Specific Registers
  */
 /*
- * NOR Event and Error Status Register (NOR_EVTER_STAT)
+ * ANALR Event and Error Status Register (ANALR_EVTER_STAT)
  */
-/* NOR Command Sequence Operation Complete */
-#define IFC_NOR_EVTER_STAT_OPC_NOR	0x80000000
+/* ANALR Command Sequence Operation Complete */
+#define IFC_ANALR_EVTER_STAT_OPC_ANALR	0x80000000
 /* Write Protect Error */
-#define IFC_NOR_EVTER_STAT_WPER		0x04000000
+#define IFC_ANALR_EVTER_STAT_WPER		0x04000000
 /* Command Sequence Timeout Error */
-#define IFC_NOR_EVTER_STAT_STOER	0x01000000
+#define IFC_ANALR_EVTER_STAT_STOER	0x01000000
 
 /*
- * NOR Event and Error Enable Register (NOR_EVTER_EN)
+ * ANALR Event and Error Enable Register (ANALR_EVTER_EN)
  */
-/* NOR Command Seq complete event enable */
-#define IFC_NOR_EVTER_EN_OPCEN_NOR	0x80000000
+/* ANALR Command Seq complete event enable */
+#define IFC_ANALR_EVTER_EN_OPCEN_ANALR	0x80000000
 /* Write Protect Error Checking Enable */
-#define IFC_NOR_EVTER_EN_WPEREN		0x04000000
+#define IFC_ANALR_EVTER_EN_WPEREN		0x04000000
 /* Timeout Error Enable */
-#define IFC_NOR_EVTER_EN_STOEREN	0x01000000
+#define IFC_ANALR_EVTER_EN_STOEREN	0x01000000
 
 /*
- * NOR Event and Error Interrupt Enable Register (NOR_EVTER_INTR_EN)
+ * ANALR Event and Error Interrupt Enable Register (ANALR_EVTER_INTR_EN)
  */
 /* Enable interrupt for OPC complete */
-#define IFC_NOR_EVTER_INTR_OPCEN_NOR	0x80000000
+#define IFC_ANALR_EVTER_INTR_OPCEN_ANALR	0x80000000
 /* Enable interrupt for write protect error */
-#define IFC_NOR_EVTER_INTR_WPEREN	0x04000000
+#define IFC_ANALR_EVTER_INTR_WPEREN	0x04000000
 /* Enable interrupt for timeout error */
-#define IFC_NOR_EVTER_INTR_STOEREN	0x01000000
+#define IFC_ANALR_EVTER_INTR_STOEREN	0x01000000
 
 /*
- * NOR Transfer Error Attribute Register-0 (NOR_ERATTR0)
+ * ANALR Transfer Error Attribute Register-0 (ANALR_ERATTR0)
  */
 /* Source ID for error transaction */
-#define IFC_NOR_ERATTR0_ERSRCID		0xFF000000
+#define IFC_ANALR_ERATTR0_ERSRCID		0xFF000000
 /* AXI ID for error transation */
-#define IFC_NOR_ERATTR0_ERAID		0x000FF000
-/* Chip select corresponds to NOR error */
-#define IFC_NOR_ERATTR0_ERCS_CS0	0x00000000
-#define IFC_NOR_ERATTR0_ERCS_CS1	0x00000010
-#define IFC_NOR_ERATTR0_ERCS_CS2	0x00000020
-#define IFC_NOR_ERATTR0_ERCS_CS3	0x00000030
+#define IFC_ANALR_ERATTR0_ERAID		0x000FF000
+/* Chip select corresponds to ANALR error */
+#define IFC_ANALR_ERATTR0_ERCS_CS0	0x00000000
+#define IFC_ANALR_ERATTR0_ERCS_CS1	0x00000010
+#define IFC_ANALR_ERATTR0_ERCS_CS2	0x00000020
+#define IFC_ANALR_ERATTR0_ERCS_CS3	0x00000030
 /* Type of transaction read/write */
-#define IFC_NOR_ERATTR0_ERTYPE_READ	0x00000001
+#define IFC_ANALR_ERATTR0_ERTYPE_READ	0x00000001
 
 /*
- * NOR Transfer Error Attribute Register-2 (NOR_ERATTR2)
+ * ANALR Transfer Error Attribute Register-2 (ANALR_ERATTR2)
  */
-#define IFC_NOR_ERATTR2_ER_NUM_PHASE_EXP	0x000F0000
-#define IFC_NOR_ERATTR2_ER_NUM_PHASE_PER	0x00000F00
+#define IFC_ANALR_ERATTR2_ER_NUM_PHASE_EXP	0x000F0000
+#define IFC_ANALR_ERATTR2_ER_NUM_PHASE_PER	0x00000F00
 
 /*
- * NOR Control Register (NORCR)
+ * ANALR Control Register (ANALRCR)
  */
-#define IFC_NORCR_MASK			0x0F0F0000
-/* No. of Address/Data Phase */
-#define IFC_NORCR_NUM_PHASE_MASK	0x0F000000
-#define IFC_NORCR_NUM_PHASE_SHIFT	24
-#define IFC_NORCR_NUM_PHASE(n)	((n-1) << IFC_NORCR_NUM_PHASE_SHIFT)
+#define IFC_ANALRCR_MASK			0x0F0F0000
+/* Anal. of Address/Data Phase */
+#define IFC_ANALRCR_NUM_PHASE_MASK	0x0F000000
+#define IFC_ANALRCR_NUM_PHASE_SHIFT	24
+#define IFC_ANALRCR_NUM_PHASE(n)	((n-1) << IFC_ANALRCR_NUM_PHASE_SHIFT)
 /* Sequence Timeout Count */
-#define IFC_NORCR_STOCNT_MASK		0x000F0000
-#define IFC_NORCR_STOCNT_SHIFT		16
-#define IFC_NORCR_STOCNT(n)	((__ilog2(n) - 8) << IFC_NORCR_STOCNT_SHIFT)
+#define IFC_ANALRCR_STOCNT_MASK		0x000F0000
+#define IFC_ANALRCR_STOCNT_SHIFT		16
+#define IFC_ANALRCR_STOCNT(n)	((__ilog2(n) - 8) << IFC_ANALRCR_STOCNT_SHIFT)
 
 /*
  * GPCM Machine specific registers
@@ -739,20 +739,20 @@ struct fsl_ifc_nand {
 };
 
 /*
- * IFC controller NOR Machine registers
+ * IFC controller ANALR Machine registers
  */
-struct fsl_ifc_nor {
-	__be32 nor_evter_stat;
+struct fsl_ifc_analr {
+	__be32 analr_evter_stat;
 	u32 res1[0x2];
-	__be32 nor_evter_en;
+	__be32 analr_evter_en;
 	u32 res2[0x2];
-	__be32 nor_evter_intr_en;
+	__be32 analr_evter_intr_en;
 	u32 res3[0x2];
-	__be32 nor_erattr0;
-	__be32 nor_erattr1;
-	__be32 nor_erattr2;
+	__be32 analr_erattr0;
+	__be32 analr_erattr1;
+	__be32 analr_erattr2;
 	u32 res4[0x4];
-	__be32 norcr;
+	__be32 analrcr;
 	u32 res5[0xEF];
 };
 
@@ -822,7 +822,7 @@ struct fsl_ifc_global {
 
 struct fsl_ifc_runtime {
 	struct fsl_ifc_nand ifc_nand;
-	struct fsl_ifc_nor ifc_nor;
+	struct fsl_ifc_analr ifc_analr;
 	struct fsl_ifc_gpcm ifc_gpcm;
 };
 

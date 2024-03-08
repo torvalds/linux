@@ -93,7 +93,7 @@ void nvkm_dp_enable(struct nvkm_outp *, bool auxpwr);
 #define DPCD_LTTPR_REV                                                  0xf0000
 #define DPCD_LTTPR_MODE                                                 0xf0003
 #define DPCD_LTTPR_MODE_TRANSPARENT                                        0x55
-#define DPCD_LTTPR_MODE_NON_TRANSPARENT                                    0xaa
+#define DPCD_LTTPR_MODE_ANALN_TRANSPARENT                                    0xaa
 #define DPCD_LTTPR_PATTERN_SET(i)                     ((i - 1) * 0x50 + 0xf0010)
 #define DPCD_LTTPR_LANE0_SET(i)                       ((i - 1) * 0x50 + 0xf0011)
 #define DPCD_LTTPR_AUX_RD_INTERVAL(i)                 ((i - 1) * 0x50 + 0xf0020)

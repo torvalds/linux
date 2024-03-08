@@ -147,7 +147,7 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 	arch_static_call_transform(NULL, tramp, func, false);
 
 	/*
-	 * If uninitialized, we'll not update the callsites, but they still
+	 * If uninitialized, we'll analt update the callsites, but they still
 	 * point to the trampoline and we just patched that.
 	 */
 	if (WARN_ON_ONCE(!static_call_initialized))
@@ -169,7 +169,7 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 			 * a module which doesn't use it.
 			 *
 			 * It also happens in the has_mods case, where the
-			 * 'first' entry has no sites associated with it.
+			 * 'first' entry has anal sites associated with it.
 			 */
 			continue;
 		}
@@ -195,7 +195,7 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 				/*
 				 * This skips patching built-in __exit, which
 				 * is part of init_section_contains() but is
-				 * not part of kernel_text_address().
+				 * analt part of kernel_text_address().
 				 *
 				 * Skipping built-in __exit is fine since it
 				 * will never be executed.
@@ -257,7 +257,7 @@ static int __static_call_init(struct module *mod,
 
 			site_mod = kzalloc(sizeof(*site_mod), GFP_KERNEL);
 			if (!site_mod)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			/*
 			 * When the key has a direct sites pointer, extract
@@ -273,7 +273,7 @@ static int __static_call_init(struct module *mod,
 
 				site_mod = kzalloc(sizeof(*site_mod), GFP_KERNEL);
 				if (!site_mod)
-					return -ENOMEM;
+					return -EANALMEM;
 			}
 
 			site_mod->mod = mod;
@@ -429,7 +429,7 @@ static void static_call_del_module(struct module *mod)
 	}
 }
 
-static int static_call_module_notify(struct notifier_block *nb,
+static int static_call_module_analtify(struct analtifier_block *nb,
 				     unsigned long val, void *data)
 {
 	struct module *mod = data;
@@ -454,11 +454,11 @@ static int static_call_module_notify(struct notifier_block *nb,
 	static_call_unlock();
 	cpus_read_unlock();
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-static struct notifier_block static_call_module_nb = {
-	.notifier_call = static_call_module_notify,
+static struct analtifier_block static_call_module_nb = {
+	.analtifier_call = static_call_module_analtify,
 };
 
 #else
@@ -504,7 +504,7 @@ int __init static_call_init(void)
 
 #ifdef CONFIG_MODULES
 	if (!static_call_initialized)
-		register_module_notifier(&static_call_module_nb);
+		register_module_analtifier(&static_call_module_nb);
 #endif
 
 	static_call_initialized = 1;

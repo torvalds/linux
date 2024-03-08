@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/interrupt.h>
@@ -24,7 +24,7 @@ struct bcr_irq_arcv2 {
  * Early Hardware specific Interrupt setup
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
  * -Platform Independent (must for any ARC Core)
- * -Needed for each CPU (hence not foldable into init_IRQ)
+ * -Needed for each CPU (hence analt foldable into init_IRQ)
  */
 void arc_init_IRQ(void)
 {
@@ -45,7 +45,7 @@ void arc_init_IRQ(void)
 
 	*(unsigned int *)&ictrl = 0;
 
-#ifndef CONFIG_ARC_IRQ_NO_AUTOSAVE
+#ifndef CONFIG_ARC_IRQ_ANAL_AUTOSAVE
 	ictrl.save_nr_gpr_pairs = 6;	/* r0 to r11 (r12 saved manually) */
 	ictrl.save_blink = 1;
 	ictrl.save_lp_regs = 1;		/* LP_COUNT, LP_START, LP_END */
@@ -67,14 +67,14 @@ void arc_init_IRQ(void)
 	irq_prio = irq_bcr.prio;	/* Encoded as N-1 for N levels */
 	pr_info("archs-intc\t: %d priority levels (default %d)%s\n",
 		irq_prio + 1, ARCV2_IRQ_DEF_PRIO,
-		irq_bcr.firq ? " FIRQ (not used)":"");
+		irq_bcr.firq ? " FIRQ (analt used)":"");
 
 	/*
 	 * Set a default priority for all available interrupts to prevent
 	 * switching of register banks if Fast IRQ and multiple register banks
 	 * are supported by CPU.
 	 * Also disable private-per-core IRQ lines so faulty external HW won't
-	 * trigger interrupt that kernel is not ready to handle.
+	 * trigger interrupt that kernel is analt ready to handle.
 	 */
 	for (i = NR_EXCEPTIONS; i < irq_bcr.irqs + NR_EXCEPTIONS; i++) {
 		write_aux_reg(AUX_IRQ_SELECT, i);
@@ -116,7 +116,7 @@ static void arcv2_irq_enable(struct irq_data *data)
 
 	/*
 	 * hw auto enables (linux unmask) all by default
-	 * So no need to do IRQ_ENABLE here
+	 * So anal need to do IRQ_ENABLE here
 	 * XXX: However OSCI LAN need it
 	 */
 	write_aux_reg(AUX_IRQ_ENABLE, 1);
@@ -139,7 +139,7 @@ static int arcv2_irq_map(struct irq_domain *d, unsigned int irq,
 	if (hw < FIRST_EXT_IRQ) {
 		/*
 		 * A subsequent request_percpu_irq() fails if percpu_devid is
-		 * not set. That in turns sets NOAUTOEN, meaning each core needs
+		 * analt set. That in turns sets ANALAUTOEN, meaning each core needs
 		 * to call enable_percpu_irq()
 		 */
 		irq_set_percpu_devid(irq);
@@ -158,7 +158,7 @@ static const struct irq_domain_ops arcv2_irq_ops = {
 
 
 static int __init
-init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
+init_onchip_IRQ(struct device_analde *intc, struct device_analde *parent)
 {
 	struct irq_domain *root_domain;
 	struct bcr_irq_arcv2 irq_bcr;
@@ -168,11 +168,11 @@ init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 	nr_cpu_irqs = irq_bcr.irqs + NR_EXCEPTIONS;
 
 	if (parent)
-		panic("DeviceTree incore intc not a root irq controller\n");
+		panic("DeviceTree incore intc analt a root irq controller\n");
 
 	root_domain = irq_domain_add_linear(intc, nr_cpu_irqs, &arcv2_irq_ops, NULL);
 	if (!root_domain)
-		panic("root irq domain not avail\n");
+		panic("root irq domain analt avail\n");
 
 	/*
 	 * Needed for primary domain lookup to succeed

@@ -85,12 +85,12 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	};
 
 	if (perf_mem_events__init()) {
-		pr_err("failed: memory events not supported\n");
+		pr_err("failed: memory events analt supported\n");
 		return -1;
 	}
 
 	argc = parse_options(argc, argv, options, record_mem_usage,
-			     PARSE_OPT_KEEP_UNKNOWN);
+			     PARSE_OPT_KEEP_UNKANALWN);
 
 	/* Max number of arguments multiplied by number of PMUs that can support them. */
 	rec_argc = argc + 9 * perf_pmus__num_mem_pmus();
@@ -276,7 +276,7 @@ static int report_raw_events(struct perf_mem *mem)
 	struct itrace_synth_opts itrace_synth_opts = {
 		.set = true,
 		.mem = true,	/* Only enable memory event */
-		.default_no_sample = true,
+		.default_anal_sample = true,
 	};
 
 	struct perf_data data = {
@@ -325,7 +325,7 @@ static char *get_sort_order(struct perf_mem *mem)
 	char sort[128];
 
 	/*
-	 * there is no weight (cost) associated with stores, so don't print
+	 * there is anal weight (cost) associated with stores, so don't print
 	 * the column
 	 */
 	if (!(mem->operation & MEM_OPERATION_LOAD)) {
@@ -333,7 +333,7 @@ static char *get_sort_order(struct perf_mem *mem)
 			     "dso_daddr,tlb,locked");
 	} else if (has_extra_options) {
 		strcpy(sort, "--sort=local_weight,mem,sym,dso,symbol_daddr,"
-			     "dso_daddr,snoop,tlb,locked,blocked");
+			     "dso_daddr,sanalop,tlb,locked,blocked");
 	} else
 		return NULL;
 
@@ -403,7 +403,7 @@ parse_mem_ops(const struct option *opt, const char *str, int unset)
 	if (unset)
 		return 0;
 
-	/* str may be NULL in case no arg is passed to -t */
+	/* str may be NULL in case anal arg is passed to -t */
 	if (str) {
 		/* because str is read-only */
 		s = os = strdup(str);
@@ -423,7 +423,7 @@ parse_mem_ops(const struct option *opt, const char *str, int unset)
 					break;
 			}
 			if (!m->name) {
-				fprintf(stderr, "unknown sampling op %s,"
+				fprintf(stderr, "unkanalwn sampling op %s,"
 					    " check man page\n", s);
 				goto error;
 			}
@@ -482,9 +482,9 @@ int cmd_mem(int argc, const char **argv)
 		   "input file name"),
 	OPT_STRING('C', "cpu", &mem.cpu_list, "cpu",
 		   "list of cpus to profile"),
-	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep,
+	OPT_STRING_ANALEMPTY('x', "field-separator", &symbol_conf.field_sep,
 		   "separator",
-		   "separator for columns, no spaces will be added"
+		   "separator for columns, anal spaces will be added"
 		   " between columns '.' is reserved."),
 	OPT_BOOLEAN('f', "force", &mem.force, "don't complain, do it"),
 	OPT_BOOLEAN('p', "phys-data", &mem.phys_addr, "Record/Report sample physical addresses"),
@@ -498,13 +498,13 @@ int cmd_mem(int argc, const char **argv)
 	};
 
 	argc = parse_options_subcommand(argc, argv, mem_options, mem_subcommands,
-					mem_usage, PARSE_OPT_KEEP_UNKNOWN);
+					mem_usage, PARSE_OPT_KEEP_UNKANALWN);
 
 	if (!argc || !(strncmp(argv[0], "rec", 3) || mem.operation))
 		usage_with_options(mem_usage, mem_options);
 
 	if (!mem.input_name || !strlen(mem.input_name)) {
-		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
+		if (!fstat(STDIN_FILEANAL, &st) && S_ISFIFO(st.st_mode))
 			mem.input_name = "-";
 		else
 			mem.input_name = "perf.data";

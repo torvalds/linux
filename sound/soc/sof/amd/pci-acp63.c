@@ -57,7 +57,7 @@ static const struct sof_dev_desc acp63_desc = {
 	.default_fw_filename	= {
 		[SOF_IPC_TYPE_3] = "sof-acp_6_3.ri",
 	},
-	.nocodec_tplg_filename	= "sof-acp.tplg",
+	.analcodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_acp63_ops,
 	.ops_init		= sof_acp63_ops_init,
 };
@@ -67,11 +67,11 @@ static int acp63_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_
 	unsigned int flag;
 
 	if (pci->revision != ACP63_PCI_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	flag = snd_amd_acp_find_config(pci);
 	if (flag != FLAG_AMD_SOF && flag != FLAG_AMD_SOF_ONLY_DMIC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sof_pci_probe(pci, pci_id);
 };

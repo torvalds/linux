@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Hardware definitions for SSI.
  *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2010 Analkia Corporation. All rights reserved.
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@analkia.com>
  */
 
 #ifndef __OMAP_SSI_REGS_H__
@@ -14,16 +14,16 @@
  */
 #define SSI_REVISION_REG    0
 #  define SSI_REV_MAJOR    0xf0
-#  define SSI_REV_MINOR    0xf
+#  define SSI_REV_MIANALR    0xf
 #define SSI_SYSCONFIG_REG    0x10
 #  define SSI_AUTOIDLE    (1 << 0)
 #  define SSI_SOFTRESET    (1 << 1)
 #  define SSI_SIDLEMODE_FORCE  0
-#  define SSI_SIDLEMODE_NO    (1 << 3)
+#  define SSI_SIDLEMODE_ANAL    (1 << 3)
 #  define SSI_SIDLEMODE_SMART  (1 << 4)
 #  define SSI_SIDLEMODE_MASK  0x18
 #  define SSI_MIDLEMODE_FORCE  0
-#  define SSI_MIDLEMODE_NO    (1 << 12)
+#  define SSI_MIDLEMODE_ANAL    (1 << 12)
 #  define SSI_MIDLEMODE_SMART  (1 << 13)
 #  define SSI_MIDLEMODE_MASK  0x3000
 #define SSI_SYSSTATUS_REG    0x14
@@ -79,7 +79,7 @@
 #define SSI_SSR_FRAMESIZE_REG    8
 #define SSI_SSR_RXSTATE_REG    0xc
 #define SSI_SSR_BUFSTATE_REG    0x10
-#  define SSI_NOTEMPTY(channel)  (1 << (channel))
+#  define SSI_ANALTEMPTY(channel)  (1 << (channel))
 #define SSI_SSR_BREAK_REG    0x1c
 #define SSI_SSR_ERROR_REG    0x20
 #define SSI_SSR_ERRORACK_REG    0x24

@@ -23,9 +23,9 @@
 
 /**
  * struct cma3000_i2c_platform_data - CMA3000 Platform data
- * @fuzz_x: Noise on X Axis
- * @fuzz_y: Noise on Y Axis
- * @fuzz_z: Noise on Z Axis
+ * @fuzz_x: Analise on X Axis
+ * @fuzz_y: Analise on Y Axis
+ * @fuzz_z: Analise on Z Axis
  * @g_range: G range in milli g i.e 2000 or 8000
  * @mode: Operating mode
  * @mdthr: Motion detect threshold value

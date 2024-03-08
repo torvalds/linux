@@ -8,7 +8,7 @@
  *
  *	Added conditional policy language extensions
  *
- * Copyright (C) 2003 Tresys Technology, LLC
+ * Copyright (C) 2003 Tresys Techanallogy, LLC
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, version 2.
@@ -20,11 +20,11 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "avtab.h"
 #include "policydb.h"
 
-static struct kmem_cache *avtab_node_cachep __ro_after_init;
+static struct kmem_cache *avtab_analde_cachep __ro_after_init;
 static struct kmem_cache *avtab_xperms_cachep __ro_after_init;
 
 /* Based on MurmurHash3, written by Austin Appleby and placed in the
@@ -66,37 +66,37 @@ static inline u32 avtab_hash(const struct avtab_key *keyp, u32 mask)
 	return hash & mask;
 }
 
-static struct avtab_node*
-avtab_insert_node(struct avtab *h, struct avtab_node **dst,
+static struct avtab_analde*
+avtab_insert_analde(struct avtab *h, struct avtab_analde **dst,
 		  const struct avtab_key *key, const struct avtab_datum *datum)
 {
-	struct avtab_node *newnode;
+	struct avtab_analde *newanalde;
 	struct avtab_extended_perms *xperms;
-	newnode = kmem_cache_zalloc(avtab_node_cachep, GFP_KERNEL);
-	if (newnode == NULL)
+	newanalde = kmem_cache_zalloc(avtab_analde_cachep, GFP_KERNEL);
+	if (newanalde == NULL)
 		return NULL;
-	newnode->key = *key;
+	newanalde->key = *key;
 
 	if (key->specified & AVTAB_XPERMS) {
 		xperms = kmem_cache_zalloc(avtab_xperms_cachep, GFP_KERNEL);
 		if (xperms == NULL) {
-			kmem_cache_free(avtab_node_cachep, newnode);
+			kmem_cache_free(avtab_analde_cachep, newanalde);
 			return NULL;
 		}
 		*xperms = *(datum->u.xperms);
-		newnode->datum.u.xperms = xperms;
+		newanalde->datum.u.xperms = xperms;
 	} else {
-		newnode->datum.u.data = datum->u.data;
+		newanalde->datum.u.data = datum->u.data;
 	}
 
-	newnode->next = *dst;
-	*dst = newnode;
+	newanalde->next = *dst;
+	*dst = newanalde;
 
 	h->nel++;
-	return newnode;
+	return newanalde;
 }
 
-static int avtab_node_cmp(const struct avtab_key *key1,
+static int avtab_analde_cmp(const struct avtab_key *key1,
 			  const struct avtab_key *key2)
 {
 	u16 specified = key1->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
@@ -122,7 +122,7 @@ static int avtab_insert(struct avtab *h, const struct avtab_key *key,
 			const struct avtab_datum *datum)
 {
 	u32 hvalue;
-	struct avtab_node *prev, *cur, *newnode;
+	struct avtab_analde *prev, *cur, *newanalde;
 	int cmp;
 
 	if (!h || !h->nslot || h->nel == U32_MAX)
@@ -132,32 +132,32 @@ static int avtab_insert(struct avtab *h, const struct avtab_key *key,
 	for (prev = NULL, cur = h->htable[hvalue];
 	     cur;
 	     prev = cur, cur = cur->next) {
-		cmp = avtab_node_cmp(key, &cur->key);
-		/* extended perms may not be unique */
+		cmp = avtab_analde_cmp(key, &cur->key);
+		/* extended perms may analt be unique */
 		if (cmp == 0 && !(key->specified & AVTAB_XPERMS))
 			return -EEXIST;
 		if (cmp <= 0)
 			break;
 	}
 
-	newnode = avtab_insert_node(h, prev ? &prev->next : &h->htable[hvalue],
+	newanalde = avtab_insert_analde(h, prev ? &prev->next : &h->htable[hvalue],
 				    key, datum);
-	if (!newnode)
-		return -ENOMEM;
+	if (!newanalde)
+		return -EANALMEM;
 
 	return 0;
 }
 
 /* Unlike avtab_insert(), this function allow multiple insertions of the same
  * key/specified mask into the table, as needed by the conditional avtab.
- * It also returns a pointer to the node inserted.
+ * It also returns a pointer to the analde inserted.
  */
-struct avtab_node *avtab_insert_nonunique(struct avtab *h,
+struct avtab_analde *avtab_insert_analnunique(struct avtab *h,
 					  const struct avtab_key *key,
 					  const struct avtab_datum *datum)
 {
 	u32 hvalue;
-	struct avtab_node *prev, *cur;
+	struct avtab_analde *prev, *cur;
 	int cmp;
 
 	if (!h || !h->nslot || h->nel == U32_MAX)
@@ -166,22 +166,22 @@ struct avtab_node *avtab_insert_nonunique(struct avtab *h,
 	for (prev = NULL, cur = h->htable[hvalue];
 	     cur;
 	     prev = cur, cur = cur->next) {
-		cmp = avtab_node_cmp(key, &cur->key);
+		cmp = avtab_analde_cmp(key, &cur->key);
 		if (cmp <= 0)
 			break;
 	}
-	return avtab_insert_node(h, prev ? &prev->next : &h->htable[hvalue],
+	return avtab_insert_analde(h, prev ? &prev->next : &h->htable[hvalue],
 				 key, datum);
 }
 
-/* This search function returns a node pointer, and can be used in
- * conjunction with avtab_search_next_node()
+/* This search function returns a analde pointer, and can be used in
+ * conjunction with avtab_search_next_analde()
  */
-struct avtab_node *avtab_search_node(struct avtab *h,
+struct avtab_analde *avtab_search_analde(struct avtab *h,
 				     const struct avtab_key *key)
 {
 	u32 hvalue;
-	struct avtab_node *cur;
+	struct avtab_analde *cur;
 	int cmp;
 
 	if (!h || !h->nslot)
@@ -190,7 +190,7 @@ struct avtab_node *avtab_search_node(struct avtab *h,
 	hvalue = avtab_hash(key, h->mask);
 	for (cur = h->htable[hvalue]; cur;
 	     cur = cur->next) {
-		cmp = avtab_node_cmp(key, &cur->key);
+		cmp = avtab_analde_cmp(key, &cur->key);
 		if (cmp == 0)
 			return cur;
 		if (cmp < 0)
@@ -199,19 +199,19 @@ struct avtab_node *avtab_search_node(struct avtab *h,
 	return NULL;
 }
 
-struct avtab_node*
-avtab_search_node_next(struct avtab_node *node, u16 specified)
+struct avtab_analde*
+avtab_search_analde_next(struct avtab_analde *analde, u16 specified)
 {
 	struct avtab_key tmp_key;
-	struct avtab_node *cur;
+	struct avtab_analde *cur;
 	int cmp;
 
-	if (!node)
+	if (!analde)
 		return NULL;
-	tmp_key = node->key;
+	tmp_key = analde->key;
 	tmp_key.specified = specified;
-	for (cur = node->next; cur; cur = cur->next) {
-		cmp = avtab_node_cmp(&tmp_key, &cur->key);
+	for (cur = analde->next; cur; cur = cur->next) {
+		cmp = avtab_analde_cmp(&tmp_key, &cur->key);
 		if (cmp == 0)
 			return cur;
 		if (cmp < 0)
@@ -223,7 +223,7 @@ avtab_search_node_next(struct avtab_node *node, u16 specified)
 void avtab_destroy(struct avtab *h)
 {
 	u32 i;
-	struct avtab_node *cur, *temp;
+	struct avtab_analde *cur, *temp;
 
 	if (!h)
 		return;
@@ -236,7 +236,7 @@ void avtab_destroy(struct avtab *h)
 			if (temp->key.specified & AVTAB_XPERMS)
 				kmem_cache_free(avtab_xperms_cachep,
 						temp->datum.u.xperms);
-			kmem_cache_free(avtab_node_cachep, temp);
+			kmem_cache_free(avtab_analde_cachep, temp);
 		}
 	}
 	kvfree(h->htable);
@@ -261,7 +261,7 @@ static int avtab_alloc_common(struct avtab *h, u32 nslot)
 
 	h->htable = kvcalloc(nslot, sizeof(void *), GFP_KERNEL);
 	if (!h->htable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	h->nslot = nslot;
 	h->mask = nslot - 1;
@@ -297,7 +297,7 @@ void avtab_hash_eval(struct avtab *h, const char *tag)
 {
 	u32 i, chain_len, slots_used, max_chain_len;
 	unsigned long long chain2_len_sum;
-	struct avtab_node *cur;
+	struct avtab_analde *cur;
 
 	slots_used = 0;
 	max_chain_len = 0;
@@ -455,7 +455,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 
 	if ((vers < POLICYDB_VERSION_XPERMS_IOCTL) &&
 			(key.specified & AVTAB_XPERMS)) {
-		pr_err("SELinux:  avtab:  policy version %u does not "
+		pr_err("SELinux:  avtab:  policy version %u does analt "
 				"support extended permissions rules and one "
 				"was specified\n", vers);
 		return -EINVAL;
@@ -527,7 +527,7 @@ int avtab_read(struct avtab *a, void *fp, struct policydb *pol)
 	for (i = 0; i < nel; i++) {
 		rc = avtab_read_item(a, fp, pol, avtab_insertf, NULL);
 		if (rc) {
-			if (rc == -ENOMEM)
+			if (rc == -EANALMEM)
 				pr_err("SELinux: avtab: out of memory\n");
 			else if (rc == -EEXIST)
 				pr_err("SELinux: avtab: duplicate entry\n");
@@ -545,7 +545,7 @@ bad:
 	goto out;
 }
 
-int avtab_write_item(struct policydb *p, const struct avtab_node *cur, void *fp)
+int avtab_write_item(struct policydb *p, const struct avtab_analde *cur, void *fp)
 {
 	__le16 buf16[4];
 	__le32 buf32[ARRAY_SIZE(cur->datum.u.xperms->perms.p)];
@@ -584,7 +584,7 @@ int avtab_write(struct policydb *p, struct avtab *a, void *fp)
 {
 	u32 i;
 	int rc = 0;
-	struct avtab_node *cur;
+	struct avtab_analde *cur;
 	__le32 buf[1];
 
 	buf[0] = cpu_to_le32(a->nel);
@@ -606,8 +606,8 @@ int avtab_write(struct policydb *p, struct avtab *a, void *fp)
 
 void __init avtab_cache_init(void)
 {
-	avtab_node_cachep = kmem_cache_create("avtab_node",
-					      sizeof(struct avtab_node),
+	avtab_analde_cachep = kmem_cache_create("avtab_analde",
+					      sizeof(struct avtab_analde),
 					      0, SLAB_PANIC, NULL);
 	avtab_xperms_cachep = kmem_cache_create("avtab_extended_perms",
 						sizeof(struct avtab_extended_perms),

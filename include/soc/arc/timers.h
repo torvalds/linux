@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2016-17 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016-17 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __SOC_ARC_TIMERS_H
@@ -18,7 +18,7 @@
 
 /* CTRL reg bits */
 #define ARC_TIMER_CTRL_IE	(1 << 0) /* Interrupt when Count reaches limit */
-#define ARC_TIMER_CTRL_NH	(1 << 1) /* Count only when CPU NOT halted */
+#define ARC_TIMER_CTRL_NH	(1 << 1) /* Count only when CPU ANALT halted */
 
 #define ARC_TIMERN_MAX		0xFFFFFFFF
 

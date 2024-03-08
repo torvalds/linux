@@ -69,7 +69,7 @@ SECTIONS
 	}
 
 	/DISCARD/ : {
-		*(.note*)
+		*(.analte*)
 		*(.debug*)
 	}
 

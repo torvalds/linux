@@ -21,21 +21,21 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE
  * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -44,7 +44,7 @@
  */
 
 #include <linux/bitmap.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 
 #include "pvrdma.h"
@@ -65,7 +65,7 @@ int pvrdma_uar_table_init(struct pvrdma_dev *dev)
 	spin_lock_init(&tbl->lock);
 	tbl->table = bitmap_zalloc(num, GFP_KERNEL);
 	if (!tbl->table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* 0th UAR is taken by the device. */
 	__set_bit(0, tbl->table);
@@ -97,7 +97,7 @@ int pvrdma_uar_alloc(struct pvrdma_dev *dev, struct pvrdma_uar_map *uar)
 
 	if (obj >= tbl->max) {
 		spin_unlock_irqrestore(&tbl->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	__set_bit(obj, tbl->table);

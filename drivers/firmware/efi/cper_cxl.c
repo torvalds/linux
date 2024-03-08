@@ -61,7 +61,7 @@ void cper_print_prot_err(const char *pfx, const struct cper_sec_prot_err *prot_e
 		pr_info("%s agent_type: %d, %s\n", pfx, prot_err->agent_type,
 			prot_err->agent_type < ARRAY_SIZE(prot_err_agent_type_strs)
 			? prot_err_agent_type_strs[prot_err->agent_type]
-			: "unknown");
+			: "unkanalwn");
 
 	if (prot_err->valid_bits & PROT_ERR_VALID_AGENT_ADDRESS) {
 		switch (prot_err->agent_type) {

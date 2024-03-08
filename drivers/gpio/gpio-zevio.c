@@ -6,7 +6,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/mod_devicetable.h>
@@ -149,7 +149,7 @@ static int zevio_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
 {
 	/*
 	 * TODO: Implement IRQs.
-	 * Not implemented yet due to weird lockups
+	 * Analt implemented yet due to weird lockups
 	 */
 
 	return -ENXIO;
@@ -174,7 +174,7 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 
 	controller = devm_kzalloc(&pdev->dev, sizeof(*controller), GFP_KERNEL);
 	if (!controller)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Copy our reference */
 	controller->chip = zevio_gpio_chip;

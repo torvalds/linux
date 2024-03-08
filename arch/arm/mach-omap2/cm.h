@@ -3,7 +3,7 @@
  * OMAP2+ Clock Management prototypes
  *
  * Copyright (C) 2007-2009, 2012 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2009 Analkia Corporation
  *
  * Written by Paul Walmsley
  */

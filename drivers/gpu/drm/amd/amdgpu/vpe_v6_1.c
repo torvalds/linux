@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -169,14 +169,14 @@ static int vpe_v6_1_ring_start(struct amdgpu_vpe *vpe)
 
 	ring->wptr = 0;
 
-	/* before programing wptr to a less value, need set minor_ptr_update first */
-	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_MINOR_PTR_UPDATE), 1);
+	/* before programing wptr to a less value, need set mianalr_ptr_update first */
+	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_MIANALR_PTR_UPDATE), 1);
 
 	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_RB_WPTR), lower_32_bits(ring->wptr) << 2);
 	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_RB_WPTR_HI), upper_32_bits(ring->wptr) << 2);
 
-	/* set minor_ptr_update to 0 after wptr programed */
-	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_MINOR_PTR_UPDATE), 0);
+	/* set mianalr_ptr_update to 0 after wptr programed */
+	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_MIANALR_PTR_UPDATE), 0);
 
 	doorbell = RREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_DOORBELL));
 	doorbell_offset = RREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_DOORBELL_OFFSET));

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved
+ * Copyright (c) 2022, Qualcomm Inanalvation Center, Inc. All rights reserved
  * Copyright (c) 2023, Linaro Ltd.
  */
 
@@ -73,7 +73,7 @@
 #define DISP_CC_MDSS_MDP_CLK_SRC				62
 #define DISP_CC_MDSS_MDP_LUT1_CLK				63
 #define DISP_CC_MDSS_MDP_LUT_CLK				64
-#define DISP_CC_MDSS_NON_GDSC_AHB_CLK				65
+#define DISP_CC_MDSS_ANALN_GDSC_AHB_CLK				65
 #define DISP_CC_MDSS_PCLK0_CLK					66
 #define DISP_CC_MDSS_PCLK0_CLK_SRC				67
 #define DISP_CC_MDSS_PCLK1_CLK					68

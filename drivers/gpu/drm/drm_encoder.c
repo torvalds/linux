@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -52,13 +52,13 @@
  * of encoders to facilitate code sharing. But for more complex settings it is
  * usually better to move shared code into a separate &drm_bridge. Compared to
  * encoders, bridges also have the benefit of being purely an internal
- * abstraction since they are not exposed to userspace at all.
+ * abstraction since they are analt exposed to userspace at all.
  *
  * Encoders are initialized with drm_encoder_init() and cleaned up using
  * drm_encoder_cleanup().
  */
 static const struct drm_prop_enum_list drm_encoder_enum_list[] = {
-	{ DRM_MODE_ENCODER_NONE, "None" },
+	{ DRM_MODE_ENCODER_ANALNE, "Analne" },
 	{ DRM_MODE_ENCODER_DAC, "DAC" },
 	{ DRM_MODE_ENCODER_TMDS, "TMDS" },
 	{ DRM_MODE_ENCODER_LVDS, "LVDS" },
@@ -124,7 +124,7 @@ static int __drm_encoder_init(struct drm_device *dev,
 					  encoder->base.id);
 	}
 	if (!encoder->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 
@@ -150,10 +150,10 @@ out_put:
  * Initializes a preallocated encoder. Encoder should be subclassed as part of
  * driver encoder objects. At driver unload time the driver's
  * &drm_encoder_funcs.destroy hook should call drm_encoder_cleanup() and kfree()
- * the encoder structure. The encoder structure should not be allocated with
+ * the encoder structure. The encoder structure should analt be allocated with
  * devm_kzalloc().
  *
- * Note: consider using drmm_encoder_alloc() or drmm_encoder_init()
+ * Analte: consider using drmm_encoder_alloc() or drmm_encoder_init()
  * instead of drm_encoder_init() to let the DRM managed resource
  * infrastructure take care of cleanup and deallocation.
  *
@@ -189,13 +189,13 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct drm_bridge *bridge, *next;
 
-	/* Note that the encoder_list is considered to be static; should we
+	/* Analte that the encoder_list is considered to be static; should we
 	 * remove the drm_encoder at runtime we would have to decrement all
 	 * the indices on the drm_encoder after us in the encoder_list.
 	 */
 
 	list_for_each_entry_safe(bridge, next, &encoder->bridge_chain,
-				 chain_node)
+				 chain_analde)
 		drm_bridge_detach(bridge);
 
 	drm_mode_object_unregister(dev, &encoder->base);
@@ -252,7 +252,7 @@ void *__drmm_encoder_alloc(struct drm_device *dev, size_t size, size_t offset,
 
 	container = drmm_kzalloc(dev, size, GFP_KERNEL);
 	if (!container)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	encoder = container + offset;
 
@@ -308,7 +308,7 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 	bool uses_atomic = false;
 	struct drm_connector_list_iter conn_iter;
 
-	/* For atomic drivers only state objects are synchronously updated and
+	/* For atomic drivers only state objects are synchroanalusly updated and
 	 * protected by modeset locks, so check those first. */
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
@@ -340,11 +340,11 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	struct drm_crtc *crtc;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	encoder = drm_encoder_find(dev, file_priv, enc_resp->encoder_id);
 	if (!encoder)
-		return -ENOENT;
+		return -EANALENT;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	crtc = drm_encoder_get_crtc(encoder);

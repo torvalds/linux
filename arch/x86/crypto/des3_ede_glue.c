@@ -251,7 +251,7 @@ static int des3_ede_x86_setkey(struct crypto_tfm *tfm, const u8 *key,
 	int err;
 
 	err = des3_ede_expand_key(&ctx->enc, key, keylen);
-	if (err == -ENOKEY) {
+	if (err == -EANALKEY) {
 		if (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)
 			err = -EINVAL;
 		else
@@ -352,7 +352,7 @@ static bool is_blacklisted_cpu(void)
 
 static int force;
 module_param(force, int, 0);
-MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
+MODULE_PARM_DESC(force, "Force module load, iganalre CPU blacklist");
 
 static int __init des3_ede_x86_init(void)
 {
@@ -360,7 +360,7 @@ static int __init des3_ede_x86_init(void)
 
 	if (!force && is_blacklisted_cpu()) {
 		pr_info("des3_ede-x86_64: performance on this CPU would be suboptimal: disabling des3_ede-x86_64.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = crypto_register_alg(&des3_ede_cipher);

@@ -68,7 +68,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 
 	dai = snd_soc_card_get_codec_dai(card, ACP5X_NAU8821_DAI_NAME);
 	if (!dai) {
-		dev_err(card->dev, "Codec dai not found\n");
+		dev_err(card->dev, "Codec dai analt found\n");
 		return -EIO;
 	}
 
@@ -299,13 +299,13 @@ static const struct snd_soc_dapm_widget acp5x_8821_35l41_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0,
 			    platform_clock_control,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route acp5x_8821_35l41_audio_route[] = {
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkanalwn if we have jack detection */
 	{ "Headphone", NULL, "HPOL" },
 	{ "Headphone", NULL, "HPOR" },
 	{ "MICL", NULL, "Headset Mic" },
@@ -398,7 +398,7 @@ static const struct snd_soc_dapm_widget acp5x_8821_98388_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0,
 			    platform_clock_control,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SPK("SPK", NULL),
@@ -462,11 +462,11 @@ static int acp5x_probe(struct platform_device *pdev)
 
 	dmi_id = dmi_first_match(acp5x_vg_quirk_table);
 	if (!dmi_id || !dmi_id->driver_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	machine = devm_kzalloc(dev, sizeof(*machine), GFP_KERNEL);
 	if (!machine)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = dmi_id->driver_data;
 	card->dev = dev;

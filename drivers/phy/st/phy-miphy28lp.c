@@ -171,7 +171,7 @@
  *  0: 30MHz crystal clk - 1: 100MHz ext clk routed through MiPHY1
  * MiPHY1: OSC_FORCE_EXT means:
  *  1: 30MHz crystal clk - 0: 100MHz ext clk routed through MiPHY1
- * Some devices have not the possibility to check if the osc is ready.
+ * Some devices have analt the possibility to check if the osc is ready.
  */
 #define MIPHY_OSC_FORCE_EXT	BIT(3)
 #define MIPHY_OSC_RDY		BIT(5)
@@ -583,7 +583,7 @@ static void miphy_sata_tune_ssc(struct miphy28lp_phy *miphy_phy)
 		/* requests the PLL to take in account new parameters */
 		writeb_relaxed(SET_NEW_CHANGE, base + MIPHY_PLL_SBR_1);
 
-		/* To be sure there is no other pending requests */
+		/* To be sure there is anal other pending requests */
 		writeb_relaxed(0x00, base + MIPHY_PLL_SBR_1);
 	}
 }
@@ -623,7 +623,7 @@ static void miphy_pcie_tune_ssc(struct miphy28lp_phy *miphy_phy)
 		/* requests the PLL to take in account new parameters */
 		writeb_relaxed(SET_NEW_CHANGE, base + MIPHY_PLL_SBR_1);
 
-		/* To be sure there is no other pending requests */
+		/* To be sure there is anal other pending requests */
 		writeb_relaxed(0x00, base + MIPHY_PLL_SBR_1);
 	}
 }
@@ -780,7 +780,7 @@ static inline void miphy28lp_configure_usb3(struct miphy28lp_phy *miphy_phy)
 	/* requests the PLL to take in account new parameters */
 	writeb_relaxed(0x02, base + MIPHY_PLL_SBR_1);
 
-	/* To be sure there is no other pending requests */
+	/* To be sure there is anal other pending requests */
 	writeb_relaxed(0x00, base + MIPHY_PLL_SBR_1);
 
 	/* Rx PI controller settings */
@@ -830,20 +830,20 @@ static int miphy_osc_is_ready(struct miphy28lp_phy *miphy_phy)
 					5 * USEC_PER_SEC);
 }
 
-static int miphy28lp_get_resource_byname(struct device_node *child,
+static int miphy28lp_get_resource_byname(struct device_analde *child,
 					  char *rname, struct resource *res)
 {
 	int index;
 
 	index = of_property_match_string(child, "reg-names", rname);
 	if (index < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return of_address_to_resource(child, index, res);
 }
 
 static int miphy28lp_get_one_addr(struct device *dev,
-				  struct device_node *child, char *rname,
+				  struct device_analde *child, char *rname,
 				  void __iomem **base)
 {
 	struct resource res;
@@ -855,7 +855,7 @@ static int miphy28lp_get_one_addr(struct device *dev,
 		if (!*base) {
 			dev_err(dev, "failed to ioremap %s address region\n"
 					, rname);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -1047,7 +1047,7 @@ static int miphy28lp_init(struct phy *phy)
 static int miphy28lp_get_addr(struct miphy28lp_phy *miphy_phy)
 {
 	struct miphy28lp_dev *miphy_dev = miphy_phy->phydev;
-	struct device_node *phynode = miphy_phy->phy->dev.of_node;
+	struct device_analde *phyanalde = miphy_phy->phy->dev.of_analde;
 	int err;
 
 	if ((miphy_phy->type != PHY_TYPE_SATA) &&
@@ -1056,7 +1056,7 @@ static int miphy28lp_get_addr(struct miphy28lp_phy *miphy_phy)
 		return -EINVAL;
 	}
 
-	err = miphy28lp_get_one_addr(miphy_dev->dev, phynode,
+	err = miphy28lp_get_one_addr(miphy_dev->dev, phyanalde,
 			PHY_TYPE_name[miphy_phy->type - PHY_TYPE_SATA],
 			&miphy_phy->base);
 	if (err)
@@ -1064,7 +1064,7 @@ static int miphy28lp_get_addr(struct miphy28lp_phy *miphy_phy)
 
 	if ((miphy_phy->type == PHY_TYPE_PCIE) ||
 	    (miphy_phy->type == PHY_TYPE_USB3)) {
-		err = miphy28lp_get_one_addr(miphy_dev->dev, phynode, "pipew",
+		err = miphy28lp_get_one_addr(miphy_dev->dev, phyanalde, "pipew",
 					     &miphy_phy->pipebase);
 		if (err)
 			return err;
@@ -1078,7 +1078,7 @@ static struct phy *miphy28lp_xlate(struct device *dev,
 {
 	struct miphy28lp_dev *miphy_dev = dev_get_drvdata(dev);
 	struct miphy28lp_phy *miphy_phy = NULL;
-	struct device_node *phynode = args->np;
+	struct device_analde *phyanalde = args->np;
 	int ret, index = 0;
 
 	if (args->args_count != 1) {
@@ -1087,7 +1087,7 @@ static struct phy *miphy28lp_xlate(struct device *dev,
 	}
 
 	for (index = 0; index < miphy_dev->nphys; index++)
-		if (phynode == miphy_dev->phys[index]->phy->dev.of_node) {
+		if (phyanalde == miphy_dev->phys[index]->phy->dev.of_analde) {
 			miphy_phy = miphy_dev->phys[index];
 			break;
 		}
@@ -1111,18 +1111,18 @@ static const struct phy_ops miphy28lp_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int miphy28lp_probe_resets(struct device_node *node,
+static int miphy28lp_probe_resets(struct device_analde *analde,
 				  struct miphy28lp_phy *miphy_phy)
 {
 	struct miphy28lp_dev *miphy_dev = miphy_phy->phydev;
 	int err;
 
 	miphy_phy->miphy_rst =
-		of_reset_control_get_shared(node, "miphy-sw-rst");
+		of_reset_control_get_shared(analde, "miphy-sw-rst");
 
 	if (IS_ERR(miphy_phy->miphy_rst)) {
 		dev_err(miphy_dev->dev,
-				"miphy soft reset control not defined\n");
+				"miphy soft reset control analt defined\n");
 		return PTR_ERR(miphy_phy->miphy_rst);
 	}
 
@@ -1135,7 +1135,7 @@ static int miphy28lp_probe_resets(struct device_node *node,
 	return 0;
 }
 
-static int miphy28lp_of_probe(struct device_node *np,
+static int miphy28lp_of_probe(struct device_analde *np,
 			      struct miphy28lp_phy *miphy_phy)
 {
 	int i;
@@ -1168,7 +1168,7 @@ static int miphy28lp_of_probe(struct device_node *np,
 
 static int miphy28lp_probe(struct platform_device *pdev)
 {
-	struct device_node *child, *np = pdev->dev.of_node;
+	struct device_analde *child, *np = pdev->dev.of_analde;
 	struct miphy28lp_dev *miphy_dev;
 	struct phy_provider *provider;
 	struct phy *phy;
@@ -1176,17 +1176,17 @@ static int miphy28lp_probe(struct platform_device *pdev)
 
 	miphy_dev = devm_kzalloc(&pdev->dev, sizeof(*miphy_dev), GFP_KERNEL);
 	if (!miphy_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	miphy_dev->nphys = of_get_child_count(np);
 	miphy_dev->phys = devm_kcalloc(&pdev->dev, miphy_dev->nphys,
 				       sizeof(*miphy_dev->phys), GFP_KERNEL);
 	if (!miphy_dev->phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	miphy_dev->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(miphy_dev->regmap)) {
-		dev_err(miphy_dev->dev, "No syscfg phandle specified\n");
+		dev_err(miphy_dev->dev, "Anal syscfg phandle specified\n");
 		return PTR_ERR(miphy_dev->regmap);
 	}
 
@@ -1196,13 +1196,13 @@ static int miphy28lp_probe(struct platform_device *pdev)
 
 	mutex_init(&miphy_dev->miphy_mutex);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		struct miphy28lp_phy *miphy_phy;
 
 		miphy_phy = devm_kzalloc(&pdev->dev, sizeof(*miphy_phy),
 					 GFP_KERNEL);
 		if (!miphy_phy) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_child;
 		}
 
@@ -1234,7 +1234,7 @@ static int miphy28lp_probe(struct platform_device *pdev)
 	provider = devm_of_phy_provider_register(&pdev->dev, miphy28lp_xlate);
 	return PTR_ERR_OR_ZERO(provider);
 put_child:
-	of_node_put(child);
+	of_analde_put(child);
 	return ret;
 }
 

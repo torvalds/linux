@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <linux/idr.h>
@@ -79,7 +79,7 @@ static int basic_init(struct tcf_proto *tp)
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (head == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	INIT_LIST_HEAD(&head->flist);
 	idr_init(&head->handle_idr);
 	rcu_assign_pointer(tp->root, head);
@@ -195,7 +195,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 
 	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
 	if (!fnew)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = tcf_exts_init(&fnew->exts, net, TCA_BASIC_ACT, TCA_BASIC_POLICE);
 	if (err < 0)
@@ -214,7 +214,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	fnew->handle = handle;
 	fnew->pf = alloc_percpu(struct tc_basic_pcnt);
 	if (!fnew->pf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto errout;
 	}
 
@@ -279,7 +279,7 @@ static int basic_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

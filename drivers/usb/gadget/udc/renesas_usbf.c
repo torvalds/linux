@@ -170,7 +170,7 @@
 #define         USBF_EPN_OUT_END_INT		BIT(23)
 #define         USBF_EPN_ISO_CRC		BIT(24)
 #define         USBF_EPN_ISO_OR			BIT(26)
-#define         USBF_EPN_OUT_NOTKN		BIT(27)
+#define         USBF_EPN_OUT_ANALTKN		BIT(27)
 #define         USBF_EPN_ISO_OPID		BIT(28)
 #define         USBF_EPN_ISO_PIDERR		BIT(29)
 
@@ -336,7 +336,7 @@ struct usbf_ep_info {
 	}
 
 /* This table is computed from the recommended values provided in the SOC
- * datasheet. The buffer type (single/double) and the endpoint type cannot
+ * datasheet. The buffer type (single/double) and the endpoint type cananalt
  * be changed. The mapping in internal RAM (base_addr and number of words)
  * for each endpoints depends on the max packet size and the buffer type.
  */
@@ -690,7 +690,7 @@ static int usbf_ep0_pio_out(struct usbf_ep *ep0, struct usbf_req *req)
 		/* NULL packet received */
 		dev_dbg(ep0->udc->dev, "ep0 null packet\n");
 		if (req->req.actual != req->req.length) {
-			req->req.status = req->req.short_not_ok ?
+			req->req.status = req->req.short_analt_ok ?
 					  -EREMOTEIO : 0;
 		} else {
 			req->req.status = 0;
@@ -887,7 +887,7 @@ static int usbf_epn_dma_in(struct usbf_ep *epn, struct usbf_req *req)
 
 	case USBF_XFER_WAIT_DMA:
 		if (!(epn->status & USBF_EPN_IN_END_INT)) {
-			dev_dbg(epn->udc->dev, "ep%u dma not done\n", epn->id);
+			dev_dbg(epn->udc->dev, "ep%u dma analt done\n", epn->id);
 			break;
 		}
 		dev_dbg(epn->udc->dev, "ep%u dma done\n", epn->id);
@@ -918,7 +918,7 @@ static int usbf_epn_dma_in(struct usbf_ep *epn, struct usbf_req *req)
 
 		if (req->req.actual % epn->ep.maxpacket) {
 			/* last packet was a short packet. Tell the hardware to
-			 * send it right now.
+			 * send it right analw.
 			 */
 			dev_dbg(epn->udc->dev, "ep%u send short\n", epn->id);
 			usbf_ep_reg_writel(epn, USBF_REG_EPN_STATUS,
@@ -938,7 +938,7 @@ static int usbf_epn_dma_in(struct usbf_ep *epn, struct usbf_req *req)
 			break;
 		}
 
-		/* No more action to do. Wait for the end of the USB transfer */
+		/* Anal more action to do. Wait for the end of the USB transfer */
 		req->xfer_step = USBF_XFER_WAIT_END;
 		break;
 
@@ -950,7 +950,7 @@ static int usbf_epn_dma_in(struct usbf_ep *epn, struct usbf_req *req)
 
 	case USBF_XFER_WAIT_END:
 		if (!(epn->status & USBF_EPN_IN_INT)) {
-			dev_dbg(epn->udc->dev, "ep%u end not done\n", epn->id);
+			dev_dbg(epn->udc->dev, "ep%u end analt done\n", epn->id);
 			break;
 		}
 		dev_dbg(epn->udc->dev, "ep%u send done %u/%u\n", epn->id,
@@ -1043,7 +1043,7 @@ static int usbf_epn_pio_out(struct usbf_ep *epn, struct usbf_req *req)
 		/* NULL packet received */
 		dev_dbg(epn->udc->dev, "ep%u null packet\n", epn->id);
 		if (req->req.actual != req->req.length) {
-			req->req.status = req->req.short_not_ok ?
+			req->req.status = req->req.short_analt_ok ?
 					  -EREMOTEIO : 0;
 		} else {
 			req->req.status = 0;
@@ -1105,7 +1105,7 @@ static void usbf_epn_dma_out_send_dma(struct usbf_ep *epn, dma_addr_t addr, u32 
 	usbf_ep_reg_writel(epn, USBF_REG_EPN_LEN_DCNT,
 		USBF_EPN_SET_DMACNT(npkt));
 
-	/* Here, the bridge may or may not generate an interrupt to signal the
+	/* Here, the bridge may or may analt generate an interrupt to signal the
 	 * end of DMA transfer.
 	 * Keep only OUT_END interrupt and let handle the bridge later during
 	 * the OUT_END processing.
@@ -1144,7 +1144,7 @@ static size_t usbf_epn_dma_out_complete_dma(struct usbf_ep *epn, bool is_short)
 		USBF_EPN_OUT_EN | USBF_EPN_OUT_NULL_EN);
 
 	if (is_short) {
-		/* Nothing more to do when the DMA was for a short packet */
+		/* Analthing more to do when the DMA was for a short packet */
 		return 0;
 	}
 
@@ -1156,7 +1156,7 @@ static size_t usbf_epn_dma_out_complete_dma(struct usbf_ep *epn, bool is_short)
 	dmacnt = USBF_EPN_GET_DMACNT(tmp);
 
 	if (dmacnt) {
-		/* Some packet were not received (halted by a short or a null
+		/* Some packet were analt received (halted by a short or a null
 		 * packet.
 		 * The bridge never raises an interrupt in this case.
 		 * Wait for the end of transfer at bridge level
@@ -1173,7 +1173,7 @@ static size_t usbf_epn_dma_out_complete_dma(struct usbf_ep *epn, bool is_short)
 		usbf_ep_dma_reg_bitclr(epn, USBF_REG_DMA_EPN_DCR1,
 			USBF_SYS_EPN_REQEN);
 
-		/* The dmacnt value tells how many packet were not transferred
+		/* The dmacnt value tells how many packet were analt transferred
 		 * from the maximum number of packet we set for the DMA transfer.
 		 * Compute the left DMA size based on this value.
 		 */
@@ -1204,7 +1204,7 @@ static int usbf_epn_dma_out(struct usbf_ep *epn, struct usbf_req *req)
 		if (epn->status & USBF_EPN_OUT_NULL_INT) {
 			dev_dbg(epn->udc->dev, "ep%u null packet\n", epn->id);
 			if (req->req.actual != req->req.length) {
-				req->req.status = req->req.short_not_ok ?
+				req->req.status = req->req.short_analt_ok ?
 					-EREMOTEIO : 0;
 			} else {
 				req->req.status = 0;
@@ -1213,7 +1213,7 @@ static int usbf_epn_dma_out(struct usbf_ep *epn, struct usbf_req *req)
 		}
 
 		if (!(epn->status & USBF_EPN_OUT_INT)) {
-			dev_dbg(epn->udc->dev, "ep%u OUT_INT not set -> spurious\n",
+			dev_dbg(epn->udc->dev, "ep%u OUT_INT analt set -> spurious\n",
 				epn->id);
 			break;
 		}
@@ -1300,7 +1300,7 @@ static int usbf_epn_dma_out(struct usbf_ep *epn, struct usbf_req *req)
 
 	case USBF_XFER_WAIT_DMA_SHORT:
 		if (!(epn->status & USBF_EPN_OUT_END_INT)) {
-			dev_dbg(epn->udc->dev, "ep%u dma short not done\n", epn->id);
+			dev_dbg(epn->udc->dev, "ep%u dma short analt done\n", epn->id);
 			break;
 		}
 		dev_dbg(epn->udc->dev, "ep%u dma short done\n", epn->id);
@@ -1332,7 +1332,7 @@ static int usbf_epn_dma_out(struct usbf_ep *epn, struct usbf_req *req)
 
 	case USBF_XFER_WAIT_DMA:
 		if (!(epn->status & USBF_EPN_OUT_END_INT)) {
-			dev_dbg(epn->udc->dev, "ep%u dma not done\n", epn->id);
+			dev_dbg(epn->udc->dev, "ep%u dma analt done\n", epn->id);
 			break;
 		}
 		dev_dbg(epn->udc->dev, "ep%u dma done\n", epn->id);
@@ -1359,7 +1359,7 @@ static int usbf_epn_dma_out(struct usbf_ep *epn, struct usbf_req *req)
 					~(u32)USBF_EPN_OUT_NULL_INT);
 
 				if (req->req.actual != req->req.length) {
-					req->req.status = req->req.short_not_ok ?
+					req->req.status = req->req.short_analt_ok ?
 						  -EREMOTEIO : 0;
 				} else {
 					req->req.status = 0;
@@ -1443,7 +1443,7 @@ static int usbf_epn_dma_out(struct usbf_ep *epn, struct usbf_req *req)
 		req->xfer_step = USBF_XFER_START;
 		left = req->req.length - req->req.actual;
 		if (!left) {
-			/* No more data can be added to the buffer */
+			/* Anal more data can be added to the buffer */
 			dev_dbg(epn->udc->dev, "ep%u recv done %u/%u\n", epn->id,
 				req->req.actual, req->req.length);
 			return 0;
@@ -1498,7 +1498,7 @@ static void usbf_epn_dma_abort(struct usbf_ep *epn,  struct usbf_req *req)
 			USBF_EPN_OUT_EN | USBF_EPN_OUT_NULL_EN);
 	}
 
-	/* As dma is stopped, be sure that no DMA interrupt are pending */
+	/* As dma is stopped, be sure that anal DMA interrupt are pending */
 	usbf_ep_reg_writel(epn, USBF_REG_EPN_STATUS,
 		USBF_EPN_IN_END_INT | USBF_EPN_OUT_END_INT);
 
@@ -1610,8 +1610,8 @@ static int usbf_epn_start_queue(struct usbf_ep *epn)
 				usbf_epn_pio_in(epn, req);
 			if (ret != -EINPROGRESS) {
 				dev_err(epn->udc->dev,
-					"queued next request not in progress\n");
-					/* The request cannot be completed (ie
+					"queued next request analt in progress\n");
+					/* The request cananalt be completed (ie
 					 * ret == 0) on the first call.
 					 * stall and nuke the endpoint
 					 */
@@ -1664,14 +1664,14 @@ static int usbf_ep_process_queue(struct usbf_ep *ep)
 	req = list_first_entry_or_null(&ep->queue, struct usbf_req, queue);
 	if (!req) {
 		dev_err(ep->udc->dev,
-			"no request available for ep%u %s process\n", ep->id,
+			"anal request available for ep%u %s process\n", ep->id,
 			ep->is_in ? "in" : "out");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	do {
 		/* Were going to read the FIFO for this current request.
-		 * NAK any other incoming data to avoid a race condition if no
+		 * NAK any other incoming data to avoid a race condition if anal
 		 * more request are available.
 		 */
 		if (!ep->is_in && ep->id != 0) {
@@ -1722,14 +1722,14 @@ static int usbf_ep_process_queue(struct usbf_ep *ep)
 				usbf_ep_reg_bitclr(ep, USBF_REG_EPN_CONTROL,
 					USBF_EPN_ONAK);
 			} else {
-				/* No request queued. Disable interrupts.
+				/* Anal request queued. Disable interrupts.
 				 * They will be enabled on usb_ep_queue
 				 */
 				usbf_ep_reg_bitclr(ep, USBF_REG_EPN_INT_ENA,
 					USBF_EPN_OUT_INT | USBF_EPN_OUT_NULL_INT);
 			}
 		}
-		/* Do not recall usbf_ep_xfer() */
+		/* Do analt recall usbf_ep_xfer() */
 		return req ? -EINPROGRESS : 0;
 
 	} while (req);
@@ -1813,7 +1813,7 @@ static int usbf_epn_enable(struct usbf_ep *epn)
 	}
 
 	/* Clear, set endpoint direction, set IN/OUT STL, and enable
-	 * Send NAK for Data out as request are not queued yet
+	 * Send NAK for Data out as request are analt queued yet
 	 */
 	ctrl = USBF_EPN_EN | USBF_EPN_BCLR;
 	if (epn->is_in)
@@ -1943,8 +1943,8 @@ static int usbf_ep0_queue(struct usbf_ep *ep0, struct usbf_req *req,
 		ret = usbf_ep0_pio_in(ep0, req);
 		if (ret != -EINPROGRESS) {
 			dev_err(ep0->udc->dev,
-				"queued request not in progress\n");
-			/* The request cannot be completed (ie
+				"queued request analt in progress\n");
+			/* The request cananalt be completed (ie
 			 * ret == 0) on the first call
 			 */
 			return ret ? ret : -EIO;
@@ -1996,9 +1996,9 @@ static int usbf_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (!udc || !udc->driver)
 		return -EINVAL;
 
-	dev_dbg(ep->udc->dev, "ep%u %s req queue length %u, zero %u, short_not_ok %u\n",
+	dev_dbg(ep->udc->dev, "ep%u %s req queue length %u, zero %u, short_analt_ok %u\n",
 		ep->id, ep->is_in ? "in" : "out",
-		req->req.length, req->req.zero, req->req.short_not_ok);
+		req->req.length, req->req.zero, req->req.short_analt_ok);
 
 	spin_lock_irqsave(&ep->udc->lock, flags);
 	if (ep->id == 0)
@@ -2050,7 +2050,7 @@ static int usbf_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		 * 1 request related to the data stage and/or 1 request
 		 * related to the status stage.
 		 * We dequeue one of them and so the USB control transaction
-		 * is no more coherent. The simple way to be consistent after
+		 * is anal more coherent. The simple way to be consistent after
 		 * dequeuing is to stall and nuke the endpoint and wait the
 		 * next SETUP packet.
 		 */
@@ -2325,14 +2325,14 @@ static int usbf_req_clear_set_feature(struct usbf_udc *udc,
 			return -EINVAL;
 
 		if ((ep->id == 0) && is_set) {
-			/* Endpoint 0 cannot be halted (stalled)
+			/* Endpoint 0 cananalt be halted (stalled)
 			 * Returning an error code leads to a STALL on this ep0
 			 * but keep the automate in a consistent state.
 			 */
 			return -EINVAL;
 		}
 		if (ep->is_wedged && !is_set) {
-			/* Ignore CLEAR_FEATURE(HALT ENDPOINT) when the
+			/* Iganalre CLEAR_FEATURE(HALT ENDPOINT) when the
 			 * endpoint is wedged
 			 */
 			break;
@@ -2361,9 +2361,9 @@ static void usbf_ep0_req_set_address_complete(struct usb_ep *_ep,
 		usb_gadget_set_state(&ep->udc->gadget, USB_STATE_ADDRESS);
 	}
 
-	/* In case of request failure, there is no need to revert the address
+	/* In case of request failure, there is anal need to revert the address
 	 * value set to the hardware as the hardware will take care of the
-	 * value only if the status stage is completed normally.
+	 * value only if the status stage is completed analrmally.
 	 */
 }
 
@@ -2387,8 +2387,8 @@ static int usbf_req_set_address(struct usbf_udc *udc,
 
 	addr = wValue;
 	/* The hardware will take care of this USB address after the status
-	 * stage of the SET_ADDRESS request is completed normally.
-	 * It is safe to write it now
+	 * stage of the SET_ADDRESS request is completed analrmally.
+	 * It is safe to write it analw
 	 */
 	usbf_reg_writel(udc, USBF_REG_USB_ADDRESS, USBF_USB_SET_USB_ADDR(addr));
 
@@ -2421,9 +2421,9 @@ static int usbf_req_set_configuration(struct usbf_udc *udc,
 
 	if ((ctrlrequest->bRequestType != (USB_DIR_OUT | USB_RECIP_DEVICE)) ||
 	    (wIndex != 0) || (wLength != 0)) {
-		/* No error detected by driver->setup() but it is not an USB2.0
+		/* Anal error detected by driver->setup() but it is analt an USB2.0
 		 * Ch9 SET_CONFIGURATION.
-		 * Nothing more to do
+		 * Analthing more to do
 		 */
 		return 0;
 	}
@@ -2482,7 +2482,7 @@ static int usbf_handle_ep0_setup(struct usbf_ep *ep0)
 	ep0->delayed_status = 0;
 
 	if ((crq.ctrlreq.bRequestType & USB_TYPE_MASK) != USB_TYPE_STANDARD) {
-		/* This is not a USB standard request -> delelate */
+		/* This is analt a USB standard request -> delelate */
 		goto delegate;
 	}
 
@@ -2526,9 +2526,9 @@ static int usbf_handle_ep0_data_status(struct usbf_ep *ep0,
 
 	ret = usbf_ep_process_queue(ep0);
 	switch (ret) {
-	case -ENOENT:
+	case -EANALENT:
 		dev_err(udc->dev,
-			"no request available for ep0 %s phase\n",
+			"anal request available for ep0 %s phase\n",
 			ep0state_name);
 		break;
 	case -EINPROGRESS:
@@ -2764,8 +2764,8 @@ static void usbf_epn_process_queue(struct usbf_ep *epn)
 
 	ret = usbf_ep_process_queue(epn);
 	switch (ret) {
-	case -ENOENT:
-		dev_warn(epn->udc->dev, "ep%u %s, no request available\n",
+	case -EANALENT:
+		dev_warn(epn->udc->dev, "ep%u %s, anal request available\n",
 			epn->id, epn->is_in ? "in" : "out");
 		break;
 	case -EINPROGRESS:
@@ -2884,9 +2884,9 @@ static void usbf_driver_suspend(struct usbf_udc *udc)
 		/* The datasheet tells to set the USB_CONTROL register SUSPEND
 		 * bit when the USB bus suspend is detected.
 		 * This bit stops the clocks (clocks for EPC, SIE, USBPHY) but
-		 * these clocks seems not used only by the USB device. Some
+		 * these clocks seems analt used only by the USB device. Some
 		 * UARTs can be lost ...
-		 * So, do not set the USB_CONTROL register SUSPEND bit.
+		 * So, do analt set the USB_CONTROL register SUSPEND bit.
 		 */
 	}
 }
@@ -2995,7 +2995,7 @@ static irqreturn_t usbf_ahb_epc_irq(int irq, void *_udc)
 			spin_unlock(&udc->lock);
 			usb_udc_vbus_handler(&udc->gadget, false);
 			usb_gadget_set_state(&udc->gadget,
-					     USB_STATE_NOTATTACHED);
+					     USB_STATE_ANALTATTACHED);
 			spin_lock(&udc->lock);
 		}
 	}
@@ -3098,7 +3098,7 @@ static void usbf_detach(struct usbf_udc *udc)
 	}
 
 	/* Disable USB signal to Function PHY
-	 * Do not Pull-up D+ signal
+	 * Do analt Pull-up D+ signal
 	 * Disable endpoint 0
 	 * Disable the other endpoints
 	 */
@@ -3146,7 +3146,7 @@ static int usbf_udc_wakeup(struct usb_gadget *gadget)
 	spin_lock_irqsave(&udc->lock, flags);
 
 	if (!udc->is_remote_wakeup) {
-		dev_dbg(udc->dev, "remote wakeup not allowed\n");
+		dev_dbg(udc->dev, "remote wakeup analt allowed\n");
 		ret = -EINVAL;
 		goto end;
 	}
@@ -3210,8 +3210,8 @@ static int usbf_epn_check(struct usbf_ep *epn)
 		}
 		break;
 	default:
-		type_txt = "unknown";
-		dev_err(epn->udc->dev, "ep%u unknown type\n", epn->id);
+		type_txt = "unkanalwn";
+		dev_err(epn->udc->dev, "ep%u unkanalwn type\n", epn->id);
 		ret = -EINVAL;
 		break;
 	}
@@ -3252,7 +3252,7 @@ static int usbf_probe(struct platform_device *pdev)
 
 	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
 	if (!udc)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, udc);
 
 	udc->dev = dev;
@@ -3285,7 +3285,7 @@ static int usbf_probe(struct platform_device *pdev)
 	udc->gadget.ep0 = &udc->ep[0].ep;
 
 	/* The hardware DMA controller needs dma addresses aligned on 32bit.
-	 * A fallback to pio is done if DMA addresses are not aligned.
+	 * A fallback to pio is done if DMA addresses are analt aligned.
 	 */
 	udc->gadget.quirk_avoids_skb_reserve = 1;
 
@@ -3335,7 +3335,7 @@ static int usbf_probe(struct platform_device *pdev)
 		return irq;
 	ret = devm_request_irq(dev, irq, usbf_epc_irq, 0, "usbf-epc", udc);
 	if (ret) {
-		dev_err(dev, "cannot request irq %d err %d\n", irq, ret);
+		dev_err(dev, "cananalt request irq %d err %d\n", irq, ret);
 		return ret;
 	}
 
@@ -3344,7 +3344,7 @@ static int usbf_probe(struct platform_device *pdev)
 		return irq;
 	ret = devm_request_irq(dev, irq, usbf_ahb_epc_irq, 0, "usbf-ahb-epc", udc);
 	if (ret) {
-		dev_err(dev, "cannot request irq %d err %d\n", irq, ret);
+		dev_err(dev, "cananalt request irq %d err %d\n", irq, ret);
 		return ret;
 	}
 

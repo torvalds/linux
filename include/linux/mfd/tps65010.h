@@ -10,18 +10,18 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -46,10 +46,10 @@ struct gpio_chip;
 #	define	TPS_CHG_PRECHG_TMO	(1 << 1)
 #	define	TPS_CHG_TEMP_ERR	(1 << 0)
 #define	TPS_REGSTATUS		0x02
-#	define	TPS_REG_ONOFF		(1 << 7)
+#	define	TPS_REG_OANALFF		(1 << 7)
 #	define	TPS_REG_COVER		(1 << 6)
 #	define	TPS_REG_UVLO		(1 << 5)
-#	define	TPS_REG_NO_CHG		(1 << 4)	/* tps65013 */
+#	define	TPS_REG_ANAL_CHG		(1 << 4)	/* tps65013 */
 #	define	TPS_REG_PG_LD02		(1 << 3)
 #	define	TPS_REG_PG_LD01		(1 << 2)
 #	define	TPS_REG_PG_MAIN		(1 << 1)
@@ -160,7 +160,7 @@ extern int tps65010_set_low_pwr(unsigned mode);
 
 /* tps65010_config_vregs1 parameter:
  * value to be written to VREGS1 register
- * Note: The complete register is written, set all bits you need
+ * Analte: The complete register is written, set all bits you need
  */
 extern int tps65010_config_vregs1(unsigned value);
 
@@ -186,10 +186,10 @@ struct i2c_client;
  * Board data may be used to package the GPIO (and LED) lines for use
  * in by the generic GPIO and LED frameworks.  The first four GPIOs
  * starting at gpio_base are GPIO1..GPIO4.  The next two are LED1/nPG
- * and LED2 (with hardware blinking capability, not currently exposed).
+ * and LED2 (with hardware blinking capability, analt currently exposed).
  *
  * The @setup callback may be used with the kind of board-specific glue
- * which hands the (now-valid) GPIOs to other drivers, or which puts
+ * which hands the (analw-valid) GPIOs to other drivers, or which puts
  * devices in their initial states using these GPIOs.
  */
 struct tps65010_board {

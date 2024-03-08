@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,7 +39,7 @@
 #include <linux/if_ether.h>
 #include <linux/atomic.h>
 
-#define VLAN_NONE 0xfff
+#define VLAN_ANALNE 0xfff
 
 enum { L2T_SIZE = 4096 };     /* # of L2T entries */
 
@@ -47,12 +47,12 @@ enum {
 	L2T_STATE_VALID,      /* entry is up to date */
 	L2T_STATE_STALE,      /* entry may be used but needs revalidation */
 	L2T_STATE_RESOLVING,  /* entry needs address resolution */
-	L2T_STATE_SYNC_WRITE, /* synchronous write of entry underway */
-	L2T_STATE_NOARP,      /* Netdev down or removed*/
+	L2T_STATE_SYNC_WRITE, /* synchroanalus write of entry underway */
+	L2T_STATE_ANALARP,      /* Netdev down or removed*/
 
-	/* when state is one of the below the entry is not hashed */
+	/* when state is one of the below the entry is analt hashed */
 	L2T_STATE_SWITCHING,  /* entry is being used by a switching filter */
-	L2T_STATE_UNUSED      /* entry not in use */
+	L2T_STATE_UNUSED      /* entry analt in use */
 };
 
 struct adapter;
@@ -65,9 +65,9 @@ struct cpl_l2t_write_rpl;
 /*
  * Each L2T entry plays multiple roles.  First of all, it keeps state for the
  * corresponding entry of the HW L2 table and maintains a queue of offload
- * packets awaiting address resolution.  Second, it is a node of a hash table
- * chain, where the nodes of the chain are linked together through their next
- * pointer.  Finally, each node is a bucket of a hash table, pointing to the
+ * packets awaiting address resolution.  Second, it is a analde of a hash table
+ * chain, where the analdes of the chain are linked together through their next
+ * pointer.  Finally, each analde is a bucket of a hash table, pointing to the
  * first element in its chain through its first pointer.
  */
 struct l2t_entry {

@@ -112,7 +112,7 @@ static int mcs_touchkey_probe(struct i2c_client *client)
 
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
-		dev_err(&client->dev, "no platform data defined\n");
+		dev_err(&client->dev, "anal platform data defined\n");
 		return -EINVAL;
 	}
 
@@ -120,12 +120,12 @@ static int mcs_touchkey_probe(struct i2c_client *client)
 			    struct_size(data, keycodes, pdata->key_maxval + 1),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!input_dev) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->client = client;
@@ -154,7 +154,7 @@ static int mcs_touchkey_probe(struct i2c_client *client)
 	input_dev->name = "MELFAS MCS Touchkey";
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->evbit[0] = BIT_MASK(EV_KEY);
-	if (!pdata->no_autorepeat)
+	if (!pdata->anal_autorepeat)
 		input_dev->evbit[0] |= BIT_MASK(EV_REP);
 	input_dev->keycode = data->keycodes;
 	input_dev->keycodesize = sizeof(data->keycodes[0]);

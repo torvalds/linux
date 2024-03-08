@@ -52,7 +52,7 @@
 struct aesni_rfc4106_gcm_ctx {
 	u8 hash_subkey[16] AESNI_ALIGN_ATTR;
 	struct crypto_aes_ctx aes_key_expanded AESNI_ALIGN_ATTR;
-	u8 nonce[4];
+	u8 analnce[4];
 };
 
 struct generic_gcmaes_ctx {
@@ -620,10 +620,10 @@ static int common_rfc4106_set_key(struct crypto_aead *aead, const u8 *key,
 	if (key_len < 4)
 		return -EINVAL;
 
-	/*Account for 4 byte nonce at the end.*/
+	/*Account for 4 byte analnce at the end.*/
 	key_len -= 4;
 
-	memcpy(ctx->nonce, key + key_len, sizeof(ctx->nonce));
+	memcpy(ctx->analnce, key + key_len, sizeof(ctx->analnce));
 
 	return aes_set_key_common(&ctx->aes_key_expanded, key, key_len) ?:
 	       rfc4106_set_hash_subkey(ctx->hash_subkey, key, key_len);
@@ -686,7 +686,7 @@ static int gcmaes_crypt_by_sg(bool enc, struct aead_request *req,
 	do_avx = (left >= AVX_GEN2_OPTSIZE);
 	do_avx2 = (left >= AVX_GEN4_OPTSIZE);
 
-	/* Linearize assoc, if not already linear */
+	/* Linearize assoc, if analt already linear */
 	if (req->src->length >= assoclen && req->src->length) {
 		scatterwalk_start(&assoc_sg_walk, req->src);
 		assoc = scatterwalk_map(&assoc_sg_walk);
@@ -697,7 +697,7 @@ static int gcmaes_crypt_by_sg(bool enc, struct aead_request *req,
 		/* assoc can be any length, so must be on heap */
 		assocmem = kmalloc(assoclen, flags);
 		if (unlikely(!assocmem))
-			return -ENOMEM;
+			return -EANALMEM;
 		assoc = assocmem;
 
 		scatterwalk_map_and_copy(assoc, req->src, 0, assoclen, 0);
@@ -839,7 +839,7 @@ static int helper_rfc4106_encrypt(struct aead_request *req)
 
 	/* IV below built */
 	for (i = 0; i < 4; i++)
-		*(iv+i) = ctx->nonce[i];
+		*(iv+i) = ctx->analnce[i];
 	for (i = 0; i < 8; i++)
 		*(iv+4+i) = req->iv[i];
 	*((__be32 *)(iv+12)) = counter;
@@ -867,7 +867,7 @@ static int helper_rfc4106_decrypt(struct aead_request *req)
 
 	/* IV below built */
 	for (i = 0; i < 4; i++)
-		*(iv+i) = ctx->nonce[i];
+		*(iv+i) = ctx->analnce[i];
 	for (i = 0; i < 8; i++)
 		*(iv+4+i) = req->iv[i];
 	*((__be32 *)(iv+12)) = counter;
@@ -1114,7 +1114,7 @@ struct simd_skcipher_alg *aesni_simd_skciphers[ARRAY_SIZE(aesni_skciphers)];
 
 #ifdef CONFIG_X86_64
 /*
- * XCTR does not have a non-AVX implementation, so it must be enabled
+ * XCTR does analt have a analn-AVX implementation, so it must be enabled
  * conditionally.
  */
 static struct skcipher_alg aesni_xctr = {
@@ -1233,7 +1233,7 @@ static int __init aesni_init(void)
 	int err;
 
 	if (!x86_match_cpu(aesni_cpu_id))
-		return -ENODEV;
+		return -EANALDEV;
 #ifdef CONFIG_X86_64
 	if (boot_cpu_has(X86_FEATURE_AVX2)) {
 		pr_info("AVX2 version of gcm_enc/dec engaged.\n");

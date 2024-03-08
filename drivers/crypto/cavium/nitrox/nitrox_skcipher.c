@@ -113,13 +113,13 @@ static int nitrox_skcipher_init(struct crypto_skcipher *tfm)
 	/* get the first device */
 	nctx->ndev = nitrox_get_first_device();
 	if (!nctx->ndev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* allocate nitrox crypto context */
 	chdr = crypto_alloc_context(nctx->ndev);
 	if (!chdr) {
 		nitrox_put_device(nctx->ndev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nctx->callback = nitrox_skcipher_callback;
@@ -301,7 +301,7 @@ static int nitrox_cbc_decrypt(struct skcipher_request *skreq)
 
 	nkreq->iv_out = kmalloc(ivsize, flags);
 	if (!nkreq->iv_out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scatterwalk_map_and_copy(nkreq->iv_out, skreq->src, start, ivsize, 0);
 	return nitrox_skcipher_crypt(skreq, false);
@@ -365,15 +365,15 @@ static int nitrox_aes_ctr_rfc3686_setkey(struct crypto_skcipher *cipher,
 	struct flexi_crypto_context *fctx;
 	int aes_keylen;
 
-	if (keylen < CTR_RFC3686_NONCE_SIZE)
+	if (keylen < CTR_RFC3686_ANALNCE_SIZE)
 		return -EINVAL;
 
 	fctx = nctx->u.fctx;
 
-	memcpy(fctx->crypto.iv, key + (keylen - CTR_RFC3686_NONCE_SIZE),
-	       CTR_RFC3686_NONCE_SIZE);
+	memcpy(fctx->crypto.iv, key + (keylen - CTR_RFC3686_ANALNCE_SIZE),
+	       CTR_RFC3686_ANALNCE_SIZE);
 
-	keylen -= CTR_RFC3686_NONCE_SIZE;
+	keylen -= CTR_RFC3686_ANALNCE_SIZE;
 
 	aes_keylen = flexi_aes_keylen(keylen);
 	if (aes_keylen < 0)
@@ -449,8 +449,8 @@ static struct skcipher_alg nitrox_skciphers[] = { {
 		.cra_alignmask = 0,
 		.cra_module = THIS_MODULE,
 	},
-	.min_keysize = AES_MIN_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
-	.max_keysize = AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
+	.min_keysize = AES_MIN_KEY_SIZE + CTR_RFC3686_ANALNCE_SIZE,
+	.max_keysize = AES_MAX_KEY_SIZE + CTR_RFC3686_ANALNCE_SIZE,
 	.ivsize = CTR_RFC3686_IV_SIZE,
 	.init = nitrox_skcipher_init,
 	.exit = nitrox_skcipher_exit,

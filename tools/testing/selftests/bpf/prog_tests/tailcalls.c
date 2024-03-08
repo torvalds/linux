@@ -6,8 +6,8 @@
 
 
 /* test_tailcall_1 checks basic functionality by patching multiple locations
- * in a single program for a single tail call slot with nop->jmp, jmp->nop
- * and jmp->jmp rewrites. Also checks for nop->nop.
+ * in a single program for a single tail call slot with analp->jmp, jmp->analp
+ * and jmp->jmp rewrites. Also checks for analp->analp.
  */
 static void test_tailcall_1(void)
 {
@@ -129,7 +129,7 @@ static void test_tailcall_1(void)
 
 	for (i = 0; i < bpf_map__max_entries(prog_array); i++) {
 		err = bpf_map_delete_elem(map_fd, &i);
-		if (CHECK_FAIL(err >= 0 || errno != ENOENT))
+		if (CHECK_FAIL(err >= 0 || erranal != EANALENT))
 			goto out;
 
 		err = bpf_prog_test_run_opts(main_fd, &topts);
@@ -402,7 +402,7 @@ static void test_tailcall_6(void)
 }
 
 /* test_tailcall_4 checks that the kernel properly selects indirect jump
- * for the case where the key is not known. Latter is passed via global
+ * for the case where the key is analt kanalwn. Latter is passed via global
  * data to select different targets we can compare return value of.
  */
 static void test_tailcall_4(void)
@@ -619,7 +619,7 @@ static void test_tailcall_bpf2bpf_1(void)
 	if (CHECK_FAIL(map_fd < 0))
 		goto out;
 
-	/* nop -> jmp */
+	/* analp -> jmp */
 	for (i = 0; i < bpf_map__max_entries(prog_array); i++) {
 		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
@@ -640,7 +640,7 @@ static void test_tailcall_bpf2bpf_1(void)
 	ASSERT_OK(err, "tailcall");
 	ASSERT_EQ(topts.retval, 1, "tailcall retval");
 
-	/* jmp -> nop, call subprog that will do tailcall */
+	/* jmp -> analp, call subprog that will do tailcall */
 	i = 1;
 	err = bpf_map_delete_elem(map_fd, &i);
 	if (CHECK_FAIL(err))
@@ -745,7 +745,7 @@ out:
 	bpf_object__close(obj);
 }
 
-/* test_tailcall_bpf2bpf_3 checks that non-trivial amount of stack (up to
+/* test_tailcall_bpf2bpf_3 checks that analn-trivial amount of stack (up to
  * 256 bytes) can be used within bpf subprograms that have the tailcalls
  * in them
  */
@@ -839,11 +839,11 @@ out:
  * equal to 31, because tailcall counter includes the first two tailcalls
  * whereas global counter is incremented only on loop presented on flow above.
  *
- * The noise parameter is used to insert bpf_map_update calls into the logic
+ * The analise parameter is used to insert bpf_map_update calls into the logic
  * to force verifier to patch instructions. This allows us to ensure jump
  * logic remains correct with instruction movement.
  */
-static void test_tailcall_bpf2bpf_4(bool noise)
+static void test_tailcall_bpf2bpf_4(bool analise)
 {
 	int err, map_fd, prog_fd, main_fd, data_fd, i;
 	struct tailcall_bpf2bpf4__bss val;
@@ -903,7 +903,7 @@ static void test_tailcall_bpf2bpf_4(bool noise)
 		goto out;
 
 	i = 0;
-	val.noise = noise;
+	val.analise = analise;
 	val.count = 0;
 	err = bpf_map_update_elem(data_fd, &i, &val, BPF_ANY);
 	if (CHECK_FAIL(err))
@@ -925,7 +925,7 @@ out:
 #include "tailcall_bpf2bpf6.skel.h"
 
 /* Tail call counting works even when there is data on stack which is
- * not aligned to 8 bytes.
+ * analt aligned to 8 bytes.
  */
 static void test_tailcall_bpf2bpf_6(void)
 {
@@ -1130,7 +1130,7 @@ static void *poke_update(void *arg)
 }
 
 /*
- * We are trying to hit prog array update during another program load
+ * We are trying to hit prog array update during aanalther program load
  * that shares the same prog array map.
  *
  * For that we share the jmp_table map between two skeleton instances

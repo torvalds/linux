@@ -29,7 +29,7 @@ prestera_span_entry_create(struct prestera_port *port, u8 span_id)
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	refcount_set(&entry->ref_count, 1);
 	entry->port = port;
@@ -107,7 +107,7 @@ static int prestera_span_put(struct prestera_switch *sw, u8 span_id)
 
 	entry = prestera_span_entry_find_by_id(sw->span, span_id);
 	if (!entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!refcount_dec_and_test(&entry->ref_count))
 		return 0;
@@ -152,7 +152,7 @@ int prestera_span_rule_del(struct prestera_flow_block_binding *binding,
 	int err;
 
 	if (binding->span_id == PRESTERA_SPAN_INVALID_ID)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = prestera_hw_span_unbind(binding->port, ingress);
 	if (err)
@@ -172,7 +172,7 @@ int prestera_span_init(struct prestera_switch *sw)
 
 	span = kzalloc(sizeof(*span), GFP_KERNEL);
 	if (!span)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&span->entries);
 

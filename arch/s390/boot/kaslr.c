@@ -15,7 +15,7 @@
 #define PRNG_MODE_SHA512 2
 #define PRNG_MODE_TRNG	 3
 
-struct prno_parm {
+struct pranal_parm {
 	u32 res;
 	u32 reseed_counter;
 	u64 stream_bytes;
@@ -32,12 +32,12 @@ struct prng_parm {
 static int check_prng(void)
 {
 	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG)) {
-		sclp_early_printk("KASLR disabled: CPU has no PRNG\n");
+		sclp_early_printk("KASLR disabled: CPU has anal PRNG\n");
 		return 0;
 	}
-	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
+	if (cpacf_query_func(CPACF_PRANAL, CPACF_PRANAL_TRNG))
 		return PRNG_MODE_TRNG;
-	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_SHA512_DRNG_GEN))
+	if (cpacf_query_func(CPACF_PRANAL, CPACF_PRANAL_SHA512_DRNG_GEN))
 		return PRNG_MODE_SHA512;
 	else
 		return PRNG_MODE_TDES;
@@ -55,7 +55,7 @@ static int get_random(unsigned long limit, unsigned long *value)
 		},
 	};
 	unsigned long seed, random;
-	struct prno_parm prno;
+	struct pranal_parm pranal;
 	__u64 entropy[4];
 	int mode, i;
 
@@ -66,9 +66,9 @@ static int get_random(unsigned long limit, unsigned long *value)
 		cpacf_trng(NULL, 0, (u8 *) &random, sizeof(random));
 		break;
 	case PRNG_MODE_SHA512:
-		cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED, &prno, NULL, 0,
+		cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_SEED, &pranal, NULL, 0,
 			   (u8 *) &seed, sizeof(seed));
-		cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN, &prno, (u8 *) &random,
+		cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_GEN, &pranal, (u8 *) &random,
 			   sizeof(random), NULL, 0);
 		break;
 	case PRNG_MODE_TDES:
@@ -165,7 +165,7 @@ static unsigned long iterate_valid_positions(unsigned long size, unsigned long a
  * "Static" or "single" allocations are done via physmem_alloc_range() and
  * physmem_reserve(), and they are listed in physmem_info.reserved[]. Each
  * type of "static" allocation can only have one allocation per type and
- * cannot have chains.
+ * cananalt have chains.
  *
  * On the other hand, "dynamic" or "repetitive" allocations are done via
  * physmem_alloc_top_down(). These allocations are tightly packed together

@@ -34,7 +34,7 @@ properties:
       - const: dsi_pll
 
   vcca-supply:
-    description: Phandle to vcca regulator device node.
+    description: Phandle to vcca regulator device analde.
 
   power-domains:
     description:
@@ -43,7 +43,7 @@ properties:
 
   required-opps:
     description:
-      A phandle to an OPP node describing the power domain's performance point.
+      A phandle to an OPP analde describing the power domain's performance point.
     maxItems: 1
 
 required:

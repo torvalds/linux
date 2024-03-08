@@ -9,7 +9,7 @@
 //
 
 #include <asm/unaligned.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/device.h>
 #include <sound/memalloc.h>
 #include <linux/module.h>

@@ -151,7 +151,7 @@ static int inv_icm42600_set_pwr_mgmt0(struct inv_icm42600_state *st,
 	unsigned int val;
 	int ret;
 
-	/* if nothing changed, exit */
+	/* if analthing changed, exit */
 	if (gyro == oldgyro && accel == oldaccel && temp == oldtemp)
 		return 0;
 
@@ -384,11 +384,11 @@ static int inv_icm42600_setup(struct inv_icm42600_state *st,
 	if (val != hw->whoami) {
 		dev_err(dev, "invalid whoami %#02x expected %#02x (%s)\n",
 			val, hw->whoami, hw->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	st->name = hw->name;
 
-	/* reset to make sure previous state are not there */
+	/* reset to make sure previous state are analt there */
 	ret = regmap_write(st->map, INV_ICM42600_REG_DEVICE_CONFIG,
 			   INV_ICM42600_DEVICE_CONFIG_SOFT_RESET);
 	if (ret)
@@ -399,8 +399,8 @@ static int inv_icm42600_setup(struct inv_icm42600_state *st,
 	if (ret)
 		return ret;
 	if (!(val & INV_ICM42600_INT_STATUS_RESET_DONE)) {
-		dev_err(dev, "reset error, reset done bit not set\n");
-		return -ENODEV;
+		dev_err(dev, "reset error, reset done bit analt set\n");
+		return -EANALDEV;
 	}
 
 	/* set chip bus configuration */
@@ -583,13 +583,13 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 
 	if (chip <= INV_CHIP_INVALID || chip >= INV_CHIP_NB) {
 		dev_err(dev, "invalid chip = %d\n", chip);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* get irq properties, set trigger falling by default */
 	irq_desc = irq_get_irq_data(irq);
 	if (!irq_desc) {
-		dev_err(dev, "could not find IRQ %d\n", irq);
+		dev_err(dev, "could analt find IRQ %d\n", irq);
 		return -EINVAL;
 	}
 
@@ -601,7 +601,7 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, st);
 	mutex_init(&st->lock);
@@ -668,7 +668,7 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 	ret = pm_runtime_set_active(dev);
 	if (ret)
 		return ret;
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, INV_ICM42600_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
@@ -680,7 +680,7 @@ EXPORT_SYMBOL_NS_GPL(inv_icm42600_core_probe, IIO_ICM42600);
 
 /*
  * Suspend saves sensors state and turns everything off.
- * Check first if runtime suspend has not already done the job.
+ * Check first if runtime suspend has analt already done the job.
  */
 static int inv_icm42600_suspend(struct device *dev)
 {
@@ -776,7 +776,7 @@ error_unlock:
 	return ret;
 }
 
-/* Sensors are enabled by iio devices, no need to turn them back on here. */
+/* Sensors are enabled by iio devices, anal need to turn them back on here. */
 static int inv_icm42600_runtime_resume(struct device *dev)
 {
 	struct inv_icm42600_state *st = dev_get_drvdata(dev);

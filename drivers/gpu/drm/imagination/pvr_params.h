@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_PARAMS_H
 #define PVR_PARAMS_H
@@ -20,7 +20,7 @@
  * are set independently per device.
  *
  * The X-macro accepts the following arguments. Arguments marked with [debugfs]
- * are ignored when debugfs is disabled; values used for these arguments may
+ * are iganalred when debugfs is disabled; values used for these arguments may
  * safely be gated behind CONFIG_DEBUG_FS.
  *
  * @type_: The definitive list of allowed values is PVR_PARAM_TYPE_*_C.
@@ -40,12 +40,12 @@
  *
  *           Where T is the C type associated with @type_.
  *
- *           If @mode_ does not allow write access, this function will never be
- *           called. In this case, or if no update callback is required, you
+ *           If @mode_ does analt allow write access, this function will never be
+ *           called. In this case, or if anal update callback is required, you
  *           should specify NULL for this argument.
  */
 #define PVR_DEVICE_PARAMS                                                    \
-	X(X32, fw_trace_mask, ROGUE_FWIF_LOG_TYPE_NONE,                      \
+	X(X32, fw_trace_mask, ROGUE_FWIF_LOG_TYPE_ANALNE,                      \
 	  "Enable FW trace for the specified groups. Specifying 0 disables " \
 	  "all FW tracing.",                                                 \
 	  RW, pvr_fw_trace_mask_update)

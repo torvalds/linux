@@ -12,6 +12,6 @@ Description:
 			"UBX"		UBX
 			======		===========
 
-		Note that also non-"NMEA" type receivers typically support a
+		Analte that also analn-"NMEA" type receivers typically support a
 		subset of NMEA 0183 with vendor extensions (e.g. to allow
 		switching to a vendor protocol).

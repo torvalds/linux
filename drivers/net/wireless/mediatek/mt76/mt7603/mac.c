@@ -514,7 +514,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 	u32 rxd0 = le32_to_cpu(rxd[0]);
 	u32 rxd1 = le32_to_cpu(rxd[1]);
 	u32 rxd2 = le32_to_cpu(rxd[2]);
-	bool unicast = rxd1 & MT_RXD1_NORMAL_U2M;
+	bool unicast = rxd1 & MT_RXD1_ANALRMAL_U2M;
 	bool insert_ccmp_hdr = false;
 	bool remove_pad;
 	int idx;
@@ -522,61 +522,61 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 
 	memset(status, 0, sizeof(*status));
 
-	i = FIELD_GET(MT_RXD1_NORMAL_CH_FREQ, rxd1);
+	i = FIELD_GET(MT_RXD1_ANALRMAL_CH_FREQ, rxd1);
 	sband = (i & 1) ? &dev->mphy.sband_5g.sband : &dev->mphy.sband_2g.sband;
 	i >>= 1;
 
-	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
+	idx = FIELD_GET(MT_RXD2_ANALRMAL_WLAN_IDX, rxd2);
 	status->wcid = mt7603_rx_get_wcid(dev, idx, unicast);
 
 	status->band = sband->band;
 	if (i < sband->n_channels)
 		status->freq = sband->channels[i].center_freq;
 
-	if (rxd2 & MT_RXD2_NORMAL_FCS_ERR)
+	if (rxd2 & MT_RXD2_ANALRMAL_FCS_ERR)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (rxd2 & MT_RXD2_NORMAL_TKIP_MIC_ERR)
+	if (rxd2 & MT_RXD2_ANALRMAL_TKIP_MIC_ERR)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
 	/* ICV error or CCMP/BIP/WPI MIC error */
-	if (rxd2 & MT_RXD2_NORMAL_ICV_ERR)
+	if (rxd2 & MT_RXD2_ANALRMAL_ICV_ERR)
 		status->flag |= RX_FLAG_ONLY_MONITOR;
 
-	if (FIELD_GET(MT_RXD2_NORMAL_SEC_MODE, rxd2) != 0 &&
-	    !(rxd2 & (MT_RXD2_NORMAL_CLM | MT_RXD2_NORMAL_CM))) {
+	if (FIELD_GET(MT_RXD2_ANALRMAL_SEC_MODE, rxd2) != 0 &&
+	    !(rxd2 & (MT_RXD2_ANALRMAL_CLM | MT_RXD2_ANALRMAL_CM))) {
 		status->flag |= RX_FLAG_DECRYPTED;
 		status->flag |= RX_FLAG_IV_STRIPPED;
 		status->flag |= RX_FLAG_MMIC_STRIPPED | RX_FLAG_MIC_STRIPPED;
 	}
 
-	remove_pad = rxd1 & MT_RXD1_NORMAL_HDR_OFFSET;
+	remove_pad = rxd1 & MT_RXD1_ANALRMAL_HDR_OFFSET;
 
-	if (rxd2 & MT_RXD2_NORMAL_MAX_LEN_ERROR)
+	if (rxd2 & MT_RXD2_ANALRMAL_MAX_LEN_ERROR)
 		return -EINVAL;
 
 	if (!sband->channels)
 		return -EINVAL;
 
 	rxd += 4;
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_4) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_4) {
 		rxd += 4;
 		if ((u8 *)rxd - skb->data >= skb->len)
 			return -EINVAL;
 	}
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_1) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_1) {
 		u8 *data = (u8 *)rxd;
 
 		if (status->flag & RX_FLAG_DECRYPTED) {
-			switch (FIELD_GET(MT_RXD2_NORMAL_SEC_MODE, rxd2)) {
+			switch (FIELD_GET(MT_RXD2_ANALRMAL_SEC_MODE, rxd2)) {
 			case MT_CIPHER_AES_CCMP:
 			case MT_CIPHER_CCMP_CCX:
 			case MT_CIPHER_CCMP_256:
 				insert_ccmp_hdr =
-					FIELD_GET(MT_RXD2_NORMAL_FRAG, rxd2);
+					FIELD_GET(MT_RXD2_ANALRMAL_FRAG, rxd2);
 				fallthrough;
 			case MT_CIPHER_TKIP:
-			case MT_CIPHER_TKIP_NO_MIC:
+			case MT_CIPHER_TKIP_ANAL_MIC:
 			case MT_CIPHER_GCMP:
 			case MT_CIPHER_GCMP_256:
 				status->iv[0] = data[5];
@@ -595,12 +595,12 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 		if ((u8 *)rxd - skb->data >= skb->len)
 			return -EINVAL;
 	}
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_2) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_2) {
 		status->timestamp = le32_to_cpu(rxd[0]);
 		status->flag |= RX_FLAG_MACTIME_START;
 
-		if (!(rxd2 & (MT_RXD2_NORMAL_NON_AMPDU_SUB |
-			      MT_RXD2_NORMAL_NON_AMPDU))) {
+		if (!(rxd2 & (MT_RXD2_ANALRMAL_ANALN_AMPDU_SUB |
+			      MT_RXD2_ANALRMAL_ANALN_AMPDU))) {
 			status->flag |= RX_FLAG_AMPDU_DETAILS;
 
 			/* all subframes of an A-MPDU have the same timestamp */
@@ -617,7 +617,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 		if ((u8 *)rxd - skb->data >= skb->len)
 			return -EINVAL;
 	}
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_3) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_3) {
 		u32 rxdg0 = le32_to_cpu(rxd[0]);
 		u32 rxdg3 = le32_to_cpu(rxd[3]);
 		bool cck = false;
@@ -669,7 +669,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 	skb_pull(skb, (u8 *)rxd - skb->data + 2 * remove_pad);
 
 	if (insert_ccmp_hdr) {
-		u8 key_id = FIELD_GET(MT_RXD1_NORMAL_KEY_ID, rxd1);
+		u8 key_id = FIELD_GET(MT_RXD1_ANALRMAL_KEY_ID, rxd1);
 
 		mt76_insert_ccmp_hdr(skb, key_id);
 	}
@@ -681,7 +681,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 	status->aggr = unicast &&
 		       !ieee80211_is_qos_nullfunc(hdr->frame_control);
 	status->qos_ctl = *ieee80211_get_qos_ctl(hdr);
-	status->seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	status->seqanal = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 
 	return 0;
 }
@@ -862,10 +862,10 @@ mt7603_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 {
 	memset(key_data, 0, 32);
 	if (!key)
-		return MT_CIPHER_NONE;
+		return MT_CIPHER_ANALNE;
 
 	if (key->keylen > 32)
-		return MT_CIPHER_NONE;
+		return MT_CIPHER_ANALNE;
 
 	memcpy(key_data, key->key, key->keylen);
 
@@ -882,7 +882,7 @@ mt7603_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 	case WLAN_CIPHER_SUITE_CCMP:
 		return MT_CIPHER_AES_CCMP;
 	default:
-		return MT_CIPHER_NONE;
+		return MT_CIPHER_ANALNE;
 	}
 }
 
@@ -895,8 +895,8 @@ int mt7603_wtbl_set_key(struct mt7603_dev *dev, int wcid,
 	int key_len = sizeof(key_data);
 
 	cipher = mt7603_mac_get_key_info(key, key_data);
-	if (cipher == MT_CIPHER_NONE && key)
-		return -EOPNOTSUPP;
+	if (cipher == MT_CIPHER_ANALNE && key)
+		return -EOPANALTSUPP;
 
 	if (key && (cipher == MT_CIPHER_WEP40 || cipher == MT_CIPHER_WEP104)) {
 		addr += key->keyidx * 16;
@@ -932,7 +932,7 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 	int tx_count = 8;
 	u8 frame_type, frame_subtype;
 	u16 fc = le16_to_cpu(hdr->frame_control);
-	u16 seqno = 0;
+	u16 seqanal = 0;
 	u8 vif_idx = 0;
 	u32 val;
 	u8 bw;
@@ -972,8 +972,8 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 	      FIELD_PREP(MT_TXD1_PROTECTED, !!key);
 	txwi[1] = cpu_to_le32(val);
 
-	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-		txwi[1] |= cpu_to_le32(MT_TXD1_NO_ACK);
+	if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+		txwi[1] |= cpu_to_le32(MT_TXD1_ANAL_ACK);
 
 	val = FIELD_PREP(MT_TXD2_FRAME_TYPE, frame_type) |
 	      FIELD_PREP(MT_TXD2_SUB_TYPE, frame_subtype) |
@@ -1021,13 +1021,13 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 		  MT_TXD3_SN_VALID;
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
-		seqno = le16_to_cpu(hdr->seq_ctrl);
+		seqanal = le16_to_cpu(hdr->seq_ctrl);
 	else if (ieee80211_is_back_req(hdr->frame_control))
-		seqno = le16_to_cpu(bar->start_seq_num);
+		seqanal = le16_to_cpu(bar->start_seq_num);
 	else
 		val &= ~MT_TXD3_SN_VALID;
 
-	val |= FIELD_PREP(MT_TXD3_SEQ, seqno >> 4);
+	val |= FIELD_PREP(MT_TXD3_SEQ, seqanal >> 4);
 
 	txwi[3] = cpu_to_le32(val);
 
@@ -1061,7 +1061,7 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (sta) {
 		msta = (struct mt7603_sta *)sta->drv_priv;
 
-		if ((info->flags & (IEEE80211_TX_CTL_NO_PS_BUFFER |
+		if ((info->flags & (IEEE80211_TX_CTL_ANAL_PS_BUFFER |
 				    IEEE80211_TX_CTL_CLEAR_PS_FILT)) ||
 		    (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE))
 			mt7603_wtbl_set_ps(dev, msta, false);
@@ -1263,7 +1263,7 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 	pid = le32_get_bits(txs_data[4], MT_TXS4_PID);
 	wcidx = le32_get_bits(txs_data[3], MT_TXS3_WCID);
 
-	if (pid == MT_PACKET_ID_NO_ACK)
+	if (pid == MT_PACKET_ID_ANAL_ACK)
 		return;
 
 	if (wcidx >= MT7603_WTBL_SIZE)
@@ -1292,7 +1292,7 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 
 	if (mt7603_fill_txs(dev, msta, &info, txs_data)) {
 		spin_lock_bh(&dev->mt76.rx_lock);
-		ieee80211_tx_status_noskb(mt76_hw(dev), sta, &info);
+		ieee80211_tx_status_analskb(mt76_hw(dev), sta, &info);
 		spin_unlock_bh(&dev->mt76.rx_lock);
 	}
 
@@ -1428,7 +1428,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	ieee80211_stop_queues(dev->mt76.hw);
 	set_bit(MT76_RESET, &dev->mphy.state);
 
-	/* lock/unlock all queues to ensure that no tx is pending */
+	/* lock/unlock all queues to ensure that anal tx is pending */
 	mt76_txq_schedule_all(&dev->mphy);
 
 	mt76_worker_disable(&dev->mt76.tx_worker);
@@ -1636,7 +1636,7 @@ mt7603_edcca_set_strict(struct mt7603_dev *dev, bool val)
 
 	dev->ed_strict_mode = val;
 
-	/* Ensure that ED/CCA does not trigger if disabled */
+	/* Ensure that ED/CCA does analt trigger if disabled */
 	if (!dev->ed_monitor)
 		rxtd_6 |= FIELD_PREP(MT_RXTD_6_CCAED_TH, 0x34);
 	else

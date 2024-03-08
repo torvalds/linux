@@ -166,7 +166,7 @@ struct key *request_key_auth_new(struct key *target, const char *op,
 	const struct cred *cred = current_cred();
 	struct key *authkey = NULL;
 	char desc[20];
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	kenter("%d,", target->serial);
 
@@ -181,7 +181,7 @@ struct key *request_key_auth_new(struct key *target, const char *op,
 	strscpy(rka->op, op, sizeof(rka->op));
 
 	/* see if the calling process is already servicing the key request of
-	 * another process */
+	 * aanalther process */
 	if (cred->request_key_auth) {
 		/* it is - use that instantiation context here too */
 		down_read(&cred->request_key_auth->sem);
@@ -216,7 +216,7 @@ struct key *request_key_auth_new(struct key *target, const char *op,
 	authkey = key_alloc(&key_type_request_key_auth, desc,
 			    cred->fsuid, cred->fsgid, cred,
 			    KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH | KEY_POS_LINK |
-			    KEY_USR_VIEW, KEY_ALLOC_NOT_IN_QUOTA, NULL);
+			    KEY_USR_VIEW, KEY_ALLOC_ANALT_IN_QUOTA, NULL);
 	if (IS_ERR(authkey)) {
 		ret = PTR_ERR(authkey);
 		goto error_free_rka;
@@ -268,7 +268,7 @@ struct key *key_get_instantiation_authkey(key_serial_t target_id)
 	if (IS_ERR(authkey_ref)) {
 		authkey = ERR_CAST(authkey_ref);
 		if (authkey == ERR_PTR(-EAGAIN))
-			authkey = ERR_PTR(-ENOKEY);
+			authkey = ERR_PTR(-EANALKEY);
 		goto error;
 	}
 

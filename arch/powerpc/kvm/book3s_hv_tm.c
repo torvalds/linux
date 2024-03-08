@@ -48,8 +48,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 
 	/*
 	 * The TM softpatch interrupt sets NIP to the instruction following
-	 * the faulting instruction, which is not executed. Rewind nip to the
-	 * faulting instruction so it looks like a normal synchronous
+	 * the faulting instruction, which is analt executed. Rewind nip to the
+	 * faulting instruction so it looks like a analrmal synchroanalus
 	 * interrupt, then update nip in the places where the instruction is
 	 * emulated.
 	 */
@@ -60,7 +60,7 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 	 * in these instructions, so masking bit 31 out doesn't change these
 	 * instructions. For treclaim., tsr., and trechkpt. instructions if bit
 	 * 31 = 0 then they are per ISA invalid forms, however P9 UM, in section
-	 * 4.6.10 Book II Invalid Forms, informs specifically that ignoring bit
+	 * 4.6.10 Book II Invalid Forms, informs specifically that iganalring bit
 	 * 31 is an acceptable way to handle these invalid forms that have
 	 * bit 31 = 0. Moreover, for emulation purposes both forms (w/ and wo/
 	 * bit 31 set) can generate a softpatch interrupt. Hence both forms
@@ -129,7 +129,7 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		vcpu->arch.regs.nip += 4;
 		return RESUME_GUEST;
 
-	/* ignore bit 31, see comment above */
+	/* iganalre bit 31, see comment above */
 	case (PPC_INST_TSR & PO_XOP_OPCODE_MASK):
 		/* check for PR=1 and arch 2.06 bit set in PCR */
 		if ((msr & MSR_PR) && (vcpu->arch.vcore->pcr & PCR_ARCH_206)) {
@@ -167,7 +167,7 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		vcpu->arch.regs.nip += 4;
 		return RESUME_GUEST;
 
-	/* ignore bit 31, see comment above */
+	/* iganalre bit 31, see comment above */
 	case (PPC_INST_TRECLAIM & PO_XOP_OPCODE_MASK):
 		/* check for TM disabled in the HFSCR or MSR */
 		if (!(vcpu->arch.hfscr & HFSCR_TM)) {
@@ -184,12 +184,12 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 						BOOK3S_INTERRUPT_FAC_UNAVAIL);
 			return RESUME_GUEST;
 		}
-		/* If no transaction active, generate TM bad thing */
+		/* If anal transaction active, generate TM bad thing */
 		if (!MSR_TM_ACTIVE(msr)) {
 			kvmppc_core_queue_program(vcpu, SRR1_PROGTM);
 			return RESUME_GUEST;
 		}
-		/* If failure was not previously recorded, recompute TEXASR */
+		/* If failure was analt previously recorded, recompute TEXASR */
 		if (!(vcpu->arch.orig_texasr & TEXASR_FS)) {
 			ra = (instr >> 16) & 0x1f;
 			if (ra)
@@ -206,7 +206,7 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		vcpu->arch.regs.nip += 4;
 		return RESUME_GUEST;
 
-	/* ignore bit 31, see comment above */
+	/* iganalre bit 31, see comment above */
 	case (PPC_INST_TRECHKPT & PO_XOP_OPCODE_MASK):
 		/* XXX do we need to check for PR=0 here? */
 		/* check for TM disabled in the HFSCR or MSR */

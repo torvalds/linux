@@ -2,8 +2,8 @@
 #ifndef __ERR_H__
 #define __ERR_H__
 
-#define MAX_ERRNO 4095
-#define IS_ERR_VALUE(x) (unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO
+#define MAX_ERRANAL 4095
+#define IS_ERR_VALUE(x) (unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRANAL
 
 static inline int IS_ERR_OR_NULL(const void *ptr)
 {

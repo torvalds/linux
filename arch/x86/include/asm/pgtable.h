@@ -9,7 +9,7 @@
 /*
  * Macro to mark a page protection value as UC-
  */
-#define pgprot_noncached(prot)						\
+#define pgprot_analncached(prot)						\
 	((boot_cpu_data.x86 > 3)					\
 	 ? (__pgprot(pgprot_val(prot) |					\
 		     cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS)))	\
@@ -123,7 +123,7 @@ extern pmdval_t early_pmd_flags;
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 static inline bool pte_dirty(pte_t pte)
 {
@@ -173,7 +173,7 @@ static inline int pud_young(pud_t pud)
 static inline int pte_write(pte_t pte)
 {
 	/*
-	 * Shadow stack pages are logically writable, but do not have
+	 * Shadow stack pages are logically writable, but do analt have
 	 * _PAGE_RW.  Check for them separately from _PAGE_RW itself.
 	 */
 	return (pte_flags(pte) & _PAGE_RW) || pte_shstk(pte);
@@ -183,7 +183,7 @@ static inline int pte_write(pte_t pte)
 static inline int pmd_write(pmd_t pmd)
 {
 	/*
-	 * Shadow stack pages are logically writable, but do not have
+	 * Shadow stack pages are logically writable, but do analt have
 	 * _PAGE_RW.  Check for them separately from _PAGE_RW itself.
 	 */
 	return (pmd_flags(pmd) & _PAGE_RW) || pmd_shstk(pmd);
@@ -215,30 +215,30 @@ static inline int pte_special(pte_t pte)
 	return pte_flags(pte) & _PAGE_SPECIAL;
 }
 
-/* Entries that were set to PROT_NONE are inverted */
+/* Entries that were set to PROT_ANALNE are inverted */
 
-static inline u64 protnone_mask(u64 val);
+static inline u64 protanalne_mask(u64 val);
 
 #define PFN_PTE_SHIFT	PAGE_SHIFT
 
 static inline unsigned long pte_pfn(pte_t pte)
 {
 	phys_addr_t pfn = pte_val(pte);
-	pfn ^= protnone_mask(pfn);
+	pfn ^= protanalne_mask(pfn);
 	return (pfn & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 static inline unsigned long pmd_pfn(pmd_t pmd)
 {
 	phys_addr_t pfn = pmd_val(pmd);
-	pfn ^= protnone_mask(pfn);
+	pfn ^= protanalne_mask(pfn);
 	return (pfn & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
 }
 
 static inline unsigned long pud_pfn(pud_t pud)
 {
 	phys_addr_t pfn = pud_val(pud);
-	pfn ^= protnone_mask(pfn);
+	pfn ^= protanalne_mask(pfn);
 	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
 }
 
@@ -255,7 +255,7 @@ static inline unsigned long pgd_pfn(pgd_t pgd)
 #define p4d_leaf	p4d_large
 static inline int p4d_large(p4d_t p4d)
 {
-	/* No 512 GiB pages yet */
+	/* Anal 512 GiB pages yet */
 	return 0;
 }
 
@@ -268,7 +268,7 @@ static inline int pmd_large(pmd_t pte)
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-/* NOTE: when predicate huge page, consider also pmd_devmap, or use pmd_large */
+/* ANALTE: when predicate huge page, consider also pmd_devmap, or use pmd_large */
 static inline int pmd_trans_huge(pmd_t pmd)
 {
 	return (pmd_val(pmd) & (_PAGE_PSE|_PAGE_DEVMAP)) == _PAGE_PSE;
@@ -328,7 +328,7 @@ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
 
 /*
  * Write protection operations can result in Dirty=1,Write=0 PTEs. But in the
- * case of X86_FEATURE_USER_SHSTK, these PTEs denote shadow stack memory. So
+ * case of X86_FEATURE_USER_SHSTK, these PTEs deanalte shadow stack memory. So
  * when creating dirty, write-protected memory, a software bit is used:
  * _PAGE_BIT_SAVED_DIRTY. The following functions take a PTE and transition the
  * Dirty bit to SavedDirty, and vice-vesra.
@@ -393,7 +393,7 @@ static inline int pte_uffd_wp(pte_t pte)
 #ifdef CONFIG_DEBUG_VM
 	/*
 	 * Having write bit for wr-protect-marked present ptes is fatal,
-	 * because it means the uffd-wp bit will be ignored and write will
+	 * because it means the uffd-wp bit will be iganalred and write will
 	 * just go through.
 	 *
 	 * Use any chance of pgtable walking to verify this (e.g., when
@@ -452,7 +452,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte_set_flags(pte, _PAGE_ACCESSED);
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	return pte_set_flags(pte, _PAGE_RW);
 }
@@ -591,7 +591,7 @@ static inline pmd_t pmd_mkyoung(pmd_t pmd)
 	return pmd_set_flags(pmd, _PAGE_ACCESSED);
 }
 
-static inline pmd_t pmd_mkwrite_novma(pmd_t pmd)
+static inline pmd_t pmd_mkwrite_analvma(pmd_t pmd)
 {
 	return pmd_set_flags(pmd, _PAGE_RW);
 }
@@ -731,7 +731,7 @@ static inline pud_t pud_clear_soft_dirty(pud_t pud)
 #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
 
 /*
- * Mask out unsupported bits in a present pgprot.  Non-present pgprots
+ * Mask out unsupported bits in a present pgprot.  Analn-present pgprots
  * can use those bits for other purposes, so leave them be.
  */
 static inline pgprotval_t massage_pgprot(pgprot_t pgprot)
@@ -748,7 +748,7 @@ static inline pgprotval_t check_pgprot(pgprot_t pgprot)
 {
 	pgprotval_t massaged_val = massage_pgprot(pgprot);
 
-	/* mmdebug.h can not be included here because of dependencies */
+	/* mmdebug.h can analt be included here because of dependencies */
 #ifdef CONFIG_DEBUG_VM
 	WARN_ONCE(pgprot_val(pgprot) != massaged_val,
 		  "attempted to set unsupported pgprot: %016llx "
@@ -764,7 +764,7 @@ static inline pgprotval_t check_pgprot(pgprot_t pgprot)
 static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
 	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
-	pfn ^= protnone_mask(pgprot_val(pgprot));
+	pfn ^= protanalne_mask(pgprot_val(pgprot));
 	pfn &= PTE_PFN_MASK;
 	return __pte(pfn | check_pgprot(pgprot));
 }
@@ -772,7 +772,7 @@ static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 {
 	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
-	pfn ^= protnone_mask(pgprot_val(pgprot));
+	pfn ^= protanalne_mask(pgprot_val(pgprot));
 	pfn &= PHYSICAL_PMD_PAGE_MASK;
 	return __pmd(pfn | check_pgprot(pgprot));
 }
@@ -780,7 +780,7 @@ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 static inline pud_t pfn_pud(unsigned long page_nr, pgprot_t pgprot)
 {
 	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
-	pfn ^= protnone_mask(pgprot_val(pgprot));
+	pfn ^= protanalne_mask(pgprot_val(pgprot));
 	pfn &= PHYSICAL_PUD_PAGE_MASK;
 	return __pud(pfn | check_pgprot(pgprot));
 }
@@ -788,10 +788,10 @@ static inline pud_t pfn_pud(unsigned long page_nr, pgprot_t pgprot)
 static inline pmd_t pmd_mkinvalid(pmd_t pmd)
 {
 	return pfn_pmd(pmd_pfn(pmd),
-		      __pgprot(pmd_flags(pmd) & ~(_PAGE_PRESENT|_PAGE_PROTNONE)));
+		      __pgprot(pmd_flags(pmd) & ~(_PAGE_PRESENT|_PAGE_PROTANALNE)));
 }
 
-static inline u64 flip_protnone_guard(u64 oldval, u64 val, u64 mask);
+static inline u64 flip_protanalne_guard(u64 oldval, u64 val, u64 mask);
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -804,7 +804,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	 */
 	val &= _PAGE_CHG_MASK;
 	val |= check_pgprot(newprot) & ~_PAGE_CHG_MASK;
-	val = flip_protnone_guard(oldval, val, PTE_PFN_MASK);
+	val = flip_protanalne_guard(oldval, val, PTE_PFN_MASK);
 
 	pte_result = __pte(val);
 
@@ -813,7 +813,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	 *  1. Marking Write=0 PTEs Dirty=1
 	 *  2. Marking Dirty=1 PTEs Write=0
 	 *
-	 * The first case cannot happen because the _PAGE_CHG_MASK will filter
+	 * The first case cananalt happen because the _PAGE_CHG_MASK will filter
 	 * out any Dirty bit passed in newprot. Handle the second case by
 	 * going through the mksaveddirty exercise. Only do this if the old
 	 * value was Write=1 to avoid doing this on Shadow Stack PTEs.
@@ -833,7 +833,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 
 	val &= (_HPAGE_CHG_MASK & ~_PAGE_DIRTY);
 	val |= check_pgprot(newprot) & ~_HPAGE_CHG_MASK;
-	val = flip_protnone_guard(oldval, val, PHYSICAL_PMD_PAGE_MASK);
+	val = flip_protanalne_guard(oldval, val, PHYSICAL_PMD_PAGE_MASK);
 
 	pmd_result = __pmd(val);
 
@@ -842,7 +842,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	 *  1. Marking Write=0 PMDs Dirty=1
 	 *  2. Marking Dirty=1 PMDs Write=0
 	 *
-	 * The first case cannot happen because the _PAGE_CHG_MASK will filter
+	 * The first case cananalt happen because the _PAGE_CHG_MASK will filter
 	 * out any Dirty bit passed in newprot. Handle the second case by
 	 * going through the mksaveddirty exercise. Only do this if the old
 	 * value was Write=1 to avoid doing this on Shadow Stack PTEs.
@@ -872,25 +872,25 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 #define pud_pgprot(x) __pgprot(pud_flags(x))
 #define p4d_pgprot(x) __pgprot(p4d_flags(x))
 
-#define canon_pgprot(p) __pgprot(massage_pgprot(p))
+#define caanaln_pgprot(p) __pgprot(massage_pgprot(p))
 
 static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
 					 enum page_cache_mode pcm,
 					 enum page_cache_mode new_pcm)
 {
 	/*
-	 * PAT type is always WB for untracked ranges, so no need to check.
+	 * PAT type is always WB for untracked ranges, so anal need to check.
 	 */
 	if (x86_platform.is_untracked_pat_range(paddr, paddr + size))
 		return 1;
 
 	/*
-	 * Certain new memtypes are not allowed with certain
+	 * Certain new memtypes are analt allowed with certain
 	 * requested memtype:
-	 * - request is uncached, return cannot be write-back
-	 * - request is write-combine, return cannot be write-back
-	 * - request is write-through, return cannot be write-back
-	 * - request is write-through, return cannot be write-combine
+	 * - request is uncached, return cananalt be write-back
+	 * - request is write-combine, return cananalt be write-back
+	 * - request is write-through, return cananalt be write-back
+	 * - request is write-through, return cananalt be write-combine
 	 */
 	if ((pcm == _PAGE_CACHE_MODE_UC_MINUS &&
 	     new_pcm == _PAGE_CACHE_MODE_WB) ||
@@ -945,7 +945,7 @@ static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
 #include <linux/log2.h>
 #include <asm/fixmap.h>
 
-static inline int pte_none(pte_t pte)
+static inline int pte_analne(pte_t pte)
 {
 	return !(pte.pte & ~(_PAGE_KNL_ERRATUM_MASK));
 }
@@ -966,7 +966,7 @@ static inline pte_t pte_next_pfn(pte_t pte)
 
 static inline int pte_present(pte_t a)
 {
-	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
+	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTANALNE);
 }
 
 #ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
@@ -982,7 +982,7 @@ static inline bool pte_accessible(struct mm_struct *mm, pte_t a)
 	if (pte_flags(a) & _PAGE_PRESENT)
 		return true;
 
-	if ((pte_flags(a) & _PAGE_PROTNONE) &&
+	if ((pte_flags(a) & _PAGE_PROTANALNE) &&
 			atomic_read(&mm->tlb_flush_pending))
 		return true;
 
@@ -997,28 +997,28 @@ static inline int pmd_present(pmd_t pmd)
 	 * the _PAGE_PSE flag will remain set at all times while the
 	 * _PAGE_PRESENT bit is clear).
 	 */
-	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE);
+	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTANALNE | _PAGE_PSE);
 }
 
 #ifdef CONFIG_NUMA_BALANCING
 /*
- * These work without NUMA balancing but the kernel does not care. See the
+ * These work without NUMA balancing but the kernel does analt care. See the
  * comment in include/linux/pgtable.h
  */
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protanalne(pte_t pte)
 {
-	return (pte_flags(pte) & (_PAGE_PROTNONE | _PAGE_PRESENT))
-		== _PAGE_PROTNONE;
+	return (pte_flags(pte) & (_PAGE_PROTANALNE | _PAGE_PRESENT))
+		== _PAGE_PROTANALNE;
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protanalne(pmd_t pmd)
 {
-	return (pmd_flags(pmd) & (_PAGE_PROTNONE | _PAGE_PRESENT))
-		== _PAGE_PROTNONE;
+	return (pmd_flags(pmd) & (_PAGE_PROTANALNE | _PAGE_PRESENT))
+		== _PAGE_PROTANALNE;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_analne(pmd_t pmd)
 {
 	/* Only check low word on 32-bit platforms, since it might be
 	   out of sync with upper half. */
@@ -1065,7 +1065,7 @@ static inline unsigned long pages_to_mb(unsigned long npg)
 }
 
 #if CONFIG_PGTABLE_LEVELS > 2
-static inline int pud_none(pud_t pud)
+static inline int pud_analne(pud_t pud)
 {
 	return (native_pud_val(pud) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
 }
@@ -1106,7 +1106,7 @@ static inline int pud_large(pud_t pud)
 #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
 
 #if CONFIG_PGTABLE_LEVELS > 3
-static inline int p4d_none(p4d_t p4d)
+static inline int p4d_analne(p4d_t p4d)
 {
 	return (native_p4d_val(p4d) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
 }
@@ -1129,12 +1129,12 @@ static inline pud_t *p4d_pgtable(p4d_t p4d)
 
 static inline int p4d_bad(p4d_t p4d)
 {
-	unsigned long ignore_flags = _KERNPG_TABLE | _PAGE_USER;
+	unsigned long iganalre_flags = _KERNPG_TABLE | _PAGE_USER;
 
 	if (IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
-		ignore_flags |= _PAGE_NX;
+		iganalre_flags |= _PAGE_NX;
 
-	return (p4d_flags(p4d) & ~ignore_flags) != 0;
+	return (p4d_flags(p4d) & ~iganalre_flags) != 0;
 }
 #endif  /* CONFIG_PGTABLE_LEVELS > 3 */
 
@@ -1172,25 +1172,25 @@ static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 
 static inline int pgd_bad(pgd_t pgd)
 {
-	unsigned long ignore_flags = _PAGE_USER;
+	unsigned long iganalre_flags = _PAGE_USER;
 
 	if (!pgtable_l5_enabled())
 		return 0;
 
 	if (IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
-		ignore_flags |= _PAGE_NX;
+		iganalre_flags |= _PAGE_NX;
 
-	return (pgd_flags(pgd) & ~ignore_flags) != _KERNPG_TABLE;
+	return (pgd_flags(pgd) & ~iganalre_flags) != _KERNPG_TABLE;
 }
 
-static inline int pgd_none(pgd_t pgd)
+static inline int pgd_analne(pgd_t pgd)
 {
 	if (!pgtable_l5_enabled())
 		return 0;
 	/*
-	 * There is no need to do a workaround for the KNL stray
+	 * There is anal need to do a workaround for the KNL stray
 	 * A/D bit erratum here.  PGDs only point to page tables
-	 * except on 32-bit non-PAE which is not supported on
+	 * except on 32-bit analn-PAE which is analt supported on
 	 * KNL.
 	 */
 	return !native_pgd_val(pgd);
@@ -1216,12 +1216,12 @@ unsigned long init_memory_mapping(unsigned long start,
 extern pgd_t trampoline_pgd_entry;
 #endif
 
-/* local pte updates need not use xchg for locking */
+/* local pte updates need analt use xchg for locking */
 static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
 {
 	pte_t res = *ptep;
 
-	/* Pure native function needs no input for mm, addr */
+	/* Pure native function needs anal input for mm, addr */
 	native_pte_clear(NULL, 0, ptep);
 	return res;
 }
@@ -1295,8 +1295,8 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	pte_t pte;
 	if (full) {
 		/*
-		 * Full address destruction in progress; paravirt does not
-		 * care about updates and native needs no locking
+		 * Full address destruction in progress; paravirt does analt
+		 * care about updates and native needs anal locking
 		 */
 		pte = native_local_ptep_get_and_clear(ptep);
 		page_table_check_pte_clear(mm, pte);
@@ -1478,8 +1478,8 @@ static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
  *  src - ""
  *  count - the number of pgds to copy.
  *
- * dst and src can be on the same page, but the range must not overlap,
- * and must not cross a page boundary.
+ * dst and src can be on the same page, but the range must analt overlap,
+ * and must analt cross a page boundary.
  */
 static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
@@ -1687,8 +1687,8 @@ void arch_check_zapped_pte(struct vm_area_struct *vma, pte_t pte);
 void arch_check_zapped_pmd(struct vm_area_struct *vma, pmd_t pmd);
 
 #ifdef CONFIG_XEN_PV
-#define arch_has_hw_nonleaf_pmd_young arch_has_hw_nonleaf_pmd_young
-static inline bool arch_has_hw_nonleaf_pmd_young(void)
+#define arch_has_hw_analnleaf_pmd_young arch_has_hw_analnleaf_pmd_young
+static inline bool arch_has_hw_analnleaf_pmd_young(void)
 {
 	return !cpu_feature_enabled(X86_FEATURE_XENPV);
 }

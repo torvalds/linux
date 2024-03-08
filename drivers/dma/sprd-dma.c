@@ -7,7 +7,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma/sprd-dma.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -86,7 +86,7 @@
 #define SPRD_DMA_CHN_EN			BIT(0)
 #define SPRD_DMA_LINKLIST_EN		BIT(4)
 #define SPRD_DMA_WAIT_BDONE_OFFSET	24
-#define SPRD_DMA_DONOT_WAIT_BDONE	1
+#define SPRD_DMA_DOANALT_WAIT_BDONE	1
 
 /* SPRD_DMA_CHN_REQ register definition */
 #define SPRD_DMA_REQ_EN			BIT(0)
@@ -147,7 +147,7 @@
 #define SPRD_DMA_INT_TYPE_MASK		GENMASK(7, 0)
 
 /* define the DMA transfer step type */
-#define SPRD_DMA_NONE_STEP		0
+#define SPRD_DMA_ANALNE_STEP		0
 #define SPRD_DMA_BYTE_STEP		1
 #define SPRD_DMA_SHORT_STEP		2
 #define SPRD_DMA_WORD_STEP		4
@@ -420,7 +420,7 @@ static enum sprd_dma_int_type sprd_dma_get_int_type(struct sprd_dma_chn *schan)
 
 	default:
 		dev_warn(sdev->dma_dev.dev, "incorrect dma interrupt type\n");
-		return SPRD_DMA_NO_INT;
+		return SPRD_DMA_ANAL_INT;
 	}
 }
 
@@ -441,7 +441,7 @@ static int sprd_dma_set_2stage_config(struct sprd_dma_chn *schan)
 		val = chn & SPRD_DMA_GLB_SRC_CHN_MASK;
 		val |= BIT(schan->trg_mode - 1) << SPRD_DMA_GLB_TRG_OFFSET;
 		val |= SPRD_DMA_GLB_2STAGE_EN;
-		if (schan->int_type != SPRD_DMA_NO_INT)
+		if (schan->int_type != SPRD_DMA_ANAL_INT)
 			val |= SPRD_DMA_GLB_SRC_INT;
 
 		sprd_dma_glb_update(sdev, SPRD_DMA_GLB_2STAGE_GRP1, val, val);
@@ -451,7 +451,7 @@ static int sprd_dma_set_2stage_config(struct sprd_dma_chn *schan)
 		val = chn & SPRD_DMA_GLB_SRC_CHN_MASK;
 		val |= BIT(schan->trg_mode - 1) << SPRD_DMA_GLB_TRG_OFFSET;
 		val |= SPRD_DMA_GLB_2STAGE_EN;
-		if (schan->int_type != SPRD_DMA_NO_INT)
+		if (schan->int_type != SPRD_DMA_ANAL_INT)
 			val |= SPRD_DMA_GLB_SRC_INT;
 
 		sprd_dma_glb_update(sdev, SPRD_DMA_GLB_2STAGE_GRP2, val, val);
@@ -461,7 +461,7 @@ static int sprd_dma_set_2stage_config(struct sprd_dma_chn *schan)
 		val = (chn << SPRD_DMA_GLB_DEST_CHN_OFFSET) &
 			SPRD_DMA_GLB_DEST_CHN_MASK;
 		val |= SPRD_DMA_GLB_2STAGE_EN;
-		if (schan->int_type != SPRD_DMA_NO_INT)
+		if (schan->int_type != SPRD_DMA_ANAL_INT)
 			val |= SPRD_DMA_GLB_DEST_INT;
 
 		sprd_dma_glb_update(sdev, SPRD_DMA_GLB_2STAGE_GRP1, val, val);
@@ -471,7 +471,7 @@ static int sprd_dma_set_2stage_config(struct sprd_dma_chn *schan)
 		val = (chn << SPRD_DMA_GLB_DEST_CHN_OFFSET) &
 			SPRD_DMA_GLB_DEST_CHN_MASK;
 		val |= SPRD_DMA_GLB_2STAGE_EN;
-		if (schan->int_type != SPRD_DMA_NO_INT)
+		if (schan->int_type != SPRD_DMA_ANAL_INT)
 			val |= SPRD_DMA_GLB_DEST_INT;
 
 		sprd_dma_glb_update(sdev, SPRD_DMA_GLB_2STAGE_GRP2, val, val);
@@ -538,7 +538,7 @@ static void sprd_dma_start(struct sprd_dma_chn *schan)
 	if (!vd)
 		return;
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 	schan->cur_desc = to_sprd_dma_desc(vd);
 
 	/*
@@ -575,7 +575,7 @@ static void sprd_dma_stop(struct sprd_dma_chn *schan)
 static bool sprd_dma_check_trans_done(enum sprd_dma_int_type int_type,
 				      enum sprd_dma_req_mode req_mode)
 {
-	if (int_type == SPRD_DMA_NO_INT)
+	if (int_type == SPRD_DMA_ANAL_INT)
 		return false;
 
 	if (int_type >= req_mode + 1)
@@ -764,21 +764,21 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 		}
 
 		/*
-		 * For 2-stage transfer, destination channel step can not be 0,
+		 * For 2-stage transfer, destination channel step can analt be 0,
 		 * since destination device is AON IRAM.
 		 */
 		if (chn_mode == SPRD_DMA_DST_CHN0 ||
 		    chn_mode == SPRD_DMA_DST_CHN1)
 			dst_step = src_step;
 		else
-			dst_step = SPRD_DMA_NONE_STEP;
+			dst_step = SPRD_DMA_ANALNE_STEP;
 	} else {
 		dst_step = sprd_dma_get_step(slave_cfg->dst_addr_width);
 		if (dst_step < 0) {
 			dev_err(sdev->dma_dev.dev, "invalid destination step\n");
 			return dst_step;
 		}
-		src_step = SPRD_DMA_NONE_STEP;
+		src_step = SPRD_DMA_ANALNE_STEP;
 	}
 
 	src_datawidth = sprd_dma_get_datawidth(slave_cfg->src_addr_width);
@@ -793,7 +793,7 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 		return dst_datawidth;
 	}
 
-	hw->cfg = SPRD_DMA_DONOT_WAIT_BDONE << SPRD_DMA_WAIT_BDONE_OFFSET;
+	hw->cfg = SPRD_DMA_DOANALT_WAIT_BDONE << SPRD_DMA_WAIT_BDONE_OFFSET;
 
 	/*
 	 * wrap_ptr and wrap_to will save the high 4 bits source address and
@@ -805,8 +805,8 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 	hw->des_addr = dst & SPRD_DMA_LOW_ADDR_MASK;
 
 	/*
-	 * If the src step and dst step both are 0 or both are not 0, that means
-	 * we can not enable the fix mode. If one is 0 and another one is not,
+	 * If the src step and dst step both are 0 or both are analt 0, that means
+	 * we can analt enable the fix mode. If one is 0 and aanalther one is analt,
 	 * we can enable the fix mode.
 	 */
 	if ((src_step != 0 && dst_step != 0) || (src_step | dst_step) == 0) {
@@ -901,13 +901,13 @@ sprd_dma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	enum sprd_dma_datawidth datawidth;
 	u32 step, temp;
 
-	sdesc = kzalloc(sizeof(*sdesc), GFP_NOWAIT);
+	sdesc = kzalloc(sizeof(*sdesc), GFP_ANALWAIT);
 	if (!sdesc)
 		return NULL;
 
 	hw = &sdesc->chn_hw;
 
-	hw->cfg = SPRD_DMA_DONOT_WAIT_BDONE << SPRD_DMA_WAIT_BDONE_OFFSET;
+	hw->cfg = SPRD_DMA_DOANALT_WAIT_BDONE << SPRD_DMA_WAIT_BDONE_OFFSET;
 	hw->intc = SPRD_DMA_TRANS_INT | SPRD_DMA_CFG_ERR_INT_EN;
 	hw->src_addr = src & SPRD_DMA_LOW_ADDR_MASK;
 	hw->des_addr = dest & SPRD_DMA_LOW_ADDR_MASK;
@@ -986,7 +986,7 @@ sprd_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		(flags >> SPRD_DMA_TRG_MODE_SHIFT) & SPRD_DMA_TRG_MODE_MASK;
 	schan->int_type = flags & SPRD_DMA_INT_TYPE_MASK;
 
-	sdesc = kzalloc(sizeof(*sdesc), GFP_NOWAIT);
+	sdesc = kzalloc(sizeof(*sdesc), GFP_ANALWAIT);
 	if (!sdesc)
 		return NULL;
 
@@ -1109,7 +1109,7 @@ static bool sprd_dma_filter_fn(struct dma_chan *chan, void *param)
 
 static int sprd_dma_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct sprd_dma_dev *sdev;
 	struct sprd_dma_chn *dma_chn;
 	u32 chn_count;
@@ -1138,7 +1138,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 			    struct_size(sdev, channels, chn_count),
 			    GFP_KERNEL);
 	if (!sdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->clk = devm_clk_get(&pdev->dev, "enable");
 	if (IS_ERR(sdev->clk)) {
@@ -1149,13 +1149,13 @@ static int sprd_dma_probe(struct platform_device *pdev)
 	/* ashb clock is optional for AGCP DMA */
 	sdev->ashb_clk = devm_clk_get(&pdev->dev, "ashb_eb");
 	if (IS_ERR(sdev->ashb_clk))
-		dev_warn(&pdev->dev, "no optional ashb eb clock\n");
+		dev_warn(&pdev->dev, "anal optional ashb eb clock\n");
 
 	/*
 	 * We have three DMA controllers: AP DMA, AON DMA and AGCP DMA. For AGCP
-	 * DMA controller, it can or do not request the irq, which will save
+	 * DMA controller, it can or do analt request the irq, which will save
 	 * system power without resuming system by DMA interrupts if AGCP DMA
-	 * does not request the irq. Thus the DMA interrupts property should
+	 * does analt request the irq. Thus the DMA interrupts property should
 	 * be optional.
 	 */
 	sdev->irq = platform_get_irq(pdev, 0);
@@ -1167,7 +1167,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 			return ret;
 		}
 	} else {
-		dev_warn(&pdev->dev, "no interrupts for the dma controller\n");
+		dev_warn(&pdev->dev, "anal interrupts for the dma controller\n");
 	}
 
 	sdev->glb_base = devm_platform_ioremap_resource(pdev, 0);
@@ -1177,7 +1177,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, sdev->dma_dev.cap_mask);
 	sdev->total_chns = chn_count;
 	INIT_LIST_HEAD(&sdev->dma_dev.channels);
-	INIT_LIST_HEAD(&sdev->dma_dev.global_node);
+	INIT_LIST_HEAD(&sdev->dma_dev.global_analde);
 	sdev->dma_dev.dev = &pdev->dev;
 	sdev->dma_dev.device_alloc_chan_resources = sprd_dma_alloc_chan_resources;
 	sdev->dma_dev.device_free_chan_resources = sprd_dma_free_chan_resources;
@@ -1232,7 +1232,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 err_of_register:
 	dma_async_device_unregister(&sdev->dma_dev);
 err_register:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 err_rpm:
 	sprd_dma_disable(sdev);
@@ -1251,16 +1251,16 @@ static void sprd_dma_remove(struct platform_device *pdev)
 		devm_free_irq(&pdev->dev, sdev->irq, sdev);
 
 	list_for_each_entry_safe(c, cn, &sdev->dma_dev.channels,
-				 vc.chan.device_node) {
-		list_del(&c->vc.chan.device_node);
+				 vc.chan.device_analde) {
+		list_del(&c->vc.chan.device_analde);
 		tasklet_kill(&c->vc.task);
 	}
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&sdev->dma_dev);
 	sprd_dma_disable(sdev);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
 

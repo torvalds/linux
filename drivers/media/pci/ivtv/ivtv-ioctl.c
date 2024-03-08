@@ -126,12 +126,12 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 
 	if (speed == 0) speed = 1000;
 
-	/* No change? */
+	/* Anal change? */
 	if (speed == itv->speed && !single_step)
 		return 0;
 
 	if (single_step && (speed < 0) == (itv->speed < 0)) {
-		/* Single step video and no need to change direction */
+		/* Single step video and anal need to change direction */
 		ivtv_vapi(itv, CX2341X_DEC_STEP_VIDEO, 1, 0);
 		itv->speed = speed;
 		return 0;
@@ -154,7 +154,7 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 	else if (speed > -1000 && speed < 0) data[0] |= (-1000 / speed);
 	else if (speed < 1000 && speed > 0) data[0] |= (1000 / speed);
 
-	/* If not decoding, just change speed setting */
+	/* If analt decoding, just change speed setting */
 	if (atomic_read(&itv->decoding) > 0) {
 		int got_sig = 0;
 
@@ -243,7 +243,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 		if (dc->start.speed < 0)
 			dc->start.format = V4L2_DEC_START_FMT_GOP;
 		else
-			dc->start.format = V4L2_DEC_START_FMT_NONE;
+			dc->start.format = V4L2_DEC_START_FMT_ANALNE;
 		if (dc->start.speed != 500 && dc->start.speed != 1500)
 			dc->flags = dc->start.speed == 1000 ? 0 :
 					V4L2_DEC_CMD_START_MUTE_AUDIO;
@@ -269,7 +269,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 		if (itv->output_mode != OUT_MPG)
 			return -EBUSY;
 
-		itv->output_mode = OUT_NONE;
+		itv->output_mode = OUT_ANALNE;
 		return ivtv_stop_v4l2_decode_stream(s, dc->flags, dc->stop.pts);
 
 	case V4L2_DEC_CMD_PAUSE:
@@ -411,7 +411,7 @@ static int ivtv_g_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 				V4L2_FIELD_INTERLACED_BT : V4L2_FIELD_INTERLACED_TB;
 			break;
 		case IVTV_YUV_MODE_PROGRESSIVE:
-			pixfmt->field = V4L2_FIELD_NONE;
+			pixfmt->field = V4L2_FIELD_ANALNE;
 			break;
 		default:
 			pixfmt->field = V4L2_FIELD_ANY;
@@ -522,15 +522,15 @@ static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format 
 
 	   Internally the buffers of the PVR350 are always set to 720x576. The
 	   decoded video frame will always be placed in the top left corner of
-	   this buffer. For any video which is not 720x576, the buffer will
+	   this buffer. For any video which is analt 720x576, the buffer will
 	   then be cropped to remove the unused right and lower areas, with
 	   the remaining image being scaled by the hardware to fit the display
 	   area. The video can be scaled both up and down, so a 720x480 video
 	   can be displayed full-screen on PAL and a 720x576 video can be
 	   displayed without cropping on NTSC.
 
-	   Note that the scaling only occurs on the video stream, the osd
-	   resolution is locked to the broadcast standard and not scaled.
+	   Analte that the scaling only occurs on the video stream, the osd
+	   resolution is locked to the broadcast standard and analt scaled.
 
 	   Thanks to Ian Armstrong for this explanation. */
 	h = min(h, 576);
@@ -639,7 +639,7 @@ static int ivtv_s_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 	if (id->type != IVTV_DEC_STREAM_TYPE_YUV)
 		return 0;
 
-	/* Return now if we already have some frame data */
+	/* Return analw if we already have some frame data */
 	if (yi->stream_size)
 		return -EBUSY;
 
@@ -647,7 +647,7 @@ static int ivtv_s_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 	yi->v4l2_src_h = fmt->fmt.pix.height;
 
 	switch (fmt->fmt.pix.field) {
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 		yi->lace_mode = IVTV_YUV_MODE_PROGRESSIVE;
 		break;
 	case V4L2_FIELD_ANY:
@@ -755,7 +755,7 @@ static int ivtv_s_audio(struct file *file, void *fh, const struct v4l2_audio *vo
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	if (vout->index >= itv->nof_audio_inputs)
+	if (vout->index >= itv->analf_audio_inputs)
 		return -EINVAL;
 
 	itv->audio_input = vout->index;
@@ -812,10 +812,10 @@ static int ivtv_g_pixelaspect(struct file *file, void *fh,
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		f->numerator = itv->is_50hz ? 54 : 11;
-		f->denominator = itv->is_50hz ? 59 : 10;
+		f->deanalminator = itv->is_50hz ? 59 : 10;
 	} else if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		f->numerator = itv->is_out_50hz ? 54 : 11;
-		f->denominator = itv->is_out_50hz ? 59 : 10;
+		f->deanalminator = itv->is_out_50hz ? 59 : 10;
 	} else {
 		return -EINVAL;
 	}
@@ -980,7 +980,7 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 	v4l2_std_id std;
 	int i;
 
-	if (inp >= itv->nof_inputs)
+	if (inp >= itv->analf_inputs)
 		return -EINVAL;
 
 	if (inp == itv->active_input) {
@@ -1005,7 +1005,7 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 	else
 		std = V4L2_STD_ALL;
 	for (i = 0; i <= IVTV_ENC_STREAM_TYPE_VBI; i++)
-		itv->streams[i].vdev.tvnorms = std;
+		itv->streams[i].vdev.tvanalrms = std;
 
 	/* prevent others from messing with the streams until
 	   we're finished changing inputs. */
@@ -1033,7 +1033,7 @@ static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	if (outp >= itv->card->nof_outputs)
+	if (outp >= itv->card->analf_outputs)
 		return -EINVAL;
 
 	if (outp == itv->active_output) {
@@ -1045,7 +1045,7 @@ static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 
 	itv->active_output = outp;
 	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_routing,
-			SAA7127_INPUT_TYPE_NORMAL,
+			SAA7127_INPUT_TYPE_ANALRMAL,
 			itv->card->video_outputs[outp].video_output, 0);
 
 	return 0;
@@ -1057,7 +1057,7 @@ static int ivtv_g_frequency(struct file *file, void *fh, struct v4l2_frequency *
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
 	if (s->vdev.vfl_dir)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (vf->tuner != 0)
 		return -EINVAL;
 
@@ -1071,7 +1071,7 @@ int ivtv_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *v
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
 	if (s->vdev.vfl_dir)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (vf->tuner != 0)
 		return -EINVAL;
 
@@ -1318,7 +1318,7 @@ static int ivtv_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd
 		ivtv_unmute(itv);
 		break;
 	default:
-		IVTV_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		IVTV_DEBUG_IOCTL("Unkanalwn cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 
@@ -1350,7 +1350,7 @@ static int ivtv_try_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder
 		enc->flags = 0;
 		return 0;
 	default:
-		IVTV_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		IVTV_DEBUG_IOCTL("Unkanalwn cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 }
@@ -1383,11 +1383,11 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	};
 
 	if (!(s->vdev.device_caps & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
-		return -ENOTTY;
+		return -EANALTTY;
 	if (!itv->osd_video_pbase)
-		return -ENOTTY;
+		return -EANALTTY;
 
-	fb->capability = V4L2_FBUF_CAP_EXTERNOVERLAY | V4L2_FBUF_CAP_CHROMAKEY |
+	fb->capability = V4L2_FBUF_CAP_EXTERANALVERLAY | V4L2_FBUF_CAP_CHROMAKEY |
 		V4L2_FBUF_CAP_GLOBAL_ALPHA;
 
 	ivtv_vapi_result(itv, data, CX2341X_OSD_GET_STATE, 0);
@@ -1421,7 +1421,7 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 
 	pixfmt &= 7;
 
-	/* no local alpha for RGB565 or unknown formats */
+	/* anal local alpha for RGB565 or unkanalwn formats */
 	if (pixfmt == 1 || pixfmt > 4)
 		return 0;
 
@@ -1450,9 +1450,9 @@ static int ivtv_s_fbuf(struct file *file, void *fh, const struct v4l2_framebuffe
 	struct yuv_playback_info *yi = &itv->yuv_info;
 
 	if (!(s->vdev.device_caps & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
-		return -ENOTTY;
+		return -EANALTTY;
 	if (!itv->osd_video_pbase)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	itv->osd_global_alpha_state = (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
 	itv->osd_local_alpha_state =
@@ -1470,9 +1470,9 @@ static int ivtv_overlay(struct file *file, void *fh, unsigned int on)
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
 	if (!(s->vdev.device_caps & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
-		return -ENOTTY;
+		return -EANALTTY;
 	if (!itv->osd_video_pbase)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, on != 0);
 
@@ -1518,14 +1518,14 @@ static int ivtv_log_status(struct file *file, void *fh)
 		struct v4l2_audioout audout;
 		int mode = itv->output_mode;
 		static const char * const output_modes[5] = {
-			"None",
+			"Analne",
 			"MPEG Streaming",
 			"YUV Streaming",
 			"YUV Frames",
 			"Passthrough",
 		};
 		static const char * const alpha_mode[4] = {
-			"None",
+			"Analne",
 			"Global",
 			"Local",
 			"Global and Local"
@@ -1553,7 +1553,7 @@ static int ivtv_log_status(struct file *file, void *fh)
 		ivtv_get_audio_output(itv, 0, &audout);
 		IVTV_INFO("Video Output: %s\n", vidout.name);
 		if (mode < 0 || mode > OUT_PASSTHROUGH)
-			mode = OUT_NONE;
+			mode = OUT_ANALNE;
 		IVTV_INFO("Output Mode:  %s\n", output_modes[mode]);
 		ivtv_vapi_result(itv, data, CX2341X_OSD_GET_STATE, 0);
 		data[0] |= (read_reg(0x2a00) >> 7) & 0x40;
@@ -1670,7 +1670,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 		return ivtv_decoder_ioctls(file, cmd, (void *)arg);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 	return 0;
 }

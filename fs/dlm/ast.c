@@ -211,7 +211,7 @@ int dlm_callback_start(struct dlm_ls *ls)
 					     WQ_HIGHPRI | WQ_MEM_RECLAIM, 0);
 	if (!ls->ls_callback_wq) {
 		log_print("can't start dlm_callback workqueue");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

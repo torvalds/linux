@@ -355,7 +355,7 @@
 &qspi {
 	status = "okay";
 	flash@0 {
-		compatible = "m25p80", "jedec,spi-nor"; /* Micron MT25QU512ABB8ESF */
+		compatible = "m25p80", "jedec,spi-analr"; /* Micron MT25QU512ABB8ESF */
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x0>;
@@ -399,7 +399,7 @@
 	/*
 	 * This property should be removed for supporting UHS mode
 	 */
-	no-1-8-v;
+	anal-1-8-v;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci1_default>;
 	xlnx,mio-bank = <1>;

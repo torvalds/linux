@@ -8,7 +8,7 @@
  *
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
  * Copyright (C) 1999 Wolfgang Scherr <scherr@net4you.net>
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoanalv <mirsev@cicese.mx>
  *    - some corrections for Pinnacle Systems Inc. DC10plus card.
  *
  * Changes by Ronald Bultje <rbultje@ronald.bitfreak.net>
@@ -39,7 +39,7 @@ struct adv7170 {
 	struct v4l2_subdev sd;
 	unsigned char reg[128];
 
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 	int input;
 };
 
@@ -84,7 +84,7 @@ static int adv7170_write_block(struct v4l2_subdev *sd,
 	/* the adv7170 has an autoincrement function, use it if
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		/* do raw I2C, not smbus compatible */
+		/* do raw I2C, analt smbus compatible */
 		u8 block_data[32];
 		int block_len;
 
@@ -185,7 +185,7 @@ static int adv7170_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7170 *encoder = to_adv7170(sd);
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, debug, sd, "set analrm %llx\n", (unsigned long long)std);
 
 	if (std & V4L2_STD_NTSC) {
 		adv7170_write_block(sd, init_NTSC, sizeof(init_NTSC));
@@ -200,12 +200,12 @@ static int adv7170_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		adv7170_write(sd, 0x07, TR0MODE | TR0RST);
 		adv7170_write(sd, 0x07, TR0MODE);
 	} else {
-		v4l2_dbg(1, debug, sd, "illegal norm: %llx\n",
+		v4l2_dbg(1, debug, sd, "illegal analrm: %llx\n",
 				(unsigned long long)std);
 		return -EINVAL;
 	}
 	v4l2_dbg(1, debug, sd, "switched to %llx\n", (unsigned long long)std);
-	encoder->norm = std;
+	encoder->analrm = std;
 	return 0;
 }
 
@@ -342,17 +342,17 @@ static int adv7170_probe(struct i2c_client *client)
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
 	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &encoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7170_ops);
-	encoder->norm = V4L2_STD_NTSC;
+	encoder->analrm = V4L2_STD_NTSC;
 	encoder->input = 0;
 
 	i = adv7170_write_block(sd, init_NTSC, sizeof(init_NTSC));

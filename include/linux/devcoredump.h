@@ -15,7 +15,7 @@
 /*
  * _devcd_free_sgtable - free all the memory of the given scatterlist table
  * (i.e. both pages and scatterlist instances)
- * NOTE: if two tables allocated and chained using the sg_chain function then
+ * ANALTE: if two tables allocated and chained using the sg_chain function then
  * this function should be called only once on the first table
  * @table: pointer to sg_table to free
  */

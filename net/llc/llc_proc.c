@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/seq_file.h>
 #include <linux/export.h>
 #include <net/net_namespace.h>
@@ -37,13 +37,13 @@ static struct sock *llc_get_sk_idx(loff_t pos)
 	struct sock *sk = NULL;
 	int i;
 
-	list_for_each_entry_rcu(sap, &llc_sap_list, node) {
+	list_for_each_entry_rcu(sap, &llc_sap_list, analde) {
 		spin_lock_bh(&sap->sk_lock);
 		for (i = 0; i < LLC_SK_LADDR_HASH_ENTRIES; i++) {
 			struct hlist_nulls_head *head = &sap->sk_laddr_hash[i];
-			struct hlist_nulls_node *node;
+			struct hlist_nulls_analde *analde;
 
-			sk_nulls_for_each(sk, node, head) {
+			sk_nulls_for_each(sk, analde, head) {
 				if (!pos)
 					goto found; /* keep the lock */
 				--pos;
@@ -66,11 +66,11 @@ static void *llc_seq_start(struct seq_file *seq, loff_t *pos) __acquires(RCU)
 
 static struct sock *laddr_hash_next(struct llc_sap *sap, int bucket)
 {
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_analde *analde;
 	struct sock *sk = NULL;
 
 	while (++bucket < LLC_SK_LADDR_HASH_ENTRIES)
-		sk_nulls_for_each(sk, node, &sap->sk_laddr_hash[bucket])
+		sk_nulls_for_each(sk, analde, &sap->sk_laddr_hash[bucket])
 			goto out;
 
 out:
@@ -100,7 +100,7 @@ static void *llc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (sk)
 		goto out;
 	spin_unlock_bh(&sap->sk_lock);
-	list_for_each_entry_continue_rcu(sap, &llc_sap_list, node) {
+	list_for_each_entry_continue_rcu(sap, &llc_sap_list, analde) {
 		spin_lock_bh(&sap->sk_lock);
 		sk = laddr_hash_next(sap, -1);
 		if (sk)
@@ -160,7 +160,7 @@ out:
 static const char *const llc_conn_state_names[] = {
 	[LLC_CONN_STATE_ADM] =        "adm",
 	[LLC_CONN_STATE_SETUP] =      "setup",
-	[LLC_CONN_STATE_NORMAL] =     "normal",
+	[LLC_CONN_STATE_ANALRMAL] =     "analrmal",
 	[LLC_CONN_STATE_BUSY] =       "busy",
 	[LLC_CONN_STATE_REJ] =        "rej",
 	[LLC_CONN_STATE_AWAIT] =      "await",
@@ -195,7 +195,7 @@ static int llc_seq_core_show(struct seq_file *seq, void *v)
 		   timer_pending(&llc->pf_cycle_timer.timer),
 		   timer_pending(&llc->rej_sent_timer.timer),
 		   timer_pending(&llc->busy_state_timer.timer),
-		   !!sk->sk_backlog.tail, sock_owned_by_user_nocheck(sk));
+		   !!sk->sk_backlog.tail, sock_owned_by_user_analcheck(sk));
 out:
 	return 0;
 }
@@ -218,7 +218,7 @@ static struct proc_dir_entry *llc_proc_dir;
 
 int __init llc_proc_init(void)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 	struct proc_dir_entry *p;
 
 	llc_proc_dir = proc_mkdir("llc", init_net.proc_net);

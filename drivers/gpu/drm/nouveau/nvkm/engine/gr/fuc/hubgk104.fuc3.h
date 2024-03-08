@@ -629,7 +629,7 @@ static uint32_t gk104_grhub_code[] = {
 	0x0203f017,
 	0xbd0009d0,
 	0x330ef404,
-/* 0x060c: chsw_prev_no_next */
+/* 0x060c: chsw_prev_anal_next */
 	0x12b920f9,
 	0x0132f402,
 	0xf50232f4,
@@ -638,7 +638,7 @@ static uint32_t gk104_grhub_code[] = {
 	0x0203f0c0,
 	0xbd0002d0,
 	0x130ef404,
-/* 0x062c: chsw_no_prev */
+/* 0x062c: chsw_anal_prev */
 	0xf41f23c8,
 	0x31f40d0b,
 	0x0232f401,
@@ -653,12 +653,12 @@ static uint32_t gk104_grhub_code[] = {
 	0xd00203f0,
 	0x04bd0009,
 	0xff0e0ef5,
-/* 0x0660: main_not_ctx_switch */
+/* 0x0660: main_analt_ctx_switch */
 	0xf401e4b0,
 	0xf2b90d1b,
 	0x9e21f502,
 	0x460ef409,
-/* 0x0670: main_not_ctx_chan */
+/* 0x0670: main_analt_ctx_chan */
 	0xf402e4b0,
 	0x94bd321b,
 	0xf10799f0,
@@ -672,7 +672,7 @@ static uint32_t gk104_grhub_code[] = {
 	0x03f01700,
 	0x0009d002,
 	0x0ef404bd,
-/* 0x06a5: main_not_ctx_save */
+/* 0x06a5: main_analt_ctx_save */
 	0x10ef9411,
 	0xf501f5f0,
 	0xf5037e21,
@@ -705,12 +705,12 @@ static uint32_t gk104_grhub_code[] = {
 	0x1d0007f1,
 	0xd00003f0,
 	0x04bd000e,
-/* 0x071c: ih_no_fifo */
+/* 0x071c: ih_anal_fifo */
 	0x0100abe4,
 	0xf00d0bf4,
 	0xe7f110d7,
 	0x21f44001,
-/* 0x072d: ih_no_ctxsw */
+/* 0x072d: ih_anal_ctxsw */
 	0x00abe404,
 	0x6c0bf404,
 	0x0708e7f1,
@@ -739,14 +739,14 @@ static uint32_t gk104_grhub_code[] = {
 	0xf102bfb9,
 	0xf00144e7,
 	0x21f440e3,
-/* 0x079d: ih_no_fwmthd */
+/* 0x079d: ih_anal_fwmthd */
 	0x04b7f19d,
 	0xffb0bd05,
 	0x0bf4b4ab,
 	0x0007f10f,
 	0x0303f007,
 	0xbd000bd0,
-/* 0x07b5: ih_no_other */
+/* 0x07b5: ih_anal_other */
 	0x0007f104,
 	0x0003f001,
 	0xbd000ad0,
@@ -979,7 +979,7 @@ static uint32_t gk104_grhub_code[] = {
 	0xfd400198,
 	0x0bf40511,
 	0xb121f507,
-/* 0x0b09: ctx_xfer_no_post_mmio */
+/* 0x0b09: ctx_xfer_anal_post_mmio */
 /* 0x0b09: ctx_xfer_done */
 	0x0000f809,
 	0x00000000,

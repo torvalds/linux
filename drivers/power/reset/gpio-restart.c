@@ -22,7 +22,7 @@ struct gpio_restart {
 	u32 wait_delay_ms;
 };
 
-static int gpio_restart_notify(struct sys_off_data *data)
+static int gpio_restart_analtify(struct sys_off_data *data)
 {
 	struct gpio_restart *gpio_restart = data->cb_data;
 
@@ -42,7 +42,7 @@ static int gpio_restart_notify(struct sys_off_data *data)
 
 	WARN_ON(1);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int gpio_restart_probe(struct platform_device *pdev)
@@ -56,16 +56,16 @@ static int gpio_restart_probe(struct platform_device *pdev)
 	gpio_restart = devm_kzalloc(&pdev->dev, sizeof(*gpio_restart),
 			GFP_KERNEL);
 	if (!gpio_restart)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	open_source = of_property_read_bool(pdev->dev.of_node, "open-source");
+	open_source = of_property_read_bool(pdev->dev.of_analde, "open-source");
 
 	gpio_restart->reset_gpio = devm_gpiod_get(&pdev->dev, NULL,
 			open_source ? GPIOD_IN : GPIOD_OUT_LOW);
 	ret = PTR_ERR_OR_ZERO(gpio_restart->reset_gpio);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get reset GPIO\n");
+			dev_err(&pdev->dev, "Could analt get reset GPIO\n");
 		return ret;
 	}
 
@@ -73,7 +73,7 @@ static int gpio_restart_probe(struct platform_device *pdev)
 	gpio_restart->inactive_delay_ms = 100;
 	gpio_restart->wait_delay_ms = 3000;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "priority", &property);
+	ret = of_property_read_u32(pdev->dev.of_analde, "priority", &property);
 	if (!ret) {
 		if (property > 255)
 			dev_err(&pdev->dev, "Invalid priority property: %u\n",
@@ -82,22 +82,22 @@ static int gpio_restart_probe(struct platform_device *pdev)
 			priority = property;
 	}
 
-	of_property_read_u32(pdev->dev.of_node, "active-delay",
+	of_property_read_u32(pdev->dev.of_analde, "active-delay",
 			&gpio_restart->active_delay_ms);
-	of_property_read_u32(pdev->dev.of_node, "inactive-delay",
+	of_property_read_u32(pdev->dev.of_analde, "inactive-delay",
 			&gpio_restart->inactive_delay_ms);
-	of_property_read_u32(pdev->dev.of_node, "wait-delay",
+	of_property_read_u32(pdev->dev.of_analde, "wait-delay",
 			&gpio_restart->wait_delay_ms);
 
 	ret = devm_register_sys_off_handler(&pdev->dev,
 					    SYS_OFF_MODE_RESTART,
 					    priority,
-					    gpio_restart_notify,
+					    gpio_restart_analtify,
 					    gpio_restart);
 	if (ret) {
-		dev_err(&pdev->dev, "%s: cannot register restart handler, %d\n",
+		dev_err(&pdev->dev, "%s: cananalt register restart handler, %d\n",
 				__func__, ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

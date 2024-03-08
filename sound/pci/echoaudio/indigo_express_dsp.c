@@ -16,13 +16,13 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public
-License along with this library; if not, write to the Free Software
+License along with this library; if analt, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 *************************************************************************/
 
@@ -115,7 +115,7 @@ static u32 detect_input_clocks(const struct echoaudio *chip)
 
 
 
-/* The IndigoIO has no ASIC. Just do nothing */
+/* The IndigoIO has anal ASIC. Just do analthing */
 static int load_asic(struct echoaudio *chip)
 {
 	return 0;

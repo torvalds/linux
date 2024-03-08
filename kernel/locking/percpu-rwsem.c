@@ -8,7 +8,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/debug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <trace/events/lock.h>
 
 int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
@@ -16,14 +16,14 @@ int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
 {
 	sem->read_count = alloc_percpu(int);
 	if (unlikely(!sem->read_count))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcu_sync_init(&sem->rss);
 	rcuwait_init(&sem->writer);
 	init_waitqueue_head(&sem->waiters);
 	atomic_set(&sem->block, 0);
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+	debug_check_anal_locks_freed((void *)sem, sizeof(*sem));
 	lockdep_init_map(&sem->dep_map, name, key, 0);
 #endif
 	return 0;
@@ -52,7 +52,7 @@ static bool __percpu_down_read_trylock(struct percpu_rw_semaphore *sem)
 	/*
 	 * Due to having preemption disabled the decrement happens on
 	 * the same CPU as the increment, avoiding the
-	 * increment-on-one-CPU-and-decrement-on-another problem.
+	 * increment-on-one-CPU-and-decrement-on-aanalther problem.
 	 *
 	 * If the reader misses the writer's assignment of sem->block, then the
 	 * writer is guaranteed to see the reader's increment.
@@ -107,7 +107,7 @@ static bool __percpu_rwsem_trylock(struct percpu_rw_semaphore *sem, bool reader)
  * The return value of wait_queue_entry::func means:
  *
  *  <0 - error, wakeup is terminated and the error is returned
- *   0 - no wakeup, a next waiter is tried
+ *   0 - anal wakeup, a next waiter is tried
  *  >0 - woken, if EXCLUSIVE, counted towards @nr_exclusive.
  *
  * We use EXCLUSIVE for both readers and writers to preserve FIFO order,
@@ -227,7 +227,7 @@ void __sched percpu_down_write(struct percpu_rw_semaphore *sem)
 	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
 	trace_contention_begin(sem, LCB_F_PERCPU | LCB_F_WRITE);
 
-	/* Notify readers to take the slow path. */
+	/* Analtify readers to take the slow path. */
 	rcu_sync_enter(&sem->rss);
 
 	/*
@@ -256,9 +256,9 @@ void percpu_up_write(struct percpu_rw_semaphore *sem)
 	rwsem_release(&sem->dep_map, _RET_IP_);
 
 	/*
-	 * Signal the writer is done, no fast path yet.
+	 * Signal the writer is done, anal fast path yet.
 	 *
-	 * One reason that we cannot just immediately flip to readers_fast is
+	 * One reason that we cananalt just immediately flip to readers_fast is
 	 * that new readers might fail to see the results of this writer's
 	 * critical section.
 	 *
@@ -270,7 +270,7 @@ void percpu_up_write(struct percpu_rw_semaphore *sem)
 	/*
 	 * Prod any pending reader/writer to make progress.
 	 */
-	__wake_up(&sem->waiters, TASK_NORMAL, 1, sem);
+	__wake_up(&sem->waiters, TASK_ANALRMAL, 1, sem);
 
 	/*
 	 * Once this completes (at least one RCU-sched grace period hence) the

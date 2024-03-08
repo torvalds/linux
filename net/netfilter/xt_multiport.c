@@ -95,7 +95,7 @@ multiport_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	pptr = skb_header_pointer(skb, par->thoff, sizeof(_ports), _ports);
 	if (pptr == NULL) {
 		/* We've been asked to examine this packet, and we
-		 * can't.  Hence, no choice but to drop.
+		 * can't.  Hence, anal choice but to drop.
 		 */
 		pr_debug("Dropping evil offset=0 tinygram.\n");
 		par->hotdrop = true;
@@ -111,7 +111,7 @@ check(u_int16_t proto,
       u_int8_t match_flags,
       u_int8_t count)
 {
-	/* Must specify supported protocol, no unknown flags or bad count */
+	/* Must specify supported protocol, anal unkanalwn flags or bad count */
 	return (proto == IPPROTO_TCP || proto == IPPROTO_UDP
 		|| proto == IPPROTO_UDPLITE
 		|| proto == IPPROTO_SCTP || proto == IPPROTO_DCCP)

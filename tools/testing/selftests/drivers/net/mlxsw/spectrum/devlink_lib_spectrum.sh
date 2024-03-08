@@ -112,6 +112,6 @@ devlink_sp_resource_kvd_profile_set()
 		devlink_reload
 		;;
 	*)
-		check_err 1 "Unknown profile $profile"
+		check_err 1 "Unkanalwn profile $profile"
 	esac
 }

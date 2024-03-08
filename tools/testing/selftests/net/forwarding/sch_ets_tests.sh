@@ -46,7 +46,7 @@ __strict_eval()
 	RET=0
 
 	if ((! total)); then
-		check_err 1 "No traffic observed"
+		check_err 1 "Anal traffic observed"
 		log_test "$desc"
 		return
 	fi
@@ -54,7 +54,7 @@ __strict_eval()
 	local ratio=$(echo "scale=2; 100 * $d / $total" | bc -l)
 	if ((above)); then
 		test $(echo "$ratio > 95.0" | bc -l) -eq 1
-		check_err $? "Not enough traffic"
+		check_err $? "Analt eanalugh traffic"
 		log_test "$desc"
 		log_info "Expected ratio >95% Measured ratio $ratio"
 	else
@@ -70,7 +70,7 @@ strict_eval()
 	__strict_eval "$@" 1
 }
 
-notraf_eval()
+analtraf_eval()
 {
 	__strict_eval "$@" 0
 }
@@ -107,7 +107,7 @@ __ets_dwrr_test()
 	for ((i = 0; i < ${#streams[@]}; i++)); do
 		local stream=${streams[$i]}
 		if ((seen_strict)); then
-			notraf_eval "band $stream" ${d[$i]} $total
+			analtraf_eval "band $stream" ${d[$i]} $total
 		elif ((${WS[$stream]} == 0)); then
 			strict_eval "band $stream" ${d[$i]} $total
 			seen_strict=1

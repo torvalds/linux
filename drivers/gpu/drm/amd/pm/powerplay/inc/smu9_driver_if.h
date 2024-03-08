@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -68,7 +68,7 @@
 #define NUM_PSP_LEVEL_MAP 4
 
 /* Gemini Modes */
-#define PPSMC_GeminiModeNone   0  /* Single GPU board */
+#define PPSMC_GeminiModeAnalne   0  /* Single GPU board */
 #define PPSMC_GeminiModeMaster 1  /* Master GPU on a Gemini board */
 #define PPSMC_GeminiModeSlave  2  /* Slave GPU on a Gemini board */
 
@@ -160,8 +160,8 @@ typedef struct {
 
   /* ULV Settings */
   uint8_t  UlvOffsetVid;     /* SVI2 VID */
-  uint8_t  UlvSmnclkDid;     /* DID for ULV mode. 0 means CLK will not be modified in ULV. */
-  uint8_t  UlvMp1clkDid;     /* DID for ULV mode. 0 means CLK will not be modified in ULV. */
+  uint8_t  UlvSmnclkDid;     /* DID for ULV mode. 0 means CLK will analt be modified in ULV. */
+  uint8_t  UlvMp1clkDid;     /* DID for ULV mode. 0 means CLK will analt be modified in ULV. */
   uint8_t  UlvGfxclkBypass;  /* 1 to turn off/bypass Gfxclk during ULV, 0 to leave Gfxclk on during ULV */
 
   /* VDDCR_SOC Voltages */
@@ -320,7 +320,7 @@ typedef struct {
   /* ACG Frequency Table, in Mhz */
   uint32_t     AcgFreqTable[NUM_GFXCLK_DPM_LEVELS];
 
-  /* Padding - ignore */
+  /* Padding - iganalre */
   uint32_t     MmHubPadding[3]; /* SMU internal use */
 
 } PPTable_t;

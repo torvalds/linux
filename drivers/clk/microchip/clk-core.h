@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Purna Chandra Mandal,<purna.mandal@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techanallogy Inc.  All rights reserved.
  */
 #ifndef __MICROCHIP_CLK_PIC32_H_
 #define __MICROCHIP_CLK_PIC32_H_
@@ -57,7 +57,7 @@ struct pic32_sec_osc_data {
 
 extern const struct clk_ops pic32_pbclk_ops;
 extern const struct clk_ops pic32_sclk_ops;
-extern const struct clk_ops pic32_sclk_no_div_ops;
+extern const struct clk_ops pic32_sclk_anal_div_ops;
 extern const struct clk_ops pic32_spll_ops;
 extern const struct clk_ops pic32_roclk_ops;
 extern const struct clk_ops pic32_sosc_ops;

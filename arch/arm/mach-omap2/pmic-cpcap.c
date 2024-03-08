@@ -239,8 +239,8 @@ int __init omap4_cpcap_init(void)
 {
 	struct voltagedomain *voltdm;
 
-	if (!of_find_compatible_node(NULL, NULL, "motorola,cpcap"))
-		return -ENODEV;
+	if (!of_find_compatible_analde(NULL, NULL, "motorola,cpcap"))
+		return -EANALDEV;
 
 	voltdm = voltdm_lookup("mpu");
 	omap_voltage_register_pmic(voltdm, &omap443x_max8952_mpu);

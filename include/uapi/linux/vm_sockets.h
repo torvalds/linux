@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * VMware vSockets Driver
  *
@@ -6,7 +6,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
- * Software Foundation version 2 and no later version.
+ * Software Foundation version 2 and anal later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -66,20 +66,20 @@
 
 #define SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD 6
 
-/* Option name for using non-blocking send/receive.  Use as the option name
- * for setsockopt(3) or getsockopt(3) to set or get the non-blocking
+/* Option name for using analn-blocking send/receive.  Use as the option name
+ * for setsockopt(3) or getsockopt(3) to set or get the analn-blocking
  * transmit/receive flag for a STREAM socket.  This flag determines whether
- * send() and recv() can be called in non-blocking contexts for the given
+ * send() and recv() can be called in analn-blocking contexts for the given
  * socket.  The value is a signed integer.
  *
  * This option is only relevant to kernel endpoints, where descheduling the
- * thread of execution is not allowed, for example, while holding a spinlock.
- * It is not to be confused with conventional non-blocking socket operations.
+ * thread of execution is analt allowed, for example, while holding a spinlock.
+ * It is analt to be confused with conventional analn-blocking socket operations.
  *
  * Only available for hypervisor endpoints.
  */
 
-#define SO_VM_SOCKETS_NONBLOCK_TXRX 7
+#define SO_VM_SOCKETS_ANALNBLOCK_TXRX 7
 
 #define SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW 8
 
@@ -129,7 +129,7 @@
 /* The current default use case for the vsock channel is the following:
  * local vsock communication between guest and host and nested VMs setup.
  * In addition to this, implicitly, the vsock packets are forwarded to the host
- * if no host->guest vsock transport is set.
+ * if anal host->guest vsock transport is set.
  *
  * Set this flag value in the sockaddr_vm corresponding field if the vsock
  * packets need to be always forwarded to the host. Using this behavior,
@@ -163,11 +163,11 @@
 
 #define VM_SOCKETS_VERSION_MAJOR(_v) (((_v) & 0x00FF0000) >> 16)
 
-/* The minor (third) component of the vSockets version.  Two bytes representing
- * the minor component of the vSockets version.
+/* The mianalr (third) component of the vSockets version.  Two bytes representing
+ * the mianalr component of the vSockets version.
  */
 
-#define VM_SOCKETS_VERSION_MINOR(_v) (((_v) & 0x0000FFFF))
+#define VM_SOCKETS_VERSION_MIANALR(_v) (((_v) & 0x0000FFFF))
 
 /* Address structure for vSockets.   The address family should be set to
  * AF_VSOCK.  The structure members should all align on their natural
@@ -191,18 +191,18 @@ struct sockaddr_vm {
 
 #define IOCTL_VM_SOCKETS_GET_LOCAL_CID		_IO(7, 0xb9)
 
-/* MSG_ZEROCOPY notifications are encoded in the standard error format,
+/* MSG_ZEROCOPY analtifications are encoded in the standard error format,
  * sock_extended_err. See Documentation/networking/msg_zerocopy.rst in
  * kernel source tree for more details.
  */
 
-/* 'cmsg_level' field value of 'struct cmsghdr' for notification parsing
+/* 'cmsg_level' field value of 'struct cmsghdr' for analtification parsing
  * when MSG_ZEROCOPY flag is used on transmissions.
  */
 
 #define SOL_VSOCK	287
 
-/* 'cmsg_type' field value of 'struct cmsghdr' for notification parsing
+/* 'cmsg_type' field value of 'struct cmsghdr' for analtification parsing
  * when MSG_ZEROCOPY flag is used on transmissions.
  */
 

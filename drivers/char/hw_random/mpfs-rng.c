@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2020-2022 Microchip Corporation. All rights reserved.
  *
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  */
 
 #include <linux/module.h>
@@ -69,7 +69,7 @@ static int mpfs_rng_probe(struct platform_device *pdev)
 
 	rng_priv = devm_kzalloc(dev, sizeof(*rng_priv), GFP_KERNEL);
 	if (!rng_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rng_priv->sys_controller =  mpfs_sys_controller_get(&pdev->dev);
 	if (IS_ERR(rng_priv->sys_controller))
@@ -97,5 +97,5 @@ static struct platform_driver mpfs_rng_driver = {
 module_platform_driver(mpfs_rng_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_DESCRIPTION("PolarFire SoC (MPFS) hardware random driver");

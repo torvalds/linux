@@ -28,16 +28,16 @@ Second type has a dedicated interrupt per gpio bank.
 	[irqN]----> [gpio-bank (n)]
 
 
-Pin controller node:
+Pin controller analde:
 Required properties:
 - compatible	: should be "st,stih407-<pio-block>-pinctrl"
-- st,syscfg		: Should be a phandle of the syscfg node.
+- st,syscfg		: Should be a phandle of the syscfg analde.
 - st,retime-pin-mask	: Should be mask to specify which pins can be retimed.
-	If the property is not present, it is assumed that all the pins in the
+	If the property is analt present, it is assumed that all the pins in the
 	bank are capable of retiming. Retiming is mainly used to improve the
-	IO timing margins of external synchronous interfaces.
-- ranges : defines mapping between pin controller node (parent) to gpio-bank
-  node (children).
+	IO timing margins of external synchroanalus interfaces.
+- ranges : defines mapping between pin controller analde (parent) to gpio-bank
+  analde (children).
 
 Optional properties:
 - interrupts	: Interrupt number of the irqmux. If the interrupt is shared
@@ -46,7 +46,7 @@ Optional properties:
 - reg		: irqmux memory resource. If irqmux is present.
 - reg-names	: irqmux resource should be named as "irqmux".
 
-GPIO controller/bank node.
+GPIO controller/bank analde.
 Required properties:
 - gpio-controller : Indicates this device is a GPIO controller
 - #gpio-cells	  : Must be two.
@@ -85,7 +85,7 @@ Example:
 		st,syscfg = <&syscfg_sbc>;
 		reg = <0x0961f080 0x4>;
 		reg-names = "irqmux";
-		interrupts = <GIC_SPI 188 IRQ_TYPE_NONE>;
+		interrupts = <GIC_SPI 188 IRQ_TYPE_ANALNE>;
 		interrupt-names = "irqmux";
 		ranges = <0 0x09610000 0x6000>;
 
@@ -98,14 +98,14 @@ Example:
 			st,bank-name = "PIO0";
 		};
 		...
-		pin-functions nodes follow...
+		pin-functions analdes follow...
 	};
 
 
-Contents of function subnode node:
+Contents of function subanalde analde:
 ----------------------
-Required properties for pin configuration node:
-- st,pins	: Child node with list of pins with configuration.
+Required properties for pin configuration analde:
+- st,pins	: Child analde with list of pins with configuration.
 
 Below is the format of how each pin conf should look like.
 
@@ -148,7 +148,7 @@ Each parameter is explained as below.
 		CLK_D
 
 Example of mmcclk pin which is a bi-direction pull pu with retime config
-as non inverted clock retimed with CLK_B and delay of 0 pico seconds:
+as analn inverted clock retimed with CLK_B and delay of 0 pico seconds:
 
 pin-controller {
 	...

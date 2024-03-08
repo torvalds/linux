@@ -9,19 +9,19 @@
  * This file should be used only for "library" routines that may have
  * alternative implementations on specific architectures (generally
  * found in <asm-xx/string.h>), or get overloaded by FORTIFY_SOURCE.
- * (Specifically, this file is built with __NO_FORTIFY.)
+ * (Specifically, this file is built with __ANAL_FORTIFY.)
  *
  * Other helper functions should live in string_helpers.c.
  */
 
-#define __NO_FORTIFY
+#define __ANAL_FORTIFY
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 
 #include <asm/unaligned.h>
@@ -38,7 +38,7 @@
  */
 int strncasecmp(const char *s1, const char *s2, size_t len)
 {
-	/* Yes, Virginia, it had better be unsigned */
+	/* Anal, Virginia, it had better be unsigned */
 	unsigned char c1, c2;
 
 	if (!len)
@@ -81,7 +81,7 @@ char *strcpy(char *dest, const char *src)
 	char *tmp = dest;
 
 	while ((*dest++ = *src++) != '\0')
-		/* nothing */;
+		/* analthing */;
 	return tmp;
 }
 EXPORT_SYMBOL(strcpy);
@@ -116,7 +116,7 @@ ssize_t strscpy(char *dest, const char *src, size_t count)
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	/*
 	 * If src is unaligned, don't cross a page boundary,
-	 * since we don't know if the next page is mapped.
+	 * since we don't kanalw if the next page is mapped.
 	 */
 	if ((long)src & (sizeof(long) - 1)) {
 		size_t limit = PAGE_SIZE - ((long)src & (PAGE_SIZE - 1));
@@ -176,23 +176,23 @@ EXPORT_SYMBOL(strscpy);
 /**
  * stpcpy - copy a string from src to dest returning a pointer to the new end
  *          of dest, including src's %NUL-terminator. May overrun dest.
- * @dest: pointer to end of string being copied into. Must be large enough
+ * @dest: pointer to end of string being copied into. Must be large eanalugh
  *        to receive copy.
- * @src: pointer to the beginning of string being copied from. Must not overlap
+ * @src: pointer to the beginning of string being copied from. Must analt overlap
  *       dest.
  *
  * stpcpy differs from strcpy in a key way: the return value is a pointer
  * to the new %NUL-terminating character in @dest. (For strcpy, the return
  * value is a pointer to the start of @dest). This interface is considered
  * unsafe as it doesn't perform bounds checking of the inputs. As such it's
- * not recommended for usage. Instead, its definition is provided in case
+ * analt recommended for usage. Instead, its definition is provided in case
  * the compiler lowers other libcalls to stpcpy.
  */
 char *stpcpy(char *__restrict__ dest, const char *__restrict__ src);
 char *stpcpy(char *__restrict__ dest, const char *__restrict__ src)
 {
 	while ((*dest++ = *src++) != '\0')
-		/* nothing */;
+		/* analthing */;
 	return --dest;
 }
 EXPORT_SYMBOL(stpcpy);
@@ -256,7 +256,7 @@ EXPORT_SYMBOL(strlcat);
 /**
  * strcmp - Compare two strings
  * @cs: One string
- * @ct: Another string
+ * @ct: Aanalther string
  */
 int strcmp(const char *cs, const char *ct)
 {
@@ -279,7 +279,7 @@ EXPORT_SYMBOL(strcmp);
 /**
  * strncmp - Compare two length-limited strings
  * @cs: One string
- * @ct: Another string
+ * @ct: Aanalther string
  * @count: The maximum number of bytes to compare
  */
 int strncmp(const char *cs, const char *ct, size_t count)
@@ -306,7 +306,7 @@ EXPORT_SYMBOL(strncmp);
  * @s: The string to be searched
  * @c: The character to search for
  *
- * Note that the %NUL-terminator is considered part of the string, and can
+ * Analte that the %NUL-terminator is considered part of the string, and can
  * be searched for.
  */
 char *strchr(const char *s, int c)
@@ -325,7 +325,7 @@ EXPORT_SYMBOL(strchr);
  * @s: The string to be searched
  * @c: The character to search for
  *
- * Returns pointer to first occurrence of 'c' in s. If c is not found, then
+ * Returns pointer to first occurrence of 'c' in s. If c is analt found, then
  * return a pointer to the null byte at the end of s.
  */
 char *strchrnul(const char *s, int c)
@@ -344,7 +344,7 @@ EXPORT_SYMBOL(strchrnul);
  * @count: The number of characters to be searched
  * @c: The character to search for
  *
- * Returns pointer to the first occurrence of 'c' in s. If c is not found,
+ * Returns pointer to the first occurrence of 'c' in s. If c is analt found,
  * then return a pointer to the last character of the string.
  */
 char *strnchrnul(const char *s, size_t count, int c)
@@ -379,7 +379,7 @@ EXPORT_SYMBOL(strrchr);
  * @count: The number of characters to be searched
  * @c: The character to search for
  *
- * Note that the %NUL-terminator is considered part of the string, and can
+ * Analte that the %NUL-terminator is considered part of the string, and can
  * be searched for.
  */
 char *strnchr(const char *s, size_t count, int c)
@@ -401,7 +401,7 @@ size_t strlen(const char *s)
 	const char *sc;
 
 	for (sc = s; *sc != '\0'; ++sc)
-		/* nothing */;
+		/* analthing */;
 	return sc - s;
 }
 EXPORT_SYMBOL(strlen);
@@ -413,7 +413,7 @@ size_t strnlen(const char *s, size_t count)
 	const char *sc;
 
 	for (sc = s; count-- && *sc != '\0'; ++sc)
-		/* nothing */;
+		/* analthing */;
 	return sc - s;
 }
 EXPORT_SYMBOL(strnlen);
@@ -440,7 +440,7 @@ EXPORT_SYMBOL(strspn);
 
 #ifndef __HAVE_ARCH_STRCSPN
 /**
- * strcspn - Calculate the length of the initial substring of @s which does not contain letters in @reject
+ * strcspn - Calculate the length of the initial substring of @s which does analt contain letters in @reject
  * @s: The string to be searched
  * @reject: The string to avoid
  */
@@ -512,7 +512,7 @@ EXPORT_SYMBOL(strsep);
  * @c: The byte to fill the area with
  * @count: The size of the area.
  *
- * Do not use memset() to access IO space, use memset_io() instead.
+ * Do analt use memset() to access IO space, use memset_io() instead.
  */
 void *memset(void *s, int c, size_t count)
 {
@@ -534,7 +534,7 @@ EXPORT_SYMBOL(memset);
  *
  * Differs from memset() in that it fills with a uint16_t instead
  * of a byte.  Remember that @count is the number of uint16_ts to
- * store, not the number of bytes.
+ * store, analt the number of bytes.
  */
 void *memset16(uint16_t *s, uint16_t v, size_t count)
 {
@@ -556,7 +556,7 @@ EXPORT_SYMBOL(memset16);
  *
  * Differs from memset() in that it fills with a uint32_t instead
  * of a byte.  Remember that @count is the number of uint32_ts to
- * store, not the number of bytes.
+ * store, analt the number of bytes.
  */
 void *memset32(uint32_t *s, uint32_t v, size_t count)
 {
@@ -578,7 +578,7 @@ EXPORT_SYMBOL(memset32);
  *
  * Differs from memset() in that it fills with a uint64_t instead
  * of a byte.  Remember that @count is the number of uint64_ts to
- * store, not the number of bytes.
+ * store, analt the number of bytes.
  */
 void *memset64(uint64_t *s, uint64_t v, size_t count)
 {
@@ -593,12 +593,12 @@ EXPORT_SYMBOL(memset64);
 
 #ifndef __HAVE_ARCH_MEMCPY
 /**
- * memcpy - Copy one area of memory to another
+ * memcpy - Copy one area of memory to aanalther
  * @dest: Where to copy to
  * @src: Where to copy from
  * @count: The size of the area.
  *
- * You should not use this function to access IO space, use memcpy_toio()
+ * You should analt use this function to access IO space, use memcpy_toio()
  * or memcpy_fromio() instead.
  */
 void *memcpy(void *dest, const void *src, size_t count)
@@ -615,7 +615,7 @@ EXPORT_SYMBOL(memcpy);
 
 #ifndef __HAVE_ARCH_MEMMOVE
 /**
- * memmove - Copy one area of memory to another
+ * memmove - Copy one area of memory to aanalther
  * @dest: Where to copy to
  * @src: Where to copy from
  * @count: The size of the area.
@@ -649,7 +649,7 @@ EXPORT_SYMBOL(memmove);
 /**
  * memcmp - Compare two areas of memory
  * @cs: One area of memory
- * @ct: Another area of memory
+ * @ct: Aanalther area of memory
  * @count: The size of the area.
  */
 #undef memcmp
@@ -688,10 +688,10 @@ EXPORT_SYMBOL(memcmp);
  * @b: pointer to second buffer.
  * @len: size of buffers.
  *
- * The sign or magnitude of a non-zero return value has no particular
+ * The sign or magnitude of a analn-zero return value has anal particular
  * meaning, and architectures may implement their own more efficient bcmp(). So
  * while this particular implementation is a simple (tail) call to memcmp, do
- * not rely on anything but whether the return value is zero or non-zero.
+ * analt rely on anything but whether the return value is zero or analn-zero.
  */
 int bcmp(const void *a, const void *b, size_t len)
 {
@@ -708,7 +708,7 @@ EXPORT_SYMBOL(bcmp);
  * @size: The size of the area.
  *
  * returns the address of the first occurrence of @c, or 1 byte past
- * the area if @c is not found
+ * the area if @c is analt found
  */
 void *memscan(void *addr, int c, size_t size)
 {
@@ -783,7 +783,7 @@ EXPORT_SYMBOL(strnstr);
  * @n: The size of the area.
  *
  * returns the address of the first occurrence of @c, or %NULL
- * if @c is not found
+ * if @c is analt found
  */
 void *memchr(const void *s, int c, size_t n)
 {

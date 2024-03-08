@@ -3,7 +3,7 @@
 #define __MYRI10GE_MCP_H__
 
 #define MXGEFW_VERSION_MAJOR	1
-#define MXGEFW_VERSION_MINOR	4
+#define MXGEFW_VERSION_MIANALR	4
 
 /* 8 Bytes */
 struct mcp_dma_addr {
@@ -57,7 +57,7 @@ struct mcp_cmd_response {
 #define MXGEFW_FLAGS_ALIGN_ODD  0x4
 #define MXGEFW_FLAGS_CKSUM      0x8
 #define MXGEFW_FLAGS_TSO_LAST   0x8
-#define MXGEFW_FLAGS_NO_TSO     0x10
+#define MXGEFW_FLAGS_ANAL_TSO     0x10
 #define MXGEFW_FLAGS_TSO_CHOP   0x10
 #define MXGEFW_FLAGS_TSO_PLD    0x20
 
@@ -109,7 +109,7 @@ struct mcp_kreq_ether_recv {
 #define	MXGEFW_ETH_SEND_OFFSET(n)	(MXGEFW_ETH_SEND(n) - MXGEFW_ETH_SEND_4)
 
 enum myri10ge_mcp_cmd_type {
-	MXGEFW_CMD_NONE = 0,
+	MXGEFW_CMD_ANALNE = 0,
 	/* Reset the mcp, it is left in a safe state, waiting
 	 * for the driver to set all its parameters */
 	MXGEFW_CMD_RESET = 1,
@@ -149,19 +149,19 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_CMD_GET_RX_RING_SIZE = 12,	/* in bytes */
 
 	/* Parameters which refer to rings stored in the host,
-	 * and whose size is controlled by the host.  Note that
+	 * and whose size is controlled by the host.  Analte that
 	 * all must be physically contiguous and must contain
 	 * a power of 2 number of entries.  */
 
 	MXGEFW_CMD_SET_INTRQ_SIZE = 13,	/* in bytes */
-#define MXGEFW_CMD_SET_INTRQ_SIZE_FLAG_NO_STRICT_SIZE_CHECK  (1 << 31)
+#define MXGEFW_CMD_SET_INTRQ_SIZE_FLAG_ANAL_STRICT_SIZE_CHECK  (1 << 31)
 
 	/* command to bring ethernet interface up.  Above parameters
 	 * (plus mtu & mac address) must have been exchanged prior
 	 * to issuing this command  */
 	MXGEFW_CMD_ETHERNET_UP = 14,
 
-	/* command to bring ethernet interface down.  No further sends
+	/* command to bring ethernet interface down.  Anal further sends
 	 * or receives may be processed until an MXGEFW_CMD_ETHERNET_UP
 	 * is issued, and all interrupt queues must be flushed prior
 	 * to ack'ing this command */
@@ -169,7 +169,7 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_CMD_ETHERNET_DOWN = 15,
 
 	/* commands the driver may issue live, without resetting
-	 * the nic.  Note that increasing the mtu "live" should
+	 * the nic.  Analte that increasing the mtu "live" should
 	 * only be done if the driver has already supplied buffers
 	 * sufficiently large to handle the new mtu.  Decreasing
 	 * the mtu live is safe */
@@ -197,11 +197,11 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_DISABLE_ALLMULTI = 27,
 
 	/* returns MXGEFW_CMD_ERROR_MULTICAST
-	 * if there is no room in the cache
+	 * if there is anal room in the cache
 	 * data0,MSH(data1) = multicast group address */
 	MXGEFW_JOIN_MULTICAST_GROUP = 28,
 	/* returns MXGEFW_CMD_ERROR_MULTICAST
-	 * if the address is not in the cache,
+	 * if the address is analt in the cache,
 	 * or is equal to FF-FF-FF-FF-FF-FF
 	 * data0,MSH(data1) = multicast group address */
 	MXGEFW_LEAVE_MULTICAST_GROUP = 29,
@@ -222,7 +222,7 @@ enum myri10ge_mcp_cmd_type {
 	 * chipset */
 
 	MXGEFW_CMD_UNALIGNED_STATUS = 33,
-	/* return data = boolean, true if the chipset is known to be unaligned */
+	/* return data = boolean, true if the chipset is kanalwn to be unaligned */
 
 	MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS = 34,
 	/* data0 = number of big buffers to use.  It must be 0 or a power of 2.
@@ -230,7 +230,7 @@ enum myri10ge_mcp_cmd_type {
 	 * for packet. This is the default behavior.
 	 * A power of 2 number indicates that the NIC always uses the specified
 	 * number of buffers for each big receive packet.
-	 * It is up to the driver to ensure that this value is big enough for
+	 * It is up to the driver to ensure that this value is big eanalugh for
 	 * the NIC to be able to receive maximum-sized packets.
 	 */
 
@@ -263,7 +263,7 @@ enum myri10ge_mcp_cmd_type {
 	/* tell nic that the secret key's been updated */
 	MXGEFW_CMD_SET_RSS_ENABLE = 43,
 	/* data0 = enable/disable rss
-	 * 0: disable rss.  nic does not distribute receive packets.
+	 * 0: disable rss.  nic does analt distribute receive packets.
 	 * 1: enable rss.  nic distributes receive packets among queues.
 	 * data1 = hash type
 	 * 1: IPV4            (required by RSS)
@@ -281,10 +281,10 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE = 44,
 	/* Return data = the max. size of the entire headers of a IPv6 TSO packet.
 	 * If the header size of a IPv6 TSO packet is larger than the specified
-	 * value, then the driver must not use TSO.
+	 * value, then the driver must analt use TSO.
 	 * This size restriction only applies to IPv6 TSO.
 	 * For IPv4 TSO, the maximum size of the headers is fixed, and the NIC
-	 * always has enough header buffer to store maximum-sized headers.
+	 * always has eanalugh header buffer to store maximum-sized headers.
 	 */
 
 	MXGEFW_CMD_SET_TSO_MODE = 45,
@@ -379,7 +379,7 @@ enum myri10ge_mcp_cmd_type {
 
 enum myri10ge_mcp_cmd_status {
 	MXGEFW_CMD_OK = 0,
-	MXGEFW_CMD_UNKNOWN = 1,
+	MXGEFW_CMD_UNKANALWN = 1,
 	MXGEFW_CMD_ERROR_RANGE = 2,
 	MXGEFW_CMD_ERROR_BUSY = 3,
 	MXGEFW_CMD_ERROR_EMPTY = 4,
@@ -389,7 +389,7 @@ enum myri10ge_mcp_cmd_status {
 	MXGEFW_CMD_ERROR_RESOURCES = 8,
 	MXGEFW_CMD_ERROR_MULTICAST = 9,
 	MXGEFW_CMD_ERROR_UNALIGNED = 10,
-	MXGEFW_CMD_ERROR_NO_MDIO = 11,
+	MXGEFW_CMD_ERROR_ANAL_MDIO = 11,
 	MXGEFW_CMD_ERROR_I2C_FAILURE = 12,
 	MXGEFW_CMD_ERROR_I2C_ABSENT = 13,
 	MXGEFW_CMD_ERROR_BAD_PCIE_LINK = 14
@@ -411,14 +411,14 @@ struct mcp_irq_data {
 #define MXGEFW_LINK_DOWN 0
 #define MXGEFW_LINK_UP 1
 #define MXGEFW_LINK_MYRINET 2
-#define MXGEFW_LINK_UNKNOWN 3
+#define MXGEFW_LINK_UNKANALWN 3
 	__be32 link_up;
 	__be32 dropped_link_overflow;
 	__be32 dropped_link_error_or_filtered;
 	__be32 dropped_runt;
 	__be32 dropped_overrun;
-	__be32 dropped_no_small_buffer;
-	__be32 dropped_no_big_buffer;
+	__be32 dropped_anal_small_buffer;
+	__be32 dropped_anal_big_buffer;
 	__be32 rdma_tags_available;
 
 	u8 tx_stopped;
@@ -428,7 +428,7 @@ struct mcp_irq_data {
 };
 
 /* definitions for NETQ filter type */
-#define MXGEFW_NETQ_FILTERTYPE_NONE 0
+#define MXGEFW_NETQ_FILTERTYPE_ANALNE 0
 #define MXGEFW_NETQ_FILTERTYPE_MACADDR 1
 #define MXGEFW_NETQ_FILTERTYPE_VLAN 2
 #define MXGEFW_NETQ_FILTERTYPE_VLANMACADDR 3

@@ -75,7 +75,7 @@ struct tegra_clk_emc {
 	struct clk *prev_parent;
 	bool changing_timing;
 
-	struct device_node *emc_node;
+	struct device_analde *emc_analde;
 	struct tegra_emc *emc;
 
 	int num_timings;
@@ -109,7 +109,7 @@ static unsigned long emc_recalc_rate(struct clk_hw *hw,
 }
 
 /*
- * Rounds up unless no higher rate exists, in which case down. This way is
+ * Rounds up unless anal higher rate exists, in which case down. This way is
  * safer since things have EMC rate floors. Also don't touch parent_rate
  * since we don't want the CCF to play with our parent clocks.
  */
@@ -183,23 +183,23 @@ static struct tegra_emc *emc_ensure_emc_driver(struct tegra_clk_emc *tegra)
 	if (!tegra->prepare_timing_change || !tegra->complete_timing_change)
 		return NULL;
 
-	if (!tegra->emc_node)
+	if (!tegra->emc_analde)
 		return NULL;
 
-	pdev = of_find_device_by_node(tegra->emc_node);
+	pdev = of_find_device_by_analde(tegra->emc_analde);
 	if (!pdev) {
-		pr_err("%s: could not get external memory controller\n",
+		pr_err("%s: could analt get external memory controller\n",
 		       __func__);
 		return NULL;
 	}
 
-	of_node_put(tegra->emc_node);
-	tegra->emc_node = NULL;
+	of_analde_put(tegra->emc_analde);
+	tegra->emc_analde = NULL;
 
 	tegra->emc = platform_get_drvdata(pdev);
 	if (!tegra->emc) {
 		put_device(&pdev->dev);
-		pr_err("%s: cannot find EMC driver\n", __func__);
+		pr_err("%s: cananalt find EMC driver\n", __func__);
 		return NULL;
 	}
 
@@ -216,7 +216,7 @@ static int emc_set_timing(struct tegra_clk_emc *tegra,
 	struct tegra_emc *emc = emc_ensure_emc_driver(tegra);
 
 	if (!emc)
-		return -ENOENT;
+		return -EANALENT;
 
 	pr_debug("going to rate %ld prate %ld p %s\n", timing->rate,
 		 timing->parent_rate, __clk_get_name(timing->parent));
@@ -234,7 +234,7 @@ static int emc_set_timing(struct tegra_clk_emc *tegra,
 
 	err = clk_set_rate(timing->parent, timing->parent_rate);
 	if (err) {
-		pr_err("cannot change parent %s rate to %ld: %d\n",
+		pr_err("cananalt change parent %s rate to %ld: %d\n",
 		       __clk_get_name(timing->parent), timing->parent_rate,
 		       err);
 
@@ -243,7 +243,7 @@ static int emc_set_timing(struct tegra_clk_emc *tegra,
 
 	err = clk_prepare_enable(timing->parent);
 	if (err) {
-		pr_err("cannot enable parent clock: %d\n", err);
+		pr_err("cananalt enable parent clock: %d\n", err);
 		return err;
 	}
 
@@ -284,7 +284,7 @@ static int emc_set_timing(struct tegra_clk_emc *tegra,
  * Get backup timing to use as an intermediate step when a change between
  * two timings with the same clock source has been requested. First try to
  * find a timing with a higher clock rate to avoid a rate below any set rate
- * floors. If that is not possible, find a lower rate.
+ * floors. If that is analt possible, find a lower rate.
  */
 static struct emc_timing *get_backup_timing(struct tegra_clk_emc *tegra,
 					    int timing_index)
@@ -333,7 +333,7 @@ static int emc_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	/*
 	 * When emc_set_timing changes the parent rate, CCF will propagate
-	 * that downward to us, so ignore any set_rate calls while a rate
+	 * that downward to us, so iganalre any set_rate calls while a rate
 	 * change is already going on.
 	 */
 	if (tegra->changing_timing)
@@ -348,7 +348,7 @@ static int emc_set_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	if (!timing) {
-		pr_err("cannot switch to rate %ld without emc table\n", rate);
+		pr_err("cananalt switch to rate %ld without emc table\n", rate);
 		return -EINVAL;
 	}
 
@@ -356,15 +356,15 @@ static int emc_set_rate(struct clk_hw *hw, unsigned long rate,
 	    emc_parent_clk_sources[timing->parent_index] &&
 	    clk_get_rate(timing->parent) != timing->parent_rate) {
 		/*
-		 * Parent clock source not changed but parent rate has changed,
-		 * need to temporarily switch to another parent
+		 * Parent clock source analt changed but parent rate has changed,
+		 * need to temporarily switch to aanalther parent
 		 */
 
 		struct emc_timing *backup_timing;
 
 		backup_timing = get_backup_timing(tegra, i);
 		if (!backup_timing) {
-			pr_err("cannot find backup timing\n");
+			pr_err("cananalt find backup timing\n");
 			return -EINVAL;
 		}
 
@@ -373,7 +373,7 @@ static int emc_set_rate(struct clk_hw *hw, unsigned long rate,
 
 		err = emc_set_timing(tegra, backup_timing);
 		if (err) {
-			pr_err("cannot set backup timing: %d\n", err);
+			pr_err("cananalt set backup timing: %d\n", err);
 			return err;
 		}
 	}
@@ -385,30 +385,30 @@ static int emc_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static int load_one_timing_from_dt(struct tegra_clk_emc *tegra,
 				   struct emc_timing *timing,
-				   struct device_node *node)
+				   struct device_analde *analde)
 {
 	int err, i;
 	u32 tmp;
 
-	err = of_property_read_u32(node, "clock-frequency", &tmp);
+	err = of_property_read_u32(analde, "clock-frequency", &tmp);
 	if (err) {
-		pr_err("timing %pOF: failed to read rate\n", node);
+		pr_err("timing %pOF: failed to read rate\n", analde);
 		return err;
 	}
 
 	timing->rate = tmp;
 
-	err = of_property_read_u32(node, "nvidia,parent-clock-frequency", &tmp);
+	err = of_property_read_u32(analde, "nvidia,parent-clock-frequency", &tmp);
 	if (err) {
-		pr_err("timing %pOF: failed to read parent rate\n", node);
+		pr_err("timing %pOF: failed to read parent rate\n", analde);
 		return err;
 	}
 
 	timing->parent_rate = tmp;
 
-	timing->parent = of_clk_get_by_name(node, "emc-parent");
+	timing->parent = of_clk_get_by_name(analde, "emc-parent");
 	if (IS_ERR(timing->parent)) {
-		pr_err("timing %pOF: failed to get parent clock\n", node);
+		pr_err("timing %pOF: failed to get parent clock\n", analde);
 		return PTR_ERR(timing->parent);
 	}
 
@@ -416,8 +416,8 @@ static int load_one_timing_from_dt(struct tegra_clk_emc *tegra,
 	i = match_string(emc_parent_clk_names, ARRAY_SIZE(emc_parent_clk_names),
 			 __clk_get_name(timing->parent));
 	if (i < 0) {
-		pr_err("timing %pOF: %s is not a valid parent\n",
-		       node, __clk_get_name(timing->parent));
+		pr_err("timing %pOF: %s is analt a valid parent\n",
+		       analde, __clk_get_name(timing->parent));
 		clk_put(timing->parent);
 		return -EINVAL;
 	}
@@ -440,12 +440,12 @@ static int cmp_timings(const void *_a, const void *_b)
 }
 
 static int load_timings_from_dt(struct tegra_clk_emc *tegra,
-				struct device_node *node,
+				struct device_analde *analde,
 				u32 ram_code)
 {
 	struct emc_timing *timings_ptr;
-	struct device_node *child;
-	int child_count = of_get_child_count(node);
+	struct device_analde *child;
+	int child_count = of_get_child_count(analde);
 	int i = 0, err;
 	size_t size;
 
@@ -453,17 +453,17 @@ static int load_timings_from_dt(struct tegra_clk_emc *tegra,
 
 	tegra->timings = krealloc(tegra->timings, size, GFP_KERNEL);
 	if (!tegra->timings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	timings_ptr = tegra->timings + tegra->num_timings;
 	tegra->num_timings += child_count;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_analde(analde, child) {
 		struct emc_timing *timing = timings_ptr + (i++);
 
 		err = load_one_timing_from_dt(tegra, timing, child);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			kfree(tegra->timings);
 			return err;
 		}
@@ -484,50 +484,50 @@ static const struct clk_ops tegra_clk_emc_ops = {
 	.get_parent = emc_get_parent,
 };
 
-struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_node *np,
+struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_analde *np,
 				      spinlock_t *lock)
 {
 	struct tegra_clk_emc *tegra;
 	struct clk_init_data init;
-	struct device_node *node;
-	u32 node_ram_code;
+	struct device_analde *analde;
+	u32 analde_ram_code;
 	struct clk *clk;
 	int err;
 
 	tegra = kcalloc(1, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tegra->clk_regs = base;
 	tegra->lock = lock;
 
 	tegra->num_timings = 0;
 
-	for_each_child_of_node(np, node) {
-		err = of_property_read_u32(node, "nvidia,ram-code",
-					   &node_ram_code);
+	for_each_child_of_analde(np, analde) {
+		err = of_property_read_u32(analde, "nvidia,ram-code",
+					   &analde_ram_code);
 		if (err)
 			continue;
 
 		/*
-		 * Store timings for all ram codes as we cannot read the
+		 * Store timings for all ram codes as we cananalt read the
 		 * fuses until the apbmisc driver is loaded.
 		 */
-		err = load_timings_from_dt(tegra, node, node_ram_code);
+		err = load_timings_from_dt(tegra, analde, analde_ram_code);
 		if (err) {
-			of_node_put(node);
+			of_analde_put(analde);
 			kfree(tegra);
 			return ERR_PTR(err);
 		}
 	}
 
 	if (tegra->num_timings == 0)
-		pr_warn("%s: no memory timings registered\n", __func__);
+		pr_warn("%s: anal memory timings registered\n", __func__);
 
-	tegra->emc_node = of_parse_phandle(np,
+	tegra->emc_analde = of_parse_phandle(np,
 			"nvidia,external-memory-controller", 0);
-	if (!tegra->emc_node)
-		pr_warn("%s: couldn't find node for EMC driver\n", __func__);
+	if (!tegra->emc_analde)
+		pr_warn("%s: couldn't find analde for EMC driver\n", __func__);
 
 	init.name = "emc";
 	init.ops = &tegra_clk_emc_ops;

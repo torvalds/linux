@@ -82,9 +82,9 @@ enum cc_attr {
 	CC_ATTR_GUEST_SEV_SNP,
 
 	/**
-	 * @CC_ATTR_HOTPLUG_DISABLED: Hotplug is not supported or disabled.
+	 * @CC_ATTR_HOTPLUG_DISABLED: Hotplug is analt supported or disabled.
 	 *
-	 * The platform/OS is running as a guest/virtual machine does not
+	 * The platform/OS is running as a guest/virtual machine does analt
 	 * support CPU hotplug feature.
 	 *
 	 * Examples include TDX Guest.
@@ -104,7 +104,7 @@ enum cc_attr {
  * Context: Any context
  * Return:
  * * TRUE  - Specified Confidential Computing attribute is active
- * * FALSE - Specified Confidential Computing attribute is not active
+ * * FALSE - Specified Confidential Computing attribute is analt active
  */
 bool cc_platform_has(enum cc_attr attr);
 

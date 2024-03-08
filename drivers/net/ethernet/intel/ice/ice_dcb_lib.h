@@ -11,8 +11,8 @@
 #ifdef CONFIG_DCB
 #define ICE_TC_MAX_BW		100 /* Default Max BW percentage */
 #define ICE_DCB_HW_CHG_RST	0 /* DCB configuration changed with reset */
-#define ICE_DCB_NO_HW_CHG	1 /* DCB configuration did not change */
-#define ICE_DCB_HW_CHG		2 /* DCB configuration changed, no reset */
+#define ICE_DCB_ANAL_HW_CHG	1 /* DCB configuration did analt change */
+#define ICE_DCB_HW_CHG		2 /* DCB configuration changed, anal reset */
 
 void ice_dcb_rebuild(struct ice_pf *pf);
 int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked);
@@ -92,8 +92,8 @@ ice_dcb_get_tc(struct ice_vsi __always_unused *vsi,
 static inline int
 ice_init_pf_dcb(struct ice_pf *pf, bool __always_unused locked)
 {
-	dev_dbg(ice_pf_to_dev(pf), "DCB not supported\n");
-	return -EOPNOTSUPP;
+	dev_dbg(ice_pf_to_dev(pf), "DCB analt supported\n");
+	return -EOPANALTSUPP;
 }
 
 static inline int
@@ -101,7 +101,7 @@ ice_pf_dcb_cfg(struct ice_pf __always_unused *pf,
 	       struct ice_dcbx_cfg __always_unused *new_cfg,
 	       bool __always_unused locked)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int

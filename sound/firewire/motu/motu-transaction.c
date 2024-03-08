@@ -81,8 +81,8 @@ int snd_motu_transaction_reregister(struct snd_motu *motu)
 	if (motu->async_handler.callback_data == NULL)
 		return -EINVAL;
 
-	/* Register messaging address. Block transaction is not allowed. */
-	data = cpu_to_be32((device->card->node_id << 16) |
+	/* Register messaging address. Block transaction is analt allowed. */
+	data = cpu_to_be32((device->card->analde_id << 16) |
 			   (motu->async_handler.offset >> 32));
 	err = snd_motu_transaction_write(motu, ASYNC_ADDR_HI, &data,
 					 sizeof(data));

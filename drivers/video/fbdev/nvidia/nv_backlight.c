@@ -2,7 +2,7 @@
 /*
  * Backlight code for nVidia based graphic cards
  *
- * Copyright 2004 Antonino Daplas <adaplas@pol.net>
+ * Copyright 2004 Antonianal Daplas <adaplas@pol.net>
  * Copyright (c) 2006 Michael Hanselmann <linux-kernel@hansmi.ch>
  */
 
@@ -18,7 +18,7 @@
 #include "nv_type.h"
 #include "nv_proto.h"
 
-/* We do not have any information about which values are allowed, thus
+/* We do analt have any information about which values are allowed, thus
  * we used safe values.
  */
 #define MIN_LEVEL 0x158
@@ -32,7 +32,7 @@ static int nvidia_bl_get_level_brightness(struct nvidia_par *par,
 	int nlevel;
 
 	/* Get and convert the value */
-	/* No locking of bl_curve since we read a single value */
+	/* Anal locking of bl_curve since we read a single value */
 	nlevel = MIN_LEVEL + info->bl_curve[level] * LEVEL_STEP;
 
 	if (nlevel < 0)
@@ -93,7 +93,7 @@ void nvidia_bl_init(struct nvidia_par *par)
 		return;
 #endif
 
-	snprintf(name, sizeof(name), "nvidiabl%d", info->node);
+	snprintf(name, sizeof(name), "nvidiabl%d", info->analde);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;

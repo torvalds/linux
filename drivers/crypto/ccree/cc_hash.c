@@ -102,7 +102,7 @@ struct cc_hash_ctx {
 
 static void cc_set_desc(struct ahash_req_ctx *areq_ctx, struct cc_hash_ctx *ctx,
 			unsigned int flow_mode, struct cc_hw_desc desc[],
-			bool is_not_last_data, unsigned int *seq_size);
+			bool is_analt_last_data, unsigned int *seq_size);
 
 static void cc_set_endianity(u32 mode, struct cc_hw_desc *desc)
 {
@@ -123,7 +123,7 @@ static int cc_map_result(struct device *dev, struct ahash_req_ctx *state,
 	if (dma_mapping_error(dev, state->digest_result_dma_addr)) {
 		dev_err(dev, "Mapping digest result buffer %u B for DMA failed\n",
 			digestsize);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev_dbg(dev, "Mapped digest result buffer %u B at va=%pK to dma=%pad\n",
 		digestsize, state->digest_result_buff,
@@ -290,7 +290,7 @@ static void cc_update_complete(struct device *dev, void *cc_req, int err)
 	dev_dbg(dev, "req=%pK\n", req);
 
 	if (err != -EINPROGRESS) {
-		/* Not a BACKLOG notification */
+		/* Analt a BACKLOG analtification */
 		cc_unmap_hash_request(dev, state, req->src, false);
 		cc_unmap_req(dev, state, ctx);
 	}
@@ -309,7 +309,7 @@ static void cc_digest_complete(struct device *dev, void *cc_req, int err)
 	dev_dbg(dev, "req=%pK\n", req);
 
 	if (err != -EINPROGRESS) {
-		/* Not a BACKLOG notification */
+		/* Analt a BACKLOG analtification */
 		cc_unmap_hash_request(dev, state, req->src, false);
 		cc_unmap_result(dev, state, digestsize, req->result);
 		cc_unmap_req(dev, state, ctx);
@@ -329,7 +329,7 @@ static void cc_hash_complete(struct device *dev, void *cc_req, int err)
 	dev_dbg(dev, "req=%pK\n", req);
 
 	if (err != -EINPROGRESS) {
-		/* Not a BACKLOG notification */
+		/* Analt a BACKLOG analtification */
 		cc_unmap_hash_request(dev, state, req->src, false);
 		cc_unmap_result(dev, state, digestsize, req->result);
 		cc_unmap_req(dev, state, ctx);
@@ -401,8 +401,8 @@ static int cc_fin_hmac(struct cc_hw_desc *desc, struct ahash_request *req,
 
 	/* Memory Barrier: wait for IPAD/OPAD axi write to complete */
 	hw_desc_init(&desc[idx]);
-	set_din_no_dma(&desc[idx], 0, 0xfffff0);
-	set_dout_no_dma(&desc[idx], 0, 0, 1);
+	set_din_anal_dma(&desc[idx], 0, 0xfffff0);
+	set_dout_anal_dma(&desc[idx], 0, 0, 1);
 	idx++;
 
 	/* Perform HASH update */
@@ -440,13 +440,13 @@ static int cc_hash_digest(struct ahash_request *req)
 
 	if (cc_map_req(dev, state, ctx)) {
 		dev_err(dev, "map_ahash_source() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (cc_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1,
@@ -454,7 +454,7 @@ static int cc_hash_digest(struct ahash_request *req)
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		cc_unmap_result(dev, state, digestsize, result);
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Setup request structure */
@@ -572,7 +572,7 @@ static int cc_hash_update(struct ahash_request *req)
 		"hmac" : "hash", nbytes);
 
 	if (nbytes == 0) {
-		/* no real updates required */
+		/* anal real updates required */
 		return 0;
 	}
 
@@ -580,13 +580,13 @@ static int cc_hash_update(struct ahash_request *req)
 					block_size, flags);
 	if (rc) {
 		if (rc == 1) {
-			dev_dbg(dev, " data size not require HW update %x\n",
+			dev_dbg(dev, " data size analt require HW update %x\n",
 				nbytes);
-			/* No hardware updates are required */
+			/* Anal hardware updates are required */
 			return 0;
 		}
 		dev_err(dev, "map_ahash_request_update() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (cc_map_req(dev, state, ctx)) {
@@ -658,13 +658,13 @@ static int cc_do_finup(struct ahash_request *req, bool update)
 				      flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (cc_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		cc_unmap_hash_request(dev, state, src, true);
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Setup request structure */
@@ -746,7 +746,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 	larval_addr = cc_larval_digest_addr(ctx->drvdata, ctx->hash_mode);
 
 	/* The keylen value distinguishes HASH in case keylen is ZERO bytes,
-	 * any NON-ZERO value utilizes HMAC flow
+	 * any ANALN-ZERO value utilizes HMAC flow
 	 */
 	ctx->key_params.keylen = keylen;
 	ctx->key_params.key_dma_addr = 0;
@@ -756,7 +756,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 	if (keylen) {
 		ctx->key_params.key = kmemdup(key, keylen, GFP_KERNEL);
 		if (!ctx->key_params.key)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ctx->key_params.key_dma_addr =
 			dma_map_single(dev, ctx->key_params.key, keylen,
@@ -765,7 +765,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 			dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 				ctx->key_params.key, keylen);
 			kfree_sensitive(ctx->key_params.key);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dev_dbg(dev, "mapping key-buffer: key_dma_addr=%pad keylen=%u\n",
 			&ctx->key_params.key_dma_addr, ctx->key_params.keylen);
@@ -887,12 +887,12 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 		set_flow_mode(&desc[idx], DIN_HASH);
 		idx++;
 
-		/* Get the IPAD/OPAD xor key (Note, IPAD is the initial digest
+		/* Get the IPAD/OPAD xor key (Analte, IPAD is the initial digest
 		 * of the first HASH "update" state)
 		 */
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
-		if (i > 0) /* Not first iteration */
+		if (i > 0) /* Analt first iteration */
 			set_dout_dlli(&desc[idx], ctx->opad_tmp_keys_dma_addr,
 				      ctx->inter_digestsize, NS_BIT, 0);
 		else /* First iteration */
@@ -943,7 +943,7 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 
 	ctx->key_params.key = kmemdup(key, keylen, GFP_KERNEL);
 	if (!ctx->key_params.key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->key_params.key_dma_addr =
 		dma_map_single(dev, ctx->key_params.key, keylen, DMA_TO_DEVICE);
@@ -951,7 +951,7 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 		dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 			key, keylen);
 		kfree_sensitive(ctx->key_params.key);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev_dbg(dev, "mapping key-buffer: key_dma_addr=%pad keylen=%u\n",
 		&ctx->key_params.key_dma_addr, ctx->key_params.keylen);
@@ -1104,7 +1104,7 @@ static int cc_alloc_ctx(struct cc_hash_ctx *ctx)
 
 fail:
 	cc_free_ctx(ctx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int cc_get_hash_len(struct crypto_tfm *tfm)
@@ -1161,7 +1161,7 @@ static int cc_mac_update(struct ahash_request *req)
 	gfp_t flags = cc_gfp_flags(&req->base);
 
 	if (req->nbytes == 0) {
-		/* no real updates required */
+		/* anal real updates required */
 		return 0;
 	}
 
@@ -1171,13 +1171,13 @@ static int cc_mac_update(struct ahash_request *req)
 					req->nbytes, block_size, flags);
 	if (rc) {
 		if (rc == 1) {
-			dev_dbg(dev, " data size not require HW update %x\n",
+			dev_dbg(dev, " data size analt require HW update %x\n",
 				req->nbytes);
-			/* No hardware updates are required */
+			/* Anal hardware updates are required */
 			return 0;
 		}
 		dev_err(dev, "map_ahash_request_update() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (cc_map_req(dev, state, ctx)) {
@@ -1250,14 +1250,14 @@ static int cc_mac_final(struct ahash_request *req)
 				      req->nbytes, 0, flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (cc_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		cc_unmap_hash_request(dev, state, req->src, true);
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Setup request structure */
@@ -1290,8 +1290,8 @@ static int cc_mac_final(struct ahash_request *req)
 
 		/* Memory Barrier: wait for axi write to complete */
 		hw_desc_init(&desc[idx]);
-		set_din_no_dma(&desc[idx], 0, 0xfffff0);
-		set_dout_no_dma(&desc[idx], 0, 0, 1);
+		set_din_anal_dma(&desc[idx], 0, 0xfffff0);
+		set_dout_anal_dma(&desc[idx], 0, 0, 1);
 		idx++;
 	}
 
@@ -1352,7 +1352,7 @@ static int cc_mac_finup(struct ahash_request *req)
 
 	dev_dbg(dev, "===== finup xcbc(%d) ====\n", req->nbytes);
 	if (state->xcbc_count > 0 && req->nbytes == 0) {
-		dev_dbg(dev, "No data to update. Call to fdx_mac_final\n");
+		dev_dbg(dev, "Anal data to update. Call to fdx_mac_final\n");
 		return cc_mac_final(req);
 	}
 
@@ -1365,13 +1365,13 @@ static int cc_mac_finup(struct ahash_request *req)
 				      req->nbytes, 1, flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (cc_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		cc_unmap_hash_request(dev, state, req->src, true);
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Setup request structure */
@@ -1437,19 +1437,19 @@ static int cc_mac_digest(struct ahash_request *req)
 
 	if (cc_map_req(dev, state, ctx)) {
 		dev_err(dev, "map_ahash_source() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (cc_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (cc_map_hash_request_final(ctx->drvdata, state, req->src,
 				      req->nbytes, 1, flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		cc_unmap_req(dev, state, ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Setup request structure */
@@ -1827,7 +1827,7 @@ static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,
 
 	t_crypto_alg = devm_kzalloc(dev, sizeof(*t_crypto_alg), GFP_KERNEL);
 	if (!t_crypto_alg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	t_crypto_alg->ahash_alg = template->template_ahash;
 	halg = &t_crypto_alg->ahash_alg;
@@ -1960,7 +1960,7 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 
 	hash_handle = devm_kzalloc(dev, sizeof(*hash_handle), GFP_KERNEL);
 	if (!hash_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&hash_handle->hash_list);
 	drvdata->hash_handle = hash_handle;
@@ -1980,7 +1980,7 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 
 	sram_buff = cc_sram_alloc(drvdata, sram_size_to_alloc);
 	if (sram_buff == NULL_SRAM_ADDR) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 
@@ -2161,7 +2161,7 @@ static void cc_setup_cmac(struct ahash_request *areq, struct cc_hw_desc desc[],
 
 static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 			struct cc_hash_ctx *ctx, unsigned int flow_mode,
-			struct cc_hw_desc desc[], bool is_not_last_data,
+			struct cc_hw_desc desc[], bool is_analt_last_data,
 			unsigned int *seq_size)
 {
 	unsigned int idx = *seq_size;
@@ -2177,7 +2177,7 @@ static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 	} else {
 		if (areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
 			dev_dbg(dev, " NULL mode\n");
-			/* nothing to build */
+			/* analthing to build */
 			return;
 		}
 		/* bypass */
@@ -2197,8 +2197,8 @@ static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 		set_flow_mode(&desc[idx], flow_mode);
 		idx++;
 	}
-	if (is_not_last_data)
-		set_din_not_last_indication(&desc[(idx - 1)]);
+	if (is_analt_last_data)
+		set_din_analt_last_indication(&desc[(idx - 1)]);
 	/* return updated desc sequence size */
 	*seq_size = idx;
 }
@@ -2246,7 +2246,7 @@ u32 cc_larval_digest_addr(void *drvdata, u32 mode)
 
 	switch (mode) {
 	case DRV_HASH_NULL:
-		break; /*Ignore*/
+		break; /*Iganalre*/
 	case DRV_HASH_MD5:
 		return (hash_handle->larval_digest_sram_addr);
 	case DRV_HASH_SHA1:

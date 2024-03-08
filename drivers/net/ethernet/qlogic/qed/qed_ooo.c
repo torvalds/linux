@@ -47,8 +47,8 @@ static struct qed_ooo_isle *qed_ooo_seek_isle(struct qed_hwfn *p_hwfn,
 
 	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
 	if (unlikely(!p_archipelago)) {
-		DP_NOTICE(p_hwfn,
-			  "Connection %d is not found in OOO list\n", cid);
+		DP_ANALTICE(p_hwfn,
+			  "Connection %d is analt found in OOO list\n", cid);
 		return NULL;
 	}
 
@@ -91,8 +91,8 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 		proto = PROTOCOLID_IWARP;
 		break;
 	default:
-		DP_NOTICE(p_hwfn,
-			  "Failed to allocate qed_ooo_info: unknown personality\n");
+		DP_ANALTICE(p_hwfn,
+			  "Failed to allocate qed_ooo_info: unkanalwn personality\n");
 		return -EINVAL;
 	}
 
@@ -102,14 +102,14 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 	cid_base = (u16)qed_cxt_get_proto_cid_start(p_hwfn, proto);
 
 	if (!max_num_archipelagos) {
-		DP_NOTICE(p_hwfn,
-			  "Failed to allocate qed_ooo_info: unknown amount of connections\n");
+		DP_ANALTICE(p_hwfn,
+			  "Failed to allocate qed_ooo_info: unkanalwn amount of connections\n");
 		return -EINVAL;
 	}
 
 	p_ooo_info = kzalloc(sizeof(*p_ooo_info), GFP_KERNEL);
 	if (!p_ooo_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_ooo_info->cid_base = cid_base;
 	p_ooo_info->max_num_archipelagos = max_num_archipelagos;
@@ -122,7 +122,7 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 					  sizeof(struct qed_ooo_isle),
 					  GFP_KERNEL);
 	if (!p_ooo_info->p_isles_mem)
-		goto no_isles_mem;
+		goto anal_isles_mem;
 
 	for (i = 0; i < max_num_isles; i++) {
 		INIT_LIST_HEAD(&p_ooo_info->p_isles_mem[i].buffers_list);
@@ -135,7 +135,7 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 					sizeof(struct qed_ooo_archipelago),
 					GFP_KERNEL);
 	if (!p_ooo_info->p_archipelagos_mem)
-		goto no_archipelagos_mem;
+		goto anal_archipelagos_mem;
 
 	for (i = 0; i < max_num_archipelagos; i++)
 		INIT_LIST_HEAD(&p_ooo_info->p_archipelagos_mem[i].isles_list);
@@ -145,20 +145,20 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 					sizeof(struct ooo_opaque),
 					GFP_KERNEL);
 	if (!p_ooo_info->ooo_history.p_cqes)
-		goto no_history_mem;
+		goto anal_history_mem;
 
 	p_ooo_info->ooo_history.num_of_cqes = QED_MAX_NUM_OOO_HISTORY_ENTRIES;
 
 	p_hwfn->p_ooo_info = p_ooo_info;
 	return 0;
 
-no_history_mem:
+anal_history_mem:
 	kfree(p_ooo_info->p_archipelagos_mem);
-no_archipelagos_mem:
+anal_archipelagos_mem:
 	kfree(p_ooo_info->p_isles_mem);
-no_isles_mem:
+anal_isles_mem:
 	kfree(p_ooo_info);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
@@ -332,13 +332,13 @@ void qed_ooo_delete_isles(struct qed_hwfn *p_hwfn,
 	for (isle_idx = 0; isle_idx < drop_size; isle_idx++) {
 		p_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid, drop_isle);
 		if (!p_isle) {
-			DP_NOTICE(p_hwfn,
-				  "Isle %d is not found(cid %d)\n",
+			DP_ANALTICE(p_hwfn,
+				  "Isle %d is analt found(cid %d)\n",
 				  drop_isle, cid);
 			return;
 		}
 		if (list_empty(&p_isle->buffers_list))
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Isle %d is empty(cid %d)\n", drop_isle, cid);
 		else
 			list_splice_tail_init(&p_isle->buffers_list,
@@ -363,16 +363,16 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 		p_prev_isle = qed_ooo_seek_isle(p_hwfn,
 						p_ooo_info, cid, ooo_isle - 1);
 		if (unlikely(!p_prev_isle)) {
-			DP_NOTICE(p_hwfn,
-				  "Isle %d is not found(cid %d)\n",
+			DP_ANALTICE(p_hwfn,
+				  "Isle %d is analt found(cid %d)\n",
 				  ooo_isle - 1, cid);
 			return;
 		}
 	}
 	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
 	if (unlikely(!p_archipelago && ooo_isle != 1)) {
-		DP_NOTICE(p_hwfn,
-			  "Connection %d is not found in OOO list\n", cid);
+		DP_ANALTICE(p_hwfn,
+			  "Connection %d is analt found in OOO list\n", cid);
 		return;
 	}
 
@@ -382,11 +382,11 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 
 		list_del(&p_isle->list_entry);
 		if (unlikely(!list_empty(&p_isle->buffers_list))) {
-			DP_NOTICE(p_hwfn, "Free isle is not empty\n");
+			DP_ANALTICE(p_hwfn, "Free isle is analt empty\n");
 			INIT_LIST_HEAD(&p_isle->buffers_list);
 		}
 	} else {
-		DP_NOTICE(p_hwfn, "No more free isles\n");
+		DP_ANALTICE(p_hwfn, "Anal more free isles\n");
 		return;
 	}
 
@@ -419,8 +419,8 @@ void qed_ooo_add_new_buffer(struct qed_hwfn *p_hwfn,
 
 	p_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid, ooo_isle);
 	if (unlikely(!p_isle)) {
-		DP_NOTICE(p_hwfn,
-			  "Isle %d is not found(cid %d)\n", ooo_isle, cid);
+		DP_ANALTICE(p_hwfn,
+			  "Isle %d is analt found(cid %d)\n", ooo_isle, cid);
 		return;
 	}
 
@@ -439,8 +439,8 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 	p_right_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid,
 					 left_isle + 1);
 	if (unlikely(!p_right_isle)) {
-		DP_NOTICE(p_hwfn,
-			  "Right isle %d is not found(cid %d)\n",
+		DP_ANALTICE(p_hwfn,
+			  "Right isle %d is analt found(cid %d)\n",
 			  left_isle + 1, cid);
 		return;
 	}
@@ -451,8 +451,8 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 		p_left_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid,
 						left_isle);
 		if (unlikely(!p_left_isle)) {
-			DP_NOTICE(p_hwfn,
-				  "Left isle %d is not found(cid %d)\n",
+			DP_ANALTICE(p_hwfn,
+				  "Left isle %d is analt found(cid %d)\n",
 				  left_isle, cid);
 			return;
 		}

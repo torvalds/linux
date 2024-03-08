@@ -90,7 +90,7 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 	struct clk_hw *best_parent, *hw = &common->hw;
 	unsigned int i;
 
-	if (clk_hw_get_flags(hw) & CLK_SET_RATE_NO_REPARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_ANAL_REPARENT) {
 		unsigned long adj_parent_rate;
 
 		best_parent = clk_hw_get_parent(hw);
@@ -276,12 +276,12 @@ const struct clk_ops ccu_mux_ops = {
 EXPORT_SYMBOL_NS_GPL(ccu_mux_ops, SUNXI_CCU);
 
 /*
- * This clock notifier is called when the frequency of the of the parent
+ * This clock analtifier is called when the frequency of the of the parent
  * PLL clock is to be changed. The idea is to switch the parent to a
  * stable clock, such as the main oscillator, while the PLL frequency
  * stabilizes.
  */
-static int ccu_mux_notifier_cb(struct notifier_block *nb,
+static int ccu_mux_analtifier_cb(struct analtifier_block *nb,
 			       unsigned long event, void *data)
 {
 	struct ccu_mux_nb *mux = to_ccu_mux_nb(nb);
@@ -299,13 +299,13 @@ static int ccu_mux_notifier_cb(struct notifier_block *nb,
 
 	udelay(mux->delay_us);
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-int ccu_mux_notifier_register(struct clk *clk, struct ccu_mux_nb *mux_nb)
+int ccu_mux_analtifier_register(struct clk *clk, struct ccu_mux_nb *mux_nb)
 {
-	mux_nb->clk_nb.notifier_call = ccu_mux_notifier_cb;
+	mux_nb->clk_nb.analtifier_call = ccu_mux_analtifier_cb;
 
-	return clk_notifier_register(clk, &mux_nb->clk_nb);
+	return clk_analtifier_register(clk, &mux_nb->clk_nb);
 }
-EXPORT_SYMBOL_NS_GPL(ccu_mux_notifier_register, SUNXI_CCU);
+EXPORT_SYMBOL_NS_GPL(ccu_mux_analtifier_register, SUNXI_CCU);

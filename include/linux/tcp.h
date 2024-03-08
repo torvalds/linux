@@ -50,7 +50,7 @@ static inline unsigned int inner_tcp_hdrlen(const struct sk_buff *skb)
  * skb_tcp_all_headers - Returns size of all headers for a TCP packet
  * @skb: buffer
  *
- * Used in TX path, for a packet known to be a TCP one.
+ * Used in TX path, for a packet kanalwn to be a TCP one.
  *
  * if (skb_is_gso(skb)) {
  *         int hlen = skb_tcp_all_headers(skb);
@@ -65,7 +65,7 @@ static inline int skb_tcp_all_headers(const struct sk_buff *skb)
  * skb_inner_tcp_all_headers - Returns size of all headers for an encap TCP packet
  * @skb: buffer
  *
- * Used in TX path, for a packet known to be a TCP one.
+ * Used in TX path, for a packet kanalwn to be a TCP one.
  *
  * if (skb_is_gso(skb) && skb->encapsulation) {
  *         int hlen = skb_inner_tcp_all_headers(skb);
@@ -93,7 +93,7 @@ struct tcp_fastopen_cookie {
 	bool	exp;	/* In RFC6994 experimental option format */
 };
 
-/* This defines a selective acknowledgement block. */
+/* This defines a selective ackanalwledgement block. */
 struct tcp_sack_block_wire {
 	__be32	start_seq;
 	__be32	end_seq;
@@ -122,7 +122,7 @@ struct tcp_options_received {
 		smc_ok : 1,	/* SMC seen on SYN packet		*/
 		snd_wscale : 4,	/* Window scaling received from sender	*/
 		rcv_wscale : 4;	/* Window scaling to send to receiver	*/
-	u8	saw_unknown:1,	/* Received unknown option		*/
+	u8	saw_unkanalwn:1,	/* Received unkanalwn option		*/
 		unused:7;
 	u8	num_sacks;	/* Number of SACK blocks		*/
 	u16	user_mss;	/* mss requested by user in ioctl	*/
@@ -204,7 +204,7 @@ struct tcp_sock {
 	u32	max_window;	/* Maximal window ever seen from peer	*/
 	u32	rcv_ssthresh;	/* Current window clamp			*/
 	u32	reordering;	/* Packet reordering metric.		*/
-	u32	notsent_lowat;	/* TCP_NOTSENT_LOWAT */
+	u32	analtsent_lowat;	/* TCP_ANALTSENT_LOWAT */
 	u16	gso_segs;	/* Max number of segs per GSO packet	*/
 	/* from STCP, retrans queue hinting */
 	struct sk_buff *lost_skb_hint;
@@ -215,14 +215,14 @@ struct tcp_sock {
 	__cacheline_group_begin(tcp_sock_read_txrx);
 	u32	tsoffset;	/* timestamp offset */
 	u32	snd_wnd;	/* The window we expect to receive	*/
-	u32	mss_cache;	/* Cached effective mss, not including SACKS */
+	u32	mss_cache;	/* Cached effective mss, analt including SACKS */
 	u32	snd_cwnd;	/* Sending congestion window		*/
 	u32	prr_out;	/* Total number of pkts sent during Recovery. */
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/
 	u16	tcp_header_len;	/* Bytes of tcp header to send		*/
 	u8	scaling_ratio;	/* see tcp_win_from_space() */
-	u8	chrono_type : 2,	/* current chronograph type */
+	u8	chroanal_type : 2,	/* current chroanalgraph type */
 		repair      : 1,
 		tcp_usec_ts : 1, /* TSval values in usec */
 		is_sack_reneg:1,    /* in recovery from loss with SACK reneg? */
@@ -258,8 +258,8 @@ struct tcp_sock {
 				 * total number of data bytes sent.
 				 */
 	u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
-	u32	chrono_start;	/* Start time in jiffies of a TCP chrono */
-	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
+	u32	chroanal_start;	/* Start time in jiffies of a TCP chroanal */
+	u32	chroanal_stat[3];	/* Time in jiffies for chroanal_stat stats */
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
 	u32	lsndtime;
@@ -299,7 +299,7 @@ struct tcp_sock {
  *      Options received (usually on last packet, some only on SYN packets).
  */
 	struct tcp_options_received rx_opt;
-	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
+	u8	analnagle     : 4,/* Disable Nagle algorithm?             */
 		rate_app_limited:1;  /* rate_{delivered,interval_us} limited? */
 	__cacheline_group_end(tcp_sock_write_txrx);
 
@@ -352,7 +352,7 @@ struct tcp_sock {
 				 */
 	u32	last_oow_ack_time;  /* timestamp of last out-of-window ACK */
 	u32	compressed_ack_rcv_nxt;
-	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
+	struct list_head tsq_analde; /* anchor in tsq_tasklet.head list */
 
 	/* Information of the most recently (s)acked skb */
 	struct tcp_rack {
@@ -362,7 +362,7 @@ struct tcp_sock {
 		u32 last_delivered; /* tp->delivered at last reo_wnd adj */
 		u8 reo_wnd_steps;   /* Allowed reordering window */
 #define TCP_RACK_RECOVERY_THRESH 16
-		u8 reo_wnd_persist:5, /* No. of recovery since last adj */
+		u8 reo_wnd_persist:5, /* Anal. of recovery since last adj */
 		   dsack_seen:1, /* Whether DSACK seen after last adj */
 		   advanced:1;	 /* mstamp advanced since last lost marking */
 	} rack;
@@ -373,7 +373,7 @@ struct tcp_sock {
 	u8	thin_lto    : 1,/* Use linear timeouts for thin streams */
 		recvmsg_inq : 1,/* Indicate # of bytes in queue upon recvmsg */
 		fastopen_connect:1, /* FASTOPEN_CONNECT sockopt */
-		fastopen_no_cookie:1, /* Allow send/recv SYN+data without a cookie */
+		fastopen_anal_cookie:1, /* Allow send/recv SYN+data without a cookie */
 		fastopen_client_fail:2, /* reason why fastopen failed */
 		frto        : 1;/* F-RTO (RFC5682) activated in CA_Loss */
 	u8	repair_queue;
@@ -396,7 +396,7 @@ struct tcp_sock {
  *	Slow start and congestion control (see also Nagle, and Karn & Partridge)
  */
 	u32	snd_cwnd_cnt;	/* Linear increase counter		*/
-	u32	snd_cwnd_clamp; /* Do not allow snd_cwnd to grow above this */
+	u32	snd_cwnd_clamp; /* Do analt allow snd_cwnd to grow above this */
 	u32	snd_cwnd_used;
 	u32	snd_cwnd_stamp;
 	u32	prior_cwnd;	/* cwnd right before starting loss recovery */
@@ -509,7 +509,7 @@ enum tsq_enum {
 	TCP_TSQ_DEFERRED,	   /* tcp_tasklet_func() found socket was owned */
 	TCP_WRITE_TIMER_DEFERRED,  /* tcp_write_timer() found socket was owned */
 	TCP_DELACK_TIMER_DEFERRED, /* tcp_delack_timer() found socket was owned */
-	TCP_MTU_REDUCED_DEFERRED,  /* tcp_v{4|6}_err() could not call
+	TCP_MTU_REDUCED_DEFERRED,  /* tcp_v{4|6}_err() could analt call
 				    * tcp_v{4|6}_mtu_reduced()
 				    */
 	TCP_ACK_DEFERRED,	   /* TX pure ack is deferred */
@@ -597,7 +597,7 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk,
 
 static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
 {
-	/* We use READ_ONCE() here because socket might not be locked.
+	/* We use READ_ONCE() here because socket might analt be locked.
 	 * This happens for listeners.
 	 */
 	u16 user_mss = READ_ONCE(tp->rx_opt.user_mss);
@@ -614,8 +614,8 @@ int tcp_sock_set_keepcnt(struct sock *sk, int val);
 int tcp_sock_set_keepidle_locked(struct sock *sk, int val);
 int tcp_sock_set_keepidle(struct sock *sk, int val);
 int tcp_sock_set_keepintvl(struct sock *sk, int val);
-void __tcp_sock_set_nodelay(struct sock *sk, bool on);
-void tcp_sock_set_nodelay(struct sock *sk);
+void __tcp_sock_set_analdelay(struct sock *sk, bool on);
+void tcp_sock_set_analdelay(struct sock *sk);
 void tcp_sock_set_quickack(struct sock *sk, int val);
 int tcp_sock_set_syncnt(struct sock *sk, int val);
 int tcp_sock_set_user_timeout(struct sock *sk, int val);

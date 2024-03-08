@@ -49,9 +49,9 @@ void trace_avs_msg_payload(const void *data, size_t size);
 	trace_avs_msg_payload((msg)->data, (msg)->size); \
 })
 
-#define trace_avs_notify(msg, fwregs) \
+#define trace_avs_analtify(msg, fwregs) \
 ({ \
-	trace_avs_ipc_notify_msg((msg)->header, fwregs); \
+	trace_avs_ipc_analtify_msg((msg)->header, fwregs); \
 	trace_avs_msg_payload((msg)->data, (msg)->size); \
 })
 #endif
@@ -88,7 +88,7 @@ DEFINE_EVENT(avs_ipc_msg_hdr, avs_ipc_reply_msg,
 	TP_ARGS(header, fwregs)
 );
 
-DEFINE_EVENT(avs_ipc_msg_hdr, avs_ipc_notify_msg,
+DEFINE_EVENT(avs_ipc_msg_hdr, avs_ipc_analtify_msg,
 	TP_PROTO(u64 header, u64 fwregs),
 	TP_ARGS(header, fwregs)
 );
@@ -117,7 +117,7 @@ TRACE_EVENT_CONDITION(avs_ipc_msg_payload,
 
 	TP_printk("range %zu-%zu out of %zu bytes%s",
 		  __entry->offset, __entry->pos, __entry->total,
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 16, 4,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 16, 4,
 				   __get_dynamic_array(buf),
 				   __get_dynamic_array_len(buf), false))
 );
@@ -141,7 +141,7 @@ TRACE_EVENT(avs_d0ix,
 	),
 
 	TP_printk("%s%s for request: 0x%08X 0x%08X",
-		  __entry->proceed ? "" : "ignore ", __get_str(op),
+		  __entry->proceed ? "" : "iganalre ", __get_str(op),
 		  lower_32_bits(__entry->header), upper_32_bits(__entry->header))
 );
 

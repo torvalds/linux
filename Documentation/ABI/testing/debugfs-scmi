@@ -4,7 +4,7 @@ KernelVersion:	6.3
 Contact:	cristian.marussi@arm.com
 Description:	The name of the underlying SCMI instance <n> described by
 		all the debugfs accessors rooted at /sys/kernel/debug/scmi/<n>,
-		expressed as the full name of the top DT SCMI node under which
+		expressed as the full name of the top DT SCMI analde under which
 		this SCMI instance is rooted.
 Users:		Debugging, any userspace test suite
 
@@ -15,7 +15,7 @@ Contact:	cristian.marussi@arm.com
 Description:	An optional time value, expressed in microseconds, representing,
 		on this SCMI instance <n>, the threshold above which any SCMI
 		command, advertised to have an higher-than-threshold execution
-		latency, should not be considered for atomic mode of operation,
+		latency, should analt be considered for atomic mode of operation,
 		even if requested.
 Users:		Debugging, any userspace test suite
 
@@ -39,7 +39,7 @@ What:		/sys/kernel/debug/scmi/<n>/transport/max_rx_timeout_ms
 Date:		March 2023
 KernelVersion:	6.3
 Contact:	cristian.marussi@arm.com
-Description:	Timeout in milliseconds allowed for SCMI synchronous replies
+Description:	Timeout in milliseconds allowed for SCMI synchroanalus replies
 		for the currently configured SCMI transport for instance <n>.
 Users:		Debugging, any userspace test suite
 

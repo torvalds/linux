@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - CSI2 module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -19,7 +19,7 @@
 
 struct isp_csiphy;
 
-/* This is not an exhaustive list */
+/* This is analt an exhaustive list */
 enum isp_csi2_pix_formats {
 	CSI2_PIX_FMT_OTHERS = 0,
 	CSI2_PIX_FMT_YUV422_8BIT = 0x1e,
@@ -39,7 +39,7 @@ enum isp_csi2_irqevents {
 	OCP_ERR_IRQ = 0x4000,
 	SHORT_PACKET_IRQ = 0x2000,
 	ECC_CORRECTION_IRQ = 0x1000,
-	ECC_NO_CORRECTION_IRQ = 0x800,
+	ECC_ANAL_CORRECTION_IRQ = 0x800,
 	COMPLEXIO2_ERR_IRQ = 0x400,
 	COMPLEXIO1_ERR_IRQ = 0x200,
 	FIFO_OVF_IRQ = 0x100,

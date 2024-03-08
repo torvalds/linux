@@ -10,17 +10,17 @@
 
 /*
  * This flag is used to indicate that the page pointed to by a pte is clean
- * and does not require cleaning before returning it to the user.
+ * and does analt require cleaning before returning it to the user.
  */
 #define PG_dcache_clean PG_arch_1
 
 #ifdef CONFIG_PPC_BOOK3S_64
 /*
- * Book3s has no ptesync after setting a pte, so without this ptesync it's
+ * Book3s has anal ptesync after setting a pte, so without this ptesync it's
  * possible for a kernel virtual mapping access to return a spurious fault
  * if it's accessed right after the pte is set. The page fault handler does
- * not expect this type of fault. flush_cache_vmap is not exactly the right
- * place to put this, but it seems to work well enough.
+ * analt expect this type of fault. flush_cache_vmap is analt exactly the right
+ * place to put this, but it seems to work well eanalugh.
  */
 static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 {
@@ -32,7 +32,7 @@ static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 /*
  * This is called when a page has been modified by the kernel.
- * It just marks the page as not i-cache clean.  We do the i-cache
+ * It just marks the page as analt i-cache clean.  We do the i-cache
  * flush later when the page is given to a user process, if necessary.
  */
 static inline void flush_dcache_folio(struct folio *folio)
@@ -61,7 +61,7 @@ void flush_dcache_icache_folio(struct folio *folio);
 
 /**
  * flush_dcache_range(): Write any modified data cache blocks out to memory and
- * invalidate them. Does not invalidate the corresponding instruction cache
+ * invalidate them. Does analt invalidate the corresponding instruction cache
  * blocks.
  *
  * @start: the start address
@@ -86,7 +86,7 @@ static inline void flush_dcache_range(unsigned long start, unsigned long stop)
 
 /*
  * Write any modified data cache blocks out to memory.
- * Does not invalidate the corresponding cache lines (especially for
+ * Does analt invalidate the corresponding cache lines (especially for
  * any corresponding instruction cache).
  */
 static inline void clean_dcache_range(unsigned long start, unsigned long stop)
@@ -105,7 +105,7 @@ static inline void clean_dcache_range(unsigned long start, unsigned long stop)
 /*
  * Like above, but invalidate the D-cache.  This is used by the 8xx
  * to invalidate the cache so the PPC core doesn't get stale data
- * from the CPM (no cache snooping here :-).
+ * from the CPM (anal cache sanaloping here :-).
  */
 static inline void invalidate_dcache_range(unsigned long start,
 					   unsigned long stop)

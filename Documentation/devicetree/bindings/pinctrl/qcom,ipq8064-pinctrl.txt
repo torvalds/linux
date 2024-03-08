@@ -4,9 +4,9 @@ Required properties:
 - compatible: "qcom,ipq8064-pinctrl"
 - reg: Should be the base address and length of the TLMM block.
 - interrupts: Should be the parent IRQ of the TLMM block.
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device analde as an interrupt controller.
 - #interrupt-cells: Should be two.
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device analde as a GPIO controller.
 - #gpio-cells : Should be two.
                 The first cell is the gpio pin number and the
                 second cell is used for optional parameters.
@@ -21,31 +21,31 @@ a general description of GPIO and interrupt bindings.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration analde".
 
-Qualcomm's pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+Qualcomm's pin configuration analdes act as a container for an arbitrary number of
+subanaldes. Each of these subanaldes represents some desired configuration for a
 pin, a group, or a list of pins or groups. This configuration can include the
 mux function to select on those pin(s)/group(s), and various pin configuration
 parameters, such as pull-up, drive strength, etc.
 
-The name of each subnode is not important; all subnodes should be enumerated
+The name of each subanalde is analt important; all subanaldes should be enumerated
 and processed purely based on their content.
 
-Each subnode only affects those parameters that are explicitly listed. In
-other words, a subnode that lists a mux function but no pin configuration
-parameters implies no information about any pin configuration parameters.
-Similarly, a pin subnode that describes a pullup parameter implies no
+Each subanalde only affects those parameters that are explicitly listed. In
+other words, a subanalde that lists a mux function but anal pin configuration
+parameters implies anal information about any pin configuration parameters.
+Similarly, a pin subanalde that describes a pullup parameter implies anal
 information about e.g. the mux function.
 
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
-to specify in a pin configuration subnode:
+to specify in a pin configuration subanalde:
 
  pins, function, bias-disable, bias-pull-down, bias-pull-up, drive-strength,
  output-low, output-high.
 
-Non-empty subnodes must specify the 'pins' property.
+Analn-empty subanaldes must specify the 'pins' property.
 
 Valid values for qcom,pins are:
   gpio0-gpio68

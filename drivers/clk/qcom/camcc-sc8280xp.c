@@ -647,7 +647,7 @@ static struct clk_rcg2 camcc_bps_clk_src = {
 	},
 };
 
-static const struct freq_tbl ftbl_camcc_camnoc_axi_clk_src[] = {
+static const struct freq_tbl ftbl_camcc_camanalc_axi_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(150000000, P_CAMCC_PLL0_OUT_EVEN, 4, 0, 0),
 	F(266666667, P_CAMCC_PLL0_OUT_ODD, 1.5, 0, 0),
@@ -656,14 +656,14 @@ static const struct freq_tbl ftbl_camcc_camnoc_axi_clk_src[] = {
 	F(480000000, P_CAMCC_PLL7_OUT_EVEN, 1, 0, 0),
 };
 
-static struct clk_rcg2 camcc_camnoc_axi_clk_src = {
+static struct clk_rcg2 camcc_camanalc_axi_clk_src = {
 	.cmd_rcgr = 0xc170,
 	.mnd_width = 0,
 	.hid_width = 5,
 	.parent_map = camcc_parent_map_2,
-	.freq_tbl = ftbl_camcc_camnoc_axi_clk_src,
+	.freq_tbl = ftbl_camcc_camanalc_axi_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
-		.name = "camcc_camnoc_axi_clk_src",
+		.name = "camcc_camanalc_axi_clk_src",
 		.parent_data = camcc_parent_data_2,
 		.num_parents = ARRAY_SIZE(camcc_parent_data_2),
 		.ops = &clk_rcg2_ops,
@@ -1418,7 +1418,7 @@ static struct clk_branch camcc_bps_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "camcc_bps_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&camcc_camnoc_axi_clk_src.clkr.hw,
+				&camcc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1445,16 +1445,16 @@ static struct clk_branch camcc_bps_clk = {
 	},
 };
 
-static struct clk_branch camcc_camnoc_axi_clk = {
+static struct clk_branch camcc_camanalc_axi_clk = {
 	.halt_reg = 0xc18c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xc18c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "camcc_camnoc_axi_clk",
+			.name = "camcc_camanalc_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&camcc_camnoc_axi_clk_src.clkr.hw,
+				&camcc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1463,14 +1463,14 @@ static struct clk_branch camcc_camnoc_axi_clk = {
 	},
 };
 
-static struct clk_branch camcc_camnoc_dcd_xo_clk = {
+static struct clk_branch camcc_camanalc_dcd_xo_clk = {
 	.halt_reg = 0xc194,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xc194,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "camcc_camnoc_dcd_xo_clk",
+			.name = "camcc_camanalc_dcd_xo_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&camcc_xo_clk_src.clkr.hw,
 			},
@@ -1796,7 +1796,7 @@ static struct clk_branch camcc_ife_0_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "camcc_ife_0_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&camcc_camnoc_axi_clk_src.clkr.hw,
+				&camcc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1886,7 +1886,7 @@ static struct clk_branch camcc_ife_1_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "camcc_ife_1_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&camcc_camnoc_axi_clk_src.clkr.hw,
+				&camcc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1976,7 +1976,7 @@ static struct clk_branch camcc_ife_2_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "camcc_ife_2_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&camcc_camnoc_axi_clk_src.clkr.hw,
+				&camcc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2066,7 +2066,7 @@ static struct clk_branch camcc_ife_3_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "camcc_ife_3_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&camcc_camnoc_axi_clk_src.clkr.hw,
+				&camcc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2408,7 +2408,7 @@ static struct clk_branch camcc_ipe_0_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "camcc_ipe_0_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&camcc_camnoc_axi_clk_src.clkr.hw,
+				&camcc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2480,7 +2480,7 @@ static struct clk_branch camcc_ipe_1_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "camcc_ipe_1_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&camcc_camnoc_axi_clk_src.clkr.hw,
+				&camcc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2792,9 +2792,9 @@ static struct clk_regmap *camcc_sc8280xp_clocks[] = {
 	[CAMCC_BPS_AXI_CLK] = &camcc_bps_axi_clk.clkr,
 	[CAMCC_BPS_CLK] = &camcc_bps_clk.clkr,
 	[CAMCC_BPS_CLK_SRC] = &camcc_bps_clk_src.clkr,
-	[CAMCC_CAMNOC_AXI_CLK] = &camcc_camnoc_axi_clk.clkr,
-	[CAMCC_CAMNOC_AXI_CLK_SRC] = &camcc_camnoc_axi_clk_src.clkr,
-	[CAMCC_CAMNOC_DCD_XO_CLK] = &camcc_camnoc_dcd_xo_clk.clkr,
+	[CAMCC_CAMANALC_AXI_CLK] = &camcc_camanalc_axi_clk.clkr,
+	[CAMCC_CAMANALC_AXI_CLK_SRC] = &camcc_camanalc_axi_clk_src.clkr,
+	[CAMCC_CAMANALC_DCD_XO_CLK] = &camcc_camanalc_dcd_xo_clk.clkr,
 	[CAMCC_CCI_0_CLK] = &camcc_cci_0_clk.clkr,
 	[CAMCC_CCI_0_CLK_SRC] = &camcc_cci_0_clk_src.clkr,
 	[CAMCC_CCI_1_CLK] = &camcc_cci_1_clk.clkr,
@@ -2936,7 +2936,7 @@ static struct gdsc *camcc_sc8280xp_gdscs[] = {
 
 static const struct qcom_reset_map camcc_sc8280xp_resets[] = {
 	[CAMCC_BPS_BCR] = { 0x7000 },
-	[CAMCC_CAMNOC_BCR] = { 0xc16c },
+	[CAMCC_CAMANALC_BCR] = { 0xc16c },
 	[CAMCC_CCI_BCR] = { 0xc104 },
 	[CAMCC_CPAS_BCR] = { 0xc164 },
 	[CAMCC_CSI0PHY_BCR] = { 0x6000 },

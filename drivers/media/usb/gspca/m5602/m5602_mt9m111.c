@@ -3,7 +3,7 @@
  * Driver for the mt9m111 sensor
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -168,7 +168,7 @@ static struct v4l2_pix_format mt9m111_modes[] = {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage = 640 * 480,
 		.bytesperline = 640,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -203,9 +203,9 @@ int mt9m111_probe(struct sd *sd)
 			pr_info("Forcing a %s sensor\n", mt9m111.name);
 			goto sensor_found;
 		}
-		/* If we want to force another sensor, don't try to probe this
+		/* If we want to force aanalther sensor, don't try to probe this
 		 * one */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gspca_dbg(gspca_dev, D_PROBE, "Probing for a mt9m111 sensor\n");
@@ -227,14 +227,14 @@ int mt9m111_probe(struct sd *sd)
 	}
 
 	if (m5602_read_sensor(sd, MT9M111_SC_CHIPVER, data, 2))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((data[0] == 0x14) && (data[1] == 0x3a)) {
 		pr_info("Detected a mt9m111 sensor\n");
 		goto sensor_found;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = mt9m111_modes;
@@ -297,7 +297,7 @@ int mt9m111_init_controls(struct sd *sd)
 				      0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 

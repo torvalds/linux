@@ -35,7 +35,7 @@ ip_vs_lc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	 * Except whose weight is equal to zero.
 	 * If the weight is equal to zero, it means that the server is
 	 * quiesced, the existing connections to the server still get
-	 * served, but no new connection is assigned to the server.
+	 * served, but anal new connection is assigned to the server.
 	 */
 
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
@@ -50,7 +50,7 @@ ip_vs_lc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	}
 
 	if (!least)
-		ip_vs_scheduler_err(svc, "no destination available");
+		ip_vs_scheduler_err(svc, "anal destination available");
 	else
 		IP_VS_DBG_BUF(6, "LC: server %s:%u activeconns %d "
 			      "inactconns %d\n",

@@ -52,6 +52,6 @@ temp[N]_crit		Provides shutdown temperature of the DIMM.
 
 ======================= =======================================================
 
-Note:
+Analte:
 	DIMM temperature attributes will appear when the client CPU's BIOS
 	completes memory training and testing.

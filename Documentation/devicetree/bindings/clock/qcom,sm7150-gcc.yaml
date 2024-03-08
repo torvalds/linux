@@ -8,7 +8,7 @@ title: Qualcomm Global Clock & Reset Controller on SM7150
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Danila Tikhonov <danila@jiaxyga.com>
+  - Danila Tikhoanalv <danila@jiaxyga.com>
   - David Wronek <davidwronek@gmail.com>
 
 description: |

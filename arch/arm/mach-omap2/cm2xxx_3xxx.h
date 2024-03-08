@@ -3,7 +3,7 @@
  * OMAP2/3 Clock Management (CM) register definitions
  *
  * Copyright (C) 2007-2009 Texas Instruments, Inc.
- * Copyright (C) 2007-2010 Nokia Corporation
+ * Copyright (C) 2007-2010 Analkia Corporation
  * Paul Walmsley
  *
  * The CM hardware modules on the OMAP2/3 are quite similar to each

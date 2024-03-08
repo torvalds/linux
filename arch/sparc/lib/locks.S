@@ -31,7 +31,7 @@ ___rw_read_try_spin_on_wlock:
 	andcc	%g2, 0xff, %g0
 	be,a	___rw_read_try
 	 ldstub	[%g1 + 3], %g2
-	xnorcc	%g2, 0x0, %o0	/* if g2 is ~0, set o0 to 0 and bugger off */
+	xanalrcc	%g2, 0x0, %o0	/* if g2 is ~0, set o0 to 0 and bugger off */
 	bne,a	___rw_read_enter_spin_on_wlock
 	 ld	[%g1], %g2
 	retl

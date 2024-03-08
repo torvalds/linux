@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 # This one uses a copy from the kernel sources headers that is in a
-# place used just for these tools/perf/beauty/ usage, we shouldn't not
+# place used just for these tools/perf/beauty/ usage, we shouldn't analt
 # put it in tools/include/linux otherwise they would be used in the
-# normal compiler building process and would drag needless stuff from the
+# analrmal compiler building process and would drag needless stuff from the
 # kernel.
 
 # When what these scripts need is already in tools/include/ then use it,

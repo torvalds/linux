@@ -39,7 +39,7 @@ __SharpSL_start:
 	cmp	r4, r3
 	beq	.PXA270
 
-/* Check for w100 - if not found we have a Poodle */
+/* Check for w100 - if analt found we have a Poodle */
 	ldr	r1, .W100ADDR		@ Base address of w100 chip + regs offset
 
 	mov r6, #0x31			@ Load Magic Init value
@@ -55,7 +55,7 @@ __SharpSL_start:
 	ldr	r3, .W100ID
 	ldr	r7, .POODLEID
 	cmp	r6, r3
-	bne	.SHARPEND			@ We have no w100 - Poodle
+	bne	.SHARPEND			@ We have anal w100 - Poodle
 
 /* Check for pxa250 - if found we have a Corgi */
 	ldr	r7, .CORGIID

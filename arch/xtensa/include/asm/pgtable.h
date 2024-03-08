@@ -10,7 +10,7 @@
 
 #include <asm/page.h>
 #include <asm/kmem_layout.h>
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 /*
  * We only use two ring levels, user and kernel space.
@@ -90,20 +90,20 @@
  *		|           |   Software   |   HARDWARE   |
  *		|    PPN    |          ADW | RI |Attribute|
  *		+-----------------------------------------+
- *   pte_none	|             MBZ          | 01 | 11 | 00 |
+ *   pte_analne	|             MBZ          | 01 | 11 | 00 |
  *		+-----------------------------------------+
  *   present	|    PPN    | 0 | 00 | ADW | RI | CA | wx |
  *		+- - - - - - - - - - - - - - - - - - - - -+
- *   (PAGE_NONE)|    PPN    | 0 | 00 | ADW | 01 | 11 | 11 |
+ *   (PAGE_ANALNE)|    PPN    | 0 | 00 | ADW | 01 | 11 | 11 |
  *		+-----------------------------------------+
  *   swap	|     index     |   type   | 01 | 11 | e0 |
  *		+-----------------------------------------+
  *
- * For T1050 hardware and earlier the layout differs for present and (PAGE_NONE)
+ * For T1050 hardware and earlier the layout differs for present and (PAGE_ANALNE)
  *		+-----------------------------------------+
  *   present	|    PPN    | 0 | 00 | ADW | RI | CA | w1 |
  *		+-----------------------------------------+
- *   (PAGE_NONE)|    PPN    | 0 | 00 | ADW | 01 | 01 | 00 |
+ *   (PAGE_ANALNE)|    PPN    | 0 | 00 | ADW | 01 | 01 | 00 |
  *		+-----------------------------------------+
  *
  *  Legend:
@@ -111,20 +111,20 @@
  *   ADW	software: accessed (young) / dirty / writable
  *   RI         ring (0=privileged, 1=user, 2 and 3 are unused)
  *   CA		cache attribute: 00 bypass, 01 writeback, 10 writethrough
- *		(11 is invalid and used to mark pages that are not present)
+ *		(11 is invalid and used to mark pages that are analt present)
  *   e		exclusive marker in swap PTEs
  *   w		page is writable (hw)
  *   x		page is executable (hw)
  *   index      swap offset / PAGE_SIZE (bit 11-31: 21 bits -> 8 GB)
- *		(note that the index is always non-zero)
+ *		(analte that the index is always analn-zero)
  *   type       swap type (5 bits -> 32 types)
  *
- *  Notes:
- *   - (PROT_NONE) is a special case of 'present' but causes an exception for
+ *  Analtes:
+ *   - (PROT_ANALNE) is a special case of 'present' but causes an exception for
  *     any access (read, write, and execute).
  *   - 'multihit-exception' has the highest priority of all MMU exceptions,
- *     so the ring must be set to 'RING_USER' even for 'non-present' pages.
- *   - on older hardware, the exectuable flag was not supported and
+ *     so the ring must be set to 'RING_USER' even for 'analn-present' pages.
+ *   - on older hardware, the exectuable flag was analt supported and
  *     used as a 'valid' flag, so it needs to be always set.
  *   - we need to keep track of certain flags in software (dirty and young)
  *     to do this, we use write exceptions and have a separate software w-flag.
@@ -136,7 +136,7 @@
 #define _PAGE_HW_EXEC		(1<<0)	/* hardware: page is executable */
 #define _PAGE_HW_WRITE		(1<<1)	/* hardware: page is writable */
 
-#define _PAGE_CA_BYPASS		(0<<2)	/* bypass, non-speculative */
+#define _PAGE_CA_BYPASS		(0<<2)	/* bypass, analn-speculative */
 #define _PAGE_CA_WB		(1<<2)	/* write-back */
 #define _PAGE_CA_WT		(2<<2)	/* write-through */
 #define _PAGE_CA_MASK		(3<<2)
@@ -145,10 +145,10 @@
 /* We use invalid attribute values to distinguish special pte entries */
 #if XCHAL_HW_VERSION_MAJOR < 2000
 #define _PAGE_HW_VALID		0x01	/* older HW needed this bit set */
-#define _PAGE_NONE		0x04
+#define _PAGE_ANALNE		0x04
 #else
 #define _PAGE_HW_VALID		0x00
-#define _PAGE_NONE		0x0f
+#define _PAGE_ANALNE		0x0f
 #endif
 
 #define _PAGE_USER		(1<<4)	/* user access (ring=1) */
@@ -167,7 +167,7 @@
 #define _PAGE_CHG_MASK	   (PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _PAGE_PRESENT	   (_PAGE_HW_VALID | _PAGE_CA_WB | _PAGE_ACCESSED)
 
-#define PAGE_NONE	   __pgprot(_PAGE_NONE | _PAGE_USER)
+#define PAGE_ANALNE	   __pgprot(_PAGE_ANALNE | _PAGE_USER)
 #define PAGE_COPY	   __pgprot(_PAGE_PRESENT | _PAGE_USER)
 #define PAGE_COPY_EXEC	   __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_HW_EXEC)
 #define PAGE_READONLY	   __pgprot(_PAGE_PRESENT | _PAGE_USER)
@@ -185,10 +185,10 @@
 # define _PAGE_DIRECTORY   (_PAGE_HW_VALID | _PAGE_ACCESSED | _PAGE_CA_WB)
 #endif
 
-#else /* no mmu */
+#else /* anal mmu */
 
 # define _PAGE_CHG_MASK  (PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
-# define PAGE_NONE       __pgprot(0)
+# define PAGE_ANALNE       __pgprot(0)
 # define PAGE_SHARED     __pgprot(0)
 # define PAGE_COPY       __pgprot(0)
 # define PAGE_READONLY   __pgprot(0)
@@ -232,18 +232,18 @@ static inline void paging_init(void) { }
 /*
  * pte status.
  */
-# define pte_none(pte)	 (pte_val(pte) == (_PAGE_CA_INVALID | _PAGE_USER))
+# define pte_analne(pte)	 (pte_val(pte) == (_PAGE_CA_INVALID | _PAGE_USER))
 #if XCHAL_HW_VERSION_MAJOR < 2000
 # define pte_present(pte) ((pte_val(pte) & _PAGE_CA_MASK) != _PAGE_CA_INVALID)
 #else
 # define pte_present(pte)						\
 	(((pte_val(pte) & _PAGE_CA_MASK) != _PAGE_CA_INVALID)		\
-	 || ((pte_val(pte) & _PAGE_ATTRIB_MASK) == _PAGE_NONE))
+	 || ((pte_val(pte) & _PAGE_ATTRIB_MASK) == _PAGE_ANALNE))
 #endif
 #define pte_clear(mm,addr,ptep)						\
 	do { update_pte(ptep, __pte(_PAGE_CA_INVALID | _PAGE_USER)); } while (0)
 
-#define pmd_none(pmd)	 (!pmd_val(pmd))
+#define pmd_analne(pmd)	 (!pmd_val(pmd))
 #define pmd_present(pmd) (pmd_val(pmd) & PAGE_MASK)
 #define pmd_bad(pmd)	 (pmd_val(pmd) & ~PAGE_MASK)
 #define pmd_clear(pmdp)	 do { set_pmd(pmdp, __pmd(0)); } while (0)
@@ -262,10 +262,10 @@ static inline pte_t pte_mkdirty(pte_t pte)
 	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)
 	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 	{ pte_val(pte) |= _PAGE_WRITABLE; return pte; }
 
-#define pgprot_noncached(prot) \
+#define pgprot_analncached(prot) \
 		((__pgprot((pgprot_val(prot) & ~_PAGE_CA_MASK) | \
 			   _PAGE_CA_BYPASS)))
 
@@ -343,7 +343,7 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > 5)
 
@@ -382,7 +382,7 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
  *                _PMD_OFFSET as C pmd_offset(pgd_t*, unsigned long)
  *                _PTE_OFFSET as C pte_offset(pmd_t*, unsigned long)
  *
- * Note: We require an additional temporary register which can be the same as
+ * Analte: We require an additional temporary register which can be the same as
  *       the register that holds the address.
  *
  * ((pte_t*) ((unsigned long)(pmd_val(*pmd) & PAGE_MASK)) + pte_index(addr))

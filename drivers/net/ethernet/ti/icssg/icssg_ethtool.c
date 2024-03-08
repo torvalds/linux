@@ -48,7 +48,7 @@ static int emac_set_link_ksettings(struct net_device *ndev,
 static int emac_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 {
 	if (!ndev->phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phy_ethtool_get_eee(ndev->phydev, edata);
 }
@@ -56,7 +56,7 @@ static int emac_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 static int emac_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
 {
 	if (!ndev->phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phy_ethtool_set_eee(ndev->phydev, edata);
 }
@@ -72,7 +72,7 @@ static int emac_get_sset_count(struct net_device *ndev, int stringset)
 	case ETH_SS_STATS:
 		return ICSSG_NUM_ETHTOOL_STATS;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -124,7 +124,7 @@ static int emac_get_ts_info(struct net_device *ndev,
 
 	info->phc_index = icss_iep_get_ptp_clock_idx(emac->iep);
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) | BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
 }

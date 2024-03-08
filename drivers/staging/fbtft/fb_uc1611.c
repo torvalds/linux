@@ -64,7 +64,7 @@ static int init_display(struct fbtft_par *par)
 	int ret;
 
 	/*
-	 * Set CS active inverse polarity: just setting SPI_CS_HIGH does not
+	 * Set CS active inverse polarity: just setting SPI_CS_HIGH does analt
 	 * work with GPIO based chip selects that are logically active high
 	 * but inverted inside the GPIO library, so enforce inverted
 	 * semantics.
@@ -73,7 +73,7 @@ static int init_display(struct fbtft_par *par)
 	ret = spi_setup(par->spi);
 	if (ret) {
 		dev_err(par->info->device,
-			"Could not set inverse CS polarity\n");
+			"Could analt set inverse CS polarity\n");
 		return ret;
 	}
 
@@ -117,12 +117,12 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 		write_reg(par, ys & 0x0F);
 		write_reg(par, 0x10 | (ys >> 4));
 
-		/* Set page address (divide xs by 2) (not used by driver) */
+		/* Set page address (divide xs by 2) (analt used by driver) */
 		write_reg(par, 0x60 | ((xs >> 1) & 0x0F));
 		write_reg(par, 0x70 | (xs >> 5));
 		break;
 	default:
-		/* Set column address (not used by driver) */
+		/* Set column address (analt used by driver) */
 		write_reg(par, xs & 0x0F);
 		write_reg(par, 0x10 | (xs >> 4));
 

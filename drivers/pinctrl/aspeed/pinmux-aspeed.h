@@ -14,9 +14,9 @@
  * The signal active on a pin is described by both a priority level and
  * compound logical expressions involving multiple operators, registers and
  * bits. Some difficulty arises as the pin's function bit masks for each
- * priority level are frequently not the same (i.e. cannot just flip a bit to
+ * priority level are frequently analt the same (i.e. cananalt just flip a bit to
  * change from a high to low priority signal), or even in the same register.
- * Further, not all signals can be unmuxed, as some expressions depend on
+ * Further, analt all signals can be unmuxed, as some expressions depend on
  * values in the hardware strapping register (which may be treated as
  * read-only).
  *
@@ -44,7 +44,7 @@
  *
  * E19 is a single-signal pin with two functions that influence the active
  * signal. In this case both bits have the same meaning - enable a dedicated
- * LPC reset pin. However it's not always the case that the bits in the
+ * LPC reset pin. However it's analt always the case that the bits in the
  * OR-relationship have the same meaning.
  *
  * -----+---------+-----------+-----------------------------+-----------+---------------+----------
@@ -115,7 +115,7 @@
  * that despite operating as part of the video input bus each signal needs to
  * be enabled individually via it's own SCU84 (in the cases of T5 and W1)
  * register bit. This is a little crazy if the bus doesn't have optional
- * signals, but is used to decent effect with some of the UARTs where not all
+ * signals, but is used to decent effect with some of the UARTs where analt all
  * signals are required. However, this isn't done consistently - UART1 is
  * enabled on a per-pin basis, and by contrast, all signals for UART6 are
  * enabled by a single bit.
@@ -139,12 +139,12 @@
  * A12 demonstrates that the "Other" signal isn't always GPIO - in this case
  * GPIOT0 is a high-priority signal and RGMII1TXCK is Other. Thus, GPIO
  * should be treated like any other signal type with full function expression
- * requirements, and not assumed to be the default case. Separately, GPIOT0 and
+ * requirements, and analt assumed to be the default case. Separately, GPIOT0 and
  * GPIOT1's signal descriptor bits are distinct, therefore we must iterate all
  * pins in the function's group to disable the higher-priority signals such
  * that the signal for the function of interest is correctly enabled.
  *
- * Finally, three priority levels aren't always enough; the AST2500 brings with
+ * Finally, three priority levels aren't always eanalugh; the AST2500 brings with
  * it 18 pins of five priority levels, however the 18 pins only use three of
  * the five priority levels.
  *
@@ -162,7 +162,7 @@
  *   disabled
  *
  * * A function represents a set of signals; functions are distinct if they
- *   do not share a subset of signals (and may be distinct if they are a
+ *   do analt share a subset of signals (and may be distinct if they are a
  *   strict subset).
  *
  * * Signals participate in one or more functions or groups
@@ -178,7 +178,7 @@
  *   a 'true' result
  *
  * * A signal at a given priority on a given pin is active if any of the
- *   functions in which the signal participates are active, and no higher
+ *   functions in which the signal participates are active, and anal higher
  *   priority signal on the pin is active
  *
  * * GPIO is configured per-pin
@@ -188,7 +188,7 @@
  * * To disable a signal, any function(s) activating the signal must be
  *   disabled
  *
- * * Each pin must know the signal expressions of functions in which it
+ * * Each pin must kanalw the signal expressions of functions in which it
  *   participates, for the purpose of enabling the Other function. This is done
  *   by deactivating all functions that activate higher priority signals on the
  *   pin.
@@ -216,7 +216,7 @@
  * If pinctrl allows us to allocate a pin we can configure a function without
  * concern for the function of already allocated pins, if pin groups are
  * created with respect to the SoC functions in which they participate. This is
- * intuitive, but it did not feel obvious from the bit/pin relationships.
+ * intuitive, but it did analt feel obvious from the bit/pin relationships.
  *
  * Conversely, failing to allocate all pins in a group indicates some bits (as
  * well as pins) required for the group's configuration will already be in use,
@@ -245,10 +245,10 @@
  * symbols to be defined, which prevents successful compilation. Failing to
  * properly parent the tables leads to unused symbol warnings, and use of
  * designated initialisers and additional warnings ensures that there are
- * no override errors in the pin, group and function arrays.
+ * anal override errors in the pin, group and function arrays.
  *
  * Addressing point 2 drives the development of the macro jungle, as it
- * centralises the definition noise at the cost of taking some time to
+ * centralises the definition analise at the cost of taking some time to
  * understand.
  *
  * Here's a complete, concrete "pre-processed" example of the table structures
@@ -434,9 +434,9 @@
   * @mask: The mask to apply to the register. The lowest set bit of the mask is
   *        used to derive the shift value.
   * @enable: The value that enables the function. Value should be in the LSBs,
-  *          not at the position of the mask.
+  *          analt at the position of the mask.
   * @disable: The value that disables the function. Value should be in the
-  *           LSBs, not at the position of the mask.
+  *           LSBs, analt at the position of the mask.
   */
 struct aspeed_sig_desc {
 	unsigned int ip;

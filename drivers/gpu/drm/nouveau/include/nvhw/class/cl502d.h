@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -159,19 +159,19 @@
 #define NV502D_SET_OPERATION_V_SRCCOPY_PREMULT                                                         0x00000005
 #define NV502D_SET_OPERATION_V_BLEND_PREMULT                                                           0x00000006
 
-#define NV502D_SET_MONOCHROME_PATTERN_COLOR_FORMAT                                                         0x02e8
-#define NV502D_SET_MONOCHROME_PATTERN_COLOR_FORMAT_V                                                          2:0
-#define NV502D_SET_MONOCHROME_PATTERN_COLOR_FORMAT_V_A8X8R5G6B5                                        0x00000000
-#define NV502D_SET_MONOCHROME_PATTERN_COLOR_FORMAT_V_A1R5G5B5                                          0x00000001
-#define NV502D_SET_MONOCHROME_PATTERN_COLOR_FORMAT_V_A8R8G8B8                                          0x00000002
-#define NV502D_SET_MONOCHROME_PATTERN_COLOR_FORMAT_V_A8Y8                                              0x00000003
-#define NV502D_SET_MONOCHROME_PATTERN_COLOR_FORMAT_V_A8X8Y16                                           0x00000004
-#define NV502D_SET_MONOCHROME_PATTERN_COLOR_FORMAT_V_Y32                                               0x00000005
+#define NV502D_SET_MOANALCHROME_PATTERN_COLOR_FORMAT                                                         0x02e8
+#define NV502D_SET_MOANALCHROME_PATTERN_COLOR_FORMAT_V                                                          2:0
+#define NV502D_SET_MOANALCHROME_PATTERN_COLOR_FORMAT_V_A8X8R5G6B5                                        0x00000000
+#define NV502D_SET_MOANALCHROME_PATTERN_COLOR_FORMAT_V_A1R5G5B5                                          0x00000001
+#define NV502D_SET_MOANALCHROME_PATTERN_COLOR_FORMAT_V_A8R8G8B8                                          0x00000002
+#define NV502D_SET_MOANALCHROME_PATTERN_COLOR_FORMAT_V_A8Y8                                              0x00000003
+#define NV502D_SET_MOANALCHROME_PATTERN_COLOR_FORMAT_V_A8X8Y16                                           0x00000004
+#define NV502D_SET_MOANALCHROME_PATTERN_COLOR_FORMAT_V_Y32                                               0x00000005
 
-#define NV502D_SET_MONOCHROME_PATTERN_FORMAT                                                               0x02ec
-#define NV502D_SET_MONOCHROME_PATTERN_FORMAT_V                                                                0:0
-#define NV502D_SET_MONOCHROME_PATTERN_FORMAT_V_CGA6_M1                                                 0x00000000
-#define NV502D_SET_MONOCHROME_PATTERN_FORMAT_V_LE_M1                                                   0x00000001
+#define NV502D_SET_MOANALCHROME_PATTERN_FORMAT                                                               0x02ec
+#define NV502D_SET_MOANALCHROME_PATTERN_FORMAT_V                                                                0:0
+#define NV502D_SET_MOANALCHROME_PATTERN_FORMAT_V_CGA6_M1                                                 0x00000000
+#define NV502D_SET_MOANALCHROME_PATTERN_FORMAT_V_LE_M1                                                   0x00000001
 
 #define NV502D_RENDER_SOLID_PRIM_MODE                                                                      0x0580
 #define NV502D_RENDER_SOLID_PRIM_MODE_V                                                                       2:0
@@ -239,10 +239,10 @@
 #define NV502D_SET_PIXELS_FROM_CPU_INDEX_FORMAT_V_I4                                                   0x00000001
 #define NV502D_SET_PIXELS_FROM_CPU_INDEX_FORMAT_V_I8                                                   0x00000002
 
-#define NV502D_SET_PIXELS_FROM_CPU_MONO_FORMAT                                                             0x080c
-#define NV502D_SET_PIXELS_FROM_CPU_MONO_FORMAT_V                                                              0:0
-#define NV502D_SET_PIXELS_FROM_CPU_MONO_FORMAT_V_CGA6_M1                                               0x00000000
-#define NV502D_SET_PIXELS_FROM_CPU_MONO_FORMAT_V_LE_M1                                                 0x00000001
+#define NV502D_SET_PIXELS_FROM_CPU_MOANAL_FORMAT                                                             0x080c
+#define NV502D_SET_PIXELS_FROM_CPU_MOANAL_FORMAT_V                                                              0:0
+#define NV502D_SET_PIXELS_FROM_CPU_MOANAL_FORMAT_V_CGA6_M1                                               0x00000000
+#define NV502D_SET_PIXELS_FROM_CPU_MOANAL_FORMAT_V_LE_M1                                                 0x00000001
 
 #define NV502D_SET_PIXELS_FROM_CPU_WRAP                                                                    0x0810
 #define NV502D_SET_PIXELS_FROM_CPU_WRAP_V                                                                     1:0
@@ -256,10 +256,10 @@
 #define NV502D_SET_PIXELS_FROM_CPU_COLOR1                                                                  0x0818
 #define NV502D_SET_PIXELS_FROM_CPU_COLOR1_V                                                                  31:0
 
-#define NV502D_SET_PIXELS_FROM_CPU_MONO_OPACITY                                                            0x081c
-#define NV502D_SET_PIXELS_FROM_CPU_MONO_OPACITY_V                                                             0:0
-#define NV502D_SET_PIXELS_FROM_CPU_MONO_OPACITY_V_TRANSPARENT                                          0x00000000
-#define NV502D_SET_PIXELS_FROM_CPU_MONO_OPACITY_V_OPAQUE                                               0x00000001
+#define NV502D_SET_PIXELS_FROM_CPU_MOANAL_OPACITY                                                            0x081c
+#define NV502D_SET_PIXELS_FROM_CPU_MOANAL_OPACITY_V                                                             0:0
+#define NV502D_SET_PIXELS_FROM_CPU_MOANAL_OPACITY_V_TRANSPARENT                                          0x00000000
+#define NV502D_SET_PIXELS_FROM_CPU_MOANAL_OPACITY_V_OPAQUE                                               0x00000001
 
 #define NV502D_SET_PIXELS_FROM_CPU_SRC_WIDTH                                                               0x0838
 #define NV502D_SET_PIXELS_FROM_CPU_SRC_WIDTH_V                                                               31:0

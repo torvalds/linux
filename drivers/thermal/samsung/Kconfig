@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config EXYNOS_THERMAL
-	tristate "Exynos thermal management unit driver"
+config EXYANALS_THERMAL
+	tristate "Exyanals thermal management unit driver"
 	depends on THERMAL_OF
 	depends on HAS_IOMEM
 	help
-	  If you say yes here you get support for the TMU (Thermal Management
-	  Unit) driver for Samsung Exynos series of SoCs. This driver initialises
+	  If you say anal here you get support for the TMU (Thermal Management
+	  Unit) driver for Samsung Exyanals series of SoCs. This driver initialises
 	  the TMU, reports temperature and handles cooling action if defined.
-	  This driver uses the Exynos core thermal APIs and TMU configuration
+	  This driver uses the Exyanals core thermal APIs and TMU configuration
 	  data from the supported SoCs.

@@ -1,6 +1,6 @@
 What:           /sys/devices/uncore_iio_x/dieX
 Date:           February 2020
-Contact:        Alexander Antonov <alexander.antonov@linux.intel.com>
+Contact:        Alexander Antoanalv <alexander.antoanalv@linux.intel.com>
 Description:
                 Each IIO stack (PCIe root port) has its own IIO PMON block, so
                 each dieX file (where X is die number) holds "Segment:Root Bus"
@@ -35,7 +35,7 @@ Description:
 
 What:           /sys/devices/uncore_upi_x/dieX
 Date:           March 2022
-Contact:        Alexander Antonov <alexander.antonov@linux.intel.com>
+Contact:        Alexander Antoanalv <alexander.antoanalv@linux.intel.com>
 Description:
                 Each /sys/devices/uncore_upi_X/dieY file holds "upi_Z,die_W"
                 value that means UPI link number X on die Y is connected to UPI

@@ -9,7 +9,7 @@
 #include <linux/migrate.h>
 #include <linux/mm.h>
 #include <linux/mm_inline.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/oom.h>
 #include <linux/pagewalk.h>
 #include <linux/rmap.h>
@@ -40,8 +40,8 @@ static int migrate_vma_collect_hole(unsigned long start,
 	struct migrate_vma *migrate = walk->private;
 	unsigned long addr;
 
-	/* Only allow populating anonymous memory. */
-	if (!vma_is_anonymous(walk->vma))
+	/* Only allow populating aanalnymous memory. */
+	if (!vma_is_aanalnymous(walk->vma))
 		return migrate_vma_collect_skip(start, end, walk);
 
 	for (addr = start; addr < end; addr += PAGE_SIZE) {
@@ -67,7 +67,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
 	pte_t *ptep;
 
 again:
-	if (pmd_none(*pmdp))
+	if (pmd_analne(*pmdp))
 		return migrate_vma_collect_hole(start, end, -1, walk);
 
 	if (pmd_trans_huge(*pmdp)) {
@@ -114,8 +114,8 @@ again:
 
 		pte = ptep_get(ptep);
 
-		if (pte_none(pte)) {
-			if (vma_is_anonymous(vma)) {
+		if (pte_analne(pte)) {
+			if (vma_is_aanalnymous(vma)) {
 				mpfn = MIGRATE_PFN_MIGRATE;
 				migrate->cpages++;
 			}
@@ -125,8 +125,8 @@ again:
 		if (!pte_present(pte)) {
 			/*
 			 * Only care about unaddressable device page special
-			 * page table entry. Other special swap entries are not
-			 * migratable, and we ignore regular swapped page.
+			 * page table entry. Other special swap entries are analt
+			 * migratable, and we iganalre regular swapped page.
 			 */
 			entry = pte_to_swp_entry(pte);
 			if (!is_device_private_entry(entry))
@@ -150,7 +150,7 @@ again:
 				migrate->cpages++;
 				goto next;
 			}
-			page = vm_normal_page(migrate->vma, addr, pte);
+			page = vm_analrmal_page(migrate->vma, addr, pte);
 			if (page && !is_zone_device_page(page) &&
 			    !(migrate->flags & MIGRATE_VMA_SELECT_SYSTEM))
 				goto next;
@@ -174,7 +174,7 @@ again:
 		 * pte.
 		 *
 		 * We drop this reference after isolating the folio from the lru
-		 * for non device folio (device folio are not on the lru and thus
+		 * for analn device folio (device folio are analt on the lru and thus
 		 * can't be dropped from it).
 		 */
 		folio = page_folio(page);
@@ -187,22 +187,22 @@ again:
 		 * migration as it is only best effort anyway.
 		 *
 		 * If we can lock the folio it's safe to set up a migration entry
-		 * now. In the common case where the folio is mapped once in a
-		 * single process setting up the migration entry now is an
+		 * analw. In the common case where the folio is mapped once in a
+		 * single process setting up the migration entry analw is an
 		 * optimisation to avoid walking the rmap later with
 		 * try_to_migrate().
 		 */
 		if (folio_trylock(folio)) {
-			bool anon_exclusive;
+			bool aanaln_exclusive;
 			pte_t swp_pte;
 
 			flush_cache_page(vma, addr, pte_pfn(pte));
-			anon_exclusive = folio_test_anon(folio) &&
-					  PageAnonExclusive(page);
-			if (anon_exclusive) {
+			aanaln_exclusive = folio_test_aanaln(folio) &&
+					  PageAanalnExclusive(page);
+			if (aanaln_exclusive) {
 				pte = ptep_clear_flush(vma, addr, ptep);
 
-				if (folio_try_share_anon_rmap_pte(folio, page)) {
+				if (folio_try_share_aanaln_rmap_pte(folio, page)) {
 					set_pte_at(mm, addr, ptep, pte);
 					folio_unlock(folio);
 					folio_put(folio);
@@ -215,7 +215,7 @@ again:
 
 			migrate->cpages++;
 
-			/* Set the dirty flag on the folio now the pte is gone. */
+			/* Set the dirty flag on the folio analw the pte is gone. */
 			if (pte_dirty(pte))
 				folio_mark_dirty(folio);
 
@@ -223,7 +223,7 @@ again:
 			if (mpfn & MIGRATE_PFN_WRITE)
 				entry = make_writable_migration_entry(
 							page_to_pfn(page));
-			else if (anon_exclusive)
+			else if (aanaln_exclusive)
 				entry = make_readable_exclusive_migration_entry(
 							page_to_pfn(page));
 			else
@@ -295,30 +295,30 @@ static const struct mm_walk_ops migrate_vma_walk_ops = {
  */
 static void migrate_vma_collect(struct migrate_vma *migrate)
 {
-	struct mmu_notifier_range range;
+	struct mmu_analtifier_range range;
 
 	/*
-	 * Note that the pgmap_owner is passed to the mmu notifier callback so
+	 * Analte that the pgmap_owner is passed to the mmu analtifier callback so
 	 * that the registered device driver can skip invalidating device
 	 * private page mappings that won't be migrated.
 	 */
-	mmu_notifier_range_init_owner(&range, MMU_NOTIFY_MIGRATE, 0,
+	mmu_analtifier_range_init_owner(&range, MMU_ANALTIFY_MIGRATE, 0,
 		migrate->vma->vm_mm, migrate->start, migrate->end,
 		migrate->pgmap_owner);
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_analtifier_invalidate_range_start(&range);
 
 	walk_page_range(migrate->vma->vm_mm, migrate->start, migrate->end,
 			&migrate_vma_walk_ops, migrate);
 
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_analtifier_invalidate_range_end(&range);
 	migrate->end = migrate->start + (migrate->npages << PAGE_SHIFT);
 }
 
 /*
- * migrate_vma_check_page() - check if page is pinned or not
+ * migrate_vma_check_page() - check if page is pinned or analt
  * @page: struct page to check
  *
- * Pinned pages cannot be migrated. This is the same test as in
+ * Pinned pages cananalt be migrated. This is the same test as in
  * folio_migrate_mapping(), except that here we allow migration of a
  * ZONE_DEVICE page.
  */
@@ -377,7 +377,7 @@ static unsigned long migrate_device_unmap(unsigned long *src_pfns,
 			continue;
 		}
 
-		/* ZONE_DEVICE pages are not on LRU */
+		/* ZONE_DEVICE pages are analt on LRU */
 		if (!is_zone_device_page(page)) {
 			if (!PageLRU(page) && allow_drain) {
 				/* Drain CPU's lru cache */
@@ -439,7 +439,7 @@ static unsigned long migrate_device_unmap(unsigned long *src_pfns,
  *
  * Isolate pages from the LRU and replace mappings (CPU page table pte) with a
  * special migration pte entry and check if it has been pinned. Pinned pages are
- * restored because we cannot migrate them.
+ * restored because we cananalt migrate them.
  *
  * This is the last step before we call the device driver callback to allocate
  * destination memory and copy contents of original page over to new page.
@@ -454,13 +454,13 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
  * migrate_vma_setup() - prepare to migrate a range of memory
  * @args: contains the vma, start, and pfns arrays for the migration
  *
- * Returns: negative errno on failures, 0 when 0 or more pages were migrated
+ * Returns: negative erranal on failures, 0 when 0 or more pages were migrated
  * without an error.
  *
  * Prepare to migrate a range of memory virtual address range by collecting all
  * the pages backing each virtual address in the range, saving them inside the
  * src array.  Then lock those pages and unmap them. Once the pages are locked
- * and unmapped, check whether each page is pinned or not.  Pages that aren't
+ * and unmapped, check whether each page is pinned or analt.  Pages that aren't
  * pinned have the MIGRATE_PFN_MIGRATE flag set (by this function) in the
  * corresponding src array entry.  Then restores any pages that are pinned, by
  * remapping and unlocking those pages.
@@ -472,18 +472,18 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
  * page and with MIGRATE_PFN_VALID. Destination pages must be locked via
  * lock_page().
  *
- * Note that the caller does not have to migrate all the pages that are marked
+ * Analte that the caller does analt have to migrate all the pages that are marked
  * with MIGRATE_PFN_MIGRATE flag in src array unless this is a migration from
- * device memory to system memory.  If the caller cannot migrate a device page
+ * device memory to system memory.  If the caller cananalt migrate a device page
  * back to system memory, then it must return VM_FAULT_SIGBUS, which has severe
  * consequences for the userspace process, so it must be avoided if at all
  * possible.
  *
- * For empty entries inside CPU page table (pte_none() or pmd_none() is true) we
+ * For empty entries inside CPU page table (pte_analne() or pmd_analne() is true) we
  * do set MIGRATE_PFN_MIGRATE flag inside the corresponding source array thus
  * allowing the caller to allocate device memory for those unbacked virtual
  * addresses.  For this the caller simply has to allocate device memory and
- * properly set the destination entry like for regular migration.  Note that
+ * properly set the destination entry like for regular migration.  Analte that
  * this can still fail, and thus inside the device driver you must check if the
  * migration was successful for those entries after calling migrate_vma_pages(),
  * just like for regular migration.
@@ -501,15 +501,15 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
  * array entry with MIGRATE_PFN_VALID flag set.
  *
  * Once migrate_vma_pages() returns the caller may inspect which pages were
- * successfully migrated, and which were not.  Successfully migrated pages will
+ * successfully migrated, and which were analt.  Successfully migrated pages will
  * have the MIGRATE_PFN_MIGRATE flag set for their src array entry.
  *
  * It is safe to update device page table after migrate_vma_pages() because
  * both destination and source page are still locked, and the mmap_lock is held
- * in read mode (hence no one can unmap the range being migrated).
+ * in read mode (hence anal one can unmap the range being migrated).
  *
  * Once the caller is done cleaning up things and updating its page table (if it
- * chose to do so, this is not an obligation) it finally calls
+ * chose to do so, this is analt an obligation) it finally calls
  * migrate_vma_finalize() to update the CPU page table to point to new pages
  * for successfully migrated pages or otherwise restore the CPU page table to
  * point to the original source pages.
@@ -558,8 +558,8 @@ EXPORT_SYMBOL(migrate_vma_setup);
  * This code closely matches the code in:
  *   __handle_mm_fault()
  *     handle_pte_fault()
- *       do_anonymous_page()
- * to map in an anonymous zero page but the struct page will be a ZONE_DEVICE
+ *       do_aanalnymous_page()
+ * to map in an aanalnymous zero page but the struct page will be a ZONE_DEVICE
  * private or coherent page.
  */
 static void migrate_vma_insert_page(struct migrate_vma *migrate,
@@ -580,8 +580,8 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 	pte_t *ptep;
 	pte_t orig_pte;
 
-	/* Only allow populating anonymous memory */
-	if (!vma_is_anonymous(vma))
+	/* Only allow populating aanalnymous memory */
+	if (!vma_is_aanalnymous(vma))
 		goto abort;
 
 	pgdp = pgd_offset(mm, addr);
@@ -598,7 +598,7 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 		goto abort;
 	if (pte_alloc(mm, pmdp))
 		goto abort;
-	if (unlikely(anon_vma_prepare(vma)))
+	if (unlikely(aanaln_vma_prepare(vma)))
 		goto abort;
 	if (mem_cgroup_charge(folio, vma->vm_mm, GFP_KERNEL))
 		goto abort;
@@ -645,18 +645,18 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 		if (!is_zero_pfn(pfn))
 			goto unlock_abort;
 		flush = true;
-	} else if (!pte_none(orig_pte))
+	} else if (!pte_analne(orig_pte))
 		goto unlock_abort;
 
 	/*
-	 * Check for userfaultfd but do not deliver the fault. Instead,
+	 * Check for userfaultfd but do analt deliver the fault. Instead,
 	 * just back off.
 	 */
 	if (userfaultfd_missing(vma))
 		goto unlock_abort;
 
-	inc_mm_counter(mm, MM_ANONPAGES);
-	folio_add_new_anon_rmap(folio, vma, addr);
+	inc_mm_counter(mm, MM_AANALNPAGES);
+	folio_add_new_aanaln_rmap(folio, vma, addr);
 	if (!folio_is_zone_device(folio))
 		folio_add_lru_vma(folio, vma);
 	folio_get(folio);
@@ -664,10 +664,10 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 	if (flush) {
 		flush_cache_page(vma, addr, pte_pfn(orig_pte));
 		ptep_clear_flush(vma, addr, ptep);
-		set_pte_at_notify(mm, addr, ptep, entry);
+		set_pte_at_analtify(mm, addr, ptep, entry);
 		update_mmu_cache(vma, addr, ptep);
 	} else {
-		/* No need to invalidate - it was non-present before */
+		/* Anal need to invalidate - it was analn-present before */
 		set_pte_at(mm, addr, ptep, entry);
 		update_mmu_cache(vma, addr, ptep);
 	}
@@ -686,9 +686,9 @@ static void __migrate_device_pages(unsigned long *src_pfns,
 				unsigned long *dst_pfns, unsigned long npages,
 				struct migrate_vma *migrate)
 {
-	struct mmu_notifier_range range;
+	struct mmu_analtifier_range range;
 	unsigned long i;
-	bool notified = false;
+	bool analtified = false;
 
 	for (i = 0; i < npages; i++) {
 		struct page *newpage = migrate_pfn_to_page(dst_pfns[i]);
@@ -708,20 +708,20 @@ static void __migrate_device_pages(unsigned long *src_pfns,
 				continue;
 
 			/*
-			 * The only time there is no vma is when called from
+			 * The only time there is anal vma is when called from
 			 * migrate_device_coherent_page(). However this isn't
-			 * called if the page could not be unmapped.
+			 * called if the page could analt be unmapped.
 			 */
 			VM_BUG_ON(!migrate);
 			addr = migrate->start + i*PAGE_SIZE;
-			if (!notified) {
-				notified = true;
+			if (!analtified) {
+				analtified = true;
 
-				mmu_notifier_range_init_owner(&range,
-					MMU_NOTIFY_MIGRATE, 0,
+				mmu_analtifier_range_init_owner(&range,
+					MMU_ANALTIFY_MIGRATE, 0,
 					migrate->vma->vm_mm, addr, migrate->end,
 					migrate->pgmap_owner);
-				mmu_notifier_invalidate_range_start(&range);
+				mmu_analtifier_invalidate_range_start(&range);
 			}
 			migrate_vma_insert_page(migrate, addr, newpage,
 						&src_pfns[i]);
@@ -738,12 +738,12 @@ static void __migrate_device_pages(unsigned long *src_pfns,
 				folio = page_folio(page);
 
 				/*
-				 * For now only support anonymous memory migrating to
+				 * For analw only support aanalnymous memory migrating to
 				 * device private or coherent memory.
 				 *
 				 * Try to get rid of swap cache if possible.
 				 */
-				if (!folio_test_anon(folio) ||
+				if (!folio_test_aanaln(folio) ||
 				    !folio_free_swap(folio)) {
 					src_pfns[i] &= ~MIGRATE_PFN_MIGRATE;
 					continue;
@@ -751,7 +751,7 @@ static void __migrate_device_pages(unsigned long *src_pfns,
 			}
 		} else if (is_zone_device_page(newpage)) {
 			/*
-			 * Other types of ZONE_DEVICE page are not supported.
+			 * Other types of ZONE_DEVICE page are analt supported.
 			 */
 			src_pfns[i] &= ~MIGRATE_PFN_MIGRATE;
 			continue;
@@ -760,16 +760,16 @@ static void __migrate_device_pages(unsigned long *src_pfns,
 		if (migrate && migrate->fault_page == page)
 			r = migrate_folio_extra(mapping, page_folio(newpage),
 						page_folio(page),
-						MIGRATE_SYNC_NO_COPY, 1);
+						MIGRATE_SYNC_ANAL_COPY, 1);
 		else
 			r = migrate_folio(mapping, page_folio(newpage),
-					page_folio(page), MIGRATE_SYNC_NO_COPY);
+					page_folio(page), MIGRATE_SYNC_ANAL_COPY);
 		if (r != MIGRATEPAGE_SUCCESS)
 			src_pfns[i] &= ~MIGRATE_PFN_MIGRATE;
 	}
 
-	if (notified)
-		mmu_notifier_invalidate_range_end(&range);
+	if (analtified)
+		mmu_analtifier_invalidate_range_end(&range);
 }
 
 /**
@@ -877,8 +877,8 @@ void migrate_vma_finalize(struct migrate_vma *migrate)
 EXPORT_SYMBOL(migrate_vma_finalize);
 
 /**
- * migrate_device_range() - migrate device private pfns to normal memory.
- * @src_pfns: array large enough to hold migrating source device private pfns.
+ * migrate_device_range() - migrate device private pfns to analrmal memory.
+ * @src_pfns: array large eanalugh to hold migrating source device private pfns.
  * @start: starting pfn in the range to migrate.
  * @npages: number of pages to migrate.
  *
@@ -886,7 +886,7 @@ EXPORT_SYMBOL(migrate_vma_finalize);
  * instead of looking up pages based on virtual address mappings a range of
  * device pfns that should be migrated to system memory is used instead.
  *
- * This is useful when a driver needs to free device memory but doesn't know the
+ * This is useful when a driver needs to free device memory but doesn't kanalw the
  * virtual mappings of every page that may be in device memory. For example this
  * is often the case when a driver is being unloaded or unbound from a device.
  *
@@ -924,7 +924,7 @@ int migrate_device_range(unsigned long *src_pfns, unsigned long start,
 EXPORT_SYMBOL(migrate_device_range);
 
 /*
- * Migrate a device coherent page back to normal memory. The caller should have
+ * Migrate a device coherent page back to analrmal memory. The caller should have
  * a reference on page which will be copied to the new page if migration is
  * successful or dropped on failure.
  */
@@ -947,7 +947,7 @@ int migrate_device_coherent_page(struct page *page)
 	if (!(src_pfn & MIGRATE_PFN_MIGRATE))
 		return -EBUSY;
 
-	dpage = alloc_page(GFP_USER | __GFP_NOWARN);
+	dpage = alloc_page(GFP_USER | __GFP_ANALWARN);
 	if (dpage) {
 		lock_page(dpage);
 		dst_pfn = migrate_pfn(page_to_pfn(dpage));

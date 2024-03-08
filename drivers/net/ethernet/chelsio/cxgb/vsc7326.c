@@ -130,8 +130,8 @@ static struct init_table vsc7326_portinit[4][22] = {
 			/* Port config */
 		{       REG_MAX_LEN(0), 0x00002710 },
 		{     REG_PORT_FAIL(0), 0x00000002 },
-		{    REG_NORMALIZER(0), 0x00000a64 },
-		{        REG_DENORM(0), 0x00000010 },
+		{    REG_ANALRMALIZER(0), 0x00000a64 },
+		{        REG_DEANALRM(0), 0x00000010 },
 		{     REG_STICK_BIT(0), 0x03baa370 },
 		{     REG_DEV_SETUP(0), 0x00000083 },
 		{     REG_DEV_SETUP(0), 0x00000082 },
@@ -156,8 +156,8 @@ static struct init_table vsc7326_portinit[4][22] = {
 			/* Port config */
 		{       REG_MAX_LEN(1), 0x00002710 },
 		{     REG_PORT_FAIL(1), 0x00000002 },
-		{    REG_NORMALIZER(1), 0x00000a64 },
-		{        REG_DENORM(1), 0x00000010 },
+		{    REG_ANALRMALIZER(1), 0x00000a64 },
+		{        REG_DEANALRM(1), 0x00000010 },
 		{     REG_STICK_BIT(1), 0x03baa370 },
 		{     REG_DEV_SETUP(1), 0x00000083 },
 		{     REG_DEV_SETUP(1), 0x00000082 },
@@ -182,8 +182,8 @@ static struct init_table vsc7326_portinit[4][22] = {
 			/* Port config */
 		{       REG_MAX_LEN(2), 0x00002710 },
 		{     REG_PORT_FAIL(2), 0x00000002 },
-		{    REG_NORMALIZER(2), 0x00000a64 },
-		{        REG_DENORM(2), 0x00000010 },
+		{    REG_ANALRMALIZER(2), 0x00000a64 },
+		{        REG_DEANALRM(2), 0x00000010 },
 		{     REG_STICK_BIT(2), 0x03baa370 },
 		{     REG_DEV_SETUP(2), 0x00000083 },
 		{     REG_DEV_SETUP(2), 0x00000082 },
@@ -208,8 +208,8 @@ static struct init_table vsc7326_portinit[4][22] = {
 			/* Port config */
 		{       REG_MAX_LEN(3), 0x00002710 },
 		{     REG_PORT_FAIL(3), 0x00000002 },
-		{    REG_NORMALIZER(3), 0x00000a64 },
-		{        REG_DENORM(3), 0x00000010 },
+		{    REG_ANALRMALIZER(3), 0x00000a64 },
+		{        REG_DEANALRM(3), 0x00000010 },
 		{     REG_STICK_BIT(3), 0x03baa370 },
 		{     REG_DEV_SETUP(3), 0x00000083 },
 		{     REG_DEV_SETUP(3), 0x00000082 },
@@ -240,7 +240,7 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 	    (address != 0x2) &&
 	    (address != 0xd) &&
 	    (address != 0xe))
-			pr_err("No bist address: 0x%x\n", address);
+			pr_err("Anal bist address: 0x%x\n", address);
 
 	data = ((0x00 << 24) | ((address & 0xff) << 16) | (0x00 << 8) |
 		((moduleid & 0xff) << 0));
@@ -267,7 +267,7 @@ static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
 	    (address != 0x2) &&
 	    (address != 0xd) &&
 	    (address != 0xe))
-			pr_err("No bist address: 0x%x\n", address);
+			pr_err("Anal bist address: 0x%x\n", address);
 
 	if (value > 255)
 		pr_err("Suspicious write out of range value: 0x%x\n", value);
@@ -419,7 +419,7 @@ static int mac_get_address(struct cmac *mac, u8 addr[6])
 	return 0;
 }
 
-/* This is intended to reset a port, not the whole MAC */
+/* This is intended to reset a port, analt the whole MAC */
 static int mac_reset(struct cmac *mac)
 {
 	int index = mac->instance->index;

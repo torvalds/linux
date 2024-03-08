@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_MTHCA
-	tristate "Mellanox HCA support"
+	tristate "Mellaanalx HCA support"
 	depends on PCI
 	help
-	  This is a low-level driver for Mellanox InfiniHost host
+	  This is a low-level driver for Mellaanalx InfiniHost host
 	  channel adapters (HCAs), including the MT23108 PCI-X HCA
 	  ("Tavor") and the MT25208 PCI Express HCA ("Arbel").
 

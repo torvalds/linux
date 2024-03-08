@@ -44,7 +44,7 @@ static void __init set_vsmp_ctl(void)
 
 #ifdef CONFIG_PROC_FS
 		/* Don't let users change irq affinity via procfs */
-		no_irq_affinity = 1;
+		anal_irq_affinity = 1;
 #endif
 	}
 #endif
@@ -97,10 +97,10 @@ static void __init vsmp_cap_cpus(void)
 {
 #if !defined(CONFIG_X86_VSMP) && defined(CONFIG_SMP) && defined(CONFIG_PCI)
 	void __iomem *address;
-	unsigned int cfg, topology, node_shift, maxcpus;
+	unsigned int cfg, topology, analde_shift, maxcpus;
 
 	/*
-	 * CONFIG_X86_VSMP is not configured, so limit the number CPUs to the
+	 * CONFIG_X86_VSMP is analt configured, so limit the number CPUs to the
 	 * ones present in the first board, unless explicitly overridden by
 	 * setup_max_cpus
 	 */
@@ -114,11 +114,11 @@ static void __init vsmp_cap_cpus(void)
 		return;
 
 	topology = readl(address);
-	node_shift = (topology >> 16) & 0x7;
-	if (!node_shift)
+	analde_shift = (topology >> 16) & 0x7;
+	if (!analde_shift)
 		/* The value 0 should be decoded as 8 */
-		node_shift = 8;
-	maxcpus = (topology & ((1 << node_shift) - 1)) + 1;
+		analde_shift = 8;
+	maxcpus = (topology & ((1 << analde_shift) - 1)) + 1;
 
 	pr_info("vSMP CTL: Capping CPUs to %d (CONFIG_X86_VSMP is unset)\n",
 		maxcpus);

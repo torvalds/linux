@@ -22,7 +22,7 @@
 
 /* efct_scsi_send_rd_data/recv_wr_data/send_resp flags */
 #define EFCT_SCSI_LAST_DATAPHASE	(1 << 0)
-#define EFCT_SCSI_NO_AUTO_RESPONSE	(1 << 1)
+#define EFCT_SCSI_ANAL_AUTO_RESPONSE	(1 << 1)
 #define EFCT_SCSI_LOW_LATENCY		(1 << 2)
 
 #define EFCT_SCSI_SNS_BUF_VALID(sense)	((sense) && \
@@ -70,9 +70,9 @@ enum efct_scsi_io_status {
 	EFCT_SCSI_STATUS_DIF_GUARD_ERR,
 	EFCT_SCSI_STATUS_DIF_REF_TAG_ERROR,
 	EFCT_SCSI_STATUS_DIF_APP_TAG_ERROR,
-	EFCT_SCSI_STATUS_DIF_UNKNOWN_ERROR,
+	EFCT_SCSI_STATUS_DIF_UNKANALWN_ERROR,
 	EFCT_SCSI_STATUS_PROTOCOL_CRC_ERROR,
-	EFCT_SCSI_STATUS_NO_IO,
+	EFCT_SCSI_STATUS_ANAL_IO,
 	EFCT_SCSI_STATUS_ABORT_IN_PROGRESS,
 	EFCT_SCSI_STATUS_CHECK_RESPONSE,
 	EFCT_SCSI_STATUS_COMMAND_TIMEOUT,
@@ -81,9 +81,9 @@ enum efct_scsi_io_status {
 	EFCT_SCSI_STATUS_NEXUS_LOST,
 };
 
-struct efct_node;
+struct efct_analde;
 struct efct_io;
-struct efc_node;
+struct efc_analde;
 struct efc_nport;
 
 /* Callback used by send_rd_data(), recv_wr_data(), send_resp() */
@@ -109,7 +109,7 @@ enum efct_scsi_tmf_cmd {
 	EFCT_SCSI_TMF_QUERY_TASK_SET,
 	EFCT_SCSI_TMF_ABORT_TASK_SET,
 	EFCT_SCSI_TMF_CLEAR_TASK_SET,
-	EFCT_SCSI_TMF_QUERY_ASYNCHRONOUS_EVENT,
+	EFCT_SCSI_TMF_QUERY_ASYNCHROANALUS_EVENT,
 	EFCT_SCSI_TMF_LOGICAL_UNIT_RESET,
 	EFCT_SCSI_TMF_CLEAR_ACA,
 	EFCT_SCSI_TMF_TARGET_RESET,
@@ -119,7 +119,7 @@ enum efct_scsi_tmf_cmd {
 enum efct_scsi_tmf_resp {
 	EFCT_SCSI_TMF_FUNCTION_COMPLETE = 1,
 	EFCT_SCSI_TMF_FUNCTION_SUCCEEDED,
-	EFCT_SCSI_TMF_FUNCTION_IO_NOT_FOUND,
+	EFCT_SCSI_TMF_FUNCTION_IO_ANALT_FOUND,
 	EFCT_SCSI_TMF_FUNCTION_REJECTED,
 	EFCT_SCSI_TMF_INCORRECT_LOGICAL_UNIT_NUMBER,
 	EFCT_SCSI_TMF_SERVICE_DELIVERY,
@@ -137,7 +137,7 @@ enum efct_scsi_io_role {
 };
 
 struct efct_io *
-efct_scsi_io_alloc(struct efct_node *node);
+efct_scsi_io_alloc(struct efct_analde *analde);
 void efct_scsi_io_free(struct efct_io *io);
 struct efct_io *efct_io_get_instance(struct efct *efct, u32 index);
 
@@ -151,7 +151,7 @@ void
 efct_scsi_tgt_del_nport(struct efc *efc, struct efc_nport *nport);
 
 int
-efct_scsi_new_initiator(struct efc *efc, struct efc_node *node);
+efct_scsi_new_initiator(struct efc *efc, struct efc_analde *analde);
 
 enum efct_scsi_del_initiator_reason {
 	EFCT_SCSI_INITIATOR_DELETED,
@@ -159,7 +159,7 @@ enum efct_scsi_del_initiator_reason {
 };
 
 int
-efct_scsi_del_initiator(struct efc *efc, struct efc_node *node,	int reason);
+efct_scsi_del_initiator(struct efc *efc, struct efc_analde *analde,	int reason);
 void
 efct_scsi_recv_cmd(struct efct_io *io, uint64_t lun, u8 *cdb, u32 cdb_len,
 		   u32 flags);

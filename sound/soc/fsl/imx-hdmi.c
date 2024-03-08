@@ -13,7 +13,7 @@
  * @sysclk_id: SYSCLK ids for set_sysclk()
  * @slot_width: Slot width of each frame
  *
- * Note: [1] for tx and [0] for rx
+ * Analte: [1] for tx and [0] for rx
  */
 struct cpu_priv {
 	u32 sysclk_id[2];
@@ -45,13 +45,13 @@ static int imx_hdmi_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(cpu_dai, data->cpu_priv.sysclk_id[tx],
 				     8 * slot_width * params_rate(params),
 				     tx ? SND_SOC_CLOCK_OUT : SND_SOC_CLOCK_IN);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dev, "failed to set cpu sysclk: %d\n", ret);
 		return ret;
 	}
 
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0, 0, 2, slot_width);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dev, "failed to set cpu dai tdm slot: %d\n", ret);
 		return ret;
 	}
@@ -87,7 +87,7 @@ static int imx_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	ret = snd_soc_component_set_jack(component, &data->hdmi_jack, NULL);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(card->dev, "Can't set HDMI Jack %d\n", ret);
 		return ret;
 	}
@@ -97,18 +97,18 @@ static int imx_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 
 static int imx_hdmi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	bool hdmi_out = of_property_read_bool(np, "hdmi-out");
 	bool hdmi_in = of_property_read_bool(np, "hdmi-in");
 	struct snd_soc_dai_link_component *dlc;
 	struct platform_device *cpu_pdev;
-	struct device_node *cpu_np;
+	struct device_analde *cpu_np;
 	struct imx_hdmi_data *data;
 	int ret;
 
 	dlc = devm_kzalloc(&pdev->dev, 3 * sizeof(*dlc), GFP_KERNEL);
 	if (!dlc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu_np = of_parse_phandle(np, "audio-cpu", 0);
 	if (!cpu_np) {
@@ -117,7 +117,7 @@ static int imx_hdmi_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	cpu_pdev = of_find_device_by_node(cpu_np);
+	cpu_pdev = of_find_device_by_analde(cpu_np);
 	if (!cpu_pdev) {
 		dev_err(&pdev->dev, "failed to find SAI platform device\n");
 		ret = -EINVAL;
@@ -126,7 +126,7 @@ static int imx_hdmi_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		put_device(&cpu_pdev->dev);
 		goto fail;
 	}
@@ -141,7 +141,7 @@ static int imx_hdmi_probe(struct platform_device *pdev)
 	data->dai.name = "i.MX HDMI";
 	data->dai.stream_name = "i.MX HDMI";
 	data->dai.cpus->dai_name = dev_name(&cpu_pdev->dev);
-	data->dai.platforms->of_node = cpu_np;
+	data->dai.platforms->of_analde = cpu_np;
 	data->dai.ops = &imx_hdmi_ops;
 	data->dai.playback_only = true;
 	data->dai.capture_only = false;
@@ -149,7 +149,7 @@ static int imx_hdmi_probe(struct platform_device *pdev)
 
 	put_device(&cpu_pdev->dev);
 
-	if (of_node_name_eq(cpu_np, "sai")) {
+	if (of_analde_name_eq(cpu_np, "sai")) {
 		data->cpu_priv.sysclk_id[1] = FSL_SAI_CLK_MAST1;
 		data->cpu_priv.sysclk_id[0] = FSL_SAI_CLK_MAST1;
 	}
@@ -207,7 +207,7 @@ static int imx_hdmi_probe(struct platform_device *pdev)
 	}
 
 fail:
-	of_node_put(cpu_np);
+	of_analde_put(cpu_np);
 
 	return ret;
 }

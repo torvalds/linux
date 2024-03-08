@@ -8,7 +8,7 @@
 struct fermi_a_zbc_color_v0 {
 	__u8  version;
 #define FERMI_A_ZBC_COLOR_V0_FMT_ZERO                                      0x01
-#define FERMI_A_ZBC_COLOR_V0_FMT_UNORM_ONE                                 0x02
+#define FERMI_A_ZBC_COLOR_V0_FMT_UANALRM_ONE                                 0x02
 #define FERMI_A_ZBC_COLOR_V0_FMT_RF32_GF32_BF32_AF32                       0x04
 #define FERMI_A_ZBC_COLOR_V0_FMT_R16_G16_B16_A16                           0x08
 #define FERMI_A_ZBC_COLOR_V0_FMT_RN16_GN16_BN16_AN16                       0x0c

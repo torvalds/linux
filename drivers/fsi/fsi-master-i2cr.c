@@ -233,7 +233,7 @@ static int i2cr_write(struct fsi_master *master, int link, uint8_t id, uint32_t 
 	if (link || id || (addr & 0xffff0000) || !(size == 1 || size == 2 || size == 4))
 		return -EINVAL;
 
-	/* I2CR writes to CFAM or FSI slave address are a successful no-op. */
+	/* I2CR writes to CFAM or FSI slave address are a successful anal-op. */
 	if (addr < 0xc00)
 		return 0;
 
@@ -251,7 +251,7 @@ static void i2cr_release(struct device *dev)
 {
 	struct fsi_master_i2cr *i2cr = to_fsi_master_i2cr(to_fsi_master(dev));
 
-	of_node_put(dev->of_node);
+	of_analde_put(dev->of_analde);
 
 	kfree(i2cr);
 }
@@ -263,13 +263,13 @@ static int i2cr_probe(struct i2c_client *client)
 
 	i2cr = kzalloc(sizeof(*i2cr), GFP_KERNEL);
 	if (!i2cr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Only one I2CR on any given I2C bus (fixed I2C device address) */
 	i2cr->master.idx = client->adapter->nr;
 	dev_set_name(&i2cr->master.dev, "i2cr%d", i2cr->master.idx);
 	i2cr->master.dev.parent = &client->dev;
-	i2cr->master.dev.of_node = of_node_get(dev_of_node(&client->dev));
+	i2cr->master.dev.of_analde = of_analde_get(dev_of_analde(&client->dev));
 	i2cr->master.dev.release = i2cr_release;
 
 	i2cr->master.n_links = 1;

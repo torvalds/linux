@@ -33,7 +33,7 @@ properties:
       - description: CA55/CM33 Sleep/Software Standby Mode request interrupt
       - description: CA55 Software Standby Mode release request interrupt
       - description: CM33 Software Standby Mode release request interrupt
-      - description: CA55 ACE Asynchronous Bridge Master/Slave interface deny request interrupt
+      - description: CA55 ACE Asynchroanalus Bridge Master/Slave interface deny request interrupt
 
   interrupt-names:
     items:

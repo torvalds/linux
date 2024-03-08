@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (LGPL-2.0+ OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #ifndef __TOOLS_LIBC_COMPAT_H
 #define __TOOLS_LIBC_COMPAT_H

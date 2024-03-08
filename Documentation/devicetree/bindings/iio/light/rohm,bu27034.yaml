@@ -10,7 +10,7 @@ maintainers:
   - Matti Vaittinen <mazziesaccount@gmail.com>
 
 description: |
-  ROHM BU27034 is an ambient light sesnor with 3 channels and 3 photo diodes
+  ROHM BU27034 is an ambient light sesanalr with 3 channels and 3 photo diodes
   capable of detecting a very wide range of illuminance. Typical application
   is adjusting LCD and backlight power of TVs and mobile phones.
   https://fscdn.rohm.com/en/products/databook/datasheet/ic/sensor/light/bu27034nuc-e.pdf

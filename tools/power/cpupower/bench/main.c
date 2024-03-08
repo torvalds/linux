@@ -9,7 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "config.h"
 #include "system.h"
@@ -21,7 +21,7 @@ static struct option long_options[] = {
 	{"load",	1,	0,	'l'},
 	{"verbose",	0,	0,	'v'},
 	{"cpu",		1,	0,	'c'},
-	{"governor",	1,	0,	'g'},
+	{"goveranalr",	1,	0,	'g'},
 	{"prio",	1,	0,	'p'},
 	{"file",	1,	0,	'f'},
 	{"cycles",	1,	0,	'n'},
@@ -46,7 +46,7 @@ void usage()
 	printf(" -y, --sleep-step=<long int>\ttime to be added to sleep time, in us\n");
 	printf(" -c, --cpu=<cpu #>\t\t\tCPU Nr. to use, starting at 0\n");
 	printf(" -p, --prio=<priority>\t\t\tscheduler priority, HIGH, LOW or DEFAULT\n");
-	printf(" -g, --governor=<governor>\t\tcpufreq governor to test\n");
+	printf(" -g, --goveranalr=<goveranalr>\t\tcpufreq goveranalr to test\n");
 	printf(" -n, --cycles=<int>\t\t\tload/sleep cycles\n");
 	printf(" -r, --rounds<int>\t\t\tload/sleep rounds\n");
 	printf(" -f, --file=<configfile>\t\tconfig file to use\n");
@@ -102,8 +102,8 @@ int main(int argc, char **argv)
 			dprintf("user cpu -> %s\n", optarg);
 			break;
 		case 'g':
-			strncpy(config->governor, optarg, 14);
-			dprintf("user governor -> %s\n", optarg);
+			strncpy(config->goveranalr, optarg, 14);
+			dprintf("user goveranalr -> %s\n", optarg);
 			break;
 		case 'p':
 			if (string_to_prio(optarg) != SCHED_ERR) {
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 		       "cpu=%u\n\t"
 		       "cycles=%u\n\t"
 		       "rounds=%u\n\t"
-		       "governor=%s\n\n",
+		       "goveranalr=%s\n\n",
 		       config->sleep,
 		       config->load,
 		       config->sleep_step,
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 		       config->cpu,
 		       config->cycles,
 		       config->rounds,
-		       config->governor);
+		       config->goveranalr);
 	}
 
 	prepare_user(config);

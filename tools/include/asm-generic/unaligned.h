@@ -6,9 +6,9 @@
  * This is the most generic implementation of unaligned accesses
  * and should work almost anywhere.
  */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpacked"
-#pragma GCC diagnostic ignored "-Wattributes"
+#pragma GCC diaganalstic push
+#pragma GCC diaganalstic iganalred "-Wpacked"
+#pragma GCC diaganalstic iganalred "-Wattributes"
 
 #define __get_unaligned_t(type, ptr) ({						\
 	const struct { type x; } __packed *__pptr = (typeof(__pptr))(ptr);	\
@@ -152,6 +152,6 @@ static inline u64 get_unaligned_be48(const void *p)
 {
 	return __get_unaligned_be48(p);
 }
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 #endif /* __ASM_GENERIC_UNALIGNED_H */

@@ -83,7 +83,7 @@ static void __init fpu__init_system_early_generic(void)
 
 #ifndef CONFIG_MATH_EMULATION
 	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_FPU)) {
-		pr_emerg("x86/fpu: Giving up, no FPU found and no math emulation present\n");
+		pr_emerg("x86/fpu: Giving up, anal FPU found and anal math emulation present\n");
 		for (;;)
 			asm volatile("hlt");
 	}
@@ -101,7 +101,7 @@ static void __init fpu__init_system_mxcsr(void)
 	unsigned int mask = 0;
 
 	if (boot_cpu_has(X86_FEATURE_FXSR)) {
-		/* Static because GCC does not get 16-byte stack alignment right: */
+		/* Static because GCC does analt get 16-byte stack alignment right: */
 		static struct fxregs_state fxregs __initdata;
 
 		asm volatile("fxsave %0" : "+m" (fxregs));
@@ -111,7 +111,7 @@ static void __init fpu__init_system_mxcsr(void)
 		/*
 		 * If zero then use the default features mask,
 		 * which has all features set, except the
-		 * denormals-are-zero feature bit:
+		 * deanalrmals-are-zero feature bit:
 		 */
 		if (mask == 0)
 			mask = 0x0000ffbf;
@@ -141,7 +141,7 @@ static void __init fpu__init_system_generic(void)
  */
 #define CHECK_MEMBER_AT_END_OF(TYPE, MEMBER) \
 	BUILD_BUG_ON(sizeof(TYPE) !=         \
-		     ALIGN(offsetofend(TYPE, MEMBER), _Alignof(TYPE)))
+		     ALIGN(offsetofend(TYPE, MEMBER), _Aliganalf(TYPE)))
 
 /*
  * We append the 'struct fpu' to the task_struct:
@@ -180,14 +180,14 @@ static void __init fpu__init_task_struct_size(void)
  * Set up the user and kernel xstate sizes based on the legacy FPU context size.
  *
  * We set this up first, and later it will be overwritten by
- * fpu__init_system_xstate() if the CPU knows about xstates.
+ * fpu__init_system_xstate() if the CPU kanalws about xstates.
  */
 static void __init fpu__init_system_xstate_size_legacy(void)
 {
 	unsigned int size;
 
 	/*
-	 * Note that the size configuration might be overwritten later
+	 * Analte that the size configuration might be overwritten later
 	 * during fpu__init_system_xstate().
 	 */
 	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {

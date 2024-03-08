@@ -834,9 +834,9 @@
 	vqmmc-supply = <&reg_1v8>;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	bus-width = <8>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	status = "okay";
 };
 

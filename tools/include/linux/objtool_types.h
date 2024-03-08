@@ -7,7 +7,7 @@
 #include <linux/types.h>
 
 /*
- * This struct is used by asm and inline asm code to manually annotate the
+ * This struct is used by asm and inline asm code to manually ananaltate the
  * location of registers on the stack.
  */
 struct unwind_hint {
@@ -25,7 +25,7 @@ struct unwind_hint {
  * a truncated and unreliable stack unwind.
  *
  * UNWIND_HINT_TYPE_END_OF_STACK: The end of the kernel stack unwind before
- * hitting user entry, boot code, or fork entry (when there are no pt_regs
+ * hitting user entry, boot code, or fork entry (when there are anal pt_regs
  * available).
  *
  * UNWIND_HINT_TYPE_CALL: Indicates that sp_reg+sp_offset resolves to PREV_SP
@@ -39,7 +39,7 @@ struct unwind_hint {
  * sp_reg+sp_offset points to the iret return frame.
  *
  * UNWIND_HINT_TYPE_FUNC: Generate the unwind metadata of a callable function.
- * Useful for code which doesn't have an ELF function annotation.
+ * Useful for code which doesn't have an ELF function ananaltation.
  *
  * UNWIND_HINT_TYPE_{SAVE,RESTORE}: Save the unwind metadata at a certain
  * location so that it can be restored later.

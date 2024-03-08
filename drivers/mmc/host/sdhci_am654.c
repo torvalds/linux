@@ -340,7 +340,7 @@ static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 		switch (timing) {
 		/*
 		 * According to the data manual, HISPD bit
-		 * should not be set in these speed modes.
+		 * should analt be set in these speed modes.
 		 */
 		case MMC_TIMING_SD_HS:
 		case MMC_TIMING_MMC_HS:
@@ -351,7 +351,7 @@ static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 	writeb(val, host->ioaddr + reg);
 	if (reg == SDHCI_POWER_CONTROL && (val & SDHCI_POWER_ON)) {
 		/*
-		 * Power on will not happen until the card detect debounce
+		 * Power on will analt happen until the card detect debounce
 		 * timer expires. Wait at least 1.5 seconds for the power on
 		 * bit to be set
 		 */
@@ -550,7 +550,7 @@ static int sdhci_am654_cqe_add_host(struct sdhci_host *host)
 	cq_host = devm_kzalloc(mmc_dev(host->mmc), sizeof(struct cqhci_host),
 			       GFP_KERNEL);
 	if (!cq_host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cq_host->mmio = host->ioaddr + SDHCI_AM654_CQE_BASE_ADDR;
 	cq_host->quirks |= CQHCI_QUIRK_SHORT_TXFR_DESC_SZ;
@@ -582,7 +582,7 @@ static int sdhci_am654_get_otap_delay(struct sdhci_host *host,
 				td[i].otap_binding);
 			/*
 			 * Remove the corresponding capability
-			 * if an otap-del-sel value is not found
+			 * if an otap-del-sel value is analt found
 			 */
 			if (i <= MMC_TIMING_MMC_DDR52)
 				host->mmc->caps &= ~td[i].capability;
@@ -632,7 +632,7 @@ static int sdhci_am654_init(struct sdhci_host *host)
 				   IOMUX_ENABLE_MASK, 0);
 
 	/* Set slot type based on SD or eMMC */
-	if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
+	if (host->mmc->caps & MMC_CAP_ANALNREMOVABLE)
 		ctl_cfg_2 = SLOTTYPE_EMBEDDED;
 
 	regmap_update_bits(sdhci_am654->base, CTL_CFG_2, SLOTTYPE_MASK,
@@ -759,7 +759,7 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	match = of_match_node(sdhci_am654_of_match, pdev->dev.of_node);
+	match = of_match_analde(sdhci_am654_of_match, pdev->dev.of_analde);
 	drvdata = match->data;
 
 	/* Update drvdata based on SoC revision */
@@ -777,7 +777,7 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 
 	clk_xin = devm_clk_get(dev, "clk_xin");
 	if (IS_ERR(clk_xin)) {
-		dev_err(dev, "clk_xin clock not found.\n");
+		dev_err(dev, "clk_xin clock analt found.\n");
 		ret = PTR_ERR(clk_xin);
 		goto err_pltfm_free;
 	}
@@ -810,7 +810,7 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 
 	host->mmc_host_ops.execute_tuning = sdhci_am654_execute_tuning;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	ret = pm_runtime_set_active(dev);
 	if (ret)
 		goto pm_put;
@@ -835,7 +835,7 @@ clk_disable:
 pm_disable:
 	pm_runtime_disable(dev);
 pm_put:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 err_pltfm_free:
 	sdhci_pltfm_free(pdev);
 	return ret;
@@ -855,7 +855,7 @@ static void sdhci_am654_remove(struct platform_device *pdev)
 	sdhci_remove_host(host, true);
 	clk_disable_unprepare(pltfm_host->clk);
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	sdhci_pltfm_free(pdev);
 }
 
@@ -889,7 +889,7 @@ static int sdhci_am654_restore(struct sdhci_host *host)
 				   IOMUX_ENABLE_MASK, 0);
 
 	/* Set slot type based on SD or eMMC */
-	if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
+	if (host->mmc->caps & MMC_CAP_ANALNREMOVABLE)
 		ctl_cfg_2 = SLOTTYPE_EMBEDDED;
 
 	regmap_update_bits(sdhci_am654->base, CTL_CFG_2, SLOTTYPE_MASK,
@@ -963,7 +963,7 @@ static const struct dev_pm_ops sdhci_am654_dev_pm_ops = {
 static struct platform_driver sdhci_am654_driver = {
 	.driver = {
 		.name = "sdhci-am654",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = &sdhci_am654_dev_pm_ops,
 		.of_match_table = sdhci_am654_of_match,
 	},

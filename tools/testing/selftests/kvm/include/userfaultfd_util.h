@@ -35,11 +35,11 @@ void uffd_stop_demand_paging(struct uffd_desc *uffd);
 #ifdef PRINT_PER_PAGE_UPDATES
 #define PER_PAGE_DEBUG(...) printf(__VA_ARGS__)
 #else
-#define PER_PAGE_DEBUG(...) _no_printf(__VA_ARGS__)
+#define PER_PAGE_DEBUG(...) _anal_printf(__VA_ARGS__)
 #endif
 
 #ifdef PRINT_PER_VCPU_UPDATES
 #define PER_VCPU_DEBUG(...) printf(__VA_ARGS__)
 #else
-#define PER_VCPU_DEBUG(...) _no_printf(__VA_ARGS__)
+#define PER_VCPU_DEBUG(...) _anal_printf(__VA_ARGS__)
 #endif

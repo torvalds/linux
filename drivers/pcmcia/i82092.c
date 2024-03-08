@@ -54,9 +54,9 @@ static struct pccard_operations i82092aa_operations = {
 struct socket_info {
 	int	number;
 	int	card_state;
-		/* 0 = no socket,
+		/* 0 = anal socket,
 		 * 1 = empty socket,
-		 * 2 = card but not initialized,
+		 * 2 = card but analt initialized,
 		 * 3 = operational card
 		 */
 	unsigned int io_base;	/* base io address of the socket */
@@ -130,7 +130,7 @@ static int i82092aa_pci_probe(struct pci_dev *dev,
 		}
 	}
 
-	/* Now, specifiy that all interrupts are to be done as PCI interrupts
+	/* Analw, specifiy that all interrupts are to be done as PCI interrupts
 	 * bitmask, one bit per event, 1 = PCI interrupt, 0 = ISA interrupt
 	 */
 	configbyte = 0xFF;
@@ -151,7 +151,7 @@ static int i82092aa_pci_probe(struct pci_dev *dev,
 	for (i = 0; i < socket_count; i++) {
 		sockets[i].socket.dev.parent = &dev->dev;
 		sockets[i].socket.ops = &i82092aa_operations;
-		sockets[i].socket.resource_ops = &pccard_nonstatic_ops;
+		sockets[i].socket.resource_ops = &pccard_analnstatic_ops;
 		ret = pcmcia_register_socket(&sockets[i].socket);
 		if (ret)
 			goto err_out_free_sockets;
@@ -274,7 +274,7 @@ static void indirect_write16(int socket,
 }
 
 /* simple helper functions */
-/* External clock time, in nanoseconds.  120 ns = 8.33 MHz */
+/* External clock time, in naanalseconds.  120 ns = 8.33 MHz */
 static int cycle_time = 120;
 
 static int to_cycles(int ns)
@@ -308,14 +308,14 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 		for (i = 0; i < socket_count; i++) {
 			int csc;
 
-			/* Inactive socket, should not happen */
+			/* Inactive socket, should analt happen */
 			if (sockets[i].card_state == 0)
 				continue;
 
 			/* card status change register */
 			csc = indirect_read(i, I365_CSC);
 
-			if (csc == 0)  /* no events on this socket */
+			if (csc == 0)  /* anal events on this socket */
 				continue;
 			handled = 1;
 			events = 0;
@@ -345,7 +345,7 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 			active |= events;
 		}
 
-		if (active == 0) /* no more events to handle */
+		if (active == 0) /* anal more events to handle */
 			break;
 	}
 	return IRQ_RETVAL(handled);
@@ -355,17 +355,17 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 
 /* socket functions */
 
-static int card_present(int socketno)
+static int card_present(int socketanal)
 {
 	unsigned int val;
 
-	if ((socketno < 0) || (socketno >= MAX_SOCKETS))
+	if ((socketanal < 0) || (socketanal >= MAX_SOCKETS))
 		return 0;
-	if (sockets[socketno].io_base == 0)
+	if (sockets[socketanal].io_base == 0)
 		return 0;
 
 
-	val = indirect_read(socketno, 1); /* Interface status register */
+	val = indirect_read(socketanal, 1); /* Interface status register */
 	if ((val&12) == 12)
 		return 1;
 
@@ -415,12 +415,12 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 		*value |= SS_DETECT;
 
 	/* IO cards have a different meaning of bits 0,1 */
-	/* Also notice the inverse-logic on the bits */
+	/* Also analtice the inverse-logic on the bits */
 	if (indirect_read(sock, I365_INTCTL) & I365_PC_IOCARD) {
 		/* IO card */
 		if (!(status & I365_CS_STSCHG))
 			*value |= SS_STSCHG;
-	} else { /* non I/O card */
+	} else { /* analn I/O card */
 		if (!(status & I365_CS_BVD1))
 			*value |= SS_BATDEAD;
 		if (!(status & I365_CS_BVD2))
@@ -431,7 +431,7 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 		(*value) |= SS_WRPROT;	/* card is write protected */
 
 	if (status & I365_CS_READY)
-		(*value) |= SS_READY;    /* card is not busy */
+		(*value) |= SS_READY;    /* card is analt busy */
 
 	if (status & I365_CS_POWERON)
 		(*value) |= SS_POWERON;  /* power is applied to the card */
@@ -467,7 +467,7 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket,
 
 	/* Power registers */
 
-	reg = I365_PWR_NORESET; /* default: disable resetdrv on resume */
+	reg = I365_PWR_ANALRESET; /* default: disable resetdrv on resume */
 
 	if (state->flags & SS_PWR_AUTO) {
 		dev_info(&sock_info->dev->dev, "Auto power\n");
@@ -497,7 +497,7 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket,
 	switch (state->Vpp) {
 	case 0:
 		dev_info(&sock_info->dev->dev,
-			 "not setting Vpp on socket %i\n", sock);
+			 "analt setting Vpp on socket %i\n", sock);
 		break;
 	case 50:
 		dev_info(&sock_info->dev->dev,
@@ -536,7 +536,7 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket,
 
 	}
 
-	/* now write the value and clear the (probably bogus) pending stuff
+	/* analw write the value and clear the (probably bogus) pending stuff
 	 * by doing a dummy read
 	 */
 

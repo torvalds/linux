@@ -110,7 +110,7 @@ struct musb_hdrc_platform_data {
 };
 
 enum musb_vbus_id_status {
-	MUSB_UNKNOWN = 0,
+	MUSB_UNKANALWN = 0,
 	MUSB_ID_GROUND,
 	MUSB_ID_FLOAT,
 	MUSB_VBUS_VALID,

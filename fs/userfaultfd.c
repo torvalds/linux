@@ -6,7 +6,7 @@
  *  Copyright (C) 2008-2009 Red Hat, Inc.
  *  Copyright (C) 2015  Red Hat, Inc.
  *
- *  Some part derived from fs/eventfd.c (anon inode setup) and
+ *  Some part derived from fs/eventfd.c (aanaln ianalde setup) and
  *  mm/ksm.c (mm hashing).
  */
 
@@ -16,13 +16,13 @@
 #include <linux/sched/mm.h>
 #include <linux/mm.h>
 #include <linux/mm_inline.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/file.h>
 #include <linux/bug.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/syscalls.h>
 #include <linux/userfaultfd_k.h>
 #include <linux/mempolicy.h>
@@ -65,7 +65,7 @@ static struct kmem_cache *userfaultfd_ctx_cachep __ro_after_init;
  * also taken in IRQ context.
  */
 struct userfaultfd_ctx {
-	/* waitqueue head for the pending (i.e. not read) userfaults */
+	/* waitqueue head for the pending (i.e. analt read) userfaults */
 	wait_queue_head_t fault_pending_wqh;
 	/* waitqueue head for the userfaults */
 	wait_queue_head_t fault_wqh;
@@ -83,7 +83,7 @@ struct userfaultfd_ctx {
 	unsigned int features;
 	/* released */
 	bool released;
-	/* memory mappings are changing because of non-cooperative event */
+	/* memory mappings are changing because of analn-cooperative event */
 	atomic_t mmap_changing;
 	/* mm with one ore more vmas attached to this userfaultfd_ctx */
 	struct mm_struct *mm;
@@ -130,7 +130,7 @@ static bool userfaultfd_wp_async_ctx(struct userfaultfd_ctx *ctx)
 /*
  * Whether WP_UNPOPULATED is enabled on the uffd context.  It is only
  * meaningful when userfaultfd_wp()==true on the vma and when it's
- * anonymous.
+ * aanalnymous.
  */
 bool userfaultfd_wp_unpopulated(struct vm_area_struct *vma)
 {
@@ -149,8 +149,8 @@ static void userfaultfd_set_vm_flags(struct vm_area_struct *vma,
 
 	vm_flags_reset(vma, flags);
 	/*
-	 * For shared mappings, we want to enable writenotify while
-	 * userfaultfd-wp is enabled (see vma_wants_writenotify()). We'll simply
+	 * For shared mappings, we want to enable writeanaltify while
+	 * userfaultfd-wp is enabled (see vma_wants_writeanaltify()). We'll simply
 	 * recalculate vma->vm_page_prot whenever userfaultfd-wp changes.
 	 */
 	if ((vma->vm_flags & VM_SHARED) && uffd_wp_changed)
@@ -258,7 +258,7 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
 	/*
 	 * These flags indicate why the userfault occurred:
 	 * - UFFD_PAGEFAULT_FLAG_WP indicates a write protect fault.
-	 * - UFFD_PAGEFAULT_FLAG_MINOR indicates a minor fault.
+	 * - UFFD_PAGEFAULT_FLAG_MIANALR indicates a mianalr fault.
 	 * - Neither of these flags being set indicates a MISSING fault.
 	 *
 	 * Separately, UFFD_PAGEFAULT_FLAG_WRITE indicates it was a write
@@ -268,8 +268,8 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
 		msg.arg.pagefault.flags |= UFFD_PAGEFAULT_FLAG_WRITE;
 	if (reason & VM_UFFD_WP)
 		msg.arg.pagefault.flags |= UFFD_PAGEFAULT_FLAG_WP;
-	if (reason & VM_UFFD_MINOR)
-		msg.arg.pagefault.flags |= UFFD_PAGEFAULT_FLAG_MINOR;
+	if (reason & VM_UFFD_MIANALR)
+		msg.arg.pagefault.flags |= UFFD_PAGEFAULT_FLAG_MIANALR;
 	if (features & UFFD_FEATURE_THREAD_ID)
 		msg.arg.pagefault.feat.ptid = task_pid_vnr(current);
 	return msg;
@@ -299,10 +299,10 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
 
 	/*
 	 * Lockless access: we're in a wait_event so it's ok if it
-	 * changes under us.  PTE markers should be handled the same as none
+	 * changes under us.  PTE markers should be handled the same as analne
 	 * ptes here.
 	 */
-	if (huge_pte_none_mostly(pte))
+	if (huge_pte_analne_mostly(pte))
 		ret = true;
 	if (!huge_pte_write(pte) && (reason & VM_UFFD_WP))
 		ret = true;
@@ -319,7 +319,7 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
 #endif /* CONFIG_HUGETLB_PAGE */
 
 /*
- * Verify the pagetables are still not ok after having reigstered into
+ * Verify the pagetables are still analt ok after having reigstered into
  * the fault_pending_wqh to avoid userland having to UFFDIO_WAKE any
  * userfault that has already been resolved, if userfaultfd_read and
  * UFFDIO_COPY|ZEROPAGE are being run simultaneously on two different
@@ -353,7 +353,7 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
 	pmd = pmd_offset(pud, address);
 again:
 	_pmd = pmdp_get_lockless(pmd);
-	if (pmd_none(_pmd))
+	if (pmd_analne(_pmd))
 		goto out;
 
 	ret = false;
@@ -373,11 +373,11 @@ again:
 	}
 	/*
 	 * Lockless access: we're in a wait_event so it's ok if it
-	 * changes under us.  PTE markers should be handled the same as none
+	 * changes under us.  PTE markers should be handled the same as analne
 	 * ptes here.
 	 */
 	ptent = ptep_get(pte);
-	if (pte_none_mostly(ptent))
+	if (pte_analne_mostly(ptent))
 		ret = true;
 	if (!pte_write(ptent) && (reason & VM_UFFD_WP))
 		ret = true;
@@ -400,15 +400,15 @@ static inline unsigned int userfaultfd_get_blocking_state(unsigned int flags)
 
 /*
  * The locking rules involved in returning VM_FAULT_RETRY depending on
- * FAULT_FLAG_ALLOW_RETRY, FAULT_FLAG_RETRY_NOWAIT and
- * FAULT_FLAG_KILLABLE are not straightforward. The "Caution"
- * recommendation in __lock_page_or_retry is not an understatement.
+ * FAULT_FLAG_ALLOW_RETRY, FAULT_FLAG_RETRY_ANALWAIT and
+ * FAULT_FLAG_KILLABLE are analt straightforward. The "Caution"
+ * recommendation in __lock_page_or_retry is analt an understatement.
  *
  * If FAULT_FLAG_ALLOW_RETRY is set, the mmap_lock must be released
- * before returning VM_FAULT_RETRY only if FAULT_FLAG_RETRY_NOWAIT is
- * not set.
+ * before returning VM_FAULT_RETRY only if FAULT_FLAG_RETRY_ANALWAIT is
+ * analt set.
  *
- * If FAULT_FLAG_ALLOW_RETRY is set but FAULT_FLAG_KILLABLE is not
+ * If FAULT_FLAG_ALLOW_RETRY is set but FAULT_FLAG_KILLABLE is analt
  * set, VM_FAULT_RETRY can still be returned if and only if there are
  * fatal_signal_pending()s, and the mmap_lock must be released before
  * returning it.
@@ -429,8 +429,8 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	 * We also don't do userfault handling during
 	 * coredumping. hugetlbfs has the special
 	 * hugetlb_follow_page_mask() to skip missing pages in the
-	 * FOLL_DUMP case, anon memory also checks for FOLL_DUMP with
-	 * the no_page_table() helper in follow_page_mask(), but the
+	 * FOLL_DUMP case, aanaln memory also checks for FOLL_DUMP with
+	 * the anal_page_table() helper in follow_page_mask(), but the
 	 * shmem_vm_ops->fault method is invoked even during
 	 * coredumping and it ends up here.
 	 */
@@ -462,42 +462,42 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	 */
 	if (unlikely(READ_ONCE(ctx->released))) {
 		/*
-		 * Don't return VM_FAULT_SIGBUS in this case, so a non
+		 * Don't return VM_FAULT_SIGBUS in this case, so a analn
 		 * cooperative manager can close the uffd after the
 		 * last UFFDIO_COPY, without risking to trigger an
 		 * involuntary SIGBUS if the process was starting the
 		 * userfaultfd while the userfaultfd was still armed
 		 * (but after the last UFFDIO_COPY). If the uffd
 		 * wasn't already closed when the userfault reached
-		 * this point, that would normally be solved by
+		 * this point, that would analrmally be solved by
 		 * userfaultfd_must_wait returning 'false'.
 		 *
-		 * If we were to return VM_FAULT_SIGBUS here, the non
+		 * If we were to return VM_FAULT_SIGBUS here, the analn
 		 * cooperative manager would be instead forced to
 		 * always call UFFDIO_UNREGISTER before it can safely
 		 * close the uffd.
 		 */
-		ret = VM_FAULT_NOPAGE;
+		ret = VM_FAULT_ANALPAGE;
 		goto out;
 	}
 
 	/*
 	 * Check that we can return VM_FAULT_RETRY.
 	 *
-	 * NOTE: it should become possible to return VM_FAULT_RETRY
+	 * ANALTE: it should become possible to return VM_FAULT_RETRY
 	 * even if FAULT_FLAG_TRIED is set without leading to gup()
 	 * -EBUSY failures, if the userfaultfd is to be extended for
 	 * VM_UFFD_WP tracking and we intend to arm the userfault
 	 * without first stopping userland access to the memory. For
-	 * VM_UFFD_MISSING userfaults this is enough for now.
+	 * VM_UFFD_MISSING userfaults this is eanalugh for analw.
 	 */
 	if (unlikely(!(vmf->flags & FAULT_FLAG_ALLOW_RETRY))) {
 		/*
-		 * Validate the invariant that nowait must allow retry
-		 * to be sure not to return SIGBUS erroneously on
-		 * nowait invocations.
+		 * Validate the invariant that analwait must allow retry
+		 * to be sure analt to return SIGBUS erroneously on
+		 * analwait invocations.
 		 */
-		BUG_ON(vmf->flags & FAULT_FLAG_RETRY_NOWAIT);
+		BUG_ON(vmf->flags & FAULT_FLAG_RETRY_ANALWAIT);
 #ifdef CONFIG_DEBUG_VM
 		if (printk_ratelimit()) {
 			printk(KERN_WARNING
@@ -510,11 +510,11 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	}
 
 	/*
-	 * Handle nowait, not much to do other than tell it to retry
+	 * Handle analwait, analt much to do other than tell it to retry
 	 * and wait.
 	 */
 	ret = VM_FAULT_RETRY;
-	if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
+	if (vmf->flags & FAULT_FLAG_RETRY_ANALWAIT)
 		goto out;
 
 	/* take the reference before dropping the mmap_lock */
@@ -530,7 +530,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	blocking_state = userfaultfd_get_blocking_state(vmf->flags);
 
         /*
-         * Take the vma lock now, in order to safely call
+         * Take the vma lock analw, in order to safely call
          * userfaultfd_huge_must_wait() later. Since acquiring the
          * (sleepable) vma lock can modify the current task state, that
          * must be before explicitly calling set_current_state().
@@ -577,13 +577,13 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	 * pointing to self at any time during the list refile. The
 	 * only case where list_del_init() is called is the full
 	 * removal in the wake function and there we don't re-list_add
-	 * and it's fine not to block on the spinlock. The uwq on this
+	 * and it's fine analt to block on the spinlock. The uwq on this
 	 * kernel stack can be released after the list_del_init.
 	 */
 	if (!list_empty_careful(&uwq.wq.entry)) {
 		spin_lock_irq(&ctx->fault_pending_wqh.lock);
 		/*
-		 * No need of list_del_init(), the uwq on the stack
+		 * Anal need of list_del_init(), the uwq on the stack
 		 * will be freed shortly anyway.
 		 */
 		list_del(&uwq.wq.entry);
@@ -626,7 +626,7 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
 		    fatal_signal_pending(current)) {
 			/*
 			 * &ewq->wq may be queued in fork_event, but
-			 * __remove_wait_queue ignores the head
+			 * __remove_wait_queue iganalres the head
 			 * parameter. It would be a problem if it
 			 * didn't.
 			 */
@@ -712,12 +712,12 @@ int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
 	if (!ctx) {
 		fctx = kmalloc(sizeof(*fctx), GFP_KERNEL);
 		if (!fctx)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ctx = kmem_cache_alloc(userfaultfd_ctx_cachep, GFP_KERNEL);
 		if (!ctx) {
 			kfree(fctx);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		refcount_set(&ctx->refcount, 1);
@@ -778,7 +778,7 @@ void mremap_userfaultfd_prep(struct vm_area_struct *vma,
 		userfaultfd_ctx_get(ctx);
 		atomic_inc(&ctx->mmap_changing);
 	} else {
-		/* Drop uffd context if remap feature not enabled */
+		/* Drop uffd context if remap feature analt enabled */
 		vma_start_write(vma);
 		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
 		userfaultfd_set_vm_flags(vma, vma->vm_flags & ~__VM_UFFD_FLAGS);
@@ -861,7 +861,7 @@ int userfaultfd_unmap_prep(struct vm_area_struct *vma, unsigned long start,
 
 	unmap_ctx = kzalloc(sizeof(*unmap_ctx), GFP_KERNEL);
 	if (!unmap_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	userfaultfd_ctx_get(ctx);
 	atomic_inc(&ctx->mmap_changing);
@@ -892,7 +892,7 @@ void userfaultfd_unmap_complete(struct mm_struct *mm, struct list_head *uf)
 	}
 }
 
-static int userfaultfd_release(struct inode *inode, struct file *file)
+static int userfaultfd_release(struct ianalde *ianalde, struct file *file)
 {
 	struct userfaultfd_ctx *ctx = file->private_data;
 	struct mm_struct *mm = ctx->mm;
@@ -904,11 +904,11 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
 
 	WRITE_ONCE(ctx->released, true);
 
-	if (!mmget_not_zero(mm))
+	if (!mmget_analt_zero(mm))
 		goto wakeup;
 
 	/*
-	 * Flush page faults out of all CPUs. NOTE: all page faults
+	 * Flush page faults out of all CPUs. ANALTE: all page faults
 	 * must be retried without returning VM_FAULT_SIGBUS if
 	 * userfaultfd_ctx_get() succeeds but vma->vma_userfault_ctx
 	 * changes while handle_userfault released the mmap_lock. So
@@ -940,13 +940,13 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
 	mmput(mm);
 wakeup:
 	/*
-	 * After no new page faults can wait on this fault_*wqh, flush
+	 * After anal new page faults can wait on this fault_*wqh, flush
 	 * the last page faults that may have been already waiting on
 	 * the fault_*wqh.
 	 */
 	spin_lock_irq(&ctx->fault_pending_wqh.lock);
-	__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, &range);
-	__wake_up(&ctx->fault_wqh, TASK_NORMAL, 1, &range);
+	__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_ANALRMAL, &range);
+	__wake_up(&ctx->fault_wqh, TASK_ANALRMAL, 1, &range);
 	spin_unlock_irq(&ctx->fault_pending_wqh.lock);
 
 	/* Flush pending events that may still wait on event_wqh */
@@ -1002,7 +1002,7 @@ static __poll_t userfaultfd_poll(struct file *file, poll_table *wait)
 	 * poll() never guarantees that read won't block.
 	 * userfaults can be waken before they're read().
 	 */
-	if (unlikely(!(file->f_flags & O_NONBLOCK)))
+	if (unlikely(!(file->f_flags & O_ANALNBLOCK)))
 		return EPOLLERR;
 	/*
 	 * lockless access to see if there are pending faults
@@ -1027,13 +1027,13 @@ static __poll_t userfaultfd_poll(struct file *file, poll_table *wait)
 static const struct file_operations userfaultfd_fops;
 
 static int resolve_userfault_fork(struct userfaultfd_ctx *new,
-				  struct inode *inode,
+				  struct ianalde *ianalde,
 				  struct uffd_msg *msg)
 {
 	int fd;
 
-	fd = anon_inode_create_getfd("[userfaultfd]", &userfaultfd_fops, new,
-			O_RDONLY | (new->flags & UFFD_SHARED_FCNTL_FLAGS), inode);
+	fd = aanaln_ianalde_create_getfd("[userfaultfd]", &userfaultfd_fops, new,
+			O_RDONLY | (new->flags & UFFD_SHARED_FCNTL_FLAGS), ianalde);
 	if (fd < 0)
 		return fd;
 
@@ -1042,8 +1042,8 @@ static int resolve_userfault_fork(struct userfaultfd_ctx *new,
 	return 0;
 }
 
-static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
-				    struct uffd_msg *msg, struct inode *inode)
+static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int anal_wait,
+				    struct uffd_msg *msg, struct ianalde *ianalde)
 {
 	ssize_t ret;
 	DECLARE_WAITQUEUE(wait, current);
@@ -1080,12 +1080,12 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
 			 * to disappear from under us.
 			 *
 			 * Refile this userfault from
-			 * fault_pending_wqh to fault_wqh, it's not
+			 * fault_pending_wqh to fault_wqh, it's analt
 			 * pending anymore after we read it.
 			 *
 			 * Use list_del() by hand (as
 			 * userfaultfd_wake_function also uses
-			 * list_del_init() by hand) to be sure nobody
+			 * list_del_init() by hand) to be sure analbody
 			 * changes __remove_wait_queue() to use
 			 * list_del_init() in turn breaking the
 			 * !list_empty_careful() check in
@@ -1141,7 +1141,7 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
 			ret = -ERESTARTSYS;
 			break;
 		}
-		if (no_wait) {
+		if (anal_wait) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -1154,7 +1154,7 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
 	spin_unlock_irq(&ctx->fd_wqh.lock);
 
 	if (!ret && msg->event == UFFD_EVENT_FORK) {
-		ret = resolve_userfault_fork(fork_nctx, inode, msg);
+		ret = resolve_userfault_fork(fork_nctx, ianalde, msg);
 		spin_lock_irq(&ctx->event_wqh.lock);
 		if (!list_empty(&fork_event)) {
 			/*
@@ -1172,8 +1172,8 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
 			 * (the event is allocated on fork kernel
 			 * stack), put the event back to its place in
 			 * the event_wq. fork_event head will be freed
-			 * as soon as we return so the event cannot
-			 * stay queued there no matter the current
+			 * as soon as we return so the event cananalt
+			 * stay queued there anal matter the current
 			 * "ret" value.
 			 */
 			list_del(&uwq->wq.entry);
@@ -1213,8 +1213,8 @@ static ssize_t userfaultfd_read(struct file *file, char __user *buf,
 	struct userfaultfd_ctx *ctx = file->private_data;
 	ssize_t _ret, ret = 0;
 	struct uffd_msg msg;
-	int no_wait = file->f_flags & O_NONBLOCK;
-	struct inode *inode = file_inode(file);
+	int anal_wait = file->f_flags & O_ANALNBLOCK;
+	struct ianalde *ianalde = file_ianalde(file);
 
 	if (!userfaultfd_is_initialized(ctx))
 		return -EINVAL;
@@ -1222,7 +1222,7 @@ static ssize_t userfaultfd_read(struct file *file, char __user *buf,
 	for (;;) {
 		if (count < sizeof(msg))
 			return ret ? ret : -EINVAL;
-		_ret = userfaultfd_ctx_read(ctx, no_wait, &msg, inode);
+		_ret = userfaultfd_ctx_read(ctx, anal_wait, &msg, ianalde);
 		if (_ret < 0)
 			return ret ? ret : _ret;
 		if (copy_to_user((__u64 __user *) buf, &msg, sizeof(msg)))
@@ -1234,7 +1234,7 @@ static ssize_t userfaultfd_read(struct file *file, char __user *buf,
 		 * Allow to read more than one fault at time but only
 		 * block if waiting for the very first one.
 		 */
-		no_wait = O_NONBLOCK;
+		anal_wait = O_ANALNBLOCK;
 	}
 }
 
@@ -1244,10 +1244,10 @@ static void __wake_userfault(struct userfaultfd_ctx *ctx,
 	spin_lock_irq(&ctx->fault_pending_wqh.lock);
 	/* wake all in the range and autoremove */
 	if (waitqueue_active(&ctx->fault_pending_wqh))
-		__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL,
+		__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_ANALRMAL,
 				     range);
 	if (waitqueue_active(&ctx->fault_wqh))
-		__wake_up(&ctx->fault_wqh, TASK_NORMAL, 1, range);
+		__wake_up(&ctx->fault_wqh, TASK_ANALRMAL, 1, range);
 	spin_unlock_irq(&ctx->fault_pending_wqh.lock);
 }
 
@@ -1258,7 +1258,7 @@ static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
 	bool need_wakeup;
 
 	/*
-	 * To be sure waitqueue_active() is not reordered by the CPU
+	 * To be sure waitqueue_active() is analt reordered by the CPU
 	 * before the pagetable update, use an explicit SMP memory
 	 * barrier here. PT lock release or mmap_read_unlock(mm) still
 	 * have release semantics that can allow the
@@ -1268,7 +1268,7 @@ static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
 
 	/*
 	 * Use waitqueue_active because it's very frequent to
-	 * change the address space atomically even if there are no
+	 * change the address space atomically even if there are anal
 	 * userfaults yet. So we take the spinlock only when we're
 	 * sure we've userfaults to wake.
 	 */
@@ -1347,11 +1347,11 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 #endif
 		vm_flags |= VM_UFFD_WP;
 	}
-	if (uffdio_register.mode & UFFDIO_REGISTER_MODE_MINOR) {
-#ifndef CONFIG_HAVE_ARCH_USERFAULTFD_MINOR
+	if (uffdio_register.mode & UFFDIO_REGISTER_MODE_MIANALR) {
+#ifndef CONFIG_HAVE_ARCH_USERFAULTFD_MIANALR
 		goto out;
 #endif
-		vm_flags |= VM_UFFD_MINOR;
+		vm_flags |= VM_UFFD_MIANALR;
 	}
 
 	ret = validate_range(mm, uffdio_register.range.start,
@@ -1362,8 +1362,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 	start = uffdio_register.range.start;
 	end = start + uffdio_register.range.len;
 
-	ret = -ENOMEM;
-	if (!mmget_not_zero(mm))
+	ret = -EANALMEM;
+	if (!mmget_analt_zero(mm))
 		goto out;
 
 	ret = -EINVAL;
@@ -1385,7 +1385,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 	}
 
 	/*
-	 * Search for not compatible vmas.
+	 * Search for analt compatible vmas.
 	 */
 	found = false;
 	basic_ioctls = false;
@@ -1396,7 +1396,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
 		       !!(cur->vm_flags & __VM_UFFD_FLAGS));
 
-		/* check not compatible vmas */
+		/* check analt compatible vmas */
 		ret = -EINVAL;
 		if (!vma_can_userfault(cur, vm_flags, wp_async))
 			goto out_unlock;
@@ -1406,7 +1406,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		 * PROT_WRITE. This check enforces that if this is a
 		 * MAP_SHARED, the process has write permission to the backing
 		 * file. If VM_MAYWRITE is set it also enforces that on a
-		 * MAP_SHARED vma: there is no F_WRITE_SEAL and no further
+		 * MAP_SHARED vma: there is anal F_WRITE_SEAL and anal further
 		 * F_WRITE_SEAL can be taken until the vma is destroyed.
 		 */
 		ret = -EPERM;
@@ -1433,7 +1433,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		 * Check that this vma isn't already owned by a
 		 * different userfaultfd. We can't allow more than one
 		 * userfaultfd to own a single vma simultaneously or we
-		 * wouldn't know which one to deliver the userfaults to.
+		 * wouldn't kanalw which one to deliver the userfaults to.
 		 */
 		ret = -EBUSY;
 		if (cur->vm_userfaultfd_ctx.ctx &&
@@ -1441,7 +1441,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 			goto out_unlock;
 
 		/*
-		 * Note vmas containing huge pages
+		 * Analte vmas containing huge pages
 		 */
 		if (is_vm_hugetlb_page(cur))
 			basic_ioctls = true;
@@ -1465,7 +1465,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
 
 		/*
-		 * Nothing to do: this vma is already registered into this
+		 * Analthing to do: this vma is already registered into this
 		 * userfaultfd and with the right tracking mode too.
 		 */
 		if (vma->vm_userfaultfd_ctx.ctx == ctx &&
@@ -1488,7 +1488,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		/*
 		 * In the vma_merge() successful mprotect-like case 8:
 		 * the next vma was merged into the current one and
-		 * the current one has not been updated yet.
+		 * the current one has analt been updated yet.
 		 */
 		vma_start_write(vma);
 		userfaultfd_set_vm_flags(vma, new_flags);
@@ -1518,12 +1518,12 @@ out_unlock:
 		if (!(uffdio_register.mode & UFFDIO_REGISTER_MODE_WP))
 			ioctls_out &= ~((__u64)1 << _UFFDIO_WRITEPROTECT);
 
-		/* CONTINUE ioctl is only supported for MINOR ranges. */
-		if (!(uffdio_register.mode & UFFDIO_REGISTER_MODE_MINOR))
+		/* CONTINUE ioctl is only supported for MIANALR ranges. */
+		if (!(uffdio_register.mode & UFFDIO_REGISTER_MODE_MIANALR))
 			ioctls_out &= ~((__u64)1 << _UFFDIO_CONTINUE);
 
 		/*
-		 * Now that we scanned all vmas we can already tell
+		 * Analw that we scanned all vmas we can already tell
 		 * userland which ioctls methods are guaranteed to
 		 * succeed on this range.
 		 */
@@ -1560,8 +1560,8 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 	start = uffdio_unregister.start;
 	end = start + uffdio_unregister.len;
 
-	ret = -ENOMEM;
-	if (!mmget_not_zero(mm))
+	ret = -EANALMEM;
+	if (!mmget_analt_zero(mm))
 		goto out;
 
 	mmap_write_lock(mm);
@@ -1583,7 +1583,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 	}
 
 	/*
-	 * Search for not compatible vmas.
+	 * Search for analt compatible vmas.
 	 */
 	found = false;
 	cur = vma;
@@ -1594,10 +1594,10 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 		       !!(cur->vm_flags & __VM_UFFD_FLAGS));
 
 		/*
-		 * Check not compatible vmas, not strictly required
-		 * here as not compatible vmas cannot have an
+		 * Check analt compatible vmas, analt strictly required
+		 * here as analt compatible vmas cananalt have an
 		 * userfaultfd_ctx registered on them, but this
-		 * provides for more strict behavior to notice
+		 * provides for more strict behavior to analtice
 		 * unregistration errors.
 		 */
 		if (!vma_can_userfault(cur, cur->vm_flags, wp_async))
@@ -1619,7 +1619,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 		BUG_ON(!vma_can_userfault(vma, vma->vm_flags, wp_async));
 
 		/*
-		 * Nothing to do: this vma is already registered into this
+		 * Analthing to do: this vma is already registered into this
 		 * userfaultfd and with the right tracking mode too.
 		 */
 		if (!vma->vm_userfaultfd_ctx.ctx)
@@ -1634,7 +1634,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 		if (userfaultfd_missing(vma)) {
 			/*
 			 * Wake any concurrent pending userfault while
-			 * we unregister, so they will not hang
+			 * we unregister, so they will analt hang
 			 * permanently and it avoids userland to call
 			 * UFFDIO_WAKE explicitly.
 			 */
@@ -1659,7 +1659,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 		/*
 		 * In the vma_merge() successful mprotect-like case 8:
 		 * the next vma was merged into the current one and
-		 * the current one has not been updated yet.
+		 * the current one has analt been updated yet.
 		 */
 		vma_start_write(vma);
 		userfaultfd_set_vm_flags(vma, new_flags);
@@ -1747,7 +1747,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
 		goto out;
 	if (uffdio_copy.mode & UFFDIO_COPY_MODE_WP)
 		flags |= MFILL_ATOMIC_WP;
-	if (mmget_not_zero(ctx->mm)) {
+	if (mmget_analt_zero(ctx->mm)) {
 		ret = mfill_atomic_copy(ctx->mm, uffdio_copy.dst, uffdio_copy.src,
 					uffdio_copy.len, &ctx->mmap_changing,
 					flags);
@@ -1799,7 +1799,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
 	if (uffdio_zeropage.mode & ~UFFDIO_ZEROPAGE_MODE_DONTWAKE)
 		goto out;
 
-	if (mmget_not_zero(ctx->mm)) {
+	if (mmget_analt_zero(ctx->mm)) {
 		ret = mfill_atomic_zeropage(ctx->mm, uffdio_zeropage.range.start,
 					   uffdio_zeropage.range.len,
 					   &ctx->mmap_changing);
@@ -1856,7 +1856,7 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
 	if (mode_wp && mode_dontwake)
 		return -EINVAL;
 
-	if (mmget_not_zero(ctx->mm)) {
+	if (mmget_analt_zero(ctx->mm)) {
 		ret = mwriteprotect_range(ctx->mm, uffdio_wp.range.start,
 					  uffdio_wp.range.len, mode_wp,
 					  &ctx->mmap_changing);
@@ -1908,7 +1908,7 @@ static int userfaultfd_continue(struct userfaultfd_ctx *ctx, unsigned long arg)
 	if (uffdio_continue.mode & UFFDIO_CONTINUE_MODE_WP)
 		flags |= MFILL_ATOMIC_WP;
 
-	if (mmget_not_zero(ctx->mm)) {
+	if (mmget_analt_zero(ctx->mm)) {
 		ret = mfill_atomic_continue(ctx->mm, uffdio_continue.range.start,
 					    uffdio_continue.range.len,
 					    &ctx->mmap_changing, flags);
@@ -1963,7 +1963,7 @@ static inline int userfaultfd_poison(struct userfaultfd_ctx *ctx, unsigned long 
 	if (uffdio_poison.mode & ~UFFDIO_POISON_MODE_DONTWAKE)
 		goto out;
 
-	if (mmget_not_zero(ctx->mm)) {
+	if (mmget_analt_zero(ctx->mm)) {
 		ret = mfill_atomic_poison(ctx->mm, uffdio_poison.range.start,
 					  uffdio_poison.range.len,
 					  &ctx->mmap_changing, 0);
@@ -2023,7 +2023,7 @@ static int userfaultfd_move(struct userfaultfd_ctx *ctx,
 			   sizeof(uffdio_move)-sizeof(__s64)))
 		return -EFAULT;
 
-	/* Do not allow cross-mm moves. */
+	/* Do analt allow cross-mm moves. */
 	if (mm != current->mm)
 		return -EINVAL;
 
@@ -2039,7 +2039,7 @@ static int userfaultfd_move(struct userfaultfd_ctx *ctx,
 				  UFFDIO_MOVE_MODE_DONTWAKE))
 		return -EINVAL;
 
-	if (mmget_not_zero(mm)) {
+	if (mmget_analt_zero(mm)) {
 		mmap_read_lock(mm);
 
 		/* Re-check after taking mmap_lock */
@@ -2076,7 +2076,7 @@ out:
 /*
  * userland asks for a certain API version and we return which bits
  * and ioctl commands are implemented in this kernel for such API
- * version or -EINVAL if unknown.
+ * version or -EINVAL if unkanalwn.
  */
 static int userfaultfd_api(struct userfaultfd_ctx *ctx,
 			   unsigned long arg)
@@ -2104,9 +2104,9 @@ static int userfaultfd_api(struct userfaultfd_ctx *ctx,
 
 	/* report all available features and ioctls to userland */
 	uffdio_api.features = UFFD_API_FEATURES;
-#ifndef CONFIG_HAVE_ARCH_USERFAULTFD_MINOR
+#ifndef CONFIG_HAVE_ARCH_USERFAULTFD_MIANALR
 	uffdio_api.features &=
-		~(UFFD_FEATURE_MINOR_HUGETLBFS | UFFD_FEATURE_MINOR_SHMEM);
+		~(UFFD_FEATURE_MIANALR_HUGETLBFS | UFFD_FEATURE_MIANALR_SHMEM);
 #endif
 #ifndef CONFIG_HAVE_ARCH_USERFAULTFD_WP
 	uffdio_api.features &= ~UFFD_FEATURE_PAGEFAULT_FLAG_WP;
@@ -2218,7 +2218,7 @@ static const struct file_operations userfaultfd_fops = {
 	.read		= userfaultfd_read,
 	.unlocked_ioctl = userfaultfd_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static void init_once_userfaultfd_ctx(void *mem)
@@ -2242,14 +2242,14 @@ static int new_userfaultfd(int flags)
 	/* Check the UFFD_* constants for consistency.  */
 	BUILD_BUG_ON(UFFD_USER_MODE_ONLY & UFFD_SHARED_FCNTL_FLAGS);
 	BUILD_BUG_ON(UFFD_CLOEXEC != O_CLOEXEC);
-	BUILD_BUG_ON(UFFD_NONBLOCK != O_NONBLOCK);
+	BUILD_BUG_ON(UFFD_ANALNBLOCK != O_ANALNBLOCK);
 
 	if (flags & ~(UFFD_SHARED_FCNTL_FLAGS | UFFD_USER_MODE_ONLY))
 		return -EINVAL;
 
 	ctx = kmem_cache_alloc(userfaultfd_ctx_cachep, GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	refcount_set(&ctx->refcount, 1);
 	ctx->flags = flags;
@@ -2260,8 +2260,8 @@ static int new_userfaultfd(int flags)
 	/* prevent the mm struct to be freed */
 	mmgrab(ctx->mm);
 
-	/* Create a new inode so that the LSM can block the creation.  */
-	fd = anon_inode_create_getfd("[userfaultfd]", &userfaultfd_fops, ctx,
+	/* Create a new ianalde so that the LSM can block the creation.  */
+	fd = aanaln_ianalde_create_getfd("[userfaultfd]", &userfaultfd_fops, ctx,
 			O_RDONLY | (flags & UFFD_SHARED_FCNTL_FLAGS), NULL);
 	if (fd < 0) {
 		mmdrop(ctx->mm);
@@ -2307,11 +2307,11 @@ static const struct file_operations userfaultfd_dev_fops = {
 	.unlocked_ioctl = userfaultfd_dev_ioctl,
 	.compat_ioctl = userfaultfd_dev_ioctl,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct miscdevice userfaultfd_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "userfaultfd",
 	.fops = &userfaultfd_dev_fops
 };

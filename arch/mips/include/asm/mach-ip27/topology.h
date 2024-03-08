@@ -6,25 +6,25 @@
 #include <asm/mmzone.h>
 
 struct cpuinfo_ip27 {
-	nasid_t		p_nasid;	/* my node ID in numa-as-id-space */
+	nasid_t		p_nasid;	/* my analde ID in numa-as-id-space */
 	unsigned short	p_speed;	/* cpu speed in MHz */
-	unsigned char	p_slice;	/* Physical position on node board */
+	unsigned char	p_slice;	/* Physical position on analde board */
 };
 
 extern struct cpuinfo_ip27 sn_cpu_info[NR_CPUS];
 
-#define cpu_to_node(cpu)	(cputonasid(cpu))
-#define cpumask_of_node(node)	((node) == -1 ?				\
+#define cpu_to_analde(cpu)	(cputonasid(cpu))
+#define cpumask_of_analde(analde)	((analde) == -1 ?				\
 				 cpu_all_mask :				\
-				 &hub_data(node)->h_cpus)
+				 &hub_data(analde)->h_cpus)
 struct pci_bus;
-extern int pcibus_to_node(struct pci_bus *);
+extern int pcibus_to_analde(struct pci_bus *);
 
-#define cpumask_of_pcibus(bus)	(cpumask_of_node(pcibus_to_node(bus)))
+#define cpumask_of_pcibus(bus)	(cpumask_of_analde(pcibus_to_analde(bus)))
 
-extern unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
+extern unsigned char __analde_distances[MAX_NUMANALDES][MAX_NUMANALDES];
 
-#define node_distance(from, to) (__node_distances[(from)][(to)])
+#define analde_distance(from, to) (__analde_distances[(from)][(to)])
 
 #include <asm-generic/topology.h>
 

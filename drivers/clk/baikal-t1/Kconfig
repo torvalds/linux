@@ -22,7 +22,7 @@ config CLK_BT1_CCU_PLL
 	  Enable this to support the PLLs embedded into the Baikal-T1 SoC
 	  System Controller. These are five PLLs placed at the root of the
 	  clocks hierarchy, right after an external reference oscillator
-	  (normally of 25MHz). They are used to generate high frequency
+	  (analrmally of 25MHz). They are used to generate high frequency
 	  signals, which are either directly wired to the consumers (like
 	  CPUs, DDR, etc.) or passed over the clock dividers to be only
 	  then used as an individual reference clock of a target device.

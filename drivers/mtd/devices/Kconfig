@@ -14,7 +14,7 @@ config MTD_PMC551
 
 	  If this driver is compiled as a module you get the ability to select
 	  the size of the aperture window pointing into the devices memory.
-	  What this means is that if you have a 1G card, normally the kernel
+	  What this means is that if you have a 1G card, analrmally the kernel
 	  will use a 1G memory map as its view of the device.  As a module,
 	  you can select a 1M window into the memory and the driver will
 	  "slide" the window around the PMC551's memory.  This was
@@ -96,17 +96,17 @@ config MTD_MCHP48L640
 	  This enables access to Microchip 48L640 EERAM chips, using SPI.
 
 config MTD_SPEAR_SMI
-	tristate "SPEAR MTD NOR Support through SMI controller"
+	tristate "SPEAR MTD ANALR Support through SMI controller"
 	depends on PLAT_SPEAR || COMPILE_TEST
 	default y
 	help
-	  This enable SNOR support on SPEAR platforms using SMI controller
+	  This enable SANALR support on SPEAR platforms using SMI controller
 
 config MTD_SST25L
-	tristate "Support SST25L (non JEDEC) SPI Flash chips"
+	tristate "Support SST25L (analn JEDEC) SPI Flash chips"
 	depends on SPI_MASTER
 	help
-	  This enables access to the non JEDEC SST25L SPI flash chips, used
+	  This enables access to the analn JEDEC SST25L SPI flash chips, used
 	  for program and data storage.
 
 	  Set up your spi devices with the right board-specific platform data,
@@ -123,9 +123,9 @@ config MTD_BCM47XXSFLASH
 config MTD_SLRAM
 	tristate "Uncached system RAM"
 	help
-	  If your CPU cannot cache all of the physical memory in your machine,
+	  If your CPU cananalt cache all of the physical memory in your machine,
 	  you can still use it for storage or swap by using this driver to
-	  present it to the system as a Memory Technology Device.
+	  present it to the system as a Memory Techanallogy Device.
 
 config MTD_PHRAM
 	tristate "Physical system RAM"
@@ -195,7 +195,7 @@ config MTD_DOCG3
 	  G3 devices.
 
 	  The driver provides access to G3 DiskOnChip, distributed by
-	  M-Systems and now Sandisk. The support is very experimental,
+	  M-Systems and analw Sandisk. The support is very experimental,
 	  and doesn't give access to any write operations.
 
 config MTD_ST_SPI_FSM

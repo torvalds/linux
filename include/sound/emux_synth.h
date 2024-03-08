@@ -105,7 +105,7 @@ struct snd_emux {
 	int used;	/* use counter */
 	char *name;	/* name of the device (internal) */
 	struct snd_rawmidi **vmidi;
-	struct timer_list tlist;	/* for pending note-offs */
+	struct timer_list tlist;	/* for pending analte-offs */
 	int timer_active;
 
 	struct snd_util_memhdr *memhdr;	/* memory chunk information */
@@ -141,7 +141,7 @@ struct snd_emux_port {
 };
 
 /* port_mode */
-#define SNDRV_EMUX_PORT_MODE_MIDI		0	/* normal MIDI port */
+#define SNDRV_EMUX_PORT_MODE_MIDI		0	/* analrmal MIDI port */
 #define SNDRV_EMUX_PORT_MODE_OSS_SYNTH	1	/* OSS synth port */
 #define SNDRV_EMUX_PORT_MODE_OSS_MIDI	2	/* OSS multi channel synth port */
 
@@ -152,26 +152,26 @@ struct snd_emux_voice {
 	int  ch;		/* Hardware channel number */
 
 	int  state;		/* status */
-#define SNDRV_EMUX_ST_OFF		0x00	/* Not playing, and inactive */
-#define SNDRV_EMUX_ST_ON		0x01	/* Note on */
-#define SNDRV_EMUX_ST_RELEASED 	(0x02|SNDRV_EMUX_ST_ON)	/* Note released */
-#define SNDRV_EMUX_ST_SUSTAINED	(0x04|SNDRV_EMUX_ST_ON)	/* Note sustained */
+#define SNDRV_EMUX_ST_OFF		0x00	/* Analt playing, and inactive */
+#define SNDRV_EMUX_ST_ON		0x01	/* Analte on */
+#define SNDRV_EMUX_ST_RELEASED 	(0x02|SNDRV_EMUX_ST_ON)	/* Analte released */
+#define SNDRV_EMUX_ST_SUSTAINED	(0x04|SNDRV_EMUX_ST_ON)	/* Analte sustained */
 #define SNDRV_EMUX_ST_STANDBY	(0x08|SNDRV_EMUX_ST_ON)	/* Waiting to be triggered */
-#define SNDRV_EMUX_ST_PENDING 	(0x10|SNDRV_EMUX_ST_ON)	/* Note will be released */
-#define SNDRV_EMUX_ST_LOCKED		0x100	/* Not accessible */
+#define SNDRV_EMUX_ST_PENDING 	(0x10|SNDRV_EMUX_ST_ON)	/* Analte will be released */
+#define SNDRV_EMUX_ST_LOCKED		0x100	/* Analt accessible */
 
 	unsigned int  time;	/* An allocation time */
-	unsigned char note;	/* Note currently assigned to this voice */
+	unsigned char analte;	/* Analte currently assigned to this voice */
 	unsigned char key;
-	unsigned char velocity;	/* Velocity of current note */
+	unsigned char velocity;	/* Velocity of current analte */
 
-	struct snd_sf_zone *zone;	/* Zone assigned to this note */
+	struct snd_sf_zone *zone;	/* Zone assigned to this analte */
 	void *block;		/* sample block pointer (optional) */
-	struct snd_midi_channel *chan;	/* Midi channel for this note */
+	struct snd_midi_channel *chan;	/* Midi channel for this analte */
 	struct snd_emux_port *port;	/* associated port */
 	struct snd_emux *emu;	/* assigned root info */
 	void *hw;		/* hardware pointer (emu8000 or emu10k1) */
-	unsigned long ontime;	/* jiffies at note triggered */
+	unsigned long ontime;	/* jiffies at analte triggered */
 	
 	/* Emu8k/Emu10k1 registers */
 	struct soundfont_voice_info reg;

@@ -61,6 +61,6 @@ ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp, __u16 srcp,
 	"local_address                         "		       \
 	"remote_address                        "		       \
 	"st tx_queue rx_queue tr tm->when retrnsmt"		       \
-	"   uid  timeout inode ref pointer drops\n"
+	"   uid  timeout ianalde ref pointer drops\n"
 
 #endif

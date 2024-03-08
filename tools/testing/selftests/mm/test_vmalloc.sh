@@ -70,7 +70,7 @@ run_stability_check()
 
 run_smoke_check()
 {
-	echo "Run smoke test. Note, this test provides basic coverage."
+	echo "Run smoke test. Analte, this test provides basic coverage."
 	echo "Please check $0 output how it can be used"
 	echo "for deep performance analysis as well as stress testing."
 
@@ -134,7 +134,7 @@ function validate_passed_args()
 		done
 
 		if [[ $valid -ne 1 ]]; then
-			echo "Error: key or value is not correct: ${key} $val"
+			echo "Error: key or value is analt correct: ${key} $val"
 			exit $exitcode
 		fi
 	done
@@ -144,7 +144,7 @@ function run_manual_check()
 {
 	#
 	# Validate passed parameters. If there is wrong one,
-	# the script exists and does not execute further.
+	# the script exists and does analt execute further.
 	#
 	validate_passed_args $@
 

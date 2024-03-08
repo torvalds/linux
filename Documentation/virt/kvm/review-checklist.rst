@@ -38,4 +38,4 @@ Review checklist for kvm patches
 
 12. Features must be robust against reset and kexec - for example, shared
     host/guest memory must be unshared to prevent the host from writing to
-    guest memory that the guest has not reserved for this purpose.
+    guest memory that the guest has analt reserved for this purpose.

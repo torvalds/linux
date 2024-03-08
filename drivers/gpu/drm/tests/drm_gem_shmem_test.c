@@ -50,7 +50,7 @@ static void drm_gem_shmem_free_wrapper(void *ptr)
 /*
  * Test creating a shmem GEM object backed by shmem buffer. The test
  * case succeeds if the GEM object is successfully allocated with the
- * shmem file node and object functions attributes set, and the size
+ * shmem file analde and object functions attributes set, and the size
  * attribute is equal to the correct size.
  */
 static void drm_gem_shmem_test_obj_create(struct kunit *test)
@@ -59,10 +59,10 @@ static void drm_gem_shmem_test_obj_create(struct kunit *test)
 	struct drm_gem_shmem_object *shmem;
 
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, shmem);
 	KUNIT_EXPECT_EQ(test, shmem->base.size, TEST_SIZE);
-	KUNIT_EXPECT_NOT_NULL(test, shmem->base.filp);
-	KUNIT_EXPECT_NOT_NULL(test, shmem->base.funcs);
+	KUNIT_EXPECT_ANALT_NULL(test, shmem->base.filp);
+	KUNIT_EXPECT_ANALT_NULL(test, shmem->base.funcs);
 
 	drm_gem_shmem_free(shmem);
 }
@@ -70,7 +70,7 @@ static void drm_gem_shmem_test_obj_create(struct kunit *test)
 /*
  * Test creating a shmem GEM object from a scatter/gather table exported
  * via a DMA-BUF. The test case succeed if the GEM object is successfully
- * created with the shmem file node attribute equal to NULL and the sgt
+ * created with the shmem file analde attribute equal to NULL and the sgt
  * attribute pointing to the scatter/gather table that has been imported.
  */
 static void drm_gem_shmem_test_obj_create_private(struct kunit *test)
@@ -86,10 +86,10 @@ static void drm_gem_shmem_test_obj_create_private(struct kunit *test)
 
 	/* Create a mock scatter/gather table */
 	buf = kunit_kzalloc(test, TEST_SIZE, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_NULL(test, buf);
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, sgt);
+	KUNIT_ASSERT_ANALT_NULL(test, sgt);
 
 	ret = kunit_add_action_or_reset(test, kfree_wrapper, sgt);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -107,10 +107,10 @@ static void drm_gem_shmem_test_obj_create_private(struct kunit *test)
 	attach_mock.dmabuf = &buf_mock;
 
 	gem_obj = drm_gem_shmem_prime_import_sg_table(drm_dev, &attach_mock, sgt);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, gem_obj);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, gem_obj);
 	KUNIT_EXPECT_EQ(test, gem_obj->size, TEST_SIZE);
 	KUNIT_EXPECT_NULL(test, gem_obj->filp);
-	KUNIT_EXPECT_NOT_NULL(test, gem_obj->funcs);
+	KUNIT_EXPECT_ANALT_NULL(test, gem_obj->funcs);
 
 	/* The scatter/gather table will be freed by drm_gem_shmem_free */
 	kunit_remove_action(test, sg_free_table_wrapper, sgt);
@@ -134,7 +134,7 @@ static void drm_gem_shmem_test_pin_pages(struct kunit *test)
 	int i, ret;
 
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, shmem);
 	KUNIT_EXPECT_NULL(test, shmem->pages);
 	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 0);
 
@@ -143,11 +143,11 @@ static void drm_gem_shmem_test_pin_pages(struct kunit *test)
 
 	ret = drm_gem_shmem_pin(shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
-	KUNIT_ASSERT_NOT_NULL(test, shmem->pages);
+	KUNIT_ASSERT_ANALT_NULL(test, shmem->pages);
 	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 1);
 
 	for (i = 0; i < (shmem->base.size >> PAGE_SHIFT); i++)
-		KUNIT_ASSERT_NOT_NULL(test, shmem->pages[i]);
+		KUNIT_ASSERT_ANALT_NULL(test, shmem->pages[i]);
 
 	drm_gem_shmem_unpin(shmem);
 	KUNIT_EXPECT_NULL(test, shmem->pages);
@@ -168,7 +168,7 @@ static void drm_gem_shmem_test_vmap(struct kunit *test)
 	int ret, i;
 
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, shmem);
 	KUNIT_EXPECT_NULL(test, shmem->vaddr);
 	KUNIT_EXPECT_EQ(test, shmem->vmap_use_count, 0);
 
@@ -177,7 +177,7 @@ static void drm_gem_shmem_test_vmap(struct kunit *test)
 
 	ret = drm_gem_shmem_vmap(shmem, &map);
 	KUNIT_ASSERT_EQ(test, ret, 0);
-	KUNIT_ASSERT_NOT_NULL(test, shmem->vaddr);
+	KUNIT_ASSERT_ANALT_NULL(test, shmem->vaddr);
 	KUNIT_ASSERT_FALSE(test, iosys_map_is_null(&map));
 	KUNIT_EXPECT_EQ(test, shmem->vmap_use_count, 1);
 
@@ -193,7 +193,7 @@ static void drm_gem_shmem_test_vmap(struct kunit *test)
 /*
  * Test exporting a scatter/gather table of pinned pages suitable for
  * PRIME usage from a shmem GEM object. The test case succeeds if a
- * scatter/gather table large enough to accommodate the backing memory
+ * scatter/gather table large eanalugh to accommodate the backing memory
  * is successfully exported.
  */
 static void drm_gem_shmem_test_get_pages_sgt(struct kunit *test)
@@ -206,7 +206,7 @@ static void drm_gem_shmem_test_get_pages_sgt(struct kunit *test)
 	int ret;
 
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, shmem);
 
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -215,14 +215,14 @@ static void drm_gem_shmem_test_get_pages_sgt(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	sgt = drm_gem_shmem_get_sg_table(shmem);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sgt);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, sgt);
 	KUNIT_EXPECT_NULL(test, shmem->sgt);
 
 	ret = kunit_add_action_or_reset(test, sg_free_table_wrapper, sgt);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	for_each_sgtable_sg(sgt, sg, si) {
-		KUNIT_EXPECT_NOT_NULL(test, sg);
+		KUNIT_EXPECT_ANALT_NULL(test, sg);
 		len += sg->length;
 	}
 
@@ -232,7 +232,7 @@ static void drm_gem_shmem_test_get_pages_sgt(struct kunit *test)
 /*
  * Test pinning pages and exporting a scatter/gather table suitable for
  * driver usage from a shmem GEM object. The test case succeeds if the
- * backing pages are pinned and a scatter/gather table large enough to
+ * backing pages are pinned and a scatter/gather table large eanalugh to
  * accommodate the backing memory is successfully exported.
  */
 static void drm_gem_shmem_test_get_sg_table(struct kunit *test)
@@ -244,20 +244,20 @@ static void drm_gem_shmem_test_get_sg_table(struct kunit *test)
 	unsigned int si, ret, len = 0;
 
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, shmem);
 
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	/* The scatter/gather table will be freed by drm_gem_shmem_free */
 	sgt = drm_gem_shmem_get_pages_sgt(shmem);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sgt);
-	KUNIT_ASSERT_NOT_NULL(test, shmem->pages);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, sgt);
+	KUNIT_ASSERT_ANALT_NULL(test, shmem->pages);
 	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 1);
 	KUNIT_EXPECT_PTR_EQ(test, sgt, shmem->sgt);
 
 	for_each_sgtable_sg(sgt, sg, si) {
-		KUNIT_EXPECT_NOT_NULL(test, sg);
+		KUNIT_EXPECT_ANALT_NULL(test, sg);
 		len += sg->length;
 	}
 
@@ -277,7 +277,7 @@ static void drm_gem_shmem_test_madvise(struct kunit *test)
 	int ret;
 
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, shmem);
 	KUNIT_ASSERT_EQ(test, shmem->madv, 0);
 
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
@@ -292,7 +292,7 @@ static void drm_gem_shmem_test_madvise(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, ret);
 	KUNIT_ASSERT_EQ(test, shmem->madv, -1);
 
-	/* Check that madv cannot be set back to a positive value */
+	/* Check that madv cananalt be set back to a positive value */
 	ret = drm_gem_shmem_madvise(shmem, 0);
 	KUNIT_EXPECT_FALSE(test, ret);
 	KUNIT_ASSERT_EQ(test, shmem->madv, -1);
@@ -300,9 +300,9 @@ static void drm_gem_shmem_test_madvise(struct kunit *test)
 
 /*
  * Test purging a shmem GEM object. First, assert that a newly created
- * shmem GEM object is not purgeable. Then, set madvise to a positive
+ * shmem GEM object is analt purgeable. Then, set madvise to a positive
  * value and call drm_gem_shmem_get_pages_sgt() to pin and dma-map the
- * backing pages. Finally, assert that the shmem GEM object is now
+ * backing pages. Finally, assert that the shmem GEM object is analw
  * purgeable and purge it.
  */
 static void drm_gem_shmem_test_purge(struct kunit *test)
@@ -313,7 +313,7 @@ static void drm_gem_shmem_test_purge(struct kunit *test)
 	int ret;
 
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, shmem);
 
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -326,7 +326,7 @@ static void drm_gem_shmem_test_purge(struct kunit *test)
 
 	/* The scatter/gather table will be freed by drm_gem_shmem_free */
 	sgt = drm_gem_shmem_get_pages_sgt(shmem);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sgt);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, sgt);
 
 	ret = drm_gem_shmem_is_purgeable(shmem);
 	KUNIT_EXPECT_TRUE(test, ret);
@@ -344,7 +344,7 @@ static int drm_gem_shmem_test_init(struct kunit *test)
 
 	/* Allocate a parent device */
 	dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	/*
 	 * The DRM core will automatically initialize the GEM core and create
@@ -353,7 +353,7 @@ static int drm_gem_shmem_test_init(struct kunit *test)
 	 */
 	drm_dev = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*drm_dev),
 						      0, DRIVER_GEM);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm_dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, drm_dev);
 
 	test->priv = drm_dev;
 

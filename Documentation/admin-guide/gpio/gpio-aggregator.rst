@@ -12,15 +12,15 @@ Aggregating GPIOs using Sysfs
 
 GPIO controllers are exported to userspace using /dev/gpiochip* character
 devices.  Access control to these devices is provided by standard UNIX file
-system permissions, on an all-or-nothing basis: either a GPIO controller is
-accessible for a user, or it is not.
+system permissions, on an all-or-analthing basis: either a GPIO controller is
+accessible for a user, or it is analt.
 
 The GPIO Aggregator provides access control for a set of one or more GPIOs, by
 aggregating them into a new gpio_chip, which can be assigned to a group or user
 using standard UNIX file ownership and permissions.  Furthermore, this
 simplifies and hardens exporting GPIOs to a virtual machine, as the VM can just
-grab the full GPIO controller, and no longer needs to care about which GPIOs to
-grab and which not, reducing the attack surface.
+grab the full GPIO controller, and anal longer needs to care about which GPIOs to
+grab and which analt, reducing the attack surface.
 
 Aggregated GPIO controllers are instantiated and destroyed by writing to
 write-only attribute files in sysfs.
@@ -32,7 +32,7 @@ write-only attribute files in sysfs.
 		controller by writing a string describing the GPIOs to
 		aggregate to the "new_device" file, using the format
 
-		.. code-block:: none
+		.. code-block:: analne
 
 		    [<gpioA>] [<gpiochipB> <offsets>] ...
 
@@ -46,7 +46,7 @@ write-only attribute files in sysfs.
 
 		    "<offsets>" ...
 			    is a comma-separated list of GPIO offsets and/or
-			    GPIO offset ranges denoted by dashes.
+			    GPIO offset ranges deanalted by dashes.
 
 		Example: Instantiate a new GPIO aggregator by aggregating GPIO
 		line 19 of "e6052000.gpio" and GPIO lines 20-21 of
@@ -74,7 +74,7 @@ Generic GPIO Driver
 
 The GPIO Aggregator can also be used as a generic driver for a simple
 GPIO-operated device described in DT, without a dedicated in-kernel driver.
-This is useful in industrial control, and is not unlike e.g. spidev, which
+This is useful in industrial control, and is analt unlike e.g. spidev, which
 allows the user to communicate with an SPI device from userspace.
 
 Binding a device to the GPIO Aggregator is performed either by modifying the

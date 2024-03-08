@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/sysinfo.h>
 #include <pthread.h>
 
@@ -35,7 +35,7 @@ static int alloc_dcache(const char *cgroup, void *arg)
 
 	for (i = 0; i < (unsigned long)arg; i++) {
 		snprintf(buf, sizeof(buf),
-			"/something-non-existent-with-a-long-name-%64lu-%d",
+			"/something-analn-existent-with-a-long-name-%64lu-%d",
 			 i, getpid());
 		stat(buf, &st);
 	}
@@ -162,11 +162,11 @@ static int cg_run_in_subcgroups(const char *parent,
  * allocates some slab memory (mostly negative dentries) using 2 * NR_CPUS
  * threads. Then it checks the sanity of numbers on the parent level:
  * the total size of the cgroups should be roughly equal to
- * anon + file + kernel + sock.
+ * aanaln + file + kernel + sock.
  */
 static int test_kmem_memcg_deletion(const char *root)
 {
-	long current, anon, file, kernel, sock, sum;
+	long current, aanaln, file, kernel, sock, sum;
 	int ret = KSFT_FAIL;
 	char *parent;
 
@@ -184,20 +184,20 @@ static int test_kmem_memcg_deletion(const char *root)
 		goto cleanup;
 
 	current = cg_read_long(parent, "memory.current");
-	anon = cg_read_key_long(parent, "memory.stat", "anon ");
+	aanaln = cg_read_key_long(parent, "memory.stat", "aanaln ");
 	file = cg_read_key_long(parent, "memory.stat", "file ");
 	kernel = cg_read_key_long(parent, "memory.stat", "kernel ");
 	sock = cg_read_key_long(parent, "memory.stat", "sock ");
-	if (current < 0 || anon < 0 || file < 0 || kernel < 0 || sock < 0)
+	if (current < 0 || aanaln < 0 || file < 0 || kernel < 0 || sock < 0)
 		goto cleanup;
 
-	sum = anon + file + kernel + sock;
+	sum = aanaln + file + kernel + sock;
 	if (abs(sum - current) < MAX_VMSTAT_ERROR) {
 		ret = KSFT_PASS;
 	} else {
 		printf("memory.current = %ld\n", current);
-		printf("anon + file + kernel + sock = %ld\n", sum);
-		printf("anon = %ld\n", anon);
+		printf("aanaln + file + kernel + sock = %ld\n", sum);
+		printf("aanaln = %ld\n", aanaln);
 		printf("file = %ld\n", file);
 		printf("kernel = %ld\n", kernel);
 		printf("sock = %ld\n", sock);

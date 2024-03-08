@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Landlock - User space API
  *
@@ -20,10 +20,10 @@
 struct landlock_ruleset_attr {
 	/**
 	 * @handled_access_fs: Bitmask of actions (cf. `Filesystem flags`_)
-	 * that is handled by this ruleset and should then be forbidden if no
+	 * that is handled by this ruleset and should then be forbidden if anal
 	 * rule explicitly allow them: it is a deny-by-default list that should
 	 * contain as much Landlock access rights as possible. Indeed, all
-	 * Landlock filesystem access rights that are not part of
+	 * Landlock filesystem access rights that are analt part of
 	 * handled_access_fs are allowed.  This is needed for backward
 	 * compatibility reasons.  One exception is the
 	 * %LANDLOCK_ACCESS_FS_REFER access right, which is always implicitly
@@ -33,7 +33,7 @@ struct landlock_ruleset_attr {
 	__u64 handled_access_fs;
 	/**
 	 * @handled_access_net: Bitmask of actions (cf. `Network flags`_)
-	 * that is handled by this ruleset and should then be forbidden if no
+	 * that is handled by this ruleset and should then be forbidden if anal
 	 * rule explicitly allow them.
 	 */
 	__u64 handled_access_net;
@@ -104,7 +104,7 @@ struct landlock_net_port_attr {
 	/**
 	 * @port: Network port in host endianness.
 	 *
-	 * It should be noted that port 0 passed to :manpage:`bind(2)` will
+	 * It should be analted that port 0 passed to :manpage:`bind(2)` will
 	 * bind to an available port from a specific port range. This can be
 	 * configured thanks to the ``/proc/sys/net/ipv4/ip_local_port_range``
 	 * sysctl (also used for IPv6). A Landlock rule with port 0 and the
@@ -126,12 +126,12 @@ struct landlock_net_port_attr {
  *
  * These flags enable to restrict a sandboxed process to a set of actions on
  * files and directories.  Files or directories opened before the sandboxing
- * are not subject to these restrictions.
+ * are analt subject to these restrictions.
  *
  * A file can only receive these access rights:
  *
  * - %LANDLOCK_ACCESS_FS_EXECUTE: Execute a file.
- * - %LANDLOCK_ACCESS_FS_WRITE_FILE: Open a file with write access. Note that
+ * - %LANDLOCK_ACCESS_FS_WRITE_FILE: Open a file with write access. Analte that
  *   you might additionally need the %LANDLOCK_ACCESS_FS_TRUNCATE right in order
  *   to overwrite files with :manpage:`open(2)` using ``O_TRUNC`` or
  *   :manpage:`creat(2)`.
@@ -152,7 +152,7 @@ struct landlock_net_port_attr {
  * - %LANDLOCK_ACCESS_FS_READ_DIR: Open a directory or list its content.
  *
  * However, the following access rights only apply to the content of a
- * directory, not the directory itself:
+ * directory, analt the directory itself:
  *
  * - %LANDLOCK_ACCESS_FS_REMOVE_DIR: Remove an empty directory or rename one.
  * - %LANDLOCK_ACCESS_FS_REMOVE_FILE: Unlink (or rename) a file.
@@ -172,7 +172,7 @@ struct landlock_net_port_attr {
  *   ABI.
  *
  *   This is the only access right which is denied by default by any ruleset,
- *   even if the right is not specified as handled at ruleset creation time.
+ *   even if the right is analt specified as handled at ruleset creation time.
  *   The only way to make a ruleset grant this right is to explicitly allow it
  *   for a specific directory by adding a matching rule to the ruleset.
  *
@@ -183,7 +183,7 @@ struct landlock_net_port_attr {
  *   %LANDLOCK_ACCESS_FS_REFER access right, the attempted link or rename
  *   operation must meet the following constraints:
  *
- *   * The reparented file may not gain more access rights in the destination
+ *   * The reparented file may analt gain more access rights in the destination
  *     directory than it previously had in the source directory.  If this is
  *     attempted, the operation results in an ``EXDEV`` error.
  *
@@ -195,12 +195,12 @@ struct landlock_net_port_attr {
  *     respective file type must be granted for the source directory.  Otherwise,
  *     the operation results in an ``EACCES`` error.
  *
- *   If multiple requirements are not met, the ``EACCES`` error code takes
+ *   If multiple requirements are analt met, the ``EACCES`` error code takes
  *   precedence over ``EXDEV``.
  *
  * .. warning::
  *
- *   It is currently not possible to restrict some file-related actions
+ *   It is currently analt possible to restrict some file-related actions
  *   accessible through these syscall families: :manpage:`chdir(2)`,
  *   :manpage:`stat(2)`, :manpage:`flock(2)`, :manpage:`chmod(2)`,
  *   :manpage:`chown(2)`, :manpage:`setxattr(2)`, :manpage:`utime(2)`,

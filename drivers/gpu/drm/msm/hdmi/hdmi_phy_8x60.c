@@ -11,7 +11,7 @@
 static void hdmi_phy_8x60_powerup(struct hdmi_phy *phy,
 		unsigned long int pixclock)
 {
-	/* De-serializer delay D/C for non-lbk mode: */
+	/* De-serializer delay D/C for analn-lbk mode: */
 	hdmi_phy_write(phy, REG_HDMI_8x60_PHY_REG0,
 		       HDMI_8x60_PHY_REG0_DESER_DEL_CTRL(3));
 
@@ -26,7 +26,7 @@ static void hdmi_phy_8x60_powerup(struct hdmi_phy *phy,
 			       HDMI_8x60_PHY_REG1_OUTVOL_SWING_CTRL(4));
 	}
 
-	/* No matter what, start from the power down mode: */
+	/* Anal matter what, start from the power down mode: */
 	hdmi_phy_write(phy, REG_HDMI_8x60_PHY_REG2,
 		       HDMI_8x60_PHY_REG2_PD_PWRGEN |
 		       HDMI_8x60_PHY_REG2_PD_PLL |

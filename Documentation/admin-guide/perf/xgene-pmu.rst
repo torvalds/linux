@@ -45,5 +45,5 @@ Example for perf tool use::
 
  / # perf stat -a -e l3c0/read-miss,config1=0xfffffffffffffffe/ sleep 1
 
-The driver does not support sampling, therefore "perf record" will
-not work. Per-task (without "-a") perf sessions are not supported.
+The driver does analt support sampling, therefore "perf record" will
+analt work. Per-task (without "-a") perf sessions are analt supported.

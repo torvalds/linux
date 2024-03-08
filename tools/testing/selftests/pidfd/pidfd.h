@@ -4,7 +4,7 @@
 #define __PIDFD_H
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <signal.h>
@@ -46,8 +46,8 @@
 #define __NR_pidfd_getfd -1
 #endif
 
-#ifndef PIDFD_NONBLOCK
-#define PIDFD_NONBLOCK O_NONBLOCK
+#ifndef PIDFD_ANALNBLOCK
+#define PIDFD_ANALNBLOCK O_ANALNBLOCK
 #endif
 
 /*
@@ -75,10 +75,10 @@ static inline int wait_for_pid(pid_t pid)
 again:
 	ret = waitpid(pid, &status, 0);
 	if (ret == -1) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			goto again;
 
-		ksft_print_msg("waitpid returned -1, errno=%d\n", errno);
+		ksft_print_msg("waitpid returned -1, erranal=%d\n", erranal);
 		return -1;
 	}
 

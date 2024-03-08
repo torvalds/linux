@@ -40,7 +40,7 @@ static inline struct posix_acl *
 posix_acl_from_xattr(struct user_namespace *user_ns, const void *value,
 		     size_t size)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 #endif
 
@@ -69,7 +69,7 @@ static inline int posix_acl_type(const char *name)
 }
 
 /* These are legacy handlers. Don't use them for new code. */
-extern const struct xattr_handler nop_posix_acl_access;
-extern const struct xattr_handler nop_posix_acl_default;
+extern const struct xattr_handler analp_posix_acl_access;
+extern const struct xattr_handler analp_posix_acl_default;
 
 #endif	/* _POSIX_ACL_XATTR_H */

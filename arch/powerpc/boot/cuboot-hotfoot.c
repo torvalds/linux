@@ -50,13 +50,13 @@ static void hotfoot_fixups(void)
 
 		devp = finddevice("/plb/opb/serial@ef600300");
 		if (!devp)
-			fatal("Can't find node for /plb/opb/serial@ef600300");
-		del_node(devp);
+			fatal("Can't find analde for /plb/opb/serial@ef600300");
+		del_analde(devp);
 
 		devp = finddevice("/plb/opb/ethernet@ef600900");
 		if (!devp)
-			fatal("Can't find node for /plb/opb/ethernet@ef600900");
-		del_node(devp);
+			fatal("Can't find analde for /plb/opb/ethernet@ef600900");
+		del_analde(devp);
 	}
 
 	ibm4xx_quiesce_eth((u32 *)0xef600800, (u32 *)0xef600900);
@@ -64,9 +64,9 @@ static void hotfoot_fixups(void)
 	/* Fix up flash size in fdt for 4M boards. */
 	if (bd.bi_flashsize < 0x800000) {
 		u32 regs[NUM_REGS];
-		void *devp = finddevice("/plb/ebc/nor_flash@0");
+		void *devp = finddevice("/plb/ebc/analr_flash@0");
 		if (!devp)
-			fatal("Can't find FDT node for nor_flash!??");
+			fatal("Can't find FDT analde for analr_flash!??");
 
 		printf("Fixing devtree for 4M Flash\n");
 		
@@ -78,53 +78,53 @@ static void hotfoot_fixups(void)
 		setprop(devp, "reg", regs, sizeof(regs));
 		
 		/* Then the offsets */
-		devp = finddevice("/plb/ebc/nor_flash@0/partition@0");
+		devp = finddevice("/plb/ebc/analr_flash@0/partition@0");
 		if (!devp)
-			fatal("Can't find FDT node for partition@0");
+			fatal("Can't find FDT analde for partition@0");
 		getprop(devp, "reg", regs, 2*sizeof(u32));
 		regs[0] -= 0x400000;
 		setprop(devp, "reg", regs,  2*sizeof(u32));
 
-		devp = finddevice("/plb/ebc/nor_flash@0/partition@1");
+		devp = finddevice("/plb/ebc/analr_flash@0/partition@1");
 		if (!devp)
-			fatal("Can't find FDT node for partition@1");
+			fatal("Can't find FDT analde for partition@1");
 		getprop(devp, "reg", regs, 2*sizeof(u32));
 		regs[0] -= 0x400000;
 		setprop(devp, "reg", regs,  2*sizeof(u32));
 
-		devp = finddevice("/plb/ebc/nor_flash@0/partition@2");
+		devp = finddevice("/plb/ebc/analr_flash@0/partition@2");
 		if (!devp)
-			fatal("Can't find FDT node for partition@2");
+			fatal("Can't find FDT analde for partition@2");
 		getprop(devp, "reg", regs, 2*sizeof(u32));
 		regs[0] -= 0x400000;
 		setprop(devp, "reg", regs,  2*sizeof(u32));
 
-		devp = finddevice("/plb/ebc/nor_flash@0/partition@3");
+		devp = finddevice("/plb/ebc/analr_flash@0/partition@3");
 		if (!devp)
-			fatal("Can't find FDT node for partition@3");
+			fatal("Can't find FDT analde for partition@3");
 		getprop(devp, "reg", regs, 2*sizeof(u32));
 		regs[0] -= 0x400000;
 		setprop(devp, "reg", regs,  2*sizeof(u32));
 
-		devp = finddevice("/plb/ebc/nor_flash@0/partition@4");
+		devp = finddevice("/plb/ebc/analr_flash@0/partition@4");
 		if (!devp)
-			fatal("Can't find FDT node for partition@4");
+			fatal("Can't find FDT analde for partition@4");
 		getprop(devp, "reg", regs, 2*sizeof(u32));
 		regs[0] -= 0x400000;
 		setprop(devp, "reg", regs,  2*sizeof(u32));
 
-		devp = finddevice("/plb/ebc/nor_flash@0/partition@6");
+		devp = finddevice("/plb/ebc/analr_flash@0/partition@6");
 		if (!devp)
-			fatal("Can't find FDT node for partition@6");
+			fatal("Can't find FDT analde for partition@6");
 		getprop(devp, "reg", regs, 2*sizeof(u32));
 		regs[0] -= 0x400000;
 		setprop(devp, "reg", regs,  2*sizeof(u32));
 
-		/* Delete the FeatFS node */
-		devp = finddevice("/plb/ebc/nor_flash@0/partition@5");
+		/* Delete the FeatFS analde */
+		devp = finddevice("/plb/ebc/analr_flash@0/partition@5");
 		if (!devp)
-			fatal("Can't find FDT node for partition@5");
-		del_node(devp);
+			fatal("Can't find FDT analde for partition@5");
+		del_analde(devp);
 	}
 }
 

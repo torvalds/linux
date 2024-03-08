@@ -19,8 +19,8 @@
  */
 
 /*
- * Firmware map entry. Because firmware memory maps are flat and not
- * hierarchical, it's ok to organise them in a linked list. No parent
+ * Firmware map entry. Because firmware memory maps are flat and analt
+ * hierarchical, it's ok to organise them in a linked list. Anal parent
  * information is necessary as for the resource tree.
  */
 struct firmware_map_entry {
@@ -80,7 +80,7 @@ static LIST_HEAD(map_entries);
 static DEFINE_SPINLOCK(map_entries_lock);
 
 /*
- * For memory hotplug, there is no way to free memory map entries allocated
+ * For memory hotplug, there is anal way to free memory map entries allocated
  * by boot mem after the system is up. So when we hot-remove memory whose
  * map entry is allocated by bootmem, we need to remember the storage and
  * reuse it when the memory is hot-added again.
@@ -184,7 +184,7 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
 	if (!mmap_kset) {
 		mmap_kset = kset_create_and_add("memmap", NULL, firmware_kobj);
 		if (!mmap_kset)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	entry->kobj.kset = mmap_kset;
@@ -210,7 +210,7 @@ static inline void remove_sysfs_fw_map_entry(struct firmware_map_entry *entry)
  * @list:  In which to find the entry.
  *
  * This function is to find the memmap entey of a given memory range in a
- * given list. The caller must hold map_entries_lock, and must not release
+ * given list. The caller must hold map_entries_lock, and must analt release
  * the lock until the processing of the returned entry has completed.
  *
  * Return: Pointer to the entry to be found on success, or NULL on failure.
@@ -237,7 +237,7 @@ firmware_map_find_entry_in_list(u64 start, u64 end, const char *type,
  * @type:  Type of the memory range.
  *
  * This function is to find the memmap entey of a given memory range.
- * The caller must hold map_entries_lock, and must not release the lock
+ * The caller must hold map_entries_lock, and must analt release the lock
  * until the processing of the returned entry has completed.
  *
  * Return: Pointer to the entry to be found on success, or NULL on failure.
@@ -277,7 +277,7 @@ firmware_map_find_entry_bootmem(u64 start, u64 end, const char *type)
  * similar to function firmware_map_add_early(). The only difference is that
  * it will create the syfs entry dynamically.
  *
- * Return: 0 on success, or -ENOMEM if no memory could be allocated.
+ * Return: 0 on success, or -EANALMEM if anal memory could be allocated.
  */
 int __meminit firmware_map_add_hotplug(u64 start, u64 end, const char *type)
 {
@@ -291,7 +291,7 @@ int __meminit firmware_map_add_hotplug(u64 start, u64 end, const char *type)
 	if (!entry) {
 		entry = kzalloc(sizeof(struct firmware_map_entry), GFP_ATOMIC);
 		if (!entry)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		/* Reuse storage allocated by bootmem. */
 		spin_lock(&map_entries_bootmem_lock);
@@ -319,7 +319,7 @@ int __meminit firmware_map_add_hotplug(u64 start, u64 end, const char *type)
  *
  * That function must be called before late_initcall.
  *
- * Return: 0 on success, or -ENOMEM if no memory could be allocated.
+ * Return: 0 on success, or -EANALMEM if anal memory could be allocated.
  */
 int __init firmware_map_add_early(u64 start, u64 end, const char *type)
 {
@@ -328,7 +328,7 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
 	entry = memblock_alloc(sizeof(struct firmware_map_entry),
 			       SMP_CACHE_BYTES);
 	if (WARN_ON(!entry))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return firmware_map_add_entry(start, end, type, entry);
 }
@@ -341,7 +341,7 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
  *
  * removes a firmware mapping entry.
  *
- * Return: 0 on success, or -EINVAL if no entry.
+ * Return: 0 on success, or -EINVAL if anal entry.
  */
 int __meminit firmware_map_remove(u64 start, u64 end, const char *type)
 {
@@ -404,7 +404,7 @@ static ssize_t memmap_attr_show(struct kobject *kobj,
  * must be called before late_initcall. That's just because that function
  * is called as late_initcall() function, which means that if you call
  * firmware_map_add() or firmware_map_add_early() afterwards, the entries
- * are not added to sysfs.
+ * are analt added to sysfs.
  */
 static int __init firmware_memmap_init(void)
 {

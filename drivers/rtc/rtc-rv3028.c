@@ -267,7 +267,7 @@ static irqreturn_t rv3028_handle_irq(int irq, void *dev_id)
 
 	if (regmap_read(rv3028->regmap, RV3028_STATUS, &status) < 0 ||
 	   status == 0) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	status &= ~RV3028_STATUS_PORF;
@@ -297,7 +297,7 @@ static irqreturn_t rv3028_handle_irq(int irq, void *dev_id)
 	}
 
 	if (status & RV3028_STATUS_EVF) {
-		sysfs_notify(&rv3028->rtc->dev.kobj, NULL,
+		sysfs_analtify(&rv3028->rtc->dev.kobj, NULL,
 			     dev_attr_timestamp0.attr.name);
 		dev_warn(&rv3028->rtc->dev, "event detected");
 	}
@@ -399,7 +399,7 @@ static int rv3028_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 ctrl = 0;
 	int ret;
 
-	/* The alarm has no seconds, round up to nearest minute */
+	/* The alarm has anal seconds, round up to nearest minute */
 	if (alrm->time.tm_sec) {
 		time64_t alarm_time = rtc_tm_to_time64(&alrm->time);
 
@@ -596,7 +596,7 @@ static int rv3028_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		return put_user(status, (unsigned int __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -810,7 +810,7 @@ static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
 	int ret;
 	struct clk *clk;
 	struct clk_init_data init;
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 
 	ret = regmap_update_bits(rv3028->regmap, RV3028_STATUS,
 				 RV3028_STATUS_CLKF, 0);
@@ -825,12 +825,12 @@ static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
 	rv3028->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(analde, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = devm_clk_register(&client->dev, &rv3028->clkout_hw);
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 
 	return 0;
 }
@@ -939,7 +939,7 @@ static int rv3028_probe(struct i2c_client *client)
 	rv3028 = devm_kzalloc(&client->dev, sizeof(struct rv3028_data),
 			      GFP_KERNEL);
 	if (!rv3028)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rv3028->regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(rv3028->regmap))
@@ -965,7 +965,7 @@ static int rv3028_probe(struct i2c_client *client)
 		 * If flags = 0, devm_request_threaded_irq() will use IRQ flags
 		 * obtained from device tree.
 		 */
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			flags = 0;
 		else
 			flags = IRQF_TRIGGER_LOW;

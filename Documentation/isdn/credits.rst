@@ -50,7 +50,7 @@ Eberhard Mönkeberg (emoenke@gwdg.de)
 Thomas Neumann (tn@ruhr.de)
   For help with Cisco-SLARP and keepalive
 
-Jan den Ouden (denouden@groovin.xs4all.nl)
+Jan den Ouden (deanaluden@groovin.xs4all.nl)
   For contribution of the original teles-driver
 
 Carsten Paeth (calle@calle.in-berlin.de)

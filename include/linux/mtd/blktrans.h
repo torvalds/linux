@@ -14,7 +14,7 @@ struct hd_geometry;
 struct mtd_info;
 struct mtd_blktrans_ops;
 struct file;
-struct inode;
+struct ianalde;
 
 struct mtd_blktrans_dev {
 	struct mtd_blktrans_ops *tr;
@@ -57,7 +57,7 @@ struct mtd_blktrans_ops {
 	int (*getgeo)(struct mtd_blktrans_dev *dev, struct hd_geometry *geo);
 	int (*flush)(struct mtd_blktrans_dev *dev);
 
-	/* Called with mtd_table_mutex held; no race with add/remove */
+	/* Called with mtd_table_mutex held; anal race with add/remove */
 	int (*open)(struct mtd_blktrans_dev *dev);
 	void (*release)(struct mtd_blktrans_dev *dev);
 
@@ -81,7 +81,7 @@ extern int mtd_blktrans_cease_background(struct mtd_blktrans_dev *dev);
  * module_mtd_blktrans() - Helper macro for registering a mtd blktrans driver
  * @__mtd_blktrans: mtd_blktrans_ops struct
  *
- * Helper macro for mtd blktrans drivers which do not do anything special in
+ * Helper macro for mtd blktrans drivers which do analt do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

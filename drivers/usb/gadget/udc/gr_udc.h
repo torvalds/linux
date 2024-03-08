@@ -174,7 +174,7 @@ struct gr_request {
 };
 
 enum gr_ep0state {
-	GR_EP0_DISCONNECT = 0,	/* No host */
+	GR_EP0_DISCONNECT = 0,	/* Anal host */
 	GR_EP0_SETUP,		/* Between STATUS ack and SETUP report */
 	GR_EP0_IDATA,		/* IN data stage */
 	GR_EP0_ODATA,		/* OUT data stage */

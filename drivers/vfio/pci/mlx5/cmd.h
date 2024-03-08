@@ -25,7 +25,7 @@ enum mlx5_vf_migf_state {
 };
 
 enum mlx5_vf_load_state {
-	MLX5_VF_LOAD_STATE_READ_IMAGE_NO_HEADER,
+	MLX5_VF_LOAD_STATE_READ_IMAGE_ANAL_HEADER,
 	MLX5_VF_LOAD_STATE_READ_HEADER,
 	MLX5_VF_LOAD_STATE_PREP_HEADER_DATA,
 	MLX5_VF_LOAD_STATE_READ_HEADER_DATA,
@@ -106,7 +106,7 @@ struct mlx5_vf_migration_file {
 	u64 pre_copy_initial_bytes;
 	size_t next_required_umem_size;
 	u8 num_ready_chunks;
-	/* Upon chunk mode preserve another set of buffers for stop_copy phase */
+	/* Upon chunk mode preserve aanalther set of buffers for stop_copy phase */
 	struct mlx5_vhca_data_buffer *buf[MAX_NUM_CHUNKS];
 	struct mlx5_vhca_data_buffer *buf_header[MAX_NUM_CHUNKS];
 	struct mlx5vf_save_work_data save_data[MAX_NUM_CHUNKS];
@@ -189,7 +189,7 @@ struct mlx5vf_pci_core_device {
 	struct mlx5_vf_migration_file *saving_migf;
 	struct mlx5_vhca_page_tracker tracker;
 	struct workqueue_struct *cb_wq;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct mlx5_core_dev *mdev;
 };
 
@@ -236,7 +236,7 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
 void mlx5vf_mig_file_set_save_work(struct mlx5_vf_migration_file *migf,
 				   u8 chunk_num, size_t next_required_umem_size);
 int mlx5vf_start_page_tracker(struct vfio_device *vdev,
-		struct rb_root_cached *ranges, u32 nnodes, u64 *page_size);
+		struct rb_root_cached *ranges, u32 nanaldes, u64 *page_size);
 int mlx5vf_stop_page_tracker(struct vfio_device *vdev);
 int mlx5vf_tracker_read_and_clear(struct vfio_device *vdev, unsigned long iova,
 			unsigned long length, struct iova_bitmap *dirty);

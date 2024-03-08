@@ -18,7 +18,7 @@
 
 #include "type_support.h"
 
-/* BNR (Bayer Noise Reduction) ISP parameters */
+/* BNR (Bayer Analise Reduction) ISP parameters */
 struct sh_css_isp_bnr2_2_params {
 	s32 d_var_gain_r;
 	s32 d_var_gain_g;

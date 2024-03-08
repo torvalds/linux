@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -92,7 +92,7 @@ static void vega12_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.skip_baco_hardware = 0;
 
 	data->registry_data.log_avfs_param = 0;
-	data->registry_data.sclk_throttle_low_notification = 1;
+	data->registry_data.sclk_throttle_low_analtification = 1;
 	data->registry_data.force_dpm_high = 0;
 	data->registry_data.stable_pstate_sclk_dpm_percentage = 75;
 
@@ -141,7 +141,7 @@ static int vega12_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 			(struct vega12_hwmgr *)(hwmgr->backend);
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	if (data->vddci_control == VEGA12_VOLTAGE_CONTROL_NONE)
+	if (data->vddci_control == VEGA12_VOLTAGE_CONTROL_ANALNE)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ControlVDDCI);
 
@@ -212,9 +212,9 @@ static int vega12_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_DynamicUVDState);
 
-	if (data->registry_data.sclk_throttle_low_notification)
+	if (data->registry_data.sclk_throttle_low_analtification)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_SclkThrottleLowNotification);
+				PHM_PlatformCaps_SclkThrottleLowAnaltification);
 
 	/* power tune caps */
 	/* assume disabled */
@@ -391,7 +391,7 @@ static int vega12_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	data = kzalloc(sizeof(struct vega12_hwmgr), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->backend = data;
 
@@ -401,9 +401,9 @@ static int vega12_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->workload_mask = 0xff;
 
 	/* need to set voltage control types before EVV patching */
-	data->vddc_control = VEGA12_VOLTAGE_CONTROL_NONE;
-	data->mvdd_control = VEGA12_VOLTAGE_CONTROL_NONE;
-	data->vddci_control = VEGA12_VOLTAGE_CONTROL_NONE;
+	data->vddc_control = VEGA12_VOLTAGE_CONTROL_ANALNE;
+	data->mvdd_control = VEGA12_VOLTAGE_CONTROL_ANALNE;
+	data->vddci_control = VEGA12_VOLTAGE_CONTROL_ANALNE;
 
 	data->water_marks_bitmap = 0;
 	data->avfs_exist = false;
@@ -471,7 +471,7 @@ static int vega12_setup_asic_task(struct pp_hwmgr *hwmgr)
  * @brief Function to initialize all Soft Min/Max and Hard Min/Max to 0xff.
  *
  * @param    dpm_state - the address of the DPM Table to initiailize.
- * @return   None.
+ * @return   Analne.
  */
 static void vega12_init_dpm_state(struct vega12_dpm_state *dpm_state)
 {
@@ -1540,13 +1540,13 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			*size = 8;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	return ret;
 }
 
-static int vega12_notify_smc_display_change(struct pp_hwmgr *hwmgr,
+static int vega12_analtify_smc_display_change(struct pp_hwmgr *hwmgr,
 		bool has_disp)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
@@ -1602,7 +1602,7 @@ static int vega12_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int vega12_notify_smc_display_config_after_ps_adjustment(
+static int vega12_analtify_smc_display_config_after_ps_adjustment(
 		struct pp_hwmgr *hwmgr)
 {
 	struct vega12_hwmgr *data =
@@ -1613,9 +1613,9 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 	if ((hwmgr->display_config->num_display > 1) &&
 	     !hwmgr->display_config->multi_monitor_in_sync &&
 	     !hwmgr->display_config->nb_pstate_switch_disable)
-		vega12_notify_smc_display_change(hwmgr, false);
+		vega12_analtify_smc_display_change(hwmgr, false);
 	else
-		vega12_notify_smc_display_change(hwmgr, true);
+		vega12_analtify_smc_display_change(hwmgr, true);
 
 	min_clocks.dcefClock = hwmgr->display_config->min_dcef_set_clk;
 	min_clocks.dcefClockInSR = hwmgr->display_config->min_dcef_deep_sleep_set_clk;
@@ -1750,7 +1750,7 @@ static int vega12_get_profiling_clk_mask(struct pp_hwmgr *hwmgr, enum amd_dpm_fo
 static void vega12_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
 	switch (mode) {
-	case AMD_FAN_CTRL_NONE:
+	case AMD_FAN_CTRL_ANALNE:
 		break;
 	case AMD_FAN_CTRL_MANUAL:
 		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
@@ -2107,7 +2107,7 @@ static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,
 			"Failed to upload boot level to lowest!",
 			return ret);
 
-		//TODO: Setting DCEFCLK max dpm level is not supported
+		//TODO: Setting DCEFCLK max dpm level is analt supported
 
 		break;
 
@@ -2264,13 +2264,13 @@ static int vega12_get_current_pcie_link_speed(struct pp_hwmgr *hwmgr)
 static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
-	int i, now, size = 0;
+	int i, analw, size = 0;
 	struct pp_clock_levels_with_latency clocks;
 
 	switch (type) {
 	case PP_SCLK:
 		PP_ASSERT_WITH_CODE(
-				vega12_get_current_gfx_clk_freq(hwmgr, &now) == 0,
+				vega12_get_current_gfx_clk_freq(hwmgr, &analw) == 0,
 				"Attempt to get current gfx clk Failed!",
 				return -1);
 
@@ -2281,12 +2281,12 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == analw / 100) ? "*" : "");
 		break;
 
 	case PP_MCLK:
 		PP_ASSERT_WITH_CODE(
-				vega12_get_current_mclk_freq(hwmgr, &now) == 0,
+				vega12_get_current_mclk_freq(hwmgr, &analw) == 0,
 				"Attempt to get current mclk freq Failed!",
 				return -1);
 
@@ -2297,14 +2297,14 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == analw / 100) ? "*" : "");
 		break;
 
 	case PP_SOCCLK:
 		PP_ASSERT_WITH_CODE(
 				smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_GetDpmClockFreq, (PPCLK_SOCCLK << 16),
-					&now) == 0,
+					&analw) == 0,
 				"Attempt to get Current SOCCLK Frequency Failed!",
 				return -EINVAL);
 
@@ -2315,14 +2315,14 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == analw) ? "*" : "");
 		break;
 
 	case PP_DCEFCLK:
 		PP_ASSERT_WITH_CODE(
 				smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_GetDpmClockFreq, (PPCLK_DCEFCLK << 16),
-					&now) == 0,
+					&analw) == 0,
 				"Attempt to get Current DCEFCLK Frequency Failed!",
 				return -EINVAL);
 
@@ -2333,7 +2333,7 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == analw) ? "*" : "");
 		break;
 
 	case PP_PCIE:
@@ -2406,7 +2406,7 @@ static int vega12_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	/* honour DAL's UCLK Hardmin */
+	/* hoanalur DAL's UCLK Hardmin */
 	if (dpm_table->dpm_state.hard_min_level < (hwmgr->display_config->min_mem_set_clock / 100))
 		dpm_table->dpm_state.hard_min_level = hwmgr->display_config->min_mem_set_clock / 100;
 
@@ -2513,7 +2513,7 @@ static int vega12_set_uclk_to_highest_dpm_level(struct pp_hwmgr *hwmgr,
 
 	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
 		PP_ASSERT_WITH_CODE(dpm_table->count > 0,
-				"[SetUclkToHightestDpmLevel] Dpm table has no entry!",
+				"[SetUclkToHightestDpmLevel] Dpm table has anal entry!",
 				return -EINVAL);
 		PP_ASSERT_WITH_CODE(dpm_table->count <= NUM_UCLK_DPM_LEVELS,
 				"[SetUclkToHightestDpmLevel] Dpm table has too many entries!",
@@ -2728,7 +2728,7 @@ static int vega12_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 }
 #endif
 
-static int vega12_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+static int vega12_analtify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
 					uint32_t mc_addr_low,
@@ -2840,7 +2840,7 @@ static int vega12_set_mp1_state(struct pp_hwmgr *hwmgr,
 		break;
 	case PP_MP1_STATE_SHUTDOWN:
 	case PP_MP1_STATE_RESET:
-	case PP_MP1_STATE_NONE:
+	case PP_MP1_STATE_ANALNE:
 	default:
 		return 0;
 	}
@@ -2924,8 +2924,8 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.patch_boot_state = vega12_patch_boot_state,
 	.get_sclk = vega12_dpm_get_sclk,
 	.get_mclk = vega12_dpm_get_mclk,
-	.notify_smc_display_config_after_ps_adjustment =
-			vega12_notify_smc_display_config_after_ps_adjustment,
+	.analtify_smc_display_config_after_ps_adjustment =
+			vega12_analtify_smc_display_config_after_ps_adjustment,
 	.force_dpm_level = vega12_dpm_force_dpm_level,
 	.stop_thermal_controller = vega12_thermal_stop_thermal_controller,
 	.get_fan_speed_info = vega12_fan_ctrl_get_fan_speed_info,
@@ -2960,7 +2960,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.get_mclk_od = vega12_get_mclk_od,
 	.set_mclk_od = vega12_set_mclk_od,
 #endif
-	.notify_cac_buffer_info = vega12_notify_cac_buffer_info,
+	.analtify_cac_buffer_info = vega12_analtify_cac_buffer_info,
 	.get_thermal_temperature_range = vega12_get_thermal_temperature_range,
 	.register_irq_handlers = smu9_register_irq_handlers,
 	.start_thermal_controller = vega12_start_thermal_controller,

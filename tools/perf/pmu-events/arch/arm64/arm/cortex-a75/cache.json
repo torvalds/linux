@@ -150,10 +150,10 @@
         "BriefDescription": "Level 2 TLB access"
     },
     {
-        "PublicDescription": "Level 1 preload TLB access. This event only counts software and hardware prefetches at Level 1. This event counts all accesses to the preload data micro TLB, that is L1 prefetcher and preload instructions. This event does not take into account whether the MMU is enabled or not",
+        "PublicDescription": "Level 1 preload TLB access. This event only counts software and hardware prefetches at Level 1. This event counts all accesses to the preload data micro TLB, that is L1 prefetcher and preload instructions. This event does analt take into account whether the MMU is enabled or analt",
         "EventCode": "0xEB",
         "EventName": "L1PLD_TLB",
-        "BriefDescription": "Level 1 preload TLB access. This event only counts software and hardware prefetches at Level 1. This event counts all accesses to the preload data micro TLB, that is L1 prefetcher and preload instructions. This event does not take into account whether the MMU is enabled or not"
+        "BriefDescription": "Level 1 preload TLB access. This event only counts software and hardware prefetches at Level 1. This event counts all accesses to the preload data micro TLB, that is L1 prefetcher and preload instructions. This event does analt take into account whether the MMU is enabled or analt"
     },
     {
         "PublicDescription": "Prefetch access to unified TLB that caused a page table walk. This event counts software and hardware prefetches",

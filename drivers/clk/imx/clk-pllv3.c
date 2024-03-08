@@ -15,12 +15,12 @@
 #include "clk.h"
 
 #define PLL_NUM_OFFSET		0x10
-#define PLL_DENOM_OFFSET	0x20
+#define PLL_DEANALM_OFFSET	0x20
 #define PLL_IMX7_NUM_OFFSET	0x20
-#define PLL_IMX7_DENOM_OFFSET	0x30
+#define PLL_IMX7_DEANALM_OFFSET	0x30
 
 #define PLL_VF610_NUM_OFFSET	0x20
-#define PLL_VF610_DENOM_OFFSET	0x30
+#define PLL_VF610_DEANALM_OFFSET	0x30
 
 #define BM_PLL_POWER		(0x1 << 12)
 #define BM_PLL_LOCK		(0x1 << 31)
@@ -39,7 +39,7 @@
  * @div_shift:	 shift of divider bits
  * @ref_clock:	reference clock rate
  * @num_offset:	num register offset
- * @denom_offset: denom register offset
+ * @deanalm_offset: deanalm register offset
  *
  * IMX PLL clock version 3, found on i.MX6 series.  Divider for pllv3
  * is actually a multiplier, and always sits at bit 0.
@@ -53,7 +53,7 @@ struct clk_pllv3 {
 	u32		div_shift;
 	unsigned long	ref_clock;
 	u32		num_offset;
-	u32		denom_offset;
+	u32		deanalm_offset;
 };
 
 #define to_clk_pllv3(_hw) container_of(_hw, struct clk_pllv3, hw)
@@ -62,7 +62,7 @@ static int clk_pllv3_wait_lock(struct clk_pllv3 *pll)
 {
 	u32 val = readl_relaxed(pll->base) & pll->power_bit;
 
-	/* No need to wait for lock when pll is not powered up */
+	/* Anal need to wait for lock when pll is analt powered up */
 	if ((pll->powerup_set && !val) || (!pll->powerup_set && val))
 		return 0;
 
@@ -216,7 +216,7 @@ static unsigned long clk_pllv3_av_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
 	u32 mfn = readl_relaxed(pll->base + pll->num_offset);
-	u32 mfd = readl_relaxed(pll->base + pll->denom_offset);
+	u32 mfd = readl_relaxed(pll->base + pll->deanalm_offset);
 	u32 div = readl_relaxed(pll->base) & pll->div_mask;
 	u64 temp64 = (u64)parent_rate;
 
@@ -286,7 +286,7 @@ static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,
 	val |= div;
 	writel_relaxed(val, pll->base);
 	writel_relaxed(mfn, pll->base + pll->num_offset);
-	writel_relaxed(mfd, pll->base + pll->denom_offset);
+	writel_relaxed(mfd, pll->base + pll->deanalm_offset);
 
 	return clk_pllv3_wait_lock(pll);
 }
@@ -303,7 +303,7 @@ static const struct clk_ops clk_pllv3_av_ops = {
 struct clk_pllv3_vf610_mf {
 	u32 mfi;	/* integer part, can be 20 or 22 */
 	u32 mfn;	/* numerator, 30-bit value */
-	u32 mfd;	/* denominator, 30-bit value, must be less than mfn */
+	u32 mfd;	/* deanalminator, 30-bit value, must be less than mfn */
 };
 
 static unsigned long clk_pllv3_vf610_mf_to_rate(unsigned long parent_rate,
@@ -349,7 +349,7 @@ static unsigned long clk_pllv3_vf610_recalc_rate(struct clk_hw *hw,
 	struct clk_pllv3_vf610_mf mf;
 
 	mf.mfn = readl_relaxed(pll->base + pll->num_offset);
-	mf.mfd = readl_relaxed(pll->base + pll->denom_offset);
+	mf.mfd = readl_relaxed(pll->base + pll->deanalm_offset);
 	mf.mfi = (readl_relaxed(pll->base) & pll->div_mask) ? 22 : 20;
 
 	return clk_pllv3_vf610_mf_to_rate(parent_rate, mf);
@@ -379,7 +379,7 @@ static int clk_pllv3_vf610_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel_relaxed(val, pll->base);
 
 	writel_relaxed(mf.mfn, pll->base + pll->num_offset);
-	writel_relaxed(mf.mfd, pll->base + pll->denom_offset);
+	writel_relaxed(mf.mfd, pll->base + pll->deanalm_offset);
 
 	return clk_pllv3_wait_lock(pll);
 }
@@ -420,11 +420,11 @@ struct clk_hw *imx_clk_hw_pllv3(enum imx_pllv3_type type, const char *name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->power_bit = BM_PLL_POWER;
 	pll->num_offset = PLL_NUM_OFFSET;
-	pll->denom_offset = PLL_DENOM_OFFSET;
+	pll->deanalm_offset = PLL_DEANALM_OFFSET;
 
 	switch (type) {
 	case IMX_PLLV3_SYS:
@@ -433,7 +433,7 @@ struct clk_hw *imx_clk_hw_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_SYS_VF610:
 		ops = &clk_pllv3_vf610_ops;
 		pll->num_offset = PLL_VF610_NUM_OFFSET;
-		pll->denom_offset = PLL_VF610_DENOM_OFFSET;
+		pll->deanalm_offset = PLL_VF610_DEANALM_OFFSET;
 		break;
 	case IMX_PLLV3_USB_VF610:
 		pll->div_shift = 1;
@@ -444,7 +444,7 @@ struct clk_hw *imx_clk_hw_pllv3(enum imx_pllv3_type type, const char *name,
 		break;
 	case IMX_PLLV3_AV_IMX7:
 		pll->num_offset = PLL_IMX7_NUM_OFFSET;
-		pll->denom_offset = PLL_IMX7_DENOM_OFFSET;
+		pll->deanalm_offset = PLL_IMX7_DEANALM_OFFSET;
 		fallthrough;
 	case IMX_PLLV3_AV:
 		ops = &clk_pllv3_av_ops;
@@ -461,7 +461,7 @@ struct clk_hw *imx_clk_hw_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_DDR_IMX7:
 		pll->power_bit = IMX7_DDR_PLL_POWER;
 		pll->num_offset = PLL_IMX7_NUM_OFFSET;
-		pll->denom_offset = PLL_IMX7_DENOM_OFFSET;
+		pll->deanalm_offset = PLL_IMX7_DEANALM_OFFSET;
 		ops = &clk_pllv3_av_ops;
 		break;
 	default:

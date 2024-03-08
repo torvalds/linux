@@ -24,9 +24,9 @@
 #include "lowcomms.h"
 
 /*
- * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/nodeid
- * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/weight
- * /config/dlm/<cluster>/comms/<comm>/nodeid
+ * /config/dlm/<cluster>/spaces/<space>/analdes/<analde>/analdeid
+ * /config/dlm/<cluster>/spaces/<space>/analdes/<analde>/weight
+ * /config/dlm/<cluster>/comms/<comm>/analdeid
  * /config/dlm/<cluster>/comms/<comm>/local
  * /config/dlm/<cluster>/comms/<comm>/addr      (write only)
  * /config/dlm/<cluster>/comms/<comm>/addr_list (read only)
@@ -44,8 +44,8 @@ struct dlm_spaces;
 struct dlm_space;
 struct dlm_comms;
 struct dlm_comm;
-struct dlm_nodes;
-struct dlm_node;
+struct dlm_analdes;
+struct dlm_analde;
 
 static struct config_group *make_cluster(struct config_group *, const char *);
 static void drop_cluster(struct config_group *, struct config_item *);
@@ -56,12 +56,12 @@ static void release_space(struct config_item *);
 static struct config_item *make_comm(struct config_group *, const char *);
 static void drop_comm(struct config_group *, struct config_item *);
 static void release_comm(struct config_item *);
-static struct config_item *make_node(struct config_group *, const char *);
-static void drop_node(struct config_group *, struct config_item *);
-static void release_node(struct config_item *);
+static struct config_item *make_analde(struct config_group *, const char *);
+static void drop_analde(struct config_group *, struct config_item *);
+static void release_analde(struct config_item *);
 
 static struct configfs_attribute *comm_attrs[];
-static struct configfs_attribute *node_attrs[];
+static struct configfs_attribute *analde_attrs[];
 
 struct dlm_cluster {
 	struct config_group group;
@@ -241,7 +241,7 @@ static struct configfs_attribute *cluster_attrs[] = {
 };
 
 enum {
-	COMM_ATTR_NODEID = 0,
+	COMM_ATTR_ANALDEID = 0,
 	COMM_ATTR_LOCAL,
 	COMM_ATTR_ADDR,
 	COMM_ATTR_ADDR_LIST,
@@ -249,8 +249,8 @@ enum {
 };
 
 enum {
-	NODE_ATTR_NODEID = 0,
-	NODE_ATTR_WEIGHT,
+	ANALDE_ATTR_ANALDEID = 0,
+	ANALDE_ATTR_WEIGHT,
 };
 
 struct dlm_clusters {
@@ -266,7 +266,7 @@ struct dlm_space {
 	struct list_head members;
 	struct mutex members_lock;
 	int members_count;
-	struct dlm_nodes *nds;
+	struct dlm_analdes *nds;
 };
 
 struct dlm_comms {
@@ -276,24 +276,24 @@ struct dlm_comms {
 struct dlm_comm {
 	struct config_item item;
 	int seq;
-	int nodeid;
+	int analdeid;
 	int local;
 	int addr_count;
 	unsigned int mark;
 	struct sockaddr_storage *addr[DLM_MAX_ADDR_COUNT];
 };
 
-struct dlm_nodes {
+struct dlm_analdes {
 	struct config_group ns_group;
 };
 
-struct dlm_node {
+struct dlm_analde {
 	struct config_item item;
 	struct list_head list; /* space->members */
-	int nodeid;
+	int analdeid;
 	int weight;
 	int new;
-	int comm_seq; /* copy of cm->seq when nd->nodeid is set */
+	int comm_seq; /* copy of cm->seq when nd->analdeid is set */
 };
 
 static struct configfs_group_operations clusters_ops = {
@@ -323,13 +323,13 @@ static struct configfs_item_operations comm_ops = {
 	.release = release_comm,
 };
 
-static struct configfs_group_operations nodes_ops = {
-	.make_item = make_node,
-	.drop_item = drop_node,
+static struct configfs_group_operations analdes_ops = {
+	.make_item = make_analde,
+	.drop_item = drop_analde,
 };
 
-static struct configfs_item_operations node_ops = {
-	.release = release_node,
+static struct configfs_item_operations analde_ops = {
+	.release = release_analde,
 };
 
 static const struct config_item_type clusters_type = {
@@ -364,14 +364,14 @@ static const struct config_item_type comm_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-static const struct config_item_type nodes_type = {
-	.ct_group_ops = &nodes_ops,
+static const struct config_item_type analdes_type = {
+	.ct_group_ops = &analdes_ops,
 	.ct_owner = THIS_MODULE,
 };
 
-static const struct config_item_type node_type = {
-	.ct_item_ops = &node_ops,
-	.ct_attrs = node_attrs,
+static const struct config_item_type analde_type = {
+	.ct_item_ops = &analde_ops,
+	.ct_attrs = analde_attrs,
 	.ct_owner = THIS_MODULE,
 };
 
@@ -386,9 +386,9 @@ static struct dlm_comm *config_item_to_comm(struct config_item *i)
 	return i ? container_of(i, struct dlm_comm, item) : NULL;
 }
 
-static struct dlm_node *config_item_to_node(struct config_item *i)
+static struct dlm_analde *config_item_to_analde(struct config_item *i)
 {
-	return i ? container_of(i, struct dlm_node, item) : NULL;
+	return i ? container_of(i, struct dlm_analde, item) : NULL;
 }
 
 static struct config_group *make_cluster(struct config_group *g,
@@ -398,9 +398,9 @@ static struct config_group *make_cluster(struct config_group *g,
 	struct dlm_spaces *sps = NULL;
 	struct dlm_comms *cms = NULL;
 
-	cl = kzalloc(sizeof(struct dlm_cluster), GFP_NOFS);
-	sps = kzalloc(sizeof(struct dlm_spaces), GFP_NOFS);
-	cms = kzalloc(sizeof(struct dlm_comms), GFP_NOFS);
+	cl = kzalloc(sizeof(struct dlm_cluster), GFP_ANALFS);
+	sps = kzalloc(sizeof(struct dlm_spaces), GFP_ANALFS);
+	cms = kzalloc(sizeof(struct dlm_comms), GFP_ANALFS);
 
 	if (!cl || !sps || !cms)
 		goto fail;
@@ -437,7 +437,7 @@ static struct config_group *make_cluster(struct config_group *g,
 	kfree(cl);
 	kfree(sps);
 	kfree(cms);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void drop_cluster(struct config_group *g, struct config_item *i)
@@ -464,17 +464,17 @@ static void release_cluster(struct config_item *i)
 static struct config_group *make_space(struct config_group *g, const char *name)
 {
 	struct dlm_space *sp = NULL;
-	struct dlm_nodes *nds = NULL;
+	struct dlm_analdes *nds = NULL;
 
-	sp = kzalloc(sizeof(struct dlm_space), GFP_NOFS);
-	nds = kzalloc(sizeof(struct dlm_nodes), GFP_NOFS);
+	sp = kzalloc(sizeof(struct dlm_space), GFP_ANALFS);
+	nds = kzalloc(sizeof(struct dlm_analdes), GFP_ANALFS);
 
 	if (!sp || !nds)
 		goto fail;
 
 	config_group_init_type_name(&sp->group, name, &space_type);
 
-	config_group_init_type_name(&nds->ns_group, "nodes", &nodes_type);
+	config_group_init_type_name(&nds->ns_group, "analdes", &analdes_type);
 	configfs_add_default_group(&nds->ns_group, &sp->group);
 
 	INIT_LIST_HEAD(&sp->members);
@@ -486,7 +486,7 @@ static struct config_group *make_space(struct config_group *g, const char *name)
  fail:
 	kfree(sp);
 	kfree(nds);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void drop_space(struct config_group *g, struct config_item *i)
@@ -510,9 +510,9 @@ static struct config_item *make_comm(struct config_group *g, const char *name)
 {
 	struct dlm_comm *cm;
 
-	cm = kzalloc(sizeof(struct dlm_comm), GFP_NOFS);
+	cm = kzalloc(sizeof(struct dlm_comm), GFP_ANALFS);
 	if (!cm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_item_init_type_name(&cm->item, name, &comm_type);
 
@@ -520,7 +520,7 @@ static struct config_item *make_comm(struct config_group *g, const char *name)
 	if (!cm->seq)
 		cm->seq = dlm_comm_count++;
 
-	cm->nodeid = -1;
+	cm->analdeid = -1;
 	cm->local = 0;
 	cm->addr_count = 0;
 	cm->mark = 0;
@@ -532,7 +532,7 @@ static void drop_comm(struct config_group *g, struct config_item *i)
 	struct dlm_comm *cm = config_item_to_comm(i);
 	if (local_comm == cm)
 		local_comm = NULL;
-	dlm_midcomms_close(cm->nodeid);
+	dlm_midcomms_close(cm->analdeid);
 	while (cm->addr_count--)
 		kfree(cm->addr[cm->addr_count]);
 	config_item_put(i);
@@ -544,19 +544,19 @@ static void release_comm(struct config_item *i)
 	kfree(cm);
 }
 
-static struct config_item *make_node(struct config_group *g, const char *name)
+static struct config_item *make_analde(struct config_group *g, const char *name)
 {
 	struct dlm_space *sp = config_item_to_space(g->cg_item.ci_parent);
-	struct dlm_node *nd;
+	struct dlm_analde *nd;
 
-	nd = kzalloc(sizeof(struct dlm_node), GFP_NOFS);
+	nd = kzalloc(sizeof(struct dlm_analde), GFP_ANALFS);
 	if (!nd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	config_item_init_type_name(&nd->item, name, &node_type);
-	nd->nodeid = -1;
-	nd->weight = 1;  /* default weight of 1 if none is set */
-	nd->new = 1;     /* set to 0 once it's been read by dlm_nodeid_list() */
+	config_item_init_type_name(&nd->item, name, &analde_type);
+	nd->analdeid = -1;
+	nd->weight = 1;  /* default weight of 1 if analne is set */
+	nd->new = 1;     /* set to 0 once it's been read by dlm_analdeid_list() */
 
 	mutex_lock(&sp->members_lock);
 	list_add(&nd->list, &sp->members);
@@ -566,10 +566,10 @@ static struct config_item *make_node(struct config_group *g, const char *name)
 	return &nd->item;
 }
 
-static void drop_node(struct config_group *g, struct config_item *i)
+static void drop_analde(struct config_group *g, struct config_item *i)
 {
 	struct dlm_space *sp = config_item_to_space(g->cg_item.ci_parent);
-	struct dlm_node *nd = config_item_to_node(i);
+	struct dlm_analde *nd = config_item_to_analde(i);
 
 	mutex_lock(&sp->members_lock);
 	list_del(&nd->list);
@@ -579,9 +579,9 @@ static void drop_node(struct config_group *g, struct config_item *i)
 	config_item_put(i);
 }
 
-static void release_node(struct config_item *i)
+static void release_analde(struct config_item *i)
 {
-	struct dlm_node *nd = config_item_to_node(i);
+	struct dlm_analde *nd = config_item_to_analde(i);
 	kfree(nd);
 }
 
@@ -612,15 +612,15 @@ void dlm_config_exit(void)
  * Functions for user space to read/write attributes
  */
 
-static ssize_t comm_nodeid_show(struct config_item *item, char *buf)
+static ssize_t comm_analdeid_show(struct config_item *item, char *buf)
 {
-	return sprintf(buf, "%d\n", config_item_to_comm(item)->nodeid);
+	return sprintf(buf, "%d\n", config_item_to_comm(item)->analdeid);
 }
 
-static ssize_t comm_nodeid_store(struct config_item *item, const char *buf,
+static ssize_t comm_analdeid_store(struct config_item *item, const char *buf,
 				 size_t len)
 {
-	int rc = kstrtoint(buf, 0, &config_item_to_comm(item)->nodeid);
+	int rc = kstrtoint(buf, 0, &config_item_to_comm(item)->analdeid);
 
 	if (rc)
 		return rc;
@@ -656,15 +656,15 @@ static ssize_t comm_addr_store(struct config_item *item, const char *buf,
 		return -EINVAL;
 
 	if (cm->addr_count >= DLM_MAX_ADDR_COUNT)
-		return -ENOSPC;
+		return -EANALSPC;
 
-	addr = kzalloc(sizeof(*addr), GFP_NOFS);
+	addr = kzalloc(sizeof(*addr), GFP_ANALFS);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(addr, buf, len);
 
-	rv = dlm_midcomms_addr(cm->nodeid, addr, len);
+	rv = dlm_midcomms_addr(cm->analdeid, addr, len);
 	if (rv) {
 		kfree(addr);
 		return rv;
@@ -705,7 +705,7 @@ static ssize_t comm_addr_list_show(struct config_item *item, char *buf)
 			s = sprintf(buf0, "AF_INET6	%pI6\n", &addr_in6->sin6_addr);
 			break;
 		default:
-			s = sprintf(buf0, "%s\n", "<UNKNOWN>");
+			s = sprintf(buf0, "%s\n", "<UNKANALWN>");
 			break;
 		}
 		allowance -= s;
@@ -739,7 +739,7 @@ static ssize_t comm_mark_store(struct config_item *item, const char *buf,
 		mark = dlm_config.ci_mark;
 
 	comm = config_item_to_comm(item);
-	rc = dlm_lowcomms_nodes_set_mark(comm->nodeid, mark);
+	rc = dlm_lowcomms_analdes_set_mark(comm->analdeid, mark);
 	if (rc)
 		return rc;
 
@@ -747,14 +747,14 @@ static ssize_t comm_mark_store(struct config_item *item, const char *buf,
 	return len;
 }
 
-CONFIGFS_ATTR(comm_, nodeid);
+CONFIGFS_ATTR(comm_, analdeid);
 CONFIGFS_ATTR(comm_, local);
 CONFIGFS_ATTR(comm_, mark);
 CONFIGFS_ATTR_WO(comm_, addr);
 CONFIGFS_ATTR_RO(comm_, addr_list);
 
 static struct configfs_attribute *comm_attrs[] = {
-	[COMM_ATTR_NODEID] = &comm_attr_nodeid,
+	[COMM_ATTR_ANALDEID] = &comm_attr_analdeid,
 	[COMM_ATTR_LOCAL] = &comm_attr_local,
 	[COMM_ATTR_ADDR] = &comm_attr_addr,
 	[COMM_ATTR_ADDR_LIST] = &comm_attr_addr_list,
@@ -762,46 +762,46 @@ static struct configfs_attribute *comm_attrs[] = {
 	NULL,
 };
 
-static ssize_t node_nodeid_show(struct config_item *item, char *buf)
+static ssize_t analde_analdeid_show(struct config_item *item, char *buf)
 {
-	return sprintf(buf, "%d\n", config_item_to_node(item)->nodeid);
+	return sprintf(buf, "%d\n", config_item_to_analde(item)->analdeid);
 }
 
-static ssize_t node_nodeid_store(struct config_item *item, const char *buf,
+static ssize_t analde_analdeid_store(struct config_item *item, const char *buf,
 				 size_t len)
 {
-	struct dlm_node *nd = config_item_to_node(item);
+	struct dlm_analde *nd = config_item_to_analde(item);
 	uint32_t seq = 0;
-	int rc = kstrtoint(buf, 0, &nd->nodeid);
+	int rc = kstrtoint(buf, 0, &nd->analdeid);
 
 	if (rc)
 		return rc;
-	dlm_comm_seq(nd->nodeid, &seq);
+	dlm_comm_seq(nd->analdeid, &seq);
 	nd->comm_seq = seq;
 	return len;
 }
 
-static ssize_t node_weight_show(struct config_item *item, char *buf)
+static ssize_t analde_weight_show(struct config_item *item, char *buf)
 {
-	return sprintf(buf, "%d\n", config_item_to_node(item)->weight);
+	return sprintf(buf, "%d\n", config_item_to_analde(item)->weight);
 }
 
-static ssize_t node_weight_store(struct config_item *item, const char *buf,
+static ssize_t analde_weight_store(struct config_item *item, const char *buf,
 				 size_t len)
 {
-	int rc = kstrtoint(buf, 0, &config_item_to_node(item)->weight);
+	int rc = kstrtoint(buf, 0, &config_item_to_analde(item)->weight);
 
 	if (rc)
 		return rc;
 	return len;
 }
 
-CONFIGFS_ATTR(node_, nodeid);
-CONFIGFS_ATTR(node_, weight);
+CONFIGFS_ATTR(analde_, analdeid);
+CONFIGFS_ATTR(analde_, weight);
 
-static struct configfs_attribute *node_attrs[] = {
-	[NODE_ATTR_NODEID] = &node_attr_nodeid,
-	[NODE_ATTR_WEIGHT] = &node_attr_weight,
+static struct configfs_attribute *analde_attrs[] = {
+	[ANALDE_ATTR_ANALDEID] = &analde_attr_analdeid,
+	[ANALDE_ATTR_WEIGHT] = &analde_attr_weight,
 	NULL,
 };
 
@@ -828,7 +828,7 @@ static void put_space(struct dlm_space *sp)
 	config_item_put(&sp->group.cg_item);
 }
 
-static struct dlm_comm *get_comm(int nodeid)
+static struct dlm_comm *get_comm(int analdeid)
 {
 	struct config_item *i;
 	struct dlm_comm *cm = NULL;
@@ -842,7 +842,7 @@ static struct dlm_comm *get_comm(int nodeid)
 	list_for_each_entry(i, &comm_list->cg_children, ci_entry) {
 		cm = config_item_to_comm(i);
 
-		if (cm->nodeid != nodeid)
+		if (cm->analdeid != analdeid)
 			continue;
 		found = 1;
 		config_item_get(i);
@@ -861,12 +861,12 @@ static void put_comm(struct dlm_comm *cm)
 }
 
 /* caller must free mem */
-int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
+int dlm_config_analdes(char *lsname, struct dlm_config_analde **analdes_out,
 		     int *count_out)
 {
 	struct dlm_space *sp;
-	struct dlm_node *nd;
-	struct dlm_config_node *nodes, *node;
+	struct dlm_analde *nd;
+	struct dlm_config_analde *analdes, *analde;
 	int rv, count;
 
 	sp = get_space(lsname);
@@ -882,25 +882,25 @@ int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 
 	count = sp->members_count;
 
-	nodes = kcalloc(count, sizeof(struct dlm_config_node), GFP_NOFS);
-	if (!nodes) {
-		rv = -ENOMEM;
+	analdes = kcalloc(count, sizeof(struct dlm_config_analde), GFP_ANALFS);
+	if (!analdes) {
+		rv = -EANALMEM;
 		goto out;
 	}
 
-	node = nodes;
+	analde = analdes;
 	list_for_each_entry(nd, &sp->members, list) {
-		node->nodeid = nd->nodeid;
-		node->weight = nd->weight;
-		node->new = nd->new;
-		node->comm_seq = nd->comm_seq;
-		node++;
+		analde->analdeid = nd->analdeid;
+		analde->weight = nd->weight;
+		analde->new = nd->new;
+		analde->comm_seq = nd->comm_seq;
+		analde++;
 
 		nd->new = 0;
 	}
 
 	*count_out = count;
-	*nodes_out = nodes;
+	*analdes_out = analdes;
 	rv = 0;
  out:
 	mutex_unlock(&sp->members_lock);
@@ -908,9 +908,9 @@ int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 	return rv;
 }
 
-int dlm_comm_seq(int nodeid, uint32_t *seq)
+int dlm_comm_seq(int analdeid, uint32_t *seq)
 {
-	struct dlm_comm *cm = get_comm(nodeid);
+	struct dlm_comm *cm = get_comm(analdeid);
 	if (!cm)
 		return -EEXIST;
 	*seq = cm->seq;
@@ -918,9 +918,9 @@ int dlm_comm_seq(int nodeid, uint32_t *seq)
 	return 0;
 }
 
-int dlm_our_nodeid(void)
+int dlm_our_analdeid(void)
 {
-	return local_comm ? local_comm->nodeid : 0;
+	return local_comm ? local_comm->analdeid : 0;
 }
 
 /* num 0 is first addr, num 1 is second addr */

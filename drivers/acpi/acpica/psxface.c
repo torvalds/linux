@@ -63,16 +63,16 @@ acpi_debug_trace(const char *name, u32 debug_level, u32 debug_layer, u32 flags)
  * FUNCTION:    acpi_ps_execute_method
  *
  * PARAMETERS:  info            - Method info block, contains:
- *                  node            - Method Node to execute
+ *                  analde            - Method Analde to execute
  *                  obj_desc        - Method object
  *                  parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
- *                                    NULL if no parameters are being passed.
+ *                                    NULL if anal parameters are being passed.
  *                  return_object   - Where to put method's return value (if
- *                                    any). If NULL, no value is returned.
+ *                                    any). If NULL, anal value is returned.
  *                  parameter_type  - Type of Parameter list
  *                  return_object   - Where to put method's return value (if
- *                                    any). If NULL, no value is returned.
+ *                                    any). If NULL, anal value is returned.
  *                  pass_number     - Parse or execute pass
  *
  * RETURN:      Status
@@ -93,16 +93,16 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 
 	acpi_tb_check_dsdt_header();
 
-	/* Validate the Info and method Node */
+	/* Validate the Info and method Analde */
 
-	if (!info || !info->node) {
+	if (!info || !info->analde) {
 		return_ACPI_STATUS(AE_NULL_ENTRY);
 	}
 
 	/* Init for new method, wait on concurrency semaphore */
 
 	status =
-	    acpi_ds_begin_method_execution(info->node, info->obj_desc, NULL);
+	    acpi_ds_begin_method_execution(info->analde, info->obj_desc, NULL);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -116,14 +116,14 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 	 * Execute the method. Performs parse simultaneously
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-			  "**** Begin Method Parse/Execute [%4.4s] **** Node=%p Obj=%p\n",
-			  info->node->name.ascii, info->node, info->obj_desc));
+			  "**** Begin Method Parse/Execute [%4.4s] **** Analde=%p Obj=%p\n",
+			  info->analde->name.ascii, info->analde, info->obj_desc));
 
-	/* Create and init a Root Node */
+	/* Create and init a Root Analde */
 
 	op = acpi_ps_create_scope_op(info->obj_desc->method.aml_start);
 	if (!op) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -134,11 +134,11 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 	    acpi_ds_create_walk_state(info->obj_desc->method.owner_id, NULL,
 				      NULL, NULL);
 	if (!walk_state) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
-	status = acpi_ds_init_aml_walk(walk_state, op, info->node,
+	status = acpi_ds_init_aml_walk(walk_state, op, info->analde,
 				       info->obj_desc->method.aml_start,
 				       info->obj_desc->method.aml_length, info,
 				       info->pass_number);
@@ -179,7 +179,7 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 		walk_state->implicit_return_obj =
 		    acpi_ut_create_integer_object((u64) 0);
 		if (!walk_state->implicit_return_obj) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			acpi_ds_delete_walk_state(walk_state);
 			goto cleanup;
 		}
@@ -198,7 +198,7 @@ cleanup:
 
 	acpi_ps_update_parameter_list(info, REF_DECREMENT);
 
-	/* Exit now if error above */
+	/* Exit analw if error above */
 
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -224,7 +224,7 @@ cleanup:
  * FUNCTION:    acpi_ps_execute_table
  *
  * PARAMETERS:  info            - Method info block, contains:
- *              node            - Node to where the is entered into the
+ *              analde            - Analde to where the is entered into the
  *                                namespace
  *              obj_desc        - Pseudo method object describing the AML
  *                                code of the entire table
@@ -244,11 +244,11 @@ acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info)
 
 	ACPI_FUNCTION_TRACE(ps_execute_table);
 
-	/* Create and init a Root Node */
+	/* Create and init a Root Analde */
 
 	op = acpi_ps_create_scope_op(info->obj_desc->method.aml_start);
 	if (!op) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -258,11 +258,11 @@ acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info)
 	    acpi_ds_create_walk_state(info->obj_desc->method.owner_id, NULL,
 				      NULL, NULL);
 	if (!walk_state) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
-	status = acpi_ds_init_aml_walk(walk_state, op, info->node,
+	status = acpi_ds_init_aml_walk(walk_state, op, info->analde,
 				       info->obj_desc->method.aml_start,
 				       info->obj_desc->method.aml_length, info,
 				       info->pass_number);
@@ -277,11 +277,11 @@ acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info)
 		walk_state->parse_flags |= ACPI_PARSE_MODULE_LEVEL;
 	}
 
-	/* Info->Node is the default location to load the table  */
+	/* Info->Analde is the default location to load the table  */
 
-	if (info->node && info->node != acpi_gbl_root_node) {
+	if (info->analde && info->analde != acpi_gbl_root_analde) {
 		status =
-		    acpi_ds_scope_stack_push(info->node, ACPI_TYPE_METHOD,
+		    acpi_ds_scope_stack_push(info->analde, ACPI_TYPE_METHOD,
 					     walk_state);
 		if (ACPI_FAILURE(status)) {
 			goto cleanup;
@@ -331,7 +331,7 @@ acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action)
 
 		for (i = 0; info->parameters[i]; i++) {
 
-			/* Ignore errors, just do them all */
+			/* Iganalre errors, just do them all */
 
 			(void)acpi_ut_update_object_reference(info->
 							      parameters[i],

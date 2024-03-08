@@ -182,7 +182,7 @@ struct zfcp_dbf_hba_fces {
  * @ZFCP_DBF_HBA_RES: response trace record
  * @ZFCP_DBF_HBA_USS: unsolicited status trace record
  * @ZFCP_DBF_HBA_BIT: bit error trace record
- * @ZFCP_DBF_HBA_BASIC: basic adapter event, only trace tag, no other data
+ * @ZFCP_DBF_HBA_BASIC: basic adapter event, only trace tag, anal other data
  * @ZFCP_DBF_HBA_FCES: FC Endpoint Security trace record
  */
 enum zfcp_dbf_hba_id {
@@ -200,7 +200,7 @@ enum zfcp_dbf_hba_id {
  * @fsf_req_id: request id for fsf requests
  * @fsf_req_status: status of fsf request
  * @fsf_cmd: fsf command
- * @fsf_seq_no: fsf sequence number
+ * @fsf_seq_anal: fsf sequence number
  * @pl_len: length of payload stored as zfcp_dbf_pay
  * @u: record type specific data
  * @u.res:  data for fsf responses
@@ -214,7 +214,7 @@ struct zfcp_dbf_hba {
 	u64 fsf_req_id;
 	u32 fsf_req_status;
 	u32 fsf_cmd;
-	u32 fsf_seq_no;
+	u32 fsf_seq_anal;
 	u16 pl_len;
 	union {
 		struct zfcp_dbf_hba_res res;
@@ -319,7 +319,7 @@ struct zfcp_dbf {
 };
 
 /**
- * zfcp_dbf_hba_fsf_resp_suppress - true if we should not trace by default
+ * zfcp_dbf_hba_fsf_resp_suppress - true if we should analt trace by default
  * @req: request that has been completed
  *
  * Returns true if FCP response with only benign residual under count.
@@ -333,7 +333,7 @@ bool zfcp_dbf_hba_fsf_resp_suppress(struct zfcp_fsf_req *req)
 	u8 rsp_flags, fr_status;
 
 	if (qtcb->prefix.qtcb_type != FSF_IO_COMMAND)
-		return false; /* not an FCP response */
+		return false; /* analt an FCP response */
 	fcp_rsp = &qtcb->bottom.io.fcp_rsp.iu.resp;
 	rsp_flags = fcp_rsp->fr_flags;
 	fr_status = fcp_rsp->fr_status;
@@ -379,7 +379,7 @@ void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
 		zfcp_dbf_hba_fsf_resp("fs_qtcb", 5, req);
 
 	} else {
-		zfcp_dbf_hba_fsf_resp("fs_norm", 6, req);
+		zfcp_dbf_hba_fsf_resp("fs_analrm", 6, req);
 	}
 }
 
@@ -407,7 +407,7 @@ void zfcp_dbf_scsi_result(struct scsi_cmnd *scmd, struct zfcp_fsf_req *req)
 	else if (scmd->retries > 0)
 		_zfcp_dbf_scsi("rsl_ret", 4, scmd, req);
 	else
-		_zfcp_dbf_scsi("rsl_nor", 6, scmd, req);
+		_zfcp_dbf_scsi("rsl_analr", 6, scmd, req);
 }
 
 /**

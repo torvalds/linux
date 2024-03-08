@@ -9,7 +9,7 @@ int sof_fw_trace_init(struct snd_sof_dev *sdev)
 	const struct sof_ipc_fw_tracing_ops *fw_tracing = sof_ipc_get_ops(sdev, fw_tracing);
 
 	if (!fw_tracing) {
-		dev_info(sdev->dev, "Firmware tracing is not available\n");
+		dev_info(sdev->dev, "Firmware tracing is analt available\n");
 		sdev->fw_trace_is_supported = false;
 
 		return 0;

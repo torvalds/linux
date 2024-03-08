@@ -16,7 +16,7 @@
 
 /* This module provides arbitrary resource management routines.
  * I use it to manage the device's memory.
- * Despite the name of this module, I am *not* going to access the ioports.
+ * Despite the name of this module, I am *analt* going to access the ioports.
  */
 #include <linux/ioport.h>
 
@@ -88,7 +88,7 @@ struct iforce {
 	const struct iforce_xport_ops *xport_ops;
 
 	spinlock_t xmit_lock;
-	/* Buffer used for asynchronous sending of bytes to the device */
+	/* Buffer used for asynchroanalus sending of bytes to the device */
 	struct circ_buf xmit;
 	unsigned char xmit_data[XMIT_SIZE];
 	unsigned long xmit_flags[1];

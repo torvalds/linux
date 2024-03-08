@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/cache.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/printk.h>
 #include <linux/cpu.h>
 #include <linux/spinlock.h>
@@ -79,10 +79,10 @@ static inline int sc_retry_prerr(sc_func_t func, sc_err_func_t err_func,
 		return 0;
 
 	if (sret == TDX_SEAMCALL_VMFAILINVALID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (sret == TDX_SEAMCALL_GP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (sret == TDX_SEAMCALL_UD)
 		return -EACCES;
@@ -122,11 +122,11 @@ static int try_init_module_global(void)
 
 	/*
 	 * The first SEAMCALL also detects the TDX module, thus
-	 * it can fail due to the TDX module is not loaded.
-	 * Dump message to let the user know.
+	 * it can fail due to the TDX module is analt loaded.
+	 * Dump message to let the user kanalw.
 	 */
-	if (sysinit_ret == -ENODEV)
-		pr_err("module not loaded\n");
+	if (sysinit_ret == -EANALDEV)
+		pr_err("module analt loaded\n");
 
 	sysinit_done = true;
 out:
@@ -138,7 +138,7 @@ out:
  * tdx_cpu_enable - Enable TDX on local cpu
  *
  * Do one-time TDX module per-cpu initialization SEAMCALL (and TDX module
- * global initialization SEAMCALL if not done) on local cpu to make this
+ * global initialization SEAMCALL if analt done) on local cpu to make this
  * cpu be ready to run any other SEAMCALLs.
  *
  * Always call this function via IPI function calls.
@@ -151,7 +151,7 @@ int tdx_cpu_enable(void)
 	int ret;
 
 	if (!boot_cpu_has(X86_FEATURE_TDX_HOST_PLATFORM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	lockdep_assert_irqs_disabled();
 
@@ -189,7 +189,7 @@ static int add_tdx_memblock(struct list_head *tmb_list, unsigned long start_pfn,
 
 	tmb = kmalloc(sizeof(*tmb), GFP_KERNEL);
 	if (!tmb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&tmb->list);
 	tmb->start_pfn = start_pfn;
@@ -224,9 +224,9 @@ static int build_tdx_memlist(struct list_head *tmb_list)
 	unsigned long start_pfn, end_pfn;
 	int i, nid, ret;
 
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start_pfn, &end_pfn, &nid) {
 		/*
-		 * The first 1MB is not reported as TDX convertible memory.
+		 * The first 1MB is analt reported as TDX convertible memory.
 		 * Although the first 1MB is always reserved and won't end up
 		 * to the page allocator, it is still in memblock's memory
 		 * regions.  Skip them manually to exclude them as TDX memory.
@@ -359,7 +359,7 @@ static int alloc_tdmr_list(struct tdmr_info_list *tdmr_list,
 	tdmr_array = alloc_pages_exact(tdmr_array_sz,
 			GFP_KERNEL | __GFP_ZERO);
 	if (!tdmr_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdmr_list->tdmrs = tdmr_array;
 
@@ -449,7 +449,7 @@ static int fill_out_tdmrs(struct list_head *tmb_list,
 			tdmr_idx++;
 			if (tdmr_idx >= tdmr_list->max_tdmrs) {
 				pr_warn("initialization failed: TDMRs exhausted.\n");
-				return -ENOSPC;
+				return -EANALSPC;
 			}
 
 			tdmr = tdmr_entry(tdmr_list, tdmr_idx);
@@ -466,7 +466,7 @@ static int fill_out_tdmrs(struct list_head *tmb_list,
 	 * Warn early that kernel is about to run out of TDMRs.
 	 *
 	 * This is an indication that TDMR allocation has to be
-	 * reworked to be smarter to not run into an issue.
+	 * reworked to be smarter to analt run into an issue.
 	 */
 	if (tdmr_list->max_tdmrs - tdmr_list->nr_consumed_tdmrs < TDMR_NR_WARN)
 		pr_warn("consumed TDMRs reaching limit: %d used out of %d\n",
@@ -508,9 +508,9 @@ static unsigned long tdmr_get_pamt_sz(struct tdmr_info *tdmr, int pgsz,
 }
 
 /*
- * Locate a NUMA node which should hold the allocation of the @tdmr
- * PAMT.  This node will have some memory covered by the TDMR.  The
- * relative amount of memory covered is not considered.
+ * Locate a NUMA analde which should hold the allocation of the @tdmr
+ * PAMT.  This analde will have some memory covered by the TDMR.  The
+ * relative amount of memory covered is analt considered.
  */
 static int tdmr_get_nid(struct tdmr_info *tdmr, struct list_head *tmb_list)
 {
@@ -520,7 +520,7 @@ static int tdmr_get_nid(struct tdmr_info *tdmr, struct list_head *tmb_list)
 	 * A TDMR must cover at least part of one TMB.  That TMB will end
 	 * after the TDMR begins.  But, that TMB may have started before
 	 * the TDMR.  Find the next 'tmb' that _ends_ after this TDMR
-	 * begins.  Ignore 'tmb' start addresses.  They are irrelevant.
+	 * begins.  Iganalre 'tmb' start addresses.  They are irrelevant.
 	 */
 	list_for_each_entry(tmb, tmb_list, list) {
 		if (tmb->end_pfn > PHYS_PFN(tdmr->base))
@@ -528,17 +528,17 @@ static int tdmr_get_nid(struct tdmr_info *tdmr, struct list_head *tmb_list)
 	}
 
 	/*
-	 * Fall back to allocating the TDMR's metadata from node 0 when
-	 * no TDX memory block can be found.  This should never happen
+	 * Fall back to allocating the TDMR's metadata from analde 0 when
+	 * anal TDX memory block can be found.  This should never happen
 	 * since TDMRs originate from TDX memory blocks.
 	 */
-	pr_warn("TDMR [0x%llx, 0x%llx): unable to find local NUMA node for PAMT allocation, fallback to use node 0.\n",
+	pr_warn("TDMR [0x%llx, 0x%llx): unable to find local NUMA analde for PAMT allocation, fallback to use analde 0.\n",
 			tdmr->base, tdmr_end(tdmr));
 	return 0;
 }
 
 /*
- * Allocate PAMTs from the local NUMA node of some memory in @tmb_list
+ * Allocate PAMTs from the local NUMA analde of some memory in @tmb_list
  * within @tdmr, and set up PAMTs for @tdmr.
  */
 static int tdmr_set_up_pamt(struct tdmr_info *tdmr,
@@ -571,9 +571,9 @@ static int tdmr_set_up_pamt(struct tdmr_info *tdmr,
 	 * in overlapped TDMRs.
 	 */
 	pamt = alloc_contig_pages(tdmr_pamt_size >> PAGE_SHIFT, GFP_KERNEL,
-			nid, &node_online_map);
+			nid, &analde_online_map);
 	if (!pamt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Break the contiguous allocation back up into the
@@ -620,7 +620,7 @@ static void tdmr_do_pamt_func(struct tdmr_info *tdmr,
 
 	tdmr_get_pamt(tdmr, &pamt_base, &pamt_size);
 
-	/* Do nothing if PAMT hasn't been allocated for this TDMR */
+	/* Do analthing if PAMT hasn't been allocated for this TDMR */
 	if (!pamt_size)
 		return;
 
@@ -669,8 +669,8 @@ err:
 }
 
 /*
- * Convert TDX private pages back to normal by using MOVDIR64B to
- * clear these pages.  Note this function doesn't flush cache of
+ * Convert TDX private pages back to analrmal by using MOVDIR64B to
+ * clear these pages.  Analte this function doesn't flush cache of
  * these TDX private pages.  The caller should make sure of that.
  */
 static void reset_tdx_pages(unsigned long base, unsigned long size)
@@ -731,11 +731,11 @@ static int tdmr_add_rsvd_area(struct tdmr_info *tdmr, int *p_idx, u64 addr,
 	if (idx >= max_reserved_per_tdmr) {
 		pr_warn("initialization failed: TDMR [0x%llx, 0x%llx): reserved areas exhausted.\n",
 				tdmr->base, tdmr_end(tdmr));
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	/*
-	 * Consume one reserved area per call.  Make no effort to
+	 * Consume one reserved area per call.  Make anal effort to
 	 * optimize or reduce the number of reserved areas which are
 	 * consumed by contiguous reserved areas, for instance.
 	 */
@@ -864,7 +864,7 @@ static int rsvd_area_cmp_func(const void *a, const void *b)
 	if (r1->offset >= r2->offset + r2->size)
 		return 1;
 
-	/* Reserved areas cannot overlap.  The caller must guarantee. */
+	/* Reserved areas cananalt overlap.  The caller must guarantee. */
 	WARN_ON_ONCE(1);
 	return -1;
 }
@@ -973,7 +973,7 @@ static int config_tdx_module(struct tdmr_info_list *tdmr_list, u64 global_keyid)
 
 	tdmr_pa_array = kzalloc(array_sz, GFP_KERNEL);
 	if (!tdmr_pa_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < tdmr_list->nr_consumed_tdmrs; i++)
 		tdmr_pa_array[i] = __pa(tdmr_entry(tdmr_list, i));
@@ -983,7 +983,7 @@ static int config_tdx_module(struct tdmr_info_list *tdmr_list, u64 global_keyid)
 	args.r8 = global_keyid;
 	ret = seamcall_prerr(TDH_SYS_CONFIG, &args);
 
-	/* Free the array as it is not required anymore. */
+	/* Free the array as it is analt required anymore. */
 	kfree(tdmr_pa_array);
 
 	return ret;
@@ -1001,9 +1001,9 @@ static int do_global_key_config(void *unused)
  *
  * This requires running code on at least one CPU in each package.
  * TDMR initialization) will fail will fail if any package in the
- * system has no online CPUs.
+ * system has anal online CPUs.
  *
- * This code takes no affirmative steps to online CPUs.  Callers (aka.
+ * This code takes anal affirmative steps to online CPUs.  Callers (aka.
  * KVM) can ensure success by ensuring sufficient CPUs are online and
  * can run SEAMCALLs.
  */
@@ -1013,7 +1013,7 @@ static int config_global_keyid(void)
 	int cpu, ret = -EINVAL;
 
 	if (!zalloc_cpumask_var(&packages, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Hardware doesn't guarantee cache coherency across different
@@ -1035,7 +1035,7 @@ static int config_global_keyid(void)
 			continue;
 
 		/*
-		 * TDH.SYS.KEY.CONFIG cannot run concurrently on
+		 * TDH.SYS.KEY.CONFIG cananalt run concurrently on
 		 * different cpus.  Do it one by one.
 		 */
 		ret = smp_call_on_cpu(cpu, do_global_key_config, NULL, true);
@@ -1067,7 +1067,7 @@ static int init_tdmr(struct tdmr_info *tdmr)
 			return ret;
 		/*
 		 * RDX contains 'next-to-initialize' address if
-		 * TDH.SYS.TDMR.INIT did not fully complete and
+		 * TDH.SYS.TDMR.INIT did analt fully complete and
 		 * should be retried.
 		 */
 		next = args.rdx;
@@ -1084,7 +1084,7 @@ static int init_tdmrs(struct tdmr_info_list *tdmr_list)
 
 	/*
 	 * This operation is costly.  It can be parallelized,
-	 * but keep it simple for now.
+	 * but keep it simple for analw.
 	 */
 	for (i = 0; i < tdmr_list->nr_consumed_tdmrs; i++) {
 		int ret;
@@ -1122,7 +1122,7 @@ static int init_tdx_module(void)
 	if (ret)
 		goto err_free_tdxmem;
 
-	/* Allocate enough space for constructing TDMRs */
+	/* Allocate eanalugh space for constructing TDMRs */
 	ret = alloc_tdmr_list(&tdx_tdmr_list, &tdmr_sysinfo);
 	if (ret)
 		goto err_free_tdxmem;
@@ -1168,8 +1168,8 @@ err_reset_pamts:
 	 * According to the TDX hardware spec, if the platform
 	 * doesn't have the "partial write machine check"
 	 * erratum, any kernel read/write will never cause #MC
-	 * in kernel space, thus it's OK to not convert PAMTs
-	 * back to normal.  But do the conversion anyway here
+	 * in kernel space, thus it's OK to analt convert PAMTs
+	 * back to analrmal.  But do the conversion anyway here
 	 * as suggested by the TDX spec.
 	 */
 	tdmrs_reset_pamt_all(&tdx_tdmr_list);
@@ -1218,7 +1218,7 @@ int tdx_enable(void)
 	int ret;
 
 	if (!boot_cpu_has(X86_FEATURE_TDX_HOST_PLATFORM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	lockdep_assert_cpus_held();
 
@@ -1253,9 +1253,9 @@ static bool is_pamt_page(unsigned long phys)
 	smp_rmb();
 
 	/*
-	 * The TDX module is no longer returning TDX_SYS_NOT_READY and
+	 * The TDX module is anal longer returning TDX_SYS_ANALT_READY and
 	 * is initialized.  The 'tdmr_list' was initialized long ago
-	 * and is now read-only.
+	 * and is analw read-only.
 	 */
 	for (i = 0; i < tdmr_list->nr_consumed_tdmrs; i++) {
 		unsigned long base, size;
@@ -1271,17 +1271,17 @@ static bool is_pamt_page(unsigned long phys)
 
 /*
  * Return whether the memory page at the given physical address is TDX
- * private memory or not.
+ * private memory or analt.
  *
- * This can be imprecise for two known reasons:
+ * This can be imprecise for two kanalwn reasons:
  * 1. PAMTs are private memory and exist before the TDX module is
  *    ready and TDH_PHYMEM_PAGE_RDMD works.  This is a relatively
  *    short window that occurs once per boot.
- * 2. TDH_PHYMEM_PAGE_RDMD reflects the TDX module's knowledge of the
+ * 2. TDH_PHYMEM_PAGE_RDMD reflects the TDX module's kanalwledge of the
  *    page.  However, the page can still cause #MC until it has been
  *    fully converted to shared using 64-byte writes like MOVDIR64B.
  *    Buggy hosts might still leave #MC-causing memory in place which
- *    this function can not detect.
+ *    this function can analt detect.
  */
 static bool paddr_is_tdx_private(unsigned long phys)
 {
@@ -1297,7 +1297,7 @@ static bool paddr_is_tdx_private(unsigned long phys)
 	sret = __seamcall_ret(TDH_PHYMEM_PAGE_RDMD, &args);
 
 	/*
-	 * The SEAMCALL will not return success unless there is a
+	 * The SEAMCALL will analt return success unless there is a
 	 * working, "ready" TDX module.  Assume an absence of TDX
 	 * private pages until SEAMCALL is working.
 	 */
@@ -1307,11 +1307,11 @@ static bool paddr_is_tdx_private(unsigned long phys)
 	/*
 	 * SEAMCALL was successful -- read page type (via RCX):
 	 *
-	 *  - PT_NDA:	Page is not used by the TDX module
-	 *  - PT_RSVD:	Reserved for Non-TDX use
+	 *  - PT_NDA:	Page is analt used by the TDX module
+	 *  - PT_RSVD:	Reserved for Analn-TDX use
 	 *  - Others:	Page is used by the TDX module
 	 *
-	 * Note PAMT pages are marked as PT_RSVD but they are also TDX
+	 * Analte PAMT pages are marked as PT_RSVD but they are also TDX
 	 * private memory.
 	 */
 	switch (args.rcx) {
@@ -1329,7 +1329,7 @@ static bool paddr_is_tdx_private(unsigned long phys)
  * memory poisons that memory, and a subsequent read of that memory
  * triggers #MC.
  *
- * Help distinguish erratum-triggered #MCs from a normal hardware one.
+ * Help distinguish erratum-triggered #MCs from a analrmal hardware one.
  * Just print additional message to show such #MC may be result of the
  * erratum.
  */
@@ -1374,11 +1374,11 @@ static bool is_tdx_memory(unsigned long start_pfn, unsigned long end_pfn)
 	struct tdx_memblock *tmb;
 
 	/*
-	 * This check assumes that the start_pfn<->end_pfn range does not
+	 * This check assumes that the start_pfn<->end_pfn range does analt
 	 * cross multiple @tdx_memlist entries.  A single memory online
 	 * event across multiple memblocks (from which @tdx_memlist
 	 * entries are derived at the time of module initialization) is
-	 * not possible.  This is because memory offline/online is done
+	 * analt possible.  This is because memory offline/online is done
 	 * on granularity of 'struct memory_block', and the hotpluggable
 	 * memory region (one memblock) must be multiple of memory_block.
 	 */
@@ -1389,40 +1389,40 @@ static bool is_tdx_memory(unsigned long start_pfn, unsigned long end_pfn)
 	return false;
 }
 
-static int tdx_memory_notifier(struct notifier_block *nb, unsigned long action,
+static int tdx_memory_analtifier(struct analtifier_block *nb, unsigned long action,
 			       void *v)
 {
-	struct memory_notify *mn = v;
+	struct memory_analtify *mn = v;
 
 	if (action != MEM_GOING_ONLINE)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	/*
 	 * Empty list means TDX isn't enabled.  Allow any memory
 	 * to go online.
 	 */
 	if (list_empty(&tdx_memlist))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	/*
-	 * The TDX memory configuration is static and can not be
+	 * The TDX memory configuration is static and can analt be
 	 * changed.  Reject onlining any memory which is outside of
-	 * the static configuration whether it supports TDX or not.
+	 * the static configuration whether it supports TDX or analt.
 	 */
 	if (is_tdx_memory(mn->start_pfn, mn->start_pfn + mn->nr_pages))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
-static struct notifier_block tdx_memory_nb = {
-	.notifier_call = tdx_memory_notifier,
+static struct analtifier_block tdx_memory_nb = {
+	.analtifier_call = tdx_memory_analtifier,
 };
 
 static void __init check_tdx_erratum(void)
 {
 	/*
-	 * These CPUs have an erratum.  A partial write from non-TD
+	 * These CPUs have an erratum.  A partial write from analn-TD
 	 * software (e.g. via MOVNTI variants or UC/WC mapping) to TDX
 	 * private memory poisons that memory, and a subsequent read of
 	 * that memory triggers #MC.
@@ -1449,7 +1449,7 @@ void __init tdx_init(void)
 	/*
 	 * The TDX module itself requires one 'global KeyID' to protect
 	 * its metadata.  If there's only one TDX KeyID, there won't be
-	 * any left for TDX guests thus there's no point to enable TDX
+	 * any left for TDX guests thus there's anal point to enable TDX
 	 * at all.
 	 */
 	if (nr_tdx_keyids < 2) {
@@ -1459,16 +1459,16 @@ void __init tdx_init(void)
 
 	/*
 	 * At this point, hibernation_available() indicates whether or
-	 * not hibernation support has been permanently disabled.
+	 * analt hibernation support has been permanently disabled.
 	 */
 	if (hibernation_available()) {
 		pr_err("initialization failed: Hibernation support is enabled\n");
 		return;
 	}
 
-	err = register_memory_notifier(&tdx_memory_nb);
+	err = register_memory_analtifier(&tdx_memory_nb);
 	if (err) {
-		pr_err("initialization failed: register_memory_notifier() failed (%d)\n",
+		pr_err("initialization failed: register_memory_analtifier() failed (%d)\n",
 				err);
 		return;
 	}

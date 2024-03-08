@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4212 based Galaxy Tab 3 board common source
+ * Samsung's Exyanals4212 based Galaxy Tab 3 board common source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  */
 
 /dts-v1/;
-#include "exynos4212.dtsi"
-#include "exynos4412-ppmu-common.dtsi"
-#include "exynos-mfc-reserved-memory.dtsi"
+#include "exyanals4212.dtsi"
+#include "exyanals4412-ppmu-common.dtsi"
+#include "exyanals-mfc-reserved-memory.dtsi"
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "exynos-pinctrl.h"
+#include "exyanals-pinctrl.h"
 
 / {
-	compatible = "samsung,tab3", "samsung,exynos4212", "samsung,exynos4";
+	compatible = "samsung,tab3", "samsung,exyanals4212", "samsung,exyanals4";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -28,7 +28,7 @@
 		 * Technically 1.5GB is available, but the latter 512MB is handled
 		 * in a special way by downstream (every second page is skipped),
 		 * and thus doesn't initialize correctly on mainline. Only 1020M is
-		 * used for now.
+		 * used for analw.
 		 */
 		reg = <0x40000000 0x3fc00000>;
 	};
@@ -428,7 +428,7 @@
 	};
 };
 
-&exynos_usbphy {
+&exyanals_usbphy {
 	vbus-supply = <&esafeout1_reg>;
 	status = "okay";
 };
@@ -481,7 +481,7 @@
 	status = "okay";
 
 	touchscreen@48 {
-		/* MELFAS MMS252, using MMS114 compatible for now */
+		/* MELFAS MMS252, using MMS114 compatible for analw */
 		compatible = "melfas,mms114";
 		reg = <0x48>;
 		interrupt-parent = <&gpb>;
@@ -807,7 +807,7 @@
 
 &mshc_0 {
 	broken-cd;
-	non-removable;
+	analn-removable;
 	card-detect-delay = <200>;
 	vmmc-supply = <&ldo22_reg>;
 	clock-frequency = <400000000>;
@@ -828,27 +828,27 @@
 
 	lcd_en: lcd-en-pins {
 		samsung,pins = "gpc0-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	lcd_nrst: lcd-nrst-pins {
 		samsung,pins = "gpf0-4";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	s5m8767_ds: s5m8767-ds-pins {
 		samsung,pins = "gpf3-1", "gpf3-2", "gpf3-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 	};
 
 	sleep0: sleep-state {
-		PIN_SLP(gpa0-0, INPUT, NONE);
-		PIN_SLP(gpa0-1, OUT0, NONE);
-		PIN_SLP(gpa0-2, INPUT, NONE);
+		PIN_SLP(gpa0-0, INPUT, ANALNE);
+		PIN_SLP(gpa0-1, OUT0, ANALNE);
+		PIN_SLP(gpa0-2, INPUT, ANALNE);
 		PIN_SLP(gpa0-3, INPUT, UP);
 		PIN_SLP(gpa0-4, INPUT, DOWN);
 		PIN_SLP(gpa0-5, INPUT, DOWN);
@@ -862,10 +862,10 @@
 		PIN_SLP(gpa1-4, INPUT, DOWN);
 		PIN_SLP(gpa1-5, INPUT, DOWN);
 
-		PIN_SLP(gpb-0, INPUT, NONE);
-		PIN_SLP(gpb-1, INPUT, NONE);
-		PIN_SLP(gpb-2, INPUT, NONE);
-		PIN_SLP(gpb-3, INPUT, NONE);
+		PIN_SLP(gpb-0, INPUT, ANALNE);
+		PIN_SLP(gpb-1, INPUT, ANALNE);
+		PIN_SLP(gpb-2, INPUT, ANALNE);
+		PIN_SLP(gpb-3, INPUT, ANALNE);
 		PIN_SLP(gpb-4, INPUT, DOWN);
 		PIN_SLP(gpb-5, INPUT, DOWN);
 		PIN_SLP(gpb-6, INPUT, DOWN);
@@ -873,9 +873,9 @@
 
 		PIN_SLP(gpc0-0, INPUT, DOWN);
 		PIN_SLP(gpc0-1, INPUT, DOWN);
-		PIN_SLP(gpc0-2, INPUT, NONE);
-		PIN_SLP(gpc0-3, INPUT, NONE);
-		PIN_SLP(gpc0-4, INPUT, NONE);
+		PIN_SLP(gpc0-2, INPUT, ANALNE);
+		PIN_SLP(gpc0-3, INPUT, ANALNE);
+		PIN_SLP(gpc0-4, INPUT, ANALNE);
 
 		PIN_SLP(gpc1-0, INPUT, DOWN);
 		PIN_SLP(gpc1-1, INPUT, DOWN);
@@ -884,21 +884,21 @@
 		PIN_SLP(gpc1-4, INPUT, DOWN);
 
 		PIN_SLP(gpd0-0, INPUT, DOWN);
-		PIN_SLP(gpd0-1, OUT0, NONE);
-		PIN_SLP(gpd0-2, INPUT, NONE);
-		PIN_SLP(gpd0-3, INPUT, NONE);
+		PIN_SLP(gpd0-1, OUT0, ANALNE);
+		PIN_SLP(gpd0-2, INPUT, ANALNE);
+		PIN_SLP(gpd0-3, INPUT, ANALNE);
 
 		PIN_SLP(gpd1-0, INPUT, DOWN);
 		PIN_SLP(gpd1-1, INPUT, DOWN);
-		PIN_SLP(gpd1-2, INPUT, NONE);
-		PIN_SLP(gpd1-3, INPUT, NONE);
+		PIN_SLP(gpd1-2, INPUT, ANALNE);
+		PIN_SLP(gpd1-3, INPUT, ANALNE);
 
 		PIN_SLP(gpf0-0, INPUT, DOWN);
 		PIN_SLP(gpf0-1, INPUT, DOWN);
 		PIN_SLP(gpf0-2, INPUT, DOWN);
 		PIN_SLP(gpf0-3, INPUT, DOWN);
-		PIN_SLP(gpf0-4, OUT0, NONE);
-		PIN_SLP(gpf0-5, OUT0, NONE);
+		PIN_SLP(gpf0-4, OUT0, ANALNE);
+		PIN_SLP(gpf0-5, OUT0, ANALNE);
 		PIN_SLP(gpf0-6, INPUT, DOWN);
 		PIN_SLP(gpf0-7, INPUT, DOWN);
 
@@ -924,21 +924,21 @@
 		PIN_SLP(gpf3-1, INPUT, DOWN);
 		PIN_SLP(gpf3-2, INPUT, DOWN);
 		PIN_SLP(gpf3-3, INPUT, DOWN);
-		PIN_SLP(gpf3-4, PREV, NONE);
+		PIN_SLP(gpf3-4, PREV, ANALNE);
 		PIN_SLP(gpf3-5, OUT0, DOWN);
 
 		PIN_SLP(gpj0-0, INPUT, DOWN);
 		PIN_SLP(gpj0-1, INPUT, DOWN);
 		PIN_SLP(gpj0-2, INPUT, DOWN);
-		PIN_SLP(gpj0-3, OUT0, NONE);
+		PIN_SLP(gpj0-3, OUT0, ANALNE);
 		PIN_SLP(gpj0-4, INPUT, DOWN);
 		PIN_SLP(gpj0-5, INPUT, DOWN);
-		PIN_SLP(gpj0-6, OUT0, NONE);
-		PIN_SLP(gpj0-7, OUT0, NONE);
+		PIN_SLP(gpj0-6, OUT0, ANALNE);
+		PIN_SLP(gpj0-7, OUT0, ANALNE);
 
-		PIN_SLP(gpj1-0, OUT0, NONE);
+		PIN_SLP(gpj1-0, OUT0, ANALNE);
 		PIN_SLP(gpj1-1, INPUT, DOWN);
-		PIN_SLP(gpj1-2, PREV, NONE);
+		PIN_SLP(gpj1-2, PREV, ANALNE);
 		PIN_SLP(gpj1-3, INPUT, DOWN);
 		PIN_SLP(gpj1-4, INPUT, DOWN);
 	};
@@ -950,81 +950,81 @@
 
 	bt_shutdown: bt-shutdown-pins {
 		samsung,pins = "gpl0-6";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	bt_host_wakeup: bt-host-wakeup-pins {
 		samsung,pins = "gpx2-6";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	bt_device_wakeup: bt-device-wakeup-pins {
 		samsung,pins = "gpx3-1";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	backlight_reset: backlight-reset-pins {
 		samsung,pins = "gpm0-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	gpio_keys: gpio-keys-pins {
 		samsung,pins = "gpx1-2", "gpx2-2", "gpx2-4", "gpx2-7", "gpx3-3";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	max77693_irq: max77693-irq-pins {
 		samsung,pins = "gpx1-5";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 	};
 
 	max77693_fuel_irq: max77693-fuel-irq-pins {
 		samsung,pins = "gpx2-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 	};
 
 	sdhci2_cd: sdhci2-cd-irq-pins {
 		samsung,pins = "gpx3-4";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 	};
 
 	s5m8767_dvs: s5m8767-dvs-pins {
 		samsung,pins = "gpm3-0", "gpm3-1", "gpm3-2";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 	};
 
 	s5m8767_irq: s5m8767-irq-pins {
 		samsung,pins = "gpx0-7";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 	};
 
 	sleep1: sleep-state {
-		PIN_SLP(gpk0-0, PREV, NONE);
-		PIN_SLP(gpk0-1, PREV, NONE);
-		PIN_SLP(gpk0-2, PREV, NONE);
-		PIN_SLP(gpk0-3, PREV, NONE);
-		PIN_SLP(gpk0-4, PREV, NONE);
-		PIN_SLP(gpk0-5, PREV, NONE);
-		PIN_SLP(gpk0-6, PREV, NONE);
+		PIN_SLP(gpk0-0, PREV, ANALNE);
+		PIN_SLP(gpk0-1, PREV, ANALNE);
+		PIN_SLP(gpk0-2, PREV, ANALNE);
+		PIN_SLP(gpk0-3, PREV, ANALNE);
+		PIN_SLP(gpk0-4, PREV, ANALNE);
+		PIN_SLP(gpk0-5, PREV, ANALNE);
+		PIN_SLP(gpk0-6, PREV, ANALNE);
 
 		PIN_SLP(gpk1-0, INPUT, DOWN);
 		PIN_SLP(gpk1-1, INPUT, DOWN);
 		PIN_SLP(gpk1-2, INPUT, DOWN);
-		PIN_SLP(gpk1-3, PREV, NONE);
-		PIN_SLP(gpk1-4, PREV, NONE);
-		PIN_SLP(gpk1-5, PREV, NONE);
-		PIN_SLP(gpk1-6, PREV, NONE);
+		PIN_SLP(gpk1-3, PREV, ANALNE);
+		PIN_SLP(gpk1-4, PREV, ANALNE);
+		PIN_SLP(gpk1-5, PREV, ANALNE);
+		PIN_SLP(gpk1-6, PREV, ANALNE);
 
 		PIN_SLP(gpk2-0, INPUT, DOWN);
 		PIN_SLP(gpk2-1, INPUT, DOWN);
@@ -1034,34 +1034,34 @@
 		PIN_SLP(gpk2-5, INPUT, DOWN);
 		PIN_SLP(gpk2-6, INPUT, DOWN);
 
-		PIN_SLP(gpk3-0, OUT0, NONE);
-		PIN_SLP(gpk3-1, INPUT, NONE);
+		PIN_SLP(gpk3-0, OUT0, ANALNE);
+		PIN_SLP(gpk3-1, INPUT, ANALNE);
 		PIN_SLP(gpk3-2, INPUT, DOWN);
-		PIN_SLP(gpk3-3, INPUT, NONE);
-		PIN_SLP(gpk3-4, INPUT, NONE);
-		PIN_SLP(gpk3-5, INPUT, NONE);
-		PIN_SLP(gpk3-6, INPUT, NONE);
+		PIN_SLP(gpk3-3, INPUT, ANALNE);
+		PIN_SLP(gpk3-4, INPUT, ANALNE);
+		PIN_SLP(gpk3-5, INPUT, ANALNE);
+		PIN_SLP(gpk3-6, INPUT, ANALNE);
 
 		PIN_SLP(gpl0-0, INPUT, DOWN);
-		PIN_SLP(gpl0-1, INPUT, NONE);
-		PIN_SLP(gpl0-2, INPUT, NONE);
+		PIN_SLP(gpl0-1, INPUT, ANALNE);
+		PIN_SLP(gpl0-2, INPUT, ANALNE);
 		PIN_SLP(gpl0-3, INPUT, DOWN);
 		PIN_SLP(gpl0-4, INPUT, DOWN);
-		PIN_SLP(gpl0-6, PREV, NONE);
+		PIN_SLP(gpl0-6, PREV, ANALNE);
 
 		PIN_SLP(gpl1-0, INPUT, DOWN);
-		PIN_SLP(gpl1-1, OUT0, NONE);
+		PIN_SLP(gpl1-1, OUT0, ANALNE);
 		PIN_SLP(gpl2-0, INPUT, DOWN);
-		PIN_SLP(gpl2-1, PREV, NONE);
-		PIN_SLP(gpl2-2, PREV, NONE);
+		PIN_SLP(gpl2-1, PREV, ANALNE);
+		PIN_SLP(gpl2-2, PREV, ANALNE);
 		PIN_SLP(gpl2-3, INPUT, DOWN);
 		PIN_SLP(gpl2-4, INPUT, DOWN);
 		PIN_SLP(gpl2-5, INPUT, DOWN);
 		PIN_SLP(gpl2-6, INPUT, DOWN);
 		PIN_SLP(gpl2-7, INPUT, DOWN);
 
-		PIN_SLP(gpm0-0, PREV, NONE);
-		PIN_SLP(gpm0-1, OUT0, NONE);
+		PIN_SLP(gpm0-0, PREV, ANALNE);
+		PIN_SLP(gpm0-1, OUT0, ANALNE);
 		PIN_SLP(gpm0-2, INPUT, DOWN);
 		PIN_SLP(gpm0-3, INPUT, DOWN);
 		PIN_SLP(gpm0-4, INPUT, DOWN);
@@ -1071,40 +1071,40 @@
 
 		PIN_SLP(gpm1-0, INPUT, DOWN);
 		PIN_SLP(gpm1-1, INPUT, DOWN);
-		PIN_SLP(gpm1-2, INPUT, NONE);
-		PIN_SLP(gpm1-3, INPUT, NONE);
-		PIN_SLP(gpm1-4, INPUT, NONE);
-		PIN_SLP(gpm1-5, INPUT, NONE);
-		PIN_SLP(gpm1-6, OUT0, NONE);
+		PIN_SLP(gpm1-2, INPUT, ANALNE);
+		PIN_SLP(gpm1-3, INPUT, ANALNE);
+		PIN_SLP(gpm1-4, INPUT, ANALNE);
+		PIN_SLP(gpm1-5, INPUT, ANALNE);
+		PIN_SLP(gpm1-6, OUT0, ANALNE);
 
-		PIN_SLP(gpm2-0, INPUT, NONE);
-		PIN_SLP(gpm2-1, INPUT, NONE);
-		PIN_SLP(gpm2-2, OUT0, NONE);
+		PIN_SLP(gpm2-0, INPUT, ANALNE);
+		PIN_SLP(gpm2-1, INPUT, ANALNE);
+		PIN_SLP(gpm2-2, OUT0, ANALNE);
 		PIN_SLP(gpm2-3, INPUT, DOWN);
 		PIN_SLP(gpm2-4, INPUT, DOWN);
 
-		PIN_SLP(gpm3-0, PREV, NONE);
-		PIN_SLP(gpm3-1, PREV, NONE);
-		PIN_SLP(gpm3-2, PREV, NONE);
+		PIN_SLP(gpm3-0, PREV, ANALNE);
+		PIN_SLP(gpm3-1, PREV, ANALNE);
+		PIN_SLP(gpm3-2, PREV, ANALNE);
 		PIN_SLP(gpm3-3, INPUT, DOWN);
 		PIN_SLP(gpm3-4, INPUT, DOWN);
-		PIN_SLP(gpm3-5, PREV, NONE);
+		PIN_SLP(gpm3-5, PREV, ANALNE);
 		PIN_SLP(gpm3-6, INPUT, DOWN);
-		PIN_SLP(gpm3-7, OUT0, NONE);
+		PIN_SLP(gpm3-7, OUT0, ANALNE);
 
 		PIN_SLP(gpm4-0, INPUT, DOWN);
 		PIN_SLP(gpm4-1, INPUT, DOWN);
 		PIN_SLP(gpm4-2, INPUT, DOWN);
 		PIN_SLP(gpm4-3, INPUT, DOWN);
-		PIN_SLP(gpm4-4, PREV, NONE);
-		PIN_SLP(gpm4-5, INPUT, NONE);
+		PIN_SLP(gpm4-4, PREV, ANALNE);
+		PIN_SLP(gpm4-5, INPUT, ANALNE);
 		PIN_SLP(gpm4-6, INPUT, DOWN);
 		PIN_SLP(gpm4-7, INPUT, DOWN);
 
 		PIN_SLP(gpy0-0, INPUT, DOWN);
 		PIN_SLP(gpy0-1, INPUT, DOWN);
-		PIN_SLP(gpy0-2, INPUT, NONE);
-		PIN_SLP(gpy0-3, INPUT, NONE);
+		PIN_SLP(gpy0-2, INPUT, ANALNE);
+		PIN_SLP(gpy0-3, INPUT, ANALNE);
 		PIN_SLP(gpy0-4, INPUT, DOWN);
 		PIN_SLP(gpy0-5, INPUT, DOWN);
 
@@ -1113,12 +1113,12 @@
 		PIN_SLP(gpy1-2, INPUT, DOWN);
 		PIN_SLP(gpy1-3, INPUT, DOWN);
 
-		PIN_SLP(gpy2-0, PREV, NONE);
+		PIN_SLP(gpy2-0, PREV, ANALNE);
 		PIN_SLP(gpy2-1, INPUT, DOWN);
-		PIN_SLP(gpy2-2, INPUT, NONE);
-		PIN_SLP(gpy2-3, INPUT, NONE);
-		PIN_SLP(gpy2-4, INPUT, NONE);
-		PIN_SLP(gpy2-5, INPUT, NONE);
+		PIN_SLP(gpy2-2, INPUT, ANALNE);
+		PIN_SLP(gpy2-3, INPUT, ANALNE);
+		PIN_SLP(gpy2-4, INPUT, ANALNE);
+		PIN_SLP(gpy2-5, INPUT, ANALNE);
 
 		PIN_SLP(gpy3-0, INPUT, DOWN);
 		PIN_SLP(gpy3-1, INPUT, DOWN);
@@ -1232,11 +1232,11 @@
 };
 
 /*
- * The internal RTC does not work; instead, the RTC provided by the
+ * The internal RTC does analt work; instead, the RTC provided by the
  * S5M8766 PMIC is used. Disable the RTC to make sure the working
  * one gets used.
  *
- * We add this node to avoid DTB check warnings, as the Exynos4 RTC
+ * We add this analde to avoid DTB check warnings, as the Exyanals4 RTC
  * requires two clocks, and only one is set up by default.
  */
 &rtc {
@@ -1257,7 +1257,7 @@
 &sdhci_3 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 
 	mmc-pwrseq = <&wlan_pwrseq>;

@@ -13,24 +13,24 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      analtice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright analtice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. analr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -42,11 +42,11 @@
 #define _LINUX_SUNRPC_XPRTRDMA_H
 
 /*
- * Constants. Max RPC/NFS header is big enough to account for
+ * Constants. Max RPC/NFS header is big eanalugh to account for
  * additional marshaling buffers passed down by Linux client.
  *
- * RDMA header is currently fixed max size, and is big enough for a
- * fully-chunked NFS message (read chunks are the largest). Note only
+ * RDMA header is currently fixed max size, and is big eanalugh for a
+ * fully-chunked NFS message (read chunks are the largest). Analte only
  * a single chunk type per message is supported currently.
  */
 #define RPCRDMA_MIN_SLOT_TABLE	(4U)
@@ -58,7 +58,7 @@
 #define RPCRDMA_MAX_INLINE  (65536)	/* max inline thresh */
 
 /* Memory registration strategies, by number.
- * This is part of a kernel / user space API. Do not remove. */
+ * This is part of a kernel / user space API. Do analt remove. */
 enum rpcrdma_memreg {
 	RPCRDMA_BOUNCEBUFFERS = 0,
 	RPCRDMA_REGISTER,

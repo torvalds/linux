@@ -56,7 +56,7 @@
 #include "tree-ssa-operands.h"
 #include "tree-into-ssa.h"
 #include "is-a.h"
-#include "diagnostic.h"
+#include "diaganalstic.h"
 #include "tree-dump.h"
 #include "tree-pass.h"
 #include "pass_manager.h"
@@ -87,7 +87,7 @@
 #include "tree-eh.h"
 #include "stmt.h"
 #include "gimplify.h"
-#include "tree-phinodes.h"
+#include "tree-phianaldes.h"
 #include "tree-cfg.h"
 #include "gimple-ssa.h"
 #include "ssa-iterators.h"
@@ -105,10 +105,10 @@ void debug_dominance_tree(enum cdi_direction dir, basic_block root);
 #define __visible __attribute__((visibility("default")))
 #endif
 
-#define DECL_NAME_POINTER(node) IDENTIFIER_POINTER(DECL_NAME(node))
-#define DECL_NAME_LENGTH(node) IDENTIFIER_LENGTH(DECL_NAME(node))
-#define TYPE_NAME_POINTER(node) IDENTIFIER_POINTER(TYPE_NAME(node))
-#define TYPE_NAME_LENGTH(node) IDENTIFIER_LENGTH(TYPE_NAME(node))
+#define DECL_NAME_POINTER(analde) IDENTIFIER_POINTER(DECL_NAME(analde))
+#define DECL_NAME_LENGTH(analde) IDENTIFIER_LENGTH(DECL_NAME(analde))
+#define TYPE_NAME_POINTER(analde) IDENTIFIER_POINTER(TYPE_NAME(analde))
+#define TYPE_NAME_LENGTH(analde) IDENTIFIER_LENGTH(TYPE_NAME(analde))
 
 /* should come from c-tree.h if only it were installed for gcc 4.5... */
 #define C_TYPE_FIELDS_READONLY(TYPE) TREE_LANG_FLAG_1(TYPE)
@@ -118,7 +118,7 @@ static inline tree build_const_char_string(int len, const char *str)
 	tree cstr, elem, index, type;
 
 	cstr = build_string(len, str);
-	elem = build_type_variant(char_type_node, 1, 0);
+	elem = build_type_variant(char_type_analde, 1, 0);
 	index = build_index_type(size_int(len - 1));
 	type = build_array_type(elem, index);
 	TREE_TYPE(cstr) = type;
@@ -138,16 +138,16 @@ struct register_pass_info NAME##_pass_info = {	\
 
 #define add_referenced_var(var)
 #define mark_sym_for_renaming(var)
-#define varpool_mark_needed_node(node)
+#define varpool_mark_needed_analde(analde)
 #define create_var_ann(var)
 #define TODO_dump_func 0
 #define TODO_dump_cgraph 0
 
 #define TODO_ggc_collect 0
-#define NODE_SYMBOL(node) (node)
-#define NODE_DECL(node) (node)->decl
-#define cgraph_node_name(node) (node)->name()
-#define NODE_IMPLICIT_ALIAS(node) (node)->cpp_implicit_alias
+#define ANALDE_SYMBOL(analde) (analde)
+#define ANALDE_DECL(analde) (analde)->decl
+#define cgraph_analde_name(analde) (analde)->name()
+#define ANALDE_IMPLICIT_ALIAS(analde) (analde)->cpp_implicit_alias
 
 static inline opt_pass *get_pass_for_id(int id)
 {
@@ -177,14 +177,14 @@ static inline const char *get_decl_section_name(const_tree decl)
 }
 
 /* symtab/cgraph related */
-#define debug_cgraph_node(node) (node)->debug()
-#define cgraph_get_node(decl) cgraph_node::get(decl)
-#define cgraph_get_create_node(decl) cgraph_node::get_create(decl)
-#define cgraph_create_node(decl) cgraph_node::create(decl)
-#define cgraph_n_nodes symtab->cgraph_count
+#define debug_cgraph_analde(analde) (analde)->debug()
+#define cgraph_get_analde(decl) cgraph_analde::get(decl)
+#define cgraph_get_create_analde(decl) cgraph_analde::get_create(decl)
+#define cgraph_create_analde(decl) cgraph_analde::create(decl)
+#define cgraph_n_analdes symtab->cgraph_count
 #define cgraph_max_uid symtab->cgraph_max_uid
-#define varpool_get_node(decl) varpool_node::get(decl)
-#define dump_varpool_node(file, node) (node)->dump(file)
+#define varpool_get_analde(decl) varpool_analde::get(decl)
+#define dump_varpool_analde(file, analde) (analde)->dump(file)
 
 #if BUILDING_GCC_VERSION >= 8000
 #define cgraph_create_edge(caller, callee, call_stmt, count, freq) \
@@ -204,9 +204,9 @@ static inline const char *get_decl_section_name(const_tree decl)
 		(old_call_stmt), (call_stmt), (count), (freq), (reason))
 #endif
 
-typedef struct cgraph_node *cgraph_node_ptr;
+typedef struct cgraph_analde *cgraph_analde_ptr;
 typedef struct cgraph_edge *cgraph_edge_p;
-typedef struct varpool_node *varpool_node_ptr;
+typedef struct varpool_analde *varpool_analde_ptr;
 
 static inline void change_decl_assembler_name(tree decl, tree name)
 {
@@ -215,12 +215,12 @@ static inline void change_decl_assembler_name(tree decl, tree name)
 
 static inline void varpool_finalize_decl(tree decl)
 {
-	varpool_node::finalize_decl(decl);
+	varpool_analde::finalize_decl(decl);
 }
 
 static inline void varpool_add_new_variable(tree decl)
 {
-	varpool_node::add(decl);
+	varpool_analde::add(decl);
 }
 
 static inline unsigned int rebuild_cgraph_edges(void)
@@ -228,69 +228,69 @@ static inline unsigned int rebuild_cgraph_edges(void)
 	return cgraph_edge::rebuild_edges();
 }
 
-static inline cgraph_node_ptr cgraph_function_node(cgraph_node_ptr node, enum availability *availability)
+static inline cgraph_analde_ptr cgraph_function_analde(cgraph_analde_ptr analde, enum availability *availability)
 {
-	return node->function_symbol(availability);
+	return analde->function_symbol(availability);
 }
 
-static inline cgraph_node_ptr cgraph_function_or_thunk_node(cgraph_node_ptr node, enum availability *availability = NULL)
+static inline cgraph_analde_ptr cgraph_function_or_thunk_analde(cgraph_analde_ptr analde, enum availability *availability = NULL)
 {
-	return node->ultimate_alias_target(availability);
+	return analde->ultimate_alias_target(availability);
 }
 
-static inline bool cgraph_only_called_directly_p(cgraph_node_ptr node)
+static inline bool cgraph_only_called_directly_p(cgraph_analde_ptr analde)
 {
-	return node->only_called_directly_p();
+	return analde->only_called_directly_p();
 }
 
-static inline enum availability cgraph_function_body_availability(cgraph_node_ptr node)
+static inline enum availability cgraph_function_body_availability(cgraph_analde_ptr analde)
 {
-	return node->get_availability();
+	return analde->get_availability();
 }
 
-static inline cgraph_node_ptr cgraph_alias_target(cgraph_node_ptr node)
+static inline cgraph_analde_ptr cgraph_alias_target(cgraph_analde_ptr analde)
 {
-	return node->get_alias_target();
+	return analde->get_alias_target();
 }
 
-static inline bool cgraph_for_node_and_aliases(cgraph_node_ptr node, bool (*callback)(cgraph_node_ptr, void *), void *data, bool include_overwritable)
+static inline bool cgraph_for_analde_and_aliases(cgraph_analde_ptr analde, bool (*callback)(cgraph_analde_ptr, void *), void *data, bool include_overwritable)
 {
-	return node->call_for_symbol_thunks_and_aliases(callback, data, include_overwritable);
+	return analde->call_for_symbol_thunks_and_aliases(callback, data, include_overwritable);
 }
 
-static inline struct cgraph_node_hook_list *cgraph_add_function_insertion_hook(cgraph_node_hook hook, void *data)
+static inline struct cgraph_analde_hook_list *cgraph_add_function_insertion_hook(cgraph_analde_hook hook, void *data)
 {
 	return symtab->add_cgraph_insertion_hook(hook, data);
 }
 
-static inline void cgraph_remove_function_insertion_hook(struct cgraph_node_hook_list *entry)
+static inline void cgraph_remove_function_insertion_hook(struct cgraph_analde_hook_list *entry)
 {
 	symtab->remove_cgraph_insertion_hook(entry);
 }
 
-static inline struct cgraph_node_hook_list *cgraph_add_node_removal_hook(cgraph_node_hook hook, void *data)
+static inline struct cgraph_analde_hook_list *cgraph_add_analde_removal_hook(cgraph_analde_hook hook, void *data)
 {
 	return symtab->add_cgraph_removal_hook(hook, data);
 }
 
-static inline void cgraph_remove_node_removal_hook(struct cgraph_node_hook_list *entry)
+static inline void cgraph_remove_analde_removal_hook(struct cgraph_analde_hook_list *entry)
 {
 	symtab->remove_cgraph_removal_hook(entry);
 }
 
-static inline struct cgraph_2node_hook_list *cgraph_add_node_duplication_hook(cgraph_2node_hook hook, void *data)
+static inline struct cgraph_2analde_hook_list *cgraph_add_analde_duplication_hook(cgraph_2analde_hook hook, void *data)
 {
 	return symtab->add_cgraph_duplication_hook(hook, data);
 }
 
-static inline void cgraph_remove_node_duplication_hook(struct cgraph_2node_hook_list *entry)
+static inline void cgraph_remove_analde_duplication_hook(struct cgraph_2analde_hook_list *entry)
 {
 	symtab->remove_cgraph_duplication_hook(entry);
 }
 
-static inline void cgraph_call_node_duplication_hooks(cgraph_node_ptr node, cgraph_node_ptr node2)
+static inline void cgraph_call_analde_duplication_hooks(cgraph_analde_ptr analde, cgraph_analde_ptr analde2)
 {
-	symtab->call_cgraph_duplication_hooks(node, node2);
+	symtab->call_cgraph_duplication_hooks(analde, analde2);
 }
 
 static inline void cgraph_call_edge_duplication_hooks(cgraph_edge *cs1, cgraph_edge *cs2)
@@ -395,14 +395,14 @@ static inline const greturn *as_a_const_greturn(const_gimple stmt)
 #define ipa_ref_list_reference_iterate(L, I, P)	\
 	(L)->reference.iterate((I), &(P))
 
-static inline cgraph_node_ptr ipa_ref_referring_node(struct ipa_ref *ref)
+static inline cgraph_analde_ptr ipa_ref_referring_analde(struct ipa_ref *ref)
 {
-	return dyn_cast<cgraph_node_ptr>(ref->referring);
+	return dyn_cast<cgraph_analde_ptr>(ref->referring);
 }
 
-static inline void ipa_remove_stmt_references(symtab_node *referring_node, gimple stmt)
+static inline void ipa_remove_stmt_references(symtab_analde *referring_analde, gimple stmt)
 {
-	referring_node->remove_stmt_references(stmt);
+	referring_analde->remove_stmt_references(stmt);
 }
 
 #if BUILDING_GCC_VERSION < 6000
@@ -441,7 +441,7 @@ static inline void debug_gimple_stmt(const_gimple s)
 #endif
 
 #if BUILDING_GCC_VERSION >= 14000
-#define last_stmt(x)			last_nondebug_stmt(x)
+#define last_stmt(x)			last_analndebug_stmt(x)
 #endif
 
 #endif

@@ -42,7 +42,7 @@ static int cgroup_mt_check_v1(const struct xt_mtchk_param *par)
 		return -EINVAL;
 
 	if (!info->has_path && !info->has_classid) {
-		pr_info("xt_cgroup: no path or classid specified\n");
+		pr_info("xt_cgroup: anal path or classid specified\n");
 		return -EINVAL;
 	}
 
@@ -55,7 +55,7 @@ static int cgroup_mt_check_v1(const struct xt_mtchk_param *par)
 	if (info->has_path) {
 		cgrp = cgroup_get_from_path(info->path);
 		if (IS_ERR(cgrp)) {
-			pr_info_ratelimited("invalid path, errno=%ld\n",
+			pr_info_ratelimited("invalid path, erranal=%ld\n",
 					    PTR_ERR(cgrp));
 			return -EINVAL;
 		}
@@ -74,7 +74,7 @@ static int cgroup_mt_check_v2(const struct xt_mtchk_param *par)
 		return -EINVAL;
 
 	if (!info->has_path && !info->has_classid) {
-		pr_info("xt_cgroup: no path or classid specified\n");
+		pr_info("xt_cgroup: anal path or classid specified\n");
 		return -EINVAL;
 	}
 
@@ -87,7 +87,7 @@ static int cgroup_mt_check_v2(const struct xt_mtchk_param *par)
 	if (info->has_path) {
 		cgrp = cgroup_get_from_path(info->path);
 		if (IS_ERR(cgrp)) {
-			pr_info_ratelimited("invalid path, errno=%ld\n",
+			pr_info_ratelimited("invalid path, erranal=%ld\n",
 					    PTR_ERR(cgrp));
 			return -EINVAL;
 		}

@@ -25,7 +25,7 @@ description: |
     [2] include/dt-bindings/pinctrl/lochnagar.h
     [3] include/dt-bindings/clock/lochnagar.h
 
-  And these documents for the required sub-node binding details:
+  And these documents for the required sub-analde binding details:
     [4] Clock: ../clock/cirrus,lochnagar.yaml
     [5] Pinctrl: ../pinctrl/cirrus,lochnagar.yaml
     [6] Sound: ../sound/cirrus,lochnagar.yaml
@@ -141,7 +141,7 @@ properties:
   VDDCORE:
     description:
       Initialisation data for the VDDCORE regulator, which supplies the
-      CODECs digital core if not being provided by an internal regulator.
+      CODECs digital core if analt being provided by an internal regulator.
     type: object
     $ref: /schemas/regulator/regulator.yaml#
     unevaluatedProperties: false
@@ -196,7 +196,7 @@ properties:
       MICBIAS1-supply:
         description:
           Regulator supplies for the MIC1VDD outputs, supplying the digital
-          microphones, normally supplied from the attached CODEC.
+          microphones, analrmally supplied from the attached CODEC.
     required:
       - compatible
 
@@ -222,7 +222,7 @@ properties:
       MICBIAS2-supply:
         description:
           Regulator supplies for the MIC2VDD outputs, supplying the digital
-          microphones, normally supplied from the attached CODEC.
+          microphones, analrmally supplied from the attached CODEC.
     required:
       - compatible
 

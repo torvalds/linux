@@ -11,7 +11,7 @@
 /**
  * hgsmi_report_flags_location - Inform the host of the location of
  *                               the host flags in VRAM via an HGSMI cmd.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  * @ctx:        The context of the guest heap to use.
  * @location:   The offset chosen for the flags within guest VRAM.
  */
@@ -22,7 +22,7 @@ int hgsmi_report_flags_location(struct gen_pool *ctx, u32 location)
 	p = hgsmi_buffer_alloc(ctx, sizeof(*p), HGSMI_CH_HGSMI,
 			       HGSMI_CC_HOST_FLAGS_LOCATION);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->buf_location = location;
 	p->buf_len = sizeof(struct hgsmi_host_flags);
@@ -34,9 +34,9 @@ int hgsmi_report_flags_location(struct gen_pool *ctx, u32 location)
 }
 
 /**
- * hgsmi_send_caps_info - Notify the host of HGSMI-related guest capabilities
+ * hgsmi_send_caps_info - Analtify the host of HGSMI-related guest capabilities
  *                        via an HGSMI command.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  * @ctx:        The context of the guest heap to use.
  * @caps:       The capabilities to report, see vbva_caps.
  */
@@ -46,9 +46,9 @@ int hgsmi_send_caps_info(struct gen_pool *ctx, u32 caps)
 
 	p = hgsmi_buffer_alloc(ctx, sizeof(*p), HGSMI_CH_VBVA, VBVA_INFO_CAPS);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	p->rc = VERR_NOT_IMPLEMENTED;
+	p->rc = VERR_ANALT_IMPLEMENTED;
 	p->caps = caps;
 
 	hgsmi_buffer_submit(ctx, p);
@@ -75,7 +75,7 @@ int hgsmi_test_query_conf(struct gen_pool *ctx)
 /**
  * hgsmi_query_conf - Query the host for an HGSMI configuration
  *                    parameter via an HGSMI command.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  * @ctx:        The context containing the heap used.
  * @index:      The index of the parameter to query.
  * @value_ret:  Where to store the value of the parameter on success.
@@ -87,7 +87,7 @@ int hgsmi_query_conf(struct gen_pool *ctx, u32 index, u32 *value_ret)
 	p = hgsmi_buffer_alloc(ctx, sizeof(*p), HGSMI_CH_VBVA,
 			       VBVA_QUERY_CONF32);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->index = index;
 	p->value = U32_MAX;
@@ -104,7 +104,7 @@ int hgsmi_query_conf(struct gen_pool *ctx, u32 index, u32 *value_ret)
 /**
  * hgsmi_update_pointer_shape - Pass the host a new mouse pointer shape
  *                              via an HGSMI command.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  * @ctx:        The context containing the heap to be used.
  * @flags:      Cursor flags.
  * @hot_x:      Horizontal position of the hot spot.
@@ -142,7 +142,7 @@ int hgsmi_update_pointer_shape(struct gen_pool *ctx, u32 flags,
 	p = hgsmi_buffer_alloc(ctx, sizeof(*p) + pixel_len, HGSMI_CH_VBVA,
 			       VBVA_MOUSE_POINTER_SHAPE);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->result = VINF_SUCCESS;
 	p->flags = flags;
@@ -159,10 +159,10 @@ int hgsmi_update_pointer_shape(struct gen_pool *ctx, u32 flags,
 	case VINF_SUCCESS:
 		rc = 0;
 		break;
-	case VERR_NO_MEMORY:
-		rc = -ENOMEM;
+	case VERR_ANAL_MEMORY:
+		rc = -EANALMEM;
 		break;
-	case VERR_NOT_SUPPORTED:
+	case VERR_ANALT_SUPPORTED:
 		rc = -EBUSY;
 		break;
 	default:
@@ -179,7 +179,7 @@ int hgsmi_update_pointer_shape(struct gen_pool *ctx, u32 flags,
  *                         wish to use this information to re-position its
  *                         own cursor (though this is currently unlikely).
  *                         The current host cursor position is returned.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  * @ctx:              The context containing the heap used.
  * @report_position:  Are we reporting a position?
  * @x:                Guest cursor X position.
@@ -195,7 +195,7 @@ int hgsmi_cursor_position(struct gen_pool *ctx, bool report_position,
 	p = hgsmi_buffer_alloc(ctx, sizeof(*p), HGSMI_CH_VBVA,
 			       VBVA_CURSOR_POSITION);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->report_position = report_position;
 	p->x = x;

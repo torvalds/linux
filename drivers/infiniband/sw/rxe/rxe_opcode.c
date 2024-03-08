@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -65,7 +65,7 @@ struct rxe_wr_opcode_info rxe_wr_opcode_info[] = {
 	[IB_WR_LSO]					= {
 		.name	= "IB_WR_LSO",
 		.mask	= {
-			/* not supported */
+			/* analt supported */
 		},
 	},
 	[IB_WR_SEND_WITH_INV]				= {
@@ -314,8 +314,8 @@ struct rxe_opcode_info rxe_opcode[RXE_NUM_OPCODE] = {
 					  RXE_AETH_BYTES,
 		}
 	},
-	[IB_OPCODE_RC_ACKNOWLEDGE]			= {
-		.name	= "IB_OPCODE_RC_ACKNOWLEDGE",
+	[IB_OPCODE_RC_ACKANALWLEDGE]			= {
+		.name	= "IB_OPCODE_RC_ACKANALWLEDGE",
 		.mask	= RXE_AETH_MASK | RXE_ACK_MASK | RXE_START_MASK |
 			  RXE_END_MASK,
 		.length = RXE_BTH_BYTES + RXE_AETH_BYTES,
@@ -326,8 +326,8 @@ struct rxe_opcode_info rxe_opcode[RXE_NUM_OPCODE] = {
 					  RXE_AETH_BYTES,
 		}
 	},
-	[IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE]			= {
-		.name	= "IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE",
+	[IB_OPCODE_RC_ATOMIC_ACKANALWLEDGE]			= {
+		.name	= "IB_OPCODE_RC_ATOMIC_ACKANALWLEDGE",
 		.mask	= RXE_AETH_MASK | RXE_ATMACK_MASK | RXE_ACK_MASK |
 			  RXE_START_MASK | RXE_END_MASK,
 		.length = RXE_BTH_BYTES + RXE_ATMACK_BYTES + RXE_AETH_BYTES,
@@ -870,8 +870,8 @@ struct rxe_opcode_info rxe_opcode[RXE_NUM_OPCODE] = {
 					  RXE_AETH_BYTES,
 		}
 	},
-	[IB_OPCODE_RD_ACKNOWLEDGE]			= {
-		.name	= "IB_OPCODE_RD_ACKNOWLEDGE",
+	[IB_OPCODE_RD_ACKANALWLEDGE]			= {
+		.name	= "IB_OPCODE_RD_ACKANALWLEDGE",
 		.mask	= RXE_RDETH_MASK | RXE_AETH_MASK | RXE_ACK_MASK |
 			  RXE_START_MASK | RXE_END_MASK,
 		.length = RXE_BTH_BYTES + RXE_AETH_BYTES + RXE_RDETH_BYTES,
@@ -882,8 +882,8 @@ struct rxe_opcode_info rxe_opcode[RXE_NUM_OPCODE] = {
 					  RXE_RDETH_BYTES,
 		}
 	},
-	[IB_OPCODE_RD_ATOMIC_ACKNOWLEDGE]			= {
-		.name	= "IB_OPCODE_RD_ATOMIC_ACKNOWLEDGE",
+	[IB_OPCODE_RD_ATOMIC_ACKANALWLEDGE]			= {
+		.name	= "IB_OPCODE_RD_ATOMIC_ACKANALWLEDGE",
 		.mask	= RXE_RDETH_MASK | RXE_AETH_MASK | RXE_ATMACK_MASK |
 			  RXE_ACK_MASK | RXE_START_MASK | RXE_END_MASK,
 		.length = RXE_BTH_BYTES + RXE_ATMACK_BYTES + RXE_AETH_BYTES +

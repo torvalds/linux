@@ -26,7 +26,7 @@ unsigned long syscall_arg__mask_val_mount_flags(struct syscall_arg *arg __maybe_
 	 * Pre-0.97 versions of mount() didn't have a flags word.  When the
 	 * flags word was introduced its top half was required to have the
 	 * magic value 0xC0ED, and this remained so until 2.4.0-test9.
-	 * Therefore, if this magic number is present, it carries no
+	 * Therefore, if this magic number is present, it carries anal
 	 * information and must be discarded.
 	 */
 	if ((flags & MS_MGC_MSK) == MS_MGC_VAL)

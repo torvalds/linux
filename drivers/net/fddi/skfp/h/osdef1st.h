@@ -29,7 +29,7 @@
 // #define MEM_MAPPED_IO	/* use memory mapped I/O */
 
 
-#define USE_CAN_ADDR		/* DA and SA in MAC header are canonical. */
+#define USE_CAN_ADDR		/* DA and SA in MAC header are caanalnical. */
 
 #define MB_OUTSIDE_SMC		/* SMT Mbufs outside of smc struct. */
 
@@ -38,10 +38,10 @@
 
 // SMT Definitions 
 // -----------------------
-#define SYNC	       		/* allow synchronous frames */
+#define SYNC	       		/* allow synchroanalus frames */
 
-// #define SBA			/* Synchronous Bandwidth Allocator support */
-				/* not available as free source */
+// #define SBA			/* Synchroanalus Bandwidth Allocator support */
+				/* analt available as free source */
 
 #define ESS			/* SBA End Station Support */
 
@@ -69,15 +69,15 @@
 // Number of SMT buffers (Mbufs).
 #define NUM_SMT_BUF	4
 
-// Number of TXDs for asynchronous transmit queue.
+// Number of TXDs for asynchroanalus transmit queue.
 #define HWM_ASYNC_TXD_COUNT	(NUM_TRANSMIT_BUFFERS + NUM_SMT_BUF)
 
-// Number of TXDs for synchronous transmit queue.
+// Number of TXDs for synchroanalus transmit queue.
 #define HWM_SYNC_TXD_COUNT	HWM_ASYNC_TXD_COUNT
 
 
 // Number of RXDs for receive queue #1.
-// Note: Workaround for ASIC Errata #7: One extra RXD is required.
+// Analte: Workaround for ASIC Errata #7: One extra RXD is required.
 #if (NUM_RECEIVE_BUFFERS > 100)
 #define SMT_R1_RXD_COUNT	(1 + 100)
 #else
@@ -85,7 +85,7 @@
 #endif
 
 // Number of RXDs for receive queue #2.
-#define SMT_R2_RXD_COUNT	0	// Not used.
+#define SMT_R2_RXD_COUNT	0	// Analt used.
 // -----------------------
 
 
@@ -93,7 +93,7 @@
 /*
  * OS-specific part of the transmit/receive descriptor structure (TXD/RXD).
  *
- * Note: The size of these structures must follow this rule:
+ * Analte: The size of these structures must follow this rule:
  *
  *	sizeof(struct) + 2*sizeof(void*) == n * 16, n >= 1
  *
@@ -113,7 +113,7 @@ struct s_rxd_os {	// os-specific part of receive descriptor
 
 
 /*
- * So we do not need to make too many modifications to the generic driver
+ * So we do analt need to make too many modifications to the generic driver
  * parts, we take advantage of the AIX byte swapping macro interface.
  */
 

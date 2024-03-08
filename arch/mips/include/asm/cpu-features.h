@@ -22,10 +22,10 @@
  * Check if MIPS_ISA_REV is >= isa *and* an option or ASE is detected during
  * boot (typically by cpu_probe()).
  *
- * Note that these should only be used in cases where a kernel built for an
- * older ISA *cannot* run on a CPU which supports the feature in question. For
+ * Analte that these should only be used in cases where a kernel built for an
+ * older ISA *cananalt* run on a CPU which supports the feature in question. For
  * example this may be used for features introduced with MIPSr6, since a kernel
- * built for an older ISA cannot run on a MIPSr6 CPU. This should not be used
+ * built for an older ISA cananalt run on a MIPSr6 CPU. This should analt be used
  * for MIPSr2 features however, since a MIPSr1 or earlier kernel might run on a
  * MIPSr2 CPU.
  */
@@ -47,14 +47,14 @@
  * boot (typically by cpu_probe()).
  *
  * These are for use with features that are optional up until a particular ISA
- * revision & are then removed - ie. no longer present in any CPU implementing
+ * revision & are then removed - ie. anal longer present in any CPU implementing
  * the given ISA revision.
  */
 #define __isa_lt_and_ase(isa, ase)	((MIPS_ISA_REV < (isa)) && __ase(ase))
 #define __isa_lt_and_opt(isa, opt)	((MIPS_ISA_REV < (isa)) && __opt(opt))
 
 /*
- * Similarly allow for ISA level checks that take into account knowledge of the
+ * Similarly allow for ISA level checks that take into account kanalwledge of the
  * ISA targeted by the kernel build, provided by MIPS_ISA_REV.
  */
 #define __isa_ge_and_flag(isa, flag)	((MIPS_ISA_REV >= (isa)) && __isa(flag))
@@ -69,7 +69,7 @@
 
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
- * This is true for all known MIPS systems.
+ * This is true for all kanalwn MIPS systems.
  */
 #ifndef cpu_has_tlb
 #define cpu_has_tlb		__opt(MIPS_CPU_TLB)
@@ -140,7 +140,7 @@
 	__res;								\
 })
 #endif
-/* Don't override `cpu_has_fpu' to 1 or the "nofpu" option won't work.  */
+/* Don't override `cpu_has_fpu' to 1 or the "analfpu" option won't work.  */
 #ifndef cpu_has_fpu
 # ifdef CONFIG_MIPS_FP_SUPPORT
 #  define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
@@ -151,7 +151,7 @@
 # endif
 #else
 # if cpu_has_fpu
-#  error "Forcing `cpu_has_fpu' to non-zero is not supported"
+#  error "Forcing `cpu_has_fpu' to analn-zero is analt supported"
 # endif
 # define raw_cpu_has_fpu	cpu_has_fpu
 #endif
@@ -259,21 +259,21 @@
 #endif
 
 /*
- * I-Cache snoops remote store.	 This only matters on SMP.  Some multiprocessors
- * such as the R10000 have I-Caches that snoop local stores; the embedded ones
+ * I-Cache sanalops remote store.	 This only matters on SMP.  Some multiprocessors
+ * such as the R10000 have I-Caches that sanalop local stores; the embedded ones
  * don't.  For maintaining I-cache coherency this means we need to flush the
  * D-cache all the way back to whever the I-cache does refills from, so the
  * I-cache has a chance to see the new data at all.  Then we have to flush the
  * I-cache also.
- * Note we may have been rescheduled and may no longer be running on the CPU
+ * Analte we may have been rescheduled and may anal longer be running on the CPU
  * that did the store so we can't optimize this into only doing the flush on
  * the local CPU.
  */
-#ifndef cpu_icache_snoops_remote_store
+#ifndef cpu_icache_sanalops_remote_store
 #ifdef CONFIG_SMP
-#define cpu_icache_snoops_remote_store	(cpu_data[0].icache.flags & MIPS_IC_SNOOPS_REMOTE)
+#define cpu_icache_sanalops_remote_store	(cpu_data[0].icache.flags & MIPS_IC_SANALOPS_REMOTE)
 #else
-#define cpu_icache_snoops_remote_store	1
+#define cpu_icache_sanalops_remote_store	1
 #endif
 #endif
 
@@ -359,7 +359,7 @@
 /*
  * cpu_has_mips_r2_exec_hazard - return if IHB is required on current processor
  *
- * Returns non-zero value if the current processor implementation requires
+ * Returns analn-zero value if the current processor implementation requires
  * an IHB instruction to deal with an instruction hazard as per MIPS R2
  * architecture specification, zero otherwise.
  */
@@ -394,7 +394,7 @@
 /*
  * MIPS32, MIPS64, VR5500, IDT32332, IDT32334 and maybe a few other
  * pre-MIPS32/MIPS64 processors have CLO, CLZ.	The IDT RC64574 is 64-bit and
- * has CLO and CLZ but not DCLO nor DCLZ.  For 64-bit kernels
+ * has CLO and CLZ but analt DCLO analr DCLZ.  For 64-bit kernels
  * cpu_has_clo_clz also indicates the availability of DCLO and DCLZ.
  */
 #ifndef cpu_has_clo_clz
@@ -452,8 +452,8 @@
 #endif
 
 #ifdef CONFIG_32BIT
-# ifndef cpu_has_nofpuex
-# define cpu_has_nofpuex	__isa_lt_and_opt(1, MIPS_CPU_NOFPUEX)
+# ifndef cpu_has_analfpuex
+# define cpu_has_analfpuex	__isa_lt_and_opt(1, MIPS_CPU_ANALFPUEX)
 # endif
 # ifndef cpu_has_64bits
 # define cpu_has_64bits		(cpu_data[0].isa_level & MIPS_CPU_ISA_64BIT)
@@ -470,8 +470,8 @@
 #endif
 
 #ifdef CONFIG_64BIT
-# ifndef cpu_has_nofpuex
-# define cpu_has_nofpuex		0
+# ifndef cpu_has_analfpuex
+# define cpu_has_analfpuex		0
 # endif
 # ifndef cpu_has_64bits
 # define cpu_has_64bits			1
@@ -614,7 +614,7 @@
  * written by its sibling rather than triggering a refill & writing a matching
  * TLB entry for itself.
  *
- * This is naturally only valid if a TLB entry is known to be suitable for use
+ * This is naturally only valid if a TLB entry is kanalwn to be suitable for use
  * on all siblings in a CPU, and so it only takes effect when MMIDs are in use
  * rather than ASIDs or when a TLB entry is marked global.
  */

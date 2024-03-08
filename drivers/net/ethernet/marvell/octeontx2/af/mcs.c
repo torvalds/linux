@@ -58,8 +58,8 @@ void mcs_get_tx_secy_stats(struct mcs *mcs, struct mcs_secy_stats *stats, int id
 	reg = MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSECYPROTECTEDX(id);
 	stats->octet_protected_cnt =  mcs_reg_read(mcs, reg);
 
-	reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYNOACTIVESAX(id);
-	stats->pkt_noactivesa_cnt =  mcs_reg_read(mcs, reg);
+	reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYANALACTIVESAX(id);
+	stats->pkt_analactivesa_cnt =  mcs_reg_read(mcs, reg);
 
 	reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYTOOLONGX(id);
 	stats->pkt_toolong_cnt =  mcs_reg_read(mcs, reg);
@@ -96,10 +96,10 @@ void mcs_get_rx_secy_stats(struct mcs *mcs, struct mcs_secy_stats *stats, int id
 	reg = MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLUCPKTSX(id);
 	stats->unctl_pkt_ucast_cnt = mcs_reg_read(mcs, reg);
 
-	reg = MCSX_CSE_RX_MEM_SLAVE_INOCTETSSECYDECRYPTEDX(id);
+	reg = MCSX_CSE_RX_MEM_SLAVE_IANALCTETSSECYDECRYPTEDX(id);
 	stats->octet_decrypted_cnt =  mcs_reg_read(mcs, reg);
 
-	reg = MCSX_CSE_RX_MEM_SLAVE_INOCTETSSECYVALIDATEX(id);
+	reg = MCSX_CSE_RX_MEM_SLAVE_IANALCTETSSECYVALIDATEX(id);
 	stats->octet_validated_cnt =  mcs_reg_read(mcs, reg);
 
 	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSCTRLPORTDISABLEDX(id);
@@ -108,11 +108,11 @@ void mcs_get_rx_secy_stats(struct mcs *mcs, struct mcs_secy_stats *stats, int id
 	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYBADTAGX(id);
 	stats->pkt_badtag_cnt =  mcs_reg_read(mcs, reg);
 
-	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOSAX(id);
-	stats->pkt_nosa_cnt = mcs_reg_read(mcs, reg);
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYANALSAX(id);
+	stats->pkt_analsa_cnt = mcs_reg_read(mcs, reg);
 
-	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOSAERRORX(id);
-	stats->pkt_nosaerror_cnt = mcs_reg_read(mcs, reg);
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYANALSAERRORX(id);
+	stats->pkt_analsaerror_cnt = mcs_reg_read(mcs, reg);
 
 	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYTAGGEDCTLX(id);
 	stats->pkt_tagged_ctl_cnt = mcs_reg_read(mcs, reg);
@@ -124,8 +124,8 @@ void mcs_get_rx_secy_stats(struct mcs *mcs, struct mcs_secy_stats *stats, int id
 	stats->pkt_ctl_cnt = mcs_reg_read(mcs, reg);
 
 	if (mcs->hw->mcs_blks > 1) {
-		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOTAGX(id);
-		stats->pkt_notag_cnt = mcs_reg_read(mcs, reg);
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYANALTAGX(id);
+		stats->pkt_analtag_cnt = mcs_reg_read(mcs, reg);
 	}
 }
 
@@ -177,17 +177,17 @@ void mcs_get_sa_stats(struct mcs *mcs, struct mcs_sa_stats *stats, int id, int d
 		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSAINVALIDX(id);
 		stats->pkt_invalid_cnt = mcs_reg_read(mcs, reg);
 
-		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSANOTUSINGSAERRORX(id);
-		stats->pkt_nosaerror_cnt = mcs_reg_read(mcs, reg);
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSAANALTUSINGSAERRORX(id);
+		stats->pkt_analsaerror_cnt = mcs_reg_read(mcs, reg);
 
-		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSANOTVALIDX(id);
-		stats->pkt_notvalid_cnt = mcs_reg_read(mcs, reg);
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSAANALTVALIDX(id);
+		stats->pkt_analtvalid_cnt = mcs_reg_read(mcs, reg);
 
 		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSAOKX(id);
 		stats->pkt_ok_cnt = mcs_reg_read(mcs, reg);
 
 		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSAUNUSEDSAX(id);
-		stats->pkt_nosa_cnt = mcs_reg_read(mcs, reg);
+		stats->pkt_analsa_cnt = mcs_reg_read(mcs, reg);
 	} else {
 		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSAENCRYPTEDX(id);
 		stats->pkt_encrypt_cnt = mcs_reg_read(mcs, reg);
@@ -212,8 +212,8 @@ void mcs_get_sc_stats(struct mcs *mcs, struct mcs_sc_stats *stats,
 		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCLATEORDELAYEDX(id);
 		stats->pkt_late_cnt = mcs_reg_read(mcs, reg);
 
-		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCNOTVALIDX(id);
-		stats->pkt_notvalid_cnt = mcs_reg_read(mcs, reg);
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCANALTVALIDX(id);
+		stats->pkt_analtvalid_cnt = mcs_reg_read(mcs, reg);
 
 		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCUNCHECKEDX(id);
 		stats->pkt_unchecked_cnt = mcs_reg_read(mcs, reg);
@@ -226,10 +226,10 @@ void mcs_get_sc_stats(struct mcs *mcs, struct mcs_sc_stats *stats,
 			stats->pkt_ok_cnt = mcs_reg_read(mcs, reg);
 		}
 		if (mcs->hw->mcs_blks == 1) {
-			reg = MCSX_CSE_RX_MEM_SLAVE_INOCTETSSCDECRYPTEDX(id);
+			reg = MCSX_CSE_RX_MEM_SLAVE_IANALCTETSSCDECRYPTEDX(id);
 			stats->octet_decrypt_cnt = mcs_reg_read(mcs, reg);
 
-			reg = MCSX_CSE_RX_MEM_SLAVE_INOCTETSSCVALIDATEX(id);
+			reg = MCSX_CSE_RX_MEM_SLAVE_IANALCTETSSCVALIDATEX(id);
 			stats->octet_validate_cnt = mcs_reg_read(mcs, reg);
 		}
 	} else {
@@ -571,7 +571,7 @@ int mcs_alloc_ctrlpktrule(struct rsrc_bmap *rsrc, u16 *pf_map, u16 offset, u16 p
 
 	rsrc_id = bitmap_find_next_zero_area(rsrc->bmap, rsrc->max, offset, 1, 0);
 	if (rsrc_id >= rsrc->max)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	bitmap_set(rsrc->bmap, rsrc_id, 1);
 	pf_map[rsrc_id] = pcifunc;
@@ -763,7 +763,7 @@ int mcs_alloc_rsrc(struct rsrc_bmap *rsrc, u16 *pf_map, u16 pcifunc)
 
 	rsrc_id = rvu_alloc_rsrc(rsrc);
 	if (rsrc_id < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	pf_map[rsrc_id] = pcifunc;
 	return rsrc_id;
 }
@@ -781,27 +781,27 @@ int mcs_alloc_all_rsrc(struct mcs *mcs, u8 *flow_id, u8 *secy_id,
 
 	id = mcs_alloc_rsrc(&map->flow_ids, map->flowid2pf_map, pcifunc);
 	if (id < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	*flow_id = id;
 
 	id = mcs_alloc_rsrc(&map->secy, map->secy2pf_map, pcifunc);
 	if (id < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	*secy_id = id;
 
 	id = mcs_alloc_rsrc(&map->sc, map->sc2pf_map, pcifunc);
 	if (id < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	*sc_id = id;
 
 	id =  mcs_alloc_rsrc(&map->sa, map->sa2pf_map, pcifunc);
 	if (id < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	*sa1_id = id;
 
 	id =  mcs_alloc_rsrc(&map->sa, map->sa2pf_map, pcifunc);
 	if (id < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	*sa2_id = id;
 
 	return 0;
@@ -925,13 +925,13 @@ static void mcs_tx_misc_intr_handler(struct mcs *mcs, u64 intr)
 {
 	struct mcs_intr_event event = { 0 };
 
-	if (!(intr & MCS_CPM_TX_INT_SA_NOT_VALID))
+	if (!(intr & MCS_CPM_TX_INT_SA_ANALT_VALID))
 		return;
 
 	event.mcs_id = mcs->mcs_id;
 	event.pcifunc = mcs->pf_map[0];
 
-	event.intr_mask = MCS_CPM_TX_SA_NOT_VALID_INT;
+	event.intr_mask = MCS_CPM_TX_SA_ANALT_VALID_INT;
 
 	mcs_add_intr_wq_entry(mcs, &event);
 }
@@ -1012,7 +1012,7 @@ static irqreturn_t mcs_ip_intr_handler(int irq, void *mcs_irq)
 				cn10kb_mcs_tx_pn_thresh_reached_handler(mcs);
 		}
 
-		if (cpm_intr & MCS_CPM_TX_INT_SA_NOT_VALID)
+		if (cpm_intr & MCS_CPM_TX_INT_SA_ANALT_VALID)
 			mcs_tx_misc_intr_handler(mcs, cpm_intr);
 
 		if (cpm_intr & MCS_CPM_TX_INT_PACKET_XPN_EQ0) {
@@ -1084,27 +1084,27 @@ static int mcs_alloc_struct_mem(struct mcs *mcs, struct mcs_rsrc_map *res)
 
 	res->flowid2pf_map = alloc_mem(mcs, hw->tcam_entries);
 	if (!res->flowid2pf_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->secy2pf_map = alloc_mem(mcs, hw->secy_entries);
 	if (!res->secy2pf_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->sc2pf_map = alloc_mem(mcs, hw->sc_entries);
 	if (!res->sc2pf_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->sa2pf_map = alloc_mem(mcs, hw->sa_entries);
 	if (!res->sa2pf_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->flowid2secy_map = alloc_mem(mcs, hw->tcam_entries);
 	if (!res->flowid2secy_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->ctrlpktrule2pf_map = alloc_mem(mcs, MCS_MAX_CTRLPKT_RULES);
 	if (!res->ctrlpktrule2pf_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->flow_ids.max = hw->tcam_entries - MCS_RSRC_RSVD_CNT;
 	err = rvu_alloc_bitmap(&res->flow_ids);
@@ -1175,7 +1175,7 @@ static int mcs_register_interrupts(struct mcs *mcs)
 
 	mcs->tx_sa_active = alloc_mem(mcs, mcs->hw->sc_entries);
 	if (!mcs->tx_sa_active) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_irq;
 	}
 
@@ -1192,7 +1192,7 @@ exit:
 int mcs_get_blkcnt(void)
 {
 	struct mcs *mcs;
-	int idmax = -ENODEV;
+	int idmax = -EANALDEV;
 
 	/* Check MCS block is present in hardware */
 	if (!pci_dev_present(mcs_id_table))
@@ -1399,7 +1399,7 @@ int mcs_set_lmac_channels(int mcs_id, u16 base)
 
 	mcs = mcs_get_pdata(mcs_id);
 	if (!mcs)
-		return -ENODEV;
+		return -EANALDEV;
 	for (lmac = 0; lmac < mcs->hw->lmac_cnt; lmac++) {
 		cfg = mcs_reg_read(mcs, MCSX_LINK_LMACX_CFG(lmac));
 		cfg &= ~(MCSX_LINK_LMAC_BASE_MASK | MCSX_LINK_LMAC_RANGE_MASK);
@@ -1429,7 +1429,7 @@ static int mcs_x2p_calibration(struct mcs *mcs)
 			continue;
 		} else {
 			err = -EBUSY;
-			dev_err(mcs->dev, "MCS X2P calibration failed..ignoring\n");
+			dev_err(mcs->dev, "MCS X2P calibration failed..iganalring\n");
 			return err;
 		}
 	}
@@ -1512,11 +1512,11 @@ static int mcs_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mcs = devm_kzalloc(dev, sizeof(*mcs), GFP_KERNEL);
 	if (!mcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mcs->hw = devm_kzalloc(dev, sizeof(struct hwinfo), GFP_KERNEL);
 	if (!mcs->hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1533,8 +1533,8 @@ static int mcs_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mcs->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!mcs->reg_base) {
-		dev_err(dev, "mcs: Cannot map CSR memory space, aborting\n");
-		err = -ENOMEM;
+		dev_err(dev, "mcs: Cananalt map CSR memory space, aborting\n");
+		err = -EANALMEM;
 		goto exit;
 	}
 

@@ -3,7 +3,7 @@
  * rtc-ab-b5ze-s3 - Driver for Abracon AB-RTCMC-32.768Khz-B5ZE-S3
  *                  I2C RTC / Alarm chip
  *
- * Copyright (C) 2014, Arnaud EBALARD <arno@natisbad.org>
+ * Copyright (C) 2014, Arnaud EBALARD <aranal@natisbad.org>
  *
  * Detailed datasheet of the chip is available here:
  *
@@ -146,7 +146,7 @@ static int abb5zes3_i2c_validate_chip(struct regmap *regmap)
 
 	for (i = 0; i < ABB5ZES3_MEM_MAP_LEN; ++i) {
 		if (regs[i] & mask[i]) /* check if bits are cleared */
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	return 0;
@@ -199,8 +199,8 @@ static int _abb5zes3_rtc_update_timer(struct device *dev, bool enable)
 }
 
 /*
- * Note: we only read, so regmap inner lock protection is sufficient, i.e.
- * we do not need driver's main lock protection.
+ * Analte: we only read, so regmap inner lock protection is sufficient, i.e.
+ * we do analt need driver's main lock protection.
  */
 static int _abb5zes3_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -222,9 +222,9 @@ static int _abb5zes3_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	/* If clock integrity is not guaranteed, do not return a time value */
+	/* If clock integrity is analt guaranteed, do analt return a time value */
 	if (regs[ABB5ZES3_REG_RTC_SC] & ABB5ZES3_REG_RTC_SC_OSC)
-		return -ENODATA;
+		return -EANALDATA;
 
 	tm->tm_sec = bcd2bin(regs[ABB5ZES3_REG_RTC_SC] & 0x7F);
 	tm->tm_min = bcd2bin(regs[ABB5ZES3_REG_RTC_MN]);
@@ -372,7 +372,7 @@ static int _abb5zes3_rtc_read_alarm(struct device *dev,
 	alarm_tm->tm_wday = -1;
 
 	/*
-	 * The alarm section does not store year/month. We use the ones in rtc
+	 * The alarm section does analt store year/month. We use the ones in rtc
 	 * section as a basis and increment month and then year if needed to get
 	 * alarm after current time.
 	 */
@@ -431,7 +431,7 @@ static int abb5zes3_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 /*
  * Set alarm using chip alarm mechanism. It is only accurate to the
- * minute (not the second). The function expects alarm interrupt to
+ * minute (analt the second). The function expects alarm interrupt to
  * be disabled.
  */
 static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
@@ -481,7 +481,7 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	regs[0] = bin2bcd(alarm_tm->tm_min) & 0x7f;
 	regs[1] = bin2bcd(alarm_tm->tm_hour) & 0x3f;
 	regs[2] = bin2bcd(alarm_tm->tm_mday) & 0x3f;
-	regs[3] = ABB5ZES3_REG_ALRM_DW_AE; /* do not match day of the week */
+	regs[3] = ABB5ZES3_REG_ALRM_DW_AE; /* do analt match day of the week */
 
 	ret = regmap_bulk_write(data->regmap, ABB5ZES3_REG_ALRM_MN, regs,
 				ABB5ZES3_ALRM_SEC_LEN);
@@ -491,7 +491,7 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		return ret;
 	}
 
-	/* Record currently configured alarm is not a timer */
+	/* Record currently configured alarm is analt a timer */
 	data->timer_alarm = 0;
 
 	/* Enable or disable alarm interrupt generation */
@@ -570,7 +570,7 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	data->timer_alarm = 0;
 
 	/*
-	 * Let's now configure the alarm; if we are expected to ring in
+	 * Let's analw configure the alarm; if we are expected to ring in
 	 * more than 240s, then we setup an alarm. Otherwise, a timer.
 	 */
 	if ((alarm_secs > rtc_secs) && ((alarm_secs - rtc_secs) <= 240))
@@ -611,9 +611,9 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	 * By default, the devices generates a 32.768KHz signal on IRQ#1 pin. It
 	 * is disabled here to prevent polluting the interrupt line and
 	 * uselessly triggering the IRQ handler we install for alarm and battery
-	 * low events. Note: this is done before clearing int. status below
+	 * low events. Analte: this is done before clearing int. status below
 	 * in this function.
-	 * We also disable all timers and set timer interrupt to permanent (not
+	 * We also disable all timers and set timer interrupt to permanent (analt
 	 * pulsed).
 	 */
 	mask = (ABB5ZES3_REG_TIM_CLK_TBC | ABB5ZES3_REG_TIM_CLK_TAC0 |
@@ -673,7 +673,7 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	/*
 	 * Enable battery low detection function and battery switchover function
 	 * (standard mode). Disable associated interrupts. Clear battery
-	 * switchover flag but not battery low flag. The latter is checked
+	 * switchover flag but analt battery low flag. The latter is checked
 	 * later below.
 	 */
 	mask = (ABB5ZES3_REG_CTRL3_PM0  | ABB5ZES3_REG_CTRL3_PM1 |
@@ -695,13 +695,13 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	}
 
 	if (reg & ABB5ZES3_REG_RTC_SC_OSC) {
-		dev_err(dev, "clock integrity not guaranteed. Osc. has stopped or has been interrupted.\n");
-		dev_err(dev, "change battery (if not already done) and then set time to reset osc. failure flag.\n");
+		dev_err(dev, "clock integrity analt guaranteed. Osc. has stopped or has been interrupted.\n");
+		dev_err(dev, "change battery (if analt already done) and then set time to reset osc. failure flag.\n");
 	}
 
 	/*
 	 * Check battery low flag at startup: this allows reporting battery
-	 * is low at startup when IRQ line is not connected. Note: we record
+	 * is low at startup when IRQ line is analt connected. Analte: we record
 	 * current status to avoid reenabling this interrupt later in probe
 	 * function if battery is low.
 	 */
@@ -748,7 +748,7 @@ static irqreturn_t _abb5zes3_rtc_interrupt(int irq, void *data)
 	struct abb5zes3_rtc_data *rtc_data = dev_get_drvdata(dev);
 	struct rtc_device *rtc = rtc_data->rtc;
 	u8 regs[ABB5ZES3_CTRL_SEC_LEN];
-	int ret, handled = IRQ_NONE;
+	int ret, handled = IRQ_ANALNE;
 
 	ret = regmap_bulk_read(rtc_data->regmap, 0, regs,
 			       ABB5ZES3_CTRL_SEC_LEN);
@@ -777,7 +777,7 @@ static irqreturn_t _abb5zes3_rtc_interrupt(int irq, void *data)
 
 		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
 
-		/* Acknowledge and disable the alarm */
+		/* Ackanalwledge and disable the alarm */
 		_abb5zes3_rtc_clear_alarm(dev);
 		_abb5zes3_rtc_update_alarm(dev, 0);
 
@@ -791,7 +791,7 @@ static irqreturn_t _abb5zes3_rtc_interrupt(int irq, void *data)
 		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
 
 		/*
-		 * Acknowledge and disable the alarm. Note: WTAF
+		 * Ackanalwledge and disable the alarm. Analte: WTAF
 		 * flag had been cleared when reading CTRL2
 		 */
 		_abb5zes3_rtc_update_timer(dev, 0);
@@ -827,7 +827,7 @@ static int abb5zes3_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -ENODEV;
+		return -EANALDEV;
 
 	regmap = devm_regmap_init_i2c(client, &abb5zes3_rtc_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -843,7 +843,7 @@ static int abb5zes3_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = regmap;
 	dev_set_drvdata(dev, data);
@@ -881,7 +881,7 @@ static int abb5zes3_probe(struct i2c_client *client)
 	data->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	data->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	/* Enable battery low detection interrupt if battery not already low */
+	/* Enable battery low detection interrupt if battery analt already low */
 	if (!data->battery_low && data->irq) {
 		ret = _abb5zes3_rtc_battery_low_irq_enable(regmap, true);
 		if (ret) {
@@ -949,6 +949,6 @@ static struct i2c_driver abb5zes3_driver = {
 };
 module_i2c_driver(abb5zes3_driver);
 
-MODULE_AUTHOR("Arnaud EBALARD <arno@natisbad.org>");
+MODULE_AUTHOR("Arnaud EBALARD <aranal@natisbad.org>");
 MODULE_DESCRIPTION("Abracon AB-RTCMC-32.768kHz-B5ZE-S3 RTC/Alarm driver");
 MODULE_LICENSE("GPL");

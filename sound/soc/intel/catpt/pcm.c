@@ -103,7 +103,7 @@ catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id)
 	struct catpt_stream_runtime *pos, *result = NULL;
 
 	spin_lock(&cdev->list_lock);
-	list_for_each_entry(pos, &cdev->stream_list, node) {
+	list_for_each_entry(pos, &cdev->stream_list, analde) {
 		if (pos->info.stream_hw_id == stream_hw_id) {
 			result = pos;
 			break;
@@ -178,7 +178,7 @@ static void catpt_arrange_page_table(struct snd_pcm_substream *substream,
 static u32 catpt_get_channel_map(enum catpt_channel_config config)
 {
 	switch (config) {
-	case CATPT_CHANNEL_CONFIG_MONO:
+	case CATPT_CHANNEL_CONFIG_MOANAL:
 		return GENMASK(31, 4) | CATPT_CHANNEL_CENTER;
 
 	case CATPT_CHANNEL_CONFIG_STEREO:
@@ -228,7 +228,7 @@ static u32 catpt_get_channel_map(enum catpt_channel_config config)
 				       | (CATPT_CHANNEL_RIGHT_SURROUND << 16)
 				       | (CATPT_CHANNEL_LFE << 20);
 
-	case CATPT_CHANNEL_CONFIG_DUAL_MONO:
+	case CATPT_CHANNEL_CONFIG_DUAL_MOANAL:
 		return GENMASK(31, 8) | CATPT_CHANNEL_LEFT
 				      | (CATPT_CHANNEL_LEFT << 4);
 
@@ -249,7 +249,7 @@ static enum catpt_channel_config catpt_get_channel_config(u32 num_channels)
 	case 3:
 		return CATPT_CHANNEL_CONFIG_2_POINT_1;
 	case 1:
-		return CATPT_CHANNEL_CONFIG_MONO;
+		return CATPT_CHANNEL_CONFIG_MOANAL;
 	case 2:
 	default:
 		return CATPT_CHANNEL_CONFIG_STEREO;
@@ -269,7 +269,7 @@ static int catpt_dai_startup(struct snd_pcm_substream *substream,
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, cdev->dev, PAGE_SIZE,
 				  &stream->pgtbl);
@@ -287,11 +287,11 @@ static int catpt_dai_startup(struct snd_pcm_substream *substream,
 	stream->template = template;
 	stream->persistent = res;
 	stream->substream = substream;
-	INIT_LIST_HEAD(&stream->node);
+	INIT_LIST_HEAD(&stream->analde);
 	snd_soc_dai_set_dma_data(dai, substream, stream);
 
 	spin_lock(&cdev->list_lock);
-	list_add_tail(&stream->node, &cdev->stream_list);
+	list_add_tail(&stream->analde, &cdev->stream_list);
 	spin_unlock(&cdev->list_lock);
 
 	return 0;
@@ -312,7 +312,7 @@ static void catpt_dai_shutdown(struct snd_pcm_substream *substream,
 	stream = snd_soc_dai_get_dma_data(dai, substream);
 
 	spin_lock(&cdev->list_lock);
-	list_del(&stream->node);
+	list_del(&stream->analde);
 	spin_unlock(&cdev->list_lock);
 
 	release_resource(stream->persistent);
@@ -360,7 +360,7 @@ static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
 			break;
 	}
 	if (list_entry_is_head(pos, &component->card->snd_card->controls, list))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (stream->template->type != CATPT_STRM_TYPE_LOOPBACK)
 		return catpt_set_dspvol(cdev, id, (long *)pos->private_value);
@@ -520,7 +520,7 @@ static int catpt_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 void catpt_stream_update_position(struct catpt_dev *cdev,
 				  struct catpt_stream_runtime *stream,
-				  struct catpt_notify_position *pos)
+				  struct catpt_analtify_position *pos)
 {
 	struct snd_pcm_substream *substream = stream->substream;
 	struct snd_pcm_runtime *r = substream->runtime;
@@ -540,7 +540,7 @@ void catpt_stream_update_position(struct catpt_dev *cdev,
 	else
 		newpos = 0;
 	/*
-	 * Dsp operates on buffer halves, thus on every notify position
+	 * Dsp operates on buffer halves, thus on every analtify position
 	 * (buffer half consumed) update wp to allow stream progression.
 	 */
 	ret = catpt_ipc_set_write_pos(cdev, stream->info.stream_hw_id,
@@ -566,7 +566,7 @@ static const struct snd_pcm_hardware catpt_pcm_hardware = {
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME |
-				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+				  SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S24_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
@@ -595,7 +595,7 @@ static int catpt_component_open(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtm = snd_soc_substream_to_rtd(substream);
 
-	if (!rtm->dai_link->no_pcm)
+	if (!rtm->dai_link->anal_pcm)
 		snd_soc_set_runtime_hwparams(substream, &catpt_pcm_hardware);
 	return 0;
 }
@@ -610,7 +610,7 @@ catpt_component_pointer(struct snd_soc_component *component,
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	u32 pos;
 
-	if (rtm->dai_link->no_pcm)
+	if (rtm->dai_link->anal_pcm)
 		return 0;
 
 	stream = snd_soc_dai_get_dma_data(cpu_dai, substream);
@@ -824,14 +824,14 @@ static int catpt_set_dspvol(struct catpt_dev *cdev, u8 stream_id, long *ctlvol)
 
 		ret = catpt_ipc_set_volume(cdev, stream_id,
 					   CATPT_ALL_CHANNELS_MASK, dspvol,
-					   0, CATPT_AUDIO_CURVE_NONE);
+					   0, CATPT_AUDIO_CURVE_ANALNE);
 	} else {
 		for (i = 0; i < CATPT_CHANNELS_MAX; i++) {
 			dspvol = ctlvol_to_dspvol(ctlvol[i]);
 
 			ret = catpt_ipc_set_volume(cdev, stream_id,
 						   i, dspvol,
-						   0, CATPT_AUDIO_CURVE_NONE);
+						   0, CATPT_AUDIO_CURVE_ANALNE);
 			if (ret)
 				break;
 		}
@@ -1103,12 +1103,12 @@ SND_SOC_BYTES_TLV("Waves Set Param", 128,
 };
 
 static const struct snd_soc_dapm_widget component_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("SSP0 CODEC IN", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("SSP0 CODEC OUT", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("SSP1 BT IN", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("SSP1 BT OUT", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SSP0 CODEC IN", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("SSP0 CODEC OUT", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SSP1 BT IN", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("SSP1 BT OUT", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_MIXER("Playback VMixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Playback VMixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route component_routes[] = {
@@ -1159,7 +1159,7 @@ int catpt_arm_stream_templates(struct catpt_dev *cdev)
 			type = &cdev->modules[entry->module_id];
 
 			if (!type->loaded)
-				return -ENOENT;
+				return -EANALENT;
 
 			entry->entry_point = type->entry_point;
 			template->persistent_size += type->persistent_size;
@@ -1186,7 +1186,7 @@ int catpt_register_plat_component(struct catpt_dev *cdev)
 
 	component = devm_kzalloc(cdev->dev, sizeof(*component), GFP_KERNEL);
 	if (!component)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_component_initialize(component, &catpt_comp_driver,
 					   cdev->dev);

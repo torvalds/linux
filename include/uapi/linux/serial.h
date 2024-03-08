@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /*
  * include/linux/serial.h
  *
@@ -31,7 +31,7 @@ struct serial_struct {
 	char	reserved_char[1];
 	int	hub6;
 	unsigned short	closing_wait; /* time to wait before closing */
-	unsigned short	closing_wait2; /* no longer used... */
+	unsigned short	closing_wait2; /* anal longer used... */
 	unsigned char	*iomem_base;
 	unsigned short	iomem_reg_shift;
 	unsigned int	port_high;
@@ -43,12 +43,12 @@ struct serial_struct {
  * flush its output.  65535 means don't wait at all.
  */
 #define ASYNC_CLOSING_WAIT_INF	0
-#define ASYNC_CLOSING_WAIT_NONE	65535
+#define ASYNC_CLOSING_WAIT_ANALNE	65535
 
 /*
  * These are the supported serial types.
  */
-#define PORT_UNKNOWN	0
+#define PORT_UNKANALWN	0
 #define PORT_8250	1
 #define PORT_16450	2
 #define PORT_16550	3
@@ -120,7 +120,7 @@ struct serial_icounter_struct {
  * @padding0:			Padding (set to zero).
  * @padding1:			Padding (set to zero).
  * @padding:			Deprecated, use @padding0 and @padding1 instead.
- *				Do not use with @addr_recv and @addr_dest (due to
+ *				Do analt use with @addr_recv and @addr_dest (due to
  *				overlap).
  *
  * Serial interface for controlling RS485 settings on chips with suitable

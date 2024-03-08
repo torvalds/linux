@@ -36,7 +36,7 @@ enum {
 enum {
 	RC_TMF_COMPLETE         = 0x00,
 	RC_INVALID_INFO_UNIT    = 0x02,
-	RC_TMF_NOT_SUPPORTED    = 0x04,
+	RC_TMF_ANALT_SUPPORTED    = 0x04,
 	RC_TMF_FAILED           = 0x05,
 	RC_TMF_SUCCEEDED        = 0x08,
 	RC_INCORRECT_LUN        = 0x09,

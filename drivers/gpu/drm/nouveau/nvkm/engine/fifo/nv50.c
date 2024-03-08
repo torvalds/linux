@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -102,7 +102,7 @@ nv50_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 	nvkm_kmap(chan->ramfc);
 	nvkm_wo32(chan->ramfc, 0x3c, 0x403f6078);
 	nvkm_wo32(chan->ramfc, 0x44, 0x01003fff);
-	nvkm_wo32(chan->ramfc, 0x48, chan->push->node->offset >> 4);
+	nvkm_wo32(chan->ramfc, 0x48, chan->push->analde->offset >> 4);
 	nvkm_wo32(chan->ramfc, 0x50, lower_32_bits(offset));
 	nvkm_wo32(chan->ramfc, 0x54, upper_32_bits(offset) | (limit2 << 16));
 	nvkm_wo32(chan->ramfc, 0x60, 0x7fffffff);
@@ -110,7 +110,7 @@ nv50_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 	nvkm_wo32(chan->ramfc, 0x7c, 0x30000000 | devm);
 	nvkm_wo32(chan->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				     (4 << 24) /* SEARCH_FULL */ |
-				     (chan->ramht->gpuobj->node->offset >> 4));
+				     (chan->ramht->gpuobj->analde->offset >> 4));
 	nvkm_done(chan->ramfc);
 	return 0;
 }
@@ -172,7 +172,7 @@ nv50_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan 
 		 * connected engines are in a state where they can answer.
 		 *
 		 * Newer chipsets don't seem to suffer from this issue, and well,
-		 * there's also a "ignore these engines" bitmask reg we can use
+		 * there's also a "iganalre these engines" bitmask reg we can use
 		 * if we hit the issue there..
 		 */
 		save = nvkm_mask(device, 0x00b860, 0x00000001, 0x00000001);

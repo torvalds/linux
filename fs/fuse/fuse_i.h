@@ -38,8 +38,8 @@
 /** Maximum of max_pages received in init_out */
 #define FUSE_MAX_MAX_PAGES 256
 
-/** Bias for fi->writectr, meaning new writepages must not be sent */
-#define FUSE_NOWRITE INT_MIN
+/** Bias for fi->writectr, meaning new writepages must analt be sent */
+#define FUSE_ANALWRITE INT_MIN
 
 /** It could be as large as PATH_MAX, but would that have any uses? */
 #define FUSE_NAME_MAX 1024
@@ -68,24 +68,24 @@ struct fuse_submount_lookup {
 	/** Refcount */
 	refcount_t count;
 
-	/** Unique ID, which identifies the inode between userspace
+	/** Unique ID, which identifies the ianalde between userspace
 	 * and kernel */
-	u64 nodeid;
+	u64 analdeid;
 
 	/** The request used for sending the FORGET message */
 	struct fuse_forget_link *forget;
 };
 
-/** FUSE inode */
-struct fuse_inode {
-	/** Inode data */
-	struct inode inode;
+/** FUSE ianalde */
+struct fuse_ianalde {
+	/** Ianalde data */
+	struct ianalde ianalde;
 
-	/** Unique ID, which identifies the inode between userspace
+	/** Unique ID, which identifies the ianalde between userspace
 	 * and kernel */
-	u64 nodeid;
+	u64 analdeid;
 
-	/** Number of lookups on this inode */
+	/** Number of lookups on this ianalde */
 	u64 nlookup;
 
 	/** The request used for sending the FORGET message */
@@ -97,15 +97,15 @@ struct fuse_inode {
 	/* Which attributes are invalid */
 	u32 inval_mask;
 
-	/** The sticky bit in inode->i_mode may have been removed, so
+	/** The sticky bit in ianalde->i_mode may have been removed, so
 	    preserve the original mode */
 	umode_t orig_i_mode;
 
 	/* Cache birthtime */
 	struct timespec64 i_btime;
 
-	/** 64 bit inode number */
-	u64 orig_ino;
+	/** 64 bit ianalde number */
+	u64 orig_ianal;
 
 	/** Version of last attribute change */
 	u64 attr_version;
@@ -120,7 +120,7 @@ struct fuse_inode {
 			struct list_head queued_writes;
 
 			/* Number of sent writes, a negative bias
-			 * (FUSE_NOWRITE) means more writes are blocked */
+			 * (FUSE_ANALWRITE) means more writes are blocked */
 			int writectr;
 
 			/* Waitq for writepage completion */
@@ -156,7 +156,7 @@ struct fuse_inode {
 		} rdc;
 	};
 
-	/** Miscellaneous bits describing inode state */
+	/** Miscellaneous bits describing ianalde state */
 	unsigned long state;
 
 	/** Lock for serializing lookup and readdir for back compatibility*/
@@ -167,15 +167,15 @@ struct fuse_inode {
 
 #ifdef CONFIG_FUSE_DAX
 	/*
-	 * Dax specific inode data
+	 * Dax specific ianalde data
 	 */
-	struct fuse_inode_dax *dax;
+	struct fuse_ianalde_dax *dax;
 #endif
 	/** Submount specific lookup tracking */
 	struct fuse_submount_lookup *submount_lookup;
 };
 
-/** FUSE inode state bits */
+/** FUSE ianalde state bits */
 enum {
 	/** Advise readdirplus  */
 	FUSE_I_ADVISE_RDPLUS,
@@ -183,7 +183,7 @@ enum {
 	FUSE_I_INIT_RDPLUS,
 	/** An operation changing file size is in progress  */
 	FUSE_I_SIZE_UNSTABLE,
-	/* Bad inode */
+	/* Bad ianalde */
 	FUSE_I_BAD,
 	/* Has btime */
 	FUSE_I_BTIME,
@@ -207,8 +207,8 @@ struct fuse_file {
 	/** File handle used by userspace */
 	u64 fh;
 
-	/** Node id of this file */
-	u64 nodeid;
+	/** Analde id of this file */
+	u64 analdeid;
 
 	/** Refcount */
 	refcount_t count;
@@ -216,14 +216,14 @@ struct fuse_file {
 	/** FOPEN_* flags returned by open */
 	u32 open_flags;
 
-	/** Entry on inode's write_files list */
+	/** Entry on ianalde's write_files list */
 	struct list_head write_entry;
 
 	/* Readdir related */
 	struct {
 		/*
 		 * Protects below fields against (crazy) parallel readdir on
-		 * same open file.  Uncontended in the normal case.
+		 * same open file.  Uncontended in the analrmal case.
 		 */
 		struct mutex lock;
 
@@ -238,8 +238,8 @@ struct fuse_file {
 
 	} readdir;
 
-	/** RB node to be linked on fuse_conn->polled_files */
-	struct rb_node polled_node;
+	/** RB analde to be linked on fuse_conn->polled_files */
+	struct rb_analde polled_analde;
 
 	/** Wait queue head for poll */
 	wait_queue_head_t poll_wait;
@@ -267,14 +267,14 @@ struct fuse_page_desc {
 };
 
 struct fuse_args {
-	uint64_t nodeid;
+	uint64_t analdeid;
 	uint32_t opcode;
 	uint8_t in_numargs;
 	uint8_t out_numargs;
 	uint8_t ext_idx;
 	bool force:1;
-	bool noreply:1;
-	bool nocreds:1;
+	bool analreply:1;
+	bool analcreds:1;
 	bool in_pages:1;
 	bool out_pages:1;
 	bool user_pages:1;
@@ -297,7 +297,7 @@ struct fuse_args_pages {
 
 #define FUSE_ARGS(args) struct fuse_args args = {}
 
-/** The request IO state (for asynchronous processing) */
+/** The request IO state (for asynchroanalus processing) */
 struct fuse_io_priv {
 	struct kref refcnt;
 	int async;
@@ -331,11 +331,11 @@ struct fuse_io_priv {
  * FR_ABORTED:		the request was aborted
  * FR_INTERRUPTED:	the request has been interrupted
  * FR_LOCKED:		data is being copied to/from the request
- * FR_PENDING:		request is not yet in userspace
+ * FR_PENDING:		request is analt yet in userspace
  * FR_SENT:		request is in userspace, waiting for an answer
  * FR_FINISHED:		request is finished
  * FR_PRIVATE:		request is on private list
- * FR_ASYNC:		request is asynchronous
+ * FR_ASYNC:		request is asynchroanalus
  */
 enum fuse_req_flag {
 	FR_ISREPLY,
@@ -504,15 +504,15 @@ struct fuse_dev {
 };
 
 enum fuse_dax_mode {
-	FUSE_DAX_INODE_DEFAULT,	/* default */
+	FUSE_DAX_IANALDE_DEFAULT,	/* default */
 	FUSE_DAX_ALWAYS,	/* "-o dax=always" */
 	FUSE_DAX_NEVER,		/* "-o dax=never" */
-	FUSE_DAX_INODE_USER,	/* "-o dax=inode" */
+	FUSE_DAX_IANALDE_USER,	/* "-o dax=ianalde" */
 };
 
-static inline bool fuse_is_inode_dax_mode(enum fuse_dax_mode mode)
+static inline bool fuse_is_ianalde_dax_mode(enum fuse_dax_mode mode)
 {
-	return mode == FUSE_DAX_INODE_DEFAULT || mode == FUSE_DAX_INODE_USER;
+	return mode == FUSE_DAX_IANALDE_DEFAULT || mode == FUSE_DAX_IANALDE_USER;
 }
 
 struct fuse_fs_context {
@@ -529,8 +529,8 @@ struct fuse_fs_context {
 	bool default_permissions:1;
 	bool allow_other:1;
 	bool destroy:1;
-	bool no_control:1;
-	bool no_force_umount:1;
+	bool anal_control:1;
+	bool anal_force_umount:1;
 	bool legacy_opts_show:1;
 	enum fuse_dax_mode dax_mode;
 	unsigned int max_read;
@@ -641,7 +641,7 @@ struct fuse_conn {
 	/** Connection aborted via sysfs */
 	bool aborted;
 
-	/** Connection failed (version mismatch).  Cannot race with
+	/** Connection failed (version mismatch).  Cananalt race with
 	    setting other bitfields since it is only set once in INIT
 	    reply, before any other request, and never cleared */
 	unsigned conn_error:1;
@@ -649,13 +649,13 @@ struct fuse_conn {
 	/** Connection successful.  Only set in INIT */
 	unsigned conn_init:1;
 
-	/** Do readahead asynchronously?  Only set in INIT */
+	/** Do readahead asynchroanalusly?  Only set in INIT */
 	unsigned async_read:1;
 
 	/** Return an unique read error after abort.  Only set in INIT */
 	unsigned abort_err:1;
 
-	/** Do not send separate SETATTR request before open(O_TRUNC)  */
+	/** Do analt send separate SETATTR request before open(O_TRUNC)  */
 	unsigned atomic_o_trunc:1;
 
 	/** Filesystem supports NFS exporting.  Only set in INIT */
@@ -678,64 +678,64 @@ struct fuse_conn {
 
 	/*
 	 * fs kills suid/sgid/cap on write/chown/trunc. suid is killed on
-	 * write/trunc only if caller did not have CAP_FSETID.  sgid is killed
-	 * on write/truncate only if caller did not have CAP_FSETID as well as
+	 * write/trunc only if caller did analt have CAP_FSETID.  sgid is killed
+	 * on write/truncate only if caller did analt have CAP_FSETID as well as
 	 * file has group execute permission.
 	 */
 	unsigned handle_killpriv_v2:1;
 
 	/*
 	 * The following bitfields are only for optimization purposes
-	 * and hence races in setting them will not cause malfunction
+	 * and hence races in setting them will analt cause malfunction
 	 */
 
-	/** Is open/release not implemented by fs? */
-	unsigned no_open:1;
+	/** Is open/release analt implemented by fs? */
+	unsigned anal_open:1;
 
-	/** Is opendir/releasedir not implemented by fs? */
-	unsigned no_opendir:1;
+	/** Is opendir/releasedir analt implemented by fs? */
+	unsigned anal_opendir:1;
 
-	/** Is fsync not implemented by fs? */
-	unsigned no_fsync:1;
+	/** Is fsync analt implemented by fs? */
+	unsigned anal_fsync:1;
 
-	/** Is fsyncdir not implemented by fs? */
-	unsigned no_fsyncdir:1;
+	/** Is fsyncdir analt implemented by fs? */
+	unsigned anal_fsyncdir:1;
 
-	/** Is flush not implemented by fs? */
-	unsigned no_flush:1;
+	/** Is flush analt implemented by fs? */
+	unsigned anal_flush:1;
 
-	/** Is setxattr not implemented by fs? */
-	unsigned no_setxattr:1;
+	/** Is setxattr analt implemented by fs? */
+	unsigned anal_setxattr:1;
 
 	/** Does file server support extended setxattr */
 	unsigned setxattr_ext:1;
 
-	/** Is getxattr not implemented by fs? */
-	unsigned no_getxattr:1;
+	/** Is getxattr analt implemented by fs? */
+	unsigned anal_getxattr:1;
 
-	/** Is listxattr not implemented by fs? */
-	unsigned no_listxattr:1;
+	/** Is listxattr analt implemented by fs? */
+	unsigned anal_listxattr:1;
 
-	/** Is removexattr not implemented by fs? */
-	unsigned no_removexattr:1;
+	/** Is removexattr analt implemented by fs? */
+	unsigned anal_removexattr:1;
 
-	/** Are posix file locking primitives not implemented by fs? */
-	unsigned no_lock:1;
+	/** Are posix file locking primitives analt implemented by fs? */
+	unsigned anal_lock:1;
 
-	/** Is access not implemented by fs? */
-	unsigned no_access:1;
+	/** Is access analt implemented by fs? */
+	unsigned anal_access:1;
 
-	/** Is create not implemented by fs? */
-	unsigned no_create:1;
+	/** Is create analt implemented by fs? */
+	unsigned anal_create:1;
 
-	/** Is interrupt not implemented by fs? */
-	unsigned no_interrupt:1;
+	/** Is interrupt analt implemented by fs? */
+	unsigned anal_interrupt:1;
 
-	/** Is bmap not implemented by fs? */
-	unsigned no_bmap:1;
+	/** Is bmap analt implemented by fs? */
+	unsigned anal_bmap:1;
 
-	/** Is poll not implemented by fs? */
-	unsigned no_poll:1;
+	/** Is poll analt implemented by fs? */
+	unsigned anal_poll:1;
 
 	/** Do multi-page cached writes */
 	unsigned big_writes:1;
@@ -743,14 +743,14 @@ struct fuse_conn {
 	/** Don't apply umask to creation modes */
 	unsigned dont_mask:1;
 
-	/** Are BSD file locking primitives not implemented by fs? */
-	unsigned no_flock:1;
+	/** Are BSD file locking primitives analt implemented by fs? */
+	unsigned anal_flock:1;
 
-	/** Is fallocate not implemented by fs? */
-	unsigned no_fallocate:1;
+	/** Is fallocate analt implemented by fs? */
+	unsigned anal_fallocate:1;
 
 	/** Is rename with flags implemented by fs? */
-	unsigned no_rename2:1;
+	unsigned anal_rename2:1;
 
 	/** Use enhanced/automatic page cache invalidation. */
 	unsigned auto_inval_data:1;
@@ -764,23 +764,23 @@ struct fuse_conn {
 	/** Does the filesystem want adaptive readdirplus? */
 	unsigned readdirplus_auto:1;
 
-	/** Does the filesystem support asynchronous direct-IO submission? */
+	/** Does the filesystem support asynchroanalus direct-IO submission? */
 	unsigned async_dio:1;
 
-	/** Is lseek not implemented by fs? */
-	unsigned no_lseek:1;
+	/** Is lseek analt implemented by fs? */
+	unsigned anal_lseek:1;
 
 	/** Does the filesystem support posix acls? */
 	unsigned posix_acl:1;
 
-	/** Check permissions based on the file mode or not? */
+	/** Check permissions based on the file mode or analt? */
 	unsigned default_permissions:1;
 
 	/** Allow other than the mounter user to access the filesystem ? */
 	unsigned allow_other:1;
 
 	/** Does the filesystem support copy_file_range? */
-	unsigned no_copy_file_range:1;
+	unsigned anal_copy_file_range:1;
 
 	/* Send DESTROY request */
 	unsigned int destroy:1;
@@ -788,41 +788,41 @@ struct fuse_conn {
 	/* Delete dentries that have gone stale */
 	unsigned int delete_stale:1;
 
-	/** Do not create entry in fusectl fs */
-	unsigned int no_control:1;
+	/** Do analt create entry in fusectl fs */
+	unsigned int anal_control:1;
 
-	/** Do not allow MNT_FORCE umount */
-	unsigned int no_force_umount:1;
+	/** Do analt allow MNT_FORCE umount */
+	unsigned int anal_force_umount:1;
 
-	/* Auto-mount submounts announced by the server */
+	/* Auto-mount submounts ananalunced by the server */
 	unsigned int auto_submounts:1;
 
 	/* Propagate syncfs() to server */
 	unsigned int sync_fs:1;
 
-	/* Initialize security xattrs when creating a new inode */
+	/* Initialize security xattrs when creating a new ianalde */
 	unsigned int init_security:1;
 
-	/* Add supplementary group info when creating a new inode */
+	/* Add supplementary group info when creating a new ianalde */
 	unsigned int create_supp_group:1;
 
-	/* Does the filesystem support per inode DAX? */
-	unsigned int inode_dax:1;
+	/* Does the filesystem support per ianalde DAX? */
+	unsigned int ianalde_dax:1;
 
-	/* Is tmpfile not implemented by fs? */
-	unsigned int no_tmpfile:1;
+	/* Is tmpfile analt implemented by fs? */
+	unsigned int anal_tmpfile:1;
 
 	/* Relax restrictions to allow shared mmap in FOPEN_DIRECT_IO mode */
 	unsigned int direct_io_allow_mmap:1;
 
-	/* Is statx not implemented by fs? */
-	unsigned int no_statx:1;
+	/* Is statx analt implemented by fs? */
+	unsigned int anal_statx:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
-	/** Negotiated minor version */
-	unsigned minor;
+	/** Negotiated mianalr version */
+	unsigned mianalr;
 
 	/** Entry on the fuse_mount_list */
 	struct list_head entry;
@@ -858,7 +858,7 @@ struct fuse_conn {
 	/* Dax mode */
 	enum fuse_dax_mode dax_mode;
 
-	/* Dax specific conn data, non-NULL if DAX is enabled */
+	/* Dax specific conn data, analn-NULL if DAX is enabled */
 	struct fuse_conn_dax *dax;
 #endif
 
@@ -901,29 +901,29 @@ static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
 	return get_fuse_mount_super(sb)->fc;
 }
 
-static inline struct fuse_mount *get_fuse_mount(struct inode *inode)
+static inline struct fuse_mount *get_fuse_mount(struct ianalde *ianalde)
 {
-	return get_fuse_mount_super(inode->i_sb);
+	return get_fuse_mount_super(ianalde->i_sb);
 }
 
-static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
+static inline struct fuse_conn *get_fuse_conn(struct ianalde *ianalde)
 {
-	return get_fuse_mount_super(inode->i_sb)->fc;
+	return get_fuse_mount_super(ianalde->i_sb)->fc;
 }
 
-static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
+static inline struct fuse_ianalde *get_fuse_ianalde(struct ianalde *ianalde)
 {
-	return container_of(inode, struct fuse_inode, inode);
+	return container_of(ianalde, struct fuse_ianalde, ianalde);
 }
 
-static inline u64 get_node_id(struct inode *inode)
+static inline u64 get_analde_id(struct ianalde *ianalde)
 {
-	return get_fuse_inode(inode)->nodeid;
+	return get_fuse_ianalde(ianalde)->analdeid;
 }
 
-static inline int invalid_nodeid(u64 nodeid)
+static inline int invalid_analdeid(u64 analdeid)
 {
-	return !nodeid || nodeid == FUSE_ROOT_ID;
+	return !analdeid || analdeid == FUSE_ROOT_ID;
 }
 
 static inline u64 fuse_get_attr_version(struct fuse_conn *fc)
@@ -931,22 +931,22 @@ static inline u64 fuse_get_attr_version(struct fuse_conn *fc)
 	return atomic64_read(&fc->attr_version);
 }
 
-static inline bool fuse_stale_inode(const struct inode *inode, int generation,
+static inline bool fuse_stale_ianalde(const struct ianalde *ianalde, int generation,
 				    struct fuse_attr *attr)
 {
-	return inode->i_generation != generation ||
-		inode_wrong_type(inode, attr->mode);
+	return ianalde->i_generation != generation ||
+		ianalde_wrong_type(ianalde, attr->mode);
 }
 
-static inline void fuse_make_bad(struct inode *inode)
+static inline void fuse_make_bad(struct ianalde *ianalde)
 {
-	remove_inode_hash(inode);
-	set_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state);
+	remove_ianalde_hash(ianalde);
+	set_bit(FUSE_I_BAD, &get_fuse_ianalde(ianalde)->state);
 }
 
-static inline bool fuse_is_bad(struct inode *inode)
+static inline bool fuse_is_bad(struct ianalde *ianalde)
 {
-	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state));
+	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_ianalde(ianalde)->state));
 }
 
 static inline struct page **fuse_pages_alloc(unsigned int npages, gfp_t flags,
@@ -987,20 +987,20 @@ extern const struct dentry_operations fuse_dentry_operations;
 extern const struct dentry_operations fuse_root_dentry_operations;
 
 /**
- * Get a filled in inode
+ * Get a filled in ianalde
  */
-struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
+struct ianalde *fuse_iget(struct super_block *sb, u64 analdeid,
 			int generation, struct fuse_attr *attr,
 			u64 attr_valid, u64 attr_version);
 
-int fuse_lookup_name(struct super_block *sb, u64 nodeid, const struct qstr *name,
-		     struct fuse_entry_out *outarg, struct inode **inode);
+int fuse_lookup_name(struct super_block *sb, u64 analdeid, const struct qstr *name,
+		     struct fuse_entry_out *outarg, struct ianalde **ianalde);
 
 /**
  * Send FORGET command
  */
 void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
-		       u64 nodeid, u64 nlookup);
+		       u64 analdeid, u64 nlookup);
 
 struct fuse_forget_link *fuse_alloc_forget(void);
 
@@ -1035,13 +1035,13 @@ void fuse_read_args_fill(struct fuse_io_args *ia, struct file *file, loff_t pos,
 /**
  * Send OPEN or OPENDIR request
  */
-int fuse_open_common(struct inode *inode, struct file *file, bool isdir);
+int fuse_open_common(struct ianalde *ianalde, struct file *file, bool isdir);
 
 struct fuse_file *fuse_file_alloc(struct fuse_mount *fm);
 void fuse_file_free(struct fuse_file *ff);
-void fuse_finish_open(struct inode *inode, struct file *file);
+void fuse_finish_open(struct ianalde *ianalde, struct file *file);
 
-void fuse_sync_release(struct fuse_inode *fi, struct fuse_file *ff,
+void fuse_sync_release(struct fuse_ianalde *fi, struct fuse_file *ff,
 		       unsigned int flags);
 
 /**
@@ -1056,43 +1056,43 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 		      int datasync, int opcode);
 
 /**
- * Notify poll wakeup
+ * Analtify poll wakeup
  */
-int fuse_notify_poll_wakeup(struct fuse_conn *fc,
-			    struct fuse_notify_poll_wakeup_out *outarg);
+int fuse_analtify_poll_wakeup(struct fuse_conn *fc,
+			    struct fuse_analtify_poll_wakeup_out *outarg);
 
 /**
  * Initialize file operations on a regular file
  */
-void fuse_init_file_inode(struct inode *inode, unsigned int flags);
+void fuse_init_file_ianalde(struct ianalde *ianalde, unsigned int flags);
 
 /**
- * Initialize inode operations on regular files and special files
+ * Initialize ianalde operations on regular files and special files
  */
-void fuse_init_common(struct inode *inode);
+void fuse_init_common(struct ianalde *ianalde);
 
 /**
- * Initialize inode and file operations on a directory
+ * Initialize ianalde and file operations on a directory
  */
-void fuse_init_dir(struct inode *inode);
+void fuse_init_dir(struct ianalde *ianalde);
 
 /**
- * Initialize inode operations on a symlink
+ * Initialize ianalde operations on a symlink
  */
-void fuse_init_symlink(struct inode *inode);
+void fuse_init_symlink(struct ianalde *ianalde);
 
 /**
- * Change attributes of an inode
+ * Change attributes of an ianalde
  */
-void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
+void fuse_change_attributes(struct ianalde *ianalde, struct fuse_attr *attr,
 			    struct fuse_statx *sx,
 			    u64 attr_valid, u64 attr_version);
 
-void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
+void fuse_change_attributes_common(struct ianalde *ianalde, struct fuse_attr *attr,
 				   struct fuse_statx *sx,
 				   u64 attr_valid, u32 cache_mask);
 
-u32 fuse_get_cache_mask(struct inode *inode);
+u32 fuse_get_cache_mask(struct ianalde *ianalde);
 
 /**
  * Initialize the client device
@@ -1124,7 +1124,7 @@ void fuse_abort_conn(struct fuse_conn *fc);
 void fuse_wait_aborted(struct fuse_conn *fc);
 
 /**
- * Invalidate inode attributes
+ * Invalidate ianalde attributes
  */
 
 /* Attributes possibly changed on data modification */
@@ -1133,12 +1133,12 @@ void fuse_wait_aborted(struct fuse_conn *fc);
 /* Attributes possibly changed on data and/or size modification */
 #define FUSE_STATX_MODSIZE	(FUSE_STATX_MODIFY | STATX_SIZE)
 
-void fuse_invalidate_attr(struct inode *inode);
-void fuse_invalidate_attr_mask(struct inode *inode, u32 mask);
+void fuse_invalidate_attr(struct ianalde *ianalde);
+void fuse_invalidate_attr_mask(struct ianalde *ianalde, u32 mask);
 
 void fuse_invalidate_entry_cache(struct dentry *entry);
 
-void fuse_invalidate_atime(struct inode *inode);
+void fuse_invalidate_atime(struct ianalde *ianalde);
 
 u64 fuse_time_to_jiffies(u64 sec, u32 nsec);
 #define ATTR_TIMEOUT(o) \
@@ -1220,15 +1220,15 @@ bool fuse_allow_current_process(struct fuse_conn *fc);
 
 u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
 
-void fuse_flush_time_update(struct inode *inode);
-void fuse_update_ctime(struct inode *inode);
+void fuse_flush_time_update(struct ianalde *ianalde);
+void fuse_update_ctime(struct ianalde *ianalde);
 
-int fuse_update_attributes(struct inode *inode, struct file *file, u32 mask);
+int fuse_update_attributes(struct ianalde *ianalde, struct file *file, u32 mask);
 
-void fuse_flush_writepages(struct inode *inode);
+void fuse_flush_writepages(struct ianalde *ianalde);
 
-void fuse_set_nowrite(struct inode *inode);
-void fuse_release_nowrite(struct inode *inode);
+void fuse_set_analwrite(struct ianalde *ianalde);
+void fuse_release_analwrite(struct ianalde *ianalde);
 
 /**
  * Scan all fuse_mounts belonging to fc to find the first where
@@ -1237,29 +1237,29 @@ void fuse_release_nowrite(struct inode *inode);
  *
  * The caller must hold fc->killsb.
  */
-struct inode *fuse_ilookup(struct fuse_conn *fc, u64 nodeid,
+struct ianalde *fuse_ilookup(struct fuse_conn *fc, u64 analdeid,
 			   struct fuse_mount **fm);
 
 /**
- * File-system tells the kernel to invalidate cache for the given node id.
+ * File-system tells the kernel to invalidate cache for the given analde id.
  */
-int fuse_reverse_inval_inode(struct fuse_conn *fc, u64 nodeid,
+int fuse_reverse_inval_ianalde(struct fuse_conn *fc, u64 analdeid,
 			     loff_t offset, loff_t len);
 
 /**
  * File-system tells the kernel to invalidate parent attributes and
  * the dentry matching parent/name.
  *
- * If the child_nodeid is non-zero and:
- *    - matches the inode number for the dentry matching parent/name,
- *    - is not a mount point
+ * If the child_analdeid is analn-zero and:
+ *    - matches the ianalde number for the dentry matching parent/name,
+ *    - is analt a mount point
  *    - is a file or oan empty directory
  * then the dentry is unhashed (d_delete()).
  */
-int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
-			     u64 child_nodeid, struct qstr *name, u32 flags);
+int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_analdeid,
+			     u64 child_analdeid, struct qstr *name, u32 flags);
 
-int fuse_do_open(struct fuse_mount *fm, u64 nodeid, struct file *file,
+int fuse_do_open(struct fuse_mount *fm, u64 analdeid, struct file *file,
 		 bool isdir);
 
 /**
@@ -1269,7 +1269,7 @@ int fuse_do_open(struct fuse_mount *fm, u64 nodeid, struct file *file,
 /** If set, it is WRITE; otherwise - READ */
 #define FUSE_DIO_WRITE (1 << 0)
 
-/** CUSE pass fuse_direct_io() a file which f_mapping->host is not from FUSE */
+/** CUSE pass fuse_direct_io() a file which f_mapping->host is analt from FUSE */
 #define FUSE_DIO_CUSE  (1 << 1)
 
 ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
@@ -1279,31 +1279,31 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 long fuse_ioctl_common(struct file *file, unsigned int cmd,
 		       unsigned long arg, unsigned int flags);
 __poll_t fuse_file_poll(struct file *file, poll_table *wait);
-int fuse_dev_release(struct inode *inode, struct file *file);
+int fuse_dev_release(struct ianalde *ianalde, struct file *file);
 
-bool fuse_write_update_attr(struct inode *inode, loff_t pos, ssize_t written);
+bool fuse_write_update_attr(struct ianalde *ianalde, loff_t pos, ssize_t written);
 
-int fuse_flush_times(struct inode *inode, struct fuse_file *ff);
-int fuse_write_inode(struct inode *inode, struct writeback_control *wbc);
+int fuse_flush_times(struct ianalde *ianalde, struct fuse_file *ff);
+int fuse_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc);
 
 int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		    struct file *file);
 
 void fuse_set_initialized(struct fuse_conn *fc);
 
-void fuse_unlock_inode(struct inode *inode, bool locked);
-bool fuse_lock_inode(struct inode *inode);
+void fuse_unlock_ianalde(struct ianalde *ianalde, bool locked);
+bool fuse_lock_ianalde(struct ianalde *ianalde);
 
-int fuse_setxattr(struct inode *inode, const char *name, const void *value,
+int fuse_setxattr(struct ianalde *ianalde, const char *name, const void *value,
 		  size_t size, int flags, unsigned int extra_flags);
-ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
+ssize_t fuse_getxattr(struct ianalde *ianalde, const char *name, void *value,
 		      size_t size);
 ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size);
-int fuse_removexattr(struct inode *inode, const char *name);
+int fuse_removexattr(struct ianalde *ianalde, const char *name);
 extern const struct xattr_handler * const fuse_xattr_handlers[];
 
 struct posix_acl;
-struct posix_acl *fuse_get_inode_acl(struct inode *inode, int type, bool rcu);
+struct posix_acl *fuse_get_ianalde_acl(struct ianalde *ianalde, int type, bool rcu);
 struct posix_acl *fuse_get_acl(struct mnt_idmap *idmap,
 			       struct dentry *dentry, int type);
 int fuse_set_acl(struct mnt_idmap *, struct dentry *dentry,
@@ -1325,19 +1325,19 @@ void fuse_free_conn(struct fuse_conn *fc);
 
 /* dax.c */
 
-#define FUSE_IS_DAX(inode) (IS_ENABLED(CONFIG_FUSE_DAX) && IS_DAX(inode))
+#define FUSE_IS_DAX(ianalde) (IS_ENABLED(CONFIG_FUSE_DAX) && IS_DAX(ianalde))
 
 ssize_t fuse_dax_read_iter(struct kiocb *iocb, struct iov_iter *to);
 ssize_t fuse_dax_write_iter(struct kiocb *iocb, struct iov_iter *from);
 int fuse_dax_mmap(struct file *file, struct vm_area_struct *vma);
-int fuse_dax_break_layouts(struct inode *inode, u64 dmap_start, u64 dmap_end);
+int fuse_dax_break_layouts(struct ianalde *ianalde, u64 dmap_start, u64 dmap_end);
 int fuse_dax_conn_alloc(struct fuse_conn *fc, enum fuse_dax_mode mode,
 			struct dax_device *dax_dev);
 void fuse_dax_conn_free(struct fuse_conn *fc);
-bool fuse_dax_inode_alloc(struct super_block *sb, struct fuse_inode *fi);
-void fuse_dax_inode_init(struct inode *inode, unsigned int flags);
-void fuse_dax_inode_cleanup(struct inode *inode);
-void fuse_dax_dontcache(struct inode *inode, unsigned int flags);
+bool fuse_dax_ianalde_alloc(struct super_block *sb, struct fuse_ianalde *fi);
+void fuse_dax_ianalde_init(struct ianalde *ianalde, unsigned int flags);
+void fuse_dax_ianalde_cleanup(struct ianalde *ianalde);
+void fuse_dax_dontcache(struct ianalde *ianalde, unsigned int flags);
 bool fuse_dax_check_alignment(struct fuse_conn *fc, unsigned int map_alignment);
 void fuse_dax_cancel_work(struct fuse_conn *fc);
 
@@ -1351,9 +1351,9 @@ int fuse_fileattr_set(struct mnt_idmap *idmap,
 
 /* file.c */
 
-struct fuse_file *fuse_file_open(struct fuse_mount *fm, u64 nodeid,
+struct fuse_file *fuse_file_open(struct fuse_mount *fm, u64 analdeid,
 				 unsigned int open_flags, bool isdir);
-void fuse_file_release(struct inode *inode, struct fuse_file *ff,
+void fuse_file_release(struct ianalde *ianalde, struct fuse_file *ff,
 		       unsigned int open_flags, fl_owner_t id, bool isdir);
 
 #endif /* _FS_FUSE_I_H */

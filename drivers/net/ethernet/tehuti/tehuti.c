@@ -20,7 +20,7 @@
  * pushes it into RXD Fifo and raises interrupt to indicate new RX data.
  *
  * Current NIC configuration (registers + firmware) makes NIC use 2 RXF Fifos.
- * One holds 1.5K packets and another - 26K packets. Depending on incoming
+ * One holds 1.5K packets and aanalther - 26K packets. Depending on incoming
  * packet size, HW desides on a RXF Fifo to pop buffer from. When packet is
  * filled with data, HW builds new RXD descriptor for it and push it into single
  * RXD Fifo.
@@ -39,7 +39,7 @@
  * ~~~~~~~~~~~~~~~~~~~~
  * Upon initialization (ifconfig up) driver creates RX fifos and initializes
  * relevant registers. At the end of init phase, driver enables interrupts.
- * NIC sees that there is no RXF buffers and raises
+ * NIC sees that there is anal RXF buffers and raises
  * RD_INTR interrupt, isr fills skbs and Rx begins.
  * Driver has two receive operation modes:
  *    NAPI - interrupt-driven mixed with polling
@@ -49,12 +49,12 @@
  * interrupt and isr is called. isr collects all available packets
  * (bdx_rx_receive), refills skbs (bdx_rx_alloc_skbs) and exit.
 
- * Rx buffer allocation note
+ * Rx buffer allocation analte
  * ~~~~~~~~~~~~~~~~~~~~~~~~~
  * Driver cares to feed such amount of RxF descriptors that respective amount of
- * RxD descriptors can not fill entire RxD fifo. The main reason is lack of
+ * RxD descriptors can analt fill entire RxD fifo. The main reason is lack of
  * overflow check in Bordeaux for RxD fifo free/used size.
- * FIXME: this is NOT fully implemented, more work should be done
+ * FIXME: this is ANALT fully implemented, more work should be done
  *
  */
 
@@ -161,7 +161,7 @@ bdx_fifo_init(struct bdx_priv *priv, struct fifo *f, int fsz_type,
 				   &f->da, GFP_ATOMIC);
 	if (!f->va) {
 		pr_err("dma_alloc_coherent failed\n");
-		RET(-ENOMEM);
+		RET(-EANALMEM);
 	}
 	f->reg_CFG0 = reg_CFG0;
 	f->reg_CFG1 = reg_CFG1;
@@ -194,7 +194,7 @@ static void bdx_fifo_free(struct bdx_priv *priv, struct fifo *f)
 }
 
 /**
- * bdx_link_changed - notifies OS about hw link state.
+ * bdx_link_changed - analtifies OS about hw link state.
  * @priv: hw adapter structure
  */
 static void bdx_link_changed(struct bdx_priv *priv)
@@ -239,9 +239,9 @@ static void bdx_isr_extra(struct bdx_priv *priv, u32 isr)
  * @irq: interrupt number
  * @dev: network device
  *
- * Return IRQ_NONE if it was not our interrupt, IRQ_HANDLED - otherwise
+ * Return IRQ_ANALNE if it was analt our interrupt, IRQ_HANDLED - otherwise
  *
- * It reads ISR register to know interrupt reasons, and proceed them one by one.
+ * It reads ISR register to kanalw interrupt reasons, and proceed them one by one.
  * Reasons of interest are:
  *    RX_DESC - new packet has arrived and RXD fifo holds its descriptor
  *    RX_FREE - number of free Rx buffers in RXF fifo gets low
@@ -258,7 +258,7 @@ static irqreturn_t bdx_isr_napi(int irq, void *dev)
 	isr = (READ_REG(priv, regISR) & IR_RUN);
 	if (unlikely(!isr)) {
 		bdx_enable_interrupts(priv);
-		return IRQ_NONE;	/* Not our interrupt */
+		return IRQ_ANALNE;	/* Analt our interrupt */
 	}
 
 	if (isr & IR_EXTRA)
@@ -269,7 +269,7 @@ static irqreturn_t bdx_isr_napi(int irq, void *dev)
 			__napi_schedule(&priv->napi);
 			RET(IRQ_HANDLED);
 		} else {
-			/* NOTE: we get here if intr has slipped into window
+			/* ANALTE: we get here if intr has slipped into window
 			 * between these lines in bdx_poll:
 			 *    bdx_enable_interrupts(priv);
 			 *    return 0;
@@ -313,7 +313,7 @@ static int bdx_poll(struct napi_struct *napi, int budget)
  * @priv: NIC private structure
  *
  * Firmware is loaded via TXD fifo, so it must be initialized first.
- * Firware must be loaded once per NIC not per PCI device provided by NIC (NIC
+ * Firware must be loaded once per NIC analt per PCI device provided by NIC (NIC
  * can have few of them). So all drivers use semaphore register to choose one
  * that will actually load FW to NIC.
  */
@@ -409,11 +409,11 @@ static int bdx_hw_start(struct bdx_priv *priv)
 	WRITE_REG(priv, regMAX_FRAME_A,
 		  priv->rxf_fifo0.m.pktsz & MAX_FRAME_AB_VAL);
 
-	DBG("RDINTCM=%08x\n", priv->rdintcm);	/*NOTE: test script uses this */
+	DBG("RDINTCM=%08x\n", priv->rdintcm);	/*ANALTE: test script uses this */
 	WRITE_REG(priv, regRDINTCM0, priv->rdintcm);
 	WRITE_REG(priv, regRDINTCM2, 0);	/*cpu_to_le32(rcm.val)); */
 
-	DBG("TDINTCM=%08x\n", priv->tdintcm);	/*NOTE: test script uses this */
+	DBG("TDINTCM=%08x\n", priv->tdintcm);	/*ANALTE: test script uses this */
 	WRITE_REG(priv, regTDINTCM0, priv->tdintcm);	/* old val = 0x300064 */
 
 	/* Enable timer interrupt once in 2 secs. */
@@ -563,7 +563,7 @@ static int bdx_reset(struct bdx_priv *priv)
  * bdx_close - Disables a network interface
  * @ndev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is analt allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -596,7 +596,7 @@ static int bdx_close(struct net_device *ndev)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is analtified that the interface is ready.
  **/
 static int bdx_open(struct net_device *ndev)
 {
@@ -655,7 +655,7 @@ static int bdx_siocdevprivate(struct net_device *ndev, struct ifreq *ifr,
 		}
 		DBG("%d 0x%x 0x%x\n", data[0], data[1], data[2]);
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!capable(CAP_SYS_RAWIO))
@@ -684,7 +684,7 @@ static int bdx_siocdevprivate(struct net_device *ndev, struct ifreq *ifr,
 		break;
 
 	default:
-		RET(-EOPNOTSUPP);
+		RET(-EOPANALTSUPP);
 	}
 	return 0;
 }
@@ -799,7 +799,7 @@ static void bdx_setmulti(struct net_device *ndev)
 
 		/* use PMF to accept first MAC_MCST_NUM (15) addresses */
 		/* TBD: sort addresses and write them in ascending order
-		 * into RX_MAC_MCST regs. we skip this phase now and accept ALL
+		 * into RX_MAC_MCST regs. we skip this phase analw and accept ALL
 		 * multicast frames throu IMF */
 		/* accept the rest of addresses throu IMF */
 		netdev_for_each_mc_addr(ha, ndev) {
@@ -979,7 +979,7 @@ static inline void bdx_rxdb_free_elem(struct rxdb *db, int n)
  *
  * RxD fifo is smaller than RxF fifo by design. Upon high load, RxD will be
  * filled and packets will be dropped by nic without getting into host or
- * cousing interrupt. Anyway, in that condition, host has no chance to process
+ * cousing interrupt. Anyway, in that condition, host has anal chance to process
  * all packets, but dropping in nic is cheaper, since it takes 0 cpu cycles
  */
 
@@ -1007,7 +1007,7 @@ static int bdx_rx_init(struct bdx_priv *priv)
 
 err_mem:
 	netdev_err(priv->ndev, "Rx init failed\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -1074,19 +1074,19 @@ static void bdx_rx_free(struct bdx_priv *priv)
  * When needed, it also updates RPTR and WPTR.
  */
 
-/* TBD: do not update WPTR if no desc were written */
+/* TBD: do analt update WPTR if anal desc were written */
 
 static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 {
 	struct sk_buff *skb;
 	struct rxf_desc *rxfd;
 	struct rx_map *dm;
-	int dno, delta, idx;
+	int danal, delta, idx;
 	struct rxdb *db = priv->rxdb;
 
 	ENTER;
-	dno = bdx_rxdb_available(db) - 1;
-	while (dno > 0) {
+	danal = bdx_rxdb_available(db) - 1;
+	while (danal > 0) {
 		skb = netdev_alloc_skb(priv->ndev, f->m.pktsz + NET_IP_ALIGN);
 		if (!skb)
 			break;
@@ -1115,7 +1115,7 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 				DBG("wrapped descriptor\n");
 			}
 		}
-		dno--;
+		danal--;
 	}
 	/*TBD: to do - delayed rxf wptr like in txd */
 	WRITE_REG(priv, f->m.reg_WPTR, f->m.wptr & TXF_WPTR_WR_PTR);
@@ -1175,10 +1175,10 @@ static void bdx_recycle_skb(struct bdx_priv *priv, struct rxd_desc *rxdd)
 
 /**
  * bdx_rx_receive - receives full packets from RXD fifo and pass them to OS
- * NOTE: a special treatment is given to non-continuous descriptors
+ * ANALTE: a special treatment is given to analn-continuous descriptors
  * that start near the end, wraps around and continue at the beginning. a second
  * part is copied right after the first, and then descriptor is interpreted as
- * normal. fifo has an extra space to allow such operations
+ * analrmal. fifo has an extra space to allow such operations
  * @priv: nic's private structure
  * @f: RXF fifo that needs skbs
  * @budget: maximum number of packets to receive
@@ -1273,9 +1273,9 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, ndev);
 
-		/* Non-IP packets aren't checksum-offloaded */
+		/* Analn-IP packets aren't checksum-offloaded */
 		if (GET_RXD_PKT_ID(rxd_val1) == 0)
-			skb_checksum_none_assert(skb);
+			skb_checksum_analne_assert(skb);
 		else
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -1331,7 +1331,7 @@ static void print_rxfd(struct rxf_desc *rxfd)
  * ~~~~~~~~~~~~~~~~~~~~~
  * txdb - used to keep track of all skbs owned by SW and their dma addresses.
  * For TX case, ownership lasts from geting packet via hard_xmit and until HW
- * acknowledges sent by TXF descriptors.
+ * ackanalwledges sent by TXF descriptors.
  * Implemented as cyclic buffer.
  * fifo - keeps info about fifo's size and location, relevant HW registers,
  * usage and skb db. Each RXD and RXF Fifo has its own fifo structure.
@@ -1395,7 +1395,7 @@ static inline void bdx_tx_db_inc_rptr(struct txdb *db)
 static inline void bdx_tx_db_inc_wptr(struct txdb *db)
 {
 	__bdx_tx_db_ptr_next(db, &db->wptr);
-	BDX_ASSERT(db->rptr == db->wptr);	/* we can not get empty db as
+	BDX_ASSERT(db->rptr == db->wptr);	/* we can analt get empty db as
 						   a result of write */
 }
 
@@ -1412,7 +1412,7 @@ static int bdx_tx_db_init(struct txdb *d, int sz_type)
 
 	d->start = vmalloc(memsz);
 	if (!d->start)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * In order to differentiate between db is empty and db is full
@@ -1461,7 +1461,7 @@ static struct {
  * It makes dma mappings for skb's data blocks and writes them to PBL of
  * new tx descriptor. It also stores them in the tx db, so they could be
  * unmaped after data was sent. It is reponsibility of a caller to make
- * sure that there is enough space in the tx db. Last element holds pointer
+ * sure that there is eanalugh space in the tx db. Last element holds pointer
  * to skb itself and marked with zero length
  */
 static inline void
@@ -1538,7 +1538,7 @@ static int bdx_tx_init(struct bdx_priv *priv)
 		goto err_mem;
 
 	/* The TX db has to keep mappings for all packets sent (on TxD)
-	 * and not yet reclaimed (on TxF) */
+	 * and analt yet reclaimed (on TxF) */
 	if (bdx_tx_db_init(&priv->txdb, max(priv->txd_size, priv->txf_size)))
 		goto err_mem;
 
@@ -1550,7 +1550,7 @@ static int bdx_tx_init(struct bdx_priv *priv)
 
 err_mem:
 	netdev_err(priv->ndev, "Tx init failed\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -1577,9 +1577,9 @@ static inline int bdx_tx_space(struct bdx_priv *priv)
  * @ndev: network device assigned to NIC
  * Return codes:
  * o NETDEV_TX_OK everything ok.
- * o NETDEV_TX_BUSY Cannot transmit packet, try later
+ * o NETDEV_TX_BUSY Cananalt transmit packet, try later
  *   Usually a bug, means queue start/stop flow control is broken in
- *   the driver. Note: the driver must NOT put the skb in its DMA ring.
+ *   the driver. Analte: the driver must ANALT put the skb in its DMA ring.
  */
 static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,
 				   struct net_device *ndev)
@@ -1651,20 +1651,20 @@ static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,
 #ifdef BDX_DELAY_WPTR
 	if (priv->tx_level > priv->tx_update_mark) {
 		/* Force memory writes to complete before letting h/w
-		   know there are new descriptors to fetch.
+		   kanalw there are new descriptors to fetch.
 		   (might be needed on platforms like IA64)
 		   wmb(); */
 		WRITE_REG(priv, f->m.reg_WPTR, f->m.wptr & TXF_WPTR_WR_PTR);
 	} else {
-		if (priv->tx_noupd++ > BDX_NO_UPD_PACKETS) {
-			priv->tx_noupd = 0;
+		if (priv->tx_analupd++ > BDX_ANAL_UPD_PACKETS) {
+			priv->tx_analupd = 0;
 			WRITE_REG(priv, f->m.reg_WPTR,
 				  f->m.wptr & TXF_WPTR_WR_PTR);
 		}
 	}
 #else
 	/* Force memory writes to complete before letting h/w
-	   know there are new descriptors to fetch.
+	   kanalw there are new descriptors to fetch.
 	   (might be needed on platforms like IA64)
 	   wmb(); */
 	WRITE_REG(priv, f->m.reg_WPTR, f->m.wptr & TXF_WPTR_WR_PTR);
@@ -1718,12 +1718,12 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 		} while (db->rptr->len > 0);
 		tx_level -= db->rptr->len;	/* '-' koz len is negative */
 
-		/* now should come skb pointer - free it */
+		/* analw should come skb pointer - free it */
 		dev_consume_skb_irq(db->rptr->addr.skb);
 		bdx_tx_db_inc_rptr(db);
 	}
 
-	/* let h/w know which TXF descriptors were cleaned */
+	/* let h/w kanalw which TXF descriptors were cleaned */
 	BDX_ASSERT((f->m.wptr & TXF_WPTR_WR_PTR) >= f->m.memsz);
 	WRITE_REG(priv, f->m.reg_RPTR, f->m.rptr & TXF_WPTR_WR_PTR);
 
@@ -1733,8 +1733,8 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 	priv->tx_level += tx_level;
 	BDX_ASSERT(priv->tx_level <= 0 || priv->tx_level > BDX_MAX_TX_LEVEL);
 #ifdef BDX_DELAY_WPTR
-	if (priv->tx_noupd) {
-		priv->tx_noupd = 0;
+	if (priv->tx_analupd) {
+		priv->tx_analupd = 0;
 		WRITE_REG(priv, priv->txd_fifo0.m.reg_WPTR,
 			  priv->txd_fifo0.m.wptr & TXF_WPTR_WR_PTR);
 	}
@@ -1789,7 +1789,7 @@ static void bdx_tx_free(struct bdx_priv *priv)
  * @size: desc's size
  *
  * Pushes desc to TxD fifo and overlaps it if needed.
- * NOTE: this func does not check for available space. this is responsibility
+ * ANALTE: this func does analt check for available space. this is responsibility
  *    of the caller. Neither does it check that data size is smaller than
  *    fifo size.
  */
@@ -1818,7 +1818,7 @@ static void bdx_tx_push_desc(struct bdx_priv *priv, void *data, int size)
  * @data: desc's data
  * @size: desc's size
  *
- * NOTE: this func does check for available space and, if necessary, waits for
+ * ANALTE: this func does check for available space and, if necessary, waits for
  *   NIC to read existing data before writing new one.
  */
 static void bdx_tx_push_desc_safe(struct bdx_priv *priv, void *data, int size)
@@ -1878,7 +1878,7 @@ static const struct net_device_ops bdx_netdev_ops = {
  *
  */
 
-/* TBD: netif_msg should be checked and implemented. I disable it for now */
+/* TBD: netif_msg should be checked and implemented. I disable it for analw */
 static int
 bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -1893,16 +1893,16 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	nic = vmalloc(sizeof(*nic));
 	if (!nic)
-		RET(-ENOMEM);
+		RET(-EANALMEM);
 
     /************** pci *****************/
 	err = pci_enable_device(pdev);
-	if (err)			/* it triggers interrupt, dunno why. */
-		goto err_pci;		/* it's not a problem though */
+	if (err)			/* it triggers interrupt, dunanal why. */
+		goto err_pci;		/* it's analt a problem though */
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		pr_err("No usable DMA configuration, aborting\n");
+		pr_err("Anal usable DMA configuration, aborting\n");
 		goto err_dma;
 	}
 
@@ -1915,7 +1915,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pciaddr = pci_resource_start(pdev, 0);
 	if (!pciaddr) {
 		err = -EIO;
-		pr_err("no MMIO resource\n");
+		pr_err("anal MMIO resource\n");
 		goto err_out_res;
 	}
 	regionSize = pci_resource_len(pdev, 0);
@@ -1957,14 +1957,14 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		else
 			nic->irq_type = IRQ_MSI;
 	} else
-		DBG("HW does not support MSI\n");
+		DBG("HW does analt support MSI\n");
 #endif
 
     /************** netdev **************/
 	for (port = 0; port < nic->port_num; port++) {
 		ndev = alloc_etherdev(sizeof(struct bdx_priv));
 		if (!ndev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out_iomap;
 		}
 
@@ -1997,7 +1997,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netif_napi_add(ndev, &priv->napi, bdx_poll);
 
 		if ((readl(nic->regs + FPGA_VER) & 0xFFF) == 308) {
-			DBG("HW statistics not supported\n");
+			DBG("HW statistics analt supported\n");
 			priv->stats_flag = 0;
 		} else {
 			priv->stats_flag = 1;
@@ -2013,7 +2013,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		priv->rdintcm = INT_REG_VAL(0x20, 1, 4, 12);
 		priv->tdintcm = INT_REG_VAL(0x20, 1, 0, 12);
 
-		/* ndev->xmit_lock spinlock is not used.
+		/* ndev->xmit_lock spinlock is analt used.
 		 * Private priv->tx_lock is used for synchronization
 		 * between transmit and TX irq cleanup.  In addition
 		 * set multicast list callback has to use priv->tx_lock.
@@ -2167,7 +2167,7 @@ static int bdx_get_coalesce(struct net_device *netdev,
 	ecoal->tx_max_coalesced_frames =
 	    ((GET_PCK_TH(tdintcm) * PCK_TH_MULT) / BDX_TXF_DESC_SZ);
 
-	/* adaptive parameters ignored */
+	/* adaptive parameters iganalred */
 	return 0;
 }
 

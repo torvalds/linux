@@ -51,7 +51,7 @@ static struct property *dlpar_clone_property(struct property *prop,
 	return new_prop;
 }
 
-static bool find_aa_index(struct device_node *dr_node,
+static bool find_aa_index(struct device_analde *dr_analde,
 			 struct property *ala_prop,
 			 const u32 *lmb_assoc, u32 *aa_index)
 {
@@ -97,7 +97,7 @@ static bool find_aa_index(struct device_node *dr_node,
 	index = aa_arrays * aa_array_entries + 2;
 	memcpy(&assoc_arrays[index], &lmb_assoc[1], aa_array_sz);
 
-	of_update_property(dr_node, new_prop);
+	of_update_property(dr_analde, new_prop);
 
 	/*
 	 * The associativity lookup array index for this lmb is
@@ -110,51 +110,51 @@ static bool find_aa_index(struct device_node *dr_node,
 
 static int update_lmb_associativity_index(struct drmem_lmb *lmb)
 {
-	struct device_node *parent, *lmb_node, *dr_node;
+	struct device_analde *parent, *lmb_analde, *dr_analde;
 	struct property *ala_prop;
 	const u32 *lmb_assoc;
 	u32 aa_index;
 	bool found;
 
-	parent = of_find_node_by_path("/");
+	parent = of_find_analde_by_path("/");
 	if (!parent)
-		return -ENODEV;
+		return -EANALDEV;
 
-	lmb_node = dlpar_configure_connector(cpu_to_be32(lmb->drc_index),
+	lmb_analde = dlpar_configure_connector(cpu_to_be32(lmb->drc_index),
 					     parent);
-	of_node_put(parent);
-	if (!lmb_node)
+	of_analde_put(parent);
+	if (!lmb_analde)
 		return -EINVAL;
 
-	lmb_assoc = of_get_property(lmb_node, "ibm,associativity", NULL);
+	lmb_assoc = of_get_property(lmb_analde, "ibm,associativity", NULL);
 	if (!lmb_assoc) {
-		dlpar_free_cc_nodes(lmb_node);
-		return -ENODEV;
+		dlpar_free_cc_analdes(lmb_analde);
+		return -EANALDEV;
 	}
 
-	update_numa_distance(lmb_node);
+	update_numa_distance(lmb_analde);
 
-	dr_node = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-	if (!dr_node) {
-		dlpar_free_cc_nodes(lmb_node);
-		return -ENODEV;
+	dr_analde = of_find_analde_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (!dr_analde) {
+		dlpar_free_cc_analdes(lmb_analde);
+		return -EANALDEV;
 	}
 
-	ala_prop = of_find_property(dr_node, "ibm,associativity-lookup-arrays",
+	ala_prop = of_find_property(dr_analde, "ibm,associativity-lookup-arrays",
 				    NULL);
 	if (!ala_prop) {
-		of_node_put(dr_node);
-		dlpar_free_cc_nodes(lmb_node);
-		return -ENODEV;
+		of_analde_put(dr_analde);
+		dlpar_free_cc_analdes(lmb_analde);
+		return -EANALDEV;
 	}
 
-	found = find_aa_index(dr_node, ala_prop, lmb_assoc, &aa_index);
+	found = find_aa_index(dr_analde, ala_prop, lmb_assoc, &aa_index);
 
-	of_node_put(dr_node);
-	dlpar_free_cc_nodes(lmb_node);
+	of_analde_put(dr_analde);
+	dlpar_free_cc_analdes(lmb_analde);
 
 	if (!found) {
-		pr_err("Could not find LMB associativity\n");
+		pr_err("Could analt find LMB associativity\n");
 		return -1;
 	}
 
@@ -263,7 +263,7 @@ out:
 	return 0;
 }
 
-static int pseries_remove_mem_node(struct device_node *np)
+static int pseries_remove_mem_analde(struct device_analde *np)
 {
 	int ret;
 	struct resource res;
@@ -271,7 +271,7 @@ static int pseries_remove_mem_node(struct device_node *np)
 	/*
 	 * Check to see if we are actually removing memory
 	 */
-	if (!of_node_is_type(np, "memory"))
+	if (!of_analde_is_type(np, "memory"))
 		return 0;
 
 	/*
@@ -347,7 +347,7 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 	if (lmbs_to_remove == 0)
 		return -EINVAL;
 
-	/* Validate that there are enough LMBs to satisfy the request */
+	/* Validate that there are eanalugh LMBs to satisfy the request */
 	for_each_drmem_lmb(lmb) {
 		if (lmb_is_removable(lmb))
 			lmbs_available++;
@@ -357,7 +357,7 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 	}
 
 	if (lmbs_available < lmbs_to_remove) {
-		pr_info("Not enough LMBs available (%d of %d) to satisfy request\n",
+		pr_info("Analt eanalugh LMBs available (%d of %d) to satisfy request\n",
 			lmbs_available, lmbs_to_remove);
 		return -EINVAL;
 	}
@@ -368,7 +368,7 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 			continue;
 
 		/* Mark this lmb so we can add it later if all of the
-		 * requested LMBs cannot be removed.
+		 * requested LMBs cananalt be removed.
 		 */
 		drmem_mark_lmb_reserved(lmb);
 
@@ -467,7 +467,7 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 		return -EINVAL;
 
 	/*
-	 * Validate that all LMBs in range are not reserved. Note that it
+	 * Validate that all LMBs in range are analt reserved. Analte that it
 	 * is ok if they are !ASSIGNED since our goal here is to remove the
 	 * LMB range, regardless of whether some LMBs were already removed
 	 * by any other reason.
@@ -487,7 +487,7 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
 		/*
 		 * dlpar_remove_lmb() will error out if the LMB is already
-		 * !ASSIGNED, but this case is a no-op for us.
+		 * !ASSIGNED, but this case is a anal-op for us.
 		 */
 		if (!(lmb->flags & DRCONF_MEM_ASSIGNED))
 			continue;
@@ -509,7 +509,7 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 
 			/*
 			 * Setting the isolation state of an UNISOLATED/CONFIGURED
-			 * device to UNISOLATE is a no-op, but the hypervisor can
+			 * device to UNISOLATE is a anal-op, but the hypervisor can
 			 * use it as a hint that the LMB removal failed.
 			 */
 			dlpar_unisolate_drc(lmb->drc_index);
@@ -542,28 +542,28 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 static inline int pseries_remove_memblock(unsigned long base,
 					  unsigned long memblock_size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
-static inline int pseries_remove_mem_node(struct device_node *np)
+static inline int pseries_remove_mem_analde(struct device_analde *np)
 {
 	return 0;
 }
 static int dlpar_remove_lmb(struct drmem_lmb *lmb)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static int dlpar_memory_remove_by_index(u32 drc_index)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
@@ -584,22 +584,22 @@ static int dlpar_add_lmb(struct drmem_lmb *lmb)
 
 	block_sz = memory_block_size_bytes();
 
-	/* Find the node id for this LMB.  Fake one if necessary. */
+	/* Find the analde id for this LMB.  Fake one if necessary. */
 	nid = of_drconf_to_nid_single(lmb);
-	if (nid < 0 || !node_possible(nid))
-		nid = first_online_node;
+	if (nid < 0 || !analde_possible(nid))
+		nid = first_online_analde;
 
 	/* Add the memory */
 	rc = __add_memory(nid, lmb->base_addr, block_sz, MHP_MEMMAP_ON_MEMORY);
 	if (rc) {
-		pr_err("Failed to add LMB 0x%x to node %u", lmb->drc_index, nid);
+		pr_err("Failed to add LMB 0x%x to analde %u", lmb->drc_index, nid);
 		invalidate_lmb_associativity_index(lmb);
 		return rc;
 	}
 
 	rc = dlpar_online_lmb(lmb);
 	if (rc) {
-		pr_err("Failed to online LMB 0x%x on node %u\n", lmb->drc_index, nid);
+		pr_err("Failed to online LMB 0x%x on analde %u\n", lmb->drc_index, nid);
 		__remove_memory(lmb->base_addr, block_sz);
 		invalidate_lmb_associativity_index(lmb);
 	} else {
@@ -621,7 +621,7 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 	if (lmbs_to_add == 0)
 		return -EINVAL;
 
-	/* Validate that there are enough LMBs to satisfy the request */
+	/* Validate that there are eanalugh LMBs to satisfy the request */
 	for_each_drmem_lmb(lmb) {
 		if (lmb->flags & DRCONF_MEM_RESERVED)
 			continue;
@@ -651,7 +651,7 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 		}
 
 		/* Mark this lmb so we can remove it later if all of the
-		 * requested LMBs cannot be added.
+		 * requested LMBs cananalt be added.
 		 */
 		drmem_mark_lmb_reserved(lmb);
 		lmbs_reserved++;
@@ -748,7 +748,7 @@ static int dlpar_memory_add_by_ic(u32 lmbs_to_add, u32 drc_index)
 	if (rc)
 		return -EINVAL;
 
-	/* Validate that the LMBs in this range are not reserved */
+	/* Validate that the LMBs in this range are analt reserved */
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
 		/* Fail immediately if the whole range can't be hot-added */
 		if (lmb->flags & DRCONF_MEM_RESERVED) {
@@ -869,7 +869,7 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 	return rc;
 }
 
-static int pseries_add_mem_node(struct device_node *np)
+static int pseries_add_mem_analde(struct device_analde *np)
 {
 	int ret;
 	struct resource res;
@@ -877,7 +877,7 @@ static int pseries_add_mem_node(struct device_node *np)
 	/*
 	 * Check to see if we are actually adding memory
 	 */
-	if (!of_node_is_type(np, "memory"))
+	if (!of_analde_is_type(np, "memory"))
 		return 0;
 
 	/*
@@ -894,35 +894,35 @@ static int pseries_add_mem_node(struct device_node *np)
 	return (ret < 0) ? -EINVAL : 0;
 }
 
-static int pseries_memory_notifier(struct notifier_block *nb,
+static int pseries_memory_analtifier(struct analtifier_block *nb,
 				   unsigned long action, void *data)
 {
 	struct of_reconfig_data *rd = data;
 	int err = 0;
 
 	switch (action) {
-	case OF_RECONFIG_ATTACH_NODE:
-		err = pseries_add_mem_node(rd->dn);
+	case OF_RECONFIG_ATTACH_ANALDE:
+		err = pseries_add_mem_analde(rd->dn);
 		break;
-	case OF_RECONFIG_DETACH_NODE:
-		err = pseries_remove_mem_node(rd->dn);
+	case OF_RECONFIG_DETACH_ANALDE:
+		err = pseries_remove_mem_analde(rd->dn);
 		break;
 	case OF_RECONFIG_UPDATE_PROPERTY:
 		if (!strcmp(rd->dn->name,
 			    "ibm,dynamic-reconfiguration-memory"))
 			drmem_update_lmbs(rd->prop);
 	}
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
-static struct notifier_block pseries_mem_nb = {
-	.notifier_call = pseries_memory_notifier,
+static struct analtifier_block pseries_mem_nb = {
+	.analtifier_call = pseries_memory_analtifier,
 };
 
 static int __init pseries_memory_hotplug_init(void)
 {
 	if (firmware_has_feature(FW_FEATURE_LPAR))
-		of_reconfig_notifier_register(&pseries_mem_nb);
+		of_reconfig_analtifier_register(&pseries_mem_nb);
 
 	return 0;
 }

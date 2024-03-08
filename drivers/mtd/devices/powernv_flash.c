@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * OPAL PNOR flash MTD abstraction
+ * OPAL PANALR flash MTD abstraction
  *
  * Copyright IBM 2015
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -23,7 +23,7 @@
 
 
 /*
- * This driver creates the a Linux MTD abstraction for platform PNOR flash
+ * This driver creates the a Linux MTD abstraction for platform PANALR flash
  * backed by OPAL calls
  */
 
@@ -93,7 +93,7 @@ static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 			 * are going to end up waiting until OPAL is
 			 * done. However, because the MTD core sends
 			 * us the userspace request in chunks, we need
-			 * it to know we've been interrupted.
+			 * it to kanalw we've been interrupted.
 			 */
 			rc = -EINTR;
 			if (opal_async_wait_response(token, &msg))
@@ -133,7 +133,7 @@ out:
  * @retlen: the number of bytes actually read
  * @buf: the filled in buffer
  *
- * Returns 0 if read successful, or -ERRNO if an error occurred
+ * Returns 0 if read successful, or -ERRANAL if an error occurred
  */
 static int powernv_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	     size_t *retlen, u_char *buf)
@@ -150,7 +150,7 @@ static int powernv_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
  * @retlen: the number of bytes actually written
  * @buf: the buffer to get bytes from
  *
- * Returns 0 if write successful, -ERRNO if error occurred
+ * Returns 0 if write successful, -ERRANAL if error occurred
  */
 static int powernv_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		     size_t *retlen, const u_char *buf)
@@ -163,7 +163,7 @@ static int powernv_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
  * powernv_flash_erase
  * @mtd: the device
  * @erase: the erase info
- * Returns 0 if erase successful or -ERRNO if an error occurred
+ * Returns 0 if erase successful or -ERRANAL if an error occurred
  */
 static int powernv_flash_erase(struct mtd_info *mtd, struct erase_info *erase)
 {
@@ -189,14 +189,14 @@ static int powernv_flash_set_driver_info(struct device *dev,
 	u32 erase_size;
 	int rc;
 
-	rc = of_property_read_u32(dev->of_node, "ibm,flash-block-size",
+	rc = of_property_read_u32(dev->of_analde, "ibm,flash-block-size",
 			&erase_size);
 	if (rc) {
 		dev_err(dev, "couldn't get resource block size information\n");
 		return rc;
 	}
 
-	rc = of_property_read_u64(dev->of_node, "reg", &size);
+	rc = of_property_read_u64(dev->of_analde, "reg", &size);
 	if (rc) {
 		dev_err(dev, "couldn't get resource size information\n");
 		return rc;
@@ -206,8 +206,8 @@ static int powernv_flash_set_driver_info(struct device *dev,
 	 * Going to have to check what details I need to set and how to
 	 * get them
 	 */
-	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_node);
-	mtd->type = MTD_NORFLASH;
+	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_analde);
+	mtd->type = MTD_ANALRFLASH;
 	mtd->flags = MTD_WRITEABLE;
 	mtd->size = size;
 	mtd->erasesize = erase_size;
@@ -217,7 +217,7 @@ static int powernv_flash_set_driver_info(struct device *dev,
 	mtd->_read = powernv_flash_read;
 	mtd->_write = powernv_flash_write;
 	mtd->dev.parent = dev;
-	mtd_set_of_node(mtd, dev->of_node);
+	mtd_set_of_analde(mtd, dev->of_analde);
 	return 0;
 }
 
@@ -225,7 +225,7 @@ static int powernv_flash_set_driver_info(struct device *dev,
  * powernv_flash_probe
  * @pdev: platform device
  *
- * Returns 0 on success, -ENOMEM, -ENXIO on error
+ * Returns 0 on success, -EANALMEM, -ENXIO on error
  */
 static int powernv_flash_probe(struct platform_device *pdev)
 {
@@ -235,13 +235,13 @@ static int powernv_flash_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->mtd.priv = data;
 
-	ret = of_property_read_u32(dev->of_node, "ibm,opal-id", &(data->id));
+	ret = of_property_read_u32(dev->of_analde, "ibm,opal-id", &(data->id));
 	if (ret) {
-		dev_err(dev, "no device property 'ibm,opal-id'\n");
+		dev_err(dev, "anal device property 'ibm,opal-id'\n");
 		return ret;
 	}
 
@@ -254,7 +254,7 @@ static int powernv_flash_probe(struct platform_device *pdev)
 	/*
 	 * The current flash that skiboot exposes is one contiguous flash chip
 	 * with an ffs partition at the start, it should prove easier for users
-	 * to deal with partitions or not as they see fit
+	 * to deal with partitions or analt as they see fit
 	 */
 	return mtd_device_register(&data->mtd, NULL, 0);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,25 +12,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/export.h>
@@ -52,27 +52,27 @@ struct mlx5_db_pgdir {
  * register it in a memory region at HCA virtual address 0.
  */
 
-static void *mlx5_dma_zalloc_coherent_node(struct mlx5_core_dev *dev,
+static void *mlx5_dma_zalloc_coherent_analde(struct mlx5_core_dev *dev,
 					   size_t size, dma_addr_t *dma_handle,
-					   int node)
+					   int analde)
 {
 	struct device *device = mlx5_core_dma_dev(dev);
 	struct mlx5_priv *priv = &dev->priv;
-	int original_node;
+	int original_analde;
 	void *cpu_handle;
 
 	mutex_lock(&priv->alloc_mutex);
-	original_node = dev_to_node(device);
-	set_dev_node(device, node);
+	original_analde = dev_to_analde(device);
+	set_dev_analde(device, analde);
 	cpu_handle = dma_alloc_coherent(device, size, dma_handle,
 					GFP_KERNEL);
-	set_dev_node(device, original_node);
+	set_dev_analde(device, original_analde);
 	mutex_unlock(&priv->alloc_mutex);
 	return cpu_handle;
 }
 
-int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			     struct mlx5_frag_buf *buf, int node)
+int mlx5_frag_buf_alloc_analde(struct mlx5_core_dev *dev, int size,
+			     struct mlx5_frag_buf *buf, int analde)
 {
 	int i;
 
@@ -88,8 +88,8 @@ int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 		struct mlx5_buf_list *frag = &buf->frags[i];
 		int frag_sz = min_t(int, size, PAGE_SIZE);
 
-		frag->buf = mlx5_dma_zalloc_coherent_node(dev, frag_sz,
-							  &frag->map, node);
+		frag->buf = mlx5_dma_zalloc_coherent_analde(dev, frag_sz,
+							  &frag->map, analde);
 		if (!frag->buf)
 			goto err_free_buf;
 		if (frag->map & ((1 << buf->page_shift) - 1)) {
@@ -110,9 +110,9 @@ err_free_buf:
 				  buf->frags[i].map);
 	kfree(buf->frags);
 err_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
-EXPORT_SYMBOL_GPL(mlx5_frag_buf_alloc_node);
+EXPORT_SYMBOL_GPL(mlx5_frag_buf_alloc_analde);
 
 void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 {
@@ -131,16 +131,16 @@ void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 EXPORT_SYMBOL_GPL(mlx5_frag_buf_free);
 
 static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
-						 int node)
+						 int analde)
 {
 	u32 db_per_page = PAGE_SIZE / cache_line_size();
 	struct mlx5_db_pgdir *pgdir;
 
-	pgdir = kzalloc_node(sizeof(*pgdir), GFP_KERNEL, node);
+	pgdir = kzalloc_analde(sizeof(*pgdir), GFP_KERNEL, analde);
 	if (!pgdir)
 		return NULL;
 
-	pgdir->bitmap = bitmap_zalloc_node(db_per_page, GFP_KERNEL, node);
+	pgdir->bitmap = bitmap_zalloc_analde(db_per_page, GFP_KERNEL, analde);
 	if (!pgdir->bitmap) {
 		kfree(pgdir);
 		return NULL;
@@ -148,8 +148,8 @@ static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
 
 	bitmap_fill(pgdir->bitmap, db_per_page);
 
-	pgdir->db_page = mlx5_dma_zalloc_coherent_node(dev, PAGE_SIZE,
-						       &pgdir->db_dma, node);
+	pgdir->db_page = mlx5_dma_zalloc_coherent_analde(dev, PAGE_SIZE,
+						       &pgdir->db_dma, analde);
 	if (!pgdir->db_page) {
 		bitmap_free(pgdir->bitmap);
 		kfree(pgdir);
@@ -168,7 +168,7 @@ static int mlx5_alloc_db_from_pgdir(struct mlx5_db_pgdir *pgdir,
 
 	i = find_first_bit(pgdir->bitmap, db_per_page);
 	if (i >= db_per_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__clear_bit(i, pgdir->bitmap);
 
@@ -184,7 +184,7 @@ static int mlx5_alloc_db_from_pgdir(struct mlx5_db_pgdir *pgdir,
 	return 0;
 }
 
-int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db, int node)
+int mlx5_db_alloc_analde(struct mlx5_core_dev *dev, struct mlx5_db *db, int analde)
 {
 	struct mlx5_db_pgdir *pgdir;
 	int ret = 0;
@@ -195,9 +195,9 @@ int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db, int node)
 		if (!mlx5_alloc_db_from_pgdir(pgdir, db))
 			goto out;
 
-	pgdir = mlx5_alloc_db_pgdir(dev, node);
+	pgdir = mlx5_alloc_db_pgdir(dev, analde);
 	if (!pgdir) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -211,7 +211,7 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mlx5_db_alloc_node);
+EXPORT_SYMBOL_GPL(mlx5_db_alloc_analde);
 
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 {

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -1219,7 +1219,7 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 	return DC_OK;
 }
 
-static enum dc_status dcn10_patch_unknown_plane_state(struct dc_plane_state *plane_state)
+static enum dc_status dcn10_patch_unkanalwn_plane_state(struct dc_plane_state *plane_state)
 {
 	enum surface_pixel_format surf_pix_format = plane_state->format;
 	unsigned int bpp = resource_pixel_format_to_bpp(surf_pix_format);
@@ -1283,7 +1283,7 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_plane = dcn10_validate_plane,
 	.validate_global = dcn10_validate_global,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
-	.patch_unknown_plane_state = dcn10_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn10_patch_unkanalwn_plane_state,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
 };
 
@@ -1339,7 +1339,7 @@ static bool dcn10_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 
 	/* max pipe num for ASIC before check pipe fuses */
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
@@ -1349,7 +1349,7 @@ static bool dcn10_resource_construct(
 	dc->caps.max_video_width = 3840;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
-	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a analt applied by default*/
 	dc->caps.max_cursor_size = 256;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.max_slave_planes = 1;
@@ -1359,7 +1359,7 @@ static bool dcn10_resource_construct(
 	dc->caps.post_blend_color_processing = false;
 	dc->caps.extended_aux_timeout_support = false;
 
-	/* Raven DP PHY HBR2 eye diagram pattern is not stable. Use TP4 */
+	/* Raven DP PHY HBR2 eye diagram pattern is analt stable. Use TP4 */
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 
 	/* Color pipeline capabilities */
@@ -1385,7 +1385,7 @@ static bool dcn10_resource_construct(
 	dc->caps.color.dpp.ogam_rom_caps.hlg = 0;
 	dc->caps.color.dpp.ocsc = 1;
 
-	/* no post-blend color operations */
+	/* anal post-blend color operations */
 	dc->caps.color.mpc.gamut_remap = 0;
 	dc->caps.color.mpc.num_3dluts = 0;
 	dc->caps.color.mpc.shared_3d_lut = 0;
@@ -1434,7 +1434,7 @@ static bool dcn10_resource_construct(
 	pool->base.dp_clock_source =
 			dcn10_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,
-				/* todo: not reuse phy_pll registers */
+				/* todo: analt reuse phy_pll registers */
 				&clk_src_regs[0], true);
 
 	for (i = 0; i < pool->base.clk_src_count; i++) {
@@ -1494,7 +1494,7 @@ static bool dcn10_resource_construct(
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
 
 	/*
-	 * Right now SMU/PPLIB and DAL all have the AZ D3 force PME notification *
+	 * Right analw SMU/PPLIB and DAL all have the AZ D3 force PME analtification *
 	 * implemented. So AZ D3 should work.For issue 197007.                   *
 	 */
 	if (pool->base.pp_smu != NULL
@@ -1504,7 +1504,7 @@ static bool dcn10_resource_construct(
 
 	if (!dc->debug.disable_pplib_clock_request) {
 		/*
-		 * TODO: This is not the proper way to obtain
+		 * TODO: This is analt the proper way to obtain
 		 * fabric_and_dram_bandwidth, should be min(fclk, memclk).
 		 */
 		res = dm_pp_get_clock_levels_by_type_with_voltage(
@@ -1545,7 +1545,7 @@ static bool dcn10_resource_construct(
 		dcn_get_soc_clks(
 			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
 		DC_FP_END();
-		dcn_bw_notify_pplib_of_wm_ranges(
+		dcn_bw_analtify_pplib_of_wm_ranges(
 			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
 

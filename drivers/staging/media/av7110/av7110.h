@@ -116,7 +116,7 @@ struct av7110 {
 #define DVB_ADAC_CRYSTAL  1
 #define DVB_ADAC_MSP34x0  2
 #define DVB_ADAC_MSP34x5  3
-#define DVB_ADAC_NONE	 -1
+#define DVB_ADAC_ANALNE	 -1
 
 
 	/* buffers */
@@ -134,7 +134,7 @@ struct av7110 {
 	int			bmpp;
 	int			bmplen;
 	volatile int		bmp_state;
-#define BMP_NONE     0
+#define BMP_ANALNE     0
 #define BMP_LOADING  1
 #define BMP_LOADED   2
 	wait_queue_head_t	bmpq;
@@ -152,7 +152,7 @@ struct av7110 {
 
 	int			rec_mode;
 	int			playing;
-#define RP_NONE  0
+#define RP_ANALNE  0
 #define RP_VIDEO 1
 #define RP_AUDIO 2
 #define RP_AV	 3
@@ -195,7 +195,7 @@ struct av7110 {
 	u16			display_panscan;
 	int			display_ar;
 	int			trickmode;
-#define TRICK_NONE   0
+#define TRICK_ANALNE   0
 #define TRICK_FAST   1
 #define TRICK_SLOW   2
 #define TRICK_FREEZE 3

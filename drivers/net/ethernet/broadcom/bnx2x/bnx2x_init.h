@@ -287,7 +287,7 @@ static inline void bnx2x_dcb_config_qm(struct bnx2x *bp, enum cos_mode mode,
  * to the driver (cmng_init) that will write it into the internal ram.
  *
  * IMPORTANT REMARKS:
- * 1. the cmng_init struct does not represent the contiguous internal ram
+ * 1. the cmng_init struct does analt represent the contiguous internal ram
  *    structure. the driver should use the XSTORM_CMNG_PERPORT_VARS_OFFSET
  *    offset in order to write the port sub struct and the
  *    PFID_FROM_PORT_AND_VNIC offset for writing the vnic sub struct (in other
@@ -344,7 +344,7 @@ static inline void bnx2x_init_max(const struct cmng_init_input *input_data,
 	pdata->rs_vars.rs_periodic_timeout =
 	RS_PERIODIC_TIMEOUT_USEC / SDM_TICKS;
 
-	/* this is the threshold below which no timer arming will occur.
+	/* this is the threshold below which anal timer arming will occur.
 	 * 1.25 coefficient is for the threshold to be a little bigger
 	 * then the real time to compensate for timer in-accuracy
 	 */

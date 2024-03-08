@@ -7,7 +7,7 @@
 #include <linux/ip.h>
 #include <linux/rculist.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <linux/netfilter/ipset/ip_set.h>
 #include <linux/netfilter/ipset/ip_set_list.h>
@@ -28,7 +28,7 @@ struct set_elem {
 	struct list_head list;
 	struct ip_set *set;	/* Sigh, in order to cleanup reference */
 	ip_set_id_t id;
-} __aligned(__alignof__(u64));
+} __aligned(__aliganalf__(u64));
 
 struct set_adt_elem {
 	ip_set_id_t id;
@@ -292,7 +292,7 @@ list_set_uadd(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	e = kzalloc(set->dsize, GFP_ATOMIC);
 	if (!e)
-		return -ENOMEM;
+		return -EANALMEM;
 	e->id = d->id;
 	e->set = set;
 	INIT_LIST_HEAD(&e->list);
@@ -344,7 +344,7 @@ list_set_udel(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 static int
 list_set_uadt(struct ip_set *set, struct nlattr *tb[],
-	      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	      enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	struct list_set *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -353,8 +353,8 @@ list_set_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct ip_set *s;
 	int ret = 0;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!tb[IPSET_ATTR_NAME] ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
@@ -628,9 +628,9 @@ list_set_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 
 	set->variant = &set_variant;
 	set->dsize = ip_set_elem_len(set, tb, sizeof(struct set_elem),
-				     __alignof__(struct set_elem));
+				     __aliganalf__(struct set_elem));
 	if (!init_list_set(net, set, size))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 		list_set_gc_init(set, list_set_gc);
@@ -658,7 +658,7 @@ static struct ip_set_type list_set_type __read_mostly = {
 		[IPSET_ATTR_NAMEREF]	= { .type = NLA_STRING,
 					    .len = IPSET_MAXNAMELEN },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
-		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINEANAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },

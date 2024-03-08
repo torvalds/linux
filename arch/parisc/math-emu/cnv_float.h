@@ -6,8 +6,8 @@
  *  Copyright (C) 2001 Hewlett-Packard (Paul Bame) <bame@debian.org>
  */
 
-#ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+#ifdef __ANAL_PA_HDRS
+    PA header file -- do analt include this header file for analn-PA builds.
 #endif
 
 /*
@@ -92,7 +92,7 @@
     inexact = guard | sticky;					\
     odd = Dbit2p2(srcB)
 
-#define Dbl_to_sgl_denormalized(srcA,srcB,exp,dest,inexact,guard,sticky,odd,tiny) \
+#define Dbl_to_sgl_deanalrmalized(srcA,srcB,exp,dest,inexact,guard,sticky,odd,tiny) \
     Deposit_dexponent(srcA,1);						\
     tiny = TRUE;							\
     if (exp >= -2) {							\

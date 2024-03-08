@@ -8,7 +8,7 @@
 	 */
 	.type		__spitfire_access_error,#function
 __spitfire_access_error:
-	/* Disable ESTATE error reporting so that we do not take
+	/* Disable ESTATE error reporting so that we do analt take
 	 * recursive traps and RED state the processor.
 	 */
 	stxa		%g0, [%g0] ASI_ESTATE_ERROR_EN
@@ -25,7 +25,7 @@ __spitfire_cee_trap_continue:
 	ldxa		[%g0] ASI_AFAR, %g5	! Get AFAR
 
 	rdpr		%tt, %g3
-	and		%g3, 0x1ff, %g3		! Paranoia
+	and		%g3, 0x1ff, %g3		! Paraanalia
 	sllx		%g3, SFSTAT_TRAP_TYPE_SHIFT, %g3
 	or		%g4, %g3, %g4
 	rdpr		%tl, %g3
@@ -41,7 +41,7 @@ __spitfire_cee_trap_continue:
 	 * set.  Likewise, __spitfire_cee_trap below will only do so
 	 * if the CE bit is set.
 	 *
-	 * NOTE: UltraSparc-I/II have high and low UDB error
+	 * ANALTE: UltraSparc-I/II have high and low UDB error
 	 *       registers, corresponding to the two UDB units
 	 *       present on those chips.  UltraSparc-IIi only
 	 *       has a single UDB, called "SDB" in the manual.
@@ -50,28 +50,28 @@ __spitfire_cee_trap_continue:
 	 *       work with the checks below.
 	 */
 1:	ldxa		[%g0] ASI_UDBH_ERROR_R, %g3
-	and		%g3, 0x3ff, %g7		! Paranoia
+	and		%g3, 0x3ff, %g7		! Paraanalia
 	sllx		%g7, SFSTAT_UDBH_SHIFT, %g7
 	or		%g4, %g7, %g4
 	andcc		%g3, %g1, %g3		! UDBE_UE or UDBE_CE
 	be,pn		%xcc, 1f
-	 nop
+	 analp
 	stxa		%g3, [%g0] ASI_UDB_ERROR_W
 	membar		#Sync
 
 1:	mov		0x18, %g3
 	ldxa		[%g3] ASI_UDBL_ERROR_R, %g3
-	and		%g3, 0x3ff, %g7		! Paranoia
+	and		%g3, 0x3ff, %g7		! Paraanalia
 	sllx		%g7, SFSTAT_UDBL_SHIFT, %g7
 	or		%g4, %g7, %g4
 	andcc		%g3, %g1, %g3		! UDBE_UE or UDBE_CE
 	be,pn		%xcc, 1f
-	 nop
+	 analp
 	mov		0x18, %g7
 	stxa		%g3, [%g7] ASI_UDB_ERROR_W
 	membar		#Sync
 
-1:	/* Ok, now that we've latched the error state, clear the
+1:	/* Ok, analw that we've latched the error state, clear the
 	 * sticky bits in the AFSR.
 	 */
 	stxa		%g4, [%g0] ASI_AFSR
@@ -81,13 +81,13 @@ __spitfire_cee_trap_continue:
 	cmp		%g2, 1
 	rdpr		%pil, %g2
 	bleu,pt		%xcc, 1f
-	 wrpr		%g0, PIL_NORMAL_MAX, %pil
+	 wrpr		%g0, PIL_ANALRMAL_MAX, %pil
 
 	ba,pt		%xcc, etraptl1
 	 rd		%pc, %g7
 
 	ba,a,pt		%xcc, 2f
-	 nop
+	 analp
 
 1:	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
@@ -95,7 +95,7 @@ __spitfire_cee_trap_continue:
 2:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call	trace_hardirqs_off
-	 nop
+	 analp
 #endif
 	mov		%l4, %o1
 	mov		%l5, %o2
@@ -127,7 +127,7 @@ __spitfire_cee_trap_continue:
 	 * uncorrectable error is indicated in the AFSR we will branch
 	 * directly above to __spitfire_access_error to handle it
 	 * instead.  Uncorrectable therefore takes priority over
-	 * correctable, and the error logging C code will notice this
+	 * correctable, and the error logging C code will analtice this
 	 * case by inspecting the trap type.
 	 */
 	.type		__spitfire_cee_trap,#function
@@ -137,7 +137,7 @@ __spitfire_cee_trap:
 	sllx		%g3, SFAFSR_UE_SHIFT, %g3
 	andcc		%g4, %g3, %g0		! Check for UE
 	bne,pn		%xcc, __spitfire_access_error
-	 nop
+	 analp
 
 	/* Ok, in this case we only have a correctable error.
 	 * Indicate we only wish to capture that state in register
@@ -169,7 +169,7 @@ __spitfire_data_access_exception_tl1:
 	blu,pn		%xcc, 1f
 	 cmp		%g3, 0xff		! last win spill/fill trap
 	bgu,pn		%xcc, 1f
-	 nop
+	 analp
 	ba,pt		%xcc, winfix_dax
 	 rdpr		%tpc, %g3
 1:	sethi		%hi(109f), %g7
@@ -208,7 +208,7 @@ __spitfire_insn_access_exception_tl1:
 	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
 	mov		TLB_SFSR, %g3
 	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
-	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
+	rdpr		%tpc, %g5		! IMMU has anal SFAR, use TPC
 	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
 	membar		#Sync
 	sethi		%hi(109f), %g7
@@ -227,7 +227,7 @@ __spitfire_insn_access_exception:
 	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
 	mov		TLB_SFSR, %g3
 	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
-	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
+	rdpr		%tpc, %g5		! IMMU has anal SFAR, use TPC
 	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
 	membar		#Sync
 	sethi		%hi(109f), %g7

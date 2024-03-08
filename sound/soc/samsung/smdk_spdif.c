@@ -22,14 +22,14 @@ static int set_audio_clock_heirachy(struct platform_device *pdev)
 
 	fout_epll = clk_get(NULL, "fout_epll");
 	if (IS_ERR(fout_epll)) {
-		printk(KERN_WARNING "%s: Cannot find fout_epll.\n",
+		printk(KERN_WARNING "%s: Cananalt find fout_epll.\n",
 				__func__);
 		return -EINVAL;
 	}
 
 	mout_epll = clk_get(NULL, "mout_epll");
 	if (IS_ERR(mout_epll)) {
-		printk(KERN_WARNING "%s: Cannot find mout_epll.\n",
+		printk(KERN_WARNING "%s: Cananalt find mout_epll.\n",
 				__func__);
 		ret = -EINVAL;
 		goto out1;
@@ -37,7 +37,7 @@ static int set_audio_clock_heirachy(struct platform_device *pdev)
 
 	sclk_audio0 = clk_get(&pdev->dev, "sclk_audio");
 	if (IS_ERR(sclk_audio0)) {
-		printk(KERN_WARNING "%s: Cannot find sclk_audio.\n",
+		printk(KERN_WARNING "%s: Cananalt find sclk_audio.\n",
 				__func__);
 		ret = -EINVAL;
 		goto out2;
@@ -45,7 +45,7 @@ static int set_audio_clock_heirachy(struct platform_device *pdev)
 
 	sclk_spdif = clk_get(NULL, "sclk_spdif");
 	if (IS_ERR(sclk_spdif)) {
-		printk(KERN_WARNING "%s: Cannot find sclk_spdif.\n",
+		printk(KERN_WARNING "%s: Cananalt find sclk_spdif.\n",
 				__func__);
 		ret = -EINVAL;
 		goto out3;
@@ -68,7 +68,7 @@ out1:
 }
 
 /* We should haved to set clock directly on this part because of clock
- * scheme of Samsudng SoCs did not support to set rates from abstrct
+ * scheme of Samsudng SoCs did analt support to set rates from abstrct
  * clock of it's hierarchy.
  */
 static int set_audio_clock_rate(unsigned long epll_rate,
@@ -79,7 +79,7 @@ static int set_audio_clock_rate(unsigned long epll_rate,
 	fout_epll = clk_get(NULL, "fout_epll");
 	if (IS_ERR(fout_epll)) {
 		printk(KERN_ERR "%s: failed to get fout_epll\n", __func__);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	clk_set_rate(fout_epll, epll_rate);
@@ -88,7 +88,7 @@ static int set_audio_clock_rate(unsigned long epll_rate,
 	sclk_spdif = clk_get(NULL, "sclk_spdif");
 	if (IS_ERR(sclk_spdif)) {
 		printk(KERN_ERR "%s: failed to get sclk_spdif\n", __func__);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	clk_set_rate(sclk_spdif, audio_rate);
@@ -170,7 +170,7 @@ static int __init smdk_init(void)
 
 	smdk_snd_spdif_dit_device = platform_device_alloc("spdif-dit", -1);
 	if (!smdk_snd_spdif_dit_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_device_add(smdk_snd_spdif_dit_device);
 	if (ret)
@@ -178,7 +178,7 @@ static int __init smdk_init(void)
 
 	smdk_snd_spdif_device = platform_device_alloc("soc-audio", -1);
 	if (!smdk_snd_spdif_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err2;
 	}
 

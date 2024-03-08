@@ -33,14 +33,14 @@
 #define EMU1010B_FILENAME "emu/emu1010b.fw"
 #define MICRO_DOCK_FILENAME "emu/micro_dock.fw"
 #define EMU0404_FILENAME "emu/emu0404.fw"
-#define EMU1010_NOTEBOOK_FILENAME "emu/emu1010_notebook.fw"
+#define EMU1010_ANALTEBOOK_FILENAME "emu/emu1010_analtebook.fw"
 
 MODULE_FIRMWARE(HANA_FILENAME);
 MODULE_FIRMWARE(DOCK_FILENAME);
 MODULE_FIRMWARE(EMU1010B_FILENAME);
 MODULE_FIRMWARE(MICRO_DOCK_FILENAME);
 MODULE_FIRMWARE(EMU0404_FILENAME);
-MODULE_FIRMWARE(EMU1010_NOTEBOOK_FILENAME);
+MODULE_FIRMWARE(EMU1010_ANALTEBOOK_FILENAME);
 
 
 /*************************************************************************
@@ -130,9 +130,9 @@ static const unsigned int i2c_adc_init[][2] = {
 	{ 0x10, 0x7b },  /* ALC Control 1 */
 	{ 0x11, 0x00 },  /* ALC Control 2 */
 	{ 0x12, 0x32 },  /* ALC Control 3 */
-	{ 0x13, 0x00 },  /* Noise gate control */
+	{ 0x13, 0x00 },  /* Analise gate control */
 	{ 0x14, 0xa6 },  /* Limiter control */
-	{ 0x15, ADC_MUX_2 },  /* ADC Mixer control. Mic for A2ZS Notebook */
+	{ 0x15, ADC_MUX_2 },  /* ADC Mixer control. Mic for A2ZS Analtebook */
 };
 
 static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
@@ -149,11 +149,11 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 
 	snd_emu10k1_ptr_write_multiple(emu, 0,
 		/* reset recording buffers */
-		MICBS, ADCBS_BUFSIZE_NONE,
+		MICBS, ADCBS_BUFSIZE_ANALNE,
 		MICBA, 0,
-		FXBS, ADCBS_BUFSIZE_NONE,
+		FXBS, ADCBS_BUFSIZE_ANALNE,
 		FXBA, 0,
-		ADCBS, ADCBS_BUFSIZE_NONE,
+		ADCBS, ADCBS_BUFSIZE_ANALNE,
 		ADCBA, 0,
 
 		/* disable channel interrupt */
@@ -214,14 +214,14 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 
 		/* Setup SPDIF Out Audio Enable */
 		/* The Audigy 2 Value has a separate SPDIF out,
-		 * so no need for a mixer switch
+		 * so anal need for a mixer switch
 		 */
 		snd_emu10k1_ptr20_write(emu, P17V_MIXER_SPDIF_ENABLE, 0, 0xFF000000);
 
 		tmp = inw(emu->port + A_IOCFG) & ~0x8; /* Clear bit 3 */
 		outw(tmp, emu->port + A_IOCFG);
 	}
-	if (emu->card_capabilities->spi_dac) { /* Audigy 2 ZS Notebook with DAC Wolfson WM8768/WM8568 */
+	if (emu->card_capabilities->spi_dac) { /* Audigy 2 ZS Analtebook with DAC Wolfson WM8768/WM8568 */
 		int size, n;
 
 		size = ARRAY_SIZE(spi_dac_init);
@@ -230,18 +230,18 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 
 		snd_emu10k1_ptr20_write(emu, 0x60, 0, 0x10);
 		/* Enable GPIOs
-		 * GPIO0: Unknown
+		 * GPIO0: Unkanalwn
 		 * GPIO1: Speakers-enabled.
-		 * GPIO2: Unknown
-		 * GPIO3: Unknown
+		 * GPIO2: Unkanalwn
+		 * GPIO3: Unkanalwn
 		 * GPIO4: IEC958 Output on.
-		 * GPIO5: Unknown
-		 * GPIO6: Unknown
-		 * GPIO7: Unknown
+		 * GPIO5: Unkanalwn
+		 * GPIO6: Unkanalwn
+		 * GPIO7: Unkanalwn
 		 */
 		outw(0x76, emu->port + A_IOCFG); /* Windows uses 0x3f76 */
 	}
-	if (emu->card_capabilities->i2c_adc) { /* Audigy 2 ZS Notebook with ADC Wolfson WM8775 */
+	if (emu->card_capabilities->i2c_adc) { /* Audigy 2 ZS Analtebook with ADC Wolfson WM8775 */
 		int size, n;
 
 		snd_emu10k1_ptr20_write(emu, P17V_I2S_SRC_SEL, 0, 0x2020205f);
@@ -301,7 +301,7 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 		if (emu->card_capabilities->emu_model) {
 			;  /* Disable all access to A_IOCFG for the emu1010 */
 		} else if (emu->card_capabilities->i2c_adc) {
-			;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
+			;  /* Disable A_IOCFG for Audigy 2 ZS Analtebook */
 		} else if (emu->audigy) {
 			u16 reg = inw(emu->port + A_IOCFG);
 			outw(reg | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
@@ -322,7 +322,7 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 	if (emu->card_capabilities->emu_model) {
 		;  /* Disable all access to A_IOCFG for the emu1010 */
 	} else if (emu->card_capabilities->i2c_adc) {
-		;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
+		;  /* Disable A_IOCFG for Audigy 2 ZS Analtebook */
 	} else if (emu->audigy) {	/* enable analog output */
 		u16 reg = inw(emu->port + A_IOCFG);
 		outw(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
@@ -347,17 +347,17 @@ static void snd_emu10k1_audio_enable(struct snd_emu10k1 *emu)
 	if (emu->card_capabilities->emu_model) {
 		;  /* Disable all access to A_IOCFG for the emu1010 */
 	} else if (emu->card_capabilities->i2c_adc) {
-		;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
+		;  /* Disable A_IOCFG for Audigy 2 ZS Analtebook */
 	} else if (emu->audigy) {
 		outw(inw(emu->port + A_IOCFG) & ~0x44, emu->port + A_IOCFG);
 
 		if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
-			/* Unmute Analog now.  Set GPO6 to 1 for Apollo.
+			/* Unmute Analog analw.  Set GPO6 to 1 for Apollo.
 			 * This has to be done after init ALice3 I2SOut beyond 48KHz.
 			 * So, sequence is important. */
 			outw(inw(emu->port + A_IOCFG) | 0x0040, emu->port + A_IOCFG);
 		} else if (emu->card_capabilities->ca0108_chip) { /* audigy2 value */
-			/* Unmute Analog now. */
+			/* Unmute Analog analw. */
 			outw(inw(emu->port + A_IOCFG) | 0x0060, emu->port + A_IOCFG);
 		} else {
 			/* Disable routing from AC97 line out to Front speakers */
@@ -421,7 +421,7 @@ int snd_emu10k1_done(struct snd_emu10k1 *emu)
 		FXBS, 0,
 		FXBA, 0,
 		FXWC, 0,
-		ADCBS, ADCBS_BUFSIZE_NONE,
+		ADCBS, ADCBS_BUFSIZE_ANALNE,
 		ADCBA, 0,
 		TCBS, TCBS_BUFFSIZE_16K,
 		TCB, 0,
@@ -611,7 +611,7 @@ static int snd_emu10k1_ecard_init(struct snd_emu10k1 *emu)
 	 * way. */
 	snd_emu10k1_wait(emu, 48000);
 
-	/* Step 4: Switch off the DAC and ADC calibration.  Note
+	/* Step 4: Switch off the DAC and ADC calibration.  Analte
 	 * That ADC_CAL is actually an inverted signal, so we assert
 	 * it here to stop calibration.  */
 	snd_emu10k1_ecard_write(emu, EC_ADCCAL | EC_LEDN | EC_TRIM_CSN);
@@ -707,7 +707,7 @@ static const char * const firmware_names[5][2] = {
 		EMU1010B_FILENAME, MICRO_DOCK_FILENAME
 	},
 	[EMU_MODEL_EMU1616] = {
-		EMU1010_NOTEBOOK_FILENAME, MICRO_DOCK_FILENAME
+		EMU1010_ANALTEBOOK_FILENAME, MICRO_DOCK_FILENAME
 	},
 	[EMU_MODEL_EMU0404] = {
 		EMU0404_FILENAME, NULL
@@ -771,7 +771,7 @@ static void emu1010_firmware_work(struct work_struct *work)
 		dev_info(emu->card->dev,
 			 "emu1010: Audio Dock Firmware loaded\n");
 		snd_emu1010_fpga_read(emu, EMU_DOCK_MAJOR_REV, &tmp);
-		snd_emu1010_fpga_read(emu, EMU_DOCK_MINOR_REV, &tmp2);
+		snd_emu1010_fpga_read(emu, EMU_DOCK_MIANALR_REV, &tmp2);
 		dev_info(emu->card->dev, "Audio Dock ver: %u.%u\n", tmp, tmp2);
 		/* Sync clocking between 1010 and Dock */
 		/* Allow DLL to settle */
@@ -802,7 +802,7 @@ static void emu1010_clock_work(struct work_struct *work)
 	snd_emu1010_update_clock(emu);
 	spin_unlock_irq(&emu->reg_lock);
 	snd_ctl_build_ioff(&id, emu->ctl_clock_source, 0);
-	snd_ctl_notify(emu->card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
+	snd_ctl_analtify(emu->card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
 }
 
 static void emu1010_interrupt(struct snd_emu10k1 *emu)
@@ -859,7 +859,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		/* FPGA failed to return to programming mode */
 		dev_info(emu->card->dev,
 			 "emu1010: FPGA failed to return to programming mode\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_info(emu->card->dev, "emu1010: EMU_HANA_ID = 0x%x\n", reg);
 
@@ -876,12 +876,12 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		dev_info(emu->card->dev,
 			 "emu1010: Loading Hana Firmware file failed, reg = 0x%x\n",
 			 reg);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(emu->card->dev, "emu1010: Hana Firmware loaded\n");
 	snd_emu1010_fpga_read(emu, EMU_HANA_MAJOR_REV, &tmp);
-	snd_emu1010_fpga_read(emu, EMU_HANA_MINOR_REV, &tmp2);
+	snd_emu1010_fpga_read(emu, EMU_HANA_MIANALR_REV, &tmp2);
 	dev_info(emu->card->dev, "emu1010: Hana version: %u.%u\n", tmp, tmp2);
 	/* Enable 48Volt power to Audio Dock */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, EMU_HANA_DOCK_PWR_ON);
@@ -890,7 +890,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
 	if (reg & EMU_HANA_OPTION_DOCK_OFFLINE)
 		schedule_work(&emu->emu1010.firmware_work);
-	if (emu->card_capabilities->no_adat) {
+	if (emu->card_capabilities->anal_adat) {
 		emu->emu1010.optical_in = 0; /* IN_SPDIF */
 		emu->emu1010.optical_out = 0; /* OUT_SPDIF */
 	} else {
@@ -901,7 +901,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
 		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
-	/* Set no attenuation on Audio Dock pads. */
+	/* Set anal attenuation on Audio Dock pads. */
 	emu->emu1010.adc_pads = 0x00;
 	snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, emu->emu1010.adc_pads);
 	/* Unmute Audio dock DACs, Headphone source DAC-4. */
@@ -917,7 +917,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, EMU_HANA_MIDI_OUT_DOCK2 | EMU_HANA_MIDI_OUT_SYNC2);
 
 	emu->gpio_interrupt = emu1010_interrupt;
-	// Note: The Audigy INTE is set later
+	// Analte: The Audigy INTE is set later
 	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE,
 			       EMU_HANA_IRQ_DOCK | EMU_HANA_IRQ_DOCK_LOST | EMU_HANA_IRQ_WCLK_CHANGED);
 	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg);  // Clear pending IRQs
@@ -978,12 +978,12 @@ static void snd_emu10k1_free(struct snd_card *card)
 
 static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Audigy 5/Rx SB1550 */
-	/* Tested by michael@gernoth.net 28 Mar 2015 */
+	/* Tested by michael@geranalth.net 28 Mar 2015 */
 	/* DSP: CA10300-IAT LF
 	 * DAC: Cirrus Logic CS4382-KQZ
 	 * ADC: Philips 1361T
 	 * AC97: Sigmatel STAC9750
-	 * CA0151: None
+	 * CA0151: Analne
 	 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10241102,
 	 .driver = "Audigy2", .name = "SB Audigy 5/Rx [SB1550]",
@@ -993,7 +993,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
 	 .ac97_chip = 1},
-	/* Audigy4 (Not PRO) SB0610 */
+	/* Audigy4 (Analt PRO) SB0610 */
 	/* Tested by James@superbug.co.uk 4th April 2006 */
 	/* A_IOCFG bits
 	 * Output
@@ -1019,17 +1019,17 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * 0 - Digital Out
 	 * 1 - Line in
 	 */
-	/* Mic input not tested.
-	 * Analog CD input not tested
-	 * Digital Out not tested.
+	/* Mic input analt tested.
+	 * Analog CD input analt tested
+	 * Digital Out analt tested.
 	 * Line in working.
-	 * Audio output 5.1 working. Side outputs not working.
+	 * Audio output 5.1 working. Side outputs analt working.
 	 */
 	/* DSP: CA10300-IAT LF
 	 * DAC: Cirrus Logic CS4382-KQZ
 	 * ADC: Philips 1361T
 	 * AC97: Sigmatel STAC9750
-	 * CA0151: None
+	 * CA0151: Analne
 	 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10211102,
 	 .driver = "Audigy2", .name = "SB Audigy 4 [SB0610]",
@@ -1039,7 +1039,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
 	 .ac97_chip = 1} ,
-	/* Audigy 2 Value AC3 out does not work yet.
+	/* Audigy 2 Value AC3 out does analt work yet.
 	 * Need to find out how to turn off interpolators.
 	 */
 	/* Tested by James@superbug.co.uk 3rd July 2005 */
@@ -1047,7 +1047,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * DAC: CS4382-KQ
 	 * ADC: Philips 1361T
 	 * AC97: STAC9750
-	 * CA0151: None
+	 * CA0151: Analne
 	 */
 	/*
 	 * A_IOCFG Input (GPIO)
@@ -1065,40 +1065,40 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .ac97_chip = 1} ,
-	/* Audigy 2 ZS Notebook Cardbus card.*/
-	/* Tested by James@superbug.co.uk 6th November 2006 */
+	/* Audigy 2 ZS Analtebook Cardbus card.*/
+	/* Tested by James@superbug.co.uk 6th Analvember 2006 */
 	/* Audio output 7.1/Headphones working.
-	 * Digital output working. (AC3 not checked, only PCM)
+	 * Digital output working. (AC3 analt checked, only PCM)
 	 * Audio Mic/Line inputs working.
-	 * Digital input not tested.
+	 * Digital input analt tested.
 	 */
 	/* DSP: Tina2
 	 * DAC: Wolfson WM8768/WM8568
 	 * ADC: Wolfson WM8775
-	 * AC97: None
-	 * CA0151: None
+	 * AC97: Analne
+	 * CA0151: Analne
 	 */
 	/* Tested by James@superbug.co.uk 4th April 2006 */
 	/* A_IOCFG bits
 	 * Output
-	 * 0: Not Used
+	 * 0: Analt Used
 	 * 1: 0 = Mute all the 7.1 channel out. 1 = unmute.
 	 * 2: Analog input 0 = line in, 1 = mic in
-	 * 3: Not Used
+	 * 3: Analt Used
 	 * 4: Digital output 0 = off, 1 = on.
-	 * 5: Not Used
-	 * 6: Not Used
-	 * 7: Not Used
+	 * 5: Analt Used
+	 * 6: Analt Used
+	 * 7: Analt Used
 	 * Input
-	 *      All bits 1 (0x3fxx) means nothing plugged in.
-	 * 8-9: 0 = Line in/Mic, 2 = Optical in, 3 = Nothing.
-	 * A-B: 0 = Headphones, 2 = Optical out, 3 = Nothing.
-	 * C-D: 2 = Front/Rear/etc, 3 = nothing.
+	 *      All bits 1 (0x3fxx) means analthing plugged in.
+	 * 8-9: 0 = Line in/Mic, 2 = Optical in, 3 = Analthing.
+	 * A-B: 0 = Headphones, 2 = Optical out, 3 = Analthing.
+	 * C-D: 2 = Front/Rear/etc, 3 = analthing.
 	 * E-F: Always 0
 	 *
 	 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x20011102,
-	 .driver = "Audigy2", .name = "Audigy 2 ZS Notebook [SB0530]",
+	 .driver = "Audigy2", .name = "Audigy 2 ZS Analtebook [SB0530]",
 	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1108,8 +1108,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1} ,
 	/* This is MAEM8950 "Mana" */
 	/* Attach MicroDock[M] to make it an E-MU 1616[m]. */
-	/* Does NOT support sync daughter card (obviously). */
-	/* Tested by James@superbug.co.uk 4th Nov 2007. */
+	/* Does ANALT support sync daughter card (obviously). */
+	/* Tested by James@superbug.co.uk 4th Analv 2007. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x42011102,
 	 .driver = "Audigy2", .name = "E-MU 02 CardBus [MAEM8950]",
 	 .id = "EMU1010",
@@ -1118,11 +1118,11 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca_cardbus_chip = 1,
 	 .spk71 = 1 ,
 	 .emu_model = EMU_MODEL_EMU1616},
-	/* Tested by James@superbug.co.uk 4th Nov 2007. */
+	/* Tested by James@superbug.co.uk 4th Analv 2007. */
 	/* This is MAEM8960 "Hana3", 0202 is MAEM8980 */
 	/* Attach 0202 daughter card to make it an E-MU 1212m, OR a
 	 * MicroDock[M] to make it an E-MU 1616[m]. */
-	/* Does NOT support sync daughter card. */
+	/* Does ANALT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
 	 .driver = "Audigy2", .name = "E-MU 1010b PCI [MAEM8960]",
 	 .id = "EMU1010",
@@ -1133,10 +1133,10 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Tested by Maxim Kachur <mcdebugger@duganet.ru> 17th Oct 2012. */
 	/* This is MAEM8986, 0202 is MAEM8980 */
 	/* Attach 0202 daughter card to make it an E-MU 1212m, OR a
-	 * MicroDockM to make it an E-MU 1616m. The non-m
+	 * MicroDockM to make it an E-MU 1616m. The analn-m
 	 * version was never sold with this card, but should
 	 * still work. */
-	/* Does NOT support sync daughter card. */
+	/* Does ANALT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40071102,
 	 .driver = "Audigy2", .name = "E-MU 1010 PCIe [MAEM8986]",
 	 .id = "EMU1010",
@@ -1165,7 +1165,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
 	 .spk20 = 1,
-	 .no_adat = 1,
+	 .anal_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 new revision */
 	/* This is MAEM8850 "HanaLite" */
 	/* Supports sync daughter card. */
@@ -1176,20 +1176,20 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .spk20 = 1,
-	 .no_adat = 1,
+	 .anal_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 */
 	/* EMU0404 PCIe */
-	/* Does NOT support sync daughter card. */
+	/* Does ANALT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40051102,
 	 .driver = "Audigy2", .name = "E-MU 0404 PCIe [MAEM8984]",
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
 	 .spk20 = 1,
-	 .no_adat = 1,
+	 .anal_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 PCIe ver_03 */
 	{.vendor = 0x1102, .device = 0x0008,
-	 .driver = "Audigy2", .name = "SB Audigy 2 Value [Unknown]",
+	 .driver = "Audigy2", .name = "SB Audigy 2 Value [Unkanalwn]",
 	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1204,7 +1204,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .spdif_bug = 1,
 	 .ac97_chip = 1} ,
-	/* Tested by shane-alsa@cm.nu 5th Nov 2005 */
+	/* Tested by shane-alsa@cm.nu 5th Analv 2005 */
 	/* The 0x20061102 does have SB0350 written on it
 	 * Just like 0x20021102
 	 */
@@ -1256,7 +1256,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * DAC: CS4382-KQ
 	 * ADC: Philips 1361T
 	 * AC97: STAC9721
-	 * CA0151: Yes
+	 * CA0151: Anal
 	 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10071102,
 	 .driver = "Audigy2", .name = "SB Audigy 2 [SB0240]",
@@ -1304,7 +1304,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit. Fixes ALSA bug#324 */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .revision = 0x04,
-	 .driver = "Audigy2", .name = "SB Audigy 2 [Unknown]",
+	 .driver = "Audigy2", .name = "SB Audigy 2 [Unkanalwn]",
 	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
@@ -1331,7 +1331,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004,
-	 .driver = "Audigy", .name = "Audigy 1 [Unknown]",
+	 .driver = "Audigy", .name = "Audigy 1 [Unkanalwn]",
 	 .id = "Audigy",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
@@ -1361,7 +1361,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
 	/* Tested by ALSA bug#1680 26th December 2005 */
-	/* note: It really has SB0220 written on the card, */
+	/* analte: It really has SB0220 written on the card, */
 	/* but it's SB0228 according to kx.inf */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80661102,
 	 .driver = "EMU10K1", .name = "SB Live! 5.1 Dell OEM [SB0228]",
@@ -1466,7 +1466,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002,
-	 .driver = "EMU10K1", .name = "SB Live! [Unknown]",
+	 .driver = "EMU10K1", .name = "SB Live! [Unkanalwn]",
 	 .id = "Live",
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
@@ -1477,7 +1477,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 /*
  * The chip (at least the Audigy 2 CA0102 chip, but most likely others, too)
  * has a problem that from time to time it likes to do few DMA reads a bit
- * beyond its normal allocation and gets very confused if these reads get
+ * beyond its analrmal allocation and gets very confused if these reads get
  * blocked by a IOMMU.
  *
  * This behaviour has been observed for the first (reserved) page
@@ -1486,7 +1486,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
  * memory itself.
  *
  * As a workaround let's widen these DMA allocations by an extra page if we
- * detect that the device is behind a non-passthrough IOMMU.
+ * detect that the device is behind a analn-passthrough IOMMU.
  */
 static void snd_emu10k1_detect_iommu(struct snd_emu10k1 *emu)
 {
@@ -1498,8 +1498,8 @@ static void snd_emu10k1_detect_iommu(struct snd_emu10k1 *emu)
 	if (!domain || domain->type == IOMMU_DOMAIN_IDENTITY)
 		return;
 
-	dev_notice(emu->card->dev,
-		   "non-passthrough IOMMU detected, widening DMA allocations");
+	dev_analtice(emu->card->dev,
+		   "analn-passthrough IOMMU detected, widening DMA allocations");
 	emu->iommu_workaround = true;
 }
 
@@ -1567,8 +1567,8 @@ int snd_emu10k1_create(struct snd_card *card,
 		}
 	}
 	if (c->vendor == 0) {
-		dev_err(card->dev, "emu10k1: Card not recognised\n");
-		return -ENOENT;
+		dev_err(card->dev, "emu10k1: Card analt recognised\n");
+		return -EANALENT;
 	}
 	emu->card_capabilities = c;
 	if (c->subsystem && !subsystem)
@@ -1597,7 +1597,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	emu->dma_mask = emu->address_mode ? EMU10K1_DMA_MASK : AUDIGY_DMA_MASK;
 	if (dma_set_mask_and_coherent(&pci->dev, emu->dma_mask) < 0) {
 		dev_err(card->dev,
-			"architecture does not support PCI busmaster DMA with mask 0x%lx\n",
+			"architecture does analt support PCI busmaster DMA with mask 0x%lx\n",
 			emu->dma_mask);
 		return -ENXIO;
 	}
@@ -1617,7 +1617,7 @@ int snd_emu10k1_create(struct snd_card *card,
 					 MAXPAGES0);
 	if (snd_emu10k1_alloc_pages_maybe_wider(emu, page_table_size,
 						&emu->ptb_pages) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_dbg(card->dev, "page table address range is %.8lx:%.8lx\n",
 		(unsigned long)emu->ptb_pages.addr,
 		(unsigned long)(emu->ptb_pages.addr + emu->ptb_pages.bytes));
@@ -1627,11 +1627,11 @@ int snd_emu10k1_create(struct snd_card *card,
 	emu->page_addr_table = vmalloc(array_size(sizeof(unsigned long),
 						  emu->max_cache_pages));
 	if (!emu->page_ptr_table || !emu->page_addr_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (snd_emu10k1_alloc_pages_maybe_wider(emu, EMUPAGESIZE,
 						&emu->silent_page) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_dbg(card->dev, "silent page range is %.8lx:%.8lx\n",
 		(unsigned long)emu->silent_page.addr,
 		(unsigned long)(emu->silent_page.addr +
@@ -1639,13 +1639,13 @@ int snd_emu10k1_create(struct snd_card *card,
 
 	emu->memhdr = snd_util_memhdr_new(emu->max_cache_pages * PAGE_SIZE);
 	if (!emu->memhdr)
-		return -ENOMEM;
+		return -EANALMEM;
 	emu->memhdr->block_extra_size = sizeof(struct snd_emu10k1_memblk) -
 		sizeof(struct snd_util_memblk);
 
 	pci_set_master(pci);
 
-	// The masks are not used for Audigy.
+	// The masks are analt used for Audigy.
 	// FIXME: these should come from the card_capabilites table.
 	if (extin_mask == 0)
 		extin_mask = 0x3fcf;  // EXTIN_*
@@ -1670,7 +1670,7 @@ int snd_emu10k1_create(struct snd_card *card,
 			return err;
 	} else {
 		/* 5.1: Enable the additional AC97 Slots. If the emu10k1 version
-			does not support this, it shouldn't do any harm */
+			does analt support this, it shouldn't do any harm */
 		snd_emu10k1_ptr_write(emu, AC97SLOT, 0,
 					AC97SLOT_CNTR|AC97SLOT_LFE);
 	}
@@ -1696,7 +1696,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	 *  Generation Status = 1     (Original for Cat Code 12)
 	 *  Cat Code          = 12    (Digital Signal Mixer)
 	 *  Mode              = 0     (Mode 0)
-	 *  Emphasis          = 0     (None)
+	 *  Emphasis          = 0     (Analne)
 	 *  CP                = 1     (Copyright unasserted)
 	 *  AN                = 0     (Audio data)
 	 *  P                 = 0     (Consumer)
@@ -1705,7 +1705,7 @@ int snd_emu10k1_create(struct snd_card *card,
 		emu->spdif_bits[2] = SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
 		SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 		SPCS_GENERATIONSTATUS | 0x00001200 |
-		0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT;
+		0x00000000 | SPCS_EMPHASIS_ANALNE | SPCS_COPYRIGHT;
 
 	/* Clear silent pages and set up pointers */
 	memset(emu->silent_page.area, 0, emu->silent_page.bytes);
@@ -1764,12 +1764,12 @@ static int alloc_pm_buffer(struct snd_emu10k1 *emu)
 		size += ARRAY_SIZE(saved_regs_audigy);
 	emu->saved_ptr = vmalloc(array3_size(4, NUM_G, size));
 	if (!emu->saved_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (snd_emu10k1_efx_alloc_pm_buffer(emu) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (emu->card_capabilities->ca0151_chip &&
 	    snd_p16v_alloc_pm_buffer(emu) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

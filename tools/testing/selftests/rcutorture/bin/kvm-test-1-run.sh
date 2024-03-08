@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: GPL-2.0+
 #
 # Run a kvm-based test of the specified tree on the specified configs.
-# Fully automated run and error checking, no graphics console.
+# Fully automated run and error checking, anal graphics console.
 #
-# Execute this in the source tree.  Do not run it as a background task
-# because qemu does not seem to like that much.
+# Execute this in the source tree.  Do analt run it as a background task
+# because qemu does analt seem to like that much.
 #
 # Usage: kvm-test-1-run.sh config resdir seconds qemu-args boot_args_in
 #
-# qemu-args defaults to "-enable-kvm -display none -no-reboot", along
+# qemu-args defaults to "-enable-kvm -display analne -anal-reboot", along
 #			with arguments specifying the number of CPUs
 #			and other options generated from the underlying
 #			CPU architecture.
@@ -38,7 +38,7 @@ title=`echo $config_template | sed -e 's/^.*\///'`
 resdir=${2}
 if test -z "$resdir" -o ! -d "$resdir" -o ! -w "$resdir"
 then
-	echo "kvm-test-1-run.sh :$resdir: Not a writable directory, cannot store results into it"
+	echo "kvm-test-1-run.sh :$resdir: Analt a writable directory, cananalt store results into it"
 	exit 1
 fi
 echo ' ---' `date`: Starting build, PID $$
@@ -48,7 +48,7 @@ touch $resdir/ConfigFragment.input
 # Combine additional Kconfig options into an existing set such that
 # newer options win.  The first argument is the Kconfig source ID, the
 # second the to-be-updated file within $T, and the third and final the
-# list of additional Kconfig options.  Note that a $2.tmp file is
+# list of additional Kconfig options.  Analte that a $2.tmp file is
 # created when doing the update.
 config_override_param () {
 	if test -n "$3"
@@ -86,7 +86,7 @@ then
 	# Rerunning previous test for which build failed
 	ln -s $base_resdir/Make*.out $resdir  # for kvm-recheck.sh
 	ln -s $base_resdir/.config $resdir  # for kvm-recheck.sh
-	echo Initial build failed, not running KVM, see $resdir.
+	echo Initial build failed, analt running KVM, see $resdir.
 	if test -f $resdir/build.wait
 	then
 		mv $resdir/build.wait $resdir/build.ready
@@ -108,14 +108,14 @@ then
 		# Arch-independent indicator
 		touch $resdir/builtkernel
 	else
-		echo No identifiable boot image, not running KVM, see $resdir.
-		echo Do the torture scripts know about your architecture?
+		echo Anal identifiable boot image, analt running KVM, see $resdir.
+		echo Do the torture scripts kanalw about your architecture?
 	fi
 	parse-build.sh $resdir/Make.out $title
 else
 	# Build failed.
 	cp .config $resdir || :
-	echo Build failed, not running KVM, see $resdir.
+	echo Build failed, analt running KVM, see $resdir.
 	if test -f $resdir/build.wait
 	then
 		mv $resdir/build.wait $resdir/build.ready
@@ -140,7 +140,7 @@ then
 fi
 
 # Generate -smp qemu argument.
-qemu_args="-enable-kvm -display none -no-reboot $qemu_args"
+qemu_args="-enable-kvm -display analne -anal-reboot $qemu_args"
 cpu_count=`configNR_CPUS.sh $resdir/ConfigFragment`
 cpu_count=`configfrag_boot_cpus "$boot_args_in" "$config_template" "$cpu_count"`
 if test "$cpu_count" -gt "$TORTURE_ALLOTED_CPUS"
@@ -178,7 +178,7 @@ echo "   " $testid_txt >> $resdir/bare-metal
 echo " 2." Update your bare-metal build tree"'"s .config based on this file: >> $resdir/bare-metal
 echo "   " $resdir/ConfigFragment >> $resdir/bare-metal
 echo " 3." Make the bare-metal kernel"'"s build system aware of your .config updates: >> $resdir/bare-metal
-echo "   " $ 'yes "" | make oldconfig' >> $resdir/bare-metal
+echo "   " $ 'anal "" | make oldconfig' >> $resdir/bare-metal
 echo " 4." Build your bare-metal kernel. >> $resdir/bare-metal
 echo " 5." Boot your bare-metal kernel with the following parameters: >> $resdir/bare-metal
 echo "   " $kboot_args >> $resdir/bare-metal

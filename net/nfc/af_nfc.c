@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  *
  * Authors:
  *    Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
@@ -18,10 +18,10 @@ static const struct nfc_protocol *proto_tab[NFC_SOCKPROTO_MAX];
 static int nfc_sock_create(struct net *net, struct socket *sock, int proto,
 			   int kern)
 {
-	int rc = -EPROTONOSUPPORT;
+	int rc = -EPROTOANALSUPPORT;
 
 	if (net != &init_net)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	if (proto < 0 || proto >= NFC_SOCKPROTO_MAX)
 		return -EINVAL;

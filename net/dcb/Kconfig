@@ -10,7 +10,7 @@ config DCB
 
 	  DCB is a collection of Ethernet enhancements which allow DCB capable
 	  NICs and switches to support network traffic with differing
-	  requirements (highly reliable, no drops vs. best effort vs. low
+	  requirements (highly reliable, anal drops vs. best effort vs. low
 	  latency) to co-exist on Ethernet.
 
 	  DCB features include:

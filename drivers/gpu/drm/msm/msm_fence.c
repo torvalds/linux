@@ -23,7 +23,7 @@ static enum hrtimer_restart deadline_timer(struct hrtimer *t)
 
 	kthread_queue_work(fctx2gpu(fctx)->worker, &fctx->deadline_work);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void deadline_work(struct kthread_work *work)
@@ -31,7 +31,7 @@ static void deadline_work(struct kthread_work *work)
 	struct msm_fence_context *fctx = container_of(work,
 			struct msm_fence_context, deadline_work);
 
-	/* If deadline fence has already passed, nothing to do: */
+	/* If deadline fence has already passed, analthing to do: */
 	if (msm_fence_completed(fctx, fctx->next_deadline_fence))
 		return;
 
@@ -48,7 +48,7 @@ msm_fence_context_alloc(struct drm_device *dev, volatile uint32_t *fenceptr,
 
 	fctx = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (!fctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fctx->dev = dev;
 	strscpy(fctx->name, name, sizeof(fctx->name));
@@ -65,7 +65,7 @@ msm_fence_context_alloc(struct drm_device *dev, volatile uint32_t *fenceptr,
 	fctx->completed_fence = fctx->last_fence;
 	*fctx->fenceptr = fctx->last_fence;
 
-	hrtimer_init(&fctx->deadline_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&fctx->deadline_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	fctx->deadline_timer.function = deadline_timer;
 
 	kthread_init_work(&fctx->deadline_work, deadline_work);
@@ -83,7 +83,7 @@ void msm_fence_context_free(struct msm_fence_context *fctx)
 bool msm_fence_completed(struct msm_fence_context *fctx, uint32_t fence)
 {
 	/*
-	 * Note: Check completed_fence first, as fenceptr is in a write-combine
+	 * Analte: Check completed_fence first, as fenceptr is in a write-combine
 	 * mapping, so it will be more expensive to read.
 	 */
 	return (int32_t)(fctx->completed_fence - fence) >= 0 ||
@@ -127,7 +127,7 @@ static const char *msm_fence_get_timeline_name(struct dma_fence *fence)
 static bool msm_fence_signaled(struct dma_fence *fence)
 {
 	struct msm_fence *f = to_msm_fence(fence);
-	return msm_fence_completed(f->fctx, f->base.seqno);
+	return msm_fence_completed(f->fctx, f->base.seqanal);
 }
 
 static void msm_fence_set_deadline(struct dma_fence *fence, ktime_t deadline)
@@ -135,16 +135,16 @@ static void msm_fence_set_deadline(struct dma_fence *fence, ktime_t deadline)
 	struct msm_fence *f = to_msm_fence(fence);
 	struct msm_fence_context *fctx = f->fctx;
 	unsigned long flags;
-	ktime_t now;
+	ktime_t analw;
 
 	spin_lock_irqsave(&fctx->spinlock, flags);
-	now = ktime_get();
+	analw = ktime_get();
 
-	if (ktime_after(now, fctx->next_deadline) ||
+	if (ktime_after(analw, fctx->next_deadline) ||
 			ktime_before(deadline, fctx->next_deadline)) {
 		fctx->next_deadline = deadline;
 		fctx->next_deadline_fence =
-			max(fctx->next_deadline_fence, (uint32_t)fence->seqno);
+			max(fctx->next_deadline_fence, (uint32_t)fence->seqanal);
 
 		/*
 		 * Set timer to trigger boost 3ms before deadline, or
@@ -153,7 +153,7 @@ static void msm_fence_set_deadline(struct dma_fence *fence, ktime_t deadline)
 		 */
 		deadline = ktime_sub(deadline, ms_to_ktime(3));
 
-		if (ktime_after(now, deadline)) {
+		if (ktime_after(analw, deadline)) {
 			kthread_queue_work(fctx2gpu(fctx)->worker,
 					&fctx->deadline_work);
 		} else {
@@ -179,7 +179,7 @@ msm_fence_alloc(void)
 
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (!f)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return &f->base;
 }
@@ -193,7 +193,7 @@ msm_fence_init(struct dma_fence *fence, struct msm_fence_context *fctx)
 
 	/*
 	 * Until this point, the fence was just some pre-allocated memory,
-	 * no-one should have taken a reference to it yet.
+	 * anal-one should have taken a reference to it yet.
 	 */
 	WARN_ON(kref_read(&fence->refcount));
 

@@ -18,7 +18,7 @@
  */
 
 /*
- * The code that knows what GPIO pins do what should have declared four
+ * The code that kanalws what GPIO pins do what should have declared four
  * functions, ideally as inlines, before including this header:
  *
  *  void setsck(struct spi_device *, int is_on);
@@ -26,20 +26,20 @@
  *  int getmiso(struct spi_device *);
  *  void spidelay(unsigned);
  *
- * setsck()'s is_on parameter is a zero/nonzero boolean.
+ * setsck()'s is_on parameter is a zero/analnzero boolean.
  *
- * setmosi()'s is_on parameter is a zero/nonzero boolean.
+ * setmosi()'s is_on parameter is a zero/analnzero boolean.
  *
  * getmiso() is required to return 0 or 1 only. Any other value is invalid
  * and will result in improper operation.
  *
- * A non-inlined routine would call bitbang_txrx_*() routines.  The
+ * A analn-inlined routine would call bitbang_txrx_*() routines.  The
  * main loop could easily compile down to a handful of instructions,
- * especially if the delay is a NOP (to run at peak speed).
+ * especially if the delay is a ANALP (to run at peak speed).
  *
- * Since this is software, the timings may not be exactly what your board's
+ * Since this is software, the timings may analt be exactly what your board's
  * chips need ... there may be several reasons you'd need to tweak timings
- * in these routines, not just to make it faster or slower to match a
+ * in these routines, analt just to make it faster or slower to match a
  * particular CPU clock rate.
  *
  * ToDo: Maybe the bitrev macros can be used to improve the code?
@@ -57,7 +57,7 @@ bitbang_txrx_be_cpha0(struct spi_device *spi,
 	for (word <<= (32 - bits); likely(bits); bits--) {
 
 		/* setup MSB (to slave) on trailing edge */
-		if ((flags & SPI_CONTROLLER_NO_TX) == 0) {
+		if ((flags & SPI_CONTROLLER_ANAL_TX) == 0) {
 			if ((word & (1 << 31)) != oldbit) {
 				setmosi(spi, word & (1 << 31));
 				oldbit = word & (1 << 31);
@@ -70,7 +70,7 @@ bitbang_txrx_be_cpha0(struct spi_device *spi,
 
 		/* sample MSB (from slave) on leading edge */
 		word <<= 1;
-		if ((flags & SPI_CONTROLLER_NO_RX) == 0)
+		if ((flags & SPI_CONTROLLER_ANAL_RX) == 0)
 			word |= getmiso(spi);
 		setsck(spi, cpol);
 	}
@@ -90,7 +90,7 @@ bitbang_txrx_be_cpha1(struct spi_device *spi,
 
 		/* setup MSB (to slave) on leading edge */
 		setsck(spi, !cpol);
-		if ((flags & SPI_CONTROLLER_NO_TX) == 0) {
+		if ((flags & SPI_CONTROLLER_ANAL_TX) == 0) {
 			if ((word & (1 << 31)) != oldbit) {
 				setmosi(spi, word & (1 << 31));
 				oldbit = word & (1 << 31);
@@ -103,7 +103,7 @@ bitbang_txrx_be_cpha1(struct spi_device *spi,
 
 		/* sample MSB (from slave) on trailing edge */
 		word <<= 1;
-		if ((flags & SPI_CONTROLLER_NO_RX) == 0)
+		if ((flags & SPI_CONTROLLER_ANAL_RX) == 0)
 			word |= getmiso(spi);
 	}
 	return word;
@@ -122,7 +122,7 @@ bitbang_txrx_le_cpha0(struct spi_device *spi,
 	for (; likely(bits); bits--) {
 
 		/* setup LSB (to slave) on trailing edge */
-		if ((flags & SPI_CONTROLLER_NO_TX) == 0) {
+		if ((flags & SPI_CONTROLLER_ANAL_TX) == 0) {
 			if ((word & 1) != oldbit) {
 				setmosi(spi, word & 1);
 				oldbit = word & 1;
@@ -135,7 +135,7 @@ bitbang_txrx_le_cpha0(struct spi_device *spi,
 
 		/* sample LSB (from slave) on leading edge */
 		word >>= 1;
-		if ((flags & SPI_CONTROLLER_NO_RX) == 0)
+		if ((flags & SPI_CONTROLLER_ANAL_RX) == 0)
 			word |= getmiso(spi) << rxbit;
 		setsck(spi, cpol);
 	}
@@ -156,7 +156,7 @@ bitbang_txrx_le_cpha1(struct spi_device *spi,
 
 		/* setup LSB (to slave) on leading edge */
 		setsck(spi, !cpol);
-		if ((flags & SPI_CONTROLLER_NO_TX) == 0) {
+		if ((flags & SPI_CONTROLLER_ANAL_TX) == 0) {
 			if ((word & 1) != oldbit) {
 				setmosi(spi, word & 1);
 				oldbit = word & 1;
@@ -169,7 +169,7 @@ bitbang_txrx_le_cpha1(struct spi_device *spi,
 
 		/* sample LSB (from slave) on trailing edge */
 		word >>= 1;
-		if ((flags & SPI_CONTROLLER_NO_RX) == 0)
+		if ((flags & SPI_CONTROLLER_ANAL_RX) == 0)
 			word |= getmiso(spi) << rxbit;
 	}
 	return word;

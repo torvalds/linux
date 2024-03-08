@@ -87,6 +87,6 @@ struct task_struct;
 
 void __show_regs(struct pt_regs *regs);
 void die(struct pt_regs *regs, const char *str);
-void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr);
+void do_trap(struct pt_regs *regs, int siganal, int code, unsigned long addr);
 
 #endif /* _ASM_RISCV_BUG_H */

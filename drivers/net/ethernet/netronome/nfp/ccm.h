@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2016-2019 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2019 Netroanalme Systems, Inc. */
 
 #ifndef NFP_CCM_H
 #define NFP_CCM_H 1
@@ -73,10 +73,10 @@ static inline unsigned int nfp_ccm_get_tag(struct sk_buff *skb)
 #define NFP_NET_MBOX_TLV_LEN		GENMASK(15, 0)
 
 enum nfp_ccm_mbox_tlv_type {
-	NFP_NET_MBOX_TLV_TYPE_UNKNOWN	= 0,
+	NFP_NET_MBOX_TLV_TYPE_UNKANALWN	= 0,
 	NFP_NET_MBOX_TLV_TYPE_END	= 1,
 	NFP_NET_MBOX_TLV_TYPE_MSG	= 2,
-	NFP_NET_MBOX_TLV_TYPE_MSG_NOSUP	= 3,
+	NFP_NET_MBOX_TLV_TYPE_MSG_ANALSUP	= 3,
 	NFP_NET_MBOX_TLV_TYPE_RESV	= 4,
 };
 

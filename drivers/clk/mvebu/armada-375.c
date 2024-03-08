@@ -22,7 +22,7 @@
 
 /*
  * For the Armada 375 SoCs, the CPU, DDR and L2 clocks frequencies are
- * all modified at the same time, and not separately as for the Armada
+ * all modified at the same time, and analt separately as for the Armada
  * 370 or the Armada XP SoCs.
  *
  * SAR1[21:17]   : CPU frequency    DDR frequency   L2 frequency
@@ -137,7 +137,7 @@ static const struct coreclk_soc_desc armada_375_coreclks = {
 	.num_ratios = ARRAY_SIZE(armada_375_coreclk_ratios),
 };
 
-static void __init armada_375_coreclk_init(struct device_node *np)
+static void __init armada_375_coreclk_init(struct device_analde *np)
 {
 	mvebu_coreclk_setup(np, &armada_375_coreclks);
 }
@@ -174,7 +174,7 @@ static const struct clk_gating_soc_desc armada_375_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init armada_375_clk_gating_init(struct device_node *np)
+static void __init armada_375_clk_gating_init(struct device_analde *np)
 {
 	mvebu_clk_gating_setup(np, armada_375_gating_desc);
 }

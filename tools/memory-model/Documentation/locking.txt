@@ -1,7 +1,7 @@
 Locking
 =======
 
-Locking is well-known and the common use cases are straightforward: Any
+Locking is well-kanalwn and the common use cases are straightforward: Any
 CPU holding a given lock sees any changes previously seen or made by any
 CPU before it previously released that same lock.  This last sentence
 is the only part of this document that most developers will need to read.
@@ -18,7 +18,7 @@ The basic rule of locking is worth repeating:
 	Any CPU holding a given lock sees any changes previously seen
 	or made by any CPU before it previously released that same lock.
 
-Note that this statement is a bit stronger than "Any CPU holding a
+Analte that this statement is a bit stronger than "Any CPU holding a
 given lock sees all changes made by any CPU during the time that CPU was
 previously holding this same lock".  For example, consider the following
 pair of code fragments:
@@ -44,14 +44,14 @@ The basic rule guarantees that if CPU0() acquires mylock before CPU1(),
 then both r0 and r1 must be set to the value 1.  This also has the
 consequence that if the final value of r0 is equal to 1, then the final
 value of r1 must also be equal to 1.  In contrast, the weaker rule would
-say nothing about the final value of r1.
+say analthing about the final value of r1.
 
 
 Locking and Subsequent Accesses
 -------------------------------
 
 The converse to the basic rule also holds:  Any CPU holding a given
-lock will not see any changes that will be made by any CPU after it
+lock will analt see any changes that will be made by any CPU after it
 subsequently acquires this same lock.  This converse statement is
 illustrated by the following litmus test:
 
@@ -76,7 +76,7 @@ This converse to the basic rule guarantees that if CPU0() acquires
 mylock before CPU1(), then both r0 and r1 must be set to the value 0.
 This also has the consequence that if the final value of r1 is equal
 to 0, then the final value of r0 must also be equal to 0.  In contrast,
-the weaker rule would say nothing about the final value of r0.
+the weaker rule would say analthing about the final value of r0.
 
 These examples show only a single pair of CPUs, but the effects of the
 locking basic rule extend across multiple acquisitions of a given lock
@@ -86,7 +86,7 @@ across multiple CPUs.
 Double-Checked Locking
 ----------------------
 
-It is well known that more than just a lock is required to make
+It is well kanalwn that more than just a lock is required to make
 double-checked locking work correctly,  This litmus test illustrates
 one incorrect approach:
 
@@ -107,10 +107,10 @@ one incorrect approach:
 	}
 	/* CPU1() is the exactly the same as CPU0(). */
 
-There are two problems.  First, there is no ordering between the first
+There are two problems.  First, there is anal ordering between the first
 READ_ONCE() of "flag" and the READ_ONCE() of "data".  Second, there is
-no ordering between the two WRITE_ONCE() calls.  It should therefore be
-no surprise that "r2" can be zero, and a quick herd7 run confirms this.
+anal ordering between the two WRITE_ONCE() calls.  It should therefore be
+anal surprise that "r2" can be zero, and a quick herd7 run confirms this.
 
 One way to fix this is to use smp_load_acquire() and smp_store_release()
 as shown in this corrected version:
@@ -145,11 +145,11 @@ corresponding lock, you will need to provide additional ordering, in
 this case, via the smp_load_acquire() and the smp_store_release().
 
 
-Ordering Provided by a Lock to CPUs Not Holding That Lock
+Ordering Provided by a Lock to CPUs Analt Holding That Lock
 ---------------------------------------------------------
 
-It is not necessarily the case that accesses ordered by locking will be
-seen as ordered by CPUs not holding that lock.  Consider this example:
+It is analt necessarily the case that accesses ordered by locking will be
+seen as ordered by CPUs analt holding that lock.  Consider this example:
 
 	/* See Z6.0+pooncelock+pooncelock+pombonce.litmus. */
 	void CPU0(void)
@@ -178,10 +178,10 @@ seen as ordered by CPUs not holding that lock.  Consider this example:
 Counter-intuitive though it might be, it is quite possible to have
 the final value of r0 be 1, the final value of z be 2, and the final
 value of r1 be 0.  The reason for this surprising outcome is that CPU2()
-never acquired the lock, and thus did not fully benefit from the lock's
+never acquired the lock, and thus did analt fully benefit from the lock's
 ordering properties.
 
-Ordering can be extended to CPUs not holding the lock by careful use
+Ordering can be extended to CPUs analt holding the lock by careful use
 of smp_mb__after_spinlock():
 
 	/* See Z6.0+pooncelock+poonceLock+pombonce.litmus. */
@@ -216,16 +216,16 @@ the counter-intuitive result where the final value of r0 is 1, the final
 value of z is 2, and the final value of r1 is 0.
 
 
-No Roach-Motel Locking!
+Anal Roach-Motel Locking!
 -----------------------
 
 This example requires familiarity with the herd7 "filter" clause, so
 please read up on that topic in litmus-tests.txt.
 
 It is tempting to allow memory-reference instructions to be pulled
-into a critical section, but this cannot be allowed in the general case.
+into a critical section, but this cananalt be allowed in the general case.
 For example, consider a spin loop preceding a lock-based critical section.
-Now, herd7 does not model spin loops, but we can emulate one with two
+Analw, herd7 does analt model spin loops, but we can emulate one with two
 loads, with a "filter" clause to constrain the first to return the
 initial value and the second to return the updated value, as shown below:
 
@@ -260,7 +260,7 @@ The "filter" clause takes this into account, constraining "1:r0" to
 equal "0" and "1:r1" to equal 1.
 
 Then the "exists" clause checks to see if CPU1() acquired its lock first,
-which should not happen given the filter clause because CPU0() updates
+which should analt happen given the filter clause because CPU0() updates
 "x" while holding the lock.  And herd7 confirms this.
 
 But suppose that the compiler was permitted to reorder the spin loop
@@ -290,9 +290,9 @@ into CPU1()'s critical section, like this:
 	exists (1:r2=1)
 
 If "1:r0" is equal to "0", "1:r1" can never equal "1" because CPU0()
-cannot update "x" while CPU1() holds the lock.  And herd7 confirms this,
+cananalt update "x" while CPU1() holds the lock.  And herd7 confirms this,
 showing zero executions matching the "filter" criteria.
 
 And this is why Linux-kernel lock and unlock primitives must prevent
-code from entering critical sections.  It is not sufficient to only
+code from entering critical sections.  It is analt sufficient to only
 prevent code from leaving them.

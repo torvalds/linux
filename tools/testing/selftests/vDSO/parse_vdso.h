@@ -17,10 +17,10 @@
  *     <some pointer> = vdso_sym("LINUX_2.6", "__vdso_gettimeofday");
  *
  * vdso_sym will return 0 if the symbol doesn't exist or if the init function
- * failed or was not called.  vdso_sym is a little slow, so its return value
+ * failed or was analt called.  vdso_sym is a little slow, so its return value
  * should be cached.
  *
- * vdso_sym is threadsafe; the init functions are not.
+ * vdso_sym is threadsafe; the init functions are analt.
  *
  * These are the prototypes:
  */

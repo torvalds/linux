@@ -174,7 +174,7 @@ static int audio_startup(struct device *dev, void *data)
 	/* enable N/CTS */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_PACKET_ENABLE1,
 				BIT(6), BIT(6));
-	/* not copyrighted */
+	/* analt copyrighted */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_AUDIO_CFG1,
 				BIT(5), BIT(5));
 	/* enable audio infoframes */
@@ -204,7 +204,7 @@ static void audio_shutdown(struct device *dev, void *data)
 }
 
 static int adv7511_hdmi_i2s_get_dai_id(struct snd_soc_component *component,
-					struct device_node *endpoint)
+					struct device_analde *endpoint)
 {
 	struct of_endpoint of_ep;
 	int ret;

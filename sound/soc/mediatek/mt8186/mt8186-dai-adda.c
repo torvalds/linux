@@ -23,8 +23,8 @@ enum {
 
 enum {
 	AUDIO_SDM_LEVEL_MUTE = 0,
-	AUDIO_SDM_LEVEL_NORMAL = 0x1d,
-	/* if you change level normal */
+	AUDIO_SDM_LEVEL_ANALRMAL = 0x1d,
+	/* if you change level analrmal */
 	/* you need to change formula of hp impedance and dc trim too */
 };
 
@@ -464,7 +464,7 @@ static int adda_ul_map_value[] = {
 };
 
 static SOC_VALUE_ENUM_SINGLE_DECL(adda_ul_mux_map_enum,
-				  SND_SOC_NOPM,
+				  SND_SOC_ANALPM,
 				  0,
 				  ADDA_UL_MUX_MASK,
 				  adda_ul_mux_map,
@@ -475,10 +475,10 @@ static const struct snd_kcontrol_new adda_ul_mux_control =
 
 static const struct snd_soc_dapm_widget mtk_dai_adda_widgets[] = {
 	/* inter-connections */
-	SND_SOC_DAPM_MIXER("ADDA_DL_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("ADDA_DL_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_adda_dl_ch1_mix,
 			   ARRAY_SIZE(mtk_adda_dl_ch1_mix)),
-	SND_SOC_DAPM_MIXER("ADDA_DL_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("ADDA_DL_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_adda_dl_ch2_mix,
 			   ARRAY_SIZE(mtk_adda_dl_ch2_mix)),
 
@@ -503,7 +503,7 @@ static const struct snd_soc_dapm_widget mtk_dai_adda_widgets[] = {
 			      mtk_adda_pad_top_event,
 			      SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY_S("ADDA_MTKAIF_CFG", SUPPLY_SEQ_ADDA_MTKAIF_CFG,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_adda_mtkaif_cfg_event,
 			      SND_SOC_DAPM_PRE_PMU),
 
@@ -517,7 +517,7 @@ static const struct snd_soc_dapm_widget mtk_dai_adda_widgets[] = {
 			      AFE_ADDA_FIFO_AUTO_RST_SFT, 1,
 			      NULL, 0),
 
-	SND_SOC_DAPM_MUX("ADDA_UL_Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADDA_UL_Mux", SND_SOC_ANALPM, 0, 0,
 			 &adda_ul_mux_control),
 
 	SND_SOC_DAPM_INPUT("AP_DMIC_INPUT"),
@@ -673,7 +673,7 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 			dl_src2_con0 |= BIT(DL_2_VOICE_MODE_CTL_PRE_SFT);
 
 		/* SA suggest apply -0.3db to audio/speech path */
-		dl_src2_con1 = MTK_AFE_ADDA_DL_GAIN_NORMAL <<
+		dl_src2_con1 = MTK_AFE_ADDA_DL_GAIN_ANALRMAL <<
 			       DL_2_GAIN_CTL_PRE_SFT;
 
 		/* turn on down-link gain */
@@ -693,7 +693,7 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 			regmap_update_bits(afe->regmap,
 					   AFE_ADDA_DL_SDM_DCCOMP_CON,
 					   ATTGAIN_CTL_MASK_SFT,
-					   AUDIO_SDM_LEVEL_NORMAL <<
+					   AUDIO_SDM_LEVEL_ANALRMAL <<
 					   ATTGAIN_CTL_SFT);
 
 			/* Use new 2nd sdm */
@@ -834,7 +834,7 @@ int mt8186_dai_adda_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

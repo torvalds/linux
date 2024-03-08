@@ -80,16 +80,16 @@ KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include \
 		   -I$(objtree)/$(HOST_DIR)/include/generated \
 		   -I$(objtree)/$(HOST_DIR)/include/generated/uapi
 
-# -Derrno=kernel_errno - This turns all kernel references to errno into
-# kernel_errno to separate them from the libc errno.  This allows -fno-common
+# -Derranal=kernel_erranal - This turns all kernel references to erranal into
+# kernel_erranal to separate them from the libc erranal.  This allows -fanal-common
 # in KBUILD_CFLAGS.  Otherwise, it would cause ld to complain about the two different
-# errnos.
+# erranals.
 # These apply to kernelspace only.
 #
 # strip leading and trailing whitespace to make the USER_CFLAGS removal of these
 # defines more robust
 
-KERNEL_DEFINES = $(strip -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask \
+KERNEL_DEFINES = $(strip -Derranal=kernel_erranal -Dsigprocmask=kernel_sigprocmask \
 			 -Dmktime=kernel_mktime $(ARCH_KERNEL_DEFINES))
 KBUILD_CFLAGS += $(KERNEL_DEFINES)
 
@@ -116,12 +116,12 @@ archprepare:
 
 LINK-$(CONFIG_LD_SCRIPT_STATIC) += -static
 ifdef CONFIG_LD_SCRIPT_DYN
-LINK-$(call gcc-min-version, 60100)$(CONFIG_CC_IS_CLANG) += -no-pie
+LINK-$(call gcc-min-version, 60100)$(CONFIG_CC_IS_CLANG) += -anal-pie
 endif
 LINK-$(CONFIG_LD_SCRIPT_DYN_RPATH) += -Wl,-rpath,/lib
 
-CFLAGS_NO_HARDENING := $(call cc-option, -fno-PIC,) $(call cc-option, -fno-pic,) \
-	-fno-stack-protector $(call cc-option, -fno-stack-protector-all)
+CFLAGS_ANAL_HARDENING := $(call cc-option, -fanal-PIC,) $(call cc-option, -fanal-pic,) \
+	-fanal-stack-protector $(call cc-option, -fanal-stack-protector-all)
 
 # Options used by linker script
 export LDS_START      := $(START)
@@ -131,11 +131,11 @@ export LDS_ELF_FORMAT := $(ELF_FORMAT)
 # The wrappers will select whether using "malloc" or the kernel allocator.
 LINK_WRAPS = -Wl,--wrap,malloc -Wl,--wrap,free -Wl,--wrap,calloc
 
-# Avoid binutils 2.39+ warnings by marking the stack non-executable and
-# ignorning warnings for the kallsyms sections.
-LDFLAGS_EXECSTACK = -z noexecstack
+# Avoid binutils 2.39+ warnings by marking the stack analn-executable and
+# iganalrning warnings for the kallsyms sections.
+LDFLAGS_EXECSTACK = -z analexecstack
 ifeq ($(CONFIG_LD_IS_BFD),y)
-LDFLAGS_EXECSTACK += $(call ld-option,--no-warn-rwx-segments)
+LDFLAGS_EXECSTACK += $(call ld-option,--anal-warn-rwx-segments)
 endif
 
 LD_FLAGS_CMDLINE = $(foreach opt,$(KBUILD_LDFLAGS) $(LDFLAGS_EXECSTACK),-Wl,$(opt))
@@ -152,4 +152,4 @@ archclean:
 	@find . \( -name '*.bb' -o -name '*.bbg' -o -name '*.da' \
 		-o -name '*.gcov' \) -type f -print | xargs rm -f
 
-export HEADER_ARCH SUBARCH USER_CFLAGS CFLAGS_NO_HARDENING DEV_NULL_PATH
+export HEADER_ARCH SUBARCH USER_CFLAGS CFLAGS_ANAL_HARDENING DEV_NULL_PATH

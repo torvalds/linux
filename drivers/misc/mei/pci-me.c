@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -178,10 +178,10 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	cfg = mei_me_get_cfg(ent->driver_data);
 	if (!cfg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!mei_me_quirk_probe(pdev, cfg))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* enable pci dev */
 	err = pcim_enable_device(pdev);
@@ -200,14 +200,14 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
+		dev_err(&pdev->dev, "Anal usable DMA configuration, aborting\n");
 		goto end;
 	}
 
 	/* allocates and initializes the mei dev structure */
 	dev = mei_me_dev_init(&pdev->dev, cfg, false);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto end;
 	}
 	hw = to_me_hw(dev);
@@ -233,7 +233,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (mei_start(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto release_irq;
 	}
 
@@ -250,13 +250,13 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * MEI requires to resume from runtime suspend mode
 	 * in order to perform link reset flow upon system suspend.
 	 */
-	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_ANAL_DIRECT_COMPLETE);
 
 	/*
 	 * ME maps runtime suspend/resume to D0i states,
 	 * hence we need to go around native PCI runtime service which
 	 * eventually brings the device into D3cold/hot state,
-	 * but the mei device cannot wake up from D3 unlike from D0i3.
+	 * but the mei device cananalt wake up from D3 unlike from D0i3.
 	 * To get around the PCI device native runtime pm,
 	 * ME uses runtime pm domain handlers which take precedence
 	 * over the driver's pm handlers.
@@ -264,7 +264,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mei_me_set_pm_domain(dev);
 
 	if (mei_pg_is_enabled(dev)) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 		if (hw->d0i3_supported)
 			pm_runtime_allow(&pdev->dev);
 	}
@@ -289,7 +289,7 @@ end:
  *
  * @pdev: PCI device structure
  *
- * mei_me_shutdown is called from the reboot notifier
+ * mei_me_shutdown is called from the reboot analtifier
  * it's a simplified version of remove so we go down
  * faster.
  */
@@ -327,7 +327,7 @@ static void mei_me_remove(struct pci_dev *pdev)
 		return;
 
 	if (mei_pg_is_enabled(dev))
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_analresume(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "stop\n");
 	mei_stop(dev);
@@ -354,7 +354,7 @@ static int mei_me_pci_suspend(struct device *device)
 	struct mei_device *dev = pci_get_drvdata(pdev);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&pdev->dev, "suspend\n");
 
@@ -377,7 +377,7 @@ static int mei_me_pci_resume(struct device *device)
 
 	dev = pci_get_drvdata(pdev);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pci_enable_msi(pdev);
 
@@ -425,7 +425,7 @@ static int mei_me_pm_runtime_idle(struct device *device)
 
 	dev = dev_get_drvdata(device);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (mei_write_is_idle(dev))
 		pm_runtime_autosuspend(device);
 
@@ -441,7 +441,7 @@ static int mei_me_pm_runtime_suspend(struct device *device)
 
 	dev = dev_get_drvdata(device);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->device_lock);
 
@@ -469,7 +469,7 @@ static int mei_me_pm_runtime_resume(struct device *device)
 
 	dev = dev_get_drvdata(device);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->device_lock);
 
@@ -541,7 +541,7 @@ static struct pci_driver mei_me_driver = {
 	.remove = mei_me_remove,
 	.shutdown = mei_me_shutdown,
 	.driver.pm = MEI_ME_PM_OPS,
-	.driver.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	.driver.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 };
 
 module_pci_driver(mei_me_driver);

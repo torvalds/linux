@@ -119,7 +119,7 @@ void svga_set_default_atc_regs(void __iomem *regbase)
 /* Set sequencer registers to sane values */
 void svga_set_default_seq_regs(void __iomem *regbase)
 {
-	/* Standard sequencer registers (SR01 - SR04), SR00 is not set */
+	/* Standard sequencer registers (SR01 - SR04), SR00 is analt set */
 	vga_wseq(regbase, VGA_SEQ_CLOCK_MODE, VGA_SR01_CHAR_CLK_8DOTS);
 	vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, VGA_SR02_ALL_PLANES);
 	vga_wseq(regbase, VGA_SEQ_CHARACTER_MAP, 0x00);
@@ -168,22 +168,22 @@ void svga_set_textmode_vga_regs(void __iomem *regbase)
 }
 
 #if 0
-void svga_dump_var(struct fb_var_screeninfo *var, int node)
+void svga_dump_var(struct fb_var_screeninfo *var, int analde)
 {
-	pr_debug("fb%d: var.vmode         : 0x%X\n", node, var->vmode);
-	pr_debug("fb%d: var.xres          : %d\n", node, var->xres);
-	pr_debug("fb%d: var.yres          : %d\n", node, var->yres);
-	pr_debug("fb%d: var.bits_per_pixel: %d\n", node, var->bits_per_pixel);
-	pr_debug("fb%d: var.xres_virtual  : %d\n", node, var->xres_virtual);
-	pr_debug("fb%d: var.yres_virtual  : %d\n", node, var->yres_virtual);
-	pr_debug("fb%d: var.left_margin   : %d\n", node, var->left_margin);
-	pr_debug("fb%d: var.right_margin  : %d\n", node, var->right_margin);
-	pr_debug("fb%d: var.upper_margin  : %d\n", node, var->upper_margin);
-	pr_debug("fb%d: var.lower_margin  : %d\n", node, var->lower_margin);
-	pr_debug("fb%d: var.hsync_len     : %d\n", node, var->hsync_len);
-	pr_debug("fb%d: var.vsync_len     : %d\n", node, var->vsync_len);
-	pr_debug("fb%d: var.sync          : 0x%X\n", node, var->sync);
-	pr_debug("fb%d: var.pixclock      : %d\n\n", node, var->pixclock);
+	pr_debug("fb%d: var.vmode         : 0x%X\n", analde, var->vmode);
+	pr_debug("fb%d: var.xres          : %d\n", analde, var->xres);
+	pr_debug("fb%d: var.yres          : %d\n", analde, var->yres);
+	pr_debug("fb%d: var.bits_per_pixel: %d\n", analde, var->bits_per_pixel);
+	pr_debug("fb%d: var.xres_virtual  : %d\n", analde, var->xres_virtual);
+	pr_debug("fb%d: var.yres_virtual  : %d\n", analde, var->yres_virtual);
+	pr_debug("fb%d: var.left_margin   : %d\n", analde, var->left_margin);
+	pr_debug("fb%d: var.right_margin  : %d\n", analde, var->right_margin);
+	pr_debug("fb%d: var.upper_margin  : %d\n", analde, var->upper_margin);
+	pr_debug("fb%d: var.lower_margin  : %d\n", analde, var->lower_margin);
+	pr_debug("fb%d: var.hsync_len     : %d\n", analde, var->hsync_len);
+	pr_debug("fb%d: var.vsync_len     : %d\n", analde, var->vsync_len);
+	pr_debug("fb%d: var.sync          : 0x%X\n", analde, var->sync);
+	pr_debug("fb%d: var.pixclock      : %d\n\n", analde, var->pixclock);
 }
 #endif  /*  0  */
 
@@ -313,7 +313,7 @@ void svga_tilecursor(void __iomem *regbase, struct fb_info *info, struct fb_tile
 
 	svga_wcrt_mask(regbase, 0x0A, 0x20, 0x20); /* disable cursor */
 
-	if (cursor -> shape == FB_TILE_CURSOR_NONE)
+	if (cursor -> shape == FB_TILE_CURSOR_ANALNE)
 		return;
 
 	switch (cursor -> shape) {
@@ -373,12 +373,12 @@ EXPORT_SYMBOL(svga_get_caps);
  *  F_VCO = (F_BASE * M) / N
  *  F_OUT = F_VCO / (2^R)
  */
-int svga_compute_pll(const struct svga_pll *pll, u32 f_wanted, u16 *m, u16 *n, u16 *r, int node)
+int svga_compute_pll(const struct svga_pll *pll, u32 f_wanted, u16 *m, u16 *n, u16 *r, int analde)
 {
 	u16 am, an, ar;
 	u32 f_vco, f_current, delta_current, delta_best;
 
-	pr_debug("fb%d: ideal frequency: %d kHz\n", node, (unsigned int) f_wanted);
+	pr_debug("fb%d: ideal frequency: %d kHz\n", analde, (unsigned int) f_wanted);
 
 	ar = pll->r_max;
 	f_vco = f_wanted << ar;
@@ -425,8 +425,8 @@ int svga_compute_pll(const struct svga_pll *pll, u32 f_wanted, u16 *m, u16 *n, u
 	}
 
 	f_current = (pll->f_base * *m) / *n;
-	pr_debug("fb%d: found frequency: %d kHz (VCO %d kHz)\n", node, (int) (f_current >> ar), (int) f_current);
-	pr_debug("fb%d: m = %d n = %d r = %d\n", node, (unsigned int) *m, (unsigned int) *n, (unsigned int) *r);
+	pr_debug("fb%d: found frequency: %d kHz (VCO %d kHz)\n", analde, (int) (f_current >> ar), (int) f_current);
+	pr_debug("fb%d: m = %d n = %d r = %d\n", analde, (unsigned int) *m, (unsigned int) *n, (unsigned int) *r);
 	return 0;
 }
 
@@ -435,7 +435,7 @@ int svga_compute_pll(const struct svga_pll *pll, u32 f_wanted, u16 *m, u16 *n, u
 
 
 /* Check CRT timing values */
-int svga_check_timings(const struct svga_timing_regs *tm, struct fb_var_screeninfo *var, int node)
+int svga_check_timings(const struct svga_timing_regs *tm, struct fb_var_screeninfo *var, int analde)
 {
 	u32 value;
 
@@ -504,86 +504,86 @@ int svga_check_timings(const struct svga_timing_regs *tm, struct fb_var_screenin
 /* Set CRT timing registers */
 void svga_set_timings(void __iomem *regbase, const struct svga_timing_regs *tm,
 		      struct fb_var_screeninfo *var,
-		      u32 hmul, u32 hdiv, u32 vmul, u32 vdiv, u32 hborder, int node)
+		      u32 hmul, u32 hdiv, u32 vmul, u32 vdiv, u32 hborder, int analde)
 {
 	u8 regval;
 	u32 value;
 
 	value = var->xres + var->left_margin + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
-	pr_debug("fb%d: horizontal total      : %d\n", node, value);
+	pr_debug("fb%d: horizontal total      : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->h_total_regs, (value / 8) - 5);
 
 	value = var->xres;
 	value = (value * hmul) / hdiv;
-	pr_debug("fb%d: horizontal display    : %d\n", node, value);
+	pr_debug("fb%d: horizontal display    : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->h_display_regs, (value / 8) - 1);
 
 	value = var->xres;
 	value = (value * hmul) / hdiv;
-	pr_debug("fb%d: horizontal blank start: %d\n", node, value);
+	pr_debug("fb%d: horizontal blank start: %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->h_blank_start_regs, (value / 8) - 1 + hborder);
 
 	value = var->xres + var->left_margin + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
-	pr_debug("fb%d: horizontal blank end  : %d\n", node, value);
+	pr_debug("fb%d: horizontal blank end  : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->h_blank_end_regs, (value / 8) - 1 - hborder);
 
 	value = var->xres + var->right_margin;
 	value = (value * hmul) / hdiv;
-	pr_debug("fb%d: horizontal sync start : %d\n", node, value);
+	pr_debug("fb%d: horizontal sync start : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->h_sync_start_regs, (value / 8));
 
 	value = var->xres + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
-	pr_debug("fb%d: horizontal sync end   : %d\n", node, value);
+	pr_debug("fb%d: horizontal sync end   : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->h_sync_end_regs, (value / 8));
 
 	value = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
-	pr_debug("fb%d: vertical total        : %d\n", node, value);
+	pr_debug("fb%d: vertical total        : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->v_total_regs, value - 2);
 
 	value = var->yres;
 	value = (value * vmul) / vdiv;
-	pr_debug("fb%d: vertical display      : %d\n", node, value);
+	pr_debug("fb%d: vertical display      : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->v_display_regs, value - 1);
 
 	value = var->yres;
 	value = (value * vmul) / vdiv;
-	pr_debug("fb%d: vertical blank start  : %d\n", node, value);
+	pr_debug("fb%d: vertical blank start  : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->v_blank_start_regs, value);
 
 	value = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
-	pr_debug("fb%d: vertical blank end    : %d\n", node, value);
+	pr_debug("fb%d: vertical blank end    : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->v_blank_end_regs, value - 2);
 
 	value = var->yres + var->lower_margin;
 	value = (value * vmul) / vdiv;
-	pr_debug("fb%d: vertical sync start   : %d\n", node, value);
+	pr_debug("fb%d: vertical sync start   : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->v_sync_start_regs, value);
 
 	value = var->yres + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
-	pr_debug("fb%d: vertical sync end     : %d\n", node, value);
+	pr_debug("fb%d: vertical sync end     : %d\n", analde, value);
 	svga_wcrt_multi(regbase, tm->v_sync_end_regs, value);
 
 	/* Set horizontal and vertical sync pulse polarity in misc register */
 
 	regval = vga_r(regbase, VGA_MIS_R);
 	if (var->sync & FB_SYNC_HOR_HIGH_ACT) {
-		pr_debug("fb%d: positive horizontal sync\n", node);
+		pr_debug("fb%d: positive horizontal sync\n", analde);
 		regval = regval & ~0x80;
 	} else {
-		pr_debug("fb%d: negative horizontal sync\n", node);
+		pr_debug("fb%d: negative horizontal sync\n", analde);
 		regval = regval | 0x80;
 	}
 	if (var->sync & FB_SYNC_VERT_HIGH_ACT) {
-		pr_debug("fb%d: positive vertical sync\n", node);
+		pr_debug("fb%d: positive vertical sync\n", analde);
 		regval = regval & ~0x40;
 	} else {
-		pr_debug("fb%d: negative vertical sync\n\n", node);
+		pr_debug("fb%d: negative vertical sync\n\n", analde);
 		regval = regval | 0x40;
 	}
 	vga_w(regbase, VGA_MIS_W, regval);
@@ -606,7 +606,7 @@ static inline int match_format(const struct svga_fb_format *frm,
 		    (var->green.length   <= frm->green.length)   &&
 		    (var->blue.length    <= frm->blue.length)    &&
 		    (var->transp.length  <= frm->transp.length)  &&
-		    (var->nonstd	 == frm->nonstd))
+		    (var->analnstd	 == frm->analnstd))
 			return i;
 		if (var->bits_per_pixel == frm->bits_per_pixel)
 			stored = i;
@@ -628,7 +628,7 @@ int svga_match_format(const struct svga_fb_format *frm,
 		var->green          = frm[i].green;
 		var->blue           = frm[i].blue;
 		var->transp         = frm[i].transp;
-		var->nonstd         = frm[i].nonstd;
+		var->analnstd         = frm[i].analnstd;
 		if (fix != NULL) {
 			fix->type      = frm[i].type;
 			fix->type_aux  = frm[i].type_aux;

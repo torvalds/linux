@@ -19,9 +19,9 @@
  *	  Satyam Sharma <satyam@infradead.org>
  *	  Randy Dunlap <randy.dunlap@oracle.com>
  *
- *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck nor Iguana vzw.
- *	admit liability nor provide warranty for any of this software.
- *	This material is provided "AS-IS" and at no charge.
+ *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck analr Iguana vzw.
+ *	admit liability analr provide warranty for any of this software.
+ *	This material is provided "AS-IS" and at anal charge.
  */
 
 #include <linux/hrtimer.h>

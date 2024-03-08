@@ -19,8 +19,8 @@
  * DOC: Entry frame size
  *
  * Ralink PCI devices demand the Frame size to be a multiple of 128 bytes,
- * for USB devices this restriction does not apply, but the value of
- * 2432 makes sense since it is big enough to contain the maximum fragment
+ * for USB devices this restriction does analt apply, but the value of
+ * 2432 makes sense since it is big eanalugh to contain the maximum fragment
  * size according to the ieee802.11 specs.
  * The aggregation size depends on support from the driver, but should
  * be something around 3840 bytes.
@@ -39,7 +39,7 @@
  * @QID_HCCA: HCCA queue
  * @QID_MGMT: MGMT queue (prio queue)
  * @QID_RX: RX queue
- * @QID_OTHER: None of the above (don't use, only present for completeness)
+ * @QID_OTHER: Analne of the above (don't use, only present for completeness)
  * @QID_BEACON: Beacon queue (value unspecified, don't send it to device)
  * @QID_ATIM: Atim queue (value unspecified, don't send it to device)
  */
@@ -63,7 +63,7 @@ enum data_queue_qid {
  * @SKBDESC_DMA_MAPPED_TX: &skb_dma field has been mapped for TX
  * @SKBDESC_IV_STRIPPED: Frame contained a IV/EIV provided by
  *	mac80211 but was stripped for processing by the driver.
- * @SKBDESC_NOT_MAC80211: Frame didn't originate from mac80211,
+ * @SKBDESC_ANALT_MAC80211: Frame didn't originate from mac80211,
  *	don't try to pass it back.
  * @SKBDESC_DESC_IN_SKB: The descriptor is at the start of the
  *	skb, instead of in the desc field.
@@ -72,7 +72,7 @@ enum skb_frame_desc_flags {
 	SKBDESC_DMA_MAPPED_RX = 1 << 0,
 	SKBDESC_DMA_MAPPED_TX = 1 << 1,
 	SKBDESC_IV_STRIPPED = 1 << 2,
-	SKBDESC_NOT_MAC80211 = 1 << 3,
+	SKBDESC_ANALT_MAC80211 = 1 << 3,
 	SKBDESC_DESC_IN_SKB = 1 << 4,
 };
 
@@ -80,14 +80,14 @@ enum skb_frame_desc_flags {
  * struct skb_frame_desc: Descriptor information for the skb buffer
  *
  * This structure is placed over the driver_data array, this means that
- * this structure should not exceed the size of that array (40 bytes).
+ * this structure should analt exceed the size of that array (40 bytes).
  *
  * @flags: Frame flags, see &enum skb_frame_desc_flags.
  * @desc_len: Length of the frame descriptor.
  * @tx_rate_idx: the index of the TX rate, used for TX status reporting
  * @tx_rate_flags: the TX rate flags, used for TX status reporting
  * @desc: Pointer to descriptor part of the frame.
- *	Note that this pointer could point to something outside
+ *	Analte that this pointer could point to something outside
  *	of the scope of the skb->data pointer.
  * @iv: IV/EIV data used during encryption/decryption.
  * @skb_dma: (PCI-only) the DMA address associated with the sk buffer.
@@ -187,27 +187,27 @@ struct rxdone_entry_desc {
  * enum txdone_entry_desc_flags: Flags for &struct txdone_entry_desc
  *
  * Every txdone report has to contain the basic result of the
- * transmission, either &TXDONE_UNKNOWN, &TXDONE_SUCCESS or
+ * transmission, either &TXDONE_UNKANALWN, &TXDONE_SUCCESS or
  * &TXDONE_FAILURE. The flag &TXDONE_FALLBACK can be used in
  * conjunction with all of these flags but should only be set
  * if retires > 0. The flag &TXDONE_EXCESSIVE_RETRY can only be used
  * in conjunction with &TXDONE_FAILURE.
  *
- * @TXDONE_UNKNOWN: Hardware could not determine success of transmission.
+ * @TXDONE_UNKANALWN: Hardware could analt determine success of transmission.
  * @TXDONE_SUCCESS: Frame was successfully send
  * @TXDONE_FALLBACK: Hardware used fallback rates for retries
- * @TXDONE_FAILURE: Frame was not successfully send
+ * @TXDONE_FAILURE: Frame was analt successfully send
  * @TXDONE_EXCESSIVE_RETRY: In addition to &TXDONE_FAILURE, the
  *	frame transmission failed due to excessive retries.
  */
 enum txdone_entry_desc_flags {
-	TXDONE_UNKNOWN,
+	TXDONE_UNKANALWN,
 	TXDONE_SUCCESS,
 	TXDONE_FALLBACK,
 	TXDONE_FAILURE,
 	TXDONE_EXCESSIVE_RETRY,
 	TXDONE_AMPDU,
-	TXDONE_NO_ACK_REQ,
+	TXDONE_ANAL_ACK_REQ,
 };
 
 /**
@@ -231,7 +231,7 @@ struct txdone_entry_desc {
  * @ENTRY_TXD_CTS_FRAME: This frame is a CTS-to-self frame.
  * @ENTRY_TXD_GENERATE_SEQ: This frame requires sequence counter.
  * @ENTRY_TXD_FIRST_FRAGMENT: This is the first frame.
- * @ENTRY_TXD_MORE_FRAG: This frame is followed by another fragment.
+ * @ENTRY_TXD_MORE_FRAG: This frame is followed by aanalther fragment.
  * @ENTRY_TXD_REQ_TIMESTAMP: Require timestamp to be inserted.
  * @ENTRY_TXD_BURST: This frame belongs to the same burst event.
  * @ENTRY_TXD_ACK: An ACK is required for this frame.
@@ -337,10 +337,10 @@ struct txentry_desc {
  * @ENTRY_DATA_PENDING: This entry contains a valid frame and is waiting
  *	for the signal to start sending.
  * @ENTRY_DATA_IO_FAILED: Hardware indicated that an IO error occurred
- *	while transferring the data to the hardware. No TX status report will
+ *	while transferring the data to the hardware. Anal TX status report will
  *	be expected from the hardware.
  * @ENTRY_DATA_STATUS_PENDING: The entry has been send to the device and
- *	returned. It is now waiting for the status reporting before the
+ *	returned. It is analw waiting for the status reporting before the
  *	entry can be reused again.
  */
 enum queue_entry_flags {
@@ -387,7 +387,7 @@ struct queue_entry {
  *	transferred to the hardware.
  * @Q_INDEX_DONE: Index pointer to the next entry which will be completed by
  *	the hardware and for which we need to run the txdone handler. If this
- *	entry is not owned by the hardware the queue is considered to be empty.
+ *	entry is analt owned by the hardware the queue is considered to be empty.
  * @Q_INDEX_MAX: Keep last, used in &struct data_queue to determine the size
  *	of the index array.
  */
@@ -439,9 +439,9 @@ enum data_queue_flags {
  *      in the queue
  * @wd_idx: index of queue entry saved by watchdog
  * @txop: maximum burst time.
- * @aifs: The aifs value for outgoing frames (field ignored in RX queue).
- * @cw_min: The cw min value for outgoing frames (field ignored in RX queue).
- * @cw_max: The cw max value for outgoing frames (field ignored in RX queue).
+ * @aifs: The aifs value for outgoing frames (field iganalred in RX queue).
+ * @cw_min: The cw min value for outgoing frames (field iganalred in RX queue).
+ * @cw_max: The cw max value for outgoing frames (field iganalred in RX queue).
  * @data_size: Maximum data size for the frames in this queue.
  * @desc_size: Hardware descriptor size for the data in this queue.
  * @priv_size: Size of per-queue_entry private data.
@@ -509,8 +509,8 @@ struct data_queue {
  * @__queue: Current queue for which we need the next queue
  *
  * Using the current queue address we take the address directly
- * after the queue to take the next queue. Note that this macro
- * should be used carefully since it does not protect against
+ * after the queue to take the next queue. Analte that this macro
+ * should be used carefully since it does analt protect against
  * moving past the end of the list. (See macros &queue_end and
  * &tx_queue_end for determining the end of the queue).
  */
@@ -570,7 +570,7 @@ struct data_queue {
  * @data: Data to pass to the callback function
  * @fn: The function to call for each &struct queue_entry
  *
- * This will walk through all entries in the queue, in chronological
+ * This will walk through all entries in the queue, in chroanallogical
  * order. This means it will start at the current @start pointer
  * and will walk through the queue until it reaches the @end pointer.
  *

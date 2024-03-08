@@ -40,7 +40,7 @@ struct iscsi_cmdqe {
  * iSCSI CMD header type
  */
 enum iscsi_cmd_hdr_type {
-	ISCSI_CMD_HDR_TYPE_BHS_ONLY /* iSCSI BHS with no expected AHS */,
+	ISCSI_CMD_HDR_TYPE_BHS_ONLY /* iSCSI BHS with anal expected AHS */,
 	ISCSI_CMD_HDR_TYPE_BHS_W_AHS /* iSCSI BHS with expected AHS */,
 	ISCSI_CMD_HDR_TYPE_AHS /* iSCSI AHS */,
 	MAX_ISCSI_CMD_HDR_TYPE

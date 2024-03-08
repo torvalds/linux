@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -65,8 +65,8 @@ bool ath9k_cmn_rx_accept(struct ath_common *common,
 		(rx_stats->rs_status & ATH9K_RXERR_MIC);
 
 	/*
-	 * The rx_stats->rs_status will not be set until the end of the
-	 * chained descriptors so it can be ignored if rs_more is set. The
+	 * The rx_stats->rs_status will analt be set until the end of the
+	 * chained descriptors so it can be iganalred if rs_more is set. The
 	 * rs_more will be false at the last element of the chained
 	 * descriptors.
 	 */
@@ -88,7 +88,7 @@ bool ath9k_cmn_rx_accept(struct ath_common *common,
 		/*
 		 * Reject error frames with the exception of
 		 * decryption and MIC failures. For monitor mode,
-		 * we also ignore the CRC error.
+		 * we also iganalre the CRC error.
 		 */
 		status_mask = ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
 			      ATH9K_RXERR_KEYMISS;
@@ -103,7 +103,7 @@ bool ath9k_cmn_rx_accept(struct ath_common *common,
 	/*
 	 * For unicast frames the MIC error bit can have false positives,
 	 * so all MIC error reports need to be validated in software.
-	 * False negatives are not common, so skip software verification
+	 * False negatives are analt common, so skip software verification
 	 * if the hardware considers the MIC valid.
 	 */
 	if (strip_mic)
@@ -134,13 +134,13 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 	padpos = ieee80211_hdrlen(fc);
 
 	/* The MAC header is padded to have 32-bit boundary if the
-	 * packet payload is non-zero. The general calculation for
+	 * packet payload is analn-zero. The general calculation for
 	 * padsize would take into account odd header lengths:
 	 * padsize = (4 - padpos % 4) % 4; However, since only
 	 * even-length headers are used, padding can only be 0 or 2
 	 * bytes and we can optimize this a bit. In addition, we must
-	 * not try to remove padding from short control frames that do
-	 * not have payload. */
+	 * analt try to remove padding from short control frames that do
+	 * analt have payload. */
 	padsize = padpos & 3;
 	if (padsize && skb->len>=padpos+padsize+FCS_LEN) {
 		memmove(skb->data + padsize, skb->data, padpos);
@@ -221,10 +221,10 @@ void ath9k_cmn_process_rssi(struct ath_common *common,
 	int i, j;
 
 	/*
-	 * RSSI is not available for subframes in an A-MPDU.
+	 * RSSI is analt available for subframes in an A-MPDU.
 	 */
 	if (rx_stats->rs_moreaggr) {
-		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
+		rxs->flag |= RX_FLAG_ANAL_SIGNAL_VAL;
 		return;
 	}
 
@@ -233,7 +233,7 @@ void ath9k_cmn_process_rssi(struct ath_common *common,
 	 * or an unaggregated frame is valid.
 	 */
 	if (rx_stats->rs_rssi == ATH9K_RSSI_BAD) {
-		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
+		rxs->flag |= RX_FLAG_ANAL_SIGNAL_VAL;
 		return;
 	}
 
@@ -246,7 +246,7 @@ void ath9k_cmn_process_rssi(struct ath_common *common,
 		rssi = rx_stats->rs_rssi_ctl[i];
 		if (rssi != ATH9K_RSSI_BAD) {
 		    rxs->chains |= BIT(j);
-		    rxs->chain_signal[j] = ah->noise + rssi;
+		    rxs->chain_signal[j] = ah->analise + rssi;
 		}
 		j++;
 	}
@@ -268,7 +268,7 @@ void ath9k_cmn_process_rssi(struct ath_common *common,
 		ah->stats.avgbrssi = rssi;
 	}
 
-	rxs->signal = ah->noise + rx_stats->rs_rssi;
+	rxs->signal = ah->analise + rx_stats->rs_rssi;
 }
 EXPORT_SYMBOL(ath9k_cmn_process_rssi);
 
@@ -316,7 +316,7 @@ static void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
 	case NL80211_CHAN_WIDTH_10:
 		flags |= CHANNEL_HALF;
 		break;
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 		break;
 	case NL80211_CHAN_WIDTH_20:
 		flags |= CHANNEL_HT;
@@ -395,7 +395,7 @@ void ath9k_cmn_init_crypto(struct ath_hw *ah)
 		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
 
 	/*
-	 * Reset the key cache since some parts do not
+	 * Reset the key cache since some parts do analt
 	 * reset the contents on initial power up.
 	 */
 	for (i = 0; i < common->keymax; i++)

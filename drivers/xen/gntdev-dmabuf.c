@@ -9,7 +9,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-direct.h>
 #include <linux/slab.h>
@@ -77,7 +77,7 @@ struct gntdev_dmabuf_priv {
 	struct mutex lock;
 	/*
 	 * We reference this file while exporting dma-bufs, so
-	 * the grant device context is not destroyed while there are
+	 * the grant device context is analt destroyed while there are
 	 * external users alive.
 	 */
 	struct file *filp;
@@ -97,7 +97,7 @@ dmabuf_exp_wait_obj_new(struct gntdev_dmabuf_priv *priv,
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init_completion(&obj->completion);
 	obj->gntdev_dmabuf = gntdev_dmabuf;
@@ -145,7 +145,7 @@ static void dmabuf_exp_wait_obj_signal(struct gntdev_dmabuf_priv *priv,
 static struct gntdev_dmabuf *
 dmabuf_exp_wait_obj_get_dmabuf(struct gntdev_dmabuf_priv *priv, int fd)
 {
-	struct gntdev_dmabuf *gntdev_dmabuf, *ret = ERR_PTR(-ENOENT);
+	struct gntdev_dmabuf *gntdev_dmabuf, *ret = ERR_PTR(-EANALENT);
 
 	mutex_lock(&priv->lock);
 	list_for_each_entry(gntdev_dmabuf, &priv->exp_list, next)
@@ -168,7 +168,7 @@ static int dmabuf_exp_wait_released(struct gntdev_dmabuf_priv *priv, int fd,
 
 	pr_debug("Will wait for dma-buf with fd %d\n", fd);
 	/*
-	 * Try to find the DMA buffer: if not found means that
+	 * Try to find the DMA buffer: if analt found means that
 	 * either the buffer has already been released or file descriptor
 	 * provided is wrong.
 	 */
@@ -177,7 +177,7 @@ static int dmabuf_exp_wait_released(struct gntdev_dmabuf_priv *priv, int fd,
 		return PTR_ERR(gntdev_dmabuf);
 
 	/*
-	 * gntdev_dmabuf still exists and is reference count locked by us now,
+	 * gntdev_dmabuf still exists and is reference count locked by us analw,
 	 * so prepare to wait: allocate wait object and add it to the wait list,
 	 * so we can find it on release.
 	 */
@@ -200,7 +200,7 @@ dmabuf_pages_to_sgt(struct page **pages, unsigned int nr_pages)
 
 	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -225,9 +225,9 @@ static int dmabuf_exp_ops_attach(struct dma_buf *dma_buf,
 	gntdev_dmabuf_attach = kzalloc(sizeof(*gntdev_dmabuf_attach),
 				       GFP_KERNEL);
 	if (!gntdev_dmabuf_attach)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	gntdev_dmabuf_attach->dir = DMA_NONE;
+	gntdev_dmabuf_attach->dir = DMA_ANALNE;
 	attach->priv = gntdev_dmabuf_attach;
 	return 0;
 }
@@ -241,7 +241,7 @@ static void dmabuf_exp_ops_detach(struct dma_buf *dma_buf,
 		struct sg_table *sgt = gntdev_dmabuf_attach->sgt;
 
 		if (sgt) {
-			if (gntdev_dmabuf_attach->dir != DMA_NONE)
+			if (gntdev_dmabuf_attach->dir != DMA_ANALNE)
 				dma_unmap_sgtable(attach->dev, sgt,
 						  gntdev_dmabuf_attach->dir,
 						  DMA_ATTR_SKIP_CPU_SYNC);
@@ -265,7 +265,7 @@ dmabuf_exp_ops_map_dma_buf(struct dma_buf_attachment *attach,
 	pr_debug("Mapping %d pages for dev %p\n", gntdev_dmabuf->nr_pages,
 		 attach->dev);
 
-	if (dir == DMA_NONE || !gntdev_dmabuf_attach)
+	if (dir == DMA_ANALNE || !gntdev_dmabuf_attach)
 		return ERR_PTR(-EINVAL);
 
 	/* Return the cached mapping when possible. */
@@ -274,9 +274,9 @@ dmabuf_exp_ops_map_dma_buf(struct dma_buf_attachment *attach,
 
 	/*
 	 * Two mappings with different directions for the same attachment are
-	 * not allowed.
+	 * analt allowed.
 	 */
-	if (gntdev_dmabuf_attach->dir != DMA_NONE)
+	if (gntdev_dmabuf_attach->dir != DMA_ANALNE)
 		return ERR_PTR(-EBUSY);
 
 	sgt = dmabuf_pages_to_sgt(gntdev_dmabuf->pages,
@@ -286,7 +286,7 @@ dmabuf_exp_ops_map_dma_buf(struct dma_buf_attachment *attach,
 				    DMA_ATTR_SKIP_CPU_SYNC)) {
 			sg_free_table(sgt);
 			kfree(sgt);
-			sgt = ERR_PTR(-ENOMEM);
+			sgt = ERR_PTR(-EANALMEM);
 		} else {
 			gntdev_dmabuf_attach->sgt = sgt;
 			gntdev_dmabuf_attach->dir = dir;
@@ -301,7 +301,7 @@ static void dmabuf_exp_ops_unmap_dma_buf(struct dma_buf_attachment *attach,
 					 struct sg_table *sgt,
 					 enum dma_data_direction dir)
 {
-	/* Not implemented. The unmap is done at dmabuf_exp_ops_detach(). */
+	/* Analt implemented. The unmap is done at dmabuf_exp_ops_detach(). */
 }
 
 static void dmabuf_exp_release(struct kref *kref)
@@ -362,7 +362,7 @@ static int dmabuf_exp_from_pages(struct gntdev_dmabuf_export_args *args)
 
 	gntdev_dmabuf = kzalloc(sizeof(*gntdev_dmabuf), GFP_KERNEL);
 	if (!gntdev_dmabuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&gntdev_dmabuf->u.exp.refcount);
 
@@ -428,7 +428,7 @@ dmabuf_exp_alloc_backing_storage(struct gntdev_priv *priv, int dmabuf_flags,
 
 	map = gntdev_alloc_map(priv, count, dmabuf_flags);
 	if (!map)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return map;
 }
@@ -493,7 +493,7 @@ dmabuf_imp_grant_foreign_access(unsigned long *gfns, u32 *refs,
 
 	ret = gnttab_alloc_grant_references(count, &priv_gref_head);
 	if (ret < 0) {
-		pr_debug("Cannot allocate grant references, ret %d\n", ret);
+		pr_debug("Cananalt allocate grant references, ret %d\n", ret);
 		return ret;
 	}
 
@@ -503,7 +503,7 @@ dmabuf_imp_grant_foreign_access(unsigned long *gfns, u32 *refs,
 		cur_ref = gnttab_claim_grant_reference(&priv_gref_head);
 		if (cur_ref < 0) {
 			ret = cur_ref;
-			pr_debug("Cannot claim grant reference, ret %d\n", ret);
+			pr_debug("Cananalt claim grant reference, ret %d\n", ret);
 			goto out;
 		}
 
@@ -541,7 +541,7 @@ static struct gntdev_dmabuf *dmabuf_imp_alloc_storage(int count)
 
 	gntdev_dmabuf = kzalloc(sizeof(*gntdev_dmabuf), GFP_KERNEL);
 	if (!gntdev_dmabuf)
-		goto fail_no_free;
+		goto fail_anal_free;
 
 	gntdev_dmabuf->u.imp.refs = kcalloc(count,
 					    sizeof(gntdev_dmabuf->u.imp.refs[0]),
@@ -558,8 +558,8 @@ static struct gntdev_dmabuf *dmabuf_imp_alloc_storage(int count)
 
 fail:
 	dmabuf_imp_free_storage(gntdev_dmabuf);
-fail_no_free:
-	return ERR_PTR(-ENOMEM);
+fail_anal_free:
+	return ERR_PTR(-EANALMEM);
 }
 
 static struct gntdev_dmabuf *
@@ -621,15 +621,15 @@ dmabuf_imp_to_refs(struct gntdev_dmabuf_priv *priv, struct device *dev,
 
 	gfns = kcalloc(count, sizeof(*gfns), GFP_KERNEL);
 	if (!gfns) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto fail_unmap;
 	}
 
 	/*
-	 * Now convert sgt to array of gfns without accessing underlying pages.
-	 * It is not allowed to access the underlying struct page of an sg table
+	 * Analw convert sgt to array of gfns without accessing underlying pages.
+	 * It is analt allowed to access the underlying struct page of an sg table
 	 * exported by DMA-buf, but since we deal with special Xen dma device here
-	 * (not a normal physical one) look at the dma addresses in the sg table
+	 * (analt a analrmal physical one) look at the dma addresses in the sg table
 	 * and then calculate gfns directly from them.
 	 */
 	i = 0;
@@ -675,7 +675,7 @@ fail_put:
 static struct gntdev_dmabuf *
 dmabuf_imp_find_unlink(struct gntdev_dmabuf_priv *priv, int fd)
 {
-	struct gntdev_dmabuf *q, *gntdev_dmabuf, *ret = ERR_PTR(-ENOENT);
+	struct gntdev_dmabuf *q, *gntdev_dmabuf, *ret = ERR_PTR(-EANALENT);
 
 	mutex_lock(&priv->lock);
 	list_for_each_entry_safe(gntdev_dmabuf, q, &priv->imp_list, next) {
@@ -736,7 +736,7 @@ long gntdev_ioctl_dmabuf_exp_from_refs(struct gntdev_priv *priv, int use_ptemod,
 	long ret;
 
 	if (use_ptemod) {
-		pr_debug("Cannot provide dma-buf: use_ptemode %d\n",
+		pr_debug("Cananalt provide dma-buf: use_ptemode %d\n",
 			 use_ptemod);
 		return -EINVAL;
 	}
@@ -749,7 +749,7 @@ long gntdev_ioctl_dmabuf_exp_from_refs(struct gntdev_priv *priv, int use_ptemod,
 
 	refs = kcalloc(op.count, sizeof(*refs), GFP_KERNEL);
 	if (!refs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(refs, u->refs, sizeof(*refs) * op.count) != 0) {
 		ret = -EFAULT;
@@ -829,7 +829,7 @@ struct gntdev_dmabuf_priv *gntdev_dmabuf_init(struct file *filp)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&priv->lock);
 	INIT_LIST_HEAD(&priv->exp_list);

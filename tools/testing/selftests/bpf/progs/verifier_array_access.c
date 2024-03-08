@@ -232,11 +232,11 @@ l0_%=:	exit;						\
 }
 
 SEC("socket")
-__description("invalid map access into an array with no floor check")
+__description("invalid map access into an array with anal floor check")
 __failure __msg("R0 unbounded memory access")
 __failure_unpriv __msg_unpriv("R0 leaks addr")
 __flag(BPF_F_ANY_ALIGNMENT)
-__naked void array_with_no_floor_check(void)
+__naked void array_with_anal_floor_check(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\

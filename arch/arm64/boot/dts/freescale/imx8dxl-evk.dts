@@ -33,11 +33,11 @@
 		ranges;
 
 		/*
-		 * Memory reserved for optee usage. Please do not use.
+		 * Memory reserved for optee usage. Please do analt use.
 		 * This will be automatically added to dtb if OP-TEE is installed.
 		 * optee@96000000 {
 		 *     reg = <0 0x96000000 0 0x2000000>;
-		 *     no-map;
+		 *     anal-map;
 		 * };
 		 */
 
@@ -192,7 +192,7 @@
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <133000000>;
 		spi-tx-bus-width = <8>;
 		spi-rx-bus-width = <8>;
@@ -299,8 +299,8 @@
 			map0 {
 				trip = <&pmic_alert0>;
 				cooling-device =
-					<&A35_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-					<&A35_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					<&A35_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+					<&A35_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 			};
 		};
 	};
@@ -344,9 +344,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 };
 

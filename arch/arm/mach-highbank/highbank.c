@@ -44,7 +44,7 @@ static void highbank_l2c310_write_sec(unsigned long val, unsigned reg)
 	if (reg == L2X0_CTRL)
 		highbank_smc1(0x102, val);
 	else
-		WARN_ONCE(1, "Highbank L2C310: ignoring write to reg 0x%x\n",
+		WARN_ONCE(1, "Highbank L2C310: iganalring write to reg 0x%x\n",
 			  reg);
 }
 
@@ -52,7 +52,7 @@ static void __init highbank_init_irq(void)
 {
 	irqchip_init();
 
-	if (of_find_compatible_node(NULL, NULL, "arm,cortex-a9"))
+	if (of_find_compatible_analde(NULL, NULL, "arm,cortex-a9"))
 		highbank_scu_map_io();
 }
 
@@ -64,7 +64,7 @@ static void highbank_power_off(void)
 		cpu_do_idle();
 }
 
-static int highbank_platform_notifier(struct notifier_block *nb,
+static int highbank_platform_analtifier(struct analtifier_block *nb,
 				  unsigned long event, void *__dev)
 {
 	struct resource *res;
@@ -72,16 +72,16 @@ static int highbank_platform_notifier(struct notifier_block *nb,
 	u32 val;
 	struct device *dev = __dev;
 
-	if (event != BUS_NOTIFY_ADD_DEVICE)
-		return NOTIFY_DONE;
+	if (event != BUS_ANALTIFY_ADD_DEVICE)
+		return ANALTIFY_DONE;
 
-	if (of_device_is_compatible(dev->of_node, "calxeda,hb-ahci"))
+	if (of_device_is_compatible(dev->of_analde, "calxeda,hb-ahci"))
 		reg = 0xc;
-	else if (of_device_is_compatible(dev->of_node, "calxeda,hb-sdhci"))
+	else if (of_device_is_compatible(dev->of_analde, "calxeda,hb-sdhci"))
 		reg = 0x18;
-	else if (of_device_is_compatible(dev->of_node, "arm,pl330"))
+	else if (of_device_is_compatible(dev->of_analde, "arm,pl330"))
 		reg = 0x20;
-	else if (of_device_is_compatible(dev->of_node, "calxeda,hb-xgmac")) {
+	else if (of_device_is_compatible(dev->of_analde, "calxeda,hb-xgmac")) {
 		res = platform_get_resource(to_platform_device(dev),
 					    IORESOURCE_MEM, 0);
 		if (res) {
@@ -93,30 +93,30 @@ static int highbank_platform_notifier(struct notifier_block *nb,
 	}
 
 	if (reg < 0)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	if (of_property_read_bool(dev->of_node, "dma-coherent")) {
+	if (of_property_read_bool(dev->of_analde, "dma-coherent")) {
 		val = readl(sregs_base + reg);
 		writel(val | 0xff01, sregs_base + reg);
 		dev->dma_coherent = true;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block highbank_amba_nb = {
-	.notifier_call = highbank_platform_notifier,
+static struct analtifier_block highbank_amba_nb = {
+	.analtifier_call = highbank_platform_analtifier,
 };
 
-static struct notifier_block highbank_platform_nb = {
-	.notifier_call = highbank_platform_notifier,
+static struct analtifier_block highbank_platform_nb = {
+	.analtifier_call = highbank_platform_analtifier,
 };
 
 static struct platform_device highbank_cpuidle_device = {
 	.name = "cpuidle-calxeda",
 };
 
-static int hb_keys_notifier(struct notifier_block *nb, unsigned long event, void *data)
+static int hb_keys_analtifier(struct analtifier_block *nb, unsigned long event, void *data)
 {
 	u32 key = *(u32 *)data;
 
@@ -130,26 +130,26 @@ static int hb_keys_notifier(struct notifier_block *nb, unsigned long event, void
 
 	return 0;
 }
-static struct notifier_block hb_keys_nb = {
-	.notifier_call = hb_keys_notifier,
+static struct analtifier_block hb_keys_nb = {
+	.analtifier_call = hb_keys_analtifier,
 };
 
 static void __init highbank_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* Map system registers */
-	np = of_find_compatible_node(NULL, NULL, "calxeda,hb-sregs");
+	np = of_find_compatible_analde(NULL, NULL, "calxeda,hb-sregs");
 	sregs_base = of_iomap(np, 0);
 	WARN_ON(!sregs_base);
 
 	pm_power_off = highbank_power_off;
 	highbank_pm_init();
 
-	bus_register_notifier(&platform_bus_type, &highbank_platform_nb);
-	bus_register_notifier(&amba_bustype, &highbank_amba_nb);
+	bus_register_analtifier(&platform_bus_type, &highbank_platform_nb);
+	bus_register_analtifier(&amba_bustype, &highbank_amba_nb);
 
-	pl320_ipc_register_notifier(&hb_keys_nb);
+	pl320_ipc_register_analtifier(&hb_keys_nb);
 
 	if (psci_ops.cpu_suspend)
 		platform_device_register(&highbank_cpuidle_device);

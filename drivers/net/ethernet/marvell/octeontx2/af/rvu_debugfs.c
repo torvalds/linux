@@ -202,9 +202,9 @@ enum cpt_eng_type {
 #define rvu_dbg_open_NULL NULL
 
 #define RVU_DEBUG_SEQ_FOPS(name, read_op, write_op)	\
-static int rvu_dbg_open_##name(struct inode *inode, struct file *file) \
+static int rvu_dbg_open_##name(struct ianalde *ianalde, struct file *file) \
 { \
-	return single_open(file, rvu_dbg_##read_op, inode->i_private); \
+	return single_open(file, rvu_dbg_##read_op, ianalde->i_private); \
 } \
 static const struct file_operations rvu_dbg_##name##_fops = { \
 	.owner		= THIS_MODULE, \
@@ -293,10 +293,10 @@ static int rvu_dbg_mcs_sa_stats_display(struct seq_file *filp, void *unused, int
 		seq_puts(filp, "\n RX SA stats\n");
 		mcs_get_sa_stats(mcs, &stats, sa_id, MCS_RX);
 		seq_printf(filp, "sa%d: Invalid pkts: %lld\n", sa_id, stats.pkt_invalid_cnt);
-		seq_printf(filp, "sa%d: Pkts no sa error: %lld\n", sa_id, stats.pkt_nosaerror_cnt);
-		seq_printf(filp, "sa%d: Pkts not valid: %lld\n", sa_id, stats.pkt_notvalid_cnt);
+		seq_printf(filp, "sa%d: Pkts anal sa error: %lld\n", sa_id, stats.pkt_analsaerror_cnt);
+		seq_printf(filp, "sa%d: Pkts analt valid: %lld\n", sa_id, stats.pkt_analtvalid_cnt);
 		seq_printf(filp, "sa%d: Pkts ok: %lld\n", sa_id, stats.pkt_ok_cnt);
-		seq_printf(filp, "sa%d: Pkts no sa: %lld\n", sa_id, stats.pkt_nosa_cnt);
+		seq_printf(filp, "sa%d: Pkts anal sa: %lld\n", sa_id, stats.pkt_analsa_cnt);
 	}
 	mutex_unlock(&mcs->stats_lock);
 	return 0;
@@ -363,7 +363,7 @@ static int rvu_dbg_mcs_rx_sc_stats_display(struct seq_file *filp, void *unused)
 		seq_printf(filp, "sc%d: Cam hits: %lld\n", sc_id, stats.hit_cnt);
 		seq_printf(filp, "sc%d: Invalid pkts: %lld\n", sc_id, stats.pkt_invalid_cnt);
 		seq_printf(filp, "sc%d: Late pkts: %lld\n", sc_id, stats.pkt_late_cnt);
-		seq_printf(filp, "sc%d: Notvalid pkts: %lld\n", sc_id, stats.pkt_notvalid_cnt);
+		seq_printf(filp, "sc%d: Analtvalid pkts: %lld\n", sc_id, stats.pkt_analtvalid_cnt);
 		seq_printf(filp, "sc%d: Unchecked pkts: %lld\n", sc_id, stats.pkt_unchecked_cnt);
 
 		if (mcs->hw->mcs_blks > 1) {
@@ -453,7 +453,7 @@ static int rvu_dbg_mcs_tx_secy_stats_display(struct seq_file *filp, void *unused
 		seq_printf(filp, "secy%d: octet protected: %lld\n", secy_id,
 			   stats.octet_protected_cnt);
 		seq_printf(filp, "secy%d: Pkts on active sa: %lld\n", secy_id,
-			   stats.pkt_noactivesa_cnt);
+			   stats.pkt_analactivesa_cnt);
 		seq_printf(filp, "secy%d: Pkts too long: %lld\n", secy_id, stats.pkt_toolong_cnt);
 		seq_printf(filp, "secy%d: Pkts untagged: %lld\n", secy_id, stats.pkt_untagged_cnt);
 	}
@@ -498,17 +498,17 @@ static int rvu_dbg_mcs_rx_secy_stats_display(struct seq_file *filp, void *unused
 		seq_printf(filp, "secy%d: Pkts on disable port: %lld\n", secy_id,
 			   stats.pkt_port_disabled_cnt);
 		seq_printf(filp, "secy%d: Pkts with badtag: %lld\n", secy_id, stats.pkt_badtag_cnt);
-		seq_printf(filp, "secy%d: Pkts with no SA(sectag.tci.c=0): %lld\n", secy_id,
-			   stats.pkt_nosa_cnt);
-		seq_printf(filp, "secy%d: Pkts with nosaerror: %lld\n", secy_id,
-			   stats.pkt_nosaerror_cnt);
+		seq_printf(filp, "secy%d: Pkts with anal SA(sectag.tci.c=0): %lld\n", secy_id,
+			   stats.pkt_analsa_cnt);
+		seq_printf(filp, "secy%d: Pkts with analsaerror: %lld\n", secy_id,
+			   stats.pkt_analsaerror_cnt);
 		seq_printf(filp, "secy%d: Tagged ctrl pkts: %lld\n", secy_id,
 			   stats.pkt_tagged_ctl_cnt);
 		seq_printf(filp, "secy%d: Untaged pkts: %lld\n", secy_id, stats.pkt_untaged_cnt);
 		seq_printf(filp, "secy%d: Ctrl pkts: %lld\n", secy_id, stats.pkt_ctl_cnt);
 		if (mcs->hw->mcs_blks > 1)
-			seq_printf(filp, "secy%d: pkts notag: %lld\n", secy_id,
-				   stats.pkt_notag_cnt);
+			seq_printf(filp, "secy%d: pkts analtag: %lld\n", secy_id,
+				   stats.pkt_analtag_cnt);
 	}
 	mutex_unlock(&mcs->stats_lock);
 	return 0;
@@ -592,7 +592,7 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tbl_base = rvu_read64(rvu, BLKADDR_APR, APR_AF_LMT_MAP_BASE);
 
@@ -706,7 +706,7 @@ static int get_max_column_width(struct rvu *rvu)
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		for (vf = 0; vf <= rvu->hw->total_vfs; vf++) {
@@ -737,7 +737,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 {
 	int index, off = 0, flag = 0, len = 0, i = 0;
 	struct rvu *rvu = filp->private_data;
-	int bytes_not_copied = 0;
+	int bytes_analt_copied = 0;
 	struct rvu_block block;
 	int pf, vf, pcifunc;
 	int buf_size = 2048;
@@ -751,7 +751,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get the maximum width of a column */
 	lf_str_size = get_max_column_width(rvu);
@@ -759,7 +759,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 	lfs = kzalloc(lf_str_size, GFP_KERNEL);
 	if (!lfs) {
 		kfree(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	off +=	scnprintf(&buf[off], buf_size - 1 - off, "%-*s", lf_str_size,
 			  "pcifunc");
@@ -771,8 +771,8 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 		}
 
 	off += scnprintf(&buf[off], buf_size - 1 - off, "\n");
-	bytes_not_copied = copy_to_user(buffer + (i * off), buf, off);
-	if (bytes_not_copied)
+	bytes_analt_copied = copy_to_user(buffer + (i * off), buf, off);
+	if (bytes_analt_copied)
 		goto out;
 
 	i++;
@@ -813,10 +813,10 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 			if (flag) {
 				off +=	scnprintf(&buf[off],
 						  buf_size - 1 - off, "\n");
-				bytes_not_copied = copy_to_user(buffer +
+				bytes_analt_copied = copy_to_user(buffer +
 								(i * off),
 								buf, off);
-				if (bytes_not_copied)
+				if (bytes_analt_copied)
 					goto out;
 
 				i++;
@@ -828,7 +828,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 out:
 	kfree(lfs);
 	kfree(buf);
-	if (bytes_not_copied)
+	if (bytes_analt_copied)
 		return -EFAULT;
 
 	return *ppos;
@@ -849,7 +849,7 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 
 	domain = 2;
 	mac_ops = get_mac_ops(rvu_first_cgx_pdata(rvu));
-	/* There can be no CGX devices at all */
+	/* There can be anal CGX devices at all */
 	if (!mac_ops)
 		return 0;
 	seq_printf(filp, "PCI dev\t\tRVU PF Func\tNIX block\t%s\tLMAC\n",
@@ -904,7 +904,7 @@ static bool rvu_dbg_is_valid_lf(struct rvu *rvu, int blkaddr, int lf,
 	*pcifunc = block->fn_map[lf];
 	if (!*pcifunc) {
 		dev_warn(rvu->dev,
-			 "This LF is not attached to any RVU PFFUNC\n");
+			 "This LF is analt attached to any RVU PFFUNC\n");
 		return false;
 	}
 	return true;
@@ -919,7 +919,7 @@ static void print_npa_qsize(struct seq_file *m, struct rvu_pfvf *pfvf)
 		return;
 
 	if (!pfvf->aura_ctx) {
-		seq_puts(m, "Aura context is not initialized\n");
+		seq_puts(m, "Aura context is analt initialized\n");
 	} else {
 		bitmap_print_to_pagebuf(false, buf, pfvf->aura_bmap,
 					pfvf->aura_ctx->qsize);
@@ -928,7 +928,7 @@ static void print_npa_qsize(struct seq_file *m, struct rvu_pfvf *pfvf)
 	}
 
 	if (!pfvf->pool_ctx) {
-		seq_puts(m, "Pool context is not initialized\n");
+		seq_puts(m, "Pool context is analt initialized\n");
 	} else {
 		bitmap_print_to_pagebuf(false, buf, pfvf->pool_bmap,
 					pfvf->pool_ctx->qsize);
@@ -1001,7 +1001,7 @@ static ssize_t rvu_dbg_qsize_write(struct file *filp,
 
 	cmd_buf = memdup_user(buffer, count + 1);
 	if (IS_ERR(cmd_buf))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd_buf[count] = '\0';
 
@@ -1189,10 +1189,10 @@ static int rvu_dbg_npa_ctx_display(struct seq_file *m, void *unused, int ctype)
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	if (ctype == NPA_AQ_CTYPE_AURA && !pfvf->aura_ctx) {
-		seq_puts(m, "Aura context is not initialized\n");
+		seq_puts(m, "Aura context is analt initialized\n");
 		return -EINVAL;
 	} else if (ctype == NPA_AQ_CTYPE_POOL && !pfvf->pool_ctx) {
-		seq_puts(m, "Pool context is not initialized\n");
+		seq_puts(m, "Pool context is analt initialized\n");
 		return -EINVAL;
 	}
 
@@ -1254,13 +1254,13 @@ static int write_npa_ctx(struct rvu *rvu, bool all,
 
 	if (ctype == NPA_AQ_CTYPE_AURA) {
 		if (!pfvf->aura_ctx) {
-			dev_warn(rvu->dev, "Aura context is not initialized\n");
+			dev_warn(rvu->dev, "Aura context is analt initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->aura_ctx->qsize;
 	} else if (ctype == NPA_AQ_CTYPE_POOL) {
 		if (!pfvf->pool_ctx) {
-			dev_warn(rvu->dev, "Pool context is not initialized\n");
+			dev_warn(rvu->dev, "Pool context is analt initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->pool_ctx->qsize;
@@ -1295,13 +1295,13 @@ static int parse_cmd_buffer_ctx(char *cmd_buf, size_t *count,
 				const char __user *buffer, int *npalf,
 				int *id, bool *all)
 {
-	int bytes_not_copied;
+	int bytes_analt_copied;
 	char *cmd_buf_tmp;
 	char *subtoken;
 	int ret;
 
-	bytes_not_copied = copy_from_user(cmd_buf, buffer, *count);
-	if (bytes_not_copied)
+	bytes_analt_copied = copy_from_user(cmd_buf, buffer, *count);
+	if (bytes_analt_copied)
 		return -EFAULT;
 
 	cmd_buf[*count] = '\0';
@@ -1912,13 +1912,13 @@ static int rvu_dbg_nix_queue_ctx_display(struct seq_file *filp,
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	if (ctype == NIX_AQ_CTYPE_SQ && !pfvf->sq_ctx) {
-		seq_puts(filp, "SQ context is not initialized\n");
+		seq_puts(filp, "SQ context is analt initialized\n");
 		return -EINVAL;
 	} else if (ctype == NIX_AQ_CTYPE_RQ && !pfvf->rq_ctx) {
-		seq_puts(filp, "RQ context is not initialized\n");
+		seq_puts(filp, "RQ context is analt initialized\n");
 		return -EINVAL;
 	} else if (ctype == NIX_AQ_CTYPE_CQ && !pfvf->cq_ctx) {
-		seq_puts(filp, "CQ context is not initialized\n");
+		seq_puts(filp, "CQ context is analt initialized\n");
 		return -EINVAL;
 	}
 
@@ -1974,19 +1974,19 @@ static int write_nix_queue_ctx(struct rvu *rvu, bool all, int nixlf,
 
 	if (ctype == NIX_AQ_CTYPE_SQ) {
 		if (!pfvf->sq_ctx) {
-			dev_warn(rvu->dev, "SQ context is not initialized\n");
+			dev_warn(rvu->dev, "SQ context is analt initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->sq_ctx->qsize;
 	} else if (ctype == NIX_AQ_CTYPE_RQ) {
 		if (!pfvf->rq_ctx) {
-			dev_warn(rvu->dev, "RQ context is not initialized\n");
+			dev_warn(rvu->dev, "RQ context is analt initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->rq_ctx->qsize;
 	} else if (ctype == NIX_AQ_CTYPE_CQ) {
 		if (!pfvf->cq_ctx) {
-			dev_warn(rvu->dev, "CQ context is not initialized\n");
+			dev_warn(rvu->dev, "CQ context is analt initialized\n");
 			return -EINVAL;
 		}
 		max_id = pfvf->cq_ctx->qsize;
@@ -2135,19 +2135,19 @@ static void print_nix_qctx_qsize(struct seq_file *filp, int qsize,
 static void print_nix_qsize(struct seq_file *filp, struct rvu_pfvf *pfvf)
 {
 	if (!pfvf->cq_ctx)
-		seq_puts(filp, "cq context is not initialized\n");
+		seq_puts(filp, "cq context is analt initialized\n");
 	else
 		print_nix_qctx_qsize(filp, pfvf->cq_ctx->qsize, pfvf->cq_bmap,
 				     "cq");
 
 	if (!pfvf->rq_ctx)
-		seq_puts(filp, "rq context is not initialized\n");
+		seq_puts(filp, "rq context is analt initialized\n");
 	else
 		print_nix_qctx_qsize(filp, pfvf->rq_ctx->qsize, pfvf->rq_bmap,
 				     "rq");
 
 	if (!pfvf->sq_ctx)
-		seq_puts(filp, "sq context is not initialized\n");
+		seq_puts(filp, "sq context is analt initialized\n");
 	else
 		print_nix_qctx_qsize(filp, pfvf->sq_ctx->qsize, pfvf->sq_bmap,
 				     "sq");
@@ -2258,7 +2258,7 @@ static int rvu_dbg_nix_band_prof_ctx_display(struct seq_file *m, void *unused)
 	u16 pcifunc;
 	char *str;
 
-	/* Ingress policers do not exist on all platforms */
+	/* Ingress policers do analt exist on all platforms */
 	if (!nix_hw->ipolicer)
 		return 0;
 
@@ -2311,7 +2311,7 @@ static int rvu_dbg_nix_band_prof_rsrc_display(struct seq_file *m, void *unused)
 	int layer;
 	char *str;
 
-	/* Ingress policers do not exist on all platforms */
+	/* Ingress policers do analt exist on all platforms */
 	if (!nix_hw->ipolicer)
 		return 0;
 
@@ -2422,10 +2422,10 @@ static int cgx_print_stats(struct seq_file *s, int lmac_id)
 	rvu = pci_get_drvdata(pci_get_device(PCI_VENDOR_ID_CAVIUM,
 					     PCI_DEVID_OCTEONTX2_RVU_AF, NULL));
 	if (!rvu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mac_ops = get_mac_ops(cgxd);
-	/* There can be no CGX devices at all */
+	/* There can be anal CGX devices at all */
 	if (!mac_ops)
 		return 0;
 
@@ -2555,7 +2555,7 @@ static int cgx_print_dmac_flt(struct seq_file *s, int lmac_id)
 	rvu = pci_get_drvdata(pci_get_device(PCI_VENDOR_ID_CAVIUM,
 					     PCI_DEVID_OCTEONTX2_RVU_AF, NULL));
 	if (!rvu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pf = cgxlmac_to_pf(rvu, cgx_get_cgxid(cgxd), lmac_id);
 	domain = 2;
@@ -2693,7 +2693,7 @@ static int rvu_dbg_npc_mcam_info_display(struct seq_file *filp, void *unsued)
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mcam = &rvu->hw->mcam;
 	counters = rvu->hw->npc_counters;
@@ -2759,7 +2759,7 @@ static int rvu_dbg_npc_rx_miss_stats_display(struct seq_file *filp,
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mcam = &rvu->hw->mcam;
 
@@ -2926,20 +2926,20 @@ static void rvu_dbg_npc_mcam_show_action(struct seq_file *s,
 {
 	if (is_npc_intf_tx(rule->intf)) {
 		switch (rule->tx_action.op) {
-		case NIX_TX_ACTIONOP_DROP:
+		case NIX_TX_ACTIOANALP_DROP:
 			seq_puts(s, "\taction: Drop\n");
 			break;
-		case NIX_TX_ACTIONOP_UCAST_DEFAULT:
+		case NIX_TX_ACTIOANALP_UCAST_DEFAULT:
 			seq_puts(s, "\taction: Unicast to default channel\n");
 			break;
-		case NIX_TX_ACTIONOP_UCAST_CHAN:
+		case NIX_TX_ACTIOANALP_UCAST_CHAN:
 			seq_printf(s, "\taction: Unicast to channel %d\n",
 				   rule->tx_action.index);
 			break;
-		case NIX_TX_ACTIONOP_MCAST:
+		case NIX_TX_ACTIOANALP_MCAST:
 			seq_puts(s, "\taction: Multicast\n");
 			break;
-		case NIX_TX_ACTIONOP_DROP_VIOL:
+		case NIX_TX_ACTIOANALP_DROP_VIOL:
 			seq_puts(s, "\taction: Lockdown Violation Drop\n");
 			break;
 		default:
@@ -2947,20 +2947,20 @@ static void rvu_dbg_npc_mcam_show_action(struct seq_file *s,
 		}
 	} else {
 		switch (rule->rx_action.op) {
-		case NIX_RX_ACTIONOP_DROP:
+		case NIX_RX_ACTIOANALP_DROP:
 			seq_puts(s, "\taction: Drop\n");
 			break;
-		case NIX_RX_ACTIONOP_UCAST:
+		case NIX_RX_ACTIOANALP_UCAST:
 			seq_printf(s, "\taction: Direct to queue %d\n",
 				   rule->rx_action.index);
 			break;
-		case NIX_RX_ACTIONOP_RSS:
+		case NIX_RX_ACTIOANALP_RSS:
 			seq_puts(s, "\taction: RSS\n");
 			break;
-		case NIX_RX_ACTIONOP_UCAST_IPSEC:
+		case NIX_RX_ACTIOANALP_UCAST_IPSEC:
 			seq_puts(s, "\taction: Unicast ipsec\n");
 			break;
-		case NIX_RX_ACTIONOP_MCAST:
+		case NIX_RX_ACTIOANALP_MCAST:
 			seq_puts(s, "\taction: Multicast\n");
 			break;
 		default:
@@ -2984,7 +2984,7 @@ static const char *rvu_dbg_get_intf_name(int intf)
 		break;
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static int rvu_dbg_npc_mcam_show_rules(struct seq_file *s, void *unused)
@@ -3039,7 +3039,7 @@ static int rvu_dbg_npc_mcam_show_rules(struct seq_file *s, void *unused)
 		rvu_dbg_npc_mcam_show_action(s, iter);
 
 		enabled = is_mcam_entry_enabled(rvu, mcam, blkaddr, iter->entry);
-		seq_printf(s, "\tenabled: %s\n", enabled ? "yes" : "no");
+		seq_printf(s, "\tenabled: %s\n", enabled ? "anal" : "anal");
 
 		if (!iter->has_cntr)
 			continue;
@@ -3103,7 +3103,7 @@ static int rvu_dbg_npc_exact_show_entries(struct seq_file *s, void *unused)
 			bitmap |= BIT(j);
 		}
 
-		/* No valid entries */
+		/* Anal valid entries */
 		if (!bitmap)
 			continue;
 
@@ -3359,7 +3359,7 @@ static int rvu_dbg_cpt_lfs_info_display(struct seq_file *filp, void *unused)
 	hw = rvu->hw;
 	block = &hw->block[blkaddr];
 	if (!block->lf.bmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	seq_puts(filp, "===========================================\n");
 	for (lf = 0; lf < block->lf.max; lf++) {

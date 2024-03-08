@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <sys/timeb.h>
 #include <sched.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <time.h>
 #include "../kselftest.h"
@@ -35,10 +35,10 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	errno = 0;
+	erranal = 0;
 	cpu = strtol(argv[1], (char **) NULL, 10);
 
-	if (errno) {
+	if (erranal) {
 		usage(argv[0]);
 		return 1;
 	}
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
 	fd = open(msr_file_name, O_RDONLY);
 
 	if (fd == -1) {
-		printf("/dev/cpu/%d/msr: %s\n", cpu, strerror(errno));
+		printf("/dev/cpu/%d/msr: %s\n", cpu, strerror(erranal));
 		return KSFT_SKIP;
 	}
 
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	if (clock_gettime(CLOCK_MONOTONIC, &before) < 0) {
+	if (clock_gettime(CLOCK_MOANALTONIC, &before) < 0) {
 		perror("clock_gettime");
 		return 1;
 	}
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 		sqrt(i);
 	}
 
-	if (clock_gettime(CLOCK_MONOTONIC, &after) < 0) {
+	if (clock_gettime(CLOCK_MOANALTONIC, &after) < 0) {
 		perror("clock_gettime");
 		return 1;
 	}

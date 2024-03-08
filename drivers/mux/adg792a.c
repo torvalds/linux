@@ -2,7 +2,7 @@
 /*
  * Multiplexer driver for Analog Devices ADG792A/G Triple 4:1 mux
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techanallogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -68,7 +68,7 @@ static int adg792a_probe(struct i2c_client *i2c)
 	int i;
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(dev, "#mux-control-cells", &cells);
 	if (ret < 0)

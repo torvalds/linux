@@ -30,11 +30,11 @@ struct mpi3_ioc_init_request {
 
 #define MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED	(0x04)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_MASK          (0x03)
-#define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_NOT_USED      (0x00)
+#define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_ANALT_USED      (0x00)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_SEPARATED     (0x01)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_INLINE        (0x02)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_BOTH          (0x03)
-#define MPI3_WHOINIT_NOT_INITIALIZED                     (0x00)
+#define MPI3_WHOINIT_ANALT_INITIALIZED                     (0x00)
 #define MPI3_WHOINIT_ROM_BIOS                            (0x02)
 #define MPI3_WHOINIT_HOST_DRIVER                         (0x03)
 #define MPI3_WHOINIT_MANUFACTURER                        (0x04)
@@ -102,9 +102,9 @@ struct mpi3_ioc_facts_data {
 	__le16                     io_throttle_low;
 	__le16                     io_throttle_high;
 };
-#define MPI3_IOCFACTS_CAPABILITY_NON_SUPERVISOR_MASK          (0x80000000)
+#define MPI3_IOCFACTS_CAPABILITY_ANALN_SUPERVISOR_MASK          (0x80000000)
 #define MPI3_IOCFACTS_CAPABILITY_SUPERVISOR_IOC               (0x00000000)
-#define MPI3_IOCFACTS_CAPABILITY_NON_SUPERVISOR_IOC           (0x80000000)
+#define MPI3_IOCFACTS_CAPABILITY_ANALN_SUPERVISOR_IOC           (0x80000000)
 #define MPI3_IOCFACTS_CAPABILITY_INT_COALESCE_MASK            (0x00000600)
 #define MPI3_IOCFACTS_CAPABILITY_INT_COALESCE_FIXED_THRESHOLD (0x00000000)
 #define MPI3_IOCFACTS_CAPABILITY_INT_COALESCE_OUTSTANDING_IO  (0x00000200)
@@ -126,7 +126,7 @@ struct mpi3_ioc_facts_data {
 #define MPI3_IOCFACTS_EXCEPT_SAS_DISABLED                     (0x1000)
 #define MPI3_IOCFACTS_EXCEPT_SAFE_MODE                        (0x0800)
 #define MPI3_IOCFACTS_EXCEPT_SECURITY_KEY_MASK                (0x0700)
-#define MPI3_IOCFACTS_EXCEPT_SECURITY_KEY_NONE                (0x0000)
+#define MPI3_IOCFACTS_EXCEPT_SECURITY_KEY_ANALNE                (0x0000)
 #define MPI3_IOCFACTS_EXCEPT_SECURITY_KEY_LOCAL_VIA_MGMT      (0x0100)
 #define MPI3_IOCFACTS_EXCEPT_SECURITY_KEY_EXT_VIA_MGMT        (0x0200)
 #define MPI3_IOCFACTS_EXCEPT_SECURITY_KEY_DRIVE_EXT_VIA_MGMT  (0x0300)
@@ -146,19 +146,19 @@ struct mpi3_ioc_facts_data {
 #define MPI3_IOCFACTS_PROTOCOL_NVME                           (0x0004)
 #define MPI3_IOCFACTS_PROTOCOL_SCSI_INITIATOR                 (0x0002)
 #define MPI3_IOCFACTS_PROTOCOL_SCSI_TARGET                    (0x0001)
-#define MPI3_IOCFACTS_MAX_DATA_LENGTH_NOT_REPORTED            (0x0000)
+#define MPI3_IOCFACTS_MAX_DATA_LENGTH_ANALT_REPORTED            (0x0000)
 #define MPI3_IOCFACTS_FLAGS_SIGNED_NVDATA_REQUIRED            (0x00010000)
 #define MPI3_IOCFACTS_FLAGS_DMA_ADDRESS_WIDTH_MASK            (0x0000ff00)
 #define MPI3_IOCFACTS_FLAGS_DMA_ADDRESS_WIDTH_SHIFT           (8)
 #define MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_MASK          (0x00000030)
-#define MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_NOT_STARTED   (0x00000000)
+#define MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_ANALT_STARTED   (0x00000000)
 #define MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_IN_PROGRESS   (0x00000010)
 #define MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_COMPLETE      (0x00000020)
 #define MPI3_IOCFACTS_FLAGS_PERSONALITY_MASK                  (0x0000000f)
 #define MPI3_IOCFACTS_FLAGS_PERSONALITY_EHBA                  (0x00000000)
 #define MPI3_IOCFACTS_FLAGS_PERSONALITY_RAID_DDR              (0x00000002)
-#define MPI3_IOCFACTS_IO_THROTTLE_DATA_LENGTH_NOT_REQUIRED    (0x0000)
-#define MPI3_IOCFACTS_MAX_IO_THROTTLE_GROUP_NOT_REQUIRED      (0x0000)
+#define MPI3_IOCFACTS_IO_THROTTLE_DATA_LENGTH_ANALT_REQUIRED    (0x0000)
+#define MPI3_IOCFACTS_MAX_IO_THROTTLE_GROUP_ANALT_REQUIRED      (0x0000)
 struct mpi3_mgmt_passthrough_request {
 	__le16                 host_tag;
 	u8                     ioc_use_only02;
@@ -268,7 +268,7 @@ struct mpi3_port_enable_request {
 #define MPI3_EVENT_ENERGY_PACK_CHANGE               (0x0e)
 #define MPI3_EVENT_SAS_DISCOVERY                    (0x11)
 #define MPI3_EVENT_SAS_BROADCAST_PRIMITIVE          (0x12)
-#define MPI3_EVENT_SAS_NOTIFY_PRIMITIVE             (0x13)
+#define MPI3_EVENT_SAS_ANALTIFY_PRIMITIVE             (0x13)
 #define MPI3_EVENT_SAS_INIT_DEVICE_STATUS_CHANGE    (0x14)
 #define MPI3_EVENT_SAS_INIT_TABLE_OVERFLOW          (0x15)
 #define MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST         (0x16)
@@ -278,11 +278,11 @@ struct mpi3_port_enable_request {
 #define MPI3_EVENT_PCIE_ENUMERATION                 (0x22)
 #define MPI3_EVENT_PCIE_ERROR_THRESHOLD             (0x23)
 #define MPI3_EVENT_HARD_RESET_RECEIVED              (0x40)
-#define MPI3_EVENT_DIAGNOSTIC_BUFFER_STATUS_CHANGE  (0x50)
+#define MPI3_EVENT_DIAGANALSTIC_BUFFER_STATUS_CHANGE  (0x50)
 #define MPI3_EVENT_MIN_PRODUCT_SPECIFIC             (0x60)
 #define MPI3_EVENT_MAX_PRODUCT_SPECIFIC             (0x7f)
-#define MPI3_EVENT_NOTIFY_EVENTMASK_WORDS           (4)
-struct mpi3_event_notification_request {
+#define MPI3_EVENT_ANALTIFY_EVENTMASK_WORDS           (4)
+struct mpi3_event_analtification_request {
 	__le16             host_tag;
 	u8                 ioc_use_only02;
 	u8                 function;
@@ -292,11 +292,11 @@ struct mpi3_event_notification_request {
 	__le16             change_count;
 	__le16             reserved0a;
 	__le16             sas_broadcast_primitive_masks;
-	__le16             sas_notify_primitive_masks;
-	__le32             event_masks[MPI3_EVENT_NOTIFY_EVENTMASK_WORDS];
+	__le16             sas_analtify_primitive_masks;
+	__le32             event_masks[MPI3_EVENT_ANALTIFY_EVENTMASK_WORDS];
 };
 
-struct mpi3_event_notification_reply {
+struct mpi3_event_analtification_reply {
 	__le16             host_tag;
 	u8                 ioc_use_only02;
 	u8                 function;
@@ -313,12 +313,12 @@ struct mpi3_event_notification_reply {
 	__le32             event_data[1];
 };
 
-#define MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_MASK                        (0x01)
-#define MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_REQUIRED                    (0x01)
-#define MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_NOT_REQUIRED                (0x00)
-#define MPI3_EVENT_NOTIFY_MSGFLAGS_EVENT_ORIGINALITY_MASK          (0x02)
-#define MPI3_EVENT_NOTIFY_MSGFLAGS_EVENT_ORIGINALITY_ORIGINAL      (0x00)
-#define MPI3_EVENT_NOTIFY_MSGFLAGS_EVENT_ORIGINALITY_REPLAY        (0x02)
+#define MPI3_EVENT_ANALTIFY_MSGFLAGS_ACK_MASK                        (0x01)
+#define MPI3_EVENT_ANALTIFY_MSGFLAGS_ACK_REQUIRED                    (0x01)
+#define MPI3_EVENT_ANALTIFY_MSGFLAGS_ACK_ANALT_REQUIRED                (0x00)
+#define MPI3_EVENT_ANALTIFY_MSGFLAGS_EVENT_ORIGINALITY_MASK          (0x02)
+#define MPI3_EVENT_ANALTIFY_MSGFLAGS_EVENT_ORIGINALITY_ORIGINAL      (0x00)
+#define MPI3_EVENT_ANALTIFY_MSGFLAGS_EVENT_ORIGINALITY_REPLAY        (0x02)
 struct mpi3_event_data_gpio_interrupt {
 	u8                 gpio_num;
 	u8                 reserved01[3];
@@ -372,8 +372,8 @@ struct mpi3_event_data_device_status_change {
 
 #define MPI3_EVENT_DEV_STAT_RC_MOVED                                (0x01)
 #define MPI3_EVENT_DEV_STAT_RC_HIDDEN                               (0x02)
-#define MPI3_EVENT_DEV_STAT_RC_NOT_HIDDEN                           (0x03)
-#define MPI3_EVENT_DEV_STAT_RC_ASYNC_NOTIFICATION                   (0x04)
+#define MPI3_EVENT_DEV_STAT_RC_ANALT_HIDDEN                           (0x03)
+#define MPI3_EVENT_DEV_STAT_RC_ASYNC_ANALTIFICATION                   (0x04)
 #define MPI3_EVENT_DEV_STAT_RC_INT_DEVICE_RESET_STRT                (0x20)
 #define MPI3_EVENT_DEV_STAT_RC_INT_DEVICE_RESET_CMP                 (0x21)
 #define MPI3_EVENT_DEV_STAT_RC_INT_TASK_ABORT_STRT                  (0x22)
@@ -383,7 +383,7 @@ struct mpi3_event_data_device_status_change {
 #define MPI3_EVENT_DEV_STAT_RC_PCIE_HOT_RESET_FAILED                (0x30)
 #define MPI3_EVENT_DEV_STAT_RC_EXPANDER_REDUCED_FUNC_STRT           (0x40)
 #define MPI3_EVENT_DEV_STAT_RC_EXPANDER_REDUCED_FUNC_CMP            (0x41)
-#define MPI3_EVENT_DEV_STAT_RC_VD_NOT_RESPONDING                    (0x50)
+#define MPI3_EVENT_DEV_STAT_RC_VD_ANALT_RESPONDING                    (0x50)
 struct mpi3_event_data_energy_pack_change {
 	__le32             reserved00;
 	__le16             shutdown_timeout;
@@ -433,22 +433,22 @@ struct mpi3_event_data_sas_broadcast_primitive {
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_CHANGE                 (0x01)
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_SES                    (0x02)
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_EXPANDER               (0x03)
-#define MPI3_EVENT_BROADCAST_PRIMITIVE_ASYNCHRONOUS_EVENT     (0x04)
+#define MPI3_EVENT_BROADCAST_PRIMITIVE_ASYNCHROANALUS_EVENT     (0x04)
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_RESERVED3              (0x05)
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_RESERVED4              (0x06)
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_CHANGE0_RESERVED       (0x07)
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_CHANGE1_RESERVED       (0x08)
-struct mpi3_event_data_sas_notify_primitive {
+struct mpi3_event_data_sas_analtify_primitive {
 	u8                 phy_num;
 	u8                 io_unit_port;
 	u8                 reserved02;
 	u8                 primitive;
 };
 
-#define MPI3_EVENT_NOTIFY_PRIMITIVE_ENABLE_SPINUP         (0x01)
-#define MPI3_EVENT_NOTIFY_PRIMITIVE_POWER_LOSS_EXPECTED   (0x02)
-#define MPI3_EVENT_NOTIFY_PRIMITIVE_RESERVED1             (0x03)
-#define MPI3_EVENT_NOTIFY_PRIMITIVE_RESERVED2             (0x04)
+#define MPI3_EVENT_ANALTIFY_PRIMITIVE_ENABLE_SPINUP         (0x01)
+#define MPI3_EVENT_ANALTIFY_PRIMITIVE_POWER_LOSS_EXPECTED   (0x02)
+#define MPI3_EVENT_ANALTIFY_PRIMITIVE_RESERVED1             (0x03)
+#define MPI3_EVENT_ANALTIFY_PRIMITIVE_RESERVED2             (0x04)
 #ifndef MPI3_EVENT_SAS_TOPO_PHY_COUNT
 #define MPI3_EVENT_SAS_TOPO_PHY_COUNT           (1)
 #endif
@@ -462,7 +462,7 @@ struct mpi3_event_sas_topo_phy_entry {
 #define MPI3_EVENT_SAS_TOPO_LR_CURRENT_SHIFT                (4)
 #define MPI3_EVENT_SAS_TOPO_LR_PREV_MASK                    (0x0f)
 #define MPI3_EVENT_SAS_TOPO_LR_PREV_SHIFT                   (0)
-#define MPI3_EVENT_SAS_TOPO_LR_UNKNOWN_LINK_RATE            (0x00)
+#define MPI3_EVENT_SAS_TOPO_LR_UNKANALWN_LINK_RATE            (0x00)
 #define MPI3_EVENT_SAS_TOPO_LR_PHY_DISABLED                 (0x01)
 #define MPI3_EVENT_SAS_TOPO_LR_NEGOTIATION_FAILED           (0x02)
 #define MPI3_EVENT_SAS_TOPO_LR_SATA_OOB_COMPLETE            (0x03)
@@ -475,13 +475,13 @@ struct mpi3_event_sas_topo_phy_entry {
 #define MPI3_EVENT_SAS_TOPO_PHY_STATUS_MASK                 (0xc0)
 #define MPI3_EVENT_SAS_TOPO_PHY_STATUS_SHIFT                (6)
 #define MPI3_EVENT_SAS_TOPO_PHY_STATUS_ACCESSIBLE           (0x00)
-#define MPI3_EVENT_SAS_TOPO_PHY_STATUS_NO_EXIST             (0x40)
+#define MPI3_EVENT_SAS_TOPO_PHY_STATUS_ANAL_EXIST             (0x40)
 #define MPI3_EVENT_SAS_TOPO_PHY_STATUS_VACANT               (0x80)
 #define MPI3_EVENT_SAS_TOPO_PHY_RC_MASK                     (0x0f)
-#define MPI3_EVENT_SAS_TOPO_PHY_RC_TARG_NOT_RESPONDING      (0x02)
+#define MPI3_EVENT_SAS_TOPO_PHY_RC_TARG_ANALT_RESPONDING      (0x02)
 #define MPI3_EVENT_SAS_TOPO_PHY_RC_PHY_CHANGED              (0x03)
-#define MPI3_EVENT_SAS_TOPO_PHY_RC_NO_CHANGE                (0x04)
-#define MPI3_EVENT_SAS_TOPO_PHY_RC_DELAY_NOT_RESPONDING     (0x05)
+#define MPI3_EVENT_SAS_TOPO_PHY_RC_ANAL_CHANGE                (0x04)
+#define MPI3_EVENT_SAS_TOPO_PHY_RC_DELAY_ANALT_RESPONDING     (0x05)
 #define MPI3_EVENT_SAS_TOPO_PHY_RC_RESPONDING               (0x06)
 struct mpi3_event_data_sas_topology_change_list {
 	__le16                             enclosure_handle;
@@ -495,10 +495,10 @@ struct mpi3_event_data_sas_topology_change_list {
 	struct mpi3_event_sas_topo_phy_entry   phy_entry[MPI3_EVENT_SAS_TOPO_PHY_COUNT];
 };
 
-#define MPI3_EVENT_SAS_TOPO_ES_NO_EXPANDER              (0x00)
-#define MPI3_EVENT_SAS_TOPO_ES_NOT_RESPONDING           (0x02)
+#define MPI3_EVENT_SAS_TOPO_ES_ANAL_EXPANDER              (0x00)
+#define MPI3_EVENT_SAS_TOPO_ES_ANALT_RESPONDING           (0x02)
 #define MPI3_EVENT_SAS_TOPO_ES_RESPONDING               (0x03)
-#define MPI3_EVENT_SAS_TOPO_ES_DELAY_NOT_RESPONDING     (0x04)
+#define MPI3_EVENT_SAS_TOPO_ES_DELAY_ANALT_RESPONDING     (0x04)
 struct mpi3_event_data_sas_phy_counter {
 	__le64             time_stamp;
 	__le32             reserved08;
@@ -554,20 +554,20 @@ struct mpi3_event_pcie_topo_port_entry {
 	u8                 reserved07;
 };
 
-#define MPI3_EVENT_PCIE_TOPO_PS_NOT_RESPONDING          (0x02)
+#define MPI3_EVENT_PCIE_TOPO_PS_ANALT_RESPONDING          (0x02)
 #define MPI3_EVENT_PCIE_TOPO_PS_PORT_CHANGED            (0x03)
-#define MPI3_EVENT_PCIE_TOPO_PS_NO_CHANGE               (0x04)
-#define MPI3_EVENT_PCIE_TOPO_PS_DELAY_NOT_RESPONDING    (0x05)
+#define MPI3_EVENT_PCIE_TOPO_PS_ANAL_CHANGE               (0x04)
+#define MPI3_EVENT_PCIE_TOPO_PS_DELAY_ANALT_RESPONDING    (0x05)
 #define MPI3_EVENT_PCIE_TOPO_PS_RESPONDING              (0x06)
 #define MPI3_EVENT_PCIE_TOPO_PI_LANES_MASK              (0xf0)
-#define MPI3_EVENT_PCIE_TOPO_PI_LANES_UNKNOWN           (0x00)
+#define MPI3_EVENT_PCIE_TOPO_PI_LANES_UNKANALWN           (0x00)
 #define MPI3_EVENT_PCIE_TOPO_PI_LANES_1                 (0x10)
 #define MPI3_EVENT_PCIE_TOPO_PI_LANES_2                 (0x20)
 #define MPI3_EVENT_PCIE_TOPO_PI_LANES_4                 (0x30)
 #define MPI3_EVENT_PCIE_TOPO_PI_LANES_8                 (0x40)
 #define MPI3_EVENT_PCIE_TOPO_PI_LANES_16                (0x50)
 #define MPI3_EVENT_PCIE_TOPO_PI_RATE_MASK               (0x0f)
-#define MPI3_EVENT_PCIE_TOPO_PI_RATE_UNKNOWN            (0x00)
+#define MPI3_EVENT_PCIE_TOPO_PI_RATE_UNKANALWN            (0x00)
 #define MPI3_EVENT_PCIE_TOPO_PI_RATE_DISABLED           (0x01)
 #define MPI3_EVENT_PCIE_TOPO_PI_RATE_2_5                (0x02)
 #define MPI3_EVENT_PCIE_TOPO_PI_RATE_5_0                (0x03)
@@ -587,10 +587,10 @@ struct mpi3_event_data_pcie_topology_change_list {
 	struct mpi3_event_pcie_topo_port_entry     port_entry[MPI3_EVENT_PCIE_TOPO_PORT_COUNT];
 };
 
-#define MPI3_EVENT_PCIE_TOPO_SS_NO_PCIE_SWITCH          (0x00)
-#define MPI3_EVENT_PCIE_TOPO_SS_NOT_RESPONDING          (0x02)
+#define MPI3_EVENT_PCIE_TOPO_SS_ANAL_PCIE_SWITCH          (0x00)
+#define MPI3_EVENT_PCIE_TOPO_SS_ANALT_RESPONDING          (0x02)
 #define MPI3_EVENT_PCIE_TOPO_SS_RESPONDING              (0x03)
-#define MPI3_EVENT_PCIE_TOPO_SS_DELAY_NOT_RESPONDING    (0x04)
+#define MPI3_EVENT_PCIE_TOPO_SS_DELAY_ANALT_RESPONDING    (0x04)
 struct mpi3_event_data_pcie_error_threshold {
 	__le64                                 timestamp;
 	u8                                     reason_code;
@@ -615,7 +615,7 @@ struct mpi3_event_data_sas_init_dev_status_change {
 };
 
 #define MPI3_EVENT_SAS_INIT_RC_ADDED                (0x01)
-#define MPI3_EVENT_SAS_INIT_RC_NOT_RESPONDING       (0x02)
+#define MPI3_EVENT_SAS_INIT_RC_ANALT_RESPONDING       (0x02)
 struct mpi3_event_data_sas_init_table_overflow {
 	__le16             max_init;
 	__le16             current_init;
@@ -639,7 +639,7 @@ struct mpi3_event_data_diag_buffer_status_change {
 #define MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_RELEASED             (0x01)
 #define MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_PAUSED               (0x02)
 #define MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_RESUMED              (0x03)
-#define MPI3_PEL_LOCALE_FLAGS_NON_BLOCKING_BOOT_EVENT   (0x0200)
+#define MPI3_PEL_LOCALE_FLAGS_ANALN_BLOCKING_BOOT_EVENT   (0x0200)
 #define MPI3_PEL_LOCALE_FLAGS_BLOCKING_BOOT_EVENT       (0x0100)
 #define MPI3_PEL_LOCALE_FLAGS_PCIE                      (0x0080)
 #define MPI3_PEL_LOCALE_FLAGS_CONFIGURATION             (0x0040)
@@ -665,18 +665,18 @@ struct mpi3_event_data_diag_buffer_status_change {
 #define MPI3_PEL_ACTION_WAIT                            (0x05)
 #define MPI3_PEL_ACTION_ABORT                           (0x06)
 #define MPI3_PEL_ACTION_GET_PRINT_STRINGS               (0x07)
-#define MPI3_PEL_ACTION_ACKNOWLEDGE                     (0x08)
+#define MPI3_PEL_ACTION_ACKANALWLEDGE                     (0x08)
 #define MPI3_PEL_STATUS_SUCCESS                         (0x00)
-#define MPI3_PEL_STATUS_NOT_FOUND                       (0x01)
+#define MPI3_PEL_STATUS_ANALT_FOUND                       (0x01)
 #define MPI3_PEL_STATUS_ABORTED                         (0x02)
-#define MPI3_PEL_STATUS_NOT_READY                       (0x03)
+#define MPI3_PEL_STATUS_ANALT_READY                       (0x03)
 struct mpi3_pel_seq {
 	__le32                             newest;
 	__le32                             oldest;
 	__le32                             clear;
 	__le32                             shutdown;
 	__le32                             boot;
-	__le32                             last_acknowledged;
+	__le32                             last_ackanalwledged;
 };
 
 struct mpi3_pel_entry {
@@ -860,7 +860,7 @@ struct mpi3_pel_req_action_get_print_strings {
 	union mpi3_sge_union                  sgl;
 };
 
-struct mpi3_pel_req_action_acknowledge {
+struct mpi3_pel_req_action_ackanalwledge {
 	__le16                             host_tag;
 	u8                                 ioc_use_only02;
 	u8                                 function;
@@ -874,10 +874,10 @@ struct mpi3_pel_req_action_acknowledge {
 	__le32                             reserved10;
 };
 
-#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_MASK                     (0x03)
-#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_NO_GUIDANCE              (0x00)
-#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_CONTINUE_OP              (0x01)
-#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_TRANSITION_TO_FAULT      (0x02)
+#define MPI3_PELACKANALWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_MASK                     (0x03)
+#define MPI3_PELACKANALWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_ANAL_GUIDANCE              (0x00)
+#define MPI3_PELACKANALWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_CONTINUE_OP              (0x01)
+#define MPI3_PELACKANALWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_TRANSITION_TO_FAULT      (0x02)
 struct mpi3_pel_reply {
 	__le16                             host_tag;
 	u8                                 ioc_use_only02;
@@ -947,7 +947,7 @@ struct mpi3_ci_download_reply {
 #define MPI3_CI_DOWNLOAD_FLAGS_OFFLINE_ACTIVATION_REQUIRED           (0x20)
 #define MPI3_CI_DOWNLOAD_FLAGS_KEY_UPDATE_PENDING                    (0x10)
 #define MPI3_CI_DOWNLOAD_FLAGS_ACTIVATION_STATUS_MASK                (0x0e)
-#define MPI3_CI_DOWNLOAD_FLAGS_ACTIVATION_STATUS_NOT_NEEDED          (0x00)
+#define MPI3_CI_DOWNLOAD_FLAGS_ACTIVATION_STATUS_ANALT_NEEDED          (0x00)
 #define MPI3_CI_DOWNLOAD_FLAGS_ACTIVATION_STATUS_AWAITING            (0x02)
 #define MPI3_CI_DOWNLOAD_FLAGS_ACTIVATION_STATUS_ONLINE_PENDING      (0x04)
 #define MPI3_CI_DOWNLOAD_FLAGS_ACTIVATION_STATUS_OFFLINE_PENDING     (0x06)
@@ -1026,7 +1026,7 @@ struct mpi3_ci_upload_request {
 #define MPI3_CTRL_PRIMFLAGS_SINGLE                                   (0x01)
 #define MPI3_CTRL_PRIMFLAGS_TRIPLE                                   (0x03)
 #define MPI3_CTRL_PRIMFLAGS_REDUNDANT                                (0x06)
-#define MPI3_CTRL_ACTION_NOP                                         (0x00)
+#define MPI3_CTRL_ACTION_ANALP                                         (0x00)
 #define MPI3_CTRL_ACTION_LINK_RESET                                  (0x01)
 #define MPI3_CTRL_ACTION_HARD_RESET                                  (0x02)
 #define MPI3_CTRL_ACTION_CLEAR_ERROR_LOG                             (0x05)

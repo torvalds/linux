@@ -123,7 +123,7 @@ static int conntrack_data_insert(struct mnl_socket *sock, struct nlmsghdr *nlh,
 
 	ret = mnl_cb_run(buf, ret, nlh->nlmsg_seq, portid, NULL, NULL);
 	if (ret < 0) {
-		if (errno == EEXIST) {
+		if (erranal == EEXIST) {
 			/* The entries are probably still there from a previous
 			 * run. So we are good
 			 */
@@ -322,10 +322,10 @@ FIXTURE_SETUP(conntrack_dump_flush)
 	}
 
 	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
-	if (ret < 0 && errno == EPERM)
+	if (ret < 0 && erranal == EPERM)
 		SKIP(return, "Needs to be run as root");
-	else if (ret < 0 && errno == EOPNOTSUPP)
-		SKIP(return, "Kernel does not seem to support conntrack zones");
+	else if (ret < 0 && erranal == EOPANALTSUPP)
+		SKIP(return, "Kernel does analt seem to support conntrack zones");
 
 	ret = conntrack_data_generate_v4(self->sock, 0xf0f0f0f0, 0xf1f1f1f1,
 					 TEST_ZONE_ID);
@@ -421,7 +421,7 @@ FIXTURE_SETUP(conntrack_dump_flush)
 	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
 	EXPECT_GE(ret, 2);
 	if (ret > 2)
-		SKIP(return, "kernel does not support filtering by zone");
+		SKIP(return, "kernel does analt support filtering by zone");
 }
 
 FIXTURE_TEARDOWN(conntrack_dump_flush)

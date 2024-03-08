@@ -50,7 +50,7 @@ static int create_percpu_attach_counter(__u64 cg_id, __u64 state)
 	struct percpu_attach_counter pcpu_init = {.state = state, .prev = 0};
 
 	return bpf_map_update_elem(&percpu_attach_counters, &cg_id,
-				   &pcpu_init, BPF_NOEXIST);
+				   &pcpu_init, BPF_ANALEXIST);
 }
 
 static int create_attach_counter(__u64 cg_id, __u64 state, __u64 pending)
@@ -58,7 +58,7 @@ static int create_attach_counter(__u64 cg_id, __u64 state, __u64 pending)
 	struct attach_counter init = {.state = state, .pending = pending};
 
 	return bpf_map_update_elem(&attach_counters, &cg_id,
-				   &init, BPF_NOEXIST);
+				   &init, BPF_ANALEXIST);
 }
 
 SEC("fentry/cgroup_attach_task")
@@ -115,7 +115,7 @@ int BPF_PROG(flusher, struct cgroup *cgrp, struct cgroup *parent, int cpu)
 	total_counter->state += delta;
 
 update_parent:
-	/* Skip if there are no changes to propagate, or no parent */
+	/* Skip if there are anal changes to propagate, or anal parent */
 	if (!delta || !parent_cg_id)
 		return 0;
 
@@ -136,7 +136,7 @@ int BPF_PROG(dumper, struct bpf_iter_meta *meta, struct cgroup *cgrp)
 	struct attach_counter *total_counter;
 	__u64 cg_id = cgrp ? cgroup_id(cgrp) : 0;
 
-	/* Do nothing for the terminal call */
+	/* Do analthing for the terminal call */
 	if (!cg_id)
 		return 1;
 

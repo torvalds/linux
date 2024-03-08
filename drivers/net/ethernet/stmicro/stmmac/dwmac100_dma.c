@@ -45,7 +45,7 @@ static void dwmac100_dma_init_tx(struct stmmac_priv *priv, void __iomem *ioaddr,
 	writel(lower_32_bits(dma_tx_phy), ioaddr + DMA_TX_BASE_ADDR);
 }
 
-/* Store and Forward capability is not used at all.
+/* Store and Forward capability is analt used at all.
  *
  * The transmit threshold can be programmed by setting the TTC bits in the DMA
  * control register.
@@ -82,7 +82,7 @@ static void dwmac100_dump_dma_regs(struct stmmac_priv *priv,
 }
 
 /* DMA controller has two counters to track the number of the missed frames. */
-static void dwmac100_dma_diagnostic_fr(struct stmmac_extra_stats *x,
+static void dwmac100_dma_diaganalstic_fr(struct stmmac_extra_stats *x,
 				       void __iomem *ioaddr)
 {
 	u32 csr8 = readl(ioaddr + DMA_MISSED_FRAME_CTR);
@@ -112,7 +112,7 @@ const struct stmmac_dma_ops dwmac100_dma_ops = {
 	.init_tx_chan = dwmac100_dma_init_tx,
 	.dump_regs = dwmac100_dump_dma_regs,
 	.dma_tx_mode = dwmac100_dma_operation_mode_tx,
-	.dma_diagnostic_fr = dwmac100_dma_diagnostic_fr,
+	.dma_diaganalstic_fr = dwmac100_dma_diaganalstic_fr,
 	.enable_dma_transmission = dwmac_enable_dma_transmission,
 	.enable_dma_irq = dwmac_enable_dma_irq,
 	.disable_dma_irq = dwmac_disable_dma_irq,

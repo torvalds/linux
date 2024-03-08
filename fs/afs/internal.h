@@ -32,12 +32,12 @@
 
 struct pagevec;
 struct afs_call;
-struct afs_vnode;
+struct afs_vanalde;
 struct afs_server_probe;
 
 /*
  * Partial file-locking emulation mode.  (The problem being that AFS3 only
- * allows whole-file locks and no upgrading/downgrading).
+ * allows whole-file locks and anal upgrading/downgrading).
  */
 enum afs_flock_mode {
 	afs_flock_mode_unset,
@@ -51,7 +51,7 @@ struct afs_fs_context {
 	bool			force;		/* T to force cell type */
 	bool			autocell;	/* T if set auto mount operation */
 	bool			dyn_root;	/* T if dynamic root */
-	bool			no_cell;	/* T if the source is "none" (for dynroot) */
+	bool			anal_cell;	/* T if the source is "analne" (for dynroot) */
 	enum afs_flock_mode	flock_mode;	/* Partial file-locking emulation mode */
 	afs_voltype_t		type;		/* type of volume requested */
 	unsigned int		volnamesz;	/* size of volume name */
@@ -153,7 +153,7 @@ struct afs_call {
 		struct afs_vldb_entry	*ret_vldb;
 		char			*ret_str;
 	};
-	struct afs_fid		fid;		/* Primary vnode ID (or all zeroes) */
+	struct afs_fid		fid;		/* Primary vanalde ID (or all zeroes) */
 	unsigned char		probe_index;	/* Address in ->probe_alist */
 	struct afs_operation	*op;
 	unsigned int		server_index;
@@ -162,14 +162,14 @@ struct afs_call {
 	spinlock_t		state_lock;
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
-	unsigned int		max_lifespan;	/* Maximum lifespan in secs to set if not 0 */
+	unsigned int		max_lifespan;	/* Maximum lifespan in secs to set if analt 0 */
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		count2;		/* count used in unmarshalling */
 	unsigned char		unmarshall;	/* unmarshalling phase */
 	bool			drop_ref;	/* T if need to drop ref for incoming call */
 	bool			need_attention;	/* T if RxRPC poked us */
-	bool			async;		/* T if asynchronous */
+	bool			async;		/* T if asynchroanalus */
 	bool			upgrade;	/* T to request service upgrade */
 	bool			intr;		/* T if interruptible */
 	bool			unmarshalling_error; /* T if an unmarshalling error occurred */
@@ -213,7 +213,7 @@ struct afs_call_type {
 struct afs_wb_key {
 	refcount_t		usage;
 	struct key		*key;
-	struct list_head	vnode_link;	/* Link in vnode->wb_keys */
+	struct list_head	vanalde_link;	/* Link in vanalde->wb_keys */
 };
 
 /*
@@ -232,7 +232,7 @@ static inline struct key *afs_file_key(struct file *file)
 }
 
 /*
- * Record of an outstanding read operation on a vnode.
+ * Record of an outstanding read operation on a vanalde.
  */
 struct afs_read {
 	loff_t			pos;		/* Where to start reading */
@@ -240,7 +240,7 @@ struct afs_read {
 	loff_t			actual_len;	/* How much we're actually getting */
 	loff_t			file_size;	/* File size returned by server */
 	struct key		*key;		/* The key to use to reissue the read */
-	struct afs_vnode	*vnode;		/* The file being read into. */
+	struct afs_vanalde	*vanalde;		/* The file being read into. */
 	struct netfs_io_subrequest *subreq;	/* Fscache helper read request this belongs to */
 	afs_dataversion_t	data_version;	/* Version number returned by server */
 	refcount_t		usage;
@@ -311,9 +311,9 @@ struct afs_net {
 	struct mutex		proc_cells_lock;
 	struct hlist_head	proc_cells;
 
-	/* Known servers.  Theoretically each fileserver can only be in one
+	/* Kanalwn servers.  Theoretically each fileserver can only be in one
 	 * cell, but in practice, people create aliases and subsets and there's
-	 * no easy way to distinguish them.
+	 * anal easy way to distinguish them.
 	 */
 	seqlock_t		fs_lock;	/* For fs_servers, fs_probe_*, fs_proc */
 	struct rb_root		fs_servers;	/* afs_server (by server UUID or address) */
@@ -379,7 +379,7 @@ enum afs_cell_state {
  *
  * Cells only exist in the sense that (a) a cell's name maps to a set of VL
  * servers and (b) a cell's name is used by the client to select the key to use
- * for authentication and encryption.  The cell name is not typically used in
+ * for authentication and encryption.  The cell name is analt typically used in
  * the protocol.
  *
  * Two cells are determined to be aliases if they have an explicit alias (YFS
@@ -390,20 +390,20 @@ enum afs_cell_state {
 struct afs_cell {
 	union {
 		struct rcu_head	rcu;
-		struct rb_node	net_node;	/* Node in net->cells */
+		struct rb_analde	net_analde;	/* Analde in net->cells */
 	};
 	struct afs_net		*net;
 	struct afs_cell		*alias_of;	/* The cell this is an alias of */
 	struct afs_volume	*root_volume;	/* The root.cell volume if there is one */
-	struct key		*anonymous_key;	/* anonymous user key for this cell */
+	struct key		*aanalnymous_key;	/* aanalnymous user key for this cell */
 	struct work_struct	manager;	/* Manager for init/deinit/dns */
-	struct hlist_node	proc_link;	/* /proc cell list link */
+	struct hlist_analde	proc_link;	/* /proc cell list link */
 	time64_t		dns_expiry;	/* Time AFSDB/SRV record expires */
 	time64_t		last_inactive;	/* Time of last drop of usage count */
 	refcount_t		ref;		/* Struct refcount */
 	atomic_t		active;		/* Active usage counter */
 	unsigned long		flags;
-#define AFS_CELL_FL_NO_GC	0		/* The cell was added manually, don't auto-gc */
+#define AFS_CELL_FL_ANAL_GC	0		/* The cell was added manually, don't auto-gc */
 #define AFS_CELL_FL_DO_LOOKUP	1		/* DNS lookup requested */
 #define AFS_CELL_FL_CHECK_ALIAS	2		/* Need to check for aliases */
 	enum afs_cell_state	state;
@@ -440,7 +440,7 @@ struct afs_vlserver {
 	unsigned long		flags;
 #define AFS_VLSERVER_FL_PROBED	0		/* The VL server has been probed */
 #define AFS_VLSERVER_FL_PROBING	1		/* VL server is being probed */
-#define AFS_VLSERVER_FL_IS_YFS	2		/* Server is YFS not AFS */
+#define AFS_VLSERVER_FL_IS_YFS	2		/* Server is YFS analt AFS */
 #define AFS_VLSERVER_FL_RESPONDING 3		/* VL server is responding */
 	rwlock_t		lock;		/* Lock on addresses */
 	refcount_t		ref;
@@ -458,7 +458,7 @@ struct afs_vlserver {
 		unsigned short	flags;
 #define AFS_VLSERVER_PROBE_RESPONDED		0x01 /* At least once response (may be abort) */
 #define AFS_VLSERVER_PROBE_IS_YFS		0x02 /* The peer appears to be YFS */
-#define AFS_VLSERVER_PROBE_NOT_YFS		0x04 /* The peer appears not to be YFS */
+#define AFS_VLSERVER_PROBE_ANALT_YFS		0x04 /* The peer appears analt to be YFS */
 #define AFS_VLSERVER_PROBE_LOCAL_FAILURE	0x08 /* A local failure prevented a probe */
 	} probe;
 
@@ -541,8 +541,8 @@ struct afs_endpoint_state {
 #define AFS_ESTATE_RESPONDED	0		/* Set if the server responded */
 #define AFS_ESTATE_SUPERSEDED	1		/* Set if this record has been superseded */
 #define AFS_ESTATE_IS_YFS	2		/* Set if probe upgraded to YFS */
-#define AFS_ESTATE_NOT_YFS	3		/* Set if probe didn't upgrade to YFS */
-#define AFS_ESTATE_LOCAL_FAILURE 4		/* Set if there was a local failure (eg. ENOMEM) */
+#define AFS_ESTATE_ANALT_YFS	3		/* Set if probe didn't upgrade to YFS */
+#define AFS_ESTATE_LOCAL_FAILURE 4		/* Set if there was a local failure (eg. EANALMEM) */
 };
 
 /*
@@ -556,12 +556,12 @@ struct afs_server {
 	};
 
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
-	struct rb_node		uuid_rb;	/* Link in net->fs_servers */
+	struct rb_analde		uuid_rb;	/* Link in net->fs_servers */
 	struct afs_server __rcu	*uuid_next;	/* Next server with same UUID */
 	struct afs_server	*uuid_prev;	/* Previous server with same UUID */
 	struct list_head	probe_link;	/* Link in net->fs_probe_list */
-	struct hlist_node	addr_link;	/* Link in net->fs_addresses6 */
-	struct hlist_node	proc_link;	/* Link in net->fs_proc */
+	struct hlist_analde	addr_link;	/* Link in net->fs_addresses6 */
+	struct hlist_analde	proc_link;	/* Link in net->fs_proc */
 	struct list_head	volumes;	/* RCU list of afs_server_entry objects */
 	struct afs_server	*gc_next;	/* Next server in manager's list */
 	time64_t		unuse_time;	/* Time at which last unused */
@@ -569,13 +569,13 @@ struct afs_server {
 #define AFS_SERVER_FL_RESPONDING 0		/* The server is responding */
 #define AFS_SERVER_FL_UPDATING	1
 #define AFS_SERVER_FL_NEEDS_UPDATE 2		/* Fileserver address list is out of date */
-#define AFS_SERVER_FL_NOT_READY	4		/* The record is not ready for use */
-#define AFS_SERVER_FL_NOT_FOUND	5		/* VL server says no such server */
+#define AFS_SERVER_FL_ANALT_READY	4		/* The record is analt ready for use */
+#define AFS_SERVER_FL_ANALT_FOUND	5		/* VL server says anal such server */
 #define AFS_SERVER_FL_VL_FAIL	6		/* Failed to access VL server */
 #define AFS_SERVER_FL_MAY_HAVE_CB 8		/* May have callbacks on this fileserver */
-#define AFS_SERVER_FL_IS_YFS	16		/* Server is YFS not AFS */
-#define AFS_SERVER_FL_NO_IBULK	17		/* Fileserver doesn't support FS.InlineBulkStatus */
-#define AFS_SERVER_FL_NO_RM2	18		/* Fileserver doesn't support YFS.RemoveFile2 */
+#define AFS_SERVER_FL_IS_YFS	16		/* Server is YFS analt AFS */
+#define AFS_SERVER_FL_ANAL_IBULK	17		/* Fileserver doesn't support FS.InlineBulkStatus */
+#define AFS_SERVER_FL_ANAL_RM2	18		/* Fileserver doesn't support YFS.RemoveFile2 */
 #define AFS_SERVER_FL_HAS_FS64	19		/* Fileserver supports FS.{Fetch,Store}Data64 */
 	refcount_t		ref;		/* Object refcount */
 	atomic_t		active;		/* Active user count */
@@ -596,7 +596,7 @@ struct afs_server {
 };
 
 enum afs_ro_replicating {
-	AFS_RO_NOT_REPLICATING,			/* Not doing replication */
+	AFS_RO_ANALT_REPLICATING,			/* Analt doing replication */
 	AFS_RO_REPLICATING_USE_OLD,		/* Replicating; use old version */
 	AFS_RO_REPLICATING_USE_NEW,		/* Replicating; switch to new version */
 } __mode(byte);
@@ -611,8 +611,8 @@ struct afs_server_entry {
 	time64_t		cb_expires_at;	/* Time at which volume-level callback expires */
 	unsigned long		flags;
 #define AFS_SE_EXCLUDED		0		/* Set if server is to be excluded in rotation */
-#define AFS_SE_VOLUME_OFFLINE	1		/* Set if volume offline notice given */
-#define AFS_SE_VOLUME_BUSY	2		/* Set if volume busy notice given */
+#define AFS_SE_VOLUME_OFFLINE	1		/* Set if volume offline analtice given */
+#define AFS_SE_VOLUME_BUSY	2		/* Set if volume busy analtice given */
 };
 
 struct afs_server_list {
@@ -621,7 +621,7 @@ struct afs_server_list {
 	bool			attached;	/* T if attached to servers */
 	enum afs_ro_replicating	ro_replicating;	/* RW->RO update (probably) in progress */
 	unsigned char		nr_servers;
-	unsigned short		vnovol_mask;	/* Servers to be skipped due to VNOVOL */
+	unsigned short		vanalvol_mask;	/* Servers to be skipped due to VANALVOL */
 	unsigned int		seq;		/* Set to ->servers_seq when installed */
 	rwlock_t		lock;
 	struct afs_server_entry	servers[];
@@ -637,16 +637,16 @@ struct afs_volume {
 	refcount_t		ref;
 	time64_t		update_at;	/* Time at which to next update */
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
-	struct rb_node		cell_node;	/* Link in cell->volumes */
-	struct hlist_node	proc_link;	/* Link in cell->proc_volumes */
-	struct super_block __rcu *sb;		/* Superblock on which inodes reside */
+	struct rb_analde		cell_analde;	/* Link in cell->volumes */
+	struct hlist_analde	proc_link;	/* Link in cell->proc_volumes */
+	struct super_block __rcu *sb;		/* Superblock on which ianaldes reside */
 	struct work_struct	destructor;	/* Deferred destructor */
 	unsigned long		flags;
 #define AFS_VOLUME_NEEDS_UPDATE	0	/* - T if an update needs performing */
 #define AFS_VOLUME_UPDATING	1	/* - T if an update is in progress */
 #define AFS_VOLUME_WAIT		2	/* - T if users must wait for update */
 #define AFS_VOLUME_DELETED	3	/* - T if volume appears deleted */
-#define AFS_VOLUME_MAYBE_NO_IBULK 4	/* - T if some servers don't have InlineBulkStatus */
+#define AFS_VOLUME_MAYBE_ANAL_IBULK 4	/* - T if some servers don't have InlineBulkStatus */
 #define AFS_VOLUME_RM_TREE	5	/* - Set if volume removed from cell->volumes */
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_volume	*cache;		/* Caching cookie */
@@ -669,7 +669,7 @@ struct afs_volume {
 	atomic_t		cb_scrub;	/* Scrub-all-data event counter. */
 	rwlock_t		cb_v_break_lock;
 	struct rw_semaphore	open_mmaps_lock;
-	struct list_head	open_mmaps;	/* List of vnodes that are mmapped */
+	struct list_head	open_mmaps;	/* List of vanaldes that are mmapped */
 
 	afs_voltype_t		type;		/* type of volume */
 	char			type_force;	/* force volume type (suppress R/O -> R/W) */
@@ -678,46 +678,46 @@ struct afs_volume {
 };
 
 enum afs_lock_state {
-	AFS_VNODE_LOCK_NONE,		/* The vnode has no lock on the server */
-	AFS_VNODE_LOCK_WAITING_FOR_CB,	/* We're waiting for the server to break the callback */
-	AFS_VNODE_LOCK_SETTING,		/* We're asking the server for a lock */
-	AFS_VNODE_LOCK_GRANTED,		/* We have a lock on the server */
-	AFS_VNODE_LOCK_EXTENDING,	/* We're extending a lock on the server */
-	AFS_VNODE_LOCK_NEED_UNLOCK,	/* We need to unlock on the server */
-	AFS_VNODE_LOCK_UNLOCKING,	/* We're telling the server to unlock */
-	AFS_VNODE_LOCK_DELETED,		/* The vnode has been deleted whilst we have a lock */
+	AFS_VANALDE_LOCK_ANALNE,		/* The vanalde has anal lock on the server */
+	AFS_VANALDE_LOCK_WAITING_FOR_CB,	/* We're waiting for the server to break the callback */
+	AFS_VANALDE_LOCK_SETTING,		/* We're asking the server for a lock */
+	AFS_VANALDE_LOCK_GRANTED,		/* We have a lock on the server */
+	AFS_VANALDE_LOCK_EXTENDING,	/* We're extending a lock on the server */
+	AFS_VANALDE_LOCK_NEED_UNLOCK,	/* We need to unlock on the server */
+	AFS_VANALDE_LOCK_UNLOCKING,	/* We're telling the server to unlock */
+	AFS_VANALDE_LOCK_DELETED,		/* The vanalde has been deleted whilst we have a lock */
 };
 
 /*
- * AFS inode private data.
+ * AFS ianalde private data.
  *
- * Note that afs_alloc_inode() *must* reset anything that could incorrectly
- * leak from one inode to another.
+ * Analte that afs_alloc_ianalde() *must* reset anything that could incorrectly
+ * leak from one ianalde to aanalther.
  */
-struct afs_vnode {
-	struct netfs_inode	netfs;		/* Netfslib context and vfs inode */
-	struct afs_volume	*volume;	/* volume on which vnode resides */
-	struct afs_fid		fid;		/* the file identifier for this inode */
+struct afs_vanalde {
+	struct netfs_ianalde	netfs;		/* Netfslib context and vfs ianalde */
+	struct afs_volume	*volume;	/* volume on which vanalde resides */
+	struct afs_fid		fid;		/* the file identifier for this ianalde */
 	struct afs_file_status	status;		/* AFS status info for this file */
 	afs_dataversion_t	invalid_before;	/* Child dentries are invalid before this */
 	struct afs_permits __rcu *permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
-	struct rw_semaphore	validate_lock;	/* lock for validating this vnode */
+	struct rw_semaphore	validate_lock;	/* lock for validating this vanalde */
 	struct rw_semaphore	rmdir_lock;	/* Lock for rmdir vs sillyrename */
 	struct key		*silly_key;	/* Silly rename key */
 	spinlock_t		wb_lock;	/* lock for wb_keys */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
-#define AFS_VNODE_UNSET		1		/* set if vnode attributes not yet set */
-#define AFS_VNODE_DIR_VALID	2		/* Set if dir contents are valid */
-#define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
-#define AFS_VNODE_DELETED	4		/* set if vnode deleted on server */
-#define AFS_VNODE_MOUNTPOINT	5		/* set if vnode is a mountpoint symlink */
-#define AFS_VNODE_AUTOCELL	6		/* set if Vnode is an auto mount point */
-#define AFS_VNODE_PSEUDODIR	7 		/* set if Vnode is a pseudo directory */
-#define AFS_VNODE_NEW_CONTENT	8		/* Set if file has new content (create/trunc-0) */
-#define AFS_VNODE_SILLY_DELETED	9		/* Set if file has been silly-deleted */
-#define AFS_VNODE_MODIFYING	10		/* Set if we're performing a modification op */
+#define AFS_VANALDE_UNSET		1		/* set if vanalde attributes analt yet set */
+#define AFS_VANALDE_DIR_VALID	2		/* Set if dir contents are valid */
+#define AFS_VANALDE_ZAP_DATA	3		/* set if vanalde's data should be invalidated */
+#define AFS_VANALDE_DELETED	4		/* set if vanalde deleted on server */
+#define AFS_VANALDE_MOUNTPOINT	5		/* set if vanalde is a mountpoint symlink */
+#define AFS_VANALDE_AUTOCELL	6		/* set if Vanalde is an auto mount point */
+#define AFS_VANALDE_PSEUDODIR	7 		/* set if Vanalde is a pseudo directory */
+#define AFS_VANALDE_NEW_CONTENT	8		/* Set if file has new content (create/trunc-0) */
+#define AFS_VANALDE_SILLY_DELETED	9		/* Set if file has been silly-deleted */
+#define AFS_VANALDE_MODIFYING	10		/* Set if we're performing a modification op */
 
 	struct list_head	wb_keys;	/* List of keys available for writeback */
 	struct list_head	pending_locks;	/* locks waiting to be granted */
@@ -728,42 +728,42 @@ struct afs_vnode {
 	enum afs_lock_state	lock_state : 8;
 	afs_lock_type_t		lock_type : 8;
 
-	/* outstanding callback notification on this file */
+	/* outstanding callback analtification on this file */
 	struct work_struct	cb_work;	/* Work for mmap'd files */
 	struct list_head	cb_mmap_link;	/* Link in cell->fs_open_mmaps */
 	void			*cb_server;	/* Server with callback/filelock */
 	atomic_t		cb_nr_mmap;	/* Number of mmaps */
 	unsigned int		cb_ro_snapshot;	/* RO volume release counter on ->volume */
 	unsigned int		cb_scrub;	/* Scrub counter on ->volume */
-	unsigned int		cb_break;	/* Break counter on vnode */
+	unsigned int		cb_break;	/* Break counter on vanalde */
 	unsigned int		cb_v_check;	/* Break check counter on ->volume */
 	seqlock_t		cb_lock;	/* Lock for ->cb_server, ->status, ->cb_*break */
 
 	atomic64_t		cb_expires_at;	/* time at which callback expires */
-#define AFS_NO_CB_PROMISE TIME64_MIN
+#define AFS_ANAL_CB_PROMISE TIME64_MIN
 };
 
-static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
+static inline struct fscache_cookie *afs_vanalde_cache(struct afs_vanalde *vanalde)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	return netfs_i_cookie(&vnode->netfs);
+	return netfs_i_cookie(&vanalde->netfs);
 #else
 	return NULL;
 #endif
 }
 
-static inline void afs_vnode_set_cache(struct afs_vnode *vnode,
+static inline void afs_vanalde_set_cache(struct afs_vanalde *vanalde,
 				       struct fscache_cookie *cookie)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	vnode->netfs.cache = cookie;
+	vanalde->netfs.cache = cookie;
 	if (cookie)
-		mapping_set_release_always(vnode->netfs.inode.i_mapping);
+		mapping_set_release_always(vanalde->netfs.ianalde.i_mapping);
 #endif
 }
 
 /*
- * cached security record for one user's attempt to access a vnode
+ * cached security record for one user's attempt to access a vanalde
  */
 struct afs_permit {
 	struct key		*key;		/* RxRPC ticket holding a security context */
@@ -771,12 +771,12 @@ struct afs_permit {
 };
 
 /*
- * Immutable cache of CallerAccess records from attempts to access vnodes.
- * These may be shared between multiple vnodes.
+ * Immutable cache of CallerAccess records from attempts to access vanaldes.
+ * These may be shared between multiple vanaldes.
  */
 struct afs_permits {
 	struct rcu_head		rcu;
-	struct hlist_node	hash_node;	/* Link in hash */
+	struct hlist_analde	hash_analde;	/* Link in hash */
 	unsigned long		h;		/* Hash value for this permit list */
 	refcount_t		usage;
 	unsigned short		nr_permits;	/* Number of records */
@@ -846,25 +846,25 @@ struct afs_operation_ops {
 	void (*put)(struct afs_operation *op);
 };
 
-struct afs_vnode_param {
-	struct afs_vnode	*vnode;
+struct afs_vanalde_param {
+	struct afs_vanalde	*vanalde;
 	struct afs_fid		fid;		/* Fid to access */
 	struct afs_status_cb	scb;		/* Returned status and callback promise */
 	afs_dataversion_t	dv_before;	/* Data version before the call */
 	unsigned int		cb_break_before; /* cb_break before the call */
 	u8			dv_delta;	/* Expected change in data version */
-	bool			put_vnode:1;	/* T if we have a ref on the vnode */
+	bool			put_vanalde:1;	/* T if we have a ref on the vanalde */
 	bool			need_io_lock:1;	/* T if we need the I/O lock on this */
 	bool			update_ctime:1;	/* Need to update the ctime */
 	bool			set_size:1;	/* Must update i_size */
 	bool			op_unlinked:1;	/* True if file was unlinked by op */
-	bool			speculative:1;	/* T if speculative status fetch (no vnode lock) */
+	bool			speculative:1;	/* T if speculative status fetch (anal vanalde lock) */
 	bool			modification:1;	/* Set if the content gets modified */
 };
 
 /*
  * Fileserver operation wrapper, handling server and address rotation
- * asynchronously.  May make simultaneous calls to multiple servers.
+ * asynchroanalusly.  May make simultaneous calls to multiple servers.
  */
 struct afs_operation {
 	struct afs_net		*net;		/* Network namespace */
@@ -874,8 +874,8 @@ struct afs_operation {
 
 	/* Parameters/results for the operation */
 	struct afs_volume	*volume;	/* Volume being accessed */
-	struct afs_vnode_param	file[2];
-	struct afs_vnode_param	*more_files;
+	struct afs_vanalde_param	file[2];
+	struct afs_vanalde_param	*more_files;
 	struct afs_volsync	pre_volsync;	/* Volsync before op */
 	struct afs_volsync	volsync;	/* Volsync returned by op */
 	struct dentry		*dentry;	/* Dentry to be altered */
@@ -916,7 +916,7 @@ struct afs_operation {
 			loff_t	pos;
 			loff_t	size;
 			loff_t	i_size;
-			bool	laundering;	/* Laundering page, PG_writeback not set */
+			bool	laundering;	/* Laundering page, PG_writeback analt set */
 		} store;
 		struct {
 			struct iattr	*attr;
@@ -949,9 +949,9 @@ struct afs_operation {
 #define AFS_OPERATION_STOP		0x0001	/* Set to cease iteration */
 #define AFS_OPERATION_VBUSY		0x0002	/* Set if seen VBUSY */
 #define AFS_OPERATION_VMOVED		0x0004	/* Set if seen VMOVED */
-#define AFS_OPERATION_VNOVOL		0x0008	/* Set if seen VNOVOL */
+#define AFS_OPERATION_VANALVOL		0x0008	/* Set if seen VANALVOL */
 #define AFS_OPERATION_CUR_ONLY		0x0010	/* Set if current server only (file lock held) */
-#define AFS_OPERATION_NO_VSLEEP		0x0020	/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
+#define AFS_OPERATION_ANAL_VSLEEP		0x0020	/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
 #define AFS_OPERATION_UNINTR		0x0040	/* Set if op is uninterruptible */
 #define AFS_OPERATION_DOWNGRADE		0x0080	/* Set to retry with downgraded opcode */
 #define AFS_OPERATION_LOCK_0		0x0100	/* Set if have io_lock on file[0] */
@@ -964,23 +964,23 @@ struct afs_operation {
 /*
  * Cache auxiliary data.
  */
-struct afs_vnode_cache_aux {
+struct afs_vanalde_cache_aux {
 	__be64			data_version;
 } __packed;
 
-static inline void afs_set_cache_aux(struct afs_vnode *vnode,
-				     struct afs_vnode_cache_aux *aux)
+static inline void afs_set_cache_aux(struct afs_vanalde *vanalde,
+				     struct afs_vanalde_cache_aux *aux)
 {
-	aux->data_version = cpu_to_be64(vnode->status.data_version);
+	aux->data_version = cpu_to_be64(vanalde->status.data_version);
 }
 
-static inline void afs_invalidate_cache(struct afs_vnode *vnode, unsigned int flags)
+static inline void afs_invalidate_cache(struct afs_vanalde *vanalde, unsigned int flags)
 {
-	struct afs_vnode_cache_aux aux;
+	struct afs_vanalde_cache_aux aux;
 
-	afs_set_cache_aux(vnode, &aux);
-	fscache_invalidate(afs_vnode_cache(vnode), &aux,
-			   i_size_read(&vnode->netfs.inode), flags);
+	afs_set_cache_aux(vanalde, &aux);
+	fscache_invalidate(afs_vanalde_cache(vanalde), &aux,
+			   i_size_read(&vanalde->netfs.ianalde), flags);
 }
 
 #include <trace/events/afs.h>
@@ -1016,21 +1016,21 @@ void afs_get_address_preferences(struct afs_net *net, struct afs_addr_list *alis
  */
 extern void afs_invalidate_mmap_work(struct work_struct *);
 extern void afs_init_callback_state(struct afs_server *);
-extern void __afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
-extern void afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
+extern void __afs_break_callback(struct afs_vanalde *, enum afs_cb_break_reason);
+extern void afs_break_callback(struct afs_vanalde *, enum afs_cb_break_reason);
 extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break *);
 
-static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
+static inline unsigned int afs_calc_vanalde_cb_break(struct afs_vanalde *vanalde)
 {
-	return vnode->cb_break + vnode->cb_ro_snapshot + vnode->cb_scrub;
+	return vanalde->cb_break + vanalde->cb_ro_snapshot + vanalde->cb_scrub;
 }
 
 static inline bool afs_cb_is_broken(unsigned int cb_break,
-				    const struct afs_vnode *vnode)
+				    const struct afs_vanalde *vanalde)
 {
-	return cb_break != (vnode->cb_break +
-			    atomic_read(&vnode->volume->cb_ro_snapshot) +
-			    atomic_read(&vnode->volume->cb_scrub));
+	return cb_break != (vanalde->cb_break +
+			    atomic_read(&vanalde->volume->cb_ro_snapshot) +
+			    atomic_read(&vanalde->volume->cb_scrub));
 }
 
 /*
@@ -1060,7 +1060,7 @@ extern bool afs_cm_incoming_call(struct afs_call *);
  * dir.c
  */
 extern const struct file_operations afs_dir_file_operations;
-extern const struct inode_operations afs_dir_inode_operations;
+extern const struct ianalde_operations afs_dir_ianalde_operations;
 extern const struct address_space_operations afs_dir_aops;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
@@ -1070,24 +1070,24 @@ extern void afs_check_for_remote_deletion(struct afs_operation *);
 /*
  * dir_edit.c
  */
-extern void afs_edit_dir_add(struct afs_vnode *, struct qstr *, struct afs_fid *,
+extern void afs_edit_dir_add(struct afs_vanalde *, struct qstr *, struct afs_fid *,
 			     enum afs_edit_dir_reason);
-extern void afs_edit_dir_remove(struct afs_vnode *, struct qstr *, enum afs_edit_dir_reason);
+extern void afs_edit_dir_remove(struct afs_vanalde *, struct qstr *, enum afs_edit_dir_reason);
 
 /*
  * dir_silly.c
  */
-extern int afs_sillyrename(struct afs_vnode *, struct afs_vnode *,
+extern int afs_sillyrename(struct afs_vanalde *, struct afs_vanalde *,
 			   struct dentry *, struct key *);
-extern int afs_silly_iput(struct dentry *, struct inode *);
+extern int afs_silly_iput(struct dentry *, struct ianalde *);
 
 /*
  * dynroot.c
  */
-extern const struct inode_operations afs_dynroot_inode_operations;
+extern const struct ianalde_operations afs_dynroot_ianalde_operations;
 extern const struct dentry_operations afs_dynroot_dentry_operations;
 
-extern struct inode *afs_try_auto_mntpt(struct dentry *, struct inode *);
+extern struct ianalde *afs_try_auto_mntpt(struct dentry *, struct ianalde *);
 extern int afs_dynroot_mkdir(struct afs_net *, struct afs_cell *);
 extern void afs_dynroot_rmdir(struct afs_net *, struct afs_cell *);
 extern int afs_dynroot_populate(struct super_block *);
@@ -1098,15 +1098,15 @@ extern void afs_dynroot_depopulate(struct super_block *);
  */
 extern const struct address_space_operations afs_file_aops;
 extern const struct address_space_operations afs_symlink_aops;
-extern const struct inode_operations afs_file_inode_operations;
+extern const struct ianalde_operations afs_file_ianalde_operations;
 extern const struct file_operations afs_file_operations;
 extern const struct netfs_request_ops afs_req_ops;
 
-extern int afs_cache_wb_key(struct afs_vnode *, struct afs_file *);
+extern int afs_cache_wb_key(struct afs_vanalde *, struct afs_file *);
 extern void afs_put_wb_key(struct afs_wb_key *);
-extern int afs_open(struct inode *, struct file *);
-extern int afs_release(struct inode *, struct file *);
-extern int afs_fetch_data(struct afs_vnode *, struct afs_read *);
+extern int afs_open(struct ianalde *, struct file *);
+extern int afs_release(struct ianalde *, struct file *);
+extern int afs_fetch_data(struct afs_vanalde *, struct afs_read *);
 extern struct afs_read *afs_alloc_read(gfp_t);
 extern void afs_put_read(struct afs_read *);
 
@@ -1123,7 +1123,7 @@ extern struct workqueue_struct *afs_lock_manager;
 
 extern void afs_lock_op_done(struct afs_call *);
 extern void afs_lock_work(struct work_struct *);
-extern void afs_lock_may_be_available(struct afs_vnode *);
+extern void afs_lock_may_be_available(struct afs_vanalde *);
 extern int afs_lock(struct file *, int, struct file_lock *);
 extern int afs_flock(struct file *, int, struct file_lock *);
 
@@ -1165,14 +1165,14 @@ extern void afs_fs_store_acl(struct afs_operation *);
  */
 extern struct afs_operation *afs_alloc_operation(struct key *, struct afs_volume *);
 extern int afs_put_operation(struct afs_operation *);
-extern bool afs_begin_vnode_operation(struct afs_operation *);
+extern bool afs_begin_vanalde_operation(struct afs_operation *);
 extern void afs_wait_for_operation(struct afs_operation *);
 extern int afs_do_sync_operation(struct afs_operation *);
 
-static inline void afs_op_set_vnode(struct afs_operation *op, unsigned int n,
-				    struct afs_vnode *vnode)
+static inline void afs_op_set_vanalde(struct afs_operation *op, unsigned int n,
+				    struct afs_vanalde *vanalde)
 {
-	op->file[n].vnode = vnode;
+	op->file[n].vanalde = vanalde;
 	op->file[n].need_io_lock = true;
 }
 
@@ -1199,21 +1199,21 @@ int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_sta
 extern void afs_fs_probe_cleanup(struct afs_net *);
 
 /*
- * inode.c
+ * ianalde.c
  */
 extern const struct afs_operation_ops afs_fetch_status_operation;
 
-extern void afs_vnode_commit_status(struct afs_operation *, struct afs_vnode_param *);
-extern int afs_fetch_status(struct afs_vnode *, struct key *, bool, afs_access_t *);
-extern int afs_ilookup5_test_by_fid(struct inode *, void *);
-extern struct inode *afs_iget_pseudo_dir(struct super_block *, bool);
-extern struct inode *afs_iget(struct afs_operation *, struct afs_vnode_param *);
-extern struct inode *afs_root_iget(struct super_block *, struct key *);
+extern void afs_vanalde_commit_status(struct afs_operation *, struct afs_vanalde_param *);
+extern int afs_fetch_status(struct afs_vanalde *, struct key *, bool, afs_access_t *);
+extern int afs_ilookup5_test_by_fid(struct ianalde *, void *);
+extern struct ianalde *afs_iget_pseudo_dir(struct super_block *, bool);
+extern struct ianalde *afs_iget(struct afs_operation *, struct afs_vanalde_param *);
+extern struct ianalde *afs_root_iget(struct super_block *, struct key *);
 extern int afs_getattr(struct mnt_idmap *idmap, const struct path *,
 		       struct kstat *, u32, unsigned int);
 extern int afs_setattr(struct mnt_idmap *idmap, struct dentry *, struct iattr *);
-extern void afs_evict_inode(struct inode *);
-extern int afs_drop_inode(struct inode *);
+extern void afs_evict_ianalde(struct ianalde *);
+extern int afs_drop_ianalde(struct ianalde *);
 
 /*
  * main.c
@@ -1236,14 +1236,14 @@ static inline struct afs_net *afs_d2net(struct dentry *dentry)
 	return afs_sb2net(dentry->d_sb);
 }
 
-static inline struct afs_net *afs_i2net(struct inode *inode)
+static inline struct afs_net *afs_i2net(struct ianalde *ianalde)
 {
-	return afs_sb2net(inode->i_sb);
+	return afs_sb2net(ianalde->i_sb);
 }
 
-static inline struct afs_net *afs_v2net(struct afs_vnode *vnode)
+static inline struct afs_net *afs_v2net(struct afs_vanalde *vanalde)
 {
-	return afs_i2net(&vnode->netfs.inode);
+	return afs_i2net(&vanalde->netfs.ianalde);
 }
 
 static inline struct afs_net *afs_sock2net(struct sock *sk)
@@ -1256,7 +1256,7 @@ static inline void __afs_stat(atomic_t *s)
 	atomic_inc(s);
 }
 
-#define afs_stat_v(vnode, n) __afs_stat(&afs_v2net(vnode)->n)
+#define afs_stat_v(vanalde, n) __afs_stat(&afs_v2net(vanalde)->n)
 
 /*
  * misc.c
@@ -1264,9 +1264,9 @@ static inline void __afs_stat(atomic_t *s)
 extern int afs_abort_to_error(u32);
 extern void afs_prioritise_error(struct afs_error *, int, u32);
 
-static inline void afs_op_nomem(struct afs_operation *op)
+static inline void afs_op_analmem(struct afs_operation *op)
 {
-	op->cumul_error.error = -ENOMEM;
+	op->cumul_error.error = -EANALMEM;
 }
 
 static inline int afs_op_error(const struct afs_operation *op)
@@ -1292,8 +1292,8 @@ static inline void afs_op_accumulate_error(struct afs_operation *op, int error, 
 /*
  * mntpt.c
  */
-extern const struct inode_operations afs_mntpt_inode_operations;
-extern const struct inode_operations afs_autocell_inode_operations;
+extern const struct ianalde_operations afs_mntpt_ianalde_operations;
+extern const struct ianalde_operations afs_autocell_ianalde_operations;
 extern const struct file_operations afs_mntpt_file_operations;
 
 extern struct vfsmount *afs_d_automount(struct path *);
@@ -1437,7 +1437,7 @@ static inline void afs_set_call_complete(struct afs_call *call,
 	if (ok) {
 		trace_afs_call_done(call);
 
-		/* Asynchronous calls have two refs to release - one from the alloc and
+		/* Asynchroanalus calls have two refs to release - one from the alloc and
 		 * one queued with the work item - and we can't just deallocate the
 		 * call because the work item may be queued again.
 		 */
@@ -1450,13 +1450,13 @@ static inline void afs_set_call_complete(struct afs_call *call,
  * security.c
  */
 extern void afs_put_permits(struct afs_permits *);
-extern void afs_clear_permits(struct afs_vnode *);
-extern void afs_cache_permit(struct afs_vnode *, struct key *, unsigned int,
+extern void afs_clear_permits(struct afs_vanalde *);
+extern void afs_cache_permit(struct afs_vanalde *, struct key *, unsigned int,
 			     struct afs_status_cb *);
 extern struct key *afs_request_key(struct afs_cell *);
 extern struct key *afs_request_key_rcu(struct afs_cell *);
-extern int afs_check_permit(struct afs_vnode *, struct key *, afs_access_t *);
-extern int afs_permission(struct mnt_idmap *, struct inode *, int);
+extern int afs_check_permit(struct afs_vanalde *, struct key *, afs_access_t *);
+extern int afs_permission(struct mnt_idmap *, struct ianalde *, int);
 extern void __exit afs_clean_up_permit_cache(void);
 
 /*
@@ -1470,7 +1470,7 @@ extern struct afs_server *afs_lookup_server(struct afs_cell *, struct key *, con
 extern struct afs_server *afs_get_server(struct afs_server *, enum afs_server_trace);
 extern struct afs_server *afs_use_server(struct afs_server *, enum afs_server_trace);
 extern void afs_unuse_server(struct afs_net *, struct afs_server *, enum afs_server_trace);
-extern void afs_unuse_server_notime(struct afs_net *, struct afs_server *, enum afs_server_trace);
+extern void afs_unuse_server_analtime(struct afs_net *, struct afs_server *, enum afs_server_trace);
 extern void afs_put_server(struct afs_net *, struct afs_server *, enum afs_server_trace);
 extern void afs_manage_servers(struct work_struct *);
 extern void afs_servers_timer(struct timer_list *);
@@ -1507,7 +1507,7 @@ extern void afs_put_serverlist(struct afs_net *, struct afs_server_list *);
 struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
 					      struct key *key,
 					      struct afs_vldb_entry *vldb);
-extern bool afs_annotate_server_list(struct afs_server_list *, struct afs_server_list *);
+extern bool afs_ananaltate_server_list(struct afs_server_list *, struct afs_server_list *);
 void afs_attach_volume_to_servers(struct afs_volume *volume, struct afs_server_list *slist);
 void afs_reattach_volume_to_servers(struct afs_volume *volume, struct afs_server_list *slist,
 				    struct afs_server_list *old);
@@ -1522,9 +1522,9 @@ extern void afs_fs_exit(void);
 /*
  * validation.c
  */
-bool afs_check_validity(const struct afs_vnode *vnode);
+bool afs_check_validity(const struct afs_vanalde *vanalde);
 int afs_update_volume_state(struct afs_operation *op);
-int afs_validate(struct afs_vnode *vnode, struct key *key);
+int afs_validate(struct afs_vanalde *vanalde, struct key *key);
 
 /*
  * vlclient.c
@@ -1602,7 +1602,7 @@ extern int afs_check_volume_status(struct afs_volume *, struct afs_operation *);
 extern int afs_writepages(struct address_space *, struct writeback_control *);
 extern int afs_fsync(struct file *, loff_t, loff_t, int);
 extern vm_fault_t afs_page_mkwrite(struct vm_fault *vmf);
-extern void afs_prune_wb_keys(struct afs_vnode *);
+extern void afs_prune_wb_keys(struct afs_vanalde *);
 void afs_create_write_requests(struct netfs_io_request *wreq, loff_t start, size_t len);
 
 /*
@@ -1648,23 +1648,23 @@ extern void yfs_fs_store_opaque_acl2(struct afs_operation *);
 /*
  * Miscellaneous inline functions.
  */
-static inline struct afs_vnode *AFS_FS_I(struct inode *inode)
+static inline struct afs_vanalde *AFS_FS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct afs_vnode, netfs.inode);
+	return container_of(ianalde, struct afs_vanalde, netfs.ianalde);
 }
 
-static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
+static inline struct ianalde *AFS_VANALDE_TO_I(struct afs_vanalde *vanalde)
 {
-	return &vnode->netfs.inode;
+	return &vanalde->netfs.ianalde;
 }
 
 /*
- * Note that a dentry got changed.  We need to set d_fsdata to the data version
+ * Analte that a dentry got changed.  We need to set d_fsdata to the data version
  * number derived from the result of the operation.  It doesn't matter if
  * d_fsdata goes backwards as we'll just revalidate.
  */
 static inline void afs_update_dentry_version(struct afs_operation *op,
-					     struct afs_vnode_param *dir_vp,
+					     struct afs_vanalde_param *dir_vp,
 					     struct dentry *dentry)
 {
 	if (!op->cumul_error.error)
@@ -1676,19 +1676,19 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
  * Set the file size and block count.  Estimate the number of 512 bytes blocks
  * used, rounded up to nearest 1K for consistency with other AFS clients.
  */
-static inline void afs_set_i_size(struct afs_vnode *vnode, u64 size)
+static inline void afs_set_i_size(struct afs_vanalde *vanalde, u64 size)
 {
-	i_size_write(&vnode->netfs.inode, size);
-	vnode->netfs.inode.i_blocks = ((size + 1023) >> 10) << 1;
+	i_size_write(&vanalde->netfs.ianalde, size);
+	vanalde->netfs.ianalde.i_blocks = ((size + 1023) >> 10) << 1;
 }
 
 /*
  * Check for a conflicting operation on a directory that we just unlinked from.
  * If someone managed to sneak a link or an unlink in on the file we just
- * unlinked, we won't be able to trust nlink on an AFS file (but not YFS).
+ * unlinked, we won't be able to trust nlink on an AFS file (but analt YFS).
  */
 static inline void afs_check_dir_conflict(struct afs_operation *op,
-					  struct afs_vnode_param *dvp)
+					  struct afs_vanalde_param *dvp)
 {
 	if (dvp->dv_before + dvp->dv_delta != dvp->scb.status.data_version)
 		op->flags |= AFS_OPERATION_DIR_CONFLICT;
@@ -1700,9 +1700,9 @@ static inline int afs_io_error(struct afs_call *call, enum afs_io_error where)
 	return -EIO;
 }
 
-static inline int afs_bad(struct afs_vnode *vnode, enum afs_file_error where)
+static inline int afs_bad(struct afs_vanalde *vanalde, enum afs_file_error where)
 {
-	trace_afs_file_error(vnode, -EIO, where);
+	trace_afs_file_error(vanalde, -EIO, where);
 	return -EIO;
 }
 
@@ -1749,9 +1749,9 @@ do {							\
 } while (0)
 
 #else
-#define _enter(FMT,...)	no_printk("==> %s("FMT")",__func__ ,##__VA_ARGS__)
-#define _leave(FMT,...)	no_printk("<== %s()"FMT"",__func__ ,##__VA_ARGS__)
-#define _debug(FMT,...)	no_printk("    "FMT ,##__VA_ARGS__)
+#define _enter(FMT,...)	anal_printk("==> %s("FMT")",__func__ ,##__VA_ARGS__)
+#define _leave(FMT,...)	anal_printk("<== %s()"FMT"",__func__ ,##__VA_ARGS__)
+#define _debug(FMT,...)	anal_printk("    "FMT ,##__VA_ARGS__)
 #endif
 
 /*

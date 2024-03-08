@@ -23,7 +23,7 @@
 
 struct clk;
 struct device;
-struct device_node;
+struct device_analde;
 
 /*
  * SSP Serial Port Registers
@@ -50,10 +50,10 @@ struct device_node;
 #define SSCR0_DataSize(x)  ((x) - 1)	/* Data Size Select [4..16] */
 #define SSCR0_FRF	GENMASK(5, 4)	/* FRame Format (mask) */
 #define SSCR0_Motorola	(0x0 << 4)	/* Motorola's Serial Peripheral Interface (SPI) */
-#define SSCR0_TI	(0x1 << 4)	/* Texas Instruments' Synchronous Serial Protocol (SSP) */
+#define SSCR0_TI	(0x1 << 4)	/* Texas Instruments' Synchroanalus Serial Protocol (SSP) */
 #define SSCR0_National	(0x2 << 4)	/* National Microwire */
 #define SSCR0_ECS	BIT(6)		/* External clock select */
-#define SSCR0_SSE	BIT(7)		/* Synchronous Serial Port Enable */
+#define SSCR0_SSE	BIT(7)		/* Synchroanalus Serial Port Enable */
 #define SSCR0_SCR(x)	((x) << 8)	/* Serial Clock Rate (mask) */
 
 /* PXA27x, PXA3xx */
@@ -65,7 +65,7 @@ struct device_node;
 #define SSCR0_SlotsPerFrm(x) (((x) - 1) << 24)	/* Time slots per frame [1..8] */
 #define SSCR0_FPCKE	BIT(29)		/* FIFO packing enable */
 #define SSCR0_ACS	BIT(30)		/* Audio clock select */
-#define SSCR0_MOD	BIT(31)		/* Mode (normal or network) */
+#define SSCR0_MOD	BIT(31)		/* Mode (analrmal or network) */
 
 #define SSCR1_RIE	BIT(0)		/* Receive FIFO Interrupt Enable */
 #define SSCR1_TIE	BIT(1)		/* Transmit FIFO Interrupt Enable */
@@ -75,8 +75,8 @@ struct device_node;
 #define SSCR1_MWDS	BIT(5)		/* Microwire Transmit Data Size */
 
 #define SSSR_ALT_FRM_MASK	GENMASK(1, 0)	/* Masks the SFRM signal number */
-#define SSSR_TNF		BIT(2)		/* Transmit FIFO Not Full */
-#define SSSR_RNE		BIT(3)		/* Receive FIFO Not Empty */
+#define SSSR_TNF		BIT(2)		/* Transmit FIFO Analt Full */
+#define SSSR_RNE		BIT(3)		/* Receive FIFO Analt Empty */
 #define SSSR_BSY		BIT(4)		/* SSP Busy */
 #define SSSR_TFS		BIT(5)		/* Transmit FIFO Service Request */
 #define SSSR_RFS		BIT(6)		/* Receive FIFO Service Request */
@@ -234,7 +234,7 @@ enum pxa_ssp_type {
 
 struct ssp_device {
 	struct device	*dev;
-	struct list_head	node;
+	struct list_head	analde;
 
 	struct clk	*clk;
 	void __iomem	*mmio_base;
@@ -246,7 +246,7 @@ struct ssp_device {
 	int		use_count;
 	int		irq;
 
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 };
 
 /**
@@ -291,14 +291,14 @@ static inline void pxa_ssp_disable(struct ssp_device *ssp)
 #if IS_ENABLED(CONFIG_PXA_SSP)
 struct ssp_device *pxa_ssp_request(int port, const char *label);
 void pxa_ssp_free(struct ssp_device *);
-struct ssp_device *pxa_ssp_request_of(const struct device_node *of_node,
+struct ssp_device *pxa_ssp_request_of(const struct device_analde *of_analde,
 				      const char *label);
 #else
 static inline struct ssp_device *pxa_ssp_request(int port, const char *label)
 {
 	return NULL;
 }
-static inline struct ssp_device *pxa_ssp_request_of(const struct device_node *n,
+static inline struct ssp_device *pxa_ssp_request_of(const struct device_analde *n,
 						    const char *name)
 {
 	return NULL;

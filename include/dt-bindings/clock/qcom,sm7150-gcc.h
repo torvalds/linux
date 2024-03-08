@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Danila Tikhonov <danila@jiaxyga.com>
+ * Copyright (c) 2023, Danila Tikhoanalv <danila@jiaxyga.com>
  * Copyright (c) 2023, David Wronek <davidwronek@gmail.com>
  */
 
@@ -14,7 +14,7 @@
 #define GPLL0_OUT_EVEN					2
 #define GPLL6						3
 #define GPLL7						4
-#define GCC_AGGRE_NOC_PCIE_TBU_CLK			5
+#define GCC_AGGRE_ANALC_PCIE_TBU_CLK			5
 #define GCC_AGGRE_UFS_PHY_AXI_CLK			6
 #define GCC_AGGRE_UFS_PHY_AXI_HW_CTL_CLK		7
 #define GCC_AGGRE_USB3_PRIM_AXI_CLK			8
@@ -25,7 +25,7 @@
 #define GCC_CE1_AHB_CLK					13
 #define GCC_CE1_AXI_CLK					14
 #define GCC_CE1_CLK					15
-#define GCC_CFG_NOC_USB3_PRIM_AXI_CLK			16
+#define GCC_CFG_ANALC_USB3_PRIM_AXI_CLK			16
 #define GCC_CPUSS_AHB_CLK				17
 #define GCC_CPUSS_AHB_CLK_SRC				18
 #define GCC_CPUSS_RBCPR_CLK				19
@@ -43,8 +43,8 @@
 #define GCC_GP3_CLK_SRC					31
 #define GCC_GPU_GPLL0_CLK_SRC				32
 #define GCC_GPU_GPLL0_DIV_CLK_SRC			33
-#define GCC_GPU_MEMNOC_GFX_CLK				34
-#define GCC_GPU_SNOC_DVM_GFX_CLK			35
+#define GCC_GPU_MEMANALC_GFX_CLK				34
+#define GCC_GPU_SANALC_DVM_GFX_CLK			35
 #define GCC_GPU_VS_CLK					36
 #define GCC_NPU_AXI_CLK					37
 #define GCC_NPU_CFG_AHB_CLK				38
@@ -117,7 +117,7 @@
 #define GCC_SDCC4_AHB_CLK				105
 #define GCC_SDCC4_APPS_CLK				106
 #define GCC_SDCC4_APPS_CLK_SRC				107
-#define GCC_SYS_NOC_CPUSS_AHB_CLK			108
+#define GCC_SYS_ANALC_CPUSS_AHB_CLK			108
 #define GCC_TSIF_AHB_CLK				109
 #define GCC_TSIF_INACTIVITY_TIMERS_CLK			110
 #define GCC_TSIF_REF_CLK				111
@@ -175,12 +175,12 @@
 #define PCIE_0_GDSC					0
 #define UFS_PHY_GDSC					1
 #define USB30_PRIM_GDSC					2
-#define HLOS1_VOTE_AGGRE_NOC_MMU_AUDIO_TBU_GDSC		3
-#define HLOS1_VOTE_AGGRE_NOC_MMU_PCIE_TBU_GDSC		4
-#define HLOS1_VOTE_AGGRE_NOC_MMU_TBU1_GDSC		5
-#define HLOS1_VOTE_AGGRE_NOC_MMU_TBU2_GDSC		6
-#define HLOS1_VOTE_MMNOC_MMU_TBU_HF0_GDSC		7
-#define HLOS1_VOTE_MMNOC_MMU_TBU_HF1_GDSC		8
-#define HLOS1_VOTE_MMNOC_MMU_TBU_SF_GDSC		9
+#define HLOS1_VOTE_AGGRE_ANALC_MMU_AUDIO_TBU_GDSC		3
+#define HLOS1_VOTE_AGGRE_ANALC_MMU_PCIE_TBU_GDSC		4
+#define HLOS1_VOTE_AGGRE_ANALC_MMU_TBU1_GDSC		5
+#define HLOS1_VOTE_AGGRE_ANALC_MMU_TBU2_GDSC		6
+#define HLOS1_VOTE_MMANALC_MMU_TBU_HF0_GDSC		7
+#define HLOS1_VOTE_MMANALC_MMU_TBU_HF1_GDSC		8
+#define HLOS1_VOTE_MMANALC_MMU_TBU_SF_GDSC		9
 
 #endif

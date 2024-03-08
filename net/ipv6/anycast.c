@@ -11,7 +11,7 @@
 
 #include <linux/capability.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/random.h>
 #include <linux/string.h>
@@ -85,7 +85,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 
 	pac = sock_kmalloc(sk, sizeof(struct ipv6_ac_socklist), GFP_KERNEL);
 	if (!pac)
-		return -ENOMEM;
+		return -EANALMEM;
 	pac->acl_next = NULL;
 	pac->acl_addr = *addr;
 
@@ -97,29 +97,29 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			dev = rt->dst.dev;
 			ip6_rt_put(rt);
 		} else if (ishost) {
-			err = -EADDRNOTAVAIL;
+			err = -EADDRANALTAVAIL;
 			goto error;
 		} else {
-			/* router, no matching interface: just pick one */
+			/* router, anal matching interface: just pick one */
 			dev = __dev_get_by_flags(net, IFF_UP,
 						 IFF_UP | IFF_LOOPBACK);
 		}
 	}
 
 	if (!dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error;
 	}
 
 	idev = __in6_dev_get(dev);
 	if (!idev) {
 		if (ifindex)
-			err = -ENODEV;
+			err = -EANALDEV;
 		else
-			err = -EADDRNOTAVAIL;
+			err = -EADDRANALTAVAIL;
 		goto error;
 	}
-	/* reset ishost, now that we have a specific device */
+	/* reset ishost, analw that we have a specific device */
 	ishost = !idev->cnf.forwarding;
 
 	pac->acl_ifindex = dev->ifindex;
@@ -127,11 +127,11 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	/* XXX
 	 * For hosts, allow link-local or matching prefix anycasts.
 	 * This obviates the need for propagating anycast routes while
-	 * still allowing some non-router anycast participation.
+	 * still allowing some analn-router anycast participation.
 	 */
 	if (!ipv6_chk_prefix(addr, dev)) {
 		if (ishost)
-			err = -EADDRNOTAVAIL;
+			err = -EADDRANALTAVAIL;
 		if (err)
 			goto error;
 	}
@@ -169,7 +169,7 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		prev_pac = pac;
 	}
 	if (!pac)
-		return -ENOENT;
+		return -EANALENT;
 	if (prev_pac)
 		prev_pac->acl_next = pac->acl_next;
 	else
@@ -269,7 +269,7 @@ static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,
 	aca->aca_addr = *addr;
 	fib6_info_hold(f6i);
 	aca->aca_rt = f6i;
-	INIT_HLIST_NODE(&aca->aca_addr_lst);
+	INIT_HLIST_ANALDE(&aca->aca_addr_lst);
 	aca->aca_users = 1;
 	/* aca_tstamp should be updated upon changes */
 	aca->aca_cstamp = aca->aca_tstamp = jiffies;
@@ -279,7 +279,7 @@ static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,
 }
 
 /*
- *	device anycast group inc (add if not found)
+ *	device anycast group inc (add if analt found)
  */
 int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 {
@@ -292,7 +292,7 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 
 	write_lock_bh(&idev->lock);
 	if (idev->dead) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -313,7 +313,7 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 	aca = aca_alloc(f6i, addr);
 	if (!aca) {
 		fib6_info_release(f6i);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -357,7 +357,7 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, const struct in6_addr *addr)
 	}
 	if (!aca) {
 		write_unlock_bh(&idev->lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	if (--aca->aca_users > 0) {
 		write_unlock_bh(&idev->lock);
@@ -383,7 +383,7 @@ static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr)
 	struct inet6_dev *idev = __in6_dev_get(dev);
 
 	if (!idev)
-		return -ENODEV;
+		return -EANALDEV;
 	return __ipv6_dev_ac_dec(idev, addr);
 }
 
@@ -586,7 +586,7 @@ int __net_init ac6_proc_init(struct net *net)
 {
 	if (!proc_create_net("anycast6", 0444, net->proc_net, &ac6_seq_ops,
 			sizeof(struct ac6_iter_state)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

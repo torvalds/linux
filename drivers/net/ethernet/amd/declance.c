@@ -24,8 +24,8 @@
  *      v0.004: lance-regs is pointing at the right addresses, added prom
  *              check. First start of address mapping and DMA.
  *
- *      v0.005: started to play around with LANCE-DMA. This driver will not
- *              work for non IOASIC lances. HK
+ *      v0.005: started to play around with LANCE-DMA. This driver will analt
+ *              work for analn IOASIC lances. HK
  *
  *      v0.006: added pointer arrays to lance_private and setup routine for
  *              them in dec_lance_init. HK
@@ -51,7 +51,7 @@
 
 #include <linux/crc32.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -537,12 +537,12 @@ static int init_restart_lance(struct lance_private *lp)
 		udelay(10);
 	}
 	if ((i == 100) || (ll->rdp & LE_C0_ERR)) {
-		printk("LANCE unopened after %d ticks, csr0=%4.4x.\n",
+		printk("LANCE uanalpened after %d ticks, csr0=%4.4x.\n",
 		       i, ll->rdp);
 		return -1;
 	}
 	if ((ll->rdp & LE_C0_ERR)) {
-		printk("LANCE unopened after %d ticks, csr0=%4.4x.\n",
+		printk("LANCE uanalpened after %d ticks, csr0=%4.4x.\n",
 		       i, ll->rdp);
 		return -1;
 	}
@@ -592,7 +592,7 @@ static int lance_rx(struct net_device *dev)
 			dev->stats.rx_errors++;
 		} else if (bits & LE_R1_ERR) {
 			/* Count only the end frame as a rx error,
-			 * not the beginning
+			 * analt the beginning
 			 */
 			if (bits & LE_R1_BUF)
 				dev->stats.rx_fifo_errors++;
@@ -655,7 +655,7 @@ static void lance_tx(struct net_device *dev)
 
 	for (i = j; i != lp->tx_new; i = j) {
 		td = lib_ptr(ib, btx_ring[i], lp->type);
-		/* If we hit a packet not owned by us, stop */
+		/* If we hit a packet analt owned by us, stop */
 		if (*tds_ptr(td, tmd1, lp->type) & LE_T1_OWN)
 			break;
 
@@ -741,7 +741,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 	writereg(&ll->rap, LE_CSR0);
 	csr0 = ll->rdp;
 
-	/* Acknowledge all the interrupt sources ASAP */
+	/* Ackanalwledge all the interrupt sources ASAP */
 	writereg(&ll->rdp, csr0 & (LE_C0_INTR | LE_C0_TINT | LE_C0_RINT));
 
 	if ((csr0 & LE_C0_ERR)) {
@@ -789,7 +789,7 @@ static int lance_open(struct net_device *dev)
 	writereg(&ll->rdp, LE_C0_STOP);
 
 	/* Set mode and clear multicast filter only at device open,
-	 * so that lance_init_ring() called at any error will not
+	 * so that lance_init_ring() called at any error will analt
 	 * forget multicast filters.
 	 *
 	 * BTW it is common bug in all lance drivers! --ANK
@@ -921,7 +921,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cp_to_buf(lp->type, lp->tx_buf_ptr_cpu[entry], skb->data, len);
 
-	/* Now, give the packet to the lance */
+	/* Analw, give the packet to the lance */
 	*lib_ptr(ib, btx_ring[entry].tmd1, lp->type) =
 		((lp->tx_buf_ptr_lnc[entry] >> 16) & 0xff) |
 		(LE_T1_POK | LE_T1_OWN);
@@ -930,7 +930,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL <= 0)
 		netif_stop_queue(dev);
 
-	/* Kick the lance: transmit now */
+	/* Kick the lance: transmit analw */
 	writereg(&ll->rdp, LE_C0_INEA | LE_C0_TDMD);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -1053,7 +1053,7 @@ static int dec_lance_probe(struct device *bdev, const int type)
 
 	dev = alloc_etherdev(sizeof(struct lance_private));
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_out;
 	}
 
@@ -1182,9 +1182,9 @@ static int dec_lance_probe(struct device *bdev, const int type)
 		break;
 
 	default:
-		printk(KERN_ERR "%s: declance_init called with unknown type\n",
+		printk(KERN_ERR "%s: declance_init called with unkanalwn type\n",
 			name);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out_dev;
 	}
 
@@ -1196,9 +1196,9 @@ static int dec_lance_probe(struct device *bdev, const int type)
 	if (esar[0x60] != 0xff && esar[0x64] != 0x00 &&
 	    esar[0x68] != 0x55 && esar[0x6c] != 0xaa) {
 		printk(KERN_ERR
-			"%s: Ethernet station address prom not found!\n",
+			"%s: Ethernet station address prom analt found!\n",
 			name);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out_resource;
 	}
 	/* Check the prom contents */
@@ -1208,7 +1208,7 @@ static int dec_lance_probe(struct device *bdev, const int type)
 		    esar[0x3c - i * 4] != esar[0x40 + i * 4]) {
 			printk(KERN_ERR "%s: Something is wrong with the "
 				"ethernet station address prom!\n", name);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_out_resource;
 		}
 	}
@@ -1248,7 +1248,7 @@ static int dec_lance_probe(struct device *bdev, const int type)
 
 	dev->dma = 0;
 
-	/* We cannot sleep if the chip is busy during a
+	/* We cananalt sleep if the chip is busy during a
 	 * multicast list update event, because such events
 	 * can occur from interrupts (ex. IPv6).  So we
 	 * use a timer to try again later when necessary. -DaveM
@@ -1298,7 +1298,7 @@ static int __init dec_lance_platform_probe(void)
 		}
 	}
 
-	return (count > 0) ? 0 : -ENODEV;
+	return (count > 0) ? 0 : -EANALDEV;
 }
 
 static void __exit dec_lance_platform_remove(void)

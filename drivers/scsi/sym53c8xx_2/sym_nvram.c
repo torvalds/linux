@@ -151,7 +151,7 @@ static void sym_display_Symbios_nvram(struct sym_device *np, Symbios_nvram *nvra
 		(nvram->flags  & SYMBIOS_PARITY_ENABLE)	? " PARITY"	:"",
 		(nvram->flags  & SYMBIOS_VERBOSE_MSGS)	? " VERBOSE"	:"", 
 		(nvram->flags  & SYMBIOS_CHS_MAPPING)	? " CHS_ALT"	:"", 
-		(nvram->flags2 & SYMBIOS_AVOID_BUS_RESET)?" NO_RESET"	:"",
+		(nvram->flags2 & SYMBIOS_AVOID_BUS_RESET)?" ANAL_RESET"	:"",
 		(nvram->flags1 & SYMBIOS_SCAN_HI_LO)	? " HI_LO"	:"");
 
 	/* display Symbios nvram drive data */
@@ -229,7 +229,7 @@ static void sym_display_Tekram_nvram(struct sym_device *np, Tekram_nvram *nvram)
  *
  *  GPIO0 - data in/data out
  *  GPIO1 - clock
- *  Symbios NVRAM wiring now also used by Tekram.
+ *  Symbios NVRAM wiring analw also used by Tekram.
  */
 
 #define SET_BIT 0
@@ -374,16 +374,16 @@ static int sym_write_S24C16_nvram(struct sym_device *np, int offset,
 	old_gpcntl	= INB(np, nc_gpcntl);
 	gpcntl		= old_gpcntl & 0x1c;
 
-	/* set up GPREG & GPCNTL to set GPIO0 and GPIO1 in to known state */
+	/* set up GPREG & GPCNTL to set GPIO0 and GPIO1 in to kanalwn state */
 	OUTB(np, nc_gpreg,  old_gpreg);
 	OUTB(np, nc_gpcntl, gpcntl);
 
-	/* this is to set NVRAM into a known state with GPIO0/1 both low */
+	/* this is to set NVRAM into a kanalwn state with GPIO0/1 both low */
 	gpreg = old_gpreg;
 	S24C16_set_bit(np, 0, &gpreg, CLR_CLK);
 	S24C16_set_bit(np, 0, &gpreg, CLR_BIT);
 		
-	/* now set NVRAM inactive with GPIO0/1 both high */
+	/* analw set NVRAM inactive with GPIO0/1 both high */
 	S24C16_stop(np, &gpreg);
 
 	/* NVRAM has to be written in segments of 16 bytes */
@@ -428,16 +428,16 @@ static int sym_read_S24C16_nvram(struct sym_device *np, int offset, u_char *data
 	old_gpcntl	= INB(np, nc_gpcntl);
 	gpcntl		= old_gpcntl & 0x1c;
 
-	/* set up GPREG & GPCNTL to set GPIO0 and GPIO1 in to known state */
+	/* set up GPREG & GPCNTL to set GPIO0 and GPIO1 in to kanalwn state */
 	OUTB(np, nc_gpreg,  old_gpreg);
 	OUTB(np, nc_gpcntl, gpcntl);
 
-	/* this is to set NVRAM into a known state with GPIO0/1 both low */
+	/* this is to set NVRAM into a kanalwn state with GPIO0/1 both low */
 	gpreg = old_gpreg;
 	S24C16_set_bit(np, 0, &gpreg, CLR_CLK);
 	S24C16_set_bit(np, 0, &gpreg, CLR_BIT);
 		
-	/* now set NVRAM inactive with GPIO0/1 both high */
+	/* analw set NVRAM inactive with GPIO0/1 both high */
 	S24C16_stop(np, &gpreg);
 	
 	/* activate NVRAM */
@@ -464,7 +464,7 @@ static int sym_read_S24C16_nvram(struct sym_device *np, int offset, u_char *data
 	if (ack_data & 0x01)
 		goto out;
 
-	/* now set up GPIO0 for inputting data */
+	/* analw set up GPIO0 for inputting data */
 	gpcntl |= 0x01;
 	OUTB(np, nc_gpcntl, gpcntl);
 		
@@ -654,7 +654,7 @@ static int sym_read_T93C46_nvram(struct sym_device *np, Tekram_nvram *nvram)
 	old_gpreg	= INB(np, nc_gpreg);
 	old_gpcntl	= INB(np, nc_gpcntl);
 
-	/* set up GPREG & GPCNTL to set GPIO0/1/2/4 in to known state, 0 in,
+	/* set up GPREG & GPCNTL to set GPIO0/1/2/4 in to kanalwn state, 0 in,
 	   1/2/4 out */
 	gpreg = old_gpreg & 0xe9;
 	OUTB(np, nc_gpreg, gpreg);
@@ -721,7 +721,7 @@ static int sym_read_Tekram_nvram (struct sym_device *np, Tekram_nvram *nvram)
 static int sym_read_parisc_pdc(struct sym_device *np, struct pdc_initiator *pdc)
 {
 	struct hardware_path hwpath;
-	get_pci_node_path(np->pdev, &hwpath);
+	get_pci_analde_path(np->pdev, &hwpath);
 	if (!pdc_get_initiator(&hwpath, pdc))
 		return 0;
 
@@ -762,6 +762,6 @@ char *sym_nvram_type(struct sym_nvram *nvp)
 	case SYM_PARISC_PDC:
 		return "PA-RISC Firmware";
 	default:
-		return "No NVRAM";
+		return "Anal NVRAM";
 	}
 }

@@ -25,10 +25,10 @@ int cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
 	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_OCB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rdev->ops->join_ocb)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (WARN_ON(!setup->chandef.chan))
 		return -EINVAL;
@@ -49,13 +49,13 @@ int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
 	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_OCB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rdev->ops->leave_ocb)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!wdev->u.ocb.chandef.chan)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	err = rdev_leave_ocb(rdev, dev);
 	if (!err)

@@ -45,13 +45,13 @@
 		led-1 {
 			color = <LED_COLOR_ID_RED>;
 			gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-2 {
 			color = <LED_COLOR_ID_YELLOW>;
 			gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 	};
 

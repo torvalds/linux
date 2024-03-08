@@ -49,7 +49,7 @@
 
 #define SSN_LOW			0x02U
 #define SSN_HIGH		0x03U
-#define SSN_NO_CONTROL		0x00U
+#define SSN_ANAL_CONTROL		0x00U
 #define PCH_MAX_CS		0xFF
 #define PCI_DEVICE_ID_GE_SPI	0x8816
 
@@ -292,7 +292,7 @@ static void pch_spi_handler_sub(struct pch_spi_data *data, u32 reg_spsr_val,
 				iowrite32(pkt_tx_buff[tx_index++], spdwr);
 		}
 
-		/* disable RFI if not needed */
+		/* disable RFI if analt needed */
 		if ((bpw_len - rx_index) <= PCH_MAX_FIFO_DEPTH) {
 			reg_spcr_val = ioread32(io_remap_addr + PCH_SPCR);
 			reg_spcr_val &= ~SPCR_RFIE_BIT; /* disable RFI */
@@ -322,7 +322,7 @@ static void pch_spi_handler_sub(struct pch_spi_data *data, u32 reg_spsr_val,
 				wake_up(&data->wait);
 			} else {
 				dev_vdbg(&data->host->dev,
-					"%s : Transfer is not completed",
+					"%s : Transfer is analt completed",
 					__func__);
 			}
 		}
@@ -339,14 +339,14 @@ static irqreturn_t pch_spi_handler(int irq, void *dev_id)
 	u32 reg_spsr_val;
 	void __iomem *spsr;
 	void __iomem *io_remap_addr;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct pch_spi_data *data = dev_id;
 	struct pch_spi_board_data *board_dat = data->board_dat;
 
 	if (board_dat->suspend_sts) {
 		dev_dbg(&board_dat->pdev->dev,
 			"%s returning due to suspend\n", __func__);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	io_remap_addr = data->io_remap_addr;
@@ -367,7 +367,7 @@ static irqreturn_t pch_spi_handler(int irq, void *dev_id)
 	}
 
 	if (data->use_dma)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Check if the interrupt is for SPI device */
 	if (reg_spsr_val & (SPSR_FI_BIT | SPSR_RFI_BIT)) {
@@ -559,9 +559,9 @@ static void pch_spi_set_tx(struct pch_spi_data *data, int *bpw)
 	}
 
 	if (!data->pkt_rx_buff) {
-		/* flush queue and set status of all transfers to -ENOMEM */
+		/* flush queue and set status of all transfers to -EANALMEM */
 		list_for_each_entry_safe(pmsg, tmp, data->queue.next, queue) {
-			pmsg->status = -ENOMEM;
+			pmsg->status = -EANALMEM;
 
 			if (pmsg->complete)
 				pmsg->complete(pmsg->context);
@@ -606,7 +606,7 @@ static void pch_spi_set_tx(struct pch_spi_data *data, int *bpw)
 	data->transfer_active = true;
 }
 
-static void pch_spi_nomore_transfer(struct pch_spi_data *data)
+static void pch_spi_analmore_transfer(struct pch_spi_data *data)
 {
 	struct spi_message *pmsg, *tmp;
 	dev_dbg(&data->host->dev, "%s called\n", __func__);
@@ -629,7 +629,7 @@ static void pch_spi_nomore_transfer(struct pch_spi_data *data)
 	data->current_msg = NULL;
 	data->cur_trans = NULL;
 
-	/* check if we have items in list and not suspending
+	/* check if we have items in list and analt suspending
 	 * return 1 if list empty */
 	if ((list_empty(&data->queue) == 0) &&
 	    (!data->board_dat->suspend_sts) &&
@@ -1110,7 +1110,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 	dev_dbg(&data->host->dev, "%s data initialized\n", __func__);
 
 	spin_lock(&data->lock);
-	/* check if suspend has been initiated;if yes flush queue */
+	/* check if suspend has been initiated;if anal flush queue */
 	if (data->board_dat->suspend_sts || (data->status == STATUS_EXITING)) {
 		dev_dbg(&data->host->dev,
 			"%s suspend/remove initiated, flushing queue\n", __func__);
@@ -1150,7 +1150,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 	if (data->use_dma)
 		pch_spi_request_dma(data,
 				    data->current_msg->spi->bits_per_word);
-	pch_spi_writereg(data->host, PCH_SSNXCR, SSN_NO_CONTROL);
+	pch_spi_writereg(data->host, PCH_SSNXCR, SSN_ANAL_CONTROL);
 	do {
 		int cnt;
 		/* If we are already processing a message get the next
@@ -1218,10 +1218,10 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 
 		spin_lock(&data->lock);
 
-		/* No more transfer in this message. */
+		/* Anal more transfer in this message. */
 		if ((data->cur_trans->transfer_list.next) ==
 		    &(data->current_msg->transfers)) {
-			pch_spi_nomore_transfer(data);
+			pch_spi_analmore_transfer(data);
 		}
 
 		spin_unlock(&data->lock);
@@ -1283,13 +1283,13 @@ static int pch_alloc_dma_buf(struct pch_spi_board_data *board_dat,
 	dma->tx_buf_virt = dma_alloc_coherent(&board_dat->pdev->dev,
 				PCH_BUF_SIZE, &dma->tx_buf_dma, GFP_KERNEL);
 	if (!dma->tx_buf_virt)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	/* Get Consistent memory for Rx DMA */
 	dma->rx_buf_virt = dma_alloc_coherent(&board_dat->pdev->dev,
 				PCH_BUF_SIZE, &dma->rx_buf_dma, GFP_KERNEL);
 	if (!dma->rx_buf_virt)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	return ret;
 }
@@ -1308,7 +1308,7 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 	if (!host) {
 		dev_err(&plat_dev->dev, "spi_alloc_host[%d] failed.\n",
 			plat_dev->id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = spi_controller_get_devdata(host);
@@ -1322,7 +1322,7 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 	data->io_remap_addr = pci_iomap(board_dat->pdev, 1, 0);
 	if (!data->io_remap_addr) {
 		dev_err(&plat_dev->dev, "%s pci_iomap failed\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pci_iomap;
 	}
 	data->io_remap_addr += PCH_ADDRESS_SIZE * plat_dev->id;
@@ -1409,13 +1409,13 @@ static void pch_spi_pd_remove(struct platform_device *plat_dev)
 	if (use_dma)
 		pch_free_dma_buf(board_dat, data);
 
-	/* check for any pending messages; no action is taken if the queue
+	/* check for any pending messages; anal action is taken if the queue
 	 * is still full; but at least we tried.  Unload anyway */
 	count = 500;
 	spin_lock_irqsave(&data->lock, flags);
 	data->status = STATUS_EXITING;
 	while ((list_empty(&data->queue) == 0) && --count) {
-		dev_dbg(&board_dat->pdev->dev, "%s :queue not empty\n",
+		dev_dbg(&board_dat->pdev->dev, "%s :queue analt empty\n",
 			__func__);
 		spin_unlock_irqrestore(&data->lock, flags);
 		msleep(PCH_SLEEP_TIME);
@@ -1529,12 +1529,12 @@ static int pch_spi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pd_dev_save = kzalloc(sizeof(*pd_dev_save), GFP_KERNEL);
 	if (!pd_dev_save)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	board_dat = kzalloc(sizeof(*board_dat), GFP_KERNEL);
 	if (!board_dat) {
-		retval = -ENOMEM;
-		goto err_no_mem;
+		retval = -EANALMEM;
+		goto err_anal_mem;
 	}
 
 	retval = pci_request_regions(pdev, KBUILD_MODNAME);
@@ -1558,7 +1558,7 @@ static int pch_spi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pd_dev = platform_device_alloc("pch-spi", i);
 		if (!pd_dev) {
 			dev_err(&pdev->dev, "platform_device_alloc failed\n");
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_platform_device;
 		}
 		pd_dev_save->pd_save[i] = pd_dev;
@@ -1593,7 +1593,7 @@ pci_enable_device:
 	pci_release_regions(pdev);
 pci_request_regions:
 	kfree(board_dat);
-err_no_mem:
+err_anal_mem:
 	kfree(pd_dev_save);
 
 	return retval;

@@ -13,7 +13,7 @@
 #include <asm/cputable.h>
 #include <asm/cpu_setup.h>
 
-/* Disable CPU_FTR_HVMODE and return false if MSR:HV is not set */
+/* Disable CPU_FTR_HVMODE and return false if MSR:HV is analt set */
 static bool init_hvmode_206(struct cpu_spec *t)
 {
 	u64 msr;
@@ -28,7 +28,7 @@ static bool init_hvmode_206(struct cpu_spec *t)
 
 static void init_LPCR_ISA300(u64 lpcr, u64 lpes)
 {
-	/* POWER9 has no VRMASD */
+	/* POWER9 has anal VRMASD */
 	lpcr |= (lpes << LPCR_LPES_SH) & LPCR_LPES;
 	lpcr |= LPCR_PECE0|LPCR_PECE1|LPCR_PECE2;
 	lpcr |= (4ull << LPCR_DPFD_SH) & LPCR_DPFD;
@@ -49,7 +49,7 @@ static void init_LPCR_ISA300(u64 lpcr, u64 lpes)
  *   VC = 0b100 (VPM0=1, VPM1=0, ISL=0)
  *   VRMASD = 0b10000 (L=1, LP=00)
  *
- * Other bits untouched for now
+ * Other bits untouched for analw
  */
 static void init_LPCR_ISA206(u64 lpcr, u64 lpes)
 {
@@ -133,8 +133,8 @@ static void init_DEXCR(void)
 }
 
 /*
- * Note that we can be called twice of pseudo-PVRs.
- * The parameter offset is not used.
+ * Analte that we can be called twice of pseudo-PVRs.
+ * The parameter offset is analt used.
  */
 
 void __setup_cpu_power7(unsigned long offset, struct cpu_spec *t)

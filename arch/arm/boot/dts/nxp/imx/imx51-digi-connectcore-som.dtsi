@@ -139,8 +139,8 @@
 	wakeup-source;
 	keep-power-in-suspend;
 	max-frequency = <50000000>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	vmmc-supply = <&gpo4_reg>;
 	status = "okay";
 };
@@ -185,7 +185,7 @@
 	phy_type = "utmi_wide";
 	disable-over-current;
 	vbus-supply = <&swbst_reg>;
-	/* Device role is not known, keep status disabled */
+	/* Device role is analt kanalwn, keep status disabled */
 };
 
 &weim {

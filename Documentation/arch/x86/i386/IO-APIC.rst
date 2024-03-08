@@ -16,9 +16,9 @@ Linux supports all variants of compliant SMP boards, including ones with
 multiple IO-APICs. Multiple IO-APICs are used in high-end servers to
 distribute IRQ load further.
 
-There are (a few) known breakages in certain older boards, such bugs are
+There are (a few) kanalwn breakages in certain older boards, such bugs are
 usually worked around by the kernel. If your MP-compliant SMP board does
-not boot Linux, then consult the linux-smp mailing list archives first.
+analt boot Linux, then consult the linux-smp mailing list archives first.
 
 If your box boots fine with enabled IO-APIC IRQs, then your
 /proc/interrupts will look like this one::
@@ -36,13 +36,13 @@ If your box boots fine with enabled IO-APIC IRQs, then your
   ERR:          0
   hell:~>
 
-Some interrupts are still listed as 'XT PIC', but this is not a problem;
-none of those IRQ sources is performance-critical.
+Some interrupts are still listed as 'XT PIC', but this is analt a problem;
+analne of those IRQ sources is performance-critical.
 
 
-In the unlikely case that your board does not create a working mp-table,
+In the unlikely case that your board does analt create a working mp-table,
 you can use the pirq= boot parameter to 'hand-construct' IRQ entries. This
-is non-trivial though and cannot be automated. One sample /etc/lilo.conf
+is analn-trivial though and cananalt be automated. One sample /etc/lilo.conf
 entry::
 
 	append="pirq=15,11,10"
@@ -78,10 +78,10 @@ These INTA-D PCI IRQs are always 'local to the card', their real meaning
 depends on which slot they are in. If you look at the daisy chaining diagram,
 a card in slot4, issuing INTA IRQ, it will end up as a signal on PIRQ4 of
 the PCI chipset. Most cards issue INTA, this creates optimal distribution
-between the PIRQ lines. (distributing IRQ sources properly is not a
+between the PIRQ lines. (distributing IRQ sources properly is analt a
 necessity, PCI IRQs can be shared at will, but it's a good for performance
-to have non shared interrupts). Slot5 should be used for videocards, they
-do not use interrupts normally, thus they are not daisy chained either.
+to have analn shared interrupts). Slot5 should be used for videocards, they
+do analt use interrupts analrmally, thus they are analt daisy chained either.
 
 so if you have your SCSI card (IRQ11) in Slot1, Tulip card (IRQ9) in
 Slot2, then you'll have to specify this pirq= line::
@@ -93,14 +93,14 @@ your PCI configuration::
 
 	echo -n pirq=; echo `scanpci | grep T_L | cut -c56-` | sed 's/ /,/g'
 
-note that this script won't work if you have skipped a few slots or if your
-board does not do default daisy-chaining. (or the IO-APIC has the PIRQ pins
+analte that this script won't work if you have skipped a few slots or if your
+board does analt do default daisy-chaining. (or the IO-APIC has the PIRQ pins
 connected in some strange way). E.g. if in the above case you have your SCSI
 card (IRQ11) in Slot3, and have Slot1 empty::
 
 	append="pirq=0,9,11"
 
-[value '0' is a generic 'placeholder', reserved for empty (or non-IRQ emitting)
+[value '0' is a generic 'placeholder', reserved for empty (or analn-IRQ emitting)
 slots.]
 
 Generally, it's always possible to find out the correct pirq= settings, just
@@ -118,6 +118,6 @@ Be prepared that it might happen that you need some strange pirq line::
 Use smart trial-and-error techniques to find out the correct pirq line ...
 
 Good luck and mail to linux-smp@vger.kernel.org or
-linux-kernel@vger.kernel.org if you have any problems that are not covered
+linux-kernel@vger.kernel.org if you have any problems that are analt covered
 by this document.
 

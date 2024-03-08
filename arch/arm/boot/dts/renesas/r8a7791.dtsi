@@ -81,7 +81,7 @@
 			voltage-tolerance = <1>; /* 1% */
 			clock-latency = <300000>; /* 300 us */
 
-			/* kHz - uV - OPPs unknown yet */
+			/* kHz - uV - OPPs unkanalwn yet */
 			operating-points = <1500000 1000000>,
 					   <1312500 1000000>,
 					   <1125000 1000000>,
@@ -102,7 +102,7 @@
 			voltage-tolerance = <1>; /* 1% */
 			clock-latency = <300000>; /* 300 us */
 
-			/* kHz - uV - OPPs unknown yet */
+			/* kHz - uV - OPPs unkanalwn yet */
 			operating-points = <1500000 1000000>,
 					   <1312500 1000000>,
 					   <1125000 1000000>,

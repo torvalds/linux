@@ -10,7 +10,7 @@
 
 #include "util/config.h"
 
-#include "util/annotate.h"
+#include "util/ananaltate.h"
 #include "util/color.h"
 #include "util/dso.h"
 #include <linux/list.h>
@@ -53,7 +53,7 @@
 #include "util/block-info.h"
 
 #include <dlfcn.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <regex.h>
 #include <linux/ctype.h>
@@ -91,7 +91,7 @@ struct report {
 	bool			mmaps_mode;
 	bool			header;
 	bool			header_only;
-	bool			nonany_branch_mode;
+	bool			analnany_branch_mode;
 	bool			group_set;
 	bool			stitch_lbr;
 	bool			disable_order;
@@ -144,7 +144,7 @@ static int report__config(const char *var, const char *value, void *cb)
 	if (!strcmp(var, "report.sort_order")) {
 		default_sort_order = strdup(value);
 		if (!default_sort_order) {
-			pr_err("Not enough memory for report.sort_order\n");
+			pr_err("Analt eanalugh memory for report.sort_order\n");
 			return -1;
 		}
 		return 0;
@@ -155,7 +155,7 @@ static int report__config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	pr_debug("%s variable unknown, ignoring...", var);
+	pr_debug("%s variable unkanalwn, iganalring...", var);
 	return 0;
 }
 
@@ -171,7 +171,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	struct mem_info *mi;
 	struct branch_info *bi;
 
-	if (!ui__has_annotation() && !rep->symbol_ipc && !rep->data_type)
+	if (!ui__has_ananaltation() && !rep->symbol_ipc && !rep->data_type)
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
@@ -216,7 +216,7 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 	branch_type_count(&rep->brtype_stat, &bi->flags,
 			  bi->from.addr, bi->to.addr);
 
-	if (!ui__has_annotation() && !rep->symbol_ipc)
+	if (!ui__has_ananaltation() && !rep->symbol_ipc)
 		return 0;
 
 	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel);
@@ -254,7 +254,7 @@ static int process_feature_event(struct perf_session *session,
 
 	/*
 	 * (feat_id = HEADER_LAST_FEATURE) is the end marker which
-	 * means all features are received, now we can force the
+	 * means all features are received, analw we can force the
 	 * group if needed.
 	 */
 	setup_forced_leader(rep, session->evlist);
@@ -304,7 +304,7 @@ static int process_sample_event(struct perf_tool *tool,
 
 	if (sort__mode == SORT_MODE__BRANCH) {
 		/*
-		 * A non-synthesized event might not have a branch stack if
+		 * A analn-synthesized event might analt have a branch stack if
 		 * branch stacks have been synthesized (using itrace options).
 		 */
 		if (!sample->branch_stack)
@@ -317,15 +317,15 @@ static int process_sample_event(struct perf_tool *tool,
 	} else if (symbol_conf.cumulate_callchain) {
 		iter.ops = &hist_iter_cumulative;
 	} else {
-		iter.ops = &hist_iter_normal;
+		iter.ops = &hist_iter_analrmal;
 	}
 
 	if (al.map != NULL)
 		map__dso(al.map)->hit = 1;
 
-	if (ui__has_annotation() || rep->symbol_ipc || rep->total_cycles_mode) {
+	if (ui__has_ananaltation() || rep->symbol_ipc || rep->total_cycles_mode) {
 		hist__account_cycles(sample->branch_stack, &al, sample,
-				     rep->nonany_branch_mode,
+				     rep->analnany_branch_mode,
 				     &rep->total_cycles);
 	}
 
@@ -360,7 +360,7 @@ static int process_read_event(struct perf_tool *tool,
 	return 0;
 }
 
-/* For pipe mode, sample_type is not currently set */
+/* For pipe mode, sample_type is analt currently set */
 static int report__setup_sample_type(struct report *rep)
 {
 	struct perf_session *session = rep->session;
@@ -381,7 +381,7 @@ static int report__setup_sample_type(struct report *rep)
 
 	if (!is_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (perf_hpp_list.parent) {
-			ui__error("Selected --sort parent, but no "
+			ui__error("Selected --sort parent, but anal "
 				    "callchain data. Did you call "
 				    "'perf record' without -g?\n");
 			return -EINVAL;
@@ -389,12 +389,12 @@ static int report__setup_sample_type(struct report *rep)
 		if (symbol_conf.use_callchain &&
 			!symbol_conf.show_branchflag_count) {
 			ui__error("Selected -g or --branch-history.\n"
-				  "But no callchain or branch data.\n"
+				  "But anal callchain or branch data.\n"
 				  "Did you call 'perf record' without -g or -b?\n");
 			return -1;
 		}
 	} else if (!callchain_param.enabled &&
-		   callchain_param.mode != CHAIN_NONE &&
+		   callchain_param.mode != CHAIN_ANALNE &&
 		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
 			if (callchain_register_param(&callchain_param) < 0) {
@@ -404,7 +404,7 @@ static int report__setup_sample_type(struct report *rep)
 	}
 
 	if (symbol_conf.cumulate_callchain) {
-		/* Silently ignore if callchain is missing */
+		/* Silently iganalre if callchain is missing */
 		if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 			symbol_conf.cumulate_callchain = false;
 			perf_hpp__cancel_cumulate();
@@ -414,7 +414,7 @@ static int report__setup_sample_type(struct report *rep)
 	if (sort__mode == SORT_MODE__BRANCH) {
 		if (!is_pipe &&
 		    !(sample_type & PERF_SAMPLE_BRANCH_STACK)) {
-			ui__error("Selected -b but no branch data. "
+			ui__error("Selected -b but anal branch data. "
 				  "Did you call perf record without -b?\n");
 			return -1;
 		}
@@ -435,7 +435,7 @@ static int report__setup_sample_type(struct report *rep)
 		}
 
 		if (!is_pipe && !(sample_type & PERF_SAMPLE_DATA_SRC)) {
-			ui__error("Selected --mem-mode but no mem data. "
+			ui__error("Selected --mem-mode but anal mem data. "
 				  "Did you call perf record without -d?\n");
 			return -1;
 		}
@@ -451,7 +451,7 @@ static int report__setup_sample_type(struct report *rep)
 
 	/* ??? handle more cases than just ANY? */
 	if (!(evlist__combined_branch_type(session->evlist) & PERF_SAMPLE_BRANCH_ANY))
-		rep->nonany_branch_mode = true;
+		rep->analnany_branch_mode = true;
 
 #if !defined(HAVE_LIBUNWIND_SUPPORT) && !defined(HAVE_DWARF_SUPPORT)
 	if (dwarf_callchain_users) {
@@ -484,8 +484,8 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 		return 0;
 
 	if (symbol_conf.filter_relative) {
-		nr_samples = hists->stats.nr_non_filtered_samples;
-		nr_events = hists->stats.total_non_filtered_period;
+		nr_samples = hists->stats.nr_analn_filtered_samples;
+		nr_events = hists->stats.total_analn_filtered_period;
 	}
 
 	if (evsel__is_group_event(evsel)) {
@@ -498,8 +498,8 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 			const struct hists *pos_hists = evsel__hists(pos);
 
 			if (symbol_conf.filter_relative) {
-				nr_samples += pos_hists->stats.nr_non_filtered_samples;
-				nr_events += pos_hists->stats.total_non_filtered_period;
+				nr_samples += pos_hists->stats.nr_analn_filtered_samples;
+				nr_events += pos_hists->stats.total_analn_filtered_period;
 			} else {
 				nr_samples += pos_hists->stats.nr_samples;
 				nr_events += pos_hists->stats.total_period;
@@ -517,7 +517,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	if (rep->time_str)
 		ret += fprintf(fp, " (time slices: %s)", rep->time_str);
 
-	if (symbol_conf.show_ref_callgraph && evname && strstr(evname, "call-graph=no")) {
+	if (symbol_conf.show_ref_callgraph && evname && strstr(evname, "call-graph=anal")) {
 		ret += fprintf(fp, ", show reference callgraph");
 	}
 
@@ -612,7 +612,7 @@ static void report__warn_kptr_restrict(const struct report *rep)
 	     (kernel_kmap->ref_reloc_sym == NULL ||
 	      kernel_kmap->ref_reloc_sym->addr == 0))) {
 		const char *desc =
-		    "As no suitable kallsyms nor vmlinux was found, kernel samples\n"
+		    "As anal suitable kallsyms analr vmlinux was found, kernel samples\n"
 		    "can't be resolved.";
 
 		if (kernel_map && map__has_symbols(kernel_map)) {
@@ -636,7 +636,7 @@ static int report__gtk_browse_hists(struct report *rep, const char *help)
 	hist_browser = dlsym(perf_gtk_handle, "evlist__gtk_browse_hists");
 
 	if (hist_browser == NULL) {
-		ui__error("GTK browser not found!\n");
+		ui__error("GTK browser analt found!\n");
 		return -1;
 	}
 
@@ -656,7 +656,7 @@ static int report__browse_hists(struct report *rep)
 		free(path);
 		path = system_path(DOCDIR);
 		if (perf_tip(&help, path) || help == NULL)
-			help = strdup("Cannot load tips.txt file, please install perf!");
+			help = strdup("Cananalt load tips.txt file, please install perf!");
 	}
 	free(path);
 
@@ -671,7 +671,7 @@ static int report__browse_hists(struct report *rep)
 					       &session->header.env, true);
 		/*
 		 * Usually "ret" is the last pressed key, and we only
-		 * care if the key notifies us to switch data file.
+		 * care if the key analtifies us to switch data file.
 		 */
 		if (ret != K_SWITCH_INPUT_DATA && ret != K_RELOAD)
 			ret = 0;
@@ -696,10 +696,10 @@ static int report__collapse_hists(struct report *rep)
 	int ret = 0;
 
 	/*
-	 * The pipe data needs to setup hierarchy hpp formats now, because it
-	 * cannot know about evsels in the data before reading the data.  The
-	 * normal file data saves the event (attribute) info in the header
-	 * section, but pipe does not have the luxury.
+	 * The pipe data needs to setup hierarchy hpp formats analw, because it
+	 * cananalt kanalw about evsels in the data before reading the data.  The
+	 * analrmal file data saves the event (attribute) info in the header
+	 * section, but pipe does analt have the luxury.
 	 */
 	if (perf_data__is_pipe(session->data)) {
 		if (perf_hpp__setup_hists_formats(&perf_hpp_list, evlist) < 0) {
@@ -722,7 +722,7 @@ static int report__collapse_hists(struct report *rep)
 		if (ret < 0)
 			break;
 
-		/* Non-group events are considered as leader */
+		/* Analn-group events are considered as leader */
 		if (symbol_conf.event_group && !evsel__is_group_leader(pos)) {
 			struct hists *leader_hists = evsel__hists(evsel__leader(pos));
 
@@ -740,10 +740,10 @@ static int hists__resort_cb(struct hist_entry *he, void *arg)
 	struct report *rep = arg;
 	struct symbol *sym = he->ms.sym;
 
-	if (rep->symbol_ipc && sym && !sym->annotate2) {
+	if (rep->symbol_ipc && sym && !sym->ananaltate2) {
 		struct evsel *evsel = hists_to_evsel(he->hists);
 
-		symbol__annotate2(&he->ms, evsel, NULL);
+		symbol__ananaltate2(&he->ms, evsel, NULL);
 	}
 
 	return 0;
@@ -801,7 +801,7 @@ static void stats_setup(struct report *rep)
 	rep->tool.attr = process_attr;
 	rep->tool.sample = count_sample_event;
 	rep->tool.lost_samples = count_lost_samples_event;
-	rep->tool.no_warn = true;
+	rep->tool.anal_warn = true;
 }
 
 static int stats_print(struct report *rep)
@@ -825,7 +825,7 @@ static void tasks_setup(struct report *rep)
 	rep->tool.comm = perf_event__process_comm;
 	rep->tool.exit = perf_event__process_exit;
 	rep->tool.fork = perf_event__process_fork;
-	rep->tool.no_warn = true;
+	rep->tool.anal_warn = true;
 }
 
 struct task {
@@ -849,7 +849,7 @@ static struct task *tasks_list(struct task *task, struct machine *machine)
 
 	parent_thread = machine__find_thread(machine, -1, thread__ppid(thread));
 	if (!parent_thread)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	parent_task = thread__priv(parent_thread);
 	thread__put(parent_thread);
@@ -878,7 +878,7 @@ static int maps__fprintf_task_cb(struct map *map, void *data)
 		prot & PROT_EXEC ? 'x' : '-',
 		map__flags(map) ? 's' : 'p',
 		map__pgoff(map),
-		dso->id.ino, dso->name);
+		dso->id.ianal, dso->name);
 
 	if (ret < 0)
 		return ret;
@@ -924,11 +924,11 @@ static int tasks_print(struct report *rep, FILE *fp)
 	struct machine      *machine = &session->machines.host;
 	struct task *tasks, *task;
 	unsigned int nr = 0, itask = 0, i;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	LIST_HEAD(list);
 
 	/*
-	 * No locking needed while accessing machine->threads,
+	 * Anal locking needed while accessing machine->threads,
 	 * because --tasks is single threaded command.
 	 */
 
@@ -938,7 +938,7 @@ static int tasks_print(struct report *rep, FILE *fp)
 
 	tasks = malloc(sizeof(*tasks) * nr);
 	if (!tasks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
 		struct threads *threads = &machine->threads[i];
@@ -947,7 +947,7 @@ static int tasks_print(struct report *rep, FILE *fp)
 		     nd = rb_next(nd)) {
 			task = tasks + itask++;
 
-			task->thread = rb_entry(nd, struct thread_rb_node, rb_node)->thread;
+			task->thread = rb_entry(nd, struct thread_rb_analde, rb_analde)->thread;
 			INIT_LIST_HEAD(&task->children);
 			INIT_LIST_HEAD(&task->list);
 			thread__set_priv(task->thread, task);
@@ -956,7 +956,7 @@ static int tasks_print(struct report *rep, FILE *fp)
 
 	/*
 	 * Iterate every task down to the unprocessed parent
-	 * and link all in task children list. Task with no
+	 * and link all in task children list. Task with anal
 	 * parent is added into 'list'.
 	 */
 	for (itask = 0; itask < nr; itask++) {
@@ -1075,7 +1075,7 @@ static int __cmd_report(struct report *rep)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (rep->nr_entries == 0) {
-		ui__error("The %s data has no samples!\n", data->path);
+		ui__error("The %s data has anal samples!\n", data->path);
 		return 0;
 	}
 
@@ -1109,11 +1109,11 @@ report_parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 
 	callchain->enabled = !unset;
 	/*
-	 * --no-call-graph
+	 * --anal-call-graph
 	 */
 	if (unset) {
 		symbol_conf.use_callchain = false;
-		callchain->mode = CHAIN_NONE;
+		callchain->mode = CHAIN_ANALNE;
 		return 0;
 	}
 
@@ -1131,7 +1131,7 @@ parse_time_quantum(const struct option *opt, const char *arg,
 	if (end == arg)
 		goto parse_err;
 	if (*time_q == 0) {
-		pr_err("time quantum cannot be 0");
+		pr_err("time quantum cananalt be 0");
 		return -1;
 	}
 	end = skip_spaces(end);
@@ -1152,23 +1152,23 @@ parse_time_quantum(const struct option *opt, const char *arg,
 	if (!strcmp(end, "ns"))
 		return 0;
 parse_err:
-	pr_err("Cannot parse time quantum `%s'\n", arg);
+	pr_err("Cananalt parse time quantum `%s'\n", arg);
 	return -1;
 }
 
 int
-report_parse_ignore_callees_opt(const struct option *opt __maybe_unused,
+report_parse_iganalre_callees_opt(const struct option *opt __maybe_unused,
 				const char *arg, int unset __maybe_unused)
 {
 	if (arg) {
-		int err = regcomp(&ignore_callees_regex, arg, REG_EXTENDED);
+		int err = regcomp(&iganalre_callees_regex, arg, REG_EXTENDED);
 		if (err) {
 			char buf[BUFSIZ];
-			regerror(err, &ignore_callees_regex, buf, sizeof(buf));
-			pr_err("Invalid --ignore-callees regex: %s\n%s", arg, buf);
+			regerror(err, &iganalre_callees_regex, buf, sizeof(buf));
+			pr_err("Invalid --iganalre-callees regex: %s\n%s", arg, buf);
 			return -1;
 		}
-		have_ignore_callees = 1;
+		have_iganalre_callees = 1;
 	}
 
 	return 0;
@@ -1260,7 +1260,7 @@ int cmd_report(int argc, const char **argv)
 			.ordering_requires_timestamps = true,
 		},
 		.max_stack		 = PERF_MAX_STACK_DEPTH,
-		.pretty_printing_style	 = "normal",
+		.pretty_printing_style	 = "analrmal",
 		.socket_filter		 = -1,
 		.skip_empty		 = true,
 	};
@@ -1272,7 +1272,7 @@ int cmd_report(int argc, const char **argv)
 		    "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any warnings or messages"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do analt show any warnings or messages"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN(0, "stats", &report.stats_mode, "Display event stats"),
@@ -1280,7 +1280,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN(0, "mmaps", &report.mmaps_mode, "Display recorded tasks memory maps"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
-	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
+	OPT_BOOLEAN(0, "iganalre-vmlinux", &symbol_conf.iganalre_vmlinux,
                     "don't load vmlinux even if found"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
@@ -1292,7 +1292,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN('T', "threads", &report.show_threads,
 		    "Show per-thread event counters"),
 	OPT_STRING(0, "pretty", &report.pretty_printing_style, "key",
-		   "pretty printing style key: normal raw"),
+		   "pretty printing style key: analrmal raw"),
 #ifdef HAVE_SLANG_SUPPORT
 	OPT_BOOLEAN(0, "tui", &report.use_tui, "Use the TUI interface"),
 #endif
@@ -1322,16 +1322,16 @@ int cmd_report(int argc, const char **argv)
 			     callchain_default_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well. "
-		    "Enabled by default, use --no-children to disable."),
+		    "Enabled by default, use --anal-children to disable."),
 	OPT_INTEGER(0, "max-stack", &report.max_stack,
 		    "Set the maximum stack depth when parsing the callchain, "
-		    "anything beyond the specified depth will be ignored. "
+		    "anything beyond the specified depth will be iganalred. "
 		    "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('G', "inverted", &report.inverted_callchain,
 		    "alias for inverted call graph"),
-	OPT_CALLBACK(0, "ignore-callees", NULL, "regex",
-		   "ignore callees of these functions in call graphs",
-		   report_parse_ignore_callees_opt),
+	OPT_CALLBACK(0, "iganalre-callees", NULL, "regex",
+		   "iganalre callees of these functions in call graphs",
+		   report_parse_iganalre_callees_opt),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
@@ -1347,8 +1347,8 @@ int cmd_report(int argc, const char **argv)
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
-	OPT_STRING_NOEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
-		   "separator for columns, no spaces will be added between "
+	OPT_STRING_ANALEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
+		   "separator for columns, anal spaces will be added between "
 		   "columns '.' is reserved."),
 	OPT_BOOLEAN('U', "hide-unresolved", &symbol_conf.hide_unresolved,
 		    "Only display entries resolved to a symbol"),
@@ -1359,15 +1359,15 @@ int cmd_report(int argc, const char **argv)
 		   "list of cpus to profile"),
 	OPT_BOOLEAN('I', "show-info", &report.show_full_info,
 		    "Display extended information about perf.data file"),
-	OPT_BOOLEAN(0, "source", &annotate_opts.annotate_src,
+	OPT_BOOLEAN(0, "source", &ananaltate_opts.ananaltate_src,
 		    "Interleave source code with assembly code (default)"),
-	OPT_BOOLEAN(0, "asm-raw", &annotate_opts.show_asm_raw,
+	OPT_BOOLEAN(0, "asm-raw", &ananaltate_opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
-	OPT_STRING(0, "prefix", &annotate_opts.prefix, "prefix",
+	OPT_STRING(0, "prefix", &ananaltate_opts.prefix, "prefix",
 		    "Add prefix to source file path names in programs (with --prefix-strip)"),
-	OPT_STRING(0, "prefix-strip", &annotate_opts.prefix_strip, "N",
+	OPT_STRING(0, "prefix-strip", &ananaltate_opts.prefix_strip, "N",
 		    "Strip first N entries of source file path name in programs (with --prefix)"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
@@ -1377,13 +1377,13 @@ int cmd_report(int argc, const char **argv)
 		    "Sort the output by the event at the index n in group. "
 		    "If n is invalid, sort by the first event. "
 		    "WARNING: should be used on grouped events."),
-	OPT_CALLBACK_NOOPT('b', "branch-stack", &branch_mode, "",
+	OPT_CALLBACK_ANALOPT('b', "branch-stack", &branch_mode, "",
 		    "use branch records for per branch histogram filling",
 		    parse_branch_mode),
 	OPT_BOOLEAN(0, "branch-history", &branch_call_mode,
 		    "add last branch records to call history"),
 	OPT_STRING(0, "objdump", &objdump_path, "path",
-		   "objdump binary to use for disassembly and annotations"),
+		   "objdump binary to use for disassembly and ananaltations"),
 	OPT_STRING(0, "addr2line", &addr2line_path, "path",
 		   "addr2line binary to use for line numbers"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
@@ -1409,7 +1409,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_INTEGER(0, "socket-filter", &report.socket_filter,
 		    "only show processor socket that match with this filter"),
 	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
-		    "Show raw trace event output (do not use print fmt or plugins)"),
+		    "Show raw trace event output (do analt use print fmt or plugins)"),
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
 	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
@@ -1419,10 +1419,10 @@ int cmd_report(int argc, const char **argv)
 		   "Time span of interest (start,stop)"),
 	OPT_BOOLEAN(0, "inline", &symbol_conf.inline_name,
 		    "Show inline function"),
-	OPT_CALLBACK(0, "percent-type", &annotate_opts, "local-period",
+	OPT_CALLBACK(0, "percent-type", &ananaltate_opts, "local-period",
 		     "Set percent type local/global-period/hits",
-		     annotate_parse_percent_type),
-	OPT_BOOLEAN(0, "ns", &symbol_conf.nanosecs, "Show times in nanosecs"),
+		     ananaltate_parse_percent_type),
+	OPT_BOOLEAN(0, "ns", &symbol_conf.naanalsecs, "Show times in naanalsecs"),
 	OPT_CALLBACK(0, "time-quantum", &symbol_conf.time_quantum, "time (ms|us|ns|s)",
 		     "Set time quantum for time sort key (default 100ms)",
 		     parse_time_quantum),
@@ -1432,7 +1432,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN(0, "disable-order", &report.disable_order,
 		    "Disable raw trace ordering"),
 	OPT_BOOLEAN(0, "skip-empty", &report.skip_empty,
-		    "Do not display empty (or dummy) events in the output"),
+		    "Do analt display empty (or dummy) events in the output"),
 	OPT_END()
 	};
 	struct perf_data data = {
@@ -1451,7 +1451,7 @@ int cmd_report(int argc, const char **argv)
 	 */
 	symbol_conf.keep_exited_threads = true;
 
-	annotation_options__init();
+	ananaltation_options__init();
 
 	ret = perf_config(report__config, &report);
 	if (ret)
@@ -1470,22 +1470,22 @@ int cmd_report(int argc, const char **argv)
 	}
 
 	if (disassembler_style) {
-		annotate_opts.disassembler_style = strdup(disassembler_style);
-		if (!annotate_opts.disassembler_style)
-			return -ENOMEM;
+		ananaltate_opts.disassembler_style = strdup(disassembler_style);
+		if (!ananaltate_opts.disassembler_style)
+			return -EANALMEM;
 	}
 	if (objdump_path) {
-		annotate_opts.objdump_path = strdup(objdump_path);
-		if (!annotate_opts.objdump_path)
-			return -ENOMEM;
+		ananaltate_opts.objdump_path = strdup(objdump_path);
+		if (!ananaltate_opts.objdump_path)
+			return -EANALMEM;
 	}
 	if (addr2line_path) {
 		symbol_conf.addr2line_path = strdup(addr2line_path);
 		if (!symbol_conf.addr2line_path)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
-	if (annotate_check_args() < 0) {
+	if (ananaltate_check_args() < 0) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -1513,7 +1513,7 @@ int cmd_report(int argc, const char **argv)
 		report.max_stack = itrace_synth_opts.callchain_sz;
 
 	if (!input_name || !strlen(input_name)) {
-		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
+		if (!fstat(STDIN_FILEANAL, &st) && S_ISFIFO(st.st_mode))
 			input_name = "-";
 		else
 			input_name = "perf.data";
@@ -1599,7 +1599,7 @@ repeat:
 		symbol_conf.cumulate_callchain = false;
 
 		if (field_order) {
-			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
+			pr_err("Error: --hierarchy and --fields options cananalt be used together\n");
 			parse_options_usage(report_usage, options, "F", 1);
 			parse_options_usage(NULL, options, "hierarchy", 0);
 			goto error;
@@ -1642,7 +1642,7 @@ repeat:
 
 	if (sort_order && strstr(sort_order, "type")) {
 		report.data_type = true;
-		annotate_opts.annotate_src = false;
+		ananaltate_opts.ananaltate_src = false;
 
 #ifndef HAVE_DWARF_GETLOCATIONS_SUPPORT
 		pr_err("Error: Data type profiling is disabled due to missing DWARF support\n");
@@ -1704,18 +1704,18 @@ repeat:
 	}
 
 	/*
-	 * Only in the TUI browser we are doing integrated annotation,
+	 * Only in the TUI browser we are doing integrated ananaltation,
 	 * so don't allocate extra space that won't be used in the stdio
 	 * implementation.
 	 */
-	if (ui__has_annotation() || report.symbol_ipc || report.data_type ||
+	if (ui__has_ananaltation() || report.symbol_ipc || report.data_type ||
 	    report.total_cycles_mode) {
-		ret = symbol__annotation_init();
+		ret = symbol__ananaltation_init();
 		if (ret < 0)
 			goto error;
 		/*
  		 * For searching by name on the "Browse map details".
- 		 * providing it only in verbose mode not to bloat too
+ 		 * providing it only in verbose mode analt to bloat too
  		 * much struct symbol.
  		 */
 		if (verbose > 0) {
@@ -1727,7 +1727,7 @@ repeat:
 			 */
 			symbol_conf.priv_size += sizeof(u32);
 		}
-		annotation_config__init();
+		ananaltation_config__init();
 	}
 
 	if (symbol__init(&session->header.env) < 0)
@@ -1781,7 +1781,7 @@ error:
 	zstd_fini(&(session->zstd_data));
 	perf_session__delete(session);
 exit:
-	annotation_options__exit();
+	ananaltation_options__exit();
 	free(sort_order_help);
 	free(field_order_help);
 	return ret;

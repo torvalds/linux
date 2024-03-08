@@ -88,7 +88,7 @@ static void adf_device_reset_worker(struct work_struct *work)
 		  container_of(work, struct adf_reset_dev_data, reset_work);
 	struct adf_accel_dev *accel_dev = reset_data->accel_dev;
 
-	adf_dev_restarting_notify(accel_dev);
+	adf_dev_restarting_analtify(accel_dev);
 	if (adf_dev_restart(accel_dev)) {
 		/* The device hanged and we can't restart it so stop here */
 		dev_err(&GET_DEV(accel_dev), "Restart device failed\n");
@@ -97,10 +97,10 @@ static void adf_device_reset_worker(struct work_struct *work)
 		WARN(1, "QAT: device restart failed. Device is unusable\n");
 		return;
 	}
-	adf_dev_restarted_notify(accel_dev);
+	adf_dev_restarted_analtify(accel_dev);
 	clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 
-	/* The dev is back alive. Notify the caller if in sync mode */
+	/* The dev is back alive. Analtify the caller if in sync mode */
 	if (reset_data->mode == ADF_DEV_RESET_SYNC)
 		complete(&reset_data->compl);
 	else
@@ -119,7 +119,7 @@ static int adf_dev_aer_schedule_reset(struct adf_accel_dev *accel_dev,
 	set_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 	reset_data = kzalloc(sizeof(*reset_data), GFP_KERNEL);
 	if (!reset_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	reset_data->accel_dev = accel_dev;
 	init_completion(&reset_data->compl);
 	reset_data->mode = mode;

@@ -31,7 +31,7 @@
 #define WINDSOR_H264_EXTENDED_SAR		255
 
 enum {
-	GTB_ENC_CMD_NOOP        = 0x0,
+	GTB_ENC_CMD_ANALOP        = 0x0,
 	GTB_ENC_CMD_STREAM_START,
 	GTB_ENC_CMD_FRAME_ENCODE,
 	GTB_ENC_CMD_FRAME_SKIP,
@@ -211,7 +211,7 @@ struct vpu_enc_config_params {
 	u32 dsa_test_mode;              // Automated test mode for the DSA.
 	u32 fme_test_mode;              // Automated test mode for the fme
 	u32 cbr_row_mode;               //0: FW mode; 1: HW mode
-	u32 windsor_mode;               //0: normal mode; 1: intra only mode; 2: intra+0MV mode
+	u32 windsor_mode;               //0: analrmal mode; 1: intra only mode; 2: intra+0MV mode
 	u32 encode_mode;                // H264, VC1, MPEG2, DIVX
 	u32 frame_width;                // display width
 	u32 frame_height;               // display height
@@ -258,7 +258,7 @@ struct vpu_enc_config_params {
 	u32 inter_4x4_enab;
 	u32 fme_enable_qpel;
 	u32 fme_enable_hpel;
-	u32 fme_nozeromv;
+	u32 fme_analzeromv;
 	u32 fme_predmv_en;
 	u32 fme_pred_2mv4mv;
 	u32 fme_smallsadthresh;
@@ -489,7 +489,7 @@ struct windsor_pic_info {
 	u32 mtl_wr_strb_cnt;
 	u32 mtl_rd_strb_cnt;
 	u32 str_buff_wptr;
-	u32 diagnosticEvents;
+	u32 diaganalsticEvents;
 	u32 proc_iacc_tot_rd_cnt;
 	u32 proc_dacc_tot_rd_cnt;
 	u32 proc_dacc_tot_wr_cnt;
@@ -656,7 +656,7 @@ int vpu_windsor_get_stream_buffer_size(struct vpu_shared_addr *shared)
 }
 
 static struct vpu_pair windsor_cmds[] = {
-	{VPU_CMD_ID_NOOP, GTB_ENC_CMD_NOOP},
+	{VPU_CMD_ID_ANALOP, GTB_ENC_CMD_ANALOP},
 	{VPU_CMD_ID_CONFIGURE_CODEC, GTB_ENC_CMD_CONFIGURE_CODEC},
 	{VPU_CMD_ID_START, GTB_ENC_CMD_STREAM_START},
 	{VPU_CMD_ID_STOP, GTB_ENC_CMD_STREAM_STOP},
@@ -916,7 +916,7 @@ static int vpu_windsor_set_frame_rate(struct vpu_enc_expert_mode_param *expert,
 				      struct vpu_encode_params *params)
 {
 	expert->config_param.frame_rate_num = params->frame_rate.numerator;
-	expert->config_param.frame_rate_den = params->frame_rate.denominator;
+	expert->config_param.frame_rate_den = params->frame_rate.deanalminator;
 
 	return 0;
 }
@@ -1136,7 +1136,7 @@ static int vpu_windsor_set_params(struct vpu_shared_addr *shared,
 
 	if (!params->frame_rate.numerator)
 		return -EINVAL;
-	windsor->frame_rate = params->frame_rate.denominator / params->frame_rate.numerator;
+	windsor->frame_rate = params->frame_rate.deanalminator / params->frame_rate.numerator;
 
 	return 0;
 }

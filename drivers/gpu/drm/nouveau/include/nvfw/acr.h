@@ -7,7 +7,7 @@ struct wpr_header {
 	u32 lsb_offset;
 	u32 bootstrap_owner;
 	u32 lazy_bootstrap;
-#define WPR_HEADER_V0_STATUS_NONE                                             0
+#define WPR_HEADER_V0_STATUS_ANALNE                                             0
 #define WPR_HEADER_V0_STATUS_COPY                                             1
 #define WPR_HEADER_V0_STATUS_VALIDATION_CODE_FAILED                           2
 #define WPR_HEADER_V0_STATUS_VALIDATION_DATA_FAILED                           3
@@ -26,7 +26,7 @@ struct wpr_header_v1 {
 	u32 bootstrap_owner;
 	u32 lazy_bootstrap;
 	u32 bin_version;
-#define WPR_HEADER_V1_STATUS_NONE                                             0
+#define WPR_HEADER_V1_STATUS_ANALNE                                             0
 #define WPR_HEADER_V1_STATUS_COPY                                             1
 #define WPR_HEADER_V1_STATUS_VALIDATION_CODE_FAILED                           2
 #define WPR_HEADER_V1_STATUS_VALIDATION_DATA_FAILED                           3
@@ -183,7 +183,7 @@ struct flcn_acr_desc {
 	u32 wpr_offset;
 	u32 mmu_mem_range;
 	struct {
-		u32 no_regions;
+		u32 anal_regions;
 		struct {
 			u32 start_addr;
 			u32 end_addr;
@@ -212,7 +212,7 @@ struct flcn_acr_desc_v1 {
 	u32 wpr_offset;
 	u32 mmu_memory_range;
 	struct {
-		u32 no_regions;
+		u32 anal_regions;
 		struct {
 			u32 start_addr;
 			u32 end_addr;

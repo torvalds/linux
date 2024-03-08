@@ -6,7 +6,7 @@ config NIOS2
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_HAS_DMA_SET_UNCACHED
-	select ARCH_NO_SWAP
+	select ARCH_ANAL_SWAP
 	select COMMON_CLK
 	select TIMER_OF
 	select GENERIC_ATOMIC64
@@ -23,8 +23,8 @@ config NIOS2
 	select SOC_BUS
 	select SPARSE_IRQ
 	select USB_ARCH_HAS_HCD if USB_SUPPORT
-	select CPU_NO_EFFICIENT_FFS
-	select MMU_GATHER_NO_RANGE if MMU
+	select CPU_ANAL_EFFICIENT_FFS
+	select MMU_GATHER_ANAL_RANGE if MMU
 
 config GENERIC_CSUM
 	def_bool y
@@ -35,7 +35,7 @@ config GENERIC_HWEIGHT
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
-config NO_IOPORT_MAP
+config ANAL_IOPORT_MAP
 	def_bool y
 
 config FPU
@@ -75,9 +75,9 @@ config NIOS2_ALIGNMENT_TRAP
 	bool "Catch alignment trap"
 	default y
 	help
-	  Nios II CPUs cannot fetch/store data which is not bus aligned,
+	  Nios II CPUs cananalt fetch/store data which is analt bus aligned,
 	  i.e., a 2 or 4 byte fetch must start at an address divisible by
-	  2 or 4. Any non-aligned load/store instructions will be trapped and
+	  2 or 4. Any analn-aligned load/store instructions will be trapped and
 	  emulated in software if you say Y here, which has a performance
 	  impact.
 
@@ -92,7 +92,7 @@ config CMDLINE
 	default ""
 	depends on CMDLINE_BOOL
 	help
-	  On some platforms, there is currently no way for the boot loader to
+	  On some platforms, there is currently anal way for the boot loader to
 	  pass arguments to the kernel. For these platforms, you can supply
 	  some command-line options at build time by entering them here.  In
 	  other cases you can specify kernel args so that you don't have
@@ -105,14 +105,14 @@ config CMDLINE_FORCE
 	  Set this to have arguments from the default kernel command string
 	  override those passed by the boot loader.
 
-config NIOS2_CMDLINE_IGNORE_DTB
-	bool "Ignore kernel command string from DTB"
+config NIOS2_CMDLINE_IGANALRE_DTB
+	bool "Iganalre kernel command string from DTB"
 	depends on CMDLINE_BOOL
 	depends on !CMDLINE_FORCE
 	default y
 	help
-	  Set this to ignore the bootargs property from the devicetree's
-	  chosen node and fall back to CMDLINE if nothing is passed.
+	  Set this to iganalre the bootargs property from the devicetree's
+	  chosen analde and fall back to CMDLINE if analthing is passed.
 
 config NIOS2_PASS_CMDLINE
 	bool "Passed kernel command line from u-boot"
@@ -145,7 +145,7 @@ config NIOS2_KERNEL_MMU_REGION_BASE_BOOL
 	help
 	  This option allows you to set the virtual address of the kernel MMU region.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config NIOS2_KERNEL_MMU_REGION_BASE
 	hex "Virtual base address of the kernel MMU region " if NIOS2_KERNEL_MMU_REGION_BASE_BOOL
@@ -159,7 +159,7 @@ config NIOS2_KERNEL_REGION_BASE_BOOL
 	help
 	  This option allows you to set the virtual address of the kernel region.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config NIOS2_KERNEL_REGION_BASE
 	hex "Virtual base address of the kernel region " if NIOS2_KERNEL_REGION_BASE_BOOL
@@ -171,7 +171,7 @@ config NIOS2_IO_REGION_BASE_BOOL
 	help
 	  This option allows you to set the virtual address of the I/O region.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config NIOS2_IO_REGION_BASE
 	hex "Virtual base address of the I/O region" if NIOS2_IO_REGION_BASE_BOOL

@@ -76,7 +76,7 @@ static inline int hih6130_rh_ticks_to_per_cent_mille(int ticks)
  * hih6130_update_measurements() - get updated measurements from device
  * @dev: device
  *
- * Returns 0 on success, else negative errno.
+ * Returns 0 on success, else negative erranal.
  */
 static int hih6130_update_measurements(struct device *dev)
 {
@@ -111,8 +111,8 @@ static int hih6130_update_measurements(struct device *dev)
 
 		/*
 		 * Write to slave address to request a measurement.
-		 * According with the datasheet it should be with no data, but
-		 * for systems with I2C bus drivers that do not allow zero
+		 * According with the datasheet it should be with anal data, but
+		 * for systems with I2C bus drivers that do analt allow zero
 		 * length packets we write one dummy byte to allow sensor
 		 * measurements on them.
 		 */
@@ -156,7 +156,7 @@ out:
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
  *
  * Will be called on read access to temp1_input sysfs attribute.
- * Returns number of bytes written into buffer, negative errno on error.
+ * Returns number of bytes written into buffer, negative erranal on error.
  */
 static ssize_t hih6130_temperature_show(struct device *dev,
 					struct device_attribute *attr,
@@ -178,7 +178,7 @@ static ssize_t hih6130_temperature_show(struct device *dev,
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
  *
  * Will be called on read access to humidity1_input sysfs attribute.
- * Returns number of bytes written into buffer, negative errno on error.
+ * Returns number of bytes written into buffer, negative erranal on error.
  */
 static ssize_t hih6130_humidity_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
@@ -211,13 +211,13 @@ static int hih6130_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "adapter does not support true I2C\n");
-		return -ENODEV;
+		dev_err(&client->dev, "adapter does analt support true I2C\n");
+		return -EANALDEV;
 	}
 
 	hih6130 = devm_kzalloc(dev, sizeof(*hih6130), GFP_KERNEL);
 	if (!hih6130)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hih6130->client = client;
 	mutex_init(&hih6130->lock);

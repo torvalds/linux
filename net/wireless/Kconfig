@@ -23,7 +23,7 @@ config CFG80211
 	select FW_LOADER
 	select CRC32
 	# may need to update this when certificates are changed and are
-	# using a different algorithm, though right now they shouldn't
+	# using a different algorithm, though right analw they shouldn't
 	# (this is here rather than below to allow it to be a module)
 	select CRYPTO_SHA256 if CFG80211_USE_KERNEL_REGDB_KEYS
 	help
@@ -77,8 +77,8 @@ config CFG80211_CERTIFICATION_ONUS
 	  and willing to ensure your system will remain regulatory
 	  compliant with the features available under this option.
 	  Some options may still be under heavy development and
-	  for whatever reason regulatory compliance has not or
-	  cannot yet be verified. Regulatory verification may at
+	  for whatever reason regulatory compliance has analt or
+	  cananalt yet be verified. Regulatory verification may at
 	  times only be possible until you have the final system
 	  in place.
 
@@ -119,7 +119,7 @@ config CFG80211_EXTRA_REGDB_KEYDIR
 	  certificates like in the kernel sources (net/wireless/certs/)
 	  that shall be accepted for a signed regulatory database.
 
-	  Note that you need to also select the correct CRYPTO_<hash> modules
+	  Analte that you need to also select the correct CRYPTO_<hash> modules
 	  for your certificates, and if cfg80211 is built-in they also must be.
 
 config CFG80211_REG_CELLULAR_HINTS
@@ -135,25 +135,25 @@ config CFG80211_REG_CELLULAR_HINTS
 	  feature if you have tested and validated this feature on your
 	  systems.
 
-config CFG80211_REG_RELAX_NO_IR
-	bool "cfg80211 support for NO_IR relaxation"
+config CFG80211_REG_RELAX_ANAL_IR
+	bool "cfg80211 support for ANAL_IR relaxation"
 	depends on CFG80211_CERTIFICATION_ONUS
 	help
-	 This option enables support for relaxation of the NO_IR flag for
+	 This option enables support for relaxation of the ANAL_IR flag for
 	 situations that certain regulatory bodies have provided clarifications
 	 on how relaxation can occur. This feature has an inherent dependency on
 	 userspace features which must have been properly tested and as such is
-	 not enabled by default.
+	 analt enabled by default.
 
 	 A relaxation feature example is allowing the operation of a P2P group
-	 owner (GO) on channels marked with NO_IR if there is an additional BSS
+	 owner (GO) on channels marked with ANAL_IR if there is an additional BSS
 	 interface which associated to an AP which userspace assumes or confirms
 	 to be an authorized master, i.e., with radar detection support and DFS
-	 capabilities. However, note that in order to not create daisy chain
-	 scenarios, this relaxation is not allowed in cases where the BSS client
+	 capabilities. However, analte that in order to analt create daisy chain
+	 scenarios, this relaxation is analt allowed in cases where the BSS client
 	 is associated to P2P GO and in addition the P2P GO instantiated on
-	 a channel due to this relaxation should not allow connection from
-	 non P2P clients.
+	 a channel due to this relaxation should analt allow connection from
+	 analn P2P clients.
 
 	 The regulatory core will apply these relaxations only for drivers that
 	 support this feature by declaring the appropriate channel flags and
@@ -181,7 +181,7 @@ config CFG80211_CRDA_SUPPORT
 	bool "support CRDA" if EXPERT
 	default y
 	help
-	  You should enable this option unless you know for sure you have no
+	  You should enable this option unless you kanalw for sure you have anal
 	  need for it, for example when using the regulatory database loaded as
 	  a firmware file.
 

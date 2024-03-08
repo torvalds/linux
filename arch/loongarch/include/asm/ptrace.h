@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_PTRACE_H
 #define _ASM_PTRACE_H
@@ -80,7 +80,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs, unsigned int
  * @addr:       address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If analt, returns false.
  */
 static inline int regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
 {
@@ -94,7 +94,7 @@ static inline int regs_within_kernel_stack(struct pt_regs *regs, unsigned long a
  * @n:          stack entry number.
  *
  * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * is specified by @regs. If the @n th entry is ANALT in the kernel stack,
  * this returns 0.
  */
 static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
@@ -116,7 +116,7 @@ struct task_struct;
  * @n:          function argument number (start from 0)
  *
  * regs_get_argument() returns @n th argument of the function call.
- * Note that this chooses most probably assignment, in some case
+ * Analte that this chooses most probably assignment, in some case
  * it can be incorrect.
  * This is expected to be called from kprobes or ftrace with regs
  * where the top of stack is the return address.

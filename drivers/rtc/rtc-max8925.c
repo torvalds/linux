@@ -251,7 +251,7 @@ static int max8925_rtc_probe(struct platform_device *pdev)
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8925_rtc_info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->chip = chip;
 	info->rtc = chip->rtc;
 	info->dev = &pdev->dev;

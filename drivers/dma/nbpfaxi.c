@@ -107,7 +107,7 @@ struct nbpf_config {
  *	queuing, these must be DMAable, using either the streaming DMA API or
  *	allocated from coherent memory - one per SG segment
  * 3. one per SG segment descriptors, used to manage HW link descriptors from
- *	(2). They do not have to be DMAable. They can either be (a) allocated
+ *	(2). They do analt have to be DMAable. They can either be (a) allocated
  *	together with link descriptors as mixed (DMA / CPU) objects, or (b)
  *	separately. Even if allocated separately it would be best to link them
  *	to link descriptors once during channel resource allocation and always
@@ -135,7 +135,7 @@ struct nbpf_link_desc {
 	struct nbpf_link_reg *hwdesc;
 	dma_addr_t hwdesc_dma_addr;
 	struct nbpf_desc *desc;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -145,7 +145,7 @@ struct nbpf_link_desc {
  * @length:	total transfer length
  * @chan:	associated DMAC channel
  * @sg:		list of hardware descriptors, represented by struct nbpf_link_desc
- * @node:	member in channel descriptor lists
+ * @analde:	member in channel descriptor lists
  */
 struct nbpf_desc {
 	struct dma_async_tx_descriptor async_tx;
@@ -153,7 +153,7 @@ struct nbpf_desc {
 	size_t length;
 	struct nbpf_channel *chan;
 	struct list_head sg;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /* Take a wild guess: allocate 4 segments per descriptor */
@@ -165,7 +165,7 @@ struct nbpf_desc {
 #define NBPF_SEGMENTS_PER_PAGE (NBPF_SEGMENTS_PER_DESC * NBPF_DESCS_PER_PAGE)
 
 struct nbpf_desc_page {
-	struct list_head node;
+	struct list_head analde;
 	struct nbpf_desc desc[NBPF_DESCS_PER_PAGE];
 	struct nbpf_link_desc ldesc[NBPF_SEGMENTS_PER_PAGE];
 	struct nbpf_link_reg hwdesc[NBPF_SEGMENTS_PER_PAGE];
@@ -387,7 +387,7 @@ static void nbpf_error_clear(struct nbpf_channel *chan)
 static int nbpf_start(struct nbpf_desc *desc)
 {
 	struct nbpf_channel *chan = desc->chan;
-	struct nbpf_link_desc *ldesc = list_first_entry(&desc->sg, struct nbpf_link_desc, node);
+	struct nbpf_link_desc *ldesc = list_first_entry(&desc->sg, struct nbpf_link_desc, analde);
 
 	nbpf_chan_write(chan, NBPF_CHAN_NXLA, (u32)ldesc->hwdesc_dma_addr);
 	nbpf_chan_write(chan, NBPF_CHAN_CTRL, NBPF_CHAN_CTRL_SETEN | NBPF_CHAN_CTRL_CLRSUS);
@@ -438,7 +438,7 @@ static u32 nbpf_xfer_ds(struct nbpf_device *nbpf, size_t size,
 	if (nbpf->max_burst_mem_read || nbpf->max_burst_mem_write) {
 		switch (direction) {
 		case DMA_MEM_TO_MEM:
-			max_burst = min_not_zero(nbpf->max_burst_mem_read,
+			max_burst = min_analt_zero(nbpf->max_burst_mem_read,
 						 nbpf->max_burst_mem_write);
 			break;
 		case DMA_MEM_TO_DEV:
@@ -487,17 +487,17 @@ static size_t nbpf_xfer_size(struct nbpf_device *nbpf,
 		size = burst;
 	}
 
-	return nbpf_xfer_ds(nbpf, size, DMA_TRANS_NONE);
+	return nbpf_xfer_ds(nbpf, size, DMA_TRANS_ANALNE);
 }
 
 /*
  * We need a way to recognise slaves, whose data is sent "raw" over the bus,
- * i.e. it isn't known in advance how many bytes will be received. Therefore
- * the slave driver has to provide a "large enough" buffer and either read the
+ * i.e. it isn't kanalwn in advance how many bytes will be received. Therefore
+ * the slave driver has to provide a "large eanalugh" buffer and either read the
  * buffer, when it is full, or detect, that some data has arrived, then wait for
- * a timeout, if no more data arrives - receive what's already there. We want to
+ * a timeout, if anal more data arrives - receive what's already there. We want to
  * handle such slaves in a special way to allow an optimised mode for other
- * users, for whom the amount of data is known in advance. So far there's no way
+ * users, for whom the amount of data is kanalwn in advance. So far there's anal way
  * to recognise such slaves. We use a data-width check to distinguish between
  * the SD host and the PL011 UART.
  */
@@ -522,13 +522,13 @@ static int nbpf_prep_one(struct nbpf_link_desc *ldesc,
 
 	/*
 	 * set config: SAD, DAD, DDS, SDS, etc.
-	 * Note on transfer sizes: the DMAC can perform unaligned DMA transfers,
+	 * Analte on transfer sizes: the DMAC can perform unaligned DMA transfers,
 	 * but it is important to have transaction size a multiple of both
 	 * receiver and transmitter transfer sizes. It is also possible to use
 	 * different RAM and device transfer sizes, and it does work well with
 	 * some devices, e.g. with V08R07S01E SD host controllers, which can use
 	 * 128 byte transfers. But this doesn't work with other devices,
-	 * especially when the transaction size is unknown. This is the case,
+	 * especially when the transaction size is unkanalwn. This is the case,
 	 * e.g. with serial drivers like amba-pl011.c. For reception it sets up
 	 * the transaction size of 4K and if fewer bytes are received, it
 	 * pauses DMA and reads out data received via DMA as well as those left
@@ -545,7 +545,7 @@ static int nbpf_prep_one(struct nbpf_link_desc *ldesc,
 				 chan->slave_src_burst : chan->slave_src_width);
 		/*
 		 * Is the slave narrower than 64 bits, i.e. isn't using the full
-		 * bus width and cannot use bursts?
+		 * bus width and cananalt use bursts?
 		 */
 		if (mem_xfer > chan->slave_src_burst && !can_burst)
 			mem_xfer = chan->slave_src_burst;
@@ -613,7 +613,7 @@ static void nbpf_issue_pending(struct dma_chan *dchan)
 
 	if (!chan->running) {
 		struct nbpf_desc *desc = list_first_entry(&chan->active,
-						struct nbpf_desc, node);
+						struct nbpf_desc, analde);
 		if (!nbpf_start(desc))
 			chan->running = desc;
 	}
@@ -643,14 +643,14 @@ static enum dma_status nbpf_tx_status(struct dma_chan *dchan,
 			struct nbpf_desc *desc;
 			bool found = false;
 
-			list_for_each_entry(desc, &chan->active, node)
+			list_for_each_entry(desc, &chan->active, analde)
 				if (desc->async_tx.cookie == cookie) {
 					found = true;
 					break;
 				}
 
 			if (!found)
-				list_for_each_entry(desc, &chan->queued, node)
+				list_for_each_entry(desc, &chan->queued, analde)
 					if (desc->async_tx.cookie == cookie) {
 						found = true;
 						break;
@@ -678,7 +678,7 @@ static dma_cookie_t nbpf_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irqsave(&chan->lock, flags);
 	cookie = dma_cookie_assign(tx);
-	list_add_tail(&desc->node, &chan->queued);
+	list_add_tail(&desc->analde, &chan->queued);
 	spin_unlock_irqrestore(&chan->lock, flags);
 
 	dev_dbg(chan->dma_chan.device->dev, "Entry %s(%d)\n", __func__, cookie);
@@ -699,7 +699,7 @@ static int nbpf_desc_page_alloc(struct nbpf_channel *chan)
 	struct device *dev = dchan->device->dev;
 
 	if (!dpage)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "%s(): alloc %lu descriptors, %lu segments, total alloc %zu\n",
 		__func__, NBPF_DESCS_PER_PAGE, NBPF_SEGMENTS_PER_PAGE, sizeof(*dpage));
@@ -708,7 +708,7 @@ static int nbpf_desc_page_alloc(struct nbpf_channel *chan)
 	     i < ARRAY_SIZE(dpage->ldesc);
 	     i++, ldesc++, hwdesc++) {
 		ldesc->hwdesc = hwdesc;
-		list_add_tail(&ldesc->node, &lhead);
+		list_add_tail(&ldesc->analde, &lhead);
 		ldesc->hwdesc_dma_addr = dma_map_single(dchan->device->dev,
 					hwdesc, sizeof(*hwdesc), DMA_TO_DEVICE);
 
@@ -723,17 +723,17 @@ static int nbpf_desc_page_alloc(struct nbpf_channel *chan)
 		desc->async_tx.tx_submit = nbpf_tx_submit;
 		desc->chan = chan;
 		INIT_LIST_HEAD(&desc->sg);
-		list_add_tail(&desc->node, &head);
+		list_add_tail(&desc->analde, &head);
 	}
 
 	/*
-	 * This function cannot be called from interrupt context, so, no need to
+	 * This function cananalt be called from interrupt context, so, anal need to
 	 * save flags
 	 */
 	spin_lock_irq(&chan->lock);
 	list_splice_tail(&lhead, &chan->free_links);
 	list_splice_tail(&head, &chan->free);
-	list_add(&dpage->node, &chan->desc_page);
+	list_add(&dpage->analde, &chan->desc_page);
 	spin_unlock_irq(&chan->lock);
 
 	return ARRAY_SIZE(dpage->desc);
@@ -746,10 +746,10 @@ static void nbpf_desc_put(struct nbpf_desc *desc)
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->lock, flags);
-	list_for_each_entry_safe(ldesc, tmp, &desc->sg, node)
-		list_move(&ldesc->node, &chan->free_links);
+	list_for_each_entry_safe(ldesc, tmp, &desc->sg, analde)
+		list_move(&ldesc->analde, &chan->free_links);
 
-	list_add(&desc->node, &chan->free);
+	list_add(&desc->analde, &chan->free);
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
 
@@ -760,15 +760,15 @@ static void nbpf_scan_acked(struct nbpf_channel *chan)
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&chan->lock, flags);
-	list_for_each_entry_safe(desc, tmp, &chan->done, node)
+	list_for_each_entry_safe(desc, tmp, &chan->done, analde)
 		if (async_tx_test_ack(&desc->async_tx) && desc->user_wait) {
-			list_move(&desc->node, &head);
+			list_move(&desc->analde, &head);
 			desc->user_wait = false;
 		}
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	list_for_each_entry_safe(desc, tmp, &head, node) {
-		list_del(&desc->node);
+	list_for_each_entry_safe(desc, tmp, &head, analde) {
+		list_del(&desc->analde);
 		nbpf_desc_put(desc);
 	}
 }
@@ -792,7 +792,7 @@ static struct nbpf_desc *nbpf_desc_get(struct nbpf_channel *chan, size_t len)
 		int i = 0, ret;
 
 		if (list_empty(&chan->free)) {
-			/* No more free descriptors */
+			/* Anal more free descriptors */
 			spin_unlock_irq(&chan->lock);
 			ret = nbpf_desc_page_alloc(chan);
 			if (ret < 0)
@@ -800,12 +800,12 @@ static struct nbpf_desc *nbpf_desc_get(struct nbpf_channel *chan, size_t len)
 			spin_lock_irq(&chan->lock);
 			continue;
 		}
-		desc = list_first_entry(&chan->free, struct nbpf_desc, node);
-		list_del(&desc->node);
+		desc = list_first_entry(&chan->free, struct nbpf_desc, analde);
+		list_del(&desc->analde);
 
 		do {
 			if (list_empty(&chan->free_links)) {
-				/* No more free link descriptors */
+				/* Anal more free link descriptors */
 				spin_unlock_irq(&chan->lock);
 				ret = nbpf_desc_page_alloc(chan);
 				if (ret < 0) {
@@ -817,13 +817,13 @@ static struct nbpf_desc *nbpf_desc_get(struct nbpf_channel *chan, size_t len)
 			}
 
 			ldesc = list_first_entry(&chan->free_links,
-						 struct nbpf_link_desc, node);
+						 struct nbpf_link_desc, analde);
 			ldesc->desc = desc;
 			if (prev)
 				prev->hwdesc->next = (u32)ldesc->hwdesc_dma_addr;
 
 			prev = ldesc;
-			list_move_tail(&ldesc->node, &desc->sg);
+			list_move_tail(&ldesc->analde, &desc->sg);
 
 			i++;
 		} while (i < len);
@@ -852,10 +852,10 @@ static void nbpf_chan_idle(struct nbpf_channel *chan)
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	list_for_each_entry_safe(desc, tmp, &head, node) {
+	list_for_each_entry_safe(desc, tmp, &head, analde) {
 		dev_dbg(chan->nbpf->dma_dev.dev, "%s(): force-free desc %p cookie %d\n",
 			__func__, desc, desc->async_tx.cookie);
-		list_del(&desc->node);
+		list_del(&desc->analde);
 		nbpf_desc_put(desc);
 	}
 }
@@ -957,10 +957,10 @@ static struct dma_async_tx_descriptor *nbpf_prep_sg(struct nbpf_channel *chan,
 	desc->user_wait = false;
 
 	/*
-	 * This is a private descriptor list, and we own the descriptor. No need
+	 * This is a private descriptor list, and we own the descriptor. Anal need
 	 * to lock.
 	 */
-	list_for_each_entry(ldesc, &desc->sg, node) {
+	list_for_each_entry(ldesc, &desc->sg, analde) {
 		int ret = nbpf_prep_one(ldesc, direction,
 					sg_dma_address(src_sg),
 					sg_dma_address(dst_sg),
@@ -1071,10 +1071,10 @@ static void nbpf_free_chan_resources(struct dma_chan *dchan)
 	/* Clean up for if a channel is re-used for MEMCPY after slave DMA */
 	nbpf_chan_prepare_default(chan);
 
-	list_for_each_entry_safe(dpage, tmp, &chan->desc_page, node) {
+	list_for_each_entry_safe(dpage, tmp, &chan->desc_page, analde) {
 		struct nbpf_link_desc *ldesc;
 		int i;
-		list_del(&dpage->node);
+		list_del(&dpage->analde);
 		for (i = 0, ldesc = dpage->ldesc;
 		     i < ARRAY_SIZE(dpage->ldesc);
 		     i++, ldesc++)
@@ -1123,7 +1123,7 @@ static void nbpf_chan_tasklet(struct tasklet_struct *t)
 
 		spin_lock_irq(&chan->lock);
 
-		list_for_each_entry_safe(desc, tmp, &chan->done, node) {
+		list_for_each_entry_safe(desc, tmp, &chan->done, analde) {
 			if (!desc->user_wait) {
 				/* Newly completed descriptor, have to process */
 				found = true;
@@ -1131,9 +1131,9 @@ static void nbpf_chan_tasklet(struct tasklet_struct *t)
 			} else if (async_tx_test_ack(&desc->async_tx)) {
 				/*
 				 * This descriptor was waiting for a user ACK,
-				 * it can be recycled now.
+				 * it can be recycled analw.
 				 */
-				list_del(&desc->node);
+				list_del(&desc->analde);
 				spin_unlock_irq(&chan->lock);
 				nbpf_desc_put(desc);
 				recycling = true;
@@ -1153,11 +1153,11 @@ static void nbpf_chan_tasklet(struct tasklet_struct *t)
 		dma_cookie_complete(&desc->async_tx);
 
 		/*
-		 * With released lock we cannot dereference desc, maybe it's
+		 * With released lock we cananalt dereference desc, maybe it's
 		 * still on the "done" list
 		 */
 		if (async_tx_test_ack(&desc->async_tx)) {
-			list_del(&desc->node);
+			list_del(&desc->analde);
 			must_put = true;
 		} else {
 			desc->user_wait = true;
@@ -1185,7 +1185,7 @@ static irqreturn_t nbpf_chan_irq(int irq, void *dev)
 	bool bh = false;
 
 	if (!done)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	nbpf_status_ack(chan);
 
@@ -1194,19 +1194,19 @@ static irqreturn_t nbpf_chan_irq(int irq, void *dev)
 	spin_lock(&chan->lock);
 	desc = chan->running;
 	if (WARN_ON(!desc)) {
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 		goto unlock;
 	} else {
 		ret = IRQ_HANDLED;
 		bh = true;
 	}
 
-	list_move_tail(&desc->node, &chan->done);
+	list_move_tail(&desc->analde, &chan->done);
 	chan->running = NULL;
 
 	if (!list_empty(&chan->active)) {
 		desc = list_first_entry(&chan->active,
-					struct nbpf_desc, node);
+					struct nbpf_desc, analde);
 		if (!nbpf_start(desc))
 			chan->running = desc;
 	}
@@ -1228,11 +1228,11 @@ static irqreturn_t nbpf_err_irq(int irq, void *dev)
 	dev_warn(nbpf->dma_dev.dev, "DMA error IRQ %u\n", irq);
 
 	if (!error)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	do {
 		struct nbpf_channel *chan = nbpf_error_get_channel(nbpf, error);
-		/* On error: abort all queued transfers, no callback */
+		/* On error: abort all queued transfers, anal callback */
 		nbpf_error_clear(chan);
 		nbpf_chan_idle(chan);
 		error = nbpf_error_get(nbpf);
@@ -1267,7 +1267,7 @@ static int nbpf_chan_probe(struct nbpf_device *nbpf, int n)
 		return ret;
 
 	/* Add the channel to DMA device channel list */
-	list_add_tail(&chan->dma_chan.device_node,
+	list_add_tail(&chan->dma_chan.device_analde,
 		      &dma_dev->channels);
 
 	return 0;
@@ -1290,7 +1290,7 @@ MODULE_DEVICE_TABLE(of, nbpf_match);
 static int nbpf_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct nbpf_device *nbpf;
 	struct dma_device *dma_dev;
 	const struct nbpf_config *cfg;
@@ -1303,7 +1303,7 @@ static int nbpf_probe(struct platform_device *pdev)
 
 	/* DT only */
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg = of_device_get_match_data(dev);
 	num_channels = cfg->num_channels;
@@ -1311,7 +1311,7 @@ static int nbpf_probe(struct platform_device *pdev)
 	nbpf = devm_kzalloc(dev, struct_size(nbpf, chan, num_channels),
 			    GFP_KERNEL);
 	if (!nbpf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_dev = &nbpf->dma_dev;
 	dma_dev->dev = dev;
@@ -1469,7 +1469,7 @@ static void nbpf_remove(struct platform_device *pdev)
 		tasklet_kill(&chan->tasklet);
 	}
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&nbpf->dma_dev);
 	clk_disable_unprepare(nbpf->clk);
 }

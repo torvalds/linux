@@ -4,14 +4,14 @@
  * General header file for linux CD-ROM drivers 
  * Copyright (C) 1992         David Giller, rafetmad@oxy.edu
  *               1994, 1995   Eberhard Mönkeberg, emoenke@gwdg.de
- *               1996         David van Leeuwen, david@tm.tno.nl
+ *               1996         David van Leeuwen, david@tm.tanal.nl
  *               1997, 1998   Erik Andersen, andersee@debian.org
  *               1998-2002    Jens Axboe, axboe@suse.de
  */
 #ifndef	_LINUX_CDROM_H
 #define	_LINUX_CDROM_H
 
-#include <linux/fs.h>		/* not really needed, later.. */
+#include <linux/fs.h>		/* analt really needed, later.. */
 #include <linux/list.h>
 #include <linux/blkdev.h>
 #include <scsi/scsi_common.h>
@@ -57,7 +57,7 @@ struct cdrom_device_info {
 /* per-device flags */
         __u8 sanyo_slot		: 2;	/* Sanyo 3 CD changer support */
         __u8 keeplocked		: 1;	/* CDROM_LOCKDOOR status */
-        __u8 reserved		: 5;	/* not used yet */
+        __u8 reserved		: 5;	/* analt used yet */
 	int cdda_method;		/* see flags */
 	__u8 last_sense;
 	__u8 media_written;		/* dirty flag, DVD+RW bookkeeping */
@@ -276,9 +276,9 @@ struct event_header {
 #if defined(__BIG_ENDIAN_BITFIELD)
 	__u8 nea		: 1;
 	__u8 reserved1		: 4;
-	__u8 notification_class	: 3;
+	__u8 analtification_class	: 3;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 notification_class	: 3;
+	__u8 analtification_class	: 3;
 	__u8 reserved1		: 4;
 	__u8 nea		: 1;
 #endif

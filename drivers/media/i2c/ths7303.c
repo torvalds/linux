@@ -136,11 +136,11 @@ out:
 	return err;
 }
 
-static int ths7303_s_std_output(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int ths7303_s_std_output(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct ths7303_state *state = to_state(sd);
 
-	if (norm & (V4L2_STD_ALL & ~V4L2_STD_SECAM)) {
+	if (analrm & (V4L2_STD_ALL & ~V4L2_STD_SECAM)) {
 		state->std_id = 1;
 		state->bt.pixelclock = 0;
 		return ths7303_setval(sd, THS7303_FILTER_MODE_480I_576I);
@@ -252,7 +252,7 @@ static const char * const lpf_freq_sel_txt[4] = {
 
 static const char * const in_bias_sel_dis_cont_txt[8] = {
 	"Disable Channel",
-	"Mute Function - No Output",
+	"Mute Function - Anal Output",
 	"DC Bias Select",
 	"DC Bias + 250 mV Offset Select",
 	"AC Bias Select",
@@ -299,7 +299,7 @@ static int ths7303_log_status(struct v4l2_subdev *sd)
 			  frame_width, frame_height,
 			  (int)bt->pixelclock, bt->polarities);
 	} else {
-		v4l2_info(sd, "no timings set\n");
+		v4l2_info(sd, "anal timings set\n");
 	}
 
 	ths7303_log_channel_status(sd, THS7303_CHANNEL_1);
@@ -329,12 +329,12 @@ static int ths7303_probe(struct i2c_client *client)
 	struct v4l2_subdev *sd;
 
 	if (pdata == NULL) {
-		dev_err(&client->dev, "No platform data\n");
+		dev_err(&client->dev, "Anal platform data\n");
 		return -EINVAL;
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
@@ -342,7 +342,7 @@ static int ths7303_probe(struct i2c_client *client)
 	state = devm_kzalloc(&client->dev, sizeof(struct ths7303_state),
 			     GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->pdata = pdata;
 	sd = &state->sd;

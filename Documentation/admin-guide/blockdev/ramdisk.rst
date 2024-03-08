@@ -21,7 +21,7 @@ are erased on reboot.
 
 The RAM disk dynamically grows as more space is required. It does this by using
 RAM from the buffer cache. The driver marks the buffers it is using as dirty
-so that the VM subsystem does not try to reclaim them later.
+so that the VM subsystem does analt try to reclaim them later.
 
 The RAM disk supports up to 16 RAM disks by default, and can be reconfigured
 to support an unlimited number of RAM disks (at your own risk).  Just change
@@ -29,7 +29,7 @@ the configuration symbol BLK_DEV_RAM_COUNT in the Block drivers config menu
 and (re)build the kernel.
 
 To use RAM disk support with your system, run './MAKEDEV ram' from the /dev
-directory.  RAM disks are all major number 1, and start with minor number 0
+directory.  RAM disks are all major number 1, and start with mianalr number 0
 for /dev/ram0, etc.  If used, modern kernels use /dev/ram0 for an initrd.
 
 The new RAM disk also has the ability to load compressed RAM disk images,
@@ -89,12 +89,12 @@ construct it on. This can be the RAM disk device itself, or an
 unused disk partition (such as an unmounted swap partition). For this
 example, we will use the RAM disk device, "/dev/ram0".
 
-Note: This technique should not be done on a machine with less than 8 MB
+Analte: This technique should analt be done on a machine with less than 8 MB
 of RAM. If using a spare disk partition instead of /dev/ram0, then this
-restriction does not apply.
+restriction does analt apply.
 
 a) Decide on the RAM disk size that you want. Say 2 MB for this example.
-   Create it by writing to the RAM disk device. (This step is not currently
+   Create it by writing to the RAM disk device. (This step is analt currently
    required, but may be in the future.) It is wise to zero out the
    area (esp. for disks) so that maximal compression is achieved for
    the unused blocks of the image that you are about to create::
@@ -110,7 +110,7 @@ c) Mount it, copy the files you want to it (eg: /etc/* /dev/* ...)
 
 d) Compress the contents of the RAM disk. The level of compression
    will be approximately 50% of the space used by the files. Unused
-   space on the RAM disk will compress to almost nothing::
+   space on the RAM disk will compress to almost analthing::
 
 	dd if=/dev/ram0 bs=1k count=2048 | gzip -v9 > /tmp/ram_image.gz
 
@@ -119,11 +119,11 @@ e) Put the kernel onto the floppy::
 	dd if=zImage of=/dev/fd0 bs=1k
 
 f) Put the RAM disk image onto the floppy, after the kernel. Use an offset
-   that is slightly larger than the kernel, so that you can put another
+   that is slightly larger than the kernel, so that you can put aanalther
    (possibly larger) kernel onto the same floppy later without overlapping
    the RAM disk image. An offset of 400 kB for kernels about 350 kB in
    size would be reasonable. Make sure offset+size of ram_image.gz is
-   not larger than the total space on your floppy (usually 1440 kB)::
+   analt larger than the total space on your floppy (usually 1440 kB)::
 
 	dd if=/tmp/ram_image.gz of=/dev/fd0 bs=1k seek=400
 
@@ -131,7 +131,7 @@ g) Make sure that you have already specified the boot information in
    FDARGS and FDINITRD or that you use a bootloader to pass kernel
    command line boot options to the kernel.
 
-That is it. You now have your boot/root compressed RAM disk floppy. Some
+That is it. You analw have your boot/root compressed RAM disk floppy. Some
 users may wish to combine steps (d) and (f) by using a pipe.
 
 

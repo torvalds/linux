@@ -8,7 +8,7 @@
  *    This file provides a Linux "misc" character device for access to an
  *    assigned HMC drive CD/DVD-ROM. It works as follows: First create the
  *    device by calling hmcdrv_dev_init(). After open() a lseek(fd, 0,
- *    SEEK_END) indicates that a new FTP command follows (not needed on the
+ *    SEEK_END) indicates that a new FTP command follows (analt needed on the
  *    first command after open). Then write() the FTP command ASCII string
  *    to it, e.g. "dir /" or "nls <directory>" or "get <filename>". At the
  *    end read() the response.
@@ -32,7 +32,7 @@
 #include "hmcdrv_ftp.h"
 
 /* If the following macro is defined, then the HMC device creates it's own
- * separated device class (and dynamically assigns a major number). If not
+ * separated device class (and dynamically assigns a major number). If analt
  * defined then the HMC device is assigned to the "misc" class devices.
  *
 #define HMCDRV_DEV_CLASS "hmcftp"
@@ -42,19 +42,19 @@
 #define HMCDRV_DEV_BUSY_DELAY	 500 /* delay between -EBUSY trials in ms */
 #define HMCDRV_DEV_BUSY_RETRIES  3   /* number of retries on -EBUSY */
 
-struct hmcdrv_dev_node {
+struct hmcdrv_dev_analde {
 
 #ifdef HMCDRV_DEV_CLASS
 	struct cdev dev; /* character device structure */
-	umode_t mode;	 /* mode of device node (unused, zero) */
+	umode_t mode;	 /* mode of device analde (unused, zero) */
 #else
 	struct miscdevice dev; /* "misc" device structure */
 #endif
 
 };
 
-static int hmcdrv_dev_open(struct inode *inode, struct file *fp);
-static int hmcdrv_dev_release(struct inode *inode, struct file *fp);
+static int hmcdrv_dev_open(struct ianalde *ianalde, struct file *fp);
+static int hmcdrv_dev_release(struct ianalde *ianalde, struct file *fp);
 static loff_t hmcdrv_dev_seek(struct file *fp, loff_t pos, int whence);
 static ssize_t hmcdrv_dev_read(struct file *fp, char __user *ubuf,
 			       size_t len, loff_t *pos);
@@ -74,36 +74,36 @@ static const struct file_operations hmcdrv_dev_fops = {
 	.write = hmcdrv_dev_write,
 };
 
-static struct hmcdrv_dev_node hmcdrv_dev; /* HMC device struct (static) */
+static struct hmcdrv_dev_analde hmcdrv_dev; /* HMC device struct (static) */
 
 #ifdef HMCDRV_DEV_CLASS
 
 static struct class *hmcdrv_dev_class; /* device class pointer */
-static dev_t hmcdrv_dev_no; /* device number (major/minor) */
+static dev_t hmcdrv_dev_anal; /* device number (major/mianalr) */
 
 /**
- * hmcdrv_dev_name() - provides a naming hint for a device node in /dev
+ * hmcdrv_dev_name() - provides a naming hint for a device analde in /dev
  * @dev: device for which the naming/mode hint is
- * @mode: file mode for device node created in /dev
+ * @mode: file mode for device analde created in /dev
  *
- * See: devtmpfs.c, function devtmpfs_create_node()
+ * See: devtmpfs.c, function devtmpfs_create_analde()
  *
  * Return: recommended device file name in /dev
  */
 static char *hmcdrv_dev_name(const struct device *dev, umode_t *mode)
 {
-	char *nodename = NULL;
+	char *analdename = NULL;
 	const char *devname = dev_name(dev); /* kernel device name */
 
 	if (devname)
-		nodename = kasprintf(GFP_KERNEL, "%s", devname);
+		analdename = kasprintf(GFP_KERNEL, "%s", devname);
 
 	/* on device destroy (rmmod) the mode pointer may be NULL
 	 */
 	if (mode)
 		*mode = hmcdrv_dev.mode;
 
-	return nodename;
+	return analdename;
 }
 
 #endif	/* HMCDRV_DEV_CLASS */
@@ -111,17 +111,17 @@ static char *hmcdrv_dev_name(const struct device *dev, umode_t *mode)
 /*
  * open()
  */
-static int hmcdrv_dev_open(struct inode *inode, struct file *fp)
+static int hmcdrv_dev_open(struct ianalde *ianalde, struct file *fp)
 {
 	int rc;
 
-	/* check for non-blocking access, which is really unsupported
+	/* check for analn-blocking access, which is really unsupported
 	 */
-	if (fp->f_flags & O_NONBLOCK)
+	if (fp->f_flags & O_ANALNBLOCK)
 		return -EINVAL;
 
-	/* Because it makes no sense to open this device read-only (then a
-	 * FTP command cannot be emitted), we respond with an error.
+	/* Because it makes anal sense to open this device read-only (then a
+	 * FTP command cananalt be emitted), we respond with an error.
 	 */
 	if ((fp->f_flags & O_ACCMODE) == O_RDONLY)
 		return -EINVAL;
@@ -130,9 +130,9 @@ static int hmcdrv_dev_open(struct inode *inode, struct file *fp)
 	 * device file open - so increment the reference count here
 	 */
 	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+		return -EANALDEV;
 
-	fp->private_data = NULL; /* no command yet */
+	fp->private_data = NULL; /* anal command yet */
 	rc = hmcdrv_ftp_startup();
 	if (rc)
 		module_put(THIS_MODULE);
@@ -144,7 +144,7 @@ static int hmcdrv_dev_open(struct inode *inode, struct file *fp)
 /*
  * release()
  */
-static int hmcdrv_dev_release(struct inode *inode, struct file *fp)
+static int hmcdrv_dev_release(struct ianalde *ianalde, struct file *fp)
 {
 	pr_debug("closing file '/dev/%pD'\n", fp);
 	kfree(fp->private_data);
@@ -224,7 +224,7 @@ static ssize_t hmcdrv_dev_read(struct file *fp, char __user *ubuf,
 	ssize_t retlen;
 
 	if (((fp->f_flags & O_ACCMODE) == O_WRONLY) ||
-	    (fp->private_data == NULL)) { /* no FTP cmd defined ? */
+	    (fp->private_data == NULL)) { /* anal FTP cmd defined ? */
 		return -EBADF;
 	}
 
@@ -255,7 +255,7 @@ static ssize_t hmcdrv_dev_write(struct file *fp, const char __user *ubuf,
 		fp->private_data = kmalloc(len + 1, GFP_KERNEL);
 
 		if (!fp->private_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (!copy_from_user(fp->private_data, ubuf, len)) {
 			((char *)fp->private_data)[len] = '\0';
@@ -292,20 +292,20 @@ int hmcdrv_dev_init(void)
 #ifdef HMCDRV_DEV_CLASS
 	struct device *dev;
 
-	rc = alloc_chrdev_region(&hmcdrv_dev_no, 0, 1, HMCDRV_DEV_NAME);
+	rc = alloc_chrdev_region(&hmcdrv_dev_anal, 0, 1, HMCDRV_DEV_NAME);
 
 	if (rc)
 		goto out_err;
 
 	cdev_init(&hmcdrv_dev.dev, &hmcdrv_dev_fops);
 	hmcdrv_dev.dev.owner = THIS_MODULE;
-	rc = cdev_add(&hmcdrv_dev.dev, hmcdrv_dev_no, 1);
+	rc = cdev_add(&hmcdrv_dev.dev, hmcdrv_dev_anal, 1);
 
 	if (rc)
 		goto out_unreg;
 
 	/* At this point the character device exists in the kernel (see
-	 * /proc/devices), but not under /dev nor /sys/devices/virtual. So
+	 * /proc/devices), but analt under /dev analr /sys/devices/virtual. So
 	 * we have to create an associated class (see /sys/class).
 	 */
 	hmcdrv_dev_class = class_create(HMCDRV_DEV_CLASS);
@@ -315,14 +315,14 @@ int hmcdrv_dev_init(void)
 		goto out_devdel;
 	}
 
-	/* Finally a device node in /dev has to be established (as 'mkdev'
-	 * does from the command line). Notice that assignment of a device
-	 * node name/mode function is optional (only for mode != 0600).
+	/* Finally a device analde in /dev has to be established (as 'mkdev'
+	 * does from the command line). Analtice that assignment of a device
+	 * analde name/mode function is optional (only for mode != 0600).
 	 */
 	hmcdrv_dev.mode = 0; /* "unset" */
-	hmcdrv_dev_class->devnode = hmcdrv_dev_name;
+	hmcdrv_dev_class->devanalde = hmcdrv_dev_name;
 
-	dev = device_create(hmcdrv_dev_class, NULL, hmcdrv_dev_no, NULL,
+	dev = device_create(hmcdrv_dev_class, NULL, hmcdrv_dev_anal, NULL,
 			    "%s", HMCDRV_DEV_NAME);
 	if (!IS_ERR(dev))
 		return 0;
@@ -335,12 +335,12 @@ out_devdel:
 	cdev_del(&hmcdrv_dev.dev);
 
 out_unreg:
-	unregister_chrdev_region(hmcdrv_dev_no, 1);
+	unregister_chrdev_region(hmcdrv_dev_anal, 1);
 
 out_err:
 
 #else  /* !HMCDRV_DEV_CLASS */
-	hmcdrv_dev.dev.minor = MISC_DYNAMIC_MINOR;
+	hmcdrv_dev.dev.mianalr = MISC_DYNAMIC_MIANALR;
 	hmcdrv_dev.dev.name = HMCDRV_DEV_NAME;
 	hmcdrv_dev.dev.fops = &hmcdrv_dev_fops;
 	hmcdrv_dev.dev.mode = 0; /* finally produces 0600 */
@@ -357,12 +357,12 @@ void hmcdrv_dev_exit(void)
 {
 #ifdef HMCDRV_DEV_CLASS
 	if (!IS_ERR_OR_NULL(hmcdrv_dev_class)) {
-		device_destroy(hmcdrv_dev_class, hmcdrv_dev_no);
+		device_destroy(hmcdrv_dev_class, hmcdrv_dev_anal);
 		class_destroy(hmcdrv_dev_class);
 	}
 
 	cdev_del(&hmcdrv_dev.dev);
-	unregister_chrdev_region(hmcdrv_dev_no, 1);
+	unregister_chrdev_region(hmcdrv_dev_anal, 1);
 #else  /* !HMCDRV_DEV_CLASS */
 	misc_deregister(&hmcdrv_dev.dev);
 #endif	/* HMCDRV_DEV_CLASS */

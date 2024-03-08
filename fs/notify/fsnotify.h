@@ -1,81 +1,81 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __FS_NOTIFY_FSNOTIFY_H_
-#define __FS_NOTIFY_FSNOTIFY_H_
+#ifndef __FS_ANALTIFY_FSANALTIFY_H_
+#define __FS_ANALTIFY_FSANALTIFY_H_
 
 #include <linux/list.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/srcu.h>
 #include <linux/types.h>
 
 #include "../mount.h"
 
-static inline struct inode *fsnotify_conn_inode(
-				struct fsnotify_mark_connector *conn)
+static inline struct ianalde *fsanaltify_conn_ianalde(
+				struct fsanaltify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct inode, i_fsnotify_marks);
+	return container_of(conn->obj, struct ianalde, i_fsanaltify_marks);
 }
 
-static inline struct mount *fsnotify_conn_mount(
-				struct fsnotify_mark_connector *conn)
+static inline struct mount *fsanaltify_conn_mount(
+				struct fsanaltify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct mount, mnt_fsnotify_marks);
+	return container_of(conn->obj, struct mount, mnt_fsanaltify_marks);
 }
 
-static inline struct super_block *fsnotify_conn_sb(
-				struct fsnotify_mark_connector *conn)
+static inline struct super_block *fsanaltify_conn_sb(
+				struct fsanaltify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct super_block, s_fsnotify_marks);
+	return container_of(conn->obj, struct super_block, s_fsanaltify_marks);
 }
 
-static inline struct super_block *fsnotify_connector_sb(
-				struct fsnotify_mark_connector *conn)
+static inline struct super_block *fsanaltify_connector_sb(
+				struct fsanaltify_mark_connector *conn)
 {
 	switch (conn->type) {
-	case FSNOTIFY_OBJ_TYPE_INODE:
-		return fsnotify_conn_inode(conn)->i_sb;
-	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
-		return fsnotify_conn_mount(conn)->mnt.mnt_sb;
-	case FSNOTIFY_OBJ_TYPE_SB:
-		return fsnotify_conn_sb(conn);
+	case FSANALTIFY_OBJ_TYPE_IANALDE:
+		return fsanaltify_conn_ianalde(conn)->i_sb;
+	case FSANALTIFY_OBJ_TYPE_VFSMOUNT:
+		return fsanaltify_conn_mount(conn)->mnt.mnt_sb;
+	case FSANALTIFY_OBJ_TYPE_SB:
+		return fsanaltify_conn_sb(conn);
 	default:
 		return NULL;
 	}
 }
 
-/* destroy all events sitting in this groups notification queue */
-extern void fsnotify_flush_notify(struct fsnotify_group *group);
+/* destroy all events sitting in this groups analtification queue */
+extern void fsanaltify_flush_analtify(struct fsanaltify_group *group);
 
-/* protects reads of inode and vfsmount marks list */
-extern struct srcu_struct fsnotify_mark_srcu;
+/* protects reads of ianalde and vfsmount marks list */
+extern struct srcu_struct fsanaltify_mark_srcu;
 
 /* compare two groups for sorting of marks lists */
-extern int fsnotify_compare_groups(struct fsnotify_group *a,
-				   struct fsnotify_group *b);
+extern int fsanaltify_compare_groups(struct fsanaltify_group *a,
+				   struct fsanaltify_group *b);
 
 /* Destroy all marks attached to an object via connector */
-extern void fsnotify_destroy_marks(fsnotify_connp_t *connp);
-/* run the list of all marks associated with inode and destroy them */
-static inline void fsnotify_clear_marks_by_inode(struct inode *inode)
+extern void fsanaltify_destroy_marks(fsanaltify_connp_t *connp);
+/* run the list of all marks associated with ianalde and destroy them */
+static inline void fsanaltify_clear_marks_by_ianalde(struct ianalde *ianalde)
 {
-	fsnotify_destroy_marks(&inode->i_fsnotify_marks);
+	fsanaltify_destroy_marks(&ianalde->i_fsanaltify_marks);
 }
 /* run the list of all marks associated with vfsmount and destroy them */
-static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
+static inline void fsanaltify_clear_marks_by_mount(struct vfsmount *mnt)
 {
-	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks);
+	fsanaltify_destroy_marks(&real_mount(mnt)->mnt_fsanaltify_marks);
 }
 /* run the list of all marks associated with sb and destroy them */
-static inline void fsnotify_clear_marks_by_sb(struct super_block *sb)
+static inline void fsanaltify_clear_marks_by_sb(struct super_block *sb)
 {
-	fsnotify_destroy_marks(&sb->s_fsnotify_marks);
+	fsanaltify_destroy_marks(&sb->s_fsanaltify_marks);
 }
 
 /*
- * update the dentry->d_flags of all of inode's children to indicate if inode cares
+ * update the dentry->d_flags of all of ianalde's children to indicate if ianalde cares
  * about events that happen to its children.
  */
-extern void __fsnotify_update_child_dentry_flags(struct inode *inode);
+extern void __fsanaltify_update_child_dentry_flags(struct ianalde *ianalde);
 
-extern struct kmem_cache *fsnotify_mark_connector_cachep;
+extern struct kmem_cache *fsanaltify_mark_connector_cachep;
 
-#endif	/* __FS_NOTIFY_FSNOTIFY_H_ */
+#endif	/* __FS_ANALTIFY_FSANALTIFY_H_ */

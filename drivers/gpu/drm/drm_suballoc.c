@@ -13,14 +13,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -30,10 +30,10 @@
  * We store the last allocated bo in "hole", we always try to allocate
  * after the last allocated bo. Principle is that in a linear GPU ring
  * progression was is after last is the oldest bo we allocated and thus
- * the first one that should no longer be in use by the GPU.
+ * the first one that should anal longer be in use by the GPU.
  *
- * If it's not the case we skip over the bo after last to the closest
- * done bo if such one exist. If none exist and we are not asked to
+ * If it's analt the case we skip over the bo after last to the closest
+ * done bo if such one exist. If analne exist and we are analt asked to
  * block we report failure to allocate.
  *
  * If we are asked to block we wait on all the oldest fence of all
@@ -87,7 +87,7 @@ EXPORT_SYMBOL(drm_suballoc_manager_init);
  * @sa_manager: pointer to the sa_manager
  *
  * Cleans up the suballocation manager after use. All fences added
- * with drm_suballoc_free() must be signaled, or we cannot clean up
+ * with drm_suballoc_free() must be signaled, or we cananalt clean up
  * the entire manager.
  */
 void drm_suballoc_manager_fini(struct drm_suballoc_manager *sa_manager)
@@ -101,7 +101,7 @@ void drm_suballoc_manager_fini(struct drm_suballoc_manager *sa_manager)
 		sa_manager->hole = &sa_manager->olist;
 		drm_suballoc_try_free(sa_manager);
 		if (!list_empty(&sa_manager->olist))
-			DRM_ERROR("sa_manager is not empty, clearing anyway\n");
+			DRM_ERROR("sa_manager is analt empty, clearing anyway\n");
 	}
 	list_for_each_entry_safe(sa, tmp, &sa_manager->olist, olist) {
 		drm_suballoc_remove_locked(sa);
@@ -207,7 +207,7 @@ static bool __drm_suballoc_event(struct drm_suballoc_manager *sa_manager,
  * @align: alignment we need to match
  *
  * Return: true if either there is a fence we can wait for or
- * enough free memory to satisfy the allocation directly.
+ * eanalugh free memory to satisfy the allocation directly.
  * false otherwise.
  */
 static bool drm_suballoc_event(struct drm_suballoc_manager *sa_manager,
@@ -281,7 +281,7 @@ static bool drm_suballoc_next_hole(struct drm_suballoc_manager *sa_manager,
 		sa_manager->hole = best_bo->olist.prev;
 
 		/*
-		 * We know that this one is signaled,
+		 * We kanalw that this one is signaled,
 		 * so it's safe to remove it.
 		 */
 		drm_suballoc_remove_locked(best_bo);
@@ -300,8 +300,8 @@ static bool drm_suballoc_next_hole(struct drm_suballoc_manager *sa_manager,
  *       reclaim.
  * @intr: Whether to perform waits interruptible. This should typically
  *        always be true, unless the caller needs to propagate a
- *        non-interruptible context from above layers.
- * @align: Alignment. Must not exceed the default manager alignment.
+ *        analn-interruptible context from above layers.
+ * @align: Alignment. Must analt exceed the default manager alignment.
  *         If @align is zero, then the manager alignment is used.
  *
  * Try to make a suballocation of size @size, which will be rounded
@@ -329,7 +329,7 @@ drm_suballoc_new(struct drm_suballoc_manager *sa_manager, size_t size,
 
 	sa = kmalloc(sizeof(*sa), gfp);
 	if (!sa)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	sa->manager = sa_manager;
 	sa->fence = NULL;
 	INIT_LIST_HEAD(&sa->olist);
@@ -369,7 +369,7 @@ drm_suballoc_new(struct drm_suballoc_manager *sa_manager, size_t size,
 			r = (t > 0) ? 0 : t;
 			spin_lock(&sa_manager->wq.lock);
 		} else if (intr) {
-			/* if we have nothing to wait for block */
+			/* if we have analthing to wait for block */
 			r = wait_event_interruptible_locked
 				(sa_manager->wq,
 				 __drm_suballoc_event(sa_manager, size, align));
@@ -443,7 +443,7 @@ void drm_suballoc_dump_debug_info(struct drm_suballoc_manager *sa_manager,
 
 		if (i->fence)
 			drm_printf(p, " protected by 0x%016llx on context %llu",
-				   (unsigned long long)i->fence->seqno,
+				   (unsigned long long)i->fence->seqanal,
 				   (unsigned long long)i->fence->context);
 
 		drm_puts(p, "\n");

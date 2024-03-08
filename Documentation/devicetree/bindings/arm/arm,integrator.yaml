@@ -16,7 +16,7 @@ description: |+
   "core tiles" and referred to in the device tree as "core modules".
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

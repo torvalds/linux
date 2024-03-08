@@ -109,7 +109,7 @@
 	spiflash: s25sl032p@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spansion,s25sl032p", "jedec,spi-nor";
+		compatible = "spansion,s25sl032p", "jedec,spi-analr";
 		spi-max-frequency = <104000000>;
 		reg = <0>;
 	};

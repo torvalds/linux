@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -73,7 +73,7 @@ static void set_priority(struct cik_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_node *kfd,
+static struct kfd_mem_obj *allocate_mqd(struct kfd_analde *kfd,
 					struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj;
@@ -186,7 +186,7 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 
 	/*
 	 * Calculating queue size which is log base 2 of actual queue size -1
-	 * dwords and another -1 for ffs
+	 * dwords and aanalther -1 for ffs
 	 */
 	m->cp_hqd_pq_control |= order_base_2(q->queue_size / 4) - 1;
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
@@ -198,7 +198,7 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_vmid = q->vmid;
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL)
-		m->cp_hqd_pq_control |= NO_UPDATE_RPTR;
+		m->cp_hqd_pq_control |= ANAL_UPDATE_RPTR;
 
 	update_cu_mask(mm, mqd, minfo);
 	set_priority(m, q);
@@ -381,7 +381,7 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 #endif
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev)
+		struct kfd_analde *dev)
 {
 	struct mqd_manager *mqd;
 

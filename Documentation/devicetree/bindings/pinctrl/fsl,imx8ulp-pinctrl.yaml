@@ -20,13 +20,13 @@ properties:
   reg:
     maxItems: 1
 
-# Client device subnode's properties
+# Client device subanalde's properties
 patternProperties:
   'grp$':
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
 
     properties:
       fsl,pins:
@@ -66,7 +66,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Pinmux controller node
+  # Pinmux controller analde
   - |
     iomuxc: pinctrl@298c0000 {
         compatible = "fsl,imx8ulp-iomuxc1";

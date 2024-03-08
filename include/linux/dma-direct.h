@@ -35,7 +35,7 @@ static inline dma_addr_t translate_phys_to_dma(struct device *dev,
 			return m->dma_start + offset;
 	}
 
-	/* make sure dma_capable fails when no translation is available */
+	/* make sure dma_capable fails when anal translation is available */
 	return DMA_MAPPING_ERROR;
 }
 
@@ -112,7 +112,7 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size,
 	    min(addr, end) < phys_to_dma(dev, PFN_PHYS(min_low_pfn)))
 		return false;
 
-	return end <= min_not_zero(*dev->dma_mask, dev->bus_dma_limit);
+	return end <= min_analt_zero(*dev->dma_mask, dev->bus_dma_limit);
 }
 
 u64 dma_direct_get_required_mask(struct device *dev);

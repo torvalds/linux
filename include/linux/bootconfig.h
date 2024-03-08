@@ -12,11 +12,11 @@
 #include <linux/types.h>
 #else /* !__KERNEL__ */
 /*
- * NOTE: This is only for tools/bootconfig, because tools/bootconfig will
+ * ANALTE: This is only for tools/bootconfig, because tools/bootconfig will
  * run the parser sanity test.
- * This does NOT mean linux/bootconfig.h is available in the user space.
+ * This does ANALT mean linux/bootconfig.h is available in the user space.
  * However, if you change this file, please make sure the tools/bootconfig
- * has no issue on building and running.
+ * has anal issue on building and running.
  */
 #endif
 
@@ -46,8 +46,8 @@ static inline __init uint32_t xbc_calc_checksum(void *data, uint32_t size)
 	return ret;
 }
 
-/* XBC tree node */
-struct xbc_node {
+/* XBC tree analde */
+struct xbc_analde {
 	uint16_t next;
 	uint16_t child;
 	uint16_t parent;
@@ -59,232 +59,232 @@ struct xbc_node {
 /* Maximum size of boot config is 32KB - 1 */
 #define XBC_DATA_MAX	(XBC_VALUE - 1)
 
-#define XBC_NODE_MAX	8192
+#define XBC_ANALDE_MAX	8192
 #define XBC_KEYLEN_MAX	256
 #define XBC_DEPTH_MAX	16
 
-/* Node tree access raw APIs */
-struct xbc_node * __init xbc_root_node(void);
-int __init xbc_node_index(struct xbc_node *node);
-struct xbc_node * __init xbc_node_get_parent(struct xbc_node *node);
-struct xbc_node * __init xbc_node_get_child(struct xbc_node *node);
-struct xbc_node * __init xbc_node_get_next(struct xbc_node *node);
-const char * __init xbc_node_get_data(struct xbc_node *node);
+/* Analde tree access raw APIs */
+struct xbc_analde * __init xbc_root_analde(void);
+int __init xbc_analde_index(struct xbc_analde *analde);
+struct xbc_analde * __init xbc_analde_get_parent(struct xbc_analde *analde);
+struct xbc_analde * __init xbc_analde_get_child(struct xbc_analde *analde);
+struct xbc_analde * __init xbc_analde_get_next(struct xbc_analde *analde);
+const char * __init xbc_analde_get_data(struct xbc_analde *analde);
 
 /**
- * xbc_node_is_value() - Test the node is a value node
- * @node: An XBC node.
+ * xbc_analde_is_value() - Test the analde is a value analde
+ * @analde: An XBC analde.
  *
- * Test the @node is a value node and return true if a value node, false if not.
+ * Test the @analde is a value analde and return true if a value analde, false if analt.
  */
-static inline __init bool xbc_node_is_value(struct xbc_node *node)
+static inline __init bool xbc_analde_is_value(struct xbc_analde *analde)
 {
-	return node->data & XBC_VALUE;
+	return analde->data & XBC_VALUE;
 }
 
 /**
- * xbc_node_is_key() - Test the node is a key node
- * @node: An XBC node.
+ * xbc_analde_is_key() - Test the analde is a key analde
+ * @analde: An XBC analde.
  *
- * Test the @node is a key node and return true if a key node, false if not.
+ * Test the @analde is a key analde and return true if a key analde, false if analt.
  */
-static inline __init bool xbc_node_is_key(struct xbc_node *node)
+static inline __init bool xbc_analde_is_key(struct xbc_analde *analde)
 {
-	return !xbc_node_is_value(node);
+	return !xbc_analde_is_value(analde);
 }
 
 /**
- * xbc_node_is_array() - Test the node is an arraied value node
- * @node: An XBC node.
+ * xbc_analde_is_array() - Test the analde is an arraied value analde
+ * @analde: An XBC analde.
  *
- * Test the @node is an arraied value node.
+ * Test the @analde is an arraied value analde.
  */
-static inline __init bool xbc_node_is_array(struct xbc_node *node)
+static inline __init bool xbc_analde_is_array(struct xbc_analde *analde)
 {
-	return xbc_node_is_value(node) && node->child != 0;
+	return xbc_analde_is_value(analde) && analde->child != 0;
 }
 
 /**
- * xbc_node_is_leaf() - Test the node is a leaf key node
- * @node: An XBC node.
+ * xbc_analde_is_leaf() - Test the analde is a leaf key analde
+ * @analde: An XBC analde.
  *
- * Test the @node is a leaf key node which is a key node and has a value node
- * or no child. Returns true if it is a leaf node, or false if not.
- * Note that the leaf node can have subkey nodes in addition to the
- * value node.
+ * Test the @analde is a leaf key analde which is a key analde and has a value analde
+ * or anal child. Returns true if it is a leaf analde, or false if analt.
+ * Analte that the leaf analde can have subkey analdes in addition to the
+ * value analde.
  */
-static inline __init bool xbc_node_is_leaf(struct xbc_node *node)
+static inline __init bool xbc_analde_is_leaf(struct xbc_analde *analde)
 {
-	return xbc_node_is_key(node) &&
-		(!node->child || xbc_node_is_value(xbc_node_get_child(node)));
+	return xbc_analde_is_key(analde) &&
+		(!analde->child || xbc_analde_is_value(xbc_analde_get_child(analde)));
 }
 
 /* Tree-based key-value access APIs */
-struct xbc_node * __init xbc_node_find_subkey(struct xbc_node *parent,
+struct xbc_analde * __init xbc_analde_find_subkey(struct xbc_analde *parent,
 					     const char *key);
 
-const char * __init xbc_node_find_value(struct xbc_node *parent,
+const char * __init xbc_analde_find_value(struct xbc_analde *parent,
 					const char *key,
-					struct xbc_node **vnode);
+					struct xbc_analde **vanalde);
 
-struct xbc_node * __init xbc_node_find_next_leaf(struct xbc_node *root,
-						 struct xbc_node *leaf);
+struct xbc_analde * __init xbc_analde_find_next_leaf(struct xbc_analde *root,
+						 struct xbc_analde *leaf);
 
-const char * __init xbc_node_find_next_key_value(struct xbc_node *root,
-						 struct xbc_node **leaf);
+const char * __init xbc_analde_find_next_key_value(struct xbc_analde *root,
+						 struct xbc_analde **leaf);
 
 /**
  * xbc_find_value() - Find a value which matches the key
  * @key: Search key
- * @vnode: A container pointer of XBC value node.
+ * @vanalde: A container pointer of XBC value analde.
  *
  * Search a value whose key matches @key from whole of XBC tree and return
- * the value if found. Found value node is stored in *@vnode.
- * Note that this can return 0-length string and store NULL in *@vnode for
- * key-only (non-value) entry.
+ * the value if found. Found value analde is stored in *@vanalde.
+ * Analte that this can return 0-length string and store NULL in *@vanalde for
+ * key-only (analn-value) entry.
  */
 static inline const char * __init
-xbc_find_value(const char *key, struct xbc_node **vnode)
+xbc_find_value(const char *key, struct xbc_analde **vanalde)
 {
-	return xbc_node_find_value(NULL, key, vnode);
+	return xbc_analde_find_value(NULL, key, vanalde);
 }
 
 /**
- * xbc_find_node() - Find a node which matches the key
+ * xbc_find_analde() - Find a analde which matches the key
  * @key: Search key
  *
- * Search a (key) node whose key matches @key from whole of XBC tree and
- * return the node if found. If not found, returns NULL.
+ * Search a (key) analde whose key matches @key from whole of XBC tree and
+ * return the analde if found. If analt found, returns NULL.
  */
-static inline struct xbc_node * __init xbc_find_node(const char *key)
+static inline struct xbc_analde * __init xbc_find_analde(const char *key)
 {
-	return xbc_node_find_subkey(NULL, key);
+	return xbc_analde_find_subkey(NULL, key);
 }
 
 /**
- * xbc_node_get_subkey() - Return the first subkey node if exists
- * @node: Parent node
+ * xbc_analde_get_subkey() - Return the first subkey analde if exists
+ * @analde: Parent analde
  *
- * Return the first subkey node of the @node. If the @node has no child
- * or only value node, this will return NULL.
+ * Return the first subkey analde of the @analde. If the @analde has anal child
+ * or only value analde, this will return NULL.
  */
-static inline struct xbc_node * __init xbc_node_get_subkey(struct xbc_node *node)
+static inline struct xbc_analde * __init xbc_analde_get_subkey(struct xbc_analde *analde)
 {
-	struct xbc_node *child = xbc_node_get_child(node);
+	struct xbc_analde *child = xbc_analde_get_child(analde);
 
-	if (child && xbc_node_is_value(child))
-		return xbc_node_get_next(child);
+	if (child && xbc_analde_is_value(child))
+		return xbc_analde_get_next(child);
 	else
 		return child;
 }
 
 /**
- * xbc_array_for_each_value() - Iterate value nodes on an array
- * @anode: An XBC arraied value node
+ * xbc_array_for_each_value() - Iterate value analdes on an array
+ * @aanalde: An XBC arraied value analde
  * @value: A value
  *
- * Iterate array value nodes and values starts from @anode. This is expected to
- * be used with xbc_find_value() and xbc_node_find_value(), so that user can
- * process each array entry node.
+ * Iterate array value analdes and values starts from @aanalde. This is expected to
+ * be used with xbc_find_value() and xbc_analde_find_value(), so that user can
+ * process each array entry analde.
  */
-#define xbc_array_for_each_value(anode, value)				\
-	for (value = xbc_node_get_data(anode); anode != NULL ;		\
-	     anode = xbc_node_get_child(anode),				\
-	     value = anode ? xbc_node_get_data(anode) : NULL)
+#define xbc_array_for_each_value(aanalde, value)				\
+	for (value = xbc_analde_get_data(aanalde); aanalde != NULL ;		\
+	     aanalde = xbc_analde_get_child(aanalde),				\
+	     value = aanalde ? xbc_analde_get_data(aanalde) : NULL)
 
 /**
- * xbc_node_for_each_child() - Iterate child nodes
- * @parent: An XBC node.
- * @child: Iterated XBC node.
+ * xbc_analde_for_each_child() - Iterate child analdes
+ * @parent: An XBC analde.
+ * @child: Iterated XBC analde.
  *
- * Iterate child nodes of @parent. Each child nodes are stored to @child.
- * The @child can be mixture of a value node and subkey nodes.
+ * Iterate child analdes of @parent. Each child analdes are stored to @child.
+ * The @child can be mixture of a value analde and subkey analdes.
  */
-#define xbc_node_for_each_child(parent, child)				\
-	for (child = xbc_node_get_child(parent); child != NULL ;	\
-	     child = xbc_node_get_next(child))
+#define xbc_analde_for_each_child(parent, child)				\
+	for (child = xbc_analde_get_child(parent); child != NULL ;	\
+	     child = xbc_analde_get_next(child))
 
 /**
- * xbc_node_for_each_subkey() - Iterate child subkey nodes
- * @parent: An XBC node.
- * @child: Iterated XBC node.
+ * xbc_analde_for_each_subkey() - Iterate child subkey analdes
+ * @parent: An XBC analde.
+ * @child: Iterated XBC analde.
  *
- * Iterate subkey nodes of @parent. Each child nodes are stored to @child.
- * The @child is only the subkey node.
+ * Iterate subkey analdes of @parent. Each child analdes are stored to @child.
+ * The @child is only the subkey analde.
  */
-#define xbc_node_for_each_subkey(parent, child)				\
-	for (child = xbc_node_get_subkey(parent); child != NULL ;	\
-	     child = xbc_node_get_next(child))
+#define xbc_analde_for_each_subkey(parent, child)				\
+	for (child = xbc_analde_get_subkey(parent); child != NULL ;	\
+	     child = xbc_analde_get_next(child))
 
 /**
- * xbc_node_for_each_array_value() - Iterate array entries of geven key
- * @node: An XBC node.
- * @key: A key string searched under @node
- * @anode: Iterated XBC node of array entry.
+ * xbc_analde_for_each_array_value() - Iterate array entries of geven key
+ * @analde: An XBC analde.
+ * @key: A key string searched under @analde
+ * @aanalde: Iterated XBC analde of array entry.
  * @value: Iterated value of array entry.
  *
- * Iterate array entries of given @key under @node. Each array entry node
- * is stored to @anode and @value. If the @node doesn't have @key node,
- * it does nothing.
- * Note that even if the found key node has only one value (not array)
- * this executes block once. However, if the found key node has no value
- * (key-only node), this does nothing. So don't use this for testing the
+ * Iterate array entries of given @key under @analde. Each array entry analde
+ * is stored to @aanalde and @value. If the @analde doesn't have @key analde,
+ * it does analthing.
+ * Analte that even if the found key analde has only one value (analt array)
+ * this executes block once. However, if the found key analde has anal value
+ * (key-only analde), this does analthing. So don't use this for testing the
  * key-value pair existence.
  */
-#define xbc_node_for_each_array_value(node, key, anode, value)		\
-	for (value = xbc_node_find_value(node, key, &anode); value != NULL; \
-	     anode = xbc_node_get_child(anode),				\
-	     value = anode ? xbc_node_get_data(anode) : NULL)
+#define xbc_analde_for_each_array_value(analde, key, aanalde, value)		\
+	for (value = xbc_analde_find_value(analde, key, &aanalde); value != NULL; \
+	     aanalde = xbc_analde_get_child(aanalde),				\
+	     value = aanalde ? xbc_analde_get_data(aanalde) : NULL)
 
 /**
- * xbc_node_for_each_key_value() - Iterate key-value pairs under a node
- * @node: An XBC node.
- * @knode: Iterated key node
+ * xbc_analde_for_each_key_value() - Iterate key-value pairs under a analde
+ * @analde: An XBC analde.
+ * @kanalde: Iterated key analde
  * @value: Iterated value string
  *
- * Iterate key-value pairs under @node. Each key node and value string are
- * stored in @knode and @value respectively.
+ * Iterate key-value pairs under @analde. Each key analde and value string are
+ * stored in @kanalde and @value respectively.
  */
-#define xbc_node_for_each_key_value(node, knode, value)			\
-	for (knode = NULL, value = xbc_node_find_next_key_value(node, &knode);\
-	     knode != NULL; value = xbc_node_find_next_key_value(node, &knode))
+#define xbc_analde_for_each_key_value(analde, kanalde, value)			\
+	for (kanalde = NULL, value = xbc_analde_find_next_key_value(analde, &kanalde);\
+	     kanalde != NULL; value = xbc_analde_find_next_key_value(analde, &kanalde))
 
 /**
  * xbc_for_each_key_value() - Iterate key-value pairs
- * @knode: Iterated key node
+ * @kanalde: Iterated key analde
  * @value: Iterated value string
  *
- * Iterate key-value pairs in whole XBC tree. Each key node and value string
- * are stored in @knode and @value respectively.
+ * Iterate key-value pairs in whole XBC tree. Each key analde and value string
+ * are stored in @kanalde and @value respectively.
  */
-#define xbc_for_each_key_value(knode, value)				\
-	xbc_node_for_each_key_value(NULL, knode, value)
+#define xbc_for_each_key_value(kanalde, value)				\
+	xbc_analde_for_each_key_value(NULL, kanalde, value)
 
 /* Compose partial key */
-int __init xbc_node_compose_key_after(struct xbc_node *root,
-			struct xbc_node *node, char *buf, size_t size);
+int __init xbc_analde_compose_key_after(struct xbc_analde *root,
+			struct xbc_analde *analde, char *buf, size_t size);
 
 /**
- * xbc_node_compose_key() - Compose full key string of the XBC node
- * @node: An XBC node.
+ * xbc_analde_compose_key() - Compose full key string of the XBC analde
+ * @analde: An XBC analde.
  * @buf: A buffer to store the key.
  * @size: The size of the @buf.
  *
- * Compose the full-length key of the @node into @buf. Returns the total
- * length of the key stored in @buf. Or returns -EINVAL if @node is NULL,
+ * Compose the full-length key of the @analde into @buf. Returns the total
+ * length of the key stored in @buf. Or returns -EINVAL if @analde is NULL,
  * and -ERANGE if the key depth is deeper than max depth.
  */
-static inline int __init xbc_node_compose_key(struct xbc_node *node,
+static inline int __init xbc_analde_compose_key(struct xbc_analde *analde,
 					      char *buf, size_t size)
 {
-	return xbc_node_compose_key_after(NULL, node, buf, size);
+	return xbc_analde_compose_key_after(NULL, analde, buf, size);
 }
 
-/* XBC node initializer */
+/* XBC analde initializer */
 int __init xbc_init(const char *buf, size_t size, const char **emsg, int *epos);
 
-/* XBC node and size information */
-int __init xbc_get_info(int *node_size, size_t *data_size);
+/* XBC analde and size information */
+int __init xbc_get_info(int *analde_size, size_t *data_size);
 
 /* XBC cleanup data structures */
 void __init xbc_exit(void);

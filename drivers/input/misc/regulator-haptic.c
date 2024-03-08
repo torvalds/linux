@@ -68,7 +68,7 @@ static int regulator_haptic_set_voltage(struct regulator_haptic *haptic,
 				      intensity + haptic->min_volt,
 				      haptic->max_volt);
 	if (error) {
-		dev_err(haptic->dev, "cannot set regulator voltage to %d: %d\n",
+		dev_err(haptic->dev, "cananalt set regulator voltage to %d: %d\n",
 			intensity + haptic->min_volt, error);
 		return error;
 	}
@@ -116,24 +116,24 @@ static void regulator_haptic_close(struct input_dev *input)
 static int __maybe_unused
 regulator_haptic_parse_dt(struct device *dev, struct regulator_haptic *haptic)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int error;
 
-	node = dev->of_node;
-	if(!node) {
+	analde = dev->of_analde;
+	if(!analde) {
 		dev_err(dev, "Missing device tree data\n");
 		return -EINVAL;
 	}
 
-	error = of_property_read_u32(node, "max-microvolt", &haptic->max_volt);
+	error = of_property_read_u32(analde, "max-microvolt", &haptic->max_volt);
 	if (error) {
-		dev_err(dev, "cannot parse max-microvolt\n");
+		dev_err(dev, "cananalt parse max-microvolt\n");
 		return error;
 	}
 
-	error = of_property_read_u32(node, "min-microvolt", &haptic->min_volt);
+	error = of_property_read_u32(analde, "min-microvolt", &haptic->min_volt);
 	if (error) {
-		dev_err(dev, "cannot parse min-microvolt\n");
+		dev_err(dev, "cananalt parse min-microvolt\n");
 		return error;
 	}
 
@@ -149,7 +149,7 @@ static int regulator_haptic_probe(struct platform_device *pdev)
 
 	haptic = devm_kzalloc(&pdev->dev, sizeof(*haptic), GFP_KERNEL);
 	if (!haptic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, haptic);
 	haptic->dev = &pdev->dev;
@@ -176,7 +176,7 @@ static int regulator_haptic_probe(struct platform_device *pdev)
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev)
-		return	-ENOMEM;
+		return	-EANALMEM;
 
 	haptic->input_dev = input_dev;
 	haptic->input_dev->name = "regulator-haptic";

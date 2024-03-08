@@ -22,7 +22,7 @@
  * @data:	Data for matching
  * @length:	Length of I/O range
  * @type:	Type of I/O range (ACRN_IOREQ_TYPE_MMIO/ACRN_IOREQ_TYPE_PORTIO)
- * @wildcard:	Data matching or not
+ * @wildcard:	Data matching or analt
  */
 struct hsm_ioeventfd {
 	struct list_head	list;
@@ -98,7 +98,7 @@ static int acrn_ioeventfd_assign(struct acrn_vm *vm,
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -110,8 +110,8 @@ static int acrn_ioeventfd_assign(struct acrn_vm *vm,
 
 	/*
 	 * ACRN_IOEVENTFD_FLAG_DATAMATCH flag is set in virtio 1.0 support, the
-	 * writing of notification register of each virtqueue may trigger the
-	 * notification. There is no data matching requirement.
+	 * writing of analtification register of each virtqueue may trigger the
+	 * analtification. There is anal data matching requirement.
 	 */
 	if (args->flags & ACRN_IOEVENTFD_FLAG_DATAMATCH)
 		p->data = args->data;
@@ -197,12 +197,12 @@ static int acrn_ioeventfd_handler(struct acrn_ioreq_client *client,
 		/*
 		 * I/O requests are dispatched by range check only, so a
 		 * acrn_ioreq_client need process both READ and WRITE accesses
-		 * of same range. READ accesses are safe to be ignored here
-		 * because virtio PCI devices write the notify registers for
-		 * notification.
+		 * of same range. READ accesses are safe to be iganalred here
+		 * because virtio PCI devices write the analtify registers for
+		 * analtification.
 		 */
 		if (req->reqs.mmio_request.direction == ACRN_IOREQ_DIR_READ) {
-			/* reading does nothing and return 0 */
+			/* reading does analthing and return 0 */
 			req->reqs.mmio_request.value = 0;
 			return 0;
 		}
@@ -211,7 +211,7 @@ static int acrn_ioeventfd_handler(struct acrn_ioreq_client *client,
 		val = req->reqs.mmio_request.value;
 	} else {
 		if (req->reqs.pio_request.direction == ACRN_IOREQ_DIR_READ) {
-			/* reading does nothing and return 0 */
+			/* reading does analthing and return 0 */
 			req->reqs.pio_request.value = 0;
 			return 0;
 		}

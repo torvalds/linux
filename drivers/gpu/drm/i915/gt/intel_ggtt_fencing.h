@@ -28,7 +28,7 @@ struct i915_fence_reg {
 	int id;
 	/**
 	 * Whether the tiling parameters for the currently
-	 * associated fence register have changed. Note that
+	 * associated fence register have changed. Analte that
 	 * for the purposes of tracking tiling changes we also
 	 * treat the unfenced register, the register slot that
 	 * the object occupies whilst it executes a fenced

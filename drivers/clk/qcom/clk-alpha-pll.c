@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, 2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021, 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021, 2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -267,7 +267,7 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_regs);
 #define LUCID_5LPE_ENABLE_VOTE_RUN	BIT(21)
 
 /* LUCID EVO PLL specific settings and offsets */
-#define LUCID_EVO_PCAL_NOT_DONE		BIT(8)
+#define LUCID_EVO_PCAL_ANALT_DONE		BIT(8)
 #define LUCID_EVO_ENABLE_VOTE_RUN       BIT(25)
 #define LUCID_EVO_PLL_L_VAL_MASK        GENMASK(15, 0)
 #define LUCID_EVO_PLL_CAL_L_VAL_SHIFT	16
@@ -657,7 +657,7 @@ static int __clk_alpha_pll_update_latch(struct clk_alpha_pll *pll)
 	 * PLL will latch the new L, Alpha and freq control word.
 	 * PLL will respond by raising PLL_ACK_LATCH output when new programming
 	 * has been latched in and PLL is being updated. When
-	 * UPDATE_LOGIC_BYPASS bit is not set, PLL_UPDATE will be cleared
+	 * UPDATE_LOGIC_BYPASS bit is analt set, PLL_UPDATE will be cleared
 	 * automatically by hardware when PLL_ACK_LATCH is asserted by PLL.
 	 */
 	if (mode & PLL_UPDATE_BYPASS) {
@@ -704,7 +704,7 @@ static int __clk_alpha_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	rate = alpha_pll_round_rate(rate, prate, &l, &a, alpha_width);
 	vco = alpha_pll_find_vco(pll, rate);
 	if (pll->vco_table && !vco) {
-		pr_err("%s: alpha pll not in a valid vco range\n",
+		pr_err("%s: alpha pll analt in a valid vco range\n",
 		       clk_hw_get_name(hw));
 		return -EINVAL;
 	}
@@ -1303,7 +1303,7 @@ static int alpha_pll_check_rate_margin(struct clk_hw *hw,
 	unsigned long rate_margin = rate + PLL_RATE_MARGIN;
 
 	if (rrate > rate_margin || rrate < rate) {
-		pr_err("%s: Rounded rate %lu not within range [%lu, %lu)\n",
+		pr_err("%s: Rounded rate %lu analt within range [%lu, %lu)\n",
 		       clk_hw_get_name(hw), rrate, rate, rate_margin);
 		return -EINVAL;
 	}
@@ -1348,13 +1348,13 @@ static int alpha_pll_fabia_prepare(struct clk_hw *hw)
 	if (ret)
 		return ret;
 
-	/* Return early if calibration is not needed. */
+	/* Return early if calibration is analt needed. */
 	if (val & PLL_RESET_N)
 		return 0;
 
 	vco = alpha_pll_find_vco(pll, clk_hw_get_rate(hw));
 	if (!vco) {
-		pr_err("%s: alpha pll not in a valid vco range\n", name);
+		pr_err("%s: alpha pll analt in a valid vco range\n", name);
 		return -EINVAL;
 	}
 
@@ -1508,7 +1508,7 @@ static int clk_alpha_pll_postdiv_fabia_set_rate(struct clk_hw *hw,
 
 	/*
 	 * If the PLL is in FSM mode, then treat set_rate callback as a
-	 * no-operation.
+	 * anal-operation.
 	 */
 	ret = regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
 	if (ret)
@@ -1594,7 +1594,7 @@ EXPORT_SYMBOL_GPL(clk_trion_pll_configure);
 
 /*
  * The TRION PLL requires a power-on self-calibration which happens when the
- * PLL comes out of reset. Calibrate in case it is not completed.
+ * PLL comes out of reset. Calibrate in case it is analt completed.
  */
 static int __alpha_pll_trion_prepare(struct clk_hw *hw, u32 pcal_done)
 {
@@ -1602,7 +1602,7 @@ static int __alpha_pll_trion_prepare(struct clk_hw *hw, u32 pcal_done)
 	u32 val;
 	int ret;
 
-	/* Return early if calibration is not needed. */
+	/* Return early if calibration is analt needed. */
 	regmap_read(pll->clkr.regmap, PLL_STATUS(pll), &val);
 	if (val & pcal_done)
 		return 0;
@@ -1833,7 +1833,7 @@ static void alpha_pll_lucid_5lpe_disable(struct clk_hw *hw)
 
 /*
  * The Lucid 5LPE PLL requires a power-on self-calibration which happens
- * when the PLL comes out of reset. Calibrate in case it is not completed.
+ * when the PLL comes out of reset. Calibrate in case it is analt completed.
  */
 static int alpha_pll_lucid_5lpe_prepare(struct clk_hw *hw)
 {
@@ -1842,7 +1842,7 @@ static int alpha_pll_lucid_5lpe_prepare(struct clk_hw *hw)
 	u32 val = 0;
 	int ret;
 
-	/* Return early if calibration is not needed. */
+	/* Return early if calibration is analt needed. */
 	regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
 	if (val & LUCID_5LPE_PCAL_DONE)
 		return 0;
@@ -1879,7 +1879,7 @@ static int __clk_lucid_pll_postdiv_set_rate(struct clk_hw *hw, unsigned long rat
 
 	/*
 	 * If the PLL is in FSM mode, then treat set_rate callback as a
-	 * no-operation.
+	 * anal-operation.
 	 */
 	ret = regmap_read(regmap, PLL_USER_CTL(pll), &val);
 	if (ret)
@@ -2243,9 +2243,9 @@ static int _alpha_pll_lucid_evo_prepare(struct clk_hw *hw, bool reset)
 	u32 val = 0;
 	int ret;
 
-	/* Return early if calibration is not needed. */
+	/* Return early if calibration is analt needed. */
 	regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
-	if (!(val & LUCID_EVO_PCAL_NOT_DONE))
+	if (!(val & LUCID_EVO_PCAL_ANALT_DONE))
 		return 0;
 
 	p = clk_hw_get_parent(hw);
@@ -2435,7 +2435,7 @@ void clk_stromer_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 
 	regmap_update_bits(regmap, PLL_USER_CTL(pll), mask, val);
 
-	/* Stromer APSS PLL does not enable LOCK_DET by default, so enable it */
+	/* Stromer APSS PLL does analt enable LOCK_DET by default, so enable it */
 	val_u = config->status_val << ALPHA_PLL_STATUS_REG_SHIFT;
 	val_u |= config->lock_det;
 

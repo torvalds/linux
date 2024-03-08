@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -192,8 +192,8 @@
 #       define MRDCKD1_RESET                            (1 << 23)
 #       define DLL_READY_READ                           (1 << 24)
 #       define USE_DISPLAY_GAP                          (1 << 25)
-#       define USE_DISPLAY_URGENT_NORMAL                (1 << 26)
-#       define MPLL_TURNOFF_D2                          (1 << 28)
+#       define USE_DISPLAY_URGENT_ANALRMAL                (1 << 26)
+#       define MPLL_TURANALFF_D2                          (1 << 28)
 #define	DLL_CNTL					0x64c
 #       define MRDCKA0_BYPASS                           (1 << 24)
 #       define MRDCKA1_BYPASS                           (1 << 25)
@@ -349,7 +349,7 @@
 #define	CP_RB_CNTL					0xC104
 #define		RB_BUFSZ(x)					((x) << 0)
 #define		RB_BLKSZ(x)					((x) << 8)
-#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_ANAL_UPDATE					(1 << 27)
 #define		RB_RPTR_WR_ENA					(1 << 31)
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
@@ -387,7 +387,7 @@
 #define UVD_UDEC_TILING_CONFIG                          0xef40
 #define UVD_UDEC_DB_TILING_CONFIG                       0xef44
 #define UVD_UDEC_DBW_TILING_CONFIG                      0xef48
-#define UVD_NO_OP					0xeffc
+#define UVD_ANAL_OP					0xeffc
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
@@ -428,27 +428,27 @@
 #define		ASIC_T_SHIFT			        16
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
-#define	HDP_NONSURFACE_BASE				0x2C04
-#define	HDP_NONSURFACE_INFO				0x2C08
-#define	HDP_NONSURFACE_SIZE				0x2C0C
+#define	HDP_ANALNSURFACE_BASE				0x2C04
+#define	HDP_ANALNSURFACE_INFO				0x2C08
+#define	HDP_ANALNSURFACE_SIZE				0x2C0C
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
 #define HDP_DEBUG1                                      0x2F34
 
 #define MC_SHARED_CHMAP						0x2004
-#define		NOOFCHAN_SHIFT					12
-#define		NOOFCHAN_MASK					0x00003000
+#define		ANALOFCHAN_SHIFT					12
+#define		ANALOFCHAN_MASK					0x00003000
 #define MC_SHARED_CHREMAP					0x2008
 
 #define	MC_ARB_RAMCFG					0x2760
-#define		NOOFBANK_SHIFT					0
-#define		NOOFBANK_MASK					0x00000003
-#define		NOOFRANK_SHIFT					2
-#define		NOOFRANK_MASK					0x00000004
-#define		NOOFROWS_SHIFT					3
-#define		NOOFROWS_MASK					0x00000038
-#define		NOOFCOLS_SHIFT					6
-#define		NOOFCOLS_MASK					0x000000C0
+#define		ANALOFBANK_SHIFT					0
+#define		ANALOFBANK_MASK					0x00000003
+#define		ANALOFRANK_SHIFT					2
+#define		ANALOFRANK_MASK					0x00000004
+#define		ANALOFROWS_SHIFT					3
+#define		ANALOFROWS_MASK					0x00000038
+#define		ANALOFCOLS_SHIFT					6
+#define		ANALOFCOLS_MASK					0x000000C0
 #define		CHANSIZE_SHIFT					8
 #define		CHANSIZE_MASK					0x00000100
 #define		BURSTLENGTH_SHIFT				9
@@ -467,7 +467,7 @@
 #define		SYSTEM_ACCESS_MODE_PA_ONLY			(0 << 3)
 #define		SYSTEM_ACCESS_MODE_USE_SYS_MAP			(1 << 3)
 #define		SYSTEM_ACCESS_MODE_IN_SYS			(2 << 3)
-#define		SYSTEM_ACCESS_MODE_NOT_IN_SYS			(3 << 3)
+#define		SYSTEM_ACCESS_MODE_ANALT_IN_SYS			(3 << 3)
 #define		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU	(0 << 5)
 #define		EFFECTIVE_L1_TLB_SIZE(x)			((x)<<15)
 #define		EFFECTIVE_L1_QUEUE_SIZE(x)			((x)<<18)
@@ -616,7 +616,7 @@
 #define			TC_ONLY						1
 #define			VC_AND_TC					2
 #define		AUTO_INVLD_EN(x)				((x) << 6)
-#define			NO_AUTO						0
+#define			ANAL_AUTO						0
 #define			ES_AUTO						1
 #define			GS_AUTO						2
 #define			ES_AND_GS_AUTO					3
@@ -672,7 +672,7 @@
 #define	DMA_PACKET_FENCE				  0x6
 #define	DMA_PACKET_TRAP					  0x7
 #define	DMA_PACKET_CONSTANT_FILL			  0xd
-#define	DMA_PACKET_NOP					  0xf
+#define	DMA_PACKET_ANALP					  0xf
 
 
 #define	SRBM_STATUS				        0x0E50
@@ -952,7 +952,7 @@
 #       define LC_LINK_WIDTH_RD_SHIFT                     4
 #       define LC_LINK_WIDTH_RD_MASK                      0x70
 #       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
-#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RECONFIG_ANALW                            (1 << 8)
 #       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
 #       define LC_RENEGOTIATE_EN                          (1 << 10)
 #       define LC_SHORT_RECONFIG_EN                       (1 << 11)

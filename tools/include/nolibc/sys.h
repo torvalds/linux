@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * Syscall definitions for NOLIBC (those in man(2))
+ * Syscall definitions for ANALLIBC (those in man(2))
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_SYS_H
-#define _NOLIBC_SYS_H
+#ifndef _ANALLIBC_SYS_H
+#define _ANALLIBC_SYS_H
 
 #include "std.h"
 
@@ -24,15 +24,15 @@
 #include <linux/resource.h>
 
 #include "arch.h"
-#include "errno.h"
+#include "erranal.h"
 #include "stdarg.h"
 #include "types.h"
 
 
 /* Syscall return helper: takes the syscall value in argument and checks for an
  * error in it. This may only be used with signed returns (int or long), but
- * not with pointers. An error is any value < 0. When an error is encountered,
- * -ret is set into errno and -1 is returned. Otherwise the returned value is
+ * analt with pointers. An error is any value < 0. When an error is encountered,
+ * -ret is set into erranal and -1 is returned. Otherwise the returned value is
  * passed as-is with its type preserved.
  */
 
@@ -40,18 +40,18 @@
 ({									\
 	__typeof__(arg) __sysret_arg = (arg);				\
 	(__sysret_arg < 0)                              /* error ? */	\
-		? (({ SET_ERRNO(-__sysret_arg); }), -1) /* ret -1 with errno = -arg */ \
+		? (({ SET_ERRANAL(-__sysret_arg); }), -1) /* ret -1 with erranal = -arg */ \
 		: __sysret_arg;                         /* return original value */ \
 })
 
-/* Syscall ENOSYS helper: Avoids unused-parameter warnings and provides a
+/* Syscall EANALSYS helper: Avoids unused-parameter warnings and provides a
  * debugging hook.
  */
 
-static __inline__ int __nolibc_enosys(const char *syscall, ...)
+static __inline__ int __anallibc_eanalsys(const char *syscall, ...)
 {
 	(void)syscall;
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 
@@ -62,19 +62,19 @@ static __inline__ int __nolibc_enosys(const char *syscall, ...)
  *   - the "internal" ones, which matches the raw syscall interface at the
  *     kernel level, which may sometimes slightly differ from the documented
  *     libc-level ones. For example most of them return either a valid value
- *     or -errno. All of these are prefixed with "sys_". They may be called
- *     by non-portable applications if desired.
+ *     or -erranal. All of these are prefixed with "sys_". They may be called
+ *     by analn-portable applications if desired.
  *
  *   - the "exported" ones, whose interface must closely match the one
  *     documented in man(2), that applications are supposed to expect. These
- *     ones rely on the internal ones, and set errno.
+ *     ones rely on the internal ones, and set erranal.
  *
  * Each syscall will be defined with the two functions, sorted in alphabetical
  * order applied to the exported names.
  *
  * In case of doubt about the relevance of a function here, only those which
- * set errno should be defined here. Wrappers like those appearing in man(3)
- * should not be placed here.
+ * set erranal should be defined here. Wrappers like those appearing in man(3)
+ * should analt be placed here.
  */
 
 
@@ -95,7 +95,7 @@ int brk(void *addr)
 	void *ret = sys_brk(addr);
 
 	if (!ret) {
-		SET_ERRNO(ENOMEM);
+		SET_ERRANAL(EANALMEM);
 		return -1;
 	}
 	return 0;
@@ -110,7 +110,7 @@ void *sbrk(intptr_t inc)
 	if (ret && sys_brk(ret + inc) == ret + inc)
 		return ret + inc;
 
-	SET_ERRNO(ENOMEM);
+	SET_ERRANAL(EANALMEM);
 	return (void *)-1;
 }
 
@@ -144,7 +144,7 @@ int sys_chmod(const char *path, mode_t mode)
 #elif defined(__NR_chmod)
 	return my_syscall2(__NR_chmod, path, mode);
 #else
-	return __nolibc_enosys(__func__, path, mode);
+	return __anallibc_eanalsys(__func__, path, mode);
 #endif
 }
 
@@ -167,7 +167,7 @@ int sys_chown(const char *path, uid_t owner, gid_t group)
 #elif defined(__NR_chown)
 	return my_syscall3(__NR_chown, path, owner, group);
 #else
-	return __nolibc_enosys(__func__, path, owner, group);
+	return __anallibc_eanalsys(__func__, path, owner, group);
 #endif
 }
 
@@ -241,7 +241,7 @@ int sys_dup2(int old, int new)
 #elif defined(__NR_dup2)
 	return my_syscall2(__NR_dup2, old, new);
 #else
-	return __nolibc_enosys(__func__, old, new);
+	return __anallibc_eanalsys(__func__, old, new);
 #endif
 }
 
@@ -292,14 +292,14 @@ int execve(const char *filename, char *const argv[], char *const envp[])
  * void exit(int status);
  */
 
-static __attribute__((noreturn,unused))
+static __attribute__((analreturn,unused))
 void sys_exit(int status)
 {
 	my_syscall1(__NR_exit, status & 255);
-	while(1); /* shut the "noreturn" warnings. */
+	while(1); /* shut the "analreturn" warnings. */
 }
 
-static __attribute__((noreturn,unused))
+static __attribute__((analreturn,unused))
 void exit(int status)
 {
 	sys_exit(status);
@@ -315,15 +315,15 @@ static __attribute__((unused))
 pid_t sys_fork(void)
 {
 #ifdef __NR_clone
-	/* note: some archs only have clone() and not fork(). Different archs
+	/* analte: some archs only have clone() and analt fork(). Different archs
 	 * have a different API, but most archs have the flags on first arg and
-	 * will not use the rest with no other flag.
+	 * will analt use the rest with anal other flag.
 	 */
 	return my_syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
 #elif defined(__NR_fork)
 	return my_syscall0(__NR_fork);
 #else
-	return __nolibc_enosys(__func__);
+	return __anallibc_eanalsys(__func__);
 #endif
 }
 #endif
@@ -483,7 +483,7 @@ static unsigned long getauxval(unsigned long key);
 static __attribute__((unused))
 int getpagesize(void)
 {
-	return __sysret((int)getauxval(AT_PAGESZ) ?: -ENOENT);
+	return __sysret((int)getauxval(AT_PAGESZ) ?: -EANALENT);
 }
 
 
@@ -497,7 +497,7 @@ int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
 #ifdef __NR_gettimeofday
 	return my_syscall2(__NR_gettimeofday, tv, tz);
 #else
-	return __nolibc_enosys(__func__, tv, tz);
+	return __anallibc_eanalsys(__func__, tv, tz);
 #endif
 }
 
@@ -574,7 +574,7 @@ int sys_link(const char *old, const char *new)
 #elif defined(__NR_link)
 	return my_syscall2(__NR_link, old, new);
 #else
-	return __nolibc_enosys(__func__, old, new);
+	return __anallibc_eanalsys(__func__, old, new);
 #endif
 }
 
@@ -595,7 +595,7 @@ off_t sys_lseek(int fd, off_t offset, int whence)
 #ifdef __NR_lseek
 	return my_syscall3(__NR_lseek, fd, offset, whence);
 #else
-	return __nolibc_enosys(__func__, fd, offset, whence);
+	return __anallibc_eanalsys(__func__, fd, offset, whence);
 #endif
 }
 
@@ -618,7 +618,7 @@ int sys_mkdir(const char *path, mode_t mode)
 #elif defined(__NR_mkdir)
 	return my_syscall2(__NR_mkdir, path, mode);
 #else
-	return __nolibc_enosys(__func__, path, mode);
+	return __anallibc_eanalsys(__func__, path, mode);
 #endif
 }
 
@@ -640,7 +640,7 @@ int sys_rmdir(const char *path)
 #elif defined(__NR_unlinkat)
 	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
 #else
-	return __nolibc_enosys(__func__, path);
+	return __anallibc_eanalsys(__func__, path);
 #endif
 }
 
@@ -652,25 +652,25 @@ int rmdir(const char *path)
 
 
 /*
- * int mknod(const char *path, mode_t mode, dev_t dev);
+ * int mkanald(const char *path, mode_t mode, dev_t dev);
  */
 
 static __attribute__((unused))
-long sys_mknod(const char *path, mode_t mode, dev_t dev)
+long sys_mkanald(const char *path, mode_t mode, dev_t dev)
 {
-#ifdef __NR_mknodat
-	return my_syscall4(__NR_mknodat, AT_FDCWD, path, mode, dev);
-#elif defined(__NR_mknod)
-	return my_syscall3(__NR_mknod, path, mode, dev);
+#ifdef __NR_mkanaldat
+	return my_syscall4(__NR_mkanaldat, AT_FDCWD, path, mode, dev);
+#elif defined(__NR_mkanald)
+	return my_syscall3(__NR_mkanald, path, mode, dev);
 #else
-	return __nolibc_enosys(__func__, path, mode, dev);
+	return __anallibc_eanalsys(__func__, path, mode, dev);
 #endif
 }
 
 static __attribute__((unused))
-int mknod(const char *path, mode_t mode, dev_t dev)
+int mkanald(const char *path, mode_t mode, dev_t dev)
 {
-	return __sysret(sys_mknod(path, mode, dev));
+	return __sysret(sys_mkanald(path, mode, dev));
 }
 
 #ifndef sys_mmap
@@ -691,7 +691,7 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 }
 #endif
 
-/* Note that on Linux, MAP_FAILED is -1 so we can use the generic __sysret()
+/* Analte that on Linux, MAP_FAILED is -1 so we can use the generic __sysret()
  * which returns -1 upon error and still satisfy user land that checks for
  * MAP_FAILED.
  */
@@ -702,7 +702,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 	void *ret = sys_mmap(addr, length, prot, flags, fd, offset);
 
 	if ((unsigned long)ret >= -4095UL) {
-		SET_ERRNO(-(long)ret);
+		SET_ERRANAL(-(long)ret);
 		ret = MAP_FAILED;
 	}
 	return ret;
@@ -753,7 +753,7 @@ int sys_open(const char *path, int flags, mode_t mode)
 #elif defined(__NR_open)
 	return my_syscall3(__NR_open, path, flags, mode);
 #else
-	return __nolibc_enosys(__func__, path, flags, mode);
+	return __anallibc_eanalsys(__func__, path, flags, mode);
 #endif
 }
 
@@ -853,7 +853,7 @@ int sys_poll(struct pollfd *fds, int nfds, int timeout)
 #elif defined(__NR_poll)
 	return my_syscall3(__NR_poll, fds, nfds, timeout);
 #else
-	return __nolibc_enosys(__func__, fds, nfds, timeout);
+	return __anallibc_eanalsys(__func__, fds, nfds, timeout);
 #endif
 }
 
@@ -981,7 +981,7 @@ int sys_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeva
 	}
 	return my_syscall6(__NR_pselect6, nfds, rfds, wfds, efds, timeout ? &t : NULL, NULL);
 #else
-	return __nolibc_enosys(__func__, nfds, rfds, wfds, efds, timeout);
+	return __anallibc_eanalsys(__func__, nfds, rfds, wfds, efds, timeout);
 #endif
 }
 
@@ -1036,7 +1036,7 @@ int sys_statx(int fd, const char *path, int flags, unsigned int mask, struct sta
 #ifdef __NR_statx
 	return my_syscall5(__NR_statx, fd, path, flags, mask, buf);
 #else
-	return __nolibc_enosys(__func__, fd, path, flags, mask, buf);
+	return __anallibc_eanalsys(__func__, fd, path, flags, mask, buf);
 #endif
 }
 
@@ -1053,21 +1053,21 @@ int stat(const char *path, struct stat *buf)
 	struct statx statx;
 	long ret;
 
-	ret = __sysret(sys_statx(AT_FDCWD, path, AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx));
+	ret = __sysret(sys_statx(AT_FDCWD, path, AT_ANAL_AUTOMOUNT, STATX_BASIC_STATS, &statx));
 	if (ret == -1)
 		return ret;
 
-	buf->st_dev          = ((statx.stx_dev_minor & 0xff)
+	buf->st_dev          = ((statx.stx_dev_mianalr & 0xff)
 			       | (statx.stx_dev_major << 8)
-			       | ((statx.stx_dev_minor & ~0xff) << 12));
-	buf->st_ino          = statx.stx_ino;
+			       | ((statx.stx_dev_mianalr & ~0xff) << 12));
+	buf->st_ianal          = statx.stx_ianal;
 	buf->st_mode         = statx.stx_mode;
 	buf->st_nlink        = statx.stx_nlink;
 	buf->st_uid          = statx.stx_uid;
 	buf->st_gid          = statx.stx_gid;
-	buf->st_rdev         = ((statx.stx_rdev_minor & 0xff)
+	buf->st_rdev         = ((statx.stx_rdev_mianalr & 0xff)
 			       | (statx.stx_rdev_major << 8)
-			       | ((statx.stx_rdev_minor & ~0xff) << 12));
+			       | ((statx.stx_rdev_mianalr & ~0xff) << 12));
 	buf->st_size         = statx.stx_size;
 	buf->st_blksize      = statx.stx_blksize;
 	buf->st_blocks       = statx.stx_blocks;
@@ -1094,7 +1094,7 @@ int sys_symlink(const char *old, const char *new)
 #elif defined(__NR_symlink)
 	return my_syscall2(__NR_symlink, old, new);
 #else
-	return __nolibc_enosys(__func__, old, new);
+	return __anallibc_eanalsys(__func__, old, new);
 #endif
 }
 
@@ -1151,7 +1151,7 @@ int sys_unlink(const char *path)
 #elif defined(__NR_unlink)
 	return my_syscall1(__NR_unlink, path);
 #else
-	return __nolibc_enosys(__func__, path);
+	return __anallibc_eanalsys(__func__, path);
 #endif
 }
 
@@ -1174,7 +1174,7 @@ pid_t sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage)
 #ifdef __NR_wait4
 	return my_syscall4(__NR_wait4, pid, status, options, rusage);
 #else
-	return __nolibc_enosys(__func__, pid, status, options, rusage);
+	return __anallibc_eanalsys(__func__, pid, status, options, rusage);
 #endif
 }
 
@@ -1232,6 +1232,6 @@ int memfd_create(const char *name, unsigned int flags)
 }
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_SYS_H */
+#endif /* _ANALLIBC_SYS_H */

@@ -16,7 +16,7 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-fence.h>
 #include <linux/dma-fence-unwrap.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/export.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
@@ -71,7 +71,7 @@ static void dma_buf_release(struct dentry *dentry)
 	/*
 	 * If you hit this BUG() it could mean:
 	 * * There's a file reference imbalance in dma_buf_poll / dma_buf_poll_cb or somewhere else
-	 * * dmabuf->cb_in/out.active are non-0 despite no pending fence callback
+	 * * dmabuf->cb_in/out.active are analn-0 despite anal pending fence callback
 	 */
 	BUG_ON(dmabuf->cb_in.active || dmabuf->cb_out.active);
 
@@ -87,7 +87,7 @@ static void dma_buf_release(struct dentry *dentry)
 	kfree(dmabuf);
 }
 
-static int dma_buf_file_release(struct inode *inode, struct file *file)
+static int dma_buf_file_release(struct ianalde *ianalde, struct file *file)
 {
 	struct dma_buf *dmabuf;
 
@@ -97,7 +97,7 @@ static int dma_buf_file_release(struct inode *inode, struct file *file)
 	dmabuf = file->private_data;
 	if (dmabuf) {
 		mutex_lock(&db_list.lock);
-		list_del(&dmabuf->list_node);
+		list_del(&dmabuf->list_analde);
 		mutex_unlock(&db_list.lock);
 	}
 
@@ -117,7 +117,7 @@ static int dma_buf_fs_init_context(struct fs_context *fc)
 
 	ctx = init_pseudo(fc, DMA_BUF_MAGIC);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->dops = &dma_buf_dentry_ops;
 	return 0;
 }
@@ -125,7 +125,7 @@ static int dma_buf_fs_init_context(struct fs_context *fc)
 static struct file_system_type dma_buf_fs_type = {
 	.name = "dmabuf",
 	.init_fs_context = dma_buf_fs_init_context,
-	.kill_sb = kill_anon_super,
+	.kill_sb = kill_aanaln_super,
 };
 
 static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
@@ -192,7 +192,7 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
  * - Checking for EPOLLOUT, i.e. write access, can be used to query the state of
  *   all attached fences, shared and exclusive ones.
  *
- * Note that this only signals the completion of the respective fences, i.e. the
+ * Analte that this only signals the completion of the respective fences, i.e. the
  * DMA transfers are complete. Cache flushing and any other necessary
  * preparations before CPU access can begin still need to happen.
  *
@@ -270,7 +270,7 @@ static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 			get_file(dmabuf->file);
 
 			if (!dma_buf_poll_add_cb(resv, true, dcb))
-				/* No callback queued, wake up any other waiters */
+				/* Anal callback queued, wake up any other waiters */
 				dma_buf_poll_cb(NULL, &dcb->cb);
 			else
 				events &= ~EPOLLOUT;
@@ -293,7 +293,7 @@ static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 			get_file(dmabuf->file);
 
 			if (!dma_buf_poll_add_cb(resv, false, dcb))
-				/* No callback queued, wake up any other waiters */
+				/* Anal callback queued, wake up any other waiters */
 				dma_buf_poll_cb(NULL, &dcb->cb);
 			else
 				events &= ~EPOLLIN;
@@ -368,7 +368,7 @@ static long dma_buf_export_sync_file(struct dma_buf *dmabuf,
 	dma_fence_put(fence);
 
 	if (!sync_file) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_fd;
 	}
 
@@ -488,7 +488,7 @@ static long dma_buf_ioctl(struct file *file,
 #endif
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -526,25 +526,25 @@ static inline int is_dma_buf_file(struct file *file)
 
 static struct file *dma_buf_getfile(size_t size, int flags)
 {
-	static atomic64_t dmabuf_inode = ATOMIC64_INIT(0);
-	struct inode *inode = alloc_anon_inode(dma_buf_mnt->mnt_sb);
+	static atomic64_t dmabuf_ianalde = ATOMIC64_INIT(0);
+	struct ianalde *ianalde = alloc_aanaln_ianalde(dma_buf_mnt->mnt_sb);
 	struct file *file;
 
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	if (IS_ERR(ianalde))
+		return ERR_CAST(ianalde);
 
-	inode->i_size = size;
-	inode_set_bytes(inode, size);
+	ianalde->i_size = size;
+	ianalde_set_bytes(ianalde, size);
 
 	/*
-	 * The ->i_ino acquired from get_next_ino() is not unique thus
-	 * not suitable for using it as dentry name by dmabuf stats.
-	 * Override ->i_ino with the unique and dmabuffs specific
+	 * The ->i_ianal acquired from get_next_ianal() is analt unique thus
+	 * analt suitable for using it as dentry name by dmabuf stats.
+	 * Override ->i_ianal with the unique and dmabuffs specific
 	 * value.
 	 */
-	inode->i_ino = atomic64_add_return(1, &dmabuf_inode);
-	flags &= O_ACCMODE | O_NONBLOCK;
-	file = alloc_file_pseudo(inode, dma_buf_mnt, "dmabuf",
+	ianalde->i_ianal = atomic64_add_return(1, &dmabuf_ianalde);
+	flags &= O_ACCMODE | O_ANALNBLOCK;
+	file = alloc_file_pseudo(ianalde, dma_buf_mnt, "dmabuf",
 				 flags, &dma_buf_fops);
 	if (IS_ERR(file))
 		goto err_alloc_file;
@@ -552,7 +552,7 @@ static struct file *dma_buf_getfile(size_t size, int flags)
 	return file;
 
 err_alloc_file:
-	iput(inode);
+	iput(ianalde);
 	return file;
 }
 
@@ -588,7 +588,7 @@ err_alloc_file:
  */
 
 /**
- * dma_buf_export - Creates a new dma_buf, and associates an anon file
+ * dma_buf_export - Creates a new dma_buf, and associates an aanaln file
  * with this buffer, so it can be exported.
  * Also connect the allocator specific data and ops to the buffer.
  * Additionally, provide a name string for exporter; useful in debugging.
@@ -627,7 +627,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 		return ERR_PTR(-EINVAL);
 
 	if (!try_module_get(exp_info->owner))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	file = dma_buf_getfile(exp_info->size, exp_info->flags);
 	if (IS_ERR(file)) {
@@ -642,7 +642,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 		alloc_size += 1;
 	dmabuf = kzalloc(alloc_size, GFP_KERNEL);
 	if (!dmabuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_file;
 	}
 
@@ -673,7 +673,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	dmabuf->file = file;
 
 	mutex_lock(&db_list.lock);
-	list_add(&dmabuf->list_node, &db_list.head);
+	list_add(&dmabuf->list_analde, &db_list.head);
 	mutex_unlock(&db_list.lock);
 
 	return dmabuf;
@@ -767,7 +767,7 @@ static void mangle_sg_table(struct sg_table *sg_table)
 
 	/* To catch abuse of the underlying struct page by importers mix
 	 * up the bits, but take care to preserve the low SG_ bits to
-	 * not corrupt the sgt. The mixing is undone in __unmap_dma_buf
+	 * analt corrupt the sgt. The mixing is undone in __unmap_dma_buf
 	 * before passing the sgt back to the exporter. */
 	for_each_sgtable_sg(sg_table, sg, i)
 		sg->page_link ^= ~0xffUL;
@@ -817,7 +817,7 @@ static struct sg_table * __map_dma_buf(struct dma_buf_attachment *attach,
  *     - dma_buf_vmap()
  *     - dma_buf_vunmap()
  *
- * 2. Importers must not hold the dma-buf reservation lock when calling these
+ * 2. Importers must analt hold the dma-buf reservation lock when calling these
  *    functions:
  *
  *     - dma_buf_attach()
@@ -860,7 +860,7 @@ static struct sg_table * __map_dma_buf(struct dma_buf_attachment *attach,
  * 3. Exporters must hold the dma-buf reservation lock when calling these
  *    functions:
  *
- *     - dma_buf_move_notify()
+ *     - dma_buf_move_analtify()
  */
 
 /**
@@ -881,8 +881,8 @@ static struct sg_table * __map_dma_buf(struct dma_buf_attachment *attach,
  * A pointer to newly created &dma_buf_attachment on success, or a negative
  * error code wrapped into a pointer on failure.
  *
- * Note that this can fail if the backing storage of @dmabuf is in a place not
- * accessible to @dev, and cannot be moved to a more suitable place. This is
+ * Analte that this can fail if the backing storage of @dmabuf is in a place analt
+ * accessible to @dev, and cananalt be moved to a more suitable place. This is
  * indicated with the error code -EBUSY.
  */
 struct dma_buf_attachment *
@@ -896,12 +896,12 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 	if (WARN_ON(!dmabuf || !dev))
 		return ERR_PTR(-EINVAL);
 
-	if (WARN_ON(importer_ops && !importer_ops->move_notify))
+	if (WARN_ON(importer_ops && !importer_ops->move_analtify))
 		return ERR_PTR(-EINVAL);
 
 	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
 	if (!attach)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	attach->dev = dev;
 	attach->dmabuf = dmabuf;
@@ -916,7 +916,7 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 			goto err_attach;
 	}
 	dma_resv_lock(dmabuf->resv, NULL);
-	list_add(&attach->node, &dmabuf->attachments);
+	list_add(&attach->analde, &dmabuf->attachments);
 	dma_resv_unlock(dmabuf->resv);
 
 	/* When either the importer or the exporter can't handle dynamic
@@ -936,7 +936,7 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 
 		sgt = __map_dma_buf(attach, DMA_BIDIRECTIONAL);
 		if (!sgt)
-			sgt = ERR_PTR(-ENOMEM);
+			sgt = ERR_PTR(-EANALMEM);
 		if (IS_ERR(sgt)) {
 			ret = PTR_ERR(sgt);
 			goto err_unpin;
@@ -1012,7 +1012,7 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 		if (dma_buf_is_dynamic(attach->dmabuf))
 			dmabuf->ops->unpin(attach);
 	}
-	list_del(&attach->node);
+	list_del(&attach->analde);
 
 	dma_resv_unlock(dmabuf->resv);
 
@@ -1028,8 +1028,8 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_detach, DMA_BUF);
  * @attach:	[in]	attachment which should be pinned
  *
  * Only dynamic importers (who set up @attach with dma_buf_dynamic_attach()) may
- * call this, and only for limited use cases like scanout and not for temporary
- * pin operations. It is not permitted to allow userspace to pin arbitrary
+ * call this, and only for limited use cases like scaanalut and analt for temporary
+ * pin operations. It is analt permitted to allow userspace to pin arbitrary
  * amounts of buffers through this interface.
  *
  * Buffers must be unpinned by calling dma_buf_unpin().
@@ -1059,7 +1059,7 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_pin, DMA_BUF);
  *
  * This unpins a buffer pinned by dma_buf_pin() and allows the exporter to move
  * any mapping of @attach again and inform the importer through
- * &dma_buf_attach_ops.move_notify.
+ * &dma_buf_attach_ops.move_analtify.
  */
 void dma_buf_unpin(struct dma_buf_attachment *attach)
 {
@@ -1087,9 +1087,9 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_unpin, DMA_BUF);
  * On success, the DMA addresses and lengths in the returned scatterlist are
  * PAGE_SIZE aligned.
  *
- * A mapping must be unmapped by using dma_buf_unmap_attachment(). Note that
+ * A mapping must be unmapped by using dma_buf_unmap_attachment(). Analte that
  * the underlying backing storage is pinned for as long as a mapping exists,
- * therefore users/importers should not hold onto a mapping for undue amounts of
+ * therefore users/importers should analt hold onto a mapping for undue amounts of
  * time.
  *
  * Important: Dynamic importers must wait for the exclusive fence of the struct
@@ -1111,7 +1111,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 	if (attach->sgt) {
 		/*
 		 * Two mappings with different directions for the same
-		 * attachment are not allowed.
+		 * attachment are analt allowed.
 		 */
 		if (attach->dir != direction &&
 		    attach->dir != DMA_BIDIRECTIONAL)
@@ -1121,7 +1121,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 	}
 
 	if (dma_buf_is_dynamic(attach->dmabuf)) {
-		if (!IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)) {
+		if (!IS_ENABLED(CONFIG_DMABUF_MOVE_ANALTIFY)) {
 			r = attach->dmabuf->ops->pin(attach);
 			if (r)
 				return ERR_PTR(r);
@@ -1130,10 +1130,10 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 
 	sg_table = __map_dma_buf(attach, direction);
 	if (!sg_table)
-		sg_table = ERR_PTR(-ENOMEM);
+		sg_table = ERR_PTR(-EANALMEM);
 
 	if (IS_ERR(sg_table) && dma_buf_is_dynamic(attach->dmabuf) &&
-	     !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
+	     !IS_ENABLED(CONFIG_DMABUF_MOVE_ANALTIFY))
 		attach->dmabuf->ops->unpin(attach);
 
 	if (!IS_ERR(sg_table) && attach->dmabuf->ops->cache_sgt_mapping) {
@@ -1152,7 +1152,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 			addr = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 			if (!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(len)) {
-				pr_debug("%s: addr %llx or len %x is not page aligned!\n",
+				pr_debug("%s: addr %llx or len %x is analt page aligned!\n",
 					 __func__, addr, len);
 			}
 		}
@@ -1217,7 +1217,7 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 	__unmap_dma_buf(attach, sg_table, direction);
 
 	if (dma_buf_is_dynamic(attach->dmabuf) &&
-	    !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
+	    !IS_ENABLED(CONFIG_DMABUF_MOVE_ANALTIFY))
 		dma_buf_unpin(attach);
 }
 EXPORT_SYMBOL_NS_GPL(dma_buf_unmap_attachment, DMA_BUF);
@@ -1248,24 +1248,24 @@ void dma_buf_unmap_attachment_unlocked(struct dma_buf_attachment *attach,
 EXPORT_SYMBOL_NS_GPL(dma_buf_unmap_attachment_unlocked, DMA_BUF);
 
 /**
- * dma_buf_move_notify - notify attachments that DMA-buf is moving
+ * dma_buf_move_analtify - analtify attachments that DMA-buf is moving
  *
  * @dmabuf:	[in]	buffer which is moving
  *
  * Informs all attachments that they need to destroy and recreate all their
  * mappings.
  */
-void dma_buf_move_notify(struct dma_buf *dmabuf)
+void dma_buf_move_analtify(struct dma_buf *dmabuf)
 {
 	struct dma_buf_attachment *attach;
 
 	dma_resv_assert_held(dmabuf->resv);
 
-	list_for_each_entry(attach, &dmabuf->attachments, node)
+	list_for_each_entry(attach, &dmabuf->attachments, analde)
 		if (attach->importer_ops)
-			attach->importer_ops->move_notify(attach);
+			attach->importer_ops->move_analtify(attach);
 }
-EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
+EXPORT_SYMBOL_NS_GPL(dma_buf_move_analtify, DMA_BUF);
 
 /**
  * DOC: cpu access
@@ -1279,7 +1279,7 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *   access.
  *
  *   Since for most kernel internal dma-buf accesses need the entire buffer, a
- *   vmap interface is introduced. Note that on very old 32-bit architectures
+ *   vmap interface is introduced. Analte that on very old 32-bit architectures
  *   vmalloc space might be limited and result in vmap calls failing.
  *
  *   Interfaces::
@@ -1287,10 +1287,10 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *      void \*dma_buf_vmap(struct dma_buf \*dmabuf, struct iosys_map \*map)
  *      void dma_buf_vunmap(struct dma_buf \*dmabuf, struct iosys_map \*map)
  *
- *   The vmap call can fail if there is no vmap support in the exporter, or if
- *   it runs out of vmalloc space. Note that the dma-buf layer keeps a reference
+ *   The vmap call can fail if there is anal vmap support in the exporter, or if
+ *   it runs out of vmalloc space. Analte that the dma-buf layer keeps a reference
  *   count for all vmap access and calls down into the exporter's vmap function
- *   only when no vmapping exists, and only unmaps it once. Protection against
+ *   only when anal vmapping exists, and only unmaps it once. Protection against
  *   concurrent vmap/vunmap calls is provided by taking the &dma_buf.lock mutex.
  *
  * - For full compatibility on the importer side with existing userspace
@@ -1300,9 +1300,9 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *   framework already supported this and for DMA buffer file descriptors to
  *   replace ION buffers mmap support was needed.
  *
- *   There is no special interfaces, userspace simply calls mmap on the dma-buf
+ *   There is anal special interfaces, userspace simply calls mmap on the dma-buf
  *   fd. But like for CPU access there's a need to bracket the actual access,
- *   which is handled by the ioctl (DMA_BUF_IOCTL_SYNC). Note that
+ *   which is handled by the ioctl (DMA_BUF_IOCTL_SYNC). Analte that
  *   DMA_BUF_IOCTL_SYNC can fail with -EAGAIN or -EINTR, in which case it must
  *   be restarted.
  *
@@ -1316,13 +1316,13 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *     - mmap dma-buf fd
  *     - for each drawing/upload cycle in CPU 1. SYNC_START ioctl, 2. read/write
  *       to mmap area 3. SYNC_END ioctl. This can be repeated as often as you
- *       want (with the new data being consumed by say the GPU or the scanout
+ *       want (with the new data being consumed by say the GPU or the scaanalut
  *       device)
  *     - munmap once you don't need the buffer any more
  *
  *    For correctness and optimal performance, it is always required to use
  *    SYNC_START and SYNC_END before and after, respectively, when accessing the
- *    mapped address. Userspace cannot rely on coherent access, even when there
+ *    mapped address. Userspace cananalt rely on coherent access, even when there
  *    are systems where it just works without calling these ioctls.
  *
  * - And as a CPU fallback in userspace processing pipelines.
@@ -1336,10 +1336,10 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *
  *   The assumption in the current dma-buf interfaces is that redirecting the
  *   initial mmap is all that's needed. A survey of some of the existing
- *   subsystems shows that no driver seems to do any nefarious thing like
- *   syncing up with outstanding asynchronous processing on the device or
+ *   subsystems shows that anal driver seems to do any nefarious thing like
+ *   syncing up with outstanding asynchroanalus processing on the device or
  *   allocating special resources at fault time. So hopefully this is good
- *   enough, since adding interfaces to intercept pagefaults and allow pte
+ *   eanalugh, since adding interfaces to intercept pagefaults and allow pte
  *   shootdowns would increase the complexity quite a bit.
  *
  *   Interface::
@@ -1403,7 +1403,7 @@ int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	/* Ensure that all fences are waited upon - but we first allow
 	 * the native handler the chance to do so more efficiently if it
-	 * chooses. A double invocation here will be reasonably cheap no-op.
+	 * chooses. A double invocation here will be reasonably cheap anal-op.
 	 */
 	if (ret == 0)
 		ret = __dma_buf_begin_cpu_access(dmabuf, direction);
@@ -1496,7 +1496,7 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_mmap, DMA_BUF);
  * dma_buf_end_cpu_access() around any cpu access performed through this
  * mapping.
  *
- * Returns 0 on success, or a negative errno code otherwise.
+ * Returns 0 on success, or a negative erranal code otherwise.
  */
 int dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
@@ -1543,7 +1543,7 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_vmap, DMA_BUF);
  *
  * Unlocked version of dma_buf_vmap()
  *
- * Returns 0 on success, or a negative errno code otherwise.
+ * Returns 0 on success, or a negative erranal code otherwise.
  */
 int dma_buf_vmap_unlocked(struct dma_buf *dmabuf, struct iosys_map *map)
 {
@@ -1618,9 +1618,9 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 
 	seq_puts(s, "\nDma-buf Objects:\n");
 	seq_printf(s, "%-8s\t%-8s\t%-8s\t%-8s\texp_name\t%-8s\tname\n",
-		   "size", "flags", "mode", "count", "ino");
+		   "size", "flags", "mode", "count", "ianal");
 
-	list_for_each_entry(buf_obj, &db_list.head, list_node) {
+	list_for_each_entry(buf_obj, &db_list.head, list_analde) {
 
 		ret = dma_resv_lock_interruptible(buf_obj->resv, NULL);
 		if (ret)
@@ -1633,8 +1633,8 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 				buf_obj->file->f_flags, buf_obj->file->f_mode,
 				file_count(buf_obj->file),
 				buf_obj->exp_name,
-				file_inode(buf_obj->file)->i_ino,
-				buf_obj->name ?: "<none>");
+				file_ianalde(buf_obj->file)->i_ianal,
+				buf_obj->name ?: "<analne>");
 		spin_unlock(&buf_obj->name_lock);
 
 		dma_resv_describe(buf_obj->resv, s);
@@ -1642,7 +1642,7 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 		seq_puts(s, "\tAttached Devices:\n");
 		attach_count = 0;
 
-		list_for_each_entry(attach_obj, &buf_obj->attachments, node) {
+		list_for_each_entry(attach_obj, &buf_obj->attachments, analde) {
 			seq_printf(s, "\t%s\n", dev_name(attach_obj->dev));
 			attach_count++;
 		}
@@ -1683,7 +1683,7 @@ static int dma_buf_init_debugfs(void)
 	d = debugfs_create_file("bufinfo", S_IRUGO, dma_buf_debugfs_dir,
 				NULL, &dma_buf_debug_fops);
 	if (IS_ERR(d)) {
-		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
+		pr_debug("dma_buf: debugfs: failed to create analde bufinfo\n");
 		debugfs_remove_recursive(dma_buf_debugfs_dir);
 		dma_buf_debugfs_dir = NULL;
 		err = PTR_ERR(d);

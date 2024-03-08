@@ -14,7 +14,7 @@
 
 #include "i915_gem.h"
 
-struct drm_mm_node;
+struct drm_mm_analde;
 struct ttm_resource;
 
 /*
@@ -146,12 +146,12 @@ static inline unsigned int i915_sg_segment_size(struct device *dev)
 	 * For Xen PV guests pages aren't contiguous in DMA (machine) address
 	 * space.  The DMA API takes care of that both in dma_alloc_* (by
 	 * calling into the hypervisor to make the pages contiguous) and in
-	 * dma_map_* (by bounce buffering).  But i915 abuses ignores the
+	 * dma_map_* (by bounce buffering).  But i915 abuses iganalres the
 	 * coherency aspects of the DMA API and thus can't cope with bounce
 	 * buffering actually happening, so add a hack here to force small
 	 * allocations and mappings when running in PV mode on Xen.
 	 *
-	 * Note this will still break if bounce buffering is required for other
+	 * Analte this will still break if bounce buffering is required for other
 	 * reasons, like confidential computing hypervisors or PCIe root ports
 	 * with addressing limitations.
 	 */
@@ -175,9 +175,9 @@ struct i915_refct_sgt_ops {
 /**
  * struct i915_refct_sgt - A refcounted scatter-gather table
  * @kref: struct kref for refcounting
- * @table: struct sg_table holding the scatter-gather table itself. Note that
+ * @table: struct sg_table holding the scatter-gather table itself. Analte that
  * @table->sgl = NULL can be used to determine whether a scatter-gather table
- * is present or not.
+ * is present or analt.
  * @size: The size in bytes of the underlying memory buffer
  * @ops: The operations structure.
  */
@@ -215,7 +215,7 @@ i915_refct_sgt_get(struct i915_refct_sgt *rsgt)
  * @rsgt: The struct i915_refct_sgt to initialize.
  * @size: Size in bytes of the underlying memory buffer.
  * @ops: A customized operations structure in case the refcounted sg-list
- * is embedded into another structure.
+ * is embedded into aanalther structure.
  */
 static inline void __i915_refct_sgt_init(struct i915_refct_sgt *rsgt,
 					 size_t size,
@@ -229,7 +229,7 @@ static inline void __i915_refct_sgt_init(struct i915_refct_sgt *rsgt,
 
 void i915_refct_sgt_init(struct i915_refct_sgt *rsgt, size_t size);
 
-struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
+struct i915_refct_sgt *i915_rsgt_from_mm_analde(const struct drm_mm_analde *analde,
 					      u64 region_start,
 					      u32 page_alignment);
 

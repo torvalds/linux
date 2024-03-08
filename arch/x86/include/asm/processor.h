@@ -22,7 +22,7 @@ struct vm86;
 #include <asm/percpu.h>
 #include <asm/msr.h>
 #include <asm/desc_defs.h>
-#include <asm/nops.h>
+#include <asm/analps.h>
 #include <asm/special_insns.h>
 #include <asm/fpu/types.h>
 #include <asm/unwind_hints.h>
@@ -54,10 +54,10 @@ struct vm86;
  * alignment requirements of the FPU state:
  */
 #ifdef CONFIG_X86_VSMP
-# define ARCH_MIN_TASKALIGN		(1 << INTERNODE_CACHE_SHIFT)
-# define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERNODE_CACHE_SHIFT)
+# define ARCH_MIN_TASKALIGN		(1 << INTERANALDE_CACHE_SHIFT)
+# define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERANALDE_CACHE_SHIFT)
 #else
-# define ARCH_MIN_TASKALIGN		__alignof__(union fpregs_state)
+# define ARCH_MIN_TASKALIGN		__aliganalf__(union fpregs_state)
 # define ARCH_MIN_MMSTRUCT_ALIGN	0
 #endif
 
@@ -123,7 +123,7 @@ struct cpuinfo_x86 {
 	__u8			x86_coreid_bits;
 	/* Max extended CPUID function supported: */
 	__u32			extended_cpuid_level;
-	/* Maximum supported CPUID level, -1=no CPUID: */
+	/* Maximum supported CPUID level, -1=anal CPUID: */
 	int			cpuid_level;
 	/*
 	 * Align to size of unsigned long because the x86_capability array
@@ -175,7 +175,7 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_VORTEX	11
 #define X86_VENDOR_NUM		12
 
-#define X86_VENDOR_UNKNOWN	0xff
+#define X86_VENDOR_UNKANALWN	0xff
 
 /*
  * capabilities of CPUs
@@ -229,7 +229,7 @@ static inline void load_cr3(pgd_t *pgdir)
 }
 
 /*
- * Note that while the legacy 'TSS' name comes from 'Task State Segment',
+ * Analte that while the legacy 'TSS' name comes from 'Task State Segment',
  * on modern x86 CPUs the TSS also holds information important to 64-bit mode,
  * unrelated to the task-switch mechanism:
  */
@@ -246,7 +246,7 @@ struct x86_hw_tss {
 	 * the same cacheline as sp0.  We use ss1 to cache the value in
 	 * MSR_IA32_SYSENTER_CS.  When we context switch
 	 * MSR_IA32_SYSENTER_CS, we first check if the new value being
-	 * written matches ss1, and, if it's not, then we wrmsr the new
+	 * written matches ss1, and, if it's analt, then we wrmsr the new
 	 * value and update ss1.
 	 *
 	 * The only reason we context switch MSR_IA32_SYSENTER_CS is
@@ -288,7 +288,7 @@ struct x86_hw_tss {
 	u64			sp1;
 
 	/*
-	 * Since Linux does not use ring 2, the 'sp2' slot is unused by
+	 * Since Linux does analt use ring 2, the 'sp2' slot is unused by
 	 * hardware.  entry_SYSCALL_64 uses it as scratch space to stash
 	 * the user RSP value.
 	 */
@@ -352,9 +352,9 @@ struct x86_io_bitmap {
 
 	/*
 	 * Store the dirty size of the last io bitmap offender. The next
-	 * one will have to do the cleanup as the switch out to a non io
+	 * one will have to do the cleanup as the switch out to a analn io
 	 * bitmap user will just set x86_tss.io_bitmap_base to a value
-	 * outside of the TSS limit. So for sane tasks there is no need to
+	 * outside of the TSS limit. So for sane tasks there is anal need to
 	 * actually touch the io_bitmap at all.
 	 */
 	unsigned int		prev_max;
@@ -376,7 +376,7 @@ struct x86_io_bitmap {
 
 struct tss_struct {
 	/*
-	 * The fixed hardware portion.  This must not cross a page boundary
+	 * The fixed hardware portion.  This must analt cross a page boundary
 	 * at risk of violating the SDM's advice and potentially triggering
 	 * errata.
 	 */
@@ -414,7 +414,7 @@ static inline unsigned long cpu_kernelmode_gs_base(int cpu)
 	return (unsigned long)per_cpu(fixed_percpu_data.gs_base, cpu);
 }
 
-extern asmlinkage void entry_SYSCALL32_ignore(void);
+extern asmlinkage void entry_SYSCALL32_iganalre(void);
 
 /* Save actual FS/GS selectors and bases to current->thread */
 void current_save_fsgs(void);
@@ -560,7 +560,7 @@ extern void amd_e400_c1e_apic_setup(void);
 
 extern unsigned long		boot_option_idle_override;
 
-enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_NOMWAIT,
+enum idle_boot_override {IDLE_ANAL_OVERRIDE=0, IDLE_HALT, IDLE_ANALMWAIT,
 			 IDLE_POLL};
 
 extern void enable_sep_cpu(void);
@@ -604,7 +604,7 @@ extern void set_task_blockstep(struct task_struct *task, bool on);
 extern int			bootloader_type;
 extern int			bootloader_version;
 
-extern char			ignore_fpu_irq;
+extern char			iganalre_fpu_irq;
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT 1
 #define ARCH_HAS_PREFETCHW
@@ -619,7 +619,7 @@ extern char			ignore_fpu_irq;
 /*
  * Prefetch instructions for Pentium III (+) and AMD Athlon (+)
  *
- * It's not worth to care about 3dnow prefetches for the K6
+ * It's analt worth to care about 3danalw prefetches for the K6
  * because they are microcoded there and very slow.
  */
 static inline void prefetch(const void *x)
@@ -630,14 +630,14 @@ static inline void prefetch(const void *x)
 }
 
 /*
- * 3dnow prefetch to get an exclusive cache line.
+ * 3danalw prefetch to get an exclusive cache line.
  * Useful for spinlocks to avoid one state transition in the
  * cache coherency protocol:
  */
 static __always_inline void prefetchw(const void *x)
 {
 	alternative_input(BASE_PREFETCH, "prefetchw %P1",
-			  X86_FEATURE_3DNOWPREFETCH,
+			  X86_FEATURE_3DANALWPREFETCH,
 			  "m" (*(const char *)x));
 }
 
@@ -704,12 +704,12 @@ static inline u32 per_cpu_l2c_id(unsigned int cpu)
 }
 
 #ifdef CONFIG_CPU_SUP_AMD
-extern u32 amd_get_nodes_per_socket(void);
+extern u32 amd_get_analdes_per_socket(void);
 extern u32 amd_get_highest_perf(void);
 extern void amd_clear_divider(void);
 extern void amd_check_microcode(void);
 #else
-static inline u32 amd_get_nodes_per_socket(void)	{ return 0; }
+static inline u32 amd_get_analdes_per_socket(void)	{ return 0; }
 static inline u32 amd_get_highest_perf(void)		{ return 0; }
 static inline void amd_clear_divider(void)		{ }
 static inline void amd_check_microcode(void)		{ }
@@ -726,15 +726,15 @@ bool xen_set_default_idle(void);
 #define xen_set_default_idle 0
 #endif
 
-void __noreturn stop_this_cpu(void *dummy);
+void __analreturn stop_this_cpu(void *dummy);
 void microcode_check(struct cpuinfo_x86 *prev_info);
 void store_cpu_caps(struct cpuinfo_x86 *info);
 
 enum l1tf_mitigations {
 	L1TF_MITIGATION_OFF,
-	L1TF_MITIGATION_FLUSH_NOWARN,
+	L1TF_MITIGATION_FLUSH_ANALWARN,
 	L1TF_MITIGATION_FLUSH,
-	L1TF_MITIGATION_FLUSH_NOSMT,
+	L1TF_MITIGATION_FLUSH_ANALSMT,
 	L1TF_MITIGATION_FULL,
 	L1TF_MITIGATION_FULL_FORCE
 };
@@ -754,17 +754,17 @@ extern bool gds_ucode_mitigated(void);
  * a WRMSR.
  *
  * MFENCE makes writes visible, but only affects load/store
- * instructions.  WRMSR is unfortunately not a load/store
+ * instructions.  WRMSR is unfortunately analt a load/store
  * instruction and is unaffected by MFENCE.  The LFENCE ensures
- * that the WRMSR is not reordered.
+ * that the WRMSR is analt reordered.
  *
  * Most WRMSRs are full serializing instructions themselves and
- * do not require this barrier.  This is only required for the
+ * do analt require this barrier.  This is only required for the
  * IA32_TSC_DEADLINE and X2APIC MSRs.
  */
 static inline void weak_wrmsr_fence(void)
 {
-	alternative("mfence; lfence", "", ALT_NOT(X86_FEATURE_APIC_MSRS_FENCE));
+	alternative("mfence; lfence", "", ALT_ANALT(X86_FEATURE_APIC_MSRS_FENCE));
 }
 
 #endif /* _ASM_X86_PROCESSOR_H */

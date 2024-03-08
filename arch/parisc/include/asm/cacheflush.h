@@ -77,11 +77,11 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);
 
-/* defined in pacache.S exported in cache.c used by flush_anon_page */
+/* defined in pacache.S exported in cache.c used by flush_aanaln_page */
 void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 
-#define ARCH_HAS_FLUSH_ANON_PAGE
-void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr);
+#define ARCH_HAS_FLUSH_AANALN_PAGE
+void flush_aanaln_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr);
 
 #define ARCH_HAS_FLUSH_ON_KUNMAP
 static inline void kunmap_flush_on_unmap(const void *addr)

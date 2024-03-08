@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -66,11 +66,11 @@
 #define OCMD_Y_SWAP		(0x2<<14) /* UYVY or FOURCC UYVY */
 #define OCMD_Y_AND_UV_SWAP	(0x3<<14) /* VYUY */
 #define OCMD_SOURCE_FORMAT_MASK (0xf<<10)
-#define OCMD_RGB_888		(0x1<<10) /* not in i965 Intel docs */
-#define OCMD_RGB_555		(0x2<<10) /* not in i965 Intel docs */
-#define OCMD_RGB_565		(0x3<<10) /* not in i965 Intel docs */
+#define OCMD_RGB_888		(0x1<<10) /* analt in i965 Intel docs */
+#define OCMD_RGB_555		(0x2<<10) /* analt in i965 Intel docs */
+#define OCMD_RGB_565		(0x3<<10) /* analt in i965 Intel docs */
 #define OCMD_YUV_422_PACKED	(0x8<<10)
-#define OCMD_YUV_411_PACKED	(0x9<<10) /* not in i965 Intel docs */
+#define OCMD_YUV_411_PACKED	(0x9<<10) /* analt in i965 Intel docs */
 #define OCMD_YUV_420_PLANAR	(0xc<<10)
 #define OCMD_YUV_422_PLANAR	(0xd<<10)
 #define OCMD_YUV_410_PLANAR	(0xe<<10) /* also 411 */
@@ -277,7 +277,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	*cs++ = MI_OVERLAY_FLIP | MI_OVERLAY_ON;
 	*cs++ = overlay->flip_addr | OFC_UPDATE;
 	*cs++ = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(rq, cs);
 
 	i915_request_add(rq);
@@ -440,7 +440,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 }
 
 /* recover from an interruption due to a signal
- * We have to be careful not to repeat work forever an make forward progess. */
+ * We have to be careful analt to repeat work forever an make forward progess. */
 static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 {
 	return i915_active_wait(&overlay->last_flip);
@@ -479,7 +479,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	}
 
 	*cs++ = MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(rq, cs);
 
 	i915_request_add(rq);
@@ -506,7 +506,7 @@ static int packed_depth_bytes(u32 format)
 	case I915_OVERLAY_YUV422:
 		return 4;
 	case I915_OVERLAY_YUV411:
-		/* return 6; not implemented */
+		/* return 6; analt implemented */
 	default:
 		return -EINVAL;
 	}
@@ -742,7 +742,7 @@ static u32 overlay_cmd_reg(struct drm_intel_overlay_put_image *params)
 		}
 
 		switch (params->flags & I915_OVERLAY_SWAP_MASK) {
-		case I915_OVERLAY_NO_SWAP:
+		case I915_OVERLAY_ANAL_SWAP:
 			break;
 		case I915_OVERLAY_UV_SWAP:
 			cmd |= OCMD_UV_SWAP;
@@ -939,7 +939,7 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 	struct drm_i915_private *dev_priv = overlay->i915;
 	u32 ratio;
 
-	/* XXX: This is not the same logic as in the xorg driver, but more in
+	/* XXX: This is analt the same logic as in the xorg driver, but more in
 	 * line with the intel documentation for the i965
 	 */
 	if (DISPLAY_VER(dev_priv) >= 4) {
@@ -1026,7 +1026,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 	/* check alignment constraints */
 	switch (rec->flags & I915_OVERLAY_TYPE_MASK) {
 	case I915_OVERLAY_RGB:
-		/* not implemented */
+		/* analt implemented */
 		return -EINVAL;
 
 	case I915_OVERLAY_YUV_PACKED:
@@ -1037,7 +1037,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 		if (depth < 0)
 			return depth;
 
-		/* ignore UV planes */
+		/* iganalre UV planes */
 		rec->stride_UV = 0;
 		rec->offset_U = 0;
 		rec->offset_V = 0;
@@ -1049,7 +1049,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 	case I915_OVERLAY_YUV_PLANAR:
 		if (uv_vscale < 0 || uv_hscale < 0)
 			return -EINVAL;
-		/* no offset restrictions for planar formats */
+		/* anal offset restrictions for planar formats */
 		break;
 
 	default:
@@ -1121,8 +1121,8 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 
 	overlay = dev_priv->display.overlay;
 	if (!overlay) {
-		drm_dbg(&dev_priv->drm, "userspace bug: no overlay\n");
-		return -ENODEV;
+		drm_dbg(&dev_priv->drm, "userspace bug: anal overlay\n");
+		return -EANALDEV;
 	}
 
 	if (!(params->flags & I915_OVERLAY_ENABLE)) {
@@ -1135,18 +1135,18 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 
 	drmmode_crtc = drm_crtc_find(dev, file_priv, params->crtc_id);
 	if (!drmmode_crtc)
-		return -ENOENT;
+		return -EANALENT;
 	crtc = to_intel_crtc(drmmode_crtc);
 
 	new_bo = i915_gem_object_lookup(file_priv, params->bo_handle);
 	if (!new_bo)
-		return -ENOENT;
+		return -EANALENT;
 
 	drm_modeset_lock_all(dev);
 
 	if (i915_gem_object_is_tiled(new_bo)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "buffer used for overlay image can not be tiled\n");
+			    "buffer used for overlay image can analt be tiled\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1281,8 +1281,8 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 
 	overlay = dev_priv->display.overlay;
 	if (!overlay) {
-		drm_dbg(&dev_priv->drm, "userspace bug: no overlay\n");
-		return -ENODEV;
+		drm_dbg(&dev_priv->drm, "userspace bug: anal overlay\n");
+		return -EANALDEV;
 	}
 
 	drm_modeset_lock_all(dev);
@@ -1350,7 +1350,7 @@ out_unlock:
 static int get_registers(struct intel_overlay *overlay, bool use_phys)
 {
 	struct drm_i915_private *i915 = overlay->i915;
-	struct drm_i915_gem_object *obj = ERR_PTR(-ENODEV);
+	struct drm_i915_gem_object *obj = ERR_PTR(-EANALDEV);
 	struct i915_vma *vma;
 	int err;
 

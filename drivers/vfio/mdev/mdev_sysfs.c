@@ -71,7 +71,7 @@ static ssize_t create_store(struct mdev_type *mtype,
 
 	str = kstrndup(buf, count, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = guid_parse(str, &uuid);
 	kfree(str);
@@ -185,7 +185,7 @@ static int mdev_type_add(struct mdev_parent *parent, struct mdev_type *type)
 
 	type->devices_kobj = kobject_create_and_add("devices", &type->kobj);
 	if (!type->devices_kobj) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto attr_devices_failed;
 	}
 
@@ -221,7 +221,7 @@ int parent_create_sysfs_files(struct mdev_parent *parent)
 	parent->mdev_types_kset = kset_create_and_add("mdev_supported_types",
 					       NULL, &parent->dev->kobj);
 	if (!parent->mdev_types_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < parent->nr_types; i++) {
 		ret = mdev_type_add(parent, parent->types[i]);

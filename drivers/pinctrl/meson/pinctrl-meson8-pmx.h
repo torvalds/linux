@@ -2,7 +2,7 @@
 /*
  * First generation of pinmux driver for Amlogic Meson SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  * Copyright (C) 2017 Jerome Brunet  <jbrunet@baylibre.com>
  */
 

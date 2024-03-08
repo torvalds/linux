@@ -29,21 +29,21 @@
  *           0   0  Tuner
  *
  *   AM* : Audio Mode
- *          AM3  0: Normal        1: Mixed(Sub+Main channel)
+ *          AM3  0: Analrmal        1: Mixed(Sub+Main channel)
  *          AM2  0: Subchannel    1: Main channel
- *          AM1  0: Stereo        1: Mono
- *          AM0  0: Normal        1: Mute
+ *          AM1  0: Stereo        1: Moanal
+ *          AM0  0: Analrmal        1: Mute
  *
  *   DM* : Detected tuner audio Mode
- *          DM1  0: Stereo        1: Mono
- *          DM0  0: Multiplex     1: Normal
+ *          DM1  0: Stereo        1: Moanal
+ *          DM0  0: Multiplex     1: Analrmal
  *
  * GPIO Initial Settings
  *           MPG600   MPG160
  *     DIR   0x3080   0x7080
  *  OUTPUT   0x000C   0x400C
  *
- *  Special thanks to Makoto Iguchi <iguchi@tahoo.org> and Mr. Anonymous
+ *  Special thanks to Makoto Iguchi <iguchi@tahoo.org> and Mr. Aanalnymous
  *  for analyzing GPIO of MPG160.
  *
  *****************************************************************************
@@ -68,7 +68,7 @@
  *           0   0   1  TV Tuner Audio: L_OUT=R_OUT=SAP   (SAP)
  *           0   1   0  TV Tuner Audio: L_OUT=L, R_OUT=R   (stereo)
  *           0   1   1  TV Tuner Audio: mute
- *           1   *   *  TV Tuner Audio: L_OUT=R_OUT=(L+R)/2   (mono)
+ *           1   *   *  TV Tuner Audio: L_OUT=R_OUT=(L+R)/2   (moanal)
  *
  *   BR* : Audio Sample Rate (BR stands for bitrate for some reason)
  *          BR0 BR1
@@ -77,9 +77,9 @@
  *           1   0   48 kHz
  *
  *   DM* : Detected tuner audio Mode
- *         Unknown currently
+ *         Unkanalwn currently
  *
- * Special thanks to AVerMedia Technologies, Inc. and Jiun-Kuei Jung at
+ * Special thanks to AVerMedia Techanallogies, Inc. and Jiun-Kuei Jung at
  * AVerMedia for providing the GPIO information used to add support
  * for the M179 cards.
  */
@@ -176,7 +176,7 @@ static int subdev_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 		vt->rxsubchans = V4L2_TUNER_SUB_STEREO |
 			V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	else
-		vt->rxsubchans = V4L2_TUNER_SUB_MONO;
+		vt->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	return 0;
 }
 
@@ -193,8 +193,8 @@ static int subdev_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 	case V4L2_TUNER_MODE_LANG2:
 		data = itv->card->gpio_audio_mode.lang2;
 		break;
-	case V4L2_TUNER_MODE_MONO:
-		data = itv->card->gpio_audio_mode.mono;
+	case V4L2_TUNER_MODE_MOANAL:
+		data = itv->card->gpio_audio_mode.moanal;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1_LANG2:

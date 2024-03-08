@@ -196,8 +196,8 @@ int ipc_flash_boot_set_capabilities(struct iosm_devlink *ipc_devlink,
 {
 	ipc_devlink->ebl_ctx.ebl_sw_info_version =
 			ipc_devlink->ebl_ctx.m_ebl_resp[EBL_RSP_SW_INFO_VER];
-	ipc_devlink->ebl_ctx.m_ebl_resp[EBL_SKIP_ERASE] = IOSM_CAP_NOT_ENHANCED;
-	ipc_devlink->ebl_ctx.m_ebl_resp[EBL_SKIP_CRC] = IOSM_CAP_NOT_ENHANCED;
+	ipc_devlink->ebl_ctx.m_ebl_resp[EBL_SKIP_ERASE] = IOSM_CAP_ANALT_ENHANCED;
+	ipc_devlink->ebl_ctx.m_ebl_resp[EBL_SKIP_CRC] = IOSM_CAP_ANALT_ENHANCED;
 
 	if (ipc_devlink->ebl_ctx.m_ebl_resp[EBL_CAPS_FLAG] &
 							IOSM_CAP_USE_EXT_CAP) {
@@ -255,7 +255,7 @@ int ipc_flash_read_swid(struct iosm_devlink *ipc_devlink, u8 *mdm_rsp)
 	snprintf(ebl_swid, sizeof(ebl_swid), "SWID: %x, RF_ENGINE_ID: %x",
 		 swid->sw_id_val, swid->rf_engine_id_val);
 
-	devlink_flash_update_status_notify(ipc_devlink->devlink_ctx, ebl_swid,
+	devlink_flash_update_status_analtify(ipc_devlink->devlink_ctx, ebl_swid,
 					   NULL, 0, 0);
 ipc_swid_err:
 	return ret;
@@ -458,7 +458,7 @@ int ipc_flash_boot_psi(struct iosm_devlink *ipc_devlink,
 	psi_code = kmemdup(fw->data + IOSM_DEVLINK_HDR_SIZE, psi_size,
 			   GFP_KERNEL);
 	if (!psi_code)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ipc_imem_sys_devlink_write(ipc_devlink, psi_code, psi_size);
 	if (ret) {
@@ -480,7 +480,7 @@ int ipc_flash_boot_psi(struct iosm_devlink *ipc_devlink,
 
 	snprintf(psi_ack_byte, sizeof(psi_ack_byte), "%x%x", read_data[0],
 		 read_data[1]);
-	devlink_flash_update_status_notify(ipc_devlink->devlink_ctx,
+	devlink_flash_update_status_analtify(ipc_devlink->devlink_ctx,
 					   psi_ack_byte, "PSI ACK", 0, 0);
 
 	if (read_data[0] == 0x00 && read_data[1] == 0xCD) {
@@ -513,7 +513,7 @@ int ipc_flash_boot_ebl(struct iosm_devlink *ipc_devlink,
 
 	if (ipc_mmio_get_exec_stage(ipc_devlink->pcie->imem->mmio) !=
 				    IPC_MEM_EXEC_STAGE_PSI) {
-		devlink_flash_update_status_notify(ipc_devlink->devlink_ctx,
+		devlink_flash_update_status_analtify(ipc_devlink->devlink_ctx,
 						   "Invalid execution stage",
 						   NULL, 0, 0);
 		return -EINVAL;

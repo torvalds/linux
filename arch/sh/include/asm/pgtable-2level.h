@@ -2,7 +2,7 @@
 #ifndef __ASM_SH_PGTABLE_2LEVEL_H
 #define __ASM_SH_PGTABLE_2LEVEL_H
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 /*
  * traditional two-level paging structure

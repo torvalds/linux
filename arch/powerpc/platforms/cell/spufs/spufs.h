@@ -36,7 +36,7 @@ struct spu_gang;
 
 /* ctx->sched_flags */
 enum {
-	SPU_SCHED_NOTIFY_ACTIVE,
+	SPU_SCHED_ANALTIFY_ACTIVE,
 	SPU_SCHED_WAS_ACTIVE,	/* was active upon spu_acquire_saved()  */
 	SPU_SCHED_SPU_RUN,	/* context is within spu_run */
 };
@@ -208,14 +208,14 @@ struct spu_context_ops {
 extern struct spu_context_ops spu_hw_ops;
 extern struct spu_context_ops spu_backing_ops;
 
-struct spufs_inode_info {
+struct spufs_ianalde_info {
 	struct spu_context *i_ctx;
 	struct spu_gang *i_gang;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 	int i_openers;
 };
-#define SPUFS_I(inode) \
-	container_of(inode, struct spufs_inode_info, vfs_inode)
+#define SPUFS_I(ianalde) \
+	container_of(ianalde, struct spufs_ianalde_info, vfs_ianalde)
 
 struct spufs_tree_descr {
 	const char *name;
@@ -225,7 +225,7 @@ struct spufs_tree_descr {
 };
 
 extern const struct spufs_tree_descr spufs_dir_contents[];
-extern const struct spufs_tree_descr spufs_dir_nosched_contents[];
+extern const struct spufs_tree_descr spufs_dir_analsched_contents[];
 extern const struct spufs_tree_descr spufs_dir_debug_contents[];
 
 /* system call implementation */
@@ -234,9 +234,9 @@ struct coredump_params;
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *status);
 long spufs_create(const struct path *nd, struct dentry *dentry, unsigned int flags,
 			umode_t mode, struct file *filp);
-/* ELF coredump callbacks for writing SPU ELF notes */
-extern int spufs_coredump_extra_notes_size(void);
-extern int spufs_coredump_extra_notes_write(struct coredump_params *cprm);
+/* ELF coredump callbacks for writing SPU ELF analtes */
+extern int spufs_coredump_extra_analtes_size(void);
+extern int spufs_coredump_extra_analtes_write(struct coredump_params *cprm);
 
 extern const struct file_operations spufs_context_fops;
 
@@ -281,7 +281,7 @@ void spu_del_from_rq(struct spu_context *ctx);
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
-void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
+void spu_switch_log_analtify(struct spu *spu, struct spu_context *ctx,
 		u32 type, u32 val);
 void spu_set_timeslice(struct spu_context *ctx);
 void spu_update_sched_info(struct spu_context *ctx);

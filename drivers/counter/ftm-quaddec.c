@@ -76,7 +76,7 @@ static void ftm_quaddec_init(struct ftm_quaddec *ftm)
 	ftm_clear_write_protection(ftm);
 
 	/*
-	 * Do not write in the region from the CNTIN register through the
+	 * Do analt write in the region from the CNTIN register through the
 	 * PWMLOAD register when FTMEN = 0.
 	 * Also reset other fields to zero
 	 */
@@ -108,7 +108,7 @@ static void ftm_quaddec_disable(void *ftm)
 	ftm_write(ftm_qua, FTM_MODE, 0);
 	ftm_write(ftm_qua, FTM_QDCTRL, 0);
 	/*
-	 * This is enough to disable the counter. No clock has been
+	 * This is eanalugh to disable the counter. Anal clock has been
 	 * selected by writing to FTM_SC in init()
 	 */
 	ftm_set_write_protection(ftm_qua);
@@ -138,7 +138,7 @@ static int ftm_quaddec_set_prescaler(struct counter_device *counter,
 	FTM_FIELD_UPDATE(ftm, FTM_SC, FTM_SC_PS_MASK, cnt_mode);
 	ftm_set_write_protection(ftm);
 
-	/* Also resets the counter as it is undefined anyway now */
+	/* Also resets the counter as it is undefined anyway analw */
 	ftm_reset_counter(ftm);
 
 	mutex_unlock(&ftm->ftm_quaddec_mutex);
@@ -261,23 +261,23 @@ static int ftm_quaddec_probe(struct platform_device *pdev)
 	struct counter_device *counter;
 	struct ftm_quaddec *ftm;
 
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct resource *io;
 	int ret;
 
 	counter = devm_counter_alloc(&pdev->dev, sizeof(*ftm));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 	ftm = counter_priv(counter);
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!io) {
 		dev_err(&pdev->dev, "Failed to get memory region\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ftm->pdev = pdev;
-	ftm->big_endian = of_property_read_bool(node, "big-endian");
+	ftm->big_endian = of_property_read_bool(analde, "big-endian");
 	ftm->ftm_base = devm_ioremap(&pdev->dev, io->start, resource_size(io));
 
 	if (!ftm->ftm_base) {

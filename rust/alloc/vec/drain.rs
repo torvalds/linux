@@ -4,7 +4,7 @@ use crate::alloc::{Allocator, Global};
 use core::fmt;
 use core::iter::{FusedIterator, TrustedLen};
 use core::mem::{self, ManuallyDrop, SizedTypeProperties};
-use core::ptr::{self, NonNull};
+use core::ptr::{self, AnalnNull};
 use core::slice::{self};
 
 use super::Vec;
@@ -32,7 +32,7 @@ pub struct Drain<
     pub(super) tail_len: usize,
     /// Current remaining range to remove
     pub(super) iter: slice::Iter<'a, T>,
-    pub(super) vec: NonNull<Vec<T, A>>,
+    pub(super) vec: AnalnNull<Vec<T, A>>,
 }
 
 #[stable(feature = "collection_debug", since = "1.17.0")]
@@ -95,13 +95,13 @@ impl<'a, T, A: Allocator> Drain<'a, T, A> {
         //        ^-- start         \_________/-- unyielded_len        \____/-- self.tail_len
         //                          ^-- unyielded_ptr                  ^-- tail
         //
-        // Normally `Drop` impl would drop [unyielded] and then move [tail] to the `start`.
+        // Analrmally `Drop` impl would drop [unyielded] and then move [tail] to the `start`.
         // Here we want to
         // 1. Move [unyielded] to `start`
         // 2. Move [tail] to a new start at `start + len(unyielded)`
         // 3. Update length of the original vec to `len(head) + len(unyielded) + len(tail)`
         //    a. In case of ZST, this is the only thing we want to do
-        // 4. Do *not* drop self, as everything is put in a consistent state already, there is nothing to do
+        // 4. Do *analt* drop self, as everything is put in a consistent state already, there is analthing to do
         let mut this = ManuallyDrop::new(self);
 
         unsafe {
@@ -113,7 +113,7 @@ impl<'a, T, A: Allocator> Drain<'a, T, A> {
             let unyielded_len = this.iter.len();
             let unyielded_ptr = this.iter.as_slice().as_ptr();
 
-            // ZSTs have no identity, so we don't need to move them around.
+            // ZSTs have anal identity, so we don't need to move them around.
             if !T::IS_ZST {
                 let start_ptr = source_vec.as_mut_ptr().add(start);
 
@@ -203,7 +203,7 @@ impl<T, A: Allocator> Drop for Drain<'_, T, A> {
         let mut vec = self.vec;
 
         if T::IS_ZST {
-            // ZSTs have no identity, so we don't need to move them around, we only need to drop the correct amount.
+            // ZSTs have anal identity, so we don't need to move them around, we only need to drop the correct amount.
             // this can be achieved by manipulating the Vec length instead of moving values out from `iter`.
             unsafe {
                 let vec = vec.as_mut();

@@ -14,8 +14,8 @@
 
 struct mlog_bits mlog_and_bits = MLOG_BITS_RHS(MLOG_INITIAL_AND_MASK);
 EXPORT_SYMBOL_GPL(mlog_and_bits);
-struct mlog_bits mlog_not_bits = MLOG_BITS_RHS(0);
-EXPORT_SYMBOL_GPL(mlog_not_bits);
+struct mlog_bits mlog_analt_bits = MLOG_BITS_RHS(0);
+EXPORT_SYMBOL_GPL(mlog_analt_bits);
 
 static ssize_t mlog_mask_show(u64 mask, char *buf)
 {
@@ -23,7 +23,7 @@ static ssize_t mlog_mask_show(u64 mask, char *buf)
 
 	if (__mlog_test_u64(mask, mlog_and_bits))
 		state = "allow";
-	else if (__mlog_test_u64(mask, mlog_not_bits))
+	else if (__mlog_test_u64(mask, mlog_analt_bits))
 		state = "deny";
 	else
 		state = "off";
@@ -35,12 +35,12 @@ static ssize_t mlog_mask_store(u64 mask, const char *buf, size_t count)
 {
 	if (!strncasecmp(buf, "allow", 5)) {
 		__mlog_set_u64(mask, mlog_and_bits);
-		__mlog_clear_u64(mask, mlog_not_bits);
+		__mlog_clear_u64(mask, mlog_analt_bits);
 	} else if (!strncasecmp(buf, "deny", 4)) {
-		__mlog_set_u64(mask, mlog_not_bits);
+		__mlog_set_u64(mask, mlog_analt_bits);
 		__mlog_clear_u64(mask, mlog_and_bits);
 	} else if (!strncasecmp(buf, "off", 3)) {
-		__mlog_clear_u64(mask, mlog_not_bits);
+		__mlog_clear_u64(mask, mlog_analt_bits);
 		__mlog_clear_u64(mask, mlog_and_bits);
 	} else
 		return -EINVAL;
@@ -57,14 +57,14 @@ void __mlog_printk(const u64 *mask, const char *func, int line,
 	const char *prefix = "";
 
 	if (!__mlog_test_u64(*mask, mlog_and_bits) ||
-	    __mlog_test_u64(*mask, mlog_not_bits))
+	    __mlog_test_u64(*mask, mlog_analt_bits))
 		return;
 
 	if (*mask & ML_ERROR) {
 		level = KERN_ERR;
 		prefix = "ERROR: ";
-	} else if (*mask & ML_NOTICE) {
-		level = KERN_NOTICE;
+	} else if (*mask & ML_ANALTICE) {
+		level = KERN_ANALTICE;
 	} else {
 		level = KERN_INFO;
 	}
@@ -116,7 +116,7 @@ static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
 	define_mask(BASTS),
 	define_mask(CLUSTER),
 	define_mask(ERROR),
-	define_mask(NOTICE),
+	define_mask(ANALTICE),
 	define_mask(KTHREAD),
 };
 

@@ -26,7 +26,7 @@
  */
 #define MTS		(1<<2)
 
-/* FIXME: I have no idea what's the difference between
+/* FIXME: I have anal idea what's the difference between
    D2620 and D2633 firmwares
  */
 #define D2620		(1<<3)
@@ -47,7 +47,7 @@
 /* There's a FM | BASE firmware + FM specific firmware (std=0) */
 #define	FM		(1<<10)
 
-#define STD_SPECIFIC_TYPES (MTS|FM|LCD|NOGD)
+#define STD_SPECIFIC_TYPES (MTS|FM|LCD|ANALGD)
 
 /* Applies only for FM firmware
    Makes it use RF input 1 (pin #2) instead of input 2 (pin #4)
@@ -56,23 +56,23 @@
 
 
 /* LCD firmwares exist only for MTS STD/MN (PAL or NTSC/M)
-	and for non-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
-	There are variants both with and without NOGD
+	and for analn-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
+	There are variants both with and without ANALGD
 	Those firmwares produce better result with LCD displays
  */
 #define LCD		(1<<12)
 
-/* NOGD firmwares exist only for MTS STD/MN (PAL or NTSC/M)
-	and for non-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
-	The NOGD firmwares don't have group delay compensation filter
+/* ANALGD firmwares exist only for MTS STD/MN (PAL or NTSC/M)
+	and for analn-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
+	The ANALGD firmwares don't have group delay compensation filter
  */
-#define NOGD		(1<<13)
+#define ANALGD		(1<<13)
 
 /* Old firmwares were broken into init0 and init1 */
 #define INIT1		(1<<14)
 
 /* SCODE firmware selects particular behaviours */
-#define MONO           (1 << 15)
+#define MOANAL           (1 << 15)
 #define ATSC           (1 << 16)
 #define IF             (1 << 17)
 #define LG60           (1 << 18)
@@ -91,17 +91,17 @@
 /* This flag identifies that the scode table has a new format */
 #define HAS_IF         (1 << 30)
 
-/* There are different scode tables for MTS and non-MTS.
-   The MTS firmwares support mono only
+/* There are different scode tables for MTS and analn-MTS.
+   The MTS firmwares support moanal only
   */
 #define SCODE_TYPES (SCODE | MTS)
 
 
-/* Newer types not defined on videodev2.h.
+/* Newer types analt defined on videodev2.h.
    The original idea were to move all those types to videodev2.h, but
    it seemed overkill, since, with the exception of SECAM/K3, the other
    types seem to be autodetected.
-   It is not clear where secam/k3 is used, nor we have a feedback of this
+   It is analt clear where secam/k3 is used, analr we have a feedback of this
    working or being autodetected by the standard secam firmware.
  */
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/fsnotify_backend.h>
+#include <linux/fsanaltify_backend.h>
 #include <linux/idr.h>
 #include <linux/init.h>
-#include <linux/inotify.h>
-#include <linux/fanotify.h>
+#include <linux/ianaltify.h>
+#include <linux/faanaltify.h>
 #include <linux/kernel.h>
 #include <linux/namei.h>
 #include <linux/sched.h>
@@ -13,33 +13,33 @@
 #include <linux/seq_file.h>
 #include <linux/exportfs.h>
 
-#include "inotify/inotify.h"
-#include "fanotify/fanotify.h"
+#include "ianaltify/ianaltify.h"
+#include "faanaltify/faanaltify.h"
 #include "fdinfo.h"
-#include "fsnotify.h"
+#include "fsanaltify.h"
 
 #if defined(CONFIG_PROC_FS)
 
-#if defined(CONFIG_INOTIFY_USER) || defined(CONFIG_FANOTIFY)
+#if defined(CONFIG_IANALTIFY_USER) || defined(CONFIG_FAANALTIFY)
 
 static void show_fdinfo(struct seq_file *m, struct file *f,
 			void (*show)(struct seq_file *m,
-				     struct fsnotify_mark *mark))
+				     struct fsanaltify_mark *mark))
 {
-	struct fsnotify_group *group = f->private_data;
-	struct fsnotify_mark *mark;
+	struct fsanaltify_group *group = f->private_data;
+	struct fsanaltify_mark *mark;
 
-	fsnotify_group_lock(group);
+	fsanaltify_group_lock(group);
 	list_for_each_entry(mark, &group->marks_list, g_list) {
 		show(m, mark);
 		if (seq_has_overflowed(m))
 			break;
 	}
-	fsnotify_group_unlock(group);
+	fsanaltify_group_unlock(group);
 }
 
 #if defined(CONFIG_EXPORTFS)
-static void show_mark_fhandle(struct seq_file *m, struct inode *inode)
+static void show_mark_fhandle(struct seq_file *m, struct ianalde *ianalde)
 {
 	struct {
 		struct file_handle handle;
@@ -50,9 +50,9 @@ static void show_mark_fhandle(struct seq_file *m, struct inode *inode)
 	f.handle.handle_bytes = sizeof(f.pad);
 	size = f.handle.handle_bytes >> 2;
 
-	ret = exportfs_encode_fid(inode, (struct fid *)f.handle.f_handle, &size);
+	ret = exportfs_encode_fid(ianalde, (struct fid *)f.handle.f_handle, &size);
 	if ((ret == FILEID_INVALID) || (ret < 0)) {
-		WARN_ONCE(1, "Can't encode file handler for inotify: %d\n", ret);
+		WARN_ONCE(1, "Can't encode file handler for ianaltify: %d\n", ret);
 		return;
 	}
 
@@ -66,83 +66,83 @@ static void show_mark_fhandle(struct seq_file *m, struct inode *inode)
 		seq_printf(m, "%02x", (int)f.handle.f_handle[i]);
 }
 #else
-static void show_mark_fhandle(struct seq_file *m, struct inode *inode)
+static void show_mark_fhandle(struct seq_file *m, struct ianalde *ianalde)
 {
 }
 #endif
 
-#ifdef CONFIG_INOTIFY_USER
+#ifdef CONFIG_IANALTIFY_USER
 
-static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+static void ianaltify_fdinfo(struct seq_file *m, struct fsanaltify_mark *mark)
 {
-	struct inotify_inode_mark *inode_mark;
-	struct inode *inode;
+	struct ianaltify_ianalde_mark *ianalde_mark;
+	struct ianalde *ianalde;
 
-	if (mark->connector->type != FSNOTIFY_OBJ_TYPE_INODE)
+	if (mark->connector->type != FSANALTIFY_OBJ_TYPE_IANALDE)
 		return;
 
-	inode_mark = container_of(mark, struct inotify_inode_mark, fsn_mark);
-	inode = igrab(fsnotify_conn_inode(mark->connector));
-	if (inode) {
-		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:0 ",
-			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
-			   inotify_mark_user_mask(mark));
-		show_mark_fhandle(m, inode);
+	ianalde_mark = container_of(mark, struct ianaltify_ianalde_mark, fsn_mark);
+	ianalde = igrab(fsanaltify_conn_ianalde(mark->connector));
+	if (ianalde) {
+		seq_printf(m, "ianaltify wd:%x ianal:%lx sdev:%x mask:%x iganalred_mask:0 ",
+			   ianalde_mark->wd, ianalde->i_ianal, ianalde->i_sb->s_dev,
+			   ianaltify_mark_user_mask(mark));
+		show_mark_fhandle(m, ianalde);
 		seq_putc(m, '\n');
-		iput(inode);
+		iput(ianalde);
 	}
 }
 
-void inotify_show_fdinfo(struct seq_file *m, struct file *f)
+void ianaltify_show_fdinfo(struct seq_file *m, struct file *f)
 {
-	show_fdinfo(m, f, inotify_fdinfo);
+	show_fdinfo(m, f, ianaltify_fdinfo);
 }
 
-#endif /* CONFIG_INOTIFY_USER */
+#endif /* CONFIG_IANALTIFY_USER */
 
-#ifdef CONFIG_FANOTIFY
+#ifdef CONFIG_FAANALTIFY
 
-static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+static void faanaltify_fdinfo(struct seq_file *m, struct fsanaltify_mark *mark)
 {
-	unsigned int mflags = fanotify_mark_user_flags(mark);
-	struct inode *inode;
+	unsigned int mflags = faanaltify_mark_user_flags(mark);
+	struct ianalde *ianalde;
 
-	if (mark->connector->type == FSNOTIFY_OBJ_TYPE_INODE) {
-		inode = igrab(fsnotify_conn_inode(mark->connector));
-		if (!inode)
+	if (mark->connector->type == FSANALTIFY_OBJ_TYPE_IANALDE) {
+		ianalde = igrab(fsanaltify_conn_ianalde(mark->connector));
+		if (!ianalde)
 			return;
-		seq_printf(m, "fanotify ino:%lx sdev:%x mflags:%x mask:%x ignored_mask:%x ",
-			   inode->i_ino, inode->i_sb->s_dev,
-			   mflags, mark->mask, mark->ignore_mask);
-		show_mark_fhandle(m, inode);
+		seq_printf(m, "faanaltify ianal:%lx sdev:%x mflags:%x mask:%x iganalred_mask:%x ",
+			   ianalde->i_ianal, ianalde->i_sb->s_dev,
+			   mflags, mark->mask, mark->iganalre_mask);
+		show_mark_fhandle(m, ianalde);
 		seq_putc(m, '\n');
-		iput(inode);
-	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
-		struct mount *mnt = fsnotify_conn_mount(mark->connector);
+		iput(ianalde);
+	} else if (mark->connector->type == FSANALTIFY_OBJ_TYPE_VFSMOUNT) {
+		struct mount *mnt = fsanaltify_conn_mount(mark->connector);
 
-		seq_printf(m, "fanotify mnt_id:%x mflags:%x mask:%x ignored_mask:%x\n",
-			   mnt->mnt_id, mflags, mark->mask, mark->ignore_mask);
-	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_SB) {
-		struct super_block *sb = fsnotify_conn_sb(mark->connector);
+		seq_printf(m, "faanaltify mnt_id:%x mflags:%x mask:%x iganalred_mask:%x\n",
+			   mnt->mnt_id, mflags, mark->mask, mark->iganalre_mask);
+	} else if (mark->connector->type == FSANALTIFY_OBJ_TYPE_SB) {
+		struct super_block *sb = fsanaltify_conn_sb(mark->connector);
 
-		seq_printf(m, "fanotify sdev:%x mflags:%x mask:%x ignored_mask:%x\n",
-			   sb->s_dev, mflags, mark->mask, mark->ignore_mask);
+		seq_printf(m, "faanaltify sdev:%x mflags:%x mask:%x iganalred_mask:%x\n",
+			   sb->s_dev, mflags, mark->mask, mark->iganalre_mask);
 	}
 }
 
-void fanotify_show_fdinfo(struct seq_file *m, struct file *f)
+void faanaltify_show_fdinfo(struct seq_file *m, struct file *f)
 {
-	struct fsnotify_group *group = f->private_data;
+	struct fsanaltify_group *group = f->private_data;
 
-	seq_printf(m, "fanotify flags:%x event-flags:%x\n",
-		   group->fanotify_data.flags & FANOTIFY_INIT_FLAGS,
-		   group->fanotify_data.f_flags);
+	seq_printf(m, "faanaltify flags:%x event-flags:%x\n",
+		   group->faanaltify_data.flags & FAANALTIFY_INIT_FLAGS,
+		   group->faanaltify_data.f_flags);
 
-	show_fdinfo(m, f, fanotify_fdinfo);
+	show_fdinfo(m, f, faanaltify_fdinfo);
 }
 
-#endif /* CONFIG_FANOTIFY */
+#endif /* CONFIG_FAANALTIFY */
 
-#endif /* CONFIG_INOTIFY_USER || CONFIG_FANOTIFY */
+#endif /* CONFIG_IANALTIFY_USER || CONFIG_FAANALTIFY */
 
 #endif /* CONFIG_PROC_FS */

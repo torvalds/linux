@@ -42,7 +42,7 @@ enum aead_algo {
 
 struct snp_guest_msg_hdr {
 	u8 authtag[MAX_AUTHTAG_LEN];
-	u64 msg_seqno;
+	u64 msg_seqanal;
 	u8 rsvd1[8];
 	u8 algo;
 	u8 hdr_version;

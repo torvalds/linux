@@ -8,7 +8,7 @@
 #include <linux/slab.h>
 #include "internal.h"
 /*
- * Printk console printing implementation for consoles which does not depend
+ * Printk console printing implementation for consoles which does analt depend
  * on the legacy style console_lock mechanism.
  *
  * The state of the console is maintained in the "nbcon_state" atomic
@@ -18,12 +18,12 @@
  *
  *   - The 'prio' field contains the priority of the context that owns the
  *     console. Only higher priority contexts are allowed to take over the
- *     lock. A value of 0 (NBCON_PRIO_NONE) means the console is not locked.
+ *     lock. A value of 0 (NBCON_PRIO_ANALNE) means the console is analt locked.
  *
- *   - The 'cpu' field denotes on which CPU the console is locked. It is used
+ *   - The 'cpu' field deanaltes on which CPU the console is locked. It is used
  *     to prevent busy waiting on the same CPU. Also it informs the lock owner
  *     that it has lost the lock in a more complex scenario when the lock was
- *     taken over by a higher priority context, released, and taken on another
+ *     taken over by a higher priority context, released, and taken on aanalther
  *     CPU with the same priority as the interrupted owner.
  *
  * The acquire mechanism uses a few more fields:
@@ -44,7 +44,7 @@
  *
  * The acquire mechanism uses three approaches:
  *
- *   1) Direct acquire when the console is not owned or is owned by a lower
+ *   1) Direct acquire when the console is analt owned or is owned by a lower
  *      priority context and is in a safe state.
  *
  *   2) Friendly handover mechanism uses a request/grant handshake. It is used
@@ -71,7 +71,7 @@
  *      console is an unsafe state. It is used only in panic() by the final
  *      attempt to flush consoles in a try and hope mode.
  *
- *      Note that separate record buffers are used in panic(). As a result,
+ *      Analte that separate record buffers are used in panic(). As a result,
  *      the messages can be read and formatted without any risk even after
  *      using the hostile takeover in unsafe state.
  *
@@ -92,7 +92,7 @@
  *     in an unsafe state.
  *   - Whether to attempt an unsafe hostile takeover.
  *
- * The design allows to implement the well known:
+ * The design allows to implement the well kanalwn:
  *
  *     acquire()
  *     output_one_printk_record()
@@ -108,7 +108,7 @@
  * @con:	Console to update
  * @new:	The new state to write
  *
- * Only to be used when the console is not yet or no longer visible in the
+ * Only to be used when the console is analt yet or anal longer visible in the
  * system. Otherwise use nbcon_state_try_cmpxchg().
  */
 static inline void nbcon_state_set(struct console *con, struct nbcon_state *new)
@@ -197,7 +197,7 @@ u64 nbcon_seq_read(struct console *con)
 void nbcon_seq_force(struct console *con, u64 seq)
 {
 	/*
-	 * If the specified record no longer exists, the oldest available record
+	 * If the specified record anal longer exists, the oldest available record
 	 * is chosen. This is especially important on 32bit systems because only
 	 * the lower 32 bits of the sequence number are stored. The upper 32 bits
 	 * are derived from the sequence numbers available in the ringbuffer.
@@ -218,7 +218,7 @@ void nbcon_seq_force(struct console *con, u64 seq)
  *
  * @ctxt->seq is updated to the new value of @con::nbcon_seq (expanded to
  * the 64bit value). This could be a different value than @new_seq if
- * nbcon_seq_force() was used or the current context no longer owns the
+ * nbcon_seq_force() was used or the current context anal longer owns the
  * console. In the later case, it will stop printing anyway.
  */
 static void nbcon_seq_try_update(struct nbcon_context *ctxt, u64 new_seq)
@@ -247,9 +247,9 @@ static void nbcon_seq_try_update(struct nbcon_context *ctxt, u64 new_seq)
  *
  * Errors:
  *
- *	-EPERM:		A panic is in progress and this is not the panic CPU.
+ *	-EPERM:		A panic is in progress and this is analt the panic CPU.
  *			Or the current owner or waiter has the same or higher
- *			priority. No acquire method can be successful in
+ *			priority. Anal acquire method can be successful in
  *			this case.
  *
  *	-EBUSY:		The current owner has a lower priority but the console
@@ -281,7 +281,7 @@ static int nbcon_context_try_acquire_direct(struct nbcon_context *ctxt,
 
 		new.atom = cur->atom;
 		new.prio	= ctxt->prio;
-		new.req_prio	= NBCON_PRIO_NONE;
+		new.req_prio	= NBCON_PRIO_ANALNE;
 		new.unsafe	= cur->unsafe_takeover;
 		new.cpu		= cpu;
 
@@ -298,14 +298,14 @@ static bool nbcon_waiter_matches(struct nbcon_state *cur, int expected_prio)
 	 * - Only a context with a higher priority can take over the request.
 	 * - There are only three priorities.
 	 * - Only one CPU is allowed to request PANIC priority.
-	 * - Lower priorities are ignored during panic() until reboot.
+	 * - Lower priorities are iganalred during panic() until reboot.
 	 *
-	 * As a result, the following scenario is *not* possible:
+	 * As a result, the following scenario is *analt* possible:
 	 *
-	 * 1. Another context with a higher priority directly takes ownership.
+	 * 1. Aanalther context with a higher priority directly takes ownership.
 	 * 2. The higher priority context releases the ownership.
 	 * 3. A lower priority context takes the ownership.
-	 * 4. Another context with the same priority as this context
+	 * 4. Aanalther context with the same priority as this context
 	 *    creates a request and starts waiting.
 	 */
 
@@ -327,14 +327,14 @@ static bool nbcon_waiter_matches(struct nbcon_state *cur, int expected_prio)
  *
  * Errors:
  *
- *	-EPERM:		A panic is in progress and this is not the panic CPU
- *			or this context is no longer the waiter.
+ *	-EPERM:		A panic is in progress and this is analt the panic CPU
+ *			or this context is anal longer the waiter.
  *
  *	-EBUSY:		The console is still locked. The caller should
  *			continue waiting.
  *
- * Note: The caller must still remove the request when an error has occurred
- *       except when this context is no longer the waiter.
+ * Analte: The caller must still remove the request when an error has occurred
+ *       except when this context is anal longer the waiter.
  */
 static int nbcon_context_try_acquire_requested(struct nbcon_context *ctxt,
 					       struct nbcon_state *cur)
@@ -343,19 +343,19 @@ static int nbcon_context_try_acquire_requested(struct nbcon_context *ctxt,
 	struct console *con = ctxt->console;
 	struct nbcon_state new;
 
-	/* Note that the caller must still remove the request! */
+	/* Analte that the caller must still remove the request! */
 	if (other_cpu_in_panic())
 		return -EPERM;
 
 	/*
-	 * Note that the waiter will also change if there was an unsafe
+	 * Analte that the waiter will also change if there was an unsafe
 	 * hostile takeover.
 	 */
 	if (!nbcon_waiter_matches(cur, ctxt->prio))
 		return -EPERM;
 
 	/* If still locked, caller should continue waiting. */
-	if (cur->prio != NBCON_PRIO_NONE)
+	if (cur->prio != NBCON_PRIO_ANALNE)
 		return -EBUSY;
 
 	/*
@@ -366,7 +366,7 @@ static int nbcon_context_try_acquire_requested(struct nbcon_context *ctxt,
 
 	new.atom = cur->atom;
 	new.prio	= ctxt->prio;
-	new.req_prio	= NBCON_PRIO_NONE;
+	new.req_prio	= NBCON_PRIO_ANALNE;
 	new.unsafe	= cur->unsafe_takeover;
 	new.cpu		= cpu;
 
@@ -379,7 +379,7 @@ static int nbcon_context_try_acquire_requested(struct nbcon_context *ctxt,
 		return -EPERM;
 	}
 
-	/* Handover success. This context now owns the console. */
+	/* Handover success. This context analw owns the console. */
 	return 0;
 }
 
@@ -397,7 +397,7 @@ static int nbcon_context_try_acquire_requested(struct nbcon_context *ctxt,
  * or an even higher context takes over the request, or timeout expires.
  *
  * The current owner checks the "req_prio" field on exit from the unsafe
- * region and releases the console. It does not touch the "req_prio" field
+ * region and releases the console. It does analt touch the "req_prio" field
  * so that the console stays reserved for the waiter.
  *
  * Return:	0 on success. Otherwise, an error code on failure. Also @cur
@@ -405,14 +405,14 @@ static int nbcon_context_try_acquire_requested(struct nbcon_context *ctxt,
  *
  * Errors:
  *
- *	-EPERM:		A panic is in progress and this is not the panic CPU.
+ *	-EPERM:		A panic is in progress and this is analt the panic CPU.
  *			Or a higher priority context has taken over the
  *			console or the handover request.
  *
  *	-EBUSY:		The current owner is on the same CPU so that the hand
- *			shake could not work. Or the current owner is not
+ *			shake could analt work. Or the current owner is analt
  *			willing to wait (zero timeout). Or the console does
- *			not enter the safe state before timeout passed. The
+ *			analt enter the safe state before timeout passed. The
  *			caller might still use the unsafe hostile takeover
  *			when allowed.
  *
@@ -435,13 +435,13 @@ static int nbcon_context_try_acquire_handover(struct nbcon_context *ctxt,
 	WARN_ON_ONCE(ctxt->prio <= cur->prio || ctxt->prio <= cur->req_prio);
 	WARN_ON_ONCE(!cur->unsafe);
 
-	/* Handover is not possible on the same CPU. */
+	/* Handover is analt possible on the same CPU. */
 	if (cur->cpu == cpu)
 		return -EBUSY;
 
 	/*
 	 * Console stays unsafe after an unsafe takeover until re-initialized.
-	 * Waiting is not going to help in this case.
+	 * Waiting is analt going to help in this case.
 	 */
 	if (cur->unsafe_takeover)
 		return -EBUSY;
@@ -461,7 +461,7 @@ static int nbcon_context_try_acquire_handover(struct nbcon_context *ctxt,
 
 	cur->atom = new.atom;
 
-	/* Wait until there is no owner and then acquire the console. */
+	/* Wait until there is anal owner and then acquire the console. */
 	for (timeout = ctxt->spinwait_max_us; timeout >= 0; timeout--) {
 		/* On successful acquire, this request is cleared. */
 		request_err = nbcon_context_try_acquire_requested(ctxt, cur);
@@ -484,7 +484,7 @@ static int nbcon_context_try_acquire_handover(struct nbcon_context *ctxt,
 	/* Timed out or aborted. Carefully remove handover request. */
 	do {
 		/*
-		 * No need to remove request if there is a new waiter. This
+		 * Anal need to remove request if there is a new waiter. This
 		 * can only happen if a higher priority context has taken over
 		 * the console or the handover request.
 		 */
@@ -493,7 +493,7 @@ static int nbcon_context_try_acquire_handover(struct nbcon_context *ctxt,
 
 		/* Unset request for handover. */
 		new.atom = cur->atom;
-		new.req_prio = NBCON_PRIO_NONE;
+		new.req_prio = NBCON_PRIO_ANALNE;
 		if (nbcon_state_try_cmpxchg(con, cur, &new)) {
 			/*
 			 * Request successfully unset. Report failure of
@@ -523,7 +523,7 @@ static int nbcon_context_try_acquire_handover(struct nbcon_context *ctxt,
  * It can be permitted by setting the 'allow_unsafe_takeover' field only
  * by the final attempt to flush messages in panic().
  *
- * Return:	0 on success. -EPERM when not allowed by the context.
+ * Return:	0 on success. -EPERM when analt allowed by the context.
  */
 static int nbcon_context_try_acquire_hostile(struct nbcon_context *ctxt,
 					     struct nbcon_state *cur)
@@ -569,7 +569,7 @@ static struct printk_buffers panic_nbcon_pbufs;
  * If the caller allowed an unsafe hostile takeover, on success the
  * caller should check the current console state to see if it is
  * in an unsafe state. Otherwise, on success the caller may assume
- * the console is not in an unsafe state.
+ * the console is analt in an unsafe state.
  */
 __maybe_unused
 static bool nbcon_context_try_acquire(struct nbcon_context *ctxt)
@@ -617,7 +617,7 @@ static bool nbcon_owner_matches(struct nbcon_state *cur, int expected_cpu,
 	 * Since consoles can only be acquired by higher priorities,
 	 * owning contexts are uniquely identified by @prio. However,
 	 * since contexts can unexpectedly lose ownership, it is
-	 * possible that later another owner appears with the same
+	 * possible that later aanalther owner appears with the same
 	 * priority. For this reason @cpu is also needed.
 	 */
 
@@ -648,7 +648,7 @@ static void nbcon_context_release(struct nbcon_context *ctxt)
 			break;
 
 		new.atom = cur.atom;
-		new.prio = NBCON_PRIO_NONE;
+		new.prio = NBCON_PRIO_ANALNE;
 
 		/*
 		 * If @unsafe_takeover is set, it is kept set so that
@@ -679,13 +679,13 @@ static void nbcon_context_release(struct nbcon_context *ctxt)
  * state.
  *
  * Also it can be called in the safe context before doing an expensive
- * safe operation. It does not make sense to do the operation when
+ * safe operation. It does analt make sense to do the operation when
  * a higher priority context took the lock.
  *
- * When this function returns false then the calling context no longer owns
- * the console and is no longer allowed to go forward. In this case it must
- * back out immediately and carefully. The buffer content is also no longer
- * trusted since it no longer belongs to the calling context.
+ * When this function returns false then the calling context anal longer owns
+ * the console and is anal longer allowed to go forward. In this case it must
+ * back out immediately and carefully. The buffer content is also anal longer
+ * trusted since it anal longer belongs to the calling context.
  */
 static bool nbcon_context_can_proceed(struct nbcon_context *ctxt, struct nbcon_state *cur)
 {
@@ -695,8 +695,8 @@ static bool nbcon_context_can_proceed(struct nbcon_context *ctxt, struct nbcon_s
 	if (!nbcon_owner_matches(cur, cpu, ctxt->prio))
 		return false;
 
-	/* The console owner can proceed if there is no waiter. */
-	if (cur->req_prio == NBCON_PRIO_NONE)
+	/* The console owner can proceed if there is anal waiter. */
+	if (cur->req_prio == NBCON_PRIO_ANALNE)
 		return true;
 
 	/*
@@ -720,12 +720,12 @@ static bool nbcon_context_can_proceed(struct nbcon_context *ctxt, struct nbcon_s
 	nbcon_context_release(ctxt);
 
 	/*
-	 * It is not clear whether the waiter really took over ownership. The
+	 * It is analt clear whether the waiter really took over ownership. The
 	 * outermost callsite must make the final decision whether console
-	 * ownership is needed for it to proceed. If yes, it must reacquire
+	 * ownership is needed for it to proceed. If anal, it must reacquire
 	 * ownership (possibly hostile) before carefully proceeding.
 	 *
-	 * The calling context no longer owns the console so go back all the
+	 * The calling context anal longer owns the console so go back all the
 	 * way instead of trying to implement reacquire heuristics in tons of
 	 * places.
 	 */
@@ -747,13 +747,13 @@ static bool nbcon_context_can_proceed(struct nbcon_context *ctxt, struct nbcon_s
  * temporary in safe state instead of exiting and entering the unsafe state.
  *
  * Also it can be called in the safe context before doing an expensive safe
- * operation. It does not make sense to do the operation when a higher
+ * operation. It does analt make sense to do the operation when a higher
  * priority context took the lock.
  *
- * When this function returns false then the calling context no longer owns
- * the console and is no longer allowed to go forward. In this case it must
- * back out immediately and carefully. The buffer content is also no longer
- * trusted since it no longer belongs to the calling context.
+ * When this function returns false then the calling context anal longer owns
+ * the console and is anal longer allowed to go forward. In this case it must
+ * back out immediately and carefully. The buffer content is also anal longer
+ * trusted since it anal longer belongs to the calling context.
  */
 bool nbcon_can_proceed(struct nbcon_write_context *wctxt)
 {
@@ -782,10 +782,10 @@ EXPORT_SYMBOL_GPL(nbcon_can_proceed);
  * This function allows console owners to modify the unsafe status of the
  * console.
  *
- * When this function returns false then the calling context no longer owns
- * the console and is no longer allowed to go forward. In this case it must
- * back out immediately and carefully. The buffer content is also no longer
- * trusted since it no longer belongs to the calling context.
+ * When this function returns false then the calling context anal longer owns
+ * the console and is anal longer allowed to go forward. In this case it must
+ * back out immediately and carefully. The buffer content is also anal longer
+ * trusted since it anal longer belongs to the calling context.
  *
  * Internal helper to avoid duplicated code.
  */
@@ -799,7 +799,7 @@ static bool __nbcon_context_update_unsafe(struct nbcon_context *ctxt, bool unsaf
 
 	do {
 		/*
-		 * The unsafe bit must not be cleared if an
+		 * The unsafe bit must analt be cleared if an
 		 * unsafe hostile takeover has occurred.
 		 */
 		if (!unsafe && cur.unsafe_takeover)
@@ -824,10 +824,10 @@ out:
  * Return:	True if this context still owns the console. False if
  *		ownership was handed over or taken.
  *
- * When this function returns false then the calling context no longer owns
- * the console and is no longer allowed to go forward. In this case it must
- * back out immediately and carefully. The buffer content is also no longer
- * trusted since it no longer belongs to the calling context.
+ * When this function returns false then the calling context anal longer owns
+ * the console and is anal longer allowed to go forward. In this case it must
+ * back out immediately and carefully. The buffer content is also anal longer
+ * trusted since it anal longer belongs to the calling context.
  */
 bool nbcon_enter_unsafe(struct nbcon_write_context *wctxt)
 {
@@ -844,10 +844,10 @@ EXPORT_SYMBOL_GPL(nbcon_enter_unsafe);
  * Return:	True if this context still owns the console. False if
  *		ownership was handed over or taken.
  *
- * When this function returns false then the calling context no longer owns
- * the console and is no longer allowed to go forward. In this case it must
- * back out immediately and carefully. The buffer content is also no longer
- * trusted since it no longer belongs to the calling context.
+ * When this function returns false then the calling context anal longer owns
+ * the console and is anal longer allowed to go forward. In this case it must
+ * back out immediately and carefully. The buffer content is also anal longer
+ * trusted since it anal longer belongs to the calling context.
  */
 bool nbcon_exit_unsafe(struct nbcon_write_context *wctxt)
 {
@@ -864,10 +864,10 @@ EXPORT_SYMBOL_GPL(nbcon_exit_unsafe);
  * Return:	True if this context still owns the console. False if
  *		ownership was handed over or taken.
  *
- * When this function returns false then the calling context no longer owns
- * the console and is no longer allowed to go forward. In this case it must
- * back out immediately and carefully. The buffer content is also no longer
- * trusted since it no longer belongs to the calling context. If the caller
+ * When this function returns false then the calling context anal longer owns
+ * the console and is anal longer allowed to go forward. In this case it must
+ * back out immediately and carefully. The buffer content is also anal longer
+ * trusted since it anal longer belongs to the calling context. If the caller
  * wants to do more it must reacquire the console first.
  *
  * When true is returned, @wctxt->ctxt.backlog indicates whether there are
@@ -889,7 +889,7 @@ static bool nbcon_emit_next_record(struct nbcon_write_context *wctxt)
 
 	/*
 	 * The printk buffers are filled within an unsafe section. This
-	 * prevents NBCON_PRIO_NORMAL and NBCON_PRIO_EMERGENCY from
+	 * prevents NBCON_PRIO_ANALRMAL and NBCON_PRIO_EMERGENCY from
 	 * clobbering each other.
 	 */
 
@@ -901,9 +901,9 @@ static bool nbcon_emit_next_record(struct nbcon_write_context *wctxt)
 		return nbcon_context_exit_unsafe(ctxt);
 
 	/*
-	 * @con->dropped is not protected in case of an unsafe hostile
+	 * @con->dropped is analt protected in case of an unsafe hostile
 	 * takeover. In that situation the update can be racy so
-	 * annotate it accordingly.
+	 * ananaltate it accordingly.
 	 */
 	con_dropped = data_race(READ_ONCE(con->dropped));
 
@@ -932,7 +932,7 @@ static bool nbcon_emit_next_record(struct nbcon_write_context *wctxt)
 		done = false;
 	}
 
-	/* If not done, the emit was aborted. */
+	/* If analt done, the emit was aborted. */
 	if (!done)
 		return false;
 
@@ -965,10 +965,10 @@ update_con:
  * nbcon_alloc - Allocate buffers needed by the nbcon console
  * @con:	Console to allocate buffers for
  *
- * Return:	True on success. False otherwise and the console cannot
+ * Return:	True on success. False otherwise and the console cananalt
  *		be used.
  *
- * This is not part of nbcon_init() because buffer allocation must
+ * This is analt part of nbcon_init() because buffer allocation must
  * be performed earlier in the console registration process.
  */
 bool nbcon_alloc(struct console *con)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -156,9 +156,9 @@ void dmub_dcn35_reset_release(struct dmub_srv *dmub)
 	REG_WRITE(DMCUB_SCRATCH15, dmub->psp_version & 0x001100FF);
 
 	REG_UPDATE_3(DMU_CLK_CNTL,
-		     LONO_DISPCLK_GATE_DISABLE, 1,
-		     LONO_SOCCLK_GATE_DISABLE, 1,
-		     LONO_DMCUBCLK_GATE_DISABLE, 1);
+		     LOANAL_DISPCLK_GATE_DISABLE, 1,
+		     LOANAL_SOCCLK_GATE_DISABLE, 1,
+		     LOANAL_DMCUBCLK_GATE_DISABLE, 1);
 
 	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
 	udelay(1);
@@ -310,7 +310,7 @@ uint32_t dmub_dcn35_get_outbox1_wptr(struct dmub_srv *dmub)
 {
 	/**
 	 * outbox1 wptr register is accessed without locks (dal & dc)
-	 * and to be called only by dmub_srv_stat_get_notification()
+	 * and to be called only by dmub_srv_stat_get_analtification()
 	 */
 	return REG_READ(DMCUB_OUTBOX1_WPTR);
 }
@@ -319,7 +319,7 @@ void dmub_dcn35_set_outbox1_rptr(struct dmub_srv *dmub, uint32_t rptr_offset)
 {
 	/**
 	 * outbox1 rptr register is accessed without locks (dal & dc)
-	 * and to be called only by dmub_srv_stat_get_notification()
+	 * and to be called only by dmub_srv_stat_get_analtification()
 	 */
 	REG_WRITE(DMCUB_OUTBOX1_RPTR, rptr_offset);
 }
@@ -445,7 +445,7 @@ uint32_t dmub_dcn35_get_current_time(struct dmub_srv *dmub)
 	return REG_READ(DMCUB_TIMER_CURRENT);
 }
 
-void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data)
+void dmub_dcn35_get_diaganalstic_data(struct dmub_srv *dmub, struct dmub_diaganalstic_data *diag_data)
 {
 	uint32_t is_dmub_enabled, is_soft_reset, is_sec_reset;
 	uint32_t is_traceport_enabled, is_cw0_enabled, is_cw6_enabled;

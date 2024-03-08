@@ -6,7 +6,7 @@
  * Copyright (C) 2015 Industrial Research Institute for Automation
  * and Measurements PIAP
  *
- * Notes
+ * Analtes
  * -----
  *
  * 1. Under stress-testing, it has been observed that the PCIe link
@@ -46,7 +46,7 @@
  * time span (iow, the maximum DMA interrupt rate) thus allowing for
  * IRQ coalescing.
  *
- * The chip datasheet does not mention a time unit for this value, so
+ * The chip datasheet does analt mention a time unit for this value, so
  * users wanting fine-grain control over the interrupt rate should
  * determine the desired value through testing.
  */
@@ -65,7 +65,7 @@ static const char *dma_mode_name(unsigned int mode)
 	case TW686X_DMA_MODE_SG:
 		return "sg";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -102,7 +102,7 @@ void tw686x_disable_channel(struct tw686x_dev *dev, unsigned int channel)
 	dev->pending_dma_en &= ~BIT(channel);
 	dev->pending_dma_cmd &= ~BIT(channel);
 
-	/* Stop DMA if no channels are enabled */
+	/* Stop DMA if anal channels are enabled */
 	if (!dma_en)
 		dma_cmd = 0;
 	reg_write(dev, DMA_CHANNEL_ENABLE, dma_en);
@@ -121,7 +121,7 @@ void tw686x_enable_channel(struct tw686x_dev *dev, unsigned int channel)
 /*
  * The purpose of this awful hack is to avoid enabling the DMA
  * channels "too fast" which makes some TW686x devices very
- * angry and freeze the CPU (see note 1).
+ * angry and freeze the CPU (see analte 1).
  */
 static void tw686x_dma_delay(struct timer_list *t)
 {
@@ -173,9 +173,9 @@ static irqreturn_t tw686x_irq(int irq, void *dev_id)
 	int_status = reg_read(dev, INT_STATUS); /* cleared on read */
 	fifo_status = reg_read(dev, VIDEO_FIFO_STATUS);
 
-	/* INT_STATUS does not include FIFO_STATUS errors! */
+	/* INT_STATUS does analt include FIFO_STATUS errors! */
 	if (!int_status && !TW686X_FIFO_ERROR(fifo_status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (int_status & INT_STATUS_DMA_TOUT) {
 		dev_dbg(&dev->pci_dev->dev,
@@ -245,7 +245,7 @@ static int tw686x_probe(struct pci_dev *pci_dev,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->type = pci_id->driver_data;
 	dev->dma_mode = dma_mode;
 	sprintf(dev->name, "tw%04X", pci_dev->device);
@@ -253,14 +253,14 @@ static int tw686x_probe(struct pci_dev *pci_dev,
 	dev->video_channels = kcalloc(max_channels(dev),
 		sizeof(*dev->video_channels), GFP_KERNEL);
 	if (!dev->video_channels) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_dev;
 	}
 
 	dev->audio_channels = kcalloc(max_channels(dev),
 		sizeof(*dev->audio_channels), GFP_KERNEL);
 	if (!dev->audio_channels) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_video;
 	}
 
@@ -278,7 +278,7 @@ static int tw686x_probe(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pci_dev->dev, "32-bit PCI DMA not supported\n");
+		dev_err(&pci_dev->dev, "32-bit PCI DMA analt supported\n");
 		err = -EIO;
 		goto disable_pci;
 	}
@@ -292,7 +292,7 @@ static int tw686x_probe(struct pci_dev *pci_dev,
 	dev->mmio = pci_ioremap_bar(pci_dev, 0);
 	if (!dev->mmio) {
 		dev_err(&pci_dev->dev, "unable to remap PCI region\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_region;
 	}
 
@@ -366,7 +366,7 @@ static void tw686x_remove(struct pci_dev *pci_dev)
 	struct tw686x_dev *dev = pci_get_drvdata(pci_dev);
 	unsigned long flags;
 
-	/* This guarantees the IRQ handler is no longer running,
+	/* This guarantees the IRQ handler is anal longer running,
 	 * which means we can kiss good-bye some resources.
 	 */
 	free_irq(pci_dev->irq, dev);
@@ -380,7 +380,7 @@ static void tw686x_remove(struct pci_dev *pci_dev)
 	pci_disable_device(pci_dev);
 
 	/*
-	 * Setting pci_dev to NULL allows to detect hardware is no longer
+	 * Setting pci_dev to NULL allows to detect hardware is anal longer
 	 * available and will be used by vb2_ops. This is required because
 	 * the device sometimes hot-unplugs itself as the result of a PCIe
 	 * link down.
@@ -392,7 +392,7 @@ static void tw686x_remove(struct pci_dev *pci_dev)
 
 	/*
 	 * This calls tw686x_dev_release if it's the last reference.
-	 * Otherwise, release is postponed until there are no users left.
+	 * Otherwise, release is postponed until there are anal users left.
 	 */
 	v4l2_device_put(&dev->v4l2_dev);
 }
@@ -420,15 +420,15 @@ static const struct pci_device_id tw686x_pci_tbl[] = {
 		.driver_data = 4
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, 0x6865), /* not tested */
+		PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, 0x6865), /* analt tested */
 		.driver_data = 4 | TYPE_SECOND_GEN
 	},
 	/*
 	 * TW6868 supports 8 A/V channels with an external TW2865 chip;
-	 * not supported by the driver.
+	 * analt supported by the driver.
 	 */
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, 0x6868), /* not tested */
+		PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, 0x6868), /* analt tested */
 		.driver_data = 4
 	},
 	{

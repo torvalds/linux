@@ -85,11 +85,11 @@
  *
  * Fills the &struct v4l2_queryctrl fields for the query control.
  *
- * .. note::
+ * .. analte::
  *
  *    This function assumes that the @qctrl->id field is filled.
  *
- * Returns -EINVAL if the control is not known by the V4L2 core, 0 on success.
+ * Returns -EINVAL if the control is analt kanalwn by the V4L2 core, 0 on success.
  */
 
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
@@ -125,7 +125,7 @@ struct v4l2_subdev_ops;
  *				Represent the following I2C addresses:
  *				0x60, 0x61, 0x62, 0x63 and 0x64.
  *
- * NOTE: All I2C addresses above use the 7-bit notation.
+ * ANALTE: All I2C addresses above use the 7-bit analtation.
  */
 enum v4l2_i2c_tuner_type {
 	ADDRS_RADIO,
@@ -209,7 +209,7 @@ unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd);
  * @type: type of the tuner to seek, as defined by
  *	  &enum v4l2_i2c_tuner_type.
  *
- * NOTE: Use only if the tuner addresses are unknown.
+ * ANALTE: Use only if the tuner addresses are unkanalwn.
  */
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type);
 
@@ -368,18 +368,18 @@ struct v4l2_priv_tun_config {
  * the @height will be a multiple of :math:`2^{halign}`, and the overall
  * size :math:`width * height` will be a multiple of :math:`2^{salign}`.
  *
- * .. note::
+ * .. analte::
  *
  *    #. The clipping rectangle may be shrunk or enlarged to fit the alignment
  *       constraints.
- *    #. @wmax must not be smaller than @wmin.
- *    #. @hmax must not be smaller than @hmin.
- *    #. The alignments must not be so high there are no possible image
+ *    #. @wmax must analt be smaller than @wmin.
+ *    #. @hmax must analt be smaller than @hmin.
+ *    #. The alignments must analt be so high there are anal possible image
  *       sizes within the allowed bounds.
  *    #. @wmin and @hmin must be at least 1 (don't use 0).
  *    #. For @walign, @halign and @salign, if you don't care about a certain
  *       alignment, specify ``0``, as :math:`2^0 = 1` and one byte alignment
- *       is equivalent to no alignment.
+ *       is equivalent to anal alignment.
  *    #. If you only want to adjust downward, specify a maximum that's the
  *       same as the initial value.
  */
@@ -451,8 +451,8 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 
 /* Compare two v4l2_fract structs */
 #define V4L2_FRACT_COMPARE(a, OP, b)			\
-	((u64)(a).numerator * (b).denominator OP	\
-	(u64)(b).numerator * (a).denominator)
+	((u64)(a).numerator * (b).deanalminator OP	\
+	(u64)(b).numerator * (a).deanalminator)
 
 /* ------------------------------------------------------------------------- */
 
@@ -461,13 +461,13 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 /**
  * enum v4l2_pixel_encoding - specifies the pixel encoding value
  *
- * @V4L2_PIXEL_ENC_UNKNOWN:	Pixel encoding is unknown/un-initialized
+ * @V4L2_PIXEL_ENC_UNKANALWN:	Pixel encoding is unkanalwn/un-initialized
  * @V4L2_PIXEL_ENC_YUV:		Pixel encoding is YUV
  * @V4L2_PIXEL_ENC_RGB:		Pixel encoding is RGB
  * @V4L2_PIXEL_ENC_BAYER:	Pixel encoding is Bayer
  */
 enum v4l2_pixel_encoding {
-	V4L2_PIXEL_ENC_UNKNOWN = 0,
+	V4L2_PIXEL_ENC_UNKANALWN = 0,
 	V4L2_PIXEL_ENC_YUV = 1,
 	V4L2_PIXEL_ENC_RGB = 2,
 	V4L2_PIXEL_ENC_BAYER = 3,
@@ -537,15 +537,15 @@ int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
  * calculated based on the V4L2_CID_PIXEL_RATE implemented by the transmitter.
  *
  * Returns link frequency on success, otherwise a negative error code:
- *	-ENOENT: Link frequency or pixel rate control not found
+ *	-EANALENT: Link frequency or pixel rate control analt found
  *	-EINVAL: Invalid link frequency value
  */
 s64 v4l2_get_link_freq(struct v4l2_ctrl_handler *handler, unsigned int mul,
 		       unsigned int div);
 
-void v4l2_simplify_fraction(u32 *numerator, u32 *denominator,
+void v4l2_simplify_fraction(u32 *numerator, u32 *deanalminator,
 		unsigned int n_terms, unsigned int threshold);
-u32 v4l2_fraction_to_interval(u32 numerator, u32 denominator);
+u32 v4l2_fraction_to_interval(u32 numerator, u32 deanalminator);
 
 static inline u64 v4l2_buffer_get_timestamp(const struct v4l2_buffer *buf)
 {

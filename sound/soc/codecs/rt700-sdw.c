@@ -305,7 +305,7 @@ static const struct regmap_config rt700_sdw_regmap = {
 	.val_bits = 8,
 	.readable_reg = rt700_readable_register,
 	.max_register = 0xff01,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -352,7 +352,7 @@ static int rt700_read_prop(struct sdw_slave *slave)
 						sizeof(*prop->src_dpn_prop),
 						GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -365,13 +365,13 @@ static int rt700_read_prop(struct sdw_slave *slave)
 		i++;
 	}
 
-	/* do this again for sink now */
+	/* do this again for sink analw */
 	nval = hweight32(prop->sink_ports);
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 						sizeof(*prop->sink_dpn_prop),
 						GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->sink_dpn_prop;
@@ -428,7 +428,7 @@ static int rt700_interrupt_callback(struct sdw_slave *slave,
 
 /*
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
- * port_prep are not defined for now
+ * port_prep are analt defined for analw
  */
 static const struct sdw_slave_ops rt700_slave_ops = {
 	.read_prop = rt700_read_prop,
@@ -506,13 +506,13 @@ static int __maybe_unused rt700_dev_system_suspend(struct device *dev)
 	 */
 	mutex_lock(&rt700->disable_irq_lock);
 	rt700->disable_irq = true;
-	ret = sdw_update_no_pm(slave, SDW_SCP_INTMASK1,
+	ret = sdw_update_anal_pm(slave, SDW_SCP_INTMASK1,
 			       SDW_SCP_INT1_IMPL_DEF, 0);
 	mutex_unlock(&rt700->disable_irq_lock);
 
 	if (ret < 0) {
 		/* log but don't prevent suspend from happening */
-		dev_dbg(&slave->dev, "%s: could not disable imp-def interrupts\n:", __func__);
+		dev_dbg(&slave->dev, "%s: could analt disable imp-def interrupts\n:", __func__);
 	}
 
 	return rt700_dev_suspend(dev);
@@ -535,7 +535,7 @@ static int __maybe_unused rt700_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT700_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * g_printer.h -- Header file for USB Printer gadget driver
  *
@@ -15,20 +15,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef __LINUX_USB_G_PRINTER_H
 #define __LINUX_USB_G_PRINTER_H
 
-#define PRINTER_NOT_ERROR	0x08
+#define PRINTER_ANALT_ERROR	0x08
 #define PRINTER_SELECTED	0x10
 #define PRINTER_PAPER_EMPTY	0x20
 
 /* The 'g' code is also used by gadgetfs ioctl requests.
  * Don't add any colliding codes to either driver, and keep
- * them in unique ranges (size 0x20 for now).
+ * them in unique ranges (size 0x20 for analw).
  */
 #define GADGET_GET_PRINTER_STATUS	_IOR('g', 0x21, unsigned char)
 #define GADGET_SET_PRINTER_STATUS	_IOWR('g', 0x22, unsigned char)

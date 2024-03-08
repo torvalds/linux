@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -54,7 +54,7 @@ nvkm_udevice_info_subdev(struct nvkm_device *device, u64 mthd, u64 *data)
 	subdev = nvkm_device_subdev(device, type, 0);
 	if (subdev)
 		return nvkm_subdev_info(subdev, mthd, data);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void
@@ -80,7 +80,7 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 		struct nv_device_info_v0 v0;
 		struct nv_device_info_v1 v1;
 	} *args = data;
-	int ret = -ENOSYS, i;
+	int ret = -EANALSYS, i;
 
 	nvif_ioctl(object, "device info size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v1, 1, 1, true))) {
@@ -175,7 +175,7 @@ nvkm_udevice_time(struct nvkm_udevice *udev, void *data, u32 size)
 	union {
 		struct nv_device_time_v0 v0;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "device time size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -391,7 +391,7 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	struct nvkm_object *parent = &client->object;
 	const struct nvkm_object_func *func;
 	struct nvkm_udevice *udev;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(parent, "create device size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -407,7 +407,7 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 		func = &nvkm_udevice;
 
 	if (!(udev = kzalloc(sizeof(*udev), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(func, oclass, &udev->object);
 	*pobject = &udev->object;
 
@@ -417,7 +417,7 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	else
 		udev->device = nvkm_device_find(client->device);
 	if (!udev->device)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

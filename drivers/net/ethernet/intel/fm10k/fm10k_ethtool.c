@@ -81,7 +81,7 @@ static const struct fm10k_stats fm10k_gstrings_pf_stats[] = {
 	FM10K_STAT("xec", stats.xec.count),
 	FM10K_STAT("vlan_drop", stats.vlan_drop.count),
 	FM10K_STAT("loopback_drop", stats.loopback_drop.count),
-	FM10K_STAT("nodesc_drop", stats.nodesc_drop.count),
+	FM10K_STAT("analdesc_drop", stats.analdesc_drop.count),
 };
 
 /* mailbox statistics */
@@ -214,7 +214,7 @@ static int fm10k_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return FM10K_PRV_FLAG_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -225,7 +225,7 @@ static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
 	unsigned int i;
 
 	if (!pointer) {
-		/* memory is not zero allocated so we have to clear it */
+		/* memory is analt zero allocated so we have to clear it */
 		for (i = 0; i < size; i++)
 			*((*data)++) = 0;
 		return;
@@ -541,7 +541,7 @@ static int fm10k_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_count == interface->tx_ring_count) &&
 	    (new_rx_count == interface->rx_ring_count)) {
-		/* nothing to do */
+		/* analthing to do */
 		return 0;
 	}
 
@@ -563,7 +563,7 @@ static int fm10k_set_ringparam(struct net_device *netdev,
 	temp_ring = vmalloc(array_size(i, sizeof(struct fm10k_ring)));
 
 	if (!temp_ring) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto clear_reset;
 	}
 
@@ -736,7 +736,7 @@ static int fm10k_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			   u32 __always_unused *rule_locs)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -761,7 +761,7 @@ static int fm10k_set_rss_hash_opt(struct fm10k_intfc *interface,
 	int rss_ipv6_udp = test_bit(FM10K_FLAG_RSS_FIELD_IPV6_UDP,
 				    interface->flags);
 
-	/* RSS does not support anything other than hashing
+	/* RSS does analt support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -829,7 +829,7 @@ static int fm10k_set_rss_hash_opt(struct fm10k_intfc *interface,
 		return -EINVAL;
 	}
 
-	/* If something changed we need to update the MRQC register. Note that
+	/* If something changed we need to update the MRQC register. Analte that
 	 * test_bit() is guaranteed to return strictly 0 or 1, so testing for
 	 * equality is safe.
 	 */
@@ -874,7 +874,7 @@ static int fm10k_set_rss_hash_opt(struct fm10k_intfc *interface,
 static int fm10k_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXFH:
@@ -895,7 +895,7 @@ static int fm10k_mbx_test(struct fm10k_intfc *interface, u64 *data)
 	unsigned long timeout;
 	int err = -EINVAL;
 
-	/* For now this is a VF only feature */
+	/* For analw this is a VF only feature */
 	if (hw->mac.type != fm10k_mac_vf)
 		return 0;
 
@@ -907,7 +907,7 @@ static int fm10k_mbx_test(struct fm10k_intfc *interface, u64 *data)
 		fm10k_tlv_msg_test_create(test_msg, attr_flag);
 
 		fm10k_mbx_lock(interface);
-		mbx->test_result = FM10K_NOT_IMPLEMENTED;
+		mbx->test_result = FM10K_ANALT_IMPLEMENTED;
 		err = mbx->ops.enqueue_tx(hw, mbx, test_msg);
 		fm10k_mbx_unlock(interface);
 
@@ -1084,10 +1084,10 @@ static int fm10k_set_rssh(struct net_device *netdev,
 	struct fm10k_hw *hw = &interface->hw;
 	int i, err;
 
-	/* We do not allow change in unsupported parameters */
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	/* We do analt allow change in unsupported parameters */
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = fm10k_set_reta(netdev, rxfh->indir);
 	if (err || !rxfh->key)
@@ -1128,7 +1128,7 @@ static void fm10k_get_channels(struct net_device *dev,
 	ch->max_combined = fm10k_max_channels(dev);
 
 	/* report info for other vector */
-	ch->max_other = NON_Q_VECTORS;
+	ch->max_other = ANALN_Q_VECTORS;
 	ch->other_count = ch->max_other;
 
 	/* record RSS queues */
@@ -1141,15 +1141,15 @@ static int fm10k_set_channels(struct net_device *dev,
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	unsigned int count = ch->combined_count;
 
-	/* verify they are not requesting separate vectors */
+	/* verify they are analt requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
-	/* verify other_count has not changed */
-	if (ch->other_count != NON_Q_VECTORS)
+	/* verify other_count has analt changed */
+	if (ch->other_count != ANALN_Q_VECTORS)
 		return -EINVAL;
 
-	/* verify the number of channels does not exceed hardware limits */
+	/* verify the number of channels does analt exceed hardware limits */
 	if (count > fm10k_max_channels(dev))
 		return -EINVAL;
 

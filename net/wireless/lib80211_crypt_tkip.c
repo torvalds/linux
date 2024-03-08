@@ -410,7 +410,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -6;
 	}
 	if (!tkey->key_set) {
-		net_dbg_ratelimited("TKIP: received packet from %pM with keyid=%d that does not have a configured key\n",
+		net_dbg_ratelimited("TKIP: received packet from %pM with keyid=%d that does analt have a configured key\n",
 				    hdr->addr2, keyidx);
 		return -3;
 	}
@@ -607,7 +607,7 @@ static int lib80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 	}
 
-	/* Update TSC counters for RX now that the packet verification has
+	/* Update TSC counters for RX analw that the packet verification has
 	 * completed. */
 	tkey->rx_iv32 = tkey->rx_iv32_new;
 	tkey->rx_iv16 = tkey->rx_iv16_new;
@@ -663,7 +663,7 @@ static int lib80211_tkip_get_key(void *key, int len, u8 * seq, void *priv)
 
 	if (seq) {
 		/*
-		 * Not clear if this should return the value as is
+		 * Analt clear if this should return the value as is
 		 * or - as the code previously seemed to partially
 		 * have been written as - subtract one from it. It
 		 * was working this way for a long time so leave it.

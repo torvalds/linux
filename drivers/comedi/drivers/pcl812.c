@@ -53,7 +53,7 @@
  *	   5=A/D input range is +/-0.3125V
  *   [5] - 0=D/A outputs 0-5V  (internal reference -5V)
  *	   1=D/A outputs 0-10V (internal reference -10V)
- *	   2=D/A outputs unknown (external reference)
+ *	   2=D/A outputs unkanalwn (external reference)
  *
  * Options for PCL-812PG, ACL-8112PG:
  *   [0] - IO Base
@@ -65,7 +65,7 @@
  *	   1=A/D have max +/-10V input
  *   [5] - 0=D/A outputs 0-5V  (internal reference -5V)
  *	   1=D/A outputs 0-10V (internal reference -10V)
- *	   2=D/A outputs unknown (external reference)
+ *	   2=D/A outputs unkanalwn (external reference)
  *
  * Options for ACL-8112DG/HG, A-822PGL/PGH, A-823PGL/PGH, ACL-8216, A-826PG:
  *   [0] - IO Base
@@ -77,7 +77,7 @@
  *	   1=A/D channels are DIFF
  *   [5] - 0=D/A outputs 0-5V  (internal reference -5V)
  *	   1=D/A outputs 0-10V (internal reference -10V)
- *	   2=D/A outputs unknown (external reference)
+ *	   2=D/A outputs unkanalwn (external reference)
  *
  * Options for A-821PGL/PGH:
  *   [0] - IO Base
@@ -636,7 +636,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
 
 	if (devpriv->use_ext_trg)
@@ -646,7 +646,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_src(&cmd->convert_src, flags);
 
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -678,7 +678,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -880,7 +880,7 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		ret = comedi_buf_n_bytes_ready(s);
 	} else {
-		/* no new samples */
+		/* anal new samples */
 		ret = 0;
 	}
 
@@ -993,7 +993,7 @@ static void pcl812_reset(struct comedi_device *dev)
 
 	/*
 	 * Invalidate last_ai_chanspec then set analog input to
-	 * known channel/range.
+	 * kanalwn channel/range.
 	 */
 	devpriv->last_ai_chanspec = CR_PACK(16, 0, 0);
 	pcl812_ai_set_chan_range(dev, CR_PACK(0, 0, 0), 0);
@@ -1136,7 +1136,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
@@ -1242,7 +1242,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				s->range_table = &range_unipolar10;
 				break;
 			case 2:
-				s->range_table = &range_unknown;
+				s->range_table = &range_unkanalwn;
 				break;
 			default:
 				s->range_table = &range_unipolar5;

@@ -29,7 +29,7 @@
    Only the entries reg (to identify bank) and elbc-gpcm-* (initial BR/OR
    values) are required. The entries interrupt*, device_type, and uio_name
    are optional (as well as any type-specific options such as
-   netx5152,init-win0-offset). As long as no interrupt handler is needed,
+   netx5152,init-win0-offset). As long as anal interrupt handler is needed,
    this driver can be used without any type-specific implementation.
 
    The netx5152 type has been tested to work with the netX 51/52 hardware
@@ -118,13 +118,13 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 	reg_or_cur = in_be32(&bank->or);
 
 	if (attr == &dev_attr_reg_br) {
-		/* not allowed to change effective base address */
+		/* analt allowed to change effective base address */
 		if ((reg_br_cur & reg_or_cur & BR_BA) !=
 		    (reg_new & reg_or_cur & BR_BA)) {
 			return -EINVAL;
 		}
 
-		/* not allowed to change mode */
+		/* analt allowed to change mode */
 		if ((reg_new & BR_MSEL) != BR_MS_GPCM)
 			return -EINVAL;
 
@@ -132,7 +132,7 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 		out_be32(&bank->br, reg_new | BR_V);
 
 	} else if (attr == &dev_attr_reg_or) {
-		/* not allowed to change access mask */
+		/* analt allowed to change access mask */
 		if ((reg_or_cur & OR_GPCM_AM) != (reg_new & OR_GPCM_AM))
 			return -EINVAL;
 
@@ -165,7 +165,7 @@ static irqreturn_t netx5152_irq_handler(int irq, struct uio_info *info)
 	/* check if an interrupt is enabled and active */
 	if ((ioread32(reg_int_en) & ioread32(reg_int_stat) &
 	     DPM_HOST_INT_MASK) == 0) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* disable interrupts */
@@ -181,7 +181,7 @@ static void netx5152_init(struct uio_info *info)
 	const void *prop;
 
 	/* get an optional initial win0 offset */
-	prop = of_get_property(priv->dev->of_node,
+	prop = of_get_property(priv->dev->of_analde,
 			       "netx5152,init-win0-offset", NULL);
 	if (prop)
 		win0_offset = of_read_ulong(prop, 1);
@@ -223,31 +223,31 @@ static int check_of_data(struct fsl_elbc_gpcm *priv,
 	/* check specified bank */
 	if (priv->bank >= MAX_BANKS) {
 		dev_err(priv->dev, "invalid bank\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* check specified mode (BR_MS_GPCM is 0) */
 	if ((reg_br & BR_MSEL) != BR_MS_GPCM) {
 		dev_err(priv->dev, "unsupported mode\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* check specified mask vs. resource size */
 	if ((~(reg_or & OR_GPCM_AM) + 1) != resource_size(res)) {
 		dev_err(priv->dev, "address mask / size mismatch\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* check specified address */
 	if ((reg_br & reg_or & BR_BA) != fsl_lbc_addr(res->start)) {
 		dev_err(priv->dev, "base address mismatch\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
 }
 
-static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
+static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_analde *analde,
 		       struct resource *res, u32 *reg_br,
 		       u32 *reg_or, unsigned int *irq, char **name)
 {
@@ -256,28 +256,28 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 	int ret;
 
 	/* get the memory resource */
-	ret = of_address_to_resource(node, 0, res);
+	ret = of_address_to_resource(analde, 0, res);
 	if (ret) {
 		dev_err(priv->dev, "failed to get resource\n");
 		return ret;
 	}
 
 	/* get the bank number */
-	ret = of_property_read_u32(node, "reg", &priv->bank);
+	ret = of_property_read_u32(analde, "reg", &priv->bank);
 	if (ret) {
 		dev_err(priv->dev, "failed to get bank number\n");
 		return ret;
 	}
 
 	/* get BR value to set */
-	ret = of_property_read_u32(node, "elbc-gpcm-br", reg_br);
+	ret = of_property_read_u32(analde, "elbc-gpcm-br", reg_br);
 	if (ret) {
 		dev_err(priv->dev, "missing elbc-gpcm-br value\n");
 		return ret;
 	}
 
 	/* get OR value to set */
-	ret = of_property_read_u32(node, "elbc-gpcm-or", reg_or);
+	ret = of_property_read_u32(analde, "elbc-gpcm-or", reg_or);
 	if (ret) {
 		dev_err(priv->dev, "missing elbc-gpcm-or value\n");
 		return ret;
@@ -285,11 +285,11 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 
 	/* get optional peripheral type */
 	priv->name = "generic";
-	if (of_property_read_string(node, "device_type", &type) == 0)
+	if (of_property_read_string(analde, "device_type", &type) == 0)
 		setup_periph(priv, type);
 
 	/* get optional irq value */
-	*irq = irq_of_parse_and_map(node, 0);
+	*irq = irq_of_parse_and_map(analde, 0);
 
 	/* sanity check device tree data */
 	ret = check_of_data(priv, res, *reg_br, *reg_or);
@@ -297,18 +297,18 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 		return ret;
 
 	/* get optional uio name */
-	if (of_property_read_string(node, "uio_name", &dt_name) != 0)
+	if (of_property_read_string(analde, "uio_name", &dt_name) != 0)
 		dt_name = "eLBC_GPCM";
 	*name = devm_kstrdup(priv->dev, dt_name, GFP_KERNEL);
 	if (!*name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
 
 static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct fsl_elbc_gpcm *priv;
 	struct uio_info *info;
 	char *uio_name = NULL;
@@ -321,17 +321,17 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!fsl_lbc_ctrl_dev || !fsl_lbc_ctrl_dev->regs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* allocate private data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = &pdev->dev;
 	priv->lbc = fsl_lbc_ctrl_dev->regs;
 
 	/* get device tree data */
-	ret = get_of_data(priv, node, &res, &reg_br_new, &reg_or_new,
+	ret = get_of_data(priv, analde, &res, &reg_br_new, &reg_or_new,
 			  &irq, &uio_name);
 	if (ret)
 		return ret;
@@ -339,7 +339,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	/* allocate UIO structure */
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get current BR/OR values */
 	reg_br_cur = in_be32(&priv->lbc->bank[priv->bank].br);
@@ -351,8 +351,8 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 		    (reg_br_cur & reg_or_cur & BR_BA)
 		     != fsl_lbc_addr(res.start)) {
 			dev_err(priv->dev,
-				"bank in use by another peripheral\n");
-			return -ENODEV;
+				"bank in use by aanalther peripheral\n");
+			return -EANALDEV;
 		}
 
 		/* warn if behavior settings changing */
@@ -379,11 +379,11 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	info->mem[0].internal_addr = ioremap(res.start, resource_size(&res));
 	if (!info->mem[0].internal_addr) {
 		dev_err(priv->dev, "failed to map chip region\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* set all UIO data */
-	info->mem[0].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn", node);
+	info->mem[0].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn", analde);
 	info->mem[0].addr = res.start;
 	info->mem[0].size = resource_size(&res);
 	info->mem[0].memtype = UIO_MEM_PHYS;
@@ -397,7 +397,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 			info->handler = priv->irq_handler;
 		} else {
 			irq = 0;
-			dev_warn(priv->dev, "ignoring irq, no handler\n");
+			dev_warn(priv->dev, "iganalring irq, anal handler\n");
 		}
 	}
 
@@ -407,7 +407,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	/* register UIO device */
 	if (uio_register_device(priv->dev, info) != 0) {
 		dev_err(priv->dev, "UIO registration failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_err2;
 	}
 

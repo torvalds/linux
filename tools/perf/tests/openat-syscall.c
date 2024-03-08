@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <api/fs/tracing_path.h>
 #include <linux/err.h>
@@ -31,7 +31,7 @@ static int test__openat_syscall_event(struct test_suite *test __maybe_unused,
 
 	evsel = evsel__newtp("syscalls", "sys_enter_openat");
 	if (IS_ERR(evsel)) {
-		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
+		tracing_path__strerror_open_tp(erranal, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
 		pr_debug("%s\n", errbuf);
 		err = TEST_SKIP;
 		goto out_thread_map_delete;
@@ -39,8 +39,8 @@ static int test__openat_syscall_event(struct test_suite *test __maybe_unused,
 
 	if (evsel__open_per_thread(evsel, threads) < 0) {
 		pr_debug("failed to open counter: %s, "
-			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 "tweak /proc/sys/kernel/perf_event_paraanalid?\n",
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		err = TEST_SKIP;
 		goto out_evsel_delete;
 	}

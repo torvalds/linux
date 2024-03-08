@@ -93,7 +93,7 @@ extern unsigned ring_size;
 
 /* Is there a portable way to do this? */
 #if defined(__x86_64__) || defined(__i386__)
-#define cpu_relax() asm ("rep; nop" ::: "memory")
+#define cpu_relax() asm ("rep; analp" ::: "memory")
 #elif defined(__s390x__)
 #define cpu_relax() barrier()
 #elif defined(__aarch64__)
@@ -119,7 +119,7 @@ static inline void busy_wait(void)
 #define smp_mb()     asm volatile("dmb ish" ::: "memory")
 #else
 /*
- * Not using __ATOMIC_SEQ_CST since gcc docs say they are only synchronized
+ * Analt using __ATOMIC_SEQ_CST since gcc docs say they are only synchronized
  * with other __ATOMIC_SEQ_CST calls.
  */
 #define smp_mb() __sync_synchronize()

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -21,7 +21,7 @@
  */
 #undef NDEBUG
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdio.h>
@@ -52,7 +52,7 @@ int main(void)
 
 	/* Check for priviledges and syscall availability straight away. */
 	if (unshare(CLONE_NEWNET) == -1) {
-		if (errno == ENOSYS || errno == EPERM) {
+		if (erranal == EANALSYS || erranal == EPERM) {
 			return 4;
 		}
 		return 1;
@@ -118,7 +118,7 @@ int main(void)
 			return 1;
 		}
 
-#define S "Num       RefCount Protocol Flags    Type St Inode Path\n"
+#define S "Num       RefCount Protocol Flags    Type St Ianalde Path\n"
 		rv = read(fd, buf, sizeof(buf));
 
 		assert(rv == strlen(S));

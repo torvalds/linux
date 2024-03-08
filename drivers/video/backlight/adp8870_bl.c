@@ -7,7 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
@@ -248,7 +248,7 @@ static int adp8870_led_probe(struct i2c_client *client)
 	led = devm_kcalloc(&client->dev, pdata->num_leds, sizeof(*led),
 				GFP_KERNEL);
 	if (led == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = adp8870_write(client, ADP8870_ISCLAW, pdata->led_fade_law);
 	if (ret)
@@ -849,12 +849,12 @@ static int adp8870_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "SMBUS Byte Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Byte Data analt Supported\n");
 		return -EIO;
 	}
 
 	if (!pdata) {
-		dev_err(&client->dev, "no platform data?\n");
+		dev_err(&client->dev, "anal platform data?\n");
 		return -EINVAL;
 	}
 
@@ -864,12 +864,12 @@ static int adp8870_probe(struct i2c_client *client)
 
 	if (ADP8870_MANID(reg_val) != ADP8870_MANUFID) {
 		dev_err(&client->dev, "failed to probe\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->revid = ADP8870_DEVID(reg_val);
 	data->client = client;

@@ -42,7 +42,7 @@ struct bpf_struct_ops_map {
 	struct bpf_link **links;
 	/* image is a page that has all the trampolines
 	 * that stores the func args before calling the bpf_prog.
-	 * A PAGE_SIZE "image" is enough to store all trampoline for
+	 * A PAGE_SIZE "image" is eanalugh to store all trampoline for
 	 * "links[]".
 	 */
 	void *image;
@@ -127,7 +127,7 @@ void bpf_struct_ops_init(struct btf *btf, struct bpf_verifier_log *log)
 
 	module_id = btf_find_by_name_kind(btf, "module", BTF_KIND_STRUCT);
 	if (module_id < 0) {
-		pr_warn("Cannot find struct module in btf_vmlinux\n");
+		pr_warn("Cananalt find struct module in btf_vmlinux\n");
 		return;
 	}
 	module_type = btf_type_by_id(btf, module_id);
@@ -146,7 +146,7 @@ void bpf_struct_ops_init(struct btf *btf, struct bpf_verifier_log *log)
 		value_id = btf_find_by_name_kind(btf, value_name,
 						 BTF_KIND_STRUCT);
 		if (value_id < 0) {
-			pr_warn("Cannot find struct %s in btf_vmlinux\n",
+			pr_warn("Cananalt find struct %s in btf_vmlinux\n",
 				value_name);
 			continue;
 		}
@@ -154,13 +154,13 @@ void bpf_struct_ops_init(struct btf *btf, struct bpf_verifier_log *log)
 		type_id = btf_find_by_name_kind(btf, st_ops->name,
 						BTF_KIND_STRUCT);
 		if (type_id < 0) {
-			pr_warn("Cannot find struct %s in btf_vmlinux\n",
+			pr_warn("Cananalt find struct %s in btf_vmlinux\n",
 				st_ops->name);
 			continue;
 		}
 		t = btf_type_by_id(btf, type_id);
 		if (btf_type_vlen(t) > BPF_STRUCT_OPS_MAX_NR_MEMBERS) {
-			pr_warn("Cannot support #%u members in struct %s\n",
+			pr_warn("Cananalt support #%u members in struct %s\n",
 				btf_type_vlen(t), st_ops->name);
 			continue;
 		}
@@ -170,13 +170,13 @@ void bpf_struct_ops_init(struct btf *btf, struct bpf_verifier_log *log)
 
 			mname = btf_name_by_offset(btf, member->name_off);
 			if (!*mname) {
-				pr_warn("anon member in struct %s is not supported\n",
+				pr_warn("aanaln member in struct %s is analt supported\n",
 					st_ops->name);
 				break;
 			}
 
 			if (__btf_member_bitfield_size(t, member)) {
-				pr_warn("bit field member %s in struct %s is not supported\n",
+				pr_warn("bit field member %s in struct %s is analt supported\n",
 					mname, st_ops->name);
 				break;
 			}
@@ -246,7 +246,7 @@ static int bpf_struct_ops_map_get_next_key(struct bpf_map *map, void *key,
 					   void *next_key)
 {
 	if (key && *(u32 *)key == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	*(u32 *)next_key = 0;
 	return 0;
@@ -261,7 +261,7 @@ int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 	s64 refcnt;
 
 	if (unlikely(*(u32 *)key != 0))
-		return -ENOENT;
+		return -EANALENT;
 
 	kvalue = &st_map->kvalue;
 	/* Pair with smp_store_release() during map_update */
@@ -271,7 +271,7 @@ int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 		return 0;
 	}
 
-	/* No lock is needed.  state and refcnt do not need
+	/* Anal lock is needed.  state and refcnt do analt need
 	 * to be updated together under atomic context.
 	 */
 	uvalue = value;
@@ -280,7 +280,7 @@ int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 
 	/* This value offers the user space a general estimate of how
 	 * many sockets are still utilizing this struct_ops for TCP
-	 * congestion control. The number might not be exact, but it
+	 * congestion control. The number might analt be exact, but it
 	 * should sufficiently meet our present goals.
 	 */
 	refcnt = atomic64_read(&map->refcnt) - atomic64_read(&map->usercnt);
@@ -406,7 +406,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 
 	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
 	if (!tlinks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uvalue = (struct bpf_struct_ops_value *)st_map->uvalue;
 	kvalue = (struct bpf_struct_ops_value *)&st_map->kvalue;
@@ -448,12 +448,12 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		if (err > 0)
 			continue;
 
-		/* If st_ops->init_member does not handle it,
+		/* If st_ops->init_member does analt handle it,
 		 * we will only handle func ptrs and zero-ed members
 		 * here.  Reject everything else.
 		 */
 
-		/* All non func ptr member must be 0 */
+		/* All analn func ptr member must be 0 */
 		if (!ptype || !btf_type_is_func_proto(ptype)) {
 			u32 msize;
 
@@ -494,7 +494,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		link = kzalloc(sizeof(*link), GFP_USER);
 		if (!link) {
 			bpf_prog_put(prog);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto reset_unlock;
 		}
 		bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS,
@@ -573,7 +573,7 @@ static long bpf_struct_ops_map_delete_elem(struct bpf_map *map, void *key)
 
 	st_map = (struct bpf_struct_ops_map *)map;
 	if (st_map->map.map_flags & BPF_F_LINK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	prev_state = cmpxchg(&st_map->kvalue.state,
 			     BPF_STRUCT_OPS_STATE_INUSE,
@@ -586,11 +586,11 @@ static long bpf_struct_ops_map_delete_elem(struct bpf_map *map, void *key)
 	case BPF_STRUCT_OPS_STATE_TOBEFREE:
 		return -EINPROGRESS;
 	case BPF_STRUCT_OPS_STATE_INIT:
-		return -ENOENT;
+		return -EANALENT;
 	default:
 		WARN_ON_ONCE(1);
-		/* Should never happen.  Treat it as not found. */
-		return -ENOENT;
+		/* Should never happen.  Treat it as analt found. */
+		return -EANALENT;
 	}
 }
 
@@ -600,7 +600,7 @@ static void bpf_struct_ops_map_seq_show_elem(struct bpf_map *map, void *key,
 	void *value;
 	int err;
 
-	value = kmalloc(map->value_size, GFP_USER | __GFP_NOWARN);
+	value = kmalloc(map->value_size, GFP_USER | __GFP_ANALWARN);
 	if (!value)
 		return;
 
@@ -631,17 +631,17 @@ static void __bpf_struct_ops_map_free(struct bpf_map *map)
 
 static void bpf_struct_ops_map_free(struct bpf_map *map)
 {
-	/* The struct_ops's function may switch to another struct_ops.
+	/* The struct_ops's function may switch to aanalther struct_ops.
 	 *
 	 * For example, bpf_tcp_cc_x->init() may switch to
-	 * another tcp_cc_y by calling
+	 * aanalther tcp_cc_y by calling
 	 * setsockopt(TCP_CONGESTION, "tcp_cc_y").
 	 * During the switch,  bpf_struct_ops_put(tcp_cc_x) is called
 	 * and its refcount may reach 0 which then free its
 	 * trampoline image while tcp_cc_x is still running.
 	 *
 	 * A vanilla rcu gp is to wait for all bpf-tcp-cc prog
-	 * to finish. bpf-tcp-cc prog is non sleepable.
+	 * to finish. bpf-tcp-cc prog is analn sleepable.
 	 * A rcu_tasks gp is to wait for the last few insn
 	 * in the tramopline image to finish before releasing
 	 * the trampoline image.
@@ -670,7 +670,7 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 
 	st_ops = bpf_struct_ops_find_value(attr->btf_vmlinux_value_type_id);
 	if (!st_ops)
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EANALTSUPP);
 
 	vt = st_ops->value_type;
 	if (attr->value_size != vt->size)
@@ -684,9 +684,9 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 		 */
 		(vt->size - sizeof(struct bpf_struct_ops_value));
 
-	st_map = bpf_map_area_alloc(st_map_size, NUMA_NO_NODE);
+	st_map = bpf_map_area_alloc(st_map_size, NUMA_ANAL_ANALDE);
 	if (!st_map)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	st_map->st_ops = st_ops;
 	map = &st_map->map;
@@ -700,20 +700,20 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	st_map->image = arch_alloc_bpf_trampoline(PAGE_SIZE);
 	if (!st_map->image) {
 		/* __bpf_struct_ops_map_free() uses st_map->image as flag
-		 * for "charged or not". In this case, we need to unchange
+		 * for "charged or analt". In this case, we need to unchange
 		 * here.
 		 */
 		bpf_jit_uncharge_modmem(PAGE_SIZE);
 		__bpf_struct_ops_map_free(map);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
-	st_map->uvalue = bpf_map_area_alloc(vt->size, NUMA_NO_NODE);
+	st_map->uvalue = bpf_map_area_alloc(vt->size, NUMA_ANAL_ANALDE);
 	st_map->links =
 		bpf_map_area_alloc(btf_type_vlen(t) * sizeof(struct bpf_links *),
-				   NUMA_NO_NODE);
+				   NUMA_ANAL_ANALDE);
 	if (!st_map->uvalue || !st_map->links) {
 		__bpf_struct_ops_map_free(map);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	mutex_init(&st_map->lock);
@@ -763,7 +763,7 @@ bool bpf_struct_ops_get(const void *kdata)
 	kvalue = container_of(kdata, struct bpf_struct_ops_value, data);
 	st_map = container_of(kvalue, struct bpf_struct_ops_map, kvalue);
 
-	map = __bpf_map_inc_not_zero(&st_map->map, false);
+	map = __bpf_map_inc_analt_zero(&st_map->map, false);
 	return !IS_ERR(map);
 }
 
@@ -848,7 +848,7 @@ static int bpf_struct_ops_map_link_update(struct bpf_link *link, struct bpf_map 
 		return -EINVAL;
 
 	if (!st_map->st_ops->update)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&update_mutex);
 
@@ -907,7 +907,7 @@ int bpf_struct_ops_link_create(union bpf_attr *attr)
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 	bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS, &bpf_struct_ops_map_lops, NULL);

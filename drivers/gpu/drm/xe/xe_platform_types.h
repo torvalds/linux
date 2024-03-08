@@ -7,7 +7,7 @@
 #define _XE_PLATFORM_INFO_TYPES_H_
 
 /*
- * Keep this in graphics version based order and chronological order within a
+ * Keep this in graphics version based order and chroanallogical order within a
  * version
  */
 enum xe_platform {
@@ -26,7 +26,7 @@ enum xe_platform {
 
 enum xe_subplatform {
 	XE_SUBPLATFORM_UNINITIALIZED = 0,
-	XE_SUBPLATFORM_NONE,
+	XE_SUBPLATFORM_ANALNE,
 	XE_SUBPLATFORM_ALDERLAKE_P_RPLU,
 	XE_SUBPLATFORM_ALDERLAKE_S_RPLS,
 	XE_SUBPLATFORM_DG2_G10,

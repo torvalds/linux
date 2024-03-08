@@ -16,7 +16,7 @@
  *
  * Only 4 bytes supported currently.
  *
- * Note:  there was an errata for V2 about .new's and memw_locked.
+ * Analte:  there was an errata for V2 about .new's and memw_locked.
  *
  */
 static inline unsigned long

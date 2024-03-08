@@ -82,7 +82,7 @@ static int virtinput_send_status(struct virtio_input *vi,
 
 	stsbuf = kzalloc(sizeof(*stsbuf), GFP_ATOMIC);
 	if (!stsbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stsbuf->type  = cpu_to_le16(type);
 	stsbuf->code  = cpu_to_le16(code);
@@ -94,7 +94,7 @@ static int virtinput_send_status(struct virtio_input *vi,
 		rc = virtqueue_add_outbuf(vi->sts, sg, 1, stsbuf, GFP_ATOMIC);
 		virtqueue_kick(vi->sts);
 	} else {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	}
 	spin_unlock_irqrestore(&vi->lock, flags);
 
@@ -223,11 +223,11 @@ static int virtinput_probe(struct virtio_device *vdev)
 	int abs, err, nslots;
 
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vi = kzalloc(sizeof(*vi), GFP_KERNEL);
 	if (!vi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->priv = vi;
 	vi->vdev = vdev;
@@ -239,7 +239,7 @@ static int virtinput_probe(struct virtio_device *vdev)
 
 	vi->idev = input_allocate_device();
 	if (!vi->idev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_input_alloc;
 	}
 	input_set_drvdata(vi->idev, vi);
@@ -385,7 +385,7 @@ static int virtinput_restore(struct virtio_device *vdev)
 #endif
 
 static unsigned int features[] = {
-	/* none */
+	/* analne */
 };
 static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_INPUT, VIRTIO_DEV_ANY_ID },

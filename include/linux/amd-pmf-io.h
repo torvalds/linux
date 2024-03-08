@@ -16,8 +16,8 @@
 
 /**
  * enum sfh_message_type - Query the SFH message type
- * @MT_HPD: Message ID to know the Human presence info from MP2 FW
- * @MT_ALS: Message ID to know the Ambient light info from MP2 FW
+ * @MT_HPD: Message ID to kanalw the Human presence info from MP2 FW
+ * @MT_ALS: Message ID to kanalw the Ambient light info from MP2 FW
  */
 enum sfh_message_type {
 	MT_HPD,
@@ -26,12 +26,12 @@ enum sfh_message_type {
 
 /**
  * enum sfh_hpd_info - Query the Human presence information
- * @SFH_NOT_DETECTED: Check the HPD connection information from MP2 FW
+ * @SFH_ANALT_DETECTED: Check the HPD connection information from MP2 FW
  * @SFH_USER_PRESENT: Check if the user is present from HPD sensor
  * @SFH_USER_AWAY: Check if the user is away from HPD sensor
  */
 enum sfh_hpd_info {
-	SFH_NOT_DETECTED,
+	SFH_ANALT_DETECTED,
 	SFH_USER_PRESENT,
 	SFH_USER_AWAY,
 };

@@ -16,18 +16,18 @@ static ssize_t xsd_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, size, off, str, strlen(str));
 }
 
-static int xsd_release(struct inode *inode, struct file *file)
+static int xsd_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
 }
 
-static int xsd_kva_open(struct inode *inode, struct file *file)
+static int xsd_kva_open(struct ianalde *ianalde, struct file *file)
 {
 	file->private_data = (void *)kasprintf(GFP_KERNEL, "0x%p",
 					       xen_store_interface);
 	if (!file->private_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -53,12 +53,12 @@ const struct file_operations xsd_kva_file_ops = {
 	.release = xsd_release,
 };
 
-static int xsd_port_open(struct inode *inode, struct file *file)
+static int xsd_port_open(struct ianalde *ianalde, struct file *file)
 {
 	file->private_data = (void *)kasprintf(GFP_KERNEL, "%d",
 					       xen_store_evtchn);
 	if (!file->private_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

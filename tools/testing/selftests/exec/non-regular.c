@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,7 +11,7 @@
 
 #include "../kselftest_harness.h"
 
-/* Remove a file, ignoring the result if it didn't exist. */
+/* Remove a file, iganalring the result if it didn't exist. */
 void rm(struct __test_metadata *_metadata, const char *pathname,
 	int is_dir)
 {
@@ -23,8 +23,8 @@ void rm(struct __test_metadata *_metadata, const char *pathname,
 		rc = unlink(pathname);
 
 	if (rc < 0) {
-		ASSERT_EQ(errno, ENOENT) {
-			TH_LOG("Not ENOENT: %s", pathname);
+		ASSERT_EQ(erranal, EANALENT) {
+			TH_LOG("Analt EANALENT: %s", pathname);
 		}
 	} else {
 		ASSERT_EQ(rc, 0) {
@@ -46,7 +46,7 @@ FIXTURE_VARIANT(file)
 	void (*setup)(struct __test_metadata *_metadata,
 		      FIXTURE_DATA(file) *self,
 		      const FIXTURE_VARIANT(file) *variant);
-	int major, minor, mode; /* for mknod() */
+	int major, mianalr, mode; /* for mkanald() */
 };
 
 void setup_link(struct __test_metadata *_metadata,
@@ -66,7 +66,7 @@ void setup_link(struct __test_metadata *_metadata,
 		}
 	}
 	ASSERT_EQ(1, 0) {
-		TH_LOG("Could not find viable 'true' binary");
+		TH_LOG("Could analt find viable 'true' binary");
 	}
 }
 
@@ -92,18 +92,18 @@ FIXTURE_VARIANT_ADD(file, S_IFDIR)
 	.setup = setup_dir,
 };
 
-void setup_node(struct __test_metadata *_metadata,
+void setup_analde(struct __test_metadata *_metadata,
 		FIXTURE_DATA(file) *self,
 		const FIXTURE_VARIANT(file) *variant)
 {
 	dev_t dev;
 	int rc;
 
-	dev = makedev(variant->major, variant->minor);
-	rc = mknod(self->pathname, 0755 | variant->mode, dev);
+	dev = makedev(variant->major, variant->mianalr);
+	rc = mkanald(self->pathname, 0755 | variant->mode, dev);
 	ASSERT_EQ(rc, 0) {
-		if (errno == EPERM)
-			SKIP(return, "Please run as root; cannot mknod(%s)",
+		if (erranal == EPERM)
+			SKIP(return, "Please run as root; cananalt mkanald(%s)",
 				variant->name);
 	}
 }
@@ -112,10 +112,10 @@ FIXTURE_VARIANT_ADD(file, S_IFBLK)
 {
 	.name = "S_IFBLK",
 	.expected = EACCES,
-	.setup = setup_node,
+	.setup = setup_analde,
 	/* /dev/loop0 */
 	.major = 7,
-	.minor = 0,
+	.mianalr = 0,
 	.mode = S_IFBLK,
 };
 
@@ -123,10 +123,10 @@ FIXTURE_VARIANT_ADD(file, S_IFCHR)
 {
 	.name = "S_IFCHR",
 	.expected = EACCES,
-	.setup = setup_node,
+	.setup = setup_analde,
 	/* /dev/zero */
 	.major = 1,
-	.minor = 5,
+	.mianalr = 5,
 	.mode = S_IFCHR,
 };
 
@@ -158,12 +158,12 @@ FIXTURE_TEARDOWN(file)
 	rm(_metadata, self->pathname, self->is_dir);
 }
 
-TEST_F(file, exec_errno)
+TEST_F(file, exec_erranal)
 {
 	char * const argv[2] = { (char * const)self->pathname, NULL };
 
 	EXPECT_LT(execv(argv[0], argv), 0);
-	EXPECT_EQ(errno, variant->expected);
+	EXPECT_EQ(erranal, variant->expected);
 }
 
 /* S_IFSOCK */
@@ -184,13 +184,13 @@ FIXTURE_TEARDOWN(sock)
 		ASSERT_EQ(close(self->fd), 0);
 }
 
-TEST_F(sock, exec_errno)
+TEST_F(sock, exec_erranal)
 {
 	char * const argv[2] = { " magic socket ", NULL };
 	char * const envp[1] = { NULL };
 
 	EXPECT_LT(fexecve(self->fd, argv, envp), 0);
-	EXPECT_EQ(errno, EACCES);
+	EXPECT_EQ(erranal, EACCES);
 }
 
 TEST_HARNESS_MAIN

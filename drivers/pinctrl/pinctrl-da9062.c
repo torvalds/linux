@@ -86,7 +86,7 @@ static int da9062_gpio_get(struct gpio_chip *gc, unsigned int offset)
 
 	switch (gpio_mode) {
 	case DA9062_PIN_ALTERNATE:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case DA9062_PIN_GPI:
 		ret = regmap_read(regmap, DA9062AA_STATUS_B, &val);
 		if (ret < 0)
@@ -123,7 +123,7 @@ static int da9062_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 
 	switch (gpio_mode) {
 	case DA9062_PIN_ALTERNATE:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case DA9062_PIN_GPI:
 		return GPIO_LINE_DIRECTION_IN;
 	case DA9062_PIN_GPO_OD:
@@ -148,7 +148,7 @@ static int da9062_gpio_direction_input(struct gpio_chip *gc,
 		return ret;
 
 	/*
-	 * If the gpio is active low we should set it in hw too. No worries
+	 * If the gpio is active low we should set it in hw too. Anal worries
 	 * about gpio_get() because we read and return the gpio-level. So the
 	 * gpiolib active_low handling is still correct.
 	 *
@@ -201,7 +201,7 @@ static int da9062_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 		if (gpio_mode < 0)
 			return -EINVAL;
 		else if (gpio_mode != DA9062_PIN_GPI)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		return regmap_update_bits(regmap, DA9062AA_CONFIG_K,
 					  BIT(offset), BIT(offset));
 	case PIN_CONFIG_BIAS_PULL_UP:
@@ -209,7 +209,7 @@ static int da9062_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 		if (gpio_mode < 0)
 			return -EINVAL;
 		else if (gpio_mode != DA9062_PIN_GPO_OD)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		return regmap_update_bits(regmap, DA9062AA_CONFIG_K,
 					  BIT(offset), BIT(offset));
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
@@ -219,7 +219,7 @@ static int da9062_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 		return da9062_pctl_set_pin_mode(pctl, offset,
 						DA9062_PIN_GPO_PP);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -252,11 +252,11 @@ static int da9062_pctl_probe(struct platform_device *pdev)
 	struct da9062_pctl *pctl;
 	int i;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl->da9062 = dev_get_drvdata(parent);
 	if (!pctl->da9062)

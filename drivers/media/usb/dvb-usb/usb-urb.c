@@ -20,7 +20,7 @@ static void usb_urb_complete(struct urb *urb)
 	u8 *b;
 
 	deb_uxfer("'%s' urb completed. status: %d, length: %d/%d, pack_num: %d, errors: %d\n",
-		ptype == PIPE_ISOCHRONOUS ? "isoc" : "bulk",
+		ptype == PIPE_ISOCHROANALUS ? "isoc" : "bulk",
 		urb->status,urb->actual_length,urb->transfer_buffer_length,
 		urb->number_of_packets,urb->error_count);
 
@@ -29,7 +29,7 @@ static void usb_urb_complete(struct urb *urb)
 		case -ETIMEDOUT:    /* NAK */
 			break;
 		case -ECONNRESET:   /* kill */
-		case -ENOENT:
+		case -EANALENT:
 		case -ESHUTDOWN:
 			return;
 		default:        /* error */
@@ -39,7 +39,7 @@ static void usb_urb_complete(struct urb *urb)
 
 	b = (u8 *) urb->transfer_buffer;
 	switch (ptype) {
-		case PIPE_ISOCHRONOUS:
+		case PIPE_ISOCHROANALUS:
 			for (i = 0; i < urb->number_of_packets; i++) {
 
 				if (urb->iso_frame_desc[i].status != 0)
@@ -57,7 +57,7 @@ static void usb_urb_complete(struct urb *urb)
 				stream->complete(stream, b, urb->actual_length);
 			break;
 		default:
-			err("unknown endpoint type in completion handler.");
+			err("unkanalwn endpoint type in completion handler.");
 			return;
 	}
 	usb_submit_urb(urb,GFP_ATOMIC);
@@ -67,7 +67,7 @@ int usb_urb_kill(struct usb_data_stream *stream)
 {
 	int i;
 	for (i = 0; i < stream->urbs_submitted; i++) {
-		deb_ts("killing URB no. %d.\n",i);
+		deb_ts("killing URB anal. %d.\n",i);
 
 		/* stop the URB */
 		usb_kill_urb(stream->urb_list[i]);
@@ -80,9 +80,9 @@ int usb_urb_submit(struct usb_data_stream *stream)
 {
 	int i,ret;
 	for (i = 0; i < stream->urbs_initialized; i++) {
-		deb_ts("submitting URB no. %d\n",i);
+		deb_ts("submitting URB anal. %d\n",i);
 		if ((ret = usb_submit_urb(stream->urb_list[i],GFP_ATOMIC))) {
-			err("could not submit URB no. %d - get them all back",i);
+			err("could analt submit URB anal. %d - get them all back",i);
 			usb_urb_kill(stream);
 			return ret;
 		}
@@ -120,9 +120,9 @@ static int usb_allocate_stream_buffers(struct usb_data_stream *stream, int num, 
 		if (( stream->buf_list[stream->buf_num] =
 					usb_alloc_coherent(stream->udev, size, GFP_KERNEL,
 					&stream->dma_addr[stream->buf_num]) ) == NULL) {
-			deb_mem("not enough memory for urb-buffer allocation.\n");
+			deb_mem("analt eanalugh memory for urb-buffer allocation.\n");
 			usb_free_stream_buffers(stream);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		deb_mem("buffer %d: %p (dma: %Lu)\n",
 			stream->buf_num,
@@ -147,10 +147,10 @@ static int usb_bulk_urb_init(struct usb_data_stream *stream)
 	for (i = 0; i < stream->props.count; i++) {
 		stream->urb_list[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!stream->urb_list[i]) {
-			deb_mem("not enough memory for urb_alloc_urb!.\n");
+			deb_mem("analt eanalugh memory for urb_alloc_urb!.\n");
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		usb_fill_bulk_urb( stream->urb_list[i], stream->udev,
 				usb_rcvbulkpipe(stream->udev,stream->props.endpoint),
@@ -158,7 +158,7 @@ static int usb_bulk_urb_init(struct usb_data_stream *stream)
 				stream->props.u.bulk.buffersize,
 				usb_urb_complete, stream);
 
-		stream->urb_list[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		stream->urb_list[i]->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 		stream->urb_list[i]->transfer_dma = stream->dma_addr[i];
 		stream->urbs_initialized++;
 	}
@@ -180,10 +180,10 @@ static int usb_isoc_urb_init(struct usb_data_stream *stream)
 
 		stream->urb_list[i] = usb_alloc_urb(stream->props.u.isoc.framesperurb, GFP_KERNEL);
 		if (!stream->urb_list[i]) {
-			deb_mem("not enough memory for urb_alloc_urb!\n");
+			deb_mem("analt eanalugh memory for urb_alloc_urb!\n");
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		urb = stream->urb_list[i];
@@ -192,7 +192,7 @@ static int usb_isoc_urb_init(struct usb_data_stream *stream)
 		urb->context = stream;
 		urb->complete = usb_urb_complete;
 		urb->pipe = usb_rcvisocpipe(stream->udev,stream->props.endpoint);
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_ANAL_TRANSFER_DMA_MAP;
 		urb->interval = stream->props.u.isoc.interval;
 		urb->number_of_packets = stream->props.u.isoc.framesperurb;
 		urb->transfer_buffer_length = stream->buf_size;
@@ -220,7 +220,7 @@ int usb_urb_init(struct usb_data_stream *stream, struct usb_data_stream_properti
 	usb_clear_halt(stream->udev,usb_rcvbulkpipe(stream->udev,stream->props.endpoint));
 
 	if (stream->complete == NULL) {
-		err("there is no data callback - this doesn't make sense.");
+		err("there is anal data callback - this doesn't make sense.");
 		return -EINVAL;
 	}
 
@@ -230,7 +230,7 @@ int usb_urb_init(struct usb_data_stream *stream, struct usb_data_stream_properti
 		case USB_ISOC:
 			return usb_isoc_urb_init(stream);
 		default:
-			err("unknown URB-type for data transfer.");
+			err("unkanalwn URB-type for data transfer.");
 			return -EINVAL;
 	}
 }
@@ -243,7 +243,7 @@ int usb_urb_exit(struct usb_data_stream *stream)
 
 	for (i = 0; i < stream->urbs_initialized; i++) {
 		if (stream->urb_list[i] != NULL) {
-			deb_mem("freeing URB no. %d.\n",i);
+			deb_mem("freeing URB anal. %d.\n",i);
 			/* free the URBs */
 			usb_free_urb(stream->urb_list[i]);
 		}

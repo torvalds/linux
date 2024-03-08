@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -75,9 +75,9 @@
 #define ULI526X_TX_TIMEOUT ((16*HZ)/2)	/* tx packet time-out time 8 s" */
 #define ULI526X_TX_KICK 	(4*HZ/2)	/* tx packet Kick-out time 2 s" */
 
-#define ULI526X_DBUG(dbug_now, msg, value)			\
+#define ULI526X_DBUG(dbug_analw, msg, value)			\
 do {								\
-	if (uli526x_debug || (dbug_now))			\
+	if (uli526x_debug || (dbug_analw))			\
 		pr_err("%s %lx\n", (msg), (long) (value));	\
 } while (0)
 
@@ -166,7 +166,7 @@ struct uli526x_board_info {
 	/* Driver defined statistic counter */
 	unsigned long tx_fifo_underrun;
 	unsigned long tx_loss_carrier;
-	unsigned long tx_no_carrier;
+	unsigned long tx_anal_carrier;
 	unsigned long tx_late_collision;
 	unsigned long tx_excessive_collision;
 	unsigned long tx_jabber_timeout;
@@ -190,7 +190,7 @@ enum uli526x_offsets {
 enum uli526x_CR6_bits {
 	CR6_RXSC = 0x2, CR6_PBF = 0x8, CR6_PM = 0x40, CR6_PAM = 0x80,
 	CR6_FDM = 0x200, CR6_TXSC = 0x2000, CR6_STI = 0x100000,
-	CR6_SFT = 0x200000, CR6_RXA = 0x40000000, CR6_NO_PURGE = 0x20000000
+	CR6_SFT = 0x200000, CR6_RXA = 0x40000000, CR6_ANAL_PURGE = 0x20000000
 };
 
 /* Global variable declaration ----------------------------- */
@@ -280,12 +280,12 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	/* Init network device */
 	dev = alloc_etherdev(sizeof(*db));
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		pr_warn("32-bit PCI DMA not available\n");
-		err = -ENODEV;
+		pr_warn("32-bit PCI DMA analt available\n");
+		err = -EANALDEV;
 		goto err_out_free;
 	}
 
@@ -296,13 +296,13 @@ static int uli526x_init_one(struct pci_dev *pdev,
 
 	if (!pci_resource_start(pdev, 0)) {
 		pr_err("I/O base is zero\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_disable;
 	}
 
 	if (pci_resource_len(pdev, 0) < (ULI526X_IO_SIZE) ) {
 		pr_err("Allocated I/O size too small\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_disable;
 	}
 
@@ -316,7 +316,7 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	db = netdev_priv(dev);
 
 	/* Allocate Tx/Rx descriptor memory */
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	db->desc_pool_ptr = dma_alloc_coherent(&pdev->dev,
 					       sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
@@ -368,11 +368,11 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	for (i = 0; i < 64; i++)
 		((__le16 *) db->srom)[i] = cpu_to_le16(read_srom_word(db, i));
 
-	/* Set Node address */
+	/* Set Analde address */
 	if(((u16 *) db->srom)[0] == 0xffff || ((u16 *) db->srom)[0] == 0)		/* SROM absent, so read MAC address from ID Table */
 	{
-		uw32(DCR0, 0x10000);	//Diagnosis mode
-		uw32(DCR13, 0x1c0);	//Reset dianostic pointer port
+		uw32(DCR0, 0x10000);	//Diaganalsis mode
+		uw32(DCR13, 0x1c0);	//Reset diaanalstic pointer port
 		uw32(DCR14, 0);		//Clear reset port
 		uw32(DCR14, 0x10);	//Reset ID Table pointer
 		uw32(DCR14, 0);		//Clear reset port
@@ -528,7 +528,7 @@ static void uli526x_init(struct net_device *dev)
 	}
 
 	if (phy_tmp == 32)
-		pr_warn("Can not find the phy address!!!\n");
+		pr_warn("Can analt find the phy address!!!\n");
 	/* Parser SROM and media mode */
 	db->media_mode = uli526x_media_mode;
 
@@ -601,10 +601,10 @@ static netdev_tx_t uli526x_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irqsave(&db->lock, flags);
 
-	/* No Tx resource check, it never happen nromally */
+	/* Anal Tx resource check, it never happen nromally */
 	if (db->tx_packet_cnt >= TX_FREE_DESC_CNT) {
 		spin_unlock_irqrestore(&db->lock, flags);
-		netdev_err(dev, "No Tx resource %ld\n", db->tx_packet_cnt);
+		netdev_err(dev, "Anal Tx resource %ld\n", db->tx_packet_cnt);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -775,7 +775,7 @@ static void uli526x_free_tx_pkt(struct net_device *dev,
 				if (tdes0 & 0x0200)
 					db->tx_late_collision++;
 				if (tdes0 & 0x0400)
-					db->tx_no_carrier++;
+					db->tx_anal_carrier++;
 				if (tdes0 & 0x0800)
 					db->tx_loss_carrier++;
 				if (tdes0 & 0x4000)
@@ -956,8 +956,8 @@ ULi_ethtool_get_link_ksettings(struct uli526x_board_info *db,
 	}
 	if(db->link_failed)
 	{
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	if (db->media_mode & ULI526X_AUTO)
@@ -1355,7 +1355,7 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 	txptr = db->tx_insert_ptr;
 	suptr = (u32 *) txptr->tx_buf_ptr;
 
-	/* Node address */
+	/* Analde address */
 	addrptr = (const u16 *) dev->dev_addr;
 	*suptr++ = addrptr[0] << FLT_SHIFT;
 	*suptr++ = addrptr[1] << FLT_SHIFT;
@@ -1394,7 +1394,7 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 		update_cr6(db->cr6_data, ioaddr);
 		netif_trans_update(dev);
 	} else
-		netdev_err(dev, "No Tx resource - Send_filter_frame!\n");
+		netdev_err(dev, "Anal Tx resource - Send_filter_frame!\n");
 }
 
 

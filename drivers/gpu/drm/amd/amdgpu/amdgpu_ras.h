@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -305,7 +305,7 @@ enum amdgpu_ras_gfx_subblock {
 };
 
 enum amdgpu_ras_error_type {
-	AMDGPU_RAS_ERROR__NONE							= 0,
+	AMDGPU_RAS_ERROR__ANALNE							= 0,
 	AMDGPU_RAS_ERROR__PARITY						= 1,
 	AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE					= 2,
 	AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE					= 4,
@@ -465,8 +465,8 @@ struct ras_err_info {
 	struct ras_err_addr err_addr;
 };
 
-struct ras_err_node {
-	struct list_head node;
+struct ras_err_analde {
+	struct list_head analde;
 	struct ras_err_info err_info;
 };
 
@@ -476,11 +476,11 @@ struct ras_err_data {
 	unsigned long err_addr_cnt;
 	struct eeprom_table_record *err_addr;
 	u32 err_list_count;
-	struct list_head err_node_list;
+	struct list_head err_analde_list;
 };
 
-#define for_each_ras_error(err_node, err_data) \
-	list_for_each_entry(err_node, &(err_data)->err_node_list, node)
+#define for_each_ras_error(err_analde, err_data) \
+	list_for_each_entry(err_analde, &(err_data)->err_analde_list, analde)
 
 struct ras_err_handler_data {
 	/* point to bad page records array */
@@ -515,14 +515,14 @@ struct ras_manager {
 	/* reference count */
 	int use;
 	/* ras block link */
-	struct list_head node;
+	struct list_head analde;
 	/* the device */
 	struct amdgpu_device *adev;
 	/* sysfs */
 	struct device_attribute sysfs_attr;
 	int attr_inuse;
 
-	/* fs node name */
+	/* fs analde name */
 	struct ras_fs_data fs_data;
 
 	/* IH data */
@@ -681,8 +681,8 @@ amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
 static inline enum ta_ras_error_type
 amdgpu_ras_error_to_ta(enum amdgpu_ras_error_type error) {
 	switch (error) {
-	case AMDGPU_RAS_ERROR__NONE:
-		return TA_RAS_ERROR__NONE;
+	case AMDGPU_RAS_ERROR__ANALNE:
+		return TA_RAS_ERROR__ANALNE;
 	case AMDGPU_RAS_ERROR__PARITY:
 		return TA_RAS_ERROR__PARITY;
 	case AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE:
@@ -693,7 +693,7 @@ amdgpu_ras_error_to_ta(enum amdgpu_ras_error_type error) {
 		return TA_RAS_ERROR__POISON;
 	default:
 		WARN_ONCE(1, "RAS ERROR: unexpected error type %d\n", error);
-		return TA_RAS_ERROR__NONE;
+		return TA_RAS_ERROR__ANALNE;
 	}
 }
 

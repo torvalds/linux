@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <perf/evsel.h>
@@ -22,7 +22,7 @@
 void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr,
 		      int idx)
 {
-	INIT_LIST_HEAD(&evsel->node);
+	INIT_LIST_HEAD(&evsel->analde);
 	evsel->attr = *attr;
 	evsel->idx  = idx;
 	evsel->leader = evsel;
@@ -66,14 +66,14 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 		}
 	}
 
-	return evsel->fd != NULL ? 0 : -ENOMEM;
+	return evsel->fd != NULL ? 0 : -EANALMEM;
 }
 
 static int perf_evsel__alloc_mmap(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	evsel->mmap = xyarray__new(ncpus, nthreads, sizeof(struct perf_mmap));
 
-	return evsel->mmap != NULL ? 0 : -ENOMEM;
+	return evsel->mmap != NULL ? 0 : -EANALMEM;
 }
 
 static int
@@ -96,10 +96,10 @@ static int get_group_fd(struct perf_evsel *evsel, int cpu_map_idx, int thread, i
 
 	/*
 	 * Leader must be already processed/open,
-	 * if not it's a bug.
+	 * if analt it's a bug.
 	 */
 	if (!leader->fd)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	fd = FD(leader, cpu_map_idx, thread);
 	if (fd == NULL || *fd == -1)
@@ -122,7 +122,7 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 		if (empty_cpu_map == NULL) {
 			empty_cpu_map = perf_cpu_map__new_any_cpu();
 			if (empty_cpu_map == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		cpus = empty_cpu_map;
@@ -134,7 +134,7 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 		if (empty_thread_map == NULL) {
 			empty_thread_map = perf_thread_map__new_dummy();
 			if (empty_thread_map == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		threads = empty_thread_map;
@@ -142,7 +142,7 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 
 	if (evsel->fd == NULL &&
 	    perf_evsel__alloc_fd(evsel, perf_cpu_map__nr(cpus), threads->nr) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
 		for (thread = 0; thread < threads->nr; thread++) {
@@ -163,7 +163,7 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 						 cpu, group_fd, 0);
 
 			if (fd < 0) {
-				err = -errno;
+				err = -erranal;
 				goto out;
 			}
 
@@ -254,7 +254,7 @@ int perf_evsel__mmap(struct perf_evsel *evsel, int pages)
 		return -EINVAL;
 
 	if (perf_evsel__alloc_mmap(evsel, xyarray__max_x(evsel->fd), xyarray__max_y(evsel->fd)) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (idx = 0; idx < xyarray__max_x(evsel->fd); idx++) {
 		for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
@@ -332,11 +332,11 @@ static int perf_evsel__read_group(struct perf_evsel *evsel, int cpu_map_idx,
 
 	data = calloc(1, size);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (readn(*fd, data, size) <= 0) {
 		free(data);
-		return -errno;
+		return -erranal;
 	}
 
 	/*
@@ -406,7 +406,7 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu_map_idx, int thread,
 		return 0;
 
 	if (readn(*fd, buf.values, size) <= 0)
-		return -errno;
+		return -erranal;
 
 	perf_evsel__adjust_values(evsel, buf.values, count);
 	return 0;
@@ -517,13 +517,13 @@ int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
 
 	evsel->sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
 	if (evsel->sample_id == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	evsel->id = zalloc(ncpus * nthreads * sizeof(u64));
 	if (evsel->id == NULL) {
 		xyarray__delete(evsel->sample_id);
 		evsel->sample_id = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

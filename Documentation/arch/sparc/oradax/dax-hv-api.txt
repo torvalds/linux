@@ -11,7 +11,7 @@ Authors:
 
 Chapter 36. Coprocessor services
         The following APIs provide access via the Hypervisor to hardware assisted data processing functionality.
-        These APIs may only be provided by certain platforms, and may not be available to all virtual machines
+        These APIs may only be provided by certain platforms, and may analt be available to all virtual machines
         even on supported platforms. Restrictions on the use of these APIs may be imposed in order to support
         live-migration and other system management activities.
 
@@ -23,7 +23,7 @@ Chapter 36. Coprocessor services
 
         The DAX is a virtual device to sun4v guests, with supported data operations indicated by the virtual device
         compatibility property. Functionality is accessed through the submission of Command Control Blocks
-        (CCBs) via the ccb_submit API function. The operations are processed asynchronously, with the status
+        (CCBs) via the ccb_submit API function. The operations are processed asynchroanalusly, with the status
         of the submitted operations reported through a Completion Area linked to each CCB. Each CCB has a
         separate Completion Area and, unless execution order is specifically restricted through the use of serial-
         conditional flags, the execution order of submitted CCBs is arbitrary. Likewise, the time to completion
@@ -35,15 +35,15 @@ Chapter 36. Coprocessor services
         recommended such implementation use the ccb_info API function to check the status of a CCB prior to
         killing it in order to determine if the CCB is still in queue, or may have been lost due to a RAS error.
 
-        There is no fixed limit on the number of outstanding CCBs guest software may have queued in the virtual
+        There is anal fixed limit on the number of outstanding CCBs guest software may have queued in the virtual
         machine, however, internal resource limitations within the virtual machine can cause CCB submissions
         to be temporarily rejected with EWOULDBLOCK. In such cases, guests should continue to attempt
-        submissions until they succeed; waiting for an outstanding CCB to complete is not necessary, and would
-        not be a guarantee that a future submission would succeed.
+        submissions until they succeed; waiting for an outstanding CCB to complete is analt necessary, and would
+        analt be a guarantee that a future submission would succeed.
 
         The availablility of DAX coprocessor command service is indicated by the presence of the DAX virtual
-        device node in the guest MD (Section 8.24.17, “Database Analytics Accelerators (DAX) virtual-device
-        node”).
+        device analde in the guest MD (Section 8.24.17, “Database Analytics Accelerators (DAX) virtual-device
+        analde”).
 
 36.1.1. DAX Compatibility Property
         The query functionality may vary based on the compatibility property of the virtual device:
@@ -51,7 +51,7 @@ Chapter 36. Coprocessor services
 36.1.1.1. "ORCL,sun4v-dax" Device Compatibility
         Available CCB commands:
 
-        • No-op/Sync
+        • Anal-op/Sync
 
         • Extract
 
@@ -85,7 +85,7 @@ Chapter 36. Coprocessor services
 36.1.1.3. "ORCL,sun4v-dax2" Device Compatibility
         Available CCB commands:
 
-        • No-op/Sync
+        • Anal-op/Sync
 
         • Extract
 
@@ -110,14 +110,14 @@ Chapter 36. Coprocessor services
 
 36.1.2. DAX Virtual Device Interrupts
         The DAX virtual device has multiple interrupts associated with it which may be used by the guest if
-        desired. The number of device interrupts available to the guest is indicated in the virtual device node of the
-        guest MD (Section 8.24.17, “Database Analytics Accelerators (DAX) virtual-device node”). If the device
-        node indicates N interrupts available, the guest may use any value from 0 to N - 1 (inclusive) in a CCB
+        desired. The number of device interrupts available to the guest is indicated in the virtual device analde of the
+        guest MD (Section 8.24.17, “Database Analytics Accelerators (DAX) virtual-device analde”). If the device
+        analde indicates N interrupts available, the guest may use any value from 0 to N - 1 (inclusive) in a CCB
         interrupt number field. Using values outside this range will result in the CCB being rejected for an invalid
         field value.
 
         The interrupts may be bound and managed using the standard sun4v device interrupts API (Chapter 16,
-        Device interrupt services). Sysino interrupts are not available for DAX devices.
+        Device interrupt services). Sysianal interrupts are analt available for DAX devices.
 
 36.2. Coprocessor Control Block (CCB)
         CCBs are either 64 or 128 bytes long, depending on the operation type. The exact contents of the CCB
@@ -129,7 +129,7 @@ Chapter 36. Coprocessor services
 
 
 referenced by a CCB must be pinned in memory until the CCB either completes execution or is killed
-via the ccb_kill API call. Changes in virtual address mappings occurring after CCB submission are not
+via the ccb_kill API call. Changes in virtual address mappings occurring after CCB submission are analt
 guaranteed to be visible, and as such all virtual address updates need to be synchronized with CCB
 execution.
 
@@ -145,7 +145,7 @@ Bits          Field Description
 [25]          Conditional synchronization flag [512]
 [24]          Serial synchronization flag
 [23:16]       CCB operation code:
-               0x00        No Operation (No-op) or Sync
+               0x00        Anal Operation (Anal-op) or Sync
                0x01        Extract
                0x02        Scan Value
                0x12        Inverted Scan Value
@@ -156,12 +156,12 @@ Bits          Field Description
                0x05        Select
 [15:13]       Reserved
 [12:11]       Table address type
-               0b'00       No address
+               0b'00       Anal address
                0b'01       Alternate context virtual address
                0b'10       Real address
                0b'11       Primary context virtual address
 [10:8]        Output/Destination address type
-               0b'000      No address
+               0b'000      Anal address
                0b'001      Alternate context virtual address
                0b'010      Real address
                0b'011      Primary context virtual address
@@ -177,7 +177,7 @@ Bits          Field Description
 
 
 Bits           Field Description
-                0b'000       No address
+                0b'000       Anal address
                 0b'001       Alternate context virtual address
                 0b'010       Real address
                 0b'011       Primary context virtual address
@@ -186,7 +186,7 @@ Bits           Field Description
                 0b'110       Reserved
                 0b'111       Reserved
 [4:2]          Primary source address type
-                0b'000       No address
+                0b'000       Anal address
                 0b'001       Alternate context virtual address
                 0b'010       Real address
                 0b'011       Primary context virtual address
@@ -195,7 +195,7 @@ Bits           Field Description
                 0b'110       Reserved
                 0b'111       Reserved
 [1:0]          Completion area address type
-                0b'00        No address
+                0b'00        Anal address
                 0b'01        Alternate context virtual address
                 0b'10        Real address
                 0b'11        Primary context virtual address
@@ -210,18 +210,18 @@ with the Serial flag set. CCBs marked solely with the Serial flag will execute u
 previous Serial CCB, regardless of the completion status of that CCB. The Conditional flag allows CCBs
 to conditionally execute based on the successful execution of the closest CCB marked with the Serial flag.
 A CCB may only be conditional on exactly one CCB, however, a CCB may be marked both Conditional
-and Serial to allow execution chaining. The flags do NOT allow fan-out chaining, where multiple CCBs
-execute in parallel based on the completion of another CCB.
+and Serial to allow execution chaining. The flags do ANALT allow fan-out chaining, where multiple CCBs
+execute in parallel based on the completion of aanalther CCB.
 
 The Pipeline flag is an optimization that directs the output of one CCB (the "source" CCB) directly to
-the input of the next CCB (the "target" CCB). The target CCB thus does not need to read the input from
+the input of the next CCB (the "target" CCB). The target CCB thus does analt need to read the input from
 memory. The Pipeline flag is advisory and may be dropped.
 
 Both the Pipeline and Serial bits must be set in the source CCB. The Conditional bit must be set in the
 target CCB. Exactly one CCB must be made conditional on the source CCB; either 0 or 2 target CCBs
 is invalid. However, Pipelines can be extended beyond two CCBs: the sequence would start with a CCB
 with both the Pipeline and Serial bits set, proceed through CCBs with the Pipeline, Serial, and Conditional
-bits set, and terminate at a CCB that has the Conditional bit set, but not the Pipeline bit.
+bits set, and terminate at a CCB that has the Conditional bit set, but analt the Pipeline bit.
 
 
                                              512
@@ -229,13 +229,13 @@ bits set, and terminate at a CCB that has the Conditional bit set, but not the P
 
 
           The input of the target CCB must start within 64 bytes of the output of the source CCB or the pipeline flag
-          will be ignored. All CCBs in a pipeline must be submitted in the same call to ccb_submit.
+          will be iganalred. All CCBs in a pipeline must be submitted in the same call to ccb_submit.
 
           The various address type fields indicate how the various address values used in the CCB should be
-          interpreted by the virtual machine. Not all of the types specified are used by every CCB format. Types
-          which are not applicable to the given CCB command should be indicated as type 0 (No address). Virtual
+          interpreted by the virtual machine. Analt all of the types specified are used by every CCB format. Types
+          which are analt applicable to the given CCB command should be indicated as type 0 (Anal address). Virtual
           addresses used in the CCB must have translation entries present in either the TLB or a configured TSB
-          for the submitting virtual processor. Virtual addresses which cannot be translated by the virtual machine
+          for the submitting virtual processor. Virtual addresses which cananalt be translated by the virtual machine
           will result in the CCB submission being rejected, with the causal virtual address indicated. The CCB
           may be resubmitted after inserting the translation, or the address may be translated by guest software and
           resubmitted using the real address translation.
@@ -250,7 +250,7 @@ bits set, and terminate at a CCB that has the Conditional bit set, but not the P
 36.2.1.1.1. Primary Input Format
 
           The primary input format code is a 4-bit field when it is used. There are 10 primary input formats available.
-          The packed formats are not endian neutral. Code values not listed below are reserved.
+          The packed formats are analt endian neutral. Code values analt listed below are reserved.
 
           Code        Format                              Description
           0x0         Fixed width byte packed             Up to 16 bytes
@@ -296,7 +296,7 @@ bits set, and terminate at a CCB that has the Conditional bit set, but not the P
                       OZIP (CCB version 1) encoding       stream of run lengths must be provided as a secondary
                                                           input; pointer to the encoding table must be provided
 
-          If OZIP encoding is used, there must be no reserved bytes in the table.
+          If OZIP encoding is used, there must be anal reserved bytes in the table.
 
 36.2.1.1.2. Primary Input Element Size
 
@@ -345,7 +345,7 @@ bits set, and terminate at a CCB that has the Conditional bit set, but not the P
 36.2.1.1.6. Output Format
 
           Query commands support multiple sizes and encodings for output data streams. There are four possible
-          output encodings, and up to four supported element sizes per encoding. Not all output encodings are
+          output encodings, and up to four supported element sizes per encoding. Analt all output encodings are
           supported for every command. The format is indicated by a 4-bit field in the CCB:
 
            Output Format Code        Description
@@ -380,7 +380,7 @@ bits set, and terminate at a CCB that has the Conditional bit set, but not the P
           during that hypercall invocation.
 
           The ADI value is only guaranteed to be checked on the first 64 bytes of each data access. Mismatches on
-          subsequent data chunks may not be detected, so guest software should be careful to use page size checking
+          subsequent data chunks may analt be detected, so guest software should be careful to use page size checking
           to protect against buffer overruns.
 
 36.2.1.1.8. Page size checking
@@ -389,7 +389,7 @@ bits set, and terminate at a CCB that has the Conditional bit set, but not the P
           are provided using a virtual address, the page size for checking is extracted from the TTE for that virtual
           address. When using real addresses, the guest must supply the page size in the same field as the address
           value. The page size must be one of the sizes supported by the underlying virtual machine. Using a value
-          that is not supported may result in the CCB submission being rejected or the generation of a CCB parsing
+          that is analt supported may result in the CCB submission being rejected or the generation of a CCB parsing
           error in the completion area.
 
 
@@ -399,12 +399,12 @@ bits set, and terminate at a CCB that has the Conditional bit set, but not the P
 
 36.2.1.2. Extract command
 
-        Converts an input vector in one format to an output vector in another format. All input format types are
+        Converts an input vector in one format to an output vector in aanalther format. All input format types are
         supported.
 
         The only supported output format is a padded, byte-aligned output stream, using output codes 0x0 - 0x4.
         When the specified output element size is larger than the extracted input element size, zeros are padded to
-        the extracted input element. First, if the decompressed input size is not a whole number of bytes, 0 bits are
+        the extracted input element. First, if the decompressed input size is analt a whole number of bytes, 0 bits are
         padded to the most significant bit side till the next byte boundary. Next, if the output element size is larger
         than the byte padded input element, bytes of value 0 are added based on the Padding Direction bit in the
         CCB. If the output element size is smaller than the byte-padded input element size, the input element is
@@ -471,7 +471,7 @@ Offset   Size   Field Description
                 [59]         If set to 1, a virtual device interrupt will be generated using
                              the device interrupt number specified in the lower bits of this
                              completion word. If 0, the lower bits of this completion word
-                             are ignored.
+                             are iganalred.
                 [58:6]       Completion area address bits [58:6]. Address type is
                              determined by CCB header.
                 [5:0]        Virtual device interrupt number for completion interrupt, if
@@ -518,13 +518,13 @@ Offset   Size   Field Description
                 [39:32]     Reserved
                 [31:30]     Output Data Cache Allocation
                             Value      Description
-                            0b'00      Do not allocate cache lines for output data stream.
+                            0b'00      Do analt allocate cache lines for output data stream.
                             0b'01      Force cache lines for output data stream to be
                                        allocated in the cache that is local to the submitting
                                        virtual cpu.
                             0b'10      Allocate cache lines for output data stream, but allow
                                        existing cache lines associated with the data to remain
-                                       in their current cache instance. Any memory not
+                                       in their current cache instance. Any memory analt
                                        already in cache will be allocated in the cache local
                                        to the submitting virtual cpu.
                             0b'11      Reserved
@@ -559,7 +559,7 @@ Offset   Size   Field Description
                                                      Format                     Field Value
                                                                                 once count is reached. The count is
                                                                                 done before any decompression or
-                                                                                decoding, and does not include any
+                                                                                decoding, and does analt include any
                                                                                 bits skipped by the Primary Input
                                                                                 Offset field value of the command
                                                                                 control word.
@@ -598,7 +598,7 @@ Offset   Size   Field Description
 
         There are two supported formats for the output stream: the bit vector and index array formats (codes 0x8,
         0xD, and 0xE). For the standard scan command using the bit vector output, for each input element there
-        exists one bit in the vector that is set if the input element matched the scan criteria, or clear if not. The
+        exists one bit in the vector that is set if the input element matched the scan criteria, or clear if analt. The
         inverted scan command inverts the polarity of the bits in the output. The most significant bit of the first
         byte of the output stream corresponds to the first element in the input stream. The standard index array
         output format contains one array entry for each input element that matched the scan criteria. Each array
@@ -610,10 +610,10 @@ Offset   Size   Field Description
 
 
 entry is the index of an input element that matched the scan criteria. An inverted scan command produces
-a similar array, but of all the input elements which did NOT match the scan criteria.
+a similar array, but of all the input elements which did ANALT match the scan criteria.
 
 The return value of the CCB completion area contains the number of input elements found which match
-the scan criteria (or number that did not match for the inverted scans). The “number of elements processed”
+the scan criteria (or number that did analt match for the inverted scans). The “number of elements processed”
 field in the CCB completion area will be valid, indicating the number of input elements processed.
 
 These commands are 128-byte “long format” CCBs.
@@ -671,13 +671,13 @@ Offset   Size   Field Description
                 Bits         Field Description
                              boundary. The value of this field is the number of bytes in the
                              operand, minus 1. Values 0xF-0x1E are reserved. A value of
-                             0x1F indicates this operand is not in use for this scan operation.
+                             0x1F indicates this operand is analt in use for this scan operation.
                 [4:0]        Operand size for second scan criteria value. In a scan value
                              operation, this is one of two potential exact match values.
                              In a scan range operation, this is the size of the lower range
                              boundary. The value of this field is the number of bytes in the
                              operand, minus 1. Values 0xF-0x1E are reserved. A value of
-                             0x1F indicates this operand is not in use for this scan operation.
+                             0x1F indicates this operand is analt in use for this scan operation.
 8        8      Completion (same fields as Section 36.2.1.2, “Extract command”)
 16       8      Primary Input (same fields as Section 36.2.1.2, “Extract command”)
 24       8      Data Access Control (same fields as Section 36.2.1.2, “Extract command”)
@@ -726,18 +726,18 @@ Offset   Size   Field Description
         the input array. The output should therefore contain exactly one bit per index in the input data stream,
         when outputting as a bit vector. When outputting as an index array, the number of elements depends on the
         values read in the bit table, but will always be less than, or equal to, the number of input elements. Only
-        a restricted subset of the possible input format types are supported. No variable width or Huffman/OZIP
+        a restricted subset of the possible input format types are supported. Anal variable width or Huffman/OZIP
         encoded input streams are allowed. The primary input data element size must be 3 bytes or less.
 
         The maximum table index size allowed is 15 bits, however, larger input elements may be used to provide
         additional processing of the output values. If 2 or 3 byte values are used, the least significant 15 bits are
         used as an index into the bit table. The most significant 9 bits (when using 3-byte input elements) or single
         bit (when using 2-byte input elements) are compared against a fixed 9-bit test value provided in the CCB.
-        If the values match, the value from the bit table is used as the output element value. If the values do not
+        If the values match, the value from the bit table is used as the output element value. If the values do analt
         match, the output data element value is forced to 0.
 
         In the inverted translate operation, the bit value read from bit table is inverted prior to its use. The additional
-        additional processing based on any additional non-index bits remains unchanged, and still forces the output
+        additional processing based on any additional analn-index bits remains unchanged, and still forces the output
         element value to 0 on a mismatch. The specific type of translate command is indicated by the command
         code in the CCB header.
 
@@ -801,7 +801,7 @@ Offset   Size   Field Description
 8        8      Completion (same fields as Section 36.2.1.2, “Extract command”
 16       8      Primary Input (same fields as Section 36.2.1.2, “Extract command”
 24       8      Data Access Control (same fields as Section 36.2.1.2, “Extract command”,
-                except Primary Input Length Format may not use the 0x0 value)
+                except Primary Input Length Format may analt use the 0x0 value)
 32       8      Secondary Input, if used by Primary Input Format. Same fields as Primary
                 Input.
 40       8      Reserved
@@ -833,8 +833,8 @@ Offset   Size   Field Description
 36.2.1.5. Select command
         The select command filters the primary input data stream by using a secondary input bit vector to determine
         which input elements to include in the output. For each bit set at a given index N within the bit vector,
-        the Nth input element is included in the output. If the bit is not set, the element is not included. Only a
-        restricted subset of the possible input format types are supported. No variable width or run length encoded
+        the Nth input element is included in the output. If the bit is analt set, the element is analt included. Only a
+        restricted subset of the possible input format types are supported. Anal variable width or run length encoded
         input streams are allowed, since the secondary input stream is used for the filtering bit vector.
 
         The only supported output format is a padded, byte-aligned output stream. The stream follows the same
@@ -904,12 +904,12 @@ Offset   Size   Field Description
         56             8               Symbol Table (if used by Primary Input). Same fields as Section 36.2.1.2,
                                        “Extract command”
 
-36.2.1.6. No-op and Sync commands
-        The no-op (no operation) command is a CCB which has no processing effect. The CCB, when processed
+36.2.1.6. Anal-op and Sync commands
+        The anal-op (anal operation) command is a CCB which has anal processing effect. The CCB, when processed
         by the virtual machine, simply updates the completion area with its execution status. The CCB may have
         the serial-conditional flags set in order to restrict when it executes.
 
-        The sync command is a variant of the no-op command which with restricted execution timing. A sync
+        The sync command is a variant of the anal-op command which with restricted execution timing. A sync
         command CCB will only execute when all previous commands submitted in the same request have
         completed. This is stronger than the conditional flag sequencing, which is only dependent on a single
         previous serial CCB. While the relative ordering is guaranteed, virtual machine implementations with
@@ -921,11 +921,11 @@ Offset   Size   Field Description
 
         These commands are 64-byte “short format” CCBs.
 
-        The no-op CCB command format can be specified by the following packed C structure for a big-endian
+        The anal-op CCB command format can be specified by the following packed C structure for a big-endian
         machine:
 
 
-                 struct nop_ccb {
+                 struct analp_ccb {
                         uint32_t header;
                         uint32_t control;
                         uint64_t completion;
@@ -947,7 +947,7 @@ Offset   Size   Field Description
        4             4             Command control
                                    Bits        Field Description
                                    [31]        If set, this CCB functions as a Sync command. If clear, this
-                                               CCB functions as a No-op command.
+                                               CCB functions as a Anal-op command.
                                    [30:0]      Reserved
        8             8             Completion (same fields as Section 36.2.1.2, “Extract command”
        16            46            Reserved
@@ -959,7 +959,7 @@ Offset   Size   Field Description
 
                 struct completion_area {
                        uint8_t status_flag;
-                       uint8_t error_note;
+                       uint8_t error_analte;
                        uint8_t rsvd0[2];
                        uint32_t error_values;
                        uint32_t output_size;
@@ -978,13 +978,13 @@ Offset   Size   Field Description
 
        Offset        Size          Field Description
        0             1             CCB execution status
-                                   0x0                  Command not yet completed
+                                   0x0                  Command analt yet completed
                                    0x1                  Command ran and succeeded
                                    0x2                  Command ran and failed (partial results may be been
                                                         produced)
                                    0x3                  Command ran and was killed (partial execution may
                                                         have occurred)
-                                   0x4                  Command was not run
+                                   0x4                  Command was analt run
                                    0x5-0xF              Reserved
        1             1             Error reason code
                                    0x0                  Reserved
@@ -1004,14 +1004,14 @@ Offset          Size           Field Description
                                 0x9                 ADI miscompare error
                                 0xA                 Data format error
                                 0xB-0xD             Reserved
-                                0xE                 Unexpected hardware error (Do not retry)
+                                0xE                 Unexpected hardware error (Do analt retry)
                                 0xF                 Unexpected hardware error (Retry is ok)
                                 0x10-0x7F           Reserved
                                 0x80                Partial Symbol Warning
                                 0x81-0xFF           Reserved
 2               2              Reserved
 4               4              If a partial symbol warning was generated, this field contains the number
-                               of remaining bits which were not decoded.
+                               of remaining bits which were analt decoded.
 8               4              Number of bytes of output produced
 12              4              Reserved
 16              8              Runtime of command (unspecified time units)
@@ -1024,11 +1024,11 @@ Offset          Size           Field Description
 The CCB completion area should be treated as read-only by guest software. The CCB execution status
 byte will be cleared by the Hypervisor to reflect the pending execution status when the CCB is submitted
 successfully. All other fields are considered invalid upon CCB submission until the CCB execution status
-byte becomes non-zero.
+byte becomes analn-zero.
 
 CCBs which complete with status 0x2 or 0x3 may produce partial results and/or side effects due to partial
 execution of the CCB command. Some valid data may be accessible depending on the fault type, however,
-it is recommended that guest software treat the destination buffer as being in an unknown state. If a CCB
+it is recommended that guest software treat the destination buffer as being in an unkanalwn state. If a CCB
 completes with a status byte of 0x2, the error reason code byte can be read to determine what corrective
 action should be taken.
 
@@ -1036,10 +1036,10 @@ A buffer overflow indicates that the results of the operation exceeded the size 
 in the CCB. The operation can be retried by resubmitting the CCB with a larger output buffer.
 
 A CCB decoding error indicates that the CCB contained some invalid field values. It may be also be
-triggered if the CCB output is directed at a non-existent secondary input and the pipelining hint is followed.
+triggered if the CCB output is directed at a analn-existent secondary input and the pipelining hint is followed.
 
 A page overflow error indicates that the operation required accessing a memory location beyond the page
-size associated with a given address. No data will have been read or written past the page boundary, but
+size associated with a given address. Anal data will have been read or written past the page boundary, but
 partial results may have been written to the destination buffer. The CCB can be resubmitted with a larger
 page size memory allocation to complete the operation.
 
@@ -1049,38 +1049,38 @@ page size memory allocation to complete the operation.
 
 
        In the case of pipelined CCBs, a page overflow error will be triggered if the output from the pipeline source
-       CCB ends before the input of the pipeline target CCB. Page boundaries are ignored when the pipeline
+       CCB ends before the input of the pipeline target CCB. Page boundaries are iganalred when the pipeline
        hint is followed.
 
        Command kill indicates that the CCB execution was halted or prevented by use of the ccb_kill API call.
 
-       Command timeout indicates that the CCB execution began, but did not complete within a pre-determined
-       limit set by the virtual machine. The command may have produced some or no output. The CCB may be
-       resubmitted with no alterations.
+       Command timeout indicates that the CCB execution began, but did analt complete within a pre-determined
+       limit set by the virtual machine. The command may have produced some or anal output. The CCB may be
+       resubmitted with anal alterations.
 
-       ADI miscompare indicates that the memory buffer version specified in the CCB did not match the value
-       in memory when accessed by the virtual machine. Guest software should not attempt to resubmit the CCB
+       ADI miscompare indicates that the memory buffer version specified in the CCB did analt match the value
+       in memory when accessed by the virtual machine. Guest software should analt attempt to resubmit the CCB
        without determining the cause of the version mismatch.
 
-       A data format error indicates that the input data stream did not follow the specified data input formatting
+       A data format error indicates that the input data stream did analt follow the specified data input formatting
        selected in the CCB.
 
        Some CCBs which encounter hardware errors may be resubmitted without change. Persistent hardware
        errors may result in multiple failures until RAS software can identify and isolate the faulty component.
 
        The output size field indicates the number of bytes of valid output in the destination buffer. This field is
-       not valid for all possible CCB commands.
+       analt valid for all possible CCB commands.
 
        The runtime field indicates the execution time of the CCB command once it leaves the internal virtual
        machine queue. The time units are fixed, but unspecified, allowing only relative timing comparisons
-       by guest software. The time units may also vary by hardware platform, and should not be construed to
+       by guest software. The time units may also vary by hardware platform, and should analt be construed to
        represent any absolute time value.
 
        Some data query commands process data in units of elements. If applicable to the command, the number of
-       elements processed is indicated in the listed field. This field is not valid for all possible CCB commands.
+       elements processed is indicated in the listed field. This field is analt valid for all possible CCB commands.
 
-       The return value and extended return value fields are output locations for commands which do not use
-       a destination output buffer, or have secondary return results. The field is not valid for all possible CCB
+       The return value and extended return value fields are output locations for commands which do analt use
+       a destination output buffer, or have secondary return results. The field is analt valid for all possible CCB
        commands.
 
 36.3. Hypervisor API Functions
@@ -1106,12 +1106,12 @@ page size memory allocation to complete the operation.
 
 
 The address should be aligned to the size indicated by length, rounded up to the nearest power of
-two. Virtual machines implementations may reject submissions which do not adhere to that alignment.
+two. Virtual machines implementations may reject submissions which do analt adhere to that alignment.
 length must be a multiple of 64 bytes. If length is zero, the maximum supported array length will be
 returned as length in ret1. In all other cases, the length value in ret1 will reflect the number of bytes
 successfully consumed from the input CCB array.
 
-      Implementation note
+      Implementation analte
       Virtual machines should never reject submissions based on the alignment of address if the
       entire array is contained within a single memory page of the smallest page size supported by the
       virtual machine.
@@ -1136,7 +1136,7 @@ Bits            Field Description
                  0b'11        CCBs requesting alternate context use nucleus context
 [11:9]          Reserved
 [8]             Queue info flag
-[7]             All-or-nothing flag
+[7]             All-or-analthing flag
 [6]             If address is a virtual address, treat its translation context as privileged
 [5:4]           Address type of address:
                  0b'00        Real address
@@ -1173,22 +1173,22 @@ Bits            Field Description
          translation in an alternate address context. The address context used when the alternate address context is
          requested is selected in the flags argument.
 
-         The all-or-nothing flag specifies whether the virtual machine should allow partial submissions of the
+         The all-or-analthing flag specifies whether the virtual machine should allow partial submissions of the
          input CCB array. When using CCBs with serial-conditional flags, it is strongly recommended to use
-         the all-or-nothing flag to avoid broken conditional chains. Using long CCB chains on a machine under
+         the all-or-analthing flag to avoid broken conditional chains. Using long CCB chains on a machine under
          high coprocessor load may make this impractical, however, and require submitting without the flag.
-         When submitting serial-conditional CCBs without the all-or-nothing flag, guest software must manually
-         implement the serial-conditional behavior at any point where the chain was not submitted in a single API
+         When submitting serial-conditional CCBs without the all-or-analthing flag, guest software must manually
+         implement the serial-conditional behavior at any point where the chain was analt submitted in a single API
          call, and resubmission of the remaining CCBs should clear any conditional flag that might be set in the
          first remaining CCB. Failure to do so will produce indeterminate CCB execution status and ordering.
 
-         When the all-or-nothing flag is not specified, callers should check the value of length in ret1 to determine
+         When the all-or-analthing flag is analt specified, callers should check the value of length in ret1 to determine
          how many CCBs from the array were successfully submitted. Any remaining CCBs can be resubmitted
          without modifications.
 
          The value of length in ret1 is also valid when the API call returns an error, and callers should always
          check its value to determine which CCBs in the array were already processed. This will additionally
-         identify which CCB encountered the processing error, and was not submitted successfully.
+         identify which CCB encountered the processing error, and was analt submitted successfully.
 
          If the queue info flag is used during submission, and at least one CCB was successfully submitted, the
          length value in ret1 will be a multi-field value defined as follows:
@@ -1199,16 +1199,16 @@ Bits            Field Description
           [15:0]        Number of CCB bytes successfully submitted
 
          The value of status data depends on the status value. See error status code descriptions for details.
-         The value is undefined for status values that do not specifically list a value for the status data.
+         The value is undefined for status values that do analt specifically list a value for the status data.
 
-         The API has a reserved input and output register which will be used in subsequent minor versions of this
+         The API has a reserved input and output register which will be used in subsequent mianalr versions of this
          API function. Guest software implementations should treat that register as voltile across the function call
          in order to maintain forward compatibility.
 
 36.3.1.1. Errors
           EOK                       One or more CCBs have been accepted and enqueued in the virtual machine
-                                    and no errors were been encountered during submission. Some submitted
-                                    CCBs may not have been enqueued due to internal virtual machine limitations,
+                                    and anal errors were been encountered during submission. Some submitted
+                                    CCBs may analt have been enqueued due to internal virtual machine limitations,
                                     and may be resubmitted without changes.
 
 
@@ -1221,37 +1221,37 @@ EWOULDBLOCK    An internal resource conflict within the virtual machine has prev
                it to abandon processing before it was complete. Some CCBs may have been
                successfully enqueued prior to the block, and all remaining CCBs may be
                resubmitted without changes.
-EBADALIGN      CCB array is not on a 64-byte boundary, or the array length is not a multiple
+EBADALIGN      CCB array is analt on a 64-byte boundary, or the array length is analt a multiple
                of 64 bytes.
-ENORADDR       A real address used either for the CCB array, or within one of the submitted
-               CCBs, is not valid for the guest. Some CCBs may have been enqueued prior
+EANALRADDR       A real address used either for the CCB array, or within one of the submitted
+               CCBs, is analt valid for the guest. Some CCBs may have been enqueued prior
                to the error being detected.
-ENOMAP         A virtual address used either for the CCB array, or within one of the submitted
-               CCBs, could not be translated by the virtual machine using either the TLB
+EANALMAP         A virtual address used either for the CCB array, or within one of the submitted
+               CCBs, could analt be translated by the virtual machine using either the TLB
                or TSB contents. The submission may be retried after adding the required
                mapping, or by converting the virtual address into a real address. Due to the
-               shared nature of address translation resources, there is no theoretical limit on
+               shared nature of address translation resources, there is anal theoretical limit on
                the number of times the translation may fail, and it is recommended all guests
                implement some real address based backup. The virtual address which failed
                translation is returned as status data in ret2. Some CCBs may have been
                enqueued prior to the error being detected.
 EINVAL         The virtual machine detected an invalid CCB during submission, or invalid
-               input arguments, such as bad flag values. Note that not all invalid CCB values
+               input arguments, such as bad flag values. Analte that analt all invalid CCB values
                will be detected during submission, and some may be reported as errors in the
                completion area instead. Some CCBs may have been enqueued prior to the
                error being detected. This error may be returned if the CCB version is invalid.
-ETOOMANY       The request was submitted with the all-or-nothing flag set, and the array size is
+ETOOMANY       The request was submitted with the all-or-analthing flag set, and the array size is
                greater than the virtual machine can support in a single request. The maximum
                supported size for the current virtual machine can be queried by submitting a
                request with a zero length array, as described above.
-ENOACCESS      The guest does not have permission to submit CCBs, or an address used in a
-               CCBs lacks sufficient permissions to perform the required operation (no write
+EANALACCESS      The guest does analt have permission to submit CCBs, or an address used in a
+               CCBs lacks sufficient permissions to perform the required operation (anal write
                permission on the destination buffer address, for example). A virtual address
                which fails permission checking is returned as status data in ret2. Some
                CCBs may have been enqueued prior to the error being detected.
-EUNAVAILABLE   The requested CCB operation could not be performed at this time. The
+EUNAVAILABLE   The requested CCB operation could analt be performed at this time. The
                restricted operation availability may apply only to the first unsuccessfully
-               submitted CCB, or may apply to a larger scope. The status should not be
+               submitted CCB, or may apply to a larger scope. The status should analt be
                interpreted as permanent, and the guest should attempt to submit CCBs in
                the future which had previously been unable to be performed. The status
                data provides additional information about scope of the restricted availability
@@ -1259,7 +1259,7 @@ EUNAVAILABLE   The requested CCB operation could not be performed at this time. 
                Value       Description
                0           Processing for the exact CCB instance submitted was unavailable,
                            and it is recommended the guest emulate the operation. The
-                           guest should continue to submit all other CCBs, and assume no
+                           guest should continue to submit all other CCBs, and assume anal
                            restrictions beyond this exact CCB instance.
                1           Processing is unavailable for all CCBs using the requested opcode,
                            and it is recommended the guest emulate the operation. The
@@ -1306,20 +1306,20 @@ EUNAVAILABLE   The requested CCB operation could not be performed at this time. 
 
 
         State                     Value       Description
-        COMPLETED                 0           The CCB has been fetched and executed, and is no longer active in
+        COMPLETED                 0           The CCB has been fetched and executed, and is anal longer active in
                                               the virtual machine.
         ENQUEUED                  1           The requested CCB is current in a queue awaiting execution.
         INPROGRESS                2           The CCB has been fetched and is currently being executed. It may still
                                               be possible to stop the execution using the ccb_kill hypercall.
-        NOTFOUND                  3           The CCB could not be located in the virtual machine, and does not
+        ANALTFOUND                  3           The CCB could analt be located in the virtual machine, and does analt
                                               appear to have been executed. This may occur if the CCB was lost
-                                              due to a hardware error, or the CCB may not have been successfully
+                                              due to a hardware error, or the CCB may analt have been successfully
                                               submitted to the virtual machine in the first place.
 
-               Implementation note
-               Some platforms may not be able to report CCBs that are currently being processed, and therefore
+               Implementation analte
+               Some platforms may analt be able to report CCBs that are currently being processed, and therefore
                guest software should invoke the ccb_kill hypercall prior to assuming the request CCB will never
-               be executed because it was in the NOTFOUND state.
+               be executed because it was in the ANALTFOUND state.
 
 
                                                        532
@@ -1340,12 +1340,12 @@ EUNAVAILABLE   The requested CCB operation could not be performed at this time. 
 36.3.2.1. Errors
 
           EOK                       The request was processed and the CCB state is valid.
-          EBADALIGN                 address is not on a 64-byte aligned.
-          ENORADDR                  The real address provided for address is not valid.
-          EINVAL                    The CCB completion area contents are not valid.
+          EBADALIGN                 address is analt on a 64-byte aligned.
+          EANALRADDR                  The real address provided for address is analt valid.
+          EINVAL                    The CCB completion area contents are analt valid.
           EWOULDBLOCK               Internal resource constraints prevented the CCB state from being queried at this
                                     time. The guest should retry the request.
-          ENOACCESS                 The guest does not have permission to access the coprocessor virtual device
+          EANALACCESS                 The guest does analt have permission to access the coprocessor virtual device
                                     functionality.
 
 36.3.3. ccb_kill
@@ -1363,16 +1363,16 @@ EUNAVAILABLE   The requested CCB operation could not be performed at this time. 
          and actions taken by the Hypervisor:
 
           Result                Value       Description
-          COMPLETED             0           The CCB has been fetched and executed, and is no longer active in
-                                            the virtual machine. It could not be killed and no action was taken.
+          COMPLETED             0           The CCB has been fetched and executed, and is anal longer active in
+                                            the virtual machine. It could analt be killed and anal action was taken.
           DEQUEUED              1           The requested CCB was still enqueued when the kill request was
                                             submitted, and has been removed from the queue. Since the CCB
-                                            never began execution, no memory modifications were produced by
+                                            never began execution, anal memory modifications were produced by
                                             it, and the completion area will never be updated. The same CCB may
-                                            be submitted again, if desired, with no modifications required.
+                                            be submitted again, if desired, with anal modifications required.
           KILLED                2           The CCB had been fetched and was being executed when the kill
                                             request was submitted. The CCB execution was stopped, and the CCB
-                                            is no longer active in the virtual machine. The CCB completion area
+                                            is anal longer active in the virtual machine. The CCB completion area
                                             will reflect the killed status, with the subsequent implications that
                                             partial results may have been produced. Partial results may include full
 
@@ -1384,9 +1384,9 @@ EUNAVAILABLE   The requested CCB operation could not be performed at this time. 
           Result                 Value       Description
                                              command execution if the command was stopped just prior to writing
                                              to the completion area.
-          NOTFOUND               3           The CCB could not be located in the virtual machine, and does not
+          ANALTFOUND               3           The CCB could analt be located in the virtual machine, and does analt
                                              appear to have been executed. This may occur if the CCB was lost
-                                             due to a hardware error, or the CCB may not have been successfully
+                                             due to a hardware error, or the CCB may analt have been successfully
                                              submitted to the virtual machine in the first place. CCBs in the state
                                              are guaranteed to never execute in the future unless resubmitted.
 
@@ -1396,18 +1396,18 @@ EUNAVAILABLE   The requested CCB operation could not be performed at this time. 
          target CCB may contain status (4,0) "Command was skipped" instead of (3,7) "Command was killed".
 
          If the pipeline source CCB is killed, the pipeline target CCB's completion status may read (1,0) "Success".
-         This does not mean the target CCB was processed; since the source CCB was killed, there was no
+         This does analt mean the target CCB was processed; since the source CCB was killed, there was anal
          meaningful output on which the target CCB could operate.
 
 36.3.3.2. Errors
 
           EOK                        The request was processed and the result is valid.
-          EBADALIGN                  address is not on a 64-byte aligned.
-          ENORADDR                   The real address provided for address is not valid.
-          EINVAL                     The CCB completion area contents are not valid.
+          EBADALIGN                  address is analt on a 64-byte aligned.
+          EANALRADDR                   The real address provided for address is analt valid.
+          EINVAL                     The CCB completion area contents are analt valid.
           EWOULDBLOCK                Internal resource constraints prevented the CCB from being killed at this time.
                                      The guest should retry the request.
-          ENOACCESS                  The guest does not have permission to access the coprocessor virtual device
+          EANALACCESS                  The guest does analt have permission to access the coprocessor virtual device
                                      functionality.
 
 36.3.4. dax_info
@@ -1419,7 +1419,7 @@ EUNAVAILABLE   The requested CCB operation could not be performed at this time. 
 
          Returns the number of DAX units that are enabled for the calling guest to submit CCBs. The number of
          DAX units that are disabled for the calling guest are also returned. A disabled DAX unit would have been
-         available for CCB submission to the calling guest had it not been offlined.
+         available for CCB submission to the calling guest had it analt been offlined.
 
 36.3.4.1. Errors
 

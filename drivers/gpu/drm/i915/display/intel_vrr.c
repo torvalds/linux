@@ -18,7 +18,7 @@ bool intel_vrr_is_capable(struct intel_connector *connector)
 
 	/*
 	 * DP Sink is capable of VRR video timings if
-	 * Ignore MSA bit is set in DPCD.
+	 * Iganalre MSA bit is set in DPCD.
 	 * EDID monitor range also should be atleast 10 for reasonable
 	 * Adaptive Sync or Variable Refresh Rate end user experience.
 	 */

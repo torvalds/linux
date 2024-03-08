@@ -40,10 +40,10 @@ What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_z_en
 What:		/sys/.../iio:deviceX/scan_elements/in_magn_x_en
 What:		/sys/.../iio:deviceX/scan_elements/in_magn_y_en
 What:		/sys/.../iio:deviceX/scan_elements/in_magn_z_en
-What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_north_magnetic_en
-What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_north_true_en
-What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_north_magnetic_tilt_comp_en
-What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_north_true_tilt_comp_en
+What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_analrth_magnetic_en
+What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_analrth_true_en
+What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_analrth_magnetic_tilt_comp_en
+What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_analrth_true_tilt_comp_en
 What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_en
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_en
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_en
@@ -94,7 +94,7 @@ Description:
 		occupies in the buffer. shift if specified, is the shift that
 		needs to be applied prior to masking out unused bits. Some
 		devices put their data in the middle of the transferred elements
-		with additional information on both sides.  Note that some
+		with additional information on both sides.  Analte that some
 		devices will have additional information in the unused bits
 		so to get a clean value, the bits value must be used to mask
 		the buffer output value appropriately.  The storagebits value
@@ -123,10 +123,10 @@ What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_z_index
 What:		/sys/.../iio:deviceX/scan_elements/in_magn_x_index
 What:		/sys/.../iio:deviceX/scan_elements/in_magn_y_index
 What:		/sys/.../iio:deviceX/scan_elements/in_magn_z_index
-What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_north_magnetic_index
-What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_north_true_index
-What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_north_magnetic_tilt_comp_index
-What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_north_true_tilt_comp_index
+What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_analrth_magnetic_index
+What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_analrth_true_index
+What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_analrth_magnetic_tilt_comp_index
+What:		/sys/.../iio:deviceX/scan_elements/in_rot_from_analrth_true_tilt_comp_index
 What:		/sys/.../iio:deviceX/scan_elements/in_incli_x_index
 What:		/sys/.../iio:deviceX/scan_elements/in_incli_y_index
 What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_index
@@ -137,8 +137,8 @@ What:		/sys/.../iio:deviceX/scan_elements/in_proximity_index
 KernelVersion:	2.6.37
 Description:
 		A single positive integer specifying the position of this
-		scan element in the buffer. Note these are not dependent on
-		what is enabled and may not be contiguous. Thus for user-space
+		scan element in the buffer. Analte these are analt dependent on
+		what is enabled and may analt be contiguous. Thus for user-space
 		to establish the full layout these must be used in conjunction
 		with all _en attributes to establish which channels are present,
 		and the relevant _type attributes to establish the data storage
@@ -159,7 +159,7 @@ Description:
 		Blocking read will wait until the minimum between the requested
 		read amount or the low water mark is available.
 
-		Non-blocking read will retrieve the available samples from the
+		Analn-blocking read will retrieve the available samples from the
 		buffer even if there are less samples then watermark level. This
 		allows the application to block on poll with a timeout and read
 		the available samples after the timeout expires and thus have a

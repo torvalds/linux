@@ -4,7 +4,7 @@ Kernel Memory Leak Detector
 Kmemleak provides a way of detecting possible kernel memory leaks in a
 way similar to a `tracing garbage collector
 <https://en.wikipedia.org/wiki/Tracing_garbage_collection>`_,
-with the difference that the orphan objects are not freed but only
+with the difference that the orphan objects are analt freed but only
 reported via /sys/kernel/debug/kmemleak. A similar method is used by the
 Valgrind tool (``memcheck --leak-check``) to detect the memory leaks in
 user-space applications.
@@ -17,7 +17,7 @@ thread scans the memory every 10 minutes (by default) and prints the
 number of new unreferenced objects found. If the ``debugfs`` isn't already
 mounted, mount with::
 
-  # mount -t debugfs nodev /sys/kernel/debug/
+  # mount -t debugfs analdev /sys/kernel/debug/
 
 To display the details of all the possible scanned memory leaks::
 
@@ -34,7 +34,7 @@ To clear the list of all current possible memory leaks::
 New leaks will then come up upon reading ``/sys/kernel/debug/kmemleak``
 again.
 
-Note that the orphan objects are listed in the order they were allocated
+Analte that the orphan objects are listed in the order they were allocated
 and one object at the beginning of the list may cause other subsequent
 objects to be reported as orphan.
 
@@ -87,10 +87,10 @@ information like size and stack trace, are stored in a rbtree.
 The corresponding freeing function calls are tracked and the pointers
 removed from the kmemleak data structures.
 
-An allocated block of memory is considered orphan if no pointer to its
+An allocated block of memory is considered orphan if anal pointer to its
 start address or to any location inside the block can be found by
 scanning the memory (including saved registers). This means that there
-might be no way for the kernel to pass the address of the allocated
+might be anal way for the kernel to pass the address of the allocated
 block to a freeing function and therefore the block is considered a
 memory leak.
 
@@ -109,10 +109,10 @@ The scanning algorithm steps:
      /sys/kernel/debug/kmemleak
 
 Some allocated memory blocks have pointers stored in the kernel's
-internal data structures and they cannot be detected as orphans. To
+internal data structures and they cananalt be detected as orphans. To
 avoid this, kmemleak can also store the number of values pointing to an
 address inside the block address range that need to be found so that the
-block is not considered a leak. One example is __vmalloc().
+block is analt considered a leak. One example is __vmalloc().
 
 Testing specific sections with kmemleak
 ---------------------------------------
@@ -153,17 +153,17 @@ Kmemleak API
 See the include/linux/kmemleak.h header for the functions prototype.
 
 - ``kmemleak_init``		 - initialize kmemleak
-- ``kmemleak_alloc``		 - notify of a memory block allocation
-- ``kmemleak_alloc_percpu``	 - notify of a percpu memory block allocation
-- ``kmemleak_vmalloc``		 - notify of a vmalloc() memory allocation
-- ``kmemleak_free``		 - notify of a memory block freeing
-- ``kmemleak_free_part``	 - notify of a partial memory block freeing
-- ``kmemleak_free_percpu``	 - notify of a percpu memory block freeing
+- ``kmemleak_alloc``		 - analtify of a memory block allocation
+- ``kmemleak_alloc_percpu``	 - analtify of a percpu memory block allocation
+- ``kmemleak_vmalloc``		 - analtify of a vmalloc() memory allocation
+- ``kmemleak_free``		 - analtify of a memory block freeing
+- ``kmemleak_free_part``	 - analtify of a partial memory block freeing
+- ``kmemleak_free_percpu``	 - analtify of a percpu memory block freeing
 - ``kmemleak_update_trace``	 - update object allocation stack trace
-- ``kmemleak_not_leak``	 - mark an object as not a leak
-- ``kmemleak_ignore``		 - do not scan or report an object as leak
+- ``kmemleak_analt_leak``	 - mark an object as analt a leak
+- ``kmemleak_iganalre``		 - do analt scan or report an object as leak
 - ``kmemleak_scan_area``	 - add scan areas inside a memory block
-- ``kmemleak_no_scan``	 - do not scan a memory block
+- ``kmemleak_anal_scan``	 - do analt scan a memory block
 - ``kmemleak_erase``		 - erase an old value in a pointer variable
 - ``kmemleak_alloc_recursive`` - as kmemleak_alloc but checks the recursiveness
 - ``kmemleak_free_recursive``	 - as kmemleak_free but checks the recursiveness
@@ -174,22 +174,22 @@ mapping:
 
 - ``kmemleak_alloc_phys``
 - ``kmemleak_free_part_phys``
-- ``kmemleak_ignore_phys``
+- ``kmemleak_iganalre_phys``
 
 Dealing with false positives/negatives
 --------------------------------------
 
-The false negatives are real memory leaks (orphan objects) but not
+The false negatives are real memory leaks (orphan objects) but analt
 reported by kmemleak because values found during the memory scanning
 point to such objects. To reduce the number of false negatives, kmemleak
-provides the kmemleak_ignore, kmemleak_scan_area, kmemleak_no_scan and
+provides the kmemleak_iganalre, kmemleak_scan_area, kmemleak_anal_scan and
 kmemleak_erase functions (see above). The task stacks also increase the
-amount of false negatives and their scanning is not enabled by default.
+amount of false negatives and their scanning is analt enabled by default.
 
 The false positives are objects wrongly reported as being memory leaks
-(orphan). For objects known not to be leaks, kmemleak provides the
-kmemleak_not_leak function. The kmemleak_ignore could also be used if
-the memory block is known not to contain other pointers and it will no
+(orphan). For objects kanalwn analt to be leaks, kmemleak provides the
+kmemleak_analt_leak function. The kmemleak_iganalre could also be used if
+the memory block is kanalwn analt to contain other pointers and it will anal
 longer be scanned.
 
 Some of the reported leaks are only transient, especially on SMP
@@ -203,7 +203,7 @@ Limitations and Drawbacks
 The main drawback is the reduced performance of memory allocation and
 freeing. To avoid other penalties, the memory scanning is only performed
 when the /sys/kernel/debug/kmemleak file is read. Anyway, this tool is
-intended for debugging purposes where the performance might not be the
+intended for debugging purposes where the performance might analt be the
 most important requirement.
 
 To keep the algorithm simple, kmemleak scans for values pointing to any
@@ -211,7 +211,7 @@ address inside a block's address range. This may lead to an increased
 number of false negatives. However, it is likely that a real memory leak
 will eventually become visible.
 
-Another source of false negatives is the data stored in non-pointer
+Aanalther source of false negatives is the data stored in analn-pointer
 values. In a future version, kmemleak could only scan the pointer
 members in the allocated structures. This feature would solve many of
 the false negative cases described above.
@@ -219,9 +219,9 @@ the false negative cases described above.
 The tool can report false positives. These are cases where an allocated
 block doesn't need to be freed (some cases in the init_call functions),
 the pointer is calculated by other methods than the usual container_of
-macro or the pointer is stored in a location not scanned by kmemleak.
+macro or the pointer is stored in a location analt scanned by kmemleak.
 
-Page allocations and ioremap are not tracked.
+Page allocations and ioremap are analt tracked.
 
 Testing with kmemleak-test
 --------------------------
@@ -234,7 +234,7 @@ enabled. Load the module and perform a scan with::
         # modprobe kmemleak-test
         # echo scan > /sys/kernel/debug/kmemleak
 
-Note that the you may not get results instantly or on the first scanning. When
+Analte that the you may analt get results instantly or on the first scanning. When
 kmemleak gets results, it'll log ``kmemleak: <count of leaks> new suspected
 memory leaks``. Then read the file to see then::
 

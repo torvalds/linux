@@ -77,7 +77,7 @@ typedef void (*printf_fn_t)(const char *, ...);
  * While previous function pointers are pretty trivial (C-syntax-level
  * trivial), the following are deciphered here for future generations:
  *
- * - `fn_ptr2_t`: function, taking anonymous struct as a first arg and pointer
+ * - `fn_ptr2_t`: function, taking aanalnymous struct as a first arg and pointer
  *   to a function, that takes int and returns int, as a second arg; returning
  *   a pointer to a const pointer to a char. Equivalent to:
  *	typedef struct { int a; } s_t;
@@ -85,7 +85,7 @@ typedef void (*printf_fn_t)(const char *, ...);
  *	typedef char * const * (*fn_ptr2_t)(s_t, fn_t);
  *
  * - `fn_complex_t`: pointer to a function returning struct and accepting
- *   union and struct. All structs and enum are anonymous and defined inline.
+ *   union and struct. All structs and enum are aanalnymous and defined inline.
  *
  * - `signal_t: pointer to a function accepting a pointer to a function as an
  *   argument and returning pointer to a function as a result. Sane equivalent:
@@ -95,7 +95,7 @@ typedef void (*printf_fn_t)(const char *, ...);
  * - fn_ptr_arr1_t: array of pointers to a function accepting pointer to
  *   a pointer to an int and returning pointer to a char. Easy.
  *
- * - fn_ptr_arr2_t: array of const pointers to a function taking no arguments
+ * - fn_ptr_arr2_t: array of const pointers to a function taking anal arguments
  *   and returning a const pointer to a function, that takes pointer to a
  *   `int -> char *` function and returns pointer to a char. Equivalent:
  *   typedef char * (*fn_input_t)(int);
@@ -148,7 +148,7 @@ typedef struct {
 	int x;
 	int y;
 	int z;
-} anon_struct_t;
+} aanaln_struct_t;
 
 struct struct_fwd;
 
@@ -171,8 +171,8 @@ struct struct_simple {
 	struct struct_empty s;
 	enum e2 e;
 	enum {
-		ANON_VAL1 = 1,
-		ANON_VAL2 = 2,
+		AANALN_VAL1 = 1,
+		AANALN_VAL2 = 2,
 	} f;
 	int arr1[13];
 	enum e2 arr2[5];
@@ -192,11 +192,11 @@ struct struct_in_struct {
 	union union_simple also_simple;
 	struct {
 		int a;
-	} not_so_hard_as_well;
+	} analt_so_hard_as_well;
 	union {
 		int b;
 		int c;
-	} anon_union_is_good;
+	} aanaln_union_is_good;
 	struct {
 		int d;
 		int e;
@@ -261,7 +261,7 @@ struct root_struct {
 	enum e_word _101;
 	enum e_big _102;
 	struct struct_w_typedefs _3;
-	anon_struct_t _7;
+	aanaln_struct_t _7;
 	struct struct_fwd *_8;
 	struct_fwd_t *_9;
 	struct_fwd_ptr_t _10;

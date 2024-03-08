@@ -15,7 +15,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV5670_XVCLK_FREQ		19200000
 
@@ -46,7 +46,7 @@
 /*
  * Pixels-per-line(PPL) = Time-per-line * pixel-rate
  * In OV5670, Time-per-line = HTS/SCLK.
- * HTS is fixed for all resolutions, not recommended to change.
+ * HTS is fixed for all resolutions, analt recommended to change.
  */
 #define OV5670_FIXED_PPL		2724	/* Pixels per line */
 
@@ -1856,7 +1856,7 @@ static const struct ov5670_mode supported_modes[] = {
 struct ov5670 {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_fwnode_endpoint endpoint;
+	struct v4l2_fwanalde_endpoint endpoint;
 
 	struct v4l2_ctrl_handler ctrl_handler;
 	/* V4L2 Controls */
@@ -2100,7 +2100,7 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 	struct v4l2_mbus_config_mipi_csi2 *bus_mipi_csi2 =
 		&ov5670->endpoint.bus.mipi_csi2;
 	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	unsigned int lanes_count;
 	s64 mipi_pixel_rate;
@@ -2177,11 +2177,11 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto error;
 
-	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov5670_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &ov5670_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error;
@@ -2207,7 +2207,7 @@ static int ov5670_init_state(struct v4l2_subdev *sd,
 	fmt->width = default_mode->width;
 	fmt->height = default_mode->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(V4L2_COLORSPACE_SRGB);
 	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
@@ -2255,7 +2255,7 @@ static void ov5670_update_pad_format(const struct ov5670_mode *mode,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 }
 
 static int ov5670_do_get_pad_format(struct ov5670 *ov5670,
@@ -2455,7 +2455,7 @@ static int ov5670_stop_streaming(struct ov5670 *ov5670)
 	if (ret)
 		dev_err(&client->dev, "%s failed to set stream\n", __func__);
 
-	/* Return success even if it was an error, as there is nothing the
+	/* Return success even if it was an error, as there is analthing the
 	 * caller can do about it.
 	 */
 	return 0;
@@ -2650,7 +2650,7 @@ static int ov5670_gpio_probe(struct ov5670 *ov5670)
 
 static int ov5670_probe(struct i2c_client *client)
 {
-	struct fwnode_handle *handle;
+	struct fwanalde_handle *handle;
 	struct ov5670 *ov5670;
 	u32 input_clk = 0;
 	bool full_power;
@@ -2658,12 +2658,12 @@ static int ov5670_probe(struct i2c_client *client)
 
 	ov5670 = devm_kzalloc(&client->dev, sizeof(*ov5670), GFP_KERNEL);
 	if (!ov5670)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov5670->xvclk = devm_clk_get_optional(&client->dev, NULL);
 	if (!IS_ERR_OR_NULL(ov5670->xvclk))
 		input_clk = clk_get_rate(ov5670->xvclk);
-	else if (!ov5670->xvclk || PTR_ERR(ov5670->xvclk) == -ENOENT)
+	else if (!ov5670->xvclk || PTR_ERR(ov5670->xvclk) == -EANALENT)
 		device_property_read_u32(&client->dev, "clock-frequency",
 					 &input_clk);
 	else
@@ -2689,15 +2689,15 @@ static int ov5670_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, ret, "GPIO probe failed\n");
 
 	/* Graph Endpoint */
-	handle = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	handle = fwanalde_graph_get_next_endpoint(dev_fwanalde(&client->dev), NULL);
 	if (!handle)
-		return dev_err_probe(&client->dev, -ENXIO, "Endpoint for node get failed\n");
+		return dev_err_probe(&client->dev, -ENXIO, "Endpoint for analde get failed\n");
 
 	ov5670->endpoint.bus_type = V4L2_MBUS_CSI2_DPHY;
 	ov5670->endpoint.bus.mipi_csi2.num_data_lanes = 2;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(handle, &ov5670->endpoint);
-	fwnode_handle_put(handle);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(handle, &ov5670->endpoint);
+	fwanalde_handle_put(handle);
 	if (ret)
 		return dev_err_probe(&client->dev, ret, "Endpoint parse failed\n");
 
@@ -2728,7 +2728,7 @@ static int ov5670_probe(struct i2c_client *client)
 		goto error_mutex_destroy;
 	}
 
-	ov5670->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	ov5670->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	ov5670->sd.entity.ops = &ov5670_subdev_entity_ops;
 	ov5670->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -2773,7 +2773,7 @@ error_power_off:
 		ov5670_runtime_suspend(&client->dev);
 
 error_endpoint:
-	v4l2_fwnode_endpoint_free(&ov5670->endpoint);
+	v4l2_fwanalde_endpoint_free(&ov5670->endpoint);
 
 	return ret;
 }
@@ -2791,7 +2791,7 @@ static void ov5670_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	ov5670_runtime_suspend(&client->dev);
 
-	v4l2_fwnode_endpoint_free(&ov5670->endpoint);
+	v4l2_fwanalde_endpoint_free(&ov5670->endpoint);
 }
 
 static const struct dev_pm_ops ov5670_pm_ops = {

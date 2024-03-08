@@ -17,7 +17,7 @@
 #include <linux/pagemap.h>
 #include <linux/stat.h>
 #include <linux/cred.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -41,13 +41,13 @@ static ssize_t
 coda_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *coda_file = iocb->ki_filp;
-	struct inode *coda_inode = file_inode(coda_file);
+	struct ianalde *coda_ianalde = file_ianalde(coda_file);
 	struct coda_file_info *cfi = coda_ftoc(coda_file);
 	loff_t ki_pos = iocb->ki_pos;
 	size_t count = iov_iter_count(to);
 	ssize_t ret;
 
-	ret = venus_access_intent(coda_inode->i_sb, coda_i2f(coda_inode),
+	ret = venus_access_intent(coda_ianalde->i_sb, coda_i2f(coda_ianalde),
 				  &cfi->cfi_access_intent,
 				  count, ki_pos, CODA_ACCESS_TYPE_READ);
 	if (ret)
@@ -56,7 +56,7 @@ coda_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	ret = vfs_iter_read(cfi->cfi_container, to, &iocb->ki_pos, 0);
 
 finish_read:
-	venus_access_intent(coda_inode->i_sb, coda_i2f(coda_inode),
+	venus_access_intent(coda_ianalde->i_sb, coda_i2f(coda_ianalde),
 			    &cfi->cfi_access_intent,
 			    count, ki_pos, CODA_ACCESS_TYPE_READ_FINISH);
 	return ret;
@@ -66,28 +66,28 @@ static ssize_t
 coda_file_write_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *coda_file = iocb->ki_filp;
-	struct inode *coda_inode = file_inode(coda_file);
+	struct ianalde *coda_ianalde = file_ianalde(coda_file);
 	struct coda_file_info *cfi = coda_ftoc(coda_file);
 	struct file *host_file = cfi->cfi_container;
 	loff_t ki_pos = iocb->ki_pos;
 	size_t count = iov_iter_count(to);
 	ssize_t ret;
 
-	ret = venus_access_intent(coda_inode->i_sb, coda_i2f(coda_inode),
+	ret = venus_access_intent(coda_ianalde->i_sb, coda_i2f(coda_ianalde),
 				  &cfi->cfi_access_intent,
 				  count, ki_pos, CODA_ACCESS_TYPE_WRITE);
 	if (ret)
 		goto finish_write;
 
-	inode_lock(coda_inode);
+	ianalde_lock(coda_ianalde);
 	ret = vfs_iter_write(cfi->cfi_container, to, &iocb->ki_pos, 0);
-	coda_inode->i_size = file_inode(host_file)->i_size;
-	coda_inode->i_blocks = (coda_inode->i_size + 511) >> 9;
-	inode_set_mtime_to_ts(coda_inode, inode_set_ctime_current(coda_inode));
-	inode_unlock(coda_inode);
+	coda_ianalde->i_size = file_ianalde(host_file)->i_size;
+	coda_ianalde->i_blocks = (coda_ianalde->i_size + 511) >> 9;
+	ianalde_set_mtime_to_ts(coda_ianalde, ianalde_set_ctime_current(coda_ianalde));
+	ianalde_unlock(coda_ianalde);
 
 finish_write:
-	venus_access_intent(coda_inode->i_sb, coda_i2f(coda_inode),
+	venus_access_intent(coda_ianalde->i_sb, coda_i2f(coda_ianalde),
 			    &cfi->cfi_access_intent,
 			    count, ki_pos, CODA_ACCESS_TYPE_WRITE_FINISH);
 	return ret;
@@ -95,16 +95,16 @@ finish_write:
 
 static ssize_t
 coda_file_splice_read(struct file *coda_file, loff_t *ppos,
-		      struct pipe_inode_info *pipe,
+		      struct pipe_ianalde_info *pipe,
 		      size_t len, unsigned int flags)
 {
-	struct inode *coda_inode = file_inode(coda_file);
+	struct ianalde *coda_ianalde = file_ianalde(coda_file);
 	struct coda_file_info *cfi = coda_ftoc(coda_file);
 	struct file *in = cfi->cfi_container;
 	loff_t ki_pos = *ppos;
 	ssize_t ret;
 
-	ret = venus_access_intent(coda_inode->i_sb, coda_i2f(coda_inode),
+	ret = venus_access_intent(coda_ianalde->i_sb, coda_i2f(coda_ianalde),
 				  &cfi->cfi_access_intent,
 				  len, ki_pos, CODA_ACCESS_TYPE_READ);
 	if (ret)
@@ -113,7 +113,7 @@ coda_file_splice_read(struct file *coda_file, loff_t *ppos,
 	ret = vfs_splice_read(in, ppos, pipe, len, flags);
 
 finish_read:
-	venus_access_intent(coda_inode->i_sb, coda_i2f(coda_inode),
+	venus_access_intent(coda_ianalde->i_sb, coda_i2f(coda_ianalde),
 			    &cfi->cfi_access_intent,
 			    len, ki_pos, CODA_ACCESS_TYPE_READ_FINISH);
 	return ret;
@@ -150,18 +150,18 @@ coda_vm_close(struct vm_area_struct *vma)
 static int
 coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 {
-	struct inode *coda_inode = file_inode(coda_file);
+	struct ianalde *coda_ianalde = file_ianalde(coda_file);
 	struct coda_file_info *cfi = coda_ftoc(coda_file);
 	struct file *host_file = cfi->cfi_container;
-	struct inode *host_inode = file_inode(host_file);
-	struct coda_inode_info *cii;
+	struct ianalde *host_ianalde = file_ianalde(host_file);
+	struct coda_ianalde_info *cii;
 	struct coda_vm_ops *cvm_ops;
 	loff_t ppos;
 	size_t count;
 	int ret;
 
 	if (!host_file->f_op->mmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (WARN_ON(coda_file != vma->vm_file))
 		return -EIO;
@@ -169,7 +169,7 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 	count = vma->vm_end - vma->vm_start;
 	ppos = vma->vm_pgoff * PAGE_SIZE;
 
-	ret = venus_access_intent(coda_inode->i_sb, coda_i2f(coda_inode),
+	ret = venus_access_intent(coda_ianalde->i_sb, coda_i2f(coda_ianalde),
 				  &cfi->cfi_access_intent,
 				  count, ppos, CODA_ACCESS_TYPE_MMAP);
 	if (ret)
@@ -177,23 +177,23 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 
 	cvm_ops = kmalloc(sizeof(struct coda_vm_ops), GFP_KERNEL);
 	if (!cvm_ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cii = ITOC(coda_inode);
+	cii = ITOC(coda_ianalde);
 	spin_lock(&cii->c_lock);
 	coda_file->f_mapping = host_file->f_mapping;
-	if (coda_inode->i_mapping == &coda_inode->i_data)
-		coda_inode->i_mapping = host_inode->i_mapping;
+	if (coda_ianalde->i_mapping == &coda_ianalde->i_data)
+		coda_ianalde->i_mapping = host_ianalde->i_mapping;
 
 	/* only allow additional mmaps as long as userspace isn't changing
 	 * the container file on us! */
-	else if (coda_inode->i_mapping != host_inode->i_mapping) {
+	else if (coda_ianalde->i_mapping != host_ianalde->i_mapping) {
 		spin_unlock(&cii->c_lock);
 		kfree(cvm_ops);
 		return -EBUSY;
 	}
 
-	/* keep track of how often the coda_inode/host_file has been mmapped */
+	/* keep track of how often the coda_ianalde/host_file has been mmapped */
 	cii->c_mapcount++;
 	cfi->cfi_mapcount++;
 	spin_unlock(&cii->c_lock);
@@ -223,7 +223,7 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 	return ret;
 }
 
-int coda_open(struct inode *coda_inode, struct file *coda_file)
+int coda_open(struct ianalde *coda_ianalde, struct file *coda_file)
 {
 	struct file *host_file = NULL;
 	int error;
@@ -233,9 +233,9 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 
 	cfi = kmalloc(sizeof(struct coda_file_info), GFP_KERNEL);
 	if (!cfi)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	error = venus_open(coda_inode->i_sb, coda_i2f(coda_inode), coda_flags,
+	error = venus_open(coda_ianalde->i_sb, coda_i2f(coda_ianalde), coda_flags,
 			   &host_file);
 	if (!host_file)
 		error = -EIO;
@@ -258,28 +258,28 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	return 0;
 }
 
-int coda_release(struct inode *coda_inode, struct file *coda_file)
+int coda_release(struct ianalde *coda_ianalde, struct file *coda_file)
 {
 	unsigned short flags = (coda_file->f_flags) & (~O_EXCL);
 	unsigned short coda_flags = coda_flags_to_cflags(flags);
 	struct coda_file_info *cfi;
-	struct coda_inode_info *cii;
-	struct inode *host_inode;
+	struct coda_ianalde_info *cii;
+	struct ianalde *host_ianalde;
 
 	cfi = coda_ftoc(coda_file);
 
-	venus_close(coda_inode->i_sb, coda_i2f(coda_inode),
+	venus_close(coda_ianalde->i_sb, coda_i2f(coda_ianalde),
 			  coda_flags, coda_file->f_cred->fsuid);
 
-	host_inode = file_inode(cfi->cfi_container);
-	cii = ITOC(coda_inode);
+	host_ianalde = file_ianalde(cfi->cfi_container);
+	cii = ITOC(coda_ianalde);
 
 	/* did we mmap this file? */
 	spin_lock(&cii->c_lock);
-	if (coda_inode->i_mapping == &host_inode->i_data) {
+	if (coda_ianalde->i_mapping == &host_ianalde->i_data) {
 		cii->c_mapcount -= cfi->cfi_mapcount;
 		if (!cii->c_mapcount)
-			coda_inode->i_mapping = &coda_inode->i_data;
+			coda_ianalde->i_mapping = &coda_ianalde->i_data;
 	}
 	spin_unlock(&cii->c_lock);
 
@@ -287,34 +287,34 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	kfree(coda_file->private_data);
 	coda_file->private_data = NULL;
 
-	/* VFS fput ignores the return value from file_operations->release, so
-	 * there is no use returning an error here */
+	/* VFS fput iganalres the return value from file_operations->release, so
+	 * there is anal use returning an error here */
 	return 0;
 }
 
 int coda_fsync(struct file *coda_file, loff_t start, loff_t end, int datasync)
 {
 	struct file *host_file;
-	struct inode *coda_inode = file_inode(coda_file);
+	struct ianalde *coda_ianalde = file_ianalde(coda_file);
 	struct coda_file_info *cfi;
 	int err;
 
-	if (!(S_ISREG(coda_inode->i_mode) || S_ISDIR(coda_inode->i_mode) ||
-	      S_ISLNK(coda_inode->i_mode)))
+	if (!(S_ISREG(coda_ianalde->i_mode) || S_ISDIR(coda_ianalde->i_mode) ||
+	      S_ISLNK(coda_ianalde->i_mode)))
 		return -EINVAL;
 
-	err = filemap_write_and_wait_range(coda_inode->i_mapping, start, end);
+	err = filemap_write_and_wait_range(coda_ianalde->i_mapping, start, end);
 	if (err)
 		return err;
-	inode_lock(coda_inode);
+	ianalde_lock(coda_ianalde);
 
 	cfi = coda_ftoc(coda_file);
 	host_file = cfi->cfi_container;
 
 	err = vfs_fsync(host_file, datasync);
 	if (!err && !datasync)
-		err = venus_fsync(coda_inode->i_sb, coda_i2f(coda_inode));
-	inode_unlock(coda_inode);
+		err = venus_fsync(coda_ianalde->i_sb, coda_i2f(coda_ianalde));
+	ianalde_unlock(coda_ianalde);
 
 	return err;
 }

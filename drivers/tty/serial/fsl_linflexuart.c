@@ -26,7 +26,7 @@
 #define UARTCR	0x0010	/* UART mode control register			*/
 #define UARTSR	0x0014	/* UART mode status register			*/
 #define LINTCSR	0x0018	/* LIN timeout control status register		*/
-#define LINOCR	0x001C	/* LIN output compare register			*/
+#define LIANALCR	0x001C	/* LIN output compare register			*/
 #define LINTOCR	0x0020	/* LIN timeout control register			*/
 #define LINFBRR	0x0024	/* LIN fractional baud rate register		*/
 #define LINIBRR	0x0028	/* LIN integer baud rate register		*/
@@ -236,7 +236,7 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 	while (status & LINFLEXD_UARTSR_RMB) {
 		rx = readb(sport->membase + BDRM);
 		brk = false;
-		flg = TTY_NORMAL;
+		flg = TTY_ANALRMAL;
 		sport->icount.rx++;
 
 		if (status & (LINFLEXD_UARTSR_BOF | LINFLEXD_UARTSR_FEF |
@@ -288,7 +288,7 @@ static irqreturn_t linflex_int(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* return TIOCSER_TEMT when transmitter is not busy */
+/* return TIOCSER_TEMT when transmitter is analt busy */
 static unsigned int linflex_tx_empty(struct uart_port *port)
 {
 	unsigned long status;
@@ -339,10 +339,10 @@ static void linflex_setup_watermark(struct uart_port *sport)
 
 	/*
 	 *	UART = 0x1;		- Linflex working in UART mode
-	 *	TXEN = 0x1;		- Enable transmission of data now
+	 *	TXEN = 0x1;		- Enable transmission of data analw
 	 *	RXEn = 0x1;		- Receiver enabled
 	 *	WL0 = 0x1;		- 8 bit data
-	 *	PCE = 0x0;		- No parity
+	 *	PCE = 0x0;		- Anal parity
 	 */
 
 	/* set UART bit to allow writing other bits */
@@ -487,18 +487,18 @@ linflex_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= LINFLEXD_UARTSR_FEF;
 
-	/* characters to ignore */
-	port->ignore_status_mask = 0;
+	/* characters to iganalre */
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= LINFLEXD_UARTSR_PE;
+		port->iganalre_status_mask |= LINFLEXD_UARTSR_PE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= LINFLEXD_UARTSR_PE;
+		port->iganalre_status_mask |= LINFLEXD_UARTSR_PE;
 		/*
-		 * if we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * if we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= LINFLEXD_UARTSR_BOF;
+			port->iganalre_status_mask |= LINFLEXD_UARTSR_BOF;
 	}
 
 	writel(cr, port->membase + UARTCR);
@@ -517,7 +517,7 @@ static const char *linflex_type(struct uart_port *port)
 
 static void linflex_release_port(struct uart_port *port)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static int linflex_request_port(struct uart_port *port)
@@ -709,7 +709,7 @@ static int __init linflex_console_setup(struct console *co, char *options)
 
 	sport = linflex_ports[co->index];
 	if (!sport)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -779,7 +779,7 @@ static int __init linflex_early_console_setup(struct earlycon_device *device,
 					      const char *options)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = linflex_earlycon_write;
 	earlycon_port = &device->port;
@@ -805,24 +805,24 @@ static struct uart_driver linflex_reg = {
 
 static int linflex_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct uart_port *sport;
 	struct resource *res;
 	int ret;
 
 	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
 	if (!sport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		dev_err(&pdev->dev, "failed to get alias id, erranal %d\n", ret);
 		return ret;
 	}
 	if (ret >= UART_NR) {
 		dev_err(&pdev->dev, "driver limited to %d serial ports\n",
 			UART_NR);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sport->line = ret;

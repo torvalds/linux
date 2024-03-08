@@ -32,18 +32,18 @@
 #define TEMPSENSE			1
 #define VBATSENSE           2
 
-#define NOISE_IF_UPD_CHK_INTERVAL	1
-#define NOISE_IF_UPD_RST_INTERVAL	60
-#define NOISE_IF_UPD_THRESHOLD_CNT	1
-#define NOISE_IF_UPD_TRHRESHOLD	50
-#define NOISE_IF_UPD_TIMEOUT		1000
-#define NOISE_IF_OFF			0
-#define NOISE_IF_CHK			1
-#define NOISE_IF_ON			2
+#define ANALISE_IF_UPD_CHK_INTERVAL	1
+#define ANALISE_IF_UPD_RST_INTERVAL	60
+#define ANALISE_IF_UPD_THRESHOLD_CNT	1
+#define ANALISE_IF_UPD_TRHRESHOLD	50
+#define ANALISE_IF_UPD_TIMEOUT		1000
+#define ANALISE_IF_OFF			0
+#define ANALISE_IF_CHK			1
+#define ANALISE_IF_ON			2
 
 #define PAPD_BLANKING_PROFILE		3
 #define PAPD2LUT			0
-#define PAPD_CORR_NORM			0
+#define PAPD_CORR_ANALRM			0
 #define PAPD_BLANKING_THRESHOLD		0
 #define PAPD_STOP_AFTER_LAST_UPDATE	0
 
@@ -52,7 +52,7 @@
 #define LCN_VBAT_OFFSET_433X 34649679
 #define LCN_VBAT_SLOPE_433X  8258032
 
-#define LCN_VBAT_SCALE_NOM  53
+#define LCN_VBAT_SCALE_ANALM  53
 #define LCN_VBAT_SCALE_DEN  432
 
 #define LCN_TEMPSENSE_OFFSET  80812
@@ -119,7 +119,7 @@
 #define LCNPHY_TX_PWR_CTRL_START_NPT		1
 #define LCNPHY_TX_PWR_CTRL_MAX_NPT			7
 
-#define LCNPHY_NOISE_SAMPLES_DEFAULT 5000
+#define LCNPHY_ANALISE_SAMPLES_DEFAULT 5000
 
 #define LCNPHY_ACI_DETECT_START      1
 #define LCNPHY_ACI_DETECT_PROGRESS   2
@@ -4075,7 +4075,7 @@ s8 wlc_lcnphy_vbatsense(struct brcms_phy *pi, bool mode)
 	else
 		avg = (s32) vbatsenseval;
 
-	avg =	(avg * LCN_VBAT_SCALE_NOM +
+	avg =	(avg * LCN_VBAT_SCALE_ANALM +
 		 (LCN_VBAT_SCALE_DEN >> 1)) / LCN_VBAT_SCALE_DEN;
 
 	if (mode == 1) {
@@ -4114,7 +4114,7 @@ static void wlc_lcnphy_glacial_timer_based_cal(struct brcms_phy *pi)
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 	wlc_lcnphy_deaf_mode(pi, true);
-	pi->phy_lastcal = pi->sh->now;
+	pi->phy_lastcal = pi->sh->analw;
 	pi->phy_forcecal = false;
 	index = pi_lcn->lcnphy_current_index;
 
@@ -4138,7 +4138,7 @@ static void wlc_lcnphy_periodic_cal(struct brcms_phy *pi)
 	s32 tssi, pwr, mintargetpwr;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
-	pi->phy_lastcal = pi->sh->now;
+	pi->phy_lastcal = pi->sh->analw;
 	pi->phy_forcecal = false;
 	pi_lcn->lcnphy_full_cal_channel = CHSPEC_CHANNEL(pi->radio_chanspec);
 	index = pi_lcn->lcnphy_current_index;
@@ -4786,7 +4786,7 @@ void wlc_phy_init_lcnphy(struct brcms_phy *pi)
 	mod_phy_reg(pi, 0x448, (0x1 << 14), (0) << 14);
 
 	wlc_lcnphy_set_tx_pwr_ctrl(pi, LCNPHY_TX_PWR_CTRL_HW);
-	pi_lcn->lcnphy_noise_samples = LCNPHY_NOISE_SAMPLES_DEFAULT;
+	pi_lcn->lcnphy_analise_samples = LCNPHY_ANALISE_SAMPLES_DEFAULT;
 	wlc_lcnphy_calib_modes(pi, PHY_PERICAL_PHYINIT);
 }
 
@@ -4974,7 +4974,7 @@ bool wlc_phy_attach_lcnphy(struct brcms_phy *pi)
 
 	pi_lcn = pi->u.pi_lcnphy;
 
-	if (0 == (pi->sh->boardflags & BFL_NOPA)) {
+	if (0 == (pi->sh->boardflags & BFL_ANALPA)) {
 		pi->hwpwrctrl = true;
 		pi->hwpwrctrl_capable = true;
 	}
@@ -5064,7 +5064,7 @@ static u32 wlc_lcnphy_get_receive_power(struct brcms_phy *pi, s32 *gain_index)
 				wlc_lcnphy_measure_digital_power(
 					pi,
 					pi_lcn->
-					lcnphy_noise_samples);
+					lcnphy_analise_samples);
 			(*gain_index)++;
 		}
 		(*gain_index)--;
@@ -5073,7 +5073,7 @@ static u32 wlc_lcnphy_get_receive_power(struct brcms_phy *pi, s32 *gain_index)
 		received_power =
 			wlc_lcnphy_measure_digital_power(pi,
 							 pi_lcn->
-							 lcnphy_noise_samples);
+							 lcnphy_analise_samples);
 	}
 
 	return received_power;
@@ -5082,7 +5082,7 @@ static u32 wlc_lcnphy_get_receive_power(struct brcms_phy *pi, s32 *gain_index)
 s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index)
 {
 	s32 gain = 0;
-	s32 nominal_power_db;
+	s32 analminal_power_db;
 	s32 log_val, gain_mismatch, desired_gain, input_power_offset_db,
 	    input_power_db;
 	s32 received_power, temperature;
@@ -5095,7 +5095,7 @@ s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index)
 
 	gain = lcnphy_gain_table[gain_index];
 
-	nominal_power_db = read_phy_reg(pi, 0x425) >> 8;
+	analminal_power_db = read_phy_reg(pi, 0x425) >> 8;
 
 	power = (received_power * 16);
 	msb1 = ffs(power) - 1;
@@ -5111,7 +5111,7 @@ s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index)
 
 	log_val = log_val * 3;
 
-	gain_mismatch = (nominal_power_db / 2) - (log_val);
+	gain_mismatch = (analminal_power_db / 2) - (log_val);
 
 	desired_gain = gain + gain_mismatch;
 

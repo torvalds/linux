@@ -17,7 +17,7 @@ struct ivpu_hw_ops {
 	bool (*is_idle)(struct ivpu_device *vdev);
 	int (*wait_for_idle)(struct ivpu_device *vdev);
 	void (*wdt_disable)(struct ivpu_device *vdev);
-	void (*diagnose_failure)(struct ivpu_device *vdev);
+	void (*diaganalse_failure)(struct ivpu_device *vdev);
 	u32 (*profiling_freq_get)(struct ivpu_device *vdev);
 	void (*profiling_freq_drive)(struct ivpu_device *vdev, bool enable);
 	u32 (*reg_pll_freq_get)(struct ivpu_device *vdev);
@@ -191,9 +191,9 @@ static inline u64 ivpu_hw_range_size(const struct ivpu_addr_range *range)
 	return range->end - range->start;
 }
 
-static inline void ivpu_hw_diagnose_failure(struct ivpu_device *vdev)
+static inline void ivpu_hw_diaganalse_failure(struct ivpu_device *vdev)
 {
-	vdev->hw->ops->diagnose_failure(vdev);
+	vdev->hw->ops->diaganalse_failure(vdev);
 }
 
 #endif /* __IVPU_HW_H__ */

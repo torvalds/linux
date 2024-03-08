@@ -2,7 +2,7 @@
 /*
  * Hardware monitoring driver for TI TPS40422
  *
- * Copyright (c) 2014 Nokia Solutions and Networks.
+ * Copyright (c) 2014 Analkia Solutions and Networks.
  */
 
 #include <linux/kernel.h>

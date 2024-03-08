@@ -11,38 +11,38 @@
 #include "fwil.h"
 #include "fwil_types.h"
 #include "cfg80211.h"
-#include "pno.h"
+#include "panal.h"
 
-#define BRCMF_PNO_VERSION		2
-#define BRCMF_PNO_REPEAT		4
-#define BRCMF_PNO_FREQ_EXPO_MAX		3
-#define BRCMF_PNO_IMMEDIATE_SCAN_BIT	3
-#define BRCMF_PNO_ENABLE_BD_SCAN_BIT	5
-#define BRCMF_PNO_ENABLE_ADAPTSCAN_BIT	6
-#define BRCMF_PNO_REPORT_SEPARATELY_BIT	11
-#define BRCMF_PNO_SCAN_INCOMPLETE	0
-#define BRCMF_PNO_WPA_AUTH_ANY		0xFFFFFFFF
-#define BRCMF_PNO_HIDDEN_BIT		2
-#define BRCMF_PNO_SCHED_SCAN_PERIOD	30
+#define BRCMF_PANAL_VERSION		2
+#define BRCMF_PANAL_REPEAT		4
+#define BRCMF_PANAL_FREQ_EXPO_MAX		3
+#define BRCMF_PANAL_IMMEDIATE_SCAN_BIT	3
+#define BRCMF_PANAL_ENABLE_BD_SCAN_BIT	5
+#define BRCMF_PANAL_ENABLE_ADAPTSCAN_BIT	6
+#define BRCMF_PANAL_REPORT_SEPARATELY_BIT	11
+#define BRCMF_PANAL_SCAN_INCOMPLETE	0
+#define BRCMF_PANAL_WPA_AUTH_ANY		0xFFFFFFFF
+#define BRCMF_PANAL_HIDDEN_BIT		2
+#define BRCMF_PANAL_SCHED_SCAN_PERIOD	30
 
-#define BRCMF_PNO_MAX_BUCKETS		16
-#define GSCAN_BATCH_NO_THR_SET			101
+#define BRCMF_PANAL_MAX_BUCKETS		16
+#define GSCAN_BATCH_ANAL_THR_SET			101
 #define GSCAN_RETRY_THRESHOLD			3
 
-struct brcmf_pno_info {
+struct brcmf_panal_info {
 	int n_reqs;
-	struct cfg80211_sched_scan_request *reqs[BRCMF_PNO_MAX_BUCKETS];
+	struct cfg80211_sched_scan_request *reqs[BRCMF_PANAL_MAX_BUCKETS];
 	struct mutex req_lock;
 };
 
-#define ifp_to_pno(_ifp)	((_ifp)->drvr->config->pno)
+#define ifp_to_panal(_ifp)	((_ifp)->drvr->config->panal)
 
-static int brcmf_pno_store_request(struct brcmf_pno_info *pi,
+static int brcmf_panal_store_request(struct brcmf_panal_info *pi,
 				   struct cfg80211_sched_scan_request *req)
 {
-	if (WARN(pi->n_reqs == BRCMF_PNO_MAX_BUCKETS,
-		 "pno request storage full\n"))
-		return -ENOSPC;
+	if (WARN(pi->n_reqs == BRCMF_PANAL_MAX_BUCKETS,
+		 "panal request storage full\n"))
+		return -EANALSPC;
 
 	brcmf_dbg(SCAN, "reqid=%llu\n", req->reqid);
 	mutex_lock(&pi->req_lock);
@@ -51,13 +51,13 @@ static int brcmf_pno_store_request(struct brcmf_pno_info *pi,
 	return 0;
 }
 
-static int brcmf_pno_remove_request(struct brcmf_pno_info *pi, u64 reqid)
+static int brcmf_panal_remove_request(struct brcmf_panal_info *pi, u64 reqid)
 {
 	int i, err = 0;
 
 	mutex_lock(&pi->req_lock);
 
-	/* Nothing to do if we have no requests */
+	/* Analthing to do if we have anal requests */
 	if (pi->n_reqs == 0)
 		goto done;
 
@@ -66,9 +66,9 @@ static int brcmf_pno_remove_request(struct brcmf_pno_info *pi, u64 reqid)
 		if (pi->reqs[i]->reqid == reqid)
 			break;
 	}
-	/* request not found */
-	if (WARN(i == pi->n_reqs, "reqid not found\n")) {
-		err = -ENOENT;
+	/* request analt found */
+	if (WARN(i == pi->n_reqs, "reqid analt found\n")) {
+		err = -EANALENT;
 		goto done;
 	}
 
@@ -90,8 +90,8 @@ done:
 	return err;
 }
 
-static int brcmf_pno_channel_config(struct brcmf_if *ifp,
-				    struct brcmf_pno_config_le *cfg)
+static int brcmf_panal_channel_config(struct brcmf_if *ifp,
+				    struct brcmf_panal_config_le *cfg)
 {
 	cfg->reporttype = 0;
 	cfg->flags = 0;
@@ -99,25 +99,25 @@ static int brcmf_pno_channel_config(struct brcmf_if *ifp,
 	return brcmf_fil_iovar_data_set(ifp, "pfn_cfg", cfg, sizeof(*cfg));
 }
 
-static int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
+static int brcmf_panal_config(struct brcmf_if *ifp, u32 scan_freq,
 			    u32 mscan, u32 bestn)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct brcmf_pno_param_le pfn_param;
+	struct brcmf_panal_param_le pfn_param;
 	u16 flags;
 	u32 pfnmem;
 	s32 err;
 
 	memset(&pfn_param, 0, sizeof(pfn_param));
-	pfn_param.version = cpu_to_le32(BRCMF_PNO_VERSION);
+	pfn_param.version = cpu_to_le32(BRCMF_PANAL_VERSION);
 
-	/* set extra pno params */
-	flags = BIT(BRCMF_PNO_IMMEDIATE_SCAN_BIT) |
-		BIT(BRCMF_PNO_ENABLE_ADAPTSCAN_BIT);
-	pfn_param.repeat = BRCMF_PNO_REPEAT;
-	pfn_param.exp = BRCMF_PNO_FREQ_EXPO_MAX;
+	/* set extra panal params */
+	flags = BIT(BRCMF_PANAL_IMMEDIATE_SCAN_BIT) |
+		BIT(BRCMF_PANAL_ENABLE_ADAPTSCAN_BIT);
+	pfn_param.repeat = BRCMF_PANAL_REPEAT;
+	pfn_param.exp = BRCMF_PANAL_FREQ_EXPO_MAX;
 
-	/* set up pno scan fr */
+	/* set up panal scan fr */
 	pfn_param.scan_freq = cpu_to_le32(scan_freq);
 
 	if (mscan) {
@@ -138,7 +138,7 @@ static int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
 		mscan = min_t(u32, mscan, pfnmem);
 		pfn_param.mscan = mscan;
 		pfn_param.bestn = bestn;
-		flags |= BIT(BRCMF_PNO_ENABLE_BD_SCAN_BIT);
+		flags |= BIT(BRCMF_PANAL_ENABLE_BD_SCAN_BIT);
 		brcmf_dbg(INFO, "mscan=%d, bestn=%d\n", mscan, bestn);
 	}
 
@@ -152,10 +152,10 @@ exit:
 	return err;
 }
 
-static int brcmf_pno_set_random(struct brcmf_if *ifp, struct brcmf_pno_info *pi)
+static int brcmf_panal_set_random(struct brcmf_if *ifp, struct brcmf_panal_info *pi)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct brcmf_pno_macaddr_le pfn_mac;
+	struct brcmf_panal_macaddr_le pfn_mac;
 	u8 *mac_addr = NULL;
 	u8 *mac_mask = NULL;
 	int err, i, ri;
@@ -167,7 +167,7 @@ static int brcmf_pno_set_random(struct brcmf_if *ifp, struct brcmf_pno_info *pi)
 			break;
 		}
 
-	/* no random mac requested */
+	/* anal random mac requested */
 	if (!mac_addr)
 		return 0;
 
@@ -194,20 +194,20 @@ static int brcmf_pno_set_random(struct brcmf_if *ifp, struct brcmf_pno_info *pi)
 	return err;
 }
 
-static int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
+static int brcmf_panal_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
 			      bool active)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct brcmf_pno_net_param_le pfn;
+	struct brcmf_panal_net_param_le pfn;
 	int err;
 
 	pfn.auth = cpu_to_le32(WLAN_AUTH_OPEN);
-	pfn.wpa_auth = cpu_to_le32(BRCMF_PNO_WPA_AUTH_ANY);
+	pfn.wpa_auth = cpu_to_le32(BRCMF_PANAL_WPA_AUTH_ANY);
 	pfn.wsec = cpu_to_le32(0);
 	pfn.infra = cpu_to_le32(1);
 	pfn.flags = 0;
 	if (active)
-		pfn.flags = cpu_to_le32(1 << BRCMF_PNO_HIDDEN_BIT);
+		pfn.flags = cpu_to_le32(1 << BRCMF_PANAL_HIDDEN_BIT);
 	pfn.ssid.SSID_len = cpu_to_le32(ssid->ssid_len);
 	memcpy(pfn.ssid.SSID, ssid->ssid, ssid->ssid_len);
 
@@ -218,10 +218,10 @@ static int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
 	return err;
 }
 
-static int brcmf_pno_add_bssid(struct brcmf_if *ifp, const u8 *bssid)
+static int brcmf_panal_add_bssid(struct brcmf_if *ifp, const u8 *bssid)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct brcmf_pno_bssid_le bssid_cfg;
+	struct brcmf_panal_bssid_le bssid_cfg;
 	int err;
 
 	memcpy(bssid_cfg.bssid, bssid, ETH_ALEN);
@@ -253,7 +253,7 @@ static bool brcmf_is_ssid_active(struct cfg80211_ssid *ssid,
 	return false;
 }
 
-static int brcmf_pno_clean(struct brcmf_if *ifp)
+static int brcmf_panal_clean(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
 	int ret;
@@ -270,31 +270,31 @@ static int brcmf_pno_clean(struct brcmf_if *ifp)
 	return ret;
 }
 
-static int brcmf_pno_get_bucket_channels(struct cfg80211_sched_scan_request *r,
-					 struct brcmf_pno_config_le *pno_cfg)
+static int brcmf_panal_get_bucket_channels(struct cfg80211_sched_scan_request *r,
+					 struct brcmf_panal_config_le *panal_cfg)
 {
-	u32 n_chan = le32_to_cpu(pno_cfg->channel_num);
+	u32 n_chan = le32_to_cpu(panal_cfg->channel_num);
 	u16 chan;
 	int i, err = 0;
 
 	for (i = 0; i < r->n_channels; i++) {
 		if (n_chan >= BRCMF_NUMCHANNELS) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto done;
 		}
 		chan = r->channels[i]->hw_value;
 		brcmf_dbg(SCAN, "[%d] Chan : %u\n", n_chan, chan);
-		pno_cfg->channel_list[n_chan++] = cpu_to_le16(chan);
+		panal_cfg->channel_list[n_chan++] = cpu_to_le16(chan);
 	}
 	/* return number of channels */
 	err = n_chan;
 done:
-	pno_cfg->channel_num = cpu_to_le32(n_chan);
+	panal_cfg->channel_num = cpu_to_le32(n_chan);
 	return err;
 }
 
-static int brcmf_pno_prep_fwconfig(struct brcmf_pno_info *pi,
-				   struct brcmf_pno_config_le *pno_cfg,
+static int brcmf_panal_prep_fwconfig(struct brcmf_panal_info *pi,
+				   struct brcmf_panal_config_le *panal_cfg,
 				   struct brcmf_gscan_bucket_config **buckets,
 				   u32 *scan_freq)
 {
@@ -304,7 +304,7 @@ static int brcmf_pno_prep_fwconfig(struct brcmf_pno_info *pi,
 
 	brcmf_dbg(SCAN, "n_reqs=%d\n", pi->n_reqs);
 	if (WARN_ON(!pi->n_reqs))
-		return -ENODATA;
+		return -EANALDATA;
 
 	/*
 	 * actual scan period is determined using gcd() for each
@@ -315,20 +315,20 @@ static int brcmf_pno_prep_fwconfig(struct brcmf_pno_info *pi,
 		sr = pi->reqs[i];
 		*scan_freq = gcd(sr->scan_plans[0].interval, *scan_freq);
 	}
-	if (*scan_freq < BRCMF_PNO_SCHED_SCAN_MIN_PERIOD) {
+	if (*scan_freq < BRCMF_PANAL_SCHED_SCAN_MIN_PERIOD) {
 		brcmf_dbg(SCAN, "scan period too small, using minimum\n");
-		*scan_freq = BRCMF_PNO_SCHED_SCAN_MIN_PERIOD;
+		*scan_freq = BRCMF_PANAL_SCHED_SCAN_MIN_PERIOD;
 	}
 
 	*buckets = NULL;
 	fw_buckets = kcalloc(pi->n_reqs, sizeof(*fw_buckets), GFP_KERNEL);
 	if (!fw_buckets)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	memset(pno_cfg, 0, sizeof(*pno_cfg));
+	memset(panal_cfg, 0, sizeof(*panal_cfg));
 	for (i = 0; i < pi->n_reqs; i++) {
 		sr = pi->reqs[i];
-		chidx = brcmf_pno_get_bucket_channels(sr, pno_cfg);
+		chidx = brcmf_panal_get_bucket_channels(sr, panal_cfg);
 		if (chidx < 0) {
 			err = chidx;
 			goto fail;
@@ -336,10 +336,10 @@ static int brcmf_pno_prep_fwconfig(struct brcmf_pno_info *pi,
 		fw_buckets[i].bucket_end_index = chidx - 1;
 		fw_buckets[i].bucket_freq_multiple =
 			sr->scan_plans[0].interval / *scan_freq;
-		/* assure period is non-zero */
+		/* assure period is analn-zero */
 		if (!fw_buckets[i].bucket_freq_multiple)
 			fw_buckets[i].bucket_freq_multiple = 1;
-		fw_buckets[i].flag = BRCMF_PNO_REPORT_NO_BATCH;
+		fw_buckets[i].flag = BRCMF_PANAL_REPORT_ANAL_BATCH;
 	}
 
 	if (BRCMF_SCAN_ON()) {
@@ -360,8 +360,8 @@ fail:
 	return err;
 }
 
-static int brcmf_pno_config_networks(struct brcmf_if *ifp,
-				     struct brcmf_pno_info *pi)
+static int brcmf_panal_config_networks(struct brcmf_if *ifp,
+				     struct brcmf_panal_info *pi)
 {
 	struct cfg80211_sched_scan_request *r;
 	struct cfg80211_match_set *ms;
@@ -375,11 +375,11 @@ static int brcmf_pno_config_networks(struct brcmf_if *ifp,
 			ms = &r->match_sets[j];
 			if (ms->ssid.ssid_len) {
 				active = brcmf_is_ssid_active(&ms->ssid, r);
-				err = brcmf_pno_add_ssid(ifp, &ms->ssid,
+				err = brcmf_panal_add_ssid(ifp, &ms->ssid,
 							 active);
 			}
 			if (!err && is_valid_ether_addr(ms->bssid))
-				err = brcmf_pno_add_bssid(ifp, ms->bssid);
+				err = brcmf_panal_add_bssid(ifp, ms->bssid);
 
 			if (err < 0)
 				return err;
@@ -388,19 +388,19 @@ static int brcmf_pno_config_networks(struct brcmf_if *ifp,
 	return 0;
 }
 
-static int brcmf_pno_config_sched_scans(struct brcmf_if *ifp)
+static int brcmf_panal_config_sched_scans(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct brcmf_pno_info *pi;
+	struct brcmf_panal_info *pi;
 	struct brcmf_gscan_config *gscan_cfg;
 	struct brcmf_gscan_bucket_config *buckets;
-	struct brcmf_pno_config_le pno_cfg;
+	struct brcmf_panal_config_le panal_cfg;
 	size_t gsz;
 	u32 scan_freq;
 	int err, n_buckets;
 
-	pi = ifp_to_pno(ifp);
-	n_buckets = brcmf_pno_prep_fwconfig(pi, &pno_cfg, &buckets,
+	pi = ifp_to_panal(ifp);
+	n_buckets = brcmf_panal_prep_fwconfig(pi, &panal_cfg, &buckets,
 					    &scan_freq);
 	if (n_buckets < 0)
 		return n_buckets;
@@ -408,29 +408,29 @@ static int brcmf_pno_config_sched_scans(struct brcmf_if *ifp)
 	gsz = struct_size(gscan_cfg, bucket, n_buckets);
 	gscan_cfg = kzalloc(gsz, GFP_KERNEL);
 	if (!gscan_cfg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_buckets;
 	}
 
 	/* clean up everything */
-	err = brcmf_pno_clean(ifp);
+	err = brcmf_panal_clean(ifp);
 	if  (err < 0) {
 		bphy_err(drvr, "failed error=%d\n", err);
 		goto free_gscan;
 	}
 
-	/* configure pno */
-	err = brcmf_pno_config(ifp, scan_freq, 0, 0);
+	/* configure panal */
+	err = brcmf_panal_config(ifp, scan_freq, 0, 0);
 	if (err < 0)
 		goto free_gscan;
 
-	err = brcmf_pno_channel_config(ifp, &pno_cfg);
+	err = brcmf_panal_channel_config(ifp, &panal_cfg);
 	if (err < 0)
 		goto clean;
 
 	gscan_cfg->version = cpu_to_le16(BRCMF_GSCAN_CFG_VERSION);
 	gscan_cfg->retry_threshold = GSCAN_RETRY_THRESHOLD;
-	gscan_cfg->buffer_threshold = GSCAN_BATCH_NO_THR_SET;
+	gscan_cfg->buffer_threshold = GSCAN_BATCH_ANAL_THR_SET;
 	gscan_cfg->flags = BRCMF_GSCAN_CFG_ALL_BUCKETS_IN_1ST_SCAN;
 
 	gscan_cfg->count_of_channel_buckets = n_buckets;
@@ -443,20 +443,20 @@ static int brcmf_pno_config_sched_scans(struct brcmf_if *ifp)
 		goto clean;
 
 	/* configure random mac */
-	err = brcmf_pno_set_random(ifp, pi);
+	err = brcmf_panal_set_random(ifp, pi);
 	if (err < 0)
 		goto clean;
 
-	err = brcmf_pno_config_networks(ifp, pi);
+	err = brcmf_panal_config_networks(ifp, pi);
 	if (err < 0)
 		goto clean;
 
-	/* Enable the PNO */
+	/* Enable the PANAL */
 	err = brcmf_fil_iovar_int_set(ifp, "pfn", 1);
 
 clean:
 	if (err < 0)
-		brcmf_pno_clean(ifp);
+		brcmf_panal_clean(ifp);
 free_gscan:
 	kfree(gscan_cfg);
 free_buckets:
@@ -464,92 +464,92 @@ free_buckets:
 	return err;
 }
 
-int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
+int brcmf_panal_start_sched_scan(struct brcmf_if *ifp,
 			       struct cfg80211_sched_scan_request *req)
 {
-	struct brcmf_pno_info *pi;
+	struct brcmf_panal_info *pi;
 	int ret;
 
 	brcmf_dbg(TRACE, "reqid=%llu\n", req->reqid);
 
-	pi = ifp_to_pno(ifp);
-	ret = brcmf_pno_store_request(pi, req);
+	pi = ifp_to_panal(ifp);
+	ret = brcmf_panal_store_request(pi, req);
 	if (ret < 0)
 		return ret;
 
-	ret = brcmf_pno_config_sched_scans(ifp);
+	ret = brcmf_panal_config_sched_scans(ifp);
 	if (ret < 0) {
-		brcmf_pno_remove_request(pi, req->reqid);
+		brcmf_panal_remove_request(pi, req->reqid);
 		if (pi->n_reqs)
-			(void)brcmf_pno_config_sched_scans(ifp);
+			(void)brcmf_panal_config_sched_scans(ifp);
 		return ret;
 	}
 	return 0;
 }
 
-int brcmf_pno_stop_sched_scan(struct brcmf_if *ifp, u64 reqid)
+int brcmf_panal_stop_sched_scan(struct brcmf_if *ifp, u64 reqid)
 {
-	struct brcmf_pno_info *pi;
+	struct brcmf_panal_info *pi;
 	int err;
 
 	brcmf_dbg(TRACE, "reqid=%llu\n", reqid);
 
-	pi = ifp_to_pno(ifp);
+	pi = ifp_to_panal(ifp);
 
-	/* No PNO request */
+	/* Anal PANAL request */
 	if (!pi->n_reqs)
 		return 0;
 
-	err = brcmf_pno_remove_request(pi, reqid);
+	err = brcmf_panal_remove_request(pi, reqid);
 	if (err)
 		return err;
 
-	brcmf_pno_clean(ifp);
+	brcmf_panal_clean(ifp);
 
 	if (pi->n_reqs)
-		(void)brcmf_pno_config_sched_scans(ifp);
+		(void)brcmf_panal_config_sched_scans(ifp);
 
 	return 0;
 }
 
-int brcmf_pno_attach(struct brcmf_cfg80211_info *cfg)
+int brcmf_panal_attach(struct brcmf_cfg80211_info *cfg)
 {
-	struct brcmf_pno_info *pi;
+	struct brcmf_panal_info *pi;
 
 	brcmf_dbg(TRACE, "enter\n");
 	pi = kzalloc(sizeof(*pi), GFP_KERNEL);
 	if (!pi)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cfg->pno = pi;
+	cfg->panal = pi;
 	mutex_init(&pi->req_lock);
 	return 0;
 }
 
-void brcmf_pno_detach(struct brcmf_cfg80211_info *cfg)
+void brcmf_panal_detach(struct brcmf_cfg80211_info *cfg)
 {
-	struct brcmf_pno_info *pi;
+	struct brcmf_panal_info *pi;
 
 	brcmf_dbg(TRACE, "enter\n");
-	pi = cfg->pno;
-	cfg->pno = NULL;
+	pi = cfg->panal;
+	cfg->panal = NULL;
 
 	WARN_ON(pi->n_reqs);
 	mutex_destroy(&pi->req_lock);
 	kfree(pi);
 }
 
-void brcmf_pno_wiphy_params(struct wiphy *wiphy, bool gscan)
+void brcmf_panal_wiphy_params(struct wiphy *wiphy, bool gscan)
 {
 	/* scheduled scan settings */
-	wiphy->max_sched_scan_reqs = gscan ? BRCMF_PNO_MAX_BUCKETS : 1;
-	wiphy->max_sched_scan_ssids = BRCMF_PNO_MAX_PFN_COUNT;
-	wiphy->max_match_sets = BRCMF_PNO_MAX_PFN_COUNT;
+	wiphy->max_sched_scan_reqs = gscan ? BRCMF_PANAL_MAX_BUCKETS : 1;
+	wiphy->max_sched_scan_ssids = BRCMF_PANAL_MAX_PFN_COUNT;
+	wiphy->max_match_sets = BRCMF_PANAL_MAX_PFN_COUNT;
 	wiphy->max_sched_scan_ie_len = BRCMF_SCAN_IE_LEN_MAX;
-	wiphy->max_sched_scan_plan_interval = BRCMF_PNO_SCHED_SCAN_MAX_PERIOD;
+	wiphy->max_sched_scan_plan_interval = BRCMF_PANAL_SCHED_SCAN_MAX_PERIOD;
 }
 
-u64 brcmf_pno_find_reqid_by_bucket(struct brcmf_pno_info *pi, u32 bucket)
+u64 brcmf_panal_find_reqid_by_bucket(struct brcmf_panal_info *pi, u32 bucket)
 {
 	u64 reqid = 0;
 
@@ -562,8 +562,8 @@ u64 brcmf_pno_find_reqid_by_bucket(struct brcmf_pno_info *pi, u32 bucket)
 	return reqid;
 }
 
-u32 brcmf_pno_get_bucket_map(struct brcmf_pno_info *pi,
-			     struct brcmf_pno_net_info_le *ni)
+u32 brcmf_panal_get_bucket_map(struct brcmf_panal_info *pi,
+			     struct brcmf_panal_net_info_le *ni)
 {
 	struct cfg80211_sched_scan_request *req;
 	struct cfg80211_match_set *ms;

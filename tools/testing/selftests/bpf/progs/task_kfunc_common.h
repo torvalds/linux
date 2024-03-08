@@ -4,7 +4,7 @@
 #ifndef _TASK_KFUNC_COMMON_H
 #define _TASK_KFUNC_COMMON_H
 
-#include <errno.h>
+#include <erranal.h>
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -50,19 +50,19 @@ static inline int tasks_kfunc_map_insert(struct task_struct *p)
 		return status;
 
 	local.task = NULL;
-	status = bpf_map_update_elem(&__tasks_kfunc_map, &pid, &local, BPF_NOEXIST);
+	status = bpf_map_update_elem(&__tasks_kfunc_map, &pid, &local, BPF_ANALEXIST);
 	if (status)
 		return status;
 
 	v = bpf_map_lookup_elem(&__tasks_kfunc_map, &pid);
 	if (!v) {
 		bpf_map_delete_elem(&__tasks_kfunc_map, &pid);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	acquired = bpf_task_acquire(p);
 	if (!acquired)
-		return -ENOENT;
+		return -EANALENT;
 
 	old = bpf_kptr_xchg(&v->task, acquired);
 	if (old) {

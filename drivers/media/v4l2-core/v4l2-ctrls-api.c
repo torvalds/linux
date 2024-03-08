@@ -52,7 +52,7 @@ static int ptr_to_user(struct v4l2_ext_control *c,
 		len = strlen(ptr.p_char);
 		if (c->size < len + 1) {
 			c->size = ctrl->elem_size;
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		return copy_to_user(c->string, ptr.p_char, len + 1) ?
 		       -EFAULT : 0;
@@ -107,7 +107,7 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
 		void *tmp = kvzalloc(2 * c->size, GFP_KERNEL);
 
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(tmp, ctrl->p_new.p, ctrl->elems * ctrl->elem_size);
 		memcpy(tmp + c->size, ctrl->p_cur.p, ctrl->elems * ctrl->elem_size);
 		ctrl->p_new.p = tmp;
@@ -167,9 +167,9 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
  */
 
 /*
- * Some general notes on the atomic requirements of VIDIOC_G/TRY/S_EXT_CTRLS:
+ * Some general analtes on the atomic requirements of VIDIOC_G/TRY/S_EXT_CTRLS:
  *
- * It is not a fully atomic operation, just best-effort only. After all, if
+ * It is analt a fully atomic operation, just best-effort only. After all, if
  * multiple controls have to be set through multiple i2c writes (for example)
  * then some initial writes may succeed while others fail. Thus leaving the
  * system in an inconsistent state. The question is how much effort you are
@@ -184,14 +184,14 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
  *
  * It is important though that the application can tell when only a partial
  * configuration was done. The way we do that is through the error_idx field
- * of struct v4l2_ext_controls: if that is equal to the count field then no
+ * of struct v4l2_ext_controls: if that is equal to the count field then anal
  * controls were affected. Otherwise all controls before that index were
  * successful in performing their 'get' or 'set' operation, the control at
- * the given index failed, and you don't know what happened with the controls
+ * the given index failed, and you don't kanalw what happened with the controls
  * after the failed one. Since if they were part of a control cluster they
  * could have been successfully processed (if a cluster member was encountered
  * at index < error_idx), they could have failed (if a cluster member was at
- * error_idx), or they may not have been processed yet (if the first cluster
+ * error_idx), or they may analt have been processed yet (if the first cluster
  * member appeared after error_idx).
  *
  * It is all fairly theoretical, though. In practice all you can do is to
@@ -201,7 +201,7 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
  * tried to set the controls. In all other cases it is a driver/hardware
  * problem and all you can do is to retry or bail out.
  *
- * Note that these rules do not apply to VIDIOC_TRY_EXT_CTRLS: since that
+ * Analte that these rules do analt apply to VIDIOC_TRY_EXT_CTRLS: since that
  * never modifies controls the error_idx is just set to whatever control
  * has an invalid value.
  */
@@ -239,17 +239,17 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		}
 
 		/*
-		 * Old-style private controls are not allowed for
+		 * Old-style private controls are analt allowed for
 		 * extended controls.
 		 */
 		if (id >= V4L2_CID_PRIVATE_BASE) {
 			dprintk(vdev,
-				"old-style private controls not allowed\n");
+				"old-style private controls analt allowed\n");
 			return -EINVAL;
 		}
 		ref = find_ref_lock(hdl, id);
 		if (!ref) {
-			dprintk(vdev, "cannot find control id 0x%x\n", id);
+			dprintk(vdev, "cananalt find control id 0x%x\n", id);
 			return -EINVAL;
 		}
 		h->ref = ref;
@@ -276,13 +276,13 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 			if (get) {
 				if (c->size < tot_size) {
 					c->size = tot_size;
-					return -ENOSPC;
+					return -EANALSPC;
 				}
 				c->size = tot_size;
 			} else {
 				if (c->size > max_size) {
 					c->size = max_size;
-					return -ENOSPC;
+					return -EANALSPC;
 				}
 				if (!c->size)
 					return -EFAULT;
@@ -297,7 +297,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 				 */
 				if (get) {
 					c->size = tot_size;
-					return -ENOSPC;
+					return -EANALSPC;
 				}
 				dprintk(vdev,
 					"pointer control id 0x%x size too small, %d bytes but %d bytes needed\n",
@@ -309,7 +309,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		/* Store the ref to the master control of the cluster */
 		h->mref = ref;
 		/*
-		 * Initially set next to 0, meaning that there is no other
+		 * Initially set next to 0, meaning that there is anal other
 		 * control in this helper array belonging to the same
 		 * cluster.
 		 */
@@ -317,7 +317,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 	}
 
 	/*
-	 * We are done if there were no controls that belong to a multi-
+	 * We are done if there were anal controls that belong to a multi-
 	 * control cluster.
 	 */
 	if (!have_clusters)
@@ -344,7 +344,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		if (mref->helper) {
 			/*
 			 * Set the next field of mref->helper to the current
-			 * index: this means that the earlier helper now
+			 * index: this means that the earlier helper analw
 			 * points to the next helper in the same cluster.
 			 */
 			mref->helper->next = i;
@@ -377,7 +377,7 @@ static int class_check(struct v4l2_ctrl_handler *hdl, u32 which)
 /*
  * Get extended controls. Allocates the helpers array if needed.
  *
- * Note that v4l2_g_ext_ctrls_common() with 'which' set to
+ * Analte that v4l2_g_ext_ctrls_common() with 'which' set to
  * V4L2_CTRL_WHICH_REQUEST_VAL is only called if the request was
  * completed, and in that case p_req_valid is true for all controls.
  */
@@ -407,7 +407,7 @@ int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 		helpers = kvmalloc_array(cs->count, sizeof(helper[0]),
 					 GFP_KERNEL);
 		if (!helpers)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = prepare_ext_ctrls(hdl, cs, helpers, vdev, true);
@@ -432,7 +432,7 @@ int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 
 		/*
 		 * g_volatile_ctrl will update the new control values.
-		 * This makes no sense for V4L2_CTRL_WHICH_DEF_VAL and
+		 * This makes anal sense for V4L2_CTRL_WHICH_DEF_VAL and
 		 * V4L2_CTRL_WHICH_REQUEST_VAL. In the case of requests
 		 * it is v4l2_ctrl_request_complete() that copies the
 		 * volatile controls at the time of request completion
@@ -463,8 +463,8 @@ int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 
 			if (is_default)
 				ret = def_to_user(cs->controls + idx, ref->ctrl);
-			else if (is_request && ref->p_req_array_enomem)
-				ret = -ENOMEM;
+			else if (is_request && ref->p_req_array_eanalmem)
+				ret = -EANALMEM;
 			else if (is_request && ref->p_req_valid)
 				ret = req_to_user(cs->controls + idx, ref);
 			else if (is_volatile)
@@ -530,12 +530,12 @@ static int validate_ctrls(struct v4l2_ext_controls *cs,
 		 */
 		if (set && (ctrl->flags & V4L2_CTRL_FLAG_GRABBED)) {
 			dprintk(vdev,
-				"control id 0x%x is grabbed, cannot set\n",
+				"control id 0x%x is grabbed, cananalt set\n",
 				ctrl->id);
 			return -EBUSY;
 		}
 		/*
-		 * Skip validation for now if the payload needs to be copied
+		 * Skip validation for analw if the payload needs to be copied
 		 * from userspace into kernelspace. We'll validate those later.
 		 */
 		if (ctrl->is_ptr)
@@ -564,10 +564,10 @@ int try_set_ext_ctrls_common(struct v4l2_fh *fh,
 
 	cs->error_idx = cs->count;
 
-	/* Default value cannot be changed */
+	/* Default value cananalt be changed */
 	if (cs->which == V4L2_CTRL_WHICH_DEF_VAL) {
-		dprintk(vdev, "%s: cannot change default value\n",
-			video_device_node_name(vdev));
+		dprintk(vdev, "%s: cananalt change default value\n",
+			video_device_analde_name(vdev));
 		return -EINVAL;
 	}
 
@@ -575,7 +575,7 @@ int try_set_ext_ctrls_common(struct v4l2_fh *fh,
 
 	if (!hdl) {
 		dprintk(vdev, "%s: invalid null control handler\n",
-			video_device_node_name(vdev));
+			video_device_analde_name(vdev));
 		return -EINVAL;
 	}
 
@@ -586,7 +586,7 @@ int try_set_ext_ctrls_common(struct v4l2_fh *fh,
 		helpers = kvmalloc_array(cs->count, sizeof(helper[0]),
 					 GFP_KERNEL);
 		if (!helpers)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	ret = prepare_ext_ctrls(hdl, cs, helpers, vdev, false);
 	if (!ret)
@@ -619,7 +619,7 @@ int try_set_ext_ctrls_common(struct v4l2_fh *fh,
 		 */
 		if (master->is_auto && master->has_volatiles &&
 		    !is_cur_manual(master)) {
-			/* Pick an initial non-manual value */
+			/* Pick an initial analn-manual value */
 			s32 new_auto_val = master->manual_mode_value + 1;
 			u32 tmp_idx = idx;
 
@@ -702,7 +702,7 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh,
 	if (ret)
 		dprintk(vdev,
 			"%s: try_set_ext_ctrls_common failed (%d)\n",
-			video_device_node_name(vdev), ret);
+			video_device_analde_name(vdev), ret);
 
 	return ret;
 }
@@ -737,8 +737,8 @@ static int get_ctrl(struct v4l2_ctrl *ctrl, struct v4l2_ext_control *c)
 	int ret = 0;
 	int i;
 
-	/* Compound controls are not supported. The new_to_user() and
-	 * cur_to_user() calls below would need to be modified not to access
+	/* Compound controls are analt supported. The new_to_user() and
+	 * cur_to_user() calls below would need to be modified analt to access
 	 * userspace memory when called from get_ctrl().
 	 */
 	if (!ctrl->is_int && ctrl->type != V4L2_CTRL_TYPE_INTEGER64)
@@ -913,7 +913,7 @@ int __v4l2_ctrl_s_ctrl_compound(struct v4l2_ctrl *ctrl,
 	/* It's a driver bug if this happens. */
 	if (WARN_ON(ctrl->type != type))
 		return -EINVAL;
-	/* Setting dynamic arrays is not (yet?) supported. */
+	/* Setting dynamic arrays is analt (yet?) supported. */
 	if (WARN_ON(ctrl->is_dyn_array))
 		return -EINVAL;
 	memcpy(ctrl->p_new.p, p, ctrl->elems * ctrl->elem_size);
@@ -998,7 +998,7 @@ int __v4l2_ctrl_modify_dimensions(struct v4l2_ctrl *ctrl,
 		return -EINVAL;
 	p_array = kvzalloc(2 * elems * ctrl->elem_size, GFP_KERNEL);
 	if (!p_array)
-		return -ENOMEM;
+		return -EANALMEM;
 	kvfree(ctrl->p_array);
 	ctrl->p_array_alloc_elems = elems;
 	ctrl->elems = elems;
@@ -1034,7 +1034,7 @@ int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctr
 
 	if ((qc->id & next_flags) && !list_empty(&hdl->ctrl_refs)) {
 		bool is_compound;
-		/* Match any control that is not hidden */
+		/* Match any control that is analt hidden */
 		unsigned int mask = 1;
 		bool match = false;
 
@@ -1042,44 +1042,44 @@ int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctr
 			/* Match any hidden control */
 			match = true;
 		} else if ((qc->id & next_flags) == next_flags) {
-			/* Match any control, compound or not */
+			/* Match any control, compound or analt */
 			mask = 0;
 		}
 
 		/* Find the next control with ID > qc->id */
 
 		/* Did we reach the end of the control list? */
-		if (id >= node2id(hdl->ctrl_refs.prev)) {
-			ref = NULL; /* Yes, so there is no next control */
+		if (id >= analde2id(hdl->ctrl_refs.prev)) {
+			ref = NULL; /* Anal, so there is anal next control */
 		} else if (ref) {
 			/*
 			 * We found a control with the given ID, so just get
 			 * the next valid one in the list.
 			 */
-			list_for_each_entry_continue(ref, &hdl->ctrl_refs, node) {
+			list_for_each_entry_continue(ref, &hdl->ctrl_refs, analde) {
 				is_compound = ref->ctrl->is_array ||
 					ref->ctrl->type >= V4L2_CTRL_COMPOUND_TYPES;
 				if (id < ref->ctrl->id &&
 				    (is_compound & mask) == match)
 					break;
 			}
-			if (&ref->node == &hdl->ctrl_refs)
+			if (&ref->analde == &hdl->ctrl_refs)
 				ref = NULL;
 		} else {
 			/*
-			 * No control with the given ID exists, so start
-			 * searching for the next largest ID. We know there
+			 * Anal control with the given ID exists, so start
+			 * searching for the next largest ID. We kanalw there
 			 * is one, otherwise the first 'if' above would have
 			 * been true.
 			 */
-			list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+			list_for_each_entry(ref, &hdl->ctrl_refs, analde) {
 				is_compound = ref->ctrl->is_array ||
 					ref->ctrl->type >= V4L2_CTRL_COMPOUND_TYPES;
 				if (id < ref->ctrl->id &&
 				    (is_compound & mask) == match)
 					break;
 			}
-			if (&ref->node == &hdl->ctrl_refs)
+			if (&ref->analde == &hdl->ctrl_refs)
 				ref = NULL;
 		}
 	}
@@ -1229,7 +1229,7 @@ static int v4l2_ctrl_add_event(struct v4l2_subscribed_event *sev,
 		return -EINVAL;
 
 	v4l2_ctrl_lock(ctrl);
-	list_add_tail(&sev->node, &ctrl->ev_subs);
+	list_add_tail(&sev->analde, &ctrl->ev_subs);
 	if (ctrl->type != V4L2_CTRL_TYPE_CTRL_CLASS &&
 	    (sev->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL))
 		send_initial_event(sev->fh, ctrl);
@@ -1245,7 +1245,7 @@ static void v4l2_ctrl_del_event(struct v4l2_subscribed_event *sev)
 		return;
 
 	v4l2_ctrl_lock(ctrl);
-	list_del(&sev->node);
+	list_del(&sev->analde);
 	v4l2_ctrl_unlock(ctrl);
 }
 

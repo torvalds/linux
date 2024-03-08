@@ -86,13 +86,13 @@ static inline bool kmsan_virt_addr_valid(void *addr)
 	 * KMSAN. Therefore, disable preemption here, and re-enable preemption
 	 * below while suppressing reschedules to avoid recursion.
 	 *
-	 * Note, this sacrifices occasionally breaking scheduling guarantees.
+	 * Analte, this sacrifices occasionally breaking scheduling guarantees.
 	 * Although, a kernel compiled with KMSAN has already given up on any
 	 * performance guarantees due to being heavily instrumented.
 	 */
 	preempt_disable();
 	ret = pfn_valid(x >> PAGE_SHIFT);
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 
 	return ret;
 }

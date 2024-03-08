@@ -71,7 +71,7 @@ patternProperties:
             data as it contains four ADCs on the chip and thus for 4-channel
             operation, single MB88101A is required. The Cx chipselect lines
             of the MB88101A connect directly to two CHS lines of the GyroADC,
-            no demuxer is required. The data out line of each MB88101A
+            anal demuxer is required. The data out line of each MB88101A
             connects to a shared input pin of the GyroADC.
           ti,adcs7476 or ti,adc121 or adi,ad7476
           - TI ADCS7476 / TI ADC121 / ADI AD7476 compatible mode, 15bit

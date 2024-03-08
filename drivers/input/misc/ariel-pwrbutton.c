@@ -61,14 +61,14 @@ static irqreturn_t ec_input_interrupt(int irq, void *dev_id)
 	}
 
 	if (priv->msg_counter == RESP_COUNTER(response)) {
-		dev_warn(&spi->dev, "No new data to read?\n");
+		dev_warn(&spi->dev, "Anal new data to read?\n");
 		goto out;
 	}
 
 	priv->msg_counter = RESP_COUNTER(response);
 
 	if (RESP_TYPE(response) != 0x3 && RESP_TYPE(response) != 0xc) {
-		dev_dbg(&spi->dev, "Ignoring message that's not kbd data\n");
+		dev_dbg(&spi->dev, "Iganalring message that's analt kbd data\n");
 		goto out;
 	}
 
@@ -83,7 +83,7 @@ static irqreturn_t ec_input_interrupt(int irq, void *dev_id)
 			input_sync(priv->input);
 			break;
 		default:
-			dev_dbg(&spi->dev, "Unknown scan code: %02x\n",
+			dev_dbg(&spi->dev, "Unkanalwn scan code: %02x\n",
 				response.data[i]);
 		}
 	}
@@ -105,14 +105,14 @@ static int ariel_pwrbutton_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = spi;
 	spi_set_drvdata(spi, priv);
 
 	priv->input = devm_input_allocate_device(&spi->dev);
 	if (!priv->input)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->input->name = "Power Button";
 	priv->input->dev.parent = &spi->dev;
 	input_set_capability(priv->input, EV_KEY, KEY_POWER);

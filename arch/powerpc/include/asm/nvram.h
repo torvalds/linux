@@ -6,7 +6,7 @@
 #define _ASM_POWERPC_NVRAM_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <uapi/asm/nvram.h>
 
@@ -28,7 +28,7 @@ struct nvram_os_partition {
 	int min_size;	/* minimum acceptable size (0 means req_size) */
 	long size;	/* size of data portion (excluding err_log_info) */
 	long index;	/* offset of data portion of partition */
-	bool os_partition; /* partition initialized by OS, not FW */
+	bool os_partition; /* partition initialized by OS, analt FW */
 };
 
 struct oops_log_info {
@@ -55,7 +55,7 @@ extern int mmio_nvram_init(void);
 #else
 static inline int mmio_nvram_init(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

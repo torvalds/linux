@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
 ** asm/bootinfo-vme.h -- VME-specific boot information definitions
 */
@@ -42,14 +42,14 @@
  * Motorola VME boards.  Contains board number, Bug version, board
  * configuration options, etc.
  *
- * Note, bytes 12 and 13 are board no in BCD (0162,0166,0167,0177,etc)
+ * Analte, bytes 12 and 13 are board anal in BCD (0162,0166,0167,0177,etc)
  */
 
 typedef struct {
 	char	bdid[4];
 	__u8	rev, mth, day, yr;
 	__be16	size, reserved;
-	__be16	brdno;
+	__be16	brdanal;
 	char	brdsuffix[2];
 	__be32	options;
 	__be16	clun, dlun, ctype, dnum;

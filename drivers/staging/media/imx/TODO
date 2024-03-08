@@ -5,9 +5,9 @@
 - This media driver supports inheriting V4L2 controls to the
   video capture devices, from the subdevices in the capture device's
   pipeline. The controls for each capture device are updated in the
-  link_notify callback when the pipeline is modified. This feature should be
+  link_analtify callback when the pipeline is modified. This feature should be
   removed, userspace should use the subdev-based userspace API instead.
 
 - Similarly to the legacy control handling, legacy format handling where
-  formats on the video nodes are influenced by the active format of the
+  formats on the video analdes are influenced by the active format of the
   connected subdev should be removed.

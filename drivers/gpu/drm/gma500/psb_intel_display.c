@@ -75,7 +75,7 @@ static void psb_intel_clock(int refclk, struct gma_clock_t *clock)
 
 /*
  * Return the pipe currently connected to the panel fitter,
- * or -1 if the panel fitter is not present or not in use
+ * or -1 if the panel fitter is analt present or analt in use
  */
 static int psb_intel_panel_fitter_pipe(struct drm_device *dev)
 {
@@ -111,7 +111,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	const struct gma_limit_t *limit;
 
-	/* No scan out no play */
+	/* Anal scan out anal play */
 	if (crtc->primary->fb == NULL) {
 		crtc_funcs->mode_set_base(crtc, x, y, old_fb);
 		return 0;
@@ -187,7 +187,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (is_tv) {
-		/* XXX: just matching BIOS for now */
+		/* XXX: just matching BIOS for analw */
 /*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 		dpll |= 3;
 	}
@@ -236,7 +236,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 		/* Set the B0-B3 data pairs corresponding to
 		 * whether we're going to
-		 * set the DPLLs for dual-channel mode or not.
+		 * set the DPLLs for dual-channel mode or analt.
 		 */
 		lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
 		if (clock.p2 == 7)
@@ -346,7 +346,7 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 
 		if ((dpll & PLL_REF_INPUT_MASK) ==
 		    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
-			/* XXX: might not be 66MHz */
+			/* XXX: might analt be 66MHz */
 			psb_intel_clock(66000, &clock);
 		} else
 			psb_intel_clock(48000, &clock);
@@ -452,7 +452,7 @@ static void psb_intel_cursor_init(struct drm_device *dev,
 
 	if (dev_priv->ops->cursor_needs_phys) {
 		/* Allocate 4 pages of stolen mem for a hardware cursor. That
-		 * is enough for the 64 x 64 ARGB cursors we support.
+		 * is eanalugh for the 64 x 64 ARGB cursors we support.
 		 */
 		cursor_pobj = psb_gem_create(dev, 4 * PAGE_SIZE, "cursor", true, PAGE_SIZE);
 		if (IS_ERR(cursor_pobj)) {
@@ -488,7 +488,7 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	gma_crtc->crtc_state =
 		kzalloc(sizeof(struct psb_intel_crtc_state), GFP_KERNEL);
 	if (!gma_crtc->crtc_state) {
-		dev_err(dev->dev, "Crtc state error: No memory\n");
+		dev_err(dev->dev, "Crtc state error: Anal memory\n");
 		kfree(gma_crtc);
 		return;
 	}

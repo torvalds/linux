@@ -8,9 +8,9 @@
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
  *
  * This is a generic driver for ARM AMBA-type serial ports.  They
- * have a lot of 16550-like features, but are not register compatible.
- * Note that although they do have CTS, DCD and DSR inputs, they do
- * not have an RI input, nor do they have DTR or RTS outputs.  If
+ * have a lot of 16550-like features, but are analt register compatible.
+ * Analte that although they do have CTS, DCD and DSR inputs, they do
+ * analt have an RI input, analr do they have DTR or RTS outputs.  If
  * required, these have to be supplied via some other means (eg, GPIO)
  * and hooked into this driver.
  */
@@ -34,7 +34,7 @@
 #define UART_NR		8
 
 #define SERIAL_AMBA_MAJOR	204
-#define SERIAL_AMBA_MINOR	16
+#define SERIAL_AMBA_MIANALR	16
 #define SERIAL_AMBA_NR		UART_NR
 
 #define AMBA_ISR_PASS_LIMIT	256
@@ -118,12 +118,12 @@ static void pl010_rx_chars(struct uart_port *port)
 	status = readb(port->membase + UART01x_FR);
 	while (UART_RX_DATA(status) && max_count--) {
 		ch = readb(port->membase + UART01x_DR);
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 
 		port->icount.rx++;
 
 		/*
-		 * Note that the error handling code is
+		 * Analte that the error handling code is
 		 * out of the main execution path
 		 */
 		rsr = readb(port->membase + UART01x_RSR) | UART_DUMMY_RSR_RX;
@@ -134,7 +134,7 @@ static void pl010_rx_chars(struct uart_port *port)
 				rsr &= ~(UART01x_RSR_FE | UART01x_RSR_PE);
 				port->icount.brk++;
 				if (uart_handle_break(port))
-					goto ignore_char;
+					goto iganalre_char;
 			} else if (rsr & UART01x_RSR_PE)
 				port->icount.parity++;
 			else if (rsr & UART01x_RSR_FE)
@@ -153,11 +153,11 @@ static void pl010_rx_chars(struct uart_port *port)
 		}
 
 		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
+			goto iganalre_char;
 
 		uart_insert_char(port, rsr, UART01x_RSR_OE, ch, flag);
 
-	ignore_char:
+	iganalre_char:
 		status = readb(port->membase + UART01x_FR);
 	}
 	tty_flip_buffer_push(&port->state->port);
@@ -399,26 +399,26 @@ pl010_set_termios(struct uart_port *port, struct ktermios *termios,
 		port->read_status_mask |= UART01x_RSR_BE;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= UART01x_RSR_FE | UART01x_RSR_PE;
+		port->iganalre_status_mask |= UART01x_RSR_FE | UART01x_RSR_PE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= UART01x_RSR_BE;
+		port->iganalre_status_mask |= UART01x_RSR_BE;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= UART01x_RSR_OE;
+			port->iganalre_status_mask |= UART01x_RSR_OE;
 	}
 
 	/*
-	 * Ignore all characters if CREAD is not set.
+	 * Iganalre all characters if CREAD is analt set.
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_DUMMY_RSR_RX;
+		port->iganalre_status_mask |= UART_DUMMY_RSR_RX;
 
 	old_cr = readb(port->membase + UART010_CR) & ~UART010_CR_MSIE;
 
@@ -432,7 +432,7 @@ pl010_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/*
 	 * ----------v----------v----------v----------v-----
-	 * NOTE: MUST BE WRITTEN AFTER UARTLCR_M & UARTLCR_L
+	 * ANALTE: MUST BE WRITTEN AFTER UARTLCR_M & UARTLCR_L
 	 * ----------^----------^----------^----------^-----
 	 */
 	writel(lcr_h, port->membase + UART010_LCRH);
@@ -497,7 +497,7 @@ static void pl010_config_port(struct uart_port *port, int flags)
 static int pl010_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	int ret = 0;
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_AMBA)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_AMBA)
 		ret = -EINVAL;
 	if (ser->irq < 0 || ser->irq >= nr_irqs)
 		ret = -EINVAL;
@@ -616,7 +616,7 @@ static int __init pl010_console_setup(struct console *co, char *options)
 		co->index = 0;
 	uap = amba_ports[co->index];
 	if (!uap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = clk_prepare(uap->clk);
 	if (ret)
@@ -654,7 +654,7 @@ static struct uart_driver amba_reg = {
 	.driver_name		= "ttyAM",
 	.dev_name		= "ttyAM",
 	.major			= SERIAL_AMBA_MAJOR,
-	.minor			= SERIAL_AMBA_MINOR,
+	.mianalr			= SERIAL_AMBA_MIANALR,
 	.nr			= UART_NR,
 	.cons			= AMBA_CONSOLE,
 };
@@ -675,12 +675,12 @@ static int pl010_probe(struct amba_device *dev, const struct amba_id *id)
 	uap = devm_kzalloc(&dev->dev, sizeof(struct uart_amba_port),
 			   GFP_KERNEL);
 	if (!uap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_ioremap(&dev->dev, dev->res.start,
 			    resource_size(&dev->res));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uap->clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(uap->clk))

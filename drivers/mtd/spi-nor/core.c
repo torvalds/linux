@@ -8,13 +8,13 @@
  */
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 #include <linux/mutex.h>
 #include <linux/of_platform.h>
 #include <linux/sched/task_stack.h>
@@ -28,7 +28,7 @@
 
 /*
  * For everything but full-chip erase; probably could be much smaller, but kept
- * around for safety for now
+ * around for safety for analw
  */
 #define DEFAULT_READY_WAIT_JIFFIES		(40UL * HZ)
 
@@ -38,67 +38,67 @@
  */
 #define CHIP_ERASE_2MB_READY_WAIT_JIFFIES	(40UL * HZ)
 
-#define SPI_NOR_MAX_ADDR_NBYTES	4
+#define SPI_ANALR_MAX_ADDR_NBYTES	4
 
-#define SPI_NOR_SRST_SLEEP_MIN 200
-#define SPI_NOR_SRST_SLEEP_MAX 400
+#define SPI_ANALR_SRST_SLEEP_MIN 200
+#define SPI_ANALR_SRST_SLEEP_MAX 400
 
 /**
- * spi_nor_get_cmd_ext() - Get the command opcode extension based on the
+ * spi_analr_get_cmd_ext() - Get the command opcode extension based on the
  *			   extension type.
- * @nor:		pointer to a 'struct spi_nor'
+ * @analr:		pointer to a 'struct spi_analr'
  * @op:			pointer to the 'struct spi_mem_op' whose properties
  *			need to be initialized.
  *
- * Right now, only "repeat" and "invert" are supported.
+ * Right analw, only "repeat" and "invert" are supported.
  *
  * Return: The opcode extension.
  */
-static u8 spi_nor_get_cmd_ext(const struct spi_nor *nor,
+static u8 spi_analr_get_cmd_ext(const struct spi_analr *analr,
 			      const struct spi_mem_op *op)
 {
-	switch (nor->cmd_ext_type) {
-	case SPI_NOR_EXT_INVERT:
+	switch (analr->cmd_ext_type) {
+	case SPI_ANALR_EXT_INVERT:
 		return ~op->cmd.opcode;
 
-	case SPI_NOR_EXT_REPEAT:
+	case SPI_ANALR_EXT_REPEAT:
 		return op->cmd.opcode;
 
 	default:
-		dev_err(nor->dev, "Unknown command extension type\n");
+		dev_err(analr->dev, "Unkanalwn command extension type\n");
 		return 0;
 	}
 }
 
 /**
- * spi_nor_spimem_setup_op() - Set up common properties of a spi-mem op.
- * @nor:		pointer to a 'struct spi_nor'
+ * spi_analr_spimem_setup_op() - Set up common properties of a spi-mem op.
+ * @analr:		pointer to a 'struct spi_analr'
  * @op:			pointer to the 'struct spi_mem_op' whose properties
  *			need to be initialized.
  * @proto:		the protocol from which the properties need to be set.
  */
-void spi_nor_spimem_setup_op(const struct spi_nor *nor,
+void spi_analr_spimem_setup_op(const struct spi_analr *analr,
 			     struct spi_mem_op *op,
-			     const enum spi_nor_protocol proto)
+			     const enum spi_analr_protocol proto)
 {
 	u8 ext;
 
-	op->cmd.buswidth = spi_nor_get_protocol_inst_nbits(proto);
+	op->cmd.buswidth = spi_analr_get_protocol_inst_nbits(proto);
 
 	if (op->addr.nbytes)
-		op->addr.buswidth = spi_nor_get_protocol_addr_nbits(proto);
+		op->addr.buswidth = spi_analr_get_protocol_addr_nbits(proto);
 
 	if (op->dummy.nbytes)
-		op->dummy.buswidth = spi_nor_get_protocol_addr_nbits(proto);
+		op->dummy.buswidth = spi_analr_get_protocol_addr_nbits(proto);
 
 	if (op->data.nbytes)
-		op->data.buswidth = spi_nor_get_protocol_data_nbits(proto);
+		op->data.buswidth = spi_analr_get_protocol_data_nbits(proto);
 
-	if (spi_nor_protocol_is_dtr(proto)) {
+	if (spi_analr_protocol_is_dtr(proto)) {
 		/*
-		 * SPIMEM supports mixed DTR modes, but right now we can only
+		 * SPIMEM supports mixed DTR modes, but right analw we can only
 		 * have all phases either DTR or STR. IOW, SPIMEM can have
-		 * something like 4S-4D-4D, but SPI NOR can't. So, set all 4
+		 * something like 4S-4D-4D, but SPI ANALR can't. So, set all 4
 		 * phases to either DTR or STR.
 		 */
 		op->cmd.dtr = true;
@@ -109,30 +109,30 @@ void spi_nor_spimem_setup_op(const struct spi_nor *nor,
 		/* 2 bytes per clock cycle in DTR mode. */
 		op->dummy.nbytes *= 2;
 
-		ext = spi_nor_get_cmd_ext(nor, op);
+		ext = spi_analr_get_cmd_ext(analr, op);
 		op->cmd.opcode = (op->cmd.opcode << 8) | ext;
 		op->cmd.nbytes = 2;
 	}
 }
 
 /**
- * spi_nor_spimem_bounce() - check if a bounce buffer is needed for the data
+ * spi_analr_spimem_bounce() - check if a bounce buffer is needed for the data
  *                           transfer
- * @nor:        pointer to 'struct spi_nor'
+ * @analr:        pointer to 'struct spi_analr'
  * @op:         pointer to 'struct spi_mem_op' template for transfer
  *
  * If we have to use the bounce buffer, the data field in @op will be updated.
  *
- * Return: true if the bounce buffer is needed, false if not
+ * Return: true if the bounce buffer is needed, false if analt
  */
-static bool spi_nor_spimem_bounce(struct spi_nor *nor, struct spi_mem_op *op)
+static bool spi_analr_spimem_bounce(struct spi_analr *analr, struct spi_mem_op *op)
 {
 	/* op->data.buf.in occupies the same memory as op->data.buf.out */
 	if (object_is_on_stack(op->data.buf.in) ||
 	    !virt_addr_valid(op->data.buf.in)) {
-		if (op->data.nbytes > nor->bouncebuf_size)
-			op->data.nbytes = nor->bouncebuf_size;
-		op->data.buf.in = nor->bouncebuf;
+		if (op->data.nbytes > analr->bouncebuf_size)
+			op->data.nbytes = analr->bouncebuf_size;
+		op->data.buf.in = analr->bouncebuf;
 		return true;
 	}
 
@@ -140,85 +140,85 @@ static bool spi_nor_spimem_bounce(struct spi_nor *nor, struct spi_mem_op *op)
 }
 
 /**
- * spi_nor_spimem_exec_op() - execute a memory operation
- * @nor:        pointer to 'struct spi_nor'
+ * spi_analr_spimem_exec_op() - execute a memory operation
+ * @analr:        pointer to 'struct spi_analr'
  * @op:         pointer to 'struct spi_mem_op' template for transfer
  *
  * Return: 0 on success, -error otherwise.
  */
-static int spi_nor_spimem_exec_op(struct spi_nor *nor, struct spi_mem_op *op)
+static int spi_analr_spimem_exec_op(struct spi_analr *analr, struct spi_mem_op *op)
 {
 	int error;
 
-	error = spi_mem_adjust_op_size(nor->spimem, op);
+	error = spi_mem_adjust_op_size(analr->spimem, op);
 	if (error)
 		return error;
 
-	return spi_mem_exec_op(nor->spimem, op);
+	return spi_mem_exec_op(analr->spimem, op);
 }
 
-int spi_nor_controller_ops_read_reg(struct spi_nor *nor, u8 opcode,
+int spi_analr_controller_ops_read_reg(struct spi_analr *analr, u8 opcode,
 				    u8 *buf, size_t len)
 {
-	if (spi_nor_protocol_is_dtr(nor->reg_proto))
-		return -EOPNOTSUPP;
+	if (spi_analr_protocol_is_dtr(analr->reg_proto))
+		return -EOPANALTSUPP;
 
-	return nor->controller_ops->read_reg(nor, opcode, buf, len);
+	return analr->controller_ops->read_reg(analr, opcode, buf, len);
 }
 
-int spi_nor_controller_ops_write_reg(struct spi_nor *nor, u8 opcode,
+int spi_analr_controller_ops_write_reg(struct spi_analr *analr, u8 opcode,
 				     const u8 *buf, size_t len)
 {
-	if (spi_nor_protocol_is_dtr(nor->reg_proto))
-		return -EOPNOTSUPP;
+	if (spi_analr_protocol_is_dtr(analr->reg_proto))
+		return -EOPANALTSUPP;
 
-	return nor->controller_ops->write_reg(nor, opcode, buf, len);
+	return analr->controller_ops->write_reg(analr, opcode, buf, len);
 }
 
-static int spi_nor_controller_ops_erase(struct spi_nor *nor, loff_t offs)
+static int spi_analr_controller_ops_erase(struct spi_analr *analr, loff_t offs)
 {
-	if (spi_nor_protocol_is_dtr(nor->reg_proto))
-		return -EOPNOTSUPP;
+	if (spi_analr_protocol_is_dtr(analr->reg_proto))
+		return -EOPANALTSUPP;
 
-	return nor->controller_ops->erase(nor, offs);
+	return analr->controller_ops->erase(analr, offs);
 }
 
 /**
- * spi_nor_spimem_read_data() - read data from flash's memory region via
+ * spi_analr_spimem_read_data() - read data from flash's memory region via
  *                              spi-mem
- * @nor:        pointer to 'struct spi_nor'
+ * @analr:        pointer to 'struct spi_analr'
  * @from:       offset to read from
  * @len:        number of bytes to read
  * @buf:        pointer to dst buffer
  *
- * Return: number of bytes read successfully, -errno otherwise
+ * Return: number of bytes read successfully, -erranal otherwise
  */
-static ssize_t spi_nor_spimem_read_data(struct spi_nor *nor, loff_t from,
+static ssize_t spi_analr_spimem_read_data(struct spi_analr *analr, loff_t from,
 					size_t len, u8 *buf)
 {
 	struct spi_mem_op op =
-		SPI_MEM_OP(SPI_MEM_OP_CMD(nor->read_opcode, 0),
-			   SPI_MEM_OP_ADDR(nor->addr_nbytes, from, 0),
-			   SPI_MEM_OP_DUMMY(nor->read_dummy, 0),
+		SPI_MEM_OP(SPI_MEM_OP_CMD(analr->read_opcode, 0),
+			   SPI_MEM_OP_ADDR(analr->addr_nbytes, from, 0),
+			   SPI_MEM_OP_DUMMY(analr->read_dummy, 0),
 			   SPI_MEM_OP_DATA_IN(len, buf, 0));
 	bool usebouncebuf;
 	ssize_t nbytes;
 	int error;
 
-	spi_nor_spimem_setup_op(nor, &op, nor->read_proto);
+	spi_analr_spimem_setup_op(analr, &op, analr->read_proto);
 
 	/* convert the dummy cycles to the number of bytes */
-	op.dummy.nbytes = (nor->read_dummy * op.dummy.buswidth) / 8;
-	if (spi_nor_protocol_is_dtr(nor->read_proto))
+	op.dummy.nbytes = (analr->read_dummy * op.dummy.buswidth) / 8;
+	if (spi_analr_protocol_is_dtr(analr->read_proto))
 		op.dummy.nbytes *= 2;
 
-	usebouncebuf = spi_nor_spimem_bounce(nor, &op);
+	usebouncebuf = spi_analr_spimem_bounce(analr, &op);
 
-	if (nor->dirmap.rdesc) {
-		nbytes = spi_mem_dirmap_read(nor->dirmap.rdesc, op.addr.val,
+	if (analr->dirmap.rdesc) {
+		nbytes = spi_mem_dirmap_read(analr->dirmap.rdesc, op.addr.val,
 					     op.data.nbytes, op.data.buf.in);
 	} else {
-		error = spi_nor_spimem_exec_op(nor, &op);
+		error = spi_analr_spimem_exec_op(analr, &op);
 		if (error)
 			return error;
 		nbytes = op.data.nbytes;
@@ -231,56 +231,56 @@ static ssize_t spi_nor_spimem_read_data(struct spi_nor *nor, loff_t from,
 }
 
 /**
- * spi_nor_read_data() - read data from flash memory
- * @nor:        pointer to 'struct spi_nor'
+ * spi_analr_read_data() - read data from flash memory
+ * @analr:        pointer to 'struct spi_analr'
  * @from:       offset to read from
  * @len:        number of bytes to read
  * @buf:        pointer to dst buffer
  *
- * Return: number of bytes read successfully, -errno otherwise
+ * Return: number of bytes read successfully, -erranal otherwise
  */
-ssize_t spi_nor_read_data(struct spi_nor *nor, loff_t from, size_t len, u8 *buf)
+ssize_t spi_analr_read_data(struct spi_analr *analr, loff_t from, size_t len, u8 *buf)
 {
-	if (nor->spimem)
-		return spi_nor_spimem_read_data(nor, from, len, buf);
+	if (analr->spimem)
+		return spi_analr_spimem_read_data(analr, from, len, buf);
 
-	return nor->controller_ops->read(nor, from, len, buf);
+	return analr->controller_ops->read(analr, from, len, buf);
 }
 
 /**
- * spi_nor_spimem_write_data() - write data to flash memory via
+ * spi_analr_spimem_write_data() - write data to flash memory via
  *                               spi-mem
- * @nor:        pointer to 'struct spi_nor'
+ * @analr:        pointer to 'struct spi_analr'
  * @to:         offset to write to
  * @len:        number of bytes to write
  * @buf:        pointer to src buffer
  *
- * Return: number of bytes written successfully, -errno otherwise
+ * Return: number of bytes written successfully, -erranal otherwise
  */
-static ssize_t spi_nor_spimem_write_data(struct spi_nor *nor, loff_t to,
+static ssize_t spi_analr_spimem_write_data(struct spi_analr *analr, loff_t to,
 					 size_t len, const u8 *buf)
 {
 	struct spi_mem_op op =
-		SPI_MEM_OP(SPI_MEM_OP_CMD(nor->program_opcode, 0),
-			   SPI_MEM_OP_ADDR(nor->addr_nbytes, to, 0),
-			   SPI_MEM_OP_NO_DUMMY,
+		SPI_MEM_OP(SPI_MEM_OP_CMD(analr->program_opcode, 0),
+			   SPI_MEM_OP_ADDR(analr->addr_nbytes, to, 0),
+			   SPI_MEM_OP_ANAL_DUMMY,
 			   SPI_MEM_OP_DATA_OUT(len, buf, 0));
 	ssize_t nbytes;
 	int error;
 
-	if (nor->program_opcode == SPINOR_OP_AAI_WP && nor->sst_write_second)
+	if (analr->program_opcode == SPIANALR_OP_AAI_WP && analr->sst_write_second)
 		op.addr.nbytes = 0;
 
-	spi_nor_spimem_setup_op(nor, &op, nor->write_proto);
+	spi_analr_spimem_setup_op(analr, &op, analr->write_proto);
 
-	if (spi_nor_spimem_bounce(nor, &op))
-		memcpy(nor->bouncebuf, buf, op.data.nbytes);
+	if (spi_analr_spimem_bounce(analr, &op))
+		memcpy(analr->bouncebuf, buf, op.data.nbytes);
 
-	if (nor->dirmap.wdesc) {
-		nbytes = spi_mem_dirmap_write(nor->dirmap.wdesc, op.addr.val,
+	if (analr->dirmap.wdesc) {
+		nbytes = spi_mem_dirmap_write(analr->dirmap.wdesc, op.addr.val,
 					      op.data.nbytes, op.data.buf.out);
 	} else {
-		error = spi_nor_spimem_exec_op(nor, &op);
+		error = spi_analr_spimem_exec_op(analr, &op);
 		if (error)
 			return error;
 		nbytes = op.data.nbytes;
@@ -290,172 +290,172 @@ static ssize_t spi_nor_spimem_write_data(struct spi_nor *nor, loff_t to,
 }
 
 /**
- * spi_nor_write_data() - write data to flash memory
- * @nor:        pointer to 'struct spi_nor'
+ * spi_analr_write_data() - write data to flash memory
+ * @analr:        pointer to 'struct spi_analr'
  * @to:         offset to write to
  * @len:        number of bytes to write
  * @buf:        pointer to src buffer
  *
- * Return: number of bytes written successfully, -errno otherwise
+ * Return: number of bytes written successfully, -erranal otherwise
  */
-ssize_t spi_nor_write_data(struct spi_nor *nor, loff_t to, size_t len,
+ssize_t spi_analr_write_data(struct spi_analr *analr, loff_t to, size_t len,
 			   const u8 *buf)
 {
-	if (nor->spimem)
-		return spi_nor_spimem_write_data(nor, to, len, buf);
+	if (analr->spimem)
+		return spi_analr_spimem_write_data(analr, to, len, buf);
 
-	return nor->controller_ops->write(nor, to, len, buf);
+	return analr->controller_ops->write(analr, to, len, buf);
 }
 
 /**
- * spi_nor_read_any_reg() - read any register from flash memory, nonvolatile or
+ * spi_analr_read_any_reg() - read any register from flash memory, analnvolatile or
  * volatile.
- * @nor:        pointer to 'struct spi_nor'.
+ * @analr:        pointer to 'struct spi_analr'.
  * @op:		SPI memory operation. op->data.buf must be DMA-able.
  * @proto:	SPI protocol to use for the register operation.
  *
- * Return: zero on success, -errno otherwise
+ * Return: zero on success, -erranal otherwise
  */
-int spi_nor_read_any_reg(struct spi_nor *nor, struct spi_mem_op *op,
-			 enum spi_nor_protocol proto)
+int spi_analr_read_any_reg(struct spi_analr *analr, struct spi_mem_op *op,
+			 enum spi_analr_protocol proto)
 {
-	if (!nor->spimem)
-		return -EOPNOTSUPP;
+	if (!analr->spimem)
+		return -EOPANALTSUPP;
 
-	spi_nor_spimem_setup_op(nor, op, proto);
-	return spi_nor_spimem_exec_op(nor, op);
+	spi_analr_spimem_setup_op(analr, op, proto);
+	return spi_analr_spimem_exec_op(analr, op);
 }
 
 /**
- * spi_nor_write_any_volatile_reg() - write any volatile register to flash
+ * spi_analr_write_any_volatile_reg() - write any volatile register to flash
  * memory.
- * @nor:        pointer to 'struct spi_nor'
+ * @analr:        pointer to 'struct spi_analr'
  * @op:		SPI memory operation. op->data.buf must be DMA-able.
  * @proto:	SPI protocol to use for the register operation.
  *
  * Writing volatile registers are instant according to some manufacturers
- * (Cypress, Micron) and do not need any status polling.
+ * (Cypress, Micron) and do analt need any status polling.
  *
- * Return: zero on success, -errno otherwise
+ * Return: zero on success, -erranal otherwise
  */
-int spi_nor_write_any_volatile_reg(struct spi_nor *nor, struct spi_mem_op *op,
-				   enum spi_nor_protocol proto)
+int spi_analr_write_any_volatile_reg(struct spi_analr *analr, struct spi_mem_op *op,
+				   enum spi_analr_protocol proto)
 {
 	int ret;
 
-	if (!nor->spimem)
-		return -EOPNOTSUPP;
+	if (!analr->spimem)
+		return -EOPANALTSUPP;
 
-	ret = spi_nor_write_enable(nor);
+	ret = spi_analr_write_enable(analr);
 	if (ret)
 		return ret;
-	spi_nor_spimem_setup_op(nor, op, proto);
-	return spi_nor_spimem_exec_op(nor, op);
+	spi_analr_spimem_setup_op(analr, op, proto);
+	return spi_analr_spimem_exec_op(analr, op);
 }
 
 /**
- * spi_nor_write_enable() - Set write enable latch with Write Enable command.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_write_enable() - Set write enable latch with Write Enable command.
+ * @analr:	pointer to 'struct spi_analr'.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_write_enable(struct spi_nor *nor)
+int spi_analr_write_enable(struct spi_analr *analr)
 {
 	int ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_WREN_OP;
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_WREN_OP;
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_WREN,
+		ret = spi_analr_controller_ops_write_reg(analr, SPIANALR_OP_WREN,
 						       NULL, 0);
 	}
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d on Write Enable\n", ret);
+		dev_dbg(analr->dev, "error %d on Write Enable\n", ret);
 
 	return ret;
 }
 
 /**
- * spi_nor_write_disable() - Send Write Disable instruction to the chip.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_write_disable() - Send Write Disable instruction to the chip.
+ * @analr:	pointer to 'struct spi_analr'.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_write_disable(struct spi_nor *nor)
+int spi_analr_write_disable(struct spi_analr *analr)
 {
 	int ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_WRDI_OP;
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_WRDI_OP;
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_WRDI,
+		ret = spi_analr_controller_ops_write_reg(analr, SPIANALR_OP_WRDI,
 						       NULL, 0);
 	}
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d on Write Disable\n", ret);
+		dev_dbg(analr->dev, "error %d on Write Disable\n", ret);
 
 	return ret;
 }
 
 /**
- * spi_nor_read_id() - Read the JEDEC ID.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_read_id() - Read the JEDEC ID.
+ * @analr:	pointer to 'struct spi_analr'.
  * @naddr:	number of address bytes to send. Can be zero if the operation
- *		does not need to send an address.
+ *		does analt need to send an address.
  * @ndummy:	number of dummy bytes to send after an opcode or address. Can
- *		be zero if the operation does not require dummy bytes.
+ *		be zero if the operation does analt require dummy bytes.
  * @id:		pointer to a DMA-able buffer where the value of the JEDEC ID
  *		will be written.
  * @proto:	the SPI protocol for register operation.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_read_id(struct spi_nor *nor, u8 naddr, u8 ndummy, u8 *id,
-		    enum spi_nor_protocol proto)
+int spi_analr_read_id(struct spi_analr *analr, u8 naddr, u8 ndummy, u8 *id,
+		    enum spi_analr_protocol proto)
 {
 	int ret;
 
-	if (nor->spimem) {
+	if (analr->spimem) {
 		struct spi_mem_op op =
-			SPI_NOR_READID_OP(naddr, ndummy, id, SPI_NOR_MAX_ID_LEN);
+			SPI_ANALR_READID_OP(naddr, ndummy, id, SPI_ANALR_MAX_ID_LEN);
 
-		spi_nor_spimem_setup_op(nor, &op, proto);
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		spi_analr_spimem_setup_op(analr, &op, proto);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = nor->controller_ops->read_reg(nor, SPINOR_OP_RDID, id,
-						    SPI_NOR_MAX_ID_LEN);
+		ret = analr->controller_ops->read_reg(analr, SPIANALR_OP_RDID, id,
+						    SPI_ANALR_MAX_ID_LEN);
 	}
 	return ret;
 }
 
 /**
- * spi_nor_read_sr() - Read the Status Register.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_read_sr() - Read the Status Register.
+ * @analr:	pointer to 'struct spi_analr'.
  * @sr:		pointer to a DMA-able buffer where the value of the
  *              Status Register will be written. Should be at least 2 bytes.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_read_sr(struct spi_nor *nor, u8 *sr)
+int spi_analr_read_sr(struct spi_analr *analr, u8 *sr)
 {
 	int ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_RDSR_OP(sr);
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_RDSR_OP(sr);
 
-		if (nor->reg_proto == SNOR_PROTO_8_8_8_DTR) {
-			op.addr.nbytes = nor->params->rdsr_addr_nbytes;
-			op.dummy.nbytes = nor->params->rdsr_dummy;
+		if (analr->reg_proto == SANALR_PROTO_8_8_8_DTR) {
+			op.addr.nbytes = analr->params->rdsr_addr_nbytes;
+			op.dummy.nbytes = analr->params->rdsr_dummy;
 			/*
 			 * We don't want to read only one byte in DTR mode. So,
 			 * read 2 and then discard the second byte.
@@ -463,181 +463,181 @@ int spi_nor_read_sr(struct spi_nor *nor, u8 *sr)
 			op.data.nbytes = 2;
 		}
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_read_reg(nor, SPINOR_OP_RDSR, sr,
+		ret = spi_analr_controller_ops_read_reg(analr, SPIANALR_OP_RDSR, sr,
 						      1);
 	}
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d reading SR\n", ret);
+		dev_dbg(analr->dev, "error %d reading SR\n", ret);
 
 	return ret;
 }
 
 /**
- * spi_nor_read_cr() - Read the Configuration Register using the
- * SPINOR_OP_RDCR (35h) command.
- * @nor:	pointer to 'struct spi_nor'
+ * spi_analr_read_cr() - Read the Configuration Register using the
+ * SPIANALR_OP_RDCR (35h) command.
+ * @analr:	pointer to 'struct spi_analr'
  * @cr:		pointer to a DMA-able buffer where the value of the
  *              Configuration Register will be written.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
+int spi_analr_read_cr(struct spi_analr *analr, u8 *cr)
 {
 	int ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_RDCR_OP(cr);
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_RDCR_OP(cr);
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_read_reg(nor, SPINOR_OP_RDCR, cr,
+		ret = spi_analr_controller_ops_read_reg(analr, SPIANALR_OP_RDCR, cr,
 						      1);
 	}
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d reading CR\n", ret);
+		dev_dbg(analr->dev, "error %d reading CR\n", ret);
 
 	return ret;
 }
 
 /**
- * spi_nor_set_4byte_addr_mode_en4b_ex4b() - Enter/Exit 4-byte address mode
- *			using SPINOR_OP_EN4B/SPINOR_OP_EX4B. Typically used by
+ * spi_analr_set_4byte_addr_mode_en4b_ex4b() - Enter/Exit 4-byte address mode
+ *			using SPIANALR_OP_EN4B/SPIANALR_OP_EX4B. Typically used by
  *			Winbond and Macronix.
- * @nor:	pointer to 'struct spi_nor'.
+ * @analr:	pointer to 'struct spi_analr'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_set_4byte_addr_mode_en4b_ex4b(struct spi_nor *nor, bool enable)
+int spi_analr_set_4byte_addr_mode_en4b_ex4b(struct spi_analr *analr, bool enable)
 {
 	int ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_EN4B_EX4B_OP(enable);
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_EN4B_EX4B_OP(enable);
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_write_reg(nor,
-						       enable ? SPINOR_OP_EN4B :
-								SPINOR_OP_EX4B,
+		ret = spi_analr_controller_ops_write_reg(analr,
+						       enable ? SPIANALR_OP_EN4B :
+								SPIANALR_OP_EX4B,
 						       NULL, 0);
 	}
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d setting 4-byte mode\n", ret);
+		dev_dbg(analr->dev, "error %d setting 4-byte mode\n", ret);
 
 	return ret;
 }
 
 /**
- * spi_nor_set_4byte_addr_mode_wren_en4b_ex4b() - Set 4-byte address mode using
- * SPINOR_OP_WREN followed by SPINOR_OP_EN4B or SPINOR_OP_EX4B. Typically used
+ * spi_analr_set_4byte_addr_mode_wren_en4b_ex4b() - Set 4-byte address mode using
+ * SPIANALR_OP_WREN followed by SPIANALR_OP_EN4B or SPIANALR_OP_EX4B. Typically used
  * by ST and Micron flashes.
- * @nor:	pointer to 'struct spi_nor'.
+ * @analr:	pointer to 'struct spi_analr'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_set_4byte_addr_mode_wren_en4b_ex4b(struct spi_nor *nor, bool enable)
+int spi_analr_set_4byte_addr_mode_wren_en4b_ex4b(struct spi_analr *analr, bool enable)
 {
 	int ret;
 
-	ret = spi_nor_write_enable(nor);
+	ret = spi_analr_write_enable(analr);
 	if (ret)
 		return ret;
 
-	ret = spi_nor_set_4byte_addr_mode_en4b_ex4b(nor, enable);
+	ret = spi_analr_set_4byte_addr_mode_en4b_ex4b(analr, enable);
 	if (ret)
 		return ret;
 
-	return spi_nor_write_disable(nor);
+	return spi_analr_write_disable(analr);
 }
 
 /**
- * spi_nor_set_4byte_addr_mode_brwr() - Set 4-byte address mode using
- *			SPINOR_OP_BRWR. Typically used by Spansion flashes.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_set_4byte_addr_mode_brwr() - Set 4-byte address mode using
+ *			SPIANALR_OP_BRWR. Typically used by Spansion flashes.
+ * @analr:	pointer to 'struct spi_analr'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
  * 8-bit volatile bank register used to define A[30:A24] bits. MSB (bit[7]) is
  * used to enable/disable 4-byte address mode. When MSB is set to ‘1’, 4-byte
  * address mode is active and A[30:24] bits are don’t care. Write instruction is
- * SPINOR_OP_BRWR(17h) with 1 byte of data.
+ * SPIANALR_OP_BRWR(17h) with 1 byte of data.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_set_4byte_addr_mode_brwr(struct spi_nor *nor, bool enable)
+int spi_analr_set_4byte_addr_mode_brwr(struct spi_analr *analr, bool enable)
 {
 	int ret;
 
-	nor->bouncebuf[0] = enable << 7;
+	analr->bouncebuf[0] = enable << 7;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_BRWR_OP(nor->bouncebuf);
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_BRWR_OP(analr->bouncebuf);
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_BRWR,
-						       nor->bouncebuf, 1);
+		ret = spi_analr_controller_ops_write_reg(analr, SPIANALR_OP_BRWR,
+						       analr->bouncebuf, 1);
 	}
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d setting 4-byte mode\n", ret);
+		dev_dbg(analr->dev, "error %d setting 4-byte mode\n", ret);
 
 	return ret;
 }
 
 /**
- * spi_nor_sr_ready() - Query the Status Register to see if the flash is ready
+ * spi_analr_sr_ready() - Query the Status Register to see if the flash is ready
  * for new commands.
- * @nor:	pointer to 'struct spi_nor'.
+ * @analr:	pointer to 'struct spi_analr'.
  *
- * Return: 1 if ready, 0 if not ready, -errno on errors.
+ * Return: 1 if ready, 0 if analt ready, -erranal on errors.
  */
-int spi_nor_sr_ready(struct spi_nor *nor)
+int spi_analr_sr_ready(struct spi_analr *analr)
 {
 	int ret;
 
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
+	ret = spi_analr_read_sr(analr, analr->bouncebuf);
 	if (ret)
 		return ret;
 
-	return !(nor->bouncebuf[0] & SR_WIP);
+	return !(analr->bouncebuf[0] & SR_WIP);
 }
 
 /**
- * spi_nor_use_parallel_locking() - Checks if RWW locking scheme shall be used
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_use_parallel_locking() - Checks if RWW locking scheme shall be used
+ * @analr:	pointer to 'struct spi_analr'.
  *
  * Return: true if parallel locking is enabled, false otherwise.
  */
-static bool spi_nor_use_parallel_locking(struct spi_nor *nor)
+static bool spi_analr_use_parallel_locking(struct spi_analr *analr)
 {
-	return nor->flags & SNOR_F_RWW;
+	return analr->flags & SANALR_F_RWW;
 }
 
 /* Locking helpers for status read operations */
-static int spi_nor_rww_start_rdst(struct spi_nor *nor)
+static int spi_analr_rww_start_rdst(struct spi_analr *analr)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 	int ret = -EAGAIN;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 
 	if (rww->ongoing_io || rww->ongoing_rd)
 		goto busy;
@@ -647,72 +647,72 @@ static int spi_nor_rww_start_rdst(struct spi_nor *nor)
 	ret = 0;
 
 busy:
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 	return ret;
 }
 
-static void spi_nor_rww_end_rdst(struct spi_nor *nor)
+static void spi_analr_rww_end_rdst(struct spi_analr *analr)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 
 	rww->ongoing_io = false;
 	rww->ongoing_rd = false;
 
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 }
 
-static int spi_nor_lock_rdst(struct spi_nor *nor)
+static int spi_analr_lock_rdst(struct spi_analr *analr)
 {
-	if (spi_nor_use_parallel_locking(nor))
-		return spi_nor_rww_start_rdst(nor);
+	if (spi_analr_use_parallel_locking(analr))
+		return spi_analr_rww_start_rdst(analr);
 
 	return 0;
 }
 
-static void spi_nor_unlock_rdst(struct spi_nor *nor)
+static void spi_analr_unlock_rdst(struct spi_analr *analr)
 {
-	if (spi_nor_use_parallel_locking(nor)) {
-		spi_nor_rww_end_rdst(nor);
-		wake_up(&nor->rww.wait);
+	if (spi_analr_use_parallel_locking(analr)) {
+		spi_analr_rww_end_rdst(analr);
+		wake_up(&analr->rww.wait);
 	}
 }
 
 /**
- * spi_nor_ready() - Query the flash to see if it is ready for new commands.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_ready() - Query the flash to see if it is ready for new commands.
+ * @analr:	pointer to 'struct spi_analr'.
  *
- * Return: 1 if ready, 0 if not ready, -errno on errors.
+ * Return: 1 if ready, 0 if analt ready, -erranal on errors.
  */
-static int spi_nor_ready(struct spi_nor *nor)
+static int spi_analr_ready(struct spi_analr *analr)
 {
 	int ret;
 
-	ret = spi_nor_lock_rdst(nor);
+	ret = spi_analr_lock_rdst(analr);
 	if (ret)
 		return 0;
 
 	/* Flashes might override the standard routine. */
-	if (nor->params->ready)
-		ret = nor->params->ready(nor);
+	if (analr->params->ready)
+		ret = analr->params->ready(analr);
 	else
-		ret = spi_nor_sr_ready(nor);
+		ret = spi_analr_sr_ready(analr);
 
-	spi_nor_unlock_rdst(nor);
+	spi_analr_unlock_rdst(analr);
 
 	return ret;
 }
 
 /**
- * spi_nor_wait_till_ready_with_timeout() - Service routine to read the
+ * spi_analr_wait_till_ready_with_timeout() - Service routine to read the
  * Status Register until ready, or timeout occurs.
- * @nor:		pointer to "struct spi_nor".
+ * @analr:		pointer to "struct spi_analr".
  * @timeout_jiffies:	jiffies to wait until timeout.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
+static int spi_analr_wait_till_ready_with_timeout(struct spi_analr *analr,
 						unsigned long timeout_jiffies)
 {
 	unsigned long deadline;
@@ -724,7 +724,7 @@ static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
 		if (time_after_eq(jiffies, deadline))
 			timeout = 1;
 
-		ret = spi_nor_ready(nor);
+		ret = spi_analr_ready(analr);
 		if (ret < 0)
 			return ret;
 		if (ret)
@@ -733,116 +733,116 @@ static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
 		cond_resched();
 	}
 
-	dev_dbg(nor->dev, "flash operation timed out\n");
+	dev_dbg(analr->dev, "flash operation timed out\n");
 
 	return -ETIMEDOUT;
 }
 
 /**
- * spi_nor_wait_till_ready() - Wait for a predefined amount of time for the
+ * spi_analr_wait_till_ready() - Wait for a predefined amount of time for the
  * flash to be ready, or timeout occurs.
- * @nor:	pointer to "struct spi_nor".
+ * @analr:	pointer to "struct spi_analr".
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_wait_till_ready(struct spi_nor *nor)
+int spi_analr_wait_till_ready(struct spi_analr *analr)
 {
-	return spi_nor_wait_till_ready_with_timeout(nor,
+	return spi_analr_wait_till_ready_with_timeout(analr,
 						    DEFAULT_READY_WAIT_JIFFIES);
 }
 
 /**
- * spi_nor_global_block_unlock() - Unlock Global Block Protection.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_global_block_unlock() - Unlock Global Block Protection.
+ * @analr:	pointer to 'struct spi_analr'.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_global_block_unlock(struct spi_nor *nor)
+int spi_analr_global_block_unlock(struct spi_analr *analr)
 {
 	int ret;
 
-	ret = spi_nor_write_enable(nor);
+	ret = spi_analr_write_enable(analr);
 	if (ret)
 		return ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_GBULK_OP;
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_GBULK_OP;
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_GBULK,
+		ret = spi_analr_controller_ops_write_reg(analr, SPIANALR_OP_GBULK,
 						       NULL, 0);
 	}
 
 	if (ret) {
-		dev_dbg(nor->dev, "error %d on Global Block Unlock\n", ret);
+		dev_dbg(analr->dev, "error %d on Global Block Unlock\n", ret);
 		return ret;
 	}
 
-	return spi_nor_wait_till_ready(nor);
+	return spi_analr_wait_till_ready(analr);
 }
 
 /**
- * spi_nor_write_sr() - Write the Status Register.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_write_sr() - Write the Status Register.
+ * @analr:	pointer to 'struct spi_analr'.
  * @sr:		pointer to DMA-able buffer to write to the Status Register.
  * @len:	number of bytes to write to the Status Register.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_write_sr(struct spi_nor *nor, const u8 *sr, size_t len)
+int spi_analr_write_sr(struct spi_analr *analr, const u8 *sr, size_t len)
 {
 	int ret;
 
-	ret = spi_nor_write_enable(nor);
+	ret = spi_analr_write_enable(analr);
 	if (ret)
 		return ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_WRSR_OP(sr, len);
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_WRSR_OP(sr, len);
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_WRSR, sr,
+		ret = spi_analr_controller_ops_write_reg(analr, SPIANALR_OP_WRSR, sr,
 						       len);
 	}
 
 	if (ret) {
-		dev_dbg(nor->dev, "error %d writing SR\n", ret);
+		dev_dbg(analr->dev, "error %d writing SR\n", ret);
 		return ret;
 	}
 
-	return spi_nor_wait_till_ready(nor);
+	return spi_analr_wait_till_ready(analr);
 }
 
 /**
- * spi_nor_write_sr1_and_check() - Write one byte to the Status Register 1 and
+ * spi_analr_write_sr1_and_check() - Write one byte to the Status Register 1 and
  * ensure that the byte written match the received value.
- * @nor:	pointer to a 'struct spi_nor'.
+ * @analr:	pointer to a 'struct spi_analr'.
  * @sr1:	byte value to be written to the Status Register.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_write_sr1_and_check(struct spi_nor *nor, u8 sr1)
+static int spi_analr_write_sr1_and_check(struct spi_analr *analr, u8 sr1)
 {
 	int ret;
 
-	nor->bouncebuf[0] = sr1;
+	analr->bouncebuf[0] = sr1;
 
-	ret = spi_nor_write_sr(nor, nor->bouncebuf, 1);
+	ret = spi_analr_write_sr(analr, analr->bouncebuf, 1);
 	if (ret)
 		return ret;
 
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
+	ret = spi_analr_read_sr(analr, analr->bouncebuf);
 	if (ret)
 		return ret;
 
-	if (nor->bouncebuf[0] != sr1) {
-		dev_dbg(nor->dev, "SR1: read back test failed\n");
+	if (analr->bouncebuf[0] != sr1) {
+		dev_dbg(analr->dev, "SR1: read back test failed\n");
 		return -EIO;
 	}
 
@@ -850,37 +850,37 @@ static int spi_nor_write_sr1_and_check(struct spi_nor *nor, u8 sr1)
 }
 
 /**
- * spi_nor_write_16bit_sr_and_check() - Write the Status Register 1 and the
+ * spi_analr_write_16bit_sr_and_check() - Write the Status Register 1 and the
  * Status Register 2 in one shot. Ensure that the byte written in the Status
- * Register 1 match the received value, and that the 16-bit Write did not
+ * Register 1 match the received value, and that the 16-bit Write did analt
  * affect what was already in the Status Register 2.
- * @nor:	pointer to a 'struct spi_nor'.
+ * @analr:	pointer to a 'struct spi_analr'.
  * @sr1:	byte value to be written to the Status Register 1.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_write_16bit_sr_and_check(struct spi_nor *nor, u8 sr1)
+static int spi_analr_write_16bit_sr_and_check(struct spi_analr *analr, u8 sr1)
 {
 	int ret;
-	u8 *sr_cr = nor->bouncebuf;
+	u8 *sr_cr = analr->bouncebuf;
 	u8 cr_written;
 
 	/* Make sure we don't overwrite the contents of Status Register 2. */
-	if (!(nor->flags & SNOR_F_NO_READ_CR)) {
-		ret = spi_nor_read_cr(nor, &sr_cr[1]);
+	if (!(analr->flags & SANALR_F_ANAL_READ_CR)) {
+		ret = spi_analr_read_cr(analr, &sr_cr[1]);
 		if (ret)
 			return ret;
-	} else if (spi_nor_get_protocol_width(nor->read_proto) == 4 &&
-		   spi_nor_get_protocol_width(nor->write_proto) == 4 &&
-		   nor->params->quad_enable) {
+	} else if (spi_analr_get_protocol_width(analr->read_proto) == 4 &&
+		   spi_analr_get_protocol_width(analr->write_proto) == 4 &&
+		   analr->params->quad_enable) {
 		/*
-		 * If the Status Register 2 Read command (35h) is not
+		 * If the Status Register 2 Read command (35h) is analt
 		 * supported, we should at least be sure we don't
 		 * change the value of the SR2 Quad Enable bit.
 		 *
 		 * When the Quad Enable method is set and the buswidth is 4, we
 		 * can safely assume that the value of the QE bit is one, as a
-		 * consequence of the nor->params->quad_enable() call.
+		 * consequence of the analr->params->quad_enable() call.
 		 *
 		 * According to the JESD216 revB standard, BFPT DWORDS[15],
 		 * bits 22:20, the 16-bit Write Status (01h) command is
@@ -894,30 +894,30 @@ static int spi_nor_write_16bit_sr_and_check(struct spi_nor *nor, u8 sr1)
 
 	sr_cr[0] = sr1;
 
-	ret = spi_nor_write_sr(nor, sr_cr, 2);
+	ret = spi_analr_write_sr(analr, sr_cr, 2);
 	if (ret)
 		return ret;
 
-	ret = spi_nor_read_sr(nor, sr_cr);
+	ret = spi_analr_read_sr(analr, sr_cr);
 	if (ret)
 		return ret;
 
 	if (sr1 != sr_cr[0]) {
-		dev_dbg(nor->dev, "SR: Read back test failed\n");
+		dev_dbg(analr->dev, "SR: Read back test failed\n");
 		return -EIO;
 	}
 
-	if (nor->flags & SNOR_F_NO_READ_CR)
+	if (analr->flags & SANALR_F_ANAL_READ_CR)
 		return 0;
 
 	cr_written = sr_cr[1];
 
-	ret = spi_nor_read_cr(nor, &sr_cr[1]);
+	ret = spi_analr_read_cr(analr, &sr_cr[1]);
 	if (ret)
 		return ret;
 
 	if (cr_written != sr_cr[1]) {
-		dev_dbg(nor->dev, "CR: read back test failed\n");
+		dev_dbg(analr->dev, "CR: read back test failed\n");
 		return -EIO;
 	}
 
@@ -925,52 +925,52 @@ static int spi_nor_write_16bit_sr_and_check(struct spi_nor *nor, u8 sr1)
 }
 
 /**
- * spi_nor_write_16bit_cr_and_check() - Write the Status Register 1 and the
+ * spi_analr_write_16bit_cr_and_check() - Write the Status Register 1 and the
  * Configuration Register in one shot. Ensure that the byte written in the
  * Configuration Register match the received value, and that the 16-bit Write
- * did not affect what was already in the Status Register 1.
- * @nor:	pointer to a 'struct spi_nor'.
+ * did analt affect what was already in the Status Register 1.
+ * @analr:	pointer to a 'struct spi_analr'.
  * @cr:		byte value to be written to the Configuration Register.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_write_16bit_cr_and_check(struct spi_nor *nor, u8 cr)
+int spi_analr_write_16bit_cr_and_check(struct spi_analr *analr, u8 cr)
 {
 	int ret;
-	u8 *sr_cr = nor->bouncebuf;
+	u8 *sr_cr = analr->bouncebuf;
 	u8 sr_written;
 
 	/* Keep the current value of the Status Register 1. */
-	ret = spi_nor_read_sr(nor, sr_cr);
+	ret = spi_analr_read_sr(analr, sr_cr);
 	if (ret)
 		return ret;
 
 	sr_cr[1] = cr;
 
-	ret = spi_nor_write_sr(nor, sr_cr, 2);
+	ret = spi_analr_write_sr(analr, sr_cr, 2);
 	if (ret)
 		return ret;
 
 	sr_written = sr_cr[0];
 
-	ret = spi_nor_read_sr(nor, sr_cr);
+	ret = spi_analr_read_sr(analr, sr_cr);
 	if (ret)
 		return ret;
 
 	if (sr_written != sr_cr[0]) {
-		dev_dbg(nor->dev, "SR: Read back test failed\n");
+		dev_dbg(analr->dev, "SR: Read back test failed\n");
 		return -EIO;
 	}
 
-	if (nor->flags & SNOR_F_NO_READ_CR)
+	if (analr->flags & SANALR_F_ANAL_READ_CR)
 		return 0;
 
-	ret = spi_nor_read_cr(nor, &sr_cr[1]);
+	ret = spi_analr_read_cr(analr, &sr_cr[1]);
 	if (ret)
 		return ret;
 
 	if (cr != sr_cr[1]) {
-		dev_dbg(nor->dev, "CR: read back test failed\n");
+		dev_dbg(analr->dev, "CR: read back test failed\n");
 		return -EIO;
 	}
 
@@ -978,126 +978,126 @@ int spi_nor_write_16bit_cr_and_check(struct spi_nor *nor, u8 cr)
 }
 
 /**
- * spi_nor_write_sr_and_check() - Write the Status Register 1 and ensure that
+ * spi_analr_write_sr_and_check() - Write the Status Register 1 and ensure that
  * the byte written match the received value without affecting other bits in the
  * Status Register 1 and 2.
- * @nor:	pointer to a 'struct spi_nor'.
+ * @analr:	pointer to a 'struct spi_analr'.
  * @sr1:	byte value to be written to the Status Register.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 sr1)
+int spi_analr_write_sr_and_check(struct spi_analr *analr, u8 sr1)
 {
-	if (nor->flags & SNOR_F_HAS_16BIT_SR)
-		return spi_nor_write_16bit_sr_and_check(nor, sr1);
+	if (analr->flags & SANALR_F_HAS_16BIT_SR)
+		return spi_analr_write_16bit_sr_and_check(analr, sr1);
 
-	return spi_nor_write_sr1_and_check(nor, sr1);
+	return spi_analr_write_sr1_and_check(analr, sr1);
 }
 
 /**
- * spi_nor_write_sr2() - Write the Status Register 2 using the
- * SPINOR_OP_WRSR2 (3eh) command.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_write_sr2() - Write the Status Register 2 using the
+ * SPIANALR_OP_WRSR2 (3eh) command.
+ * @analr:	pointer to 'struct spi_analr'.
  * @sr2:	pointer to DMA-able buffer to write to the Status Register 2.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
+static int spi_analr_write_sr2(struct spi_analr *analr, const u8 *sr2)
 {
 	int ret;
 
-	ret = spi_nor_write_enable(nor);
+	ret = spi_analr_write_enable(analr);
 	if (ret)
 		return ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_WRSR2_OP(sr2);
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_WRSR2_OP(sr2);
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_WRSR2,
+		ret = spi_analr_controller_ops_write_reg(analr, SPIANALR_OP_WRSR2,
 						       sr2, 1);
 	}
 
 	if (ret) {
-		dev_dbg(nor->dev, "error %d writing SR2\n", ret);
+		dev_dbg(analr->dev, "error %d writing SR2\n", ret);
 		return ret;
 	}
 
-	return spi_nor_wait_till_ready(nor);
+	return spi_analr_wait_till_ready(analr);
 }
 
 /**
- * spi_nor_read_sr2() - Read the Status Register 2 using the
- * SPINOR_OP_RDSR2 (3fh) command.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_read_sr2() - Read the Status Register 2 using the
+ * SPIANALR_OP_RDSR2 (3fh) command.
+ * @analr:	pointer to 'struct spi_analr'.
  * @sr2:	pointer to DMA-able buffer where the value of the
  *		Status Register 2 will be written.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
+static int spi_analr_read_sr2(struct spi_analr *analr, u8 *sr2)
 {
 	int ret;
 
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_RDSR2_OP(sr2);
+	if (analr->spimem) {
+		struct spi_mem_op op = SPI_ANALR_RDSR2_OP(sr2);
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_read_reg(nor, SPINOR_OP_RDSR2, sr2,
+		ret = spi_analr_controller_ops_read_reg(analr, SPIANALR_OP_RDSR2, sr2,
 						      1);
 	}
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d reading SR2\n", ret);
+		dev_dbg(analr->dev, "error %d reading SR2\n", ret);
 
 	return ret;
 }
 
 /**
- * spi_nor_erase_die() - Erase the entire die.
- * @nor:	pointer to 'struct spi_nor'.
+ * spi_analr_erase_die() - Erase the entire die.
+ * @analr:	pointer to 'struct spi_analr'.
  * @addr:	address of the die.
  * @die_size:	size of the die.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_erase_die(struct spi_nor *nor, loff_t addr, size_t die_size)
+static int spi_analr_erase_die(struct spi_analr *analr, loff_t addr, size_t die_size)
 {
-	bool multi_die = nor->mtd.size != die_size;
+	bool multi_die = analr->mtd.size != die_size;
 	int ret;
 
-	dev_dbg(nor->dev, " %lldKiB\n", (long long)(die_size >> 10));
+	dev_dbg(analr->dev, " %lldKiB\n", (long long)(die_size >> 10));
 
-	if (nor->spimem) {
+	if (analr->spimem) {
 		struct spi_mem_op op =
-			SPI_NOR_DIE_ERASE_OP(nor->params->die_erase_opcode,
-					     nor->addr_nbytes, addr, multi_die);
+			SPI_ANALR_DIE_ERASE_OP(analr->params->die_erase_opcode,
+					     analr->addr_nbytes, addr, multi_die);
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		ret = spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(analr->spimem, &op);
 	} else {
 		if (multi_die)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
-		ret = spi_nor_controller_ops_write_reg(nor,
-						       SPINOR_OP_CHIP_ERASE,
+		ret = spi_analr_controller_ops_write_reg(analr,
+						       SPIANALR_OP_CHIP_ERASE,
 						       NULL, 0);
 	}
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d erasing chip\n", ret);
+		dev_dbg(analr->dev, "error %d erasing chip\n", ret);
 
 	return ret;
 }
 
-static u8 spi_nor_convert_opcode(u8 opcode, const u8 table[][2], size_t size)
+static u8 spi_analr_convert_opcode(u8 opcode, const u8 table[][2], size_t size)
 {
 	size_t i;
 
@@ -1105,98 +1105,98 @@ static u8 spi_nor_convert_opcode(u8 opcode, const u8 table[][2], size_t size)
 		if (table[i][0] == opcode)
 			return table[i][1];
 
-	/* No conversion found, keep input op code. */
+	/* Anal conversion found, keep input op code. */
 	return opcode;
 }
 
-u8 spi_nor_convert_3to4_read(u8 opcode)
+u8 spi_analr_convert_3to4_read(u8 opcode)
 {
-	static const u8 spi_nor_3to4_read[][2] = {
-		{ SPINOR_OP_READ,	SPINOR_OP_READ_4B },
-		{ SPINOR_OP_READ_FAST,	SPINOR_OP_READ_FAST_4B },
-		{ SPINOR_OP_READ_1_1_2,	SPINOR_OP_READ_1_1_2_4B },
-		{ SPINOR_OP_READ_1_2_2,	SPINOR_OP_READ_1_2_2_4B },
-		{ SPINOR_OP_READ_1_1_4,	SPINOR_OP_READ_1_1_4_4B },
-		{ SPINOR_OP_READ_1_4_4,	SPINOR_OP_READ_1_4_4_4B },
-		{ SPINOR_OP_READ_1_1_8,	SPINOR_OP_READ_1_1_8_4B },
-		{ SPINOR_OP_READ_1_8_8,	SPINOR_OP_READ_1_8_8_4B },
+	static const u8 spi_analr_3to4_read[][2] = {
+		{ SPIANALR_OP_READ,	SPIANALR_OP_READ_4B },
+		{ SPIANALR_OP_READ_FAST,	SPIANALR_OP_READ_FAST_4B },
+		{ SPIANALR_OP_READ_1_1_2,	SPIANALR_OP_READ_1_1_2_4B },
+		{ SPIANALR_OP_READ_1_2_2,	SPIANALR_OP_READ_1_2_2_4B },
+		{ SPIANALR_OP_READ_1_1_4,	SPIANALR_OP_READ_1_1_4_4B },
+		{ SPIANALR_OP_READ_1_4_4,	SPIANALR_OP_READ_1_4_4_4B },
+		{ SPIANALR_OP_READ_1_1_8,	SPIANALR_OP_READ_1_1_8_4B },
+		{ SPIANALR_OP_READ_1_8_8,	SPIANALR_OP_READ_1_8_8_4B },
 
-		{ SPINOR_OP_READ_1_1_1_DTR,	SPINOR_OP_READ_1_1_1_DTR_4B },
-		{ SPINOR_OP_READ_1_2_2_DTR,	SPINOR_OP_READ_1_2_2_DTR_4B },
-		{ SPINOR_OP_READ_1_4_4_DTR,	SPINOR_OP_READ_1_4_4_DTR_4B },
+		{ SPIANALR_OP_READ_1_1_1_DTR,	SPIANALR_OP_READ_1_1_1_DTR_4B },
+		{ SPIANALR_OP_READ_1_2_2_DTR,	SPIANALR_OP_READ_1_2_2_DTR_4B },
+		{ SPIANALR_OP_READ_1_4_4_DTR,	SPIANALR_OP_READ_1_4_4_DTR_4B },
 	};
 
-	return spi_nor_convert_opcode(opcode, spi_nor_3to4_read,
-				      ARRAY_SIZE(spi_nor_3to4_read));
+	return spi_analr_convert_opcode(opcode, spi_analr_3to4_read,
+				      ARRAY_SIZE(spi_analr_3to4_read));
 }
 
-static u8 spi_nor_convert_3to4_program(u8 opcode)
+static u8 spi_analr_convert_3to4_program(u8 opcode)
 {
-	static const u8 spi_nor_3to4_program[][2] = {
-		{ SPINOR_OP_PP,		SPINOR_OP_PP_4B },
-		{ SPINOR_OP_PP_1_1_4,	SPINOR_OP_PP_1_1_4_4B },
-		{ SPINOR_OP_PP_1_4_4,	SPINOR_OP_PP_1_4_4_4B },
-		{ SPINOR_OP_PP_1_1_8,	SPINOR_OP_PP_1_1_8_4B },
-		{ SPINOR_OP_PP_1_8_8,	SPINOR_OP_PP_1_8_8_4B },
+	static const u8 spi_analr_3to4_program[][2] = {
+		{ SPIANALR_OP_PP,		SPIANALR_OP_PP_4B },
+		{ SPIANALR_OP_PP_1_1_4,	SPIANALR_OP_PP_1_1_4_4B },
+		{ SPIANALR_OP_PP_1_4_4,	SPIANALR_OP_PP_1_4_4_4B },
+		{ SPIANALR_OP_PP_1_1_8,	SPIANALR_OP_PP_1_1_8_4B },
+		{ SPIANALR_OP_PP_1_8_8,	SPIANALR_OP_PP_1_8_8_4B },
 	};
 
-	return spi_nor_convert_opcode(opcode, spi_nor_3to4_program,
-				      ARRAY_SIZE(spi_nor_3to4_program));
+	return spi_analr_convert_opcode(opcode, spi_analr_3to4_program,
+				      ARRAY_SIZE(spi_analr_3to4_program));
 }
 
-static u8 spi_nor_convert_3to4_erase(u8 opcode)
+static u8 spi_analr_convert_3to4_erase(u8 opcode)
 {
-	static const u8 spi_nor_3to4_erase[][2] = {
-		{ SPINOR_OP_BE_4K,	SPINOR_OP_BE_4K_4B },
-		{ SPINOR_OP_BE_32K,	SPINOR_OP_BE_32K_4B },
-		{ SPINOR_OP_SE,		SPINOR_OP_SE_4B },
+	static const u8 spi_analr_3to4_erase[][2] = {
+		{ SPIANALR_OP_BE_4K,	SPIANALR_OP_BE_4K_4B },
+		{ SPIANALR_OP_BE_32K,	SPIANALR_OP_BE_32K_4B },
+		{ SPIANALR_OP_SE,		SPIANALR_OP_SE_4B },
 	};
 
-	return spi_nor_convert_opcode(opcode, spi_nor_3to4_erase,
-				      ARRAY_SIZE(spi_nor_3to4_erase));
+	return spi_analr_convert_opcode(opcode, spi_analr_3to4_erase,
+				      ARRAY_SIZE(spi_analr_3to4_erase));
 }
 
-static bool spi_nor_has_uniform_erase(const struct spi_nor *nor)
+static bool spi_analr_has_uniform_erase(const struct spi_analr *analr)
 {
-	return !!nor->params->erase_map.uniform_erase_type;
+	return !!analr->params->erase_map.uniform_erase_type;
 }
 
-static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
+static void spi_analr_set_4byte_opcodes(struct spi_analr *analr)
 {
-	nor->read_opcode = spi_nor_convert_3to4_read(nor->read_opcode);
-	nor->program_opcode = spi_nor_convert_3to4_program(nor->program_opcode);
-	nor->erase_opcode = spi_nor_convert_3to4_erase(nor->erase_opcode);
+	analr->read_opcode = spi_analr_convert_3to4_read(analr->read_opcode);
+	analr->program_opcode = spi_analr_convert_3to4_program(analr->program_opcode);
+	analr->erase_opcode = spi_analr_convert_3to4_erase(analr->erase_opcode);
 
-	if (!spi_nor_has_uniform_erase(nor)) {
-		struct spi_nor_erase_map *map = &nor->params->erase_map;
-		struct spi_nor_erase_type *erase;
+	if (!spi_analr_has_uniform_erase(analr)) {
+		struct spi_analr_erase_map *map = &analr->params->erase_map;
+		struct spi_analr_erase_type *erase;
 		int i;
 
-		for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++) {
+		for (i = 0; i < SANALR_ERASE_TYPE_MAX; i++) {
 			erase = &map->erase_type[i];
 			erase->opcode =
-				spi_nor_convert_3to4_erase(erase->opcode);
+				spi_analr_convert_3to4_erase(erase->opcode);
 		}
 	}
 }
 
-static int spi_nor_prep(struct spi_nor *nor)
+static int spi_analr_prep(struct spi_analr *analr)
 {
 	int ret = 0;
 
-	if (nor->controller_ops && nor->controller_ops->prepare)
-		ret = nor->controller_ops->prepare(nor);
+	if (analr->controller_ops && analr->controller_ops->prepare)
+		ret = analr->controller_ops->prepare(analr);
 
 	return ret;
 }
 
-static void spi_nor_unprep(struct spi_nor *nor)
+static void spi_analr_unprep(struct spi_analr *analr)
 {
-	if (nor->controller_ops && nor->controller_ops->unprepare)
-		nor->controller_ops->unprepare(nor);
+	if (analr->controller_ops && analr->controller_ops->unprepare)
+		analr->controller_ops->unprepare(analr);
 }
 
-static void spi_nor_offset_to_banks(u64 bank_size, loff_t start, size_t len,
+static void spi_analr_offset_to_banks(u64 bank_size, loff_t start, size_t len,
 				    u8 *first, u8 *last)
 {
 	/* This is currently safe, the number of banks being very small */
@@ -1205,12 +1205,12 @@ static void spi_nor_offset_to_banks(u64 bank_size, loff_t start, size_t len,
 }
 
 /* Generic helpers for internal locking and serialization */
-static bool spi_nor_rww_start_io(struct spi_nor *nor)
+static bool spi_analr_rww_start_io(struct spi_analr *analr)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 	bool start = false;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 
 	if (rww->ongoing_io)
 		goto busy;
@@ -1219,40 +1219,40 @@ static bool spi_nor_rww_start_io(struct spi_nor *nor)
 	start = true;
 
 busy:
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 	return start;
 }
 
-static void spi_nor_rww_end_io(struct spi_nor *nor)
+static void spi_analr_rww_end_io(struct spi_analr *analr)
 {
-	mutex_lock(&nor->lock);
-	nor->rww.ongoing_io = false;
-	mutex_unlock(&nor->lock);
+	mutex_lock(&analr->lock);
+	analr->rww.ongoing_io = false;
+	mutex_unlock(&analr->lock);
 }
 
-static int spi_nor_lock_device(struct spi_nor *nor)
+static int spi_analr_lock_device(struct spi_analr *analr)
 {
-	if (!spi_nor_use_parallel_locking(nor))
+	if (!spi_analr_use_parallel_locking(analr))
 		return 0;
 
-	return wait_event_killable(nor->rww.wait, spi_nor_rww_start_io(nor));
+	return wait_event_killable(analr->rww.wait, spi_analr_rww_start_io(analr));
 }
 
-static void spi_nor_unlock_device(struct spi_nor *nor)
+static void spi_analr_unlock_device(struct spi_analr *analr)
 {
-	if (spi_nor_use_parallel_locking(nor)) {
-		spi_nor_rww_end_io(nor);
-		wake_up(&nor->rww.wait);
+	if (spi_analr_use_parallel_locking(analr)) {
+		spi_analr_rww_end_io(analr);
+		wake_up(&analr->rww.wait);
 	}
 }
 
 /* Generic helpers for internal locking and serialization */
-static bool spi_nor_rww_start_exclusive(struct spi_nor *nor)
+static bool spi_analr_rww_start_exclusive(struct spi_analr *analr)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 	bool start = false;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 
 	if (rww->ongoing_io || rww->ongoing_rd || rww->ongoing_pe)
 		goto busy;
@@ -1263,65 +1263,65 @@ static bool spi_nor_rww_start_exclusive(struct spi_nor *nor)
 	start = true;
 
 busy:
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 	return start;
 }
 
-static void spi_nor_rww_end_exclusive(struct spi_nor *nor)
+static void spi_analr_rww_end_exclusive(struct spi_analr *analr)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 	rww->ongoing_io = false;
 	rww->ongoing_rd = false;
 	rww->ongoing_pe = false;
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 }
 
-int spi_nor_prep_and_lock(struct spi_nor *nor)
+int spi_analr_prep_and_lock(struct spi_analr *analr)
 {
 	int ret;
 
-	ret = spi_nor_prep(nor);
+	ret = spi_analr_prep(analr);
 	if (ret)
 		return ret;
 
-	if (!spi_nor_use_parallel_locking(nor))
-		mutex_lock(&nor->lock);
+	if (!spi_analr_use_parallel_locking(analr))
+		mutex_lock(&analr->lock);
 	else
-		ret = wait_event_killable(nor->rww.wait,
-					  spi_nor_rww_start_exclusive(nor));
+		ret = wait_event_killable(analr->rww.wait,
+					  spi_analr_rww_start_exclusive(analr));
 
 	return ret;
 }
 
-void spi_nor_unlock_and_unprep(struct spi_nor *nor)
+void spi_analr_unlock_and_unprep(struct spi_analr *analr)
 {
-	if (!spi_nor_use_parallel_locking(nor)) {
-		mutex_unlock(&nor->lock);
+	if (!spi_analr_use_parallel_locking(analr)) {
+		mutex_unlock(&analr->lock);
 	} else {
-		spi_nor_rww_end_exclusive(nor);
-		wake_up(&nor->rww.wait);
+		spi_analr_rww_end_exclusive(analr);
+		wake_up(&analr->rww.wait);
 	}
 
-	spi_nor_unprep(nor);
+	spi_analr_unprep(analr);
 }
 
 /* Internal locking helpers for program and erase operations */
-static bool spi_nor_rww_start_pe(struct spi_nor *nor, loff_t start, size_t len)
+static bool spi_analr_rww_start_pe(struct spi_analr *analr, loff_t start, size_t len)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 	unsigned int used_banks = 0;
 	bool started = false;
 	u8 first, last;
 	int bank;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 
 	if (rww->ongoing_io || rww->ongoing_rd || rww->ongoing_pe)
 		goto busy;
 
-	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
+	spi_analr_offset_to_banks(analr->params->bank_size, start, len, &first, &last);
 	for (bank = first; bank <= last; bank++) {
 		if (rww->used_banks & BIT(bank))
 			goto busy;
@@ -1334,71 +1334,71 @@ static bool spi_nor_rww_start_pe(struct spi_nor *nor, loff_t start, size_t len)
 	started = true;
 
 busy:
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 	return started;
 }
 
-static void spi_nor_rww_end_pe(struct spi_nor *nor, loff_t start, size_t len)
+static void spi_analr_rww_end_pe(struct spi_analr *analr, loff_t start, size_t len)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 	u8 first, last;
 	int bank;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 
-	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
+	spi_analr_offset_to_banks(analr->params->bank_size, start, len, &first, &last);
 	for (bank = first; bank <= last; bank++)
 		rww->used_banks &= ~BIT(bank);
 
 	rww->ongoing_pe = false;
 
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 }
 
-static int spi_nor_prep_and_lock_pe(struct spi_nor *nor, loff_t start, size_t len)
+static int spi_analr_prep_and_lock_pe(struct spi_analr *analr, loff_t start, size_t len)
 {
 	int ret;
 
-	ret = spi_nor_prep(nor);
+	ret = spi_analr_prep(analr);
 	if (ret)
 		return ret;
 
-	if (!spi_nor_use_parallel_locking(nor))
-		mutex_lock(&nor->lock);
+	if (!spi_analr_use_parallel_locking(analr))
+		mutex_lock(&analr->lock);
 	else
-		ret = wait_event_killable(nor->rww.wait,
-					  spi_nor_rww_start_pe(nor, start, len));
+		ret = wait_event_killable(analr->rww.wait,
+					  spi_analr_rww_start_pe(analr, start, len));
 
 	return ret;
 }
 
-static void spi_nor_unlock_and_unprep_pe(struct spi_nor *nor, loff_t start, size_t len)
+static void spi_analr_unlock_and_unprep_pe(struct spi_analr *analr, loff_t start, size_t len)
 {
-	if (!spi_nor_use_parallel_locking(nor)) {
-		mutex_unlock(&nor->lock);
+	if (!spi_analr_use_parallel_locking(analr)) {
+		mutex_unlock(&analr->lock);
 	} else {
-		spi_nor_rww_end_pe(nor, start, len);
-		wake_up(&nor->rww.wait);
+		spi_analr_rww_end_pe(analr, start, len);
+		wake_up(&analr->rww.wait);
 	}
 
-	spi_nor_unprep(nor);
+	spi_analr_unprep(analr);
 }
 
 /* Internal locking helpers for read operations */
-static bool spi_nor_rww_start_rd(struct spi_nor *nor, loff_t start, size_t len)
+static bool spi_analr_rww_start_rd(struct spi_analr *analr, loff_t start, size_t len)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 	unsigned int used_banks = 0;
 	bool started = false;
 	u8 first, last;
 	int bank;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 
 	if (rww->ongoing_io || rww->ongoing_rd)
 		goto busy;
 
-	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
+	spi_analr_offset_to_banks(analr->params->bank_size, start, len, &first, &last);
 	for (bank = first; bank <= last; bank++) {
 		if (rww->used_banks & BIT(bank))
 			goto busy;
@@ -1412,108 +1412,108 @@ static bool spi_nor_rww_start_rd(struct spi_nor *nor, loff_t start, size_t len)
 	started = true;
 
 busy:
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 	return started;
 }
 
-static void spi_nor_rww_end_rd(struct spi_nor *nor, loff_t start, size_t len)
+static void spi_analr_rww_end_rd(struct spi_analr *analr, loff_t start, size_t len)
 {
-	struct spi_nor_rww *rww = &nor->rww;
+	struct spi_analr_rww *rww = &analr->rww;
 	u8 first, last;
 	int bank;
 
-	mutex_lock(&nor->lock);
+	mutex_lock(&analr->lock);
 
-	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
+	spi_analr_offset_to_banks(analr->params->bank_size, start, len, &first, &last);
 	for (bank = first; bank <= last; bank++)
-		nor->rww.used_banks &= ~BIT(bank);
+		analr->rww.used_banks &= ~BIT(bank);
 
 	rww->ongoing_io = false;
 	rww->ongoing_rd = false;
 
-	mutex_unlock(&nor->lock);
+	mutex_unlock(&analr->lock);
 }
 
-static int spi_nor_prep_and_lock_rd(struct spi_nor *nor, loff_t start, size_t len)
+static int spi_analr_prep_and_lock_rd(struct spi_analr *analr, loff_t start, size_t len)
 {
 	int ret;
 
-	ret = spi_nor_prep(nor);
+	ret = spi_analr_prep(analr);
 	if (ret)
 		return ret;
 
-	if (!spi_nor_use_parallel_locking(nor))
-		mutex_lock(&nor->lock);
+	if (!spi_analr_use_parallel_locking(analr))
+		mutex_lock(&analr->lock);
 	else
-		ret = wait_event_killable(nor->rww.wait,
-					  spi_nor_rww_start_rd(nor, start, len));
+		ret = wait_event_killable(analr->rww.wait,
+					  spi_analr_rww_start_rd(analr, start, len));
 
 	return ret;
 }
 
-static void spi_nor_unlock_and_unprep_rd(struct spi_nor *nor, loff_t start, size_t len)
+static void spi_analr_unlock_and_unprep_rd(struct spi_analr *analr, loff_t start, size_t len)
 {
-	if (!spi_nor_use_parallel_locking(nor)) {
-		mutex_unlock(&nor->lock);
+	if (!spi_analr_use_parallel_locking(analr)) {
+		mutex_unlock(&analr->lock);
 	} else {
-		spi_nor_rww_end_rd(nor, start, len);
-		wake_up(&nor->rww.wait);
+		spi_analr_rww_end_rd(analr, start, len);
+		wake_up(&analr->rww.wait);
 	}
 
-	spi_nor_unprep(nor);
+	spi_analr_unprep(analr);
 }
 
-static u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
+static u32 spi_analr_convert_addr(struct spi_analr *analr, loff_t addr)
 {
-	if (!nor->params->convert_addr)
+	if (!analr->params->convert_addr)
 		return addr;
 
-	return nor->params->convert_addr(nor, addr);
+	return analr->params->convert_addr(analr, addr);
 }
 
 /*
  * Initiate the erasure of a single sector
  */
-int spi_nor_erase_sector(struct spi_nor *nor, u32 addr)
+int spi_analr_erase_sector(struct spi_analr *analr, u32 addr)
 {
 	int i;
 
-	addr = spi_nor_convert_addr(nor, addr);
+	addr = spi_analr_convert_addr(analr, addr);
 
-	if (nor->spimem) {
+	if (analr->spimem) {
 		struct spi_mem_op op =
-			SPI_NOR_SECTOR_ERASE_OP(nor->erase_opcode,
-						nor->addr_nbytes, addr);
+			SPI_ANALR_SECTOR_ERASE_OP(analr->erase_opcode,
+						analr->addr_nbytes, addr);
 
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+		spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-		return spi_mem_exec_op(nor->spimem, &op);
-	} else if (nor->controller_ops->erase) {
-		return spi_nor_controller_ops_erase(nor, addr);
+		return spi_mem_exec_op(analr->spimem, &op);
+	} else if (analr->controller_ops->erase) {
+		return spi_analr_controller_ops_erase(analr, addr);
 	}
 
 	/*
 	 * Default implementation, if driver doesn't have a specialized HW
 	 * control
 	 */
-	for (i = nor->addr_nbytes - 1; i >= 0; i--) {
-		nor->bouncebuf[i] = addr & 0xff;
+	for (i = analr->addr_nbytes - 1; i >= 0; i--) {
+		analr->bouncebuf[i] = addr & 0xff;
 		addr >>= 8;
 	}
 
-	return spi_nor_controller_ops_write_reg(nor, nor->erase_opcode,
-						nor->bouncebuf, nor->addr_nbytes);
+	return spi_analr_controller_ops_write_reg(analr, analr->erase_opcode,
+						analr->bouncebuf, analr->addr_nbytes);
 }
 
 /**
- * spi_nor_div_by_erase_size() - calculate remainder and update new dividend
- * @erase:	pointer to a structure that describes a SPI NOR erase type
+ * spi_analr_div_by_erase_size() - calculate remainder and update new dividend
+ * @erase:	pointer to a structure that describes a SPI ANALR erase type
  * @dividend:	dividend value
  * @remainder:	pointer to u32 remainder (will be updated)
  *
  * Return: the result of the division
  */
-static u64 spi_nor_div_by_erase_size(const struct spi_nor_erase_type *erase,
+static u64 spi_analr_div_by_erase_size(const struct spi_analr_erase_type *erase,
 				     u64 dividend, u32 *remainder)
 {
 	/* JEDEC JESD216B Standard imposes erase sizes to be power of 2. */
@@ -1522,33 +1522,33 @@ static u64 spi_nor_div_by_erase_size(const struct spi_nor_erase_type *erase,
 }
 
 /**
- * spi_nor_find_best_erase_type() - find the best erase type for the given
+ * spi_analr_find_best_erase_type() - find the best erase type for the given
  *				    offset in the serial flash memory and the
  *				    number of bytes to erase. The region in
  *				    which the address fits is expected to be
  *				    provided.
- * @map:	the erase map of the SPI NOR
- * @region:	pointer to a structure that describes a SPI NOR erase region
+ * @map:	the erase map of the SPI ANALR
+ * @region:	pointer to a structure that describes a SPI ANALR erase region
  * @addr:	offset in the serial flash memory
  * @len:	number of bytes to erase
  *
  * Return: a pointer to the best fitted erase type, NULL otherwise.
  */
-static const struct spi_nor_erase_type *
-spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
-			     const struct spi_nor_erase_region *region,
+static const struct spi_analr_erase_type *
+spi_analr_find_best_erase_type(const struct spi_analr_erase_map *map,
+			     const struct spi_analr_erase_region *region,
 			     u64 addr, u32 len)
 {
-	const struct spi_nor_erase_type *erase;
+	const struct spi_analr_erase_type *erase;
 	u32 rem;
 	int i;
-	u8 erase_mask = region->offset & SNOR_ERASE_TYPE_MASK;
+	u8 erase_mask = region->offset & SANALR_ERASE_TYPE_MASK;
 
 	/*
 	 * Erase types are ordered by size, with the smallest erase type at
 	 * index 0.
 	 */
-	for (i = SNOR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
+	for (i = SANALR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
 		/* Does the erase region support the tested erase type? */
 		if (!(erase_mask & BIT(i)))
 			continue;
@@ -1557,8 +1557,8 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 		if (!erase->size)
 			continue;
 
-		/* Alignment is not mandatory for overlaid regions */
-		if (region->offset & SNOR_OVERLAID_REGION &&
+		/* Alignment is analt mandatory for overlaid regions */
+		if (region->offset & SANALR_OVERLAID_REGION &&
 		    region->size <= len)
 			return erase;
 
@@ -1566,7 +1566,7 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 		if (erase->size > len)
 			continue;
 
-		spi_nor_div_by_erase_size(erase, addr, &rem);
+		spi_analr_div_by_erase_size(erase, addr, &rem);
 		if (!rem)
 			return erase;
 	}
@@ -1574,53 +1574,53 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 	return NULL;
 }
 
-static u64 spi_nor_region_is_last(const struct spi_nor_erase_region *region)
+static u64 spi_analr_region_is_last(const struct spi_analr_erase_region *region)
 {
-	return region->offset & SNOR_LAST_REGION;
+	return region->offset & SANALR_LAST_REGION;
 }
 
-static u64 spi_nor_region_end(const struct spi_nor_erase_region *region)
+static u64 spi_analr_region_end(const struct spi_analr_erase_region *region)
 {
-	return (region->offset & ~SNOR_ERASE_FLAGS_MASK) + region->size;
+	return (region->offset & ~SANALR_ERASE_FLAGS_MASK) + region->size;
 }
 
 /**
- * spi_nor_region_next() - get the next spi nor region
- * @region:	pointer to a structure that describes a SPI NOR erase region
+ * spi_analr_region_next() - get the next spi analr region
+ * @region:	pointer to a structure that describes a SPI ANALR erase region
  *
- * Return: the next spi nor region or NULL if last region.
+ * Return: the next spi analr region or NULL if last region.
  */
-struct spi_nor_erase_region *
-spi_nor_region_next(struct spi_nor_erase_region *region)
+struct spi_analr_erase_region *
+spi_analr_region_next(struct spi_analr_erase_region *region)
 {
-	if (spi_nor_region_is_last(region))
+	if (spi_analr_region_is_last(region))
 		return NULL;
 	region++;
 	return region;
 }
 
 /**
- * spi_nor_find_erase_region() - find the region of the serial flash memory in
+ * spi_analr_find_erase_region() - find the region of the serial flash memory in
  *				 which the offset fits
- * @map:	the erase map of the SPI NOR
+ * @map:	the erase map of the SPI ANALR
  * @addr:	offset in the serial flash memory
  *
- * Return: a pointer to the spi_nor_erase_region struct, ERR_PTR(-errno)
+ * Return: a pointer to the spi_analr_erase_region struct, ERR_PTR(-erranal)
  *	   otherwise.
  */
-static struct spi_nor_erase_region *
-spi_nor_find_erase_region(const struct spi_nor_erase_map *map, u64 addr)
+static struct spi_analr_erase_region *
+spi_analr_find_erase_region(const struct spi_analr_erase_map *map, u64 addr)
 {
-	struct spi_nor_erase_region *region = map->regions;
-	u64 region_start = region->offset & ~SNOR_ERASE_FLAGS_MASK;
+	struct spi_analr_erase_region *region = map->regions;
+	u64 region_start = region->offset & ~SANALR_ERASE_FLAGS_MASK;
 	u64 region_end = region_start + region->size;
 
 	while (addr < region_start || addr >= region_end) {
-		region = spi_nor_region_next(region);
+		region = spi_analr_region_next(region);
 		if (!region)
 			return ERR_PTR(-EINVAL);
 
-		region_start = region->offset & ~SNOR_ERASE_FLAGS_MASK;
+		region_start = region->offset & ~SANALR_ERASE_FLAGS_MASK;
 		region_end = region_start + region->size;
 	}
 
@@ -1628,28 +1628,28 @@ spi_nor_find_erase_region(const struct spi_nor_erase_map *map, u64 addr)
 }
 
 /**
- * spi_nor_init_erase_cmd() - initialize an erase command
- * @region:	pointer to a structure that describes a SPI NOR erase region
- * @erase:	pointer to a structure that describes a SPI NOR erase type
+ * spi_analr_init_erase_cmd() - initialize an erase command
+ * @region:	pointer to a structure that describes a SPI ANALR erase region
+ * @erase:	pointer to a structure that describes a SPI ANALR erase type
  *
- * Return: the pointer to the allocated erase command, ERR_PTR(-errno)
+ * Return: the pointer to the allocated erase command, ERR_PTR(-erranal)
  *	   otherwise.
  */
-static struct spi_nor_erase_command *
-spi_nor_init_erase_cmd(const struct spi_nor_erase_region *region,
-		       const struct spi_nor_erase_type *erase)
+static struct spi_analr_erase_command *
+spi_analr_init_erase_cmd(const struct spi_analr_erase_region *region,
+		       const struct spi_analr_erase_type *erase)
 {
-	struct spi_nor_erase_command *cmd;
+	struct spi_analr_erase_command *cmd;
 
 	cmd = kmalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&cmd->list);
 	cmd->opcode = erase->opcode;
 	cmd->count = 1;
 
-	if (region->offset & SNOR_OVERLAID_REGION)
+	if (region->offset & SANALR_OVERLAID_REGION)
 		cmd->size = region->size;
 	else
 		cmd->size = erase->size;
@@ -1658,12 +1658,12 @@ spi_nor_init_erase_cmd(const struct spi_nor_erase_region *region,
 }
 
 /**
- * spi_nor_destroy_erase_cmd_list() - destroy erase command list
+ * spi_analr_destroy_erase_cmd_list() - destroy erase command list
  * @erase_list:	list of erase commands
  */
-static void spi_nor_destroy_erase_cmd_list(struct list_head *erase_list)
+static void spi_analr_destroy_erase_cmd_list(struct list_head *erase_list)
 {
-	struct spi_nor_erase_command *cmd, *next;
+	struct spi_analr_erase_command *cmd, *next;
 
 	list_for_each_entry_safe(cmd, next, erase_list, list) {
 		list_del(&cmd->list);
@@ -1672,8 +1672,8 @@ static void spi_nor_destroy_erase_cmd_list(struct list_head *erase_list)
 }
 
 /**
- * spi_nor_init_erase_cmd_list() - initialize erase command list
- * @nor:	pointer to a 'struct spi_nor'
+ * spi_analr_init_erase_cmd_list() - initialize erase command list
+ * @analr:	pointer to a 'struct spi_analr'
  * @erase_list:	list of erase commands to be executed once we validate that the
  *		erase can be performed
  * @addr:	offset in the serial flash memory
@@ -1682,34 +1682,34 @@ static void spi_nor_destroy_erase_cmd_list(struct list_head *erase_list)
  * Builds the list of best fitted erase commands and verifies if the erase can
  * be performed.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
+static int spi_analr_init_erase_cmd_list(struct spi_analr *analr,
 				       struct list_head *erase_list,
 				       u64 addr, u32 len)
 {
-	const struct spi_nor_erase_map *map = &nor->params->erase_map;
-	const struct spi_nor_erase_type *erase, *prev_erase = NULL;
-	struct spi_nor_erase_region *region;
-	struct spi_nor_erase_command *cmd = NULL;
+	const struct spi_analr_erase_map *map = &analr->params->erase_map;
+	const struct spi_analr_erase_type *erase, *prev_erase = NULL;
+	struct spi_analr_erase_region *region;
+	struct spi_analr_erase_command *cmd = NULL;
 	u64 region_end;
 	int ret = -EINVAL;
 
-	region = spi_nor_find_erase_region(map, addr);
+	region = spi_analr_find_erase_region(map, addr);
 	if (IS_ERR(region))
 		return PTR_ERR(region);
 
-	region_end = spi_nor_region_end(region);
+	region_end = spi_analr_region_end(region);
 
 	while (len) {
-		erase = spi_nor_find_best_erase_type(map, region, addr, len);
+		erase = spi_analr_find_best_erase_type(map, region, addr, len);
 		if (!erase)
 			goto destroy_erase_cmd_list;
 
 		if (prev_erase != erase ||
 		    erase->size != cmd->size ||
-		    region->offset & SNOR_OVERLAID_REGION) {
-			cmd = spi_nor_init_erase_cmd(region, erase);
+		    region->offset & SANALR_OVERLAID_REGION) {
+			cmd = spi_analr_init_erase_cmd(region, erase);
 			if (IS_ERR(cmd)) {
 				ret = PTR_ERR(cmd);
 				goto destroy_erase_cmd_list;
@@ -1724,10 +1724,10 @@ static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
 		len -= cmd->size;
 
 		if (len && addr >= region_end) {
-			region = spi_nor_region_next(region);
+			region = spi_analr_region_next(region);
 			if (!region)
 				goto destroy_erase_cmd_list;
-			region_end = spi_nor_region_end(region);
+			region_end = spi_analr_region_end(region);
 		}
 
 		prev_erase = erase;
@@ -1736,53 +1736,53 @@ static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
 	return 0;
 
 destroy_erase_cmd_list:
-	spi_nor_destroy_erase_cmd_list(erase_list);
+	spi_analr_destroy_erase_cmd_list(erase_list);
 	return ret;
 }
 
 /**
- * spi_nor_erase_multi_sectors() - perform a non-uniform erase
- * @nor:	pointer to a 'struct spi_nor'
+ * spi_analr_erase_multi_sectors() - perform a analn-uniform erase
+ * @analr:	pointer to a 'struct spi_analr'
  * @addr:	offset in the serial flash memory
  * @len:	number of bytes to erase
  *
  * Build a list of best fitted erase commands and execute it once we validate
  * that the erase can be performed.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_erase_multi_sectors(struct spi_nor *nor, u64 addr, u32 len)
+static int spi_analr_erase_multi_sectors(struct spi_analr *analr, u64 addr, u32 len)
 {
 	LIST_HEAD(erase_list);
-	struct spi_nor_erase_command *cmd, *next;
+	struct spi_analr_erase_command *cmd, *next;
 	int ret;
 
-	ret = spi_nor_init_erase_cmd_list(nor, &erase_list, addr, len);
+	ret = spi_analr_init_erase_cmd_list(analr, &erase_list, addr, len);
 	if (ret)
 		return ret;
 
 	list_for_each_entry_safe(cmd, next, &erase_list, list) {
-		nor->erase_opcode = cmd->opcode;
+		analr->erase_opcode = cmd->opcode;
 		while (cmd->count) {
-			dev_vdbg(nor->dev, "erase_cmd->size = 0x%08x, erase_cmd->opcode = 0x%02x, erase_cmd->count = %u\n",
+			dev_vdbg(analr->dev, "erase_cmd->size = 0x%08x, erase_cmd->opcode = 0x%02x, erase_cmd->count = %u\n",
 				 cmd->size, cmd->opcode, cmd->count);
 
-			ret = spi_nor_lock_device(nor);
+			ret = spi_analr_lock_device(analr);
 			if (ret)
 				goto destroy_erase_cmd_list;
 
-			ret = spi_nor_write_enable(nor);
+			ret = spi_analr_write_enable(analr);
 			if (ret) {
-				spi_nor_unlock_device(nor);
+				spi_analr_unlock_device(analr);
 				goto destroy_erase_cmd_list;
 			}
 
-			ret = spi_nor_erase_sector(nor, addr);
-			spi_nor_unlock_device(nor);
+			ret = spi_analr_erase_sector(analr, addr);
+			spi_analr_unlock_device(analr);
 			if (ret)
 				goto destroy_erase_cmd_list;
 
-			ret = spi_nor_wait_till_ready(nor);
+			ret = spi_analr_wait_till_ready(analr);
 			if (ret)
 				goto destroy_erase_cmd_list;
 
@@ -1796,11 +1796,11 @@ static int spi_nor_erase_multi_sectors(struct spi_nor *nor, u64 addr, u32 len)
 	return 0;
 
 destroy_erase_cmd_list:
-	spi_nor_destroy_erase_cmd_list(&erase_list);
+	spi_analr_destroy_erase_cmd_list(&erase_list);
 	return ret;
 }
 
-static int spi_nor_erase_dice(struct spi_nor *nor, loff_t addr,
+static int spi_analr_erase_dice(struct spi_analr *analr, loff_t addr,
 			      size_t len, size_t die_size)
 {
 	unsigned long timeout;
@@ -1810,30 +1810,30 @@ static int spi_nor_erase_dice(struct spi_nor *nor, loff_t addr,
 	 * Scale the timeout linearly with the size of the flash, with
 	 * a minimum calibrated to an old 2MB flash. We could try to
 	 * pull these from CFI/SFDP, but these values should be good
-	 * enough for now.
+	 * eanalugh for analw.
 	 */
 	timeout = max(CHIP_ERASE_2MB_READY_WAIT_JIFFIES,
 		      CHIP_ERASE_2MB_READY_WAIT_JIFFIES *
-		      (unsigned long)(nor->mtd.size / SZ_2M));
+		      (unsigned long)(analr->mtd.size / SZ_2M));
 
 	do {
-		ret = spi_nor_lock_device(nor);
+		ret = spi_analr_lock_device(analr);
 		if (ret)
 			return ret;
 
-		ret = spi_nor_write_enable(nor);
+		ret = spi_analr_write_enable(analr);
 		if (ret) {
-			spi_nor_unlock_device(nor);
+			spi_analr_unlock_device(analr);
 			return ret;
 		}
 
-		ret = spi_nor_erase_die(nor, addr, die_size);
+		ret = spi_analr_erase_die(analr, addr, die_size);
 
-		spi_nor_unlock_device(nor);
+		spi_analr_unlock_device(analr);
 		if (ret)
 			return ret;
 
-		ret = spi_nor_wait_till_ready_with_timeout(nor, timeout);
+		ret = spi_analr_wait_till_ready_with_timeout(analr, timeout);
 		if (ret)
 			return ret;
 
@@ -1846,22 +1846,22 @@ static int spi_nor_erase_dice(struct spi_nor *nor, loff_t addr,
 }
 
 /*
- * Erase an address range on the nor chip.  The address range may extend
+ * Erase an address range on the analr chip.  The address range may extend
  * one or more erase sectors. Return an error if there is a problem erasing.
  */
-static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
+static int spi_analr_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
-	u8 n_dice = nor->params->n_dice;
+	struct spi_analr *analr = mtd_to_spi_analr(mtd);
+	u8 n_dice = analr->params->n_dice;
 	bool multi_die_erase = false;
 	u32 addr, len, rem;
 	size_t die_size;
 	int ret;
 
-	dev_dbg(nor->dev, "at 0x%llx, len %lld\n", (long long)instr->addr,
+	dev_dbg(analr->dev, "at 0x%llx, len %lld\n", (long long)instr->addr,
 			(long long)instr->len);
 
-	if (spi_nor_has_uniform_erase(nor)) {
+	if (spi_analr_has_uniform_erase(analr)) {
 		div_u64_rem(instr->len, mtd->erasesize, &rem);
 		if (rem)
 			return -EINVAL;
@@ -1878,41 +1878,41 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 		die_size = mtd->size;
 	}
 
-	ret = spi_nor_prep_and_lock_pe(nor, instr->addr, instr->len);
+	ret = spi_analr_prep_and_lock_pe(analr, instr->addr, instr->len);
 	if (ret)
 		return ret;
 
 	/* chip (die) erase? */
-	if ((len == mtd->size && !(nor->flags & SNOR_F_NO_OP_CHIP_ERASE)) ||
+	if ((len == mtd->size && !(analr->flags & SANALR_F_ANAL_OP_CHIP_ERASE)) ||
 	    multi_die_erase) {
-		ret = spi_nor_erase_dice(nor, addr, len, die_size);
+		ret = spi_analr_erase_dice(analr, addr, len, die_size);
 		if (ret)
 			goto erase_err;
 
 	/* REVISIT in some cases we could speed up erasing large regions
-	 * by using SPINOR_OP_SE instead of SPINOR_OP_BE_4K.  We may have set up
-	 * to use "small sector erase", but that's not always optimal.
+	 * by using SPIANALR_OP_SE instead of SPIANALR_OP_BE_4K.  We may have set up
+	 * to use "small sector erase", but that's analt always optimal.
 	 */
 
 	/* "sector"-at-a-time erase */
-	} else if (spi_nor_has_uniform_erase(nor)) {
+	} else if (spi_analr_has_uniform_erase(analr)) {
 		while (len) {
-			ret = spi_nor_lock_device(nor);
+			ret = spi_analr_lock_device(analr);
 			if (ret)
 				goto erase_err;
 
-			ret = spi_nor_write_enable(nor);
+			ret = spi_analr_write_enable(analr);
 			if (ret) {
-				spi_nor_unlock_device(nor);
+				spi_analr_unlock_device(analr);
 				goto erase_err;
 			}
 
-			ret = spi_nor_erase_sector(nor, addr);
-			spi_nor_unlock_device(nor);
+			ret = spi_analr_erase_sector(analr, addr);
+			spi_analr_unlock_device(analr);
 			if (ret)
 				goto erase_err;
 
-			ret = spi_nor_wait_till_ready(nor);
+			ret = spi_analr_wait_till_ready(analr);
 			if (ret)
 				goto erase_err;
 
@@ -1922,92 +1922,92 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	/* erase multiple sectors */
 	} else {
-		ret = spi_nor_erase_multi_sectors(nor, addr, len);
+		ret = spi_analr_erase_multi_sectors(analr, addr, len);
 		if (ret)
 			goto erase_err;
 	}
 
-	ret = spi_nor_write_disable(nor);
+	ret = spi_analr_write_disable(analr);
 
 erase_err:
-	spi_nor_unlock_and_unprep_pe(nor, instr->addr, instr->len);
+	spi_analr_unlock_and_unprep_pe(analr, instr->addr, instr->len);
 
 	return ret;
 }
 
 /**
- * spi_nor_sr1_bit6_quad_enable() - Set the Quad Enable BIT(6) in the Status
+ * spi_analr_sr1_bit6_quad_enable() - Set the Quad Enable BIT(6) in the Status
  * Register 1.
- * @nor:	pointer to a 'struct spi_nor'
+ * @analr:	pointer to a 'struct spi_analr'
  *
  * Bit 6 of the Status Register 1 is the QE bit for Macronix like QSPI memories.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_sr1_bit6_quad_enable(struct spi_nor *nor)
+int spi_analr_sr1_bit6_quad_enable(struct spi_analr *analr)
 {
 	int ret;
 
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
+	ret = spi_analr_read_sr(analr, analr->bouncebuf);
 	if (ret)
 		return ret;
 
-	if (nor->bouncebuf[0] & SR1_QUAD_EN_BIT6)
+	if (analr->bouncebuf[0] & SR1_QUAD_EN_BIT6)
 		return 0;
 
-	nor->bouncebuf[0] |= SR1_QUAD_EN_BIT6;
+	analr->bouncebuf[0] |= SR1_QUAD_EN_BIT6;
 
-	return spi_nor_write_sr1_and_check(nor, nor->bouncebuf[0]);
+	return spi_analr_write_sr1_and_check(analr, analr->bouncebuf[0]);
 }
 
 /**
- * spi_nor_sr2_bit1_quad_enable() - set the Quad Enable BIT(1) in the Status
+ * spi_analr_sr2_bit1_quad_enable() - set the Quad Enable BIT(1) in the Status
  * Register 2.
- * @nor:       pointer to a 'struct spi_nor'.
+ * @analr:       pointer to a 'struct spi_analr'.
  *
  * Bit 1 of the Status Register 2 is the QE bit for Spansion like QSPI memories.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_sr2_bit1_quad_enable(struct spi_nor *nor)
+int spi_analr_sr2_bit1_quad_enable(struct spi_analr *analr)
 {
 	int ret;
 
-	if (nor->flags & SNOR_F_NO_READ_CR)
-		return spi_nor_write_16bit_cr_and_check(nor, SR2_QUAD_EN_BIT1);
+	if (analr->flags & SANALR_F_ANAL_READ_CR)
+		return spi_analr_write_16bit_cr_and_check(analr, SR2_QUAD_EN_BIT1);
 
-	ret = spi_nor_read_cr(nor, nor->bouncebuf);
+	ret = spi_analr_read_cr(analr, analr->bouncebuf);
 	if (ret)
 		return ret;
 
-	if (nor->bouncebuf[0] & SR2_QUAD_EN_BIT1)
+	if (analr->bouncebuf[0] & SR2_QUAD_EN_BIT1)
 		return 0;
 
-	nor->bouncebuf[0] |= SR2_QUAD_EN_BIT1;
+	analr->bouncebuf[0] |= SR2_QUAD_EN_BIT1;
 
-	return spi_nor_write_16bit_cr_and_check(nor, nor->bouncebuf[0]);
+	return spi_analr_write_16bit_cr_and_check(analr, analr->bouncebuf[0]);
 }
 
 /**
- * spi_nor_sr2_bit7_quad_enable() - set QE bit in Status Register 2.
- * @nor:	pointer to a 'struct spi_nor'
+ * spi_analr_sr2_bit7_quad_enable() - set QE bit in Status Register 2.
+ * @analr:	pointer to a 'struct spi_analr'
  *
  * Set the Quad Enable (QE) bit in the Status Register 2.
  *
  * This is one of the procedures to set the QE bit described in the SFDP
- * (JESD216 rev B) specification but no manufacturer using this procedure has
+ * (JESD216 rev B) specification but anal manufacturer using this procedure has
  * been identified yet, hence the name of the function.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor)
+int spi_analr_sr2_bit7_quad_enable(struct spi_analr *analr)
 {
-	u8 *sr2 = nor->bouncebuf;
+	u8 *sr2 = analr->bouncebuf;
 	int ret;
 	u8 sr2_written;
 
 	/* Check current Quad Enable bit value. */
-	ret = spi_nor_read_sr2(nor, sr2);
+	ret = spi_analr_read_sr2(analr, sr2);
 	if (ret)
 		return ret;
 	if (*sr2 & SR2_QUAD_EN_BIT7)
@@ -2016,48 +2016,48 @@ int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor)
 	/* Update the Quad Enable bit. */
 	*sr2 |= SR2_QUAD_EN_BIT7;
 
-	ret = spi_nor_write_sr2(nor, sr2);
+	ret = spi_analr_write_sr2(analr, sr2);
 	if (ret)
 		return ret;
 
 	sr2_written = *sr2;
 
 	/* Read back and check it. */
-	ret = spi_nor_read_sr2(nor, sr2);
+	ret = spi_analr_read_sr2(analr, sr2);
 	if (ret)
 		return ret;
 
 	if (*sr2 != sr2_written) {
-		dev_dbg(nor->dev, "SR2: Read back test failed\n");
+		dev_dbg(analr->dev, "SR2: Read back test failed\n");
 		return -EIO;
 	}
 
 	return 0;
 }
 
-static const struct spi_nor_manufacturer *manufacturers[] = {
-	&spi_nor_atmel,
-	&spi_nor_eon,
-	&spi_nor_esmt,
-	&spi_nor_everspin,
-	&spi_nor_gigadevice,
-	&spi_nor_intel,
-	&spi_nor_issi,
-	&spi_nor_macronix,
-	&spi_nor_micron,
-	&spi_nor_st,
-	&spi_nor_spansion,
-	&spi_nor_sst,
-	&spi_nor_winbond,
-	&spi_nor_xilinx,
-	&spi_nor_xmc,
+static const struct spi_analr_manufacturer *manufacturers[] = {
+	&spi_analr_atmel,
+	&spi_analr_eon,
+	&spi_analr_esmt,
+	&spi_analr_everspin,
+	&spi_analr_gigadevice,
+	&spi_analr_intel,
+	&spi_analr_issi,
+	&spi_analr_macronix,
+	&spi_analr_micron,
+	&spi_analr_st,
+	&spi_analr_spansion,
+	&spi_analr_sst,
+	&spi_analr_winbond,
+	&spi_analr_xilinx,
+	&spi_analr_xmc,
 };
 
-static const struct flash_info spi_nor_generic_flash = {
-	.name = "spi-nor-generic",
+static const struct flash_info spi_analr_generic_flash = {
+	.name = "spi-analr-generic",
 };
 
-static const struct flash_info *spi_nor_match_id(struct spi_nor *nor,
+static const struct flash_info *spi_analr_match_id(struct spi_analr *analr,
 						 const u8 *id)
 {
 	const struct flash_info *part;
@@ -2068,7 +2068,7 @@ static const struct flash_info *spi_nor_match_id(struct spi_nor *nor,
 			part = &manufacturers[i]->parts[j];
 			if (part->id &&
 			    !memcmp(part->id->bytes, id, part->id->len)) {
-				nor->manufacturer = manufacturers[i];
+				analr->manufacturer = manufacturers[i];
 				return part;
 			}
 		}
@@ -2077,60 +2077,60 @@ static const struct flash_info *spi_nor_match_id(struct spi_nor *nor,
 	return NULL;
 }
 
-static const struct flash_info *spi_nor_detect(struct spi_nor *nor)
+static const struct flash_info *spi_analr_detect(struct spi_analr *analr)
 {
 	const struct flash_info *info;
-	u8 *id = nor->bouncebuf;
+	u8 *id = analr->bouncebuf;
 	int ret;
 
-	ret = spi_nor_read_id(nor, 0, 0, id, nor->reg_proto);
+	ret = spi_analr_read_id(analr, 0, 0, id, analr->reg_proto);
 	if (ret) {
-		dev_dbg(nor->dev, "error %d reading JEDEC ID\n", ret);
+		dev_dbg(analr->dev, "error %d reading JEDEC ID\n", ret);
 		return ERR_PTR(ret);
 	}
 
 	/* Cache the complete flash ID. */
-	nor->id = devm_kmemdup(nor->dev, id, SPI_NOR_MAX_ID_LEN, GFP_KERNEL);
-	if (!nor->id)
-		return ERR_PTR(-ENOMEM);
+	analr->id = devm_kmemdup(analr->dev, id, SPI_ANALR_MAX_ID_LEN, GFP_KERNEL);
+	if (!analr->id)
+		return ERR_PTR(-EANALMEM);
 
-	info = spi_nor_match_id(nor, id);
+	info = spi_analr_match_id(analr, id);
 
 	/* Fallback to a generic flash described only by its SFDP data. */
 	if (!info) {
-		ret = spi_nor_check_sfdp_signature(nor);
+		ret = spi_analr_check_sfdp_signature(analr);
 		if (!ret)
-			info = &spi_nor_generic_flash;
+			info = &spi_analr_generic_flash;
 	}
 
 	if (!info) {
-		dev_err(nor->dev, "unrecognized JEDEC id bytes: %*ph\n",
-			SPI_NOR_MAX_ID_LEN, id);
-		return ERR_PTR(-ENODEV);
+		dev_err(analr->dev, "unrecognized JEDEC id bytes: %*ph\n",
+			SPI_ANALR_MAX_ID_LEN, id);
+		return ERR_PTR(-EANALDEV);
 	}
 	return info;
 }
 
-static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
+static int spi_analr_read(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	struct spi_analr *analr = mtd_to_spi_analr(mtd);
 	loff_t from_lock = from;
 	size_t len_lock = len;
 	ssize_t ret;
 
-	dev_dbg(nor->dev, "from 0x%08x, len %zd\n", (u32)from, len);
+	dev_dbg(analr->dev, "from 0x%08x, len %zd\n", (u32)from, len);
 
-	ret = spi_nor_prep_and_lock_rd(nor, from_lock, len_lock);
+	ret = spi_analr_prep_and_lock_rd(analr, from_lock, len_lock);
 	if (ret)
 		return ret;
 
 	while (len) {
 		loff_t addr = from;
 
-		addr = spi_nor_convert_addr(nor, addr);
+		addr = spi_analr_convert_addr(analr, addr);
 
-		ret = spi_nor_read_data(nor, addr, len, buf);
+		ret = spi_analr_read_data(analr, addr, len, buf);
 		if (ret == 0) {
 			/* We shouldn't see 0-length reads */
 			ret = -EIO;
@@ -2148,27 +2148,27 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 	ret = 0;
 
 read_err:
-	spi_nor_unlock_and_unprep_rd(nor, from_lock, len_lock);
+	spi_analr_unlock_and_unprep_rd(analr, from_lock, len_lock);
 
 	return ret;
 }
 
 /*
- * Write an address range to the nor chip.  Data must be written in
+ * Write an address range to the analr chip.  Data must be written in
  * FLASH_PAGESIZE chunks.  The address range may be any size provided
  * it is within the physical boundaries.
  */
-static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
+static int spi_analr_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t *retlen, const u_char *buf)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	struct spi_analr *analr = mtd_to_spi_analr(mtd);
 	size_t page_offset, page_remain, i;
 	ssize_t ret;
-	u32 page_size = nor->params->page_size;
+	u32 page_size = analr->params->page_size;
 
-	dev_dbg(nor->dev, "to 0x%08x, len %zd\n", (u32)to, len);
+	dev_dbg(analr->dev, "to 0x%08x, len %zd\n", (u32)to, len);
 
-	ret = spi_nor_prep_and_lock_pe(nor, to, len);
+	ret = spi_analr_prep_and_lock_pe(analr, to, len);
 	if (ret)
 		return ret;
 
@@ -2191,25 +2191,25 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 		/* the size of data remaining on the first page */
 		page_remain = min_t(size_t, page_size - page_offset, len - i);
 
-		addr = spi_nor_convert_addr(nor, addr);
+		addr = spi_analr_convert_addr(analr, addr);
 
-		ret = spi_nor_lock_device(nor);
+		ret = spi_analr_lock_device(analr);
 		if (ret)
 			goto write_err;
 
-		ret = spi_nor_write_enable(nor);
+		ret = spi_analr_write_enable(analr);
 		if (ret) {
-			spi_nor_unlock_device(nor);
+			spi_analr_unlock_device(analr);
 			goto write_err;
 		}
 
-		ret = spi_nor_write_data(nor, addr, page_remain, buf + i);
-		spi_nor_unlock_device(nor);
+		ret = spi_analr_write_data(analr, addr, page_remain, buf + i);
+		spi_analr_unlock_device(analr);
 		if (ret < 0)
 			goto write_err;
 		written = ret;
 
-		ret = spi_nor_wait_till_ready(nor);
+		ret = spi_analr_wait_till_ready(analr);
 		if (ret)
 			goto write_err;
 		*retlen += written;
@@ -2217,26 +2217,26 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 write_err:
-	spi_nor_unlock_and_unprep_pe(nor, to, len);
+	spi_analr_unlock_and_unprep_pe(analr, to, len);
 
 	return ret;
 }
 
-static int spi_nor_check(struct spi_nor *nor)
+static int spi_analr_check(struct spi_analr *analr)
 {
-	if (!nor->dev ||
-	    (!nor->spimem && !nor->controller_ops) ||
-	    (!nor->spimem && nor->controller_ops &&
-	    (!nor->controller_ops->read ||
-	     !nor->controller_ops->write ||
-	     !nor->controller_ops->read_reg ||
-	     !nor->controller_ops->write_reg))) {
-		pr_err("spi-nor: please fill all the necessary fields!\n");
+	if (!analr->dev ||
+	    (!analr->spimem && !analr->controller_ops) ||
+	    (!analr->spimem && analr->controller_ops &&
+	    (!analr->controller_ops->read ||
+	     !analr->controller_ops->write ||
+	     !analr->controller_ops->read_reg ||
+	     !analr->controller_ops->write_reg))) {
+		pr_err("spi-analr: please fill all the necessary fields!\n");
 		return -EINVAL;
 	}
 
-	if (nor->spimem && nor->controller_ops) {
-		dev_err(nor->dev, "nor->spimem and nor->controller_ops are mutually exclusive, please set just one of them.\n");
+	if (analr->spimem && analr->controller_ops) {
+		dev_err(analr->dev, "analr->spimem and analr->controller_ops are mutually exclusive, please set just one of them.\n");
 		return -EINVAL;
 	}
 
@@ -2244,11 +2244,11 @@ static int spi_nor_check(struct spi_nor *nor)
 }
 
 void
-spi_nor_set_read_settings(struct spi_nor_read_command *read,
+spi_analr_set_read_settings(struct spi_analr_read_command *read,
 			  u8 num_mode_clocks,
 			  u8 num_wait_states,
 			  u8 opcode,
-			  enum spi_nor_protocol proto)
+			  enum spi_analr_protocol proto)
 {
 	read->num_mode_clocks = num_mode_clocks;
 	read->num_wait_states = num_wait_states;
@@ -2256,14 +2256,14 @@ spi_nor_set_read_settings(struct spi_nor_read_command *read,
 	read->proto = proto;
 }
 
-void spi_nor_set_pp_settings(struct spi_nor_pp_command *pp, u8 opcode,
-			     enum spi_nor_protocol proto)
+void spi_analr_set_pp_settings(struct spi_analr_pp_command *pp, u8 opcode,
+			     enum spi_analr_protocol proto)
 {
 	pp->opcode = opcode;
 	pp->proto = proto;
 }
 
-static int spi_nor_hwcaps2cmd(u32 hwcaps, const int table[][2], size_t size)
+static int spi_analr_hwcaps2cmd(u32 hwcaps, const int table[][2], size_t size)
 {
 	size_t i;
 
@@ -2274,143 +2274,143 @@ static int spi_nor_hwcaps2cmd(u32 hwcaps, const int table[][2], size_t size)
 	return -EINVAL;
 }
 
-int spi_nor_hwcaps_read2cmd(u32 hwcaps)
+int spi_analr_hwcaps_read2cmd(u32 hwcaps)
 {
 	static const int hwcaps_read2cmd[][2] = {
-		{ SNOR_HWCAPS_READ,		SNOR_CMD_READ },
-		{ SNOR_HWCAPS_READ_FAST,	SNOR_CMD_READ_FAST },
-		{ SNOR_HWCAPS_READ_1_1_1_DTR,	SNOR_CMD_READ_1_1_1_DTR },
-		{ SNOR_HWCAPS_READ_1_1_2,	SNOR_CMD_READ_1_1_2 },
-		{ SNOR_HWCAPS_READ_1_2_2,	SNOR_CMD_READ_1_2_2 },
-		{ SNOR_HWCAPS_READ_2_2_2,	SNOR_CMD_READ_2_2_2 },
-		{ SNOR_HWCAPS_READ_1_2_2_DTR,	SNOR_CMD_READ_1_2_2_DTR },
-		{ SNOR_HWCAPS_READ_1_1_4,	SNOR_CMD_READ_1_1_4 },
-		{ SNOR_HWCAPS_READ_1_4_4,	SNOR_CMD_READ_1_4_4 },
-		{ SNOR_HWCAPS_READ_4_4_4,	SNOR_CMD_READ_4_4_4 },
-		{ SNOR_HWCAPS_READ_1_4_4_DTR,	SNOR_CMD_READ_1_4_4_DTR },
-		{ SNOR_HWCAPS_READ_1_1_8,	SNOR_CMD_READ_1_1_8 },
-		{ SNOR_HWCAPS_READ_1_8_8,	SNOR_CMD_READ_1_8_8 },
-		{ SNOR_HWCAPS_READ_8_8_8,	SNOR_CMD_READ_8_8_8 },
-		{ SNOR_HWCAPS_READ_1_8_8_DTR,	SNOR_CMD_READ_1_8_8_DTR },
-		{ SNOR_HWCAPS_READ_8_8_8_DTR,	SNOR_CMD_READ_8_8_8_DTR },
+		{ SANALR_HWCAPS_READ,		SANALR_CMD_READ },
+		{ SANALR_HWCAPS_READ_FAST,	SANALR_CMD_READ_FAST },
+		{ SANALR_HWCAPS_READ_1_1_1_DTR,	SANALR_CMD_READ_1_1_1_DTR },
+		{ SANALR_HWCAPS_READ_1_1_2,	SANALR_CMD_READ_1_1_2 },
+		{ SANALR_HWCAPS_READ_1_2_2,	SANALR_CMD_READ_1_2_2 },
+		{ SANALR_HWCAPS_READ_2_2_2,	SANALR_CMD_READ_2_2_2 },
+		{ SANALR_HWCAPS_READ_1_2_2_DTR,	SANALR_CMD_READ_1_2_2_DTR },
+		{ SANALR_HWCAPS_READ_1_1_4,	SANALR_CMD_READ_1_1_4 },
+		{ SANALR_HWCAPS_READ_1_4_4,	SANALR_CMD_READ_1_4_4 },
+		{ SANALR_HWCAPS_READ_4_4_4,	SANALR_CMD_READ_4_4_4 },
+		{ SANALR_HWCAPS_READ_1_4_4_DTR,	SANALR_CMD_READ_1_4_4_DTR },
+		{ SANALR_HWCAPS_READ_1_1_8,	SANALR_CMD_READ_1_1_8 },
+		{ SANALR_HWCAPS_READ_1_8_8,	SANALR_CMD_READ_1_8_8 },
+		{ SANALR_HWCAPS_READ_8_8_8,	SANALR_CMD_READ_8_8_8 },
+		{ SANALR_HWCAPS_READ_1_8_8_DTR,	SANALR_CMD_READ_1_8_8_DTR },
+		{ SANALR_HWCAPS_READ_8_8_8_DTR,	SANALR_CMD_READ_8_8_8_DTR },
 	};
 
-	return spi_nor_hwcaps2cmd(hwcaps, hwcaps_read2cmd,
+	return spi_analr_hwcaps2cmd(hwcaps, hwcaps_read2cmd,
 				  ARRAY_SIZE(hwcaps_read2cmd));
 }
 
-int spi_nor_hwcaps_pp2cmd(u32 hwcaps)
+int spi_analr_hwcaps_pp2cmd(u32 hwcaps)
 {
 	static const int hwcaps_pp2cmd[][2] = {
-		{ SNOR_HWCAPS_PP,		SNOR_CMD_PP },
-		{ SNOR_HWCAPS_PP_1_1_4,		SNOR_CMD_PP_1_1_4 },
-		{ SNOR_HWCAPS_PP_1_4_4,		SNOR_CMD_PP_1_4_4 },
-		{ SNOR_HWCAPS_PP_4_4_4,		SNOR_CMD_PP_4_4_4 },
-		{ SNOR_HWCAPS_PP_1_1_8,		SNOR_CMD_PP_1_1_8 },
-		{ SNOR_HWCAPS_PP_1_8_8,		SNOR_CMD_PP_1_8_8 },
-		{ SNOR_HWCAPS_PP_8_8_8,		SNOR_CMD_PP_8_8_8 },
-		{ SNOR_HWCAPS_PP_8_8_8_DTR,	SNOR_CMD_PP_8_8_8_DTR },
+		{ SANALR_HWCAPS_PP,		SANALR_CMD_PP },
+		{ SANALR_HWCAPS_PP_1_1_4,		SANALR_CMD_PP_1_1_4 },
+		{ SANALR_HWCAPS_PP_1_4_4,		SANALR_CMD_PP_1_4_4 },
+		{ SANALR_HWCAPS_PP_4_4_4,		SANALR_CMD_PP_4_4_4 },
+		{ SANALR_HWCAPS_PP_1_1_8,		SANALR_CMD_PP_1_1_8 },
+		{ SANALR_HWCAPS_PP_1_8_8,		SANALR_CMD_PP_1_8_8 },
+		{ SANALR_HWCAPS_PP_8_8_8,		SANALR_CMD_PP_8_8_8 },
+		{ SANALR_HWCAPS_PP_8_8_8_DTR,	SANALR_CMD_PP_8_8_8_DTR },
 	};
 
-	return spi_nor_hwcaps2cmd(hwcaps, hwcaps_pp2cmd,
+	return spi_analr_hwcaps2cmd(hwcaps, hwcaps_pp2cmd,
 				  ARRAY_SIZE(hwcaps_pp2cmd));
 }
 
 /**
- * spi_nor_spimem_check_op - check if the operation is supported
+ * spi_analr_spimem_check_op - check if the operation is supported
  *                           by controller
- *@nor:        pointer to a 'struct spi_nor'
+ *@analr:        pointer to a 'struct spi_analr'
  *@op:         pointer to op template to be checked
  *
- * Returns 0 if operation is supported, -EOPNOTSUPP otherwise.
+ * Returns 0 if operation is supported, -EOPANALTSUPP otherwise.
  */
-static int spi_nor_spimem_check_op(struct spi_nor *nor,
+static int spi_analr_spimem_check_op(struct spi_analr *analr,
 				   struct spi_mem_op *op)
 {
 	/*
 	 * First test with 4 address bytes. The opcode itself might
 	 * be a 3B addressing opcode but we don't care, because
-	 * SPI controller implementation should not check the opcode,
+	 * SPI controller implementation should analt check the opcode,
 	 * but just the sequence.
 	 */
 	op->addr.nbytes = 4;
-	if (!spi_mem_supports_op(nor->spimem, op)) {
-		if (nor->params->size > SZ_16M)
-			return -EOPNOTSUPP;
+	if (!spi_mem_supports_op(analr->spimem, op)) {
+		if (analr->params->size > SZ_16M)
+			return -EOPANALTSUPP;
 
 		/* If flash size <= 16MB, 3 address bytes are sufficient */
 		op->addr.nbytes = 3;
-		if (!spi_mem_supports_op(nor->spimem, op))
-			return -EOPNOTSUPP;
+		if (!spi_mem_supports_op(analr->spimem, op))
+			return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
 /**
- * spi_nor_spimem_check_readop - check if the read op is supported
+ * spi_analr_spimem_check_readop - check if the read op is supported
  *                               by controller
- *@nor:         pointer to a 'struct spi_nor'
+ *@analr:         pointer to a 'struct spi_analr'
  *@read:        pointer to op template to be checked
  *
- * Returns 0 if operation is supported, -EOPNOTSUPP otherwise.
+ * Returns 0 if operation is supported, -EOPANALTSUPP otherwise.
  */
-static int spi_nor_spimem_check_readop(struct spi_nor *nor,
-				       const struct spi_nor_read_command *read)
+static int spi_analr_spimem_check_readop(struct spi_analr *analr,
+				       const struct spi_analr_read_command *read)
 {
-	struct spi_mem_op op = SPI_NOR_READ_OP(read->opcode);
+	struct spi_mem_op op = SPI_ANALR_READ_OP(read->opcode);
 
-	spi_nor_spimem_setup_op(nor, &op, read->proto);
+	spi_analr_spimem_setup_op(analr, &op, read->proto);
 
 	/* convert the dummy cycles to the number of bytes */
 	op.dummy.nbytes = (read->num_mode_clocks + read->num_wait_states) *
 			  op.dummy.buswidth / 8;
-	if (spi_nor_protocol_is_dtr(nor->read_proto))
+	if (spi_analr_protocol_is_dtr(analr->read_proto))
 		op.dummy.nbytes *= 2;
 
-	return spi_nor_spimem_check_op(nor, &op);
+	return spi_analr_spimem_check_op(analr, &op);
 }
 
 /**
- * spi_nor_spimem_check_pp - check if the page program op is supported
+ * spi_analr_spimem_check_pp - check if the page program op is supported
  *                           by controller
- *@nor:         pointer to a 'struct spi_nor'
+ *@analr:         pointer to a 'struct spi_analr'
  *@pp:          pointer to op template to be checked
  *
- * Returns 0 if operation is supported, -EOPNOTSUPP otherwise.
+ * Returns 0 if operation is supported, -EOPANALTSUPP otherwise.
  */
-static int spi_nor_spimem_check_pp(struct spi_nor *nor,
-				   const struct spi_nor_pp_command *pp)
+static int spi_analr_spimem_check_pp(struct spi_analr *analr,
+				   const struct spi_analr_pp_command *pp)
 {
-	struct spi_mem_op op = SPI_NOR_PP_OP(pp->opcode);
+	struct spi_mem_op op = SPI_ANALR_PP_OP(pp->opcode);
 
-	spi_nor_spimem_setup_op(nor, &op, pp->proto);
+	spi_analr_spimem_setup_op(analr, &op, pp->proto);
 
-	return spi_nor_spimem_check_op(nor, &op);
+	return spi_analr_spimem_check_op(analr, &op);
 }
 
 /**
- * spi_nor_spimem_adjust_hwcaps - Find optimal Read/Write protocol
+ * spi_analr_spimem_adjust_hwcaps - Find optimal Read/Write protocol
  *                                based on SPI controller capabilities
- * @nor:        pointer to a 'struct spi_nor'
+ * @analr:        pointer to a 'struct spi_analr'
  * @hwcaps:     pointer to resulting capabilities after adjusting
  *              according to controller and flash's capability
  */
 static void
-spi_nor_spimem_adjust_hwcaps(struct spi_nor *nor, u32 *hwcaps)
+spi_analr_spimem_adjust_hwcaps(struct spi_analr *analr, u32 *hwcaps)
 {
-	struct spi_nor_flash_parameter *params = nor->params;
+	struct spi_analr_flash_parameter *params = analr->params;
 	unsigned int cap;
 
-	/* X-X-X modes are not supported yet, mask them all. */
-	*hwcaps &= ~SNOR_HWCAPS_X_X_X;
+	/* X-X-X modes are analt supported yet, mask them all. */
+	*hwcaps &= ~SANALR_HWCAPS_X_X_X;
 
 	/*
-	 * If the reset line is broken, we do not want to enter a stateful
+	 * If the reset line is broken, we do analt want to enter a stateful
 	 * mode.
 	 */
-	if (nor->flags & SNOR_F_BROKEN_RESET)
-		*hwcaps &= ~(SNOR_HWCAPS_X_X_X | SNOR_HWCAPS_X_X_X_DTR);
+	if (analr->flags & SANALR_F_BROKEN_RESET)
+		*hwcaps &= ~(SANALR_HWCAPS_X_X_X | SANALR_HWCAPS_X_X_X_DTR);
 
 	for (cap = 0; cap < sizeof(*hwcaps) * BITS_PER_BYTE; cap++) {
 		int rdidx, ppidx;
@@ -2418,28 +2418,28 @@ spi_nor_spimem_adjust_hwcaps(struct spi_nor *nor, u32 *hwcaps)
 		if (!(*hwcaps & BIT(cap)))
 			continue;
 
-		rdidx = spi_nor_hwcaps_read2cmd(BIT(cap));
+		rdidx = spi_analr_hwcaps_read2cmd(BIT(cap));
 		if (rdidx >= 0 &&
-		    spi_nor_spimem_check_readop(nor, &params->reads[rdidx]))
+		    spi_analr_spimem_check_readop(analr, &params->reads[rdidx]))
 			*hwcaps &= ~BIT(cap);
 
-		ppidx = spi_nor_hwcaps_pp2cmd(BIT(cap));
+		ppidx = spi_analr_hwcaps_pp2cmd(BIT(cap));
 		if (ppidx < 0)
 			continue;
 
-		if (spi_nor_spimem_check_pp(nor,
+		if (spi_analr_spimem_check_pp(analr,
 					    &params->page_programs[ppidx]))
 			*hwcaps &= ~BIT(cap);
 	}
 }
 
 /**
- * spi_nor_set_erase_type() - set a SPI NOR erase type
- * @erase:	pointer to a structure that describes a SPI NOR erase type
+ * spi_analr_set_erase_type() - set a SPI ANALR erase type
+ * @erase:	pointer to a structure that describes a SPI ANALR erase type
  * @size:	the size of the sector/block erased by the erase type
  * @opcode:	the SPI command op code to erase the sector/block
  */
-void spi_nor_set_erase_type(struct spi_nor_erase_type *erase, u32 size,
+void spi_analr_set_erase_type(struct spi_analr_erase_type *erase, u32 size,
 			    u8 opcode)
 {
 	erase->size = size;
@@ -2450,115 +2450,115 @@ void spi_nor_set_erase_type(struct spi_nor_erase_type *erase, u32 size,
 }
 
 /**
- * spi_nor_mask_erase_type() - mask out a SPI NOR erase type
- * @erase:	pointer to a structure that describes a SPI NOR erase type
+ * spi_analr_mask_erase_type() - mask out a SPI ANALR erase type
+ * @erase:	pointer to a structure that describes a SPI ANALR erase type
  */
-void spi_nor_mask_erase_type(struct spi_nor_erase_type *erase)
+void spi_analr_mask_erase_type(struct spi_analr_erase_type *erase)
 {
 	erase->size = 0;
 }
 
 /**
- * spi_nor_init_uniform_erase_map() - Initialize uniform erase map
- * @map:		the erase map of the SPI NOR
+ * spi_analr_init_uniform_erase_map() - Initialize uniform erase map
+ * @map:		the erase map of the SPI ANALR
  * @erase_mask:		bitmask encoding erase types that can erase the entire
  *			flash memory
- * @flash_size:		the spi nor flash memory size
+ * @flash_size:		the spi analr flash memory size
  */
-void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
+void spi_analr_init_uniform_erase_map(struct spi_analr_erase_map *map,
 				    u8 erase_mask, u64 flash_size)
 {
-	/* Offset 0 with erase_mask and SNOR_LAST_REGION bit set */
-	map->uniform_region.offset = (erase_mask & SNOR_ERASE_TYPE_MASK) |
-				     SNOR_LAST_REGION;
+	/* Offset 0 with erase_mask and SANALR_LAST_REGION bit set */
+	map->uniform_region.offset = (erase_mask & SANALR_ERASE_TYPE_MASK) |
+				     SANALR_LAST_REGION;
 	map->uniform_region.size = flash_size;
 	map->regions = &map->uniform_region;
 	map->uniform_erase_type = erase_mask;
 }
 
-int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
+int spi_analr_post_bfpt_fixups(struct spi_analr *analr,
 			     const struct sfdp_parameter_header *bfpt_header,
 			     const struct sfdp_bfpt *bfpt)
 {
 	int ret;
 
-	if (nor->manufacturer && nor->manufacturer->fixups &&
-	    nor->manufacturer->fixups->post_bfpt) {
-		ret = nor->manufacturer->fixups->post_bfpt(nor, bfpt_header,
+	if (analr->manufacturer && analr->manufacturer->fixups &&
+	    analr->manufacturer->fixups->post_bfpt) {
+		ret = analr->manufacturer->fixups->post_bfpt(analr, bfpt_header,
 							   bfpt);
 		if (ret)
 			return ret;
 	}
 
-	if (nor->info->fixups && nor->info->fixups->post_bfpt)
-		return nor->info->fixups->post_bfpt(nor, bfpt_header, bfpt);
+	if (analr->info->fixups && analr->info->fixups->post_bfpt)
+		return analr->info->fixups->post_bfpt(analr, bfpt_header, bfpt);
 
 	return 0;
 }
 
-static int spi_nor_select_read(struct spi_nor *nor,
+static int spi_analr_select_read(struct spi_analr *analr,
 			       u32 shared_hwcaps)
 {
-	int cmd, best_match = fls(shared_hwcaps & SNOR_HWCAPS_READ_MASK) - 1;
-	const struct spi_nor_read_command *read;
+	int cmd, best_match = fls(shared_hwcaps & SANALR_HWCAPS_READ_MASK) - 1;
+	const struct spi_analr_read_command *read;
 
 	if (best_match < 0)
 		return -EINVAL;
 
-	cmd = spi_nor_hwcaps_read2cmd(BIT(best_match));
+	cmd = spi_analr_hwcaps_read2cmd(BIT(best_match));
 	if (cmd < 0)
 		return -EINVAL;
 
-	read = &nor->params->reads[cmd];
-	nor->read_opcode = read->opcode;
-	nor->read_proto = read->proto;
+	read = &analr->params->reads[cmd];
+	analr->read_opcode = read->opcode;
+	analr->read_proto = read->proto;
 
 	/*
-	 * In the SPI NOR framework, we don't need to make the difference
+	 * In the SPI ANALR framework, we don't need to make the difference
 	 * between mode clock cycles and wait state clock cycles.
 	 * Indeed, the value of the mode clock cycles is used by a QSPI
-	 * flash memory to know whether it should enter or leave its 0-4-4
+	 * flash memory to kanalw whether it should enter or leave its 0-4-4
 	 * (Continuous Read / XIP) mode.
 	 * eXecution In Place is out of the scope of the mtd sub-system.
 	 * Hence we choose to merge both mode and wait state clock cycles
 	 * into the so called dummy clock cycles.
 	 */
-	nor->read_dummy = read->num_mode_clocks + read->num_wait_states;
+	analr->read_dummy = read->num_mode_clocks + read->num_wait_states;
 	return 0;
 }
 
-static int spi_nor_select_pp(struct spi_nor *nor,
+static int spi_analr_select_pp(struct spi_analr *analr,
 			     u32 shared_hwcaps)
 {
-	int cmd, best_match = fls(shared_hwcaps & SNOR_HWCAPS_PP_MASK) - 1;
-	const struct spi_nor_pp_command *pp;
+	int cmd, best_match = fls(shared_hwcaps & SANALR_HWCAPS_PP_MASK) - 1;
+	const struct spi_analr_pp_command *pp;
 
 	if (best_match < 0)
 		return -EINVAL;
 
-	cmd = spi_nor_hwcaps_pp2cmd(BIT(best_match));
+	cmd = spi_analr_hwcaps_pp2cmd(BIT(best_match));
 	if (cmd < 0)
 		return -EINVAL;
 
-	pp = &nor->params->page_programs[cmd];
-	nor->program_opcode = pp->opcode;
-	nor->write_proto = pp->proto;
+	pp = &analr->params->page_programs[cmd];
+	analr->program_opcode = pp->opcode;
+	analr->write_proto = pp->proto;
 	return 0;
 }
 
 /**
- * spi_nor_select_uniform_erase() - select optimum uniform erase type
- * @map:		the erase map of the SPI NOR
+ * spi_analr_select_uniform_erase() - select optimum uniform erase type
+ * @map:		the erase map of the SPI ANALR
  *
  * Once the optimum uniform sector erase command is found, disable all the
  * other.
  *
  * Return: pointer to erase type on success, NULL otherwise.
  */
-static const struct spi_nor_erase_type *
-spi_nor_select_uniform_erase(struct spi_nor_erase_map *map)
+static const struct spi_analr_erase_type *
+spi_analr_select_uniform_erase(struct spi_analr_erase_map *map)
 {
-	const struct spi_nor_erase_type *tested_erase, *erase = NULL;
+	const struct spi_analr_erase_type *tested_erase, *erase = NULL;
 	int i;
 	u8 uniform_erase_type = map->uniform_erase_type;
 
@@ -2566,7 +2566,7 @@ spi_nor_select_uniform_erase(struct spi_nor_erase_map *map)
 	 * Search for the biggest erase size, except for when compiled
 	 * to use 4k erases.
 	 */
-	for (i = SNOR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
+	for (i = SANALR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
 		if (!(uniform_erase_type & BIT(i)))
 			continue;
 
@@ -2580,7 +2580,7 @@ spi_nor_select_uniform_erase(struct spi_nor_erase_map *map)
 		 * If the current erase size is the 4k one, stop here,
 		 * we have found the right uniform Sector Erase command.
 		 */
-		if (IS_ENABLED(CONFIG_MTD_SPI_NOR_USE_4K_SECTORS) &&
+		if (IS_ENABLED(CONFIG_MTD_SPI_ANALR_USE_4K_SECTORS) &&
 		    tested_erase->size == SZ_4K) {
 			erase = tested_erase;
 			break;
@@ -2599,16 +2599,16 @@ spi_nor_select_uniform_erase(struct spi_nor_erase_map *map)
 		return NULL;
 
 	/* Disable all other Sector Erase commands. */
-	map->uniform_erase_type &= ~SNOR_ERASE_TYPE_MASK;
+	map->uniform_erase_type &= ~SANALR_ERASE_TYPE_MASK;
 	map->uniform_erase_type |= BIT(erase - map->erase_type);
 	return erase;
 }
 
-static int spi_nor_select_erase(struct spi_nor *nor)
+static int spi_analr_select_erase(struct spi_analr *analr)
 {
-	struct spi_nor_erase_map *map = &nor->params->erase_map;
-	const struct spi_nor_erase_type *erase = NULL;
-	struct mtd_info *mtd = &nor->mtd;
+	struct spi_analr_erase_map *map = &analr->params->erase_map;
+	const struct spi_analr_erase_type *erase = NULL;
+	struct mtd_info *mtd = &analr->mtd;
 	int i;
 
 	/*
@@ -2619,20 +2619,20 @@ static int spi_nor_select_erase(struct spi_nor *nor)
 	 * manage the SPI flash memory as uniform with a single erase sector
 	 * size, when possible.
 	 */
-	if (spi_nor_has_uniform_erase(nor)) {
-		erase = spi_nor_select_uniform_erase(map);
+	if (spi_analr_has_uniform_erase(analr)) {
+		erase = spi_analr_select_uniform_erase(map);
 		if (!erase)
 			return -EINVAL;
-		nor->erase_opcode = erase->opcode;
+		analr->erase_opcode = erase->opcode;
 		mtd->erasesize = erase->size;
 		return 0;
 	}
 
 	/*
-	 * For non-uniform SPI flash memory, set mtd->erasesize to the
-	 * maximum erase sector size. No need to set nor->erase_opcode.
+	 * For analn-uniform SPI flash memory, set mtd->erasesize to the
+	 * maximum erase sector size. Anal need to set analr->erase_opcode.
 	 */
-	for (i = SNOR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
+	for (i = SANALR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
 		if (map->erase_type[i].size) {
 			erase = &map->erase_type[i];
 			break;
@@ -2646,11 +2646,11 @@ static int spi_nor_select_erase(struct spi_nor *nor)
 	return 0;
 }
 
-static int spi_nor_default_setup(struct spi_nor *nor,
-				 const struct spi_nor_hwcaps *hwcaps)
+static int spi_analr_default_setup(struct spi_analr *analr,
+				 const struct spi_analr_hwcaps *hwcaps)
 {
-	struct spi_nor_flash_parameter *params = nor->params;
-	u32 ignored_mask, shared_mask;
+	struct spi_analr_flash_parameter *params = analr->params;
+	u32 iganalred_mask, shared_mask;
 	int err;
 
 	/*
@@ -2659,47 +2659,47 @@ static int spi_nor_default_setup(struct spi_nor *nor,
 	 */
 	shared_mask = hwcaps->mask & params->hwcaps.mask;
 
-	if (nor->spimem) {
+	if (analr->spimem) {
 		/*
-		 * When called from spi_nor_probe(), all caps are set and we
+		 * When called from spi_analr_probe(), all caps are set and we
 		 * need to discard some of them based on what the SPI
 		 * controller actually supports (using spi_mem_supports_op()).
 		 */
-		spi_nor_spimem_adjust_hwcaps(nor, &shared_mask);
+		spi_analr_spimem_adjust_hwcaps(analr, &shared_mask);
 	} else {
 		/*
-		 * SPI n-n-n protocols are not supported when the SPI
-		 * controller directly implements the spi_nor interface.
-		 * Yet another reason to switch to spi-mem.
+		 * SPI n-n-n protocols are analt supported when the SPI
+		 * controller directly implements the spi_analr interface.
+		 * Yet aanalther reason to switch to spi-mem.
 		 */
-		ignored_mask = SNOR_HWCAPS_X_X_X | SNOR_HWCAPS_X_X_X_DTR;
-		if (shared_mask & ignored_mask) {
-			dev_dbg(nor->dev,
-				"SPI n-n-n protocols are not supported.\n");
-			shared_mask &= ~ignored_mask;
+		iganalred_mask = SANALR_HWCAPS_X_X_X | SANALR_HWCAPS_X_X_X_DTR;
+		if (shared_mask & iganalred_mask) {
+			dev_dbg(analr->dev,
+				"SPI n-n-n protocols are analt supported.\n");
+			shared_mask &= ~iganalred_mask;
 		}
 	}
 
 	/* Select the (Fast) Read command. */
-	err = spi_nor_select_read(nor, shared_mask);
+	err = spi_analr_select_read(analr, shared_mask);
 	if (err) {
-		dev_dbg(nor->dev,
+		dev_dbg(analr->dev,
 			"can't select read settings supported by both the SPI controller and memory.\n");
 		return err;
 	}
 
 	/* Select the Page Program command. */
-	err = spi_nor_select_pp(nor, shared_mask);
+	err = spi_analr_select_pp(analr, shared_mask);
 	if (err) {
-		dev_dbg(nor->dev,
+		dev_dbg(analr->dev,
 			"can't select write settings supported by both the SPI controller and memory.\n");
 		return err;
 	}
 
 	/* Select the Sector Erase command. */
-	err = spi_nor_select_erase(nor);
+	err = spi_analr_select_erase(analr);
 	if (err) {
-		dev_dbg(nor->dev,
+		dev_dbg(analr->dev,
 			"can't select erase settings supported by both the SPI controller and memory.\n");
 		return err;
 	}
@@ -2707,14 +2707,14 @@ static int spi_nor_default_setup(struct spi_nor *nor,
 	return 0;
 }
 
-static int spi_nor_set_addr_nbytes(struct spi_nor *nor)
+static int spi_analr_set_addr_nbytes(struct spi_analr *analr)
 {
-	if (nor->params->addr_nbytes) {
-		nor->addr_nbytes = nor->params->addr_nbytes;
-	} else if (nor->read_proto == SNOR_PROTO_8_8_8_DTR) {
+	if (analr->params->addr_nbytes) {
+		analr->addr_nbytes = analr->params->addr_nbytes;
+	} else if (analr->read_proto == SANALR_PROTO_8_8_8_DTR) {
 		/*
 		 * In 8D-8D-8D mode, one byte takes half a cycle to transfer. So
-		 * in this protocol an odd addr_nbytes cannot be used because
+		 * in this protocol an odd addr_nbytes cananalt be used because
 		 * then the address phase would only span a cycle and a half.
 		 * Half a cycle would be left over. We would then have to start
 		 * the dummy phase in the middle of a cycle and so too the data
@@ -2724,115 +2724,115 @@ static int spi_nor_set_addr_nbytes(struct spi_nor *nor)
 		 * Force all 8D-8D-8D flashes to use an addr_nbytes of 4 to
 		 * avoid this situation.
 		 */
-		nor->addr_nbytes = 4;
-	} else if (nor->info->addr_nbytes) {
-		nor->addr_nbytes = nor->info->addr_nbytes;
+		analr->addr_nbytes = 4;
+	} else if (analr->info->addr_nbytes) {
+		analr->addr_nbytes = analr->info->addr_nbytes;
 	} else {
-		nor->addr_nbytes = 3;
+		analr->addr_nbytes = 3;
 	}
 
-	if (nor->addr_nbytes == 3 && nor->params->size > 0x1000000) {
+	if (analr->addr_nbytes == 3 && analr->params->size > 0x1000000) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
-		nor->addr_nbytes = 4;
+		analr->addr_nbytes = 4;
 	}
 
-	if (nor->addr_nbytes > SPI_NOR_MAX_ADDR_NBYTES) {
-		dev_dbg(nor->dev, "The number of address bytes is too large: %u\n",
-			nor->addr_nbytes);
+	if (analr->addr_nbytes > SPI_ANALR_MAX_ADDR_NBYTES) {
+		dev_dbg(analr->dev, "The number of address bytes is too large: %u\n",
+			analr->addr_nbytes);
 		return -EINVAL;
 	}
 
 	/* Set 4byte opcodes when possible. */
-	if (nor->addr_nbytes == 4 && nor->flags & SNOR_F_4B_OPCODES &&
-	    !(nor->flags & SNOR_F_HAS_4BAIT))
-		spi_nor_set_4byte_opcodes(nor);
+	if (analr->addr_nbytes == 4 && analr->flags & SANALR_F_4B_OPCODES &&
+	    !(analr->flags & SANALR_F_HAS_4BAIT))
+		spi_analr_set_4byte_opcodes(analr);
 
 	return 0;
 }
 
-static int spi_nor_setup(struct spi_nor *nor,
-			 const struct spi_nor_hwcaps *hwcaps)
+static int spi_analr_setup(struct spi_analr *analr,
+			 const struct spi_analr_hwcaps *hwcaps)
 {
 	int ret;
 
-	if (nor->params->setup)
-		ret = nor->params->setup(nor, hwcaps);
+	if (analr->params->setup)
+		ret = analr->params->setup(analr, hwcaps);
 	else
-		ret = spi_nor_default_setup(nor, hwcaps);
+		ret = spi_analr_default_setup(analr, hwcaps);
 	if (ret)
 		return ret;
 
-	return spi_nor_set_addr_nbytes(nor);
+	return spi_analr_set_addr_nbytes(analr);
 }
 
 /**
- * spi_nor_manufacturer_init_params() - Initialize the flash's parameters and
+ * spi_analr_manufacturer_init_params() - Initialize the flash's parameters and
  * settings based on MFR register and ->default_init() hook.
- * @nor:	pointer to a 'struct spi_nor'.
+ * @analr:	pointer to a 'struct spi_analr'.
  */
-static void spi_nor_manufacturer_init_params(struct spi_nor *nor)
+static void spi_analr_manufacturer_init_params(struct spi_analr *analr)
 {
-	if (nor->manufacturer && nor->manufacturer->fixups &&
-	    nor->manufacturer->fixups->default_init)
-		nor->manufacturer->fixups->default_init(nor);
+	if (analr->manufacturer && analr->manufacturer->fixups &&
+	    analr->manufacturer->fixups->default_init)
+		analr->manufacturer->fixups->default_init(analr);
 
-	if (nor->info->fixups && nor->info->fixups->default_init)
-		nor->info->fixups->default_init(nor);
+	if (analr->info->fixups && analr->info->fixups->default_init)
+		analr->info->fixups->default_init(analr);
 }
 
 /**
- * spi_nor_no_sfdp_init_params() - Initialize the flash's parameters and
- * settings based on nor->info->sfdp_flags. This method should be called only by
- * flashes that do not define SFDP tables. If the flash supports SFDP but the
- * information is wrong and the settings from this function can not be retrieved
+ * spi_analr_anal_sfdp_init_params() - Initialize the flash's parameters and
+ * settings based on analr->info->sfdp_flags. This method should be called only by
+ * flashes that do analt define SFDP tables. If the flash supports SFDP but the
+ * information is wrong and the settings from this function can analt be retrieved
  * by parsing SFDP, one should instead use the fixup hooks and update the wrong
  * bits.
- * @nor:	pointer to a 'struct spi_nor'.
+ * @analr:	pointer to a 'struct spi_analr'.
  */
-static void spi_nor_no_sfdp_init_params(struct spi_nor *nor)
+static void spi_analr_anal_sfdp_init_params(struct spi_analr *analr)
 {
-	struct spi_nor_flash_parameter *params = nor->params;
-	struct spi_nor_erase_map *map = &params->erase_map;
-	const struct flash_info *info = nor->info;
-	const u8 no_sfdp_flags = info->no_sfdp_flags;
+	struct spi_analr_flash_parameter *params = analr->params;
+	struct spi_analr_erase_map *map = &params->erase_map;
+	const struct flash_info *info = analr->info;
+	const u8 anal_sfdp_flags = info->anal_sfdp_flags;
 	u8 i, erase_mask;
 
-	if (no_sfdp_flags & SPI_NOR_DUAL_READ) {
-		params->hwcaps.mask |= SNOR_HWCAPS_READ_1_1_2;
-		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_1_2],
-					  0, 8, SPINOR_OP_READ_1_1_2,
-					  SNOR_PROTO_1_1_2);
+	if (anal_sfdp_flags & SPI_ANALR_DUAL_READ) {
+		params->hwcaps.mask |= SANALR_HWCAPS_READ_1_1_2;
+		spi_analr_set_read_settings(&params->reads[SANALR_CMD_READ_1_1_2],
+					  0, 8, SPIANALR_OP_READ_1_1_2,
+					  SANALR_PROTO_1_1_2);
 	}
 
-	if (no_sfdp_flags & SPI_NOR_QUAD_READ) {
-		params->hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
-		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_1_4],
-					  0, 8, SPINOR_OP_READ_1_1_4,
-					  SNOR_PROTO_1_1_4);
+	if (anal_sfdp_flags & SPI_ANALR_QUAD_READ) {
+		params->hwcaps.mask |= SANALR_HWCAPS_READ_1_1_4;
+		spi_analr_set_read_settings(&params->reads[SANALR_CMD_READ_1_1_4],
+					  0, 8, SPIANALR_OP_READ_1_1_4,
+					  SANALR_PROTO_1_1_4);
 	}
 
-	if (no_sfdp_flags & SPI_NOR_OCTAL_READ) {
-		params->hwcaps.mask |= SNOR_HWCAPS_READ_1_1_8;
-		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_1_8],
-					  0, 8, SPINOR_OP_READ_1_1_8,
-					  SNOR_PROTO_1_1_8);
+	if (anal_sfdp_flags & SPI_ANALR_OCTAL_READ) {
+		params->hwcaps.mask |= SANALR_HWCAPS_READ_1_1_8;
+		spi_analr_set_read_settings(&params->reads[SANALR_CMD_READ_1_1_8],
+					  0, 8, SPIANALR_OP_READ_1_1_8,
+					  SANALR_PROTO_1_1_8);
 	}
 
-	if (no_sfdp_flags & SPI_NOR_OCTAL_DTR_READ) {
-		params->hwcaps.mask |= SNOR_HWCAPS_READ_8_8_8_DTR;
-		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_8_8_8_DTR],
-					  0, 20, SPINOR_OP_READ_FAST,
-					  SNOR_PROTO_8_8_8_DTR);
+	if (anal_sfdp_flags & SPI_ANALR_OCTAL_DTR_READ) {
+		params->hwcaps.mask |= SANALR_HWCAPS_READ_8_8_8_DTR;
+		spi_analr_set_read_settings(&params->reads[SANALR_CMD_READ_8_8_8_DTR],
+					  0, 20, SPIANALR_OP_READ_FAST,
+					  SANALR_PROTO_8_8_8_DTR);
 	}
 
-	if (no_sfdp_flags & SPI_NOR_OCTAL_DTR_PP) {
-		params->hwcaps.mask |= SNOR_HWCAPS_PP_8_8_8_DTR;
+	if (anal_sfdp_flags & SPI_ANALR_OCTAL_DTR_PP) {
+		params->hwcaps.mask |= SANALR_HWCAPS_PP_8_8_8_DTR;
 		/*
 		 * Since xSPI Page Program opcode is backward compatible with
 		 * Legacy SPI, use Legacy SPI opcode there as well.
 		 */
-		spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP_8_8_8_DTR],
-					SPINOR_OP_PP, SNOR_PROTO_8_8_8_DTR);
+		spi_analr_set_pp_settings(&params->page_programs[SANALR_CMD_PP_8_8_8_DTR],
+					SPIANALR_OP_PP, SANALR_PROTO_8_8_8_DTR);
 	}
 
 	/*
@@ -2841,121 +2841,121 @@ static void spi_nor_no_sfdp_init_params(struct spi_nor *nor)
 	 */
 	erase_mask = 0;
 	i = 0;
-	if (no_sfdp_flags & SECT_4K) {
+	if (anal_sfdp_flags & SECT_4K) {
 		erase_mask |= BIT(i);
-		spi_nor_set_erase_type(&map->erase_type[i], 4096u,
-				       SPINOR_OP_BE_4K);
+		spi_analr_set_erase_type(&map->erase_type[i], 4096u,
+				       SPIANALR_OP_BE_4K);
 		i++;
 	}
 	erase_mask |= BIT(i);
-	spi_nor_set_erase_type(&map->erase_type[i],
-			       info->sector_size ?: SPI_NOR_DEFAULT_SECTOR_SIZE,
-			       SPINOR_OP_SE);
-	spi_nor_init_uniform_erase_map(map, erase_mask, params->size);
+	spi_analr_set_erase_type(&map->erase_type[i],
+			       info->sector_size ?: SPI_ANALR_DEFAULT_SECTOR_SIZE,
+			       SPIANALR_OP_SE);
+	spi_analr_init_uniform_erase_map(map, erase_mask, params->size);
 }
 
 /**
- * spi_nor_init_flags() - Initialize NOR flags for settings that are not defined
- * in the JESD216 SFDP standard, thus can not be retrieved when parsing SFDP.
- * @nor:	pointer to a 'struct spi_nor'
+ * spi_analr_init_flags() - Initialize ANALR flags for settings that are analt defined
+ * in the JESD216 SFDP standard, thus can analt be retrieved when parsing SFDP.
+ * @analr:	pointer to a 'struct spi_analr'
  */
-static void spi_nor_init_flags(struct spi_nor *nor)
+static void spi_analr_init_flags(struct spi_analr *analr)
 {
-	struct device_node *np = spi_nor_get_flash_node(nor);
-	const u16 flags = nor->info->flags;
+	struct device_analde *np = spi_analr_get_flash_analde(analr);
+	const u16 flags = analr->info->flags;
 
 	if (of_property_read_bool(np, "broken-flash-reset"))
-		nor->flags |= SNOR_F_BROKEN_RESET;
+		analr->flags |= SANALR_F_BROKEN_RESET;
 
-	if (of_property_read_bool(np, "no-wp"))
-		nor->flags |= SNOR_F_NO_WP;
+	if (of_property_read_bool(np, "anal-wp"))
+		analr->flags |= SANALR_F_ANAL_WP;
 
-	if (flags & SPI_NOR_SWP_IS_VOLATILE)
-		nor->flags |= SNOR_F_SWP_IS_VOLATILE;
+	if (flags & SPI_ANALR_SWP_IS_VOLATILE)
+		analr->flags |= SANALR_F_SWP_IS_VOLATILE;
 
-	if (flags & SPI_NOR_HAS_LOCK)
-		nor->flags |= SNOR_F_HAS_LOCK;
+	if (flags & SPI_ANALR_HAS_LOCK)
+		analr->flags |= SANALR_F_HAS_LOCK;
 
-	if (flags & SPI_NOR_HAS_TB) {
-		nor->flags |= SNOR_F_HAS_SR_TB;
-		if (flags & SPI_NOR_TB_SR_BIT6)
-			nor->flags |= SNOR_F_HAS_SR_TB_BIT6;
+	if (flags & SPI_ANALR_HAS_TB) {
+		analr->flags |= SANALR_F_HAS_SR_TB;
+		if (flags & SPI_ANALR_TB_SR_BIT6)
+			analr->flags |= SANALR_F_HAS_SR_TB_BIT6;
 	}
 
-	if (flags & SPI_NOR_4BIT_BP) {
-		nor->flags |= SNOR_F_HAS_4BIT_BP;
-		if (flags & SPI_NOR_BP3_SR_BIT6)
-			nor->flags |= SNOR_F_HAS_SR_BP3_BIT6;
+	if (flags & SPI_ANALR_4BIT_BP) {
+		analr->flags |= SANALR_F_HAS_4BIT_BP;
+		if (flags & SPI_ANALR_BP3_SR_BIT6)
+			analr->flags |= SANALR_F_HAS_SR_BP3_BIT6;
 	}
 
-	if (flags & SPI_NOR_RWW && nor->params->n_banks > 1 &&
-	    !nor->controller_ops)
-		nor->flags |= SNOR_F_RWW;
+	if (flags & SPI_ANALR_RWW && analr->params->n_banks > 1 &&
+	    !analr->controller_ops)
+		analr->flags |= SANALR_F_RWW;
 }
 
 /**
- * spi_nor_init_fixup_flags() - Initialize NOR flags for settings that can not
+ * spi_analr_init_fixup_flags() - Initialize ANALR flags for settings that can analt
  * be discovered by SFDP for this particular flash because the SFDP table that
- * indicates this support is not defined in the flash. In case the table for
+ * indicates this support is analt defined in the flash. In case the table for
  * this support is defined but has wrong values, one should instead use a
- * post_sfdp() hook to set the SNOR_F equivalent flag.
- * @nor:       pointer to a 'struct spi_nor'
+ * post_sfdp() hook to set the SANALR_F equivalent flag.
+ * @analr:       pointer to a 'struct spi_analr'
  */
-static void spi_nor_init_fixup_flags(struct spi_nor *nor)
+static void spi_analr_init_fixup_flags(struct spi_analr *analr)
 {
-	const u8 fixup_flags = nor->info->fixup_flags;
+	const u8 fixup_flags = analr->info->fixup_flags;
 
-	if (fixup_flags & SPI_NOR_4B_OPCODES)
-		nor->flags |= SNOR_F_4B_OPCODES;
+	if (fixup_flags & SPI_ANALR_4B_OPCODES)
+		analr->flags |= SANALR_F_4B_OPCODES;
 
-	if (fixup_flags & SPI_NOR_IO_MODE_EN_VOLATILE)
-		nor->flags |= SNOR_F_IO_MODE_EN_VOLATILE;
+	if (fixup_flags & SPI_ANALR_IO_MODE_EN_VOLATILE)
+		analr->flags |= SANALR_F_IO_MODE_EN_VOLATILE;
 }
 
 /**
- * spi_nor_late_init_params() - Late initialization of default flash parameters.
- * @nor:	pointer to a 'struct spi_nor'
+ * spi_analr_late_init_params() - Late initialization of default flash parameters.
+ * @analr:	pointer to a 'struct spi_analr'
  *
- * Used to initialize flash parameters that are not declared in the JESD216
- * SFDP standard, or where SFDP tables are not defined at all.
- * Will replace the spi_nor_manufacturer_init_params() method.
+ * Used to initialize flash parameters that are analt declared in the JESD216
+ * SFDP standard, or where SFDP tables are analt defined at all.
+ * Will replace the spi_analr_manufacturer_init_params() method.
  */
-static int spi_nor_late_init_params(struct spi_nor *nor)
+static int spi_analr_late_init_params(struct spi_analr *analr)
 {
-	struct spi_nor_flash_parameter *params = nor->params;
+	struct spi_analr_flash_parameter *params = analr->params;
 	int ret;
 
-	if (nor->manufacturer && nor->manufacturer->fixups &&
-	    nor->manufacturer->fixups->late_init) {
-		ret = nor->manufacturer->fixups->late_init(nor);
+	if (analr->manufacturer && analr->manufacturer->fixups &&
+	    analr->manufacturer->fixups->late_init) {
+		ret = analr->manufacturer->fixups->late_init(analr);
 		if (ret)
 			return ret;
 	}
 
 	/* Needed by some flashes late_init hooks. */
-	spi_nor_init_flags(nor);
+	spi_analr_init_flags(analr);
 
-	if (nor->info->fixups && nor->info->fixups->late_init) {
-		ret = nor->info->fixups->late_init(nor);
+	if (analr->info->fixups && analr->info->fixups->late_init) {
+		ret = analr->info->fixups->late_init(analr);
 		if (ret)
 			return ret;
 	}
 
-	if (!nor->params->die_erase_opcode)
-		nor->params->die_erase_opcode = SPINOR_OP_CHIP_ERASE;
+	if (!analr->params->die_erase_opcode)
+		analr->params->die_erase_opcode = SPIANALR_OP_CHIP_ERASE;
 
 	/* Default method kept for backward compatibility. */
 	if (!params->set_4byte_addr_mode)
-		params->set_4byte_addr_mode = spi_nor_set_4byte_addr_mode_brwr;
+		params->set_4byte_addr_mode = spi_analr_set_4byte_addr_mode_brwr;
 
-	spi_nor_init_fixup_flags(nor);
+	spi_analr_init_fixup_flags(analr);
 
 	/*
-	 * NOR protection support. When locking_ops are not provided, we pick
+	 * ANALR protection support. When locking_ops are analt provided, we pick
 	 * the default ones.
 	 */
-	if (nor->flags & SNOR_F_HAS_LOCK && !nor->params->locking_ops)
-		spi_nor_init_default_locking_ops(nor);
+	if (analr->flags & SANALR_F_HAS_LOCK && !analr->params->locking_ops)
+		spi_analr_init_default_locking_ops(analr);
 
 	if (params->n_banks > 1)
 		params->bank_size = div64_u64(params->size, params->n_banks);
@@ -2964,225 +2964,225 @@ static int spi_nor_late_init_params(struct spi_nor *nor)
 }
 
 /**
- * spi_nor_sfdp_init_params_deprecated() - Deprecated way of initializing flash
+ * spi_analr_sfdp_init_params_deprecated() - Deprecated way of initializing flash
  * parameters and settings based on JESD216 SFDP standard.
- * @nor:	pointer to a 'struct spi_nor'.
+ * @analr:	pointer to a 'struct spi_analr'.
  *
  * The method has a roll-back mechanism: in case the SFDP parsing fails, the
  * legacy flash parameters and settings will be restored.
  */
-static void spi_nor_sfdp_init_params_deprecated(struct spi_nor *nor)
+static void spi_analr_sfdp_init_params_deprecated(struct spi_analr *analr)
 {
-	struct spi_nor_flash_parameter sfdp_params;
+	struct spi_analr_flash_parameter sfdp_params;
 
-	memcpy(&sfdp_params, nor->params, sizeof(sfdp_params));
+	memcpy(&sfdp_params, analr->params, sizeof(sfdp_params));
 
-	if (spi_nor_parse_sfdp(nor)) {
-		memcpy(nor->params, &sfdp_params, sizeof(*nor->params));
-		nor->flags &= ~SNOR_F_4B_OPCODES;
+	if (spi_analr_parse_sfdp(analr)) {
+		memcpy(analr->params, &sfdp_params, sizeof(*analr->params));
+		analr->flags &= ~SANALR_F_4B_OPCODES;
 	}
 }
 
 /**
- * spi_nor_init_params_deprecated() - Deprecated way of initializing flash
+ * spi_analr_init_params_deprecated() - Deprecated way of initializing flash
  * parameters and settings.
- * @nor:	pointer to a 'struct spi_nor'.
+ * @analr:	pointer to a 'struct spi_analr'.
  *
  * The method assumes that flash doesn't support SFDP so it initializes flash
- * parameters in spi_nor_no_sfdp_init_params() which later on can be overwritten
+ * parameters in spi_analr_anal_sfdp_init_params() which later on can be overwritten
  * when parsing SFDP, if supported.
  */
-static void spi_nor_init_params_deprecated(struct spi_nor *nor)
+static void spi_analr_init_params_deprecated(struct spi_analr *analr)
 {
-	spi_nor_no_sfdp_init_params(nor);
+	spi_analr_anal_sfdp_init_params(analr);
 
-	spi_nor_manufacturer_init_params(nor);
+	spi_analr_manufacturer_init_params(analr);
 
-	if (nor->info->no_sfdp_flags & (SPI_NOR_DUAL_READ |
-					SPI_NOR_QUAD_READ |
-					SPI_NOR_OCTAL_READ |
-					SPI_NOR_OCTAL_DTR_READ))
-		spi_nor_sfdp_init_params_deprecated(nor);
+	if (analr->info->anal_sfdp_flags & (SPI_ANALR_DUAL_READ |
+					SPI_ANALR_QUAD_READ |
+					SPI_ANALR_OCTAL_READ |
+					SPI_ANALR_OCTAL_DTR_READ))
+		spi_analr_sfdp_init_params_deprecated(analr);
 }
 
 /**
- * spi_nor_init_default_params() - Default initialization of flash parameters
+ * spi_analr_init_default_params() - Default initialization of flash parameters
  * and settings. Done for all flashes, regardless is they define SFDP tables
- * or not.
- * @nor:	pointer to a 'struct spi_nor'.
+ * or analt.
+ * @analr:	pointer to a 'struct spi_analr'.
  */
-static void spi_nor_init_default_params(struct spi_nor *nor)
+static void spi_analr_init_default_params(struct spi_analr *analr)
 {
-	struct spi_nor_flash_parameter *params = nor->params;
-	const struct flash_info *info = nor->info;
-	struct device_node *np = spi_nor_get_flash_node(nor);
+	struct spi_analr_flash_parameter *params = analr->params;
+	const struct flash_info *info = analr->info;
+	struct device_analde *np = spi_analr_get_flash_analde(analr);
 
-	params->quad_enable = spi_nor_sr2_bit1_quad_enable;
+	params->quad_enable = spi_analr_sr2_bit1_quad_enable;
 	params->otp.org = info->otp;
 
 	/* Default to 16-bit Write Status (01h) Command */
-	nor->flags |= SNOR_F_HAS_16BIT_SR;
+	analr->flags |= SANALR_F_HAS_16BIT_SR;
 
-	/* Set SPI NOR sizes. */
+	/* Set SPI ANALR sizes. */
 	params->writesize = 1;
 	params->size = info->size;
 	params->bank_size = params->size;
-	params->page_size = info->page_size ?: SPI_NOR_DEFAULT_PAGE_SIZE;
-	params->n_banks = info->n_banks ?: SPI_NOR_DEFAULT_N_BANKS;
+	params->page_size = info->page_size ?: SPI_ANALR_DEFAULT_PAGE_SIZE;
+	params->n_banks = info->n_banks ?: SPI_ANALR_DEFAULT_N_BANKS;
 
-	if (!(info->flags & SPI_NOR_NO_FR)) {
-		/* Default to Fast Read for DT and non-DT platform devices. */
-		params->hwcaps.mask |= SNOR_HWCAPS_READ_FAST;
+	if (!(info->flags & SPI_ANALR_ANAL_FR)) {
+		/* Default to Fast Read for DT and analn-DT platform devices. */
+		params->hwcaps.mask |= SANALR_HWCAPS_READ_FAST;
 
-		/* Mask out Fast Read if not requested at DT instantiation. */
+		/* Mask out Fast Read if analt requested at DT instantiation. */
 		if (np && !of_property_read_bool(np, "m25p,fast-read"))
-			params->hwcaps.mask &= ~SNOR_HWCAPS_READ_FAST;
+			params->hwcaps.mask &= ~SANALR_HWCAPS_READ_FAST;
 	}
 
 	/* (Fast) Read settings. */
-	params->hwcaps.mask |= SNOR_HWCAPS_READ;
-	spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ],
-				  0, 0, SPINOR_OP_READ,
-				  SNOR_PROTO_1_1_1);
+	params->hwcaps.mask |= SANALR_HWCAPS_READ;
+	spi_analr_set_read_settings(&params->reads[SANALR_CMD_READ],
+				  0, 0, SPIANALR_OP_READ,
+				  SANALR_PROTO_1_1_1);
 
-	if (params->hwcaps.mask & SNOR_HWCAPS_READ_FAST)
-		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_FAST],
-					  0, 8, SPINOR_OP_READ_FAST,
-					  SNOR_PROTO_1_1_1);
+	if (params->hwcaps.mask & SANALR_HWCAPS_READ_FAST)
+		spi_analr_set_read_settings(&params->reads[SANALR_CMD_READ_FAST],
+					  0, 8, SPIANALR_OP_READ_FAST,
+					  SANALR_PROTO_1_1_1);
 	/* Page Program settings. */
-	params->hwcaps.mask |= SNOR_HWCAPS_PP;
-	spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP],
-				SPINOR_OP_PP, SNOR_PROTO_1_1_1);
+	params->hwcaps.mask |= SANALR_HWCAPS_PP;
+	spi_analr_set_pp_settings(&params->page_programs[SANALR_CMD_PP],
+				SPIANALR_OP_PP, SANALR_PROTO_1_1_1);
 
-	if (info->flags & SPI_NOR_QUAD_PP) {
-		params->hwcaps.mask |= SNOR_HWCAPS_PP_1_1_4;
-		spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP_1_1_4],
-					SPINOR_OP_PP_1_1_4, SNOR_PROTO_1_1_4);
+	if (info->flags & SPI_ANALR_QUAD_PP) {
+		params->hwcaps.mask |= SANALR_HWCAPS_PP_1_1_4;
+		spi_analr_set_pp_settings(&params->page_programs[SANALR_CMD_PP_1_1_4],
+					SPIANALR_OP_PP_1_1_4, SANALR_PROTO_1_1_4);
 	}
 }
 
 /**
- * spi_nor_init_params() - Initialize the flash's parameters and settings.
- * @nor:	pointer to a 'struct spi_nor'.
+ * spi_analr_init_params() - Initialize the flash's parameters and settings.
+ * @analr:	pointer to a 'struct spi_analr'.
  *
  * The flash parameters and settings are initialized based on a sequence of
  * calls that are ordered by priority:
  *
  * 1/ Default flash parameters initialization. The initializations are done
- *    based on nor->info data:
- *		spi_nor_info_init_params()
+ *    based on analr->info data:
+ *		spi_analr_info_init_params()
  *
  * which can be overwritten by:
  * 2/ Manufacturer flash parameters initialization. The initializations are
- *    done based on MFR register, or when the decisions can not be done solely
+ *    done based on MFR register, or when the decisions can analt be done solely
  *    based on MFR, by using specific flash_info tweeks, ->default_init():
- *		spi_nor_manufacturer_init_params()
+ *		spi_analr_manufacturer_init_params()
  *
  * which can be overwritten by:
  * 3/ SFDP flash parameters initialization. JESD216 SFDP is a standard and
  *    should be more accurate that the above.
- *		spi_nor_parse_sfdp() or spi_nor_no_sfdp_init_params()
+ *		spi_analr_parse_sfdp() or spi_analr_anal_sfdp_init_params()
  *
- *    Please note that there is a ->post_bfpt() fixup hook that can overwrite
+ *    Please analte that there is a ->post_bfpt() fixup hook that can overwrite
  *    the flash parameters and settings immediately after parsing the Basic
  *    Flash Parameter Table.
- *    spi_nor_post_sfdp_fixups() is called after the SFDP tables are parsed.
+ *    spi_analr_post_sfdp_fixups() is called after the SFDP tables are parsed.
  *    It is used to tweak various flash parameters when information provided
  *    by the SFDP tables are wrong.
  *
  * which can be overwritten by:
  * 4/ Late flash parameters initialization, used to initialize flash
- * parameters that are not declared in the JESD216 SFDP standard, or where SFDP
- * tables are not defined at all.
- *		spi_nor_late_init_params()
+ * parameters that are analt declared in the JESD216 SFDP standard, or where SFDP
+ * tables are analt defined at all.
+ *		spi_analr_late_init_params()
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_init_params(struct spi_nor *nor)
+static int spi_analr_init_params(struct spi_analr *analr)
 {
 	int ret;
 
-	nor->params = devm_kzalloc(nor->dev, sizeof(*nor->params), GFP_KERNEL);
-	if (!nor->params)
-		return -ENOMEM;
+	analr->params = devm_kzalloc(analr->dev, sizeof(*analr->params), GFP_KERNEL);
+	if (!analr->params)
+		return -EANALMEM;
 
-	spi_nor_init_default_params(nor);
+	spi_analr_init_default_params(analr);
 
-	if (spi_nor_needs_sfdp(nor)) {
-		ret = spi_nor_parse_sfdp(nor);
+	if (spi_analr_needs_sfdp(analr)) {
+		ret = spi_analr_parse_sfdp(analr);
 		if (ret) {
-			dev_err(nor->dev, "BFPT parsing failed. Please consider using SPI_NOR_SKIP_SFDP when declaring the flash\n");
+			dev_err(analr->dev, "BFPT parsing failed. Please consider using SPI_ANALR_SKIP_SFDP when declaring the flash\n");
 			return ret;
 		}
-	} else if (nor->info->no_sfdp_flags & SPI_NOR_SKIP_SFDP) {
-		spi_nor_no_sfdp_init_params(nor);
+	} else if (analr->info->anal_sfdp_flags & SPI_ANALR_SKIP_SFDP) {
+		spi_analr_anal_sfdp_init_params(analr);
 	} else {
-		spi_nor_init_params_deprecated(nor);
+		spi_analr_init_params_deprecated(analr);
 	}
 
-	return spi_nor_late_init_params(nor);
+	return spi_analr_late_init_params(analr);
 }
 
-/** spi_nor_set_octal_dtr() - enable or disable Octal DTR I/O.
- * @nor:                 pointer to a 'struct spi_nor'
+/** spi_analr_set_octal_dtr() - enable or disable Octal DTR I/O.
+ * @analr:                 pointer to a 'struct spi_analr'
  * @enable:              whether to enable or disable Octal DTR
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_set_octal_dtr(struct spi_nor *nor, bool enable)
+static int spi_analr_set_octal_dtr(struct spi_analr *analr, bool enable)
 {
 	int ret;
 
-	if (!nor->params->set_octal_dtr)
+	if (!analr->params->set_octal_dtr)
 		return 0;
 
-	if (!(nor->read_proto == SNOR_PROTO_8_8_8_DTR &&
-	      nor->write_proto == SNOR_PROTO_8_8_8_DTR))
+	if (!(analr->read_proto == SANALR_PROTO_8_8_8_DTR &&
+	      analr->write_proto == SANALR_PROTO_8_8_8_DTR))
 		return 0;
 
-	if (!(nor->flags & SNOR_F_IO_MODE_EN_VOLATILE))
+	if (!(analr->flags & SANALR_F_IO_MODE_EN_VOLATILE))
 		return 0;
 
-	ret = nor->params->set_octal_dtr(nor, enable);
+	ret = analr->params->set_octal_dtr(analr, enable);
 	if (ret)
 		return ret;
 
 	if (enable)
-		nor->reg_proto = SNOR_PROTO_8_8_8_DTR;
+		analr->reg_proto = SANALR_PROTO_8_8_8_DTR;
 	else
-		nor->reg_proto = SNOR_PROTO_1_1_1;
+		analr->reg_proto = SANALR_PROTO_1_1_1;
 
 	return 0;
 }
 
 /**
- * spi_nor_quad_enable() - enable Quad I/O if needed.
- * @nor:                pointer to a 'struct spi_nor'
+ * spi_analr_quad_enable() - enable Quad I/O if needed.
+ * @analr:                pointer to a 'struct spi_analr'
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static int spi_nor_quad_enable(struct spi_nor *nor)
+static int spi_analr_quad_enable(struct spi_analr *analr)
 {
-	if (!nor->params->quad_enable)
+	if (!analr->params->quad_enable)
 		return 0;
 
-	if (!(spi_nor_get_protocol_width(nor->read_proto) == 4 ||
-	      spi_nor_get_protocol_width(nor->write_proto) == 4))
+	if (!(spi_analr_get_protocol_width(analr->read_proto) == 4 ||
+	      spi_analr_get_protocol_width(analr->write_proto) == 4))
 		return 0;
 
-	return nor->params->quad_enable(nor);
+	return analr->params->quad_enable(analr);
 }
 
 /**
- * spi_nor_set_4byte_addr_mode() - Set address mode.
- * @nor:                pointer to a 'struct spi_nor'.
+ * spi_analr_set_4byte_addr_mode() - Set address mode.
+ * @analr:                pointer to a 'struct spi_analr'.
  * @enable:             enable/disable 4 byte address mode.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
+int spi_analr_set_4byte_addr_mode(struct spi_analr *analr, bool enable)
 {
-	struct spi_nor_flash_parameter *params = nor->params;
+	struct spi_analr_flash_parameter *params = analr->params;
 	int ret;
 
 	if (enable) {
@@ -3193,12 +3193,12 @@ int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 		 * reboots (e.g., crashes). Warn the user (or hopefully, system
 		 * designer) that this is bad.
 		 */
-		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
-			  "enabling reset hack; may not recover from unexpected reboots\n");
+		WARN_ONCE(analr->flags & SANALR_F_BROKEN_RESET,
+			  "enabling reset hack; may analt recover from unexpected reboots\n");
 	}
 
-	ret = params->set_4byte_addr_mode(nor, enable);
-	if (ret && ret != -EOPNOTSUPP)
+	ret = params->set_4byte_addr_mode(analr, enable);
+	if (ret && ret != -EOPANALTSUPP)
 		return ret;
 
 	if (enable) {
@@ -3212,174 +3212,174 @@ int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 	return 0;
 }
 
-static int spi_nor_init(struct spi_nor *nor)
+static int spi_analr_init(struct spi_analr *analr)
 {
 	int err;
 
-	err = spi_nor_set_octal_dtr(nor, true);
+	err = spi_analr_set_octal_dtr(analr, true);
 	if (err) {
-		dev_dbg(nor->dev, "octal mode not supported\n");
+		dev_dbg(analr->dev, "octal mode analt supported\n");
 		return err;
 	}
 
-	err = spi_nor_quad_enable(nor);
+	err = spi_analr_quad_enable(analr);
 	if (err) {
-		dev_dbg(nor->dev, "quad mode not supported\n");
+		dev_dbg(analr->dev, "quad mode analt supported\n");
 		return err;
 	}
 
 	/*
-	 * Some SPI NOR flashes are write protected by default after a power-on
+	 * Some SPI ANALR flashes are write protected by default after a power-on
 	 * reset cycle, in order to avoid inadvertent writes during power-up.
 	 * Backward compatibility imposes to unlock the entire flash memory
 	 * array at power-up by default. Depending on the kernel configuration
-	 * (1) do nothing, (2) always unlock the entire flash array or (3)
+	 * (1) do analthing, (2) always unlock the entire flash array or (3)
 	 * unlock the entire flash array only when the software write
 	 * protection bits are volatile. The latter is indicated by
-	 * SNOR_F_SWP_IS_VOLATILE.
+	 * SANALR_F_SWP_IS_VOLATILE.
 	 */
-	if (IS_ENABLED(CONFIG_MTD_SPI_NOR_SWP_DISABLE) ||
-	    (IS_ENABLED(CONFIG_MTD_SPI_NOR_SWP_DISABLE_ON_VOLATILE) &&
-	     nor->flags & SNOR_F_SWP_IS_VOLATILE))
-		spi_nor_try_unlock_all(nor);
+	if (IS_ENABLED(CONFIG_MTD_SPI_ANALR_SWP_DISABLE) ||
+	    (IS_ENABLED(CONFIG_MTD_SPI_ANALR_SWP_DISABLE_ON_VOLATILE) &&
+	     analr->flags & SANALR_F_SWP_IS_VOLATILE))
+		spi_analr_try_unlock_all(analr);
 
-	if (nor->addr_nbytes == 4 &&
-	    nor->read_proto != SNOR_PROTO_8_8_8_DTR &&
-	    !(nor->flags & SNOR_F_4B_OPCODES))
-		return spi_nor_set_4byte_addr_mode(nor, true);
+	if (analr->addr_nbytes == 4 &&
+	    analr->read_proto != SANALR_PROTO_8_8_8_DTR &&
+	    !(analr->flags & SANALR_F_4B_OPCODES))
+		return spi_analr_set_4byte_addr_mode(analr, true);
 
 	return 0;
 }
 
 /**
- * spi_nor_soft_reset() - Perform a software reset
- * @nor:	pointer to 'struct spi_nor'
+ * spi_analr_soft_reset() - Perform a software reset
+ * @analr:	pointer to 'struct spi_analr'
  *
  * Performs a "Soft Reset and Enter Default Protocol Mode" sequence which resets
  * the device to its power-on-reset state. This is useful when the software has
  * made some changes to device (volatile) registers and needs to reset it before
  * shutting down, for example.
  *
- * Not every flash supports this sequence. The same set of opcodes might be used
- * for some other operation on a flash that does not support this. Support for
+ * Analt every flash supports this sequence. The same set of opcodes might be used
+ * for some other operation on a flash that does analt support this. Support for
  * this sequence can be discovered via SFDP in the BFPT table.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 0 on success, -erranal otherwise.
  */
-static void spi_nor_soft_reset(struct spi_nor *nor)
+static void spi_analr_soft_reset(struct spi_analr *analr)
 {
 	struct spi_mem_op op;
 	int ret;
 
-	op = (struct spi_mem_op)SPINOR_SRSTEN_OP;
+	op = (struct spi_mem_op)SPIANALR_SRSTEN_OP;
 
-	spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+	spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-	ret = spi_mem_exec_op(nor->spimem, &op);
+	ret = spi_mem_exec_op(analr->spimem, &op);
 	if (ret) {
-		if (ret != -EOPNOTSUPP)
-			dev_warn(nor->dev, "Software reset failed: %d\n", ret);
+		if (ret != -EOPANALTSUPP)
+			dev_warn(analr->dev, "Software reset failed: %d\n", ret);
 		return;
 	}
 
-	op = (struct spi_mem_op)SPINOR_SRST_OP;
+	op = (struct spi_mem_op)SPIANALR_SRST_OP;
 
-	spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+	spi_analr_spimem_setup_op(analr, &op, analr->reg_proto);
 
-	ret = spi_mem_exec_op(nor->spimem, &op);
+	ret = spi_mem_exec_op(analr->spimem, &op);
 	if (ret) {
-		dev_warn(nor->dev, "Software reset failed: %d\n", ret);
+		dev_warn(analr->dev, "Software reset failed: %d\n", ret);
 		return;
 	}
 
 	/*
-	 * Software Reset is not instant, and the delay varies from flash to
+	 * Software Reset is analt instant, and the delay varies from flash to
 	 * flash. Looking at a few flashes, most range somewhere below 100
 	 * microseconds. So, sleep for a range of 200-400 us.
 	 */
-	usleep_range(SPI_NOR_SRST_SLEEP_MIN, SPI_NOR_SRST_SLEEP_MAX);
+	usleep_range(SPI_ANALR_SRST_SLEEP_MIN, SPI_ANALR_SRST_SLEEP_MAX);
 }
 
 /* mtd suspend handler */
-static int spi_nor_suspend(struct mtd_info *mtd)
+static int spi_analr_suspend(struct mtd_info *mtd)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	struct spi_analr *analr = mtd_to_spi_analr(mtd);
 	int ret;
 
 	/* Disable octal DTR mode if we enabled it. */
-	ret = spi_nor_set_octal_dtr(nor, false);
+	ret = spi_analr_set_octal_dtr(analr, false);
 	if (ret)
-		dev_err(nor->dev, "suspend() failed\n");
+		dev_err(analr->dev, "suspend() failed\n");
 
 	return ret;
 }
 
 /* mtd resume handler */
-static void spi_nor_resume(struct mtd_info *mtd)
+static void spi_analr_resume(struct mtd_info *mtd)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
-	struct device *dev = nor->dev;
+	struct spi_analr *analr = mtd_to_spi_analr(mtd);
+	struct device *dev = analr->dev;
 	int ret;
 
-	/* re-initialize the nor chip */
-	ret = spi_nor_init(nor);
+	/* re-initialize the analr chip */
+	ret = spi_analr_init(analr);
 	if (ret)
 		dev_err(dev, "resume() failed\n");
 }
 
-static int spi_nor_get_device(struct mtd_info *mtd)
+static int spi_analr_get_device(struct mtd_info *mtd)
 {
 	struct mtd_info *master = mtd_get_master(mtd);
-	struct spi_nor *nor = mtd_to_spi_nor(master);
+	struct spi_analr *analr = mtd_to_spi_analr(master);
 	struct device *dev;
 
-	if (nor->spimem)
-		dev = nor->spimem->spi->controller->dev.parent;
+	if (analr->spimem)
+		dev = analr->spimem->spi->controller->dev.parent;
 	else
-		dev = nor->dev;
+		dev = analr->dev;
 
 	if (!try_module_get(dev->driver->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
 
-static void spi_nor_put_device(struct mtd_info *mtd)
+static void spi_analr_put_device(struct mtd_info *mtd)
 {
 	struct mtd_info *master = mtd_get_master(mtd);
-	struct spi_nor *nor = mtd_to_spi_nor(master);
+	struct spi_analr *analr = mtd_to_spi_analr(master);
 	struct device *dev;
 
-	if (nor->spimem)
-		dev = nor->spimem->spi->controller->dev.parent;
+	if (analr->spimem)
+		dev = analr->spimem->spi->controller->dev.parent;
 	else
-		dev = nor->dev;
+		dev = analr->dev;
 
 	module_put(dev->driver->owner);
 }
 
-static void spi_nor_restore(struct spi_nor *nor)
+static void spi_analr_restore(struct spi_analr *analr)
 {
 	int ret;
 
 	/* restore the addressing mode */
-	if (nor->addr_nbytes == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
-	    nor->flags & SNOR_F_BROKEN_RESET) {
-		ret = spi_nor_set_4byte_addr_mode(nor, false);
+	if (analr->addr_nbytes == 4 && !(analr->flags & SANALR_F_4B_OPCODES) &&
+	    analr->flags & SANALR_F_BROKEN_RESET) {
+		ret = spi_analr_set_4byte_addr_mode(analr, false);
 		if (ret)
 			/*
-			 * Do not stop the execution in the hope that the flash
+			 * Do analt stop the execution in the hope that the flash
 			 * will default to the 3-byte address mode after the
 			 * software reset.
 			 */
-			dev_err(nor->dev, "Failed to exit 4-byte address mode, err = %d\n", ret);
+			dev_err(analr->dev, "Failed to exit 4-byte address mode, err = %d\n", ret);
 	}
 
-	if (nor->flags & SNOR_F_SOFT_RESET)
-		spi_nor_soft_reset(nor);
+	if (analr->flags & SANALR_F_SOFT_RESET)
+		spi_analr_soft_reset(analr);
 }
 
-static const struct flash_info *spi_nor_match_name(struct spi_nor *nor,
+static const struct flash_info *spi_analr_match_name(struct spi_analr *analr,
 						   const char *name)
 {
 	unsigned int i, j;
@@ -3387,7 +3387,7 @@ static const struct flash_info *spi_nor_match_name(struct spi_nor *nor,
 	for (i = 0; i < ARRAY_SIZE(manufacturers); i++) {
 		for (j = 0; j < manufacturers[i]->nparts; j++) {
 			if (!strcmp(name, manufacturers[i]->parts[j].name)) {
-				nor->manufacturer = manufacturers[i];
+				analr->manufacturer = manufacturers[i];
 				return &manufacturers[i]->parts[j];
 			}
 		}
@@ -3396,36 +3396,36 @@ static const struct flash_info *spi_nor_match_name(struct spi_nor *nor,
 	return NULL;
 }
 
-static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
+static const struct flash_info *spi_analr_get_flash_info(struct spi_analr *analr,
 						       const char *name)
 {
 	const struct flash_info *info = NULL;
 
 	if (name)
-		info = spi_nor_match_name(nor, name);
-	/* Try to auto-detect if chip name wasn't specified or not found */
+		info = spi_analr_match_name(analr, name);
+	/* Try to auto-detect if chip name wasn't specified or analt found */
 	if (!info)
-		return spi_nor_detect(nor);
+		return spi_analr_detect(analr);
 
 	/*
-	 * If caller has specified name of flash model that can normally be
+	 * If caller has specified name of flash model that can analrmally be
 	 * detected using JEDEC, let's verify it.
 	 */
 	if (name && info->id) {
 		const struct flash_info *jinfo;
 
-		jinfo = spi_nor_detect(nor);
+		jinfo = spi_analr_detect(analr);
 		if (IS_ERR(jinfo)) {
 			return jinfo;
 		} else if (jinfo != info) {
 			/*
-			 * JEDEC knows better, so overwrite platform ID. We
+			 * JEDEC kanalws better, so overwrite platform ID. We
 			 * can't trust partitions any longer, but we'll let
 			 * mtd apply them anyway, since some partitions may be
 			 * marked read-only, and we don't want to loose that
-			 * information, even if it's not 100% accurate.
+			 * information, even if it's analt 100% accurate.
 			 */
-			dev_warn(nor->dev, "found %s, expected %s\n",
+			dev_warn(analr->dev, "found %s, expected %s\n",
 				 jinfo->name, info->name);
 			info = jinfo;
 		}
@@ -3434,44 +3434,44 @@ static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
 	return info;
 }
 
-static void spi_nor_set_mtd_info(struct spi_nor *nor)
+static void spi_analr_set_mtd_info(struct spi_analr *analr)
 {
-	struct mtd_info *mtd = &nor->mtd;
-	struct device *dev = nor->dev;
+	struct mtd_info *mtd = &analr->mtd;
+	struct device *dev = analr->dev;
 
-	spi_nor_set_mtd_locking_ops(nor);
-	spi_nor_set_mtd_otp_ops(nor);
+	spi_analr_set_mtd_locking_ops(analr);
+	spi_analr_set_mtd_otp_ops(analr);
 
 	mtd->dev.parent = dev;
 	if (!mtd->name)
 		mtd->name = dev_name(dev);
-	mtd->type = MTD_NORFLASH;
-	mtd->flags = MTD_CAP_NORFLASH;
-	/* Unset BIT_WRITEABLE to enable JFFS2 write buffer for ECC'd NOR */
-	if (nor->flags & SNOR_F_ECC)
+	mtd->type = MTD_ANALRFLASH;
+	mtd->flags = MTD_CAP_ANALRFLASH;
+	/* Unset BIT_WRITEABLE to enable JFFS2 write buffer for ECC'd ANALR */
+	if (analr->flags & SANALR_F_ECC)
 		mtd->flags &= ~MTD_BIT_WRITEABLE;
-	if (nor->info->flags & SPI_NOR_NO_ERASE)
-		mtd->flags |= MTD_NO_ERASE;
+	if (analr->info->flags & SPI_ANALR_ANAL_ERASE)
+		mtd->flags |= MTD_ANAL_ERASE;
 	else
-		mtd->_erase = spi_nor_erase;
-	mtd->writesize = nor->params->writesize;
-	mtd->writebufsize = nor->params->page_size;
-	mtd->size = nor->params->size;
-	mtd->_read = spi_nor_read;
+		mtd->_erase = spi_analr_erase;
+	mtd->writesize = analr->params->writesize;
+	mtd->writebufsize = analr->params->page_size;
+	mtd->size = analr->params->size;
+	mtd->_read = spi_analr_read;
 	/* Might be already set by some SST flashes. */
 	if (!mtd->_write)
-		mtd->_write = spi_nor_write;
-	mtd->_suspend = spi_nor_suspend;
-	mtd->_resume = spi_nor_resume;
-	mtd->_get_device = spi_nor_get_device;
-	mtd->_put_device = spi_nor_put_device;
+		mtd->_write = spi_analr_write;
+	mtd->_suspend = spi_analr_suspend;
+	mtd->_resume = spi_analr_resume;
+	mtd->_get_device = spi_analr_get_device;
+	mtd->_put_device = spi_analr_put_device;
 }
 
-static int spi_nor_hw_reset(struct spi_nor *nor)
+static int spi_analr_hw_reset(struct spi_analr *analr)
 {
 	struct gpio_desc *reset;
 
-	reset = devm_gpiod_get_optional(nor->dev, "reset", GPIOD_OUT_LOW);
+	reset = devm_gpiod_get_optional(analr->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR_OR_NULL(reset))
 		return PTR_ERR_OR_ZERO(reset);
 
@@ -3488,55 +3488,55 @@ static int spi_nor_hw_reset(struct spi_nor *nor)
 	return 0;
 }
 
-int spi_nor_scan(struct spi_nor *nor, const char *name,
-		 const struct spi_nor_hwcaps *hwcaps)
+int spi_analr_scan(struct spi_analr *analr, const char *name,
+		 const struct spi_analr_hwcaps *hwcaps)
 {
 	const struct flash_info *info;
-	struct device *dev = nor->dev;
+	struct device *dev = analr->dev;
 	int ret;
 
-	ret = spi_nor_check(nor);
+	ret = spi_analr_check(analr);
 	if (ret)
 		return ret;
 
 	/* Reset SPI protocol for all commands. */
-	nor->reg_proto = SNOR_PROTO_1_1_1;
-	nor->read_proto = SNOR_PROTO_1_1_1;
-	nor->write_proto = SNOR_PROTO_1_1_1;
+	analr->reg_proto = SANALR_PROTO_1_1_1;
+	analr->read_proto = SANALR_PROTO_1_1_1;
+	analr->write_proto = SANALR_PROTO_1_1_1;
 
 	/*
 	 * We need the bounce buffer early to read/write registers when going
 	 * through the spi-mem layer (buffers have to be DMA-able).
 	 * For spi-mem drivers, we'll reallocate a new buffer if
-	 * nor->params->page_size turns out to be greater than PAGE_SIZE (which
-	 * shouldn't happen before long since NOR pages are usually less
-	 * than 1KB) after spi_nor_scan() returns.
+	 * analr->params->page_size turns out to be greater than PAGE_SIZE (which
+	 * shouldn't happen before long since ANALR pages are usually less
+	 * than 1KB) after spi_analr_scan() returns.
 	 */
-	nor->bouncebuf_size = PAGE_SIZE;
-	nor->bouncebuf = devm_kmalloc(dev, nor->bouncebuf_size,
+	analr->bouncebuf_size = PAGE_SIZE;
+	analr->bouncebuf = devm_kmalloc(dev, analr->bouncebuf_size,
 				      GFP_KERNEL);
-	if (!nor->bouncebuf)
-		return -ENOMEM;
+	if (!analr->bouncebuf)
+		return -EANALMEM;
 
-	ret = spi_nor_hw_reset(nor);
+	ret = spi_analr_hw_reset(analr);
 	if (ret)
 		return ret;
 
-	info = spi_nor_get_flash_info(nor, name);
+	info = spi_analr_get_flash_info(analr, name);
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 
-	nor->info = info;
+	analr->info = info;
 
-	mutex_init(&nor->lock);
+	mutex_init(&analr->lock);
 
 	/* Init flash parameters based on flash_info struct and SFDP */
-	ret = spi_nor_init_params(nor);
+	ret = spi_analr_init_params(analr);
 	if (ret)
 		return ret;
 
-	if (spi_nor_use_parallel_locking(nor))
-		init_waitqueue_head(&nor->rww.wait);
+	if (spi_analr_use_parallel_locking(analr))
+		init_waitqueue_head(&analr->rww.wait);
 
 	/*
 	 * Configure the SPI memory:
@@ -3545,205 +3545,205 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	 * - set the SPI protocols for register and memory accesses.
 	 * - set the number of address bytes.
 	 */
-	ret = spi_nor_setup(nor, hwcaps);
+	ret = spi_analr_setup(analr, hwcaps);
 	if (ret)
 		return ret;
 
 	/* Send all the required SPI flash commands to initialize device */
-	ret = spi_nor_init(nor);
+	ret = spi_analr_init(analr);
 	if (ret)
 		return ret;
 
-	/* No mtd_info fields should be used up to this point. */
-	spi_nor_set_mtd_info(nor);
+	/* Anal mtd_info fields should be used up to this point. */
+	spi_analr_set_mtd_info(analr);
 
 	dev_dbg(dev, "Manufacturer and device ID: %*phN\n",
-		SPI_NOR_MAX_ID_LEN, nor->id);
+		SPI_ANALR_MAX_ID_LEN, analr->id);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(spi_nor_scan);
+EXPORT_SYMBOL_GPL(spi_analr_scan);
 
-static int spi_nor_create_read_dirmap(struct spi_nor *nor)
+static int spi_analr_create_read_dirmap(struct spi_analr *analr)
 {
 	struct spi_mem_dirmap_info info = {
-		.op_tmpl = SPI_MEM_OP(SPI_MEM_OP_CMD(nor->read_opcode, 0),
-				      SPI_MEM_OP_ADDR(nor->addr_nbytes, 0, 0),
-				      SPI_MEM_OP_DUMMY(nor->read_dummy, 0),
+		.op_tmpl = SPI_MEM_OP(SPI_MEM_OP_CMD(analr->read_opcode, 0),
+				      SPI_MEM_OP_ADDR(analr->addr_nbytes, 0, 0),
+				      SPI_MEM_OP_DUMMY(analr->read_dummy, 0),
 				      SPI_MEM_OP_DATA_IN(0, NULL, 0)),
 		.offset = 0,
-		.length = nor->params->size,
+		.length = analr->params->size,
 	};
 	struct spi_mem_op *op = &info.op_tmpl;
 
-	spi_nor_spimem_setup_op(nor, op, nor->read_proto);
+	spi_analr_spimem_setup_op(analr, op, analr->read_proto);
 
 	/* convert the dummy cycles to the number of bytes */
-	op->dummy.nbytes = (nor->read_dummy * op->dummy.buswidth) / 8;
-	if (spi_nor_protocol_is_dtr(nor->read_proto))
+	op->dummy.nbytes = (analr->read_dummy * op->dummy.buswidth) / 8;
+	if (spi_analr_protocol_is_dtr(analr->read_proto))
 		op->dummy.nbytes *= 2;
 
 	/*
-	 * Since spi_nor_spimem_setup_op() only sets buswidth when the number
-	 * of data bytes is non-zero, the data buswidth won't be set here. So,
+	 * Since spi_analr_spimem_setup_op() only sets buswidth when the number
+	 * of data bytes is analn-zero, the data buswidth won't be set here. So,
 	 * do it explicitly.
 	 */
-	op->data.buswidth = spi_nor_get_protocol_data_nbits(nor->read_proto);
+	op->data.buswidth = spi_analr_get_protocol_data_nbits(analr->read_proto);
 
-	nor->dirmap.rdesc = devm_spi_mem_dirmap_create(nor->dev, nor->spimem,
+	analr->dirmap.rdesc = devm_spi_mem_dirmap_create(analr->dev, analr->spimem,
 						       &info);
-	return PTR_ERR_OR_ZERO(nor->dirmap.rdesc);
+	return PTR_ERR_OR_ZERO(analr->dirmap.rdesc);
 }
 
-static int spi_nor_create_write_dirmap(struct spi_nor *nor)
+static int spi_analr_create_write_dirmap(struct spi_analr *analr)
 {
 	struct spi_mem_dirmap_info info = {
-		.op_tmpl = SPI_MEM_OP(SPI_MEM_OP_CMD(nor->program_opcode, 0),
-				      SPI_MEM_OP_ADDR(nor->addr_nbytes, 0, 0),
-				      SPI_MEM_OP_NO_DUMMY,
+		.op_tmpl = SPI_MEM_OP(SPI_MEM_OP_CMD(analr->program_opcode, 0),
+				      SPI_MEM_OP_ADDR(analr->addr_nbytes, 0, 0),
+				      SPI_MEM_OP_ANAL_DUMMY,
 				      SPI_MEM_OP_DATA_OUT(0, NULL, 0)),
 		.offset = 0,
-		.length = nor->params->size,
+		.length = analr->params->size,
 	};
 	struct spi_mem_op *op = &info.op_tmpl;
 
-	if (nor->program_opcode == SPINOR_OP_AAI_WP && nor->sst_write_second)
+	if (analr->program_opcode == SPIANALR_OP_AAI_WP && analr->sst_write_second)
 		op->addr.nbytes = 0;
 
-	spi_nor_spimem_setup_op(nor, op, nor->write_proto);
+	spi_analr_spimem_setup_op(analr, op, analr->write_proto);
 
 	/*
-	 * Since spi_nor_spimem_setup_op() only sets buswidth when the number
-	 * of data bytes is non-zero, the data buswidth won't be set here. So,
+	 * Since spi_analr_spimem_setup_op() only sets buswidth when the number
+	 * of data bytes is analn-zero, the data buswidth won't be set here. So,
 	 * do it explicitly.
 	 */
-	op->data.buswidth = spi_nor_get_protocol_data_nbits(nor->write_proto);
+	op->data.buswidth = spi_analr_get_protocol_data_nbits(analr->write_proto);
 
-	nor->dirmap.wdesc = devm_spi_mem_dirmap_create(nor->dev, nor->spimem,
+	analr->dirmap.wdesc = devm_spi_mem_dirmap_create(analr->dev, analr->spimem,
 						       &info);
-	return PTR_ERR_OR_ZERO(nor->dirmap.wdesc);
+	return PTR_ERR_OR_ZERO(analr->dirmap.wdesc);
 }
 
-static int spi_nor_probe(struct spi_mem *spimem)
+static int spi_analr_probe(struct spi_mem *spimem)
 {
 	struct spi_device *spi = spimem->spi;
 	struct flash_platform_data *data = dev_get_platdata(&spi->dev);
-	struct spi_nor *nor;
+	struct spi_analr *analr;
 	/*
 	 * Enable all caps by default. The core will mask them after
 	 * checking what's really supported using spi_mem_supports_op().
 	 */
-	const struct spi_nor_hwcaps hwcaps = { .mask = SNOR_HWCAPS_ALL };
+	const struct spi_analr_hwcaps hwcaps = { .mask = SANALR_HWCAPS_ALL };
 	char *flash_name;
 	int ret;
 
-	nor = devm_kzalloc(&spi->dev, sizeof(*nor), GFP_KERNEL);
-	if (!nor)
-		return -ENOMEM;
+	analr = devm_kzalloc(&spi->dev, sizeof(*analr), GFP_KERNEL);
+	if (!analr)
+		return -EANALMEM;
 
-	nor->spimem = spimem;
-	nor->dev = &spi->dev;
-	spi_nor_set_flash_node(nor, spi->dev.of_node);
+	analr->spimem = spimem;
+	analr->dev = &spi->dev;
+	spi_analr_set_flash_analde(analr, spi->dev.of_analde);
 
-	spi_mem_set_drvdata(spimem, nor);
+	spi_mem_set_drvdata(spimem, analr);
 
 	if (data && data->name)
-		nor->mtd.name = data->name;
+		analr->mtd.name = data->name;
 
-	if (!nor->mtd.name)
-		nor->mtd.name = spi_mem_get_name(spimem);
+	if (!analr->mtd.name)
+		analr->mtd.name = spi_mem_get_name(spimem);
 
 	/*
 	 * For some (historical?) reason many platforms provide two different
 	 * names in flash_platform_data: "name" and "type". Quite often name is
 	 * set to "m25p80" and then "type" provides a real chip name.
-	 * If that's the case, respect "type" and ignore a "name".
+	 * If that's the case, respect "type" and iganalre a "name".
 	 */
 	if (data && data->type)
 		flash_name = data->type;
-	else if (!strcmp(spi->modalias, "spi-nor"))
+	else if (!strcmp(spi->modalias, "spi-analr"))
 		flash_name = NULL; /* auto-detect */
 	else
 		flash_name = spi->modalias;
 
-	ret = spi_nor_scan(nor, flash_name, &hwcaps);
+	ret = spi_analr_scan(analr, flash_name, &hwcaps);
 	if (ret)
 		return ret;
 
-	spi_nor_debugfs_register(nor);
+	spi_analr_debugfs_register(analr);
 
 	/*
-	 * None of the existing parts have > 512B pages, but let's play safe
+	 * Analne of the existing parts have > 512B pages, but let's play safe
 	 * and add this logic so that if anyone ever adds support for such
-	 * a NOR we don't end up with buffer overflows.
+	 * a ANALR we don't end up with buffer overflows.
 	 */
-	if (nor->params->page_size > PAGE_SIZE) {
-		nor->bouncebuf_size = nor->params->page_size;
-		devm_kfree(nor->dev, nor->bouncebuf);
-		nor->bouncebuf = devm_kmalloc(nor->dev,
-					      nor->bouncebuf_size,
+	if (analr->params->page_size > PAGE_SIZE) {
+		analr->bouncebuf_size = analr->params->page_size;
+		devm_kfree(analr->dev, analr->bouncebuf);
+		analr->bouncebuf = devm_kmalloc(analr->dev,
+					      analr->bouncebuf_size,
 					      GFP_KERNEL);
-		if (!nor->bouncebuf)
-			return -ENOMEM;
+		if (!analr->bouncebuf)
+			return -EANALMEM;
 	}
 
-	ret = spi_nor_create_read_dirmap(nor);
+	ret = spi_analr_create_read_dirmap(analr);
 	if (ret)
 		return ret;
 
-	ret = spi_nor_create_write_dirmap(nor);
+	ret = spi_analr_create_write_dirmap(analr);
 	if (ret)
 		return ret;
 
-	return mtd_device_register(&nor->mtd, data ? data->parts : NULL,
+	return mtd_device_register(&analr->mtd, data ? data->parts : NULL,
 				   data ? data->nr_parts : 0);
 }
 
-static int spi_nor_remove(struct spi_mem *spimem)
+static int spi_analr_remove(struct spi_mem *spimem)
 {
-	struct spi_nor *nor = spi_mem_get_drvdata(spimem);
+	struct spi_analr *analr = spi_mem_get_drvdata(spimem);
 
-	spi_nor_restore(nor);
+	spi_analr_restore(analr);
 
 	/* Clean up MTD stuff. */
-	return mtd_device_unregister(&nor->mtd);
+	return mtd_device_unregister(&analr->mtd);
 }
 
-static void spi_nor_shutdown(struct spi_mem *spimem)
+static void spi_analr_shutdown(struct spi_mem *spimem)
 {
-	struct spi_nor *nor = spi_mem_get_drvdata(spimem);
+	struct spi_analr *analr = spi_mem_get_drvdata(spimem);
 
-	spi_nor_restore(nor);
+	spi_analr_restore(analr);
 }
 
 /*
- * Do NOT add to this array without reading the following:
+ * Do ANALT add to this array without reading the following:
  *
  * Historically, many flash devices are bound to this driver by their name. But
  * since most of these flash are compatible to some extent, and their
  * differences can often be differentiated by the JEDEC read-ID command, we
- * encourage new users to add support to the spi-nor library, and simply bind
- * against a generic string here (e.g., "jedec,spi-nor").
+ * encourage new users to add support to the spi-analr library, and simply bind
+ * against a generic string here (e.g., "jedec,spi-analr").
  *
  * Many flash names are kept here in this list to keep them available
  * as module aliases for existing platforms.
  */
-static const struct spi_device_id spi_nor_dev_ids[] = {
+static const struct spi_device_id spi_analr_dev_ids[] = {
 	/*
-	 * Allow non-DT platform devices to bind to the "spi-nor" modalias, and
-	 * hack around the fact that the SPI core does not provide uevent
+	 * Allow analn-DT platform devices to bind to the "spi-analr" modalias, and
+	 * hack around the fact that the SPI core does analt provide uevent
 	 * matching for .of_match_table
 	 */
-	{"spi-nor"},
+	{"spi-analr"},
 
 	/*
-	 * Entries not used in DTs that should be safe to drop after replacing
-	 * them with "spi-nor" in platform data.
+	 * Entries analt used in DTs that should be safe to drop after replacing
+	 * them with "spi-analr" in platform data.
 	 */
 	{"s25sl064a"},	{"w25x16"},	{"m25p10"},	{"m25px64"},
 
 	/*
-	 * Entries that were used in DTs without "jedec,spi-nor" fallback and
+	 * Entries that were used in DTs without "jedec,spi-analr" fallback and
 	 * should be kept for backward compatibility.
 	 */
 	{"at25df321a"},	{"at25df641"},	{"at26df081a"},
@@ -3759,11 +3759,11 @@ static const struct spi_device_id spi_nor_dev_ids[] = {
 	{"w25q80bl"},	{"w25q128"},	{"w25q256"},
 
 	/* Flashes that can't be detected using JEDEC */
-	{"m25p05-nonjedec"},	{"m25p10-nonjedec"},	{"m25p20-nonjedec"},
-	{"m25p40-nonjedec"},	{"m25p80-nonjedec"},	{"m25p16-nonjedec"},
-	{"m25p32-nonjedec"},	{"m25p64-nonjedec"},	{"m25p128-nonjedec"},
+	{"m25p05-analnjedec"},	{"m25p10-analnjedec"},	{"m25p20-analnjedec"},
+	{"m25p40-analnjedec"},	{"m25p80-analnjedec"},	{"m25p16-analnjedec"},
+	{"m25p32-analnjedec"},	{"m25p64-analnjedec"},	{"m25p128-analnjedec"},
 
-	/* Everspin MRAMs (non-JEDEC) */
+	/* Everspin MRAMs (analn-JEDEC) */
 	{ "mr25h128" }, /* 128 Kib, 40 MHz */
 	{ "mr25h256" }, /* 256 Kib, 40 MHz */
 	{ "mr25h10" },  /*   1 Mib, 40 MHz */
@@ -3771,51 +3771,51 @@ static const struct spi_device_id spi_nor_dev_ids[] = {
 
 	{ },
 };
-MODULE_DEVICE_TABLE(spi, spi_nor_dev_ids);
+MODULE_DEVICE_TABLE(spi, spi_analr_dev_ids);
 
-static const struct of_device_id spi_nor_of_table[] = {
+static const struct of_device_id spi_analr_of_table[] = {
 	/*
-	 * Generic compatibility for SPI NOR that can be identified by the
+	 * Generic compatibility for SPI ANALR that can be identified by the
 	 * JEDEC READ ID opcode (0x9F). Use this, if possible.
 	 */
-	{ .compatible = "jedec,spi-nor" },
+	{ .compatible = "jedec,spi-analr" },
 	{ /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, spi_nor_of_table);
+MODULE_DEVICE_TABLE(of, spi_analr_of_table);
 
 /*
  * REVISIT: many of these chips have deep power-down modes, which
  * should clearly be entered on suspend() to minimize power use.
  * And also when they're otherwise idle...
  */
-static struct spi_mem_driver spi_nor_driver = {
+static struct spi_mem_driver spi_analr_driver = {
 	.spidrv = {
 		.driver = {
-			.name = "spi-nor",
-			.of_match_table = spi_nor_of_table,
-			.dev_groups = spi_nor_sysfs_groups,
+			.name = "spi-analr",
+			.of_match_table = spi_analr_of_table,
+			.dev_groups = spi_analr_sysfs_groups,
 		},
-		.id_table = spi_nor_dev_ids,
+		.id_table = spi_analr_dev_ids,
 	},
-	.probe = spi_nor_probe,
-	.remove = spi_nor_remove,
-	.shutdown = spi_nor_shutdown,
+	.probe = spi_analr_probe,
+	.remove = spi_analr_remove,
+	.shutdown = spi_analr_shutdown,
 };
 
-static int __init spi_nor_module_init(void)
+static int __init spi_analr_module_init(void)
 {
-	return spi_mem_driver_register(&spi_nor_driver);
+	return spi_mem_driver_register(&spi_analr_driver);
 }
-module_init(spi_nor_module_init);
+module_init(spi_analr_module_init);
 
-static void __exit spi_nor_module_exit(void)
+static void __exit spi_analr_module_exit(void)
 {
-	spi_mem_driver_unregister(&spi_nor_driver);
-	spi_nor_debugfs_shutdown();
+	spi_mem_driver_unregister(&spi_analr_driver);
+	spi_analr_debugfs_shutdown();
 }
-module_exit(spi_nor_module_exit);
+module_exit(spi_analr_module_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Huang Shijie <shijie8@gmail.com>");
 MODULE_AUTHOR("Mike Lavender");
-MODULE_DESCRIPTION("framework for SPI NOR");
+MODULE_DESCRIPTION("framework for SPI ANALR");

@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -39,7 +39,7 @@
 #include "name_table.h"
 #include "bearer.h"
 #include "link.h"
-#include "node.h"
+#include "analde.h"
 #include "net.h"
 #include "udp_media.h"
 #include <net/genetlink.h>
@@ -51,7 +51,7 @@ static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
 	[TIPC_NLA_PUBL]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_LINK]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_MEDIA]	= { .type = NLA_NESTED, },
-	[TIPC_NLA_NODE]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_ANALDE]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_NET]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_NAME_TABLE]	= { .type = NLA_NESTED, },
 	[TIPC_NLA_MON]		= { .type = NLA_NESTED, },
@@ -81,8 +81,8 @@ const struct nla_policy tipc_nl_net_policy[TIPC_NLA_NET_MAX + 1] = {
 	[TIPC_NLA_NET_UNSPEC]		= { .type = NLA_UNSPEC },
 	[TIPC_NLA_NET_ID]		= { .type = NLA_U32 },
 	[TIPC_NLA_NET_ADDR]		= { .type = NLA_U32 },
-	[TIPC_NLA_NET_NODEID]		= { .type = NLA_U64 },
-	[TIPC_NLA_NET_NODEID_W1]	= { .type = NLA_U64 },
+	[TIPC_NLA_NET_ANALDEID]		= { .type = NLA_U64 },
+	[TIPC_NLA_NET_ANALDEID_W1]	= { .type = NLA_U64 },
 	[TIPC_NLA_NET_ADDR_LEGACY]	= { .type = NLA_FLAG }
 };
 
@@ -100,16 +100,16 @@ const struct nla_policy tipc_nl_link_policy[TIPC_NLA_LINK_MAX + 1] = {
 	[TIPC_NLA_LINK_TX]		= { .type = NLA_U32 }
 };
 
-const struct nla_policy tipc_nl_node_policy[TIPC_NLA_NODE_MAX + 1] = {
-	[TIPC_NLA_NODE_UNSPEC]		= { .type = NLA_UNSPEC },
-	[TIPC_NLA_NODE_ADDR]		= { .type = NLA_U32 },
-	[TIPC_NLA_NODE_UP]		= { .type = NLA_FLAG },
-	[TIPC_NLA_NODE_ID]		= { .type = NLA_BINARY,
-					    .len = TIPC_NODEID_LEN},
-	[TIPC_NLA_NODE_KEY]		= { .type = NLA_BINARY,
+const struct nla_policy tipc_nl_analde_policy[TIPC_NLA_ANALDE_MAX + 1] = {
+	[TIPC_NLA_ANALDE_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_ANALDE_ADDR]		= { .type = NLA_U32 },
+	[TIPC_NLA_ANALDE_UP]		= { .type = NLA_FLAG },
+	[TIPC_NLA_ANALDE_ID]		= { .type = NLA_BINARY,
+					    .len = TIPC_ANALDEID_LEN},
+	[TIPC_NLA_ANALDE_KEY]		= { .type = NLA_BINARY,
 					    .len = TIPC_AEAD_KEY_SIZE_MAX},
-	[TIPC_NLA_NODE_KEY_MASTER]	= { .type = NLA_FLAG },
-	[TIPC_NLA_NODE_REKEYING]	= { .type = NLA_U32 },
+	[TIPC_NLA_ANALDE_KEY_MASTER]	= { .type = NLA_FLAG },
+	[TIPC_NLA_ANALDE_REKEYING]	= { .type = NLA_U32 },
 };
 
 /* Properties valid for media, bearer and link */
@@ -191,18 +191,18 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_LINK_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT,
-		.doit   = tipc_nl_node_get_link,
-		.dumpit	= tipc_nl_node_dump_link,
+		.doit   = tipc_nl_analde_get_link,
+		.dumpit	= tipc_nl_analde_dump_link,
 	},
 	{
 		.cmd	= TIPC_NL_LINK_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_set_link,
+		.doit	= tipc_nl_analde_set_link,
 	},
 	{
 		.cmd	= TIPC_NL_LINK_RESET_STATS,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit   = tipc_nl_node_reset_link_stats,
+		.doit   = tipc_nl_analde_reset_link_stats,
 	},
 	{
 		.cmd	= TIPC_NL_MEDIA_GET,
@@ -216,9 +216,9 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.doit	= tipc_nl_media_set,
 	},
 	{
-		.cmd	= TIPC_NL_NODE_GET,
+		.cmd	= TIPC_NL_ANALDE_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.dumpit	= tipc_nl_node_dump,
+		.dumpit	= tipc_nl_analde_dump,
 	},
 	{
 		.cmd	= TIPC_NL_NET_GET,
@@ -238,19 +238,19 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_MON_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_set_monitor,
+		.doit	= tipc_nl_analde_set_monitor,
 	},
 	{
 		.cmd	= TIPC_NL_MON_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_get_monitor,
-		.dumpit	= tipc_nl_node_dump_monitor,
+		.doit	= tipc_nl_analde_get_monitor,
+		.dumpit	= tipc_nl_analde_dump_monitor,
 	},
 	{
 		.cmd	= TIPC_NL_MON_PEER_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT |
 			    GENL_DONT_VALIDATE_DUMP_STRICT,
-		.dumpit	= tipc_nl_node_dump_monitor_peer,
+		.dumpit	= tipc_nl_analde_dump_monitor_peer,
 	},
 	{
 		.cmd	= TIPC_NL_PEER_REMOVE,
@@ -269,12 +269,12 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_KEY_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_set_key,
+		.doit	= tipc_nl_analde_set_key,
 	},
 	{
 		.cmd	= TIPC_NL_KEY_FLUSH,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_flush_key,
+		.doit	= tipc_nl_analde_flush_key,
 	},
 #endif
 	{

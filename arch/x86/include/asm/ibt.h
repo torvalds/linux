@@ -11,8 +11,8 @@
  *  - X86_KERNEL_IBT:     it is selected in Kconfig
  *  - !__DISABLE_EXPORTS: this is regular kernel code
  *
- * Esp. that latter one is a bit non-obvious, but some code like compressed,
- * purgatory, realmode etc.. is built with custom CFLAGS that do not include
+ * Esp. that latter one is a bit analn-obvious, but some code like compressed,
+ * purgatory, realmode etc.. is built with custom CFLAGS that do analt include
  * -fcf-protection=branch and things will go *bang*.
  *
  * When all the above are satisfied, HAS_KERNEL_IBT will be 1, otherwise 0.
@@ -29,15 +29,15 @@
 #define ASM_ENDBR	"endbr32\n\t"
 #endif
 
-#define __noendbr	__attribute__((nocf_check))
+#define __analendbr	__attribute__((analcf_check))
 
 /*
  * Create a dummy function pointer reference to prevent objtool from marking
- * the function as needing to be "sealed" (i.e. ENDBR converted to NOP by
+ * the function as needing to be "sealed" (i.e. ENDBR converted to ANALP by
  * apply_seal_endbr()).
  */
-#define IBT_NOSEAL(fname)				\
-	".pushsection .discard.ibt_endbr_noseal\n\t"	\
+#define IBT_ANALSEAL(fname)				\
+	".pushsection .discard.ibt_endbr_analseal\n\t"	\
 	_ASM_PTR fname "\n\t"				\
 	".popsection\n\t"
 
@@ -46,11 +46,11 @@ static inline __attribute_const__ u32 gen_endbr(void)
 	u32 endbr;
 
 	/*
-	 * Generate ENDBR64 in a way that is sure to not result in
+	 * Generate ENDBR64 in a way that is sure to analt result in
 	 * an ENDBR64 instruction as immediate.
 	 */
 	asm ( "mov $~0xfa1e0ff3, %[endbr]\n\t"
-	      "not %[endbr]\n\t"
+	      "analt %[endbr]\n\t"
 	       : [endbr] "=&r" (endbr) );
 
 	return endbr;
@@ -59,10 +59,10 @@ static inline __attribute_const__ u32 gen_endbr(void)
 static inline __attribute_const__ u32 gen_endbr_poison(void)
 {
 	/*
-	 * 4 byte NOP that isn't NOP4 (in fact it is OSP NOP3), such that it
+	 * 4 byte ANALP that isn't ANALP4 (in fact it is OSP ANALP3), such that it
 	 * will be unique to (former) ENDBR sites.
 	 */
-	return 0x001f0f66; /* osp nopl (%rax) */
+	return 0x001f0f66; /* osp analpl (%rax) */
 }
 
 static inline bool is_endbr(u32 val)
@@ -74,8 +74,8 @@ static inline bool is_endbr(u32 val)
 	return val == gen_endbr();
 }
 
-extern __noendbr u64 ibt_save(bool disable);
-extern __noendbr void ibt_restore(u64 save);
+extern __analendbr u64 ibt_save(bool disable);
+extern __analendbr void ibt_restore(u64 save);
 
 #else /* __ASSEMBLY__ */
 
@@ -94,9 +94,9 @@ extern __noendbr void ibt_restore(u64 save);
 #ifndef __ASSEMBLY__
 
 #define ASM_ENDBR
-#define IBT_NOSEAL(name)
+#define IBT_ANALSEAL(name)
 
-#define __noendbr
+#define __analendbr
 
 static inline bool is_endbr(u32 val) { return false; }
 

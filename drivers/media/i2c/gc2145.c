@@ -22,7 +22,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mediabus.h>
 
 /* Chip ID */
@@ -646,7 +646,7 @@ static void gc2145_update_pad_format(struct gc2145 *gc2145,
 	fmt->code = code;
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -818,7 +818,7 @@ static int gc2145_config_mipi_mode(struct gc2145 *gc2145,
 	/*
 	 * Adjust the MIPI FIFO Full Level
 	 * 640x480 RGB: 0x0190
-	 * 1280x720 / 1600x1200 (aka no scaler) non RAW: 0x0001
+	 * 1280x720 / 1600x1200 (aka anal scaler) analn RAW: 0x0001
 	 * 1600x1200 RAW: 0x0190
 	 */
 	if (gc2145->mode->width == 1280 || gc2145->mode->width == 1600)
@@ -1172,7 +1172,7 @@ static int gc2145_init_controls(struct gc2145 *gc2145)
 	const struct v4l2_ctrl_ops *ops = &gc2145_ctrl_ops;
 	struct gc2145_ctrls *ctrls = &gc2145->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	int ret;
 
 	ret = v4l2_ctrl_handler_init(hdl, 12);
@@ -1211,11 +1211,11 @@ static int gc2145_init_controls(struct gc2145 *gc2145)
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto error;
 
-	ret = v4l2_ctrl_new_fwnode_properties(hdl, &gc2145_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(hdl, &gc2145_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error;
@@ -1232,20 +1232,20 @@ error:
 
 static int gc2145_check_hwcfg(struct device *dev)
 {
-	struct fwnode_handle *endpoint;
-	struct v4l2_fwnode_endpoint ep_cfg = {
+	struct fwanalde_handle *endpoint;
+	struct v4l2_fwanalde_endpoint ep_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	int ret;
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(dev_fwanalde(dev), NULL);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep_cfg);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(endpoint, &ep_cfg);
+	fwanalde_handle_put(endpoint);
 	if (ret)
 		return ret;
 
@@ -1258,7 +1258,7 @@ static int gc2145_check_hwcfg(struct device *dev)
 
 	/* Check the link frequency set in device tree */
 	if (!ep_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "link-frequency property not found in DT\n");
+		dev_err(dev, "link-frequency property analt found in DT\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1272,7 +1272,7 @@ static int gc2145_check_hwcfg(struct device *dev)
 	}
 
 out:
-	v4l2_fwnode_endpoint_free(&ep_cfg);
+	v4l2_fwanalde_endpoint_free(&ep_cfg);
 
 	return ret;
 }
@@ -1286,7 +1286,7 @@ static int gc2145_probe(struct i2c_client *client)
 
 	gc2145 = devm_kzalloc(&client->dev, sizeof(*gc2145), GFP_KERNEL);
 	if (!gc2145)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&gc2145->sd, client, &gc2145_subdev_ops);
 	gc2145->sd.internal_ops = &gc2145_subdev_internal_ops;
@@ -1303,7 +1303,7 @@ static int gc2145_probe(struct i2c_client *client)
 
 	xclk_freq = clk_get_rate(gc2145->xclk);
 	if (xclk_freq != GC2145_XCLK_FREQ) {
-		dev_err(dev, "xclk frequency not supported: %d Hz\n",
+		dev_err(dev, "xclk frequency analt supported: %d Hz\n",
 			xclk_freq);
 		return -EINVAL;
 	}
@@ -1353,7 +1353,7 @@ static int gc2145_probe(struct i2c_client *client)
 		goto error_power_off;
 
 	/* Initialize subdev */
-	gc2145->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	gc2145->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	gc2145->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
@@ -1375,7 +1375,7 @@ static int gc2145_probe(struct i2c_client *client)
 
 	/* Enable runtime PM and turn off the device */
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_enable(dev);
 
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);

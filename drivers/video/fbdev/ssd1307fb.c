@@ -97,11 +97,11 @@ struct ssd1307fb_array {
 static const struct fb_fix_screeninfo ssd1307fb_fix = {
 	.id		= "Solomon SSD1307",
 	.type		= FB_TYPE_PACKED_PIXELS,
-	.visual		= FB_VISUAL_MONO10,
+	.visual		= FB_VISUAL_MOANAL10,
 	.xpanstep	= 0,
 	.ypanstep	= 0,
 	.ywrapstep	= 0,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo ssd1307fb_var = {
@@ -147,7 +147,7 @@ static inline int ssd1307fb_write_cmd(struct i2c_client *client, u8 cmd)
 
 	array = ssd1307fb_alloc_array(1, SSD1307FB_COMMAND);
 	if (!array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	array->data[0] = cmd;
 
@@ -222,7 +222,7 @@ static int ssd1307fb_update_rect(struct ssd1307fb_par *par, unsigned int x,
 
 	array = ssd1307fb_alloc_array(width * pages, SSD1307FB_DATA);
 	if (!array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The screen is divided in pages, each having a height of 8
@@ -341,7 +341,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	if (par->device_info->need_pwm) {
 		par->pwm = pwm_get(&par->client->dev, NULL);
 		if (IS_ERR(par->pwm)) {
-			dev_err(&par->client->dev, "Could not get PWM from device tree!\n");
+			dev_err(&par->client->dev, "Could analt get PWM from device tree!\n");
 			return PTR_ERR(par->pwm);
 		}
 
@@ -604,7 +604,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 
 	info = framebuffer_alloc(sizeof(struct ssd1307fb_par), dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	par->info = info;
@@ -622,7 +622,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 	par->vbat_reg = devm_regulator_get_optional(dev, "vbat");
 	if (IS_ERR(par->vbat_reg)) {
 		ret = PTR_ERR(par->vbat_reg);
-		if (ret == -ENODEV) {
+		if (ret == -EANALDEV) {
 			par->vbat_reg = NULL;
 		} else {
 			dev_err_probe(dev, ret, "failed to get VBAT regulator\n");
@@ -656,7 +656,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 					   ARRAY_SIZE(par->lookup_table)))
 		par->lookup_table_set = 1;
 
-	par->seg_remap = !device_property_read_bool(dev, "solomon,segment-no-remap");
+	par->seg_remap = !device_property_read_bool(dev, "solomon,segment-anal-remap");
 	par->com_seq = device_property_read_bool(dev, "solomon,com-seq");
 	par->com_lrremap = device_property_read_bool(dev, "solomon,com-lrremap");
 	par->com_invdir = device_property_read_bool(dev, "solomon,com-invdir");
@@ -679,7 +679,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 					get_order(vmem_size));
 	if (!vmem) {
 		dev_err(dev, "Couldn't allocate graphical memory.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fb_alloc_error;
 	}
 
@@ -687,7 +687,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 				       GFP_KERNEL);
 	if (!ssd1307fb_defio) {
 		dev_err(dev, "Couldn't allocate deferred io.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fb_alloc_error;
 	}
 
@@ -739,7 +739,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 		goto panel_init_error;
 	}
 
-	snprintf(bl_name, sizeof(bl_name), "ssd1307fb%d", info->node);
+	snprintf(bl_name, sizeof(bl_name), "ssd1307fb%d", info->analde);
 	bl = backlight_device_register(bl_name, dev, par, &ssd1307fb_bl_ops,
 				       NULL);
 	if (IS_ERR(bl)) {
@@ -752,7 +752,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 	bl->props.max_brightness = MAX_CONTRAST;
 	info->bl_dev = bl;
 
-	dev_info(dev, "fb%d: %s framebuffer device registered, using %d bytes of video memory\n", info->node, info->fix.id, vmem_size);
+	dev_info(dev, "fb%d: %s framebuffer device registered, using %d bytes of video memory\n", info->analde, info->fix.id, vmem_size);
 
 	return 0;
 

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2015-2017, 2019-2021 Linaro Limited
  */
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/mm.h>
@@ -82,7 +82,7 @@ static struct tee_shm *shm_alloc_helper(struct tee_context *ctx, size_t size,
 
 	shm = kzalloc(sizeof(*shm), GFP_KERNEL);
 	if (!shm) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto err_dev_put;
 	}
 
@@ -93,7 +93,7 @@ static struct tee_shm *shm_alloc_helper(struct tee_context *ctx, size_t size,
 	/*
 	 * We're assigning this as it is needed if the shm is to be
 	 * registered. If this function returns OK then the caller expected
-	 * to call teedev_ctx_get() or clear shm->ctx in case it's not
+	 * to call teedev_ctx_get() or clear shm->ctx in case it's analt
 	 * needed any longer.
 	 */
 	shm->ctx = ctx;
@@ -186,10 +186,10 @@ EXPORT_SYMBOL_GPL(tee_shm_alloc_kernel_buf);
  *
  * This function returns similar shared memory as
  * tee_shm_alloc_kernel_buf(), but with the difference that the memory
- * might not be registered in secure world in case the driver supports
- * passing memory not registered in advance.
+ * might analt be registered in secure world in case the driver supports
+ * passing memory analt registered in advance.
  *
- * This function should normally only be used internally in the TEE
+ * This function should analrmally only be used internally in the TEE
  * drivers.
  *
  * @returns a pointer to 'struct tee_shm'
@@ -219,7 +219,7 @@ register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,
 
 	if (!teedev->desc->ops->shm_register ||
 	    !teedev->desc->ops->shm_unregister) {
-		ret = ERR_PTR(-ENOTSUPP);
+		ret = ERR_PTR(-EANALTSUPP);
 		goto err_dev_put;
 	}
 
@@ -227,7 +227,7 @@ register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,
 
 	shm = kzalloc(sizeof(*shm), GFP_KERNEL);
 	if (!shm) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto err_ctx_put;
 	}
 
@@ -239,25 +239,25 @@ register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,
 	start = rounddown(addr, PAGE_SIZE);
 	num_pages = iov_iter_npages(iter, INT_MAX);
 	if (!num_pages) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto err_ctx_put;
 	}
 
 	shm->pages = kcalloc(num_pages, sizeof(*shm->pages), GFP_KERNEL);
 	if (!shm->pages) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto err_free_shm;
 	}
 
 	len = iov_iter_extract_pages(iter, &shm->pages, LONG_MAX, num_pages, 0,
 				     &off);
 	if (unlikely(len <= 0)) {
-		ret = len ? ERR_PTR(len) : ERR_PTR(-ENOMEM);
+		ret = len ? ERR_PTR(len) : ERR_PTR(-EANALMEM);
 		goto err_free_shm_pages;
 	}
 
 	/*
-	 * iov_iter_extract_kvec_pages does not get reference on the pages,
+	 * iov_iter_extract_kvec_pages does analt get reference on the pages,
 	 * get a reference on them.
 	 */
 	if (iov_iter_is_kvec(iter))
@@ -363,7 +363,7 @@ struct tee_shm *tee_shm_register_kernel_buf(struct tee_context *ctx,
 }
 EXPORT_SYMBOL_GPL(tee_shm_register_kernel_buf);
 
-static int tee_shm_fop_release(struct inode *inode, struct file *filp)
+static int tee_shm_fop_release(struct ianalde *ianalde, struct file *filp)
 {
 	tee_shm_put(filp->private_data);
 	return 0;
@@ -406,7 +406,7 @@ int tee_shm_get_fd(struct tee_shm *shm)
 
 	/* matched by tee_shm_put() in tee_shm_op_release() */
 	refcount_inc(&shm->refcount);
-	fd = anon_inode_getfd("tee_shm", &tee_shm_fops, shm, O_RDWR);
+	fd = aanaln_ianalde_getfd("tee_shm", &tee_shm_fops, shm, O_RDWR);
 	if (fd < 0)
 		tee_shm_put(shm);
 	return fd;
@@ -501,7 +501,7 @@ void tee_shm_put(struct tee_shm *shm)
 	mutex_lock(&teedev->mutex);
 	if (refcount_dec_and_test(&shm->refcount)) {
 		/*
-		 * refcount has reached 0, we must now remove it from the
+		 * refcount has reached 0, we must analw remove it from the
 		 * IDR before releasing the mutex. This will guarantee that
 		 * the refcount_inc() in tee_shm_get_from_id() never starts
 		 * from 0.

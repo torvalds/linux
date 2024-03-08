@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright (C) 2022 Huawei Technologies Duesseldorf GmbH
+ * Copyright (C) 2022 Huawei Techanallogies Duesseldorf GmbH
  *
  * Author: Roberto Sassu <roberto.sassu@huawei.com>
  */
 
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <endian.h>
@@ -63,7 +63,7 @@ struct data {
 	__u32 sig_len;
 };
 
-static bool kfunc_not_supported;
+static bool kfunc_analt_supported;
 
 static int libbpf_print_cb(enum libbpf_print_level level, const char *fmt,
 			   va_list args)
@@ -71,13 +71,13 @@ static int libbpf_print_cb(enum libbpf_print_level level, const char *fmt,
 	if (level == LIBBPF_WARN)
 		vprintf(fmt, args);
 
-	if (strcmp(fmt, "libbpf: extern (func ksym) '%s': not found in kernel or module BTFs\n"))
+	if (strcmp(fmt, "libbpf: extern (func ksym) '%s': analt found in kernel or module BTFs\n"))
 		return 0;
 
 	if (strcmp(va_arg(args, char *), "bpf_verify_pkcs7_signature"))
 		return 0;
 
-	kfunc_not_supported = true;
+	kfunc_analt_supported = true;
 	return 0;
 }
 
@@ -89,7 +89,7 @@ static int _run_setup_process(const char *setup_dir, const char *cmd)
 	if (child_pid == 0) {
 		execlp("./verify_sig_setup.sh", "./verify_sig_setup.sh", cmd,
 		       setup_dir, NULL);
-		exit(errno);
+		exit(erranal);
 
 	} else if (child_pid > 0) {
 		waitpid(child_pid, &child_status, 0);
@@ -111,7 +111,7 @@ static int populate_data_item_str(const char *tmp_dir, struct data *data_item)
 
 	fd = mkstemp(data_template);
 	if (fd == -1)
-		return -errno;
+		return -erranal;
 
 	ret = write(fd, data_item->data, data_item->data_len);
 
@@ -125,7 +125,7 @@ static int populate_data_item_str(const char *tmp_dir, struct data *data_item)
 	child_pid = fork();
 
 	if (child_pid == -1) {
-		ret = -errno;
+		ret = -erranal;
 		goto out;
 	}
 
@@ -146,7 +146,7 @@ static int populate_data_item_str(const char *tmp_dir, struct data *data_item)
 
 	ret = stat(path, &st);
 	if (ret == -1) {
-		ret = -errno;
+		ret = -erranal;
 		goto out;
 	}
 
@@ -159,7 +159,7 @@ static int populate_data_item_str(const char *tmp_dir, struct data *data_item)
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1) {
-		ret = -errno;
+		ret = -erranal;
 		goto out_sig;
 	}
 
@@ -219,14 +219,14 @@ static int populate_data_item_mod(struct data *data_item)
 
 	fd = open(mod_path, O_RDONLY);
 	if (fd == -1)
-		return -errno;
+		return -erranal;
 
 	mod = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
 	close(fd);
 
 	if (mod == MAP_FAILED)
-		return -errno;
+		return -erranal;
 
 	if (strncmp(mod + modlen - marker_len, MODULE_SIG_STRING, marker_len)) {
 		ret = -EINVAL;
@@ -291,9 +291,9 @@ static void test_verify_pkcs7_sig_from_map(void)
 	ret = test_verify_pkcs7_sig__load(skel);
 	libbpf_set_print(old_print_cb);
 
-	if (ret < 0 && kfunc_not_supported) {
+	if (ret < 0 && kfunc_analt_supported) {
 		printf(
-		  "%s:SKIP:bpf_verify_pkcs7_signature() kfunc not supported\n",
+		  "%s:SKIP:bpf_verify_pkcs7_signature() kfunc analt supported\n",
 		  __func__);
 		test__skip();
 		goto close_prog;
@@ -307,7 +307,7 @@ static void test_verify_pkcs7_sig_from_map(void)
 		goto close_prog;
 
 	map = bpf_object__find_map_by_name(skel->obj, "data_input");
-	if (!ASSERT_OK_PTR(map, "data_input not found"))
+	if (!ASSERT_OK_PTR(map, "data_input analt found"))
 		goto close_prog;
 
 	skel->bss->monitored_pid = getpid();
@@ -339,7 +339,7 @@ static void test_verify_pkcs7_sig_from_map(void)
 
 	/*
 	 * Ensure key_task_permission() is called and rejects the keyring
-	 * (no Search permission).
+	 * (anal Search permission).
 	 */
 	syscall(__NR_keyctl, KEYCTL_SETPERM, skel->bss->user_keyring_serial,
 		0x37373737);
@@ -433,7 +433,7 @@ static int add_signature_to_xattr(const char *data_path, const char *sig_path)
 		if (size <= 0)
 			return -1;
 	} else {
-		/* no sig_path, just write 32 bytes of zeros */
+		/* anal sig_path, just write 32 bytes of zeros */
 		size = 32;
 	}
 	ret = setxattr(data_path, "user.sig", sig, size, 0);
@@ -516,7 +516,7 @@ static void test_pkcs7_sig_fsverity(void)
 
 	pid = getpid();
 
-	/* Case 1: fsverity is not enabled, open should succeed */
+	/* Case 1: fsverity is analt enabled, open should succeed */
 	if (test_open_file(skel, data_path, pid, true, "open_1"))
 		goto out;
 

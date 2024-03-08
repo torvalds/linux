@@ -17,25 +17,25 @@
 
 static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	unsigned int offset;
 	struct buffer_head *bh;
 	unsigned long blknum;
-	int ix, ino;
+	int ix, ianal;
 	int size;
 
-	QNX4DEBUG((KERN_INFO "qnx4_readdir:i_size = %ld\n", (long) inode->i_size));
+	QNX4DEBUG((KERN_INFO "qnx4_readdir:i_size = %ld\n", (long) ianalde->i_size));
 	QNX4DEBUG((KERN_INFO "pos                 = %ld\n", (long) ctx->pos));
 
-	while (ctx->pos < inode->i_size) {
-		blknum = qnx4_block_map(inode, ctx->pos >> QNX4_BLOCK_SIZE_BITS);
-		bh = sb_bread(inode->i_sb, blknum);
+	while (ctx->pos < ianalde->i_size) {
+		blknum = qnx4_block_map(ianalde, ctx->pos >> QNX4_BLOCK_SIZE_BITS);
+		bh = sb_bread(ianalde->i_sb, blknum);
 		if (bh == NULL) {
 			printk(KERN_ERR "qnx4_readdir: bread failed (%ld)\n", blknum);
 			return 0;
 		}
-		ix = (ctx->pos >> QNX4_DIR_ENTRY_SIZE_BITS) % QNX4_INODES_PER_BLOCK;
-		for (; ix < QNX4_INODES_PER_BLOCK; ix++, ctx->pos += QNX4_DIR_ENTRY_SIZE) {
+		ix = (ctx->pos >> QNX4_DIR_ENTRY_SIZE_BITS) % QNX4_IANALDES_PER_BLOCK;
+		for (; ix < QNX4_IANALDES_PER_BLOCK; ix++, ctx->pos += QNX4_DIR_ENTRY_SIZE) {
 			union qnx4_directory_entry *de;
 			const char *fname;
 
@@ -47,15 +47,15 @@ static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 				continue;
 
 			if (!(de->de_status & QNX4_FILE_LINK)) {
-				ino = blknum * QNX4_INODES_PER_BLOCK + ix - 1;
+				ianal = blknum * QNX4_IANALDES_PER_BLOCK + ix - 1;
 			} else {
-				ino = ( le32_to_cpu(de->link.dl_inode_blk) - 1 ) *
-					QNX4_INODES_PER_BLOCK +
-					de->link.dl_inode_ndx;
+				ianal = ( le32_to_cpu(de->link.dl_ianalde_blk) - 1 ) *
+					QNX4_IANALDES_PER_BLOCK +
+					de->link.dl_ianalde_ndx;
 			}
 
 			QNX4DEBUG((KERN_INFO "qnx4_readdir:%.*s\n", size, fname));
-			if (!dir_emit(ctx, fname, size, ino, DT_UNKNOWN)) {
+			if (!dir_emit(ctx, fname, size, ianal, DT_UNKANALWN)) {
 				brelse(bh);
 				return 0;
 			}
@@ -73,7 +73,7 @@ const struct file_operations qnx4_dir_operations =
 	.fsync		= generic_file_fsync,
 };
 
-const struct inode_operations qnx4_dir_inode_operations =
+const struct ianalde_operations qnx4_dir_ianalde_operations =
 {
 	.lookup		= qnx4_lookup,
 };

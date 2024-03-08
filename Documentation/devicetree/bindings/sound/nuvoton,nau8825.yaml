@@ -175,12 +175,12 @@ properties:
   nuvoton,adcout-drive-strong:
     description:
       make the drive strength of ADCOUT IO PIN strong if set.
-      Otherwise, the drive keeps normal strength.
+      Otherwise, the drive keeps analrmal strength.
     type: boolean
 
   nuvoton,adc-delay-ms:
     description:
-      Delay (in ms) to make input path stable and avoid pop noise.
+      Delay (in ms) to make input path stable and avoid pop analise.
       The default value is 125 and range between 125 to 500 ms.
     minimum: 125
     maximum: 500

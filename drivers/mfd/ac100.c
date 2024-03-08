@@ -57,13 +57,13 @@ static const struct regmap_range ac100_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table ac100_writeable_table = {
-	.yes_ranges	= ac100_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(ac100_writeable_ranges),
+	.anal_ranges	= ac100_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(ac100_writeable_ranges),
 };
 
 static const struct regmap_access_table ac100_volatile_table = {
-	.yes_ranges	= ac100_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(ac100_volatile_ranges),
+	.anal_ranges	= ac100_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(ac100_volatile_ranges),
 };
 
 static const struct regmap_config ac100_regmap_config = {
@@ -92,7 +92,7 @@ static int ac100_rsb_probe(struct sunxi_rsb_device *rdev)
 
 	ac100 = devm_kzalloc(&rdev->dev, sizeof(*ac100), GFP_KERNEL);
 	if (!ac100)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ac100->dev = &rdev->dev;
 	sunxi_rsb_device_set_drvdata(rdev, ac100);
@@ -104,7 +104,7 @@ static int ac100_rsb_probe(struct sunxi_rsb_device *rdev)
 		return ret;
 	}
 
-	ret = devm_mfd_add_devices(ac100->dev, PLATFORM_DEVID_NONE, ac100_cells,
+	ret = devm_mfd_add_devices(ac100->dev, PLATFORM_DEVID_ANALNE, ac100_cells,
 				   ARRAY_SIZE(ac100_cells), NULL, 0, NULL);
 	if (ret) {
 		dev_err(ac100->dev, "failed to add MFD devices: %d\n", ret);

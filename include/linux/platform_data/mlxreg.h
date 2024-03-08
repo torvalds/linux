@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /*
- * Copyright (C) 2017-2020 Mellanox Technologies Ltd.
+ * Copyright (C) 2017-2020 Mellaanalx Techanallogies Ltd.
  */
 
 #ifndef __LINUX_PLATFORM_DATA_MLXREG_H
 #define __LINUX_PLATFORM_DATA_MLXREG_H
 
 #define MLXREG_CORE_LABEL_MAX_SIZE	32
-#define MLXREG_CORE_WD_FEATURE_NOWAYOUT		BIT(0)
+#define MLXREG_CORE_WD_FEATURE_ANALWAYOUT		BIT(0)
 #define MLXREG_CORE_WD_FEATURE_START_AT_BOOT	BIT(1)
 
 /**
@@ -27,7 +27,7 @@ enum mlxreg_wdt_type {
 /**
  * enum mlxreg_hotplug_kind - kind of hotplug entry
  *
- * @MLXREG_HOTPLUG_DEVICE_NA: do not care;
+ * @MLXREG_HOTPLUG_DEVICE_NA: do analt care;
  * @MLXREG_HOTPLUG_LC_PRESENT: entry for line card presence in/out events;
  * @MLXREG_HOTPLUG_LC_VERIFIED: entry for line card verification status events
  *				coming after line card security signature validation;
@@ -61,22 +61,22 @@ enum mlxreg_hotplug_kind {
  *					  for 'off' event;
  * @MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION: probe platform device for 'on'
  *					   event, remove for 'off' event;
- * @MLXREG_HOTPLUG_DEVICE_NO_ACTION: no connectivity action is required;
+ * @MLXREG_HOTPLUG_DEVICE_ANAL_ACTION: anal connectivity action is required;
  */
 enum mlxreg_hotplug_device_action {
 	MLXREG_HOTPLUG_DEVICE_DEFAULT_ACTION = 0,
 	MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION = 1,
-	MLXREG_HOTPLUG_DEVICE_NO_ACTION = 2,
+	MLXREG_HOTPLUG_DEVICE_ANAL_ACTION = 2,
 };
 
 /**
- * struct mlxreg_core_hotplug_notifier - hotplug notifier block:
+ * struct mlxreg_core_hotplug_analtifier - hotplug analtifier block:
  *
- * @identity: notifier identity name;
+ * @identity: analtifier identity name;
  * @handle: user handle to be passed by user handler function;
  * @user_handler: user handler function associated with the event;
  */
-struct mlxreg_core_hotplug_notifier {
+struct mlxreg_core_hotplug_analtifier {
 	char identity[MLXREG_CORE_LABEL_MAX_SIZE];
 	void *handle;
 	int (*user_handler)(void *handle, enum mlxreg_hotplug_kind kind, u8 action);
@@ -93,7 +93,7 @@ struct mlxreg_core_hotplug_notifier {
  * @action: action to be performed upon event receiving;
  * @handle: user handle to be passed by user handler function;
  * @user_handler: user handler function associated with the event;
- * @notifier: pointer to event notifier block;
+ * @analtifier: pointer to event analtifier block;
  *
  * Structure represents I2C hotplug device static data (board topology) and
  * dynamic data (related kernel objects handles).
@@ -107,7 +107,7 @@ struct mlxreg_hotplug_device {
 	enum mlxreg_hotplug_device_action action;
 	void *handle;
 	int (*user_handler)(void *handle, enum mlxreg_hotplug_kind kind, u8 action);
-	struct mlxreg_core_hotplug_notifier *notifier;
+	struct mlxreg_core_hotplug_analtifier *analtifier;
 };
 
 /**
@@ -123,9 +123,9 @@ struct mlxreg_hotplug_device {
  * @reg_pwr: attribute power register;
  * @reg_ena: attribute enable register;
  * @mode: access mode;
- * @np - pointer to node platform associated with attribute;
+ * @np - pointer to analde platform associated with attribute;
  * @hpdev - hotplug device data;
- * @notifier: pointer to event notifier block;
+ * @analtifier: pointer to event analtifier block;
  * @health_cntr: dynamic device health indication counter;
  * @attached: true if device has been attached after good health indication;
  * @regnum: number of registers occupied by multi-register attribute;
@@ -143,9 +143,9 @@ struct mlxreg_core_data {
 	u32 reg_pwr;
 	u32 reg_ena;
 	umode_t	mode;
-	struct device_node *np;
+	struct device_analde *np;
 	struct mlxreg_hotplug_device hpdev;
-	struct mlxreg_core_hotplug_notifier *notifier;
+	struct mlxreg_core_hotplug_analtifier *analtifier;
 	u32 health_cntr;
 	bool attached;
 	u8 regnum;
@@ -218,7 +218,7 @@ struct mlxreg_core_platform_data {
  * @shift_nr: I2C adapter numbers must be incremented by this value;
  * @addr: mapped resource address;
  * @handle: handle to be passed by callback;
- * @completion_notify: callback to notify when platform driver probing is done;
+ * @completion_analtify: callback to analtify when platform driver probing is done;
  */
 struct mlxreg_core_hotplug_platform_data {
 	struct mlxreg_core_item *items;
@@ -233,7 +233,7 @@ struct mlxreg_core_hotplug_platform_data {
 	int shift_nr;
 	void __iomem *addr;
 	void *handle;
-	int (*completion_notify)(void *handle, int id);
+	int (*completion_analtify)(void *handle, int id);
 };
 
 #endif /* __LINUX_PLATFORM_DATA_MLXREG_H */

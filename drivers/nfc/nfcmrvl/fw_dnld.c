@@ -279,7 +279,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 				len, comp_len, (~len & 0xFFFF));
 			out_skb = alloc_lc_skb(priv, 1);
 			if (!out_skb)
-				return -ENOMEM;
+				return -EANALMEM;
 			skb_put_u8(out_skb, 0xBF);
 			nci_send_frame(priv->ndev, out_skb);
 			priv->fw_dnld.substate = SUBSTATE_WAIT_NACK_CREDIT;
@@ -288,7 +288,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 		priv->fw_dnld.chunk_len = len;
 		out_skb = alloc_lc_skb(priv, 1);
 		if (!out_skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		skb_put_u8(out_skb, HELPER_ACK_PACKET_FORMAT);
 		nci_send_frame(priv->ndev, out_skb);
 		priv->fw_dnld.substate = SUBSTATE_WAIT_ACK_CREDIT;
@@ -311,7 +311,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 		} else {
 			out_skb = alloc_lc_skb(priv, priv->fw_dnld.chunk_len);
 			if (!out_skb)
-				return -ENOMEM;
+				return -EANALMEM;
 			skb_put_data(out_skb,
 				     ((uint8_t *)priv->fw_dnld.fw->data) + priv->fw_dnld.offset,
 				     priv->fw_dnld.chunk_len);
@@ -374,7 +374,7 @@ static int process_state_boot(struct nfcmrvl_private *priv,
 	if (priv->fw_dnld.binary_config == &priv->fw_dnld.header->helper) {
 		/*
 		 * This is the case where an helper was needed and we have
-		 * uploaded it. Now we have to wait the next RESET NTF to start
+		 * uploaded it. Analw we have to wait the next RESET NTF to start
 		 * FW download.
 		 */
 		priv->fw_dnld.state = STATE_RESET;
@@ -449,7 +449,7 @@ int nfcmrvl_fw_dnld_init(struct nfcmrvl_private *priv)
 		 dev_name(&priv->ndev->nfc_dev->dev));
 	priv->fw_dnld.rx_wq = create_singlethread_workqueue(name);
 	if (!priv->fw_dnld.rx_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_queue_head_init(&priv->fw_dnld.rx_q);
 	return 0;
 }
@@ -486,7 +486,7 @@ int nfcmrvl_fw_dnld_start(struct nci_dev *ndev, const char *firmware_name)
 	int res;
 
 	if (!priv->support_fw_dnld)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!firmware_name || !firmware_name[0])
 		return -EINVAL;
@@ -503,7 +503,7 @@ int nfcmrvl_fw_dnld_start(struct nci_dev *ndev, const char *firmware_name)
 			       &ndev->nfc_dev->dev);
 	if (res < 0) {
 		nfc_err(priv->dev, "failed to retrieve FW %s", firmware_name);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	fw_dnld->header = (const struct nfcmrvl_fw *) priv->fw_dnld.fw->data;
@@ -542,7 +542,7 @@ int nfcmrvl_fw_dnld_start(struct nci_dev *ndev, const char *firmware_name)
 	priv->fw_dnld.state = STATE_RESET;
 	nfcmrvl_chip_reset(priv);
 
-	/* Now wait for CORE_RESET_NTF or timeout */
+	/* Analw wait for CORE_RESET_NTF or timeout */
 
 	return 0;
 }

@@ -41,13 +41,13 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Port node with two endpoints, numbered 0 and 1,
+          Port analde with two endpoints, numbered 0 and 1,
           connected respectively to vop0 and vop1.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Port node with one endpoint connected to a hdmi-connector node.
+          Port analde with one endpoint connected to a hdmi-connector analde.
 
     required:
       - port@0
@@ -115,8 +115,8 @@ examples:
           rockchip,pins = <0 RK_PA0 1 &pcfg_pull_default>;
         };
         hdmii2c_xfer: hdmii2c-xfer {
-          rockchip,pins = <0 RK_PA1 1 &pcfg_pull_none>,
-                          <0 RK_PA2 1 &pcfg_pull_none>;
+          rockchip,pins = <0 RK_PA1 1 &pcfg_pull_analne>,
+                          <0 RK_PA2 1 &pcfg_pull_analne>;
         };
       };
     };

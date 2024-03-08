@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for linux/drivers/platform/x86/intel/pmt
-# Intel Platform Monitoring Technology Drivers
+# Intel Platform Monitoring Techanallogy Drivers
 #
 
 obj-$(CONFIG_INTEL_PMT_CLASS)		+= pmt_class.o

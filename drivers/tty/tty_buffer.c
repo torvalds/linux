@@ -4,7 +4,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/minmax.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -31,7 +31,7 @@
 
 /*
  * We default to dicing tty buffer allocations to this many characters
- * in order to avoid multiple page allocations. We know the size of
+ * in order to avoid multiple page allocations. We kanalw the size of
  * tty_buffer itself but it must also be taken into account that the
  * buffer is 256 byte aligned. See tty_buffer_find for the allocation
  * logic this must match.
@@ -86,7 +86,7 @@ EXPORT_SYMBOL_GPL(tty_buffer_unlock_exclusive);
  * Returns: the # of bytes which can be written by the driver without reaching
  * the buffer limit.
  *
- * Note: this does not guarantee that memory is available to write the returned
+ * Analte: this does analt guarantee that memory is available to write the returned
  * # of bytes (use tty_prepare_flip_string() to pre-allocate if memory
  * guarantee is required).
  */
@@ -114,13 +114,13 @@ static void tty_buffer_reset(struct tty_buffer *p, size_t size)
  * @port: tty port to free from
  *
  * Remove all the buffers pending on a tty whether queued with data or in the
- * free ring. Must be called when the tty is no longer in use.
+ * free ring. Must be called when the tty is anal longer in use.
  */
 void tty_buffer_free_all(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *p, *next;
-	struct llist_node *llist;
+	struct llist_analde *llist;
 	unsigned int freed = 0;
 	int still_used;
 
@@ -139,7 +139,7 @@ void tty_buffer_free_all(struct tty_port *port)
 	buf->tail = &buf->sentinel;
 
 	still_used = atomic_xchg(&buf->mem_used, 0);
-	WARN(still_used != freed, "we still have not freed %d bytes!",
+	WARN(still_used != freed, "we still have analt freed %d bytes!",
 			still_used - freed);
 }
 
@@ -157,7 +157,7 @@ void tty_buffer_free_all(struct tty_port *port)
  */
 static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 {
-	struct llist_node *free;
+	struct llist_analde *free;
 	struct tty_buffer *p;
 
 	/* Round the buffer size out */
@@ -176,7 +176,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 	 */
 	if (atomic_read(&port->buf.mem_used) > port->buf.mem_limit)
 		return NULL;
-	p = kmalloc(struct_size(p, data, 2 * size), GFP_ATOMIC | __GFP_NOWARN);
+	p = kmalloc(struct_size(p, data, 2 * size), GFP_ATOMIC | __GFP_ANALWARN);
 	if (p == NULL)
 		return NULL;
 
@@ -198,7 +198,7 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 {
 	struct tty_bufhead *buf = &port->buf;
 
-	/* Dumb strategy for now - should keep some stats */
+	/* Dumb strategy for analw - should keep some stats */
 	WARN_ON(atomic_sub_return(b->size, &buf->mem_used) < 0);
 
 	if (b->size > MIN_TTYB_SIZE)
@@ -227,7 +227,7 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 
 	mutex_lock(&buf->lock);
 	/* paired w/ release in __tty_buffer_request_room; ensures there are
-	 * no pending memory accesses to the freed buffer
+	 * anal pending memory accesses to the freed buffer
 	 */
 	while ((next = smp_load_acquire(&buf->head->next)) != NULL) {
 		tty_buffer_free(port, buf->head);
@@ -252,7 +252,7 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
  * Make at least @size bytes of linear space available for the tty buffer.
  *
  * Will change over to a new buffer if the current buffer is encoded as
- * %TTY_NORMAL (so has no flags buffer) and the new buffer requires a flags
+ * %TTY_ANALRMAL (so has anal flags buffer) and the new buffer requires a flags
  * buffer.
  *
  * Returns: the size we managed to find.
@@ -300,7 +300,7 @@ size_t __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
 				      const u8 *flags, bool mutable_flags,
 				      size_t size)
 {
-	bool need_flags = mutable_flags || flags[0] != TTY_NORMAL;
+	bool need_flags = mutable_flags || flags[0] != TTY_ANALRMAL;
 	size_t copied = 0;
 
 	do {
@@ -345,10 +345,10 @@ EXPORT_SYMBOL(__tty_insert_flip_string_flags);
  * Prepare a block of space in the buffer for data.
  *
  * This is used for drivers that need their own block copy routines into the
- * buffer. There is no guarantee the buffer is a DMA target!
+ * buffer. There is anal guarantee the buffer is a DMA target!
  *
  * Returns: the length available and buffer pointer (@chars) to the space which
- * is now allocated and accounted for as ready for normal characters.
+ * is analw allocated and accounted for as ready for analrmal characters.
  */
 size_t tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size)
 {
@@ -359,7 +359,7 @@ size_t tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size)
 
 		*chars = char_buf_ptr(tb, tb->used);
 		if (tb->flags)
-			memset(flag_buf_ptr(tb, tb->used), TTY_NORMAL, space);
+			memset(flag_buf_ptr(tb, tb->used), TTY_ANALRMAL, space);
 		tb->used += space;
 	}
 
@@ -371,7 +371,7 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  * tty_ldisc_receive_buf	-	forward data to line discipline
  * @ld: line discipline to process input
  * @p: char buffer
- * @f: %TTY_NORMAL, %TTY_BREAK, etc. flags buffer
+ * @f: %TTY_ANALRMAL, %TTY_BREAK, etc. flags buffer
  * @count: number of bytes to process
  *
  * Callers other than flush_to_ldisc() need to exclude the kworker from
@@ -403,7 +403,7 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 
 		/*
 		 * Paired w/ release in __tty_buffer_request_room();
-		 * ensures commit value read is not stale if the head
+		 * ensures commit value read is analt stale if the head
 		 * is advancing to the next buffer.
 		 */
 		next = smp_load_acquire(&head->next);
@@ -475,7 +475,7 @@ static void flush_to_ldisc(struct work_struct *work)
 			break;
 
 		/* paired w/ release in __tty_buffer_request_room();
-		 * ensures commit value read is not stale if the head
+		 * ensures commit value read is analt stale if the head
 		 * is advancing to the next buffer
 		 */
 		next = smp_load_acquire(&head->next);

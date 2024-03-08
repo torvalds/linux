@@ -26,15 +26,15 @@ struct xfs_buf;
 
 #define XBF_READ	 (1u << 0) /* buffer intended for reading from device */
 #define XBF_WRITE	 (1u << 1) /* buffer intended for writing to device */
-#define XBF_READ_AHEAD	 (1u << 2) /* asynchronous read-ahead */
-#define XBF_NO_IOACCT	 (1u << 3) /* bypass I/O accounting (non-LRU bufs) */
-#define XBF_ASYNC	 (1u << 4) /* initiator will not wait for completion */
+#define XBF_READ_AHEAD	 (1u << 2) /* asynchroanalus read-ahead */
+#define XBF_ANAL_IOACCT	 (1u << 3) /* bypass I/O accounting (analn-LRU bufs) */
+#define XBF_ASYNC	 (1u << 4) /* initiator will analt wait for completion */
 #define XBF_DONE	 (1u << 5) /* all pages in the buffer uptodate */
-#define XBF_STALE	 (1u << 6) /* buffer has been staled, do not find it */
+#define XBF_STALE	 (1u << 6) /* buffer has been staled, do analt find it */
 #define XBF_WRITE_FAIL	 (1u << 7) /* async writes have failed on this buffer */
 
 /* buffer type flags for write callbacks */
-#define _XBF_INODES	 (1u << 16)/* inode buffer */
+#define _XBF_IANALDES	 (1u << 16)/* ianalde buffer */
 #define _XBF_DQUOTS	 (1u << 17)/* dquot buffer */
 #define _XBF_LOGRECOVERY (1u << 18)/* log recovery buffer */
 
@@ -45,13 +45,13 @@ struct xfs_buf;
 
 /* flags used only as arguments to access routines */
 /*
- * Online fsck is scanning the buffer cache for live buffers.  Do not warn
- * about length mismatches during lookups and do not return stale buffers.
+ * Online fsck is scanning the buffer cache for live buffers.  Do analt warn
+ * about length mismatches during lookups and do analt return stale buffers.
  */
 #define XBF_LIVESCAN	 (1u << 28)
 #define XBF_INCORE	 (1u << 29)/* lookup only, return if found in cache */
-#define XBF_TRYLOCK	 (1u << 30)/* lock requested, but do not wait */
-#define XBF_UNMAPPED	 (1u << 31)/* do not map the buffer */
+#define XBF_TRYLOCK	 (1u << 30)/* lock requested, but do analt wait */
+#define XBF_UNMAPPED	 (1u << 31)/* do analt map the buffer */
 
 
 typedef unsigned int xfs_buf_flags_t;
@@ -60,12 +60,12 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_READ,		"READ" }, \
 	{ XBF_WRITE,		"WRITE" }, \
 	{ XBF_READ_AHEAD,	"READ_AHEAD" }, \
-	{ XBF_NO_IOACCT,	"NO_IOACCT" }, \
+	{ XBF_ANAL_IOACCT,	"ANAL_IOACCT" }, \
 	{ XBF_ASYNC,		"ASYNC" }, \
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_STALE,		"STALE" }, \
 	{ XBF_WRITE_FAIL,	"WRITE_FAIL" }, \
-	{ _XBF_INODES,		"INODES" }, \
+	{ _XBF_IANALDES,		"IANALDES" }, \
 	{ _XBF_DQUOTS,		"DQUOTS" }, \
 	{ _XBF_LOGRECOVERY,	"LOG_RECOVERY" }, \
 	{ _XBF_PAGES,		"PAGES" }, \
@@ -84,7 +84,7 @@ typedef unsigned int xfs_buf_flags_t;
 #define XFS_BSTATE_IN_FLIGHT	 (1 << 1)	/* I/O in flight */
 
 /*
- * The xfs_buftarg contains 2 notions of "sector size" -
+ * The xfs_buftarg contains 2 analtions of "sector size" -
  *
  * 1) The metadata sector size, which is the minimum unit and
  *    alignment of IO which will be performed by metadata operations.
@@ -125,13 +125,13 @@ struct xfs_buf_map {
 };
 
 /*
- * Online fsck is scanning the buffer cache for live buffers.  Do not warn
- * about length mismatches during lookups and do not return stale buffers.
+ * Online fsck is scanning the buffer cache for live buffers.  Do analt warn
+ * about length mismatches during lookups and do analt return stale buffers.
  */
 #define XBM_LIVESCAN		(1U << 0)
 
-#define DEFINE_SINGLE_BUF_MAP(map, blkno, numblk) \
-	struct xfs_buf_map (map) = { .bm_bn = (blkno), .bm_len = (numblk) };
+#define DEFINE_SINGLE_BUF_MAP(map, blkanal, numblk) \
+	struct xfs_buf_map (map) = { .bm_bn = (blkanal), .bm_len = (numblk) };
 
 struct xfs_buf_ops {
 	char *name;
@@ -152,7 +152,7 @@ struct xfs_buf {
 	 * which is the only bit that is touched if we hit the semaphore
 	 * fast-path on locking.
 	 */
-	struct rhash_head	b_rhash_head;	/* pag buffer hash node */
+	struct rhash_head	b_rhash_head;	/* pag buffer hash analde */
 
 	xfs_daddr_t		b_rhash_key;	/* buffer cache index */
 	int			b_length;	/* size of buffer in BBs */
@@ -163,7 +163,7 @@ struct xfs_buf {
 
 	/*
 	 * concurrent access to b_lru and b_lru_flags are protected by
-	 * bt_lru_lock and not by b_sema
+	 * bt_lru_lock and analt by b_sema
 	 */
 	struct list_head	b_lru;		/* lru list */
 	spinlock_t		b_lock;		/* internal state lock */
@@ -202,8 +202,8 @@ struct xfs_buf {
 	 * means that we can change the retry timeout for buffers already under
 	 * I/O and thus avoid getting stuck in a retry loop with a long timeout.
 	 *
-	 * last_error is used to ensure that we are getting repeated errors, not
-	 * different errors. e.g. a block device might change ENOSPC to EIO when
+	 * last_error is used to ensure that we are getting repeated errors, analt
+	 * different errors. e.g. a block device might change EANALSPC to EIO when
 	 * a failure timeout occurs, so we want to re-initialise the error
 	 * retry behaviour appropriately when that happens.
 	 */
@@ -228,12 +228,12 @@ void xfs_buf_readahead_map(struct xfs_buftarg *target,
 static inline int
 xfs_buf_incore(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	size_t			numblks,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkanal, numblks);
 
 	return xfs_buf_get_map(target, &map, 1, XBF_INCORE | flags, bpp);
 }
@@ -241,11 +241,11 @@ xfs_buf_incore(
 static inline int
 xfs_buf_get(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	size_t			numblks,
 	struct xfs_buf		**bpp)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkanal, numblks);
 
 	return xfs_buf_get_map(target, &map, 1, 0, bpp);
 }
@@ -253,13 +253,13 @@ xfs_buf_get(
 static inline int
 xfs_buf_read(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	size_t			numblks,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp,
 	const struct xfs_buf_ops *ops)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkanal, numblks);
 
 	return xfs_buf_read_map(target, &map, 1, flags, bpp, ops,
 			__builtin_return_address(0));
@@ -268,11 +268,11 @@ xfs_buf_read(
 static inline void
 xfs_buf_readahead(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	size_t			numblks,
 	const struct xfs_buf_ops *ops)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkanal, numblks);
 	return xfs_buf_readahead_map(target, &map, 1, ops);
 }
 
@@ -321,7 +321,7 @@ extern void xfs_buf_delwri_cancel(struct list_head *);
 extern bool xfs_buf_delwri_queue(struct xfs_buf *, struct list_head *);
 void xfs_buf_delwri_queue_here(struct xfs_buf *bp, struct list_head *bl);
 extern int xfs_buf_delwri_submit(struct list_head *);
-extern int xfs_buf_delwri_submit_nowait(struct list_head *);
+extern int xfs_buf_delwri_submit_analwait(struct list_head *);
 extern int xfs_buf_delwri_pushbuf(struct xfs_buf *, struct list_head *);
 
 static inline xfs_daddr_t xfs_buf_daddr(struct xfs_buf *bp)
@@ -332,7 +332,7 @@ static inline xfs_daddr_t xfs_buf_daddr(struct xfs_buf *bp)
 void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref);
 
 /*
- * If the buffer is already on the LRU, do nothing. Otherwise set the buffer
+ * If the buffer is already on the LRU, do analthing. Otherwise set the buffer
  * up with a reference count of 0 so it will be tossed from the cache when
  * released.
  */

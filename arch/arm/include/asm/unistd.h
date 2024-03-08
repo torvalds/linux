@@ -5,7 +5,7 @@
  *  Copyright (C) 2001-2005 Russell King
  *
  * Please forward _all_ changes to this file to rmk@arm.linux.org.uk,
- * no matter what the change is.  Thanks!
+ * anal matter what the change is.  Thanks!
  */
 #ifndef __ASM_ARM_UNISTD_H
 #define __ASM_ARM_UNISTD_H
@@ -42,11 +42,11 @@
 /*
  * Unimplemented (or alternatively implemented) syscalls
  */
-#define __IGNORE_fadvise64_64
+#define __IGANALRE_fadvise64_64
 
 #ifdef __ARM_EABI__
 /*
- * The following syscalls are obsolete and no longer available for EABI:
+ * The following syscalls are obsolete and anal longer available for EABI:
  *  __NR_time
  *  __NR_umount
  *  __NR_stime
@@ -60,7 +60,7 @@
  *  __NR_syscall
  *  __NR_ipc
  */
-#define __IGNORE_getrlimit
+#define __IGANALRE_getrlimit
 #endif
 
 #endif /* __ASM_ARM_UNISTD_H */

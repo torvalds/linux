@@ -148,8 +148,8 @@
 /* EMAC_CORE_HW_VERSION */
 #define MAJOR_BMSK                                          0xf0000000
 #define MAJOR_SHFT                                                  28
-#define MINOR_BMSK                                           0xfff0000
-#define MINOR_SHFT                                                  16
+#define MIANALR_BMSK                                           0xfff0000
+#define MIANALR_SHFT                                                  16
 #define STEP_BMSK                                               0xffff
 #define STEP_SHFT                                                    0
 
@@ -200,7 +200,7 @@ enum emac_clk_id {
 	EMAC_CLK_CNT
 };
 
-#define EMAC_LINK_SPEED_UNKNOWN                                    0x0
+#define EMAC_LINK_SPEED_UNKANALWN                                    0x0
 #define EMAC_LINK_SPEED_10_HALF                                 BIT(0)
 #define EMAC_LINK_SPEED_10_FULL                                 BIT(1)
 #define EMAC_LINK_SPEED_100_HALF                                BIT(2)

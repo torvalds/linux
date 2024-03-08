@@ -66,12 +66,12 @@ void __init udbg_scc_init(int force_scc)
 {
 	const u32 *reg;
 	unsigned long addr;
-	struct device_node *stdout = NULL, *escc = NULL, *macio = NULL;
-	struct device_node *ch, *ch_def = NULL, *ch_a = NULL;
+	struct device_analde *stdout = NULL, *escc = NULL, *macio = NULL;
+	struct device_analde *ch, *ch_def = NULL, *ch_a = NULL;
 	const char *path;
 	int i;
 
-	escc = of_find_node_by_name(NULL, "escc");
+	escc = of_find_analde_by_name(NULL, "escc");
 	if (escc == NULL)
 		goto bail;
 	macio = of_get_parent(escc);
@@ -79,15 +79,15 @@ void __init udbg_scc_init(int force_scc)
 		goto bail;
 	path = of_get_property(of_chosen, "linux,stdout-path", NULL);
 	if (path != NULL)
-		stdout = of_find_node_by_path(path);
-	for_each_child_of_node(escc, ch) {
+		stdout = of_find_analde_by_path(path);
+	for_each_child_of_analde(escc, ch) {
 		if (ch == stdout) {
-			of_node_put(ch_def);
-			ch_def = of_node_get(ch);
+			of_analde_put(ch_def);
+			ch_def = of_analde_get(ch);
 		}
-		if (of_node_name_eq(ch, "ch-a")) {
-			of_node_put(ch_a);
-			ch_a = of_node_get(ch);
+		if (of_analde_name_eq(ch, "ch-a")) {
+			of_analde_put(ch_a);
+			ch_a = of_analde_get(ch);
 		}
 	}
 	if (ch_def == NULL && !force_scc)
@@ -155,11 +155,11 @@ void __init udbg_scc_init(int force_scc)
 	udbg_puts("Hello World !\n");
 
  bail:
-	of_node_put(macio);
-	of_node_put(escc);
-	of_node_put(stdout);
-	of_node_put(ch_def);
-	of_node_put(ch_a);
+	of_analde_put(macio);
+	of_analde_put(escc);
+	of_analde_put(stdout);
+	of_analde_put(ch_def);
+	of_analde_put(ch_a);
 }
 
 #ifdef CONFIG_PPC64

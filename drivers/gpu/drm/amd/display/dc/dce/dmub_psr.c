@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
 #include "dmub/dmub_srv.h"
 #include "core_types.h"
 
-#define DC_TRACE_LEVEL_MESSAGE(...)	do {} while (0) /* do nothing */
+#define DC_TRACE_LEVEL_MESSAGE(...)	do {} while (0) /* do analthing */
 
 #define MAX_PIPES 6
 
@@ -212,7 +212,7 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait, uint8
 					break;
 			}
 
-			/* must *not* be fsleep - this can be called from high irq levels */
+			/* must *analt* be fsleep - this can be called from high irq levels */
 			udelay(500);
 		}
 
@@ -380,7 +380,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 
 	/**
 	 * WA for PSRSU+DSC on specific TCON, if DSC is enabled, force PSRSU as ffu mode(full frame update)
-	 * Note that PSRSU+DSC is still under development.
+	 * Analte that PSRSU+DSC is still under development.
 	 */
 	if (copy_settings_data->dsc_enable_status &&
 		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 &&
@@ -424,7 +424,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 }
 
 /*
- * Send command to PSR to force static ENTER and ignore all state changes until exit
+ * Send command to PSR to force static ENTER and iganalre all state changes until exit
  */
 static void dmub_psr_force_static(struct dmub_psr *dmub, uint8_t panel_inst)
 {

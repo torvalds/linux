@@ -10,7 +10,7 @@ maintainers:
   - Alexandre Torgue <alexandre.torgue@foss.st.com>
   - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
-description: ARMv7-M includes a system timer, known as SysTick.
+description: ARMv7-M includes a system timer, kanalwn as SysTick.
 
 properties:
   compatible:

@@ -182,7 +182,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 	u32 ctrl_ext;
 
 	if (hw->phy.media_type != e1000_media_type_copper) {
-		phy->type = e1000_phy_none;
+		phy->type = e1000_phy_analne;
 		goto out;
 	}
 
@@ -466,7 +466,7 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 
 	if (mac->type == e1000_82580 || mac->type == e1000_i350) {
 		switch (hw->device_id) {
-		/* feature not supported on these id's */
+		/* feature analt supported on these id's */
 		case E1000_DEV_ID_DH89XXCC_SGMII:
 		case E1000_DEV_ID_DH89XXCC_SERDES:
 		case E1000_DEV_ID_DH89XXCC_BACKPLANE:
@@ -535,12 +535,12 @@ static s32 igb_set_sfp_media_type_82575(struct e1000_hw *hw)
 			dev_spec->sgmii_active = true;
 			hw->phy.media_type = e1000_media_type_copper;
 		} else {
-			hw->phy.media_type = e1000_media_type_unknown;
-			hw_dbg("PHY module has not been recognized\n");
+			hw->phy.media_type = e1000_media_type_unkanalwn;
+			hw_dbg("PHY module has analt been recognized\n");
 			goto out;
 		}
 	} else {
-		hw->phy.media_type = e1000_media_type_unknown;
+		hw->phy.media_type = e1000_media_type_unkanalwn;
 	}
 	ret_val = 0;
 out:
@@ -613,8 +613,8 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 
 	/* Set media type */
 	/* The 82575 uses bits 22:23 for link mode. The mode can be changed
-	 * based on the EEPROM. We cannot rely upon device ID. There
-	 * is no distinguishable difference between fiber and internal
+	 * based on the EEPROM. We cananalt rely upon device ID. There
+	 * is anal distinguishable difference between fiber and internal
 	 * SerDes mode on the 82575. There can be an external PHY attached
 	 * on the SGMII interface. For this, we'll set sgmii_active to true.
 	 */
@@ -641,8 +641,8 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		/* read media type from SFP EEPROM */
 		ret_val = igb_set_sfp_media_type_82575(hw);
 		if ((ret_val != 0) ||
-		    (hw->phy.media_type == e1000_media_type_unknown)) {
-			/* If media type was not identified then return media
+		    (hw->phy.media_type == e1000_media_type_unkanalwn)) {
+			/* If media type was analt identified then return media
 			 * type defined by the CTRL_EXT settings.
 			 */
 			hw->phy.media_type = e1000_media_type_internal_serdes;
@@ -815,7 +815,7 @@ out:
  *  igb_get_phy_id_82575 - Retrieve PHY addr and id
  *  @hw: pointer to the HW structure
  *
- *  Retrieves the PHY address and ID for both PHY's which do and do not use
+ *  Retrieves the PHY address and ID for both PHY's which do and do analt use
  *  sgmi interface.
  **/
 static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
@@ -831,7 +831,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 		igb_get_phy_id(hw);
 
 	/* For SGMII PHYs, we try the list of possible addresses until
-	 * we find one that works.  For non-SGMII PHYs
+	 * we find one that works.  For analn-SGMII PHYs
 	 * (e.g. integrated copper PHYs), an address of 1 should
 	 * work.  The result of this function should mean phy->phy_addr
 	 * and phy->id are set correctly.
@@ -925,7 +925,7 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 	hw_dbg("Soft resetting SGMII attached PHY...\n");
 
 	/* SFP documentation requires the following to configure the SPF module
-	 * to work on SGMII.  No further documentation is given.
+	 * to work on SGMII.  Anal further documentation is given.
 	 */
 	ret_val = hw->phy.ops.write_reg(hw, 0x1B, 0x8084);
 	if (ret_val)
@@ -950,7 +950,7 @@ out:
  *
  *  Sets the LPLU D0 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
- *  and vice versa.  LPLU will not be activated unless the
+ *  and vice versa.  LPLU will analt be activated unless the
  *  device autonegotiation advertisement meets standards of
  *  either 10 or 10/100 or 10/100/1000 at all duplexes.
  *  This is a function pointer entry point only called by
@@ -1026,7 +1026,7 @@ out:
  *
  *  Sets the LPLU D0 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
- *  and vice versa.  LPLU will not be activated unless the
+ *  and vice versa.  LPLU will analt be activated unless the
  *  device autonegotiation advertisement meets standards of
  *  either 10 or 10/100 or 10/100/1000 at all duplexes.
  *  This is a function pointer entry point only called by
@@ -1094,7 +1094,7 @@ static s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
 		else if (phy->smart_speed == e1000_smart_speed_off)
 			data &= ~E1000_82580_PM_SPD;
 	} else if ((phy->autoneg_advertised == E1000_ALL_SPEED_DUPLEX) ||
-		   (phy->autoneg_advertised == E1000_ALL_NOT_GIG) ||
+		   (phy->autoneg_advertised == E1000_ALL_ANALT_GIG) ||
 		   (phy->autoneg_advertised == E1000_ALL_10_SPEED)) {
 		data |= E1000_82580_PM_D3_LPLU;
 		/* When LPLU is enabled, we should disable SmartSpeed */
@@ -1220,10 +1220,10 @@ static void igb_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
  *  @hw: pointer to the HW structure
  *
  *  Read the management control register for the config done bit for
- *  completion status.  NOTE: silicon which is EEPROM-less will fail trying
+ *  completion status.  ANALTE: silicon which is EEPROM-less will fail trying
  *  to read the config done bit, so an error is *ONLY* logged and returns
  *  0.  If we were to return with error, EEPROM-less silicon
- *  would not be able to be reset or change link.
+ *  would analt be able to be reset or change link.
  **/
 static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 {
@@ -1244,9 +1244,9 @@ static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 		timeout--;
 	}
 	if (!timeout)
-		hw_dbg("MNG configuration cycle has not completed.\n");
+		hw_dbg("MNG configuration cycle has analt completed.\n");
 
-	/* If EEPROM is not marked present, init the PHY manually */
+	/* If EEPROM is analt marked present, init the PHY manually */
 	if (((rd32(E1000_EECD) & E1000_EECD_PRES) == 0) &&
 	    (hw->phy.type == e1000_phy_igp_3))
 		igb_phy_init_script_igp3(hw);
@@ -1295,12 +1295,12 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, &speed,
 							     &duplex);
 		/* Use this flag to determine if link needs to be checked or
-		 * not.  If  we have link clear the flag so that we do not
+		 * analt.  If  we have link clear the flag so that we do analt
 		 * continue to check for link.
 		 */
 		hw->mac.get_link_status = !hw->mac.serdes_has_link;
 
-		/* Configure Flow Control now that Auto-Neg has completed.
+		/* Configure Flow Control analw that Auto-Neg has completed.
 		 * First, we need to restore the desired flow control
 		 * settings because we may have had to re-autoneg with a
 		 * different link partner.
@@ -1363,8 +1363,8 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 	*speed = 0;
 	*duplex = 0;
 
-	/* Read the PCS Status register for link state. For non-copper mode,
-	 * the status register is not accurate. The PCS status register is
+	/* Read the PCS Status register for link state. For analn-copper mode,
+	 * the status register is analt accurate. The PCS status register is
 	 * used instead.
 	 */
 	pcs = rd32(E1000_PCS_LSTAT);
@@ -1412,7 +1412,7 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
  *  @hw: pointer to the HW structure
  *
  *  In the case of fiber serdes, shut down optics and PCS on driver unload
- *  when management pass thru is not enabled.
+ *  when management pass thru is analt enabled.
  **/
 void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
 {
@@ -1443,7 +1443,7 @@ void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
  *  igb_reset_hw_82575 - Reset hardware
  *  @hw: pointer to the HW structure
  *
- *  This resets the hardware into a known state.  This is a
+ *  This resets the hardware into a kanalwn state.  This is a
  *  function pointer entry point called by the api module.
  **/
 static s32 igb_reset_hw_82575(struct e1000_hw *hw)
@@ -1451,7 +1451,7 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	u32 ctrl;
 	s32 ret_val;
 
-	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	/* Prevent the PCI-E bus from sticking if there is anal TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = igb_disable_pcie_master(hw);
@@ -1479,14 +1479,14 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 
 	ret_val = igb_get_auto_rd_done(hw);
 	if (ret_val) {
-		/* When auto config read does not complete, do not
+		/* When auto config read does analt complete, do analt
 		 * return with an error. This can happen in situations
-		 * where there is no eeprom and prevents getting link.
+		 * where there is anal eeprom and prevents getting link.
 		 */
-		hw_dbg("Auto Read Done did not complete\n");
+		hw_dbg("Auto Read Done did analt complete\n");
 	}
 
-	/* If EEPROM is not present, run manual init scripts */
+	/* If EEPROM is analt present, run manual init scripts */
 	if ((rd32(E1000_EECD) & E1000_EECD_PRES) == 0)
 		igb_reset_init_script_82575(hw);
 
@@ -1523,7 +1523,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 	ret_val = igb_id_led_init(hw);
 	if (ret_val) {
 		hw_dbg("Error initializing identification LED\n");
-		/* This is not fatal and we should not stop init due to this */
+		/* This is analt fatal and we should analt stop init due to this */
 	}
 
 	/* Disabling VLAN filtering */
@@ -1549,7 +1549,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 	/* Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
-	 * is no link.
+	 * is anal link.
 	 */
 	igb_clear_hw_cntrs_82575(hw);
 	return ret_val;
@@ -1663,7 +1663,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 
 	/* On the 82575, SerDes loopback mode persists until it is
 	 * explicitly turned off or a power cycle is performed.  A read to
-	 * the register does not indicate its status.  Therefore, we ensure
+	 * the register does analt indicate its status.  Therefore, we ensure
 	 * loopback mode is disabled during initialization.
 	 */
 	wr32(E1000_SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
@@ -1716,7 +1716,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 				pcs_autoneg = false;
 		}
 
-		/* non-SGMII modes only supports a speed of 1000/Full for the
+		/* analn-SGMII modes only supports a speed of 1000/Full for the
 		 * link so it is best to just force the MAC and let the pcs
 		 * link either autoneg or be forced to 1000/Full
 		 */
@@ -1800,7 +1800,7 @@ static bool igb_sgmii_active_82575(struct e1000_hw *hw)
  *  igb_reset_init_script_82575 - Inits HW defaults after reset
  *  @hw: pointer to the HW structure
  *
- *  Inits recommended HW defaults after a reset when there is no EEPROM
+ *  Inits recommended HW defaults after a reset when there is anal EEPROM
  *  detected. This is only for the 82575.
  **/
 static s32 igb_reset_init_script_82575(struct e1000_hw *hw)
@@ -1859,11 +1859,11 @@ out:
  * @hw: pointer to the HW structure
  *
  * In the case of a PHY power down to save power, or to turn off link during a
- * driver unload, or wake on lan is not enabled, remove the link.
+ * driver unload, or wake on lan is analt enabled, remove the link.
  **/
 void igb_power_down_phy_copper_82575(struct e1000_hw *hw)
 {
-	/* If the management interface is not enabled, then power down */
+	/* If the management interface is analt enabled, then power down */
 	if (!(igb_enable_mng_pass_thru(hw) || igb_check_reset_block(hw)))
 		igb_power_down_phy_copper(hw);
 }
@@ -1925,7 +1925,7 @@ static void igb_clear_hw_cntrs_82575(struct e1000_hw *hw)
 	rd32(E1000_HGOTCH);
 	rd32(E1000_LENERRS);
 
-	/* This register should not be read in copper configurations */
+	/* This register should analt be read in copper configurations */
 	if (hw->phy.media_type == e1000_media_type_internal_serdes ||
 	    igb_sgmii_active_82575(hw))
 		rd32(E1000_SCVPC);
@@ -2061,7 +2061,7 @@ out:
  *  igb_vmdq_set_anti_spoofing_pf - enable or disable anti-spoofing
  *  @hw: pointer to the hardware struct
  *  @enable: state to enter, either enabled or disabled
- *  @pf: Physical Function pool - do not set anti-spoofing for the PF
+ *  @pf: Physical Function pool - do analt set anti-spoofing for the PF
  *
  *  enables/disables L2 switch anti-spoofing functionality.
  **/
@@ -2126,7 +2126,7 @@ void igb_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
 		wr32(E1000_TXSWC, dtxswc);
 		break;
 	default:
-		/* Currently no other hardware supports loopback */
+		/* Currently anal other hardware supports loopback */
 		break;
 	}
 
@@ -2207,7 +2207,7 @@ out:
  *
  *  This resets the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
  *  the values found in the EEPROM.  This addresses an issue in which these
- *  bits are not restored from EEPROM after reset.
+ *  bits are analt restored from EEPROM after reset.
  **/
 static s32 igb_reset_mdicnfg_82580(struct e1000_hw *hw)
 {
@@ -2243,7 +2243,7 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  This resets function or entire device (all ports, etc.)
- *  to a known state.
+ *  to a kanalwn state.
  **/
 static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 {
@@ -2264,7 +2264,7 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 	/* Get current control state. */
 	ctrl = rd32(E1000_CTRL);
 
-	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	/* Prevent the PCI-E bus from sticking if there is anal TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = igb_disable_pcie_master(hw);
@@ -2279,7 +2279,7 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 
 	usleep_range(10000, 11000);
 
-	/* Determine whether or not a global dev reset is requested */
+	/* Determine whether or analt a global dev reset is requested */
 	if (global_device_reset &&
 		hw->mac.ops.acquire_swfw_sync(hw, swmbsw_mask))
 			global_device_reset = false;
@@ -2299,11 +2299,11 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 
 	ret_val = igb_get_auto_rd_done(hw);
 	if (ret_val) {
-		/* When auto config read does not complete, do not
+		/* When auto config read does analt complete, do analt
 		 * return with an error. This can happen in situations
-		 * where there is no eeprom and prevents getting link.
+		 * where there is anal eeprom and prevents getting link.
 		 */
-		hw_dbg("Auto Read Done did not complete\n");
+		hw_dbg("Auto Read Done did analt complete\n");
 	}
 
 	/* clear global device reset status bit */
@@ -2315,7 +2315,7 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 
 	ret_val = igb_reset_mdicnfg_82580(hw);
 	if (ret_val)
-		hw_dbg("Could not reset MDICNFG based on EEPROM\n");
+		hw_dbg("Could analt reset MDICNFG based on EEPROM\n");
 
 	/* Install any alternate MAC address into RAR0 */
 	ret_val = igb_check_alt_mac_addr(hw);
@@ -2620,9 +2620,9 @@ s32 igb_set_eee_i350(struct e1000_hw *hw, bool adv1G, bool adv100M)
 		eeer |= (E1000_EEER_TX_LPI_EN | E1000_EEER_RX_LPI_EN |
 			E1000_EEER_LPI_FC);
 
-		/* This bit should not be set in normal operation. */
+		/* This bit should analt be set in analrmal operation. */
 		if (eee_su & E1000_EEE_SU_LPI_CLK_STP)
-			hw_dbg("LPI Clock Stop Bit should not be set!\n");
+			hw_dbg("LPI Clock Stop Bit should analt be set!\n");
 
 	} else {
 		ipcnfg &= ~(E1000_IPCNFG_EEE_1G_AN |
@@ -2786,7 +2786,7 @@ static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 	struct e1000_thermal_sensor_data *data = &hw->mac.thermal_sensor_data;
 
 	if ((hw->mac.type != e1000_i350) || (hw->bus.func != 0))
-		return E1000_NOT_IMPLEMENTED;
+		return E1000_ANALT_IMPLEMENTED;
 
 	data->sensor[0].temp = (rd32(E1000_THMJT) & 0xFF);
 
@@ -2798,7 +2798,7 @@ static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 	hw->nvm.ops.read(hw, ets_offset, 1, &ets_cfg);
 	if (FIELD_GET(NVM_ETS_TYPE_MASK, ets_cfg)
 	    != NVM_ETS_TYPE_EMC)
-		return E1000_NOT_IMPLEMENTED;
+		return E1000_ANALT_IMPLEMENTED;
 
 	num_sensors = (ets_cfg & NVM_ETS_NUM_SENSORS_MASK);
 	if (num_sensors > E1000_MAX_SENSORS)
@@ -2839,7 +2839,7 @@ static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 	struct e1000_thermal_sensor_data *data = &hw->mac.thermal_sensor_data;
 
 	if ((hw->mac.type != e1000_i350) || (hw->bus.func != 0))
-		return E1000_NOT_IMPLEMENTED;
+		return E1000_ANALT_IMPLEMENTED;
 
 	memset(data, 0, sizeof(struct e1000_thermal_sensor_data));
 
@@ -2857,7 +2857,7 @@ static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 	hw->nvm.ops.read(hw, ets_offset, 1, &ets_cfg);
 	if (FIELD_GET(NVM_ETS_TYPE_MASK, ets_cfg)
 	    != NVM_ETS_TYPE_EMC)
-		return E1000_NOT_IMPLEMENTED;
+		return E1000_ANALT_IMPLEMENTED;
 
 	low_thresh_delta = FIELD_GET(NVM_ETS_LTHRES_DELTA_MASK, ets_cfg);
 	num_sensors = (ets_cfg & NVM_ETS_NUM_SENSORS_MASK);

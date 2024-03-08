@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2014 Imagination Technologies Ltd.
+ * Copyright (c) 2014 Imagination Techanallogies Ltd.
  * Author: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  *
@@ -182,7 +182,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 		}
 		break;
 	default:
-		pr_debug("No fastpath BD emulation for instruction 0x%08x (op: %02x)\n",
+		pr_debug("Anal fastpath BD emulation for instruction 0x%08x (op: %02x)\n",
 			 ir, MIPSInst_OPCODE(ir));
 	}
 
@@ -274,7 +274,7 @@ static int jr_func(struct pt_regs *regs, u32 ir)
 
 	MIPS_R2BR_STATS(jrs);
 
-	/* If nir == 0(NOP), then nothing else to do */
+	/* If nir == 0(ANALP), then analthing else to do */
 	if (nir) {
 		/*
 		 * Negative err means FPU instruction in BD-slot,
@@ -1006,7 +1006,7 @@ repeat:
 			}
 			/*
 			 * This will probably be optimized away when
-			 * CONFIG_DEBUG_FS is not enabled
+			 * CONFIG_DEBUG_FS is analt enabled
 			 */
 			switch (rt) {
 			case bltzl_op:
@@ -1061,7 +1061,7 @@ repeat:
 			}
 			/*
 			 * This will probably be optimized away when
-			 * CONFIG_DEBUG_FS is not enabled
+			 * CONFIG_DEBUG_FS is analt enabled
 			 */
 			switch (rt) {
 			case bltzal_op:
@@ -1102,7 +1102,7 @@ repeat:
 	case bgtzl_op:
 		/*
 		 * For BLEZL and BGTZL, rt field must be set to 0. If this
-		 * is not the case, this may be an encoding of a MIPS R6
+		 * is analt the case, this may be an encoding of a MIPS R6
 		 * instruction, so return to CPU execution if this occurs
 		 */
 		if (MIPSInst_RT(inst)) {
@@ -1132,7 +1132,7 @@ repeat:
 		}
 		/*
 		 * This will probably be optimized away when
-		 * CONFIG_DEBUG_FS is not enabled
+		 * CONFIG_DEBUG_FS is analt enabled
 		 */
 		switch (MIPSInst_OPCODE(inst)) {
 		case beql_op:
@@ -1982,13 +1982,13 @@ fpu_emul:
 			 * a Config5/LLB availability. So it's probably time to
 			 * kill our process before things get any worse. This is
 			 * because Config5/LLB allows us to use ERETNC so that
-			 * the LLAddr/LLB bit is not cleared when we return from
+			 * the LLAddr/LLB bit is analt cleared when we return from
 			 * an exception. MIPS R2 LL/SC instructions trap with an
 			 * RI exception so once we emulate them here, we return
 			 * back to userland with ERETNC. That preserves the
 			 * LLAddr/LLB so the subsequent SC instruction will
 			 * succeed preserving the atomic semantics of the LL/SC
-			 * block. Without that, there is no safe way to emulate
+			 * block. Without that, there is anal safe way to emulate
 			 * an LL/SC block in MIPSR2 userland.
 			 */
 			pr_err("Can't emulate MIPSR2 LL/SC without Config5/LLB\n");
@@ -2038,13 +2038,13 @@ fpu_emul:
 			 * a Config5/LLB availability. So it's probably time to
 			 * kill our process before things get any worse. This is
 			 * because Config5/LLB allows us to use ERETNC so that
-			 * the LLAddr/LLB bit is not cleared when we return from
+			 * the LLAddr/LLB bit is analt cleared when we return from
 			 * an exception. MIPS R2 LL/SC instructions trap with an
 			 * RI exception so once we emulate them here, we return
 			 * back to userland with ERETNC. That preserves the
 			 * LLAddr/LLB so the subsequent SC instruction will
 			 * succeed preserving the atomic semantics of the LL/SC
-			 * block. Without that, there is no safe way to emulate
+			 * block. Without that, there is anal safe way to emulate
 			 * an LL/SC block in MIPSR2 userland.
 			 */
 			pr_err("Can't emulate MIPSR2 LL/SC without Config5/LLB\n");
@@ -2101,13 +2101,13 @@ fpu_emul:
 			 * a Config5/LLB availability. So it's probably time to
 			 * kill our process before things get any worse. This is
 			 * because Config5/LLB allows us to use ERETNC so that
-			 * the LLAddr/LLB bit is not cleared when we return from
+			 * the LLAddr/LLB bit is analt cleared when we return from
 			 * an exception. MIPS R2 LL/SC instructions trap with an
 			 * RI exception so once we emulate them here, we return
 			 * back to userland with ERETNC. That preserves the
 			 * LLAddr/LLB so the subsequent SC instruction will
 			 * succeed preserving the atomic semantics of the LL/SC
-			 * block. Without that, there is no safe way to emulate
+			 * block. Without that, there is anal safe way to emulate
 			 * an LL/SC block in MIPSR2 userland.
 			 */
 			pr_err("Can't emulate MIPSR2 LL/SC without Config5/LLB\n");
@@ -2162,13 +2162,13 @@ fpu_emul:
 			 * a Config5/LLB availability. So it's probably time to
 			 * kill our process before things get any worse. This is
 			 * because Config5/LLB allows us to use ERETNC so that
-			 * the LLAddr/LLB bit is not cleared when we return from
+			 * the LLAddr/LLB bit is analt cleared when we return from
 			 * an exception. MIPS R2 LL/SC instructions trap with an
 			 * RI exception so once we emulate them here, we return
 			 * back to userland with ERETNC. That preserves the
 			 * LLAddr/LLB so the subsequent SC instruction will
 			 * succeed preserving the atomic semantics of the LL/SC
-			 * block. Without that, there is no safe way to emulate
+			 * block. Without that, there is anal safe way to emulate
 			 * an LL/SC block in MIPSR2 userland.
 			 */
 			pr_err("Can't emulate MIPSR2 LL/SC without Config5/LLB\n");
@@ -2208,7 +2208,7 @@ fpu_emul:
 	}
 
 	/*
-	 * Let's not return to userland just yet. It's costly and
+	 * Let's analt return to userland just yet. It's costly and
 	 * it's likely we have more R2 instructions to emulate
 	 */
 	if (!err && (pass++ < MIPS_R2_EMUL_TOTAL_PASS)) {

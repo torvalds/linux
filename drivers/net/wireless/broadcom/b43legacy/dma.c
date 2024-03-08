@@ -174,7 +174,7 @@ static struct b43legacy_dmaring *priority_to_txring(
 {
 	struct b43legacy_dmaring *ring;
 
-/*FIXME: For now we always run on TX-ring-1 */
+/*FIXME: For analw we always run on TX-ring-1 */
 return dev->dma.tx_ring1;
 
 	/* 0 = highest priority */
@@ -301,7 +301,7 @@ static int alloc_ringmemory(struct b43legacy_dmaring *ring)
 					    B43legacy_DMA_RINGMEMSIZE,
 					    &(ring->dmabase), GFP_KERNEL);
 	if (!ring->descbase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -337,7 +337,7 @@ static int b43legacy_dmacontroller_rx_reset(struct b43legacy_wldev *dev,
 	}
 	if (i != -1) {
 		b43legacyerr(dev->wl, "DMA RX reset timed out\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -378,7 +378,7 @@ static int b43legacy_dmacontroller_tx_reset(struct b43legacy_wldev *dev,
 	}
 	if (i != -1) {
 		b43legacyerr(dev->wl, "DMA TX reset timed out\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* ensure the reset is completed. */
 	msleep(1);
@@ -430,7 +430,7 @@ static int setup_rx_descbuffer(struct b43legacy_dmaring *ring,
 
 	skb = __dev_alloc_skb(ring->rx_buffersize, gfp_flags);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 	dmaaddr = map_descbuffer(ring, skb->data,
 				 ring->rx_buffersize, 0);
 	if (b43legacy_dma_mapping_error(ring, dmaaddr, ring->rx_buffersize, 0)) {
@@ -441,7 +441,7 @@ static int setup_rx_descbuffer(struct b43legacy_dmaring *ring,
 
 		skb = __dev_alloc_skb(ring->rx_buffersize, gfp_flags);
 		if (unlikely(!skb))
-			return -ENOMEM;
+			return -EANALMEM;
 		dmaaddr = map_descbuffer(ring, skb->data,
 					 ring->rx_buffersize, 0);
 	}
@@ -469,7 +469,7 @@ static int setup_rx_descbuffer(struct b43legacy_dmaring *ring,
 static int alloc_initial_descbuffers(struct b43legacy_dmaring *ring)
 {
 	int i;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct b43legacy_dmadesc32 *desc;
 	struct b43legacy_dmadesc_meta *meta;
 
@@ -714,7 +714,7 @@ static void b43legacy_destroy_dmaring(struct b43legacy_dmaring *ring)
 		     (ring->tx) ? "TX" : "RX", ring->max_used_slots,
 		     ring->nr_slots);
 	/* Device IRQs are disabled prior entering this function,
-	 * so no need to take care of concurrency with rx handler stuff.
+	 * so anal need to take care of concurrency with rx handler stuff.
 	 */
 	dmacontroller_cleanup(ring);
 	free_all_descbuffers(ring);
@@ -762,19 +762,19 @@ int b43legacy_dma_init(struct b43legacy_wldev *dev)
 	err = dma_set_mask_and_coherent(dev->dev->dma_dev, DMA_BIT_MASK(type));
 	if (err) {
 #ifdef CONFIG_B43LEGACY_PIO
-		b43legacywarn(dev->wl, "DMA for this device not supported. "
+		b43legacywarn(dev->wl, "DMA for this device analt supported. "
 			"Falling back to PIO\n");
 		dev->__using_pio = true;
 		return -EAGAIN;
 #else
-		b43legacyerr(dev->wl, "DMA for this device not supported and "
-		       "no PIO support compiled in\n");
-		return -EOPNOTSUPP;
+		b43legacyerr(dev->wl, "DMA for this device analt supported and "
+		       "anal PIO support compiled in\n");
+		return -EOPANALTSUPP;
 #endif
 	}
 	dma->translation = ssb_dma_translation(dev->dev);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	/* setup TX DMA channels. */
 	ring = b43legacy_setup_dmaring(dev, 0, 1, type);
 	if (!ring)
@@ -857,7 +857,7 @@ static u16 generate_cookie(struct b43legacy_dmaring *ring,
 	/* Use the upper 4 bits of the cookie as
 	 * DMA controller ID and store the slot number
 	 * in the lower 12 bits.
-	 * Note that the cookie must never be 0, as this
+	 * Analte that the cookie must never be 0, as this
 	 * is a special value used in RX path.
 	 */
 	switch (ring->index) {
@@ -983,7 +983,7 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 		if (!bounce_skb) {
 			ring->current_slot = old_top_slot;
 			ring->used_slots = old_used_slots;
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_unmap_hdr;
 		}
 
@@ -1010,7 +1010,7 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 			     skb->len, 0, 1, 1);
 
 	wmb();	/* previous stuff MUST be done */
-	/* Now transfer the whole frame. */
+	/* Analw transfer the whole frame. */
 	op32_poke_tx(ring, next_slot(ring, slot));
 	return 0;
 
@@ -1028,7 +1028,7 @@ int should_inject_overflow(struct b43legacy_dmaring *ring)
 #ifdef CONFIG_B43LEGACY_DEBUG
 	if (unlikely(b43legacy_debug(ring->dev,
 				     B43legacy_DBG_DMAOVERFLOW))) {
-		/* Check if we should inject another ringbuffer overflow
+		/* Check if we should inject aanalther ringbuffer overflow
 		 * to test handling of this situation in the stack. */
 		unsigned long next_overflow;
 
@@ -1058,25 +1058,25 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		/* We get here only because of a bug in mac80211.
 		 * Because of a race, one packet may be queued after
 		 * the queue is stopped, thus we got called when we shouldn't.
-		 * For now, just refuse the transmit. */
+		 * For analw, just refuse the transmit. */
 		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
 			b43legacyerr(dev->wl, "Packet after queue stopped\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (WARN_ON(free_slots(ring) < SLOTS_PER_PACKET)) {
 		/* If we get here, we have a real error with the queue
-		 * full, but queues not stopped. */
+		 * full, but queues analt stopped. */
 		b43legacyerr(dev->wl, "DMA queue overflow\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	/* dma_tx_fragment might reallocate the skb, so invalidate pointers pointing
-	 * into the skb data or cb now. */
+	 * into the skb data or cb analw. */
 	err = dma_tx_fragment(ring, &skb);
-	if (unlikely(err == -ENOKEY)) {
+	if (unlikely(err == -EANALKEY)) {
 		/* Drop this packet, as we don't have the encryption key
-		 * anymore and must not transmit it unencrypted. */
+		 * anymore and must analt transmit it unencrypted. */
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -1156,8 +1156,8 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 
 			if (status->rts_count > dev->wl->hw->conf.short_frame_max_tx_count) {
 				/*
-				 * If the short retries (RTS, not data frame) have exceeded
-				 * the limit, the hw will not have tried the selected rate,
+				 * If the short retries (RTS, analt data frame) have exceeded
+				 * the limit, the hw will analt have tried the selected rate,
 				 * but will have used the fallback rate instead.
 				 * Don't let the rate control count attempts for the selected
 				 * rate in this case, otherwise the statistics will be off.
@@ -1184,13 +1184,13 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 			/* skb is freed by ieee80211_tx_status_irqsafe() */
 			meta->skb = NULL;
 		} else {
-			/* No need to call free_descriptor_buffer here, as
-			 * this is only the txhdr, which is not allocated.
+			/* Anal need to call free_descriptor_buffer here, as
+			 * this is only the txhdr, which is analt allocated.
 			 */
 			B43legacy_WARN_ON(meta->skb != NULL);
 		}
 
-		/* Everything unmapped and free'd. So it's not used anymore. */
+		/* Everything unmapped and free'd. So it's analt used anymore. */
 		ring->used_slots--;
 
 		if (meta->is_last_fragment)
@@ -1271,10 +1271,10 @@ static void dma_rx(struct b43legacy_dmaring *ring,
 		}
 	}
 	if (unlikely(len > ring->rx_buffersize)) {
-		/* The data did not fit into one descriptor buffer
+		/* The data did analt fit into one descriptor buffer
 		 * and is split over multiple buffers.
 		 * This should never happen, as we try to allocate buffers
-		 * big enough. So simply ignore this packet.
+		 * big eanalugh. So simply iganalre this packet.
 		 */
 		int cnt = 0;
 		s32 tmp = len;

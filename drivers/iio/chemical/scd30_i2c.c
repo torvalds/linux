@@ -8,7 +8,7 @@
  */
 #include <linux/crc8.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -18,7 +18,7 @@
 #include "scd30.h"
 
 #define SCD30_I2C_MAX_BUF_SIZE 18
-#define SCD30_I2C_CRC8_POLYNOMIAL 0x31
+#define SCD30_I2C_CRC8_POLYANALMIAL 0x31
 
 static u16 scd30_i2c_cmd_lookup_tbl[] = {
 	[CMD_START_MEAS] = 0x0010,
@@ -42,7 +42,7 @@ static int scd30_i2c_xfer(struct scd30_state *state, char *txbuf, int txsize,
 	int ret;
 
 	/*
-	 * repeated start is not supported hence instead of sending two i2c
+	 * repeated start is analt supported hence instead of sending two i2c
 	 * messages in a row we send one by one
 	 */
 	ret = i2c_master_send(client, txbuf, txsize);
@@ -111,9 +111,9 @@ static int scd30_i2c_command(struct scd30_state *state, enum scd30_cmd cmd, u16 
 static int scd30_i2c_probe(struct i2c_client *client)
 {
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	crc8_populate_msb(scd30_i2c_crc8_tbl, SCD30_I2C_CRC8_POLYNOMIAL);
+	crc8_populate_msb(scd30_i2c_crc8_tbl, SCD30_I2C_CRC8_POLYANALMIAL);
 
 	return scd30_probe(&client->dev, client->irq, client->name, NULL, scd30_i2c_command);
 }

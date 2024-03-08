@@ -164,10 +164,10 @@ static struct iscsi_transport cxgb4i_iscsi_transport = {
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 static int
-cxgb4_dcb_change_notify(struct notifier_block *, unsigned long, void *);
+cxgb4_dcb_change_analtify(struct analtifier_block *, unsigned long, void *);
 
-static struct notifier_block cxgb4_dcb_change = {
-	.notifier_call = cxgb4_dcb_change_notify,
+static struct analtifier_block cxgb4_dcb_change = {
+	.analtifier_call = cxgb4_dcb_change_analtify,
 };
 #endif
 
@@ -467,7 +467,7 @@ static void abort_arp_failure(void *handle, struct sk_buff *skb)
 		"csk 0x%p,%u,0x%lx, tid %u, abort.\n",
 		csk, csk->state, csk->flags, csk->tid);
 	req = (struct cpl_abort_req *)skb->data;
-	req->cmd = CPL_ABORT_NO_RST;
+	req->cmd = CPL_ABORT_ANAL_RST;
 	cxgb4_ofld_send(csk->cdev->ports[csk->port_id], skb);
 }
 
@@ -571,7 +571,7 @@ static inline unsigned int sgl_len(unsigned int n)
  * @skb: the packet
  *
  * Returns the number of flits needed for the given offload packet.
- * These packets are already fully constructed and no additional headers
+ * These packets are already fully constructed and anal additional headers
  * will be added.
  */
 static inline unsigned int calc_tx_flits_ofld(const struct sk_buff *skb)
@@ -652,7 +652,7 @@ static inline int send_tx_flowc_wr(struct cxgbi_sock *csk)
 		flowc->mnemval[8].val = cpu_to_be32(16128);
 #ifdef CONFIG_CHELSIO_T4_DCB
 	flowc->mnemval[9].mnemonic = FW_FLOWC_MNEM_DCBPRIO;
-	if (vlan == CPL_L2T_VLAN_NONE) {
+	if (vlan == CPL_L2T_VLAN_ANALNE) {
 		pr_warn_ratelimited("csk %u without VLAN Tag on DCB Link\n",
 				    csk->tid);
 		flowc->mnemval[9].val = cpu_to_be32(0);
@@ -802,7 +802,7 @@ static int push_tx_frames(struct cxgbi_sock *csk, int req_completion)
 			   DIV_ROUND_UP(sizeof(struct fw_ofld_tx_data_wr), 16);
 
 		/*
-		 * Assumes the initial credits is large enough to support
+		 * Assumes the initial credits is large eanalugh to support
 		 * fw_flowc_wr plus largest possible first payload
 		 */
 		if (!cxgbi_sock_flag(csk, CTPF_TX_DATA_SENT)) {
@@ -818,11 +818,11 @@ static int push_tx_frames(struct cxgbi_sock *csk, int req_completion)
 				  csk, skb->len, skb->data_len,
 				  credits_needed, csk->wr_cred);
 
-			csk->no_tx_credits++;
+			csk->anal_tx_credits++;
 			break;
 		}
 
-		csk->no_tx_credits = 0;
+		csk->anal_tx_credits = 0;
 
 		__skb_unlink(skb, &csk->write_queue);
 		set_wr_txq(skb, CPL_PRIORITY_DATA, csk->port_id);
@@ -901,7 +901,7 @@ static void do_act_establish(struct cxgbi_device *cdev, struct sk_buff *skb)
 
 	csk = lookup_atid(t, atid);
 	if (unlikely(!csk)) {
-		pr_err("NO conn. for atid %u, cdev 0x%p.\n", atid, cdev);
+		pr_err("ANAL conn. for atid %u, cdev 0x%p.\n", atid, cdev);
 		goto rel_skb;
 	}
 
@@ -967,7 +967,7 @@ rel_skb:
 	__kfree_skb(skb);
 }
 
-static int act_open_rpl_status_to_errno(int status)
+static int act_open_rpl_status_to_erranal(int status)
 {
 	switch (status) {
 	case CPL_ERR_CONN_RESET:
@@ -977,7 +977,7 @@ static int act_open_rpl_status_to_errno(int status)
 	case CPL_ERR_CONN_TIMEDOUT:
 		return -ETIMEDOUT;
 	case CPL_ERR_TCAM_FULL:
-		return -ENOMEM;
+		return -EANALMEM;
 	case CPL_ERR_CONN_EXIST:
 		return -EADDRINUSE;
 	default:
@@ -1020,7 +1020,7 @@ static void csk_act_open_retry_timer(struct timer_list *t)
 	}
 
 	if (!skb)
-		cxgbi_sock_fail_act_open(csk, -ENOMEM);
+		cxgbi_sock_fail_act_open(csk, -EANALMEM);
 	else {
 		skb->sk = (struct sock *)csk;
 		t4_set_arp_err_handler(skb, csk,
@@ -1053,7 +1053,7 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 
 	csk = lookup_atid(t, atid);
 	if (unlikely(!csk)) {
-		pr_err("NO matching conn. atid %u, tid %u.\n", atid, tid);
+		pr_err("ANAL matching conn. atid %u, tid %u.\n", atid, tid);
 		goto rel_skb;
 	}
 
@@ -1081,7 +1081,7 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 		mod_timer(&csk->retry_timer, jiffies + HZ / 2);
 	} else
 		cxgbi_sock_fail_act_open(csk,
-					act_open_rpl_status_to_errno(status));
+					act_open_rpl_status_to_erranal(status));
 
 	spin_unlock_bh(&csk->lock);
 	cxgbi_sock_put(csk);
@@ -1131,7 +1131,7 @@ rel_skb:
 	__kfree_skb(skb);
 }
 
-static int abort_status_to_errno(struct cxgbi_sock *csk, int abort_reason,
+static int abort_status_to_erranal(struct cxgbi_sock *csk, int abort_reason,
 								int *need_rst)
 {
 	switch (abort_reason) {
@@ -1156,7 +1156,7 @@ static void do_abort_req_rss(struct cxgbi_device *cdev, struct sk_buff *skb)
 	unsigned int tid = GET_TID(req);
 	struct cxgb4_lld_info *lldi = cxgbi_cdev_priv(cdev);
 	struct tid_info *t = lldi->tids;
-	int rst_status = CPL_ABORT_NO_RST;
+	int rst_status = CPL_ABORT_ANAL_RST;
 
 	csk = lookup_tid(t, tid);
 	if (unlikely(!csk)) {
@@ -1187,7 +1187,7 @@ static void do_abort_req_rss(struct cxgbi_device *cdev, struct sk_buff *skb)
 	send_abort_rpl(csk, rst_status);
 
 	if (!cxgbi_sock_flag(csk, CTPF_ABORT_RPL_PENDING)) {
-		csk->err = abort_status_to_errno(csk, req->status, &rst_status);
+		csk->err = abort_status_to_erranal(csk, req->status, &rst_status);
 		cxgbi_sock_closed(csk);
 	}
 
@@ -1233,7 +1233,7 @@ static void do_rx_data(struct cxgbi_device *cdev, struct sk_buff *skb)
 	if (!csk) {
 		pr_err("can't find connection for tid %u.\n", tid);
 	} else {
-		/* not expecting this, reset the connection. */
+		/* analt expecting this, reset the connection. */
 		pr_err("csk 0x%p, tid %u, rcv cpl_rx_data.\n", csk, tid);
 		spin_lock_bh(&csk->lock);
 		send_abort_req(csk);
@@ -1560,7 +1560,7 @@ do_rx_iscsi_cmp(struct cxgbi_device *cdev, struct sk_buff *skb)
 		data_skb = skb_peek(&csk->receive_queue);
 		if (!data_skb ||
 		    !cxgbi_skcb_test_flag(data_skb, SKCBF_RX_DATA)) {
-			pr_err("Error! freelist data not found 0x%p, tid %u\n",
+			pr_err("Error! freelist data analt found 0x%p, tid %u\n",
 			       data_skb, tid);
 
 			goto abort_conn;
@@ -1639,7 +1639,7 @@ static void do_set_tcb_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 		"csk 0x%p,%u,%lx,%u, status 0x%x.\n",
 		csk, csk->state, csk->flags, csk->tid, rpl->status);
 
-	if (rpl->status != CPL_ERR_NONE) {
+	if (rpl->status != CPL_ERR_ANALNE) {
 		pr_err("csk 0x%p,%u, SET_TCB_RPL status %u.\n",
 			csk, tid, rpl->status);
 		csk->err = -EINVAL;
@@ -1655,7 +1655,7 @@ static int alloc_cpls(struct cxgbi_sock *csk)
 	csk->cpl_close = alloc_wr(sizeof(struct cpl_close_con_req),
 					0, GFP_KERNEL);
 	if (!csk->cpl_close)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csk->cpl_abort_req = alloc_wr(sizeof(struct cpl_abort_req),
 					0, GFP_KERNEL);
@@ -1670,7 +1670,7 @@ static int alloc_cpls(struct cxgbi_sock *csk)
 
 free_cpls:
 	cxgbi_sock_free_cpl_skbs(csk);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline void l2t_put(struct cxgbi_sock *csk)
@@ -1790,7 +1790,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 		daddr = &csk->daddr6.sin6_addr;
 #endif
 	else {
-		pr_err("address family 0x%x not supported\n", csk->csk_family);
+		pr_err("address family 0x%x analt supported\n", csk->csk_family);
 		goto rel_resource;
 	}
 
@@ -1806,7 +1806,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 
 	csk->atid = cxgb4_alloc_atid(lldi->tids, csk);
 	if (csk->atid < 0) {
-		pr_err("%s, NO atid available.\n", ndev->name);
+		pr_err("%s, ANAL atid available.\n", ndev->name);
 		goto rel_resource_without_clip;
 	}
 	cxgbi_sock_set_flag(csk, CTPF_HAS_ATID);
@@ -1822,7 +1822,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	csk->l2t = cxgb4_l2t_get(lldi->l2t, n, ndev, 0);
 #endif
 	if (!csk->l2t) {
-		pr_err("%s, cannot alloc l2t.\n", ndev->name);
+		pr_err("%s, cananalt alloc l2t.\n", ndev->name);
 		goto rel_resource_without_clip;
 	}
 	cxgbi_sock_get(csk);
@@ -1844,10 +1844,10 @@ static int init_act_open(struct cxgbi_sock *csk)
 	}
 
 	if (csk->csk_family == AF_INET)
-		skb = alloc_wr(size, 0, GFP_NOIO);
+		skb = alloc_wr(size, 0, GFP_ANALIO);
 #if IS_ENABLED(CONFIG_IPV6)
 	else
-		skb = alloc_wr(size6, 0, GFP_NOIO);
+		skb = alloc_wr(size6, 0, GFP_ANALIO);
 #endif
 
 	if (!skb)
@@ -2028,7 +2028,7 @@ static int ddp_ppod_write_idata(struct cxgbi_ppm *ppm, struct cxgbi_sock *csk,
 	int i;
 
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = (struct ulp_mem_io *)skb->head;
 	idata = (struct ulptx_idata *)(req + 1);
@@ -2085,13 +2085,13 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk, unsigned int tid,
 
 	skb = alloc_wr(sizeof(*req), 0, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*  set up ulp page size */
 	req = (struct cpl_set_tcb_field *)skb->head;
 	INIT_TP_WR(req, csk->tid);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, csk->tid));
-	req->reply_ctrl = htons(NO_REPLY_V(0) | QUEUENO_V(csk->rss_qid));
+	req->reply_ctrl = htons(ANAL_REPLY_V(0) | QUEUEANAL_V(csk->rss_qid));
 	req->word_cookie = htons(0);
 	req->mask = cpu_to_be64(0x3 << 8);
 	req->val = cpu_to_be64(pg_idx << 8);
@@ -2118,7 +2118,7 @@ static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 
 	skb = alloc_wr(sizeof(*req), 0, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csk->hcrc_len = (hcrc ? 4 : 0);
 	csk->dcrc_len = (dcrc ? 4 : 0);
@@ -2126,7 +2126,7 @@ static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 	req = (struct cpl_set_tcb_field *)skb->head;
 	INIT_TP_WR(req, tid);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply_ctrl = htons(NO_REPLY_V(0) | QUEUENO_V(csk->rss_qid));
+	req->reply_ctrl = htons(ANAL_REPLY_V(0) | QUEUEANAL_V(csk->rss_qid));
 	req->word_cookie = htons(0);
 	req->mask = cpu_to_be64(0x3 << 4);
 	req->val = cpu_to_be64(((hcrc ? ULP_CRC_HEADER : 0) |
@@ -2157,7 +2157,7 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 	int i, err;
 
 	if (!lldi->vr->iscsi.size) {
-		pr_warn("%s, iscsi NOT enabled, check config!\n", ndev->name);
+		pr_warn("%s, iscsi ANALT enabled, check config!\n", ndev->name);
 		return -EACCES;
 	}
 
@@ -2185,9 +2185,9 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 	cdev->csk_ddp_setup_pgidx = ddp_setup_conn_pgidx;
 	cdev->csk_ddp_set_map = ddp_set_map;
 	cdev->tx_max_size = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				  lldi->iscsi_iolen - ISCSI_PDU_NONPAYLOAD_LEN);
+				  lldi->iscsi_iolen - ISCSI_PDU_ANALNPAYLOAD_LEN);
 	cdev->rx_max_size = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				  lldi->iscsi_iolen - ISCSI_PDU_NONPAYLOAD_LEN);
+				  lldi->iscsi_iolen - ISCSI_PDU_ANALNPAYLOAD_LEN);
 	cdev->cdev2ppm = cdev2ppm;
 
 	return 0;
@@ -2272,7 +2272,7 @@ static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 				ndev->name, cdev, t->ntids);
 		}
 	} else {
-		pr_info("%s, 0x%p, NO adapter struct.\n", ndev->name, cdev);
+		pr_info("%s, 0x%p, ANAL adapter struct.\n", ndev->name, cdev);
 	}
 
 	/* ISO is enabled in T5/T6 firmware version >= 1.13.43.0 */
@@ -2301,7 +2301,7 @@ static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 
 err_out:
 	cxgbi_device_unregister(cdev);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 #define RX_PULL_LEN	128
@@ -2318,7 +2318,7 @@ static int t4_uld_rx_handler(void *handle, const __be64 *rsp,
 
 		skb = alloc_wr(len, 0, GFP_ATOMIC);
 		if (!skb)
-			goto nomem;
+			goto analmem;
 		skb_copy_to_linear_data(skb, &rsp[1], len);
 	} else {
 		if (unlikely(*(u8 *)rsp != *(u8 *)pgl->va)) {
@@ -2330,7 +2330,7 @@ static int t4_uld_rx_handler(void *handle, const __be64 *rsp,
 		}
 		skb = cxgb4_pktgl_to_skb(pgl, RX_PULL_LEN, RX_PULL_LEN);
 		if (unlikely(!skb))
-			goto nomem;
+			goto analmem;
 	}
 
 	rpl = (struct cpl_act_establish *)skb->data;
@@ -2339,13 +2339,13 @@ static int t4_uld_rx_handler(void *handle, const __be64 *rsp,
 		"cdev %p, opcode 0x%x(0x%x,0x%x), skb %p.\n",
 		 cdev, opc, rpl->ot.opcode_tid, ntohl(rpl->ot.opcode_tid), skb);
 	if (opc >= ARRAY_SIZE(cxgb4i_cplhandlers) || !cxgb4i_cplhandlers[opc]) {
-		pr_err("No handler for opcode 0x%x.\n", opc);
+		pr_err("Anal handler for opcode 0x%x.\n", opc);
 		__kfree_skb(skb);
 	} else
 		cxgb4i_cplhandlers[opc](cdev, skb);
 
 	return 0;
-nomem:
+analmem:
 	log_debug(1 << CXGBI_DBG_TOE, "OOM bailing out.\n");
 	return 1;
 }
@@ -2370,7 +2370,7 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 		cxgbi_device_unregister(cdev);
 		break;
 	default:
-		pr_info("cdev 0x%p, unknown state %d.\n", cdev, state);
+		pr_info("cdev 0x%p, unkanalwn state %d.\n", cdev, state);
 		break;
 	}
 	return 0;
@@ -2378,7 +2378,7 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 static int
-cxgb4_dcb_change_notify(struct notifier_block *self, unsigned long val,
+cxgb4_dcb_change_analtify(struct analtifier_block *self, unsigned long val,
 			void *data)
 {
 	int i, port = 0xFF;
@@ -2391,36 +2391,36 @@ cxgb4_dcb_change_notify(struct notifier_block *self, unsigned long val,
 	if (iscsi_app->dcbx & DCB_CAP_DCBX_VER_IEEE) {
 		if ((iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_STREAM) &&
 		    (iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_ANY))
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
 		priority = iscsi_app->app.priority;
 	} else if (iscsi_app->dcbx & DCB_CAP_DCBX_VER_CEE) {
 		if (iscsi_app->app.selector != DCB_APP_IDTYPE_PORTNUM)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
 		if (!iscsi_app->app.priority)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
 		priority = ffs(iscsi_app->app.priority) - 1;
 	} else {
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	if (iscsi_app->app.protocol != 3260)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	log_debug(1 << CXGBI_DBG_ISCSI, "iSCSI priority for ifid %d is %u\n",
 		  iscsi_app->ifindex, priority);
 
 	ndev = dev_get_by_index(&init_net, iscsi_app->ifindex);
 	if (!ndev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	cdev = cxgbi_device_find_by_netdev_rcu(ndev, &port);
 
 	dev_put(ndev);
 	if (!cdev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	pmap = &cdev->pmap;
 
@@ -2437,7 +2437,7 @@ cxgb4_dcb_change_notify(struct notifier_block *self, unsigned long val,
 			}
 		}
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 #endif
 
@@ -2454,7 +2454,7 @@ static int __init cxgb4i_init_module(void)
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 	pr_info("%s dcb enabled.\n", DRV_MODULE_NAME);
-	register_dcbevent_notifier(&cxgb4_dcb_change);
+	register_dcbevent_analtifier(&cxgb4_dcb_change);
 #endif
 	return 0;
 }
@@ -2462,7 +2462,7 @@ static int __init cxgb4i_init_module(void)
 static void __exit cxgb4i_exit_module(void)
 {
 #ifdef CONFIG_CHELSIO_T4_DCB
-	unregister_dcbevent_notifier(&cxgb4_dcb_change);
+	unregister_dcbevent_analtifier(&cxgb4_dcb_change);
 #endif
 	cxgb4_unregister_uld(CXGB4_ULD_ISCSI);
 	cxgbi_device_unregister_all(CXGBI_FLAG_DEV_T4);

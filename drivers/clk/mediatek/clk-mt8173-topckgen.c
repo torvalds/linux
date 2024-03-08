@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Copyright (c) 2022 Collabora Ltd.
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <dt-bindings/clock/mt8173-clk.h>
@@ -15,17 +15,17 @@
 /*
  * For some clocks, we don't care what their actual rates are. And these
  * clocks may change their rate on different products or different scenarios.
- * So we model these clocks' rate as 0, to denote it's not an actual rate.
+ * So we model these clocks' rate as 0, to deanalte it's analt an actual rate.
  */
 #define DUMMY_RATE	0
 
-#define TOP_MUX_GATE_NOSR(_id, _name, _parents, _reg, _shift, _width, _gate, _flags) \
+#define TOP_MUX_GATE_ANALSR(_id, _name, _parents, _reg, _shift, _width, _gate, _flags) \
 		MUX_GATE_CLR_SET_UPD_FLAGS(_id, _name, _parents, _reg,		\
 			(_reg + 0x4), (_reg + 0x8), _shift, _width,		\
 			_gate, 0, -1, _flags)
 
 #define TOP_MUX_GATE(_id, _name, _parents, _reg, _shift, _width, _gate, _flags)	\
-		TOP_MUX_GATE_NOSR(_id, _name, _parents, _reg, _shift, _width,	\
+		TOP_MUX_GATE_ANALSR(_id, _name, _parents, _reg, _shift, _width,	\
 				  _gate, CLK_SET_RATE_PARENT | _flags)
 
 static DEFINE_SPINLOCK(mt8173_top_clk_lock);
@@ -571,7 +571,7 @@ static const struct mtk_composite top_muxes[] = {
 		 0x0090, 24, 4, 31),
 	/* CLK_CFG_6 */
 	/*
-	 * The dpi0_sel clock should not propagate rate changes to its parent
+	 * The dpi0_sel clock should analt propagate rate changes to its parent
 	 * clock so the dpi driver can have full control over PLL and divider.
 	 */
 	MUX_GATE_FLAGS(CLK_TOP_DPI0_SEL, "dpi0_sel", dpi0_parents,

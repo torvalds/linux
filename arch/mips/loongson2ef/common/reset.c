@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  * Copyright (C) 2009 Lemote, Inc.
  * Author: Zhangjin Wu, wuzhangjin@gmail.com
@@ -24,10 +24,10 @@ static inline void loongson_reboot(void)
 	func = (void *)ioremap(LOONGSON_BOOT_BASE, 4);
 
 	__asm__ __volatile__(
-	"	.set	noat						\n"
+	"	.set	analat						\n"
 	"	jr	%[func]						\n"
 	"	.set	at						\n"
-	: /* No outputs */
+	: /* Anal outputs */
 	: [func] "r" (func));
 #endif
 }
@@ -54,7 +54,7 @@ static void loongson_poweroff(void)
 
 static void loongson_halt(void)
 {
-	pr_notice("\n\n** You can safely turn off the power now **\n\n");
+	pr_analtice("\n\n** You can safely turn off the power analw **\n\n");
 	while (1) {
 		if (cpu_wait)
 			cpu_wait();

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -141,7 +141,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	unsigned int colorimetryFormat = 0;
 	bool stereo3dSupport = false;
 
-	if (stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE && stream->view_format != VIEW_3D_FORMAT_NONE) {
+	if (stream->timing.timing_3d_format != TIMING_3D_FORMAT_ANALNE && stream->view_format != VIEW_3D_FORMAT_ANALNE) {
 		vsc_packet_revision = vsc_packet_rev1;
 		stereo3dSupport = true;
 	}
@@ -161,7 +161,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	if (stream->use_vsc_sdp_for_colorimetry)
 		vsc_packet_revision = vsc_packet_rev5;
 
-	/* VSC packet not needed based on the features
+	/* VSC packet analt needed based on the features
 	 * supported by this DP display
 	 */
 	if (vsc_packet_revision == vsc_packet_undefined)
@@ -230,7 +230,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		 *
 		 * Bits 3:0 (Stereo Interface Method Code)  |  Bits 7:4 (Stereo Interface Method Specific Parameter)
 		 * -----------------------------------------------------------------------------------------------------
-		 * 0 = Non Stereo Video                     |  Must be set to 0x0
+		 * 0 = Analn Stereo Video                     |  Must be set to 0x0
 		 * -----------------------------------------------------------------------------------------------------
 		 * 1 = Frame/Field Sequential               |  0x0: L + R view indication based on MISC1 bit 2:1
 		 *                                          |  0x1: Right when Stereo Signal = 1
@@ -266,7 +266,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 			info_packet->sb[0] = 0x04; // Side-by-side
 			break;
 		default:
-			info_packet->sb[0] = 0x00; // No Stereo Video, Shall be cleared to 0x0.
+			info_packet->sb[0] = 0x00; // Anal Stereo Video, Shall be cleared to 0x0.
 			break;
 		}
 
@@ -280,7 +280,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	 *   (Requires VSC_SDP_EXTENSION_FOR_COLORIMETRY_SUPPORTED bit set to 1 in DPCD 02210h. This
 	 *   DPCD register is exposed in the new Extended Receiver Capability field for DPCD Rev. 1.4
 	 *   (and higher). When MISC1. bit 6. is Set to 1, a Source device uses a VSC SDP to indicate
-	 *   the Pixel Encoding/Colorimetry Format and that a Sink device must ignore MISC1, bit 7, and
+	 *   the Pixel Encoding/Colorimetry Format and that a Sink device must iganalre MISC1, bit 7, and
 	 *   MISC0, bits 7:1 (MISC1, bit 7. and MISC0, bits 7:1 become "don't care").)
 	 */
 	if (vsc_packet_revision == vsc_packet_rev5) {
@@ -377,7 +377,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		case PIXEL_ENCODING_YCBCR444:
 		case PIXEL_ENCODING_YCBCR422:
 		case PIXEL_ENCODING_YCBCR420:
-			/* Note: xvYCC probably not supported correctly here on DP since colorspace translation
+			/* Analte: xvYCC probably analt supported correctly here on DP since colorspace translation
 			 * loses distinction between BT601 vs xvYCC601 in translation
 			 */
 			if (cs == COLOR_SPACE_YCBCR601)
@@ -403,7 +403,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		/* Set color depth */
 		switch (stream->timing.display_color_depth) {
 		case COLOR_DEPTH_666:
-			/* NOTE: This is actually not valid for YCbCr pixel encoding to have 6 bpc
+			/* ANALTE: This is actually analt valid for YCbCr pixel encoding to have 6 bpc
 			 *       as of DP1.4 spec, but value of 0 probably reserved here for potential future use.
 			 */
 			info_packet->sb[17] = 0;
@@ -417,7 +417,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		case COLOR_DEPTH_121212:
 			info_packet->sb[17] = 3;
 			break;
-		/*case COLOR_DEPTH_141414: -- NO SUCH FORMAT IN DP SPEC */
+		/*case COLOR_DEPTH_141414: -- ANAL SUCH FORMAT IN DP SPEC */
 		case COLOR_DEPTH_161616:
 			info_packet->sb[17] = 4;
 			break;
@@ -434,7 +434,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		}
 
 		/* Content Type (Bits 2:0)
-		 *  0 = Not defined.
+		 *  0 = Analt defined.
 		 *  1 = Graphics.
 		 *  2 = Photo.
 		 *  3 = Video.
@@ -462,23 +462,23 @@ void mod_build_hf_vsif_infopacket(const struct dc_stream_state *stream,
 
 		info_packet->valid = false;
 		format = stream->timing.timing_3d_format;
-		if (stream->view_format == VIEW_3D_FORMAT_NONE)
-			format = TIMING_3D_FORMAT_NONE;
+		if (stream->view_format == VIEW_3D_FORMAT_ANALNE)
+			format = TIMING_3D_FORMAT_ANALNE;
 
 		if (stream->timing.hdmi_vic != 0
 				&& stream->timing.h_total >= 3840
 				&& stream->timing.v_total >= 2160
-				&& format == TIMING_3D_FORMAT_NONE)
+				&& format == TIMING_3D_FORMAT_ANALNE)
 			hdmi_vic_mode = true;
 
-		if ((format == TIMING_3D_FORMAT_NONE) && !hdmi_vic_mode)
+		if ((format == TIMING_3D_FORMAT_ANALNE) && !hdmi_vic_mode)
 			return;
 
 		info_packet->sb[1] = 0x03;
 		info_packet->sb[2] = 0x0C;
 		info_packet->sb[3] = 0x00;
 
-		if (format != TIMING_3D_FORMAT_NONE)
+		if (format != TIMING_3D_FORMAT_ANALNE)
 			info_packet->sb[4] = (2 << 5);
 
 		else if (hdmi_vic_mode)
@@ -544,8 +544,8 @@ void mod_build_adaptive_sync_infopacket(const struct dc_stream_state *stream,
 	case ADAPTIVE_SYNC_TYPE_EDP:
 		mod_build_adaptive_sync_infopacket_v1(info_packet);
 		break;
-	case ADAPTIVE_SYNC_TYPE_NONE:
-	case FREESYNC_TYPE_PCON_NOT_IN_WHITELIST:
+	case ADAPTIVE_SYNC_TYPE_ANALNE:
+	case FREESYNC_TYPE_PCON_ANALT_IN_WHITELIST:
 	default:
 		break;
 	}
@@ -576,7 +576,7 @@ void mod_build_adaptive_sync_infopacket_v2(const struct dc_stream_state *stream,
 	info_packet->sb[0] = param->supportMode; //1: AVT; 0: FAVT
 	info_packet->sb[1] = (stream->timing.v_total & 0x00FF);
 	info_packet->sb[2] = (stream->timing.v_total & 0xFF00) >> 8;
-	//info_packet->sb[3] = 0x00; Target RR, not use fot AVT
+	//info_packet->sb[3] = 0x00; Target RR, analt use fot AVT
 	info_packet->sb[4] = (param->increase.support << 6 | param->decrease.support << 7);
 	info_packet->sb[5] = param->increase.frame_duration_hex;
 	info_packet->sb[6] = param->decrease.frame_duration_hex;

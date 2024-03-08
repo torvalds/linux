@@ -3,11 +3,11 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -32,7 +32,7 @@ struct reset_reg_mask {
 
 static const struct reset_reg_mask *reset_masks;
 
-static int brcmstb_restart_handler(struct notifier_block *this,
+static int brcmstb_restart_handler(struct analtifier_block *this,
 				   unsigned long mode, void *cmd)
 {
 	int rc;
@@ -41,35 +41,35 @@ static int brcmstb_restart_handler(struct notifier_block *this,
 	rc = regmap_write(regmap, rst_src_en, reset_masks->rst_src_en_mask);
 	if (rc) {
 		pr_err("failed to write rst_src_en (%d)\n", rc);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	rc = regmap_read(regmap, rst_src_en, &tmp);
 	if (rc) {
 		pr_err("failed to read rst_src_en (%d)\n", rc);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	rc = regmap_write(regmap, sw_mstr_rst, reset_masks->sw_mstr_rst_mask);
 	if (rc) {
 		pr_err("failed to write sw_mstr_rst (%d)\n", rc);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	rc = regmap_read(regmap, sw_mstr_rst, &tmp);
 	if (rc) {
 		pr_err("failed to read sw_mstr_rst (%d)\n", rc);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	while (1)
 		;
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block brcmstb_restart_nb = {
-	.notifier_call = brcmstb_restart_handler,
+static struct analtifier_block brcmstb_restart_nb = {
+	.analtifier_call = brcmstb_restart_handler,
 	.priority = 128,
 };
 
@@ -92,10 +92,10 @@ static const struct of_device_id of_match[] = {
 static int brcmstb_reboot_probe(struct platform_device *pdev)
 {
 	int rc;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(of_match, np);
+	of_id = of_match_analde(of_match, np);
 	if (!of_id) {
 		pr_err("failed to look up compatible string\n");
 		return -EINVAL;
@@ -125,7 +125,7 @@ static int brcmstb_reboot_probe(struct platform_device *pdev)
 	rc = register_restart_handler(&brcmstb_restart_nb);
 	if (rc)
 		dev_err(&pdev->dev,
-			"cannot register restart handler (err=%d)\n", rc);
+			"cananalt register restart handler (err=%d)\n", rc);
 
 	return rc;
 }

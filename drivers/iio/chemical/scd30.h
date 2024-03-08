@@ -58,7 +58,7 @@ struct scd30_state {
 	void *priv;
 	int irq;
 	/*
-	 * no way to retrieve current ambient pressure compensation value from
+	 * anal way to retrieve current ambient pressure compensation value from
 	 * the sensor so keep one around
 	 */
 	u16 pressure_comp;

@@ -19,7 +19,7 @@ static int kx022a_i2c_probe(struct i2c_client *i2c)
 	struct regmap *regmap;
 
 	if (!i2c->irq) {
-		dev_err(dev, "No IRQ configured\n");
+		dev_err(dev, "Anal IRQ configured\n");
 		return -EINVAL;
 	}
 
@@ -55,7 +55,7 @@ static struct i2c_driver kx022a_i2c_driver = {
 	.driver = {
 		.name  = "kx022a-i2c",
 		.of_match_table = kx022a_of_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	  },
 	.probe        = kx022a_i2c_probe,
 	.id_table     = kx022a_i2c_id,

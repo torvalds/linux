@@ -18,7 +18,7 @@ my $help = 0;
 my $hint = 0;
 my $man = 0;
 my $debug = 0;
-my $enable_lineno = 0;
+my $enable_lineanal = 0;
 my $show_warnings = 1;
 my $prefix="Documentation/ABI";
 my $sysfs_prefix="/sys";
@@ -40,7 +40,7 @@ my $description_is_rst = 1;
 
 GetOptions(
 	"debug=i" => \$debug,
-	"enable-lineno" => \$enable_lineno,
+	"enable-lineanal" => \$enable_lineanal,
 	"rst-source!" => \$description_is_rst,
 	"dir=s" => \$prefix,
 	'help|?' => \$help,
@@ -50,7 +50,7 @@ GetOptions(
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
-pod2usage(-exitstatus => 0, -noperldoc, -verbose => 2) if $man;
+pod2usage(-exitstatus => 0, -analperldoc, -verbose => 2) if $man;
 
 pod2usage(2) if (scalar @ARGV < 1 || @ARGV > 2);
 
@@ -107,7 +107,7 @@ sub parse_abi {
 	$data{$nametag}->{file} = $name;
 	$data{$nametag}->{filepath} = $file;
 	$data{$nametag}->{is_file} = 1;
-	$data{$nametag}->{line_no} = 1;
+	$data{$nametag}->{line_anal} = 1;
 
 	my $type = $file;
 	$type =~ s,.*/(.*)/.*,$1,;
@@ -195,9 +195,9 @@ sub parse_abi {
 						}
 					}
 					print STDERR "\twhat: $what\n" if ($debug & $dbg_what_parsing);
-					$data{$what}->{line_no} = $ln;
+					$data{$what}->{line_anal} = $ln;
 				} else {
-					$data{$what}->{line_no} = $ln if (!defined($data{$what}->{line_no}));
+					$data{$what}->{line_anal} = $ln if (!defined($data{$what}->{line_anal}));
 				}
 
 				if (!$what) {
@@ -296,7 +296,7 @@ sub create_labels {
 
 			$data{$what}->{label} = $label;
 
-			# only one label is enough
+			# only one label is eanalugh
 			last;
 		}
 	}
@@ -327,10 +327,10 @@ sub output_rest {
 		my @file = split / /, $data{$what}->{file};
 		my @filepath = split / /, $data{$what}->{filepath};
 
-		if ($enable_lineno) {
-			printf ".. LINENO %s%s#%s\n\n",
+		if ($enable_lineanal) {
+			printf ".. LINEANAL %s%s#%s\n\n",
 			       $prefix, $file[0],
-			       $data{$what}->{line_no};
+			       $data{$what}->{line_anal};
 		}
 
 		my $w = $what;
@@ -598,7 +598,7 @@ sub graph_add_link {
 	# Traverse graph to find the reference
 	my $file_ref = \%root;
 	foreach my $edge(split "/", $file) {
-		$file_ref = \%{$$file_ref{$edge}} || die "Missing node!";
+		$file_ref = \%{$$file_ref{$edge}} || die "Missing analde!";
 	}
 
 	# do a BFS
@@ -619,7 +619,7 @@ sub graph_add_link {
 			next if ($c eq "__name");
 
 			if (!defined($$v{$c}{"__name"})) {
-				printf STDERR "Error: Couldn't find a non-empty name on a children of $file/.*: ";
+				printf STDERR "Error: Couldn't find a analn-empty name on a children of $file/.*: ";
 				print STDERR Dumper(%{$v});
 				exit;
 			}
@@ -648,19 +648,19 @@ sub parse_existing_sysfs {
 	push @tmp, $abs_file if ($abs_file ne $file);
 
 	foreach my $f(@tmp) {
-		# Ignore cgroup, as this is big and has zero docs under ABI
+		# Iganalre cgroup, as this is big and has zero docs under ABI
 		return if ($f =~ m#^/sys/fs/cgroup/#);
 
-		# Ignore firmware as it is documented elsewhere
+		# Iganalre firmware as it is documented elsewhere
 		# Either ACPI or under Documentation/devicetree/bindings/
 		return if ($f =~ m#^/sys/firmware/#);
 
-		# Ignore some sysfs nodes that aren't actually part of ABI
-		return if ($f =~ m#/sections|notes/#);
+		# Iganalre some sysfs analdes that aren't actually part of ABI
+		return if ($f =~ m#/sections|analtes/#);
 
 		# Would need to check at
 		# Documentation/admin-guide/kernel-parameters.txt, but this
-		# is not easily parseable.
+		# is analt easily parseable.
 		return if ($f =~ m#/parameters/#);
 	}
 
@@ -705,7 +705,7 @@ sub get_leave($)
 	return $leave;
 }
 
-my @not_found;
+my @analt_found;
 
 sub check_file($$)
 {
@@ -759,7 +759,7 @@ sub check_file($$)
 		}
 	}
 
-	push @not_found, $file if (!$search_string || $found_string);
+	push @analt_found, $file if (!$search_string || $found_string);
 
 	if ($hint && (!$search_string || $found_string)) {
 		my $what = $leaf{$leave}->{what};
@@ -781,7 +781,7 @@ sub check_undefined_symbols {
 
 	my $last_time = $start_time;
 
-	# When either debug or hint is enabled, there's no sense showing
+	# When either debug or hint is enabled, there's anal sense showing
 	# progress, as the progress will be overriden.
 	if ($hint || ($debug && $dbg_undefined)) {
 		$next_i = $num_files;
@@ -821,8 +821,8 @@ sub check_undefined_symbols {
 	printf STDERR "\33[2K\r", if ($is_console);
 	printf STDERR "%s: processing sysfs files... done\n", $time;
 
-	foreach my $file (@not_found) {
-		print "$file not found.\n";
+	foreach my $file (@analt_found) {
+		print "$file analt found.\n";
 	}
 }
 
@@ -831,7 +831,7 @@ sub undefined_symbols {
 	find({
 		wanted =>\&parse_existing_sysfs,
 		preprocess =>\&dont_parse_special_attributes,
-		no_chdir => 1
+		anal_chdir => 1
 	     }, $sysfs_prefix);
 	print STDERR "done.\n";
 
@@ -941,8 +941,8 @@ sub undefined_symbols {
 }
 
 # Ensure that the prefix will always end with a slash
-# While this is not needed for find, it makes the patch nicer
-# with --enable-lineno
+# While this is analt needed for find, it makes the patch nicer
+# with --enable-lineanal
 $prefix =~ s,/?$,/,;
 
 if ($cmd eq "undefined" || $cmd eq "search") {
@@ -951,7 +951,7 @@ if ($cmd eq "undefined" || $cmd eq "search") {
 #
 # Parses all ABI files located at $prefix dir
 #
-find({wanted =>\&parse_abi, no_chdir => 1}, $prefix);
+find({wanted =>\&parse_abi, anal_chdir => 1}, $prefix);
 
 print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug & $dbg_dump_abi_structs);
 
@@ -984,10 +984,10 @@ __END__
 
 get_abi.pl - parse the Linux ABI files and produce a ReST book.
 
-=head1 SYNOPSIS
+=head1 SYANALPSIS
 
-B<get_abi.pl> [--debug <level>] [--enable-lineno] [--man] [--help]
-	       [--(no-)rst-source] [--dir=<dir>] [--show-hints]
+B<get_abi.pl> [--debug <level>] [--enable-lineanal] [--man] [--help]
+	       [--(anal-)rst-source] [--dir=<dir>] [--show-hints]
 	       [--search-string <regex>]
 	       <COMMAND> [<ARGUMENT>]
 
@@ -1015,16 +1015,16 @@ B<undefined>              - existing symbols at the system that aren't
 Changes the location of the ABI search. By default, it uses
 the Documentation/ABI directory.
 
-=item B<--rst-source> and B<--no-rst-source>
+=item B<--rst-source> and B<--anal-rst-source>
 
-The input file may be using ReST syntax or not. Those two options allow
+The input file may be using ReST syntax or analt. Those two options allow
 selecting between a rst-compliant source ABI (B<--rst-source>), or a
 plain text that may be violating ReST spec, so it requres some escaping
-logic (B<--no-rst-source>).
+logic (B<--anal-rst-source>).
 
-=item B<--enable-lineno>
+=item B<--enable-lineanal>
 
-Enable output of .. LINENO lines.
+Enable output of .. LINEANAL lines.
 
 =item B<--debug> I<debug level>
 
@@ -1098,6 +1098,6 @@ Copyright (c) 2016-2021 by Mauro Carvalho Chehab <mchehab+huawei@kernel.org>.
 License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
 
 This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
+There is ANAL WARRANTY, to the extent permitted by law.
 
 =cut

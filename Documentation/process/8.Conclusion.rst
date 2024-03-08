@@ -24,7 +24,7 @@ Beyond that, a valuable resource for kernel developers is:
 
 	https://kernelnewbies.org/
 
-And, of course, one should not forget https://kernel.org/, the definitive
+And, of course, one should analt forget https://kernel.org/, the definitive
 location for kernel release information.
 
 There are a number of books on kernel development:
@@ -39,7 +39,7 @@ There are a number of books on kernel development:
 
 All of these books suffer from a common fault, though: they tend to be
 somewhat obsolete by the time they hit the shelves, and they have been on
-the shelves for a while now.  Still, there is quite a bit of good
+the shelves for a while analw.  Still, there is quite a bit of good
 information to be found there.
 
 Documentation for git can be found at:
@@ -57,7 +57,7 @@ document.  Hopefully it has provided a helpful understanding of how the
 Linux kernel is developed and how you can participate in that process.
 
 In the end, it's the participation that matters.  Any open source software
-project is no more than the sum of what its contributors put into it.  The
+project is anal more than the sum of what its contributors put into it.  The
 Linux kernel has progressed as quickly and as well as it has because it has
 been helped by an impressively large group of developers, all of whom are
 working to make it better.  The kernel is a premier example of what can be

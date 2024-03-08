@@ -217,7 +217,7 @@ int dpsw_ctrl_if_set_pools(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 #define DPSW_CTRL_IF_QUEUE_OPT_DEST		0x00000002
 
 enum dpsw_ctrl_if_dest {
-	DPSW_CTRL_IF_DEST_NONE = 0,
+	DPSW_CTRL_IF_DEST_ANALNE = 0,
 	DPSW_CTRL_IF_DEST_DPIO = 1,
 };
 
@@ -366,7 +366,7 @@ enum dpsw_accepted_frames {
  * @DPSW_CNT_EGR_BYTE: Counts egress bytes
  * @DPSW_CNT_EGR_FRAME_DISCARD: Counts discarded egress frames
  * @DPSW_CNT_EGR_STP_FRAME_DISCARD: Counts egress STP discarded frames
- * @DPSW_CNT_ING_NO_BUFF_DISCARD: Counts ingress no buffer discarded frames
+ * @DPSW_CNT_ING_ANAL_BUFF_DISCARD: Counts ingress anal buffer discarded frames
  */
 enum dpsw_counter {
 	DPSW_CNT_ING_FRAME = 0x0,
@@ -381,7 +381,7 @@ enum dpsw_counter {
 	DPSW_CNT_EGR_BYTE = 0x9,
 	DPSW_CNT_EGR_FRAME_DISCARD = 0xa,
 	DPSW_CNT_EGR_STP_FRAME_DISCARD = 0xb,
-	DPSW_CNT_ING_NO_BUFF_DISCARD = 0xc,
+	DPSW_CNT_ING_ANAL_BUFF_DISCARD = 0xc,
 };
 
 int dpsw_if_get_counter(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
@@ -398,7 +398,7 @@ int dpsw_if_disable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 if_id
  * @options: Interface configuration options (bitmap)
  * @enabled: Indicates if interface is enabled
  * @accept_all_vlan: The device discards/accepts incoming frames
- *		for VLANs that do not include this interface
+ *		for VLANs that do analt include this interface
  * @admit_untagged: When set to 'DPSW_ADMIT_ONLY_VLAN_TAGGED', the device
  *		discards untagged frames or priority-tagged frames received on
  *		this interface;
@@ -540,10 +540,10 @@ int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * enum dpsw_learning_mode - Auto-learning modes
  * @DPSW_LEARNING_MODE_DIS: Disable Auto-learning
  * @DPSW_LEARNING_MODE_HW: Enable HW auto-Learning
- * @DPSW_LEARNING_MODE_NON_SECURE: Enable None secure learning by CPU
+ * @DPSW_LEARNING_MODE_ANALN_SECURE: Enable Analne secure learning by CPU
  * @DPSW_LEARNING_MODE_SECURE: Enable secure learning by CPU
  *
- *	NONE - SECURE LEARNING
+ *	ANALNE - SECURE LEARNING
  *	SMAC found	DMAC found	CTLU Action
  *	v		v	Forward frame to
  *						1.  DMAC destination
@@ -569,7 +569,7 @@ int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 enum dpsw_learning_mode {
 	DPSW_LEARNING_MODE_DIS = 0,
 	DPSW_LEARNING_MODE_HW = 1,
-	DPSW_LEARNING_MODE_NON_SECURE = 2,
+	DPSW_LEARNING_MODE_ANALN_SECURE = 2,
 	DPSW_LEARNING_MODE_SECURE = 3
 };
 
@@ -590,7 +590,7 @@ struct dpsw_fdb_attr {
 };
 
 int dpsw_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
-			 u16 *major_ver, u16 *minor_ver);
+			 u16 *major_ver, u16 *mianalr_ver);
 
 int dpsw_if_get_port_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			      u16 if_id, u8 mac_addr[6]);
@@ -613,7 +613,7 @@ int dpsw_fdb_remove(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 fdb_i
 /**
  * enum dpsw_flood_type - Define the flood type of a DPSW object
  * @DPSW_BROADCAST: Broadcast flooding
- * @DPSW_FLOODING: Unknown flooding
+ * @DPSW_FLOODING: Unkanalwn flooding
  */
 enum dpsw_flood_type {
 	DPSW_BROADCAST = 0,
@@ -739,7 +739,7 @@ struct dpsw_acl_result {
  * @key_iova: I/O virtual address of DMA-able memory filled with key after call
  *				to dpsw_acl_prepare_entry_cfg()
  * @result: Required action when entry hit occurs
- * @precedence: Precedence inside ACL 0 is lowest; This priority can not change
+ * @precedence: Precedence inside ACL 0 is lowest; This priority can analt change
  *		during the lifetime of a Policy. It is user responsibility to
  *		space the priorities according to consequent rule additions.
  */

@@ -12,9 +12,9 @@
 					 SECCOMP_FILTER_FLAG_TSYNC_ESRCH | \
 					 SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV)
 
-/* sizeof() the first published struct seccomp_notif_addfd */
-#define SECCOMP_NOTIFY_ADDFD_SIZE_VER0 24
-#define SECCOMP_NOTIFY_ADDFD_SIZE_LATEST SECCOMP_NOTIFY_ADDFD_SIZE_VER0
+/* sizeof() the first published struct seccomp_analtif_addfd */
+#define SECCOMP_ANALTIFY_ADDFD_SIZE_VER0 24
+#define SECCOMP_ANALTIFY_ADDFD_SIZE_LATEST SECCOMP_ANALTIFY_ADDFD_SIZE_VER0
 
 #ifdef CONFIG_SECCOMP
 
@@ -44,7 +44,7 @@ static inline int seccomp_mode(struct seccomp *s)
 
 #else /* CONFIG_SECCOMP */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 struct seccomp_data;
 

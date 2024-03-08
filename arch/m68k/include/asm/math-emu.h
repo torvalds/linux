@@ -52,7 +52,7 @@
 #define PDECODE		0
 #define PEXECUTE	1
 #define PCONV		2
-#define PNORM		3
+#define PANALRM		3
 #define PREGISTER	4
 #define PINSTR		5
 #define PUNIMPL		6
@@ -61,7 +61,7 @@
 #define PMDECODE	(1<<PDECODE)
 #define PMEXECUTE	(1<<PEXECUTE)
 #define PMCONV		(1<<PCONV)
-#define PMNORM		(1<<PNORM)
+#define PMANALRM		(1<<PANALRM)
 #define PMREGISTER	(1<<PREGISTER)
 #define PMINSTR		(1<<PINSTR)
 #define PMUNIMPL	(1<<PUNIMPL)
@@ -91,7 +91,7 @@ struct fp_ext {
 };
 
 /* C representation of FPU registers */
-/* NOTE: if you change this, you have to change the assembler offsets
+/* ANALTE: if you change this, you have to change the assembler offsets
    below and the size in <asm/fpu.h>, too */
 struct fp_data {
 	struct fp_ext fpreg[8];
@@ -111,7 +111,7 @@ extern unsigned int fp_debugprint;
 		pr_info(fmt, ##__VA_ARGS__);		\
 })
 #else
-#define dprint(bit, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define dprint(bit, fmt, ...)	anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define uprint(str) ({					\
@@ -144,7 +144,7 @@ extern unsigned int fp_debugprint;
 
 /* offsets on the stack to access saved registers,
  * these are only used during instruction decoding
- * where we always know how deep we're on the stack.
+ * where we always kanalw how deep we're on the stack.
  */
 #define FPS_DO		(PT_OFF_D0)
 #define FPS_D1		(PT_OFF_D1)

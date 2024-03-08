@@ -32,11 +32,11 @@
 
 /* Radisys say "The 82600 integrates a main memory SDRAM controller that
  * supports up to four banks of memory. The four banks can support a mix of
- * sizes of 64 bit wide (72 bits with ECC) Synchronous DRAM (SDRAM) DIMMs,
+ * sizes of 64 bit wide (72 bits with ECC) Synchroanalus DRAM (SDRAM) DIMMs,
  * each of which can be any size from 16MB to 512MB. Both registered (control
  * signals buffered) and unbuffered DIMM types are supported. Mixing of
- * registered and unbuffered DIMMs as well as mixing of ECC and non-ECC DIMMs
- * is not allowed. The 82600 SDRAM interface operates at the same frequency as
+ * registered and unbuffered DIMMs as well as mixing of ECC and analn-ECC DIMMs
+ * is analt allowed. The 82600 SDRAM interface operates at the same frequency as
  * the CPU bus, 66MHz, 100MHz or 133MHz."
  */
 
@@ -52,7 +52,7 @@
 				 *
 				 * 7    SDRAM ISA Hole Enable
 				 * 6    Flash Page Mode Enable
-				 * 5    ECC Enable: 1=ECC 0=noECC
+				 * 5    ECC Enable: 1=ECC 0=analECC
 				 * 4    DRAM DIMM Type: 1=
 				 * 3    BIOS Alias Disable
 				 * 2    SDRAM BIOS Flash Write Enable
@@ -74,7 +74,7 @@
 				 *        1=Drive ECC bits to 0 during
 				 *          write cycles (i.e. ECC test mode)
 				 *
-				 *        0=Normal ECC functioning
+				 *        0=Analrmal ECC functioning
 				 *
 				 * 3    Enhanced Paging Enable
 				 *
@@ -102,21 +102,21 @@
 				 * 2     NMI on Single Bit Eror (RW)
 				 *        1=NMI triggered by SBE n.b. other
 				 *          prerequeists
-				 *        0=NMI not triggered
+				 *        0=NMI analt triggered
 				 *
 				 * 1     MBE (R/WC)
 				 *        read 1=MBE at EAP (see above)
-				 *        read 0=no MBE, or SBE occurred first
+				 *        read 0=anal MBE, or SBE occurred first
 				 *        write 1=Clear MBE status (must also
 				 *          clear SBE)
-				 *        write 0=NOP
+				 *        write 0=ANALP
 				 *
 				 * 1     SBE (R/WC)
 				 *        read 1=SBE at EAP (see above)
-				 *        read 0=no SBE, or MBE occurred first
+				 *        read 0=anal SBE, or MBE occurred first
 				 *        write 1=Clear SBE status (must also
 				 *          clear MBE)
-				 *        write 0=NOP
+				 *        write 0=ANALP
 				 */
 
 #define R82600_DRBA	0x60	/* + 0x60..0x63 SDRAM Row Boundary Address
@@ -189,7 +189,7 @@ static int r82600_process_error_info(struct mem_ctl_info *mci,
 		error_found = 1;
 
 		if (handle_errors)
-			/* 82600 doesn't give enough info */
+			/* 82600 doesn't give eanalugh info */
 			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 					     page, 0, 0,
 					     edac_mc_find_csrow_by_page(mci, page),
@@ -256,11 +256,11 @@ static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		 * 14 bits                                               */
 		dimm->grain = 1 << 14;
 		dimm->mtype = reg_sdram ? MEM_RDDR : MEM_DDR;
-		/* FIXME - check that this is unknowable with this chipset */
-		dimm->dtype = DEV_UNKNOWN;
+		/* FIXME - check that this is unkanalwable with this chipset */
+		dimm->dtype = DEV_UNKANALWN;
 
 		/* Mode is global on 82600 */
-		dimm->edac_mode = ecc_on ? EDAC_SECDED : EDAC_NONE;
+		dimm->edac_mode = ecc_on ? EDAC_SECDED : EDAC_ANALNE;
 		row_high_limit_last = row_high_limit;
 	}
 }
@@ -290,28 +290,28 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].is_virt_csrow = false;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(0, "mci = %p\n", mci);
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	/* FIXME try to work out if the chip leads have been used for COM2
 	 * instead on this board? [MA6?] MAYBE:
 	 */
 
 	/* On the R82600, the pins for memory bits 72:65 - i.e. the   *
 	 * EC bits are shared with the pins for COM2 (!), so if COM2  *
-	 * is enabled, we assume COM2 is wired up, and thus no EDAC   *
+	 * is enabled, we assume COM2 is wired up, and thus anal EDAC   *
 	 * is possible.                                               */
-	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+	mci->edac_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 
 	if (ecc_enabled(dramcr)) {
 		if (scrub_disabled)
 			edac_dbg(3, "mci = %p - Scrubbing disabled! EAP: %#0x\n",
 				 mci, eapr);
 	} else
-		mci->edac_cap = EDAC_FLAG_NONE;
+		mci->edac_cap = EDAC_FLAG_ANALNE;
 
 	mci->mod_name = EDAC_MOD_STR;
 	mci->ctl_name = "R82600";
@@ -343,7 +343,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC analt setup\n",
 			__func__);
 	}
 
@@ -352,7 +352,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 
 fail:
 	edac_mc_free(mci);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* returns count (>= 0), or negative on error */

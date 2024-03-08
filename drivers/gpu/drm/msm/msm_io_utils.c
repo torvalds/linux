@@ -74,7 +74,7 @@ static void __iomem *_msm_ioremap(struct platform_device *pdev, const char *name
 	if (!ptr) {
 		if (!quiet)
 			DRM_DEV_ERROR(&pdev->dev, "failed to ioremap: %s\n", name);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (psize)
@@ -106,7 +106,7 @@ static enum hrtimer_restart msm_hrtimer_worktimer(struct hrtimer *t)
 
 	kthread_queue_work(work->worker, &work->work);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 void msm_hrtimer_queue_work(struct msm_hrtimer_work *work,
@@ -138,10 +138,10 @@ struct icc_path *msm_icc_get(struct device *dev, const char *name)
 		return path;
 
 	/*
-	 * If there are no interconnects attached to the corresponding device
-	 * node, of_icc_get() will return NULL.
+	 * If there are anal interconnects attached to the corresponding device
+	 * analde, of_icc_get() will return NULL.
 	 *
-	 * If the MDP5/DPU device node doesn't have interconnects, lookup the
+	 * If the MDP5/DPU device analde doesn't have interconnects, lookup the
 	 * path in the parent (MDSS) device.
 	 */
 	return of_icc_get(mdss_dev, name);

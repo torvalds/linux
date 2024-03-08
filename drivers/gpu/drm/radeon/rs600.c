@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,7 +36,7 @@
  * of the RS600 GART block).
  */
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/pci.h>
 
 #include <drm/drm_device.h>
@@ -100,7 +100,7 @@ void avivo_wait_for_vblank(struct radeon_device *rdev, int crtc)
 		return;
 
 	/* depending on when we hit vblank, we may be close to active; if so,
-	 * wait for another frame.
+	 * wait for aanalther frame.
 	 */
 	while (avivo_is_in_vblank(rdev, crtc)) {
 		if (i++ % 100 == 0) {
@@ -134,7 +134,7 @@ void rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, boo
 	/* update pitch */
 	WREG32(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
 	       fb->pitches[0] / fb->format->cpp[0]);
-	/* update the scanout addresses */
+	/* update the scaanalut addresses */
 	WREG32(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
 	       (u32)crtc_base);
 	WREG32(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
@@ -146,7 +146,7 @@ void rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, boo
 			break;
 		udelay(1);
 	}
-	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
+	DRM_DEBUG("Update pending analw high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
@@ -204,7 +204,7 @@ void avivo_program_fmt(struct drm_encoder *encoder)
 		break;
 	case 10:
 	default:
-		/* not needed */
+		/* analt needed */
 		break;
 	}
 
@@ -427,7 +427,7 @@ void rs600_hpd_init(struct radeon_device *rdev)
 		default:
 			break;
 		}
-		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
+		if (radeon_connector->hpd.hpd != RADEON_HPD_ANALNE)
 			enable |= 1 << radeon_connector->hpd.hpd;
 		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 	}
@@ -454,7 +454,7 @@ void rs600_hpd_fini(struct radeon_device *rdev)
 		default:
 			break;
 		}
-		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
+		if (radeon_connector->hpd.hpd != RADEON_HPD_ANALNE)
 			disable |= 1 << radeon_connector->hpd.hpd;
 	}
 	radeon_irq_kms_disable_hpd(rdev, disable);
@@ -566,7 +566,7 @@ static int rs600_gart_enable(struct radeon_device *rdev)
 	int r, i;
 
 	if (rdev->gart.robj == NULL) {
-		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		dev_err(rdev->dev, "Anal VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = radeon_gart_table_vram_pin(rdev);
@@ -584,7 +584,7 @@ static int rs600_gart_enable(struct radeon_device *rdev)
 		WREG32_MC(R_00016C_MC_PT0_CLIENT0_CNTL + i,
 			  S_00016C_ENABLE_TRANSLATION_MODE_OVERRIDE(1) |
 			  S_00016C_SYSTEM_ACCESS_MODE_MASK(
-				  V_00016C_SYSTEM_ACCESS_MODE_NOT_IN_SYS) |
+				  V_00016C_SYSTEM_ACCESS_MODE_ANALT_IN_SYS) |
 			  S_00016C_SYSTEM_APERTURE_UNMAPPED_ACCESS(
 				  V_00016C_SYSTEM_APERTURE_UNMAPPED_PASSTHROUGH) |
 			  S_00016C_EFFECTIVE_L1_CACHE_SIZE(3) |
@@ -652,8 +652,8 @@ uint64_t rs600_gart_get_page_entry(uint64_t addr, uint32_t flags)
 		addr |= R600_PTE_READABLE;
 	if (flags & RADEON_GART_PAGE_WRITE)
 		addr |= R600_PTE_WRITEABLE;
-	if (flags & RADEON_GART_PAGE_SNOOP)
-		addr |= R600_PTE_SNOOPED;
+	if (flags & RADEON_GART_PAGE_SANALOP)
+		addr |= R600_PTE_SANALOPED;
 	return addr;
 }
 
@@ -680,7 +680,7 @@ int rs600_irq_set(struct radeon_device *rdev)
 		hdmi0 = 0;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
+		WARN(1, "Can't enable IRQ/MSI because anal handler is installed\n");
 		WREG32(R_000040_GEN_INT_CNTL, 0);
 		return -EINVAL;
 	}
@@ -771,7 +771,7 @@ void rs600_irq_disable(struct radeon_device *rdev)
 	WREG32(R_007408_HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
 	WREG32(R_000040_GEN_INT_CNTL, 0);
 	WREG32(R_006540_DxMODE_INT_MASK, 0);
-	/* Wait and acknowledge irq */
+	/* Wait and ackanalwledge irq */
 	mdelay(1);
 	rs600_irq_ack(rdev);
 }
@@ -786,7 +786,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 	if (!status &&
 	    !rdev->irq.stat_regs.r500.disp_int &&
 	    !rdev->irq.stat_regs.r500.hdmi0_status) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	while (status ||
 	       rdev->irq.stat_regs.r500.disp_int ||
@@ -1044,7 +1044,7 @@ int rs600_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are analt working */
 	rs600_gart_disable(rdev);
 	/* Resume clock before doing reset */
 	rv515_clock_startup(rdev);
@@ -1129,7 +1129,7 @@ int rs600_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or analt */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 

@@ -4,7 +4,7 @@
  * described at https://tools.ietf.org/html/rfc6986
  *
  * Copyright (c) 2013 Alexey Degtyarev <alexey@renatasystems.org>
- * Copyright (c) 2018 Vitaly Chikunov <vt@altlinux.org>
+ * Copyright (c) 2018 Vitaly Chikuanalv <vt@altlinux.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -1086,7 +1086,7 @@ subsys_initcall(streebog_mod_init);
 module_exit(streebog_mod_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Vitaly Chikunov <vt@altlinux.org>");
+MODULE_AUTHOR("Vitaly Chikuanalv <vt@altlinux.org>");
 MODULE_DESCRIPTION("Streebog Hash Function");
 
 MODULE_ALIAS_CRYPTO("streebog256");

@@ -99,13 +99,13 @@ int sof_intel_board_set_codec_link(struct device *dev,
 	/* link name */
 	link->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_codec);
 	if (!link->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* cpus */
 	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
 			    GFP_KERNEL);
 	if (!cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (soc_intel_is_byt() || soc_intel_is_cht()) {
 		/* backward-compatibility for BYT/CHT boards */
@@ -116,7 +116,7 @@ int sof_intel_board_set_codec_link(struct device *dev,
 						ssp_codec);
 	}
 	if (!cpus->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->cpus = cpus;
 	link->num_cpus = 1;
@@ -128,7 +128,7 @@ int sof_intel_board_set_codec_link(struct device *dev,
 	link->num_platforms = ARRAY_SIZE(platform_component);
 
 	link->id = be_id;
-	link->no_pcm = 1;
+	link->anal_pcm = 1;
 	link->dpcm_capture = 1;
 	link->dpcm_playback = 1;
 
@@ -146,7 +146,7 @@ int sof_intel_board_set_dmic_link(struct device *dev,
 	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
 			    GFP_KERNEL);
 	if (!cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (be_type) {
 	case SOF_DMIC_01:
@@ -180,8 +180,8 @@ int sof_intel_board_set_dmic_link(struct device *dev,
 	link->id = be_id;
 	if (be_type == SOF_DMIC_01)
 		link->init = dmic_init;
-	link->ignore_suspend = 1;
-	link->no_pcm = 1;
+	link->iganalre_suspend = 1;
+	link->anal_pcm = 1;
 	link->dpcm_capture = 1;
 
 	return 0;
@@ -200,17 +200,17 @@ int sof_intel_board_set_intel_hdmi_link(struct device *dev,
 	/* link name */
 	link->name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d", hdmi_id);
 	if (!link->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* cpus */
 	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
 			    GFP_KERNEL);
 	if (!cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d Pin", hdmi_id);
 	if (!cpus->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->cpus = cpus;
 	link->num_cpus = 1;
@@ -221,13 +221,13 @@ int sof_intel_board_set_intel_hdmi_link(struct device *dev,
 				      sizeof(struct snd_soc_dai_link_component),
 				      GFP_KERNEL);
 		if (!codecs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		codecs->name = "ehdaudio0D2";
 		codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL,
 						  "intel-hdmi-hifi%d", hdmi_id);
 		if (!codecs->dai_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		link->codecs = codecs;
 	} else {
@@ -241,7 +241,7 @@ int sof_intel_board_set_intel_hdmi_link(struct device *dev,
 
 	link->id = be_id;
 	link->init = (hdmi_id == 1) ? hdmi_init : NULL;
-	link->no_pcm = 1;
+	link->anal_pcm = 1;
 	link->dpcm_playback = 1;
 
 	return 0;
@@ -260,17 +260,17 @@ int sof_intel_board_set_ssp_amp_link(struct device *dev,
 	/* link name */
 	link->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_amp);
 	if (!link->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* cpus */
 	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
 			    GFP_KERNEL);
 	if (!cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_amp);
 	if (!cpus->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->cpus = cpus;
 	link->num_cpus = 1;
@@ -282,7 +282,7 @@ int sof_intel_board_set_ssp_amp_link(struct device *dev,
 	link->num_platforms = ARRAY_SIZE(platform_component);
 
 	link->id = be_id;
-	link->no_pcm = 1;
+	link->anal_pcm = 1;
 	link->dpcm_capture = 1; /* feedback stream or firmware-generated echo reference */
 	link->dpcm_playback = 1;
 
@@ -301,17 +301,17 @@ int sof_intel_board_set_bt_link(struct device *dev,
 	/* link name */
 	link->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", ssp_bt);
 	if (!link->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* cpus */
 	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
 			    GFP_KERNEL);
 	if (!cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_bt);
 	if (!cpus->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->cpus = cpus;
 	link->num_cpus = 1;
@@ -325,7 +325,7 @@ int sof_intel_board_set_bt_link(struct device *dev,
 	link->num_platforms = ARRAY_SIZE(platform_component);
 
 	link->id = be_id;
-	link->no_pcm = 1;
+	link->anal_pcm = 1;
 	link->dpcm_capture = 1;
 	link->dpcm_playback = 1;
 
@@ -344,17 +344,17 @@ int sof_intel_board_set_hdmi_in_link(struct device *dev,
 	/* link name */
 	link->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-HDMI", ssp_hdmi);
 	if (!link->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* cpus */
 	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
 			    GFP_KERNEL);
 	if (!cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_hdmi);
 	if (!cpus->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->cpus = cpus;
 	link->num_cpus = 1;
@@ -368,7 +368,7 @@ int sof_intel_board_set_hdmi_in_link(struct device *dev,
 	link->num_platforms = ARRAY_SIZE(platform_component);
 
 	link->id = be_id;
-	link->no_pcm = 1;
+	link->anal_pcm = 1;
 	link->dpcm_capture = 1;
 
 	return 0;
@@ -380,7 +380,7 @@ static int calculate_num_links(struct sof_card_private *ctx)
 	int num_links = 0;
 
 	/* headphone codec */
-	if (ctx->codec_type != CODEC_NONE)
+	if (ctx->codec_type != CODEC_ANALNE)
 		num_links++;
 
 	/* dmic01 and dmic16k */
@@ -394,7 +394,7 @@ static int calculate_num_links(struct sof_card_private *ctx)
 	num_links += ctx->hdmi_num;
 
 	/* speaker amp */
-	if (ctx->amp_type != CODEC_NONE)
+	if (ctx->amp_type != CODEC_ANALNE)
 		num_links++;
 
 	/* BT audio offload */
@@ -422,10 +422,10 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	links = devm_kcalloc(dev, num_links, sizeof(struct snd_soc_dai_link),
 			     GFP_KERNEL);
 	if (!links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* headphone codec */
-	if (ctx->codec_type != CODEC_NONE) {
+	if (ctx->codec_type != CODEC_ANALNE) {
 		ret = sof_intel_board_set_codec_link(dev, &links[idx], idx,
 						     ctx->codec_type,
 						     ctx->ssp_codec);
@@ -477,7 +477,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	}
 
 	/* speaker amp */
-	if (ctx->amp_type != CODEC_NONE) {
+	if (ctx->amp_type != CODEC_ANALNE) {
 		ret = sof_intel_board_set_ssp_amp_link(dev, &links[idx], idx,
 						       ctx->amp_type,
 						       ctx->ssp_amp);

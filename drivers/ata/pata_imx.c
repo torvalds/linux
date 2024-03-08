@@ -104,7 +104,7 @@ static const struct scsi_host_template pata_imx_sht = {
 static struct ata_port_operations pata_imx_port_ops = {
 	.inherits		= &ata_sff_port_ops,
 	.sff_data_xfer		= ata_sff_data_xfer32,
-	.cable_detect		= ata_cable_unknown,
+	.cable_detect		= ata_cable_unkanalwn,
 	.set_piomode		= pata_imx_set_piomode,
 };
 
@@ -139,7 +139,7 @@ static int pata_imx_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev,
 				sizeof(struct pata_imx_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -149,7 +149,7 @@ static int pata_imx_probe(struct platform_device *pdev)
 
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->private_data = priv;
 	ap = host->ports[0];

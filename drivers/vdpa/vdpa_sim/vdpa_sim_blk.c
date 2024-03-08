@@ -137,7 +137,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 	}
 
 	/* The last byte is the status and we checked if the last iov has
-	 * enough room for it.
+	 * eanalugh room for it.
 	 */
 	to_push = vringh_kiov_length(&vq->in_iov) - 1;
 
@@ -226,7 +226,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		break;
 
 	case VIRTIO_BLK_T_FLUSH:
-		/* nothing to do */
+		/* analthing to do */
 		break;
 
 	case VIRTIO_BLK_T_DISCARD:
@@ -346,8 +346,8 @@ static void vdpasim_blk_work(struct vdpasim *vdpasim)
 			smp_wmb();
 
 			local_bh_disable();
-			if (vringh_need_notify_iotlb(&vq->vring) > 0)
-				vringh_notify(&vq->vring);
+			if (vringh_need_analtify_iotlb(&vq->vring) > 0)
+				vringh_analtify(&vq->vring);
 			local_bh_enable();
 
 			if (++reqs > 4) {
@@ -440,7 +440,7 @@ static int vdpasim_blk_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 		blk->buffer = kvzalloc(VDPASIM_BLK_CAPACITY << SECTOR_SHIFT,
 				       GFP_KERNEL);
 		if (!blk->buffer) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_dev;
 		}
 	}
@@ -498,7 +498,7 @@ static int __init vdpasim_blk_init(void)
 		shared_buffer = kvzalloc(VDPASIM_BLK_CAPACITY << SECTOR_SHIFT,
 					 GFP_KERNEL);
 		if (!shared_buffer) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto mgmt_dev_err;
 		}
 	}

@@ -58,9 +58,9 @@ static const struct flag_info flag_array[] = {
 		.set	= "accessed",
 		.clear	= "        ",
 	}, {
-		.mask	= _PAGE_NO_CACHE,
-		.val	= _PAGE_NO_CACHE,
-		.set	= "no cache",
+		.mask	= _PAGE_ANAL_CACHE,
+		.val	= _PAGE_ANAL_CACHE,
+		.set	= "anal cache",
 		.clear	= "        ",
 	}, {
 		.mask	= _PAGE_SPECIAL,

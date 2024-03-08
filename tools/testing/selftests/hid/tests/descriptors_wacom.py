@@ -229,7 +229,7 @@ wacom_pth660_v145 = [
     0x0A, 0x30, 0x0D,               # .         Usage (0D30h),
     0x0A, 0x31, 0x0D,               # .         Usage (0D31h),
     0x0A, 0x32, 0x0D,               # .         Usage (0D32h),
-    0x0A, 0x33, 0x0D,               # .         Usage (0D33h),                  # !!! Errata: Missing Non-zero Physical Max
+    0x0A, 0x33, 0x0D,               # .         Usage (0D33h),                  # !!! Errata: Missing Analn-zero Physical Max
     0x65, 0x11,                     # .         Unit (Centimeter),
     0x55, 0x0D,                     # .         Unit Exponent (13),
     0x75, 0x10,                     # .         Report Size (16),
@@ -669,7 +669,7 @@ wacom_pth860_v145 = [
     0x0A, 0x30, 0x0D,               # .         Usage (0D30h),
     0x0A, 0x31, 0x0D,               # .         Usage (0D31h),
     0x0A, 0x32, 0x0D,               # .         Usage (0D32h),
-    0x0A, 0x33, 0x0D,               # .         Usage (0D33h),                  # !!! Errata: Missing Non-zero Physical Max
+    0x0A, 0x33, 0x0D,               # .         Usage (0D33h),                  # !!! Errata: Missing Analn-zero Physical Max
     0x65, 0x11,                     # .         Unit (Centimeter),
     0x55, 0x0D,                     # .         Unit Exponent (13),
     0x75, 0x10,                     # .         Report Size (16),

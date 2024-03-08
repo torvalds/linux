@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -61,10 +61,10 @@ pcirom_init(struct nvkm_bios *bios, const char *name)
 	if (device->func->pci)
 		pdev = device->func->pci(device)->pdev;
 	else
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (!(ret = pci_enable_rom(pdev))) {
-		if (ret = -ENOMEM,
+		if (ret = -EANALMEM,
 		    (priv = kmalloc(sizeof(*priv), GFP_KERNEL))) {
 			if (ret = -EFAULT,
 			    (priv->rom = pci_map_rom(pdev, &priv->size))) {
@@ -94,19 +94,19 @@ platform_init(struct nvkm_bios *bios, const char *name)
 	struct nvkm_device *device = bios->subdev.device;
 	struct pci_dev *pdev;
 	struct priv *priv;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (device->func->pci)
 		pdev = device->func->pci(device)->pdev;
 	else
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (!pdev->rom || pdev->romlen == 0)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if ((priv = kmalloc(sizeof(*priv), GFP_KERNEL))) {
 		priv->size = pdev->romlen;
-		if (ret = -ENODEV,
+		if (ret = -EANALDEV,
 		    (priv->rom = ioremap(pdev->rom, pdev->romlen)))
 			return priv;
 		kfree(priv);

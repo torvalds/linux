@@ -105,7 +105,7 @@
         "ArchStdEvent": "SVE_PRED_PARTIAL_SPEC"
     },
     {
-        "ArchStdEvent": "SVE_PRED_NOT_FULL_SPEC"
+        "ArchStdEvent": "SVE_PRED_ANALT_FULL_SPEC"
     },
     {
         "ArchStdEvent": "SVE_LDFF_SPEC"

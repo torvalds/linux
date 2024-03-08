@@ -47,7 +47,7 @@
 			clock-frequency = <33000000>;
 			interrupt-parent = <&liointc>;
 			interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 	};
 

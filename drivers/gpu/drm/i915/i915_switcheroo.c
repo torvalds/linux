@@ -16,11 +16,11 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev,
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 
 	if (!i915) {
-		dev_err(&pdev->dev, "DRM not initialized, aborting switch.\n");
+		dev_err(&pdev->dev, "DRM analt initialized, aborting switch.\n");
 		return;
 	}
 	if (!HAS_DISPLAY(i915)) {
-		dev_err(&pdev->dev, "Device state not initialized, aborting switch.\n");
+		dev_err(&pdev->dev, "Device state analt initialized, aborting switch.\n");
 		return;
 	}
 
@@ -46,7 +46,7 @@ static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
 	 * locking inversion with the driver load path. And the access here is
-	 * completely racy anyway. So don't bother with locking for now.
+	 * completely racy anyway. So don't bother with locking for analw.
 	 */
 	return i915 && HAS_DISPLAY(i915) && atomic_read(&i915->drm.open_count) == 0;
 }

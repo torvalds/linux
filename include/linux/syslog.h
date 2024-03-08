@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*  Syslog internals
  *
- *  Copyright 2010 Canonical, Ltd.
- *  Author: Kees Cook <kees.cook@canonical.com>
+ *  Copyright 2010 Caanalnical, Ltd.
+ *  Author: Kees Cook <kees.cook@caanalnical.com>
  */
 
 #ifndef _LINUX_SYSLOG_H
@@ -10,9 +10,9 @@
 
 #include <linux/wait.h>
 
-/* Close the log.  Currently a NOP. */
+/* Close the log.  Currently a ANALP. */
 #define SYSLOG_ACTION_CLOSE          0
-/* Open the log. Currently a NOP. */
+/* Open the log. Currently a ANALP. */
 #define SYSLOG_ACTION_OPEN           1
 /* Read from the log. */
 #define SYSLOG_ACTION_READ           2

@@ -89,7 +89,7 @@ extern unsigned long elf_hwcap;
 #define ARCH_DLINFO						\
 do {								\
 	/*							\
-	 * Note that we add ulong after elf_addr_t because	\
+	 * Analte that we add ulong after elf_addr_t because	\
 	 * casting current->mm->context.vdso triggers a cast	\
 	 * warning of cast from pointer to integer for		\
 	 * COMPAT ELFCLASS32.					\
@@ -113,14 +113,14 @@ do {								\
 	NEW_AUX_ENT(AT_L3_CACHEGEOMETRY,			\
 		get_cache_geometry(3, CACHE_TYPE_UNIFIED));	\
 	/*							 \
-	 * Should always be nonzero unless there's a kernel bug. \
+	 * Should always be analnzero unless there's a kernel bug. \
 	 * If we haven't determined a sensible value to give to	 \
 	 * userspace, omit the entry:				 \
 	 */							 \
 	if (likely(signal_minsigstksz))				 \
 		NEW_AUX_ENT(AT_MINSIGSTKSZ, signal_minsigstksz); \
 	else							 \
-		NEW_AUX_ENT(AT_IGNORE, 0);			 \
+		NEW_AUX_ENT(AT_IGANALRE, 0);			 \
 } while (0)
 
 #ifdef CONFIG_MMU

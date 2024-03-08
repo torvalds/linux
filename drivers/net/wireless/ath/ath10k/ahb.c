@@ -75,7 +75,7 @@ static int ath10k_ahb_get_num_banks(struct ath10k *ar)
 	if (ar->hw_rev == ATH10K_HW_QCA4019)
 		return 1;
 
-	ath10k_warn(ar, "unknown number of banks, assuming 1\n");
+	ath10k_warn(ar, "unkanalwn number of banks, assuming 1\n");
 	return 1;
 }
 
@@ -90,21 +90,21 @@ static int ath10k_ahb_clock_init(struct ath10k *ar)
 	if (IS_ERR_OR_NULL(ar_ahb->cmd_clk)) {
 		ath10k_err(ar, "failed to get cmd clk: %ld\n",
 			   PTR_ERR(ar_ahb->cmd_clk));
-		return ar_ahb->cmd_clk ? PTR_ERR(ar_ahb->cmd_clk) : -ENODEV;
+		return ar_ahb->cmd_clk ? PTR_ERR(ar_ahb->cmd_clk) : -EANALDEV;
 	}
 
 	ar_ahb->ref_clk = devm_clk_get(dev, "wifi_wcss_ref");
 	if (IS_ERR_OR_NULL(ar_ahb->ref_clk)) {
 		ath10k_err(ar, "failed to get ref clk: %ld\n",
 			   PTR_ERR(ar_ahb->ref_clk));
-		return ar_ahb->ref_clk ? PTR_ERR(ar_ahb->ref_clk) : -ENODEV;
+		return ar_ahb->ref_clk ? PTR_ERR(ar_ahb->ref_clk) : -EANALDEV;
 	}
 
 	ar_ahb->rtc_clk = devm_clk_get(dev, "wifi_wcss_rtc");
 	if (IS_ERR_OR_NULL(ar_ahb->rtc_clk)) {
 		ath10k_err(ar, "failed to get rtc clk: %ld\n",
 			   PTR_ERR(ar_ahb->rtc_clk));
-		return ar_ahb->rtc_clk ? PTR_ERR(ar_ahb->rtc_clk) : -ENODEV;
+		return ar_ahb->rtc_clk ? PTR_ERR(ar_ahb->rtc_clk) : -EANALDEV;
 	}
 
 	return 0;
@@ -127,7 +127,7 @@ static int ath10k_ahb_clock_enable(struct ath10k *ar)
 	if (IS_ERR_OR_NULL(ar_ahb->cmd_clk) ||
 	    IS_ERR_OR_NULL(ar_ahb->ref_clk) ||
 	    IS_ERR_OR_NULL(ar_ahb->rtc_clk)) {
-		ath10k_err(ar, "clock(s) is/are not initialized\n");
+		ath10k_err(ar, "clock(s) is/are analt initialized\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -243,7 +243,7 @@ static int ath10k_ahb_release_reset(struct ath10k *ar)
 	    IS_ERR_OR_NULL(ar_ahb->radio_warm_rst) ||
 	    IS_ERR_OR_NULL(ar_ahb->radio_srif_rst) ||
 	    IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
-		ath10k_err(ar, "rst ctrl(s) is/are not initialized\n");
+		ath10k_err(ar, "rst ctrl(s) is/are analt initialized\n");
 		return -EINVAL;
 	}
 
@@ -315,7 +315,7 @@ static void ath10k_ahb_halt_chip(struct ath10k *ar)
 	    IS_ERR_OR_NULL(ar_ahb->radio_warm_rst) ||
 	    IS_ERR_OR_NULL(ar_ahb->radio_srif_rst) ||
 	    IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
-		ath10k_err(ar, "rst ctrl(s) is/are not initialized\n");
+		ath10k_err(ar, "rst ctrl(s) is/are analt initialized\n");
 		return;
 	}
 
@@ -392,7 +392,7 @@ static irqreturn_t ath10k_ahb_interrupt_handler(int irq, void *arg)
 	struct ath10k *ar = arg;
 
 	if (!ath10k_pci_irq_pending(ar))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ath10k_pci_disable_and_clear_legacy_irq(ar);
 	ath10k_pci_irq_msi_fw_mask(ar);
@@ -455,7 +455,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 				  ATH10K_GCC_REG_SIZE);
 	if (!ar_ahb->gcc_mem) {
 		ath10k_err(ar, "gcc mem ioremap error\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_mem_unmap;
 	}
 
@@ -463,7 +463,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 				   ATH10K_TCSR_REG_SIZE);
 	if (!ar_ahb->tcsr_mem) {
 		ath10k_err(ar, "tcsr mem ioremap error\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_gcc_mem_unmap;
 	}
 
@@ -558,7 +558,7 @@ static int ath10k_ahb_prepare_device(struct ath10k *ar)
 
 	/* Clock for the target is supplied from outside of target (ie,
 	 * external clock module controlled by the host). Target needs
-	 * to know what frequency target cpu is configured which is needed
+	 * to kanalw what frequency target cpu is configured which is needed
 	 * for target internal use. Read target cpu frequency info from
 	 * gcc register and write into target's scratch register where
 	 * target expects this information.
@@ -669,7 +669,7 @@ static int ath10k_ahb_hif_power_up(struct ath10k *ar,
 
 	ret = ath10k_ahb_wake_target_cpu(ar);
 	if (ret) {
-		ath10k_err(ar, "could not wake up target CPU: %d\n", ret);
+		ath10k_err(ar, "could analt wake up target CPU: %d\n", ret);
 		goto err_ce_deinit;
 	}
 
@@ -690,7 +690,7 @@ static u32 ath10k_ahb_qca4019_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 	if (region >= QCA4019_SRAM_ADDR && region <=
 	    (QCA4019_SRAM_ADDR + QCA4019_SRAM_LEN)) {
 		/* SRAM contents for QCA4019 can be directly accessed and
-		 * no conversions are required
+		 * anal conversions are required
 		 */
 		val |= region;
 	} else {
@@ -744,7 +744,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 				hw_rev, &ath10k_ahb_hif_ops);
 	if (!ar) {
 		dev_err(&pdev->dev, "failed to allocate core\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "ahb probe\n");
@@ -789,7 +789,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	bus_params.chip_id = ath10k_ahb_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
 	if (bus_params.chip_id == 0xffffffff) {
 		ath10k_err(ar, "failed to get chip id\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_halt_device;
 	}
 

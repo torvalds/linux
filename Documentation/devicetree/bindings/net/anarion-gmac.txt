@@ -5,7 +5,7 @@ Please see stmmac.txt for the other unchanged properties.
 
 Required properties:
  - compatible:  Should be "adaptrum,anarion-gmac", "snps,dwmac"
- - phy-mode:    Should be "rgmii". Other modes are not currently supported.
+ - phy-mode:    Should be "rgmii". Other modes are analt currently supported.
 
 
 Examples:

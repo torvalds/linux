@@ -10,7 +10,7 @@
 
 ******************************************************************************/
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>
@@ -39,7 +39,7 @@ int libipw_is_valid_channel(struct libipw_device *ieee, u8 channel)
 
 	if (ieee->freq_band & LIBIPW_24GHZ_BAND)
 		for (i = 0; i < ieee->geo.bg_channels; i++)
-			/* NOTE: If G mode is currently supported but
+			/* ANALTE: If G mode is currently supported but
 			 * this is a B only channel, we don't see it
 			 * as valid. */
 			if ((ieee->geo.bg[i].channel == channel) &&

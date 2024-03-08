@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@analvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #include <linux/mISDNif.h>
@@ -193,7 +193,7 @@ l2down_raw(struct layer2 *l2, struct sk_buff *skb)
 	struct mISDNhead *hh = mISDN_HEAD_P(skb);
 
 	if (hh->prim == PH_DATA_REQ) {
-		if (test_and_set_bit(FLG_L1_NOTREADY, &l2->flag)) {
+		if (test_and_set_bit(FLG_L1_ANALTREADY, &l2->flag)) {
 			skb_queue_tail(&l2->down_queue, skb);
 			return 0;
 		}
@@ -221,7 +221,7 @@ l2down_create(struct layer2 *l2, u_int prim, u_int id, int len, void *arg)
 
 	skb = mI_alloc_skb(len, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	hh = mISDN_HEAD_P(skb);
 	hh->prim = prim;
 	hh->id = id;
@@ -238,38 +238,38 @@ ph_data_confirm(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb) {
 	struct sk_buff *nskb = skb;
 	int ret = -EAGAIN;
 
-	if (test_bit(FLG_L1_NOTREADY, &l2->flag)) {
+	if (test_bit(FLG_L1_ANALTREADY, &l2->flag)) {
 		if (hh->id == l2->down_id) {
 			nskb = skb_dequeue(&l2->down_queue);
 			if (nskb) {
 				l2->down_id = mISDN_HEAD_ID(nskb);
 				if (l2down_skb(l2, nskb)) {
 					dev_kfree_skb(nskb);
-					l2->down_id = MISDN_ID_NONE;
+					l2->down_id = MISDN_ID_ANALNE;
 				}
 			} else
-				l2->down_id = MISDN_ID_NONE;
+				l2->down_id = MISDN_ID_ANALNE;
 			if (ret) {
 				dev_kfree_skb(skb);
 				ret = 0;
 			}
-			if (l2->down_id == MISDN_ID_NONE) {
-				test_and_clear_bit(FLG_L1_NOTREADY, &l2->flag);
+			if (l2->down_id == MISDN_ID_ANALNE) {
+				test_and_clear_bit(FLG_L1_ANALTREADY, &l2->flag);
 				mISDN_FsmEvent(&l2->l2m, EV_L2_ACK_PULL, NULL);
 			}
 		}
 	}
-	if (!test_and_set_bit(FLG_L1_NOTREADY, &l2->flag)) {
+	if (!test_and_set_bit(FLG_L1_ANALTREADY, &l2->flag)) {
 		nskb = skb_dequeue(&l2->down_queue);
 		if (nskb) {
 			l2->down_id = mISDN_HEAD_ID(nskb);
 			if (l2down_skb(l2, nskb)) {
 				dev_kfree_skb(nskb);
-				l2->down_id = MISDN_ID_NONE;
-				test_and_clear_bit(FLG_L1_NOTREADY, &l2->flag);
+				l2->down_id = MISDN_ID_ANALNE;
+				test_and_clear_bit(FLG_L1_ANALTREADY, &l2->flag);
 			}
 		} else
-			test_and_clear_bit(FLG_L1_NOTREADY, &l2->flag);
+			test_and_clear_bit(FLG_L1_ANALTREADY, &l2->flag);
 	}
 	return ret;
 }
@@ -283,7 +283,7 @@ l2_timeout(struct FsmInst *fi, int event, void *arg)
 
 	skb = mI_alloc_skb(0, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_WARNING "%s: L2(%d,%d) nr:%x timer %s no skb\n",
+		printk(KERN_WARNING "%s: L2(%d,%d) nr:%x timer %s anal skb\n",
 		       mISDNDevName4ch(&l2->ch), l2->sapi, l2->tei,
 		       l2->ch.nr, event == EV_L2_T200 ? "T200" : "T203");
 		return;
@@ -1484,7 +1484,7 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		header[i++] = (l2->vr << 5) | (l2->vs << 1);
 	nskb = skb_realloc_headroom(skb, i);
 	if (!nskb) {
-		printk(KERN_WARNING "%s: no headroom(%d) copy for IFrame\n",
+		printk(KERN_WARNING "%s: anal headroom(%d) copy for IFrame\n",
 		       mISDNDevName4ch(&l2->ch), i);
 		skb_queue_head(&l2->i_queue, skb);
 		return;
@@ -1755,7 +1755,7 @@ l2_frame_error_reest(struct FsmInst *fi, int event, void *arg)
 	test_and_clear_bit(FLG_L3_INIT, &l2->flag);
 }
 
-static struct FsmNode L2FnList[] =
+static struct FsmAnalde L2FnList[] =
 {
 	{ST_L2_1, EV_L2_DL_ESTABLISH_REQ, l2_mdl_assign},
 	{ST_L2_2, EV_L2_DL_ESTABLISH_REQ, l2_go_st3},
@@ -1866,7 +1866,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		mISDN_FsmEvent(&l2->l2m, EV_L2_FRAME_ERROR, (void *) 'N');
 		return ret;
 	}
-	if (test_bit(FLG_LAPD, &l2->flag)) { /* Maybe not needed */
+	if (test_bit(FLG_LAPD, &l2->flag)) { /* Maybe analt needed */
 		psapi = *datap++;
 		ptei = *datap++;
 		if ((psapi & 1) || !(ptei & 1)) {
@@ -1878,7 +1878,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		psapi >>= 2;
 		ptei >>= 1;
 		if (psapi != l2->sapi) {
-			/* not our business */
+			/* analt our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: sapi %d/%d mismatch\n",
 				       mISDNDevName4ch(&l2->ch), psapi,
@@ -1887,7 +1887,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 			return 0;
 		}
 		if ((ptei != l2->tei) && (ptei != GROUP_TEI)) {
-			/* not our business */
+			/* analt our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: tei %d/%d mismatch\n",
 				       mISDNDevName4ch(&l2->ch), ptei, l2->tei);
@@ -2020,7 +2020,7 @@ l2_send(struct mISDNchannel *ch, struct sk_buff *skb)
 		break;
 	default:
 		if (*debug & DEBUG_L2)
-			l2m_debug(&l2->l2m, "l2 unknown pr %04x",
+			l2m_debug(&l2->l2m, "l2 unkanalwn pr %04x",
 				  hh->prim);
 	}
 	if (ret) {
@@ -2050,7 +2050,7 @@ tei_l2(struct layer2 *l2, u_int cmd, u_long arg)
 		break;
 	case (MDL_ERROR_RSP):
 		/* ETS 300-125 5.3.2.1 Test: TC13010 */
-		printk(KERN_NOTICE "%s: MDL_ERROR|REQ (tei_l2)\n",
+		printk(KERN_ANALTICE "%s: MDL_ERROR|REQ (tei_l2)\n",
 		       mISDNDevName4ch(&l2->ch));
 		ret = mISDN_FsmEvent(&l2->l2m, EV_L2_MDL_ERROR, NULL);
 		break;
@@ -2117,7 +2117,7 @@ create_l2(struct mISDNchannel *ch, u_int protocol, u_long options, int tei,
 		return NULL;
 	}
 	l2->next_id = 1;
-	l2->down_id = MISDN_ID_NONE;
+	l2->down_id = MISDN_ID_ANALNE;
 	l2->up = ch;
 	l2->ch.st = ch->st;
 	l2->ch.send = l2_send;
@@ -2217,10 +2217,10 @@ x75create(struct channel_req *crq)
 	struct layer2	*l2;
 
 	if (crq->protocol != ISDN_P_B_X75SLP)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	l2 = create_l2(crq->ch, crq->protocol, 0, 0, 0);
 	if (!l2)
-		return -ENOMEM;
+		return -EANALMEM;
 	crq->ch = &l2->ch;
 	crq->protocol = ISDN_P_B_HDLC;
 	return 0;

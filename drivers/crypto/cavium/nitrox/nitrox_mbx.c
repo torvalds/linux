@@ -7,13 +7,13 @@
 #include "nitrox_dev.h"
 #include "nitrox_mbx.h"
 
-#define RING_TO_VFNO(_x, _y)	((_x) / (_y))
+#define RING_TO_VFANAL(_x, _y)	((_x) / (_y))
 
 /*
  * mbx_msg_type - Mailbox message types
  */
 enum mbx_msg_type {
-	MBX_MSG_TYPE_NOP,
+	MBX_MSG_TYPE_ANALP,
 	MBX_MSG_TYPE_REQ,
 	MBX_MSG_TYPE_ACK,
 	MBX_MSG_TYPE_NACK,
@@ -70,11 +70,11 @@ static void pf2vf_send_response(struct nitrox_device *ndev,
 		break;
 	case MSG_OP_CHIPID_VFID:
 		msg.id.chipid = ndev->idx;
-		msg.id.vfid = vfdev->vfno;
+		msg.id.vfid = vfdev->vfanal;
 		break;
 	case MSG_OP_VF_DOWN:
 		vfdev->nr_queues = 0;
-		atomic_set(&vfdev->state, __NDEV_NOT_READY);
+		atomic_set(&vfdev->state, __NDEV_ANALT_READY);
 		break;
 	case MSG_OP_MCODE_INFO:
 		msg.data = 0;
@@ -84,11 +84,11 @@ static void pf2vf_send_response(struct nitrox_device *ndev,
 		msg.mcode_info.next_ae_grp = 1;
 		break;
 	default:
-		msg.type = MBX_MSG_TYPE_NOP;
+		msg.type = MBX_MSG_TYPE_ANALP;
 		break;
 	}
 
-	if (msg.type == MBX_MSG_TYPE_NOP)
+	if (msg.type == MBX_MSG_TYPE_ANALP)
 		return;
 
 	/* send ACK to VF */
@@ -126,16 +126,16 @@ void nitrox_pf2vf_mbox_handler(struct nitrox_device *ndev)
 	struct pf2vf_work *pfwork;
 	u64 value, reg_addr;
 	u32 i;
-	int vfno;
+	int vfanal;
 
 	/* loop for VF(0..63) */
 	reg_addr = NPS_PKT_MBOX_INT_LO;
 	value = nitrox_read_csr(ndev, reg_addr);
 	bitmap_from_u64(csr, value);
 	for_each_set_bit(i, csr, BITS_PER_TYPE(csr)) {
-		/* get the vfno from ring */
-		vfno = RING_TO_VFNO(i, ndev->iov.max_vf_queues);
-		vfdev = ndev->iov.vfdev + vfno;
+		/* get the vfanal from ring */
+		vfanal = RING_TO_VFANAL(i, ndev->iov.max_vf_queues);
+		vfdev = ndev->iov.vfdev + vfanal;
 		vfdev->ring = i;
 		/* fill the vf mailbox data */
 		vfdev->msg.value = pf2vf_read_mbox(ndev, vfdev->ring);
@@ -156,9 +156,9 @@ void nitrox_pf2vf_mbox_handler(struct nitrox_device *ndev)
 	value = nitrox_read_csr(ndev, reg_addr);
 	bitmap_from_u64(csr, value);
 	for_each_set_bit(i, csr, BITS_PER_TYPE(csr)) {
-		/* get the vfno from ring */
-		vfno = RING_TO_VFNO(i + 64, ndev->iov.max_vf_queues);
-		vfdev = ndev->iov.vfdev + vfno;
+		/* get the vfanal from ring */
+		vfanal = RING_TO_VFANAL(i + 64, ndev->iov.max_vf_queues);
+		vfdev = ndev->iov.vfdev + vfanal;
 		vfdev->ring = (i + 64);
 		/* fill the vf mailbox data */
 		vfdev->msg.value = pf2vf_read_mbox(ndev, vfdev->ring);
@@ -184,11 +184,11 @@ int nitrox_mbox_init(struct nitrox_device *ndev)
 	ndev->iov.vfdev = kcalloc(ndev->iov.num_vfs,
 				  sizeof(struct nitrox_vfdev), GFP_KERNEL);
 	if (!ndev->iov.vfdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ndev->iov.num_vfs; i++) {
 		vfdev = ndev->iov.vfdev + i;
-		vfdev->vfno = i;
+		vfdev->vfanal = i;
 	}
 
 	/* allocate pf2vf response workqueue */
@@ -196,7 +196,7 @@ int nitrox_mbox_init(struct nitrox_device *ndev)
 	if (!ndev->iov.pf2vf_wq) {
 		kfree(ndev->iov.vfdev);
 		ndev->iov.vfdev = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* enable pf2vf mailbox interrupts */
 	enable_pf2vf_mbox_interrupts(ndev);

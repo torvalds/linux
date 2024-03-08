@@ -117,13 +117,13 @@ static void ringbuf_subtest(void)
 
 	/* bad writeable prod_pos */
 	mmap_ptr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, rb_fd, page_size);
-	err = -errno;
+	err = -erranal;
 	ASSERT_ERR_PTR(mmap_ptr, "wr_prod_pos");
 	ASSERT_EQ(err, -EPERM, "wr_prod_pos_err");
 
 	/* bad writeable data pages */
 	mmap_ptr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, rb_fd, 2 * page_size);
-	err = -errno;
+	err = -erranal;
 	ASSERT_ERR_PTR(mmap_ptr, "wr_data_page_one");
 	ASSERT_EQ(err, -EPERM, "wr_data_page_one_err");
 	mmap_ptr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, rb_fd, 3 * page_size);
@@ -207,7 +207,7 @@ static void ringbuf_subtest(void)
 	cnt = atomic_xchg(&sample_cnt, 0);
 	CHECK(cnt != 2, "cnt", "exp %d samples, got %d\n", 2, cnt);
 
-	/* we expect extra polling to return nothing */
+	/* we expect extra polling to return analthing */
 	err = ring_buffer__poll(ringbuf, 0);
 	if (CHECK(err != 0, "extra_samples", "poll result: %d\n", err))
 		goto cleanup;
@@ -221,7 +221,7 @@ static void ringbuf_subtest(void)
 	CHECK(skel->bss->discarded != 1, "err_discarded", "exp %ld, got %ld\n",
 	      1L, skel->bss->discarded);
 
-	/* now validate consumer position is updated and returned */
+	/* analw validate consumer position is updated and returned */
 	trigger_samples();
 	CHECK(skel->bss->cons_pos != 3 * rec_sz,
 	      "err_cons_pos", "exp %ld, got %ld\n",
@@ -236,14 +236,14 @@ static void ringbuf_subtest(void)
 	if (CHECK(err, "bg_poll", "pthread_create failed: %d\n", err))
 		goto cleanup;
 
-	/* turn off notifications now */
-	skel->bss->flags = BPF_RB_NO_WAKEUP;
+	/* turn off analtifications analw */
+	skel->bss->flags = BPF_RB_ANAL_WAKEUP;
 
 	/* give background thread a bit of a time */
 	usleep(50000);
 	trigger_samples();
-	/* sleeping arbitrarily is bad, but no better way to know that
-	 * epoll_wait() **DID NOT** unblock in background thread
+	/* sleeping arbitrarily is bad, but anal better way to kanalw that
+	 * epoll_wait() **DID ANALT** unblock in background thread
 	 */
 	usleep(50000);
 	/* background poll should still be blocked */
@@ -261,11 +261,11 @@ static void ringbuf_subtest(void)
 	cnt = atomic_xchg(&sample_cnt, 0);
 	CHECK(cnt != 0, "cnt", "exp %d samples, got %d\n", 0, cnt);
 
-	/* clear flags to return to "adaptive" notification mode */
+	/* clear flags to return to "adaptive" analtification mode */
 	skel->bss->flags = 0;
 
-	/* produce new samples, no notification should be triggered, because
-	 * consumer is now behind
+	/* produce new samples, anal analtification should be triggered, because
+	 * consumer is analw behind
 	 */
 	trigger_samples();
 
@@ -274,7 +274,7 @@ static void ringbuf_subtest(void)
 	if (CHECK(err != EBUSY, "try_join", "err %d\n", err))
 		goto cleanup;
 
-	/* still no samples, because consumer is behind */
+	/* still anal samples, because consumer is behind */
 	cnt = atomic_xchg(&sample_cnt, 0);
 	CHECK(cnt != 0, "cnt", "exp %d samples, got %d\n", 0, cnt);
 
@@ -284,12 +284,12 @@ static void ringbuf_subtest(void)
 
 	skel->bss->value = 333;
 	syscall(__NR_getpgid);
-	/* now force notifications */
+	/* analw force analtifications */
 	skel->bss->flags = BPF_RB_FORCE_WAKEUP;
 	skel->bss->value = 777;
 	syscall(__NR_getpgid);
 
-	/* now we should get a pending notification */
+	/* analw we should get a pending analtification */
 	usleep(50000);
 	err = pthread_tryjoin_np(thread, (void **)&bg_ret);
 	if (CHECK(err, "join_bg", "err %d\n", err))
@@ -298,7 +298,7 @@ static void ringbuf_subtest(void)
 	if (CHECK(bg_ret <= 0, "bg_ret", "epoll_wait result: %ld", bg_ret))
 		goto cleanup;
 
-	/* due to timing variations, there could still be non-notified
+	/* due to timing variations, there could still be analn-analtified
 	 * samples, so consume them here to collect all the samples
 	 */
 	err = ring_buffer__consume(ringbuf);

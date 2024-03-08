@@ -4,7 +4,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #if !defined(CONFIG_SMP)
 #include <asm/futex-irq.h>
@@ -13,7 +13,7 @@
 #elif defined(CONFIG_CPU_SH4A)
 #include <asm/futex-llsc.h>
 #else
-#error SMP not supported on this configuration.
+#error SMP analt supported on this configuration.
 #endif
 
 static inline int
@@ -54,7 +54,7 @@ static inline int arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval,
 			newval = oldval ^ oparg;
 			break;
 		default:
-			ret = -ENOSYS;
+			ret = -EANALSYS;
 			break;
 		}
 

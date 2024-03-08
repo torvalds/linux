@@ -76,14 +76,14 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 		pages = NULL;
 		while (!pages) {
 			pages = alloc_pages(GFP_KERNEL | __GFP_ZERO |
-					__GFP_NOWARN | gfp_flags, order);
+					__GFP_ANALWARN | gfp_flags, order);
 			if (pages)
 				break;
 
 			if (order == 0) {
 				while (last_page--)
 					__free_page(buf->pages[last_page]);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			order--;
 		}
@@ -111,7 +111,7 @@ static void *vb2_dma_sg_alloc(struct vb2_buffer *vb, struct device *dev,
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->vaddr = NULL;
 	buf->dma_dir = vb->vb2_queue->dma_dir;
@@ -122,8 +122,8 @@ static void *vb2_dma_sg_alloc(struct vb2_buffer *vb, struct device *dev,
 	buf->dma_sgt = &buf->sg_table;
 
 	/*
-	 * NOTE: dma-sg allocates memory using the page allocator directly, so
-	 * there is no memory consistency guarantee, hence dma-sg ignores DMA
+	 * ANALTE: dma-sg allocates memory using the page allocator directly, so
+	 * there is anal memory consistency guarantee, hence dma-sg iganalres DMA
 	 * attributes passed from the upper layer.
 	 */
 	buf->pages = kvcalloc(buf->num_pages, sizeof(struct page *), GFP_KERNEL);
@@ -144,7 +144,7 @@ static void *vb2_dma_sg_alloc(struct vb2_buffer *vb, struct device *dev,
 
 	sgt = &buf->sg_table;
 	/*
-	 * No need to sync to the device, this will happen later when the
+	 * Anal need to sync to the device, this will happen later when the
 	 * prepare() memop is called.
 	 */
 	if (dma_map_sgtable(buf->dev, sgt, buf->dma_dir,
@@ -173,7 +173,7 @@ fail_pages_alloc:
 	kvfree(buf->pages);
 fail_pages_array_alloc:
 	kfree(buf);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void vb2_dma_sg_put(void *buf_priv)
@@ -232,7 +232,7 @@ static void *vb2_dma_sg_get_userptr(struct vb2_buffer *vb, struct device *dev,
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->vaddr = NULL;
 	buf->dev = dev;
@@ -259,7 +259,7 @@ static void *vb2_dma_sg_get_userptr(struct vb2_buffer *vb, struct device *dev,
 
 	sgt = &buf->sg_table;
 	/*
-	 * No need to sync to the device, this will happen later when the
+	 * Anal need to sync to the device, this will happen later when the
 	 * prepare() memop is called.
 	 */
 	if (dma_map_sgtable(buf->dev, sgt, buf->dma_dir,
@@ -274,11 +274,11 @@ userptr_fail_sgtable:
 	vb2_destroy_framevec(vec);
 userptr_fail_pfnvec:
 	kfree(buf);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /*
- * @put_userptr: inform the allocator that a USERPTR buffer will no longer
+ * @put_userptr: inform the allocator that a USERPTR buffer will anal longer
  *		 be used
  */
 static void vb2_dma_sg_put_userptr(void *buf_priv)
@@ -318,7 +318,7 @@ static void *vb2_dma_sg_vaddr(struct vb2_buffer *vb, void *buf_priv)
 		}
 	}
 
-	/* add offset in case userptr is not page-aligned */
+	/* add offset in case userptr is analt page-aligned */
 	return buf->vaddr ? buf->vaddr + buf->offset : NULL;
 }
 
@@ -335,7 +335,7 @@ static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
 	int err;
 
 	if (!buf) {
-		printk(KERN_ERR "No memory to map\n");
+		printk(KERN_ERR "Anal memory to map\n");
 		return -EINVAL;
 	}
 
@@ -377,7 +377,7 @@ static int vb2_dma_sg_dmabuf_ops_attach(struct dma_buf *dbuf,
 
 	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
 	if (!attach)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sgt = &attach->sgt;
 	/* Copy the buf->base_sgt scatter list to the attachment, as we can't
@@ -386,7 +386,7 @@ static int vb2_dma_sg_dmabuf_ops_attach(struct dma_buf *dbuf,
 	ret = sg_alloc_table(sgt, buf->dma_sgt->orig_nents, GFP_KERNEL);
 	if (ret) {
 		kfree(attach);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rd = buf->dma_sgt->sgl;
@@ -397,7 +397,7 @@ static int vb2_dma_sg_dmabuf_ops_attach(struct dma_buf *dbuf,
 		wr = sg_next(wr);
 	}
 
-	attach->dma_dir = DMA_NONE;
+	attach->dma_dir = DMA_ANALNE;
 	dbuf_attach->priv = attach;
 
 	return 0;
@@ -415,7 +415,7 @@ static void vb2_dma_sg_dmabuf_ops_detach(struct dma_buf *dbuf,
 	sgt = &attach->sgt;
 
 	/* release the scatterlist cache */
-	if (attach->dma_dir != DMA_NONE)
+	if (attach->dma_dir != DMA_ANALNE)
 		dma_unmap_sgtable(db_attach->dev, sgt, attach->dma_dir, 0);
 	sg_free_table(sgt);
 	kfree(attach);
@@ -434,9 +434,9 @@ static struct sg_table *vb2_dma_sg_dmabuf_ops_map(
 		return sgt;
 
 	/* release any previous cache */
-	if (attach->dma_dir != DMA_NONE) {
+	if (attach->dma_dir != DMA_ANALNE) {
 		dma_unmap_sgtable(db_attach->dev, sgt, attach->dma_dir, 0);
-		attach->dma_dir = DMA_NONE;
+		attach->dma_dir = DMA_ANALNE;
 	}
 
 	/* mapping to the client with new direction */
@@ -453,7 +453,7 @@ static struct sg_table *vb2_dma_sg_dmabuf_ops_map(
 static void vb2_dma_sg_dmabuf_ops_unmap(struct dma_buf_attachment *db_attach,
 	struct sg_table *sgt, enum dma_data_direction dma_dir)
 {
-	/* nothing to be done here */
+	/* analthing to be done here */
 }
 
 static void vb2_dma_sg_dmabuf_ops_release(struct dma_buf *dbuf)
@@ -554,7 +554,7 @@ static int vb2_dma_sg_map_dmabuf(void *mem_priv)
 	struct sg_table *sgt;
 
 	if (WARN_ON(!buf->db_attach)) {
-		pr_err("trying to pin a non attached buffer\n");
+		pr_err("trying to pin a analn attached buffer\n");
 		return -EINVAL;
 	}
 
@@ -583,7 +583,7 @@ static void vb2_dma_sg_unmap_dmabuf(void *mem_priv)
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(buf->vaddr);
 
 	if (WARN_ON(!buf->db_attach)) {
-		pr_err("trying to unpin a not attached buffer\n");
+		pr_err("trying to unpin a analt attached buffer\n");
 		return;
 	}
 
@@ -628,7 +628,7 @@ static void *vb2_dma_sg_attach_dmabuf(struct vb2_buffer *vb, struct device *dev,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->dev = dev;
 	/* create attachment for the dmabuf with the user device */

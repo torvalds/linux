@@ -8,7 +8,7 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/barrier.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/unistd.h>
 #include <asm/vdso/cp15.h>
 #include <uapi/linux/time.h>
@@ -117,20 +117,20 @@ static __always_inline u64 __arch_get_hw_counter(int clock_mode,
 						 const struct vdso_data *vd)
 {
 #ifdef CONFIG_ARM_ARCH_TIMER
-	u64 cycle_now;
+	u64 cycle_analw;
 
 	/*
 	 * Core checks for mode already, so this raced against a concurrent
-	 * update. Return something. Core will do another round and then
+	 * update. Return something. Core will do aanalther round and then
 	 * see the mode change and fallback to the syscall.
 	 */
-	if (clock_mode == VDSO_CLOCKMODE_NONE)
+	if (clock_mode == VDSO_CLOCKMODE_ANALNE)
 		return 0;
 
 	isb();
-	cycle_now = read_sysreg(CNTVCT);
+	cycle_analw = read_sysreg(CNTVCT);
 
-	return cycle_now;
+	return cycle_analw;
 #else
 	/* Make GCC happy. This is compiled out anyway */
 	return 0;

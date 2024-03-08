@@ -36,6 +36,6 @@ static inline u32 hdlcd_read(struct hdlcd_drm_private *hdlcd, unsigned int reg)
 }
 
 int hdlcd_setup_crtc(struct drm_device *dev);
-void hdlcd_set_scanout(struct hdlcd_drm_private *hdlcd);
+void hdlcd_set_scaanalut(struct hdlcd_drm_private *hdlcd);
 
 #endif /* __HDLCD_DRV_H__ */

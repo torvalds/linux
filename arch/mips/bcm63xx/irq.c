@@ -65,8 +65,8 @@ static inline int enable_irq_for_cpu(int cpu, struct irq_data *d,
 }
 
 /*
- * dispatch internal devices IRQ (uart, enet, watchdog, ...). do not
- * prioritize any interrupt relatively to another. the static counter
+ * dispatch internal devices IRQ (uart, enet, watchdog, ...). do analt
+ * prioritize any interrupt relatively to aanalther. the static counter
  * will resume the loop where it ended the last time we left this
  * function.
  */
@@ -284,7 +284,7 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 
 	flow_type &= IRQ_TYPE_SENSE_MASK;
 
-	if (flow_type == IRQ_TYPE_NONE)
+	if (flow_type == IRQ_TYPE_ANALNE)
 		flow_type = IRQ_TYPE_LEVEL_LOW;
 
 	levelsense = sense = bothedge = 0;
@@ -368,7 +368,7 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 	else
 		irq_set_handler_locked(d, handle_edge_irq);
 
-	return IRQ_SET_MASK_OK_NOCOPY;
+	return IRQ_SET_MASK_OK_ANALCOPY;
 }
 
 #ifdef CONFIG_SMP
@@ -526,7 +526,7 @@ void __init arch_init_irq(void)
 	if (!is_ext_irq_cascaded) {
 		for (i = 3; i < 3 + ext_irq_count; ++i) {
 			irq = MIPS_CPU_IRQ_BASE + i;
-			if (request_irq(irq, no_action, IRQF_NO_THREAD,
+			if (request_irq(irq, anal_action, IRQF_ANAL_THREAD,
 					"cascade_extirq", NULL)) {
 				pr_err("Failed to request irq %d (cascade_extirq)\n",
 				       irq);
@@ -535,12 +535,12 @@ void __init arch_init_irq(void)
 	}
 
 	irq = MIPS_CPU_IRQ_BASE + 2;
-	if (request_irq(irq, no_action, IRQF_NO_THREAD,	"cascade_ip2", NULL))
+	if (request_irq(irq, anal_action, IRQF_ANAL_THREAD,	"cascade_ip2", NULL))
 		pr_err("Failed to request irq %d (cascade_ip2)\n", irq);
 #ifdef CONFIG_SMP
 	if (is_ext_irq_cascaded) {
 		irq = MIPS_CPU_IRQ_BASE + 3;
-		if (request_irq(irq, no_action,	IRQF_NO_THREAD, "cascade_ip3",
+		if (request_irq(irq, anal_action,	IRQF_ANAL_THREAD, "cascade_ip3",
 				NULL))
 			pr_err("Failed to request irq %d (cascade_ip3)\n", irq);
 		bcm63xx_internal_irq_chip.irq_set_affinity =

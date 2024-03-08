@@ -28,7 +28,7 @@ static int chcr_get_nfrags_to_send(struct sk_buff *skb, u32 start, u32 len)
 	skb_frag_t *frag;
 
 	/* if its a linear skb then return 1 */
-	if (!skb_is_nonlinear(skb))
+	if (!skb_is_analnlinear(skb))
 		return 1;
 
 	if (unlikely(start < skb_linear_data_len)) {
@@ -92,14 +92,14 @@ static int chcr_ktls_save_keys(struct chcr_ktls_info *tx_info,
 		ghash_size = TLS_CIPHER_AES_GCM_128_TAG_SIZE;
 		key = info_128_gcm->key;
 		salt = info_128_gcm->salt;
-		tx_info->record_no = *(u64 *)info_128_gcm->rec_seq;
+		tx_info->record_anal = *(u64 *)info_128_gcm->rec_seq;
 
 		/* The SCMD fields used when encrypting a full TLS
 		 * record. Its a one time calculation till the
 		 * connection exists.
 		 */
-		tx_info->scmd0_seqno_numivs =
-			SCMD_SEQ_NO_CTRL_V(CHCR_SCMD_SEQ_NO_CTRL_64BIT) |
+		tx_info->scmd0_seqanal_numivs =
+			SCMD_SEQ_ANAL_CTRL_V(CHCR_SCMD_SEQ_ANAL_CTRL_64BIT) |
 			SCMD_CIPH_AUTH_SEQ_CTRL_F |
 			SCMD_PROTO_VERSION_V(CHCR_SCMD_PROTO_VERSION_TLS) |
 			SCMD_CIPH_MODE_V(CHCR_SCMD_CIPHER_MODE_AES_GCM) |
@@ -111,9 +111,9 @@ static int chcr_ktls_save_keys(struct chcr_ktls_info *tx_info,
 		tx_info->scmd0_ivgen_hdrlen = SCMD_KEY_CTX_INLINE_F;
 
 		/* The SCMD fields used when encrypting a partial TLS
-		 * record (no trailer and possibly a truncated payload).
+		 * record (anal trailer and possibly a truncated payload).
 		 */
-		tx_info->scmd0_short_seqno_numivs =
+		tx_info->scmd0_short_seqanal_numivs =
 			SCMD_CIPH_AUTH_SEQ_CTRL_F |
 			SCMD_PROTO_VERSION_V(CHCR_SCMD_PROTO_VERSION_GENERIC) |
 			SCMD_CIPH_MODE_V(CHCR_SCMD_CIPHER_MODE_AES_CTR) |
@@ -125,7 +125,7 @@ static int chcr_ktls_save_keys(struct chcr_ktls_info *tx_info,
 		break;
 
 	default:
-		pr_err("GCM: cipher type 0x%x not supported\n",
+		pr_err("GCM: cipher type 0x%x analt supported\n",
 		       crypto_info->cipher_type);
 		ret = -EINVAL;
 		goto out;
@@ -186,7 +186,7 @@ static int chcr_ktls_act_open_req(struct sock *sk,
 	len = sizeof(*cpl6);
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 	/* mark it a control pkt */
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, tx_info->port_id);
 
@@ -202,7 +202,7 @@ static int chcr_ktls_act_open_req(struct sock *sk,
 	cpl->peer_ip = inet->inet_daddr;
 
 	/* fill first 64 bit option field. */
-	options = TCAM_BYPASS_F | ULP_MODE_V(ULP_MODE_NONE) | NON_OFFLOAD_F |
+	options = TCAM_BYPASS_F | ULP_MODE_V(ULP_MODE_ANALNE) | ANALN_OFFLOAD_F |
 		  SMAC_SEL_V(tx_info->smt_idx) | TX_CHAN_V(tx_info->tx_chan);
 	cpl->opt0 = cpu_to_be64(options);
 
@@ -237,7 +237,7 @@ static int chcr_ktls_act_open_req6(struct sock *sk,
 	len = sizeof(*cpl6);
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 	/* mark it a control pkt */
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, tx_info->port_id);
 
@@ -254,7 +254,7 @@ static int chcr_ktls_act_open_req6(struct sock *sk,
 	cpl->peer_ip_lo = *(__be64 *)&sk->sk_v6_daddr.in6_u.u6_addr8[8];
 
 	/* first 64 bit option field. */
-	options = TCAM_BYPASS_F | ULP_MODE_V(ULP_MODE_NONE) | NON_OFFLOAD_F |
+	options = TCAM_BYPASS_F | ULP_MODE_V(ULP_MODE_ANALNE) | ANALN_OFFLOAD_F |
 		  SMAC_SEL_V(tx_info->smt_idx) | TX_CHAN_V(tx_info->tx_chan);
 	cpl->opt0 = cpu_to_be64(options);
 	/* next 64 bit option field. */
@@ -325,22 +325,22 @@ static int chcr_setup_connection(struct sock *sk,
  * @word - TCB word.
  * @mask - TCB word related mask.
  * @val - TCB word related value.
- * @no_reply - set 1 if not looking for TP response.
+ * @anal_reply - set 1 if analt looking for TP response.
  */
 static int chcr_set_tcb_field(struct chcr_ktls_info *tx_info, u16 word,
-			      u64 mask, u64 val, int no_reply)
+			      u64 mask, u64 val, int anal_reply)
 {
 	struct cpl_set_tcb_field *req;
 	struct sk_buff *skb;
 
 	skb = alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = (struct cpl_set_tcb_field *)__skb_put_zero(skb, sizeof(*req));
 	INIT_TP_WR_CPL(req, CPL_SET_TCB_FIELD, tx_info->tid);
-	req->reply_ctrl = htons(QUEUENO_V(tx_info->rx_qid) |
-				NO_REPLY_V(no_reply));
+	req->reply_ctrl = htons(QUEUEANAL_V(tx_info->rx_qid) |
+				ANAL_REPLY_V(anal_reply));
 	req->word_cookie = htons(TCB_WORD_V(word));
 	req->mask = cpu_to_be64(mask);
 	req->val = cpu_to_be64(val);
@@ -431,7 +431,7 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	u_ctx = adap->uld[CXGB4_ULD_KTLS].handle;
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_RX) {
-		pr_err("not expecting for RX direction\n");
+		pr_err("analt expecting for RX direction\n");
 		goto out;
 	}
 
@@ -492,12 +492,12 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	/* get the l2t index */
 	dst = sk_dst_get(sk);
 	if (!dst) {
-		pr_err("DST entry not found\n");
+		pr_err("DST entry analt found\n");
 		goto free_tx_info;
 	}
 	n = dst_neigh_lookup(dst, daaddr);
 	if (!n || !n->dev) {
-		pr_err("neighbour not found\n");
+		pr_err("neighbour analt found\n");
 		dst_release(dst);
 		goto free_tx_info;
 	}
@@ -507,7 +507,7 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	dst_release(dst);
 
 	if (!tx_info->l2te) {
-		pr_err("l2t entry not found\n");
+		pr_err("l2t entry analt found\n");
 		goto free_tx_info;
 	}
 
@@ -517,7 +517,7 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 
 	init_completion(&tx_info->completion);
 	/* create a filter and call cxgb4_l2t_send to send the packet out, which
-	 * will take care of updating l2t entry in hw if not already done.
+	 * will take care of updating l2t entry in hw if analt already done.
 	 */
 	tx_info->open_state = CH_KTLS_OPEN_PENDING;
 
@@ -606,7 +606,7 @@ static int chcr_init_tcb_fields(struct chcr_ktls_info *tx_info)
 	/* set tcb in offload and bypass */
 	ret =
 	chcr_set_tcb_field(tx_info, TCB_T_FLAGS_W,
-			   TCB_T_FLAGS_V(TF_CORE_BYPASS_F | TF_NON_OFFLOAD_F),
+			   TCB_T_FLAGS_V(TF_CORE_BYPASS_F | TF_ANALN_OFFLOAD_F),
 			   TCB_T_FLAGS_V(TF_CORE_BYPASS_F), 1);
 	if (ret)
 		return ret;
@@ -685,7 +685,7 @@ static int chcr_ktls_cpl_act_open_rpl(struct adapter *adap,
 		u_ctx = adap->uld[CXGB4_ULD_KTLS].handle;
 		if (u_ctx) {
 			ret = xa_insert_bh(&u_ctx->tid_list, tid, tx_ctx,
-					   GFP_NOWAIT);
+					   GFP_ANALWAIT);
 			if (ret < 0) {
 				pr_err("%s: Failed to allocate tid XA entry = %d\n",
 				       __func__, tx_info->tid);
@@ -763,15 +763,15 @@ static void *__chcr_write_cpl_set_tcb_ulp(struct chcr_ktls_info *tx_info,
 	cpl = pos;
 	/* CPL_SET_TCB_FIELD */
 	OPCODE_TID(cpl) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	cpl->reply_ctrl = htons(QUEUENO_V(tx_info->rx_qid) |
-			NO_REPLY_V(!reply));
+	cpl->reply_ctrl = htons(QUEUEANAL_V(tx_info->rx_qid) |
+			ANAL_REPLY_V(!reply));
 	cpl->word_cookie = htons(TCB_WORD_V(word));
 	cpl->mask = cpu_to_be64(mask);
 	cpl->val = cpu_to_be64(val);
 
-	/* ULPTX_NOOP */
+	/* ULPTX_ANALOP */
 	idata = (struct ulptx_idata *)(cpl + 1);
-	idata->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_NOOP));
+	idata->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_ANALOP));
 	idata->len = htonl(0);
 	pos = idata + 1;
 
@@ -846,7 +846,7 @@ static int chcr_ktls_xmit_tcb_cpls(struct chcr_ktls_info *tx_info,
 	void *pos;
 
 	wr_len = sizeof(*wr);
-	/* there can be max 4 cpls, check if we have enough credits */
+	/* there can be max 4 cpls, check if we have eanalugh credits */
 	len = wr_len + 4 * roundup(CHCR_SET_TCB_FIELD_LEN, 16);
 	ndesc = DIV_ROUND_UP(len, 64);
 
@@ -862,7 +862,7 @@ static int chcr_ktls_xmit_tcb_cpls(struct chcr_ktls_info *tx_info,
 	}
 
 	pos = &q->q.desc[q->q.pidx];
-	/* make space for WR, we'll fill it later when we know all the cpls
+	/* make space for WR, we'll fill it later when we kanalw all the cpls
 	 * being sent out and have complete length.
 	 */
 	wr = pos;
@@ -955,7 +955,7 @@ chcr_ktls_check_tcp_options(struct tcphdr *tcp)
 		opt = cp[0];
 		if (opt == TCPOPT_EOL)
 			break;
-		if (opt == TCPOPT_NOP) {
+		if (opt == TCPOPT_ANALP) {
 			optlen = 1;
 		} else {
 			if (cnt < 2)
@@ -965,7 +965,7 @@ chcr_ktls_check_tcp_options(struct tcphdr *tcp)
 				break;
 		}
 		switch (opt) {
-		case TCPOPT_NOP:
+		case TCPOPT_ANALP:
 			break;
 		default:
 			return 1;
@@ -1062,7 +1062,7 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 
 	pos = cpl + 1;
 
-	/* now take care of the tcp header, if fin is not set then clear push
+	/* analw take care of the tcp header, if fin is analt set then clear push
 	 * bit as well, and if fin is set, it will be sent at the last so we
 	 * need to update the tcp sequence number as per the last packet.
 	 */
@@ -1115,7 +1115,7 @@ static int chcr_ktls_xmit_wr_complete(struct sk_buff *skb,
 	flits = chcr_ktls_get_tx_flits(nfrags, tx_info->key_ctx_len);
 	/* number of descriptors */
 	ndesc = chcr_flits_to_desc(flits);
-	/* check if enough credits available */
+	/* check if eanalugh credits available */
 	credits = chcr_txq_avail(&q->q) - ndesc;
 	if (unlikely(credits < 0)) {
 		chcr_eth_txq_stop(q);
@@ -1193,9 +1193,9 @@ static int chcr_ktls_xmit_wr_complete(struct sk_buff *skb,
 	      CPL_TX_SEC_PDU_AUTHINSERT_V(TLS_CIPHER_AES_GCM_128_TAG_SIZE));
 
 	/* These two flits are actually a CPL_TLS_TX_SCMD_FMT. */
-	cpl->seqno_numivs = htonl(tx_info->scmd0_seqno_numivs);
+	cpl->seqanal_numivs = htonl(tx_info->scmd0_seqanal_numivs);
 	cpl->ivgen_hdrlen = htonl(tx_info->scmd0_ivgen_hdrlen);
-	cpl->scmd1 = cpu_to_be64(tx_info->record_no);
+	cpl->scmd1 = cpu_to_be64(tx_info->record_anal);
 
 	pos = cpl + 1;
 	/* check if space left to fill the keys */
@@ -1294,8 +1294,8 @@ static int chcr_ktls_xmit_wr_short(struct sk_buff *skb,
 	 */
 	flits = chcr_ktls_get_tx_flits(nfrags, tx_info->key_ctx_len) + 2;
 	/* get the correct 8 byte IV of this record */
-	iv_record = cpu_to_be64(tx_info->iv + tx_info->record_no);
-	/* If it's a middle record and not 16 byte aligned to run AES CTR, need
+	iv_record = cpu_to_be64(tx_info->iv + tx_info->record_anal);
+	/* If it's a middle record and analt 16 byte aligned to run AES CTR, need
 	 * to make it 16 byte aligned. So atleadt 2 extra flits of immediate
 	 * data will be added.
 	 */
@@ -1303,7 +1303,7 @@ static int chcr_ktls_xmit_wr_short(struct sk_buff *skb,
 		flits += 2;
 	/* number of descriptors */
 	ndesc = chcr_flits_to_desc(flits);
-	/* check if enough credits available */
+	/* check if eanalugh credits available */
 	credits = chcr_txq_avail(&q->q) - ndesc;
 	if (unlikely(credits < 0)) {
 		chcr_eth_txq_stop(q);
@@ -1369,7 +1369,7 @@ static int chcr_ktls_xmit_wr_short(struct sk_buff *skb,
 		htonl(CPL_TX_SEC_PDU_CIPHERSTART_V(cipher_start));
 	cpl->cipherstop_lo_authinsert = 0;
 	/* These two flits are actually a CPL_TLS_TX_SCMD_FMT. */
-	cpl->seqno_numivs = htonl(tx_info->scmd0_short_seqno_numivs);
+	cpl->seqanal_numivs = htonl(tx_info->scmd0_short_seqanal_numivs);
 	cpl->ivgen_hdrlen = htonl(tx_info->scmd0_short_ivgen_hdrlen);
 	cpl->scmd1 = 0;
 
@@ -1585,7 +1585,7 @@ static int chcr_ktls_tunnel_pkt(struct chcr_ktls_info *tx_info,
 	credits = chcr_txq_avail(&q->q) - ndesc;
 	if (unlikely(credits < 0)) {
 		chcr_eth_txq_stop(q);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
@@ -1602,7 +1602,7 @@ static int chcr_ktls_tunnel_pkt(struct chcr_ktls_info *tx_info,
 				   sgl_sdesc->addr) < 0)) {
 		memset(sgl_sdesc->addr, 0, sizeof(sgl_sdesc->addr));
 		q->mapping_err++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	iplen = skb_network_header_len(skb);
@@ -1681,7 +1681,7 @@ static void chcr_ktls_copy_record_in_skb(struct sk_buff *nskb,
  * @record - complete record of 16K size.
  * @tcp_seq
  * @mss - segment size in which TP needs to chop a packet.
- * @tcp_push_no_fin - tcp push if fin is not set.
+ * @tcp_push_anal_fin - tcp push if fin is analt set.
  * @q - TX queue.
  * @tls_end_offset - offset from end of the record.
  * @last wr : check if this is the last part of the skb going out.
@@ -1690,7 +1690,7 @@ static void chcr_ktls_copy_record_in_skb(struct sk_buff *nskb,
 static int chcr_end_part_handler(struct chcr_ktls_info *tx_info,
 				 struct sk_buff *skb,
 				 struct tls_record_info *record,
-				 u32 tcp_seq, int mss, bool tcp_push_no_fin,
+				 u32 tcp_seq, int mss, bool tcp_push_anal_fin,
 				 struct sge_eth_txq *q, u32 skb_offset,
 				 u32 tls_end_offset, bool last_wr)
 {
@@ -1730,7 +1730,7 @@ static int chcr_end_part_handler(struct chcr_ktls_info *tx_info,
 	if (chcr_ktls_xmit_wr_complete(nskb, tx_info, q, tcp_seq,
 				       last_wr, record->len, skb_offset,
 				       record->num_frags,
-				       (last_wr && tcp_push_no_fin),
+				       (last_wr && tcp_push_anal_fin),
 				       mss)) {
 		if (free_skb_if_tx_fails)
 			dev_kfree_skb_any(skb);
@@ -1759,7 +1759,7 @@ out:
  * @record - complete record of 16K size.
  * @tcp_seq
  * @mss - segment size in which TP needs to chop a packet.
- * @tcp_push_no_fin - tcp push if fin is not set.
+ * @tcp_push_anal_fin - tcp push if fin is analt set.
  * @q - TX queue.
  * @tls_end_offset - offset from end of the record.
  * return: NETDEV_TX_OK/NETDEV_TX_BUSY.
@@ -1767,7 +1767,7 @@ out:
 static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 				     struct sk_buff *skb,
 				     struct tls_record_info *record,
-				     u32 tcp_seq, int mss, bool tcp_push_no_fin,
+				     u32 tcp_seq, int mss, bool tcp_push_anal_fin,
 				     u32 data_len, u32 skb_offset,
 				     struct sge_eth_txq *q, u32 tls_end_offset)
 {
@@ -1800,7 +1800,7 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 	/* check if it is only the header part. */
 	if (tls_rec_offset + data_len <= (TLS_HEADER_SIZE + tx_info->iv_size)) {
 		if (chcr_ktls_tx_plaintxt(tx_info, skb, tcp_seq, mss,
-					  tcp_push_no_fin, q,
+					  tcp_push_anal_fin, q,
 					  tx_info->port_id, prior_data,
 					  data_len, skb_offset, prior_data_len))
 			goto out;
@@ -1828,7 +1828,7 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 			remaining = tls_rec_offset - prior_data_len;
 		}
 
-		/* if prior_data_len is not zero, means we need to fetch prior
+		/* if prior_data_len is analt zero, means we need to fetch prior
 		 * data to make this record 16 byte aligned, or we need to reach
 		 * to start offset.
 		 */
@@ -1873,7 +1873,7 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_start_pkts);
 	}
 
-	if (chcr_ktls_xmit_wr_short(skb, tx_info, q, tcp_seq, tcp_push_no_fin,
+	if (chcr_ktls_xmit_wr_short(skb, tx_info, q, tcp_seq, tcp_push_anal_fin,
 				    mss, tls_rec_offset, prior_data,
 				    prior_data_len, data_len, skb_offset)) {
 		goto out;
@@ -1960,7 +1960,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	qidx = skb->queue_mapping;
 	q = &adap->sge.ethtxq[qidx + tx_info->first_qset];
 	cxgb4_reclaim_completed_tx(adap, &q->q, true);
-	/* if tcp options are set but finish is not send the options first */
+	/* if tcp options are set but finish is analt send the options first */
 	if (!th->fin && chcr_ktls_check_tcp_options(th)) {
 		ret = chcr_ktls_write_tcp_options(tx_info, skb, q,
 						  tx_info->tx_chan);
@@ -1981,13 +1981,13 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 		cxgb4_reclaim_completed_tx(adap, &q->q, true);
 		/* fetch the tls record */
 		record = tls_get_record(tx_ctx, tcp_seq,
-					&tx_info->record_no);
+					&tx_info->record_anal);
 		/* By the time packet reached to us, ACK is received, and record
 		 * won't be found in that case, handle it gracefully.
 		 */
 		if (unlikely(!record)) {
 			spin_unlock_irqrestore(&tx_ctx->lock, flags);
-			atomic64_inc(&port_stats->ktls_tx_drop_no_sync_data);
+			atomic64_inc(&port_stats->ktls_tx_drop_anal_sync_data);
 			goto out;
 		}
 
@@ -2020,7 +2020,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (unlikely(tls_record_is_start_marker(record))) {
-			atomic64_inc(&port_stats->ktls_tx_skip_no_sync_data);
+			atomic64_inc(&port_stats->ktls_tx_skip_anal_sync_data);
 			/* If tls_end_offset < data_len, means there is some
 			 * data after start marker, which needs encryption, send
 			 * plaintext first and take skb refcount. else send out
@@ -2118,7 +2118,7 @@ static void *chcr_ktls_uld_add(const struct cxgb4_lld_info *lldi)
 		     CHCR_KTLS_DRV_VERSION);
 	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
 	if (!u_ctx) {
-		u_ctx = ERR_PTR(-ENOMEM);
+		u_ctx = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 	u_ctx->lldi = *lldi;

@@ -7,7 +7,7 @@
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -30,7 +30,7 @@
  * and packet will be processed.
  * Worst case: TTY driver sends bytes in multiple callbacks. In this case this
  * driver will wait for ~1 sec beyond which it will timeout.
- * This timeout value should not exceed ~500 msec because in case if
+ * This timeout value should analt exceed ~500 msec because in case if
  * EC_CMD_REBOOT_EC sent, high level driver should be able to intercept EC
  * in RO.
  */
@@ -99,7 +99,7 @@ static ssize_t cros_ec_uart_rx_bytes(struct serdev_device *serdev,
 	/*
 	 * Check if incoming bytes + resp->size is greater than allocated
 	 * buffer in din by cros_ec. This will ensure that if EC sends more
-	 * bytes than max_size, waiting process will be notified with an error.
+	 * bytes than max_size, waiting process will be analtified with an error.
 	 */
 	if (resp->size + count > resp->max_size) {
 		resp->status = -EMSGSIZE;
@@ -111,7 +111,7 @@ static ssize_t cros_ec_uart_rx_bytes(struct serdev_device *serdev,
 
 	resp->size += count;
 
-	/* Read data_len if we received response header and if exp_len was not read before. */
+	/* Read data_len if we received response header and if exp_len was analt read before. */
 	if (resp->size >= sizeof(*host_response) && resp->exp_len == 0) {
 		host_response = (struct ec_host_response *)resp->data;
 		resp->exp_len = host_response->data_len + sizeof(*host_response);
@@ -175,7 +175,7 @@ static int cros_ec_uart_pkt_xfer(struct cros_ec_device *ec_dev,
 	if (host_response->data_len > ec_msg->insize) {
 		dev_err(ec_dev->dev, "Resp too long (%d bytes, expected %d)\n",
 			host_response->data_len, ec_msg->insize);
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto exit;
 	}
 
@@ -257,11 +257,11 @@ static int cros_ec_uart_probe(struct serdev_device *serdev)
 
 	ec_uart = devm_kzalloc(dev, sizeof(*ec_uart), GFP_KERNEL);
 	if (!ec_uart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_serdev_device_open(dev, serdev);
 	if (ret) {

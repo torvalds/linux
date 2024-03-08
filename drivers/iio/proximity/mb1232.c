@@ -35,10 +35,10 @@ struct mb1232_data {
 	struct mutex		lock;
 
 	/*
-	 * optionally a gpio can be used to announce when ranging has
+	 * optionally a gpio can be used to ananalunce when ranging has
 	 * finished
 	 * since we are just using the falling trigger of it we request
-	 * only the interrupt for announcing when data is ready to be read
+	 * only the interrupt for ananaluncing when data is ready to be read
 	 */
 	struct completion	ranging;
 	int			irqnr;
@@ -77,7 +77,7 @@ static s16 mb1232_read_distance(struct mb1232_data *data)
 	}
 
 	if (data->irqnr > 0) {
-		/* it cannot take more than 100 ms */
+		/* it cananalt take more than 100 ms */
 		ret = wait_for_completion_killable_timeout(&data->ranging,
 									HZ/10);
 		if (ret < 0)
@@ -87,7 +87,7 @@ static s16 mb1232_read_distance(struct mb1232_data *data)
 			goto error_unlock;
 		}
 	} else {
-		/* use simple sleep if announce irq is not connected */
+		/* use simple sleep if ananalunce irq is analt connected */
 		msleep(15);
 	}
 
@@ -98,7 +98,7 @@ static s16 mb1232_read_distance(struct mb1232_data *data)
 	}
 
 	distance = __be16_to_cpu(buf);
-	/* check for not returning misleading error codes */
+	/* check for analt returning misleading error codes */
 	if (distance < 0) {
 		dev_err(&client->dev, "distance=%d\n", distance);
 		ret = -EINVAL;
@@ -129,7 +129,7 @@ static irqreturn_t mb1232_trigger_handler(int irq, void *p)
 					   pf->timestamp);
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -191,11 +191,11 @@ static int mb1232_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_READ_BYTE |
 					I2C_FUNC_SMBUS_WRITE_BYTE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -211,7 +211,7 @@ static int mb1232_probe(struct i2c_client *client)
 
 	init_completion(&data->ranging);
 
-	data->irqnr = fwnode_irq_get(dev_fwnode(&client->dev), 0);
+	data->irqnr = fwanalde_irq_get(dev_fwanalde(&client->dev), 0);
 	if (data->irqnr > 0) {
 		ret = devm_request_irq(dev, data->irqnr, mb1232_handle_irq,
 				IRQF_TRIGGER_FALLING, id->name, indio_dev);

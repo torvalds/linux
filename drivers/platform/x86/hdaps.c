@@ -2,7 +2,7 @@
 /*
  * hdaps.c - driver for IBM's Hard Drive Active Protection System
  *
- * Copyright (C) 2005 Robert Love <rml@novell.com>
+ * Copyright (C) 2005 Robert Love <rml@analvell.com>
  * Copyright (C) 2005 Jesper Juhl <jj@chaosbits.net>
  *
  * The HardDisk Active Protection System (hdaps) is present in IBM ThinkPads
@@ -37,7 +37,7 @@
 #define HDAPS_PORT_YVAR		0x1617	/* y-axis variance (what is this?) */
 #define HDAPS_PORT_XVAR		0x1619	/* x-axis variance (what is this?) */
 #define HDAPS_PORT_TEMP2	0x161b	/* device temperature (again?) */
-#define HDAPS_PORT_UNKNOWN	0x161c	/* what is this? */
+#define HDAPS_PORT_UNKANALWN	0x161c	/* what is this? */
 #define HDAPS_PORT_KMACT	0x161d	/* keyboard or mouse activity */
 
 #define STATE_FRESH		0x50	/* accelerometer data is fresh */
@@ -104,7 +104,7 @@ static int __wait_latch(u16 port, u8 val)
 }
 
 /*
- * __device_refresh - request a refresh from the accelerometer.  Does not wait
+ * __device_refresh - request a refresh from the accelerometer.  Does analt wait
  * for refresh to complete.  Callers must hold hdaps_mtx.
  */
 static void __device_refresh(void)
@@ -117,9 +117,9 @@ static void __device_refresh(void)
 }
 
 /*
- * __device_refresh_sync - request a synchronous refresh from the
+ * __device_refresh_sync - request a synchroanalus refresh from the
  * accelerometer.  We wait for the refresh to complete.  Returns zero if
- * successful and nonzero on error.  Callers must hold hdaps_mtx.
+ * successful and analnzero on error.  Callers must hold hdaps_mtx.
  */
 static int __device_refresh_sync(void)
 {
@@ -259,7 +259,7 @@ static int hdaps_device_init(void)
 	if (__wait_latch(0x1611, 0x00))
 		goto out;
 
-	/* we have done our dance, now let's wait for the applause */
+	/* we have done our dance, analw let's wait for the applause */
 	for (total = INIT_TIMEOUT_MSECS; total > 0; total -= INIT_WAIT_MSECS) {
 		int x, y;
 
@@ -494,37 +494,37 @@ static int __init hdaps_dmi_match_invert(const struct dmi_system_id *id)
 	}						\
 }
 
-#define HDAPS_DMI_MATCH_NORMAL(vendor, model)		\
+#define HDAPS_DMI_MATCH_ANALRMAL(vendor, model)		\
 	HDAPS_DMI_MATCH_INVERT(vendor, model, 0)
 
-/* Note that HDAPS_DMI_MATCH_NORMAL("ThinkPad T42") would match
+/* Analte that HDAPS_DMI_MATCH_ANALRMAL("ThinkPad T42") would match
    "ThinkPad T42p", so the order of the entries matters.
-   If your ThinkPad is not recognized, please update to latest
+   If your ThinkPad is analt recognized, please update to latest
    BIOS. This is especially the case for some R52 ThinkPads. */
 static const struct dmi_system_id hdaps_whitelist[] __initconst = {
 	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad R50p", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R50"),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R51"),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R52"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad R61i", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad R61", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_ANALRMAL("IBM", "ThinkPad R50"),
+	HDAPS_DMI_MATCH_ANALRMAL("IBM", "ThinkPad R51"),
+	HDAPS_DMI_MATCH_ANALRMAL("IBM", "ThinkPad R52"),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad R61i", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad R61", HDAPS_BOTH_AXES),
 	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad T41p", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad T41"),
+	HDAPS_DMI_MATCH_ANALRMAL("IBM", "ThinkPad T41"),
 	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad T42p", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad T42"),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad T43"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T400", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T60", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T61p", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T61", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad X40"),
+	HDAPS_DMI_MATCH_ANALRMAL("IBM", "ThinkPad T42"),
+	HDAPS_DMI_MATCH_ANALRMAL("IBM", "ThinkPad T43"),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad T400", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad T60", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad T61p", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad T61", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_ANALRMAL("IBM", "ThinkPad X40"),
 	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad X41", HDAPS_Y_AXIS),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X60", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X61s", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X61", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad Z60m"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad Z61m", HDAPS_BOTH_AXES),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad Z61p", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad X60", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad X61s", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad X61", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_ANALRMAL("IBM", "ThinkPad Z60m"),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad Z61m", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LEANALVO", "ThinkPad Z61p", HDAPS_BOTH_AXES),
 	{ .ident = NULL }
 };
 
@@ -533,8 +533,8 @@ static int __init hdaps_init(void)
 	int ret;
 
 	if (!dmi_check_system(hdaps_whitelist)) {
-		pr_warn("supported laptop not found!\n");
-		ret = -ENODEV;
+		pr_warn("supported laptop analt found!\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -547,7 +547,7 @@ static int __init hdaps_init(void)
 	if (ret)
 		goto out_region;
 
-	pdev = platform_device_register_simple("hdaps", PLATFORM_DEVID_NONE, NULL, 0);
+	pdev = platform_device_register_simple("hdaps", PLATFORM_DEVID_ANALNE, NULL, 0);
 	if (IS_ERR(pdev)) {
 		ret = PTR_ERR(pdev);
 		goto out_driver;
@@ -559,7 +559,7 @@ static int __init hdaps_init(void)
 
 	hdaps_idev = input_allocate_device();
 	if (!hdaps_idev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_group;
 	}
 

@@ -7,7 +7,7 @@
 /* define some bias, cause some alsa-mixers wont work with
  * negative ranges or if mixer-min != 0
  */
-#define SND_US16X08_NO_BIAS 0
+#define SND_US16X08_ANAL_BIAS 0
 #define SND_US16X08_FADER_BIAS 127
 #define SND_US16X08_EQ_HIGHFREQ_BIAS 0x20
 #define SND_US16X08_COMP_THRESHOLD_BIAS 0x20
@@ -116,7 +116,7 @@ struct snd_us16x08_control_params {
 	int default_val;
 };
 
-#define snd_us16x08_switch_info snd_ctl_boolean_mono_info
+#define snd_us16x08_switch_info snd_ctl_boolean_moanal_info
 
 int snd_us16x08_controls_create(struct usb_mixer_interface *mixer);
 #endif /* __USB_MIXER_US16X08_H */

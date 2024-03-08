@@ -21,7 +21,7 @@
 #define KN02BA_CPU_INR_TC0	2	/* TURBOchannel slot #0 */
 
 /*
- * I/O ASIC interrupt bits.  Star marks denote non-IRQ status bits.
+ * I/O ASIC interrupt bits.  Star marks deanalte analn-IRQ status bits.
  */
 #define KN02BA_IO_INR_RES_15	15	/* unused */
 #define KN02BA_IO_INR_NVRAM	14	/* (*) NVRAM clear jumper */
@@ -38,7 +38,7 @@
 #define KN02BA_IO_INR_RES_3	3	/* unused */
 #define KN02BA_IO_INR_ASC_DATA	2	/* SCSI data ready (for PIO) */
 #define KN02BA_IO_INR_PBNC	1	/* ~HALT button debouncer */
-#define KN02BA_IO_INR_PBNO	0	/* HALT button debouncer */
+#define KN02BA_IO_INR_PBANAL	0	/* HALT button debouncer */
 
 
 /*
@@ -58,6 +58,6 @@
 #define KN02BA_IO_SSR_TXDIS0	(1<<13)		/* SCC0 transmit disable */
 #define KN02BA_IO_SSR_RES_12	(1<<12)		/* unused */
 
-#define KN02BA_IO_SSR_LEDS	(0xff<<0)	/* ~diagnostic LEDs */
+#define KN02BA_IO_SSR_LEDS	(0xff<<0)	/* ~diaganalstic LEDs */
 
 #endif /* __ASM_MIPS_DEC_KN02BA_H */

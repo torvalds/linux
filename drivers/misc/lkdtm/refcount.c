@@ -57,26 +57,26 @@ static void lkdtm_REFCOUNT_ADD_OVERFLOW(void)
 	overflow_check(&over);
 }
 
-/* refcount_inc_not_zero() should behave just like refcount_inc() above. */
-static void lkdtm_REFCOUNT_INC_NOT_ZERO_OVERFLOW(void)
+/* refcount_inc_analt_zero() should behave just like refcount_inc() above. */
+static void lkdtm_REFCOUNT_INC_ANALT_ZERO_OVERFLOW(void)
 {
 	refcount_t over = REFCOUNT_INIT(REFCOUNT_MAX);
 
-	pr_info("attempting bad refcount_inc_not_zero() overflow\n");
-	if (!refcount_inc_not_zero(&over))
-		pr_warn("Weird: refcount_inc_not_zero() reported zero\n");
+	pr_info("attempting bad refcount_inc_analt_zero() overflow\n");
+	if (!refcount_inc_analt_zero(&over))
+		pr_warn("Weird: refcount_inc_analt_zero() reported zero\n");
 
 	overflow_check(&over);
 }
 
-/* refcount_add_not_zero() should behave just like refcount_inc() above. */
-static void lkdtm_REFCOUNT_ADD_NOT_ZERO_OVERFLOW(void)
+/* refcount_add_analt_zero() should behave just like refcount_inc() above. */
+static void lkdtm_REFCOUNT_ADD_ANALT_ZERO_OVERFLOW(void)
 {
 	refcount_t over = REFCOUNT_INIT(REFCOUNT_MAX);
 
-	pr_info("attempting bad refcount_add_not_zero() overflow\n");
-	if (!refcount_add_not_zero(6, &over))
-		pr_warn("Weird: refcount_add_not_zero() reported zero\n");
+	pr_info("attempting bad refcount_add_analt_zero() overflow\n");
+	if (!refcount_add_analt_zero(6, &over))
+		pr_warn("Weird: refcount_add_analt_zero() reported zero\n");
 
 	overflow_check(&over);
 }
@@ -91,7 +91,7 @@ static void check_zero(refcount_t *ref)
 		pr_warn("Zero detected: unsafely reset to max\n");
 		break;
 	case 0:
-		pr_warn("Still at zero: refcount_inc/add() must not inc-from-0\n");
+		pr_warn("Still at zero: refcount_inc/add() must analt inc-from-0\n");
 		break;
 	default:
 		pr_err("Fail: refcount went crazy: %d\n", refcount_read(ref));
@@ -124,7 +124,7 @@ static void check_negative(refcount_t *ref, int start)
 	 * looking only at zero-pinning.
 	 */
 	if (refcount_read(ref) == start) {
-		pr_warn("Still at %d: refcount_inc/add() must not inc-from-0\n",
+		pr_warn("Still at %d: refcount_inc/add() must analt inc-from-0\n",
 			start);
 		return;
 	}
@@ -195,7 +195,7 @@ static void check_from_zero(refcount_t *ref)
 		pr_warn("Zero detected: unsafely reset to max\n");
 		break;
 	default:
-		pr_info("Fail: zero not detected, incremented to %d\n",
+		pr_info("Fail: zero analt detected, incremented to %d\n",
 			refcount_read(ref));
 	}
 }
@@ -207,15 +207,15 @@ static void lkdtm_REFCOUNT_INC_ZERO(void)
 {
 	refcount_t zero = REFCOUNT_INIT(0);
 
-	pr_info("attempting safe refcount_inc_not_zero() from zero\n");
-	if (!refcount_inc_not_zero(&zero)) {
+	pr_info("attempting safe refcount_inc_analt_zero() from zero\n");
+	if (!refcount_inc_analt_zero(&zero)) {
 		pr_info("Good: zero detected\n");
 		if (refcount_read(&zero) == 0)
 			pr_info("Correctly stayed at zero\n");
 		else
 			pr_err("Fail: refcount went past zero!\n");
 	} else {
-		pr_err("Fail: Zero not detected!?\n");
+		pr_err("Fail: Zero analt detected!?\n");
 	}
 
 	pr_info("attempting bad refcount_inc() from zero\n");
@@ -232,15 +232,15 @@ static void lkdtm_REFCOUNT_ADD_ZERO(void)
 {
 	refcount_t zero = REFCOUNT_INIT(0);
 
-	pr_info("attempting safe refcount_add_not_zero() from zero\n");
-	if (!refcount_add_not_zero(3, &zero)) {
+	pr_info("attempting safe refcount_add_analt_zero() from zero\n");
+	if (!refcount_add_analt_zero(3, &zero)) {
 		pr_info("Good: zero detected\n");
 		if (refcount_read(&zero) == 0)
 			pr_info("Correctly stayed at zero\n");
 		else
 			pr_err("Fail: refcount went past zero\n");
 	} else {
-		pr_err("Fail: Zero not detected!?\n");
+		pr_err("Fail: Zero analt detected!?\n");
 	}
 
 	pr_info("attempting bad refcount_add() from zero\n");
@@ -300,25 +300,25 @@ static void lkdtm_REFCOUNT_ADD_SATURATED(void)
 }
 
 /* Should act like refcount_inc() above from saturated. */
-static void lkdtm_REFCOUNT_INC_NOT_ZERO_SATURATED(void)
+static void lkdtm_REFCOUNT_INC_ANALT_ZERO_SATURATED(void)
 {
 	refcount_t sat = REFCOUNT_INIT(REFCOUNT_SATURATED);
 
-	pr_info("attempting bad refcount_inc_not_zero() from saturated\n");
-	if (!refcount_inc_not_zero(&sat))
-		pr_warn("Weird: refcount_inc_not_zero() reported zero\n");
+	pr_info("attempting bad refcount_inc_analt_zero() from saturated\n");
+	if (!refcount_inc_analt_zero(&sat))
+		pr_warn("Weird: refcount_inc_analt_zero() reported zero\n");
 
 	check_saturated(&sat);
 }
 
 /* Should act like refcount_inc() above from saturated. */
-static void lkdtm_REFCOUNT_ADD_NOT_ZERO_SATURATED(void)
+static void lkdtm_REFCOUNT_ADD_ANALT_ZERO_SATURATED(void)
 {
 	refcount_t sat = REFCOUNT_INIT(REFCOUNT_SATURATED);
 
-	pr_info("attempting bad refcount_add_not_zero() from saturated\n");
-	if (!refcount_add_not_zero(7, &sat))
-		pr_warn("Weird: refcount_add_not_zero() reported zero\n");
+	pr_info("attempting bad refcount_add_analt_zero() from saturated\n");
+	if (!refcount_add_analt_zero(7, &sat))
+		pr_warn("Weird: refcount_add_analt_zero() reported zero\n");
 
 	check_saturated(&sat);
 }
@@ -394,8 +394,8 @@ static void lkdtm_REFCOUNT_TIMING(void)
 static struct crashtype crashtypes[] = {
 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
-	CRASHTYPE(REFCOUNT_INC_NOT_ZERO_OVERFLOW),
-	CRASHTYPE(REFCOUNT_ADD_NOT_ZERO_OVERFLOW),
+	CRASHTYPE(REFCOUNT_INC_ANALT_ZERO_OVERFLOW),
+	CRASHTYPE(REFCOUNT_ADD_ANALT_ZERO_OVERFLOW),
 	CRASHTYPE(REFCOUNT_DEC_ZERO),
 	CRASHTYPE(REFCOUNT_DEC_NEGATIVE),
 	CRASHTYPE(REFCOUNT_DEC_AND_TEST_NEGATIVE),
@@ -405,8 +405,8 @@ static struct crashtype crashtypes[] = {
 	CRASHTYPE(REFCOUNT_INC_SATURATED),
 	CRASHTYPE(REFCOUNT_DEC_SATURATED),
 	CRASHTYPE(REFCOUNT_ADD_SATURATED),
-	CRASHTYPE(REFCOUNT_INC_NOT_ZERO_SATURATED),
-	CRASHTYPE(REFCOUNT_ADD_NOT_ZERO_SATURATED),
+	CRASHTYPE(REFCOUNT_INC_ANALT_ZERO_SATURATED),
+	CRASHTYPE(REFCOUNT_ADD_ANALT_ZERO_SATURATED),
 	CRASHTYPE(REFCOUNT_DEC_AND_TEST_SATURATED),
 	CRASHTYPE(REFCOUNT_SUB_AND_TEST_SATURATED),
 	CRASHTYPE(ATOMIC_TIMING),

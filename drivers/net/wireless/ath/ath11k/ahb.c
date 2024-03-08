@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -225,7 +225,7 @@ static void ath11k_ahb_ext_grp_disable(struct ath11k_ext_irq_grp *irq_grp)
 	int i;
 
 	for (i = 0; i < irq_grp->num_irq; i++)
-		disable_irq_nosync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
+		disable_irq_analsync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
 }
 
 static void __ath11k_ahb_ext_irq_disable(struct ath11k_base *ab)
@@ -588,7 +588,7 @@ static int ath11k_ahb_config_ext_irq(struct ath11k_base *ab)
 			irq = platform_get_irq_byname(ab->pdev,
 						      irq_name[irq_idx]);
 			ab->irq_num[irq_idx] = irq;
-			irq_set_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
+			irq_set_status_flags(irq, IRQ_ANALAUTOEN | IRQ_DISABLE_UNLAZY);
 			ret = request_irq(irq, ath11k_ahb_ext_interrupt_handler,
 					  IRQF_TRIGGER_RISING,
 					  irq_name[irq_idx], irq_grp);
@@ -650,7 +650,7 @@ static int ath11k_ahb_map_service_to_pipe(struct ath11k_base *ab, u16 service_id
 			continue;
 
 		switch (__le32_to_cpu(entry->pipedir)) {
-		case PIPEDIR_NONE:
+		case PIPEDIR_ANALNE:
 			break;
 		case PIPEDIR_IN:
 			WARN_ON(dl_set);
@@ -662,7 +662,7 @@ static int ath11k_ahb_map_service_to_pipe(struct ath11k_base *ab, u16 service_id
 			*ul_pipe = __le32_to_cpu(entry->pipenum);
 			ul_set = true;
 			break;
-		case PIPEDIR_INOUT:
+		case PIPEDIR_IANALUT:
 			WARN_ON(dl_set);
 			WARN_ON(ul_set);
 			*dl_pipe = __le32_to_cpu(entry->pipenum);
@@ -674,7 +674,7 @@ static int ath11k_ahb_map_service_to_pipe(struct ath11k_base *ab, u16 service_id
 	}
 
 	if (WARN_ON(!ul_set || !dl_set))
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -697,8 +697,8 @@ static int ath11k_ahb_hif_suspend(struct ath11k_base *ab)
 		return ret;
 	}
 
-	value = u32_encode_bits(ab_ahb->smp2p_info.seq_no++,
-				ATH11K_AHB_SMP2P_SMEM_SEQ_NO);
+	value = u32_encode_bits(ab_ahb->smp2p_info.seq_anal++,
+				ATH11K_AHB_SMP2P_SMEM_SEQ_ANAL);
 	value |= u32_encode_bits(ATH11K_AHB_POWER_SAVE_ENTER,
 				 ATH11K_AHB_SMP2P_SMEM_MSG);
 
@@ -734,8 +734,8 @@ static int ath11k_ahb_hif_resume(struct ath11k_base *ab)
 
 	reinit_completion(&ab->wow.wakeup_completed);
 
-	value = u32_encode_bits(ab_ahb->smp2p_info.seq_no++,
-				ATH11K_AHB_SMP2P_SMEM_SEQ_NO);
+	value = u32_encode_bits(ab_ahb->smp2p_info.seq_anal++,
+				ATH11K_AHB_SMP2P_SMEM_SEQ_ANAL);
 	value |= u32_encode_bits(ATH11K_AHB_POWER_SAVE_EXIT,
 				 ATH11K_AHB_SMP2P_SMEM_MSG);
 
@@ -796,9 +796,9 @@ static int ath11k_core_get_rproc(struct ath11k_base *ab)
 	struct rproc *prproc;
 	phandle rproc_phandle;
 
-	if (of_property_read_u32(dev->of_node, "qcom,rproc", &rproc_phandle)) {
+	if (of_property_read_u32(dev->of_analde, "qcom,rproc", &rproc_phandle)) {
 		ath11k_err(ab, "failed to get q6_rproc handle\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	prproc = rproc_get_by_phandle(rproc_phandle);
@@ -830,19 +830,19 @@ static int ath11k_ahb_setup_msi_resources(struct ath11k_base *ab)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ath11k_err(ab, "failed to fetch msi_addr\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	msi_addr_pa = res->start;
 	msi_addr_iova = dma_map_resource(ab->dev, msi_addr_pa, PAGE_SIZE,
 					 DMA_FROM_DEVICE, 0);
 	if (dma_mapping_error(ab->dev, msi_addr_iova))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ab->pci.msi.addr_lo = lower_32_bits(msi_addr_iova);
 	ab->pci.msi.addr_hi = upper_32_bits(msi_addr_iova);
 
-	ret = of_property_read_u32_index(ab->dev->of_node, "interrupts", 1, &int_prop);
+	ret = of_property_read_u32_index(ab->dev->of_analde, "interrupts", 1, &int_prop);
 	if (ret)
 		return ret;
 
@@ -914,16 +914,16 @@ static int ath11k_ahb_setup_msa_resources(struct ath11k_base *ab)
 {
 	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
 	struct device *dev = ab->dev;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource r;
 	int ret;
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!node)
-		return -ENOENT;
+	analde = of_parse_phandle(dev->of_analde, "memory-region", 0);
+	if (!analde)
+		return -EANALENT;
 
-	ret = of_address_to_resource(node, 0, &r);
-	of_node_put(node);
+	ret = of_address_to_resource(analde, 0, &r);
+	of_analde_put(analde);
 	if (ret) {
 		dev_err(dev, "failed to resolve msa fixed region\n");
 		return ret;
@@ -932,12 +932,12 @@ static int ath11k_ahb_setup_msa_resources(struct ath11k_base *ab)
 	ab_ahb->fw.msa_paddr = r.start;
 	ab_ahb->fw.msa_size = resource_size(&r);
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 1);
-	if (!node)
-		return -ENOENT;
+	analde = of_parse_phandle(dev->of_analde, "memory-region", 1);
+	if (!analde)
+		return -EANALENT;
 
-	ret = of_address_to_resource(node, 0, &r);
-	of_node_put(node);
+	ret = of_address_to_resource(analde, 0, &r);
+	of_analde_put(analde);
 	if (ret) {
 		dev_err(dev, "failed to resolve ce fixed region\n");
 		return ret;
@@ -956,10 +956,10 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 	struct platform_device_info info = {0};
 	struct iommu_domain *iommu_dom;
 	struct platform_device *pdev;
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret;
 
-	/* Chipsets not requiring MSA need not initialize
+	/* Chipsets analt requiring MSA need analt initialize
 	 * MSA resources, return success in such cases.
 	 */
 	if (!ab->hw_params.fixed_fw_mem)
@@ -971,24 +971,24 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 		return ret;
 	}
 
-	node = of_get_child_by_name(host_dev->of_node, "wifi-firmware");
-	if (!node) {
+	analde = of_get_child_by_name(host_dev->of_analde, "wifi-firmware");
+	if (!analde) {
 		ab_ahb->fw.use_tz = true;
 		return 0;
 	}
 
-	info.fwnode = &node->fwnode;
+	info.fwanalde = &analde->fwanalde;
 	info.parent = host_dev;
-	info.name = node->name;
+	info.name = analde->name;
 	info.dma_mask = DMA_BIT_MASK(32);
 
 	pdev = platform_device_register_full(&info);
 	if (IS_ERR(pdev)) {
-		of_node_put(node);
+		of_analde_put(analde);
 		return PTR_ERR(pdev);
 	}
 
-	ret = of_dma_configure(&pdev->dev, node, true);
+	ret = of_dma_configure(&pdev->dev, analde, true);
 	if (ret) {
 		ath11k_err(ab, "dma configure fail: %d\n", ret);
 		goto err_unregister;
@@ -999,13 +999,13 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 	iommu_dom = iommu_domain_alloc(&platform_bus_type);
 	if (!iommu_dom) {
 		ath11k_err(ab, "failed to allocate iommu domain\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unregister;
 	}
 
 	ret = iommu_attach_device(iommu_dom, ab_ahb->fw.dev);
 	if (ret) {
-		ath11k_err(ab, "could not attach device: %d\n", ret);
+		ath11k_err(ab, "could analt attach device: %d\n", ret);
 		goto err_iommu_free;
 	}
 
@@ -1027,7 +1027,7 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 
 	ab_ahb->fw.use_tz = false;
 	ab_ahb->fw.iommu_domain = iommu_dom;
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return 0;
 
@@ -1042,7 +1042,7 @@ err_iommu_free:
 
 err_unregister:
 	platform_device_unregister(pdev);
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return ret;
 }
@@ -1053,7 +1053,7 @@ static int ath11k_ahb_fw_resource_deinit(struct ath11k_base *ab)
 	struct iommu_domain *iommu;
 	size_t unmapped_size;
 
-	/* Chipsets not requiring MSA would have not initialized
+	/* Chipsets analt requiring MSA would have analt initialized
 	 * MSA resources, return success in such cases.
 	 */
 	if (!ab->hw_params.fixed_fw_mem)
@@ -1105,7 +1105,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "unsupported device type %d\n", hw_rev);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -1118,13 +1118,13 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 			       ATH11K_BUS_AHB);
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ab->hif.ops = hif_ops;
 	ab->pdev = pdev;
 	ab->hw_rev = hw_rev;
-	ab->fw_mode = ATH11K_FIRMWARE_MODE_NORMAL;
+	ab->fw_mode = ATH11K_FIRMWARE_MODE_ANALRMAL;
 	platform_set_drvdata(pdev, ab);
 
 	ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
@@ -1146,13 +1146,13 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	if (ab->hw_params.ce_remap) {
 		const struct ce_remap *ce_remap = ab->hw_params.ce_remap;
 		/* ce register space is moved out of wcss unlike ipq8074 or ipq6018
-		 * and the space is not contiguous, hence remapping the CE registers
+		 * and the space is analt contiguous, hence remapping the CE registers
 		 * to a new space for accessing them.
 		 */
 		ab->mem_ce = ioremap(ce_remap->base, ce_remap->size);
 		if (!ab->mem_ce) {
 			dev_err(&pdev->dev, "ce ioremap error\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_core_free;
 		}
 	}
@@ -1300,5 +1300,5 @@ static struct platform_driver ath11k_ahb_driver = {
 
 module_platform_driver(ath11k_ahb_driver);
 
-MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax WLAN AHB devices");
+MODULE_DESCRIPTION("Driver support for Qualcomm Techanallogies 802.11ax WLAN AHB devices");
 MODULE_LICENSE("Dual BSD/GPL");

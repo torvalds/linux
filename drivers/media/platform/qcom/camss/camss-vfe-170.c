@@ -138,9 +138,9 @@
 
 #define VFE_BUS_WM_ADDR_SYNC_FRAME_HEADER	(0x2080)
 
-#define VFE_BUS_WM_ADDR_SYNC_NO_SYNC		(0x2084)
+#define VFE_BUS_WM_ADDR_SYNC_ANAL_SYNC		(0x2084)
 #define		BUS_VER2_MAX_CLIENTS (24)
-#define		WM_ADDR_NO_SYNC_DEFAULT_VAL \
+#define		WM_ADDR_ANAL_SYNC_DEFAULT_VAL \
 				((1 << BUS_VER2_MAX_CLIENTS) - 1)
 
 #define VFE_BUS_WM_CGC_OVERRIDE			(0x200c)
@@ -232,15 +232,15 @@ static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 	/* BUS_WM_INPUT_IF_ADDR_SYNC_FRAME_HEADER */
 	writel_relaxed(0, vfe->base + VFE_BUS_WM_ADDR_SYNC_FRAME_HEADER);
 
-	/* no clock gating at bus input */
+	/* anal clock gating at bus input */
 	val = WM_CGC_OVERRIDE_ALL;
 	writel_relaxed(val, vfe->base + VFE_BUS_WM_CGC_OVERRIDE);
 
 	writel_relaxed(0x0, vfe->base + VFE_BUS_WM_TEST_BUS_CTRL);
 
-	/* if addr_no_sync has default value then config the addr no sync reg */
-	val = WM_ADDR_NO_SYNC_DEFAULT_VAL;
-	writel_relaxed(val, vfe->base + VFE_BUS_WM_ADDR_SYNC_NO_SYNC);
+	/* if addr_anal_sync has default value then config the addr anal sync reg */
+	val = WM_ADDR_ANAL_SYNC_DEFAULT_VAL;
+	writel_relaxed(val, vfe->base + VFE_BUS_WM_ADDR_SYNC_ANAL_SYNC);
 
 	writel_relaxed(0xf, vfe->base + VFE_BUS_WM_BURST_LIMIT(wm));
 
@@ -418,7 +418,7 @@ static int vfe_get_output(struct vfe_line *line)
 
 	wm_idx = vfe_reserve_wm(vfe, line->id);
 	if (wm_idx < 0) {
-		dev_err(vfe->camss->dev, "Can not reserve wm\n");
+		dev_err(vfe->camss->dev, "Can analt reserve wm\n");
 		goto error_get_wm;
 	}
 	output->wm_idx[0] = wm_idx;
@@ -463,7 +463,7 @@ static int vfe_enable_output(struct vfe_line *line)
 	ops->reg_update_clear(vfe, line->id);
 
 	if (output->state > VFE_OUTPUT_RESERVED) {
-		dev_err(vfe->camss->dev, "Output is not in reserved state %d\n",
+		dev_err(vfe->camss->dev, "Output is analt in reserved state %d\n",
 			output->state);
 		spin_unlock_irqrestore(&vfe->output_lock, flags);
 		return -EINVAL;
@@ -546,7 +546,7 @@ error_get_output:
  */
 static void vfe_isr_sof(struct vfe_device *vfe, enum vfe_line_id line_id)
 {
-	/* nop */
+	/* analp */
 }
 
 /*
@@ -588,7 +588,7 @@ static void vfe_isr_wm_done(struct vfe_device *vfe, u8 wm)
 
 	spin_lock_irqsave(&vfe->output_lock, flags);
 
-	if (vfe->wm_output_map[wm] == VFE_LINE_NONE) {
+	if (vfe->wm_output_map[wm] == VFE_LINE_ANALNE) {
 		dev_err_ratelimited(vfe->camss->dev,
 				    "Received wm done for unmapped index\n");
 		goto out_unlock;

@@ -45,7 +45,7 @@ config XZ_DEC_MICROLZMA
 	  but can be used by other things too where wasting minimal
 	  amount of space for headers is important.
 
-	  Unless you know that you need this, say N.
+	  Unless you kanalw that you need this, say N.
 
 endif
 
@@ -60,7 +60,7 @@ config XZ_DEC_TEST
 	help
 	  This allows passing .xz files to the in-kernel XZ decoder via
 	  a character special file. It calculates CRC32 of the decompressed
-	  data and writes diagnostics to the system log.
+	  data and writes diaganalstics to the system log.
 
 	  Unless you are developing the XZ decoder, you don't need this
 	  and should say N.

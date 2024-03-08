@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/act_api.h>
@@ -264,7 +264,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 
 		fnew = kzalloc(sizeof(struct fw_filter), GFP_KERNEL);
 		if (!fnew)
-			return -ENOBUFS;
+			return -EANALBUFS;
 
 		fnew->id = f->id;
 		fnew->ifindex = f->ifindex;
@@ -310,7 +310,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 
 		head = kzalloc(sizeof(*head), GFP_KERNEL);
 		if (!head)
-			return -ENOBUFS;
+			return -EANALBUFS;
 		head->mask = mask;
 
 		rcu_assign_pointer(tp->root, head);
@@ -318,7 +318,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 
 	f = kzalloc(sizeof(struct fw_filter), GFP_KERNEL);
 	if (f == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = tcf_exts_init(&f->exts, net, TCA_FW_ACT, TCA_FW_POLICE);
 	if (err < 0)
@@ -380,7 +380,7 @@ static int fw_dump(struct net *net, struct tcf_proto *tp, void *fh,
 	if (!f->res.classid && !tcf_exts_has_actions(&f->exts))
 		return skb->len;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

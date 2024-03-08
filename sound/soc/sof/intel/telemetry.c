@@ -16,7 +16,7 @@
 
 void sof_ipc4_intel_dump_telemetry_state(struct snd_sof_dev *sdev, u32 flags)
 {
-	static const char invalid_slot_msg[] = "Core dump is not available due to";
+	static const char invalid_slot_msg[] = "Core dump is analt available due to";
 	struct sof_ipc4_telemetry_slot_data *telemetry_data;
 	struct sof_ipc_dsp_oops_xtensa *xoops;
 	struct xtensa_arch_block *block;
@@ -67,7 +67,7 @@ void sof_ipc4_intel_dump_telemetry_state(struct snd_sof_dev *sdev, u32 flags)
 		dev_printk(level, sdev->dev, "FW is built with XCC toolchain\n");
 		break;
 	default:
-		dev_printk(level, sdev->dev, "Unknown toolchain is used\n");
+		dev_printk(level, sdev->dev, "Unkanalwn toolchain is used\n");
 		break;
 	}
 

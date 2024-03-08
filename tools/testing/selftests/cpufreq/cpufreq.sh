@@ -15,11 +15,11 @@ source cpu.sh
 cpu_should_have_cpufreq_directory()
 {
 	if [ ! -d $CPUROOT/$1/cpufreq ]; then
-		printf "Warning: No cpufreq directory present for $1\n"
+		printf "Warning: Anal cpufreq directory present for $1\n"
 	fi
 }
 
-cpu_should_not_have_cpufreq_directory()
+cpu_should_analt_have_cpufreq_directory()
 {
 	if [ -d $CPUROOT/$1/cpufreq ]; then
 		printf "Warning: cpufreq directory present for $1\n"
@@ -136,15 +136,15 @@ test_all_frequencies()
 {
 	local filepath="$CPUFREQROOT/$1"
 
-	backup_governor $1
+	backup_goveranalr $1
 
-	local found=$(switch_governor $1 "userspace")
+	local found=$(switch_goveranalr $1 "userspace")
 	if [ $found = 1 ]; then
-		printf "${FUNCNAME[0]}: userspace governor not available for: $1\n"
+		printf "${FUNCNAME[0]}: userspace goveranalr analt available for: $1\n"
 		return;
 	fi
 
-	printf "Switched governor for $1 to userspace\n\n"
+	printf "Switched goveranalr for $1 to userspace\n\n"
 
 	local freqs=$(cat $filepath/scaling_available_frequencies)
 	printf "Available frequencies for $1: $freqs\n\n"
@@ -156,7 +156,7 @@ test_all_frequencies()
 
 	printf "\n"
 
-	restore_governor $1
+	restore_goveranalr $1
 }
 
 # $1: loop count
@@ -178,13 +178,13 @@ cpufreq_basic_tests()
 
 	count=$(count_cpufreq_managed_cpus)
 	if [ $count = 0 ]; then
-		printf "No cpu is managed by cpufreq core, exiting\n"
+		printf "Anal cpu is managed by cpufreq core, exiting\n"
 		exit;
 	else
 		printf "CPUFreq manages: $count CPUs\n\n"
 	fi
 
-	# Detect & print which CPUs are not managed by cpufreq
+	# Detect & print which CPUs are analt managed by cpufreq
 	print_unmanaged_cpus
 
 	# read/update all cpufreq files
@@ -197,8 +197,8 @@ cpufreq_basic_tests()
 	# Test all frequencies
 	shuffle_frequency_for_all_cpus 2
 
-	# Test all governors
-	shuffle_governors_for_all_cpus 1
+	# Test all goveranalrs
+	shuffle_goveranalrs_for_all_cpus 1
 }
 
 # Suspend/resume
@@ -209,7 +209,7 @@ do_suspend()
 
 	# Is the directory available
 	if [ ! -d $SYSFS/power/ -o ! -f $SYSFS/power/state ]; then
-		printf "$SYSFS/power/state not available\n"
+		printf "$SYSFS/power/state analt available\n"
 		return 1
 	fi
 
@@ -218,7 +218,7 @@ do_suspend()
 	elif [ $1 = "hibernate" ]; then
 		filename="disk"
 	else
-		printf "$1 is not a valid option\n"
+		printf "$1 is analt a valid option\n"
 		return 1
 	fi
 

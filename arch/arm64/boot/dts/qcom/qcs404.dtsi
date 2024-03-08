@@ -219,11 +219,11 @@
 							opp-level = <192>;
 						};
 
-						rpmpd_opp_nom: opp7 {
+						rpmpd_opp_analm: opp7 {
 							opp-level = <256>;
 						};
 
-						rpmpd_opp_nom_plus: opp8 {
+						rpmpd_opp_analm_plus: opp8 {
 							opp-level = <320>;
 						};
 
@@ -231,7 +231,7 @@
 							opp-level = <384>;
 						};
 
-						rpmpd_opp_turbo_no_cpr: opp10 {
+						rpmpd_opp_turbo_anal_cpr: opp10 {
 							opp-level = <416>;
 						};
 
@@ -251,47 +251,47 @@
 
 		tz_apps_mem: memory@85900000 {
 			reg = <0 0x85900000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_mem: memory@85e00000 {
 			reg = <0 0x85e00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_region: memory@85f00000 {
 			reg = <0 0x85f00000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_mem: memory@86100000 {
 			reg = <0 0x86100000 0 0x300000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_fw_mem: memory@86400000 {
 			reg = <0 0x86400000 0 0x1100000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_fw_mem: memory@87500000 {
 			reg = <0 0x87500000 0 0x1a00000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_fw_mem: memory@88f00000 {
 			reg = <0 0x88f00000 0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: memory@89500000 {
 			reg = <0 0x89500000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		uefi_mem: memory@9f800000 {
 			reg = <0 0x9f800000 0 0x800000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -594,15 +594,15 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		pcnoc: interconnect@500000 {
+		pcanalc: interconnect@500000 {
 			reg = <0x00500000 0x15080>;
-			compatible = "qcom,qcs404-pcnoc";
+			compatible = "qcom,qcs404-pcanalc";
 			#interconnect-cells = <1>;
 		};
 
-		snoc: interconnect@580000 {
+		sanalc: interconnect@580000 {
 			reg = <0x00580000 0x23080>;
-			compatible = "qcom,qcs404-snoc";
+			compatible = "qcom,qcs404-sanalc";
 			#interconnect-cells = <1>;
 		};
 
@@ -622,7 +622,7 @@
 			clock-names = "xo";
 
 			/*
-			 * If the node was using the PIL binding, then include properties:
+			 * If the analde was using the PIL binding, then include properties:
 			 * clocks = <&xo_board>,
 			 *          <&gcc GCC_CDSP_CFG_AHB_CLK>,
 			 *          <&gcc GCC_CDSP_TBU_CLK>,
@@ -668,7 +668,7 @@
 			#size-cells = <1>;
 			ranges;
 			clocks = <&gcc GCC_USB30_MASTER_CLK>,
-				 <&gcc GCC_SYS_NOC_USB3_CLK>,
+				 <&gcc GCC_SYS_ANALC_USB3_CLK>,
 				 <&gcc GCC_USB30_SLEEP_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
 			clock-names = "core", "iface", "sleep", "mock_utmi";
@@ -697,7 +697,7 @@
 			#size-cells = <1>;
 			ranges;
 			clocks = <&gcc GCC_USB_HS_SYSTEM_CLK>,
-				 <&gcc GCC_PCNOC_USB2_CLK>,
+				 <&gcc GCC_PCANALC_USB2_CLK>,
 				 <&gcc GCC_USB_HS_INACTIVITY_TIMERS_CLK>,
 				 <&gcc GCC_USB20_MOCK_UTMI_CLK>;
 			clock-names = "core", "iface", "sleep", "mock_utmi";
@@ -724,7 +724,7 @@
 			reg = <0x01000000 0x200000>,
 			      <0x01300000 0x200000>,
 			      <0x07b00000 0x200000>;
-			reg-names = "south", "north", "east";
+			reg-names = "south", "analrth", "east";
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-ranges = <&tlmm 0 0 120>;
 			gpio-controller;
@@ -1658,10 +1658,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cluster_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1692,10 +1692,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu0_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1726,10 +1726,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu1_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1760,10 +1760,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu2_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1794,10 +1794,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu3_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						       <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

@@ -114,7 +114,7 @@ int iounmap_fixed(void __iomem *addr)
 	}
 
 	/*
-	 * If we don't match, it's not for us.
+	 * If we don't match, it's analt for us.
 	 */
 	if (slot < 0)
 		return -EINVAL;

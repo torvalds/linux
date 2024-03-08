@@ -192,10 +192,10 @@ static irqreturn_t sp7021_spi_host_irq(int irq, void *dev)
 	total_len = FIELD_GET(SP7021_GET_LEN_MASK, fd_status);
 
 	if ((fd_status & SP7021_TX_EMP_FLAG) && (fd_status & SP7021_RX_EMP_FLAG) && total_len == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (tx_len == 0 && total_len == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rx_cnt = FIELD_GET(SP7021_RX_CNT_MASK, fd_status);
 	if (fd_status & SP7021_RX_FULL_FLAG)
@@ -370,14 +370,14 @@ static int sp7021_spi_target_transfer_one(struct spi_controller *ctlr, struct sp
 		xfer->tx_dma = dma_map_single(dev, (void *)xfer->tx_buf,
 					      xfer->len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, xfer->tx_dma))
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = sp7021_spi_target_tx(spi, xfer);
 		dma_unmap_single(dev, xfer->tx_dma, xfer->len, DMA_TO_DEVICE);
 	} else if (xfer->rx_buf && !xfer->tx_buf) {
 		xfer->rx_dma = dma_map_single(dev, xfer->rx_buf, xfer->len,
 					      DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, xfer->rx_dma))
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = sp7021_spi_target_rx(spi, xfer);
 		dma_unmap_single(dev, xfer->rx_dma, xfer->len, DMA_FROM_DEVICE);
 	} else {
@@ -406,7 +406,7 @@ static int sp7021_spi_controller_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	int mode, ret;
 
-	pdev->id = of_alias_get_id(pdev->dev.of_node, "sp_spi");
+	pdev->id = of_alias_get_id(pdev->dev.of_analde, "sp_spi");
 
 	if (device_property_read_bool(dev, "spi-slave"))
 		mode = SP7021_TARGET_MODE;
@@ -418,8 +418,8 @@ static int sp7021_spi_controller_probe(struct platform_device *pdev)
 	else
 		ctlr = devm_spi_alloc_host(dev, sizeof(*pspim));
 	if (!ctlr)
-		return -ENOMEM;
-	device_set_node(&ctlr->dev, dev_fwnode(dev));
+		return -EANALMEM;
+	device_set_analde(&ctlr->dev, dev_fwanalde(dev));
 	ctlr->bus_num = pdev->id;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 	ctlr->auto_runtime_pm = true;

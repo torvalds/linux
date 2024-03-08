@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2016-2019 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -16,12 +16,12 @@
 
 static const char mlxsw_m_driver_name[] = "mlxsw_minimal";
 
-#define MLXSW_M_FWREV_MINOR	2000
-#define MLXSW_M_FWREV_SUBMINOR	1886
+#define MLXSW_M_FWREV_MIANALR	2000
+#define MLXSW_M_FWREV_SUBMIANALR	1886
 
 static const struct mlxsw_fw_rev mlxsw_m_fw_rev = {
-	.minor = MLXSW_M_FWREV_MINOR,
-	.subminor = MLXSW_M_FWREV_SUBMINOR,
+	.mianalr = MLXSW_M_FWREV_MIANALR,
+	.submianalr = MLXSW_M_FWREV_SUBMIANALR,
 };
 
 struct mlxsw_m_port;
@@ -97,8 +97,8 @@ static void mlxsw_m_module_get_drvinfo(struct net_device *dev,
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d.%d",
 		 mlxsw_m->bus_info->fw_rev.major,
-		 mlxsw_m->bus_info->fw_rev.minor,
-		 mlxsw_m->bus_info->fw_rev.subminor);
+		 mlxsw_m->bus_info->fw_rev.mianalr,
+		 mlxsw_m->bus_info->fw_rev.submianalr);
 	strscpy(drvinfo->bus_info, mlxsw_m->bus_info->device_name,
 		sizeof(drvinfo->bus_info));
 }
@@ -247,7 +247,7 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 slot_index,
 
 	dev = alloc_etherdev(sizeof(struct mlxsw_m_port));
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_etherdev;
 	}
 
@@ -386,13 +386,13 @@ static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 	mlxsw_m->ports = kcalloc(max_ports, sizeof(*mlxsw_m->ports),
 				 GFP_KERNEL);
 	if (!mlxsw_m->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxsw_m->line_cards = kcalloc(mlxsw_m->num_of_slots,
 				      sizeof(*mlxsw_m->line_cards),
 				      GFP_KERNEL);
 	if (!mlxsw_m->line_cards) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_kcalloc;
 	}
 
@@ -403,7 +403,7 @@ static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 					    mlxsw_m->max_modules_per_slot),
 				GFP_KERNEL);
 		if (!mlxsw_m->line_cards[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_kmalloc_array;
 		}
 
@@ -564,15 +564,15 @@ static int mlxsw_m_fw_rev_validate(struct mlxsw_m *mlxsw_m)
 	const struct mlxsw_fw_rev *rev = &mlxsw_m->bus_info->fw_rev;
 
 	/* Validate driver and FW are compatible.
-	 * Do not check major version, since it defines chip type, while
+	 * Do analt check major version, since it defines chip type, while
 	 * driver is supposed to support any type.
 	 */
-	if (mlxsw_core_fw_rev_minor_subminor_validate(rev, &mlxsw_m_fw_rev))
+	if (mlxsw_core_fw_rev_mianalr_submianalr_validate(rev, &mlxsw_m_fw_rev))
 		return 0;
 
 	dev_err(mlxsw_m->bus_info->dev, "The firmware version %d.%d.%d is incompatible with the driver (required >= %d.%d.%d)\n",
-		rev->major, rev->minor, rev->subminor, rev->major,
-		mlxsw_m_fw_rev.minor, mlxsw_m_fw_rev.subminor);
+		rev->major, rev->mianalr, rev->submianalr, rev->major,
+		mlxsw_m_fw_rev.mianalr, mlxsw_m_fw_rev.submianalr);
 
 	return -EINVAL;
 }
@@ -742,6 +742,6 @@ module_init(mlxsw_m_module_init);
 module_exit(mlxsw_m_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox minimal driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx minimal driver");
 MODULE_DEVICE_TABLE(i2c, mlxsw_m_i2c_id);

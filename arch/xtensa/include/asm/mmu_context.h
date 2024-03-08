@@ -12,7 +12,7 @@
 #define _XTENSA_MMU_CONTEXT_H
 
 #ifndef CONFIG_MMU
-#include <asm/nommu_context.h>
+#include <asm/analmmu_context.h>
 #else
 
 #include <linux/stringify.h>
@@ -35,7 +35,7 @@ DECLARE_PER_CPU(unsigned long, asid_cache);
 #define cpu_asid_cache(cpu) per_cpu(asid_cache, cpu)
 
 /*
- * NO_CONTEXT is the invalid ASID value that we don't ever assign to
+ * ANAL_CONTEXT is the invalid ASID value that we don't ever assign to
  * any user or kernel context.  We use the reserved values in the
  * ASID_INSERT macro below.
  *
@@ -46,7 +46,7 @@ DECLARE_PER_CPU(unsigned long, asid_cache);
  * 4...255 available
  */
 
-#define NO_CONTEXT	0
+#define ANAL_CONTEXT	0
 #define ASID_USER_FIRST	4
 #define ASID_MASK	((1 << XCHAL_MMU_ASID_BITS) - 1)
 #define ASID_INSERT(x)	(0x03020001 | (((x) & ASID_MASK) << 8))
@@ -92,7 +92,7 @@ static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 	if (mm) {
 		unsigned long asid = mm->context.asid[cpu];
 
-		if (asid == NO_CONTEXT ||
+		if (asid == ANAL_CONTEXT ||
 				((asid ^ cpu_asid_cache(cpu)) & ~ASID_MASK))
 			get_new_mmu_context(mm, cpu);
 	}
@@ -117,7 +117,7 @@ static inline int init_new_context(struct task_struct *tsk,
 {
 	int cpu;
 	for_each_possible_cpu(cpu) {
-		mm->context.asid[cpu] = NO_CONTEXT;
+		mm->context.asid[cpu] = ANAL_CONTEXT;
 	}
 	mm->context.cpu = -1;
 	return 0;

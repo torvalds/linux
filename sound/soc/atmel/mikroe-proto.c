@@ -64,15 +64,15 @@ static int snd_proto_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link *dai;
 	struct snd_soc_dai_link_component *comp;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *codec_np, *cpu_np;
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *codec_np, *cpu_np;
+	struct device_analde *bitclkmaster = NULL;
+	struct device_analde *framemaster = NULL;
 	unsigned int dai_fmt;
 	int ret = 0;
 
 	if (!np) {
-		dev_err(&pdev->dev, "No device node supplied\n");
+		dev_err(&pdev->dev, "Anal device analde supplied\n");
 		return -EINVAL;
 	}
 
@@ -83,12 +83,12 @@ static int snd_proto_probe(struct platform_device *pdev)
 
 	dai = devm_kzalloc(&pdev->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* for cpus/codecs/platforms */
 	comp = devm_kzalloc(&pdev->dev, 3 * sizeof(*comp), GFP_KERNEL);
 	if (!comp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_proto.dai_link = dai;
 	snd_proto.num_links = 1;
@@ -107,19 +107,19 @@ static int snd_proto_probe(struct platform_device *pdev)
 
 	codec_np = of_parse_phandle(np, "audio-codec", 0);
 	if (!codec_np) {
-		dev_err(&pdev->dev, "audio-codec node missing\n");
+		dev_err(&pdev->dev, "audio-codec analde missing\n");
 		return -EINVAL;
 	}
-	dai->codecs->of_node = codec_np;
+	dai->codecs->of_analde = codec_np;
 
 	cpu_np = of_parse_phandle(np, "i2s-controller", 0);
 	if (!cpu_np) {
 		dev_err(&pdev->dev, "i2s-controller missing\n");
 		ret = -EINVAL;
-		goto put_codec_node;
+		goto put_codec_analde;
 	}
-	dai->cpus->of_node = cpu_np;
-	dai->platforms->of_node = cpu_np;
+	dai->cpus->of_analde = cpu_np;
+	dai->platforms->of_analde = cpu_np;
 
 	dai_fmt = snd_soc_daifmt_parse_format(np, NULL);
 	snd_soc_daifmt_parse_clock_provider_as_phandle(np, NULL,
@@ -127,7 +127,7 @@ static int snd_proto_probe(struct platform_device *pdev)
 	if (bitclkmaster != framemaster) {
 		dev_err(&pdev->dev, "Must be the same bitclock and frame master\n");
 		ret = -EINVAL;
-		goto put_cpu_node;
+		goto put_cpu_analde;
 	}
 	if (bitclkmaster) {
 		if (codec_np == bitclkmaster)
@@ -146,12 +146,12 @@ static int snd_proto_probe(struct platform_device *pdev)
 			"snd_soc_register_card() failed\n");
 
 
-put_cpu_node:
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
-	of_node_put(cpu_np);
-put_codec_node:
-	of_node_put(codec_np);
+put_cpu_analde:
+	of_analde_put(bitclkmaster);
+	of_analde_put(framemaster);
+	of_analde_put(cpu_np);
+put_codec_analde:
+	of_analde_put(codec_np);
 	return ret;
 }
 

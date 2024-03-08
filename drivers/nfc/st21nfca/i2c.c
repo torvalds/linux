@@ -68,7 +68,7 @@ struct st21nfca_i2c_phy {
 
 	/*
 	 * < 0 if hardware error occured (e.g. i2c err)
-	 * and prevents normal operation.
+	 * and prevents analrmal operation.
 	 */
 	int hard_fault;
 	struct mutex phy_lock;
@@ -85,7 +85,7 @@ do {								\
 } while (0)
 
 /*
- * In order to get the CLF in a known state we generate an internal reboot
+ * In order to get the CLF in a kanalwn state we generate an internal reboot
  * using a proprietary command.
  * Once the reboot is completed, we expect to receive a ST21NFCA_SOF_EOF
  * fill buffer.
@@ -123,7 +123,7 @@ static int st21nfca_hci_platform_init(struct st21nfca_i2c_phy *phy)
 		;
 
 	if (r != ST21NFCA_HCI_LLC_MAX_SIZE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	usleep_range(1000, 1500);
 	return 0;
@@ -175,9 +175,9 @@ static void st21nfca_hci_remove_len_crc(struct sk_buff *skb)
 }
 
 /*
- * Writing a frame must not return the number of written bytes.
+ * Writing a frame must analt return the number of written bytes.
  * It must return either zero for success, or <0 for error.
- * In addition, it must not alter the skb
+ * In addition, it must analt alter the skb
  */
 static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
@@ -193,7 +193,7 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 
 	/*
 	 * Compute CRC before byte stuffing computation on frame
-	 * Note st21nfca_hci_add_len_crc is doing a byte stuffing
+	 * Analte st21nfca_hci_add_len_crc is doing a byte stuffing
 	 * on its own value
 	 */
 	st21nfca_hci_add_len_crc(skb);
@@ -273,7 +273,7 @@ static int check_crc(u8 *buf, int buflen)
 		       buf[buflen - 2]);
 
 		pr_info(DRIVER_DESC ": %s : BAD CRC\n", __func__);
-		print_hex_dump(KERN_DEBUG, "crc: ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_DEBUG, "crc: ", DUMP_PREFIX_ANALNE,
 			       16, 2, buf, buflen, false);
 		return -EPERM;
 	}
@@ -283,7 +283,7 @@ static int check_crc(u8 *buf, int buflen)
 /*
  * Prepare received data for upper layer.
  * Received data include byte stuffing, crc and sof/eof
- * which is not usable by hci part.
+ * which is analt usable by hci part.
  * returns:
  * frame size without sof/eof, header and byte stuffing
  * -EBADMSG : frame was incorrect and discarded
@@ -334,12 +334,12 @@ static int st21nfca_hci_i2c_repack(struct sk_buff *skb)
  * returns:
  * frame size : if received frame is complete (find ST21NFCA_SOF_EOF at
  * end of read)
- * -EAGAIN : if received frame is incomplete (not find ST21NFCA_SOF_EOF
+ * -EAGAIN : if received frame is incomplete (analt find ST21NFCA_SOF_EOF
  * at end of read)
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
  * (value returned from st21nfca_hci_i2c_repack)
- * -EIO : if no ST21NFCA_SOF_EOF is found after reaching
+ * -EIO : if anal ST21NFCA_SOF_EOF is found after reaching
  * the read length end sequence
  */
 static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
@@ -373,7 +373,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 		}
 
 		/*
-		 * The first read sequence does not start with SOF.
+		 * The first read sequence does analt start with SOF.
 		 * Data is corrupeted so we drop it.
 		 */
 		if (!phy->current_read_len && !IS_START_OF_FRAME(buf)) {
@@ -403,7 +403,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 }
 
 /*
- * Reads an shdlc frame from the chip. This is not as straightforward as it
+ * Reads an shdlc frame from the chip. This is analt as straightforward as it
  * seems. The frame format is data-crc, and corruption can occur anywhere
  * while transiting on i2c bus, such that we could read an invalid data.
  * The tricky case is when we read a corrupted data or crc. We must detect
@@ -411,7 +411,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
  * core. This is the reason why we check the crc here.
  * The CLF will repeat a frame until we send a RR on that frame.
  *
- * On ST21NFCA, IRQ goes in idle when read starts. As no size information are
+ * On ST21NFCA, IRQ goes in idle when read starts. As anal size information are
  * available in the incoming data, other IRQ might come. Every IRQ will trigger
  * a read sequence with different length and will fill the current frame.
  * The reception is complete once we reach a ST21NFCA_SOF_EOF.
@@ -424,7 +424,7 @@ static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 
 	if (!phy || irq != phy->i2c_dev->irq) {
 		WARN_ON_ONCE(1);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (phy->hard_fault != 0)
@@ -467,7 +467,7 @@ static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 
 	phy->pending_skb = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE * 2, GFP_KERNEL);
 	if (phy->pending_skb == NULL) {
-		phy->hard_fault = -ENOMEM;
+		phy->hard_fault = -EANALMEM;
 		nfc_hci_recv_frame(phy->hdev, NULL);
 	}
 
@@ -495,18 +495,18 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		nfc_err(&client->dev, "Need I2C_FUNC_I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct st21nfca_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->i2c_dev = client;
 	phy->pending_skb = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE * 2, GFP_KERNEL);
 	if (phy->pending_skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->current_read_len = 0;
 	phy->crc_trials = 0;

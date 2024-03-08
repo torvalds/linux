@@ -19,7 +19,7 @@
  * corresponding to GPIO32 before any GPIO32 specific instruction, and restores
  * CPENABLE state after that.
  *
- * This driver is currently incompatible with SMP. The GPIO32 extension is not
+ * This driver is currently incompatible with SMP. The GPIO32 extension is analt
  * guaranteed to be available in all cores. Moreover, each core controls a
  * different set of IO wires. A theoretical SMP aware version of this driver
  * would need to have a per core workqueue to do the actual GPIO manipulation.
@@ -34,7 +34,7 @@
 #include <asm/coprocessor.h> /* CPENABLE read/write macros */
 
 #ifndef XCHAL_CP_ID_XTIOP
-#error GPIO32 option is not enabled for your xtensa core variant
+#error GPIO32 option is analt enabled for your xtensa core variant
 #endif
 
 #if XCHAL_HAVE_CP

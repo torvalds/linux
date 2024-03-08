@@ -130,7 +130,7 @@ static void rpi_init_old_power_domain(struct rpi_power_domains *rpi_domains,
 /*
  * Detects whether the firmware supports the new power domains interface.
  *
- * The firmware doesn't actually return an error on an unknown tag,
+ * The firmware doesn't actually return an error on an unkanalwn tag,
  * and just skips over it, so we do the detection by putting an
  * unexpected value in the return field and checking if it was
  * unchanged.
@@ -153,13 +153,13 @@ rpi_has_new_domain_support(struct rpi_power_domains *rpi_domains)
 
 static int rpi_power_probe(struct platform_device *pdev)
 {
-	struct device_node *fw_np;
+	struct device_analde *fw_np;
 	struct device *dev = &pdev->dev;
 	struct rpi_power_domains *rpi_domains;
 
 	rpi_domains = devm_kzalloc(dev, sizeof(*rpi_domains), GFP_KERNEL);
 	if (!rpi_domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpi_domains->xlate.domains =
 		devm_kcalloc(dev,
@@ -167,18 +167,18 @@ static int rpi_power_probe(struct platform_device *pdev)
 			     sizeof(*rpi_domains->xlate.domains),
 			     GFP_KERNEL);
 	if (!rpi_domains->xlate.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpi_domains->xlate.num_domains = RPI_POWER_DOMAIN_COUNT;
 
-	fw_np = of_parse_phandle(pdev->dev.of_node, "firmware", 0);
+	fw_np = of_parse_phandle(pdev->dev.of_analde, "firmware", 0);
 	if (!fw_np) {
-		dev_err(&pdev->dev, "no firmware node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal firmware analde\n");
+		return -EANALDEV;
 	}
 
 	rpi_domains->fw = devm_rpi_firmware_get(&pdev->dev, fw_np);
-	of_node_put(fw_np);
+	of_analde_put(fw_np);
 	if (!rpi_domains->fw)
 		return -EPROBE_DEFER;
 
@@ -218,7 +218,7 @@ static int rpi_power_probe(struct platform_device *pdev)
 	rpi_init_power_domain(rpi_domains, RPI_POWER_DOMAIN_CDP, "CDP");
 	rpi_init_power_domain(rpi_domains, RPI_POWER_DOMAIN_ARM, "ARM");
 
-	of_genpd_add_provider_onecell(dev->of_node, &rpi_domains->xlate);
+	of_genpd_add_provider_onecell(dev->of_analde, &rpi_domains->xlate);
 
 	platform_set_drvdata(pdev, rpi_domains);
 

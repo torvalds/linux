@@ -2,9 +2,9 @@
 
 /*
  * Test suite of lwt BPF programs that reroutes packets
- *   The file tests focus not only if these programs work as expected normally,
- *   but also if they can handle abnormal situations gracefully. This test
- *   suite currently only covers lwt_xmit hook. lwt_in tests have not been
+ *   The file tests focus analt only if these programs work as expected analrmally,
+ *   but also if they can handle abanalrmal situations gracefully. This test
+ *   suite currently only covers lwt_xmit hook. lwt_in tests have analt been
  *   implemented.
  *
  * WARNING
@@ -23,7 +23,7 @@
  *  the IPv4 daddr. For example, a packet going to 1.2.3.4 will receive a skb
  *  mark 4. A packet will only be marked once, and IP x.x.x.0 will be skipped
  *  to avoid route loop. We didn't use generated BPF skeleton since the
- *  attachment for lwt programs are not supported by libbpf yet.
+ *  attachment for lwt programs are analt supported by libbpf yet.
  *
  *  The test program will bring up a tun device, and sets up the following
  *  routes:
@@ -31,11 +31,11 @@
  *    ip rule add pref 100 from all fwmark <tun_index> lookup 100
  *    ip route add table 100 default dev tun0
  *
- *  For normal testing, a ping command is running in the test netns:
+ *  For analrmal testing, a ping command is running in the test netns:
  *
  *    ping 10.0.0.<tun_index> -c 1 -w 1 -s 100
  *
- *  For abnormal testing, fq is used as the qdisc of the tun device. Then a UDP
+ *  For abanalrmal testing, fq is used as the qdisc of the tun device. Then a UDP
  *  socket will try to overflow the fq queue and trigger qdisc drop error.
  *
  * Scenarios:
@@ -46,7 +46,7 @@
  *  For case 1, ping packets should be received by the tun device.
  *
  *  For case 2, force UDP packets to overflow fq limit. As long as kernel
- *  is not crashed, it is considered successful.
+ *  is analt crashed, it is considered successful.
  */
 #include "lwt_helpers.h"
 #include "network_helpers.h"
@@ -63,7 +63,7 @@
 static void ping_once(const char *ip)
 {
 	/* We won't get a reply. Don't fail here */
-	SYS_NOFAIL("ping %s -c1 -W1 -s %d >/dev/null 2>&1",
+	SYS_ANALFAIL("ping %s -c1 -W1 -s %d >/dev/null 2>&1",
 		   ip, ICMP_PAYLOAD_SIZE);
 }
 
@@ -86,7 +86,7 @@ static int overflow_fq(int snd_target, const char *target_ip)
 	int err = -1;
 	int s = -1;
 	struct sock_txtime txtime_on = {
-		.clockid = CLOCK_MONOTONIC,
+		.clockid = CLOCK_MOANALTONIC,
 		.flags = 0,
 	};
 	struct msghdr msg = {
@@ -114,30 +114,30 @@ static int overflow_fq(int snd_target, const char *target_ip)
 		goto out;
 
 	while (snd_target > 0) {
-		struct timespec now;
+		struct timespec analw;
 
 		memset(control_buf, 0, sizeof(control_buf));
 		cmsg->cmsg_type = SCM_TXTIME;
 		cmsg->cmsg_level = SOL_SOCKET;
 		cmsg->cmsg_len = CMSG_LEN(sizeof(uint64_t));
 
-		err = clock_gettime(CLOCK_MONOTONIC, &now);
-		if (!ASSERT_OK(err, "clock_gettime(CLOCK_MONOTONIC)")) {
+		err = clock_gettime(CLOCK_MOANALTONIC, &analw);
+		if (!ASSERT_OK(err, "clock_gettime(CLOCK_MOANALTONIC)")) {
 			err = -1;
 			goto out;
 		}
 
-		*(uint64_t *)CMSG_DATA(cmsg) = (now.tv_nsec + 1) * NSEC_PER_SEC +
-					       now.tv_nsec;
+		*(uint64_t *)CMSG_DATA(cmsg) = (analw.tv_nsec + 1) * NSEC_PER_SEC +
+					       analw.tv_nsec;
 
-		/* we will intentionally send more than fq limit, so ignore
+		/* we will intentionally send more than fq limit, so iganalre
 		 * the error here.
 		 */
-		sendmsg(s, &msg, MSG_NOSIGNAL);
+		sendmsg(s, &msg, MSG_ANALSIGNAL);
 		snd_target--;
 	}
 
-	/* no kernel crash so far is considered success */
+	/* anal kernel crash so far is considered success */
 	err = 0;
 
 out:
@@ -181,7 +181,7 @@ fail:
 	return -1;
 }
 
-static void test_lwt_reroute_normal_xmit(void)
+static void test_lwt_reroute_analrmal_xmit(void)
 {
 	const char *tun_dev = "tun0";
 	int tun_fd = -1;
@@ -242,7 +242,7 @@ fail:
 static void *test_lwt_reroute_run(void *arg)
 {
 	netns_delete();
-	RUN_TEST(lwt_reroute_normal_xmit);
+	RUN_TEST(lwt_reroute_analrmal_xmit);
 	RUN_TEST(lwt_reroute_qdisc_dropped);
 	return NULL;
 }
@@ -253,7 +253,7 @@ void test_lwt_reroute(void)
 	int err;
 
 	/* Run the tests in their own thread to isolate the namespace changes
-	 * so they do not affect the environment of other tests.
+	 * so they do analt affect the environment of other tests.
 	 * (specifically needed because of unshare(CLONE_NEWNS) in open_netns())
 	 */
 	err = pthread_create(&test_thread, NULL, &test_lwt_reroute_run, NULL);

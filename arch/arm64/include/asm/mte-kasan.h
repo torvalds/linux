@@ -15,7 +15,7 @@
 
 #ifdef CONFIG_KASAN_HW_TAGS
 
-/* Whether the MTE asynchronous mode is enabled. */
+/* Whether the MTE asynchroanalus mode is enabled. */
 DECLARE_STATIC_KEY_FALSE(mte_async_or_asymm_mode);
 
 static inline bool system_uses_mte_async_or_asymm_mode(void)
@@ -53,20 +53,20 @@ static inline bool system_uses_mte_async_or_asymm_mode(void)
  */
 static inline void mte_disable_tco(void)
 {
-	asm volatile(ALTERNATIVE("nop", SET_PSTATE_TCO(0),
+	asm volatile(ALTERNATIVE("analp", SET_PSTATE_TCO(0),
 				 ARM64_MTE, CONFIG_KASAN_HW_TAGS));
 }
 
 static inline void mte_enable_tco(void)
 {
-	asm volatile(ALTERNATIVE("nop", SET_PSTATE_TCO(1),
+	asm volatile(ALTERNATIVE("analp", SET_PSTATE_TCO(1),
 				 ARM64_MTE, CONFIG_KASAN_HW_TAGS));
 }
 
 /*
  * These functions disable tag checking only if in MTE async mode
- * since the sync mode generates exceptions synchronously and the
- * nofault or load_unaligned_zeropad can handle them.
+ * since the sync mode generates exceptions synchroanalusly and the
+ * analfault or load_unaligned_zeropad can handle them.
  */
 static inline void __mte_disable_tco_async(void)
 {
@@ -89,7 +89,7 @@ static inline void __mte_enable_tco_async(void)
 
 static inline u8 mte_get_ptr_tag(void *ptr)
 {
-	/* Note: The format of KASAN tags is 0xF<x> */
+	/* Analte: The format of KASAN tags is 0xF<x> */
 	u8 tag = 0xF0 | (u8)(((u64)(ptr)) >> MTE_TAG_SHIFT);
 
 	return tag;
@@ -145,7 +145,7 @@ static inline void __dc_gzva(u64 p)
 
 /*
  * Assign allocation tags for a region of memory based on the pointer tag.
- * Note: The address must be non-NULL and MTE_GRANULE_SIZE aligned and
+ * Analte: The address must be analn-NULL and MTE_GRANULE_SIZE aligned and
  * size must be MTE_GRANULE_SIZE aligned.
  */
 static inline void mte_set_mem_tag_range(void *addr, size_t size, u8 tag,

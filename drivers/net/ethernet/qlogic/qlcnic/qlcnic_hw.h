@@ -21,7 +21,7 @@ enum qlcnic_regs {
 	QLCNIC_CRB_DEV_PARTITION_INFO,
 	QLCNIC_CRB_DRV_IDC_VER,
 	QLCNIC_FW_VERSION_MAJOR,
-	QLCNIC_FW_VERSION_MINOR,
+	QLCNIC_FW_VERSION_MIANALR,
 	QLCNIC_FW_VERSION_SUB,
 	QLCNIC_CRB_DEV_NPAR_STATE,
 	QLCNIC_FW_IMG_VALID,
@@ -205,7 +205,7 @@ int qlcnic_82xx_alloc_mbx_args(struct qlcnic_cmd_args *,
 			       struct qlcnic_adapter *, u32);
 int qlcnic_82xx_get_board_info(struct qlcnic_adapter *);
 int qlcnic_82xx_config_led(struct qlcnic_adapter *, u32, u32);
-void qlcnic_82xx_get_func_no(struct qlcnic_adapter *);
+void qlcnic_82xx_get_func_anal(struct qlcnic_adapter *);
 int qlcnic_82xx_api_lock(struct qlcnic_adapter *);
 void qlcnic_82xx_api_unlock(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_enable(struct qlcnic_adapter *);

@@ -135,7 +135,7 @@ static DECLARE_TLV_DB_SCALE(out3_tlv, -600, 300, 0);
 /*
  * Mic amp gain control:
  * from -15 to 30 dB in 3 dB steps
- * REVISIT: The actual min value(0x01) is -12 dB and the reg value 0x00 is not
+ * REVISIT: The actual min value(0x01) is -12 dB and the reg value 0x00 is analt
  * available
  */
 static DECLARE_TLV_DB_SCALE(mic_amp_tlv, -1500, 300, 0);

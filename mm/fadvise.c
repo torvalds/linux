@@ -24,13 +24,13 @@
 #include "internal.h"
 
 /*
- * POSIX_FADV_WILLNEED could set PG_Referenced, and POSIX_FADV_NOREUSE could
+ * POSIX_FADV_WILLNEED could set PG_Referenced, and POSIX_FADV_ANALREUSE could
  * deactivate the pages and clear PG_Referenced.
  */
 
 int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct address_space *mapping;
 	struct backing_dev_info *bdi;
 	loff_t endbyte;			/* inclusive */
@@ -38,25 +38,25 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 	pgoff_t end_index;
 	unsigned long nrpages;
 
-	inode = file_inode(file);
-	if (S_ISFIFO(inode->i_mode))
+	ianalde = file_ianalde(file);
+	if (S_ISFIFO(ianalde->i_mode))
 		return -ESPIPE;
 
 	mapping = file->f_mapping;
 	if (!mapping || len < 0)
 		return -EINVAL;
 
-	bdi = inode_to_bdi(mapping->host);
+	bdi = ianalde_to_bdi(mapping->host);
 
-	if (IS_DAX(inode) || (bdi == &noop_backing_dev_info)) {
+	if (IS_DAX(ianalde) || (bdi == &analop_backing_dev_info)) {
 		switch (advice) {
-		case POSIX_FADV_NORMAL:
+		case POSIX_FADV_ANALRMAL:
 		case POSIX_FADV_RANDOM:
 		case POSIX_FADV_SEQUENTIAL:
 		case POSIX_FADV_WILLNEED:
-		case POSIX_FADV_NOREUSE:
+		case POSIX_FADV_ANALREUSE:
 		case POSIX_FADV_DONTNEED:
-			/* no bad return value, but ignore advice */
+			/* anal bad return value, but iganalre advice */
 			break;
 		default:
 			return -EINVAL;
@@ -76,10 +76,10 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 		endbyte--;		/* inclusive */
 
 	switch (advice) {
-	case POSIX_FADV_NORMAL:
+	case POSIX_FADV_ANALRMAL:
 		file->f_ra.ra_pages = bdi->ra_pages;
 		spin_lock(&file->f_lock);
-		file->f_mode &= ~(FMODE_RANDOM | FMODE_NOREUSE);
+		file->f_mode &= ~(FMODE_RANDOM | FMODE_ANALREUSE);
 		spin_unlock(&file->f_lock);
 		break;
 	case POSIX_FADV_RANDOM:
@@ -105,14 +105,14 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 
 		force_page_cache_readahead(mapping, file, start_index, nrpages);
 		break;
-	case POSIX_FADV_NOREUSE:
+	case POSIX_FADV_ANALREUSE:
 		spin_lock(&file->f_lock);
-		file->f_mode |= FMODE_NOREUSE;
+		file->f_mode |= FMODE_ANALREUSE;
 		spin_unlock(&file->f_lock);
 		break;
 	case POSIX_FADV_DONTNEED:
 		__filemap_fdatawrite_range(mapping, offset, endbyte,
-					   WB_SYNC_NONE);
+					   WB_SYNC_ANALNE);
 
 		/*
 		 * First and last FULL page! Partial pages are deliberately
@@ -125,15 +125,15 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 		 * The page at end_index will be inclusively discarded according
 		 * by invalidate_mapping_pages(), so subtracting 1 from
 		 * end_index means we will skip the last page.  But if endbyte
-		 * is page aligned or is at the end of file, we should not skip
-		 * that page - discarding the last page is safe enough.
+		 * is page aligned or is at the end of file, we should analt skip
+		 * that page - discarding the last page is safe eanalugh.
 		 */
 		if ((endbyte & ~PAGE_MASK) != ~PAGE_MASK &&
-				endbyte != inode->i_size - 1) {
+				endbyte != ianalde->i_size - 1) {
 			/* First page is tricky as 0 - 1 = -1, but pgoff_t
 			 * is unsigned, so the end_index >= start_index
 			 * check below would be true and we'll discard the whole
-			 * file cache which is not what was asked.
+			 * file cache which is analt what was asked.
 			 */
 			if (end_index == 0)
 				break;

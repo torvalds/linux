@@ -11,7 +11,7 @@
 #define PTP_VCLOCK_CC_SHIFT		31
 #define PTP_VCLOCK_CC_MULT		(1 << PTP_VCLOCK_CC_SHIFT)
 #define PTP_VCLOCK_FADJ_SHIFT		9
-#define PTP_VCLOCK_FADJ_DENOMINATOR	15625ULL
+#define PTP_VCLOCK_FADJ_DEANALMINATOR	15625ULL
 #define PTP_VCLOCK_REFRESH_INTERVAL	(HZ * 2)
 
 /* protects vclock_hash addition/deletion */
@@ -23,7 +23,7 @@ static void ptp_vclock_hash_add(struct ptp_vclock *vclock)
 {
 	spin_lock(&vclock_hash_lock);
 
-	hlist_add_head_rcu(&vclock->vclock_hash_node,
+	hlist_add_head_rcu(&vclock->vclock_hash_analde,
 			   &vclock_hash[vclock->clock->index % HASH_SIZE(vclock_hash)]);
 
 	spin_unlock(&vclock_hash_lock);
@@ -33,7 +33,7 @@ static void ptp_vclock_hash_del(struct ptp_vclock *vclock)
 {
 	spin_lock(&vclock_hash_lock);
 
-	hlist_del_init_rcu(&vclock->vclock_hash_node);
+	hlist_del_init_rcu(&vclock->vclock_hash_analde);
 
 	spin_unlock(&vclock_hash_lock);
 
@@ -46,7 +46,7 @@ static int ptp_vclock_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	s64 adj;
 
 	adj = (s64)scaled_ppm << PTP_VCLOCK_FADJ_SHIFT;
-	adj = div_s64(adj, PTP_VCLOCK_FADJ_DENOMINATOR);
+	adj = div_s64(adj, PTP_VCLOCK_FADJ_DEANALMINATOR);
 
 	if (mutex_lock_interruptible(&vclock->lock))
 		return -EINTR;
@@ -203,7 +203,7 @@ struct ptp_vclock *ptp_vclock_register(struct ptp_clock *pclock)
 	snprintf(vclock->info.name, PTP_CLOCK_NAME_LEN, "ptp%d_virt",
 		 pclock->index);
 
-	INIT_HLIST_NODE(&vclock->vclock_hash_node);
+	INIT_HLIST_ANALDE(&vclock->vclock_hash_analde);
 
 	mutex_init(&vclock->lock);
 
@@ -276,7 +276,7 @@ ktime_t ptp_convert_timestamp(const ktime_t *hwtstamp, int vclock_index)
 
 	rcu_read_lock();
 
-	hlist_for_each_entry_rcu(vclock, &vclock_hash[hash], vclock_hash_node) {
+	hlist_for_each_entry_rcu(vclock, &vclock_hash[hash], vclock_hash_analde) {
 		if (vclock->clock->index != vclock_index)
 			continue;
 

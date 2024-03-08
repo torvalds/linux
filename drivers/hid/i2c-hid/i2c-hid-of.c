@@ -85,7 +85,7 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 
 	ihid_of = devm_kzalloc(dev, sizeof(*ihid_of), GFP_KERNEL);
 	if (!ihid_of)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ihid_of->client = client;
 	ihid_of->ops.power_up = i2c_hid_of_power_up;
@@ -93,8 +93,8 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 
 	ret = device_property_read_u32(dev, "hid-descr-addr", &val);
 	if (ret) {
-		dev_err(dev, "HID register address not provided\n");
-		return -ENODEV;
+		dev_err(dev, "HID register address analt provided\n");
+		return -EANALDEV;
 	}
 	if (val >> 16) {
 		dev_err(dev, "Bad HID register address: 0x%08x\n", val);
@@ -106,8 +106,8 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 		ihid_of->post_power_delay_ms = val;
 
 	/*
-	 * Note this is a kernel internal device-property set by x86 platform code,
-	 * this MUST not be used in devicetree files without first adding it to
+	 * Analte this is a kernel internal device-property set by x86 platform code,
+	 * this MUST analt be used in devicetree files without first adding it to
 	 * the DT bindings.
 	 */
 	if (!device_property_read_u32(dev, "post-reset-deassert-delay-ms", &val))
@@ -154,7 +154,7 @@ static struct i2c_driver i2c_hid_of_driver = {
 	.driver = {
 		.name	= "i2c_hid_of",
 		.pm	= &i2c_hid_core_pm,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(i2c_hid_of_match),
 	},
 

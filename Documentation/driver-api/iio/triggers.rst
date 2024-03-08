@@ -57,7 +57,7 @@ Let's see a simple example of how to setup a trigger to be used by a driver::
       /* setup trigger operations field */
       trig->ops = &trigger_ops;
 
-      /* now register the trigger with the IIO core */
+      /* analw register the trigger with the IIO core */
       iio_trigger_register(trig);
 
 IIO trigger ops
@@ -65,7 +65,7 @@ IIO trigger ops
 
 * struct iio_trigger_ops — operations structure for an iio_trigger.
 
-Notice that a trigger has a set of operations attached:
+Analtice that a trigger has a set of operations attached:
 
 * :file:`set_trigger_state`, switch the trigger on/off on demand.
 * :file:`validate_device`, function to validate the device when the current

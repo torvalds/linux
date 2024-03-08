@@ -107,7 +107,7 @@ static void qtnf_deassert_intx(struct qtnf_pcie_topaz_state *ts)
 
 	cfg = readl(reg);
 	cfg &= ~TOPAZ_ASSERT_INTX;
-	qtnf_non_posted_write(cfg, reg);
+	qtnf_analn_posted_write(cfg, reg);
 }
 
 static inline int qtnf_topaz_intx_asserted(struct qtnf_pcie_topaz_state *ts)
@@ -137,14 +137,14 @@ static void enable_rx_irqs(struct qtnf_pcie_topaz_state *ts)
 {
 	void __iomem *reg = PCIE_DMA_WR_DONE_IMWR_ADDR_LOW(ts->base.dmareg_bar);
 
-	qtnf_non_posted_write(ts->dma_msi_imwr, reg);
+	qtnf_analn_posted_write(ts->dma_msi_imwr, reg);
 }
 
 static void disable_rx_irqs(struct qtnf_pcie_topaz_state *ts)
 {
 	void __iomem *reg = PCIE_DMA_WR_DONE_IMWR_ADDR_LOW(ts->base.dmareg_bar);
 
-	qtnf_non_posted_write(QTN_HOST_LO32(ts->dma_msi_dummy), reg);
+	qtnf_analn_posted_write(QTN_HOST_LO32(ts->dma_msi_dummy), reg);
 }
 
 static void qtnf_topaz_ipc_gen_ep_int(void *arg)
@@ -164,7 +164,7 @@ static int qtnf_is_state(__le32 __iomem *reg, u32 state)
 
 static void qtnf_set_state(__le32 __iomem *reg, u32 state)
 {
-	qtnf_non_posted_write(state, reg);
+	qtnf_analn_posted_write(state, reg);
 }
 
 static int qtnf_poll_state(__le32 __iomem *reg, u32 state, u32 delay_in_ms)
@@ -198,12 +198,12 @@ static int topaz_alloc_bd_table(struct qtnf_pcie_topaz_state *ts,
 
 	vaddr = dmam_alloc_coherent(&priv->pdev->dev, len, &paddr, GFP_KERNEL);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* tx bd */
 
 	ts->tx_bd_vbase = vaddr;
-	qtnf_non_posted_write(paddr, &bda->bda_rc_tx_bd_base);
+	qtnf_analn_posted_write(paddr, &bda->bda_rc_tx_bd_base);
 
 	for (i = 0; i < priv->tx_bd_num; i++)
 		ts->tx_bd_vbase[i].info |= cpu_to_le32(QTN_BD_EMPTY);
@@ -219,7 +219,7 @@ static int topaz_alloc_bd_table(struct qtnf_pcie_topaz_state *ts,
 	paddr += priv->tx_bd_num * sizeof(struct qtnf_topaz_tx_bd);
 
 	ts->rx_bd_vbase = vaddr;
-	qtnf_non_posted_write(paddr, &bda->bda_rc_rx_bd_base);
+	qtnf_analn_posted_write(paddr, &bda->bda_rc_rx_bd_base);
 
 	pr_debug("RX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
 
@@ -231,7 +231,7 @@ static int topaz_alloc_bd_table(struct qtnf_pcie_topaz_state *ts,
 	extra_params = (struct qtnf_extra_bd_params __iomem *)vaddr;
 
 	ts->ep_next_rx_pkt = &extra_params->param1;
-	qtnf_non_posted_write(paddr + QTNF_BD_PARAM_OFFSET(1),
+	qtnf_analn_posted_write(paddr + QTNF_BD_PARAM_OFFSET(1),
 			      &bda->bda_ep_next_pkt);
 	ts->txqueue_wake = &extra_params->param2;
 	ts->ep_pmstate = &extra_params->param3;
@@ -250,7 +250,7 @@ topaz_skb2rbd_attach(struct qtnf_pcie_topaz_state *ts, u16 index, u32 wrap)
 	skb = netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE);
 	if (!skb) {
 		ts->base.rx_skb[index] = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->base.rx_skb[index] = skb;
@@ -259,7 +259,7 @@ topaz_skb2rbd_attach(struct qtnf_pcie_topaz_state *ts, u16 index, u32 wrap)
 			       DMA_FROM_DEVICE);
 	if (dma_mapping_error(&ts->base.pdev->dev, paddr)) {
 		pr_err("skb mapping error: %pad\n", &paddr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rxbd->addr = cpu_to_le32(QTN_HOST_LO32(paddr));
@@ -344,25 +344,25 @@ static int qtnf_pcie_topaz_init_xfer(struct qtnf_pcie_topaz_state *ts,
 
 	/* check TX BD queue max length according to struct qtnf_topaz_bda */
 	if (tx_bd_size > QTN_PCIE_RC_TX_QUEUE_LEN) {
-		pr_warn("TX BD queue cannot exceed %d\n",
+		pr_warn("TX BD queue cananalt exceed %d\n",
 			QTN_PCIE_RC_TX_QUEUE_LEN);
 		tx_bd_size = QTN_PCIE_RC_TX_QUEUE_LEN;
 	}
 
 	priv->tx_bd_num = tx_bd_size;
-	qtnf_non_posted_write(priv->tx_bd_num, &bda->bda_rc_tx_bd_num);
+	qtnf_analn_posted_write(priv->tx_bd_num, &bda->bda_rc_tx_bd_num);
 
 	if (rx_bd_size == 0)
 		rx_bd_size = TOPAZ_RX_BD_SIZE_DEFAULT;
 
 	if (rx_bd_size > TOPAZ_RX_BD_SIZE_DEFAULT) {
-		pr_warn("RX BD queue cannot exceed %d\n",
+		pr_warn("RX BD queue cananalt exceed %d\n",
 			TOPAZ_RX_BD_SIZE_DEFAULT);
 		rx_bd_size = TOPAZ_RX_BD_SIZE_DEFAULT;
 	}
 
 	priv->rx_bd_num = rx_bd_size;
-	qtnf_non_posted_write(priv->rx_bd_num, &bda->bda_rc_rx_bd_num);
+	qtnf_analn_posted_write(priv->rx_bd_num, &bda->bda_rc_rx_bd_num);
 
 	priv->rx_bd_w_index = 0;
 	priv->rx_bd_r_index = 0;
@@ -525,7 +525,7 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb,
 	skb_paddr = dma_map_single(&priv->pdev->dev, skb->data, skb->len,
 				   DMA_TO_DEVICE);
 	if (dma_mapping_error(&priv->pdev->dev, skb_paddr)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto tx_done;
 	}
 
@@ -569,7 +569,7 @@ static irqreturn_t qtnf_pcie_topaz_interrupt(int irq, void *data)
 	struct qtnf_pcie_bus_priv *priv = &ts->base;
 
 	if (!priv->msi_enabled && !qtnf_topaz_intx_asserted(ts))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!priv->msi_enabled)
 		qtnf_deassert_intx(ts);
@@ -677,7 +677,7 @@ static int qtnf_topaz_rx_poll(struct napi_struct *napi, int budget)
 			}
 		}
 
-		/* notify card about recv packets once per several packets */
+		/* analtify card about recv packets once per several packets */
 		if (((++ts->rx_pkt_count) & RX_DONE_INTR_MSK) == 0)
 			writel(TOPAZ_IPC_IRQ_WORD(TOPAZ_RC_RX_DONE_IRQ),
 			       TOPAZ_LH_IPC4_INT(priv->sysctl_bar));
@@ -832,7 +832,7 @@ static int qtnf_pcie_endian_detect(struct qtnf_pcie_topaz_state *ts)
 		}
 	}
 
-	/* do not read before status is updated */
+	/* do analt read before status is updated */
 	dma_rmb();
 
 	endian = readl(&bda->bda_pci_endian);
@@ -863,7 +863,7 @@ static int qtnf_pre_init_ep(struct qtnf_bus *bus)
 	writeb(ts->base.msi_enabled, &ts->bda->bda_rc_msi_enabled);
 	qtnf_reset_dma_offset(ts);
 
-	/* notify card about driver type and boot mode */
+	/* analtify card about driver type and boot mode */
 	flags = readl(&bda->bda_flags) | QTN_BDA_HOST_QLINK_DRV;
 
 	if (ts->base.flashboot)
@@ -876,7 +876,7 @@ static int qtnf_pre_init_ep(struct qtnf_bus *bus)
 	qtnf_set_state(&ts->bda->bda_bootstate, QTN_BDA_FW_HOST_RDY);
 	if (qtnf_poll_state(&ts->bda->bda_bootstate, QTN_BDA_FW_TARGET_RDY,
 			    QTN_FW_DL_TIMEOUT_MS)) {
-		pr_err("card is not ready to boot...\n");
+		pr_err("card is analt ready to boot...\n");
 		return -ETIMEDOUT;
 	}
 
@@ -932,7 +932,7 @@ qtnf_ep_fw_load(struct qtnf_pcie_topaz_state *ts, const u8 *fw, u32 fw_size)
 
 	if (!data) {
 		pr_err("failed to allocate DMA buffer for FW upload\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fw_load_out;
 	}
 
@@ -942,7 +942,7 @@ qtnf_ep_fw_load(struct qtnf_pcie_topaz_state *ts, const u8 *fw, u32 fw_size)
 	qtnf_set_state(&ts->bda->bda_bootstate, QTN_BDA_FW_HOST_LOAD);
 	if (qtnf_poll_state(&ts->bda->bda_bootstate, QTN_BDA_FW_EP_RDY,
 			    QTN_FW_DL_TIMEOUT_MS)) {
-		pr_err("card is not ready to download FW\n");
+		pr_err("card is analt ready to download FW\n");
 		ret = -ETIMEDOUT;
 		goto fw_load_map;
 	}
@@ -951,8 +951,8 @@ qtnf_ep_fw_load(struct qtnf_pcie_topaz_state *ts, const u8 *fw, u32 fw_size)
 		size = (remaining > blksize) ? blksize : remaining;
 
 		memcpy(data, curr, size);
-		qtnf_non_posted_write(paddr + offset, &bda->bda_img);
-		qtnf_non_posted_write(size, &bda->bda_img_size);
+		qtnf_analn_posted_write(paddr + offset, &bda->bda_img);
+		qtnf_analn_posted_write(size, &bda->bda_img_size);
 
 		pr_debug("chunk[%u] VA[0x%p] PA[%pad] sz[%u]\n",
 			 count, (void *)curr, &paddr, size);
@@ -971,8 +971,8 @@ qtnf_ep_fw_load(struct qtnf_pcie_topaz_state *ts, const u8 *fw, u32 fw_size)
 	}
 
 	/* upload completion mark: zero-sized block */
-	qtnf_non_posted_write(0, &bda->bda_img);
-	qtnf_non_posted_write(0, &bda->bda_img_size);
+	qtnf_analn_posted_write(0, &bda->bda_img);
+	qtnf_analn_posted_write(0, &bda->bda_img_size);
 
 	qtnf_set_state(&ts->bda->bda_bootstate, QTN_BDA_FW_BLOCK_RDY);
 	if (qtnf_poll_state(&ts->bda->bda_bootstate, QTN_BDA_FW_BLOCK_DONE,
@@ -1010,7 +1010,7 @@ static int qtnf_topaz_fw_upload(struct qtnf_pcie_topaz_state *ts,
 	if (qtnf_poll_state(&ts->bda->bda_bootstate,
 			    QTN_BDA_FW_LOAD_RDY,
 			    QTN_FW_DL_TIMEOUT_MS)) {
-		pr_err("%s: card is not ready\n", fwname);
+		pr_err("%s: card is analt ready\n", fwname);
 		return -1;
 	}
 
@@ -1132,9 +1132,9 @@ static int qtnf_pcie_topaz_probe(struct qtnf_bus *bus,
 
 	/* assign host msi irq before card init */
 	if (ts->base.msi_enabled)
-		irqflags = IRQF_NOBALANCING;
+		irqflags = IRQF_ANALBALANCING;
 	else
-		irqflags = IRQF_NOBALANCING | IRQF_SHARED;
+		irqflags = IRQF_ANALBALANCING | IRQF_SHARED;
 
 	ret = devm_request_irq(&pdev->dev, pdev->irq,
 			       &qtnf_pcie_topaz_interrupt,

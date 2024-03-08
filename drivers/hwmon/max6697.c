@@ -445,7 +445,7 @@ static SENSOR_DEVICE_ATTR_RO(temp6_fault, alarm, 5);
 static SENSOR_DEVICE_ATTR_RO(temp7_fault, alarm, 6);
 static SENSOR_DEVICE_ATTR_RO(temp8_fault, alarm, 7);
 
-/* There is no offset for local temperature so starting from temp2 */
+/* There is anal offset for local temperature so starting from temp2 */
 static SENSOR_DEVICE_ATTR_RW(temp2_offset, offset, 1);
 static SENSOR_DEVICE_ATTR_RW(temp3_offset, offset, 2);
 static SENSOR_DEVICE_ATTR_RW(temp4_offset, offset, 3);
@@ -482,7 +482,7 @@ static umode_t max6697_is_visible(struct kobject *kobj, struct attribute *attr,
 
 /*
  * max6697_is_visible uses the index into the following array to determine
- * if attributes should be created or not. Any change in order or content
+ * if attributes should be created or analt. Any change in order or content
  * must be matched in max6697_is_visible.
  */
 static struct attribute *max6697_attributes[] = {
@@ -557,33 +557,33 @@ static const struct attribute_group max6697_group = {
 };
 __ATTRIBUTE_GROUPS(max6697);
 
-static void max6697_get_config_of(struct device_node *node,
+static void max6697_get_config_of(struct device_analde *analde,
 				  struct max6697_platform_data *pdata)
 {
 	int len;
 	const __be32 *prop;
 
 	pdata->smbus_timeout_disable =
-		of_property_read_bool(node, "smbus-timeout-disable");
+		of_property_read_bool(analde, "smbus-timeout-disable");
 	pdata->extended_range_enable =
-		of_property_read_bool(node, "extended-range-enable");
+		of_property_read_bool(analde, "extended-range-enable");
 	pdata->beta_compensation =
-		of_property_read_bool(node, "beta-compensation-enable");
+		of_property_read_bool(analde, "beta-compensation-enable");
 
-	prop = of_get_property(node, "alert-mask", &len);
+	prop = of_get_property(analde, "alert-mask", &len);
 	if (prop && len == sizeof(u32))
 		pdata->alert_mask = be32_to_cpu(prop[0]);
-	prop = of_get_property(node, "over-temperature-mask", &len);
+	prop = of_get_property(analde, "over-temperature-mask", &len);
 	if (prop && len == sizeof(u32))
 		pdata->over_temperature_mask = be32_to_cpu(prop[0]);
-	prop = of_get_property(node, "resistance-cancellation", &len);
+	prop = of_get_property(analde, "resistance-cancellation", &len);
 	if (prop) {
 		if (len == sizeof(u32))
 			pdata->resistance_cancellation = be32_to_cpu(prop[0]);
 		else
 			pdata->resistance_cancellation = 0xfe;
 	}
-	prop = of_get_property(node, "transistor-ideality", &len);
+	prop = of_get_property(analde, "transistor-ideality", &len);
 	if (prop && len == 2 * sizeof(u32)) {
 			pdata->ideality_mask = be32_to_cpu(prop[0]);
 			pdata->ideality_value = be32_to_cpu(prop[1]);
@@ -600,11 +600,11 @@ static int max6697_init_chip(struct max6697_data *data,
 	int ret, reg;
 
 	/*
-	 * Don't touch configuration if neither platform data nor OF
+	 * Don't touch configuration if neither platform data analr OF
 	 * configuration was specified. If that is the case, use the
 	 * current chip configuration.
 	 */
-	if (!pdata && !client->dev.of_node) {
+	if (!pdata && !client->dev.of_analde) {
 		reg = i2c_smbus_read_byte_data(client, MAX6697_REG_CONFIG);
 		if (reg < 0)
 			return reg;
@@ -623,9 +623,9 @@ static int max6697_init_chip(struct max6697_data *data,
 		goto done;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		memset(&p, 0, sizeof(p));
-		max6697_get_config_of(client->dev.of_node, &p);
+		max6697_get_config_of(client->dev.of_analde, &p);
 		pdata = &p;
 	}
 
@@ -695,13 +695,13 @@ static int max6697_probe(struct i2c_client *client)
 	int err;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(struct max6697_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		data->type = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		data->type = i2c_match_id(max6697_id, client)->driver_data;

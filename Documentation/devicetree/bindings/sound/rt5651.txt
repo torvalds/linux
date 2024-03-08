@@ -22,9 +22,9 @@ Optional properties:
   2: Use JD1_2 pin for jack-detect
   3: Use JD2 pin for jack-detect
 
-- realtek,jack-detect-not-inverted
-  bool. Normal jack-detect switches give an inverted (active-low) signal,
-  set this bool in the rare case you've a jack-detect switch which is not
+- realtek,jack-detect-analt-inverted
+  bool. Analrmal jack-detect switches give an inverted (active-low) signal,
+  set this bool in the rare case you've a jack-detect switch which is analt
   inverted.
 
 - realtek,over-current-threshold-microamp

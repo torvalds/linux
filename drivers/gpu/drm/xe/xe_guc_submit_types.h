@@ -12,9 +12,9 @@
 #define WQ_STATUS_ACTIVE		1
 #define WQ_STATUS_SUSPENDED		2
 #define WQ_STATUS_CMD_ERROR		3
-#define WQ_STATUS_ENGINE_ID_NOT_USED	4
+#define WQ_STATUS_ENGINE_ID_ANALT_USED	4
 #define WQ_STATUS_SUSPENDED_FROM_RESET	5
-#define WQ_TYPE_NOOP			0x4
+#define WQ_TYPE_ANALOP			0x4
 #define WQ_TYPE_MULTI_LRC		0x5
 #define WQ_TYPE_MASK			GENMASK(7, 0)
 #define WQ_LEN_MASK			GENMASK(26, 16)
@@ -68,12 +68,12 @@ struct lrc_snapshot {
 		u32 internal;
 		u32 memory;
 	} tail;
-	u32 start_seqno;
-	u32 seqno;
+	u32 start_seqanal;
+	u32 seqanal;
 };
 
 struct pending_list_snapshot {
-	u32 seqno;
+	u32 seqanal;
 	bool fence;
 	bool finished;
 };

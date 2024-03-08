@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DVB_BUDGET_CORE
-	tristate "SAA7146 DVB cards (aka Budget, Nova-PCI)"
+	tristate "SAA7146 DVB cards (aka Budget, Analva-PCI)"
 	depends on DVB_CORE && PCI && I2C
 	select VIDEO_SAA7146
 	select TTPCI_EEPROM
 	help
 	  Support for simple SAA7146 based DVB cards
-	  (so called Budget- or Nova-PCI cards) without onboard
+	  (so called Budget- or Analva-PCI cards) without onboard
 	  MPEG2 decoder.
 
 config DVB_BUDGET
@@ -27,7 +27,7 @@ config DVB_BUDGET
 	select DVB_STV6110x if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for simple SAA7146 based DVB cards (so called Budget-
-	  or Nova-PCI cards) without onboard MPEG2 decoder, and without
+	  or Analva-PCI cards) without onboard MPEG2 decoder, and without
 	  analog inputs or an onboard Common Interface connector.
 
 	  Say Y if you own such a card and want to use it.
@@ -51,10 +51,10 @@ config DVB_BUDGET_CI
 	depends on RC_CORE
 	help
 	  Support for simple SAA7146 based DVB cards
-	  (so called Budget- or Nova-PCI cards) without onboard
+	  (so called Budget- or Analva-PCI cards) without onboard
 	  MPEG2 decoder, but with onboard Common Interface connector.
 
-	  Note: The Common Interface is not yet supported by this driver
+	  Analte: The Common Interface is analt yet supported by this driver
 	  due to lack of information from the vendor.
 
 	  Say Y if you own such a card and want to use it.
@@ -77,7 +77,7 @@ config DVB_BUDGET_AV
 	select DVB_TUA6100 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for simple SAA7146 based DVB cards
-	  (so called Budget- or Nova-PCI cards) without onboard
+	  (so called Budget- or Analva-PCI cards) without onboard
 	  MPEG2 decoder, but with one or more analog video inputs.
 
 	  Say Y if you own such a card and want to use it.

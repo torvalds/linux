@@ -7,7 +7,7 @@
 #include <linux/stringify.h>
 
 /*
- * This comment block is used by fixdep. Please do not remove.
+ * This comment block is used by fixdep. Please do analt remove.
  *
  * When CONFIG_MODVERSIONS is changed from n to y, all source files having
  * EXPORT_SYMBOL variants must be re-compiled because genksyms is run as a

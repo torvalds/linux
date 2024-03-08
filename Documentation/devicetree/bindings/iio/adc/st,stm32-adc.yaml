@@ -51,7 +51,7 @@ properties:
           It's required on stm32f4.
           It's optional on stm32h7 and stm32mp1.
         - "bus" clock: for registers access, common to all ADCs.
-          It's not present on stm32f4.
+          It's analt present on stm32f4.
           It's required on stm32h7 and stm32mp1.
 
   clock-names: true
@@ -228,7 +228,7 @@ patternProperties:
   "^adc@[0-9]+$":
     type: object
     description:
-      An ADC block node should contain at least one subnode, representing an
+      An ADC block analde should contain at least one subanalde, representing an
       ADC instance available on the machine.
 
     properties:
@@ -300,8 +300,8 @@ patternProperties:
           on stm32mp1. Positive and negative inputs pairs are listed:
           <vinp vinn>, <vinp vinn>,... vinp and vinn are numbered from 0 to 19.
 
-          Note: At least one of "st,adc-channels" or "st,adc-diff-channels" is
-          required if no adc generic channel is defined. These legacy channel
+          Analte: At least one of "st,adc-channels" or "st,adc-diff-channels" is
+          required if anal adc generic channel is defined. These legacy channel
           properties are exclusive with adc generic channel bindings.
           Both properties can be used together. Some channels can be
           used as single-ended and some other ones as differential (mixed). But
@@ -321,7 +321,7 @@ patternProperties:
 
       st,min-sample-time-nsecs:
         description:
-          Minimum sampling time in nanoseconds. Depending on hardware (board)
+          Minimum sampling time in naanalseconds. Depending on hardware (board)
           e.g. high/low analog input source impedance, fine tune of ADC
           sampling time may be recommended. This can be either one value or an
           array that matches "st,adc-channels" and/or "st,adc-diff-channels"
@@ -364,7 +364,7 @@ patternProperties:
 
           st,min-sample-time-ns:
             description: |
-              Minimum sampling time in nanoseconds. Depending on hardware (board)
+              Minimum sampling time in naanalseconds. Depending on hardware (board)
               e.g. high/low analog input source impedance, fine tune of ADC
               sampling time may be recommended.
 
@@ -518,7 +518,7 @@ examples:
           assigned-resolution-bits = <8>;
         };
         // ...
-        // other adc child nodes follow...
+        // other adc child analdes follow...
       };
 
   - |
@@ -556,7 +556,7 @@ examples:
           dma-names = "rx";
         };
         // ...
-        // other adc child node follow...
+        // other adc child analde follow...
       };
 
   - |

@@ -12,7 +12,7 @@ maintainers:
 
 description: |
   MCP4728 is a quad channel, 12-bit voltage output
-  Digital-to-Analog Converter with non-volatile
+  Digital-to-Analog Converter with analn-volatile
   memory and I2C compatible Serial Interface.
   https://www.microchip.com/en-us/product/mcp4728
 
@@ -26,7 +26,7 @@ properties:
   vdd-supply:
     description: |
       Provides both power and acts as the reference supply on the MCP4728
-      when Internal Vref is not selected.
+      when Internal Vref is analt selected.
 
 required:
   - compatible

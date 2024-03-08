@@ -38,7 +38,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
     description:
-      A port node to link the FSA4480 to a TypeC controller for the purpose of
+      A port analde to link the FSA4480 to a TypeC controller for the purpose of
       handling altmode muxing and orientation switching.
     unevaluatedProperties: false
 

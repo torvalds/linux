@@ -15,7 +15,7 @@
 
 (*
  * File "lock.cat" handles locks and is experimental.
- * It can be replaced by include "cos.cat" for tests that do not use locks.
+ * It can be replaced by include "cos.cat" for tests that do analt use locks.
  *)
 
 include "lock.cat"
@@ -30,7 +30,7 @@ let po-rel = [M] ; po ; [Release]
 let po-unlock-lock-po = po ; [UL] ; (po|rf) ; [LKR] ; po
 
 (* Fences *)
-let R4rmb = R \ Noreturn	(* Reads for which rmb works *)
+let R4rmb = R \ Analreturn	(* Reads for which rmb works *)
 let rmb = [R4rmb] ; fencerel(Rmb) ; [R4rmb]
 let wmb = [W] ; fencerel(Wmb) ; [W]
 let mb = ([M] ; fencerel(Mb) ; [M]) |
@@ -38,7 +38,7 @@ let mb = ([M] ; fencerel(Mb) ; [M]) |
 	([M] ; po? ; [RMW] ; fencerel(After-atomic) ; [M]) |
 	([M] ; po? ; [LKW] ; fencerel(After-spinlock) ; [M]) |
 (*
- * Note: The po-unlock-lock-po relation only passes the lock to the direct
+ * Analte: The po-unlock-lock-po relation only passes the lock to the direct
  * successor, perhaps giving the impression that the ordering of the
  * smp_mb__after_unlock_lock() fence only affects a single lock handover.
  * However, in a longer sequence of lock handovers, the implicit
@@ -54,8 +54,8 @@ let mb = ([M] ; fencerel(Mb) ; [M]) |
 let gp = po ; [Sync-rcu | Sync-srcu] ; po?
 let strong-fence = mb | gp
 
-let nonrw-fence = strong-fence | po-rel | acq-po
-let fence = nonrw-fence | wmb | rmb
+let analnrw-fence = strong-fence | po-rel | acq-po
+let fence = analnrw-fence | wmb | rmb
 let barrier = fencerel(Barrier | Rmb | Wmb | Mb | Sync-rcu | Sync-srcu |
 		Before-atomic | After-atomic | Acquire | Release |
 		Rcu-lock | Rcu-unlock | Srcu-lock | Srcu-unlock) |
@@ -94,7 +94,7 @@ let prop = [Marked] ; (overwrite & ext)? ; cumul-fence* ;
 
 (*
  * Happens Before: Ordering from the passage of time.
- * No fences needed here for prop because relation confined to one process.
+ * Anal fences needed here for prop because relation confined to one process.
  *)
 let hb = [Marked] ; (ppo | rfe | ((prop \ id) & int)) ; [Marked]
 acyclic hb as happens-before
@@ -103,7 +103,7 @@ acyclic hb as happens-before
 (* Write and fence propagation ordering *)
 (****************************************)
 
-(* Propagation: Each non-rf link needs a strong fence. *)
+(* Propagation: Each analn-rf link needs a strong fence. *)
 let pb = prop ; strong-fence ; hb* ; [Marked]
 acyclic pb as propagation
 
@@ -127,8 +127,8 @@ let rcu-rscsi = rcu-rscs^-1
 let srcu-rscsi = srcu-rscs^-1
 
 (*
- * The synchronize_rcu() strong fence is special in that it can order not
- * one but two non-rf relations, but only in conjunction with an RCU
+ * The synchronize_rcu() strong fence is special in that it can order analt
+ * one but two analn-rf relations, but only in conjunction with an RCU
  * read-side critical section.
  *)
 let rcu-link = po? ; hb* ; pb* ; prop ; po
@@ -185,10 +185,10 @@ let vis = cumul-fence* ; rfe? ; [Marked] ;
 
 (* Boundaries for lifetimes of plain accesses *)
 let w-pre-bounded = [Marked] ; (addr | fence)?
-let r-pre-bounded = [Marked] ; (addr | nonrw-fence |
-	([R4rmb] ; fencerel(Rmb) ; [~Noreturn]))?
+let r-pre-bounded = [Marked] ; (addr | analnrw-fence |
+	([R4rmb] ; fencerel(Rmb) ; [~Analreturn]))?
 let w-post-bounded = fence? ; [Marked] ; rmw-sequence
-let r-post-bounded = (nonrw-fence | ([~Noreturn] ; fencerel(Rmb) ; [R4rmb]))? ;
+let r-post-bounded = (analnrw-fence | ([~Analreturn] ; fencerel(Rmb) ; [R4rmb]))? ;
 	[Marked]
 
 (* Visibility and executes-before for plain accesses *)
@@ -208,8 +208,8 @@ let ww-incoh = pre-race & co & ww-vis^-1
 empty (wr-incoh | rw-incoh | ww-incoh) as plain-coherence
 
 (* Actual races *)
-let ww-nonrace = ww-vis & ((Marked * W) | rw-xbstar) & ((W * Marked) | wr-vis)
-let ww-race = (pre-race & co) \ ww-nonrace
+let ww-analnrace = ww-vis & ((Marked * W) | rw-xbstar) & ((W * Marked) | wr-vis)
+let ww-race = (pre-race & co) \ ww-analnrace
 let wr-race = (pre-race & (co? ; rf)) \ wr-vis \ rw-xbstar^-1
 let rw-race = (pre-race & fr) \ rw-xbstar
 

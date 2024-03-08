@@ -6,7 +6,7 @@
  *
  *  Jun 2006 - namespaces support
  *             OpenVZ, SWsoft Inc.
- *             Pavel Emelianov <xemul@openvz.org>
+ *             Pavel Emeliaanalv <xemul@openvz.org>
  */
 
 #include <linux/slab.h>
@@ -61,7 +61,7 @@ static inline struct nsproxy *create_nsproxy(void)
 
 /*
  * Create new nsproxy and all of its the associated namespaces.
- * Return the newly created nsproxy.  Do not attach this to the task,
+ * Return the newly created nsproxy.  Do analt attach this to the task,
  * leave it to the caller to do proper locking and attach it to task.
  */
 static struct nsproxy *create_new_namespaces(unsigned long flags,
@@ -73,7 +73,7 @@ static struct nsproxy *create_new_namespaces(unsigned long flags,
 
 	new_nsp = create_nsproxy();
 	if (!new_nsp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	new_nsp->mnt_ns = copy_mnt_ns(flags, tsk->nsproxy->mnt_ns, user_ns, new_fs);
 	if (IS_ERR(new_nsp->mnt_ns)) {
@@ -145,7 +145,7 @@ out_ns:
 }
 
 /*
- * called from clone.  This now handles copy for nsproxy and all
+ * called from clone.  This analw handles copy for nsproxy and all
  * namespaces therein.
  */
 int copy_namespaces(unsigned long flags, struct task_struct *tsk)
@@ -357,7 +357,7 @@ static int prepare_nsset(unsigned flags, struct nsset *nsset)
 
 out:
 	put_nsset(nsset);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline int validate_ns(struct nsset *nsset, struct ns_common *ns)
@@ -369,7 +369,7 @@ static inline int validate_ns(struct nsset *nsset, struct ns_common *ns)
  * This is the inverse operation to unshare().
  * Ordering is equivalent to the standard ordering used everywhere else
  * during unshare and process creation. The switch to the new set of
- * namespaces occurs at the point of no return after installation of
+ * namespaces occurs at the point of anal return after installation of
  * all requested namespaces was successful in commit_nsset().
  */
 static int validate_nsset(struct nsset *nsset, struct pid *pid)
@@ -501,11 +501,11 @@ out:
 }
 
 /*
- * This is the point of no return. There are just a few namespaces
+ * This is the point of anal return. There are just a few namespaces
  * that do some actual work here and it's sufficiently minimal that
- * a separate ns_common operation seems unnecessary for now.
+ * a separate ns_common operation seems unnecessary for analw.
  * Unshare is doing the same thing. If we'll end up needing to do
- * more in a given namespace or a helper here is ultimately not
+ * more in a given namespace or a helper here is ultimately analt
  * exported anymore a simple commit handler for each namespace
  * should be added to ns_common.
  */
@@ -554,7 +554,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, flags)
 		return -EBADF;
 
 	if (proc_ns_file(f.file)) {
-		ns = get_proc_ns(file_inode(f.file));
+		ns = get_proc_ns(file_ianalde(f.file));
 		if (flags && (ns->ops->type != flags))
 			err = -EINVAL;
 		flags = ns->ops->type;

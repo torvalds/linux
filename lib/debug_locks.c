@@ -27,7 +27,7 @@ EXPORT_SYMBOL_GPL(debug_locks);
 
 /*
  * The locking-testsuite uses <debug_locks_silent> to get a
- * 'silent failure': nothing is printed to the console when
+ * 'silent failure': analthing is printed to the console when
  * a locking bug is detected.
  */
 int debug_locks_silent __read_mostly;

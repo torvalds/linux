@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox boot control driver
+ * Mellaanalx boot control driver
  *
  * This driver provides a sysfs interface for systems management
  * software to manage reset-time actions.
  *
- * Copyright (C) 2019 Mellanox Technologies
+ * Copyright (C) 2019 Mellaanalx Techanallogies
  */
 
 #include <linux/acpi.h>
@@ -38,20 +38,20 @@ static struct mlxbf_bootctl_name boot_names[] = {
 	{ MLXBF_BOOTCTL_EMMC, "emmc" },
 	{ MLNX_BOOTCTL_SWAP_EMMC, "swap_emmc" },
 	{ MLXBF_BOOTCTL_EMMC_LEGACY, "emmc_legacy" },
-	{ MLXBF_BOOTCTL_NONE, "none" },
+	{ MLXBF_BOOTCTL_ANALNE, "analne" },
 };
 
 enum {
 	MLXBF_BOOTCTL_SB_LIFECYCLE_PRODUCTION = 0,
 	MLXBF_BOOTCTL_SB_LIFECYCLE_GA_SECURE = 1,
-	MLXBF_BOOTCTL_SB_LIFECYCLE_GA_NON_SECURE = 2,
+	MLXBF_BOOTCTL_SB_LIFECYCLE_GA_ANALN_SECURE = 2,
 	MLXBF_BOOTCTL_SB_LIFECYCLE_RMA = 3
 };
 
 static const char * const mlxbf_bootctl_lifecycle_states[] = {
 	[MLXBF_BOOTCTL_SB_LIFECYCLE_PRODUCTION] = "Production",
 	[MLXBF_BOOTCTL_SB_LIFECYCLE_GA_SECURE] = "GA Secured",
-	[MLXBF_BOOTCTL_SB_LIFECYCLE_GA_NON_SECURE] = "GA Non-Secured",
+	[MLXBF_BOOTCTL_SB_LIFECYCLE_GA_ANALN_SECURE] = "GA Analn-Secured",
 	[MLXBF_BOOTCTL_SB_LIFECYCLE_RMA] = "RMA",
 };
 
@@ -60,7 +60,7 @@ static const char * const mlxbf_bootctl_lifecycle_states[] = {
 #define MLXBF_RSH_LOG_LEN_MASK		GENMASK_ULL(54, 48)
 #define MLXBF_RSH_LOG_LEVEL_MASK	GENMASK_ULL(7, 0)
 
-/* Log module ID and type (only MSG type in Linux driver for now). */
+/* Log module ID and type (only MSG type in Linux driver for analw). */
 #define MLXBF_RSH_LOG_TYPE_MSG		0x04ULL
 
 /* Log ctl/data register offset. */
@@ -94,7 +94,7 @@ static DEFINE_MUTEX(mfg_ops_lock);
 
 /*
  * Objects are stored within the MFG partition per type.
- * Type 0 is not supported.
+ * Type 0 is analt supported.
  */
 enum {
 	MLNX_MFG_TYPE_OOB_MAC = 1,
@@ -134,7 +134,7 @@ enum {
 #define MLNX_MFG_OOB_MAC_FORMAT_LEN \
 	((ETH_ALEN * 2) + (ETH_ALEN - 1))
 
-/* ARM SMC call which is atomic and no need for lock. */
+/* ARM SMC call which is atomic and anal need for lock. */
 static int mlxbf_bootctl_smc(unsigned int smc_op, int smc_arg)
 {
 	struct arm_smccc_res res;
@@ -299,7 +299,7 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 	/*
 	 * key_state contains the bits for 4 Key versions, loaded from eFuses
 	 * after a hard reset. Lower 4 bits are a thermometer code indicating
-	 * key programming has started for key n (0000 = none, 0001 = version 0,
+	 * key programming has started for key n (0000 = analne, 0001 = version 0,
 	 * 0011 = version 1, 0111 = version 2, 1111 = version 3). Upper 4 bits
 	 * are a thermometer code indicating key programming has completed for
 	 * key n (same encodings as the start bits). This allows for detection
@@ -308,11 +308,11 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 	 * eFuse for the new key start bit, burn the key eFuses, then burn the
 	 * eFuse for the new key complete bit.
 	 *
-	 * For example 0000_0000: no key valid, 0001_0001: key version 0 valid,
+	 * For example 0000_0000: anal key valid, 0001_0001: key version 0 valid,
 	 * 0011_0011: key 1 version valid, 0011_0111: key version 2 started
-	 * programming but did not complete, etc. The most recent key for which
+	 * programming but did analt complete, etc. The most recent key for which
 	 * both start and complete bit is set is loaded. On soft reset, this
-	 * register is not modified.
+	 * register is analt modified.
 	 */
 	for (key = MLXBF_SB_KEY_NUM - 1; key >= 0; key--) {
 		burnt = key_state & BIT(key);
@@ -387,9 +387,9 @@ static ssize_t rsh_log_store(struct device *dev,
 		return -EINVAL;
 
 	if (!mlxbf_rsh_semaphore || !mlxbf_rsh_scratch_buf_ctl)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* Ignore line break at the end. */
+	/* Iganalre line break at the end. */
 	if (buf[size - 1] == '\n')
 		size--;
 
@@ -405,7 +405,7 @@ static ssize_t rsh_log_store(struct device *dev,
 		}
 	}
 
-	/* Ignore leading spaces. */
+	/* Iganalre leading spaces. */
 	while (size > 0 && buf[0] == ' ') {
 		size--;
 		buf++;
@@ -447,7 +447,7 @@ done:
 	/* Release the semaphore. */
 	mlxbf_rsh_log_sem_unlock();
 
-	/* Ignore the rest if no more space. */
+	/* Iganalre the rest if anal more space. */
 	return count;
 }
 
@@ -949,7 +949,7 @@ static ssize_t mlxbf_bootctl_bootfifo_read(struct file *filp,
 	char *p = buf;
 
 	while (count >= sizeof(data)) {
-		/* Give up reading if no more data within 500ms. */
+		/* Give up reading if anal more data within 500ms. */
 		if (!cnt) {
 			cnt = readq(mlxbf_rsh_boot_cnt);
 			if (!cnt) {
@@ -1020,12 +1020,12 @@ static int mlxbf_bootctl_probe(struct platform_device *pdev)
 	arm_smccc_smc(MLXBF_BOOTCTL_SIP_SVC_UID, 0, 0, 0, 0, 0, 0, 0, &res);
 	guid_parse(mlxbf_bootctl_svc_uuid_str, &guid);
 	if (!mlxbf_bootctl_guid_match(&guid, &res))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * When watchdog is used, it sets boot mode to MLXBF_BOOTCTL_SWAP_EMMC
 	 * in case of boot failures. However it doesn't clear the state if there
-	 * is no failure. Restore the default boot mode here to avoid any
+	 * is anal failure. Restore the default boot mode here to avoid any
 	 * unnecessary boot partition swapping.
 	 */
 	ret = mlxbf_bootctl_smc(MLXBF_BOOTCTL_SET_RESET_ACTION,
@@ -1059,6 +1059,6 @@ static struct platform_driver mlxbf_bootctl_driver = {
 
 module_platform_driver(mlxbf_bootctl_driver);
 
-MODULE_DESCRIPTION("Mellanox boot control driver");
+MODULE_DESCRIPTION("Mellaanalx boot control driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_AUTHOR("Mellaanalx Techanallogies");

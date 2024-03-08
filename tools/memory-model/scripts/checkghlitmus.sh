@@ -16,7 +16,7 @@ T=/tmp/checkghlitmus.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-# Clone the repository if it is not already present.
+# Clone the repository if it is analt already present.
 if test -d litmus
 then
 	:
@@ -40,7 +40,7 @@ fi
 	xargs -r grep -L "^P${LKMM_PROCS}"> $T/list-C-already
 
 # Create a list of C-language litmus tests with "Result:" commands and
-# no more than the specified number of processes.
+# anal more than the specified number of processes.
 find litmus -name '*.litmus' -print | mselect7 -arch C > $T/list-C
 xargs < $T/list-C -r grep -E -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' > $T/list-C-result
 xargs < $T/list-C-result -r grep -L "^P${LKMM_PROCS}" > $T/list-C-result-short

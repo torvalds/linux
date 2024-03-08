@@ -61,7 +61,7 @@ The following ioctl are supported:
 ^^^^^^^^^^^^^^^^^^
 
 This ioctl command registers a new reservation if the new_key argument
-is non-null.  If no existing reservation exists old_key must be zero,
+is analn-null.  If anal existing reservation exists old_key must be zero,
 if an existing reservation should be replaced old_key must contain
 the old reservation key.
 
@@ -75,7 +75,7 @@ in old_key.
 This ioctl command reserves the device and thus restricts access for other
 devices based on the type argument.  The key argument must be the existing
 reservation key for the device as acquired by the IOC_PR_REGISTER,
-IOC_PR_REGISTER_IGNORE, IOC_PR_PREEMPT or IOC_PR_PREEMPT_ABORT commands.
+IOC_PR_REGISTER_IGANALRE, IOC_PR_PREEMPT or IOC_PR_PREEMPT_ABORT commands.
 
 
 3. IOC_PR_RELEASE
@@ -111,9 +111,9 @@ Flags
 
 All the ioctls have a flag field.  Currently only one flag is supported:
 
- - PR_FL_IGNORE_KEY
-	Ignore the existing reservation key.  This is commonly supported for
+ - PR_FL_IGANALRE_KEY
+	Iganalre the existing reservation key.  This is commonly supported for
 	IOC_PR_REGISTER, and some implementation may support the flag for
 	IOC_PR_RESERVE.
 
-For all unknown flags the kernel will return -EOPNOTSUPP.
+For all unkanalwn flags the kernel will return -EOPANALTSUPP.

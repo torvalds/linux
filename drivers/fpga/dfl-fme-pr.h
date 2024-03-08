@@ -9,7 +9,7 @@
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Wu Hao <hao.wu@intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enanal Luebbers <enanal.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Henry Mitchel <henry.mitchel@intel.com>
@@ -24,12 +24,12 @@
  * struct dfl_fme_region - FME fpga region data structure
  *
  * @region: platform device of the FPGA region.
- * @node: used to link fme_region to a list.
+ * @analde: used to link fme_region to a list.
  * @port_id: indicate which port this region connected to.
  */
 struct dfl_fme_region {
 	struct platform_device *region;
-	struct list_head node;
+	struct list_head analde;
 	int port_id;
 };
 
@@ -50,11 +50,11 @@ struct dfl_fme_region_pdata {
  * struct dfl_fme_bridge - FME fpga bridge data structure
  *
  * @br: platform device of the FPGA bridge.
- * @node: used to link fme_bridge to a list.
+ * @analde: used to link fme_bridge to a list.
  */
 struct dfl_fme_bridge {
 	struct platform_device *br;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**

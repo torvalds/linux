@@ -4,7 +4,7 @@
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
  *
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2001,02 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -187,12 +187,12 @@ int saa7134_ts_init_hw(struct saa7134_dev *dev)
 {
 	/* deactivate TS softreset */
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
-	/* TSSOP high active, TSVAL high active, TSLOCK ignored */
+	/* TSSOP high active, TSVAL high active, TSLOCK iganalred */
 	saa_writeb(SAA7134_TS_PARALLEL, 0x6c);
 	saa_writeb(SAA7134_TS_PARALLEL_SERIAL, (TS_PACKET_SIZE-1));
 	saa_writeb(SAA7134_TS_DMA0, ((dev->ts.nr_packets-1)&0xff));
 	saa_writeb(SAA7134_TS_DMA1, (((dev->ts.nr_packets-1)>>8)&0xff));
-	/* TSNOPIT=0, TSCOLAP=0 */
+	/* TSANALPIT=0, TSCOLAP=0 */
 	saa_writeb(SAA7134_TS_DMA2,
 		((((dev->ts.nr_packets-1)>>16)&0x3f) | 0x00));
 
@@ -260,7 +260,7 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 	saa_writeb(SAA7134_TS_DMA0, (dev->ts.nr_packets - 1) & 0xff);
 	saa_writeb(SAA7134_TS_DMA1,
 		((dev->ts.nr_packets - 1) >> 8) & 0xff);
-	/* TSNOPIT=0, TSCOLAP=0 */
+	/* TSANALPIT=0, TSCOLAP=0 */
 	saa_writeb(SAA7134_TS_DMA2,
 		(((dev->ts.nr_packets - 1) >> 16) & 0x3f) | 0x00);
 	saa_writel(SAA7134_RS_PITCH(5), TS_PACKET_SIZE);
@@ -274,7 +274,7 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
 	saa_writeb(SAA7134_TS_SERIAL1, 0x01);
 
-	/* TS clock non-inverted */
+	/* TS clock analn-inverted */
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
 
 	/* Start TS stream */

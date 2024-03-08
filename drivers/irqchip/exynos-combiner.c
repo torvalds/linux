@@ -3,7 +3,7 @@
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Combiner irqchip for EXYNOS
+ * Combiner irqchip for EXYANALS
  */
 #include <linux/err.h>
 #include <linux/export.h>
@@ -134,12 +134,12 @@ static void __init combiner_init_one(struct combiner_chip_data *combiner_data,
 }
 
 static int combiner_irq_domain_xlate(struct irq_domain *d,
-				     struct device_node *controller,
+				     struct device_analde *controller,
 				     const u32 *intspec, unsigned int intsize,
 				     unsigned long *out_hwirq,
 				     unsigned int *out_type)
 {
-	if (irq_domain_get_of_node(d) != controller)
+	if (irq_domain_get_of_analde(d) != controller)
 		return -EINVAL;
 
 	if (intsize < 2)
@@ -169,7 +169,7 @@ static const struct irq_domain_ops combiner_irq_domain_ops = {
 };
 
 static void __init combiner_init(void __iomem *combiner_base,
-				 struct device_node *np)
+				 struct device_analde *np)
 {
 	int i, irq;
 	unsigned int nr_irq;
@@ -245,8 +245,8 @@ static struct syscore_ops combiner_syscore_ops = {
 	.resume		= combiner_resume,
 };
 
-static int __init combiner_of_init(struct device_node *np,
-				   struct device_node *parent)
+static int __init combiner_of_init(struct device_analde *np,
+				   struct device_analde *parent)
 {
 	void __iomem *combiner_base;
 
@@ -257,7 +257,7 @@ static int __init combiner_of_init(struct device_node *np,
 	}
 
 	if (of_property_read_u32(np, "samsung,combiner-nr", &max_nr)) {
-		pr_info("%s: number of combiners not specified, "
+		pr_info("%s: number of combiners analt specified, "
 			"setting default as %d.\n",
 			__func__, max_nr);
 	}
@@ -268,5 +268,5 @@ static int __init combiner_of_init(struct device_node *np,
 
 	return 0;
 }
-IRQCHIP_DECLARE(exynos4210_combiner, "samsung,exynos4210-combiner",
+IRQCHIP_DECLARE(exyanals4210_combiner, "samsung,exyanals4210-combiner",
 		combiner_of_init);

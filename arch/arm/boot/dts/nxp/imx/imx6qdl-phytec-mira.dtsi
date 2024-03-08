@@ -159,7 +159,7 @@
 		pinctrl-0 = <&pinctrl_stmpe>;
 		reg = <0x44>;
 		interrupt-parent = <&gpio7>;
-		interrupts = <12 IRQ_TYPE_NONE>;
+		interrupts = <12 IRQ_TYPE_ANALNE>;
 		status = "disabled";
 
 		stmpe_touchscreen {
@@ -261,7 +261,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	cd-gpios = <&gpio6 31 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	disable-wp;
 	status = "disabled";
 };

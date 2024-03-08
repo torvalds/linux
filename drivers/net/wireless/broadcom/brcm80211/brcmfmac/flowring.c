@@ -143,11 +143,11 @@ u32 brcmf_flowring_create(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
 				break;
 		}
 		if (i == flow->nrofrings)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ring = kzalloc(sizeof(*ring), GFP_ATOMIC);
 		if (!ring)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(hash[hash_idx].mac, mac, ETH_ALEN);
 		hash[hash_idx].fifo = fifo;

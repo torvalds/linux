@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-noarg:
+analarg:
 	$(MAKE) -C ../
 
 TEST_GEN_PROGS := hugetlb_vs_thp_test subpage_prot prot_sao segv_errors wild_bctr \
@@ -28,11 +28,11 @@ $(OUTPUT)/pkey_siginfo: CFLAGS += -m64
 
 $(OUTPUT)/stack_expansion_signal: ../utils.c ../pmu/lib.c
 
-$(OUTPUT)/stack_expansion_ldst: CFLAGS += -fno-stack-protector
+$(OUTPUT)/stack_expansion_ldst: CFLAGS += -fanal-stack-protector
 $(OUTPUT)/stack_expansion_ldst: ../utils.c
 
 $(OUTPUT)/tempfile:
-	dd if=/dev/zero of=$@ bs=64k count=1 status=none
+	dd if=/dev/zero of=$@ bs=64k count=1 status=analne
 
 $(OUTPUT)/tlbie_test: LDLIBS += -lpthread
 $(OUTPUT)/pkey_siginfo: LDLIBS += -lpthread

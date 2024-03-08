@@ -69,7 +69,7 @@ static const struct snd_kcontrol_new simple_mux_mux =
 static const struct snd_soc_dapm_widget simple_mux_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN1"),
 	SND_SOC_DAPM_INPUT("IN2"),
-	SND_SOC_DAPM_MUX("MUX", SND_SOC_NOPM, 0, 0, &simple_mux_mux),
+	SND_SOC_DAPM_MUX("MUX", SND_SOC_ANALPM, 0, 0, &simple_mux_mux),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
 
@@ -94,7 +94,7 @@ static int simple_mux_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, priv);
 

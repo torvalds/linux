@@ -385,7 +385,7 @@ static uint32_t gf100_grgpc_code[] = {
 	0x1efd01e4,
 	0x0018fe05,
 	0x05b421f5,
-/* 0x04eb: main_not_ctx_xfer */
+/* 0x04eb: main_analt_ctx_xfer */
 	0x94d90ef4,
 	0xf5f010ef,
 	0x7e21f501,
@@ -411,7 +411,7 @@ static uint32_t gf100_grgpc_code[] = {
 	0x1d0007f1,
 	0xd00003f0,
 	0x04bd000e,
-/* 0x0548: ih_no_fifo */
+/* 0x0548: ih_anal_fifo */
 	0x010007f1,
 	0xd00003f0,
 	0x04bd000a,
@@ -447,7 +447,7 @@ static uint32_t gf100_grgpc_code[] = {
 	0xd00203f0,
 	0x04bd000f,
 	0xf50711f4,
-/* 0x05c7: ctx_xfer_not_load */
+/* 0x05c7: ctx_xfer_analt_load */
 	0xf5058621,
 	0xbd026a21,
 	0xfc07f124,

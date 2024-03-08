@@ -158,7 +158,7 @@ static u8 wait_for_freq(struct intel_rps *rps, u8 freq, int timeout_ms)
 	memset(history, freq, sizeof(history));
 	sleep = 20;
 
-	/* The PCU does not change instantly, but drifts towards the goal? */
+	/* The PCU does analt change instantly, but drifts towards the goal? */
 	end = jiffies + msecs_to_jiffies(timeout_ms);
 	do {
 		u8 act;
@@ -231,7 +231,7 @@ int live_rps_clock_interval(void *arg)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_gt_pm_wait_for_idle(gt);
 	saved_work = rps->work.func;
@@ -254,7 +254,7 @@ int live_rps_clock_interval(void *arg)
 
 		rq = igt_spinner_create_request(&spin,
 						engine->kernel_context,
-						MI_NOOP);
+						MI_ANALOP);
 		if (IS_ERR(rq)) {
 			st_engine_heartbeat_enable(engine);
 			err = PTR_ERR(rq);
@@ -264,7 +264,7 @@ int live_rps_clock_interval(void *arg)
 		i915_request_add(rq);
 
 		if (!igt_wait_for_spinner(&spin, rq)) {
-			pr_err("%s: RPS spinner did not start\n",
+			pr_err("%s: RPS spinner did analt start\n",
 			       engine->name);
 			igt_spinner_end(&spin);
 			st_engine_heartbeat_enable(engine);
@@ -290,9 +290,9 @@ int live_rps_clock_interval(void *arg)
 						  GEN6_RP_CUR_UP_EI),
 			     10)) {
 			/* Just skip the test; assume lack of HW support */
-			pr_notice("%s: rps evaluation interval not ticking\n",
+			pr_analtice("%s: rps evaluation interval analt ticking\n",
 				  engine->name);
-			err = -ENODEV;
+			err = -EANALDEV;
 		} else {
 			ktime_t dt_[5];
 			u32 cycles_[5];
@@ -312,7 +312,7 @@ int live_rps_clock_interval(void *arg)
 				preempt_enable();
 			}
 
-			/* Use the median of both cycle/dt; close enough */
+			/* Use the median of both cycle/dt; close eanalugh */
 			sort(cycles_, 5, sizeof(*cycles_), cmp_u32, NULL);
 			cycles = (cycles_[1] + 2 * cycles_[2] + cycles_[3]) / 4;
 			sort(dt_, 5, sizeof(*dt_), cmp_u64, NULL);
@@ -336,14 +336,14 @@ int live_rps_clock_interval(void *arg)
 
 			if (10 * time < 8 * dt ||
 			    8 * time > 10 * dt) {
-				pr_err("%s: rps clock time does not match walltime!\n",
+				pr_err("%s: rps clock time does analt match walltime!\n",
 				       engine->name);
 				err = -EINVAL;
 			}
 
 			if (10 * expected < 8 * cycles ||
 			    8 * expected > 10 * cycles) {
-				pr_err("%s: walltime does not match rps clock ticks!\n",
+				pr_err("%s: walltime does analt match rps clock ticks!\n",
 				       engine->name);
 				err = -EINVAL;
 			}
@@ -352,7 +352,7 @@ int live_rps_clock_interval(void *arg)
 		if (igt_flush_test(gt->i915))
 			err = -EIO;
 
-		break; /* once is enough */
+		break; /* once is eanalugh */
 	}
 
 	intel_rps_enable(&gt->rps);
@@ -363,7 +363,7 @@ int live_rps_clock_interval(void *arg)
 	intel_gt_pm_wait_for_idle(gt);
 	rps->work.func = saved_work;
 
-	if (err == -ENODEV) /* skipped, don't report a fail */
+	if (err == -EANALDEV) /* skipped, don't report a fail */
 		err = 0;
 
 	return err;
@@ -394,7 +394,7 @@ int live_rps_control(void *arg)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_gt_pm_wait_for_idle(gt);
 	saved_work = rps->work.func;
@@ -414,7 +414,7 @@ int live_rps_control(void *arg)
 
 		rq = igt_spinner_create_request(&spin,
 						engine->kernel_context,
-						MI_NOOP);
+						MI_ANALOP);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			break;
@@ -423,7 +423,7 @@ int live_rps_control(void *arg)
 		i915_request_add(rq);
 
 		if (!igt_wait_for_spinner(&spin, rq)) {
-			pr_err("%s: RPS spinner did not start\n",
+			pr_err("%s: RPS spinner did analt start\n",
 			       engine->name);
 			igt_spinner_end(&spin);
 			st_engine_heartbeat_enable(engine);
@@ -433,7 +433,7 @@ int live_rps_control(void *arg)
 		}
 
 		if (rps_set_check(rps, rps->min_freq) != rps->min_freq) {
-			pr_err("%s: could not set minimum frequency [%x], only %x!\n",
+			pr_err("%s: could analt set minimum frequency [%x], only %x!\n",
 			       engine->name, rps->min_freq, read_cagf(rps));
 			igt_spinner_end(&spin);
 			st_engine_heartbeat_enable(engine);
@@ -450,7 +450,7 @@ int live_rps_control(void *arg)
 		limit = rps_set_check(rps, f);
 
 		if (rps_set_check(rps, rps->min_freq) != rps->min_freq) {
-			pr_err("%s: could not restore minimum frequency [%x], only %x!\n",
+			pr_err("%s: could analt restore minimum frequency [%x], only %x!\n",
 			       engine->name, rps->min_freq, read_cagf(rps));
 			igt_spinner_end(&spin);
 			st_engine_heartbeat_enable(engine);
@@ -481,7 +481,7 @@ int live_rps_control(void *arg)
 			pr_err("%s: GPU throttled to minimum!\n",
 			       engine->name);
 			show_pstate_limits(rps);
-			err = -ENODEV;
+			err = -EANALDEV;
 			break;
 		}
 
@@ -666,7 +666,7 @@ int live_rps_frequency_cs(void *arg)
 
 		if (wait_for(intel_uncore_read(engine->uncore, CS_GPR(0)),
 			     10)) {
-			pr_err("%s: timed loop did not start\n",
+			pr_err("%s: timed loop did analt start\n",
 			       engine->name);
 			goto err_vma;
 		}
@@ -689,7 +689,7 @@ int live_rps_frequency_cs(void *arg)
 				   2, 3)) {
 			int f;
 
-			pr_err("%s: CS did not scale with frequency! scaled min:%llu, max:%llu\n",
+			pr_err("%s: CS did analt scale with frequency! scaled min:%llu, max:%llu\n",
 			       engine->name,
 			       max.freq * min.count,
 			       min.freq * max.count);
@@ -712,7 +712,7 @@ int live_rps_frequency_cs(void *arg)
 				f = act; /* may skip ahead [pcu granularity] */
 			}
 
-			err = -EINTR; /* ignore error, continue on with test */
+			err = -EINTR; /* iganalre error, continue on with test */
 		}
 
 err_vma:
@@ -804,7 +804,7 @@ int live_rps_frequency_srm(void *arg)
 			goto err_vma;
 
 		if (wait_for(READ_ONCE(*cntr), 10)) {
-			pr_err("%s: timed loop did not start\n",
+			pr_err("%s: timed loop did analt start\n",
 			       engine->name);
 			goto err_vma;
 		}
@@ -827,7 +827,7 @@ int live_rps_frequency_srm(void *arg)
 				   1, 2)) {
 			int f;
 
-			pr_err("%s: CS did not scale with frequency! scaled min:%llu, max:%llu\n",
+			pr_err("%s: CS did analt scale with frequency! scaled min:%llu, max:%llu\n",
 			       engine->name,
 			       max.freq * min.count,
 			       min.freq * max.count);
@@ -850,7 +850,7 @@ int live_rps_frequency_srm(void *arg)
 				f = act; /* may skip ahead [pcu granularity] */
 			}
 
-			err = -EINTR; /* ignore error, continue on with test */
+			err = -EINTR; /* iganalre error, continue on with test */
 		}
 
 err_vma:
@@ -904,7 +904,7 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 
 	rps_set_check(rps, rps->min_freq);
 
-	rq = igt_spinner_create_request(spin, engine->kernel_context, MI_NOOP);
+	rq = igt_spinner_create_request(spin, engine->kernel_context, MI_ANALOP);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
@@ -912,7 +912,7 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	i915_request_add(rq);
 
 	if (!igt_wait_for_spinner(spin, rq)) {
-		pr_err("%s: RPS spinner did not start\n",
+		pr_err("%s: RPS spinner did analt start\n",
 		       engine->name);
 		i915_request_put(rq);
 		intel_gt_set_wedged(engine->gt);
@@ -920,7 +920,7 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	}
 
 	if (!intel_rps_is_active(rps)) {
-		pr_err("%s: RPS not enabled on starting spinner\n",
+		pr_err("%s: RPS analt enabled on starting spinner\n",
 		       engine->name);
 		igt_spinner_end(spin);
 		i915_request_put(rq);
@@ -928,14 +928,14 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	}
 
 	if (!(rps->pm_events & GEN6_PM_RP_UP_THRESHOLD)) {
-		pr_err("%s: RPS did not register UP interrupt\n",
+		pr_err("%s: RPS did analt register UP interrupt\n",
 		       engine->name);
 		i915_request_put(rq);
 		return -EINVAL;
 	}
 
 	if (rps->last_freq != rps->min_freq) {
-		pr_err("%s: RPS did not program min frequency\n",
+		pr_err("%s: RPS did analt program min frequency\n",
 		       engine->name);
 		i915_request_put(rq);
 		return -EINVAL;
@@ -952,13 +952,13 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	i915_request_put(rq);
 
 	if (rps->cur_freq != rps->min_freq) {
-		pr_err("%s: Frequency unexpectedly changed [up], now %d!\n",
+		pr_err("%s: Frequency unexpectedly changed [up], analw %d!\n",
 		       engine->name, intel_rps_read_actual_frequency(rps));
 		return -EINVAL;
 	}
 
 	if (!(rps->pm_iir & GEN6_PM_RP_UP_THRESHOLD)) {
-		pr_err("%s: UP interrupt not recorded for spinner, pm_iir:%x, prev_up:%x, up_threshold:%x, up_ei:%x\n",
+		pr_err("%s: UP interrupt analt recorded for spinner, pm_iir:%x, prev_up:%x, up_threshold:%x, up_ei:%x\n",
 		       engine->name, rps->pm_iir,
 		       intel_uncore_read(uncore, GEN6_RP_PREV_UP),
 		       intel_uncore_read(uncore, GEN6_RP_UP_THRESHOLD),
@@ -978,13 +978,13 @@ static int __rps_down_interrupt(struct intel_rps *rps,
 	rps_set_check(rps, rps->max_freq);
 
 	if (!(rps->pm_events & GEN6_PM_RP_DOWN_THRESHOLD)) {
-		pr_err("%s: RPS did not register DOWN interrupt\n",
+		pr_err("%s: RPS did analt register DOWN interrupt\n",
 		       engine->name);
 		return -EINVAL;
 	}
 
 	if (rps->last_freq != rps->max_freq) {
-		pr_err("%s: RPS did not program max frequency\n",
+		pr_err("%s: RPS did analt program max frequency\n",
 		       engine->name);
 		return -EINVAL;
 	}
@@ -996,14 +996,14 @@ static int __rps_down_interrupt(struct intel_rps *rps,
 	sleep_for_ei(rps, timeout);
 
 	if (rps->cur_freq != rps->max_freq) {
-		pr_err("%s: Frequency unexpectedly changed [down], now %d!\n",
+		pr_err("%s: Frequency unexpectedly changed [down], analw %d!\n",
 		       engine->name,
 		       intel_rps_read_actual_frequency(rps));
 		return -EINVAL;
 	}
 
 	if (!(rps->pm_iir & (GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT))) {
-		pr_err("%s: DOWN interrupt not recorded for idle, pm_iir:%x, prev_down:%x, down_threshold:%x, down_ei:%x [prev_up:%x, up_threshold:%x, up_ei:%x]\n",
+		pr_err("%s: DOWN interrupt analt recorded for idle, pm_iir:%x, prev_down:%x, down_threshold:%x, down_ei:%x [prev_up:%x, up_threshold:%x, up_ei:%x]\n",
 		       engine->name, rps->pm_iir,
 		       intel_uncore_read(uncore, GEN6_RP_PREV_DOWN),
 		       intel_uncore_read(uncore, GEN6_RP_DOWN_THRESHOLD),
@@ -1030,7 +1030,7 @@ int live_rps_interrupt(void *arg)
 	int err = 0;
 
 	/*
-	 * First, let's check whether or not we are receiving interrupts.
+	 * First, let's check whether or analt we are receiving interrupts.
 	 */
 
 	if (!intel_rps_has_interrupts(rps) || GRAPHICS_VER(gt->i915) < 6)
@@ -1040,12 +1040,12 @@ int live_rps_interrupt(void *arg)
 	with_intel_gt_pm(gt, wakeref)
 		pm_events = rps->pm_events;
 	if (!pm_events) {
-		pr_err("No RPS PM events registered, but RPS is enabled?\n");
-		return -ENODEV;
+		pr_err("Anal RPS PM events registered, but RPS is enabled?\n");
+		return -EANALDEV;
 	}
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_gt_pm_wait_for_idle(gt);
 	saved_work = rps->work.func;
@@ -1151,7 +1151,7 @@ int live_rps_power(void *arg)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_gt_pm_wait_for_idle(gt);
 	saved_work = rps->work.func;
@@ -1171,7 +1171,7 @@ int live_rps_power(void *arg)
 
 		rq = igt_spinner_create_request(&spin,
 						engine->kernel_context,
-						MI_NOOP);
+						MI_ANALOP);
 		if (IS_ERR(rq)) {
 			st_engine_heartbeat_enable(engine);
 			err = PTR_ERR(rq);
@@ -1181,7 +1181,7 @@ int live_rps_power(void *arg)
 		i915_request_add(rq);
 
 		if (!igt_wait_for_spinner(&spin, rq)) {
-			pr_err("%s: RPS spinner did not start\n",
+			pr_err("%s: RPS spinner did analt start\n",
 			       engine->name);
 			igt_spinner_end(&spin);
 			st_engine_heartbeat_enable(engine);
@@ -1205,14 +1205,14 @@ int live_rps_power(void *arg)
 			max.power, intel_gpu_freq(rps, max.freq));
 
 		if (10 * min.freq >= 9 * max.freq) {
-			pr_notice("Could not control frequency, ran at [%d:%uMHz, %d:%uMhz]\n",
+			pr_analtice("Could analt control frequency, ran at [%d:%uMHz, %d:%uMhz]\n",
 				  min.freq, intel_gpu_freq(rps, min.freq),
 				  max.freq, intel_gpu_freq(rps, max.freq));
 			continue;
 		}
 
 		if (11 * min.power > 10 * max.power) {
-			pr_err("%s: did not conserve power when setting lower frequency!\n",
+			pr_err("%s: did analt conserve power when setting lower frequency!\n",
 			       engine->name);
 			err = -EINVAL;
 			break;
@@ -1244,7 +1244,7 @@ int live_rps_dynamic(void *arg)
 	/*
 	 * We've looked at the bascs, and have established that we
 	 * can change the clock frequency and that the HW will generate
-	 * interrupts based on load. Now we check how we integrate those
+	 * interrupts based on load. Analw we check how we integrate those
 	 * moving parts into dynamic reclocking based on load.
 	 */
 
@@ -1252,7 +1252,7 @@ int live_rps_dynamic(void *arg)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (intel_rps_has_interrupts(rps))
 		pr_info("RPS has interrupt support\n");
@@ -1279,7 +1279,7 @@ int live_rps_dynamic(void *arg)
 
 		rq = igt_spinner_create_request(&spin,
 						engine->kernel_context,
-						MI_NOOP);
+						MI_ANALOP);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto err;

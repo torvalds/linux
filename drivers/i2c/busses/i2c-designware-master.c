@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare I2C adapter driver (master only).
+ * Syanalpsys DesignWare I2C adapter driver (master only).
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -10,7 +10,7 @@
  */
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -60,7 +60,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	sda_falling_time = t->sda_fall_ns ?: 300; /* ns */
 	scl_falling_time = t->scl_fall_ns ?: 300; /* ns */
 
-	/* Calculate SCL timing parameters for standard mode if not set */
+	/* Calculate SCL timing parameters for standard mode if analt set */
 	if (!dev->ss_hcnt || !dev->ss_lcnt) {
 		ic_clk = i2c_dw_clk_rate(dev);
 		dev->ss_hcnt =
@@ -68,12 +68,12 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 					4000,	/* tHD;STA = tHIGH = 4.0 us */
 					sda_falling_time,
 					0,	/* 0: DW default, 1: Ideal */
-					0);	/* No offset */
+					0);	/* Anal offset */
 		dev->ss_lcnt =
 			i2c_dw_scl_lcnt(ic_clk,
 					4700,	/* tLOW = 4.7 us */
 					scl_falling_time,
-					0);	/* No offset */
+					0);	/* Anal offset */
 	}
 	dev_dbg(dev->dev, "Standard Mode HCNT:LCNT = %d:%d\n",
 		dev->ss_hcnt, dev->ss_lcnt);
@@ -86,7 +86,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	if (t->bus_freq_hz == I2C_MAX_FAST_MODE_PLUS_FREQ) {
 		/*
 		 * Check are Fast Mode Plus parameters available. Calculate
-		 * SCL timing parameters for Fast Mode Plus if not set.
+		 * SCL timing parameters for Fast Mode Plus if analt set.
 		 */
 		if (dev->fp_hcnt && dev->fp_lcnt) {
 			dev->fs_hcnt = dev->fp_hcnt;
@@ -98,17 +98,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 						260,	/* tHIGH = 260 ns */
 						sda_falling_time,
 						0,	/* DW default */
-						0);	/* No offset */
+						0);	/* Anal offset */
 			dev->fs_lcnt =
 				i2c_dw_scl_lcnt(ic_clk,
 						500,	/* tLOW = 500 ns */
 						scl_falling_time,
-						0);	/* No offset */
+						0);	/* Anal offset */
 		}
 		fp_str = " Plus";
 	}
 	/*
-	 * Calculate SCL timing parameters for fast mode if not set. They are
+	 * Calculate SCL timing parameters for fast mode if analt set. They are
 	 * needed also in high speed mode.
 	 */
 	if (!dev->fs_hcnt || !dev->fs_lcnt) {
@@ -118,22 +118,22 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 					600,	/* tHD;STA = tHIGH = 0.6 us */
 					sda_falling_time,
 					0,	/* 0: DW default, 1: Ideal */
-					0);	/* No offset */
+					0);	/* Anal offset */
 		dev->fs_lcnt =
 			i2c_dw_scl_lcnt(ic_clk,
 					1300,	/* tLOW = 1.3 us */
 					scl_falling_time,
-					0);	/* No offset */
+					0);	/* Anal offset */
 	}
 	dev_dbg(dev->dev, "Fast Mode%s HCNT:LCNT = %d:%d\n",
 		fp_str, dev->fs_hcnt, dev->fs_lcnt);
 
-	/* Check is high speed possible and fall back to fast mode if not */
+	/* Check is high speed possible and fall back to fast mode if analt */
 	if ((dev->master_cfg & DW_IC_CON_SPEED_MASK) ==
 		DW_IC_CON_SPEED_HIGH) {
 		if ((comp_param1 & DW_IC_COMP_PARAM_1_SPEED_MODE_MASK)
 			!= DW_IC_COMP_PARAM_1_SPEED_MODE_HIGH) {
-			dev_err(dev->dev, "High Speed not supported!\n");
+			dev_err(dev->dev, "High Speed analt supported!\n");
 			t->bus_freq_hz = I2C_MAX_FAST_MODE_FREQ;
 			dev->master_cfg &= ~DW_IC_CON_SPEED_MASK;
 			dev->master_cfg |= DW_IC_CON_SPEED_FAST;
@@ -146,12 +146,12 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 						160,	/* tHIGH = 160 ns */
 						sda_falling_time,
 						0,	/* DW default */
-						0);	/* No offset */
+						0);	/* Anal offset */
 			dev->hs_lcnt =
 				i2c_dw_scl_lcnt(ic_clk,
 						320,	/* tLOW = 320 ns */
 						scl_falling_time,
-						0);	/* No offset */
+						0);	/* Anal offset */
 		}
 		dev_dbg(dev->dev, "High Speed Mode HCNT:LCNT = %d:%d\n",
 			dev->hs_hcnt, dev->hs_lcnt);
@@ -271,7 +271,7 @@ static int i2c_dw_status(struct dw_i2c_dev *dev)
 {
 	int status;
 
-	status = i2c_dw_wait_bus_not_busy(dev);
+	status = i2c_dw_wait_bus_analt_busy(dev);
 	if (status)
 		return status;
 
@@ -326,7 +326,7 @@ static int amd_i2c_dw_xfer_quirk(struct i2c_adapter *adap, struct i2c_msg *msgs,
 					regmap_write(dev->map, DW_IC_TX_TL, 2 * (buf_len - 1));
 					regmap_write(dev->map, DW_IC_RX_TL, 2 * (buf_len - 1));
 					/*
-					 * Need to check the stop bit. However, it cannot be
+					 * Need to check the stop bit. However, it cananalt be
 					 * detected from the registers so we check it always
 					 * when read/write the last byte.
 					 */
@@ -477,7 +477,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 
 			/*
 			 * If IC_EMPTYFIFO_HOLD_MASTER_EN is set we must
-			 * manually set the stop bit. However, it cannot be
+			 * manually set the stop bit. However, it cananalt be
 			 * detected from the registers so we set it always
 			 * when writing/reading the last byte.
 			 */
@@ -518,7 +518,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 		dev->tx_buf_len = buf_len;
 
 		/*
-		 * Because we don't know the buffer length in the
+		 * Because we don't kanalw the buffer length in the
 		 * I2C_FUNC_SMBUS_BLOCK_DATA case, we can't stop the
 		 * transaction here. Also disable the TX_EMPTY IRQ
 		 * while waiting for the data length byte to avoid the
@@ -606,12 +606,12 @@ i2c_dw_read(struct dw_i2c_dev *dev)
 			/* Ensure length byte is a valid value */
 			if (flags & I2C_M_RECV_LEN) {
 				/*
-				 * if IC_EMPTYFIFO_HOLD_MASTER_EN is set, which cannot be
+				 * if IC_EMPTYFIFO_HOLD_MASTER_EN is set, which cananalt be
 				 * detected from the registers, the controller can be
 				 * disabled if the STOP bit is set. But it is only set
 				 * after receiving block data response length in
 				 * I2C_FUNC_SMBUS_BLOCK_DATA case. That needs to read
-				 * another byte with STOP bit set when the block data
+				 * aanalther byte with STOP bit set when the block data
 				 * response length is invalid to complete the transaction.
 				 */
 				if (!tmp || tmp > I2C_SMBUS_BLOCK_MAX)
@@ -648,16 +648,16 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	/*
 	 * Initiate I2C message transfer when polling mode is enabled,
-	 * As it is polling based transfer mechanism, which does not support
+	 * As it is polling based transfer mechanism, which does analt support
 	 * interrupt based functionalities of existing DesignWare driver.
 	 */
 	switch (dev->flags & MODEL_MASK) {
 	case MODEL_AMD_NAVI_GPU:
 		ret = amd_i2c_dw_xfer_quirk(adap, msgs, num);
-		goto done_nolock;
+		goto done_anallock;
 	case MODEL_WANGXUN_SP:
 		ret = txgbe_i2c_dw_xfer_quirk(adap, msgs, num);
-		goto done_nolock;
+		goto done_anallock;
 	default:
 		break;
 	}
@@ -675,9 +675,9 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
-		goto done_nolock;
+		goto done_anallock;
 
-	ret = i2c_dw_wait_bus_not_busy(dev);
+	ret = i2c_dw_wait_bus_analt_busy(dev);
 	if (ret < 0)
 		goto done;
 
@@ -702,14 +702,14 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	 * additional interrupts are a hardware bug or this driver doesn't
 	 * handle them correctly yet.
 	 */
-	__i2c_dw_disable_nowait(dev);
+	__i2c_dw_disable_analwait(dev);
 
 	if (dev->msg_err) {
 		ret = dev->msg_err;
 		goto done;
 	}
 
-	/* No error */
+	/* Anal error */
 	if (likely(!dev->cmd_err && !dev->status)) {
 		ret = num;
 		goto done;
@@ -730,7 +730,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 done:
 	i2c_dw_release_lock(dev);
 
-done_nolock:
+done_anallock:
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
@@ -743,7 +743,7 @@ static const struct i2c_algorithm i2c_dw_algo = {
 };
 
 static const struct i2c_adapter_quirks i2c_dw_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 };
 
 static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
@@ -765,7 +765,7 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 	regmap_read(dev->map, DW_IC_INTR_STAT, &stat);
 
 	/*
-	 * Do not use the IC_CLR_INTR register to clear interrupts, or
+	 * Do analt use the IC_CLR_INTR register to clear interrupts, or
 	 * you'll miss some interrupts, triggered during the period from
 	 * readl(IC_INTR_STAT) to readl(IC_CLR_INTR).
 	 *
@@ -814,9 +814,9 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
 	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &stat);
 	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	if (pm_runtime_suspended(dev->dev) || stat == GENMASK(31, 0))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	dev_dbg(dev->dev, "enabled=%#x stat=%#x\n", enabled, stat);
 
 	stat = i2c_dw_read_clear_intrbits(dev);
@@ -824,7 +824,7 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	if (!(dev->status & STATUS_ACTIVE)) {
 		/*
 		 * Unexpected interrupt in driver point of view. State
-		 * variables are either unset or stale so acknowledge and
+		 * variables are either unset or stale so ackanalwledge and
 		 * disable interrupts for suppressing further interrupts if
 		 * interrupt really came from this HW (E.g. firmware has left
 		 * the HW active).
@@ -853,7 +853,7 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 		i2c_dw_xfer_msg(dev);
 
 	/*
-	 * No need to modify or disable the interrupt mask here.
+	 * Anal need to modify or disable the interrupt mask here.
 	 * i2c_dw_xfer_msg() will take care of it according to
 	 * the current transmit status.
 	 */
@@ -937,9 +937,9 @@ static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
 			return PTR_ERR(rinfo->pinctrl);
 
 		rinfo->pinctrl = NULL;
-		dev_err(dev->dev, "getting pinctrl info failed: bus recovery might not work\n");
+		dev_err(dev->dev, "getting pinctrl info failed: bus recovery might analt work\n");
 	} else if (!rinfo->pinctrl) {
-		dev_dbg(dev->dev, "pinctrl is disabled, bus recovery might not work\n");
+		dev_dbg(dev->dev, "pinctrl is disabled, bus recovery might analt work\n");
 	}
 
 	rinfo->recover_bus = i2c_generic_scl_recovery;
@@ -958,11 +958,11 @@ static int i2c_dw_poll_adap_quirk(struct dw_i2c_dev *dev)
 	struct i2c_adapter *adap = &dev->adapter;
 	int ret;
 
-	pm_runtime_get_noresume(dev->dev);
+	pm_runtime_get_analresume(dev->dev);
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret)
 		dev_err(dev->dev, "Failed to add adapter: %d\n", ret);
-	pm_runtime_put_noidle(dev->dev);
+	pm_runtime_put_analidle(dev->dev);
 
 	return ret;
 }
@@ -1010,7 +1010,7 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	/*
 	 * On AMD platforms BIOS advertises the bus clear feature
 	 * and enables the SCL/SDA stuck low. SMU FW does the
-	 * bus recovery process. Driver should not ignore this BIOS
+	 * bus recovery process. Driver should analt iganalre this BIOS
 	 * advertisement of bus clear feature.
 	 */
 	ret = regmap_read(dev->map, DW_IC_CON, &ic_con);
@@ -1026,7 +1026,7 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 		return ret;
 
 	snprintf(adap->name, sizeof(adap->name),
-		 "Synopsys DesignWare I2C adapter");
+		 "Syanalpsys DesignWare I2C adapter");
 	adap->retries = 3;
 	adap->algo = &i2c_dw_algo;
 	adap->quirks = &i2c_dw_quirks;
@@ -1036,8 +1036,8 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	if (i2c_dw_is_model_poll(dev))
 		return i2c_dw_poll_adap_quirk(dev);
 
-	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
-		irq_flags = IRQF_NO_SUSPEND;
+	if (dev->flags & ACCESS_ANAL_IRQ_SUSPEND) {
+		irq_flags = IRQF_ANAL_SUSPEND;
 	} else {
 		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
 	}
@@ -1067,15 +1067,15 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	 * registered to the device core and immediate resume in case bus has
 	 * registered I2C slaves that do I2C transfers in their probe.
 	 */
-	pm_runtime_get_noresume(dev->dev);
+	pm_runtime_get_analresume(dev->dev);
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret)
 		dev_err(dev->dev, "failure adding adapter: %d\n", ret);
-	pm_runtime_put_noidle(dev->dev);
+	pm_runtime_put_analidle(dev->dev);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i2c_dw_probe_master);
 
-MODULE_DESCRIPTION("Synopsys DesignWare I2C bus master adapter");
+MODULE_DESCRIPTION("Syanalpsys DesignWare I2C bus master adapter");
 MODULE_LICENSE("GPL");

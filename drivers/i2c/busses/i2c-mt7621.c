@@ -182,7 +182,7 @@ static int mtk_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		}
 
 		/* check address ACK */
-		if (!(pmsg->flags & I2C_M_IGNORE_NAK)) {
+		if (!(pmsg->flags & I2C_M_IGANALRE_NAK)) {
 			ret = mtk_i2c_check_ack(i2c, BIT(0));
 			if (ret)
 				goto err_ack;
@@ -211,7 +211,7 @@ static int mtk_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 				data[1] = ioread32(i2c->base + REG_SM0D1_REG);
 				memcpy(&pmsg->buf[j], data, page_len);
 			} else {
-				if (!(pmsg->flags & I2C_M_IGNORE_NAK)) {
+				if (!(pmsg->flags & I2C_M_IGANALRE_NAK)) {
 					ret = mtk_i2c_check_ack(i2c,
 								(1 << page_len)
 								- 1);
@@ -277,7 +277,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct mtk_i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(i2c->base))
@@ -291,12 +291,12 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 
 	i2c->dev = &pdev->dev;
 
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	if (of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 				 &i2c->bus_freq))
 		i2c->bus_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
 	if (i2c->bus_freq == 0) {
-		dev_warn(i2c->dev, "clock-frequency 0 not supported\n");
+		dev_warn(i2c->dev, "clock-frequency 0 analt supported\n");
 		return -EINVAL;
 	}
 
@@ -306,7 +306,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	adap->retries = 3;
 	adap->dev.parent = &pdev->dev;
 	i2c_set_adapdata(adap, i2c);
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 	strscpy(adap->name, dev_name(&pdev->dev), sizeof(adap->name));
 
 	platform_set_drvdata(pdev, i2c);

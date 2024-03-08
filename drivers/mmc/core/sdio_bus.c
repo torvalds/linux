@@ -43,7 +43,7 @@ static DEVICE_ATTR_RO(field)
 sdio_config_attr(class, "0x%02x\n", func->class);
 sdio_config_attr(vendor, "0x%04x\n", func->vendor);
 sdio_config_attr(device, "0x%04x\n", func->device);
-sdio_config_attr(revision, "%u.%u\n", func->major_rev, func->minor_rev);
+sdio_config_attr(revision, "%u.%u\n", func->major_rev, func->mianalr_rev);
 sdio_config_attr(modalias, "sdio:c%02Xv%04Xd%04X\n", func->class, func->vendor, func->device);
 
 #define sdio_info_attr(num)									\
@@ -52,7 +52,7 @@ static ssize_t info##num##_show(struct device *dev, struct device_attribute *att
 	struct sdio_func *func = dev_to_sdio_func(dev);						\
 												\
 	if (num > func->num_info)								\
-		return -ENODATA;								\
+		return -EANALDATA;								\
 	if (!func->info[num - 1][0])								\
 		return 0;									\
 	return sysfs_emit(buf, "%s\n", func->info[num - 1]);					\
@@ -127,25 +127,25 @@ sdio_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 
 	if (add_uevent_var(env,
 			"SDIO_CLASS=%02X", func->class))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env, 
 			"SDIO_ID=%04X:%04X", func->vendor, func->device))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env,
-			"SDIO_REVISION=%u.%u", func->major_rev, func->minor_rev))
-		return -ENOMEM;
+			"SDIO_REVISION=%u.%u", func->major_rev, func->mianalr_rev))
+		return -EANALMEM;
 
 	for (i = 0; i < func->num_info; i++) {
 		if (add_uevent_var(env, "SDIO_INFO%u=%s", i+1, func->info[i]))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (add_uevent_var(env,
 			"MODALIAS=sdio:c%02Xv%04Xd%04X",
 			func->class, func->vendor, func->device))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -159,7 +159,7 @@ static int sdio_bus_probe(struct device *dev)
 
 	id = sdio_match_device(func, drv);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = dev_pm_domain_attach(dev, false);
 	if (ret)
@@ -170,8 +170,8 @@ static int sdio_bus_probe(struct device *dev)
 	/* Unbound SDIO functions are always suspended.
 	 * During probe, the function is set active and the usage count
 	 * is incremented.  If the driver supports runtime PM,
-	 * it should call pm_runtime_put_noidle() in its probe routine and
-	 * pm_runtime_get_noresume() in its remove routine.
+	 * it should call pm_runtime_put_analidle() in its probe routine and
+	 * pm_runtime_get_analresume() in its remove routine.
 	 */
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD) {
 		ret = pm_runtime_get_sync(dev);
@@ -183,7 +183,7 @@ static int sdio_bus_probe(struct device *dev)
 	 * sensible. */
 	sdio_claim_host(func);
 	if (mmc_card_removed(func->card))
-		ret = -ENOMEDIUM;
+		ret = -EANALMEDIUM;
 	else
 		ret = sdio_set_block_size(func, 0);
 	sdio_release_host(func);
@@ -199,7 +199,7 @@ static int sdio_bus_probe(struct device *dev)
 disable_runtimepm:
 	atomic_dec(&func->card->sdio_funcs_probed);
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 	dev_pm_domain_detach(dev, false);
 	return ret;
 }
@@ -217,7 +217,7 @@ static void sdio_bus_remove(struct device *dev)
 	atomic_dec(&func->card->sdio_funcs_probed);
 
 	if (func->irq_handler) {
-		pr_warn("WARNING: driver %s did not remove its interrupt handler!\n",
+		pr_warn("WARNING: driver %s did analt remove its interrupt handler!\n",
 			drv->name);
 		sdio_claim_host(func);
 		sdio_release_irq(func);
@@ -226,7 +226,7 @@ static void sdio_bus_remove(struct device *dev)
 
 	/* First, undo the increment made directly above */
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 
 	/* Then undo the runtime PM settings in sdio_bus_probe() */
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
@@ -291,11 +291,11 @@ static void sdio_release_func(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 
-	if (!(func->card->quirks & MMC_QUIRK_NONSTD_SDIO))
+	if (!(func->card->quirks & MMC_QUIRK_ANALNSTD_SDIO))
 		sdio_free_func_cis(func);
 
 	/*
-	 * We have now removed the link to the tuples in the
+	 * We have analw removed the link to the tuples in the
 	 * card structure, so remove the reference.
 	 */
 	put_device(&func->card->dev);
@@ -314,7 +314,7 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 
 	func = kzalloc(sizeof(struct sdio_func), GFP_KERNEL);
 	if (!func)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * allocate buffer separately to make sure it's properly aligned for
@@ -323,7 +323,7 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 	func->tmpbuf = kmalloc(4, GFP_KERNEL);
 	if (!func->tmpbuf) {
 		kfree(func);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	func->card = card;
@@ -347,7 +347,7 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 static void sdio_acpi_set_handle(struct sdio_func *func)
 {
 	struct mmc_host *host = func->card->host;
-	u64 addr = ((u64)host->slotno << 16) | func->num;
+	u64 addr = ((u64)host->slotanal << 16) | func->num;
 
 	acpi_preset_companion(&func->dev, ACPI_COMPANION(host->parent), addr);
 }
@@ -355,11 +355,11 @@ static void sdio_acpi_set_handle(struct sdio_func *func)
 static inline void sdio_acpi_set_handle(struct sdio_func *func) {}
 #endif
 
-static void sdio_set_of_node(struct sdio_func *func)
+static void sdio_set_of_analde(struct sdio_func *func)
 {
 	struct mmc_host *host = func->card->host;
 
-	func->dev.of_node = mmc_of_find_child_device(host, func->num);
+	func->dev.of_analde = mmc_of_find_child_device(host, func->num);
 }
 
 /*
@@ -371,7 +371,7 @@ int sdio_add_func(struct sdio_func *func)
 
 	dev_set_name(&func->dev, "%s:%d", mmc_card_id(func->card), func->num);
 
-	sdio_set_of_node(func);
+	sdio_set_of_analde(func);
 	sdio_acpi_set_handle(func);
 	device_enable_async_suspend(&func->dev);
 	ret = device_add(&func->dev);
@@ -392,7 +392,7 @@ void sdio_remove_func(struct sdio_func *func)
 	if (sdio_func_present(func))
 		device_del(&func->dev);
 
-	of_node_put(func->dev.of_node);
+	of_analde_put(func->dev.of_analde);
 	put_device(&func->dev);
 }
 

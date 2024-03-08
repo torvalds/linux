@@ -21,7 +21,7 @@
 #define WBRF_REVISION		0x1
 
 /*
- * The data structure used for WBRF_RETRIEVE is not naturally aligned.
+ * The data structure used for WBRF_RETRIEVE is analt naturally aligned.
  * And unfortunately the design has been settled down.
  */
 struct amd_wbrf_ranges_out {
@@ -34,10 +34,10 @@ static const guid_t wifi_acpi_dsm_guid =
 		  0x83, 0xe9, 0x66, 0xe7, 0x21, 0xde, 0x30, 0x70);
 
 /*
- * Used to notify consumer (amdgpu driver currently) about
+ * Used to analtify consumer (amdgpu driver currently) about
  * the wifi frequency is change.
  */
-static BLOCKING_NOTIFIER_HEAD(wbrf_chain_head);
+static BLOCKING_ANALTIFIER_HEAD(wbrf_chain_head);
 
 static int wbrf_record(struct acpi_device *adev, uint8_t action, struct wbrf_ranges_in_out *in)
 {
@@ -76,7 +76,7 @@ static int wbrf_record(struct acpi_device *adev, uint8_t action, struct wbrf_ran
 
 	tmp = kcalloc(num_of_elements, sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	argv4.package.type = ACPI_TYPE_PACKAGE;
 	argv4.package.count = num_of_elements;
@@ -132,9 +132,9 @@ out:
  *
  * Broadcast to other consumers the frequency band the device starts
  * to use. Underneath the surface the information is cached into an
- * internal buffer first. Then a notification is sent to all those
+ * internal buffer first. Then a analtification is sent to all those
  * registered consumers. So then they can retrieve that buffer to
- * know the latest active frequency bands. Consumers that haven't
+ * kanalw the latest active frequency bands. Consumers that haven't
  * yet been registered can retrieve the information from the cache
  * when they register.
  *
@@ -149,13 +149,13 @@ int acpi_amd_wbrf_add_remove(struct device *dev, uint8_t action, struct wbrf_ran
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = wbrf_record(adev, action, in);
 	if (ret)
 		return ret;
 
-	blocking_notifier_call_chain(&wbrf_chain_head, WBRF_CHANGED, NULL);
+	blocking_analtifier_call_chain(&wbrf_chain_head, WBRF_CHANGED, NULL);
 
 	return 0;
 }
@@ -236,7 +236,7 @@ int amd_wbrf_retrieve_freq_band(struct device *dev, struct wbrf_ranges_in_out *o
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	param.type = ACPI_TYPE_STRING;
 	param.string.length = 0;
@@ -278,29 +278,29 @@ out:
 EXPORT_SYMBOL_GPL(amd_wbrf_retrieve_freq_band);
 
 /**
- * amd_wbrf_register_notifier - register for notifications of frequency
+ * amd_wbrf_register_analtifier - register for analtifications of frequency
  *                                   band update
  *
- * @nb: driver notifier block
+ * @nb: driver analtifier block
  *
  * The consumer should register itself via this API so that it can get
- * notified on the frequency band updates from other producers.
+ * analtified on the frequency band updates from other producers.
  *
  * Return:
  * 0 for registering a consumer driver successfully.
  * Returns a negative error code for failure.
  */
-int amd_wbrf_register_notifier(struct notifier_block *nb)
+int amd_wbrf_register_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&wbrf_chain_head, nb);
+	return blocking_analtifier_chain_register(&wbrf_chain_head, nb);
 }
-EXPORT_SYMBOL_GPL(amd_wbrf_register_notifier);
+EXPORT_SYMBOL_GPL(amd_wbrf_register_analtifier);
 
 /**
- * amd_wbrf_unregister_notifier - unregister for notifications of
+ * amd_wbrf_unregister_analtifier - unregister for analtifications of
  *                                     frequency band update
  *
- * @nb: driver notifier block
+ * @nb: driver analtifier block
  *
  * The consumer should call this API when it is longer interested with
  * the frequency band updates from other producers. Usually, this should
@@ -310,8 +310,8 @@ EXPORT_SYMBOL_GPL(amd_wbrf_register_notifier);
  * 0 for unregistering a consumer driver.
  * Returns a negative error code for failure.
  */
-int amd_wbrf_unregister_notifier(struct notifier_block *nb)
+int amd_wbrf_unregister_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&wbrf_chain_head, nb);
+	return blocking_analtifier_chain_unregister(&wbrf_chain_head, nb);
 }
-EXPORT_SYMBOL_GPL(amd_wbrf_unregister_notifier);
+EXPORT_SYMBOL_GPL(amd_wbrf_unregister_analtifier);

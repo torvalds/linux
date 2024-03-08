@@ -26,7 +26,7 @@
 #define MAX_SCAN_DELAY		128
 #define MIN_SCAN_DELAY		1
 
-/* in nanoseconds */
+/* in naanalseconds */
 #define MAX_ROW_HOLD_DELAY	122000
 #define MIN_ROW_HOLD_DELAY	30500
 
@@ -81,7 +81,7 @@
  * @input: input device pointer for keypad
  * @regmap: regmap handle
  * @key_sense_irq: key press/release irq number
- * @key_stuck_irq: key stuck notification irq number
+ * @key_stuck_irq: key stuck analtification irq number
  * @keycodes: array to hold the key codes
  * @dev: parent device pointer
  * @keystate: present key press/release state
@@ -115,16 +115,16 @@ static u8 pmic8xxx_col_state(struct pmic8xxx_kp *kp, u8 col)
 }
 
 /*
- * Synchronous read protocol for RevB0 onwards:
+ * Synchroanalus read protocol for RevB0 onwards:
  *
  * 1. Write '1' to ReadState bit in KEYP_SCAN register
  * 2. Wait 2*32KHz clocks, so that HW can successfully enter read mode
- *    synchronously
+ *    synchroanalusly
  * 3. Read rows in old array first if events are more than one
  * 4. Read rows in recent array
  * 5. Wait 4*32KHz clocks
  * 6. Write '0' to ReadState bit of KEYP_SCAN register so that hw can
- *    synchronously exit read mode.
+ *    synchroanalusly exit read mode.
  */
 static int pmic8xxx_chk_sync_read(struct pmic8xxx_kp *kp)
 {
@@ -283,7 +283,7 @@ static int pmic8xxx_kp_scan_matrix(struct pmic8xxx_kp *kp, unsigned int events)
 		if (rc < 0)
 			return rc;
 
-		/* detecting ghost key is not an error */
+		/* detecting ghost key is analt an error */
 		if (pmic8xxx_detect_ghost_keys(kp, new_state))
 			return 0;
 		__pmic8xxx_kp_scan_matrix(kp, new_state, kp->keystate);
@@ -314,12 +314,12 @@ static int pmic8xxx_kp_scan_matrix(struct pmic8xxx_kp *kp, unsigned int events)
 }
 
 /*
- * NOTE: We are reading recent and old data registers blindly
+ * ANALTE: We are reading recent and old data registers blindly
  * whenever key-stuck interrupt happens, because events counter doesn't
  * get updated when this interrupt happens due to key stuck doesn't get
  * considered as key state change.
  *
- * We are not using old data register contents after they are being read
+ * We are analt using old data register contents after they are being read
  * because it might report the key which was pressed before the key being stuck
  * as stuck key because it's pressed status is stored in the old data
  * register.
@@ -366,7 +366,7 @@ static irqreturn_t pmic8xxx_kp_irq(int irq, void *data)
 static int pmic8xxx_kpd_init(struct pmic8xxx_kp *kp,
 			     struct platform_device *pdev)
 {
-	const struct device_node *of_node = pdev->dev.of_node;
+	const struct device_analde *of_analde = pdev->dev.of_analde;
 	unsigned int scan_delay_ms;
 	unsigned int row_hold_ns;
 	unsigned int debounce_ms;
@@ -398,7 +398,7 @@ static int pmic8xxx_kpd_init(struct pmic8xxx_kp *kp,
 		return rc;
 	}
 
-	if (of_property_read_u32(of_node, "scan-delay", &scan_delay_ms))
+	if (of_property_read_u32(of_analde, "scan-delay", &scan_delay_ms))
 		scan_delay_ms = MIN_SCAN_DELAY;
 
 	if (scan_delay_ms > MAX_SCAN_DELAY || scan_delay_ms < MIN_SCAN_DELAY ||
@@ -407,7 +407,7 @@ static int pmic8xxx_kpd_init(struct pmic8xxx_kp *kp,
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(of_node, "row-hold", &row_hold_ns))
+	if (of_property_read_u32(of_analde, "row-hold", &row_hold_ns))
 		row_hold_ns = MIN_ROW_HOLD_DELAY;
 
 	if (row_hold_ns > MAX_ROW_HOLD_DELAY ||
@@ -417,7 +417,7 @@ static int pmic8xxx_kpd_init(struct pmic8xxx_kp *kp,
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(of_node, "debounce", &debounce_ms))
+	if (of_property_read_u32(of_analde, "debounce", &debounce_ms))
 		debounce_ms = MIN_DEBOUNCE_TIME;
 
 	if (((debounce_ms % 5) != 0) ||
@@ -491,7 +491,7 @@ static void pmic8xxx_kp_close(struct input_dev *dev)
  * keypad controller should be initialized in the following sequence
  * only, otherwise it might get into FSM stuck state.
  *
- * - Initialize keypad control parameters, like no. of rows, columns,
+ * - Initialize keypad control parameters, like anal. of rows, columns,
  *   timing values etc.,
  * - configure rows and column gpios pull up/down.
  * - set irq edge type.
@@ -499,7 +499,7 @@ static void pmic8xxx_kp_close(struct input_dev *dev)
  */
 static int pmic8xxx_kp_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	unsigned int rows, cols;
 	bool repeat;
 	bool wakeup;
@@ -517,7 +517,7 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	repeat = !of_property_read_bool(np, "linux,input-no-autorepeat");
+	repeat = !of_property_read_bool(np, "linux,input-anal-autorepeat");
 
 	wakeup = of_property_read_bool(np, "wakeup-source") ||
 		 /* legacy name */
@@ -525,11 +525,11 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 
 	kp = devm_kzalloc(&pdev->dev, sizeof(*kp), GFP_KERNEL);
 	if (!kp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kp->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!kp->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	platform_set_drvdata(pdev, kp);
 
@@ -540,7 +540,7 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 	kp->input = devm_input_allocate_device(&pdev->dev);
 	if (!kp->input) {
 		dev_err(&pdev->dev, "unable to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kp->key_sense_irq = platform_get_irq(pdev, 0);

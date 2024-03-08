@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/smp.h>
 
 #include "../cpuid.h"
@@ -34,7 +34,7 @@ uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 	 * maximum supported version. KVM supports versions from 1 to
 	 * KVM_EVMCS_VERSION.
 	 *
-	 * Note, do not check the Hyper-V is fully enabled in guest CPUID, this
+	 * Analte, do analt check the Hyper-V is fully enabled in guest CPUID, this
 	 * helper is used to _get_ the vCPU's supported CPUID.
 	 */
 	if (kvm_cpu_cap_get(X86_FEATURE_VMX) &&
@@ -97,8 +97,8 @@ static bool evmcs_has_perf_global_ctrl(struct kvm_vcpu *vcpu)
 
 	/*
 	 * PERF_GLOBAL_CTRL has a quirk where some Windows guests may fail to
-	 * boot if a PV CPUID feature flag is not also set.  Treat the fields
-	 * as unsupported if the flag is not set in guest CPUID.  This should
+	 * boot if a PV CPUID feature flag is analt also set.  Treat the fields
+	 * as unsupported if the flag is analt set in guest CPUID.  This should
 	 * be called only for guest accesses, and all guest accesses should be
 	 * gated on Hyper-V being enabled and initialized.
 	 */
@@ -116,7 +116,7 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 
 	/*
 	 * Hyper-V 2016 and 2019 try using these features even when eVMCS
-	 * is enabled but there are no corresponding fields.
+	 * is enabled but there are anal corresponding fields.
 	 */
 	switch (msr_index) {
 	case MSR_IA32_VMX_EXIT_CTLS:

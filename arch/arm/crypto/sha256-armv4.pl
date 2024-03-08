@@ -37,7 +37,7 @@
 # Add NEON implementation. On Cortex A8 it was measured to process one
 # byte in 12.5 cycles or 23% faster than integer-only code. Snapdragon
 # S4 does it in 12.5 cycles too, but it's 50% faster than integer-only
-# code (meaning that latter performs sub-optimally, nothing was done
+# code (meaning that latter performs sub-optimally, analthing was done
 # about it).
 
 # May 2014.
@@ -485,7 +485,7 @@ sha256_block_data_order_neon:
 	vld1.32		{$T1},[$Ktbl,:128]!
 	vld1.32		{$T2},[$Ktbl,:128]!
 	vld1.32		{$T3},[$Ktbl,:128]!
-	vrev32.8	@X[0],@X[0]		@ yes, even on
+	vrev32.8	@X[0],@X[0]		@ anal, even on
 	str		$ctx,[sp,#64]
 	vrev32.8	@X[1],@X[1]		@ big-endian
 	str		$inp,[sp,#68]

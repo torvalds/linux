@@ -660,7 +660,7 @@ static struct tegra_clk tegra114_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_kbc] = { .dt_id = TEGRA114_CLK_KBC, .present = true },
 	[tegra_clk_kfuse] = { .dt_id = TEGRA114_CLK_KFUSE, .present = true },
 	[tegra_clk_sbc1_8] = { .dt_id = TEGRA114_CLK_SBC1, .present = true },
-	[tegra_clk_nor] = { .dt_id = TEGRA114_CLK_NOR, .present = true },
+	[tegra_clk_analr] = { .dt_id = TEGRA114_CLK_ANALR, .present = true },
 	[tegra_clk_sbc2_8] = { .dt_id = TEGRA114_CLK_SBC2, .present = true },
 	[tegra_clk_sbc3_8] = { .dt_id = TEGRA114_CLK_SBC3, .present = true },
 	[tegra_clk_i2c5] = { .dt_id = TEGRA114_CLK_I2C5, .present = true },
@@ -935,7 +935,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 				clk_base + PLLM_OUT, 0, TEGRA_DIVIDER_ROUND_UP,
 				8, 8, 1, NULL);
 	clk = tegra_clk_register_pll_out("pll_m_out1", "pll_m_out1_div",
-				clk_base + PLLM_OUT, 1, 0, CLK_IGNORE_UNUSED |
+				clk_base + PLLM_OUT, 1, 0, CLK_IGANALRE_UNUSED |
 				CLK_SET_RATE_PARENT, 0, NULL);
 	clks[TEGRA114_CLK_PLL_M_OUT1] = clk;
 
@@ -1008,7 +1008,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 #define CLK_SOURCE_VI_SENSOR 0x1a8
 
 static struct tegra_periph_init_data tegra_periph_clk_list[] = {
-	MUX8("vi_sensor", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_VI_SENSOR, 20, TEGRA_PERIPH_NO_RESET, TEGRA114_CLK_VI_SENSOR),
+	MUX8("vi_sensor", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_VI_SENSOR, 20, TEGRA_PERIPH_ANAL_RESET, TEGRA114_CLK_VI_SENSOR),
 };
 
 static __init void tegra114_periph_clk_init(void __iomem *clk_base,
@@ -1026,14 +1026,14 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base,
 	/* dsia mux */
 	clk = clk_register_mux(NULL, "dsia_mux", mux_plld_out0_plld2_out0,
 			       ARRAY_SIZE(mux_plld_out0_plld2_out0),
-			       CLK_SET_RATE_NO_REPARENT,
+			       CLK_SET_RATE_ANAL_REPARENT,
 			       clk_base + PLLD_BASE, 25, 1, 0, &pll_d_lock);
 	clks[TEGRA114_CLK_DSIA_MUX] = clk;
 
 	/* dsib mux */
 	clk = clk_register_mux(NULL, "dsib_mux", mux_plld_out0_plld2_out0,
 			       ARRAY_SIZE(mux_plld_out0_plld2_out0),
-			       CLK_SET_RATE_NO_REPARENT,
+			       CLK_SET_RATE_ANAL_REPARENT,
 			       clk_base + PLLD2_BASE, 25, 1, 0, &pll_d2_lock);
 	clks[TEGRA114_CLK_DSIB_MUX] = clk;
 
@@ -1048,7 +1048,7 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base,
 	/* emc mux */
 	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,
 			       ARRAY_SIZE(mux_pllmcp_clkm),
-			       CLK_SET_RATE_NO_REPARENT,
+			       CLK_SET_RATE_ANAL_REPARENT,
 			       clk_base + CLK_SOURCE_EMC,
 			       29, 3, 0, &emc_lock);
 
@@ -1079,7 +1079,7 @@ static void tegra114_wait_cpu_in_reset(u32 cpu)
 	do {
 		reg = readl(clk_base + CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
 		cpu_relax();
-	} while (!(reg & (1 << cpu)));  /* check CPU been reset or not */
+	} while (!(reg & (1 << cpu)));  /* check CPU been reset or analt */
 }
 
 static void tegra114_disable_cpu_clock(u32 cpu)
@@ -1180,7 +1180,7 @@ static void __init tegra114_clock_apply_init_table(void)
  * tegra114_car_barrier - wait for pending writes to the CAR to complete
  *
  * Wait for any outstanding writes to the CAR MMIO space from this CPU
- * to complete before continuing execution.  No return value.
+ * to complete before continuing execution.  Anal return value.
  */
 static void tegra114_car_barrier(void)
 {
@@ -1193,7 +1193,7 @@ static void tegra114_car_barrier(void)
  *
  * When the CPU rail voltage is in the high-voltage range, use the
  * built-in hardwired clock propagation delays in the CPU clock
- * shaper.  No return value.
+ * shaper.  Anal return value.
  */
 void tegra114_clock_tune_cpu_trimmers_high(void)
 {
@@ -1216,7 +1216,7 @@ EXPORT_SYMBOL(tegra114_clock_tune_cpu_trimmers_high);
  * extended clock propagation delays set by
  * tegra114_clock_tune_cpu_trimmers_init().  The intention is to
  * maintain the input clock duty cycle that the FCPU subsystem
- * expects.  No return value.
+ * expects.  Anal return value.
  */
 void tegra114_clock_tune_cpu_trimmers_low(void)
 {
@@ -1241,7 +1241,7 @@ EXPORT_SYMBOL(tegra114_clock_tune_cpu_trimmers_low);
  *
  * Program extended clock propagation delays into the FCPU clock
  * shaper and enable them.  XXX Define the purpose - peak current
- * reduction?  No return value.
+ * reduction?  Anal return value.
  */
 /* XXX Initial voltage rail state assumption issues? */
 void tegra114_clock_tune_cpu_trimmers_init(void)
@@ -1270,7 +1270,7 @@ EXPORT_SYMBOL(tegra114_clock_tune_cpu_trimmers_init);
 /**
  * tegra114_clock_assert_dfll_dvco_reset - assert the DFLL's DVCO reset
  *
- * Assert the reset line of the DFLL's DVCO.  No return value.
+ * Assert the reset line of the DFLL's DVCO.  Anal return value.
  */
 void tegra114_clock_assert_dfll_dvco_reset(void)
 {
@@ -1287,7 +1287,7 @@ EXPORT_SYMBOL(tegra114_clock_assert_dfll_dvco_reset);
  * tegra114_clock_deassert_dfll_dvco_reset - deassert the DFLL's DVCO reset
  *
  * Deassert the reset line of the DFLL's DVCO, allowing the DVCO to
- * operate.  No return value.
+ * operate.  Anal return value.
  */
 void tegra114_clock_deassert_dfll_dvco_reset(void)
 {
@@ -1300,9 +1300,9 @@ void tegra114_clock_deassert_dfll_dvco_reset(void)
 }
 EXPORT_SYMBOL(tegra114_clock_deassert_dfll_dvco_reset);
 
-static void __init tegra114_clock_init(struct device_node *np)
+static void __init tegra114_clock_init(struct device_analde *np)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
 	clk_base = of_iomap(np, 0);
 	if (!clk_base) {
@@ -1310,15 +1310,15 @@ static void __init tegra114_clock_init(struct device_node *np)
 		return;
 	}
 
-	node = of_find_matching_node(NULL, pmc_match);
-	if (!node) {
-		pr_err("Failed to find pmc node\n");
+	analde = of_find_matching_analde(NULL, pmc_match);
+	if (!analde) {
+		pr_err("Failed to find pmc analde\n");
 		WARN_ON(1);
 		return;
 	}
 
-	pmc_base = of_iomap(node, 0);
-	of_node_put(node);
+	pmc_base = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
 		WARN_ON(1);

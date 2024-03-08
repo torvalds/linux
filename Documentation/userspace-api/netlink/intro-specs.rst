@@ -21,7 +21,7 @@ a handul of arguments, the most important ones are:
  - ``--spec`` - point to the spec file
  - ``--do $name`` / ``--dump $name`` - issue request ``$name``
  - ``--json $attrs`` - provide attributes for the request
- - ``--subscribe $group`` - receive notifications from ``$group``
+ - ``--subscribe $group`` - receive analtifications from ``$group``
 
 YAML specs can be found under ``Documentation/netlink/specs/``.
 
@@ -61,7 +61,7 @@ By default code is re-generated only if spec is newer than the source,
 to force regeneration use ``-f``.
 
 ``ynl-regen.sh`` searches for ``YNL-GEN`` in the contents of files
-(note that it only scans files in the git index, that is only files
+(analte that it only scans files in the git index, that is only files
 tracked by git!) For instance the ``fou_nl.c`` kernel source contains::
 
   /*	Documentation/netlink/specs/fou.yaml */
@@ -139,21 +139,21 @@ Dumps return a list of objects terminated by a special marker,
 or NULL on error. Use ``ynl_dump_foreach()`` to iterate over
 the result.
 
-YNL notifications
+YNL analtifications
 -----------------
 
-YNL lib supports using the same socket for notifications and
-requests. In case notifications arrive during processing of a request
+YNL lib supports using the same socket for analtifications and
+requests. In case analtifications arrive during processing of a request
 they are queued internally and can be retrieved at a later time.
 
-To subscribed to notifications use ``ynl_subscribe()``.
-The notifications have to be read out from the socket,
+To subscribed to analtifications use ``ynl_subscribe()``.
+The analtifications have to be read out from the socket,
 ``ynl_socket_get_fd()`` returns the underlying socket fd which can
-be plugged into appropriate asynchronous IO API like ``poll``,
+be plugged into appropriate asynchroanalus IO API like ``poll``,
 or ``select``.
 
-Notifications can be retrieved using ``ynl_ntf_dequeue()`` and have
-to be freed using ``ynl_ntf_free()``. Since we don't know the notification
-type upfront the notifications are returned as ``struct ynl_ntf_base_type *``
+Analtifications can be retrieved using ``ynl_ntf_dequeue()`` and have
+to be freed using ``ynl_ntf_free()``. Since we don't kanalw the analtification
+type upfront the analtifications are returned as ``struct ynl_ntf_base_type *``
 and user is expected to cast them to the appropriate full type based
 on the ``cmd`` member.

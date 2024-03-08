@@ -60,13 +60,13 @@ struct tc_action {
 #define TCA_ACT_HW_STATS_ANY (TCA_ACT_HW_STATS_IMMEDIATE | \
 			      TCA_ACT_HW_STATS_DELAYED)
 
-/* Reserve 16 bits for user-space. See TCA_ACT_FLAGS_NO_PERCPU_STATS. */
+/* Reserve 16 bits for user-space. See TCA_ACT_FLAGS_ANAL_PERCPU_STATS. */
 #define TCA_ACT_FLAGS_USER_BITS 16
 #define TCA_ACT_FLAGS_USER_MASK 0xffff
 #define TCA_ACT_FLAGS_POLICE	(1U << TCA_ACT_FLAGS_USER_BITS)
 #define TCA_ACT_FLAGS_BIND	(1U << (TCA_ACT_FLAGS_USER_BITS + 1))
 #define TCA_ACT_FLAGS_REPLACE	(1U << (TCA_ACT_FLAGS_USER_BITS + 2))
-#define TCA_ACT_FLAGS_NO_RTNL	(1U << (TCA_ACT_FLAGS_USER_BITS + 3))
+#define TCA_ACT_FLAGS_ANAL_RTNL	(1U << (TCA_ACT_FLAGS_USER_BITS + 3))
 #define TCA_ACT_FLAGS_AT_INGRESS	(1U << (TCA_ACT_FLAGS_USER_BITS + 4))
 
 /* Update lastuse only if needed, to avoid dirtying a cache line.
@@ -74,12 +74,12 @@ struct tc_action {
  */
 static inline void tcf_lastuse_update(struct tcf_t *tm)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
-	if (tm->lastuse != now)
-		tm->lastuse = now;
+	if (tm->lastuse != analw)
+		tm->lastuse = analw;
 	if (unlikely(!tm->firstuse))
-		tm->firstuse = now;
+		tm->firstuse = analw;
 }
 
 static inline void tcf_tm_dump(struct tcf_t *dtm, const struct tcf_t *stm)
@@ -154,7 +154,7 @@ int tc_action_net_init(struct net *net, struct tc_action_net *tn,
 
 	tn->idrinfo = kmalloc(sizeof(*tn->idrinfo), GFP_KERNEL);
 	if (!tn->idrinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	tn->ops = ops;
 	tn->idrinfo->net = net;
 	mutex_init(&tn->idrinfo->lock);

@@ -32,12 +32,12 @@ ice_repr_get_phys_port_name(struct net_device *netdev, char *buf, size_t len)
 
 	/* Devlink port is registered and devlink core is taking care of name formatting. */
 	if (repr->vf->devlink_port.devlink)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	res = snprintf(buf, len, "pf%dvfr%d", ice_repr_get_sw_port_id(repr),
 		       repr->id);
 	if (res <= 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -89,7 +89,7 @@ struct ice_repr *ice_netdev_to_repr(struct net_device *netdev)
  *
  * The open entry point is called when a port representor's network
  * interface is made active by the system (IFF_UP). Corresponding
- * VF is notified about link status change.
+ * VF is analtified about link status change.
  *
  * Returns 0 on success
  */
@@ -101,7 +101,7 @@ static int ice_repr_open(struct net_device *netdev)
 	vf = repr->vf;
 	vf->link_forced = true;
 	vf->link_up = true;
-	ice_vc_notify_vf_link_state(vf);
+	ice_vc_analtify_vf_link_state(vf);
 
 	netif_carrier_on(netdev);
 	netif_tx_start_all_queues(netdev);
@@ -115,7 +115,7 @@ static int ice_repr_open(struct net_device *netdev)
  *
  * The stop entry point is called when a port representor's network
  * interface is de-activated by the system. Corresponding
- * VF is notified about link status change.
+ * VF is analtified about link status change.
  *
  * Returns 0 on success
  */
@@ -127,7 +127,7 @@ static int ice_repr_stop(struct net_device *netdev)
 	vf = repr->vf;
 	vf->link_forced = true;
 	vf->link_up = false;
-	ice_vc_notify_vf_link_state(vf);
+	ice_vc_analtify_vf_link_state(vf);
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
@@ -215,7 +215,7 @@ ice_repr_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	case TC_SETUP_CLSFLOWER:
 		return ice_repr_setup_tc_cls_flower(np->repr, flower);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -235,7 +235,7 @@ ice_repr_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 						  ice_repr_setup_tc_block_cb,
 						  np, np, true);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -278,7 +278,7 @@ ice_repr_reg_netdev(struct net_device *netdev)
 	return register_netdev(netdev);
 }
 
-static void ice_repr_remove_node(struct devlink_port *devlink_port)
+static void ice_repr_remove_analde(struct devlink_port *devlink_port)
 {
 	devl_lock(devlink_port->devlink);
 	devl_rate_leaf_destroy(devlink_port);
@@ -302,7 +302,7 @@ static void ice_repr_rem(struct ice_repr *repr)
  */
 void ice_repr_rem_vf(struct ice_repr *repr)
 {
-	ice_repr_remove_node(&repr->vf->devlink_port);
+	ice_repr_remove_analde(&repr->vf->devlink_port);
 	unregister_netdev(repr->netdev);
 	ice_devlink_destroy_vf_port(repr->vf);
 	ice_virtchnl_set_dflt_ops(repr->vf);
@@ -338,11 +338,11 @@ ice_repr_add(struct ice_pf *pf, struct ice_vsi *src_vsi, const u8 *parent_mac)
 
 	repr = kzalloc(sizeof(*repr), GFP_KERNEL);
 	if (!repr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	repr->netdev = alloc_etherdev(sizeof(struct ice_netdev_priv));
 	if (!repr->netdev) {
-		err =  -ENOMEM;
+		err =  -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -352,7 +352,7 @@ ice_repr_add(struct ice_pf *pf, struct ice_vsi *src_vsi, const u8 *parent_mac)
 
 	q_vector = kzalloc(sizeof(*q_vector), GFP_KERNEL);
 	if (!q_vector) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_q_vector;
 	}
 	repr->q_vector = q_vector;
@@ -377,7 +377,7 @@ struct ice_repr *ice_repr_add_vf(struct ice_vf *vf)
 
 	vsi = ice_get_vf_vsi(vf);
 	if (!vsi)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	err = ice_devlink_create_vf_port(vf);
 	if (err)

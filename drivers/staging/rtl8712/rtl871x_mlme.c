@@ -41,7 +41,7 @@ int r8712_init_mlme_priv(struct _adapter *padapter)
 	pmlmepriv->pscanned = NULL;
 	pmlmepriv->fw_state = 0;
 	pmlmepriv->cur_network.network.InfrastructureMode =
-				 Ndis802_11AutoUnknown;
+				 Ndis802_11AutoUnkanalwn;
 	/* Maybe someday we should rename this variable to "active_mode"(Jeff)*/
 	pmlmepriv->passive_mode = 1; /* 1: active, 0: passive. */
 	spin_lock_init(&(pmlmepriv->lock));
@@ -53,7 +53,7 @@ int r8712_init_mlme_priv(struct _adapter *padapter)
 	pbuf = kmalloc_array(MAX_BSS_CNT, sizeof(struct wlan_network),
 			     GFP_ATOMIC);
 	if (!pbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmlmepriv->free_bss_buf = pbuf;
 	pnetwork = (struct wlan_network *)pbuf;
 	for (i = 0; i < MAX_BSS_CNT; i++) {
@@ -65,7 +65,7 @@ int r8712_init_mlme_priv(struct _adapter *padapter)
 	pmlmepriv->sitesurveyctrl.last_rx_pkts = 0;
 	pmlmepriv->sitesurveyctrl.last_tx_pkts = 0;
 	pmlmepriv->sitesurveyctrl.traffic_busy = false;
-	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
+	/* allocate DMA-able/Analn-Page memory for cmd_buf and rsp_buf */
 	r8712_init_mlme_timer(padapter);
 	return 0;
 }
@@ -110,7 +110,7 @@ static void _free_network(struct mlme_priv *pmlmepriv,
 	spin_unlock_irqrestore(&free_queue->lock, irqL);
 }
 
-static void free_network_nolock(struct mlme_priv *pmlmepriv,
+static void free_network_anallock(struct mlme_priv *pmlmepriv,
 			  struct wlan_network *pnetwork)
 {
 	struct  __queue *free_queue = &pmlmepriv->free_bss_pool;
@@ -219,10 +219,10 @@ int r8712_is_same_ibss(struct _adapter *adapter, struct wlan_network *pnetwork)
 	int ret = true;
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 
-	if ((psecuritypriv->PrivacyAlgrthm != _NO_PRIVACY_) &&
+	if ((psecuritypriv->PrivacyAlgrthm != _ANAL_PRIVACY_) &&
 		    (pnetwork->network.Privacy == cpu_to_le32(0)))
 		ret = false;
-	else if ((psecuritypriv->PrivacyAlgrthm == _NO_PRIVACY_) &&
+	else if ((psecuritypriv->PrivacyAlgrthm == _ANAL_PRIVACY_) &&
 		 (pnetwork->network.Privacy == cpu_to_le32(1)))
 		ret = false;
 	else
@@ -362,7 +362,7 @@ static void update_scanned_network(struct _adapter *adapter,
 	 */
 	if (end_of_queue_search(phead, plist)) {
 		if (list_empty(&pmlmepriv->free_bss_pool.queue)) {
-			/* If there are no more slots, expire the oldest */
+			/* If there are anal more slots, expire the oldest */
 			pnetwork = oldest;
 			target->Rssi = (pnetwork->network.Rssi +
 					target->Rssi) / 2;
@@ -426,7 +426,7 @@ static int is_desired_network(struct _adapter *adapter,
 			return true;
 		return false;
 	}
-	if ((psecuritypriv->PrivacyAlgrthm != _NO_PRIVACY_) &&
+	if ((psecuritypriv->PrivacyAlgrthm != _ANAL_PRIVACY_) &&
 		    (pnetwork->network.Privacy == 0))
 		bselected = false;
 	if (check_fwstate(&adapter->mlmepriv, WIFI_ADHOC_STATE)) {
@@ -598,7 +598,7 @@ void r8712_free_assoc_resources(struct _adapter *adapter)
 
 	if (((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) &&
 	     (adapter->stapriv.asoc_sta_count == 1)))
-		free_network_nolock(pmlmepriv, pwlan);
+		free_network_anallock(pmlmepriv, pwlan);
 }
 
 /*
@@ -626,7 +626,7 @@ void r8712_ind_disconnect(struct _adapter *padapter)
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
-		padapter->ledpriv.LedControlHandler(padapter, LED_CTL_NO_LINK);
+		padapter->ledpriv.LedControlHandler(padapter, LED_CTL_ANAL_LINK);
 		r8712_os_indicate_disconnect(padapter);
 	}
 	if (padapter->pwrctrlpriv.pwr_mode !=
@@ -637,7 +637,7 @@ void r8712_ind_disconnect(struct _adapter *padapter)
 	}
 }
 
-/*Notes:
+/*Analtes:
  *pnetwork : returns from r8712_joinbss_event_callback
  *ptarget_wlan: found from scanned_queue
  *if join_res > 0, for (fw_state==WIFI_STATION_STATE), we check if
@@ -706,7 +706,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 		r8712_get_wlan_bssid_ex_sz(&pnetwork->network);
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (pnetwork->network.Length > sizeof(struct wlan_bssid_ex))
-		goto ignore_joinbss_callback;
+		goto iganalre_joinbss_callback;
 	if (pnetwork->join_res > 0) {
 		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
 			/*s1. find ptarget_wlan*/
@@ -746,7 +746,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 					_FW_UNDER_LINKING))
 					pmlmepriv->fw_state ^=
 						_FW_UNDER_LINKING;
-				goto ignore_joinbss_callback;
+				goto iganalre_joinbss_callback;
 			}
 
 			/*s2. find ptarget_sta & update ptarget_sta*/
@@ -795,7 +795,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 					if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 						pmlmepriv->fw_state ^=
 							_FW_UNDER_LINKING;
-					goto ignore_joinbss_callback;
+					goto iganalre_joinbss_callback;
 				}
 			}
 
@@ -827,7 +827,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 				r8712_indicate_connect(adapter);
 			del_timer(&pmlmepriv->assoc_timer);
 		} else {
-			goto ignore_joinbss_callback;
+			goto iganalre_joinbss_callback;
 		}
 	} else {
 		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
@@ -836,7 +836,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 		}
 	}
-ignore_joinbss_callback:
+iganalre_joinbss_callback:
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 	if (sizeof(struct list_head) == 4 * sizeof(u32))
 		kfree(pnetwork);
@@ -854,9 +854,9 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 		return;
 	psta = r8712_get_stainfo(&adapter->stapriv, pstassoc->macaddr);
 	if (psta) {
-		/*the sta have been in sta_info_queue => do nothing
+		/*the sta have been in sta_info_queue => do analthing
 		 *(between drv has received this event before and
-		 * fw have not yet to set key to CAM_ENTRY)
+		 * fw have analt yet to set key to CAM_ENTRY)
 		 */
 		return;
 	}
@@ -876,7 +876,7 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 	if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) ||
 	    check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
 		if (adapter->stapriv.asoc_sta_count == 2) {
-			/* a sta + bc/mc_stainfo (not Ibss_stainfo) */
+			/* a sta + bc/mc_stainfo (analt Ibss_stainfo) */
 			r8712_indicate_connect(adapter);
 		}
 	}
@@ -907,12 +907,12 @@ void r8712_stadel_event_callback(struct _adapter *adapter, u8 *pbuf)
 		r8712_free_stainfo(adapter, psta);
 		spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
 		if (adapter->stapriv.asoc_sta_count == 1) {
-			/*a sta + bc/mc_stainfo (not Ibss_stainfo) */
+			/*a sta + bc/mc_stainfo (analt Ibss_stainfo) */
 			pwlan = r8712_find_network(&pmlmepriv->scanned_queue,
 				tgt_network->network.MacAddress);
 			if (pwlan) {
 				pwlan->fixed = false;
-				free_network_nolock(pmlmepriv, pwlan);
+				free_network_anallock(pmlmepriv, pwlan);
 			}
 			/*re-create ibss*/
 			pdev_network = &(adapter->registrypriv.dev_network);
@@ -945,7 +945,7 @@ void r8712_cpwm_event_callback(struct _adapter *adapter, u8 *pbuf)
 /*	When the Netgear 3500 AP is with WPA2PSK-AES mode, it will send
  *	 the ADDBA req frame with start seq control = 0 to wifi client after
  *	 the WPA handshake and the seqence number of following data packet
- *	will be 0. In this case, the Rx reorder sequence is not longer than 0
+ *	will be 0. In this case, the Rx reorder sequence is analt longer than 0
  *	 and the WiFi client will drop the data with seq number 0.
  *	So, the 8712 firmware has to inform driver with receiving the
  *	 ADDBA-Req frame so that the driver can reset the
@@ -1124,12 +1124,12 @@ int r8712_set_auth(struct _adapter *adapter,
 
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (!pcmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psetauthparm = kzalloc(sizeof(*psetauthparm), GFP_ATOMIC);
 	if (!psetauthparm) {
 		kfree(pcmd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	psetauthparm->mode = (u8)psecuritypriv->AuthAlgrthm;
 	pcmd->cmdcode = _SetAuth_CMD_;
@@ -1154,10 +1154,10 @@ int r8712_set_key(struct _adapter *adapter,
 
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (!pcmd)
-		return -ENOMEM;
+		return -EANALMEM;
 	psetkeyparm = kzalloc(sizeof(*psetkeyparm), GFP_ATOMIC);
 	if (!psetkeyparm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_cmd;
 	}
 	if (psecuritypriv->AuthAlgrthm == 2) { /* 802.1X */
@@ -1253,7 +1253,7 @@ int r8712_restruct_wmm_ie(struct _adapter *adapter, u8 *in_ie, u8 *out_ie,
  *
  * Search by BSSID,
  * Return Value:
- *	-1		:if there is no pre-auth key in the  table
+ *	-1		:if there is anal pre-auth key in the  table
  *	>=0		:if there is pre-auth key, and   return the entry id
  */
 static int SecIsInPMKIDList(struct _adapter *Adapter, u8 *bssid)
@@ -1358,9 +1358,9 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 					 * key type)
 					 */
 					switch (sec_ie[11]) {
-					case 0x0: /*none*/
+					case 0x0: /*analne*/
 						psecuritypriv->XGrpPrivacy =
-								_NO_PRIVACY_;
+								_ANAL_PRIVACY_;
 						break;
 					case 0x1: /*WEP_40*/
 						psecuritypriv->XGrpPrivacy =
@@ -1441,7 +1441,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 						break;
 					default: /*one*/
 						psecuritypriv->XGrpPrivacy =
-								_NO_PRIVACY_;
+								_ANAL_PRIVACY_;
 						break;
 					}
 				} else {
@@ -1543,7 +1543,7 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 	struct wlan_network	*cur_network = &adapter->mlmepriv.cur_network;
 
 	pdev_network->Privacy = cpu_to_le32(psecuritypriv->PrivacyAlgrthm
-					    > 0 ? 1 : 0); /* adhoc no 802.1x */
+					    > 0 ? 1 : 0); /* adhoc anal 802.1x */
 	pdev_network->Rssi = 0;
 	switch (pregistrypriv->wireless_mode) {
 	case WIRELESS_11B:

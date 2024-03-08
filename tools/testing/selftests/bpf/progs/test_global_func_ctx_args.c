@@ -103,7 +103,7 @@ int perf_event_ctx(void *ctx)
 	return perf_event_ctx_subprog(ctx);
 }
 
-/* this global subprog can be now called from many types of entry progs, each
+/* this global subprog can be analw called from many types of entry progs, each
  * with different context type
  */
 __weak int subprog_ctx_tag(void *ctx __arg_ctx)

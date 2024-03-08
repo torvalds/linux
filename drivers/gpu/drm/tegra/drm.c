@@ -36,7 +36,7 @@
 #define DRIVER_DESC "NVIDIA Tegra graphics"
 #define DRIVER_DATE "20120330"
 #define DRIVER_MAJOR 1
-#define DRIVER_MINOR 0
+#define DRIVER_MIANALR 0
 #define DRIVER_PATCHLEVEL 0
 
 #define CARVEOUT_SZ SZ_64M
@@ -105,7 +105,7 @@ static int tegra_drm_open(struct drm_device *drm, struct drm_file *filp)
 
 	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
 	if (!fpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idr_init_base(&fpriv->legacy_contexts, 1);
 	xa_init_flags(&fpriv->contexts, XA_FLAGS_ALLOC1);
@@ -155,11 +155,11 @@ static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
 
 	dest->cmdbuf.bo = tegra_gem_lookup(file, cmdbuf);
 	if (!dest->cmdbuf.bo)
-		return -ENOENT;
+		return -EANALENT;
 
 	dest->target.bo = tegra_gem_lookup(file, target);
 	if (!dest->target.bo)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -197,7 +197,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
 			       args->num_relocs, false);
 	if (!job)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	job->num_relocs = args->num_relocs;
 	job->client = client;
@@ -213,7 +213,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 	refs = kmalloc_array(num_refs, sizeof(*refs), GFP_KERNEL);
 	if (!refs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put;
 	}
 
@@ -242,7 +242,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 		bo = tegra_gem_lookup(file, cmdbuf.handle);
 		if (!bo) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto fail;
 		}
 
@@ -308,7 +308,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	/* Syncpoint ref will be dropped on job release. */
 	sp = host1x_syncpt_get_by_id(host1x, syncpt.id);
 	if (!sp) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto fail;
 	}
 
@@ -373,7 +373,7 @@ static int tegra_gem_mmap(struct drm_device *drm, void *data,
 
 	bo = to_tegra_bo(gem);
 
-	args->offset = drm_vma_node_offset_addr(&bo->gem.vma_node);
+	args->offset = drm_vma_analde_offset_addr(&bo->gem.vma_analde);
 
 	drm_gem_object_put(gem);
 
@@ -387,7 +387,7 @@ static int tegra_syncpt_read(struct drm_device *drm, void *data,
 	struct drm_tegra_syncpt_read *args = data;
 	struct host1x_syncpt *sp;
 
-	sp = host1x_syncpt_get_by_id_noref(host, args->id);
+	sp = host1x_syncpt_get_by_id_analref(host, args->id);
 	if (!sp)
 		return -EINVAL;
 
@@ -402,7 +402,7 @@ static int tegra_syncpt_incr(struct drm_device *drm, void *data,
 	struct drm_tegra_syncpt_incr *args = data;
 	struct host1x_syncpt *sp;
 
-	sp = host1x_syncpt_get_by_id_noref(host1x, args->id);
+	sp = host1x_syncpt_get_by_id_analref(host1x, args->id);
 	if (!sp)
 		return -EINVAL;
 
@@ -416,7 +416,7 @@ static int tegra_syncpt_wait(struct drm_device *drm, void *data,
 	struct drm_tegra_syncpt_wait *args = data;
 	struct host1x_syncpt *sp;
 
-	sp = host1x_syncpt_get_by_id_noref(host1x, args->id);
+	sp = host1x_syncpt_get_by_id_analref(host1x, args->id);
 	if (!sp)
 		return -EINVAL;
 
@@ -462,11 +462,11 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 	struct drm_tegra_open_channel *args = data;
 	struct tegra_drm_context *context;
 	struct tegra_drm_client *client;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&fpriv->lock);
 
@@ -524,7 +524,7 @@ static int tegra_get_syncpt(struct drm_device *drm, void *data,
 
 	context = idr_find(&fpriv->legacy_contexts, args->context);
 	if (!context) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unlock;
 	}
 
@@ -553,7 +553,7 @@ static int tegra_submit(struct drm_device *drm, void *data,
 
 	context = idr_find(&fpriv->legacy_contexts, args->context);
 	if (!context) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unlock;
 	}
 
@@ -578,7 +578,7 @@ static int tegra_get_syncpt_base(struct drm_device *drm, void *data,
 
 	context = idr_find(&fpriv->legacy_contexts, args->context);
 	if (!context) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unlock;
 	}
 
@@ -643,7 +643,7 @@ static int tegra_gem_set_tiling(struct drm_device *drm, void *data,
 
 	gem = drm_gem_object_lookup(file, args->handle);
 	if (!gem)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = to_tegra_bo(gem);
 
@@ -665,7 +665,7 @@ static int tegra_gem_get_tiling(struct drm_device *drm, void *data,
 
 	gem = drm_gem_object_lookup(file, args->handle);
 	if (!gem)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = to_tegra_bo(gem);
 
@@ -707,7 +707,7 @@ static int tegra_gem_set_flags(struct drm_device *drm, void *data,
 
 	gem = drm_gem_object_lookup(file, args->handle);
 	if (!gem)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = to_tegra_bo(gem);
 	bo->flags = 0;
@@ -729,7 +729,7 @@ static int tegra_gem_get_flags(struct drm_device *drm, void *data,
 
 	gem = drm_gem_object_lookup(file, args->handle);
 	if (!gem)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = to_tegra_bo(gem);
 	args->flags = 0;
@@ -800,7 +800,7 @@ static const struct file_operations tegra_drm_fops = {
 	.poll = drm_poll,
 	.read = drm_read,
 	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static int tegra_drm_context_cleanup(int id, void *p, void *data)
@@ -829,8 +829,8 @@ static void tegra_drm_postclose(struct drm_device *drm, struct drm_file *file)
 #ifdef CONFIG_DEBUG_FS
 static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *)s->private;
+	struct drm_device *drm = analde->mianalr->dev;
 	struct drm_framebuffer *fb;
 
 	mutex_lock(&drm->mode_config.fb_lock);
@@ -850,8 +850,8 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 
 static int tegra_debugfs_iova(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *)s->private;
+	struct drm_device *drm = analde->mianalr->dev;
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_printer p = drm_seq_file_printer(s);
 
@@ -869,11 +869,11 @@ static struct drm_info_list tegra_debugfs_list[] = {
 	{ "iova", tegra_debugfs_iova, 0 },
 };
 
-static void tegra_debugfs_init(struct drm_minor *minor)
+static void tegra_debugfs_init(struct drm_mianalr *mianalr)
 {
 	drm_debugfs_create_files(tegra_debugfs_list,
 				 ARRAY_SIZE(tegra_debugfs_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 }
 #endif
 
@@ -899,7 +899,7 @@ static const struct drm_driver tegra_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -957,7 +957,7 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 
 	/*
 	 * If the host1x client is already attached to an IOMMU domain that is
-	 * not the shared IOMMU domain, don't try to attach it to a different
+	 * analt the shared IOMMU domain, don't try to attach it to a different
 	 * domain. This allows using the IOMMU-backed DMA API.
 	 */
 	if (domain && domain->type != IOMMU_DOMAIN_IDENTITY &&
@@ -967,7 +967,7 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 	if (tegra->domain) {
 		group = iommu_group_get(client->dev);
 		if (!group)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (domain != tegra->domain) {
 			err = iommu_attach_group(tegra->domain, group);
@@ -993,7 +993,7 @@ void host1x_client_iommu_detach(struct host1x_client *client)
 
 	if (client->group) {
 		/*
-		 * Devices that are part of the same group may no longer be
+		 * Devices that are part of the same group may anal longer be
 		 * attached to a domain at this point because their group may
 		 * have been detached by an earlier client.
 		 */
@@ -1022,7 +1022,7 @@ void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *dma)
 	if (!tegra->domain) {
 		/*
 		 * Many units only support 32-bit addresses, even on 64-bit
-		 * SoCs. If there is no IOMMU to translate into a 32-bit IO
+		 * SoCs. If there is anal IOMMU to translate into a 32-bit IO
 		 * virtual address space, force allocations to be in the
 		 * lower 32-bit range.
 		 */
@@ -1031,7 +1031,7 @@ void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *dma)
 
 	virt = (void *)__get_free_pages(gfp, get_order(size));
 	if (!virt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!tegra->domain) {
 		/*
@@ -1103,7 +1103,7 @@ static bool host1x_drm_wants_iommu(struct host1x_device *dev)
 	 *
 	 * The DMA API will use bounce buffers in this case, so that could
 	 * perhaps still be made to work, even if less efficient, but there
-	 * is another catch: in order to perform cache maintenance on pages
+	 * is aanalther catch: in order to perform cache maintenance on pages
 	 * allocated for discontiguous buffers we need to map and unmap the
 	 * SG table representing these buffers. This is fine for something
 	 * small like a push buffer, but it exhausts the bounce buffer pool
@@ -1113,8 +1113,8 @@ static bool host1x_drm_wants_iommu(struct host1x_device *dev)
 	 * Work around this by making sure that Tegra DRM clients only use
 	 * an IOMMU if the parent host1x also uses an IOMMU.
 	 *
-	 * Note that there's still a small gap here that we don't cover: if
-	 * the DMA API is backed by an IOMMU there's no way to control which
+	 * Analte that there's still a small gap here that we don't cover: if
+	 * the DMA API is backed by an IOMMU there's anal way to control which
 	 * device is attached to an IOMMU and which isn't, except via wiring
 	 * up the device tree appropriately. This is considered an problem
 	 * of integration, so care must be taken for the DT to be consistent.
@@ -1124,7 +1124,7 @@ static bool host1x_drm_wants_iommu(struct host1x_device *dev)
 	/*
 	 * Tegra20 and Tegra30 don't support addressing memory beyond the
 	 * 32-bit boundary, so the regular GATHER opcodes will always be
-	 * sufficient and whether or not the host1x is attached to an IOMMU
+	 * sufficient and whether or analt the host1x is attached to an IOMMU
 	 * doesn't matter.
 	 */
 	if (!domain && host1x_get_dma_mask(host1x) <= DMA_BIT_MASK(32))
@@ -1145,14 +1145,14 @@ static int host1x_drm_probe(struct host1x_device *dev)
 
 	tegra = kzalloc(sizeof(*tegra), GFP_KERNEL);
 	if (!tegra) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put;
 	}
 
 	if (host1x_drm_wants_iommu(dev) && iommu_present(&platform_bus_type)) {
 		tegra->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!tegra->domain) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free;
 		}
 
@@ -1175,7 +1175,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	drm->mode_config.max_width = 0;
 	drm->mode_config.max_height = 0;
 
-	drm->mode_config.normalize_zpos = true;
+	drm->mode_config.analrmalize_zpos = true;
 
 	drm->mode_config.funcs = &tegra_drm_mode_config_funcs;
 	drm->mode_config.helper_private = &tegra_drm_mode_config_helpers;
@@ -1187,8 +1187,8 @@ static int host1x_drm_probe(struct host1x_device *dev)
 		goto poll;
 
 	/*
-	 * Now that all display controller have been initialized, the maximum
-	 * supported resolution is known and the bitmask for horizontal and
+	 * Analw that all display controller have been initialized, the maximum
+	 * supported resolution is kanalwn and the bitmask for horizontal and
 	 * vertical bitfields can be computed.
 	 */
 	tegra->hmask = drm->mode_config.max_width - 1;
@@ -1245,12 +1245,12 @@ static int host1x_drm_probe(struct host1x_device *dev)
 
 	/*
 	 * Only take over from a potential firmware framebuffer if any CRTCs
-	 * have been registered. This must not be a fatal error because there
+	 * have been registered. This must analt be a fatal error because there
 	 * are other accelerators that are exposed via this driver.
 	 *
-	 * Another case where this happens is on Tegra234 where the display
-	 * hardware is no longer part of the host1x complex, so this driver
-	 * will not expose any modesetting features.
+	 * Aanalther case where this happens is on Tegra234 where the display
+	 * hardware is anal longer part of the host1x complex, so this driver
+	 * will analt expose any modesetting features.
 	 */
 	if (drm->mode_config.num_crtc > 0) {
 		err = drm_aperture_remove_framebuffers(&tegra_drm_driver);
@@ -1419,7 +1419,7 @@ static int __init host1x_drm_init(void)
 	int err;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = host1x_driver_register(&host1x_drm_driver);
 	if (err < 0)

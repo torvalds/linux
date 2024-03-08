@@ -30,7 +30,7 @@ struct amd_pmc_dev {
 /* SMU version information */
 	u8 smu_program;
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 rev;
 	struct device *dev;
 	struct pci_dev *rdev;

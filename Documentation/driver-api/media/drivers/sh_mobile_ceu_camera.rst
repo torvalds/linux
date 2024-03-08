@@ -5,7 +5,7 @@ Cropping and Scaling algorithm, used in the sh_mobile_ceu_camera driver
 
 Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 
-Terminology
+Termianallogy
 -----------
 
 sensor scales: horizontal and vertical scales, configured by the sensor driver
@@ -16,7 +16,7 @@ combined scales: sensor_scale * host_scale
 Generic scaling / cropping scheme
 ---------------------------------
 
-.. code-block:: none
+.. code-block:: analne
 
 	-1--
 	|
@@ -67,7 +67,7 @@ Here:
 S_FMT
 -----
 
-Do not touch input rectangle - it is already optimal.
+Do analt touch input rectangle - it is already optimal.
 
 1. Calculate current sensor scales:
 
@@ -118,7 +118,7 @@ S_CROP
 
 The :ref:`V4L2 crop API <crop-scale>` says:
 
-"...specification does not define an origin or units. However by convention
+"...specification does analt define an origin or units. However by convention
 drivers should horizontally count unscaled samples relative to 0H."
 
 We choose to follow the advise and interpret cropping units as client input

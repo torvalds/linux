@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/isapnp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -123,17 +123,17 @@ static int ax_initial_check(struct net_device *dev)
 
 	reg0 = ei_inb(ioaddr);
 	if (reg0 == 0xFF)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ei_outb(E8390_NODMA + E8390_PAGE1 + E8390_STOP, ioaddr + E8390_CMD);
+	ei_outb(E8390_ANALDMA + E8390_PAGE1 + E8390_STOP, ioaddr + E8390_CMD);
 	regd = ei_inb(ioaddr + 0x0d);
 	ei_outb(0xff, ioaddr + 0x0d);
-	ei_outb(E8390_NODMA + E8390_PAGE0, ioaddr + E8390_CMD);
+	ei_outb(E8390_ANALDMA + E8390_PAGE0, ioaddr + E8390_CMD);
 	ei_inb(ioaddr + EN0_COUNTER0); /* Clear the counter by reading. */
 	if (ei_inb(ioaddr + EN0_COUNTER0) != 0) {
 		ei_outb(reg0, ioaddr);
 		ei_outb(regd, ioaddr + 0x0d);	/* Restore the old values. */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -156,10 +156,10 @@ static void ax_reset_8390(struct net_device *dev)
 	ei_local->txing = 0;
 	ei_local->dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_analt_ be necessary, omit eventually. */
 	while ((ei_inb(addr + EN0_ISR) & ENISR_RESET) == 0) {
 		if (time_after(jiffies, reset_start_time + 2 * HZ / 100)) {
-			netdev_warn(dev, "%s: did not complete.\n", __func__);
+			netdev_warn(dev, "%s: did analt complete.\n", __func__);
 			break;
 		}
 	}
@@ -178,7 +178,7 @@ static irqreturn_t ax_ei_interrupt_filtered(int irq, void *dev_id)
 	struct platform_device *pdev = to_platform_device(dev->dev.parent);
 
 	if (!ax->plat->check_irq(pdev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return ax_ei_interrupt(irq, dev_id);
 }
@@ -199,7 +199,7 @@ static void ax_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 	}
 
 	ei_local->dmaing |= 0x01;
-	ei_outb(E8390_NODMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
+	ei_outb(E8390_ANALDMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
 	ei_outb(sizeof(struct e8390_pkt_hdr), nic_base + EN0_RCNTLO);
 	ei_outb(0, nic_base + EN0_RCNTHI);
 	ei_outb(0, nic_base + EN0_RSARLO);		/* On page boundary */
@@ -245,7 +245,7 @@ static void ax_block_input(struct net_device *dev, int count,
 
 	ei_local->dmaing |= 0x01;
 
-	ei_outb(E8390_NODMA+E8390_PAGE0+E8390_START, nic_base + NE_CMD);
+	ei_outb(E8390_ANALDMA+E8390_PAGE0+E8390_START, nic_base + NE_CMD);
 	ei_outb(count & 0xff, nic_base + EN0_RCNTLO);
 	ei_outb(count >> 8, nic_base + EN0_RCNTHI);
 	ei_outb(ring_offset & 0xff, nic_base + EN0_RSARLO);
@@ -290,11 +290,11 @@ static void ax_block_output(struct net_device *dev, int count,
 
 	ei_local->dmaing |= 0x01;
 	/* We should already be in page 0, but to be safe... */
-	ei_outb(E8390_PAGE0+E8390_START+E8390_NODMA, nic_base + NE_CMD);
+	ei_outb(E8390_PAGE0+E8390_START+E8390_ANALDMA, nic_base + NE_CMD);
 
 	ei_outb(ENISR_RDC, nic_base + EN0_ISR);
 
-	/* Now the normal output. */
+	/* Analw the analrmal output. */
 	ei_outb(count & 0xff, nic_base + EN0_RCNTLO);
 	ei_outb(count >> 8, nic_base + EN0_RCNTHI);
 	ei_outb(0x00, nic_base + EN0_RSARLO);
@@ -370,14 +370,14 @@ static int ax_mii_probe(struct net_device *dev)
 	/* find the first phy */
 	phy_dev = phy_find_first(ax->mii_bus);
 	if (!phy_dev) {
-		netdev_err(dev, "no PHY found\n");
-		return -ENODEV;
+		netdev_err(dev, "anal PHY found\n");
+		return -EANALDEV;
 	}
 
 	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change,
 				 PHY_INTERFACE_MODE_MII);
 	if (ret) {
-		netdev_err(dev, "Could not attach to PHY\n");
+		netdev_err(dev, "Could analt attach to PHY\n");
 		return ret;
 	}
 
@@ -467,7 +467,7 @@ static int ax_mii_init(struct net_device *dev)
 	ax->addr_memr = ei_local->mem + AX_MEMR;
 	ax->mii_bus = alloc_mdio_bitbang(&ax->bb_ctrl);
 	if (!ax->mii_bus) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -567,7 +567,7 @@ static int ax_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		return -EINVAL;
 
 	if (!phy_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return phy_mii_ioctl(phy_dev, req, cmd);
 }
@@ -663,7 +663,7 @@ static void ax_initial_setup(struct net_device *dev, struct ei_device *ei_local)
 	struct ax_device *ax = to_ax_dev(dev);
 
 	/* Select page 0 */
-	ei_outb(E8390_NODMA + E8390_PAGE0 + E8390_STOP, ioaddr + E8390_CMD);
+	ei_outb(E8390_ANALDMA + E8390_PAGE0 + E8390_STOP, ioaddr + E8390_CMD);
 
 	/* set to byte access */
 	ei_outb(ax->plat->dcr_val & ~1, ioaddr + EN0_DCFG);
@@ -673,7 +673,7 @@ static void ax_initial_setup(struct net_device *dev, struct ei_device *ei_local)
 /*
  * ax_init_dev
  *
- * initialise the specified device, taking care to note the MAC
+ * initialise the specified device, taking care to analte the MAC
  * address it may already have (if configured), ensure
  * the device is ready to be used by lib8390.c and registerd with
  * the network layer.
@@ -750,7 +750,7 @@ static int ax_init_dev(struct net_device *dev)
 	if (ax->plat->flags & AXFLG_MAC_FROMDEV) {
 		u8 addr[ETH_ALEN];
 
-		ei_outb(E8390_NODMA + E8390_PAGE1 + E8390_STOP,
+		ei_outb(E8390_ANALDMA + E8390_PAGE1 + E8390_STOP,
 			ei_local->mem + E8390_CMD); /* 0x61 */
 		for (i = 0; i < ETH_ALEN; i++)
 			addr[i] = ei_inb(ioaddr + EN1_PHYS_SHIFT(i));
@@ -776,7 +776,7 @@ static int ax_init_dev(struct net_device *dev)
 	ei_local->rx_start_page = start_page + TX_PAGES;
 
 #ifdef PACKETBUF_MEMSIZE
-	/* Allow the packet buffer size to be overridden by know-it-alls. */
+	/* Allow the packet buffer size to be overridden by kanalw-it-alls. */
 	ei_local->stop_page = ei_local->tx_start_page + PACKETBUF_MEMSIZE;
 #endif
 
@@ -838,7 +838,7 @@ static void ax_remove(struct platform_device *pdev)
  * ax_probe
  *
  * This is the entry point when the platform device system uses to
- * notify us of a new device to attach to. Allocate memory, find the
+ * analtify us of a new device to attach to. Allocate memory, find the
  * resources and information passed, and map the necessary registers.
  */
 static int ax_probe(struct platform_device *pdev)
@@ -852,7 +852,7 @@ static int ax_probe(struct platform_device *pdev)
 
 	dev = ax__alloc_ei_netdev(sizeof(struct ax_device));
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ok, let's setup our device */
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -867,7 +867,7 @@ static int ax_probe(struct platform_device *pdev)
 	/* find the platform resources */
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {
-		dev_err(&pdev->dev, "no IRQ specified\n");
+		dev_err(&pdev->dev, "anal IRQ specified\n");
 		ret = -ENXIO;
 		goto exit_mem;
 	}
@@ -880,7 +880,7 @@ static int ax_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
-		dev_err(&pdev->dev, "no MEM specified\n");
+		dev_err(&pdev->dev, "anal MEM specified\n");
 		ret = -ENXIO;
 		goto exit_mem;
 	}
@@ -900,7 +900,7 @@ static int ax_probe(struct platform_device *pdev)
 	}
 
 	if (!request_mem_region(mem->start, mem_size, pdev->name)) {
-		dev_err(&pdev->dev, "cannot reserve registers\n");
+		dev_err(&pdev->dev, "cananalt reserve registers\n");
 		ret = -ENXIO;
 		goto exit_mem;
 	}
@@ -909,7 +909,7 @@ static int ax_probe(struct platform_device *pdev)
 	dev->base_addr = (unsigned long)ei_local->mem;
 
 	if (ei_local->mem == NULL) {
-		dev_err(&pdev->dev, "Cannot ioremap area %pR\n", mem);
+		dev_err(&pdev->dev, "Cananalt ioremap area %pR\n", mem);
 
 		ret = -ENXIO;
 		goto exit_req;
@@ -926,14 +926,14 @@ static int ax_probe(struct platform_device *pdev)
 		mem2_size = resource_size(mem2);
 
 		if (!request_mem_region(mem2->start, mem2_size, pdev->name)) {
-			dev_err(&pdev->dev, "cannot reserve registers\n");
+			dev_err(&pdev->dev, "cananalt reserve registers\n");
 			ret = -ENXIO;
 			goto exit_mem1;
 		}
 
 		ax->map2 = ioremap(mem2->start, mem2_size);
 		if (!ax->map2) {
-			dev_err(&pdev->dev, "cannot map reset register\n");
+			dev_err(&pdev->dev, "cananalt map reset register\n");
 			ret = -ENXIO;
 			goto exit_mem2;
 		}
@@ -941,7 +941,7 @@ static int ax_probe(struct platform_device *pdev)
 		ei_local->reg_offset[0x1f] = ax->map2 - ei_local->mem;
 	}
 
-	/* got resources, now initialise and register device */
+	/* got resources, analw initialise and register device */
 	ret = ax_init_dev(dev);
 	if (!ret)
 		return 0;

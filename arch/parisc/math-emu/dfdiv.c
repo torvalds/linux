@@ -56,7 +56,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	 */
 	if (Dbl_isinfinity_exponent(opnd1p1)) {
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
-			if (Dbl_isnotnan(opnd2p1,opnd2p2)) {
+			if (Dbl_isanaltnan(opnd2p1,opnd2p2)) {
 				if (Dbl_isinfinity(opnd2p1,opnd2p2)) {
 					/* 
 					 * invalid since both operands 
@@ -67,14 +67,14 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                                 	Set_invalidflag();
                                 	Dbl_makequietnan(resultp1,resultp2);
 					Dbl_copytoptr(resultp1,resultp2,dstptr);
-					return(NOEXCEPTION);
+					return(ANALEXCEPTION);
 				}
 				/*
 			 	 * return infinity
 			 	 */
 				Dbl_setinfinity_exponentmantissa(resultp1,resultp2);
 				Dbl_copytoptr(resultp1,resultp2,dstptr);
-				return(NOEXCEPTION);
+				return(ANALEXCEPTION);
 			}
 		}
 		else {
@@ -100,13 +100,13 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                         	Set_invalidflag();
                         	Dbl_set_quiet(opnd2p1);
 				Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
-                		return(NOEXCEPTION);
+                		return(ANALEXCEPTION);
 			}
                 	/*
                  	 * return quiet NaN
                  	 */
 			Dbl_copytoptr(opnd1p1,opnd1p2,dstptr);
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
 		}
 	}
 	/*
@@ -119,7 +119,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			 */
 			Dbl_setzero_exponentmantissa(resultp1,resultp2);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
                 /*
                  * is NaN; signaling or quiet?
@@ -135,7 +135,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                  * return quiet NaN
                  */
 		Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
-                return(NOEXCEPTION);
+                return(ANALEXCEPTION);
 	}
         /*
          * check for division by zero
@@ -147,14 +147,14 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                         Set_invalidflag();
                         Dbl_makequietnan(resultp1,resultp2);
                         Dbl_copytoptr(resultp1,resultp2,dstptr);
-                        return(NOEXCEPTION);
+                        return(ANALEXCEPTION);
                 }
                 if (Is_divisionbyzerotrap_enabled())
                        	return(DIVISIONBYZEROEXCEPTION);
                 Set_divisionbyzeroflag();
                 Dbl_setinfinity_exponentmantissa(resultp1,resultp2);
                 Dbl_copytoptr(resultp1,resultp2,dstptr);
-                return(NOEXCEPTION);
+                return(ANALEXCEPTION);
         }
 	/*
 	 * Generate exponent 
@@ -164,7 +164,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	/*
 	 * Generate mantissa
 	 */
-	if (Dbl_isnotzero_exponent(opnd1p1)) {
+	if (Dbl_isanaltzero_exponent(opnd1p1)) {
 		/* set hidden bit */
 		Dbl_clear_signexponent_set_hidden(opnd1p1);
 	}
@@ -173,19 +173,19 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
 			Dbl_setzero_exponentmantissa(resultp1,resultp2);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
-                /* is denormalized, want to normalize */
+                /* is deanalrmalized, want to analrmalize */
                 Dbl_clear_signexponent(opnd1p1);
                 Dbl_leftshiftby1(opnd1p1,opnd1p2);
-		Dbl_normalize(opnd1p1,opnd1p2,dest_exponent);
+		Dbl_analrmalize(opnd1p1,opnd1p2,dest_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Dbl_isnotzero_exponent(opnd2p1)) {
+	if (Dbl_isanaltzero_exponent(opnd2p1)) {
 		Dbl_clear_signexponent_set_hidden(opnd2p1);
 	}
 	else {
-                /* is denormalized; want to normalize */
+                /* is deanalrmalized; want to analrmalize */
                 Dbl_clear_signexponent(opnd2p1);
                 Dbl_leftshiftby1(opnd2p1,opnd2p2);
                 while (Dbl_iszero_hiddenhigh7mantissa(opnd2p1)) {
@@ -205,7 +205,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	/* Divide the source mantissas */
 
 	/* 
-	 * A non-restoring divide algorithm is used.
+	 * A analn-restoring divide algorithm is used.
 	 */
 	Twoword_subtract(opnd1p1,opnd1p2,opnd2p1,opnd2p2);
 	Dbl_setzero(opnd3p1,opnd3p2);
@@ -319,7 +319,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			case ROUNDPLUS: 
 				if (Dbl_iszero_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeanalverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -327,7 +327,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			case ROUNDMINUS: 
 				if (Dbl_isone_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeanalverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -336,7 +336,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 				if (guardbit && (stickybit || 
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 				      	Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeanalverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -345,10 +345,10 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		}
 
                 /*
-                 * denormalize result or set to signed zero
+                 * deanalrmalize result or set to signed zero
                  */
 		stickybit = inexact;
-		Dbl_denormalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
+		Dbl_deanalrmalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
 		 stickybit,inexact);
 
 		/* return rounded number */ 
@@ -383,5 +383,5 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 		else Set_inexactflag();
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }

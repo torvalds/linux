@@ -12,16 +12,16 @@
 
 struct pglist_data *first_online_pgdat(void)
 {
-	return NODE_DATA(first_online_node);
+	return ANALDE_DATA(first_online_analde);
 }
 
 struct pglist_data *next_online_pgdat(struct pglist_data *pgdat)
 {
-	int nid = next_online_node(pgdat->node_id);
+	int nid = next_online_analde(pgdat->analde_id);
 
-	if (nid == MAX_NUMNODES)
+	if (nid == MAX_NUMANALDES)
 		return NULL;
-	return NODE_DATA(nid);
+	return ANALDE_DATA(nid);
 }
 
 /*
@@ -31,22 +31,22 @@ struct zone *next_zone(struct zone *zone)
 {
 	pg_data_t *pgdat = zone->zone_pgdat;
 
-	if (zone < pgdat->node_zones + MAX_NR_ZONES - 1)
+	if (zone < pgdat->analde_zones + MAX_NR_ZONES - 1)
 		zone++;
 	else {
 		pgdat = next_online_pgdat(pgdat);
 		if (pgdat)
-			zone = pgdat->node_zones;
+			zone = pgdat->analde_zones;
 		else
 			zone = NULL;
 	}
 	return zone;
 }
 
-static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
+static inline int zref_in_analdemask(struct zoneref *zref, analdemask_t *analdes)
 {
 #ifdef CONFIG_NUMA
-	return node_isset(zonelist_node_idx(zref), *nodes);
+	return analde_isset(zonelist_analde_idx(zref), *analdes);
 #else
 	return 1;
 #endif /* CONFIG_NUMA */
@@ -55,18 +55,18 @@ static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
 /* Returns the next zone at or below highest_zoneidx in a zonelist */
 struct zoneref *__next_zones_zonelist(struct zoneref *z,
 					enum zone_type highest_zoneidx,
-					nodemask_t *nodes)
+					analdemask_t *analdes)
 {
 	/*
 	 * Find the next suitable zone to use for the allocation.
-	 * Only filter based on nodemask if it's set
+	 * Only filter based on analdemask if it's set
 	 */
-	if (unlikely(nodes == NULL))
+	if (unlikely(analdes == NULL))
 		while (zonelist_zone_idx(z) > highest_zoneidx)
 			z++;
 	else
 		while (zonelist_zone_idx(z) > highest_zoneidx ||
-				(z->zone && !zref_in_nodemask(z, nodes)))
+				(z->zone && !zref_in_analdemask(z, analdes)))
 			z++;
 
 	return z;
@@ -84,7 +84,7 @@ void lruvec_init(struct lruvec *lruvec)
 		INIT_LIST_HEAD(&lruvec->lists[lru]);
 	/*
 	 * The "Unevictable LRU" is imaginary: though its size is maintained,
-	 * it is never scanned, and unevictable pages are not threaded on it
+	 * it is never scanned, and unevictable pages are analt threaded on it
 	 * (so that their lru fields can be reused to hold mlock_count).
 	 * Poison its list head, so that any operations on it would crash.
 	 */
@@ -93,7 +93,7 @@ void lruvec_init(struct lruvec *lruvec)
 	lru_gen_init_lruvec(lruvec);
 }
 
-#if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS)
+#if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_CPUPID_ANALT_IN_PAGE_FLAGS)
 int folio_xchg_last_cpupid(struct folio *folio, int cpupid)
 {
 	unsigned long old_flags, flags;

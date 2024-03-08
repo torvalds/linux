@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -58,7 +58,7 @@ static const struct net_device_ops mlx5i_netdev_ops = {
 static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 				   struct mlx5e_params *params)
 {
-	/* Override RQ params as IPoIB supports only LINKED LIST RQ for now */
+	/* Override RQ params as IPoIB supports only LINKED LIST RQ for analw */
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_STRIDING_RQ, false);
 	mlx5e_set_rq_type(mdev, params);
 	mlx5e_init_rq_type_params(mdev, params);
@@ -68,10 +68,10 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 		MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
 		MLX5I_PARAMS_DEFAULT_LOG_RQ_SIZE;
 
-	params->packet_merge.type = MLX5E_PACKET_MERGE_NONE;
+	params->packet_merge.type = MLX5E_PACKET_MERGE_ANALNE;
 	params->hard_mtu = MLX5_IB_GRH_BYTES + MLX5_IPOIB_HARD_LEN;
 
-	/* CQE compression is not supported for IPoIB */
+	/* CQE compression is analt supported for IPoIB */
 	params->rx_cqe_compress_def = false;
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS, params->rx_cqe_compress_def);
 }
@@ -293,7 +293,7 @@ int mlx5i_create_underlay_qp(struct mlx5e_priv *priv)
 	MLX5_SET(ads, addr_path, grh, 1);
 
 	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
-	ret = mlx5_cmd_exec_inout(priv->mdev, create_qp, in, out);
+	ret = mlx5_cmd_exec_ianalut(priv->mdev, create_qp, in, out);
 	if (ret)
 		return ret;
 
@@ -415,7 +415,7 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 				 priv->dfs_root);
 	if (!priv->fs) {
 		netdev_err(priv->netdev, "FS allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mlx5e_create_q_counters(priv);
@@ -488,7 +488,7 @@ u32 mlx5i_get_tisn(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv, u8 lag_p
 	struct mlx5i_priv *ipriv = priv->ppriv;
 
 	if (WARN(lag_port || tc,
-		 "IPoIB unexpected non-zero value: lag_port (%u), tc (%u)\n",
+		 "IPoIB unexpected analn-zero value: lag_port (%u), tc (%u)\n",
 		 lag_port, tc))
 		return 0;
 
@@ -506,7 +506,7 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.disable	   = NULL, /* mlx5i_disable */
 	.update_rx	   = mlx5i_update_nic_rx,
 	.update_stats	   = NULL, /* mlx5i_update_stats */
-	.update_carrier    = NULL, /* no HW update in IB link */
+	.update_carrier    = NULL, /* anal HW update in IB link */
 	.rx_handlers       = &mlx5i_rx_handlers,
 	.max_tc		   = MLX5I_MAX_NUM_TC,
 	.stats_grps        = mlx5i_stats_grps,
@@ -566,7 +566,7 @@ int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGHWTSTAMP:
 		return mlx5e_hwstamp_get(priv, ifr);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -723,11 +723,11 @@ static void mlx5i_set_pkey_index(struct net_device *netdev, int id)
 static int mlx5i_check_required_hca_cap(struct mlx5_core_dev *mdev)
 {
 	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_IB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads)) {
-		mlx5_core_warn(mdev, "IPoIB enhanced offloads are not supported\n");
-		return -EOPNOTSUPP;
+		mlx5_core_warn(mdev, "IPoIB enhanced offloads are analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

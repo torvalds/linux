@@ -27,9 +27,9 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
-#define ZR_NORM_PAL 0
-#define ZR_NORM_NTSC 1
-#define ZR_NORM_SECAM 2
+#define ZR_ANALRM_PAL 0
+#define ZR_ANALRM_NTSC 1
+#define ZR_ANALRM_SECAM 2
 
 struct zr_buffer {
 	/* common v4l buffer stuff -- must be first */
@@ -61,7 +61,7 @@ static inline struct zr_buffer *vb2_to_zr_buffer(struct vb2_buffer *vb)
 #include "zr36057.h"
 
 enum card_type {
-	UNKNOWN = -1,
+	UNKANALWN = -1,
 
 	/* Pinnacle/Miro */
 	DC10_OLD,		/* DC30 like */
@@ -78,14 +78,14 @@ enum card_type {
 	BUZ,
 
 	/* AverMedia */
-	AVS6EYES,
+	AVS6EANAL,
 
 	/* total number of cards */
 	NUM_CARDS
 };
 
 enum zoran_codec_mode {
-	BUZ_MODE_IDLE,		/* nothing going on */
+	BUZ_MODE_IDLE,		/* analthing going on */
 	BUZ_MODE_MOTION_COMPRESS,	/* grabbing frames */
 	BUZ_MODE_MOTION_DECOMPRESS,	/* playing frames */
 	BUZ_MODE_STILL_COMPRESS,	/* still frame conversion */
@@ -93,7 +93,7 @@ enum zoran_codec_mode {
 };
 
 enum zoran_map_mode {
-	ZORAN_MAP_MODE_NONE,
+	ZORAN_MAP_MODE_ANALNE,
 	ZORAN_MAP_MODE_RAW,
 	ZORAN_MAP_MODE_JPG_REC,
 	ZORAN_MAP_MODE_JPG_PLAY,
@@ -176,8 +176,8 @@ struct card_info {
 		char name[32];
 	} input[BUZ_MAX_INPUT];
 
-	v4l2_std_id norms;
-	const struct tvnorm *tvn[3];	/* supported TV norms */
+	v4l2_std_id analrms;
+	const struct tvanalrm *tvn[3];	/* supported TV analrms */
 
 	u32 jpeg_int;		/* JPEG interrupt */
 	u32 vsync_int;		/* VSYNC interrupt */
@@ -188,9 +188,9 @@ struct card_info {
 	u8 gpio_pol[ZR_GPIO_MAX];
 
 	/* is the /GWS line connected? */
-	u8 gws_not_connected;
+	u8 gws_analt_connected;
 
-	/* avs6eyes mux setting */
+	/* avs6eanal mux setting */
 	u8 input_mux;
 
 	void (*init)(struct zoran *zr);
@@ -216,7 +216,7 @@ struct zoran {
 
 	u8 initialized;		/* flag if zoran has been correctly initialized */
 	struct card_info card;
-	const struct tvnorm *timing;
+	const struct tvanalrm *timing;
 
 	unsigned short id;	/* number of this device */
 	char name[40];		/* name of this device */
@@ -227,8 +227,8 @@ struct zoran {
 	spinlock_t spinlock;	/* Spinlock */
 
 	/* Video for Linux parameters */
-	int input;	/* card's norm and input */
-	v4l2_std_id norm;
+	int input;	/* card's analrm and input */
+	v4l2_std_id analrm;
 
 	/* Current buffer params */
 	unsigned int buffer_size;

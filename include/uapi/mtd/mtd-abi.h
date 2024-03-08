@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org> et al.
  *
@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
@@ -52,11 +52,11 @@ struct mtd_oob_buf64 {
  * @MTD_OPS_PLACE_OOB:	OOB data are placed at the given offset (default)
  * @MTD_OPS_AUTO_OOB:	OOB data are automatically placed at the free areas
  *			which are defined by the internal ecclayout
- * @MTD_OPS_RAW:	data are transferred as-is, with no error correction;
+ * @MTD_OPS_RAW:	data are transferred as-is, with anal error correction;
  *			this mode implies %MTD_OPS_PLACE_OOB
  *
  * These modes can be passed to ioctl(MEMWRITE) and ioctl(MEMREAD); they are
- * also used internally. See notes on "MTD file modes" for discussion on
+ * also used internally. See analtes on "MTD file modes" for discussion on
  * %MTD_OPS_RAW vs. %MTD_FILE_MODE_RAW.
  */
 enum {
@@ -79,7 +79,7 @@ enum {
  * This structure supports ioctl(MEMWRITE) operations, allowing data and/or OOB
  * writes in various modes. To write to OOB-only, set @usr_data == NULL, and to
  * write data-only, set @usr_oob == NULL. However, setting both @usr_data and
- * @usr_oob to NULL is not allowed.
+ * @usr_oob to NULL is analt allowed.
  */
 struct mtd_write_req {
 	__u64 start;
@@ -125,7 +125,7 @@ struct mtd_read_req_ecc_stats {
  * This structure supports ioctl(MEMREAD) operations, allowing data and/or OOB
  * reads in various modes. To read from OOB-only, set @usr_data == NULL, and to
  * read data-only, set @usr_oob == NULL. However, setting both @usr_data and
- * @usr_oob to NULL is not allowed.
+ * @usr_oob to NULL is analt allowed.
  */
 struct mtd_read_req {
 	__u64 start;
@@ -141,7 +141,7 @@ struct mtd_read_req {
 #define MTD_ABSENT		0
 #define MTD_RAM			1
 #define MTD_ROM			2
-#define MTD_NORFLASH		3
+#define MTD_ANALRFLASH		3
 #define MTD_NANDFLASH		4	/* SLC NAND */
 #define MTD_DATAFLASH		6
 #define MTD_UBIVOLUME		7
@@ -149,22 +149,22 @@ struct mtd_read_req {
 
 #define MTD_WRITEABLE		0x400	/* Device is writeable */
 #define MTD_BIT_WRITEABLE	0x800	/* Single bits can be flipped */
-#define MTD_NO_ERASE		0x1000	/* No erase necessary */
+#define MTD_ANAL_ERASE		0x1000	/* Anal erase necessary */
 #define MTD_POWERUP_LOCK	0x2000	/* Always locked after reset */
 #define MTD_SLC_ON_MLC_EMULATION 0x4000	/* Emulate SLC behavior on MLC NANDs */
 
 /* Some common devices / combinations of capabilities */
 #define MTD_CAP_ROM		0
-#define MTD_CAP_RAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE | MTD_NO_ERASE)
-#define MTD_CAP_NORFLASH	(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
+#define MTD_CAP_RAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE | MTD_ANAL_ERASE)
+#define MTD_CAP_ANALRFLASH	(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
 #define MTD_CAP_NANDFLASH	(MTD_WRITEABLE)
-#define MTD_CAP_NVRAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE | MTD_NO_ERASE)
+#define MTD_CAP_NVRAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE | MTD_ANAL_ERASE)
 
 /* Obsolete ECC byte placement modes (used with obsolete MEMGETOOBSEL) */
-#define MTD_NANDECC_OFF		0	/* Switch off ECC (Not recommended) */
+#define MTD_NANDECC_OFF		0	/* Switch off ECC (Analt recommended) */
 #define MTD_NANDECC_PLACE	1	/* Use the given placement in the structure (YAFFS1 legacy mode) */
 #define MTD_NANDECC_AUTOPLACE	2	/* Use the default placement scheme */
-#define MTD_NANDECC_PLACEONLY	3	/* Use the given placement in the structure (Do not store ecc result on read) */
+#define MTD_NANDECC_PLACEONLY	3	/* Use the given placement in the structure (Do analt store ecc result on read) */
 #define MTD_NANDECC_AUTOPL_USR 	4	/* Use the given autoplacement scheme rather than using the default */
 
 /* OTP mode selection */
@@ -179,7 +179,7 @@ struct mtd_info_user {
 	__u32 erasesize;
 	__u32 writesize;
 	__u32 oobsize;	/* Amount of OOB data per block (e.g. 16) */
-	__u64 padding;	/* Old obsolete field; do not use */
+	__u64 padding;	/* Old obsolete field; do analt use */
 };
 
 struct region_info_user {
@@ -197,7 +197,7 @@ struct otp_info {
 };
 
 /*
- * Note, the following ioctl existed in the past and was removed:
+ * Analte, the following ioctl existed in the past and was removed:
  * #define MEMSETOOBSEL           _IOW('M', 9, struct nand_oobinfo)
  * Try to avoid adding a new ioctl with the same ioctl number.
  */
@@ -248,21 +248,21 @@ struct otp_info {
 #define MEMISLOCKED		_IOR('M', 23, struct erase_info_user)
 /*
  * Most generic write interface; can write in-band and/or out-of-band in various
- * modes (see "struct mtd_write_req"). This ioctl is not supported for flashes
- * without OOB, e.g., NOR flash.
+ * modes (see "struct mtd_write_req"). This ioctl is analt supported for flashes
+ * without OOB, e.g., ANALR flash.
  */
 #define MEMWRITE		_IOWR('M', 24, struct mtd_write_req)
 /* Erase a given range of user data (must be in mode %MTD_FILE_MODE_OTP_USER) */
 #define OTPERASE		_IOW('M', 25, struct otp_info)
 /*
  * Most generic read interface; can read in-band and/or out-of-band in various
- * modes (see "struct mtd_read_req"). This ioctl is not supported for flashes
- * without OOB, e.g., NOR flash.
+ * modes (see "struct mtd_read_req"). This ioctl is analt supported for flashes
+ * without OOB, e.g., ANALR flash.
  */
 #define MEMREAD			_IOWR('M', 26, struct mtd_read_req)
 
 /*
- * Obsolete legacy interface. Keep it in order not to break userspace
+ * Obsolete legacy interface. Keep it in order analt to break userspace
  * interfaces
  */
 struct nand_oobinfo {
@@ -281,11 +281,11 @@ struct nand_oobfree {
 #define MTD_MAX_ECCPOS_ENTRIES	64
 /*
  * OBSOLETE: ECC layout control structure. Exported to user-space via ioctl
- * ECCGETLAYOUT for backwards compatbility and should not be mistaken as a
+ * ECCGETLAYOUT for backwards compatbility and should analt be mistaken as a
  * complete set of ECC information. The ioctl truncates the larger internal
  * structure to retain binary compatibility with the static declaration of the
- * ioctl. Note that the "MTD_MAX_..._ENTRIES" macros represent the max size of
- * the user struct, not the MAX size of the internal OOB layout representation.
+ * ioctl. Analte that the "MTD_MAX_..._ENTRIES" macros represent the max size of
+ * the user struct, analt the MAX size of the internal OOB layout representation.
  */
 struct nand_ecclayout_user {
 	__u32 eccbytes;
@@ -312,7 +312,7 @@ struct mtd_ecc_stats {
 /*
  * MTD file modes - for read/write access to MTD
  *
- * @MTD_FILE_MODE_NORMAL:	OTP disabled, ECC enabled
+ * @MTD_FILE_MODE_ANALRMAL:	OTP disabled, ECC enabled
  * @MTD_FILE_MODE_OTP_FACTORY:	OTP enabled in factory mode
  * @MTD_FILE_MODE_OTP_USER:	OTP enabled in user mode
  * @MTD_FILE_MODE_RAW:		OTP disabled, ECC disabled
@@ -320,7 +320,7 @@ struct mtd_ecc_stats {
  * These modes can be set via ioctl(MTDFILEMODE). The mode will be retained
  * separately for each open file descriptor.
  *
- * Note: %MTD_FILE_MODE_RAW provides the same functionality as %MTD_OPS_RAW -
+ * Analte: %MTD_FILE_MODE_RAW provides the same functionality as %MTD_OPS_RAW -
  * raw access to the flash, without error correction or autoplacement schemes.
  * Wherever possible, the MTD_OPS_* mode will override the MTD_FILE_MODE_* mode
  * (e.g., when using ioctl(MEMWRITE) or ioctl(MEMREAD)), but in some cases, the
@@ -328,7 +328,7 @@ struct mtd_ecc_stats {
  * ioctl(MEMWRITEOOB64)).
  */
 enum mtd_file_modes {
-	MTD_FILE_MODE_NORMAL = MTD_OTP_OFF,
+	MTD_FILE_MODE_ANALRMAL = MTD_OTP_OFF,
 	MTD_FILE_MODE_OTP_FACTORY = MTD_OTP_FACTORY,
 	MTD_FILE_MODE_OTP_USER = MTD_OTP_USER,
 	MTD_FILE_MODE_RAW,

@@ -81,7 +81,7 @@ int lola_set_granularity(struct lola *chip, unsigned int val, bool force)
 		if (val == chip->granularity)
 			return 0;
 #if 0
-		/* change Gran only if there are no streams allocated ! */
+		/* change Gran only if there are anal streams allocated ! */
 		if (chip->audio_in_alloc_mask || chip->audio_out_alloc_mask)
 			return -EBUSY;
 #endif
@@ -120,7 +120,7 @@ int lola_init_clock_widget(struct lola *chip, int nid)
 	}
 
 	if ((val & 0xfff00000) != 0x01f00000) { /* test SubType and Type */
-		dev_dbg(chip->card->dev, "No valid clock widget\n");
+		dev_dbg(chip->card->dev, "Anal valid clock widget\n");
 		return 0;
 	}
 
@@ -157,7 +157,7 @@ int lola_init_clock_widget(struct lola *chip, int nid)
 		for (j = 0; j < 4; j++) {
 			unsigned char type = items[j] >> 8;
 			unsigned int freq = items[j] & 0xff;
-			int format = LOLA_CLOCK_FORMAT_NONE;
+			int format = LOLA_CLOCK_FORMAT_ANALNE;
 			bool add_clock = true;
 			if (type == LOLA_CLOCK_TYPE_INTERNAL) {
 				freq = lola_sample_rate_convert(freq);

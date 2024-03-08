@@ -24,7 +24,7 @@ static inline void mach_prepare_counter(void)
 	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
 
 	/*
-	 * Now let's take care of CTC channel 2
+	 * Analw let's take care of CTC channel 2
 	 *
 	 * Set the Gate high, program CTC channel 2 for mode 0,
 	 * (interrupt on terminal count mode), binary count,

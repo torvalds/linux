@@ -97,7 +97,7 @@ struct iidc_auxiliary_dev {
 struct iidc_auxiliary_drv {
 	struct auxiliary_driver adrv;
 	/* This event_handler is meant to be a blocking call.  For instance,
-	 * when a BEFORE_MTU_CHANGE event comes in, the event_handler will not
+	 * when a BEFORE_MTU_CHANGE event comes in, the event_handler will analt
 	 * return until the auxiliary driver is ready for the MTU change to
 	 * happen.
 	 */

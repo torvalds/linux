@@ -32,7 +32,7 @@ static inline int mei_pxp_reenable(const struct device *dev, struct mei_cl_devic
 	if (ret < 0)
 		dev_warn(dev, "mei_cldev_disable failed. %d\n", ret);
 	/*
-	 * Explicitly ignoring disable failure,
+	 * Explicitly iganalring disable failure,
 	 * enable may fix the states and succeed
 	 */
 	ret = mei_cldev_enable(cldev);
@@ -49,9 +49,9 @@ static inline int mei_pxp_reenable(const struct device *dev, struct mei_cl_devic
  * @timeout_ms: timeout in milliseconds, zero means wait indefinitely.
  *
  * Returns: 0 on Success, <0 on Failure with the following defined failures.
- *         -ENODEV: Client was not connected.
+ *         -EANALDEV: Client was analt connected.
  *                  Caller may attempt to try again immediately.
- *         -ENOMEM: Internal memory allocation failure experienced.
+ *         -EANALMEM: Internal memory allocation failure experienced.
  *                  Caller may sleep to allow kernel reclaim before retrying.
  *         -EINTR : Calling thread received a signal. Caller may choose
  *                  to abandon with the same thread id.
@@ -74,9 +74,9 @@ mei_pxp_send_message(struct device *dev, const void *message, size_t size, unsig
 	if (byte < 0) {
 		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
 		switch (byte) {
-		case -ENOMEM:
+		case -EANALMEM:
 			fallthrough;
-		case -ENODEV:
+		case -EANALDEV:
 			fallthrough;
 		case -ETIME:
 			ret = mei_pxp_reenable(dev, cldev);
@@ -98,9 +98,9 @@ mei_pxp_send_message(struct device *dev, const void *message, size_t size, unsig
  * @timeout_ms: timeout in milliseconds, zero means wait indefinitely.
  *
  * Returns: number of bytes send on Success, <0 on Failure with the following defined failures.
- *         -ENODEV: Client was not connected.
+ *         -EANALDEV: Client was analt connected.
  *                  Caller may attempt to try again from send immediately.
- *         -ENOMEM: Internal memory allocation failure experienced.
+ *         -EANALMEM: Internal memory allocation failure experienced.
  *                  Caller may sleep to allow kernel reclaim before retrying.
  *         -EINTR : Calling thread received a signal. Caller will need to repeat calling
  *                  (with a different owning thread) to retrieve existing unclaimed response
@@ -126,7 +126,7 @@ retry:
 	if (byte < 0) {
 		dev_dbg(dev, "mei_cldev_recv failed. %zd\n", byte);
 		switch (byte) {
-		case -ENOMEM:
+		case -EANALMEM:
 			/* Retry the read when pages are reclaimed */
 			msleep(20);
 			if (!retry) {
@@ -134,7 +134,7 @@ retry:
 				goto retry;
 			}
 			fallthrough;
-		case -ENODEV:
+		case -EANALDEV:
 			fallthrough;
 		case -ETIME:
 			ret = mei_pxp_reenable(dev, cldev);
@@ -262,7 +262,7 @@ static int mei_pxp_probe(struct mei_cl_device *cldev,
 
 	comp_master = kzalloc(sizeof(*comp_master), GFP_KERNEL);
 	if (!comp_master) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit;
 	}
 
@@ -270,7 +270,7 @@ static int mei_pxp_probe(struct mei_cl_device *cldev,
 	component_match_add_typed(&cldev->dev, &master_match,
 				  mei_pxp_component_match, &cldev->dev);
 	if (IS_ERR_OR_NULL(master_match)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit;
 	}
 

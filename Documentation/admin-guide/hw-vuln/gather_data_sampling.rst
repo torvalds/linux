@@ -17,8 +17,8 @@ infer stale data using typical side channel techniques like cache timing
 attacks. GDS is a purely sampling-based attack.
 
 The attacker uses gather instructions to infer the stale vector register data.
-The victim does not need to do anything special other than use the vector
-registers. The victim does not need to use gather instructions to be
+The victim does analt need to do anything special other than use the vector
+registers. The victim does analt need to use gather instructions to be
 vulnerable.
 
 Because the buffers are shared between Hyper-Threads cross Hyper-Thread attacks
@@ -29,7 +29,7 @@ Attack scenarios
 Without mitigation, GDS can infer stale data across virtually all
 permission boundaries:
 
-	Non-enclaves can infer SGX enclave data
+	Analn-enclaves can infer SGX enclave data
 	Userspace can infer kernel data
 	Guests can infer data from hosts
 	Guest can infer guest from other guests
@@ -39,7 +39,7 @@ Because of this, it is important to ensure that the mitigation stays enabled in
 lower-privilege contexts like guests and when running outside SGX enclaves.
 
 The hardware enforces the mitigation for SGX. Likewise, VMMs should  ensure
-that guests are not allowed to disable the GDS mitigation. If a host erred and
+that guests are analt allowed to disable the GDS mitigation. If a host erred and
 allowed this, a guest could theoretically disable GDS mitigation, mount an
 attack, and re-enable it.
 
@@ -51,11 +51,11 @@ bits:
  ================================   ===   ============================
  IA32_ARCH_CAPABILITIES[GDS_CTRL]   R/O   Enumerates GDS vulnerability
                                           and mitigation support.
- IA32_ARCH_CAPABILITIES[GDS_NO]     R/O   Processor is not vulnerable.
+ IA32_ARCH_CAPABILITIES[GDS_ANAL]     R/O   Processor is analt vulnerable.
  IA32_MCU_OPT_CTRL[GDS_MITG_DIS]    R/W   Disables the mitigation
                                           0 by default.
  IA32_MCU_OPT_CTRL[GDS_MITG_LOCK]   R/W   Locks GDS_MITG_DIS=0. Writes
-                                          to GDS_MITG_DIS are ignored
+                                          to GDS_MITG_DIS are iganalred
                                           Can't be cleared once set.
  ================================   ===   ============================
 
@@ -65,13 +65,13 @@ disabling AVX. This can be done by setting gather_data_sampling="force" or
 
 If used, these options will disable AVX use by turning off XSAVE YMM support.
 However, the processor will still enumerate AVX support.  Userspace that
-does not follow proper AVX enumeration to check both AVX *and* XSAVE YMM
+does analt follow proper AVX enumeration to check both AVX *and* XSAVE YMM
 support will break.
 
 Mitigation control on the kernel command line
 ---------------------------------------------
 The mitigation can be disabled by setting "gather_data_sampling=off" or
-"mitigations=off" on the kernel command line. Not specifying either will default
+"mitigations=off" on the kernel command line. Analt specifying either will default
 to the mitigation being enabled. Specifying "gather_data_sampling=force" will
 use the microcode mitigation when available or disable AVX on affected systems
 where the microcode hasn't been updated to include the mitigation.
@@ -86,20 +86,20 @@ GDS this can be accessed by the following sysfs file:
 The possible values contained in this file are:
 
  ============================== =============================================
- Not affected                   Processor not vulnerable.
+ Analt affected                   Processor analt vulnerable.
  Vulnerable                     Processor vulnerable and mitigation disabled.
- Vulnerable: No microcode       Processor vulnerable and microcode is missing
+ Vulnerable: Anal microcode       Processor vulnerable and microcode is missing
                                 mitigation.
  Mitigation: AVX disabled,
- no microcode                   Processor is vulnerable and microcode is missing
+ anal microcode                   Processor is vulnerable and microcode is missing
                                 mitigation. AVX disabled as mitigation.
  Mitigation: Microcode          Processor is vulnerable and mitigation is in
                                 effect.
  Mitigation: Microcode (locked) Processor is vulnerable and mitigation is in
-                                effect and cannot be disabled.
- Unknown: Dependent on
+                                effect and cananalt be disabled.
+ Unkanalwn: Dependent on
  hypervisor status              Running on a virtual guest processor that is
-                                affected but with no way to know if host
+                                affected but with anal way to kanalw if host
                                 processor is mitigated or vulnerable.
  ============================== =============================================
 

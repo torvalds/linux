@@ -39,7 +39,7 @@
 
 	/* HS USB Host PHY on PORT 1 */
 	hsusb1_phy: hsusb1_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;	/* gpio_62 */
 		#phy-cells = <0>;
 
@@ -204,7 +204,7 @@
 
 	vmmc-supply = <&vmmc>;
 	ti,bus-width = <4>;
-	ti,non-removable;		/* FIXME: use PMIC_MMC detect */
+	ti,analn-removable;		/* FIXME: use PMIC_MMC detect */
 };
 
 &mmc2 {
@@ -224,7 +224,7 @@
 
 	vmmc-supply = <&w2cbw0015_vmmc>;
 	ti,bus-width = <4>;
-	ti,non-removable;
+	ti,analn-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
 };

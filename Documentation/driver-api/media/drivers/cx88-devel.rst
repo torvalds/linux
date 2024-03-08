@@ -10,7 +10,7 @@ Documentation missing at the cx88 datasheet
 
 MO_OUTPUT_FORMAT (0x310164)
 
-.. code-block:: none
+.. code-block:: analne
 
   Previous default from DScaler: 0x1c1f0008
   Digit 8: 31-28
@@ -60,7 +60,7 @@ GPIO0  GPIO1
   0        0    TV Audio
   1        0    FM radio
   0        1    Line-In
-  1        1    Mono tuner bypass or CD passthru (tuner specific)
+  1        1    Moanal tuner bypass or CD passthru (tuner specific)
 ====== ======== =================================================
 
 GPIO 16(I believe) is tied to the IR port (if present).
@@ -75,7 +75,7 @@ From the data sheet:
 
 What's missing from the data sheet:
 
-- Setup 4KHz sampling rate (roughly 2x oversampled; good enough for our RC5
+- Setup 4KHz sampling rate (roughly 2x oversampled; good eanalugh for our RC5
   compat remote)
 - set register 0x35C050 to  0xa80a80
 - enable sampling
@@ -91,8 +91,8 @@ You need to recover the actual RC5 bits out of the (oversampled) IR sensor
 bits. (Hint: look for the 0/1and 1/0 crossings of the RC5 bi-phase data)  An
 actual raw RC5 code will span 2-3 DWORDS, depending on the actual alignment.
 
-I'm pretty sure when no IR signal is present the receiver is always in a
-marking state(1); but stray light, etc can cause intermittent noise values
+I'm pretty sure when anal IR signal is present the receiver is always in a
+marking state(1); but stray light, etc can cause intermittent analise values
 as well.  Remember, this is a free running sample of the IR receiver state
 over time, so don't assume any sample starts at any particular place.
 
@@ -110,4 +110,4 @@ This document has a  how to decode a bi-phase data stream:
 http://www.ee.washington.edu/circuit_archive/text/ir_decode.txt
 
 This document has still more info:
-http://www.xs4all.nl/~sbp/knowledge/ir/rc5.htm
+http://www.xs4all.nl/~sbp/kanalwledge/ir/rc5.htm

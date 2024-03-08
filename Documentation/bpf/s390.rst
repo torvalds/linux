@@ -135,9 +135,9 @@ The virtual machine can be started as follows::
     -m 4G \
     -kernel linux/arch/s390/boot/compressed/vmlinux \
     -drive file=./s390.img,if=virtio,format=raw \
-    -nographic \
+    -analgraphic \
     -append 'root=/dev/vda rw console=ttyS1' \
-    -virtfs local,path=./linux,security_model=none,mount_tag=linux \
+    -virtfs local,path=./linux,security_model=analne,mount_tag=linux \
     -object rng-random,filename=/dev/urandom,id=rng0 \
     -device virtio-rng-ccw,rng=rng0 \
     -netdev user,id=net0 \
@@ -173,7 +173,7 @@ As usual, tests can be also run individually::
 It is possible to debug the s390 kernel using QEMU GDB stub, which is activated
 by passing ``-s`` to QEMU.
 
-It is preferable to turn KASLR off, so that gdb would know where to find the
+It is preferable to turn KASLR off, so that gdb would kanalw where to find the
 kernel image in memory, by building the kernel with::
 
   RANDOMIZE_BASE=n

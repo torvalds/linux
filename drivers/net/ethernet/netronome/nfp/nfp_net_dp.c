@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2019 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2019 Netroanalme Systems, Inc. */
 
 #include "nfp_app.h"
 #include "nfp_net_dp.h"
@@ -139,7 +139,7 @@ nfp_net_rx_ring_bufs_free(struct nfp_net_dp *dp,
 
 	for (i = 0; i < rx_ring->cnt - 1; i++) {
 		/* NULL skb can only happen when initial filling of the ring
-		 * fails to allocate enough buffers and calls here to free
+		 * fails to allocate eanalugh buffers and calls here to free
 		 * already allocated ones.
 		 */
 		if (!rx_ring->rxbufs[i].frag)
@@ -173,7 +173,7 @@ nfp_net_rx_ring_bufs_alloc(struct nfp_net_dp *dp,
 		rxbufs[i].frag = nfp_net_rx_alloc_one(dp, &rxbufs[i].dma_addr);
 		if (!rxbufs[i].frag) {
 			nfp_net_rx_ring_bufs_free(dp, rx_ring);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -187,7 +187,7 @@ int nfp_net_tx_rings_prepare(struct nfp_net *nn, struct nfp_net_dp *dp)
 	dp->tx_rings = kcalloc(dp->num_tx_rings, sizeof(*dp->tx_rings),
 			       GFP_KERNEL);
 	if (!dp->tx_rings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dp->ctrl & NFP_NET_CFG_CTRL_TXRWB) {
 		dp->txrwb = dma_alloc_coherent(dp->dev,
@@ -226,7 +226,7 @@ err_free_ring:
 				  dp->txrwb, dp->txrwb_dma);
 err_free_rings:
 	kfree(dp->tx_rings);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void nfp_net_tx_rings_free(struct nfp_net_dp *dp)
@@ -278,7 +278,7 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
  * @dp:	      NFP Net data path struct
  * @rx_ring:  RX ring to allocate
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 static int
 nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
@@ -310,7 +310,7 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 	rx_ring->size = array_size(rx_ring->cnt, sizeof(*rx_ring->rxds));
 	rx_ring->rxds = dma_alloc_coherent(dp->dev, rx_ring->size,
 					   &rx_ring->dma,
-					   GFP_KERNEL | __GFP_NOWARN);
+					   GFP_KERNEL | __GFP_ANALWARN);
 	if (!rx_ring->rxds) {
 		netdev_warn(dp->netdev, "failed to allocate RX descriptor ring memory, requested descriptor count: %d, consider lowering descriptor count\n",
 			    rx_ring->cnt);
@@ -333,7 +333,7 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 
 err_alloc:
 	nfp_net_rx_ring_free(rx_ring);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int nfp_net_rx_rings_prepare(struct nfp_net *nn, struct nfp_net_dp *dp)
@@ -343,7 +343,7 @@ int nfp_net_rx_rings_prepare(struct nfp_net *nn, struct nfp_net_dp *dp)
 	dp->rx_rings = kcalloc(dp->num_rx_rings, sizeof(*dp->rx_rings),
 			       GFP_KERNEL);
 	if (!dp->rx_rings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (r = 0; r < dp->num_rx_rings; r++) {
 		nfp_net_rx_ring_init(&dp->rx_rings[r], &nn->r_vecs[r], r);
@@ -364,7 +364,7 @@ err_free_ring:
 		nfp_net_rx_ring_free(&dp->rx_rings[r]);
 	}
 	kfree(dp->rx_rings);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void nfp_net_rx_rings_free(struct nfp_net_dp *dp)

@@ -17,7 +17,7 @@
 #include <linux/videodev2.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define IMX296_PIXEL_ARRAY_WIDTH			1456
@@ -52,7 +52,7 @@
 #define IMX296_TMDOUT					IMX296_REG_16BIT(0x301e)
 #define IMX296_TMDOUT_MASK				0x3ff
 #define IMX296_WDSEL					IMX296_REG_8BIT(0x3021)
-#define IMX296_WDSEL_NORMAL				(0 << 0)
+#define IMX296_WDSEL_ANALRMAL				(0 << 0)
 #define IMX296_WDSEL_MULTI_2				(1 << 0)
 #define IMX296_WDSEL_MULTI_4				(3 << 0)
 #define IMX296_BLKLEVELAUTO				IMX296_REG_8BIT(0x3022)
@@ -71,17 +71,17 @@
 #define IMX296_CTRLTRIG_TOUT2_SEL_LOW			(0 << 4)
 #define IMX296_CTRLTRIG_TOUT2_SEL_PULSE2		(2 << 4)
 #define IMX296_SYNCSEL					IMX296_REG_8BIT(0x3036)
-#define IMX296_SYNCSEL_NORMAL				0xc0
+#define IMX296_SYNCSEL_ANALRMAL				0xc0
 #define IMX296_SYNCSEL_HIZ				0xf0
 #define IMX296_PULSE1					IMX296_REG_8BIT(0x306d)
-#define IMX296_PULSE1_EN_NOR				BIT(0)
+#define IMX296_PULSE1_EN_ANALR				BIT(0)
 #define IMX296_PULSE1_EN_TRIG				BIT(1)
 #define IMX296_PULSE1_POL_HIGH				(0 << 2)
 #define IMX296_PULSE1_POL_LOW				(1 << 2)
 #define IMX296_PULSE1_UP				IMX296_REG_24BIT(0x3070)
 #define IMX296_PULSE1_DN				IMX296_REG_24BIT(0x3074)
 #define IMX296_PULSE2					IMX296_REG_8BIT(0x3079)
-#define IMX296_PULSE2_EN_NOR				BIT(0)
+#define IMX296_PULSE2_EN_ANALR				BIT(0)
 #define IMX296_PULSE2_EN_TRIG				BIT(1)
 #define IMX296_PULSE2_POL_HIGH				(0 << 2)
 #define IMX296_PULSE2_POL_LOW				(1 << 2)
@@ -93,7 +93,7 @@
 #define IMX296_SHS3					IMX296_REG_24BIT(0x3094)
 #define IMX296_SHS4					IMX296_REG_24BIT(0x3098)
 #define IMX296_VBLANKLP					IMX296_REG_8BIT(0x309c)
-#define IMX296_VBLANKLP_NORMAL				0x04
+#define IMX296_VBLANKLP_ANALRMAL				0x04
 #define IMX296_VBLANKLP_LOW_POWER			0x2c
 #define IMX296_EXP_CNT					IMX296_REG_8BIT(0x30a3)
 #define IMX296_EXP_CNT_RESET				BIT(0)
@@ -106,18 +106,18 @@
 #define IMX296_I2CCTRL_I2CACKEN				BIT(0)
 
 #define IMX296_SENSOR_INFO				IMX296_REG_16BIT(0x3148)
-#define IMX296_SENSOR_INFO_MONO				BIT(15)
+#define IMX296_SENSOR_INFO_MOANAL				BIT(15)
 #define IMX296_SENSOR_INFO_IMX296LQ			0x4a00
 #define IMX296_SENSOR_INFO_IMX296LL			0xca00
 #define IMX296_S_SHSA					IMX296_REG_16BIT(0x31ca)
 #define IMX296_S_SHSB					IMX296_REG_16BIT(0x31d2)
 /*
  * Registers 0x31c8 to 0x31cd, 0x31d0 to 0x31d5, 0x31e2, 0x31e3, 0x31ea and
- * 0x31eb are related to exposure mode but otherwise not documented.
+ * 0x31eb are related to exposure mode but otherwise analt documented.
  */
 
 #define IMX296_GAINCTRL					IMX296_REG_8BIT(0x3200)
-#define IMX296_GAINCTRL_WD_GAIN_MODE_NORMAL		0x01
+#define IMX296_GAINCTRL_WD_GAIN_MODE_ANALRMAL		0x01
 #define IMX296_GAINCTRL_WD_GAIN_MODE_MULTI		0x41
 #define IMX296_GAIN					IMX296_REG_16BIT(0x3204)
 #define IMX296_GAIN_MIN					0
@@ -126,7 +126,7 @@
 #define IMX296_GAIN2					IMX296_REG_16BIT(0x320c)
 #define IMX296_GAIN3					IMX296_REG_16BIT(0x3210)
 #define IMX296_GAINDLY					IMX296_REG_8BIT(0x3212)
-#define IMX296_GAINDLY_NONE				0x08
+#define IMX296_GAINDLY_ANALNE				0x08
 #define IMX296_GAINDLY_1FRAME				0x09
 #define IMX296_PGCTRL					IMX296_REG_8BIT(0x3238)
 #define IMX296_PGCTRL_REGEN				BIT(0)
@@ -199,7 +199,7 @@ struct imx296 {
 	struct regmap *regmap;
 
 	const struct imx296_clk_params *clk_params;
-	bool mono;
+	bool moanal;
 
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
@@ -274,7 +274,7 @@ static int imx296_power_on(struct imx296 *sensor)
 	 * after providing a clock and before starting I2C communication. It
 	 * mentions a delay of 20µs in 4-wire mode, but tests showed that a
 	 * delay of 100µs resulted in I2C communication failures, while 500µs
-	 * seems to be enough. Be conservative.
+	 * seems to be eanalugh. Be conservative.
 	 */
 	usleep_range(1000, 2000);
 
@@ -385,11 +385,11 @@ static const struct v4l2_ctrl_ops imx296_ctrl_ops = {
 
 static int imx296_ctrls_init(struct imx296 *sensor)
 {
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	unsigned int hblank;
 	int ret;
 
-	ret = v4l2_fwnode_device_parse(sensor->dev, &props);
+	ret = v4l2_fwanalde_device_parse(sensor->dev, &props);
 	if (ret < 0)
 		return ret;
 
@@ -405,7 +405,7 @@ static int imx296_ctrls_init(struct imx296 *sensor)
 	 * Horizontal blanking is controlled through the HMAX register, which
 	 * contains a line length in INCK clock units. The INCK frequency is
 	 * fixed to 74.25 MHz. The HMAX value is currently fixed to 1100,
-	 * convert it to a number of pixels based on the nominal pixel rate.
+	 * convert it to a number of pixels based on the analminal pixel rate.
 	 */
 	hblank = 1100 * 1188000000ULL / 10 / 74250000
 	       - IMX296_PIXEL_ARRAY_WIDTH;
@@ -421,8 +421,8 @@ static int imx296_ctrls_init(struct imx296 *sensor)
 					   1, 30);
 	/*
 	 * The sensor calculates the MIPI timings internally to achieve a bit
-	 * rate between 1122 and 1198 Mbps. The exact value is unfortunately not
-	 * reported, at least according to the documentation. Report a nominal
+	 * rate between 1122 and 1198 Mbps. The exact value is unfortunately analt
+	 * reported, at least according to the documentation. Report a analminal
 	 * rate of 1188 Mbps as that is used by the datasheet in multiple
 	 * examples.
 	 */
@@ -433,7 +433,7 @@ static int imx296_ctrls_init(struct imx296 *sensor)
 				     ARRAY_SIZE(imx296_test_pattern_menu) - 1,
 				     0, 0, imx296_test_pattern_menu);
 
-	v4l2_ctrl_new_fwnode_properties(&sensor->ctrls, &imx296_ctrl_ops,
+	v4l2_ctrl_new_fwanalde_properties(&sensor->ctrls, &imx296_ctrl_ops,
 					&props);
 
 	if (sensor->ctrls.error) {
@@ -455,7 +455,7 @@ static int imx296_ctrls_init(struct imx296 *sensor)
 /*
  * This table is extracted from vendor data that is entirely undocumented. The
  * first register write is required to activate the CSI-2 output. The other
- * entries may or may not be optional?
+ * entries may or may analt be optional?
  */
 static const struct {
 	unsigned int reg;
@@ -566,7 +566,7 @@ static int imx296_setup(struct imx296 *sensor, struct v4l2_subdev_state *state)
 	imx296_write(sensor, IMX296_CTRL418C, sensor->clk_params->ctrl418c,
 		     &ret);
 
-	imx296_write(sensor, IMX296_GAINDLY, IMX296_GAINDLY_NONE, &ret);
+	imx296_write(sensor, IMX296_GAINDLY, IMX296_GAINDLY_ANALNE, &ret);
 	imx296_write(sensor, IMX296_BLKLEVEL, 0x03c, &ret);
 
 	return ret;
@@ -633,8 +633,8 @@ unlock:
 
 err_pm:
 	/*
-	 * In case of error, turn the power off synchronously as the device
-	 * likely has no other chance to recover.
+	 * In case of error, turn the power off synchroanalusly as the device
+	 * likely has anal other chance to recover.
 	 */
 	pm_runtime_put_sync(sensor->dev);
 
@@ -650,7 +650,7 @@ static int imx296_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index != 0)
 		return -EINVAL;
 
-	code->code = sensor->mono ? MEDIA_BUS_FMT_Y10_1X10
+	code->code = sensor->moanal ? MEDIA_BUS_FMT_Y10_1X10
 		   : MEDIA_BUS_FMT_SBGGR10_1X10;
 
 	return 0;
@@ -713,13 +713,13 @@ static int imx296_set_format(struct v4l2_subdev *sd,
 		format->height = crop->height;
 	}
 
-	format->code = sensor->mono ? MEDIA_BUS_FMT_Y10_1X10
+	format->code = sensor->moanal ? MEDIA_BUS_FMT_Y10_1X10
 		     : MEDIA_BUS_FMT_SBGGR10_1X10;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_RAW;
 	format->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	format->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	format->xfer_func = V4L2_XFER_FUNC_NONE;
+	format->xfer_func = V4L2_XFER_FUNC_ANALNE;
 
 	fmt->format = *format;
 
@@ -853,7 +853,7 @@ static int imx296_subdev_init(struct imx296 *sensor)
 	if (ret < 0)
 		return ret;
 
-	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sensor->subdev.entity, 1, &sensor->pad);
@@ -939,13 +939,13 @@ static int imx296_identify_model(struct imx296 *sensor)
 		dev_dbg(sensor->dev,
 			"sensor model auto-detection disabled, forcing 0x%04x\n",
 			model);
-		sensor->mono = model & IMX296_SENSOR_INFO_MONO;
+		sensor->moanal = model & IMX296_SENSOR_INFO_MOANAL;
 		return 0;
 	}
 
 	/*
 	 * While most registers can be read when the sensor is in standby, this
-	 * is not the case of the sensor info register :-(
+	 * is analt the case of the sensor info register :-(
 	 */
 	ret = imx296_write(sensor, IMX296_CTRL00, 0, NULL);
 	if (ret < 0) {
@@ -965,7 +965,7 @@ static int imx296_identify_model(struct imx296 *sensor)
 
 	switch (model) {
 	case 296:
-		sensor->mono = ret & IMX296_SENSOR_INFO_MONO;
+		sensor->moanal = ret & IMX296_SENSOR_INFO_MOANAL;
 		break;
 	/*
 	 * The IMX297 seems to share features with the IMX296, it may be
@@ -974,7 +974,7 @@ static int imx296_identify_model(struct imx296 *sensor)
 	case 297:
 	default:
 		dev_err(sensor->dev, "invalid device model 0x%04x\n", ret);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -983,7 +983,7 @@ static int imx296_identify_model(struct imx296 *sensor)
 		goto done;
 
 	dev_info(sensor->dev, "found IMX%u%s (%u.%uC)\n", model,
-		 sensor->mono ? "LL" : "LQ", temp / 1000, (temp / 100) % 10);
+		 sensor->moanal ? "LL" : "LQ", temp / 1000, (temp / 100) % 10);
 
 done:
 	imx296_write(sensor, IMX296_CTRL00, IMX296_CTRL00_STANDBY, NULL);
@@ -995,13 +995,13 @@ static const struct regmap_config imx296_regmap_config = {
 	.val_bits = 8,
 
 	.wr_table = &(const struct regmap_access_table) {
-		.no_ranges = (const struct regmap_range[]) {
+		.anal_ranges = (const struct regmap_range[]) {
 			{
 				.range_min = IMX296_SENSOR_INFO & 0xffff,
 				.range_max = (IMX296_SENSOR_INFO & 0xffff) + 1,
 			},
 		},
-		.n_no_ranges = 1,
+		.n_anal_ranges = 1,
 	},
 };
 
@@ -1021,7 +1021,7 @@ static int imx296_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->dev = &client->dev;
 
@@ -1087,7 +1087,7 @@ static int imx296_probe(struct i2c_client *client)
 	 * as active, and increase the usage count without resuming the device.
 	 */
 	pm_runtime_set_active(sensor->dev);
-	pm_runtime_get_noresume(sensor->dev);
+	pm_runtime_get_analresume(sensor->dev);
 	pm_runtime_enable(sensor->dev);
 
 	/* Register the V4L2 subdev. */
@@ -1108,7 +1108,7 @@ static int imx296_probe(struct i2c_client *client)
 
 err_pm:
 	pm_runtime_disable(sensor->dev);
-	pm_runtime_put_noidle(sensor->dev);
+	pm_runtime_put_analidle(sensor->dev);
 	imx296_subdev_cleanup(sensor);
 err_power:
 	imx296_power_off(sensor);

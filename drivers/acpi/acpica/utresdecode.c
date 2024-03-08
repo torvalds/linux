@@ -20,7 +20,7 @@ ACPI_MODULE_NAME("utresdecode")
  * Used by both the disassembler and the debugger resource dump routines
  */
 const char *acpi_gbl_bm_decode[] = {
-	"NotBusMaster",
+	"AnaltBusMaster",
 	"BusMaster"
 };
 
@@ -59,19 +59,19 @@ const char *acpi_gbl_ll_decode[] = {
 };
 
 const char *acpi_gbl_max_decode[] = {
-	"MaxNotFixed",
+	"MaxAnaltFixed",
 	"MaxFixed"
 };
 
 const char *acpi_gbl_mem_decode[] = {
-	"NonCacheable",
+	"AnalnCacheable",
 	"Cacheable",
 	"WriteCombining",
 	"Prefetchable"
 };
 
 const char *acpi_gbl_min_decode[] = {
-	"MinNotFixed",
+	"MinAnaltFixed",
 	"MinFixed"
 };
 
@@ -85,13 +85,13 @@ const char *acpi_gbl_mtp_decode[] = {
 const char *acpi_gbl_phy_decode[] = {
 	"Type C",
 	"Type D",
-	"Unknown Type",
-	"Unknown Type"
+	"Unkanalwn Type",
+	"Unkanalwn Type"
 };
 
 const char *acpi_gbl_rng_decode[] = {
 	"InvalidRanges",
-	"NonISAOnlyRanges",
+	"AnalnISAOnlyRanges",
 	"ISAOnlyRanges",
 	"EntireRange"
 };
@@ -136,14 +136,14 @@ const char *acpi_gbl_ppc_decode[] = {
 	"PullDefault",
 	"PullUp",
 	"PullDown",
-	"PullNone"
+	"PullAnalne"
 };
 
 const char *acpi_gbl_ior_decode[] = {
-	"IoRestrictionNone",
+	"IoRestrictionAnalne",
 	"IoRestrictionInputOnly",
 	"IoRestrictionOutputOnly",
-	"IoRestrictionNoneAndPreserve"
+	"IoRestrictionAnalneAndPreserve"
 };
 
 const char *acpi_gbl_dts_decode[] = {
@@ -165,7 +165,7 @@ const char *acpi_gbl_ct_decode[] = {
 /* Serial bus type */
 
 const char *acpi_gbl_sbt_decode[] = {
-	"/* UNKNOWN serial bus type */",
+	"/* UNKANALWN serial bus type */",
 	"I2C",
 	"SPI",
 	"UART",
@@ -229,9 +229,9 @@ const char *acpi_gbl_bpb_decode[] = {
 	"DataBitsSeven",
 	"DataBitsEight",
 	"DataBitsNine",
-	"/* UNKNOWN Bits per byte */",
-	"/* UNKNOWN Bits per byte */",
-	"/* UNKNOWN Bits per byte */"
+	"/* UNKANALWN Bits per byte */",
+	"/* UNKANALWN Bits per byte */",
+	"/* UNKANALWN Bits per byte */"
 };
 
 /* UART serial bus stop bits */
@@ -246,23 +246,23 @@ const char *acpi_gbl_sb_decode[] = {
 /* UART serial bus flow control */
 
 const char *acpi_gbl_fc_decode[] = {
-	"FlowControlNone",
+	"FlowControlAnalne",
 	"FlowControlHardware",
 	"FlowControlXON",
-	"/* UNKNOWN flow control keyword */"
+	"/* UNKANALWN flow control keyword */"
 };
 
 /* UART serial bus parity type */
 
 const char *acpi_gbl_pt_decode[] = {
-	"ParityTypeNone",
+	"ParityTypeAnalne",
 	"ParityTypeEven",
 	"ParityTypeOdd",
 	"ParityTypeMark",
 	"ParityTypeSpace",
-	"/* UNKNOWN parity keyword */",
-	"/* UNKNOWN parity keyword */",
-	"/* UNKNOWN parity keyword */"
+	"/* UNKANALWN parity keyword */",
+	"/* UNKANALWN parity keyword */",
+	"/* UNKANALWN parity keyword */"
 };
 
 /* pin_config type */

@@ -28,7 +28,7 @@ properties:
   ranges: true
 
   power-domains:
-    description: specifies a phandle to PM domain provider node
+    description: specifies a phandle to PM domain provider analde
     maxItems: 1
 
   clocks:
@@ -76,7 +76,7 @@ properties:
     description: GPIO used for the reset ulpi-phy
     maxItems: 1
 
-# Required child node:
+# Required child analde:
 
 patternProperties:
   "^usb@[0-9a-f]+$":

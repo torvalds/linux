@@ -22,12 +22,12 @@
 
 struct nsc_gpio_ops {
 	struct module*	owner;
-	u32	(*gpio_config)	(unsigned iminor, u32 mask, u32 bits);
-	void	(*gpio_dump)	(struct nsc_gpio_ops *amp, unsigned iminor);
-	int	(*gpio_get)	(unsigned iminor);
-	void	(*gpio_set)	(unsigned iminor, int state);
-	void	(*gpio_change)	(unsigned iminor);
-	int	(*gpio_current)	(unsigned iminor);
+	u32	(*gpio_config)	(unsigned imianalr, u32 mask, u32 bits);
+	void	(*gpio_dump)	(struct nsc_gpio_ops *amp, unsigned imianalr);
+	int	(*gpio_get)	(unsigned imianalr);
+	void	(*gpio_set)	(unsigned imianalr, int state);
+	void	(*gpio_change)	(unsigned imianalr);
+	int	(*gpio_current)	(unsigned imianalr);
 	struct device*	dev;	/* for dev_dbg() support, set in init  */
 };
 

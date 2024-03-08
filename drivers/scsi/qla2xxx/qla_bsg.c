@@ -99,9 +99,9 @@ qla24xx_fcp_prio_cfg_valid(scsi_qla_host_t *vha,
 	bcode_val = (uint32_t)(*bcode_val_ptr);
 
 	if (bcode_val == 0xFFFFFFFF) {
-		/* No FCP Priority config data in flash */
+		/* Anal FCP Priority config data in flash */
 		ql_dbg(ql_dbg_user, vha, 0x7051,
-		    "No FCP Priority config data.\n");
+		    "Anal FCP Priority config data.\n");
 		return 0;
 	}
 
@@ -123,9 +123,9 @@ qla24xx_fcp_prio_cfg_valid(scsi_qla_host_t *vha,
 	}
 
 	if (num_valid == 0) {
-		/* No valid FCP priority data entries */
+		/* Anal valid FCP priority data entries */
 		ql_dbg(ql_dbg_user, vha, 0x7053,
-		    "No valid FCP Priority data entries.\n");
+		    "Anal valid FCP Priority data entries.\n");
 		ret = 0;
 	} else {
 		/* FCP priority data is valid */
@@ -157,7 +157,7 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct bsg_job *bsg_job)
 	/* Get the sub command */
 	oper = bsg_request->rqst_data.h_vendor.vendor_cmd[1];
 
-	/* Only set config is allowed if config memory is not allocated */
+	/* Only set config is allowed if config memory is analt allocated */
 	if (!ha->fcp_prio_cfg && (oper != QLFC_FCP_PRIO_SET_CONFIG)) {
 		ret = -EINVAL;
 		goto exit_fcp_prio_cfg;
@@ -225,7 +225,7 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct bsg_job *bsg_job)
 				    "Unable to allocate memory for fcp prio "
 				    "config data (%x).\n", FCP_PRIO_CFG_SIZE);
 				bsg_reply->result = (DID_ERROR << 16);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto exit_fcp_prio_cfg;
 			}
 		}
@@ -241,7 +241,7 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct bsg_job *bsg_job)
 			bsg_reply->result = (DID_ERROR << 16);
 			ret = -EINVAL;
 			/* If buffer was invalidatic int
-			 * fcp_prio_cfg is of no use
+			 * fcp_prio_cfg is of anal use
 			 */
 			vfree(ha->fcp_prio_cfg);
 			ha->fcp_prio_cfg = NULL;
@@ -284,7 +284,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS) {
 		rport = fc_bsg_to_rport(bsg_job);
 		if (!rport) {
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto done;
 		}
 		fcport = *(fc_port_t **) rport->dd_data;
@@ -296,14 +296,14 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 		host = fc_bsg_to_shost(bsg_job);
 		vha = shost_priv(host);
 		ha = vha->hw;
-		type = "FC_BSG_HST_ELS_NOLOGIN";
+		type = "FC_BSG_HST_ELS_ANALLOGIN";
 		els_cmd = bsg_request->rqst_data.h_els.command_code;
 		if (els_cmd == ELS_AUTH_ELS)
 			return qla_edif_process_els(vha, bsg_job);
 	}
 
 	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x7005, "Host not online.\n");
+		ql_log(ql_log_warn, vha, 0x7005, "Host analt online.\n");
 		rval = -EIO;
 		goto done;
 	}
@@ -311,16 +311,16 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	/* pass through is supported only for ISP 4Gb or higher */
 	if (!IS_FWI2_CAPABLE(ha)) {
 		ql_dbg(ql_dbg_user, vha, 0x7001,
-		    "ELS passthru not supported for ISP23xx based adapters.\n");
+		    "ELS passthru analt supported for ISP23xx based adapters.\n");
 		rval = -EPERM;
 		goto done;
 	}
 
-	/*  Multiple SG's are not supported for ELS requests */
+	/*  Multiple SG's are analt supported for ELS requests */
 	if (bsg_job->request_payload.sg_cnt > 1 ||
 		bsg_job->reply_payload.sg_cnt > 1) {
 		ql_dbg(ql_dbg_user, vha, 0x7002,
-		    "Multiple SG's are not supported for ELS requests, "
+		    "Multiple SG's are analt supported for ELS requests, "
 		    "request_sg_cnt=%x reply_sg_cnt=%x.\n",
 		    bsg_job->request_payload.sg_cnt,
 		    bsg_job->reply_payload.sg_cnt);
@@ -331,11 +331,11 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	/* ELS request for rport */
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS) {
 		/* make sure the rport is logged in,
-		 * if not perform fabric login
+		 * if analt perform fabric login
 		 */
 		if (atomic_read(&fcport->state) != FCS_ONLINE) {
 			ql_dbg(ql_dbg_user, vha, 0x7003,
-			    "Port %06X is not online for ELS passthru.\n",
+			    "Port %06X is analt online for ELS passthru.\n",
 			    fcport->d_id.b24);
 			rval = -EIO;
 			goto done;
@@ -344,11 +344,11 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 		/* Allocate a dummy fcport structure, since functions
 		 * preparing the IOCB and mailbox command retrieves port
 		 * specific information from fcport structure. For Host based
-		 * ELS commands there will be no fcport structure allocated
+		 * ELS commands there will be anal fcport structure allocated
 		 */
 		fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
 		if (!fcport) {
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto done;
 		}
 
@@ -372,7 +372,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	if (!req_sg_cnt) {
 		dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
 		    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_free_fcport;
 	}
 
@@ -381,7 +381,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
         if (!rsp_sg_cnt) {
 		dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
 		    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_free_fcport;
 	}
 
@@ -399,7 +399,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	/* Alloc SRB structure */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp) {
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_unmap_sg;
 	}
 
@@ -477,7 +477,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	if (!req_sg_cnt) {
 		ql_log(ql_log_warn, vha, 0x700f,
 		    "dma_map_sg return %d for request\n", req_sg_cnt);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done;
 	}
 
@@ -486,7 +486,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	if (!rsp_sg_cnt) {
 		ql_log(ql_log_warn, vha, 0x7010,
 		    "dma_map_sg return %d for reply\n", rsp_sg_cnt);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done;
 	}
 
@@ -502,7 +502,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 
 	if (!vha->flags.online) {
 		ql_log(ql_log_warn, vha, 0x7012,
-		    "Host is not online.\n");
+		    "Host is analt online.\n");
 		rval = -EIO;
 		goto done_unmap_sg;
 	}
@@ -519,7 +519,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 		break;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x7013,
-		    "Unknown loop id: %x.\n", loop_id);
+		    "Unkanalwn loop id: %x.\n", loop_id);
 		rval = -EINVAL;
 		goto done_unmap_sg;
 	}
@@ -527,13 +527,13 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	/* Allocate a dummy fcport structure, since functions preparing the
 	 * IOCB and mailbox command retrieves port specific information
 	 * from fcport structure. For Host based ELS commands there will be
-	 * no fcport structure allocated
+	 * anal fcport structure allocated
 	 */
 	fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
 	if (!fcport) {
 		ql_log(ql_log_warn, vha, 0x7014,
 		    "Failed to allocate fcport.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_unmap_sg;
 	}
 
@@ -549,7 +549,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	if (!sp) {
 		ql_log(ql_log_warn, vha, 0x7015,
 		    "qla2x00_get_sp failed.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_free_fcport;
 	}
 
@@ -611,15 +611,15 @@ qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		    (new_config[0] & INTERNAL_LOOPBACK_MASK));
 		memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3) ;
 
-		ha->notify_dcbx_comp = wait;
-		ha->notify_lb_portup_comp = wait2;
+		ha->analtify_dcbx_comp = wait;
+		ha->analtify_lb_portup_comp = wait2;
 
 		ret = qla81xx_set_port_config(vha, new_config);
 		if (ret != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7025,
 			    "Set port config failed.\n");
-			ha->notify_dcbx_comp = 0;
-			ha->notify_lb_portup_comp = 0;
+			ha->analtify_dcbx_comp = 0;
+			ha->analtify_lb_portup_comp = 0;
 			rval = -EINVAL;
 			goto done_reset_internal;
 		}
@@ -628,9 +628,9 @@ qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		if (wait && !wait_for_completion_timeout(&ha->dcbx_comp,
 			(DCBX_COMP_TIMEOUT * HZ))) {
 			ql_dbg(ql_dbg_user, vha, 0x7026,
-			    "DCBX completion not received.\n");
-			ha->notify_dcbx_comp = 0;
-			ha->notify_lb_portup_comp = 0;
+			    "DCBX completion analt received.\n");
+			ha->analtify_dcbx_comp = 0;
+			ha->analtify_lb_portup_comp = 0;
 			rval = -EINVAL;
 			goto done_reset_internal;
 		} else
@@ -641,16 +641,16 @@ qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		    !wait_for_completion_timeout(&ha->lb_portup_comp,
 		    (LB_PORTUP_COMP_TIMEOUT * HZ))) {
 			ql_dbg(ql_dbg_user, vha, 0x70c5,
-			    "Port up completion not received.\n");
-			ha->notify_lb_portup_comp = 0;
+			    "Port up completion analt received.\n");
+			ha->analtify_lb_portup_comp = 0;
 			rval = -EINVAL;
 			goto done_reset_internal;
 		} else
 			ql_dbg(ql_dbg_user, vha, 0x70c6,
 			    "Port up completion received.\n");
 
-		ha->notify_dcbx_comp = 0;
-		ha->notify_lb_portup_comp = 0;
+		ha->analtify_dcbx_comp = 0;
+		ha->analtify_lb_portup_comp = 0;
 	}
 done_reset_internal:
 	return rval;
@@ -681,12 +681,12 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 
 	memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3);
 
-	ha->notify_dcbx_comp = 1;
+	ha->analtify_dcbx_comp = 1;
 	ret = qla81xx_set_port_config(vha, new_config);
 	if (ret != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7021,
 		    "set port config failed.\n");
-		ha->notify_dcbx_comp = 0;
+		ha->analtify_dcbx_comp = 0;
 		rval = -EINVAL;
 		goto done_set_internal;
 	}
@@ -706,7 +706,7 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 
 	if (!rem_tmo) {
 		ql_dbg(ql_dbg_user, vha, 0x7022,
-		    "DCBX completion not received.\n");
+		    "DCBX completion analt received.\n");
 		ret = qla81xx_reset_loopback_mode(vha, new_config, 0, 0);
 		/*
 		 * If the reset of the loopback mode doesn't work take a FCoE
@@ -728,7 +728,7 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 			    "DCBX completion received.\n");
 	}
 
-	ha->notify_dcbx_comp = 0;
+	ha->analtify_dcbx_comp = 0;
 	ha->idc_extend_tmo = 0;
 
 done_set_internal:
@@ -758,7 +758,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 	uint32_t rsp_data_len;
 
 	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x7019, "Host is not online.\n");
+		ql_log(ql_log_warn, vha, 0x7019, "Host is analt online.\n");
 		return -EIO;
 	}
 
@@ -771,7 +771,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 	if (!elreq.req_sg_cnt) {
 		ql_log(ql_log_warn, vha, 0x701a,
 		    "dma_map_sg returned %d for request.\n", elreq.req_sg_cnt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	elreq.rsp_sg_cnt = dma_map_sg(&ha->pdev->dev,
@@ -781,7 +781,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 	if (!elreq.rsp_sg_cnt) {
 		ql_log(ql_log_warn, vha, 0x701b,
 		    "dma_map_sg returned %d for reply.\n", elreq.rsp_sg_cnt);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_unmap_req_sg;
 	}
 
@@ -802,7 +802,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x701d,
 		    "dma alloc failed for req_data.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_unmap_sg;
 	}
 
@@ -811,11 +811,11 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 	if (!rsp_data) {
 		ql_log(ql_log_warn, vha, 0x7004,
 		    "dma alloc failed for rsp_data.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_free_dma_req;
 	}
 
-	/* Copy the request buffer in req_data now */
+	/* Copy the request buffer in req_data analw */
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 		bsg_job->request_payload.sg_cnt, req_data, req_data_len);
 
@@ -990,7 +990,7 @@ qla84xx_reset(struct bsg_job *bsg_job)
 	uint32_t flag;
 
 	if (!IS_QLA84XX(ha)) {
-		ql_dbg(ql_dbg_user, vha, 0x702f, "Not 84xx, exiting.\n");
+		ql_dbg(ql_dbg_user, vha, 0x702f, "Analt 84xx, exiting.\n");
 		return -EINVAL;
 	}
 
@@ -1034,7 +1034,7 @@ qla84xx_updatefw(struct bsg_job *bsg_job)
 
 	if (!IS_QLA84XX(ha)) {
 		ql_dbg(ql_dbg_user, vha, 0x7032,
-		    "Not 84xx, exiting.\n");
+		    "Analt 84xx, exiting.\n");
 		return -EINVAL;
 	}
 
@@ -1043,7 +1043,7 @@ qla84xx_updatefw(struct bsg_job *bsg_job)
 	if (!sg_cnt) {
 		ql_log(ql_log_warn, vha, 0x7033,
 		    "dma_map_sg returned %d for request.\n", sg_cnt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (sg_cnt != bsg_job->request_payload.sg_cnt) {
@@ -1061,7 +1061,7 @@ qla84xx_updatefw(struct bsg_job *bsg_job)
 	if (!fw_buf) {
 		ql_log(ql_log_warn, vha, 0x7035,
 		    "DMA alloc failed for fw_buf.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_unmap_sg;
 	}
 
@@ -1072,7 +1072,7 @@ qla84xx_updatefw(struct bsg_job *bsg_job)
 	if (!mn) {
 		ql_log(ql_log_warn, vha, 0x7036,
 		    "DMA alloc failed for fw buffer.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_free_fw_buf;
 	}
 
@@ -1139,11 +1139,11 @@ qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 	struct qla_bsg_a84_mgmt *ql84_mgmt;
 	uint32_t sg_cnt;
 	uint32_t data_len = 0;
-	uint32_t dma_direction = DMA_NONE;
+	uint32_t dma_direction = DMA_ANALNE;
 
 	if (!IS_QLA84XX(ha)) {
 		ql_log(ql_log_warn, vha, 0x703a,
-		    "Not 84xx, exiting.\n");
+		    "Analt 84xx, exiting.\n");
 		return -EINVAL;
 	}
 
@@ -1151,7 +1151,7 @@ qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 	if (!mn) {
 		ql_log(ql_log_warn, vha, 0x703c,
 		    "DMA alloc failed for fw buffer.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mn->entry_type = ACCESS_CHIP_IOCB_TYPE;
@@ -1166,7 +1166,7 @@ qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 		if (!sg_cnt) {
 			ql_log(ql_log_warn, vha, 0x703d,
 			    "dma_map_sg returned %d for reply.\n", sg_cnt);
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto exit_mgmt;
 		}
 
@@ -1188,7 +1188,7 @@ qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 		if (!mgmt_b) {
 			ql_log(ql_log_warn, vha, 0x703f,
 			    "DMA alloc failed for mgmt_b.\n");
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto done_unmap_sg;
 		}
 
@@ -1217,7 +1217,7 @@ qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 		if (!sg_cnt) {
 			ql_log(ql_log_warn, vha, 0x7040,
 			    "dma_map_sg returned %d.\n", sg_cnt);
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto exit_mgmt;
 		}
 
@@ -1238,7 +1238,7 @@ qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 		if (!mgmt_b) {
 			ql_log(ql_log_warn, vha, 0x7042,
 			    "DMA alloc failed for mgmt_b.\n");
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto done_unmap_sg;
 		}
 
@@ -1335,7 +1335,7 @@ qla24xx_iidma(struct bsg_job *bsg_job)
 	uint8_t *rsp_ptr = NULL;
 
 	if (!IS_IIDMA_CAPABLE(vha->hw)) {
-		ql_log(ql_log_info, vha, 0x7046, "iiDMA not supported.\n");
+		ql_log(ql_log_info, vha, 0x7046, "iiDMA analt supported.\n");
 		return -EINVAL;
 	}
 
@@ -1366,13 +1366,13 @@ qla24xx_iidma(struct bsg_job *bsg_job)
 
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		ql_log(ql_log_warn, vha, 0x704a,
-		    "Port is not online.\n");
+		    "Port is analt online.\n");
 		return -EINVAL;
 	}
 
 	if (fcport->flags & FCF_LOGIN_NEEDED) {
 		ql_log(ql_log_warn, vha, 0x704b,
-		    "Remote port not logged in flags = 0x%x.\n", fcport->flags);
+		    "Remote port analt logged in flags = 0x%x.\n", fcport->flags);
 		return -EINVAL;
 	}
 
@@ -1473,7 +1473,7 @@ qla2x00_optrom_setup(struct bsg_job *bsg_job, scsi_qla_host_t *vha,
 		    "(%x)\n", ha->optrom_region_size);
 
 		ha->optrom_state = QLA_SWAITING;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1532,8 +1532,8 @@ qla2x00_update_optrom(struct bsg_job *bsg_job)
 		return rval;
 	}
 
-	/* Set the isp82xx_no_md_cap not to capture minidump */
-	ha->flags.isp82xx_no_md_cap = 1;
+	/* Set the isp82xx_anal_md_cap analt to capture minidump */
+	ha->flags.isp82xx_anal_md_cap = 1;
 
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 	    bsg_job->request_payload.sg_cnt, ha->optrom_buffer,
@@ -1574,7 +1574,7 @@ qla2x00_update_fru_versions(struct bsg_job *bsg_job)
 
 	if (!sfp) {
 		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
-		    EXT_STATUS_NO_MEMORY;
+		    EXT_STATUS_ANAL_MEMORY;
 		goto done;
 	}
 
@@ -1625,7 +1625,7 @@ qla2x00_read_fru_status(struct bsg_job *bsg_job)
 
 	if (!sfp) {
 		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
-		    EXT_STATUS_NO_MEMORY;
+		    EXT_STATUS_ANAL_MEMORY;
 		goto done;
 	}
 
@@ -1676,7 +1676,7 @@ qla2x00_write_fru_status(struct bsg_job *bsg_job)
 
 	if (!sfp) {
 		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
-		    EXT_STATUS_NO_MEMORY;
+		    EXT_STATUS_ANAL_MEMORY;
 		goto done;
 	}
 
@@ -1723,7 +1723,7 @@ qla2x00_write_i2c(struct bsg_job *bsg_job)
 
 	if (!sfp) {
 		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
-		    EXT_STATUS_NO_MEMORY;
+		    EXT_STATUS_ANAL_MEMORY;
 		goto done;
 	}
 
@@ -1769,7 +1769,7 @@ qla2x00_read_i2c(struct bsg_job *bsg_job)
 
 	if (!sfp) {
 		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
-		    EXT_STATUS_NO_MEMORY;
+		    EXT_STATUS_ANAL_MEMORY;
 		goto done;
 	}
 
@@ -1823,8 +1823,8 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 	/* Check the type of the adapter */
 	if (!IS_BIDI_CAPABLE(ha)) {
 		ql_log(ql_log_warn, vha, 0x70a0,
-			"This adapter is not supported\n");
-		rval = EXT_STATUS_NOT_SUPPORTED;
+			"This adapter is analt supported\n");
+		rval = EXT_STATUS_ANALT_SUPPORTED;
 		goto done;
 	}
 
@@ -1838,23 +1838,23 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 	/* Check if host is online */
 	if (!vha->flags.online) {
 		ql_log(ql_log_warn, vha, 0x70a1,
-			"Host is not online\n");
+			"Host is analt online\n");
 		rval = EXT_STATUS_DEVICE_OFFLINE;
 		goto done;
 	}
 
-	/* Check if cable is plugged in or not */
-	if (vha->device_flags & DFLG_NO_CABLE) {
+	/* Check if cable is plugged in or analt */
+	if (vha->device_flags & DFLG_ANAL_CABLE) {
 		ql_log(ql_log_warn, vha, 0x70a2,
 			"Cable is unplugged...\n");
 		rval = EXT_STATUS_INVALID_CFG;
 		goto done;
 	}
 
-	/* Check if the switch is connected or not */
+	/* Check if the switch is connected or analt */
 	if (ha->current_topology != ISP_CFG_F) {
 		ql_log(ql_log_warn, vha, 0x70a3,
-			"Host is not connected to the switch\n");
+			"Host is analt connected to the switch\n");
 		rval = EXT_STATUS_INVALID_CFG;
 		goto done;
 	}
@@ -1862,7 +1862,7 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 	/* Check if operating mode is P2P */
 	if (ha->operating_mode != P2P) {
 		ql_log(ql_log_warn, vha, 0x70a4,
-		    "Host operating mode is not P2p\n");
+		    "Host operating mode is analt P2p\n");
 		rval = EXT_STATUS_INVALID_CFG;
 		goto done;
 	}
@@ -1898,7 +1898,7 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 		DMA_TO_DEVICE);
 
 	if (!req_sg_cnt) {
-		rval = EXT_STATUS_NO_MEMORY;
+		rval = EXT_STATUS_ANAL_MEMORY;
 		goto done;
 	}
 
@@ -1907,7 +1907,7 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 		DMA_FROM_DEVICE);
 
 	if (!rsp_sg_cnt) {
-		rval = EXT_STATUS_NO_MEMORY;
+		rval = EXT_STATUS_ANAL_MEMORY;
 		goto done_unmap_req_sg;
 	}
 
@@ -1919,7 +1919,7 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 		    "%x dma_reply_sg_cnt: %x]\n",
 		    bsg_job->request_payload.sg_cnt, req_sg_cnt,
 		    bsg_job->reply_payload.sg_cnt, rsp_sg_cnt);
-		rval = EXT_STATUS_NO_MEMORY;
+		rval = EXT_STATUS_ANAL_MEMORY;
 		goto done_unmap_sg;
 	}
 
@@ -1938,7 +1938,7 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 	if (!sp) {
 		ql_dbg(ql_dbg_user, vha, 0x70ac,
 		    "Alloc SRB structure failed\n");
-		rval = EXT_STATUS_NO_MEMORY;
+		rval = EXT_STATUS_ANAL_MEMORY;
 		goto done_unmap_sg;
 	}
 
@@ -2006,7 +2006,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 
 	if (!vha->flags.online) {
 		ql_log(ql_log_warn, vha, 0x70d0,
-		    "Host is not online.\n");
+		    "Host is analt online.\n");
 		rval = -EIO;
 		goto done;
 	}
@@ -2018,7 +2018,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 		if (!req_sg_cnt) {
 			ql_log(ql_log_warn, vha, 0x70c7,
 			    "dma_map_sg return %d for request\n", req_sg_cnt);
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto done;
 		}
 	}
@@ -2030,7 +2030,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 		if (!rsp_sg_cnt) {
 			ql_log(ql_log_warn, vha, 0x70c8,
 			    "dma_map_sg return %d for reply\n", rsp_sg_cnt);
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto done_unmap_req_sg;
 		}
 	}
@@ -2043,13 +2043,13 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 	/* Allocate a dummy fcport structure, since functions preparing the
 	 * IOCB and mailbox command retrieves port specific information
 	 * from fcport structure. For Host based ELS commands there will be
-	 * no fcport structure allocated
+	 * anal fcport structure allocated
 	 */
 	fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
 	if (!fcport) {
 		ql_log(ql_log_warn, vha, 0x70ca,
 		    "Failed to allocate fcport.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_unmap_rsp_sg;
 	}
 
@@ -2058,7 +2058,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 	if (!sp) {
 		ql_log(ql_log_warn, vha, 0x70cb,
 		    "qla2x00_get_sp failed.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done_free_fcport;
 	}
 
@@ -2132,7 +2132,7 @@ qla26xx_serdes_op(struct bsg_job *bsg_job)
 		break;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x708c,
-		    "Unknown serdes cmd %x.\n", sr.cmd);
+		    "Unkanalwn serdes cmd %x.\n", sr.cmd);
 		rval = -EINVAL;
 		break;
 	}
@@ -2174,7 +2174,7 @@ qla8044_serdes_op(struct bsg_job *bsg_job)
 		break;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x7020,
-		    "Unknown serdes cmd %x.\n", sr.cmd);
+		    "Unkanalwn serdes cmd %x.\n", sr.cmd);
 		rval = -EINVAL;
 		break;
 	}
@@ -2293,7 +2293,7 @@ qla27xx_get_bbcr_data(struct bsg_job *bsg_job)
 		rval = qla2x00_get_adapter_id(vha, &loop_id, &al_pa,
 			&area, &domain, &topo, &sw_cap);
 		if (rval != QLA_SUCCESS) {
-			bbcr.status = QLA_BBCR_STATUS_UNKNOWN;
+			bbcr.status = QLA_BBCR_STATUS_UNKANALWN;
 			bbcr.state = QLA_BBCR_STATE_OFFLINE;
 			bbcr.mbx1 = loop_id;
 			goto done;
@@ -2342,10 +2342,10 @@ qla2x00_get_priv_stats(struct bsg_job *bsg_job)
 	uint options = cmd[0] == QL_VND_GET_PRIV_STATS_EX ? cmd[1] : 0;
 
 	if (test_bit(UNLOADING, &vha->dpc_flags))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (unlikely(pci_channel_offline(ha->pdev)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (qla2x00_reset_active(vha))
 		return -EBUSY;
@@ -2358,7 +2358,7 @@ qla2x00_get_priv_stats(struct bsg_job *bsg_job)
 	if (!stats) {
 		ql_log(ql_log_warn, vha, 0x70e2,
 		    "Failed to allocate memory for stats.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma, options);
@@ -2386,7 +2386,7 @@ qla2x00_get_priv_stats(struct bsg_job *bsg_job)
 }
 
 static int
-qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
+qla2x00_do_dport_diaganalstics(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2402,13 +2402,13 @@ qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
 	if (!dd) {
 		ql_log(ql_log_warn, vha, 0x70db,
 		    "Failed to allocate memory for dport.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 	    bsg_job->request_payload.sg_cnt, dd, sizeof(*dd));
 
-	rval = qla26xx_dport_diagnostics(
+	rval = qla26xx_dport_diaganalstics(
 	    vha, dd->buf, sizeof(dd->buf), dd->options);
 	if (rval == QLA_SUCCESS) {
 		sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
@@ -2430,7 +2430,7 @@ qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
 }
 
 static int
-qla2x00_do_dport_diagnostics_v2(struct bsg_job *bsg_job)
+qla2x00_do_dport_diaganalstics_v2(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2446,7 +2446,7 @@ qla2x00_do_dport_diagnostics_v2(struct bsg_job *bsg_job)
 
 	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
 	if (!dd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 			bsg_job->request_payload.sg_cnt, dd, sizeof(*dd));
@@ -2472,11 +2472,11 @@ qla2x00_do_dport_diagnostics_v2(struct bsg_job *bsg_job)
 	if (vha->dport_status & DPORT_DIAG_CHIP_RESET_IN_PROGRESS &&
 	    options == QLA_GET_DPORT_RESULT_V2) {
 		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
-					EXT_STATUS_DPORT_DIAG_NOT_RUNNING;
+					EXT_STATUS_DPORT_DIAG_ANALT_RUNNING;
 		goto dportcomplete;
 	}
 
-	rval = qla26xx_dport_diagnostics_v2(vha, dd, mcp);
+	rval = qla26xx_dport_diaganalstics_v2(vha, dd, mcp);
 
 	if (rval == QLA_SUCCESS) {
 		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
@@ -2538,7 +2538,7 @@ qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
 
 	ql_dbg(ql_dbg_user, vha, 0x70e1,
 	    "%s(%lu): FW=%u BCFG=%u VPDNVR=%u NPIV01=%u NPIV02=%u NVME_PARAMS=%u\n",
-	    __func__, vha->host_no, regions.global_image,
+	    __func__, vha->host_anal, regions.global_image,
 	    regions.board_config, regions.vpd_nvram,
 	    regions.npiv_config_0_1, regions.npiv_config_2_3, regions.nvme_params);
 
@@ -2566,7 +2566,7 @@ qla2x00_manage_host_stats(struct bsg_job *bsg_job)
 	int ret = 0;
 
 	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x0000, "Host is not online.\n");
+		ql_log(ql_log_warn, vha, 0x0000, "Host is analt online.\n");
 		return -EIO;
 	}
 
@@ -2580,7 +2580,7 @@ qla2x00_manage_host_stats(struct bsg_job *bsg_job)
 	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x0000, "req_data memory allocation failure.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Copy the request buffer in req_data */
@@ -2650,7 +2650,7 @@ qla2x00_get_host_stats(struct bsg_job *bsg_job)
 	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x0000, "req_data memory allocation failure.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Copy the request buffer in req_data */
@@ -2694,7 +2694,7 @@ qla2x00_get_host_stats(struct bsg_job *bsg_job)
 
 	data = kzalloc(response_len, GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto host_stat_out;
 	}
 
@@ -2742,7 +2742,7 @@ qla2x00_get_tgt_stats(struct bsg_job *bsg_job)
 	struct fc_rport *rport = NULL;
 
 	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x0000, "Host is not online.\n");
+		ql_log(ql_log_warn, vha, 0x0000, "Host is analt online.\n");
 		return -EIO;
 	}
 
@@ -2756,7 +2756,7 @@ qla2x00_get_tgt_stats(struct bsg_job *bsg_job)
 	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x0000, "req_data memory allocation failure.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Copy the request buffer in req_data */
@@ -2771,7 +2771,7 @@ qla2x00_get_tgt_stats(struct bsg_job *bsg_job)
 	data = kzalloc(response_len, GFP_KERNEL);
 	if (!data) {
 		kfree(req_data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (response_len > bsg_job->reply_payload.payload_len) {
@@ -2792,7 +2792,7 @@ qla2x00_get_tgt_stats(struct bsg_job *bsg_job)
 
 	rport = qla2xxx_find_rport(vha, req_data->tgt_id);
 	if (!rport) {
-		ql_log(ql_log_warn, vha, 0x0000, "target %d not found.\n", req_data->tgt_id);
+		ql_log(ql_log_warn, vha, 0x0000, "target %d analt found.\n", req_data->tgt_id);
 		ret = EXT_STATUS_INVALID_PARAM;
 		data->status = EXT_STATUS_INVALID_PARAM;
 		goto reply;
@@ -2838,7 +2838,7 @@ qla2x00_manage_host_port(struct bsg_job *bsg_job)
 	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0x0000, "req_data memory allocation failure.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Copy the request buffer in req_data */
@@ -2949,11 +2949,11 @@ qla2x00_process_vendor_specific(struct scsi_qla_host *vha, struct bsg_job *bsg_j
 	case QL_VND_GET_PRIV_STATS_EX:
 		return qla2x00_get_priv_stats(bsg_job);
 
-	case QL_VND_DPORT_DIAGNOSTICS:
-		return qla2x00_do_dport_diagnostics(bsg_job);
+	case QL_VND_DPORT_DIAGANALSTICS:
+		return qla2x00_do_dport_diaganalstics(bsg_job);
 
-	case QL_VND_DPORT_DIAGNOSTICS_V2:
-		return qla2x00_do_dport_diagnostics_v2(bsg_job);
+	case QL_VND_DPORT_DIAGANALSTICS_V2:
+		return qla2x00_do_dport_diaganalstics_v2(bsg_job);
 
 	case QL_VND_EDIF_MGMT:
 		return qla_edif_app_mgmt(bsg_job);
@@ -2977,7 +2977,7 @@ qla2x00_process_vendor_specific(struct scsi_qla_host *vha, struct bsg_job *bsg_j
 		return qla2x00_mailbox_passthru(bsg_job);
 
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 }
 
@@ -2991,7 +2991,7 @@ qla24xx_bsg_request(struct bsg_job *bsg_job)
 	struct Scsi_Host *host;
 	scsi_qla_host_t *vha;
 
-	/* In case no data transferred. */
+	/* In case anal data transferred. */
 	bsg_reply->reply_payload_rcv_len = 0;
 
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS) {
@@ -3012,7 +3012,7 @@ qla24xx_bsg_request(struct bsg_job *bsg_job)
 
 	if (vha->hw->flags.port_isolated) {
 		bsg_reply->result = DID_ERROR;
-		/* operation not permitted */
+		/* operation analt permitted */
 		return -EPERM;
 	}
 
@@ -3036,7 +3036,7 @@ skip_chip_chk:
 
 	switch (bsg_request->msgcode) {
 	case FC_BSG_RPT_ELS:
-	case FC_BSG_HST_ELS_NOLOGIN:
+	case FC_BSG_HST_ELS_ANALLOGIN:
 		ret = qla2x00_process_els(bsg_job);
 		break;
 	case FC_BSG_HST_CT:
@@ -3091,7 +3091,7 @@ qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 			if (sp &&
 			    (sp->type == SRB_CT_CMD ||
 			     sp->type == SRB_ELS_CMD_HST ||
-			     sp->type == SRB_ELS_CMD_HST_NOLOGIN ||
+			     sp->type == SRB_ELS_CMD_HST_ANALLOGIN ||
 			     sp->type == SRB_FXIOCB_BCMD) &&
 			    sp->u.bsg_job == bsg_job) {
 				req->outstanding_cmds[cnt] = NULL;
@@ -3113,7 +3113,7 @@ qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 		}
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	ql_log(ql_log_info, vha, 0x708b, "SRB not found to abort.\n");
+	ql_log(ql_log_info, vha, 0x708b, "SRB analt found to abort.\n");
 	bsg_reply->result = -ENXIO;
 	return 0;
 
@@ -3142,7 +3142,7 @@ int qla2x00_mailbox_passthru(struct bsg_job *bsg_job)
 	if (!req_data) {
 		ql_log(ql_log_warn, vha, 0xf0a4,
 		       "req_data memory allocation failure.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Copy the request buffer in req_data */

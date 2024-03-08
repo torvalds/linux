@@ -19,7 +19,7 @@ Shared skbs and skb clones
 to keep a struct sk_buff alive. skbs with a ``sk_buff.users != 1`` are referred
 to as shared skbs (see skb_shared()).
 
-skb_clone() allows for fast duplication of skbs. None of the data buffers
+skb_clone() allows for fast duplication of skbs. Analne of the data buffers
 get copied, but caller gets a new metadata struct (struct sk_buff).
 &skb_shared_info.refcount indicates the number of skbs pointing at the same
 packet data (i.e. clones).

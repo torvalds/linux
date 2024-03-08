@@ -4,17 +4,17 @@
  *
  * Copyright (C) 2018 Renesas Electronics
  *
- * As upstream Linux does not support XIP, it cannot run in 8 MiB of HyperRAM.
+ * As upstream Linux does analt support XIP, it cananalt run in 8 MiB of HyperRAM.
  * Hence the 64 MiB of SDRAM on the sub-board needs to be enabled, which has
  * the following ramifications:
- *   - SCIF4 connected to the on-board USB-serial can no longer be used as the
+ *   - SCIF4 connected to the on-board USB-serial can anal longer be used as the
  *     serial console,
  *   - Instead, SCIF2 is used as the serial console, by connecting a 3.3V TTL
  *     USB-to-Serial adapter to the CMOS camera connector:
  *       - RXD = CN17-9,
  *       - TXD = CN17-10,
  *       - GND = CN17-2 or CN17-17,
- *   - The first Ethernet channel can no longer be used,
+ *   - The first Ethernet channel can anal longer be used,
  *   - USB Channel 1 loses the overcurrent input signal.
  *
  * Please make sure your sub-board matches the following switch settings:
@@ -44,7 +44,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
+		bootargs = "iganalre_loglevel";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -92,7 +92,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&eth1_pins>;
 	status = "okay";
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	phy-handle = <&phy1>;
 	phy1: ethernet-phy@1 {
 		compatible = "ethernet-phy-id001c.c816",

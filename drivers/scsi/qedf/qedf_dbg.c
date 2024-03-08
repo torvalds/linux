@@ -20,7 +20,7 @@ qedf_dbg_err(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 
 	if (likely(qedf) && likely(qedf->pdev))
 		pr_err("[%s]:[%s:%d]:%d: %pV", dev_name(&(qedf->pdev->dev)),
-			func, line, qedf->host_no, &vaf);
+			func, line, qedf->host_anal, &vaf);
 	else
 		pr_err("[0000:00:00.0]:[%s:%d]: %pV", func, line, &vaf);
 
@@ -44,7 +44,7 @@ qedf_dbg_warn(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 
 	if (likely(qedf) && likely(qedf->pdev))
 		pr_warn("[%s]:[%s:%d]:%d: %pV", dev_name(&(qedf->pdev->dev)),
-			func, line, qedf->host_no, &vaf);
+			func, line, qedf->host_anal, &vaf);
 	else
 		pr_warn("[0000:00:00.0]:[%s:%d]: %pV", func, line, &vaf);
 
@@ -53,7 +53,7 @@ ret:
 }
 
 void
-qedf_dbg_notice(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
+qedf_dbg_analtice(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 		 const char *fmt, ...)
 {
 	va_list va;
@@ -64,15 +64,15 @@ qedf_dbg_notice(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	if (!(qedf_debug & QEDF_LOG_NOTICE))
+	if (!(qedf_debug & QEDF_LOG_ANALTICE))
 		goto ret;
 
 	if (likely(qedf) && likely(qedf->pdev))
-		pr_notice("[%s]:[%s:%d]:%d: %pV",
+		pr_analtice("[%s]:[%s:%d]:%d: %pV",
 			  dev_name(&(qedf->pdev->dev)), func, line,
-			  qedf->host_no, &vaf);
+			  qedf->host_anal, &vaf);
 	else
-		pr_notice("[0000:00:00.0]:[%s:%d]: %pV", func, line, &vaf);
+		pr_analtice("[0000:00:00.0]:[%s:%d]: %pV", func, line, &vaf);
 
 ret:
 	va_end(va);
@@ -95,7 +95,7 @@ qedf_dbg_info(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 
 	if (likely(qedf) && likely(qedf->pdev))
 		pr_info("[%s]:[%s:%d]:%d: %pV", dev_name(&(qedf->pdev->dev)),
-			func, line, qedf->host_no, &vaf);
+			func, line, qedf->host_anal, &vaf);
 	else
 		pr_info("[0000:00:00.0]:[%s:%d]: %pV", func, line, &vaf);
 
@@ -108,7 +108,7 @@ qedf_alloc_grc_dump_buf(u8 **buf, uint32_t len)
 {
 		*buf = vzalloc(len);
 		if (!(*buf))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		return 0;
 }
@@ -142,10 +142,10 @@ qedf_uevent_emit(struct Scsi_Host *shost, u32 code, char *msg)
 		if (msg)
 			strscpy(event_string, msg, sizeof(event_string));
 		else
-			sprintf(event_string, "GRCDUMP=%u", shost->host_no);
+			sprintf(event_string, "GRCDUMP=%u", shost->host_anal);
 		break;
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 

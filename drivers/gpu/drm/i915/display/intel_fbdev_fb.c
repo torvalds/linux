@@ -36,14 +36,14 @@ struct drm_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = PAGE_ALIGN(size);
 
-	obj = ERR_PTR(-ENODEV);
+	obj = ERR_PTR(-EANALDEV);
 	if (HAS_LMEM(dev_priv)) {
 		obj = i915_gem_object_create_lmem(dev_priv, size,
 						  I915_BO_ALLOC_CONTIGUOUS |
 						  I915_BO_ALLOC_USER);
 	} else {
 		/*
-		 * If the FB is too big, just don't use it since fbdev is not very
+		 * If the FB is too big, just don't use it since fbdev is analt very
 		 * important and we should probably use that space with FBC or other
 		 * features.
 		 *
@@ -57,7 +57,7 @@ struct drm_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 
 	if (IS_ERR(obj)) {
 		drm_err(&dev_priv->drm, "failed to allocate framebuffer (%pe)\n", obj);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	fb = intel_framebuffer_create(obj, &mode_cmd);

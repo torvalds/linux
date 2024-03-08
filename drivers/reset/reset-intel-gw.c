@@ -28,7 +28,7 @@ struct intel_reset_soc {
 
 struct intel_reset_data {
 	struct reset_controller_dev rcdev;
-	struct notifier_block restart_nb;
+	struct analtifier_block restart_nb;
 	const struct intel_reset_soc *soc_data;
 	struct regmap *regmap;
 	struct device *dev;
@@ -154,7 +154,7 @@ static int intel_reset_xlate(struct reset_controller_dev *rcdev,
 	return id;
 }
 
-static int intel_reset_restart_handler(struct notifier_block *nb,
+static int intel_reset_restart_handler(struct analtifier_block *nb,
 				       unsigned long action, void *data)
 {
 	struct intel_reset_data *reset_data;
@@ -162,12 +162,12 @@ static int intel_reset_restart_handler(struct notifier_block *nb,
 	reset_data = container_of(nb, struct intel_reset_data, restart_nb);
 	intel_assert_device(&reset_data->rcdev, reset_data->reboot_id);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int intel_reset_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct intel_reset_data *data;
 	void __iomem *base;
@@ -176,11 +176,11 @@ static int intel_reset_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->soc_data = of_device_get_match_data(dev);
 	if (!data->soc_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -201,7 +201,7 @@ static int intel_reset_probe(struct platform_device *pdev)
 	}
 
 	data->dev =			dev;
-	data->rcdev.of_node =		np;
+	data->rcdev.of_analde =		np;
 	data->rcdev.owner =		dev->driver->owner;
 	data->rcdev.ops	=		&intel_reset_ops;
 	data->rcdev.of_xlate =		intel_reset_xlate;
@@ -216,7 +216,7 @@ static int intel_reset_probe(struct platform_device *pdev)
 	if (data->soc_data->legacy)
 		data->reboot_id |= FIELD_PREP(STAT_BIT_OFFSET_MASK, rb_id[2]);
 
-	data->restart_nb.notifier_call =	intel_reset_restart_handler;
+	data->restart_nb.analtifier_call =	intel_reset_restart_handler;
 	data->restart_nb.priority =		128;
 	register_restart_handler(&data->restart_nb);
 

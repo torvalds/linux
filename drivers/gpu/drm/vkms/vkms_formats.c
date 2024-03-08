@@ -25,7 +25,7 @@ static size_t pixel_offset(const struct vkms_frame_info *frame_info, int x, int 
  * Takes the information stored in the frame_info, a pair of coordinates, and
  * returns the address of the first color channel.
  * This function assumes the channels are packed together, i.e. a color channel
- * comes immediately after another in the memory. And therefore, this function
+ * comes immediately after aanalther in the memory. And therefore, this function
  * doesn't work for YUV with chroma subsampling (e.g. YUV420 and NV21).
  */
 static void *packed_pixels_addr(const struct vkms_frame_info *frame_info,
@@ -121,7 +121,7 @@ static void RGB565_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
  * through the y coordinate (see get_packed_src_addr()) and goes linearly
  * through the source pixel, reading the pixels and converting it to
  * ARGB16161616 (see the pixel_read() callback). For rotate-90 and rotate-270,
- * the source pixels are not traversed linearly. The source pixels are queried
+ * the source pixels are analt traversed linearly. The source pixels are queried
  * on each iteration in order to traverse the pixels vertically.
  */
 void vkms_compose_row(struct line_buffer *stage_buffer, struct vkms_plane_state *plane, int y)

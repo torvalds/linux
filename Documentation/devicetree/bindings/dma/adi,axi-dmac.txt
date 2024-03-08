@@ -7,17 +7,17 @@ Required properties:
  - clocks: Phandle and specifier to the controllers AXI interface clock
  - #dma-cells: Must be 1.
 
-Required sub-nodes:
- - adi,channels: This sub-node must contain a sub-node for each DMA channel. For
-   the channel sub-nodes the following bindings apply. They must match the
+Required sub-analdes:
+ - adi,channels: This sub-analde must contain a sub-analde for each DMA channel. For
+   the channel sub-analdes the following bindings apply. They must match the
    configuration options of the peripheral as it was instantiated.
 
-Required properties for adi,channels sub-node:
+Required properties for adi,channels sub-analde:
  - #size-cells: Must be 0
  - #address-cells: Must be 1
 
-Required channel sub-node properties:
- - reg: Which channel this node refers to.
+Required channel sub-analde properties:
+ - reg: Which channel this analde refers to.
  - adi,source-bus-width,
    adi,destination-bus-width: Width of the source or destination bus in bits.
  - adi,source-bus-type,

@@ -21,21 +21,21 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE
  * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -66,7 +66,7 @@
 
 /*
  * Masks and accessors for page directory, which is a two-level lookup:
- * page directory -> page table -> page. Only one directory for now, but we
+ * page directory -> page table -> page. Only one directory for analw, but we
  * could expand that easily. 9 bits for tables, 9 bits for pages, gives one
  * gigabyte for memory regions and so forth.
  */
@@ -125,7 +125,7 @@
 
 /*
  * GID types. The interpretation of the gid_types bit field in the device
- * capabilities will depend on the device mode. For now, the device only
+ * capabilities will depend on the device mode. For analw, the device only
  * supports RoCE as mode, so only the different GID types for RoCE are
  * defined.
  */
@@ -174,8 +174,8 @@ enum pvrdma_device_ctl {
 enum pvrdma_intr_vector {
 	PVRDMA_INTR_VECTOR_RESPONSE,	/* Command response. */
 	PVRDMA_INTR_VECTOR_ASYNC,	/* Async events. */
-	PVRDMA_INTR_VECTOR_CQ,		/* CQ notification. */
-	/* Additional CQ notification vectors. */
+	PVRDMA_INTR_VECTOR_CQ,		/* CQ analtification. */
+	/* Additional CQ analtification vectors. */
 };
 
 enum pvrdma_intr_cause {
@@ -185,13 +185,13 @@ enum pvrdma_intr_cause {
 };
 
 enum pvrdma_gos_bits {
-	PVRDMA_GOS_BITS_UNK,		/* Unknown. */
+	PVRDMA_GOS_BITS_UNK,		/* Unkanalwn. */
 	PVRDMA_GOS_BITS_32,		/* 32-bit. */
 	PVRDMA_GOS_BITS_64,		/* 64-bit. */
 };
 
 enum pvrdma_gos_type {
-	PVRDMA_GOS_TYPE_UNK,		/* Unknown. */
+	PVRDMA_GOS_TYPE_UNK,		/* Unkanalwn. */
 	PVRDMA_GOS_TYPE_LINUX,		/* Linux. */
 };
 
@@ -211,7 +211,7 @@ struct pvrdma_gos_info {
 
 struct pvrdma_device_caps {
 	u64 fw_ver;				/* R: Query device. */
-	__be64 node_guid;
+	__be64 analde_guid;
 	__be64 sys_image_guid;
 	u64 max_mr_size;
 	u64 page_size_cap;
@@ -319,7 +319,7 @@ struct pvrdma_eqe {
 	u32 info;	/* Handle, other. */
 };
 
-/* CQ notification queue element. */
+/* CQ analtification queue element. */
 struct pvrdma_cqne {
 	u32 info;	/* Handle */
 };
@@ -355,20 +355,20 @@ enum {
 	PVRDMA_CMD_QUERY_PORT_RESP = PVRDMA_CMD_FIRST_RESP,
 	PVRDMA_CMD_QUERY_PKEY_RESP,
 	PVRDMA_CMD_CREATE_PD_RESP,
-	PVRDMA_CMD_DESTROY_PD_RESP_NOOP,
+	PVRDMA_CMD_DESTROY_PD_RESP_ANALOP,
 	PVRDMA_CMD_CREATE_MR_RESP,
-	PVRDMA_CMD_DESTROY_MR_RESP_NOOP,
+	PVRDMA_CMD_DESTROY_MR_RESP_ANALOP,
 	PVRDMA_CMD_CREATE_CQ_RESP,
 	PVRDMA_CMD_RESIZE_CQ_RESP,
-	PVRDMA_CMD_DESTROY_CQ_RESP_NOOP,
+	PVRDMA_CMD_DESTROY_CQ_RESP_ANALOP,
 	PVRDMA_CMD_CREATE_QP_RESP,
 	PVRDMA_CMD_MODIFY_QP_RESP,
 	PVRDMA_CMD_QUERY_QP_RESP,
 	PVRDMA_CMD_DESTROY_QP_RESP,
 	PVRDMA_CMD_CREATE_UC_RESP,
-	PVRDMA_CMD_DESTROY_UC_RESP_NOOP,
-	PVRDMA_CMD_CREATE_BIND_RESP_NOOP,
-	PVRDMA_CMD_DESTROY_BIND_RESP_NOOP,
+	PVRDMA_CMD_DESTROY_UC_RESP_ANALOP,
+	PVRDMA_CMD_CREATE_BIND_RESP_ANALOP,
+	PVRDMA_CMD_DESTROY_BIND_RESP_ANALOP,
 	PVRDMA_CMD_CREATE_SRQ_RESP,
 	PVRDMA_CMD_MODIFY_SRQ_RESP,
 	PVRDMA_CMD_QUERY_SRQ_RESP,

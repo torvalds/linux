@@ -27,7 +27,7 @@
 #define V6_RS_LOCK_DET_REG           0x28
 #define  RS_LOCK_DET_MASK        0x08
 
-#define V6_INITACQ_NODETECT_REG    0x20
+#define V6_INITACQ_ANALDETECT_REG    0x20
 #define V6_FORCE_NFFT_CPSIZE_REG   0x20
 
 #define V6_CODE_RATE_TPS_REG       0x29
@@ -76,9 +76,9 @@
 
 #define TSIF_INPUT_PARALLEL         0
 #define TSIF_INPUT_SERIAL           1
-#define TSIF_NORMAL                 0
+#define TSIF_ANALRMAL                 0
 
-#define V6_MPEG_INOUT_BIT_ORDER_CTRL_REG  0x19
+#define V6_MPEG_IANALUT_BIT_ORDER_CTRL_REG  0x19
 #define V6_MPEG_SER_MSB_FIRST                0x80
 #define MPEG_SER_MSB_FIRST_ENABLED        0x01
 
@@ -97,7 +97,7 @@
 
 #define TOTAL_NUM_IF_OUTPUT_FREQ       16
 
-#define TUNER_NORMAL_IF_SPECTRUM       0x0
+#define TUNER_ANALRMAL_IF_SPECTRUM       0x0
 #define TUNER_INVERT_IF_SPECTRUM       0x10
 
 #define V6_TUNER_IF_SEL_REG              0x06

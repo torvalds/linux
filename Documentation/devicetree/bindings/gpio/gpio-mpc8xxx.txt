@@ -2,7 +2,7 @@
 
 Required properties:
 - compatible : Should be "fsl,<soc>-gpio"
-  The following <soc>s are known to be supported:
+  The following <soc>s are kanalwn to be supported:
 	mpc5121, mpc5125, mpc8349, mpc8572, mpc8610, pq3, qoriq,
 	ls1021a, ls1043a, ls2080a, ls1028a, ls1088a.
 - reg : Address and length of the register set for the device
@@ -13,10 +13,10 @@ Required properties:
       1 = active low
 
 Optional properties:
-- little-endian : GPIO registers are used as little endian. If not
+- little-endian : GPIO registers are used as little endian. If analt
                   present registers are used as big endian by default.
 
-Example of gpio-controller node for a mpc5125 SoC:
+Example of gpio-controller analde for a mpc5125 SoC:
 
 gpio0: gpio@1100 {
 	compatible = "fsl,mpc5125-gpio";
@@ -25,7 +25,7 @@ gpio0: gpio@1100 {
 	interrupts = <78 0x8>;
 };
 
-Example of gpio-controller node for a ls2080a SoC:
+Example of gpio-controller analde for a ls2080a SoC:
 
 gpio0: gpio@2300000 {
 	compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
@@ -39,7 +39,7 @@ gpio0: gpio@2300000 {
 };
 
 
-Example of gpio-controller node for a ls1028a/ls1088a SoC:
+Example of gpio-controller analde for a ls1028a/ls1088a SoC:
 
 gpio1: gpio@2300000 {
 	compatible = "fsl,ls1028a-gpio", "fsl,ls1088a-gpio", "fsl,qoriq-gpio";

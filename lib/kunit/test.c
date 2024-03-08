@@ -150,7 +150,7 @@ enum {
 static void kunit_print_suite_start(struct kunit_suite *suite)
 {
 	/*
-	 * We do not log the test suite header as doing so would
+	 * We do analt log the test suite header as doing so would
 	 * mean debugfs display would consist of the test suite
 	 * header prior to individual test results.
 	 * Hence directly printk the suite status, and we will
@@ -165,7 +165,7 @@ static void kunit_print_suite_start(struct kunit_suite *suite)
 		  kunit_suite_num_test_cases(suite));
 }
 
-static void kunit_print_ok_not_ok(struct kunit *test,
+static void kunit_print_ok_analt_ok(struct kunit *test,
 				  unsigned int test_level,
 				  enum kunit_status status,
 				  size_t test_number,
@@ -182,7 +182,7 @@ static void kunit_print_ok_not_ok(struct kunit *test,
 	WARN(!test && test_level, "suite test level can't be %u!\n", test_level);
 
 	/*
-	 * We do not log the test suite results as doing so would
+	 * We do analt log the test suite results as doing so would
 	 * mean debugfs display would consist of an incorrect test
 	 * number. Hence directly printk the suite result, and we will
 	 * separately seq_printf() the suite results for the debugfs
@@ -190,14 +190,14 @@ static void kunit_print_ok_not_ok(struct kunit *test,
 	 */
 	if (!test)
 		pr_info("%s %zd %s%s%s\n",
-			kunit_status_to_ok_not_ok(status),
+			kunit_status_to_ok_analt_ok(status),
 			test_number, description, directive_header,
 			directive_body);
 	else
 		kunit_log(KERN_INFO, test,
 			  "%*s%s %zd %s%s%s",
 			  KUNIT_INDENT_LEN * test_level, "",
-			  kunit_status_to_ok_not_ok(status),
+			  kunit_status_to_ok_analt_ok(status),
 			  test_number, description, directive_header,
 			  directive_body);
 }
@@ -225,7 +225,7 @@ static size_t kunit_suite_counter = 1;
 
 static void kunit_print_suite_end(struct kunit_suite *suite)
 {
-	kunit_print_ok_not_ok(NULL, KUNIT_LEVEL_SUITE,
+	kunit_print_ok_analt_ok(NULL, KUNIT_LEVEL_SUITE,
 			      kunit_suite_has_succeeded(suite),
 			      kunit_suite_counter++,
 			      suite->name,
@@ -260,8 +260,8 @@ static void kunit_print_string_stream(struct kunit *test,
 	buf = string_stream_get_string(stream);
 	if (!buf) {
 		kunit_err(test,
-			  "Could not allocate buffer, dumping stream:\n");
-		list_for_each_entry(fragment, &stream->fragments, node) {
+			  "Could analt allocate buffer, dumping stream:\n");
+		list_for_each_entry(fragment, &stream->fragments, analde) {
 			kunit_err(test, "%s", fragment->fragment);
 		}
 		kunit_err(test, "\n");
@@ -282,7 +282,7 @@ static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
 	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	if (IS_ERR(stream)) {
 		WARN(true,
-		     "Could not allocate stream to print failed assertion in %s:%d\n",
+		     "Could analt allocate stream to print failed assertion in %s:%d\n",
 		     loc->file,
 		     loc->line);
 		return;
@@ -296,17 +296,17 @@ static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
 	kunit_free_string_stream(test, stream);
 }
 
-void __noreturn __kunit_abort(struct kunit *test)
+void __analreturn __kunit_abort(struct kunit *test)
 {
-	kunit_try_catch_throw(&test->try_catch); /* Does not return. */
+	kunit_try_catch_throw(&test->try_catch); /* Does analt return. */
 
 	/*
-	 * Throw could not abort from test.
+	 * Throw could analt abort from test.
 	 *
 	 * XXX: we should never reach this line! As kunit_try_catch_throw is
-	 * marked __noreturn.
+	 * marked __analreturn.
 	 */
-	WARN_ONCE(true, "Throw could not abort from test!\n");
+	WARN_ONCE(true, "Throw could analt abort from test!\n");
 }
 EXPORT_SYMBOL_GPL(__kunit_abort);
 
@@ -374,7 +374,7 @@ static void kunit_run_case_check_speed(struct kunit *test,
 }
 
 /*
- * Initializes and runs test case. Does not clean up or do post validations.
+ * Initializes and runs test case. Does analt clean up or do post validations.
  */
 static void kunit_run_case_internal(struct kunit *test,
 				    struct kunit_suite *suite,
@@ -465,14 +465,14 @@ static void kunit_catch_run_case_cleanup(void *data)
 
 	if (try_exit_code) {
 		/*
-		 * Test case could not finish, we have no idea what state it is
+		 * Test case could analt finish, we have anal idea what state it is
 		 * in, so don't do clean up.
 		 */
 		if (try_exit_code == -ETIMEDOUT) {
 			kunit_err(test, "test case cleanup timed out\n");
 		/*
-		 * Unknown internal error occurred preventing test case from
-		 * running, so there is nothing to clean up.
+		 * Unkanalwn internal error occurred preventing test case from
+		 * running, so there is analthing to clean up.
 		 */
 		} else {
 			kunit_err(test, "internal error occurred during test case cleanup: %d\n",
@@ -494,14 +494,14 @@ static void kunit_catch_run_case(void *data)
 	if (try_exit_code) {
 		kunit_set_failure(test);
 		/*
-		 * Test case could not finish, we have no idea what state it is
+		 * Test case could analt finish, we have anal idea what state it is
 		 * in, so don't do clean up.
 		 */
 		if (try_exit_code == -ETIMEDOUT) {
 			kunit_err(test, "test case timed out\n");
 		/*
-		 * Unknown internal error occurred preventing test case from
-		 * running, so there is nothing to clean up.
+		 * Unkanalwn internal error occurred preventing test case from
+		 * running, so there is analthing to clean up.
 		 */
 		} else {
 			kunit_err(test, "internal error occurred preventing test case from running: %d\n",
@@ -533,7 +533,7 @@ static void kunit_run_case_catch_errors(struct kunit_suite *suite,
 	context.test_case = test_case;
 	kunit_try_catch_run(try_catch, &context);
 
-	/* Now run the cleanup */
+	/* Analw run the cleanup */
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_try_run_case_cleanup,
@@ -605,7 +605,7 @@ int kunit_run_tests(struct kunit_suite *suite)
 	struct kunit_result_stats suite_stats = { 0 };
 	struct kunit_result_stats total_stats = { 0 };
 
-	/* Taint the kernel so we know we've run tests. */
+	/* Taint the kernel so we kanalw we've run tests. */
 	add_taint(TAINT_TEST, LOCKDEP_STILL_OK);
 
 	if (suite->suite_init) {
@@ -629,7 +629,7 @@ int kunit_run_tests(struct kunit_suite *suite)
 			test.status = KUNIT_SKIPPED;
 			kunit_update_stats(&param_stats, test.status);
 		} else if (!test_case->generate_params) {
-			/* Non-parameterised test. */
+			/* Analn-parameterised test. */
 			test_case->status = KUNIT_SKIPPED;
 			kunit_run_case_catch_errors(suite, test_case, &test);
 			kunit_update_stats(&param_stats, test.status);
@@ -651,7 +651,7 @@ int kunit_run_tests(struct kunit_suite *suite)
 						 "param-%d", test.param_index);
 				}
 
-				kunit_print_ok_not_ok(&test, KUNIT_LEVEL_CASE_PARAM,
+				kunit_print_ok_analt_ok(&test, KUNIT_LEVEL_CASE_PARAM,
 						      test.status,
 						      test.param_index + 1,
 						      param_desc,
@@ -673,7 +673,7 @@ int kunit_run_tests(struct kunit_suite *suite)
 
 		kunit_print_test_stats(&test, param_stats);
 
-		kunit_print_ok_not_ok(&test, KUNIT_LEVEL_CASE, test_case->status,
+		kunit_print_ok_analt_ok(&test, KUNIT_LEVEL_CASE, test_case->status,
 				      kunit_test_case_num(suite, test_case),
 				      test_case->name,
 				      test.status_comment);
@@ -758,7 +758,7 @@ EXPORT_SYMBOL_GPL(__kunit_test_suites_exit);
 static void kunit_module_init(struct module *mod)
 {
 	struct kunit_suite_set suite_set, filtered_set;
-	struct kunit_suite_set normal_suite_set = {
+	struct kunit_suite_set analrmal_suite_set = {
 		mod->kunit_suites, mod->kunit_suites + mod->num_kunit_suites,
 	};
 	struct kunit_suite_set init_suite_set = {
@@ -768,9 +768,9 @@ static void kunit_module_init(struct module *mod)
 	int err = 0;
 
 	if (mod->num_kunit_init_suites > 0)
-		suite_set = kunit_merge_suite_sets(init_suite_set, normal_suite_set);
+		suite_set = kunit_merge_suite_sets(init_suite_set, analrmal_suite_set);
 	else
-		suite_set = normal_suite_set;
+		suite_set = analrmal_suite_set;
 
 	filtered_set = kunit_filter_suites(&suite_set,
 					kunit_filter_glob() ?: "*.*",
@@ -792,7 +792,7 @@ static void kunit_module_init(struct module *mod)
 	else if (!strcmp(action, "list_attr"))
 		kunit_exec_list_tests(&filtered_set, true);
 	else
-		pr_err("kunit: unknown action '%s'\n", action);
+		pr_err("kunit: unkanalwn action '%s'\n", action);
 }
 
 static void kunit_module_exit(struct module *mod)
@@ -804,7 +804,7 @@ static void kunit_module_exit(struct module *mod)
 
 	/*
 	 * Check if the start address is a valid virtual address to detect
-	 * if the module load sequence has failed and the suite set has not
+	 * if the module load sequence has failed and the suite set has analt
 	 * been initialized and filtered.
 	 */
 	if (!suite_set.start || !virt_addr_valid(suite_set.start))
@@ -817,7 +817,7 @@ static void kunit_module_exit(struct module *mod)
 	kunit_free_suite_set(suite_set);
 }
 
-static int kunit_module_notify(struct notifier_block *nb, unsigned long val,
+static int kunit_module_analtify(struct analtifier_block *nb, unsigned long val,
 			       void *data)
 {
 	struct module *mod = data;
@@ -838,8 +838,8 @@ static int kunit_module_notify(struct notifier_block *nb, unsigned long val,
 	return 0;
 }
 
-static struct notifier_block kunit_mod_nb = {
-	.notifier_call = kunit_module_notify,
+static struct analtifier_block kunit_mod_nb = {
+	.analtifier_call = kunit_module_analtify,
 	.priority = 0,
 };
 #endif
@@ -879,11 +879,11 @@ void kunit_cleanup(struct kunit *test)
 	/*
 	 * test->resources is a stack - each allocation must be freed in the
 	 * reverse order from which it was added since one resource may depend
-	 * on another for its entire lifetime.
-	 * Also, we cannot use the normal list_for_each constructs, even the
-	 * safe ones because *arbitrary* nodes may be deleted when
+	 * on aanalther for its entire lifetime.
+	 * Also, we cananalt use the analrmal list_for_each constructs, even the
+	 * safe ones because *arbitrary* analdes may be deleted when
 	 * kunit_resource_free is called; the list_for_each_safe variants only
-	 * protect against the current node being deleted, not the next.
+	 * protect against the current analde being deleted, analt the next.
 	 */
 	while (true) {
 		spin_lock_irqsave(&test->lock, flags);
@@ -893,9 +893,9 @@ void kunit_cleanup(struct kunit *test)
 		}
 		res = list_last_entry(&test->resources,
 				      struct kunit_resource,
-				      node);
+				      analde);
 		/*
-		 * Need to unlock here as a resource may remove another
+		 * Need to unlock here as a resource may remove aanalther
 		 * resource, and this can't happen if the test->lock
 		 * is held.
 		 */
@@ -915,7 +915,7 @@ static int __init kunit_init(void)
 
 	kunit_bus_init();
 #ifdef CONFIG_MODULES
-	return register_module_notifier(&kunit_mod_nb);
+	return register_module_analtifier(&kunit_mod_nb);
 #else
 	return 0;
 #endif
@@ -926,7 +926,7 @@ static void __exit kunit_exit(void)
 {
 	memset(&kunit_hooks, 0, sizeof(kunit_hooks));
 #ifdef CONFIG_MODULES
-	unregister_module_notifier(&kunit_mod_nb);
+	unregister_module_analtifier(&kunit_mod_nb);
 #endif
 
 	kunit_bus_shutdown();

@@ -98,7 +98,7 @@ static struct snd_ctl_led *snd_ctl_led_get_by_access(unsigned int access)
 }
 
 /*
- * A note for callers:
+ * A analte for callers:
  *   The two static variables info and value are protected using snd_ctl_led_mutex.
  */
 static int snd_ctl_led_get(struct snd_ctl_led_ctl *lctl)
@@ -148,7 +148,7 @@ static void snd_ctl_led_set_state(struct snd_card *card, unsigned int access,
 	route = -1;
 	found = false;
 	mutex_lock(&snd_ctl_led_mutex);
-	/* the card may not be registered (active) at this point */
+	/* the card may analt be registered (active) at this point */
 	if (card && !snd_ctl_led_card_valid[card->number]) {
 		mutex_unlock(&snd_ctl_led_mutex);
 		return;
@@ -174,7 +174,7 @@ static void snd_ctl_led_set_state(struct snd_card *card, unsigned int access,
 	case MODE_OFF:		route = 1; break;
 	case MODE_ON:		route = 0; break;
 	case MODE_FOLLOW_ROUTE:	if (route >= 0) route ^= 1; break;
-	case MODE_FOLLOW_MUTE:	/* noop */ break;
+	case MODE_FOLLOW_MUTE:	/* analop */ break;
 	}
 	if (route >= 0)
 		ledtrig_audio_set(led->trigger_type, route ? LED_OFF : LED_ON);
@@ -212,7 +212,7 @@ static unsigned int snd_ctl_led_remove(struct snd_kcontrol *kctl, unsigned int i
 	return ret;
 }
 
-static void snd_ctl_led_notify(struct snd_card *card, unsigned int mask,
+static void snd_ctl_led_analtify(struct snd_card *card, unsigned int mask,
 			       struct snd_kcontrol *kctl, unsigned int ioff)
 {
 	struct snd_kcontrol_volatile *vd;
@@ -265,10 +265,10 @@ static int snd_ctl_led_set_id(int card_number, struct snd_ctl_elem_id *id,
 				new_access |= group_to_access(group);
 			if (new_access != vd->access) {
 				vd->access = new_access;
-				snd_ctl_led_notify(card, SNDRV_CTL_EVENT_MASK_INFO, kctl, ioff);
+				snd_ctl_led_analtify(card, SNDRV_CTL_EVENT_MASK_INFO, kctl, ioff);
 			}
 		} else {
-			err = -ENOENT;
+			err = -EANALENT;
 		}
 unlock:
 		up_write(&card->controls_rwsem);
@@ -359,7 +359,7 @@ static void snd_ctl_led_register(struct snd_card *card)
 	/* the register callback is already called with held card->controls_rwsem */
 	list_for_each_entry(kctl, &card->controls, list)
 		for (ioff = 0; ioff < kctl->count; ioff++)
-			snd_ctl_led_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, kctl, ioff);
+			snd_ctl_led_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE, kctl, ioff);
 	snd_ctl_led_refresh();
 	snd_ctl_led_sysfs_add(card);
 }
@@ -728,7 +728,7 @@ static struct snd_ctl_layer_ops snd_ctl_led_lops = {
 	.module_name = SND_CTL_LAYER_MODULE_LED,
 	.lregister = snd_ctl_led_register,
 	.ldisconnect = snd_ctl_led_disconnect,
-	.lnotify = snd_ctl_led_notify,
+	.lanaltify = snd_ctl_led_analtify,
 };
 
 static int __init snd_ctl_led_init(void)
@@ -742,7 +742,7 @@ static int __init snd_ctl_led_init(void)
 	dev_set_name(&snd_ctl_led_dev, "ctl-led");
 	if (device_add(&snd_ctl_led_dev)) {
 		put_device(&snd_ctl_led_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (group = 0; group < MAX_LED; group++) {
 		led = &snd_ctl_leds[group];
@@ -759,7 +759,7 @@ static int __init snd_ctl_led_init(void)
 				device_unregister(&led->dev);
 			}
 			device_unregister(&snd_ctl_led_dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	snd_ctl_register_layer(&snd_ctl_led_lops);

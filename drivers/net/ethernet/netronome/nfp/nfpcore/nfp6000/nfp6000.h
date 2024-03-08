@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2017 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2017 Netroanalme Systems, Inc. */
 
 #ifndef NFP6000_NFP6000_H
 #define NFP6000_NFP6000_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 /* CPP Target IDs */

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp.h
@@ -58,7 +58,7 @@ int nfp_nsp_read_sensors(struct nfp_nsp *state, unsigned int sensor_mask,
 #define NFP_RESOURCE_NSP		"nfp.sp"
 #define NFP_RESOURCE_NSP_DIAG		"arm.diag"
 
-/* Netronone Flow Firmware Table */
+/* Netroanalne Flow Firmware Table */
 #define NFP_RESOURCE_NFP_NFFW		"nfp.nffw"
 
 /* MAC Statistics Accumulator */

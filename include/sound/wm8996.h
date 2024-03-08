@@ -11,13 +11,13 @@
 enum wm8996_inmode {
 	WM8996_DIFFERRENTIAL_1 = 0,   /* IN1xP - IN1xN */
 	WM8996_INVERTING = 1,         /* IN1xN */
-	WM8996_NON_INVERTING = 2,     /* IN1xP */
+	WM8996_ANALN_INVERTING = 2,     /* IN1xP */
 	WM8996_DIFFERENTIAL_2 = 3,    /* IN2xP - IN2xP */
 };
 
 /**
  * ReTune Mobile configurations are specified with a label, sample
- * rate and set of values to write (the enable bits will be ignored).
+ * rate and set of values to write (the enable bits will be iganalred).
  *
  * Configurations are expected to be generated using the ReTune Mobile
  * control panel in WISCE - see http://www.wolfsonmicro.com/wisce/

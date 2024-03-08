@@ -11,7 +11,7 @@
 #include <net/nfc/hci.h>
 #include <linux/skbuff.h>
 
-#define LLC_NOP_NAME "nop"
+#define LLC_ANALP_NAME "analp"
 #define LLC_SHDLC_NAME "shdlc"
 
 typedef void (*rcv_to_hci_t) (struct nfc_hci_dev *hdev, struct sk_buff *skb);

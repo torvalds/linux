@@ -90,7 +90,7 @@
 /*  */
 /*  2010/12/29 MH Add for 92D */
 /*  */
-#define REG_MAC_PHY_CTRL_NORMAL		0x00f8
+#define REG_MAC_PHY_CTRL_ANALRMAL		0x00f8
 
 
 /*  */
@@ -127,7 +127,7 @@
 #define REG_MBIST_START				0x0174
 #define REG_MBIST_DONE					0x0178
 #define REG_MBIST_FAIL					0x017C
-#define REG_C2HEVT_MSG_NORMAL		0x01A0
+#define REG_C2HEVT_MSG_ANALRMAL		0x01A0
 #define REG_C2HEVT_CLEAR				0x01AF
 #define REG_MCUTST_1					0x01c0
 #define REG_FMETHR						0x01C8
@@ -297,7 +297,7 @@
 /* 	--------------|---------------------- */
 /*                 | */
 /*                TBTT */
-/*  Note: We cannot update beacon content to HW or send any AC packets during the time between Setup and Hold. */
+/*  Analte: We cananalt update beacon content to HW or send any AC packets during the time between Setup and Hold. */
 /*  Described by Designer Tim and Bruce, 2011-01-14. */
 /*  */
 #define REG_TBTT_PROHIBIT				0x0540
@@ -323,11 +323,11 @@
 #define REG_TIMER0						0x0584
 #define REG_TIMER1						0x0588
 #define REG_ACMHWCTRL					0x05C0
-#define REG_NOA_DESC_SEL				0x05CF
-#define REG_NOA_DESC_DURATION		0x05E0
-#define REG_NOA_DESC_INTERVAL			0x05E4
-#define REG_NOA_DESC_START			0x05E8
-#define REG_NOA_DESC_COUNT			0x05EC
+#define REG_ANALA_DESC_SEL				0x05CF
+#define REG_ANALA_DESC_DURATION		0x05E0
+#define REG_ANALA_DESC_INTERVAL			0x05E4
+#define REG_ANALA_DESC_START			0x05E8
+#define REG_ANALA_DESC_COUNT			0x05EC
 
 #define REG_DMC							0x05F0	/* Dual MAC Co-Existence Register */
 #define REG_SCH_TX_CMD					0x05F8
@@ -354,7 +354,7 @@
 #define REG_MAR							0x0620
 #define REG_MBIDCAMCFG					0x0628
 
-#define REG_PNO_STATUS					0x0631
+#define REG_PANAL_STATUS					0x0631
 #define REG_USTIME_EDCA				0x0638
 #define REG_MAC_SPEC_SIFS				0x063A
 /*  20100719 Joseph: Hardware register definition change. (HW datasheet v54) */
@@ -387,7 +387,7 @@
 #define _RXERR_RPT_SEL(type)			((type) << 28)
 
 /*  */
-/*  Note: */
+/*  Analte: */
 /* 	The NAV upper value is very important to WiFi 11n 5.2.3 NAV test. The default value is */
 /* 	always too small, but the WiFi TestPlan test by 25, 000 microseconds of NAV through sending */
 /* 	CTS in the air. We must update this value greater than 25, 000 microseconds to pass the item. */
@@ -445,10 +445,10 @@
 #define REG_USB_HRPWM					0xFE58
 #define REG_USB_HCPWM					0xFE57
 
-/*  for 92DU high_Queue low_Queue Normal_Queue select */
-#define REG_USB_High_NORMAL_Queue_Select_MAC0	0xFE44
+/*  for 92DU high_Queue low_Queue Analrmal_Queue select */
+#define REG_USB_High_ANALRMAL_Queue_Select_MAC0	0xFE44
 /* define REG_USB_LOW_Queue_Select_MAC0		0xFE45 */
-#define REG_USB_High_NORMAL_Queue_Select_MAC1	0xFE47
+#define REG_USB_High_ANALRMAL_Queue_Select_MAC1	0xFE47
 /* define REG_USB_LOW_Queue_Select_MAC1		0xFE48 */
 
 /*  For test chip */
@@ -462,16 +462,16 @@
 #define REG_TEST_SIE_STRING			0xFE80		/*  0xFE80~0xFEB9 */
 
 
-/*  For normal chip */
-#define REG_NORMAL_SIE_VID				0xFE60		/*  0xFE60~0xFE61 */
-#define REG_NORMAL_SIE_PID				0xFE62		/*  0xFE62~0xFE63 */
-#define REG_NORMAL_SIE_OPTIONAL		0xFE64
-#define REG_NORMAL_SIE_EP				0xFE65		/*  0xFE65~0xFE67 */
-#define REG_NORMAL_SIE_PHY			0xFE68		/*  0xFE68~0xFE6B */
-#define REG_NORMAL_SIE_OPTIONAL2		0xFE6C
-#define REG_NORMAL_SIE_GPS_EP			0xFE6D		/*  0xFE6D, for RTL8723 only. */
-#define REG_NORMAL_SIE_MAC_ADDR		0xFE70		/*  0xFE70~0xFE75 */
-#define REG_NORMAL_SIE_STRING			0xFE80		/*  0xFE80~0xFEDF */
+/*  For analrmal chip */
+#define REG_ANALRMAL_SIE_VID				0xFE60		/*  0xFE60~0xFE61 */
+#define REG_ANALRMAL_SIE_PID				0xFE62		/*  0xFE62~0xFE63 */
+#define REG_ANALRMAL_SIE_OPTIONAL		0xFE64
+#define REG_ANALRMAL_SIE_EP				0xFE65		/*  0xFE65~0xFE67 */
+#define REG_ANALRMAL_SIE_PHY			0xFE68		/*  0xFE68~0xFE6B */
+#define REG_ANALRMAL_SIE_OPTIONAL2		0xFE6C
+#define REG_ANALRMAL_SIE_GPS_EP			0xFE6D		/*  0xFE6D, for RTL8723 only. */
+#define REG_ANALRMAL_SIE_MAC_ADDR		0xFE70		/*  0xFE70~0xFE75 */
+#define REG_ANALRMAL_SIE_STRING			0xFE80		/*  0xFE80~0xFEDF */
 
 
 /*  */
@@ -481,7 +481,7 @@
 /*  */
 
 /*  TODO: use these definition when using REG_xxx naming rule. */
-/*  NOTE: DO NOT Remove these definition. Use later. */
+/*  ANALTE: DO ANALT Remove these definition. Use later. */
 
 #define EFUSE_CTRL				REG_EFUSE_CTRL		/*  E-Fuse Control. */
 #define EFUSE_TEST				REG_EFUSE_TEST		/*  E-Fuse Test. */
@@ -642,12 +642,12 @@
 /*        CAM Config Setting (offset 0x680, 1 byte) */
 /*  */
 #define CAM_VALID				BIT15
-#define CAM_NOTVALID			0x0000
+#define CAM_ANALTVALID			0x0000
 #define CAM_USEDK				BIT5
 
 #define CAM_CONTENT_COUNT	8
 
-#define CAM_NONE				0x0
+#define CAM_ANALNE				0x0
 #define CAM_WEP40				0x01
 #define CAM_TKIP				0x02
 #define CAM_AES					0x04
@@ -658,7 +658,7 @@
 #define HALF_CAM_ENTRY			16
 
 #define CAM_CONFIG_USEDK		true
-#define CAM_CONFIG_NO_USEDK	false
+#define CAM_CONFIG_ANAL_USEDK	false
 
 #define CAM_WRITE				BIT16
 #define CAM_READ				0x00000000
@@ -723,7 +723,7 @@
 #define IMR_CPWM				BIT8
 /* RSVD [2-7] */
 #define IMR_OCPINT				BIT1
-#define IMR_WLANOFF			BIT0
+#define IMR_WLAANALFF			BIT0
 
 /*  */
 /*        8192C (RCR) Receive Configuration Register	(Offset 0x608, 32 bits) */
@@ -733,7 +733,7 @@
 #define RCR_APP_ICV				BIT29	/*  MACRX will retain the ICV at the bottom of the packet. */
 #define RCR_APP_PHYST_RXFF		BIT28	/*  PHY Status is appended before RX packet in RXFF */
 #define RCR_APP_BA_SSN			BIT27	/*  SSN of previous TXBA is appended as after original RXDESC as the 4-th DW of RXDESC. */
-#define RCR_NONQOS_VHT			BIT26	/*  Reserved */
+#define RCR_ANALNQOS_VHT			BIT26	/*  Reserved */
 #define RCR_RSVD_BIT25			BIT25	/*  Reserved */
 #define RCR_ENMBID				BIT24	/*  Enable Multiple BssId. Only response ACK to the packets whose DID(A1) matching to the addresses in the MBSSID CAM Entries. */
 #define RCR_LSIGEN				BIT23	/*  Enable LSIG TXOP Protection function. Search KEYCAM for each rx packet to check if LSIGEN bit is set. */
@@ -747,7 +747,7 @@
 #define RCR_RSVD_BIT15			BIT15	/*  Reserved */
 #define RCR_HTC_LOC_CTRL		BIT14	/*  MFC<--HTC = 1 MFC-->HTC = 0 */
 #define RCR_AMF					BIT13	/*  Accept management type frame */
-#define RCR_ACF					BIT12	/*  Accept control type frame. Control frames BA, BAR, and PS-Poll (when in AP mode) are not controlled by this bit. They are controlled by ADF. */
+#define RCR_ACF					BIT12	/*  Accept control type frame. Control frames BA, BAR, and PS-Poll (when in AP mode) are analt controlled by this bit. They are controlled by ADF. */
 #define RCR_ADF					BIT11	/*  Accept data type frame. This bit also regulates BA, BAR, and PS-Poll (AP mode only). */
 #define RCR_RSVD_BIT10			BIT10	/*  Reserved */
 #define RCR_AICV					BIT9		/*  Accept ICV error packet */
@@ -961,7 +961,7 @@
 /*  Network type */
 #define _NETTYPE(x)				(((x) & 0x3) << 16)
 #define MASK_NETTYPE			0x30000
-#define NT_NO_LINK				0x0
+#define NT_ANAL_LINK				0x0
 #define NT_LINK_AD_HOC			0x1
 #define NT_LINK_AP				0x2
 #define NT_AS_AP				0x3
@@ -999,7 +999,7 @@
 #define HQSEL_MGTQ				BIT(4)
 #define HQSEL_HIQ				BIT(5)
 
-/*  For normal driver, 0x10C */
+/*  For analrmal driver, 0x10C */
 #define _TXDMA_CMQ_MAP(x)			(((x)&0x3) << 16)
 #define _TXDMA_HIQ_MAP(x)			(((x)&0x3) << 14)
 #define _TXDMA_MGQ_MAP(x)			(((x)&0x3) << 12)
@@ -1010,7 +1010,7 @@
 
 #define QUEUE_EXTRA				0
 #define QUEUE_LOW				1
-#define QUEUE_NORMAL			2
+#define QUEUE_ANALRMAL			2
 #define QUEUE_HIGH				3
 
 
@@ -1018,7 +1018,7 @@
 
 
 /* 2 LLT_INIT */
-#define _LLT_NO_ACTIVE				0x0
+#define _LLT_ANAL_ACTIVE				0x0
 #define _LLT_WRITE_ACCESS			0x1
 #define _LLT_READ_ACCESS			0x2
 
@@ -1037,8 +1037,8 @@
 #define _HPQ(x)					((x) & 0xFF)
 #define _LPQ(x)					(((x) & 0xFF) << 8)
 #define _PUBQ(x)					(((x) & 0xFF) << 16)
-#define _NPQ(x)					((x) & 0xFF)			/*  NOTE: in RQPN_NPQ register */
-#define _EPQ(x)					(((x) & 0xFF) << 16)	/*  NOTE: in RQPN_EPQ register */
+#define _NPQ(x)					((x) & 0xFF)			/*  ANALTE: in RQPN_NPQ register */
+#define _EPQ(x)					(((x) & 0xFF) << 16)	/*  ANALTE: in RQPN_EPQ register */
 
 
 #define HPQ_PUBLIC_DIS			BIT(24)
@@ -1134,7 +1134,7 @@
 #define DIS_TSF_UDT				BIT(4)
 
 /*  The same function but different bit field. */
-#define DIS_TSF_UDT0_NORMAL_CHIP	BIT(4)
+#define DIS_TSF_UDT0_ANALRMAL_CHIP	BIT(4)
 #define DIS_TSF_UDT0_TEST_CHIP	BIT(5)
 
 
@@ -1150,9 +1150,9 @@
 /* 2 REG_DUAL_TSF_RST (0x553) */
 #define DUAL_TSF_RST_P2P		BIT(4)
 
-/* 2  REG_NOA_DESC_SEL (0x5CF) */
-#define NOA_DESC_SEL_0			0
-#define NOA_DESC_SEL_1			BIT(4)
+/* 2  REG_ANALA_DESC_SEL (0x5CF) */
+#define ANALA_DESC_SEL_0			0
+#define ANALA_DESC_SEL_1			BIT(4)
 
 /*  */
 /*  */
@@ -1209,7 +1209,7 @@
 #define SCR_TxEncEnable			BIT(2)			/* Enable Tx Encryption */
 #define SCR_RxDecEnable			BIT(3)			/* Enable Rx Decryption */
 #define SCR_SKByA2				BIT(4)			/* Search kEY BY A2 */
-#define SCR_NoSKMC				BIT(5)			/* No Key Search Multicast */
+#define SCR_AnalSKMC				BIT(5)			/* Anal Key Search Multicast */
 #define SCR_TXBCUSEDK			BIT(6)			/*  Force Tx Broadcast packets Use Default Key */
 #define SCR_RXBCUSEDK			BIT(7)			/*  Force Rx Broadcast packets Use Default Key */
 #define SCR_CHK_KEYID			BIT(8)
@@ -1281,7 +1281,7 @@
 #define SDIO_HIMR_RXERR_MSK			BIT3
 #define SDIO_HIMR_TXFOVW_MSK			BIT4
 #define SDIO_HIMR_RXFOVW_MSK			BIT5
-#define SDIO_HIMR_TXBCNOK_MSK			BIT6
+#define SDIO_HIMR_TXBCANALK_MSK			BIT6
 #define SDIO_HIMR_TXBCNERR_MSK		BIT7
 #define SDIO_HIMR_BCNERLY_INT_MSK		BIT16
 #define SDIO_HIMR_C2HCMD_MSK			BIT17
@@ -1303,7 +1303,7 @@
 #define SDIO_HISR_RXERR					BIT3
 #define SDIO_HISR_TXFOVW				BIT4
 #define SDIO_HISR_RXFOVW				BIT5
-#define SDIO_HISR_TXBCNOK				BIT6
+#define SDIO_HISR_TXBCANALK				BIT6
 #define SDIO_HISR_TXBCNERR				BIT7
 #define SDIO_HISR_BCNERLY_INT			BIT16
 #define SDIO_HISR_C2HCMD				BIT17
@@ -1322,7 +1322,7 @@
 									SDIO_HISR_RXERR |\
 									SDIO_HISR_TXFOVW |\
 									SDIO_HISR_RXFOVW |\
-									SDIO_HISR_TXBCNOK |\
+									SDIO_HISR_TXBCANALK |\
 									SDIO_HISR_TXBCNERR |\
 									SDIO_HISR_C2HCMD |\
 									SDIO_HISR_CPWM1 |\
@@ -1354,8 +1354,8 @@
 #define USB_IS_FULL_SPEED			1
 #define USB_SPEED_MASK				BIT(5)
 
-#define USB_NORMAL_SIE_EP_MASK	0xF
-#define USB_NORMAL_SIE_EP_SHIFT	4
+#define USB_ANALRMAL_SIE_EP_MASK	0xF
+#define USB_ANALRMAL_SIE_EP_SHIFT	4
 
 /* 2 Special Option */
 #define USB_AGG_EN				BIT(3)
@@ -1365,8 +1365,8 @@
 #define INT_BULK_SEL			BIT(4)
 
 /* 2REG_C2HEVT_CLEAR */
-#define C2H_EVT_HOST_CLOSE		0x00	/*  Set by driver and notify FW that the driver has read the C2H command message */
-#define C2H_EVT_FW_CLOSE		0xFF	/*  Set by FW indicating that FW had set the C2H command message and it's not yet read by driver. */
+#define C2H_EVT_HOST_CLOSE		0x00	/*  Set by driver and analtify FW that the driver has read the C2H command message */
+#define C2H_EVT_FW_CLOSE		0xFF	/*  Set by FW indicating that FW had set the C2H command message and it's analt yet read by driver. */
 
 
 /* 2REG_MULTI_FUNC_CTRL(For RTL8723 Only) */

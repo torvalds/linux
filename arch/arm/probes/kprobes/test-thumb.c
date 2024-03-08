@@ -16,9 +16,9 @@
 #define TEST_ISA "16"
 
 #define DONT_TEST_IN_ITBLOCK(tests)			\
-	kprobe_test_flags |= TEST_FLAG_NO_ITBLOCK;	\
+	kprobe_test_flags |= TEST_FLAG_ANAL_ITBLOCK;	\
 	tests						\
-	kprobe_test_flags &= ~TEST_FLAG_NO_ITBLOCK;
+	kprobe_test_flags &= ~TEST_FLAG_ANAL_ITBLOCK;
 
 #define CONDITION_INSTRUCTIONS(cc_pos, tests)		\
 	kprobe_test_cc_position = cc_pos;		\
@@ -29,12 +29,12 @@
 	kprobe_test_flags |= TEST_FLAG_FULL_ITBLOCK;	\
 	TESTCASE_START(code)				\
 	TEST_ARG_END("")				\
-	"50:	nop			\n\t"		\
+	"50:	analp			\n\t"		\
 	"1:	"code"			\n\t"		\
 	"	mov r1, #0x11		\n\t"		\
 	"	mov r2, #0x22		\n\t"		\
 	"	mov r3, #0x33		\n\t"		\
-	"2:	nop			\n\t"		\
+	"2:	analp			\n\t"		\
 	TESTCASE_END					\
 	kprobe_test_flags &= ~TEST_FLAG_FULL_ITBLOCK;
 
@@ -44,15 +44,15 @@
 	TEST_ARG_REG(14, 99f+1)					\
 	TEST_ARG_MEM(15, 3f)					\
 	TEST_ARG_END("")					\
-	"	nop			\n\t" /* To align 1f */	\
-	"50:	nop			\n\t"			\
+	"	analp			\n\t" /* To align 1f */	\
+	"50:	analp			\n\t"			\
 	"1:	"code1 #reg code2"	\n\t"			\
 	"	bx	lr		\n\t"			\
 	".arm				\n\t"			\
 	"3:	adr	lr, 2f+1	\n\t"			\
 	"	bx	lr		\n\t"			\
 	".thumb				\n\t"			\
-	"2:	nop			\n\t"			\
+	"2:	analp			\n\t"			\
 	TESTCASE_END
 
 
@@ -136,15 +136,15 @@ void kprobe_thumb16_test_cases(void)
 	TESTCASE_START("bx	pc")
 		TEST_ARG_REG(14, 99f+1)
 		TEST_ARG_END("")
-		"	nop			\n\t" /* To align the bx pc*/
-		"50:	nop			\n\t"
+		"	analp			\n\t" /* To align the bx pc*/
+		"50:	analp			\n\t"
 		"1:	bx	pc		\n\t"
 		"	bx	lr		\n\t"
 		".arm				\n\t"
 		"	adr	lr, 2f+1	\n\t"
 		"	bx	lr		\n\t"
 		".thumb				\n\t"
-		"2:	nop			\n\t"
+		"2:	analp			\n\t"
 	TESTCASE_END
 
 	TEST_BF_R("blx	r",0, 2f+1,"")
@@ -268,7 +268,7 @@ DONT_TEST_IN_ITBLOCK(
 
 	TEST_SUPPORTED("yield")
 	TEST("sev")
-	TEST("nop")
+	TEST("analp")
 	TEST("wfi")
 	TEST_SUPPORTED("wfe")
 	TEST_UNSUPPORTED(__inst_thumb16(0xbf50) "") /* Unassigned hints */
@@ -277,10 +277,10 @@ DONT_TEST_IN_ITBLOCK(
 #define TEST_IT(code, code2)			\
 	TESTCASE_START(code)			\
 	TEST_ARG_END("")			\
-	"50:	nop			\n\t"	\
+	"50:	analp			\n\t"	\
 	"1:	"code"			\n\t"	\
 	"	"code2"			\n\t"	\
-	"2:	nop			\n\t"	\
+	"2:	analp			\n\t"	\
 	TESTCASE_END
 
 DONT_TEST_IN_ITBLOCK(
@@ -425,42 +425,42 @@ void kprobe_thumb32_test_cases(void)
 		".byte	(2f-1b-4)>>1	\n\t"
 		".byte	(3f-1b-4)>>1	\n\t"
 		"3:	mvn	r0, r0	\n\t"
-		"2:	nop		\n\t")
+		"2:	analp		\n\t")
 
 	TEST_RX("tbb	[pc, r",4, (9f-(1f+4)+1),"]",
 		"9:			\n\t"
 		".byte	(2f-1b-4)>>1	\n\t"
 		".byte	(3f-1b-4)>>1	\n\t"
 		"3:	mvn	r0, r0	\n\t"
-		"2:	nop		\n\t")
+		"2:	analp		\n\t")
 
 	TEST_RRX("tbb	[r",1,9f,", r",2,0,"]",
 		"9:			\n\t"
 		".byte	(2f-1b-4)>>1	\n\t"
 		".byte	(3f-1b-4)>>1	\n\t"
 		"3:	mvn	r0, r0	\n\t"
-		"2:	nop		\n\t")
+		"2:	analp		\n\t")
 
 	TEST_RX("tbh	[pc, r",7, (9f-(1f+4))>>1,", lsl #1]",
 		"9:			\n\t"
 		".short	(2f-1b-4)>>1	\n\t"
 		".short	(3f-1b-4)>>1	\n\t"
 		"3:	mvn	r0, r0	\n\t"
-		"2:	nop		\n\t")
+		"2:	analp		\n\t")
 
 	TEST_RX("tbh	[pc, r",12, ((9f-(1f+4))>>1)+1,", lsl #1]",
 		"9:			\n\t"
 		".short	(2f-1b-4)>>1	\n\t"
 		".short	(3f-1b-4)>>1	\n\t"
 		"3:	mvn	r0, r0	\n\t"
-		"2:	nop		\n\t")
+		"2:	analp		\n\t")
 
 	TEST_RRX("tbh	[r",1,9f, ", r",14,1,", lsl #1]",
 		"9:			\n\t"
 		".short	(2f-1b-4)>>1	\n\t"
 		".short	(3f-1b-4)>>1	\n\t"
 		"3:	mvn	r0, r0	\n\t"
-		"2:	nop		\n\t")
+		"2:	analp		\n\t")
 
 	TEST_UNSUPPORTED(__inst_thumb32(0xe8d1f01f) "	@ tbh [r1, pc]")
 	TEST_UNSUPPORTED(__inst_thumb32(0xe8d1f01d) "	@ tbh [r1, sp]")
@@ -761,7 +761,7 @@ CONDITION_INSTRUCTIONS(22,
 
 	TEST_SUPPORTED("yield.w")
 	TEST("sev.w")
-	TEST("nop.w")
+	TEST("analp.w")
 	TEST("wfi.w")
 	TEST_SUPPORTED("wfe.w")
 	TEST_UNSUPPORTED("dbg.w	#0")
@@ -775,8 +775,8 @@ CONDITION_INSTRUCTIONS(22,
 
 	TEST_UNSUPPORTED("subs	pc, lr, #4")
 
-	TEST_RMASKED("mrs	r",0,~PSR_IGNORE_BITS,", cpsr")
-	TEST_RMASKED("mrs	r",14,~PSR_IGNORE_BITS,", cpsr")
+	TEST_RMASKED("mrs	r",0,~PSR_IGANALRE_BITS,", cpsr")
+	TEST_RMASKED("mrs	r",14,~PSR_IGANALRE_BITS,", cpsr")
 	TEST_UNSUPPORTED(__inst_thumb32(0xf3ef8d00) "	@ mrs	sp, spsr")
 	TEST_UNSUPPORTED(__inst_thumb32(0xf3ef8f00) "	@ mrs	pc, spsr")
 	TEST_UNSUPPORTED("mrs	r0, spsr")

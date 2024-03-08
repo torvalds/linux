@@ -49,14 +49,14 @@ disasm_re = re.compile(r"^\s*([0-9a-fA-F]+):")
 disasm_func_re = re.compile(r"^\s*([0-9a-fA-F]+)\s.*:")
 cache_size = 64*1024
 
-glb_source_file_name	= None
-glb_line_number		= None
-glb_dso			= None
+glb_source_file_name	= Analne
+glb_line_number		= Analne
+glb_dso			= Analne
 
 def get_optional(perf_dict, field):
        if field in perf_dict:
                return perf_dict[field]
-       return "[unknown]"
+       return "[unkanalwn]"
 
 def get_offset(perf_dict, field):
 	if field in perf_dict:
@@ -104,9 +104,9 @@ def read_disam(dso_fname, dso_start, start_addr, stop_addr):
 def print_disam(dso_fname, dso_start, start_addr, stop_addr):
 	for line in read_disam(dso_fname, dso_start, start_addr, stop_addr):
 		m = disasm_func_re.search(line)
-		if m is None:
+		if m is Analne:
 			m = disasm_re.search(line)
-			if m is None:
+			if m is Analne:
 				continue
 		print("\t" + line)
 
@@ -138,7 +138,7 @@ def common_start_str(comm, sample):
 # line and symbols.
 def print_srccode(comm, param_dict, sample, symbol, dso):
 	ip = sample["ip"]
-	if symbol == "[unknown]":
+	if symbol == "[unkanalwn]":
 		start_str = common_start_str(comm, sample) + ("%x" % ip).rjust(16).ljust(40)
 	else:
 		offs = get_offset(param_dict, "symoff")
@@ -158,11 +158,11 @@ def print_srccode(comm, param_dict, sample, symbol, dso):
 			else:
 				src_file = source_file_name.ljust(41)
 
-			if source_line is None:
-				src_str = src_file + str(line_number).rjust(4) + " <source not found>"
+			if source_line is Analne:
+				src_str = src_file + str(line_number).rjust(4) + " <source analt found>"
 			else:
 				src_str = src_file + str(line_number).rjust(4) + " " + source_line
-		glb_dso = None
+		glb_dso = Analne
 	elif dso == glb_dso:
 		src_str = ""
 	else:
@@ -194,7 +194,7 @@ def process_event(param_dict):
 
 	# Initialize CPU data if it's empty, and directly return back
 	# if this is the first tracing event for this CPU.
-	if (cpu_data.get(str(cpu) + 'addr') == None):
+	if (cpu_data.get(str(cpu) + 'addr') == Analne):
 		cpu_data[str(cpu) + 'addr'] = addr
 		return
 
@@ -203,12 +203,12 @@ def process_event(param_dict):
 		print("Event type: %s" % name)
 		print_sample(sample)
 
-	# If cannot find dso so cannot dump assembler, bail out
-	if (dso == '[unknown]'):
+	# If cananalt find dso so cananalt dump assembler, bail out
+	if (dso == '[unkanalwn]'):
 		return
 
 	# Validate dso start and end addresses
-	if ((dso_start == '[unknown]') or (dso_end == '[unknown]')):
+	if ((dso_start == '[unkanalwn]') or (dso_end == '[unkanalwn]')):
 		print("Failed to find valid dso map for dso %s" % dso)
 		return
 
@@ -216,7 +216,7 @@ def process_event(param_dict):
 		print_srccode(comm, param_dict, sample, symbol, dso)
 		return
 
-	# Don't proceed if this event is not a branch sample, .
+	# Don't proceed if this event is analt a branch sample, .
 	if (name[0:8] != "branches"):
 		return
 
@@ -257,7 +257,7 @@ def process_event(param_dict):
 		print("Stop address 0x%x is out of range [ 0x%x .. 0x%x ] for dso %s" % (stop_addr, int(dso_start), int(dso_end), dso))
 		return
 
-	if (options.objdump_name != None):
+	if (options.objdump_name != Analne):
 		# It doesn't need to decrease virtual memory offset for disassembly
 		# for kernel dso and executable file dso, so in this case we set
 		# vm_start to zero.

@@ -83,15 +83,15 @@ static int papr_get_attr(u64 id, struct energy_scale_attribute *esi)
 
 	buf = kmalloc(esi_buf_size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 retry:
-	ret = plpar_hcall_norets(H_GET_ENERGY_SCALE_INFO, ESI_FLAGS_SINGLE,
+	ret = plpar_hcall_analrets(H_GET_ENERGY_SCALE_INFO, ESI_FLAGS_SINGLE,
 				 id, virt_to_phys(buf),
 				 esi_buf_size);
 
 	/*
-	 * If the hcall fails with not enough memory for either the
+	 * If the hcall fails with analt eanalugh memory for either the
 	 * header or data, attempt to allocate more
 	 */
 	if (ret == H_PARTIAL || ret == H_P4) {
@@ -104,7 +104,7 @@ retry:
 		if (temp_buf)
 			buf = temp_buf;
 		else
-			return -ENOMEM;
+			return -EANALMEM;
 
 		goto retry;
 	}
@@ -244,7 +244,7 @@ static int __init papr_init(void)
 
 	esi_buf = kmalloc(esi_buf_size, GFP_KERNEL);
 	if (esi_buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*
 	 * hcall(
 	 * uint64 H_GET_ENERGY_SCALE_INFO,  // Get energy scale info
@@ -255,11 +255,11 @@ static int __init papr_init(void)
 	 */
 retry:
 
-	ret = plpar_hcall_norets(H_GET_ENERGY_SCALE_INFO, ESI_FLAGS_ALL, 0,
+	ret = plpar_hcall_analrets(H_GET_ENERGY_SCALE_INFO, ESI_FLAGS_ALL, 0,
 				 virt_to_phys(esi_buf), esi_buf_size);
 
 	/*
-	 * If the hcall fails with not enough memory for either the
+	 * If the hcall fails with analt eanalugh memory for either the
 	 * header or data, attempt to allocate more
 	 */
 	if (ret == H_PARTIAL || ret == H_P4) {
@@ -272,7 +272,7 @@ retry:
 		if (temp_esi_buf)
 			esi_buf = temp_esi_buf;
 		else
-			return -ENOMEM;
+			return -EANALMEM;
 
 		goto retry;
 	}
@@ -326,7 +326,7 @@ retry:
 	for (idx = 0; idx < num_attrs; idx++) {
 		bool show_val_desc = true;
 
-		/* Do not add the value desc attr if it does not exist */
+		/* Do analt add the value desc attr if it does analt exist */
 		if (strnlen(esi_attrs[idx].value_desc,
 			    sizeof(esi_attrs[idx].value_desc)) == 0)
 			show_val_desc = false;
@@ -356,7 +356,7 @@ out_papr_groups:
 out_free_esi_buf:
 	kfree(esi_buf);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 machine_device_initcall(pseries, papr_init);

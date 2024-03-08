@@ -5,7 +5,7 @@
 #include "tegra114.dtsi"
 
 / {
-	model = "Tegra Note 7";
+	model = "Tegra Analte 7";
 	compatible = "nvidia,tn7", "nvidia,tegra114";
 
 	chosen {
@@ -24,7 +24,7 @@
 		trusted-foundations {
 			compatible = "tlm,trusted-foundations";
 			tlm,version-major = <2>;
-			tlm,version-minor = <8>;
+			tlm,version-mianalr = <8>;
 		};
 	};
 
@@ -247,7 +247,7 @@
 	mmc@78000600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		analn-removable;
 	};
 
 	usb@7d000000 {
@@ -261,7 +261,7 @@
 		nvidia,xcvr-lsrslew = <2>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		/* Should be changed to "otg" once we have vbus_supply */
-		/* As of now, USB devices need to be powered externally */
+		/* As of analw, USB devices need to be powered externally */
 		dr_mode = "host";
 	};
 

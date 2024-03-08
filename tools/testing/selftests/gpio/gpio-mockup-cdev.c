@@ -5,7 +5,7 @@
  * Copyright (C) 2020 Kent Gibson
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdint.h>
@@ -38,7 +38,7 @@ static int request_line_v2(int cfd, unsigned int offset,
 	}
 	ret = ioctl(cfd, GPIO_V2_GET_LINE_IOCTL, &req);
 	if (ret == -1)
-		return -errno;
+		return -erranal;
 	return req.fd;
 }
 
@@ -52,7 +52,7 @@ static int get_value_v2(int lfd)
 	vals.mask = 1;
 	ret = ioctl(lfd, GPIO_V2_LINE_GET_VALUES_IOCTL, &vals);
 	if (ret == -1)
-		return -errno;
+		return -erranal;
 	return vals.bits & 0x1;
 }
 
@@ -72,7 +72,7 @@ static int request_line_v1(int cfd, unsigned int offset,
 
 	ret = ioctl(cfd, GPIO_GET_LINEHANDLE_IOCTL, &req);
 	if (ret == -1)
-		return -errno;
+		return -erranal;
 	return req.fd;
 }
 
@@ -84,7 +84,7 @@ static int get_value_v1(int lfd)
 	memset(&vals, 0, sizeof(vals));
 	ret = ioctl(lfd, GPIOHANDLE_GET_LINE_VALUES_IOCTL, &vals);
 	if (ret == -1)
-		return -errno;
+		return -erranal;
 	return vals.values[0];
 }
 
@@ -167,8 +167,8 @@ int main(int argc, char *argv[])
 
 	cfd = open(chip, 0);
 	if (cfd == -1) {
-		fprintf(stderr, "Failed to open %s: %s\n", chip, strerror(errno));
-		return -errno;
+		fprintf(stderr, "Failed to open %s: %s\n", chip, strerror(erranal));
+		return -erranal;
 	}
 
 	if (abiv == 1)

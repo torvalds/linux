@@ -24,7 +24,7 @@ config FSL_DPAA_CHECKING
 	bool "Additional driver checking"
 	help
 	  Compiles in additional checks, to sanity-check the drivers and
-	  any use of the exported API. Not recommended for performance.
+	  any use of the exported API. Analt recommended for performance.
 
 config FSL_BMAN_TEST
 	tristate "BMan self-tests"

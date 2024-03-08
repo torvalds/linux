@@ -37,7 +37,7 @@ titan_parse_c_misc(u64 c_misc, int print)
 #define TITAN__CCHIP_MISC__NXS__M	(0x7)
 
 	if (!(c_misc & TITAN__CCHIP_MISC__NXM))
-		return MCHK_DISPOSITION_UNKNOWN_ERROR;
+		return MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 #ifdef CONFIG_VERBOSE_MCHECK
 	if (!print)
@@ -58,12 +58,12 @@ titan_parse_c_misc(u64 c_misc, int print)
 		nxs -= 4;
 		break;
 	default:/* reserved */
-		src = "Unknown, NXS =";
+		src = "Unkanalwn, NXS =";
 		/* leave num untouched */
 		break;
 	}
 
-	printk("%s    Non-existent memory access from: %s %d\n", 
+	printk("%s    Analn-existent memory access from: %s %d\n", 
 	       err_print_prefix, src, nxs);
 #endif /* CONFIG_VERBOSE_MCHECK */
 
@@ -106,7 +106,7 @@ titan_parse_p_serror(int which, u64 serror, int print)
 #define TITAN__PCHIP_SERROR__ADDR__M	(0xffffffffUL)
 
 	if (!(serror & TITAN__PCHIP_SERROR__ERRMASK))
-		return MCHK_DISPOSITION_UNKNOWN_ERROR;
+		return MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 #ifdef CONFIG_VERBOSE_MCHECK
 	if (!print)
@@ -126,7 +126,7 @@ titan_parse_p_serror(int which, u64 serror, int print)
 		       EXTRACT(serror, TITAN__PCHIP_SERROR__ADDR));
 	}
 	if (serror & TITAN__PCHIP_SERROR__NXIO)
-		printk("%s    Non Existent I/O Error\n", err_print_prefix);
+		printk("%s    Analn Existent I/O Error\n", err_print_prefix);
 	if (serror & TITAN__PCHIP_SERROR__LOST_UECC)
 		printk("%s    Lost Uncorrectable ECC Error\n", 
 		       err_print_prefix);
@@ -146,7 +146,7 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 
 #ifdef CONFIG_VERBOSE_MCHECK
 	static const char * const perror_cmd[] = {
-		"Interrupt Acknowledge", "Special Cycle",
+		"Interrupt Ackanalwledge", "Special Cycle",
 		"I/O Read",		"I/O Write",
 		"Reserved",		"Reserved",
 		"Memory Read",		"Memory Write",
@@ -187,7 +187,7 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 #define TITAN__PCHIP_PERROR__ADDR__M	(0x1fffffffful)
 
 	if (!(perror & TITAN__PCHIP_PERROR__ERRMASK))
-		return MCHK_DISPOSITION_UNKNOWN_ERROR;
+		return MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 	cmd = EXTRACT(perror, TITAN__PCHIP_PERROR__CMD);
 	addr = EXTRACT(perror, TITAN__PCHIP_PERROR__ADDR) << 2;
@@ -197,7 +197,7 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	 * a south bridge (subtractive decode agent) can result in 
 	 * master aborts as the BIOS probes the capabilities of the
 	 * card. XFree86 does such initialization. If the error
-	 * is a master abort (No DevSel as PCI Master) and the command
+	 * is a master abort (Anal DevSel as PCI Master) and the command
 	 * is an I/O read or write below the address where we start
 	 * assigning PCI I/O spaces (SRM uses 0x1000), then mark the
 	 * error as dismissable so starting XFree86 doesn't result
@@ -212,9 +212,9 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	 * be handled on a different CPU than the BIOS code is run on,
 	 * it is possible for a second master abort to occur between the
 	 * time the PALcode reads PERROR and the time it writes PERROR
-	 * to acknowledge the error. If this timing happens, a second
-	 * error will be signalled after the first, and if no additional
-	 * errors occur, will look like a Lost error with no additional 
+	 * to ackanalwledge the error. If this timing happens, a second
+	 * error will be signalled after the first, and if anal additional
+	 * errors occur, will look like a Lost error with anal additional 
 	 * errors on the same transaction as the previous error.
 	 */
 	if (((perror & TITAN__PCHIP_PERROR__NDS) || 
@@ -237,7 +237,7 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	if (perror & TITAN__PCHIP_PERROR__IPTPR)
 		printk("%s    Invalid Peer-to-Peer Read\n", err_print_prefix);
 	if (perror & TITAN__PCHIP_PERROR__NDS)
-		printk("%s    No DEVSEL as PCI Master [Master Abort]\n",
+		printk("%s    Anal DEVSEL as PCI Master [Master Abort]\n",
 		       err_print_prefix);
 	if (perror & TITAN__PCHIP_PERROR__DPE)
 		printk("%s    Data Parity Error\n", err_print_prefix);
@@ -293,14 +293,14 @@ titan_parse_p_agperror(int which, u64 agperror, int print)
 #define TITAN__PCHIP_AGPERROR__RESCMD	(1UL << 3)
 #define TITAN__PCHIP_AGPERROR__IPTE	(1UL << 4)
 #define TITAN__PCHIP_AGPERROR__PTP	(1UL << 5)
-#define TITAN__PCHIP_AGPERROR__NOWINDOW	(1UL << 6)
+#define TITAN__PCHIP_AGPERROR__ANALWINDOW	(1UL << 6)
 #define TITAN__PCHIP_AGPERROR__ERRMASK	(TITAN__PCHIP_AGPERROR__LOST |    \
 					 TITAN__PCHIP_AGPERROR__LPQFULL | \
 					 TITAN__PCHIP_AGPERROR__HPQFULL | \
 					 TITAN__PCHIP_AGPERROR__RESCMD |  \
 					 TITAN__PCHIP_AGPERROR__IPTE |    \
 					 TITAN__PCHIP_AGPERROR__PTP |     \
-					 TITAN__PCHIP_AGPERROR__NOWINDOW)
+					 TITAN__PCHIP_AGPERROR__ANALWINDOW)
 #define TITAN__PCHIP_AGPERROR__DAC	(1UL << 48)
 #define TITAN__PCHIP_AGPERROR__MWIN	(1UL << 49)
 #define TITAN__PCHIP_AGPERROR__FENCE	(1UL << 59)
@@ -312,7 +312,7 @@ titan_parse_p_agperror(int which, u64 agperror, int print)
 #define TITAN__PCHIP_AGPERROR__LEN__M	(0x3f)
 
 	if (!(agperror & TITAN__PCHIP_AGPERROR__ERRMASK))
-		return MCHK_DISPOSITION_UNKNOWN_ERROR;
+		return MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 #ifdef CONFIG_VERBOSE_MCHECK
 	if (!print)
@@ -324,8 +324,8 @@ titan_parse_p_agperror(int which, u64 agperror, int print)
 
 	printk("%s  PChip %d AGPERROR: %016llx\n", err_print_prefix,
 	       which, agperror);
-	if (agperror & TITAN__PCHIP_AGPERROR__NOWINDOW)
-		printk("%s    No Window\n", err_print_prefix);
+	if (agperror & TITAN__PCHIP_AGPERROR__ANALWINDOW)
+		printk("%s    Anal Window\n", err_print_prefix);
 	if (agperror & TITAN__PCHIP_AGPERROR__PTP)
 		printk("%s    Peer-to-Peer set\n", err_print_prefix);
 	if (agperror & TITAN__PCHIP_AGPERROR__IPTE)
@@ -358,7 +358,7 @@ static int
 titan_parse_p_chip(int which, u64 serror, u64 gperror, 
 		   u64 aperror, u64 agperror, int print)
 {
-	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int status = MCHK_DISPOSITION_UNKANALWN_ERROR;
 	status |= titan_parse_p_serror(which, serror, print);
 	status |= titan_parse_p_perror(which, 0, gperror, print);
 	status |= titan_parse_p_perror(which, 1, aperror, print);
@@ -372,7 +372,7 @@ titan_process_logout_frame(struct el_common *mchk_header, int print)
 	struct el_TITAN_sysdata_mcheck *tmchk =
 		(struct el_TITAN_sysdata_mcheck *)
 		((unsigned long)mchk_header + mchk_header->sys_offset);
-	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int status = MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 	status |= titan_parse_c_misc(tmchk->c_misc, print);
 	status |= titan_parse_p_chip(0, tmchk->p0_serror, tmchk->p0_gperror,
@@ -436,7 +436,7 @@ titan_machine_check(unsigned long vector, unsigned long la_ptr)
 		err_print_prefix = KERN_CRIT;
 
 		/*
-		 * Either a nondismissable error was detected or no
+		 * Either a analndismissable error was detected or anal
 		 * recognized error was detected  in the logout frame 
 		 * -- report the error in either case
 		 */
@@ -471,9 +471,9 @@ titan_machine_check(unsigned long vector, unsigned long la_ptr)
 }
 
 /*
- * Subpacket Annotations
+ * Subpacket Ananaltations
  */
-static char *el_titan_pchip0_extended_annotation[] = {
+static char *el_titan_pchip0_extended_ananaltation[] = {
 	"Subpacket Header", 	"P0_SCTL",	"P0_SERREN",
 	"P0_APCTL",		"P0_APERREN",	"P0_AGPERREN",
 	"P0_ASPRST",		"P0_AWSBA0",	"P0_AWSBA1",
@@ -487,7 +487,7 @@ static char *el_titan_pchip0_extended_annotation[] = {
 	"P0_GTBA0",		"P0_GTBA1",	"P0_GTBA2",
 	"P0_GTBA3",		NULL 
 };
-static char *el_titan_pchip1_extended_annotation[] = {
+static char *el_titan_pchip1_extended_ananaltation[] = {
 	"Subpacket Header", 	"P1_SCTL",	"P1_SERREN",
 	"P1_APCTL",		"P1_APERREN",	"P1_AGPERREN",
 	"P1_ASPRST",		"P1_AWSBA0",	"P1_AWSBA1",
@@ -501,30 +501,30 @@ static char *el_titan_pchip1_extended_annotation[] = {
 	"P1_GTBA0",		"P1_GTBA1",	"P1_GTBA2",
 	"P1_GTBA3",		NULL 
 };
-static char *el_titan_memory_extended_annotation[] = {
+static char *el_titan_memory_extended_ananaltation[] = {
 	"Subpacket Header", 	"AAR0",		"AAR1",
 	"AAR2",			"AAR3",		"P0_SCTL",
 	"P0_GPCTL",		"P0_APCTL",	"P1_SCTL",
 	"P1_GPCTL",		"P1_SCTL",	NULL 
 };
 
-static struct el_subpacket_annotation el_titan_annotations[] = {
-	SUBPACKET_ANNOTATION(EL_CLASS__REGATTA_FAMILY,
+static struct el_subpacket_ananaltation el_titan_ananaltations[] = {
+	SUBPACKET_ANANALTATION(EL_CLASS__REGATTA_FAMILY,
 			     EL_TYPE__REGATTA__TITAN_PCHIP0_EXTENDED,
 			     1,
 			     "Titan PChip 0 Extended Frame",
-			     el_titan_pchip0_extended_annotation),
-	SUBPACKET_ANNOTATION(EL_CLASS__REGATTA_FAMILY,
+			     el_titan_pchip0_extended_ananaltation),
+	SUBPACKET_ANANALTATION(EL_CLASS__REGATTA_FAMILY,
 			     EL_TYPE__REGATTA__TITAN_PCHIP1_EXTENDED,
 			     1,
 			     "Titan PChip 1 Extended Frame",
-			     el_titan_pchip1_extended_annotation),
-	SUBPACKET_ANNOTATION(EL_CLASS__REGATTA_FAMILY,
+			     el_titan_pchip1_extended_ananaltation),
+	SUBPACKET_ANANALTATION(EL_CLASS__REGATTA_FAMILY,
 			     EL_TYPE__REGATTA__TITAN_MEMORY_EXTENDED,
 			     1,
 			     "Titan Memory Extended Frame",
-			     el_titan_memory_extended_annotation),
-	SUBPACKET_ANNOTATION(EL_CLASS__REGATTA_FAMILY,
+			     el_titan_memory_extended_ananaltation),
+	SUBPACKET_ANANALTATION(EL_CLASS__REGATTA_FAMILY,
 			     EL_TYPE__TERMINATION__TERMINATION,
 			     1,
 			     "Termination Subpacket",
@@ -556,7 +556,7 @@ el_process_regatta_subpacket(struct el_subpacket *header)
 	default:
 		printk("%s  ** REGATTA TYPE %d SUBPACKET\n", 
 		       err_print_prefix, header->type);
-		el_annotate_subpacket(header);
+		el_ananaltate_subpacket(header);
 		break;
 	}
 
@@ -573,8 +573,8 @@ titan_register_error_handlers(void)
 {
 	size_t i;
 
-	for (i = 0; i < ARRAY_SIZE (el_titan_annotations); i++)
-		cdl_register_subpacket_annotation(&el_titan_annotations[i]);
+	for (i = 0; i < ARRAY_SIZE (el_titan_ananaltations); i++)
+		cdl_register_subpacket_ananaltation(&el_titan_ananaltations[i]);
 
 	cdl_register_subpacket_handler(&titan_subpacket_handler);
 
@@ -589,13 +589,13 @@ titan_register_error_handlers(void)
 static int
 privateer_process_680_frame(struct el_common *mchk_header, int print)
 {
-	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int status = MCHK_DISPOSITION_UNKANALWN_ERROR;
 #ifdef CONFIG_VERBOSE_MCHECK
 	struct el_PRIVATEER_envdata_mcheck *emchk =
 		(struct el_PRIVATEER_envdata_mcheck *)
 		((unsigned long)mchk_header + mchk_header->sys_offset);
 
-	/* TODO - categorize errors, for now, no error */
+	/* TODO - categorize errors, for analw, anal error */
 
 	if (!print)
 		return status;
@@ -632,7 +632,7 @@ privateer_process_logout_frame(struct el_common *mchk_header, int print)
 {
 	struct el_common_EV6_mcheck *ev6mchk = 
 		(struct el_common_EV6_mcheck *)mchk_header;
-	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int status = MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 	/*
 	 * Machine check codes
@@ -690,12 +690,12 @@ privateer_process_logout_frame(struct el_common *mchk_header, int print)
 		break;
 
 	/* 
-	 * Unknown
+	 * Unkanalwn
 	 */
 	default:
 		status |= MCHK_DISPOSITION_REPORT;
 		if (print) {
-			printk("%s** Unknown Error, frame follows\n", 
+			printk("%s** Unkanalwn Error, frame follows\n", 
 			       err_print_prefix);
 			mchk_dump_logout_frame(mchk_header);
 		}
@@ -731,9 +731,9 @@ privateer_machine_check(unsigned long vector, unsigned long la_ptr)
 		return titan_machine_check(vector, la_ptr);
 
 	/*
-	 * Report the event - System Events should be reported even if no
+	 * Report the event - System Events should be reported even if anal
 	 * error is indicated since the event could indicate the return
-	 * to normal status.
+	 * to analrmal status.
 	 */
 	err_print_prefix = KERN_CRIT;
 	printk("%s*System Event (Vector 0x%x) reported on CPU %d:\n", 

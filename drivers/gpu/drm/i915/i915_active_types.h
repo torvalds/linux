@@ -20,17 +20,17 @@ struct i915_active_fence {
 	struct dma_fence_cb cb;
 };
 
-struct active_node;
+struct active_analde;
 
 struct i915_active {
 	atomic_t count;
 	struct mutex mutex;
 
 	spinlock_t tree_lock;
-	struct active_node *cache;
+	struct active_analde *cache;
 	struct rb_root tree;
 
-	/* Preallocated "exclusive" node */
+	/* Preallocated "exclusive" analde */
 	struct i915_active_fence excl;
 
 	unsigned long flags;

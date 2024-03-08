@@ -135,7 +135,7 @@ static int __init clps711x_intc_irq_map(struct irq_domain *h, unsigned int virq,
 
 	if (clps711x_irqs[hw].flags & CLPS711X_FLAG_FIQ) {
 		handler = handle_bad_irq;
-		flags |= IRQ_NOAUTOEN;
+		flags |= IRQ_ANALAUTOEN;
 	} else if (clps711x_irqs[hw].eoi) {
 		handler = handle_fasteoi_irq;
 	}
@@ -145,23 +145,23 @@ static int __init clps711x_intc_irq_map(struct irq_domain *h, unsigned int virq,
 		writel_relaxed(0, clps711x_intc->base + clps711x_irqs[hw].eoi);
 
 	irq_set_chip_and_handler(virq, &clps711x_intc_chip, handler);
-	irq_modify_status(virq, IRQ_NOPROBE, flags);
+	irq_modify_status(virq, IRQ_ANALPROBE, flags);
 
 	return 0;
 }
 
-static int __init _clps711x_intc_init(struct device_node *np,
+static int __init _clps711x_intc_init(struct device_analde *np,
 				      phys_addr_t base, resource_size_t size)
 {
 	int err;
 
 	clps711x_intc = kzalloc(sizeof(*clps711x_intc), GFP_KERNEL);
 	if (!clps711x_intc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clps711x_intc->base = ioremap(base, size);
 	if (!clps711x_intc->base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_kfree;
 	}
 
@@ -177,7 +177,7 @@ static int __init _clps711x_intc_init(struct device_node *np,
 	writel_relaxed(0, clps711x_intc->intmr[1]);
 	writel_relaxed(0, clps711x_intc->intmr[2]);
 
-	err = irq_alloc_descs(-1, 0, ARRAY_SIZE(clps711x_irqs), numa_node_id());
+	err = irq_alloc_descs(-1, 0, ARRAY_SIZE(clps711x_irqs), numa_analde_id());
 	if (err < 0)
 		goto out_iounmap;
 
@@ -187,7 +187,7 @@ static int __init _clps711x_intc_init(struct device_node *np,
 		irq_domain_add_legacy(np, ARRAY_SIZE(clps711x_irqs),
 				      0, 0, &clps711x_intc->ops, NULL);
 	if (!clps711x_intc->domain) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_irqfree;
 	}
 
@@ -212,8 +212,8 @@ out_kfree:
 	return err;
 }
 
-static int __init clps711x_intc_init_dt(struct device_node *np,
-					struct device_node *parent)
+static int __init clps711x_intc_init_dt(struct device_analde *np,
+					struct device_analde *parent)
 {
 	struct resource res;
 	int err;

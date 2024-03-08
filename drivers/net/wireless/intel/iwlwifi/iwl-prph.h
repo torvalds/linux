@@ -9,7 +9,7 @@
 #include <linux/bitfield.h>
 
 /*
- * Registers in this file are internal, not PCI bus memory mapped.
+ * Registers in this file are internal, analt PCI bus memory mapped.
  * Driver accesses these via HBUS_TARG_PRPH_* registers.
  */
 #define PRPH_BASE	(0x00000)
@@ -112,7 +112,7 @@
  * (cf. iwl5000_default_queue_to_tx_fifo in iwl-5000.c):
  *
  * 0 -- EDCA BK (background) frames, lowest priority
- * 1 -- EDCA BE (best effort) frames, normal priority
+ * 1 -- EDCA BE (best effort) frames, analrmal priority
  * 2 -- EDCA VI (video) frames, higher priority
  * 3 -- EDCA VO (voice) and management frames, highest priority
  * 4 -- unused
@@ -120,7 +120,7 @@
  * 6 -- unused
  * 7 -- Commands
  *
- * Driver should normally map queues 0-6 to Tx DMA/FIFO channels 0-6.
+ * Driver should analrmally map queues 0-6 to Tx DMA/FIFO channels 0-6.
  * In addition, driver can map the remaining queues to Tx DMA/FIFO
  * channels 0-3 to support 11n aggregation via EDCA DMA channels.
  *
@@ -134,22 +134,22 @@
  *
  *     In scheduler-ack mode, the scheduler keeps track of the Tx status of
  *     each frame within the BA window, including whether it's been transmitted,
- *     and whether it's been acknowledged by the receiving station.  The device
+ *     and whether it's been ackanalwledged by the receiving station.  The device
  *     automatically processes block-acks received from the receiving STA,
  *     and reschedules un-acked frames to be retransmitted (successful
  *     Tx completion may end up being out-of-order).
  *
  *     The driver must maintain the queue's Byte Count table in host DRAM
  *     for this mode.
- *     This mode does not support fragmentation.
+ *     This mode does analt support fragmentation.
  *
- * 2)  FIFO (a.k.a. non-Scheduler-ACK), in which each TFD is processed in order.
+ * 2)  FIFO (a.k.a. analn-Scheduler-ACK), in which each TFD is processed in order.
  *     The device may automatically retry Tx, but will retry only one frame
  *     at a time, until receiving ACK from receiving station, or reaching
  *     retry limit and giving up.
  *
  *     The command queue (#4/#9) must use this mode!
- *     This mode does not require use of the Byte Count table in host DRAM.
+ *     This mode does analt require use of the Byte Count table in host DRAM.
  *
  * Driver controls scheduler operation via 3 means:
  * 1)  Scheduler registers
@@ -172,7 +172,7 @@
 /**
  * Max Tx window size is the max number of contiguous TFDs that the scheduler
  * can keep track of at one time when creating block-ack chains of frames.
- * Note that "64" matches the number of ack bits in a block-ack packet.
+ * Analte that "64" matches the number of ack bits in a block-ack packet.
  */
 #define SCD_WIN_SIZE				64
 #define SCD_FRAME_LIMIT				64
@@ -245,7 +245,7 @@
 /*
  * Replacing FH_UCODE_LOAD_STATUS
  * This register is writen by driver and is read by uCode during boot flow.
- * Note this address is cleared after MAC reset.
+ * Analte this address is cleared after MAC reset.
  */
 #define UREG_UCODE_LOAD_STATUS		(0xa05c40)
 #define UREG_CPU_INIT_RUN		(0xa05c44)
@@ -392,8 +392,8 @@ enum {
 #define UREG_LMAC1_CURRENT_PC		0xa05c1c
 #define UREG_LMAC2_CURRENT_PC		0xa05c20
 
-#define WFPM_LMAC1_PD_NOTIFICATION      0xa0338c
-#define WFPM_ARC1_PD_NOTIFICATION       0xa03044
+#define WFPM_LMAC1_PD_ANALTIFICATION      0xa0338c
+#define WFPM_ARC1_PD_ANALTIFICATION       0xa03044
 #define HPM_SECONDARY_DEVICE_STATE      0xa03404
 #define WFPM_MAC_OTP_CFG7_ADDR		0xa03338
 #define WFPM_MAC_OTP_CFG7_DATA		0xa0333c
@@ -411,9 +411,9 @@ enum {
 };
 
 /* FW chicken bits */
-#define LMPM_PAGE_PASS_NOTIF			0xA03824
+#define LMPM_PAGE_PASS_ANALTIF			0xA03824
 enum {
-	LMPM_PAGE_PASS_NOTIF_POS = BIT(20),
+	LMPM_PAGE_PASS_ANALTIF_POS = BIT(20),
 };
 
 /*
@@ -442,9 +442,9 @@ enum {
 #define REG_CRF_ID_TYPE_JF_1			0x201
 #define REG_CRF_ID_TYPE_JF_2			0x202
 #define REG_CRF_ID_TYPE_HR_CDB			0x503
-#define REG_CRF_ID_TYPE_HR_NONE_CDB		0x504
-#define REG_CRF_ID_TYPE_HR_NONE_CDB_1X1	0x501
-#define REG_CRF_ID_TYPE_HR_NONE_CDB_CCP	0x532
+#define REG_CRF_ID_TYPE_HR_ANALNE_CDB		0x504
+#define REG_CRF_ID_TYPE_HR_ANALNE_CDB_1X1	0x501
+#define REG_CRF_ID_TYPE_HR_ANALNE_CDB_CCP	0x532
 #define REG_CRF_ID_TYPE_GF			0x410
 #define REG_CRF_ID_TYPE_GF_TC			0xF08
 #define REG_CRF_ID_TYPE_MR			0x810
@@ -511,9 +511,9 @@ enum {
 #define HBUS_TIMEOUT 0xA5A5A5A1
 #define WFPM_DPHY_OFF 0xDF10FF
 
-#define REG_OTP_MINOR 0xA0333C
+#define REG_OTP_MIANALR 0xA0333C
 
-#define WFPM_LMAC2_PD_NOTIFICATION 0xA033CC
+#define WFPM_LMAC2_PD_ANALTIFICATION 0xA033CC
 #define WFPM_LMAC2_PD_RE_READ BIT(31)
 
 #define DPHYIP_INDIRECT			0xA2D800

@@ -83,10 +83,10 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 		return -EINVAL;
 
 	if (srx->srx_family != AF_RXRPC)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	if (srx->transport_type != SOCK_DGRAM)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	len -= offsetof(struct sockaddr_rxrpc, transport);
 	if (srx->transport_len < sizeof(sa_family_t) ||
@@ -97,7 +97,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	case AF_INET:
 		if (rx->family != AF_INET &&
 		    rx->family != AF_INET6)
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 		if (srx->transport_len < sizeof(struct sockaddr_in))
 			return -EINVAL;
 		tail = offsetof(struct sockaddr_rxrpc, transport.sin.__pad);
@@ -106,7 +106,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 #ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		if (rx->family != AF_INET6)
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 		if (srx->transport_len < sizeof(struct sockaddr_in6))
 			return -EINVAL;
 		tail = offsetof(struct sockaddr_rxrpc, transport) +
@@ -115,7 +115,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 #endif
 
 	default:
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 
 	if (tail < len)
@@ -220,7 +220,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 
 	switch (rx->sk.sk_state) {
 	case RXRPC_UNBOUND:
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		break;
 	case RXRPC_SERVER_BOUND:
 	case RXRPC_SERVER_BOUND2:
@@ -312,13 +312,13 @@ EXPORT_SYMBOL(rxrpc_kernel_put_peer);
  * @tx_total_len: Total length of data to transmit during the call (or -1)
  * @hard_timeout: The maximum lifespan of the call in sec
  * @gfp: The allocation constraints
- * @notify_rx: Where to send notifications instead of socket queue
+ * @analtify_rx: Where to send analtifications instead of socket queue
  * @service_id: The ID of the service to contact
  * @upgrade: Request service upgrade for call
  * @interruptibility: The call is interruptible, or can be canceled.
  * @debug_id: The debug ID for tracing to be assigned to the call
  *
- * Allow a kernel service to begin a call on the nominated socket.  This just
+ * Allow a kernel service to begin a call on the analminated socket.  This just
  * sets up all the internal tracking structures and allocates connection and
  * call IDs as appropriate.  The call to be used is returned.
  *
@@ -332,7 +332,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   s64 tx_total_len,
 					   u32 hard_timeout,
 					   gfp_t gfp,
-					   rxrpc_notify_rx_t notify_rx,
+					   rxrpc_analtify_rx_t analtify_rx,
 					   u16 service_id,
 					   bool upgrade,
 					   enum rxrpc_interruptibility interruptibility,
@@ -353,7 +353,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	if (!key)
 		key = rx->key;
 	if (key && !key->payload.data[0])
-		key = NULL; /* a no-security key */
+		key = NULL; /* a anal-security key */
 
 	memset(&p, 0, sizeof(p));
 	p.user_call_ID		= user_call_ID;
@@ -373,7 +373,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	call = rxrpc_new_client_call(rx, &cp, &p, gfp, debug_id);
 	/* The socket has been unlocked. */
 	if (!IS_ERR(call)) {
-		call->notify_rx = notify_rx;
+		call->analtify_rx = analtify_rx;
 		mutex_unlock(&call->user_mutex);
 	}
 
@@ -383,9 +383,9 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 EXPORT_SYMBOL(rxrpc_kernel_begin_call);
 
 /*
- * Dummy function used to stop the notifier talking to recvmsg().
+ * Dummy function used to stop the analtifier talking to recvmsg().
  */
-static void rxrpc_dummy_notify_rx(struct sock *sk, struct rxrpc_call *rxcall,
+static void rxrpc_dummy_analtify_rx(struct sock *sk, struct rxrpc_call *rxcall,
 				  unsigned long call_user_ID)
 {
 }
@@ -406,11 +406,11 @@ void rxrpc_kernel_shutdown_call(struct socket *sock, struct rxrpc_call *call)
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags)) {
 		rxrpc_release_call(rxrpc_sk(sock->sk), call);
 
-		/* Make sure we're not going to call back into a kernel service */
-		if (call->notify_rx) {
-			spin_lock(&call->notify_lock);
-			call->notify_rx = rxrpc_dummy_notify_rx;
-			spin_unlock(&call->notify_lock);
+		/* Make sure we're analt going to call back into a kernel service */
+		if (call->analtify_rx) {
+			spin_lock(&call->analtify_lock);
+			call->analtify_rx = rxrpc_dummy_analtify_rx;
+			spin_unlock(&call->analtify_lock);
 		}
 	}
 	mutex_unlock(&call->user_mutex);
@@ -464,24 +464,24 @@ u32 rxrpc_kernel_get_epoch(struct socket *sock, struct rxrpc_call *call)
 EXPORT_SYMBOL(rxrpc_kernel_get_epoch);
 
 /**
- * rxrpc_kernel_new_call_notification - Get notifications of new calls
+ * rxrpc_kernel_new_call_analtification - Get analtifications of new calls
  * @sock: The socket to intercept received messages on
- * @notify_new_call: Function to be called when new calls appear
+ * @analtify_new_call: Function to be called when new calls appear
  * @discard_new_call: Function to discard preallocated calls
  *
- * Allow a kernel service to be given notifications about new calls.
+ * Allow a kernel service to be given analtifications about new calls.
  */
-void rxrpc_kernel_new_call_notification(
+void rxrpc_kernel_new_call_analtification(
 	struct socket *sock,
-	rxrpc_notify_new_call_t notify_new_call,
+	rxrpc_analtify_new_call_t analtify_new_call,
 	rxrpc_discard_new_call_t discard_new_call)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 
-	rx->notify_new_call = notify_new_call;
+	rx->analtify_new_call = analtify_new_call;
 	rx->discard_new_call = discard_new_call;
 }
-EXPORT_SYMBOL(rxrpc_kernel_new_call_notification);
+EXPORT_SYMBOL(rxrpc_kernel_new_call_analtification);
 
 /**
  * rxrpc_kernel_set_max_life - Set maximum lifespan on a call
@@ -495,14 +495,14 @@ EXPORT_SYMBOL(rxrpc_kernel_new_call_notification);
 void rxrpc_kernel_set_max_life(struct socket *sock, struct rxrpc_call *call,
 			       unsigned long hard_timeout)
 {
-	unsigned long now;
+	unsigned long analw;
 
 	mutex_lock(&call->user_mutex);
 
-	now = jiffies;
-	hard_timeout += now;
+	analw = jiffies;
+	hard_timeout += analw;
 	WRITE_ONCE(call->expect_term_by, hard_timeout);
-	rxrpc_reduce_call_timer(call, hard_timeout, now, rxrpc_timer_set_for_hard);
+	rxrpc_reduce_call_timer(call, hard_timeout, analw, rxrpc_timer_set_for_hard);
 
 	mutex_unlock(&call->user_mutex);
 }
@@ -510,7 +510,7 @@ EXPORT_SYMBOL(rxrpc_kernel_set_max_life);
 
 /*
  * connect an RxRPC socket
- * - this just targets it at a specific destination; no actual connection
+ * - this just targets it at a specific destination; anal actual connection
  *   negotiation takes place
  */
 static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
@@ -560,7 +560,7 @@ error:
  * - in a client this does a number of things:
  *   - finds/sets up a connection for the security specified (if any)
  *   - initiates a call (ID in control data)
- *   - ends the request phase of a call (if MSG_MORE is not set)
+ *   - ends the request phase of a call (if MSG_MORE is analt set)
  *   - sends a call data packet
  *   - may send an abort (abort code in control data)
  */
@@ -573,7 +573,7 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 	_enter(",{%d},,%zu", rx->sk.sk_state, len);
 
 	if (m->msg_flags & MSG_OOB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (m->msg_name) {
 		ret = rxrpc_validate_address(rx, m->msg_name, m->msg_namelen);
@@ -602,7 +602,7 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 			break;
 #endif
 		default:
-			ret = -EAFNOSUPPORT;
+			ret = -EAFANALSUPPORT;
 			goto error_unlock;
 		}
 		local = rxrpc_lookup_local(sock_net(sock->sk), &rx->srx);
@@ -666,7 +666,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 	_enter(",%d,%d,,%d", level, optname, optlen);
 
 	lock_sock(&rx->sk);
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 
 	if (level == SOL_RXRPC) {
 		switch (optname) {
@@ -760,7 +760,7 @@ static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
 	int optlen;
 
 	if (level != SOL_RXRPC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (get_user(optlen, _optlen))
 		return -EFAULT;
@@ -775,7 +775,7 @@ static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
 		return 0;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -795,13 +795,13 @@ static __poll_t rxrpc_poll(struct file *file, struct socket *sock,
 	/* the socket is readable if there are any messages waiting on the Rx
 	 * queue */
 	if (!list_empty(&rx->recvmsg_q))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	/* the socket is writable if there is space to add new data to the
-	 * socket; there is no guarantee that any particular call in progress
+	 * socket; there is anal guarantee that any particular call in progress
 	 * on the socket may have space in the Tx ACK window */
 	if (rxrpc_writable(sk))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 
 	return mask;
 }
@@ -821,17 +821,17 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	/* we support transport protocol UDP/UDP6 only */
 	if (protocol != PF_INET &&
 	    IS_ENABLED(CONFIG_AF_RXRPC_IPV6) && protocol != PF_INET6)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (sock->type != SOCK_DGRAM)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	sock->ops = &rxrpc_rpc_ops;
 	sock->state = SS_UNCONNECTED;
 
 	sk = sk_alloc(net, PF_RXRPC, GFP_KERNEL, &rxrpc_proto, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sock_init_data(sock, sk);
 	sock_set_flag(sk, SOCK_RCU_FREE);
@@ -871,7 +871,7 @@ static int rxrpc_shutdown(struct socket *sock, int flags)
 	_enter("%p,%d", sk, flags);
 
 	if (flags != SHUT_RDWR)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (sk->sk_state == RXRPC_CLOSE)
 		return -ESHUTDOWN;
 
@@ -988,18 +988,18 @@ static const struct proto_ops rxrpc_rpc_ops = {
 	.release	= rxrpc_release,
 	.bind		= rxrpc_bind,
 	.connect	= rxrpc_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.getname	= sock_no_getname,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
+	.getname	= sock_anal_getname,
 	.poll		= rxrpc_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= sock_anal_ioctl,
 	.listen		= rxrpc_listen,
 	.shutdown	= rxrpc_shutdown,
 	.setsockopt	= rxrpc_setsockopt,
 	.getsockopt	= rxrpc_getsockopt,
 	.sendmsg	= rxrpc_sendmsg,
 	.recvmsg	= rxrpc_recvmsg,
-	.mmap		= sock_no_mmap,
+	.mmap		= sock_anal_mmap,
 };
 
 static struct proto rxrpc_proto = {
@@ -1024,25 +1024,25 @@ static int __init af_rxrpc_init(void)
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > sizeof_field(struct sk_buff, cb));
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	rxrpc_gen_version_string();
 	rxrpc_call_jar = kmem_cache_create(
 		"rxrpc_call_jar", sizeof(struct rxrpc_call), 0,
 		SLAB_HWCACHE_ALIGN, NULL);
 	if (!rxrpc_call_jar) {
-		pr_notice("Failed to allocate call jar\n");
+		pr_analtice("Failed to allocate call jar\n");
 		goto error_call_jar;
 	}
 
 	rxrpc_workqueue = alloc_ordered_workqueue("krxrpcd", WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!rxrpc_workqueue) {
-		pr_notice("Failed to allocate work queue\n");
+		pr_analtice("Failed to allocate work queue\n");
 		goto error_work_queue;
 	}
 
 	ret = rxrpc_init_security();
 	if (ret < 0) {
-		pr_crit("Cannot initialise security\n");
+		pr_crit("Cananalt initialise security\n");
 		goto error_security;
 	}
 
@@ -1052,31 +1052,31 @@ static int __init af_rxrpc_init(void)
 
 	ret = proto_register(&rxrpc_proto, 1);
 	if (ret < 0) {
-		pr_crit("Cannot register protocol\n");
+		pr_crit("Cananalt register protocol\n");
 		goto error_proto;
 	}
 
 	ret = sock_register(&rxrpc_family_ops);
 	if (ret < 0) {
-		pr_crit("Cannot register socket family\n");
+		pr_crit("Cananalt register socket family\n");
 		goto error_sock;
 	}
 
 	ret = register_key_type(&key_type_rxrpc);
 	if (ret < 0) {
-		pr_crit("Cannot register client key type\n");
+		pr_crit("Cananalt register client key type\n");
 		goto error_key_type;
 	}
 
 	ret = register_key_type(&key_type_rxrpc_s);
 	if (ret < 0) {
-		pr_crit("Cannot register server key type\n");
+		pr_crit("Cananalt register server key type\n");
 		goto error_key_type_s;
 	}
 
 	ret = rxrpc_sysctl_init();
 	if (ret < 0) {
-		pr_crit("Cannot register sysctls\n");
+		pr_crit("Cananalt register sysctls\n");
 		goto error_sysctls;
 	}
 

@@ -74,10 +74,10 @@ struct ems_pci_card {
 
 /* The board configuration is probably following:
  * RX1 is connected to ground.
- * TX1 is not connected.
- * CLKO is not connected.
+ * TX1 is analt connected.
+ * CLKO is analt connected.
  * Setting the OCR register to 0xDA is a good idea.
- * This means normal output mode, push-pull and the correct polarity.
+ * This means analrmal output mode, push-pull and the correct polarity.
  */
 #define EMS_PCI_OCR         (OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
 
@@ -123,7 +123,7 @@ static const struct pci_device_id ems_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ems_pci_tbl);
 
-/* Helper to read internal registers from card logic (not CAN)
+/* Helper to read internal registers from card logic (analt CAN)
  */
 static u8 ems_pci_v1_readb(struct ems_pci_card *card, unsigned int port)
 {
@@ -256,14 +256,14 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 	/* Enabling PCI device */
 	if (pci_enable_device(pdev) < 0) {
 		dev_err(&pdev->dev, "Enabling PCI device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Allocating card structures to hold addresses, ... */
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card) {
 		pci_disable_device(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pci_set_drvdata(pdev, card);
@@ -295,13 +295,13 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 	/* Remap configuration space and controller memory area */
 	card->conf_addr = pci_iomap(pdev, conf_bar, conf_size);
 	if (!card->conf_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure_cleanup;
 	}
 
 	card->base_addr = pci_iomap(pdev, base_bar, EMS_PCI_BASE_SIZE);
 	if (!card->base_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure_cleanup;
 	}
 
@@ -316,8 +316,8 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 		    ems_pci_v1_readb(card, 3) != 0xCB ||
 		    ems_pci_v1_readb(card, 4) != 0x11) {
 			dev_err(&pdev->dev,
-				"Not EMS Dr. Thomas Wuensche interface\n");
-			err = -ENODEV;
+				"Analt EMS Dr. Thomas Wuensche interface\n");
+			err = -EANALDEV;
 			goto failure_cleanup;
 		}
 	}
@@ -336,7 +336,7 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 	for (i = 0; i < max_chan; i++) {
 		dev = alloc_sja1000dev(0);
 		if (!dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto failure_cleanup;
 		}
 

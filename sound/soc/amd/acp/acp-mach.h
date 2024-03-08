@@ -32,7 +32,7 @@ enum be_id {
 };
 
 enum cpu_endpoints {
-	NONE = 0,
+	ANALNE = 0,
 	I2S_HS,
 	I2S_SP,
 	I2S_BT,
@@ -52,7 +52,7 @@ enum codec_endpoints {
 };
 
 enum platform_end_point {
-	RENOIR = 0,
+	REANALIR = 0,
 	REMBRANDT,
 	ACP63,
 	ACP70,

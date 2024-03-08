@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_ARC_FARM_KDMA_CTX_AXUSER_REGS_H_
@@ -26,7 +26,7 @@
 
 #define mmARC_FARM_KDMA_CTX_AXUSER_HB_STRONG_ORDER 0x4E8B808
 
-#define mmARC_FARM_KDMA_CTX_AXUSER_HB_NO_SNOOP 0x4E8B80C
+#define mmARC_FARM_KDMA_CTX_AXUSER_HB_ANAL_SANALOP 0x4E8B80C
 
 #define mmARC_FARM_KDMA_CTX_AXUSER_HB_WR_REDUCTION 0x4E8B810
 

@@ -8,7 +8,7 @@
 
 #include <linux/litex.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
@@ -33,10 +33,10 @@
  * In case any problems are detected, the driver should panic.
  *
  * Access to the LiteX CSR is, by design, done in CPU native endianness.
- * The driver should not dynamically configure access functions when
+ * The driver should analt dynamically configure access functions when
  * the endianness mismatch is detected. Such situation indicates problems in
  * the soft SoC design and should be solved at the LiteX generator level,
- * not in the software.
+ * analt in the software.
  */
 static int litex_check_csr_access(void __iomem *reg_addr)
 {
@@ -69,17 +69,17 @@ static int litex_check_csr_access(void __iomem *reg_addr)
 
 struct litex_soc_ctrl_device {
 	void __iomem *base;
-	struct notifier_block reset_nb;
+	struct analtifier_block reset_nb;
 };
 
-static int litex_reset_handler(struct notifier_block *this, unsigned long mode,
+static int litex_reset_handler(struct analtifier_block *this, unsigned long mode,
 			       void *cmd)
 {
 	struct litex_soc_ctrl_device *soc_ctrl_dev =
 		container_of(this, struct litex_soc_ctrl_device, reset_nb);
 
 	litex_write32(soc_ctrl_dev->base + RESET_REG_OFF, RESET_REG_VALUE);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 #ifdef CONFIG_OF
@@ -97,7 +97,7 @@ static int litex_soc_ctrl_probe(struct platform_device *pdev)
 
 	soc_ctrl_dev = devm_kzalloc(&pdev->dev, sizeof(*soc_ctrl_dev), GFP_KERNEL);
 	if (!soc_ctrl_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_ctrl_dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(soc_ctrl_dev->base))
@@ -109,11 +109,11 @@ static int litex_soc_ctrl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, soc_ctrl_dev);
 
-	soc_ctrl_dev->reset_nb.notifier_call = litex_reset_handler;
+	soc_ctrl_dev->reset_nb.analtifier_call = litex_reset_handler;
 	soc_ctrl_dev->reset_nb.priority = 128;
 	error = register_restart_handler(&soc_ctrl_dev->reset_nb);
 	if (error) {
-		dev_warn(&pdev->dev, "cannot register restart handler: %d\n",
+		dev_warn(&pdev->dev, "cananalt register restart handler: %d\n",
 			 error);
 	}
 

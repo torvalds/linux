@@ -166,7 +166,7 @@ s32 e1000e_acquire_nvm(struct e1000_hw *hw)
 	if (!timeout) {
 		eecd &= ~E1000_EECD_REQ;
 		ew32(EECD, eecd);
-		e_dbg("Could not acquire NVM grant\n");
+		e_dbg("Could analt acquire NVM grant\n");
 		return -E1000_ERR_NVM;
 	}
 
@@ -256,7 +256,7 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 		/* Read "Status Register" repeatedly until the LSB is cleared.
 		 * The EEPROM will signal that the command has been completed
 		 * by clearing bit 0 of the internal status register.  If it's
-		 * not cleared within 'timeout', then error out.
+		 * analt cleared within 'timeout', then error out.
 		 */
 		while (timeout) {
 			e1000_shift_out_eec_bits(hw, NVM_RDSR_OPCODE_SPI,
@@ -295,7 +295,7 @@ s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	s32 ret_val = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * too many words for the offset, and not enough words.
+	 * too many words for the offset, and analt eanalugh words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
@@ -329,7 +329,7 @@ s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
  *
  *  Writes data to EEPROM at offset using SPI interface.
  *
- *  If e1000e_update_nvm_checksum is not called after this function , the
+ *  If e1000e_update_nvm_checksum is analt called after this function , the
  *  EEPROM will most likely contain an invalid checksum.
  **/
 s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
@@ -339,7 +339,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	u16 widx = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * and not enough words.
+	 * and analt eanalugh words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
@@ -434,17 +434,17 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 		return ret_val;
 	}
 
-	/* if nvm_data is not ptr guard the PBA must be in legacy format which
+	/* if nvm_data is analt ptr guard the PBA must be in legacy format which
 	 * means pba_ptr is actually our second data word for the PBA number
 	 * and we can decode it into an ascii string
 	 */
 	if (nvm_data != NVM_PBA_PTR_GUARD) {
-		e_dbg("NVM PBA number is not stored as string\n");
+		e_dbg("NVM PBA number is analt stored as string\n");
 
-		/* make sure callers buffer is big enough to store the PBA */
+		/* make sure callers buffer is big eanalugh to store the PBA */
 		if (pba_num_size < E1000_PBANUM_LENGTH) {
 			e_dbg("PBA string buffer too small\n");
-			return E1000_ERR_NO_SPACE;
+			return E1000_ERR_ANAL_SPACE;
 		}
 
 		/* extract hex string from data and pba_ptr */
@@ -483,10 +483,10 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 		e_dbg("NVM PBA number section invalid length\n");
 		return -E1000_ERR_NVM_PBA_SECTION;
 	}
-	/* check if pba_num buffer is big enough */
+	/* check if pba_num buffer is big eanalugh */
 	if (pba_num_size < (((u32)length * 2) - 1)) {
 		e_dbg("PBA string buffer too small\n");
-		return -E1000_ERR_NO_SPACE;
+		return -E1000_ERR_ANAL_SPACE;
 	}
 
 	/* trim pba length from start of string */

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -23,8 +23,8 @@
  */
 
 /* NVIDIA context programs handle a number of other conditions which are
- * not implemented in our versions.  It's not clear why NVIDIA context
- * programs have this code, nor whether it's strictly necessary for
+ * analt implemented in our versions.  It's analt clear why NVIDIA context
+ * programs have this code, analr whether it's strictly necessary for
  * correct operation.  We'll implement additional handling if/when we
  * discover it's necessary.
  *
@@ -32,24 +32,24 @@
  *   flag is set, this gets saved into the context.
  * - On context save, the context program for all cards load nsource
  *   into a flag register and check for ILLEGAL_MTHD.  If it's set,
- *   opcode 0x60000d is called before resuming normal operation.
+ *   opcode 0x60000d is called before resuming analrmal operation.
  * - Some context programs check more conditions than the above.  NV44
  *   checks: ((nsource & 0x0857) || (0x400718 & 0x0100) || (intr & 0x0001))
- *   and calls 0x60000d before resuming normal operation.
+ *   and calls 0x60000d before resuming analrmal operation.
  * - At the very beginning of NVIDIA's context programs, flag 9 is checked
  *   and if true 0x800001 is called with count=0, pos=0, the flag is cleared
- *   and then the ctxprog is aborted.  It looks like a complicated NOP,
- *   its purpose is unknown.
+ *   and then the ctxprog is aborted.  It looks like a complicated ANALP,
+ *   its purpose is unkanalwn.
  * - In the section of code that loads the per-vs state, NVIDIA check
  *   flag 10.  If it's set, they only transfer the small 0x300 byte block
  *   of state + the state for a single vs as opposed to the state for
- *   all vs units.  It doesn't seem likely that it'll occur in normal
+ *   all vs units.  It doesn't seem likely that it'll occur in analrmal
  *   operation, especially seeing as it appears NVIDIA may have screwed
  *   up the ctxprogs for some cards and have an invalid instruction
  *   rather than a cp_lsr(ctx, dwords_for_1_vs_unit) instruction.
  * - There's a number of places where context offset 0 (where we place
  *   the PRAMIN offset of the context) is loaded into either 0x408000,
- *   0x408004 or 0x408008.  Not sure what's up there either.
+ *   0x408004 or 0x408008.  Analt sure what's up there either.
  * - The ctxprogs for some cards save 0x400a00 again during the cleanup
  *   path for auto-loadctx.
  */
@@ -60,19 +60,19 @@
 #define CP_FLAG_SWAP_DIRECTION_LOAD   0
 #define CP_FLAG_SWAP_DIRECTION_SAVE   1
 #define CP_FLAG_USER_SAVE             ((0 * 32) + 5)
-#define CP_FLAG_USER_SAVE_NOT_PENDING 0
+#define CP_FLAG_USER_SAVE_ANALT_PENDING 0
 #define CP_FLAG_USER_SAVE_PENDING     1
 #define CP_FLAG_USER_LOAD             ((0 * 32) + 6)
-#define CP_FLAG_USER_LOAD_NOT_PENDING 0
+#define CP_FLAG_USER_LOAD_ANALT_PENDING 0
 #define CP_FLAG_USER_LOAD_PENDING     1
 #define CP_FLAG_STATUS                ((3 * 32) + 0)
 #define CP_FLAG_STATUS_IDLE           0
 #define CP_FLAG_STATUS_BUSY           1
 #define CP_FLAG_AUTO_SAVE             ((3 * 32) + 4)
-#define CP_FLAG_AUTO_SAVE_NOT_PENDING 0
+#define CP_FLAG_AUTO_SAVE_ANALT_PENDING 0
 #define CP_FLAG_AUTO_SAVE_PENDING     1
 #define CP_FLAG_AUTO_LOAD             ((3 * 32) + 5)
-#define CP_FLAG_AUTO_LOAD_NOT_PENDING 0
+#define CP_FLAG_AUTO_LOAD_ANALT_PENDING 0
 #define CP_FLAG_AUTO_LOAD_PENDING     1
 #define CP_FLAG_UNK54                 ((3 * 32) + 6)
 #define CP_FLAG_UNK54_CLEAR           0
@@ -105,7 +105,7 @@
 #define CP_NEXT_TO_CURRENT       0x00600009
 #define CP_SET_CONTEXT_POINTER   0x0060000a
 #define CP_END                   0x0060000e
-#define CP_LOAD_MAGIC_UNK01      0x00800001 /* unknown */
+#define CP_LOAD_MAGIC_UNK01      0x00800001 /* unkanalwn */
 #define CP_LOAD_MAGIC_NV44TCL    0x00800029 /* per-vs state (0x4497) */
 #define CP_LOAD_MAGIC_NV40TCL    0x00800041 /* per-vs state (0x4097) */
 
@@ -652,8 +652,8 @@ nv40_grctx_generate(struct nvkm_grctx *ctx)
 	cp_out (ctx, CP_NEXT_TO_CURRENT);
 
 	cp_name(ctx, cp_exit);
-	cp_set (ctx, USER_SAVE, NOT_PENDING);
-	cp_set (ctx, USER_LOAD, NOT_PENDING);
+	cp_set (ctx, USER_SAVE, ANALT_PENDING);
+	cp_set (ctx, USER_LOAD, ANALT_PENDING);
 	cp_out (ctx, CP_END);
 }
 
@@ -679,7 +679,7 @@ nv40_grctx_init(struct nvkm_device *device, u32 *size)
 	};
 
 	if (!ctxprog)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nv40_grctx_generate(&ctx);
 

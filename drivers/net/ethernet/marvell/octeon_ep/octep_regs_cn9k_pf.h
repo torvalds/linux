@@ -375,8 +375,8 @@
 #define    CN98_SDP_MAC_PF_RING_CTL_SRN(val)   ((val) & 0xFF)
 #define    CN98_SDP_MAC_PF_RING_CTL_RPPF(val)  (((val) >> 32) & 0x3F)
 
-/* Number of non-queue interrupts in CN93xx */
-#define    CN93_NUM_NON_IOQ_INTR    16
+/* Number of analn-queue interrupts in CN93xx */
+#define    CN93_NUM_ANALN_IOQ_INTR    16
 
 /* bit 0 for control mbox interrupt */
 #define CN93_SDP_EPF_OEI_RINT_DATA_BIT_MBOX	BIT_ULL(0)

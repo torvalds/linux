@@ -14,11 +14,11 @@
 	compatible = "google,cheza-rev1", "qcom,sdm845";
 
 	/*
-	 * FIXED REGULATORS (not in sdm845-cheza.dtsi) - parents above children
+	 * FIXED REGULATORS (analt in sdm845-cheza.dtsi) - parents above children
 	 */
 
 	/*
-	 * NOTE: Technically pp3500_a is not the exact same signal as
+	 * ANALTE: Technically pp3500_a is analt the exact same signal as
 	 * pp3500_a_vbob (there's a load switch between them and the EC can
 	 * control pp3500_a via "en_pp3300_a"), but from the AP's point of
 	 * view they are the same.
@@ -41,7 +41,7 @@
 	};
 
 	pp3300_dx_edp: pp3300-dx-edp-regulator {
-		/* Yes, it's really 3.5 despite the name of the signal */
+		/* Anal, it's really 3.5 despite the name of the signal */
 		regulator-min-microvolt = <3500000>;
 		regulator-max-microvolt = <3500000>;
 
@@ -78,7 +78,7 @@
 };
 
 /*
- * NON-REGULATOR OVERRIDES
+ * ANALN-REGULATOR OVERRIDES
  * (modifications to sdm845-cheza.dtsi) - alphabetized by dtsi label
  */
 

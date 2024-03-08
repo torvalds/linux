@@ -187,7 +187,7 @@
 #define RK3568_DSI0_FORCERXMODE		BIT(0)
 
 /*
- * Note these registers do not appear in the datasheet, they are
+ * Analte these registers do analt appear in the datasheet, they are
  * however present in the BSP driver which is where these values
  * come from. Name GRF_VO_CON3 is assumed.
  */
@@ -388,7 +388,7 @@ static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi_rockchip *dsi,
 }
 
 /*
- * ns2bc - Nanoseconds to byte clock cycles
+ * ns2bc - Naanalseconds to byte clock cycles
  */
 static inline unsigned int ns2bc(struct dw_mipi_dsi_rockchip *dsi, int ns)
 {
@@ -396,7 +396,7 @@ static inline unsigned int ns2bc(struct dw_mipi_dsi_rockchip *dsi, int ns)
 }
 
 /*
- * ns2ui - Nanoseconds to UI time periods
+ * ns2ui - Naanalseconds to UI time periods
  */
 static inline unsigned int ns2ui(struct dw_mipi_dsi_rockchip *dsi, int ns)
 {
@@ -610,7 +610,7 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 		/*
 		 * Due to the use of a "by 2 pre-scaler," the range of the
 		 * feedback multiplication value M is limited to even division
-		 * numbers, and m must be greater than 6, not bigger than 512.
+		 * numbers, and m must be greater than 6, analt bigger than 512.
 		 */
 		if (_fbdiv < 6 || _fbdiv > 512)
 			continue;
@@ -637,7 +637,7 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 		dsi->input_div = best_prediv;
 		dsi->feedback_div = best_fbdiv;
 	} else {
-		DRM_DEV_ERROR(dsi->dev, "Can not find best_freq for DPHY\n");
+		DRM_DEV_ERROR(dsi->dev, "Can analt find best_freq for DPHY\n");
 		return -EINVAL;
 	}
 
@@ -787,7 +787,7 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct dw_mipi_dsi_rockchip *dsi = to_dsi(encoder);
 	int ret, mux;
 
-	mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node,
+	mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_analde,
 						&dsi->encoder.encoder);
 	if (mux < 0)
 		return;
@@ -823,7 +823,7 @@ static int rockchip_dsi_drm_create_encoder(struct dw_mipi_dsi_rockchip *dsi,
 	int ret;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
-							     dsi->dev->of_node);
+							     dsi->dev->of_analde);
 
 	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_DSI);
 	if (ret) {
@@ -840,23 +840,23 @@ static struct device
 *dw_mipi_dsi_rockchip_find_second(struct dw_mipi_dsi_rockchip *dsi)
 {
 	const struct of_device_id *match;
-	struct device_node *node = NULL, *local;
+	struct device_analde *analde = NULL, *local;
 
 	match = of_match_device(dsi->dev->driver->of_match_table, dsi->dev);
 
-	local = of_graph_get_remote_node(dsi->dev->of_node, 1, 0);
+	local = of_graph_get_remote_analde(dsi->dev->of_analde, 1, 0);
 	if (!local)
 		return NULL;
 
-	while ((node = of_find_compatible_node(node, NULL,
+	while ((analde = of_find_compatible_analde(analde, NULL,
 					       match->compatible))) {
-		struct device_node *remote;
+		struct device_analde *remote;
 
 		/* found ourself */
-		if (node == dsi->dev->of_node)
+		if (analde == dsi->dev->of_analde)
 			continue;
 
-		remote = of_graph_get_remote_node(node, 1, 0);
+		remote = of_graph_get_remote_analde(analde, 1, 0);
 		if (!remote)
 			continue;
 
@@ -865,16 +865,16 @@ static struct device
 			struct dw_mipi_dsi_rockchip *dsi2;
 			struct platform_device *pdev;
 
-			pdev = of_find_device_by_node(node);
+			pdev = of_find_device_by_analde(analde);
 
 			/*
 			 * we have found the second, so will either return it
 			 * or return with an error. In any case won't need the
-			 * nodes anymore nor continue the loop.
+			 * analdes anymore analr continue the loop.
 			 */
-			of_node_put(remote);
-			of_node_put(node);
-			of_node_put(local);
+			of_analde_put(remote);
+			of_analde_put(analde);
+			of_analde_put(local);
 
 			if (!pdev)
 				return ERR_PTR(-EPROBE_DEFER);
@@ -888,10 +888,10 @@ static struct device
 			return &pdev->dev;
 		}
 
-		of_node_put(remote);
+		of_analde_put(remote);
 	}
 
-	of_node_put(local);
+	of_analde_put(local);
 
 	return NULL;
 }
@@ -911,9 +911,9 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		return PTR_ERR(second);
 
 	if (second) {
-		master1 = of_property_read_bool(dsi->dev->of_node,
+		master1 = of_property_read_bool(dsi->dev->of_analde,
 						"clock-master");
-		master2 = of_property_read_bool(second->of_node,
+		master2 = of_property_read_bool(second->of_analde,
 						"clock-master");
 
 		if (master1 && master2) {
@@ -922,7 +922,7 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		}
 
 		if (!master1 && !master2) {
-			DRM_DEV_ERROR(dsi->dev, "no clock-master defined\n");
+			DRM_DEV_ERROR(dsi->dev, "anal clock-master defined\n");
 			return -EINVAL;
 		}
 
@@ -934,8 +934,8 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 
 		dsi->slave = dev_get_drvdata(second);
 		if (!dsi->slave) {
-			DRM_DEV_ERROR(dev, "could not get slaves data\n");
-			return -ENODEV;
+			DRM_DEV_ERROR(dev, "could analt get slaves data\n");
+			return -EANALDEV;
 		}
 
 		dsi->slave->is_slave = true;
@@ -956,7 +956,7 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 	/*
 	 * With the GRF clock running, write lane and dual-mode configurations
 	 * that won't change immediately. If we waited until enable() to do
-	 * this, things like panel preparation would not be able to send
+	 * this, things like panel preparation would analt be able to send
 	 * commands over DSI.
 	 */
 	ret = clk_prepare_enable(dsi->grf_clk);
@@ -977,7 +977,7 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		goto out_pll_clk;
 	}
 	rockchip_drm_encoder_set_crtc_endpoint_id(&dsi->encoder,
-						  dev->of_node, 0, 0);
+						  dev->of_analde, 0, 0);
 
 	ret = dw_mipi_dsi_bind(dsi->dmd, &dsi->encoder.encoder);
 	if (ret) {
@@ -1102,7 +1102,7 @@ static int dw_mipi_dsi_rockchip_dphy_bind(struct device *dev,
 					  void *data)
 {
 	/*
-	 * Nothing to do when used as a dphy.
+	 * Analthing to do when used as a dphy.
 	 * Just make the rest of Rockchip-DRM happy
 	 * by being here.
 	 */
@@ -1114,7 +1114,7 @@ static void dw_mipi_dsi_rockchip_dphy_unbind(struct device *dev,
 					     struct device *master,
 					     void *data)
 {
-	/* Nothing to do when used as a dphy. */
+	/* Analthing to do when used as a dphy. */
 }
 
 static const struct component_ops dw_mipi_dsi_rockchip_dphy_ops = {
@@ -1260,7 +1260,7 @@ static int dw_mipi_dsi_dphy_power_on(struct phy *phy)
 	dw_mipi_dsi_phy_write(dsi, HS_RX_CONTROL_OF_LANE_2, 0);
 	dw_mipi_dsi_phy_write(dsi, HS_RX_CONTROL_OF_LANE_3, 0);
 
-	/* Normal operation */
+	/* Analrmal operation */
 	dw_mipi_dsi_phy_write(dsi, 0x0, 0);
 
 	clk_disable_unprepare(dsi->phy_cfg_clk);
@@ -1345,7 +1345,7 @@ static const struct dev_pm_ops dw_mipi_dsi_rockchip_pm_ops = {
 static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct dw_mipi_dsi_rockchip *dsi;
 	struct phy_provider *phy_provider;
 	struct resource *res;
@@ -1355,7 +1355,7 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(dsi->base)) {
@@ -1374,7 +1374,7 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 	}
 
 	if (!dsi->cdata) {
-		DRM_DEV_ERROR(dev, "no dsi-config for %s node\n", np->name);
+		DRM_DEV_ERROR(dev, "anal dsi-config for %s analde\n", np->name);
 		return -EINVAL;
 	}
 
@@ -1551,7 +1551,7 @@ static int rk3399_dphy_tx1rx1_power_on(struct phy *phy)
 	regmap_write(dsi->grf_regmap, RK3399_GRF_SOC_CON23,
 		     HIWORD_UPDATE(0, RK3399_DSI1_FORCETXSTOPMODE));
 
-	/* Disable lane turn around, which is ignored in receive mode */
+	/* Disable lane turn around, which is iganalred in receive mode */
 	regmap_write(dsi->grf_regmap, RK3399_GRF_SOC_CON24,
 		     HIWORD_UPDATE(0, RK3399_TXRX_TURNREQUEST));
 	regmap_write(dsi->grf_regmap, RK3399_GRF_SOC_CON23,
@@ -1696,9 +1696,9 @@ struct platform_driver dw_mipi_dsi_rockchip_driver = {
 		.name	= "dw-mipi-dsi-rockchip",
 		/*
 		 * For dual-DSI display, one DSI pokes at the other DSI's
-		 * drvdata in dw_mipi_dsi_rockchip_find_second(). This is not
-		 * safe for asynchronous probe.
+		 * drvdata in dw_mipi_dsi_rockchip_find_second(). This is analt
+		 * safe for asynchroanalus probe.
 		 */
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 };

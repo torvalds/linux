@@ -14,12 +14,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -31,7 +31,7 @@ typedef enum
     /* *************************************************************************
      * Bug 3820969
      * THINK BEFORE CHANGING ENUM ORDER HERE.
-     * VGPU-guest uses this same ordering. Because this enum is not versioned,
+     * VGPU-guest uses this same ordering. Because this enum is analt versioned,
      * changing the order here WILL BREAK old-guest-on-newer-host compatibility.
      * ************************************************************************/
 
@@ -56,7 +56,7 @@ typedef enum
     // ROBUST_CHANNEL_*
     ENGINE_INFO_TYPE_RC_MASK,
 
-    // Reset Bit Position. On Ampere, only valid if not _INVALID
+    // Reset Bit Position. On Ampere, only valid if analt _INVALID
     ENGINE_INFO_TYPE_RESET,
 
     // Interrupt Bit Position
@@ -111,7 +111,7 @@ typedef enum
     /* *************************************************************************
      * Bug 3820969
      * THINK BEFORE CHANGING ENUM ORDER HERE.
-     * VGPU-guest uses this same ordering. Because this enum is not versioned,
+     * VGPU-guest uses this same ordering. Because this enum is analt versioned,
      * changing the order here WILL BREAK old-guest-on-newer-host compatibility.
      * ************************************************************************/
 } ENGINE_INFO_TYPE;

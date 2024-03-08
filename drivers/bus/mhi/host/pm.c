@@ -17,14 +17,14 @@
 #include "internal.h"
 
 /*
- * Not all MHI state transitions are synchronous. Transitions like Linkdown,
- * SYS_ERR, and shutdown can happen anytime asynchronously. This function will
+ * Analt all MHI state transitions are synchroanalus. Transitions like Linkdown,
+ * SYS_ERR, and shutdown can happen anytime asynchroanalusly. This function will
  * transition to a new state only if we're allowed to.
  *
  * Priority increases as we go down. For instance, from any state in L0, the
- * transition can be made to states in L1, L2 and L3. A notable exception to
+ * transition can be made to states in L1, L2 and L3. A analtable exception to
  * this rule is state DISABLE.  From DISABLE state we can only transition to
- * POR state. Also, while in L2 state, user cannot jump back to previous
+ * POR state. Also, while in L2 state, user cananalt jump back to previous
  * L1 or L0 states.
  *
  * Valid transitions:
@@ -145,8 +145,8 @@ void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl, enum mhi_state state)
 			mhi_state_str(state));
 }
 
-/* NOP for backward compatibility, host allowed to ring DB in M2 state */
-static void mhi_toggle_dev_wake_nop(struct mhi_controller *mhi_cntrl)
+/* ANALP for backward compatibility, host allowed to ring DB in M2 state */
+static void mhi_toggle_dev_wake_analp(struct mhi_controller *mhi_cntrl)
 {
 }
 
@@ -168,7 +168,7 @@ int mhi_ready_state_transition(struct mhi_controller *mhi_cntrl)
 
 	/* Check if device entered error state */
 	if (MHI_PM_IN_FATAL_STATE(mhi_cntrl->pm_state)) {
-		dev_err(dev, "Device link is not accessible\n");
+		dev_err(dev, "Device link is analt accessible\n");
 		return -EIO;
 	}
 
@@ -206,7 +206,7 @@ int mhi_ready_state_transition(struct mhi_controller *mhi_cntrl)
 
 	read_lock_bh(&mhi_cntrl->pm_lock);
 	if (!MHI_REG_ACCESS_VALID(mhi_cntrl->pm_state)) {
-		dev_err(dev, "Device registers not accessible\n");
+		dev_err(dev, "Device registers analt accessible\n");
 		goto error_mmio;
 	}
 
@@ -285,7 +285,7 @@ int mhi_pm_m0_transition(struct mhi_controller *mhi_cntrl)
 			spin_unlock_irq(&mhi_event->lock);
 		}
 
-		/* Only ring primary cmd ring if ring is not empty */
+		/* Only ring primary cmd ring if ring is analt empty */
 		spin_lock_irq(&mhi_cmd->lock);
 		if (mhi_cmd->ring.rp != mhi_cmd->ring.wp)
 			mhi_ring_cmd_db(mhi_cntrl, mhi_cmd);
@@ -305,7 +305,7 @@ int mhi_pm_m0_transition(struct mhi_controller *mhi_cntrl)
 
 		read_lock_irq(&mhi_chan->lock);
 
-		/* Only ring DB if ring is not empty */
+		/* Only ring DB if ring is analt empty */
 		if (tre_ring->base && tre_ring->wp  != tre_ring->rp &&
 		    mhi_chan->ch_state == MHI_CH_STATE_ENABLED)
 			mhi_ring_chan_db(mhi_cntrl, mhi_chan);
@@ -473,7 +473,7 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl)
 
 	mutex_lock(&mhi_cntrl->pm_mutex);
 
-	/* Trigger MHI RESET so that the device will not access host memory */
+	/* Trigger MHI RESET so that the device will analt access host memory */
 	if (!MHI_PM_IN_FATAL_STATE(mhi_cntrl->pm_state)) {
 		/* Skip MHI RESET if in RDDM state */
 		if (mhi_cntrl->rddm_image && mhi_get_exec_env(mhi_cntrl) == MHI_EE_RDDM)
@@ -589,7 +589,7 @@ static void mhi_pm_sys_error_transition(struct mhi_controller *mhi_cntrl)
 		to_mhi_pm_state_str(mhi_cntrl->pm_state),
 		to_mhi_pm_state_str(MHI_PM_SYS_ERR_PROCESS));
 
-	/* We must notify MHI control driver so it can clean up first */
+	/* We must analtify MHI control driver so it can clean up first */
 	mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_SYS_ERROR);
 
 	mutex_lock(&mhi_cntrl->pm_mutex);
@@ -611,7 +611,7 @@ static void mhi_pm_sys_error_transition(struct mhi_controller *mhi_cntrl)
 	/* Wake up threads waiting for state transition */
 	wake_up_all(&mhi_cntrl->state_event);
 
-	/* Trigger MHI RESET so that the device will not access host memory */
+	/* Trigger MHI RESET so that the device will analt access host memory */
 	if (MHI_REG_ACCESS_VALID(prev_state)) {
 		u32 in_reset = -1;
 		unsigned long timeout = msecs_to_jiffies(mhi_cntrl->timeout_ms);
@@ -724,11 +724,11 @@ int mhi_queue_state_transition(struct mhi_controller *mhi_cntrl,
 	unsigned long flags;
 
 	if (!item)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	item->state = state;
 	spin_lock_irqsave(&mhi_cntrl->transition_lock, flags);
-	list_add_tail(&item->node, &mhi_cntrl->transition_list);
+	list_add_tail(&item->analde, &mhi_cntrl->transition_list);
 	spin_unlock_irqrestore(&mhi_cntrl->transition_lock, flags);
 
 	queue_work(mhi_cntrl->hiprio_wq, &mhi_cntrl->st_worker);
@@ -764,8 +764,8 @@ void mhi_pm_st_worker(struct work_struct *work)
 	list_splice_tail_init(&mhi_cntrl->transition_list, &head);
 	spin_unlock_irq(&mhi_cntrl->transition_lock);
 
-	list_for_each_entry_safe(itr, tmp, &head, node) {
-		list_del(&itr->node);
+	list_for_each_entry_safe(itr, tmp, &head, analde) {
+		list_del(&itr->analde);
 		dev_dbg(dev, "Handling state transition: %s\n",
 			TO_DEV_STATE_TRANS_STR(itr->state));
 
@@ -850,7 +850,7 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 
 	if (!ret || MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
 		dev_err(dev,
-			"Could not enter M0/M1 state");
+			"Could analt enter M0/M1 state");
 		return -EIO;
 	}
 
@@ -885,17 +885,17 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 
 	if (!ret || MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
 		dev_err(dev,
-			"Did not enter M3 state, MHI state: %s, PM state: %s\n",
+			"Did analt enter M3 state, MHI state: %s, PM state: %s\n",
 			mhi_state_str(mhi_cntrl->dev_state),
 			to_mhi_pm_state_str(mhi_cntrl->pm_state));
 		return -EIO;
 	}
 
-	/* Notify clients about entering LPM */
-	list_for_each_entry_safe(itr, tmp, &mhi_cntrl->lpm_chans, node) {
+	/* Analtify clients about entering LPM */
+	list_for_each_entry_safe(itr, tmp, &mhi_cntrl->lpm_chans, analde) {
 		mutex_lock(&itr->mutex);
 		if (itr->mhi_dev)
-			mhi_notify(itr->mhi_dev, MHI_CB_LPM_ENTER);
+			mhi_analtify(itr->mhi_dev, MHI_CB_LPM_ENTER);
 		mutex_unlock(&itr->mutex);
 	}
 
@@ -921,17 +921,17 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 		return -EIO;
 
 	if (mhi_get_mhi_state(mhi_cntrl) != MHI_STATE_M3) {
-		dev_warn(dev, "Resuming from non M3 state (%s)\n",
+		dev_warn(dev, "Resuming from analn M3 state (%s)\n",
 			 mhi_state_str(mhi_get_mhi_state(mhi_cntrl)));
 		if (!force)
 			return -EINVAL;
 	}
 
-	/* Notify clients about exiting LPM */
-	list_for_each_entry_safe(itr, tmp, &mhi_cntrl->lpm_chans, node) {
+	/* Analtify clients about exiting LPM */
+	list_for_each_entry_safe(itr, tmp, &mhi_cntrl->lpm_chans, analde) {
 		mutex_lock(&itr->mutex);
 		if (itr->mhi_dev)
-			mhi_notify(itr->mhi_dev, MHI_CB_LPM_EXIT);
+			mhi_analtify(itr->mhi_dev, MHI_CB_LPM_EXIT);
 		mutex_unlock(&itr->mutex);
 	}
 
@@ -958,7 +958,7 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 
 	if (!ret || MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
 		dev_err(dev,
-			"Did not enter M0 state, MHI state: %s, PM state: %s\n",
+			"Did analt enter M0 state, MHI state: %s, PM state: %s\n",
 			mhi_state_str(mhi_cntrl->dev_state),
 			to_mhi_pm_state_str(mhi_cntrl->pm_state));
 		return -EIO;
@@ -1081,13 +1081,13 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 
 	dev_info(dev, "Requested to power ON\n");
 
-	/* Supply default wake routines if not provided by controller driver */
+	/* Supply default wake routines if analt provided by controller driver */
 	if (!mhi_cntrl->wake_get || !mhi_cntrl->wake_put ||
 	    !mhi_cntrl->wake_toggle) {
 		mhi_cntrl->wake_get = mhi_assert_dev_wake;
 		mhi_cntrl->wake_put = mhi_deassert_dev_wake;
 		mhi_cntrl->wake_toggle = (mhi_cntrl->db_access & MHI_PM_M2) ?
-			mhi_toggle_dev_wake_nop : mhi_toggle_dev_wake;
+			mhi_toggle_dev_wake_analp : mhi_toggle_dev_wake;
 	}
 
 	mutex_lock(&mhi_cntrl->pm_mutex);
@@ -1103,7 +1103,7 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 
 	/* Confirm that the device is in valid exec env */
 	if (!MHI_POWER_UP_CAPABLE(current_ee)) {
-		dev_err(dev, "%s is not a valid EE for power on\n",
+		dev_err(dev, "%s is analt a valid EE for power on\n",
 			TO_MHI_EXEC_STR(current_ee));
 		ret = -EIO;
 		goto error_exit;
@@ -1174,7 +1174,7 @@ void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful)
 		return; /* Already powered down */
 	}
 
-	/* If it's not a graceful shutdown, force MHI to linkdown state */
+	/* If it's analt a graceful shutdown, force MHI to linkdown state */
 	transition_state = (graceful) ? MHI_PM_SHUTDOWN_PROCESS :
 			   MHI_PM_LD_ERR_FATAL_DETECT;
 

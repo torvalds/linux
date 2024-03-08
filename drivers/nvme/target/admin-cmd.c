@@ -40,7 +40,7 @@ u64 nvmet_get_log_page_offset(struct nvme_command *cmd)
 	return le64_to_cpu(cmd->get_log_page.lpo);
 }
 
-static void nvmet_execute_get_log_page_noop(struct nvmet_req *req)
+static void nvmet_execute_get_log_page_analop(struct nvmet_req *req)
 {
 	nvmet_req_complete(req, nvmet_zero_sgl(req, 0, req->transfer_len));
 }
@@ -311,7 +311,7 @@ static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
 
 	kfree(desc);
 
-	/* copy the header last once we know the number of groups */
+	/* copy the header last once we kanalw the number of groups */
 	status = nvmet_copy_to_sgl(req, 0, &hdr, sizeof(hdr));
 out:
 	nvmet_req_complete(req, status);
@@ -333,7 +333,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		 * active, so we can zero out the whole firmware slot log and
 		 * still claim to fully implement this mandatory log page.
 		 */
-		return nvmet_execute_get_log_page_noop(req);
+		return nvmet_execute_get_log_page_analop(req);
 	case NVME_LOG_CHANGED_NS:
 		return nvmet_execute_get_log_changed_ns(req);
 	case NVME_LOG_CMD_EFFECTS:
@@ -409,7 +409,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	/*
 	 * We don't really have a practical limit on the number of abort
 	 * comands.  But we don't do anything useful for abort either, so
-	 * no point in allowing more abort commands than the spec requires.
+	 * anal point in allowing more abort commands than the spec requires.
 	 */
 	id->acl = 3;
 
@@ -427,7 +427,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->sqes = (0x6 << 4) | 0x6;
 	id->cqes = (0x4 << 4) | 0x4;
 
-	/* no enforcement soft-limit for maxcmd - pick arbitrary high value */
+	/* anal enforcement soft-limit for maxcmd - pick arbitrary high value */
 	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD);
 
 	id->nn = cpu_to_le32(NVMET_MAX_NAMESPACES);
@@ -480,7 +480,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->psd[0].entry_lat = cpu_to_le32(0x10);
 	id->psd[0].exit_lat = cpu_to_le32(0x4);
 
-	id->nwpc = 1 << 0; /* write protect and no write protect */
+	id->nwpc = 1 << 0; /* write protect and anal write protect */
 
 	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
 
@@ -520,7 +520,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	}
 
 	/*
-	 * nuse = ncap = nsze isn't always true, but we have no way to find
+	 * nuse = ncap = nsze isn't always true, but we have anal way to find
 	 * that out from the underlying device.
 	 */
 	id->ncap = id->nsze =
@@ -545,7 +545,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	id->flbas = 0;
 
 	/*
-	 * Our namespace might always be shared.  Not just with other
+	 * Our namespace might always be shared.  Analt just with other
 	 * controllers, but also with any other user of the block device.
 	 */
 	id->nmic = NVME_NS_NMIC_SHARED;
@@ -670,7 +670,7 @@ out:
 
 static void nvmet_execute_identify_ctrl_nvm(struct nvmet_req *req)
 {
-	/* Not supported: return zeroes */
+	/* Analt supported: return zeroes */
 	nvmet_req_complete(req,
 		   nvmet_zero_sgl(req, 0, sizeof(struct nvme_id_ctrl_nvm)));
 }
@@ -696,7 +696,7 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 	case NVME_ID_CNS_CS_NS:
 		switch (req->cmd->identify.csi) {
 		case NVME_CSI_NVM:
-			/* Not supported */
+			/* Analt supported */
 			break;
 		case NVME_CSI_ZNS:
 			if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
@@ -729,7 +729,7 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 
 /*
  * A "minimum viable" abort implementation: the command is mandatory in the
- * spec, but we are not required to do any useful work.  We couldn't really
+ * spec, but we are analt required to do any useful work.  We couldn't really
  * do a useful abort, so don't bother even with waiting for the command
  * to be exectuted and return immediately telling the command to abort
  * wasn't found.
@@ -774,7 +774,7 @@ static u16 nvmet_set_feat_write_protect(struct nvmet_req *req)
 		if (status)
 			req->ns->readonly = false;
 		break;
-	case NVME_NS_NO_WRITE_PROTECT:
+	case NVME_NS_ANAL_WRITE_PROTECT:
 		req->ns->readonly = false;
 		status = 0;
 		break;
@@ -873,7 +873,7 @@ static u16 nvmet_get_feat_write_protect(struct nvmet_req *req)
 	if (req->ns->readonly == true)
 		result = NVME_NS_WRITE_PROTECT;
 	else
-		result = NVME_NS_NO_WRITE_PROTECT;
+		result = NVME_NS_ANAL_WRITE_PROTECT;
 	nvmet_set_result(req, result);
 	mutex_unlock(&subsys->lock);
 

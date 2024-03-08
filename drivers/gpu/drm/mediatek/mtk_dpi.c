@@ -130,8 +130,8 @@ struct mtk_dpi_yc_limit {
  * @input_2pixel: Input pixel of dp_intf is 2 pixel per round, so enable this
  *		  config to enable this feature.
  * @dimension_mask: Mask used for HWIDTH, HPORCH, VSYNC_WIDTH and VSYNC_PORCH
- *		    (no shift).
- * @hvsize_mask: Mask of HSIZE and VSIZE mask (no shift).
+ *		    (anal shift).
+ * @hvsize_mask: Mask of HSIZE and VSIZE mask (anal shift).
  * @channel_swap_shift: Shift value of channel swap.
  * @yuv422_en_bit: Enable bit of yuv422.
  * @csc_enable_bit: Enable bit of CSC.
@@ -631,7 +631,7 @@ static u32 *mtk_dpi_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	*num_output_fmts = 0;
 
 	if (!dpi->conf->output_fmts) {
-		dev_err(dpi->dev, "output_fmts should not be null\n");
+		dev_err(dpi->dev, "output_fmts should analt be null\n");
 		return NULL;
 	}
 
@@ -808,7 +808,7 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 	dpi->encoder.possible_crtcs = mtk_drm_find_possible_crtc_by_comp(drm_dev, dpi->dev);
 
 	ret = drm_bridge_attach(&dpi->encoder, &dpi->bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret)
 		goto err_cleanup;
 
@@ -1005,7 +1005,7 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 
 	dpi = devm_kzalloc(dev, sizeof(*dpi), GFP_KERNEL);
 	if (!dpi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpi->dev = dev;
 	dpi->conf = (struct mtk_dpi_conf *)of_device_get_match_data(dev);
@@ -1014,13 +1014,13 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 	dpi->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(dpi->pinctrl)) {
 		dpi->pinctrl = NULL;
-		dev_dbg(&pdev->dev, "Cannot find pinctrl!\n");
+		dev_dbg(&pdev->dev, "Cananalt find pinctrl!\n");
 	}
 	if (dpi->pinctrl) {
 		dpi->pins_gpio = pinctrl_lookup_state(dpi->pinctrl, "sleep");
 		if (IS_ERR(dpi->pins_gpio)) {
 			dpi->pins_gpio = NULL;
-			dev_dbg(&pdev->dev, "Cannot find pinctrl idle!\n");
+			dev_dbg(&pdev->dev, "Cananalt find pinctrl idle!\n");
 		}
 		if (dpi->pins_gpio)
 			pinctrl_select_state(dpi->pinctrl, dpi->pins_gpio);
@@ -1028,7 +1028,7 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 		dpi->pins_dpi = pinctrl_lookup_state(dpi->pinctrl, "default");
 		if (IS_ERR(dpi->pins_dpi)) {
 			dpi->pins_dpi = NULL;
-			dev_dbg(&pdev->dev, "Cannot find pinctrl active!\n");
+			dev_dbg(&pdev->dev, "Cananalt find pinctrl active!\n");
 		}
 	}
 	dpi->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -1055,17 +1055,17 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 	if (dpi->irq < 0)
 		return dpi->irq;
 
-	dpi->next_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 0, 0);
+	dpi->next_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 0, 0);
 	if (IS_ERR(dpi->next_bridge))
 		return dev_err_probe(dev, PTR_ERR(dpi->next_bridge),
 				     "Failed to get bridge\n");
 
-	dev_info(dev, "Found bridge node: %pOF\n", dpi->next_bridge->of_node);
+	dev_info(dev, "Found bridge analde: %pOF\n", dpi->next_bridge->of_analde);
 
 	platform_set_drvdata(pdev, dpi);
 
 	dpi->bridge.funcs = &mtk_dpi_bridge_funcs;
-	dpi->bridge.of_node = dev->of_node;
+	dpi->bridge.of_analde = dev->of_analde;
 	dpi->bridge.type = DRM_MODE_CONNECTOR_DPI;
 
 	ret = devm_drm_bridge_add(dev, &dpi->bridge);

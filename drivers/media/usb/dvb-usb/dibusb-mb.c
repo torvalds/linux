@@ -31,7 +31,7 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 	adap->fe_adap[0].fe = dvb_attach(dib3000mb_attach, &demod_cfg,
 					 &adap->dev->i2c_adap, &st->ops);
 	if ((adap->fe_adap[0].fe) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	adap->fe_adap[0].fe->ops.i2c_gate_ctrl = dib3000mb_i2c_gate_ctrl;
 
@@ -120,7 +120,7 @@ static int dibusb_probe(struct usb_interface *intf,
 	return -EINVAL;
 }
 
-/* do not change the order of the ID table */
+/* do analt change the order of the ID table */
 enum {
 	WIDEVIEW_DVBT_USB_COLD,
 	WIDEVIEW_DVBT_USB_WARM,
@@ -266,7 +266,7 @@ static struct dvb_usb_device_properties dibusb1_1_properties = {
 			{ &dibusb_dib3000mb_table[GRANDTEC_DVBT_USB_COLD],  &dibusb_dib3000mb_table[GRANDTEC_MOD3000_COLD], NULL },
 			{ &dibusb_dib3000mb_table[GRANDTEC_DVBT_USB_WARM], &dibusb_dib3000mb_table[GRANDTEC_MOD3000_WARM], NULL },
 		},
-		{	"Unknown USB1.1 DVB-T device ???? please report the name to the author",
+		{	"Unkanalwn USB1.1 DVB-T device ???? please report the name to the author",
 			{ &dibusb_dib3000mb_table[UNK_HYPER_PALTEK_COLD], NULL },
 			{ &dibusb_dib3000mb_table[UNK_HYPER_PALTEK_WARM], NULL },
 		},

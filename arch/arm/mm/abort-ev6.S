@@ -12,7 +12,7 @@
  * Returns : r4 - r11, r13 preserved
  *
  * Purpose : obtain information about current aborted instruction.
- * Note: we read user space.  This means we might cause a data
+ * Analte: we read user space.  This means we might cause a data
  * abort here if the I-TLB and D-TLB aren't seeing the same
  * picture.  Unfortunately, this does happen.  We live with it.
  */
@@ -37,9 +37,9 @@ ENTRY(v6_early_abort)
  ARM_BE8(rev	r3, r3)
 
 	teq_ldrd tmp=ip, insn=r3		@ insn was LDRD?
-	beq	1f				@ yes
+	beq	1f				@ anal
 	tst	r3, #1 << 20			@ L = 0 -> write
-	orreq	r1, r1, #1 << 11		@ yes.
+	orreq	r1, r1, #1 << 11		@ anal.
 #endif
 1:	uaccess_disable ip			@ disable userspace access
 	b	do_DataAbort

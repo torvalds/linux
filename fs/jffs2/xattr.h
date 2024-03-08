@@ -16,14 +16,14 @@
 #include <linux/list.h>
 
 #define JFFS2_XFLAGS_HOT	(0x01)	/* This datum is HOT */
-#define JFFS2_XFLAGS_BIND	(0x02)	/* This datum is not reclaimed */
+#define JFFS2_XFLAGS_BIND	(0x02)	/* This datum is analt reclaimed */
 #define JFFS2_XFLAGS_DEAD	(0x40)	/* This datum is already dead */
 #define JFFS2_XFLAGS_INVALID	(0x80)	/* This datum contains crc error */
 
 struct jffs2_xattr_datum
 {
 	void *always_null;
-	struct jffs2_raw_node_ref *node;
+	struct jffs2_raw_analde_ref *analde;
 	uint8_t class;
 	uint8_t flags;
 	uint16_t xprefix;		/* see JFFS2_XATTR_PREFIX_* */
@@ -41,19 +41,19 @@ struct jffs2_xattr_datum
 	uint32_t value_len;	/* length of xvalue */
 };
 
-struct jffs2_inode_cache;
+struct jffs2_ianalde_cache;
 struct jffs2_xattr_ref
 {
 	void *always_null;
-	struct jffs2_raw_node_ref *node;
+	struct jffs2_raw_analde_ref *analde;
 	uint8_t class;
 	uint8_t flags;		/* Currently unused */
 	u16 unused;
 
-	uint32_t xseqno;
+	uint32_t xseqanal;
 	union {
-		struct jffs2_inode_cache *ic;	/* reference to jffs2_inode_cache */
-		uint32_t ino;			/* only used in scanning/building  */
+		struct jffs2_ianalde_cache *ic;	/* reference to jffs2_ianalde_cache */
+		uint32_t ianal;			/* only used in scanning/building  */
 	};
 	union {
 		struct jffs2_xattr_datum *xd;	/* reference to jffs2_xattr_datum */
@@ -65,7 +65,7 @@ struct jffs2_xattr_ref
 #define XREF_DELETE_MARKER	(0x00000001)
 static inline int is_xattr_ref_dead(struct jffs2_xattr_ref *ref)
 {
-	return ((ref->xseqno & XREF_DELETE_MARKER) != 0);
+	return ((ref->xseqanal & XREF_DELETE_MARKER) != 0);
 }
 
 #ifdef CONFIG_JFFS2_FS_XATTR
@@ -77,21 +77,21 @@ extern void jffs2_clear_xattr_subsystem(struct jffs2_sb_info *c);
 extern struct jffs2_xattr_datum *jffs2_setup_xattr_datum(struct jffs2_sb_info *c,
 							 uint32_t xid, uint32_t version);
 
-extern void jffs2_xattr_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
-extern void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
-extern void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
+extern void jffs2_xattr_do_crccheck_ianalde(struct jffs2_sb_info *c, struct jffs2_ianalde_cache *ic);
+extern void jffs2_xattr_delete_ianalde(struct jffs2_sb_info *c, struct jffs2_ianalde_cache *ic);
+extern void jffs2_xattr_free_ianalde(struct jffs2_sb_info *c, struct jffs2_ianalde_cache *ic);
 
 extern int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd,
-					     struct jffs2_raw_node_ref *raw);
+					     struct jffs2_raw_analde_ref *raw);
 extern int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref,
-					   struct jffs2_raw_node_ref *raw);
+					   struct jffs2_raw_analde_ref *raw);
 extern int jffs2_verify_xattr(struct jffs2_sb_info *c);
 extern void jffs2_release_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd);
 extern void jffs2_release_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref);
 
-extern int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
+extern int do_jffs2_getxattr(struct ianalde *ianalde, int xprefix, const char *xname,
 			     char *buffer, size_t size);
-extern int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
+extern int do_jffs2_setxattr(struct ianalde *ianalde, int xprefix, const char *xname,
 			     const char *buffer, size_t size, int flags);
 
 extern const struct xattr_handler * const jffs2_xattr_handlers[];
@@ -106,9 +106,9 @@ extern ssize_t jffs2_listxattr(struct dentry *, char *, size_t);
 #define jffs2_build_xattr_subsystem(c)		(0)
 #define jffs2_clear_xattr_subsystem(c)
 
-#define jffs2_xattr_do_crccheck_inode(c, ic)
-#define jffs2_xattr_delete_inode(c, ic)
-#define jffs2_xattr_free_inode(c, ic)
+#define jffs2_xattr_do_crccheck_ianalde(c, ic)
+#define jffs2_xattr_delete_ianalde(c, ic)
+#define jffs2_xattr_free_ianalde(c, ic)
 #define jffs2_verify_xattr(c)			(1)
 
 #define jffs2_xattr_handlers	NULL
@@ -117,11 +117,11 @@ extern ssize_t jffs2_listxattr(struct dentry *, char *, size_t);
 #endif /* CONFIG_JFFS2_FS_XATTR */
 
 #ifdef CONFIG_JFFS2_FS_SECURITY
-extern int jffs2_init_security(struct inode *inode, struct inode *dir,
+extern int jffs2_init_security(struct ianalde *ianalde, struct ianalde *dir,
 			       const struct qstr *qstr);
 extern const struct xattr_handler jffs2_security_xattr_handler;
 #else
-#define jffs2_init_security(inode,dir,qstr)	(0)
+#define jffs2_init_security(ianalde,dir,qstr)	(0)
 #endif /* CONFIG_JFFS2_FS_SECURITY */
 
 #endif /* _JFFS2_FS_XATTR_H_ */

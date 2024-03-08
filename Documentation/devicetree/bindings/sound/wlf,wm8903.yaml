@@ -59,9 +59,9 @@ properties:
       minItems: 5
       maxItems: 5
       A list of GPIO configuration register values.
-      If absent, no configuration of these registers is performed.
+      If absent, anal configuration of these registers is performed.
       If any entry has the value 0xffffffff, that GPIO's
-      configuration will not be modified.
+      configuration will analt be modified.
 
   AVDD-supply:
     description: Analog power supply regulator on the AVDD pin.

@@ -9,7 +9,7 @@
 // In case there are new analog / DVB-T hybrid devices released in the market
 // using the same general design as Medion MD95700: a CX25840 video decoder
 // outputting a BT.656 stream to a USB bridge chip which then forwards it to
-// the host in isochronous USB packets this code should be made generic, with
+// the host in isochroanalus USB packets this code should be made generic, with
 // board specific bits implemented via separate card structures.
 //
 // This is, however, unlikely as the Medion model was released
@@ -68,7 +68,7 @@ static int cxusb_medion_v_buf_init(struct vb2_buffer *vb)
 	cxusb_vprintk(dvbdev, OPS, "buffer init\n");
 
 	if (vb2_plane_size(vb, 0) < cxdev->width * cxdev->height * 2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cxusb_vprintk(dvbdev, OPS, "buffer OK\n");
 
@@ -460,7 +460,7 @@ static bool cxusb_medion_v_process_auxbuf(struct cxusb_medion_dev *cxdev,
 						 list);
 			list_del(&cxdev->vbuf->list);
 		} else {
-			dev_warn(&dvbdev->udev->dev, "no free buffers\n");
+			dev_warn(&dvbdev->udev->dev, "anal free buffers\n");
 		}
 	}
 
@@ -485,7 +485,7 @@ static bool cxusb_medion_v_process_auxbuf(struct cxusb_medion_dev *cxdev,
 			return false;
 
 		/*
-		 * do not trim buffer there in case
+		 * do analt trim buffer there in case
 		 * we need to reset the search later
 		 */
 
@@ -570,7 +570,7 @@ static bool cxusb_medion_v_complete_handle_urb(struct cxusb_medion_dev *cxdev,
 			 * append new data to auxbuf while
 			 * overwriting old data if necessary
 			 *
-			 * if any overwrite happens then we can no
+			 * if any overwrite happens then we can anal
 			 * longer rely on consistency of the whole
 			 * data so let's start again the current
 			 * auxbuf frame assembling process from
@@ -615,7 +615,7 @@ static void cxusb_medion_v_complete_work(struct work_struct *work)
 	reschedule = cxusb_medion_v_complete_handle_urb(cxdev, &auxbuf_reset);
 
 	if (cxusb_medion_v_process_auxbuf(cxdev, auxbuf_reset))
-		/* reschedule us until auxbuf no longer can produce any frame */
+		/* reschedule us until auxbuf anal longer can produce any frame */
 		reschedule = true;
 
 	if (reschedule) {
@@ -639,7 +639,7 @@ static void cxusb_medion_v_complete(struct urb *u)
 
 	if (i >= CXUSB_VIDEO_URBS) {
 		dev_err(&dvbdev->udev->dev,
-			"complete on unknown URB\n");
+			"complete on unkanalwn URB\n");
 		return;
 	}
 
@@ -696,7 +696,7 @@ static int cxusb_medion_v_ss_auxbuf_alloc(struct cxusb_medion_dev *cxdev,
 
 	/*
 	 * try to fit a whole frame into each URB, as long as doing so
-	 * does not require very high order memory allocations
+	 * does analt require very high order memory allocations
 	 */
 	BUILD_BUG_ON(CXUSB_VIDEO_URB_MAX_SIZE / CXUSB_VIDEO_PKT_SIZE >
 		     CXUSB_VIDEO_MAX_FRAME_PKTS);
@@ -714,23 +714,23 @@ static int cxusb_medion_v_ss_auxbuf_alloc(struct cxusb_medion_dev *cxdev,
 
 	buf = vmalloc(auxbuflen);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cxusb_auxbuf_init(dvbdev, &cxdev->auxbuf, buf, auxbuflen);
 
 	return 0;
 }
 
-static u32 cxusb_medion_norm2field_order(v4l2_std_id norm)
+static u32 cxusb_medion_analrm2field_order(v4l2_std_id analrm)
 {
-	bool is625 = norm & V4L2_STD_625_50;
-	bool is525 = norm & V4L2_STD_525_60;
+	bool is625 = analrm & V4L2_STD_625_50;
+	bool is525 = analrm & V4L2_STD_525_60;
 
 	if (!is625 && !is525)
-		return V4L2_FIELD_NONE;
+		return V4L2_FIELD_ANALNE;
 
 	if (is625 && is525)
-		return V4L2_FIELD_NONE;
+		return V4L2_FIELD_ANALNE;
 
 	if (is625)
 		return V4L2_FIELD_SEQ_TB;
@@ -743,29 +743,29 @@ static u32 cxusb_medion_field_order(struct cxusb_medion_dev *cxdev)
 	struct dvb_usb_device *dvbdev = cxdev->dvbdev;
 	u32 field;
 	int ret;
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 
 	/* TV tuner is PAL-only so it is always TB */
 	if (cxdev->input == 0)
 		return V4L2_FIELD_SEQ_TB;
 
-	field = cxusb_medion_norm2field_order(cxdev->norm);
-	if (field != V4L2_FIELD_NONE)
+	field = cxusb_medion_analrm2field_order(cxdev->analrm);
+	if (field != V4L2_FIELD_ANALNE)
 		return field;
 
-	ret = v4l2_subdev_call(cxdev->cx25840, video, g_std, &norm);
+	ret = v4l2_subdev_call(cxdev->cx25840, video, g_std, &analrm);
 	if (ret != 0) {
 		cxusb_vprintk(dvbdev, OPS,
-			      "cannot get current standard for input %u\n",
+			      "cananalt get current standard for input %u\n",
 			      (unsigned int)cxdev->input);
 	} else {
-		field = cxusb_medion_norm2field_order(norm);
-		if (field != V4L2_FIELD_NONE)
+		field = cxusb_medion_analrm2field_order(analrm);
+		if (field != V4L2_FIELD_ANALNE)
 			return field;
 	}
 
 	dev_warn(&dvbdev->udev->dev,
-		 "cannot determine field order for the current standard setup and received signal, using TB\n");
+		 "cananalt determine field order for the current standard setup and received signal, using TB\n");
 	return V4L2_FIELD_SEQ_TB;
 }
 
@@ -815,13 +815,13 @@ static int cxusb_medion_v_start_streaming(struct vb2_queue *q,
 		/*
 		 * TODO: change this to an array of single pages to avoid
 		 * doing a large continuous allocation when (if)
-		 * s-g isochronous USB transfers are supported
+		 * s-g isochroanalus USB transfers are supported
 		 */
 		streambuf = kmalloc(npackets * CXUSB_VIDEO_PKT_SIZE,
 				    GFP_KERNEL);
 		if (!streambuf) {
 			if (i < 2) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto ret_freeab;
 			}
 			break;
@@ -830,7 +830,7 @@ static int cxusb_medion_v_start_streaming(struct vb2_queue *q,
 		surb = usb_alloc_urb(npackets, GFP_KERNEL);
 		if (!surb) {
 			kfree(streambuf);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto ret_freeu;
 		}
 
@@ -1126,8 +1126,8 @@ static int cxusb_medion_g_input(struct file *file, void *fh,
 	return 0;
 }
 
-static int cxusb_medion_set_norm(struct cxusb_medion_dev *cxdev,
-				 v4l2_std_id norm)
+static int cxusb_medion_set_analrm(struct cxusb_medion_dev *cxdev,
+				 v4l2_std_id analrm)
 {
 	struct dvb_usb_device *dvbdev = cxdev->dvbdev;
 	int ret;
@@ -1135,51 +1135,51 @@ static int cxusb_medion_set_norm(struct cxusb_medion_dev *cxdev,
 	cxusb_vprintk(dvbdev, OPS,
 		      "trying to set standard for input %u to %lx\n",
 		      (unsigned int)cxdev->input,
-		      (unsigned long)norm);
+		      (unsigned long)analrm);
 
-	/* no autodetection support */
-	if (norm == V4L2_STD_UNKNOWN)
+	/* anal autodetection support */
+	if (analrm == V4L2_STD_UNKANALWN)
 		return -EINVAL;
 
 	/* on composite or S-Video any std is acceptable */
 	if (cxdev->input != 0) {
-		ret = v4l2_subdev_call(cxdev->cx25840, video, s_std, norm);
+		ret = v4l2_subdev_call(cxdev->cx25840, video, s_std, analrm);
 		if (ret)
 			return ret;
 
-		goto ret_savenorm;
+		goto ret_saveanalrm;
 	}
 
 	/* TV tuner is only able to demodulate PAL */
-	if ((norm & ~V4L2_STD_PAL) != 0)
+	if ((analrm & ~V4L2_STD_PAL) != 0)
 		return -EINVAL;
 
-	ret = v4l2_subdev_call(cxdev->tda9887, video, s_std, norm);
+	ret = v4l2_subdev_call(cxdev->tda9887, video, s_std, analrm);
 	if (ret != 0) {
 		dev_err(&dvbdev->udev->dev,
-			"tda9887 norm setup failed (%d)\n",
+			"tda9887 analrm setup failed (%d)\n",
 			ret);
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(cxdev->tuner, video, s_std, norm);
+	ret = v4l2_subdev_call(cxdev->tuner, video, s_std, analrm);
 	if (ret != 0) {
 		dev_err(&dvbdev->udev->dev,
-			"tuner norm setup failed (%d)\n",
+			"tuner analrm setup failed (%d)\n",
 			ret);
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(cxdev->cx25840, video, s_std, norm);
+	ret = v4l2_subdev_call(cxdev->cx25840, video, s_std, analrm);
 	if (ret != 0) {
 		dev_err(&dvbdev->udev->dev,
-			"cx25840 norm setup failed (%d)\n",
+			"cx25840 analrm setup failed (%d)\n",
 			ret);
 		return ret;
 	}
 
-ret_savenorm:
-	cxdev->norm = norm;
+ret_saveanalrm:
+	cxdev->analrm = analrm;
 
 	return 0;
 }
@@ -1190,7 +1190,7 @@ static int cxusb_medion_s_input(struct file *file, void *fh,
 	struct dvb_usb_device *dvbdev = video_drvdata(file);
 	struct cxusb_medion_dev *cxdev = dvbdev->priv;
 	int ret;
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 
 	if (i >= CXUSB_INPUT_CNT)
 		return -EINVAL;
@@ -1201,13 +1201,13 @@ static int cxusb_medion_s_input(struct file *file, void *fh,
 		return ret;
 
 	cxdev->input = i;
-	cxdev->videodev->tvnorms = cxusb_medion_inputs[i].input.std;
+	cxdev->videodev->tvanalrms = cxusb_medion_inputs[i].input.std;
 
-	norm = cxdev->norm & cxusb_medion_inputs[i].input.std;
-	if (norm == 0)
-		norm = cxusb_medion_inputs[i].input.std;
+	analrm = cxdev->analrm & cxusb_medion_inputs[i].input.std;
+	if (analrm == 0)
+		analrm = cxusb_medion_inputs[i].input.std;
 
-	cxusb_medion_set_norm(cxdev, norm);
+	cxusb_medion_set_analrm(cxdev, analrm);
 
 	return 0;
 }
@@ -1293,7 +1293,7 @@ static int cxusb_medion_s_tuner(struct file *file, void *fh,
 	 * since calls above may have changed it for tuner / IF demod
 	 */
 	if (vdev->vfl_type == VFL_TYPE_VIDEO)
-		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
+		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->analrm);
 	else
 		v4l2_subdev_call(cxdev->cx25840, tuner, s_radio);
 
@@ -1336,7 +1336,7 @@ static int cxusb_medion_s_frequency(struct file *file, void *fh,
 	 * since calls above may have changed it for tuner / IF demod
 	 */
 	if (vdev->vfl_type == VFL_TYPE_VIDEO)
-		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
+		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->analrm);
 	else
 		v4l2_subdev_call(cxdev->cx25840, tuner, s_radio);
 
@@ -1344,56 +1344,56 @@ static int cxusb_medion_s_frequency(struct file *file, void *fh,
 }
 
 static int cxusb_medion_g_std(struct file *file, void *fh,
-			      v4l2_std_id *norm)
+			      v4l2_std_id *analrm)
 {
 	struct dvb_usb_device *dvbdev = video_drvdata(file);
 	struct cxusb_medion_dev *cxdev = dvbdev->priv;
 
-	*norm = cxdev->norm;
+	*analrm = cxdev->analrm;
 
-	if (*norm == V4L2_STD_UNKNOWN)
-		return -ENODATA;
+	if (*analrm == V4L2_STD_UNKANALWN)
+		return -EANALDATA;
 
 	return 0;
 }
 
 static int cxusb_medion_s_std(struct file *file, void *fh,
-			      v4l2_std_id norm)
+			      v4l2_std_id analrm)
 {
 	struct dvb_usb_device *dvbdev = video_drvdata(file);
 	struct cxusb_medion_dev *cxdev = dvbdev->priv;
 
-	return cxusb_medion_set_norm(cxdev, norm);
+	return cxusb_medion_set_analrm(cxdev, analrm);
 }
 
 static int cxusb_medion_querystd(struct file *file, void *fh,
-				 v4l2_std_id *norm)
+				 v4l2_std_id *analrm)
 {
 	struct dvb_usb_device *dvbdev = video_drvdata(file);
 	struct cxusb_medion_dev *cxdev = dvbdev->priv;
-	v4l2_std_id norm_mask;
+	v4l2_std_id analrm_mask;
 	int ret;
 
 	/*
 	 * make sure we don't have improper std bits set for the TV tuner
-	 * (could happen when no signal was present yet after reset)
+	 * (could happen when anal signal was present yet after reset)
 	 */
 	if (cxdev->input == 0)
-		norm_mask = V4L2_STD_PAL;
+		analrm_mask = V4L2_STD_PAL;
 	else
-		norm_mask = V4L2_STD_ALL;
+		analrm_mask = V4L2_STD_ALL;
 
-	ret = v4l2_subdev_call(cxdev->cx25840, video, querystd, norm);
+	ret = v4l2_subdev_call(cxdev->cx25840, video, querystd, analrm);
 	if (ret != 0) {
 		cxusb_vprintk(dvbdev, OPS,
-			      "cannot get detected standard for input %u\n",
+			      "cananalt get detected standard for input %u\n",
 			      (unsigned int)cxdev->input);
 		return ret;
 	}
 
 	cxusb_vprintk(dvbdev, OPS, "input %u detected standard is %lx\n",
-		      (unsigned int)cxdev->input, (unsigned long)*norm);
-	*norm &= norm_mask;
+		      (unsigned int)cxdev->input, (unsigned long)*analrm);
+	*analrm &= analrm_mask;
 
 	return 0;
 }
@@ -1446,7 +1446,7 @@ static const struct v4l2_ioctl_ops cxusb_radio_ioctl = {
 
 /*
  * in principle, this should be const, but s_io_pin_config is declared
- * to take non-const, and gcc complains
+ * to take analn-const, and gcc complains
  */
 static struct v4l2_subdev_io_pin_config cxusub_medion_pin_config[] = {
 	{ .pin = CX25840_PIN_DVALID_PRGM0, .function = CX25840_PAD_DEFAULT,
@@ -1492,8 +1492,8 @@ int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev)
 
 	/* composite */
 	cxdev->input = 1;
-	cxdev->videodev->tvnorms = V4L2_STD_ALL;
-	cxdev->norm = V4L2_STD_PAL;
+	cxdev->videodev->tvanalrms = V4L2_STD_ALL;
+	cxdev->analrm = V4L2_STD_PAL;
 
 	/* TODO: setup audio samples insertion */
 
@@ -1505,9 +1505,9 @@ int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev)
 			 "cx25840 pin config failed (%d)\n", ret);
 
 	/* make sure that we aren't in radio mode */
-	v4l2_subdev_call(cxdev->tda9887, video, s_std, cxdev->norm);
-	v4l2_subdev_call(cxdev->tuner, video, s_std, cxdev->norm);
-	v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
+	v4l2_subdev_call(cxdev->tda9887, video, s_std, cxdev->analrm);
+	v4l2_subdev_call(cxdev->tuner, video, s_std, cxdev->analrm);
+	v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->analrm);
 
 	subfmt.format.width = cxdev->width;
 	subfmt.format.height = cxdev->height;
@@ -1534,9 +1534,9 @@ static int cxusb_videoradio_open(struct file *f)
 	int ret;
 
 	/*
-	 * no locking needed since this call only modifies analog
-	 * state if there are no other analog handles currenly
-	 * opened so ops done via them cannot create a conflict
+	 * anal locking needed since this call only modifies analog
+	 * state if there are anal other analog handles currenly
+	 * opened so ops done via them cananalt create a conflict
 	 */
 	ret = cxusb_medion_get(dvbdev, CXUSB_OPEN_ANALOG);
 	if (ret != 0)
@@ -1631,7 +1631,7 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 	cxdev->videoqueue.drv_priv = dvbdev;
 	cxdev->videoqueue.buf_struct_size =
 		sizeof(struct cxusb_medion_vbuffer);
-	cxdev->videoqueue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	cxdev->videoqueue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	cxdev->videoqueue.min_queued_buffers = 6;
 	cxdev->videoqueue.lock = &cxdev->dev_lock;
 
@@ -1645,7 +1645,7 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 	cxdev->videodev = video_device_alloc();
 	if (!cxdev->videodev) {
 		dev_err(&dvbdev->udev->dev, "video device alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cxdev->videodev->device_caps = videocaps;
@@ -1655,7 +1655,7 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 	strscpy(cxdev->videodev->name, "cxusb", sizeof(cxdev->videodev->name));
 	cxdev->videodev->vfl_dir = VFL_DIR_RX;
 	cxdev->videodev->ioctl_ops = &cxusb_video_ioctl;
-	cxdev->videodev->tvnorms = V4L2_STD_ALL;
+	cxdev->videodev->tvanalrms = V4L2_STD_ALL;
 	cxdev->videodev->release = cxusb_medion_videodev_release;
 	cxdev->videodev->lock = &cxdev->dev_lock;
 	video_set_drvdata(cxdev->videodev, dvbdev);
@@ -1682,7 +1682,7 @@ static int cxusb_medion_register_analog_radio(struct dvb_usb_device *dvbdev)
 	cxdev->radiodev = video_device_alloc();
 	if (!cxdev->radiodev) {
 		dev_err(&dvbdev->udev->dev, "radio device alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cxdev->radiodev->device_caps = radiocaps;
@@ -1717,8 +1717,8 @@ static int cxusb_medion_register_analog_subdevs(struct dvb_usb_device *dvbdev)
 					     &dvbdev->i2c_adap,
 					     "cx25840", 0x44, NULL);
 	if (!cxdev->cx25840) {
-		dev_err(&dvbdev->udev->dev, "cx25840 not found\n");
-		return -ENODEV;
+		dev_err(&dvbdev->udev->dev, "cx25840 analt found\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -1736,8 +1736,8 @@ static int cxusb_medion_register_analog_subdevs(struct dvb_usb_device *dvbdev)
 			       CX25840_VCONFIG_ANCDATA_DISABLED |
 			       CX25840_VCONFIG_ACTIVE_COMPOSITE |
 			       CX25840_VCONFIG_VALID_ANDACTIVE |
-			       CX25840_VCONFIG_HRESETW_NORMAL |
-			       CX25840_VCONFIG_CLKGATE_NONE |
+			       CX25840_VCONFIG_HRESETW_ANALRMAL |
+			       CX25840_VCONFIG_CLKGATE_ANALNE |
 			       CX25840_VCONFIG_DCMODE_DWORDS);
 	if (ret != 0) {
 		dev_err(&dvbdev->udev->dev,
@@ -1750,8 +1750,8 @@ static int cxusb_medion_register_analog_subdevs(struct dvb_usb_device *dvbdev)
 					   &dvbdev->i2c_adap,
 					   "tuner", 0x61, NULL);
 	if (!cxdev->tuner) {
-		dev_err(&dvbdev->udev->dev, "tuner not found\n");
-		return -ENODEV;
+		dev_err(&dvbdev->udev->dev, "tuner analt found\n");
+		return -EANALDEV;
 	}
 
 	/* configure it */
@@ -1766,8 +1766,8 @@ static int cxusb_medion_register_analog_subdevs(struct dvb_usb_device *dvbdev)
 					     &dvbdev->i2c_adap,
 					     "tuner", 0x43, NULL);
 	if (!cxdev->tda9887) {
-		dev_err(&dvbdev->udev->dev, "tda9887 not found\n");
-		return -ENODEV;
+		dev_err(&dvbdev->udev->dev, "tda9887 analt found\n");
+		return -EANALDEV;
 	}
 
 	return 0;

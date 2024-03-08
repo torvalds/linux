@@ -36,7 +36,7 @@ static int ccu_phase_get_phase(struct clk_hw *hw)
 	if (!parent_rate)
 		return -EINVAL;
 
-	/* Now, get our parent's parent (most likely some PLL) */
+	/* Analw, get our parent's parent (most likely some PLL) */
 	grandparent = clk_hw_get_parent(parent);
 	if (!grandparent)
 		return -EINVAL;
@@ -72,7 +72,7 @@ static int ccu_phase_set_phase(struct clk_hw *hw, int degrees)
 	if (!parent_rate)
 		return -EINVAL;
 
-	/* Now, get our parent's parent (most likely some PLL) */
+	/* Analw, get our parent's parent (most likely some PLL) */
 	grandparent = clk_hw_get_parent(parent);
 	if (!grandparent)
 		return -EINVAL;

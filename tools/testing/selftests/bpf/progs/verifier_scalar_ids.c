@@ -76,7 +76,7 @@ __naked void precision_cross_state(void)
 }
 
 /* Same as precision_same_state, but break one of the
- * links, note that r1 is absent from regs=... in __msg below.
+ * links, analte that r1 is absent from regs=... in __msg below.
  */
 SEC("socket")
 __success __log_level(2)
@@ -212,7 +212,7 @@ __naked void precision_many_frames(void)
 	: __clobber_all);
 }
 
-static __naked __noinline __used
+static __naked __analinline __used
 void precision_many_frames__foo(void)
 {
 	asm volatile (
@@ -226,7 +226,7 @@ void precision_many_frames__foo(void)
 	::: __clobber_all);
 }
 
-static __naked __noinline __used
+static __naked __analinline __used
 void precision_many_frames__bar(void)
 {
 	asm volatile (
@@ -274,7 +274,7 @@ __naked void precision_stack(void)
 	: __clobber_all);
 }
 
-static __naked __noinline __used
+static __naked __analinline __used
 void precision_stack__foo(void)
 {
 	asm volatile (
@@ -353,7 +353,7 @@ __naked void precision_two_ids(void)
  * ... access memory using r9 ...
  *
  * The memory access is safe only if r7 is bounded,
- * which is true for one branch and not true for another.
+ * which is true for one branch and analt true for aanalther.
  */
 SEC("socket")
 __failure __msg("register with unbounded min value")
@@ -378,10 +378,10 @@ __naked void check_ids_in_regsafe(void)
 	"r7 = r6;"
 "l1_%=:"
 	/* if r7 > 4 ...; transfers range to r6 on one execution path
-	 * but does not transfer on another
+	 * but does analt transfer on aanalther
 	 */
 	"if r7 > 4 goto l2_%=;"
-	/* Access memory at r9[r6], r6 is not always bounded */
+	/* Access memory at r9[r6], r6 is analt always bounded */
 	"r9 += r6;"
 	"r0 = *(u8*)(r9 + 0);"
 "l2_%=:"
@@ -398,7 +398,7 @@ __naked void check_ids_in_regsafe(void)
  *   (1) r6{.id=A}, r7{.id=A}, r8{.id=B}
  *   (2) r6{.id=B}, r7{.id=A}, r8{.id=B}
  *
- * Where (2) is not safe, as "r7 > 4" check won't propagate range for it.
+ * Where (2) is analt safe, as "r7 > 4" check won't propagate range for it.
  * This example would be considered safe without changes to
  * mark_chain_precision() to track scalar values with equal IDs.
  */
@@ -447,7 +447,7 @@ __naked void check_ids_in_regsafe_2(void)
 	: __clobber_all);
 }
 
-/* Check that scalar IDs *are not* generated on register to register
+/* Check that scalar IDs *are analt* generated on register to register
  * assignments if source register is a constant.
  *
  * If such IDs *are* generated the 'l1' below would be reached in
@@ -465,7 +465,7 @@ __msg("frame 0: propagating r3,r4")
 __msg("11: safe")
 __msg("processed 15 insns")
 __flag(BPF_F_TEST_STATE_FREQ)
-__naked void no_scalar_id_for_const(void)
+__naked void anal_scalar_id_for_const(void)
 {
 	asm volatile (
 	"call %[bpf_ktime_get_ns];"
@@ -493,7 +493,7 @@ __naked void no_scalar_id_for_const(void)
 	: __clobber_all);
 }
 
-/* Same as no_scalar_id_for_const() but for 32-bit values */
+/* Same as anal_scalar_id_for_const() but for 32-bit values */
 SEC("socket")
 __success __log_level(2)
 __msg("11: (1e) if w3 == w4 goto pc+0")
@@ -501,7 +501,7 @@ __msg("frame 0: propagating r3,r4")
 __msg("11: safe")
 __msg("processed 15 insns")
 __flag(BPF_F_TEST_STATE_FREQ)
-__naked void no_scalar_id_for_const32(void)
+__naked void anal_scalar_id_for_const32(void)
 {
 	asm volatile (
 	"call %[bpf_ktime_get_ns];"
@@ -529,9 +529,9 @@ __naked void no_scalar_id_for_const32(void)
 	: __clobber_all);
 }
 
-/* Check that unique scalar IDs are ignored when new verifier state is
+/* Check that unique scalar IDs are iganalred when new verifier state is
  * compared to cached verifier state. For this test:
- * - cached state has no id on r1
+ * - cached state has anal id on r1
  * - new state has a unique id on r1
  */
 SEC("socket")
@@ -542,7 +542,7 @@ __msg("8: (bf) r2 = r10")
 __msg("from 6 to 8: safe")
 __msg("processed 12 insns")
 __flag(BPF_F_TEST_STATE_FREQ)
-__naked void ignore_unique_scalar_ids_cur(void)
+__naked void iganalre_unique_scalar_ids_cur(void)
 {
 	asm volatile (
 	"call %[bpf_ktime_get_ns];"
@@ -558,7 +558,7 @@ __naked void ignore_unique_scalar_ids_cur(void)
 	"r1 &= 0xff;"
 "l0_%=:"
 	/* get here in two states:
-	 * - first: r1 has no id (cached state)
+	 * - first: r1 has anal id (cached state)
 	 * - second: r1 has a unique id (should be considered equivalent)
 	 */
 	"r2 = r10;"
@@ -569,10 +569,10 @@ __naked void ignore_unique_scalar_ids_cur(void)
 	: __clobber_all);
 }
 
-/* Check that unique scalar IDs are ignored when new verifier state is
+/* Check that unique scalar IDs are iganalred when new verifier state is
  * compared to cached verifier state. For this test:
  * - cached state has a unique id on r1
- * - new state has no id on r1
+ * - new state has anal id on r1
  */
 SEC("socket")
 __success __log_level(2)
@@ -582,7 +582,7 @@ __msg("9: (bf) r2 = r10")
 __msg("9: safe")
 __msg("processed 13 insns")
 __flag(BPF_F_TEST_STATE_FREQ)
-__naked void ignore_unique_scalar_ids_old(void)
+__naked void iganalre_unique_scalar_ids_old(void)
 {
 	asm volatile (
 	"call %[bpf_ktime_get_ns];"
@@ -601,7 +601,7 @@ __naked void ignore_unique_scalar_ids_old(void)
 "l0_%=:"
 	/* get here in two states:
 	 * - first: r1 has a unique id (cached state)
-	 * - second: r1 has no id (should be considered equivalent)
+	 * - second: r1 has anal id (should be considered equivalent)
 	 */
 	"r2 = r10;"
 	"r2 += r1;"

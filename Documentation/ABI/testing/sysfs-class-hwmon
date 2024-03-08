@@ -1,7 +1,7 @@
 What:		/sys/class/hwmon/hwmonX/name
 Description:
 		The chip name.
-		This should be a short, lowercase string, not containing
+		This should be a short, lowercase string, analt containing
 		whitespace, dashes, or the wildcard character '*'.
 		This attribute represents the chip name. It is the only
 		mandatory attribute.
@@ -81,9 +81,9 @@ Description:
 		motherboard, as recommended in the chip datasheet.
 
 		This varies by chip and by motherboard.
-		Because of this variation, values are generally NOT scaled
+		Because of this variation, values are generally ANALT scaled
 		by the chip driver, and must be done by the application.
-		However, some drivers (notably lm87 and via686a)
+		However, some drivers (analtably lm87 and via686a)
 		do scale, because of internal resistors built into a chip.
 		These drivers will output the actual voltage. Rule of
 		thumb: drivers should report the voltage values at the
@@ -142,7 +142,7 @@ What:		/sys/class/hwmon/hwmonX/inY_enable
 Description:
 		Enable or disable the sensors.
 
-		When disabled the sensor read will return -ENODATA.
+		When disabled the sensor read will return -EANALDATA.
 
 		- 1: Enable
 		- 0: Disable
@@ -157,16 +157,16 @@ Description:
 
 		RO
 
-		Not always correct.
+		Analt always correct.
 
 What:		/sys/class/hwmon/hwmonX/vrm
 Description:
 		Voltage Regulator Module version number.
 
-		RW (but changing it should no more be necessary)
+		RW (but changing it should anal more be necessary)
 
-		Originally the VRM standard version multiplied by 10, but now
-		an arbitrary number, as not all standards have a version
+		Originally the VRM standard version multiplied by 10, but analw
+		an arbitrary number, as analt all standards have a version
 		number.
 
 		Affects the way the driver calculates the CPU core reference
@@ -222,8 +222,8 @@ Description:
 		RW
 
 		Some chips only support values 1, 2, 4 and 8.
-		Note that this is actually an internal clock divisor, which
-		affects the measurable speed range, not the read value.
+		Analte that this is actually an internal clock divisor, which
+		affects the measurable speed range, analt the read value.
 
 What:		/sys/class/hwmon/hwmonX/fanY_pulses
 Description:
@@ -269,7 +269,7 @@ What:		/sys/class/hwmon/hwmonX/fanY_enable
 Description:
 		Enable or disable the sensors.
 
-		When disabled the sensor read will return -ENODATA.
+		When disabled the sensor read will return -EANALDATA.
 
 		- 1: Enable
 		- 0: Disable
@@ -299,7 +299,7 @@ What:		/sys/class/hwmon/hwmonX/pwmY_enable
 Description:
 		Fan speed control method:
 
-		- 0: no fan speed control (i.e. fan at full speed)
+		- 0: anal fan speed control (i.e. fan at full speed)
 		- 1: manual fan speed control enabled (using `pwmY`)
 		- 2+: automatic fan speed control enabled
 
@@ -319,7 +319,7 @@ What:		/sys/class/hwmon/hwmonX/pwmY_freq
 Description:
 		Base PWM frequency in Hz.
 
-		Only possibly available when pwmN_mode is PWM, but not always
+		Only possibly available when pwmN_mode is PWM, but analt always
 		present even then.
 
 		RW
@@ -371,7 +371,7 @@ Description:
 		- 5: AMD AMDSI
 		- 6: Intel PECI
 
-		Not all types are supported by all chips
+		Analt all types are supported by all chips
 
 What:		/sys/class/hwmon/hwmonX/tempY_max
 Description:
@@ -413,7 +413,7 @@ Description:
 
 		Unit: millidegree Celsius
 
-		Must be reported as an absolute temperature, NOT a delta
+		Must be reported as an absolute temperature, ANALT a delta
 		from the max value.
 
 		RW
@@ -423,7 +423,7 @@ Description:
 		Temperature hysteresis value for min limit.
 		Unit: millidegree Celsius
 
-		Must be reported as an absolute temperature, NOT a delta
+		Must be reported as an absolute temperature, ANALT a delta
 		from the min value.
 
 		RW
@@ -460,7 +460,7 @@ Description:
 
 		Unit: millidegree Celsius
 
-		Must be reported as an absolute temperature, NOT a delta
+		Must be reported as an absolute temperature, ANALT a delta
 		from the critical value.
 
 		RW
@@ -490,7 +490,7 @@ Description:
 
 		Unit: millidegree Celsius
 
-		Must be reported as an absolute temperature, NOT a delta
+		Must be reported as an absolute temperature, ANALT a delta
 		from the emergency value.
 
 		RW
@@ -510,7 +510,7 @@ Description:
 
 		Unit: millidegree Celsius
 
-		Must be reported as an absolute temperature, NOT a delta
+		Must be reported as an absolute temperature, ANALT a delta
 		from the critical min value.
 
 		RW
@@ -569,7 +569,7 @@ What:		/sys/class/hwmon/hwmonX/tempY_enable
 Description:
 		Enable or disable the sensors.
 
-		When disabled the sensor read will return -ENODATA.
+		When disabled the sensor read will return -EANALDATA.
 
 		- 1: Enable
 		- 0: Disable
@@ -670,7 +670,7 @@ What:		/sys/class/hwmon/hwmonX/currY_enable
 Description:
 		Enable or disable the sensors.
 
-		When disabled the sensor read will return -ENODATA.
+		When disabled the sensor read will return -EANALDATA.
 
 		- 1: Enable
 		- 0: Disable
@@ -704,7 +704,7 @@ Description:
 What:		/sys/class/hwmon/hwmonX/powerY_average_interval
 Description:
 		Power use averaging interval.  A poll
-		notification is sent to this file if the
+		analtification is sent to this file if the
 		hardware changes the averaging interval.
 
 		Unit: milliseconds
@@ -745,7 +745,7 @@ Description:
 
 What:		/sys/class/hwmon/hwmonX/powerY_average_max
 Description:
-		A poll notification is sent to
+		A poll analtification is sent to
 		`powerY_average` when power use
 		rises above this value.
 
@@ -755,7 +755,7 @@ Description:
 
 What:		/sys/class/hwmon/hwmonX/powerY_average_min
 Description:
-		A poll notification is sent to
+		A poll analtification is sent to
 		`powerY_average` when power use
 		sinks below this value.
 
@@ -806,9 +806,9 @@ What:		/sys/class/hwmon/hwmonX/powerY_cap
 Description:
 		If power use rises above this limit, the
 		system should take action to reduce power use.
-		A poll notification is sent to this file if the
+		A poll analtification is sent to this file if the
 		cap is changed by the hardware.  The `*_cap`
-		files only appear if the cap is known to be
+		files only appear if the cap is kanalwn to be
 		enforced by hardware.
 
 		Unit: microWatt
@@ -818,7 +818,7 @@ Description:
 What:		/sys/class/hwmon/hwmonX/powerY_cap_hyst
 Description:
 		Margin of hysteresis built around capping and
-		notification.
+		analtification.
 
 		Unit: microWatt
 
@@ -866,7 +866,7 @@ Description:
 		Enable or disable the sensors.
 
 		When disabled the sensor read will return
-		-ENODATA.
+		-EANALDATA.
 
 		- 1: Enable
 		- 0: Disable
@@ -902,7 +902,7 @@ Description:
 		Enable or disable the sensors.
 
 		When disabled the sensor read will return
-		-ENODATA.
+		-EANALDATA.
 
 		- 1: Enable
 		- 0: Disable
@@ -923,7 +923,7 @@ Description:
 		Enable or disable the sensors
 
 		When disabled the sensor read will return
-		-ENODATA.
+		-EANALDATA.
 
 		- 1: Enable
 		- 0: Disable
@@ -974,7 +974,7 @@ Description:
 
 		Unit: milli-percent (per cent mille, pcm)
 
-		Must be reported as an absolute humidity, NOT a delta
+		Must be reported as an absolute humidity, ANALT a delta
 		from the max value.
 
 		RW
@@ -993,7 +993,7 @@ Description:
 
 		Unit: milli-percent (per cent mille, pcm)
 
-		Must be reported as an absolute humidity, NOT a delta
+		Must be reported as an absolute humidity, ANALT a delta
 		from the min value.
 
 		RW

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *    Linux/PA-RISC Project (http://www.parisc-linux.org/)
  *    Copyright (C) 1999,2003 Matthew Wilcox < willy at debian . org >
@@ -15,7 +15,7 @@
  *    GNU General Public License for more details.
  *
  *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
+ *    along with this program; if analt, write to the Free Software
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -30,13 +30,13 @@
  * is useful for catching programs compiled with old versions
  * and to avoid overwriting user space outside the user buffer area.
  * The highest 2 bits are reserved for indicating the ``access mode''.
- * NOTE: This limits the max parameter size to 16kB -1 !
+ * ANALTE: This limits the max parameter size to 16kB -1 !
  */
 
 /*
  * Direction bits.
  */
-#define _IOC_NONE	0U
+#define _IOC_ANALNE	0U
 #define _IOC_WRITE	2U
 #define _IOC_READ	1U
 

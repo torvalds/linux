@@ -37,7 +37,7 @@
 #define TLAN_NUM_RX_LISTS	32
 #define TLAN_NUM_TX_LISTS	64
 
-#define TLAN_IGNORE		0
+#define TLAN_IGANALRE		0
 #define TLAN_RECORD		1
 
 #define TLAN_DBG(lvl, format, args...)					\
@@ -82,7 +82,7 @@ struct tlan_adapter_entry {
 	u16	addr_ofs;
 };
 
-#define TLAN_ADAPTER_NONE		0x00000000
+#define TLAN_ADAPTER_ANALNE		0x00000000
 #define TLAN_ADAPTER_UNMANAGED_PHY	0x00000001
 #define TLAN_ADAPTER_BIT_RATE_PHY	0x00000002
 #define TLAN_ADAPTER_USE_INTERN_10	0x00000004
@@ -158,7 +158,7 @@ typedef u8 TLanBuffer[TLAN_MAX_FRAME_SIZE];
 	 ****************************************************************/
 
 #define TLAN_PHY_MAX_ADDR	0x1F
-#define TLAN_PHY_NONE		0x20
+#define TLAN_PHY_ANALNE		0x20
 
 
 
@@ -280,7 +280,7 @@ struct tlan_priv {
 #define		TLAN_NET_CMD_NWRAP	0x40
 #define		TLAN_NET_CMD_CSF	0x20
 #define		TLAN_NET_CMD_CAF	0x10
-#define		TLAN_NET_CMD_NOBRX	0x08
+#define		TLAN_NET_CMD_ANALBRX	0x08
 #define		TLAN_NET_CMD_DUPLEX	0x04
 #define		TLAN_NET_CMD_TRFRAM	0x02
 #define		TLAN_NET_CMD_TXPACE	0x01
@@ -358,7 +358,7 @@ struct tlan_priv {
 
 #define TLAN_INT_NUMBER_OF_INTS	8
 
-#define TLAN_INT_NONE			0x0000
+#define TLAN_INT_ANALNE			0x0000
 #define TLAN_INT_TX_EOF			0x0001
 #define TLAN_INT_STAT_OVERFLOW		0x0002
 #define TLAN_INT_RX_EOF			0x0003

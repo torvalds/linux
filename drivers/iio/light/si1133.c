@@ -40,7 +40,7 @@
 #define SI1133_CMD_RESET_CTR		0x00
 #define SI1133_CMD_RESET_SW		0x01
 #define SI1133_CMD_FORCE		0x11
-#define SI1133_CMD_START_AUTONOMOUS	0x13
+#define SI1133_CMD_START_AUTOANALMOUS	0x13
 #define SI1133_CMD_PARAM_SET		0x80
 #define SI1133_CMD_PARAM_QUERY		0x40
 #define SI1133_CMD_PARAM_MASK		0x3F
@@ -130,7 +130,7 @@ enum si1133_int_time {
 	_50_ms = 11,
 };
 
-/* Integration time in milliseconds, nanoseconds */
+/* Integration time in milliseconds, naanalseconds */
 static const int si1133_int_time_table[][2] = {
 	[_24_4_us] = {0, 24400},
 	[_48_8_us] = {0, 48800},
@@ -164,20 +164,20 @@ static const struct regmap_range si1133_precious_ranges[] = {
 };
 
 static const struct regmap_access_table si1133_write_ranges_table = {
-	.yes_ranges	= si1133_reg_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(si1133_reg_ranges),
-	.no_ranges	= si1133_reg_ro_ranges,
-	.n_no_ranges	= ARRAY_SIZE(si1133_reg_ro_ranges),
+	.anal_ranges	= si1133_reg_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(si1133_reg_ranges),
+	.anal_ranges	= si1133_reg_ro_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(si1133_reg_ro_ranges),
 };
 
 static const struct regmap_access_table si1133_read_ranges_table = {
-	.yes_ranges	= si1133_reg_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(si1133_reg_ranges),
+	.anal_ranges	= si1133_reg_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(si1133_reg_ranges),
 };
 
 static const struct regmap_access_table si1133_precious_table = {
-	.yes_ranges	= si1133_precious_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(si1133_precious_ranges),
+	.anal_ranges	= si1133_precious_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(si1133_precious_ranges),
 };
 
 static const struct regmap_config si1133_regmap_config = {
@@ -237,7 +237,7 @@ static const struct si1133_lux_coeff lux_coeff = {
 	}
 };
 
-static int si1133_calculate_polynomial_inner(s32 input, u8 fraction, u16 mag,
+static int si1133_calculate_polyanalmial_inner(s32 input, u8 fraction, u16 mag,
 					     s8 shift)
 {
 	return ((input << fraction) / mag) << shift;
@@ -259,14 +259,14 @@ static int si1133_calculate_output(s32 x, s32 y, u8 x_order, u8 y_order,
 	shift = -shift;
 
 	if (x_order > 0) {
-		x1 = si1133_calculate_polynomial_inner(x, input_fraction,
+		x1 = si1133_calculate_polyanalmial_inner(x, input_fraction,
 						       coeffs->mag, shift);
 		if (x_order > 1)
 			x2 = x1;
 	}
 
 	if (y_order > 0) {
-		y1 = si1133_calculate_polynomial_inner(y, input_fraction,
+		y1 = si1133_calculate_polyanalmial_inner(y, input_fraction,
 						       coeffs->mag, shift);
 		if (y_order > 1)
 			y2 = y1;
@@ -279,7 +279,7 @@ static int si1133_calculate_output(s32 x, s32 y, u8 x_order, u8 y_order,
  * The algorithm is from:
  * https://siliconlabs.github.io/Gecko_SDK_Doc/efm32zg/html/si1133_8c_source.html#l00716
  */
-static int si1133_calc_polynomial(s32 x, s32 y, u8 input_fraction, u8 num_coeff,
+static int si1133_calc_polyanalmial(s32 x, s32 y, u8 input_fraction, u8 num_coeff,
 				  const struct si1133_coeff *coeffs)
 {
 	u8 x_order, y_order;
@@ -367,7 +367,7 @@ static int si1133_parse_response_err(struct device *dev, u32 resp, u8 cmd)
 		dev_warn(dev, "Invalid command 0x%02x\n", cmd);
 		return -EINVAL;
 	default:
-		dev_warn(dev, "Unknown error 0x%02x\n", cmd);
+		dev_warn(dev, "Unkanalwn error 0x%02x\n", cmd);
 		return -EINVAL;
 	}
 }
@@ -515,24 +515,24 @@ static const struct iio_chan_spec si1133_channels[] = {
 	}
 };
 
-static int si1133_get_int_time_index(int milliseconds, int nanoseconds)
+static int si1133_get_int_time_index(int milliseconds, int naanalseconds)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(si1133_int_time_table); i++) {
 		if (milliseconds == si1133_int_time_table[i][0] &&
-		    nanoseconds == si1133_int_time_table[i][1])
+		    naanalseconds == si1133_int_time_table[i][1])
 			return i;
 	}
 	return -EINVAL;
 }
 
 static int si1133_set_integration_time(struct si1133_data *data, u8 adc,
-				       int milliseconds, int nanoseconds)
+				       int milliseconds, int naanalseconds)
 {
 	int index;
 
-	index = si1133_get_int_time_index(milliseconds, nanoseconds);
+	index = si1133_get_int_time_index(milliseconds, naanalseconds);
 	if (index < 0)
 		return index;
 
@@ -545,7 +545,7 @@ static int si1133_set_integration_time(struct si1133_data *data, u8 adc,
 
 static int si1133_set_chlist(struct si1133_data *data, u8 scan_mask)
 {
-	/* channel list already set, no need to reprogram */
+	/* channel list already set, anal need to reprogram */
 	if (data->scan_mask == scan_mask)
 		return 0;
 
@@ -652,7 +652,7 @@ static irqreturn_t si1133_threaded_irq_handler(int irq, void *private)
 	}
 
 	if (irq_status != data->scan_mask)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 out:
 	complete(&data->completion);
@@ -729,12 +729,12 @@ static int si1133_get_lux(struct si1133_data *data, int *val)
 	ir = sign_extend32(get_unaligned_be24(&buffer[6]), 23);
 
 	if (high_vis > SI1133_ADC_THRESHOLD || ir > SI1133_ADC_THRESHOLD)
-		lux = si1133_calc_polynomial(high_vis, ir,
+		lux = si1133_calc_polyanalmial(high_vis, ir,
 					     SI1133_INPUT_FRACTION_HIGH,
 					     ARRAY_SIZE(lux_coeff.coeff_high),
 					     &lux_coeff.coeff_high[0]);
 	else
-		lux = si1133_calc_polynomial(low_vis, ir,
+		lux = si1133_calc_polyanalmial(low_vis, ir,
 					     SI1133_INPUT_FRACTION_LOW,
 					     ARRAY_SIZE(lux_coeff.coeff_low),
 					     &lux_coeff.coeff_low[0]);
@@ -945,7 +945,7 @@ static int si1133_initialize(struct si1133_data *data)
 	if (err)
 		return err;
 
-	/* Turn off autonomous mode */
+	/* Turn off autoanalmous mode */
 	err = si1133_param_set(data, SI1133_REG_MEAS_RATE, 0);
 	if (err)
 		return err;
@@ -984,7 +984,7 @@ static int si1133_validate_ids(struct iio_dev *iio_dev)
 		dev_err(&iio_dev->dev,
 			"Part ID mismatch got 0x%02x, expected 0x%02x\n",
 			part_id, SI1133_PART_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -999,7 +999,7 @@ static int si1133_probe(struct i2c_client *client)
 
 	iio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!iio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(iio_dev);
 
@@ -1036,7 +1036,7 @@ static int si1133_probe(struct i2c_client *client)
 
 	if (!client->irq) {
 		dev_err(&client->dev,
-			"Required interrupt not provided, cannot proceed\n");
+			"Required interrupt analt provided, cananalt proceed\n");
 		return -EINVAL;
 	}
 

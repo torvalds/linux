@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Technologic Systems TS-5500 Single Board Computer support
+ * Techanallogic Systems TS-5500 Single Board Computer support
  *
  * Copyright (C) 2013-2014 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
- * This driver registers the Technologic Systems TS-5500 Single Board Computer
+ * This driver registers the Techanallogic Systems TS-5500 Single Board Computer
  * (SBC) and its devices, and exposes information to userspace such as jumpers'
  * state or available options. For further information about sysfs entries, see
  * Documentation/ABI/testing/sysfs-platform-ts5500.
@@ -92,11 +92,11 @@ static const struct {
 static int __init ts5500_check_signature(void)
 {
 	void __iomem *bios;
-	int i, ret = -ENODEV;
+	int i, ret = -EANALDEV;
 
 	bios = ioremap(0xf0000, 0x10000);
 	if (!bios)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(ts5500_signatures); i++) {
 		if (check_signature(bios + ts5500_signatures[i].offset,
@@ -125,8 +125,8 @@ static int __init ts5500_detect_config(struct ts5500_sbc *sbc)
 	} else if (sbc->id == TS5400_PRODUCT_CODE) {
 		sbc->name = "TS-5400";
 	} else {
-		pr_err("ts5500: unknown product code 0x%x\n", sbc->id);
-		ret = -ENODEV;
+		pr_err("ts5500: unkanalwn product code 0x%x\n", sbc->id);
+		ret = -EANALDEV;
 		goto cleanup;
 	}
 
@@ -287,7 +287,7 @@ static int __init ts5500_init(void)
 	int err;
 
 	/*
-	 * There is no DMI available or PCI bridge subvendor info,
+	 * There is anal DMI available or PCI bridge subvendor info,
 	 * only the BIOS provides a 16-bit identification call.
 	 * It is safer to find a signature in the BIOS shadow RAM.
 	 */
@@ -301,7 +301,7 @@ static int __init ts5500_init(void)
 
 	sbc = devm_kzalloc(&pdev->dev, sizeof(struct ts5500_sbc), GFP_KERNEL);
 	if (!sbc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 

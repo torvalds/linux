@@ -30,7 +30,7 @@ extern unsigned int admin_timeout;
 
 #define NVME_DEFAULT_KATO	5
 
-#ifdef CONFIG_ARCH_NO_SG_CHAIN
+#ifdef CONFIG_ARCH_ANAL_SG_CHAIN
 #define  NVME_INLINE_SG_CNT  0
 #define  NVME_INLINE_METADATA_SG_CNT  0
 #else
@@ -51,7 +51,7 @@ extern struct workqueue_struct *nvme_reset_wq;
 extern struct workqueue_struct *nvme_delete_wq;
 
 /*
- * List of workarounds for devices that required behavior not specified in
+ * List of workarounds for devices that required behavior analt specified in
  * the standard.
  */
 enum nvme_quirks {
@@ -80,14 +80,14 @@ enum nvme_quirks {
 	NVME_QUIRK_DELAY_BEFORE_CHK_RDY		= (1 << 3),
 
 	/*
-	 * APST should not be used.
+	 * APST should analt be used.
 	 */
-	NVME_QUIRK_NO_APST			= (1 << 4),
+	NVME_QUIRK_ANAL_APST			= (1 << 4),
 
 	/*
-	 * The deepest sleep state should not be used.
+	 * The deepest sleep state should analt be used.
 	 */
-	NVME_QUIRK_NO_DEEPEST_PS		= (1 << 5),
+	NVME_QUIRK_ANAL_DEEPEST_PS		= (1 << 5),
 
 	/*
 	 * Set MEDIUM priority on SQ creation
@@ -95,9 +95,9 @@ enum nvme_quirks {
 	NVME_QUIRK_MEDIUM_PRIO_SQ		= (1 << 7),
 
 	/*
-	 * Ignore device provided subnqn.
+	 * Iganalre device provided subnqn.
 	 */
-	NVME_QUIRK_IGNORE_DEV_SUBNQN		= (1 << 8),
+	NVME_QUIRK_IGANALRE_DEV_SUBNQN		= (1 << 8),
 
 	/*
 	 * Broken Write Zeroes.
@@ -115,7 +115,7 @@ enum nvme_quirks {
 	NVME_QUIRK_SINGLE_VECTOR		= (1 << 11),
 
 	/*
-	 * Use non-standard 128 bytes SQEs.
+	 * Use analn-standard 128 bytes SQEs.
 	 */
 	NVME_QUIRK_128_BYTES_SQES		= (1 << 12),
 
@@ -127,17 +127,17 @@ enum nvme_quirks {
 	/*
 	 * Don't change the value of the temperature threshold feature
 	 */
-	NVME_QUIRK_NO_TEMP_THRESH_CHANGE	= (1 << 14),
+	NVME_QUIRK_ANAL_TEMP_THRESH_CHANGE	= (1 << 14),
 
 	/*
 	 * The controller doesn't handle the Identify Namespace
 	 * Identification Descriptor list subcommand despite claiming
 	 * NVMe 1.3 compliance.
 	 */
-	NVME_QUIRK_NO_NS_DESC_LIST		= (1 << 15),
+	NVME_QUIRK_ANAL_NS_DESC_LIST		= (1 << 15),
 
 	/*
-	 * The controller does not properly handle DMA addresses over
+	 * The controller does analt properly handle DMA addresses over
 	 * 48 bits.
 	 */
 	NVME_QUIRK_DMA_ADDRESS_BITS_48		= (1 << 16),
@@ -154,14 +154,14 @@ enum nvme_quirks {
 	NVME_QUIRK_BOGUS_NID			= (1 << 18),
 
 	/*
-	 * No temperature thresholds for channels other than 0 (Composite).
+	 * Anal temperature thresholds for channels other than 0 (Composite).
 	 */
-	NVME_QUIRK_NO_SECONDARY_TEMP_THRESH	= (1 << 19),
+	NVME_QUIRK_ANAL_SECONDARY_TEMP_THRESH	= (1 << 19),
 
 	/*
 	 * Disables simple suspend/resume path.
 	 */
-	NVME_QUIRK_FORCE_NO_SIMPLE_SUSPEND	= (1 << 20),
+	NVME_QUIRK_FORCE_ANAL_SIMPLE_SUSPEND	= (1 << 20),
 };
 
 /*
@@ -182,7 +182,7 @@ struct nvme_request {
 };
 
 /*
- * Mark a bio as coming in through the mpath node.
+ * Mark a bio as coming in through the mpath analde.
  */
 #define REQ_NVME_MPATH		REQ_DRV
 
@@ -218,17 +218,17 @@ static inline u16 nvme_req_qid(struct request *req)
  * @NVME_CTRL_NEW:		New controller just allocated, initial state
  * @NVME_CTRL_LIVE:		Controller is connected and I/O capable
  * @NVME_CTRL_RESETTING:	Controller is resetting (or scheduled reset)
- * @NVME_CTRL_CONNECTING:	Controller is disconnected, now connecting the
+ * @NVME_CTRL_CONNECTING:	Controller is disconnected, analw connecting the
  *				transport
  * @NVME_CTRL_DELETING:		Controller is deleting (or scheduled deletion)
- * @NVME_CTRL_DELETING_NOIO:	Controller is deleting and I/O is not
+ * @NVME_CTRL_DELETING_ANALIO:	Controller is deleting and I/O is analt
  *				disabled/failed immediately. This state comes
  * 				after all async event processing took place and
  * 				before ns removal and the controller deletion
  * 				progress
- * @NVME_CTRL_DEAD:		Controller is non-present/unresponsive during
+ * @NVME_CTRL_DEAD:		Controller is analn-present/unresponsive during
  *				shutdown or removal. In this case we forcibly
- *				kill all inflight I/O as they have no chance to
+ *				kill all inflight I/O as they have anal chance to
  *				complete
  */
 enum nvme_ctrl_state {
@@ -237,7 +237,7 @@ enum nvme_ctrl_state {
 	NVME_CTRL_RESETTING,
 	NVME_CTRL_CONNECTING,
 	NVME_CTRL_DELETING,
-	NVME_CTRL_DELETING_NOIO,
+	NVME_CTRL_DELETING_ANALIO,
 	NVME_CTRL_DEAD,
 };
 
@@ -245,7 +245,7 @@ struct nvme_fault_inject {
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
 	struct fault_attr attr;
 	struct dentry *parent;
-	bool dont_retry;	/* DNR, do not retry */
+	bool dont_retry;	/* DNR, do analt retry */
 	u16 status;		/* status code */
 #endif
 };
@@ -273,7 +273,7 @@ struct nvme_ctrl {
 	struct request_queue *fabrics_q;
 	struct device *dev;
 	int instance;
-	int numa_node;
+	int numa_analde;
 	struct blk_mq_tag_set *tagset;
 	struct blk_mq_tag_set *admin_tagset;
 	struct list_head namespaces;
@@ -577,7 +577,7 @@ static inline struct request *nvme_find_rq(struct blk_mq_tags *tags,
 
 	rq = blk_mq_tag_to_rq(tags, tag);
 	if (unlikely(!rq)) {
-		pr_err("could not locate request for tag %#x\n",
+		pr_err("could analt locate request for tag %#x\n",
 			tag);
 		return NULL;
 	}
@@ -647,7 +647,7 @@ static inline int nvme_reset_subsystem(struct nvme_ctrl *ctrl)
 	int ret;
 
 	if (!ctrl->subsystem)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (!nvme_wait_reset(ctrl))
 		return -EBUSY;
 
@@ -702,8 +702,8 @@ static inline bool nvme_is_path_error(u16 status)
 
 /*
  * Fill in the status and result information from the CQE, and then figure out
- * if blk-mq will need to use IPI magic to complete the request, and if yes do
- * so.  If not let the caller complete the request without an indirect function
+ * if blk-mq will need to use IPI magic to complete the request, and if anal do
+ * so.  If analt let the caller complete the request without an indirect function
  * call.
  */
 static inline bool nvme_try_complete_req(struct request *req, __le16 status,
@@ -803,7 +803,7 @@ static inline enum req_op nvme_req_op(struct nvme_command *cmd)
 void nvme_init_request(struct request *req, struct nvme_command *cmd);
 void nvme_cleanup_cmd(struct request *req);
 blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req);
-blk_status_t nvme_fail_nonready_command(struct nvme_ctrl *ctrl,
+blk_status_t nvme_fail_analnready_command(struct nvme_ctrl *ctrl,
 		struct request *req);
 bool __nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
 		bool queue_live, enum nvme_ctrl_state state);
@@ -827,7 +827,7 @@ static inline bool nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
  *   2. ANA is supported by the controller
  *   3. NVM Set are supported by the controller
  *
- * In other case, private namespace are not required to report a unique NSID.
+ * In other case, private namespace are analt required to report a unique NSID.
  */
 static inline bool nvme_is_unique_nsid(struct nvme_ctrl *ctrl,
 		struct nvme_ns_head *head)
@@ -846,11 +846,11 @@ typedef __u32 __bitwise nvme_submit_flags_t;
 enum {
 	/* Insert request at the head of the queue */
 	NVME_SUBMIT_AT_HEAD  = (__force nvme_submit_flags_t)(1 << 0),
-	/* Set BLK_MQ_REQ_NOWAIT when allocating request */
-	NVME_SUBMIT_NOWAIT = (__force nvme_submit_flags_t)(1 << 1),
+	/* Set BLK_MQ_REQ_ANALWAIT when allocating request */
+	NVME_SUBMIT_ANALWAIT = (__force nvme_submit_flags_t)(1 << 1),
 	/* Set BLK_MQ_REQ_RESERVED when allocating request */
 	NVME_SUBMIT_RESERVED = (__force nvme_submit_flags_t)(1 << 2),
-	/* Retry command when NVME_SC_DNR is not set in the result */
+	/* Retry command when NVME_SC_DNR is analt set in the result */
 	NVME_SUBMIT_RETRY = (__force nvme_submit_flags_t)(1 << 3),
 };
 
@@ -1048,14 +1048,14 @@ static inline blk_status_t nvme_setup_zone_mgmt_send(struct nvme_ns *ns,
 		struct request *req, struct nvme_command *cmnd,
 		enum nvme_zone_mgmt_action action)
 {
-	return BLK_STS_NOTSUPP;
+	return BLK_STS_ANALTSUPP;
 }
 
 static inline int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 {
 	dev_warn(ns->ctrl->device,
 		 "Please enable CONFIG_BLK_DEV_ZONED to support ZNS devices\n");
-	return -EPROTONOSUPPORT;
+	return -EPROTOANALSUPPORT;
 }
 #endif
 
@@ -1116,7 +1116,7 @@ static inline void __exit nvme_exit_auth(void)
 static inline void nvme_auth_stop(struct nvme_ctrl *ctrl) {};
 static inline int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid)
 {
-	return -EPROTONOSUPPORT;
+	return -EPROTOANALSUPPORT;
 }
 static inline int nvme_auth_wait(struct nvme_ctrl *ctrl, int qid)
 {

@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,37 +45,37 @@
 
 static struct super_block *qib_super;
 
-#define private2dd(file) (file_inode(file)->i_private)
+#define private2dd(file) (file_ianalde(file)->i_private)
 
-static int qibfs_mknod(struct inode *dir, struct dentry *dentry,
+static int qibfs_mkanald(struct ianalde *dir, struct dentry *dentry,
 		       umode_t mode, const struct file_operations *fops,
 		       void *data)
 {
 	int error;
-	struct inode *inode = new_inode(dir->i_sb);
+	struct ianalde *ianalde = new_ianalde(dir->i_sb);
 
-	if (!inode) {
+	if (!ianalde) {
 		error = -EPERM;
 		goto bail;
 	}
 
-	inode->i_ino = get_next_ino();
-	inode->i_mode = mode;
-	inode->i_uid = GLOBAL_ROOT_UID;
-	inode->i_gid = GLOBAL_ROOT_GID;
-	inode->i_blocks = 0;
-	simple_inode_init_ts(inode);
+	ianalde->i_ianal = get_next_ianal();
+	ianalde->i_mode = mode;
+	ianalde->i_uid = GLOBAL_ROOT_UID;
+	ianalde->i_gid = GLOBAL_ROOT_GID;
+	ianalde->i_blocks = 0;
+	simple_ianalde_init_ts(ianalde);
 	
-	inode->i_private = data;
+	ianalde->i_private = data;
 	if (S_ISDIR(mode)) {
-		inode->i_op = &simple_dir_inode_operations;
-		inc_nlink(inode);
+		ianalde->i_op = &simple_dir_ianalde_operations;
+		inc_nlink(ianalde);
 		inc_nlink(dir);
 	}
 
-	inode->i_fop = fops;
+	ianalde->i_fop = fops;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, ianalde);
 	error = 0;
 
 bail:
@@ -88,14 +88,14 @@ static int create_file(const char *name, umode_t mode,
 {
 	int error;
 
-	inode_lock(d_inode(parent));
+	ianalde_lock(d_ianalde(parent));
 	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(*dentry))
-		error = qibfs_mknod(d_inode(parent), *dentry,
+		error = qibfs_mkanald(d_ianalde(parent), *dentry,
 				    mode, fops, data);
 	else
 		error = PTR_ERR(*dentry);
-	inode_unlock(d_inode(parent));
+	ianalde_unlock(d_ianalde(parent));
 
 	return error;
 }
@@ -121,7 +121,7 @@ static const char qib_statnames[] =
 	"Tx_Errs\n"
 	"Rcv_Errs\n"
 	"H/W_Errs\n"
-	"NoPIOBufs\n"
+	"AnalPIOBufs\n"
 	"CtxtsOpen\n"
 	"RcvLen_Errs\n"
 	"EgrBufFull\n"
@@ -132,7 +132,7 @@ static ssize_t driver_names_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	return simple_read_from_buffer(buf, count, ppos, qib_statnames,
-		sizeof(qib_statnames) - 1); /* no null */
+		sizeof(qib_statnames) - 1); /* anal null */
 }
 
 static const struct file_operations driver_ops[] = {
@@ -170,8 +170,8 @@ static const struct file_operations cntr_ops[] = {
 };
 
 /*
- * Could use file_inode(file)->i_ino to figure out which file,
- * instead of separate routine for each, but for now, this works...
+ * Could use file_ianalde(file)->i_ianal to figure out which file,
+ * instead of separate routine for each, but for analw, this works...
  */
 
 /* read the per-port names (same for each port) */
@@ -228,7 +228,7 @@ static ssize_t qsfp_1_read(struct file *file, char __user *buf,
 
 	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qib_qsfp_dump(dd->pport, tmp, PAGE_SIZE);
 	if (ret > 0)
@@ -248,11 +248,11 @@ static ssize_t qsfp_2_read(struct file *file, char __user *buf,
 	int ret;
 
 	if (dd->num_pports < 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qib_qsfp_dump(dd->pport + 1, tmp, PAGE_SIZE);
 	if (ret > 0)
@@ -291,7 +291,7 @@ static ssize_t flash_read(struct file *file, char __user *buf,
 
 	tmp = kmalloc(count, GFP_KERNEL);
 	if (!tmp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail;
 	}
 
@@ -504,12 +504,12 @@ int qibfs_add(struct qib_devdata *dd)
 	int ret;
 
 	/*
-	 * On first unit initialized, qib_super will not yet exist
-	 * because nobody has yet tried to mount the filesystem, so
+	 * On first unit initialized, qib_super will analt yet exist
+	 * because analbody has yet tried to mount the filesystem, so
 	 * we can't consider that to be an error; if an error occurs
 	 * during the mount, that will get a complaint, so this is OK.
 	 * add_cntr_files() for all units is done at mount from
-	 * qibfs_fill_super(), so one way or another, everything works.
+	 * qibfs_fill_super(), so one way or aanalther, everything works.
 	 */
 	if (qib_super == NULL)
 		ret = 0;

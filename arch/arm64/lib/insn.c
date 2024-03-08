@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 #include <asm/debug-monitors.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/insn.h>
 #include <asm/kprobes.h>
 
@@ -100,7 +100,7 @@ u64 aarch64_insn_decode_immediate(enum aarch64_insn_imm_type type, u32 insn)
 		break;
 	default:
 		if (aarch64_get_imm_shift_mask(type, &mask, &shift) < 0) {
-			pr_err("%s: unknown immediate encoding %d\n", __func__,
+			pr_err("%s: unkanalwn immediate encoding %d\n", __func__,
 			       type);
 			return 0;
 		}
@@ -130,7 +130,7 @@ u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 		break;
 	default:
 		if (aarch64_get_imm_shift_mask(type, &mask, &shift) < 0) {
-			pr_err("%s: unknown immediate encoding %d\n", __func__,
+			pr_err("%s: unkanalwn immediate encoding %d\n", __func__,
 			       type);
 			return AARCH64_BREAK_FAULT;
 		}
@@ -164,7 +164,7 @@ u32 aarch64_insn_decode_register(enum aarch64_insn_register_type type,
 		shift = 16;
 		break;
 	default:
-		pr_err("%s: unknown register type encoding %d\n", __func__,
+		pr_err("%s: unkanalwn register type encoding %d\n", __func__,
 		       type);
 		return 0;
 	}
@@ -182,7 +182,7 @@ static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
 		return AARCH64_BREAK_FAULT;
 
 	if (reg < AARCH64_INSN_REG_0 || reg > AARCH64_INSN_REG_SP) {
-		pr_err("%s: unknown register encoding %d\n", __func__, reg);
+		pr_err("%s: unkanalwn register encoding %d\n", __func__, reg);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -203,7 +203,7 @@ static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
 		shift = 16;
 		break;
 	default:
-		pr_err("%s: unknown register type encoding %d\n", __func__,
+		pr_err("%s: unkanalwn register type encoding %d\n", __func__,
 		       type);
 		return AARCH64_BREAK_FAULT;
 	}
@@ -227,7 +227,7 @@ static u32 aarch64_insn_encode_ldst_size(enum aarch64_insn_size_type type,
 	u32 size;
 
 	if (type < AARCH64_INSN_SIZE_8 || type > AARCH64_INSN_SIZE_64) {
-		pr_err("%s: unknown size encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn size encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -277,11 +277,11 @@ u32 __kprobes aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,
 	case AARCH64_INSN_BRANCH_LINK:
 		insn = aarch64_insn_get_bl_value();
 		break;
-	case AARCH64_INSN_BRANCH_NOLINK:
+	case AARCH64_INSN_BRANCH_ANALLINK:
 		insn = aarch64_insn_get_b_value();
 		break;
 	default:
-		pr_err("%s: unknown branch encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn branch encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -305,11 +305,11 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 	case AARCH64_INSN_BRANCH_COMP_ZERO:
 		insn = aarch64_insn_get_cbz_value();
 		break;
-	case AARCH64_INSN_BRANCH_COMP_NONZERO:
+	case AARCH64_INSN_BRANCH_COMP_ANALNZERO:
 		insn = aarch64_insn_get_cbnz_value();
 		break;
 	default:
-		pr_err("%s: unknown branch encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn branch encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -320,7 +320,7 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 		insn |= AARCH64_INSN_SF_BIT;
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -341,7 +341,7 @@ u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
 	insn = aarch64_insn_get_bcond_value();
 
 	if (cond < AARCH64_INSN_COND_EQ || cond > AARCH64_INSN_COND_AL) {
-		pr_err("%s: unknown condition encoding %d\n", __func__, cond);
+		pr_err("%s: unkanalwn condition encoding %d\n", __func__, cond);
 		return AARCH64_BREAK_FAULT;
 	}
 	insn |= cond;
@@ -356,7 +356,7 @@ u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
 	u32 insn;
 
 	switch (type) {
-	case AARCH64_INSN_BRANCH_NOLINK:
+	case AARCH64_INSN_BRANCH_ANALLINK:
 		insn = aarch64_insn_get_br_value();
 		break;
 	case AARCH64_INSN_BRANCH_LINK:
@@ -366,7 +366,7 @@ u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
 		insn = aarch64_insn_get_ret_value();
 		break;
 	default:
-		pr_err("%s: unknown branch encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn branch encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -392,7 +392,7 @@ u32 aarch64_insn_gen_load_store_reg(enum aarch64_insn_register reg,
 		insn = aarch64_insn_get_str_reg_value();
 		break;
 	default:
-		pr_err("%s: unknown load/store encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn load/store encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -417,7 +417,7 @@ u32 aarch64_insn_gen_load_store_imm(enum aarch64_insn_register reg,
 	u32 shift;
 
 	if (size < AARCH64_INSN_SIZE_8 || size > AARCH64_INSN_SIZE_64) {
-		pr_err("%s: unknown size encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn size encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -440,7 +440,7 @@ u32 aarch64_insn_gen_load_store_imm(enum aarch64_insn_register reg,
 		insn = aarch64_insn_get_str_imm_value();
 		break;
 	default:
-		pr_err("%s: unknown load/store encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn load/store encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -500,7 +500,7 @@ u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
 		insn = aarch64_insn_get_stp_post_value();
 		break;
 	default:
-		pr_err("%s: unknown load/store encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn load/store encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -523,7 +523,7 @@ u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
 		insn |= AARCH64_INSN_SF_BIT;
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -562,7 +562,7 @@ u32 aarch64_insn_gen_load_store_ex(enum aarch64_insn_register reg,
 			insn |= BIT(15);
 		break;
 	default:
-		pr_err("%s: unknown load/store exclusive encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn load/store exclusive encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -588,7 +588,7 @@ static u32 aarch64_insn_encode_ldst_order(enum aarch64_insn_mem_order_type type,
 	u32 order;
 
 	switch (type) {
-	case AARCH64_INSN_MEM_ORDER_NONE:
+	case AARCH64_INSN_MEM_ORDER_ANALNE:
 		order = 0;
 		break;
 	case AARCH64_INSN_MEM_ORDER_ACQ:
@@ -601,7 +601,7 @@ static u32 aarch64_insn_encode_ldst_order(enum aarch64_insn_mem_order_type type,
 		order = 3;
 		break;
 	default:
-		pr_err("%s: unknown mem order %d\n", __func__, type);
+		pr_err("%s: unkanalwn mem order %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -670,7 +670,7 @@ static u32 aarch64_insn_encode_cas_order(enum aarch64_insn_mem_order_type type,
 	u32 order;
 
 	switch (type) {
-	case AARCH64_INSN_MEM_ORDER_NONE:
+	case AARCH64_INSN_MEM_ORDER_ANALNE:
 		order = 0;
 		break;
 	case AARCH64_INSN_MEM_ORDER_ACQ:
@@ -683,7 +683,7 @@ static u32 aarch64_insn_encode_cas_order(enum aarch64_insn_mem_order_type type,
 		order = BIT(15) | BIT(22);
 		break;
 	default:
-		pr_err("%s: unknown mem order %d\n", __func__, type);
+		pr_err("%s: unkanalwn mem order %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -748,7 +748,7 @@ u32 aarch64_insn_gen_add_sub_imm(enum aarch64_insn_register dst,
 		insn = aarch64_insn_get_subs_imm_value();
 		break;
 	default:
-		pr_err("%s: unknown add/sub encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn add/sub encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -759,7 +759,7 @@ u32 aarch64_insn_gen_add_sub_imm(enum aarch64_insn_register dst,
 		insn |= AARCH64_INSN_SF_BIT;
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -808,7 +808,7 @@ u32 aarch64_insn_gen_bitfield(enum aarch64_insn_register dst,
 		insn = aarch64_insn_get_sbfm_value();
 		break;
 	default:
-		pr_err("%s: unknown bitfield encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn bitfield encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -821,7 +821,7 @@ u32 aarch64_insn_gen_bitfield(enum aarch64_insn_register dst,
 		mask = GENMASK(5, 0);
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -861,7 +861,7 @@ u32 aarch64_insn_gen_movewide(enum aarch64_insn_register dst,
 		insn = aarch64_insn_get_movn_value();
 		break;
 	default:
-		pr_err("%s: unknown movewide encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn movewide encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -887,7 +887,7 @@ u32 aarch64_insn_gen_movewide(enum aarch64_insn_register dst,
 		}
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -921,7 +921,7 @@ u32 aarch64_insn_gen_add_sub_shifted_reg(enum aarch64_insn_register dst,
 		insn = aarch64_insn_get_subs_value();
 		break;
 	default:
-		pr_err("%s: unknown add/sub encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn add/sub encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -942,7 +942,7 @@ u32 aarch64_insn_gen_add_sub_shifted_reg(enum aarch64_insn_register dst,
 		}
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -979,7 +979,7 @@ u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
 		insn = aarch64_insn_get_rev64_value();
 		break;
 	default:
-		pr_err("%s: unknown data1 encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn data1 encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -990,7 +990,7 @@ u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
 		insn |= AARCH64_INSN_SF_BIT;
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1027,7 +1027,7 @@ u32 aarch64_insn_gen_data2(enum aarch64_insn_register dst,
 		insn = aarch64_insn_get_rorv_value();
 		break;
 	default:
-		pr_err("%s: unknown data2 encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn data2 encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1038,7 +1038,7 @@ u32 aarch64_insn_gen_data2(enum aarch64_insn_register dst,
 		insn |= AARCH64_INSN_SF_BIT;
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1066,7 +1066,7 @@ u32 aarch64_insn_gen_data3(enum aarch64_insn_register dst,
 		insn = aarch64_insn_get_msub_value();
 		break;
 	default:
-		pr_err("%s: unknown data3 encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn data3 encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1077,7 +1077,7 @@ u32 aarch64_insn_gen_data3(enum aarch64_insn_register dst,
 		insn |= AARCH64_INSN_SF_BIT;
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1127,7 +1127,7 @@ u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
 		insn = aarch64_insn_get_bics_value();
 		break;
 	default:
-		pr_err("%s: unknown logical encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn logical encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1148,7 +1148,7 @@ u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
 		}
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1192,7 +1192,7 @@ u32 aarch64_insn_gen_adr(unsigned long pc, unsigned long addr,
 		offset = (addr - ALIGN_DOWN(pc, SZ_4K)) >> 12;
 		break;
 	default:
-		pr_err("%s: unknown adr encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn adr encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1328,7 +1328,7 @@ static u32 aarch64_encode_immediate(u64 imm,
 		esz = 64;
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1398,7 +1398,7 @@ static u32 aarch64_encode_immediate(u64 imm,
 
 	/*
 	 * immr is the number of bits we need to rotate back to the
-	 * original set of ones. Note that this is relative to the
+	 * original set of ones. Analte that this is relative to the
 	 * element size...
 	 */
 	immr = (esz - ror) % esz;
@@ -1430,7 +1430,7 @@ u32 aarch64_insn_gen_logical_immediate(enum aarch64_insn_logic_type type,
 		insn = aarch64_insn_get_ands_imm_value();
 		break;
 	default:
-		pr_err("%s: unknown logical encoding %d\n", __func__, type);
+		pr_err("%s: unkanalwn logical encoding %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1461,7 +1461,7 @@ u32 aarch64_insn_gen_extr(enum aarch64_insn_variant variant,
 		insn = aarch64_insn_encode_immediate(AARCH64_INSN_IMM_N, insn, 1);
 		break;
 	default:
-		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		pr_err("%s: unkanalwn variant encoding %d\n", __func__, variant);
 		return AARCH64_BREAK_FAULT;
 	}
 
@@ -1505,7 +1505,7 @@ u32 aarch64_insn_gen_dmb(enum aarch64_insn_mb_type type)
 		opt = 0x5;
 		break;
 	default:
-		pr_err("%s: unknown dmb type %d\n", __func__, type);
+		pr_err("%s: unkanalwn dmb type %d\n", __func__, type);
 		return AARCH64_BREAK_FAULT;
 	}
 

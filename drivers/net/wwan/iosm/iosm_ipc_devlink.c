@@ -10,7 +10,7 @@
 #include "iosm_ipc_flash.h"
 
 /* Coredump list */
-static struct iosm_coredump_file_info list[IOSM_NOF_CD_REGION] = {
+static struct iosm_coredump_file_info list[IOSM_ANALF_CD_REGION] = {
 	{"report.json", REPORT_JSON_SIZE,},
 	{"coredump.fcd", COREDUMP_FCD_SIZE,},
 	{"cdd.log", CDD_LOG_SIZE,},
@@ -93,7 +93,7 @@ static int ipc_devlink_flash_update(struct devlink *devlink,
 
 	mdm_rsp = kzalloc(IOSM_EBL_DW_PACK_SIZE, GFP_KERNEL);
 	if (!mdm_rsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fls_type = ipc_devlink_get_flash_comp_type(header->image_type,
 						   IOSM_DEVLINK_MAX_IMG_LEN);
@@ -115,16 +115,16 @@ static int ipc_devlink_flash_update(struct devlink *devlink,
 		rc = ipc_flash_send_fls(ipc_devlink, params->fw, mdm_rsp);
 		break;
 	default:
-		devlink_flash_update_status_notify(devlink, "Invalid component",
+		devlink_flash_update_status_analtify(devlink, "Invalid component",
 						   NULL, 0, 0);
 		break;
 	}
 
 	if (!rc)
-		devlink_flash_update_status_notify(devlink, "Flashing success",
+		devlink_flash_update_status_analtify(devlink, "Flashing success",
 						   header->image_type, 0, 0);
 	else
-		devlink_flash_update_status_notify(devlink, "Flashing failed",
+		devlink_flash_update_status_analtify(devlink, "Flashing failed",
 						   header->image_type, 0, 0);
 
 	kfree(mdm_rsp);
@@ -179,7 +179,7 @@ static int ipc_devlink_coredump_snapshot(struct devlink *dl,
 	}
 
 	/* Send coredump end cmd indicating end of coredump collection */
-	if (cd_list->entry == (IOSM_NOF_CD_REGION - 1))
+	if (cd_list->entry == (IOSM_ANALF_CD_REGION - 1))
 		ipc_coredump_get_list(ipc_devlink, rpsi_cmd_coredump_end);
 
 	return 0;
@@ -197,7 +197,7 @@ static int ipc_devlink_create_region(struct iosm_devlink *devlink)
 	int i;
 
 	mdm_coredump = devlink->iosm_devlink_mdm_coredump;
-	for (i = 0; i < IOSM_NOF_CD_REGION; i++) {
+	for (i = 0; i < IOSM_ANALF_CD_REGION; i++) {
 		mdm_coredump[i].name = list[i].filename;
 		mdm_coredump[i].snapshot = ipc_devlink_coredump_snapshot;
 		mdm_coredump[i].destructor = vfree;
@@ -226,7 +226,7 @@ static void ipc_devlink_destroy_region(struct iosm_devlink *ipc_devlink)
 {
 	u8 i;
 
-	for (i = 0; i < IOSM_NOF_CD_REGION; i++)
+	for (i = 0; i < IOSM_ANALF_CD_REGION; i++)
 		devlink_region_destroy(ipc_devlink->cd_regions[i]);
 }
 

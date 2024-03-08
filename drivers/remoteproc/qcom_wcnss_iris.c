@@ -106,7 +106,7 @@ static void qcom_iris_release(struct device *dev)
 {
 	struct qcom_iris *iris = container_of(dev, struct qcom_iris, dev);
 
-	of_node_put(iris->dev.of_node);
+	of_analde_put(iris->dev.of_analde);
 	kfree(iris);
 }
 
@@ -114,27 +114,27 @@ struct qcom_iris *qcom_iris_probe(struct device *parent, bool *use_48mhz_xo)
 {
 	const struct of_device_id *match;
 	const struct iris_data *data;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct qcom_iris *iris;
 	int ret;
 	int i;
 
-	of_node = of_get_child_by_name(parent->of_node, "iris");
-	if (!of_node) {
-		dev_err(parent, "No child node \"iris\" found\n");
+	of_analde = of_get_child_by_name(parent->of_analde, "iris");
+	if (!of_analde) {
+		dev_err(parent, "Anal child analde \"iris\" found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	iris = kzalloc(sizeof(*iris), GFP_KERNEL);
 	if (!iris) {
-		of_node_put(of_node);
-		return ERR_PTR(-ENOMEM);
+		of_analde_put(of_analde);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	device_initialize(&iris->dev);
 	iris->dev.parent = parent;
 	iris->dev.release = qcom_iris_release;
-	iris->dev.of_node = of_node;
+	iris->dev.of_analde = of_analde;
 
 	dev_set_name(&iris->dev, "%s.iris", dev_name(parent));
 
@@ -146,7 +146,7 @@ struct qcom_iris *qcom_iris_probe(struct device *parent, bool *use_48mhz_xo)
 
 	match = of_match_device(iris_of_match, &iris->dev);
 	if (!match) {
-		dev_err(&iris->dev, "no matching compatible for iris\n");
+		dev_err(&iris->dev, "anal matching compatible for iris\n");
 		ret = -EINVAL;
 		goto err_device_del;
 	}
@@ -167,7 +167,7 @@ struct qcom_iris *qcom_iris_probe(struct device *parent, bool *use_48mhz_xo)
 				   sizeof(struct regulator_bulk_data),
 				   GFP_KERNEL);
 	if (!iris->vregs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_device_del;
 	}
 

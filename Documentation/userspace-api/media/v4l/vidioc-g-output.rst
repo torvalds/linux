@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_OUTPUT:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_OUTPUT - VIDIOC_S_OUTPUT - Query or select the current video output
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_OUTPUT
@@ -39,7 +39,7 @@ To query the current video output applications call the
 :ref:`VIDIOC_G_OUTPUT <VIDIOC_G_OUTPUT>` ioctl with a pointer to an integer where the driver
 stores the number of the output, as in the struct
 :c:type:`v4l2_output` ``index`` field. This ioctl will
-fail only when there are no video outputs, returning the ``EINVAL`` error
+fail only when there are anal video outputs, returning the ``EINVAL`` error
 code.
 
 To select a video output applications store the number of the desired
@@ -56,10 +56,10 @@ Information about video outputs is available using the
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The number of the video output is out of bounds, or there are no
+    The number of the video output is out of bounds, or there are anal
     video outputs at all.

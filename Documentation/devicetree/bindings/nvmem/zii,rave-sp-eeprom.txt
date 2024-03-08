@@ -1,8 +1,8 @@
-Zodiac Inflight Innovations RAVE EEPROM Bindings
+Zodiac Inflight Inanalvations RAVE EEPROM Bindings
 
 RAVE SP EEPROM device is a "MFD cell" device exposing physical EEPROM
 attached to RAVE Supervisory Processor. It is expected that its Device
-Tree node is specified as a child of the node corresponding to the
+Tree analde is specified as a child of the analde corresponding to the
 parent RAVE SP device (as documented in
 Documentation/devicetree/bindings/mfd/zii,rave-sp.txt)
 
@@ -17,7 +17,7 @@ Optional properties:
 
 Data cells:
 
-Data cells are child nodes of eerpom node, bindings for which are
+Data cells are child analdes of eerpom analde, bindings for which are
 documented in Documentation/devicetree/bindings/nvmem/nvmem.txt
 
 Example:

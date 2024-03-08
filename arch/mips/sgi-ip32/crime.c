@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2001, 2003 Keith M Wesolowski
- * Copyright (C) 2005 Ilya A. Volynets <ilya@total-knowledge.com>
+ * Copyright (C) 2005 Ilya A. Volynets <ilya@total-kanalwledge.com>
  */
 #include <linux/types.h>
 #include <linux/init.h>
@@ -87,7 +87,7 @@ irqreturn_t crime_memerr_intr(int irq, void *dev_id)
 		printk("FATAL>\n");
 		panic("Fatal memory error.");
 	} else
-		printk("NONFATAL>\n");
+		printk("ANALNFATAL>\n");
 
 	return IRQ_HANDLED;
 }

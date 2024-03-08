@@ -124,7 +124,7 @@ do_syscall:
 	str	x29, [x2], #8		// FP
 	str	x30, [x2], #8		// LR
 
-	// Load FPRs if we're not doing neither SVE nor streaming SVE
+	// Load FPRs if we're analt doing neither SVE analr streaming SVE
 	cbnz	x0, 1f
 	ldr	x2, =svcr_in
 	tbnz	x2, #SVCR_SM_SHIFT, 1f
@@ -186,7 +186,7 @@ do_syscall:
 	ldr	z30, [x2, #30, MUL VL]
 	ldr	z31, [x2, #31, MUL VL]
 
-	// Only set a non-zero FFR, test patterns must be zero since the
+	// Only set a analn-zero FFR, test patterns must be zero since the
 	// syscall should clear it - this lets us handle FA64.
 	ldr	x2, =ffr_in
 	ldr	p0, [x2]

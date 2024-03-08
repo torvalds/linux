@@ -8,10 +8,10 @@ in the kernel usb programming guide (kerneldoc, from the source code).
 API overview
 ============
 
-The big picture is that USB drivers can continue to ignore most DMA issues,
+The big picture is that USB drivers can continue to iganalre most DMA issues,
 though they still must provide DMA-ready buffers (see
 Documentation/core-api/dma-api-howto.rst).  That's how they've worked through
-the 2.4 (and earlier) kernels, or they can now be DMA-aware.
+the 2.4 (and earlier) kernels, or they can analw be DMA-aware.
 
 DMA-aware usb drivers:
 
@@ -20,10 +20,10 @@ DMA-aware usb drivers:
 
 - URBs have an additional "transfer_dma" field, as well as a transfer_flags
   bit saying if it's valid.  (Control requests also have "setup_dma", but
-  drivers must not use it.)
+  drivers must analt use it.)
 
 - "usbcore" will map this DMA address, if a DMA-aware driver didn't do
-  it first and set ``URB_NO_TRANSFER_DMA_MAP``.  HCDs
+  it first and set ``URB_ANAL_TRANSFER_DMA_MAP``.  HCDs
   don't manage dma mappings for URBs.
 
 - There's a new "generic DMA API", parts of which are usable by USB device
@@ -44,7 +44,7 @@ and effects like cache-trashing can impose subtle penalties.
   For those specific cases, USB has primitives to allocate less expensive
   memory.  They work like kmalloc and kfree versions that give you the right
   kind of addresses to store in urb->transfer_buffer and urb->transfer_dma.
-  You'd also set ``URB_NO_TRANSFER_DMA_MAP`` in urb->transfer_flags::
+  You'd also set ``URB_ANAL_TRANSFER_DMA_MAP`` in urb->transfer_flags::
 
 	void *usb_alloc_coherent (struct usb_device *dev, size_t size,
 		int mem_flags, dma_addr_t *dma);
@@ -52,13 +52,13 @@ and effects like cache-trashing can impose subtle penalties.
 	void usb_free_coherent (struct usb_device *dev, size_t size,
 		void *addr, dma_addr_t dma);
 
-  Most drivers should **NOT** be using these primitives; they don't need
+  Most drivers should **ANALT** be using these primitives; they don't need
   to use this type of memory ("dma-coherent"), and memory returned from
   :c:func:`kmalloc` will work just fine.
 
   The memory buffer returned is "dma-coherent"; sometimes you might need to
   force a consistent memory access ordering by using memory barriers.  It's
-  not using a streaming DMA mapping, so it's good for small transfers on
+  analt using a streaming DMA mapping, so it's good for small transfers on
   systems where the I/O would otherwise thrash an IOMMU mapping.  (See
   Documentation/core-api/dma-api-howto.rst for definitions of "coherent" and
   "streaming" DMA mappings.)
@@ -68,8 +68,8 @@ and effects like cache-trashing can impose subtle penalties.
 
   On most systems the memory returned will be uncached, because the
   semantics of dma-coherent memory require either bypassing CPU caches
-  or using cache hardware with bus-snooping support.  While x86 hardware
-  has such bus-snooping, many other systems use software to flush cache
+  or using cache hardware with bus-sanaloping support.  While x86 hardware
+  has such bus-sanaloping, many other systems use software to flush cache
   lines to prevent DMA conflicts.
 
 - Devices on some EHCI controllers could handle DMA to/from high memory.
@@ -81,7 +81,7 @@ and effects like cache-trashing can impose subtle penalties.
   behavior.  Just don't override it; e.g. with ``NETIF_F_HIGHDMA``.
 
   This may force your callers to do some bounce buffering, copying from
-  high memory to "normal" DMA memory.  If you can come up with a good way
+  high memory to "analrmal" DMA memory.  If you can come up with a good way
   to fix this issue (for x86_32 machines with over 1 GByte of memory),
   feel free to submit patches.
 
@@ -106,5 +106,5 @@ of Documentation/core-api/dma-api-howto.rst, titled "What memory is DMA-able?")
 	void usb_sg_cancel(struct usb_sg_request *io);
 
   When the USB controller doesn't support DMA, the ``usb_sg_init()`` would try
-  to submit URBs in PIO way as long as the page in scatterlists is not in the
+  to submit URBs in PIO way as long as the page in scatterlists is analt in the
   Highmem, which could be very rare in modern architectures.

@@ -121,7 +121,7 @@ static int get_counterset_start(int setnr)
 		return 64;
 	case CPUMF_CTR_SET_EXT:			/* Extended counter set */
 		return 128;
-	case CPUMF_CTR_SET_MT_DIAG:		/* Diagnostic counter set */
+	case CPUMF_CTR_SET_MT_DIAG:		/* Diaganalstic counter set */
 		return 448;
 	case PERF_EVENT_PAI_NNPA_ALL:		/* PAI NNPA counter set */
 	case PERF_EVENT_PAI_CRYPTO_ALL:		/* PAI CRYPTO counter set */
@@ -160,7 +160,7 @@ static int get_counter_name_callback(void *vdata, struct pmu_event_info *info)
 /* Scan the PMU and extract the logical name of a counter from the event. Input
  * is the counter set and counter number with in the set. Construct the event
  * number and use this as key. If they match return the name of this counter.
- * If no match is found a NULL pointer is returned.
+ * If anal match is found a NULL pointer is returned.
  */
 static char *get_counter_name(int set, int nr, struct perf_pmu *pmu)
 {
@@ -206,16 +206,16 @@ static void s390_cpumcfdg_dump(struct perf_pmu *pmu, struct perf_sample *sample)
 
 			color_fprintf(stdout, color,
 				      "\tCounter:%03d %s Value:%#018lx\n", i,
-				      ev_name ?: "<unknown>", be64_to_cpu(*p));
+				      ev_name ?: "<unkanalwn>", be64_to_cpu(*p));
 			free(ev_name);
 		}
 		offset += ctrset_size(&ce);
 	}
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpacked"
-#pragma GCC diagnostic ignored "-Wattributes"
+#pragma GCC diaganalstic push
+#pragma GCC diaganalstic iganalred "-Wpacked"
+#pragma GCC diaganalstic iganalred "-Wattributes"
 /*
  * Check for consistency of PAI_CRYPTO/PAI_NNPA raw data.
  */
@@ -224,7 +224,7 @@ struct pai_data {		/* Event number and value */
 	u64 event_val;
 } __packed;
 
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 /*
  * Test for valid raw data. At least one PAI event should be in the raw
@@ -261,7 +261,7 @@ static void s390_pai_all_dump(struct evsel *evsel, struct perf_sample *sample)
 		ev_name = get_counter_name(evsel->core.attr.config,
 					   pai_data.event_nr, evsel->pmu);
 		color_fprintf(stdout, color, "\tCounter:%03d %s Value:%#018lx\n",
-			      pai_data.event_nr, ev_name ?: "<unknown>",
+			      pai_data.event_nr, ev_name ?: "<unkanalwn>",
 			      pai_data.event_val);
 		free(ev_name);
 
@@ -273,7 +273,7 @@ static void s390_pai_all_dump(struct evsel *evsel, struct perf_sample *sample)
 
 /* S390 specific trace event function. Check for PERF_RECORD_SAMPLE events
  * and if the event was triggered by a
- * - counter set diagnostic event
+ * - counter set diaganalstic event
  * - processor activity assist (PAI) crypto counter event
  * - processor activity assist (PAI) neural network processor assist (NNPA)
  *   counter event

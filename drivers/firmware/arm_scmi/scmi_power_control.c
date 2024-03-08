@@ -6,26 +6,26 @@
  */
 /*
  * In order to handle platform originated SCMI SystemPower requests (like
- * shutdowns or cold/warm resets) we register an SCMI Notification notifier
+ * shutdowns or cold/warm resets) we register an SCMI Analtification analtifier
  * block to react when such SCMI SystemPower events are emitted by platform.
  *
- * Once such a notification is received we act accordingly to perform the
+ * Once such a analtification is received we act accordingly to perform the
  * required system transition depending on the kind of request.
  *
  * Graceful requests are routed to userspace through the same API methods
  * (orderly_poweroff/reboot()) used by ACPI when handling ACPI Shutdown bus
  * events.
  *
- * Direct forceful requests are not supported since are not meant to be sent
+ * Direct forceful requests are analt supported since are analt meant to be sent
  * by the SCMI platform to an OSPM like Linux.
  *
- * Additionally, graceful request notifications can carry an optional timeout
+ * Additionally, graceful request analtifications can carry an optional timeout
  * field stating the maximum amount of time allowed by the platform for
  * completion after which they are converted to forceful ones: the assumption
  * here is that even graceful requests can be upper-bound by a maximum final
  * timeout strictly enforced by the platform itself which can ultimately cut
  * the power off at will anytime; in order to avoid such extreme scenario, we
- * track progress of graceful requests through the means of a reboot notifier
+ * track progress of graceful requests through the means of a reboot analtifier
  * converting timed-out graceful requests to forceful ones, so at least we
  * try to perform a clean sync and shutdown/restart before the power is cut.
  *
@@ -33,14 +33,14 @@
  * charge of triggering system wide shutdown/reboot events, there should be
  * only one SCMI platform actively emitting SystemPower events.
  * For this reason the SCMI core takes care to enforce the creation of one
- * single unique device associated to the SCMI System Power protocol; no matter
+ * single unique device associated to the SCMI System Power protocol; anal matter
  * how many SCMI platforms are defined on the system, only one can be designated
  * to support System Power: as a consequence this driver will never be probed
  * more than once.
  *
  * For similar reasons as soon as the first valid SystemPower is received by
- * this driver and the shutdown/reboot is started, any further notification
- * possibly emitted by the platform will be ignored.
+ * this driver and the shutdown/reboot is started, any further analtification
+ * possibly emitted by the platform will be iganalred.
  */
 
 #include <linux/math.h>
@@ -72,10 +72,10 @@ enum scmi_syspower_state {
  * @state: Current SystemPower state
  * @state_mtx: @state related mutex
  * @required_transition: The requested transition as decribed in the received
- *			 SCMI SystemPower notification
- * @userspace_nb: The notifier_block registered against the SCMI SystemPower
- *		  notification to start the needed userspace interactions.
- * @reboot_nb: A notifier_block optionally used to track reboot progress
+ *			 SCMI SystemPower analtification
+ * @userspace_nb: The analtifier_block registered against the SCMI SystemPower
+ *		  analtification to start the needed userspace interactions.
+ * @reboot_nb: A analtifier_block optionally used to track reboot progress
  * @forceful_work: A worker used to trigger a forceful transition once a
  *		   graceful has timed out.
  */
@@ -86,8 +86,8 @@ struct scmi_syspower_conf {
 	struct mutex state_mtx;
 	enum scmi_system_events required_transition;
 
-	struct notifier_block userspace_nb;
-	struct notifier_block reboot_nb;
+	struct analtifier_block userspace_nb;
+	struct analtifier_block reboot_nb;
 
 	struct delayed_work forceful_work;
 };
@@ -102,18 +102,18 @@ struct scmi_syspower_conf {
 	container_of(x, struct scmi_syspower_conf, forceful_work)
 
 /**
- * scmi_reboot_notifier  - A reboot notifier to catch an ongoing successful
+ * scmi_reboot_analtifier  - A reboot analtifier to catch an ongoing successful
  * system transition
- * @nb: Reference to the related notifier block
+ * @nb: Reference to the related analtifier block
  * @reason: The reason for the ongoing reboot
  * @__unused: The cmd being executed on a restart request (unused)
  *
  * When an ongoing system transition is detected, compatible with the one
  * requested by SCMI, cancel the delayed work.
  *
- * Return: NOTIFY_OK in any case
+ * Return: ANALTIFY_OK in any case
  */
-static int scmi_reboot_notifier(struct notifier_block *nb,
+static int scmi_reboot_analtifier(struct analtifier_block *nb,
 				unsigned long reason, void *__unused)
 {
 	struct scmi_syspower_conf *sc = reboot_nb_to_sconf(nb);
@@ -140,7 +140,7 @@ static int scmi_reboot_notifier(struct notifier_block *nb,
 	}
 	mutex_unlock(&sc->state_mtx);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /**
@@ -186,8 +186,8 @@ static void scmi_forceful_work_func(struct work_struct *work)
 
 	dev_dbg(sc->dev, "Graceful request timed out...forcing !\n");
 	mutex_lock(&sc->state_mtx);
-	/* avoid deadlock by unregistering reboot notifier first */
-	unregister_reboot_notifier(&sc->reboot_nb);
+	/* avoid deadlock by unregistering reboot analtifier first */
+	unregister_reboot_analtifier(&sc->reboot_nb);
 	if (sc->state == SCMI_SYSPOWER_IN_PROGRESS)
 		scmi_request_forceful_transition(sc);
 	mutex_unlock(&sc->state_mtx);
@@ -203,7 +203,7 @@ static void scmi_forceful_work_func(struct work_struct *work)
  * co-operation: it uses the same orderly_ methods used by ACPI Shutdown event
  * processing.
  *
- * Takes care also to register a reboot notifier and to schedule a delayed work
+ * Takes care also to register a reboot analtifier and to schedule a delayed work
  * in order to detect if userspace actions are taking too long and in such a
  * case to trigger a forceful transition.
  */
@@ -215,8 +215,8 @@ static void scmi_request_graceful_transition(struct scmi_syspower_conf *sc,
 	if (timeout_ms) {
 		int ret;
 
-		sc->reboot_nb.notifier_call = &scmi_reboot_notifier;
-		ret = register_reboot_notifier(&sc->reboot_nb);
+		sc->reboot_nb.analtifier_call = &scmi_reboot_analtifier;
+		ret = register_reboot_analtifier(&sc->reboot_nb);
 		if (!ret) {
 			/* Wait only up to 75% of the advertised timeout */
 			adj_timeout_ms = mult_frac(timeout_ms, 3, 4);
@@ -225,9 +225,9 @@ static void scmi_request_graceful_transition(struct scmi_syspower_conf *sc,
 			schedule_delayed_work(&sc->forceful_work,
 					      msecs_to_jiffies(adj_timeout_ms));
 		} else {
-			/* Carry on best effort even without a reboot notifier */
+			/* Carry on best effort even without a reboot analtifier */
 			dev_warn(sc->dev,
-				 "Cannot register reboot notifier !\n");
+				 "Cananalt register reboot analtifier !\n");
 		}
 	}
 
@@ -255,37 +255,37 @@ static void scmi_request_graceful_transition(struct scmi_syspower_conf *sc,
 }
 
 /**
- * scmi_userspace_notifier  - Notifier callback to act on SystemPower
- * Notifications
- * @nb: Reference to the related notifier block
- * @event: The SystemPower notification event id
+ * scmi_userspace_analtifier  - Analtifier callback to act on SystemPower
+ * Analtifications
+ * @nb: Reference to the related analtifier block
+ * @event: The SystemPower analtification event id
  * @data: The SystemPower event report
  *
  * This callback is in charge of decoding the received SystemPower report
  * and act accordingly triggering a graceful or forceful system transition.
  *
- * Note that once a valid SCMI SystemPower event starts being served, any
- * other following SystemPower notification received from the same SCMI
- * instance (handle) will be ignored.
+ * Analte that once a valid SCMI SystemPower event starts being served, any
+ * other following SystemPower analtification received from the same SCMI
+ * instance (handle) will be iganalred.
  *
- * Return: NOTIFY_OK once a valid SystemPower event has been successfully
+ * Return: ANALTIFY_OK once a valid SystemPower event has been successfully
  * processed.
  */
-static int scmi_userspace_notifier(struct notifier_block *nb,
+static int scmi_userspace_analtifier(struct analtifier_block *nb,
 				   unsigned long event, void *data)
 {
-	struct scmi_system_power_state_notifier_report *er = data;
+	struct scmi_system_power_state_analtifier_report *er = data;
 	struct scmi_syspower_conf *sc = userspace_nb_to_sconf(nb);
 
 	if (er->system_state >= SCMI_SYSTEM_POWERUP) {
-		dev_err(sc->dev, "Ignoring unsupported system_state: 0x%X\n",
+		dev_err(sc->dev, "Iganalring unsupported system_state: 0x%X\n",
 			er->system_state);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	if (!SCMI_SYSPOWER_IS_REQUEST_GRACEFUL(er->flags)) {
-		dev_err(sc->dev, "Ignoring forceful notification.\n");
-		return NOTIFY_DONE;
+		dev_err(sc->dev, "Iganalring forceful analtification.\n");
+		return ANALTIFY_DONE;
 	}
 
 	/*
@@ -293,13 +293,13 @@ static int scmi_userspace_notifier(struct notifier_block *nb,
 	 * requested is already being served.
 	 */
 	if (system_state > SYSTEM_RUNNING)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	mutex_lock(&sc->state_mtx);
 	if (sc->state != SCMI_SYSPOWER_IDLE) {
 		dev_dbg(sc->dev,
-			"Transition already in progress...ignore.\n");
+			"Transition already in progress...iganalre.\n");
 		mutex_unlock(&sc->state_mtx);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	sc->state = SCMI_SYSPOWER_IN_PROGRESS;
 	mutex_unlock(&sc->state_mtx);
@@ -312,7 +312,7 @@ static int scmi_userspace_notifier(struct notifier_block *nb,
 
 	scmi_request_graceful_transition(sc, er->timeout);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int scmi_syspower_probe(struct scmi_device *sdev)
@@ -322,7 +322,7 @@ static int scmi_syspower_probe(struct scmi_device *sdev)
 	struct scmi_handle *handle = sdev->handle;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = handle->devm_protocol_acquire(sdev, SCMI_PROTOCOL_SYSTEM);
 	if (ret)
@@ -330,17 +330,17 @@ static int scmi_syspower_probe(struct scmi_device *sdev)
 
 	sc = devm_kzalloc(&sdev->dev, sizeof(*sc), GFP_KERNEL);
 	if (!sc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sc->state = SCMI_SYSPOWER_IDLE;
 	mutex_init(&sc->state_mtx);
 	sc->required_transition = SCMI_SYSTEM_MAX;
-	sc->userspace_nb.notifier_call = &scmi_userspace_notifier;
+	sc->userspace_nb.analtifier_call = &scmi_userspace_analtifier;
 	sc->dev = &sdev->dev;
 
-	return handle->notify_ops->devm_event_notifier_register(sdev,
+	return handle->analtify_ops->devm_event_analtifier_register(sdev,
 							   SCMI_PROTOCOL_SYSTEM,
-					 SCMI_EVENT_SYSTEM_POWER_STATE_NOTIFIER,
+					 SCMI_EVENT_SYSTEM_POWER_STATE_ANALTIFIER,
 						       NULL, &sc->userspace_nb);
 }
 

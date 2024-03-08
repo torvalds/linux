@@ -9,7 +9,7 @@
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * James P. Ketreanals <ipw2100-admin@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
 #include <linux/wireless.h>
@@ -89,7 +89,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
 	if (network->capability & WLAN_CAPABILITY_PRIVACY)
-		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
+		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_ANALKEY;
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
@@ -154,12 +154,12 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.qual = network->stats.signal;
 	iwe.u.qual.level = network->stats.rssi;
-	iwe.u.qual.noise = network->stats.noise;
+	iwe.u.qual.analise = network->stats.analise;
 	iwe.u.qual.updated = network->stats.mask & RTLLIB_STATMASK_WEMASK;
 	if (!(network->stats.mask & RTLLIB_STATMASK_RSSI))
 		iwe.u.qual.updated |= IW_QUAL_LEVEL_INVALID;
-	if (!(network->stats.mask & RTLLIB_STATMASK_NOISE))
-		iwe.u.qual.updated |= IW_QUAL_NOISE_INVALID;
+	if (!(network->stats.mask & RTLLIB_STATMASK_ANALISE))
+		iwe.u.qual.updated |= IW_QUAL_ANALISE_INVALID;
 	if (!(network->stats.mask & RTLLIB_STATMASK_SIGNAL))
 		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID;
 	iwe.u.qual.updated = 7;
@@ -299,7 +299,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		}
 
 		/* Check all the keys to see if any are still configured,
-		 * and if no key index was provided, de-init them all
+		 * and if anal key index was provided, de-init them all
 		 */
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
 			if (ieee->crypt_info.crypt[i]) {
@@ -336,7 +336,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		/* take WEP into use */
 		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
 		if (!new_crypt)
-			return -ENOMEM;
+			return -EANALMEM;
 		new_crypt->ops = lib80211_get_crypto_ops("R-WEP");
 		if (!new_crypt->ops) {
 			request_module("rtllib_crypt_wep");
@@ -351,9 +351,9 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			new_crypt = NULL;
 
 			netdev_warn(dev,
-				    "%s: could not initialize WEP: load module rtllib_crypt_wep\n",
+				    "%s: could analt initialize WEP: load module rtllib_crypt_wep\n",
 				    dev->name);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		*crypt = new_crypt;
 	}
@@ -372,7 +372,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 				       (*crypt)->priv);
 		sec.flags |= (1 << key);
-		/* This ensures a key will be activated if no key is
+		/* This ensures a key will be activated if anal key is
 		 * explicitly set
 		 */
 		if (key == sec.active_key)
@@ -393,7 +393,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			sec.flags |= (1 << key);
 		}
 
-		/* No key data - just set the default TX key index */
+		/* Anal key data - just set the default TX key index */
 		if (key_provided) {
 			netdev_dbg(ieee->dev,
 				   "Setting key %d as default Tx key.\n", key);
@@ -411,7 +411,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	netdev_dbg(ieee->dev, "Auth: %s\n", sec.auth_mode == WLAN_AUTH_OPEN ?
 			   "OPEN" : "SHARED KEY");
 
-	/* For now we just support WEP, so only set that security level...
+	/* For analw we just support WEP, so only set that security level...
 	 * TODO: When WPA is added this is one place that needs to change
 	 */
 	sec.flags |= SEC_LEVEL;
@@ -503,7 +503,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 
 	sec.flags |= SEC_ENABLED;
 	if ((encoding->flags & IW_ENCODE_DISABLED) ||
-	    ext->alg == IW_ENCODE_ALG_NONE) {
+	    ext->alg == IW_ENCODE_ALG_ANALNE) {
 		if (*crypt)
 			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
@@ -534,7 +534,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		module = "rtllib_crypt_ccmp";
 		break;
 	default:
-		netdev_dbg(ieee->dev, "Unknown crypto alg %d\n", ext->alg);
+		netdev_dbg(ieee->dev, "Unkanalwn crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -550,7 +550,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (!ops) {
-		netdev_info(dev, "========>unknown crypto alg %d\n", ext->alg);
+		netdev_info(dev, "========>unkanalwn crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -562,7 +562,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 
 		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
 		if (!new_crypt) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 		new_crypt->ops = ops;
@@ -589,7 +589,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		sec.active_key = idx;
 		sec.flags |= SEC_ACTIVE_KEY;
 	}
-	if (ext->alg != IW_ENCODE_ALG_NONE) {
+	if (ext->alg != IW_ENCODE_ALG_ANALNE) {
 		sec.key_sizes[idx] = ext->key_len;
 		sec.flags |= (1 << idx);
 		if (ext->alg == IW_ENCODE_ALG_WEP) {
@@ -620,7 +620,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 
 	if (ieee->link_state != MAC80211_LINKED)
-		return -ENOLINK;
+		return -EANALLINK;
 
 	mutex_lock(&ieee->wx_mutex);
 
@@ -634,7 +634,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 		else
 			netdev_info(ieee->dev, "dis associate packet!\n");
 
-		ieee->cannot_notify = true;
+		ieee->cananalt_analtify = true;
 
 		SendDisassociation(ieee, deauth, mlme->reason_code);
 		rtllib_disassociate(ieee);
@@ -649,7 +649,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 		break;
 	default:
 		mutex_unlock(&ieee->wx_mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_unlock(&ieee->wx_mutex);
@@ -668,7 +668,7 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
-		/* Host AP driver does not use these parameters and allows
+		/* Host AP driver does analt use these parameters and allows
 		 * wpa_supplicant to control them internally.
 		 */
 		break;
@@ -705,7 +705,7 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 		ieee->privacy_invoked = data->value;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -725,7 +725,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 			ieee->wps_ie_len = min_t(size_t, len, MAX_WZC_IE_LEN);
 			buf = kmemdup(ie, ieee->wps_ie_len, GFP_KERNEL);
 			if (!buf)
-				return -ENOMEM;
+				return -EANALMEM;
 			ieee->wps_ie = buf;
 			return 0;
 		}
@@ -738,7 +738,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 			return -EINVAL;
 		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;

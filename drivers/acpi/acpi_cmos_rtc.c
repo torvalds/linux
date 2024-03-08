@@ -61,7 +61,7 @@ int acpi_install_cmos_rtc_space_handler(acpi_handle handle)
 			NULL, NULL);
 	if (ACPI_FAILURE(status)) {
 		pr_err("Error installing CMOS-RTC region handler\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 1;

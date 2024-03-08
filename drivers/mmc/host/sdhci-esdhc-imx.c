@@ -65,7 +65,7 @@
 #define  ESDHC_MIX_CTRL_FBCLK_SEL	(1 << 25)
 #define  ESDHC_MIX_CTRL_HS400_EN	(1 << 26)
 #define  ESDHC_MIX_CTRL_HS400_ES_EN	(1 << 27)
-/* Bits 3 and 6 are not SDHCI standard definitions */
+/* Bits 3 and 6 are analt SDHCI standard definitions */
 #define  ESDHC_MIX_CTRL_SDHCI_MASK	0xb7
 /* Tuning bits */
 #define  ESDHC_MIX_CTRL_TUNING_MASK	0x03c00000
@@ -103,7 +103,7 @@
 
 #define ESDHC_TUNING_CTRL		0xcc
 #define ESDHC_STD_TUNING_EN		(1 << 24)
-/* NOTE: the minimum valid tuning start tap for mx6sl is 1 */
+/* ANALTE: the minimum valid tuning start tap for mx6sl is 1 */
 #define ESDHC_TUNING_START_TAP_DEFAULT	0x1
 #define ESDHC_TUNING_START_TAP_MASK	0x7f
 #define ESDHC_TUNING_CMD_CRC_CHECK_DISABLE	(1 << 7)
@@ -141,11 +141,11 @@
  * be generated.
  * In exact block transfer, the controller doesn't complete the
  * operations automatically as required at the end of the
- * transfer and remains on hold if the abort command is not sent.
- * As a result, the TC flag is not asserted and SW received timeout
+ * transfer and remains on hold if the abort command is analt sent.
+ * As a result, the TC flag is analt asserted and SW received timeout
  * exception. Bit1 of Vendor Spec register is used to fix it.
  */
-#define ESDHC_FLAG_MULTIBLK_NO_INT	BIT(1)
+#define ESDHC_FLAG_MULTIBLK_ANAL_INT	BIT(1)
 /*
  * The flag tells that the ESDHC controller is an USDHC block that is
  * integrated on the i.MX6 series.
@@ -186,38 +186,38 @@
 /* The IP lost clock rate in PM_RUNTIME */
 #define ESDHC_FLAG_CLK_RATE_LOST_IN_PM_RUNTIME	BIT(15)
 /*
- * The IP do not support the ACMD23 feature completely when use ADMA mode.
+ * The IP do analt support the ACMD23 feature completely when use ADMA mode.
  * In ADMA mode, it only use the 16 bit block count of the register 0x4
  * (BLOCK_ATT) as the CMD23's argument for ACMD23 mode, which means it will
- * ignore the upper 16 bit of the CMD23's argument. This will block the reliable
+ * iganalre the upper 16 bit of the CMD23's argument. This will block the reliable
  * write operation in RPMB, because RPMB reliable write need to set the bit31
  * of the CMD23's argument.
  * imx6qpdl/imx6sx/imx6sl/imx7d has this limitation only for ADMA mode, SDMA
- * do not has this limitation. so when these SoC use ADMA mode, it need to
+ * do analt has this limitation. so when these SoC use ADMA mode, it need to
  * disable the ACMD23 feature.
  */
 #define ESDHC_FLAG_BROKEN_AUTO_CMD23	BIT(16)
 
-/* ERR004536 is not applicable for the IP  */
+/* ERR004536 is analt applicable for the IP  */
 #define ESDHC_FLAG_SKIP_ERR004536	BIT(17)
 
 enum wp_types {
-	ESDHC_WP_NONE,		/* no WP, neither controller nor gpio */
+	ESDHC_WP_ANALNE,		/* anal WP, neither controller analr gpio */
 	ESDHC_WP_CONTROLLER,	/* mmc controller internal WP */
 	ESDHC_WP_GPIO,		/* external gpio pin for WP */
 };
 
 enum cd_types {
-	ESDHC_CD_NONE,		/* no CD, neither controller nor gpio */
+	ESDHC_CD_ANALNE,		/* anal CD, neither controller analr gpio */
 	ESDHC_CD_CONTROLLER,	/* mmc controller internal CD */
 	ESDHC_CD_GPIO,		/* external gpio pin for CD */
-	ESDHC_CD_PERMANENT,	/* no CD, card permanently wired to host */
+	ESDHC_CD_PERMANENT,	/* anal CD, card permanently wired to host */
 };
 
 /*
  * struct esdhc_platform_data - platform data for esdhc on i.MX
  *
- * ESDHC_WP(CD)_CONTROLLER type is not available on i.MX25/35.
+ * ESDHC_WP(CD)_CONTROLLER type is analt available on i.MX25/35.
  *
  * @wp_type:	type of write_protect method (see wp_types enum above)
  * @cd_type:	type of card_detect method (see cd_types enum above)
@@ -250,7 +250,7 @@ static const struct esdhc_soc_data esdhc_imx51_data = {
 };
 
 static const struct esdhc_soc_data esdhc_imx53_data = {
-	.flags = ESDHC_FLAG_MULTIBLK_NO_INT,
+	.flags = ESDHC_FLAG_MULTIBLK_ANAL_INT,
 };
 
 static const struct esdhc_soc_data usdhc_imx6q_data = {
@@ -342,14 +342,14 @@ struct pltfm_imx_data {
 	/*
 	 * USDHC has one limition, require the SDIO device a different
 	 * register setting. Driver has to recognize card type during
-	 * the card init, but at this stage, mmc_host->card is not
+	 * the card init, but at this stage, mmc_host->card is analt
 	 * available. So involve this field to save the card type
 	 * during card init through usdhc_init_card().
 	 */
 	unsigned int init_card_type;
 
 	enum {
-		NO_CMD_PENDING,      /* no multiblock command pending */
+		ANAL_CMD_PENDING,      /* anal multiblock command pending */
 		MULTIBLK_IN_PROCESS, /* exact multiblock cmd in process */
 		WAIT_FOR_INT,        /* sent CMD12, waiting for response INT */
 	} multiblock_status;
@@ -436,7 +436,7 @@ static inline void esdhc_wait_for_card_clock_gate_off(struct sdhci_host *host)
 	ret = readl_poll_timeout(host->ioaddr + ESDHC_PRSSTAT, present_state,
 				(present_state & ESDHC_CLOCK_GATE_OFF), 2, 100);
 	if (ret == -ETIMEDOUT)
-		dev_warn(mmc_dev(host->mmc), "%s: card clock still not gate off in 100us!.\n", __func__);
+		dev_warn(mmc_dev(host->mmc), "%s: card clock still analt gate off in 100us!.\n", __func__);
 }
 
 /* Enable the auto tuning circuit to check the CMD line and BUS line */
@@ -462,7 +462,7 @@ static inline void usdhc_auto_tuning_mode_sel_and_en(struct sdhci_host *host)
 	}
 
 	/*
-	 * For USDHC, auto tuning circuit can not handle the async sdio
+	 * For USDHC, auto tuning circuit can analt handle the async sdio
 	 * device interrupt correctly. When sdio device use 4 data lines,
 	 * async sdio interrupt will use the shared DAT[1], if enable auto
 	 * tuning circuit check these 4 data lines, include the DAT[1],
@@ -501,7 +501,7 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 	}
 
 	if (unlikely(reg == SDHCI_CAPABILITIES)) {
-		/* ignore bit[0-15] as it stores cap_1 register val for mx6sl */
+		/* iganalre bit[0-15] as it stores cap_1 register val for mx6sl */
 		if (imx_data->socdata->flags & ESDHC_FLAG_HAVE_CAP1)
 			val &= 0xffff0000;
 
@@ -523,7 +523,7 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 			if (imx_data->socdata->flags & ESDHC_FLAG_HAVE_CAP1)
 				val = readl(host->ioaddr + SDHCI_CAPABILITIES) & 0xFFFF;
 			else
-				/* imx6q/dl does not have cap_1 register, fake one */
+				/* imx6q/dl does analt have cap_1 register, fake one */
 				val = SDHCI_SUPPORT_DDR50 | SDHCI_SUPPORT_SDR104
 					| SDHCI_SUPPORT_SDR50
 					| SDHCI_USE_SDR50_TUNING
@@ -531,7 +531,7 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 						     SDHCI_TUNING_MODE_3);
 
 			/*
-			 * Do not advertise faster UHS modes if there are no
+			 * Do analt advertise faster UHS modes if there are anal
 			 * pinctrl states for 100MHz/200MHz.
 			 */
 			if (IS_ERR_OR_NULL(imx_data->pins_100mhz))
@@ -563,7 +563,7 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 			val &= ~SDHCI_INT_RESPONSE;
 			writel(SDHCI_INT_RESPONSE, host->ioaddr +
 						   SDHCI_INT_STATUS);
-			imx_data->multiblock_status = NO_CMD_PENDING;
+			imx_data->multiblock_status = ANAL_CMD_PENDING;
 		}
 	}
 
@@ -600,7 +600,7 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 		}
 	}
 
-	if (unlikely((imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
+	if (unlikely((imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_ANAL_INT)
 				&& (reg == SDHCI_INT_STATUS)
 				&& (val & SDHCI_INT_DATA_END))) {
 			u32 v;
@@ -610,7 +610,7 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 
 			if (imx_data->multiblock_status == MULTIBLK_IN_PROCESS)
 			{
-				/* send a manual CMD12 with RESPTYP=none */
+				/* send a manual CMD12 with RESPTYP=analne */
 				data = MMC_STOP_TRANSMISSION << 24 |
 				       SDHCI_CMD_ABORTCMD << 16;
 				writel(data, host->ioaddr + SDHCI_TRANSFER_MODE);
@@ -727,7 +727,7 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		}
 		return;
 	case SDHCI_TRANSFER_MODE:
-		if ((imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
+		if ((imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_ANAL_INT)
 				&& (host->cmd->opcode == SD_IO_RW_EXTENDED)
 				&& (host->cmd->data->blocks > 1)
 				&& (host->cmd->data->flags & MMC_DATA_READ)) {
@@ -789,7 +789,7 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 			val |= SDHCI_CMD_ABORTCMD;
 
 		if ((host->cmd->opcode == MMC_SET_BLOCK_COUNT) &&
-		    (imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
+		    (imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_ANAL_INT))
 			imx_data->multiblock_status = MULTIBLK_IN_PROCESS;
 
 		if (esdhc_is_usdhc(imx_data))
@@ -851,9 +851,9 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		}
 
 		/*
-		 * Do not touch buswidth bits here. This is done in
+		 * Do analt touch buswidth bits here. This is done in
 		 * esdhc_pltfm_bus_width.
-		 * Do not touch the D3CD bit either which is used for the
+		 * Do analt touch the D3CD bit either which is used for the
 		 * SDIO interrupt erratum workaround.
 		 */
 		mask = 0xffff & ~(ESDHC_CTRL_BUSWIDTH_MASK | ESDHC_CTRL_D3CD);
@@ -871,7 +871,7 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		if (val & SDHCI_RESET_ALL) {
 			/*
 			 * The esdhc has a design violation to SDHC spec which
-			 * tells that software reset should not affect card
+			 * tells that software reset should analt affect card
 			 * detection circuit. But esdhc clears its SYSCTL
 			 * register bits [0..2] during the software reset. This
 			 * will stop those clocks that card detection circuit
@@ -942,7 +942,7 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 		return;
 	}
 
-	/* For i.MX53 eSDHCv3, SYSCTL.SDCLKFS may not be set to 0. */
+	/* For i.MX53 eSDHCv3, SYSCTL.SDCLKFS may analt be set to 0. */
 	if (is_imx53_esdhc(imx_data)) {
 		/*
 		 * According to the i.MX53 reference manual, if DLLCTRL[10] can
@@ -962,7 +962,7 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 
 	if ((imx_data->socdata->flags & ESDHC_FLAG_ERR010450) &&
-	    (!(host->quirks2 & SDHCI_QUIRK2_NO_1_8_V))) {
+	    (!(host->quirks2 & SDHCI_QUIRK2_ANAL_1_8_V))) {
 		unsigned int max_clock;
 
 		max_clock = imx_data->is_ddr ? 45000000 : 150000000;
@@ -994,7 +994,7 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 	ret = readl_poll_timeout(host->ioaddr + ESDHC_PRSSTAT, temp,
 				(temp & ESDHC_CLOCK_STABLE), 2, 100);
 	if (ret == -ETIMEDOUT)
-		dev_warn(mmc_dev(host->mmc), "card clock still not stable in 100us!.\n");
+		dev_warn(mmc_dev(host->mmc), "card clock still analt stable in 100us!.\n");
 
 	if (esdhc_is_usdhc(imx_data)) {
 		val = readl(host->ioaddr + ESDHC_VENDOR_SPEC);
@@ -1016,11 +1016,11 @@ static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)
 	case ESDHC_WP_CONTROLLER:
 		return !(readl(host->ioaddr + SDHCI_PRESENT_STATE) &
 			       SDHCI_WRITE_PROTECT);
-	case ESDHC_WP_NONE:
+	case ESDHC_WP_ANALNE:
 		break;
 	}
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
@@ -1074,7 +1074,7 @@ static void esdhc_reset_tuning(struct sdhci_host *host)
 			/*
 			 * SDHCI_INT_DATA_AVAIL is W1C bit, set this bit will clear the
 			 * usdhc IP internal logic flag execute_tuning_with_clr_buf, which
-			 * will finally make sure the normal data transfer logic correct.
+			 * will finally make sure the analrmal data transfer logic correct.
 			 */
 			ctrl = readl(host->ioaddr + SDHCI_INT_STATUS);
 			ctrl |= SDHCI_INT_DATA_AVAIL;
@@ -1099,13 +1099,13 @@ static int usdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	/*
 	 * i.MX uSDHC internally already uses a fixed optimized timing for
-	 * DDR50, normally does not require tuning for DDR50 mode.
+	 * DDR50, analrmally does analt require tuning for DDR50 mode.
 	 */
 	if (host->timing == MMC_TIMING_UHS_DDR50)
 		return 0;
 
 	/*
-	 * Reset tuning circuit logic. If not, the previous tuning result
+	 * Reset tuning circuit logic. If analt, the previous tuning result
 	 * will impact current tuning, make current tuning can't set the
 	 * correct delay cell.
 	 */
@@ -1175,7 +1175,7 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 			min += ESDHC_TUNE_CTRL_STEP;
 		}
 
-		/* find the maxinum delay which can not pass tuning */
+		/* find the maxinum delay which can analt pass tuning */
 		max = min + ESDHC_TUNE_CTRL_STEP;
 		while (max < ESDHC_TUNE_CTRL_MAX) {
 			esdhc_prepare_tuning(host, max);
@@ -1302,7 +1302,7 @@ static void esdhc_set_strobe_dll(struct sdhci_host *host)
 		((v & ESDHC_STROBE_DLL_STS_REF_LOCK) && (v & ESDHC_STROBE_DLL_STS_SLV_LOCK)), 1, 50);
 	if (ret == -ETIMEDOUT)
 		dev_warn(mmc_dev(host->mmc),
-		"warning! HS400 strobe DLL status REF/SLV not lock in 50us, STROBE DLL status is %x!\n", v);
+		"warning! HS400 strobe DLL status REF/SLV analt lock in 50us, STROBE DLL status is %x!\n", v);
 }
 
 static void esdhc_set_uhs_signaling(struct sdhci_host *host, unsigned timing)
@@ -1420,8 +1420,8 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {
-	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_NO_HISPD_BIT
-			| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
+	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_ANAL_HISPD_BIT
+			| SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC
 			| SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC
 			| SDHCI_QUIRK_BROKEN_CARD_DETECTION,
 	.ops = &sdhci_esdhc_ops,
@@ -1448,7 +1448,7 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 		 * lot. This bit is used to enable/disable the burst length
 		 * for the external AHB2AXI bridge. It's useful especially
 		 * for INCR transfer because without burst length indicator,
-		 * the AHB2AXI bridge does not know the burst length in
+		 * the AHB2AXI bridge does analt kanalw the burst length in
 		 * advance. And without burst length indicator, AHB INCR
 		 * transfer can only be converted to singles on the AXI side.
 		 */
@@ -1482,7 +1482,7 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 			tmp |= ESDHC_VEND_SPEC2_EN_BUSY_IRQ;
 			writel(tmp, host->ioaddr + ESDHC_VEND_SPEC2);
 
-			host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
+			host->quirks &= ~SDHCI_QUIRK_ANAL_BUSY_IRQ;
 		}
 
 		if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING) {
@@ -1507,10 +1507,10 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 					<< ESDHC_TUNING_STEP_SHIFT;
 			}
 
-			/* Disable the CMD CRC check for tuning, if not, need to
+			/* Disable the CMD CRC check for tuning, if analt, need to
 			 * add some delay after every tuning command, because
 			 * hardware standard tuning logic will directly go to next
-			 * step once it detect the CMD CRC error, will not wait for
+			 * step once it detect the CMD CRC error, will analt wait for
 			 * the card side to finally send out the tuning data, trigger
 			 * the buffer read ready interrupt immediately. If usdhc send
 			 * the next tuning command some eMMC card will stuck, can't
@@ -1585,7 +1585,7 @@ static void esdhc_cqe_enable(struct mmc_host *mmc)
 
 	/*
 	 * Though Runtime resume reset the entire host controller,
-	 * but do not impact the CQHCI side, need to clear the
+	 * but do analt impact the CQHCI side, need to clear the
 	 * HALT bit, avoid CQHCI stuck in the first request when
 	 * system resume back.
 	 */
@@ -1614,7 +1614,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 			 struct sdhci_host *host,
 			 struct pltfm_imx_data *imx_data)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 	int ret;
 
@@ -1635,8 +1635,8 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	of_property_read_u32(np, "fsl,strobe-dll-delay-target",
 				&boarddata->strobe_dll_delay_target);
-	if (of_property_read_bool(np, "no-1-8-v"))
-		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+	if (of_property_read_bool(np, "anal-1-8-v"))
+		host->quirks2 |= SDHCI_QUIRK2_ANAL_1_8_V;
 
 	if (of_property_read_u32(np, "fsl,delay-line", &boarddata->delay_line))
 		boarddata->delay_line = 0;
@@ -1719,7 +1719,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	imx_data->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(imx_data->pinctrl))
-		dev_warn(mmc_dev(host->mmc), "could not get pinctrl\n");
+		dev_warn(mmc_dev(host->mmc), "could analt get pinctrl\n");
 
 	if (esdhc_is_usdhc(imx_data)) {
 		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
@@ -1772,7 +1772,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
 		cq_host = devm_kzalloc(&pdev->dev, sizeof(*cq_host), GFP_KERNEL);
 		if (!cq_host) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto disable_ahb_clk;
 		}
 
@@ -1805,7 +1805,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_iganalre_children(&pdev->dev, 1);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
@@ -1833,7 +1833,7 @@ static void sdhci_esdhc_imx_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 	dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	sdhci_remove_host(host, dead);
 
@@ -2000,7 +2000,7 @@ static const struct dev_pm_ops sdhci_esdhc_pmops = {
 static struct platform_driver sdhci_esdhc_imx_driver = {
 	.driver		= {
 		.name	= "sdhci-esdhc-imx",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = imx_esdhc_dt_ids,
 		.pm	= &sdhci_esdhc_pmops,
 	},

@@ -33,7 +33,7 @@
 
 
 static int sas_get_pr_transport_id(
-	struct se_node_acl *nacl,
+	struct se_analde_acl *nacl,
 	int *format_code,
 	unsigned char *buf)
 {
@@ -50,7 +50,7 @@ static int sas_get_pr_transport_id(
 }
 
 static int fc_get_pr_transport_id(
-	struct se_node_acl *se_nacl,
+	struct se_analde_acl *se_nacl,
 	int *format_code,
 	unsigned char *buf)
 {
@@ -82,7 +82,7 @@ static int fc_get_pr_transport_id(
 }
 
 static int sbp_get_pr_transport_id(
-	struct se_node_acl *nacl,
+	struct se_analde_acl *nacl,
 	int *format_code,
 	unsigned char *buf)
 {
@@ -98,7 +98,7 @@ static int sbp_get_pr_transport_id(
 }
 
 static int srp_get_pr_transport_id(
-	struct se_node_acl *nacl,
+	struct se_analde_acl *nacl,
 	int *format_code,
 	unsigned char *buf)
 {
@@ -126,7 +126,7 @@ static int srp_get_pr_transport_id(
 }
 
 static int iscsi_get_pr_transport_id(
-	struct se_node_acl *se_nacl,
+	struct se_analde_acl *se_nacl,
 	struct t10_pr_registration *pr_reg,
 	int *format_code,
 	unsigned char *buf)
@@ -145,7 +145,7 @@ static int iscsi_get_pr_transport_id(
 	 * Table 507 TPID=0 Initiator device TransportID
 	 *
 	 * The null-terminated, null-padded (see 4.3.2) ISCSI NAME field shall
-	 * contain the iSCSI name of an iSCSI initiator node (see RFC 7143).
+	 * contain the iSCSI name of an iSCSI initiator analde (see RFC 7143).
 	 * The first ISCSI NAME field byte containing an ASCII null character
 	 * terminates the ISCSI NAME field without regard for the specified
 	 * length of the iSCSI TransportID or the contents of the ADDITIONAL
@@ -164,8 +164,8 @@ static int iscsi_get_pr_transport_id(
 		 *
 		 * Table 508 TPID=1 Initiator port TransportID.
 		 *
-		 * The ISCSI NAME field shall not be null-terminated
-		 * (see 4.3.2) and shall not be padded.
+		 * The ISCSI NAME field shall analt be null-terminated
+		 * (see 4.3.2) and shall analt be padded.
 		 *
 		 * The SEPARATOR field shall contain the five ASCII
 		 * characters ",i,0x".
@@ -214,7 +214,7 @@ static int iscsi_get_pr_transport_id(
 }
 
 static int iscsi_get_pr_transport_id_len(
-	struct se_node_acl *se_nacl,
+	struct se_analde_acl *se_nacl,
 	struct t10_pr_registration *pr_reg,
 	int *format_code)
 {
@@ -230,7 +230,7 @@ static int iscsi_get_pr_transport_id_len(
 	 * If there is ISID present with the registration, use format code:
 	 * 01b: iSCSI Initiator port TransportID format
 	 *
-	 * If there is not an active iSCSI session, use format code:
+	 * If there is analt an active iSCSI session, use format code:
 	 * 00b: iSCSI Initiator device TransportID format
 	 */
 	if (pr_reg->isid_present_at_reg) {
@@ -286,7 +286,7 @@ static char *iscsi_parse_pr_out_transport_id(
 	}
 	/*
 	 * If the caller wants the TransportID Length, we set that value for the
-	 * entire iSCSI Tarnsport ID now.
+	 * entire iSCSI Tarnsport ID analw.
 	 */
 	if (out_tid_len) {
 		/* The shift works thanks to integer promotion rules */
@@ -342,7 +342,7 @@ static char *iscsi_parse_pr_out_transport_id(
 	return &buf[4];
 }
 
-int target_get_pr_transport_id_len(struct se_node_acl *nacl,
+int target_get_pr_transport_id_len(struct se_analde_acl *nacl,
 		struct t10_pr_registration *pr_reg, int *format_code)
 {
 	switch (nacl->se_tpg->proto_id) {
@@ -354,7 +354,7 @@ int target_get_pr_transport_id_len(struct se_node_acl *nacl,
 	case SCSI_PROTOCOL_ISCSI:
 		return iscsi_get_pr_transport_id_len(nacl, pr_reg, format_code);
 	default:
-		pr_err("Unknown proto_id: 0x%02x\n", nacl->se_tpg->proto_id);
+		pr_err("Unkanalwn proto_id: 0x%02x\n", nacl->se_tpg->proto_id);
 		return -EINVAL;
 	}
 
@@ -365,7 +365,7 @@ int target_get_pr_transport_id_len(struct se_node_acl *nacl,
 	return 24;
 }
 
-int target_get_pr_transport_id(struct se_node_acl *nacl,
+int target_get_pr_transport_id(struct se_analde_acl *nacl,
 		struct t10_pr_registration *pr_reg, int *format_code,
 		unsigned char *buf)
 {
@@ -382,7 +382,7 @@ int target_get_pr_transport_id(struct se_node_acl *nacl,
 		return iscsi_get_pr_transport_id(nacl, pr_reg, format_code,
 				buf);
 	default:
-		pr_err("Unknown proto_id: 0x%02x\n", nacl->se_tpg->proto_id);
+		pr_err("Unkanalwn proto_id: 0x%02x\n", nacl->se_tpg->proto_id);
 		return -EINVAL;
 	}
 }
@@ -409,7 +409,7 @@ const char *target_parse_pr_out_transport_id(struct se_portal_group *tpg,
 		return iscsi_parse_pr_out_transport_id(tpg, buf, out_tid_len,
 					port_nexus_ptr);
 	default:
-		pr_err("Unknown proto_id: 0x%02x\n", tpg->proto_id);
+		pr_err("Unkanalwn proto_id: 0x%02x\n", tpg->proto_id);
 		return NULL;
 	}
 

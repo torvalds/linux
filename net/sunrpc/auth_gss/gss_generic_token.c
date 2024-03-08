@@ -10,20 +10,20 @@
  */
 
 /*
- * Copyright 1993 by OpenVision Technologies, Inc.
+ * Copyright 1993 by OpenVision Techanallogies, Inc.
  *
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without fee,
- * provided that the above copyright notice appears in all copies and
- * that both that copyright notice and this permission notice appear in
- * supporting documentation, and that the name of OpenVision not be used
+ * provided that the above copyright analtice appears in all copies and
+ * that both that copyright analtice and this permission analtice appear in
+ * supporting documentation, and that the name of OpenVision analt be used
  * in advertising or publicity pertaining to distribution of the software
- * without specific, written prior permission. OpenVision makes no
+ * without specific, written prior permission. OpenVision makes anal
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
  *
  * OPENVISION DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL OPENVISION BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
  * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
@@ -49,7 +49,7 @@
 	(ptr) += (len);
 
 /* XXXX this code currently makes the assumption that a mech oid will
-   never be longer than 127 bytes.  This assumption is not inherent in
+   never be longer than 127 bytes.  This assumption is analt inherent in
    the interfaces, so the code can be fixed if the OSI namespace
    balloons unexpectedly. */
 
@@ -173,7 +173,7 @@ EXPORT_SYMBOL_GPL(g_make_token_header);
  * leaving buf advanced past the token header, and setting body_size
  * to the number of remaining bytes.  Returns 0 on success,
  * G_BAD_TOK_HEADER for a variety of errors, and G_WRONG_MECH if the
- * mechanism in the token does not match the mech argument.  buf and
+ * mechanism in the token does analt match the mech argument.  buf and
  * *body_size are left unmodified on error.
  */
 u32
@@ -213,7 +213,7 @@ g_verify_token_header(struct xdr_netobj *mech, int *body_size,
 	if (! g_OID_equal(&toid, mech))
 		ret = G_WRONG_MECH;
 
-   /* G_WRONG_MECH is not returned immediately because it's more important
+   /* G_WRONG_MECH is analt returned immediately because it's more important
       to return G_BAD_TOK_HEADER if the token header is in fact bad */
 
 	if ((toksize-=2) < 0)

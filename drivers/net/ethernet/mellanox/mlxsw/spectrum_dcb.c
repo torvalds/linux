@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2016-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/netdevice.h>
 #include <linux/string.h>
@@ -185,13 +185,13 @@ static int mlxsw_sp_dcbnl_app_validate(struct net_device *dev,
 
 	case IEEE_8021QAZ_APP_SEL_ETHERTYPE:
 		if (app->protocol) {
-			netdev_err(dev, "EtherType APP entries with protocol value != 0 not supported\n");
+			netdev_err(dev, "EtherType APP entries with protocol value != 0 analt supported\n");
 			return -EINVAL;
 		}
 		break;
 
 	default:
-		netdev_err(dev, "APP entries with selector %u not supported\n",
+		netdev_err(dev, "APP entries with selector %u analt supported\n",
 			   app->selector);
 		return -EINVAL;
 	}
@@ -381,9 +381,9 @@ static int mlxsw_sp_port_dcb_app_update(struct mlxsw_sp_port *mlxsw_sp_port)
 					     MLXSW_REG_QPTS_TRUST_STATE_DSCP);
 	if (err) {
 		/* A failure to set trust DSCP means that the QPDPM and QPDSM
-		 * maps installed above are not in effect. And since we are here
+		 * maps installed above are analt in effect. And since we are here
 		 * attempting to set trust DSCP, we couldn't have attempted to
-		 * switch trust to PCP. Thus no cleanup is necessary.
+		 * switch trust to PCP. Thus anal cleanup is necessary.
 		 */
 		netdev_err(mlxsw_sp_port->dev, "Couldn't switch to trust L3\n");
 		return err;
@@ -657,7 +657,7 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port->dcb.ets = kzalloc(sizeof(*mlxsw_sp_port->dcb.ets),
 					 GFP_KERNEL);
 	if (!mlxsw_sp_port->dcb.ets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxsw_sp_port->dcb.ets->ets_cap = IEEE_8021QAZ_MAX_TCS;
 
@@ -676,7 +676,7 @@ static int mlxsw_sp_port_maxrate_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port->dcb.maxrate = kmalloc(sizeof(*mlxsw_sp_port->dcb.maxrate),
 					     GFP_KERNEL);
 	if (!mlxsw_sp_port->dcb.maxrate)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 		mlxsw_sp_port->dcb.maxrate->tc_maxrate[i] = MLXSW_REG_QEEC_MAS_DIS;
@@ -694,7 +694,7 @@ static int mlxsw_sp_port_pfc_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port->dcb.pfc = kzalloc(sizeof(*mlxsw_sp_port->dcb.pfc),
 					 GFP_KERNEL);
 	if (!mlxsw_sp_port->dcb.pfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxsw_sp_port->dcb.pfc->pfc_cap = IEEE_8021QAZ_MAX_TCS;
 

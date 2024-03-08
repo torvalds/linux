@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <linux/linkage.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <asm/unistd.h>
 
@@ -11,15 +11,15 @@
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
 /*  we can't #include <linux/syscalls.h> here,
-    but tell gcc to not warn with -Wmissing-prototypes  */
+    but tell gcc to analt warn with -Wmissing-prototypes  */
 asmlinkage long sys_ni_syscall(void);
 
 /*
- * Non-implemented system calls get redirected here.
+ * Analn-implemented system calls get redirected here.
  */
 asmlinkage long sys_ni_syscall(void)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 #ifndef COND_SYSCALL
@@ -58,9 +58,9 @@ COND_SYSCALL(epoll_pwait);
 COND_SYSCALL_COMPAT(epoll_pwait);
 COND_SYSCALL(epoll_pwait2);
 COND_SYSCALL_COMPAT(epoll_pwait2);
-COND_SYSCALL(inotify_init1);
-COND_SYSCALL(inotify_add_watch);
-COND_SYSCALL(inotify_rm_watch);
+COND_SYSCALL(ianaltify_init1);
+COND_SYSCALL(ianaltify_add_watch);
+COND_SYSCALL(ianaltify_rm_watch);
 COND_SYSCALL(ioprio_set);
 COND_SYSCALL(ioprio_get);
 COND_SYSCALL(flock);
@@ -112,8 +112,8 @@ COND_SYSCALL(mq_timedsend);
 COND_SYSCALL(mq_timedsend_time32);
 COND_SYSCALL(mq_timedreceive);
 COND_SYSCALL(mq_timedreceive_time32);
-COND_SYSCALL(mq_notify);
-COND_SYSCALL_COMPAT(mq_notify);
+COND_SYSCALL(mq_analtify);
+COND_SYSCALL_COMPAT(mq_analtify);
 COND_SYSCALL(mq_getsetattr);
 COND_SYSCALL_COMPAT(mq_getsetattr);
 COND_SYSCALL(msgget);
@@ -194,7 +194,7 @@ COND_SYSCALL(get_mempolicy);
 COND_SYSCALL(set_mempolicy);
 COND_SYSCALL(migrate_pages);
 COND_SYSCALL(move_pages);
-COND_SYSCALL(set_mempolicy_home_node);
+COND_SYSCALL(set_mempolicy_home_analde);
 COND_SYSCALL(cachestat);
 
 COND_SYSCALL(perf_event_open);
@@ -222,9 +222,9 @@ COND_SYSCALL_COMPAT(setitimer);
  * Architecture specific syscalls: see further below
  */
 
-/* fanotify */
-COND_SYSCALL(fanotify_init);
-COND_SYSCALL(fanotify_mark);
+/* faanaltify */
+COND_SYSCALL(faanaltify_init);
+COND_SYSCALL(faanaltify_mark);
 
 /* open by handle */
 COND_SYSCALL(name_to_handle_at);
@@ -285,7 +285,7 @@ COND_SYSCALL(socketcall);
 COND_SYSCALL_COMPAT(socketcall);
 
 /* compat syscalls for arm64, x86, ... */
-COND_SYSCALL_COMPAT(fanotify_mark);
+COND_SYSCALL_COMPAT(faanaltify_mark);
 
 /* x86 */
 COND_SYSCALL(vm86old);
@@ -312,9 +312,9 @@ COND_SYSCALL(subpage_prot);
  * include/uapi/asm-generic/unistd.h and wanted by >= 1 arch
  */
 
-/* __ARCH_WANT_SYSCALL_NO_FLAGS */
+/* __ARCH_WANT_SYSCALL_ANAL_FLAGS */
 COND_SYSCALL(epoll_create);
-COND_SYSCALL(inotify_init);
+COND_SYSCALL(ianaltify_init);
 COND_SYSCALL(eventfd);
 COND_SYSCALL(signalfd);
 COND_SYSCALL_COMPAT(signalfd);
@@ -335,7 +335,7 @@ COND_SYSCALL(stime32);
 COND_SYSCALL(utime32);
 COND_SYSCALL(adjtimex_time32);
 COND_SYSCALL(sched_rr_get_interval_time32);
-COND_SYSCALL(nanosleep_time32);
+COND_SYSCALL(naanalsleep_time32);
 COND_SYSCALL(rt_sigtimedwait_time32);
 COND_SYSCALL_COMPAT(rt_sigtimedwait_time32);
 COND_SYSCALL(timer_settime32);
@@ -343,7 +343,7 @@ COND_SYSCALL(timer_gettime32);
 COND_SYSCALL(clock_settime32);
 COND_SYSCALL(clock_gettime32);
 COND_SYSCALL(clock_getres_time32);
-COND_SYSCALL(clock_nanosleep_time32);
+COND_SYSCALL(clock_naanalsleep_time32);
 COND_SYSCALL(utimes_time32);
 COND_SYSCALL(futimesat_time32);
 COND_SYSCALL(pselect6_time32);
@@ -354,7 +354,7 @@ COND_SYSCALL(utimensat_time32);
 COND_SYSCALL(clock_adjtime32);
 
 /*
- * The syscalls below are not found in include/uapi/asm-generic/unistd.h
+ * The syscalls below are analt found in include/uapi/asm-generic/unistd.h
  */
 
 /* obsolete: SGETMASK_SYSCALL */

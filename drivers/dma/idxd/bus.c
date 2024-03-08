@@ -13,7 +13,7 @@ int __idxd_driver_register(struct idxd_device_driver *idxd_drv, struct module *o
 	struct device_driver *drv = &idxd_drv->drv;
 
 	if (!idxd_drv->type) {
-		pr_debug("driver type not set (%ps)\n", __builtin_return_address(0));
+		pr_debug("driver type analt set (%ps)\n", __builtin_return_address(0));
 		return -EINVAL;
 	}
 
@@ -40,7 +40,7 @@ static int idxd_config_bus_match(struct device *dev,
 	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
 	int i = 0;
 
-	while (idxd_drv->type[i] != IDXD_DEV_NONE) {
+	while (idxd_drv->type[i] != IDXD_DEV_ANALNE) {
 		if (idxd_dev->type == idxd_drv->type[i])
 			return 1;
 		i++;

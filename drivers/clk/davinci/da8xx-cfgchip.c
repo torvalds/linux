@@ -2,7 +2,7 @@
 /*
  * Clock driver for DA8xx/AM17xx/AM18xx/OMAP-L13x CFGCHIP
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechanallogy.com>
  */
 
 #include <linux/clk-provider.h>
@@ -102,7 +102,7 @@ da8xx_cfgchip_gate_clk_register(struct device *dev,
 
 	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = info->name;
 	if (info->flags & DA8XX_GATE_CLOCK_IS_DIV4P5)
@@ -229,7 +229,7 @@ static u8 da8xx_cfgchip_mux_clk_get_parent(struct clk_hw *hw)
 }
 
 static const struct clk_ops da8xx_cfgchip_mux_clk_ops = {
-	.determine_rate	= clk_hw_determine_rate_no_reparent,
+	.determine_rate	= clk_hw_determine_rate_anal_reparent,
 	.set_parent	= da8xx_cfgchip_mux_clk_set_parent,
 	.get_parent	= da8xx_cfgchip_mux_clk_get_parent,
 };
@@ -246,7 +246,7 @@ da8xx_cfgchip_mux_clk_register(struct device *dev,
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = info->name;
 	init.ops = &da8xx_cfgchip_mux_clk_ops;
@@ -308,7 +308,7 @@ static int __init da850_cfgchip_register_async3(struct device *dev,
 
 	clk_hw_register_clkdev(&mux->hw, "async3", "da850-psc1");
 
-	/* pll1_sysclk2 is not affected by CPU scaling, so use it for async3 */
+	/* pll1_sysclk2 is analt affected by CPU scaling, so use it for async3 */
 	parent = clk_hw_get_parent_by_index(&mux->hw, 1);
 	if (parent)
 		clk_set_parent(mux->hw.clk, parent->clk);
@@ -382,7 +382,7 @@ static int da8xx_usb0_clk48_enable(struct clk_hw *hw)
 	 */
 	clk_enable(usb0->fck);
 
-	/* Turn on the USB 2.0 PHY, but just the PLL, and not OTG. The USB 1.1
+	/* Turn on the USB 2.0 PHY, but just the PLL, and analt OTG. The USB 1.1
 	 * PHY may use the USB 2.0 PLL clock without USB 2.0 OTG being used.
 	 */
 	mask = CFGCHIP2_RESET | CFGCHIP2_PHYPWRDN | CFGCHIP2_PHY_PLLON;
@@ -519,7 +519,7 @@ da8xx_cfgchip_register_usb0_clk48(struct device *dev,
 
 	usb0 = devm_kzalloc(dev, sizeof(*usb0), GFP_KERNEL);
 	if (!usb0)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = "usb0_clk48";
 	init.ops = &da8xx_usb0_clk48_ops;
@@ -567,7 +567,7 @@ static u8 da8xx_usb1_clk48_get_parent(struct clk_hw *hw)
 }
 
 static const struct clk_ops da8xx_usb1_clk48_ops = {
-	.determine_rate	= clk_hw_determine_rate_no_reparent,
+	.determine_rate	= clk_hw_determine_rate_anal_reparent,
 	.set_parent	= da8xx_usb1_clk48_set_parent,
 	.get_parent	= da8xx_usb1_clk48_get_parent,
 };
@@ -588,7 +588,7 @@ da8xx_cfgchip_register_usb1_clk48(struct device *dev,
 
 	usb1 = devm_kzalloc(dev, sizeof(*usb1), GFP_KERNEL);
 	if (!usb1)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = "usb1_clk48";
 	init.ops = &da8xx_usb1_clk48_ops;
@@ -655,7 +655,7 @@ static int of_da8xx_usb_phy_clk_init(struct device *dev, struct regmap *regmap)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, 2),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = 2;
 
@@ -667,7 +667,7 @@ static int of_da8xx_usb_phy_clk_init(struct device *dev, struct regmap *regmap)
 		dev_warn(dev, "Failed to register usb0_clk48 (%ld)\n",
 			 PTR_ERR(usb0));
 
-		clk_data->hws[0] = ERR_PTR(-ENOENT);
+		clk_data->hws[0] = ERR_PTR(-EANALENT);
 	} else {
 		clk_data->hws[0] = &usb0->hw;
 	}
@@ -680,7 +680,7 @@ static int of_da8xx_usb_phy_clk_init(struct device *dev, struct regmap *regmap)
 		dev_warn(dev, "Failed to register usb1_clk48 (%ld)\n",
 			 PTR_ERR(usb1));
 
-		clk_data->hws[1] = ERR_PTR(-ENOENT);
+		clk_data->hws[1] = ERR_PTR(-EANALENT);
 	} else {
 		clk_data->hws[1] = &usb1->hw;
 	}
@@ -749,11 +749,11 @@ static int da8xx_cfgchip_probe(struct platform_device *pdev)
 
 	clk_init = device_get_match_data(dev);
 	if (clk_init) {
-		struct device_node *parent;
+		struct device_analde *parent;
 
-		parent = of_get_parent(dev->of_node);
-		regmap = syscon_node_to_regmap(parent);
-		of_node_put(parent);
+		parent = of_get_parent(dev->of_analde);
+		regmap = syscon_analde_to_regmap(parent);
+		of_analde_put(parent);
 	} else if (pdev->id_entry && pdata) {
 		clk_init = (void *)pdev->id_entry->driver_data;
 		regmap = pdata->cfgchip;
@@ -765,8 +765,8 @@ static int da8xx_cfgchip_probe(struct platform_device *pdev)
 	}
 
 	if (IS_ERR_OR_NULL(regmap)) {
-		dev_err(dev, "no regmap for CFGCHIP syscon\n");
-		return regmap ? PTR_ERR(regmap) : -ENOENT;
+		dev_err(dev, "anal regmap for CFGCHIP syscon\n");
+		return regmap ? PTR_ERR(regmap) : -EANALENT;
 	}
 
 	return clk_init(dev, regmap);

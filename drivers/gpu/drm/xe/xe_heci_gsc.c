@@ -136,13 +136,13 @@ static int heci_gsc_add_device(struct xe_device *xe, const struct heci_gsc_def *
 
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->irq = heci_gsc->irq;
 	adev->bar.parent = &pdev->resource[0];
 	adev->bar.start = def->bar + pdev->resource[0].start;
 	adev->bar.end = adev->bar.start + def->bar_size - 1;
 	adev->bar.flags = IORESOURCE_MEM;
-	adev->bar.desc = IORES_DESC_NONE;
+	adev->bar.desc = IORES_DESC_ANALNE;
 	adev->slow_firmware = def->slow_firmware;
 
 	aux_dev = &adev->aux_dev;
@@ -159,7 +159,7 @@ static int heci_gsc_add_device(struct xe_device *xe, const struct heci_gsc_def *
 		return ret;
 	}
 
-	heci_gsc->adev = adev; /* needed by the notifier */
+	heci_gsc->adev = adev; /* needed by the analtifier */
 	ret = auxiliary_device_add(aux_dev);
 	if (ret < 0) {
 		drm_err(&xe->drm, "gsc aux add failed %d\n", ret);
@@ -189,12 +189,12 @@ void xe_heci_gsc_init(struct xe_device *xe)
 	} else if (xe->info.platform == XE_DG1) {
 		def = &heci_gsc_def_dg1;
 	} else {
-		drm_warn_once(&xe->drm, "Unknown platform\n");
+		drm_warn_once(&xe->drm, "Unkanalwn platform\n");
 		return;
 	}
 
 	if (!def->name) {
-		drm_warn_once(&xe->drm, "HECI is not implemented!\n");
+		drm_warn_once(&xe->drm, "HECI is analt implemented!\n");
 		return;
 	}
 
@@ -221,7 +221,7 @@ void xe_heci_gsc_irq_handler(struct xe_device *xe, u32 iir)
 		return;
 
 	if (!HAS_HECI_GSCFI(xe)) {
-		drm_warn_once(&xe->drm, "GSC irq: not supported");
+		drm_warn_once(&xe->drm, "GSC irq: analt supported");
 		return;
 	}
 

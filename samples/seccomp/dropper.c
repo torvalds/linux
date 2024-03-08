@@ -9,12 +9,12 @@
  * and can serve as a starting point for developing
  * applications using prctl(PR_SET_SECCOMP, 2, ...).
  *
- * When run, returns the specified errno for the specified
+ * When run, returns the specified erranal for the specified
  * system call number against the given architecture.
  *
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
@@ -35,7 +35,7 @@ static int install_filter(int arch, int nr, int error)
 			 (offsetof(struct seccomp_data, nr))),
 		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, nr, 0, 1),
 		BPF_STMT(BPF_RET+BPF_K,
-			 SECCOMP_RET_ERRNO|(error & SECCOMP_RET_DATA)),
+			 SECCOMP_RET_ERRANAL|(error & SECCOMP_RET_DATA)),
 		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
 	};
 	struct sock_fprog prog = {
@@ -46,8 +46,8 @@ static int install_filter(int arch, int nr, int error)
 		struct sock_filter kill = BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL);
 		filter[4] = kill;
 	}
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		perror("prctl(NO_NEW_PRIVS)");
+	if (prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0)) {
+		perror("prctl(ANAL_NEW_PRIVS)");
 		return 1;
 	}
 	if (prctl(PR_SET_SECCOMP, 2, &prog)) {
@@ -61,10 +61,10 @@ int main(int argc, char **argv)
 {
 	if (argc < 5) {
 		fprintf(stderr, "Usage:\n"
-			"dropper <arch> <syscall_nr> <errno> <prog> [<args>]\n"
+			"dropper <arch> <syscall_nr> <erranal> <prog> [<args>]\n"
 			"Hint:	AUDIT_ARCH_I386: 0x%X\n"
 			"	AUDIT_ARCH_X86_64: 0x%X\n"
-			"	errno == -1 means SECCOMP_RET_KILL\n"
+			"	erranal == -1 means SECCOMP_RET_KILL\n"
 			"\n", AUDIT_ARCH_I386, AUDIT_ARCH_X86_64);
 		return 1;
 	}

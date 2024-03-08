@@ -106,16 +106,16 @@ static ssize_t bConfigurationValue_store(struct device *dev,
 	usb_unlock_device(udev);
 	return (value < 0) ? value : count;
 }
-static DEVICE_ATTR_IGNORE_LOCKDEP(bConfigurationValue, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR_IGANALRE_LOCKDEP(bConfigurationValue, S_IRUGO | S_IWUSR,
 		bConfigurationValue_show, bConfigurationValue_store);
 
 #ifdef CONFIG_OF
 static ssize_t devspec_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 
-	return sysfs_emit(buf, "%pOF\n", of_node);
+	return sysfs_emit(buf, "%pOF\n", of_analde);
 }
 static DEVICE_ATTR_RO(devspec);
 #endif
@@ -154,7 +154,7 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 	case USB_SPEED_LOW:
 		speed = "1.5";
 		break;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 	case USB_SPEED_FULL:
 		speed = "12";
 		break;
@@ -171,7 +171,7 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 			speed = "10000";
 		break;
 	default:
-		speed = "unknown";
+		speed = "unkanalwn";
 	}
 	return sysfs_emit(buf, "%s\n", speed);
 }
@@ -303,8 +303,8 @@ static ssize_t ltm_capable_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	if (usb_device_supports_ltm(to_usb_device(dev)))
-		return sysfs_emit(buf, "%s\n", "yes");
-	return sysfs_emit(buf, "%s\n", "no");
+		return sysfs_emit(buf, "%s\n", "anal");
+	return sysfs_emit(buf, "%s\n", "anal");
 }
 static DEVICE_ATTR_RO(ltm_capable);
 
@@ -348,7 +348,7 @@ static int add_persist_attributes(struct device *dev)
 		struct usb_device *udev = to_usb_device(dev);
 
 		/* Hubs are automatically enabled for USB_PERSIST,
-		 * no point in creating the attribute file.
+		 * anal point in creating the attribute file.
 		 */
 		if (udev->descriptor.bDeviceClass != USB_CLASS_HUB)
 			rc = sysfs_add_file_to_group(&dev->kobj,
@@ -720,7 +720,7 @@ usb_descriptor_attr(bNumConfigurations, "%d\n");
 usb_descriptor_attr(bMaxPacketSize0, "%d\n");
 
 
-/* show if the device is authorized (1) or not (0) */
+/* show if the device is authorized (1) or analt (0) */
 static ssize_t authorized_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -749,7 +749,7 @@ static ssize_t authorized_store(struct device *dev,
 		result = usb_authorize_device(usb_dev);
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR_IGNORE_LOCKDEP(authorized, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR_IGANALRE_LOCKDEP(authorized, S_IRUGO | S_IWUSR,
 				  authorized_show, authorized_store);
 
 /* "Safely remove a device" */
@@ -760,7 +760,7 @@ static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
 	int rc = 0;
 
 	usb_lock_device(udev);
-	if (udev->state != USB_STATE_NOTATTACHED) {
+	if (udev->state != USB_STATE_ANALTATTACHED) {
 
 		/* To avoid races, first unconfigure and then remove */
 		usb_set_configuration(udev, -1);
@@ -771,7 +771,7 @@ static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
 	usb_unlock_device(udev);
 	return rc;
 }
-static DEVICE_ATTR_IGNORE_LOCKDEP(remove, S_IWUSR, NULL, remove_store);
+static DEVICE_ATTR_IGANALRE_LOCKDEP(remove, S_IWUSR, NULL, remove_store);
 
 
 static struct attribute *dev_attrs[] = {
@@ -864,21 +864,21 @@ read_descriptors(struct file *filp, struct kobject *kobj,
 	struct usb_device *udev = to_usb_device(dev);
 	size_t nleft = count;
 	size_t srclen, n;
-	int cfgno;
+	int cfganal;
 	void *src;
 
 	/* The binary attribute begins with the device descriptor.
 	 * Following that are the raw descriptor entries for all the
 	 * configurations (config plus subsidiary descriptors).
 	 */
-	for (cfgno = -1; cfgno < udev->descriptor.bNumConfigurations &&
-			nleft > 0; ++cfgno) {
-		if (cfgno < 0) {
+	for (cfganal = -1; cfganal < udev->descriptor.bNumConfigurations &&
+			nleft > 0; ++cfganal) {
+		if (cfganal < 0) {
 			src = &udev->descriptor;
 			srclen = sizeof(struct usb_device_descriptor);
 		} else {
-			src = udev->rawdescriptors[cfgno];
-			srclen = __le16_to_cpu(udev->config[cfgno].desc.
+			src = udev->rawdescriptors[cfganal];
+			srclen = __le16_to_cpu(udev->config[cfganal].desc.
 					wTotalLength);
 		}
 		if (off < srclen) {
@@ -941,7 +941,7 @@ static DEVICE_ATTR_RW(authorized_default);
  * interface_authorized_default_show - show default authorization status
  * for USB interfaces
  *
- * note: interface_authorized_default is the default value
+ * analte: interface_authorized_default is the default value
  *       for initializing the authorized attribute of interfaces
  */
 static ssize_t interface_authorized_default_show(struct device *dev,
@@ -957,7 +957,7 @@ static ssize_t interface_authorized_default_show(struct device *dev,
  * interface_authorized_default_store - store default authorization status
  * for USB interfaces
  *
- * note: interface_authorized_default is the default value
+ * analte: interface_authorized_default is the default value
  *       for initializing the authorized attribute of interfaces
  */
 static ssize_t interface_authorized_default_store(struct device *dev,
@@ -1267,7 +1267,7 @@ int usb_update_wireless_status_attr(struct usb_interface *intf)
 	if (ret < 0)
 		return ret;
 
-	sysfs_notify(&dev->kobj, NULL, "wireless_status");
+	sysfs_analtify(&dev->kobj, NULL, "wireless_status");
 	kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 
 	return 0;
@@ -1291,8 +1291,8 @@ void usb_create_sysfs_intf_files(struct usb_interface *intf)
 	if (!alt->string && !(udev->quirks & USB_QUIRK_CONFIG_INTF_STRINGS))
 		alt->string = usb_cache_string(udev, alt->desc.iInterface);
 	if (alt->string && device_create_file(&intf->dev, &dev_attr_interface)) {
-		/* This is not a serious error */
-		dev_dbg(&intf->dev, "interface string descriptor file not created\n");
+		/* This is analt a serious error */
+		dev_dbg(&intf->dev, "interface string descriptor file analt created\n");
 	}
 	intf->sysfs_files_created = 1;
 }

@@ -34,7 +34,7 @@ sysfs_gt_attribute_w_func(struct kobject *kobj, struct attribute *attr,
 	if (!is_object_gt(kobj)) {
 		int i;
 		struct device *dev = kobj_to_dev(kobj);
-		struct drm_i915_private *i915 = kdev_minor_to_i915(dev);
+		struct drm_i915_private *i915 = kdev_mianalr_to_i915(dev);
 
 		for_each_gt(gt, i915, i) {
 			ret = func(gt, val);
@@ -62,7 +62,7 @@ sysfs_gt_attribute_r_func(struct kobject *kobj, struct attribute *attr,
 	if (!is_object_gt(kobj)) {
 		int i;
 		struct device *dev = kobj_to_dev(kobj);
-		struct drm_i915_private *i915 = kdev_minor_to_i915(dev);
+		struct drm_i915_private *i915 = kdev_mianalr_to_i915(dev);
 
 		for_each_gt(gt, i915, i) {
 			u32 val = func(gt);
@@ -308,7 +308,7 @@ static void intel_sysfs_rc6_init(struct intel_gt *gt, struct kobject *kobj)
 		gt_warn(gt, "failed to create RC6 sysfs files (%pe)\n", ERR_PTR(ret));
 
 	/*
-	 * cannot use the is_visible() attribute because
+	 * cananalt use the is_visible() attribute because
 	 * the upper object inherits from the parent group.
 	 */
 	if (HAS_RC6p(gt->i915)) {
@@ -451,17 +451,17 @@ static ssize_t punit_req_freq_mhz_show(struct kobject *kobj,
 	return sysfs_emit(buff, "%u\n", preq);
 }
 
-static ssize_t slpc_ignore_eff_freq_show(struct kobject *kobj,
+static ssize_t slpc_iganalre_eff_freq_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *buff)
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(kobj, attr->attr.name);
 	struct intel_guc_slpc *slpc = &gt->uc.guc.slpc;
 
-	return sysfs_emit(buff, "%u\n", slpc->ignore_eff_freq);
+	return sysfs_emit(buff, "%u\n", slpc->iganalre_eff_freq);
 }
 
-static ssize_t slpc_ignore_eff_freq_store(struct kobject *kobj,
+static ssize_t slpc_iganalre_eff_freq_store(struct kobject *kobj,
 					  struct kobj_attribute *attr,
 					  const char *buff, size_t count)
 {
@@ -474,7 +474,7 @@ static ssize_t slpc_ignore_eff_freq_store(struct kobject *kobj,
 	if (err)
 		return err;
 
-	err = intel_guc_slpc_set_ignore_eff_freq(slpc, val);
+	err = intel_guc_slpc_set_iganalre_eff_freq(slpc, val);
 	return err ?: count;
 }
 
@@ -546,10 +546,10 @@ static const struct attribute *throttle_reason_attrs[] = {
  * 2. File <attr>.scale contains the multiplicative scale factor to be
  *    used by userspace to compute the actual value.
  *
- * So userspace knows that to get the frequency_factor it multiplies the
+ * So userspace kanalws that to get the frequency_factor it multiplies the
  * provided value by the specified scale factor and vice-versa.
  *
- * That way there is no precision loss in the kernel interface and API
+ * That way there is anal precision loss in the kernel interface and API
  * is future proof should one day the hardware register change to u16.u16,
  * on some platform. (Or any other fixed point representation.)
  *
@@ -598,7 +598,7 @@ static ssize_t media_freq_factor_show(struct kobject *kobj,
 	if (IS_XEHPSDV(gt->i915) &&
 	    slpc->media_ratio_mode == SLPC_MEDIA_RATIO_MODE_DYNAMIC_CONTROL) {
 		/*
-		 * For XEHPSDV dynamic mode GEN6_RPNSWREQ:13 does not contain
+		 * For XEHPSDV dynamic mode GEN6_RPNSWREQ:13 does analt contain
 		 * the media_ratio_mode, just return the cached media ratio
 		 */
 		mode = slpc->media_ratio_mode;
@@ -690,7 +690,7 @@ static struct kobj_attribute attr_media_freq_factor_scale =
 INTEL_GT_ATTR_RO(media_RP0_freq_mhz);
 INTEL_GT_ATTR_RO(media_RPn_freq_mhz);
 
-INTEL_GT_ATTR_RW(slpc_ignore_eff_freq);
+INTEL_GT_ATTR_RW(slpc_iganalre_eff_freq);
 
 static const struct attribute *media_perf_power_attrs[] = {
 	&attr_media_freq_factor.attr,
@@ -882,9 +882,9 @@ void intel_gt_sysfs_pm_init(struct intel_gt *gt, struct kobject *kobj)
 		gt_warn(gt, "failed to create punit_req_freq_mhz sysfs (%pe)", ERR_PTR(ret));
 
 	if (intel_uc_uses_guc_slpc(&gt->uc)) {
-		ret = sysfs_create_file(kobj, &attr_slpc_ignore_eff_freq.attr);
+		ret = sysfs_create_file(kobj, &attr_slpc_iganalre_eff_freq.attr);
 		if (ret)
-			gt_warn(gt, "failed to create ignore_eff_freq sysfs (%pe)", ERR_PTR(ret));
+			gt_warn(gt, "failed to create iganalre_eff_freq sysfs (%pe)", ERR_PTR(ret));
 	}
 
 	if (i915_mmio_reg_valid(intel_gt_perf_limit_reasons_reg(gt))) {

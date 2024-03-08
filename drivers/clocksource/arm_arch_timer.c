@@ -54,7 +54,7 @@
 #define CNTV_CTL	0x3c
 
 /*
- * The minimum amount of time a generic counter is guaranteed to not roll over
+ * The minimum amount of time a generic counter is guaranteed to analt roll over
  * (40 years)
  */
 #define MIN_ROLLOVER_SECS	(40ULL * 365 * 24 * 3600)
@@ -75,7 +75,7 @@ static int arch_timer_ppi[ARCH_TIMER_MAX_TIMER_PPI] __ro_after_init;
 
 static const char *arch_timer_ppi_names[ARCH_TIMER_MAX_TIMER_PPI] = {
 	[ARCH_TIMER_PHYS_SECURE_PPI]	= "sec-phys",
-	[ARCH_TIMER_PHYS_NONSECURE_PPI]	= "phys",
+	[ARCH_TIMER_PHYS_ANALNSECURE_PPI]	= "phys",
 	[ARCH_TIMER_VIRT_PPI]		= "virt",
 	[ARCH_TIMER_HYP_PPI]		= "hyp-phys",
 	[ARCH_TIMER_HYP_VIRT_PPI]	= "hyp-virt",
@@ -90,10 +90,10 @@ static bool arch_counter_suspend_stop __ro_after_init;
 #ifdef CONFIG_GENERIC_GETTIMEOFDAY
 static enum vdso_clock_mode vdso_default = VDSO_CLOCKMODE_ARCHTIMER;
 #else
-static enum vdso_clock_mode vdso_default = VDSO_CLOCKMODE_NONE;
+static enum vdso_clock_mode vdso_default = VDSO_CLOCKMODE_ANALNE;
 #endif /* CONFIG_GENERIC_GETTIMEOFDAY */
 
-static cpumask_t evtstrm_available = CPU_MASK_NONE;
+static cpumask_t evtstrm_available = CPU_MASK_ANALNE;
 static bool evtstrm_enable __ro_after_init = IS_ENABLED(CONFIG_ARM_ARCH_TIMER_EVTSTREAM);
 
 static int __init early_evtstrm_cfg(char *buf)
@@ -104,9 +104,9 @@ early_param("clocksource.arm_arch_timer.evtstrm", early_evtstrm_cfg);
 
 /*
  * Makes an educated guess at a valid counter width based on the Generic Timer
- * specification. Of note:
+ * specification. Of analte:
  *   1) the system counter is at least 56 bits wide
- *   2) a roll-over time of not less than 40 years
+ *   2) a roll-over time of analt less than 40 years
  *
  * See 'ARM DDI 0487G.a D11.1.2 ("The system counter")' for more details.
  */
@@ -134,7 +134,7 @@ void arch_timer_reg_write(int access, enum arch_timer_reg reg, u64 val,
 			break;
 		case ARCH_TIMER_REG_CVAL:
 			/*
-			 * Not guaranteed to be atomic, so the timer
+			 * Analt guaranteed to be atomic, so the timer
 			 * must be disabled at this point.
 			 */
 			writeq_relaxed(val, timer->base + CNTP_CVAL_LO);
@@ -191,40 +191,40 @@ u32 arch_timer_reg_read(int access, enum arch_timer_reg reg,
 	return val;
 }
 
-static noinstr u64 raw_counter_get_cntpct_stable(void)
+static analinstr u64 raw_counter_get_cntpct_stable(void)
 {
 	return __arch_counter_get_cntpct_stable();
 }
 
-static notrace u64 arch_counter_get_cntpct_stable(void)
+static analtrace u64 arch_counter_get_cntpct_stable(void)
 {
 	u64 val;
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 	val = __arch_counter_get_cntpct_stable();
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 	return val;
 }
 
-static noinstr u64 arch_counter_get_cntpct(void)
+static analinstr u64 arch_counter_get_cntpct(void)
 {
 	return __arch_counter_get_cntpct();
 }
 
-static noinstr u64 raw_counter_get_cntvct_stable(void)
+static analinstr u64 raw_counter_get_cntvct_stable(void)
 {
 	return __arch_counter_get_cntvct_stable();
 }
 
-static notrace u64 arch_counter_get_cntvct_stable(void)
+static analtrace u64 arch_counter_get_cntvct_stable(void)
 {
 	u64 val;
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 	val = __arch_counter_get_cntvct_stable();
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 	return val;
 }
 
-static noinstr u64 arch_counter_get_cntvct(void)
+static analinstr u64 arch_counter_get_cntvct(void)
 {
 	return __arch_counter_get_cntvct();
 }
@@ -285,12 +285,12 @@ struct ate_acpi_oem_info {
 	_new;						\
 })
 
-static u64 notrace fsl_a008585_read_cntpct_el0(void)
+static u64 analtrace fsl_a008585_read_cntpct_el0(void)
 {
 	return __fsl_a008585_read_reg(cntpct_el0);
 }
 
-static u64 notrace fsl_a008585_read_cntvct_el0(void)
+static u64 analtrace fsl_a008585_read_cntvct_el0(void)
 {
 	return __fsl_a008585_read_reg(cntvct_el0);
 }
@@ -300,8 +300,8 @@ static u64 notrace fsl_a008585_read_cntvct_el0(void)
 /*
  * Verify whether the value of the second read is larger than the first by
  * less than 32 is the only way to confirm the value is correct, so clear the
- * lower 5 bits to check whether the difference is greater than 32 or not.
- * Theoretically the erratum should not occur more than twice in succession
+ * lower 5 bits to check whether the difference is greater than 32 or analt.
+ * Theoretically the erratum should analt occur more than twice in succession
  * when reading the system counter, but it is possible that some interrupts
  * may lead to more than twice read errors, triggering the warning, so setting
  * the number of retries far beyond the number of iterations the loop has been
@@ -321,19 +321,19 @@ static u64 notrace fsl_a008585_read_cntvct_el0(void)
 	_new;							\
 })
 
-static u64 notrace hisi_161010101_read_cntpct_el0(void)
+static u64 analtrace hisi_161010101_read_cntpct_el0(void)
 {
 	return __hisi_161010101_read_reg(cntpct_el0);
 }
 
-static u64 notrace hisi_161010101_read_cntvct_el0(void)
+static u64 analtrace hisi_161010101_read_cntvct_el0(void)
 {
 	return __hisi_161010101_read_reg(cntvct_el0);
 }
 
 static struct ate_acpi_oem_info hisi_161010101_oem_info[] = {
 	/*
-	 * Note that trailing spaces are required to properly match
+	 * Analte that trailing spaces are required to properly match
 	 * the OEM table information.
 	 */
 	{
@@ -356,7 +356,7 @@ static struct ate_acpi_oem_info hisi_161010101_oem_info[] = {
 #endif
 
 #ifdef CONFIG_ARM64_ERRATUM_858921
-static u64 notrace arm64_858921_read_cntpct_el0(void)
+static u64 analtrace arm64_858921_read_cntpct_el0(void)
 {
 	u64 old, new;
 
@@ -365,7 +365,7 @@ static u64 notrace arm64_858921_read_cntpct_el0(void)
 	return (((old ^ new) >> 32) & 1) ? old : new;
 }
 
-static u64 notrace arm64_858921_read_cntvct_el0(void)
+static u64 analtrace arm64_858921_read_cntvct_el0(void)
 {
 	u64 old, new;
 
@@ -375,11 +375,11 @@ static u64 notrace arm64_858921_read_cntvct_el0(void)
 }
 #endif
 
-#ifdef CONFIG_SUN50I_ERRATUM_UNKNOWN1
+#ifdef CONFIG_SUN50I_ERRATUM_UNKANALWN1
 /*
  * The low bits of the counter registers are indeterminate while bit 10 or
  * greater is rolling over. Since the counter value can jump both backward
- * (7ff -> 000 -> 800) and forward (7ff -> fff -> 800), ignore register values
+ * (7ff -> 000 -> 800) and forward (7ff -> fff -> 800), iganalre register values
  * with all ones or all zeros in the low bits. Bound the loop by the maximum
  * number of CPU cycles in 3 consecutive 24 MHz counter periods.
  */
@@ -396,12 +396,12 @@ static u64 notrace arm64_858921_read_cntvct_el0(void)
 	_val;								\
 })
 
-static u64 notrace sun50i_a64_read_cntpct_el0(void)
+static u64 analtrace sun50i_a64_read_cntpct_el0(void)
 {
 	return __sun50i_a64_read_reg(cntpct_el0);
 }
 
-static u64 notrace sun50i_a64_read_cntvct_el0(void)
+static u64 analtrace sun50i_a64_read_cntvct_el0(void)
 {
 	return __sun50i_a64_read_reg(cntvct_el0);
 }
@@ -496,11 +496,11 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.set_next_event_virt = erratum_set_next_event_virt,
 	},
 #endif
-#ifdef CONFIG_SUN50I_ERRATUM_UNKNOWN1
+#ifdef CONFIG_SUN50I_ERRATUM_UNKANALWN1
 	{
 		.match_type = ate_match_dt,
-		.id = "allwinner,erratum-unknown1",
-		.desc = "Allwinner erratum UNKNOWN1",
+		.id = "allwinner,erratum-unkanalwn1",
+		.desc = "Allwinner erratum UNKANALWN1",
 		.read_cntpct_el0 = sun50i_a64_read_cntpct_el0,
 		.read_cntvct_el0 = sun50i_a64_read_cntvct_el0,
 		.set_next_event_phys = erratum_set_next_event_phys,
@@ -524,7 +524,7 @@ static
 bool arch_timer_check_dt_erratum(const struct arch_timer_erratum_workaround *wa,
 				 const void *arg)
 {
-	const struct device_node *np = arg;
+	const struct device_analde *np = arg;
 
 	return of_property_read_bool(np, wa->id);
 }
@@ -599,10 +599,10 @@ void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa
 	 * change both the default value and the vdso itself.
 	 */
 	if (wa->read_cntvct_el0) {
-		clocksource_counter.vdso_clock_mode = VDSO_CLOCKMODE_NONE;
-		vdso_default = VDSO_CLOCKMODE_NONE;
-	} else if (wa->disable_compat_vdso && vdso_default != VDSO_CLOCKMODE_NONE) {
-		vdso_default = VDSO_CLOCKMODE_ARCHTIMER_NOCOMPAT;
+		clocksource_counter.vdso_clock_mode = VDSO_CLOCKMODE_ANALNE;
+		vdso_default = VDSO_CLOCKMODE_ANALNE;
+	} else if (wa->disable_compat_vdso && vdso_default != VDSO_CLOCKMODE_ANALNE) {
+		vdso_default = VDSO_CLOCKMODE_ARCHTIMER_ANALCOMPAT;
 		clocksource_counter.vdso_clock_mode = vdso_default;
 	}
 }
@@ -675,7 +675,7 @@ static __always_inline irqreturn_t timer_handler(const int access,
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t arch_timer_handler_virt(int irq, void *dev_id)
@@ -771,7 +771,7 @@ static int arch_timer_set_next_event_phys(unsigned long evt,
 	return 0;
 }
 
-static noinstr u64 arch_counter_get_cnt_mem(struct arch_timer *t, int offset_lo)
+static analinstr u64 arch_counter_get_cnt_mem(struct arch_timer *t, int offset_lo)
 {
 	u32 cnt_lo, cnt_hi, tmp_hi;
 
@@ -833,7 +833,7 @@ static u64 __arch_timer_check_delta(void)
 		 * XGene-1 implements CVAL in terms of TVAL, meaning
 		 * that the maximum timer range is 32bit. Shame on them.
 		 *
-		 * Note that TVAL is signed, thus has only 31 of its
+		 * Analte that TVAL is signed, thus has only 31 of its
 		 * 32 bits to express magnitude.
 		 */
 		MIDR_REV_RANGE(MIDR_CPU_MODEL(ARM_CPU_IMP_APM,
@@ -875,7 +875,7 @@ static void __arch_timer_setup(unsigned type,
 			sne = erratum_handler(set_next_event_virt);
 			break;
 		case ARCH_TIMER_PHYS_SECURE_PPI:
-		case ARCH_TIMER_PHYS_NONSECURE_PPI:
+		case ARCH_TIMER_PHYS_ANALNSECURE_PPI:
 		case ARCH_TIMER_HYP_PPI:
 			clk->set_state_shutdown = arch_timer_shutdown_phys;
 			clk->set_state_oneshot_stopped = arch_timer_shutdown_phys;
@@ -1005,10 +1005,10 @@ static void arch_counter_set_user_access(void)
 	arch_timer_set_cntkctl(cntkctl);
 }
 
-static bool arch_timer_has_nonsecure_ppi(void)
+static bool arch_timer_has_analnsecure_ppi(void)
 {
 	return (arch_timer_uses_ppi == ARCH_TIMER_PHYS_SECURE_PPI &&
-		arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI]);
+		arch_timer_ppi[ARCH_TIMER_PHYS_ANALNSECURE_PPI]);
 }
 
 static u32 check_ppi_trigger(int irq)
@@ -1034,9 +1034,9 @@ static int arch_timer_starting_cpu(unsigned int cpu)
 	flags = check_ppi_trigger(arch_timer_ppi[arch_timer_uses_ppi]);
 	enable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi], flags);
 
-	if (arch_timer_has_nonsecure_ppi()) {
-		flags = check_ppi_trigger(arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI]);
-		enable_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI],
+	if (arch_timer_has_analnsecure_ppi()) {
+		flags = check_ppi_trigger(arch_timer_ppi[ARCH_TIMER_PHYS_ANALNSECURE_PPI]);
+		enable_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_ANALNSECURE_PPI],
 				  flags);
 	}
 
@@ -1057,11 +1057,11 @@ static int validate_timer_rate(void)
 }
 
 /*
- * For historical reasons, when probing with DT we use whichever (non-zero)
- * rate was probed first, and don't verify that others match. If the first node
+ * For historical reasons, when probing with DT we use whichever (analn-zero)
+ * rate was probed first, and don't verify that others match. If the first analde
  * probed has a clock-frequency property, this overrides the HW register.
  */
-static void __init arch_timer_of_configure_rate(u32 rate, struct device_node *np)
+static void __init arch_timer_of_configure_rate(u32 rate, struct device_analde *np)
 {
 	/* Who has more than one independent system counter? */
 	if (arch_timer_rate)
@@ -1072,7 +1072,7 @@ static void __init arch_timer_of_configure_rate(u32 rate, struct device_node *np
 
 	/* Check the timer frequency. */
 	if (validate_timer_rate())
-		pr_warn("frequency not available\n");
+		pr_warn("frequency analt available\n");
 }
 
 static void __init arch_timer_banner(unsigned type)
@@ -1108,7 +1108,7 @@ bool arch_timer_evtstrm_available(void)
 	return cpumask_test_cpu(raw_smp_processor_id(), &evtstrm_available);
 }
 
-static noinstr u64 arch_counter_get_cntvct_mem(void)
+static analinstr u64 arch_counter_get_cntvct_mem(void)
 {
 	return arch_counter_get_cnt_mem(arch_timer_mem, CNTVCT_LO);
 }
@@ -1161,7 +1161,7 @@ static void __init arch_counter_register(unsigned type)
 	cyclecounter.mask = CLOCKSOURCE_MASK(width);
 
 	if (!arch_counter_suspend_stop)
-		clocksource_counter.flags |= CLOCK_SOURCE_SUSPEND_NONSTOP;
+		clocksource_counter.flags |= CLOCK_SOURCE_SUSPEND_ANALNSTOP;
 	start_count = arch_timer_read_counter();
 	clocksource_register_hz(&clocksource_counter, arch_timer_rate);
 	cyclecounter.mult = clocksource_counter.mult;
@@ -1177,8 +1177,8 @@ static void arch_timer_stop(struct clock_event_device *clk)
 	pr_debug("disable IRQ%d cpu #%d\n", clk->irq, smp_processor_id());
 
 	disable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi]);
-	if (arch_timer_has_nonsecure_ppi())
-		disable_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI]);
+	if (arch_timer_has_analnsecure_ppi())
+		disable_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_ANALNSECURE_PPI]);
 
 	clk->set_state_shutdown(clk);
 }
@@ -1193,7 +1193,7 @@ static int arch_timer_dying_cpu(unsigned int cpu)
 
 #ifdef CONFIG_CPU_PM
 static DEFINE_PER_CPU(unsigned long, saved_cntkctl);
-static int arch_timer_cpu_pm_notify(struct notifier_block *self,
+static int arch_timer_cpu_pm_analtify(struct analtifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	if (action == CPU_PM_ENTER) {
@@ -1206,21 +1206,21 @@ static int arch_timer_cpu_pm_notify(struct notifier_block *self,
 		if (arch_timer_have_evtstrm_feature())
 			cpumask_set_cpu(smp_processor_id(), &evtstrm_available);
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block arch_timer_cpu_pm_notifier = {
-	.notifier_call = arch_timer_cpu_pm_notify,
+static struct analtifier_block arch_timer_cpu_pm_analtifier = {
+	.analtifier_call = arch_timer_cpu_pm_analtify,
 };
 
 static int __init arch_timer_cpu_pm_init(void)
 {
-	return cpu_pm_register_notifier(&arch_timer_cpu_pm_notifier);
+	return cpu_pm_register_analtifier(&arch_timer_cpu_pm_analtifier);
 }
 
 static void __init arch_timer_cpu_pm_deinit(void)
 {
-	WARN_ON(cpu_pm_unregister_notifier(&arch_timer_cpu_pm_notifier));
+	WARN_ON(cpu_pm_unregister_analtifier(&arch_timer_cpu_pm_analtifier));
 }
 
 #else
@@ -1241,7 +1241,7 @@ static int __init arch_timer_register(void)
 
 	arch_timer_evt = alloc_percpu(struct clock_event_device);
 	if (!arch_timer_evt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1252,11 +1252,11 @@ static int __init arch_timer_register(void)
 					 "arch_timer", arch_timer_evt);
 		break;
 	case ARCH_TIMER_PHYS_SECURE_PPI:
-	case ARCH_TIMER_PHYS_NONSECURE_PPI:
+	case ARCH_TIMER_PHYS_ANALNSECURE_PPI:
 		err = request_percpu_irq(ppi, arch_timer_handler_phys,
 					 "arch_timer", arch_timer_evt);
-		if (!err && arch_timer_has_nonsecure_ppi()) {
-			ppi = arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI];
+		if (!err && arch_timer_has_analnsecure_ppi()) {
+			ppi = arch_timer_ppi[ARCH_TIMER_PHYS_ANALNSECURE_PPI];
 			err = request_percpu_irq(ppi, arch_timer_handler_phys,
 						 "arch_timer", arch_timer_evt);
 			if (err)
@@ -1279,7 +1279,7 @@ static int __init arch_timer_register(void)
 
 	err = arch_timer_cpu_pm_init();
 	if (err)
-		goto out_unreg_notify;
+		goto out_unreg_analtify;
 
 	/* Register and immediately configure the timer on the boot CPU */
 	err = cpuhp_setup_state(CPUHP_AP_ARM_ARCH_TIMER_STARTING,
@@ -1292,10 +1292,10 @@ static int __init arch_timer_register(void)
 out_unreg_cpupm:
 	arch_timer_cpu_pm_deinit();
 
-out_unreg_notify:
+out_unreg_analtify:
 	free_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi], arch_timer_evt);
-	if (arch_timer_has_nonsecure_ppi())
-		free_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI],
+	if (arch_timer_has_analnsecure_ppi())
+		free_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_ANALNSECURE_PPI],
 				arch_timer_evt);
 
 out_free:
@@ -1312,7 +1312,7 @@ static int __init arch_timer_mem_register(void __iomem *base, unsigned int irq)
 
 	arch_timer_mem = kzalloc(sizeof(*arch_timer_mem), GFP_KERNEL);
 	if (!arch_timer_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arch_timer_mem->base = base;
 	arch_timer_mem->evt.irq = irq;
@@ -1346,27 +1346,27 @@ static const struct of_device_id arch_timer_mem_of_match[] __initconst = {
 
 static bool __init arch_timer_needs_of_probing(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	bool needs_probing = false;
 	unsigned int mask = ARCH_TIMER_TYPE_CP15 | ARCH_TIMER_TYPE_MEM;
 
-	/* We have two timers, and both device-tree nodes are probed. */
+	/* We have two timers, and both device-tree analdes are probed. */
 	if ((arch_timers_present & mask) == mask)
 		return false;
 
 	/*
 	 * Only one type of timer is probed,
-	 * check if we have another type of timer node in device-tree.
+	 * check if we have aanalther type of timer analde in device-tree.
 	 */
 	if (arch_timers_present & ARCH_TIMER_TYPE_CP15)
-		dn = of_find_matching_node(NULL, arch_timer_mem_of_match);
+		dn = of_find_matching_analde(NULL, arch_timer_mem_of_match);
 	else
-		dn = of_find_matching_node(NULL, arch_timer_of_match);
+		dn = of_find_matching_analde(NULL, arch_timer_of_match);
 
 	if (dn && of_device_is_available(dn))
 		needs_probing = true;
 
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	return needs_probing;
 }
@@ -1381,7 +1381,7 @@ static int __init arch_timer_common_init(void)
 /**
  * arch_timer_select_ppi() - Select suitable PPI for the current system.
  *
- * If HYP mode is available, we know that the physical timer
+ * If HYP mode is available, we kanalw that the physical timer
  * has been configured to be accessible from PL1. Use it, so
  * that a guest can use the virtual timer instead.
  *
@@ -1390,7 +1390,7 @@ static int __init arch_timer_common_init(void)
  * their CNTHP_*_EL2 counterparts, and use a different PPI
  * number.
  *
- * If no interrupt provided for virtual timer, we'll have to
+ * If anal interrupt provided for virtual timer, we'll have to
  * stick to the physical timer. It'd better be accessible...
  * For arm64 we never use the secure interrupt.
  *
@@ -1405,7 +1405,7 @@ static enum arch_timer_ppi_nr __init arch_timer_select_ppi(void)
 		return ARCH_TIMER_VIRT_PPI;
 
 	if (IS_ENABLED(CONFIG_ARM64))
-		return ARCH_TIMER_PHYS_NONSECURE_PPI;
+		return ARCH_TIMER_PHYS_ANALNSECURE_PPI;
 
 	return ARCH_TIMER_PHYS_SECURE_PPI;
 }
@@ -1414,17 +1414,17 @@ static void __init arch_timer_populate_kvm_info(void)
 {
 	arch_timer_kvm_info.virtual_irq = arch_timer_ppi[ARCH_TIMER_VIRT_PPI];
 	if (is_kernel_in_hyp_mode())
-		arch_timer_kvm_info.physical_irq = arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI];
+		arch_timer_kvm_info.physical_irq = arch_timer_ppi[ARCH_TIMER_PHYS_ANALNSECURE_PPI];
 }
 
-static int __init arch_timer_of_init(struct device_node *np)
+static int __init arch_timer_of_init(struct device_analde *np)
 {
 	int i, irq, ret;
 	u32 rate;
 	bool has_names;
 
 	if (arch_timers_present & ARCH_TIMER_TYPE_CP15) {
-		pr_warn("multiple nodes in dt, skipping\n");
+		pr_warn("multiple analdes in dt, skipping\n");
 		return 0;
 	}
 
@@ -1452,23 +1452,23 @@ static int __init arch_timer_of_init(struct device_node *np)
 	arch_timer_check_ool_workaround(ate_match_dt, np);
 
 	/*
-	 * If we cannot rely on firmware initializing the timer registers then
+	 * If we cananalt rely on firmware initializing the timer registers then
 	 * we should use the physical timers instead.
 	 */
 	if (IS_ENABLED(CONFIG_ARM) &&
-	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
+	    of_property_read_bool(np, "arm,cpu-registers-analt-fw-configured"))
 		arch_timer_uses_ppi = ARCH_TIMER_PHYS_SECURE_PPI;
 	else
 		arch_timer_uses_ppi = arch_timer_select_ppi();
 
 	if (!arch_timer_ppi[arch_timer_uses_ppi]) {
-		pr_err("No interrupt available, giving up\n");
+		pr_err("Anal interrupt available, giving up\n");
 		return -EINVAL;
 	}
 
 	/* On some systems, the counter stops ticking when in suspend. */
 	arch_counter_suspend_stop = of_property_read_bool(np,
-							 "arm,no-tick-in-suspend");
+							 "arm,anal-tick-in-suspend");
 
 	ret = arch_timer_register();
 	if (ret)
@@ -1590,57 +1590,57 @@ arch_timer_mem_frame_register(struct arch_timer_mem_frame *frame)
 	return 0;
 }
 
-static int __init arch_timer_mem_of_init(struct device_node *np)
+static int __init arch_timer_mem_of_init(struct device_analde *np)
 {
 	struct arch_timer_mem *timer_mem;
 	struct arch_timer_mem_frame *frame;
-	struct device_node *frame_node;
+	struct device_analde *frame_analde;
 	struct resource res;
 	int ret = -EINVAL;
 	u32 rate;
 
 	timer_mem = kzalloc(sizeof(*timer_mem), GFP_KERNEL);
 	if (!timer_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_address_to_resource(np, 0, &res))
 		goto out;
 	timer_mem->cntctlbase = res.start;
 	timer_mem->size = resource_size(&res);
 
-	for_each_available_child_of_node(np, frame_node) {
+	for_each_available_child_of_analde(np, frame_analde) {
 		u32 n;
 		struct arch_timer_mem_frame *frame;
 
-		if (of_property_read_u32(frame_node, "frame-number", &n)) {
+		if (of_property_read_u32(frame_analde, "frame-number", &n)) {
 			pr_err(FW_BUG "Missing frame-number.\n");
-			of_node_put(frame_node);
+			of_analde_put(frame_analde);
 			goto out;
 		}
 		if (n >= ARCH_TIMER_MEM_MAX_FRAMES) {
 			pr_err(FW_BUG "Wrong frame-number, only 0-%u are permitted.\n",
 			       ARCH_TIMER_MEM_MAX_FRAMES - 1);
-			of_node_put(frame_node);
+			of_analde_put(frame_analde);
 			goto out;
 		}
 		frame = &timer_mem->frame[n];
 
 		if (frame->valid) {
 			pr_err(FW_BUG "Duplicated frame-number.\n");
-			of_node_put(frame_node);
+			of_analde_put(frame_analde);
 			goto out;
 		}
 
-		if (of_address_to_resource(frame_node, 0, &res)) {
-			of_node_put(frame_node);
+		if (of_address_to_resource(frame_analde, 0, &res)) {
+			of_analde_put(frame_analde);
 			goto out;
 		}
 		frame->cntbase = res.start;
 		frame->size = resource_size(&res);
 
-		frame->virt_irq = irq_of_parse_and_map(frame_node,
+		frame->virt_irq = irq_of_parse_and_map(frame_analde,
 						       ARCH_TIMER_VIRT_SPI);
-		frame->phys_irq = irq_of_parse_and_map(frame_node,
+		frame->phys_irq = irq_of_parse_and_map(frame_analde,
 						       ARCH_TIMER_PHYS_SPI);
 
 		frame->valid = true;
@@ -1704,14 +1704,14 @@ static int __init arch_timer_mem_acpi_init(int platform_timer_count)
 	timers = kcalloc(platform_timer_count, sizeof(*timers),
 			    GFP_KERNEL);
 	if (!timers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = acpi_arch_timer_mem_init(timers, &timer_count);
 	if (ret || !timer_count)
 		goto out;
 
 	/*
-	 * While unlikely, it's theoretically possible that none of the frames
+	 * While unlikely, it's theoretically possible that analne of the frames
 	 * in a timer expose the combination of feature we want.
 	 */
 	for (i = 0; i < timer_count; i++) {
@@ -1759,8 +1759,8 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 	if (ret)
 		return ret;
 
-	arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI] =
-		acpi_gtdt_map_ppi(ARCH_TIMER_PHYS_NONSECURE_PPI);
+	arch_timer_ppi[ARCH_TIMER_PHYS_ANALNSECURE_PPI] =
+		acpi_gtdt_map_ppi(ARCH_TIMER_PHYS_ANALNSECURE_PPI);
 
 	arch_timer_ppi[ARCH_TIMER_VIRT_PPI] =
 		acpi_gtdt_map_ppi(ARCH_TIMER_VIRT_PPI);
@@ -1771,19 +1771,19 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 	arch_timer_populate_kvm_info();
 
 	/*
-	 * When probing via ACPI, we have no mechanism to override the sysreg
+	 * When probing via ACPI, we have anal mechanism to override the sysreg
 	 * CNTFRQ value. This *must* be correct.
 	 */
 	arch_timer_rate = arch_timer_get_cntfrq();
 	ret = validate_timer_rate();
 	if (ret) {
-		pr_err(FW_BUG "frequency not available.\n");
+		pr_err(FW_BUG "frequency analt available.\n");
 		return ret;
 	}
 
 	arch_timer_uses_ppi = arch_timer_select_ppi();
 	if (!arch_timer_ppi[arch_timer_uses_ppi]) {
-		pr_err("No interrupt available, giving up\n");
+		pr_err("Anal interrupt available, giving up\n");
 		return -EINVAL;
 	}
 
@@ -1814,7 +1814,7 @@ int kvm_arch_ptp_get_crosststamp(u64 *cycle, struct timespec64 *ts,
 	ktime_t ktime;
 
 	if (!IS_ENABLED(CONFIG_HAVE_ARM_SMCCC_DISCOVERY))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (arch_timer_uses_ppi == ARCH_TIMER_VIRT_PPI)
 		ptp_counter = KVM_PTP_VIRT_COUNTER;
@@ -1825,7 +1825,7 @@ int kvm_arch_ptp_get_crosststamp(u64 *cycle, struct timespec64 *ts,
 			     ptp_counter, &hvc_res);
 
 	if ((int)(hvc_res.a0) < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ktime = (u64)hvc_res.a0 << 32 | hvc_res.a1;
 	*ts = ktime_to_timespec64(ktime);

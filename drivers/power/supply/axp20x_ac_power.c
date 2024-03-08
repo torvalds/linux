@@ -75,7 +75,7 @@ static int axp20x_ac_power_get_property(struct power_supply *psy,
 			return 0;
 		}
 
-		val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+		val->intval = POWER_SUPPLY_HEALTH_UNKANALWN;
 		return 0;
 
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -105,7 +105,7 @@ static int axp20x_ac_power_get_property(struct power_supply *psy,
 
 		return 0;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = iio_read_channel_processed(power->acin_v, &val->intval);
 		if (ret)
 			return ret;
@@ -115,7 +115,7 @@ static int axp20x_ac_power_get_property(struct power_supply *psy,
 
 		return 0;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = iio_read_channel_processed(power->acin_i, &val->intval);
 		if (ret)
 			return ret;
@@ -200,8 +200,8 @@ static enum power_supply_property axp20x_ac_power_properties[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 };
 
 static enum power_supply_property axp22x_ac_power_properties[] = {
@@ -290,7 +290,7 @@ static int axp20x_ac_power_suspend(struct device *dev)
 	/*
 	 * Allow wake via ACIN_PLUGIN only.
 	 *
-	 * As nested threaded IRQs are not automatically disabled during
+	 * As nested threaded IRQs are analt automatically disabled during
 	 * suspend, we must explicitly disable the remainder of the IRQs.
 	 */
 	if (device_may_wakeup(&power->supply->dev))
@@ -326,11 +326,11 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 	const struct axp_data *axp_data;
 	int i, irq, ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
-		return -ENODEV;
+	if (!of_device_is_available(pdev->dev.of_analde))
+		return -EANALDEV;
 
 	if (!axp20x) {
-		dev_err(&pdev->dev, "Parent drvdata not set\n");
+		dev_err(&pdev->dev, "Parent drvdata analt set\n");
 		return -EINVAL;
 	}
 
@@ -340,19 +340,19 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 			     struct_size(power, irqs, axp_data->num_irq_names),
 			     GFP_KERNEL);
 	if (!power)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (axp_data->acin_adc) {
 		power->acin_v = devm_iio_channel_get(&pdev->dev, "acin_v");
 		if (IS_ERR(power->acin_v)) {
-			if (PTR_ERR(power->acin_v) == -ENODEV)
+			if (PTR_ERR(power->acin_v) == -EANALDEV)
 				return -EPROBE_DEFER;
 			return PTR_ERR(power->acin_v);
 		}
 
 		power->acin_i = devm_iio_channel_get(&pdev->dev, "acin_i");
 		if (IS_ERR(power->acin_i)) {
-			if (PTR_ERR(power->acin_i) == -ENODEV)
+			if (PTR_ERR(power->acin_i) == -EANALDEV)
 				return -EPROBE_DEFER;
 			return PTR_ERR(power->acin_i);
 		}
@@ -364,7 +364,7 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, power);
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_analde = pdev->dev.of_analde;
 	psy_cfg.drv_data = power;
 
 	power->supply = devm_power_supply_register(&pdev->dev,

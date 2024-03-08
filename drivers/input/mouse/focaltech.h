@@ -20,7 +20,7 @@ int focaltech_init(struct psmouse *psmouse);
 #else
 static inline int focaltech_init(struct psmouse *psmouse)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif
 

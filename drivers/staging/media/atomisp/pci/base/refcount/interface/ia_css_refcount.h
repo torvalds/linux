@@ -32,7 +32,7 @@ int ia_css_refcount_init(uint32_t size);
 
 /*! \brief Function for de-initializing refcount list
  *
- * \return				None
+ * \return				Analne
  */
 void ia_css_refcount_uninit(void);
 
@@ -68,7 +68,7 @@ bool ia_css_refcount_is_single(ia_css_ptr ptr);
  * \param[in]	id			ID of the object.
  * \param[in] clear_func	function to be run to free reference objects.
  *
- *  return				None
+ *  return				Analne
  */
 void ia_css_refcount_clear(s32 id,
 			   clear_func clear_func_ptr);

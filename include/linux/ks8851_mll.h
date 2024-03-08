@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ks8861_mll platform data struct definition
- * Copyright (c) 2012 BTicino S.p.A.
+ * Copyright (c) 2012 BTicianal S.p.A.
  */
 
 #ifndef _LINUX_KS8851_MLL_H

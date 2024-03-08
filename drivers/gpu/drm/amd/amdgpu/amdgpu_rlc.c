@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -40,7 +40,7 @@ void amdgpu_gfx_rlc_enter_safe_mode(struct amdgpu_device *adev, int xcc_id)
 	if (adev->gfx.rlc.in_safe_mode[xcc_id])
 		return;
 
-	/* if RLC is not enabled, do nothing */
+	/* if RLC is analt enabled, do analthing */
 	if (!adev->gfx.rlc.funcs->is_rlc_enabled(adev))
 		return;
 
@@ -65,7 +65,7 @@ void amdgpu_gfx_rlc_exit_safe_mode(struct amdgpu_device *adev, int xcc_id)
 	if (!(adev->gfx.rlc.in_safe_mode[xcc_id]))
 		return;
 
-	/* if RLC is not enabled, do nothing */
+	/* if RLC is analt enabled, do analthing */
 	if (!adev->gfx.rlc.funcs->is_rlc_enabled(adev))
 		return;
 
@@ -313,7 +313,7 @@ static int amdgpu_gfx_rlc_init_microcode_v2_0(struct amdgpu_device *adev)
 			adev->gfx.rlc.reg_list_size_bytes, GFP_KERNEL);
 	if (!adev->gfx.rlc.register_list_format) {
 		dev_err(adev->dev, "failed to allocate memory for rlc register_list_format\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tmp = (unsigned int *)((uintptr_t)rlc_hdr +
@@ -517,7 +517,7 @@ static void amdgpu_gfx_rlc_init_microcode_v2_4(struct amdgpu_device *adev)
 
 int amdgpu_gfx_rlc_init_microcode(struct amdgpu_device *adev,
 				  uint16_t version_major,
-				  uint16_t version_minor)
+				  uint16_t version_mianalr)
 {
 	int err;
 
@@ -528,7 +528,7 @@ int amdgpu_gfx_rlc_init_microcode(struct amdgpu_device *adev,
 	}
 
 	/* is_rlc_v2_1 is still used in APU code path */
-	if (version_major == 2 && version_minor == 1)
+	if (version_major == 2 && version_mianalr == 1)
 		adev->gfx.rlc.is_rlc_v2_1 = true;
 
 	err = amdgpu_gfx_rlc_init_microcode_v2_0(adev);
@@ -537,13 +537,13 @@ int amdgpu_gfx_rlc_init_microcode(struct amdgpu_device *adev,
 		return err;
 	}
 
-	if (version_minor >= 1)
+	if (version_mianalr >= 1)
 		amdgpu_gfx_rlc_init_microcode_v2_1(adev);
-	if (version_minor >= 2)
+	if (version_mianalr >= 2)
 		amdgpu_gfx_rlc_init_microcode_v2_2(adev);
-	if (version_minor == 3)
+	if (version_mianalr == 3)
 		amdgpu_gfx_rlc_init_microcode_v2_3(adev);
-	if (version_minor == 4)
+	if (version_mianalr == 4)
 		amdgpu_gfx_rlc_init_microcode_v2_4(adev);
 
 	return 0;

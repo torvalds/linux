@@ -13,8 +13,8 @@
 
 #include <asm/alternative-macros.h>
 
-#define __nops(n)	".rept	" #n "\nnop\n.endr\n"
-#define nops(n)		asm volatile(__nops(n))
+#define __analps(n)	".rept	" #n "\nanalp\n.endr\n"
+#define analps(n)		asm volatile(__analps(n))
 
 #define sev()		asm volatile("sev" : : : "memory")
 #define wfe()		asm volatile("wfe" : : : "memory")
@@ -34,7 +34,7 @@
 
 /*
  * Data Gathering Hint:
- * This instruction prevents merging memory accesses with Normal-NC or
+ * This instruction prevents merging memory accesses with Analrmal-NC or
  * Device-GRE attributes before the hint instruction with any memory accesses
  * appearing after the hint instruction.
  */
@@ -46,7 +46,7 @@
 		asm volatile(					\
 		ALTERNATIVE_CB("dsb sy",			\
 			       ARM64_HAS_GIC_PRIO_RELAXED_SYNC,	\
-			       alt_cb_patch_nops)		\
+			       alt_cb_patch_analps)		\
 		);						\
 	} while(0)
 #else
@@ -67,7 +67,7 @@
 	do {									\
 		/*								\
 		 * CPUs affected by Arm Erratum 2054223 or 2067961 needs	\
-		 * another TSB to ensure the trace is flushed. The barriers	\
+		 * aanalther TSB to ensure the trace is flushed. The barriers	\
 		 * don't have to be strictly back to back, as long as the	\
 		 * CPU is in trace prohibited state.				\
 		 */								\
@@ -77,11 +77,11 @@
 	} while (0)
 
 /*
- * Generate a mask for array_index__nospec() that is ~0UL when 0 <= idx < sz
+ * Generate a mask for array_index__analspec() that is ~0UL when 0 <= idx < sz
  * and 0 otherwise.
  */
-#define array_index_mask_nospec array_index_mask_nospec
-static inline unsigned long array_index_mask_nospec(unsigned long idx,
+#define array_index_mask_analspec array_index_mask_analspec
+static inline unsigned long array_index_mask_analspec(unsigned long idx,
 						    unsigned long sz)
 {
 	unsigned long mask;
@@ -104,7 +104,7 @@ static inline unsigned long array_index_mask_nospec(unsigned long idx,
  * This insanity brought to you by speculative system register reads,
  * out-of-order memory accesses, sequence locks and Thomas Gleixner.
  *
- * https://lore.kernel.org/r/alpine.DEB.2.21.1902081950260.1662@nanos.tec.linutronix.de/
+ * https://lore.kernel.org/r/alpine.DEB.2.21.1902081950260.1662@naanals.tec.linutronix.de/
  */
 #define arch_counter_enforce_ordering(val) do {				\
 	u64 tmp, _val = (val);						\

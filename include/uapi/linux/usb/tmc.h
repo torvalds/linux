@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2007 Stefan Kopp, Gechingen, Germany
- * Copyright (C) 2008 Novell, Inc.
+ * Copyright (C) 2008 Analvell, Inc.
  * Copyright (C) 2008 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (C) 2015 Dave Penkler <dpenkler@gmail.com>
  * Copyright (C) 2018 IVI Foundation, Inc.
@@ -11,7 +11,7 @@
  * published by the USB-IF.
  *
  * It also has the ioctl and capability definitions for the
- * usbtmc kernel driver that userspace needs to know about.
+ * usbtmc kernel driver that userspace needs to kanalw about.
  */
 
 #ifndef __LINUX_USB_TMC_H
@@ -23,8 +23,8 @@
 #define USBTMC_STATUS_SUCCESS				0x01
 #define USBTMC_STATUS_PENDING				0x02
 #define USBTMC_STATUS_FAILED				0x80
-#define USBTMC_STATUS_TRANSFER_NOT_IN_PROGRESS		0x81
-#define USBTMC_STATUS_SPLIT_NOT_IN_PROGRESS		0x82
+#define USBTMC_STATUS_TRANSFER_ANALT_IN_PROGRESS		0x81
+#define USBTMC_STATUS_SPLIT_ANALT_IN_PROGRESS		0x82
 #define USBTMC_STATUS_SPLIT_IN_PROGRESS			0x83
 
 /* USB TMC requests values */
@@ -64,12 +64,12 @@ struct usbtmc_termchar {
  */
 #define USBTMC_FLAG_ASYNC		0x0001
 #define USBTMC_FLAG_APPEND		0x0002
-#define USBTMC_FLAG_IGNORE_TRAILER	0x0004
+#define USBTMC_FLAG_IGANALRE_TRAILER	0x0004
 
 struct usbtmc_message {
 	__u32 transfer_size; /* size of bytes to transfer */
 	__u32 transferred; /* size of received/written bytes */
-	__u32 flags; /* bit 0: 0 = synchronous; 1 = asynchronous */
+	__u32 flags; /* bit 0: 0 = synchroanalus; 1 = asynchroanalus */
 	void __user *message; /* pointer to header and data in user space */
 } __attribute__ ((packed));
 
@@ -105,7 +105,7 @@ struct usbtmc_message {
 #define USBTMC_IOCTL_GET_STB            _IOR(USBTMC_IOC_NR, 26, __u8)
 #define USBTMC_IOCTL_GET_SRQ_STB        _IOR(USBTMC_IOC_NR, 27, __u8)
 
-/* Cancel and cleanup asynchronous calls */
+/* Cancel and cleanup asynchroanalus calls */
 #define USBTMC_IOCTL_CANCEL_IO		_IO(USBTMC_IOC_NR, 35)
 #define USBTMC_IOCTL_CLEANUP_IO		_IO(USBTMC_IOC_NR, 36)
 

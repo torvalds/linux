@@ -15,7 +15,7 @@ Description:
 
 		The configuration can be changed by writing to the file
 
-		Note. USB configuration does not equal to Exit Mode. It is
+		Analte. USB configuration does analt equal to Exit Mode. It is
 		separate configuration defined in VESA DisplayPort Alt Mode on
 		USB Type-C Standard. Functionally it equals to the situation
 		where the mode has been exited (to exit the mode, see
@@ -38,12 +38,12 @@ Description:
 
 		Pin assignment can be changed by writing to the file. It is
 		possible to set pin assignment before configuration has been
-		set, but the assignment will not be active before the
+		set, but the assignment will analt be active before the
 		connector is actually configured.
 
-		Note. As of VESA DisplayPort Alt Mode on USB Type-C Standard
+		Analte. As of VESA DisplayPort Alt Mode on USB Type-C Standard
 		version 1.0b, pin assignments A, B, and F are deprecated. Only
-		pin assignment D can now carry simultaneously one channel of
+		pin assignment D can analw carry simultaneously one channel of
 		USB SuperSpeed protocol. From user perspective pin assignments C
 		and E are equal, where all channels on the connector are used
 		for carrying DisplayPort protocol (allowing higher resolutions).
@@ -54,7 +54,7 @@ Contact:	Badhri Jagan Sridharan <badhri@google.com>
 Description:
 		VESA DisplayPort Alt Mode on USB Type-C Standard defines how
 		HotPlugDetect(HPD) shall be supported on the USB-C connector when
-		operating in DisplayPort Alt Mode. This is a read only node which
+		operating in DisplayPort Alt Mode. This is a read only analde which
 		reflects the current state of HPD.
 
 		Valid values:

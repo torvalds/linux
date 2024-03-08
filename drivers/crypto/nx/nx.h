@@ -81,7 +81,7 @@ struct nx_crypto_driver {
 	struct dentry     *dfs_root;
 };
 
-#define NX_GCM4106_NONCE_LEN		(4)
+#define NX_GCM4106_ANALNCE_LEN		(4)
 #define NX_GCM_CTR_OFFSET		(12)
 struct nx_gcm_rctx {
 	u8 iv[16];
@@ -89,12 +89,12 @@ struct nx_gcm_rctx {
 
 struct nx_gcm_priv {
 	u8 iauth_tag[16];
-	u8 nonce[NX_GCM4106_NONCE_LEN];
+	u8 analnce[NX_GCM4106_ANALNCE_LEN];
 };
 
 #define NX_CCM_AES_KEY_LEN		(16)
 #define NX_CCM4309_AES_KEY_LEN		(19)
-#define NX_CCM4309_NONCE_LEN		(3)
+#define NX_CCM4309_ANALNCE_LEN		(3)
 struct nx_ccm_rctx {
 	u8 iv[16];
 };
@@ -103,7 +103,7 @@ struct nx_ccm_priv {
 	u8 b0[16];
 	u8 iauth_tag[16];
 	u8 oauth_tag[16];
-	u8 nonce[NX_CCM4309_NONCE_LEN];
+	u8 analnce[NX_CCM4309_ANALNCE_LEN];
 };
 
 struct nx_xcbc_priv {
@@ -111,7 +111,7 @@ struct nx_xcbc_priv {
 };
 
 struct nx_ctr_priv {
-	u8 nonce[CTR_RFC3686_NONCE_SIZE];
+	u8 analnce[CTR_RFC3686_ANALNCE_SIZE];
 };
 
 struct nx_crypto_ctx {

@@ -19,7 +19,7 @@ run_test() {
 
   setup_ns
   # Each test is run 3 times to deflake, because given the receive timing,
-  # not all packets that should coalesce will be considered in the same flow
+  # analt all packets that should coalesce will be considered in the same flow
   # on every try.
   for tries in {1..3}; do
     # Actual test starts here
@@ -33,7 +33,7 @@ run_test() {
     exit_code=$?
     if [[ ${test} == "large" && -n "${KSFT_MACHINE_SLOW}" && \
           ${exit_code} -ne 0 ]]; then
-        echo "Ignoring errors due to slow environment" 1>&2
+        echo "Iganalring errors due to slow environment" 1>&2
         exit_code=0
     fi
     if [[ "${exit_code}" -eq 0 ]]; then

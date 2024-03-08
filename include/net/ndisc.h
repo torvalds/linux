@@ -18,10 +18,10 @@
  * Router type: cross-layer information from link-layer to
  * IPv6 layer reported by certain link types (e.g., RFC4214).
  */
-#define NDISC_NODETYPE_UNSPEC		0	/* unspecified (default) */
-#define NDISC_NODETYPE_HOST		1	/* host or unauthorized router */
-#define NDISC_NODETYPE_NODEFAULT	2	/* non-default router */
-#define NDISC_NODETYPE_DEFAULT		3	/* default router */
+#define NDISC_ANALDETYPE_UNSPEC		0	/* unspecified (default) */
+#define NDISC_ANALDETYPE_HOST		1	/* host or unauthorized router */
+#define NDISC_ANALDETYPE_ANALDEFAULT	2	/* analn-default router */
+#define NDISC_ANALDETYPE_DEFAULT		3	/* default router */
 
 /*
  *	ndisc options
@@ -34,7 +34,7 @@ enum {
 	ND_OPT_PREFIX_INFO = 3,		/* RFC2461 */
 	ND_OPT_REDIRECT_HDR = 4,	/* RFC2461 */
 	ND_OPT_MTU = 5,			/* RFC2461 */
-	ND_OPT_NONCE = 14,              /* RFC7527 */
+	ND_OPT_ANALNCE = 14,              /* RFC7527 */
 	__ND_OPT_ARRAY_MAX,
 	ND_OPT_ROUTE_INFO = 24,		/* RFC4191 */
 	ND_OPT_RDNSS = 25,		/* RFC5006 */
@@ -127,7 +127,7 @@ struct ndisc_options {
 #define nd_opts_pi_end			nd_opt_array[__ND_OPT_PREFIX_INFO_END]
 #define nd_opts_rh			nd_opt_array[ND_OPT_REDIRECT_HDR]
 #define nd_opts_mtu			nd_opt_array[ND_OPT_MTU]
-#define nd_opts_nonce			nd_opt_array[ND_OPT_NONCE]
+#define nd_opts_analnce			nd_opt_array[ND_OPT_ANALNCE]
 #define nd_802154_opts_src_lladdr	nd_802154_opt_array[ND_OPT_SOURCE_LL_ADDR]
 #define nd_802154_opts_tgt_lladdr	nd_802154_opt_array[ND_OPT_TARGET_LL_ADDR]
 
@@ -144,7 +144,7 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, const void *data,
 
 /*
  * This structure defines the hooks for IPv6 neighbour discovery.
- * The following hooks can be defined; unless noted otherwise, they are
+ * The following hooks can be defined; unless analted otherwise, they are
  * optional and can be filled with a null pointer.
  *
  * int (*is_useropt)(u8 nd_opt_type):
@@ -178,10 +178,10 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, const void *data,
  *			    struct sk_buff *skb, u8 icmp6_type,
  *			    const u8 *ha):
  *     This function is called when the skb will finally fill the option
- *     fields inside skb. NOTE: this callback should fill the option
+ *     fields inside skb. ANALTE: this callback should fill the option
  *     fields to the skb which are previously indicated by opt_space
  *     parameter. That means the decision to add such option should
- *     not lost between these two callbacks, e.g. protected by interface
+ *     analt lost between these two callbacks, e.g. protected by interface
  *     up state.
  *
  * void (*prefix_rcv_add_addr)(struct net *net, struct net_device *dev,
@@ -195,7 +195,7 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, const void *data,
  *     This function is called when a RA messages is received with valid
  *     PIO option fields and an IPv6 address will be added to the interface
  *     for autoconfiguration. The parameter dev_addr_generated reports about
- *     if the address was based on dev->dev_addr or not. This can be used
+ *     if the address was based on dev->dev_addr or analt. This can be used
  *     to add a second address if link-layer operates with two link layer
  *     addresses. E.g. 802.15.4 6LoWPAN.
  */
@@ -378,16 +378,16 @@ static inline u32 ndisc_hashfn(const void *pkey, const struct net_device *dev, _
 		(p32[3] * hash_rnd[3]));
 }
 
-static inline struct neighbour *__ipv6_neigh_lookup_noref(struct net_device *dev, const void *pkey)
+static inline struct neighbour *__ipv6_neigh_lookup_analref(struct net_device *dev, const void *pkey)
 {
-	return ___neigh_lookup_noref(&nd_tbl, neigh_key_eq128, ndisc_hashfn, pkey, dev);
+	return ___neigh_lookup_analref(&nd_tbl, neigh_key_eq128, ndisc_hashfn, pkey, dev);
 }
 
 static inline
-struct neighbour *__ipv6_neigh_lookup_noref_stub(struct net_device *dev,
+struct neighbour *__ipv6_neigh_lookup_analref_stub(struct net_device *dev,
 						 const void *pkey)
 {
-	return ___neigh_lookup_noref(ipv6_stub->nd_tbl, neigh_key_eq128,
+	return ___neigh_lookup_analref(ipv6_stub->nd_tbl, neigh_key_eq128,
 				     ndisc_hashfn, pkey, dev);
 }
 
@@ -396,8 +396,8 @@ static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, cons
 	struct neighbour *n;
 
 	rcu_read_lock();
-	n = __ipv6_neigh_lookup_noref(dev, pkey);
-	if (n && !refcount_inc_not_zero(&n->refcnt))
+	n = __ipv6_neigh_lookup_analref(dev, pkey);
+	if (n && !refcount_inc_analt_zero(&n->refcnt))
 		n = NULL;
 	rcu_read_unlock();
 
@@ -410,7 +410,7 @@ static inline void __ipv6_confirm_neigh(struct net_device *dev,
 	struct neighbour *n;
 
 	rcu_read_lock();
-	n = __ipv6_neigh_lookup_noref(dev, pkey);
+	n = __ipv6_neigh_lookup_analref(dev, pkey);
 	neigh_confirm(n);
 	rcu_read_unlock();
 }
@@ -421,7 +421,7 @@ static inline void __ipv6_confirm_neigh_stub(struct net_device *dev,
 	struct neighbour *n;
 
 	rcu_read_lock();
-	n = __ipv6_neigh_lookup_noref_stub(dev, pkey);
+	n = __ipv6_neigh_lookup_analref_stub(dev, pkey);
 	neigh_confirm(n);
 	rcu_read_unlock();
 }
@@ -432,7 +432,7 @@ static inline struct neighbour *ip_neigh_gw6(struct net_device *dev,
 {
 	struct neighbour *neigh;
 
-	neigh = __ipv6_neigh_lookup_noref_stub(dev, addr);
+	neigh = __ipv6_neigh_lookup_analref_stub(dev, addr);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(ipv6_stub->nd_tbl, addr, dev, false);
 
@@ -448,10 +448,10 @@ void ndisc_cleanup(void);
 enum skb_drop_reason ndisc_rcv(struct sk_buff *skb);
 
 struct sk_buff *ndisc_ns_create(struct net_device *dev, const struct in6_addr *solicit,
-				const struct in6_addr *saddr, u64 nonce);
+				const struct in6_addr *saddr, u64 analnce);
 void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 		   const struct in6_addr *daddr, const struct in6_addr *saddr,
-		   u64 nonce);
+		   u64 analnce);
 
 void ndisc_send_skb(struct sk_buff *skb, const struct in6_addr *daddr,
 		    const struct in6_addr *saddr);
@@ -490,6 +490,6 @@ int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write,
 			       void *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
-void inet6_ifinfo_notify(int event, struct inet6_dev *idev);
+void inet6_ifinfo_analtify(int event, struct inet6_dev *idev);
 
 #endif

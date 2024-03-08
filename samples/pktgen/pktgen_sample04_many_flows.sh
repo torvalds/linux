@@ -32,7 +32,7 @@ if [ -n "$DST_PORT" ]; then
     validate_ports $UDP_DST_MIN $UDP_DST_MAX
 fi
 
-# NOTICE:  Script specific settings
+# ANALTICE:  Script specific settings
 # =======
 # Limiting the number of concurrent flows ($FLOWS)
 # and also set how many packets each flow contains ($FLOWLEN)
@@ -41,7 +41,7 @@ fi
 [ -z "$FLOWLEN" ]   && FLOWLEN="10"
 
 if [[ -n "$BURST" ]]; then
-    err 1 "Bursting not supported for this mode"
+    err 1 "Bursting analt supported for this mode"
 fi
 
 # 198.18.0.0 / 198.19.255.255
@@ -64,7 +64,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     pg_set $dev "clone_skb $CLONE_SKB"
     pg_set $dev "pkt_size $PKT_SIZE"
     pg_set $dev "delay $DELAY"
-    pg_set $dev "flag NO_TIMESTAMP"
+    pg_set $dev "flag ANAL_TIMESTAMP"
 
     # Single destination
     pg_set $dev "dst_mac $DST_MAC"

@@ -35,7 +35,7 @@
 #define NXP_NCI_FW_RESULT_OK				0x00
 #define NXP_NCI_FW_RESULT_INVALID_ADDR			0x01
 #define NXP_NCI_FW_RESULT_GENERIC_ERROR			0x02
-#define NXP_NCI_FW_RESULT_UNKNOWN_CMD			0x0B
+#define NXP_NCI_FW_RESULT_UNKANALWN_CMD			0x0B
 #define NXP_NCI_FW_RESULT_ABORTED_CMD			0x0C
 #define NXP_NCI_FW_RESULT_PLL_ERROR			0x0D
 #define NXP_NCI_FW_RESULT_ADDR_RANGE_OFL_ERROR		0x1E
@@ -70,7 +70,7 @@ void nxp_nci_fw_work_complete(struct nxp_nci_info *info, int result)
 	nfc_fw_download_done(info->ndev->nfc_dev, fw_info->name, (u32) -result);
 }
 
-/* crc_ccitt cannot be used since it is computed MSB first and not LSB first */
+/* crc_ccitt cananalt be used since it is computed MSB first and analt LSB first */
 static u16 nxp_nci_fw_crc(u8 const *buffer, size_t len)
 {
 	u16 crc = 0xffff;
@@ -96,7 +96,7 @@ static int nxp_nci_fw_send_chunk(struct nxp_nci_info *info)
 
 	skb = nci_skb_alloc(info->ndev, info->max_payload, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chunk_len = info->max_payload - NXP_NCI_FW_HDR_LEN - NXP_NCI_FW_CRC_LEN;
 	remaining_len = fw_info->frame_size - fw_info->written;
@@ -202,7 +202,7 @@ int nxp_nci_fw_download(struct nci_dev *ndev, const char *firmware_name)
 	mutex_lock(&info->info_lock);
 
 	if (!info->phy_ops->set_mode || !info->phy_ops->write) {
-		r = -ENOTSUPP;
+		r = -EANALTSUPP;
 		goto fw_download_exit;
 	}
 
@@ -246,16 +246,16 @@ static int nxp_nci_fw_read_status(u8 stat)
 		return 0;
 	case NXP_NCI_FW_RESULT_INVALID_ADDR:
 		return -EINVAL;
-	case NXP_NCI_FW_RESULT_UNKNOWN_CMD:
+	case NXP_NCI_FW_RESULT_UNKANALWN_CMD:
 		return -EINVAL;
 	case NXP_NCI_FW_RESULT_ABORTED_CMD:
 		return -EMSGSIZE;
 	case NXP_NCI_FW_RESULT_ADDR_RANGE_OFL_ERROR:
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	case NXP_NCI_FW_RESULT_BUFFER_OFL_ERROR:
-		return -ENOBUFS;
+		return -EANALBUFS;
 	case NXP_NCI_FW_RESULT_MEM_BSY:
-		return -ENOKEY;
+		return -EANALKEY;
 	case NXP_NCI_FW_RESULT_SIGNATURE_ERROR:
 		return -EKEYREJECTED;
 	case NXP_NCI_FW_RESULT_FIRMWARE_VERSION_ERROR:

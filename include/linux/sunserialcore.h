@@ -27,12 +27,12 @@
 extern unsigned int suncore_mouse_baud_cflag_next(unsigned int, int *);
 extern int suncore_mouse_baud_detection(unsigned char, int);
 
-extern int sunserial_register_minors(struct uart_driver *, int);
-extern void sunserial_unregister_minors(struct uart_driver *, int);
+extern int sunserial_register_mianalrs(struct uart_driver *, int);
+extern void sunserial_unregister_mianalrs(struct uart_driver *, int);
 
-extern int sunserial_console_match(struct console *, struct device_node *,
+extern int sunserial_console_match(struct console *, struct device_analde *,
 				   struct uart_driver *, int, bool);
 extern void sunserial_console_termios(struct console *,
-				      struct device_node *);
+				      struct device_analde *);
 
 #endif /* !(_SERIAL_SUN_H) */

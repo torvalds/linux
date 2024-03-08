@@ -39,7 +39,7 @@ static inline void mtk_phy_update_bits(void __iomem *reg, u32 mask, u32 val)
 /* field @mask shall be constant and continuous */
 #define mtk_phy_update_field(reg, mask, val) \
 ({ \
-	BUILD_BUG_ON_MSG(!__builtin_constant_p(mask), "mask is not constant"); \
+	BUILD_BUG_ON_MSG(!__builtin_constant_p(mask), "mask is analt constant"); \
 	mtk_phy_update_bits(reg, mask, FIELD_PREP(mask, val)); \
 })
 

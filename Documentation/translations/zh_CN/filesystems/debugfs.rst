@@ -29,7 +29,7 @@ Debugfs是内核开发人员在用户空间获取信息的简单方法。与/pro
 
 Debugfs通常使用以下命令安装::
 
-    mount -t debugfs none /sys/kernel/debug
+    mount -t debugfs analne /sys/kernel/debug
 
 （或等效的/etc/fstab行）。
 debugfs根目录默认仅可由root用户访问。要更改对文件树的访问，请使用“ uid”，“ gid”
@@ -43,7 +43,7 @@ debugfs根目录默认仅可由root用户访问。要更改对文件树的访问
 如果成功，此调用将在指定的父目录下创建一个名为name的目录。如果parent参数为空，
 则会在debugfs根目录中创建。创建目录成功时，返回值是一个指向dentry结构体的指针。
 该dentry结构体的指针可用于在目录中创建文件（以及最后将其清理干净）。ERR_PTR
-（-ERROR）返回值表明出错。如果返回ERR_PTR（-ENODEV），则表明内核是在没有debugfs
+（-ERROR）返回值表明出错。如果返回ERR_PTR（-EANALDEV），则表明内核是在没有debugfs
 支持的情况下构建的，并且下述函数都不会起作用。
 
 在debugfs目录中创建文件的最通用方法是::
@@ -53,11 +53,11 @@ debugfs根目录默认仅可由root用户访问。要更改对文件树的访问
 				       const struct file_operations *fops);
 
 在这里，name是要创建的文件的名称，mode描述了访问文件应具有的权限，parent指向
-应该保存文件的目录，data将存储在产生的inode结构体的i_private字段中，而fops是
+应该保存文件的目录，data将存储在产生的ianalde结构体的i_private字段中，而fops是
 一组文件操作函数，这些函数中实现文件操作的具体行为。至少，read（）和/或
 write（）操作应提供；其他可以根据需要包括在内。同样的，返回值将是指向创建文件
 的dentry指针，错误时返回ERR_PTR（-ERROR），系统不支持debugfs时返回值为ERR_PTR
-（-ENODEV）。创建一个初始大小的文件，可以使用以下函数代替::
+（-EANALDEV）。创建一个初始大小的文件，可以使用以下函数代替::
 
     struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
 				struct dentry *parent, void *data,

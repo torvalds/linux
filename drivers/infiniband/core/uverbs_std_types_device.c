@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #include <linux/overflow.h>
@@ -14,7 +14,7 @@
 /*
  * This ioctl method allows calling any defined write or write_ex
  * handler. This essentially replaces the hdr/ex_hdr system with the ioctl
- * marshalling, and brings the non-ex path into the same marshalling as the ex
+ * marshalling, and brings the analn-ex path into the same marshalling as the ex
  * path.
  */
 static int UVERBS_HANDLER(UVERBS_METHOD_INVOKE_WRITE)(
@@ -38,7 +38,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_INVOKE_WRITE)(
 
 	if (attrs->ucore.inlen < method_elm->req_size ||
 	    attrs->ucore.outlen < method_elm->resp_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	attrs->uobject = NULL;
 	rc = method_elm->handler(attrs);
@@ -72,7 +72,7 @@ gather_objects_handle(struct ib_uverbs_file *ufile,
 	u64 count = 0;
 	u32 *handles;
 
-	/* Allocated memory that cannot page out where we gather
+	/* Allocated memory that cananalt page out where we gather
 	 * all object ids under a spin_lock.
 	 */
 	handles = uverbs_zalloc(attrs, out_len);
@@ -190,7 +190,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_PORT)(
 
 	/* FIXME: Extend the UAPI_DEF_OBJ_NEEDS_FN stuff.. */
 	if (!ib_dev->ops.query_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = uverbs_get_const(&port_num, attrs,
 			       UVERBS_ATTR_QUERY_PORT_PORT_NUM);
@@ -253,7 +253,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_CONTEXT)(
 	ib_dev = ucontext->device;
 
 	if (!ib_dev->ops.query_ucontext)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	num_comp = attrs->ufile->device->num_comp_vectors;
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_QUERY_CONTEXT_NUM_COMP_VECTORS,
@@ -413,7 +413,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_GID_ENTRY)(
 	rcu_read_lock();
 	ndev = rdma_read_gid_attr_ndev_rcu(gid_attr);
 	if (IS_ERR(ndev)) {
-		if (PTR_ERR(ndev) != -ENODEV) {
+		if (PTR_ERR(ndev) != -EANALDEV) {
 			ret = PTR_ERR(ndev);
 			rcu_read_unlock();
 			goto out;

@@ -54,7 +54,7 @@ static int aq_alloc_rxpages(struct aq_rxpage *rxpage, struct aq_ring_s *rx_ring)
 	struct device *dev = aq_nic_get_dev(rx_ring->aq_nic);
 	unsigned int order = rx_ring->page_order;
 	struct page *page;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	dma_addr_t daddr;
 
 	page = dev_alloc_pages(order);
@@ -141,7 +141,7 @@ static int aq_ring_alloc(struct aq_ring_s *self,
 		kcalloc(self->size, sizeof(struct aq_ring_buff_s), GFP_KERNEL);
 
 	if (!self->buff_ring) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_exit;
 	}
 
@@ -149,7 +149,7 @@ static int aq_ring_alloc(struct aq_ring_s *self,
 					   self->size * self->dx_size,
 					   &self->dx_ring_pa, GFP_KERNEL);
 	if (!self->dx_ring) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_exit;
 	}
 
@@ -221,7 +221,7 @@ aq_ring_hwts_rx_alloc(struct aq_ring_s *self, struct aq_nic_s *aq_nic,
 					   GFP_KERNEL);
 	if (!self->dx_ring) {
 		aq_ring_free(self);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -347,13 +347,13 @@ static void aq_rx_checksum(struct aq_ring_s *self,
 		u64_stats_update_begin(&self->stats.rx.syncp);
 		++self->stats.rx.errors;
 		u64_stats_update_end(&self->stats.rx.syncp);
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 		return;
 	}
 	if (buff->is_ip_cso) {
 		__skb_incr_checksum_unnecessary(skb);
 	} else {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 	}
 
 	if (buff->is_udp_cso || buff->is_tcp_cso)
@@ -613,7 +613,7 @@ static int __aq_ring_rx_clean(struct aq_ring_s *self, struct napi_struct *napi,
 			u64_stats_update_begin(&self->stats.rx.syncp);
 			self->stats.rx.skb_alloc_fails++;
 			u64_stats_update_end(&self->stats.rx.syncp);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_exit;
 		}
 		if (is_ptp_ring)
@@ -676,7 +676,7 @@ static int __aq_ring_rx_clean(struct aq_ring_s *self, struct napi_struct *napi,
 
 		skb_set_hash(skb, buff->rss_hash,
 			     buff->is_hash_l4 ? PKT_HASH_TYPE_L4 :
-			     PKT_HASH_TYPE_NONE);
+			     PKT_HASH_TYPE_ANALNE);
 		/* Send all PTP traffic to 0 queue */
 		skb_record_rx_queue(skb,
 				    is_ptp_ring ? 0
@@ -819,7 +819,7 @@ static int __aq_ring_xdp_clean(struct aq_ring_s *rx_ring,
 
 		skb_set_hash(skb, buff->rss_hash,
 			     buff->is_hash_l4 ? PKT_HASH_TYPE_L4 :
-			     PKT_HASH_TYPE_NONE);
+			     PKT_HASH_TYPE_ANALNE);
 		/* Send all PTP traffic to 0 queue */
 		skb_record_rx_queue(skb,
 				    is_ptp_ring ? 0

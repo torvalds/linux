@@ -19,7 +19,7 @@ int efx_sriov_set_vf_mac(struct net_device *net_dev, int vf_i, u8 *mac)
 	if (efx->type->sriov_set_vf_mac)
 		return efx->type->sriov_set_vf_mac(efx, vf_i, mac);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static inline
@@ -34,11 +34,11 @@ int efx_sriov_set_vf_vlan(struct net_device *net_dev, int vf_i, u16 vlan,
 			return -EINVAL;
 
 		if (vlan_proto != htons(ETH_P_8021Q))
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 
 		return efx->type->sriov_set_vf_vlan(efx, vf_i, vlan, qos);
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -51,7 +51,7 @@ int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf_i,
 	if (efx->type->sriov_set_vf_spoofchk)
 		return efx->type->sriov_set_vf_spoofchk(efx, vf_i, spoofchk);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static inline
@@ -63,7 +63,7 @@ int efx_sriov_get_vf_config(struct net_device *net_dev, int vf_i,
 	if (efx->type->sriov_get_vf_config)
 		return efx->type->sriov_get_vf_config(efx, vf_i, ivi);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static inline
@@ -76,7 +76,7 @@ int efx_sriov_set_vf_link_state(struct net_device *net_dev, int vf_i,
 		return efx->type->sriov_set_vf_link_state(efx, vf_i,
 							  link_state);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 #endif /* CONFIG_SFC_SIENA_SRIOV */
 

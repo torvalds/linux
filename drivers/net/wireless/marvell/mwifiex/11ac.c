@@ -57,25 +57,25 @@ mwifiex_convert_mcsmap_to_maxrate(struct mwifiex_private *priv,
 	nss = 1;
 	for (i = 1; i <= 8; i++) {
 		mcs = GET_VHTNSSMCS(mcs_map, i);
-		if (mcs < IEEE80211_VHT_MCS_NOT_SUPPORTED)
+		if (mcs < IEEE80211_VHT_MCS_ANALT_SUPPORTED)
 			nss = i;
 	}
 	mcs = GET_VHTNSSMCS(mcs_map, nss);
 
 	/* if mcs is 3, nss must be 1 (NSS = 1). Default mcs to MCS 0~9 */
-	if (mcs == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+	if (mcs == IEEE80211_VHT_MCS_ANALT_SUPPORTED)
 		mcs = IEEE80211_VHT_MCS_SUPPORT_0_9;
 
 	if (GET_VHTCAP_CHWDSET(usr_vht_cap_info)) {
 		/* support 160 MHz */
 		max_rate = max_rate_lgi_160MHZ[nss - 1][mcs];
 		if (!max_rate)
-			/* MCS9 is not supported in NSS6 */
+			/* MCS9 is analt supported in NSS6 */
 			max_rate = max_rate_lgi_160MHZ[nss - 1][mcs - 1];
 	} else {
 		max_rate = max_rate_lgi_80MHZ[nss - 1][mcs];
 		if (!max_rate)
-			/* MCS9 is not supported in NSS3 */
+			/* MCS9 is analt supported in NSS3 */
 			max_rate = max_rate_lgi_80MHZ[nss - 1][mcs - 1];
 	}
 
@@ -115,10 +115,10 @@ void mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
 		mcs_user = GET_VHTNSSMCS(mcs_map_user, nss);
 		mcs_resp = GET_VHTNSSMCS(mcs_map_resp, nss);
 
-		if ((mcs_user == IEEE80211_VHT_MCS_NOT_SUPPORTED) ||
-		    (mcs_resp == IEEE80211_VHT_MCS_NOT_SUPPORTED))
+		if ((mcs_user == IEEE80211_VHT_MCS_ANALT_SUPPORTED) ||
+		    (mcs_resp == IEEE80211_VHT_MCS_ANALT_SUPPORTED))
 			SET_VHTNSSMCS(mcs_map_result, nss,
-				      IEEE80211_VHT_MCS_NOT_SUPPORTED);
+				      IEEE80211_VHT_MCS_ANALT_SUPPORTED);
 		else
 			SET_VHTNSSMCS(mcs_map_result, nss,
 				      min(mcs_user, mcs_resp));
@@ -137,10 +137,10 @@ void mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
 	for (nss = 1; nss <= 8; nss++) {
 		mcs_user = GET_VHTNSSMCS(mcs_map_user, nss);
 		mcs_resp = GET_VHTNSSMCS(mcs_map_resp, nss);
-		if ((mcs_user == IEEE80211_VHT_MCS_NOT_SUPPORTED) ||
-		    (mcs_resp == IEEE80211_VHT_MCS_NOT_SUPPORTED))
+		if ((mcs_user == IEEE80211_VHT_MCS_ANALT_SUPPORTED) ||
+		    (mcs_resp == IEEE80211_VHT_MCS_ANALT_SUPPORTED))
 			SET_VHTNSSMCS(mcs_map_result, nss,
-				      IEEE80211_VHT_MCS_NOT_SUPPORTED);
+				      IEEE80211_VHT_MCS_ANALT_SUPPORTED);
 		else
 			SET_VHTNSSMCS(mcs_map_result, nss,
 				      min(mcs_user, mcs_resp));
@@ -235,12 +235,12 @@ int mwifiex_cmd_append_11ac_tlv(struct mwifiex_private *priv,
 		}
 	}
 
-	/* Operating Mode Notification IE */
+	/* Operating Mode Analtification IE */
 	if (bss_desc->oper_mode) {
 		ieee_oper_ntf = bss_desc->oper_mode;
 		oper_ntf = (void *)*buffer;
 		memset(oper_ntf, 0, sizeof(*oper_ntf));
-		oper_ntf->header.type = cpu_to_le16(WLAN_EID_OPMODE_NOTIF);
+		oper_ntf->header.type = cpu_to_le16(WLAN_EID_OPMODE_ANALTIF);
 		oper_ntf->header.len = cpu_to_le16(sizeof(u8));
 		oper_ntf->oper_mode = ieee_oper_ntf->oper_mode;
 		*buffer += sizeof(*oper_ntf);

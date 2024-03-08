@@ -20,14 +20,14 @@
  *
  * Subdevices supported by the driver:
  * - Analog In:   supported
- * - Digital I/O: not supported
- * - LEDs:        not supported
- * - EEPROM:      not supported
+ * - Digital I/O: analt supported
+ * - LEDs:        analt supported
+ * - EEPROM:      analt supported
  *
  * Configuration Options:
  *   [0] - I/O base address
  *   [1] - conversion rate
- *	   Conversion rate   RMS noise	Effective Number Of Bits
+ *	   Conversion rate   RMS analise	Effective Number Of Bits
  *	   0	3.52kHz		23uV		17
  *	   1	1.76kHz		3.5uV		20
  *	   2	880Hz		2uV		21.3
@@ -48,7 +48,7 @@
 #include <linux/delay.h>
 
 /* Offsets of different ports */
-#define MPC624_MASTER_CONTROL	0 /* not used */
+#define MPC624_MASTER_CONTROL	0 /* analt used */
 #define MPC624_GNMUXCH		1 /* Gain, Mux, Channel of ADC */
 #define MPC624_ADC		2 /* read/write to/from ADC */
 #define MPC624_EE		3 /* read/write to/from serial EEPROM via I2C */
@@ -148,7 +148,7 @@ static unsigned int mpc624_ai_get_sample(struct comedi_device *dev,
 	 *	....
 	 *	05: LSB - (Least Significant Bit)- the last bit of the
 	 *					   conversion result
-	 *	04-00: sub-LSB - sub-LSBs are basically noise, but when
+	 *	04-00: sub-LSB - sub-LSBs are basically analise, but when
 	 *			 averaged properly, they can increase
 	 *			 conversion precision up to 29 bits;
 	 *			 they can be discarded without loss of
@@ -243,7 +243,7 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (it->options[1]) {
 	case 0:

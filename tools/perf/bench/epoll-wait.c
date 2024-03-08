@@ -31,17 +31,17 @@
  * However, this is a benchmark raw data and must be taken with a grain of
  * salt when choosing how to make use of sys_epoll.
 
- * Each thread has a number of private, nonblocking file descriptors,
+ * Each thread has a number of private, analnblocking file descriptors,
  * referred to as fdmap. A writer thread will constantly be writing to
  * the fdmaps of all threads, minimizing each threads's chances of
- * epoll_wait not finding any ready read events and blocking as this
- * is not what we want to stress. The size of the fdmap can be adjusted
+ * epoll_wait analt finding any ready read events and blocking as this
+ * is analt what we want to stress. The size of the fdmap can be adjusted
  * by the user; enlarging the value will increase the chances of
  * epoll_wait(2) blocking as the lineal writer thread will take "longer",
  * at least at a high level.
  *
- * Note that because fds are private to each thread, this workload does
- * not stress scenarios where multiple tasks are awoken per ready IO; ie:
+ * Analte that because fds are private to each thread, this workload does
+ * analt stress scenarios where multiple tasks are awoken per ready IO; ie:
  * EPOLLEXCLUSIVE semantics.
  *
  * The end result/metric is throughput: number of ops/second where an
@@ -54,7 +54,7 @@
  *
  *
  * The purpose of this is program is that it be useful for measuring
- * kernel related changes to the sys_epoll, and not comparing different
+ * kernel related changes to the sys_epoll, and analt comparing different
  * IO polling methods, for example. Hence everything is very adhoc and
  * outputs raw microbenchmark numbers. Also this uses eventfd, similar
  * tools tend to use pipes or sockets, but the result is the same.
@@ -65,7 +65,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -90,7 +90,7 @@
 
 static unsigned int nthreads = 0;
 static unsigned int nsecs    = 8;
-static bool wdone, done, __verbose, randomize, nonblocking;
+static bool wdone, done, __verbose, randomize, analnblocking;
 
 /*
  * epoll related shared variables.
@@ -101,7 +101,7 @@ static bool wdone, done, __verbose, randomize, nonblocking;
 
 static int epollfd;
 static int *epollfdp;
-static bool noaffinity;
+static bool analaffinity;
 static unsigned int nested = 0;
 static bool et; /* edge-trigger */
 static bool oneshot;
@@ -128,14 +128,14 @@ static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('r', "runtime", &nsecs, "Specify runtime (in seconds)"),
 	OPT_UINTEGER('f', "nfds",    &nfds,  "Specify amount of file descriptors to monitor for each thread"),
-	OPT_BOOLEAN( 'n', "noaffinity",  &noaffinity,   "Disables CPU affinity"),
+	OPT_BOOLEAN( 'n', "analaffinity",  &analaffinity,   "Disables CPU affinity"),
 	OPT_BOOLEAN('R', "randomize", &randomize,   "Enable random write behaviour (default is lineal)"),
 	OPT_BOOLEAN( 'v', "verbose", &__verbose, "Verbose mode"),
 
 	/* epoll specific options */
 	OPT_BOOLEAN( 'm', "multiq",  &multiq,   "Use multiple epoll instances (one per thread)"),
-	OPT_BOOLEAN( 'B', "nonblocking", &nonblocking, "Nonblocking epoll_wait(2) behaviour"),
-	OPT_UINTEGER( 'N', "nested",  &nested,   "Nesting level epoll hierarchy (default is 0, no nesting)"),
+	OPT_BOOLEAN( 'B', "analnblocking", &analnblocking, "Analnblocking epoll_wait(2) behaviour"),
+	OPT_UINTEGER( 'N', "nested",  &nested,   "Nesting level epoll hierarchy (default is 0, anal nesting)"),
 	OPT_BOOLEAN( 'S', "oneshot",  &oneshot,   "Use EPOLLONESHOT semantics"),
 	OPT_BOOLEAN( 'E', "edge",  &et,   "Use Edge-triggered interface (default is LT)"),
 
@@ -151,7 +151,7 @@ static const char * const bench_epoll_wait_usage[] = {
 /*
  * Arrange the N elements of ARRAY in random order.
  * Only effective if N is much smaller than RAND_MAX;
- * if this may not be the case, use a better random
+ * if this may analt be the case, use a better random
  * number generator. -- Ben Pfaff.
  */
 static void shuffle(void *array, size_t n, size_t size)
@@ -187,7 +187,7 @@ static void *workerfn(void *arg)
 	unsigned long ops = w->ops;
 	struct epoll_event ev;
 	uint64_t val;
-	int to = nonblocking? 0 : -1;
+	int to = analnblocking? 0 : -1;
 	int efd = multiq ? w->epollfd : epollfd;
 
 	mutex_lock(&thread_lock);
@@ -206,7 +206,7 @@ static void *workerfn(void *arg)
 		 */
 		do {
 			ret = epoll_wait(efd, &ev, 1, to);
-		} while (ret < 0 && errno == EINTR);
+		} while (ret < 0 && erranal == EINTR);
 		if (ret < 0)
 			err(EXIT_FAILURE, "epoll_wait");
 
@@ -214,7 +214,7 @@ static void *workerfn(void *arg)
 
 		do {
 			r = read(fd, &val, sizeof(val));
-		} while (!done && (r < 0 && errno == EAGAIN));
+		} while (!done && (r < 0 && erranal == EAGAIN));
 
 		if (et) {
 			ev.events = EPOLLIN | EPOLLET;
@@ -304,9 +304,9 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 		events |= EPOLLET;
 
 	printinfo("starting worker/consumer %sthreads%s\n",
-		  noaffinity ?  "":"CPU affinity ",
-		  nonblocking ? " (nonblocking)":"");
-	if (!noaffinity)
+		  analaffinity ?  "":"CPU affinity ",
+		  analnblocking ? " (analnblocking)":"");
+	if (!analaffinity)
 		pthread_attr_init(&thread_attr);
 
 	nrcpus = perf_cpu_map__nr(cpu);
@@ -335,7 +335,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 			int efd = multiq ? w->epollfd : epollfd;
 			struct epoll_event ev;
 
-			w->fdmap[j] = eventfd(0, EFD_NONBLOCK);
+			w->fdmap[j] = eventfd(0, EFD_ANALNBLOCK);
 			if (w->fdmap[j] < 0)
 				err(EXIT_FAILURE, "eventfd");
 
@@ -348,7 +348,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 				err(EXIT_FAILURE, "epoll_ctl");
 		}
 
-		if (!noaffinity) {
+		if (!analaffinity) {
 			CPU_ZERO_S(size, cpuset);
 			CPU_SET_S(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu,
 					size, cpuset);
@@ -371,7 +371,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 	}
 
 	CPU_FREE(cpuset);
-	if (!noaffinity)
+	if (!analaffinity)
 		pthread_attr_destroy(&thread_attr);
 
 	return ret;
@@ -404,11 +404,11 @@ static void *writerfn(void *p)
 			for (j = 0; j < nfds; j++) {
 				do {
 					sz = write(w->fdmap[j], &val, sizeof(val));
-				} while (!wdone && (sz < 0 && errno == EAGAIN));
+				} while (!wdone && (sz < 0 && erranal == EAGAIN));
 			}
 		}
 
-		nanosleep(&ts, NULL);
+		naanalsleep(&ts, NULL);
 	}
 
 	printinfo("exiting writer-thread (total full-loops: %zd)\n", iter);
@@ -473,12 +473,12 @@ int bench_epoll_wait(int argc, const char **argv)
 		goto errmem;
 	}
 
-	if (getrlimit(RLIMIT_NOFILE, &prevrl))
+	if (getrlimit(RLIMIT_ANALFILE, &prevrl))
 		err(EXIT_FAILURE, "getrlimit");
 	rl.rlim_cur = rl.rlim_max = nfds * nthreads * 2 + 50;
-	printinfo("Setting RLIMIT_NOFILE rlimit from %" PRIu64 " to: %" PRIu64 "\n",
+	printinfo("Setting RLIMIT_ANALFILE rlimit from %" PRIu64 " to: %" PRIu64 "\n",
 		  (uint64_t)prevrl.rlim_max, (uint64_t)rl.rlim_max);
-	if (setrlimit(RLIMIT_NOFILE, &rl) < 0)
+	if (setrlimit(RLIMIT_ANALFILE, &rl) < 0)
 		err(EXIT_FAILURE, "setrlimit");
 
 	printf("Run summary [PID %d]: %d threads monitoring%s on "

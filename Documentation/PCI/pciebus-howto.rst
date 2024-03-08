@@ -48,7 +48,7 @@ may have its own software service driver. In this case several
 service drivers will compete for a single PCI-PCI Bridge device.
 For example, if the PCI Express Root Port native hotplug service
 driver is loaded first, it claims a PCI-PCI Bridge Root Port. The
-kernel therefore does not load other service drivers for that Root
+kernel therefore does analt load other service drivers for that Root
 Port. In other words, it is impossible to have multiple service
 drivers load and run on a PCI-PCI Bridge device simultaneously
 using the current driver model.
@@ -90,7 +90,7 @@ All service drivers are PCI device drivers. As discussed above, it is
 impossible to load any service driver once the kernel has loaded the
 PCI Express Port Bus Driver. To meet the PCI Express Port Bus Driver
 Model requires some minimal changes on existing service drivers that
-imposes no impact on the functionality of existing service drivers.
+imposes anal impact on the functionality of existing service drivers.
 
 A service driver is required to use the two APIs shown below to
 register its service with the PCI Express Port Bus driver (see
@@ -108,8 +108,8 @@ pcie_port_service_register
 
 This API replaces the Linux Driver Model's pci_register_driver API. A
 service driver should always calls pcie_port_service_register at
-module init. Note that after service driver being loaded, calls
-such as pci_enable_device(dev) and pci_set_master(dev) are no longer
+module init. Analte that after service driver being loaded, calls
+such as pci_enable_device(dev) and pci_set_master(dev) are anal longer
 necessary since these calls are executed by the PCI Port Bus driver.
 
 pcie_port_service_unregister
@@ -189,10 +189,10 @@ PCI-PCI Bridge port share the same physical device, if an individual
 service driver enables or disables MSI/MSI-X mode it may result
 unpredictable behavior.
 
-To avoid this situation all service drivers are not permitted to
+To avoid this situation all service drivers are analt permitted to
 switch interrupt mode on its device. The PCI Express Port Bus driver
 is responsible for determining the interrupt mode and this should be
-transparent to service drivers. Service drivers need to know only
+transparent to service drivers. Service drivers need to kanalw only
 the vector IRQ assigned to the field irq of struct pcie_device, which
 is passed in when the PCI Express Port Bus driver probes each service
 driver. Service drivers should use (struct pcie_device*)dev->irq to
@@ -206,7 +206,7 @@ Service drivers for PCI Express Power Management (PME), Advanced
 Error Reporting (AER), Hot-Plug (HP) and Virtual Channel (VC) access
 PCI configuration space on the PCI Express port. In all cases the
 registers accessed are independent of each other. This patch assumes
-that all service drivers will be well behaved and not overwrite
+that all service drivers will be well behaved and analt overwrite
 other service driver's configuration settings.
 
 PCI Config Registers

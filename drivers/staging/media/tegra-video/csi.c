@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "csi.h"
 #include "video.h"
@@ -41,14 +41,14 @@ static const struct v4l2_mbus_framefmt tegra_csi_tpg_fmts[] = {
 		TEGRA_DEF_WIDTH,
 		TEGRA_DEF_HEIGHT,
 		MEDIA_BUS_FMT_SRGGB10_1X10,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		V4L2_COLORSPACE_SRGB
 	},
 	{
 		TEGRA_DEF_WIDTH,
 		TEGRA_DEF_HEIGHT,
 		MEDIA_BUS_FMT_RGB888_1X32_PADHI,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		V4L2_COLORSPACE_SRGB
 	},
 };
@@ -67,7 +67,7 @@ static int csi_enum_bus_code(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	if (code->index >= ARRAY_SIZE(tegra_csi_tpg_fmts))
 		return -EINVAL;
@@ -84,7 +84,7 @@ static int csi_get_format(struct v4l2_subdev *subdev,
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	fmt->format = csi_chan->format;
 
@@ -132,7 +132,7 @@ static int csi_enum_framesizes(struct v4l2_subdev *subdev,
 	unsigned int i;
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	if (fse->index >= ARRAY_SIZE(tegra_csi_tpg_sizes))
 		return -EINVAL;
@@ -162,7 +162,7 @@ static int csi_enum_frameintervals(struct v4l2_subdev *subdev,
 	int index;
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	/* one framerate per format and resolution */
 	if (fie->index > 0)
@@ -174,7 +174,7 @@ static int csi_enum_frameintervals(struct v4l2_subdev *subdev,
 		return -EINVAL;
 
 	fie->interval.numerator = 1;
-	fie->interval.denominator = frmrate[index].framerate;
+	fie->interval.deanalminator = frmrate[index].framerate;
 
 	return 0;
 }
@@ -189,7 +189,7 @@ static int csi_set_format(struct v4l2_subdev *subdev,
 	unsigned int i;
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	sizes = v4l2_find_nearest_size(tegra_csi_tpg_sizes,
 				       ARRAY_SIZE(tegra_csi_tpg_sizes),
@@ -206,7 +206,7 @@ static int csi_set_format(struct v4l2_subdev *subdev,
 		i = 0;
 
 	format->code = tegra_csi_tpg_fmts[i].code;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
@@ -229,7 +229,7 @@ static int tegra_csi_get_frame_interval(struct v4l2_subdev *subdev,
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	/*
 	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
@@ -239,7 +239,7 @@ static int tegra_csi_get_frame_interval(struct v4l2_subdev *subdev,
 		return -EINVAL;
 
 	vfi->interval.numerator = 1;
-	vfi->interval.denominator = csi_chan->framerate;
+	vfi->interval.deanalminator = csi_chan->framerate;
 
 	return 0;
 }
@@ -274,7 +274,7 @@ void tegra_csi_calc_settle_time(struct tegra_csi_channel *csi_chan,
 
 	/*
 	 * CLK Settle time is the interval during which HS receiver should
-	 * ignore any clock lane HS transitions, starting from the beginning
+	 * iganalre any clock lane HS transitions, starting from the beginning
 	 * of T-CLK-PREPARE.
 	 * Per DPHY specification, T-CLK-SETTLE should be between 95ns ~ 300ns
 	 *
@@ -285,7 +285,7 @@ void tegra_csi_calc_settle_time(struct tegra_csi_channel *csi_chan,
 
 	/*
 	 * THS Settle time is the interval during which HS receiver should
-	 * ignore any data lane HS transitions, starting from the beginning
+	 * iganalre any data lane HS transitions, starting from the beginning
 	 * of THS-PREPARE.
 	 *
 	 * Per DPHY specification, T-HS-SETTLE should be between 85ns + 6UI
@@ -359,7 +359,7 @@ static int tegra_csi_enable_stream(struct v4l2_subdev *subdev)
 		src_subdev = tegra_channel_get_remote_source_subdev(chan);
 		ret = v4l2_subdev_call(src_subdev, video, s_stream, true);
 
-		if (ret < 0 && ret != -ENOIOCTLCMD)
+		if (ret < 0 && ret != -EANALIOCTLCMD)
 			goto disable_csi_stream;
 
 		err = tegra_mipi_finish_calibration(csi_chan->mipi);
@@ -403,7 +403,7 @@ static int tegra_csi_disable_stream(struct v4l2_subdev *subdev)
 
 		src_subdev = tegra_channel_get_remote_source_subdev(chan);
 		err = v4l2_subdev_call(src_subdev, video, s_stream, false);
-		if (err < 0 && err != -ENOIOCTLCMD)
+		if (err < 0 && err != -EANALIOCTLCMD)
 			dev_err_probe(csi->dev, err, "source subdev stream off failed\n");
 	}
 
@@ -456,7 +456,7 @@ static const struct v4l2_subdev_ops tegra_csi_ops = {
 };
 
 static int tegra_csi_channel_alloc(struct tegra_csi *csi,
-				   struct device_node *node,
+				   struct device_analde *analde,
 				   unsigned int port_num, unsigned int lanes,
 				   unsigned int num_pads)
 {
@@ -465,7 +465,7 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add_tail(&chan->list, &csi->csi_chans);
 	chan->csi = csi;
@@ -484,7 +484,7 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 	for (i = 0; i < chan->numgangports; i++)
 		chan->csi_port_nums[i] = port_num + i * CSI_PORTS_PER_BRICK;
 
-	chan->of_node = of_node_get(node);
+	chan->of_analde = of_analde_get(analde);
 	chan->numpads = num_pads;
 	if (num_pads & 0x2) {
 		chan->pads[0].flags = MEDIA_PAD_FL_SINK;
@@ -496,7 +496,7 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
 		return 0;
 
-	chan->mipi = tegra_mipi_request(csi->dev, node);
+	chan->mipi = tegra_mipi_request(csi->dev, analde);
 	if (IS_ERR(chan->mipi)) {
 		ret = PTR_ERR(chan->mipi);
 		chan->mipi = NULL;
@@ -508,14 +508,14 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 
 static int tegra_csi_tpg_channels_alloc(struct tegra_csi *csi)
 {
-	struct device_node *node = csi->dev->of_node;
+	struct device_analde *analde = csi->dev->of_analde;
 	unsigned int port_num;
 	unsigned int tpg_channels = csi->soc->csi_max_channels;
 	int ret;
 
 	/* allocate CSI channel for each CSI x2 ports */
 	for (port_num = 0; port_num < tpg_channels; port_num++) {
-		ret = tegra_csi_channel_alloc(csi, node, port_num, 2, 1);
+		ret = tegra_csi_channel_alloc(csi, analde, port_num, 2, 1);
 		if (ret < 0)
 			return ret;
 	}
@@ -525,43 +525,43 @@ static int tegra_csi_tpg_channels_alloc(struct tegra_csi *csi)
 
 static int tegra_csi_channels_alloc(struct tegra_csi *csi)
 {
-	struct device_node *node = csi->dev->of_node;
-	struct v4l2_fwnode_endpoint v4l2_ep = {
+	struct device_analde *analde = csi->dev->of_analde;
+	struct v4l2_fwanalde_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *fwh;
-	struct device_node *channel;
-	struct device_node *ep;
-	unsigned int lanes, portno, num_pads;
+	struct fwanalde_handle *fwh;
+	struct device_analde *channel;
+	struct device_analde *ep;
+	unsigned int lanes, portanal, num_pads;
 	int ret;
 
-	for_each_child_of_node(node, channel) {
-		if (!of_node_name_eq(channel, "channel"))
+	for_each_child_of_analde(analde, channel) {
+		if (!of_analde_name_eq(channel, "channel"))
 			continue;
 
-		ret = of_property_read_u32(channel, "reg", &portno);
+		ret = of_property_read_u32(channel, "reg", &portanal);
 		if (ret < 0)
 			continue;
 
-		if (portno >= csi->soc->csi_max_channels) {
+		if (portanal >= csi->soc->csi_max_channels) {
 			dev_err(csi->dev, "invalid port num %d for %pOF\n",
-				portno, channel);
+				portanal, channel);
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		ep = of_graph_get_endpoint_by_regs(channel, 0, 0);
 		if (!ep)
 			continue;
 
-		fwh = of_fwnode_handle(ep);
-		ret = v4l2_fwnode_endpoint_parse(fwh, &v4l2_ep);
-		of_node_put(ep);
+		fwh = of_fwanalde_handle(ep);
+		ret = v4l2_fwanalde_endpoint_parse(fwh, &v4l2_ep);
+		of_analde_put(ep);
 		if (ret) {
 			dev_err(csi->dev,
 				"failed to parse v4l2 endpoint for %pOF: %d\n",
 				channel, ret);
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
@@ -572,26 +572,26 @@ static int tegra_csi_channels_alloc(struct tegra_csi *csi)
 		 * streaming.
 		 */
 		if (!lanes || ((lanes & (lanes - 1)) != 0) ||
-		    (lanes > CSI_LANES_PER_BRICK && ((portno & 1) != 0))) {
+		    (lanes > CSI_LANES_PER_BRICK && ((portanal & 1) != 0))) {
 			dev_err(csi->dev, "invalid data-lanes %d for %pOF\n",
 				lanes, channel);
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		num_pads = of_graph_get_endpoint_count(channel);
 		if (num_pads == TEGRA_CSI_PADS_NUM) {
-			ret = tegra_csi_channel_alloc(csi, channel, portno,
+			ret = tegra_csi_channel_alloc(csi, channel, portanal,
 						      lanes, num_pads);
 			if (ret < 0)
-				goto err_node_put;
+				goto err_analde_put;
 		}
 	}
 
 	return 0;
 
-err_node_put:
-	of_node_put(channel);
+err_analde_put:
+	of_analde_put(channel);
 	return ret;
 }
 
@@ -603,7 +603,7 @@ static int tegra_csi_channel_init(struct tegra_csi_channel *chan)
 
 	/* initialize the default format */
 	chan->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
-	chan->format.field = V4L2_FIELD_NONE;
+	chan->format.field = V4L2_FIELD_ANALNE;
 	chan->format.colorspace = V4L2_COLORSPACE_SRGB;
 	chan->format.width = TEGRA_DEF_WIDTH;
 	chan->format.height = TEGRA_DEF_HEIGHT;
@@ -619,10 +619,10 @@ static int tegra_csi_channel_init(struct tegra_csi_channel *chan)
 			 chan->csi_port_nums[0]);
 	else
 		snprintf(subdev->name, sizeof(subdev->name), "%s",
-			 kbasename(chan->of_node->full_name));
+			 kbasename(chan->of_analde->full_name));
 
 	v4l2_set_subdevdata(subdev, chan);
-	subdev->fwnode = of_fwnode_handle(chan->of_node);
+	subdev->fwanalde = of_fwanalde_handle(chan->of_analde);
 	subdev->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 
 	/* initialize media entity pads */
@@ -692,7 +692,7 @@ static void tegra_csi_channels_cleanup(struct tegra_csi *csi)
 			media_entity_cleanup(&subdev->entity);
 		}
 
-		of_node_put(chan->of_node);
+		of_analde_put(chan->of_analde);
 		list_del(&chan->list);
 		kfree(chan);
 	}
@@ -774,7 +774,7 @@ static int tegra_csi_probe(struct platform_device *pdev)
 
 	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi->iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi->iomem))
@@ -785,7 +785,7 @@ static int tegra_csi_probe(struct platform_device *pdev)
 	csi->clks = devm_kcalloc(&pdev->dev, csi->soc->num_clks,
 				 sizeof(*csi->clks), GFP_KERNEL);
 	if (!csi->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < csi->soc->num_clks; i++)
 		csi->clks[i].id = csi->soc->clk_names[i];
@@ -797,8 +797,8 @@ static int tegra_csi_probe(struct platform_device *pdev)
 	}
 
 	if (!pdev->dev.pm_domain) {
-		ret = -ENOENT;
-		dev_warn(&pdev->dev, "PM domain is not attached: %d\n", ret);
+		ret = -EANALENT;
+		dev_warn(&pdev->dev, "PM domain is analt attached: %d\n", ret);
 		return ret;
 	}
 

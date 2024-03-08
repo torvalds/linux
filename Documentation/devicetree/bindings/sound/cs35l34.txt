@@ -14,7 +14,7 @@ Required properties:
     converter's output voltage in mV. The range is from VP to 8V with
     increments of 100mV.
 
-  - cirrus,boost-nanohenry: Inductor value for boost converter. The value is
+  - cirrus,boost-naanalhenry: Inductor value for boost converter. The value is
     in nH and they can be values of 1000nH, 1100nH, 1200nH, 1500nH, and 2200nH.
 
 Optional properties:
@@ -30,7 +30,7 @@ Optional properties:
     80mA. The default value is 2480mA.
 
   - cirrus,i2s-sdinloc : ADSP SDIN I2S channel location. Indicates whether the
-    received mono data is in the left or right portion of the I2S frame
+    received moanal data is in the left or right portion of the I2S frame
     according to the AD0 pin or directly via this configuration.
     0x0 (Default) = Selected by AD0 input (if AD0 = LOW, use left channel),
     0x2 = Left,
@@ -57,6 +57,6 @@ cs35l34: cs35l34@40 {
 	reset-gpios = <&gpio 10 0>;
 
 	cirrus,boost-vtge-milltvolt = <8000>; /* 8V */
-	cirrus,boost-ind-nanohenry = <1000>; /* 1uH */
+	cirrus,boost-ind-naanalhenry = <1000>; /* 1uH */
 	cirrus,boost-peak-milliamp = <3000>; /* 3A */
 };

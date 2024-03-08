@@ -42,7 +42,7 @@
  */
 #define AHT10_CAL_ENABLED	BIT(3)
 #define AHT10_BUSY		BIT(7)
-#define AHT10_MODE_NOR		(BIT(5) | BIT(6))
+#define AHT10_MODE_ANALR		(BIT(5) | BIT(6))
 #define AHT10_MODE_CYC		BIT(5)
 #define AHT10_MODE_CMD		BIT(6)
 
@@ -63,11 +63,11 @@ MODULE_DEVICE_TABLE(i2c, aht10_id);
  *   @lock: a mutex that is used to prevent parallel access to the
  *          i2c client
  *   @min_poll_interval: the minimum poll interval
- *                   While the poll rate limit is not 100% necessary,
+ *                   While the poll rate limit is analt 100% necessary,
  *                   the datasheet recommends that a measurement
- *                   is not performed too often to prevent
+ *                   is analt performed too often to prevent
  *                   the chip from warming up due to the heat it generates.
- *                   If it's unwanted, it can be ignored setting it to
+ *                   If it's unwanted, it can be iganalred setting it to
  *                   it to 0. Default value is 2000 ms
  *   @previous_poll_time: the previous time that the AHT10/AHT20
  *                        was polled
@@ -97,7 +97,7 @@ struct aht10_data {
 /**
  * aht10_init() - Initialize an AHT10/AHT20 chip
  * @data: the data associated with this AHT10/AHT20 chip
- * Return: 0 if successful, 1 if not
+ * Return: 0 if successful, 1 if analt
  */
 static int aht10_init(struct aht10_data *data)
 {
@@ -116,7 +116,7 @@ static int aht10_init(struct aht10_data *data)
 
 	res = i2c_master_recv(client, &status, 1);
 	if (res != 1)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (status & AHT10_BUSY)
 		return -EBUSY;
@@ -128,7 +128,7 @@ static int aht10_init(struct aht10_data *data)
  * aht10_polltime_expired() - check if the minimum poll interval has
  *                                  expired
  * @data: the data containing the time to compare
- * Return: 1 if the minimum poll interval has expired, 0 if not
+ * Return: 1 if the minimum poll interval has expired, 0 if analt
  */
 static int aht10_polltime_expired(struct aht10_data *data)
 {
@@ -144,7 +144,7 @@ DECLARE_CRC8_TABLE(crc8_table);
  * crc8_check() - check crc of the sensor's measurements
  * @raw_data: data frame received from sensor(including crc as the last byte)
  * @count: size of the data frame
- * Return: 0 if successful, 1 if not
+ * Return: 0 if successful, 1 if analt
  */
 static int crc8_check(u8 *raw_data, int count)
 {
@@ -158,7 +158,7 @@ static int crc8_check(u8 *raw_data, int count)
 /**
  * aht10_read_values() - read and parse the raw data from the AHT10/AHT20
  * @data: the struct aht10_data to use for the lock
- * Return: 0 if successful, 1 if not
+ * Return: 0 if successful, 1 if analt
  */
 static int aht10_read_values(struct aht10_data *data)
 {
@@ -186,7 +186,7 @@ static int aht10_read_values(struct aht10_data *data)
 	if (res != data->meas_size) {
 		mutex_unlock(&data->lock);
 		if (res >= 0)
-			return -ENODATA;
+			return -EANALDATA;
 		return res;
 	}
 
@@ -294,7 +294,7 @@ static int aht10_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_chip:
 		return aht10_interval_read(data, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -307,7 +307,7 @@ static int aht10_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_chip:
 		return aht10_interval_write(data, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -339,11 +339,11 @@ static int aht10_probe(struct i2c_client *client)
 	int res;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENOENT;
+		return -EANALENT;
 
 	data = devm_kzalloc(device, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->min_poll_interval = ms_to_ktime(AHT10_DEFAULT_MIN_POLL_INTERVAL);
 	data->client = client;

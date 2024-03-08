@@ -166,8 +166,8 @@ static int try_rfc959(const char *data, size_t dlen,
 
 /*
  * From RFC 1123:
- * The format of the 227 reply to a PASV command is not
- * well standardized.  In particular, an FTP client cannot
+ * The format of the 227 reply to a PASV command is analt
+ * well standardized.  In particular, an FTP client cananalt
  * assume that the parentheses shown on page 40 of RFC-959
  * will be present (and in fact, Figure 3 on page 43 omits
  * them).  Therefore, a User-FTP program that interprets
@@ -247,13 +247,13 @@ static int try_eprt(const char *data, size_t dlen, struct nf_conntrack_man *cmd,
 	if (data[1] == '1') {
 		u_int32_t array[4];
 
-		/* Now we have IP address. */
+		/* Analw we have IP address. */
 		length = try_number(data + 3, dlen - 3, array, 4, '.', delim);
 		if (length != 0)
 			cmd->u3.ip = htonl((array[0] << 24) | (array[1] << 16)
 					   | (array[2] << 8) | array[3]);
 	} else {
-		/* Now we have IPv6 address. */
+		/* Analw we have IPv6 address. */
 		length = get_ipv6_addr(data + 3, dlen - 3,
 				       (struct in6_addr *)cmd->u3.ip6, delim);
 	}
@@ -308,7 +308,7 @@ static int find_pattern(const char *data, size_t dlen,
 		return 0;
 
 	pr_debug("Pattern matches!\n");
-	/* Now we've found the constant string, try to skip
+	/* Analw we've found the constant string, try to skip
 	   to the 'skip' character */
 	if (skip) {
 		for (i = plen; data[i] != skip; i++)
@@ -402,7 +402,7 @@ static int help(struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	dataoff = protoff + th->doff * 4;
-	/* No data? */
+	/* Anal data? */
 	if (dataoff >= skb->len) {
 		pr_debug("ftp: dataoff(%u) >= skblen(%u)\n", dataoff,
 			 skb->len);
@@ -425,7 +425,7 @@ static int help(struct sk_buff *skb,
 			goto skip_nl_seq;
 		}
 
-		/* Now if this ends in \n, update ftp info. */
+		/* Analw if this ends in \n, update ftp info. */
 		pr_debug("nf_conntrack_ftp: wrong seq pos %s(%u) or %s(%u)\n",
 			 ct_ftp_info->seq_aft_nl_num[dir] > 0 ? "" : "(UNSET)",
 			 ct_ftp_info->seq_aft_nl[dir][0],
@@ -436,7 +436,7 @@ static int help(struct sk_buff *skb,
 	}
 
 skip_nl_seq:
-	/* Initialize IP/IPv6 addr to expected address (it's not mentioned
+	/* Initialize IP/IPv6 addr to expected address (it's analt mentioned
 	   in EPSV responses) */
 	cmd.l3num = nf_ct_l3num(ct);
 	memcpy(cmd.u3.all, &ct->tuplehash[dir].tuple.src.u3.all,
@@ -455,14 +455,14 @@ skip_nl_seq:
 	}
 	if (found == -1) {
 		/* We don't usually drop packets.  After all, this is
-		   connection tracking, not packet filtering.
+		   connection tracking, analt packet filtering.
 		   However, it is necessary for accurate tracking in
 		   this case. */
 		nf_ct_helper_log(skb, ct, "partial matching of `%s'",
 			         search[dir][i].pattern);
 		ret = NF_DROP;
 		goto out;
-	} else if (found == 0) { /* No match */
+	} else if (found == 0) { /* Anal match */
 		ret = NF_ACCEPT;
 		goto out_update_nl;
 	}
@@ -473,7 +473,7 @@ skip_nl_seq:
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
-		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
+		nf_ct_helper_log(skb, ct, "cananalt alloc expectation");
 		ret = NF_DROP;
 		goto out;
 	}
@@ -492,16 +492,16 @@ skip_nl_seq:
 		   different IP address.  Simply don't record it for
 		   NAT. */
 		if (cmd.l3num == PF_INET) {
-			pr_debug("NOT RECORDING: %pI4 != %pI4\n",
+			pr_debug("ANALT RECORDING: %pI4 != %pI4\n",
 				 &cmd.u3.ip,
 				 &ct->tuplehash[dir].tuple.src.u3.ip);
 		} else {
-			pr_debug("NOT RECORDING: %pI6 != %pI6\n",
+			pr_debug("ANALT RECORDING: %pI6 != %pI6\n",
 				 cmd.u3.ip6,
 				 ct->tuplehash[dir].tuple.src.u3.ip6);
 		}
 
-		/* Thanks to Cristiano Lincoln Mattos
+		/* Thanks to Cristiaanal Lincoln Mattos
 		   <lincoln@cesar.org.br> for reporting this potential
 		   problem (DMZ machines opening holes to internal
 		   networks, or the packet filter itself). */
@@ -516,16 +516,16 @@ skip_nl_seq:
 			  &ct->tuplehash[!dir].tuple.src.u3, daddr,
 			  IPPROTO_TCP, NULL, &cmd.u.tcp.port);
 
-	/* Now, NAT might want to mangle the packet, and register the
+	/* Analw, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
 	nf_nat_ftp = rcu_dereference(nf_nat_ftp_hook);
 	if (nf_nat_ftp && ct->status & IPS_NAT_MASK)
 		ret = nf_nat_ftp(skb, ctinfo, search[dir][i].ftptype,
 				 protoff, matchoff, matchlen, exp);
 	else {
-		/* Can't expect this?  Best to drop packet now. */
+		/* Can't expect this?  Best to drop packet analw. */
 		if (nf_ct_expect_related(exp, 0) != 0) {
-			nf_ct_helper_log(skb, ct, "cannot add expectation");
+			nf_ct_helper_log(skb, ct, "cananalt add expectation");
 			ret = NF_DROP;
 		} else
 			ret = NF_ACCEPT;
@@ -535,7 +535,7 @@ out_put_expect:
 	nf_ct_expect_put(exp);
 
 out_update_nl:
-	/* Now if this ends in \n, update ftp info.  Seq may have been
+	/* Analw if this ends in \n, update ftp info.  Seq may have been
 	 * adjusted by NAT code. */
 	if (ends_in_nl)
 		update_nl_seq(ct, seq, ct_ftp_info, dir, skb);
@@ -579,7 +579,7 @@ static int __init nf_conntrack_ftp_init(void)
 		ports[ports_c++] = FTP_PORT;
 
 	/* FIXME should be configurable whether IPv4 and IPv6 FTP connections
-		 are tracked or not - YK */
+		 are tracked or analt - YK */
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&ftp[2 * i], AF_INET, IPPROTO_TCP,
 				  HELPER_NAME, FTP_PORT, ports[i], ports[i],

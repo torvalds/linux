@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,7 +45,7 @@
 #define T6_MAX_AAD_SIZE 495
 
 
-/* Define following if h/w is not dropping the AAD and IV data before
+/* Define following if h/w is analt dropping the AAD and IV data before
  * giving the processed data
  */
 
@@ -63,16 +63,16 @@
 #define CHCR_ENCRYPT_OP 0
 #define CHCR_DECRYPT_OP 1
 
-#define CHCR_SCMD_SEQ_NO_CTRL_32BIT     1
-#define CHCR_SCMD_SEQ_NO_CTRL_48BIT     2
-#define CHCR_SCMD_SEQ_NO_CTRL_64BIT     3
+#define CHCR_SCMD_SEQ_ANAL_CTRL_32BIT     1
+#define CHCR_SCMD_SEQ_ANAL_CTRL_48BIT     2
+#define CHCR_SCMD_SEQ_ANAL_CTRL_64BIT     3
 
 #define CHCR_SCMD_PROTO_VERSION_GENERIC 4
 
 #define CHCR_SCMD_AUTH_CTRL_AUTH_CIPHER 0
 #define CHCR_SCMD_AUTH_CTRL_CIPHER_AUTH 1
 
-#define CHCR_SCMD_CIPHER_MODE_NOP               0
+#define CHCR_SCMD_CIPHER_MODE_ANALP               0
 #define CHCR_SCMD_CIPHER_MODE_AES_CBC           1
 #define CHCR_SCMD_CIPHER_MODE_AES_GCM           2
 #define CHCR_SCMD_CIPHER_MODE_AES_CTR           3
@@ -80,7 +80,7 @@
 #define CHCR_SCMD_CIPHER_MODE_AES_XTS           6
 #define CHCR_SCMD_CIPHER_MODE_AES_CCM           7
 
-#define CHCR_SCMD_AUTH_MODE_NOP             0
+#define CHCR_SCMD_AUTH_MODE_ANALP             0
 #define CHCR_SCMD_AUTH_MODE_SHA1            1
 #define CHCR_SCMD_AUTH_MODE_SHA224          2
 #define CHCR_SCMD_AUTH_MODE_SHA256          3
@@ -92,8 +92,8 @@
 #define CHCR_SCMD_AUTH_MODE_CBCMAC          9
 #define CHCR_SCMD_AUTH_MODE_CMAC            10
 
-#define CHCR_SCMD_HMAC_CTRL_NOP             0
-#define CHCR_SCMD_HMAC_CTRL_NO_TRUNC        1
+#define CHCR_SCMD_HMAC_CTRL_ANALP             0
+#define CHCR_SCMD_HMAC_CTRL_ANAL_TRUNC        1
 #define CHCR_SCMD_HMAC_CTRL_TRUNC_RFC4366   2
 #define CHCR_SCMD_HMAC_CTRL_IPSEC_96BIT     3
 #define CHCR_SCMD_HMAC_CTRL_PL1		    4
@@ -105,7 +105,7 @@
 
 #define CHCR_SCMD_IVGEN_CTRL_HW             0
 #define CHCR_SCMD_IVGEN_CTRL_SW             1
-/* This are not really mac key size. They are intermediate values
+/* This are analt really mac key size. They are intermediate values
  * of sha engine and its size
  */
 #define CHCR_KEYCTX_MAC_KEY_SIZE_128        0
@@ -116,7 +116,7 @@
 #define CHCR_KEYCTX_CIPHER_KEY_SIZE_128     0
 #define CHCR_KEYCTX_CIPHER_KEY_SIZE_192     1
 #define CHCR_KEYCTX_CIPHER_KEY_SIZE_256     2
-#define CHCR_KEYCTX_NO_KEY                  15
+#define CHCR_KEYCTX_ANAL_KEY                  15
 
 #define CHCR_CPL_FW4_PLD_IV_OFFSET          (5 * 64) /* bytes. flt #5 and #6 */
 #define CHCR_CPL_FW4_PLD_HASH_RESULT_OFFSET (7 * 64) /* bytes. flt #7 */
@@ -125,7 +125,7 @@
 #define KEY_CONTEXT_HDR_SALT_AND_PAD	    16
 #define flits_to_bytes(x)  (x * 8)
 
-#define IV_NOP                  0
+#define IV_ANALP                  0
 #define IV_IMMEDIATE            1
 #define IV_DSGL			2
 
@@ -176,7 +176,7 @@ struct ablk_ctx {
 	unsigned int enckey_len;
 	unsigned char ciph_mode;
 	u8 key[CHCR_AES_MAX_KEY_LEN];
-	u8 nonce[4];
+	u8 analnce[4];
 	u8 rrkey[AES_MAX_KEY_SIZE];
 };
 struct chcr_aead_reqctx {
@@ -234,7 +234,7 @@ struct chcr_aead_ctx {
 	struct crypto_aead *sw_cipher;
 	u8 salt[MAX_SALT];
 	u8 key[CHCR_AES_MAX_KEY_LEN];
-	u8 nonce[4];
+	u8 analnce[4];
 	u16 hmac_ctrl;
 	u16 mayverify;
 	struct	__aead_ctx ctx[];
@@ -274,7 +274,7 @@ struct chcr_hctx_per_wr {
 	u32 result;
 	u8 is_sg_map;
 	u8 imm;
-	/*Final callback called. Driver cannot rely on nbytes to decide
+	/*Final callback called. Driver cananalt rely on nbytes to decide
 	 * final call
 	 */
 	u8 isfinal;

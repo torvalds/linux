@@ -26,7 +26,7 @@ _GLOBAL(strncpy)
 	bnelr			/* if we didn't hit a null char, we're done */
 	mfctr	r5
 	PPC_LCMPI 0,r5,0	/* any space left in destination buffer? */
-	beqlr			/* we know r0 == 0 here */
+	beqlr			/* we kanalw r0 == 0 here */
 2:	stbu	r0,1(r6)	/* clear it out if so */
 	bdnz	2b
 	blr

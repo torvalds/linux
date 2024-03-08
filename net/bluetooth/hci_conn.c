@@ -10,9 +10,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -102,17 +102,17 @@ static void hci_connect_le_scan_cleanup(struct hci_conn *conn, u8 status)
 		return;
 
 	/* If the status indicates successful cancellation of
-	 * the attempt (i.e. Unknown Connection Id) there's no point of
-	 * notifying failure since we'll go back to keep trying to
+	 * the attempt (i.e. Unkanalwn Connection Id) there's anal point of
+	 * analtifying failure since we'll go back to keep trying to
 	 * connect. The only exception is explicit connect requests
 	 * where a timeout + cancel does indicate an actual failure.
 	 */
-	if (status && status != HCI_ERROR_UNKNOWN_CONN_ID)
+	if (status && status != HCI_ERROR_UNKANALWN_CONN_ID)
 		mgmt_connect_failed(hdev, &conn->dst, conn->type,
 				    conn->dst_type, status);
 
 	/* The connection attempt was doing scan for new RPA, and is
-	 * in scan phase. If params are not associated with any other
+	 * in scan phase. If params are analt associated with any other
 	 * autoconnect action, remove them completely. If they are, just unmark
 	 * them as waiting for connection, by clearing explicit_connect field.
 	 */
@@ -163,13 +163,13 @@ static void hci_conn_cleanup(struct hci_conn *conn)
 		switch (conn->setting & SCO_AIRMODE_MASK) {
 		case SCO_AIRMODE_CVSD:
 		case SCO_AIRMODE_TRANSP:
-			if (hdev->notify)
-				hdev->notify(hdev, HCI_NOTIFY_DISABLE_SCO);
+			if (hdev->analtify)
+				hdev->analtify(hdev, HCI_ANALTIFY_DISABLE_SCO);
 			break;
 		}
 	} else {
-		if (hdev->notify)
-			hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
+		if (hdev->analtify)
+			hdev->analtify(hdev, HCI_ANALTIFY_CONN_DEL);
 	}
 
 	debugfs_remove_recursive(conn->debugfs);
@@ -191,7 +191,7 @@ static void hci_acl_create_connection(struct hci_conn *conn)
 	 * HCI Inquiry. So we cancel the Inquiry first before issuing HCI Create
 	 * Connection. This may cause the MGMT discovering state to become false
 	 * without user space's request but it is okay since the MGMT Discovery
-	 * APIs do not promise that discovery should be done forever. Instead,
+	 * APIs do analt promise that discovery should be done forever. Instead,
 	 * the user space monitors the status of MGMT discovering and it may
 	 * request for discovery again when this flag becomes false.
 	 */
@@ -287,7 +287,7 @@ static bool find_next_esco_param(struct hci_conn *conn,
 		if (lmp_esco_2m_capable(conn->parent) ||
 		    (esco_param[conn->attempt - 1].pkt_type & ESCO_2EV3))
 			break;
-		BT_DBG("hcon %p skipped attempt %d, eSCO 2M not supported",
+		BT_DBG("hcon %p skipped attempt %d, eSCO 2M analt supported",
 		       conn, conn->attempt);
 	}
 
@@ -303,7 +303,7 @@ static int configure_datapath_sync(struct hci_dev *hdev, struct bt_codec *codec)
 	if (!codec->data_path || !hdev->get_codec_config_data)
 		return 0;
 
-	/* Do not take me as error */
+	/* Do analt take me as error */
 	if (!hdev->get_codec_config_data)
 		return 0;
 
@@ -314,7 +314,7 @@ static int configure_datapath_sync(struct hci_dev *hdev, struct bt_codec *codec)
 
 	cmd = kzalloc(sizeof(*cmd) + vnd_len, GFP_KERNEL);
 	if (!cmd) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -628,7 +628,7 @@ static void hci_conn_timeout(struct work_struct *work)
 	 * drops below 0. Probably this is because l2cap_conn_del calls
 	 * l2cap_chan_del for each channel, and inside l2cap_chan_del conn is
 	 * dropped. After that loop hci_chan_del is called which also drops
-	 * conn. For now make sure that ACL is alive if refcnt is higher then 0,
+	 * conn. For analw make sure that ACL is alive if refcnt is higher then 0,
 	 * otherwise drop it.
 	 */
 	if (refcnt > 0)
@@ -748,7 +748,7 @@ static void bis_list(struct hci_conn *conn, void *data)
 {
 	struct iso_list_data *d = data;
 
-	/* Skip if not broadcast/ANY address */
+	/* Skip if analt broadcast/ANY address */
 	if (bacmp(&conn->dst, BDADDR_ANY))
 		return;
 
@@ -791,7 +791,7 @@ static int hci_le_terminate_big(struct hci_dev *hdev, struct hci_conn *conn)
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d->big = conn->iso_qos.bcast.big;
 	d->bis = conn->iso_qos.bcast.bis;
@@ -825,7 +825,7 @@ static void find_bis(struct hci_conn *conn, void *data)
 {
 	struct iso_list_data *d = data;
 
-	/* Ignore if BIG doesn't match */
+	/* Iganalre if BIG doesn't match */
 	if (d->big != conn->iso_qos.bcast.big)
 		return;
 
@@ -841,7 +841,7 @@ static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, struct hci_conn *c
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(d, 0, sizeof(*d));
 	d->big = big;
@@ -891,7 +891,7 @@ static void bis_cleanup(struct hci_conn *conn)
 			return;
 
 		/* Check if ISO connection is a BIS and terminate advertising
-		 * set and BIG if there are no other connections using it.
+		 * set and BIG if there are anal other connections using it.
 		 */
 		bis = hci_conn_hash_lookup_big(hdev, conn->iso_qos.bcast.big);
 		if (bis)
@@ -923,7 +923,7 @@ static void find_cis(struct hci_conn *conn, void *data)
 {
 	struct iso_list_data *d = data;
 
-	/* Ignore broadcast or if CIG don't match */
+	/* Iganalre broadcast or if CIG don't match */
 	if (!bacmp(&conn->dst, BDADDR_ANY) || d->cig != conn->iso_qos.ucast.cig)
 		return;
 
@@ -946,7 +946,7 @@ static void cis_cleanup(struct hci_conn *conn)
 	d.cig = conn->iso_qos.ucast.cig;
 
 	/* Check if ISO connection is a CIS and remove CIG if there are
-	 * no other connections using it.
+	 * anal other connections using it.
 	 */
 	hci_conn_hash_list_state(hdev, find_cis, ISO_LINK, BT_BOUND, &d);
 	hci_conn_hash_list_state(hdev, find_cis, ISO_LINK, BT_CONNECT, &d);
@@ -1047,13 +1047,13 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 
 	hci_conn_hash_add(hdev, conn);
 
-	/* The SCO and eSCO connections will only be notified when their
+	/* The SCO and eSCO connections will only be analtified when their
 	 * setup has been completed. This is different to ACL links which
-	 * can be notified right away.
+	 * can be analtified right away.
 	 */
 	if (conn->type != SCO_LINK && conn->type != ESCO_LINK) {
-		if (hdev->notify)
-			hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
+		if (hdev->analtify)
+			hdev->analtify(hdev, HCI_ANALTIFY_CONN_ADD);
 	}
 
 	hci_conn_init_sysfs(conn);
@@ -1080,8 +1080,8 @@ static void hci_conn_cleanup_child(struct hci_conn *conn, u8 reason)
 	if (!reason)
 		reason = HCI_ERROR_REMOTE_USER_TERM;
 
-	/* Due to race, SCO/ISO conn might be not established yet at this point,
-	 * and nothing else will clean it up. In other cases it is done via HCI
+	/* Due to race, SCO/ISO conn might be analt established yet at this point,
+	 * and analthing else will clean it up. In other cases it is done via HCI
 	 * events.
 	 */
 	switch (conn->type) {
@@ -1204,7 +1204,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src, uint8_t src_type)
 			continue;
 
 		/* Simple routing:
-		 *   No source address - find interface with bdaddr != dst
+		 *   Anal source address - find interface with bdaddr != dst
 		 *   Source address    - find interface with bdaddr == src
 		 */
 
@@ -1307,7 +1307,7 @@ u8 hci_conn_set_handle(struct hci_conn *conn, u16 handle)
 	}
 
 	/* If abort_reason has been sent it means the connection is being
-	 * aborted and the handle shall not be changed.
+	 * aborted and the handle shall analt be changed.
 	 */
 	if (conn->abort_reason)
 		return conn->abort_reason;
@@ -1380,7 +1380,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		if (lmp_le_capable(hdev))
 			return ERR_PTR(-ECONNREFUSED);
 
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	/* Since the controller supports only one LE connection attempt at a
@@ -1389,7 +1389,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	if (hci_lookup_le_connect(hdev))
 		return ERR_PTR(-EBUSY);
 
-	/* If there's already a connection object but it's not in
+	/* If there's already a connection object but it's analt in
 	 * scanning state it means it must already be established, in
 	 * which case we can't do anything else except report a failure
 	 * to connect.
@@ -1424,7 +1424,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	} else {
 		conn = hci_conn_add_unset(hdev, LE_LINK, dst, role);
 		if (!conn)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		hci_conn_hold(conn);
 		conn->pending_sec_level = sec_level;
 	}
@@ -1471,7 +1471,7 @@ static int hci_explicit_conn_params_set(struct hci_dev *hdev,
 	if (!params) {
 		params = hci_conn_params_add(hdev, addr, addr_type);
 		if (!params)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* If we created new params, mark them to be deleted in
 		 * hci_connect_le_scan_cleanup. It's different case than
@@ -1501,7 +1501,7 @@ static int qos_set_big(struct hci_dev *hdev, struct bt_iso_qos *qos)
 	struct hci_conn *conn;
 	u8  big;
 
-	/* Allocate a BIG if not set */
+	/* Allocate a BIG if analt set */
 	if (qos->bcast.big == BT_ISO_QOS_BIG_UNSET) {
 		for (big = 0x00; big < 0xef; big++) {
 
@@ -1511,7 +1511,7 @@ static int qos_set_big(struct hci_dev *hdev, struct bt_iso_qos *qos)
 		}
 
 		if (big == 0xef)
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 
 		/* Update BIG */
 		qos->bcast.big = big;
@@ -1525,14 +1525,14 @@ static int qos_set_bis(struct hci_dev *hdev, struct bt_iso_qos *qos)
 	struct hci_conn *conn;
 	u8  bis;
 
-	/* Allocate BIS if not set */
+	/* Allocate BIS if analt set */
 	if (qos->bcast.bis == BT_ISO_QOS_BIS_UNSET) {
 		if (qos->bcast.big != BT_ISO_QOS_BIG_UNSET) {
 			conn = hci_conn_hash_lookup_big(hdev, qos->bcast.big);
 
 			if (conn) {
 				/* If the BIG handle is already matched to an advertising
-				 * handle, do not allocate a new one.
+				 * handle, do analt allocate a new one.
 				 */
 				qos->bcast.bis = conn->iso_qos.bcast.bis;
 				return 0;
@@ -1551,7 +1551,7 @@ static int qos_set_bis(struct hci_dev *hdev, struct bt_iso_qos *qos)
 		}
 
 		if (bis == hdev->le_num_of_adv_sets)
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 
 		/* Update BIS */
 		qos->bcast.bis = bis;
@@ -1572,7 +1572,7 @@ static struct hci_conn *hci_add_bis(struct hci_dev *hdev, bdaddr_t *dst,
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
 		if (lmp_le_capable(hdev))
 			return ERR_PTR(-ECONNREFUSED);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	err = qos_set_big(hdev, qos);
@@ -1601,7 +1601,7 @@ static struct hci_conn *hci_add_bis(struct hci_dev *hdev, bdaddr_t *dst,
 
 	conn = hci_conn_add_unset(hdev, ISO_LINK, dst, HCI_ROLE_MASTER);
 	if (!conn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	conn->state = BT_CONNECT;
 
@@ -1622,7 +1622,7 @@ struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 		if (lmp_le_capable(hdev))
 			return ERR_PTR(-ECONNREFUSED);
 
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	/* Some devices send ATT messages as soon as the physical link is
@@ -1645,7 +1645,7 @@ struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 
 	conn = hci_conn_add_unset(hdev, LE_LINK, dst, HCI_ROLE_MASTER);
 	if (!conn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (hci_explicit_conn_params_set(hdev, dst, dst_type) < 0) {
 		hci_conn_del(conn);
@@ -1677,7 +1677,7 @@ struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 		if (lmp_bredr_capable(hdev))
 			return ERR_PTR(-ECONNREFUSED);
 
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	/* Reject outgoing connection to device with same BD ADDR against
@@ -1693,7 +1693,7 @@ struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 	if (!acl) {
 		acl = hci_conn_add_unset(hdev, ACL_LINK, dst, HCI_ROLE_MASTER);
 		if (!acl)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	hci_conn_hold(acl);
@@ -1744,7 +1744,7 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	struct hci_conn *sco;
 	struct hci_link *link;
 
-	acl = hci_connect_acl(hdev, dst, BT_SECURITY_LOW, HCI_AT_NO_BONDING,
+	acl = hci_connect_acl(hdev, dst, BT_SECURITY_LOW, HCI_AT_ANAL_BONDING,
 			      CONN_REASON_SCO_CONNECT);
 	if (IS_ERR(acl))
 		return acl;
@@ -1754,7 +1754,7 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 		sco = hci_conn_add_unset(hdev, type, dst, HCI_ROLE_MASTER);
 		if (!sco) {
 			hci_conn_drop(acl);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	}
 
@@ -1762,7 +1762,7 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	if (!link) {
 		hci_conn_drop(acl);
 		hci_conn_drop(sco);
-		return ERR_PTR(-ENOLINK);
+		return ERR_PTR(-EANALLINK);
 	}
 
 	sco->setting = setting;
@@ -1883,7 +1883,7 @@ static bool hci_le_set_cig_params(struct hci_conn *conn, struct bt_iso_qos *qos)
 
 	memset(&data, 0, sizeof(data));
 
-	/* Allocate first still reconfigurable CIG if not set */
+	/* Allocate first still reconfigurable CIG if analt set */
 	if (qos->ucast.cig == BT_ISO_QOS_CIG_UNSET) {
 		for (data.cig = 0x00; data.cig < 0xf0; data.cig++) {
 			data.count = 0;
@@ -1913,7 +1913,7 @@ static bool hci_le_set_cig_params(struct hci_conn *conn, struct bt_iso_qos *qos)
 		goto done;
 	}
 
-	/* Allocate first available CIS if not set */
+	/* Allocate first available CIS if analt set */
 	for (data.cig = qos->ucast.cig, data.cis = 0x00; data.cis < 0xf0;
 	     data.cis++) {
 		if (!hci_conn_hash_lookup_cis(hdev, NULL, 0, data.cig,
@@ -1945,7 +1945,7 @@ struct hci_conn *hci_bind_cis(struct hci_dev *hdev, bdaddr_t *dst,
 	if (!cis) {
 		cis = hci_conn_add_unset(hdev, ISO_LINK, dst, HCI_ROLE_MASTER);
 		if (!cis)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		cis->cleanup = cis_cleanup;
 		cis->dst_type = dst_type;
 		cis->iso_qos.ucast.cig = BT_ISO_QOS_CIG_UNSET;
@@ -1964,25 +1964,25 @@ struct hci_conn *hci_bind_cis(struct hci_dev *hdev, bdaddr_t *dst,
 	cis->le_tx_phy = qos->ucast.out.phy;
 	cis->le_rx_phy = qos->ucast.in.phy;
 
-	/* If output interval is not set use the input interval as it cannot be
+	/* If output interval is analt set use the input interval as it cananalt be
 	 * 0x000000.
 	 */
 	if (!qos->ucast.out.interval)
 		qos->ucast.out.interval = qos->ucast.in.interval;
 
-	/* If input interval is not set use the output interval as it cannot be
+	/* If input interval is analt set use the output interval as it cananalt be
 	 * 0x000000.
 	 */
 	if (!qos->ucast.in.interval)
 		qos->ucast.in.interval = qos->ucast.out.interval;
 
-	/* If output latency is not set use the input latency as it cannot be
+	/* If output latency is analt set use the input latency as it cananalt be
 	 * 0x0000.
 	 */
 	if (!qos->ucast.out.latency)
 		qos->ucast.out.latency = qos->ucast.in.latency;
 
-	/* If input latency is not set use the output latency as it cannot be
+	/* If input latency is analt set use the output latency as it cananalt be
 	 * 0x0000.
 	 */
 	if (!qos->ucast.in.latency)
@@ -2093,12 +2093,12 @@ static void hci_iso_qos_setup(struct hci_dev *hdev, struct hci_conn *conn,
 	if (qos->phy == BT_ISO_PHY_ANY)
 		qos->phy = phy;
 
-	/* Use LE ACL connection interval if not set */
+	/* Use LE ACL connection interval if analt set */
 	if (!qos->interval)
 		/* ACL interval unit in 1.25 ms to us */
 		qos->interval = conn->le_conn_interval * 1250;
 
-	/* Use LE ACL connection latency if not set */
+	/* Use LE ACL connection latency if analt set */
 	if (!qos->latency)
 		qos->latency = conn->le_conn_latency;
 }
@@ -2167,7 +2167,7 @@ int hci_pa_create_sync(struct hci_dev *hdev, bdaddr_t *dst, __u8 dst_type,
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp) {
 		hci_dev_clear_flag(hdev, HCI_PA_SYNC);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cp->options = qos->bcast.options;
@@ -2259,7 +2259,7 @@ struct hci_conn *hci_bind_bis(struct hci_dev *hdev, bdaddr_t *dst,
 	conn->le_tx_phy = qos->bcast.out.phy;
 	conn->le_tx_phy = qos->bcast.out.phy;
 
-	/* Add Basic Announcement into Peridic Adv Data if BASE is set */
+	/* Add Basic Ananaluncement into Peridic Adv Data if BASE is set */
 	if (base_len && base) {
 		memcpy(conn->le_per_adv_data,  eir, sizeof(eir));
 		conn->le_per_adv_data_len = base_len;
@@ -2279,7 +2279,7 @@ struct hci_conn *hci_bind_bis(struct hci_dev *hdev, bdaddr_t *dst,
 		link = hci_conn_link(parent, conn);
 		if (!link) {
 			hci_conn_drop(conn);
-			return ERR_PTR(-ENOLINK);
+			return ERR_PTR(-EANALLINK);
 		}
 
 		/* Link takes the refcount */
@@ -2293,7 +2293,7 @@ static void bis_mark_per_adv(struct hci_conn *conn, void *data)
 {
 	struct iso_list_data *d = data;
 
-	/* Skip if not broadcast/ANY address */
+	/* Skip if analt broadcast/ANY address */
 	if (bacmp(&conn->dst, BDADDR_ANY))
 		return;
 
@@ -2376,7 +2376,7 @@ struct hci_conn *hci_connect_cis(struct hci_dev *hdev, bdaddr_t *dst,
 	if (!link) {
 		hci_conn_drop(le);
 		hci_conn_drop(cis);
-		return ERR_PTR(-ENOLINK);
+		return ERR_PTR(-EANALLINK);
 	}
 
 	/* Link takes the refcount */
@@ -2411,9 +2411,9 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 	  * page 1319:
 	  *
 	  * 128-bit equivalent strength for link and encryption keys
-	  * required using FIPS approved algorithms (E0 not allowed,
-	  * SAFER+ not allowed, and P-192 not allowed; encryption key
-	  * not shortened)
+	  * required using FIPS approved algorithms (E0 analt allowed,
+	  * SAFER+ analt allowed, and P-192 analt allowed; encryption key
+	  * analt shortened)
 	  */
 	if (conn->sec_level == BT_SECURITY_FIPS &&
 	    !test_bit(HCI_CONN_AES_CCM, &conn->flags)) {
@@ -2491,7 +2491,7 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type,
 	if (sec_level == BT_SECURITY_SDP)
 		return 1;
 
-	/* For non 2.1 devices and low security level we don't need the link
+	/* For analn 2.1 devices and low security level we don't need the link
 	   key. */
 	if (sec_level == BT_SECURITY_LOW && !hci_conn_ssp_enabled(conn))
 		return 1;
@@ -2554,7 +2554,7 @@ encrypt:
 		if (!conn->enc_key_size)
 			return 0;
 
-		/* Nothing else needed, all requirements are met */
+		/* Analthing else needed, all requirements are met */
 		return 1;
 	}
 
@@ -2568,7 +2568,7 @@ int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level)
 {
 	BT_DBG("hcon %p", conn);
 
-	/* Accept if non-secure or higher security level is required */
+	/* Accept if analn-secure or higher security level is required */
 	if (sec_level != BT_SECURITY_HIGH && sec_level != BT_SECURITY_FIPS)
 		return 1;
 
@@ -2577,7 +2577,7 @@ int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level)
 	    conn->sec_level == BT_SECURITY_FIPS)
 		return 1;
 
-	/* Reject not secure link */
+	/* Reject analt secure link */
 	return 0;
 }
 EXPORT_SYMBOL(hci_conn_check_secure);
@@ -2634,7 +2634,7 @@ void hci_conn_hash_flush(struct hci_dev *hdev)
 
 	BT_DBG("hdev %s", hdev->name);
 
-	/* We should not traverse the list here, because hci_conn_del
+	/* We should analt traverse the list here, because hci_conn_del
 	 * can remove extra links, which may cause the list traversal
 	 * to hit items that have already been released.
 	 */
@@ -2703,12 +2703,12 @@ int hci_get_conn_list(void __user *arg)
 
 	cl = kmalloc(size, GFP_KERNEL);
 	if (!cl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdev = hci_dev_get(req.dev_id);
 	if (!hdev) {
 		kfree(cl);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ci = cl->conn_info;
@@ -2761,7 +2761,7 @@ int hci_get_conn_info(struct hci_dev *hdev, void __user *arg)
 	hci_dev_unlock(hdev);
 
 	if (!conn)
-		return -ENOENT;
+		return -EANALENT;
 
 	return copy_to_user(ptr, &ci, sizeof(ci)) ? -EFAULT : 0;
 }
@@ -2781,7 +2781,7 @@ int hci_get_auth_info(struct hci_dev *hdev, void __user *arg)
 	hci_dev_unlock(hdev);
 
 	if (!conn)
-		return -ENOENT;
+		return -EANALENT;
 
 	return copy_to_user(arg, &req, sizeof(req)) ? -EFAULT : 0;
 }
@@ -2878,7 +2878,7 @@ u32 hci_conn_get_phy(struct hci_conn *conn)
 	u32 phys = 0;
 
 	/* BLUETOOTH CORE SPECIFICATION Version 5.2 | Vol 2, Part B page 471:
-	 * Table 6.2: Packets defined for synchronous, asynchronous, and
+	 * Table 6.2: Packets defined for synchroanalus, asynchroanalus, and
 	 * CPB logical transport types.
 	 */
 	switch (conn->type) {

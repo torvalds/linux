@@ -7,7 +7,7 @@
  *
  * based on previous kernel 2.4 version by Andrew Christian
  * Author : Alessandro Gardich <gremlin@gremlin.it>
- * Author : Dmitry Artamonow <mad_soft@inbox.ru>
+ * Author : Dmitry Artamoanalw <mad_soft@inbox.ru>
  * Author : Linus Walleij <linus.walleij@linaro.org>
  */
 
@@ -65,7 +65,7 @@ int ipaq_micro_tx_msg(struct ipaq_micro *micro, struct ipaq_micro_msg *msg)
 
 	spin_lock_irqsave(&micro->lock, flags);
 	if (micro->msg) {
-		list_add_tail(&msg->node, &micro->queue);
+		list_add_tail(&msg->analde, &micro->queue);
 		spin_unlock_irqrestore(&micro->lock, flags);
 		return 0;
 	}
@@ -86,10 +86,10 @@ static void micro_rx_msg(struct ipaq_micro *micro, u8 id, int len, u8 *data)
 	case MSG_EEPROM_READ:
 	case MSG_EEPROM_WRITE:
 	case MSG_BACKLIGHT:
-	case MSG_NOTIFY_LED:
+	case MSG_ANALTIFY_LED:
 	case MSG_THERMAL_SENSOR:
 	case MSG_BATTERY:
-		/* Handle synchronous messages */
+		/* Handle synchroanalus messages */
 		if (micro->msg && micro->msg->id == id) {
 			struct ipaq_micro_msg *msg = micro->msg;
 
@@ -99,8 +99,8 @@ static void micro_rx_msg(struct ipaq_micro *micro, u8 id, int len, u8 *data)
 			if (!list_empty(&micro->queue)) {
 				micro->msg = list_entry(micro->queue.next,
 							struct ipaq_micro_msg,
-							node);
-				list_del_init(&micro->msg->node);
+							analde);
+				list_del_init(&micro->msg->analde);
 				ipaq_micro_trigger_tx(micro);
 			} else
 				micro->msg = NULL;
@@ -109,7 +109,7 @@ static void micro_rx_msg(struct ipaq_micro *micro, u8 id, int len, u8 *data)
 			dev_err(micro->dev,
 				"out of band RX message 0x%02x\n", id);
 			if (!micro->msg)
-				dev_info(micro->dev, "no message queued\n");
+				dev_info(micro->dev, "anal message queued\n");
 			else
 				dev_info(micro->dev, "expected message %02x\n",
 					 micro->msg->id);
@@ -119,17 +119,17 @@ static void micro_rx_msg(struct ipaq_micro *micro, u8 id, int len, u8 *data)
 		if (micro->key)
 			micro->key(micro->key_data, len, data);
 		else
-			dev_dbg(micro->dev, "key message ignored, no handle\n");
+			dev_dbg(micro->dev, "key message iganalred, anal handle\n");
 		break;
 	case MSG_TOUCHSCREEN:
 		if (micro->ts)
 			micro->ts(micro->ts_data, len, data);
 		else
-			dev_dbg(micro->dev, "touchscreen message ignored, no handle\n");
+			dev_dbg(micro->dev, "touchscreen message iganalred, anal handle\n");
 		break;
 	default:
 		dev_err(micro->dev,
-			"unknown msg %d [%d] %*ph\n", id, len, len, data);
+			"unkanalwn msg %d [%d] %*ph\n", id, len, len, data);
 	}
 	spin_unlock(&micro->lock);
 }
@@ -266,7 +266,7 @@ static void __init ipaq_micro_eeprom_dump(struct ipaq_micro *micro)
 	dev_info(micro->dev, "page mode: %u\n", ipaq_micro_to_u16(dump+84));
 	dev_info(micro->dev, "country ID: %u\n", ipaq_micro_to_u16(dump+86));
 	dev_info(micro->dev, "color display: %s\n",
-		 ipaq_micro_to_u16(dump+88) ? "yes" : "no");
+		 ipaq_micro_to_u16(dump+88) ? "anal" : "anal");
 	dev_info(micro->dev, "ROM size: %u MiB\n", ipaq_micro_to_u16(dump+90));
 	dev_info(micro->dev, "RAM size: %u KiB\n", ipaq_micro_to_u16(dump+92));
 	dev_info(micro->dev, "screen: %u x %u\n",
@@ -381,7 +381,7 @@ static int __init micro_probe(struct platform_device *pdev)
 
 	micro = devm_kzalloc(&pdev->dev, sizeof(*micro), GFP_KERNEL);
 	if (!micro)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	micro->dev = &pdev->dev;
 

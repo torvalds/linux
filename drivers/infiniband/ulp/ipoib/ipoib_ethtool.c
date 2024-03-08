@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -103,7 +103,7 @@ static int ipoib_set_coalesce(struct net_device *dev,
 	ret = rdma_set_cq_moderation(priv->recv_cq,
 				     coal->rx_max_coalesced_frames,
 				     coal->rx_coalesce_usecs);
-	if (ret && ret != -EOPNOTSUPP) {
+	if (ret && ret != -EOPANALTSUPP) {
 		ipoib_warn(priv, "failed modifying CQ (%d)\n", ret);
 		return ret;
 	}
@@ -152,7 +152,7 @@ static int ipoib_get_sset_count(struct net_device __always_unused *dev,
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* Return lane speed in unit of 1e6 bit/sec */
@@ -178,7 +178,7 @@ static inline int ib_speed_enum_to_int(int speed)
 		return SPEED_200000;
 	}
 
-	return SPEED_UNKNOWN;
+	return SPEED_UNKANALWN;
 }
 
 static int ipoib_get_link_ksettings(struct net_device *netdev,
@@ -189,8 +189,8 @@ static int ipoib_get_link_ksettings(struct net_device *netdev,
 	int ret, speed, width;
 
 	if (!netif_carrier_ok(netdev)) {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 		return 0;
 	}
 

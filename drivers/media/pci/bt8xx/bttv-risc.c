@@ -7,7 +7,7 @@
 	- memory management
 	- generation
 
-    (c) 2000-2003 Gerd Knorr <kraxel@bytesex.org>
+    (c) 2000-2003 Gerd Kanalrr <kraxel@bytesex.org>
 
 
 */
@@ -236,14 +236,14 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 static void
 bttv_calc_geo_old(struct bttv *btv, struct bttv_geometry *geo,
 		  int width, int height, int interleaved,
-		  const struct bttv_tvnorm *tvnorm)
+		  const struct bttv_tvanalrm *tvanalrm)
 {
 	u32 xsf, sr;
 	int vdelay;
 
-	int swidth       = tvnorm->swidth;
-	int totalwidth   = tvnorm->totalwidth;
-	int scaledtwidth = tvnorm->scaledtwidth;
+	int swidth       = tvanalrm->swidth;
+	int totalwidth   = tvanalrm->totalwidth;
+	int scaledtwidth = tvanalrm->scaledtwidth;
 
 	if (btv->input == btv->dig) {
 		swidth       = 720;
@@ -251,22 +251,22 @@ bttv_calc_geo_old(struct bttv *btv, struct bttv_geometry *geo,
 		scaledtwidth = 858;
 	}
 
-	vdelay = tvnorm->vdelay;
+	vdelay = tvanalrm->vdelay;
 
 	xsf = (width*scaledtwidth)/swidth;
 	geo->hscale =  ((totalwidth*4096UL)/xsf-4096);
-	geo->hdelay =  tvnorm->hdelayx1;
+	geo->hdelay =  tvanalrm->hdelayx1;
 	geo->hdelay =  (geo->hdelay*width)/swidth;
 	geo->hdelay &= 0x3fe;
-	sr = ((tvnorm->sheight >> (interleaved?0:1))*512)/height - 512;
+	sr = ((tvanalrm->sheight >> (interleaved?0:1))*512)/height - 512;
 	geo->vscale =  (0x10000UL-sr) & 0x1fff;
 	geo->crop   =  ((width>>8)&0x03) | ((geo->hdelay>>6)&0x0c) |
-		((tvnorm->sheight>>4)&0x30) | ((vdelay>>2)&0xc0);
+		((tvanalrm->sheight>>4)&0x30) | ((vdelay>>2)&0xc0);
 	geo->vscale |= interleaved ? (BT848_VSCALE_INT<<8) : 0;
 	geo->vdelay  =  vdelay;
 	geo->width   =  width;
-	geo->sheight =  tvnorm->sheight;
-	geo->vtotal  =  tvnorm->vtotal;
+	geo->sheight =  tvanalrm->sheight;
+	geo->vtotal  =  tvanalrm->vtotal;
 
 	if (btv->opt_combfilter) {
 		geo->vtc  = (width < 193) ? 2 : ((width < 385) ? 1 : 0);
@@ -283,21 +283,21 @@ bttv_calc_geo		(struct bttv *                  btv,
 			 unsigned int                   width,
 			 unsigned int                   height,
 			 int                            both_fields,
-			 const struct bttv_tvnorm *     tvnorm,
+			 const struct bttv_tvanalrm *     tvanalrm,
 			 const struct v4l2_rect *       crop)
 {
 	unsigned int c_width;
 	unsigned int c_height;
 	u32 sr;
 
-	if ((crop->left == tvnorm->cropcap.defrect.left
-	     && crop->top == tvnorm->cropcap.defrect.top
-	     && crop->width == tvnorm->cropcap.defrect.width
-	     && crop->height == tvnorm->cropcap.defrect.height
-	     && width <= tvnorm->swidth /* see PAL-Nc et al */)
+	if ((crop->left == tvanalrm->cropcap.defrect.left
+	     && crop->top == tvanalrm->cropcap.defrect.top
+	     && crop->width == tvanalrm->cropcap.defrect.width
+	     && crop->height == tvanalrm->cropcap.defrect.height
+	     && width <= tvanalrm->swidth /* see PAL-Nc et al */)
 	    || btv->input == btv->dig) {
 		bttv_calc_geo_old(btv, geo, width, height,
-				  both_fields, tvnorm);
+				  both_fields, tvanalrm);
 		return;
 	}
 
@@ -312,12 +312,12 @@ bttv_calc_geo		(struct bttv *                  btv,
 	geo->hdelay = ((crop->left * width + c_width) / c_width) & ~1;
 
 	geo->sheight = c_height;
-	geo->vdelay = crop->top - tvnorm->cropcap.bounds.top + MIN_VDELAY;
+	geo->vdelay = crop->top - tvanalrm->cropcap.bounds.top + MIN_VDELAY;
 	sr = c_height >> !both_fields;
 	sr = (sr * 512U + (height >> 1)) / height - 512;
 	geo->vscale = (0x10000UL - sr) & 0x1fff;
 	geo->vscale |= both_fields ? (BT848_VSCALE_INT << 8) : 0;
-	geo->vtotal = tvnorm->vtotal;
+	geo->vtotal = tvanalrm->vtotal;
 
 	geo->crop = (((geo->width   >> 8) & 0x03) |
 		     ((geo->hdelay  >> 6) & 0x0c) |
@@ -514,16 +514,16 @@ int bttv_buffer_risc_vbi(struct bttv *btv, struct bttv_buffer *buf)
 	unsigned int skip_lines1 = 0;
 	unsigned int min_vdelay = MIN_VDELAY;
 
-	const struct bttv_tvnorm *tvnorm = btv->vbi_fmt.tvnorm;
+	const struct bttv_tvanalrm *tvanalrm = btv->vbi_fmt.tvanalrm;
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(&buf->vbuf.vb2_buf, 0);
 	struct scatterlist *list = sgt->sgl;
 
 	if (btv->vbi_fmt.fmt.count[0] > 0)
 		skip_lines0 = max(0, (btv->vbi_fmt.fmt.start[0] -
-					tvnorm->vbistart[0]));
+					tvanalrm->vbistart[0]));
 	if (btv->vbi_fmt.fmt.count[1] > 0)
 		skip_lines1 = max(0, (btv->vbi_fmt.fmt.start[1] -
-					tvnorm->vbistart[1]));
+					tvanalrm->vbistart[1]));
 
 	if (btv->vbi_fmt.fmt.count[0] > 0) {
 		r = bttv_risc_packed(btv, &buf->top, list, 0, bpl, padding,
@@ -541,8 +541,8 @@ int bttv_buffer_risc_vbi(struct bttv *btv, struct bttv_buffer *buf)
 			return r;
 	}
 
-	if (btv->vbi_fmt.end >= tvnorm->cropcap.bounds.top)
-		min_vdelay += btv->vbi_fmt.end - tvnorm->cropcap.bounds.top;
+	if (btv->vbi_fmt.end >= tvanalrm->cropcap.bounds.top)
+		min_vdelay += btv->vbi_fmt.end - tvanalrm->cropcap.bounds.top;
 
 	/* For bttv_buffer_activate_vbi(). */
 	buf->geo.vdelay = min_vdelay;
@@ -660,7 +660,7 @@ int
 bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 {
 	int r = 0;
-	const struct bttv_tvnorm *tvnorm = bttv_tvnorms + btv->tvnorm;
+	const struct bttv_tvanalrm *tvanalrm = bttv_tvanalrms + btv->tvanalrm;
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(&buf->vbuf.vb2_buf, 0);
 	struct scatterlist *list = sgt->sgl;
 	unsigned long size = (btv->fmt->depth * btv->width * btv->height) >> 3;
@@ -671,7 +671,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		int bpf = bpl * (btv->height >> 1);
 
 		bttv_calc_geo(btv, &buf->geo, btv->width, btv->height,
-			      V4L2_FIELD_HAS_BOTH(buf->vbuf.field), tvnorm,
+			      V4L2_FIELD_HAS_BOTH(buf->vbuf.field), tvanalrm,
 			      &btv->crop[!!btv->do_crop].rect);
 		switch (buf->vbuf.field) {
 		case V4L2_FIELD_TOP:
@@ -721,7 +721,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		switch (buf->vbuf.field) {
 		case V4L2_FIELD_TOP:
 			bttv_calc_geo(btv, &buf->geo, btv->width, btv->height,
-				      0, tvnorm,
+				      0, tvanalrm,
 				      &btv->crop[!!btv->do_crop].rect);
 			r = bttv_risc_planar(btv, &buf->top, list, 0,
 					     btv->width, 0, btv->height,
@@ -731,7 +731,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 			break;
 		case V4L2_FIELD_BOTTOM:
 			bttv_calc_geo(btv, &buf->geo, btv->width, btv->height,
-				      0, tvnorm,
+				      0, tvanalrm,
 				      &btv->crop[!!btv->do_crop].rect);
 			r = bttv_risc_planar(btv, &buf->bottom, list, 0,
 					     btv->width, 0, btv->height,
@@ -741,7 +741,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 			break;
 		case V4L2_FIELD_INTERLACED:
 			bttv_calc_geo(btv, &buf->geo, btv->width, btv->height,
-				      1, tvnorm,
+				      1, tvanalrm,
 				      &btv->crop[!!btv->do_crop].rect);
 			lines = btv->height >> 1;
 			ypadding = btv->width;
@@ -761,7 +761,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 			break;
 		case V4L2_FIELD_SEQ_TB:
 			bttv_calc_geo(btv, &buf->geo, btv->width, btv->height,
-				      1, tvnorm,
+				      1, tvanalrm,
 				      &btv->crop[!!btv->do_crop].rect);
 			lines = btv->height >> 1;
 			ypadding = btv->width;
@@ -788,8 +788,8 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 	if (btv->fmt->flags & FORMAT_FLAGS_RAW) {
 		/* build risc code */
 		buf->vbuf.field = V4L2_FIELD_SEQ_TB;
-		bttv_calc_geo(btv, &buf->geo, tvnorm->swidth, tvnorm->sheight,
-			      1, tvnorm, &btv->crop[!!btv->do_crop].rect);
+		bttv_calc_geo(btv, &buf->geo, tvanalrm->swidth, tvanalrm->sheight,
+			      1, tvanalrm, &btv->crop[!!btv->do_crop].rect);
 		r = bttv_risc_packed(btv, &buf->top, list, 0, RAW_BPL, 0, 0,
 				     RAW_LINES);
 		r = bttv_risc_packed(btv, &buf->bottom, list, size / 2,

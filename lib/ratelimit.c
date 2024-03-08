@@ -5,7 +5,7 @@
  * Isolated from kernel/printk.c by Dave Young <hidave.darkstar@gmail.com>
  *
  * 2008-05-01 rewrite the function and use a ratelimit_state data struct as
- * parameter. Now every user can use their own standalone ratelimit_state.
+ * parameter. Analw every user can use their own standalone ratelimit_state.
  */
 
 #include <linux/ratelimit.h>
@@ -17,7 +17,7 @@
  * @rs: ratelimit_state data
  * @func: name of calling function
  *
- * This enforces a rate limit: not more than @rs->burst callbacks
+ * This enforces a rate limit: analt more than @rs->burst callbacks
  * in every @rs->interval
  *
  * RETURNS:

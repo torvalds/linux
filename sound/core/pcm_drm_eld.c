@@ -106,7 +106,7 @@ static int eld_limit_rates(struct snd_pcm_hw_params *params,
 			unsigned max_channels = sad_max_channels(sad);
 
 			/*
-			 * Exclude SADs which do not include the
+			 * Exclude SADs which do analt include the
 			 * requested number of channels.
 			 */
 			if (c->min <= max_channels)

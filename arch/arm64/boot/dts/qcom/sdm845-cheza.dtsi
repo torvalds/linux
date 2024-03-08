@@ -96,7 +96,7 @@
 	};
 
 	/*
-	 * Apparently RPMh does not provide support for PM8998 S4 because it
+	 * Apparently RPMh does analt provide support for PM8998 S4 because it
 	 * is always-on; model it as a fixed regulator.
 	 */
 	src_pp1800_s4a: pm8998-smps4 {
@@ -112,7 +112,7 @@
 		vin-supply = <&src_vph_pwr>;
 	};
 
-	/* BOARD-SPECIFIC TOP LEVEL NODES */
+	/* BOARD-SPECIFIC TOP LEVEL ANALDES */
 
 	gpio-keys {
 		compatible = "gpio-keys";
@@ -130,10 +130,10 @@
 	};
 
 	panel: panel {
-		compatible = "innolux,p120zdg-bf1";
+		compatible = "inanallux,p120zdg-bf1";
 		power-supply = <&pp3300_dx_edp>;
 		backlight = <&backlight>;
-		no-hpd;
+		anal-hpd;
 
 		panel_in: port {
 			panel_in_edp: endpoint {
@@ -148,19 +148,19 @@
 };
 
 &psci {
-	/delete-node/ power-domain-cpu0;
-	/delete-node/ power-domain-cpu1;
-	/delete-node/ power-domain-cpu2;
-	/delete-node/ power-domain-cpu3;
-	/delete-node/ power-domain-cpu4;
-	/delete-node/ power-domain-cpu5;
-	/delete-node/ power-domain-cpu6;
-	/delete-node/ power-domain-cpu7;
-	/delete-node/ power-domain-cluster;
+	/delete-analde/ power-domain-cpu0;
+	/delete-analde/ power-domain-cpu1;
+	/delete-analde/ power-domain-cpu2;
+	/delete-analde/ power-domain-cpu3;
+	/delete-analde/ power-domain-cpu4;
+	/delete-analde/ power-domain-cpu5;
+	/delete-analde/ power-domain-cpu6;
+	/delete-analde/ power-domain-cpu7;
+	/delete-analde/ power-domain-cluster;
 };
 
 &cpus {
-	/delete-node/ domain-idle-states;
+	/delete-analde/ domain-idle-states;
 };
 
 &cpu_idle_states {
@@ -300,13 +300,13 @@
  *
  * For venus_mem we'll delete and re-create at a different address.
  *
- * cdsp_mem isn't used on cheza right now so we won't bother re-creating it; but
+ * cdsp_mem isn't used on cheza right analw so we won't bother re-creating it; but
  * that also means we need to delete cdsp_pas.
  */
-/delete-node/ &venus_mem;
-/delete-node/ &cdsp_mem;
-/delete-node/ &cdsp_pas;
-/delete-node/ &gpu_mem;
+/delete-analde/ &venus_mem;
+/delete-analde/ &cdsp_mem;
+/delete-analde/ &cdsp_pas;
+/delete-analde/ &gpu_mem;
 
 /* Increase the size from 120 MB to 128 MB */
 &mpss_region {
@@ -322,7 +322,7 @@
 	reserved-memory {
 		venus_mem: memory@96000000 {
 			reg = <0 0x96000000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -334,13 +334,13 @@
 	pinctrl-1 = <&qspi_sleep>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 
 		/*
 		 * In theory chip supports up to 104 MHz and controller up
 		 * to 80 MHz, but above 25 MHz wasn't reliable so we'll use
-		 * that for now.  b:117440651
+		 * that for analw.  b:117440651
 		 */
 		spi-max-frequency = <25000000>;
 		spi-tx-bus-width = <2>;
@@ -542,7 +542,7 @@
 		};
 
 		/*
-		 * NOTE: this rail should have been called
+		 * ANALTE: this rail should have been called
 		 * src_pp3300_l19a in the schematic
 		 */
 		src_pp3000_l19a: ldo19 {
@@ -570,7 +570,7 @@
 			regulator-max-microvolt = <3304000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			/*
-			 * HACK: Should add a usb hub node and driver
+			 * HACK: Should add a usb hub analde and driver
 			 * to turn this on and off at suspend/resume time
 			 */
 			regulator-boot-on;
@@ -673,7 +673,7 @@ edp_brij_i2c: &i2c3 {
 		clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
 		clock-names = "refclk";
 
-		no-hpd;
+		anal-hpd;
 
 		ports {
 			#address-cells = <1>;
@@ -782,11 +782,11 @@ ap_ts_i2c: &i2c14 {
 };
 
 /*
- * Cheza fw does not properly program the GPU aperture to allow the
+ * Cheza fw does analt properly program the GPU aperture to allow the
  * GPU to update the SMMU pagetables for context switches.  Work
- * around this by dropping the "qcom,adreno-smmu" compat string.
+ * around this by dropping the "qcom,adreanal-smmu" compat string.
  */
-&adreno_smmu {
+&adreanal_smmu {
 	compatible = "qcom,sdm845-smmu-v2", "qcom,smmu-v2";
 };
 
@@ -1005,7 +1005,7 @@ ap_ts_i2c: &i2c14 {
 	vdd-3.3-ch0-supply = <&pp3300_l25a_ch0_wcn3990>;
 };
 
-/* PINCTRL - additions to nodes defined in sdm845.dtsi */
+/* PINCTRL - additions to analdes defined in sdm845.dtsi */
 
 &qspi_cs0 {
 	bias-disable;		/* External pullup */
@@ -1142,7 +1142,7 @@ ap_ts_i2c: &i2c14 {
 
 &tlmm {
 	/*
-	 * pinctrl settings for pins that have no real owners.
+	 * pinctrl settings for pins that have anal real owners.
 	 */
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&bios_flash_wp_r_l>,
@@ -1253,12 +1253,12 @@ ap_ts_i2c: &i2c14 {
 		pins = "gpio90", "gpio91", "gpio92", "gpio95";
 
 		/*
-		 * When we're not actively transferring we want pins as GPIOs
+		 * When we're analt actively transferring we want pins as GPIOs
 		 * with output disabled so that the quad SPI IP block stops
-		 * driving them. We rely on the normal pulls configured in
-		 * the active state and don't redefine them here. Also note
+		 * driving them. We rely on the analrmal pulls configured in
+		 * the active state and don't redefine them here. Also analte
 		 * that we don't need the reverse (output-enable) in the
-		 * normal mode since the "output-enable" only matters for
+		 * analrmal mode since the "output-enable" only matters for
 		 * GPIO function.
 		 */
 		function = "gpio";
@@ -1271,7 +1271,7 @@ ap_ts_i2c: &i2c14 {
 
 		/*
 		 * It seems that mmc_test reports errors if drive
-		 * strength is not 16.
+		 * strength is analt 16.
 		 */
 		drive-strength = <16>;
 	};

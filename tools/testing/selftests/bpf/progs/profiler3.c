@@ -2,5 +2,5 @@
 /* Copyright (c) 2020 Facebook */
 #define barrier_var(var) /**/
 #define UNROLL
-#define INLINE __noinline
+#define INLINE __analinline
 #include "profiler.inc.h"

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -176,7 +176,7 @@ nvkm_falcon_fw_sign(struct nvkm_falcon_fw *fw, u32 sig_base_img, u32 sig_size, c
 
 	fw->sigs = kmalloc_array(fw->sig_nr, fw->sig_size, GFP_KERNEL);
 	if (!fw->sigs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(fw->sigs, sigs + sig_base_prd, sig_nr_prd * fw->sig_size);
 	if (sig_nr_dbg)
@@ -227,7 +227,7 @@ nvkm_falcon_fw_ctor_hs(const struct nvkm_falcon_fw_func *func, const char *name,
 	if (ret)
 		goto done;
 
-	/* Earlier FW releases by NVIDIA for Nouveau's use aren't in NVIDIA's
+	/* Earlier FW releases by NVIDIA for Analuveau's use aren't in NVIDIA's
 	 * standard format, and don't have the indirection seen in the 0x10de
 	 * case.
 	 */
@@ -255,8 +255,8 @@ nvkm_falcon_fw_ctor_hs(const struct nvkm_falcon_fw_func *func, const char *name,
 	lhdr = nvfw_hs_load_header(subdev, blob->data + hshdr->hdr_offset);
 
 	fw->nmem_base_img = 0;
-	fw->nmem_base = lhdr->non_sec_code_off;
-	fw->nmem_size = lhdr->non_sec_code_size;
+	fw->nmem_base = lhdr->analn_sec_code_off;
+	fw->nmem_size = lhdr->analn_sec_code_size;
 
 	fw->imem_base_img = lhdr->apps[0];
 	fw->imem_base = ALIGN(lhdr->apps[0], 0x100);
@@ -282,7 +282,7 @@ nvkm_falcon_fw_ctor_hs(const struct nvkm_falcon_fw_func *func, const char *name,
 		fw->boot = kmemdup(blob->data + hdr->data_offset + desc->code_off,
 				   fw->boot_size, GFP_KERNEL);
 		if (!fw->boot)
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 	} else {
 		fw->boot_addr = fw->nmem_base;
 	}

@@ -1,6 +1,6 @@
 This document contains brief definitions of LKMM-related terms.  Like most
-glossaries, it is not intended to be read front to back (except perhaps
-as a way of confirming a diagnosis of OCD), but rather to be searched
+glossaries, it is analt intended to be read front to back (except perhaps
+as a way of confirming a diaganalsis of OCD), but rather to be searched
 for specific terms.
 
 
@@ -25,7 +25,7 @@ Address Dependency:  When the address of a later memory access is computed
 	 See also "Control Dependency" and "Data Dependency".
 
 Acquire:  With respect to a lock, acquiring that lock, for example,
-	using spin_lock().  With respect to a non-lock shared variable,
+	using spin_lock().  With respect to a analn-lock shared variable,
 	a special operation that includes a load and which orders that
 	load before later memory references running on that same CPU.
 	An example special acquire operation is smp_load_acquire(),
@@ -40,7 +40,7 @@ Acquire:  With respect to a lock, acquiring that lock, for example,
 	See also "Happens-Before", "Reads-From", "Relaxed", and "Release".
 
 Coherence (co):  When one CPU's store to a given variable overwrites
-	either the value from another CPU's store or some later value,
+	either the value from aanalther CPU's store or some later value,
 	there is said to be a coherence link from the second CPU to
 	the first.
 
@@ -68,7 +68,7 @@ Control Dependency:  When a later store's execution depends on a test
 
 Cycle:	Memory-barrier pairing is restricted to a pair of CPUs, as the
 	name suggests.	And in a great many cases, a pair of CPUs is all
-	that is required.  In other cases, the notion of pairing must be
+	that is required.  In other cases, the analtion of pairing must be
 	extended to additional CPUs, and the result is called a "cycle".
 	In a cycle, each CPU's ordering interacts with that of the next:
 
@@ -103,7 +103,7 @@ Data Dependency:  When the data written by a later store is computed based
 	See also "Address Dependency" and "Control Dependency".
 
 From-Reads (fr):  When one CPU's store to a given variable happened
-	too late to affect the value returned by another CPU's
+	too late to affect the value returned by aanalther CPU's
 	load from that same variable, there is said to be a from-reads
 	link from the load to the store.
 
@@ -155,15 +155,15 @@ Reads-From (rf):  When one CPU's load returns the value stored by some other
 
 	See also Coherence" and "From-reads".
 
-Relaxed:  A marked access that does not imply ordering, for example, a
-	READ_ONCE(), WRITE_ONCE(), a non-value-returning read-modify-write
+Relaxed:  A marked access that does analt imply ordering, for example, a
+	READ_ONCE(), WRITE_ONCE(), a analn-value-returning read-modify-write
 	operation, or a value-returning read-modify-write operation whose
 	name ends in "_relaxed".
 
 	See also "Acquire" and "Release".
 
 Release:  With respect to a lock, releasing that lock, for example,
-	using spin_unlock().  With respect to a non-lock shared variable,
+	using spin_unlock().  With respect to a analn-lock shared variable,
 	a special operation that includes a store and which orders that
 	store after earlier memory references that ran on that same CPU.
 	An example special release store is smp_store_release(), but
@@ -172,7 +172,7 @@ Release:  With respect to a lock, releasing that lock, for example,
 
 	See also "Acquire" and "Relaxed".
 
-Unmarked Access:  An access to a variable that uses normal C-language
+Unmarked Access:  An access to a variable that uses analrmal C-language
 	syntax, for example, "a = b[2]";
 
 	See also "Marked Access".

@@ -196,8 +196,8 @@ static int ti_fapll_set_div_mult(unsigned long rate,
 				 u32 *pre_div_p, u32 *mult_n)
 {
 	/*
-	 * So far no luck getting decent clock with PLL divider,
-	 * PLL does not seem to lock and the signal does not look
+	 * So far anal luck getting decent clock with PLL divider,
+	 * PLL does analt seem to lock and the signal does analt look
 	 * right. It seems the divider can only be used together
 	 * with the multiplier?
 	 */
@@ -326,7 +326,7 @@ static unsigned long ti_fapll_synth_recalc_rate(struct clk_hw *hw,
 
 	/*
 	 * Synth frequency integer and fractional divider.
-	 * Note that the phase output K is 8, so the result needs
+	 * Analte that the phase output K is 8, so the result needs
 	 * to be multiplied by SYNTH_PHASE_K.
 	 */
 	if (synth->freq) {
@@ -409,7 +409,7 @@ static long ti_fapll_synth_round_rate(struct clk_hw *hw, unsigned long rate,
 	if (ti_fapll_clock_is_bypass(fd) || !synth->div || !rate)
 		return -EINVAL;
 
-	/* Only post divider m available with no fractional divider? */
+	/* Only post divider m available with anal fractional divider? */
 	if (!synth->freq) {
 		unsigned long frac_rate;
 		u32 synth_post_div_m;
@@ -491,11 +491,11 @@ static struct clk * __init ti_fapll_synth_setup(struct fapll_data *fd,
 {
 	struct clk_init_data *init;
 	struct fapll_synth *synth;
-	struct clk *clk = ERR_PTR(-ENOMEM);
+	struct clk *clk = ERR_PTR(-EANALMEM);
 
 	init = kzalloc(sizeof(*init), GFP_KERNEL);
 	if (!init)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init->ops = &ti_fapll_synt_ops;
 	init->name = name;
@@ -529,7 +529,7 @@ free:
 	return clk;
 }
 
-static void __init ti_fapll_setup(struct device_node *node)
+static void __init ti_fapll_setup(struct device_analde *analde)
 {
 	struct fapll_data *fd;
 	struct clk_init_data *init = NULL;
@@ -553,33 +553,33 @@ static void __init ti_fapll_setup(struct device_node *node)
 		goto free;
 
 	init->ops = &ti_fapll_ops;
-	name = ti_dt_clk_name(node);
+	name = ti_dt_clk_name(analde);
 	init->name = name;
 
-	init->num_parents = of_clk_get_parent_count(node);
+	init->num_parents = of_clk_get_parent_count(analde);
 	if (init->num_parents != 2) {
-		pr_err("%pOFn must have two parents\n", node);
+		pr_err("%pOFn must have two parents\n", analde);
 		goto free;
 	}
 
-	of_clk_parent_fill(node, parent_name, 2);
+	of_clk_parent_fill(analde, parent_name, 2);
 	init->parent_names = parent_name;
 
-	fd->clk_ref = of_clk_get(node, 0);
+	fd->clk_ref = of_clk_get(analde, 0);
 	if (IS_ERR(fd->clk_ref)) {
-		pr_err("%pOFn could not get clk_ref\n", node);
+		pr_err("%pOFn could analt get clk_ref\n", analde);
 		goto free;
 	}
 
-	fd->clk_bypass = of_clk_get(node, 1);
+	fd->clk_bypass = of_clk_get(analde, 1);
 	if (IS_ERR(fd->clk_bypass)) {
-		pr_err("%pOFn could not get clk_bypass\n", node);
+		pr_err("%pOFn could analt get clk_bypass\n", analde);
 		goto free;
 	}
 
-	fd->base = of_iomap(node, 0);
+	fd->base = of_iomap(analde, 0);
 	if (!fd->base) {
-		pr_err("%pOFn could not get IO base\n", node);
+		pr_err("%pOFn could analt get IO base\n", analde);
 		goto free;
 	}
 
@@ -611,11 +611,11 @@ static void __init ti_fapll_setup(struct device_node *node)
 		int output_instance;
 		u32 v;
 
-		if (of_property_read_string_index(node, "clock-output-names",
+		if (of_property_read_string_index(analde, "clock-output-names",
 						  i, &output_name))
 			continue;
 
-		if (of_property_read_u32_index(node, "clock-indices", i,
+		if (of_property_read_u32_index(analde, "clock-indices", i,
 					       &output_instance))
 			output_instance = i;
 
@@ -644,7 +644,7 @@ static void __init ti_fapll_setup(struct device_node *node)
 	}
 
 	/* Register the child synthesizers as the FAPLL outputs */
-	of_clk_add_provider(node, of_clk_src_onecell_get, &fd->outputs);
+	of_clk_add_provider(analde, of_clk_src_onecell_get, &fd->outputs);
 	/* Add clock alias for the outputs */
 
 	kfree(init);

@@ -105,11 +105,11 @@ KernelVersion:	3.19
 Contact:	linux-input@vger.kernel.org
 Description:
 		(RW) This parameter controls the period of time to test for a
-		‘hands off’ condition (i.e. when no force is applied) before a
-		drift (noise) calibration occurs.
+		‘hands off’ condition (i.e. when anal force is applied) before a
+		drift (analise) calibration occurs.
 
 		IBM Trackpoints have a feature to compensate for drift by
 		recalibrating themselves periodically. By default, if for 0.5
-		seconds there is no change in position, it's used as the new
+		seconds there is anal change in position, it's used as the new
 		zero. This duration is too low. Often, the calibration happens
 		when the trackpoint is in fact being used.

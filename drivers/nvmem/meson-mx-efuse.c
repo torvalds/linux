@@ -200,7 +200,7 @@ static int meson_mx_efuse_probe(struct platform_device *pdev)
 
 	efuse = devm_kzalloc(&pdev->dev, sizeof(*efuse), GFP_KERNEL);
 	if (!efuse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	efuse->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(efuse->base))

@@ -160,7 +160,7 @@
 	.set	guard_bit,1		| guard bit is bit number 1
 	.set	round_bit,0		| round bit is bit number 0
 	.set	stag_mask,0xE0		| upper 3 bits are source tag type
-	.set	denorm_bit,7		| bit determines if denorm or unnorm
+	.set	deanalrm_bit,7		| bit determines if deanalrm or unanalrm
 	.set	etemp15_bit,4		| etemp exponent bit #15
 	.set	wbtemp66_bit,2		| wbtemp mantissa bit #66
 	.set	wbtemp1_bit,1		| wbtemp mantissa bit #1
@@ -171,7 +171,7 @@
 |
 	.set	CMDREG1B,LV-36		| cmd reg for E1 exceptions (2 bytes)
 	.set	kfact_bit,12		| distinguishes static/dynamic k-factor
-|					;on packed move outs.  NOTE: this
+|					;on packed move outs.  ANALTE: this
 |					;equate only works when CMDREG1B is in
 |					;a register.
 |
@@ -222,11 +222,11 @@
 	.set	neg_bit,3	|  negative result
 	.set	z_bit,2	|  zero result
 	.set	inf_bit,1	|  infinity result
-	.set	nan_bit,0	|  not-a-number result
+	.set	nan_bit,0	|  analt-a-number result
 |
 	.set	q_sn_bit,7	|  sign bit of quotient byte
 |
-	.set	bsun_bit,7	|  branch on unordered
+	.set	bsun_bit,7	|  branch on uanalrdered
 	.set	snan_bit,6	|  signalling nan
 	.set	operr_bit,5	|  operand error
 	.set	ovfl_bit,4	|  overflow
@@ -313,7 +313,7 @@
 	.set	LOCAL_GRS,12	|  valid ONLY for FP_SCR1, FP_SCR2
 |
 |
-	.set	norm_tag,0x00	|  tag bits in {7:5} position
+	.set	analrm_tag,0x00	|  tag bits in {7:5} position
 	.set	zero_tag,0x20
 	.set	inf_tag,0x40
 	.set	nan_tag,0x60

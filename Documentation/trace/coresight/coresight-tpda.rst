@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =================================================================
-The trace performance monitoring and diagnostics aggregator(TPDA)
+The trace performance monitoring and diaganalstics aggregator(TPDA)
 =================================================================
 
     :Author:   Jinlong Mao <quic_jinlmao@quicinc.com>
@@ -10,9 +10,9 @@ The trace performance monitoring and diagnostics aggregator(TPDA)
 Hardware Description
 --------------------
 
-TPDA - The trace performance monitoring and diagnostics aggregator or
+TPDA - The trace performance monitoring and diaganalstics aggregator or
 TPDA in short serves as an arbitration and packetization engine for the
-performance monitoring and diagnostics network specification.
+performance monitoring and diaganalstics network specification.
 The primary use case of the TPDA is to provide packetization, funneling
 and timestamping of Monitor data.
 
@@ -24,7 +24,7 @@ Root: ``/sys/bus/coresight/devices/tpda<N>``
 Config details
 ---------------------------
 
-The tpdm and tpda nodes should be observed at the coresight path
+The tpdm and tpda analdes should be observed at the coresight path
 "/sys/bus/coresight/devices".
 e.g.
 /sys/bus/coresight/devices # ls -l | grep tpd

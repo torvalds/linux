@@ -292,7 +292,7 @@ static s32 ixgbe_dcb_config_tc_stats_82599(struct ixgbe_hw *hw)
 	 * 32 TQSM registers, each controlling 4 queues.
 	 * Set all queues of each TC to the same stat
 	 * with TC 'n' going to stat 'n'.
-	 * Tx queues are allocated non-uniformly to TCs:
+	 * Tx queues are allocated analn-uniformly to TCs:
 	 * 32, 32, 16, 16, 8, 8, 8, 8.
 	 */
 	for (i = 0; i < 32; i++) {

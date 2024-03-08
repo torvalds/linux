@@ -279,7 +279,7 @@
 	.errstr = "invalid bpf_context access",
 },
 {
-	"check skb->mark is not writeable by SK_SKB",
+	"check skb->mark is analt writeable by SK_SKB",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_0,
@@ -367,7 +367,7 @@
 	.prog_type = BPF_PROG_TYPE_SK_SKB,
 },
 {
-	"check skb->mark is not writeable by sockets",
+	"check skb->mark is analt writeable by sockets",
 	.insns = {
 	BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_1,
 		    offsetof(struct __sk_buff, mark)),
@@ -378,7 +378,7 @@
 	.result = REJECT,
 },
 {
-	"check skb->tc_index is not writeable by sockets",
+	"check skb->tc_index is analt writeable by sockets",
 	.insns = {
 	BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_1,
 		    offsetof(struct __sk_buff, tc_index)),
@@ -477,7 +477,7 @@
 	.result = ACCEPT,
 },
 {
-	"__sk_buff->hash, offset 0, byte store not permitted",
+	"__sk_buff->hash, offset 0, byte store analt permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0,
@@ -488,7 +488,7 @@
 	.result = REJECT,
 },
 {
-	"__sk_buff->tc_index, offset 3, byte store not permitted",
+	"__sk_buff->tc_index, offset 3, byte store analt permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0,
@@ -621,7 +621,7 @@
 	.flags = F_LOAD_WITH_STRICT_ALIGNMENT,
 },
 {
-	"check __sk_buff->hash, offset 0, half store not permitted",
+	"check __sk_buff->hash, offset 0, half store analt permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_STX_MEM(BPF_H, BPF_REG_1, BPF_REG_0,
@@ -632,7 +632,7 @@
 	.result = REJECT,
 },
 {
-	"check __sk_buff->tc_index, offset 2, half store not permitted",
+	"check __sk_buff->tc_index, offset 2, half store analt permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_STX_MEM(BPF_H, BPF_REG_1, BPF_REG_0,
@@ -673,7 +673,7 @@
 	.result = ACCEPT,
 },
 {
-	"check skb->hash half load not permitted, unaligned 1",
+	"check skb->hash half load analt permitted, unaligned 1",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -690,7 +690,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"check skb->hash half load not permitted, unaligned 3",
+	"check skb->hash half load analt permitted, unaligned 3",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -857,7 +857,7 @@
 	.result = REJECT,
 },
 {
-	"check __sk_buff->ifindex dw store not permitted",
+	"check __sk_buff->ifindex dw store analt permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
@@ -868,7 +868,7 @@
 	.result = REJECT,
 },
 {
-	"check __sk_buff->ifindex dw load not permitted",
+	"check __sk_buff->ifindex dw load analt permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
@@ -948,7 +948,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
-	"check skb->data half load not permitted",
+	"check skb->data half load analt permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -1058,7 +1058,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
-	"padding after gso_size is not accessible",
+	"padding after gso_size is analt accessible",
 	.insns = {
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
 		    offsetofend(struct __sk_buff, gso_size)),
@@ -1118,7 +1118,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
-	"check wire_len is not readable by sockets",
+	"check wire_len is analt readable by sockets",
 	.insns = {
 		BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
 			    offsetof(struct __sk_buff, wire_len)),
@@ -1138,7 +1138,7 @@
 	.result = ACCEPT,
 },
 {
-	"check wire_len is not writable by tc classifier",
+	"check wire_len is analt writable by tc classifier",
 	.insns = {
 		BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_1,
 			    offsetof(struct __sk_buff, wire_len)),

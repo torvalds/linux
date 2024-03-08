@@ -74,7 +74,7 @@
 
 #define MDIO_AN_RX_LP_STAT4			0xe823
 #define MDIO_AN_RX_LP_STAT4_FW_MAJOR		GENMASK(15, 8)
-#define MDIO_AN_RX_LP_STAT4_FW_MINOR		GENMASK(7, 0)
+#define MDIO_AN_RX_LP_STAT4_FW_MIANALR		GENMASK(7, 0)
 
 #define MDIO_AN_RX_VEND_STAT3			0xe832
 #define MDIO_AN_RX_VEND_STAT3_AFR		BIT(0)
@@ -194,7 +194,7 @@ static int aqr_config_aneg(struct phy_device *phydev)
 	if (ret > 0)
 		changed = true;
 
-	/* Clause 45 has no standardized support for 1000BaseT, therefore
+	/* Clause 45 has anal standardized support for 1000BaseT, therefore
 	 * use vendor registers for this mode.
 	 */
 	reg = 0;
@@ -206,7 +206,7 @@ static int aqr_config_aneg(struct phy_device *phydev)
 			      phydev->advertising))
 		reg |= MDIO_AN_VEND_PROV_1000BASET_HALF;
 
-	/* Handle the case when the 2.5G and 5G speeds are not advertised */
+	/* Handle the case when the 2.5G and 5G speeds are analt advertised */
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
 			      phydev->advertising))
 		reg |= MDIO_AN_VEND_PROV_2500BASET_FULL;
@@ -274,11 +274,11 @@ static irqreturn_t aqr_handle_interrupt(struct phy_device *phydev)
 				  MDIO_AN_TX_VEND_INT_STATUS2);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MDIO_AN_TX_VEND_INT_STATUS2_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -345,7 +345,7 @@ static int aqr107_read_rate(struct phy_device *phydev)
 		config_reg = VEND1_GLOBAL_CFG_10G;
 		break;
 	default:
-		phydev->speed = SPEED_UNKNOWN;
+		phydev->speed = SPEED_UNKANALWN;
 		return 0;
 	}
 
@@ -357,7 +357,7 @@ static int aqr107_read_rate(struct phy_device *phydev)
 	    VEND1_GLOBAL_CFG_RATE_ADAPT_PAUSE)
 		phydev->rate_matching = RATE_MATCH_PAUSE;
 	else
-		phydev->rate_matching = RATE_MATCH_NONE;
+		phydev->rate_matching = RATE_MATCH_ANALNE;
 
 	return 0;
 }
@@ -451,7 +451,7 @@ static int aqr107_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return aqr107_get_downshift(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -462,7 +462,7 @@ static int aqr107_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return aqr107_set_downshift(phydev, *(const u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -484,7 +484,7 @@ static int aqr107_wait_reset_complete(struct phy_device *phydev)
 
 static void aqr107_chip_info(struct phy_device *phydev)
 {
-	u8 fw_major, fw_minor, build_id, prov_id;
+	u8 fw_major, fw_mianalr, build_id, prov_id;
 	int val;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
@@ -492,7 +492,7 @@ static void aqr107_chip_info(struct phy_device *phydev)
 		return;
 
 	fw_major = FIELD_GET(VEND1_GLOBAL_FW_ID_MAJOR, val);
-	fw_minor = FIELD_GET(VEND1_GLOBAL_FW_ID_MINOR, val);
+	fw_mianalr = FIELD_GET(VEND1_GLOBAL_FW_ID_MIANALR, val);
 
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_RSVD_STAT1);
 	if (val < 0)
@@ -502,7 +502,7 @@ static void aqr107_chip_info(struct phy_device *phydev)
 	prov_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_PROV_ID, val);
 
 	phydev_dbg(phydev, "FW %u.%u, Build %u, Provisioning %u\n",
-		   fw_major, fw_minor, build_id, prov_id);
+		   fw_major, fw_mianalr, build_id, prov_id);
 }
 
 static int aqr107_config_init(struct phy_device *phydev)
@@ -519,7 +519,7 @@ static int aqr107_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_10GBASER &&
 	    phydev->interface != PHY_INTERFACE_MODE_XAUI &&
 	    phydev->interface != PHY_INTERFACE_MODE_RXAUI)
-		return -ENODEV;
+		return -EANALDEV;
 
 	WARN(phydev->interface == PHY_INTERFACE_MODE_XGMII,
 	     "Your devicetree is out of date, please update it. The AQR107 family doesn't support XGMII, maybe you mean USXGMII.\n");
@@ -538,7 +538,7 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = aqr107_wait_reset_complete(phydev);
 	if (!ret)
@@ -553,9 +553,9 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
 }
 
-static void aqr107_link_change_notify(struct phy_device *phydev)
+static void aqr107_link_change_analtify(struct phy_device *phydev)
 {
-	u8 fw_major, fw_minor;
+	u8 fw_major, fw_mianalr;
 	bool downshift, short_reach, afr;
 	int mode, val;
 
@@ -563,7 +563,7 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 		return;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_LP_STAT1);
-	/* call failed or link partner is no Aquantia PHY */
+	/* call failed or link partner is anal Aquantia PHY */
 	if (val < 0 || !(val & MDIO_AN_RX_LP_STAT1_AQ_PHY))
 		return;
 
@@ -575,7 +575,7 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 		return;
 
 	fw_major = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MAJOR, val);
-	fw_minor = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MINOR, val);
+	fw_mianalr = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MIANALR, val);
 
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_VEND_STAT3);
 	if (val < 0)
@@ -584,7 +584,7 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 	afr = val & MDIO_AN_RX_VEND_STAT3_AFR;
 
 	phydev_dbg(phydev, "Link partner is Aquantia PHY, FW %u.%u%s%s%s\n",
-		   fw_major, fw_minor,
+		   fw_major, fw_mianalr,
 		   short_reach ? ", short reach mode" : "",
 		   downshift ? ", fast-retrain downshift advertised" : "",
 		   afr ? ", fast reframe advertised" : "");
@@ -602,10 +602,10 @@ static int aqr107_wait_processor_intensive_op(struct phy_device *phydev)
 {
 	int val, err;
 
-	/* The datasheet notes to wait at least 1ms after issuing a
+	/* The datasheet analtes to wait at least 1ms after issuing a
 	 * processor intensive operation before checking.
-	 * We cannot use the 'sleep_before_read' parameter of read_poll_timeout
-	 * because that just determines the maximum time slept, not the minimum.
+	 * We cananalt use the 'sleep_before_read' parameter of read_poll_timeout
+	 * because that just determines the maximum time slept, analt the minimum.
 	 */
 	usleep_range(1000, 5000);
 
@@ -629,7 +629,7 @@ static int aqr107_get_rate_matching(struct phy_device *phydev,
 	    iface == PHY_INTERFACE_MODE_2500BASEX ||
 	    iface == PHY_INTERFACE_MODE_NA)
 		return RATE_MATCH_PAUSE;
-	return RATE_MATCH_NONE;
+	return RATE_MATCH_ANALNE;
 }
 
 static int aqr107_suspend(struct phy_device *phydev)
@@ -737,7 +737,7 @@ static int aqr107_probe(struct phy_device *phydev)
 	phydev->priv = devm_kzalloc(&phydev->mdio.dev,
 				    sizeof(struct aqr107_priv), GFP_KERNEL);
 	if (!phydev->priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = aqr_firmware_load(phydev);
 	if (ret)
@@ -798,7 +798,7 @@ static struct phy_driver aqr_driver[] = {
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
-	.link_change_notify = aqr107_link_change_notify,
+	.link_change_analtify = aqr107_link_change_analtify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
@@ -817,7 +817,7 @@ static struct phy_driver aqr_driver[] = {
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
-	.link_change_notify = aqr107_link_change_notify,
+	.link_change_analtify = aqr107_link_change_analtify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),
@@ -843,7 +843,7 @@ static struct phy_driver aqr_driver[] = {
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
-	.link_change_notify = aqr107_link_change_notify,
+	.link_change_analtify = aqr107_link_change_analtify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR412),
@@ -861,7 +861,7 @@ static struct phy_driver aqr_driver[] = {
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
-	.link_change_notify = aqr107_link_change_notify,
+	.link_change_analtify = aqr107_link_change_analtify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR113C),
@@ -880,7 +880,7 @@ static struct phy_driver aqr_driver[] = {
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings    = aqr107_get_strings,
 	.get_stats      = aqr107_get_stats,
-	.link_change_notify = aqr107_link_change_notify,
+	.link_change_analtify = aqr107_link_change_analtify,
 },
 };
 

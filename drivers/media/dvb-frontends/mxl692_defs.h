@@ -35,7 +35,7 @@ enum MXL_EAGLE_DEVICE_E {
 	MXL_EAGLE_DEVICE_691 = 1,    /* Device Mxl691 */
 	MXL_EAGLE_DEVICE_248 = 2,    /* Device Mxl248 */
 	MXL_EAGLE_DEVICE_692 = 3,    /* Device Mxl692 */
-	MXL_EAGLE_DEVICE_MAX,        /* No such device */
+	MXL_EAGLE_DEVICE_MAX,        /* Anal such device */
 };
 
 #define VER_A   1
@@ -285,7 +285,7 @@ enum MXL_EAGLE_QAM_DEMOD_QAM_TYPE_E {
 
 /* Enum of Demodulator IQ setup, used in QAM, OOB configuration and status */
 enum MXL_EAGLE_IQ_FLIP_E {
-	MXL_EAGLE_DEMOD_IQ_NORMAL,
+	MXL_EAGLE_DEMOD_IQ_ANALRMAL,
 	MXL_EAGLE_DEMOD_IQ_FLIPPED,
 	MXL_EAGLE_DEMOD_IQ_AUTO,
 };
@@ -299,7 +299,7 @@ enum MXL_EAGLE_OOB_DEMOD_SYMB_RATE_E {
 
 /* Enum of tuner channel tuning mode */
 enum MXL_EAGLE_TUNER_CHANNEL_TUNE_MODE_E {
-	MXL_EAGLE_TUNER_CHANNEL_TUNE_MODE_VIEW,    /* Normal "view" mode */
+	MXL_EAGLE_TUNER_CHANNEL_TUNE_MODE_VIEW,    /* Analrmal "view" mode */
 	MXL_EAGLE_TUNER_CHANNEL_TUNE_MODE_SCAN,    /* Fast "scan" mode */
 };
 

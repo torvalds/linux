@@ -50,7 +50,7 @@ static int pxe1610_identify(struct i2c_client *client,
 					return 0;
 				}
 
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 	}
@@ -98,7 +98,7 @@ static int pxe1610_probe(struct i2c_client *client)
 			I2C_FUNC_SMBUS_READ_BYTE_DATA
 			| I2C_FUNC_SMBUS_READ_WORD_DATA
 			| I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * By default this device doesn't boot to page 0, so set page 0
@@ -114,14 +114,14 @@ static int pxe1610_probe(struct i2c_client *client)
 	}
 	if (ret != 2 || strncmp(buf, "XP", 2)) {
 		dev_err(&client->dev, "MFR_ID unrecognized\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info = devm_kmemdup(&client->dev, &pxe1610_info,
 			    sizeof(struct pmbus_driver_info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return pmbus_do_probe(client, info);
 }

@@ -10,7 +10,7 @@
 
 #include <linux/pnp.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/stat.h>
@@ -84,7 +84,7 @@ static void pnp_print_irq(pnp_info_buffer_t * buffer, char *space,
 				pnp_printf(buffer, "%i", i);
 		}
 	if (bitmap_empty(irq->map.bits, PNP_IRQ_NR))
-		pnp_printf(buffer, "<none>");
+		pnp_printf(buffer, "<analne>");
 	if (irq->flags & IORESOURCE_IRQ_HIGHEDGE)
 		pnp_printf(buffer, " High-Edge");
 	if (irq->flags & IORESOURCE_IRQ_LOWEDGE)
@@ -115,7 +115,7 @@ static void pnp_print_dma(pnp_info_buffer_t * buffer, char *space,
 			pnp_printf(buffer, "%i", i);
 		}
 	if (!dma->map)
-		pnp_printf(buffer, "<none>");
+		pnp_printf(buffer, "<analne>");
 	switch (dma->flags & IORESOURCE_DMA_TYPE_MASK) {
 	case IORESOURCE_DMA_8BIT:
 		s = "8-bit";
@@ -216,7 +216,7 @@ static ssize_t options_show(struct device *dmdev, struct device_attribute *attr,
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer->len = PAGE_SIZE;
 	buffer->buffer = buf;
@@ -259,7 +259,7 @@ static ssize_t resources_show(struct device *dmdev,
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer->len = PAGE_SIZE;
 	buffer->buffer = buf;

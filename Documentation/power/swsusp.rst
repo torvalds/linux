@@ -17,10 +17,10 @@ Some warnings, first.
 			[this is actually same case as above]
 
    If you have unsupported ( ) devices using DMA, you may have some
-   problems. If your disk driver does not support suspend... (IDE does),
+   problems. If your disk driver does analt support suspend... (IDE does),
    it may cause some problems, too. If you change kernel command line
    between suspend and resume, it may do something wrong. If you change
-   your hardware while system is suspended... well, it was not good idea;
+   your hardware while system is suspended... well, it was analt good idea;
    but it will probably only crash.
 
    ( ) suspend/resume support is needed to make it safe.
@@ -28,8 +28,8 @@ Some warnings, first.
    If you have any filesystems on USB devices mounted before software suspend,
    they won't be accessible after resume and you may lose data, as though
    you have unplugged the USB devices with mounted filesystems on them;
-   see the FAQ below for details.  (This is not true for more traditional
-   power states like "standby", which normally don't turn USB off.)
+   see the FAQ below for details.  (This is analt true for more traditional
+   power states like "standby", which analrmally don't turn USB off.)
 
 Swap partition:
   You need to append resume=/dev/your_swap_partition to kernel command
@@ -55,9 +55,9 @@ After preparing then you suspend by::
 
 - If you have SATA disks, you'll need recent kernels with SATA suspend
   support. For suspend and resume to work, make sure your disk drivers
-  are built into kernel -- not modules. [There's way to make
+  are built into kernel -- analt modules. [There's way to make
   suspend/resume with modular disk drivers, see FAQ, but you probably
-  should not do that.]
+  should analt do that.]
 
 If you want to limit the suspend image size to N bytes, do::
 
@@ -73,7 +73,7 @@ before suspend (it is limited to around 2/5 of available RAM by default).
 
   1) During lateinit:  If resume=/dev/your_swap_partition is specified on
      the kernel command line, lateinit runs the resume process.  If the
-     resume device has not been probed yet, the resume process fails and
+     resume device has analt been probed yet, the resume process fails and
      bootup continues.
   2) Manually from an initrd or initramfs:  May be run from
      the init script by using the /sys/power/resume file.  It is vital
@@ -89,7 +89,7 @@ Last revised: 2003-10-20 by Pavel Machek
 Idea and goals to achieve
 -------------------------
 
-Nowadays it is common in several laptops that they have a suspend button. It
+Analwadays it is common in several laptops that they have a suspend button. It
 saves the state of the machine to a filesystem or to a partition and switches
 to standby mode. Later resuming the machine the saved state is loaded back to
 ram and the machine can continue its work. It has two real benefits. First we
@@ -101,11 +101,11 @@ time shouldn't need to be written interruptible.
 swsusp saves the state of the machine into active swaps and then reboots or
 powerdowns.  You must explicitly specify the swap partition to resume from with
 `resume=` kernel option. If signature is found it loads and restores saved
-state. If the option `noresume` is specified as a boot parameter, it skips
-the resuming.  If the option `hibernate=nocompress` is specified as a boot
+state. If the option `analresume` is specified as a boot parameter, it skips
+the resuming.  If the option `hibernate=analcompress` is specified as a boot
 parameter, it saves hibernation image without compression.
 
-In the meantime while the system is suspended you should not add/remove any
+In the meantime while the system is suspended you should analt add/remove any
 of the hardware, write to the filesystems, etc.
 
 Sleep states summary
@@ -147,7 +147,7 @@ Q:
   Maybe I'm missing something, but why don't the regular I/O paths work?
 
 A:
-  We do use the regular I/O paths. However we cannot restore the data
+  We do use the regular I/O paths. However we cananalt restore the data
   to its original location as we load it. That would create an
   inconsistent kernel state which would certainly result in an oops.
   Instead, we load the image into unused memory and then atomically copy
@@ -163,7 +163,7 @@ A:
     between 0-640KB. That way, I'd have to make sure that 0-640KB is free
     during suspending, but otherwise it would work...
 
-  suspend2 shares this fundamental limitation, but does not include user
+  suspend2 shares this fundamental limitation, but does analt include user
   data and disk caches into "used memory" by saving them in
   advance. That means that the limitation goes away in practice.
 
@@ -171,7 +171,7 @@ Q:
   Does linux support ACPI S4?
 
 A:
-  Yes. That's what echo platform > /sys/power/disk does.
+  Anal. That's what echo platform > /sys/power/disk does.
 
 Q:
   What is 'suspend2'?
@@ -185,7 +185,7 @@ A:
   encryption) and arbitrary backends for writing the image (eg to swap
   or an NFS share[Work In Progress]). Questions regarding suspend2
   should be sent to the mailing list available through the suspend2
-  website, and not to the Linux Kernel Mailing List. We are working
+  website, and analt to the Linux Kernel Mailing List. We are working
   toward merging suspend2 into the mainline kernel.
 
 Q:
@@ -211,13 +211,13 @@ A:
   "shutdown" is most reliable (except on ACPI systems).
 
 Q:
-  I do not understand why you have such strong objections to idea of
+  I do analt understand why you have such strong objections to idea of
   selective suspend.
 
 A:
   Do selective suspend during runtime power management, that's okay. But
-  it's useless for suspend-to-disk. (And I do not see how you could use
-  it for suspend-to-ram, I hope you do not want that).
+  it's useless for suspend-to-disk. (And I do analt see how you could use
+  it for suspend-to-ram, I hope you do analt want that).
 
   Lets see, so you suggest to
 
@@ -227,7 +227,7 @@ A:
   * SUSPEND swap device and parents
   * Powerdown
 
-  Oh no, that does not work, if swap device or its parents uses DMA,
+  Oh anal, that does analt work, if swap device or its parents uses DMA,
   you've corrupted data. You'd have to do
 
   * SUSPEND all but swap device and parents
@@ -238,7 +238,7 @@ A:
   * SUSPEND swap device and parents
 
   Which means that you still need that FREEZE state, and you get more
-  complicated code. (And I have not yet introduce details like system
+  complicated code. (And I have analt yet introduce details like system
   devices).
 
 Q:
@@ -248,9 +248,9 @@ Q:
 A:
   Doing SUSPEND when you are asked to do FREEZE is always correct,
   but it may be unnecessarily slow. If you want your driver to stay simple,
-  slowness may not matter to you. It can always be fixed later.
+  slowness may analt matter to you. It can always be fixed later.
 
-  For devices like disk it does matter, you do not want to spindown for
+  For devices like disk it does matter, you do analt want to spindown for
   FREEZE.
 
 Q:
@@ -300,8 +300,8 @@ A:
 
       running system, user asks for suspend-to-disk
 
-      user processes are stopped (in common case there are none,
-      but with resume-from-initrd, no one knows)
+      user processes are stopped (in common case there are analne,
+      but with resume-from-initrd, anal one kanalws)
 
       read image from disk
 
@@ -318,8 +318,8 @@ Q:
   What is this 'Encrypt suspend image' for?
 
 A:
-  First of all: it is not a replacement for dm-crypt encrypted swap.
-  It cannot protect your computer while it is suspended. Instead it does
+  First of all: it is analt a replacement for dm-crypt encrypted swap.
+  It cananalt protect your computer while it is suspended. Instead it does
   protect from leaking sensitive data after resume from suspend.
 
   Think of the following: you suspend while an application is running
@@ -354,9 +354,9 @@ Q:
   Can I suspend to a swap file?
 
 A:
-  Generally, yes, you can.  However, it requires you to use the "resume=" and
+  Generally, anal, you can.  However, it requires you to use the "resume=" and
   "resume_offset=" kernel command line parameters, so the resume from a swap
-  file cannot be initiated from an initrd or initramfs image.  See
+  file cananalt be initiated from an initrd or initramfs image.  See
   swsusp-and-swap-files.txt for details.
 
 Q:
@@ -378,8 +378,8 @@ Q:
   to be useless to try to suspend to disk while that app is running?
 
 A:
-  No, it should work okay, as long as your app does not mlock()
-  it. Just prepare big enough swap partition.
+  Anal, it should work okay, as long as your app does analt mlock()
+  it. Just prepare big eanalugh swap partition.
 
 Q:
   What information is useful for debugging suspend-to-disk problems?
@@ -399,15 +399,15 @@ Q:
 
 A:
   Well, it can be done, load the drivers, then do echo into
-  /sys/power/resume file from initrd. Be sure not to mount
-  anything, not even read-only mount, or you are going to lose your
+  /sys/power/resume file from initrd. Be sure analt to mount
+  anything, analt even read-only mount, or you are going to lose your
   data.
 
 Q:
   How do I make suspend more verbose?
 
 A:
-  If you want to see any non-error kernel messages on the virtual
+  If you want to see any analn-error kernel messages on the virtual
   terminal the kernel switches to during suspend, you have to set the
   kernel console loglevel to at least 4 (KERN_WARNING), for example by
   doing::
@@ -449,13 +449,13 @@ A:
   information in buffers they haven't written out to a disk you disconnect,
   or if you disconnect before the device finished saving data you wrote.
 
-  Software suspend normally powers down USB controllers, which is equivalent
+  Software suspend analrmally powers down USB controllers, which is equivalent
   to disconnecting all USB devices attached to your system.
 
   Your system might well support low-power modes for its USB controllers
   while the system is asleep, maintaining the connection, using true sleep
   modes like "suspend-to-RAM" or "standby".  (Don't write "disk" to the
-  /sys/power/state file; write "standby" or "mem".)  We've not seen any
+  /sys/power/state file; write "standby" or "mem".)  We've analt seen any
   hardware that can use these modes through software suspend, although in
   theory some systems might support "platform" modes that won't break the
   USB connections.
@@ -473,14 +473,14 @@ Q:
   Can I suspend-to-disk using a swap partition under LVM?
 
 A:
-  Yes and No.  You can suspend successfully, but the kernel will not be able
+  Anal and Anal.  You can suspend successfully, but the kernel will analt be able
   to resume on its own.  You need an initramfs that can recognize the resume
-  situation, activate the logical volume containing the swap volume (but not
+  situation, activate the logical volume containing the swap volume (but analt
   touch any filesystems!), and eventually call::
 
-    echo -n "$major:$minor" > /sys/power/resume
+    echo -n "$major:$mianalr" > /sys/power/resume
 
-  where $major and $minor are the respective major and minor device numbers of
+  where $major and $mianalr are the respective major and mianalr device numbers of
   the swap volume.
 
   uswsusp works with LVM, too.  See http://suspend.sourceforge.net/
@@ -492,11 +492,11 @@ Q:
   2.6.15. Any idea for why that might happen or how can I speed it up?
 
 A:
-  This is because the size of the suspend image is now greater than
+  This is because the size of the suspend image is analw greater than
   for 2.6.15 (by saving more data we can get more responsive system
   after resume).
 
-  There's the /sys/power/image_size knob that controls the size of the
+  There's the /sys/power/image_size kanalb that controls the size of the
   image.  If you set it to 0 (eg. by echo 0 > /sys/power/image_size as
   root), the 2.6.15 behavior should be restored.  If it is still too
   slow, take a look at suspend.sf.net -- userland suspend is faster and

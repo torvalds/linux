@@ -36,7 +36,7 @@ struct clockevent_mps2 {
 
 static void __iomem *sched_clock_base;
 
-static u64 notrace mps2_sched_read(void)
+static u64 analtrace mps2_sched_read(void)
 {
 	return ~readl_relaxed(sched_clock_base + TIMER_VALUE);
 }
@@ -85,7 +85,7 @@ static irqreturn_t mps2_timer_interrupt(int irq, void *dev_id)
 
 	if (!status) {
 		pr_warn("spurious interrupt\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	writel_relaxed(1, ce->reg + TIMER_INT);
@@ -95,7 +95,7 @@ static irqreturn_t mps2_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init mps2_clockevent_init(struct device_node *np)
+static int __init mps2_clockevent_init(struct device_analde *np)
 {
 	void __iomem *base;
 	struct clk *clk = NULL;
@@ -124,21 +124,21 @@ static int __init mps2_clockevent_init(struct device_node *np)
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		pr_err("failed to map register for clockevent: %d\n", ret);
 		goto out_clk_disable;
 	}
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		pr_err("failed to get irq for clockevent: %d\n", ret);
 		goto out_iounmap;
 	}
 
 	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
 	if (!ce) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_iounmap;
 	}
 
@@ -180,7 +180,7 @@ out:
 	return ret;
 }
 
-static int __init mps2_clocksource_init(struct device_node *np)
+static int __init mps2_clocksource_init(struct device_analde *np)
 {
 	void __iomem *base;
 	struct clk *clk = NULL;
@@ -208,7 +208,7 @@ static int __init mps2_clocksource_init(struct device_node *np)
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		pr_err("failed to map register for clocksource: %d\n", ret);
 		goto out_clk_disable;
 	}
@@ -246,7 +246,7 @@ out:
 	return ret;
 }
 
-static int __init mps2_timer_init(struct device_node *np)
+static int __init mps2_timer_init(struct device_analde *np)
 {
 	static int has_clocksource, has_clockevent;
 	int ret;

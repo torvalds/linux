@@ -161,7 +161,7 @@ static inline int otx2_cpt_alloc_instruction_queues(
 		iq->real_vaddr = dma_alloc_coherent(&lfs->pdev->dev, iq->size,
 					&iq->real_dma_addr, GFP_KERNEL);
 		if (!iq->real_vaddr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 		iq->vaddr = iq->real_vaddr + OTX2_CPT_INST_GRP_QLEN_BYTES;
@@ -390,19 +390,19 @@ static inline void otx2_cpt_send_cmd(union otx2_cpt_inst_s *cptinst,
 		 * LDEOR initiates atomic transfer to I/O device
 		 * The following will cause the LMTST to fail (the LDEOR
 		 * returns zero):
-		 * - No stores have been performed to the LMTLINE since it was
+		 * - Anal stores have been performed to the LMTLINE since it was
 		 * last invalidated.
 		 * - The bytes which have been stored to LMTLINE since it was
-		 * last invalidated form a pattern that is non-contiguous, does
-		 * not start at byte 0, or does not end on a 8-byte boundary.
+		 * last invalidated form a pattern that is analn-contiguous, does
+		 * analt start at byte 0, or does analt end on a 8-byte boundary.
 		 * (i.e.comprises a formation of other than 1–16 8-byte
 		 * words.)
 		 *
 		 * These rules are designed such that an operating system
-		 * context switch or hypervisor guest switch need have no
-		 * knowledge of the LMTST operations; the switch code does not
-		 * need to store to LMTCANCEL. Also note as LMTLINE data cannot
-		 * be read, there is no information leakage between processes.
+		 * context switch or hypervisor guest switch need have anal
+		 * kanalwledge of the LMTST operations; the switch code does analt
+		 * need to store to LMTCANCEL. Also analte as LMTLINE data cananalt
+		 * be read, there is anal information leakage between processes.
 		 */
 		ret = otx2_lmt_flush(lf->ioreg);
 

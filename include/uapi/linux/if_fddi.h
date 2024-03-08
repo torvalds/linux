@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the BSD Socket
@@ -29,7 +29,7 @@
 #include <linux/types.h>
 
 /*
- *  Define max and min legal sizes.  The frame sizes do not include
+ *  Define max and min legal sizes.  The frame sizes do analt include
  *  4 byte FCS/CRC (frame check sequence).
  */
 #define FDDI_K_ALEN		6	/* Octets in one FDDI address */
@@ -62,7 +62,7 @@
 
 /* Define FDDI Frame Control (FC) Byte specific values */
 #define FDDI_FC_K_VOID			0x00
-#define FDDI_FC_K_NON_RESTRICTED_TOKEN	0x80
+#define FDDI_FC_K_ANALN_RESTRICTED_TOKEN	0x80
 #define FDDI_FC_K_RESTRICTED_TOKEN	0xC0
 #define FDDI_FC_K_SMT_MIN		0x41
 #define FDDI_FC_K_SMT_MAX		0x4F

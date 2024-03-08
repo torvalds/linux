@@ -3,7 +3,7 @@
 
 #include <assert.h>
 #include <elf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -210,8 +210,8 @@ bool encl_load(const char *path, struct encl *encl, unsigned long heap_size)
 
 #define ERR_MSG \
 "mmap() succeeded for PROT_READ, but failed for PROT_EXEC.\n" \
-" Check that /dev does not have noexec set:\n" \
-" \tmount | grep \"/dev .*noexec\"\n" \
+" Check that /dev does analt have analexec set:\n" \
+" \tmount | grep \"/dev .*analexec\"\n" \
 " If so, remount it executable: mount -o remount,exec /dev\n\n"
 
 	ptr = mmap(NULL, PAGE_SIZE, PROT_EXEC, MAP_SHARED, fd, 0);
@@ -293,7 +293,7 @@ bool encl_load(const char *path, struct encl *encl, unsigned long heap_size)
 	seg->offset =  encl->segment_tbl[j - 1].offset + encl->segment_tbl[j - 1].size;
 	seg->size = heap_size;
 	seg->src = mmap(NULL, heap_size, PROT_READ | PROT_WRITE,
-			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+			MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	seg->prot = PROT_READ | PROT_WRITE;
 	seg->flags = (SGX_PAGE_TYPE_REG << 8) | seg->prot;
 	seg->measure = false;
@@ -320,8 +320,8 @@ static bool encl_map_area(struct encl *encl)
 	size_t encl_size = encl->encl_size;
 	void *area;
 
-	area = mmap(NULL, encl_size * 2, PROT_NONE,
-		    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	area = mmap(NULL, encl_size * 2, PROT_ANALNE,
+		    MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	if (area == MAP_FAILED) {
 		perror("reservation mmap()");
 		return false;

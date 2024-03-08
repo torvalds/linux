@@ -5,22 +5,22 @@
 
 /*
  * Declare the functions that are exported (but prefixed) here so that LLVM
- * does not complain it lacks the 'static' keyword (which, if added, makes
+ * does analt complain it lacks the 'static' keyword (which, if added, makes
  * LLVM complain because the function is actually unused in this file).
  */
 u64 get_kaslr_seed(uintptr_t dtb_pa);
 
 u64 get_kaslr_seed(uintptr_t dtb_pa)
 {
-	int node, len;
+	int analde, len;
 	fdt64_t *prop;
 	u64 ret;
 
-	node = fdt_path_offset((void *)dtb_pa, "/chosen");
-	if (node < 0)
+	analde = fdt_path_offset((void *)dtb_pa, "/chosen");
+	if (analde < 0)
 		return 0;
 
-	prop = fdt_getprop_w((void *)dtb_pa, node, "kaslr-seed", &len);
+	prop = fdt_getprop_w((void *)dtb_pa, analde, "kaslr-seed", &len);
 	if (!prop || len != sizeof(u64))
 		return 0;
 

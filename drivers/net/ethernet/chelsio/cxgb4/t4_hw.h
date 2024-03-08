@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -84,7 +84,7 @@ enum {
 
 enum { RSP_TYPE_FLBUF, RSP_TYPE_CPL, RSP_TYPE_INTR }; /* response entry types */
 
-enum { MBOX_OWNER_NONE, MBOX_OWNER_FW, MBOX_OWNER_DRV };    /* mailbox owners */
+enum { MBOX_OWNER_ANALNE, MBOX_OWNER_FW, MBOX_OWNER_DRV };    /* mailbox owners */
 
 enum {
 	SGE_MAX_WR_LEN = 512,     /* max WR size in bytes */
@@ -102,12 +102,12 @@ enum {
 	SGE_INTRDST_PCI = 0,      /* interrupt destination is PCI-E */
 	SGE_INTRDST_IQ = 1,       /*   destination is an ingress queue */
 
-	SGE_UPDATEDEL_NONE = 0,   /* ingress queue pidx update delivery */
+	SGE_UPDATEDEL_ANALNE = 0,   /* ingress queue pidx update delivery */
 	SGE_UPDATEDEL_INTR = 1,   /*   interrupt */
 	SGE_UPDATEDEL_STPG = 2,   /*   status page */
 	SGE_UPDATEDEL_BOTH = 3,   /*   interrupt and status page */
 
-	SGE_HOSTFCMODE_NONE = 0,  /* egress queue cidx updates */
+	SGE_HOSTFCMODE_ANALNE = 0,  /* egress queue cidx updates */
 	SGE_HOSTFCMODE_IQ = 1,    /*   sent to ingress queue */
 	SGE_HOSTFCMODE_STPG = 2,  /*   sent to status page */
 	SGE_HOSTFCMODE_BOTH = 3,  /*   ingress queue and status page */
@@ -267,7 +267,7 @@ enum {
 	FLASH_CFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CFG_NSECS),
 
 	/* We don't support FLASH devices which can't support the full
-	 * standard set of sections which we need for normal
+	 * standard set of sections which we need for analrmal
 	 * operations.
 	 */
 	FLASH_MIN_SIZE = FLASH_CFG_START + FLASH_CFG_MAX_SIZE,

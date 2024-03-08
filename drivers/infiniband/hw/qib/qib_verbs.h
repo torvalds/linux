@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -212,7 +212,7 @@ static inline struct qib_ibdev *to_idev(struct ib_device *ibdev)
 }
 
 /*
- * Send if not busy or waiting for I/O and either
+ * Send if analt busy or waiting for I/O and either
  * a RC response is pending or we can process send work requests.
  */
 static inline int qib_send_ok(struct rvt_qp *qp)
@@ -231,7 +231,7 @@ static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)
 	u16 p2 = pkey2 & 0x7FFF;
 
 	/*
-	 * Low 15 bits must be non-zero and match, and
+	 * Low 15 bits must be analn-zero and match, and
 	 * one of the two must be a full member.
 	 */
 	return p1 && p1 == p2 && ((__s16)pkey1 < 0 || (__s16)pkey2 < 0);
@@ -241,13 +241,13 @@ void qib_bad_pkey(struct qib_ibport *ibp, u32 key, u32 sl,
 		  u32 qp1, u32 qp2, __be16 lid1, __be16 lid2);
 void qib_cap_mask_chg(struct rvt_dev_info *rdi, u32 port_num);
 void qib_sys_guid_chg(struct qib_ibport *ibp);
-void qib_node_desc_chg(struct qib_ibport *ibp);
+void qib_analde_desc_chg(struct qib_ibport *ibp);
 int qib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		    const struct ib_mad *in, struct ib_mad *out,
 		    size_t *out_mad_size, u16 *out_mad_pkey_index);
-void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx);
-void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx);
+void qib_analtify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx);
+void qib_analtify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx);
 
 /*
  * Compare the lower 24 bits of the two values.
@@ -271,7 +271,7 @@ int qib_get_counters(struct qib_pportdata *ppd,
 unsigned qib_free_all_qps(struct rvt_dev_info *rdi);
 void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 void qib_qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
-void qib_notify_qp_reset(struct rvt_qp *qp);
+void qib_analtify_qp_reset(struct rvt_qp *qp);
 int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 		  enum ib_qp_type type, u32 port);
 void qib_restart_rc(struct rvt_qp *qp, u32 psn, int wait);

@@ -57,7 +57,7 @@ enum tcpm_transmit_type {
 
 /**
  * struct tcpc_dev - Port configuration and callback functions
- * @fwnode:	Pointer to port fwnode
+ * @fwanalde:	Pointer to port fwanalde
  * @get_vbus:	Called to read current VBUS state
  * @get_current_limit:
  *		Optional; called by the tcpm core when configured as a snk
@@ -87,14 +87,14 @@ enum tcpm_transmit_type {
  * @set_bist_data: Turn on/off bist data mode for compliance testing
  * @enable_frs:
  *		Optional; Called to enable/disable PD 3.0 fast role swap.
- *		Enabling frs is accessory dependent as not all PD3.0
+ *		Enabling frs is accessory dependent as analt all PD3.0
  *		accessories support fast role swap.
  * @frs_sourcing_vbus:
- *		Optional; Called to notify that vbus is now being sourced.
+ *		Optional; Called to analtify that vbus is analw being sourced.
  *		Low level drivers can perform chip specific operations, if any.
  * @enable_auto_vbus_discharge:
  *		Optional; TCPCI spec based TCPC implementations can optionally
- *		support hardware to autonomously dischrge vbus upon disconnecting
+ *		support hardware to autoanalmously dischrge vbus upon disconnecting
  *		as sink or source. TCPM signals TCPC to enable the mechanism upon
  *		entering connected state and signals disabling upon disconnect.
  * @set_auto_vbus_discharge_threshold:
@@ -102,7 +102,7 @@ enum tcpm_transmit_type {
  *		calls this function to allow lower levels drivers to program the
  *		vbus threshold voltage below which the vbus discharge circuit
  *		will be turned on. requested_vbus_voltage is set to 0 when vbus
- *		is going to disappear knowingly i.e. during PR_SWAP and
+ *		is going to disappear kanalwingly i.e. during PR_SWAP and
  *		HARD_RESET etc.
  * @is_vbus_vsafe0v:
  *		Optional; TCPCI spec based TCPC implementations are expected to
@@ -113,7 +113,7 @@ enum tcpm_transmit_type {
  * @set_partner_usb_comm_capable:
  *              Optional; The USB Communications Capable bit indicates if port
  *              partner is capable of communication over the USB data lines
- *              (e.g. D+/- or SS Tx/Rx). Called to notify the status of the bit.
+ *              (e.g. D+/- or SS Tx/Rx). Called to analtify the status of the bit.
  * @check_contaminant:
  *		Optional; The callback is called when CC pins report open status
  *		at the end of the deboumce period or when the port is still
@@ -121,7 +121,7 @@ enum tcpm_transmit_type {
  *		and call tcpm_clean_port when the port is clean.
  */
 struct tcpc_dev {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 
 	int (*init)(struct tcpc_dev *dev);
 	int (*get_vbus)(struct tcpc_dev *dev);

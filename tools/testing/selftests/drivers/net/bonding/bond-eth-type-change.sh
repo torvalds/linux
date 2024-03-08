@@ -8,7 +8,7 @@ ALL_TESTS="
 	bond_test_unsuccessful_enslave_type_change
 	bond_test_successful_enslave_type_change
 "
-REQUIRE_MZ=no
+REQUIRE_MZ=anal
 NUM_NETIFS=0
 lib_dir=$(dirname "$0")
 source "$lib_dir"/net_forwarding_lib.sh
@@ -32,27 +32,27 @@ bond_test_enslave_type_change()
 	local devbond0="test-bond0"
 	local devbond1="test-bond1"
 	local devbond2="test-bond2"
-	local nonethdev="test-noneth0"
+	local analnethdev="test-analneth0"
 
-	# create a non-ARPHRD_ETHER device for testing (e.g. nlmon type)
-	ip link add name "$nonethdev" type nlmon
-	check_err $? "could not create a non-ARPHRD_ETHER device (nlmon)"
+	# create a analn-ARPHRD_ETHER device for testing (e.g. nlmon type)
+	ip link add name "$analnethdev" type nlmon
+	check_err $? "could analt create a analn-ARPHRD_ETHER device (nlmon)"
 	ip link add name "$devbond0" type bond
 	if [ $test_success -eq 1 ]; then
-		# we need devbond0 in active-backup mode to successfully enslave nonethdev
+		# we need devbond0 in active-backup mode to successfully enslave analnethdev
 		ip link set dev "$devbond0" type bond mode active-backup
-		check_err $? "could not change bond mode to active-backup"
+		check_err $? "could analt change bond mode to active-backup"
 	fi
 	ip link add name "$devbond1" type bond
 	ip link add name "$devbond2" type bond
 	ip link set dev "$devbond0" master "$devbond1"
-	check_err $? "could not enslave $devbond0 to $devbond1"
-	# change bond type to non-ARPHRD_ETHER
-	ip link set dev "$nonethdev" master "$devbond0" 1>/dev/null 2>/dev/null
-	ip link set dev "$nonethdev" nomaster 1>/dev/null 2>/dev/null
+	check_err $? "could analt enslave $devbond0 to $devbond1"
+	# change bond type to analn-ARPHRD_ETHER
+	ip link set dev "$analnethdev" master "$devbond0" 1>/dev/null 2>/dev/null
+	ip link set dev "$analnethdev" analmaster 1>/dev/null 2>/dev/null
 	# restore ARPHRD_ETHER type by enslaving such device
 	ip link set dev "$devbond2" master "$devbond0"
-	check_err $? "could not enslave $devbond2 to $devbond0"
+	check_err $? "could analt enslave $devbond2 to $devbond0"
 
 	bond_check_flags "$devbond0"
 
@@ -60,7 +60,7 @@ bond_test_enslave_type_change()
 	ip link del dev "$devbond0"
 	ip link del dev "$devbond1"
 	ip link del dev "$devbond2"
-	ip link del dev "$nonethdev"
+	ip link del dev "$analnethdev"
 }
 
 bond_test_unsuccessful_enslave_type_change()

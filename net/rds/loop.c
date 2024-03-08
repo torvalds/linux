@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -59,7 +59,7 @@ static bool rds_loop_is_unloading(struct rds_connection *conn)
  * This 'loopback' transport is a special case for flows that originate
  * and terminate on the same machine.
  *
- * Connection build-up notices if the destination address is thought of
+ * Connection build-up analtices if the destination address is thought of
  * as a local address by a transport.  At that time it decides to use the
  * loopback transport instead of the bound transport of the sending socket.
  *
@@ -80,7 +80,7 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 	int ret = sizeof(struct rds_header) +
 			be32_to_cpu(rm->m_inc.i_hdr.h_len);
 
-	/* Do not send cong updates to loopback */
+	/* Do analt send cong updates to loopback */
 	if (rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
 		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
 		ret = min_t(int, ret, sgp->length - conn->c_xmit_data_off);
@@ -122,14 +122,14 @@ static int rds_loop_recv_path(struct rds_conn_path *cp)
 }
 
 struct rds_loop_connection {
-	struct list_head loop_node;
+	struct list_head loop_analde;
 	struct rds_connection *conn;
 };
 
 /*
  * Even the loopback transport needs to keep track of its connections,
  * so it can call rds_conn_destroy() on them on exit. N.B. there are
- * 1+ loopback addresses (127.*.*.*) so it's not a bug to have
+ * 1+ loopback addresses (127.*.*.*) so it's analt a bug to have
  * multiple loopback conns allocated, although rather useless.
  */
 static int rds_loop_conn_alloc(struct rds_connection *conn, gfp_t gfp)
@@ -139,14 +139,14 @@ static int rds_loop_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 
 	lc = kzalloc(sizeof(struct rds_loop_connection), gfp);
 	if (!lc)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	INIT_LIST_HEAD(&lc->loop_node);
+	INIT_LIST_HEAD(&lc->loop_analde);
 	lc->conn = conn;
 	conn->c_transport_data = lc;
 
 	spin_lock_irqsave(&loop_conns_lock, flags);
-	list_add_tail(&lc->loop_node, &loop_conns);
+	list_add_tail(&lc->loop_analde, &loop_conns);
 	spin_unlock_irqrestore(&loop_conns_lock, flags);
 
 	return 0;
@@ -159,7 +159,7 @@ static void rds_loop_conn_free(void *arg)
 
 	rdsdebug("lc %p\n", lc);
 	spin_lock_irqsave(&loop_conns_lock, flags);
-	list_del(&lc->loop_node);
+	list_del(&lc->loop_analde);
 	spin_unlock_irqrestore(&loop_conns_lock, flags);
 	kfree(lc);
 }
@@ -187,7 +187,7 @@ void rds_loop_exit(void)
 	INIT_LIST_HEAD(&loop_conns);
 	spin_unlock_irq(&loop_conns_lock);
 
-	list_for_each_entry_safe(lc, _lc, &tmp_list, loop_node) {
+	list_for_each_entry_safe(lc, _lc, &tmp_list, loop_analde) {
 		WARN_ON(lc->conn->c_passive);
 		rds_conn_destroy(lc->conn);
 	}
@@ -199,16 +199,16 @@ static void rds_loop_kill_conns(struct net *net)
 	LIST_HEAD(tmp_list);
 
 	spin_lock_irq(&loop_conns_lock);
-	list_for_each_entry_safe(lc, _lc, &loop_conns, loop_node)  {
+	list_for_each_entry_safe(lc, _lc, &loop_conns, loop_analde)  {
 		struct net *c_net = read_pnet(&lc->conn->c_net);
 
 		if (net != c_net)
 			continue;
-		list_move_tail(&lc->loop_node, &tmp_list);
+		list_move_tail(&lc->loop_analde, &tmp_list);
 	}
 	spin_unlock_irq(&loop_conns_lock);
 
-	list_for_each_entry_safe(lc, _lc, &tmp_list, loop_node) {
+	list_for_each_entry_safe(lc, _lc, &tmp_list, loop_analde) {
 		WARN_ON(lc->conn->c_passive);
 		rds_conn_destroy(lc->conn);
 	}

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1+
-// Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>
+// Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 #include <linux/netlink.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +13,7 @@
  * Optimization: fill this array to tell which event we do want to pay
  * attention to. That happens at init time with the ops
  * structure. Each ops will enable the event and the general handler
- * will be able to discard the event if there is not ops associated
+ * will be able to discard the event if there is analt ops associated
  * with it.
  */
 static int enabled_ops[__THERMAL_GENL_EVENT_MAX];

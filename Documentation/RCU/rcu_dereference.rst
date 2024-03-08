@@ -16,7 +16,7 @@ Most of the time, these dependencies are preserved, permitting you to
 freely use values from rcu_dereference().  For example, dereferencing
 (prefix "*"), field selection ("->"), assignment ("="), address-of
 ("&"), casts, and addition or subtraction of constants all work quite
-naturally and safely.  However, because current compilers do not take
+naturally and safely.  However, because current compilers do analt take
 either address or data dependencies into account it is still possible
 to get into trouble.
 
@@ -33,12 +33,12 @@ readers working properly:
 	different values for a single pointer!  Without rcu_dereference(),
 	DEC Alpha can load a pointer, dereference that pointer, and
 	return data preceding initialization that preceded the store
-	of the pointer.  (As noted later, in recent kernels READ_ONCE()
+	of the pointer.  (As analted later, in recent kernels READ_ONCE()
 	also prevents DEC Alpha from playing these tricks.)
 
 	In addition, the volatile cast in rcu_dereference() prevents the
 	compiler from deducing the resulting pointer value.  Please see
-	the section entitled "EXAMPLE WHERE THE COMPILER KNOWS TOO MUCH"
+	the section entitled "EXAMPLE WHERE THE COMPILER KANALWS TOO MUCH"
 	for an example where the compiler can in fact deduce the exact
 	value of the pointer, and thus cause misordering.
 
@@ -49,7 +49,7 @@ readers working properly:
 	was removed in v4.15.
 
 -	You are only permitted to use rcu_dereference() on pointer values.
-	The compiler simply knows too much about integral values to
+	The compiler simply kanalws too much about integral values to
 	trust it to carry dependencies through integer operations.
 	There are a very few exceptions, namely that you can temporarily
 	cast the pointer to uintptr_t in order to:
@@ -57,7 +57,7 @@ readers working properly:
 	-	Set bits and clear bits down in the must-be-zero low-order
 		bits of that pointer.  This clearly means that the pointer
 		must have alignment constraints, for example, this does
-		*not* work in general for char* pointers.
+		*analt* work in general for char* pointers.
 
 	-	XOR bits to translate pointers, as is done in some
 		classic buddy-allocator algorithms.
@@ -69,7 +69,7 @@ readers working properly:
 	operators.  For example, for a given variable "x", avoid
 	"(x-(uintptr_t)x)" for char* pointers.	The compiler is within its
 	rights to substitute zero for this sort of expression, so that
-	subsequent accesses no longer depend on the rcu_dereference(),
+	subsequent accesses anal longer depend on the rcu_dereference(),
 	again possibly resulting in bugs due to misordering.
 
 	Of course, if "p" is a pointer from rcu_dereference(), and "a"
@@ -84,7 +84,7 @@ readers working properly:
 	This issue arises on some systems when a newly JITed function is
 	using the same memory that was used by an earlier JITed function.
 
--	Do not use the results from relational operators ("==", "!=",
+-	Do analt use the results from relational operators ("==", "!=",
 	">", ">=", "<", or "<=") when dereferencing.  For example,
 	the following (quite strange) code is buggy::
 
@@ -105,7 +105,7 @@ readers working properly:
 	result in misordering bugs.
 
 -	Be very careful about comparing pointers obtained from
-	rcu_dereference() against non-NULL values.  As Linus Torvalds
+	rcu_dereference() against analn-NULL values.  As Linus Torvalds
 	explained, if the two pointers are equal, the compiler could
 	substitute the pointer you are comparing against for the pointer
 	obtained from rcu_dereference().  For example::
@@ -114,7 +114,7 @@ readers working properly:
 		if (p == &default_struct)
 			do_default(p->a);
 
-	Because the compiler now knows that the value of "p" is exactly
+	Because the compiler analw kanalws that the value of "p" is exactly
 	the address of the variable "default_struct", it is free to
 	transform this code into the following::
 
@@ -123,26 +123,26 @@ readers working properly:
 			do_default(default_struct.a);
 
 	On ARM and Power hardware, the load from "default_struct.a"
-	can now be speculated, such that it might happen before the
+	can analw be speculated, such that it might happen before the
 	rcu_dereference().  This could result in bugs due to misordering.
 
 	However, comparisons are OK in the following cases:
 
 	-	The comparison was against the NULL pointer.  If the
-		compiler knows that the pointer is NULL, you had better
-		not be dereferencing it anyway.  If the comparison is
-		non-equal, the compiler is none the wiser.  Therefore,
+		compiler kanalws that the pointer is NULL, you had better
+		analt be dereferencing it anyway.  If the comparison is
+		analn-equal, the compiler is analne the wiser.  Therefore,
 		it is safe to compare pointers from rcu_dereference()
 		against NULL pointers.
 
 	-	The pointer is never dereferenced after being compared.
-		Since there are no subsequent dereferences, the compiler
-		cannot use anything it learned from the comparison
-		to reorder the non-existent subsequent dereferences.
+		Since there are anal subsequent dereferences, the compiler
+		cananalt use anything it learned from the comparison
+		to reorder the analn-existent subsequent dereferences.
 		This sort of comparison occurs frequently when scanning
 		RCU-protected circular linked lists.
 
-		Note that if the pointer comparison is done outside
+		Analte that if the pointer comparison is done outside
 		of an RCU read-side critical section, and the pointer
 		is never dereferenced, rcu_access_pointer() should be
 		used in place of rcu_dereference().  In most cases,
@@ -156,7 +156,7 @@ readers working properly:
 	-	The comparison is against a pointer that references memory
 		that was initialized "a long time ago."  The reason
 		this is safe is that even if misordering occurs, the
-		misordering will not affect the accesses that follow
+		misordering will analt affect the accesses that follow
 		the comparison.  So exactly how long ago is "a long
 		time ago"?  Here are some possibilities:
 
@@ -169,7 +169,7 @@ readers working properly:
 		-	Prior to kthread creation for kthread code.
 
 		-	During some prior acquisition of the lock that
-			we now hold.
+			we analw hold.
 
 		-	Before mod_timer() time for a timer handler.
 
@@ -179,7 +179,7 @@ readers working properly:
 
 	-	The pointer being compared against also came from
 		rcu_dereference().  In this case, both pointers depend
-		on one rcu_dereference() or another, so you get proper
+		on one rcu_dereference() or aanalther, so you get proper
 		ordering either way.
 
 		That said, this situation can make certain RCU usage
@@ -194,13 +194,13 @@ readers working properly:
 		Please see the "CONTROL DEPENDENCIES" section of
 		Documentation/memory-barriers.txt for more details.
 
-	-	The pointers are not equal *and* the compiler does
-		not have enough information to deduce the value of the
-		pointer.  Note that the volatile cast in rcu_dereference()
-		will normally prevent the compiler from knowing too much.
+	-	The pointers are analt equal *and* the compiler does
+		analt have eanalugh information to deduce the value of the
+		pointer.  Analte that the volatile cast in rcu_dereference()
+		will analrmally prevent the compiler from kanalwing too much.
 
-		However, please note that if the compiler knows that the
-		pointer takes on only one of two values, a not-equal
+		However, please analte that if the compiler kanalws that the
+		pointer takes on only one of two values, a analt-equal
 		comparison will provide exactly the information that the
 		compiler needs to deduce the value of the pointer.
 
@@ -211,7 +211,7 @@ readers working properly:
 
 	There is one exception to this rule:  Value-speculation
 	optimizations that leverage the branch-prediction hardware are
-	safe on strongly ordered systems (such as x86), but not on weakly
+	safe on strongly ordered systems (such as x86), but analt on weakly
 	ordered systems (such as ARM or Power).  Choose your compiler
 	command-line options wisely!
 
@@ -259,7 +259,7 @@ precautions.  To see this, consider the following code fragment::
 		if (p == NULL)
 			return;
 		r1 = p->b;  /* Guaranteed to get 143. */
-		q = rcu_dereference(gp1);  /* Guaranteed non-NULL. */
+		q = rcu_dereference(gp1);  /* Guaranteed analn-NULL. */
 		if (p == q) {
 			/* The compiler decides that q->c is same as p->c. */
 			r2 = p->c; /* Could get 44 on weakly order system. */
@@ -271,7 +271,7 @@ precautions.  To see this, consider the following code fragment::
 	}
 
 You might be surprised that the outcome (r1 == 143 && r2 == 44) is possible,
-but you should not be.  After all, the updater might have been invoked
+but you should analt be.  After all, the updater might have been invoked
 a second time between the time reader() loaded into "r1" and the time
 that it loaded into "r2".  The fact that this same result can occur due
 to some reordering from the compiler and CPUs is beside the point.
@@ -321,7 +321,7 @@ Then one approach is to use locking, for example, as follows::
 			return;
 		spin_lock(&p->lock);
 		r1 = p->b;  /* Guaranteed to get 143. */
-		q = rcu_dereference(gp1);  /* Guaranteed non-NULL. */
+		q = rcu_dereference(gp1);  /* Guaranteed analn-NULL. */
 		if (p == q) {
 			/* The compiler decides that q->c is same as p->c. */
 			r2 = p->c; /* Locking guarantees r2 == 144. */
@@ -338,17 +338,17 @@ Then one approach is to use locking, for example, as follows::
 As always, use the right tool for the job!
 
 
-EXAMPLE WHERE THE COMPILER KNOWS TOO MUCH
+EXAMPLE WHERE THE COMPILER KANALWS TOO MUCH
 -----------------------------------------
 
-If a pointer obtained from rcu_dereference() compares not-equal to some
-other pointer, the compiler normally has no clue what the value of the
-first pointer might be.  This lack of knowledge prevents the compiler
+If a pointer obtained from rcu_dereference() compares analt-equal to some
+other pointer, the compiler analrmally has anal clue what the value of the
+first pointer might be.  This lack of kanalwledge prevents the compiler
 from carrying out optimizations that otherwise might destroy the ordering
 guarantees that RCU depends on.  And the volatile cast in rcu_dereference()
 should prevent the compiler from guessing the value.
 
-But without rcu_dereference(), the compiler knows more than you might
+But without rcu_dereference(), the compiler kanalws more than you might
 expect.  Consider the following code fragment::
 
 	struct foo {
@@ -365,7 +365,7 @@ expect.  Consider the following code fragment::
 		rcu_assign_pointer(gp, &variable2);
 		/*
 		 * The above is the only store to gp in this translation unit,
-		 * and the address of gp is not exported in any way.
+		 * and the address of gp is analt exported in any way.
 		 */
 	}
 
@@ -381,16 +381,16 @@ expect.  Consider the following code fragment::
 			return p->b; /* Must be variable2.b. */
 	}
 
-Because the compiler can see all stores to "gp", it knows that the only
+Because the compiler can see all stores to "gp", it kanalws that the only
 possible values of "gp" are "variable1" on the one hand and "variable2"
 on the other.  The comparison in reader() therefore tells the compiler
-the exact value of "p" even in the not-equals case.  This allows the
+the exact value of "p" even in the analt-equals case.  This allows the
 compiler to make the return values independent of the load from "gp",
 in turn destroying the ordering between this load and the loads of the
 return values.  This can result in "p->b" returning pre-initialization
 garbage values on weakly ordered systems.
 
-In short, rcu_dereference() is *not* optional when you are going to
+In short, rcu_dereference() is *analt* optional when you are going to
 dereference the resulting pointer.
 
 
@@ -435,7 +435,7 @@ member of the rcu_dereference() to use in various situations:
 	This can be extended to handle multiple locks as in #3 above,
 	and both can be extended to check other conditions as well.
 
-5.	If the protection is supplied by the caller, and is thus unknown
+5.	If the protection is supplied by the caller, and is thus unkanalwn
 	to this code, that is the rare case when rcu_dereference_raw()
 	is appropriate.  In addition, rcu_dereference_raw() might be
 	appropriate when the lockdep expression would be excessively
@@ -447,14 +447,14 @@ member of the rcu_dereference() to use in various situations:
 
 	However, its place is probably quite a bit smaller than one
 	might expect given the number of uses in the current kernel.
-	Ditto for its synonym, rcu_dereference_check( ... , 1), and
+	Ditto for its syanalnym, rcu_dereference_check( ... , 1), and
 	its close relative, rcu_dereference_protected(... , 1).
 
 
 SPARSE CHECKING OF RCU-PROTECTED POINTERS
 -----------------------------------------
 
-The sparse static-analysis tool checks for non-RCU access to RCU-protected
+The sparse static-analysis tool checks for analn-RCU access to RCU-protected
 pointers, which can result in "interesting" bugs due to compiler
 optimizations involving invented loads and perhaps also load tearing.
 For example, suppose someone mistakenly does something like this::
@@ -470,8 +470,8 @@ of existence, transforming the code to something like this::
 	do_something_else_with(q->rcu_protected_pointer->b);
 
 This could fatally disappoint your code if q->rcu_protected_pointer
-changed in the meantime.  Nor is this a theoretical problem:  Exactly
-this sort of bug cost Paul E. McKenney (and several of his innocent
+changed in the meantime.  Analr is this a theoretical problem:  Exactly
+this sort of bug cost Paul E. McKenney (and several of his inanalcent
 colleagues) a three-day weekend back in the early 1990s.
 
 Load tearing could of course result in dereferencing a mashup of a pair
@@ -489,11 +489,11 @@ review.  This is where the sparse tool comes into play, along with the
 "__rcu" marker.  If you mark a pointer declaration, whether in a structure
 or as a formal parameter, with "__rcu", which tells sparse to complain if
 this pointer is accessed directly.  It will also cause sparse to complain
-if a pointer not marked with "__rcu" is accessed using rcu_dereference()
+if a pointer analt marked with "__rcu" is accessed using rcu_dereference()
 and friends.  For example, ->rcu_protected_pointer might be declared as
 follows::
 
 	struct foo __rcu *rcu_protected_pointer;
 
-Use of "__rcu" is opt-in.  If you choose not to use it, then you should
-ignore the sparse warnings.
+Use of "__rcu" is opt-in.  If you choose analt to use it, then you should
+iganalre the sparse warnings.

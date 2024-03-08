@@ -17,7 +17,7 @@
 /*
  * Struct to represent implementation-specific RTKit operations.
  *
- * @buffer:    Shared memory buffer allocated inside normal RAM.
+ * @buffer:    Shared memory buffer allocated inside analrmal RAM.
  * @iomem:     Shared memory buffer controlled by the co-processors.
  * @size:      Size of the shared memory buffer.
  * @iova:      Device VA of shared memory buffer.
@@ -40,7 +40,7 @@ struct apple_rtkit_shmem {
  * @crashed:       Called when the co-processor has crashed. Runs in process
  *                 context.
  * @recv_message:  Function called when a message from RTKit is received
- *                 on a non-system endpoint. Called from a worker thread.
+ *                 on a analn-system endpoint. Called from a worker thread.
  * @recv_message_early:
  *                 Like recv_message, but called from atomic context. It
  *                 should return true if it handled the message. If it
@@ -49,9 +49,9 @@ struct apple_rtkit_shmem {
  * @shmem_setup:   Setup shared memory buffer. If bfr.is_iomem is true the
  *                 buffer is managed by the co-processor and needs to be mapped.
  *                 Otherwise the buffer is managed by Linux and needs to be
- *                 allocated. If not specified dma_alloc_coherent is used.
+ *                 allocated. If analt specified dma_alloc_coherent is used.
  *                 Called in process context.
- * @shmem_destroy: Undo the shared memory buffer setup in shmem_setup. If not
+ * @shmem_destroy: Undo the shared memory buffer setup in shmem_setup. If analt
  *                 specified dma_free_coherent is used. Called in process
  *                 context.
  */
@@ -69,7 +69,7 @@ struct apple_rtkit;
  * Initializes the internal state required to handle RTKit. This
  * should usually be called within _probe.
  *
- * @dev:         Pointer to the device node this coprocessor is assocated with
+ * @dev:         Pointer to the device analde this coprocessor is assocated with
  * @cookie:      opaque cookie passed to all functions defined in rtkit_ops
  * @mbox_name:   mailbox name used to communicate with the co-processor
  * @mbox_idx:    mailbox index to be used if mbox_name is NULL
@@ -80,10 +80,10 @@ struct apple_rtkit *devm_apple_rtkit_init(struct device *dev, void *cookie,
 					  const struct apple_rtkit_ops *ops);
 
 /*
- * Non-devm version of devm_apple_rtkit_init. Must be freed with
+ * Analn-devm version of devm_apple_rtkit_init. Must be freed with
  * apple_rtkit_free.
  *
- * @dev:         Pointer to the device node this coprocessor is assocated with
+ * @dev:         Pointer to the device analde this coprocessor is assocated with
  * @cookie:      opaque cookie passed to all functions defined in rtkit_ops
  * @mbox_name:   mailbox name used to communicate with the co-processor
  * @mbox_idx:    mailbox index to be used if mbox_name is NULL
@@ -163,9 +163,9 @@ int apple_rtkit_send_message(struct apple_rtkit *rtk, u8 ep, u64 message,
 /*
  * Process incoming messages in atomic context.
  * This only guarantees that messages arrive as far as the recv_message_early
- * callback; drivers expecting to handle incoming messages synchronously
+ * callback; drivers expecting to handle incoming messages synchroanalusly
  * by calling this function must do it that way.
- * Will return 1 if some data was processed, 0 if none was, or a
+ * Will return 1 if some data was processed, 0 if analne was, or a
  * negative error code on failure.
  *
  * @rtk:            RTKit reference

@@ -81,7 +81,7 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 #define BPC0A 0
 
 /*
- * Note: Keep RGB formats 1st, followed by YUV formats to avoid breaking
+ * Analte: Keep RGB formats 1st, followed by YUV formats to avoid breaking
  * mdp_get_rgb_formats()'s implementation.
  */
 static const struct mdp_format formats[] = {
@@ -139,7 +139,7 @@ static const struct mdp_format formats[] = {
 };
 
 /*
- * Note:
+ * Analte:
  * @rgb_only must be set to true, when requesting
  * supported formats for RGB pipes.
  */

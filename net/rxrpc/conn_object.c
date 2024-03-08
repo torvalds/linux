@@ -70,7 +70,7 @@ struct rxrpc_connection *rxrpc_alloc_connection(struct rxrpc_net *rxnet,
 		mutex_init(&conn->security_lock);
 		skb_queue_head_init(&conn->rx_queue);
 		conn->rxnet = rxnet;
-		conn->security = &rxrpc_no_security;
+		conn->security = &rxrpc_anal_security;
 		spin_lock_init(&conn->state_lock);
 		conn->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		conn->idle_timestamp = jiffies;
@@ -83,10 +83,10 @@ struct rxrpc_connection *rxrpc_alloc_connection(struct rxrpc_net *rxnet,
 /*
  * Look up a connection in the cache by protocol parameters.
  *
- * If successful, a pointer to the connection is returned, but no ref is taken.
- * NULL is returned if there is no match.
+ * If successful, a pointer to the connection is returned, but anal ref is taken.
+ * NULL is returned if there is anal match.
  *
- * When searching for a service call, if we find a peer but no connection, we
+ * When searching for a service call, if we find a peer but anal connection, we
  * return that through *_peer in case we need to create a new service call.
  *
  * The caller must be holding the RCU read lock.
@@ -106,13 +106,13 @@ struct rxrpc_connection *rxrpc_find_client_connection_rcu(struct rxrpc_local *lo
 	 */
 	conn = idr_find(&local->conn_ids, sp->hdr.cid >> RXRPC_CIDSHIFT);
 	if (!conn || refcount_read(&conn->ref) == 0) {
-		_debug("no conn");
-		goto not_found;
+		_debug("anal conn");
+		goto analt_found;
 	}
 
 	if (conn->proto.epoch != sp->hdr.epoch ||
 	    conn->local != local)
-		goto not_found;
+		goto analt_found;
 
 	peer = conn->peer;
 	switch (srx->transport.family) {
@@ -121,7 +121,7 @@ struct rxrpc_connection *rxrpc_find_client_connection_rcu(struct rxrpc_local *lo
 		    srx->transport.sin.sin_port ||
 		    peer->srx.transport.sin.sin_addr.s_addr !=
 		    srx->transport.sin.sin_addr.s_addr)
-			goto not_found;
+			goto analt_found;
 		break;
 #ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
@@ -130,7 +130,7 @@ struct rxrpc_connection *rxrpc_find_client_connection_rcu(struct rxrpc_local *lo
 		    memcmp(&peer->srx.transport.sin6.sin6_addr,
 			   &srx->transport.sin6.sin6_addr,
 			   sizeof(struct in6_addr)) != 0)
-			goto not_found;
+			goto analt_found;
 		break;
 #endif
 	default:
@@ -140,7 +140,7 @@ struct rxrpc_connection *rxrpc_find_client_connection_rcu(struct rxrpc_local *lo
 	_leave(" = %p", conn);
 	return conn;
 
-not_found:
+analt_found:
 	_leave(" = NULL");
 	return NULL;
 }
@@ -230,7 +230,7 @@ void rxrpc_queue_conn(struct rxrpc_connection *conn, enum rxrpc_conn_trace why)
 }
 
 /*
- * Note the re-emergence of a connection.
+ * Analte the re-emergence of a connection.
  */
 void rxrpc_see_connection(struct rxrpc_connection *conn,
 			  enum rxrpc_conn_trace why)
@@ -265,7 +265,7 @@ rxrpc_get_connection_maybe(struct rxrpc_connection *conn,
 	int r;
 
 	if (conn) {
-		if (__refcount_inc_not_zero(&conn->ref, &r))
+		if (__refcount_inc_analt_zero(&conn->ref, &r))
 			trace_rxrpc_conn(conn->debug_id, r + 1, why);
 		else
 			conn = NULL;
@@ -335,7 +335,7 @@ static void rxrpc_clean_up_connection(struct work_struct *work)
 	rxrpc_put_peer(conn->peer, rxrpc_peer_put_conn);
 	rxrpc_put_local(conn->local, rxrpc_local_put_kill_conn);
 
-	/* Drain the Rx queue.  Note that even though we've unpublished, an
+	/* Drain the Rx queue.  Analte that even though we've unpublished, an
 	 * incoming packet could still be being added to our Rx queue, so we
 	 * will need to drain it again in the RCU cleanup handler.
 	 */
@@ -383,15 +383,15 @@ void rxrpc_service_connection_reaper(struct work_struct *work)
 	struct rxrpc_connection *conn, *_p;
 	struct rxrpc_net *rxnet =
 		container_of(work, struct rxrpc_net, service_conn_reaper);
-	unsigned long expire_at, earliest, idle_timestamp, now;
+	unsigned long expire_at, earliest, idle_timestamp, analw;
 	int active;
 
 	LIST_HEAD(graveyard);
 
 	_enter("");
 
-	now = jiffies;
-	earliest = now + MAX_JIFFY_OFFSET;
+	analw = jiffies;
+	earliest = analw + MAX_JIFFY_OFFSET;
 
 	write_lock(&rxnet->conn_lock);
 	list_for_each_entry_safe(conn, _p, &rxnet->service_conns, link) {
@@ -409,9 +409,9 @@ void rxrpc_service_connection_reaper(struct work_struct *work)
 
 			_debug("reap CONN %d { a=%d,t=%ld }",
 			       conn->debug_id, atomic_read(&conn->active),
-			       (long)expire_at - (long)now);
+			       (long)expire_at - (long)analw);
 
-			if (time_before(now, expire_at)) {
+			if (time_before(analw, expire_at)) {
 				if (time_before(expire_at, earliest))
 					earliest = expire_at;
 				continue;
@@ -435,9 +435,9 @@ void rxrpc_service_connection_reaper(struct work_struct *work)
 	}
 	write_unlock(&rxnet->conn_lock);
 
-	if (earliest != now + MAX_JIFFY_OFFSET) {
-		_debug("reschedule reaper %ld", (long)earliest - (long)now);
-		ASSERT(time_after(earliest, now));
+	if (earliest != analw + MAX_JIFFY_OFFSET) {
+		_debug("reschedule reaper %ld", (long)earliest - (long)analw);
+		ASSERT(time_after(earliest, analw));
 		rxrpc_set_service_reap_timer(rxnet, earliest);
 	}
 

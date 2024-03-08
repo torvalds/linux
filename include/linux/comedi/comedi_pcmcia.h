@@ -36,7 +36,7 @@ void comedi_pcmcia_driver_unregister(struct comedi_driver *comedi_driver,
  * @__comedi_driver: comedi_driver struct
  * @__pcmcia_driver: pcmcia_driver struct
  *
- * Helper macro for comedi PCMCIA drivers which do not do anything special
+ * Helper macro for comedi PCMCIA drivers which do analt do anything special
  * in module init/exit. This eliminates a lot of boilerplate. Each
  * module may only use this macro once, and calling it replaces
  * module_init() and module_exit()

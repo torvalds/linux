@@ -60,7 +60,7 @@ static void target_complete_ok_work(struct work_struct *work);
 int init_se_kmem_caches(void)
 {
 	se_sess_cache = kmem_cache_create("se_sess_cache",
-			sizeof(struct se_session), __alignof__(struct se_session),
+			sizeof(struct se_session), __aliganalf__(struct se_session),
 			0, NULL);
 	if (!se_sess_cache) {
 		pr_err("kmem_cache_create() for struct se_session"
@@ -68,7 +68,7 @@ int init_se_kmem_caches(void)
 		goto out;
 	}
 	se_ua_cache = kmem_cache_create("se_ua_cache",
-			sizeof(struct se_ua), __alignof__(struct se_ua),
+			sizeof(struct se_ua), __aliganalf__(struct se_ua),
 			0, NULL);
 	if (!se_ua_cache) {
 		pr_err("kmem_cache_create() for struct se_ua failed\n");
@@ -76,14 +76,14 @@ int init_se_kmem_caches(void)
 	}
 	t10_pr_reg_cache = kmem_cache_create("t10_pr_reg_cache",
 			sizeof(struct t10_pr_registration),
-			__alignof__(struct t10_pr_registration), 0, NULL);
+			__aliganalf__(struct t10_pr_registration), 0, NULL);
 	if (!t10_pr_reg_cache) {
 		pr_err("kmem_cache_create() for struct t10_pr_registration"
 				" failed\n");
 		goto out_free_ua_cache;
 	}
 	t10_alua_lu_gp_cache = kmem_cache_create("t10_alua_lu_gp_cache",
-			sizeof(struct t10_alua_lu_gp), __alignof__(struct t10_alua_lu_gp),
+			sizeof(struct t10_alua_lu_gp), __aliganalf__(struct t10_alua_lu_gp),
 			0, NULL);
 	if (!t10_alua_lu_gp_cache) {
 		pr_err("kmem_cache_create() for t10_alua_lu_gp_cache"
@@ -92,7 +92,7 @@ int init_se_kmem_caches(void)
 	}
 	t10_alua_lu_gp_mem_cache = kmem_cache_create("t10_alua_lu_gp_mem_cache",
 			sizeof(struct t10_alua_lu_gp_member),
-			__alignof__(struct t10_alua_lu_gp_member), 0, NULL);
+			__aliganalf__(struct t10_alua_lu_gp_member), 0, NULL);
 	if (!t10_alua_lu_gp_mem_cache) {
 		pr_err("kmem_cache_create() for t10_alua_lu_gp_mem_"
 				"cache failed\n");
@@ -100,7 +100,7 @@ int init_se_kmem_caches(void)
 	}
 	t10_alua_tg_pt_gp_cache = kmem_cache_create("t10_alua_tg_pt_gp_cache",
 			sizeof(struct t10_alua_tg_pt_gp),
-			__alignof__(struct t10_alua_tg_pt_gp), 0, NULL);
+			__aliganalf__(struct t10_alua_tg_pt_gp), 0, NULL);
 	if (!t10_alua_tg_pt_gp_cache) {
 		pr_err("kmem_cache_create() for t10_alua_tg_pt_gp_"
 				"cache failed\n");
@@ -109,7 +109,7 @@ int init_se_kmem_caches(void)
 	t10_alua_lba_map_cache = kmem_cache_create(
 			"t10_alua_lba_map_cache",
 			sizeof(struct t10_alua_lba_map),
-			__alignof__(struct t10_alua_lba_map), 0, NULL);
+			__aliganalf__(struct t10_alua_lba_map), 0, NULL);
 	if (!t10_alua_lba_map_cache) {
 		pr_err("kmem_cache_create() for t10_alua_lba_map_"
 				"cache failed\n");
@@ -118,7 +118,7 @@ int init_se_kmem_caches(void)
 	t10_alua_lba_map_mem_cache = kmem_cache_create(
 			"t10_alua_lba_map_mem_cache",
 			sizeof(struct t10_alua_lba_map_member),
-			__alignof__(struct t10_alua_lba_map_member), 0, NULL);
+			__aliganalf__(struct t10_alua_lba_map_member), 0, NULL);
 	if (!t10_alua_lba_map_mem_cache) {
 		pr_err("kmem_cache_create() for t10_alua_lba_map_mem_"
 				"cache failed\n");
@@ -156,7 +156,7 @@ out_free_ua_cache:
 out_free_sess_cache:
 	kmem_cache_destroy(se_sess_cache);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void release_se_kmem_caches(void)
@@ -257,7 +257,7 @@ EXPORT_SYMBOL_GPL(target_alloc_cmd_counter);
 void target_free_cmd_counter(struct target_cmd_counter *cmd_cnt)
 {
 	/*
-	 * Drivers like loop do not call target_stop_session during session
+	 * Drivers like loop do analt call target_stop_session during session
 	 * shutdown so we have to drop the ref taken at init time here.
 	 */
 	if (!atomic_read(&cmd_cnt->stopped))
@@ -294,7 +294,7 @@ struct se_session *transport_alloc_session(enum target_prot_op sup_prot_ops)
 	if (!se_sess) {
 		pr_err("Unable to allocate struct se_session from"
 				" se_sess_cache\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	transport_init_session(se_sess);
 	se_sess->sup_prot_ops = sup_prot_ops;
@@ -319,17 +319,17 @@ int transport_alloc_session_tags(struct se_session *se_sess,
 					 GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!se_sess->sess_cmd_map) {
 		pr_err("Unable to allocate se_sess->sess_cmd_map\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	rc = sbitmap_queue_init_node(&se_sess->sess_tag_pool, tag_num, -1,
-			false, GFP_KERNEL, NUMA_NO_NODE);
+	rc = sbitmap_queue_init_analde(&se_sess->sess_tag_pool, tag_num, -1,
+			false, GFP_KERNEL, NUMA_ANAL_ANALDE);
 	if (rc < 0) {
 		pr_err("Unable to init se_sess->sess_tag_pool,"
 			" tag_num: %u\n", tag_num);
 		kvfree(se_sess->sess_cmd_map);
 		se_sess->sess_cmd_map = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -368,7 +368,7 @@ transport_init_session_tags(unsigned int tag_num, unsigned int tag_size,
 	rc = transport_alloc_session_tags(se_sess, tag_num, tag_size);
 	if (rc < 0) {
 		transport_free_session(se_sess);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return se_sess;
@@ -379,7 +379,7 @@ transport_init_session_tags(unsigned int tag_num, unsigned int tag_size,
  */
 void __transport_register_session(
 	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
+	struct se_analde_acl *se_nacl,
 	struct se_session *se_sess,
 	void *fabric_sess_ptr)
 {
@@ -390,10 +390,10 @@ void __transport_register_session(
 	se_sess->se_tpg = se_tpg;
 	se_sess->fabric_sess_ptr = fabric_sess_ptr;
 	/*
-	 * Used by struct se_node_acl's under ConfigFS to locate active se_session-t
+	 * Used by struct se_analde_acl's under ConfigFS to locate active se_session-t
 	 *
 	 * Only set for struct se_session's that will actually be moving I/O.
-	 * eg: *NOT* discovery sessions.
+	 * eg: *ANALT* discovery sessions.
 	 */
 	if (se_nacl) {
 		/*
@@ -401,7 +401,7 @@ void __transport_register_session(
 		 * Determine if fabric allows for T10-PI feature bits exposed to
 		 * initiators for device backends with !dev->dev_attrib.pi_prot_type.
 		 *
-		 * If so, then always save prot_type on a per se_node_acl node
+		 * If so, then always save prot_type on a per se_analde_acl analde
 		 * basis and re-instate the previous sess_prot_type to avoid
 		 * disabling PI from below any previously initiator side
 		 * registered LUNs.
@@ -413,7 +413,7 @@ void __transport_register_session(
 					tfo->tpg_check_prot_fabric_only(se_tpg);
 		/*
 		 * If the fabric module supports an ISID based TransportID,
-		 * save this value in binary from the fabric I_T Nexus now.
+		 * save this value in binary from the fabric I_T Nexus analw.
 		 */
 		if (se_tpg->se_tpg_tfo->sess_get_initiator_sid != NULL) {
 			memset(&buf[0], 0, PR_REG_ISID_LEN);
@@ -425,7 +425,7 @@ void __transport_register_session(
 		spin_lock_irqsave(&se_nacl->nacl_sess_lock, flags);
 		/*
 		 * The se_nacl->nacl_sess pointer will be set to the
-		 * last active I_T Nexus for each struct se_node_acl.
+		 * last active I_T Nexus for each struct se_analde_acl.
 		 */
 		se_nacl->nacl_sess = se_sess;
 
@@ -442,7 +442,7 @@ EXPORT_SYMBOL(__transport_register_session);
 
 void transport_register_session(
 	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
+	struct se_analde_acl *se_nacl,
 	struct se_session *se_sess,
 	void *fabric_sess_ptr)
 {
@@ -468,10 +468,10 @@ target_setup_session(struct se_portal_group *tpg,
 
 	cmd_cnt = target_alloc_cmd_counter();
 	if (!cmd_cnt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	/*
 	 * If the fabric driver is using percpu-ida based pre allocation
-	 * of I/O descriptor tags, go ahead and perform that setup now..
+	 * of I/O descriptor tags, go ahead and perform that setup analw..
 	 */
 	if (tag_num != 0)
 		sess = transport_init_session_tags(tag_num, tag_size, prot_op);
@@ -484,9 +484,9 @@ target_setup_session(struct se_portal_group *tpg,
 	}
 	sess->cmd_cnt = cmd_cnt;
 
-	sess->se_node_acl = core_tpg_check_initiator_node_acl(tpg,
+	sess->se_analde_acl = core_tpg_check_initiator_analde_acl(tpg,
 					(unsigned char *)initiatorname);
-	if (!sess->se_node_acl) {
+	if (!sess->se_analde_acl) {
 		rc = -EACCES;
 		goto free_sess;
 	}
@@ -500,7 +500,7 @@ target_setup_session(struct se_portal_group *tpg,
 			goto free_sess;
 	}
 
-	transport_register_session(tpg, sess->se_node_acl, sess, private);
+	transport_register_session(tpg, sess->se_analde_acl, sess, private);
 	return sess;
 
 free_sess:
@@ -520,15 +520,15 @@ ssize_t target_show_dynamic_sessions(struct se_portal_group *se_tpg, char *page)
 
 	spin_lock_bh(&se_tpg->session_lock);
 	list_for_each_entry(se_sess, &se_tpg->tpg_sess_list, sess_list) {
-		if (!se_sess->se_node_acl)
+		if (!se_sess->se_analde_acl)
 			continue;
-		if (!se_sess->se_node_acl->dynamic_node_acl)
+		if (!se_sess->se_analde_acl->dynamic_analde_acl)
 			continue;
-		if (strlen(se_sess->se_node_acl->initiatorname) + 1 + len > PAGE_SIZE)
+		if (strlen(se_sess->se_analde_acl->initiatorname) + 1 + len > PAGE_SIZE)
 			break;
 
 		len += snprintf(page + len, PAGE_SIZE - len, "%s\n",
-				se_sess->se_node_acl->initiatorname);
+				se_sess->se_analde_acl->initiatorname);
 		len += 1; /* Include NULL terminator */
 	}
 	spin_unlock_bh(&se_tpg->session_lock);
@@ -539,8 +539,8 @@ EXPORT_SYMBOL(target_show_dynamic_sessions);
 
 static void target_complete_nacl(struct kref *kref)
 {
-	struct se_node_acl *nacl = container_of(kref,
-				struct se_node_acl, acl_kref);
+	struct se_analde_acl *nacl = container_of(kref,
+				struct se_analde_acl, acl_kref);
 	struct se_portal_group *se_tpg = nacl->se_tpg;
 
 	if (!nacl->dynamic_stop) {
@@ -548,16 +548,16 @@ static void target_complete_nacl(struct kref *kref)
 		return;
 	}
 
-	mutex_lock(&se_tpg->acl_node_mutex);
+	mutex_lock(&se_tpg->acl_analde_mutex);
 	list_del_init(&nacl->acl_list);
-	mutex_unlock(&se_tpg->acl_node_mutex);
+	mutex_unlock(&se_tpg->acl_analde_mutex);
 
 	core_tpg_wait_for_nacl_pr_ref(nacl);
-	core_free_device_list_for_node(nacl, se_tpg);
+	core_free_device_list_for_analde(nacl, se_tpg);
 	kfree(nacl);
 }
 
-void target_put_nacl(struct se_node_acl *nacl)
+void target_put_nacl(struct se_analde_acl *nacl)
 {
 	kref_put(&nacl->acl_kref, target_complete_nacl);
 }
@@ -565,12 +565,12 @@ EXPORT_SYMBOL(target_put_nacl);
 
 void transport_deregister_session_configfs(struct se_session *se_sess)
 {
-	struct se_node_acl *se_nacl;
+	struct se_analde_acl *se_nacl;
 	unsigned long flags;
 	/*
-	 * Used by struct se_node_acl's under ConfigFS to locate active struct se_session
+	 * Used by struct se_analde_acl's under ConfigFS to locate active struct se_session
 	 */
-	se_nacl = se_sess->se_node_acl;
+	se_nacl = se_sess->se_analde_acl;
 	if (se_nacl) {
 		spin_lock_irqsave(&se_nacl->nacl_sess_lock, flags);
 		if (!list_empty(&se_sess->sess_acl_list))
@@ -578,7 +578,7 @@ void transport_deregister_session_configfs(struct se_session *se_sess)
 		/*
 		 * If the session list is empty, then clear the pointer.
 		 * Otherwise, set the struct se_session pointer from the tail
-		 * element of the per struct se_node_acl active session list.
+		 * element of the per struct se_analde_acl active session list.
 		 */
 		if (list_empty(&se_nacl->acl_sess_list))
 			se_nacl->nacl_sess = NULL;
@@ -594,26 +594,26 @@ EXPORT_SYMBOL(transport_deregister_session_configfs);
 
 void transport_free_session(struct se_session *se_sess)
 {
-	struct se_node_acl *se_nacl = se_sess->se_node_acl;
+	struct se_analde_acl *se_nacl = se_sess->se_analde_acl;
 
 	/*
-	 * Drop the se_node_acl->nacl_kref obtained from within
-	 * core_tpg_get_initiator_node_acl().
+	 * Drop the se_analde_acl->nacl_kref obtained from within
+	 * core_tpg_get_initiator_analde_acl().
 	 */
 	if (se_nacl) {
 		struct se_portal_group *se_tpg = se_nacl->se_tpg;
 		const struct target_core_fabric_ops *se_tfo = se_tpg->se_tpg_tfo;
 		unsigned long flags;
 
-		se_sess->se_node_acl = NULL;
+		se_sess->se_analde_acl = NULL;
 
 		/*
 		 * Also determine if we need to drop the extra ->cmd_kref if
 		 * it had been previously dynamically generated, and
-		 * the endpoint is not caching dynamic ACLs.
+		 * the endpoint is analt caching dynamic ACLs.
 		 */
-		mutex_lock(&se_tpg->acl_node_mutex);
-		if (se_nacl->dynamic_node_acl &&
+		mutex_lock(&se_tpg->acl_analde_mutex);
+		if (se_nacl->dynamic_analde_acl &&
 		    !se_tfo->tpg_check_demo_mode_cache(se_tpg)) {
 			spin_lock_irqsave(&se_nacl->nacl_sess_lock, flags);
 			if (list_empty(&se_nacl->acl_sess_list))
@@ -623,7 +623,7 @@ void transport_free_session(struct se_session *se_sess)
 			if (se_nacl->dynamic_stop)
 				list_del_init(&se_nacl->acl_list);
 		}
-		mutex_unlock(&se_tpg->acl_node_mutex);
+		mutex_unlock(&se_tpg->acl_analde_mutex);
 
 		if (se_nacl->dynamic_stop)
 			target_put_nacl(se_nacl);
@@ -674,12 +674,12 @@ void transport_deregister_session(struct se_session *se_sess)
 	pr_debug("TARGET_CORE[%s]: Deregistered fabric_sess\n",
 		se_tpg->se_tpg_tfo->fabric_name);
 	/*
-	 * If last kref is dropping now for an explicit NodeACL, awake sleeping
-	 * ->acl_free_comp caller to wakeup configfs se_node_acl->acl_group
+	 * If last kref is dropping analw for an explicit AnaldeACL, awake sleeping
+	 * ->acl_free_comp caller to wakeup configfs se_analde_acl->acl_group
 	 * removal context from within transport_free_session() code.
 	 *
 	 * For dynamic ACL, target_put_nacl() uses target_complete_nacl()
-	 * to release all remaining generate_node_acl=1 created ACL resources.
+	 * to release all remaining generate_analde_acl=1 created ACL resources.
 	 */
 
 	transport_free_session(se_sess);
@@ -728,7 +728,7 @@ static void target_remove_from_tmr_list(struct se_cmd *cmd)
  * This function is called by the target core after the target core has
  * finished processing a SCSI command or SCSI TMF. Both the regular command
  * processing code and the code for aborting commands can call this
- * function. CMD_T_STOP is set if and only if another thread is waiting
+ * function. CMD_T_STOP is set if and only if aanalther thread is waiting
  * inside transport_wait_for_tasks() for t_transport_stop_comp.
  */
 static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
@@ -754,10 +754,10 @@ static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 
 	/*
 	 * Some fabric modules like tcm_loop can release their internally
-	 * allocated I/O reference and struct se_cmd now.
+	 * allocated I/O reference and struct se_cmd analw.
 	 *
 	 * Fabric modules are expected to return '1' here if the se_cmd being
-	 * passed is released at this point, or zero if not being released.
+	 * passed is released at this point, or zero if analt being released.
 	 */
 	return cmd->se_tfo->check_stop_free(cmd);
 }
@@ -902,7 +902,7 @@ static bool target_cmd_interrupted(struct se_cmd *cmd)
 	return false;
 }
 
-/* May be called from interrupt context so must not sleep. */
+/* May be called from interrupt context so must analt sleep. */
 void target_complete_cmd_with_sense(struct se_cmd *cmd, u8 scsi_status,
 				    sense_reason_t sense_reason)
 {
@@ -949,7 +949,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 {
 	target_complete_cmd_with_sense(cmd, scsi_status, scsi_status ?
 			      TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE :
-			      TCM_NO_SENSE);
+			      TCM_ANAL_SENSE);
 }
 EXPORT_SYMBOL(target_complete_cmd);
 
@@ -971,7 +971,7 @@ EXPORT_SYMBOL(target_set_cmd_data_length);
 void target_complete_cmd_with_length(struct se_cmd *cmd, u8 scsi_status, int length)
 {
 	if (scsi_status == SAM_STAT_GOOD ||
-	    cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL) {
+	    cmd->se_cmd_flags & SCF_TREAT_READ_AS_ANALRMAL) {
 		target_set_cmd_data_length(cmd, length);
 	}
 
@@ -994,7 +994,7 @@ static void target_add_to_state_list(struct se_cmd *cmd)
 }
 
 /*
- * Handle QUEUE_FULL / -EAGAIN and -ENOMEM status
+ * Handle QUEUE_FULL / -EAGAIN and -EANALMEM status
  */
 static void transport_write_pending_qf(struct se_cmd *cmd);
 static void transport_complete_qf(struct se_cmd *cmd);
@@ -1010,15 +1010,15 @@ void target_qf_do_work(struct work_struct *work)
 	list_splice_init(&dev->qf_cmd_list, &qf_cmd_list);
 	spin_unlock_irq(&dev->qf_cmd_lock);
 
-	list_for_each_entry_safe(cmd, cmd_tmp, &qf_cmd_list, se_qf_node) {
-		list_del(&cmd->se_qf_node);
+	list_for_each_entry_safe(cmd, cmd_tmp, &qf_cmd_list, se_qf_analde) {
+		list_del(&cmd->se_qf_analde);
 		atomic_dec_mb(&dev->dev_qf_count);
 
 		pr_debug("Processing %s cmd: %p QUEUE_FULL in work queue"
 			" context: %s\n", cmd->se_tfo->fabric_name, cmd,
 			(cmd->t_state == TRANSPORT_COMPLETE_QF_OK) ? "COMPLETE_OK" :
 			(cmd->t_state == TRANSPORT_COMPLETE_QF_WP) ? "WRITE_PENDING"
-			: "UNKNOWN");
+			: "UNKANALWN");
 
 		if (cmd->t_state == TRANSPORT_COMPLETE_QF_WP)
 			transport_write_pending_qf(cmd);
@@ -1031,8 +1031,8 @@ void target_qf_do_work(struct work_struct *work)
 unsigned char *transport_dump_cmd_direction(struct se_cmd *cmd)
 {
 	switch (cmd->data_direction) {
-	case DMA_NONE:
-		return "NONE";
+	case DMA_ANALNE:
+		return "ANALNE";
 	case DMA_FROM_DEVICE:
 		return "READ";
 	case DMA_TO_DEVICE:
@@ -1043,7 +1043,7 @@ unsigned char *transport_dump_cmd_direction(struct se_cmd *cmd)
 		break;
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 void transport_dump_dev_state(
@@ -1106,7 +1106,7 @@ void transport_dump_vpd_proto_id(
 		sprintf(buf+len, "AT Attachment Interface ATA/ATAPI\n");
 		break;
 	default:
-		sprintf(buf+len, "Unknown 0x%02x\n",
+		sprintf(buf+len, "Unkanalwn 0x%02x\n",
 				vpd->protocol_identifier);
 		break;
 	}
@@ -1156,7 +1156,7 @@ int transport_dump_vpd_assoc(
 		sprintf(buf+len, "SCSI target device\n");
 		break;
 	default:
-		sprintf(buf+len, "Unknown 0x%02x\n", vpd->association);
+		sprintf(buf+len, "Unkanalwn 0x%02x\n", vpd->association);
 		ret = -EINVAL;
 		break;
 	}
@@ -1327,7 +1327,7 @@ target_check_max_data_sg_nents(struct se_cmd *cmd, struct se_device *dev,
 	u32 mtl;
 
 	if (!cmd->se_tfo->max_data_sg_nents)
-		return TCM_NO_SENSE;
+		return TCM_ANAL_SENSE;
 	/*
 	 * Check if fabric enforced maximum SGL entries per I/O descriptor
 	 * exceeds se_cmd->data_length.  If true, set SCF_UNDERFLOW_BIT +
@@ -1366,7 +1366,7 @@ target_check_max_data_sg_nents(struct se_cmd *cmd, struct se_device *dev,
 			cmd->prot_length = dev->prot_length * sectors;
 		}
 	}
-	return TCM_NO_SENSE;
+	return TCM_ANAL_SENSE;
 }
 
 /**
@@ -1378,20 +1378,20 @@ target_check_max_data_sg_nents(struct se_cmd *cmd, struct se_device *dev,
  * Compare the data buffer size from the CDB with the data buffer limit from the transport
  * header. Set @cmd->residual_count and SCF_OVERFLOW_BIT or SCF_UNDERFLOW_BIT if necessary.
  *
- * Note: target drivers set @cmd->data_length by calling __target_init_cmd().
+ * Analte: target drivers set @cmd->data_length by calling __target_init_cmd().
  *
- * Return: TCM_NO_SENSE
+ * Return: TCM_ANAL_SENSE
  */
 sense_reason_t
 target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 {
 	struct se_device *dev = cmd->se_dev;
 
-	if (cmd->unknown_data_length) {
+	if (cmd->unkanalwn_data_length) {
 		cmd->data_length = size;
 	} else if (size != cmd->data_length) {
 		pr_warn_ratelimited("TARGET_CORE[%s]: Expected Transfer Length:"
-			" %u does not match SCSI CDB Length: %u for SAM Opcode:"
+			" %u does analt match SCSI CDB Length: %u for SAM Opcode:"
 			" 0x%02x\n", cmd->se_tfo->fabric_name,
 				cmd->data_length, size, cmd->t_task_cdb[0]);
 		/*
@@ -1407,7 +1407,7 @@ target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 			cmd->se_cmd_flags |= SCF_UNDERFLOW_BIT;
 			cmd->residual_count = (cmd->data_length - size);
 			/*
-			 * Do not truncate ->data_length for WRITE command to
+			 * Do analt truncate ->data_length for WRITE command to
 			 * dump all payload
 			 */
 			if (cmd->data_direction == DMA_FROM_DEVICE) {
@@ -1452,8 +1452,8 @@ void __target_init_cmd(struct se_cmd *cmd,
 		       unsigned char *sense_buffer, u64 unpacked_lun,
 		       struct target_cmd_counter *cmd_cnt)
 {
-	INIT_LIST_HEAD(&cmd->se_delayed_node);
-	INIT_LIST_HEAD(&cmd->se_qf_node);
+	INIT_LIST_HEAD(&cmd->se_delayed_analde);
+	INIT_LIST_HEAD(&cmd->se_qf_analde);
 	INIT_LIST_HEAD(&cmd->state_list);
 	init_completion(&cmd->t_transport_stop_comp);
 	cmd->free_compl = NULL;
@@ -1493,7 +1493,7 @@ transport_check_alloc_task_attr(struct se_cmd *cmd)
 
 	if (cmd->sam_task_attr == TCM_ACA_TAG) {
 		pr_debug("SAM Task Attribute ACA"
-			" emulation is not supported\n");
+			" emulation is analt supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
 
@@ -1518,7 +1518,7 @@ target_cmd_init_cdb(struct se_cmd *cmd, unsigned char *cdb, gfp_t gfp)
 	}
 	/*
 	 * If the received CDB is larger than TCM_MAX_COMMAND_SIZE,
-	 * allocate the additional extended CDB buffer now..  Otherwise
+	 * allocate the additional extended CDB buffer analw..  Otherwise
 	 * setup the pointer from __t_task_cdb to t_task_cdb.
 	 */
 	if (scsi_command_size(cdb) > sizeof(cmd->__t_task_cdb)) {
@@ -1561,7 +1561,7 @@ target_cmd_parse_cdb(struct se_cmd *cmd)
 	if (ret == TCM_UNSUPPORTED_SCSI_OPCODE)
 		pr_debug_ratelimited("%s/%s: Unsupported SCSI Opcode 0x%02x, sending CHECK_CONDITION.\n",
 				     cmd->se_tfo->fabric_name,
-				     cmd->se_sess->se_node_acl->initiatorname,
+				     cmd->se_sess->se_analde_acl->initiatorname,
 				     cmd->t_task_cdb[0]);
 	if (ret)
 		return ret;
@@ -1584,9 +1584,9 @@ static int __target_submit(struct se_cmd *cmd)
 
 	/*
 	 * Check if we need to delay processing because of ALUA
-	 * Active/NonOptimized primary access state..
+	 * Active/AnalnOptimized primary access state..
 	 */
-	core_alua_check_nonop_delay(cmd);
+	core_alua_check_analanalp_delay(cmd);
 
 	if (cmd->t_data_nents != 0) {
 		/*
@@ -1651,7 +1651,7 @@ transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 	 */
 	if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
 		pr_warn("Rejecting SCSI DATA overflow for fabric using"
-			" SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC\n");
+			" SCF_PASSTHROUGH_SG_TO_MEM_ANALALLOC\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
 
@@ -1660,7 +1660,7 @@ transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 	cmd->t_bidi_data_sg = sgl_bidi;
 	cmd->t_bidi_data_nents = sgl_bidi_count;
 
-	cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
+	cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_ANALALLOC;
 	return 0;
 }
 
@@ -1683,7 +1683,7 @@ transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
  *
  * If the fabric driver calls target_stop_session, then it must check the
  * return code and handle failures. This will never fail for other drivers,
- * and the return code can be ignored.
+ * and the return code can be iganalred.
  */
 int target_init_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 		    unsigned char *sense, u64 unpacked_lun,
@@ -1703,8 +1703,8 @@ int target_init_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	if (flags & TARGET_SCF_BIDI_OP)
 		se_cmd->se_cmd_flags |= SCF_BIDI;
 
-	if (flags & TARGET_SCF_UNKNOWN_SIZE)
-		se_cmd->unknown_data_length = 1;
+	if (flags & TARGET_SCF_UNKANALWN_SIZE)
+		se_cmd->unkanalwn_data_length = 1;
 	/*
 	 * Initialize se_cmd for target operation.  From this point
 	 * exceptions are handled by sending exception status via
@@ -1717,7 +1717,7 @@ int target_init_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	/*
 	 * Obtain struct se_cmd->cmd_kref reference. A second kref_get here is
 	 * necessary for fabrics using TARGET_SCF_ACK_KREF that expect a second
-	 * kref_put() to happen during fabric packet acknowledgement.
+	 * kref_put() to happen during fabric packet ackanalwledgement.
 	 */
 	return target_get_sess_cmd(se_cmd, flags & TARGET_SCF_ACK_KREF);
 }
@@ -1772,11 +1772,11 @@ int target_submit_prep(struct se_cmd *se_cmd, unsigned char *cdb,
 	if (sgl_prot_count) {
 		se_cmd->t_prot_sg = sgl_prot;
 		se_cmd->t_prot_nents = sgl_prot_count;
-		se_cmd->se_cmd_flags |= SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC;
+		se_cmd->se_cmd_flags |= SCF_PASSTHROUGH_PROT_SG_TO_MEM_ANALALLOC;
 	}
 
 	/*
-	 * When a non zero sgl_count has been passed perform SGL passthrough
+	 * When a analn zero sgl_count has been passed perform SGL passthrough
 	 * mapping for pre-allocated fabric memory instead of having target
 	 * core perform an internal SGL allocation..
 	 */
@@ -1823,7 +1823,7 @@ EXPORT_SYMBOL_GPL(target_submit_prep);
  * It also assumes interal target core SGL memory allocation.
  *
  * This function must only be used by drivers that do their own
- * sync during shutdown and does not use target_stop_session. If there
+ * sync during shutdown and does analt use target_stop_session. If there
  * is a failure this function will call into the fabric driver's
  * queue_status with a CHECK_CONDITION.
  */
@@ -1835,7 +1835,7 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 
 	rc = target_init_cmd(se_cmd, se_sess, sense, unpacked_lun, data_length,
 			     task_attr, data_dir, flags);
-	WARN(rc, "Invalid target_submit_cmd use. Driver must not use target_stop_session or call target_init_cmd directly.\n");
+	WARN(rc, "Invalid target_submit_cmd use. Driver must analt use target_stop_session or call target_init_cmd directly.\n");
 	if (rc)
 		return;
 
@@ -1883,7 +1883,7 @@ void target_queued_submit_work(struct work_struct *work)
 	struct se_cmd *se_cmd, *next_cmd;
 	struct se_dev_plug *se_plug = NULL;
 	struct se_device *se_dev = NULL;
-	struct llist_node *cmd_list;
+	struct llist_analde *cmd_list;
 
 	cmd_list = llist_del_all(&sq->cmd_list);
 	if (!cmd_list)
@@ -1952,7 +1952,7 @@ static void target_complete_tmr_failure(struct work_struct *work)
 {
 	struct se_cmd *se_cmd = container_of(work, struct se_cmd, work);
 
-	se_cmd->se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
+	se_cmd->se_tmr_req->response = TMR_LUN_DOES_ANALT_EXIST;
 	se_cmd->se_tfo->queue_tm_rsp(se_cmd);
 
 	transport_lun_remove_cmd(se_cmd);
@@ -1988,7 +1988,7 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 	BUG_ON(!se_tpg);
 
 	__target_init_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
-			  0, DMA_NONE, TCM_SIMPLE_TAG, sense, unpacked_lun,
+			  0, DMA_ANALNE, TCM_SIMPLE_TAG, sense, unpacked_lun,
 			  se_sess->cmd_cnt);
 	/*
 	 * FIXME: Currently expect caller to handle se_cmd->se_tmr_req
@@ -1996,7 +1996,7 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 	 */
 	ret = core_tmr_alloc_req(se_cmd, fabric_tmr_ptr, tm_type, gfp);
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (tm_type == TMR_ABORT_TASK)
 		se_cmd->se_tmr_req->ref_task_tag = tag;
@@ -2017,7 +2017,7 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 
 	/*
 	 * For callback during failure handling, push this work off
-	 * to process context with TMR_LUN_DOES_NOT_EXIST status.
+	 * to process context with TMR_LUN_DOES_ANALT_EXIST status.
 	 */
 failure:
 	INIT_WORK(&se_cmd->work, target_complete_tmr_failure);
@@ -2053,13 +2053,13 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	}
 
 	switch (sense_reason) {
-	case TCM_NON_EXISTENT_LUN:
+	case TCM_ANALN_EXISTENT_LUN:
 	case TCM_UNSUPPORTED_SCSI_OPCODE:
 	case TCM_INVALID_CDB_FIELD:
 	case TCM_INVALID_PARAMETER_LIST:
 	case TCM_PARAMETER_LIST_LENGTH_ERROR:
 	case TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE:
-	case TCM_UNKNOWN_MODE_PAGE:
+	case TCM_UNKANALWN_MODE_PAGE:
 	case TCM_WRITE_PROTECTED:
 	case TCM_ADDRESS_OUT_OF_RANGE:
 	case TCM_CHECK_CONDITION_ABORT_CMD:
@@ -2067,7 +2067,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	case TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED:
 	case TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED:
 	case TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED:
-	case TCM_COPY_TARGET_DEVICE_NOT_REACHABLE:
+	case TCM_COPY_TARGET_DEVICE_ANALT_REACHABLE:
 	case TCM_TOO_MANY_TARGET_DESCS:
 	case TCM_UNSUPPORTED_TARGET_DESC_TYPE_CODE:
 	case TCM_TOO_MANY_SEGMENT_DESCS:
@@ -2086,7 +2086,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 		goto queue_status;
 	case TCM_RESERVATION_CONFLICT:
 		/*
-		 * No SENSE Data payload for this case, set SCSI Status
+		 * Anal SENSE Data payload for this case, set SCSI Status
 		 * and queue the response to $FABRIC_MOD.
 		 *
 		 * Uses linux/include/scsi/scsi.h SAM status codes defs
@@ -2102,14 +2102,14 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 		if (cmd->se_sess &&
 		    cmd->se_dev->dev_attrib.emulate_ua_intlck_ctrl
 					== TARGET_UA_INTLCK_CTRL_ESTABLISH_UA) {
-			target_ua_allocate_lun(cmd->se_sess->se_node_acl,
+			target_ua_allocate_lun(cmd->se_sess->se_analde_acl,
 					       cmd->orig_fe_lun, 0x2C,
 					ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS);
 		}
 
 		goto queue_status;
 	default:
-		pr_err("Unknown transport error for CDB 0x%02x: %d\n",
+		pr_err("Unkanalwn transport error for CDB 0x%02x: %d\n",
 			cmd->t_task_cdb[0], sense_reason);
 		sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		break;
@@ -2180,7 +2180,7 @@ static int target_write_prot_action(struct se_cmd *cmd)
 	u32 sectors;
 	/*
 	 * Perform WRITE_INSERT of PI using software emulation when backend
-	 * device has PI enabled, if the transport has not already generated
+	 * device has PI enabled, if the transport has analt already generated
 	 * PI using hardware WRITE_INSERT offload.
 	 */
 	switch (cmd->prot_op) {
@@ -2225,7 +2225,7 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 	 */
 	switch (cmd->sam_task_attr) {
 	case TCM_HEAD_TAG:
-		atomic_inc_mb(&dev->non_ordered);
+		atomic_inc_mb(&dev->analn_ordered);
 		pr_debug("Added HEAD_OF_QUEUE for CDB: 0x%02x\n",
 			 cmd->t_task_cdb[0]);
 		return false;
@@ -2239,7 +2239,7 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 		/*
 		 * For SIMPLE and UNTAGGED Task Attribute commands
 		 */
-		atomic_inc_mb(&dev->non_ordered);
+		atomic_inc_mb(&dev->analn_ordered);
 
 		if (atomic_read(&dev->delayed_cmd_count) == 0)
 			return false;
@@ -2252,7 +2252,7 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 		 * We will account for this when we dequeue from the delayed
 		 * list.
 		 */
-		atomic_dec_mb(&dev->non_ordered);
+		atomic_dec_mb(&dev->analn_ordered);
 	}
 
 	spin_lock_irq(&cmd->t_state_lock);
@@ -2260,13 +2260,13 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 	spin_unlock_irq(&cmd->t_state_lock);
 
 	spin_lock(&dev->delayed_cmd_lock);
-	list_add_tail(&cmd->se_delayed_node, &dev->delayed_cmd_list);
+	list_add_tail(&cmd->se_delayed_analde, &dev->delayed_cmd_list);
 	spin_unlock(&dev->delayed_cmd_lock);
 
 	pr_debug("Added CDB: 0x%02x Task Attr: 0x%02x to delayed CMD listn",
 		cmd->t_task_cdb[0], cmd->sam_task_attr);
 	/*
-	 * We may have no non ordered cmds when this function started or we
+	 * We may have anal analn ordered cmds when this function started or we
 	 * could have raced with the last simple/head cmd completing, so kick
 	 * the delayed handler here.
 	 */
@@ -2302,7 +2302,7 @@ EXPORT_SYMBOL(target_execute_cmd);
 
 /*
  * Process all commands up to the last received ORDERED task attribute which
- * requires another blocking boundary
+ * requires aanalther blocking boundary
  */
 void target_do_delayed_work(struct work_struct *work)
 {
@@ -2317,27 +2317,27 @@ void target_do_delayed_work(struct work_struct *work)
 			break;
 
 		cmd = list_entry(dev->delayed_cmd_list.next,
-				 struct se_cmd, se_delayed_node);
+				 struct se_cmd, se_delayed_analde);
 
 		if (cmd->sam_task_attr == TCM_ORDERED_TAG) {
 			/*
 			 * Check if we started with:
 			 * [ordered] [simple] [ordered]
-			 * and we are now at the last ordered so we have to wait
+			 * and we are analw at the last ordered so we have to wait
 			 * for the simple cmd.
 			 */
-			if (atomic_read(&dev->non_ordered) > 0)
+			if (atomic_read(&dev->analn_ordered) > 0)
 				break;
 
 			dev->ordered_sync_in_progress = true;
 		}
 
-		list_del(&cmd->se_delayed_node);
+		list_del(&cmd->se_delayed_analde);
 		atomic_dec_mb(&dev->delayed_cmd_count);
 		spin_unlock(&dev->delayed_cmd_lock);
 
 		if (cmd->sam_task_attr != TCM_ORDERED_TAG)
-			atomic_inc_mb(&dev->non_ordered);
+			atomic_inc_mb(&dev->analn_ordered);
 
 		cmd->transport_state |= CMD_T_SENT;
 
@@ -2363,10 +2363,10 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 		goto restart;
 
 	if (cmd->sam_task_attr == TCM_SIMPLE_TAG) {
-		atomic_dec_mb(&dev->non_ordered);
+		atomic_dec_mb(&dev->analn_ordered);
 		dev->dev_cur_ordered_id++;
 	} else if (cmd->sam_task_attr == TCM_HEAD_TAG) {
-		atomic_dec_mb(&dev->non_ordered);
+		atomic_dec_mb(&dev->analn_ordered);
 		dev->dev_cur_ordered_id++;
 		pr_debug("Incremented dev_cur_ordered_id: %u for HEAD_OF_QUEUE\n",
 			 dev->dev_cur_ordered_id);
@@ -2393,12 +2393,12 @@ static void transport_complete_qf(struct se_cmd *cmd)
 	transport_complete_task_attr(cmd);
 	/*
 	 * If a fabric driver ->write_pending() or ->queue_data_in() callback
-	 * has returned neither -ENOMEM or -EAGAIN, assume it's fatal and
-	 * the same callbacks should not be retried.  Return CHECK_CONDITION
-	 * if a scsi_status is not already set.
+	 * has returned neither -EANALMEM or -EAGAIN, assume it's fatal and
+	 * the same callbacks should analt be retried.  Return CHECK_CONDITION
+	 * if a scsi_status is analt already set.
 	 *
-	 * If a fabric driver ->queue_status() has returned non zero, always
-	 * keep retrying no matter what..
+	 * If a fabric driver ->queue_status() has returned analn zero, always
+	 * keep retrying anal matter what..
 	 */
 	if (cmd->t_state == TRANSPORT_COMPLETE_QF_ERR) {
 		if (cmd->scsi_status)
@@ -2410,22 +2410,22 @@ static void transport_complete_qf(struct se_cmd *cmd)
 
 	/*
 	 * Check if we need to send a sense buffer from
-	 * the struct se_cmd in question. We do NOT want
+	 * the struct se_cmd in question. We do ANALT want
 	 * to take this path of the IO has been marked as
-	 * needing to be treated like a "normal read". This
+	 * needing to be treated like a "analrmal read". This
 	 * is the case if it's a tape read, and either the
-	 * FM, EOM, or ILI bits are set, but there is no
+	 * FM, EOM, or ILI bits are set, but there is anal
 	 * sense data.
 	 */
-	if (!(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL) &&
+	if (!(cmd->se_cmd_flags & SCF_TREAT_READ_AS_ANALRMAL) &&
 	    cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE)
 		goto queue_status;
 
 	switch (cmd->data_direction) {
 	case DMA_FROM_DEVICE:
-		/* queue status if not treating this as a normal read */
+		/* queue status if analt treating this as a analrmal read */
 		if (cmd->scsi_status &&
-		    !(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL))
+		    !(cmd->se_cmd_flags & SCF_TREAT_READ_AS_ANALRMAL))
 			goto queue_status;
 
 		trace_target_cmd_complete(cmd);
@@ -2437,7 +2437,7 @@ static void transport_complete_qf(struct se_cmd *cmd)
 			break;
 		}
 		fallthrough;
-	case DMA_NONE:
+	case DMA_ANALNE:
 queue_status:
 		trace_target_cmd_complete(cmd);
 		ret = cmd->se_tfo->queue_status(cmd);
@@ -2458,23 +2458,23 @@ static void transport_handle_queue_full(struct se_cmd *cmd, struct se_device *de
 					int err, bool write_pending)
 {
 	/*
-	 * -EAGAIN or -ENOMEM signals retry of ->write_pending() and/or
+	 * -EAGAIN or -EANALMEM signals retry of ->write_pending() and/or
 	 * ->queue_data_in() callbacks from new process context.
 	 *
 	 * Otherwise for other errors, transport_complete_qf() will send
 	 * CHECK_CONDITION via ->queue_status() instead of attempting to
 	 * retry associated fabric driver data-transfer callbacks.
 	 */
-	if (err == -EAGAIN || err == -ENOMEM) {
+	if (err == -EAGAIN || err == -EANALMEM) {
 		cmd->t_state = (write_pending) ? TRANSPORT_COMPLETE_QF_WP :
 						 TRANSPORT_COMPLETE_QF_OK;
 	} else {
-		pr_warn_ratelimited("Got unknown fabric queue status: %d\n", err);
+		pr_warn_ratelimited("Got unkanalwn fabric queue status: %d\n", err);
 		cmd->t_state = TRANSPORT_COMPLETE_QF_ERR;
 	}
 
 	spin_lock_irq(&dev->qf_cmd_lock);
-	list_add_tail(&cmd->se_qf_node, &cmd->se_dev->qf_cmd_list);
+	list_add_tail(&cmd->se_qf_analde, &cmd->se_dev->qf_cmd_list);
 	atomic_inc_mb(&dev->dev_qf_count);
 	spin_unlock_irq(&cmd->se_dev->qf_cmd_lock);
 
@@ -2530,14 +2530,14 @@ static void target_complete_ok_work(struct work_struct *work)
 
 	/*
 	 * Check if we need to send a sense buffer from
-	 * the struct se_cmd in question. We do NOT want
+	 * the struct se_cmd in question. We do ANALT want
 	 * to take this path of the IO has been marked as
-	 * needing to be treated like a "normal read". This
+	 * needing to be treated like a "analrmal read". This
 	 * is the case if it's a tape read, and either the
-	 * FM, EOM, or ILI bits are set, but there is no
+	 * FM, EOM, or ILI bits are set, but there is anal
 	 * sense data.
 	 */
-	if (!(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL) &&
+	if (!(cmd->se_cmd_flags & SCF_TREAT_READ_AS_ANALRMAL) &&
 	    cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) {
 		WARN_ON(!cmd->scsi_status);
 		ret = transport_send_check_condition_and_sense(
@@ -2584,21 +2584,21 @@ queue_rsp:
 		 * if this is a READ-type IO, but SCSI status
 		 * is set, then skip returning data and just
 		 * return the status -- unless this IO is marked
-		 * as needing to be treated as a normal read,
+		 * as needing to be treated as a analrmal read,
 		 * in which case we want to go ahead and return
 		 * the data. This happens, for example, for tape
 		 * reads with the FM, EOM, or ILI bits set, with
-		 * no sense data.
+		 * anal sense data.
 		 */
 		if (cmd->scsi_status &&
-		    !(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL))
+		    !(cmd->se_cmd_flags & SCF_TREAT_READ_AS_ANALRMAL))
 			goto queue_status;
 
 		atomic_long_add(cmd->data_length,
 				&cmd->se_lun->lun_stats.tx_data_octets);
 		/*
 		 * Perform READ_STRIP of PI using software emulation when
-		 * backend had PI enabled, if the transport will not be
+		 * backend had PI enabled, if the transport will analt be
 		 * performing hardware READ_STRIP offload.
 		 */
 		if (target_read_prot_action(cmd)) {
@@ -2632,7 +2632,7 @@ queue_rsp:
 			break;
 		}
 		fallthrough;
-	case DMA_NONE:
+	case DMA_ANALNE:
 queue_status:
 		trace_target_cmd_complete(cmd);
 		ret = cmd->se_tfo->queue_status(cmd);
@@ -2678,16 +2678,16 @@ static inline void transport_reset_sgl_orig(struct se_cmd *cmd)
 
 static inline void transport_free_pages(struct se_cmd *cmd)
 {
-	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC)) {
+	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_PROT_SG_TO_MEM_ANALALLOC)) {
 		target_free_sgl(cmd->t_prot_sg, cmd->t_prot_nents);
 		cmd->t_prot_sg = NULL;
 		cmd->t_prot_nents = 0;
 	}
 
-	if (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) {
+	if (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_ANALALLOC) {
 		/*
 		 * Release special case READ buffer payload required for
-		 * SG_TO_MEM_NOALLOC to function with COMPARE_AND_WRITE
+		 * SG_TO_MEM_ANALALLOC to function with COMPARE_AND_WRITE
 		 */
 		if (cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) {
 			target_free_sgl(cmd->t_bidi_data_sg,
@@ -2767,13 +2767,13 @@ target_alloc_sgl(struct scatterlist **sgl, unsigned int *nents, u32 length,
 	gfp_t gfp = GFP_KERNEL | (zero_page ? __GFP_ZERO : 0);
 
 	*sgl = sgl_alloc_order(length, 0, chainable, gfp, nents);
-	return *sgl ? 0 : -ENOMEM;
+	return *sgl ? 0 : -EANALMEM;
 }
 EXPORT_SYMBOL(target_alloc_sgl);
 
 /*
  * Allocate any required resources to execute the command.  For writes we
- * might not have the payload yet, so notify the fabric via a call to
+ * might analt have the payload yet, so analtify the fabric via a call to
  * ->write_pending instead. Otherwise place it on the execution queue.
  */
 sense_reason_t
@@ -2783,8 +2783,8 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	int ret = 0;
 	bool zero_flag = !(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB);
 
-	if (cmd->prot_op != TARGET_PROT_NORMAL &&
-	    !(cmd->se_cmd_flags & SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC)) {
+	if (cmd->prot_op != TARGET_PROT_ANALRMAL &&
+	    !(cmd->se_cmd_flags & SCF_PASSTHROUGH_PROT_SG_TO_MEM_ANALALLOC)) {
 		ret = target_alloc_sgl(&cmd->t_prot_sg, &cmd->t_prot_nents,
 				       cmd->prot_length, true, false);
 		if (ret < 0)
@@ -2796,7 +2796,7 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	 * memory, and is directly calling transport_generic_map_mem_to_cmd()
 	 * beforehand.
 	 */
-	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) &&
+	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_ANALALLOC) &&
 	    cmd->data_length) {
 
 		if ((cmd->se_cmd_flags & SCF_BIDI) ||
@@ -2804,7 +2804,7 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 			u32 bidi_length;
 
 			if (cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE)
-				bidi_length = cmd->t_task_nolb *
+				bidi_length = cmd->t_task_anallb *
 					      cmd->se_dev->dev_attrib.block_size;
 			else
 				bidi_length = cmd->data_length;
@@ -2824,9 +2824,9 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 		    cmd->data_length) {
 		/*
 		 * Special case for COMPARE_AND_WRITE with fabrics
-		 * using SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC.
+		 * using SCF_PASSTHROUGH_SG_TO_MEM_ANALALLOC.
 		 */
-		u32 caw_length = cmd->t_task_nolb *
+		u32 caw_length = cmd->t_task_anallb *
 				 cmd->se_dev->dev_attrib.block_size;
 
 		ret = target_alloc_sgl(&cmd->t_bidi_data_sg,
@@ -2836,8 +2836,8 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	/*
-	 * If this command is not a write we can execute it right here,
-	 * for write buffers we need to notify the fabric driver first
+	 * If this command is analt a write we can execute it right here,
+	 * for write buffers we need to analtify the fabric driver first
 	 * and let it call back once the write buffers are ready.
 	 */
 	target_add_to_state_list(cmd);
@@ -2938,7 +2938,7 @@ void target_put_cmd_and_wait(struct se_cmd *cmd)
  * processing flow or target_handle_abort() code drops one reference is as
  * follows:
  * - Calling .queue_data_in(), .queue_status() or queue_tm_rsp() will cause
- *   the frontend driver to call this function synchronously or asynchronously.
+ *   the frontend driver to call this function synchroanalusly or asynchroanalusly.
  *   That will cause one reference to be dropped.
  * - During regular command processing the target core sets CMD_T_COMPLETE
  *   before invoking one of the .queue_*() functions.
@@ -2946,11 +2946,11 @@ void target_put_cmd_and_wait(struct se_cmd *cmd)
  *   CMD_T_COMPLETE has been set.
  * - CMD_T_ABORTED is set atomically after the CMD_T_COMPLETE check for
  *   commands that will be aborted.
- * - If the CMD_T_ABORTED flag is set but CMD_T_TAS has not been set
+ * - If the CMD_T_ABORTED flag is set but CMD_T_TAS has analt been set
  *   transport_generic_free_cmd() skips its call to target_put_sess_cmd().
  * - For aborted commands for which CMD_T_TAS has been set .queue_status() will
  *   be called and will drop a reference.
- * - For aborted commands for which CMD_T_TAS has not been set .aborted_task()
+ * - For aborted commands for which CMD_T_TAS has analt been set .aborted_task()
  *   will be called. target_handle_abort() will drop the final reference.
  */
 int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
@@ -2997,7 +2997,7 @@ int target_get_sess_cmd(struct se_cmd *se_cmd, bool ack_kref)
 
 	/*
 	 * Add a second kref if the fabric caller is expecting to handle
-	 * fabric acknowledgement that requires two target_put_sess_cmd()
+	 * fabric ackanalwledgement that requires two target_put_sess_cmd()
 	 * invocations before se_cmd descriptor release.
 	 */
 	if (ack_kref) {
@@ -3006,7 +3006,7 @@ int target_get_sess_cmd(struct se_cmd *se_cmd, bool ack_kref)
 	}
 
 	/*
-	 * Users like xcopy do not use counters since they never do a stop
+	 * Users like xcopy do analt use counters since they never do a stop
 	 * and wait.
 	 */
 	if (se_cmd->cmd_cnt) {
@@ -3067,7 +3067,7 @@ static const char *data_dir_name(enum dma_data_direction d)
 	case DMA_BIDIRECTIONAL:	return "BIDI";
 	case DMA_TO_DEVICE:	return "WRITE";
 	case DMA_FROM_DEVICE:	return "READ";
-	case DMA_NONE:		return "NONE";
+	case DMA_ANALNE:		return "ANALNE";
 	}
 
 	return "(?)";
@@ -3076,7 +3076,7 @@ static const char *data_dir_name(enum dma_data_direction d)
 static const char *cmd_state_name(enum transport_state_table t)
 {
 	switch (t) {
-	case TRANSPORT_NO_STATE:	return "NO_STATE";
+	case TRANSPORT_ANAL_STATE:	return "ANAL_STATE";
 	case TRANSPORT_NEW_CMD:		return "NEW_CMD";
 	case TRANSPORT_WRITE_PENDING:	return "WRITE_PENDING";
 	case TRANSPORT_PROCESSING:	return "PROCESSING";
@@ -3135,7 +3135,7 @@ static const char *target_tmf_name(enum tcm_tmreq_table tmf)
 	case TMR_TARGET_WARM_RESET:	return "TARGET_WARM_RESET";
 	case TMR_TARGET_COLD_RESET:	return "TARGET_COLD_RESET";
 	case TMR_LUN_RESET_PRO:		return "LUN_RESET_PRO";
-	case TMR_UNKNOWN:		break;
+	case TMR_UNKANALWN:		break;
 	}
 	return "(?)";
 }
@@ -3312,12 +3312,12 @@ struct sense_detail {
 };
 
 static const struct sense_detail sense_detail_table[] = {
-	[TCM_NO_SENSE] = {
-		.key = NOT_READY
+	[TCM_ANAL_SENSE] = {
+		.key = ANALT_READY
 	},
-	[TCM_NON_EXISTENT_LUN] = {
+	[TCM_ANALN_EXISTENT_LUN] = {
 		.key = ILLEGAL_REQUEST,
-		.asc = 0x25 /* LOGICAL UNIT NOT SUPPORTED */
+		.asc = 0x25 /* LOGICAL UNIT ANALT SUPPORTED */
 	},
 	[TCM_UNSUPPORTED_SCSI_OPCODE] = {
 		.key = ILLEGAL_REQUEST,
@@ -3327,7 +3327,7 @@ static const struct sense_detail sense_detail_table[] = {
 		.key = ILLEGAL_REQUEST,
 		.asc = 0x20, /* INVALID COMMAND OPERATION CODE */
 	},
-	[TCM_UNKNOWN_MODE_PAGE] = {
+	[TCM_UNKANALWN_MODE_PAGE] = {
 		.key = ILLEGAL_REQUEST,
 		.asc = 0x24, /* INVALID FIELD IN CDB */
 	},
@@ -3339,7 +3339,7 @@ static const struct sense_detail sense_detail_table[] = {
 	[TCM_INCORRECT_AMOUNT_OF_DATA] = {
 		.key = ABORTED_COMMAND,
 		.asc = 0x0c, /* WRITE ERROR */
-		.ascq = 0x0d, /* NOT ENOUGH UNSOLICITED DATA */
+		.ascq = 0x0d, /* ANALT EANALUGH UNSOLICITED DATA */
 	},
 	[TCM_INVALID_CDB_FIELD] = {
 		.key = ILLEGAL_REQUEST,
@@ -3423,27 +3423,27 @@ static const struct sense_detail sense_detail_table[] = {
 		.ascq = 0x03, /* LOGICAL BLOCK REFERENCE TAG CHECK FAILED */
 		.add_sense_info = true,
 	},
-	[TCM_COPY_TARGET_DEVICE_NOT_REACHABLE] = {
+	[TCM_COPY_TARGET_DEVICE_ANALT_REACHABLE] = {
 		.key = COPY_ABORTED,
 		.asc = 0x0d,
-		.ascq = 0x02, /* COPY TARGET DEVICE NOT REACHABLE */
+		.ascq = 0x02, /* COPY TARGET DEVICE ANALT REACHABLE */
 
 	},
 	[TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE] = {
 		/*
 		 * Returning ILLEGAL REQUEST would cause immediate IO errors on
-		 * Solaris initiators.  Returning NOT READY instead means the
+		 * Solaris initiators.  Returning ANALT READY instead means the
 		 * operations will be retried a finite number of times and we
 		 * can survive intermittent errors.
 		 */
-		.key = NOT_READY,
+		.key = ANALT_READY,
 		.asc = 0x08, /* LOGICAL UNIT COMMUNICATION FAILURE */
 	},
 	[TCM_INSUFFICIENT_REGISTRATION_RESOURCES] = {
 		/*
 		 * From spc4r22 section5.7.7,5.7.8
 		 * If a PERSISTENT RESERVE OUT command with a REGISTER service action
-		 * or a REGISTER AND IGNORE EXISTING KEY service action or
+		 * or a REGISTER AND IGANALRE EXISTING KEY service action or
 		 * REGISTER AND MOVE service actionis attempted,
 		 * but there are insufficient device server resources to complete the
 		 * operation, then the command shall be terminated with CHECK CONDITION
@@ -3460,22 +3460,22 @@ static const struct sense_detail sense_detail_table[] = {
 		.ascq = 0x03, /* INVALID FIELD IN COMMAND INFORMATION UNIT */
 	},
 	[TCM_ALUA_TG_PT_STANDBY] = {
-		.key = NOT_READY,
+		.key = ANALT_READY,
 		.asc = 0x04,
 		.ascq = ASCQ_04H_ALUA_TG_PT_STANDBY,
 	},
 	[TCM_ALUA_TG_PT_UNAVAILABLE] = {
-		.key = NOT_READY,
+		.key = ANALT_READY,
 		.asc = 0x04,
 		.ascq = ASCQ_04H_ALUA_TG_PT_UNAVAILABLE,
 	},
 	[TCM_ALUA_STATE_TRANSITION] = {
-		.key = NOT_READY,
+		.key = ANALT_READY,
 		.asc = 0x04,
 		.ascq = ASCQ_04H_ALUA_STATE_TRANSITION,
 	},
 	[TCM_ALUA_OFFLINE] = {
-		.key = NOT_READY,
+		.key = ANALT_READY,
 		.asc = 0x04,
 		.ascq = ASCQ_04H_ALUA_OFFLINE,
 	},
@@ -3557,7 +3557,7 @@ EXPORT_SYMBOL(transport_send_check_condition_and_sense);
  * target_send_busy - Send SCSI BUSY status back to the initiator
  * @cmd: SCSI command for which to send a BUSY reply.
  *
- * Note: Only call this function if target_submit_cmd*() failed.
+ * Analte: Only call this function if target_submit_cmd*() failed.
  */
 int target_send_busy(struct se_cmd *cmd)
 {
@@ -3586,7 +3586,7 @@ static void target_tmr_work(struct work_struct *work)
 	case TMR_ABORT_TASK_SET:
 	case TMR_CLEAR_ACA:
 	case TMR_CLEAR_TASK_SET:
-		tmr->response = TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED;
+		tmr->response = TMR_TASK_MGMT_FUNCTION_ANALT_SUPPORTED;
 		break;
 	case TMR_LUN_RESET:
 		ret = core_tmr_lun_reset(dev, tmr, NULL, NULL);
@@ -3604,7 +3604,7 @@ static void target_tmr_work(struct work_struct *work)
 		tmr->response = TMR_FUNCTION_REJECTED;
 		break;
 	default:
-		pr_err("Unknown TMR function: 0x%02x.\n",
+		pr_err("Unkanalwn TMR function: 0x%02x.\n",
 				tmr->function);
 		tmr->response = TMR_FUNCTION_REJECTED;
 		break;

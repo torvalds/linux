@@ -14,7 +14,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV01A10_LINK_FREQ_400MHZ	400000000ULL
 #define OV01A10_SCLK			40000000LL
@@ -516,7 +516,7 @@ static const struct v4l2_ctrl_ops ov01a10_ctrl_ops = {
 static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	u32 vblank_min, vblank_max, vblank_default;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	const struct ov01a10_mode *cur_mode;
@@ -524,7 +524,7 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 	int ret = 0;
 	int size;
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		return ret;
 
@@ -587,7 +587,7 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 	v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops, V4L2_CID_VFLIP,
 			  0, 1, 1, 0);
 
-	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov01a10_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &ov01a10_ctrl_ops,
 					      &props);
 	if (ret)
 		goto fail;
@@ -612,7 +612,7 @@ static void ov01a10_update_pad_format(const struct ov01a10_mode *mode,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_RAW;
 }
 
@@ -873,7 +873,7 @@ static int ov01a10_probe(struct i2c_client *client)
 
 	ov01a10 = devm_kzalloc(dev, sizeof(*ov01a10), GFP_KERNEL);
 	if (!ov01a10)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&ov01a10->sd, client, &ov01a10_subdev_ops);
 	ov01a10->sd.internal_ops = &ov01a10_internal_ops;
@@ -892,7 +892,7 @@ static int ov01a10_probe(struct i2c_client *client)
 	}
 
 	ov01a10->sd.state_lock = ov01a10->ctrl_handler.lock;
-	ov01a10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	ov01a10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 		V4L2_SUBDEV_FL_HAS_EVENTS;
 	ov01a10->sd.entity.ops = &ov01a10_subdev_entity_ops;
 	ov01a10->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

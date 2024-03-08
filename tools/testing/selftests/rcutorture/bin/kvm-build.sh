@@ -18,7 +18,7 @@ fi
 config_template=${1}
 if test -z "$config_template" -o ! -f "$config_template" -o ! -r "$config_template"
 then
-	echo "kvm-build.sh :$config_template: Not a readable file"
+	echo "kvm-build.sh :$config_template: Analt a readable file"
 	exit 1
 fi
 resdir=${2}

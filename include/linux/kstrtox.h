@@ -5,7 +5,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-/* Internal, do not use. */
+/* Internal, do analt use. */
 int __must_check _kstrtoul(const char *s, unsigned int base, unsigned long *res);
 int __must_check _kstrtol(const char *s, unsigned int base, long *res);
 
@@ -16,7 +16,7 @@ int __must_check kstrtoll(const char *s, unsigned int base, long long *res);
  * kstrtoul - convert a string to an unsigned long
  * @s: The start of the string. The string must be null-terminated, and may also
  *  include a single newline before its terminating null. The first character
- *  may also be a plus sign, but not a minus sign.
+ *  may also be a plus sign, but analt a minus sign.
  * @base: The number base to use. The maximum supported base is 16. If base is
  *  given as 0, then the base of the string is automatically detected with the
  *  conventional semantics - If it begins with 0x the number will be parsed as a
@@ -34,7 +34,7 @@ static inline int __must_check kstrtoul(const char *s, unsigned int base, unsign
 	 * __builtin_types_compatible_p(unsigned long, unsigned long long) = 0.
 	 */
 	if (sizeof(unsigned long) == sizeof(unsigned long long) &&
-	    __alignof__(unsigned long) == __alignof__(unsigned long long))
+	    __aliganalf__(unsigned long) == __aliganalf__(unsigned long long))
 		return kstrtoull(s, base, (unsigned long long *)res);
 	else
 		return _kstrtoul(s, base, res);
@@ -62,7 +62,7 @@ static inline int __must_check kstrtol(const char *s, unsigned int base, long *r
 	 * __builtin_types_compatible_p(long, long long) = 0.
 	 */
 	if (sizeof(long) == sizeof(long long) &&
-	    __alignof__(long) == __alignof__(long long))
+	    __aliganalf__(long) == __aliganalf__(long long))
 		return kstrtoll(s, base, (long long *)res);
 	else
 		return _kstrtol(s, base, res);
@@ -132,11 +132,11 @@ static inline int __must_check kstrtos32_from_user(const char __user *s, size_t 
 /*
  * Use kstrto<foo> instead.
  *
- * NOTE: simple_strto<foo> does not check for the range overflow and,
+ * ANALTE: simple_strto<foo> does analt check for the range overflow and,
  *	 depending on the input, may give interesting results.
  *
- * Use these functions if and only if you cannot use kstrto<foo>, because
- * the conversion ends on the first non-digit character, which may be far
+ * Use these functions if and only if you cananalt use kstrto<foo>, because
+ * the conversion ends on the first analn-digit character, which may be far
  * beyond the supported range. It might be useful to parse the strings like
  * 10x50 or 12:21 without altering original string or temporary buffer in use.
  * Keep in mind above caveat.

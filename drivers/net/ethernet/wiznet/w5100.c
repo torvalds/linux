@@ -15,7 +15,7 @@
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -683,7 +683,7 @@ static int w5100_hw_reset(struct w5100_priv *priv)
 	}
 
 	if (w5100_read16(priv, rtr) != RTR_DEFAULT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -917,7 +917,7 @@ static irqreturn_t w5100_interrupt(int irq, void *ndev_instance)
 
 	int ir = w5100_read(priv, W5100_S0_IR(priv));
 	if (!ir)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	w5100_write(priv, W5100_S0_IR(priv), ir);
 
 	if (ir & S0_IR_SENDOK) {
@@ -984,7 +984,7 @@ static int w5100_set_macaddr(struct net_device *ndev, void *addr)
 	struct sockaddr *sock_addr = addr;
 
 	if (!is_valid_ether_addr(sock_addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	eth_hw_addr_set(ndev, sock_addr->sa_data);
 	w5100_write_macaddr(priv);
 	return 0;
@@ -1092,7 +1092,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 
 	ndev = alloc_etherdev(alloc_size);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(ndev, dev);
 	dev_set_drvdata(dev, ndev);
 	priv = netdev_priv(ndev);
@@ -1133,7 +1133,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	ndev->ethtool_ops = &w5100_ethtool_ops;
 	netif_napi_add_weight(ndev, &priv->napi, w5100_napi_poll, 16);
 
-	/* This chip doesn't support VLAN packets with normal MTU,
+	/* This chip doesn't support VLAN packets with analrmal MTU,
 	 * so disable VLAN for this device.
 	 */
 	ndev->features |= NETIF_F_VLAN_CHALLENGED;
@@ -1145,7 +1145,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	priv->xfer_wq = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0,
 					netdev_name(ndev));
 	if (!priv->xfer_wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_wq;
 	}
 
@@ -1184,7 +1184,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 		char *link_name = devm_kzalloc(dev, 16, GFP_KERNEL);
 
 		if (!link_name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_gpio;
 		}
 		snprintf(link_name, 16, "%s-link", netdev_name(ndev));

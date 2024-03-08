@@ -33,7 +33,7 @@
 #define MT6360_PREFERCH_MASK	GENMASK(7, 4)
 #define MT6360_PREFERCH_SHFT	4
 #define MT6360_RPTCH_MASK	GENMASK(3, 0)
-#define MT6360_NO_PREFER	15
+#define MT6360_ANAL_PREFER	15
 
 /* Time in ms */
 #define ADC_WAIT_TIME_MS	25
@@ -104,8 +104,8 @@ static int mt6360_adc_read_channel(struct mt6360_adc_data *mad, int channel, int
 
 		/*
 		 * There are two functions, ZCV and TypeC OTP, running ADC VBAT and TS in
-		 * background, and ADC samples are taken on a fixed frequency no matter read the
-		 * previous one or not.
+		 * background, and ADC samples are taken on a fixed frequency anal matter read the
+		 * previous one or analt.
 		 * To avoid conflict, We set minimum time threshold after enable ADC and
 		 * check report channel is the same.
 		 * The worst case is run the same ADC twice and background function is also running,
@@ -132,9 +132,9 @@ out_adc_conv:
 	adc_enable = cpu_to_be16(MT6360_ADCEN_MASK);
 	regmap_raw_write(mad->regmap, MT6360_REG_PMUADCCFG, &adc_enable, sizeof(adc_enable));
 	mad->last_off_timestamps[channel] = ktime_get();
-	/* Config prefer channel to NO_PREFER */
+	/* Config prefer channel to ANAL_PREFER */
 	regmap_update_bits(mad->regmap, MT6360_REG_PMUADCRPT1, MT6360_PREFERCH_MASK,
-			   MT6360_NO_PREFER << MT6360_PREFERCH_SHFT);
+			   MT6360_ANAL_PREFER << MT6360_PREFERCH_SHFT);
 out_adc_lock:
 	mutex_unlock(&mad->adc_lock);
 
@@ -165,7 +165,7 @@ static int mt6360_adc_read_scale(struct mt6360_adc_data *mad, int channel, int *
 
 		if (channel == MT6360_CHAN_IBUS) {
 			/* IBUS will be affected by input current limit for the different Ron */
-			/* Check whether the config is <400mA or not */
+			/* Check whether the config is <400mA or analt */
 			ret = regmap_read(mad->regmap, MT6360_REG_PMUCHGCTRL3, &regval);
 			if (ret)
 				return ret;
@@ -279,7 +279,7 @@ static irqreturn_t mt6360_adc_trigger_handler(int irq, void *p)
 	}
 	iio_push_to_buffers_with_timestamp(indio_dev, &data, iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -319,12 +319,12 @@ static int mt6360_adc_probe(struct platform_device *pdev)
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap) {
 		dev_err(&pdev->dev, "Failed to get parent regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*mad));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mad = iio_priv(indio_dev);
 	mad->dev = &pdev->dev;

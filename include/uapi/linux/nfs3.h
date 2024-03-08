@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * NFSv3 protocol definitions
  */
@@ -52,7 +52,7 @@ enum nfs3_createmode {
 #define NFS3_FSF_READONLY	0x0008
 
 enum nfs3_ftype {
-	NF3NON  = 0,
+	NF3ANALN  = 0,
 	NF3REG  = 1,
 	NF3DIR  = 2,
 	NF3BLK  = 3,
@@ -86,7 +86,7 @@ struct nfs3_fh {
 #define NFS3PROC_CREATE		8
 #define NFS3PROC_MKDIR		9
 #define NFS3PROC_SYMLINK	10
-#define NFS3PROC_MKNOD		11
+#define NFS3PROC_MKANALD		11
 #define NFS3PROC_REMOVE		12
 #define NFS3PROC_RMDIR		13
 #define NFS3PROC_RENAME		14

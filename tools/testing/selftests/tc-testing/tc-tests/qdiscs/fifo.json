@@ -255,7 +255,7 @@
     },
     {
         "id": "45a0",
-        "name": "Delete nonexistent bfifo qdisc",
+        "name": "Delete analnexistent bfifo qdisc",
         "category": [
             "qdisc",
             "fifo"

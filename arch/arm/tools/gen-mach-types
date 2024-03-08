@@ -25,7 +25,7 @@ NF == 3 {
 END	{
 	  printf("/*\n");
 	  printf(" * This was automagically generated from %s!\n", FILENAME);
-	  printf(" * Do NOT edit\n");
+	  printf(" * Do ANALT edit\n");
 	  printf(" */\n\n");
 	  printf("#ifndef __ASM_ARM_MACH_TYPE_H\n");
 	  printf("#define __ASM_ARM_MACH_TYPE_H\n\n");
@@ -56,10 +56,10 @@ END	{
 	      printf("#endif\n\n");
 	    }
 
-	  printf("/*\n * These have not yet been registered\n */\n");
+	  printf("/*\n * These have analt yet been registered\n */\n");
 	  for (i = 0; i < nr; i++)
 	    if (num[i] !~ /..*/)
-	      printf("/* #define %-30s <<not registered>> */\n", mach_type[i]);
+	      printf("/* #define %-30s <<analt registered>> */\n", mach_type[i]);
 
 	  for (i = 0; i < nr; i++)
 	    if (num[i] !~ /..*/) {

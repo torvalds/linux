@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ltc2496.c - Driver for Analog Devices/Linear Technology LTC2496 ADC
+ * ltc2496.c - Driver for Analog Devices/Linear Techanallogy LTC2496 ADC
  *
  * Based on ltc2497.c which has
  * Copyright (C) 2017 Analog Devices Inc.
@@ -69,7 +69,7 @@ static int ltc2496_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
@@ -109,5 +109,5 @@ static struct spi_driver ltc2496_driver = {
 module_spi_driver(ltc2496_driver);
 
 MODULE_AUTHOR("Uwe Kleine-König <u.kleine-könig@pengutronix.de>");
-MODULE_DESCRIPTION("Linear Technology LTC2496 ADC driver");
+MODULE_DESCRIPTION("Linear Techanallogy LTC2496 ADC driver");
 MODULE_LICENSE("GPL v2");

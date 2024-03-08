@@ -25,7 +25,7 @@
 	INTEL_COMMUNITY_SIZE(b, s, e, 32, 4, GLK)
 
 /* GLK */
-static const struct pinctrl_pin_desc glk_northwest_pins[] = {
+static const struct pinctrl_pin_desc glk_analrthwest_pins[] = {
 	PINCTRL_PIN(0, "TCK"),
 	PINCTRL_PIN(1, "TRST_B"),
 	PINCTRL_PIN(2, "TMS"),
@@ -108,79 +108,79 @@ static const struct pinctrl_pin_desc glk_northwest_pins[] = {
 	PINCTRL_PIN(79, "GPIO_214"),
 };
 
-static const unsigned int glk_northwest_uart1_pins[] = { 26, 27, 28, 29 };
-static const unsigned int glk_northwest_pwm0_pins[] = { 42 };
-static const unsigned int glk_northwest_pwm1_pins[] = { 43 };
-static const unsigned int glk_northwest_pwm2_pins[] = { 44 };
-static const unsigned int glk_northwest_pwm3_pins[] = { 45 };
-static const unsigned int glk_northwest_i2c0_pins[] = { 50, 51 };
-static const unsigned int glk_northwest_i2c1_pins[] = { 52, 53 };
-static const unsigned int glk_northwest_i2c2_pins[] = { 54, 55 };
-static const unsigned int glk_northwest_i2c3_pins[] = { 56, 57 };
-static const unsigned int glk_northwest_i2c4_pins[] = { 58, 59 };
-static const unsigned int glk_northwest_uart0_pins[] = { 60, 61, 62, 63 };
-static const unsigned int glk_northwest_uart2_pins[] = { 64, 65, 66, 67 };
+static const unsigned int glk_analrthwest_uart1_pins[] = { 26, 27, 28, 29 };
+static const unsigned int glk_analrthwest_pwm0_pins[] = { 42 };
+static const unsigned int glk_analrthwest_pwm1_pins[] = { 43 };
+static const unsigned int glk_analrthwest_pwm2_pins[] = { 44 };
+static const unsigned int glk_analrthwest_pwm3_pins[] = { 45 };
+static const unsigned int glk_analrthwest_i2c0_pins[] = { 50, 51 };
+static const unsigned int glk_analrthwest_i2c1_pins[] = { 52, 53 };
+static const unsigned int glk_analrthwest_i2c2_pins[] = { 54, 55 };
+static const unsigned int glk_analrthwest_i2c3_pins[] = { 56, 57 };
+static const unsigned int glk_analrthwest_i2c4_pins[] = { 58, 59 };
+static const unsigned int glk_analrthwest_uart0_pins[] = { 60, 61, 62, 63 };
+static const unsigned int glk_analrthwest_uart2_pins[] = { 64, 65, 66, 67 };
 
-static const struct intel_pingroup glk_northwest_groups[] = {
-	PIN_GROUP("uart1_grp", glk_northwest_uart1_pins, 2),
-	PIN_GROUP("pwm0_grp", glk_northwest_pwm0_pins, 2),
-	PIN_GROUP("pwm1_grp", glk_northwest_pwm1_pins, 2),
-	PIN_GROUP("pwm2_grp", glk_northwest_pwm2_pins, 2),
-	PIN_GROUP("pwm3_grp", glk_northwest_pwm3_pins, 2),
-	PIN_GROUP("i2c0_grp", glk_northwest_i2c0_pins, 1),
-	PIN_GROUP("i2c1_grp", glk_northwest_i2c1_pins, 1),
-	PIN_GROUP("i2c2_grp", glk_northwest_i2c2_pins, 1),
-	PIN_GROUP("i2c3_grp", glk_northwest_i2c3_pins, 1),
-	PIN_GROUP("i2c4_grp", glk_northwest_i2c4_pins, 1),
-	PIN_GROUP("uart0_grp", glk_northwest_uart0_pins, 1),
-	PIN_GROUP("uart2_grp", glk_northwest_uart2_pins, 1),
+static const struct intel_pingroup glk_analrthwest_groups[] = {
+	PIN_GROUP("uart1_grp", glk_analrthwest_uart1_pins, 2),
+	PIN_GROUP("pwm0_grp", glk_analrthwest_pwm0_pins, 2),
+	PIN_GROUP("pwm1_grp", glk_analrthwest_pwm1_pins, 2),
+	PIN_GROUP("pwm2_grp", glk_analrthwest_pwm2_pins, 2),
+	PIN_GROUP("pwm3_grp", glk_analrthwest_pwm3_pins, 2),
+	PIN_GROUP("i2c0_grp", glk_analrthwest_i2c0_pins, 1),
+	PIN_GROUP("i2c1_grp", glk_analrthwest_i2c1_pins, 1),
+	PIN_GROUP("i2c2_grp", glk_analrthwest_i2c2_pins, 1),
+	PIN_GROUP("i2c3_grp", glk_analrthwest_i2c3_pins, 1),
+	PIN_GROUP("i2c4_grp", glk_analrthwest_i2c4_pins, 1),
+	PIN_GROUP("uart0_grp", glk_analrthwest_uart0_pins, 1),
+	PIN_GROUP("uart2_grp", glk_analrthwest_uart2_pins, 1),
 };
 
-static const char * const glk_northwest_uart1_groups[] = { "uart1_grp" };
-static const char * const glk_northwest_pwm0_groups[] = { "pwm0_grp" };
-static const char * const glk_northwest_pwm1_groups[] = { "pwm1_grp" };
-static const char * const glk_northwest_pwm2_groups[] = { "pwm2_grp" };
-static const char * const glk_northwest_pwm3_groups[] = { "pwm3_grp" };
-static const char * const glk_northwest_i2c0_groups[] = { "i2c0_grp" };
-static const char * const glk_northwest_i2c1_groups[] = { "i2c1_grp" };
-static const char * const glk_northwest_i2c2_groups[] = { "i2c2_grp" };
-static const char * const glk_northwest_i2c3_groups[] = { "i2c3_grp" };
-static const char * const glk_northwest_i2c4_groups[] = { "i2c4_grp" };
-static const char * const glk_northwest_uart0_groups[] = { "uart0_grp" };
-static const char * const glk_northwest_uart2_groups[] = { "uart2_grp" };
+static const char * const glk_analrthwest_uart1_groups[] = { "uart1_grp" };
+static const char * const glk_analrthwest_pwm0_groups[] = { "pwm0_grp" };
+static const char * const glk_analrthwest_pwm1_groups[] = { "pwm1_grp" };
+static const char * const glk_analrthwest_pwm2_groups[] = { "pwm2_grp" };
+static const char * const glk_analrthwest_pwm3_groups[] = { "pwm3_grp" };
+static const char * const glk_analrthwest_i2c0_groups[] = { "i2c0_grp" };
+static const char * const glk_analrthwest_i2c1_groups[] = { "i2c1_grp" };
+static const char * const glk_analrthwest_i2c2_groups[] = { "i2c2_grp" };
+static const char * const glk_analrthwest_i2c3_groups[] = { "i2c3_grp" };
+static const char * const glk_analrthwest_i2c4_groups[] = { "i2c4_grp" };
+static const char * const glk_analrthwest_uart0_groups[] = { "uart0_grp" };
+static const char * const glk_analrthwest_uart2_groups[] = { "uart2_grp" };
 
-static const struct intel_function glk_northwest_functions[] = {
-	FUNCTION("uart1", glk_northwest_uart1_groups),
-	FUNCTION("pmw0", glk_northwest_pwm0_groups),
-	FUNCTION("pmw1", glk_northwest_pwm1_groups),
-	FUNCTION("pmw2", glk_northwest_pwm2_groups),
-	FUNCTION("pmw3", glk_northwest_pwm3_groups),
-	FUNCTION("i2c0", glk_northwest_i2c0_groups),
-	FUNCTION("i2c1", glk_northwest_i2c1_groups),
-	FUNCTION("i2c2", glk_northwest_i2c2_groups),
-	FUNCTION("i2c3", glk_northwest_i2c3_groups),
-	FUNCTION("i2c4", glk_northwest_i2c4_groups),
-	FUNCTION("uart0", glk_northwest_uart0_groups),
-	FUNCTION("uart2", glk_northwest_uart2_groups),
+static const struct intel_function glk_analrthwest_functions[] = {
+	FUNCTION("uart1", glk_analrthwest_uart1_groups),
+	FUNCTION("pmw0", glk_analrthwest_pwm0_groups),
+	FUNCTION("pmw1", glk_analrthwest_pwm1_groups),
+	FUNCTION("pmw2", glk_analrthwest_pwm2_groups),
+	FUNCTION("pmw3", glk_analrthwest_pwm3_groups),
+	FUNCTION("i2c0", glk_analrthwest_i2c0_groups),
+	FUNCTION("i2c1", glk_analrthwest_i2c1_groups),
+	FUNCTION("i2c2", glk_analrthwest_i2c2_groups),
+	FUNCTION("i2c3", glk_analrthwest_i2c3_groups),
+	FUNCTION("i2c4", glk_analrthwest_i2c4_groups),
+	FUNCTION("uart0", glk_analrthwest_uart0_groups),
+	FUNCTION("uart2", glk_analrthwest_uart2_groups),
 };
 
-static const struct intel_community glk_northwest_communities[] = {
+static const struct intel_community glk_analrthwest_communities[] = {
 	GLK_COMMUNITY(0, 0, 79),
 };
 
-static const struct intel_pinctrl_soc_data glk_northwest_soc_data = {
+static const struct intel_pinctrl_soc_data glk_analrthwest_soc_data = {
 	.uid = "1",
-	.pins = glk_northwest_pins,
-	.npins = ARRAY_SIZE(glk_northwest_pins),
-	.groups = glk_northwest_groups,
-	.ngroups = ARRAY_SIZE(glk_northwest_groups),
-	.functions = glk_northwest_functions,
-	.nfunctions = ARRAY_SIZE(glk_northwest_functions),
-	.communities = glk_northwest_communities,
-	.ncommunities = ARRAY_SIZE(glk_northwest_communities),
+	.pins = glk_analrthwest_pins,
+	.npins = ARRAY_SIZE(glk_analrthwest_pins),
+	.groups = glk_analrthwest_groups,
+	.ngroups = ARRAY_SIZE(glk_analrthwest_groups),
+	.functions = glk_analrthwest_functions,
+	.nfunctions = ARRAY_SIZE(glk_analrthwest_functions),
+	.communities = glk_analrthwest_communities,
+	.ncommunities = ARRAY_SIZE(glk_analrthwest_communities),
 };
 
-static const struct pinctrl_pin_desc glk_north_pins[] = {
+static const struct pinctrl_pin_desc glk_analrth_pins[] = {
 	PINCTRL_PIN(0, "SVID0_ALERT_B"),
 	PINCTRL_PIN(1, "SVID0_DATA"),
 	PINCTRL_PIN(2, "SVID0_CLK"),
@@ -263,54 +263,54 @@ static const struct pinctrl_pin_desc glk_north_pins[] = {
 	PINCTRL_PIN(79, "LPC_FRAMEB"),
 };
 
-static const unsigned int glk_north_spi0_pins[] = { 3, 4, 5, 6, 7 };
-static const unsigned int glk_north_spi1_pins[] = { 8, 9, 10, 11, 12, 13 };
-static const unsigned int glk_north_i2c5_pins[] = { 34, 35 };
-static const unsigned int glk_north_i2c6_pins[] = { 36, 37 };
-static const unsigned int glk_north_i2c7_pins[] = { 38, 39 };
-static const unsigned int glk_north_uart0_pins[] = { 62, 63, 64, 65 };
-static const unsigned int glk_north_spi0b_pins[] = { 66, 67, 68, 69, 70 };
+static const unsigned int glk_analrth_spi0_pins[] = { 3, 4, 5, 6, 7 };
+static const unsigned int glk_analrth_spi1_pins[] = { 8, 9, 10, 11, 12, 13 };
+static const unsigned int glk_analrth_i2c5_pins[] = { 34, 35 };
+static const unsigned int glk_analrth_i2c6_pins[] = { 36, 37 };
+static const unsigned int glk_analrth_i2c7_pins[] = { 38, 39 };
+static const unsigned int glk_analrth_uart0_pins[] = { 62, 63, 64, 65 };
+static const unsigned int glk_analrth_spi0b_pins[] = { 66, 67, 68, 69, 70 };
 
-static const struct intel_pingroup glk_north_groups[] = {
-	PIN_GROUP("spi0_grp", glk_north_spi0_pins, 1),
-	PIN_GROUP("spi1_grp", glk_north_spi1_pins, 1),
-	PIN_GROUP("i2c5_grp", glk_north_i2c5_pins, 1),
-	PIN_GROUP("i2c6_grp", glk_north_i2c6_pins, 1),
-	PIN_GROUP("i2c7_grp", glk_north_i2c7_pins, 1),
-	PIN_GROUP("uart0_grp", glk_north_uart0_pins, 2),
-	PIN_GROUP("spi0b_grp", glk_north_spi0b_pins, 2),
+static const struct intel_pingroup glk_analrth_groups[] = {
+	PIN_GROUP("spi0_grp", glk_analrth_spi0_pins, 1),
+	PIN_GROUP("spi1_grp", glk_analrth_spi1_pins, 1),
+	PIN_GROUP("i2c5_grp", glk_analrth_i2c5_pins, 1),
+	PIN_GROUP("i2c6_grp", glk_analrth_i2c6_pins, 1),
+	PIN_GROUP("i2c7_grp", glk_analrth_i2c7_pins, 1),
+	PIN_GROUP("uart0_grp", glk_analrth_uart0_pins, 2),
+	PIN_GROUP("spi0b_grp", glk_analrth_spi0b_pins, 2),
 };
 
-static const char * const glk_north_spi0_groups[] = { "spi0_grp", "spi0b_grp" };
-static const char * const glk_north_spi1_groups[] = { "spi1_grp" };
-static const char * const glk_north_i2c5_groups[] = { "i2c5_grp" };
-static const char * const glk_north_i2c6_groups[] = { "i2c6_grp" };
-static const char * const glk_north_i2c7_groups[] = { "i2c7_grp" };
-static const char * const glk_north_uart0_groups[] = { "uart0_grp" };
+static const char * const glk_analrth_spi0_groups[] = { "spi0_grp", "spi0b_grp" };
+static const char * const glk_analrth_spi1_groups[] = { "spi1_grp" };
+static const char * const glk_analrth_i2c5_groups[] = { "i2c5_grp" };
+static const char * const glk_analrth_i2c6_groups[] = { "i2c6_grp" };
+static const char * const glk_analrth_i2c7_groups[] = { "i2c7_grp" };
+static const char * const glk_analrth_uart0_groups[] = { "uart0_grp" };
 
-static const struct intel_function glk_north_functions[] = {
-	FUNCTION("spi0", glk_north_spi0_groups),
-	FUNCTION("spi1", glk_north_spi1_groups),
-	FUNCTION("i2c5", glk_north_i2c5_groups),
-	FUNCTION("i2c6", glk_north_i2c6_groups),
-	FUNCTION("i2c7", glk_north_i2c7_groups),
-	FUNCTION("uart0", glk_north_uart0_groups),
+static const struct intel_function glk_analrth_functions[] = {
+	FUNCTION("spi0", glk_analrth_spi0_groups),
+	FUNCTION("spi1", glk_analrth_spi1_groups),
+	FUNCTION("i2c5", glk_analrth_i2c5_groups),
+	FUNCTION("i2c6", glk_analrth_i2c6_groups),
+	FUNCTION("i2c7", glk_analrth_i2c7_groups),
+	FUNCTION("uart0", glk_analrth_uart0_groups),
 };
 
-static const struct intel_community glk_north_communities[] = {
+static const struct intel_community glk_analrth_communities[] = {
 	GLK_COMMUNITY(0, 0, 79),
 };
 
-static const struct intel_pinctrl_soc_data glk_north_soc_data = {
+static const struct intel_pinctrl_soc_data glk_analrth_soc_data = {
 	.uid = "2",
-	.pins = glk_north_pins,
-	.npins = ARRAY_SIZE(glk_north_pins),
-	.groups = glk_north_groups,
-	.ngroups = ARRAY_SIZE(glk_north_groups),
-	.functions = glk_north_functions,
-	.nfunctions = ARRAY_SIZE(glk_north_functions),
-	.communities = glk_north_communities,
-	.ncommunities = ARRAY_SIZE(glk_north_communities),
+	.pins = glk_analrth_pins,
+	.npins = ARRAY_SIZE(glk_analrth_pins),
+	.groups = glk_analrth_groups,
+	.ngroups = ARRAY_SIZE(glk_analrth_groups),
+	.functions = glk_analrth_functions,
+	.nfunctions = ARRAY_SIZE(glk_analrth_functions),
+	.communities = glk_analrth_communities,
+	.ncommunities = ARRAY_SIZE(glk_analrth_communities),
 };
 
 static const struct pinctrl_pin_desc glk_audio_pins[] = {
@@ -435,8 +435,8 @@ static const struct intel_pinctrl_soc_data glk_scc_soc_data = {
 };
 
 static const struct intel_pinctrl_soc_data *glk_pinctrl_soc_data[] = {
-	&glk_northwest_soc_data,
-	&glk_north_soc_data,
+	&glk_analrthwest_soc_data,
+	&glk_analrth_soc_data,
 	&glk_audio_soc_data,
 	&glk_scc_soc_data,
 	NULL

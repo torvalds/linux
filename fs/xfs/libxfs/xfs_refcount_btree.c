@@ -72,21 +72,21 @@ xfs_refcountbt_alloc_block(
 	args.minlen = args.maxlen = args.prod = 1;
 	args.resv = XFS_AG_RESV_METADATA;
 
-	error = xfs_alloc_vextent_near_bno(&args,
-			XFS_AGB_TO_FSB(args.mp, args.pag->pag_agno,
+	error = xfs_alloc_vextent_near_banal(&args,
+			XFS_AGB_TO_FSB(args.mp, args.pag->pag_aganal,
 					xfs_refc_block(args.mp)));
 	if (error)
 		goto out_error;
-	trace_xfs_refcountbt_alloc_block(cur->bc_mp, cur->bc_ag.pag->pag_agno,
-			args.agbno, 1);
-	if (args.fsbno == NULLFSBLOCK) {
+	trace_xfs_refcountbt_alloc_block(cur->bc_mp, cur->bc_ag.pag->pag_aganal,
+			args.agbanal, 1);
+	if (args.fsbanal == NULLFSBLOCK) {
 		*stat = 0;
 		return 0;
 	}
-	ASSERT(args.agno == cur->bc_ag.pag->pag_agno);
+	ASSERT(args.aganal == cur->bc_ag.pag->pag_aganal);
 	ASSERT(args.len == 1);
 
-	new->s = cpu_to_be32(args.agbno);
+	new->s = cpu_to_be32(args.agbanal);
 	be32_add_cpu(&agf->agf_refcount_blocks, 1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_REFCOUNT_BLOCKS);
 
@@ -105,13 +105,13 @@ xfs_refcountbt_free_block(
 	struct xfs_mount	*mp = cur->bc_mp;
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, xfs_buf_daddr(bp));
+	xfs_fsblock_t		fsbanal = XFS_DADDR_TO_FSB(mp, xfs_buf_daddr(bp));
 
-	trace_xfs_refcountbt_free_block(cur->bc_mp, cur->bc_ag.pag->pag_agno,
-			XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno), 1);
+	trace_xfs_refcountbt_free_block(cur->bc_mp, cur->bc_ag.pag->pag_aganal,
+			XFS_FSB_TO_AGBANAL(cur->bc_mp, fsbanal), 1);
 	be32_add_cpu(&agf->agf_refcount_blocks, -1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_REFCOUNT_BLOCKS);
-	return xfs_free_extent_later(cur->bc_tp, fsbno, 1,
+	return xfs_free_extent_later(cur->bc_tp, fsbanal, 1,
 			&XFS_RMAP_OINFO_REFC, XFS_AG_RESV_METADATA, false);
 }
 
@@ -173,7 +173,7 @@ xfs_refcountbt_init_ptr_from_cur(
 {
 	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
+	ASSERT(cur->bc_ag.pag->pag_aganal == be32_to_cpu(agf->agf_seqanal));
 
 	ptr->s = agf->agf_refcount_root;
 }
@@ -288,7 +288,7 @@ const struct xfs_buf_ops xfs_refcountbt_buf_ops = {
 };
 
 STATIC int
-xfs_refcountbt_keys_inorder(
+xfs_refcountbt_keys_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2)
@@ -298,7 +298,7 @@ xfs_refcountbt_keys_inorder(
 }
 
 STATIC int
-xfs_refcountbt_recs_inorder(
+xfs_refcountbt_recs_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_rec	*r1,
 	const union xfs_btree_rec	*r2)
@@ -338,8 +338,8 @@ static const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.key_diff		= xfs_refcountbt_key_diff,
 	.buf_ops		= &xfs_refcountbt_buf_ops,
 	.diff_two_keys		= xfs_refcountbt_diff_two_keys,
-	.keys_inorder		= xfs_refcountbt_keys_inorder,
-	.recs_inorder		= xfs_refcountbt_recs_inorder,
+	.keys_ianalrder		= xfs_refcountbt_keys_ianalrder,
+	.recs_ianalrder		= xfs_refcountbt_recs_ianalrder,
 	.keys_contiguous	= xfs_refcountbt_keys_contiguous,
 };
 
@@ -354,7 +354,7 @@ xfs_refcountbt_init_common(
 {
 	struct xfs_btree_cur	*cur;
 
-	ASSERT(pag->pag_agno < mp->m_sb.sb_agcount);
+	ASSERT(pag->pag_aganal < mp->m_sb.sb_agcount);
 
 	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_REFC,
 			mp->m_refc_maxlevels, xfs_refcountbt_cur_cache);
@@ -536,7 +536,7 @@ xfs_refcountbt_calc_reserves(
 	 * never be available for the kinds of things that would require btree
 	 * expansion.  We therefore can pretend the space isn't there.
 	 */
-	if (xfs_ag_contains_log(mp, pag->pag_agno))
+	if (xfs_ag_contains_log(mp, pag->pag_aganal))
 		agblocks -= mp->m_sb.sb_logblocks;
 
 	*ask += xfs_refcountbt_max_size(mp, agblocks);
@@ -553,7 +553,7 @@ xfs_refcountbt_init_cur_cache(void)
 			0, 0, NULL);
 
 	if (!xfs_refcountbt_cur_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

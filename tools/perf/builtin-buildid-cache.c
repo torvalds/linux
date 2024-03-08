@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include "builtin.h"
 #include "namespaces.h"
@@ -222,7 +222,7 @@ static int build_id_cache__remove_file(const char *filename, struct nsinfo *nsi)
 static int build_id_cache__purge_path(const char *pathname, struct nsinfo *nsi)
 {
 	struct strlist *list;
-	struct str_node *pos;
+	struct str_analde *pos;
 	int err;
 
 	err = build_id_cache__list_build_ids(pathname, nsi, &list);
@@ -247,13 +247,13 @@ out:
 static int build_id_cache__purge_all(void)
 {
 	struct strlist *list;
-	struct str_node *pos;
+	struct str_analde *pos;
 	int err = 0;
 	char *buf;
 
 	list = build_id_cache__list_all(false);
 	if (!list) {
-		pr_debug("Failed to get buildids: -%d\n", errno);
+		pr_debug("Failed to get buildids: -%d\n", erranal);
 		return -EINVAL;
 	}
 
@@ -281,7 +281,7 @@ static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 		return true;
 
 	if (filename__read_build_id(filename, &bid) == -1) {
-		if (errno == ENOENT)
+		if (erranal == EANALENT)
 			return false;
 
 		pr_warning("Problems with %s file, consider removing it from the cache\n",
@@ -334,12 +334,12 @@ static int build_id_cache__update_file(const char *filename, struct nsinfo *nsi)
 static int build_id_cache__show_all(void)
 {
 	struct strlist *bidlist;
-	struct str_node *nd;
+	struct str_analde *nd;
 	char *buf;
 
 	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
-		pr_debug("Failed to get buildids: -%d\n", errno);
+		pr_debug("Failed to get buildids: -%d\n", erranal);
 		return -1;
 	}
 	strlist__for_each_entry(nd, bidlist) {
@@ -358,7 +358,7 @@ static int perf_buildid_cache_config(const char *var, const char *value, void *c
 	if (!strcmp(var, "buildid-cache.debuginfod")) {
 		di->urls = strdup(value);
 		if (!di->urls)
-			return -ENOMEM;
+			return -EANALMEM;
 		di->set = true;
 	}
 
@@ -368,7 +368,7 @@ static int perf_buildid_cache_config(const char *var, const char *value, void *c
 int cmd_buildid_cache(int argc, const char **argv)
 {
 	struct strlist *list;
-	struct str_node *pos;
+	struct str_analde *pos;
 	int ret, ns_id = -1;
 	bool force = false;
 	bool list_files = false;
@@ -435,7 +435,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 
 	perf_debuginfod_setup(&debuginfod);
 
-	/* -l is exclusive. It can not be used with other options. */
+	/* -l is exclusive. It can analt be used with other options. */
 	if (list_files && opts_flag) {
 		usage_with_options_msg(buildid_cache_usage,
 			buildid_cache_options, "-l is exclusive.\n");
@@ -468,13 +468,13 @@ int cmd_buildid_cache(int argc, const char **argv)
 		if (list) {
 			strlist__for_each_entry(pos, list)
 				if (build_id_cache__add_file(pos->s, nsi)) {
-					if (errno == EEXIST) {
+					if (erranal == EEXIST) {
 						pr_debug("%s already in the cache\n",
 							 pos->s);
 						continue;
 					}
 					pr_warning("Couldn't add %s: %s\n",
-						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(erranal, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -486,13 +486,13 @@ int cmd_buildid_cache(int argc, const char **argv)
 		if (list) {
 			strlist__for_each_entry(pos, list)
 				if (build_id_cache__remove_file(pos->s, nsi)) {
-					if (errno == ENOENT) {
+					if (erranal == EANALENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
 						continue;
 					}
 					pr_warning("Couldn't remove %s: %s\n",
-						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(erranal, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -504,13 +504,13 @@ int cmd_buildid_cache(int argc, const char **argv)
 		if (list) {
 			strlist__for_each_entry(pos, list)
 				if (build_id_cache__purge_path(pos->s, nsi)) {
-					if (errno == ENOENT) {
+					if (erranal == EANALENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
 						continue;
 					}
 					pr_warning("Couldn't remove %s: %s\n",
-						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(erranal, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -520,7 +520,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 	if (purge_all) {
 		if (build_id_cache__purge_all()) {
 			pr_warning("Couldn't remove some caches. Error: %s.\n",
-				str_error_r(errno, sbuf, sizeof(sbuf)));
+				str_error_r(erranal, sbuf, sizeof(sbuf)));
 		}
 	}
 
@@ -532,13 +532,13 @@ int cmd_buildid_cache(int argc, const char **argv)
 		if (list) {
 			strlist__for_each_entry(pos, list)
 				if (build_id_cache__update_file(pos->s, nsi)) {
-					if (errno == ENOENT) {
+					if (erranal == EANALENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
 						continue;
 					}
 					pr_warning("Couldn't update %s: %s\n",
-						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(erranal, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);

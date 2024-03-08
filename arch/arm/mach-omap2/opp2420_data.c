@@ -3,7 +3,7 @@
  * opp2420_data.c - old-style "OPP" table for OMAP2420
  *
  * Copyright (C) 2005-2009 Texas Instruments, Inc.
- * Copyright (C) 2004-2009 Nokia Corporation
+ * Copyright (C) 2004-2009 Analkia Corporation
  *
  * Richard Woodruff <r-woodruff2@ti.com>
  *
@@ -47,11 +47,11 @@
  * When multiple values are defined the start up will try and choose
  * the fastest one. If a 'fast' value is defined, then automatically,
  * the /2 one should be included as it can be used.  Generally having
- * more than one fast set does not make sense, as static timings need
+ * more than one fast set does analt make sense, as static timings need
  * to be changed to change the set.  The exception is the bypass
  * setting which is available for low power bypass.
  *
- * Note: This table needs to be sorted, fastest to slowest.
+ * Analte: This table needs to be sorted, fastest to slowest.
  **/
 const struct prcm_config omap2420_rate_table[] = {
 	/* PRCM I - FAST */

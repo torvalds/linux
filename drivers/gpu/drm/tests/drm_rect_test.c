@@ -11,7 +11,7 @@
 #include <drm/drm_mode.h>
 
 #include <linux/string_helpers.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 static void drm_rect_compare(struct kunit *test, const struct drm_rect *r,
 			     const struct drm_rect *expected)
@@ -29,26 +29,26 @@ static void drm_test_rect_clip_scaled_div_by_zero(struct kunit *test)
 
 	/*
 	 * Make sure we don't divide by zero when dst
-	 * width/height is zero and dst and clip do not intersect.
+	 * width/height is zero and dst and clip do analt intersect.
 	 */
 	drm_rect_init(&src, 0, 0, 0, 0);
 	drm_rect_init(&dst, 0, 0, 0, 0);
 	drm_rect_init(&clip, 1, 1, 1, 1);
 	visible = drm_rect_clip_scaled(&src, &dst, &clip);
 
-	KUNIT_EXPECT_FALSE_MSG(test, visible, "Destination not be visible\n");
-	KUNIT_EXPECT_FALSE_MSG(test, drm_rect_visible(&src), "Source should not be visible\n");
+	KUNIT_EXPECT_FALSE_MSG(test, visible, "Destination analt be visible\n");
+	KUNIT_EXPECT_FALSE_MSG(test, drm_rect_visible(&src), "Source should analt be visible\n");
 
 	drm_rect_init(&src, 0, 0, 0, 0);
 	drm_rect_init(&dst, 3, 3, 0, 0);
 	drm_rect_init(&clip, 1, 1, 1, 1);
 	visible = drm_rect_clip_scaled(&src, &dst, &clip);
 
-	KUNIT_EXPECT_FALSE_MSG(test, visible, "Destination not be visible\n");
-	KUNIT_EXPECT_FALSE_MSG(test, drm_rect_visible(&src), "Source should not be visible\n");
+	KUNIT_EXPECT_FALSE_MSG(test, visible, "Destination analt be visible\n");
+	KUNIT_EXPECT_FALSE_MSG(test, drm_rect_visible(&src), "Source should analt be visible\n");
 }
 
-static void drm_test_rect_clip_scaled_not_clipped(struct kunit *test)
+static void drm_test_rect_clip_scaled_analt_clipped(struct kunit *test)
 {
 	struct drm_rect src, dst, clip;
 	bool visible;
@@ -193,7 +193,7 @@ static void drm_test_rect_clip_scaled_signed_vs_unsigned(struct kunit *test)
 
 	/*
 	 * 'clip.x2 - dst.x1 >= dst width' could result a negative
-	 * src rectangle width which is no longer expected by the
+	 * src rectangle width which is anal longer expected by the
 	 * code as it's using unsigned types. This could lead to
 	 * the clipped source rectangle appering visible when it
 	 * should have been fully clipped. Make sure both rectangles
@@ -205,8 +205,8 @@ static void drm_test_rect_clip_scaled_signed_vs_unsigned(struct kunit *test)
 
 	visible = drm_rect_clip_scaled(&src, &dst, &clip);
 
-	KUNIT_EXPECT_FALSE_MSG(test, visible, "Destination should not be visible\n");
-	KUNIT_EXPECT_FALSE_MSG(test, drm_rect_visible(&src), "Source should not be visible\n");
+	KUNIT_EXPECT_FALSE_MSG(test, visible, "Destination should analt be visible\n");
+	KUNIT_EXPECT_FALSE_MSG(test, drm_rect_visible(&src), "Source should analt be visible\n");
 }
 
 struct drm_rect_intersect_case {
@@ -295,7 +295,7 @@ static const struct drm_rect_intersect_case drm_rect_intersect_cases[] = {
 		.expected_intersection = DRM_RECT_INIT(0, 0, 2, 2),
 	},
 	{
-		.description = "inside another",
+		.description = "inside aanalther",
 		.r1 = DRM_RECT_INIT(0, 0, 2, 2),
 		.r2 = DRM_RECT_INIT(1, 1, 1, 1),
 		.should_be_visible = true,
@@ -316,7 +316,7 @@ static const struct drm_rect_intersect_case drm_rect_intersect_cases[] = {
 		.expected_intersection = DRM_RECT_INIT(5, 10, 0, 0),
 	},
 	{
-		.description = "points not intersecting",
+		.description = "points analt intersecting",
 		.r1 = DRM_RECT_INIT(0, 0, 0, 0),
 		.r2 = DRM_RECT_INIT(5, 10, 0, 0),
 		.should_be_visible = false,
@@ -354,7 +354,7 @@ struct drm_rect_scale_case {
 
 static const struct drm_rect_scale_case drm_rect_scale_cases[] = {
 	{
-		.name = "normal use",
+		.name = "analrmal use",
 		.src = DRM_RECT_INIT(0, 0, 2 << 16, 2 << 16),
 		.dst = DRM_RECT_INIT(0, 0, 1 << 16, 1 << 16),
 		.min_range = 0, .max_range = INT_MAX,
@@ -508,7 +508,7 @@ static void drm_test_rect_rotate_inv(struct kunit *test)
 
 static struct kunit_case drm_rect_tests[] = {
 	KUNIT_CASE(drm_test_rect_clip_scaled_div_by_zero),
-	KUNIT_CASE(drm_test_rect_clip_scaled_not_clipped),
+	KUNIT_CASE(drm_test_rect_clip_scaled_analt_clipped),
 	KUNIT_CASE(drm_test_rect_clip_scaled_clipped),
 	KUNIT_CASE(drm_test_rect_clip_scaled_signed_vs_unsigned),
 	KUNIT_CASE_PARAM(drm_test_rect_intersect, drm_rect_intersect_gen_params),

@@ -1,6 +1,6 @@
-Faraday Technology timer
+Faraday Techanallogy timer
 
-This timer is a generic IP block from Faraday Technology, embedded in the
+This timer is a generic IP block from Faraday Techanallogy, embedded in the
 Cortina Systems Gemini SoCs and other designs.
 
 Required properties:

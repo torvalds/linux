@@ -8,7 +8,7 @@ Required properties:
 - reg: register specifier of MPP registers
 
 Available mpp pins/groups and functions:
-Note: brackets (x) are not part of the mpp name for marvell,function and given
+Analte: brackets (x) are analt part of the mpp name for marvell,function and given
 only for more detailed description in this document.
 
 name          pins     functions
@@ -95,5 +95,5 @@ mpp63         63       gpio, spi0(sck), tclk
 mpp64         64       gpio, spi0(miso), spi0(cs1)
 mpp65         65       gpio, spi0(mosi), spi0(cs2)
 
-Note: According to the datasheet mpp63 is a gpo but there is at least
+Analte: According to the datasheet mpp63 is a gpo but there is at least
 one example of a gpio usage on the board D-Link DNS-327L

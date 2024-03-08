@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos5433 SoC Memory interface and AMBA bus device tree source
+ * Samsung's Exyanals5433 SoC Memory interface and AMBA bus device tree source
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  * Chanwoo Choi <cw00.choi@samsung.com>
@@ -8,7 +8,7 @@
 
 / {
 	bus_g2d_400: bus0 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_ACLK_G2D_400>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_g2d_400_opp_table>;
@@ -16,7 +16,7 @@
 	};
 
 	bus_g2d_266: bus1 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_ACLK_G2D_266>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_g2d_266_opp_table>;
@@ -24,7 +24,7 @@
 	};
 
 	bus_gscl: bus2 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_ACLK_GSCL_333>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_gscl_opp_table>;
@@ -32,7 +32,7 @@
 	};
 
 	bus_hevc: bus3 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_ACLK_HEVC_400>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_hevc_opp_table>;
@@ -40,7 +40,7 @@
 	};
 
 	bus_jpeg: bus4 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_SCLK_JPEG_MSCL>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_g2d_400_opp_table>;
@@ -48,7 +48,7 @@
 	};
 
 	bus_mfc: bus5 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_ACLK_MFC_400>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_g2d_400_opp_table>;
@@ -56,34 +56,34 @@
 	};
 
 	bus_mscl: bus6 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_ACLK_MSCL_400>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_g2d_400_opp_table>;
 		status = "disabled";
 	};
 
-	bus_noc0: bus7 {
-		compatible = "samsung,exynos-bus";
+	bus_analc0: bus7 {
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_ACLK_BUS0_400>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_hevc_opp_table>;
 		status = "disabled";
 	};
 
-	bus_noc1: bus8 {
-		compatible = "samsung,exynos-bus";
+	bus_analc1: bus8 {
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_top CLK_ACLK_BUS1_400>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_hevc_opp_table>;
 		status = "disabled";
 	};
 
-	bus_noc2: bus9 {
-		compatible = "samsung,exynos-bus";
+	bus_analc2: bus9 {
+		compatible = "samsung,exyanals-bus";
 		clocks = <&cmu_mif CLK_ACLK_BUS2_400>;
 		clock-names = "bus";
-		operating-points-v2 = <&bus_noc2_opp_table>;
+		operating-points-v2 = <&bus_analc2_opp_table>;
 		status = "disabled";
 	};
 
@@ -175,7 +175,7 @@
 		};
 	};
 
-	bus_noc2_opp_table: opp-table-6 {
+	bus_analc2_opp_table: opp-table-6 {
 		compatible = "operating-points-v2";
 
 		opp-400000000 {

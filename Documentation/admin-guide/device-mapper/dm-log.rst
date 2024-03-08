@@ -2,13 +2,13 @@
 Device-Mapper Logging
 =====================
 The device-mapper logging code is used by some of the device-mapper
-RAID targets to track regions of the disk that are not consistent.
+RAID targets to track regions of the disk that are analt consistent.
 A region (or portion of the address space) of the disk may be
 inconsistent because a RAID stripe is currently being operated on or
 a machine died while the region was being altered.  In the case of
 mirrors, a region would be considered dirty/inconsistent while you
 are writing to it because the writes need to be replicated for all
-the legs of the mirror and may not reach the legs at the same time.
+the legs of the mirror and may analt reach the legs at the same time.
 Once all writes are complete, the region is considered clean again.
 
 There is a generic logging interface that the device-mapper RAID
@@ -33,8 +33,8 @@ logging state survives reboots/crashes.
 The "core" log type
 -------------------
 This log implementation keeps the log state in memory.  The log state
-will not survive a reboot or crash, but there may be a small boost in
-performance.  This method can also be used if no storage device is
+will analt survive a reboot or crash, but there may be a small boost in
+performance.  This method can also be used if anal storage device is
 available for storing log state.
 
 The "userspace" log type

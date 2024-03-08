@@ -178,8 +178,8 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_wifibt_ctrl>;
 	pinctrl-1 = <&pinctrl_usdhc1_sleep &pinctrl_wifibt_ctrl_sleep>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	bus-width = <4>;
 	status = "okay";
 };

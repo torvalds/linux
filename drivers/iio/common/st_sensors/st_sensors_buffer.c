@@ -72,7 +72,7 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 					   timestamp);
 
 st_sensors_get_buffer_element_error:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

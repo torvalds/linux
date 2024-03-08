@@ -20,13 +20,13 @@
  * The RESTRICT_UNSIGNED masks, if present, represent unsigned fields for
  * features that are restricted to support at most the specified feature.
  *
- * If a feature field is not present in either, than it is not supported.
+ * If a feature field is analt present in either, than it is analt supported.
  *
  * The approach taken for protected VMs is to allow features that are:
  * - Needed by common Linux distributions (e.g., floating point)
- * - Trivial to support, e.g., supporting the feature does not introduce or
+ * - Trivial to support, e.g., supporting the feature does analt introduce or
  * require tracking of additional state in KVM
- * - Cannot be trapped or prevent the guest from using anyway
+ * - Cananalt be trapped or prevent the guest from using anyway
  */
 
 /*
@@ -45,7 +45,7 @@
 
 /*
  * Restrict to the following *unsigned* features for protected VMs:
- * - AArch64 guests only (no support for AArch32 guests):
+ * - AArch64 guests only (anal support for AArch32 guests):
  *	AArch32 adds complexity in trap handling, emulation, condition codes,
  *	etc...
  * - RAS (v1)
@@ -74,9 +74,9 @@
 /*
  * Allow for protected VMs:
  * - Mixed-endian
- * - Distinction between Secure and Non-secure Memory
+ * - Distinction between Secure and Analn-secure Memory
  * - Mixed-endian at EL0 only
- * - Non-context synchronizing exception entry and exit
+ * - Analn-context synchronizing exception entry and exit
  */
 #define PVM_ID_AA64MMFR0_ALLOW (\
 	ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_BIGEND) | \
@@ -117,7 +117,7 @@
 
 /*
  * Allow for protected VMs:
- * - Common not Private translations
+ * - Common analt Private translations
  * - User Access Override
  * - IESB bit in the SCTLR_ELx registers
  * - Unaligned single-copy atomicity and atomic functions
@@ -140,14 +140,14 @@
 #define PVM_ID_AA64MMFR3_ALLOW (0ULL)
 
 /*
- * No support for Scalable Vectors for protected VMs:
+ * Anal support for Scalable Vectors for protected VMs:
  *	Requires additional support from KVM, e.g., context-switching and
  *	trapping at EL2
  */
 #define PVM_ID_AA64ZFR0_ALLOW (0ULL)
 
 /*
- * No support for debug, including breakpoints, and watchpoints for protected
+ * Anal support for debug, including breakpoints, and watchpoints for protected
  * VMs:
  *	The Arm architecture mandates support for at least the Armv8 debug
  *	architecture, which would include at least 2 hardware breakpoints and
@@ -159,13 +159,13 @@
 #define PVM_ID_AA64DFR1_ALLOW (0ULL)
 
 /*
- * No support for implementation defined features.
+ * Anal support for implementation defined features.
  */
 #define PVM_ID_AA64AFR0_ALLOW (0ULL)
 #define PVM_ID_AA64AFR1_ALLOW (0ULL)
 
 /*
- * No restrictions on instructions implemented in AArch64.
+ * Anal restrictions on instructions implemented in AArch64.
  */
 #define PVM_ID_AA64ISAR0_ALLOW (\
 	ARM64_FEATURE_MASK(ID_AA64ISAR0_EL1_AES) | \

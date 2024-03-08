@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  include/linux/eventpoll.h ( Efficient event polling implementation )
  *  Copyright (C) 2001,...,2006	 Davide Libenzi
@@ -34,9 +34,9 @@
 #define EPOLLERR	(__force __poll_t)0x00000008
 #define EPOLLHUP	(__force __poll_t)0x00000010
 #define EPOLLNVAL	(__force __poll_t)0x00000020
-#define EPOLLRDNORM	(__force __poll_t)0x00000040
+#define EPOLLRDANALRM	(__force __poll_t)0x00000040
 #define EPOLLRDBAND	(__force __poll_t)0x00000080
-#define EPOLLWRNORM	(__force __poll_t)0x00000100
+#define EPOLLWRANALRM	(__force __poll_t)0x00000100
 #define EPOLLWRBAND	(__force __poll_t)0x00000200
 #define EPOLLMSG	(__force __poll_t)0x00000400
 #define EPOLLRDHUP	(__force __poll_t)0x00002000
@@ -54,7 +54,7 @@
  * Request the handling of system wakeup events so as to prevent system suspends
  * from happening while those events are being processed.
  *
- * Assuming neither EPOLLET nor EPOLLONESHOT is set, system suspends will not be
+ * Assuming neither EPOLLET analr EPOLLONESHOT is set, system suspends will analt be
  * re-allowed until epoll_wait is called again after consuming the wakeup
  * event(s).
  *

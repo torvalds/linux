@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2006  Paul Mundt
  *  Copyright (C) 2007  Yoshihiro Shimoda
- *  Copyright (C) 2008, 2009  Nobuhiro Iwamatsu
+ *  Copyright (C) 2008, 2009  Analbuhiro Iwamatsu
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>

@@ -98,7 +98,7 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 
 	page = __dev_alloc_pages(GFP_KERNEL, get_order(len));
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = page_address(page);
 

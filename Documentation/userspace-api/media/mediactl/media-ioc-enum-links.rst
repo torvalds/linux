@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _media_ioc_enum_links:
@@ -12,7 +12,7 @@ Name
 
 MEDIA_IOC_ENUM_LINKS - Enumerate all pads and links for a given entity
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: MEDIA_IOC_ENUM_LINKS
@@ -39,14 +39,14 @@ structure and initialize the struct
 the ``pads`` and ``links`` fields. They then call the
 MEDIA_IOC_ENUM_LINKS ioctl with a pointer to this structure.
 
-If the ``pads`` field is not NULL, the driver fills the ``pads`` array
-with information about the entity's pads. The array must have enough
+If the ``pads`` field is analt NULL, the driver fills the ``pads`` array
+with information about the entity's pads. The array must have eanalugh
 room to store all the entity's pads. The number of pads can be retrieved
 with :ref:`MEDIA_IOC_ENUM_ENTITIES`.
 
-If the ``links`` field is not NULL, the driver fills the ``links`` array
+If the ``links`` field is analt NULL, the driver fills the ``links`` array
 with information about the entity's outbound links. The array must have
-enough room to store all the entity's outbound links. The number of
+eanalugh room to store all the entity's outbound links. The number of
 outbound links can be retrieved with :ref:`MEDIA_IOC_ENUM_ENTITIES`.
 
 Only forward links that originate at one of the entity's source pads are
@@ -67,12 +67,12 @@ returned during the enumeration process.
 
     *  -  struct :c:type:`media_pad_desc`
        -  \*\ ``pads``
-       -  Pointer to a pads array allocated by the application. Ignored if
+       -  Pointer to a pads array allocated by the application. Iganalred if
 	  NULL.
 
     *  -  struct :c:type:`media_link_desc`
        -  \*\ ``links``
-       -  Pointer to a links array allocated by the application. Ignored if
+       -  Pointer to a links array allocated by the application. Iganalred if
 	  NULL.
 
     *  -  __u32
@@ -136,10 +136,10 @@ returned during the enumeration process.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`media_links_enum` ``id``
-    references a non-existing entity.
+    references a analn-existing entity.

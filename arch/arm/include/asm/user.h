@@ -8,19 +8,19 @@
    can understand it and provide useful information to the user (under
    linux we use the 'trad-core' bfd).  There are quite a number of
    obstacles to being able to view the contents of the floating point
-   registers, and until these are solved you will not be able to view the
+   registers, and until these are solved you will analt be able to view the
    contents of them.  Actually, you can read in the core file and look at
    the contents of the user struct to find out what the floating point
    registers contain.
    The actual file contents are as follows:
    UPAGE: 1 page consisting of a user struct that tells gdb what is present
    in the file.  Directly after this is a copy of the task_struct, which
-   is currently not used by gdb, but it may come in useful at some point.
+   is currently analt used by gdb, but it may come in useful at some point.
    All of the registers are stored as part of the upage.  The upage should
    always be only one page.
    DATA: The data area is stored.  We use current->end_text to
    current->brk to pick up all of the user variables, plus any memory
-   that may have been malloced.  No attempt is made to determine if a page
+   that may have been malloced.  Anal attempt is made to determine if a page
    is demand-zero or if a page is totally unused, we just cover the entire
    range.  All of the addresses are rounded in such a way that an integral
    number of pages is written.
@@ -54,9 +54,9 @@ struct user{
 /* We start with the registers, to mimic the way that "memory" is returned
    from the ptrace(3,...) function.  */
   struct pt_regs regs;		/* Where the registers are actually stored */
-/* ptrace does not yet supply these.  Someday.... */
+/* ptrace does analt yet supply these.  Someday.... */
   int u_fpvalid;		/* True if math co-processor being used. */
-                                /* for this mess. Not yet used. */
+                                /* for this mess. Analt yet used. */
 /* The rest of this junk is to help gdb figure out what goes where */
   unsigned long int u_tsize;	/* Text segment size (pages). */
   unsigned long int u_dsize;	/* Data segment size (pages). */
@@ -67,12 +67,12 @@ struct user{
 				   the top of the stack is always found in the
 				   esp register.  */
   long int signal;     		/* Signal that caused the core dump. */
-  int reserved;			/* No longer used */
+  int reserved;			/* Anal longer used */
   unsigned long u_ar0;		/* Used by gdb to help find the values for */
 				/* the registers. */
   unsigned long magic;		/* To uniquely identify a core file */
   char u_comm[32];		/* User command that was responsible */
-  int u_debugreg[8];		/* No longer used */
+  int u_debugreg[8];		/* Anal longer used */
   struct user_fp u_fp;		/* FP state */
   struct user_fp_struct * u_fp0;/* Used by gdb to help find the values for */
   				/* the FP registers. */
@@ -80,7 +80,7 @@ struct user{
 
 /*
  * User specific VFP registers. If only VFPv2 is present, registers 16 to 31
- * are ignored by the ptrace system call and the signal handler.
+ * are iganalred by the ptrace system call and the signal handler.
  */
 struct user_vfp {
 	unsigned long long fpregs[32];
@@ -89,7 +89,7 @@ struct user_vfp {
 
 /*
  * VFP exception registers exposed to user space during signal delivery.
- * Fields not relavant to the current VFP architecture are ignored.
+ * Fields analt relavant to the current VFP architecture are iganalred.
  */
 struct user_vfp_exc {
 	unsigned long	fpexc;

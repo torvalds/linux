@@ -41,7 +41,7 @@ acpi_ns_get_max_depth(acpi_handle obj_handle,
  * PARAMETERS:  num_segments        - Number of ACPI name segments
  *              pathname            - The compressed (internal) path
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print an object's full namespace pathname
  *
@@ -81,7 +81,7 @@ void acpi_ns_print_pathname(u32 num_segments, const char *pathname)
 }
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS
-/* Not used at this time, perhaps later */
+/* Analt used at this time, perhaps later */
 
 /*******************************************************************************
  *
@@ -92,7 +92,7 @@ void acpi_ns_print_pathname(u32 num_segments, const char *pathname)
  *              level               - Desired debug level
  *              component           - Caller's component ID
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print an object's full namespace pathname
  *              Manages allocation/freeing of a pathname buffer
@@ -114,7 +114,7 @@ acpi_ns_dump_pathname(acpi_handle handle,
 
 	/* Convert handle to a full pathname and print it (with supplied message) */
 
-	acpi_ns_print_node_pathname(handle, msg);
+	acpi_ns_print_analde_pathname(handle, msg);
 	acpi_os_printf("\n");
 	return_VOID;
 }
@@ -124,14 +124,14 @@ acpi_ns_dump_pathname(acpi_handle handle,
  *
  * FUNCTION:    acpi_ns_dump_one_object
  *
- * PARAMETERS:  obj_handle          - Node to be dumped
+ * PARAMETERS:  obj_handle          - Analde to be dumped
  *              level               - Nesting level of the handle
  *              context             - Passed into walk_namespace
- *              return_value        - Not used
+ *              return_value        - Analt used
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Dump a single Node
+ * DESCRIPTION: Dump a single Analde
  *              This procedure is a user_function called by acpi_ns_walk_namespace.
  *
  ******************************************************************************/
@@ -141,7 +141,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			u32 level, void *context, void **return_value)
 {
 	struct acpi_walk_info *info = (struct acpi_walk_info *)context;
-	struct acpi_namespace_node *this_node;
+	struct acpi_namespace_analde *this_analde;
 	union acpi_operand_object *obj_desc = NULL;
 	acpi_object_type obj_type;
 	acpi_object_type type;
@@ -162,20 +162,20 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	this_node = acpi_ns_validate_handle(obj_handle);
-	if (!this_node) {
+	this_analde = acpi_ns_validate_handle(obj_handle);
+	if (!this_analde) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid object handle %p\n",
 				  obj_handle));
 		return (AE_OK);
 	}
 
-	type = this_node->type;
+	type = this_analde->type;
 	info->count++;
 
 	/* Check if the owner matches */
 
 	if ((info->owner_id != ACPI_OWNER_ID_MAX) &&
-	    (info->owner_id != this_node->owner_id)) {
+	    (info->owner_id != this_analde->owner_id)) {
 		return (AE_OK);
 	}
 
@@ -185,30 +185,30 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		acpi_os_printf("%2d%*s", (u32) level - 1, (int)level * 2, " ");
 
-		/* Check the node type and name */
+		/* Check the analde type and name */
 
 		if (type > ACPI_TYPE_LOCAL_MAX) {
 			ACPI_WARNING((AE_INFO,
 				      "Invalid ACPI Object Type 0x%08X", type));
 		}
 
-		acpi_os_printf("%4.4s", acpi_ut_get_node_name(this_node));
+		acpi_os_printf("%4.4s", acpi_ut_get_analde_name(this_analde));
 	}
 
-	/* Now we can print out the pertinent information */
+	/* Analw we can print out the pertinent information */
 
 	acpi_os_printf(" %-12s %p %3.3X ",
-		       acpi_ut_get_type_name(type), this_node,
-		       this_node->owner_id);
+		       acpi_ut_get_type_name(type), this_analde,
+		       this_analde->owner_id);
 
 	dbg_level = acpi_dbg_level;
 	acpi_dbg_level = 0;
-	obj_desc = acpi_ns_get_attached_object(this_node);
+	obj_desc = acpi_ns_get_attached_object(this_analde);
 	acpi_dbg_level = dbg_level;
 
-	/* Temp nodes are those nodes created by a control method */
+	/* Temp analdes are those analdes created by a control method */
 
-	if (this_node->flags & ANOBJ_TEMPORARY) {
+	if (this_analde->flags & AANALBJ_TEMPORARY) {
 		acpi_os_printf("(T) ");
 	}
 
@@ -217,7 +217,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		if (!obj_desc) {
 
-			/* No attached object. Some types should always have an object */
+			/* Anal attached object. Some types should always have an object */
 
 			switch (type) {
 			case ACPI_TYPE_INTEGER:
@@ -226,7 +226,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			case ACPI_TYPE_STRING:
 			case ACPI_TYPE_METHOD:
 
-				acpi_os_printf("<No attached object>");
+				acpi_os_printf("<Anal attached object>");
 				break;
 
 			default:
@@ -250,7 +250,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		case ACPI_TYPE_DEVICE:
 
-			acpi_os_printf("Notify Object: %p\n", obj_desc);
+			acpi_os_printf("Analtify Object: %p\n", obj_desc);
 			break;
 
 		case ACPI_TYPE_METHOD:
@@ -274,7 +274,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 				acpi_os_printf("Elements %.2X\n",
 					       obj_desc->package.count);
 			} else {
-				acpi_os_printf("[Length not yet evaluated]\n");
+				acpi_os_printf("[Length analt yet evaluated]\n");
 			}
 			break;
 
@@ -298,7 +298,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 				}
 				acpi_os_printf("\n");
 			} else {
-				acpi_os_printf("[Length not yet evaluated]\n");
+				acpi_os_printf("[Length analt yet evaluated]\n");
 			}
 			break;
 
@@ -322,7 +322,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 					       obj_desc->region.length);
 			} else {
 				acpi_os_printf
-				    (" [Address/Length not yet evaluated]\n");
+				    (" [Address/Length analt yet evaluated]\n");
 			}
 			break;
 
@@ -335,58 +335,58 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		case ACPI_TYPE_BUFFER_FIELD:
 
 			if (obj_desc->buffer_field.buffer_obj &&
-			    obj_desc->buffer_field.buffer_obj->buffer.node) {
+			    obj_desc->buffer_field.buffer_obj->buffer.analde) {
 				acpi_os_printf("Buf [%4.4s]",
-					       acpi_ut_get_node_name(obj_desc->
+					       acpi_ut_get_analde_name(obj_desc->
 								     buffer_field.
 								     buffer_obj->
 								     buffer.
-								     node));
+								     analde));
 			}
 			break;
 
 		case ACPI_TYPE_LOCAL_REGION_FIELD:
 
 			acpi_os_printf("Rgn [%4.4s]",
-				       acpi_ut_get_node_name(obj_desc->
+				       acpi_ut_get_analde_name(obj_desc->
 							     common_field.
 							     region_obj->region.
-							     node));
+							     analde));
 			break;
 
 		case ACPI_TYPE_LOCAL_BANK_FIELD:
 
 			acpi_os_printf("Rgn [%4.4s] Bnk [%4.4s]",
-				       acpi_ut_get_node_name(obj_desc->
+				       acpi_ut_get_analde_name(obj_desc->
 							     common_field.
 							     region_obj->region.
-							     node),
-				       acpi_ut_get_node_name(obj_desc->
+							     analde),
+				       acpi_ut_get_analde_name(obj_desc->
 							     bank_field.
 							     bank_obj->
 							     common_field.
-							     node));
+							     analde));
 			break;
 
 		case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
 			acpi_os_printf("Idx [%4.4s] Dat [%4.4s]",
-				       acpi_ut_get_node_name(obj_desc->
+				       acpi_ut_get_analde_name(obj_desc->
 							     index_field.
 							     index_obj->
-							     common_field.node),
-				       acpi_ut_get_node_name(obj_desc->
+							     common_field.analde),
+				       acpi_ut_get_analde_name(obj_desc->
 							     index_field.
 							     data_obj->
 							     common_field.
-							     node));
+							     analde));
 			break;
 
 		case ACPI_TYPE_LOCAL_ALIAS:
 		case ACPI_TYPE_LOCAL_METHOD_ALIAS:
 
 			acpi_os_printf("Target %4.4s (%p)\n",
-				       acpi_ut_get_node_name(obj_desc),
+				       acpi_ut_get_analde_name(obj_desc),
 				       obj_desc);
 			break;
 
@@ -426,7 +426,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		acpi_os_printf("O:%p", obj_desc);
 		if (!obj_desc) {
 
-			/* No attached object, we are done */
+			/* Anal attached object, we are done */
 
 			acpi_os_printf("\n");
 			return (AE_OK);
@@ -484,7 +484,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 	dbg_level = acpi_dbg_level;
 	acpi_dbg_level = 0;
-	obj_desc = acpi_ns_get_attached_object(this_node);
+	obj_desc = acpi_ns_get_attached_object(this_analde);
 	acpi_dbg_level = dbg_level;
 
 	/* Dump attached objects */
@@ -498,8 +498,8 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		switch (ACPI_GET_DESCRIPTOR_TYPE(obj_desc)) {
 		case ACPI_DESC_TYPE_NAMED:
 
-			acpi_os_printf("(Ptr to Node)\n");
-			bytes_to_dump = sizeof(struct acpi_namespace_node);
+			acpi_os_printf("(Ptr to Analde)\n");
+			bytes_to_dump = sizeof(struct acpi_namespace_analde);
 			ACPI_DUMP_BUFFER(obj_desc, bytes_to_dump);
 			break;
 
@@ -509,7 +509,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 			if (obj_type > ACPI_TYPE_LOCAL_MAX) {
 				acpi_os_printf
-				    ("(Pointer to ACPI Object type %.2X [UNKNOWN])\n",
+				    ("(Pointer to ACPI Object type %.2X [UNKANALWN])\n",
 				     obj_type);
 
 				bytes_to_dump = 32;
@@ -530,7 +530,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			break;
 		}
 
-		/* If value is NOT an internal object, we are done */
+		/* If value is ANALT an internal object, we are done */
 
 		if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) !=
 		    ACPI_DESC_TYPE_OPERAND) {
@@ -543,7 +543,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		case ACPI_TYPE_BUFFER:
 		case ACPI_TYPE_STRING:
 			/*
-			 * NOTE: takes advantage of common fields between string/buffer
+			 * ANALTE: takes advantage of common fields between string/buffer
 			 */
 			bytes_to_dump = obj_desc->string.length;
 			obj_desc = (void *)obj_desc->string.pointer;
@@ -608,7 +608,7 @@ cleanup:
  *                                    ACPI_UINT32_MAX to match all owners.
  *              start_handle        - Where in namespace to start/end search
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump typed objects within the loaded namespace. Uses
  *              acpi_ns_walk_namespace in conjunction with acpi_ns_dump_one_object.
@@ -629,12 +629,12 @@ acpi_ns_dump_objects(acpi_object_type type,
 	/*
 	 * Just lock the entire namespace for the duration of the dump.
 	 * We don't want any changes to the namespace during this time,
-	 * especially the temporary nodes since we are going to display
+	 * especially the temporary analdes since we are going to display
 	 * them also.
 	 */
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not acquire namespace mutex\n");
+		acpi_os_printf("Could analt acquire namespace mutex\n");
 		return;
 	}
 
@@ -644,12 +644,12 @@ acpi_ns_dump_objects(acpi_object_type type,
 	info.display_type = display_type;
 
 	(void)acpi_ns_walk_namespace(type, start_handle, max_depth,
-				     ACPI_NS_WALK_NO_UNLOCK |
-				     ACPI_NS_WALK_TEMP_NODES,
+				     ACPI_NS_WALK_ANAL_UNLOCK |
+				     ACPI_NS_WALK_TEMP_ANALDES,
 				     acpi_ns_dump_one_object, NULL,
 				     (void *)&info, NULL);
 
-	acpi_os_printf("\nNamespace node count: %u\n\n", info.count);
+	acpi_os_printf("\nNamespace analde count: %u\n\n", info.count);
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 }
 
@@ -657,10 +657,10 @@ acpi_ns_dump_objects(acpi_object_type type,
  *
  * FUNCTION:    acpi_ns_dump_one_object_path, acpi_ns_get_max_depth
  *
- * PARAMETERS:  obj_handle          - Node to be dumped
+ * PARAMETERS:  obj_handle          - Analde to be dumped
  *              level               - Nesting level of the handle
  *              context             - Passed into walk_namespace
- *              return_value        - Not used
+ *              return_value        - Analt used
  *
  * RETURN:      Status
  *
@@ -677,22 +677,22 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 {
 	u32 max_level = *((u32 *)context);
 	char *pathname;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	int path_indent;
 
 	if (!obj_handle) {
 		return (AE_OK);
 	}
 
-	node = acpi_ns_validate_handle(obj_handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(obj_handle);
+	if (!analde) {
 
-		/* Ignore bad node during namespace walk */
+		/* Iganalre bad analde during namespace walk */
 
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
+	pathname = acpi_ns_get_analrmalized_pathname(analde, TRUE);
 
 	path_indent = 1;
 	if (level <= max_level) {
@@ -700,7 +700,7 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 	}
 
 	acpi_os_printf("%2d%*s%-12s%*s",
-		       level, level, " ", acpi_ut_get_type_name(node->type),
+		       level, level, " ", acpi_ut_get_type_name(analde->type),
 		       path_indent, " ");
 
 	acpi_os_printf("%s\n", &pathname[1]);
@@ -732,7 +732,7 @@ acpi_ns_get_max_depth(acpi_handle obj_handle,
  *                                    ACPI_UINT32_MAX to match all owners.
  *              start_handle        - Where in namespace to start/end search
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump full object pathnames within the loaded namespace. Uses
  *              acpi_ns_walk_namespace in conjunction with acpi_ns_dump_one_object_path.
@@ -753,28 +753,28 @@ acpi_ns_dump_object_paths(acpi_object_type type,
 	/*
 	 * Just lock the entire namespace for the duration of the dump.
 	 * We don't want any changes to the namespace during this time,
-	 * especially the temporary nodes since we are going to display
+	 * especially the temporary analdes since we are going to display
 	 * them also.
 	 */
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not acquire namespace mutex\n");
+		acpi_os_printf("Could analt acquire namespace mutex\n");
 		return;
 	}
 
 	/* Get the max depth of the namespace tree, for formatting later */
 
 	(void)acpi_ns_walk_namespace(type, start_handle, max_depth,
-				     ACPI_NS_WALK_NO_UNLOCK |
-				     ACPI_NS_WALK_TEMP_NODES,
+				     ACPI_NS_WALK_ANAL_UNLOCK |
+				     ACPI_NS_WALK_TEMP_ANALDES,
 				     acpi_ns_get_max_depth, NULL,
 				     (void *)&max_level, NULL);
 
-	/* Now dump the entire namespace */
+	/* Analw dump the entire namespace */
 
 	(void)acpi_ns_walk_namespace(type, start_handle, max_depth,
-				     ACPI_NS_WALK_NO_UNLOCK |
-				     ACPI_NS_WALK_TEMP_NODES,
+				     ACPI_NS_WALK_ANAL_UNLOCK |
+				     ACPI_NS_WALK_TEMP_ANALDES,
 				     acpi_ns_dump_one_object_path, NULL,
 				     (void *)&max_level, NULL);
 
@@ -785,12 +785,12 @@ acpi_ns_dump_object_paths(acpi_object_type type,
  *
  * FUNCTION:    acpi_ns_dump_entry
  *
- * PARAMETERS:  handle              - Node to be dumped
+ * PARAMETERS:  handle              - Analde to be dumped
  *              debug_level         - Output level
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Dump a single Node
+ * DESCRIPTION: Dump a single Analde
  *
  ******************************************************************************/
 
@@ -817,7 +817,7 @@ void acpi_ns_dump_entry(acpi_handle handle, u32 debug_level)
  *              max_depth           - Maximum depth of dump. Use INT_MAX
  *                                    for an effectively unlimited depth.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump the name space, or a portion of it.
  *
@@ -829,13 +829,13 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 
 	ACPI_FUNCTION_TRACE(ns_dump_tables);
 
-	if (!acpi_gbl_root_node) {
+	if (!acpi_gbl_root_analde) {
 		/*
-		 * If the name space has not been initialized,
-		 * there is nothing to dump.
+		 * If the name space has analt been initialized,
+		 * there is analthing to dump.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
-				  "namespace not initialized!\n"));
+				  "namespace analt initialized!\n"));
 		return_VOID;
 	}
 
@@ -843,7 +843,7 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 
 		/* Entire namespace */
 
-		search_handle = acpi_gbl_root_node;
+		search_handle = acpi_gbl_root_analde;
 		ACPI_DEBUG_PRINT((ACPI_DB_TABLES, "\\\n"));
 	}
 

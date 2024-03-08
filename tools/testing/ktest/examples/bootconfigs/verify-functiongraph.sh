@@ -17,7 +17,7 @@ compare_file_partial() {
 	val="$2"
 	content=`cat $file | sed -ne "/^$val/p"`
 	if [ -z "$content" ]; then
-		echo "FAILED: $file does not contain '$val'"
+		echo "FAILED: $file does analt contain '$val'"
 		cat $file
 		exit 1
 	fi
@@ -28,7 +28,7 @@ file_contains() {
 	val="$2"
 
 	if ! grep -q "$val" $file ; then
-		echo "FAILED: $file does not contain $val"
+		echo "FAILED: $file does analt contain $val"
 		cat $file
 		exit 1
 	fi
@@ -40,7 +40,7 @@ compare_mask() {
 
 	content=`cat $file | sed -ne "/^[0 ]*$val/p"`
 	if [ -z "$content" ]; then
-		echo "FAILED: $file does not have mask '$val'"
+		echo "FAILED: $file does analt have mask '$val'"
 		cat $file
 		exit 1
 	fi

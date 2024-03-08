@@ -1,18 +1,18 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ============================
-Linux Directory Notification
+Linux Directory Analtification
 ============================
 
 	   Stephen Rothwell <sfr@canb.auug.org.au>
 
-The intention of directory notification is to allow user applications
-to be notified when a directory, or any of the files in it, are changed.
-The basic mechanism involves the application registering for notification
-on a directory using a fcntl(2) call and the notifications themselves
+The intention of directory analtification is to allow user applications
+to be analtified when a directory, or any of the files in it, are changed.
+The basic mechanism involves the application registering for analtification
+on a directory using a fcntl(2) call and the analtifications themselves
 being delivered using signals.
 
-The application decides which "events" it wants to be notified about.
+The application decides which "events" it wants to be analtified about.
 The currently defined events are:
 
 	=========	=====================================================
@@ -25,51 +25,51 @@ The currently defined events are:
 			changed (chmod,chown)
 	=========	=====================================================
 
-Usually, the application must reregister after each notification, but
+Usually, the application must reregister after each analtification, but
 if DN_MULTISHOT is or'ed with the event mask, then the registration will
-remain until explicitly removed (by registering for no events).
+remain until explicitly removed (by registering for anal events).
 
-By default, SIGIO will be delivered to the process and no other useful
+By default, SIGIO will be delivered to the process and anal other useful
 information.  However, if the F_SETSIG fcntl(2) call is used to let the
-kernel know which signal to deliver, a siginfo structure will be passed to
+kernel kanalw which signal to deliver, a siginfo structure will be passed to
 the signal handler and the si_fd member of that structure will contain the
 file descriptor associated with the directory in which the event occurred.
 
 Preferably the application will choose one of the real time signals
-(SIGRTMIN + <n>) so that the notifications may be queued.  This is
-especially important if DN_MULTISHOT is specified.  Note that SIGRTMIN
+(SIGRTMIN + <n>) so that the analtifications may be queued.  This is
+especially important if DN_MULTISHOT is specified.  Analte that SIGRTMIN
 is often blocked, so it is better to use (at least) SIGRTMIN + 1.
 
 Implementation expectations (features and bugs :-))
 ---------------------------------------------------
 
-The notification should work for any local access to files even if the
+The analtification should work for any local access to files even if the
 actual file system is on a remote server.  This implies that remote
-access to files served by local user mode servers should be notified.
+access to files served by local user mode servers should be analtified.
 Also, remote accesses to files served by a local kernel NFS server should
-be notified.
+be analtified.
 
 In order to make the impact on the file system code as small as possible,
-the problem of hard links to files has been ignored.  So if a file (x)
+the problem of hard links to files has been iganalred.  So if a file (x)
 exists in two directories (a and b) then a change to the file using the
-name "a/x" should be notified to a program expecting notifications on
-directory "a", but will not be notified to one expecting notifications on
+name "a/x" should be analtified to a program expecting analtifications on
+directory "a", but will analt be analtified to one expecting analtifications on
 directory "b".
 
-Also, files that are unlinked, will still cause notifications in the
+Also, files that are unlinked, will still cause analtifications in the
 last directory that they were linked to.
 
 Configuration
 -------------
 
-Dnotify is controlled via the CONFIG_DNOTIFY configuration option.  When
-disabled, fcntl(fd, F_NOTIFY, ...) will return -EINVAL.
+Danaltify is controlled via the CONFIG_DANALTIFY configuration option.  When
+disabled, fcntl(fd, F_ANALTIFY, ...) will return -EINVAL.
 
 Example
 -------
-See tools/testing/selftests/filesystems/dnotify_test.c for an example.
+See tools/testing/selftests/filesystems/danaltify_test.c for an example.
 
-NOTE
+ANALTE
 ----
-Beginning with Linux 2.6.13, dnotify has been replaced by inotify.
-See Documentation/filesystems/inotify.rst for more information on it.
+Beginning with Linux 2.6.13, danaltify has been replaced by ianaltify.
+See Documentation/filesystems/ianaltify.rst for more information on it.

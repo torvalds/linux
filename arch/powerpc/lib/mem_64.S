@@ -6,7 +6,7 @@
  */
 #include <linux/export.h>
 #include <asm/processor.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/ppc_asm.h>
 #include <asm/kasan.h>
 

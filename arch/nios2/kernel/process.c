@@ -36,13 +36,13 @@ void arch_cpu_idle(void)
 }
 
 /*
- * The development boards have no way to pull a board reset. Just jump to the
+ * The development boards have anal way to pull a board reset. Just jump to the
  * cpu reset address and let the boot loader or the code in head.S take care of
  * resetting peripherals.
  */
 void machine_restart(char *__unused)
 {
-	pr_notice("Machine restart (%08x)...\n", cpuinfo.reset_addr);
+	pr_analtice("Machine restart (%08x)...\n", cpuinfo.reset_addr);
 	local_irq_disable();
 	__asm__ __volatile__ (
 	"jmp	%0\n\t"
@@ -53,19 +53,19 @@ void machine_restart(char *__unused)
 
 void machine_halt(void)
 {
-	pr_notice("Machine halt...\n");
+	pr_analtice("Machine halt...\n");
 	local_irq_disable();
 	for (;;)
 		;
 }
 
 /*
- * There is no way to power off the development boards. So just spin for now. If
+ * There is anal way to power off the development boards. So just spin for analw. If
  * we ever have a way of resetting a board using a GPIO we should add that here.
  */
 void machine_power_off(void)
 {
-	pr_notice("Machine power off...\n");
+	pr_analtice("Machine power off...\n");
 	local_irq_disable();
 	for (;;)
 		;
@@ -73,25 +73,25 @@ void machine_power_off(void)
 
 void show_regs(struct pt_regs *regs)
 {
-	pr_notice("\n");
+	pr_analtice("\n");
 	show_regs_print_info(KERN_DEFAULT);
 
-	pr_notice("r1: %08lx r2: %08lx r3: %08lx r4: %08lx\n",
+	pr_analtice("r1: %08lx r2: %08lx r3: %08lx r4: %08lx\n",
 		regs->r1,  regs->r2,  regs->r3,  regs->r4);
 
-	pr_notice("r5: %08lx r6: %08lx r7: %08lx r8: %08lx\n",
+	pr_analtice("r5: %08lx r6: %08lx r7: %08lx r8: %08lx\n",
 		regs->r5,  regs->r6,  regs->r7,  regs->r8);
 
-	pr_notice("r9: %08lx r10: %08lx r11: %08lx r12: %08lx\n",
+	pr_analtice("r9: %08lx r10: %08lx r11: %08lx r12: %08lx\n",
 		regs->r9,  regs->r10, regs->r11, regs->r12);
 
-	pr_notice("r13: %08lx r14: %08lx r15: %08lx\n",
+	pr_analtice("r13: %08lx r14: %08lx r15: %08lx\n",
 		regs->r13, regs->r14, regs->r15);
 
-	pr_notice("ra: %08lx fp:  %08lx sp: %08lx gp: %08lx\n",
+	pr_analtice("ra: %08lx fp:  %08lx sp: %08lx gp: %08lx\n",
 		regs->ra,  regs->fp,  regs->sp,  regs->gp);
 
-	pr_notice("ea: %08lx estatus: %08lx\n",
+	pr_analtice("ea: %08lx estatus: %08lx\n",
 		regs->ea,  regs->estatus);
 }
 

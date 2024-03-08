@@ -2,7 +2,7 @@
 /* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 #include <linux/kernel.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include "cc_driver.h"
 #include "cc_buffer_mgr.h"
 #include "cc_request_mgr.h"
@@ -48,7 +48,7 @@ struct cc_bl_item {
 	struct cc_hw_desc desc[CC_MAX_DESC_SEQ_LEN];
 	unsigned int len;
 	struct list_head list;
-	bool notif;
+	bool analtif;
 };
 
 static const u32 cc_cpp_int_masks[CC_CPP_NUM_ALGS][CC_CPP_NUM_SLOTS] = {
@@ -77,8 +77,8 @@ static void comp_work_handler(struct work_struct *work);
 
 static inline u32 cc_cpp_int_mask(enum cc_cpp_alg alg, int slot)
 {
-	alg = array_index_nospec(alg, CC_CPP_NUM_ALGS);
-	slot = array_index_nospec(slot, CC_CPP_NUM_SLOTS);
+	alg = array_index_analspec(alg, CC_CPP_NUM_ALGS);
+	slot = array_index_analspec(slot, CC_CPP_NUM_SLOTS);
 
 	return cc_cpp_int_masks[alg][slot];
 }
@@ -89,7 +89,7 @@ void cc_req_mgr_fini(struct cc_drvdata *drvdata)
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	if (!req_mgr_h)
-		return; /* Not allocated */
+		return; /* Analt allocated */
 
 	if (req_mgr_h->dummy_comp_buff_dma) {
 		dma_free_coherent(dev, sizeof(u32), req_mgr_h->dummy_comp_buff,
@@ -118,7 +118,7 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 
 	req_mgr_h = kzalloc(sizeof(*req_mgr_h), GFP_KERNEL);
 	if (!req_mgr_h) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto req_mgr_init_err;
 	}
 
@@ -133,7 +133,7 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 	req_mgr_h->workq = create_singlethread_workqueue("ccree");
 	if (!req_mgr_h->workq) {
 		dev_err(dev, "Failed creating work queue\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto req_mgr_init_err;
 	}
 	INIT_DELAYED_WORK(&req_mgr_h->compwork, comp_work_handler);
@@ -148,7 +148,7 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 	if (req_mgr_h->hw_queue_size < MIN_HW_QUEUE_SIZE) {
 		dev_err(dev, "Invalid HW queue size = %u (Min. required is %u)\n",
 			req_mgr_h->hw_queue_size, MIN_HW_QUEUE_SIZE);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto req_mgr_init_err;
 	}
 	req_mgr_h->min_free_hw_slots = req_mgr_h->hw_queue_size;
@@ -160,9 +160,9 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 				   &req_mgr_h->dummy_comp_buff_dma,
 				   GFP_KERNEL);
 	if (!req_mgr_h->dummy_comp_buff) {
-		dev_err(dev, "Not enough memory to allocate DMA (%zu) dropped buffer\n",
+		dev_err(dev, "Analt eanalugh memory to allocate DMA (%zu) dropped buffer\n",
 			sizeof(u32));
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto req_mgr_init_err;
 	}
 
@@ -228,7 +228,7 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
 	unsigned long poll_queue;
 	struct device *dev = drvdata_to_dev(drvdata);
 
-	/* SW queue is checked only once as it will not
+	/* SW queue is checked only once as it will analt
 	 * be changed during the poll because the spinlock_bh
 	 * is held by the thread
 	 */
@@ -236,7 +236,7 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
 	    req_mgr_h->req_queue_tail) {
 		dev_err(dev, "SW FIFO is full. req_queue_head=%d sw_fifo_len=%d\n",
 			req_mgr_h->req_queue_head, MAX_REQUEST_QUEUE_SIZE);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (req_mgr_h->q_free_slots >= total_seq_len)
@@ -250,18 +250,18 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
 			req_mgr_h->min_free_hw_slots = req_mgr_h->q_free_slots;
 
 		if (req_mgr_h->q_free_slots >= total_seq_len) {
-			/* If there is enough place return */
+			/* If there is eanalugh place return */
 			return 0;
 		}
 
 		dev_dbg(dev, "HW FIFO is full. q_free_slots=%d total_seq_len=%d\n",
 			req_mgr_h->q_free_slots, total_seq_len);
 	}
-	/* No room in the HW queue try again later */
+	/* Anal room in the HW queue try again later */
 	dev_dbg(dev, "HW FIFO full, timeout. req_queue_head=%d sw_fifo_len=%d q_free_slots=%d total_seq_len=%d\n",
 		req_mgr_h->req_queue_head, MAX_REQUEST_QUEUE_SIZE,
 		req_mgr_h->q_free_slots, total_seq_len);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
@@ -301,7 +301,7 @@ static void cc_do_send_request(struct cc_drvdata *drvdata,
 	/*
 	 * We are about to push command to the HW via the command registers
 	 * that may reference host memory. We need to issue a memory barrier
-	 * to make sure there are no outstanding memory writes
+	 * to make sure there are anal outstanding memory writes
 	 */
 	wmb();
 
@@ -363,12 +363,12 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 		req = creq->user_arg;
 
 		/*
-		 * Notify the request we're moving out of the backlog
+		 * Analtify the request we're moving out of the backlog
 		 * but only if we haven't done so already.
 		 */
-		if (!bli->notif) {
+		if (!bli->analtif) {
 			creq->user_cb(dev, req, -EINPROGRESS);
-			bli->notif = true;
+			bli->analtif = true;
 		}
 
 		spin_lock(&mgr->hw_lock);
@@ -376,7 +376,7 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 		rc = cc_queues_status(drvdata, mgr, bli->len);
 		if (rc) {
 			/*
-			 * There is still no room in the FIFO for
+			 * There is still anal room in the FIFO for
 			 * this request. Bail out. We'll return here
 			 * on the next completion irq.
 			 */
@@ -420,22 +420,22 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 
 #ifdef CC_DEBUG_FORCE_BACKLOG
 	if (backlog_ok)
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 #endif /* CC_DEBUG_FORCE_BACKLOG */
 
-	if (rc == -ENOSPC && backlog_ok) {
+	if (rc == -EANALSPC && backlog_ok) {
 		spin_unlock_bh(&mgr->hw_lock);
 
 		bli = kmalloc(sizeof(*bli), flags);
 		if (!bli) {
 			cc_pm_put_suspend(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		memcpy(&bli->creq, cc_req, sizeof(*cc_req));
 		memcpy(&bli->desc, desc, len * sizeof(*desc));
 		bli->len = len;
-		bli->notif = false;
+		bli->analtif = false;
 		cc_enqueue_backlog(drvdata, bli);
 		return -EBUSY;
 	}
@@ -488,7 +488,7 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 /**
  * send_request_init() - Enqueue caller request to crypto hardware during init
  * process.
- * Assume this function is not called in the middle of a flow,
+ * Assume this function is analt called in the middle of a flow,
  * since we set QUEUE_LAST_IND flag in the last descriptor.
  *
  * @drvdata: Associated device driver context
@@ -516,7 +516,7 @@ int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 	/*
 	 * We are about to push command to the HW via the command registers
 	 * that may reference host memory. We need to issue a memory barrier
-	 * to make sure there are no outstanding memory writes
+	 * to make sure there are anal outstanding memory writes
 	 */
 	wmb();
 	enqueue_seq(drvdata, desc, len);
@@ -569,7 +569,7 @@ static void proc_completions(struct cc_drvdata *drvdata)
 		/* Dequeue request */
 		if (*head == *tail) {
 			/* We are supposed to handle a completion but our
-			 * queue is empty. This is not normal. Return and
+			 * queue is empty. This is analt analrmal. Return and
 			 * hope for the best.
 			 */
 			dev_err(dev, "Request queue is empty head == tail %u\n",
@@ -589,7 +589,7 @@ static void proc_completions(struct cc_drvdata *drvdata)
 			dev_dbg(dev, "Got mask: %x irq: %x rc: %d\n", mask,
 				drvdata->irq, rc);
 		} else {
-			dev_dbg(dev, "None CPP request completion\n");
+			dev_dbg(dev, "Analne CPP request completion\n");
 			rc = 0;
 		}
 
@@ -622,7 +622,7 @@ static void comp_handler(unsigned long devarg)
 	irq = (drvdata->irq & drvdata->comp_mask);
 
 	/* To avoid the interrupt from firing as we unmask it,
-	 * we clear it now
+	 * we clear it analw
 	 */
 	cc_iowrite(drvdata, CC_REG(HOST_ICR), irq);
 
@@ -651,7 +651,7 @@ static void comp_handler(unsigned long devarg)
 		request_mgr_handle->axi_completed += cc_axi_comp_count(drvdata);
 	}
 
-	/* after verifying that there is nothing to do,
+	/* after verifying that there is analthing to do,
 	 * unmask AXI completion interrupt
 	 */
 	cc_iowrite(drvdata, CC_REG(HOST_IMR),

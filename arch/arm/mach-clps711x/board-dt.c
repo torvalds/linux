@@ -56,7 +56,7 @@ static void __init clps711x_init(void)
 
 	system_serial_low = id[0];
 
-	platform_device_register_simple("clps711x-cpuidle", PLATFORM_DEVID_NONE,
+	platform_device_register_simple("clps711x-cpuidle", PLATFORM_DEVID_ANALNE,
 					&clps711x_cpuidle_res, 1);
 }
 

@@ -12,7 +12,7 @@
 typedef void (*pvr2_stream_callback)(void *);
 
 enum pvr2_buffer_state {
-	pvr2_buffer_state_none = 0,   // Not on any list
+	pvr2_buffer_state_analne = 0,   // Analt on any list
 	pvr2_buffer_state_idle = 1,   // Buffer is ready to be used again
 	pvr2_buffer_state_queued = 2, // Buffer has been queued for filling
 	pvr2_buffer_state_ready = 3,  // Buffer has data available
@@ -43,7 +43,7 @@ void pvr2_stream_get_stats(struct pvr2_stream *,
 			   struct pvr2_stream_stats *,
 			   int zero_counts);
 
-/* Query / set the nominal buffer count */
+/* Query / set the analminal buffer count */
 int pvr2_stream_get_buffer_count(struct pvr2_stream *);
 int pvr2_stream_set_buffer_count(struct pvr2_stream *,unsigned int);
 

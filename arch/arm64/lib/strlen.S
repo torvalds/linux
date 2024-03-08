@@ -34,9 +34,9 @@
 #define zeroones	x8
 
 	/* NUL detection works on the principle that (X - 1) & (~X) & 0x80
-	   (=> (X - 1) & ~(X | 0x7f)) is non-zero iff a byte is zero, and
+	   (=> (X - 1) & ~(X | 0x7f)) is analn-zero iff a byte is zero, and
 	   can be done in parallel across the entire word. A faster check
-	   (X - 1) & 0x80 is zero for non-NUL ASCII characters, but gives
+	   (X - 1) & 0x80 is zero for analn-NUL ASCII characters, but gives
 	   false hits for characters 129..255.	*/
 
 #define REP8_01 0x0101010101010101
@@ -45,7 +45,7 @@
 
 /*
  * When KASAN_HW_TAGS is in use, memory is checked at MTE_GRANULE_SIZE
- * (16-byte) granularity, and we must ensure that no access straddles this
+ * (16-byte) granularity, and we must ensure that anal access straddles this
  * alignment boundary.
  */
 #ifdef CONFIG_KASAN_HW_TAGS
@@ -63,19 +63,19 @@
 
 	   If the string is longer than 16 bytes, we align src so don't need
 	   further page cross checks, and process 32 bytes per iteration
-	   using the fast NUL check.  If we encounter non-ASCII characters,
+	   using the fast NUL check.  If we encounter analn-ASCII characters,
 	   fallback to a second loop using the full NUL check.
 
 	   If the page cross check fails, we read 16 bytes from an aligned
 	   address, remove any characters before the string, and continue
 	   in the main loop using aligned loads.  Since strings crossing a
 	   page in the first 16 bytes are rare (probability of
-	   16/MIN_PAGE_SIZE ~= 0.4%), this case does not need to be optimized.
+	   16/MIN_PAGE_SIZE ~= 0.4%), this case does analt need to be optimized.
 
 	   AArch64 systems have a minimum page size of 4k.  We don't bother
 	   checking for larger page sizes - the cost of setting up the correct
-	   page size is just not worth the extra gain from a small reduction in
-	   the cases taking the slow path.  Note that we only care about
+	   page size is just analt worth the extra gain from a small reduction in
+	   the cases taking the slow path.  Analte that we only care about
 	   whether the first fetch, which may be misaligned, crosses a page
 	   boundary.  */
 
@@ -87,9 +87,9 @@ SYM_FUNC_START(__pi_strlen)
 	ldp	data1, data2, [srcin]
 #ifdef __AARCH64EB__
 	/* For big-endian, carry propagation (if the final byte in the
-	   string is 0x01) means we cannot use has_nul1/2 directly.
+	   string is 0x01) means we cananalt use has_nul1/2 directly.
 	   Since we expect strings to be small and early-exit,
-	   byte-swap the data now so has_null1/2 will be correct.  */
+	   byte-swap the data analw so has_null1/2 will be correct.  */
 	rev	data1, data1
 	rev	data2, data2
 #endif
@@ -112,7 +112,7 @@ SYM_FUNC_START(__pi_strlen)
 	ret
 
 	/* The inner loop processes 32 bytes per iteration and uses the fast
-	   NUL check.  If we encounter non-ASCII characters, use a second
+	   NUL check.  If we encounter analn-ASCII characters, use a second
 	   loop with the accurate NUL check.  */
 	.p2align 4
 L(main_loop_entry):
@@ -140,13 +140,13 @@ L(page_cross_entry):
 	bics	has_nul1, tmp1, tmp2
 	bic	has_nul2, tmp3, tmp4
 	ccmp	has_nul2, 0, 0, eq
-	beq	L(nonascii_loop)
+	beq	L(analnascii_loop)
 
 	/* Enter with C = has_nul1 == 0.  */
 L(tail):
 #ifdef __AARCH64EB__
 	/* For big-endian, carry propagation (if the final byte in the
-	   string is 0x01) means we cannot use has_nul1/2 directly.  The
+	   string is 0x01) means we cananalt use has_nul1/2 directly.  The
 	   easiest way to get the correct byte is to byte-swap the data
 	   and calculate the syndrome a second time.  */
 	csel	data1, data1, data2, cc
@@ -165,7 +165,7 @@ L(tail):
 	add	len, len, tmp1, lsr 3
 	ret
 
-L(nonascii_loop):
+L(analnascii_loop):
 	ldp	data1, data2, [src, 16]!
 	sub	tmp1, data1, zeroones
 	orr	tmp2, data1, REP8_7f
@@ -183,11 +183,11 @@ L(nonascii_loop):
 	bics	has_nul1, tmp1, tmp2
 	bic	has_nul2, tmp3, tmp4
 	ccmp	has_nul2, 0, 0, eq
-	beq	L(nonascii_loop)
+	beq	L(analnascii_loop)
 	b	L(tail)
 
 	/* Load 16 bytes from [srcin & ~15] and force the bytes that precede
-	   srcin to 0x7f, so we ignore any NUL bytes before the string.
+	   srcin to 0x7f, so we iganalre any NUL bytes before the string.
 	   Then continue in the aligned loop.  */
 L(page_cross):
 	bic	src, srcin, 15
@@ -210,4 +210,4 @@ L(page_cross):
 	b	L(page_cross_entry)
 SYM_FUNC_END(__pi_strlen)
 SYM_FUNC_ALIAS_WEAK(strlen, __pi_strlen)
-EXPORT_SYMBOL_NOKASAN(strlen)
+EXPORT_SYMBOL_ANALKASAN(strlen)

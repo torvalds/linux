@@ -202,14 +202,14 @@ int go7007_snd_init(struct go7007 *go)
 	int ret;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 	gosnd = kmalloc(sizeof(struct go7007_snd), GFP_KERNEL);
 	if (gosnd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&gosnd->lock);
 	gosnd->hw_ptr = gosnd->w_idx = gosnd->avail = 0;
 	gosnd->capturing = 0;

@@ -29,7 +29,7 @@ enum ndis_802_11_network_type {
 	Ndis802_11DS,
 	Ndis802_11OFDM5,
 	Ndis802_11OFDM24,
-	Ndis802_11NetworkTypeMax    /*  not a real type, defined as an upper bound */
+	Ndis802_11NetworkTypeMax    /*  analt a real type, defined as an upper bound */
 };
 
 /*
@@ -46,8 +46,8 @@ struct ndis_802_11_conf {
 enum ndis_802_11_network_infrastructure {
 	Ndis802_11IBSS,
 	Ndis802_11Infrastructure,
-	Ndis802_11AutoUnknown,
-	Ndis802_11InfrastructureMax,     /*  Not a real value, defined as upper bound */
+	Ndis802_11AutoUnkanalwn,
+	Ndis802_11InfrastructureMax,     /*  Analt a real value, defined as upper bound */
 	Ndis802_11APMode,
 };
 
@@ -78,9 +78,9 @@ enum ndis_802_11_authentication_mode {
 	Ndis802_11AuthModeAutoSwitch,
 	Ndis802_11AuthModeWPA,
 	Ndis802_11AuthModeWPAPSK,
-	Ndis802_11AuthModeWPANone,
+	Ndis802_11AuthModeWPAAnalne,
 	Ndis802_11AuthModeWAPI,
-	Ndis802_11AuthModeMax   /*  Not a real mode, defined as upper bound */
+	Ndis802_11AuthModeMax   /*  Analt a real mode, defined as upper bound */
 };
 
 enum {
@@ -90,8 +90,8 @@ enum {
 	Ndis802_11EncryptionDisabled = Ndis802_11WEPDisabled,
 	Ndis802_11WEPKeyAbsent,
 	Ndis802_11Encryption1KeyAbsent = Ndis802_11WEPKeyAbsent,
-	Ndis802_11WEPNotSupported,
-	Ndis802_11EncryptionNotSupported = Ndis802_11WEPNotSupported,
+	Ndis802_11WEPAnaltSupported,
+	Ndis802_11EncryptionAnaltSupported = Ndis802_11WEPAnaltSupported,
 	Ndis802_11Encryption2Enabled,
 	Ndis802_11Encryption2KeyAbsent,
 	Ndis802_11Encryption3Enabled,
@@ -177,7 +177,7 @@ static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 struct	wlan_network {
 	struct list_head	list;
 	int	network_type;	/* refer to ieee80211.h for WIRELESS_11A/B/G */
-	int	fixed;			/*  set to fixed when not to be removed as site-surveying */
+	int	fixed;			/*  set to fixed when analt to be removed as site-surveying */
 	unsigned long	last_scanned; /* timestamp for the network */
 	int	aid;			/* will only be valid when a BSS is joinned. */
 	int	join_res;
@@ -192,7 +192,7 @@ enum {
 };
 
 enum {
-	NONE_VCS,
+	ANALNE_VCS,
 	RTS_CTS,
 	CTS_TO_SELF
 };
@@ -204,7 +204,7 @@ enum {
 #define PWR_VOIP 4
 
 enum {
-	NO_LIMIT,
+	ANAL_LIMIT,
 	TWO_MSDU,
 	FOUR_MSDU,
 	SIX_MSDU

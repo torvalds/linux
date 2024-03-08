@@ -11,7 +11,7 @@
  */
 
 /*
- * IMPORTANT NOTE: This file must be included in another file which does
+ * IMPORTANT ANALTE: This file must be included in aanalther file which does
  * the following thing for it to work:
  * The UNUSUAL_DEV, COMPLIANT_DEV, and USUAL_DEV macros must be defined
  * before this file is included.
@@ -32,14 +32,14 @@
  */
 
 /*
- * Note: If you add an entry only in order to set the CAPACITY_OK flag,
+ * Analte: If you add an entry only in order to set the CAPACITY_OK flag,
  * use the COMPLIANT_DEV macro instead of UNUSUAL_DEV.  This is
  * because such entries mark devices which actually work correctly,
  * as opposed to devices that do something strangely or wrongly.
  */
 
 /*
- * In-kernel mode switching is deprecated.  Do not add new devices to
+ * In-kernel mode switching is deprecated.  Do analt add new devices to
  * this list for the sole purpose of switching them to a different
  * mode.  Existing userspace solutions are superior.
  *
@@ -49,7 +49,7 @@
 
 #if !defined(CONFIG_USB_STORAGE_SDDR09) && \
 		!defined(CONFIG_USB_STORAGE_SDDR09_MODULE)
-#define NO_SDDR09
+#define ANAL_SDDR09
 #endif
 
 /* patch submitted by Vivian Bregier <Vivian.Bregier@imag.fr> */
@@ -57,14 +57,14 @@ UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
 		"ATMEL",
 		"SND1 Storage",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE),
+		US_FL_IGANALRE_RESIDUE),
 
 /* Reported by Rodolfo Quesada <rquesada@roqz.net> */
 UNUSUAL_DEV(  0x03ee, 0x6906, 0x0003, 0x0003,
-		"VIA Technologies Inc.",
+		"VIA Techanallogies Inc.",
 		"Mitsumi multi cardreader",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 UNUSUAL_DEV(  0x03f0, 0x0107, 0x0200, 0x0200,
 		"HP",
@@ -106,10 +106,10 @@ UNUSUAL_DEV(  0x0409, 0x0040, 0x0000, 0x9999,
 
 /* Patch submitted by Mihnea-Costin Grigore <mihnea@zulu.ro> */
 UNUSUAL_DEV(  0x040d, 0x6205, 0x0003, 0x0003,
-		"VIA Technologies Inc.",
+		"VIA Techanallogies Inc.",
 		"USB 2.0 Card Reader",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Deduced by Jonathan Woithe <jwoithe@just42.net>
@@ -127,135 +127,135 @@ UNUSUAL_DEV(  0x0419, 0x0100, 0x0100, 0x0100,
 		"Samsung Info. Systems America, Inc.",
 		"MP3 Player",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Orgad Shaneh <orgads@gmail.com> */
 UNUSUAL_DEV(  0x0419, 0xaace, 0x0100, 0x0100,
 		"Samsung", "MP3 Player",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Christian Leber <christian@leber.de> */
 UNUSUAL_DEV(  0x0419, 0xaaf5, 0x0100, 0x0100,
 		"TrekStor",
 		"i.Beat 115 2.0",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_NOT_LOCKABLE ),
+		US_FL_IGANALRE_RESIDUE | US_FL_ANALT_LOCKABLE ),
 
 /* Reported by Stefan Werner <dustbln@gmx.de> */
 UNUSUAL_DEV(  0x0419, 0xaaf6, 0x0100, 0x0100,
 		"TrekStor",
 		"i.Beat Joy 2.0",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Pete Zaitcev <zaitcev@redhat.com>, bz#176584 */
 UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
 		"GENERIC", "MP3 PLAYER", /* MyMusix PD-205 on the outside. */
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Reported by Andrew Nayenko <relan@bk.ru>
  * Updated for new firmware by Phillip Potter <phil@philpotter.co.uk>
  */
 UNUSUAL_DEV(  0x0421, 0x0019, 0x0592, 0x0610,
-		"Nokia",
-		"Nokia 6288",
+		"Analkia",
+		"Analkia 6288",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Mario Rettig <mariorettig@web.de> */
 UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
-		"Nokia",
-		"Nokia 3250",
+		"Analkia",
+		"Analkia 3250",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+		US_FL_IGANALRE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /* Reported by <honkkis@gmail.com> */
 UNUSUAL_DEV(  0x0421, 0x0433, 0x0100, 0x0100,
-		"Nokia",
+		"Analkia",
 		"E70",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+		US_FL_IGANALRE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /* Reported by Jon Hart <Jon.Hart@web.de> */
 UNUSUAL_DEV(  0x0421, 0x0434, 0x0100, 0x0100,
-		"Nokia",
+		"Analkia",
 		"E60",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+		US_FL_FIX_CAPACITY | US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Reported by Sumedha Swamy <sumedhaswamy@gmail.com> and
  * Einar Th. Einarsson <einarthered@gmail.com>
  */
 UNUSUAL_DEV(  0x0421, 0x0444, 0x0100, 0x0100,
-		"Nokia",
+		"Analkia",
 		"N91",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+		US_FL_IGANALRE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /*
  * Reported by Jiri Slaby <jirislaby@gmail.com> and
  * Rene C. Castberg <Rene@Castberg.org>
  */
 UNUSUAL_DEV(  0x0421, 0x0446, 0x0100, 0x0100,
-		"Nokia",
+		"Analkia",
 		"N80",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+		US_FL_IGANALRE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /* Reported by Matthew Bloch <matthew@bytemark.co.uk> */
 UNUSUAL_DEV(  0x0421, 0x044e, 0x0100, 0x0100,
-		"Nokia",
+		"Analkia",
 		"E61",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+		US_FL_IGANALRE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /* Reported by Bardur Arantsson <bardur@scientician.net> */
 UNUSUAL_DEV(  0x0421, 0x047c, 0x0370, 0x0610,
-		"Nokia",
+		"Analkia",
 		"6131",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Manuel Osdoba <manuel.osdoba@tu-ilmenau.de> */
 UNUSUAL_DEV( 0x0421, 0x0492, 0x0452, 0x9999,
-		"Nokia",
-		"Nokia 6233",
+		"Analkia",
+		"Analkia 6233",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Alex Corcoles <alex@corcoles.net> */
 UNUSUAL_DEV(  0x0421, 0x0495, 0x0370, 0x0370,
-		"Nokia",
+		"Analkia",
 		"6234",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Daniele Forsi <dforsi@gmail.com> */
 UNUSUAL_DEV(  0x0421, 0x04b9, 0x0350, 0x0350,
-		"Nokia",
+		"Analkia",
 		"5300",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 ),
 
 /* Patch submitted by Victor A. Santos <victoraur.santos@gmail.com> */
 UNUSUAL_DEV(  0x0421, 0x05af, 0x0742, 0x0742,
-		"Nokia",
+		"Analkia",
 		"305",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64),
 
 /* Patch submitted by Mikhail Zolotaryov <lebon@lebon.org.ua> */
 UNUSUAL_DEV(  0x0421, 0x06aa, 0x1110, 0x1110,
-		"Nokia",
+		"Analkia",
 		"502",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 ),
 
-#ifdef NO_SDDR09
+#ifdef ANAL_SDDR09
 UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate",
@@ -265,7 +265,7 @@ UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
 
 /*
  * Patch submitted by Daniel Drake <dsd@gentoo.org>
- * Device reports nonsense bInterfaceProtocol 6 when connected over USB2
+ * Device reports analnsense bInterfaceProtocol 6 when connected over USB2
  */
 UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
 		"Neuros Audio",
@@ -275,13 +275,13 @@ UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
 
 /*
  * Pete Zaitcev <zaitcev@yahoo.com>, from Patrick C. F. Ernzer, bz#162559.
- * The key does not actually break, but it returns zero sense which
+ * The key does analt actually break, but it returns zero sense which
  * makes our SCSI stack to print confusing messages.
  */
 UNUSUAL_DEV(  0x0457, 0x0150, 0x0100, 0x0100,
-		"USBest Technology",	/* sold by Transcend */
+		"USBest Techanallogy",	/* sold by Transcend */
 		"USB Mass Storage Device",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_ANALT_LOCKABLE ),
 
 /*
  * Bohdan Linda <bohdan.linda@gmail.com>
@@ -292,11 +292,11 @@ UNUSUAL_DEV(  0x0457, 0x0151, 0x0100, 0x0100,
 		"USB 2.0",
 		"Flash Disk",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NOT_LOCKABLE ),
+		US_FL_ANALT_LOCKABLE ),
 
 /*
  * Reported by Tamas Kerecsen <kerecsen@bigfoot.com>
- * Obviously the PROM has not been customized by the VAR;
+ * Obviously the PROM has analt been customized by the VAR;
  * the Vendor and Product string descriptors are:
  *	Generic Mass Storage (PROTOTYPE--Remember to change idVendor)
  *	Generic Manufacturer (PROTOTYPE--Remember to change idVendor)
@@ -311,13 +311,13 @@ UNUSUAL_DEV(  0x045e, 0xffff, 0x0000, 0x0000,
  * This virtual floppy is found in Sun equipment (x4600, x4200m2, etc.)
  * Reported by Pete Zaitcev <zaitcev@redhat.com>
  * This device chokes on both version of MODE SENSE which we have, so
- * use_10_for_ms is not effective, and we use US_FL_NO_WP_DETECT.
+ * use_10_for_ms is analt effective, and we use US_FL_ANAL_WP_DETECT.
  */
 UNUSUAL_DEV(  0x046b, 0xff40, 0x0100, 0x0100,
 		"AMI",
 		"Virtual Floppy",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_WP_DETECT),
+		US_FL_ANAL_WP_DETECT),
 
 /* Reported by Egbert Eich <eich@suse.com> */
 UNUSUAL_DEV(  0x0480, 0xd010, 0x0100, 0x9999,
@@ -349,7 +349,7 @@ UNUSUAL_DEV(  0x0482, 0x0107, 0x0100, 0x0100,
 		"Kyocera",
 		"CONTAX SL300R T*",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY | US_FL_NOT_LOCKABLE),
+		US_FL_FIX_CAPACITY | US_FL_ANALT_LOCKABLE),
 
 /*
  * Reported by Paul Stewart <stewart@wetlogic.net>
@@ -366,10 +366,10 @@ UNUSUAL_DEV(  0x04a4, 0x0004, 0x0001, 0x0001,
  * Frank Copeland <fjc@thingy.apana.org.au>
  */
 UNUSUAL_DEV(  0x04a5, 0x3010, 0x0100, 0x0100,
-		"Tekom Technologies, Inc",
+		"Tekom Techanallogies, Inc",
 		"300_CAMERA",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Patch for Nikon coolpix 2000
@@ -379,7 +379,7 @@ UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
 		"NIKON",
 		"NIKON DSC E2000",
 		USB_SC_DEVICE, USB_PR_DEVICE,NULL,
-		US_FL_NOT_LOCKABLE ),
+		US_FL_ANALT_LOCKABLE ),
 
 /* Reported by Doug Maxey (dwm@austin.ibm.com) */
 UNUSUAL_DEV(  0x04b3, 0x4001, 0x0110, 0x0110,
@@ -408,16 +408,16 @@ UNUSUAL_DEV(  0x04b8, 0x0602, 0x0110, 0x0110,
 
 /*
  * Reported by James Buren <braewoods+lkml@braewoods.net>
- * Virtual ISOs cannot be remounted if ejected while the device is locked
+ * Virtual ISOs cananalt be remounted if ejected while the device is locked
  * Disable locking to mimic Windows behavior that bypasses the issue
  */
 UNUSUAL_DEV(  0x04c5, 0x2028, 0x0001, 0x0001,
 		"iODD",
 		"2531/2541",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE),
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_ANALT_LOCKABLE),
 
 /*
- * Not sure who reported this originally but
+ * Analt sure who reported this originally but
  * Pavel Machek <pavel@ucw.cz> reported that the extra US_FL_SINGLE_LUN
  * flag be added */
 UNUSUAL_DEV(  0x04cb, 0x0100, 0x0000, 0x2210,
@@ -435,7 +435,7 @@ UNUSUAL_DEV(  0x04ce, 0x0002, 0x0000, 0x026b,
 		"ScanLogic",
 		"SL11R-IDE",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY | US_FL_BULK_IGNORE_TAG),
+		US_FL_FIX_CAPACITY | US_FL_BULK_IGANALRE_TAG),
 UNUSUAL_DEV(  0x04ce, 0x0002, 0x026c, 0x026c,
 		"ScanLogic",
 		"SL11R-IDE",
@@ -444,7 +444,7 @@ UNUSUAL_DEV(  0x04ce, 0x0002, 0x026c, 0x026c,
 
 /*
  * Reported by Kriston Fincher <kriston@airmail.net>
- * Patch submitted by Sean Millichamp <sean@bruenor.org>
+ * Patch submitted by Sean Millichamp <sean@brueanalr.org>
  * This is to support the Panasonic PalmCam PV-SD4090
  * This entry is needed because the device reports Sub=ff 
  */
@@ -467,14 +467,14 @@ UNUSUAL_DEV(  0x04da, 0x2372, 0x0000, 0x9999,
 		"Panasonic",
 		"DMC-LCx Camera",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY | US_FL_NOT_LOCKABLE ),
+		US_FL_FIX_CAPACITY | US_FL_ANALT_LOCKABLE ),
 
-/* Reported by Simeon Simeonov <simeonov_2000@yahoo.com> */
+/* Reported by Simeon Simeoanalv <simeoanalv_2000@yahoo.com> */
 UNUSUAL_DEV(  0x04da, 0x2373, 0x0000, 0x9999,
 		"LEICA",
 		"D-LUX Camera",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY | US_FL_NOT_LOCKABLE ),
+		US_FL_FIX_CAPACITY | US_FL_ANALT_LOCKABLE ),
 
 /*
  * Most of the following entries were developed with the help of
@@ -491,7 +491,7 @@ UNUSUAL_DEV(  0x04e6, 0x0002, 0x0100, 0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
 
-#ifdef NO_SDDR09
+#ifdef ANAL_SDDR09
 UNUSUAL_DEV(  0x04e6, 0x0005, 0x0100, 0x0208,
 		"SCM Microsystems",
 		"eUSB CompactFlash Adapter",
@@ -506,7 +506,7 @@ UNUSUAL_DEV(  0x04e6, 0x0006, 0x0100, 0x0100,
 		USB_SC_SCSI, USB_PR_CB, NULL,
 		US_FL_SINGLE_LUN),
 
-/* Reported by Daniel Nouri <dpunktnpunkt@web.de> */
+/* Reported by Daniel Analuri <dpunktnpunkt@web.de> */
 UNUSUAL_DEV(  0x04e6, 0x0006, 0x0205, 0x0205,
 		"Shuttle",
 		"eUSB MMC Adapter",
@@ -564,9 +564,9 @@ UNUSUAL_DEV(  0x04e8, 0x5122, 0x0000, 0x9999,
 		"Samsung",
 		"YP-CP3",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_MAX_SECTORS_64 | US_FL_BULK_IGNORE_TAG),
+		US_FL_MAX_SECTORS_64 | US_FL_BULK_IGANALRE_TAG),
 
-/* Added by Dmitry Artamonow <mad_soft@inbox.ru> */
+/* Added by Dmitry Artamoanalw <mad_soft@inbox.ru> */
 UNUSUAL_DEV(  0x04e8, 0x5136, 0x0000, 0x9999,
 		"Samsung",
 		"YP-Z3",
@@ -580,7 +580,7 @@ UNUSUAL_DEV(  0x04e8, 0x5136, 0x0000, 0x9999,
  */
 UNUSUAL_DEV(  0x04fc, 0x80c2, 0x0100, 0x0100,
 		"Kobian Mercury",
-		"Binocam DCB-132",
+		"Bianalcam DCB-132",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_BULK32),
 
@@ -594,7 +594,7 @@ UNUSUAL_DEV(  0x050d, 0x0115, 0x0133, 0x0133,
 /*
  * Iomega Clik! Drive 
  * Reported by David Chatenay <dchatenay@hotmail.com>
- * The reason this is needed is not fully known.
+ * The reason this is needed is analt fully kanalwn.
  */
 UNUSUAL_DEV(  0x0525, 0xa140, 0x0100, 0x0100,
 		"Iomega",
@@ -613,53 +613,53 @@ COMPLIANT_DEV(0x0525, 0xa4a5, 0x0000, 0x9999,
  * Yakumo Mega Image 37
  * Submitted by Stephan Fuhrmann <atomenergie@t-online.de> */
 UNUSUAL_DEV(  0x052b, 0x1801, 0x0100, 0x0100,
-		"Tekom Technologies, Inc",
+		"Tekom Techanallogies, Inc",
 		"300_CAMERA",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
- * Another Yakumo camera.
+ * Aanalther Yakumo camera.
  * Reported by Michele Alzetta <michele.alzetta@aliceposta.it>
  */
 UNUSUAL_DEV(  0x052b, 0x1804, 0x0100, 0x0100,
-		"Tekom Technologies, Inc",
+		"Tekom Techanallogies, Inc",
 		"300_CAMERA",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Iacopo Spalletti <avvisi@spalletti.it> */
 UNUSUAL_DEV(  0x052b, 0x1807, 0x0100, 0x0100,
-		"Tekom Technologies, Inc",
+		"Tekom Techanallogies, Inc",
 		"300_CAMERA",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Yakumo Mega Image 47
  * Reported by Bjoern Paetzel <kolrabi@kolrabi.de>
  */
 UNUSUAL_DEV(  0x052b, 0x1905, 0x0100, 0x0100,
-		"Tekom Technologies, Inc",
+		"Tekom Techanallogies, Inc",
 		"400_CAMERA",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Reported by Paul Ortyl <ortylp@3miasto.net>
- * Note that it's similar to the device above, only different prodID
+ * Analte that it's similar to the device above, only different prodID
  */
 UNUSUAL_DEV(  0x052b, 0x1911, 0x0100, 0x0100,
-		"Tekom Technologies, Inc",
+		"Tekom Techanallogies, Inc",
 		"400_CAMERA",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 UNUSUAL_DEV(  0x054c, 0x0010, 0x0106, 0x0450,
 		"Sony",
 		"DSC-S30/S70/S75/505V/F505/F707/F717/P8",
 		USB_SC_SCSI, USB_PR_DEVICE, NULL,
-		US_FL_SINGLE_LUN | US_FL_NOT_LOCKABLE | US_FL_NO_WP_DETECT ),
+		US_FL_SINGLE_LUN | US_FL_ANALT_LOCKABLE | US_FL_ANAL_WP_DETECT ),
 
 /*
  * Submitted by Lars Jacob <jacob.lars@googlemail.com>
@@ -751,7 +751,7 @@ UNUSUAL_DEV(  0x054c, 0x02a5, 0x0100, 0x0100,
 		"Sony Corp.",
 		"MicroVault Flash Drive",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_READ_CAPACITY_16 ),
+		US_FL_ANAL_READ_CAPACITY_16 ),
 
 /* floppy reports multiple luns */
 UNUSUAL_DEV(  0x055d, 0x2020, 0x0000, 0x0210,
@@ -821,7 +821,7 @@ UNUSUAL_DEV(  0x059f, 0x0651, 0x0000, 0x0000,
 		"LaCie",
 		"External HDD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_WP_DETECT ),
+		US_FL_ANAL_WP_DETECT ),
 
 /*
  * Submitted by Joel Bourquard <numlock@freesurf.ch>
@@ -858,7 +858,7 @@ UNUSUAL_DEV( 0x05ac, 0x1204, 0x0000, 0x9999,
 		"Apple",
 		"iPod",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY | US_FL_NOT_LOCKABLE ),
+		US_FL_FIX_CAPACITY | US_FL_ANALT_LOCKABLE ),
 
 UNUSUAL_DEV( 0x05ac, 0x1205, 0x0000, 0x9999,
 		"Apple",
@@ -867,8 +867,8 @@ UNUSUAL_DEV( 0x05ac, 0x1205, 0x0000, 0x9999,
 		US_FL_FIX_CAPACITY ),
 
 /*
- * Reported by Tyson Vinson <lornoss@gmail.com>
- * This particular productId is the iPod Nano
+ * Reported by Tyson Vinson <loranalss@gmail.com>
+ * This particular productId is the iPod Naanal
  */
 UNUSUAL_DEV( 0x05ac, 0x120a, 0x0000, 0x9999,
 		"Apple",
@@ -879,7 +879,7 @@ UNUSUAL_DEV( 0x05ac, 0x120a, 0x0000, 0x9999,
 /*
  * Reported by Dan Williams <dcbw@redhat.com>
  * Option N.V. mobile broadband modems
- * Ignore driver CD mode and force into modem mode by default.
+ * Iganalre driver CD mode and force into modem mode by default.
  */
 
 /* Globetrotter HSDPA; mass storage shows up as Qualcomm for vendor */
@@ -899,7 +899,7 @@ UNUSUAL_DEV(  0x05dc, 0xb002, 0x0000, 0x0113,
 /*
  * The following two entries are for a Genesys USB to IDE
  * converter chip, but it changes its ProductId depending
- * on whether or not a disk or an optical device is enclosed
+ * on whether or analt a disk or an optical device is enclosed
  * They were originally reported by Alexander Oltu
  * <alexander@all-2.com> and Peter Marks <peter.marks@turner.com>
  * respectively.
@@ -912,13 +912,13 @@ UNUSUAL_DEV(  0x05e3, 0x0701, 0x0000, 0xffff,
 		"Genesys Logic",
 		"USB to IDE Optical",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 | US_FL_IGNORE_RESIDUE ),
+		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 | US_FL_IGANALRE_RESIDUE ),
 
 UNUSUAL_DEV(  0x05e3, 0x0702, 0x0000, 0xffff,
 		"Genesys Logic",
 		"USB to IDE Disk",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 | US_FL_IGNORE_RESIDUE ),
+		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 | US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Ben Efros <ben@pc-doctor.com> */
 UNUSUAL_DEV(  0x05e3, 0x0723, 0x9451, 0x9451,
@@ -928,7 +928,7 @@ UNUSUAL_DEV(  0x05e3, 0x0723, 0x9451, 0x9451,
 		US_FL_SANE_SENSE ),
 
 /*
- * Reported by Hanno Boeck <hanno@gmx.de>
+ * Reported by Hananal Boeck <hananal@gmx.de>
  * Taken from the Lycoris Kernel
  */
 UNUSUAL_DEV(  0x0636, 0x0003, 0x0000, 0x9999,
@@ -951,17 +951,17 @@ UNUSUAL_DEV( 0x066f, 0x8000, 0x0001, 0x0001,
 
 /* Reported by Daniel Kukula <daniel.kuku@gmail.com> */
 UNUSUAL_DEV( 0x067b, 0x1063, 0x0100, 0x0100,
-		"Prolific Technology, Inc.",
+		"Prolific Techanallogy, Inc.",
 		"Prolific Storage Gadget",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_BAD_SENSE ),
 
 /* Reported by Rogerio Brito <rbrito@ime.usp.br> */
 UNUSUAL_DEV( 0x067b, 0x2317, 0x0001, 0x001,
-		"Prolific Technology, Inc.",
+		"Prolific Techanallogy, Inc.",
 		"Mass Storage Device",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NOT_LOCKABLE ),
+		US_FL_ANALT_LOCKABLE ),
 
 /* Reported by Richard -=[]=- <micro_flyer@hotmail.com> */
 /*
@@ -969,27 +969,27 @@ UNUSUAL_DEV( 0x067b, 0x2317, 0x0001, 0x001,
  * Thomas Bartosik <tbartdev@gmx-topmail.de>
  */
 UNUSUAL_DEV( 0x067b, 0x2507, 0x0001, 0x0100,
-		"Prolific Technology Inc.",
+		"Prolific Techanallogy Inc.",
 		"Mass Storage Device",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY | US_FL_GO_SLOW ),
 
 /* Reported by Alex Butcher <alex.butcher@assursys.co.uk> */
 UNUSUAL_DEV( 0x067b, 0x3507, 0x0001, 0x0101,
-		"Prolific Technology Inc.",
+		"Prolific Techanallogy Inc.",
 		"ATAPI-6 Bridge Controller",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY | US_FL_GO_SLOW ),
 
 /* Submitted by Benny Sjostrand <benny@hostmobility.com> */
 UNUSUAL_DEV( 0x0686, 0x4011, 0x0001, 0x0001,
-		"Minolta",
+		"Mianallta",
 		"Dimage F300",
 		USB_SC_SCSI, USB_PR_BULK, NULL, 0 ),
 
-/* Reported by Miguel A. Fosas <amn3s1a@ono.com> */
+/* Reported by Miguel A. Fosas <amn3s1a@oanal.com> */
 UNUSUAL_DEV(  0x0686, 0x4017, 0x0001, 0x0001,
-		"Minolta",
+		"Mianallta",
 		"DIMAGE E223",
 		USB_SC_SCSI, USB_PR_DEVICE, NULL, 0 ),
 
@@ -1006,7 +1006,7 @@ UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
 		US_FL_FIX_CAPACITY ),
 
 UNUSUAL_DEV(  0x06ca, 0x2003, 0x0100, 0x0100,
-		"Newer Technology",
+		"Newer Techanallogy",
 		"uSCSI",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
@@ -1016,11 +1016,11 @@ UNUSUAL_DEV(  0x071b, 0x3203, 0x0000, 0x0000,
 		"RockChip",
 		"MP3",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_WP_DETECT | US_FL_MAX_SECTORS_64 |
-		US_FL_NO_READ_CAPACITY_16),
+		US_FL_ANAL_WP_DETECT | US_FL_MAX_SECTORS_64 |
+		US_FL_ANAL_READ_CAPACITY_16),
 
 /*
- * Reported by Jean-Baptiste Onofre <jb@nanthrax.net>
+ * Reported by Jean-Baptiste Oanalfre <jb@nanthrax.net>
  * Support the following product :
  *    "Dane-Elec MediaTouch"
  */
@@ -1028,10 +1028,10 @@ UNUSUAL_DEV(  0x071b, 0x32bb, 0x0000, 0x0000,
 		"RockChip",
 		"MTP",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_WP_DETECT | US_FL_MAX_SECTORS_64),
+		US_FL_ANAL_WP_DETECT | US_FL_MAX_SECTORS_64),
 
 /*
- * Reported by Massimiliano Ghilardi <massimiliano.ghilardi@gmail.com>
+ * Reported by Massimiliaanal Ghilardi <massimiliaanal.ghilardi@gmail.com>
  * This USB MP3/AVI player device fails and disconnects if more than 128
  * sectors (64kB) are read/written in a single command, and may be present
  * at least in the following products:
@@ -1052,7 +1052,7 @@ UNUSUAL_DEV(  0x0727, 0x0306, 0x0100, 0x0100,
 		"ATMEL",
 		"SND1 Storage",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE),
+		US_FL_IGANALRE_RESIDUE),
 
 /* Submitted by Roman Hodek <roman@hodek.net> */
 UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200,
@@ -1075,7 +1075,7 @@ UNUSUAL_DEV(  0x0781, 0x0100, 0x0100, 0x0100,
 
 /* Reported by Eero Volotinen <eero@ping-viini.org> */
 UNUSUAL_DEV(  0x07ab, 0xfccd, 0x0000, 0x9999,
-		"Freecom Technologies",
+		"Freecom Techanallogies",
 		"FHD-Classic",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
@@ -1092,7 +1092,7 @@ UNUSUAL_DEV(  0x07af, 0x0005, 0x0100, 0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
 
-#ifdef NO_SDDR09
+#ifdef ANAL_SDDR09
 UNUSUAL_DEV(  0x07af, 0x0006, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate",
@@ -1121,10 +1121,10 @@ UNUSUAL_DEV(  0x07c4, 0xa4a5, 0x0000, 0xffff,
 		"Simple Tech/Datafab",
 		"CF+SM Reader",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_MAX_SECTORS_64 ),
+		US_FL_IGANALRE_RESIDUE | US_FL_MAX_SECTORS_64 ),
 
 /*
- * Casio QV 2x00/3x00/4000/8000 digital still cameras are not conformant
+ * Casio QV 2x00/3x00/4000/8000 digital still cameras are analt conformant
  * to the USB storage specification in two ways:
  * - They tell us they are using transport protocol CBI. In reality they
  *   are using transport protocol CB.
@@ -1154,7 +1154,7 @@ UNUSUAL_DEV( 0x0839, 0x000a, 0x0001, 0x0001,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY),
 
-/* Reported by Luciano Rocha <luciano@eurotux.com> */
+/* Reported by Luciaanal Rocha <luciaanal@eurotux.com> */
 UNUSUAL_DEV( 0x0840, 0x0082, 0x0001, 0x0001,
 		"Argosy",
 		"Storage",
@@ -1207,15 +1207,15 @@ UNUSUAL_DEV(  0x0851, 0x1542, 0x0002, 0x0002,
 
 /*
  * Andrew Lunn <andrew@lunn.ch>
- * PanDigital Digital Picture Frame. Does not like ALLOW_MEDIUM_REMOVAL
+ * PanDigital Digital Picture Frame. Does analt like ALLOW_MEDIUM_REMOVAL
  * on LUN 4.
- * Note: Vend:Prod clash with "Ltd Maxell WS30 Slim Digital Camera"
+ * Analte: Vend:Prod clash with "Ltd Maxell WS30 Slim Digital Camera"
  */
 UNUSUAL_DEV(  0x0851, 0x1543, 0x0200, 0x0200,
 		"PanDigital",
 		"Photo Frame",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NOT_LOCKABLE),
+		US_FL_ANALT_LOCKABLE),
 
 UNUSUAL_DEV(  0x085a, 0x0026, 0x0100, 0x0133,
 		"Xircom",
@@ -1238,13 +1238,13 @@ UNUSUAL_DEV(  0x08bd, 0x1100, 0x0000, 0x0000,
 
 /*
  * Submitted by Dylan Taft <d13f00l@gmail.com>
- * US_FL_IGNORE_RESIDUE Needed
+ * US_FL_IGANALRE_RESIDUE Needed
  */
 UNUSUAL_DEV(  0x08ca, 0x3103, 0x0100, 0x0100,
 		"AIPTEK",
 		"Aiptek USB Keychain MP3 Player",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE),
+		US_FL_IGANALRE_RESIDUE),
 
 /*
  * Entry needed for flags. Moreover, all devices with this ID use
@@ -1283,9 +1283,9 @@ UNUSUAL_DEV( 0x090c, 0x1132, 0x0000, 0xffff,
 		US_FL_FIX_CAPACITY ),
 
 /*
- * Reported by Icenowy Zheng <icenowy@aosc.io>
+ * Reported by Iceanalwy Zheng <iceanalwy@aosc.io>
  * The SMI SM3350 USB-UFS bridge controller will enter a wrong state
- * that do not process read/write command if a long sense is requested,
+ * that do analt process read/write command if a long sense is requested,
  * so force to use 18-byte sense.
  */
 UNUSUAL_DEV(  0x090c, 0x3350, 0x0000, 0xffff,
@@ -1314,12 +1314,12 @@ UNUSUAL_DEV(0x0951, 0x1697, 0x0100, 0x0100,
 		"Kingston",
 		"DT Ultimate G3",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_WP_DETECT),
+		US_FL_ANAL_WP_DETECT),
 
 /*
- * This Pentax still camera is not conformant
+ * This Pentax still camera is analt conformant
  * to the USB storage specification: -
- * - It does not like the INQUIRY command. So we must handle this command
+ * - It does analt like the INQUIRY command. So we must handle this command
  *   of the SCSI layer ourselves.
  * Tested on Rev. 10.00 (0x1000)
  * Submitted by James Courtier-Dutton <James@superbug.demon.co.uk>
@@ -1338,18 +1338,18 @@ UNUSUAL_DEV( 0x0ace, 0x2011, 0x0101, 0x0101,
 		"ZyXEL",
 		"G-220F USB-WLAN Install",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_DEVICE ),
+		US_FL_IGANALRE_DEVICE ),
 
 UNUSUAL_DEV( 0x0ace, 0x20ff, 0x0101, 0x0101,
 		"SiteCom",
 		"WL-117 USB-WLAN Install",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_DEVICE ),
+		US_FL_IGANALRE_DEVICE ),
 
 /*
  * Reported by Dan Williams <dcbw@redhat.com>
  * Option N.V. mobile broadband modems
- * Ignore driver CD mode and force into modem mode by default.
+ * Iganalre driver CD mode and force into modem mode by default.
  */
 
 /* iCON 225 */
@@ -1485,7 +1485,7 @@ UNUSUAL_DEV( 0x0bc2, 0x3332, 0x0000, 0x9999,
 		"Seagate",
 		"External",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_WP_DETECT ),
+		US_FL_ANAL_WP_DETECT ),
 
 UNUSUAL_DEV(  0x0d49, 0x7310, 0x0000, 0x9999,
 		"Maxtor",
@@ -1495,11 +1495,11 @@ UNUSUAL_DEV(  0x0d49, 0x7310, 0x0000, 0x9999,
 
 /*
  * Pete Zaitcev <zaitcev@yahoo.com>, bz#164688.
- * The device blatantly ignores LUN and returns 1 in GetMaxLUN.
+ * The device blatantly iganalres LUN and returns 1 in GetMaxLUN.
  */
 UNUSUAL_DEV( 0x0c45, 0x1060, 0x0100, 0x0100,
-		"Unknown",
-		"Unknown",
+		"Unkanalwn",
+		"Unkanalwn",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
@@ -1511,25 +1511,25 @@ UNUSUAL_DEV( 0x0d96, 0x410a, 0x0001, 0xffff,
 		US_FL_FIX_INQUIRY),
 
 /*
- * Entry for Jenoptik JD 5200z3
+ * Entry for Jeanalptik JD 5200z3
  *
  * email: car.busse@gmx.de
  */
 UNUSUAL_DEV(  0x0d96, 0x5200, 0x0001, 0x0200,
-		"Jenoptik",
+		"Jeanalptik",
 		"JD 5200 z3",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_FIX_INQUIRY),
 
 /* Reported by  Jason Johnston <killean@shaw.ca> */
 UNUSUAL_DEV(  0x0dc4, 0x0073, 0x0000, 0x0000,
-		"Macpower Technology Co.LTD.",
+		"Macpower Techanallogy Co.LTD.",
 		"USB 2.0 3.5\" DEVICE",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
 /*
  * Reported by Lubomir Blaha <tritol@trilogic.cz>
- * I _REALLY_ don't know what 3rd, 4th number and all defines mean, but this
+ * I _REALLY_ don't kanalw what 3rd, 4th number and all defines mean, but this
  * works for me. Can anybody correct these values? (I able to test corrected
  * version.)
  */
@@ -1547,25 +1547,25 @@ UNUSUAL_DEV( 0x0dd8, 0xd202, 0x0000, 0x9999,
 		"Netac",
 		"USB Flash Disk",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 
 /*
  * Patch by Stephan Walter <stephan.walter@epfl.ch>
- * I don't know why, but it works...
+ * I don't kanalw why, but it works...
  */
 UNUSUAL_DEV( 0x0dda, 0x0001, 0x0012, 0x0012,
 		"WINWARD",
 		"Music Disk",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Ian McConnell <ian at emit.demon.co.uk> */
 UNUSUAL_DEV(  0x0dda, 0x0301, 0x0012, 0x0012,
 		"PNP_MP3",
 		"PNP_MP3 PLAYER",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Jim McCloskey <mcclosk@ucsc.edu> */
 UNUSUAL_DEV( 0x0e21, 0x0520, 0x0100, 0x0100,
@@ -1586,17 +1586,17 @@ UNUSUAL_DEV( 0x0ed1, 0x6660, 0x0100, 0x0300,
  * Reported by dayul on the Gentoo Forums
  */
 UNUSUAL_DEV(  0x0ea0, 0x2168, 0x0110, 0x0110,
-		"Ours Technology",
+		"Ours Techanallogy",
 		"Flash Disk",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Rastislav Stanik <rs_kernel@yahoo.com> */
 UNUSUAL_DEV(  0x0ea0, 0x6828, 0x0110, 0x0110,
 		"USB",
 		"Flash Disk",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Reported by Benjamin Schiller <sbenni@gmx.de>
@@ -1606,7 +1606,7 @@ UNUSUAL_DEV(  0x0ed1, 0x7636, 0x0103, 0x0103,
 		"Typhoon",
 		"My DJ 1820",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_GO_SLOW | US_FL_MAX_SECTORS_64),
+		US_FL_IGANALRE_RESIDUE | US_FL_GO_SLOW | US_FL_MAX_SECTORS_64),
 
 /*
  * Patch by Leonid Petrov mail at lpetrov.net
@@ -1618,7 +1618,7 @@ UNUSUAL_DEV(  0x0f19, 0x0103, 0x0100, 0x0100,
 		"Oracom Co., Ltd",
 		"ORC-200M",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * David Kuehling <dvdkhlng@gmx.de>:
@@ -1629,7 +1629,7 @@ UNUSUAL_DEV(  0x0f19, 0x0105, 0x0100, 0x0100,
 		"C-MEX",
 		"A-VOX",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Submitted by Nick Holloway */
 UNUSUAL_DEV( 0x0f88, 0x042e, 0x0100, 0x0100,
@@ -1650,14 +1650,14 @@ UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"V800-Vodafone 802",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_WP_DETECT ),
+		US_FL_ANAL_WP_DETECT ),
 
 /* Reported by The Solutor <thesolutor@gmail.com> */
 UNUSUAL_DEV(  0x0fce, 0xd0e1, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"MD400",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_DEVICE),
+		US_FL_IGANALRE_DEVICE),
 
 /*
  * Reported by Jan Mate <mate@fiit.stuba.sk>
@@ -1667,31 +1667,31 @@ UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"P990i",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+		US_FL_FIX_CAPACITY | US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Emmanuel Vasilakis <evas@forthnet.gr> */
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"M600i",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+		US_FL_IGANALRE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /* Reported by Ricardo Barberis <ricardo@dattatec.com> */
 UNUSUAL_DEV(  0x0fce, 0xe092, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"P1i",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Reported by Kevin Cernekee <kpc-usbdev@gelato.uiuc.edu>
  * Tested on hardware version 1.10.
  * Entry is needed only for the initializer function override.
- * Devices with bcd > 110 seem to not need it while those
+ * Devices with bcd > 110 seem to analt need it while those
  * with bcd < 110 appear to need it.
  */
 UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x0110,
-		"Desknote",
+		"Deskanalte",
 		"UCR-61S2B",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ucr61s2b_init,
 		0 ),
@@ -1720,12 +1720,12 @@ UNUSUAL_DEV(  0x10d6, 0x2200, 0x0100, 0x0100,
 
 /*
  * Reported by Pascal Terjan <pterjan@mandriva.com>
- * Ignore driver CD mode and force into modem mode by default.
+ * Iganalre driver CD mode and force into modem mode by default.
  */
 UNUSUAL_DEV(  0x1186, 0x3e04, 0x0000, 0x0000,
            "D-Link",
            "USB Mass Storage",
-           USB_SC_DEVICE, USB_PR_DEVICE, option_ms_init, US_FL_IGNORE_DEVICE),
+           USB_SC_DEVICE, USB_PR_DEVICE, option_ms_init, US_FL_IGANALRE_DEVICE),
 
 /*
  * Reported by Kevin Lloyd <linux@sierrawireless.com>
@@ -1748,7 +1748,7 @@ UNUSUAL_DEV(  0x1210, 0x0003, 0x0100, 0x0100,
 		"Digitech HMG",
 		"DigiTech Mass Storage",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Reported by fangxiaozhi <huananhu@huawei.com>
@@ -2087,7 +2087,7 @@ UNUSUAL_DEV(  0x12d1, 0x143F, 0x0000, 0x0000,
 
 /* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */
 UNUSUAL_DEV(  0x132b, 0x000b, 0x0001, 0x0001,
-		"Minolta",
+		"Mianallta",
 		"Dimage Z10",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		0 ),
@@ -2097,7 +2097,7 @@ UNUSUAL_DEV(  0x1370, 0x6828, 0x0110, 0x0110,
 		"SWISSBIT",
 		"Black Silver",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /*
  * Reported by Tobias Jakobi <tjakobi@math.uni-bielefeld.de>
@@ -2111,21 +2111,21 @@ UNUSUAL_DEV(  0x13fd, 0x3609, 0x0209, 0x0209,
 		"Initio Corporation",
 		"INIC-3619",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
-/* Reported by Qinglin Ye <yestyle@gmail.com> */
+/* Reported by Qinglin Ye <analtyle@gmail.com> */
 UNUSUAL_DEV(  0x13fe, 0x3600, 0x0100, 0x0100,
 		"Kingston",
 		"DT 101 G2",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_BULK_IGNORE_TAG ),
+		US_FL_BULK_IGANALRE_TAG ),
 
 /* Reported by Francesco Foresti <frafore@tiscali.it> */
 UNUSUAL_DEV(  0x14cd, 0x6600, 0x0201, 0x0201,
 		"Super Top",
 		"IDE DEVICE",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Michael Büsch <m@bues.ch> */
 UNUSUAL_DEV(  0x152d, 0x0567, 0x0114, 0x0117,
@@ -2149,7 +2149,7 @@ UNUSUAL_DEV(  0x152d, 0x2329, 0x0100, 0x0100,
 		"JMicron",
 		"USB to ATA/ATAPI Bridge",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_SANE_SENSE ),
+		US_FL_IGANALRE_RESIDUE | US_FL_SANE_SENSE ),
 
 /* Reported by Dmitry Nezhevenko <dion@dion.org.ua> */
 UNUSUAL_DEV(  0x152d, 0x2566, 0x0114, 0x0114,
@@ -2170,26 +2170,26 @@ UNUSUAL_DEV(0x152d, 0x9561, 0x0000, 0x9999,
 		"JMicron",
 		"JMS56x",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES),
+		US_FL_ANAL_REPORT_OPCODES),
 
 /*
- * Entrega Technologies U1-SC25 (later Xircom PortGear PGSCSI)
+ * Entrega Techanallogies U1-SC25 (later Xircom PortGear PGSCSI)
  * and Mac USB Dock USB-SCSI */
 UNUSUAL_DEV(  0x1645, 0x0007, 0x0100, 0x0133,
-		"Entrega Technologies",
+		"Entrega Techanallogies",
 		"USB to SCSI Converter",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
 
 /*
  * Reported by Robert Schedel <r.schedel@yahoo.de>
- * Note: this is a 'super top' device like the above 14cd/6600 device
+ * Analte: this is a 'super top' device like the above 14cd/6600 device
  */
 UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
 		"Teac",
 		"HD-35PUK-B",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Oliver Neukum <oneukum@suse.com> */
 UNUSUAL_DEV(  0x174c, 0x55aa, 0x0100, 0x0100,
@@ -2203,10 +2203,10 @@ UNUSUAL_DEV(  0x177f, 0x0400, 0x0000, 0x0000,
 		"Yarvik",
 		"PMP400",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_BULK_IGNORE_TAG | US_FL_MAX_SECTORS_64 ),
+		US_FL_BULK_IGANALRE_TAG | US_FL_MAX_SECTORS_64 ),
 
 UNUSUAL_DEV(  0x1822, 0x0001, 0x0000, 0x9999,
-		"Ariston Technologies",
+		"Ariston Techanallogies",
 		"iConnect USB to SCSI adapter",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
@@ -2231,13 +2231,13 @@ UNUSUAL_DEV( 0x1908, 0x3335, 0x0200, 0x0200,
 		"BUILDWIN",
 		"Photo Frame",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_READ_DISC_INFO ),
+		US_FL_ANAL_READ_DISC_INFO ),
 
 /*
  * Reported by Matthias Schwarzott <zzam@gentoo.org>
  * The Amazon Kindle treats SYNCHRONIZE CACHE as an indication that
  * the host may be finished with it, and automatically ejects its
- * emulated media unless it receives another command within one second.
+ * emulated media unless it receives aanalther command within one second.
  */
 UNUSUAL_DEV( 0x1949, 0x0004, 0x0000, 0x9999,
 		"Amazon",
@@ -2247,15 +2247,15 @@ UNUSUAL_DEV( 0x1949, 0x0004, 0x0000, 0x9999,
 
 /*
  * Reported by Oliver Neukum <oneukum@suse.com>
- * This device morphes spontaneously into another device if the access
+ * This device morphes spontaneously into aanalther device if the access
  * pattern of Windows isn't followed. Thus writable media would be dirty
  * if the initial instance is used. So the device is limited to its
  * virtual CD.
- * And yes, the concept that BCD goes up to 9 is not heeded
+ * And anal, the concept that BCD goes up to 9 is analt heeded
  */
 UNUSUAL_DEV( 0x19d2, 0x1225, 0x0000, 0xffff,
 		"ZTE,Incorporated",
-		"ZTE WCDMA Technologies MSM",
+		"ZTE WCDMA Techanallogies MSM",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
@@ -2273,42 +2273,42 @@ UNUSUAL_DEV(  0x1b1c, 0x1ab5, 0x0200, 0x0200,
  * Reported by Hans de Goede <hdegoede@redhat.com>
  * These are mini projectors using USB for both power and video data transport
  * The usb-storage interface is a virtual windows driver CD, which the gm12u320
- * driver automatically converts into framebuffer & kms dri device nodes.
+ * driver automatically converts into framebuffer & kms dri device analdes.
  */
 UNUSUAL_DEV( 0x1de1, 0xc102, 0x0000, 0xffff,
-		"Grain-media Technology Corp.",
+		"Grain-media Techanallogy Corp.",
 		"USB3.0 Device GM12U320",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_DEVICE ),
+		US_FL_IGANALRE_DEVICE ),
 
 /*
  * Patch by Richard Schütz <r.schtz@t-online.de>
  * This external hard drive enclosure uses a JMicron chip which
- * needs the US_FL_IGNORE_RESIDUE flag to work properly.
+ * needs the US_FL_IGANALRE_RESIDUE flag to work properly.
  */
 UNUSUAL_DEV(  0x1e68, 0x001b, 0x0000, 0x0000,
 		"TrekStor GmbH & Co. KG",
 		"DataStation maxi g.u",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE | US_FL_SANE_SENSE ),
+		US_FL_IGANALRE_RESIDUE | US_FL_SANE_SENSE ),
 
 /* Reported by Jasper Mackenzie <scarletpimpernal@hotmail.com> */
 UNUSUAL_DEV( 0x1e74, 0x4621, 0x0000, 0x0000,
 		"Coby Electronics",
 		"MP3 Player",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_BULK_IGNORE_TAG | US_FL_MAX_SECTORS_64 ),
+		US_FL_BULK_IGANALRE_TAG | US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Witold Lipieta <witold.lipieta@thaumatec.com> */
 UNUSUAL_DEV( 0x1fc9, 0x0117, 0x0100, 0x0100,
 		"NXP Semiconductors",
 		"PN7462AU",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Supplied with some Castlewood ORB removable drives */
 UNUSUAL_DEV(  0x2027, 0xa001, 0x0000, 0x9999,
-		"Double-H Technology",
+		"Double-H Techanallogy",
 		"USB to SCSI Intelligent Cable",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
@@ -2321,7 +2321,7 @@ UNUSUAL_DEV( 0x2109, 0x0715, 0x9999, 0x9999,
 		"VIA Labs, Inc.",
 		"VL817 SATA Bridge",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
+		US_FL_IGANALRE_UAS),
 
 UNUSUAL_DEV( 0x2116, 0x0320, 0x0001, 0x0001,
 		"ST",
@@ -2337,10 +2337,10 @@ UNUSUAL_DEV(  0x22b8, 0x3010, 0x0001, 0x0001,
 		"Motorola",
 		"RAZR V3x",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+		US_FL_FIX_CAPACITY | US_FL_IGANALRE_RESIDUE ),
 
 /*
- * Patch by Constantin Baranov <const@tltsu.ru>
+ * Patch by Constantin Baraanalv <const@tltsu.ru>
  * Report by Andreas Koenecke.
  * Motorola ROKR Z6.
  */
@@ -2348,7 +2348,7 @@ UNUSUAL_DEV(  0x22b8, 0x6426, 0x0101, 0x0101,
 		"Motorola",
 		"MSnc.",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_FIX_INQUIRY | US_FL_FIX_CAPACITY | US_FL_BULK_IGNORE_TAG),
+		US_FL_FIX_INQUIRY | US_FL_FIX_CAPACITY | US_FL_BULK_IGANALRE_TAG),
 
 /* Reported by Radovan Garabik <garabik@kassiopeia.juls.savba.sk> */
 UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
@@ -2362,7 +2362,7 @@ UNUSUAL_DEV(  0x2ca3, 0x0031, 0x0000, 0x9999,
 		"DJI",
 		"CineSSD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_ATA_1X),
+		US_FL_ANAL_ATA_1X),
 
 /*
  * Reported by Frederic Marchal <frederic.marchal@wowcompany.com>
@@ -2379,14 +2379,14 @@ UNUSUAL_DEV(  0x357d, 0x7788, 0x0114, 0x0114,
 		"JMicron",
 		"USB to ATA/ATAPI Bridge",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_BROKEN_FUA | US_FL_IGNORE_UAS ),
+		US_FL_BROKEN_FUA | US_FL_IGANALRE_UAS ),
 
 /* Reported by Andrey Rahmatullin <wrar@altlinux.org> */
 UNUSUAL_DEV(  0x4102, 0x1020, 0x0100,  0x0100,
 		"iRiver",
 		"MP3 T10",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGANALRE_RESIDUE ),
 
 /* Reported by Sergey Pinaev <dfo@antex.ru> */
 UNUSUAL_DEV(  0x4102, 0x1059, 0x0000,  0x0000,
@@ -2402,7 +2402,7 @@ UNUSUAL_DEV(  0x4102, 0x1059, 0x0000,  0x0000,
 UNUSUAL_DEV(  0x4146, 0xba01, 0x0100, 0x0100,
 		"Iomega",
 		"Micro Mini 1GB",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_ANALT_LOCKABLE ),
 
 /* "G-DRIVE" external HDD hangs on write without these.
  * Patch submitted by Alexander Kappner <agk@godking.net>
@@ -2421,7 +2421,7 @@ UNUSUAL_DEV(  0xc251, 0x4003, 0x0100, 0x0100,
 		"Keil Software, Inc.",
 		"V2M MotherBoard",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NOT_LOCKABLE),
+		US_FL_ANALT_LOCKABLE),
 
 /* Reported by Andrew Simmons <andrew.simmons@gmail.com> */
 UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,
@@ -2434,7 +2434,7 @@ UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,
 UNUSUAL_DEV( 0xed10, 0x7636, 0x0001, 0x0001,
 		"TGE",
 		"Digital MP3 Audio Player",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_ANALT_LOCKABLE ),
 
 /* Unusual uas devices */
 #if IS_ENABLED(CONFIG_USB_UAS)

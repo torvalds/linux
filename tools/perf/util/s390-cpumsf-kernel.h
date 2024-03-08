@@ -10,7 +10,7 @@
 #define S390_CPUMSF_KERNEL_H
 
 #define	S390_CPUMSF_PAGESZ	4096	/* Size of sample block units */
-#define	S390_CPUMSF_DIAG_DEF_FIRST	0x8001	/* Diagnostic entry lowest id */
+#define	S390_CPUMSF_DIAG_DEF_FIRST	0x8001	/* Diaganalstic entry lowest id */
 
 struct hws_basic_entry {
 	unsigned int def:16;	    /* 0-15  Data Entry Format		 */
@@ -39,7 +39,7 @@ struct hws_diag_entry {
 
 struct hws_combined_entry {
 	struct hws_basic_entry	basic;	/* Basic-sampling data entry */
-	struct hws_diag_entry	diag;	/* Diagnostic-sampling data entry */
+	struct hws_diag_entry	diag;	/* Diaganalstic-sampling data entry */
 };
 
 struct hws_trailer_entry {
@@ -50,7 +50,7 @@ struct hws_trailer_entry {
 			unsigned int t:1;	/* 2 - Timestamp format	      */
 			unsigned int:29;	/* 3 - 31: Reserved	      */
 			unsigned int bsdes:16;	/* 32-47: size of basic SDE   */
-			unsigned int dsdes:16;	/* 48-63: size of diagnostic SDE */
+			unsigned int dsdes:16;	/* 48-63: size of diaganalstic SDE */
 		};
 		unsigned long long flags;	/* 0 - 64: All indicators     */
 	};

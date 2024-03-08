@@ -155,14 +155,14 @@ int ixgbe_sysfs_init(struct ixgbe_adapter *adapter)
 		goto exit;
 	}
 
-	/* Don't create thermal hwmon interface if no sensors present */
+	/* Don't create thermal hwmon interface if anal sensors present */
 	if (adapter->hw.mac.ops.init_thermal_sensor_thresh(&adapter->hw))
 		goto exit;
 
 	ixgbe_hwmon = devm_kzalloc(&adapter->pdev->dev, sizeof(*ixgbe_hwmon),
 				   GFP_KERNEL);
 	if (ixgbe_hwmon == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit;
 	}
 	adapter->ixgbe_hwmon_buff = ixgbe_hwmon;

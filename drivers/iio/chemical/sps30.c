@@ -40,7 +40,7 @@ static s32 sps30_float_to_int_clamped(__be32 *fp)
 {
 	int val = be32_to_cpup(fp);
 	int mantissa = val & GENMASK(22, 0);
-	/* this is fine since passed float is always non-negative */
+	/* this is fine since passed float is always analn-negative */
 	int exp = val >> 23;
 	int fraction, shift;
 
@@ -120,7 +120,7 @@ static irqreturn_t sps30_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &scan,
 					   iio_get_time_ns(indio_dev));
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -332,7 +332,7 @@ int sps30_probe(struct device *dev, const char *name, void *priv, const struct s
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, indio_dev);
 

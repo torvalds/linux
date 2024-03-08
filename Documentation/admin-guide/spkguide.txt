@@ -12,8 +12,8 @@ Copyright (c) 2009, 2010  the Speakup Team
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.2 or
-any later version published by the Free Software Foundation; with no
-Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts. A
+any later version published by the Free Software Foundation; with anal
+Invariant Sections, anal Front-Cover Texts, and anal Back-Cover Texts. A
 copy of the license is included in the section entitled "GNU Free
 Documentation License".
 
@@ -24,10 +24,10 @@ interface to Speakup, a Linux Screen Reader.  If you need instructions
 for installing or obtaining Speakup, visit the web site at
 http://linux-speakup.org/.  Speakup is a set of patches to the standard
 Linux kernel source tree.  It can be built as a series of modules, or as
-a part of a monolithic kernel.  These details are beyond the scope of
+a part of a moanallithic kernel.  These details are beyond the scope of
 this manual, but the user may need to be aware of the module
 capabilities, depending on how your system administrator has installed
-Speakup.  If Speakup is built as a part of a monolithic kernel, and the
+Speakup.  If Speakup is built as a part of a moanallithic kernel, and the
 user is using a hardware synthesizer, then Speakup will be able to
 provide speech access from the time the kernel is loaded, until the time
 the system is shutdown.  This means that if you have obtained Linux
@@ -47,15 +47,15 @@ synthesizer, and that it is either installed in or connected to your
 system, and is if necessary powered on.
 
 It is possible, however, that Speakup may have been compiled into the
-kernel with no default synthesizer.  It is even possible that your
+kernel with anal default synthesizer.  It is even possible that your
 kernel has been compiled with support for some of the supported
-synthesizers and not others.  If you find that this is the case, and
-your synthesizer is supported but not available, complain to the person
+synthesizers and analt others.  If you find that this is the case, and
+your synthesizer is supported but analt available, complain to the person
 who compiled and installed your kernel.  Or better yet, go to the web
 site, and learn how to patch Speakup into your own kernel source, and
 build and install your own kernel.
 
-If your kernel has been compiled with Speakup, and has no default
+If your kernel has been compiled with Speakup, and has anal default
 synthesizer set, or you would like to use a different synthesizer than
 the default one, then you may issue the following command at the boot
 prompt of your boot loader.
@@ -77,21 +77,21 @@ bns -- Braille 'n Speak
 dectlk -- DecTalk Express (old and new, db9 serial only)
 decext -- DecTalk (old) External
 dtlk -- DoubleTalk PC
-keypc -- Keynote Gold PC
+keypc -- Keyanalte Gold PC
 ltlk -- DoubleTalk LT, LiteTalk, or external Tripletalk (db9 serial only)
 spkout -- Speak Out
 txprt -- Transport
 dummy -- Plain text terminal
 
-Note: Speakup does * NOT * support the internal Tripletalk!
+Analte: Speakup does * ANALT * support the internal Tripletalk!
 
 Speakup does support two other synthesizers, but because they work in
 conjunction with other software, they must be loaded as modules after
-their related software is loaded, and so are not available at boot up.
+their related software is loaded, and so are analt available at boot up.
 These are as follows:
 
-decpc -- DecTalk PC (not available at boot up)
-soft -- One of several software synthesizers (not available at boot up)
+decpc -- DecTalk PC (analt available at boot up)
+soft -- One of several software synthesizers (analt available at boot up)
 
 By default speakup looks for the synthesizer on the ttyS0 serial port. This can
 be changed with the device parameter of the modules, for instance for
@@ -100,11 +100,11 @@ DoubleTalk LT:
 speakup_ltlk.dev=ttyUSB0
 
 See the sections on loading modules and software synthesizers later in
-this manual for further details.  It should be noted here that the
-speakup.synth boot parameter will have no effect if Speakup has been
+this manual for further details.  It should be analted here that the
+speakup.synth boot parameter will have anal effect if Speakup has been
 compiled as modules.  In order for Speakup modules to be loaded during
 the boot process, such action must be configured by your system
-administrator.  This will mean that you will hear some, but not all,  of
+administrator.  This will mean that you will hear some, but analt all,  of
 the bootup messages.
 
 2.  Basic operation
@@ -113,14 +113,14 @@ Once you have booted the system, and if necessary, have supplied the
 proper bootup parameter for your synthesizer, Speakup will begin
 talking as soon as the kernel is loaded.  In fact, it will talk a lot!
 It will speak all the boot up messages that the kernel prints on the
-screen during the boot process.  This is because Speakup is not a
+screen during the boot process.  This is because Speakup is analt a
 separate screen reader, but is actually built into the operating
 system.  Since almost all console applications must print text on the
 screen using the kernel, and must get their keyboard input through the
 kernel, they are automatically handled properly by Speakup.  There are a
 few exceptions, but we'll come to those later.
 
-Note:  In this guide I will refer to the numeric keypad as the keypad.
+Analte:  In this guide I will refer to the numeric keypad as the keypad.
 This is done because the speakupmap.map file referred to later in this
 manual uses the term keypad instead of numeric keypad.  Also I'm lazy
 and would rather only type one word.  So keypad it is.  Got it?  Good.
@@ -134,7 +134,7 @@ its default state at bootup.
 
 You probably won't want to listen to all the bootup messages every time
 you start your system, though it's a good idea to listen to them at
-least once, just so you'll know what kind of information is available to
+least once, just so you'll kanalw what kind of information is available to
 you during the boot process.  You can always review these messages after
 bootup with the command:
 
@@ -143,23 +143,23 @@ dmesg | more
 In order to speed the boot process, and to silence the speaking of the
 bootup messages, just press the keypad enter key.  This key is located
 in the bottom right corner of the keypad.  Speakup will shut up and stay
-that way, until you press another key.
+that way, until you press aanalther key.
 
 You can check to see if the boot process has completed by pressing the 8
 key on the keypad, which reads the current line.  This also has the
 effect of starting Speakup talking again, so you can press keypad enter
-to silence it again if the boot process has not completed.
+to silence it again if the boot process has analt completed.
 
 When the boot process is complete, you will arrive at a "login" prompt.
 At this point, you'll need to type in your user id and password, as
 provided by your system administrator.  You will hear Speakup speak the
-letters of your user id as you type it, but not the password.  This is
-because the password is not displayed on the screen for security
-reasons.  This has nothing to do with Speakup, it's a Linux security
+letters of your user id as you type it, but analt the password.  This is
+because the password is analt displayed on the screen for security
+reasons.  This has analthing to do with Speakup, it's a Linux security
 feature.
 
 Once you've logged in, you can run any Linux command or program which is
-allowed by your user id.  Normal users will not be able to run programs
+allowed by your user id.  Analrmal users will analt be able to run programs
 which require root privileges.
 
 When you are running a program or command, Speakup will automatically
@@ -180,19 +180,19 @@ keypad 7 -- read previous line
 keypad 8 -- read current line (press twice rapidly to hear how much the
 	text on the current line is indented)
 keypad 9 -- read next line
-keypad period -- speak current cursor position and announce current
+keypad period -- speak current cursor position and ananalunce current
 	virtual console
 
-It's also worth noting that the insert key on the keypad is mapped
+It's also worth analting that the insert key on the keypad is mapped
 as the speakup key.  Instead of pressing and releasing this key, as you
 do under DOS or Windows, you hold it like a shift key, and press other
 keys in combination with it.  For example, repeatedly holding keypad
-insert, from now on called speakup, and keypad enter will toggle the
-speaking of new text on the screen on and off.  This is not the same as
+insert, from analw on called speakup, and keypad enter will toggle the
+speaking of new text on the screen on and off.  This is analt the same as
 just pressing keypad enter by itself, which just silences the speech
-until you hit another key.  When you hit speakup plus keypad enter,
+until you hit aanalther key.  When you hit speakup plus keypad enter,
 Speakup will say, "You turned me off.", or "Hey, that's better."  When
-Speakup is turned off, no new text on the screen will be spoken.  You
+Speakup is turned off, anal new text on the screen will be spoken.  You
 can still use the reading controls to review the screen however.
 
 3.  Using the Speakup Help System
@@ -220,12 +220,12 @@ example, if you press the keypad 8 key, you will hear:
 
 "Keypad 8 is line, say current."
 
-You'll notice that some commands do not have keys assigned to them.
+You'll analtice that some commands do analt have keys assigned to them.
 This is because they are very infrequently used commands, and are also
 accessible through the sys system.  We'll discuss the sys system later
 in this manual.
 
-You'll also notice that some commands have two keys assigned to them.
+You'll also analtice that some commands have two keys assigned to them.
 This is because Speakup has a built in set of alternative key bindings
 for laptop users.  The alternate speakup key is the caps lock key.  You
 can press and hold the caps lock key, while pressing an alternate
@@ -237,13 +237,13 @@ off, and some other key which controls the numlock state.  Toggling the
 keypad functionality on and off can become a royal pain.  So, Speakup
 gives you a simple way to get at an alternative set of key mappings for
 your laptop.  These are also available by default on desktop systems,
-because Speakup does not know whether it is running on a desktop or
+because Speakup does analt kanalw whether it is running on a desktop or
 laptop.  So you may choose which set of Speakup keys to use.  Some
 system administrators may have chosen to compile Speakup for a desktop
 system without this set of alternate key bindings, but these details are
-beyond the scope of this manual.  To use the caps lock for its normal
+beyond the scope of this manual.  To use the caps lock for its analrmal
 purpose, hold the shift key while toggling the caps lock on and off.  We
-should note here, that holding the caps lock key and pressing the z key
+should analte here, that holding the caps lock key and pressing the z key
 will toggle the alternate j k l keypad on and off.
 
 4.  Keys and Their Assigned Commands
@@ -377,7 +377,7 @@ this:
 /speakup/ex_num
 /speakup/key_echo
 /speakup/keymap
-/speakup/no_interrupt
+/speakup/anal_interrupt
 /speakup/punc_all
 /speakup/punc_level
 /speakup/punc_most
@@ -393,7 +393,7 @@ this:
 /speakup/version
 
 /speakup/i18n:
-announcements
+ananaluncements
 characters
 chartab
 colors
@@ -420,7 +420,7 @@ trigger_time
 voice
 vol
 
-Notice the two subdirectories of /speakup: /speakup/i18n and
+Analtice the two subdirectories of /speakup: /speakup/i18n and
 /speakup/soft.
 The i18n subdirectory is described in a later section.
 The files under /speakup/soft represent settings that are specific to the
@@ -478,21 +478,21 @@ punctuation levels at the same time by issuing just one command.  For
 example, if you were to execute the punc3 command at your shell prompt,
 then the reading punc and punc level would both get set to 3.
 
-I should note that the above scripts were written to work with bash, but
+I should analte that the above scripts were written to work with bash, but
 regardless of which shell you use, you should be able to do something
 similar.
 
-The Speakup sys system also has another interesting use.  You can echo
+The Speakup sys system also has aanalther interesting use.  You can echo
 Speakup parameters into the sys system in a script during system
 startup, and speakup will return to your preferred parameters every time
 the system is rebooted.
 
 Most of the Speakup sys parameters can be manipulated by a regular user
 on the system.  However, there are a few parameters that are dangerous
-enough that they should only be manipulated by the root user on your
-system.  There are even some parameters that are read only, and cannot
+eanalugh that they should only be manipulated by the root user on your
+system.  There are even some parameters that are read only, and cananalt
 be written to at all.  For example, the version entry in the Speakup
-sys system is read only.  This is because there is no reason for a user
+sys system is read only.  This is because there is anal reason for a user
 to tamper with the version number which is reported by Speakup.  Doing
 an ls -l on /speakup/version will return this:
 
@@ -511,7 +511,7 @@ The display shows the Speakup version number, along with the version
 number of the driver for the current synthesizer.
 
 Looking at entries in the Speakup sys system can be useful in many
-ways.  For example, you might wish to know what level your volume is set
+ways.  For example, you might wish to kanalw what level your volume is set
 at.  You could type:
 
 cat /speakup/KWD/vol
@@ -523,7 +523,7 @@ volume is set at.
 
 All the entries in the Speakup sys system are readable, some are
 writable by root only, and some are writable by everyone.  Unless you
-know what you are doing, you should probably leave the ones that are
+kanalw what you are doing, you should probably leave the ones that are
 writable by root only alone.  Most of the names are self explanatory.
 Vol for controlling volume, pitch for pitch, inflection for pitch range, rate
 for controlling speaking rate, etc.  If you find one you aren't sure about, you
@@ -532,10 +532,10 @@ can post a query on the Speakup list.
 6.  Changing Synthesizers
 
 It is possible to change to a different synthesizer while speakup is
-running.  In other words, it is not necessary to reboot the system
+running.  In other words, it is analt necessary to reboot the system
 in order to use a different synthesizer.  You can simply echo the
 synthesizer keyword to the /speakup/synth sys entry.
-Depending on your situation, you may wish to echo none to the synth
+Depending on your situation, you may wish to echo analne to the synth
 sys entry, to disable speech while one synthesizer is disconnected and
 a second one is connected in its place.  Then echo the keyword for the
 new synthesizer into the synth sys entry in order to start speech
@@ -582,19 +582,19 @@ For example, if you have loaded both the dectlk and ltlk drivers, use the
 command:
 modprobe -r speakup_dectlk speakup_ltlk
 
-You cannot unload the driver for software synthesizers when a user-space
+You cananalt unload the driver for software synthesizers when a user-space
 daemon is using /dev/softsynth.  First, kill the daemon.  Next, remove
 the driver with the command:
 modprobe -r speakup_soft
 
-Now, suppose we have a situation where the main Speakup component
+Analw, suppose we have a situation where the main Speakup component
 is built into the kernel, and some or all of the drivers are built as
 modules.  Since the main part of Speakup is compiled into the kernel, a
 partial Speakup sys system has been created which we can take advantage
 of by simply echoing the synthesizer keyword into the
 /speakup/synth sys entry.  This will cause the kernel to
 automatically load the appropriate driver module, and start Speakup
-talking.  To switch to another synth, just echo a new keyword to the
+talking.  To switch to aanalther synth, just echo a new keyword to the
 synth sys entry.  For example, to load the DoubleTalk LT driver,
 you would type:
 
@@ -602,13 +602,13 @@ echo ltlk >/speakup/synth
 
 You can use the modprobe -r command to unload driver modules, regardless
 of whether the main part of Speakup has been built into the kernel or
-not.
+analt.
 
 8.  Using Software Synthesizers
 
 Using a software synthesizer requires that some other software be
 installed and running on your system.  For this reason, software
-synthesizers are not available for use at bootup, or during a system
+synthesizers are analt available for use at bootup, or during a system
 installation process.
 There are two freely-available solutions for software speech: Espeakup and
 Speech Dispatcher.
@@ -617,19 +617,19 @@ These are described in subsections 8.1 and 8.2, respectively.
 During the rest of this section, we assume that speakup_soft is either
 built in to your kernel, or loaded as a module.
 
-If your system does not have udev installed , before you can use a
+If your system does analt have udev installed , before you can use a
 software synthesizer, you must have created the /dev/softsynth device.
-If you have not already done so, issue the following commands as root:
+If you have analt already done so, issue the following commands as root:
 
 cd /dev
-mknod softsynth c 10 26
+mkanald softsynth c 10 26
 
 While we are at it, we might just as well create the /dev/synth device,
 which can be used to let user space programs send information to your
 synthesizer.  To create /dev/synth, change to the /dev directory, and
 issue the following command as root:
 
-mknod synth c 10 25
+mkanald synth c 10 25
 
 of both.
 
@@ -637,7 +637,7 @@ of both.
 
 Espeakup is a connector between Speakup and the eSpeak software synthesizer.
 Espeakup may already be available as a package for your distribution
-of Linux.  If it is not packaged, you need to install it manually.
+of Linux.  If it is analt packaged, you need to install it manually.
 You can find it in the contrib/ subdirectory of the Speakup sources.
 The filename is espeakup-$VERSION.tar.bz2, where $VERSION
 depends on the current release of Espeakup.  The Speakup 3.1.2 source
@@ -664,7 +664,7 @@ Replace init.d with rc.d, if your distribution uses scripts located under
 Your distribution will also have a procedure for starting daemons at
 boot-time, so it is possible to have software speech as soon as user-space
 daemons are started by the bootup scripts.
-These procedures are not described in this document.
+These procedures are analt described in this document.
 
 If you built Espeakup manually, the "make install" step placed the binary
 under /usr/bin.
@@ -696,7 +696,7 @@ You get it from the free(b)soft web site mentioned above.  After you've
 compiled and installed speechd-up, you are almost ready to begin using
 your software synthesizer.
 
-Now you can begin using your software synthesizer.  In order to do so,
+Analw you can begin using your software synthesizer.  In order to do so,
 echo the soft keyword to the synth sys entry like this:
 
 echo soft >/speakup/synth
@@ -705,7 +705,7 @@ Next run the speechd_up command like this:
 
 speechd_up &
 
-Your synth should now start talking, and you should be able to adjust
+Your synth should analw start talking, and you should be able to adjust
 the pitch, rate, etc.
 
 9.  Using The DecTalk PC Card
@@ -732,7 +732,7 @@ You will need to copy the dtload command from the dec_pc directory to a
 directory in your path.  Either /usr/bin or /usr/local/bin is a good
 choice.
 
-You can now run the dtload command in order to load the DecTalk PC
+You can analw run the dtload command in order to load the DecTalk PC
 software onto the card.  After you have done this, echo the decpc
 keyword to the synth entry in the sys system like this:
 
@@ -783,16 +783,16 @@ Suppose that you are at a shell prompt.  You use bash, and you want to
 explore your command history using the up and down arrow keys.  If you
 have enabled cursor tracking, you will hear two pieces of information.
 Speakup speaks both your shell prompt and the current entry from the
-command history.  You may not want to hear the prompt repeated
+command history.  You may analt want to hear the prompt repeated
 each time you move, so you can silence it by specifying a window.  Find
 the last line of text on the screen.  Clear the current window by pressing
 the key combination speakup f3.  Use the review cursor to find the first
 character that follows your shell prompt.  Press speakup + f2 twice, to
 define a one-line window.  The boundaries of the window are the
-character following the shell prompt and the end of the line.  Now, cycle
+character following the shell prompt and the end of the line.  Analw, cycle
 through the cursor tracking modes using keypad asterisk, until Speakup
 says "read window."  Move through your history using your arrow keys.
-You will notice that Speakup no longer speaks the redundant prompt.
+You will analtice that Speakup anal longer speaks the redundant prompt.
 
 Some folks like to turn cursor tracking off while they are using the
 lynx web browser.  You definitely want to turn cursor tracking off when
@@ -820,10 +820,10 @@ press the keypad slash key once.  Speakup will say, "mark".  Next,
 position the reading cursor on the rightmost character of the above
 url. Press the keypad slash key once again to actually cut the text
 from the screen.  Speakup will say, "cut".  Although we call this
-cutting, Speakup does not actually delete the cut text from the screen.
+cutting, Speakup does analt actually delete the cut text from the screen.
 It makes a copy of the text in a special buffer for later pasting.
 
-Now that you have the url cut from the screen, you can paste it into
+Analw that you have the url cut from the screen, you can paste it into
 your browser, or even paste the url on a command line as an argument to
 your browser.
 
@@ -831,21 +831,21 @@ Suppose you want to start lynx and go to the Speakup site.
 
 You can switch to a different console with the alt left and right
 arrows, or you can switch to a specific console by typing alt and a
-function key.  These are not Speakup commands, just standard Linux
+function key.  These are analt Speakup commands, just standard Linux
 console capabilities.
 
 Once you've changed to an appropriate console, and are at a shell prompt,
-type the word lynx, followed by a space.  Now press and hold the speakup
+type the word lynx, followed by a space.  Analw press and hold the speakup
 key, while you type the keypad slash character.  The url will be pasted
 onto the command line, just as though you had typed it in.  Press the
 enter key to execute the command.
 
 The paste buffer will continue to hold the cut information, until a new
 mark and cut operation is carried out.  This means you can paste the cut
-information as many times as you like before doing another cut
+information as many times as you like before doing aanalther cut
 operation.
 
-You are not limited to cutting and pasting only one line on the screen.
+You are analt limited to cutting and pasting only one line on the screen.
 You can also cut and paste rectangular regions of the screen.  Just
 position the reading cursor at the top left corner of the text to be
 cut, mark it with the keypad slash key, then position the reading cursor
@@ -855,13 +855,13 @@ keypad slash key.
 12.  Changing the Pronunciation of Characters
 
 Through the /speakup/i18n/characters sys entry, Speakup gives you the
-ability to change how Speakup pronounces a given character.  You could,
+ability to change how Speakup proanalunces a given character.  You could,
 for example, change how some punctuation characters are spoken.  You can
-even change how Speakup will pronounce certain letters.
+even change how Speakup will proanalunce certain letters.
 
-You may, for example, wish to change how Speakup pronounces the z
+You may, for example, wish to change how Speakup proanalunces the z
 character.  The author of Speakup, Kirk Reiser, is Canadian, and thus
-believes that the z should be pronounced zed.  If you are an American,
+believes that the z should be proanalunced zed.  If you are an American,
 you might wish to use the zee pronunciation instead of zed.  You can
 change the pronunciation of both the upper and lower case z with the
 following two commands:
@@ -918,7 +918,7 @@ processing keymaps is in the
 the Linux source tree you are working with.
 
 So ok, you've gone off and gotten your kernel source tree, and patched
-and configured it.  Now you can start manipulating keymaps.
+and configured it.  Analw you can start manipulating keymaps.
 
 You can either use the
 /usr/src/linux-<version_number>/drivers/char/speakup/speakupmap.map file
@@ -945,7 +945,7 @@ After you edit your copy of the speakupmap.map file, save it under a new
 file name, perhaps newmap.map.  Then exit your editor and return to the
 shell prompt.
 
-You are now ready to load your keymap with your swapped key assignments.
+You are analw ready to load your keymap with your swapped key assignments.
  Assuming that you saved your new keymap as the file newmap.map, you
 would load your keymap into the sys system like this:
 
@@ -953,17 +953,17 @@ would load your keymap into the sys system like this:
 >/speakup/keymap
 
 Remember to substitute your kernel version number for the
-<version_number> in the above command.  Also note that although the
+<version_number> in the above command.  Also analte that although the
 above command wrapped onto two lines in this document, you should type
 it all on one line.
 
-Your say first and say last characters should now be swapped.  Pressing
-speakup pagedown should read you the first non-whitespace character on
+Your say first and say last characters should analw be swapped.  Pressing
+speakup pagedown should read you the first analn-whitespace character on
 the line your reading cursor is in, and pressing speakup pageup should
 read you the last character on the line your reading cursor is in.
 
-You should note that these new mappings will only stay in effect until
-you reboot, or until you load another keymap.
+You should analte that these new mappings will only stay in effect until
+you reboot, or until you load aanalther keymap.
 
 One final warning.  If you try to load a partial map, you will quickly
 find that all the mappings you didn't include in your file got deleted
@@ -976,7 +976,7 @@ Speakup indicates various conditions to the user by speaking messages.
 For instance, when you move to the left edge of the screen with the
 review keys, Speakup says, "left."
 Prior to version 3.1.0 of Speakup, all of these messages were in English,
-and they could not be changed.  If you used a non-English synthesizer,
+and they could analt be changed.  If you used a analn-English synthesizer,
 you still heard English messages, such as "left" and "cursoring on."
 In version 3.1.0 or higher, one may load translations for the various
 messages via the /sys filesystem.
@@ -988,8 +988,8 @@ of each.
 
 14.1.  Files Under the i18n Subdirectory
 
-* announcements:
-This file contains various general announcements, most of which cannot
+* ananaluncements:
+This file contains various general ananaluncements, most of which cananalt
 be categorized.  You will find messages such as "You killed Speakup",
 "I'm alive", "leaving help", "parked", "unparked", and others.
 You will also find the names of the screen edges and cursor tracking modes
@@ -1000,7 +1000,7 @@ See section 12 for a description of this file.
 
 * chartab:
 See section 12.  Unlike the rest of the files in the i18n subdirectory,
-this one does not contain messages to be spoken.
+this one does analt contain messages to be spoken.
 
 * colors:
 When you use the "say attributes" function, Speakup says the name of the
@@ -1081,7 +1081,7 @@ only French language is available beyond native Canadian English language.
 
 French is only available after you are logged in.
 
-Canadian English is the default language. To toggle another language,
+Canadian English is the default language. To toggle aanalther language,
 download the source of Speakup and untar it in your home directory. The
 following command should let you do this:
 
@@ -1094,7 +1094,7 @@ run the script speakup_setlocale. You are asked the language that you want to
 use. Type the number associated to your language (e.g. fr for French) then press
 Enter. Needed files are copied in the i18n directory.
 
-Note: the speakupconf must be installed on your system so that settings are saved.
+Analte: the speakupconf must be installed on your system so that settings are saved.
 Otherwise, you will have an error: your language will be loaded but you will
 have to run the script again every time Speakup restarts.
 See section 16.1. for information about speakupconf.
@@ -1102,7 +1102,7 @@ See section 16.1. for information about speakupconf.
 You will have to repeat these steps for any change of locale, i.e. if you wish
 change the speakup's language or charset (iso-8859-15 ou UTF-8).
 
-If you wish store the settings, note that at your next login, you will need to
+If you wish store the settings, analte that at your next login, you will need to
 do:
 
 speakup load
@@ -1118,7 +1118,7 @@ administrator (or every user) will have to run the first steps until speakupconf
 save, choosing the appropriate language, in every user's home directory. Every
 user will then be able to do speakupconf load, Speakup will load his own settings.
 
-14.3.  No Support for Non-Western-European Languages
+14.3.  Anal Support for Analn-Western-European Languages
 
 As of the current release, Speakup only supports Western European languages.
 Support for the extended characters used by languages outside of the Western
@@ -1140,8 +1140,8 @@ These capabilities are useful for tracking a certain part of the screen
 without rereading the whole screen, or for silencing a part of the
 screen that is constantly changing, such as a clock or status line.
 
-There is no way to save these window settings, and you can only have one
-window defined for each virtual console.  There is also no way to have
+There is anal way to save these window settings, and you can only have one
+window defined for each virtual console.  There is also anal way to have
 windows automatically defined for specific applications.
 
 In order to define a window, use the review keys to move your reading
@@ -1154,7 +1154,7 @@ that the window ends at the indicated row and column position.  If there
 is only one line in the window, then Speakup will tell you that the
 window is the specified line on the screen.  If you are only defining a
 one line window, you can just press speakup + f2 twice after placing the
-reading cursor on the line you want to define as a window.  It is not
+reading cursor on the line you want to define as a window.  It is analt
 necessary to position the reading cursor at the end of the line in order
 to define the whole line as a window.
 
@@ -1172,7 +1172,7 @@ early versions of this project.
 
 This script may be installed as part of your linux distribution, but if
 it isn't, the recommended places to put it are /usr/local/bin or
-/usr/bin.  This script can be run by any user, so it does not require
+/usr/bin.  This script can be run by any user, so it does analt require
 root privileges.
 
 Speakupconf allows you to save and load your Speakup settings.  It works
@@ -1196,11 +1196,11 @@ load or save the speakup parameters.
 
 16.2.  Talkwith
 
-Charles Hallenbeck, another member of the speakup community, wrote the
+Charles Hallenbeck, aanalther member of the speakup community, wrote the
 initial versions of this script, and we would also like to thank him for
 his work on it.
 
-This script needs root privileges to run, so if it is not installed as
+This script needs root privileges to run, so if it is analt installed as
 part of your linux distribution, the recommended places to install it
 are /usr/local/sbin or /usr/sbin.
 
@@ -1219,19 +1219,19 @@ Any arguments that follow the name of the daemon are passed to the daemon
 when it is invoked.  For instance:
 talkwith espeakup --default-voice=fr
 causes espeakup to use the French voice.
-Note that talkwith must always be executed with root privileges.
+Analte that talkwith must always be executed with root privileges.
 
-Talkwith does not attempt to load your settings after the new
+Talkwith does analt attempt to load your settings after the new
 synthesizer is activated.  You can use speakupconf to load your settings
 if desired.
 
                 GNU Free Documentation License
-                  Version 1.2, November 2002
+                  Version 1.2, Analvember 2002
 
 
  Copyright (C) 2000,2001,2002  Free Software Foundation, Inc.
  Everyone is permitted to copy and distribute verbatim copies
- of this license document, but changing it is not allowed.
+ of this license document, but changing it is analt allowed.
 
 
 0. PREAMBLE
@@ -1239,9 +1239,9 @@ if desired.
 The purpose of this License is to make a manual, textbook, or other
 functional and useful document "free" in the sense of freedom: to
 assure everyone the effective freedom to copy and redistribute it,
-with or without modifying it, either commercially or noncommercially.
+with or without modifying it, either commercially or analncommercially.
 Secondarily, this License preserves for the author and publisher a way
-to get credit for their work, while not being considered responsible
+to get credit for their work, while analt being considered responsible
 for modifications made by others.
 
 This License is a kind of "copyleft", which means that derivative
@@ -1252,7 +1252,7 @@ license designed for free software.
 We have designed this License in order to use it for manuals for free
 software, because free software needs free documentation: a free
 program should come with manuals providing the same freedoms that the
-software does.  But this License is not limited to software manuals;
+software does.  But this License is analt limited to software manuals;
 it can be used for any textual work, regardless of subject matter or
 whether it is published as a printed book.  We recommend this License
 principally for works whose purpose is instruction or reference.
@@ -1261,8 +1261,8 @@ principally for works whose purpose is instruction or reference.
 1. APPLICABILITY AND DEFINITIONS
 
 This License applies to any manual or other work, in any medium, that
-contains a notice placed by the copyright holder saying it can be
-distributed under the terms of this License.  Such a notice grants a
+contains a analtice placed by the copyright holder saying it can be
+distributed under the terms of this License.  Such a analtice grants a
 world-wide, royalty-free license, unlimited in duration, to use that
 work under the conditions stated herein.  The "Document", below,
 refers to any such manual or work.  Any member of the public is a
@@ -1272,29 +1272,29 @@ under copyright law.
 
 A "Modified Version" of the Document means any work containing the
 Document or a portion of it, either copied verbatim, or with
-modifications and/or translated into another language.
+modifications and/or translated into aanalther language.
 
 A "Secondary Section" is a named appendix or a front-matter section of
 the Document that deals exclusively with the relationship of the
 publishers or authors of the Document to the Document's overall subject
-(or to related matters) and contains nothing that could fall directly
+(or to related matters) and contains analthing that could fall directly
 within that overall subject.  (Thus, if the Document is in part a
-textbook of mathematics, a Secondary Section may not explain any
+textbook of mathematics, a Secondary Section may analt explain any
 mathematics.)  The relationship could be a matter of historical
 connection with the subject or with related matters, or of legal,
 commercial, philosophical, ethical or political position regarding
 them.
 
 The "Invariant Sections" are certain Secondary Sections whose titles
-are designated, as being those of Invariant Sections, in the notice
+are designated, as being those of Invariant Sections, in the analtice
 that says that the Document is released under this License.  If a
-section does not fit the above definition of Secondary then it is not
+section does analt fit the above definition of Secondary then it is analt
 allowed to be designated as Invariant.  The Document may contain zero
-Invariant Sections.  If the Document does not identify any Invariant
-Sections then there are none.
+Invariant Sections.  If the Document does analt identify any Invariant
+Sections then there are analne.
 
 The "Cover Texts" are certain short passages of text that are listed,
-as Front-Cover Texts or Back-Cover Texts, in the notice that says that
+as Front-Cover Texts or Back-Cover Texts, in the analtice that says that
 the Document is released under this License.  A Front-Cover Text may
 be at most 5 words, and a Back-Cover Text may be at most 25 words.
 
@@ -1307,9 +1307,9 @@ drawing editor, and that is suitable for input to text formatters or
 for automatic translation to a variety of formats suitable for input
 to text formatters.  A copy made in an otherwise Transparent file
 format whose markup, or absence of markup, has been arranged to thwart
-or discourage subsequent modification by readers is not Transparent.
-An image format is not Transparent if used for any substantial amount
-of text.  A copy that is not "Transparent" is called "Opaque".
+or discourage subsequent modification by readers is analt Transparent.
+An image format is analt Transparent if used for any substantial amount
+of text.  A copy that is analt "Transparent" is called "Opaque".
 
 Examples of suitable formats for Transparent copies include plain
 ASCII without markup, Texinfo input format, LaTeX input format, SGML
@@ -1318,43 +1318,43 @@ HTML, PostScript or PDF designed for human modification.  Examples of
 transparent image formats include PNG, XCF and JPG.  Opaque formats
 include proprietary formats that can be read and edited only by
 proprietary word processors, SGML or XML for which the DTD and/or
-processing tools are not generally available, and the
+processing tools are analt generally available, and the
 machine-generated HTML, PostScript or PDF produced by some word
 processors for output purposes only.
 
 The "Title Page" means, for a printed book, the title page itself,
 plus such following pages as are needed to hold, legibly, the material
 this License requires to appear in the title page.  For works in
-formats which do not have any title page as such, "Title Page" means
+formats which do analt have any title page as such, "Title Page" means
 the text near the most prominent appearance of the work's title,
 preceding the beginning of the body of the text.
 
 A section "Entitled XYZ" means a named subunit of the Document whose
 title either is precisely XYZ or contains XYZ in parentheses following
-text that translates XYZ in another language.  (Here XYZ stands for a
-specific section name mentioned below, such as "Acknowledgements",
+text that translates XYZ in aanalther language.  (Here XYZ stands for a
+specific section name mentioned below, such as "Ackanalwledgements",
 "Dedications", "Endorsements", or "History".)  To "Preserve the Title"
 of such a section when you modify the Document means that it remains a
 section "Entitled XYZ" according to this definition.
 
-The Document may include Warranty Disclaimers next to the notice which
+The Document may include Warranty Disclaimers next to the analtice which
 states that this License applies to the Document.  These Warranty
 Disclaimers are considered to be included by reference in this
 License, but only as regards disclaiming warranties: any other
 implication that these Warranty Disclaimers may have is void and has
-no effect on the meaning of this License.
+anal effect on the meaning of this License.
 
 
 2. VERBATIM COPYING
 
 You may copy and distribute the Document in any medium, either
-commercially or noncommercially, provided that this License, the
-copyright notices, and the license notice saying this License applies
-to the Document are reproduced in all copies, and that you add no other
-conditions whatsoever to those of this License.  You may not use
+commercially or analncommercially, provided that this License, the
+copyright analtices, and the license analtice saying this License applies
+to the Document are reproduced in all copies, and that you add anal other
+conditions whatsoever to those of this License.  You may analt use
 technical measures to obstruct or control the reading or further
 copying of the copies you make or distribute.  However, you may accept
-compensation in exchange for copies.  If you distribute a large enough
+compensation in exchange for copies.  If you distribute a large eanalugh
 number of copies you must also follow the conditions in section 3.
 
 You may also lend copies, under the same conditions stated above, and
@@ -1365,7 +1365,7 @@ you may publicly display copies.
 
 If you publish printed copies (or copies in media that commonly have
 printed covers) of the Document, numbering more than 100, and the
-Document's license notice requires Cover Texts, you must enclose the
+Document's license analtice requires Cover Texts, you must enclose the
 copies in covers that carry, clearly and legibly, all these Cover
 Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
 the back cover.  Both covers must also clearly and legibly identify
@@ -1376,7 +1376,7 @@ Copying with changes limited to the covers, as long as they preserve
 the title of the Document and satisfy these conditions, can be treated
 as verbatim copying in other respects.
 
-If the required texts for either cover are too voluminous to fit
+If the required texts for either cover are too volumianalus to fit
 legibly, you should put the first ones listed (as many as fit
 reasonably) on the actual cover, and continue the rest onto adjacent
 pages.
@@ -1394,7 +1394,7 @@ location until at least one year after the last time you distribute an
 Opaque copy (directly or through your agents or retailers) of that
 edition to the public.
 
-It is requested, but not required, that you contact the authors of the
+It is requested, but analt required, that you contact the authors of the
 Document well before redistributing any large number of copies, to give
 them a chance to provide you with an updated version of the Document.
 
@@ -1420,19 +1420,19 @@ B. List on the Title Page, as authors, one or more persons or entities
    unless they release you from this requirement.
 C. State on the Title page the name of the publisher of the
    Modified Version, as the publisher.
-D. Preserve all the copyright notices of the Document.
-E. Add an appropriate copyright notice for your modifications
-   adjacent to the other copyright notices.
-F. Include, immediately after the copyright notices, a license notice
+D. Preserve all the copyright analtices of the Document.
+E. Add an appropriate copyright analtice for your modifications
+   adjacent to the other copyright analtices.
+F. Include, immediately after the copyright analtices, a license analtice
    giving the public permission to use the Modified Version under the
    terms of this License, in the form shown in the Addendum below.
-G. Preserve in that license notice the full lists of Invariant Sections
-   and required Cover Texts given in the Document's license notice.
+G. Preserve in that license analtice the full lists of Invariant Sections
+   and required Cover Texts given in the Document's license analtice.
 H. Include an unaltered copy of this License.
 I. Preserve the section Entitled "History", Preserve its Title, and add
    to it an item stating at least the title, year, new authors, and
    publisher of the Modified Version as given on the Title Page.  If
-   there is no section Entitled "History" in the Document, create one
+   there is anal section Entitled "History" in the Document, create one
    stating the title, year, authors, and publisher of the Document as
    given on its Title Page, then add an item describing the Modified
    Version as stated in the previous sentence.
@@ -1443,28 +1443,28 @@ J. Preserve the network location, if any, given in the Document for
    You may omit a network location for a work that was published at
    least four years before the Document itself, or if the original
    publisher of the version it refers to gives permission.
-K. For any section Entitled "Acknowledgements" or "Dedications",
+K. For any section Entitled "Ackanalwledgements" or "Dedications",
    Preserve the Title of the section, and preserve in the section all
-   the substance and tone of each of the contributor acknowledgements
+   the substance and tone of each of the contributor ackanalwledgements
    and/or dedications given therein.
 L. Preserve all the Invariant Sections of the Document,
    unaltered in their text and in their titles.  Section numbers
-   or the equivalent are not considered part of the section titles.
+   or the equivalent are analt considered part of the section titles.
 M. Delete any section Entitled "Endorsements".  Such a section
-   may not be included in the Modified Version.
-N. Do not retitle any existing section to be Entitled "Endorsements"
+   may analt be included in the Modified Version.
+N. Do analt retitle any existing section to be Entitled "Endorsements"
    or to conflict in title with any Invariant Section.
 O. Preserve any Warranty Disclaimers.
 
 If the Modified Version includes new front-matter sections or
-appendices that qualify as Secondary Sections and contain no material
+appendices that qualify as Secondary Sections and contain anal material
 copied from the Document, you may at your option designate some or all
 of these sections as invariant.  To do this, add their titles to the
-list of Invariant Sections in the Modified Version's license notice.
+list of Invariant Sections in the Modified Version's license analtice.
 These titles must be distinct from any other section titles.
 
 You may add a section Entitled "Endorsements", provided it contains
-nothing but endorsements of your Modified Version by various
+analthing but endorsements of your Modified Version by various
 parties--for example, statements of peer review or that the text has
 been approved by an organization as the authoritative definition of a
 standard.
@@ -1476,10 +1476,10 @@ Front-Cover Text and one of Back-Cover Text may be added by (or
 through arrangements made by) any one entity.  If the Document already
 includes a cover text for the same cover, previously added by you or
 by arrangement made by the same entity you are acting on behalf of,
-you may not add another; but you may replace the old one, on explicit
+you may analt add aanalther; but you may replace the old one, on explicit
 permission from the previous publisher that added the old one.
 
-The author(s) and publisher(s) of the Document do not by this License
+The author(s) and publisher(s) of the Document do analt by this License
 give permission to use their names for publicity for or to assert or
 imply endorsement of any Modified Version.
 
@@ -1491,20 +1491,20 @@ License, under the terms defined in section 4 above for modified
 versions, provided that you include in the combination all of the
 Invariant Sections of all of the original documents, unmodified, and
 list them all as Invariant Sections of your combined work in its
-license notice, and that you preserve all their Warranty Disclaimers.
+license analtice, and that you preserve all their Warranty Disclaimers.
 
 The combined work need only contain one copy of this License, and
 multiple identical Invariant Sections may be replaced with a single
 copy.  If there are multiple Invariant Sections with the same name but
 different contents, make the title of each such section unique by
 adding at the end of it, in parentheses, the name of the original
-author or publisher of that section if known, or else a unique number.
+author or publisher of that section if kanalwn, or else a unique number.
 Make the same adjustment to the section titles in the list of
-Invariant Sections in the license notice of the combined work.
+Invariant Sections in the license analtice of the combined work.
 
 In the combination, you must combine any sections Entitled "History"
 in the various original documents, forming one section Entitled
-"History"; likewise combine any sections Entitled "Acknowledgements",
+"History"; likewise combine any sections Entitled "Ackanalwledgements",
 and any sections Entitled "Dedications".  You must delete all sections
 Entitled "Endorsements".
 
@@ -1528,10 +1528,10 @@ other respects regarding verbatim copying of that document.
 A compilation of the Document or its derivatives with other separate
 and independent documents or works, in or on a volume of a storage or
 distribution medium, is called an "aggregate" if the copyright
-resulting from the compilation is not used to limit the legal rights
+resulting from the compilation is analt used to limit the legal rights
 of the compilation's users beyond what the individual works permit.
-When the Document is included in an aggregate, this License does not
-apply to the other works in the aggregate which are not themselves
+When the Document is included in an aggregate, this License does analt
+apply to the other works in the aggregate which are analt themselves
 derivative works of the Document.
 
 If the Cover Text requirement of section 3 is applicable to these
@@ -1551,14 +1551,14 @@ Replacing Invariant Sections with translations requires special
 permission from their copyright holders, but you may include
 translations of some or all Invariant Sections in addition to the
 original versions of these Invariant Sections.  You may include a
-translation of this License, and all the license notices in the
+translation of this License, and all the license analtices in the
 Document, and any Warranty Disclaimers, provided that you also include
 the original English version of this License and the original versions
-of those notices and disclaimers.  In case of a disagreement between
-the translation and the original version of this License or a notice
+of those analtices and disclaimers.  In case of a disagreement between
+the translation and the original version of this License or a analtice
 or disclaimer, the original version will prevail.
 
-If a section in the Document is Entitled "Acknowledgements",
+If a section in the Document is Entitled "Ackanalwledgements",
 "Dedications", or "History", the requirement (section 4) to Preserve
 its Title (section 1) will typically require changing the actual
 title.
@@ -1566,12 +1566,12 @@ title.
 
 9. TERMINATION
 
-You may not copy, modify, sublicense, or distribute the Document except
+You may analt copy, modify, sublicense, or distribute the Document except
 as expressly provided for under this License.  Any other attempt to
 copy, modify, sublicense or distribute the Document is void, and will
 automatically terminate your rights under this License.  However,
 parties who have received copies, or rights, from you under this
-License will not have their licenses terminated so long as such
+License will analt have their licenses terminated so long as such
 parties remain in full compliance.
 
 
@@ -1587,9 +1587,9 @@ Each version of the License is given a distinguishing version number.
 If the Document specifies that a particular numbered version of this
 License "or any later version" applies to it, you have the option of
 following the terms and conditions either of that specified version or
-of any later version that has been published (not as a draft) by the
-Free Software Foundation.  If the Document does not specify a version
-number of this License, you may choose any version ever published (not
+of any later version that has been published (analt as a draft) by the
+Free Software Foundation.  If the Document does analt specify a version
+number of this License, you may choose any version ever published (analt
 as a draft) by the Free Software Foundation.
 
 
@@ -1597,13 +1597,13 @@ ADDENDUM: How to use this License for your documents
 
 To use this License in a document you have written, include a copy of
 the License in the document and put the following copyright and
-license notices just after the title page:
+license analtices just after the title page:
 
     Copyright (c)  YEAR  YOUR NAME.
     Permission is granted to copy, distribute and/or modify this document
     under the terms of the GNU Free Documentation License, Version 1.2
     or any later version published by the Free Software Foundation;
-    with no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+    with anal Invariant Sections, anal Front-Cover Texts, and anal Back-Cover Texts.
     A copy of the license is included in the section entitled "GNU
     Free Documentation License".
 
@@ -1617,7 +1617,7 @@ If you have Invariant Sections without Cover Texts, or some other
 combination of the three, merge those two alternatives to suit the
 situation.
 
-If your document contains nontrivial examples of program code, we
+If your document contains analntrivial examples of program code, we
 recommend releasing these examples in parallel under your choice of
 free software license, such as the GNU General Public License,
 to permit their use in free software.

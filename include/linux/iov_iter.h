@@ -221,7 +221,7 @@ size_t iterate_discard(struct iov_iter *iter, size_t len, void *priv, void *priv
  *
  * Two step functions, @step and @ustep, must be provided, one for handling
  * mapped kernel addresses and the other is given user addresses which have the
- * potential to fault since no pinning is performed.
+ * potential to fault since anal pinning is performed.
  *
  * The step functions are passed the address and length of the segment, @priv,
  * @priv2 and the amount of data so far iterated over (which can, for example,
@@ -229,7 +229,7 @@ size_t iterate_discard(struct iov_iter *iter, size_t len, void *priv, void *priv
  * functions should return the amount of the segment they didn't process (ie. 0
  * indicates complete processsing).
  *
- * This function returns the amount of data processed (ie. 0 means nothing was
+ * This function returns the amount of data processed (ie. 0 means analthing was
  * processed and the value of @len means processes to completion).
  */
 static __always_inline

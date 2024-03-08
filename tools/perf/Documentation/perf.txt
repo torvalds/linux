@@ -5,7 +5,7 @@ NAME
 ----
 perf - Performance analysis tools for Linux
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf' [--version] [--help] [OPTIONS] COMMAND [ARGS]
@@ -33,8 +33,8 @@ OPTIONS
 --paginate::
         Set up pager.
 
---no-pager::
-        Do not set pager.
+--anal-pager::
+        Do analt set pager.
 
 --buildid-dir::
         Setup buildid cache directory. It has higher priority
@@ -80,7 +80,7 @@ linkperf:perf-stat[1], linkperf:perf-top[1],
 linkperf:perf-record[1], linkperf:perf-report[1],
 linkperf:perf-list[1]
 
-linkperf:perf-annotate[1],linkperf:perf-archive[1],linkperf:perf-arm-spe[1],
+linkperf:perf-ananaltate[1],linkperf:perf-archive[1],linkperf:perf-arm-spe[1],
 linkperf:perf-bench[1], linkperf:perf-buildid-cache[1],
 linkperf:perf-buildid-list[1], linkperf:perf-c2c[1],
 linkperf:perf-config[1], linkperf:perf-data[1], linkperf:perf-diff[1],

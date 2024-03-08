@@ -93,7 +93,7 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 	if (flag & CXGB4_ETH_DUMP_FLASH)
 		len += adap->params.sf_size;
 
-	/* If compression is enabled, a smaller destination buffer is enough */
+	/* If compression is enabled, a smaller destination buffer is eanalugh */
 	wsize = cudbg_get_workspace_size();
 	if (wsize && len > CUDBG_DUMP_BUFF_SIZE)
 		len = CUDBG_DUMP_BUFF_SIZE;
@@ -147,7 +147,7 @@ static int cudbg_alloc_compress_buff(struct cudbg_init *pdbg_init)
 	pdbg_init->compress_buff = vzalloc(CUDBG_COMPRESS_BUFF_SIZE +
 					   workspace_size);
 	if (!pdbg_init->compress_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdbg_init->compress_buff_size = CUDBG_COMPRESS_BUFF_SIZE;
 	pdbg_init->workspace = (u8 *)pdbg_init->compress_buff +
@@ -184,7 +184,7 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 	cudbg_hdr->signature = CUDBG_SIGNATURE;
 	cudbg_hdr->hdr_len = sizeof(struct cudbg_hdr);
 	cudbg_hdr->major_ver = CUDBG_MAJOR_VERSION;
-	cudbg_hdr->minor_ver = CUDBG_MINOR_VERSION;
+	cudbg_hdr->mianalr_ver = CUDBG_MIANALR_VERSION;
 	cudbg_hdr->max_entities = CUDBG_MAX_ENTITY;
 	cudbg_hdr->chip_ver = adap->params.chip;
 	cudbg_hdr->dump_type = CUDBG_DUMP_TYPE_MINI;
@@ -193,7 +193,7 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 		   sizeof(struct cudbg_entity_hdr) *
 		   cudbg_hdr->max_entities;
 	if (size < min_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = cudbg_get_workspace_size();
 	if (rc) {
@@ -201,15 +201,15 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 		cudbg_init.compress_type = CUDBG_COMPRESSION_ZLIB;
 		rc = cudbg_alloc_compress_buff(&cudbg_init);
 		if (rc) {
-			/* Ignore error and continue without compression. */
+			/* Iganalre error and continue without compression. */
 			dev_warn(adap->pdev_dev,
 				 "Fail allocating compression buffer ret: %d.  Continuing without compression.\n",
 				 rc);
-			cudbg_init.compress_type = CUDBG_COMPRESSION_NONE;
+			cudbg_init.compress_type = CUDBG_COMPRESSION_ANALNE;
 			rc = 0;
 		}
 	} else {
-		cudbg_init.compress_type = CUDBG_COMPRESSION_NONE;
+		cudbg_init.compress_type = CUDBG_COMPRESSION_ANALNE;
 	}
 
 	cudbg_hdr->compress_type = cudbg_init.compress_type;
@@ -239,7 +239,7 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 
 	cudbg_free_compress_buff(&cudbg_init);
 	cudbg_hdr->data_len = total_size;
-	if (cudbg_init.compress_type != CUDBG_COMPRESSION_NONE)
+	if (cudbg_init.compress_type != CUDBG_COMPRESSION_ANALNE)
 		*buf_size = size;
 	else
 		*buf_size = total_size;
@@ -248,7 +248,7 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 
 void cxgb4_init_ethtool_dump(struct adapter *adapter)
 {
-	adapter->eth_dump.flag = CXGB4_ETH_DUMP_NONE;
+	adapter->eth_dump.flag = CXGB4_ETH_DUMP_ANALNE;
 	adapter->eth_dump.version = adapter->params.fw_vers;
 	adapter->eth_dump.len = 0;
 }

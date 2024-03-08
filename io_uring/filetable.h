@@ -39,13 +39,13 @@ io_fixed_file_slot(struct io_file_table *table, unsigned i)
 	return &table->files[i];
 }
 
-#define FFS_NOWAIT		0x1UL
+#define FFS_ANALWAIT		0x1UL
 #define FFS_ISREG		0x2UL
-#define FFS_MASK		~(FFS_NOWAIT|FFS_ISREG)
+#define FFS_MASK		~(FFS_ANALWAIT|FFS_ISREG)
 
 static inline unsigned int io_slot_flags(struct io_fixed_file *slot)
 {
-	return (slot->file_ptr & ~FFS_MASK) << REQ_F_SUPPORT_NOWAIT_BIT;
+	return (slot->file_ptr & ~FFS_MASK) << REQ_F_SUPPORT_ANALWAIT_BIT;
 }
 
 static inline struct file *io_slot_file(struct io_fixed_file *slot)
@@ -63,7 +63,7 @@ static inline void io_fixed_file_set(struct io_fixed_file *file_slot,
 				     struct file *file)
 {
 	file_slot->file_ptr = (unsigned long)file |
-		(io_file_get_flags(file) >> REQ_F_SUPPORT_NOWAIT_BIT);
+		(io_file_get_flags(file) >> REQ_F_SUPPORT_ANALWAIT_BIT);
 }
 
 static inline void io_reset_alloc_hint(struct io_ring_ctx *ctx)

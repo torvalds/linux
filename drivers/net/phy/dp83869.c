@@ -167,8 +167,8 @@ static int dp83869_read_status(struct phy_device *phydev)
 			if (dp83869->mode == DP83869_RGMII_100_BASE)
 				phydev->speed = SPEED_100;
 		} else {
-			phydev->speed = SPEED_UNKNOWN;
-			phydev->duplex = DUPLEX_UNKNOWN;
+			phydev->speed = SPEED_UNKANALWN;
+			phydev->duplex = DUPLEX_UNKANALWN;
 		}
 	}
 
@@ -225,17 +225,17 @@ static irqreturn_t dp83869_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_DP83869_ISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	irq_enabled = phy_read(phydev, MII_DP83869_MICR);
 	if (irq_enabled < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & irq_enabled))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -477,7 +477,7 @@ static int dp83869_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return dp83869_get_downshift(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -488,7 +488,7 @@ static int dp83869_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return dp83869_set_downshift(phydev, *(const u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -529,22 +529,22 @@ static int dp83869_of_init(struct phy_device *phydev)
 {
 	struct dp83869_private *dp83869 = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	int delay_size = ARRAY_SIZE(dp83869_internal_delay);
 	int ret;
 
-	if (!of_node)
-		return -ENODEV;
+	if (!of_analde)
+		return -EANALDEV;
 
 	dp83869->io_impedance = -EINVAL;
 
 	/* Optional configuration */
-	ret = of_property_read_u32(of_node, "ti,clk-output-sel",
+	ret = of_property_read_u32(of_analde, "ti,clk-output-sel",
 				   &dp83869->clk_output_sel);
 	if (ret || dp83869->clk_output_sel > DP83869_CLK_O_SEL_REF_CLK)
 		dp83869->clk_output_sel = DP83869_CLK_O_SEL_REF_CLK;
 
-	ret = of_property_read_u32(of_node, "ti,op-mode", &dp83869->mode);
+	ret = of_property_read_u32(of_analde, "ti,op-mode", &dp83869->mode);
 	if (ret == 0) {
 		if (dp83869->mode < DP83869_RGMII_COPPER_ETHERNET ||
 		    dp83869->mode > DP83869_SGMII_COPPER_ETHERNET)
@@ -555,15 +555,15 @@ static int dp83869_of_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	if (of_property_read_bool(of_node, "ti,max-output-impedance"))
+	if (of_property_read_bool(of_analde, "ti,max-output-impedance"))
 		dp83869->io_impedance = DP83869_IO_MUX_CFG_IO_IMPEDANCE_MAX;
-	else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
+	else if (of_property_read_bool(of_analde, "ti,min-output-impedance"))
 		dp83869->io_impedance = DP83869_IO_MUX_CFG_IO_IMPEDANCE_MIN;
 
-	if (of_property_read_bool(of_node, "enet-phy-lane-swap")) {
+	if (of_property_read_bool(of_analde, "enet-phy-lane-swap")) {
 		dp83869->port_mirroring = DP83869_PORT_MIRRORING_EN;
 	} else {
-		/* If the lane swap is not in the DT then check the straps */
+		/* If the lane swap is analt in the DT then check the straps */
 		ret = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_STRAP_STS1);
 		if (ret < 0)
 			return ret;
@@ -576,11 +576,11 @@ static int dp83869_of_init(struct phy_device *phydev)
 		ret = 0;
 	}
 
-	if (of_property_read_u32(of_node, "rx-fifo-depth",
+	if (of_property_read_u32(of_analde, "rx-fifo-depth",
 				 &dp83869->rx_fifo_depth))
 		dp83869->rx_fifo_depth = DP83869_PHYCR_FIFO_DEPTH_4_B_NIB;
 
-	if (of_property_read_u32(of_node, "tx-fifo-depth",
+	if (of_property_read_u32(of_analde, "tx-fifo-depth",
 				 &dp83869->tx_fifo_depth))
 		dp83869->tx_fifo_depth = DP83869_PHYCR_FIFO_DEPTH_4_B_NIB;
 
@@ -656,7 +656,7 @@ static int dp83869_configure_fiber(struct phy_device *phydev,
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
 				 phydev->supported);
 
-		/* Auto neg is not supported in 100base FX mode */
+		/* Auto neg is analt supported in 100base FX mode */
 		bmcr = phy_read(phydev, MII_BMCR);
 		if (bmcr < 0)
 			return bmcr;
@@ -698,7 +698,7 @@ static int dp83869_configure_mode(struct phy_device *phydev,
 		    dp83869->mode == DP83869_RGMII_100_BASE) {
 			phy_ctrl_val |= DP83869_OP_MODE_MII;
 		} else {
-			phydev_err(phydev, "selected op-mode is not valid with MII mode\n");
+			phydev_err(phydev, "selected op-mode is analt valid with MII mode\n");
 			return -EINVAL;
 		}
 	}
@@ -857,7 +857,7 @@ static int dp83869_probe(struct phy_device *phydev)
 	dp83869 = devm_kzalloc(&phydev->mdio.dev, sizeof(*dp83869),
 			       GFP_KERNEL);
 	if (!dp83869)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = dp83869;
 

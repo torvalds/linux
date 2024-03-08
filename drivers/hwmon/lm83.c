@@ -33,7 +33,7 @@
  * addresses.
  */
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
 enum chips { lm83, lm82 };
@@ -217,7 +217,7 @@ static int lm83_temp_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = !!(regval & LM83_FAULT_BIT[channel]);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -242,7 +242,7 @@ static int lm83_temp_write(struct device *dev, u32 attr, int channel, long val)
 			return err;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -265,7 +265,7 @@ static int lm83_chip_read(struct device *dev, u32 attr, int channel, long *val)
 		*val |= regval << 8;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -280,7 +280,7 @@ static int lm83_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return lm83_temp_read(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -291,7 +291,7 @@ static int lm83_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return lm83_temp_write(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -363,7 +363,7 @@ static const struct hwmon_chip_info lm83_chip_info = {
 	.info = lm83_info,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm83_detect(struct i2c_client *client,
 		       struct i2c_board_info *info)
 {
@@ -372,7 +372,7 @@ static int lm83_detect(struct i2c_client *client,
 	u8 man_id, chip_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Detection */
 	if ((i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS1) & 0xA8) ||
@@ -380,13 +380,13 @@ static int lm83_detect(struct i2c_client *client,
 	    (i2c_smbus_read_byte_data(client, LM83_REG_R_CONFIG) & 0x41)) {
 		dev_dbg(&adapter->dev, "LM83 detection failed at 0x%02x\n",
 			client->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Identification */
 	man_id = i2c_smbus_read_byte_data(client, LM83_REG_R_MAN_ID);
 	if (man_id != 0x01)	/* National Semiconductor */
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip_id = i2c_smbus_read_byte_data(client, LM83_REG_R_CHIP_ID);
 	switch (chip_id) {
@@ -409,7 +409,7 @@ static int lm83_detect(struct i2c_client *client,
 		dev_dbg(&adapter->dev,
 			"Unsupported chip (man_id=0x%02X, chip_id=0x%02X)\n",
 			man_id, chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
@@ -432,7 +432,7 @@ static int lm83_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm83_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = devm_regmap_init(dev, NULL, client, &lm83_regmap_config);
 	if (IS_ERR(data->regmap))
@@ -457,7 +457,7 @@ static struct i2c_driver lm83_driver = {
 	.probe		= lm83_probe,
 	.id_table	= lm83_id,
 	.detect		= lm83_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm83_driver);

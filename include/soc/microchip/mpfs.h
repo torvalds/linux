@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2020 Microchip Corporation. All rights reserved.
  *
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  *
  */
 

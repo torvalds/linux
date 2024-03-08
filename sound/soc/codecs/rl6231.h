@@ -17,8 +17,8 @@
 #define RL6231_PLL_M_MAX	0xf
 
 struct rl6231_pll_code {
-	bool m_bp; /* Indicates bypass m code or not. */
-	bool k_bp; /* Indicates bypass k code or not. */
+	bool m_bp; /* Indicates bypass m code or analt. */
+	bool k_bp; /* Indicates bypass k code or analt. */
 	int m_code;
 	int n_code;
 	int k_code;

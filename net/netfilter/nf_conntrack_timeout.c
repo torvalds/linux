@@ -38,7 +38,7 @@ static int untimeout(struct nf_conn *ct, void *timeout)
 			RCU_INIT_POINTER(timeout_ext->timeout, NULL);
 	}
 
-	/* We are not intended to delete this conntrack. */
+	/* We are analt intended to delete this conntrack. */
 	return 0;
 }
 
@@ -73,15 +73,15 @@ int nf_ct_set_timeout(struct net *net, struct nf_conn *ct,
 	rcu_read_lock();
 	h = rcu_dereference(nf_ct_timeout_hook);
 	if (!h) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		errmsg = "Timeout policy base is empty";
 		goto out;
 	}
 
 	timeout = h->timeout_find_get(net, timeout_name);
 	if (!timeout) {
-		ret = -ENOENT;
-		pr_info_ratelimited("No such timeout policy \"%s\"\n",
+		ret = -EANALENT;
+		pr_info_ratelimited("Anal such timeout policy \"%s\"\n",
 				    timeout_name);
 		goto out;
 	}
@@ -105,7 +105,7 @@ int nf_ct_set_timeout(struct net *net, struct nf_conn *ct,
 	}
 	timeout_ext = nf_ct_timeout_ext_add(ct, timeout, GFP_ATOMIC);
 	if (!timeout_ext) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_timeout;
 	}
 

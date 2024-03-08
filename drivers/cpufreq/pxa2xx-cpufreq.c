@@ -7,11 +7,11 @@
  *   29-Jan-2003 : added PXA255 support [FB]
  *   20-Apr-2003 : ported to v2.5 (Dustin McIntire, Sensoria Corp.)
  *
- * Note:
- *   This driver may change the memory bus clock rate, but will not do any
+ * Analte:
+ *   This driver may change the memory bus clock rate, but will analt do any
  *   platform specific access timing changes... for example if you have flash
  *   memory connected to CS0, you will need to register a platform specific
- *   notifier which will adjust the memory access strobes to maintain a
+ *   analtifier which will adjust the memory access strobes to maintain a
  *   minimum strobe width.
  */
 
@@ -167,7 +167,7 @@ static void pxa27x_guess_max_freq(void)
 {
 	if (!pxa27x_maxfreq) {
 		pxa27x_maxfreq = 416000;
-		pr_info("PXA CPU 27x max frequency not defined (pxa27x_maxfreq), assuming pxa271 with %dkHz maxfreq\n",
+		pr_info("PXA CPU 27x max frequency analt defined (pxa27x_maxfreq), assuming pxa271 with %dkHz maxfreq\n",
 			pxa27x_maxfreq);
 	} else {
 		pxa27x_maxfreq *= 1000;
@@ -208,10 +208,10 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 
 	/*
 	 * Even if voltage setting fails, we don't report it, as the frequency
-	 * change succeeded. The voltage reduction is not a critical failure,
+	 * change succeeded. The voltage reduction is analt a critical failure,
 	 * only power savings will suffer from this.
 	 *
-	 * Note: if the voltage change fails, and a return value is returned, a
+	 * Analte: if the voltage change fails, and a return value is returned, a
 	 * bug is triggered (seems a deadlock). Should anybody find out where,
 	 * the "return 0" should become a "return ret".
 	 */
@@ -297,7 +297,7 @@ static struct cpufreq_driver pxa_cpufreq_driver = {
 
 static int __init pxa_cpu_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	pxa_cpufreq_data.clk_core = clk_get_sys(NULL, "core");
 	if (IS_ERR(pxa_cpufreq_data.clk_core))

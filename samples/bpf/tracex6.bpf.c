@@ -41,7 +41,7 @@ int bpf_prog1(struct pt_regs *ctx)
 	if (val)
 		*val = count;
 	else
-		bpf_map_update_elem(&values, &key, &count, BPF_NOEXIST);
+		bpf_map_update_elem(&values, &key, &count, BPF_ANALEXIST);
 
 	return 0;
 }
@@ -72,7 +72,7 @@ int BPF_KPROBE(bpf_prog2, struct bpf_map *map)
 	if (val)
 		*val = buf;
 	else
-		bpf_map_update_elem(&values2, &key, &buf, BPF_NOEXIST);
+		bpf_map_update_elem(&values2, &key, &buf, BPF_ANALEXIST);
 
 	return 0;
 }

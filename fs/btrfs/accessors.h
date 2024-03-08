@@ -259,48 +259,48 @@ BTRFS_SETGET_FUNCS(free_space_extent_count, struct btrfs_free_space_info,
 		   extent_count, 32);
 BTRFS_SETGET_FUNCS(free_space_flags, struct btrfs_free_space_info, flags, 32);
 
-/* struct btrfs_inode_ref */
-BTRFS_SETGET_FUNCS(inode_ref_name_len, struct btrfs_inode_ref, name_len, 16);
-BTRFS_SETGET_FUNCS(inode_ref_index, struct btrfs_inode_ref, index, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_ref_name_len, struct btrfs_inode_ref, name_len, 16);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_ref_index, struct btrfs_inode_ref, index, 64);
+/* struct btrfs_ianalde_ref */
+BTRFS_SETGET_FUNCS(ianalde_ref_name_len, struct btrfs_ianalde_ref, name_len, 16);
+BTRFS_SETGET_FUNCS(ianalde_ref_index, struct btrfs_ianalde_ref, index, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_ref_name_len, struct btrfs_ianalde_ref, name_len, 16);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_ref_index, struct btrfs_ianalde_ref, index, 64);
 
-/* struct btrfs_inode_extref */
-BTRFS_SETGET_FUNCS(inode_extref_parent, struct btrfs_inode_extref,
+/* struct btrfs_ianalde_extref */
+BTRFS_SETGET_FUNCS(ianalde_extref_parent, struct btrfs_ianalde_extref,
 		   parent_objectid, 64);
-BTRFS_SETGET_FUNCS(inode_extref_name_len, struct btrfs_inode_extref,
+BTRFS_SETGET_FUNCS(ianalde_extref_name_len, struct btrfs_ianalde_extref,
 		   name_len, 16);
-BTRFS_SETGET_FUNCS(inode_extref_index, struct btrfs_inode_extref, index, 64);
+BTRFS_SETGET_FUNCS(ianalde_extref_index, struct btrfs_ianalde_extref, index, 64);
 
-/* struct btrfs_inode_item */
-BTRFS_SETGET_FUNCS(inode_generation, struct btrfs_inode_item, generation, 64);
-BTRFS_SETGET_FUNCS(inode_sequence, struct btrfs_inode_item, sequence, 64);
-BTRFS_SETGET_FUNCS(inode_transid, struct btrfs_inode_item, transid, 64);
-BTRFS_SETGET_FUNCS(inode_size, struct btrfs_inode_item, size, 64);
-BTRFS_SETGET_FUNCS(inode_nbytes, struct btrfs_inode_item, nbytes, 64);
-BTRFS_SETGET_FUNCS(inode_block_group, struct btrfs_inode_item, block_group, 64);
-BTRFS_SETGET_FUNCS(inode_nlink, struct btrfs_inode_item, nlink, 32);
-BTRFS_SETGET_FUNCS(inode_uid, struct btrfs_inode_item, uid, 32);
-BTRFS_SETGET_FUNCS(inode_gid, struct btrfs_inode_item, gid, 32);
-BTRFS_SETGET_FUNCS(inode_mode, struct btrfs_inode_item, mode, 32);
-BTRFS_SETGET_FUNCS(inode_rdev, struct btrfs_inode_item, rdev, 64);
-BTRFS_SETGET_FUNCS(inode_flags, struct btrfs_inode_item, flags, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_generation, struct btrfs_inode_item,
+/* struct btrfs_ianalde_item */
+BTRFS_SETGET_FUNCS(ianalde_generation, struct btrfs_ianalde_item, generation, 64);
+BTRFS_SETGET_FUNCS(ianalde_sequence, struct btrfs_ianalde_item, sequence, 64);
+BTRFS_SETGET_FUNCS(ianalde_transid, struct btrfs_ianalde_item, transid, 64);
+BTRFS_SETGET_FUNCS(ianalde_size, struct btrfs_ianalde_item, size, 64);
+BTRFS_SETGET_FUNCS(ianalde_nbytes, struct btrfs_ianalde_item, nbytes, 64);
+BTRFS_SETGET_FUNCS(ianalde_block_group, struct btrfs_ianalde_item, block_group, 64);
+BTRFS_SETGET_FUNCS(ianalde_nlink, struct btrfs_ianalde_item, nlink, 32);
+BTRFS_SETGET_FUNCS(ianalde_uid, struct btrfs_ianalde_item, uid, 32);
+BTRFS_SETGET_FUNCS(ianalde_gid, struct btrfs_ianalde_item, gid, 32);
+BTRFS_SETGET_FUNCS(ianalde_mode, struct btrfs_ianalde_item, mode, 32);
+BTRFS_SETGET_FUNCS(ianalde_rdev, struct btrfs_ianalde_item, rdev, 64);
+BTRFS_SETGET_FUNCS(ianalde_flags, struct btrfs_ianalde_item, flags, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_generation, struct btrfs_ianalde_item,
 			 generation, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_sequence, struct btrfs_inode_item,
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_sequence, struct btrfs_ianalde_item,
 			 sequence, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_transid, struct btrfs_inode_item,
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_transid, struct btrfs_ianalde_item,
 			 transid, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_size, struct btrfs_inode_item, size, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_nbytes, struct btrfs_inode_item, nbytes, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_block_group, struct btrfs_inode_item,
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_size, struct btrfs_ianalde_item, size, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_nbytes, struct btrfs_ianalde_item, nbytes, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_block_group, struct btrfs_ianalde_item,
 			 block_group, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_nlink, struct btrfs_inode_item, nlink, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_uid, struct btrfs_inode_item, uid, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_gid, struct btrfs_inode_item, gid, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_mode, struct btrfs_inode_item, mode, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_rdev, struct btrfs_inode_item, rdev, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_flags, struct btrfs_inode_item, flags, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_nlink, struct btrfs_ianalde_item, nlink, 32);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_uid, struct btrfs_ianalde_item, uid, 32);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_gid, struct btrfs_ianalde_item, gid, 32);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_mode, struct btrfs_ianalde_item, mode, 32);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_rdev, struct btrfs_ianalde_item, rdev, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_ianalde_flags, struct btrfs_ianalde_item, flags, 64);
 BTRFS_SETGET_FUNCS(timespec_sec, struct btrfs_timespec, sec, 64);
 BTRFS_SETGET_FUNCS(timespec_nsec, struct btrfs_timespec, nsec, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_timespec_sec, struct btrfs_timespec, sec, 64);
@@ -382,66 +382,66 @@ static inline u32 btrfs_extent_inline_ref_size(int type)
 	return 0;
 }
 
-/* struct btrfs_node */
+/* struct btrfs_analde */
 BTRFS_SETGET_FUNCS(key_blockptr, struct btrfs_key_ptr, blockptr, 64);
 BTRFS_SETGET_FUNCS(key_generation, struct btrfs_key_ptr, generation, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_key_blockptr, struct btrfs_key_ptr, blockptr, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_key_generation, struct btrfs_key_ptr,
 			 generation, 64);
 
-static inline u64 btrfs_node_blockptr(const struct extent_buffer *eb, int nr)
+static inline u64 btrfs_analde_blockptr(const struct extent_buffer *eb, int nr)
 {
 	unsigned long ptr;
 
-	ptr = offsetof(struct btrfs_node, ptrs) +
+	ptr = offsetof(struct btrfs_analde, ptrs) +
 		sizeof(struct btrfs_key_ptr) * nr;
 	return btrfs_key_blockptr(eb, (struct btrfs_key_ptr *)ptr);
 }
 
-static inline void btrfs_set_node_blockptr(const struct extent_buffer *eb,
+static inline void btrfs_set_analde_blockptr(const struct extent_buffer *eb,
 					   int nr, u64 val)
 {
 	unsigned long ptr;
 
-	ptr = offsetof(struct btrfs_node, ptrs) +
+	ptr = offsetof(struct btrfs_analde, ptrs) +
 		sizeof(struct btrfs_key_ptr) * nr;
 	btrfs_set_key_blockptr(eb, (struct btrfs_key_ptr *)ptr, val);
 }
 
-static inline u64 btrfs_node_ptr_generation(const struct extent_buffer *eb, int nr)
+static inline u64 btrfs_analde_ptr_generation(const struct extent_buffer *eb, int nr)
 {
 	unsigned long ptr;
 
-	ptr = offsetof(struct btrfs_node, ptrs) +
+	ptr = offsetof(struct btrfs_analde, ptrs) +
 		sizeof(struct btrfs_key_ptr) * nr;
 	return btrfs_key_generation(eb, (struct btrfs_key_ptr *)ptr);
 }
 
-static inline void btrfs_set_node_ptr_generation(const struct extent_buffer *eb,
+static inline void btrfs_set_analde_ptr_generation(const struct extent_buffer *eb,
 						 int nr, u64 val)
 {
 	unsigned long ptr;
 
-	ptr = offsetof(struct btrfs_node, ptrs) +
+	ptr = offsetof(struct btrfs_analde, ptrs) +
 		sizeof(struct btrfs_key_ptr) * nr;
 	btrfs_set_key_generation(eb, (struct btrfs_key_ptr *)ptr, val);
 }
 
-static inline unsigned long btrfs_node_key_ptr_offset(const struct extent_buffer *eb, int nr)
+static inline unsigned long btrfs_analde_key_ptr_offset(const struct extent_buffer *eb, int nr)
 {
-	return offsetof(struct btrfs_node, ptrs) +
+	return offsetof(struct btrfs_analde, ptrs) +
 		sizeof(struct btrfs_key_ptr) * nr;
 }
 
-void btrfs_node_key(const struct extent_buffer *eb,
+void btrfs_analde_key(const struct extent_buffer *eb,
 		    struct btrfs_disk_key *disk_key, int nr);
 
-static inline void btrfs_set_node_key(const struct extent_buffer *eb,
+static inline void btrfs_set_analde_key(const struct extent_buffer *eb,
 				      struct btrfs_disk_key *disk_key, int nr)
 {
 	unsigned long ptr;
 
-	ptr = btrfs_node_key_ptr_offset(eb, nr);
+	ptr = btrfs_analde_key_ptr_offset(eb, nr);
 	write_eb_member(eb, (struct btrfs_key_ptr *)ptr,
 		        struct btrfs_key_ptr, key, disk_key);
 }
@@ -600,12 +600,12 @@ static inline void btrfs_cpu_key_to_disk(struct btrfs_disk_key *disk_key,
 	memcpy(disk_key, cpu_key, sizeof(struct btrfs_key));
 }
 
-static inline void btrfs_node_key_to_cpu(const struct extent_buffer *eb,
+static inline void btrfs_analde_key_to_cpu(const struct extent_buffer *eb,
 					 struct btrfs_key *cpu_key, int nr)
 {
 	struct btrfs_disk_key *disk_key = (struct btrfs_disk_key *)cpu_key;
 
-	btrfs_node_key(eb, disk_key, nr);
+	btrfs_analde_key(eb, disk_key, nr);
 }
 
 static inline void btrfs_item_key_to_cpu(const struct extent_buffer *eb,
@@ -643,12 +643,12 @@ static inline void btrfs_cpu_key_to_disk(struct btrfs_disk_key *disk,
 	disk->objectid = cpu_to_le64(cpu->objectid);
 }
 
-static inline void btrfs_node_key_to_cpu(const struct extent_buffer *eb,
+static inline void btrfs_analde_key_to_cpu(const struct extent_buffer *eb,
 					 struct btrfs_key *key, int nr)
 {
 	struct btrfs_disk_key disk_key;
 
-	btrfs_node_key(eb, &disk_key, nr);
+	btrfs_analde_key(eb, &disk_key, nr);
 	btrfs_disk_key_to_cpu(key, &disk_key);
 }
 
@@ -908,8 +908,8 @@ BTRFS_SETGET_STACK_FUNCS(super_bytes_used, struct btrfs_super_block,
 			 bytes_used, 64);
 BTRFS_SETGET_STACK_FUNCS(super_sectorsize, struct btrfs_super_block,
 			 sectorsize, 32);
-BTRFS_SETGET_STACK_FUNCS(super_nodesize, struct btrfs_super_block,
-			 nodesize, 32);
+BTRFS_SETGET_STACK_FUNCS(super_analdesize, struct btrfs_super_block,
+			 analdesize, 32);
 BTRFS_SETGET_STACK_FUNCS(super_stripesize, struct btrfs_super_block,
 			 stripesize, 32);
 BTRFS_SETGET_STACK_FUNCS(super_root_dir, struct btrfs_super_block,

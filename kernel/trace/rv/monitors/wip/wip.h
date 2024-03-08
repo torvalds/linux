@@ -6,7 +6,7 @@
 
 enum states_wip {
 	preemptive_wip = 0,
-	non_preemptive_wip,
+	analn_preemptive_wip,
 	state_max_wip
 };
 
@@ -30,7 +30,7 @@ struct automaton_wip {
 static const struct automaton_wip automaton_wip = {
 	.state_names = {
 		"preemptive",
-		"non_preemptive"
+		"analn_preemptive"
 	},
 	.event_names = {
 		"preempt_disable",
@@ -38,8 +38,8 @@ static const struct automaton_wip automaton_wip = {
 		"sched_waking"
 	},
 	.function = {
-		{ non_preemptive_wip,      INVALID_STATE,      INVALID_STATE },
-		{      INVALID_STATE,     preemptive_wip, non_preemptive_wip },
+		{ analn_preemptive_wip,      INVALID_STATE,      INVALID_STATE },
+		{      INVALID_STATE,     preemptive_wip, analn_preemptive_wip },
 	},
 	.initial_state = preemptive_wip,
 	.final_states = { 1, 0 },

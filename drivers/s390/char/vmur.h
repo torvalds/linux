@@ -92,17 +92,17 @@ struct urfile {
 };
 
 /*
- * Device major/minor definitions.
+ * Device major/mianalr definitions.
  */
 
 #define UR_MAJOR 0	/* get dynamic major */
 /*
- * We map minor numbers directly to device numbers (0-FFFF) for simplicity.
+ * We map mianalr numbers directly to device numbers (0-FFFF) for simplicity.
  * This avoids having to allocate (and manage) slot numbers.
  */
-#define NUM_MINORS 65536
+#define NUM_MIANALRS 65536
 
-/* Limiting each I/O to 511 records limits chan prog to 4KB (511 r/w + 1 NOP) */
+/* Limiting each I/O to 511 records limits chan prog to 4KB (511 r/w + 1 ANALP) */
 #define MAX_RECS_PER_IO		511
 #define WRITE_CCW_CMD		0x01
 

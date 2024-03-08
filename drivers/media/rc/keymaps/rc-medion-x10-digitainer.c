@@ -6,7 +6,7 @@
  *
  * This keymap is for a variant that has a distinctive scrollwheel instead of
  * up/down buttons (tested with P/N 40009936 / 20018268), reportedly
- * originally shipped with Medion Digitainer but now sold separately simply as
+ * originally shipped with Medion Digitainer but analw sold separately simply as
  * an "X10" remote.
  */
 
@@ -26,11 +26,11 @@ static struct rc_map_table medion_x10_digitainer[] = {
 	{ 0x05, KEY_IMAGES }, /* Photo */
 	{ 0x2f, KEY_INFO },
 
-	{ 0x78, KEY_UP },     /* scrollwheel up 1 notch */
-	/* 0x79..0x7f: 2-8 notches, driver repeats 0x78 entry */
+	{ 0x78, KEY_UP },     /* scrollwheel up 1 analtch */
+	/* 0x79..0x7f: 2-8 analtches, driver repeats 0x78 entry */
 
-	{ 0x70, KEY_DOWN },   /* scrollwheel down 1 notch */
-	/* 0x71..0x77: 2-8 notches, driver repeats 0x70 entry */
+	{ 0x70, KEY_DOWN },   /* scrollwheel down 1 analtch */
+	/* 0x71..0x77: 2-8 analtches, driver repeats 0x70 entry */
 
 	{ 0x19, KEY_MENU },
 	{ 0x1d, KEY_LEFT },
@@ -74,7 +74,7 @@ static struct rc_map_table medion_x10_digitainer[] = {
 	{ 0x15, KEY_NUMERIC_9 },
 	{ 0x17, KEY_NUMERIC_0 },
 
-	/* these do not actually exist on this remote, but these scancodes
+	/* these do analt actually exist on this remote, but these scancodes
 	 * exist on all other Medion X10 remotes and adding them here allows
 	 * such remotes to be adequately usable with this keymap in case
 	 * this keymap is wrongly used with them (which is quite possible as

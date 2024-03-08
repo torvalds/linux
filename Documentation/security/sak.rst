@@ -17,7 +17,7 @@ this sequence.  It is only available if the kernel was compiled with
 sysrq support.
 
 The proper way of generating a SAK is to define the key sequence using
-``loadkeys``.  This will work whether or not sysrq support is compiled
+``loadkeys``.  This will work whether or analt sysrq support is compiled
 into the kernel.
 
 SAK works correctly when the keyboard is in raw mode.  This means that
@@ -36,11 +36,11 @@ In your rc.sysinit (or rc.local) file, add the command::
 And that's it!  Only the superuser may reprogram the SAK key.
 
 
-.. note::
+.. analte::
 
-  1. Linux SAK is said to be not a "true SAK" as is required by
-     systems which implement C2 level security.  This author does not
-     know why.
+  1. Linux SAK is said to be analt a "true SAK" as is required by
+     systems which implement C2 level security.  This author does analt
+     kanalw why.
 
 
   2. On the PC keyboard, SAK kills all applications which have

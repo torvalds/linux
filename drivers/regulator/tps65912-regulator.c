@@ -23,7 +23,7 @@ enum tps65912_regulators { DCDC1, DCDC2, DCDC3, DCDC4, LDO1, LDO2, LDO3,
 	[_id] = {							\
 		.name			= _name,			\
 		.of_match		= _of_match,			\
-		.regulators_node	= "regulators",			\
+		.regulators_analde	= "regulators",			\
 		.id			= _id,				\
 		.ops			= &_ops,			\
 		.n_voltages		= 64,				\
@@ -125,7 +125,7 @@ static int tps65912_regulator_probe(struct platform_device *pdev)
 
 	config.dev = &pdev->dev;
 	config.driver_data = tps;
-	config.dev->of_node = tps->dev->of_node;
+	config.dev->of_analde = tps->dev->of_analde;
 	config.regmap = tps->regmap;
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
@@ -150,7 +150,7 @@ MODULE_DEVICE_TABLE(platform, tps65912_regulator_id_table);
 static struct platform_driver tps65912_regulator_driver = {
 	.driver = {
 		.name = "tps65912-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tps65912_regulator_probe,
 	.id_table = tps65912_regulator_id_table,

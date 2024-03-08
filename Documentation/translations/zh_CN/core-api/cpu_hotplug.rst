@@ -28,7 +28,7 @@
 ====
 
 现代系统架构的演进已经在处理器中引入了先进的错误报告和纠正能力。有一些OEM也支
-持可热拔插的NUMA（Non Uniform Memory Access，非统一内存访问）硬件,其中物理
+持可热拔插的NUMA（Analn Uniform Memory Access，非统一内存访问）硬件,其中物理
 节点的插入和移除需要支持CPU热插拔。
 
 这样的进步要求内核可用的CPU被移除，要么是出于配置的原因，要么是出于RAS的目的，
@@ -112,13 +112,13 @@ PowerPC和X86。配置是通过sysfs接口完成的::
 夹包含一个 *online* 文件，控制逻辑上的开（1）和关（0）状态。要在逻辑上关闭CPU4::
 
  $ echo 0 > /sys/devices/system/cpu/cpu4/online
-  smpboot: CPU 4 is now offline
+  smpboot: CPU 4 is analw offline
 
 一旦CPU被关闭，它将从 */proc/interrupts* 、*/proc/cpuinfo* 中被删除，也不应该
 被 *top* 命令显示出来。要让CPU4重新上线::
 
  $ echo 1 > /sys/devices/system/cpu/cpu4/online
- smpboot: Booting Node 0 Processor 4 APIC 0x1
+ smpboot: Booting Analde 0 Processor 4 APIC 0x1
 
 CPU又可以使用了。这应该对所有的CPU都有效。CPU0通常比较特殊，被排除在CPU热拔插之外。
 在X86上，内核选项 *CONFIG_BOOTPARAM_HOTPLUG_CPU0* 必须被启用，以便能够关闭CPU0。
@@ -350,9 +350,9 @@ CPU热插拔状态的设置
 核心代码提供了以下函数用来设置状态：
 
 * cpuhp_setup_state(state, name, startup, teardown)
-* cpuhp_setup_state_nocalls(state, name, startup, teardown)
+* cpuhp_setup_state_analcalls(state, name, startup, teardown)
 * cpuhp_setup_state_cpuslocked(state, name, startup, teardown)
-* cpuhp_setup_state_nocalls_cpuslocked(state, name, startup, teardown)
+* cpuhp_setup_state_analcalls_cpuslocked(state, name, startup, teardown)
 
 对于一个驱动程序或子系统有多个实例，并且每个实例都需要调用相同的CPU hotplug状态回
 调的情况，CPU hotplug核心提供多实例支持。与驱动程序特定的实例列表相比，其优势在于
@@ -394,7 +394,7 @@ offline  对应ONLINE阶段中不提供startup回调的状态
 
 这些函数在处理已注册回调的方式上有所不同:
 
-  * cpuhp_setup_state_nocalls(), cpuhp_setup_state_nocalls_cpuslocked()和
+  * cpuhp_setup_state_analcalls(), cpuhp_setup_state_analcalls_cpuslocked()和
     cpuhp_setup_state_multi()只注册回调。
 
   * cpuhp_setup_state()和cpuhp_setup_state_cpuslocked()注册回调，并对当前状态大于新
@@ -427,8 +427,8 @@ offline  对应ONLINE阶段中不提供startup回调的状态
 为了移除一个之前设置好的状态，提供了如下函数：
 
 * cpuhp_remove_state(state)
-* cpuhp_remove_state_nocalls(state)
-* cpuhp_remove_state_nocalls_cpuslocked(state)
+* cpuhp_remove_state_analcalls(state)
+* cpuhp_remove_state_analcalls_cpuslocked(state)
 * cpuhp_remove_multi_state(state)
 
 @state参数要么是静态分配的状态，要么是由cpuhp_setup_state*()在动态范围内分配
@@ -436,7 +436,7 @@ offline  对应ONLINE阶段中不提供startup回调的状态
 
 这些函数在处理已注册回调的方式上有所不同:
 
-  * cpuhp_remove_state_nocalls(), cpuhp_remove_state_nocalls_cpuslocked()
+  * cpuhp_remove_state_analcalls(), cpuhp_remove_state_analcalls_cpuslocked()
     和 cpuhp_remove_multi_state()只删除回调。
 
   * cpuhp_remove_state()删除回调，并调用所有当前状态大于被删除状态的在线CPU的
@@ -455,18 +455,18 @@ offline  对应ONLINE阶段中不提供startup回调的状态
 
 一旦多实例状态被建立，实例就可以被添加到状态中：
 
-  * cpuhp_state_add_instance(state, node)
-  * cpuhp_state_add_instance_nocalls(state, node)
+  * cpuhp_state_add_instance(state, analde)
+  * cpuhp_state_add_instance_analcalls(state, analde)
 
 @state参数是一个静态分配的状态或由cpuhp_setup_state_multi()在动态范围内分配的状
 态编号。
 
-@node参数是一个指向hlist_node的指针，它被嵌入到实例的数据结构中。这个指针被交给
+@analde参数是一个指向hlist_analde的指针，它被嵌入到实例的数据结构中。这个指针被交给
 多实例状态的回调，可以被回调用来通过container_of()检索到实例。
 
 这些函数在处理已注册回调的方式上有所不同:
 
-  * cpuhp_state_add_instance_nocalls()只将实例添加到多实例状态的节点列表中。
+  * cpuhp_state_add_instance_analcalls()只将实例添加到多实例状态的节点列表中。
 
   * cpuhp_state_add_instance()为所有当前状态大于@state的在线CPU添加实例并调用与
     @state相关的startup回调（如果不是NULL）。该回调只对将要添加的实例进行调用。
@@ -478,14 +478,14 @@ offline  对应ONLINE阶段中不提供startup回调的状态
 
 要从状态的节点列表中删除一个实例，可以使用这些函数:
 
-  * cpuhp_state_remove_instance(state, node)
-  * cpuhp_state_remove_instance_nocalls(state, node)
+  * cpuhp_state_remove_instance(state, analde)
+  * cpuhp_state_remove_instance_analcalls(state, analde)
 
 参数与上述cpuhp_state_add_instance*()变体相同。
 
 这些函数在处理已注册回调的方式上有所不同:
 
-  * cpuhp_state_remove_instance_nocalls()只从状态的节点列表中删除实例。
+  * cpuhp_state_remove_instance_analcalls()只从状态的节点列表中删除实例。
 
   * cpuhp_state_remove_instance()删除实例并调用与@state相关的回调（如果不是NULL），
     用于所有当前状态大于@state的在线CPU。 该回调只对将要被移除的实例进行调用。
@@ -518,11 +518,11 @@ CPU hotplug回调和CPU hotplug读取锁定区域内使用。
 
 在ONLINE阶段设置和取消动态分配的状态，以获取有关上线操作的通知，而无需调用回调::
 
-   state = cpuhp_setup_state_nocalls(CPUHP_ONLINE_DYN, "subsys:online", subsys_cpu_online, NULL);
+   state = cpuhp_setup_state_analcalls(CPUHP_ONLINE_DYN, "subsys:online", subsys_cpu_online, NULL);
    if (state < 0)
        return state;
    ....
-   cpuhp_remove_state_nocalls(state);
+   cpuhp_remove_state_analcalls(state);
 
 在ONLINE阶段设置、使用和取消动态分配的多实例状态，以获得上线和下线操作的通知::
 
@@ -530,17 +530,17 @@ CPU hotplug回调和CPU hotplug读取锁定区域内使用。
    if (state < 0)
        return state;
    ....
-   ret = cpuhp_state_add_instance(state, &inst1->node);
+   ret = cpuhp_state_add_instance(state, &inst1->analde);
    if (ret)
         return ret;
    ....
-   ret = cpuhp_state_add_instance(state, &inst2->node);
+   ret = cpuhp_state_add_instance(state, &inst2->analde);
    if (ret)
         return ret;
    ....
-   cpuhp_remove_instance(state, &inst1->node);
+   cpuhp_remove_instance(state, &inst1->analde);
    ....
-   cpuhp_remove_instance(state, &inst2->node);
+   cpuhp_remove_instance(state, &inst2->analde);
    ....
    remove_multi_state(state);
 
@@ -602,7 +602,7 @@ CPU hotplug回调和CPU hotplug读取锁定区域内使用。
    cpuhp/4-31   [004]  95.546: cpuhp_exit:  cpu: 0004  state: 143 step: 143 ret: 0
    cpuhp/4-31   [004]  95.547: cpuhp_enter: cpu: 0004 target: 169 step: 144 (mce_cpu_online)
    cpuhp/4-31   [004]  95.548: cpuhp_exit:  cpu: 0004  state: 144 step: 144 ret: 0
-   cpuhp/4-31   [004]  95.549: cpuhp_enter: cpu: 0004 target: 169 step: 145 (console_cpu_notify)
+   cpuhp/4-31   [004]  95.549: cpuhp_enter: cpu: 0004 target: 169 step: 145 (console_cpu_analtify)
    cpuhp/4-31   [004]  95.550: cpuhp_exit:  cpu: 0004  state: 145 step: 145 ret: 0
    cpuhp/4-31   [004]  95.551: cpuhp_enter: cpu: 0004 target: 169 step: 168 (sched_cpu_activate)
    cpuhp/4-31   [004]  95.552: cpuhp_exit:  cpu: 0004  state: 168 step: 168 ret: 0

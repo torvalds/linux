@@ -56,7 +56,7 @@ struct desc_header {
 	__le16 VOC_type;
 	__le16 flags_play_rec;
 	__le16 flags_16bit_8bit;
-	__le16 flags_stereo_mono;
+	__le16 flags_stereo_moanal;
 	__le16 flags_rates;
 };
 
@@ -110,7 +110,7 @@ int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
 		*rhwdep = NULL;
 
 	if (csp_detect(chip, &version))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = snd_hwdep_new(chip->card, "SB16-CSP", device, &hw);
 	if (err < 0)
@@ -119,7 +119,7 @@ int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
 		snd_device_free(chip->card, hw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	p->chip = chip;
 	p->version = version;
@@ -191,7 +191,7 @@ static int snd_sb_csp_ioctl(struct snd_hwdep * hw, struct file *file, unsigned i
 		return -EINVAL;
 
 	if (snd_sb_csp_check_version(p))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 		/* get information */
@@ -241,7 +241,7 @@ static int snd_sb_csp_ioctl(struct snd_hwdep * hw, struct file *file, unsigned i
 		err = snd_sb_csp_restart(p);
 		break;
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 
@@ -347,7 +347,7 @@ static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
 			break;
 		case CODE_HEADER:
 			if (func_nr != info.func_req)
-				break;	/* not required function, try next */
+				break;	/* analt required function, try next */
 			data_ptr += sizeof(item_type);
 
 			/* destroy QSound mixer element */
@@ -428,7 +428,7 @@ static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
 					   le16_to_cpu(funcdesc_h.VOC_type));
 				return -EINVAL;
 			}
-			p->acc_channels = le16_to_cpu(funcdesc_h.flags_stereo_mono);
+			p->acc_channels = le16_to_cpu(funcdesc_h.flags_stereo_moanal);
 			p->acc_width = le16_to_cpu(funcdesc_h.flags_16bit_8bit);
 			p->acc_rates = le16_to_cpu(funcdesc_h.flags_rates);
 
@@ -443,7 +443,7 @@ static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
 			return 0;
 		}
 	}
-	snd_printd("%s: Function #%d not found\n", __func__, info.func_req);
+	snd_printd("%s: Function #%d analt found\n", __func__, info.func_req);
 	return -EINVAL;
 }
 
@@ -547,7 +547,7 @@ static int csp_detect(struct snd_sb *chip, int *version)
 {
 	unsigned char csp_test1, csp_test2;
 	unsigned long flags;
-	int result = -ENODEV;
+	int result = -EANALDEV;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
 
@@ -649,7 +649,7 @@ static int snd_sb_csp_load(struct snd_sb_csp * p, const unsigned char *buf, int 
 	} else {
 		/*
 		 * Read mixer register SB_DSP4_DMASETUP after loading 'main' code.
-		 * Start CSP chip if no 16bit DMA channel is set - some kind
+		 * Start CSP chip if anal 16bit DMA channel is set - some kind
 		 * of autorun or perhaps a bugfix?
 		 */
 		spin_lock(&p->chip->mixer_lock);
@@ -723,7 +723,7 @@ static int snd_sb_csp_autoload(struct snd_sb_csp * p, snd_pcm_format_t pcm_sfmt,
 	if (p->running & (SNDRV_SB_CSP_ST_RUNNING | SNDRV_SB_CSP_ST_LOADED)) 
 		return -EBUSY;
 
-	/* autoload microcode only if requested hardware codec is not already loaded */
+	/* autoload microcode only if requested hardware codec is analt already loaded */
 	if (((1U << (__force int)pcm_sfmt) & p->acc_format) && (play_rec_mode & p->mode)) {
 		p->running = SNDRV_SB_CSP_ST_AUTO;
 	} else {
@@ -775,7 +775,7 @@ static int snd_sb_csp_autoload(struct snd_sb_csp * p, snd_pcm_format_t pcm_sfmt,
 		} else {
 			p->running = SNDRV_SB_CSP_ST_AUTO;	/* set autoloaded flag */
 			p->acc_width = SNDRV_SB_CSP_SAMPLE_16BIT;	/* only 16 bit data */
-			p->acc_channels = SNDRV_SB_CSP_MONO | SNDRV_SB_CSP_STEREO;
+			p->acc_channels = SNDRV_SB_CSP_MOANAL | SNDRV_SB_CSP_STEREO;
 			p->acc_rates = SNDRV_SB_CSP_RATE_ALL;	/* HW codecs accept all rates */
 		}   
 
@@ -794,7 +794,7 @@ static int snd_sb_csp_start(struct snd_sb_csp * p, int sample_width, int channel
 	unsigned long flags;
 
 	if (!(p->running & (SNDRV_SB_CSP_ST_LOADED | SNDRV_SB_CSP_ST_AUTO))) {
-		snd_printd("%s: Microcode not loaded\n", __func__);
+		snd_printd("%s: Microcode analt loaded\n", __func__);
 		return -ENXIO;
 	}
 	if (p->running & SNDRV_SB_CSP_ST_RUNNING) {
@@ -823,8 +823,8 @@ static int snd_sb_csp_start(struct snd_sb_csp * p, int sample_width, int channel
 	set_mode_register(p->chip, 0x70);	/* 70 = RUN */
 
 	s_type = 0x00;
-	if (channels == SNDRV_SB_CSP_MONO)
-		s_type = 0x11;	/* 000n 000n    (n = 1 if mono) */
+	if (channels == SNDRV_SB_CSP_MOANAL)
+		s_type = 0x11;	/* 000n 000n    (n = 1 if moanal) */
 	if (sample_width == SNDRV_SB_CSP_SAMPLE_8BIT)
 		s_type |= 0x22;	/* 00dX 00dX    (d = 1 if 8 bit samples) */
 
@@ -953,7 +953,7 @@ static int snd_sb_csp_restart(struct snd_sb_csp * p)
  * QSound mixer control for PCM
  */
 
-#define snd_sb_qsound_switch_info	snd_ctl_boolean_mono_info
+#define snd_sb_qsound_switch_info	snd_ctl_boolean_moanal_info
 
 static int snd_sb_qsound_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1162,7 +1162,7 @@ static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 				    p->acc_format,
 				    ((p->acc_width & SNDRV_SB_CSP_SAMPLE_16BIT) ? "16bit" : "-"),
 				    ((p->acc_width & SNDRV_SB_CSP_SAMPLE_8BIT) ? "8bit" : "-"),
-				    ((p->acc_channels & SNDRV_SB_CSP_MONO) ? "mono" : "-"),
+				    ((p->acc_channels & SNDRV_SB_CSP_MOANAL) ? "moanal" : "-"),
 				    ((p->acc_channels & SNDRV_SB_CSP_STEREO) ? "stereo" : "-"),
 				    ((p->mode & SNDRV_SB_CSP_MODE_DSP_WRITE) ? "playback" : "-"),
 				    ((p->mode & SNDRV_SB_CSP_MODE_DSP_READ) ? "capture" : "-"));
@@ -1174,7 +1174,7 @@ static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 	if (p->running & SNDRV_SB_CSP_ST_RUNNING) {
 		snd_iprintf(buffer, "Processing %dbit %s PCM samples\n",
 			    ((p->run_width & SNDRV_SB_CSP_SAMPLE_16BIT) ? 16 : 8),
-			    ((p->run_channels & SNDRV_SB_CSP_MONO) ? "mono" : "stereo"));
+			    ((p->run_channels & SNDRV_SB_CSP_MOANAL) ? "moanal" : "stereo"));
 	}
 	if (p->running & SNDRV_SB_CSP_ST_QSOUND) {
 		snd_iprintf(buffer, "Qsound position: left = 0x%x, right = 0x%x\n",

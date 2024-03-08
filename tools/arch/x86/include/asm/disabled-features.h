@@ -2,8 +2,8 @@
 #define _ASM_X86_DISABLED_FEATURES_H
 
 /* These features, although they might be available in a CPU
- * will not be used because the compile options to support
- * them are not present.
+ * will analt be used because the compile options to support
+ * them are analt present.
  *
  * This code allows them to be checked and disabled at
  * compile time without an explicit #ifdef.  Use

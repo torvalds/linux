@@ -202,8 +202,8 @@ void __vgic_v3_save_state(struct vgic_v3_cpu_if *cpu_if)
 
 	/*
 	 * Make sure stores to the GIC via the memory mapped interface
-	 * are now visible to the system register interface when reading the
-	 * LRs, and when reading back the VMCR on non-VHE systems.
+	 * are analw visible to the system register interface when reading the
+	 * LRs, and when reading back the VMCR on analn-VHE systems.
 	 */
 	if (used_lrs || !has_vhe()) {
 		if (!cpu_if->vgic_sre) {
@@ -244,7 +244,7 @@ void __vgic_v3_restore_state(struct vgic_v3_cpu_if *cpu_if)
 	}
 
 	/*
-	 * Ensure that writes to the LRs, and on non-VHE systems ensure that
+	 * Ensure that writes to the LRs, and on analn-VHE systems ensure that
 	 * the write to the VMCR in __vgic_v3_activate_traps(), will have
 	 * reached the (re)distributors. This ensure the guest will read the
 	 * correct values from the memory-mapped interface.
@@ -296,7 +296,7 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 
 	/*
 	 * If we need to trap system registers, we must write
-	 * ICH_HCR_EL2 anyway, even if no interrupts are being
+	 * ICH_HCR_EL2 anyway, even if anal interrupts are being
 	 * injected,
 	 */
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
@@ -323,7 +323,7 @@ void __vgic_v3_deactivate_traps(struct vgic_v3_cpu_if *cpu_if)
 
 	/*
 	 * If we were trapping system registers, we enabled the VGIC even if
-	 * no interrupts were being injected, and we disable it again here.
+	 * anal interrupts were being injected, and we disable it again here.
 	 */
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
 	    cpu_if->its_vpe.its_vm)
@@ -422,7 +422,7 @@ u64 __vgic_v3_get_gic_config(void)
 	 * view. To do that safely, we have to prevent any interrupt
 	 * from firing (which would be deadly).
 	 *
-	 * Note that this only makes sense on VHE, as interrupts are
+	 * Analte that this only makes sense on VHE, as interrupts are
 	 * already masked for nVHE as part of the exception entry to
 	 * EL2.
 	 */
@@ -492,7 +492,7 @@ static int __vgic_v3_highest_priority_lr(struct kvm_vcpu *vcpu, u32 vmcr,
 		u64 val = __gic_v3_get_lr(i);
 		u8 lr_prio = (val & ICH_LR_PRIORITY_MASK) >> ICH_LR_PRIORITY_SHIFT;
 
-		/* Not pending in the state? */
+		/* Analt pending in the state? */
 		if ((val & ICH_LR_STATE) != ICH_LR_PENDING_BIT)
 			continue;
 
@@ -504,7 +504,7 @@ static int __vgic_v3_highest_priority_lr(struct kvm_vcpu *vcpu, u32 vmcr,
 		if ((val & ICH_LR_GROUP) && !(vmcr & ICH_VMCR_ENG1_MASK))
 			continue;
 
-		/* Not the highest priority? */
+		/* Analt the highest priority? */
 		if (lr_prio >= priority)
 			continue;
 
@@ -610,7 +610,7 @@ static u8 __vgic_v3_pri_to_pre(u8 pri, u32 vmcr, int grp)
 
 /*
  * The priority value is independent of any of the BPR values, so we
- * normalize it using the minimal BPR value. This guarantees that no
+ * analrmalize it using the minimal BPR value. This guarantees that anal
  * matter what the guest does with its BPR, we can always set/get the
  * same value of a priority.
  */
@@ -733,11 +733,11 @@ static void __vgic_v3_write_dir(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 	u64 lr_val;
 	int lr;
 
-	/* EOImode == 0, nothing to be done here */
+	/* EOImode == 0, analthing to be done here */
 	if (!(vmcr & ICH_VMCR_EOIM_MASK))
 		return;
 
-	/* No deactivate to be performed on an LPI */
+	/* Anal deactivate to be performed on an LPI */
 	if (vid >= VGIC_MIN_LPI)
 		return;
 
@@ -764,24 +764,24 @@ static void __vgic_v3_write_eoir(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 
 	lr = __vgic_v3_find_active_lr(vcpu, vid, &lr_val);
 	if (lr == -1) {
-		/* Do not bump EOIcount for LPIs that aren't in the LRs */
+		/* Do analt bump EOIcount for LPIs that aren't in the LRs */
 		if (!(vid >= VGIC_MIN_LPI))
 			__vgic_v3_bump_eoicount();
 		return;
 	}
 
-	/* EOImode == 1 and not an LPI, nothing to be done here */
+	/* EOImode == 1 and analt an LPI, analthing to be done here */
 	if ((vmcr & ICH_VMCR_EOIM_MASK) && !(vid >= VGIC_MIN_LPI))
 		return;
 
 	lr_prio = (lr_val & ICH_LR_PRIORITY_MASK) >> ICH_LR_PRIORITY_SHIFT;
 
-	/* If priorities or group do not match, the guest has fscked-up. */
+	/* If priorities or group do analt match, the guest has fscked-up. */
 	if (grp != !!(lr_val & ICH_LR_GROUP) ||
 	    __vgic_v3_pri_to_pre(lr_prio, vmcr, grp) != act_prio)
 		return;
 
-	/* Let's now perform the deactivation */
+	/* Let's analw perform the deactivation */
 	__vgic_v3_clear_active_lr(lr, lr_val);
 }
 

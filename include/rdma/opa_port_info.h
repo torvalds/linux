@@ -8,23 +8,23 @@
 
 #include <rdma/opa_smi.h>
 
-#define OPA_PORT_LINK_MODE_NOP	0		/* No change */
+#define OPA_PORT_LINK_MODE_ANALP	0		/* Anal change */
 #define OPA_PORT_LINK_MODE_OPA	4		/* Port mode is OPA */
 
-#define OPA_PORT_PACKET_FORMAT_NOP	0		/* No change */
+#define OPA_PORT_PACKET_FORMAT_ANALP	0		/* Anal change */
 #define OPA_PORT_PACKET_FORMAT_8B	1		/* Format 8B */
 #define OPA_PORT_PACKET_FORMAT_9B	2		/* Format 9B */
 #define OPA_PORT_PACKET_FORMAT_10B	4		/* Format 10B */
 #define OPA_PORT_PACKET_FORMAT_16B	8		/* Format 16B */
 
-#define OPA_PORT_LTP_CRC_MODE_NONE	0	/* No change */
+#define OPA_PORT_LTP_CRC_MODE_ANALNE	0	/* Anal change */
 #define OPA_PORT_LTP_CRC_MODE_14	1	/* 14-bit LTP CRC mode (optional) */
 #define OPA_PORT_LTP_CRC_MODE_16	2	/* 16-bit LTP CRC mode */
 #define OPA_PORT_LTP_CRC_MODE_48	4	/* 48-bit LTP CRC mode (optional) */
 #define OPA_PORT_LTP_CRC_MODE_PER_LANE  8	/* 12/16-bit per lane LTP CRC mode */
 
 /* Link Down / Neighbor Link Down Reason; indicated as follows: */
-#define OPA_LINKDOWN_REASON_NONE				0	/* No specified reason */
+#define OPA_LINKDOWN_REASON_ANALNE				0	/* Anal specified reason */
 #define OPA_LINKDOWN_REASON_RCV_ERROR_0				1
 #define OPA_LINKDOWN_REASON_BAD_PKT_LEN				2
 #define OPA_LINKDOWN_REASON_PKT_TOO_LONG			3
@@ -57,21 +57,21 @@
 #define OPA_LINKDOWN_REASON_RCV_ERROR_29			30
 #define OPA_LINKDOWN_REASON_RCV_ERROR_30			31
 #define OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN		32
-#define OPA_LINKDOWN_REASON_UNKNOWN				33
+#define OPA_LINKDOWN_REASON_UNKANALWN				33
 /* 34 -reserved */
 #define OPA_LINKDOWN_REASON_REBOOT				35
-#define OPA_LINKDOWN_REASON_NEIGHBOR_UNKNOWN			36
+#define OPA_LINKDOWN_REASON_NEIGHBOR_UNKANALWN			36
 /* 37-38 reserved */
 #define OPA_LINKDOWN_REASON_FM_BOUNCE				39
 #define OPA_LINKDOWN_REASON_SPEED_POLICY			40
 #define OPA_LINKDOWN_REASON_WIDTH_POLICY			41
 /* 42-48 reserved */
 #define OPA_LINKDOWN_REASON_DISCONNECTED			49
-#define OPA_LINKDOWN_REASON_LOCAL_MEDIA_NOT_INSTALLED		50
-#define OPA_LINKDOWN_REASON_NOT_INSTALLED			51
+#define OPA_LINKDOWN_REASON_LOCAL_MEDIA_ANALT_INSTALLED		50
+#define OPA_LINKDOWN_REASON_ANALT_INSTALLED			51
 #define OPA_LINKDOWN_REASON_CHASSIS_CONFIG			52
 /* 53 reserved */
-#define OPA_LINKDOWN_REASON_END_TO_END_NOT_INSTALLED		54
+#define OPA_LINKDOWN_REASON_END_TO_END_ANALT_INSTALLED		54
 /* 55 reserved */
 #define OPA_LINKDOWN_REASON_POWER_POLICY			56
 #define OPA_LINKDOWN_REASON_LINKSPEED_POLICY			57
@@ -85,7 +85,7 @@
 
 /* OPA Link Init reason; indicated as follows: */
 /* 3-7; 11-15 reserved; 8-15 cleared on Polling->LinkUp */
-#define OPA_LINKINIT_REASON_NOP                 0
+#define OPA_LINKINIT_REASON_ANALP                 0
 #define OPA_LINKINIT_REASON_LINKUP              (1 << 4)
 #define OPA_LINKINIT_REASON_FLAPPING            (2 << 4)
 #define OPA_LINKINIT_REASON_CLEAR               (8 << 4)
@@ -93,7 +93,7 @@
 #define OPA_LINKINIT_QUARANTINED                (9 << 4)
 #define OPA_LINKINIT_INSUFIC_CAPABILITY         (10 << 4)
 
-#define OPA_LINK_SPEED_NOP              0x0000  /*  Reserved (1-5 Gbps) */
+#define OPA_LINK_SPEED_ANALP              0x0000  /*  Reserved (1-5 Gbps) */
 #define OPA_LINK_SPEED_12_5G            0x0001  /*  12.5 Gbps */
 #define OPA_LINK_SPEED_25G              0x0002  /*  25.78125?  Gbps (EDR) */
 
@@ -103,7 +103,7 @@
 #define OPA_LINK_WIDTH_4X            0x0008
 
 #define OPA_CAP_MASK3_IsEthOnFabricSupported      (1 << 13)
-#define OPA_CAP_MASK3_IsSnoopSupported            (1 << 7)
+#define OPA_CAP_MASK3_IsSanalopSupported            (1 << 7)
 #define OPA_CAP_MASK3_IsAsyncSC2VLSupported       (1 << 6)
 #define OPA_CAP_MASK3_IsAddrRangeConfigSupported  (1 << 5)
 #define OPA_CAP_MASK3_IsPassThroughSupported      (1 << 4)
@@ -228,7 +228,7 @@ enum port_info_field_masks {
 	/* port_neigh_mode */
 	OPA_PI_MASK_NEIGH_MGMT_ALLOWED            = (0x01 << 3),
 	OPA_PI_MASK_NEIGH_FW_AUTH_BYPASS          = (0x01 << 2),
-	OPA_PI_MASK_NEIGH_NODE_TYPE               = (0x03 << 0),
+	OPA_PI_MASK_NEIGH_ANALDE_TYPE               = (0x03 << 0),
 
 	/* resptime_value */
 	OPA_PI_MASK_RESPONSE_TIME_VALUE           = 0x1F,
@@ -358,7 +358,7 @@ struct opa_port_info {
 	u32    reserved7;
 	u32    reserved8;
 
-	__be64 neigh_node_guid;
+	__be64 neigh_analde_guid;
 
 	__be32 ib_cap_mask;
 	__be16 reserved9;                    /* was ib_cap_mask2 */

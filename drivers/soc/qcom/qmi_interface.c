@@ -23,7 +23,7 @@ static struct socket *qmi_sock_create(struct qmi_handle *qmi,
  * @qmi:	qmi handle
  * @service:	service id of the new server
  * @instance:	instance id of the new server
- * @node:	node of the new server
+ * @analde:	analde of the new server
  * @port:	port of the new server
  *
  * Calls the new_server callback to inform the client about a newly registered
@@ -31,7 +31,7 @@ static struct socket *qmi_sock_create(struct qmi_handle *qmi,
  */
 static void qmi_recv_new_server(struct qmi_handle *qmi,
 				unsigned int service, unsigned int instance,
-				unsigned int node, unsigned int port)
+				unsigned int analde, unsigned int port)
 {
 	struct qmi_ops *ops = &qmi->ops;
 	struct qmi_service *svc;
@@ -40,8 +40,8 @@ static void qmi_recv_new_server(struct qmi_handle *qmi,
 	if (!ops->new_server)
 		return;
 
-	/* Ignore EOF marker */
-	if (!node && !port)
+	/* Iganalre EOF marker */
+	if (!analde && !port)
 		return;
 
 	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
@@ -51,34 +51,34 @@ static void qmi_recv_new_server(struct qmi_handle *qmi,
 	svc->service = service;
 	svc->version = instance & 0xff;
 	svc->instance = instance >> 8;
-	svc->node = node;
+	svc->analde = analde;
 	svc->port = port;
 
 	ret = ops->new_server(qmi, svc);
 	if (ret < 0)
 		kfree(svc);
 	else
-		list_add(&svc->list_node, &qmi->lookup_results);
+		list_add(&svc->list_analde, &qmi->lookup_results);
 }
 
 /**
  * qmi_recv_del_server() - handler of DEL_SERVER control message
  * @qmi:	qmi handle
- * @node:	node of the dying server, a value of -1 matches all nodes
+ * @analde:	analde of the dying server, a value of -1 matches all analdes
  * @port:	port of the dying server, a value of -1 matches all ports
  *
  * Calls the del_server callback for each previously seen server, allowing the
  * client to react to the disappearing server.
  */
 static void qmi_recv_del_server(struct qmi_handle *qmi,
-				unsigned int node, unsigned int port)
+				unsigned int analde, unsigned int port)
 {
 	struct qmi_ops *ops = &qmi->ops;
 	struct qmi_service *svc;
 	struct qmi_service *tmp;
 
-	list_for_each_entry_safe(svc, tmp, &qmi->lookup_results, list_node) {
-		if (node != -1 && svc->node != node)
+	list_for_each_entry_safe(svc, tmp, &qmi->lookup_results, list_analde) {
+		if (analde != -1 && svc->analde != analde)
 			continue;
 		if (port != -1 && svc->port != port)
 			continue;
@@ -86,7 +86,7 @@ static void qmi_recv_del_server(struct qmi_handle *qmi,
 		if (ops->del_server)
 			ops->del_server(qmi, svc);
 
-		list_del(&svc->list_node);
+		list_del(&svc->list_analde);
 		kfree(svc);
 	}
 }
@@ -94,38 +94,38 @@ static void qmi_recv_del_server(struct qmi_handle *qmi,
 /**
  * qmi_recv_bye() - handler of BYE control message
  * @qmi:	qmi handle
- * @node:	id of the dying node
+ * @analde:	id of the dying analde
  *
- * Signals the client that all previously registered services on this node are
- * now gone and then calls the bye callback to allow the client further
+ * Signals the client that all previously registered services on this analde are
+ * analw gone and then calls the bye callback to allow the client further
  * cleaning up resources associated with this remote.
  */
 static void qmi_recv_bye(struct qmi_handle *qmi,
-			 unsigned int node)
+			 unsigned int analde)
 {
 	struct qmi_ops *ops = &qmi->ops;
 
-	qmi_recv_del_server(qmi, node, -1);
+	qmi_recv_del_server(qmi, analde, -1);
 
 	if (ops->bye)
-		ops->bye(qmi, node);
+		ops->bye(qmi, analde);
 }
 
 /**
  * qmi_recv_del_client() - handler of DEL_CLIENT control message
  * @qmi:	qmi handle
- * @node:	node of the dying client
+ * @analde:	analde of the dying client
  * @port:	port of the dying client
  *
  * Signals the client about a dying client, by calling the del_client callback.
  */
 static void qmi_recv_del_client(struct qmi_handle *qmi,
-				unsigned int node, unsigned int port)
+				unsigned int analde, unsigned int port)
 {
 	struct qmi_ops *ops = &qmi->ops;
 
 	if (ops->del_client)
-		ops->del_client(qmi, node, port);
+		ops->del_client(qmi, analde, port);
 }
 
 static void qmi_recv_ctrl_pkt(struct qmi_handle *qmi,
@@ -134,29 +134,29 @@ static void qmi_recv_ctrl_pkt(struct qmi_handle *qmi,
 	const struct qrtr_ctrl_pkt *pkt = buf;
 
 	if (len < sizeof(struct qrtr_ctrl_pkt)) {
-		pr_debug("ignoring short control packet\n");
+		pr_debug("iganalring short control packet\n");
 		return;
 	}
 
 	switch (le32_to_cpu(pkt->cmd)) {
 	case QRTR_TYPE_BYE:
-		qmi_recv_bye(qmi, le32_to_cpu(pkt->client.node));
+		qmi_recv_bye(qmi, le32_to_cpu(pkt->client.analde));
 		break;
 	case QRTR_TYPE_NEW_SERVER:
 		qmi_recv_new_server(qmi,
 				    le32_to_cpu(pkt->server.service),
 				    le32_to_cpu(pkt->server.instance),
-				    le32_to_cpu(pkt->server.node),
+				    le32_to_cpu(pkt->server.analde),
 				    le32_to_cpu(pkt->server.port));
 		break;
 	case QRTR_TYPE_DEL_SERVER:
 		qmi_recv_del_server(qmi,
-				    le32_to_cpu(pkt->server.node),
+				    le32_to_cpu(pkt->server.analde),
 				    le32_to_cpu(pkt->server.port));
 		break;
 	case QRTR_TYPE_DEL_CLIENT:
 		qmi_recv_del_client(qmi,
-				    le32_to_cpu(pkt->client.node),
+				    le32_to_cpu(pkt->client.analde),
 				    le32_to_cpu(pkt->client.port));
 		break;
 	}
@@ -176,7 +176,7 @@ static void qmi_send_new_lookup(struct qmi_handle *qmi, struct qmi_service *svc)
 	pkt.server.instance = cpu_to_le32(svc->version | svc->instance << 8);
 
 	sq.sq_family = qmi->sq.sq_family;
-	sq.sq_node = qmi->sq.sq_node;
+	sq.sq_analde = qmi->sq.sq_analde;
 	sq.sq_port = QRTR_PORT_CTRL;
 
 	msg.msg_name = &sq;
@@ -202,7 +202,7 @@ static void qmi_send_new_lookup(struct qmi_handle *qmi, struct qmi_service *svc)
  * to send NEW_SERVER and DEL_SERVER control messages to this socket as
  * matching services are registered.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int qmi_add_lookup(struct qmi_handle *qmi, unsigned int service,
 		   unsigned int version, unsigned int instance)
@@ -211,13 +211,13 @@ int qmi_add_lookup(struct qmi_handle *qmi, unsigned int service,
 
 	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
 	if (!svc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	svc->service = service;
 	svc->version = version;
 	svc->instance = instance;
 
-	list_add(&svc->list_node, &qmi->lookups);
+	list_add(&svc->list_analde, &qmi->lookups);
 
 	qmi_send_new_lookup(qmi, svc);
 
@@ -237,11 +237,11 @@ static void qmi_send_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
 	pkt.cmd = cpu_to_le32(QRTR_TYPE_NEW_SERVER);
 	pkt.server.service = cpu_to_le32(svc->service);
 	pkt.server.instance = cpu_to_le32(svc->version | svc->instance << 8);
-	pkt.server.node = cpu_to_le32(qmi->sq.sq_node);
+	pkt.server.analde = cpu_to_le32(qmi->sq.sq_analde);
 	pkt.server.port = cpu_to_le32(qmi->sq.sq_port);
 
 	sq.sq_family = qmi->sq.sq_family;
-	sq.sq_node = qmi->sq.sq_node;
+	sq.sq_analde = qmi->sq.sq_analde;
 	sq.sq_port = QRTR_PORT_CTRL;
 
 	msg.msg_name = &sq;
@@ -266,7 +266,7 @@ static void qmi_send_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
  * Register a new service with the name service. This allows clients to find
  * and start sending messages to the client associated with @qmi.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int qmi_add_server(struct qmi_handle *qmi, unsigned int service,
 		   unsigned int version, unsigned int instance)
@@ -275,13 +275,13 @@ int qmi_add_server(struct qmi_handle *qmi, unsigned int service,
 
 	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
 	if (!svc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	svc->service = service;
 	svc->version = version;
 	svc->instance = instance;
 
-	list_add(&svc->list_node, &qmi->services);
+	list_add(&svc->list_analde, &qmi->services);
 
 	qmi_send_new_server(qmi, svc);
 
@@ -303,7 +303,7 @@ EXPORT_SYMBOL_GPL(qmi_add_server);
  * A client calling qmi_txn_init() must call either qmi_txn_wait() or
  * qmi_txn_cancel() to free up the allocated resources.
  *
- * Return: Transaction id on success, negative errno on failure.
+ * Return: Transaction id on success, negative erranal on failure.
  */
 int qmi_txn_init(struct qmi_handle *qmi, struct qmi_txn *txn,
 		 const struct qmi_elem_info *ei, void *c_struct)
@@ -339,7 +339,7 @@ EXPORT_SYMBOL_GPL(qmi_txn_init);
  * value will be the returned value of qmi_decode_message(), otherwise it's up
  * to the specified message handler to fill out the result.
  *
- * Return: the transaction response on success, negative errno on failure.
+ * Return: the transaction response on success, negative erranal on failure.
  */
 int qmi_txn_wait(struct qmi_txn *txn, unsigned long timeout)
 {
@@ -426,13 +426,13 @@ static void qmi_invoke_handler(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
  *
  * As a result of registering a name service with the QRTR all open sockets are
  * flagged with ENETRESET and this function will be called. The typical case is
- * the initial boot, where this signals that the local node id has been
+ * the initial boot, where this signals that the local analde id has been
  * configured and as such any bound sockets needs to be rebound. So close the
  * socket, inform the client and re-initialize the socket.
  *
  * For clients it's generally sufficient to react to the del_server callbacks,
  * but server code is expected to treat the net_reset callback as a "bye" from
- * all nodes.
+ * all analdes.
  *
  * Finally the QMI handle will send out registration requests for any lookups
  * and services.
@@ -462,10 +462,10 @@ static void qmi_handle_net_reset(struct qmi_handle *qmi)
 	qmi->sq = sq;
 	mutex_unlock(&qmi->sock_lock);
 
-	list_for_each_entry(svc, &qmi->lookups, list_node)
+	list_for_each_entry(svc, &qmi->lookups, list_analde)
 		qmi_send_new_lookup(qmi, svc);
 
-	list_for_each_entry(svc, &qmi->services, list_node)
+	list_for_each_entry(svc, &qmi->services, list_analde)
 		qmi_send_new_server(qmi, svc);
 }
 
@@ -479,7 +479,7 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 	int ret;
 
 	if (len < sizeof(*hdr)) {
-		pr_err("ignoring short QMI packet\n");
+		pr_err("iganalring short QMI packet\n");
 		return;
 	}
 
@@ -490,7 +490,7 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 		mutex_lock(&qmi->txn_lock);
 		txn = idr_find(&qmi->txns, hdr->txn_id);
 
-		/* Ignore unexpected responses */
+		/* Iganalre unexpected responses */
 		if (!txn) {
 			mutex_unlock(&qmi->txn_lock);
 			return;
@@ -555,7 +555,7 @@ static void qmi_data_ready_work(struct work_struct *work)
 			break;
 		}
 
-		if (sq.sq_node == qmi->sq.sq_node &&
+		if (sq.sq_analde == qmi->sq.sq_analde &&
 		    sq.sq_port == QRTR_PORT_CTRL) {
 			qmi_recv_ctrl_pkt(qmi, qmi->recv_buf, msglen);
 		} else if (ops->msg_handler) {
@@ -610,13 +610,13 @@ static struct socket *qmi_sock_create(struct qmi_handle *qmi,
  * qmi_handle_init() - initialize a QMI client handle
  * @qmi:	QMI handle to initialize
  * @recv_buf_size: maximum size of incoming message
- * @ops:	reference to callbacks for QRTR notifications
+ * @ops:	reference to callbacks for QRTR analtifications
  * @handlers:	NULL-terminated list of QMI message handlers
  *
  * This initializes the QMI client handle to allow sending and receiving QMI
  * messages. As messages are received the appropriate handler will be invoked.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int qmi_handle_init(struct qmi_handle *qmi, size_t recv_buf_size,
 		    const struct qmi_ops *ops,
@@ -648,17 +648,17 @@ int qmi_handle_init(struct qmi_handle *qmi, size_t recv_buf_size,
 	qmi->recv_buf_size = recv_buf_size;
 	qmi->recv_buf = kzalloc(recv_buf_size, GFP_KERNEL);
 	if (!qmi->recv_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmi->wq = alloc_ordered_workqueue("qmi_msg_handler", 0);
 	if (!qmi->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_recv_buf;
 	}
 
 	qmi->sock = qmi_sock_create(qmi, &qmi->sq);
 	if (IS_ERR(qmi->sock)) {
-		if (PTR_ERR(qmi->sock) == -EAFNOSUPPORT) {
+		if (PTR_ERR(qmi->sock) == -EAFANALSUPPORT) {
 			ret = -EPROBE_DEFER;
 		} else {
 			pr_err("failed to create QMI socket\n");
@@ -706,14 +706,14 @@ void qmi_handle_release(struct qmi_handle *qmi)
 	kfree(qmi->recv_buf);
 
 	/* Free registered lookup requests */
-	list_for_each_entry_safe(svc, tmp, &qmi->lookups, list_node) {
-		list_del(&svc->list_node);
+	list_for_each_entry_safe(svc, tmp, &qmi->lookups, list_analde) {
+		list_del(&svc->list_analde);
 		kfree(svc);
 	}
 
 	/* Free registered service information */
-	list_for_each_entry_safe(svc, tmp, &qmi->services, list_node) {
-		list_del(&svc->list_node);
+	list_for_each_entry_safe(svc, tmp, &qmi->services, list_analde) {
+		list_del(&svc->list_analde);
 		kfree(svc);
 	}
 }
@@ -734,7 +734,7 @@ EXPORT_SYMBOL_GPL(qmi_handle_release);
  * with @msg_id and @txn into a buffer of maximum size @len, and sends this to
  * @sq.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 static ssize_t qmi_send_message(struct qmi_handle *qmi,
 				struct sockaddr_qrtr *sq, struct qmi_txn *txn,
@@ -787,7 +787,7 @@ static ssize_t qmi_send_message(struct qmi_handle *qmi,
  * @ei:		QMI message description
  * @c_struct:	object to be encoded
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 ssize_t qmi_send_request(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
 			 struct qmi_txn *txn, int msg_id, size_t len,
@@ -808,7 +808,7 @@ EXPORT_SYMBOL_GPL(qmi_send_request);
  * @ei:		QMI message description
  * @c_struct:	object to be encoded
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 ssize_t qmi_send_response(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
 			  struct qmi_txn *txn, int msg_id, size_t len,
@@ -828,7 +828,7 @@ EXPORT_SYMBOL_GPL(qmi_send_response);
  * @ei:		QMI message description
  * @c_struct:	object to be encoded
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 ssize_t qmi_send_indication(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
 			    int msg_id, size_t len,

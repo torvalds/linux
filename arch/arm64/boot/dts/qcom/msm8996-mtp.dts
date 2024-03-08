@@ -8,7 +8,7 @@
 #include "msm8996.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM 8996 MTP";
+	model = "Qualcomm Techanallogies, Inc. MSM 8996 MTP";
 	compatible = "qcom,msm8996-mtp", "qcom,msm8996";
 	chassis-type = "handset";
 

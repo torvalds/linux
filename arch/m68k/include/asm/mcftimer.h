@@ -35,9 +35,9 @@
 #define	MCFTIMER_TMR_ANYCE	0x00c0		/* Capture any edge */
 #define	MCFTIMER_TMR_FALLCE	0x0080		/* Capture fallingedge */
 #define	MCFTIMER_TMR_RISECE	0x0040		/* Capture rising edge */
-#define	MCFTIMER_TMR_ENOM	0x0020		/* Enable output toggle */
+#define	MCFTIMER_TMR_EANALM	0x0020		/* Enable output toggle */
 #define	MCFTIMER_TMR_DISOM	0x0000		/* Do single output pulse  */
-#define	MCFTIMER_TMR_ENORI	0x0010		/* Enable ref interrupt */
+#define	MCFTIMER_TMR_EANALRI	0x0010		/* Enable ref interrupt */
 #define	MCFTIMER_TMR_DISORI	0x0000		/* Disable ref interrupt */
 #define	MCFTIMER_TMR_RESTART	0x0008		/* Restart counter */
 #define	MCFTIMER_TMR_FREERUN	0x0000		/* Free running counter */

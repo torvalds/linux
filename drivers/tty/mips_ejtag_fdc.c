@@ -2,7 +2,7 @@
 /*
  * TTY driver for MIPS EJTAG Fast Debug Channels.
  *
- * Copyright (C) 2007-2015 Imagination Technologies Ltd
+ * Copyright (C) 2007-2015 Imagination Techanallogies Ltd
  */
 
 #include <linux/atomic.h>
@@ -44,13 +44,13 @@
 #define REG_FDCFG_TXINTTHRES		(0x3 << REG_FDCFG_TXINTTHRES_SHIFT)
 #define REG_FDCFG_TXINTTHRES_DISABLED	(0x0 << REG_FDCFG_TXINTTHRES_SHIFT)
 #define REG_FDCFG_TXINTTHRES_EMPTY	(0x1 << REG_FDCFG_TXINTTHRES_SHIFT)
-#define REG_FDCFG_TXINTTHRES_NOTFULL	(0x2 << REG_FDCFG_TXINTTHRES_SHIFT)
+#define REG_FDCFG_TXINTTHRES_ANALTFULL	(0x2 << REG_FDCFG_TXINTTHRES_SHIFT)
 #define REG_FDCFG_TXINTTHRES_NEAREMPTY	(0x3 << REG_FDCFG_TXINTTHRES_SHIFT)
 #define REG_FDCFG_RXINTTHRES_SHIFT	16
 #define REG_FDCFG_RXINTTHRES		(0x3 << REG_FDCFG_RXINTTHRES_SHIFT)
 #define REG_FDCFG_RXINTTHRES_DISABLED	(0x0 << REG_FDCFG_RXINTTHRES_SHIFT)
 #define REG_FDCFG_RXINTTHRES_FULL	(0x1 << REG_FDCFG_RXINTTHRES_SHIFT)
-#define REG_FDCFG_RXINTTHRES_NOTEMPTY	(0x2 << REG_FDCFG_RXINTTHRES_SHIFT)
+#define REG_FDCFG_RXINTTHRES_ANALTEMPTY	(0x2 << REG_FDCFG_RXINTTHRES_SHIFT)
 #define REG_FDCFG_RXINTTHRES_NEARFULL	(0x3 << REG_FDCFG_RXINTTHRES_SHIFT)
 #define REG_FDCFG_TXFIFOSIZE_SHIFT	8
 #define REG_FDCFG_TXFIFOSIZE		(0xff << REG_FDCFG_TXFIFOSIZE_SHIFT)
@@ -118,7 +118,7 @@ struct mips_ejtag_fdc_tty_port {
  * @dev:		FDC device (for dev_*() logging).
  * @driver:		TTY driver.
  * @cpu:		CPU number for this FDC.
- * @fdc_name:		FDC name (not for base of channel names).
+ * @fdc_name:		FDC name (analt for base of channel names).
  * @driver_name:	Base of driver name.
  * @ports:		Per-channel data.
  * @waitqueue:		Wait queue for waiting for TX data, or for space in TX
@@ -131,9 +131,9 @@ struct mips_ejtag_fdc_tty_port {
  * @xmit_total:		Total number of bytes (from all ports) to transmit.
  * @xmit_next:		Next port number to transmit from (round robin).
  * @xmit_full:		Indicates TX FIFO is full, we're waiting for space.
- * @irq:		IRQ number (negative if no IRQ).
+ * @irq:		IRQ number (negative if anal IRQ).
  * @removing:		Indicates the device is being removed and @poll_timer
- *			should not be restarted.
+ *			should analt be restarted.
  * @poll_timer:		Timer for polling for interrupt events when @irq < 0.
  * @sysrq_pressed:	Whether the magic sysrq key combination has been
  *			detected. See mips_ejtag_fdc_handle().
@@ -208,7 +208,7 @@ struct fdc_word {
  *   |  ZZ |  YY |  XX |  WW | WW XX YY ZZ |
  *   |_____|_____|_____|_____|_____________|
  *
- * Note that the 4-byte encoding can only be used where none of the other 3
+ * Analte that the 4-byte encoding can only be used where analne of the other 3
  * encodings match, otherwise it must fall back to the 3 byte encoding.
  */
 
@@ -297,7 +297,7 @@ struct mips_ejtag_fdc_console {
 	void __iomem		*regs[NR_CPUS];
 };
 
-/* Low level console write shared by early console and normal console */
+/* Low level console write shared by early console and analrmal console */
 static void mips_ejtag_fdc_console_write(struct console *c, const char *s,
 					 unsigned int count)
 {
@@ -363,7 +363,7 @@ static struct tty_driver *mips_ejtag_fdc_console_device(struct console *c,
 	return cons->tty_drv;
 }
 
-/* Initialise an FDC console (early or normal */
+/* Initialise an FDC console (early or analrmal */
 static int __init mips_ejtag_fdc_console_init(struct mips_ejtag_fdc_console *c)
 {
 	void __iomem *regs;
@@ -504,7 +504,7 @@ static int mips_ejtag_fdc_put(void *arg)
 				/* Enable TX interrupt */
 				cfg = mips_ejtag_fdc_read(priv, REG_FDCFG);
 				cfg &= ~REG_FDCFG_TXINTTHRES;
-				cfg |= REG_FDCFG_TXINTTHRES_NOTFULL;
+				cfg |= REG_FDCFG_TXINTTHRES_ANALTFULL;
 				mips_ejtag_fdc_write(priv, REG_FDCFG, cfg);
 			}
 		}
@@ -534,7 +534,7 @@ static int mips_ejtag_fdc_put(void *arg)
 		ret = mips_ejtag_fdc_put_chan(priv, priv->xmit_next);
 
 		/*
-		 * If anything was output, move on to the next channel so as not
+		 * If anything was output, move on to the next channel so as analt
 		 * to starve other channels.
 		 */
 		if (ret) {
@@ -610,7 +610,7 @@ static void mips_ejtag_fdc_handle(struct mips_ejtag_fdc_tty *priv)
 				continue;
 
 			flipped += tty_insert_flip_char(&dport->port, buf[i],
-							TTY_NORMAL);
+							TTY_ANALRMAL);
 		}
 		if (flipped)
 			tty_flip_buffer_push(&dport->port);
@@ -618,7 +618,7 @@ static void mips_ejtag_fdc_handle(struct mips_ejtag_fdc_tty *priv)
 		raw_spin_unlock(&dport->rx_lock);
 	}
 
-	/* If TX FIFO no longer full we may be able to write more data */
+	/* If TX FIFO anal longer full we may be able to write more data */
 	raw_spin_lock(&priv->lock);
 	if (priv->xmit_full && !(stat & REG_FDSTAT_TXF)) {
 		priv->xmit_full = false;
@@ -645,27 +645,27 @@ static void mips_ejtag_fdc_handle(struct mips_ejtag_fdc_tty *priv)
  * It simply triggers the common FDC handler code.
  *
  * Returns:	IRQ_HANDLED if an FDC interrupt was pending.
- *		IRQ_NONE otherwise.
+ *		IRQ_ANALNE otherwise.
  */
 static irqreturn_t mips_ejtag_fdc_isr(int irq, void *dev_id)
 {
 	struct mips_ejtag_fdc_tty *priv = dev_id;
 
 	/*
-	 * We're not using proper per-cpu IRQs, so we must be careful not to
-	 * handle IRQs on CPUs we're not interested in.
+	 * We're analt using proper per-cpu IRQs, so we must be careful analt to
+	 * handle IRQs on CPUs we're analt interested in.
 	 *
 	 * Ideally proper per-cpu IRQ handlers could be used, but that doesn't
 	 * fit well with the whole sharing of the main CPU IRQ lines. When we
-	 * have something with a GIC that routes the FDC IRQs (i.e. no sharing
+	 * have something with a GIC that routes the FDC IRQs (i.e. anal sharing
 	 * between handlers) then support could be added more easily.
 	 */
 	if (smp_processor_id() != priv->cpu)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* If no FDC interrupt pending, it wasn't for us */
+	/* If anal FDC interrupt pending, it wasn't for us */
 	if (!(read_c0_cause() & CAUSEF_FDCI))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	mips_ejtag_fdc_handle(priv);
 	return IRQ_HANDLED;
@@ -716,7 +716,7 @@ static int mips_ejtag_fdc_tty_port_activate(struct tty_port *port,
 err_free_xmit:
 	tty_port_free_xmit_buf(port);
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mips_ejtag_fdc_tty_port_shutdown(struct tty_port *port)
@@ -806,8 +806,8 @@ static ssize_t mips_ejtag_fdc_tty_write(struct tty_struct *tty, const u8 *buf,
 	/*
 	 * Write to output buffer.
 	 *
-	 * The reason that we asynchronously write the buffer is because if we
-	 * were to write the buffer synchronously then because the channels are
+	 * The reason that we asynchroanalusly write the buffer is because if we
+	 * were to write the buffer synchroanalusly then because the channels are
 	 * per-CPU the buffer would be written to the channel of whatever CPU
 	 * we're running on.
 	 *
@@ -829,7 +829,7 @@ static ssize_t mips_ejtag_fdc_tty_write(struct tty_struct *tty, const u8 *buf,
 		buf += block;
 	}
 	count = dport->xmit_cnt;
-	/* Xmit buffer no longer empty? */
+	/* Xmit buffer anal longer empty? */
 	if (count)
 		reinit_completion(&dport->xmit_empty);
 	spin_unlock(&dport->xmit_lock);
@@ -892,7 +892,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->cpu = dev->cpu;
 	priv->dev = &dev->dev;
 	mips_cdmm_set_drvdata(dev, priv);
@@ -904,7 +904,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	if (!priv->reg) {
 		dev_err(priv->dev, "ioremap failed for resource %pR\n",
 			&dev->res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cfg = mips_ejtag_fdc_read(priv, REG_FDCFG);
@@ -915,7 +915,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	cfg |= REG_FDCFG_RXINTTHRES_DISABLED;
 	mips_ejtag_fdc_write(priv, REG_FDCFG, cfg);
 
-	/* Make each port's xmit FIFO big enough to fill FDC TX FIFO */
+	/* Make each port's xmit FIFO big eanalugh to fill FDC TX FIFO */
 	priv->xmit_size = min(tx_fifo * 4, (unsigned int)UART_XMIT_SIZE);
 
 	driver = tty_alloc_driver(NUM_TTY_CHANNELS, TTY_DRIVER_REAL_RAW);
@@ -929,9 +929,9 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		 priv->fdc_name);
 	driver->name = priv->driver_name;
 	driver->major = 0; /* Auto-allocate */
-	driver->minor_start = 0;
+	driver->mianalr_start = 0;
 	driver->type = TTY_DRIVER_TYPE_SERIAL;
-	driver->subtype = SERIAL_TYPE_NORMAL;
+	driver->subtype = SERIAL_TYPE_ANALRMAL;
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_cflag |= CLOCAL;
 	driver->driver_state = priv;
@@ -976,15 +976,15 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		/*
 		 * IRQF_SHARED, IRQF_COND_SUSPEND: The FDC IRQ may be shared with
 		 * other local interrupts such as the timer which sets
-		 * IRQF_TIMER (including IRQF_NO_SUSPEND).
+		 * IRQF_TIMER (including IRQF_ANAL_SUSPEND).
 		 *
-		 * IRQF_NO_THREAD: The FDC IRQ isn't individually maskable so it
-		 * cannot be deferred and handled by a thread on RT kernels. For
+		 * IRQF_ANAL_THREAD: The FDC IRQ isn't individually maskable so it
+		 * cananalt be deferred and handled by a thread on RT kernels. For
 		 * this reason any spinlocks used from the ISR are raw.
 		 */
 		ret = devm_request_irq(priv->dev, priv->irq, mips_ejtag_fdc_isr,
 				       IRQF_PERCPU | IRQF_SHARED |
-				       IRQF_NO_THREAD | IRQF_COND_SUSPEND,
+				       IRQF_ANAL_THREAD | IRQF_COND_SUSPEND,
 				       priv->fdc_name, priv);
 		if (ret)
 			priv->irq = -1;
@@ -994,7 +994,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		raw_spin_lock_irq(&priv->lock);
 		cfg = mips_ejtag_fdc_read(priv, REG_FDCFG);
 		cfg &= ~REG_FDCFG_RXINTTHRES;
-		cfg |= REG_FDCFG_RXINTTHRES_NOTEMPTY;
+		cfg |= REG_FDCFG_RXINTTHRES_ANALTEMPTY;
 		mips_ejtag_fdc_write(priv, REG_FDCFG, cfg);
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
@@ -1008,7 +1008,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		 */
 		add_timer_on(&priv->poll_timer, dev->cpu);
 
-		dev_info(priv->dev, "No usable IRQ, polling enabled\n");
+		dev_info(priv->dev, "Anal usable IRQ, polling enabled\n");
 	}
 
 	ret = tty_register_driver(driver);
@@ -1084,7 +1084,7 @@ static int mips_ejtag_fdc_tty_cpu_up(struct mips_cdmm_device *dev)
 		cfg = mips_ejtag_fdc_read(priv, REG_FDCFG);
 		cfg &= ~(REG_FDCFG_TXINTTHRES | REG_FDCFG_RXINTTHRES);
 		cfg |= REG_FDCFG_TXINTTHRES_DISABLED;
-		cfg |= REG_FDCFG_RXINTTHRES_NOTEMPTY;
+		cfg |= REG_FDCFG_RXINTTHRES_ANALTEMPTY;
 		mips_ejtag_fdc_write(priv, REG_FDCFG, cfg);
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
@@ -1182,22 +1182,22 @@ static int kgdbfdc_read_char(void)
 	unsigned int stat, channel, data;
 	void __iomem *regs;
 
-	/* No more data, try and read another FDC word from RX FIFO */
+	/* Anal more data, try and read aanalther FDC word from RX FIFO */
 	if (kgdbfdc_rpos >= kgdbfdc_rbuflen) {
 		kgdbfdc_rpos = 0;
 		kgdbfdc_rbuflen = 0;
 
 		regs = kgdbfdc_setup();
 		if (IS_ERR(regs))
-			return NO_POLL_CHAR;
+			return ANAL_POLL_CHAR;
 
 		/* Read next word from KGDB channel */
 		do {
 			stat = __raw_readl(regs + REG_FDSTAT);
 
-			/* No data waiting? */
+			/* Anal data waiting? */
 			if (stat & REG_FDSTAT_RXE)
-				return NO_POLL_CHAR;
+				return ANAL_POLL_CHAR;
 
 			/* Read next word */
 			channel = (stat & REG_FDSTAT_RXCHAN) >>

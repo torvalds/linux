@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -45,7 +45,7 @@
 
 #define LEGACY_CACHELEVEL \
 	.cachelevel_to_pat = { \
-		[I915_CACHE_NONE]   = 0, \
+		[I915_CACHE_ANALNE]   = 0, \
 		[I915_CACHE_LLC]    = 1, \
 		[I915_CACHE_L3_LLC] = 2, \
 		[I915_CACHE_WT]     = 3, \
@@ -53,7 +53,7 @@
 
 #define TGL_CACHELEVEL \
 	.cachelevel_to_pat = { \
-		[I915_CACHE_NONE]   = 3, \
+		[I915_CACHE_ANALNE]   = 3, \
 		[I915_CACHE_LLC]    = 0, \
 		[I915_CACHE_L3_LLC] = 0, \
 		[I915_CACHE_WT]     = 2, \
@@ -61,7 +61,7 @@
 
 #define PVC_CACHELEVEL \
 	.cachelevel_to_pat = { \
-		[I915_CACHE_NONE]   = 0, \
+		[I915_CACHE_ANALNE]   = 0, \
 		[I915_CACHE_LLC]    = 3, \
 		[I915_CACHE_L3_LLC] = 3, \
 		[I915_CACHE_WT]     = 2, \
@@ -69,13 +69,13 @@
 
 #define MTL_CACHELEVEL \
 	.cachelevel_to_pat = { \
-		[I915_CACHE_NONE]   = 2, \
+		[I915_CACHE_ANALNE]   = 2, \
 		[I915_CACHE_LLC]    = 3, \
 		[I915_CACHE_L3_LLC] = 3, \
 		[I915_CACHE_WT]     = 1, \
 	}
 
-/* Keep in gen based order, and chronological order within a gen */
+/* Keep in gen based order, and chroanallogical order within a gen */
 
 #define GEN_DEFAULT_PAGE_SIZES \
 	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K
@@ -91,7 +91,7 @@
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
 	.platform_engine_mask = BIT(RCS0), \
-	.has_snoop = true, \
+	.has_sanalop = true, \
 	.has_coherent_ggtt = false, \
 	.dma_mask_size = 32, \
 	.max_pat_index = 3, \
@@ -106,7 +106,7 @@
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
 	.platform_engine_mask = BIT(RCS0), \
-	.has_snoop = true, \
+	.has_sanalop = true, \
 	.has_coherent_ggtt = false, \
 	.dma_mask_size = 32, \
 	.max_pat_index = 3, \
@@ -139,7 +139,7 @@ static const struct intel_device_info i865g_info = {
 	.gpu_reset_clobbers_display = true, \
 	.platform_engine_mask = BIT(RCS0), \
 	.has_3d_pipeline = 1, \
-	.has_snoop = true, \
+	.has_sanalop = true, \
 	.has_coherent_ggtt = true, \
 	.dma_mask_size = 32, \
 	.max_pat_index = 3, \
@@ -202,7 +202,7 @@ static const struct intel_device_info pnv_m_info = {
 	.gpu_reset_clobbers_display = true, \
 	.platform_engine_mask = BIT(RCS0), \
 	.has_3d_pipeline = 1, \
-	.has_snoop = true, \
+	.has_sanalop = true, \
 	.has_coherent_ggtt = true, \
 	.dma_mask_size = 36, \
 	.max_pat_index = 3, \
@@ -214,7 +214,7 @@ static const struct intel_device_info i965g_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_I965G),
 	.hws_needs_physical = 1,
-	.has_snoop = false,
+	.has_sanalop = false,
 };
 
 static const struct intel_device_info i965gm_info = {
@@ -222,7 +222,7 @@ static const struct intel_device_info i965gm_info = {
 	PLATFORM(INTEL_I965GM),
 	.is_mobile = 1,
 	.hws_needs_physical = 1,
-	.has_snoop = false,
+	.has_sanalop = false,
 };
 
 static const struct intel_device_info g45_info = {
@@ -244,9 +244,9 @@ static const struct intel_device_info gm45_info = {
 	GEN(5), \
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0), \
 	.has_3d_pipeline = 1, \
-	.has_snoop = true, \
+	.has_sanalop = true, \
 	.has_coherent_ggtt = true, \
-	/* ilk does support rc6, but we do not implement [power] contexts */ \
+	/* ilk does support rc6, but we do analt implement [power] contexts */ \
 	.has_rc6 = 0, \
 	.dma_mask_size = 36, \
 	.max_pat_index = 3, \
@@ -382,7 +382,7 @@ static const struct intel_device_info vlv_info = {
 	.max_pat_index = 3,
 	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING,
 	.__runtime.ppgtt_size = 31,
-	.has_snoop = true,
+	.has_sanalop = true,
 	.has_coherent_ggtt = false,
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
 	GEN_DEFAULT_PAGE_SIZES,
@@ -443,7 +443,7 @@ static const struct intel_device_info bdw_rsvd_info = {
 	BDW_PLATFORM,
 	.gt = 3,
 	/* According to the device ID those devices are GT3, they were
-	 * previously treated as not GT3, keep it like that.
+	 * previously treated as analt GT3, keep it like that.
 	 */
 };
 
@@ -469,7 +469,7 @@ static const struct intel_device_info chv_info = {
 	.__runtime.ppgtt_type = INTEL_PPGTT_FULL,
 	.__runtime.ppgtt_size = 32,
 	.has_reset_engine = 1,
-	.has_snoop = true,
+	.has_sanalop = true,
 	.has_coherent_ggtt = false,
 	GEN_DEFAULT_PAGE_SIZES,
 	GEN_DEFAULT_REGIONS,
@@ -531,7 +531,7 @@ static const struct intel_device_info skl_gt4_info = {
 	.__runtime.ppgtt_type = INTEL_PPGTT_FULL, \
 	.__runtime.ppgtt_size = 48, \
 	.has_reset_engine = 1, \
-	.has_snoop = true, \
+	.has_sanalop = true, \
 	.has_coherent_ggtt = false, \
 	.max_pat_index = 3, \
 	GEN9_DEFAULT_PAGE_SIZES, \
@@ -663,7 +663,7 @@ static const struct intel_device_info rkl_info = {
 	.memory_regions = REGION_SMEM | REGION_LMEM | REGION_STOLEN_LMEM, \
 	.has_llc = 0, \
 	.has_pxp = 0, \
-	.has_snoop = 1, \
+	.has_sanalop = 1, \
 	.is_dgfx = 1, \
 	.has_heci_gscfi = 1
 
@@ -832,7 +832,7 @@ static const struct intel_device_info mtl_info = {
 	.has_guc_tlb_invalidation = 1,
 	.has_llc = 0,
 	.has_mslice_steering = 0,
-	.has_snoop = 1,
+	.has_sanalop = 1,
 	.max_pat_index = 4,
 	.has_pxp = 1,
 	.memory_regions = REGION_SMEM | REGION_STOLEN_LMEM,
@@ -932,7 +932,7 @@ static void i915_pci_remove(struct pci_dev *pdev)
 	struct drm_i915_private *i915;
 
 	i915 = pci_get_drvdata(pdev);
-	if (!i915) /* driver load aborted, nothing to cleanup */
+	if (!i915) /* driver load aborted, analthing to cleanup */
 		return;
 
 	i915_driver_remove(i915);
@@ -1015,18 +1015,18 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (intel_info->require_force_probe && !id_forced(pdev->device)) {
 		dev_info(&pdev->dev,
-			 "Your graphics device %04x is not properly supported by i915 in this\n"
+			 "Your graphics device %04x is analt properly supported by i915 in this\n"
 			 "kernel version. To force driver probe anyway, use i915.force_probe=%04x\n"
 			 "module parameter or CONFIG_DRM_I915_FORCE_PROBE=%04x configuration option,\n"
 			 "or (recommended) check for kernel updates.\n",
 			 pdev->device, pdev->device, pdev->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (id_blocked(pdev->device)) {
 		dev_info(&pdev->dev, "I915 probe blocked for Device ID %04x.\n",
 			 pdev->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (intel_info->require_force_probe) {
@@ -1041,7 +1041,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * functions have the same PCI-ID!
 	 */
 	if (PCI_FUNC(pdev->devfn))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!intel_mmio_bar_valid(pdev, intel_info))
 		return -ENXIO;
@@ -1056,19 +1056,19 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (i915_inject_probe_failure(pci_get_drvdata(pdev))) {
 		i915_pci_remove(pdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = i915_live_selftests(pdev);
 	if (err) {
 		i915_pci_remove(pdev);
-		return err > 0 ? -ENOTTY : err;
+		return err > 0 ? -EANALTTY : err;
 	}
 
 	err = i915_perf_selftests(pdev);
 	if (err) {
 		i915_pci_remove(pdev);
-		return err > 0 ? -ENOTTY : err;
+		return err > 0 ? -EANALTTY : err;
 	}
 
 	return 0;

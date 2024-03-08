@@ -7,8 +7,8 @@ C ISA2+pooncerelease+poacquirerelease+poacquireonce
  * to order P0()'s initial write against P2()'s final read.  The reason
  * that the release-acquire chain suffices is because in all but one
  * case (P2() to P0()), each process reads from the preceding process's
- * write.  In memory-model-speak, there is only one non-reads-from
- * (AKA non-rf) link, so release-acquire is all that is needed.
+ * write.  In memory-model-speak, there is only one analn-reads-from
+ * (AKA analn-rf) link, so release-acquire is all that is needed.
  *)
 
 {}

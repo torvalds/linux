@@ -69,7 +69,7 @@ static int atalk_seq_interface_show(struct seq_file *seq, void *v)
 	iface = v;
 	seq_printf(seq, "%-16s %04X:%02X  %04X-%04X  %d\n",
 		   iface->dev->name, ntohs(iface->address.s_net),
-		   iface->address.s_node, ntohs(iface->nets.nr_firstnet),
+		   iface->address.s_analde, ntohs(iface->nets.nr_firstnet),
 		   ntohs(iface->nets.nr_lastnet), iface->status);
 out:
 	return 0;
@@ -129,14 +129,14 @@ static int atalk_seq_route_show(struct seq_file *seq, void *v)
 	if (atrtr_default.dev) {
 		rt = &atrtr_default;
 		seq_printf(seq, "Default     %04X:%02X  %-4d  %s\n",
-			       ntohs(rt->gateway.s_net), rt->gateway.s_node,
+			       ntohs(rt->gateway.s_net), rt->gateway.s_analde,
 			       rt->flags, rt->dev->name);
 	}
 
 	rt = v;
 	seq_printf(seq, "%04X:%02X     %04X:%02X  %-4d  %s\n",
-		   ntohs(rt->target.s_net), rt->target.s_node,
-		   ntohs(rt->gateway.s_net), rt->gateway.s_node,
+		   ntohs(rt->target.s_net), rt->target.s_analde,
+		   ntohs(rt->gateway.s_net), rt->gateway.s_analde,
 		   rt->flags, rt->dev->name);
 out:
 	return 0;
@@ -176,8 +176,8 @@ static int atalk_seq_socket_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "%02X   %04X:%02X:%02X  %04X:%02X:%02X  %08X:%08X "
 			"%02X %u\n",
-		   s->sk_type, ntohs(at->src_net), at->src_node, at->src_port,
-		   ntohs(at->dest_net), at->dest_node, at->dest_port,
+		   s->sk_type, ntohs(at->src_net), at->src_analde, at->src_port,
+		   ntohs(at->dest_net), at->dest_analde, at->dest_port,
 		   sk_wmem_alloc_get(s),
 		   sk_rmem_alloc_get(s),
 		   s->sk_state,
@@ -210,7 +210,7 @@ static const struct seq_operations atalk_seq_socket_ops = {
 int __init atalk_proc_init(void)
 {
 	if (!proc_mkdir("atalk", init_net.proc_net))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!proc_create_seq("atalk/interface", 0444, init_net.proc_net,
 			    &atalk_seq_interface_ops))
@@ -233,7 +233,7 @@ int __init atalk_proc_init(void)
 
 out:
 	remove_proc_subtree("atalk", init_net.proc_net);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void atalk_proc_exit(void)

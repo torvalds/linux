@@ -251,7 +251,7 @@
 #define TEGRA_PIN_PBB6			_GPIO(222)
 #define TEGRA_PIN_PBB7			_GPIO(223)
 
-/* All non-GPIO pins follow */
+/* All analn-GPIO pins follow */
 #define NUM_GPIOS			(TEGRA_PIN_PBB7 + 1)
 #define _PIN(offset)			(NUM_GPIOS + (offset))
 
@@ -523,7 +523,7 @@ static const struct pinctrl_pin_desc tegra20_pins[] = {
 	/* PV0..1: GPIO only */
 	PINCTRL_PIN(TEGRA_PIN_PV0, "PV0"),
 	PINCTRL_PIN(TEGRA_PIN_PV1, "PV1"),
-	/* PV2..3: Balls are named after GPIO not function */
+	/* PV2..3: Balls are named after GPIO analt function */
 	PINCTRL_PIN(TEGRA_PIN_PV2, "PV2"),
 	PINCTRL_PIN(TEGRA_PIN_PV3, "PV3"),
 	/* PV4..6: GPIO only */

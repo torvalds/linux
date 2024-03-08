@@ -155,14 +155,14 @@ static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
 			.stream_name = "AIF1 Playback",
 			.channels_min = 4,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.capture = {
 			.stream_name = "AIF1 Capture",
 			.channels_min = 4,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &lochnagar_sc_line_ops,
@@ -175,14 +175,14 @@ static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
 			.stream_name = "USB1 Playback",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.capture = {
 			.stream_name = "USB1 Capture",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &lochnagar_sc_usb_ops,
@@ -195,14 +195,14 @@ static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
 			.stream_name = "USB2 Playback",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.capture = {
 			.stream_name = "USB2 Capture",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &lochnagar_sc_usb_ops,
@@ -227,7 +227,7 @@ static int lochnagar_sc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mclk = devm_clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(priv->mclk)) {

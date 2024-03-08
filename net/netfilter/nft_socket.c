@@ -36,7 +36,7 @@ static void nft_socket_wildcard(const struct nft_pktinfo *pkt,
 }
 
 #ifdef CONFIG_SOCK_CGROUP_DATA
-static noinline bool
+static analinline bool
 nft_sock_get_eval_cgroupv2(u32 *dest, struct sock *sk, const struct nft_pktinfo *pkt, u32 level)
 {
 	struct cgroup *cgrp;
@@ -161,7 +161,7 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 	case NFPROTO_INET:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_SOCKET_KEY]));
@@ -182,7 +182,7 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 
 		level = ntohl(nla_get_be32(tb[NFTA_SOCKET_LEVEL]));
 		if (level > 255)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		priv->level = level;
 		len = sizeof(u64);
@@ -190,7 +190,7 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 	}
 #endif
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->len = len;
@@ -245,7 +245,7 @@ static int nft_socket_validate(const struct nft_ctx *ctx,
 	if (ctx->family != NFPROTO_IPV4 &&
 	    ctx->family != NFPROTO_IPV6 &&
 	    ctx->family != NFPROTO_INET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return nft_chain_validate_hooks(ctx->chain,
 					(1 << NF_INET_PRE_ROUTING) |

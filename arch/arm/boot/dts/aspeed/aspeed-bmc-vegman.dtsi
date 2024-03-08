@@ -204,8 +204,8 @@
 	status = "okay";
 };
 
-&lpc_snoop {
-	snoop-ports = <0x80>;
+&lpc_sanalop {
+	sanalop-ports = <0x80>;
 	status = "okay";
 };
 

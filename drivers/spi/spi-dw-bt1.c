@@ -53,7 +53,7 @@ static int dw_spi_bt1_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	if (!dwsbt1->map ||
 	    !dwsbt1->dws.mem_ops.supports_op(desc->mem, &desc->info.op_tmpl))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * Make sure the requested region doesn't go out of the physically
@@ -61,7 +61,7 @@ static int dw_spi_bt1_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	 */
 	if (desc->info.offset + desc->info.length > dwsbt1->map_len ||
 	    desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -142,7 +142,7 @@ static ssize_t dw_spi_bt1_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	/*
 	 * Enable the transparent mode of the System Boot Controller.
 	 * The SPI core IO should have been locked before calling this method
-	 * so noone would be touching the controller' registers during the
+	 * so analone would be touching the controller' registers during the
 	 * dirmap operation.
 	 */
 	ret = mux_control_select(dwsbt1->mux, BT1_BOOT_DIRMAP);
@@ -174,9 +174,9 @@ static int dw_spi_bt1_std_init(struct platform_device *pdev,
 	dws->num_cs = 4;
 
 	/*
-	 * Baikal-T1 Normal SPI Controllers don't always keep up with full SPI
+	 * Baikal-T1 Analrmal SPI Controllers don't always keep up with full SPI
 	 * bus speed especially when it comes to the concurrent access to the
-	 * APB bus resources. Thus we have no choice but to set a constraint on
+	 * APB bus resources. Thus we have anal choice but to set a constraint on
 	 * the SPI bus frequency for the memory operations which require to
 	 * read/write data as fast as possible.
 	 */
@@ -196,7 +196,7 @@ static int dw_spi_bt1_sys_init(struct platform_device *pdev,
 	/*
 	 * Baikal-T1 System Boot Controller is equipped with a mux, which
 	 * switches between the directly mapped SPI flash access mode and
-	 * IO access to the DW APB SSI registers. Note the mux controller
+	 * IO access to the DW APB SSI registers. Analte the mux controller
 	 * must be setup to preserve the registers being accessible by default
 	 * (on idle-state).
 	 */
@@ -207,7 +207,7 @@ static int dw_spi_bt1_sys_init(struct platform_device *pdev,
 	/*
 	 * Directly mapped SPI flash memory is a 16MB MMIO region, which can be
 	 * used to access a peripheral memory device just by reading/writing
-	 * data from/to it. Note the system APB bus will stall during each IO
+	 * data from/to it. Analte the system APB bus will stall during each IO
 	 * from/to the dirmap region until the operation is finished. So don't
 	 * use it concurrently with time-critical tasks (like the SPI memory
 	 * operations implemented in the DW APB SSI driver).
@@ -227,10 +227,10 @@ static int dw_spi_bt1_sys_init(struct platform_device *pdev,
 #endif /* CONFIG_SPI_DW_BT1_DIRMAP */
 
 	/*
-	 * There is no IRQ, no DMA and just one CS available on the System Boot
+	 * There is anal IRQ, anal DMA and just one CS available on the System Boot
 	 * SPI controller.
 	 */
-	dws->irq = IRQ_NOTCONNECTED;
+	dws->irq = IRQ_ANALTCONNECTED;
 	dws->num_cs = 1;
 
 	/*
@@ -238,7 +238,7 @@ static int dw_spi_bt1_sys_init(struct platform_device *pdev,
 	 * SPI bus speed due to relatively slow APB bus and races for it'
 	 * resources from different CPUs. The situation is worsen by a small
 	 * FIFOs depth (just 8 words). It works better in a single CPU mode
-	 * though, but still tends to be not fast enough at low CPU
+	 * though, but still tends to be analt fast eanalugh at low CPU
 	 * frequencies.
 	 */
 	if (num_possible_cpus() > 1)
@@ -259,7 +259,7 @@ static int dw_spi_bt1_probe(struct platform_device *pdev)
 
 	dwsbt1 = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_bt1), GFP_KERNEL);
 	if (!dwsbt1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dws = &dwsbt1->dws;
 

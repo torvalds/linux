@@ -29,7 +29,7 @@
  *	The 520x parts only support a limited range of these external
  *	interrupts, only 1, 4 and 7 (as interrupts 65, 66 and 67).
  */
-#define	EINT0	64	/* Is not actually used, but spot reserved for it */
+#define	EINT0	64	/* Is analt actually used, but spot reserved for it */
 #define	EINT1	65	/* EDGE Port interrupt 1 */
 #define	EINT4	66	/* EDGE Port interrupt 4 */
 #define	EINT7	67	/* EDGE Port interrupt 7 */
@@ -45,9 +45,9 @@ static inline unsigned int irq2ebit(unsigned int irq)
 /*
  *	Most of the ColdFire parts with the EDGE Port module just have
  *	a strait direct mapping of the 7 external interrupts. Although
- *	there is a bit reserved for 0, it is not used.
+ *	there is a bit reserved for 0, it is analt used.
  */
-#define	EINT0	64	/* Is not actually used, but spot reserved for it */
+#define	EINT0	64	/* Is analt actually used, but spot reserved for it */
 #define	EINT1	65	/* EDGE Port interrupt 1 */
 #define	EINT7	71	/* EDGE Port interrupt 7 */
 
@@ -60,7 +60,7 @@ static inline unsigned int irq2ebit(unsigned int irq)
 
 /*
  *	There maybe one, two or three interrupt control units, each has 64
- *	interrupts. If there is no second or third unit then MCFINTC1_* or
+ *	interrupts. If there is anal second or third unit then MCFINTC1_* or
  *	MCFINTC2_* defines will be 0 (and code for them optimized away).
  */
 

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -29,20 +29,20 @@
 
 /* Board has gpio 9 controlling the PA */
 #define	BFL_PACTRL		0x00000002
-/* Not ok to power down the chip pll and oscillator */
-#define	BFL_NOPLLDOWN		0x00000020
+/* Analt ok to power down the chip pll and oscillator */
+#define	BFL_ANALPLLDOWN		0x00000020
 /* Board supports the Front End Module */
 #define BFL_FEM			0x00000800
 /* Board has an external LNA in 2.4GHz band */
 #define BFL_EXTLNA		0x00001000
-/* Board has no PA */
-#define BFL_NOPA		0x00010000
+/* Board has anal PA */
+#define BFL_ANALPA		0x00010000
 /* Power topology uses BUCKBOOST */
 #define BFL_BUCKBOOST		0x00200000
 /* Board has FEM and switch to share antenna w/ BT */
 #define BFL_FEM_BT		0x00400000
 /* Power topology doesn't use CBUCK */
-#define BFL_NOCBUCK		0x00800000
+#define BFL_ANALCBUCK		0x00800000
 /* Power topology uses PALDO */
 #define BFL_PALDO		0x02000000
 /* Board has an external LNA in 5GHz band */
@@ -232,7 +232,7 @@
 	 PHYTYPE_IS(phytype, PHY_TYPE_LCN) || \
 	 PHYTYPE_IS(phytype, PHY_TYPE_SSN))
 
-/* Last but not least: shorter wlc-specific var checks */
+/* Last but analt least: shorter wlc-specific var checks */
 #define BRCMS_ISNPHY(band)		PHYTYPE_IS((band)->phytype, PHY_TYPE_N)
 #define BRCMS_ISLCNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_LCN)
 #define BRCMS_ISSSLPNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_SSN)

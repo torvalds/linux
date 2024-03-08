@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/msi.h>
@@ -30,7 +30,7 @@ static struct mhi_channel_config ath11k_mhi_channels_qca6390[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -44,7 +44,7 @@ static struct mhi_channel_config ath11k_mhi_channels_qca6390[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -58,7 +58,7 @@ static struct mhi_channel_config ath11k_mhi_channels_qca6390[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -72,7 +72,7 @@ static struct mhi_channel_config ath11k_mhi_channels_qca6390[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = true,
@@ -123,7 +123,7 @@ static struct mhi_channel_config ath11k_mhi_channels_qcn9074[] = {
 		.ee_mask = 0x14,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -137,7 +137,7 @@ static struct mhi_channel_config ath11k_mhi_channels_qcn9074[] = {
 		.ee_mask = 0x14,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -151,7 +151,7 @@ static struct mhi_channel_config ath11k_mhi_channels_qcn9074[] = {
 		.ee_mask = 0x14,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -165,7 +165,7 @@ static struct mhi_channel_config ath11k_mhi_channels_qcn9074[] = {
 		.ee_mask = 0x14,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = true,
@@ -269,7 +269,7 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 
 	irq = kcalloc(num_vectors, sizeof(int), GFP_KERNEL);
 	if (!irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_vectors; i++) {
 		msi_data = base_vector;
@@ -317,7 +317,7 @@ static char *ath11k_mhi_op_callback_to_str(enum mhi_callback reason)
 	case MHI_CB_BW_REQ:
 		return "MHI_CB_BW_REQ";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 };
 
@@ -326,7 +326,7 @@ static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 {
 	struct ath11k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "notify status reason %s\n",
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "analtify status reason %s\n",
 		   ath11k_mhi_op_callback_to_str(cb));
 
 	switch (cb) {
@@ -361,16 +361,16 @@ static void ath11k_mhi_op_write_reg(struct mhi_controller *mhi_cntrl,
 
 static int ath11k_mhi_read_addr_from_dt(struct mhi_controller *mhi_ctrl)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 	int ret;
 
-	np = of_find_node_by_type(NULL, "memory");
+	np = of_find_analde_by_type(NULL, "memory");
 	if (!np)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = of_address_to_resource(np, 0, &res);
-	of_node_put(np);
+	of_analde_put(np);
 	if (ret)
 		return ret;
 
@@ -389,7 +389,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 
 	mhi_ctrl = mhi_alloc_controller();
 	if (!mhi_ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ab_pci->mhi_ctrl = mhi_ctrl;
 	mhi_ctrl->cntrl_dev = ab->dev;
@@ -415,7 +415,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 	}
 
 	if (!test_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags))
-		mhi_ctrl->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
+		mhi_ctrl->irq_flags = IRQF_SHARED | IRQF_ANALBALANCING;
 
 	if (test_bit(ATH11K_FLAG_FIXED_MEM_RGN, &ab->dev_flags)) {
 		ret = ath11k_mhi_read_addr_from_dt(mhi_ctrl);
@@ -446,7 +446,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 		ath11k_mhi_config = &ath11k_mhi_config_qca6390;
 		break;
 	default:
-		ath11k_err(ab, "failed assign mhi_config for unknown hw rev %d\n",
+		ath11k_err(ab, "failed assign mhi_config for unkanalwn hw rev %d\n",
 			   ab->hw_rev);
 		ret = -EINVAL;
 		goto free_controller;
@@ -523,7 +523,7 @@ int ath11k_mhi_resume(struct ath11k_pci *ab_pci)
 	int ret;
 
 	/* Do force MHI resume as some devices like QCA6390, WCN6855
-	 * are not in M3 state but they are functional. So just ignore
+	 * are analt in M3 state but they are functional. So just iganalre
 	 * the MHI state while resuming.
 	 */
 	ret = mhi_pm_resume_force(ab_pci->mhi_ctrl);

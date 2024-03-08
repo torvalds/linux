@@ -28,11 +28,11 @@ static struct cacheinfo *get_cacheinfo(u32 level, enum cache_type type)
 	/*
 	 * Using raw_smp_processor_id() elides a preemptability check, but this
 	 * is really indicative of a larger problem: the cacheinfo UABI assumes
-	 * that cores have a homonogenous view of the cache hierarchy.  That
+	 * that cores have a homoanalgeanalus view of the cache hierarchy.  That
 	 * happens to be the case for the current set of RISC-V systems, but
-	 * likely won't be true in general.  Since there's no way to provide
+	 * likely won't be true in general.  Since there's anal way to provide
 	 * correct information for these systems via the current UABI we're
-	 * just eliding the check for now.
+	 * just eliding the check for analw.
 	 */
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(raw_smp_processor_id());
 	struct cacheinfo *this_leaf;
@@ -64,7 +64,7 @@ uintptr_t get_cache_geometry(u32 level, enum cache_type type)
 }
 
 static void ci_leaf_init(struct cacheinfo *this_leaf,
-			 struct device_node *node,
+			 struct device_analde *analde,
 			 enum cache_type type, unsigned int level)
 {
 	this_leaf->level = level;
@@ -75,8 +75,8 @@ int populate_cache_leaves(unsigned int cpu)
 {
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 	struct cacheinfo *this_leaf = this_cpu_ci->info_list;
-	struct device_node *np = of_cpu_device_node_get(cpu);
-	struct device_node *prev = NULL;
+	struct device_analde *np = of_cpu_device_analde_get(cpu);
+	struct device_analde *prev = NULL;
 	int levels = 1, level = 1;
 
 	if (of_property_read_bool(np, "cache-size"))
@@ -87,8 +87,8 @@ int populate_cache_leaves(unsigned int cpu)
 		ci_leaf_init(this_leaf++, np, CACHE_TYPE_DATA, level);
 
 	prev = np;
-	while ((np = of_find_next_cache_node(np))) {
-		of_node_put(prev);
+	while ((np = of_find_next_cache_analde(np))) {
+		of_analde_put(prev);
 		prev = np;
 		if (!of_device_is_compatible(np, "cache"))
 			break;
@@ -104,7 +104,7 @@ int populate_cache_leaves(unsigned int cpu)
 			ci_leaf_init(this_leaf++, np, CACHE_TYPE_DATA, level);
 		levels = level;
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 }

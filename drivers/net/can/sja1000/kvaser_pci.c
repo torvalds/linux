@@ -35,15 +35,15 @@ MODULE_AUTHOR("Per Dalen <per.dalen@cnw.se>");
 MODULE_DESCRIPTION("Socket-CAN driver for KVASER PCAN PCI cards");
 MODULE_LICENSE("GPL v2");
 
-#define MAX_NO_OF_CHANNELS        4 /* max no of channels on a single card */
+#define MAX_ANAL_OF_CHANNELS        4 /* max anal of channels on a single card */
 
 struct kvaser_pci {
 	int channel;
 	struct pci_dev *pci_dev;
-	struct net_device *slave_dev[MAX_NO_OF_CHANNELS-1];
+	struct net_device *slave_dev[MAX_ANAL_OF_CHANNELS-1];
 	void __iomem *conf_addr;
 	void __iomem *res_addr;
-	int no_channels;
+	int anal_channels;
 	u8 xilinx_ver;
 };
 
@@ -52,10 +52,10 @@ struct kvaser_pci {
 /*
  * The board configuration is probably following:
  * RX1 is connected to ground.
- * TX1 is not connected.
- * CLKO is not connected.
+ * TX1 is analt connected.
+ * CLKO is analt connected.
  * Setting the OCR register to 0xDA is a good idea.
- * This means  normal output mode , push-pull and the correct polarity.
+ * This means  analrmal output mode , push-pull and the correct polarity.
  */
 #define KVASER_PCI_OCR            (OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
 
@@ -63,7 +63,7 @@ struct kvaser_pci {
  * In the CDR register, you should set CBP to 1.
  * You will probably also want to set the clock divider value to 0
  * (meaning divide-by-2), the Pelican bit, and the clock-off bit
- * (you will have no need for CLKOUT anyway).
+ * (you will have anal need for CLKOUT anyway).
  */
 #define KVASER_PCI_CDR            (CDR_CBP | CDR_CLKOUT_MASK)
 
@@ -143,7 +143,7 @@ static int number_of_sja1000_chip(void __iomem *base_addr)
 	u8 status;
 	int i;
 
-	for (i = 0; i < MAX_NO_OF_CHANNELS; i++) {
+	for (i = 0; i < MAX_ANAL_OF_CHANNELS; i++) {
 		/* reset chip */
 		iowrite8(MOD_RM, base_addr +
 			 (i * KVASER_PCI_PORT_BYTES) + SJA1000_MOD);
@@ -176,7 +176,7 @@ static void kvaser_pci_del_chan(struct net_device *dev)
 	/* Disable PCI interrupts */
 	kvaser_pci_disable_irq(dev);
 
-	for (i = 0; i < board->no_channels - 1; i++) {
+	for (i = 0; i < board->anal_channels - 1; i++) {
 		if (board->slave_dev[i]) {
 			dev_info(&board->pci_dev->dev, "Removing device %s\n",
 				 board->slave_dev[i]->name);
@@ -206,7 +206,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 
 	dev = alloc_sja1000dev(sizeof(struct kvaser_pci));
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = netdev_priv(dev);
 	board = priv->priv;
@@ -225,7 +225,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 			ioread8(board->res_addr + XILINX_VERINT) >> 4;
 
 		/* Assert PTADR# - we're in passive mode so the other bits are
-		   not important */
+		   analt important */
 		iowrite32(0x80808080UL, board->conf_addr + S5920_PTCR);
 
 		/* Enable interrupts from card */
@@ -234,7 +234,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 		struct sja1000_priv *master_priv = netdev_priv(*master_dev);
 		struct kvaser_pci *master_board = master_priv->priv;
 		master_board->slave_dev[channel - 1] = dev;
-		master_board->no_channels = channel + 1;
+		master_board->anal_channels = channel + 1;
 		board->xilinx_ver = master_board->xilinx_ver;
 	}
 
@@ -282,7 +282,7 @@ static int kvaser_pci_init_one(struct pci_dev *pdev,
 	struct net_device *master_dev = NULL;
 	struct sja1000_priv *priv;
 	struct kvaser_pci *board;
-	int no_channels;
+	int anal_channels;
 	void __iomem *base_addr = NULL;
 	void __iomem *conf_addr = NULL;
 	void __iomem *res_addr = NULL;
@@ -302,30 +302,30 @@ static int kvaser_pci_init_one(struct pci_dev *pdev,
 	/* S5920 */
 	conf_addr = pci_iomap(pdev, 0, PCI_CONFIG_PORT_SIZE);
 	if (conf_addr == NULL) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto failure_release_regions;
 	}
 
 	/* XILINX board wide address */
 	res_addr = pci_iomap(pdev, 2, PCI_PORT_XILINX_SIZE);
 	if (res_addr == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure_iounmap;
 	}
 
 	base_addr = pci_iomap(pdev, 1, PCI_PORT_SIZE);
 	if (base_addr == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure_iounmap;
 	}
 
-	no_channels = number_of_sja1000_chip(base_addr);
-	if (no_channels == 0) {
-		err = -ENOMEM;
+	anal_channels = number_of_sja1000_chip(base_addr);
+	if (anal_channels == 0) {
+		err = -EANALMEM;
 		goto failure_iounmap;
 	}
 
-	for (i = 0; i < no_channels; i++) {
+	for (i = 0; i < anal_channels; i++) {
 		err = kvaser_pci_add_chan(pdev, i, &master_dev,
 					  conf_addr, res_addr,
 					  base_addr);
@@ -337,7 +337,7 @@ static int kvaser_pci_init_one(struct pci_dev *pdev,
 	board = priv->priv;
 
 	dev_info(&pdev->dev, "xilinx version=%d number of channels=%d\n",
-		 board->xilinx_ver, board->no_channels);
+		 board->xilinx_ver, board->anal_channels);
 
 	pci_set_drvdata(pdev, master_dev);
 	return 0;

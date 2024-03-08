@@ -42,8 +42,8 @@ static void imx3_idle(void)
 		/* WFI */
 		"mov %0, #0\n"
 		"mcr p15, 0, %0, c7, c0, 4\n"
-		"nop\n" "nop\n" "nop\n" "nop\n"
-		"nop\n" "nop\n" "nop\n"
+		"analp\n" "analp\n" "analp\n" "analp\n"
+		"analp\n" "analp\n" "analp\n"
 		/* enable I and D cache */
 		"mrc p15, 0, %0, c1, c0, 0\n"
 		"orr %0, %0, #0x00001000\n"
@@ -57,13 +57,13 @@ static void __iomem *imx3_ioremap_caller(phys_addr_t phys_addr, size_t size,
 {
 	if (mtype == MT_DEVICE) {
 		/*
-		 * Access all peripherals below 0x80000000 as nonshared device
+		 * Access all peripherals below 0x80000000 as analnshared device
 		 * on mx3, but leave l2cc alone.  Otherwise cache corruptions
 		 * can occur.
 		 */
 		if (phys_addr < 0x80000000 &&
 				!addr_in_module(phys_addr, MX3x_L2CC))
-			mtype = MT_DEVICE_NONSHARED;
+			mtype = MT_DEVICE_ANALNSHARED;
 	}
 
 	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
@@ -72,10 +72,10 @@ static void __iomem *imx3_ioremap_caller(phys_addr_t phys_addr, size_t size,
 #ifdef CONFIG_SOC_IMX31
 static struct map_desc mx31_io_desc[] __initdata = {
 	imx_map_entry(MX31, X_MEMC, MT_DEVICE),
-	imx_map_entry(MX31, AVIC, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX31, AIPS1, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX31, AIPS2, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX31, SPBA0, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, AVIC, MT_DEVICE_ANALNSHARED),
+	imx_map_entry(MX31, AIPS1, MT_DEVICE_ANALNSHARED),
+	imx_map_entry(MX31, AIPS2, MT_DEVICE_ANALNSHARED),
+	imx_map_entry(MX31, SPBA0, MT_DEVICE_ANALNSHARED),
 };
 
 /*
@@ -99,12 +99,12 @@ static void imx31_idle(void)
 
 void __init imx31_init_early(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	mxc_set_cpu_type(MXC_CPU_MX31);
 	arch_ioremap_caller = imx3_ioremap_caller;
 	arm_pm_idle = imx31_idle;
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-ccm");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx31-ccm");
 	mx3_ccm_base = of_iomap(np, 0);
 	BUG_ON(!mx3_ccm_base);
 }
@@ -113,10 +113,10 @@ void __init imx31_init_early(void)
 #ifdef CONFIG_SOC_IMX35
 static struct map_desc mx35_io_desc[] __initdata = {
 	imx_map_entry(MX35, X_MEMC, MT_DEVICE),
-	imx_map_entry(MX35, AVIC, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX35, AIPS1, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX35, AIPS2, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX35, SPBA0, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AVIC, MT_DEVICE_ANALNSHARED),
+	imx_map_entry(MX35, AIPS1, MT_DEVICE_ANALNSHARED),
+	imx_map_entry(MX35, AIPS2, MT_DEVICE_ANALNSHARED),
+	imx_map_entry(MX35, SPBA0, MT_DEVICE_ANALNSHARED),
 };
 
 void __init mx35_map_io(void)
@@ -136,12 +136,12 @@ static void imx35_idle(void)
 
 void __init imx35_init_early(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	arm_pm_idle = imx35_idle;
 	arch_ioremap_caller = imx3_ioremap_caller;
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx35-ccm");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx35-ccm");
 	mx3_ccm_base = of_iomap(np, 0);
 	BUG_ON(!mx3_ccm_base);
 }

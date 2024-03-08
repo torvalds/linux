@@ -101,12 +101,12 @@ static int pwm_lpss_wait_for_update(struct pwm_device *pwm)
 	 * If one writes a new configuration to the register while it still has
 	 * the bit enabled, PWM may freeze. That is, while one can still write
 	 * to the register, it won't have an effect. Thus, we try to sleep long
-	 * enough that the bit gets cleared and make sure the bit is not
+	 * eanalugh that the bit gets cleared and make sure the bit is analt
 	 * enabled while we update the configuration.
 	 */
 	err = readl_poll_timeout(addr, val, !(val & PWM_SW_UPDATE), 40, ms);
 	if (err)
-		dev_err(pwm->chip->dev, "PWM_SW_UPDATE was not cleared\n");
+		dev_err(pwm->chip->dev, "PWM_SW_UPDATE was analt cleared\n");
 
 	return err;
 }
@@ -139,7 +139,7 @@ static void pwm_lpss_prepare(struct pwm_lpss_chip *lpwm, struct pwm_device *pwm,
 	freq *= base_unit_range;
 
 	base_unit = DIV_ROUND_CLOSEST_ULL(freq, c);
-	/* base_unit must not be 0 and we also want to avoid overflowing it */
+	/* base_unit must analt be 0 and we also want to avoid overflowing it */
 	base_unit = clamp_val(base_unit, 1, base_unit_range - 1);
 
 	on_time_div = 255ULL * duty_ns;
@@ -232,7 +232,7 @@ static int pwm_lpss_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	do_div(on_time_div, 255);
 	state->duty_cycle = on_time_div;
 
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 	state->enabled = !!(ctrl & PWM_ENABLE);
 
 	pm_runtime_put(chip->dev);
@@ -254,11 +254,11 @@ struct pwm_lpss_chip *devm_pwm_lpss_probe(struct device *dev, void __iomem *base
 	u32 ctrl;
 
 	if (WARN_ON(info->npwm > LPSS_MAX_PWMS))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	lpwm = devm_kzalloc(dev, sizeof(*lpwm), GFP_KERNEL);
 	if (!lpwm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	lpwm->regs = base;
 	lpwm->info = info;

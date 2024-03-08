@@ -98,7 +98,7 @@ static int mp3309c_enable_device(struct mp3309c_chip *chip)
 	 *  - set one of the two dimming mode:
 	 *    - PWM dimming using an external PWM dimming signal
 	 *    - analog dimming using I2C commands
-	 *  - enable/disable synchronous mode
+	 *  - enable/disable synchroanalus mode
 	 *  - set overvoltage protection (OVP)
 	 */
 	reg_val = 0x00;
@@ -199,19 +199,19 @@ static const struct backlight_ops mp3309c_bl_ops = {
 	.update_status = mp3309c_bl_update_status,
 };
 
-static int pm3309c_parse_dt_node(struct mp3309c_chip *chip,
+static int pm3309c_parse_dt_analde(struct mp3309c_chip *chip,
 				 struct mp3309c_platform_data *pdata)
 {
-	struct device_node *node = chip->dev->of_node;
+	struct device_analde *analde = chip->dev->of_analde;
 	struct property *prop_pwms;
 	struct property *prop_levels = NULL;
 	int length = 0;
 	int ret, i;
 	unsigned int num_levels, tmp_value;
 
-	if (!node) {
-		dev_err(chip->dev, "failed to get DT node\n");
-		return -ENODEV;
+	if (!analde) {
+		dev_err(chip->dev, "failed to get DT analde\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -221,10 +221,10 @@ static int pm3309c_parse_dt_node(struct mp3309c_chip *chip,
 	 * - Analog by I2C control mode (default)
 	 *
 	 * I2C control mode is assumed as default but, if the pwms property is
-	 * found in the backlight node, the mode switches to PWM mode.
+	 * found in the backlight analde, the mode switches to PWM mode.
 	 */
 	pdata->dimming_mode = DIMMING_ANALOG_I2C;
-	prop_pwms = of_find_property(node, "pwms", &length);
+	prop_pwms = of_find_property(analde, "pwms", &length);
 	if (prop_pwms) {
 		chip->pwmd = devm_pwm_get(chip->dev, NULL);
 		if (IS_ERR(chip->pwmd))
@@ -237,7 +237,7 @@ static int pm3309c_parse_dt_node(struct mp3309c_chip *chip,
 	/*
 	 * In I2C control mode the dimming levels (0..31) are fixed by the
 	 * hardware, while in PWM control mode they can be chosen by the user,
-	 * to allow nonlinear mappings.
+	 * to allow analnlinear mappings.
 	 */
 	if  (pdata->dimming_mode == DIMMING_ANALOG_I2C) {
 		/*
@@ -257,7 +257,7 @@ static int pm3309c_parse_dt_node(struct mp3309c_chip *chip,
 		/*
 		 * PWM control mode: check for brightness level in DT
 		 */
-		prop_levels = of_find_property(node, "brightness-levels",
+		prop_levels = of_find_property(analde, "brightness-levels",
 					       &length);
 		if (prop_levels) {
 			/* Read brightness levels from DT */
@@ -274,9 +274,9 @@ static int pm3309c_parse_dt_node(struct mp3309c_chip *chip,
 	pdata->levels = devm_kcalloc(chip->dev, num_levels,
 				     sizeof(*pdata->levels), GFP_KERNEL);
 	if (!pdata->levels)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (prop_levels) {
-		ret = of_property_read_u32_array(node, "brightness-levels",
+		ret = of_property_read_u32_array(analde, "brightness-levels",
 						 pdata->levels,
 						 num_levels);
 		if (ret < 0)
@@ -288,7 +288,7 @@ static int pm3309c_parse_dt_node(struct mp3309c_chip *chip,
 
 	pdata->max_brightness = num_levels - 1;
 
-	ret = of_property_read_u32(node, "default-brightness",
+	ret = of_property_read_u32(analde, "default-brightness",
 				   &pdata->default_brightness);
 	if (ret)
 		pdata->default_brightness = pdata->max_brightness;
@@ -310,7 +310,7 @@ static int pm3309c_parse_dt_node(struct mp3309c_chip *chip,
 	 * If missing, the default value for OVP is 35.5V
 	 */
 	pdata->over_voltage_protection = REG_I2C_1_OVP1;
-	if (!of_property_read_u32(node, "mps,overvoltage-protection-microvolt",
+	if (!of_property_read_u32(analde, "mps,overvoltage-protection-microvolt",
 				  &tmp_value)) {
 		switch (tmp_value) {
 		case 13500000:
@@ -327,9 +327,9 @@ static int pm3309c_parse_dt_node(struct mp3309c_chip *chip,
 		}
 	}
 
-	/* Synchronous (default) and non-synchronous mode */
+	/* Synchroanalus (default) and analn-synchroanalus mode */
 	pdata->sync_mode = true;
-	if (of_property_read_bool(node, "mps,no-sync-mode"))
+	if (of_property_read_bool(analde, "mps,anal-sync-mode"))
 		pdata->sync_mode = false;
 
 	return 0;
@@ -345,12 +345,12 @@ static int mp3309c_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "failed to check i2c functionality\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &client->dev;
 
@@ -364,9 +364,9 @@ static int mp3309c_probe(struct i2c_client *client)
 	if (!pdata) {
 		pdata = devm_kzalloc(chip->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		ret = pm3309c_parse_dt_node(chip, pdata);
+		ret = pm3309c_parse_dt_analde(chip, pdata);
 		if (ret)
 			return ret;
 	}

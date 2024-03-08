@@ -42,7 +42,7 @@ static void x25_seq_route_stop(struct seq_file *seq, void *v)
 
 static int x25_seq_route_show(struct seq_file *seq, void *v)
 {
-	struct x25_route *rt = list_entry(v, struct x25_route, node);
+	struct x25_route *rt = list_entry(v, struct x25_route, analde);
 
 	if (v == &x25_route_list) {
 		seq_puts(seq, "Address          Digits  Device\n");
@@ -83,7 +83,7 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, "dest_addr  src_addr   dev   lci st vs vr "
-				"va   t  t2 t21 t22 t23 Snd-Q Rcv-Q inode\n");
+				"va   t  t2 t21 t22 t23 Snd-Q Rcv-Q ianalde\n");
 		goto out;
 	}
 
@@ -104,7 +104,7 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 		   x25->t21 / HZ, x25->t22 / HZ, x25->t23 / HZ,
 		   sk_wmem_alloc_get(s),
 		   sk_rmem_alloc_get(s),
-		   s->sk_socket ? SOCK_INODE(s->sk_socket)->i_ino : 0L);
+		   s->sk_socket ? SOCK_IANALDE(s->sk_socket)->i_ianal : 0L);
 out:
 	return 0;
 }
@@ -129,7 +129,7 @@ static void x25_seq_forward_stop(struct seq_file *seq, void *v)
 
 static int x25_seq_forward_show(struct seq_file *seq, void *v)
 {
-	struct x25_forward *f = list_entry(v, struct x25_forward, node);
+	struct x25_forward *f = list_entry(v, struct x25_forward, analde);
 
 	if (v == &x25_forward_list) {
 		seq_printf(seq, "lci dev1       dev2\n");
@@ -168,7 +168,7 @@ static const struct seq_operations x25_seq_forward_ops = {
 int __init x25_proc_init(void)
 {
 	if (!proc_mkdir("x25", init_net.proc_net))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!proc_create_seq("x25/route", 0444, init_net.proc_net,
 			 &x25_seq_route_ops))
@@ -185,7 +185,7 @@ int __init x25_proc_init(void)
 
 out:
 	remove_proc_subtree("x25", init_net.proc_net);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void __exit x25_proc_exit(void)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (C) 2008 Ilya Yanok, Emcraft Systems
+ *  Copyright (C) 2008 Ilya Yaanalk, Emcraft Systems
  */
 
 #include <linux/irq.h>
@@ -31,18 +31,18 @@ struct socrates_fpga_irq_info {
 /*
  * Interrupt routing and type table
  *
- * IRQ_TYPE_NONE means the interrupt type is configurable,
+ * IRQ_TYPE_ANALNE means the interrupt type is configurable,
  * otherwise it's fixed to the specified value.
  */
 static struct socrates_fpga_irq_info fpga_irqs[SOCRATES_FPGA_NUM_IRQS] = {
-	[0] = {0, IRQ_TYPE_NONE},
+	[0] = {0, IRQ_TYPE_ANALNE},
 	[1] = {0, IRQ_TYPE_LEVEL_HIGH},
 	[2] = {0, IRQ_TYPE_LEVEL_LOW},
-	[3] = {0, IRQ_TYPE_NONE},
-	[4] = {0, IRQ_TYPE_NONE},
-	[5] = {0, IRQ_TYPE_NONE},
-	[6] = {0, IRQ_TYPE_NONE},
-	[7] = {0, IRQ_TYPE_NONE},
+	[3] = {0, IRQ_TYPE_ANALNE},
+	[4] = {0, IRQ_TYPE_ANALNE},
+	[5] = {0, IRQ_TYPE_ANALNE},
+	[6] = {0, IRQ_TYPE_ANALNE},
+	[7] = {0, IRQ_TYPE_ANALNE},
 	[8] = {0, IRQ_TYPE_LEVEL_HIGH},
 };
 
@@ -192,7 +192,7 @@ static int socrates_fpga_pic_set_type(struct irq_data *d,
 	int polarity;
 	u32 mask;
 
-	if (fpga_irqs[hwirq].type != IRQ_TYPE_NONE)
+	if (fpga_irqs[hwirq].type != IRQ_TYPE_ANALNE)
 		return -EINVAL;
 
 	switch (flow_type & IRQ_TYPE_SENSE_MASK) {
@@ -238,13 +238,13 @@ static int socrates_fpga_pic_host_map(struct irq_domain *h, unsigned int virq,
 }
 
 static int socrates_fpga_pic_host_xlate(struct irq_domain *h,
-		struct device_node *ct,	const u32 *intspec, unsigned int intsize,
+		struct device_analde *ct,	const u32 *intspec, unsigned int intsize,
 		irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 	struct socrates_fpga_irq_info *fpga_irq = &fpga_irqs[intspec[0]];
 
 	*out_hwirq = intspec[0];
-	if  (fpga_irq->type == IRQ_TYPE_NONE) {
+	if  (fpga_irq->type == IRQ_TYPE_ANALNE) {
 		/* type is configurable */
 		if (intspec[1] != IRQ_TYPE_LEVEL_LOW &&
 		    intspec[1] != IRQ_TYPE_LEVEL_HIGH) {
@@ -272,7 +272,7 @@ static const struct irq_domain_ops socrates_fpga_pic_host_ops = {
 	.xlate  = socrates_fpga_pic_host_xlate,
 };
 
-void __init socrates_fpga_pic_init(struct device_node *pic)
+void __init socrates_fpga_pic_init(struct device_analde *pic)
 {
 	unsigned long flags;
 	int i;

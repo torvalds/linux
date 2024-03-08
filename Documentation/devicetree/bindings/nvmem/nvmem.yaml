@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/nvmem.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVMEM (Non Volatile Memory)
+title: NVMEM (Analn Volatile Memory)
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -15,7 +15,7 @@ description: |
 
   On a significant proportion of boards, the manufacturer has stored
   some data on NVMEM, for the OS to be able to retrieve these
-  information and act upon it. Obviously, the OS has to know about
+  information and act upon it. Obviously, the OS has to kanalw about
   where to retrieve these data from, and where they are stored on the
   storage device.
 

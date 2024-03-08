@@ -38,20 +38,20 @@
 		check_null_return_void(bdev, \
 			"NULL hmm_bo_device.\n")
 
-#define	check_bo_status_yes_goto(bo, _status, label) \
-	var_not_equal_goto((bo->status & (_status)), (_status), \
+#define	check_bo_status_anal_goto(bo, _status, label) \
+	var_analt_equal_goto((bo->status & (_status)), (_status), \
 			label, \
-			"HMM buffer status not contain %s.\n", \
+			"HMM buffer status analt contain %s.\n", \
 			#_status)
 
-#define	check_bo_status_no_goto(bo, _status, label) \
+#define	check_bo_status_anal_goto(bo, _status, label) \
 	var_equal_goto((bo->status & (_status)), (_status), \
 			label, \
 			"HMM buffer status contains %s.\n", \
 			#_status)
 
-#define rbtree_node_to_hmm_bo(root_node)	\
-	container_of((root_node), struct hmm_buffer_object, node)
+#define rbtree_analde_to_hmm_bo(root_analde)	\
+	container_of((root_analde), struct hmm_buffer_object, analde)
 
 #define	list_to_hmm_bo(list_ptr)	\
 	list_entry((list_ptr), struct hmm_buffer_object, list)
@@ -123,15 +123,15 @@ struct hmm_buffer_object {
 	int		status;
 	void		*vmap_addr; /* kernel virtual address by vmap */
 
-	struct rb_node	node;
+	struct rb_analde	analde;
 	unsigned int	start;
 	unsigned int	end;
 	unsigned int	pgnr;
 	/*
 	 * When insert a bo which has the same pgnr with an existed
-	 * bo node in the free_rbtree, using "prev & next" pointer
+	 * bo analde in the free_rbtree, using "prev & next" pointer
 	 * to maintain a bo linked list instead of insert this bo
-	 * into free_rbtree directly, it will make sure each node
+	 * into free_rbtree directly, it will make sure each analde
 	 * in free_rbtree has different pgnr.
 	 * "prev & next" default is NULL.
 	 */
@@ -154,7 +154,7 @@ int hmm_bo_device_init(struct hmm_bo_device *bdev,
 void hmm_bo_device_exit(struct hmm_bo_device *bdev);
 
 /*
- * whether the bo device is inited or not.
+ * whether the bo device is inited or analt.
  */
 int hmm_bo_device_inited(struct hmm_bo_device *bdev);
 
@@ -169,20 +169,20 @@ void hmm_bo_ref(struct hmm_buffer_object *bo);
  *
  * this call is also used to release hmm_buffer_object or its
  * upper level object with it embedded in. you need to call
- * this function when it is no longer used.
+ * this function when it is anal longer used.
  *
- * Note:
+ * Analte:
  *
  * user dont need to care about internal resource release of
  * the buffer object in the release callback, it will be
  * handled internally.
  *
  * this call will only release internal resource of the buffer
- * object but will not free the buffer object itself, as the
+ * object but will analt free the buffer object itself, as the
  * buffer object can be both pre-allocated statically or
  * dynamically allocated. so user need to deal with the release
  * of the buffer object itself manually. below example shows
- * the normal case of using the buffer object.
+ * the analrmal case of using the buffer object.
  *
  *	struct hmm_buffer_object *bo = hmm_bo_create(bdev, pgnr);
  *	......
@@ -226,7 +226,7 @@ void *hmm_bo_vmap(struct hmm_buffer_object *bo, bool cached);
 
 /*
  * flush the cache for the vmapped buffer object's pages,
- * if the buffer has not been vmapped, return directly.
+ * if the buffer has analt been vmapped, return directly.
  */
 void hmm_bo_flush_vmap(struct hmm_buffer_object *bo);
 
@@ -248,23 +248,23 @@ int hmm_bo_mmap(struct vm_area_struct *vma,
 
 /*
  * find the buffer object by its virtual address vaddr.
- * return NULL if no such buffer object found.
+ * return NULL if anal such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_start(
     struct hmm_bo_device *bdev, ia_css_ptr vaddr);
 
 /*
  * find the buffer object by its virtual address.
- * it does not need to be the start address of one bo,
+ * it does analt need to be the start address of one bo,
  * it can be an address within the range of one bo.
- * return NULL if no such buffer object found.
+ * return NULL if anal such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_in_range(
     struct hmm_bo_device *bdev, ia_css_ptr vaddr);
 
 /*
  * find the buffer object with kernel virtual address vaddr.
- * return NULL if no such buffer object found.
+ * return NULL if anal such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_vmap_start(
     struct hmm_bo_device *bdev, const void *vaddr);

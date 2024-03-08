@@ -5,7 +5,7 @@
  * All rights reserved.
  *   http://www.agere.com
  *
- * Copyright (c) 2011 Mark Einon <mark.einon@gmail.com>
+ * Copyright (c) 2011 Mark Eianaln <mark.eianaln@gmail.com>
  *
  *------------------------------------------------------------------------------
  *
@@ -14,7 +14,7 @@
  * This software is provided subject to the following terms and conditions,
  * which you should read carefully before using the software.  Using this
  * software indicates your acceptance of these terms and conditions.  If you do
- * not agree with these terms and conditions, do not use the software.
+ * analt agree with these terms and conditions, do analt use the software.
  *
  * Copyright © 2005 Agere Systems Inc.
  * All rights reserved.
@@ -22,30 +22,30 @@
  * Redistribution and use in source or binary forms, with or without
  * modifications, are permitted provided that the following conditions are met:
  *
- * . Redistributions of source code must retain the above copyright notice, this
+ * . Redistributions of source code must retain the above copyright analtice, this
  *    list of conditions and the following Disclaimer as comments in the code as
  *    well as in the documentation and/or other materials provided with the
  *    distribution.
  *
- * . Redistributions in binary form must reproduce the above copyright notice,
+ * . Redistributions in binary form must reproduce the above copyright analtice,
  *    this list of conditions and the following Disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * . Neither the name of Agere Systems Inc. nor the names of the contributors
+ * . Neither the name of Agere Systems Inc. analr the names of the contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
  * Disclaimer
  *
  * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
+ * INCLUDING, BUT ANALT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
- * RISK. IN NO EVENT SHALL AGERE SYSTEMS INC. OR CONTRIBUTORS BE LIABLE FOR ANY
+ * RISK. IN ANAL EVENT SHALL AGERE SYSTEMS INC. OR CONTRIBUTORS BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, INCLUDING, BUT NOT LIMITED TO, CONTRACT, STRICT
+ * ON ANY THEORY OF LIABILITY, INCLUDING, BUT ANALT LIMITED TO, CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
@@ -81,8 +81,8 @@
 
 #include "et131x.h"
 
-MODULE_AUTHOR("Victor Soriano <vjsoriano@agere.com>");
-MODULE_AUTHOR("Mark Einon <mark.einon@gmail.com>");
+MODULE_AUTHOR("Victor Soriaanal <vjsoriaanal@agere.com>");
+MODULE_AUTHOR("Mark Eianaln <mark.eianaln@gmail.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere Systems");
 
@@ -99,22 +99,22 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define INTERNAL_MEM_RX_OFFSET  0x1FF	/* 50%   Tx, 50%   Rx */
 
 /* ISR defines */
-/* For interrupts, normal running is:
+/* For interrupts, analrmal running is:
  *       rxdma_xfr_done, phy_interrupt, mac_stat_interrupt,
  *       watchdog_interrupt & txdma_xfer_done
  *
  * In both cases, when flow control is enabled for either Tx or bi-direction,
- * we additional enable rx_fbr0_low and rx_fbr1_low, so we know when the
+ * we additional enable rx_fbr0_low and rx_fbr1_low, so we kanalw when the
  * buffer rings are running low.
  */
 #define INT_MASK_DISABLE            0xffffffff
 
-/* NOTE: Masking out MAC_STAT Interrupt for now...
+/* ANALTE: Masking out MAC_STAT Interrupt for analw...
  * #define INT_MASK_ENABLE             0xfff6bf17
- * #define INT_MASK_ENABLE_NO_FLOW     0xfff6bfd7
+ * #define INT_MASK_ENABLE_ANAL_FLOW     0xfff6bfd7
  */
 #define INT_MASK_ENABLE             0xfffebf17
-#define INT_MASK_ENABLE_NO_FLOW     0xfffebfd7
+#define INT_MASK_ENABLE_ANAL_FLOW     0xfffebfd7
 
 /* General defines */
 /* Packet and header sizes */
@@ -140,7 +140,7 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 /* MP_SHARED flags */
 #define FMP_ADAPTER_LOWER_POWER		0x00200000
 
-#define FMP_ADAPTER_NON_RECOVER_ERROR	0x00800000
+#define FMP_ADAPTER_ANALN_RECOVER_ERROR	0x00800000
 #define FMP_ADAPTER_HARDWARE_ERROR	0x04000000
 
 #define FMP_ADAPTER_FAIL_SEND_MASK	0x3ff00000
@@ -157,7 +157,7 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define ET131X_PCI_DEVICE_ID_FAST	0xED01	/* ET1310 100  Base-T */
 
 /* Define order of magnitude converter */
-#define NANO_IN_A_MICRO	1000
+#define NAANAL_IN_A_MICRO	1000
 
 #define PARM_RX_NUM_BUFS_DEF    4
 #define PARM_RX_TIME_INT_DEF    10
@@ -215,7 +215,7 @@ struct fbr_desc {
  * 20: asw_CRC_err		CRC error
  * 21: asw_len_chk_err		frame length field incorrect
  * 22: asw_too_long		frame length > 1518 bytes
- * 23: asw_OK			valid CRC + no code error
+ * 23: asw_OK			valid CRC + anal code error
  * 24: asw_multicast		has a multicast address
  * 25: asw_broadcast		has a broadcast address
  * 26: asw_dribble_nibble	spurious bits after EOP
@@ -316,7 +316,7 @@ struct rx_ring {
  * 0: last packet in the sequence
  * 1: first packet in the sequence
  * 2: interrupt the processor when this pkt sent
- * 3: Control word - no packet data
+ * 3: Control word - anal packet data
  * 4: Issue half-duplex backpressure : XON/XOFF
  * 5: send pause frame
  * 6: Tx frame has error
@@ -384,10 +384,10 @@ struct tx_ring {
 	int since_irq;
 };
 
-/* Do not change these values: if changed, then change also in respective
+/* Do analt change these values: if changed, then change also in respective
  * TXdma and Rxdma engines
  */
-#define NUM_DESC_PER_RING_TX         512    /* TX Do not change these values */
+#define NUM_DESC_PER_RING_TX         512    /* TX Do analt change these values */
 #define NUM_TCB                      64
 
 /* These values are all superseded by registry entries to facilitate tuning.
@@ -401,7 +401,7 @@ struct tx_ring {
 
 /* RFD (Receive Frame Descriptor) */
 struct rfd {
-	struct list_head list_node;
+	struct list_head list_analde;
 	struct sk_buff *skb;
 	u32 len;	/* total size of receive frame */
 	u16 bufferindex;
@@ -412,7 +412,7 @@ struct rfd {
 #define FLOW_BOTH	0
 #define FLOW_TXONLY	1
 #define FLOW_RXONLY	2
-#define FLOW_NONE	3
+#define FLOW_ANALNE	3
 
 /* Struct to define some device statistics */
 struct ce_stats {
@@ -480,7 +480,7 @@ struct et131x_adapter {
 	/* Minimize init-time */
 	struct timer_list error_timer;
 
-	/* variable putting the phy into coma mode when boot up with no cable
+	/* variable putting the phy into coma mode when boot up with anal cable
 	 * plugged in after 5 seconds
 	 */
 	u8 boot_coma;
@@ -531,9 +531,9 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	/* For an EEPROM, an I2C single byte write is defined as a START
 	 * condition followed by the device address, EEPROM address, one byte
 	 * of data and a STOP condition.  The STOP condition will trigger the
-	 * EEPROM's internally timed write cycle to the nonvolatile memory.
+	 * EEPROM's internally timed write cycle to the analnvolatile memory.
 	 * All inputs are disabled during this write cycle and the EEPROM will
-	 * not respond to any access until the internal write is complete.
+	 * analt respond to any access until the internal write is complete.
 	 */
 	err = eeprom_wait_ready(pdev, NULL);
 	if (err < 0)
@@ -581,14 +581,14 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 		 * ACK error has occurred on the address phase of the write.
 		 * This could be due to an actual hardware failure or the
 		 * EEPROM may still be in its internal write cycle from a
-		 * previous write. This write operation was ignored and must be
+		 * previous write. This write operation was iganalred and must be
 		  *repeated later.
 		 */
 		if (status & LBCIF_STATUS_ACK_ERROR) {
 			/* This could be due to an actual hardware failure
 			 * or the EEPROM may still be in its internal write
 			 * cycle from a previous write. This write operation
-			 * was ignored and must be repeated later.
+			 * was iganalred and must be repeated later.
 			 */
 			udelay(10);
 			continue;
@@ -681,7 +681,7 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 	 */
 	if (pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus)) {
 		dev_err(&pdev->dev,
-			"Could not read PCI config space for EEPROM Status\n");
+			"Could analt read PCI config space for EEPROM Status\n");
 		return -EIO;
 	}
 
@@ -710,8 +710,8 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 
 			/* This error could mean that there was an error
 			 * reading the eeprom or that the eeprom doesn't exist.
-			 * We will treat each case the same and not try to
-			 * gather additional information that normally would
+			 * We will treat each case the same and analt try to
+			 * gather additional information that analrmally would
 			 * come from the eeprom, like MAC Address
 			 */
 			adapter->has_eeprom = false;
@@ -735,7 +735,7 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 
 static void et131x_rx_dma_enable(struct et131x_adapter *adapter)
 {
-	/* Setup the receive dma configuration register for normal operation */
+	/* Setup the receive dma configuration register for analrmal operation */
 	u32 csr =  ET_RXDMA_CSR_FBR1_ENABLE;
 	struct rx_ring *rx_ring = &adapter->rx_ring;
 
@@ -786,7 +786,7 @@ static void et131x_rx_dma_disable(struct et131x_adapter *adapter)
 
 static void et131x_tx_dma_enable(struct et131x_adapter *adapter)
 {
-	/* Setup the transmit dma configuration register for normal
+	/* Setup the transmit dma configuration register for analrmal
 	 * operation
 	 */
 	writel(ET_TXDMA_SNGL_EPKT | (PARM_DMA_CACHE_DEF << ET_TXDMA_CACHE_SHIFT),
@@ -852,7 +852,7 @@ static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 	 * being truncated.  Allow the MAC to pass 4 more than our max packet
 	 * size.  This is 4 for the Ethernet CRC.
 	 *
-	 * Packets larger than (registry_jumbo_packet) that do not contain a
+	 * Packets larger than (registry_jumbo_packet) that do analt contain a
 	 * VLAN ID will be dropped by the Rx function.
 	 */
 	writel(adapter->registry_jumbo_packet + 4, &macregs->max_fm_len);
@@ -894,7 +894,7 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 		cfg1 |= ET_MAC_CFG1_RX_FLOW;
 	writel(cfg1, &mac->cfg1);
 
-	/* Now we need to initialize the MAC Configuration 2 register */
+	/* Analw we need to initialize the MAC Configuration 2 register */
 	/* preamble 7, check length, huge frame off, pad crc, crc enable
 	 * full duplex off
 	 */
@@ -923,7 +923,7 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 
 	if (delay == 100) {
 		dev_warn(&adapter->pdev->dev,
-			 "Syncd bits did not respond correctly cfg1 word 0x%08x\n",
+			 "Syncd bits did analt respond correctly cfg1 word 0x%08x\n",
 			 cfg1);
 	}
 
@@ -952,8 +952,8 @@ static void et1310_setup_device_for_multicast(struct et131x_adapter *adapter)
 	u32 hash4 = 0;
 
 	/* If ET131X_PACKET_TYPE_MULTICAST is specified, then we provision
-	 * the multi-cast LIST.  If it is NOT specified, (and "ALL" is not
-	 * specified) then we should pass NO multi-cast addresses to the
+	 * the multi-cast LIST.  If it is ANALT specified, (and "ALL" is analt
+	 * specified) then we should pass ANAL multi-cast addresses to the
 	 * driver.
 	 */
 	if (adapter->packet_filter & ET131X_PACKET_TYPE_MULTICAST) {
@@ -1047,7 +1047,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	writel(0, &rxmac->crc34);
 
 	/* We need to set the WOL mask0 - mask4 next.  We initialize it to
-	 * its default Values of 0x00000000 because there are not WOL masks
+	 * its default Values of 0x00000000 because there are analt WOL masks
 	 * as of this time.
 	 */
 	for (wolw = &rxmac->mask0_word0; wolw <= &rxmac->mask4_word3; wolw++)
@@ -1111,11 +1111,11 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	 *	   errors  during the reception of the packet.  Clear this
 	 *	   bit in Gigabit, set it in 100Mbit.  This was derived
 	 *	   experimentally at UNH.
-	 * bit 4:  Receive CRC error. The packet's CRC did not match the
+	 * bit 4:  Receive CRC error. The packet's CRC did analt match the
 	 *	   internally generated CRC.
 	 * bit 5:  Receive length check error. Indicates that frame length
-	 *	   field value in the packet does not match the actual data
-	 *	   byte length and is not a type field.
+	 *	   field value in the packet does analt match the actual data
+	 *	   byte length and is analt a type field.
 	 * bit 16: Receive frame truncated.
 	 * bit 17: Drop packet enable
 	 */
@@ -1142,7 +1142,7 @@ static void et1310_config_txmac_regs(struct et131x_adapter *adapter)
 	 * cfpt - control frame pause timer set to 64 (0x40)
 	 * cfep - control frame extended pause timer set to 0x0
 	 */
-	if (adapter->flow == FLOW_NONE)
+	if (adapter->flow == FLOW_ANALNE)
 		writel(0, &txmac->cf_param);
 	else
 		writel(0x40, &txmac->cf_param);
@@ -1160,7 +1160,7 @@ static void et1310_config_macstat_regs(struct et131x_adapter *adapter)
 
 	/* Unmask any counters that we want to track the overflow of.
 	 * Initially this will be all counters.  It may become clear later
-	 * that we do not need to track all counters.
+	 * that we do analt need to track all counters.
 	 */
 	writel(0xFFFFBE32, &macstat->carry_reg1_mask);
 	writel(0xFFFE7E8B, &macstat->carry_reg2_mask);
@@ -1196,10 +1196,10 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 		mii_indicator = readl(&mac->mii_mgmt_indicator);
 	} while ((mii_indicator & ET_MAC_MGMT_WAIT) && delay < 50);
 
-	/* If we hit the max delay, we could not read the register */
+	/* If we hit the max delay, we could analt read the register */
 	if (delay == 50) {
 		dev_warn(&adapter->pdev->dev,
-			 "reg 0x%08x could not be read\n", reg);
+			 "reg 0x%08x could analt be read\n", reg);
 		dev_warn(&adapter->pdev->dev, "status is  0x%08x\n",
 			 mii_indicator);
 
@@ -1266,12 +1266,12 @@ static int et131x_mii_write(struct et131x_adapter *adapter, u8 addr, u8 reg,
 		mii_indicator = readl(&mac->mii_mgmt_indicator);
 	} while ((mii_indicator & ET_MAC_MGMT_BUSY) && delay < 100);
 
-	/* If we hit the max delay, we could not write the register */
+	/* If we hit the max delay, we could analt write the register */
 	if (delay == 100) {
 		u16 tmp;
 
 		dev_warn(&adapter->pdev->dev,
-			 "reg 0x%08x could not be written", reg);
+			 "reg 0x%08x could analt be written", reg);
 		dev_warn(&adapter->pdev->dev, "status is  0x%08x\n",
 			 mii_indicator);
 		dev_warn(&adapter->pdev->dev, "command is  0x%08x\n",
@@ -1311,7 +1311,7 @@ static void et1310_config_flow_control(struct et131x_adapter *adapter)
 	struct phy_device *phydev = adapter->netdev->phydev;
 
 	if (phydev->duplex == DUPLEX_HALF) {
-		adapter->flow = FLOW_NONE;
+		adapter->flow = FLOW_ANALNE;
 	} else {
 		char remote_pause, remote_async_pause;
 
@@ -1324,14 +1324,14 @@ static void et1310_config_flow_control(struct et131x_adapter *adapter)
 			if (adapter->wanted_flow == FLOW_BOTH)
 				adapter->flow = FLOW_BOTH;
 			else
-				adapter->flow = FLOW_NONE;
+				adapter->flow = FLOW_ANALNE;
 		} else if (!remote_pause && !remote_async_pause) {
-			adapter->flow = FLOW_NONE;
+			adapter->flow = FLOW_ANALNE;
 		} else {
 			if (adapter->wanted_flow == FLOW_BOTH)
 				adapter->flow = FLOW_RXONLY;
 			else
-				adapter->flow = FLOW_NONE;
+				adapter->flow = FLOW_ANALNE;
 		}
 	}
 }
@@ -1472,8 +1472,8 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 	 * 10Mbits, blink = 100Mbits, on = 1000Mbits) and LED 2 indicates
 	 * link and activity (on for link, blink off for activity).
 	 *
-	 * NOTE: Some customizations have been added here for specific
-	 * vendors; The LED behavior is now determined by vendor data in the
+	 * ANALTE: Some customizations have been added here for specific
+	 * vendors; The LED behavior is analw determined by vendor data in the
 	 * EEPROM. However, the above description is the default.
 	 */
 	if ((adapter->eeprom_data[1] & 0x4) == 0) {
@@ -1513,7 +1513,7 @@ static void et131x_configure_global_regs(struct et131x_adapter *adapter)
 		writel(INTERNAL_MEM_RX_OFFSET + 1, &regs->txq_start_addr);
 	} else {
 		/* 9216 is the only packet size greater than 8k that
-		 * is available. The Tx buffer has to be big enough
+		 * is available. The Tx buffer has to be big eanalugh
 		 * for one whole packet on the Tx side. We'll make
 		 * the Tx 9408, and give the rest to Rx
 		 */
@@ -1588,7 +1588,7 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 			base_lo = &rx_dma->fbr1_base_lo;
 		}
 
-		/* Now's the best time to initialize FBR contents */
+		/* Analw's the best time to initialize FBR contents */
 		fbr_entry = fbr->ring_virtaddr;
 		for (entry = 0; entry < fbr->num_entries; entry++) {
 			fbr_entry->addr_hi = fbr->bus_high[entry];
@@ -1618,7 +1618,7 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	 */
 	writel(PARM_RX_NUM_BUFS_DEF, &rx_dma->num_pkt_done);
 
-	/* The "time_done" is not working correctly to coalesce interrupts
+	/* The "time_done" is analt working correctly to coalesce interrupts
 	 * after a given time period, but rather is giving us an interrupt
 	 * regardless of whether we have received packets.
 	 * This value gets updated once autoneg is complete.
@@ -1704,7 +1704,7 @@ static void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	if (adapter->flow == FLOW_TXONLY || adapter->flow == FLOW_BOTH)
 		mask = INT_MASK_ENABLE;
 	else
-		mask = INT_MASK_ENABLE_NO_FLOW;
+		mask = INT_MASK_ENABLE_ANAL_FLOW;
 
 	writel(mask, &adapter->regs->global.int_mask);
 }
@@ -1764,7 +1764,7 @@ static void et131x_init_send(struct et131x_adapter *adapter)
 	tcb--;
 	tx_ring->tcb_qtail = tcb;
 	tcb->next = NULL;
-	/* Curr send queue should now be empty */
+	/* Curr send queue should analw be empty */
 	tx_ring->send_head = NULL;
 	tx_ring->send_tail = NULL;
 }
@@ -1836,7 +1836,7 @@ static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
 
 	tmp_free_buff_ring++;
 	/* This works for all cases where limit < 1024. The 1023 case
-	 * works because 1023++ is 1024 which means the if condition is not
+	 * works because 1023++ is 1024 which means the if condition is analt
 	 * taken but the carry of the bit into the wrap bit toggles the wrap
 	 * value correctly
 	 */
@@ -1868,10 +1868,10 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	/* Alloc memory for the lookup table */
 	rx_ring->fbr[0] = kzalloc(sizeof(*fbr), GFP_KERNEL);
 	if (rx_ring->fbr[0] == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rx_ring->fbr[1] = kzalloc(sizeof(*fbr), GFP_KERNEL);
 	if (rx_ring->fbr[1] == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The first thing we will do is configure the sizes of the buffer
 	 * rings. These will change based on jumbo packet support.  Larger
@@ -1881,9 +1881,9 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 *
 	 * FBR1 holds "large" frames, FBR0 holds "small" frames.  If FBR1
 	 * entries are huge in order to accommodate a "jumbo" frame, then it
-	 * will have less entries.  Conversely, FBR1 will now be relied upon
-	 * to carry more "normal" frames, thus it's entry size also increases
-	 * and the number of entries goes up too (since it now carries
+	 * will have less entries.  Conversely, FBR1 will analw be relied upon
+	 * to carry more "analrmal" frames, thus it's entry size also increases
+	 * and the number of entries goes up too (since it analw carries
 	 * "small" + "regular" packets.
 	 *
 	 * In this scheme, we try to maintain 512 entries between the two
@@ -1920,9 +1920,9 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 							GFP_KERNEL);
 		if (!fbr->ring_virtaddr) {
 			dev_err(&adapter->pdev->dev,
-				"Cannot alloc memory for Free Buffer Ring %d\n",
+				"Cananalt alloc memory for Free Buffer Ring %d\n",
 				id);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1940,11 +1940,11 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 			if (!fbr->mem_virtaddrs[i]) {
 				dev_err(&adapter->pdev->dev,
-					"Could not alloc memory\n");
-				return -ENOMEM;
+					"Could analt alloc memory\n");
+				return -EANALMEM;
 			}
 
-			/* See NOTE in "Save Physical Address" comment above */
+			/* See ANALTE in "Save Physical Address" comment above */
 			fbr_physaddr = fbr->mem_physaddrs[i];
 
 			for (j = 0; j < FBR_CHUNKS; j++) {
@@ -1956,7 +1956,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 				fbr->virt[k] = (u8 *)fbr->mem_virtaddrs[i] +
 						   (j * fbr->buffsize);
 
-				/* now store the physical address in the
+				/* analw store the physical address in the
 				 * descriptor so the device can access it
 				 */
 				fbr->bus_high[k] = upper_32_bits(fbr_physaddr);
@@ -1976,8 +1976,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	if (!rx_ring->ps_ring_virtaddr) {
 		dev_err(&adapter->pdev->dev,
-			"Cannot alloc memory for Packet Status Ring\n");
-		return -ENOMEM;
+			"Cananalt alloc memory for Packet Status Ring\n");
+		return -EANALMEM;
 	}
 
 	/* Allocate an area of memory for writeback of status information */
@@ -1987,13 +1987,13 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 					    GFP_KERNEL);
 	if (!rx_ring->rx_status_block) {
 		dev_err(&adapter->pdev->dev,
-			"Cannot alloc memory for Status Block\n");
-		return -ENOMEM;
+			"Cananalt alloc memory for Status Block\n");
+		return -EANALMEM;
 	}
 	rx_ring->num_rfd = NIC_DEFAULT_NUM_RFD;
 
 	/* The RFDs are going to be put on lists later on, so initialize the
-	 * lists now.
+	 * lists analw.
 	 */
 	INIT_LIST_HEAD(&rx_ring->recv_list);
 	return 0;
@@ -2014,9 +2014,9 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	while (!list_empty(&rx_ring->recv_list)) {
 		rfd = list_entry(rx_ring->recv_list.next,
-				 struct rfd, list_node);
+				 struct rfd, list_analde);
 
-		list_del(&rfd->list_node);
+		list_del(&rfd->list_analde);
 		rfd->skb = NULL;
 		kfree(rfd);
 	}
@@ -2091,12 +2091,12 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 	for (rfdct = 0; rfdct < rx_ring->num_rfd; rfdct++) {
 		rfd = kzalloc(sizeof(*rfd), GFP_ATOMIC | GFP_DMA);
 		if (!rfd)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rfd->skb = NULL;
 
 		/* Add this RFD to the recv_list */
-		list_add_tail(&rfd->list_node, &rx_ring->recv_list);
+		list_add_tail(&rfd->list_analde, &rx_ring->recv_list);
 
 		/* Increment the available RFD's */
 		rx_ring->num_ready_recv++;
@@ -2110,8 +2110,8 @@ static void et131x_set_rx_dma_timer(struct et131x_adapter *adapter)
 {
 	struct phy_device *phydev = adapter->netdev->phydev;
 
-	/* For version B silicon, we do not use the RxDMA timer for 10 and 100
-	 * Mbits/s line rates. We do not enable and RxDMA interrupt coalescing.
+	/* For version B silicon, we do analt use the RxDMA timer for 10 and 100
+	 * Mbits/s line rates. We do analt enable and RxDMA interrupt coalescing.
 	 */
 	if ((phydev->speed == SPEED_100) || (phydev->speed == SPEED_10)) {
 		writel(0, &adapter->regs->rxdma.max_pkt_time);
@@ -2165,7 +2165,7 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	 * our list
 	 */
 	spin_lock_irqsave(&adapter->rcv_lock, flags);
-	list_add_tail(&rfd->list_node, &rx_local->recv_list);
+	list_add_tail(&rfd->list_analde, &rx_local->recv_list);
 	rx_local->num_ready_recv++;
 	spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 
@@ -2202,16 +2202,16 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	status = rx_local->rx_status_block;
 	word1 = status->word1 >> 16;
 
-	/* Check the PSR and wrap bits do not match */
+	/* Check the PSR and wrap bits do analt match */
 	if ((word1 & 0x1FFF) == (rx_local->local_psr_full & 0x1FFF))
-		return NULL; /* Looks like this ring is not updated yet */
+		return NULL; /* Looks like this ring is analt updated yet */
 
 	/* The packet status ring indicates that data is available. */
 	psr = (struct pkt_stat_desc *)(rx_local->ps_ring_virtaddr) +
 			(rx_local->local_psr_full & 0xFFF);
 
 	/* Grab any information that is required once the PSR is advanced,
-	 * since we can no longer rely on the memory being accurate
+	 * since we can anal longer rely on the memory being accurate
 	 */
 	len = psr->word1 & 0xFFFF;
 	ring_index = (psr->word1 >> 26) & 0x03;
@@ -2231,7 +2231,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	writel(rx_local->local_psr_full, &adapter->regs->rxdma.psr_full_offset);
 
 	if (ring_index > 1 || buff_index > fbr->num_entries - 1) {
-		/* Illegal buffer or ring index cannot be used by S/W*/
+		/* Illegal buffer or ring index cananalt be used by S/W*/
 		dev_err(&adapter->pdev->dev,
 			"NICRxPkts PSR Entry %d indicates length of %d and/or bad bi(%d)\n",
 			rx_local->local_psr_full & 0xFFF, len, buff_index);
@@ -2242,14 +2242,14 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	spin_lock_irqsave(&adapter->rcv_lock, flags);
 
 	element = rx_local->recv_list.next;
-	rfd = list_entry(element, struct rfd, list_node);
+	rfd = list_entry(element, struct rfd, list_analde);
 
 	if (!rfd) {
 		spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 		return NULL;
 	}
 
-	list_del(&rfd->list_node);
+	list_del(&rfd->list_analde);
 	rx_local->num_ready_recv--;
 
 	spin_unlock_irqrestore(&adapter->rcv_lock, flags);
@@ -2281,7 +2281,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	skb_put_data(skb, fbr->virt[buff_index], rfd->len);
 
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 	netif_receive_skb(skb);
 
 out:
@@ -2313,8 +2313,8 @@ static int et131x_handle_recv_pkts(struct et131x_adapter *adapter, int budget)
 		if (rfd == NULL)
 			break;
 
-		/* Do not receive any packets until a filter has been set.
-		 * Do not receive any packets until we have link.
+		/* Do analt receive any packets until a filter has been set.
+		 * Do analt receive any packets until we have link.
 		 * If length is zero, return the RFD in order to advance the
 		 * Free buffer ring.
 		 */
@@ -2333,7 +2333,7 @@ static int et131x_handle_recv_pkts(struct et131x_adapter *adapter, int budget)
 
 	if (count == limit || !done) {
 		rx_ring->unfinished_receives = true;
-		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
+		writel(PARM_TX_TIME_INT_DEF * NAANAL_IN_A_MICRO,
 		       &adapter->regs->global.watchdog_timer);
 	} else {
 		/* Watchdog timer will disable itself if appropriate. */
@@ -2360,7 +2360,7 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	tx_ring->tcb_ring = kcalloc(NUM_TCB, sizeof(struct tcb),
 				    GFP_KERNEL | GFP_DMA);
 	if (!tx_ring->tcb_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX);
 	tx_ring->tx_desc_ring = dma_alloc_coherent(&adapter->pdev->dev,
@@ -2369,8 +2369,8 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 						   GFP_KERNEL);
 	if (!tx_ring->tx_desc_ring) {
 		dev_err(&adapter->pdev->dev,
-			"Cannot alloc memory for Tx Ring\n");
-		return -ENOMEM;
+			"Cananalt alloc memory for Tx Ring\n");
+		return -EANALMEM;
 	}
 
 	tx_ring->tx_status = dma_alloc_coherent(&adapter->pdev->dev,
@@ -2379,8 +2379,8 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 						    GFP_KERNEL);
 	if (!tx_ring->tx_status) {
 		dev_err(&adapter->pdev->dev,
-			"Cannot alloc memory for Tx status block\n");
-		return -ENOMEM;
+			"Cananalt alloc memory for Tx status block\n");
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -2574,7 +2574,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	 * timer to wake us up if this packet isn't followed by N more.
 	 */
 	if (phydev && phydev->speed == SPEED_1000) {
-		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
+		writel(PARM_TX_TIME_INT_DEF * NAANAL_IN_A_MICRO,
 		       &adapter->regs->global.watchdog_timer);
 	}
 	return 0;
@@ -2597,7 +2597,7 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 
 	if (tcb == NULL) {
 		spin_unlock_irqrestore(&adapter->tcb_ready_qlock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tx_ring->tcb_qhead = tcb->next;
@@ -2742,7 +2742,7 @@ static void et131x_handle_send_pkts(struct et131x_adapter *adapter)
 	serviced = readl(&adapter->regs->txdma.new_service_complete);
 	index = INDEX10(serviced);
 
-	/* Has the ring wrapped?  Process any descriptors that do not have
+	/* Has the ring wrapped?  Process any descriptors that do analt have
 	 * the same "wrap" indicator as the current completion indicator
 	 */
 	spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
@@ -2969,14 +2969,14 @@ static const struct ethtool_ops et131x_ethtool_ops = {
 /* et131x_hwaddr_init - set up the MAC Address */
 static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 {
-	/* If have our default mac from init and no mac address from
+	/* If have our default mac from init and anal mac address from
 	 * EEPROM then we need to generate the last octet and set it on the
 	 * device
 	 */
 	if (is_zero_ether_addr(adapter->rom_addr)) {
 		/* We need to randomly generate the last octet so we
 		 * decrease our chances of setting the mac address to
-		 * same as another one of our cards in the system
+		 * same as aanalther one of our cards in the system
 		 */
 		get_random_bytes(&adapter->addr[5], 1);
 		/* We have the default value in the register we are
@@ -2985,7 +2985,7 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 		 */
 		ether_addr_copy(adapter->rom_addr, adapter->addr);
 	} else {
-		/* We do not have an override address, so set the
+		/* We do analt have an override address, so set the
 		 * current address to the permanent address and add
 		 * it to the device
 		 */
@@ -3018,13 +3018,13 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 		if (pci_write_config_word(pdev, ET1310_PCI_ACK_NACK,
 					  acknak[max_payload])) {
 			dev_err(&pdev->dev,
-				"Could not write PCI config space for ACK/NAK\n");
+				"Could analt write PCI config space for ACK/NAK\n");
 			goto err_out;
 		}
 		if (pci_write_config_word(pdev, ET1310_PCI_REPLAY,
 					  replay[max_payload])) {
 			dev_err(&pdev->dev,
-				"Could not write PCI config space for Replay Timer\n");
+				"Could analt write PCI config space for Replay Timer\n");
 			goto err_out;
 		}
 	}
@@ -3034,7 +3034,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	 */
 	if (pci_write_config_byte(pdev, ET1310_PCI_L0L1LATENCY, 0x11)) {
 		dev_err(&pdev->dev,
-			"Could not write PCI config space for Latency Timers\n");
+			"Could analt write PCI config space for Latency Timers\n");
 		goto err_out;
 	}
 
@@ -3046,7 +3046,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	}
 
 	/* Get MAC address from config space if an eeprom exists, otherwise
-	 * the MAC address there will not be valid
+	 * the MAC address there will analt be valid
 	 */
 	if (!adapter->has_eeprom) {
 		et131x_hwaddr_init(adapter);
@@ -3056,7 +3056,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	for (i = 0; i < ETH_ALEN; i++) {
 		if (pci_read_config_byte(pdev, ET1310_PCI_MAC_ADDRESS + i,
 					 adapter->rom_addr + i)) {
-			dev_err(&pdev->dev, "Could not read PCI config space for MAC address\n");
+			dev_err(&pdev->dev, "Could analt read PCI config space for MAC address\n");
 			goto err_out;
 		}
 	}
@@ -3096,7 +3096,7 @@ static void et131x_error_timer_handler(struct timer_list *t)
 	if (adapter->boot_coma == 10) {
 		if (!phydev->link) {
 			if (!et1310_in_phy_coma(adapter)) {
-				/* NOTE - This was originally a 'sync with
+				/* ANALTE - This was originally a 'sync with
 				 *  interrupt'. How to do that under Linux?
 				 */
 				et131x_enable_interrupts(adapter);
@@ -3155,7 +3155,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 		return;
 
 	/* Check to see if we are in coma mode and if
-	 * so, disable it because we will not be able
+	 * so, disable it because we will analt be able
 	 * to read PHY values until we are out.
 	 */
 	if (et1310_in_phy_coma(adapter))
@@ -3240,15 +3240,15 @@ static int et131x_mii_probe(struct net_device *netdev)
 
 	phydev = phy_find_first(adapter->mii_bus);
 	if (!phydev) {
-		dev_err(&adapter->pdev->dev, "no PHY found\n");
-		return -ENODEV;
+		dev_err(&adapter->pdev->dev, "anal PHY found\n");
+		return -EANALDEV;
 	}
 
 	phydev = phy_connect(netdev, phydev_name(phydev),
 			     &et131x_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
-		dev_err(&adapter->pdev->dev, "Could not attach to PHY\n");
+		dev_err(&adapter->pdev->dev, "Could analt attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -3377,7 +3377,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 	if (adapter->flow == FLOW_TXONLY || adapter->flow == FLOW_BOTH)
 		status &= ~INT_MASK_ENABLE;
 	else
-		status &= ~INT_MASK_ENABLE_NO_FLOW;
+		status &= ~INT_MASK_ENABLE_ANAL_FLOW;
 
 	/* Make sure this is our interrupt */
 	if (!status) {
@@ -3462,13 +3462,13 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 		 * request issued by the JAGCore has occurred or a completion is
 		 * returned with an un-successful status. In both cases the
 		 * request is considered complete. The JAGCore will
-		 * automatically re-try the request in question. Normally
+		 * automatically re-try the request in question. Analrmally
 		 * information on events like these are sent to the host using
 		 * the "Advanced Error Reporting" capability. This interrupt is
-		 * another way of getting similar information. The only thing
+		 * aanalther way of getting similar information. The only thing
 		 * required is to clear the interrupt by reading the ISR in the
 		 * global resources. The JAGCore will do a re-try on the
-		 * request. Normally you should never see this interrupt. If
+		 * request. Analrmally you should never see this interrupt. If
 		 * you start to see this interrupt occurring frequently then
 		 * something bad has occurred. A reset might be the thing to do.
 		 */
@@ -3586,7 +3586,7 @@ static struct net_device_stats *et131x_stats(struct net_device *netdev)
 	stats->rx_crc_errors = devstat->rx_crc_errs;
 	stats->rx_dropped = devstat->rcvd_pkts_dropped;
 
-	/* NOTE: Not used, can't find analogous statistics */
+	/* ANALTE: Analt used, can't find analogous statistics */
 	/* stats->rx_frame_errors     = devstat->; */
 	/* stats->rx_fifo_errors      = devstat->; */
 	/* stats->rx_missed_errors    = devstat->; */
@@ -3615,7 +3615,7 @@ static int et131x_open(struct net_device *netdev)
 	result = request_irq(irq, et131x_isr,
 			     IRQF_SHARED, netdev->name, netdev);
 	if (result) {
-		dev_err(&pdev->dev, "could not register IRQ %d\n", irq);
+		dev_err(&pdev->dev, "could analt register IRQ %d\n", irq);
 		return result;
 	}
 
@@ -3663,7 +3663,7 @@ static int et131x_set_packet_filter(struct et131x_adapter *adapter)
 	else {
 		/* Set us up with Multicast packet filtering.  Three cases are
 		 * possible - (1) we have a multi-cast list, (2) we receive ALL
-		 * multicast entries or (3) we receive none.
+		 * multicast entries or (3) we receive analne.
 		 */
 		if (filter & ET131X_PACKET_TYPE_ALL_MULTICAST)
 			pf_ctrl &= ~2;	/* Multicast filter bit */
@@ -3746,10 +3746,10 @@ static void et131x_multicast(struct net_device *netdev)
 	}
 	adapter->multicast_addr_count = i;
 
-	/* Are the new flags different from the previous ones? If not, then no
+	/* Are the new flags different from the previous ones? If analt, then anal
 	 * action is required
 	 *
-	 * NOTE - This block will always update the multicast_list with the
+	 * ANALTE - This block will always update the multicast_list with the
 	 *        hardware, even if the addresses aren't the same.
 	 */
 	if (packet_filter != adapter->packet_filter)
@@ -3761,7 +3761,7 @@ static netdev_tx_t et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
-	/* This driver does not support TSO, it is very unlikely
+	/* This driver does analt support TSO, it is very unlikely
 	 * this condition is true.
 	 */
 	if (unlikely(skb_shinfo(skb)->nr_frags > MAX_TX_DESC_PER_PKT - 2)) {
@@ -3775,7 +3775,7 @@ static netdev_tx_t et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 	/* Save the timestamp for the TX timeout watchdog */
 	netif_trans_update(netdev);
 
-	/* TCB is not available */
+	/* TCB is analt available */
 	if (tx_ring->used >= NUM_TCB)
 		goto drop_err;
 
@@ -3807,14 +3807,14 @@ static void et131x_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	struct tcb *tcb;
 	unsigned long flags;
 
-	/* If the device is closed, ignore the timeout */
+	/* If the device is closed, iganalre the timeout */
 	if (!(adapter->flags & FMP_ADAPTER_INTERRUPT_IN_USE))
 		return;
 
-	/* Any nonrecoverable hardware error?
+	/* Any analnrecoverable hardware error?
 	 * Checks adapter->flags for any failure in phy reading
 	 */
-	if (adapter->flags & FMP_ADAPTER_NON_RECOVER_ERROR)
+	if (adapter->flags & FMP_ADAPTER_ANALN_RECOVER_ERROR)
 		return;
 
 	/* Hardware failure? */
@@ -3907,7 +3907,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	/* Perform some basic PCI checks */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "Can't find PCI device's base address\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_disable;
 	}
 
@@ -3922,14 +3922,14 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	/* Check the DMA addressing support of this device */
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
-		dev_err(&pdev->dev, "No usable DMA addressing method\n");
+		dev_err(&pdev->dev, "Anal usable DMA addressing method\n");
 		goto err_release_res;
 	}
 
 	netdev = alloc_etherdev(sizeof(struct et131x_adapter));
 	if (!netdev) {
 		dev_err(&pdev->dev, "Couldn't alloc netdev struct\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_release_res;
 	}
 
@@ -3950,8 +3950,8 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	/* Map the bus-relative registers to system virtual memory */
 	adapter->regs = pci_ioremap_bar(pdev, 0);
 	if (!adapter->regs) {
-		dev_err(&pdev->dev, "Cannot map device registers\n");
-		rc = -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt map device registers\n");
+		rc = -EANALMEM;
 		goto err_free_dev;
 	}
 
@@ -3963,7 +3963,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 
 	rc = et131x_adapter_memory_alloc(adapter);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "Could not alloc adapter memory (DMA)\n");
+		dev_err(&pdev->dev, "Could analt alloc adapter memory (DMA)\n");
 		goto err_iounmap;
 	}
 
@@ -3973,7 +3973,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 
 	eth_hw_addr_set(netdev, adapter->addr);
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 
 	adapter->mii_bus = mdiobus_alloc();
 	if (!adapter->mii_bus) {
@@ -4001,13 +4001,13 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 
 	et131x_adapter_setup(adapter);
 
-	/* Init variable for counting how long we do not have link status */
+	/* Init variable for counting how long we do analt have link status */
 	adapter->boot_coma = 0;
 	et1310_disable_phy_coma(adapter);
 
-	/* We can enable interrupts now
+	/* We can enable interrupts analw
 	 *
-	 *  NOTE - Because registration of interrupt handler is done in the
+	 *  ANALTE - Because registration of interrupt handler is done in the
 	 *         device's open(), defer enabling device interrupts to that
 	 *         point
 	 */
@@ -4019,7 +4019,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	}
 
 	/* Register the net_device struct with the PCI subsystem. Save a copy
-	 * of the PCI config space for this device now that the device has
+	 * of the PCI config space for this device analw that the device has
 	 * been initialized, just in case it needs to be quickly restored.
 	 */
 	pci_set_drvdata(pdev, netdev);

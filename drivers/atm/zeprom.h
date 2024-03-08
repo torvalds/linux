@@ -30,6 +30,6 @@
 
 #define ZEPROM_CMD_READ	6
 
-/* No other commands are needed. */
+/* Anal other commands are needed. */
 
 #endif

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,7 +55,7 @@ static char sprite_name(struct drm_i915_private *i915, enum pipe pipe, int sprit
 
 static void i9xx_plane_linear_gamma(u16 gamma[8])
 {
-	/* The points are not evenly spaced. */
+	/* The points are analt evenly spaced. */
 	static const u8 in[8] = { 0, 1, 2, 4, 8, 16, 24, 32 };
 	int i;
 
@@ -240,10 +240,10 @@ int vlv_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int num, den;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Analte that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We iganalre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -363,7 +363,7 @@ static void vlv_sprite_update_gamma(const struct intel_plane_state *plane_state)
 }
 
 static void
-vlv_sprite_update_noarm(struct intel_plane *plane,
+vlv_sprite_update_analarm(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
@@ -415,7 +415,7 @@ vlv_sprite_update_arm(struct intel_plane *plane,
 
 	intel_de_write_fw(dev_priv, SPCONSTALPHA(pipe, plane_id), 0);
 
-	intel_de_write_fw(dev_priv, SPLINOFF(pipe, plane_id), linear_offset);
+	intel_de_write_fw(dev_priv, SPLIANALFF(pipe, plane_id), linear_offset);
 	intel_de_write_fw(dev_priv, SPTILEOFF(pipe, plane_id),
 			  SP_OFFSET_Y(y) | SP_OFFSET_X(x));
 
@@ -539,10 +539,10 @@ int ivb_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int num, den;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Analte that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We iganalre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -559,10 +559,10 @@ static int ivb_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int num, den;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Analte that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We iganalre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -778,7 +778,7 @@ static void ivb_sprite_update_gamma(const struct intel_plane_state *plane_state)
 }
 
 static void
-ivb_sprite_update_noarm(struct intel_plane *plane,
+ivb_sprite_update_analarm(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
@@ -831,13 +831,13 @@ ivb_sprite_update_arm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, SPRKEYMAX(pipe), key->max_value);
 	}
 
-	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
+	/* HSW consolidates SPRTILEOFF and SPRLIANALFF into a single SPROFFSET
 	 * register */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		intel_de_write_fw(dev_priv, SPROFFSET(pipe),
 				  SPRITE_OFFSET_Y(y) | SPRITE_OFFSET_X(x));
 	} else {
-		intel_de_write_fw(dev_priv, SPRLINOFF(pipe), linear_offset);
+		intel_de_write_fw(dev_priv, SPRLIANALFF(pipe), linear_offset);
 		intel_de_write_fw(dev_priv, SPRTILEOFF(pipe),
 				  SPRITE_OFFSET_Y(y) | SPRITE_OFFSET_X(x));
 	}
@@ -899,10 +899,10 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int limit, decimate;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Analte that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We iganalre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -930,7 +930,7 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	/*
 	 * We should also do -10% if sprite scaling is enabled
 	 * on the other pipe, but we can't really check for that,
-	 * so we ignore it.
+	 * so we iganalre it.
 	 */
 
 	return DIV_ROUND_UP_ULL(mul_u32_u32(pixel_rate, 10 * hscale),
@@ -1105,7 +1105,7 @@ static void ilk_sprite_update_gamma(const struct intel_plane_state *plane_state)
 }
 
 static void
-g4x_sprite_update_noarm(struct intel_plane *plane,
+g4x_sprite_update_analarm(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
@@ -1157,7 +1157,7 @@ g4x_sprite_update_arm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, DVSKEYMAX(pipe), key->max_value);
 	}
 
-	intel_de_write_fw(dev_priv, DVSLINOFF(pipe), linear_offset);
+	intel_de_write_fw(dev_priv, DVSLIANALFF(pipe), linear_offset);
 	intel_de_write_fw(dev_priv, DVSTILEOFF(pipe),
 			  DVS_OFFSET_Y(y) | DVS_OFFSET_X(x));
 
@@ -1297,8 +1297,8 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	int min_scale = DRM_PLANE_NO_SCALING;
-	int max_scale = DRM_PLANE_NO_SCALING;
+	int min_scale = DRM_PLANE_ANAL_SCALING;
+	int max_scale = DRM_PLANE_ANAL_SCALING;
 	int ret;
 
 	if (g4x_fb_scalable(plane_state->hw.fb)) {
@@ -1345,12 +1345,12 @@ int chv_plane_check_rotation(const struct intel_plane_state *plane_state)
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	unsigned int rotation = plane_state->hw.rotation;
 
-	/* CHV ignores the mirror bit when the rotate bit is set :( */
+	/* CHV iganalres the mirror bit when the rotate bit is set :( */
 	if (IS_CHERRYVIEW(dev_priv) &&
 	    rotation & DRM_MODE_ROTATE_180 &&
 	    rotation & DRM_MODE_REFLECT_X) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Cannot rotate and reflect at the same time\n");
+			    "Cananalt rotate and reflect at the same time\n");
 		return -EINVAL;
 	}
 
@@ -1368,8 +1368,8 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
-						DRM_PLANE_NO_SCALING,
-						DRM_PLANE_NO_SCALING,
+						DRM_PLANE_ANAL_SCALING,
+						DRM_PLANE_ANAL_SCALING,
 						true);
 	if (ret)
 		return ret;
@@ -1564,7 +1564,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		return plane;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		plane->update_noarm = vlv_sprite_update_noarm;
+		plane->update_analarm = vlv_sprite_update_analarm;
 		plane->update_arm = vlv_sprite_update_arm;
 		plane->disable_arm = vlv_sprite_disable_arm;
 		plane->get_hw_state = vlv_sprite_get_hw_state;
@@ -1582,7 +1582,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &vlv_sprite_funcs;
 	} else if (DISPLAY_VER(dev_priv) >= 7) {
-		plane->update_noarm = ivb_sprite_update_noarm;
+		plane->update_analarm = ivb_sprite_update_analarm;
 		plane->update_arm = ivb_sprite_update_arm;
 		plane->disable_arm = ivb_sprite_disable_arm;
 		plane->get_hw_state = ivb_sprite_get_hw_state;
@@ -1601,7 +1601,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &snb_sprite_funcs;
 	} else {
-		plane->update_noarm = g4x_sprite_update_noarm;
+		plane->update_analarm = g4x_sprite_update_analarm;
 		plane->update_arm = g4x_sprite_update_arm;
 		plane->disable_arm = g4x_sprite_disable_arm;
 		plane->get_hw_state = g4x_sprite_get_hw_state;

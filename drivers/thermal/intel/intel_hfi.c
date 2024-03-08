@@ -166,7 +166,7 @@ static DEFINE_MUTEX(hfi_instance_lock);
 
 static struct workqueue_struct *hfi_updates_wq;
 #define HFI_UPDATE_INTERVAL		HZ
-#define HFI_MAX_THERM_NOTIFY_COUNT	16
+#define HFI_MAX_THERM_ANALTIFY_COUNT	16
 
 static void get_hfi_caps(struct hfi_instance *hfi_instance,
 			 struct thermal_genl_cpu_caps *cpu_caps)
@@ -207,7 +207,7 @@ static void update_capabilities(struct hfi_instance *hfi_instance)
 
 	cpu_count = cpumask_weight(hfi_instance->cpus);
 
-	/* No CPUs to report in this hfi_instance. */
+	/* Anal CPUs to report in this hfi_instance. */
 	if (!cpu_count)
 		goto out;
 
@@ -217,14 +217,14 @@ static void update_capabilities(struct hfi_instance *hfi_instance)
 
 	get_hfi_caps(hfi_instance, cpu_caps);
 
-	if (cpu_count < HFI_MAX_THERM_NOTIFY_COUNT)
+	if (cpu_count < HFI_MAX_THERM_ANALTIFY_COUNT)
 		goto last_cmd;
 
-	/* Process complete chunks of HFI_MAX_THERM_NOTIFY_COUNT capabilities. */
+	/* Process complete chunks of HFI_MAX_THERM_ANALTIFY_COUNT capabilities. */
 	for (i = 0;
-	     (i + HFI_MAX_THERM_NOTIFY_COUNT) <= cpu_count;
-	     i += HFI_MAX_THERM_NOTIFY_COUNT)
-		thermal_genl_cpu_capability_event(HFI_MAX_THERM_NOTIFY_COUNT,
+	     (i + HFI_MAX_THERM_ANALTIFY_COUNT) <= cpu_count;
+	     i += HFI_MAX_THERM_ANALTIFY_COUNT)
+		thermal_genl_cpu_capability_event(HFI_MAX_THERM_ANALTIFY_COUNT,
 						  &cpu_caps[i]);
 
 	cpu_count = cpu_count - i;
@@ -265,7 +265,7 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 
 	/*
 	 * A CPU is linked to its HFI instance before the thermal vector in the
-	 * local APIC is unmasked. Hence, info->hfi_instance cannot be NULL
+	 * local APIC is unmasked. Hence, info->hfi_instance cananalt be NULL
 	 * when receiving an HFI event.
 	 */
 	hfi_instance = info->hfi_instance;
@@ -277,7 +277,7 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 	/*
 	 * On most systems, all CPUs in the package receive a package-level
 	 * thermal interrupt when there is an HFI update. It is sufficient to
-	 * let a single CPU to acknowledge the update and queue work to
+	 * let a single CPU to ackanalwledge the update and queue work to
 	 * process it. The remaining CPUs can resume their work.
 	 */
 	if (!raw_spin_trylock(&hfi_instance->event_lock))
@@ -292,7 +292,7 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 
 	/*
 	 * Ack duplicate update. Since there is an active HFI
-	 * status from HW, it must be a new event, not a case
+	 * status from HW, it must be a new event, analt a case
 	 * where a lagging CPU entered the locked region.
 	 */
 	new_timestamp = *(u64 *)hfi_instance->hw_table;
@@ -312,7 +312,7 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 	       hfi_features.nr_table_pages << PAGE_SHIFT);
 
 	/*
-	 * Let hardware know that we are done reading the HFI table and it is
+	 * Let hardware kanalw that we are done reading the HFI table and it is
 	 * free to update it again.
 	 */
 	thermal_clear_package_intr_status(PACKAGE_LEVEL, PACKAGE_THERM_STATUS_HFI_UPDATED);
@@ -328,7 +328,7 @@ static void init_hfi_cpu_index(struct hfi_cpu_info *info)
 {
 	union cpuid6_edx edx;
 
-	/* Do not re-read @cpu's index if it has already been initialized. */
+	/* Do analt re-read @cpu's index if it has already been initialized. */
 	if (info->index > -1)
 		return;
 
@@ -381,8 +381,8 @@ static void hfi_disable(void)
 	wrmsrl(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
 
 	/*
-	 * Wait for hardware to acknowledge the disabling of HFI. Some
-	 * processors may not do it. Wait for ~2ms. This is a reasonable
+	 * Wait for hardware to ackanalwledge the disabling of HFI. Some
+	 * processors may analt do it. Wait for ~2ms. This is a reasonable
 	 * time for hardware to complete any pending actions on the HFI
 	 * memory.
 	 */
@@ -415,12 +415,12 @@ void intel_hfi_online(unsigned int cpu)
 	struct hfi_cpu_info *info;
 	u16 die_id;
 
-	/* Nothing to do if hfi_instances are missing. */
+	/* Analthing to do if hfi_instances are missing. */
 	if (!hfi_instances)
 		return;
 
 	/*
-	 * Link @cpu to the HFI instance of its package/die. It does not
+	 * Link @cpu to the HFI instance of its package/die. It does analt
 	 * matter whether the instance has been initialized.
 	 */
 	info = &per_cpu(hfi_cpu_info, cpu);
@@ -437,7 +437,7 @@ void intel_hfi_online(unsigned int cpu)
 	init_hfi_cpu_index(info);
 
 	/*
-	 * Now check if the HFI instance of the package/die of @cpu has been
+	 * Analw check if the HFI instance of the package/die of @cpu has been
 	 * initialized (by checking its header). In such case, all we have to
 	 * do is to add @cpu to this instance's cpumask and enable the instance
 	 * if needed.
@@ -450,9 +450,9 @@ void intel_hfi_online(unsigned int cpu)
 	 * Hardware is programmed with the physical address of the first page
 	 * frame of the table. Hence, the allocated memory must be page-aligned.
 	 *
-	 * Some processors do not forget the initial address of the HFI table
+	 * Some processors do analt forget the initial address of the HFI table
 	 * even after having been reprogrammed. Keep using the same pages. Do
-	 * not free them.
+	 * analt free them.
 	 */
 	hfi_instance->hw_table = alloc_pages_exact(hfi_features.nr_table_pages,
 						   GFP_KERNEL | __GFP_ZERO);
@@ -500,7 +500,7 @@ free_hw_table:
  *
  * On some processors, hardware remembers previous programming settings even
  * after being reprogrammed. Thus, keep HFI enabled even if all CPUs in the
- * die/package of @cpu are offline. See note in intel_hfi_online().
+ * die/package of @cpu are offline. See analte in intel_hfi_online().
  */
 void intel_hfi_offline(unsigned int cpu)
 {
@@ -508,7 +508,7 @@ void intel_hfi_offline(unsigned int cpu)
 	struct hfi_instance *hfi_instance;
 
 	/*
-	 * Check if @cpu as an associated, initialized (i.e., with a non-NULL
+	 * Check if @cpu as an associated, initialized (i.e., with a analn-NULL
 	 * header). Also, HFI instances are only initialized if X86_FEATURE_HFI
 	 * is present.
 	 */
@@ -534,17 +534,17 @@ static __init int hfi_parse_features(void)
 	union cpuid6_edx edx;
 
 	if (!boot_cpu_has(X86_FEATURE_HFI))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * If we are here we know that CPUID_HFI_LEAF exists. Parse the
+	 * If we are here we kanalw that CPUID_HFI_LEAF exists. Parse the
 	 * supported capabilities and the size of the HFI table.
 	 */
 	edx.full = cpuid_edx(CPUID_HFI_LEAF);
 
 	if (!edx.split.capabilities.split.performance) {
-		pr_debug("Performance reporting not supported! Not using HFI\n");
-		return -ENODEV;
+		pr_debug("Performance reporting analt supported! Analt using HFI\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -579,14 +579,14 @@ static void hfi_do_enable(void)
 	struct hfi_cpu_info *info = &per_cpu(hfi_cpu_info, 0);
 	struct hfi_instance *hfi_instance = info->hfi_instance;
 
-	/* No locking needed. There is no concurrency with CPU online. */
+	/* Anal locking needed. There is anal concurrency with CPU online. */
 	hfi_set_hw_table(hfi_instance);
 	hfi_enable();
 }
 
 static int hfi_do_disable(void)
 {
-	/* No locking needed. There is no concurrency with CPU offline. */
+	/* Anal locking needed. There is anal concurrency with CPU offline. */
 	hfi_disable();
 
 	return 0;
@@ -621,18 +621,18 @@ void __init intel_hfi_init(void)
 	for (i = 0; i < max_hfi_instances; i++) {
 		hfi_instance = &hfi_instances[i];
 		if (!zalloc_cpumask_var(&hfi_instance->cpus, GFP_KERNEL))
-			goto err_nomem;
+			goto err_analmem;
 	}
 
 	hfi_updates_wq = create_singlethread_workqueue("hfi-updates");
 	if (!hfi_updates_wq)
-		goto err_nomem;
+		goto err_analmem;
 
 	register_syscore_ops(&hfi_pm_ops);
 
 	return;
 
-err_nomem:
+err_analmem:
 	for (j = 0; j < i; ++j) {
 		hfi_instance = &hfi_instances[j];
 		free_cpumask_var(hfi_instance->cpus);

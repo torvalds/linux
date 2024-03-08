@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 LaCie
  *
- * Author: Simon Guinot <sguinot@lacie.com>
+ * Author: Simon Guianalt <sguianalt@lacie.com>
  *
  * Based on leds-gpio.c by Raphael Assenat <raph@8d.com>
  */
@@ -172,7 +172,7 @@ static struct attribute *ns2_led_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ns2_led);
 
-static int ns2_led_register(struct device *dev, struct fwnode_handle *node,
+static int ns2_led_register(struct device *dev, struct fwanalde_handle *analde,
 			    struct ns2_led *led)
 {
 	struct led_init_data init_data = {};
@@ -180,29 +180,29 @@ static int ns2_led_register(struct device *dev, struct fwnode_handle *node,
 	enum ns2_led_modes mode;
 	int nmodes, ret;
 
-	led->cmd = devm_fwnode_gpiod_get_index(dev, node, "cmd", 0, GPIOD_ASIS,
-					       fwnode_get_name(node));
+	led->cmd = devm_fwanalde_gpiod_get_index(dev, analde, "cmd", 0, GPIOD_ASIS,
+					       fwanalde_get_name(analde));
 	if (IS_ERR(led->cmd))
 		return PTR_ERR(led->cmd);
 
-	led->slow = devm_fwnode_gpiod_get_index(dev, node, "slow", 0,
+	led->slow = devm_fwanalde_gpiod_get_index(dev, analde, "slow", 0,
 						GPIOD_ASIS,
-						fwnode_get_name(node));
+						fwanalde_get_name(analde));
 	if (IS_ERR(led->slow))
 		return PTR_ERR(led->slow);
 
-	ret = fwnode_property_count_u32(node, "modes-map");
+	ret = fwanalde_property_count_u32(analde, "modes-map");
 	if (ret < 0 || ret % 3) {
-		dev_err(dev, "Missing or malformed modes-map for %pfw\n", node);
+		dev_err(dev, "Missing or malformed modes-map for %pfw\n", analde);
 		return -EINVAL;
 	}
 
 	nmodes = ret / 3;
 	modval = devm_kcalloc(dev, nmodes, sizeof(*modval), GFP_KERNEL);
 	if (!modval)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	fwnode_property_read_u32_array(node, "modes-map", (void *)modval,
+	fwanalde_property_read_u32_array(analde, "modes-map", (void *)modval,
 				       nmodes * 3);
 
 	rwlock_init(&led->rw_lock);
@@ -226,11 +226,11 @@ static int ns2_led_register(struct device *dev, struct fwnode_handle *node,
 	led->sata = (mode == NS_V2_LED_SATA) ? 1 : 0;
 	led->cdev.brightness = (mode == NS_V2_LED_OFF) ? LED_OFF : LED_FULL;
 
-	init_data.fwnode = node;
+	init_data.fwanalde = analde;
 
 	ret = devm_led_classdev_register_ext(dev, &led->cdev, &init_data);
 	if (ret)
-		dev_err(dev, "Failed to register LED for node %pfw\n", node);
+		dev_err(dev, "Failed to register LED for analde %pfw\n", analde);
 
 	return ret;
 }
@@ -238,23 +238,23 @@ static int ns2_led_register(struct device *dev, struct fwnode_handle *node,
 static int ns2_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct ns2_led *leds;
 	int count;
 	int ret;
 
-	count = device_get_child_node_count(dev);
+	count = device_get_child_analde_count(dev);
 	if (!count)
-		return -ENODEV;
+		return -EANALDEV;
 
 	leds = devm_kcalloc(dev, count, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		ret = ns2_led_register(dev, child, leds++);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 	}
@@ -278,7 +278,7 @@ static struct platform_driver ns2_led_driver = {
 
 module_platform_driver(ns2_led_driver);
 
-MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
+MODULE_AUTHOR("Simon Guianalt <sguianalt@lacie.com>");
 MODULE_DESCRIPTION("Network Space v2 LED driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:leds-ns2");

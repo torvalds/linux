@@ -53,7 +53,7 @@ void fsl_edma_tx_chan_handler(struct fsl_edma_chan *fsl_chan)
 	}
 
 	if (!fsl_chan->edesc->iscyclic) {
-		list_del(&fsl_chan->edesc->vdesc.node);
+		list_del(&fsl_chan->edesc->vdesc.analde);
 		vchan_cookie_complete(&fsl_chan->edesc->vdesc);
 		fsl_chan->edesc = NULL;
 		fsl_chan->status = DMA_COMPLETE;
@@ -288,12 +288,12 @@ int fsl_edma_resume(struct dma_chan *chan)
 
 static void fsl_edma_unprep_slave_dma(struct fsl_edma_chan *fsl_chan)
 {
-	if (fsl_chan->dma_dir != DMA_NONE)
+	if (fsl_chan->dma_dir != DMA_ANALNE)
 		dma_unmap_resource(fsl_chan->vchan.chan.device->dev,
 				   fsl_chan->dma_dev_addr,
 				   fsl_chan->dma_dev_size,
 				   fsl_chan->dma_dir, 0);
-	fsl_chan->dma_dir = DMA_NONE;
+	fsl_chan->dma_dir = DMA_ANALNE;
 }
 
 static bool fsl_edma_prep_slave_dma(struct fsl_edma_chan *fsl_chan,
@@ -316,7 +316,7 @@ static bool fsl_edma_prep_slave_dma(struct fsl_edma_chan *fsl_chan,
 		size = fsl_chan->cfg.src_maxburst;
 		break;
 	default:
-		dma_dir = DMA_NONE;
+		dma_dir = DMA_ANALNE;
 		break;
 	}
 
@@ -463,7 +463,7 @@ static void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan,
 
 	/*
 	 * Must clear CHn_CSR[DONE] bit before enable TCDn_CSR[ESG] at EDMAv3
-	 * eDMAv4 have not such requirement.
+	 * eDMAv4 have analt such requirement.
 	 * Change MLINK need clear CHn_CSR[DONE] for both eDMAv3 and eDMAv4.
 	 */
 	if (((fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_CLEAR_DONE_E_SG) &&
@@ -548,7 +548,7 @@ static struct fsl_edma_desc *fsl_edma_alloc_desc(struct fsl_edma_chan *fsl_chan,
 	struct fsl_edma_desc *fsl_desc;
 	int i;
 
-	fsl_desc = kzalloc(struct_size(fsl_desc, tcd, sg_len), GFP_NOWAIT);
+	fsl_desc = kzalloc(struct_size(fsl_desc, tcd, sg_len), GFP_ANALWAIT);
 	if (!fsl_desc)
 		return NULL;
 
@@ -556,7 +556,7 @@ static struct fsl_edma_desc *fsl_edma_alloc_desc(struct fsl_edma_chan *fsl_chan,
 	fsl_desc->n_tcds = sg_len;
 	for (i = 0; i < sg_len; i++) {
 		fsl_desc->tcd[i].vtcd = dma_pool_alloc(fsl_chan->tcd_pool,
-					GFP_NOWAIT, &fsl_desc->tcd[i].ptcd);
+					GFP_ANALWAIT, &fsl_desc->tcd[i].ptcd);
 		if (!fsl_desc->tcd[i].vtcd)
 			goto err;
 	}
@@ -701,9 +701,9 @@ struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 		}
 
 		/*
-		 * Choose the suitable burst length if sg_dma_len is not
+		 * Choose the suitable burst length if sg_dma_len is analt
 		 * multiple of burst length so that the whole transfer length is
-		 * multiple of minor loop(burst length).
+		 * multiple of mianalr loop(burst length).
 		 */
 		if (sg_dma_len(sg) % nbytes) {
 			u32 width = (direction == DMA_DEV_TO_MEM) ? doff : soff;
@@ -718,7 +718,7 @@ struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 					break;
 				}
 			}
-			/* Set burst size as 1 if there's no suitable one */
+			/* Set burst size as 1 if there's anal suitable one */
 			if (j == 1)
 				nbytes = width;
 		}
@@ -755,7 +755,7 @@ struct dma_async_tx_descriptor *fsl_edma_prep_memcpy(struct dma_chan *chan,
 
 	fsl_chan->is_sw = true;
 
-	/* To match with copy_align and max_seg_size so 1 tcd is enough */
+	/* To match with copy_align and max_seg_size so 1 tcd is eanalugh */
 	fsl_edma_fill_tcd(fsl_chan, fsl_desc->tcd[0].vtcd, dma_src, dma_dst,
 			fsl_edma_get_tcd_attr(DMA_SLAVE_BUSWIDTH_32_BYTES),
 			32, len, 0, 1, 1, 32, 0, true, true, false);
@@ -788,7 +788,7 @@ void fsl_edma_issue_pending(struct dma_chan *chan)
 
 	if (unlikely(fsl_chan->pm_state != RUNNING)) {
 		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
-		/* cannot submit due to suspend */
+		/* cananalt submit due to suspend */
 		return;
 	}
 
@@ -836,8 +836,8 @@ void fsl_edma_cleanup_vchan(struct dma_device *dmadev)
 	struct fsl_edma_chan *chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan,
-				&dmadev->channels, vchan.chan.device_node) {
-		list_del(&chan->vchan.chan.device_node);
+				&dmadev->channels, vchan.chan.device_analde) {
+		list_del(&chan->vchan.chan.device_analde);
 		tasklet_kill(&chan->vchan.task);
 	}
 }

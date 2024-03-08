@@ -6,7 +6,7 @@
  * Copyright (C) 1999 - 2008 Krzysztof Halasa <khc@pm.waw.pl>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
@@ -187,7 +187,7 @@ static int ppp_hard_header(struct sk_buff *skb, struct net_device *dev,
 	case PID_IPV6CP:
 		data->protocol = htons(type);
 		break;
-	default:		/* unknown protocol */
+	default:		/* unkanalwn protocol */
 		data->protocol = 0;
 	}
 	return sizeof(struct hdlc_header);
@@ -268,7 +268,7 @@ static void ppp_tx_cp(struct net_device *dev, u16 pid, u8 code,
    RTR  = Receive-Terminate-Request         str = Send-Terminate-Request
    RTA  = Receive-Terminate-Ack             sta = Send-Terminate-Ack
 
-   RUC  = Receive-Unknown-Code              scj = Send-Code-Reject
+   RUC  = Receive-Unkanalwn-Code              scj = Send-Code-Reject
    RXJ+ = Receive-Code-Reject (permitted)
        or Receive-Protocol-Reject
    RXJ- = Receive-Code-Reject (catastrophic)
@@ -377,7 +377,7 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 	out = kmalloc(len, GFP_ATOMIC);
 	if (!out) {
 		dev->stats.rx_dropped++;
-		return;	/* out of memory, ignore CR packet */
+		return;	/* out of memory, iganalre CR packet */
 	}
 
 	for (opt = data; len; len -= opt[1], opt += opt[1]) {
@@ -464,7 +464,7 @@ static int ppp_rx(struct sk_buff *skb)
 	}
 
 	len = ntohs(cp->len);
-	if (len < sizeof(struct cp_header) /* no complete CP header? */ ||
+	if (len < sizeof(struct cp_header) /* anal complete CP header? */ ||
 	    skb->len < len /* truncated packet? */)
 		goto rx_error;
 	skb_pull(skb, sizeof(struct cp_header));
@@ -666,7 +666,7 @@ static int ppp_ioctl(struct net_device *dev, struct if_settings *ifs)
 		if (dev_to_hdlc(dev)->proto != &proto)
 			return -EINVAL;
 		ifs->type = IF_PROTO_PPP;
-		return 0; /* return protocol only, no settable parameters */
+		return 0; /* return protocol only, anal settable parameters */
 
 	case IF_PROTO_PPP:
 		if (!capable(CAP_NET_ADMIN))
@@ -675,7 +675,7 @@ static int ppp_ioctl(struct net_device *dev, struct if_settings *ifs)
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 
-		/* no settable parameters */
+		/* anal settable parameters */
 
 		result = hdlc->attach(dev, ENCODING_NRZ,
 				      PARITY_CRC16_PR1_CCITT);
@@ -697,7 +697,7 @@ static int ppp_ioctl(struct net_device *dev, struct if_settings *ifs)
 		dev->hard_header_len = sizeof(struct hdlc_header);
 		dev->header_ops = &ppp_header_ops;
 		dev->type = ARPHRD_PPP;
-		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+		call_netdevice_analtifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_on(dev);
 		return 0;
 	}

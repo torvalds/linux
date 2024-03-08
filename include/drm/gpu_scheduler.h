@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -65,7 +65,7 @@ struct drm_file;
 enum drm_sched_priority {
 	DRM_SCHED_PRIORITY_KERNEL,
 	DRM_SCHED_PRIORITY_HIGH,
-	DRM_SCHED_PRIORITY_NORMAL,
+	DRM_SCHED_PRIORITY_ANALRMAL,
 	DRM_SCHED_PRIORITY_LOW,
 
 	DRM_SCHED_PRIORITY_COUNT
@@ -103,7 +103,7 @@ struct drm_sched_entity {
 	 *
 	 * FIXME: Locking is very unclear for this. Writers are protected by
 	 * @rq_lock, but readers are generally lockless and seem to just race
-	 * with not even a READ_ONCE.
+	 * with analt even a READ_ONCE.
 	 */
 	struct drm_sched_rq		*rq;
 
@@ -155,7 +155,7 @@ struct drm_sched_entity {
 	/**
 	 * @fence_seq:
 	 *
-	 * A linearly increasing seqno incremented with each new
+	 * A linearly increasing seqanal incremented with each new
 	 * &drm_sched_fence which is part of the entity.
 	 *
 	 * FIXME: Callers of drm_sched_job_arm() need to ensure correct locking,
@@ -219,7 +219,7 @@ struct drm_sched_entity {
 	/**
 	 * @entity_idle:
 	 *
-	 * Signals when entity is not in use, used to sequence entity cleanup in
+	 * Signals when entity is analt in use, used to sequence entity cleanup in
 	 * drm_sched_entity_fini().
 	 */
 	struct completion		entity_idle;
@@ -232,11 +232,11 @@ struct drm_sched_entity {
 	ktime_t				oldest_job_waiting;
 
 	/**
-	 * @rb_tree_node:
+	 * @rb_tree_analde:
 	 *
-	 * The node used to insert this entity into time based priority queue
+	 * The analde used to insert this entity into time based priority queue
 	 */
-	struct rb_node			rb_tree_node;
+	struct rb_analde			rb_tree_analde;
 
 };
 
@@ -315,7 +315,7 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
 /**
  * struct drm_sched_job - A job to be run by an entity.
  *
- * @queue_node: used to append this struct to the queue of jobs in an entity.
+ * @queue_analde: used to append this struct to the queue of jobs in an entity.
  * @list: a job participates in a "pending" and "done" lists.
  * @sched: the scheduler instance on which this job is scheduled.
  * @s_fence: contains the fences for the scheduling of job.
@@ -324,7 +324,7 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * @work: Helper to reschdeule job kill to different context.
  * @id: a unique id assigned to each job scheduled on the scheduler.
  * @karma: increment on every hang caused by this job. If this exceeds the hang
- *         limit of the scheduler then the job is marked guilty and will not
+ *         limit of the scheduler then the job is marked guilty and will analt
  *         be scheduled further.
  * @s_priority: the priority of the job.
  * @entity: the entity to which this job belongs.
@@ -335,7 +335,7 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * to schedule the job.
  */
 struct drm_sched_job {
-	struct spsc_node		queue_node;
+	struct spsc_analde		queue_analde;
 	struct list_head		list;
 	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_fence		*s_fence;
@@ -343,7 +343,7 @@ struct drm_sched_job {
 	u32				credits;
 
 	/*
-	 * work is used only after finish_cb has been used and will not be
+	 * work is used only after finish_cb has been used and will analt be
 	 * accessed anymore.
 	 */
 	union {
@@ -383,9 +383,9 @@ static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
 }
 
 enum drm_gpu_sched_stat {
-	DRM_GPU_SCHED_STAT_NONE, /* Reserve 0 */
-	DRM_GPU_SCHED_STAT_NOMINAL,
-	DRM_GPU_SCHED_STAT_ENODEV,
+	DRM_GPU_SCHED_STAT_ANALNE, /* Reserve 0 */
+	DRM_GPU_SCHED_STAT_ANALMINAL,
+	DRM_GPU_SCHED_STAT_EANALDEV,
 };
 
 /**
@@ -399,10 +399,10 @@ struct drm_sched_backend_ops {
 	 * @prepare_job:
 	 *
 	 * Called when the scheduler is considering scheduling this job next, to
-	 * get another struct dma_fence for this job to block on.  Once it
+	 * get aanalther struct dma_fence for this job to block on.  Once it
 	 * returns NULL, run_job() may be called.
 	 *
-	 * Can be NULL if no additional preparation to the dependencies are
+	 * Can be NULL if anal additional preparation to the dependencies are
 	 * necessary. Skipped when jobs are killed instead of run.
 	 */
 	struct dma_fence *(*prepare_job)(struct drm_sched_job *sched_job,
@@ -427,14 +427,14 @@ struct drm_sched_backend_ops {
 	 *
 	 * 1. Stop the scheduler using drm_sched_stop(). This will park the
 	 *    scheduler thread and cancel the timeout work, guaranteeing that
-	 *    nothing is queued while we reset the hardware queue
-	 * 2. Try to gracefully stop non-faulty jobs (optional)
+	 *    analthing is queued while we reset the hardware queue
+	 * 2. Try to gracefully stop analn-faulty jobs (optional)
 	 * 3. Issue a GPU reset (driver-specific)
 	 * 4. Re-submit jobs using drm_sched_resubmit_jobs()
 	 * 5. Restart the scheduler using drm_sched_start(). At that point, new
 	 *    jobs can be queued, and the scheduler thread is unblocked
 	 *
-	 * Note that some GPUs have distinct hardware queues but need to reset
+	 * Analte that some GPUs have distinct hardware queues but need to reset
 	 * the GPU globally, which requires extra synchronization between the
 	 * timeout handler of the different &drm_gpu_scheduler. One way to
 	 * achieve this synchronization is to create an ordered workqueue
@@ -444,7 +444,7 @@ struct drm_sched_backend_ops {
 	 * adjusted in that case:
 	 *
 	 * 1. Stop all schedulers impacted by the reset using drm_sched_stop()
-	 * 2. Try to gracefully stop non-faulty jobs on all queues impacted by
+	 * 2. Try to gracefully stop analn-faulty jobs on all queues impacted by
 	 *    the reset (optional)
 	 * 3. Issue a GPU reset on all faulty queues (driver-specific)
 	 * 4. Re-submit jobs on all schedulers impacted by the reset using
@@ -452,10 +452,10 @@ struct drm_sched_backend_ops {
 	 * 5. Restart all schedulers that were stopped in step #1 using
 	 *    drm_sched_start()
 	 *
-	 * Return DRM_GPU_SCHED_STAT_NOMINAL, when all is normal,
+	 * Return DRM_GPU_SCHED_STAT_ANALMINAL, when all is analrmal,
 	 * and the underlying driver has started or completed recovery.
 	 *
-	 * Return DRM_GPU_SCHED_STAT_ENODEV, if the device is no longer
+	 * Return DRM_GPU_SCHED_STAT_EANALDEV, if the device is anal longer
 	 * available, i.e. has been unplugged.
 	 */
 	enum drm_gpu_sched_stat (*timedout_job)(struct drm_sched_job *sched_job);
@@ -504,7 +504,7 @@ struct drm_sched_backend_ops {
  * @pending_list: the list of jobs which are currently in the job queue.
  * @job_list_lock: lock to protect the pending_list.
  * @hang_limit: once the hangs by a job crosses this limit then it is marked
- *              guilty and it will no longer be considered for scheduling.
+ *              guilty and it will anal longer be considered for scheduling.
  * @score: score to help loadbalancer pick a idle sched
  * @_score: score used when the driver doesn't provide one
  * @ready: marks if the underlying HW is ready to work

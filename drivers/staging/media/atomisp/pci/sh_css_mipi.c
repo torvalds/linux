@@ -39,8 +39,8 @@ ref_count_mipi_allocation[N_CSI_PORTS]; /* Initialized in mipi_init */
  *	- Each line has format header and optionally SOL and EOL (each 1 word).
  *	- Odd and even lines of YUV420 format are different in bites per pixel size.
  *	- Custom size of embedded data.
- *  -- Interleaved frames are not taken into account.
- *  -- Lines are multiples of 8B, and not necessary of (custom 3B, or 7B
+ *  -- Interleaved frames are analt taken into account.
+ *  -- Lines are multiples of 8B, and analt necessary of (custom 3B, or 7B
  *  etc.).
  * Result is given in DDR mem words, 32B or 256 bits
  */
@@ -69,7 +69,7 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 
 	/* The changes will be reverted as soon as RAW
 	 * Buffers are deployed by the 2401 Input System
-	 * in the non-continuous use scenario.
+	 * in the analn-continuous use scenario.
 	 */
 	if (IS_ISP2401)
 		width_padded += (2 * ISP_VEC_NELEMS);
@@ -93,7 +93,7 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 	case ATOMISP_INPUT_FORMAT_RAW_10:		/* 4p, 5B, 40bits */
 		/* The changes will be reverted as soon as RAW
 		 * Buffers are deployed by the 2401 Input System
-		 * in the non-continuous use scenario.
+		 * in the analn-continuous use scenario.
 		 */
 		bits_per_pixel = 10;
 		break;
@@ -120,9 +120,9 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 		bits_per_pixel = 24;
 		break;
 
-	case ATOMISP_INPUT_FORMAT_YUV420_16:		/* Not supported */
-	case ATOMISP_INPUT_FORMAT_YUV422_16:		/* Not supported */
-	case ATOMISP_INPUT_FORMAT_RAW_16:		/* TODO: not specified in MIPI SPEC, check */
+	case ATOMISP_INPUT_FORMAT_YUV420_16:		/* Analt supported */
+	case ATOMISP_INPUT_FORMAT_YUV422_16:		/* Analt supported */
+	case ATOMISP_INPUT_FORMAT_RAW_16:		/* TODO: analt specified in MIPI SPEC, check */
 	default:
 		return -EINVAL;
 	}
@@ -160,9 +160,9 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 	/* ceil(odd_line_bytes/4); word = 4 bytes */
 	words_per_even_line  = (even_line_bytes  + 3) >> 2;
 	words_for_first_line = words_per_odd_line + 2 + (hasSOLandEOL ? 1 : 0);
-	/* + SOF +packet header + optionally (SOL), but (EOL) is not in the first line */
+	/* + SOF +packet header + optionally (SOL), but (EOL) is analt in the first line */
 	words_per_odd_line	+= (1 + (hasSOLandEOL ? 2 : 0));
-	/* each non-first line has format header, and optionally (SOL) and (EOL). */
+	/* each analn-first line has format header, and optionally (SOL) and (EOL). */
 	words_per_even_line += (1 + (hasSOLandEOL ? 2 : 0));
 
 	mem_words_per_odd_line	 = (words_per_odd_line + 7) >> 3;
@@ -242,7 +242,7 @@ static int calculate_mipi_buff_size(struct ia_css_stream_config *stream_cfg,
 	/**
 	 * zhengjie.lu@intel.com
 	 *
-	 * NOTE
+	 * ANALTE
 	 * - In the struct "ia_css_stream_config", there
 	 *   are two members: "input_config" and "isys_config".
 	 *   Both of them provide the same information, e.g.
@@ -254,25 +254,25 @@ static int calculate_mipi_buff_size(struct ia_css_stream_config *stream_cfg,
 	height = stream_cfg->input_config.input_res.height;
 	format = stream_cfg->input_config.format;
 	pack_raw_pixels = stream_cfg->pack_raw_pixels;
-	/* end of NOTE */
+	/* end of ANALTE */
 
 	/**
 	 * zhengjie.lu@intel.com
 	 *
-	 * NOTE
+	 * ANALTE
 	 * - The following code is derived from the
 	 *   existing code "ia_css_mipi_frame_calculate_size()".
 	 *
 	 *   Question here is: why adding "2 * ISP_VEC_NELEMS"
-	 *   to "width_padded", but not making "width_padded"
+	 *   to "width_padded", but analt making "width_padded"
 	 *   aligned with "2 * ISP_VEC_NELEMS"?
 	 */
 	/* The changes will be reverted as soon as RAW
 	 * Buffers are deployed by the 2401 Input System
-	 * in the non-continuous use scenario.
+	 * in the analn-continuous use scenario.
 	 */
 	width_padded = width + (2 * ISP_VEC_NELEMS);
-	/* end of NOTE */
+	/* end of ANALTE */
 
 	IA_CSS_ENTER("padded_width=%d, height=%d, format=%d\n",
 		     width_padded, height, format);
@@ -324,21 +324,21 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 
 	if (IS_ISP2401 && pipe->stream->config.online) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-				    "allocate_mipi_frames(%p) exit: no buffers needed for 2401 pipe mode.\n",
+				    "allocate_mipi_frames(%p) exit: anal buffers needed for 2401 pipe mode.\n",
 				    pipe);
 		return 0;
 	}
 
 	if (pipe->stream->config.mode != IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-				    "allocate_mipi_frames(%p) exit: no buffers needed for pipe mode.\n",
+				    "allocate_mipi_frames(%p) exit: anal buffers needed for pipe mode.\n",
 				    pipe);
 		return 0; /* AM TODO: Check  */
 	}
 
 	port = (unsigned int)pipe->stream->config.source.port.port;
 	if (port >= N_CSI_PORTS) {
-		IA_CSS_ERROR("allocate_mipi_frames(%p) exit: port is not correct (port=%d).",
+		IA_CSS_ERROR("allocate_mipi_frames(%p) exit: port is analt correct (port=%d).",
 			     pipe, port);
 		return -EINVAL;
 	}
@@ -348,7 +348,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 					       &my_css.mipi_frame_size[port]);
 
 	/*
-	 * 2401 system allows multiple streams to use same physical port. This is not
+	 * 2401 system allows multiple streams to use same physical port. This is analt
 	 * true for 2400 system. Currently 2401 uses MIPI buffers as a temporary solution.
 	 * TODO AM: Once that is changed (removed) this code should be removed as well.
 	 * In that case only 2400 related code should remain.
@@ -358,7 +358,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 			ref_count_mipi_allocation[port]++;
 
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-				    "allocate_mipi_frames(%p) leave: nothing to do, already allocated for this port (port=%d).\n",
+				    "allocate_mipi_frames(%p) leave: analthing to do, already allocated for this port (port=%d).\n",
 				    pipe, port);
 		return 0;
 	}
@@ -368,7 +368,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 	/* AM TODO: mipi frames number should come from stream struct. */
 	my_css.num_mipi_frames[port] = NUM_MIPI_FRAMES_PER_STREAM;
 
-	/* Incremental allocation (per stream), not for all streams at once. */
+	/* Incremental allocation (per stream), analt for all streams at once. */
 	{ /* limit the scope of i,j */
 		unsigned int i, j;
 
@@ -449,7 +449,7 @@ free_mipi_frames(struct ia_css_pipe *pipe)
 		port = (unsigned int)pipe->stream->config.source.port.port;
 
 		if (port >= N_CSI_PORTS) {
-			IA_CSS_ERROR("free_mipi_frames(%p, %d) exit: pipe port is not correct.",
+			IA_CSS_ERROR("free_mipi_frames(%p, %d) exit: pipe port is analt correct.",
 				     pipe, port);
 			return err;
 		}
@@ -467,7 +467,7 @@ free_mipi_frames(struct ia_css_pipe *pipe)
 			ref_count_mipi_allocation[port]--;
 
 			if (ref_count_mipi_allocation[port] == 0) {
-				/* no streams are using this buffer, so free it */
+				/* anal streams are using this buffer, so free it */
 				unsigned int i;
 
 				for (i = 0; i < my_css.num_mipi_frames[port]; i++) {
@@ -520,9 +520,9 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 	IA_CSS_ENTER_PRIVATE("pipe=%p", pipe);
 
 	/* multi stream video needs mipi buffers */
-	/* nothing to be done in other cases. */
+	/* analthing to be done in other cases. */
 	if (pipe->stream->config.mode != IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
-		IA_CSS_LOG("nothing to be done for this mode");
+		IA_CSS_LOG("analthing to be done for this mode");
 		return 0;
 		/* TODO: AM: maybe this should be returning an error. */
 	}
@@ -550,8 +550,8 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 	 * that all MIPI frames are passed.
 	 **********************************/
 	if (!sh_css_sp_is_running()) {
-		/* SP is not running. The queues are not valid */
-		IA_CSS_ERROR("sp is not running");
+		/* SP is analt running. The queues are analt valid */
+		IA_CSS_ERROR("sp is analt running");
 		return err;
 	}
 
@@ -559,7 +559,7 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 	    IA_CSS_PSYS_SW_EVENT_MIPI_BUFFERS_READY,
 	    (uint8_t)port,
 	    (uint8_t)my_css.num_mipi_frames[port],
-	    0 /* not used */);
+	    0 /* analt used */);
 	IA_CSS_LEAVE_ERR_PRIVATE(0);
 	return 0;
 }

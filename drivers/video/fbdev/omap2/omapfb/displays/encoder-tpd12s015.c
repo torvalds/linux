@@ -144,7 +144,7 @@ static int tpd_read_edid(struct omap_dss_device *dssdev,
 	int r;
 
 	if (!gpiod_get_value_cansleep(ddata->hpd_gpio))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 1);
 
@@ -200,10 +200,10 @@ static const struct omapdss_hdmi_ops tpd_hdmi_ops = {
 static int tpd_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct omap_dss_device *in;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(analde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -223,16 +223,16 @@ static int tpd_probe(struct platform_device *pdev)
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddata);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		r = tpd_probe_of(pdev);
 		if (r)
 			return r;
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gpio = devm_gpiod_get_index_optional(&pdev->dev, NULL, 0,

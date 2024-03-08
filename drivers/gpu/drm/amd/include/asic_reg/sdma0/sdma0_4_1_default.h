@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -143,7 +143,7 @@
 #define mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI_DEFAULT                                 0x00000000
 #define mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO_DEFAULT                                 0x00000000
 #define mmSDMA0_GFX_RB_AQL_CNTL_DEFAULT                                          0x00004000
-#define mmSDMA0_GFX_MINOR_PTR_UPDATE_DEFAULT                                     0x00000000
+#define mmSDMA0_GFX_MIANALR_PTR_UPDATE_DEFAULT                                     0x00000000
 #define mmSDMA0_GFX_MIDCMD_DATA0_DEFAULT                                         0x00000000
 #define mmSDMA0_GFX_MIDCMD_DATA1_DEFAULT                                         0x00000000
 #define mmSDMA0_GFX_MIDCMD_DATA2_DEFAULT                                         0x00000000
@@ -185,7 +185,7 @@
 #define mmSDMA0_RLC0_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC0_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC0_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC0_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC0_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC0_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC0_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC0_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -227,7 +227,7 @@
 #define mmSDMA0_RLC1_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC1_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC1_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC1_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC1_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC1_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC1_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC1_MIDCMD_DATA2_DEFAULT                                        0x00000000

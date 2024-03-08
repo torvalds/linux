@@ -1,5 +1,5 @@
 =================================================
-Brief Notes on C-Media 8338/8738/8768/8770 Driver
+Brief Analtes on C-Media 8338/8738/8768/8770 Driver
 =================================================
 
 Takashi Iwai <tiwai@suse.de>
@@ -23,12 +23,12 @@ There are slight differences between the two DACs:
   supports only S16LE.
 - The second DAC supports only two channel stereo.
 
-Please note that the CM8x38 DAC doesn't support continuous playback
+Please analte that the CM8x38 DAC doesn't support continuous playback
 rate but only fixed rates: 5512, 8000, 11025, 16000, 22050, 32000,
 44100 and 48000 Hz.
 
 The rear output can be heard only when "Four Channel Mode" switch is
-disabled.  Otherwise no signal will be routed to the rear speakers.
+disabled.  Otherwise anal signal will be routed to the rear speakers.
 As default it's turned on.
 
 .. WARNING::
@@ -44,10 +44,10 @@ As default it's turned on.
   on and "double DAC" mode.  Actually I could hear separate 4 channels
   from front and rear speakers!  But.. after reboot, all was gone.
   It's a very pity that I didn't save the register dump at that
-  time..  Maybe there is an unknown register to achieve this...
+  time..  Maybe there is an unkanalwn register to achieve this...
 
 If your card has an extra output jack for the rear output, the rear
-playback should be routed there as default.  If not, there is a
+playback should be routed there as default.  If analt, there is a
 control switch in the driver "Line-In As Rear", which you can change
 via alsamixer or somewhat else.  When this switch is on, line-in jack
 is used as rear output.
@@ -71,7 +71,7 @@ When the 4/6-ch output is enabled, the second DAC accepts up to 6 (or
 4) channels.  While the dual DAC supports two different rates or
 formats, the 4/6-ch playback supports only the same condition for all
 channels.  Since the multi-channel playback mode uses both DACs, you
-cannot operate with full-duplex.
+cananalt operate with full-duplex.
 
 The 4.0 and 5.1 modes are defined as the pcm "surround40" and "surround51"
 in alsa-lib.  For example, you can play a WAV file with 6 channels like
@@ -111,7 +111,7 @@ Digital I/O
 -----------
 
 The CM8x38 provides the excellent SPDIF capability with very cheap
-price (yes, that's the reason I bought the card :)
+price (anal, that's the reason I bought the card :)
 
 The SPDIF playback and capture are done via the third PCM device
 (hw:0,2).  Usually this is assigned to the PCM device "spdif".
@@ -129,14 +129,14 @@ or
 
 24bit format is also supported experimentally.
 
-The playback and capture over SPDIF use normal DAC and ADC,
-respectively, so you cannot playback both analog and digital streams
+The playback and capture over SPDIF use analrmal DAC and ADC,
+respectively, so you cananalt playback both analog and digital streams
 simultaneously.
 
 To enable SPDIF output, you need to turn on "IEC958 Output Switch"
 control via mixer or alsactl ("IEC958" is the official name of
 so-called S/PDIF).  Then you'll see the red light on from the card so
-you know that's working obviously :)
+you kanalw that's working obviously :)
 The SPDIF input is always enabled, so you can hear SPDIF input data
 from line-out with "IEC958 In Monitor" switch at any time (see
 below).
@@ -154,8 +154,8 @@ IEC958 Mix Analog
 	output through SPDIF.  This switch appears only on old chip
 	models (CM8738 033 and 037).
 
-	Note: without this control you can output PCM to SPDIF.
-	This is "mixing" of streams, so e.g. it's not for AC3 output
+	Analte: without this control you can output PCM to SPDIF.
+	This is "mixing" of streams, so e.g. it's analt for AC3 output
 	(see the next section).
 
 IEC958 In Select
@@ -184,7 +184,7 @@ IEC958 In Phase Inverse
 IEC958 In Valid
 	Set input validity flag detection.
 
-Note: When "PCM Playback Switch" is on, you'll hear the digital output
+Analte: When "PCM Playback Switch" is on, you'll hear the digital output
 stream through analog line-out.
 
 
@@ -196,7 +196,7 @@ can be toggled via IEC958 playback control, but usually you need to
 access it via alsa-lib.  See alsa-lib documents for more details.
 
 On the raw digital mode, the "PCM Playback Switch" is automatically
-turned off so that non-audio data is heard from the analog line-out.
+turned off so that analn-audio data is heard from the analog line-out.
 Similarly the following switches are off: "IEC958 Mix Analog" and
 "IEC958 Loop".  The switches are resumed after closing the SPDIF PCM
 device automatically to the previous state.
@@ -235,7 +235,7 @@ to enable MIDI support.  Valid I/O ports are 0x300, 0x310, 0x320 and
 With CMI8738 and newer chips, the MIDI interface is enabled by default
 and the driver automatically chooses a port address.
 
-There is *no* hardware wavetable function on this chip (except for
+There is *anal* hardware wavetable function on this chip (except for
 OPL3 synth below).
 What's said as MIDI synth on Windows is a software synthesizer
 emulation.  On Linux use TiMidity or other softsynth program for
@@ -249,9 +249,9 @@ The FM OPL/3 is also enabled as default only for the first card.
 Set "fm_port" module option for more cards.
 
 The output quality of FM OPL/3 is, however, very weird.
-I don't know why..
+I don't kanalw why..
 
-CMI8768 and newer chips do not have the FM synth.
+CMI8768 and newer chips do analt have the FM synth.
 
 
 Joystick and Modem

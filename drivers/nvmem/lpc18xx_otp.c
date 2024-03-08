@@ -70,7 +70,7 @@ static int lpc18xx_otp_probe(struct platform_device *pdev)
 
 	otp = devm_kzalloc(&pdev->dev, sizeof(*otp), GFP_KERNEL);
 	if (!otp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(otp->base))

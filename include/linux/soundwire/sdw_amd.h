@@ -20,7 +20,7 @@
  * Stop the bus when runtime suspend/system level suspend callback
  * is invoked. If set, a complete bus reset and re-enumeration will
  * be performed when the bus restarts. In-band wake interrupts are
- * not supported in this mode.
+ * analt supported in this mode.
  */
 #define AMD_SDW_POWER_OFF_MODE		2
 #define ACP_SDW0	0

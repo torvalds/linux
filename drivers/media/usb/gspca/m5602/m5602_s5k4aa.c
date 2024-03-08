@@ -3,7 +3,7 @@
  * Driver for the s5k4aa sensor
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -302,7 +302,7 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1717X")
 		}
 	}, {
-		.ident = "Lenovo Y300",
+		.ident = "Leanalvo Y300",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "L3000 Y300"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Y300")
@@ -316,7 +316,7 @@ static struct v4l2_pix_format s5k4aa_modes[] = {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			640 * 480,
 		.bytesperline = 640,
@@ -327,7 +327,7 @@ static struct v4l2_pix_format s5k4aa_modes[] = {
 		1280,
 		1024,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			1280 * 1024,
 		.bytesperline = 1280,
@@ -348,9 +348,9 @@ int s5k4aa_probe(struct sd *sd)
 			pr_info("Forcing a %s sensor\n", s5k4aa.name);
 			goto sensor_found;
 		}
-		/* If we want to force another sensor, don't try to probe this
+		/* If we want to force aanalther sensor, don't try to probe this
 		 * one */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gspca_dbg(gspca_dev, D_PROBE, "Probing for a s5k4aa sensor\n");
@@ -386,16 +386,16 @@ int s5k4aa_probe(struct sd *sd)
 		}
 	}
 
-	/* Test some registers, but we don't know their exact meaning yet */
+	/* Test some registers, but we don't kanalw their exact meaning yet */
 	if (m5602_read_sensor(sd, 0x00, prod_id, 2))
-		return -ENODEV;
+		return -EANALDEV;
 	if (m5602_read_sensor(sd, 0x02, prod_id+2, 2))
-		return -ENODEV;
+		return -EANALDEV;
 	if (m5602_read_sensor(sd, 0x04, prod_id+4, 2))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (memcmp(prod_id, expected_prod_id, sizeof(prod_id)))
-		return -ENODEV;
+		return -EANALDEV;
 	else
 		pr_info("Detected a s5k4aa sensor\n");
 
@@ -549,7 +549,7 @@ int s5k4aa_init_controls(struct sd *sd)
 				      0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 
@@ -662,19 +662,19 @@ static int s5k4aa_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 	return m5602_write_sensor(sd, S5K4AA_BRIGHTNESS, &data, 1);
 }
 
-static int s5k4aa_set_noise(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k4aa_set_analise(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	gspca_dbg(gspca_dev, D_CONF, "Set noise to %d\n", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set analise to %d\n", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
 
 	data = val & 0x01;
-	return m5602_write_sensor(sd, S5K4AA_NOISE_SUPP, &data, 1);
+	return m5602_write_sensor(sd, S5K4AA_ANALISE_SUPP, &data, 1);
 }
 
 static int s5k4aa_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -697,7 +697,7 @@ static int s5k4aa_s_ctrl(struct v4l2_ctrl *ctrl)
 		err = s5k4aa_set_gain(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_SHARPNESS:
-		err = s5k4aa_set_noise(gspca_dev, ctrl->val);
+		err = s5k4aa_set_analise(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
 		err = s5k4aa_set_hvflip(gspca_dev);

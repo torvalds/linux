@@ -16,7 +16,7 @@ description: |
   mode channels of K3 UDMA-P.
   PKTDMA only includes Split channels to service PSI-L based peripherals.
 
-  The peripherals can be PSI-L native or legacy, non PSI-L native peripherals
+  The peripherals can be PSI-L native or legacy, analn PSI-L native peripherals
   with PDMAs. PDMA is tasked to act as a bridge between the PSI-L fabric and the
   legacy peripheral.
 
@@ -76,7 +76,7 @@ properties:
       Array of PKTDMA split tx channel resource subtypes for resource allocation
       for this host
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
     items:
       maximum: 0x3f
@@ -87,7 +87,7 @@ properties:
       Array of PKTDMA split tx flow resource subtypes for resource allocation
       for this host
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
     items:
       maximum: 0x3f
@@ -98,7 +98,7 @@ properties:
       Array of PKTDMA split rx channel resource subtypes for resource allocation
       for this host
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
     items:
       maximum: 0x3f
@@ -109,7 +109,7 @@ properties:
       Array of PKTDMA split rx flow resource subtypes for resource allocation
       for this host
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
     items:
       maximum: 0x3f

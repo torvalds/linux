@@ -13,9 +13,9 @@ int set_memory_rox(unsigned long addr, int numpages);
  * The set_memory_* API can be used to change various attributes of a virtual
  * address range. The attributes include:
  * Cacheability  : UnCached, WriteCombining, WriteThrough, WriteBack
- * Executability : eXecutable, NoteXecutable
+ * Executability : eXecutable, AnalteXecutable
  * Read/Write    : ReadOnly, ReadWrite
- * Presence      : NotPresent
+ * Presence      : AnaltPresent
  * Encryption    : Encrypted, Decrypted
  *
  * Within a category, the attributes are mutually exclusive.
@@ -27,13 +27,13 @@ int set_memory_rox(unsigned long addr, int numpages);
  * - Making sure aliases of the memory behind the mapping don't violate
  *   coherency rules as defined by the CPU in the system.
  *
- * What this API does not do:
+ * What this API does analt do:
  * - Provide exclusion between various callers - including callers that
  *   operation on other mappings of the same physical page
  * - Restore default attributes when a page is freed
  * - Guarantee that mappings other than the requested one are
- *   in any state, other than that these do not violate rules for
- *   the CPU you have. Do not depend on any effects on other mappings,
+ *   in any state, other than that these do analt violate rules for
+ *   the CPU you have. Do analt depend on any effects on other mappings,
  *   CPUs other than the one you have may have more relaxed rules.
  * The caller is required to take care of these.
  */
@@ -51,8 +51,8 @@ int set_memory_p(unsigned long addr, int numpages);
 int set_memory_4k(unsigned long addr, int numpages);
 int set_memory_encrypted(unsigned long addr, int numpages);
 int set_memory_decrypted(unsigned long addr, int numpages);
-int set_memory_np_noalias(unsigned long addr, int numpages);
-int set_memory_nonglobal(unsigned long addr, int numpages);
+int set_memory_np_analalias(unsigned long addr, int numpages);
+int set_memory_analnglobal(unsigned long addr, int numpages);
 int set_memory_global(unsigned long addr, int numpages);
 
 int set_pages_array_uc(struct page **pages, int addrinarray);
@@ -70,13 +70,13 @@ int set_pages_array_wb(struct page **pages, int addrinarray);
  * These APIs should be considered *deprecated* and are likely going to
  * be removed in the future.
  * The reason for this is the implicit operation on the 1:1 mapping only,
- * making this not a generally useful API.
+ * making this analt a generally useful API.
  *
  * Specifically, many users of the old APIs had a virtual address,
  * called virt_to_page() or vmalloc_to_page() on that address to
  * get a struct page* that the old API required.
  * To convert these cases, use set_memory_*() on the original
- * virtual address, do not use these functions.
+ * virtual address, do analt use these functions.
  */
 
 int set_pages_uc(struct page *page, int numpages);
@@ -84,8 +84,8 @@ int set_pages_wb(struct page *page, int numpages);
 int set_pages_ro(struct page *page, int numpages);
 int set_pages_rw(struct page *page, int numpages);
 
-int set_direct_map_invalid_noflush(struct page *page);
-int set_direct_map_default_noflush(struct page *page);
+int set_direct_map_invalid_analflush(struct page *page);
+int set_direct_map_default_analflush(struct page *page);
 bool kernel_page_present(struct page *page);
 
 extern int kernel_set_to_readonly;

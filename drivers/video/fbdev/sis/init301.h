@@ -19,7 +19,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if analt, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -28,19 +28,19 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    analtice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    analtice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may analt be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * * IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
@@ -68,22 +68,22 @@
 
 void		SiS_UnLockCRT2(struct SiS_Private *SiS_Pr);
 void		SiS_EnableCRT2(struct SiS_Private *SiS_Pr);
-unsigned short	SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
+unsigned short	SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex);
 void		SiS_WaitRetrace1(struct SiS_Private *SiS_Pr);
 bool		SiS_IsDualEdge(struct SiS_Private *SiS_Pr);
 bool		SiS_IsVAMode(struct SiS_Private *SiS_Pr);
-void		SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+void		SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 			unsigned short ModeIdIndex, int checkcrt2mode);
 void		SiS_SetYPbPr(struct SiS_Private *SiS_Pr);
-void    	SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+void    	SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 			unsigned short ModeIdIndex);
-void		SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+void		SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex);
-unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 			unsigned short RefreshRateTableIndex);
-unsigned short	SiS_GetResInfo(struct SiS_Private *SiS_Pr,unsigned short ModeNo,unsigned short ModeIdIndex);
+unsigned short	SiS_GetResInfo(struct SiS_Private *SiS_Pr,unsigned short ModeAnal,unsigned short ModeIdIndex);
 void		SiS_DisableBridge(struct SiS_Private *SiS_Pr);
-bool		SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
+bool		SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeAnal);
 void		SiS_SiS30xBLOn(struct SiS_Private *SiS_Pr);
 void		SiS_SiS30xBLOff(struct SiS_Private *SiS_Pr);
 
@@ -111,15 +111,15 @@ unsigned short	SiS_HandleDDC(struct SiS_Private *SiS_Pr, unsigned int VBFlags, i
 extern void		SiS_DisplayOff(struct SiS_Private *SiS_Pr);
 extern void		SiS_DisplayOn(struct SiS_Private *SiS_Pr);
 extern bool		SiS_SearchModeID(struct SiS_Private *, unsigned short *, unsigned short *);
-extern unsigned short	SiS_GetModeFlag(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern unsigned short	SiS_GetModeFlag(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
-extern unsigned short	SiS_GetModePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
-extern unsigned short	SiS_GetColorDepth(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
-extern unsigned short	SiS_GetOffset(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+extern unsigned short	SiS_GetModePtr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex);
+extern unsigned short	SiS_GetColorDepth(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex);
+extern unsigned short	SiS_GetOffset(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 				unsigned short RefreshRateTableIndex);
-extern void		SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern void		SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
-extern void		SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern void		SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
 extern void		SiS_CalcCRRegisters(struct SiS_Private *SiS_Pr, int depth);
 extern unsigned short	SiS_GetRefCRTVCLK(struct SiS_Private *SiS_Pr, unsigned short Index, int UseWide);

@@ -34,7 +34,7 @@
 /* IICB0CTL0 */
 #define IICB0IICE	BIT(7)		/* I2C Enable */
 #define IICB0SLWT	BIT(1)		/* Interrupt Request Timing */
-#define IICB0SLAC	BIT(0)		/* Acknowledge */
+#define IICB0SLAC	BIT(0)		/* Ackanalwledge */
 
 /* IICB0TRG */
 #define IICB0WRET	BIT(2)		/* Quit Wait Trigger */
@@ -404,7 +404,7 @@ static int rzv2m_i2c_disable(struct device *dev, struct rzv2m_i2c_priv *priv)
 }
 
 static const struct i2c_adapter_quirks rzv2m_i2c_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 };
 
 static struct i2c_algorithm rzv2m_i2c_algo = {
@@ -423,7 +423,7 @@ static int rzv2m_i2c_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->base))
@@ -437,7 +437,7 @@ static int rzv2m_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc), "Missing reset ctrl\n");
 	/*
-	 * The reset also affects other HW that is not under the control
+	 * The reset also affects other HW that is analt under the control
 	 * of Linux. Therefore, all we can do is deassert the reset.
 	 */
 	reset_control_deassert(rstc);
@@ -457,7 +457,7 @@ static int rzv2m_i2c_probe(struct platform_device *pdev)
 	adap->quirks = &rzv2m_i2c_quirks;
 	adap->dev.parent = dev;
 	adap->owner = THIS_MODULE;
-	device_set_node(&adap->dev, dev_fwnode(dev));
+	device_set_analde(&adap->dev, dev_fwanalde(dev));
 	i2c_set_adapdata(adap, priv);
 	strscpy(adap->name, pdev->name, sizeof(adap->name));
 	init_completion(&priv->msg_tia_done);

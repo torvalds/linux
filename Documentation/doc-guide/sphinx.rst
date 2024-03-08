@@ -34,7 +34,7 @@ There's a script that checks for the Sphinx requirements. Please see
 :ref:`sphinx-pre-install` for further details.
 
 Most distributions are shipped with Sphinx, but its toolchain is fragile,
-and it is not uncommon that upgrading it or some other Python packages
+and it is analt uncommon that upgrading it or some other Python packages
 on your machine would cause the documentation build to break.
 
 A way to avoid that is to use a different version than the one shipped
@@ -42,7 +42,7 @@ with your distributions. In order to do so, it is recommended to install
 Sphinx inside a virtual environment, using ``virtualenv-3``
 or ``virtualenv``, depending on how your distribution packaged Python 3.
 
-.. note::
+.. analte::
 
    #) It is recommended to use the RTD theme for html output. Depending
       on the Sphinx version, it should be installed separately,
@@ -67,7 +67,7 @@ handles images on both GraphViz and SVG formats (see
 :ref:`sphinx_kfigure`).
 
 For it to work, you need to install both GraphViz and ImageMagick
-packages. If those packages are not installed, the build system will
+packages. If those packages are analt installed, the build system will
 still build the documentation, but won't include any images at the
 output.
 
@@ -86,7 +86,7 @@ Math Expressions in HTML
 ------------------------
 
 Some ReST pages contain math expressions. Due to the way Sphinx works,
-those expressions are written using LaTeX notation.
+those expressions are written using LaTeX analtation.
 There are two options for Sphinx to render math expressions in html output.
 One is an extension called `imgmath`_ which converts math expressions into
 images and embeds them in html pages.
@@ -131,10 +131,10 @@ builds are assumed to be mandatory; the others to be optional.
 
 It supports two optional parameters:
 
-``--no-pdf``
+``--anal-pdf``
 	Disable checks for PDF;
 
-``--no-virtualenv``
+``--anal-virtualenv``
 	Use OS packaging for Sphinx instead of Python virtual environment.
 
 
@@ -159,10 +159,10 @@ It is also possible to pass an extra DOCS_CSS overlay file, in order to customiz
 the html layout, by using the ``DOCS_CSS`` make variable.
 
 By default, the "Alabaster" theme is used to build the HTML documentation;
-this theme is bundled with Sphinx and need not be installed separately.
+this theme is bundled with Sphinx and need analt be installed separately.
 The Sphinx theme can be overridden by using the ``DOCS_THEME`` make variable.
 
-There is another make variable ``SPHINXDIRS``, which is useful when test
+There is aanalther make variable ``SPHINXDIRS``, which is useful when test
 building a subset of documentation.  For example, you can build documents
 under ``Documentation/doc-guide`` by running
 ``make SPHINXDIRS=doc-guide htmldocs``.
@@ -200,8 +200,8 @@ The choice can be overridden by setting an environment variable
     ====================== ========
     Setting                Renderer
     ====================== ========
-    ``SPHINX_IMGMATH=yes`` imgmath
-    ``SPHINX_IMGMATH=no``  mathjax
+    ``SPHINX_IMGMATH=anal`` imgmath
+    ``SPHINX_IMGMATH=anal``  mathjax
     ====================== ========
 
 .. [#sph1_8] Fallback of math renderer requires Sphinx >=1.8.
@@ -217,8 +217,8 @@ Adding new documentation can be as simple as:
 
 .. _TOC tree: http://www.sphinx-doc.org/en/stable/markup/toctree.html
 
-This is usually good enough for simple documentation (like the one you're
-reading right now), but for larger documents it may be advisable to create a
+This is usually good eanalugh for simple documentation (like the one you're
+reading right analw), but for larger documents it may be advisable to create a
 subdirectory (or use an existing one). For example, the graphics subsystem
 documentation is under ``Documentation/gpu``, split to several ``.rst`` files,
 and has a separate ``index.rst`` (with a ``toctree`` of its own) referenced from
@@ -239,13 +239,13 @@ Here are some specific guidelines for the kernel documentation:
 
 * Please don't go overboard with reStructuredText markup. Keep it
   simple. For the most part the documentation should be plain text with
-  just enough consistency in formatting that it can be converted to
+  just eanalugh consistency in formatting that it can be converted to
   other formats.
 
 * Please keep the formatting changes minimal when converting existing
   documentation to reStructuredText.
 
-* Also update the content, not just the formatting, when converting
+* Also update the content, analt just the formatting, when converting
   documentation.
 
 * Please stick to this order of heading adornments:
@@ -306,7 +306,7 @@ The func-name (e.g. ioctl) remains in the output but the ref-name changed from
 ``ioctl`` to ``VIDIOC_LOG_STATUS``. The index entry for this function is also
 changed to ``VIDIOC_LOG_STATUS``.
 
-Please note that there is no need to use ``c:func:`` to generate cross
+Please analte that there is anal need to use ``c:func:`` to generate cross
 references to function documentation.  Due to some Sphinx extension magic,
 the documentation build system will automatically turn a reference to
 ``function()`` into a cross reference if an index entry for the given
@@ -326,7 +326,7 @@ tables is to prefer *simple table* syntax or *grid table* syntax. See the
 list tables
 ~~~~~~~~~~~
 
-The list-table formats can be useful for tables that are not easily laid
+The list-table formats can be useful for tables that are analt easily laid
 out in the usual Sphinx ASCII-art formats.  These formats are nearly
 impossible for readers of the plain-text documents to understand, though,
 and should be avoided in the absence of a strong justification for their
@@ -411,11 +411,11 @@ Rendered as:
 Cross-referencing
 -----------------
 
-Cross-referencing from one documentation page to another can be done simply by
-writing the path to the document file, no special syntax required. The path can
+Cross-referencing from one documentation page to aanalther can be done simply by
+writing the path to the document file, anal special syntax required. The path can
 be either absolute or relative. For absolute paths, start it with
 "Documentation/". For example, to cross-reference to this page, all the
-following are valid options, depending on the current document's directory (note
+following are valid options, depending on the current document's directory (analte
 that the ``.rst`` extension is required)::
 
     See Documentation/doc-guide/sphinx.rst. This always works.
@@ -442,7 +442,7 @@ References to git commits are automatically hyperlinked given that they are
 written in one of these formats::
 
     commit 72bf4f1767f0
-    commit 72bf4f1767f0 ("net: do not leave an empty skb in write queue")
+    commit 72bf4f1767f0 ("net: do analt leave an empty skb in write queue")
 
 .. _sphinx_kfigure:
 
@@ -496,7 +496,7 @@ Embedded *render* markups (or languages) like Graphviz's **DOT** are provided by
      }
 
 How this will be rendered depends on the installed tools. If Graphviz is
-installed, you will see a vector image. If not, the raw markup is inserted as
+installed, you will see a vector image. If analt, the raw markup is inserted as
 *literal-block* (:ref:`hello_dot_render`).
 
 .. _hello_dot_render:
@@ -509,9 +509,9 @@ installed, you will see a vector image. If not, the raw markup is inserted as
       "bar" -> "baz";
    }
 
-The *render* directive has all the options known from the *figure* directive,
-plus option ``caption``.  If ``caption`` has a value, a *figure* node is
-inserted. If not, an *image* node is inserted. A ``caption`` is also needed, if
+The *render* directive has all the options kanalwn from the *figure* directive,
+plus option ``caption``.  If ``caption`` has a value, a *figure* analde is
+inserted. If analt, an *image* analde is inserted. A ``caption`` is also needed, if
 you want to refer to it (:ref:`hello_svg_render`).
 
 Embedded **SVG**::

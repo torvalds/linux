@@ -27,7 +27,7 @@ struct ia_css_3a_output;
  * the CSS receiver sends these to the input formatter.
  * The bit depth of each pixel element is stored in the global variable
  * isp_bits_per_pixel.
- * NOTE: for rgb565, we set isp_bits_per_pixel to 565, for all other rgb
+ * ANALTE: for rgb565, we set isp_bits_per_pixel to 565, for all other rgb
  * formats it's the actual depth (4, for 444, 8 for 888 etc).
  */
 enum sh_stream_format {

@@ -14,7 +14,7 @@ int sdma_pcm_platform_register(struct device *dev,
 static inline int sdma_pcm_platform_register(struct device *dev,
 					     char *txdmachan, char *rxdmachan)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_SND_SOC_TI_SDMA_PCM */
 

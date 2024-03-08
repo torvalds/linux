@@ -134,8 +134,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 		cfg->vecs = 1U;
 	}
 
-	/* Check if we have enough vectors allocated for
-	 * link status IRQ. If no - we'll know link state from
+	/* Check if we have eanalugh vectors allocated for
+	 * link status IRQ. If anal - we'll kanalw link state from
 	 * slower service task.
 	 */
 	if (AQ_HW_SERVICE_IRQS > 0 && cfg->vecs + 1 <= self->irqvecs)
@@ -215,7 +215,7 @@ static irqreturn_t aq_linkstate_threaded_isr(int irq, void *private)
 	struct aq_nic_s *self = private;
 
 	if (!self)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	aq_nic_update_link_status(self);
 
@@ -233,7 +233,7 @@ static void aq_nic_service_task(struct work_struct *work)
 
 	aq_ptp_service_task(self);
 
-	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_NOT_READY))
+	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_ANALT_READY))
 		return;
 
 	err = aq_nic_update_link_status(self);
@@ -315,7 +315,7 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 #endif
 
 	if (platform_get_ethdev_address(&self->pdev->dev, self->ndev) != 0) {
-		// If DT has none or an invalid one, ask device for MAC address
+		// If DT has analne or an invalid one, ask device for MAC address
 		mutex_lock(&self->fwreq_mutex);
 		err = self->aq_fw_ops->get_mac_permanent(self->aq_hw, addr);
 		mutex_unlock(&self->fwreq_mutex);
@@ -345,7 +345,7 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 		self->aq_vec[self->aq_vecs] =
 		    aq_vec_alloc(self, self->aq_vecs, aq_nic_get_cfg(self));
 		if (!self->aq_vec[self->aq_vecs]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_exit;
 		}
 	}
@@ -429,7 +429,7 @@ int aq_nic_init(struct aq_nic_s *self)
 		self->aq_hw->phy_id = HW_ATL_PHY_ID_MAX;
 		err = aq_phy_init(self->aq_hw);
 
-		/* Disable the PTP on NICs where it's known to cause datapath
+		/* Disable the PTP on NICs where it's kanalwn to cause datapath
 		 * problems.
 		 * Ideally this should have been done by PHY provisioning, but
 		 * many units have been shipped with enabled PTP block already.
@@ -701,7 +701,7 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 		} else if (l4proto == IPPROTO_UDP) {
 			dx_buff->is_gso_udp = 1U;
 			dx_buff->len_l4 = sizeof(struct udphdr);
-			/* UDP GSO Hardware does not replace packet length. */
+			/* UDP GSO Hardware does analt replace packet length. */
 			udp_hdr(skb)->len = htons(dx_buff->mss +
 						  dx_buff->len_l4);
 		} else {
@@ -993,7 +993,7 @@ int aq_nic_get_regs(struct aq_nic_s *self, struct ethtool_regs *regs, void *p)
 	int err = 0;
 
 	if (unlikely(!self->aq_hw_ops->hw_get_regs))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	regs->version = 1;
 
@@ -1105,7 +1105,7 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 	else
 		cmd->base.port = PORT_TP;
 
-	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.duplex = DUPLEX_UNKANALWN;
 	if (self->link_status.mbps)
 		cmd->base.duplex = self->link_status.full_duplex ?
 				   DUPLEX_FULL : DUPLEX_HALF;
@@ -1208,7 +1208,7 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
 
-	/* Asym is when either RX or TX, but not both */
+	/* Asym is when either RX or TX, but analt both */
 	if (!!(self->aq_nic_cfg.fc.cur & AQ_NIC_FC_TX) ^
 	    !!(self->aq_nic_cfg.fc.cur & AQ_NIC_FC_RX))
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
@@ -1350,7 +1350,7 @@ int aq_nic_set_loopback(struct aq_nic_s *self)
 
 	if (!self->aq_hw_ops->hw_set_loopback ||
 	    !self->aq_fw_ops->set_phyloopback)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&self->fwreq_mutex);
 	self->aq_hw_ops->hw_set_loopback(self->aq_hw,
@@ -1477,7 +1477,7 @@ int aq_nic_realloc_vectors(struct aq_nic_s *self)
 		self->aq_vec[self->aq_vecs] = aq_vec_alloc(self, self->aq_vecs,
 							   cfg);
 		if (unlikely(!self->aq_vec[self->aq_vecs]))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1555,7 +1555,7 @@ int aq_nic_set_downshift(struct aq_nic_s *self, int val)
 	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
 
 	if (!self->aq_fw_ops->set_downshift)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (val > 15) {
 		netdev_err(self->ndev, "downshift counter should be <= 15\n");
@@ -1576,7 +1576,7 @@ int aq_nic_set_media_detect(struct aq_nic_s *self, int val)
 	int err = 0;
 
 	if (!self->aq_fw_ops->set_media_detect)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (val > 0 && val != AQ_HW_MEDIA_DETECT_CNT) {
 		netdev_err(self->ndev, "EDPD on this device could have only fixed value of %d\n",
@@ -1588,7 +1588,7 @@ int aq_nic_set_media_detect(struct aq_nic_s *self, int val)
 	err = self->aq_fw_ops->set_media_detect(self->aq_hw, !!val);
 	mutex_unlock(&self->fwreq_mutex);
 
-	/* msecs plays no role - configuration is always fixed in PHY */
+	/* msecs plays anal role - configuration is always fixed in PHY */
 	if (!err)
 		cfg->is_media_detect = !!val;
 

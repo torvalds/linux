@@ -277,16 +277,16 @@ static inline void set_rfs(struct i2s_dai *i2s, unsigned rfs)
 
 	switch (rfs) {
 	case 192:
-		mod |= (EXYNOS7_MOD_RCLK_192FS << rfs_shift);
+		mod |= (EXYANALS7_MOD_RCLK_192FS << rfs_shift);
 		break;
 	case 96:
-		mod |= (EXYNOS7_MOD_RCLK_96FS << rfs_shift);
+		mod |= (EXYANALS7_MOD_RCLK_96FS << rfs_shift);
 		break;
 	case 128:
-		mod |= (EXYNOS7_MOD_RCLK_128FS << rfs_shift);
+		mod |= (EXYANALS7_MOD_RCLK_128FS << rfs_shift);
 		break;
 	case 64:
-		mod |= (EXYNOS7_MOD_RCLK_64FS << rfs_shift);
+		mod |= (EXYANALS7_MOD_RCLK_64FS << rfs_shift);
 		break;
 	case 768:
 		mod |= (MOD_RCLK_768FS << rfs_shift);
@@ -335,7 +335,7 @@ static inline void set_bfs(struct i2s_dai *i2s, unsigned bfs)
 	int tdm = priv->quirks & QUIRK_SUPPORTS_TDM;
 	int bfs_shift = priv->variant_regs->bfs_off;
 
-	/* Non-TDM I2S controllers do not support BCLK > 48 * FS */
+	/* Analn-TDM I2S controllers do analt support BCLK > 48 * FS */
 	if (!tdm && bfs > 48) {
 		dev_err(&i2s->pdev->dev, "Unsupported BCLK divider\n");
 		return;
@@ -357,19 +357,19 @@ static inline void set_bfs(struct i2s_dai *i2s, unsigned bfs)
 		mod |= (MOD_BCLK_16FS << bfs_shift);
 		break;
 	case 64:
-		mod |= (EXYNOS5420_MOD_BCLK_64FS << bfs_shift);
+		mod |= (EXYANALS5420_MOD_BCLK_64FS << bfs_shift);
 		break;
 	case 96:
-		mod |= (EXYNOS5420_MOD_BCLK_96FS << bfs_shift);
+		mod |= (EXYANALS5420_MOD_BCLK_96FS << bfs_shift);
 		break;
 	case 128:
-		mod |= (EXYNOS5420_MOD_BCLK_128FS << bfs_shift);
+		mod |= (EXYANALS5420_MOD_BCLK_128FS << bfs_shift);
 		break;
 	case 192:
-		mod |= (EXYNOS5420_MOD_BCLK_192FS << bfs_shift);
+		mod |= (EXYANALS5420_MOD_BCLK_192FS << bfs_shift);
 		break;
 	case 256:
-		mod |= (EXYNOS5420_MOD_BCLK_256FS << bfs_shift);
+		mod |= (EXYANALS5420_MOD_BCLK_256FS << bfs_shift);
 		break;
 	default:
 		dev_err(&i2s->pdev->dev, "Wrong BCLK Divider!\n");
@@ -552,7 +552,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int rfs,
 	case SAMSUNG_I2S_RCLKSRC_1: /* clock corrsponding to IISMOD[10] := 1 */
 		mask = 1 << i2s_regs->rclksrc_off;
 
-		if ((priv->quirks & QUIRK_NO_MUXPSR)
+		if ((priv->quirks & QUIRK_ANAL_MUXPSR)
 				|| (clk_id == SAMSUNG_I2S_RCLKSRC_0))
 			clk_id = 0;
 		else
@@ -655,7 +655,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		tmp |= (MOD_SDF_IIS << sdf_shift);
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "Format not supported\n");
+		dev_err(&i2s->pdev->dev, "Format analt supported\n");
 		return -EINVAL;
 	}
 
@@ -673,7 +673,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			tmp |= lrp_rlow;
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "Polarity not supported\n");
+		dev_err(&i2s->pdev->dev, "Polarity analt supported\n");
 		return -EINVAL;
 	}
 
@@ -684,15 +684,15 @@ static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_BP_FP:
 		/*
 		 * Set default source clock in Master mode, only when the
-		 * CLK_I2S_RCLK_SRC clock is not exposed so we ensure any
-		 * clock configuration assigned in DT is not overwritten.
+		 * CLK_I2S_RCLK_SRC clock is analt exposed so we ensure any
+		 * clock configuration assigned in DT is analt overwritten.
 		 */
 		if (priv->rclk_srcrate == 0 && priv->clk_data.clks == NULL)
 			i2s_set_sysclk(dai, SAMSUNG_I2S_RCLKSRC_0,
 							0, SND_SOC_CLOCK_IN);
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "master/slave format not supported\n");
+		dev_err(&i2s->pdev->dev, "master/slave format analt supported\n");
 		return -EINVAL;
 	}
 
@@ -757,7 +757,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "%d channels not supported\n",
+		dev_err(&i2s->pdev->dev, "%d channels analt supported\n",
 				params_channels(params));
 		return -EINVAL;
 	}
@@ -796,7 +796,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 			val |= MOD_BLC_24BIT;
 		break;
 	default:
-		dev_err(&i2s->pdev->dev, "Format(%d) not supported\n",
+		dev_err(&i2s->pdev->dev, "Format(%d) analt supported\n",
 				params_format(params));
 		return -EINVAL;
 	}
@@ -885,7 +885,7 @@ static int config_setup(struct i2s_dai *i2s)
 	if (!bfs && other)
 		bfs = other->bfs;
 
-	/* Select least possible multiple(2) if no constraint set */
+	/* Select least possible multiple(2) if anal constraint set */
 	if (!bfs)
 		bfs = blc * 2;
 
@@ -896,7 +896,7 @@ static int config_setup(struct i2s_dai *i2s)
 
 	if ((rfs == 256 || rfs == 512) && (blc == 24)) {
 		dev_err(&i2s->pdev->dev,
-			"%d-RFS not supported for 24-blc\n", rfs);
+			"%d-RFS analt supported for 24-blc\n", rfs);
 		return -EINVAL;
 	}
 
@@ -921,7 +921,7 @@ static int config_setup(struct i2s_dai *i2s)
 	if (priv->slave_mode)
 		return 0;
 
-	if (!(priv->quirks & QUIRK_NO_MUXPSR)) {
+	if (!(priv->quirks & QUIRK_ANAL_MUXPSR)) {
 		psr = priv->rclk_srcrate / i2s->frmclk / rfs;
 		writel(((psr - 1) << 8) | PSR_PSREN, priv->addr + I2SPSR);
 		dev_dbg(&i2s->pdev->dev,
@@ -1132,11 +1132,11 @@ static const struct snd_soc_dai_ops samsung_i2s_dai_ops = {
 
 static const struct snd_soc_dapm_widget samsung_i2s_widgets[] = {
 	/* Backend DAI  */
-	SND_SOC_DAPM_AIF_OUT("Mixer DAI TX", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Mixer DAI RX", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Mixer DAI TX", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Mixer DAI RX", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Playback Mixer */
-	SND_SOC_DAPM_MIXER("Playback Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Playback Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route samsung_i2s_dapm_routes[] = {
@@ -1178,12 +1178,12 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 	priv->dai = devm_kcalloc(&priv->pdev->dev, num_dais,
 				     sizeof(struct i2s_dai), GFP_KERNEL);
 	if (!priv->dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dai_drv = devm_kcalloc(&priv->pdev->dev, num_dais,
 				     sizeof(*dai_drv), GFP_KERNEL);
 	if (!priv->dai_drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_dais; i++) {
 		dai_drv = &priv->dai_drv[i];
@@ -1268,7 +1268,7 @@ static void i2s_unregister_clocks(struct samsung_i2s_priv *priv)
 
 static void i2s_unregister_clock_provider(struct samsung_i2s_priv *priv)
 {
-	of_clk_del_provider(priv->pdev->dev.of_node);
+	of_clk_del_provider(priv->pdev->dev.of_analde);
 	i2s_unregister_clocks(priv);
 }
 
@@ -1286,7 +1286,7 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 	int ret, i;
 
 	/* Register the clock provider only if it's expected in the DTB */
-	if (!of_property_present(dev->of_node, "#clock-cells"))
+	if (!of_property_present(dev->of_analde, "#clock-cells"))
 		return 0;
 
 	/* Get the RCLKSRC mux clock parent clock names */
@@ -1302,10 +1302,10 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 		i2s_clk_name[i] = devm_kasprintf(dev, GFP_KERNEL, "%s_%s",
 						dev_name(dev), i2s_clk_desc[i]);
 		if (!i2s_clk_name[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
-	if (!(priv->quirks & QUIRK_NO_MUXPSR)) {
+	if (!(priv->quirks & QUIRK_ANAL_MUXPSR)) {
 		/* Activate the prescaler */
 		u32 val = readl(priv->addr + I2SPSR);
 		writel(val | PSR_PSREN, priv->addr + I2SPSR);
@@ -1313,7 +1313,7 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 		priv->clk_table[CLK_I2S_RCLK_SRC] = clk_register_mux(dev,
 				i2s_clk_name[CLK_I2S_RCLK_SRC], p_names,
 				ARRAY_SIZE(p_names),
-				CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+				CLK_SET_RATE_ANAL_REPARENT | CLK_SET_RATE_PARENT,
 				priv->addr + I2SMOD, reg_info->rclksrc_off,
 				1, 0, &priv->lock);
 
@@ -1336,7 +1336,7 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 	priv->clk_data.clk_num += 1;
 	priv->clk_data.clks = priv->clk_table;
 
-	ret = of_clk_add_provider(dev->of_node, of_clk_src_onecell_get,
+	ret = of_clk_add_provider(dev->of_analde, of_clk_src_onecell_get,
 				  &priv->clk_data);
 	if (ret < 0) {
 		dev_err(dev, "failed to add clock provider: %d\n", ret);
@@ -1356,16 +1356,16 @@ static int i2s_create_secondary_device(struct samsung_i2s_priv *priv)
 	devname = devm_kasprintf(&priv->pdev->dev, GFP_KERNEL, "%s-sec",
 				 dev_name(&priv->pdev->dev));
 	if (!devname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev_sec = platform_device_alloc(devname, -1);
 	if (!pdev_sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev_sec->driver_override = kstrdup("samsung-i2s", GFP_KERNEL);
 	if (!pdev_sec->driver_override) {
 		platform_device_put(pdev_sec);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = platform_device_add(pdev_sec);
@@ -1397,19 +1397,19 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 	struct i2s_dai *pri_dai, *sec_dai = NULL;
 	struct s3c_audio_pdata *i2s_pdata = pdev->dev.platform_data;
 	u32 regs_base, idma_addr = 0;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct samsung_i2s_dai_data *i2s_dai_data;
 	const struct platform_device_id *id;
 	struct samsung_i2s_priv *priv;
 	struct resource *res;
 	int num_dais, ret;
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_analde) {
 		i2s_dai_data = of_device_get_match_data(&pdev->dev);
 	} else {
 		id = platform_get_device_id(pdev);
 
-		/* Nothing to do if it is the secondary device probe */
+		/* Analthing to do if it is the secondary device probe */
 		if (!id)
 			return 0;
 
@@ -1418,7 +1418,7 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (np) {
 		priv->quirks = i2s_dai_data->quirks;
@@ -1455,7 +1455,7 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		if (of_property_read_u32(np, "samsung,idma-addr",
 					 &idma_addr)) {
 			if (priv->quirks & QUIRK_SUPPORTS_IDMA) {
-				dev_info(&pdev->dev, "idma address is not"\
+				dev_info(&pdev->dev, "idma address is analt"\
 						"specified");
 			}
 		}
@@ -1561,7 +1561,7 @@ static void samsung_i2s_remove(struct platform_device *pdev)
 {
 	struct samsung_i2s_priv *priv = dev_get_drvdata(&pdev->dev);
 
-	/* The secondary device has no driver data assigned */
+	/* The secondary device has anal driver data assigned */
 	if (!priv)
 		return;
 
@@ -1572,7 +1572,7 @@ static void samsung_i2s_remove(struct platform_device *pdev)
 	i2s_delete_secondary_device(priv);
 	clk_disable_unprepare(priv->clk);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 }
 
 static void fsd_i2s_fixup_early(struct snd_pcm_substream *substream,
@@ -1657,7 +1657,7 @@ static const struct samsung_i2s_variant_regs i2sv5_i2s1_regs = {
 };
 
 static const struct samsung_i2s_dai_data i2sv3_dai_type = {
-	.quirks = QUIRK_NO_MUXPSR,
+	.quirks = QUIRK_ANAL_MUXPSR,
 	.pcm_rates = SNDRV_PCM_RATE_8000_96000,
 	.i2s_variant_regs = &i2sv3_regs,
 };
@@ -1707,7 +1707,7 @@ static const struct platform_device_id samsung_i2s_driver_ids[] = {
 MODULE_DEVICE_TABLE(platform, samsung_i2s_driver_ids);
 
 #ifdef CONFIG_OF
-static const struct of_device_id exynos_i2s_match[] = {
+static const struct of_device_id exyanals_i2s_match[] = {
 	{
 		.compatible = "samsung,s3c6410-i2s",
 		.data = &i2sv3_dai_type,
@@ -1715,13 +1715,13 @@ static const struct of_device_id exynos_i2s_match[] = {
 		.compatible = "samsung,s5pv210-i2s",
 		.data = &i2sv5_dai_type,
 	}, {
-		.compatible = "samsung,exynos5420-i2s",
+		.compatible = "samsung,exyanals5420-i2s",
 		.data = &i2sv6_dai_type,
 	}, {
-		.compatible = "samsung,exynos7-i2s",
+		.compatible = "samsung,exyanals7-i2s",
 		.data = &i2sv7_dai_type,
 	}, {
-		.compatible = "samsung,exynos7-i2s1",
+		.compatible = "samsung,exyanals7-i2s1",
 		.data = &i2sv5_dai_type_i2s1,
 	}, {
 		.compatible = "tesla,fsd-i2s",
@@ -1729,7 +1729,7 @@ static const struct of_device_id exynos_i2s_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_i2s_match);
+MODULE_DEVICE_TABLE(of, exyanals_i2s_match);
 #endif
 
 static const struct dev_pm_ops samsung_i2s_pm = {
@@ -1745,7 +1745,7 @@ static struct platform_driver samsung_i2s_driver = {
 	.id_table = samsung_i2s_driver_ids,
 	.driver = {
 		.name = "samsung-i2s",
-		.of_match_table = of_match_ptr(exynos_i2s_match),
+		.of_match_table = of_match_ptr(exyanals_i2s_match),
 		.pm = &samsung_i2s_pm,
 	},
 };

@@ -60,7 +60,7 @@ static struct kset *gfs2_kset;
 static ssize_t id_show(struct gfs2_sbd *sdp, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%u:%u\n",
-			MAJOR(sdp->sd_vfs->s_dev), MINOR(sdp->sd_vfs->s_dev));
+			MAJOR(sdp->sd_vfs->s_dev), MIANALR(sdp->sd_vfs->s_dev));
 }
 
 static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
@@ -74,10 +74,10 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     "Journal ID:               %d\n"
 		     "Spectator:                %d\n"
 		     "Withdrawn:                %d\n"
-		     "No barriers:              %d\n"
-		     "No recovery:              %d\n"
+		     "Anal barriers:              %d\n"
+		     "Anal recovery:              %d\n"
 		     "Demote:                   %d\n"
-		     "No Journal ID:            %d\n"
+		     "Anal Journal ID:            %d\n"
 		     "Mounted RO:               %d\n"
 		     "RO Recovery:              %d\n"
 		     "Skip DLM Unlock:          %d\n"
@@ -107,10 +107,10 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     (sdp->sd_jdesc ? sdp->sd_jdesc->jd_jid : 0),
 		     (sdp->sd_args.ar_spectator ? 1 : 0),
 		     test_bit(SDF_WITHDRAWN, &f),
-		     test_bit(SDF_NOBARRIERS, &f),
-		     test_bit(SDF_NORECOVERY, &f),
+		     test_bit(SDF_ANALBARRIERS, &f),
+		     test_bit(SDF_ANALRECOVERY, &f),
 		     test_bit(SDF_DEMOTE, &f),
-		     test_bit(SDF_NOJOURNALID, &f),
+		     test_bit(SDF_ANALJOURNALID, &f),
 		     (sb_rdonly(sdp->sd_vfs) ? 1 : 0),
 		     test_bit(SDF_RORECOVERY, &f),
 		     test_bit(SDF_SKIP_DLM_UNLOCK, &f),
@@ -328,7 +328,7 @@ static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len
 
 	if (gltype > LM_TYPE_JOURNAL)
 		return -EINVAL;
-	if (gltype == LM_TYPE_NONDISK && glnum == GFS2_FREEZE_LOCK)
+	if (gltype == LM_TYPE_ANALNDISK && glnum == GFS2_FREEZE_LOCK)
 		glops = &gfs2_freeze_glops;
 	else
 		glops = gfs2_glops_list[gltype];
@@ -475,7 +475,7 @@ static ssize_t lkfirst_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 		return rv;
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
-	if (test_bit(SDF_NOJOURNALID, &sdp->sd_flags) == 0)
+	if (test_bit(SDF_ANALJOURNALID, &sdp->sd_flags) == 0)
 		goto out;
 	rv = -EINVAL;
 	if (sdp->sd_args.ar_spectator)
@@ -506,7 +506,7 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
 	/**
-	 * If we're a spectator, we use journal0, but it's not really ours.
+	 * If we're a spectator, we use journal0, but it's analt really ours.
 	 * So we need to wait for its recovery too. If we skip it we'd never
 	 * queue work to the recovery workqueue, and so its completion would
 	 * never clear the DFL_BLOCK_LOCKS flag, so all our locks would
@@ -516,7 +516,7 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 		goto out;
 	if (sdp->sd_jdesc->jd_jid == jid && !sdp->sd_args.ar_spectator)
 		goto out;
-	rv = -ENOENT;
+	rv = -EANALENT;
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		if (jd->jd_jid != jid && !sdp->sd_args.ar_spectator)
 			continue;
@@ -537,7 +537,7 @@ static ssize_t recover_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	if (rv != 1)
 		return -EINVAL;
 
-	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags)) {
+	if (test_bit(SDF_ANALRECOVERY, &sdp->sd_flags)) {
 		rv = -ESHUTDOWN;
 		goto out;
 	}
@@ -580,15 +580,15 @@ static ssize_t jid_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
 		goto out;
 	rv = -EBUSY;
-	if (test_bit(SDF_NOJOURNALID, &sdp->sd_flags) == 0)
+	if (test_bit(SDF_ANALJOURNALID, &sdp->sd_flags) == 0)
 		goto out;
 	rv = 0;
 	if (sdp->sd_args.ar_spectator && jid > 0)
 		rv = jid = -EINVAL;
 	sdp->sd_lockstruct.ls_jid = jid;
-	clear_bit(SDF_NOJOURNALID, &sdp->sd_flags);
+	clear_bit(SDF_ANALJOURNALID, &sdp->sd_flags);
 	smp_mb__after_atomic();
-	wake_up_bit(&sdp->sd_flags, SDF_NOJOURNALID);
+	wake_up_bit(&sdp->sd_flags, SDF_ANALJOURNALID);
 out:
 	spin_unlock(&sdp->sd_jindex_spin);
 	return rv ? rv : len;
@@ -784,7 +784,7 @@ static int gfs2_uevent(const struct kobject *kobj, struct kobj_uevent_env *env)
 
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);
-	if (!test_bit(SDF_NOJOURNALID, &sdp->sd_flags))
+	if (!test_bit(SDF_ANALJOURNALID, &sdp->sd_flags))
 		add_uevent_var(env, "JOURNALID=%d", sdp->sd_lockstruct.ls_jid);
 	if (!uuid_is_null(&s->s_uuid))
 		add_uevent_var(env, "UUID=%pUB", &s->s_uuid);
@@ -799,7 +799,7 @@ int gfs2_sys_init(void)
 {
 	gfs2_kset = kset_create_and_add("gfs2", &gfs2_uevent_ops, fs_kobj);
 	if (!gfs2_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

@@ -46,7 +46,7 @@ static int __init register_memblock_regions(void)
 
 	for_each_mem_region(reg) {
 		if (*hyp_memblock_nr_ptr >= HYP_MEMBLOCK_REGIONS)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		hyp_memory[*hyp_memblock_nr_ptr] = *reg;
 		(*hyp_memblock_nr_ptr)++;
@@ -143,7 +143,7 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 	 */
 	pgd = alloc_pages_exact(pgd_sz, GFP_KERNEL_ACCOUNT);
 	if (!pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate memory to donate to hyp for vm and vcpu pointers. */
 	hyp_vm_sz = PAGE_ALIGN(size_add(PKVM_HYP_VM_SIZE,
@@ -151,7 +151,7 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 						 host_kvm->created_vcpus)));
 	hyp_vm = alloc_pages_exact(hyp_vm_sz, GFP_KERNEL_ACCOUNT);
 	if (!hyp_vm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_pgd;
 	}
 
@@ -177,7 +177,7 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 
 		hyp_vcpu = alloc_pages_exact(hyp_vcpu_sz, GFP_KERNEL_ACCOUNT);
 		if (!hyp_vcpu) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto destroy_vm;
 		}
 
@@ -239,7 +239,7 @@ static int __init pkvm_drop_host_privileges(void)
 	int ret = 0;
 
 	/*
-	 * Flip the static key upfront as that may no longer be possible
+	 * Flip the static key upfront as that may anal longer be possible
 	 * once the host stage 2 is installed.
 	 */
 	static_branch_enable(&kvm_protected_mode_initialized);

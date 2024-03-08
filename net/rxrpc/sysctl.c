@@ -79,7 +79,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	},
 #endif
 
-	/* Non-time values */
+	/* Analn-time values */
 	{
 		.procname	= "reap_client_conns",
 		.data		= &rxrpc_reap_client_connections,
@@ -133,7 +133,7 @@ int __init rxrpc_sysctl_init(void)
 	rxrpc_sysctl_reg_table = register_net_sysctl(&init_net, "net/rxrpc",
 						     rxrpc_sysctl_table);
 	if (!rxrpc_sysctl_reg_table)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellaanalx Techanallogies.
 
 #include <linux/debugfs.h>
 #include "en_accel/ktls.h"
@@ -36,7 +36,7 @@ u16 mlx5e_ktls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *pa
 	stop_room += mlx5e_stop_room_for_wqe(mdev, MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS);
 	stop_room += mlx5e_stop_room_for_wqe(mdev, MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS);
 	stop_room += num_dumps * mlx5e_stop_room_for_wqe(mdev, MLX5E_KTLS_DUMP_WQEBBS);
-	stop_room += 1; /* fence nop */
+	stop_room += 1; /* fence analp */
 
 	return stop_room;
 }
@@ -93,7 +93,7 @@ struct mlx5e_ktls_offload_context_tx {
 	u32 tisn;
 	bool ctx_post_pending;
 	/* control / resync */
-	struct list_head list_node; /* member of the pool */
+	struct list_head list_analde; /* member of the pool */
 	union mlx5e_crypto_info crypto_info;
 	struct tls_offload_context_tx *tx_ctx;
 	struct mlx5_core_dev *mdev;
@@ -198,7 +198,7 @@ mlx5e_tls_priv_tx_init(struct mlx5_core_dev *mdev, struct mlx5e_tls_sw_stats *sw
 
 	priv_tx = kzalloc(sizeof(*priv_tx), GFP_KERNEL);
 	if (!priv_tx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv_tx->mdev = mdev;
 	priv_tx->sw_stats = sw_stats;
@@ -249,7 +249,7 @@ static void mlx5e_tls_priv_tx_list_cleanup(struct mlx5_core_dev *mdev,
 		return;
 
 	i = 0;
-	list_for_each_entry_safe(obj, n, list, list_node) {
+	list_for_each_entry_safe(obj, n, list, list_analde) {
 		mlx5e_tls_priv_tx_cleanup(obj, &bulk_async->arr[i]);
 		i++;
 	}
@@ -294,7 +294,7 @@ static void create_work(struct work_struct *work)
 			err = PTR_ERR(obj);
 			break;
 		}
-		list_add(&obj->list_node, &local_list);
+		list_add(&obj->list_analde, &local_list);
 	}
 
 	for (j = 0; j < i; j++) {
@@ -339,11 +339,11 @@ static void destroy_work(struct work_struct *work)
 		return;
 	}
 
-	list_for_each_entry(obj, &pool->list, list_node)
+	list_for_each_entry(obj, &pool->list, list_analde)
 		if (++i == MLX5E_TLS_TX_POOL_BULK)
 			break;
 
-	list_cut_position(&local_list, &pool->list, &obj->list_node);
+	list_cut_position(&local_list, &pool->list, &obj->list_analde);
 	pool->size -= MLX5E_TLS_TX_POOL_BULK;
 	if (pool->size >= MLX5E_TLS_TX_POOL_HIGH)
 		queue_work(pool->wq, work);
@@ -391,11 +391,11 @@ static void mlx5e_tls_tx_pool_list_cleanup(struct mlx5e_tls_tx_pool *pool)
 		LIST_HEAD(local_list);
 		int i = 0;
 
-		list_for_each_entry(obj, &pool->list, list_node)
+		list_for_each_entry(obj, &pool->list, list_analde)
 			if (++i == MLX5E_TLS_TX_POOL_BULK)
 				break;
 
-		list_cut_position(&local_list, &pool->list, &obj->list_node);
+		list_cut_position(&local_list, &pool->list, &obj->list_analde);
 		mlx5e_tls_priv_tx_list_cleanup(pool->mdev, &local_list, MLX5E_TLS_TX_POOL_BULK);
 		atomic64_add(MLX5E_TLS_TX_POOL_BULK, &pool->sw_stats->tx_tls_pool_free);
 		pool->size -= MLX5E_TLS_TX_POOL_BULK;
@@ -416,7 +416,7 @@ static void mlx5e_tls_tx_pool_cleanup(struct mlx5e_tls_tx_pool *pool)
 static void pool_push(struct mlx5e_tls_tx_pool *pool, struct mlx5e_ktls_offload_context_tx *obj)
 {
 	mutex_lock(&pool->lock);
-	list_add(&obj->list_node, &pool->list);
+	list_add(&obj->list_analde, &pool->list);
 	if (++pool->size == MLX5E_TLS_TX_POOL_HIGH)
 		queue_work(pool->wq, &pool->destroy_work);
 	mutex_unlock(&pool->lock);
@@ -441,8 +441,8 @@ static struct mlx5e_ktls_offload_context_tx *pool_pop(struct mlx5e_tls_tx_pool *
 	}
 
 	obj = list_first_entry(&pool->list, struct mlx5e_ktls_offload_context_tx,
-			       list_node);
-	list_del(&obj->list_node);
+			       list_analde);
+	list_del(&obj->list_analde);
 	if (--pool->size == MLX5E_TLS_TX_POOL_LOW)
 		queue_work(pool->wq, &pool->create_work);
 	mutex_unlock(&pool->lock);
@@ -481,7 +481,7 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 	default:
 		WARN_ONCE(1, "Unsupported cipher type %u\n",
 			  crypto_info->cipher_type);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_pool_push;
 	}
 
@@ -581,14 +581,14 @@ post_progress_params(struct mlx5e_txqsq *sq,
 	sq->pc += num_wqebbs;
 }
 
-static void tx_post_fence_nop(struct mlx5e_txqsq *sq)
+static void tx_post_fence_analp(struct mlx5e_txqsq *sq)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
 	tx_fill_wi(sq, pi, 1, 0, NULL);
 
-	mlx5e_post_nop_fence(wq, sq->sqn, &sq->pc);
+	mlx5e_post_analp_fence(wq, sq->sqn, &sq->pc);
 }
 
 static void
@@ -602,7 +602,7 @@ mlx5e_ktls_tx_post_param_wqes(struct mlx5e_txqsq *sq,
 		post_static_params(sq, priv_tx, fence_first_post);
 
 	post_progress_params(sq, priv_tx, progress_fence);
-	tx_post_fence_nop(sq);
+	tx_post_fence_analp(sq);
 }
 
 struct tx_sync_info {
@@ -615,7 +615,7 @@ struct tx_sync_info {
 enum mlx5e_ktls_sync_retval {
 	MLX5E_KTLS_SYNC_DONE,
 	MLX5E_KTLS_SYNC_FAIL,
-	MLX5E_KTLS_SYNC_SKIP_NO_DATA,
+	MLX5E_KTLS_SYNC_SKIP_ANAL_DATA,
 };
 
 static enum mlx5e_ktls_sync_retval
@@ -640,15 +640,15 @@ tx_sync_info_get(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	/* There are the following cases:
 	 * 1. packet ends before start marker: bypass offload.
 	 * 2. packet starts before start marker and ends after it: drop,
-	 *    not supported, breaks contract with kernel.
+	 *    analt supported, breaks contract with kernel.
 	 * 3. packet ends before tls record info starts: drop,
-	 *    this packet was already acknowledged and its record info
+	 *    this packet was already ackanalwledged and its record info
 	 *    was released.
 	 */
 	ends_before = before(tcp_seq + datalen - 1, tls_record_start_seq(record));
 
 	if (unlikely(tls_record_is_start_marker(record))) {
-		ret = ends_before ? MLX5E_KTLS_SYNC_SKIP_NO_DATA : MLX5E_KTLS_SYNC_FAIL;
+		ret = ends_before ? MLX5E_KTLS_SYNC_SKIP_ANAL_DATA : MLX5E_KTLS_SYNC_FAIL;
 		goto out;
 	} else if (ends_before) {
 		ret = MLX5E_KTLS_SYNC_FAIL;
@@ -739,7 +739,7 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn)
 	dma_addr = skb_frag_dma_map(sq->pdev, frag, 0, fsz,
 				    DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(sq->pdev, dma_addr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dseg->addr       = cpu_to_be64(dma_addr);
 	dseg->lkey       = sq->mkey_be;
@@ -867,14 +867,14 @@ bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 		switch (ret) {
 		case MLX5E_KTLS_SYNC_DONE:
 			break;
-		case MLX5E_KTLS_SYNC_SKIP_NO_DATA:
-			stats->tls_skip_no_sync_data++;
+		case MLX5E_KTLS_SYNC_SKIP_ANAL_DATA:
+			stats->tls_skip_anal_sync_data++;
 			if (likely(!skb->decrypted))
 				goto out;
 			WARN_ON_ONCE(1);
 			goto err_out;
 		case MLX5E_KTLS_SYNC_FAIL:
-			stats->tls_drop_no_sync_data++;
+			stats->tls_drop_anal_sync_data++;
 			goto err_out;
 		}
 	}
@@ -928,7 +928,7 @@ int mlx5e_ktls_init_tx(struct mlx5e_priv *priv)
 
 	priv->tls->tx_pool = mlx5e_tls_tx_pool_init(priv->mdev, &priv->tls->sw_stats);
 	if (!priv->tls->tx_pool) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_tx_pool_init;
 	}
 

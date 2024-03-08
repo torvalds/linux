@@ -29,13 +29,13 @@
 /*
  * Mouse Mode: some panel may configure the controller to mouse mode,
  * which can only report one point at a given time.
- * This driver will ignore events in this mode.
+ * This driver will iganalre events in this mode.
  */
 #define REPORT_MODE_MOUSE		0x1
 /*
  * Vendor Mode: this mode is used to transfer some vendor specific
  * messages.
- * This driver will ignore events in this mode.
+ * This driver will iganalre events in this mode.
  */
 #define REPORT_MODE_VENDOR		0x3
 /* Multiple Touch Mode */
@@ -80,7 +80,7 @@ static irqreturn_t egalax_ts_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	if (buf[0] != REPORT_MODE_MTTOUCH) {
-		/* ignore mouse events and vendor events */
+		/* iganalre mouse events and vendor events */
 		return IRQ_HANDLED;
 	}
 
@@ -128,7 +128,7 @@ static int egalax_wake_up_device(struct i2c_client *client)
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(&client->dev,
-				"failed to request wakeup gpio, cannot wake up controller: %d\n",
+				"failed to request wakeup gpio, cananalt wake up controller: %d\n",
 				ret);
 		return ret;
 	}
@@ -164,13 +164,13 @@ static int egalax_ts_probe(struct i2c_client *client)
 	ts = devm_kzalloc(&client->dev, sizeof(struct egalax_ts), GFP_KERNEL);
 	if (!ts) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!input_dev) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->client = client;

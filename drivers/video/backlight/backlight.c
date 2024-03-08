@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/backlight.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <linux/fb.h>
@@ -47,17 +47,17 @@
  * a hot-key or some other platform or firmware specific way.
  *
  * The driver must implement the get_brightness() operation if
- * the HW do not support all the levels that can be specified in
+ * the HW do analt support all the levels that can be specified in
  * brightness, thus providing user-space access to the actual level
  * via the actual_brightness attribute.
  *
  * When the backlight changes this is reported to user-space using
  * an uevent connected to the actual_brightness attribute.
  * When brightness is set by platform specific means, for example
- * a hot-key to adjust backlight, the driver must notify the backlight
+ * a hot-key to adjust backlight, the driver must analtify the backlight
  * core that brightness has changed using backlight_force_update().
  *
- * The backlight driver core receives notifications from fbdev and
+ * The backlight driver core receives analtifications from fbdev and
  * if the event is FB_EVENT_BLANK and if the value of blank, from the
  * FBIOBLANK ioctrl, results in a change in the backlight state the
  * update_status() operation is called.
@@ -65,7 +65,7 @@
 
 static struct list_head backlight_dev_list;
 static struct mutex backlight_dev_list_mutex;
-static struct blocking_notifier_head backlight_notifier;
+static struct blocking_analtifier_head backlight_analtifier;
 
 static const char *const backlight_types[] = {
 	[BACKLIGHT_RAW] = "raw",
@@ -74,15 +74,15 @@ static const char *const backlight_types[] = {
 };
 
 static const char *const backlight_scale_types[] = {
-	[BACKLIGHT_SCALE_UNKNOWN]	= "unknown",
+	[BACKLIGHT_SCALE_UNKANALWN]	= "unkanalwn",
 	[BACKLIGHT_SCALE_LINEAR]	= "linear",
-	[BACKLIGHT_SCALE_NON_LINEAR]	= "non-linear",
+	[BACKLIGHT_SCALE_ANALN_LINEAR]	= "analn-linear",
 };
 
 #if defined(CONFIG_FB_CORE) || (defined(CONFIG_FB_CORE_MODULE) && \
 				defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE))
 /*
- * fb_notifier_callback
+ * fb_analtifier_callback
  *
  * This callback gets called when something important happens inside a
  * framebuffer driver. The backlight core only cares about FB_BLANK_UNBLANK
@@ -93,19 +93,19 @@ static const char *const backlight_scale_types[] = {
  * in which case they are kept track of. A state change is only reported
  * if there is a change in backlight for the specified fbdev.
  */
-static int fb_notifier_callback(struct notifier_block *self,
+static int fb_analtifier_callback(struct analtifier_block *self,
 				unsigned long event, void *data)
 {
 	struct backlight_device *bd;
 	struct fb_event *evdata = data;
-	int node = evdata->info->node;
+	int analde = evdata->info->analde;
 	int fb_blank = 0;
 
 	/* If we aren't interested in this event, skip it immediately ... */
 	if (event != FB_EVENT_BLANK)
 		return 0;
 
-	bd = container_of(self, struct backlight_device, fb_notif);
+	bd = container_of(self, struct backlight_device, fb_analtif);
 	mutex_lock(&bd->ops_lock);
 
 	if (!bd->ops)
@@ -114,15 +114,15 @@ static int fb_notifier_callback(struct notifier_block *self,
 		goto out;
 
 	fb_blank = *(int *)evdata->data;
-	if (fb_blank == FB_BLANK_UNBLANK && !bd->fb_bl_on[node]) {
-		bd->fb_bl_on[node] = true;
+	if (fb_blank == FB_BLANK_UNBLANK && !bd->fb_bl_on[analde]) {
+		bd->fb_bl_on[analde] = true;
 		if (!bd->use_count++) {
 			bd->props.state &= ~BL_CORE_FBBLANK;
 			bd->props.fb_blank = FB_BLANK_UNBLANK;
 			backlight_update_status(bd);
 		}
-	} else if (fb_blank != FB_BLANK_UNBLANK && bd->fb_bl_on[node]) {
-		bd->fb_bl_on[node] = false;
+	} else if (fb_blank != FB_BLANK_UNBLANK && bd->fb_bl_on[analde]) {
+		bd->fb_bl_on[analde] = false;
 		if (!(--bd->use_count)) {
 			bd->props.state |= BL_CORE_FBBLANK;
 			bd->props.fb_blank = fb_blank;
@@ -136,15 +136,15 @@ out:
 
 static int backlight_register_fb(struct backlight_device *bd)
 {
-	memset(&bd->fb_notif, 0, sizeof(bd->fb_notif));
-	bd->fb_notif.notifier_call = fb_notifier_callback;
+	memset(&bd->fb_analtif, 0, sizeof(bd->fb_analtif));
+	bd->fb_analtif.analtifier_call = fb_analtifier_callback;
 
-	return fb_register_client(&bd->fb_notif);
+	return fb_register_client(&bd->fb_analtif);
 }
 
 static void backlight_unregister_fb(struct backlight_device *bd)
 {
-	fb_unregister_client(&bd->fb_notif);
+	fb_unregister_client(&bd->fb_analtif);
 }
 #else
 static inline int backlight_register_fb(struct backlight_device *bd)
@@ -170,12 +170,12 @@ static void backlight_generate_event(struct backlight_device *bd,
 		envp[0] = "SOURCE=hotkey";
 		break;
 	default:
-		envp[0] = "SOURCE=unknown";
+		envp[0] = "SOURCE=unkanalwn";
 		break;
 	}
 	envp[1] = NULL;
 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
-	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
+	sysfs_analtify(&bd->dev.kobj, NULL, "actual_brightness");
 }
 
 static ssize_t bl_power_show(struct device *dev, struct device_attribute *attr,
@@ -310,8 +310,8 @@ static ssize_t scale_show(struct device *dev,
 {
 	struct backlight_device *bd = to_backlight_device(dev);
 
-	if (WARN_ON(bd->props.scale > BACKLIGHT_SCALE_NON_LINEAR))
-		return sprintf(buf, "unknown\n");
+	if (WARN_ON(bd->props.scale > BACKLIGHT_SCALE_ANALN_LINEAR))
+		return sprintf(buf, "unkanalwn\n");
 
 	return sprintf(buf, "%s\n", backlight_scale_types[bd->props.scale]);
 }
@@ -376,7 +376,7 @@ ATTRIBUTE_GROUPS(bl_device);
  * @reason: reason for update
  *
  * Updates the internal state of the backlight in response to a hardware event,
- * and generates an uevent to notify userspace. A backlight driver shall call
+ * and generates an uevent to analtify userspace. A backlight driver shall call
  * backlight_force_update() when the backlight is changed using, for example,
  * a hot-key. The updated brightness is read using get_brightness() and the
  * brightness value is reported using an uevent.
@@ -393,7 +393,7 @@ void backlight_force_update(struct backlight_device *bd,
 			bd->props.brightness = brightness;
 		else
 			dev_err(&bd->dev,
-				"Could not update brightness from device: %pe\n",
+				"Could analt update brightness from device: %pe\n",
 				ERR_PTR(brightness));
 	}
 	mutex_unlock(&bd->ops_lock);
@@ -413,7 +413,7 @@ struct backlight_device *backlight_device_register(const char *name,
 
 	new_bd = kzalloc(sizeof(struct backlight_device), GFP_KERNEL);
 	if (!new_bd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&new_bd->update_lock);
 	mutex_init(&new_bd->ops_lock);
@@ -461,7 +461,7 @@ struct backlight_device *backlight_device_register(const char *name,
 	list_add(&new_bd->entry, &backlight_dev_list);
 	mutex_unlock(&backlight_dev_list_mutex);
 
-	blocking_notifier_call_chain(&backlight_notifier,
+	blocking_analtifier_call_chain(&backlight_analtifier,
 				     BACKLIGHT_REGISTERED, new_bd);
 
 	return new_bd;
@@ -533,7 +533,7 @@ void backlight_device_unregister(struct backlight_device *bd)
 	mutex_unlock(&pmac_backlight_mutex);
 #endif
 
-	blocking_notifier_call_chain(&backlight_notifier,
+	blocking_analtifier_call_chain(&backlight_analtifier,
 				     BACKLIGHT_UNREGISTERED, bd);
 
 	mutex_lock(&bd->ops_lock);
@@ -561,38 +561,38 @@ static int devm_backlight_device_match(struct device *dev, void *res,
 }
 
 /**
- * backlight_register_notifier - get notified of backlight (un)registration
- * @nb: notifier block with the notifier to call on backlight (un)registration
+ * backlight_register_analtifier - get analtified of backlight (un)registration
+ * @nb: analtifier block with the analtifier to call on backlight (un)registration
  *
- * Register a notifier to get notified when backlight devices get registered
+ * Register a analtifier to get analtified when backlight devices get registered
  * or unregistered.
  *
  * RETURNS:
  *
  * 0 on success, otherwise a negative error code
  */
-int backlight_register_notifier(struct notifier_block *nb)
+int backlight_register_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&backlight_notifier, nb);
+	return blocking_analtifier_chain_register(&backlight_analtifier, nb);
 }
-EXPORT_SYMBOL(backlight_register_notifier);
+EXPORT_SYMBOL(backlight_register_analtifier);
 
 /**
- * backlight_unregister_notifier - unregister a backlight notifier
- * @nb: notifier block to unregister
+ * backlight_unregister_analtifier - unregister a backlight analtifier
+ * @nb: analtifier block to unregister
  *
- * Register a notifier to get notified when backlight devices get registered
+ * Register a analtifier to get analtified when backlight devices get registered
  * or unregistered.
  *
  * RETURNS:
  *
  * 0 on success, otherwise a negative error code
  */
-int backlight_unregister_notifier(struct notifier_block *nb)
+int backlight_unregister_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&backlight_notifier, nb);
+	return blocking_analtifier_chain_unregister(&backlight_analtifier, nb);
 }
-EXPORT_SYMBOL(backlight_unregister_notifier);
+EXPORT_SYMBOL(backlight_unregister_analtifier);
 
 /**
  * devm_backlight_device_register - register a new backlight device
@@ -621,7 +621,7 @@ struct backlight_device *devm_backlight_device_register(struct device *dev,
 	ptr = devres_alloc(devm_backlight_device_release, sizeof(*ptr),
 			GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	backlight = backlight_device_register(name, parent, devdata, ops,
 						props);
@@ -642,7 +642,7 @@ EXPORT_SYMBOL(devm_backlight_device_register);
  * @bd: the backlight device to unregister
  *
  * Deallocates a backlight allocated with devm_backlight_device_register().
- * Normally this function will not need to be called and the resource management
+ * Analrmally this function will analt need to be called and the resource management
  * code will ensure that the resources are freed.
  */
 void devm_backlight_device_unregister(struct device *dev,
@@ -659,45 +659,45 @@ EXPORT_SYMBOL(devm_backlight_device_unregister);
 #ifdef CONFIG_OF
 static int of_parent_match(struct device *dev, const void *data)
 {
-	return dev->parent && dev->parent->of_node == data;
+	return dev->parent && dev->parent->of_analde == data;
 }
 
 /**
- * of_find_backlight_by_node() - find backlight device by device-tree node
- * @node: device-tree node of the backlight device
+ * of_find_backlight_by_analde() - find backlight device by device-tree analde
+ * @analde: device-tree analde of the backlight device
  *
  * Returns a pointer to the backlight device corresponding to the given DT
- * node or NULL if no such backlight device exists or if the device hasn't
+ * analde or NULL if anal such backlight device exists or if the device hasn't
  * been probed yet.
  *
  * This function obtains a reference on the backlight device and it is the
  * caller's responsibility to drop the reference by calling put_device() on
  * the backlight device's .dev field.
  */
-struct backlight_device *of_find_backlight_by_node(struct device_node *node)
+struct backlight_device *of_find_backlight_by_analde(struct device_analde *analde)
 {
 	struct device *dev;
 
-	dev = class_find_device(backlight_class, NULL, node, of_parent_match);
+	dev = class_find_device(backlight_class, NULL, analde, of_parent_match);
 
 	return dev ? to_backlight_device(dev) : NULL;
 }
-EXPORT_SYMBOL(of_find_backlight_by_node);
+EXPORT_SYMBOL(of_find_backlight_by_analde);
 #endif
 
 static struct backlight_device *of_find_backlight(struct device *dev)
 {
 	struct backlight_device *bd = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (!dev)
 		return NULL;
 
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
-		np = of_parse_phandle(dev->of_node, "backlight", 0);
+	if (IS_ENABLED(CONFIG_OF) && dev->of_analde) {
+		np = of_parse_phandle(dev->of_analde, "backlight", 0);
 		if (np) {
-			bd = of_find_backlight_by_node(np);
-			of_node_put(np);
+			bd = of_find_backlight_by_analde(np);
+			of_analde_put(np);
 			if (!bd)
 				return ERR_PTR(-EPROBE_DEFER);
 		}
@@ -717,7 +717,7 @@ static void devm_backlight_release(void *data)
  * devm_of_find_backlight - find backlight for a device
  * @dev: the device
  *
- * This function looks for a property named 'backlight' on the DT node
+ * This function looks for a property named 'backlight' on the DT analde
  * connected to @dev and looks up the backlight device. The lookup is
  * device managed so the reference to the backlight device is automatically
  * dropped on driver detach.
@@ -725,8 +725,8 @@ static void devm_backlight_release(void *data)
  * RETURNS:
  *
  * A pointer to the backlight device if found.
- * Error pointer -EPROBE_DEFER if the DT property is set, but no backlight
- * device is found. NULL if there's no backlight property.
+ * Error pointer -EPROBE_DEFER if the DT property is set, but anal backlight
+ * device is found. NULL if there's anal backlight property.
  */
 struct backlight_device *devm_of_find_backlight(struct device *dev)
 {
@@ -753,7 +753,7 @@ static int __init backlight_class_init(void)
 {
 	backlight_class = class_create("backlight");
 	if (IS_ERR(backlight_class)) {
-		pr_warn("Unable to create backlight class; errno = %ld\n",
+		pr_warn("Unable to create backlight class; erranal = %ld\n",
 			PTR_ERR(backlight_class));
 		return PTR_ERR(backlight_class);
 	}
@@ -762,7 +762,7 @@ static int __init backlight_class_init(void)
 	backlight_class->pm = &backlight_class_dev_pm_ops;
 	INIT_LIST_HEAD(&backlight_dev_list);
 	mutex_init(&backlight_dev_list_mutex);
-	BLOCKING_INIT_NOTIFIER_HEAD(&backlight_notifier);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&backlight_analtifier);
 
 	return 0;
 }

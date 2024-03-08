@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -46,7 +46,7 @@ static const char *const rds_stat_names[] = {
 	"conn_reset",
 	"recv_drop_bad_checksum",
 	"recv_drop_old_seq",
-	"recv_drop_no_sock",
+	"recv_drop_anal_sock",
 	"recv_drop_dead_sock",
 	"recv_deliver_raced",
 	"recv_delivered",
@@ -100,11 +100,11 @@ EXPORT_SYMBOL_GPL(rds_stats_info_copy);
 
 /*
  * This gives global counters across all the transports.  The strings
- * are copied in so that the tool doesn't need knowledge of the specific
+ * are copied in so that the tool doesn't need kanalwledge of the specific
  * stats that we're exporting.  Some are pretty implementation dependent
  * and may change over time.  That doesn't stop them from being useful.
  *
- * This is the only function in the chain that knows about the byte granular
+ * This is the only function in the chain that kanalws about the byte granular
  * length in userspace.  It converts it to number of stat entries that the
  * rest of the functions operate in.
  */

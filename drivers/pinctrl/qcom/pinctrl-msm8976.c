@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
- * Copyright (c) 2016, AngeloGioacchino Del Regno <kholk11@gmail.com>
+ * Copyright (c) 2016, AngeloGioacchianal Del Reganal <kholk11@gmail.com>
  */
 
 #include <linux/module.h>

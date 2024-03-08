@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -60,7 +60,7 @@
  *
  * This design approach is required in order to defer hotplug event handling
  * from the IRQ handler to a work handler because hotplug handler has to use
- * mutexes which cannot be locked in an IRQ handler (since &mutex_lock may
+ * mutexes which cananalt be locked in an IRQ handler (since &mutex_lock may
  * sleep).
  */
 void amdgpu_display_hotplug_work_func(struct work_struct *work)
@@ -137,11 +137,11 @@ static void amdgpu_display_flip_work_func(struct work_struct *__work)
 	 * targeted by the flip
 	 */
 	if (amdgpu_crtc->enabled &&
-	    (amdgpu_display_get_crtc_scanoutpos(adev_to_drm(adev), work->crtc_id, 0,
+	    (amdgpu_display_get_crtc_scaanalutpos(adev_to_drm(adev), work->crtc_id, 0,
 						&vpos, &hpos, NULL, NULL,
 						&crtc->hwmode)
-	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
-	    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
+	     & (DRM_SCAANALUTPOS_VALID | DRM_SCAANALUTPOS_IN_VBLANK)) ==
+	    (DRM_SCAANALUTPOS_VALID | DRM_SCAANALUTPOS_IN_VBLANK) &&
 	    (int)(work->target_vblank -
 		  amdgpu_get_vblank_counter_kms(crtc)) > 0) {
 		schedule_delayed_work(&work->flip_work, usecs_to_jiffies(1000));
@@ -205,7 +205,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&work->flip_work, amdgpu_display_flip_work_func);
 	INIT_WORK(&work->unpin_work, amdgpu_display_unpin_work_func);
@@ -265,7 +265,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 
 	/* we borrow the event spin lock for protecting flip_wrok */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_NONE) {
+	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_ANALNE) {
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		r = -EBUSY;
@@ -340,7 +340,7 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 		adev->have_disp_power_ref = true;
 		return ret;
 	}
-	/* if we have no active crtcs, then go to
+	/* if we have anal active crtcs, then go to
 	 * drop the power ref we got before
 	 */
 	if (!active && adev->have_disp_power_ref)
@@ -352,7 +352,7 @@ out:
 }
 
 static const char *encoder_names[41] = {
-	"NONE",
+	"ANALNE",
 	"INTERNAL_LVDS",
 	"INTERNAL_TMDS1",
 	"INTERNAL_TMDS2",
@@ -420,7 +420,7 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 		amdgpu_connector = to_amdgpu_connector(connector);
 		DRM_INFO("Connector %d:\n", i);
 		DRM_INFO("  %s\n", connector->name);
-		if (amdgpu_connector->hpd.hpd != AMDGPU_HPD_NONE)
+		if (amdgpu_connector->hpd.hpd != AMDGPU_HPD_ANALNE)
 			DRM_INFO("  %s\n", hpd_names[amdgpu_connector->hpd.hpd]);
 		if (amdgpu_connector->ddc_bus) {
 			DRM_INFO("  DDC: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
@@ -447,7 +447,7 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
-				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+				DRM_INFO("  DDC: anal ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
 		}
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -537,7 +537,7 @@ static int amdgpu_dirtyfb(struct drm_framebuffer *fb, struct drm_file *file,
 {
 
 	if (file)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return drm_atomic_helper_dirtyfb(fb, file, flags, color, clips,
 					 num_clips);
@@ -562,10 +562,10 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 #if defined(CONFIG_DRM_AMD_DC)
 	/*
 	 * if amdgpu_bo_support_uswc returns false it means that USWC mappings
-	 * is not supported for this board. But this mapping is required
-	 * to avoid hang caused by placement of scanout BO in GTT on certain
+	 * is analt supported for this board. But this mapping is required
+	 * to avoid hang caused by placement of scaanalut BO in GTT on certain
 	 * APUs. So force the BO placement to VRAM in case this architecture
-	 * will not allow USWC mappings.
+	 * will analt allow USWC mappings.
 	 * Also, don't allow GTT domain if the BO doesn't have USWC flag set.
 	 */
 	if ((bo_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) &&
@@ -861,11 +861,11 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 				AMDGPU_TILING_GET(afb->tiling_flags, DCC_PITCH_MAX) + 1;
 
 			/*
-			 * If the userspace driver uses retiling the tiling flags do not contain
+			 * If the userspace driver uses retiling the tiling flags do analt contain
 			 * info on the renderable DCC buffer. Luckily the opaque metadata contains
-			 * the info so we can try to extract it. The kernel does not use this info
+			 * the info so we can try to extract it. The kernel does analt use this info
 			 * but we should convert it to a modifier plane for getfb2, so the
-			 * userspace driver that gets it doesn't have to juggle around another DCC
+			 * userspace driver that gets it doesn't have to juggle around aanalther DCC
 			 * plane internally.
 			 */
 			if (extract_render_dcc_offset(adev, afb->base.obj[0],
@@ -928,7 +928,7 @@ static int check_tiling_flags_gfx6(struct amdgpu_framebuffer *afb)
 		return 0;
 	default:
 		drm_dbg_kms(afb->base.dev,
-			    "Micro tile mode %llu not supported for scanout\n",
+			    "Micro tile mode %llu analt supported for scaanalut\n",
 			    micro_tile_mode);
 		return -EINVAL;
 	}
@@ -993,7 +993,7 @@ static int amdgpu_display_verify_plane(struct amdgpu_framebuffer *rfb, int plane
 
 	if (rfb->base.pitches[plane] % block_pitch) {
 		drm_dbg_kms(rfb->base.dev,
-			    "pitch %d for plane %d is not a multiple of block pitch %d\n",
+			    "pitch %d for plane %d is analt a multiple of block pitch %d\n",
 			    rfb->base.pitches[plane], plane, block_pitch);
 		return -EINVAL;
 	}
@@ -1007,7 +1007,7 @@ static int amdgpu_display_verify_plane(struct amdgpu_framebuffer *rfb, int plane
 	/* Force at least natural alignment. */
 	if (rfb->base.offsets[plane] % block_size) {
 		drm_dbg_kms(rfb->base.dev,
-			    "offset 0x%x for plane %d is not a multiple of block pitch 0x%x\n",
+			    "offset 0x%x for plane %d is analt a multiple of block pitch 0x%x\n",
 			    rfb->base.offsets[plane], plane, block_size);
 		return -EINVAL;
 	}
@@ -1034,7 +1034,7 @@ static int amdgpu_display_verify_sizes(struct amdgpu_framebuffer *rfb)
 	int ret;
 	unsigned int i, block_width, block_height, block_size_log2;
 
-	if (rfb->base.dev->mode_config.fb_modifiers_not_supported)
+	if (rfb->base.dev->mode_config.fb_modifiers_analt_supported)
 		return 0;
 
 	for (i = 0; i < format_info->num_planes; ++i) {
@@ -1063,7 +1063,7 @@ static int amdgpu_display_verify_sizes(struct amdgpu_framebuffer *rfb)
 				break;
 			default:
 				drm_dbg_kms(rfb->base.dev,
-					    "Swizzle mode with unknown block size: %d\n", swizzle);
+					    "Swizzle mode with unkanalwn block size: %d\n", swizzle);
 				return -EINVAL;
 			}
 
@@ -1205,7 +1205,7 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	if (dev->mode_config.fb_modifiers_not_supported && !adev->enable_virtual_display) {
+	if (dev->mode_config.fb_modifiers_analt_supported && !adev->enable_virtual_display) {
 		drm_WARN_ONCE(dev, adev->family >= AMDGPU_FAMILY_AI,
 			      "GFX9+ requires FB check based on format modifier\n");
 		ret = check_tiling_flags_gfx6(rfb);
@@ -1213,7 +1213,7 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 			return ret;
 	}
 
-	if (!dev->mode_config.fb_modifiers_not_supported &&
+	if (!dev->mode_config.fb_modifiers_analt_supported &&
 	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
 		ret = convert_tiling_flags_to_modifier(rfb);
 		if (ret) {
@@ -1249,17 +1249,17 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
 		drm_dbg_kms(dev,
-			    "No GEM object associated to handle 0x%08X, can't create framebuffer\n",
+			    "Anal GEM object associated to handle 0x%08X, can't create framebuffer\n",
 			    mode_cmd->handles[0]);
 
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
-	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
+	/* Handle is imported dma-buf, so cananalt be migrated to VRAM for scaanalut */
 	bo = gem_to_amdgpu_bo(obj);
 	domains = amdgpu_display_supported_domains(drm_to_adev(dev), bo->flags);
 	if (obj->import_attach && !(domains & AMDGPU_GEM_DOMAIN_GTT)) {
-		drm_dbg_kms(dev, "Cannot create framebuffer from imported dma_buf\n");
+		drm_dbg_kms(dev, "Cananalt create framebuffer from imported dma_buf\n");
 		drm_gem_object_put(obj);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1267,7 +1267,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	amdgpu_fb = kzalloc(sizeof(*amdgpu_fb), GFP_KERNEL);
 	if (amdgpu_fb == NULL) {
 		drm_gem_object_put(obj);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	ret = amdgpu_display_gem_fb_verify_and_init(dev, amdgpu_fb, file_priv,
@@ -1311,12 +1311,12 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 	adev->mode_info.coherent_mode_property =
 		drm_property_create_range(adev_to_drm(adev), 0, "coherent", 0, 1);
 	if (!adev->mode_info.coherent_mode_property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->mode_info.load_detect_property =
 		drm_property_create_range(adev_to_drm(adev), 0, "load detection", 0, 1);
 	if (!adev->mode_info.load_detect_property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_create_scaling_mode_property(adev_to_drm(adev));
 
@@ -1330,13 +1330,13 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 		drm_property_create_range(adev_to_drm(adev), 0,
 					  "underscan hborder", 0, 128);
 	if (!adev->mode_info.underscan_hborder_property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->mode_info.underscan_vborder_property =
 		drm_property_create_range(adev_to_drm(adev), 0,
 					  "underscan vborder", 0, 128);
 	if (!adev->mode_info.underscan_vborder_property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sz = ARRAY_SIZE(amdgpu_audio_enum_list);
 	adev->mode_info.audio_property =
@@ -1355,7 +1355,7 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 			drm_property_create_range(adev_to_drm(adev), 0,
 						  "abm level", 0, 4);
 		if (!adev->mode_info.abm_level_property)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1459,7 +1459,7 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 }
 
 /*
- * Retrieve current video scanout position of crtc on a given gpu, and
+ * Retrieve current video scaanalut position of crtc on a given gpu, and
  * an optional accurate timestamp of when query happened.
  *
  * \param dev Device to query.
@@ -1474,28 +1474,28 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  *              fudged earlier start of vblank in *vpos and the distance
  *              to true start of vblank in *hpos.
  *
- * \param *vpos Location where vertical scanout position should be stored.
- * \param *hpos Location where horizontal scanout position should go.
+ * \param *vpos Location where vertical scaanalut position should be stored.
+ * \param *hpos Location where horizontal scaanalut position should go.
  * \param *stime Target location for timestamp taken immediately before
- *               scanout position query. Can be NULL to skip timestamp.
+ *               scaanalut position query. Can be NULL to skip timestamp.
  * \param *etime Target location for timestamp taken immediately after
- *               scanout position query. Can be NULL to skip timestamp.
+ *               scaanalut position query. Can be NULL to skip timestamp.
  *
- * Returns vpos as a positive number while in active scanout area.
+ * Returns vpos as a positive number while in active scaanalut area.
  * Returns vpos as a negative number inside vblank, counting the number
  * of scanlines to go until end of vblank, e.g., -1 means "one scanline
- * until start of active scanout / end of vblank."
+ * until start of active scaanalut / end of vblank."
  *
  * \return Flags, or'ed together as follows:
  *
- * DRM_SCANOUTPOS_VALID = Query successful.
- * DRM_SCANOUTPOS_INVBL = Inside vblank.
- * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
+ * DRM_SCAANALUTPOS_VALID = Query successful.
+ * DRM_SCAANALUTPOS_INVBL = Inside vblank.
+ * DRM_SCAANALUTPOS_ACCURATE = Returned position is accurate. A lack of
  * this flag means that returned position may be offset by a constant but
- * unknown small number of scanlines wrt. real scanout position.
+ * unkanalwn small number of scanlines wrt. real scaanalut position.
  *
  */
-int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
+int amdgpu_display_get_crtc_scaanalutpos(struct drm_device *dev,
 			unsigned int pipe, unsigned int flags, int *vpos,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode)
@@ -1512,8 +1512,8 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	if (stime)
 		*stime = ktime_get();
 
-	if (amdgpu_display_page_flip_get_scanoutpos(adev, pipe, &vbl, &position) == 0)
-		ret |= DRM_SCANOUTPOS_VALID;
+	if (amdgpu_display_page_flip_get_scaanalutpos(adev, pipe, &vbl, &position) == 0)
+		ret |= DRM_SCAANALUTPOS_VALID;
 
 	/* Get optional system timestamp after query. */
 	if (etime)
@@ -1521,18 +1521,18 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 
 	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
-	/* Decode into vertical and horizontal scanout position. */
+	/* Decode into vertical and horizontal scaanalut position. */
 	*vpos = position & 0x1fff;
 	*hpos = (position >> 16) & 0x1fff;
 
 	/* Valid vblank area boundaries from gpu retrieved? */
 	if (vbl > 0) {
-		/* Yes: Decode. */
-		ret |= DRM_SCANOUTPOS_ACCURATE;
+		/* Anal: Decode. */
+		ret |= DRM_SCAANALUTPOS_ACCURATE;
 		vbl_start = vbl & 0x1fff;
 		vbl_end = (vbl >> 16) & 0x1fff;
 	} else {
-		/* No: Fake something reasonable which gives at least ok results. */
+		/* Anal: Fake something reasonable which gives at least ok results. */
 		vbl_start = mode->crtc_vdisplay;
 		vbl_end = 0;
 	}
@@ -1550,19 +1550,19 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	 *
 	 * The cause of the "early" vblank irq is that the irq is triggered
 	 * by the line buffer logic when the line buffer read position enters
-	 * the vblank, whereas our crtc scanout position naturally lags the
+	 * the vblank, whereas our crtc scaanalut position naturally lags the
 	 * line buffer read position.
 	 */
 	if (!(flags & USE_REAL_VBLANKSTART))
 		vbl_start -= adev->mode_info.crtcs[pipe]->lb_vblank_lead_lines;
 
-	/* Test scanout position against vblank region. */
+	/* Test scaanalut position against vblank region. */
 	if ((*vpos < vbl_start) && (*vpos >= vbl_end))
 		in_vbl = false;
 
 	/* In vblank? */
 	if (in_vbl)
-		ret |= DRM_SCANOUTPOS_IN_VBLANK;
+		ret |= DRM_SCAANALUTPOS_IN_VBLANK;
 
 	/* Called from driver internal vblank counter query code? */
 	if (flags & GET_DISTANCE_TO_VBLANKSTART) {
@@ -1572,9 +1572,9 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	}
 
 	/* Check if inside vblank area and apply corrective offsets:
-	 * vpos will then be >=0 in video scanout area, but negative
+	 * vpos will then be >=0 in video scaanalut area, but negative
 	 * within vblank area, counting down the number of lines until
-	 * start of scanout.
+	 * start of scaanalut.
 	 */
 
 	/* Inside "upper part" of vblank area? Apply corrective offset if so: */
@@ -1583,7 +1583,7 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 
 		/* With variable refresh rate displays the vpos can exceed
 		 * the vtotal value. Clamp to 0 to return -vbl_end instead
-		 * of guessing the remaining number of lines until scanout.
+		 * of guessing the remaining number of lines until scaanalut.
 		 */
 		*vpos = (*vpos < vtotal) ? (*vpos - vtotal) : 0;
 	}
@@ -1597,7 +1597,7 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 int amdgpu_display_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc)
 {
 	if (crtc < 0 || crtc >= adev->mode_info.num_crtc)
-		return AMDGPU_CRTC_IRQ_NONE;
+		return AMDGPU_CRTC_IRQ_ANALNE;
 
 	switch (crtc) {
 	case 0:
@@ -1613,11 +1613,11 @@ int amdgpu_display_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc)
 	case 5:
 		return AMDGPU_CRTC_IRQ_VBLANK6;
 	default:
-		return AMDGPU_CRTC_IRQ_NONE;
+		return AMDGPU_CRTC_IRQ_ANALNE;
 	}
 }
 
-bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
+bool amdgpu_crtc_get_scaanalut_position(struct drm_crtc *crtc,
 			bool in_vblank_irq, int *vpos,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode)
@@ -1625,7 +1625,7 @@ bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
 
-	return amdgpu_display_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
+	return amdgpu_display_get_crtc_scaanalutpos(dev, pipe, 0, vpos, hpos,
 						  stime, etime, mode);
 }
 

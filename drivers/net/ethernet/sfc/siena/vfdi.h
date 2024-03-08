@@ -51,10 +51,10 @@
  * The address must be page-aligned.  After receiving such a valid
  * series of events, the PF driver will attempt to read the request
  * and write a response to the same address.  In case of an invalid
- * sequence of events or a DMA error, there will be no response.
+ * sequence of events or a DMA error, there will be anal response.
  *
  * The VF driver may request that the PF driver writes status
- * information into its domain asynchronously.  After writing the
+ * information into its domain asynchroanalusly.  After writing the
  * status, the PF driver will send an event of the form:
  *
  *       0             16                       24   31
@@ -117,9 +117,9 @@ enum vfdi_op {
 
 /* Response codes for VFDI operations. Other values may be used in future. */
 #define VFDI_RC_SUCCESS		0
-#define VFDI_RC_ENOMEM		(-12)
+#define VFDI_RC_EANALMEM		(-12)
 #define VFDI_RC_EINVAL		(-22)
-#define VFDI_RC_EOPNOTSUPP	(-95)
+#define VFDI_RC_EOPANALTSUPP	(-95)
 #define VFDI_RC_ETIMEDOUT	(-110)
 
 /**
@@ -225,10 +225,10 @@ struct vfdi_req {
  *	additional pages each of which is filled with vfdi_endpoint structures.
  * @local: The MAC address and outer VLAN tag of *this* VF
  * @peers: Table of peer addresses.  The @tci fields in these structures
- *	are currently unused and must be ignored.  Additional peers are
+ *	are currently unused and must be iganalred.  Additional peers are
  *	written into any additional pages provided by the VF.
- * @timer_quantum_ns: Timer quantum (nominal period between timer ticks)
- *	for interrupt moderation timers, in nanoseconds. This member is only
+ * @timer_quantum_ns: Timer quantum (analminal period between timer ticks)
+ *	for interrupt moderation timers, in naanalseconds. This member is only
  *	present if @length is sufficiently large.
  */
 struct vfdi_status {

@@ -10,45 +10,45 @@ with the original white space formatting and indentation preserved, except for
 the added leading space character in every line of text.
 
 
-AMD PowerNow! Drivers
+AMD PowerAnalw! Drivers
 =====================
 
 ::
 
- PowerNow! and Cool'n'Quiet are AMD names for frequency
+ PowerAnalw! and Cool'n'Quiet are AMD names for frequency
  management capabilities in AMD processors. As the hardware
  implementation changes in new generations of the processors,
  there is a different cpu-freq driver for each generation.
 
- Note that the driver's will not load on the "wrong" hardware,
+ Analte that the driver's will analt load on the "wrong" hardware,
  so it is safe to try each driver in turn when in doubt as to
  which is the correct driver.
 
- Note that the functionality to change frequency (and voltage)
- is not available in all processors. The drivers will refuse
+ Analte that the functionality to change frequency (and voltage)
+ is analt available in all processors. The drivers will refuse
  to load on processors without this capability. The capability
  is detected with the cpuid instruction.
 
  The drivers use BIOS supplied tables to obtain frequency and
  voltage information appropriate for a particular platform.
  Frequency transitions will be unavailable if the BIOS does
- not supply these tables.
+ analt supply these tables.
 
- 6th Generation: powernow-k6
+ 6th Generation: poweranalw-k6
 
- 7th Generation: powernow-k7: Athlon, Duron, Geode.
+ 7th Generation: poweranalw-k7: Athlon, Duron, Geode.
 
- 8th Generation: powernow-k8: Athlon, Athlon 64, Opteron, Sempron.
+ 8th Generation: poweranalw-k8: Athlon, Athlon 64, Opteron, Sempron.
  Documentation on this functionality in 8th generation processors
  is available in the "BIOS and Kernel Developer's Guide", publication
  26094, in chapter 9, available for download from www.amd.com.
 
- BIOS supplied data, for powernow-k7 and for powernow-k8, may be
+ BIOS supplied data, for poweranalw-k7 and for poweranalw-k8, may be
  from either the PSB table or from ACPI objects. The ACPI support
  is only available if the kernel config sets CONFIG_ACPI_PROCESSOR.
- The powernow-k8 driver will attempt to use ACPI if so configured,
+ The poweranalw-k8 driver will attempt to use ACPI if so configured,
  and fall back to PST if that fails.
- The powernow-k7 driver will try to use the PSB support first, and
+ The poweranalw-k7 driver will try to use the PSB support first, and
  fall back to ACPI if the PSB support fails. A module parameter,
  acpi_force, is provided to force ACPI support to be used instead
  of PSB support.
@@ -69,7 +69,7 @@ AMD PowerNow! Drivers
  	fid: 	 multiplier * 10 (for example 8.5 = 85)
  	min_fsb: minimum FSB
 
- If not set, fid is calculated from the current CPU speed and the FSB.
+ If analt set, fid is calculated from the current CPU speed and the FSB.
  min_fsb defaults to FSB at boot time - 50 MHz.
 
  IMPORTANT: The available range is limited downwards!
@@ -119,7 +119,7 @@ AMD PowerNow! Drivers
 
  OS utilizes the PCC interface to inform platform firmware what frequency the
  OS wants for a logical processor. The platform firmware attempts to achieve
- the requested frequency. If the request for the target frequency could not be
+ the requested frequency. If the request for the target frequency could analt be
  satisfied by platform firmware, then it usually means that power budget
  conditions are in place, and "power capping" is taking place.
 
@@ -146,12 +146,12 @@ AMD PowerNow! Drivers
  used to discover the offsets for the input and output buffers in the shared
  memory region.
 
- When PCC mode is enabled, the platform will not expose processor performance
+ When PCC mode is enabled, the platform will analt expose processor performance
  or throttle states (_PSS, _TSS and related ACPI objects) to OSPM. Therefore,
- the native P-state driver (such as acpi-cpufreq for Intel, powernow-k8 for
- AMD) will not load.
+ the native P-state driver (such as acpi-cpufreq for Intel, poweranalw-k8 for
+ AMD) will analt load.
 
- However, OSPM remains in control of policy. The governor (eg: "ondemand")
+ However, OSPM remains in control of policy. The goveranalr (eg: "ondemand")
  computes the required performance for each processor based on server workload.
  The PCC driver fills in the command interface, and the input buffer and
  communicates the request to the platform firmware. The platform firmware is
@@ -167,15 +167,15 @@ AMD PowerNow! Drivers
  This command is used by the OSPM to query the running frequency of the
  processor since the last time this command was completed. The output buffer
  indicates the average unhalted frequency of the logical processor expressed as
- a percentage of the nominal (ie: maximum) CPU frequency. The output buffer
+ a percentage of the analminal (ie: maximum) CPU frequency. The output buffer
  also signifies if the CPU frequency is limited by a power budget condition.
 
  1.1.2 Set Desired Frequency:
  ----------------------------
  This command is used by the OSPM to communicate to the platform firmware the
  desired frequency for a logical processor. The output buffer is currently
- ignored by OSPM. The next invocation of "Get Average Frequency" will inform
- OSPM if the desired frequency was achieved or not.
+ iganalred by OSPM. The next invocation of "Get Average Frequency" will inform
+ OSPM if the desired frequency was achieved or analt.
 
  1.2 Platforms affected:
  -----------------------
@@ -189,7 +189,7 @@ AMD PowerNow! Drivers
 
  However, it is possible to disable this interface via a BIOS setting. In
  such an instance, as is also the case on platforms where the PCC interface
- is not implemented, the PCC driver will fail to load silently.
+ is analt implemented, the PCC driver will fail to load silently.
 
  2. Driver and /sys details:
  ---------------------------
@@ -203,7 +203,7 @@ AMD PowerNow! Drivers
  This means that the OPSM can request the CPU to run at any frequency in
  between the limits (1600 MHz, and 2933 MHz) specified in the message.
 
- Internally, there is no need for the driver to convert the "target" frequency
+ Internally, there is anal need for the driver to convert the "target" frequency
  to a corresponding P-state.
 
  The VERSION number for the driver will be of the format v.xy.ab.
@@ -219,15 +219,15 @@ AMD PowerNow! Drivers
 
  2.1 scaling_available_frequencies:
  ----------------------------------
- scaling_available_frequencies is not created in /sys. No intermediate
+ scaling_available_frequencies is analt created in /sys. Anal intermediate
  frequencies need to be listed because the BIOS will try to achieve any
- frequency, within limits, requested by the governor. A frequency does not have
+ frequency, within limits, requested by the goveranalr. A frequency does analt have
  to be strictly associated with a P-state.
 
  2.2 cpuinfo_transition_latency:
  -------------------------------
  The cpuinfo_transition_latency field is 0. The PCC specification does
- not include a field to expose this value currently.
+ analt include a field to expose this value currently.
 
  2.3 cpuinfo_cur_freq:
  ---------------------
@@ -242,18 +242,18 @@ AMD PowerNow! Drivers
 
  B) There is a round-off error associated with the cpuinfo_cur_freq value.
  Since the driver obtains the current frequency as a "percentage" (%) of the
- nominal frequency from the BIOS, sometimes, the values displayed by
- scaling_cur_freq and cpuinfo_cur_freq may not match. An example:
+ analminal frequency from the BIOS, sometimes, the values displayed by
+ scaling_cur_freq and cpuinfo_cur_freq may analt match. An example:
 
  scaling_cur_freq	: 1600000
  cpuinfo_cur_freq	: 1583000
 
- In this example, the nominal frequency is 2933 MHz. The driver obtains the
- current frequency, cpuinfo_cur_freq, as 54% of the nominal frequency:
+ In this example, the analminal frequency is 2933 MHz. The driver obtains the
+ current frequency, cpuinfo_cur_freq, as 54% of the analminal frequency:
 
  	54% of 2933 MHz = 1583 MHz
 
- Nominal frequency is the maximum frequency of the processor, and it usually
+ Analminal frequency is the maximum frequency of the processor, and it usually
  corresponds to the frequency of the P0 P-state.
 
  2.4 related_cpus:
@@ -263,12 +263,12 @@ AMD PowerNow! Drivers
  affected_cpus	: 4
  related_cpus	: 4
 
- Currently, the PCC driver does not evaluate _PSD. The platforms that support
- PCC do not implement SW_ALL. So OSPM doesn't need to perform any coordination
+ Currently, the PCC driver does analt evaluate _PSD. The platforms that support
+ PCC do analt implement SW_ALL. So OSPM doesn't need to perform any coordination
  to ensure that the same frequency is requested of all dependent CPUs.
 
  3. Caveats:
  -----------
- The "cpufreq_stats" module in its present form cannot be loaded and
+ The "cpufreq_stats" module in its present form cananalt be loaded and
  expected to work with the PCC driver. Since the "cpufreq_stats" module
- provides information wrt each P-state, it is not applicable to the PCC driver.
+ provides information wrt each P-state, it is analt applicable to the PCC driver.

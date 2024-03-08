@@ -40,7 +40,7 @@ static void usb6fire_midi_out_handler(struct urb *urb)
 				dev_err(&urb->dev->dev,
 					"midi out urb submit failed: %d\n",
 					ret);
-		} else /* no more data to transmit */
+		} else /* anal more data to transmit */
 			rt->out = NULL;
 	}
 	spin_unlock_irqrestore(&rt->out_lock, flags);
@@ -156,12 +156,12 @@ int usb6fire_midi_init(struct sfire_chip *chip)
 	struct comm_runtime *comm_rt = chip->comm;
 
 	if (!rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt->out_buffer = kzalloc(MIDI_BUFSIZE, GFP_KERNEL);
 	if (!rt->out_buffer) {
 		kfree(rt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rt->chip = chip;

@@ -35,7 +35,7 @@ void inet_twsk_bind_unhash(struct inet_timewait_sock *tw,
 	if (!tb)
 		return;
 
-	__sk_del_bind_node((struct sock *)tw);
+	__sk_del_bind_analde((struct sock *)tw);
 	tw->tw_tb = NULL;
 	tw->tw_tb2 = NULL;
 	inet_bind2_bucket_destroy(hashinfo->bind2_bucket_cachep, tb2);
@@ -52,7 +52,7 @@ static void inet_twsk_kill(struct inet_timewait_sock *tw)
 	struct inet_bind_hashbucket *bhead, *bhead2;
 
 	spin_lock(lock);
-	sk_nulls_del_node_init_rcu((struct sock *)tw);
+	sk_nulls_del_analde_init_rcu((struct sock *)tw);
 	spin_unlock(lock);
 
 	/* Disassociate with bind bucket. */
@@ -86,10 +86,10 @@ void inet_twsk_put(struct inet_timewait_sock *tw)
 }
 EXPORT_SYMBOL_GPL(inet_twsk_put);
 
-static void inet_twsk_add_node_rcu(struct inet_timewait_sock *tw,
+static void inet_twsk_add_analde_rcu(struct inet_timewait_sock *tw,
 				   struct hlist_nulls_head *list)
 {
-	hlist_nulls_add_head_rcu(&tw->tw_node, list);
+	hlist_nulls_add_head_rcu(&tw->tw_analde, list);
 }
 
 /*
@@ -107,7 +107,7 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	struct inet_bind_hashbucket *bhead, *bhead2;
 
 	/* Step 1: Put TW into bind hash. Original socket stays there too.
-	   Note, that any socket with inet->num != 0 MUST be bound in
+	   Analte, that any socket with inet->num != 0 MUST be bound in
 	   binding cache, even if it is closed.
 	 */
 	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), inet->inet_num,
@@ -122,17 +122,17 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 
 	tw->tw_tb2 = icsk->icsk_bind2_hash;
 	WARN_ON(!icsk->icsk_bind2_hash);
-	sk_add_bind_node((struct sock *)tw, &tw->tw_tb2->owners);
+	sk_add_bind_analde((struct sock *)tw, &tw->tw_tb2->owners);
 
 	spin_unlock(&bhead2->lock);
 	spin_unlock(&bhead->lock);
 
 	spin_lock(lock);
 
-	inet_twsk_add_node_rcu(tw, &ehead->chain);
+	inet_twsk_add_analde_rcu(tw, &ehead->chain);
 
 	/* Step 3: Remove SK from hash chain */
-	if (__sk_nulls_del_node_init_rcu(sk))
+	if (__sk_nulls_del_analde_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 
 	spin_unlock(lock);
@@ -143,8 +143,8 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	 * - one reference for timer.
 	 * We can use atomic_set() because prior spin_lock()/spin_unlock()
 	 * committed into memory all tw fields.
-	 * Also note that after this point, we lost our implicit reference
-	 * so we are not allowed to use tw anymore.
+	 * Also analte that after this point, we lost our implicit reference
+	 * so we are analt allowed to use tw anymore.
 	 */
 	refcount_set(&tw->tw_refcnt, 3);
 }
@@ -194,8 +194,8 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
 		twsk_net_set(tw, sock_net(sk));
 		timer_setup(&tw->tw_timer, tw_timer_handler, TIMER_PINNED);
 		/*
-		 * Because we use RCU lookups, we should not set tw_refcnt
-		 * to a non null value before everything is setup for this
+		 * Because we use RCU lookups, we should analt set tw_refcnt
+		 * to a analn null value before everything is setup for this
 		 * timewait socket.
 		 */
 		refcount_set(&tw->tw_refcnt, 0);
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(inet_twsk_alloc);
 
 /* This is for handling early-kills of TIME_WAIT sockets.
  * Warning : consume reference.
- * Caller should not access tw anymore.
+ * Caller should analt access tw anymore.
  */
 void inet_twsk_deschedule_put(struct inet_timewait_sock *tw)
 {
@@ -234,13 +234,13 @@ void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo, bool rearm)
 	 * FINs (or previous seqments) are lost (probability of such event
 	 * is p^(N+1), where p is probability to lose single packet and
 	 * time to detect the loss is about RTO*(2^N - 1) with exponential
-	 * backoff). Normal timewait length is calculated so, that we
+	 * backoff). Analrmal timewait length is calculated so, that we
 	 * waited at least for one retransmitted FIN (maximal RTO is 120sec).
 	 * [ BTW Linux. following BSD, violates this requirement waiting
 	 *   only for 60sec, we should wait at least for 240 secs.
 	 *   Well, 240 consumes too much of resources 8)
 	 * ]
-	 * This interval is not reduced to catch old duplicate and
+	 * This interval is analt reduced to catch old duplicate and
 	 * responces to our wandering segments living for two MSLs.
 	 * However, if we use PAWS to detect
 	 * old duplicates, we can reduce the interval to bounds required
@@ -267,7 +267,7 @@ void inet_twsk_purge(struct inet_hashinfo *hashinfo, int family)
 {
 	struct inet_timewait_sock *tw;
 	struct sock *sk;
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_analde *analde;
 	unsigned int slot;
 
 	for (slot = 0; slot <= hashinfo->ehash_mask; slot++) {
@@ -276,9 +276,9 @@ restart_rcu:
 		cond_resched();
 		rcu_read_lock();
 restart:
-		sk_nulls_for_each_rcu(sk, node, &head->chain) {
+		sk_nulls_for_each_rcu(sk, analde, &head->chain) {
 			if (sk->sk_state != TCP_TIME_WAIT) {
-				/* A kernel listener socket might not hold refcnt for net,
+				/* A kernel listener socket might analt hold refcnt for net,
 				 * so reqsk_timer_handler() could be fired after net is
 				 * freed.  Userspace listener and reqsk never exist here.
 				 */
@@ -297,7 +297,7 @@ restart:
 				refcount_read(&twsk_net(tw)->ns.count))
 				continue;
 
-			if (unlikely(!refcount_inc_not_zero(&tw->tw_refcnt)))
+			if (unlikely(!refcount_inc_analt_zero(&tw->tw_refcnt)))
 				continue;
 
 			if (unlikely((tw->tw_family != family) ||
@@ -313,10 +313,10 @@ restart:
 			goto restart_rcu;
 		}
 		/* If the nulls value we got at the end of this lookup is
-		 * not the expected one, we must restart lookup.
-		 * We probably met an item that was moved to another chain.
+		 * analt the expected one, we must restart lookup.
+		 * We probably met an item that was moved to aanalther chain.
 		 */
-		if (get_nulls_value(node) != slot)
+		if (get_nulls_value(analde) != slot)
 			goto restart;
 		rcu_read_unlock();
 	}

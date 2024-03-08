@@ -71,19 +71,19 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 
 	osc = devm_kzalloc(&pdev->dev, sizeof(*osc), GFP_KERNEL);
 	if (!osc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	osc->reg = devm_regmap_init_vexpress_config(&pdev->dev);
 	if (IS_ERR(osc->reg))
 		return PTR_ERR(osc->reg);
 
-	if (of_property_read_u32_array(pdev->dev.of_node, "freq-range", range,
+	if (of_property_read_u32_array(pdev->dev.of_analde, "freq-range", range,
 			ARRAY_SIZE(range)) == 0) {
 		osc->rate_min = range[0];
 		osc->rate_max = range[1];
 	}
 
-	if (of_property_read_string(pdev->dev.of_node, "clock-output-names",
+	if (of_property_read_string(pdev->dev.of_analde, "clock-output-names",
 			&init.name) != 0)
 		init.name = dev_name(&pdev->dev);
 

@@ -85,7 +85,7 @@ static int __maybe_unused apmu_wrap(int cpu, int (*fn)(void __iomem *p, int cpu)
 }
 
 #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_SUSPEND)
-/* nicked from arch/arm/mach-exynos/hotplug.c */
+/* nicked from arch/arm/mach-exyanals/hotplug.c */
 static inline void cpu_enter_lowpower_a15(void)
 {
 	unsigned int v;
@@ -208,11 +208,11 @@ static const struct of_device_id apmu_ids[] = {
 
 static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 {
-	struct device_node *np_apmu, *np_cpu;
+	struct device_analde *np_apmu, *np_cpu;
 	struct resource res;
 	int bit, index;
 
-	for_each_matching_node(np_apmu, apmu_ids) {
+	for_each_matching_analde(np_apmu, apmu_ids) {
 		/* only enable the cluster that includes the boot CPU */
 		bool is_allowed = false;
 
@@ -220,12 +220,12 @@ static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 			np_cpu = of_parse_phandle(np_apmu, "cpus", bit);
 			if (!np_cpu)
 				break;
-			if (of_cpu_node_to_id(np_cpu) == 0) {
+			if (of_cpu_analde_to_id(np_cpu) == 0) {
 				is_allowed = true;
-				of_node_put(np_cpu);
+				of_analde_put(np_cpu);
 				break;
 			}
-			of_node_put(np_cpu);
+			of_analde_put(np_cpu);
 		}
 		if (!is_allowed)
 			continue;
@@ -235,12 +235,12 @@ static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 			if (!np_cpu)
 				break;
 
-			index = of_cpu_node_to_id(np_cpu);
+			index = of_cpu_analde_to_id(np_cpu);
 			if ((index >= 0) &&
 			    !of_address_to_resource(np_apmu, 0, &res))
 				fn(&res, index, bit);
 
-			of_node_put(np_cpu);
+			of_analde_put(np_cpu);
 		}
 	}
 }

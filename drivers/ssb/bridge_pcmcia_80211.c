@@ -28,14 +28,14 @@ MODULE_DEVICE_TABLE(pcmcia, ssb_host_pcmcia_tbl);
 static int ssb_host_pcmcia_probe(struct pcmcia_device *dev)
 {
 	struct ssb_bus *ssb;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int res = 0;
 
 	ssb = kzalloc(sizeof(*ssb), GFP_KERNEL);
 	if (!ssb)
 		goto out_error;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 
 	dev->config_flags |= CONF_ENABLE_IRQ;
 
@@ -116,8 +116,8 @@ static struct pcmcia_driver ssb_host_pcmcia_driver = {
 static int pcmcia_init_failed;
 
 /*
- * These are not module init/exit functions!
- * The module_pcmcia_driver() helper cannot be used here.
+ * These are analt module init/exit functions!
+ * The module_pcmcia_driver() helper cananalt be used here.
  */
 int ssb_host_pcmcia_init(void)
 {

@@ -53,7 +53,7 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	if (mw->ibmw.type == IB_MW_TYPE_1) {
 		if (unlikely(mw->state != RXE_MW_STATE_VALID)) {
 			rxe_dbg_mw(mw,
-				"attempt to bind a type 1 MW not in the valid state\n");
+				"attempt to bind a type 1 MW analt in the valid state\n");
 			return -EINVAL;
 		}
 
@@ -68,7 +68,7 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		/* o10-37.2.30 */
 		if (unlikely(mw->state != RXE_MW_STATE_FREE)) {
 			rxe_dbg_mw(mw,
-				"attempt to bind a type 2 MW not in the free state\n");
+				"attempt to bind a type 2 MW analt in the free state\n");
 			return -EINVAL;
 		}
 
@@ -87,7 +87,7 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		}
 	}
 
-	/* remaining checks only apply to a nonzero MR */
+	/* remaining checks only apply to a analnzero MR */
 	if (!mr)
 		return 0;
 
@@ -198,8 +198,8 @@ int rxe_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	}
 
 	if (access & ~RXE_ACCESS_SUPPORTED_MW) {
-		rxe_err_mw(mw, "access %#x not supported", access);
-		ret = -EOPNOTSUPP;
+		rxe_err_mw(mw, "access %#x analt supported", access);
+		ret = -EOPANALTSUPP;
 		goto err_drop_mr;
 	}
 

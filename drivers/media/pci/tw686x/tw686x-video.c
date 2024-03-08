@@ -116,7 +116,7 @@ static int tw686x_memcpy_dma_alloc(struct tw686x_video_channel *vc,
 		v4l2_err(&dev->v4l2_dev,
 			 "dma%d: unable to allocate %s-buffer\n",
 			 vc->ch, pb ? "B" : "P");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	vc->dma_descs[pb].size = len;
 	vc->dma_descs[pb].virt = virt;
@@ -201,7 +201,7 @@ static int tw686x_sg_desc_fill(struct tw686x_sg_desc *descs,
 		while (len && buf_len) {
 
 			if (count == TW686X_MAX_SG_DESC_COUNT)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			entry_len = min_t(unsigned int, len,
 					  TW686X_MAX_SG_ENTRY_SIZE);
@@ -218,7 +218,7 @@ static int tw686x_sg_desc_fill(struct tw686x_sg_desc *descs,
 			return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void tw686x_sg_buf_refill(struct tw686x_video_channel *vc,
@@ -282,7 +282,7 @@ static int tw686x_sg_dma_alloc(struct tw686x_video_channel *vc,
 			v4l2_err(&dev->v4l2_dev,
 				 "dma%d: unable to allocate %s-buffer\n",
 				 vc->ch, pb ? "B" : "P");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		desc->virt = virt;
 		reg_write(dev, reg, desc->phys);
@@ -503,7 +503,7 @@ static int tw686x_start_streaming(struct vb2_queue *vq, unsigned int count)
 	pci_dev = dev->pci_dev;
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (!pci_dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_clear_queue;
 	}
 
@@ -516,7 +516,7 @@ static int tw686x_start_streaming(struct vb2_queue *vq, unsigned int count)
 		v4l2_err(&dev->v4l2_dev,
 			 "video%d: refusing to start without DMA buffers\n",
 			 vc->num);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_clear_queue;
 	}
 
@@ -927,9 +927,9 @@ static int tw686x_enum_frameintervals(struct file *file, void *priv,
 	ival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	ival->discrete.numerator = 1;
 	if (ival->index < (max_rates - 1))
-		ival->discrete.denominator = (ival->index + 1) * 2;
+		ival->discrete.deanalminator = (ival->index + 1) * 2;
 	else
-		ival->discrete.denominator = max_fps;
+		ival->discrete.deanalminator = max_fps;
 	return 0;
 }
 
@@ -945,7 +945,7 @@ static int tw686x_g_parm(struct file *file, void *priv,
 
 	cp->capability = V4L2_CAP_TIMEPERFRAME;
 	cp->timeperframe.numerator = 1;
-	cp->timeperframe.denominator = vc->fps;
+	cp->timeperframe.deanalminator = vc->fps;
 	return 0;
 }
 
@@ -954,14 +954,14 @@ static int tw686x_s_parm(struct file *file, void *priv,
 {
 	struct tw686x_video_channel *vc = video_drvdata(file);
 	struct v4l2_captureparm *cp = &sp->parm.capture;
-	unsigned int denominator = cp->timeperframe.denominator;
+	unsigned int deanalminator = cp->timeperframe.deanalminator;
 	unsigned int numerator = cp->timeperframe.numerator;
 	unsigned int fps;
 
 	if (vb2_is_busy(&vc->vidq))
 		return -EBUSY;
 
-	fps = (!numerator || !denominator) ? 0 : denominator / numerator;
+	fps = (!numerator || !deanalminator) ? 0 : deanalminator / numerator;
 	if (vc->fps != fps)
 		tw686x_set_framerate(vc, fps);
 	return tw686x_g_parm(file, priv, sp);
@@ -997,7 +997,7 @@ static int tw686x_s_input(struct file *file, void *priv, unsigned int i)
 	if (i == vc->input)
 		return 0;
 	/*
-	 * Not sure we are able to support on the fly input change
+	 * Analt sure we are able to support on the fly input change
 	 */
 	if (vb2_is_busy(&vc->vidq))
 		return -EBUSY;
@@ -1025,15 +1025,15 @@ static int tw686x_enum_input(struct file *file, void *priv,
 
 	snprintf(i->name, sizeof(i->name), "Composite%d", i->index);
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	i->std = vc->device->tvnorms;
+	i->std = vc->device->tvanalrms;
 	i->capabilities = V4L2_IN_CAP_STD;
 
 	vidstat = reg_read(vc->dev, VIDSTAT[vc->ch]);
 	i->status = 0;
 	if (vidstat & TW686X_VIDSTAT_VDLOSS)
-		i->status |= V4L2_IN_ST_NO_SIGNAL;
+		i->status |= V4L2_IN_ST_ANAL_SIGNAL;
 	if (!(vidstat & TW686X_VIDSTAT_HLOCK))
-		i->status |= V4L2_IN_ST_NO_H_LOCK;
+		i->status |= V4L2_IN_ST_ANAL_H_LOCK;
 
 	return 0;
 }
@@ -1098,18 +1098,18 @@ void tw686x_video_irq(struct tw686x_dev *dev, unsigned long requests,
 		 * or a good frame (with signal-lost bit clear). If we have just
 		 * got signal, then this channel needs resetting.
 		 */
-		if (vc->no_signal && !(fifo_status & BIT(ch))) {
+		if (vc->anal_signal && !(fifo_status & BIT(ch))) {
 			v4l2_printk(KERN_DEBUG, &dev->v4l2_dev,
 				    "video%d: signal recovered\n", vc->num);
-			vc->no_signal = false;
+			vc->anal_signal = false;
 			*reset_ch |= BIT(ch);
 			vc->pb = 0;
 			continue;
 		}
-		vc->no_signal = !!(fifo_status & BIT(ch));
+		vc->anal_signal = !!(fifo_status & BIT(ch));
 
 		/* Check FIFO errors only if there's signal */
-		if (!vc->no_signal) {
+		if (!vc->anal_signal) {
 			u32 fifo_ov, fifo_bad;
 
 			fifo_ov = (fifo_status >> 24) & BIT(ch);
@@ -1221,7 +1221,7 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		vc->vidq.buf_struct_size = sizeof(struct tw686x_v4l2_buf);
 		vc->vidq.ops = &tw686x_video_qops;
 		vc->vidq.mem_ops = dev->dma_ops->mem_ops;
-		vc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		vc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 		vc->vidq.min_queued_buffers = 2;
 		vc->vidq.lock = &vc->vb_mutex;
 		vc->vidq.gfp_flags = dev->dma_mode != TW686X_DMA_MODE_MEMCPY ?
@@ -1231,14 +1231,14 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		err = vb2_queue_init(&vc->vidq);
 		if (err) {
 			v4l2_err(&dev->v4l2_dev,
-				 "dma%d: cannot init vb2 queue\n", ch);
+				 "dma%d: cananalt init vb2 queue\n", ch);
 			goto error;
 		}
 
 		err = v4l2_ctrl_handler_init(&vc->ctrl_handler, 4);
 		if (err) {
 			v4l2_err(&dev->v4l2_dev,
-				 "dma%d: cannot init ctrl handler\n", ch);
+				 "dma%d: cananalt init ctrl handler\n", ch);
 			goto error;
 		}
 		v4l2_ctrl_new_std(&vc->ctrl_handler, &ctrl_ops,
@@ -1261,7 +1261,7 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		if (!vdev) {
 			v4l2_err(&dev->v4l2_dev,
 				 "dma%d: unable to allocate device\n", ch);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 
@@ -1271,8 +1271,8 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		vdev->release = video_device_release;
 		vdev->v4l2_dev = &dev->v4l2_dev;
 		vdev->queue = &vc->vidq;
-		vdev->tvnorms = V4L2_STD_525_60 | V4L2_STD_625_50;
-		vdev->minor = -1;
+		vdev->tvanalrms = V4L2_STD_525_60 | V4L2_STD_625_50;
+		vdev->mianalr = -1;
 		vdev->lock = &vc->vb_mutex;
 		vdev->ctrl_handler = &vc->ctrl_handler;
 		vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE |

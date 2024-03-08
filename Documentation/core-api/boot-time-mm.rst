@@ -2,8 +2,8 @@
 Boot time memory management
 ===========================
 
-Early system initialization cannot use "normal" memory management
-simply because it is not set up yet. But there is still need to
+Early system initialization cananalt use "analrmal" memory management
+simply because it is analt set up yet. But there is still need to
 allocate memory for various data structures, for instance for the
 physical page allocator.
 
@@ -14,8 +14,8 @@ must set it up in :c:func:`setup_arch` and tear it down in
 
 Once the early memory management is available it offers a variety of
 functions and macros for memory allocations. The allocation request
-may be directed to the first (and probably the only) node or to a
-particular node in a NUMA system. There are API variants that panic
+may be directed to the first (and probably the only) analde or to a
+particular analde in a NUMA system. There are API variants that panic
 when an allocation fails and those that don't.
 
 Memblock also offers a variety of APIs that control its own behaviour.

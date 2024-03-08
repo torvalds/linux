@@ -88,7 +88,7 @@ can use it.
 ADD_ARGS
 
 The add_args method receives the argparser object and can add
-arguments to it.  Care should be taken that the new arguments do not
+arguments to it.  Care should be taken that the new arguments do analt
 conflict with any from tdc.py or from other plugins that will be used
 concurrently.
 

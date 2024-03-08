@@ -28,7 +28,7 @@
 #define	IOP_INT0	0x10	/* intr priority from IOP to host */
 #define	IOP_INT1	0x20	/* intr priority from IOP to host */
 #define	IOP_HWINT	0x40	/* IRQ from hardware; bypass mode only */
-#define	IOP_DMAINACTIVE	0x80	/* no DMA request active; bypass mode only */
+#define	IOP_DMAINACTIVE	0x80	/* anal DMA request active; bypass mode only */
 
 #define NUM_IOPS	2
 #define NUM_IOP_CHAN	7

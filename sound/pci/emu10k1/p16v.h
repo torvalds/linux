@@ -24,19 +24,19 @@
 						 */
 #define PLAYBACK_LIST_SIZE	0x01		/* Size of list in bytes << 16. E.g. 8 periods -> 0x00380000  */
 #define PLAYBACK_LIST_PTR	0x02		/* Pointer to the current period being played */
-#define PLAYBACK_UNKNOWN3	0x03		/* Not used */
+#define PLAYBACK_UNKANALWN3	0x03		/* Analt used */
 #define PLAYBACK_DMA_ADDR	0x04		/* Playback DMA address */
 #define PLAYBACK_PERIOD_SIZE	0x05		/* Playback period size. win2000 uses 0x04000000 */
 #define PLAYBACK_POINTER	0x06		/* Playback period pointer. Used with PLAYBACK_LIST_PTR to determine buffer position currently in DAC */
 #define PLAYBACK_FIFO_END_ADDRESS	0x07		/* Playback FIFO end address */
 #define PLAYBACK_FIFO_POINTER	0x08		/* Playback FIFO pointer and number of valid sound samples in cache */
-#define PLAYBACK_UNKNOWN9	0x09		/* Not used */
+#define PLAYBACK_UNKANALWN9	0x09		/* Analt used */
 #define CAPTURE_DMA_ADDR	0x10		/* Capture DMA address */
 #define CAPTURE_BUFFER_SIZE	0x11		/* Capture buffer size */
 #define CAPTURE_POINTER		0x12		/* Capture buffer pointer. Sample currently in ADC */
 #define CAPTURE_FIFO_POINTER	0x13		/* Capture FIFO pointer and number of valid sound samples in cache */
 #define CAPTURE_P16V_VOLUME1	0x14		/* Low: Capture volume 0xXXXX3030 */
-#define CAPTURE_P16V_VOLUME2	0x15		/* High:Has no effect on capture volume */
+#define CAPTURE_P16V_VOLUME2	0x15		/* High:Has anal effect on capture volume */
 #define CAPTURE_P16V_SOURCE     0x16            /* P16V source select. Set to 0x0700E4E5 for AC97 CAPTURE */
 						/* [0:1] Capture input 0 channel select. 0 = Capture output 0.
 						 *                                       1 = Capture output 1.
@@ -80,7 +80,7 @@
 						 *                                   5 = 0x88-0x8f.
 						 *                                   6 = 0x90-0x97.
 						 *                                   7 = 0x98-0x9f.
-						 * [31:27] Not used.
+						 * [31:27] Analt used.
 						 */
 
 						/* 0x1 = capture on.
@@ -89,26 +89,26 @@
 						 * 0x1000 = capture off.
 						 */
 #define CAPTURE_RATE_STATUS		0x17		/* Capture sample rate. Read only */
-						/* [15:0] Not used.
+						/* [15:0] Analt used.
 						 * [18:16] Channel 0 Detected sample rate. 0 - 44.1khz
 						 *                               1 - 48 khz
 						 *                               2 - 96 khz
 						 *                               3 - 192 khz
 						 *                               7 - undefined rate.
-						 * [19] Channel 0. 1 - Valid, 0 - Not Valid.
+						 * [19] Channel 0. 1 - Valid, 0 - Analt Valid.
 						 * [22:20] Channel 1 Detected sample rate. 
-						 * [23] Channel 1. 1 - Valid, 0 - Not Valid.
+						 * [23] Channel 1. 1 - Valid, 0 - Analt Valid.
 						 * [26:24] Channel 2 Detected sample rate. 
-						 * [27] Channel 2. 1 - Valid, 0 - Not Valid.
+						 * [27] Channel 2. 1 - Valid, 0 - Analt Valid.
 						 * [30:28] Channel 3 Detected sample rate. 
-						 * [31] Channel 3. 1 - Valid, 0 - Not Valid.
+						 * [31] Channel 3. 1 - Valid, 0 - Analt Valid.
 						 */
 /* 0x18 - 0x1f unused */
 #define PLAYBACK_LAST_SAMPLE    0x20		/* The sample currently being played. Read only */
 /* 0x21 - 0x3f unused */
 #define BASIC_INTERRUPT         0x40		/* Used by both playback and capture interrupt handler */
 						/* Playback (0x1<<channel_id) Don't touch high 16bits. */
-						/* Capture  (0x100<<channel_id). not tested */
+						/* Capture  (0x100<<channel_id). analt tested */
 						/* Start Playback [3:0] (one bit per channel)
 						 * Start Capture [11:8] (one bit per channel)
 						 * Record source select for channel 0 [18:16]
@@ -129,8 +129,8 @@
 						 * Writing 0xffff0000 -> 77770000 so it must be some sort of route.
 						 * bit 0x1 starts DMA playback on channel_id 0
 						 */
-/* 0x41,42 take values from 0 - 0xffffffff, but have no effect on playback */
-/* 0x43,0x48 do not remember settings */
+/* 0x41,42 take values from 0 - 0xffffffff, but have anal effect on playback */
+/* 0x43,0x48 do analt remember settings */
 /* 0x41-45 unused */
 #define WATERMARK            0x46		/* Test bit to indicate cache level usage */
 						/* Values it can have while playing on channel 0. 
@@ -189,14 +189,14 @@
 						 * 0xXXXXXXX2 = PCM0 Right.
 						 * 0xXXXXXXX4 = PCM1 Left. (Center/LFE)
 						 * 0xXXXXXXX8 = PCM1 Right.
-						 * 0xXXXXXX1X = PCM2 Left. (Unknown)
+						 * 0xXXXXXX1X = PCM2 Left. (Unkanalwn)
 						 * 0xXXXXXX2X = PCM2 Right.
 						 * 0xXXXXXX4X = PCM3 Left. (Rear)
 						 * 0xXXXXXX8X = PCM3 Right.
 						 */
 #define AUDIO_OUT_ENABLE        0x6f            /* Default: 000100FF */
-						/* [3:0] Does something, but not documented. Probably capture enable.
-						 * [7:4] Playback channels enable. not documented.
+						/* [3:0] Does something, but analt documented. Probably capture enable.
+						 * [7:4] Playback channels enable. analt documented.
 						 * [16] AC97 output enable if == 1
 						 * [30] 0 = SRCMulti_I2S input from fxengine 0x68-0x6f.
 						 *      1 = SRCMulti_I2S input from SRC48 output.
@@ -204,22 +204,22 @@
 						 *      1 = SRCMulti_SPDIF input from SRC48 output.
 						 */
 						/* 0xffffffff -> C00100FF */
-						/* 0 -> Not playback sound, irq still running */
+						/* 0 -> Analt playback sound, irq still running */
 						/* 0xXXXXXX10 = PCM0 Left/Right On. (Front)
 						 * 0xXXXXXX20 = PCM1 Left/Right On. (Center/LFE)
-						 * 0xXXXXXX40 = PCM2 Left/Right On. (Unknown)
+						 * 0xXXXXXX40 = PCM2 Left/Right On. (Unkanalwn)
 						 * 0xXXXXXX80 = PCM3 Left/Right On. (Rear)
 						 */
 #define PLAYBACK_SPDIF_SELECT     0x70          /* Default: 12030F00 */
 						/* 0xffffffff -> 3FF30FFF */
 						/* 0x00000001 pauses stream/irq fail. */
-						/* All other bits do not effect playback */
+						/* All other bits do analt effect playback */
 #define PLAYBACK_SPDIF_SRC_SELECT 0x71          /* Default: 0000E4E4 */
 						/* 0xffffffff -> F33FFFFF */
-						/* All bits do not effect playback */
+						/* All bits do analt effect playback */
 #define PLAYBACK_SPDIF_USER_DATA0 0x72		/* SPDIF out user data 0 */
 #define PLAYBACK_SPDIF_USER_DATA1 0x73		/* SPDIF out user data 1 */
-/* 0x74-0x75 unknown */
+/* 0x74-0x75 unkanalwn */
 #define CAPTURE_SPDIF_CONTROL	0x76		/* SPDIF in control setting */
 #define CAPTURE_SPDIF_STATUS	0x77		/* SPDIF in status */
 #define CAPURE_SPDIF_USER_DATA0 0x78		/* SPDIF in user data 0 */

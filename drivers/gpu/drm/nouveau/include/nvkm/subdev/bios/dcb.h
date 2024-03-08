@@ -14,7 +14,7 @@ enum dcb_output_type {
 };
 
 struct dcb_output {
-	int index;	/* may not be raw dcb index if merging has happened */
+	int index;	/* may analt be raw dcb index if merging has happened */
 	u16 hasht;
 	u16 hashm;
 	enum dcb_output_type type;

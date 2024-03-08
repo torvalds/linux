@@ -9,7 +9,7 @@
  *   Copyright 2002-2005 MontaVista Software Inc.
  *
  *   Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *   Copyright (c) 2003, 2004 Zultys Technologies
+ *   Copyright (c) 2003, 2004 Zultys Techanallogies
  *
  *    Copyright 2007 David Gibson, IBM Corporation.
  */
@@ -39,7 +39,7 @@ static void iss_4xx_fixups(void)
 
 	memory = finddevice("/memory");
 	if (!memory)
-		fatal("Can't find memory node\n");
+		fatal("Can't find memory analde\n");
 	/* This assumes #address-cells = 2, #size-cells =1 and that */
 	getprop(memory, "reg", reg, sizeof(reg));
 	if (reg[2])

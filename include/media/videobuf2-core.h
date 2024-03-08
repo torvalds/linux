@@ -27,7 +27,7 @@
  * enum vb2_memory - type of memory model used to make the buffers visible
  *	on userspace.
  *
- * @VB2_MEMORY_UNKNOWN:	Buffer status is unknown or it is not used yet on
+ * @VB2_MEMORY_UNKANALWN:	Buffer status is unkanalwn or it is analt used yet on
  *			userspace.
  * @VB2_MEMORY_MMAP:	The buffers are allocated by the Kernel and it is
  *			memory mapped via mmap() ioctl. This model is
@@ -38,7 +38,7 @@
  * @VB2_MEMORY_DMABUF:	The buffers are passed to userspace via DMA buffer.
  */
 enum vb2_memory {
-	VB2_MEMORY_UNKNOWN	= 0,
+	VB2_MEMORY_UNKANALWN	= 0,
 	VB2_MEMORY_MMAP		= 1,
 	VB2_MEMORY_USERPTR	= 2,
 	VB2_MEMORY_DMABUF	= 4,
@@ -56,9 +56,9 @@ struct vb2_buffer;
  *		will then be passed as @buf_priv argument to other ops in this
  *		structure. The size argument to this function shall be
  *		*page aligned*.
- * @put:	inform the allocator that the buffer will no longer be used;
+ * @put:	inform the allocator that the buffer will anal longer be used;
  *		usually will result in the allocator freeing the buffer (if
- *		no other users of this buffer are present); the @buf_priv
+ *		anal other users of this buffer are present); the @buf_priv
  *		argument is the allocator private per-buffer structure
  *		previously returned from the alloc callback.
  * @get_dmabuf: acquire userspace memory for a hardware operation; used for
@@ -70,7 +70,7 @@ struct vb2_buffer;
  *		 associated with the buffer on success, ERR_PTR() on failure;
  *		 the returned private structure will then be passed as @buf_priv
  *		 argument to other ops in this structure.
- * @put_userptr: inform the allocator that a USERPTR buffer will no longer
+ * @put_userptr: inform the allocator that a USERPTR buffer will anal longer
  *		 be used.
  * @attach_dmabuf: attach a shared &struct dma_buf for a hardware operation;
  *		   used for DMABUF memory types; dev is the alloc device
@@ -78,23 +78,23 @@ struct vb2_buffer;
  *		   allocator private per-buffer structure on success;
  *		   this needs to be used for further accesses to the buffer.
  * @detach_dmabuf: inform the exporter of the buffer that the current DMABUF
- *		   buffer is no longer used; the @buf_priv argument is the
+ *		   buffer is anal longer used; the @buf_priv argument is the
  *		   allocator private per-buffer structure previously returned
  *		   from the attach_dmabuf callback.
  * @map_dmabuf: request for access to the dmabuf from allocator; the allocator
  *		of dmabuf is informed that this driver is going to use the
  *		dmabuf.
- * @unmap_dmabuf: releases access control to the dmabuf - allocator is notified
- *		  that this driver is done using the dmabuf for now.
+ * @unmap_dmabuf: releases access control to the dmabuf - allocator is analtified
+ *		  that this driver is done using the dmabuf for analw.
  * @prepare:	called every time the buffer is passed from userspace to the
  *		driver, useful for cache synchronisation, optional.
  * @finish:	called every time the buffer is passed back from the driver
  *		to the userspace, also optional.
  * @vaddr:	return a kernel virtual address to a given memory buffer
- *		associated with the passed private structure or NULL if no
+ *		associated with the passed private structure or NULL if anal
  *		such mapping exists.
  * @cookie:	return allocator specific cookie for a given memory buffer
- *		associated with the passed private structure or NULL if not
+ *		associated with the passed private structure or NULL if analt
  *		available.
  * @num_users:	return the current number of users of a memory buffer;
  *		return 1 if the videobuf2 layer (or actually the driver using
@@ -105,7 +105,7 @@ struct vb2_buffer;
  * Those operations are used by the videobuf2 core to implement the memory
  * handling/memory allocators for each type of supported streaming I/O method.
  *
- * .. note::
+ * .. analte::
  *    #) Required ops for USERPTR types: get_userptr, put_userptr.
  *
  *    #) Required ops for MMAP types: alloc, put, num_users, mmap.
@@ -153,18 +153,18 @@ struct vb2_mem_ops {
  * struct vb2_plane - plane information.
  * @mem_priv:	private data with this plane.
  * @dbuf:	dma_buf - shared buffer object.
- * @dbuf_mapped:	flag to show whether dbuf is mapped or not
+ * @dbuf_mapped:	flag to show whether dbuf is mapped or analt
  * @bytesused:	number of bytes occupied by data in the plane (payload).
- * @length:	size of this plane (NOT the payload) in bytes. The maximum
+ * @length:	size of this plane (ANALT the payload) in bytes. The maximum
  *		valid size is MAX_UINT - PAGE_SIZE.
- * @min_length:	minimum required size of this plane (NOT the payload) in bytes.
+ * @min_length:	minimum required size of this plane (ANALT the payload) in bytes.
  *		@length is always greater or equal to @min_length, and like
  *		@length, it is limited to MAX_UINT - PAGE_SIZE.
  * @m:		Union with memtype-specific data.
  * @m.offset:	when memory in the associated struct vb2_buffer is
  *		%VB2_MEMORY_MMAP, equals the offset from the start of
  *		the device memory for this plane (or is a "cookie" that
- *		should be passed to mmap() called on the video node).
+ *		should be passed to mmap() called on the video analde).
  * @m.userptr:	when memory is %VB2_MEMORY_USERPTR, a userspace pointer
  *		pointing to this plane.
  * @m.fd:	when memory is %VB2_MEMORY_DMABUF, a userspace file
@@ -172,7 +172,7 @@ struct vb2_mem_ops {
  * @data_offset:	offset in the plane to the start of data; usually 0,
  *		unless there is a header in front of the data.
  *
- * Should contain enough information to be able to cover all the fields
+ * Should contain eanalugh information to be able to cover all the fields
  * of &struct v4l2_plane at videodev2.h.
  */
 struct vb2_plane {
@@ -211,11 +211,11 @@ enum vb2_io_modes {
  * @VB2_BUF_STATE_DEQUEUED:	buffer under userspace control.
  * @VB2_BUF_STATE_IN_REQUEST:	buffer is queued in media request.
  * @VB2_BUF_STATE_PREPARING:	buffer is being prepared in videobuf2.
- * @VB2_BUF_STATE_QUEUED:	buffer queued in videobuf2, but not in driver.
+ * @VB2_BUF_STATE_QUEUED:	buffer queued in videobuf2, but analt in driver.
  * @VB2_BUF_STATE_ACTIVE:	buffer queued in driver and possibly used
  *				in a hardware operation.
  * @VB2_BUF_STATE_DONE:		buffer returned from driver to videobuf2, but
- *				not yet dequeued to userspace.
+ *				analt yet dequeued to userspace.
  * @VB2_BUF_STATE_ERROR:	same as above, but the operation on the buffer
  *				has ended with an error, which will be reported
  *				to the userspace when it is dequeued.
@@ -258,7 +258,7 @@ struct vb2_buffer {
 
 	/* private: internal use only
 	 *
-	 * state:		current buffer state; do not change
+	 * state:		current buffer state; do analt change
 	 * synced:		this buffer has been synced for DMA, i.e. the
 	 *			'prepare' memop was called. It is cleared again
 	 *			after the 'finish' memop is called.
@@ -275,7 +275,7 @@ struct vb2_buffer {
 	 *			all buffers queued from userspace
 	 * done_entry:		entry on the list that stores all buffers ready
 	 *			to be dequeued to userspace
-	 * vb2_plane:		per-plane information; do not change
+	 * vb2_plane:		per-plane information; do analt change
 	 */
 	enum vb2_buffer_state	state;
 	unsigned int		synced:1;
@@ -324,13 +324,13 @@ struct vb2_buffer {
 /**
  * struct vb2_ops - driver-specific callbacks.
  *
- * These operations are not called from interrupt context except where
+ * These operations are analt called from interrupt context except where
  * mentioned specifically.
  *
  * @queue_setup:	called from VIDIOC_REQBUFS() and VIDIOC_CREATE_BUFS()
  *			handlers before memory allocation. It can be called
  *			twice: if the original number of requested buffers
- *			could not be allocated, then it will be called a
+ *			could analt be allocated, then it will be called a
  *			second time with the actually allocated number of
  *			buffers to verify if that is OK.
  *			The driver should return the required number of buffers
@@ -371,7 +371,7 @@ struct vb2_buffer {
  *			access/modify the buffer here as it is still synced for
  *			the CPU; drivers that support VIDIOC_CREATE_BUFS() must
  *			also validate the buffer size; if an error is returned,
- *			the buffer will not be queued in driver; optional.
+ *			the buffer will analt be queued in driver; optional.
  * @buf_finish:		called before every dequeue of the buffer back to
  *			userspace; the buffer is synced for the CPU, so drivers
  *			can access/modify the buffer contents; drivers may
@@ -383,7 +383,7 @@ struct vb2_buffer {
  *			buffers are being returned to their default %DEQUEUED
  *			state. Typically you only have to do something if the
  *			state is %VB2_BUF_STATE_DONE, since in all other cases
- *			the buffer contents will be ignored anyway.
+ *			the buffer contents will be iganalred anyway.
  * @buf_cleanup:	called once before the buffer is freed; drivers may
  *			perform any additional cleanup; optional.
  * @prepare_streaming:	called once to prepare for 'streaming' state; this is
@@ -402,7 +402,7 @@ struct vb2_buffer {
  *			by calling vb2_buffer_done() with %VB2_BUF_STATE_QUEUED.
  *			If you need a minimum number of buffers before you can
  *			start streaming, then set
- *			&vb2_queue->min_queued_buffers. If that is non-zero
+ *			&vb2_queue->min_queued_buffers. If that is analn-zero
  *			then @start_streaming won't be called until at least
  *			that many buffers have been queued up by userspace.
  * @stop_streaming:	called when 'streaming' state must be disabled; driver
@@ -456,7 +456,7 @@ struct vb2_ops {
  * struct vb2_buf_ops - driver-specific callbacks.
  *
  * @verify_planes_array: Verify that a given user space structure contains
- *			enough planes for the buffer. This is called
+ *			eanalugh planes for the buffer. This is called
  *			for each dequeued buffer.
  * @init_buffer:	given a &vb2_buffer initialize the extra data after
  *			struct vb2_buffer.
@@ -495,44 +495,44 @@ struct vb2_buf_ops {
  *		buffer which is mapped for write (%DMA_FROM_DEVICE) in order
  *		to satisfy some internal hardware restrictions or adds a padding
  *		needed by the processing algorithm. In case the DMA mapping is
- *		not bidirectional but the hardware (firmware) trying to access
+ *		analt bidirectional but the hardware (firmware) trying to access
  *		the buffer (in the opposite direction) this could lead to an
  *		IOMMU protection faults.
  * @fileio_read_once:		report EOF after reading the first buffer
  * @fileio_write_immediately:	queue buffer after each write() call
  * @allow_zero_bytesused:	allow bytesused == 0 to be passed to the driver
  * @quirk_poll_must_check_waiting_for_buffers: Return %EPOLLERR at poll when QBUF
- *              has not been called. This is a vb1 idiom that has been adopted
+ *              has analt been called. This is a vb1 idiom that has been adopted
  *              also by vb2.
  * @supports_requests: this queue supports the Request API.
  * @requires_requests: this queue requires the Request API. If this is set to 1,
  *		then supports_requests must be set to 1 as well.
  * @uses_qbuf:	qbuf was used directly for this queue. Set to 1 the first
  *		time this is called. Set to 0 when the queue is canceled.
- *		If this is 1, then you cannot queue buffers from a request.
+ *		If this is 1, then you cananalt queue buffers from a request.
  * @uses_requests: requests are used for this queue. Set to 1 the first time
  *		a request is queued. Set to 0 when the queue is canceled.
- *		If this is 1, then you cannot queue buffers directly.
+ *		If this is 1, then you cananalt queue buffers directly.
  * @allow_cache_hints: when set user-space can pass cache management hints in
  *		order to skip cache flush/invalidation on ->prepare() or/and
  *		->finish().
- * @non_coherent_mem: when set queue will attempt to allocate buffers using
- *		non-coherent memory.
+ * @analn_coherent_mem: when set queue will attempt to allocate buffers using
+ *		analn-coherent memory.
  * @lock:	pointer to a mutex that protects the &struct vb2_queue. The
  *		driver can set this to a mutex to let the v4l2 core serialize
  *		the queuing ioctls. If the driver wants to handle locking
- *		itself, then this should be set to NULL. This lock is not used
+ *		itself, then this should be set to NULL. This lock is analt used
  *		by the videobuf2 core API.
  * @owner:	The filehandle that 'owns' the buffers, i.e. the filehandle
  *		that called reqbufs, create_buffers or started fileio.
- *		This field is not used by the videobuf2 core API, but it allows
+ *		This field is analt used by the videobuf2 core API, but it allows
  *		drivers to easily associate an owner filehandle with the queue.
  * @ops:	driver-specific callbacks
  * @mem_ops:	memory allocator specific callbacks
  * @buf_ops:	callbacks to deliver buffer information.
  *		between user-space and kernel-space.
  * @drv_priv:	driver private data.
- * @subsystem_flags: Flags specific to the subsystem (V4L2/DVB/etc.). Not used
+ * @subsystem_flags: Flags specific to the subsystem (V4L2/DVB/etc.). Analt used
  *		by the vb2 core.
  * @buf_struct_size: size of the driver-specific buffer structure;
  *		"0" indicates the driver doesn't want to use a custom buffer
@@ -548,10 +548,10 @@ struct vb2_buf_ops {
  *		to force the buffer allocation to a specific memory zone.
  * @min_queued_buffers: the minimum number of queued buffers needed before
  *		@start_streaming can be called. Used when a DMA engine
- *		cannot be started unless at least this number of buffers
+ *		cananalt be started unless at least this number of buffers
  *		have been queued into the driver.
  *		VIDIOC_REQBUFS will ensure at least @min_queued_buffers
- *		buffers will be allocated. Note that VIDIOC_CREATE_BUFS will not
+ *		buffers will be allocated. Analte that VIDIOC_CREATE_BUFS will analt
  *		modify the requested buffer count.
  */
 /*
@@ -575,7 +575,7 @@ struct vb2_buf_ops {
  *		started streaming.
  * @error:	a fatal error occurred on the queue
  * @waiting_for_buffers: used in poll() to check if vb2 is still waiting for
- *		buffers. Only set for capture queues if qbuf has not yet been
+ *		buffers. Only set for capture queues if qbuf has analt yet been
  *		called since poll() needs to return %EPOLLERR in that situation.
  * @is_multiplanar: set if buffer type is multiplanar
  * @is_output:	set if buffer type is output
@@ -603,7 +603,7 @@ struct vb2_queue {
 	unsigned int			uses_qbuf:1;
 	unsigned int			uses_requests:1;
 	unsigned int			allow_cache_hints:1;
-	unsigned int			non_coherent_mem:1;
+	unsigned int			analn_coherent_mem:1;
 
 	struct mutex			*lock;
 	void				*owner;
@@ -682,18 +682,18 @@ static inline bool vb2_queue_allows_cache_hints(struct vb2_queue *q)
  * vb2_plane_vaddr() - Return a kernel virtual address of a given plane.
  * @vb:		pointer to &struct vb2_buffer to which the plane in
  *		question belongs to.
- * @plane_no:	plane number for which the address is to be returned.
+ * @plane_anal:	plane number for which the address is to be returned.
  *
  * This function returns a kernel virtual address of a given plane if
  * such a mapping exist, NULL otherwise.
  */
-void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no);
+void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_anal);
 
 /**
  * vb2_plane_cookie() - Return allocator specific cookie for the given plane.
  * @vb:		pointer to &struct vb2_buffer to which the plane in
  *		question belongs to.
- * @plane_no:	plane number for which the cookie is to be returned.
+ * @plane_anal:	plane number for which the cookie is to be returned.
  *
  * This function returns an allocator specific cookie for a given plane if
  * available, NULL otherwise. The allocator should provide some simple static
@@ -701,7 +701,7 @@ void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no);
  * type that can be used directly by the driver to access the buffer. This can
  * be for example physical address, pointer to scatter list or IOMMU mapping.
  */
-void *vb2_plane_cookie(struct vb2_buffer *vb, unsigned int plane_no);
+void *vb2_plane_cookie(struct vb2_buffer *vb, unsigned int plane_anal);
 
 /**
  * vb2_buffer_done() - inform videobuf2 that an operation on a buffer
@@ -714,13 +714,13 @@ void *vb2_plane_cookie(struct vb2_buffer *vb, unsigned int plane_no);
  *
  * This function should be called by the driver after a hardware operation on
  * a buffer is finished and the buffer may be returned to userspace. The driver
- * cannot use this buffer anymore until it is queued back to it by videobuf
+ * cananalt use this buffer anymore until it is queued back to it by videobuf
  * by the means of &vb2_ops->buf_queue callback. Only buffers previously queued
  * to the driver by &vb2_ops->buf_queue can be passed to this function.
  *
  * While streaming a buffer can only be returned in state DONE or ERROR.
  * The &vb2_ops->start_streaming op can also return them in case the DMA engine
- * cannot be started for some reason. In that case the buffers should be
+ * cananalt be started for some reason. In that case the buffers should be
  * returned with state QUEUED to put them back into the queue.
  */
 void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state);
@@ -734,7 +734,7 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state);
  * resume.
  *
  * Drivers must stop the hardware and synchronize with interrupt handlers and/or
- * delayed works before calling this function to make sure no buffer will be
+ * delayed works before calling this function to make sure anal buffer will be
  * touched by the driver and/or hardware.
  */
 void vb2_discard_done(struct vb2_queue *q);
@@ -773,7 +773,7 @@ void vb2_core_querybuf(struct vb2_queue *q, struct vb2_buffer *vb, void *pb);
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  * @memory:	memory type, as defined by &enum vb2_memory.
  * @flags:	auxiliary queue/buffer management flags. Currently, the only
- *		used flag is %V4L2_MEMORY_FLAG_NON_COHERENT.
+ *		used flag is %V4L2_MEMORY_FLAG_ANALN_COHERENT.
  * @count:	requested buffer count.
  *
  * Videobuf2 core helper to implement VIDIOC_REQBUF() operation. It is called
@@ -793,7 +793,7 @@ void vb2_core_querybuf(struct vb2_queue *q, struct vb2_buffer *vb, void *pb);
  * If req->count is 0, all the memory will be freed instead.
  *
  * If the queue has been allocated previously by a previous vb2_core_reqbufs()
- * call and the queue is not busy, memory will be reallocated.
+ * call and the queue is analt busy, memory will be reallocated.
  *
  * Return: returns zero on success; an error code otherwise.
  */
@@ -862,7 +862,7 @@ int vb2_core_prepare_buf(struct vb2_queue *q, struct vb2_buffer *vb, void *pb);
  *
  * This function:
  *
- * #) If @req is non-NULL, then the buffer will be bound to this
+ * #) If @req is analn-NULL, then the buffer will be bound to this
  *    media request and it returns. The buffer will be prepared and
  *    queued to the driver (i.e. the next two steps) when the request
  *    itself is queued.
@@ -883,9 +883,9 @@ int vb2_core_qbuf(struct vb2_queue *q, struct vb2_buffer *vb, void *pb,
  * @pindex:	pointer to the buffer index. May be NULL
  * @pb:		buffer structure passed from userspace to
  *		v4l2_ioctl_ops->vidioc_dqbuf handler in driver.
- * @nonblocking: if true, this call will not sleep waiting for a buffer if no
- *		 buffers ready for dequeuing are present. Normally the driver
- *		 would be passing (file->f_flags & O_NONBLOCK) here.
+ * @analnblocking: if true, this call will analt sleep waiting for a buffer if anal
+ *		 buffers ready for dequeuing are present. Analrmally the driver
+ *		 would be passing (file->f_flags & O_ANALNBLOCK) here.
  *
  * Videobuf2 core helper to implement VIDIOC_DQBUF() operation. It is called
  * internally by VB2 by an API-specific handler, like ``videobuf2-v4l2.h``.
@@ -901,7 +901,7 @@ int vb2_core_qbuf(struct vb2_queue *q, struct vb2_buffer *vb, void *pb,
  * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
-		   bool nonblocking);
+		   bool analnblocking);
 
 /**
  * vb2_core_streamon() - Implements VB2 stream ON logic
@@ -963,7 +963,7 @@ int vb2_core_expbuf(struct vb2_queue *q, int *fd, unsigned int type,
  * responsible of clearing it's content and setting initial values for some
  * required entries before calling this function.
  *
- * .. note::
+ * .. analte::
  *
  *    The following fields at @q should be set before calling this function:
  *    &vb2_queue->ops, &vb2_queue->mem_ops, &vb2_queue->type.
@@ -985,13 +985,13 @@ void vb2_core_queue_release(struct vb2_queue *q);
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  *
  * Flag that a fatal unrecoverable error has occurred and wake up all processes
- * waiting on the queue. Polling will now set %EPOLLERR and queuing and dequeuing
+ * waiting on the queue. Polling will analw set %EPOLLERR and queuing and dequeuing
  * buffers will return %-EIO.
  *
  * The error flag will be cleared when canceling the queue, either from
- * vb2_streamoff() or vb2_queue_release(). Drivers should thus not call this
+ * vb2_streamoff() or vb2_queue_release(). Drivers should thus analt call this
  * function before starting the stream, otherwise the error flag will remain set
- * until the queue is released when closing the device node.
+ * until the queue is released when closing the device analde.
  */
 void vb2_queue_error(struct vb2_queue *q);
 
@@ -1028,7 +1028,7 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma);
  * @pgoff:	page offset.
  * @flags:	memory flags.
  *
- * This function is used in noMMU platforms to propose address mapping
+ * This function is used in analMMU platforms to propose address mapping
  * for a given buffer. It's intended to be used as a handler for the
  * &file_operations->get_unmapped_area operation.
  *
@@ -1069,20 +1069,20 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
  * @data:	pointed to target userspace buffer
  * @count:	number of bytes to read
  * @ppos:	file handle position tracking pointer
- * @nonblock:	mode selector (1 means blocking calls, 0 means nonblocking)
+ * @analnblock:	mode selector (1 means blocking calls, 0 means analnblocking)
  */
 size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
-		loff_t *ppos, int nonblock);
+		loff_t *ppos, int analnblock);
 /**
  * vb2_write() - implements write() syscall logic.
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  * @data:	pointed to target userspace buffer
  * @count:	number of bytes to write
  * @ppos:	file handle position tracking pointer
- * @nonblock:	mode selector (1 means blocking calls, 0 means nonblocking)
+ * @analnblock:	mode selector (1 means blocking calls, 0 means analnblocking)
  */
 size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
-		loff_t *ppos, int nonblock);
+		loff_t *ppos, int analnblock);
 
 /**
  * typedef vb2_thread_fnc - callback function for use with vb2_thread.
@@ -1106,8 +1106,8 @@ typedef int (*vb2_thread_fnc)(struct vb2_buffer *vb, void *priv);
  *
  * .. attention::
  *
- *   This function should not be used for anything else but the videobuf2-dvb
- *   support. If you think you have another good use-case for this, then please
+ *   This function should analt be used for anything else but the videobuf2-dvb
+ *   support. If you think you have aanalther good use-case for this, then please
  *   contact the linux-media mailing list first.
  */
 int vb2_thread_start(struct vb2_queue *q, vb2_thread_fnc fnc, void *priv,
@@ -1135,8 +1135,8 @@ static inline bool vb2_is_streaming(struct vb2_queue *q)
  * This returns true if read() or write() is used to stream the data
  * as opposed to stream I/O. This is almost never an important distinction,
  * except in rare cases. One such case is that using read() or write() to
- * stream a format using %V4L2_FIELD_ALTERNATE is not allowed since there
- * is no way you can pass the field information of each buffer to/from
+ * stream a format using %V4L2_FIELD_ALTERNATE is analt allowed since there
+ * is anal way you can pass the field information of each buffer to/from
  * userspace. A driver that supports this field format should check for
  * this in the &vb2_ops->queue_setup op and reject it if this function returns
  * true.
@@ -1176,37 +1176,37 @@ static inline void *vb2_get_drv_priv(struct vb2_queue *q)
 }
 
 /**
- * vb2_set_plane_payload() - set bytesused for the plane @plane_no.
+ * vb2_set_plane_payload() - set bytesused for the plane @plane_anal.
  * @vb:		pointer to &struct vb2_buffer to which the plane in
  *		question belongs to.
- * @plane_no:	plane number for which payload should be set.
+ * @plane_anal:	plane number for which payload should be set.
  * @size:	payload in bytes.
  */
 static inline void vb2_set_plane_payload(struct vb2_buffer *vb,
-				 unsigned int plane_no, unsigned long size)
+				 unsigned int plane_anal, unsigned long size)
 {
 	/*
 	 * size must never be larger than the buffer length, so
 	 * warn and clamp to the buffer length if that's the case.
 	 */
-	if (plane_no < vb->num_planes) {
-		if (WARN_ON_ONCE(size > vb->planes[plane_no].length))
-			size = vb->planes[plane_no].length;
-		vb->planes[plane_no].bytesused = size;
+	if (plane_anal < vb->num_planes) {
+		if (WARN_ON_ONCE(size > vb->planes[plane_anal].length))
+			size = vb->planes[plane_anal].length;
+		vb->planes[plane_anal].bytesused = size;
 	}
 }
 
 /**
- * vb2_get_plane_payload() - get bytesused for the plane plane_no
+ * vb2_get_plane_payload() - get bytesused for the plane plane_anal
  * @vb:		pointer to &struct vb2_buffer to which the plane in
  *		question belongs to.
- * @plane_no:	plane number for which payload should be set.
+ * @plane_anal:	plane number for which payload should be set.
  */
 static inline unsigned long vb2_get_plane_payload(struct vb2_buffer *vb,
-				 unsigned int plane_no)
+				 unsigned int plane_anal)
 {
-	if (plane_no < vb->num_planes)
-		return vb->planes[plane_no].bytesused;
+	if (plane_anal < vb->num_planes)
+		return vb->planes[plane_anal].bytesused;
 	return 0;
 }
 
@@ -1214,13 +1214,13 @@ static inline unsigned long vb2_get_plane_payload(struct vb2_buffer *vb,
  * vb2_plane_size() - return plane size in bytes.
  * @vb:		pointer to &struct vb2_buffer to which the plane in
  *		question belongs to.
- * @plane_no:	plane number for which size should be returned.
+ * @plane_anal:	plane number for which size should be returned.
  */
 static inline unsigned long
-vb2_plane_size(struct vb2_buffer *vb, unsigned int plane_no)
+vb2_plane_size(struct vb2_buffer *vb, unsigned int plane_anal)
 {
-	if (plane_no < vb->num_planes)
-		return vb->planes[plane_no].length;
+	if (plane_anal < vb->num_planes)
+		return vb->planes[plane_anal].length;
 	return 0;
 }
 
@@ -1248,7 +1248,7 @@ static inline void vb2_clear_last_buffer_dequeued(struct vb2_queue *q)
  * @index:	buffer index
  *
  * This function obtains a buffer from a queue, by its index.
- * Keep in mind that there is no refcounting involved in this
+ * Keep in mind that there is anal refcounting involved in this
  * operation, so the buffer lifetime should be taken into
  * consideration.
  */
@@ -1267,13 +1267,13 @@ static inline struct vb2_buffer *vb2_get_buffer(struct vb2_queue *q,
 }
 
 /*
- * The following functions are not part of the vb2 core API, but are useful
+ * The following functions are analt part of the vb2 core API, but are useful
  * functions for videobuf2-*.
  */
 
 /**
  * vb2_buffer_in_use() - return true if the buffer is in use and
- * the queue cannot be freed (by the means of VIDIOC_REQBUFS(0)) call.
+ * the queue cananalt be freed (by the means of VIDIOC_REQBUFS(0)) call.
  *
  * @vb:		buffer for which plane size should be returned.
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.

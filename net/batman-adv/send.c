@@ -11,7 +11,7 @@
 #include <linux/bug.h>
 #include <linux/byteorder/generic.h>
 #include <linux/container_of.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
 #include <linux/if.h>
@@ -49,14 +49,14 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
  * @dst_addr: the payload destination
  *
  * Send out an already prepared packet to the given neighbor or broadcast it
- * using the specified interface. Either hard_iface or neigh_node must be not
+ * using the specified interface. Either hard_iface or neigh_analde must be analt
  * NULL.
- * If neigh_node is NULL, then the packet is broadcasted using hard_iface,
+ * If neigh_analde is NULL, then the packet is broadcasted using hard_iface,
  * otherwise it is sent as unicast to the given neighbor.
  *
  * Regardless of the return value, the skb is consumed.
  *
- * Return: A negative errno code is returned on a failure. A success does not
+ * Return: A negative erranal code is returned on a failure. A success does analt
  * guarantee the frame will be transmitted as it may be dropped due
  * to congestion or traffic shaping.
  */
@@ -77,7 +77,7 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 		goto send_skb_err;
 
 	if (!(hard_iface->net_dev->flags & IFF_UP)) {
-		pr_warn("Interface %s is not up - can't send packet via that interface!\n",
+		pr_warn("Interface %s is analt up - can't send packet via that interface!\n",
 			hard_iface->net_dev->name);
 		goto send_skb_err;
 	}
@@ -103,7 +103,7 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
-	 * (which is > 0). This will not be treated as an error.
+	 * (which is > 0). This will analt be treated as an error.
 	 */
 	ret = dev_queue_xmit(skb);
 	return net_xmit_eval(ret);
@@ -114,10 +114,10 @@ send_skb_err:
 
 /**
  * batadv_send_broadcast_skb() - Send broadcast packet via hard interface
- * @skb: packet to be transmitted (with batadv header and no outer eth header)
+ * @skb: packet to be transmitted (with batadv header and anal outer eth header)
  * @hard_iface: outgoing interface
  *
- * Return: A negative errno code is returned on a failure. A success does not
+ * Return: A negative erranal code is returned on a failure. A success does analt
  * guarantee the frame will be transmitted as it may be dropped due
  * to congestion or traffic shaping.
  */
@@ -129,18 +129,18 @@ int batadv_send_broadcast_skb(struct sk_buff *skb,
 
 /**
  * batadv_send_unicast_skb() - Send unicast packet to neighbor
- * @skb: packet to be transmitted (with batadv header and no outer eth header)
+ * @skb: packet to be transmitted (with batadv header and anal outer eth header)
  * @neigh: neighbor which is used as next hop to destination
  *
- * Return: A negative errno code is returned on a failure. A success does not
+ * Return: A negative erranal code is returned on a failure. A success does analt
  * guarantee the frame will be transmitted as it may be dropped due
  * to congestion or traffic shaping.
  */
 int batadv_send_unicast_skb(struct sk_buff *skb,
-			    struct batadv_neigh_node *neigh)
+			    struct batadv_neigh_analde *neigh)
 {
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
-	struct batadv_hardif_neigh_node *hardif_neigh;
+	struct batadv_hardif_neigh_analde *hardif_neigh;
 #endif
 	int ret;
 
@@ -161,29 +161,29 @@ int batadv_send_unicast_skb(struct sk_buff *skb,
 /**
  * batadv_send_skb_to_orig() - Lookup next-hop and transmit skb.
  * @skb: Packet to be transmitted.
- * @orig_node: Final destination of the packet.
+ * @orig_analde: Final destination of the packet.
  * @recv_if: Interface used when receiving the packet (can be NULL).
  *
  * Looks up the best next-hop towards the passed originator and passes the
  * skb on for preparation of MAC header. If the packet originated from this
- * host, NULL can be passed as recv_if and no interface alternating is
+ * host, NULL can be passed as recv_if and anal interface alternating is
  * attempted.
  *
- * Return: negative errno code on a failure, -EINPROGRESS if the skb is
+ * Return: negative erranal code on a failure, -EINPROGRESS if the skb is
  * buffered for later transmit or the NET_XMIT status returned by the
  * lower routine if the packet has been passed down.
  */
 int batadv_send_skb_to_orig(struct sk_buff *skb,
-			    struct batadv_orig_node *orig_node,
+			    struct batadv_orig_analde *orig_analde,
 			    struct batadv_hard_iface *recv_if)
 {
-	struct batadv_priv *bat_priv = orig_node->bat_priv;
-	struct batadv_neigh_node *neigh_node;
+	struct batadv_priv *bat_priv = orig_analde->bat_priv;
+	struct batadv_neigh_analde *neigh_analde;
 	int ret;
 
-	/* batadv_find_router() increases neigh_nodes refcount if found. */
-	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
-	if (!neigh_node) {
+	/* batadv_find_router() increases neigh_analdes refcount if found. */
+	neigh_analde = batadv_find_router(bat_priv, orig_analde, recv_if);
+	if (!neigh_analde) {
 		ret = -EINVAL;
 		goto free_skb;
 	}
@@ -192,29 +192,29 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	 * it if needed.
 	 */
 	if (atomic_read(&bat_priv->fragmentation) &&
-	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
+	    skb->len > neigh_analde->if_incoming->net_dev->mtu) {
 		/* Fragment and send packet. */
-		ret = batadv_frag_send_packet(skb, orig_node, neigh_node);
+		ret = batadv_frag_send_packet(skb, orig_analde, neigh_analde);
 		/* skb was consumed */
 		skb = NULL;
 
-		goto put_neigh_node;
+		goto put_neigh_analde;
 	}
 
 	/* try to network code the packet, if it is received on an interface
-	 * (i.e. being forwarded). If the packet originates from this node or if
+	 * (i.e. being forwarded). If the packet originates from this analde or if
 	 * network coding fails, then send the packet as usual.
 	 */
-	if (recv_if && batadv_nc_skb_forward(skb, neigh_node))
+	if (recv_if && batadv_nc_skb_forward(skb, neigh_analde))
 		ret = -EINPROGRESS;
 	else
-		ret = batadv_send_unicast_skb(skb, neigh_node);
+		ret = batadv_send_unicast_skb(skb, neigh_analde);
 
 	/* skb was consumed */
 	skb = NULL;
 
-put_neigh_node:
-	batadv_neigh_node_put(neigh_node);
+put_neigh_analde:
+	batadv_neigh_analde_put(neigh_analde);
 free_skb:
 	kfree_skb(skb);
 
@@ -226,16 +226,16 @@ free_skb:
  *  common fields for unicast packets
  * @skb: the skb carrying the unicast header to initialize
  * @hdr_size: amount of bytes to push at the beginning of the skb
- * @orig_node: the destination node
+ * @orig_analde: the destination analde
  *
- * Return: false if the buffer extension was not possible or true otherwise.
+ * Return: false if the buffer extension was analt possible or true otherwise.
  */
 static bool
 batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
-				  struct batadv_orig_node *orig_node)
+				  struct batadv_orig_analde *orig_analde)
 {
 	struct batadv_unicast_packet *unicast_packet;
-	u8 ttvn = (u8)atomic_read(&orig_node->last_ttvn);
+	u8 ttvn = (u8)atomic_read(&orig_analde->last_ttvn);
 
 	if (batadv_skb_head_push(skb, hdr_size) < 0)
 		return false;
@@ -247,7 +247,7 @@ batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
 	/* set unicast ttl */
 	unicast_packet->ttl = BATADV_TTL;
 	/* copy the destination for faster routing */
-	ether_addr_copy(unicast_packet->dest, orig_node->orig);
+	ether_addr_copy(unicast_packet->dest, orig_analde->orig);
 	/* set the destination tt version number */
 	unicast_packet->ttvn = ttvn;
 
@@ -257,16 +257,16 @@ batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
 /**
  * batadv_send_skb_prepare_unicast() - encapsulate an skb with a unicast header
  * @skb: the skb containing the payload to encapsulate
- * @orig_node: the destination node
+ * @orig_analde: the destination analde
  *
- * Return: false if the payload could not be encapsulated or true otherwise.
+ * Return: false if the payload could analt be encapsulated or true otherwise.
  */
 static bool batadv_send_skb_prepare_unicast(struct sk_buff *skb,
-					    struct batadv_orig_node *orig_node)
+					    struct batadv_orig_analde *orig_analde)
 {
 	size_t uni_size = sizeof(struct batadv_unicast_packet);
 
-	return batadv_send_skb_push_fill_unicast(skb, uni_size, orig_node);
+	return batadv_send_skb_push_fill_unicast(skb, uni_size, orig_analde);
 }
 
 /**
@@ -274,14 +274,14 @@ static bool batadv_send_skb_prepare_unicast(struct sk_buff *skb,
  *  unicast 4addr header
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the skb containing the payload to encapsulate
- * @orig: the destination node
+ * @orig: the destination analde
  * @packet_subtype: the unicast 4addr packet subtype to use
  *
- * Return: false if the payload could not be encapsulated or true otherwise.
+ * Return: false if the payload could analt be encapsulated or true otherwise.
  */
 bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb,
-					   struct batadv_orig_node *orig,
+					   struct batadv_orig_analde *orig,
 					   int packet_subtype)
 {
 	struct batadv_hard_iface *primary_if;
@@ -319,36 +319,36 @@ out:
  * @packet_type: the batman unicast packet type to use
  * @packet_subtype: the unicast 4addr packet subtype (only relevant for unicast
  *  4addr packets)
- * @orig_node: the originator to send the packet to
+ * @orig_analde: the originator to send the packet to
  * @vid: the vid to be used to search the translation table
  *
  * Wrap the given skb into a batman-adv unicast or unicast-4addr header
  * depending on whether BATADV_UNICAST or BATADV_UNICAST_4ADDR was supplied
- * as packet_type. Then send this frame to the given orig_node.
+ * as packet_type. Then send this frame to the given orig_analde.
  *
  * Return: NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb, int packet_type,
 			    int packet_subtype,
-			    struct batadv_orig_node *orig_node,
+			    struct batadv_orig_analde *orig_analde,
 			    unsigned short vid)
 {
 	struct batadv_unicast_packet *unicast_packet;
 	struct ethhdr *ethhdr;
 	int ret = NET_XMIT_DROP;
 
-	if (!orig_node)
+	if (!orig_analde)
 		goto out;
 
 	switch (packet_type) {
 	case BATADV_UNICAST:
-		if (!batadv_send_skb_prepare_unicast(skb, orig_node))
+		if (!batadv_send_skb_prepare_unicast(skb, orig_analde))
 			goto out;
 		break;
 	case BATADV_UNICAST_4ADDR:
 		if (!batadv_send_skb_prepare_unicast_4addr(bat_priv, skb,
-							   orig_node,
+							   orig_analde,
 							   packet_subtype))
 			goto out;
 		break;
@@ -365,7 +365,7 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 	ethhdr = eth_hdr(skb);
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 
-	/* inform the destination node that we are still missing a correct route
+	/* inform the destination analde that we are still missing a correct route
 	 * for this client. The destination will receive this packet and will
 	 * try to reroute it because the ttvn contained in the header is less
 	 * than the current one
@@ -373,7 +373,7 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest, vid))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
-	ret = batadv_send_skb_to_orig(skb, orig_node, NULL);
+	ret = batadv_send_skb_to_orig(skb, orig_analde, NULL);
 	 /* skb was consumed */
 	skb = NULL;
 
@@ -392,11 +392,11 @@ out:
  * @dst_hint: can be used to override the destination contained in the skb
  * @vid: the vid to be used to search the translation table
  *
- * Look up the recipient node for the destination address in the ethernet
+ * Look up the recipient analde for the destination address in the ethernet
  * header via the translation table. Wrap the given skb into a batman-adv
  * unicast or unicast-4addr header depending on whether BATADV_UNICAST or
  * BATADV_UNICAST_4ADDR was supplied as packet_type. Then send this frame
- * to the according destination node.
+ * to the according destination analde.
  *
  * Return: NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
@@ -406,7 +406,7 @@ int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 				   unsigned short vid)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_analde *orig_analde;
 	u8 *src, *dst;
 	int ret;
 
@@ -418,12 +418,12 @@ int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 		src = NULL;
 		dst = dst_hint;
 	}
-	orig_node = batadv_transtable_search(bat_priv, src, dst, vid);
+	orig_analde = batadv_transtable_search(bat_priv, src, dst, vid);
 
 	ret = batadv_send_skb_unicast(bat_priv, skb, packet_type,
-				      packet_subtype, orig_node, vid);
+				      packet_subtype, orig_analde, vid);
 
-	batadv_orig_node_put(orig_node);
+	batadv_orig_analde_put(orig_analde);
 
 	return ret;
 }
@@ -435,21 +435,21 @@ int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
  * @vid: the vid to be used to search the translation table
  *
  * Look up the currently selected gateway. Wrap the given skb into a batman-adv
- * unicast header and send this frame to this gateway node.
+ * unicast header and send this frame to this gateway analde.
  *
  * Return: NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			   unsigned short vid)
 {
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_analde *orig_analde;
 	int ret;
 
-	orig_node = batadv_gw_get_selected_orig(bat_priv);
+	orig_analde = batadv_gw_get_selected_orig(bat_priv);
 	ret = batadv_send_skb_unicast(bat_priv, skb, BATADV_UNICAST_4ADDR,
-				      BATADV_P_DATA, orig_node, vid);
+				      BATADV_P_DATA, orig_analde, vid);
 
-	batadv_orig_node_put(orig_node);
+	batadv_orig_analde_put(orig_analde);
 
 	return ret;
 }
@@ -501,8 +501,8 @@ batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 	struct batadv_forw_packet *forw_packet;
 	const char *qname;
 
-	if (queue_left && !batadv_atomic_dec_not_zero(queue_left)) {
-		qname = "unknown";
+	if (queue_left && !batadv_atomic_dec_analt_zero(queue_left)) {
+		qname = "unkanalwn";
 
 		if (queue_left == &bat_priv->bcast_queue_left)
 			qname = "bcast";
@@ -526,8 +526,8 @@ batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 	if (if_outgoing)
 		kref_get(&if_outgoing->refcount);
 
-	INIT_HLIST_NODE(&forw_packet->list);
-	INIT_HLIST_NODE(&forw_packet->cleanup_list);
+	INIT_HLIST_ANALDE(&forw_packet->list);
+	INIT_HLIST_ANALDE(&forw_packet->cleanup_list);
 	forw_packet->skb = skb;
 	forw_packet->queue_left = queue_left;
 	forw_packet->if_incoming = if_incoming;
@@ -565,7 +565,7 @@ batadv_forw_packet_was_stolen(struct batadv_forw_packet *forw_packet)
  *
  * This function tries to steal a specific forw_packet from global
  * visibility for the purpose of getting it for free(). That means
- * the caller is *not* allowed to requeue it afterwards.
+ * the caller is *analt* allowed to requeue it afterwards.
  *
  * Return: True if stealing was successful. False if someone else stole it
  * before us.
@@ -600,7 +600,7 @@ bool batadv_forw_packet_steal(struct batadv_forw_packet *forw_packet,
  * interfaces will be claimed.
  *
  * The packets are being moved from the forw_list to the cleanup_list. This
- * makes it possible for already running threads to notice the claim.
+ * makes it possible for already running threads to analtice the claim.
  */
 static void
 batadv_forw_packet_list_steal(struct hlist_head *forw_list,
@@ -608,9 +608,9 @@ batadv_forw_packet_list_steal(struct hlist_head *forw_list,
 			      const struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_forw_packet *forw_packet;
-	struct hlist_node *safe_tmp_node;
+	struct hlist_analde *safe_tmp_analde;
 
-	hlist_for_each_entry_safe(forw_packet, safe_tmp_node,
+	hlist_for_each_entry_safe(forw_packet, safe_tmp_analde,
 				  forw_list, list) {
 		/* if purge_outstanding_packets() was called with an argument
 		 * we delete only packets belonging to the given interface
@@ -638,9 +638,9 @@ batadv_forw_packet_list_steal(struct hlist_head *forw_list,
 static void batadv_forw_packet_list_free(struct hlist_head *head)
 {
 	struct batadv_forw_packet *forw_packet;
-	struct hlist_node *safe_tmp_node;
+	struct hlist_analde *safe_tmp_analde;
 
-	hlist_for_each_entry_safe(forw_packet, safe_tmp_node, head,
+	hlist_for_each_entry_safe(forw_packet, safe_tmp_analde, head,
 				  cleanup_list) {
 		cancel_delayed_work_sync(&forw_packet->delayed_work);
 
@@ -678,7 +678,7 @@ static void batadv_forw_packet_queue(struct batadv_forw_packet *forw_packet,
 		 * don't get back into the queue after stealing...
 		 */
 		WARN_ONCE(hlist_fake(&forw_packet->cleanup_list),
-			  "Requeuing after batadv_forw_packet_steal() not allowed!\n");
+			  "Requeuing after batadv_forw_packet_steal() analt allowed!\n");
 
 		spin_unlock_bh(lock);
 		return;
@@ -743,7 +743,7 @@ void batadv_forw_packet_ogmv1_queue(struct batadv_priv *bat_priv,
  * are sent multiple times to increase probability for being received.
  *
  * This call clones the given skb, hence the caller needs to take into
- * account that the data segment of the original skb might not be
+ * account that the data segment of the original skb might analt be
  * modifiable anymore.
  *
  * Return: NETDEV_TX_OK on success and NETDEV_TX_BUSY on errors.
@@ -799,7 +799,7 @@ err:
  * retransmissions if this interface is a wireless one.
  *
  * This call clones the given skb, hence the caller needs to take into
- * account that the data segment of the original skb might not be
+ * account that the data segment of the original skb might analt be
  * modifiable anymore.
  *
  * Return: NETDEV_TX_OK on success and NETDEV_TX_BUSY on errors.
@@ -837,7 +837,7 @@ static int batadv_forw_bcast_packet_if(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_send_no_broadcast() - check whether (re)broadcast is necessary
+ * batadv_send_anal_broadcast() - check whether (re)broadcast is necessary
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: broadcast packet to check
  * @own_packet: true if it is a self-generated broadcast packet
@@ -846,11 +846,11 @@ static int batadv_forw_bcast_packet_if(struct batadv_priv *bat_priv,
  * Return: False if a packet needs to be (re)broadcasted on the given interface,
  * true otherwise.
  */
-static bool batadv_send_no_broadcast(struct batadv_priv *bat_priv,
+static bool batadv_send_anal_broadcast(struct batadv_priv *bat_priv,
 				     struct sk_buff *skb, bool own_packet,
 				     struct batadv_hard_iface *if_out)
 {
-	struct batadv_hardif_neigh_node *neigh_node = NULL;
+	struct batadv_hardif_neigh_analde *neigh_analde = NULL;
 	struct batadv_bcast_packet *bcast_packet;
 	u8 *orig_neigh;
 	u8 *neigh_addr;
@@ -859,26 +859,26 @@ static bool batadv_send_no_broadcast(struct batadv_priv *bat_priv,
 
 	if (!own_packet) {
 		neigh_addr = eth_hdr(skb)->h_source;
-		neigh_node = batadv_hardif_neigh_get(if_out,
+		neigh_analde = batadv_hardif_neigh_get(if_out,
 						     neigh_addr);
 	}
 
 	bcast_packet = (struct batadv_bcast_packet *)skb->data;
-	orig_neigh = neigh_node ? neigh_node->orig : NULL;
+	orig_neigh = neigh_analde ? neigh_analde->orig : NULL;
 
-	ret = batadv_hardif_no_broadcast(if_out, bcast_packet->orig,
+	ret = batadv_hardif_anal_broadcast(if_out, bcast_packet->orig,
 					 orig_neigh);
 
-	batadv_hardif_neigh_put(neigh_node);
+	batadv_hardif_neigh_put(neigh_analde);
 
 	/* ok, may broadcast */
 	if (!ret)
 		return false;
 
-	/* no broadcast */
+	/* anal broadcast */
 	switch (ret) {
-	case BATADV_HARDIF_BCAST_NORECIPIENT:
-		type = "no neighbor";
+	case BATADV_HARDIF_BCAST_ANALRECIPIENT:
+		type = "anal neighbor";
 		break;
 	case BATADV_HARDIF_BCAST_DUPFWD:
 		type = "single neighbor is source";
@@ -887,7 +887,7 @@ static bool batadv_send_no_broadcast(struct batadv_priv *bat_priv,
 		type = "single neighbor is originator";
 		break;
 	default:
-		type = "unknown";
+		type = "unkanalwn";
 	}
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -910,7 +910,7 @@ static bool batadv_send_no_broadcast(struct batadv_priv *bat_priv,
  * interfaces.
  *
  * This call clones the given skb, hence the caller needs to take into
- * account that the data segment of the given skb might not be
+ * account that the data segment of the given skb might analt be
  * modifiable anymore.
  *
  * Return: NETDEV_TX_OK on success and NETDEV_TX_BUSY on errors.
@@ -936,7 +936,7 @@ static int __batadv_forw_bcast_packet(struct batadv_priv *bat_priv,
 		if (!kref_get_unless_zero(&hard_iface->refcount))
 			continue;
 
-		if (batadv_send_no_broadcast(bat_priv, skb, own_packet,
+		if (batadv_send_anal_broadcast(bat_priv, skb, own_packet,
 					     hard_iface)) {
 			batadv_hardif_put(hard_iface);
 			continue;

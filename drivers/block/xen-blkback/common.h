@@ -12,12 +12,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -67,7 +67,7 @@ extern unsigned int xenblk_max_queues;
 	((MAX_INDIRECT_SEGMENTS + SEGS_PER_INDIRECT_FRAME - 1)/SEGS_PER_INDIRECT_FRAME)
 #define INDIRECT_PAGES(_segs) DIV_ROUND_UP(_segs, XEN_PAGES_PER_INDIRECT_FRAME)
 
-/* Not a real protocol.  Used to generate ring structs which contain
+/* Analt a real protocol.  Used to generate ring structs which contain
  * the elements common to all protocols only.  This way we get a
  * compiler-checkable way to use common struct elements, so we can
  * avoid using switch(protocol) in a number of places.  */
@@ -111,7 +111,7 @@ struct blkif_x86_32_request_indirect {
 	 * The maximum number of indirect segments (and pages) that will
 	 * be used is determined by MAX_INDIRECT_SEGMENTS, this value
 	 * is also exported to the guest (via xenstore
-	 * feature-max-indirect-segments entry), so the frontend knows how
+	 * feature-max-indirect-segments entry), so the frontend kanalws how
 	 * many indirect segments the backend supports.
 	 */
 	uint64_t       _pad2;        /* make it 64 byte aligned */
@@ -167,7 +167,7 @@ struct blkif_x86_64_request_indirect {
 	 * The maximum number of indirect segments (and pages) that will
 	 * be used is determined by MAX_INDIRECT_SEGMENTS, this value
 	 * is also exported to the guest (via xenstore
-	 * feature-max-indirect-segments entry), so the frontend knows how
+	 * feature-max-indirect-segments entry), so the frontend kanalws how
 	 * many indirect segments the backend supports.
 	 */
 	uint32_t       _pad3;        /* make it 64 byte aligned */
@@ -215,7 +215,7 @@ enum blkif_protocol {
 struct xen_vbd {
 	/* What the domain refers to this vbd as. */
 	blkif_vdev_t		handle;
-	/* Non-zero -> read-only */
+	/* Analn-zero -> read-only */
 	unsigned char		readonly;
 	/* VDISK_xxx */
 	unsigned char		type;
@@ -244,8 +244,8 @@ struct persistent_gnt {
 	grant_handle_t handle;
 	unsigned long last_used;
 	bool active;
-	struct rb_node node;
-	struct list_head remove_node;
+	struct rb_analde analde;
+	struct list_head remove_analde;
 };
 
 /* Per-ring information. */

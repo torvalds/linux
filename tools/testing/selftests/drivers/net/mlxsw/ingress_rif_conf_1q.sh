@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-# Test routing over bridge and verify that the order of configuration does not
+# Test routing over bridge and verify that the order of configuration does analt
 # impact switch behavior. Verify that RIF is added correctly for existing
 # mapping and that packets can be routed via port which is added after the FID
 # already has a RIF.
@@ -94,7 +94,7 @@ switch_create()
 {
 	ip link set dev $swp1 up
 
-	ip link add dev br0 type bridge vlan_filtering 1 mcast_snooping 0
+	ip link add dev br0 type bridge vlan_filtering 1 mcast_sanaloping 0
 
 	# By default, a link-local address is generated when netdevice becomes
 	# up. Adding an address to the bridge will cause creating a RIF for it.
@@ -123,7 +123,7 @@ switch_destroy()
 	ip link set dev $swp3 down
 
 	bridge vlan del vid 10 dev $swp2
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 	ip link set dev $swp2 down
 
 	ip link set dev br0 down
@@ -206,7 +206,7 @@ vid_map_rif()
 	check_err $? "Ping failed"
 
 	tc_check_at_least_x_packets "dev $swp3 egress" 101 10
-	check_err $? "Packets were not routed in hardware"
+	check_err $? "Packets were analt routed in hardware"
 
 	log_test "Add RIF for existing VID->FID mapping"
 
@@ -215,7 +215,7 @@ vid_map_rif()
 	bridge_rif_del
 
 	bridge vlan del vid 10 dev $swp1
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	bridge vlan del vid 10 dev br0 self
 }
 
@@ -224,9 +224,9 @@ rif_vid_map()
 	RET=0
 
 	# Using 802.1Q, there is only one VID->FID map for each VID. That means
-	# that we cannot really check adding a new map for existing FID with a
+	# that we cananalt really check adding a new map for existing FID with a
 	# RIF. Verify that packets can be routed via port which is added after
-	# the FID already has a RIF, although in practice there is no new
+	# the FID already has a RIF, although in practice there is anal new
 	# mapping in the hardware.
 	bridge vlan add vid 10 dev br0 self
 	bridge_rif_add
@@ -241,14 +241,14 @@ rif_vid_map()
 	check_err $? "Ping failed"
 
 	tc_check_at_least_x_packets "dev $swp3 egress" 101 10
-	check_err $? "Packets were not routed in hardware"
+	check_err $? "Packets were analt routed in hardware"
 
 	log_test "Add port to VID->FID mapping for FID with a RIF"
 
 	tc filter del dev $swp3 egress
 
 	bridge vlan del vid 10 dev $swp1
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	bridge_rif_del
 	bridge vlan del vid 10 dev br0 self

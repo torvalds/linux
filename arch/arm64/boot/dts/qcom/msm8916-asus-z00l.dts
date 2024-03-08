@@ -141,7 +141,7 @@
 	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
 	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
 	qcom,micbias1-ext-cap;
-	qcom,hphl-jack-type-normally-open;
+	qcom,hphl-jack-type-analrmally-open;
 };
 
 &pm8916_rpm_regulators {

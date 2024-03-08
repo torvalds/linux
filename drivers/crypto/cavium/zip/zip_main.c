@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright analtice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. analr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -31,12 +31,12 @@
  * regulations in other countries.
  *
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES ANAL PROMISES, REPRESENTATIONS
  * OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
  * RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
  * REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
  * DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY)
- * WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A
+ * WARRANTIES OF TITLE, MERCHANTABILITY, ANALNINFRINGEMENT, FITNESS FOR A
  * PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET
  * ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE
  * ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES
@@ -72,7 +72,7 @@ u64 zip_reg_read(u64 __iomem *addr)
 
 /*
  * Allocates new ZIP device structure
- * Returns zip_device pointer or NULL if cannot allocate memory for zip_device
+ * Returns zip_device pointer or NULL if cananalt allocate memory for zip_device
  */
 static struct zip_device *zip_alloc_device(struct pci_dev *pdev)
 {
@@ -97,28 +97,28 @@ static struct zip_device *zip_alloc_device(struct pci_dev *pdev)
 }
 
 /**
- * zip_get_device - Get ZIP device based on node id of cpu
+ * zip_get_device - Get ZIP device based on analde id of cpu
  *
- * @node: Node id of the current cpu
+ * @analde: Analde id of the current cpu
  * Return: Pointer to Zip device structure
  */
-struct zip_device *zip_get_device(int node)
+struct zip_device *zip_get_device(int analde)
 {
-	if ((node < MAX_ZIP_DEVICES) && (node >= 0))
-		return zip_dev[node];
+	if ((analde < MAX_ZIP_DEVICES) && (analde >= 0))
+		return zip_dev[analde];
 
-	zip_err("ZIP device not found for node id %d\n", node);
+	zip_err("ZIP device analt found for analde id %d\n", analde);
 	return NULL;
 }
 
 /**
- * zip_get_node_id - Get the node id of the current cpu
+ * zip_get_analde_id - Get the analde id of the current cpu
  *
- * Return: Node id of the current cpu
+ * Return: Analde id of the current cpu
  */
-int zip_get_node_id(void)
+int zip_get_analde_id(void)
 {
-	return cpu_to_node(raw_smp_processor_id());
+	return cpu_to_analde(raw_smp_processor_id());
 }
 
 /* Initializes the ZIP h/w sub-system */
@@ -178,7 +178,7 @@ static int zip_init_hw(struct zip_device *zip)
 				q--;
 				zip_cmd_qbuf_free(zip, q);
 			}
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* Initialize tail ptr to head */
@@ -207,7 +207,7 @@ static int zip_init_hw(struct zip_device *zip)
 
 	/*
 	 * Queue-to-ZIP core mapping
-	 * If a queue is not mapped to a particular core, it is equivalent to
+	 * If a queue is analt mapped to a particular core, it is equivalent to
 	 * the ZIP core being disabled.
 	 */
 	que_ena.u_reg64 = 0x0ull;
@@ -257,10 +257,10 @@ static int zip_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	zip = zip_alloc_device(pdev);
 	if (!zip)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dev_info(dev, "Found ZIP device %d %x:%x on Node %d\n", zip->index,
-		 pdev->vendor, pdev->device, dev_to_node(dev));
+	dev_info(dev, "Found ZIP device %d %x:%x on Analde %d\n", zip->index,
+		 pdev->vendor, pdev->device, dev_to_analde(dev));
 
 	pci_set_drvdata(pdev, zip);
 	zip->pdev = pdev;
@@ -286,8 +286,8 @@ static int zip_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP configuration registers */
 	zip->reg_base = pci_ioremap_bar(pdev, PCI_CFG_ZIP_PF_BAR0);
 	if (!zip->reg_base) {
-		dev_err(dev, "ZIP: Cannot map BAR0 CSR memory space, aborting");
-		err = -ENOMEM;
+		dev_err(dev, "ZIP: Cananalt map BAR0 CSR memory space, aborting");
+		err = -EANALMEM;
 		goto err_release_regions;
 	}
 

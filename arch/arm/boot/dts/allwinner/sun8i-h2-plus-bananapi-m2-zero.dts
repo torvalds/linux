@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  * Based on sun8i-h3-bananapi-m2-plus.dts, which is:
  *   Copyright (C) 2016 Chen-Yu Tsai <wens@csie.org>
@@ -15,7 +15,7 @@
 
 / {
 	model = "Banana Pi BPI-M2-Zero";
-	compatible = "sinovoip,bpi-m2-zero", "allwinner,sun8i-h2-plus";
+	compatible = "sianalvoip,bpi-m2-zero", "allwinner,sun8i-h2-plus";
 
 	aliases {
 		serial0 = &uart0;
@@ -106,7 +106,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "ext_clock";
 	};
 };
@@ -150,7 +150,7 @@
 	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	brcmf: wifi@1 {
@@ -181,7 +181,7 @@
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
 		max-speed = <1500000>;
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_vcc3v3>;
 		vddio-supply = <&reg_vcc3v3>;
@@ -264,7 +264,7 @@
 &usbphy {
 	usb0_id_det-gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
 	/*
-	 * There're two micro-USB connectors, one is power-only and another is
+	 * There're two micro-USB connectors, one is power-only and aanalther is
 	 * OTG. The Vbus of these two connectors are connected together, so
 	 * the external USB device will be powered just by the power input
 	 * from the power-only USB port.

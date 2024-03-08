@@ -14,37 +14,37 @@
 extern struct resource crashk_res;
 extern struct resource crashk_low_res;
 
-#define CRASH_CORE_NOTE_NAME	   "CORE"
-#define CRASH_CORE_NOTE_HEAD_BYTES ALIGN(sizeof(struct elf_note), 4)
-#define CRASH_CORE_NOTE_NAME_BYTES ALIGN(sizeof(CRASH_CORE_NOTE_NAME), 4)
-#define CRASH_CORE_NOTE_DESC_BYTES ALIGN(sizeof(struct elf_prstatus), 4)
+#define CRASH_CORE_ANALTE_NAME	   "CORE"
+#define CRASH_CORE_ANALTE_HEAD_BYTES ALIGN(sizeof(struct elf_analte), 4)
+#define CRASH_CORE_ANALTE_NAME_BYTES ALIGN(sizeof(CRASH_CORE_ANALTE_NAME), 4)
+#define CRASH_CORE_ANALTE_DESC_BYTES ALIGN(sizeof(struct elf_prstatus), 4)
 
 /*
- * The per-cpu notes area is a list of notes terminated by a "NULL"
- * note header.  For kdump, the code in vmcore.c runs in the context
- * of the second kernel to combine them into one note.
+ * The per-cpu analtes area is a list of analtes terminated by a "NULL"
+ * analte header.  For kdump, the code in vmcore.c runs in the context
+ * of the second kernel to combine them into one analte.
  */
-#define CRASH_CORE_NOTE_BYTES	   ((CRASH_CORE_NOTE_HEAD_BYTES * 2) +	\
-				     CRASH_CORE_NOTE_NAME_BYTES +	\
-				     CRASH_CORE_NOTE_DESC_BYTES)
+#define CRASH_CORE_ANALTE_BYTES	   ((CRASH_CORE_ANALTE_HEAD_BYTES * 2) +	\
+				     CRASH_CORE_ANALTE_NAME_BYTES +	\
+				     CRASH_CORE_ANALTE_DESC_BYTES)
 
 #define VMCOREINFO_BYTES	   PAGE_SIZE
-#define VMCOREINFO_NOTE_NAME	   "VMCOREINFO"
-#define VMCOREINFO_NOTE_NAME_BYTES ALIGN(sizeof(VMCOREINFO_NOTE_NAME), 4)
-#define VMCOREINFO_NOTE_SIZE	   ((CRASH_CORE_NOTE_HEAD_BYTES * 2) +	\
-				     VMCOREINFO_NOTE_NAME_BYTES +	\
+#define VMCOREINFO_ANALTE_NAME	   "VMCOREINFO"
+#define VMCOREINFO_ANALTE_NAME_BYTES ALIGN(sizeof(VMCOREINFO_ANALTE_NAME), 4)
+#define VMCOREINFO_ANALTE_SIZE	   ((CRASH_CORE_ANALTE_HEAD_BYTES * 2) +	\
+				     VMCOREINFO_ANALTE_NAME_BYTES +	\
 				     VMCOREINFO_BYTES)
 
-typedef u32 note_buf_t[CRASH_CORE_NOTE_BYTES/4];
+typedef u32 analte_buf_t[CRASH_CORE_ANALTE_BYTES/4];
 /* Per cpu memory for storing cpu states in case of system crash. */
-extern note_buf_t __percpu *crash_notes;
+extern analte_buf_t __percpu *crash_analtes;
 
 void crash_update_vmcoreinfo_safecopy(void *ptr);
 void crash_save_vmcoreinfo(void);
 void arch_crash_save_vmcoreinfo(void);
 __printf(1, 2)
 void vmcoreinfo_append_str(const char *fmt, ...);
-phys_addr_t paddr_vmcoreinfo_note(void);
+phys_addr_t paddr_vmcoreinfo_analte(void);
 
 #define VMCOREINFO_OSRELEASE(value) \
 	vmcoreinfo_append_str("OSRELEASE=%s\n", value)
@@ -81,11 +81,11 @@ phys_addr_t paddr_vmcoreinfo_note(void);
 
 extern unsigned char *vmcoreinfo_data;
 extern size_t vmcoreinfo_size;
-extern u32 *vmcoreinfo_note;
+extern u32 *vmcoreinfo_analte;
 
-Elf_Word *append_elf_note(Elf_Word *buf, char *name, unsigned int type,
+Elf_Word *append_elf_analte(Elf_Word *buf, char *name, unsigned int type,
 			  void *data, size_t data_len);
-void final_note(Elf_Word *buf);
+void final_analte(Elf_Word *buf);
 
 int __init parse_crashkernel(char *cmdline, unsigned long long system_ram,
 		unsigned long long *crash_size, unsigned long long *crash_base,
@@ -137,7 +137,7 @@ extern int crash_prepare_elf64_headers(struct crash_mem *mem, int need_kernel_ma
 struct kimage;
 struct kexec_segment;
 
-#define KEXEC_CRASH_HP_NONE			0
+#define KEXEC_CRASH_HP_ANALNE			0
 #define KEXEC_CRASH_HP_ADD_CPU			1
 #define KEXEC_CRASH_HP_REMOVE_CPU		2
 #define KEXEC_CRASH_HP_ADD_MEMORY		3

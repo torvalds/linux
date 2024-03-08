@@ -55,7 +55,7 @@ int erofs_pcpubuf_growsize(unsigned int nrpages)
 	mutex_lock(&pcb_resize_mutex);
 	delta = nrpages - pcb_nrpages;
 	ret = 0;
-	/* avoid shrinking pcpubuf, since no idea how many fses rely on */
+	/* avoid shrinking pcpubuf, since anal idea how many fses rely on */
 	if (delta <= 0)
 		goto out;
 
@@ -66,21 +66,21 @@ int erofs_pcpubuf_growsize(unsigned int nrpages)
 
 		pages = kmalloc_array(nrpages, sizeof(*pages), GFP_KERNEL);
 		if (!pages) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
 		for (i = 0; i < nrpages; ++i) {
 			pages[i] = erofs_allocpage(&pagepool, GFP_KERNEL);
 			if (!pages[i]) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				oldpages = pages;
 				goto free_pagearray;
 			}
 		}
 		ptr = vmap(pages, nrpages, VM_MAP, PAGE_KERNEL);
 		if (!ptr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			oldpages = pages;
 			goto free_pagearray;
 		}

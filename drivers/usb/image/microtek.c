@@ -11,16 +11,16 @@
  * device driver. To avoid confusion, all the USB related stuff is
  * prefixed by mts_usb_ and all the SCSI stuff by mts_scsi_.
  *
- * Microtek (www.microtek.com) did not release the specifications for
+ * Microtek (www.microtek.com) did analt release the specifications for
  * their USB protocol to us, so we had to reverse engineer them. We
- * don't know for which models they are valid.
+ * don't kanalw for which models they are valid.
  *
  * The X6 USB has three bulk endpoints, one output (0x1) down which
  * commands and outgoing data are sent, and two input: 0x82 from which
- * normal data is read from the scanner (in packets of maximum 32
+ * analrmal data is read from the scanner (in packets of maximum 32
  * bytes) and from which the status byte is read, and 0x83 from which
  * the results of a scan (or preview) are read in up to 64 * 1024 byte
- * chunks by the Windows driver. We don't know how much it is possible
+ * chunks by the Windows driver. We don't kanalw how much it is possible
  * to read at a time from 0x83.
  *
  * It seems possible to read (with URB transfers) everything from 0x82
@@ -70,7 +70,7 @@
  *	20000513 added IDs for all products supported by Windows driver (john)
  *	20000514 Rewrote mts_scsi_queuecommand to use URBs (john)
  *	20000514 Version 0.0.8j
- *      20000514 Fix reporting of non-existent devices to SCSI layer (john)
+ *      20000514 Fix reporting of analn-existent devices to SCSI layer (john)
  *	20000514 Added MTS_DEBUG_INT (john)
  *	20000514 Changed "usb-microtek" to "microtek" for consistency (john)
  *	20000514 Stupid bug fixes (john)
@@ -81,26 +81,26 @@
  *      20000515 Fixed up URB allocation (clear URB on alloc) (john)
  *      20000515 Version 0.0.11j
  *	20000516 Removed unnecessary spinlock in mts_transfer_context (john)
- *	20000516 Removed unnecessary up on instance lock in mts_remove_nolock (john)
+ *	20000516 Removed unnecessary up on instance lock in mts_remove_anallock (john)
  *	20000516 Implemented (badly) scsi_abort (john)
  *	20000516 Version 0.0.12j
- *      20000517 Hopefully removed mts_remove_nolock quasideadlock (john)
+ *      20000517 Hopefully removed mts_remove_anallock quasideadlock (john)
  *      20000517 Added mts_debug_dump to print ll USB info (john)
  *	20000518 Tweaks and documentation updates (john)
  *	20000518 Version 0.0.13j
  *	20000518 Cleaned up abort handling (john)
  *	20000523 Removed scsi_command and various scsi_..._resets (john)
- *	20000523 Added unlink URB on scsi_abort, now OHCI supports it (john)
+ *	20000523 Added unlink URB on scsi_abort, analw OHCI supports it (john)
  *	20000523 Fixed last tiresome compile warning (john)
  *	20000523 Version 0.0.14j (though version 0.1 has come out?)
  *	20000602 Added primitive reset
  *	20000602 Version 0.2.0
  *	20000603 various cosmetic changes
  *	20000603 Version 0.2.1
- *	20000620 minor cosmetic changes
+ *	20000620 mianalr cosmetic changes
  *	20000620 Version 0.2.2
- *	20000822 Hopefully fixed deadlock in mts_remove_nolock()
- *	20000822 Fixed minor race in mts_transfer_cleanup()
+ *	20000822 Hopefully fixed deadlock in mts_remove_anallock()
+ *	20000822 Fixed mianalr race in mts_transfer_cleanup()
  *	20000822 Fixed deadlock on submission error in queuecommand
  *	20000822 Version 0.2.3
  *	20000913 Reduced module size if debugging is off
@@ -123,7 +123,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/random.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
@@ -249,8 +249,8 @@ static inline void mts_show_command(struct scsi_cmnd *srb)
 	case ERASE: what = "ERASE"; break;
 	case MODE_SENSE: what = "MODE_SENSE"; break;
 	case START_STOP: what = "START_STOP"; break;
-	case RECEIVE_DIAGNOSTIC: what = "RECEIVE_DIAGNOSTIC"; break;
-	case SEND_DIAGNOSTIC: what = "SEND_DIAGNOSTIC"; break;
+	case RECEIVE_DIAGANALSTIC: what = "RECEIVE_DIAGANALSTIC"; break;
+	case SEND_DIAGANALSTIC: what = "SEND_DIAGANALSTIC"; break;
 	case ALLOW_MEDIUM_REMOVAL: what = "ALLOW_MEDIUM_REMOVAL"; break;
 	case SET_WINDOW: what = "SET_WINDOW"; break;
 	case READ_CAPACITY: what = "READ_CAPACITY"; break;
@@ -392,7 +392,7 @@ void mts_int_submit_urb (struct urb* transfer,
 
 	res = usb_submit_urb( transfer, GFP_ATOMIC );
 	if ( unlikely(res) ) {
-		MTS_INT_ERROR( "could not submit URB! Error was %d\n",(int)res );
+		MTS_INT_ERROR( "could analt submit URB! Error was %d\n",(int)res );
 		set_host_byte(context->srb, DID_ERROR);
 		mts_transfer_cleanup(transfer);
 	}
@@ -442,7 +442,7 @@ static void mts_data_done( struct urb* transfer )
 		scsi_set_resid(context->srb, context->data_length -
 			       transfer->actual_length);
 	} else if ( unlikely(status) ) {
-		set_host_byte(context->srb, (status == -ENOENT ? DID_ABORT : DID_ERROR));
+		set_host_byte(context->srb, (status == -EANALENT ? DID_ABORT : DID_ERROR));
 	}
 
 	mts_get_status(transfer);
@@ -456,7 +456,7 @@ static void mts_command_done( struct urb *transfer )
 	MTS_INT_INIT();
 
 	if ( unlikely(status) ) {
-	        if (status == -ENOENT) {
+	        if (status == -EANALENT) {
 		        /* We are being killed */
 			MTS_DEBUG_GOT_HERE();
 			set_host_byte(context->srb, DID_ABORT);
@@ -499,7 +499,7 @@ static void mts_do_sg (struct urb* transfer)
 	                                          scsi_sg_count(context->srb));
 
 	if (unlikely(status)) {
-                set_host_byte(context->srb, (status == -ENOENT ? DID_ABORT : DID_ERROR));
+                set_host_byte(context->srb, (status == -EANALENT ? DID_ABORT : DID_ERROR));
 		mts_transfer_cleanup(transfer);
         }
 
@@ -664,7 +664,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 	int ep_in_set[3]; /* this will break if we have more than three endpoints
 			   which is why we check */
 	int *ep_in_current = ep_in_set;
-	int err_retval = -ENOMEM;
+	int err_retval = -EANALMEM;
 
 	struct mts_desc * new_desc;
 	struct usb_device *dev = interface_to_usbdev (intf);
@@ -690,14 +690,14 @@ static int mts_usb_probe(struct usb_interface *intf,
 	if ( altsetting->desc.bNumEndpoints != MTS_EP_TOTAL ) {
 		MTS_WARNING( "expecting %d got %d endpoints! Bailing out.\n",
 			     (int)MTS_EP_TOTAL, (int)altsetting->desc.bNumEndpoints );
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for( i = 0; i < altsetting->desc.bNumEndpoints; i++ ) {
 		if ((altsetting->endpoint[i].desc.bmAttributes &
 		     USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_BULK) {
 
-			MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
+			MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is analt bulk.\n",
 			     (int)altsetting->endpoint[i].desc.bEndpointAddress );
 		} else {
 			if (altsetting->endpoint[i].desc.bEndpointAddress &
@@ -708,7 +708,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 			else {
 				if ( ep_out != -1 ) {
 					MTS_WARNING( "can only deal with one output endpoints. Bailing out." );
-					return -ENODEV;
+					return -EANALDEV;
 				}
 
 				ep_out = altsetting->endpoint[i].desc.bEndpointAddress &
@@ -720,12 +720,12 @@ static int mts_usb_probe(struct usb_interface *intf,
 
 	if (ep_in_current != &ep_in_set[2]) {
 		MTS_WARNING("couldn't find two input bulk endpoints. Bailing out.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if ( ep_out == -1 ) {
 		MTS_WARNING( "couldn't find an output bulk endpoint. Bailing out.\n" );
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 
@@ -750,15 +750,15 @@ static int mts_usb_probe(struct usb_interface *intf,
 	new_desc->ep_image = ep_in_set[1];
 
 	if ( new_desc->ep_out != MTS_EP_OUT )
-		MTS_WARNING( "will this work? Command EP is not usually %d\n",
+		MTS_WARNING( "will this work? Command EP is analt usually %d\n",
 			     (int)new_desc->ep_out );
 
 	if ( new_desc->ep_response != MTS_EP_RESPONSE )
-		MTS_WARNING( "will this work? Response EP is not usually %d\n",
+		MTS_WARNING( "will this work? Response EP is analt usually %d\n",
 			     (int)new_desc->ep_response );
 
 	if ( new_desc->ep_image != MTS_EP_IMAGE )
-		MTS_WARNING( "will this work? Image data EP is not usually %d\n",
+		MTS_WARNING( "will this work? Image data EP is analt usually %d\n",
 			     (int)new_desc->ep_image );
 
 	new_desc->host = scsi_host_alloc(&mts_scsi_host_template,

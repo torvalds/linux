@@ -2,7 +2,7 @@
 /*
  * Eurobraille/Iris power off support.
  *
- * Eurobraille's Iris machine is a PC with no APM or ACPI support.
+ * Eurobraille's Iris machine is a PC with anal APM or ACPI support.
  * It is shutdown by a special I/O sequence which this module provides.
  *
  *  Copyright (C) Shérab <Sebastien.Hinderer@ens-lyon.org>
@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <asm/io.h>
@@ -22,7 +22,7 @@
 #define IRIS_GIO_OUTPUT		(IRIS_GIO_BASE + 1)
 #define IRIS_GIO_PULSE		0x80 /* First byte to send */
 #define IRIS_GIO_REST		0x00 /* Second byte to send */
-#define IRIS_GIO_NODEV		0xff /* Likely not an Iris */
+#define IRIS_GIO_ANALDEV		0xff /* Likely analt an Iris */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sébastien Hinderer <Sebastien.Hinderer@ens-lyon.org>");
@@ -44,17 +44,17 @@ static void iris_power_off(void)
 
 /*
  * Before installing the power_off handler, try to make sure the OS is
- * running on an Iris.  Since Iris does not support DMI, this is done
+ * running on an Iris.  Since Iris does analt support DMI, this is done
  * by reading its input port and seeing whether the read value is
  * meaningful.
  */
 static int iris_probe(struct platform_device *pdev)
 {
 	unsigned char status = inb(IRIS_GIO_INPUT);
-	if (status == IRIS_GIO_NODEV) {
-		printk(KERN_ERR "This machine does not seem to be an Iris. "
-			"Power off handler not installed.\n");
-		return -ENODEV;
+	if (status == IRIS_GIO_ANALDEV) {
+		printk(KERN_ERR "This machine does analt seem to be an Iris. "
+			"Power off handler analt installed.\n");
+		return -EANALDEV;
 	}
 	old_pm_power_off = pm_power_off;
 	pm_power_off = &iris_power_off;
@@ -92,9 +92,9 @@ static int iris_init(void)
 {
 	int ret;
 	if (force != 1) {
-		printk(KERN_ERR "The force parameter has not been set to 1."
-			" The Iris poweroff handler will not be installed.\n");
-		return -ENODEV;
+		printk(KERN_ERR "The force parameter has analt been set to 1."
+			" The Iris poweroff handler will analt be installed.\n");
+		return -EANALDEV;
 	}
 	ret = platform_driver_register(&iris_driver);
 	if (ret < 0) {

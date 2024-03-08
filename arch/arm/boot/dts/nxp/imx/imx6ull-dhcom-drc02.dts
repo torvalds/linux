@@ -22,7 +22,7 @@
 /*
  * The signals for CAN2 TX and RX are routed to the DHCOM UART1 RTS/CTS pins.
  * Therefore the UART RTS/CTS must be output on other DHCOM pins, see uart1
- * node below.
+ * analde below.
  */
 &can2 {
 	status = "okay";
@@ -51,7 +51,7 @@
 		"DHCOM-R", "DHCOM-Q", "DHCOM-P", "DHCOM-O",
 		"DHCOM-N", "", "", "";
 	/*
-	 * NOTE: On DRC02, the RS485_RX_En is controlled by a separate
+	 * ANALTE: On DRC02, the RS485_RX_En is controlled by a separate
 	 * GPIO line, however the i.MX6ULL UART driver assumes RX happens
 	 * during TX anyway and that it only controls drive enable DE
 	 * line. Hence, the RX is always enabled here.

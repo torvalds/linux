@@ -10,7 +10,7 @@
  *
  * Some of this is documented in Documentation/arch/x86/entry_64.rst
  *
- * A note on terminology:
+ * A analte on termianallogy:
  * - iret frame:	Architecture defined interrupt frame from SS to RIP
  *			at the top of the kernel process stack.
  *
@@ -22,7 +22,7 @@
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/cache.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/asm-offsets.h>
 #include <asm/msr.h>
 #include <asm/unistd.h>
@@ -37,7 +37,7 @@
 #include <asm/pgtable_types.h>
 #include <asm/frame.h>
 #include <asm/trapnr.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/fsgsbase.h>
 #include <linux/err.h>
 
@@ -61,26 +61,26 @@
  *
  * 64-bit SYSCALL saves rip to rcx, clears rflags.RF, then saves rflags to r11,
  * then loads new ss, cs, and rip from previously programmed MSRs.
- * rflags gets masked by a value from another MSR (so CLD and CLAC
- * are not needed). SYSCALL does not save anything on the stack
- * and does not change rsp.
+ * rflags gets masked by a value from aanalther MSR (so CLD and CLAC
+ * are analt needed). SYSCALL does analt save anything on the stack
+ * and does analt change rsp.
  *
  * Registers on entry:
  * rax  system call number
  * rcx  return address
- * r11  saved rflags (note: r11 is callee-clobbered register in C ABI)
+ * r11  saved rflags (analte: r11 is callee-clobbered register in C ABI)
  * rdi  arg0
  * rsi  arg1
  * rdx  arg2
  * r10  arg3 (needs to be moved to rcx to conform to C ABI)
  * r8   arg4
  * r9   arg5
- * (note: r12-r15, rbp, rbx are callee-preserved in C ABI)
+ * (analte: r12-r15, rbp, rbx are callee-preserved in C ABI)
  *
  * Only called from user space.
  *
  * When user can change pt_regs->foo always force IRET. That is because
- * it deals with uncanonical addresses better. SYSRET has trouble
+ * it deals with uncaanalnical addresses better. SYSRET has trouble
  * with them due to bugs in both AMD and Intel CPUs.
  */
 
@@ -95,7 +95,7 @@ SYM_CODE_START(entry_SYSCALL_64)
 	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
 
 SYM_INNER_LABEL(entry_SYSCALL_64_safe_stack, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER_DS				/* pt_regs->ss */
@@ -106,7 +106,7 @@ SYM_INNER_LABEL(entry_SYSCALL_64_safe_stack, SYM_L_GLOBAL)
 SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 	pushq	%rax					/* pt_regs->orig_ax */
 
-	PUSH_AND_CLEAR_REGS rax=$-ENOSYS
+	PUSH_AND_CLEAR_REGS rax=$-EANALSYS
 
 	/* IRQs are off. */
 	movq	%rsp, %rdi
@@ -121,7 +121,7 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 
 	/*
 	 * Try to use SYSRET instead of IRET if we're returning to
-	 * a completely clean 64-bit userspace context.  If we're not,
+	 * a completely clean 64-bit userspace context.  If we're analt,
 	 * go to the slow exit path.
 	 * In the Xen PV case we must use iret anyway.
 	 */
@@ -131,14 +131,14 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 
 	/*
 	 * We win! This label is here just for ease of understanding
-	 * perf profiles. Nothing jumps here.
+	 * perf profiles. Analthing jumps here.
 	 */
 syscall_return_via_sysret:
 	IBRS_EXIT
 	POP_REGS pop_rdi=0
 
 	/*
-	 * Now all regs are restored except RSP and RDI.
+	 * Analw all regs are restored except RSP and RDI.
 	 * Save old stack pointer and switch to trampoline stack.
 	 */
 	movq	%rsp, %rdi
@@ -152,19 +152,19 @@ syscall_return_via_sysret:
 	 * We are on the trampoline stack.  All regs except RDI are live.
 	 * We can do future final exit work right here.
 	 */
-	STACKLEAK_ERASE_NOCLOBBER
+	STACKLEAK_ERASE_ANALCLOBBER
 
 	SWITCH_TO_USER_CR3_STACK scratch_reg=%rdi
 
 	popq	%rdi
 	popq	%rsp
 SYM_INNER_LABEL(entry_SYSRETQ_unsafe_stack, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	swapgs
 	CLEAR_CPU_BUFFERS
 	sysretq
 SYM_INNER_LABEL(entry_SYSRETQ_end, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	int3
 SYM_CODE_END(entry_SYSCALL_64)
 
@@ -227,13 +227,13 @@ SYM_CODE_START(ret_from_fork_asm)
 	/*
 	 * This is the start of the kernel stack; even through there's a
 	 * register set at the top, the regset isn't necessarily coherent
-	 * (consider kthreads) and one cannot unwind further.
+	 * (consider kthreads) and one cananalt unwind further.
 	 *
-	 * This ensures stack unwinds of kernel threads terminate in a known
+	 * This ensures stack unwinds of kernel threads terminate in a kanalwn
 	 * good state.
 	 */
 	UNWIND_HINT_END_OF_STACK
-	ANNOTATE_NOENDBR // copy_thread
+	ANANALTATE_ANALENDBR // copy_thread
 	CALL_DEPTH_ACCOUNT
 
 	movq	%rax, %rdi		/* prev */
@@ -245,7 +245,7 @@ SYM_CODE_START(ret_from_fork_asm)
 	/*
 	 * Set the stack state to what is expected for the target function
 	 * -- at this point the register set should be a valid user set
-	 * and unwind should work normally.
+	 * and unwind should work analrmally.
 	 */
 	UNWIND_HINT_REGS
 	jmp	swapgs_restore_regs_and_return_to_usermode
@@ -265,7 +265,7 @@ SYM_CODE_END(ret_from_fork_asm)
 .endm
 
 SYM_CODE_START(xen_error_entry)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	UNWIND_HINT_FUNC
 	PUSH_AND_CLEAR_REGS save_ret=1
 	ENCODE_FRAME_POINTER 8
@@ -284,7 +284,7 @@ SYM_CODE_END(xen_error_entry)
 	 * Call error_entry() and switch to the task stack if from userspace.
 	 *
 	 * When in XENPV, it is already in the task stack, and it can't fault
-	 * for native_iret() nor native_load_gs_index() since XENPV uses its
+	 * for native_iret() analr native_load_gs_index() since XENPV uses its
 	 * own pvops for IRET and load_gs_index().  And it doesn't need to
 	 * switch the CR3.  So it can skip invoking error_entry().
 	 */
@@ -298,12 +298,12 @@ SYM_CODE_END(xen_error_entry)
 
 	.if \has_error_code == 1
 		movq	ORIG_RAX(%rsp), %rsi	/* get error code into 2nd argument*/
-		movq	$-1, ORIG_RAX(%rsp)	/* no syscall to restart */
+		movq	$-1, ORIG_RAX(%rsp)	/* anal syscall to restart */
 	.endif
 
 	call	\cfunc
 
-	/* For some configurations \cfunc ends up being a noreturn. */
+	/* For some configurations \cfunc ends up being a analreturn. */
 	REACHABLE
 
 	jmp	error_return
@@ -317,7 +317,7 @@ SYM_CODE_END(xen_error_entry)
  * @has_error_code:	Hardware pushed error code on stack
  *
  * The macro emits code to set up the kernel context for straight forward
- * and simple IDT entries. No IST stack, no paranoid entry checks.
+ * and simple IDT entries. Anal IST stack, anal paraanalid entry checks.
  */
 .macro idtentry vector asmsym cfunc has_error_code:req
 SYM_CODE_START(\asmsym)
@@ -334,7 +334,7 @@ SYM_CODE_START(\asmsym)
 	cld
 
 	.if \has_error_code == 0
-		pushq	$-1			/* ORIG_RAX: no syscall to restart */
+		pushq	$-1			/* ORIG_RAX: anal syscall to restart */
 	.endif
 
 	.if \vector == X86_TRAP_BP
@@ -343,17 +343,17 @@ SYM_CODE_START(\asmsym)
 		 * int3 handler to emulate a call instruction.
 		 */
 		testb	$3, CS-ORIG_RAX(%rsp)
-		jnz	.Lfrom_usermode_no_gap_\@
+		jnz	.Lfrom_usermode_anal_gap_\@
 		.rept	6
 		pushq	5*8(%rsp)
 		.endr
 		UNWIND_HINT_IRET_REGS offset=8
-.Lfrom_usermode_no_gap_\@:
+.Lfrom_usermode_anal_gap_\@:
 	.endif
 
 	idtentry_body \cfunc \has_error_code
 
-_ASM_NOKPROBE(\asmsym)
+_ASM_ANALKPROBE(\asmsym)
 SYM_CODE_END(\asmsym)
 .endm
 
@@ -372,7 +372,7 @@ SYM_CODE_END(\asmsym)
 .endm
 
 /*
- * System vectors which invoke their handlers directly and are not
+ * System vectors which invoke their handlers directly and are analt
  * going through the regular common device interrupt handling code.
  */
 .macro idtentry_sysvec vector cfunc
@@ -387,13 +387,13 @@ SYM_CODE_END(\asmsym)
  *
  * The macro emits code to set up the kernel context for #MC and #DB
  *
- * If the entry comes from user space it uses the normal entry path
+ * If the entry comes from user space it uses the analrmal entry path
  * including the return to user space work and preemption checks on
  * exit.
  *
- * If hits in kernel mode then it needs to go through the paranoid
- * entry as the exception can hit any random state. No preemption
- * check on exit to keep the paranoid path simple.
+ * If hits in kernel mode then it needs to go through the paraanalid
+ * entry as the exception can hit any random state. Anal preemption
+ * check on exit to keep the paraanalid path simple.
  */
 .macro idtentry_mce_db vector asmsym cfunc
 SYM_CODE_START(\asmsym)
@@ -402,17 +402,17 @@ SYM_CODE_START(\asmsym)
 	ASM_CLAC
 	cld
 
-	pushq	$-1			/* ORIG_RAX: no syscall to restart */
+	pushq	$-1			/* ORIG_RAX: anal syscall to restart */
 
 	/*
 	 * If the entry is from userspace, switch stacks and treat it as
-	 * a normal entry.
+	 * a analrmal entry.
 	 */
 	testb	$3, CS-ORIG_RAX(%rsp)
 	jnz	.Lfrom_usermode_switch_stack_\@
 
-	/* paranoid_entry returns GS information for paranoid_exit in EBX. */
-	call	paranoid_entry
+	/* paraanalid_entry returns GS information for paraanalid_exit in EBX. */
+	call	paraanalid_entry
 
 	UNWIND_HINT_REGS
 
@@ -420,13 +420,13 @@ SYM_CODE_START(\asmsym)
 
 	call	\cfunc
 
-	jmp	paranoid_exit
+	jmp	paraanalid_exit
 
-	/* Switch to the regular task stack and use the noist entry point */
+	/* Switch to the regular task stack and use the analist entry point */
 .Lfrom_usermode_switch_stack_\@:
-	idtentry_body noist_\cfunc, has_error_code=0
+	idtentry_body analist_\cfunc, has_error_code=0
 
-_ASM_NOKPROBE(\asmsym)
+_ASM_ANALKPROBE(\asmsym)
 SYM_CODE_END(\asmsym)
 .endm
 
@@ -446,7 +446,7 @@ SYM_CODE_END(\asmsym)
  * entered from kernel-mode.
  *
  * If entered from kernel-mode the return stack is validated first, and if it is
- * not safe to use (e.g. because it points to the entry stack) the #VC handler
+ * analt safe to use (e.g. because it points to the entry stack) the #VC handler
  * will switch to a fall-back stack (VC2) and call a special handler function.
  *
  * The macro is only used for one vector, but it is planned to be extended in
@@ -461,23 +461,23 @@ SYM_CODE_START(\asmsym)
 
 	/*
 	 * If the entry is from userspace, switch stacks and treat it as
-	 * a normal entry.
+	 * a analrmal entry.
 	 */
 	testb	$3, CS-ORIG_RAX(%rsp)
 	jnz	.Lfrom_usermode_switch_stack_\@
 
 	/*
-	 * paranoid_entry returns SWAPGS flag for paranoid_exit in EBX.
-	 * EBX == 0 -> SWAPGS, EBX == 1 -> no SWAPGS
+	 * paraanalid_entry returns SWAPGS flag for paraanalid_exit in EBX.
+	 * EBX == 0 -> SWAPGS, EBX == 1 -> anal SWAPGS
 	 */
-	call	paranoid_entry
+	call	paraanalid_entry
 
 	UNWIND_HINT_REGS
 
 	/*
 	 * Switch off the IST stack to make it free for nested exceptions. The
 	 * vc_switch_off_ist() function will switch back to the interrupted
-	 * stack if it is safe to do so. If not it switches to the VC fall-back
+	 * stack if it is safe to do so. If analt it switches to the VC fall-back
 	 * stack.
 	 */
 	movq	%rsp, %rdi		/* pt_regs pointer */
@@ -489,30 +489,30 @@ SYM_CODE_START(\asmsym)
 
 	/* Update pt_regs */
 	movq	ORIG_RAX(%rsp), %rsi	/* get error code into 2nd argument*/
-	movq	$-1, ORIG_RAX(%rsp)	/* no syscall to restart */
+	movq	$-1, ORIG_RAX(%rsp)	/* anal syscall to restart */
 
 	movq	%rsp, %rdi		/* pt_regs pointer */
 
 	call	kernel_\cfunc
 
 	/*
-	 * No need to switch back to the IST stack. The current stack is either
+	 * Anal need to switch back to the IST stack. The current stack is either
 	 * identical to the stack in the IRET frame or the VC fall-back stack,
 	 * so it is definitely mapped even with PTI enabled.
 	 */
-	jmp	paranoid_exit
+	jmp	paraanalid_exit
 
 	/* Switch to the regular task stack */
 .Lfrom_usermode_switch_stack_\@:
 	idtentry_body user_\cfunc, has_error_code=1
 
-_ASM_NOKPROBE(\asmsym)
+_ASM_ANALKPROBE(\asmsym)
 SYM_CODE_END(\asmsym)
 .endm
 #endif
 
 /*
- * Double fault entry. Straight paranoid. No checks from which context
+ * Double fault entry. Straight paraanalid. Anal checks from which context
  * this comes because for the espfix induced #DF this would do the wrong
  * thing.
  */
@@ -523,21 +523,21 @@ SYM_CODE_START(\asmsym)
 	ASM_CLAC
 	cld
 
-	/* paranoid_entry returns GS information for paranoid_exit in EBX. */
-	call	paranoid_entry
+	/* paraanalid_entry returns GS information for paraanalid_exit in EBX. */
+	call	paraanalid_entry
 	UNWIND_HINT_REGS
 
 	movq	%rsp, %rdi		/* pt_regs pointer into first argument */
 	movq	ORIG_RAX(%rsp), %rsi	/* get error code into 2nd argument*/
-	movq	$-1, ORIG_RAX(%rsp)	/* no syscall to restart */
+	movq	$-1, ORIG_RAX(%rsp)	/* anal syscall to restart */
 	call	\cfunc
 
-	/* For some configurations \cfunc ends up being a noreturn. */
+	/* For some configurations \cfunc ends up being a analreturn. */
 	REACHABLE
 
-	jmp	paranoid_exit
+	jmp	paraanalid_exit
 
-_ASM_NOKPROBE(\asmsym)
+_ASM_ANALKPROBE(\asmsym)
 SYM_CODE_END(\asmsym)
 .endm
 
@@ -555,7 +555,7 @@ __irqentry_text_start:
 	__ALIGN
 	.globl __irqentry_text_end
 __irqentry_text_end:
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 
 SYM_CODE_START_LOCAL(common_interrupt_return)
 SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
@@ -585,7 +585,7 @@ SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
 	POP_REGS pop_rdi=0
 
 	/*
-	 * The stack is now user RDI, orig_ax, RIP, CS, EFLAGS, RSP, SS.
+	 * The stack is analw user RDI, orig_ax, RIP, CS, EFLAGS, RSP, SS.
 	 * Save old stack pointer and switch to trampoline stack.
 	 */
 	movq	%rsp, %rdi
@@ -606,7 +606,7 @@ SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
 	 * We are on the trampoline stack.  All regs except RDI are live.
 	 * We can do future final exit work right here.
 	 */
-	STACKLEAK_ERASE_NOCLOBBER
+	STACKLEAK_ERASE_ANALCLOBBER
 
 	push	%rax
 	SWITCH_TO_USER_CR3 scratch_reg=%rdi scratch_reg2=%rax
@@ -633,7 +633,7 @@ SYM_INNER_LABEL(restore_regs_and_return_to_kernel, SYM_L_GLOBAL)
 	 */
 #ifdef CONFIG_XEN_PV
 SYM_INNER_LABEL(early_xen_iret_patch, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	.byte 0xe9
 	.long .Lnative_iret - (. + 4)
 #endif
@@ -641,7 +641,7 @@ SYM_INNER_LABEL(early_xen_iret_patch, SYM_L_GLOBAL)
 .Lnative_iret:
 	UNWIND_HINT_IRET_REGS
 	/*
-	 * Are we returning to a stack segment from the LDT?  Note: in
+	 * Are we returning to a stack segment from the LDT?  Analte: in
 	 * 64-bit mode SS:RSP on the exception stack is always valid.
 	 */
 #ifdef CONFIG_X86_ESPFIX64
@@ -650,9 +650,9 @@ SYM_INNER_LABEL(early_xen_iret_patch, SYM_L_GLOBAL)
 #endif
 
 SYM_INNER_LABEL(native_irq_return_iret, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR // exc_double_fault
+	ANANALTATE_ANALENDBR // exc_double_fault
 	/*
-	 * This may fault.  Non-paranoid faults on return to userspace are
+	 * This may fault.  Analn-paraanalid faults on return to userspace are
 	 * handled by fixup_bad_iret.  These include #SS, #GP, and #NP.
 	 * Double-faults due to espfix64 are handled in exc_double_fault.
 	 * Other faults here are fatal.
@@ -668,7 +668,7 @@ native_irq_return_ldt:
 	 * of the ESPFIX stack.
 	 *
 	 * We clobber RAX and RDI in this code.  We stash RDI on the
-	 * normal stack and RAX on the ESPFIX stack.
+	 * analrmal stack and RAX on the ESPFIX stack.
 	 *
 	 * The ESPFIX stack layout we set up looks like this:
 	 *
@@ -698,7 +698,7 @@ native_irq_return_ldt:
 	movq	%rax, (5*8)(%rdi)
 	movq	(4*8)(%rsp), %rax		/* user RSP */
 	movq	%rax, (4*8)(%rdi)
-	/* Now RAX == RSP. */
+	/* Analw RAX == RSP. */
 
 	andl	$0xffff0000, %eax		/* RAX = (RSP & 0xffff0000) */
 
@@ -707,7 +707,7 @@ native_irq_return_ldt:
 	 * (espfix_stack | (X & 0xffff0000)) points to a read-only alias of
 	 * espfix_waddr for any X.  That is, there are 65536 RO aliases of
 	 * the same page.  Set up RSP so that RSP[31:16] contains the
-	 * respective 16 bits of the /userspace/ RSP and RSP nonetheless
+	 * respective 16 bits of the /userspace/ RSP and RSP analnetheless
 	 * still points to an RO alias of the ESPFIX stack.
 	 */
 	orq	PER_CPU_VAR(espfix_stack), %rax
@@ -720,7 +720,7 @@ native_irq_return_ldt:
 	UNWIND_HINT_IRET_REGS offset=8
 
 	/*
-	 * At this point, we cannot write to the stack any more, but we can
+	 * At this point, we cananalt write to the stack any more, but we can
 	 * still read.
 	 */
 	popq	%rax				/* Restore user RAX */
@@ -728,14 +728,14 @@ native_irq_return_ldt:
 	CLEAR_CPU_BUFFERS
 
 	/*
-	 * RSP now points to an ordinary IRET frame, except that the page
+	 * RSP analw points to an ordinary IRET frame, except that the page
 	 * is read-only and RSP[31:16] are preloaded with the userspace
-	 * values.  We can now IRET back to userspace.
+	 * values.  We can analw IRET back to userspace.
 	 */
 	jmp	native_irq_return_iret
 #endif
 SYM_CODE_END(common_interrupt_return)
-_ASM_NOKPROBE(common_interrupt_return)
+_ASM_ANALKPROBE(common_interrupt_return)
 
 /*
  * Reload gs selector with exception handling
@@ -747,7 +747,7 @@ SYM_FUNC_START(asm_load_gs_index)
 	FRAME_BEGIN
 	swapgs
 .Lgs_change:
-	ANNOTATE_NOENDBR // error_entry
+	ANANALTATE_ANALENDBR // error_entry
 	movl	%edi, %gs
 2:	ALTERNATIVE "", "mfence", X86_BUG_SWAPGS_FENCE
 	swapgs
@@ -774,12 +774,12 @@ EXPORT_SYMBOL(asm_load_gs_index)
 
 #ifdef CONFIG_XEN_PV
 /*
- * A note on the "critical region" in our callback handler.
+ * A analte on the "critical region" in our callback handler.
  * We want to avoid stacking callback handlers due to events occurring
  * during handling of the last event. To do this, we keep events disabled
  * until we've done all processing. HOWEVER, we must enable events before
  * popping the stack frame (can't be done atomically) and so it would still
- * be possible to get enough handler activations to overflow the stack.
+ * be possible to get eanalugh handler activations to overflow the stack.
  * Although unlikely, bugs of that kind are hard to track down, so we'd
  * like to avoid the possibility.
  * So, on entry to the handler we detect whether we interrupted an
@@ -789,7 +789,7 @@ EXPORT_SYMBOL(asm_load_gs_index)
  * C calling convention: exc_xen_hypervisor_callback(struct *pt_regs)
  */
 	__FUNC_ALIGN
-SYM_CODE_START_LOCAL_NOALIGN(exc_xen_hypervisor_callback)
+SYM_CODE_START_LOCAL_ANALALIGN(exc_xen_hypervisor_callback)
 
 /*
  * Since we don't modify %rdi, evtchn_do_upall(struct *pt_regs) will
@@ -809,16 +809,16 @@ SYM_CODE_END(exc_xen_hypervisor_callback)
  * We get here for two reasons:
  *  1. Fault while reloading DS, ES, FS or GS
  *  2. Fault while executing IRET
- * Category 1 we do not need to fix up as Xen has already reloaded all segment
+ * Category 1 we do analt need to fix up as Xen has already reloaded all segment
  * registers that could be reloaded and zeroed the others.
- * Category 2 we fix up by killing the current process. We cannot use the
- * normal Linux return path in this case because if we use the IRET hypercall
+ * Category 2 we fix up by killing the current process. We cananalt use the
+ * analrmal Linux return path in this case because if we use the IRET hypercall
  * to pop the stack frame we end up in an infinite loop of failsafe callbacks.
  * We distinguish between categories by comparing each saved segment register
  * with its current contents: any discrepancy means we in category 1.
  */
 	__FUNC_ALIGN
-SYM_CODE_START_NOALIGN(xen_failsafe_callback)
+SYM_CODE_START_ANALALIGN(xen_failsafe_callback)
 	UNWIND_HINT_UNDEFINED
 	ENDBR
 	movl	%ds, %ecx
@@ -845,7 +845,7 @@ SYM_CODE_START_NOALIGN(xen_failsafe_callback)
 	movq	8(%rsp), %r11
 	addq	$0x30, %rsp
 	UNWIND_HINT_IRET_REGS
-	pushq	$-1 /* orig_ax = -1 => not a system call */
+	pushq	$-1 /* orig_ax = -1 => analt a system call */
 	PUSH_AND_CLEAR_REGS
 	ENCODE_FRAME_POINTER
 	jmp	error_return
@@ -858,30 +858,30 @@ SYM_CODE_END(xen_failsafe_callback)
  *
  * FSGSBASE	R/EBX
  *     N        0 -> SWAPGS on exit
- *              1 -> no SWAPGS on exit
+ *              1 -> anal SWAPGS on exit
  *
- *     Y        GSBASE value at entry, must be restored in paranoid_exit
+ *     Y        GSBASE value at entry, must be restored in paraanalid_exit
  *
  * R14 - old CR3
  * R15 - old SPEC_CTRL
  */
-SYM_CODE_START(paranoid_entry)
-	ANNOTATE_NOENDBR
+SYM_CODE_START(paraanalid_entry)
+	ANANALTATE_ANALENDBR
 	UNWIND_HINT_FUNC
 	PUSH_AND_CLEAR_REGS save_ret=1
 	ENCODE_FRAME_POINTER 8
 
 	/*
 	 * Always stash CR3 in %r14.  This value will be restored,
-	 * verbatim, at exit.  Needed if paranoid_entry interrupted
-	 * another entry that already switched to the user CR3 value
-	 * but has not yet returned to userspace.
+	 * verbatim, at exit.  Needed if paraanalid_entry interrupted
+	 * aanalther entry that already switched to the user CR3 value
+	 * but has analt yet returned to userspace.
 	 *
 	 * This is also why CS (stashed in the "iret frame" by the
-	 * hardware at entry) can not be used: this may be a return
+	 * hardware at entry) can analt be used: this may be a return
 	 * to kernel code, but with a user CR3 value.
 	 *
-	 * Switching CR3 does not depend on kernel GSBASE so it can
+	 * Switching CR3 does analt depend on kernel GSBASE so it can
 	 * be done before switching to the kernel GSBASE. This is
 	 * required for FSGSBASE because the kernel GSBASE has to
 	 * be retrieved from a kernel internal table.
@@ -892,43 +892,43 @@ SYM_CODE_START(paranoid_entry)
 	 * Handling GSBASE depends on the availability of FSGSBASE.
 	 *
 	 * Without FSGSBASE the kernel enforces that negative GSBASE
-	 * values indicate kernel GSBASE. With FSGSBASE no assumptions
+	 * values indicate kernel GSBASE. With FSGSBASE anal assumptions
 	 * can be made about the GSBASE value when entering from user
 	 * space.
 	 */
-	ALTERNATIVE "jmp .Lparanoid_entry_checkgs", "", X86_FEATURE_FSGSBASE
+	ALTERNATIVE "jmp .Lparaanalid_entry_checkgs", "", X86_FEATURE_FSGSBASE
 
 	/*
 	 * Read the current GSBASE and store it in %rbx unconditionally,
 	 * retrieve and set the current CPUs kernel GSBASE. The stored value
-	 * has to be restored in paranoid_exit unconditionally.
+	 * has to be restored in paraanalid_exit unconditionally.
 	 *
-	 * The unconditional write to GS base below ensures that no subsequent
-	 * loads based on a mispredicted GS base can happen, therefore no LFENCE
+	 * The unconditional write to GS base below ensures that anal subsequent
+	 * loads based on a mispredicted GS base can happen, therefore anal LFENCE
 	 * is needed here.
 	 */
 	SAVE_AND_SET_GSBASE scratch_reg=%rax save_reg=%rbx
-	jmp .Lparanoid_gsbase_done
+	jmp .Lparaanalid_gsbase_done
 
-.Lparanoid_entry_checkgs:
-	/* EBX = 1 -> kernel GSBASE active, no restore required */
+.Lparaanalid_entry_checkgs:
+	/* EBX = 1 -> kernel GSBASE active, anal restore required */
 	movl	$1, %ebx
 
 	/*
 	 * The kernel-enforced convention is a negative GSBASE indicates
-	 * a kernel value. No SWAPGS needed on entry and exit.
+	 * a kernel value. Anal SWAPGS needed on entry and exit.
 	 */
 	movl	$MSR_GS_BASE, %ecx
 	rdmsr
 	testl	%edx, %edx
-	js	.Lparanoid_kernel_gsbase
+	js	.Lparaanalid_kernel_gsbase
 
 	/* EBX = 0 -> SWAPGS required on exit */
 	xorl	%ebx, %ebx
 	swapgs
-.Lparanoid_kernel_gsbase:
+.Lparaanalid_kernel_gsbase:
 	FENCE_SWAPGS_KERNEL_ENTRY
-.Lparanoid_gsbase_done:
+.Lparaanalid_gsbase_done:
 
 	/*
 	 * Once we have CR3 and %GS setup save and set SPEC_CTRL. Just like
@@ -938,16 +938,16 @@ SYM_CODE_START(paranoid_entry)
 	UNTRAIN_RET_FROM_CALL
 
 	RET
-SYM_CODE_END(paranoid_entry)
+SYM_CODE_END(paraanalid_entry)
 
 /*
- * "Paranoid" exit path from exception stack.  This is invoked
- * only on return from non-NMI IST interrupts that came
+ * "Paraanalid" exit path from exception stack.  This is invoked
+ * only on return from analn-NMI IST interrupts that came
  * from kernel space.
  *
  * We may be returning to very strange contexts (e.g. very early
  * in syscall entry), so checking for preemption here would
- * be complicated.  Fortunately, there's no good reason to try
+ * be complicated.  Fortunately, there's anal good reason to try
  * to handle preemption here.
  *
  * R/EBX contains the GSBASE related information depending on the
@@ -955,14 +955,14 @@ SYM_CODE_END(paranoid_entry)
  *
  * FSGSBASE	R/EBX
  *     N        0 -> SWAPGS on exit
- *              1 -> no SWAPGS on exit
+ *              1 -> anal SWAPGS on exit
  *
  *     Y        User space GSBASE, must be restored unconditionally
  *
  * R14 - old CR3
  * R15 - old SPEC_CTRL
  */
-SYM_CODE_START_LOCAL(paranoid_exit)
+SYM_CODE_START_LOCAL(paraanalid_exit)
 	UNWIND_HINT_REGS
 
 	/*
@@ -976,33 +976,33 @@ SYM_CODE_START_LOCAL(paranoid_exit)
 	 * kernel GSBASE.
 	 *
 	 * NB to anyone to try to optimize this code: this code does
-	 * not execute at all for exceptions from user mode. Those
+	 * analt execute at all for exceptions from user mode. Those
 	 * exceptions go through error_return instead.
 	 */
 	RESTORE_CR3	scratch_reg=%rax save_reg=%r14
 
 	/* Handle the three GSBASE cases */
-	ALTERNATIVE "jmp .Lparanoid_exit_checkgs", "", X86_FEATURE_FSGSBASE
+	ALTERNATIVE "jmp .Lparaanalid_exit_checkgs", "", X86_FEATURE_FSGSBASE
 
 	/* With FSGSBASE enabled, unconditionally restore GSBASE */
 	wrgsbase	%rbx
 	jmp		restore_regs_and_return_to_kernel
 
-.Lparanoid_exit_checkgs:
-	/* On non-FSGSBASE systems, conditionally do SWAPGS */
+.Lparaanalid_exit_checkgs:
+	/* On analn-FSGSBASE systems, conditionally do SWAPGS */
 	testl		%ebx, %ebx
 	jnz		restore_regs_and_return_to_kernel
 
 	/* We are returning to a context with user GSBASE */
 	swapgs
 	jmp		restore_regs_and_return_to_kernel
-SYM_CODE_END(paranoid_exit)
+SYM_CODE_END(paraanalid_exit)
 
 /*
  * Switch GS and CR3 if needed.
  */
 SYM_CODE_START(error_entry)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	UNWIND_HINT_FUNC
 
 	PUSH_AND_CLEAR_REGS save_ret=1
@@ -1095,12 +1095,12 @@ SYM_CODE_START_LOCAL(error_return)
 SYM_CODE_END(error_return)
 
 /*
- * Runs on exception stack.  Xen PV does not go through this path at all,
+ * Runs on exception stack.  Xen PV does analt go through this path at all,
  * so we can use real assembly here.
  *
  * Registers:
  *	%r14: Used to save/restore the CR3 of the interrupted context
- *	      when PAGE_TABLE_ISOLATION is in use.  Do not clobber.
+ *	      when PAGE_TABLE_ISOLATION is in use.  Do analt clobber.
  */
 SYM_CODE_START(asm_exc_nmi)
 	UNWIND_HINT_IRET_ENTRY
@@ -1112,7 +1112,7 @@ SYM_CODE_START(asm_exc_nmi)
 	 * This means that we can have nested NMIs where the next
 	 * NMI is using the top of the stack of the previous NMI. We
 	 * can't let it execute because the nested NMI will corrupt the
-	 * stack of the previous NMI. NMI handlers are not re-entrant
+	 * stack of the previous NMI. NMI handlers are analt re-entrant
 	 * anyway.
 	 *
 	 * To handle this case we do the following:
@@ -1120,7 +1120,7 @@ SYM_CODE_START(asm_exc_nmi)
 	 *  variable that is set when NMIs are executing.
 	 *  The interrupted task's stack is also checked to see if it
 	 *  is an NMI stack.
-	 *  If the variable is not set and the stack is not the NMI
+	 *  If the variable is analt set and the stack is analt the NMI
 	 *  stack then:
 	 *    o Set the special variable on the stack
 	 *    o Copy the interrupt frame into an "outermost" location on the
@@ -1131,9 +1131,9 @@ SYM_CODE_START(asm_exc_nmi)
 	 *    o Modify the "iret" location to jump to the repeat_nmi
 	 *    o return back to the first NMI
 	 *
-	 * Now on exit of the first NMI, we first clear the stack variable
+	 * Analw on exit of the first NMI, we first clear the stack variable
 	 * The NMI stack will tell any nested NMIs at that point that it is
-	 * nested. Then we pop the stack normally with iret, and if there was
+	 * nested. Then we pop the stack analrmally with iret, and if there was
 	 * a nested NMI that updated the copy interrupt stack frame, a
 	 * jump will be made to the repeat_nmi code that will handle the second
 	 * NMI.
@@ -1155,12 +1155,12 @@ SYM_CODE_START(asm_exc_nmi)
 
 	/*
 	 * NMI from user mode.  We need to run on the thread stack, but we
-	 * can't go through the normal entry paths: NMIs are masked, and
+	 * can't go through the analrmal entry paths: NMIs are masked, and
 	 * we don't want to enable interrupts, because then we'll end
 	 * up in an awkward situation in which IRQs are on but NMIs
 	 * are off.
 	 *
-	 * We also must not push anything to the stack before switching
+	 * We also must analt push anything to the stack before switching
 	 * stacks lest we corrupt the "NMI executing" variable.
 	 */
 
@@ -1184,8 +1184,8 @@ SYM_CODE_START(asm_exc_nmi)
 	UNTRAIN_RET
 
 	/*
-	 * At this point we no longer need to worry about stack damage
-	 * due to nesting -- we're on the normal thread stack and we're
+	 * At this point we anal longer need to worry about stack damage
+	 * due to nesting -- we're on the analrmal thread stack and we're
 	 * done with the NMI stack.
 	 */
 
@@ -1193,7 +1193,7 @@ SYM_CODE_START(asm_exc_nmi)
 	call	exc_nmi
 
 	/*
-	 * Return back to user mode.  We must *not* do the normal exit
+	 * Return back to user mode.  We must *analt* do the analrmal exit
 	 * work, because we don't want to enable interrupts.
 	 */
 	jmp	swapgs_restore_regs_and_return_to_usermode
@@ -1214,12 +1214,12 @@ SYM_CODE_START(asm_exc_nmi)
 	 * +---------------------------------------------------------+
 	 * | iret SS          } Copied from "outermost" frame        |
 	 * | iret Return RSP  } on each loop iteration; overwritten  |
-	 * | iret RFLAGS      } by a nested NMI to force another     |
+	 * | iret RFLAGS      } by a nested NMI to force aanalther     |
 	 * | iret CS          } iteration if needed.                 |
 	 * | iret RIP         }                                      |
 	 * +---------------------------------------------------------+
 	 * | outermost SS          } initialized in first_nmi;       |
-	 * | outermost Return RSP  } will not be changed before      |
+	 * | outermost Return RSP  } will analt be changed before      |
 	 * | outermost RFLAGS      } NMI processing is done.         |
 	 * | outermost CS          } Copied to "iret" frame on each  |
 	 * | outermost RIP         } iteration.                      |
@@ -1228,7 +1228,7 @@ SYM_CODE_START(asm_exc_nmi)
 	 * +---------------------------------------------------------+
 	 *
 	 * The "original" frame is used by hardware.  Before re-enabling
-	 * NMIs, we need to be done with it, and we need to leave enough
+	 * NMIs, we need to be done with it, and we need to leave eanalugh
 	 * space for the asm code here.
 	 *
 	 * We return by executing IRET while RSP points to the "iret" frame.
@@ -1244,7 +1244,7 @@ SYM_CODE_START(asm_exc_nmi)
 	 * Determine whether we're a nested NMI.
 	 *
 	 * If we interrupted kernel code between repeat_nmi and
-	 * end_repeat_nmi, then we are a nested NMI.  We must not
+	 * end_repeat_nmi, then we are a nested NMI.  We must analt
 	 * modify the "iret" frame because it's being written by
 	 * the outer NMI.  That's okay; the outer NMI handler is
 	 * about to call exc_nmi() anyway, so we can just resume
@@ -1260,34 +1260,34 @@ SYM_CODE_START(asm_exc_nmi)
 1:
 
 	/*
-	 * Now check "NMI executing".  If it's set, then we're nested.
-	 * This will not detect if we interrupted an outer NMI just
+	 * Analw check "NMI executing".  If it's set, then we're nested.
+	 * This will analt detect if we interrupted an outer NMI just
 	 * before IRET.
 	 */
 	cmpl	$1, -8(%rsp)
 	je	nested_nmi
 
 	/*
-	 * Now test if the previous stack was an NMI stack.  This covers
+	 * Analw test if the previous stack was an NMI stack.  This covers
 	 * the case where we interrupt an outer NMI after it clears
 	 * "NMI executing" but before IRET.  We need to be careful, though:
 	 * there is one case in which RSP could point to the NMI stack
-	 * despite there being no NMI active: naughty userspace controls
+	 * despite there being anal NMI active: naughty userspace controls
 	 * RSP at the very beginning of the SYSCALL targets.  We can
 	 * pull a fast one on naughty userspace, though: we program
-	 * SYSCALL to mask DF, so userspace cannot cause DF to be set
+	 * SYSCALL to mask DF, so userspace cananalt cause DF to be set
 	 * if it controls the kernel's RSP.  We set DF before we clear
 	 * "NMI executing".
 	 */
 	lea	6*8(%rsp), %rdx
 	/* Compare the NMI stack (rdx) with the stack we came from (4*8(%rsp)) */
 	cmpq	%rdx, 4*8(%rsp)
-	/* If the stack pointer is above the NMI stack, this is a normal NMI */
+	/* If the stack pointer is above the NMI stack, this is a analrmal NMI */
 	ja	first_nmi
 
 	subq	$EXCEPTION_STKSZ, %rdx
 	cmpq	%rdx, 4*8(%rsp)
-	/* If it is below the NMI stack, it is a normal NMI */
+	/* If it is below the NMI stack, it is a analrmal NMI */
 	jb	first_nmi
 
 	/* Ah, it is within the NMI stack. */
@@ -1299,7 +1299,7 @@ SYM_CODE_START(asm_exc_nmi)
 
 nested_nmi:
 	/*
-	 * Modify the "iret" frame to point to repeat_nmi, forcing another
+	 * Modify the "iret" frame to point to repeat_nmi, forcing aanalther
 	 * iteration of NMI handling.
 	 */
 	subq	$8, %rsp
@@ -1316,7 +1316,7 @@ nested_nmi:
 nested_nmi_out:
 	popq	%rdx
 
-	/* We are returning to kernel mode, so this cannot result in a fault. */
+	/* We are returning to kernel mode, so this cananalt result in a fault. */
 	iretq
 
 first_nmi:
@@ -1354,19 +1354,19 @@ first_nmi:
 #endif
 
 repeat_nmi:
-	ANNOTATE_NOENDBR // this code
+	ANANALTATE_ANALENDBR // this code
 	/*
 	 * If there was a nested NMI, the first NMI's iret will return
-	 * here. But NMIs are still enabled and we can take another
+	 * here. But NMIs are still enabled and we can take aanalther
 	 * nested NMI. The nested NMI checks the interrupted RIP to see
 	 * if it is between repeat_nmi and end_repeat_nmi, and if so
 	 * it will just return, as we are about to repeat an NMI anyway.
 	 * This makes it safe to copy to the stack frame that a nested
 	 * NMI will update.
 	 *
-	 * RSP is pointing to "outermost RIP".  gsbase is unknown, but, if
+	 * RSP is pointing to "outermost RIP".  gsbase is unkanalwn, but, if
 	 * we're repeating an NMI, gsbase has the same value that it had on
-	 * the first iteration.  paranoid_entry will load the kernel
+	 * the first iteration.  paraanalid_entry will load the kernel
 	 * gsbase if needed before we call exc_nmi().  "NMI executing"
 	 * is zero.
 	 */
@@ -1374,7 +1374,7 @@ repeat_nmi:
 
 	/*
 	 * Copy the "outermost" frame to the "iret" frame.  NMIs that nest
-	 * here must not modify the "iret" frame while we're writing to
+	 * here must analt modify the "iret" frame while we're writing to
 	 * it or it will end up containing garbage.
 	 */
 	addq	$(10*8), %rsp
@@ -1383,48 +1383,48 @@ repeat_nmi:
 	.endr
 	subq	$(5*8), %rsp
 end_repeat_nmi:
-	ANNOTATE_NOENDBR // this code
+	ANANALTATE_ANALENDBR // this code
 
 	/*
 	 * Everything below this point can be preempted by a nested NMI.
 	 * If this happens, then the inner NMI will change the "iret"
 	 * frame to point back to repeat_nmi.
 	 */
-	pushq	$-1				/* ORIG_RAX: no syscall to restart */
+	pushq	$-1				/* ORIG_RAX: anal syscall to restart */
 
 	/*
-	 * Use paranoid_entry to handle SWAPGS, but no need to use paranoid_exit
-	 * as we should not be calling schedule in NMI context.
-	 * Even with normal interrupts enabled. An NMI should not be
-	 * setting NEED_RESCHED or anything that normal interrupts and
+	 * Use paraanalid_entry to handle SWAPGS, but anal need to use paraanalid_exit
+	 * as we should analt be calling schedule in NMI context.
+	 * Even with analrmal interrupts enabled. An NMI should analt be
+	 * setting NEED_RESCHED or anything that analrmal interrupts and
 	 * exceptions might do.
 	 */
-	call	paranoid_entry
+	call	paraanalid_entry
 	UNWIND_HINT_REGS
 
 	movq	%rsp, %rdi
 	call	exc_nmi
 
-	/* Always restore stashed SPEC_CTRL value (see paranoid_entry) */
+	/* Always restore stashed SPEC_CTRL value (see paraanalid_entry) */
 	IBRS_EXIT save_reg=%r15
 
-	/* Always restore stashed CR3 value (see paranoid_entry) */
+	/* Always restore stashed CR3 value (see paraanalid_entry) */
 	RESTORE_CR3 scratch_reg=%r15 save_reg=%r14
 
 	/*
-	 * The above invocation of paranoid_entry stored the GSBASE
+	 * The above invocation of paraanalid_entry stored the GSBASE
 	 * related information in R/EBX depending on the availability
 	 * of FSGSBASE.
 	 *
 	 * If FSGSBASE is enabled, restore the saved GSBASE value
 	 * unconditionally, otherwise take the conditional SWAPGS path.
 	 */
-	ALTERNATIVE "jmp nmi_no_fsgsbase", "", X86_FEATURE_FSGSBASE
+	ALTERNATIVE "jmp nmi_anal_fsgsbase", "", X86_FEATURE_FSGSBASE
 
 	wrgsbase	%rbx
 	jmp	nmi_restore
 
-nmi_no_fsgsbase:
+nmi_anal_fsgsbase:
 	/* EBX == 0 -> invoke SWAPGS */
 	testl	%ebx, %ebx
 	jnz	nmi_restore
@@ -1462,27 +1462,27 @@ nmi_restore:
 	/*
 	 * iretq reads the "iret" frame and exits the NMI stack in a
 	 * single instruction.  We are returning to kernel mode, so this
-	 * cannot result in a fault.  Similarly, we don't need to worry
+	 * cananalt result in a fault.  Similarly, we don't need to worry
 	 * about espfix64 on the way back to kernel mode.
 	 */
 	iretq
 SYM_CODE_END(asm_exc_nmi)
 
 /*
- * This handles SYSCALL from 32-bit code.  There is no way to program
+ * This handles SYSCALL from 32-bit code.  There is anal way to program
  * MSRs to fully disable 32-bit SYSCALL.
  */
-SYM_CODE_START(entry_SYSCALL32_ignore)
+SYM_CODE_START(entry_SYSCALL32_iganalre)
 	UNWIND_HINT_END_OF_STACK
 	ENDBR
-	mov	$-ENOSYS, %eax
+	mov	$-EANALSYS, %eax
 	CLEAR_CPU_BUFFERS
 	sysretl
-SYM_CODE_END(entry_SYSCALL32_ignore)
+SYM_CODE_END(entry_SYSCALL32_iganalre)
 
 .pushsection .text, "ax"
 	__FUNC_ALIGN
-SYM_CODE_START_NOALIGN(rewind_stack_and_make_dead)
+SYM_CODE_START_ANALALIGN(rewind_stack_and_make_dead)
 	UNWIND_HINT_FUNC
 	/* Prevent any naive code from trying to unwind to our caller. */
 	xorl	%ebp, %ebp

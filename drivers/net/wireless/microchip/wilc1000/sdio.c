@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -142,11 +142,11 @@ static int wilc_sdio_probe(struct sdio_func *func,
 
 	sdio_priv = kzalloc(sizeof(*sdio_priv), GFP_KERNEL);
 	if (!sdio_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdio_priv->cmd53_buf = kzalloc(sizeof(u32), GFP_KERNEL);
 	if (!sdio_priv->cmd53_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
@@ -156,7 +156,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 		goto free;
 
 	if (IS_ENABLED(CONFIG_WILC1000_HW_OOB_INTR)) {
-		struct device_node *np = func->card->dev.of_node;
+		struct device_analde *np = func->card->dev.of_analde;
 		int irq_num = of_irq_get(np, 0);
 
 		if (irq_num > 0) {
@@ -238,7 +238,7 @@ static int wilc_sdio_suspend(struct device *dev)
 		clk_disable_unprepare(wilc->rtc_clk);
 
 	if (wilc->suspend_event) {
-		host_sleep_notify(wilc);
+		host_sleep_analtify(wilc);
 		chip_allow_sleep(wilc);
 	}
 
@@ -691,7 +691,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	} while (loop--);
 
 	if (loop <= 0) {
-		dev_err(&func->dev, "Fail func 1 is not ready...\n");
+		dev_err(&func->dev, "Fail func 1 is analt ready...\n");
 		return -EINVAL;
 	}
 
@@ -953,7 +953,7 @@ static int wilc_sdio_resume(struct device *dev)
 	wilc_sdio_init(wilc, true);
 
 	if (wilc->suspend_event)
-		host_wakeup_notify(wilc);
+		host_wakeup_analtify(wilc);
 
 	chip_allow_sleep(wilc);
 

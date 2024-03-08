@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/accel/adi,adis16201.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ADIS16201 Dual Axis Inclinometer and similar
+title: ADIS16201 Dual Axis Inclianalmeter and similar
 
 maintainers:
   - Jonathan Cameron <Jonathan.Cameron@huawei.com>

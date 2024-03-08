@@ -96,20 +96,20 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		return -EINVAL;
 	}
 	if (! enable[i])
-		return -ENODEV; /* disabled explicitly */
+		return -EANALDEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
 	err = snd_card_new(&link->dev, index[i], id[i], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		snd_printk(KERN_ERR "pdacf: cannot create a card instance\n");
+		snd_printk(KERN_ERR "pdacf: cananalt create a card instance\n");
 		return err;
 	}
 
 	pdacf = snd_pdacf_create(card);
 	if (!pdacf) {
 		snd_card_free(card);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, pdacf, &ops);
@@ -232,7 +232,7 @@ static int pdacf_config(struct pcmcia_device *link)
 	free_irq(link->irq, link->priv);
 failed_preirq:
 	pcmcia_disable_device(link);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #ifdef CONFIG_PM

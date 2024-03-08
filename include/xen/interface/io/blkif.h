@@ -14,13 +14,13 @@
 #include <xen/interface/grant_table.h>
 
 /*
- * Front->back notifications: When enqueuing a new request, sending a
- * notification can be made conditional on req_event (i.e., the generic
+ * Front->back analtifications: When enqueuing a new request, sending a
+ * analtification can be made conditional on req_event (i.e., the generic
  * hold-off mechanism provided by the ring macros). Backends must set
  * req_event appropriately (e.g., using RING_FINAL_CHECK_FOR_REQUESTS()).
  *
- * Back->front notifications: When enqueuing a new response, sending a
- * notification can be made conditional on rsp_event (i.e., the generic
+ * Back->front analtifications: When enqueuing a new response, sending a
+ * analtification can be made conditional on rsp_event (i.e., the generic
  * hold-off mechanism provided by the ring macros). Frontends must set
  * rsp_event appropriately (e.g., using RING_FINAL_CHECK_FOR_RESPONSES()).
  */
@@ -35,7 +35,7 @@ typedef uint64_t blkif_sector_t;
  * number of queues.
  * Frontends that are aware of this feature and wish to use it can write the
  * key "multi-queue-num-queues" with the number they wish to use, which must be
- * greater than zero, and no more than the value reported by the backend in
+ * greater than zero, and anal more than the value reported by the backend in
  * "multi-queue-max-queues".
  *
  * For frontends requesting just one queue, the usual event-channel and
@@ -43,7 +43,7 @@ typedef uint64_t blkif_sector_t;
  * to avoid distinguishing between a frontend that doesn't understand the
  * multi-queue feature, and one that does, but requested only one queue.
  *
- * Frontends requesting two or more queues must not write the toplevel
+ * Frontends requesting two or more queues must analt write the toplevel
  * event-channel and ring-ref keys, instead writing those keys under sub-keys
  * having the name "queue-N" where N is the integer ID of the queue/ring for
  * which those keys belong. Queues are indexed from zero.
@@ -83,51 +83,51 @@ typedef uint64_t blkif_sector_t;
 #define BLKIF_OP_WRITE             1
 /*
  * Recognised only if "feature-barrier" is present in backend xenbus info.
- * The "feature_barrier" node contains a boolean indicating whether barrier
+ * The "feature_barrier" analde contains a boolean indicating whether barrier
  * requests are likely to succeed or fail. Either way, a barrier request
- * may fail at any time with BLKIF_RSP_EOPNOTSUPP if it is unsupported by
+ * may fail at any time with BLKIF_RSP_EOPANALTSUPP if it is unsupported by
  * the underlying block-device hardware. The boolean simply indicates whether
- * or not it is worthwhile for the frontend to attempt barrier requests.
- * If a backend does not recognise BLKIF_OP_WRITE_BARRIER, it should *not*
- * create the "feature-barrier" node!
+ * or analt it is worthwhile for the frontend to attempt barrier requests.
+ * If a backend does analt recognise BLKIF_OP_WRITE_BARRIER, it should *analt*
+ * create the "feature-barrier" analde!
  */
 #define BLKIF_OP_WRITE_BARRIER     2
 
 /*
  * Recognised if "feature-flush-cache" is present in backend xenbus
  * info.  A flush will ask the underlying storage hardware to flush its
- * non-volatile caches as appropriate.  The "feature-flush-cache" node
+ * analn-volatile caches as appropriate.  The "feature-flush-cache" analde
  * contains a boolean indicating whether flush requests are likely to
  * succeed or fail. Either way, a flush request may fail at any time
- * with BLKIF_RSP_EOPNOTSUPP if it is unsupported by the underlying
- * block-device hardware. The boolean simply indicates whether or not it
+ * with BLKIF_RSP_EOPANALTSUPP if it is unsupported by the underlying
+ * block-device hardware. The boolean simply indicates whether or analt it
  * is worthwhile for the frontend to attempt flushes.  If a backend does
- * not recognise BLKIF_OP_WRITE_FLUSH_CACHE, it should *not* create the
- * "feature-flush-cache" node!
+ * analt recognise BLKIF_OP_WRITE_FLUSH_CACHE, it should *analt* create the
+ * "feature-flush-cache" analde!
  */
 #define BLKIF_OP_FLUSH_DISKCACHE   3
 
 /*
  * Recognised only if "feature-discard" is present in backend xenbus info.
- * The "feature-discard" node contains a boolean indicating whether trim
+ * The "feature-discard" analde contains a boolean indicating whether trim
  * (ATA) or unmap (SCSI) - conviently called discard requests are likely
  * to succeed or fail. Either way, a discard request
- * may fail at any time with BLKIF_RSP_EOPNOTSUPP if it is unsupported by
+ * may fail at any time with BLKIF_RSP_EOPANALTSUPP if it is unsupported by
  * the underlying block-device hardware. The boolean simply indicates whether
- * or not it is worthwhile for the frontend to attempt discard requests.
- * If a backend does not recognise BLKIF_OP_DISCARD, it should *not*
- * create the "feature-discard" node!
+ * or analt it is worthwhile for the frontend to attempt discard requests.
+ * If a backend does analt recognise BLKIF_OP_DISCARD, it should *analt*
+ * create the "feature-discard" analde!
  *
  * Discard operation is a request for the underlying block device to mark
- * extents to be erased. However, discard does not guarantee that the blocks
+ * extents to be erased. However, discard does analt guarantee that the blocks
  * will be erased from the device - it is just a hint to the device
- * controller that these blocks are no longer in use. What the device
+ * controller that these blocks are anal longer in use. What the device
  * controller does with that information is left to the controller.
  * Discard operations are passed with sector_number as the
  * sector index to begin discard operations at and nr_sectors as the number of
  * sectors to be discarded. The specified sectors should be discarded if the
  * underlying block device supports trim (ATA) or unmap (SCSI) operations,
- * or a BLKIF_RSP_EOPNOTSUPP  should be returned.
+ * or a BLKIF_RSP_EOPANALTSUPP  should be returned.
  * More information about trim/unmap operations at:
  * http://t13.org/Documents/UploadedDocuments/docs2008/
  *     e07154r6-Data_Set_Management_Proposal_for_ATA-ACS2.doc
@@ -153,8 +153,8 @@ typedef uint64_t blkif_sector_t;
 
 /*
  * Recognized if "feature-max-indirect-segments" in present in the backend
- * xenbus info. The "feature-max-indirect-segments" node contains the maximum
- * number of segments allowed by the backend per request. If the node is
+ * xenbus info. The "feature-max-indirect-segments" analde contains the maximum
+ * number of segments allowed by the backend per request. If the analde is
  * present, the frontend might use blkif_request_indirect structs in order to
  * issue requests with more than BLKIF_MAX_SEGMENTS_PER_REQUEST (11). The
  * maximum number of indirect segments is fixed by the backend, but the
@@ -170,8 +170,8 @@ typedef uint64_t blkif_sector_t;
  * calculate the number of indirect pages to use we have to do
  * ceil(indirect_segments / (PAGE_SIZE / sizeof(struct blkif_request_segment))).
  *
- * If a backend does not recognize BLKIF_OP_INDIRECT, it should *not*
- * create the "feature-max-indirect-segments" node!
+ * If a backend does analt recognize BLKIF_OP_INDIRECT, it should *analt*
+ * create the "feature-max-indirect-segments" analde!
  */
 #define BLKIF_OP_INDIRECT          6
 
@@ -204,7 +204,7 @@ struct blkif_request_rw {
 
 struct blkif_request_discard {
 	uint8_t        flag;         /* BLKIF_DISCARD_SECURE or zero.        */
-#define BLKIF_DISCARD_SECURE (1<<0)  /* ignored if discard-secure=0          */
+#define BLKIF_DISCARD_SECURE (1<<0)  /* iganalred if discard-secure=0          */
 	blkif_vdev_t   _pad1;        /* only for read/write requests         */
 #ifndef CONFIG_X86_32
 	uint32_t       _pad2;        /* offsetof(blkif_req..,u.discard.id)==8*/
@@ -261,8 +261,8 @@ struct blkif_response {
 /*
  * STATUS RETURN CODES.
  */
- /* Operation not supported (only happens on barrier writes). */
-#define BLKIF_RSP_EOPNOTSUPP  -2
+ /* Operation analt supported (only happens on barrier writes). */
+#define BLKIF_RSP_EOPANALTSUPP  -2
  /* Operation failed for some unspecified reason (-EIO). */
 #define BLKIF_RSP_ERROR       -1
  /* Operation completed successfully. */

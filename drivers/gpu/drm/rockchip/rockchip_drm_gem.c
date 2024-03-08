@@ -26,7 +26,7 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	ssize_t ret;
 
 	mutex_lock(&private->mm_lock);
-	ret = drm_mm_insert_node_generic(&private->mm, &rk_obj->mm,
+	ret = drm_mm_insert_analde_generic(&private->mm, &rk_obj->mm,
 					 rk_obj->base.size, PAGE_SIZE,
 					 0, 0);
 	mutex_unlock(&private->mm_lock);
@@ -43,17 +43,17 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	if (ret < (ssize_t)rk_obj->base.size) {
 		DRM_ERROR("failed to map buffer: size=%zd request_size=%zd\n",
 			  ret, rk_obj->base.size);
-		ret = -ENOMEM;
-		goto err_remove_node;
+		ret = -EANALMEM;
+		goto err_remove_analde;
 	}
 
 	rk_obj->size = ret;
 
 	return 0;
 
-err_remove_node:
+err_remove_analde:
 	mutex_lock(&private->mm_lock);
-	drm_mm_remove_node(&rk_obj->mm);
+	drm_mm_remove_analde(&rk_obj->mm);
 	mutex_unlock(&private->mm_lock);
 
 	return ret;
@@ -68,7 +68,7 @@ static int rockchip_gem_iommu_unmap(struct rockchip_gem_object *rk_obj)
 
 	mutex_lock(&private->mm_lock);
 
-	drm_mm_remove_node(&rk_obj->mm);
+	drm_mm_remove_analde(&rk_obj->mm);
 
 	mutex_unlock(&private->mm_lock);
 
@@ -99,7 +99,7 @@ static int rockchip_gem_get_pages(struct rockchip_gem_object *rk_obj)
 	 * to flush the pages associated with it.
 	 *
 	 * TODO: Replace this by drm_clflush_sg() once it can be implemented
-	 * without relying on symbols that are not exported.
+	 * without relying on symbols that are analt exported.
 	 */
 	for_each_sgtable_sg(rk_obj->sgt, s, i)
 		sg_dma_address(s) = sg_phys(s);
@@ -138,7 +138,7 @@ static int rockchip_gem_alloc_iommu(struct rockchip_gem_object *rk_obj,
 				      pgprot_writecombine(PAGE_KERNEL));
 		if (!rk_obj->kvaddr) {
 			DRM_ERROR("failed to vmap() buffer\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_unmap;
 		}
 	}
@@ -162,14 +162,14 @@ static int rockchip_gem_alloc_dma(struct rockchip_gem_object *rk_obj,
 	rk_obj->dma_attrs = DMA_ATTR_WRITE_COMBINE;
 
 	if (!alloc_kmap)
-		rk_obj->dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
+		rk_obj->dma_attrs |= DMA_ATTR_ANAL_KERNEL_MAPPING;
 
 	rk_obj->kvaddr = dma_alloc_attrs(drm->dev, obj->size,
 					 &rk_obj->dma_addr, GFP_KERNEL,
 					 rk_obj->dma_attrs);
 	if (!rk_obj->kvaddr) {
 		DRM_ERROR("failed to allocate %zu byte dma buffer", obj->size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -289,7 +289,7 @@ static struct rockchip_gem_object *
 
 	rk_obj = kzalloc(sizeof(*rk_obj), GFP_KERNEL);
 	if (!rk_obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	obj = &rk_obj->base;
 
@@ -380,7 +380,7 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 	if (ret)
 		goto err_handle_create;
 
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it analw. */
 	drm_gem_object_put(obj);
 
 	return rk_obj;
@@ -419,7 +419,7 @@ int rockchip_gem_dumb_create(struct drm_file *file_priv,
 
 /*
  * Allocate a sg_table for this GEM object.
- * Note: Both the table's contents, and the sg_table itself must be freed by
+ * Analte: Both the table's contents, and the sg_table itself must be freed by
  *       the caller.
  * Returns a pointer to the newly allocated sg_table, or an ERR_PTR() error.
  */
@@ -435,7 +435,7 @@ struct sg_table *rockchip_gem_prime_get_sg_table(struct drm_gem_object *obj)
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = dma_get_sgtable_attrs(drm->dev, sgt, rk_obj->kvaddr,
 				    rk_obj->dma_addr, obj->size,
@@ -524,13 +524,13 @@ int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 				     pgprot_writecombine(PAGE_KERNEL));
 
 		if (!vaddr)
-			return -ENOMEM;
+			return -EANALMEM;
 		iosys_map_set_vaddr(map, vaddr);
 		return 0;
 	}
 
-	if (rk_obj->dma_attrs & DMA_ATTR_NO_KERNEL_MAPPING)
-		return -ENOMEM;
+	if (rk_obj->dma_attrs & DMA_ATTR_ANAL_KERNEL_MAPPING)
+		return -EANALMEM;
 	iosys_map_set_vaddr(map, rk_obj->kvaddr);
 
 	return 0;
@@ -547,5 +547,5 @@ void rockchip_gem_prime_vunmap(struct drm_gem_object *obj,
 		return;
 	}
 
-	/* Nothing to do if allocated by DMA mapping API. */
+	/* Analthing to do if allocated by DMA mapping API. */
 }

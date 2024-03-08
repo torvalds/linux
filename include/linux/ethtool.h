@@ -45,9 +45,9 @@ struct compat_ethtool_rxnfc {
  * @ETHTOOL_ID_INACTIVE: Physical ID indicator should be deactivated
  * @ETHTOOL_ID_ACTIVE: Physical ID indicator should be activated
  * @ETHTOOL_ID_ON: LED should be turned on (used iff %ETHTOOL_ID_ACTIVE
- *	is not supported)
+ *	is analt supported)
  * @ETHTOOL_ID_OFF: LED should be turned off (used iff %ETHTOOL_ID_ACTIVE
- *	is not supported)
+ *	is analt supported)
  */
 enum ethtool_phys_id_state {
 	ETHTOOL_ID_INACTIVE,
@@ -113,8 +113,8 @@ enum ethtool_supported_ring_param {
 #define ETH_RSS_HASH_XOR	__ETH_RSS_HASH(XOR)
 #define ETH_RSS_HASH_CRC32	__ETH_RSS_HASH(CRC32)
 
-#define ETH_RSS_HASH_UNKNOWN	0
-#define ETH_RSS_HASH_NO_CHANGE	0
+#define ETH_RSS_HASH_UNKANALWN	0
+#define ETH_RSS_HASH_ANAL_CHANGE	0
 
 struct net_device;
 struct netlink_ext_ack;
@@ -137,12 +137,12 @@ struct ethtool_link_ext_stats {
 	/* Custom Linux statistic for PHY level link down events.
 	 * In a simpler world it should be equal to netdev->carrier_down_count
 	 * unfortunately netdev also counts local reconfigurations which don't
-	 * actually take the physical link down, not to mention NC-SI which,
+	 * actually take the physical link down, analt to mention NC-SI which,
 	 * if present, keeps the link up regardless of host state.
 	 * This statistic counts when PHY _actually_ went down, or lost link.
 	 *
-	 * Note that we need u64 for ethtool_stats_init() and comparisons
-	 * to ETHTOOL_STAT_NOT_SET, but only u32 is exposed to the user.
+	 * Analte that we need u64 for ethtool_stats_init() and comparisons
+	 * to ETHTOOL_STAT_ANALT_SET, but only u32 is exposed to the user.
 	 */
 	u64 link_down_events;
 };
@@ -163,8 +163,8 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 #define __ETHTOOL_DECLARE_LINK_MODE_MASK(name)		\
 	DECLARE_BITMAP(name, __ETHTOOL_LINK_MODE_MASK_NBITS)
 
-/* drivers must ignore base.cmd and base.link_mode_masks_nwords
- * fields, but they are allowed to overwrite them (will be ignored).
+/* drivers must iganalre base.cmd and base.link_mode_masks_nwords
+ * fields, but they are allowed to overwrite them (will be iganalred).
  */
 struct ethtool_link_ksettings {
 	struct ethtool_link_settings base;
@@ -190,7 +190,7 @@ struct ethtool_link_ksettings {
  *   @ptr : pointer to struct ethtool_link_ksettings
  *   @name : one of supported/advertising/lp_advertising
  *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
- * (not atomic, no bound checking)
+ * (analt atomic, anal bound checking)
  */
 #define ethtool_link_ksettings_add_link_mode(ptr, name, mode)		\
 	__set_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
@@ -201,7 +201,7 @@ struct ethtool_link_ksettings {
  *   @ptr : pointer to struct ethtool_link_ksettings
  *   @name : one of supported/advertising/lp_advertising
  *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
- * (not atomic, no bound checking)
+ * (analt atomic, anal bound checking)
  */
 #define ethtool_link_ksettings_del_link_mode(ptr, name, mode)		\
 	__clear_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
@@ -211,7 +211,7 @@ struct ethtool_link_ksettings {
  *   @ptr : pointer to struct ethtool_link_ksettings
  *   @name : one of supported/advertising/lp_advertising
  *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
- * (not atomic, no bound checking)
+ * (analt atomic, anal bound checking)
  *
  * Returns true/false.
  */
@@ -307,15 +307,15 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 	 ETHTOOL_COALESCE_TX_AGGR_MAX_FRAMES |	\
 	 ETHTOOL_COALESCE_TX_AGGR_TIME_USECS)
 
-#define ETHTOOL_STAT_NOT_SET	(~0ULL)
+#define ETHTOOL_STAT_ANALT_SET	(~0ULL)
 
 static inline void ethtool_stats_init(u64 *stats, unsigned int n)
 {
 	while (n--)
-		stats[n] = ETHTOOL_STAT_NOT_SET;
+		stats[n] = ETHTOOL_STAT_ANALT_SET;
 }
 
-/* Basic IEEE 802.3 MAC statistics (30.3.1.1.*), not otherwise exposed
+/* Basic IEEE 802.3 MAC statistics (30.3.1.1.*), analt otherwise exposed
  * via a more targeted API.
  */
 struct ethtool_eth_mac_stats {
@@ -346,7 +346,7 @@ struct ethtool_eth_mac_stats {
 	);
 };
 
-/* Basic IEEE 802.3 PHY statistics (30.3.2.1.*), not otherwise exposed
+/* Basic IEEE 802.3 PHY statistics (30.3.2.1.*), analt otherwise exposed
  * via a more targeted API.
  */
 struct ethtool_eth_phy_stats {
@@ -356,7 +356,7 @@ struct ethtool_eth_phy_stats {
 	);
 };
 
-/* Basic IEEE 802.3 MAC Ctrl statistics (30.3.3.*), not otherwise exposed
+/* Basic IEEE 802.3 MAC Ctrl statistics (30.3.3.*), analt otherwise exposed
  * via a more targeted API.
  */
 struct ethtool_eth_ctrl_stats {
@@ -370,8 +370,8 @@ struct ethtool_eth_ctrl_stats {
 
 /**
  * struct ethtool_pause_stats - statistics for IEEE 802.3x pause frames
- * @src: input field denoting whether stats should be queried from the eMAC or
- *	pMAC (if the MM layer is supported). To be ignored otherwise.
+ * @src: input field deanalting whether stats should be queried from the eMAC or
+ *	pMAC (if the MM layer is supported). To be iganalred otherwise.
  * @tx_pause_frames: transmitted pause frame count. Reported to user space
  *	as %ETHTOOL_A_PAUSE_STAT_TX_FRAMES.
  *
@@ -401,14 +401,14 @@ struct ethtool_pause_stats {
  *
  *	Equivalent to `30.5.1.1.17 aFECCorrectedBlocks` from the standard.
  *
- * @uncorrectable_blocks: number of received blocks FEC was not able to correct
+ * @uncorrectable_blocks: number of received blocks FEC was analt able to correct
  *	Reported to user space as %ETHTOOL_A_FEC_STAT_UNCORR.
  *
  *	Equivalent to `30.5.1.1.18 aFECUncorrectableBlocks` from the standard.
  *
  * @corrected_bits: number of bits corrected by FEC
  *	Similar to @corrected_blocks but counts individual bit changes,
- *	not entire FEC data blocks. This is a non-standard statistic.
+ *	analt entire FEC data blocks. This is a analn-standard statistic.
  *	Reported to user space as %ETHTOOL_A_FEC_STAT_CORR_BITS.
  *
  * For each of the above fields, the two substructure members are:
@@ -441,17 +441,17 @@ struct ethtool_rmon_hist_range {
 
 /**
  * struct ethtool_rmon_stats - selected RMON (RFC 2819) statistics
- * @src: input field denoting whether stats should be queried from the eMAC or
- *	pMAC (if the MM layer is supported). To be ignored otherwise.
+ * @src: input field deanalting whether stats should be queried from the eMAC or
+ *	pMAC (if the MM layer is supported). To be iganalred otherwise.
  * @undersize_pkts: Equivalent to `etherStatsUndersizePkts` from the RFC.
  * @oversize_pkts: Equivalent to `etherStatsOversizePkts` from the RFC.
  * @fragments: Equivalent to `etherStatsFragments` from the RFC.
  * @jabbers: Equivalent to `etherStatsJabbers` from the RFC.
  * @hist: Packet counter for packet length buckets (e.g.
  *	`etherStatsPkts128to255Octets` from the RFC).
- * @hist_tx: Tx counters in similar form to @hist, not defined in the RFC.
+ * @hist_tx: Tx counters in similar form to @hist, analt defined in the RFC.
  *
- * Selection of RMON (RFC 2819) statistics which are not exposed via different
+ * Selection of RMON (RFC 2819) statistics which are analt exposed via different
  * APIs, primarily the packet-length-based counters.
  * Unfortunately different designs choose different buckets beyond
  * the 1024B mark (jumbo frame teritory), so the definition of the bucket
@@ -531,18 +531,18 @@ struct ethtool_module_power_mode_params {
  *	set if the Verify function of the MM layer (which sends SMD-V
  *	verification requests) is administratively enabled (regardless of
  *	whether it is currently in the ETHTOOL_MM_VERIFY_STATUS_DISABLED state
- *	or not), according to clause 30.14.1.4 aMACMergeVerifyDisableTx (but
+ *	or analt), according to clause 30.14.1.4 aMACMergeVerifyDisableTx (but
  *	using positive rather than negative logic). The device should always
  *	respond to received SMD-V requests as long as @pmac_enabled is set.
  * @tx_min_frag_size:
- *	the minimum size of non-final mPacket fragments that the link partner
+ *	the minimum size of analn-final mPacket fragments that the link partner
  *	supports receiving, expressed in octets. Compared to the definition
  *	from clause 30.14.1.7 aMACMergeAddFragSize which is expressed in the
  *	range 0 to 3 (requiring a translation to the size in octets according
  *	to the formula 64 * (1 + addFragSize) - 4), a value in a continuous and
  *	unbounded range can be specified here.
  * @rx_min_frag_size:
- *	the minimum size of non-final mPacket fragments that this device
+ *	the minimum size of analn-final mPacket fragments that this device
  *	supports receiving, expressed in octets.
  */
 struct ethtool_mm_state {
@@ -578,7 +578,7 @@ struct ethtool_mm_cfg {
  * @MACMergeFrameAssErrorCount:
  *	received MAC frames with reassembly errors
  * @MACMergeFrameSmdErrorCount:
- *	received MAC frames/fragments rejected due to unknown or incorrect SMD
+ *	received MAC frames/fragments rejected due to unkanalwn or incorrect SMD
  * @MACMergeFrameAssOkCount:
  *	received MAC frames that were successfully reassembled and passed up
  * @MACMergeFragCountRx:
@@ -604,19 +604,19 @@ struct ethtool_mm_stats {
  *	Valid values are one of the %ETH_RSS_HASH_*.
  * @indir_size: On SET, the array size of the user buffer for the
  *	indirection table, which may be zero, or
- *	%ETH_RXFH_INDIR_NO_CHANGE.  On GET (read from the driver),
+ *	%ETH_RXFH_INDIR_ANAL_CHANGE.  On GET (read from the driver),
  *	the array size of the hardware indirection table.
  * @indir: The indirection table of size @indir_size entries.
  * @key_size: On SET, the array size of the user buffer for the hash key,
  *	which may be zero.  On GET (read from the driver), the size of the
  *	hardware hash key.
  * @key: The hash key of size @key_size bytes.
- * @rss_context: RSS context identifier.  Context 0 is the default for normal
+ * @rss_context: RSS context identifier.  Context 0 is the default for analrmal
  *	traffic; other contexts can be referenced as the destination for RX flow
  *	classification rules.  On SET, %ETH_RXFH_CONTEXT_ALLOC is used
  *	to allocate a new RSS context; on return this field will
  *	contain the ID of the newly allocated context.
- * @rss_delete: Set to non-ZERO to remove the @rss_context context.
+ * @rss_delete: Set to analn-ZERO to remove the @rss_context context.
  * @input_xfrm: Defines how the input data is transformed. Valid values are one
  *	of %RXH_XFRM_*.
  */
@@ -641,7 +641,7 @@ struct ethtool_rxfh_param {
  *	RSS.
  * @supported_coalesce_params: supported types of interrupt coalescing.
  * @supported_ring_params: supported ring params.
- * @get_drvinfo: Report driver/device information. Modern drivers no
+ * @get_drvinfo: Report driver/device information. Modern drivers anal
  *	longer have to implement this callback. Most fields are
  *	correctly filled in by the core using system information, or
  *	populated using other driver operations.
@@ -659,14 +659,14 @@ struct ethtool_rxfh_param {
  *	the netdev is up.  Should usually be set to ethtool_op_get_link(),
  *	which uses netif_carrier_ok().
  * @get_link_ext_state: Report link extended state. Should set link_ext_state and
- *	link_ext_substate (link_ext_substate of 0 means link_ext_substate is unknown,
- *	do not attach ext_substate attribute to netlink message). If link_ext_state
- *	and link_ext_substate are unknown, return -ENODATA. If not implemented,
- *	link_ext_state and link_ext_substate will not be sent to userspace.
+ *	link_ext_substate (link_ext_substate of 0 means link_ext_substate is unkanalwn,
+ *	do analt attach ext_substate attribute to netlink message). If link_ext_state
+ *	and link_ext_substate are unkanalwn, return -EANALDATA. If analt implemented,
+ *	link_ext_state and link_ext_substate will analt be sent to userspace.
  * @get_link_ext_stats: Read extra link-related counters.
  * @get_eeprom_len: Read range of EEPROM addresses for validation of
  *	@get_eeprom and @set_eeprom requests.
- *	Returns 0 if device does not support EEPROM access.
+ *	Returns 0 if device does analt support EEPROM access.
  * @get_eeprom: Read data from the device EEPROM.
  *	Should fill in the magic field.  Don't need to check len for zero
  *	or wraparound.  Fill in the data argument with the eeprom values
@@ -683,9 +683,9 @@ struct ethtool_rxfh_param {
  *	Returns a negative error code or zero.
  * @get_ringparam: Report ring sizes
  * @set_ringparam: Set ring sizes.  Returns a negative error code or zero.
- * @get_pause_stats: Report pause frame statistics. Drivers must not zero
+ * @get_pause_stats: Report pause frame statistics. Drivers must analt zero
  *	statistics which they don't report. The stats structure is initialized
- *	to ETHTOOL_STAT_NOT_SET indicating driver does not report statistics.
+ *	to ETHTOOL_STAT_ANALT_SET indicating driver does analt report statistics.
  * @get_pauseparam: Report pause parameters
  * @set_pauseparam: Set pause parameters.  Returns a negative error code
  *	or zero.
@@ -693,10 +693,10 @@ struct ethtool_rxfh_param {
  * @get_strings: Return a set of strings that describe the requested objects
  * @set_phys_id: Identify the physical devices, e.g. by flashing an LED
  *	attached to it.  The implementation may update the indicator
- *	asynchronously or synchronously, but in either case it must return
+ *	asynchroanalusly or synchroanalusly, but in either case it must return
  *	quickly.  It is initially called with the argument %ETHTOOL_ID_ACTIVE,
- *	and must either activate asynchronous updates and return zero, return
- *	a negative error or return a positive frequency for synchronous
+ *	and must either activate asynchroanalus updates and return zero, return
+ *	a negative error or return a positive frequency for synchroanalus
  *	indication (e.g. 1 for one on/off cycle per second).  If it returns
  *	a frequency then it will be called again at intervals with the
  *	argument %ETHTOOL_ID_ON or %ETHTOOL_ID_OFF and should set the state of
@@ -704,7 +704,7 @@ struct ethtool_rxfh_param {
  *	%ETHTOOL_ID_INACTIVE and must deactivate the indicator.  Returns a
  *	negative error code or zero.
  * @get_ethtool_stats: Return extended statistics about the device.
- *	This is only useful if the device maintains statistics not
+ *	This is only useful if the device maintains statistics analt
  *	included in &struct rtnl_link_stats64.
  * @begin: Function to be called before any other operation.  Returns a
  *	negative error code or zero.
@@ -724,9 +724,9 @@ struct ethtool_rxfh_param {
  *	flags from &enum ethtool_reset_flags.  Returns a negative
  *	error code or zero.
  * @get_rxfh_key_size: Get the size of the RX flow hash key.
- *	Returns zero if not supported for this specific device.
+ *	Returns zero if analt supported for this specific device.
  * @get_rxfh_indir_size: Get the size of the RX flow hash indirection table.
- *	Returns zero if not supported for this specific device.
+ *	Returns zero if analt supported for this specific device.
  * @get_rxfh: Get the contents of the RX flow hash indirection table, hash key
  *	and/or hash function.
  *	Returns a negative error code or zero.
@@ -754,36 +754,36 @@ struct ethtool_rxfh_param {
  * @get_tunable: Read the value of a driver / device tunable.
  * @set_tunable: Set the value of a driver / device tunable.
  * @get_per_queue_coalesce: Get interrupt coalescing parameters per queue.
- *	It must check that the given queue number is valid. If neither a RX nor
+ *	It must check that the given queue number is valid. If neither a RX analr
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
  *	queue has this number, set the inapplicable fields to ~0 and return 0.
  *	Returns a negative error code or zero.
  * @set_per_queue_coalesce: Set interrupt coalescing parameters per queue.
- *	It must check that the given queue number is valid. If neither a RX nor
+ *	It must check that the given queue number is valid. If neither a RX analr
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
- *	queue has this number, ignore the inapplicable fields. Supported
+ *	queue has this number, iganalre the inapplicable fields. Supported
  *	coalescing types should be set in @supported_coalesce_params.
  *	Returns a negative error code or zero.
  * @get_link_ksettings: Get various device settings including Ethernet link
  *	settings. The %cmd and %link_mode_masks_nwords fields should be
- *	ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
+ *	iganalred (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
  *	any change to them will be overwritten by kernel. Returns a negative
  *	error code or zero.
  * @set_link_ksettings: Set various device settings including Ethernet link
  *	settings. The %cmd and %link_mode_masks_nwords fields should be
- *	ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
+ *	iganalred (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
  *	any change to them will be overwritten by kernel. Returns a negative
  *	error code or zero.
  * @get_fec_stats: Report FEC statistics.
  *	Core will sum up per-lane stats to get the total.
- *	Drivers must not zero statistics which they don't report. The stats
- *	structure is initialized to ETHTOOL_STAT_NOT_SET indicating driver does
- *	not report statistics.
+ *	Drivers must analt zero statistics which they don't report. The stats
+ *	structure is initialized to ETHTOOL_STAT_ANALT_SET indicating driver does
+ *	analt report statistics.
  * @get_fecparam: Get the network device Forward Error Correction parameters.
  * @set_fecparam: Set the network device Forward Error Correction parameters.
  * @get_ethtool_phy_stats: Return extended statistics about the PHY device.
  *	This is only useful if the device maintains PHY statistics and
- *	cannot use the standard PHY library helpers.
+ *	cananalt use the standard PHY library helpers.
  * @get_phy_tunable: Read the value of a PHY tunable.
  * @set_phy_tunable: Set the value of a PHY tunable.
  * @get_module_eeprom_by_page: Get a region of plug-in module EEPROM data from
@@ -808,7 +808,7 @@ struct ethtool_rxfh_param {
  * hold the RTNL lock.
  *
  * See the structures used by these operations for further documentation.
- * Note that for all operations using a structure ending with a zero-
+ * Analte that for all operations using a structure ending with a zero-
  * length array, the array is allocated separately in the kernel and
  * is passed to the driver as an additional parameter.
  *
@@ -1051,7 +1051,7 @@ static inline u32 ethtool_mm_frag_size_add_to_min(u32 val_add)
  *
  * Translate a value in octets to one of 0, 1, 2, 3 according to the reverse
  * application of the 802.3 formula 64 * (1 + addFragSize) - 4. To be called
- * by drivers which do not support programming the minimum fragment size to a
+ * by drivers which do analt support programming the minimum fragment size to a
  * continuous range. Returns error on other fragment length values.
  */
 static inline int ethtool_mm_frag_size_min_to_add(u32 val_min, u32 *val_add,
@@ -1075,7 +1075,7 @@ static inline int ethtool_mm_frag_size_min_to_add(u32 val_min, u32 *val_add,
  * ethtool_get_ts_info_by_layer - Obtains time stamping capabilities from the MAC or PHY layer.
  * @dev: pointer to net_device structure
  * @info: buffer to hold the result
- * Returns zero on success, non-zero otherwise.
+ * Returns zero on success, analn-zero otherwise.
  */
 int ethtool_get_ts_info_by_layer(struct net_device *dev, struct ethtool_ts_info *info);
 

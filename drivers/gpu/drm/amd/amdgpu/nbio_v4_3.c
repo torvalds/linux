@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -229,9 +229,9 @@ static void nbio_v4_3_ih_control(struct amdgpu_device *adev)
 	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, BIF_BX0_INTERRUPT_CNTL,
 				       IH_DUMMY_RD_OVERRIDE, 0);
 
-	/* BIF_BX0_INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK=1 if ring is in non-cacheable memory, e.g., vram */
+	/* BIF_BX0_INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN_MASK=1 if ring is in analn-cacheable memory, e.g., vram */
 	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, BIF_BX0_INTERRUPT_CNTL,
-				       IH_REQ_NONSNOOP_EN, 0);
+				       IH_REQ_ANALNSANALOP_EN, 0);
 
 	WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL, interrupt_cntl);
 }
@@ -342,7 +342,7 @@ static void nbio_v4_3_init_registers(struct amdgpu_device *adev)
 		uint32_t data;
 
 		data = RREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF2_STRAP2);
-		data &= ~RCC_DEV0_EPF2_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F2_MASK;
+		data &= ~RCC_DEV0_EPF2_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F2_MASK;
 		WREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF2_STRAP2, data);
 	}
 	if (amdgpu_sriov_vf(adev))
@@ -367,7 +367,7 @@ static void nbio_v4_3_program_ltr(struct amdgpu_device *adev)
 
 	def = RREG32_SOC15(NBIO, 0, regRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL);
 	data = 0x35EB;
-	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0_MASK;
+	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0_MASK;
 	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN_MASK;
 	if (def != data)
 		WREG32_SOC15(NBIO, 0, regRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL, data);
@@ -569,7 +569,7 @@ static int nbio_v4_3_process_err_event_athub_irq(struct amdgpu_device *adev,
 						 struct amdgpu_iv_entry *entry)
 {
 	/* By design, the ih cookie for err_event_athub_irq should be written
-	 * to bif ring. since bif ring is not enabled, just leave process callback
+	 * to bif ring. since bif ring is analt enabled, just leave process callback
 	 * as a dummy one.
 	 */
 	return 0;
@@ -580,7 +580,7 @@ static const struct amdgpu_irq_src_funcs nbio_v4_3_ras_err_event_athub_irq_funcs
 	.process = nbio_v4_3_process_err_event_athub_irq,
 };
 
-static void nbio_v4_3_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_device *adev)
+static void nbio_v4_3_handle_ras_err_event_athub_intr_anal_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_int_cntl;
 
@@ -617,6 +617,6 @@ static int nbio_v4_3_init_ras_err_event_athub_interrupt(struct amdgpu_device *ad
 }
 
 struct amdgpu_nbio_ras nbio_v4_3_ras = {
-	.handle_ras_err_event_athub_intr_no_bifring = nbio_v4_3_handle_ras_err_event_athub_intr_no_bifring,
+	.handle_ras_err_event_athub_intr_anal_bifring = nbio_v4_3_handle_ras_err_event_athub_intr_anal_bifring,
 	.init_ras_err_event_athub_interrupt = nbio_v4_3_init_ras_err_event_athub_interrupt,
 };

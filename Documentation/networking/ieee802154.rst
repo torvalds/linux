@@ -97,7 +97,7 @@ SoftMAC
 The MAC is the middle layer in the IEEE 802.15.4 Linux stack. This moment it
 provides interface for drivers registration and management of slave interfaces.
 
-NOTE: Currently the only monitor device type is supported - it's IEEE 802.15.4
+ANALTE: Currently the only monitor device type is supported - it's IEEE 802.15.4
 stack interface for network sniffers (e.g. WireShark).
 
 This layer is going to be extended soon.

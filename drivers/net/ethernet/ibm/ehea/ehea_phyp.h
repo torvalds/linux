@@ -28,7 +28,7 @@
 /* Number of pages which can be registered at once by H_REGISTER_HEA_RPAGES */
 #define EHEA_MAX_RPAGE 512
 
-/* Notification Event Queue (NEQ) Entry bit masks */
+/* Analtification Event Queue (NEQ) Entry bit masks */
 #define NEQE_EVENT_CODE		EHEA_BMASK_IBM(2, 7)
 #define NEQE_PORTNUM  		EHEA_BMASK_IBM(32, 47)
 #define NEQE_PORT_UP		EHEA_BMASK_IBM(16, 16)
@@ -36,12 +36,12 @@
 #define NEQE_EXTSWITCH_PRIMARY	EHEA_BMASK_IBM(18, 18)
 #define NEQE_PLID		EHEA_BMASK_IBM(16, 47)
 
-/* Notification Event Codes */
+/* Analtification Event Codes */
 #define EHEA_EC_PORTSTATE_CHG	0x30
 #define EHEA_EC_ADAPTER_MALFUNC	0x32
 #define EHEA_EC_PORT_MALFUNC	0x33
 
-/* Notification Event Log Register (NELR) bit masks */
+/* Analtification Event Log Register (NELR) bit masks */
 #define NELR_PORT_MALFUNC	EHEA_BMASK_IBM(61, 61)
 #define NELR_ADAPTER_MALFUNC	EHEA_BMASK_IBM(62, 62)
 #define NELR_PORTSTATE_CHG	EHEA_BMASK_IBM(63, 63)
@@ -384,7 +384,7 @@ u64 ehea_h_register_rpage(const u64 adapter_handle,
 u64 ehea_h_disable_and_get_hea(const u64 adapter_handle, const u64 qp_handle);
 
 #define FORCE_FREE 1
-#define NORMAL_FREE 0
+#define ANALRMAL_FREE 0
 
 u64 ehea_h_free_resource(const u64 adapter_handle, const u64 res_handle,
 			 u64 force_bit);

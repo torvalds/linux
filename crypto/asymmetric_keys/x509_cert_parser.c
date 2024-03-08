@@ -65,19 +65,19 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 	struct asymmetric_key_id *kid;
 	long ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	cert = kzalloc(sizeof(struct x509_certificate), GFP_KERNEL);
 	if (!cert)
-		goto error_no_cert;
+		goto error_anal_cert;
 	cert->pub = kzalloc(sizeof(struct public_key), GFP_KERNEL);
 	if (!cert->pub)
-		goto error_no_ctx;
+		goto error_anal_ctx;
 	cert->sig = kzalloc(sizeof(struct public_key_signature), GFP_KERNEL);
 	if (!cert->sig)
-		goto error_no_ctx;
+		goto error_anal_ctx;
 	ctx = kzalloc(sizeof(struct x509_parse_context), GFP_KERNEL);
 	if (!ctx)
-		goto error_no_ctx;
+		goto error_anal_ctx;
 
 	ctx->cert = cert;
 	ctx->data = (unsigned long)data;
@@ -99,7 +99,7 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 		}
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	cert->pub->key = kmemdup(ctx->key, ctx->key_size, GFP_KERNEL);
 	if (!cert->pub->key)
 		goto error_decode;
@@ -139,18 +139,18 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 
 error_decode:
 	kfree(ctx);
-error_no_ctx:
+error_anal_ctx:
 	x509_free_certificate(cert);
-error_no_cert:
+error_anal_cert:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(x509_cert_parse);
 
 /*
- * Note an OID when we find one for later processing when we know how
+ * Analte an OID when we find one for later processing when we kanalw how
  * to interpret it.
  */
-int x509_note_OID(void *context, size_t hdrlen,
+int x509_analte_OID(void *context, size_t hdrlen,
 	     unsigned char tag,
 	     const void *value, size_t vlen)
 {
@@ -160,7 +160,7 @@ int x509_note_OID(void *context, size_t hdrlen,
 	if (ctx->last_oid == OID__NR) {
 		char buffer[50];
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		pr_debug("Unknown OID: [%lu] %s\n",
+		pr_debug("Unkanalwn OID: [%lu] %s\n",
 			 (unsigned long)value - ctx->data, buffer);
 	}
 	return 0;
@@ -170,13 +170,13 @@ int x509_note_OID(void *context, size_t hdrlen,
  * Save the position of the TBS data so that we can check the signature over it
  * later.
  */
-int x509_note_tbs_certificate(void *context, size_t hdrlen,
+int x509_analte_tbs_certificate(void *context, size_t hdrlen,
 			      unsigned char tag,
 			      const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
 
-	pr_debug("x509_note_tbs_certificate(,%zu,%02x,%ld,%zu)!\n",
+	pr_debug("x509_analte_tbs_certificate(,%zu,%02x,%ld,%zu)!\n",
 		 hdrlen, tag, (unsigned long)value - ctx->data, vlen);
 
 	ctx->cert->tbs = value - hdrlen;
@@ -187,7 +187,7 @@ int x509_note_tbs_certificate(void *context, size_t hdrlen,
 /*
  * Record the algorithm that was used to sign this certificate.
  */
-int x509_note_sig_algo(void *context, size_t hdrlen, unsigned char tag,
+int x509_analte_sig_algo(void *context, size_t hdrlen, unsigned char tag,
 		       const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
@@ -196,7 +196,7 @@ int x509_note_sig_algo(void *context, size_t hdrlen, unsigned char tag,
 
 	switch (ctx->last_oid) {
 	default:
-		return -ENOPKG; /* Unsupported combination */
+		return -EANALPKG; /* Unsupported combination */
 
 	case OID_sha256WithRSAEncryption:
 		ctx->cert->sig->hash_algo = "sha256";
@@ -290,9 +290,9 @@ ecdsa:
 }
 
 /*
- * Note the whereabouts and type of the signature.
+ * Analte the whereabouts and type of the signature.
  */
-int x509_note_signature(void *context, size_t hdrlen,
+int x509_analte_signature(void *context, size_t hdrlen,
 			unsigned char tag,
 			const void *value, size_t vlen)
 {
@@ -329,9 +329,9 @@ int x509_note_signature(void *context, size_t hdrlen,
 }
 
 /*
- * Note the certificate serial number
+ * Analte the certificate serial number
  */
-int x509_note_serial(void *context, size_t hdrlen,
+int x509_analte_serial(void *context, size_t hdrlen,
 		     unsigned char tag,
 		     const void *value, size_t vlen)
 {
@@ -342,7 +342,7 @@ int x509_note_serial(void *context, size_t hdrlen,
 }
 
 /*
- * Note some of the name segments from which we'll fabricate a name.
+ * Analte some of the name segments from which we'll fabricate a name.
  */
 int x509_extract_name_segment(void *context, size_t hdrlen,
 			      unsigned char tag,
@@ -384,11 +384,11 @@ static int x509_fabricate_name(struct x509_parse_context *ctx, size_t hdrlen,
 	if (*_name)
 		return -EINVAL;
 
-	/* Empty name string if no material */
+	/* Empty name string if anal material */
 	if (!ctx->cn_size && !ctx->o_size && !ctx->email_size) {
 		buffer = kmalloc(1, GFP_KERNEL);
 		if (!buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		buffer[0] = 0;
 		goto done;
 	}
@@ -411,7 +411,7 @@ static int x509_fabricate_name(struct x509_parse_context *ctx, size_t hdrlen,
 		buffer = kmalloc(ctx->o_size + 2 + ctx->cn_size + 1,
 				 GFP_KERNEL);
 		if (!buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(buffer,
 		       data + ctx->o_offset, ctx->o_size);
@@ -436,7 +436,7 @@ static int x509_fabricate_name(struct x509_parse_context *ctx, size_t hdrlen,
 single_component:
 	buffer = kmalloc(namesize + 1, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(buffer, name, namesize);
 	buffer[namesize] = 0;
 
@@ -448,7 +448,7 @@ done:
 	return 0;
 }
 
-int x509_note_issuer(void *context, size_t hdrlen,
+int x509_analte_issuer(void *context, size_t hdrlen,
 		     unsigned char tag,
 		     const void *value, size_t vlen)
 {
@@ -468,7 +468,7 @@ int x509_note_issuer(void *context, size_t hdrlen,
 	return x509_fabricate_name(ctx, hdrlen, tag, &ctx->cert->issuer, vlen);
 }
 
-int x509_note_subject(void *context, size_t hdrlen,
+int x509_analte_subject(void *context, size_t hdrlen,
 		      unsigned char tag,
 		      const void *value, size_t vlen)
 {
@@ -481,7 +481,7 @@ int x509_note_subject(void *context, size_t hdrlen,
 /*
  * Extract the parameters for the public key
  */
-int x509_note_params(void *context, size_t hdrlen,
+int x509_analte_params(void *context, size_t hdrlen,
 		     unsigned char tag,
 		     const void *value, size_t vlen)
 {
@@ -489,7 +489,7 @@ int x509_note_params(void *context, size_t hdrlen,
 
 	/*
 	 * AlgorithmIdentifier is used three times in the x509, we should skip
-	 * first and ignore third, using second one which is after subject and
+	 * first and iganalre third, using second one which is after subject and
 	 * before subjectPublicKey.
 	 */
 	if (!ctx->cert->raw_subject || ctx->key)
@@ -539,11 +539,11 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 			ctx->cert->pub->pkey_algo = "ecdsa-nist-p384";
 			break;
 		default:
-			return -ENOPKG;
+			return -EANALPKG;
 		}
 		break;
 	default:
-		return -ENOPKG;
+		return -EANALPKG;
 	}
 
 	/* Discard the BIT STRING metadata */
@@ -744,7 +744,7 @@ invalid_time:
 }
 EXPORT_SYMBOL_GPL(x509_decode_time);
 
-int x509_note_not_before(void *context, size_t hdrlen,
+int x509_analte_analt_before(void *context, size_t hdrlen,
 			 unsigned char tag,
 			 const void *value, size_t vlen)
 {
@@ -752,7 +752,7 @@ int x509_note_not_before(void *context, size_t hdrlen,
 	return x509_decode_time(&ctx->cert->valid_from, hdrlen, tag, value, vlen);
 }
 
-int x509_note_not_after(void *context, size_t hdrlen,
+int x509_analte_analt_after(void *context, size_t hdrlen,
 			unsigned char tag,
 			const void *value, size_t vlen)
 {
@@ -761,9 +761,9 @@ int x509_note_not_after(void *context, size_t hdrlen,
 }
 
 /*
- * Note a key identifier-based AuthorityKeyIdentifier
+ * Analte a key identifier-based AuthorityKeyIdentifier
  */
-int x509_akid_note_kid(void *context, size_t hdrlen,
+int x509_akid_analte_kid(void *context, size_t hdrlen,
 		       unsigned char tag,
 		       const void *value, size_t vlen)
 {
@@ -784,9 +784,9 @@ int x509_akid_note_kid(void *context, size_t hdrlen,
 }
 
 /*
- * Note a directoryName in an AuthorityKeyIdentifier
+ * Analte a directoryName in an AuthorityKeyIdentifier
  */
-int x509_akid_note_name(void *context, size_t hdrlen,
+int x509_akid_analte_name(void *context, size_t hdrlen,
 			unsigned char tag,
 			const void *value, size_t vlen)
 {
@@ -800,9 +800,9 @@ int x509_akid_note_name(void *context, size_t hdrlen,
 }
 
 /*
- * Note a serial number in an AuthorityKeyIdentifier
+ * Analte a serial number in an AuthorityKeyIdentifier
  */
-int x509_akid_note_serial(void *context, size_t hdrlen,
+int x509_akid_analte_serial(void *context, size_t hdrlen,
 			  unsigned char tag,
 			  const void *value, size_t vlen)
 {

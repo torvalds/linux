@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2017 T-Chip Intelligent Technology Co., Ltd
+ * Copyright (c) 2017 T-Chip Intelligent Techanallogy Co., Ltd
  */
 
 /dts-v1/;
@@ -614,7 +614,7 @@
 
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -626,15 +626,15 @@
 
 	leds {
 		diy_led_pin: diy-led-pin {
-			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		work_led_pin: work-led-pin {
-			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		yellow_led_pin: yellow-led-pin {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -650,13 +650,13 @@
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdmmc {
 		vcc3v0_sd_en: vcc3v0-sd-en {
-			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -668,11 +668,11 @@
 
 	usb2 {
 		vcc5v0_host_en: vcc5v0-host-en {
-			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc_sys_en: vcc-sys-en {
-			rockchip,pins = <2 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		hub_rst: hub-rst {
@@ -682,7 +682,7 @@
 
 	usb-typec {
 		vcc_vbus_typec1_en: vcc-vbus-typec1-en {
-			rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -726,7 +726,7 @@
 
 &sdhci {
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -734,7 +734,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
 	};

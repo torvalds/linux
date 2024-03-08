@@ -59,7 +59,7 @@ struct rfkill {
 #endif
 
 	struct device		dev;
-	struct list_head	node;
+	struct list_head	analde;
 
 	struct delayed_work	poll_work;
 	struct work_struct	uevent_work;
@@ -96,7 +96,7 @@ MODULE_LICENSE("GPL");
  * rfkill method calls -- which will cause an AB-BA deadlock situation.
  *
  * To fix that, we need to rework this code here to be mostly lock-free
- * and only use the mutex for list manipulations, not to protect the
+ * and only use the mutex for list manipulations, analt to protect the
  * various other global variables. Then we can avoid holding the mutex
  * around driver operations, and all is happy.
  */
@@ -171,7 +171,7 @@ static void rfkill_led_trigger_unregister(struct rfkill *rfkill)
 }
 
 static struct led_trigger rfkill_any_led_trigger;
-static struct led_trigger rfkill_none_led_trigger;
+static struct led_trigger rfkill_analne_led_trigger;
 static struct work_struct rfkill_global_led_trigger_work;
 
 static void rfkill_global_led_trigger_worker(struct work_struct *work)
@@ -180,7 +180,7 @@ static void rfkill_global_led_trigger_worker(struct work_struct *work)
 	struct rfkill *rfkill;
 
 	mutex_lock(&rfkill_global_mutex);
-	list_for_each_entry(rfkill, &rfkill_list, node) {
+	list_for_each_entry(rfkill, &rfkill_list, analde) {
 		if (!(rfkill->state & RFKILL_BLOCK_ANY)) {
 			brightness = LED_FULL;
 			break;
@@ -189,7 +189,7 @@ static void rfkill_global_led_trigger_worker(struct work_struct *work)
 	mutex_unlock(&rfkill_global_mutex);
 
 	led_trigger_event(&rfkill_any_led_trigger, brightness);
-	led_trigger_event(&rfkill_none_led_trigger,
+	led_trigger_event(&rfkill_analne_led_trigger,
 			  brightness == LED_OFF ? LED_FULL : LED_OFF);
 }
 
@@ -210,8 +210,8 @@ static int rfkill_global_led_trigger_register(void)
 	if (ret)
 		return ret;
 
-	rfkill_none_led_trigger.name = "rfkill-none";
-	ret = led_trigger_register(&rfkill_none_led_trigger);
+	rfkill_analne_led_trigger.name = "rfkill-analne";
+	ret = led_trigger_register(&rfkill_analne_led_trigger);
 	if (ret)
 		led_trigger_unregister(&rfkill_any_led_trigger);
 	else
@@ -223,7 +223,7 @@ static int rfkill_global_led_trigger_register(void)
 
 static void rfkill_global_led_trigger_unregister(void)
 {
-	led_trigger_unregister(&rfkill_none_led_trigger);
+	led_trigger_unregister(&rfkill_analne_led_trigger);
 	led_trigger_unregister(&rfkill_any_led_trigger);
 	cancel_work_sync(&rfkill_global_led_trigger_work);
 }
@@ -307,7 +307,7 @@ static void rfkill_event(struct rfkill *rfkill)
  * @rfkill: the rfkill struct to use
  * @blocked: the new software state
  *
- * Calls the set_block method (when applicable) and handles notifications
+ * Calls the set_block method (when applicable) and handles analtifications
  * etc. as well.
  */
 static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
@@ -411,7 +411,7 @@ static void __rfkill_switch_all(const enum rfkill_type type, bool blocked)
 	struct rfkill *rfkill;
 
 	rfkill_update_global_state(type, blocked);
-	list_for_each_entry(rfkill, &rfkill_list, node) {
+	list_for_each_entry(rfkill, &rfkill_list, analde) {
 		if (rfkill->type != type && type != RFKILL_TYPE_ALL)
 			continue;
 
@@ -427,7 +427,7 @@ static void __rfkill_switch_all(const enum rfkill_type type, bool blocked)
  * Acquires rfkill_global_mutex and calls __rfkill_switch_all(@type, @state).
  * Please refer to __rfkill_switch_all() for details.
  *
- * Does nothing if the EPO lock is active.
+ * Does analthing if the EPO lock is active.
  */
 void rfkill_switch_all(enum rfkill_type type, bool blocked)
 {
@@ -445,8 +445,8 @@ void rfkill_switch_all(enum rfkill_type type, bool blocked)
 /**
  * rfkill_epo - emergency power off all transmitters
  *
- * This kicks all non-suspended rfkill devices to RFKILL_STATE_SOFT_BLOCKED,
- * ignoring everything in its path but rfkill_global_mutex and rfkill->mutex.
+ * This kicks all analn-suspended rfkill devices to RFKILL_STATE_SOFT_BLOCKED,
+ * iganalring everything in its path but rfkill_global_mutex and rfkill->mutex.
  *
  * The global state before the EPO is saved and can be restored later
  * using rfkill_restore_states().
@@ -462,7 +462,7 @@ void rfkill_epo(void)
 	mutex_lock(&rfkill_global_mutex);
 
 	rfkill_epo_lock_active = true;
-	list_for_each_entry(rfkill, &rfkill_list, node)
+	list_for_each_entry(rfkill, &rfkill_list, analde)
 		rfkill_set_block(rfkill, true);
 
 	for (i = 0; i < NUM_RFKILL_TYPES; i++) {
@@ -514,7 +514,7 @@ void rfkill_remove_epo_lock(void)
 /**
  * rfkill_is_epo_lock_active - returns true EPO is active
  *
- * Returns 0 (false) if there is NOT an active EPO condition,
+ * Returns 0 (false) if there is ANALT an active EPO condition,
  * and 1 (true) if there is an active EPO condition, which
  * locks all radios in one of the BLOCKED states.
  *
@@ -547,8 +547,8 @@ bool rfkill_set_hw_state_reason(struct rfkill *rfkill,
 	BUG_ON(!rfkill);
 
 	if (WARN(reason &
-	    ~(RFKILL_HARD_BLOCK_SIGNAL | RFKILL_HARD_BLOCK_NOT_OWNER),
-	    "hw_state reason not supported: 0x%lx", reason))
+	    ~(RFKILL_HARD_BLOCK_SIGNAL | RFKILL_HARD_BLOCK_ANALT_OWNER),
+	    "hw_state reason analt supported: 0x%lx", reason))
 		return blocked;
 
 	spin_lock_irqsave(&rfkill->lock, flags);
@@ -578,7 +578,7 @@ static void __rfkill_set_sw_state(struct rfkill *rfkill, bool blocked)
 {
 	u32 bit = RFKILL_BLOCK_SW;
 
-	/* if in a ops->set_block right now, use other bit */
+	/* if in a ops->set_block right analw, use other bit */
 	if (rfkill->state & RFKILL_BLOCK_SW_SETCALL)
 		bit = RFKILL_BLOCK_SW_PREV;
 
@@ -639,7 +639,7 @@ void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 	spin_lock_irqsave(&rfkill->lock, flags);
 
 	/*
-	 * No need to care about prev/setblock ... this is for uevent only
+	 * Anal need to care about prev/setblock ... this is for uevent only
 	 * and that will get triggered by rfkill_set_block anyway.
 	 */
 	swprev = !!(rfkill->state & RFKILL_BLOCK_SW);
@@ -1008,7 +1008,7 @@ struct rfkill * __must_check rfkill_alloc(const char *name,
 		return NULL;
 
 	spin_lock_init(&rfkill->lock);
-	INIT_LIST_HEAD(&rfkill->node);
+	INIT_LIST_HEAD(&rfkill->analde);
 	rfkill->type = type;
 	strcpy(rfkill->name, name);
 	rfkill->ops = ops;
@@ -1063,7 +1063,7 @@ static void rfkill_sync_work(struct work_struct *work)
 
 int __must_check rfkill_register(struct rfkill *rfkill)
 {
-	static unsigned long rfkill_no;
+	static unsigned long rfkill_anal;
 	struct device *dev;
 	int error;
 
@@ -1079,11 +1079,11 @@ int __must_check rfkill_register(struct rfkill *rfkill)
 		goto unlock;
 	}
 
-	rfkill->idx = rfkill_no;
-	dev_set_name(dev, "rfkill%lu", rfkill_no);
-	rfkill_no++;
+	rfkill->idx = rfkill_anal;
+	dev_set_name(dev, "rfkill%lu", rfkill_anal);
+	rfkill_anal++;
 
-	list_add_tail(&rfkill->node, &rfkill_list);
+	list_add_tail(&rfkill->analde, &rfkill_list);
 
 	error = device_add(dev);
 	if (error)
@@ -1125,7 +1125,7 @@ int __must_check rfkill_register(struct rfkill *rfkill)
  devdel:
 	device_del(&rfkill->dev);
  remove:
-	list_del_init(&rfkill->node);
+	list_del_init(&rfkill->analde);
  unlock:
 	mutex_unlock(&rfkill_global_mutex);
 	return error;
@@ -1148,7 +1148,7 @@ void rfkill_unregister(struct rfkill *rfkill)
 
 	mutex_lock(&rfkill_global_mutex);
 	rfkill_send_events(rfkill, RFKILL_OP_DEL);
-	list_del_init(&rfkill->node);
+	list_del_init(&rfkill->analde);
 	rfkill_global_led_trigger_event();
 	mutex_unlock(&rfkill_global_mutex);
 
@@ -1163,7 +1163,7 @@ void rfkill_destroy(struct rfkill *rfkill)
 }
 EXPORT_SYMBOL(rfkill_destroy);
 
-static int rfkill_fop_open(struct inode *inode, struct file *file)
+static int rfkill_fop_open(struct ianalde *ianalde, struct file *file)
 {
 	struct rfkill_data *data;
 	struct rfkill *rfkill;
@@ -1171,7 +1171,7 @@ static int rfkill_fop_open(struct inode *inode, struct file *file)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->max_size = RFKILL_EVENT_SIZE_V1;
 
@@ -1185,7 +1185,7 @@ static int rfkill_fop_open(struct inode *inode, struct file *file)
 	 * startup events added first
 	 */
 
-	list_for_each_entry(rfkill, &rfkill_list, node) {
+	list_for_each_entry(rfkill, &rfkill_list, analde) {
 		ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 		if (!ev)
 			goto free;
@@ -1200,7 +1200,7 @@ static int rfkill_fop_open(struct inode *inode, struct file *file)
 
 	file->private_data = data;
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 
  free:
 	mutex_unlock(&rfkill_global_mutex);
@@ -1208,19 +1208,19 @@ static int rfkill_fop_open(struct inode *inode, struct file *file)
 	list_for_each_entry_safe(ev, tmp, &data->events, list)
 		kfree(ev);
 	kfree(data);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static __poll_t rfkill_fop_poll(struct file *file, poll_table *wait)
 {
 	struct rfkill_data *data = file->private_data;
-	__poll_t res = EPOLLOUT | EPOLLWRNORM;
+	__poll_t res = EPOLLOUT | EPOLLWRANALRM;
 
 	poll_wait(file, &data->read_wait, wait);
 
 	mutex_lock(&data->mtx);
 	if (!list_empty(&data->events))
-		res = EPOLLIN | EPOLLRDNORM;
+		res = EPOLLIN | EPOLLRDANALRM;
 	mutex_unlock(&data->mtx);
 
 	return res;
@@ -1237,7 +1237,7 @@ static ssize_t rfkill_fop_read(struct file *file, char __user *buf,
 	mutex_lock(&data->mtx);
 
 	while (list_empty(&data->events)) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			ret = -EAGAIN;
 			goto out;
 		}
@@ -1299,14 +1299,14 @@ static ssize_t rfkill_fop_write(struct file *file, const char __user *buf,
 	switch (ev.op) {
 	case RFKILL_OP_CHANGE_ALL:
 		rfkill_update_global_state(ev.type, ev.soft);
-		list_for_each_entry(rfkill, &rfkill_list, node)
+		list_for_each_entry(rfkill, &rfkill_list, analde)
 			if (rfkill->type == ev.type ||
 			    ev.type == RFKILL_TYPE_ALL)
 				rfkill_set_block(rfkill, ev.soft);
 		ret = 0;
 		break;
 	case RFKILL_OP_CHANGE:
-		list_for_each_entry(rfkill, &rfkill_list, node)
+		list_for_each_entry(rfkill, &rfkill_list, analde)
 			if (rfkill->idx == ev.idx &&
 			    (rfkill->type == ev.type ||
 			     ev.type == RFKILL_TYPE_ALL))
@@ -1323,7 +1323,7 @@ static ssize_t rfkill_fop_write(struct file *file, const char __user *buf,
 	return ret ?: count;
 }
 
-static int rfkill_fop_release(struct inode *inode, struct file *file)
+static int rfkill_fop_release(struct ianalde *ianalde, struct file *file)
 {
 	struct rfkill_data *data = file->private_data;
 	struct rfkill_int_event *ev, *tmp;
@@ -1351,16 +1351,16 @@ static long rfkill_fop_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	struct rfkill_data *data = file->private_data;
-	int ret = -ENOTTY;
+	int ret = -EANALTTY;
 	u32 size;
 
 	if (_IOC_TYPE(cmd) != RFKILL_IOC_MAGIC)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	mutex_lock(&data->mtx);
 	switch (_IOC_NR(cmd)) {
 #ifdef CONFIG_RFKILL_INPUT
-	case RFKILL_IOC_NOINPUT:
+	case RFKILL_IOC_ANALINPUT:
 		if (!data->input_handler) {
 			if (atomic_inc_return(&rfkill_input_disabled) == 1)
 				printk(KERN_DEBUG "rfkill: input handler disabled\n");
@@ -1398,7 +1398,7 @@ static const struct file_operations rfkill_fops = {
 	.release	= rfkill_fop_release,
 	.unlocked_ioctl	= rfkill_fop_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 #define RFKILL_NAME "rfkill"
@@ -1406,7 +1406,7 @@ static const struct file_operations rfkill_fops = {
 static struct miscdevice rfkill_miscdev = {
 	.fops	= &rfkill_fops,
 	.name	= RFKILL_NAME,
-	.minor	= RFKILL_MINOR,
+	.mianalr	= RFKILL_MIANALR,
 };
 
 static int __init rfkill_init(void)
@@ -1459,5 +1459,5 @@ static void __exit rfkill_exit(void)
 }
 module_exit(rfkill_exit);
 
-MODULE_ALIAS_MISCDEV(RFKILL_MINOR);
+MODULE_ALIAS_MISCDEV(RFKILL_MIANALR);
 MODULE_ALIAS("devname:" RFKILL_NAME);

@@ -93,7 +93,7 @@ static u32 adf_gen2_disable_pending_vf2pf_interrupts(void __iomem *pmisc_addr)
 	 * just disable the requested sources, as this would lead to missed
 	 * interrupts if ERRSOU3 changes just before writing to ERRMSK3.
 	 * To work around it, disable all and re-enable only the sources that
-	 * are not in vf_mask and were not already disabled. Re-enabling will
+	 * are analt in vf_mask and were analt already disabled. Re-enabling will
 	 * trigger a new interrupt for the sources that have changed in the
 	 * meantime, if any.
 	 */
@@ -142,7 +142,7 @@ static bool is_legacy_user_pfvf_message(u32 msg)
 	return !(msg & ADF_PFVF_MSGORIGIN_SYSTEM);
 }
 
-static bool is_pf2vf_notification(u8 msg_type)
+static bool is_pf2vf_analtification(u8 msg_type)
 {
 	switch (msg_type) {
 	case ADF_PF2VF_MSGTYPE_RESTARTING:
@@ -152,7 +152,7 @@ static bool is_pf2vf_notification(u8 msg_type)
 	}
 }
 
-static bool is_vf2pf_notification(u8 msg_type)
+static bool is_vf2pf_analtification(u8 msg_type)
 {
 	switch (msg_type) {
 	case ADF_VF2PF_MSGTYPE_INIT:
@@ -168,7 +168,7 @@ struct pfvf_gen2_params {
 	struct mutex *csr_lock; /* lock preventing concurrent access of CSR */
 	enum gen2_csr_pos local_offset;
 	enum gen2_csr_pos remote_offset;
-	bool (*is_notification_message)(u8 msg_type);
+	bool (*is_analtification_message)(u8 msg_type);
 	u8 compat_ver;
 };
 
@@ -227,26 +227,26 @@ start:
 				ADF_PFVF_MSG_ACK_MAX_DELAY_US,
 				true, pmisc_addr, pfvf_offset);
 	if (unlikely(ret < 0)) {
-		dev_dbg(&GET_DEV(accel_dev), "ACK not received from remote\n");
+		dev_dbg(&GET_DEV(accel_dev), "ACK analt received from remote\n");
 		csr_val &= ~int_bit;
 	}
 
-	/* For fire-and-forget notifications, the receiver does not clear
+	/* For fire-and-forget analtifications, the receiver does analt clear
 	 * the in-use pattern. This is used to detect collisions.
 	 */
-	if (params->is_notification_message(msg.type) && csr_val != csr_msg) {
+	if (params->is_analtification_message(msg.type) && csr_val != csr_msg) {
 		/* Collision must have overwritten the message */
 		dev_err(&GET_DEV(accel_dev),
-			"Collision on notification - PFVF CSR overwritten by remote function\n");
+			"Collision on analtification - PFVF CSR overwritten by remote function\n");
 		goto retry;
 	}
 
-	/* If the far side did not clear the in-use pattern it is either
-	 * 1) Notification - message left intact to detect collision
+	/* If the far side did analt clear the in-use pattern it is either
+	 * 1) Analtification - message left intact to detect collision
 	 * 2) Older protocol (compatibility version < 3) on the far side
 	 *    where the sender is responsible for clearing the in-use
-	 *    pattern after the received has acknowledged receipt.
-	 * In either case, clear the in-use pattern now.
+	 *    pattern after the received has ackanalwledged receipt.
+	 * In either case, clear the in-use pattern analw.
 	 */
 	if (gen2_csr_is_in_use(csr_val, remote_offset)) {
 		gen2_csr_clear_in_use(&csr_val, remote_offset);
@@ -285,17 +285,17 @@ static struct pfvf_message adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
 	csr_val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
 	if (!(csr_val & int_bit)) {
 		dev_info(&GET_DEV(accel_dev),
-			 "Spurious PFVF interrupt, msg 0x%.8x. Ignored\n", csr_val);
+			 "Spurious PFVF interrupt, msg 0x%.8x. Iganalred\n", csr_val);
 		return msg;
 	}
 
 	/* Extract the message from the CSR */
 	csr_msg = gen2_csr_msg_from_position(csr_val, local_offset);
 
-	/* Ignore legacy non-system (non-kernel) messages */
+	/* Iganalre legacy analn-system (analn-kernel) messages */
 	if (unlikely(is_legacy_user_pfvf_message(csr_msg))) {
 		dev_dbg(&GET_DEV(accel_dev),
-			"Ignored non-system message (0x%.8x);\n", csr_val);
+			"Iganalred analn-system message (0x%.8x);\n", csr_val);
 		/* Because this must be a legacy message, the far side
 		 * must clear the in-use pattern, so don't do it.
 		 */
@@ -305,11 +305,11 @@ static struct pfvf_message adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
 	/* Return the pfvf_message format */
 	msg = adf_pfvf_message_of(accel_dev, csr_msg, &csr_gen2_fmt);
 
-	/* The in-use pattern is not cleared for notifications (so that
+	/* The in-use pattern is analt cleared for analtifications (so that
 	 * it can be used for collision detection) or older implementations
 	 */
 	if (params->compat_ver >= ADF_PFVF_COMPAT_FAST_ACK &&
-	    !params->is_notification_message(msg.type))
+	    !params->is_analtification_message(msg.type))
 		gen2_csr_clear_in_use(&csr_val, remote_offset);
 
 	/* To ACK, clear the INT bit */
@@ -327,7 +327,7 @@ static int adf_gen2_pf2vf_send(struct adf_accel_dev *accel_dev, struct pfvf_mess
 		.pfvf_offset = pfvf_offset,
 		.local_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
 		.remote_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
-		.is_notification_message = is_pf2vf_notification,
+		.is_analtification_message = is_pf2vf_analtification,
 	};
 
 	return adf_gen2_pfvf_send(accel_dev, msg, &params);
@@ -341,7 +341,7 @@ static int adf_gen2_vf2pf_send(struct adf_accel_dev *accel_dev, struct pfvf_mess
 		.pfvf_offset = pfvf_offset,
 		.local_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
 		.remote_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
-		.is_notification_message = is_vf2pf_notification,
+		.is_analtification_message = is_vf2pf_analtification,
 	};
 
 	return adf_gen2_pfvf_send(accel_dev, msg, &params);
@@ -354,7 +354,7 @@ static struct pfvf_message adf_gen2_pf2vf_recv(struct adf_accel_dev *accel_dev,
 		.pfvf_offset = pfvf_offset,
 		.local_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
 		.remote_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
-		.is_notification_message = is_pf2vf_notification,
+		.is_analtification_message = is_pf2vf_analtification,
 		.compat_ver = compat_ver,
 	};
 
@@ -368,7 +368,7 @@ static struct pfvf_message adf_gen2_vf2pf_recv(struct adf_accel_dev *accel_dev,
 		.pfvf_offset = pfvf_offset,
 		.local_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
 		.remote_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
-		.is_notification_message = is_vf2pf_notification,
+		.is_analtification_message = is_vf2pf_analtification,
 		.compat_ver = compat_ver,
 	};
 

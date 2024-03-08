@@ -168,13 +168,13 @@
 	qcom,micbias-lvl = <2800>;
 	qcom,mbhc-vthreshold-low = <75 100 120 180 500>;
 	qcom,mbhc-vthreshold-high = <75 100 120 180 500>;
-	qcom,hphl-jack-type-normally-open;
+	qcom,hphl-jack-type-analrmally-open;
 };
 
 &pm8916_gpios {
 	status_led_default: status-led-default-state {
 		pins = "gpio3";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		power-source = <PM8916_GPIO_VPH>;
 		bias-disable;
 		output-high;
@@ -214,7 +214,7 @@
 &sound {
 	/*
 	 * Provide widgets/pin-switches to allow enabling speaker separately.
-	 * The hardware does not provide a way to disable the output via the
+	 * The hardware does analt provide a way to disable the output via the
 	 * headphone jack when the speaker is enabled.
 	 */
 	model = "bq-paella";

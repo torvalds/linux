@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2009-2021 Christoph Hellwig
  *
- * NOTE: none of these tracepoints shall be considered a stable kernel ABI
+ * ANALTE: analne of these tracepoints shall be considered a stable kernel ABI
  * as they can change at any time.
  *
  * Current conventions for printing numbers measuring specific units:
@@ -10,7 +10,7 @@
  * offset: byte offset into a subcomponent of a file operation
  * pos: file offset, in bytes
  * length: length of a file operation, in bytes
- * ino: inode number
+ * ianal: ianalde number
  *
  * Numbers describing space allocations should be formatted in hexadecimal.
  */
@@ -22,54 +22,54 @@
 
 #include <linux/tracepoint.h>
 
-struct inode;
+struct ianalde;
 
 DECLARE_EVENT_CLASS(iomap_readpage_class,
-	TP_PROTO(struct inode *inode, int nr_pages),
-	TP_ARGS(inode, nr_pages),
+	TP_PROTO(struct ianalde *ianalde, int nr_pages),
+	TP_ARGS(ianalde, nr_pages),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(u64, ino)
+		__field(u64, ianal)
 		__field(int, nr_pages)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->nr_pages = nr_pages;
 	),
-	TP_printk("dev %d:%d ino 0x%llx nr_pages %d",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
+	TP_printk("dev %d:%d ianal 0x%llx nr_pages %d",
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
+		  __entry->ianal,
 		  __entry->nr_pages)
 )
 
 #define DEFINE_READPAGE_EVENT(name)		\
 DEFINE_EVENT(iomap_readpage_class, name,	\
-	TP_PROTO(struct inode *inode, int nr_pages), \
-	TP_ARGS(inode, nr_pages))
+	TP_PROTO(struct ianalde *ianalde, int nr_pages), \
+	TP_ARGS(ianalde, nr_pages))
 DEFINE_READPAGE_EVENT(iomap_readpage);
 DEFINE_READPAGE_EVENT(iomap_readahead);
 
 DECLARE_EVENT_CLASS(iomap_range_class,
-	TP_PROTO(struct inode *inode, loff_t off, u64 len),
-	TP_ARGS(inode, off, len),
+	TP_PROTO(struct ianalde *ianalde, loff_t off, u64 len),
+	TP_ARGS(ianalde, off, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(u64, ino)
+		__field(u64, ianal)
 		__field(loff_t, size)
 		__field(loff_t, offset)
 		__field(u64, length)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
-		__entry->size = i_size_read(inode);
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
+		__entry->size = i_size_read(ianalde);
 		__entry->offset = off;
 		__entry->length = len;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx offset 0x%llx length 0x%llx",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
+	TP_printk("dev %d:%d ianal 0x%llx size 0x%llx offset 0x%llx length 0x%llx",
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
+		  __entry->ianal,
 		  __entry->size,
 		  __entry->offset,
 		  __entry->length)
@@ -77,8 +77,8 @@ DECLARE_EVENT_CLASS(iomap_range_class,
 
 #define DEFINE_RANGE_EVENT(name)		\
 DEFINE_EVENT(iomap_range_class, name,	\
-	TP_PROTO(struct inode *inode, loff_t off, u64 len),\
-	TP_ARGS(inode, off, len))
+	TP_PROTO(struct ianalde *ianalde, loff_t off, u64 len),\
+	TP_ARGS(ianalde, off, len))
 DEFINE_RANGE_EVENT(iomap_writepage);
 DEFINE_RANGE_EVENT(iomap_release_folio);
 DEFINE_RANGE_EVENT(iomap_invalidate_folio);
@@ -98,7 +98,7 @@ DEFINE_RANGE_EVENT(iomap_dio_rw_queued);
 	{ IOMAP_REPORT,		"REPORT" }, \
 	{ IOMAP_FAULT,		"FAULT" }, \
 	{ IOMAP_DIRECT,		"DIRECT" }, \
-	{ IOMAP_NOWAIT,		"NOWAIT" }
+	{ IOMAP_ANALWAIT,		"ANALWAIT" }
 
 #define IOMAP_F_FLAGS_STRINGS \
 	{ IOMAP_F_NEW,		"NEW" }, \
@@ -114,11 +114,11 @@ DEFINE_RANGE_EVENT(iomap_dio_rw_queued);
 	{IOMAP_DIO_PARTIAL,	"DIO_PARTIAL" }
 
 DECLARE_EVENT_CLASS(iomap_class,
-	TP_PROTO(struct inode *inode, struct iomap *iomap),
-	TP_ARGS(inode, iomap),
+	TP_PROTO(struct ianalde *ianalde, struct iomap *iomap),
+	TP_ARGS(ianalde, iomap),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(u64, ino)
+		__field(u64, ianal)
 		__field(u64, addr)
 		__field(loff_t, offset)
 		__field(u64, length)
@@ -127,8 +127,8 @@ DECLARE_EVENT_CLASS(iomap_class,
 		__field(dev_t, bdev)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->addr = iomap->addr;
 		__entry->offset = iomap->offset;
 		__entry->length = iomap->length;
@@ -136,11 +136,11 @@ DECLARE_EVENT_CLASS(iomap_class,
 		__entry->flags = iomap->flags;
 		__entry->bdev = iomap->bdev ? iomap->bdev->bd_dev : 0;
 	),
-	TP_printk("dev %d:%d ino 0x%llx bdev %d:%d addr 0x%llx offset 0x%llx "
+	TP_printk("dev %d:%d ianal 0x%llx bdev %d:%d addr 0x%llx offset 0x%llx "
 		  "length 0x%llx type %s flags %s",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
-		  MAJOR(__entry->bdev), MINOR(__entry->bdev),
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
+		  __entry->ianal,
+		  MAJOR(__entry->bdev), MIANALR(__entry->bdev),
 		  __entry->addr,
 		  __entry->offset,
 		  __entry->length,
@@ -150,8 +150,8 @@ DECLARE_EVENT_CLASS(iomap_class,
 
 #define DEFINE_IOMAP_EVENT(name)		\
 DEFINE_EVENT(iomap_class, name,	\
-	TP_PROTO(struct inode *inode, struct iomap *iomap), \
-	TP_ARGS(inode, iomap))
+	TP_PROTO(struct ianalde *ianalde, struct iomap *iomap), \
+	TP_ARGS(ianalde, iomap))
 DEFINE_IOMAP_EVENT(iomap_iter_dstmap);
 DEFINE_IOMAP_EVENT(iomap_iter_srcmap);
 DEFINE_IOMAP_EVENT(iomap_writepage_map);
@@ -162,7 +162,7 @@ TRACE_EVENT(iomap_iter,
 	TP_ARGS(iter, ops, caller),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(u64, ino)
+		__field(u64, ianal)
 		__field(loff_t, pos)
 		__field(u64, length)
 		__field(unsigned int, flags)
@@ -170,17 +170,17 @@ TRACE_EVENT(iomap_iter,
 		__field(unsigned long, caller)
 	),
 	TP_fast_assign(
-		__entry->dev = iter->inode->i_sb->s_dev;
-		__entry->ino = iter->inode->i_ino;
+		__entry->dev = iter->ianalde->i_sb->s_dev;
+		__entry->ianal = iter->ianalde->i_ianal;
 		__entry->pos = iter->pos;
 		__entry->length = iomap_length(iter);
 		__entry->flags = iter->flags;
 		__entry->ops = ops;
 		__entry->caller = caller;
 	),
-	TP_printk("dev %d:%d ino 0x%llx pos 0x%llx length 0x%llx flags %s (0x%x) ops %ps caller %pS",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		   __entry->ino,
+	TP_printk("dev %d:%d ianal 0x%llx pos 0x%llx length 0x%llx flags %s (0x%x) ops %ps caller %pS",
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
+		   __entry->ianal,
 		   __entry->pos,
 		   __entry->length,
 		   __print_flags(__entry->flags, "|", IOMAP_FLAGS_STRINGS),
@@ -195,7 +195,7 @@ TRACE_EVENT(iomap_dio_rw_begin,
 	TP_ARGS(iocb, iter, dio_flags, done_before),
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(ino_t,	ino)
+		__field(ianal_t,	ianal)
 		__field(loff_t, isize)
 		__field(loff_t, pos)
 		__field(size_t,	count)
@@ -205,9 +205,9 @@ TRACE_EVENT(iomap_dio_rw_begin,
 		__field(bool,	aio)
 	),
 	TP_fast_assign(
-		__entry->dev = file_inode(iocb->ki_filp)->i_sb->s_dev;
-		__entry->ino = file_inode(iocb->ki_filp)->i_ino;
-		__entry->isize = file_inode(iocb->ki_filp)->i_size;
+		__entry->dev = file_ianalde(iocb->ki_filp)->i_sb->s_dev;
+		__entry->ianal = file_ianalde(iocb->ki_filp)->i_ianal;
+		__entry->isize = file_ianalde(iocb->ki_filp)->i_size;
 		__entry->pos = iocb->ki_pos;
 		__entry->count = iov_iter_count(iter);
 		__entry->done_before = done_before;
@@ -215,9 +215,9 @@ TRACE_EVENT(iomap_dio_rw_begin,
 		__entry->dio_flags = dio_flags;
 		__entry->aio = !is_sync_kiocb(iocb);
 	),
-	TP_printk("dev %d:%d ino 0x%lx size 0x%llx offset 0x%llx length 0x%zx done_before 0x%zx flags %s dio_flags %s aio %d",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
+	TP_printk("dev %d:%d ianal 0x%lx size 0x%llx offset 0x%llx length 0x%zx done_before 0x%zx flags %s dio_flags %s aio %d",
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
+		  __entry->ianal,
 		  __entry->isize,
 		  __entry->pos,
 		  __entry->count,
@@ -232,7 +232,7 @@ TRACE_EVENT(iomap_dio_complete,
 	TP_ARGS(iocb, error, ret),
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(ino_t,	ino)
+		__field(ianal_t,	ianal)
 		__field(loff_t, isize)
 		__field(loff_t, pos)
 		__field(int,	ki_flags)
@@ -241,18 +241,18 @@ TRACE_EVENT(iomap_dio_complete,
 		__field(ssize_t, ret)
 	),
 	TP_fast_assign(
-		__entry->dev = file_inode(iocb->ki_filp)->i_sb->s_dev;
-		__entry->ino = file_inode(iocb->ki_filp)->i_ino;
-		__entry->isize = file_inode(iocb->ki_filp)->i_size;
+		__entry->dev = file_ianalde(iocb->ki_filp)->i_sb->s_dev;
+		__entry->ianal = file_ianalde(iocb->ki_filp)->i_ianal;
+		__entry->isize = file_ianalde(iocb->ki_filp)->i_size;
 		__entry->pos = iocb->ki_pos;
 		__entry->ki_flags = iocb->ki_flags;
 		__entry->aio = !is_sync_kiocb(iocb);
 		__entry->error = error;
 		__entry->ret = ret;
 	),
-	TP_printk("dev %d:%d ino 0x%lx size 0x%llx offset 0x%llx flags %s aio %d error %d ret %zd",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
+	TP_printk("dev %d:%d ianal 0x%lx size 0x%llx offset 0x%llx flags %s aio %d error %d ret %zd",
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
+		  __entry->ianal,
 		  __entry->isize,
 		  __entry->pos,
 		  __print_flags(__entry->ki_flags, "|", TRACE_IOCB_STRINGS),

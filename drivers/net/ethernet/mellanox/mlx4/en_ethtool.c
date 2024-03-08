@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -119,7 +119,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"tso_packets",
 	"xmit_more",
 	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_pages",
-	"rx_csum_good", "rx_csum_none", "rx_csum_complete", "tx_chksum_offload",
+	"rx_csum_good", "rx_csum_analne", "rx_csum_complete", "tx_chksum_offload",
 
 	/* pf statistics */
 	"pf_rx_packets",
@@ -185,7 +185,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"rx_prio_5_packets", "rx_prio_5_bytes",
 	"rx_prio_6_packets", "rx_prio_6_bytes",
 	"rx_prio_7_packets", "rx_prio_7_bytes",
-	"rx_novlan_packets", "rx_novlan_bytes",
+	"rx_analvlan_packets", "rx_analvlan_bytes",
 	"tx_prio_0_packets", "tx_prio_0_bytes",
 	"tx_prio_1_packets", "tx_prio_1_bytes",
 	"tx_prio_2_packets", "tx_prio_2_bytes",
@@ -194,7 +194,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"tx_prio_5_packets", "tx_prio_5_bytes",
 	"tx_prio_6_packets", "tx_prio_6_bytes",
 	"tx_prio_7_packets", "tx_prio_7_bytes",
-	"tx_novlan_packets", "tx_novlan_bytes",
+	"tx_analvlan_packets", "tx_analvlan_bytes",
 
 	/* xdp statistics */
 	"rx_xdp_drop",
@@ -275,13 +275,13 @@ static int mlx4_en_set_wol(struct net_device *netdev,
 	u64 mask;
 
 	if ((priv->port < 1) || (priv->port > 2))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mask = (priv->port == 1) ? MLX4_DEV_CAP_FLAG_WOL_PORT1 :
 		MLX4_DEV_CAP_FLAG_WOL_PORT2;
 
 	if (!(priv->mdev->dev->caps.flags & mask))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wol->supported & ~WAKE_MAGIC)
 		return -EINVAL;
@@ -311,7 +311,7 @@ struct bitmap_iterator {
 	unsigned long *stats_bitmap;
 	unsigned int count;
 	unsigned int iterator;
-	bool advance_array; /* if set, force no increments */
+	bool advance_array; /* if set, force anal increments */
 };
 
 static inline void bitmap_iterator_init(struct bitmap_iterator *h,
@@ -359,7 +359,7 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(mlx4_en_priv_flags);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -614,7 +614,7 @@ static u32 ptys_get_active_port(struct mlx4_ptys_reg *ptys_reg)
 			 | MLX4_PROT_MASK(MLX4_10GBASE_KR)
 			 | MLX4_PROT_MASK(MLX4_10GBASE_KX4)
 			 | MLX4_PROT_MASK(MLX4_1000BASE_KX))) {
-			return PORT_NONE;
+			return PORT_ANALNE;
 	}
 	return PORT_OTHER;
 }
@@ -873,7 +873,7 @@ mlx4_en_get_link_ksettings(struct net_device *dev,
 	int ret = -EINVAL;
 
 	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	en_dbg(DRV, priv, "query port state.flags ANC(%x) ANE(%x)\n",
 	       priv->port_state.flags & MLX4_EN_PORT_ANC,
@@ -881,15 +881,15 @@ mlx4_en_get_link_ksettings(struct net_device *dev,
 
 	if (priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL)
 		ret = ethtool_get_ptys_link_ksettings(dev, link_ksettings);
-	if (ret) /* ETH PROT CRTL is not supported or PTYS CMD failed */
+	if (ret) /* ETH PROT CRTL is analt supported or PTYS CMD failed */
 		ethtool_get_default_link_ksettings(dev, link_ksettings);
 
 	if (netif_carrier_ok(dev)) {
 		link_ksettings->base.speed = priv->port_state.link_speed;
 		link_ksettings->base.duplex = DUPLEX_FULL;
 	} else {
-		link_ksettings->base.speed = SPEED_UNKNOWN;
-		link_ksettings->base.duplex = DUPLEX_UNKNOWN;
+		link_ksettings->base.speed = SPEED_UNKANALWN;
+		link_ksettings->base.duplex = DUPLEX_UNKANALWN;
 	}
 	return 0;
 }
@@ -968,14 +968,14 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 
 	proto_admin &= ptys_reg.eth_proto_cap;
 	if (!proto_admin) {
-		en_warn(priv, "Not supported link mode(s) requested, check supported link modes.\n");
-		return -EINVAL; /* nothing to change due to bad input */
+		en_warn(priv, "Analt supported link mode(s) requested, check supported link modes.\n");
+		return -EINVAL; /* analthing to change due to bad input */
 	}
 
 	if ((proto_admin == ptys_reg.eth_proto_admin) &&
 	    ((ptys_reg.flags & MLX4_PTYS_AN_DISABLE_CAP) &&
 	     (link_ksettings->base.autoneg == cur_autoneg)))
-		return 0; /* Nothing to change */
+		return 0; /* Analthing to change */
 
 	en_dbg(DRV, priv, "mlx4_ACCESS_PTYS_REG SET: ptys_reg.eth_proto_admin = 0x%x\n",
 	       be32_to_cpu(proto_admin));
@@ -1179,7 +1179,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&mdev->state_lock);
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
@@ -1311,7 +1311,7 @@ static int mlx4_en_set_rxfh(struct net_device *dev,
 	if (!is_power_of_2(rss_rings))
 		return -EINVAL;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE) {
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE) {
 		err = mlx4_en_check_rxfh_func(dev, rxfh->hfunc);
 		if (err)
 			return err;
@@ -1327,7 +1327,7 @@ static int mlx4_en_set_rxfh(struct net_device *dev,
 		priv->prof->rss_rings = rss_rings;
 	if (rxfh->key)
 		memcpy(priv->rss_key, rxfh->key, MLX4_EN_RSS_KEY_SIZE);
-	if (rxfh->hfunc !=  ETH_RSS_HASH_NO_CHANGE)
+	if (rxfh->hfunc !=  ETH_RSS_HASH_ANAL_CHANGE)
 		priv->rss_hash_fn = rxfh->hfunc;
 
 	if (port_up) {
@@ -1383,7 +1383,7 @@ static int mlx4_en_validate_flow(struct net_device *dev,
 		break;
 	case ETHER_FLOW:
 		eth_mask = &cmd->fs.m_u.ether_spec;
-		/* source mac mask must not be set */
+		/* source mac mask must analt be set */
 		if (!is_zero_ether_addr(eth_mask->h_source))
 			return -EINVAL;
 
@@ -1474,7 +1474,7 @@ static int add_ip_rule(struct mlx4_en_priv *priv,
 	spec_l3 = kzalloc(sizeof(*spec_l3), GFP_KERNEL);
 	spec_l2 = kzalloc(sizeof(*spec_l2), GFP_KERNEL);
 	if (!spec_l2 || !spec_l3) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_spec;
 	}
 
@@ -1514,7 +1514,7 @@ static int add_tcp_udp_rule(struct mlx4_en_priv *priv,
 	spec_l3 = kzalloc(sizeof(*spec_l3), GFP_KERNEL);
 	spec_l4 = kzalloc(sizeof(*spec_l4), GFP_KERNEL);
 	if (!spec_l2 || !spec_l3 || !spec_l4) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_spec;
 	}
 
@@ -1585,7 +1585,7 @@ static int mlx4_en_ethtool_to_net_trans_rule(struct net_device *dev,
 	case ETHER_FLOW:
 		spec_l2 = kzalloc(sizeof(*spec_l2), GFP_KERNEL);
 		if (!spec_l2)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		eth_spec = &cmd->fs.h_u.ether_spec;
 		mlx4_en_ethtool_add_mac_rule(cmd, rule_list_h, spec_l2,
@@ -1696,7 +1696,7 @@ static int mlx4_en_flow_detach(struct net_device *dev,
 
 	rule = &priv->ethtool_rules[cmd->fs.location];
 	if (!rule->id) {
-		err =  -ENOENT;
+		err =  -EANALENT;
 		goto out;
 	}
 
@@ -1729,7 +1729,7 @@ static int mlx4_en_get_flow(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		memcpy(&cmd->fs, &rule->flow_spec,
 		       sizeof(struct ethtool_rx_flow_spec));
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 
 	return err;
 }
@@ -1773,7 +1773,7 @@ static int mlx4_en_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		break;
 	case ETHTOOL_GRXCLSRLALL:
 		cmd->data = MAX_NUM_OF_FS_RULES;
-		while ((!err || err == -ENOENT) && priority < cmd->rule_cnt) {
+		while ((!err || err == -EANALENT) && priority < cmd->rule_cnt) {
 			err = mlx4_en_get_flow(dev, cmd, i);
 			if (!err)
 				rule_locs[priority++] = i;
@@ -1782,7 +1782,7 @@ static int mlx4_en_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		err = 0;
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1850,7 +1850,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&mdev->state_lock);
 	xdp_count = priv->tx_ring_num[TX_XDP] ? channel->rx_count : 0;
@@ -1924,7 +1924,7 @@ static int mlx4_en_get_ts_info(struct net_device *dev,
 			(1 << HWTSTAMP_TX_ON);
 
 		info->rx_filters =
-			(1 << HWTSTAMP_FILTER_NONE) |
+			(1 << HWTSTAMP_FILTER_ANALNE) |
 			(1 << HWTSTAMP_FILTER_ALL);
 
 		if (mdev->ptp_clock)
@@ -1957,7 +1957,7 @@ static int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
 						priv->tx_ring[t][i]->bf_alloced;
 
 			if (!bf_supported) {
-				en_err(priv, "BlueFlame is not supported\n");
+				en_err(priv, "BlueFlame is analt supported\n");
 				return -EINVAL;
 			}
 
@@ -2128,7 +2128,7 @@ static int mlx4_en_set_phys_id(struct net_device *dev,
 	struct mlx4_en_dev *mdev = priv->mdev;
 
 	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_BEACON))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
@@ -2138,7 +2138,7 @@ static int mlx4_en_set_phys_id(struct net_device *dev,
 		beacon_duration = 0;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = mlx4_SET_PORT_BEACON(mdev->dev, priv->port, beacon_duration);

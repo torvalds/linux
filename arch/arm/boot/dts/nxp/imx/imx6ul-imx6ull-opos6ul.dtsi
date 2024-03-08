@@ -58,8 +58,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	status = "okay";
 };
 
@@ -68,8 +68,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	mmc-pwrseq = <&usdhc3_pwrseq>;
 	status = "okay";
 

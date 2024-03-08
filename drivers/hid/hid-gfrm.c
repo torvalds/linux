@@ -61,7 +61,7 @@ static int gfrm_raw_event(struct hid_device *hdev, struct hid_report *report,
 
 	/*
 	 * Convert GFRM100 Search key reports into Consumer.0221 (Key.Search)
-	 * reports. Ignore audio data.
+	 * reports. Iganalre audio data.
 	 */
 	switch (data[1]) {
 	case GFRM100_SEARCH_KEY_DOWN:
@@ -107,13 +107,13 @@ static int gfrm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (id->driver_data == GFRM100) {
 		/*
-		 * GFRM100 HID Report Descriptor does not describe the Search
+		 * GFRM100 HID Report Descriptor does analt describe the Search
 		 * key reports. Thus, we need to add it manually here, so that
 		 * those reports reach gfrm_raw_event() from hid_input_report().
 		 */
 		if (!hid_register_report(hdev, HID_INPUT_REPORT,
 					 GFRM100_SEARCH_KEY_REPORT_ID, 0)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 	}

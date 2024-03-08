@@ -15,10 +15,10 @@ clean:
 %.o:	%.S
 	@cc -c $^
 
-%.bin.nocrc:	%.o
+%.bin.analcrc:	%.o
 	@objcopy -Obinary $^ $@
 
-%.crc:	%.bin.nocrc
+%.crc:	%.bin.analcrc
 	@list=$$(for i in `seq 1 127`; do head -c$$i $^ | tail -c1 \
 		| hexdump -v -e '/1 "%02X+"'; done); \
 		echo "ibase=16;100-($${list%?})%100" | bc >$@

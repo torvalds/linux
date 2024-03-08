@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
-// AMD Renoir ACP PCI Driver
+// AMD Reanalir ACP PCI Driver
 //
 //Copyright 2020 Advanced Micro Devices, Inc.
 
@@ -27,7 +27,7 @@ MODULE_PARM_DESC(acp_power_gating, "Enable acp power gating");
  */
 static int dmic_acpi_check = ACP_DMIC_AUTO;
 module_param(dmic_acpi_check, bint, 0644);
-MODULE_PARM_DESC(dmic_acpi_check, "Digital microphone presence (-1=auto, 0=none, 1=force)");
+MODULE_PARM_DESC(dmic_acpi_check, "Digital microphone presence (-1=auto, 0=analne, 1=force)");
 
 struct acp_dev_data {
 	void __iomem *acp_base;
@@ -165,37 +165,37 @@ static int rn_acp_deinit(void __iomem *acp_base)
 
 static const struct dmi_system_id rn_acp_quirk_table[] = {
 	{
-		/* Lenovo IdeaPad S340-14API */
+		/* Leanalvo IdeaPad S340-14API */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "81NB"),
 		}
 	},
 	{
-		/* Lenovo IdeaPad Flex 5 14ARE05 */
+		/* Leanalvo IdeaPad Flex 5 14ARE05 */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "81X2"),
 		}
 	},
 	{
-		/* Lenovo IdeaPad 5 15ARE05 */
+		/* Leanalvo IdeaPad 5 15ARE05 */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "81YQ"),
 		}
 	},
 	{
-		/* Lenovo ThinkPad E14 Gen 2 */
+		/* Leanalvo ThinkPad E14 Gen 2 */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "20T6CTO1WW"),
 		}
 	},
 	{
-		/* Lenovo ThinkPad X395 */
+		/* Leanalvo ThinkPad X395 */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "20NLCTO1WW"),
 		}
 	},
@@ -219,15 +219,15 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	/* Return if acp config flag is defined */
 	flag = snd_amd_acp_find_config(pci);
 	if (flag)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Renoir device check */
+	/* Reanalir device check */
 	if (pci->revision != 0x01)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_enable_device(pci)) {
 		dev_err(&pci->dev, "pci_enable_device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = pci_request_regions(pci, "AMD ACP3x audio");
@@ -239,14 +239,14 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	adata = devm_kzalloc(&pci->dev, sizeof(struct acp_dev_data),
 			     GFP_KERNEL);
 	if (!adata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 
 	/* check for msi interrupt support */
 	ret = pci_enable_msi(pci);
 	if (ret)
-		/* msi is not enabled */
+		/* msi is analt enabled */
 		irqflags = IRQF_SHARED;
 	else
 		/* msi is enabled */
@@ -256,7 +256,7 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	adata->acp_base = devm_ioremap(&pci->dev, addr,
 				       pci_resource_len(pci, 0));
 	if (!adata->acp_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto disable_msi;
 	}
 	pci_set_master(pci);
@@ -266,25 +266,25 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 		goto disable_msi;
 
 	if (!dmic_acpi_check) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto de_init;
 	} else if (dmic_acpi_check == ACP_DMIC_AUTO) {
 #if defined(CONFIG_ACPI)
 		handle = ACPI_HANDLE(&pci->dev);
 		ret = acpi_evaluate_integer(handle, "_WOV", NULL, &dmic_status);
 		if (ACPI_FAILURE(ret)) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto de_init;
 		}
 		if (!dmic_status) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto de_init;
 		}
 #endif
 		dmi_id = dmi_first_match(rn_acp_quirk_table);
 		if (dmi_id && !dmi_id->driver_data) {
-			dev_info(&pci->dev, "ACPI settings override using DMI (ACP mic is not present)");
-			ret = -ENODEV;
+			dev_info(&pci->dev, "ACPI settings override using DMI (ACP mic is analt present)");
+			ret = -EANALDEV;
 			goto de_init;
 		}
 	}
@@ -293,7 +293,7 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 				  sizeof(struct resource) * 2,
 				  GFP_KERNEL);
 	if (!adata->res) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto de_init;
 	}
 
@@ -325,7 +325,7 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 		adata->pdev[index] =
 				platform_device_register_full(&pdevinfo[index]);
 		if (IS_ERR(adata->pdev[index])) {
-			dev_err(&pci->dev, "cannot register %s device\n",
+			dev_err(&pci->dev, "cananalt register %s device\n",
 				pdevinfo[index].name);
 			ret = PTR_ERR(adata->pdev[index]);
 			goto unregister_devs;
@@ -333,7 +333,7 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	}
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pci->dev);
-	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_put_analidle(&pci->dev);
 	pm_runtime_allow(&pci->dev);
 	return 0;
 
@@ -403,7 +403,7 @@ static void snd_rn_acp_remove(struct pci_dev *pci)
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	pm_runtime_forbid(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 	pci_disable_msi(pci);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
@@ -430,5 +430,5 @@ static struct pci_driver rn_acp_driver  = {
 module_pci_driver(rn_acp_driver);
 
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
-MODULE_DESCRIPTION("AMD ACP Renoir PCI driver");
+MODULE_DESCRIPTION("AMD ACP Reanalir PCI driver");
 MODULE_LICENSE("GPL v2");

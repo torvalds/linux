@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor label definitions
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Caanalnical Ltd.
  */
 
 #include <linux/audit.h>
@@ -29,10 +29,10 @@
  *   profiles - each profile is a label
  *   secids - a pinned secid will keep a refcount of the label it is
  *          referencing
- *   objects - inode, files, sockets, ...
+ *   objects - ianalde, files, sockets, ...
  *
- * Labels are not ref counted by the label set, so they maybe removed and
- * freed when no longer in use.
+ * Labels are analt ref counted by the label set, so they maybe removed and
+ * freed when anal longer in use.
  *
  */
 
@@ -42,7 +42,7 @@
 static void free_proxy(struct aa_proxy *proxy)
 {
 	if (proxy) {
-		/* p->label will not updated any more as p is dead */
+		/* p->label will analt updated any more as p is dead */
 		aa_put_label(rcu_dereference_protected(proxy->label, true));
 		memset(proxy, 0, sizeof(*proxy));
 		RCU_INIT_POINTER(proxy->label, (struct aa_label *)PROXY_POISON);
@@ -97,8 +97,8 @@ static void __proxy_share(struct aa_label *old, struct aa_label *new)
 
 /**
  * ns_cmp - compare ns for label set ordering
- * @a: ns to compare (NOT NULL)
- * @b: ns to compare (NOT NULL)
+ * @a: ns to compare (ANALT NULL)
+ * @b: ns to compare (ANALT NULL)
  *
  * Returns: <0 if a < b
  *          ==0 if a == b
@@ -125,8 +125,8 @@ static int ns_cmp(struct aa_ns *a, struct aa_ns *b)
 
 /**
  * profile_cmp - profile comparison for set ordering
- * @a: profile to compare (NOT NULL)
- * @b: profile to compare (NOT NULL)
+ * @a: profile to compare (ANALT NULL)
+ * @b: profile to compare (ANALT NULL)
  *
  * Returns: <0  if a < b
  *          ==0 if a == b
@@ -154,9 +154,9 @@ static int profile_cmp(struct aa_profile *a, struct aa_profile *b)
 
 /**
  * vec_cmp - label comparison for set ordering
- * @a: aa_profile to compare (NOT NULL)
+ * @a: aa_profile to compare (ANALT NULL)
  * @an: length of @a
- * @b: aa_profile to compare (NOT NULL)
+ * @b: aa_profile to compare (ANALT NULL)
  * @bn: length of @b
  *
  * Returns: <0  if @a < @b
@@ -236,7 +236,7 @@ static inline int unique(struct aa_profile **vec, int n)
 	for (i = 1; i < n; i++) {
 		int res = profile_cmp(vec[pos], vec[i]);
 
-		AA_BUG(res > 0, "vec not sorted");
+		AA_BUG(res > 0, "vec analt sorted");
 		if (res == 0) {
 			/* drop duplicate */
 			aa_put_profile(vec[i]);
@@ -254,7 +254,7 @@ static inline int unique(struct aa_profile **vec, int n)
 }
 
 /**
- * aa_vec_unique - canonical sort and unique a list of profiles
+ * aa_vec_unique - caanalnical sort and unique a list of profiles
  * @n: number of refcounted profiles in the list (@n > 0)
  * @vec: list of profiles to sort and merge
  * @flags: null terminator flags of @vec
@@ -271,7 +271,7 @@ int aa_vec_unique(struct aa_profile **vec, int n, int flags)
 	AA_BUG(n < 1);
 	AA_BUG(!vec);
 
-	/* vecs are usually small and inorder, have a fallback for larger */
+	/* vecs are usually small and ianalrder, have a fallback for larger */
 	if (n > 8) {
 		sort(vec, n, sizeof(struct aa_profile *), sort_cmp, NULL);
 		dups = unique(vec, n);
@@ -375,7 +375,7 @@ void aa_label_kref(struct kref *kref)
 	struct aa_ns *ns = labels_ns(label);
 
 	if (!ns) {
-		/* never live, no rcu callback needed, just using the fn */
+		/* never live, anal rcu callback needed, just using the fn */
 		label_free_switch(label);
 		return;
 	}
@@ -385,7 +385,7 @@ void aa_label_kref(struct kref *kref)
 	AA_BUG(label_isprofile(label) &&
 	       on_list_rcu(&label->vec[0]->base.list));
 
-	/* TODO: if compound label and not stale add to reclaim cache */
+	/* TODO: if compound label and analt stale add to reclaim cache */
 	call_rcu(&label->rcu, label_free_rcu);
 }
 
@@ -409,7 +409,7 @@ bool aa_label_init(struct aa_label *label, int size, gfp_t gfp)
 	label->size = size;			/* doesn't include null */
 	label->vec[size] = NULL;		/* null terminate */
 	kref_init(&label->count);
-	RB_CLEAR_NODE(&label->node);
+	RB_CLEAR_ANALDE(&label->analde);
 
 	return true;
 }
@@ -458,8 +458,8 @@ fail:
 
 /**
  * label_cmp - label comparison for set ordering
- * @a: label to compare (NOT NULL)
- * @b: label to compare (NOT NULL)
+ * @a: label to compare (ANALT NULL)
+ * @b: label to compare (ANALT NULL)
  *
  * Returns: <0  if a < b
  *          ==0 if a == b
@@ -490,15 +490,15 @@ int aa_label_next_confined(struct aa_label *label, int i)
 }
 
 /**
- * __aa_label_next_not_in_set - return the next profile of @sub not in @set
+ * __aa_label_next_analt_in_set - return the next profile of @sub analt in @set
  * @I: label iterator
  * @set: label to test against
  * @sub: label to if is subset of @set
  *
- * Returns: profile in @sub that is not in @set, with iterator set pos after
+ * Returns: profile in @sub that is analt in @set, with iterator set pos after
  *     else NULL if @sub is a subset of @set
  */
-struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
+struct aa_profile *__aa_label_next_analt_in_set(struct label_it *I,
 					      struct aa_label *set,
 					      struct aa_label *sub)
 {
@@ -546,7 +546,7 @@ bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
 	if (sub == set)
 		return true;
 
-	return __aa_label_next_not_in_set(&i, set, sub) == NULL;
+	return __aa_label_next_analt_in_set(&i, set, sub) == NULL;
 }
 
 /**
@@ -555,9 +555,9 @@ bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
  * @sub: label to test if is subset of @set
  *
  * This checks for subset but taking into account unconfined. IF
- * @sub contains an unconfined profile that does not have a matching
- * unconfined in @set then this will not cause the test to fail.
- * Conversely we don't care about an unconfined in @set that is not in
+ * @sub contains an unconfined profile that does analt have a matching
+ * unconfined in @set then this will analt cause the test to fail.
+ * Conversely we don't care about an unconfined in @set that is analt in
  * @sub
  *
  * Returns: true if @sub is special_subset of @set
@@ -575,7 +575,7 @@ bool aa_label_is_unconfined_subset(struct aa_label *set, struct aa_label *sub)
 		return true;
 
 	do {
-		p = __aa_label_next_not_in_set(&i, set, sub);
+		p = __aa_label_next_analt_in_set(&i, set, sub);
 		if (p && !profile_unconfined(p))
 			break;
 	} while (p);
@@ -607,7 +607,7 @@ static bool __label_remove(struct aa_label *label, struct aa_label *new)
 		__label_make_stale(label);
 
 	if (label->flags & FLAG_IN_TREE) {
-		rb_erase(&label->node, &ls->root);
+		rb_erase(&label->analde, &ls->root);
 		label->flags &= ~FLAG_IN_TREE;
 		return true;
 	}
@@ -624,9 +624,9 @@ static bool __label_remove(struct aa_label *label, struct aa_label *new)
  *           valid ref count be held on @new
  * Returns: true if @old was in set and replaced by @new
  *
- * Note: current implementation requires label set be order in such a way
+ * Analte: current implementation requires label set be order in such a way
  *       that @new directly replaces @old position in the set (ie.
- *       using pointer comparison of the label address would not work)
+ *       using pointer comparison of the label address would analt work)
  */
 static bool __label_replace(struct aa_label *old, struct aa_label *new)
 {
@@ -642,7 +642,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 		__label_make_stale(old);
 
 	if (old->flags & FLAG_IN_TREE) {
-		rb_replace_node(&old->node, &new->node, &ls->root);
+		rb_replace_analde(&old->analde, &new->analde, &ls->root);
 		old->flags &= ~FLAG_IN_TREE;
 		new->flags |= FLAG_IN_TREE;
 		return true;
@@ -653,9 +653,9 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 
 /**
  * __label_insert - attempt to insert @l into a label set
- * @ls: set of labels to insert @l into (NOT NULL)
- * @label: new label to insert (NOT NULL)
- * @replace: whether insertion should replace existing entry that is not stale
+ * @ls: set of labels to insert @l into (ANALT NULL)
+ * @label: new label to insert (ANALT NULL)
+ * @replace: whether insertion should replace existing entry that is analt stale
  *
  * Requires: @ls->lock
  *           caller to hold a valid ref on l
@@ -667,7 +667,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 static struct aa_label *__label_insert(struct aa_labelset *ls,
 				       struct aa_label *label, bool replace)
 {
-	struct rb_node **new, *parent = NULL;
+	struct rb_analde **new, *parent = NULL;
 
 	AA_BUG(!ls);
 	AA_BUG(!label);
@@ -675,17 +675,17 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 	lockdep_assert_held_write(&ls->lock);
 	AA_BUG(label->flags & FLAG_IN_TREE);
 
-	/* Figure out where to put new node */
-	new = &ls->root.rb_node;
+	/* Figure out where to put new analde */
+	new = &ls->root.rb_analde;
 	while (*new) {
-		struct aa_label *this = rb_entry(*new, struct aa_label, node);
+		struct aa_label *this = rb_entry(*new, struct aa_label, analde);
 		int result = label_cmp(label, this);
 
 		parent = *new;
 		if (result == 0) {
 			/* !__aa_get_label means queued for destruction,
 			 * so replace in place, however the label has
-			 * died before the replacement so do not share
+			 * died before the replacement so do analt share
 			 * the proxy
 			 */
 			if (!replace && !label_is_stale(this)) {
@@ -701,9 +701,9 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 			new = &((*new)->rb_right);
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&label->node, parent, new);
-	rb_insert_color(&label->node, &ls->root);
+	/* Add new analde and rebalance tree. */
+	rb_link_analde(&label->analde, parent, new);
+	rb_insert_color(&label->analde, &ls->root);
 	label->flags |= FLAG_IN_TREE;
 
 	return aa_get_label(label);
@@ -711,7 +711,7 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 
 /**
  * __vec_find - find label that matches @vec in label set
- * @vec: vec of profiles to find matching label for (NOT NULL)
+ * @vec: vec of profiles to find matching label for (ANALT NULL)
  * @n: length of @vec
  *
  * Requires: @vec_labelset(vec) lock held
@@ -719,25 +719,25 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
  *
  * Returns: ref counted @label if matching label is in tree
  *          ref counted label that is equiv to @l in tree
- *     else NULL if @vec equiv is not in tree
+ *     else NULL if @vec equiv is analt in tree
  */
 static struct aa_label *__vec_find(struct aa_profile **vec, int n)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	AA_BUG(!vec);
 	AA_BUG(!*vec);
 	AA_BUG(n <= 0);
 
-	node = vec_labelset(vec, n)->root.rb_node;
-	while (node) {
-		struct aa_label *this = rb_entry(node, struct aa_label, node);
+	analde = vec_labelset(vec, n)->root.rb_analde;
+	while (analde) {
+		struct aa_label *this = rb_entry(analde, struct aa_label, analde);
 		int result = vec_cmp(this->vec, this->size, vec, n);
 
 		if (result > 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (result < 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return __aa_get_label(this);
 	}
@@ -747,14 +747,14 @@ static struct aa_label *__vec_find(struct aa_profile **vec, int n)
 
 /**
  * __label_find - find label @label in label set
- * @label: label to find (NOT NULL)
+ * @label: label to find (ANALT NULL)
  *
  * Requires: labels_set(@label)->lock held
  *           caller to hold a valid ref on l
  *
  * Returns: ref counted @label if @label is in tree OR
  *          ref counted label that is equiv to @label in tree
- *     else NULL if @label or equiv is not in tree
+ *     else NULL if @label or equiv is analt in tree
  */
 static struct aa_label *__label_find(struct aa_label *label)
 {
@@ -769,7 +769,7 @@ static struct aa_label *__label_find(struct aa_label *label)
  * @label: label to remove
  *
  * Returns: true if @label was removed from the tree
- *     else @label was not in tree so it could not be removed
+ *     else @label was analt in tree so it could analt be removed
  */
 bool aa_label_remove(struct aa_label *label)
 {
@@ -792,7 +792,7 @@ bool aa_label_remove(struct aa_label *label)
  * @new: label replacing @old
  *
  * Returns: true if @old was in tree and replaced
- *     else @old was not in tree, and @new was not inserted
+ *     else @old was analt in tree, and @new was analt inserted
  */
 bool aa_label_replace(struct aa_label *old, struct aa_label *new)
 {
@@ -829,11 +829,11 @@ bool aa_label_replace(struct aa_label *old, struct aa_label *new)
 
 /**
  * vec_find - find label @l in label set
- * @vec: array of profiles to find equiv label for (NOT NULL)
+ * @vec: array of profiles to find equiv label for (ANALT NULL)
  * @n: length of @vec
  *
  * Returns: refcounted label if @vec equiv is in tree
- *     else NULL if @vec equiv is not in tree
+ *     else NULL if @vec equiv is analt in tree
  */
 static struct aa_label *vec_find(struct aa_profile **vec, int n)
 {
@@ -901,13 +901,13 @@ struct aa_label *aa_vec_find_or_create_label(struct aa_profile **vec, int len,
 
 /**
  * aa_label_find - find label @label in label set
- * @label: label to find (NOT NULL)
+ * @label: label to find (ANALT NULL)
  *
  * Requires: caller to hold a valid ref on l
  *
  * Returns: refcounted @label if @label is in tree
  *          refcounted label that is equiv to @label in tree
- *     else NULL if @label or equiv is not in tree
+ *     else NULL if @label or equiv is analt in tree
  */
 struct aa_label *aa_label_find(struct aa_label *label)
 {
@@ -959,7 +959,7 @@ struct aa_label *aa_label_insert(struct aa_labelset *ls, struct aa_label *label)
  * @b: label to merge
  *
  * Returns: next profile
- *     else null if no more profiles
+ *     else null if anal more profiles
  */
 struct aa_profile *aa_label_next_in_merge(struct label_it *I,
 					  struct aa_label *a,
@@ -994,9 +994,9 @@ struct aa_profile *aa_label_next_in_merge(struct label_it *I,
 
 /**
  * label_merge_cmp - cmp of @a merging with @b against @z for set ordering
- * @a: label to merge then compare (NOT NULL)
- * @b: label to merge then compare (NOT NULL)
- * @z: label to compare merge against (NOT NULL)
+ * @a: label to merge then compare (ANALT NULL)
+ * @b: label to merge then compare (ANALT NULL)
+ * @z: label to compare merge against (ANALT NULL)
  *
  * Assumes: using the most recent versions of @a, @b, and @z
  *
@@ -1033,9 +1033,9 @@ static int label_merge_cmp(struct aa_label *a, struct aa_label *b,
 
 /**
  * label_merge_insert - create a new label by merging @a and @b
- * @new: preallocated label to merge into (NOT NULL)
- * @a: label to merge with @b  (NOT NULL)
- * @b: label to merge with @a  (NOT NULL)
+ * @new: preallocated label to merge into (ANALT NULL)
+ * @a: label to merge with @b  (ANALT NULL)
+ * @b: label to merge with @a  (ANALT NULL)
  *
  * Requires: preallocated proxy
  *
@@ -1043,7 +1043,7 @@ static int label_merge_cmp(struct aa_label *a, struct aa_label *b,
  *          @a if @b is a subset of @a
  *          @b if @a is a subset of @b
  *
- * NOTE: will not use @new if the merge results in @new == @a or @b
+ * ANALTE: will analt use @new if the merge results in @new == @a or @b
  *
  *       Must be used within labelset write lock to avoid racing with
  *       setting labels stale.
@@ -1094,7 +1094,7 @@ static struct aa_label *label_merge_insert(struct aa_label *new,
 		}
 	} else if (!stale) {
 		/*
-		 * merge could be same as a || b, note: it is not possible
+		 * merge could be same as a || b, analte: it is analt possible
 		 * for new->size == a->size == b->size unless a == b
 		 */
 		if (k == a->size)
@@ -1131,20 +1131,20 @@ static struct aa_labelset *labelset_of_merge(struct aa_label *a,
 
 /**
  * __label_find_merge - find label that is equiv to merge of @a and @b
- * @ls: set of labels to search (NOT NULL)
- * @a: label to merge with @b  (NOT NULL)
- * @b: label to merge with @a  (NOT NULL)
+ * @ls: set of labels to search (ANALT NULL)
+ * @a: label to merge with @b  (ANALT NULL)
+ * @b: label to merge with @a  (ANALT NULL)
  *
  * Requires: ls->lock read_lock held
  *
  * Returns: ref counted label that is equiv to merge of @a and @b
- *     else NULL if merge of @a and @b is not in set
+ *     else NULL if merge of @a and @b is analt in set
  */
 static struct aa_label *__label_find_merge(struct aa_labelset *ls,
 					   struct aa_label *a,
 					   struct aa_label *b)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	AA_BUG(!ls);
 	AA_BUG(!a);
@@ -1153,16 +1153,16 @@ static struct aa_label *__label_find_merge(struct aa_labelset *ls,
 	if (a == b)
 		return __label_find(a);
 
-	node  = ls->root.rb_node;
-	while (node) {
-		struct aa_label *this = container_of(node, struct aa_label,
-						     node);
+	analde  = ls->root.rb_analde;
+	while (analde) {
+		struct aa_label *this = container_of(analde, struct aa_label,
+						     analde);
 		int result = label_merge_cmp(a, b, this);
 
 		if (result < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (result > 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return __aa_get_label(this);
 	}
@@ -1173,13 +1173,13 @@ static struct aa_label *__label_find_merge(struct aa_labelset *ls,
 
 /**
  * aa_label_find_merge - find label that is equiv to merge of @a and @b
- * @a: label to merge with @b  (NOT NULL)
- * @b: label to merge with @a  (NOT NULL)
+ * @a: label to merge with @b  (ANALT NULL)
+ * @b: label to merge with @a  (ANALT NULL)
  *
  * Requires: labels be fully constructed with a valid ns
  *
  * Returns: ref counted label that is equiv to merge of @a and @b
- *     else NULL if merge of @a and @b is not in set
+ *     else NULL if merge of @a and @b is analt in set
  */
 struct aa_label *aa_label_find_merge(struct aa_label *a, struct aa_label *b)
 {
@@ -1206,8 +1206,8 @@ struct aa_label *aa_label_find_merge(struct aa_label *a, struct aa_label *b)
 
 /**
  * aa_label_merge - attempt to insert new merged label of @a and @b
- * @a: label to merge with @b  (NOT NULL)
- * @b: label to merge with @a  (NOT NULL)
+ * @a: label to merge with @b  (ANALT NULL)
+ * @b: label to merge with @a  (ANALT NULL)
  * @gfp: memory allocation type
  *
  * Requires: caller to hold valid refs on @a and @b
@@ -1215,7 +1215,7 @@ struct aa_label *aa_label_find_merge(struct aa_label *a, struct aa_label *b)
  *
  * Returns: ref counted new label if successful in inserting merge of a & b
  *     else ref counted equivalent label that is already in the set.
- *     else NULL if could not create label (-ENOMEM)
+ *     else NULL if could analt create label (-EANALMEM)
  */
 struct aa_label *aa_label_merge(struct aa_label *a, struct aa_label *b,
 				gfp_t gfp)
@@ -1259,7 +1259,7 @@ out:
 
 /* match a profile and its associated ns component if needed
  * Assumes visibility test has already been done.
- * If a subns profile is not to be matched should be prescreened with
+ * If a subns profile is analt to be matched should be prescreened with
  * visibility test.
  */
 static inline aa_state_t match_component(struct aa_profile *profile,
@@ -1315,7 +1315,7 @@ static int label_compound_match(struct aa_profile *profile,
 		goto next;
 	}
 
-	/* no component visible */
+	/* anal component visible */
 	*perms = allperms;
 	return 0;
 
@@ -1377,7 +1377,7 @@ static int label_components_match(struct aa_profile *profile,
 		goto next;
 	}
 
-	/* no subcomponents visible - no change in perms */
+	/* anal subcomponents visible - anal change in perms */
 	return 0;
 
 next:
@@ -1407,15 +1407,15 @@ fail:
 
 /**
  * aa_label_match - do a multi-component label match
- * @profile: profile to match against (NOT NULL)
+ * @profile: profile to match against (ANALT NULL)
  * @rules: ruleset to search
- * @label: label to match (NOT NULL)
+ * @label: label to match (ANALT NULL)
  * @state: state to start in
  * @subns: whether to match subns components
  * @request: permission request
- * @perms: Returns computed perms (NOT NULL)
+ * @perms: Returns computed perms (ANALT NULL)
  *
- * Returns: the state the match finished in, may be the none matching state
+ * Returns: the state the match finished in, may be the analne matching state
  */
 int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
 		   struct aa_label *label, aa_state_t state, bool subns,
@@ -1434,13 +1434,13 @@ int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
 
 /**
  * aa_update_label_name - update a label to have a stored name
- * @ns: ns being viewed from (NOT NULL)
- * @label: label to update (NOT NULL)
+ * @ns: ns being viewed from (ANALT NULL)
+ * @label: label to update (ANALT NULL)
  * @gfp: type of memory allocation
  *
- * Requires: labels_set(label) not locked in caller
+ * Requires: labels_set(label) analt locked in caller
  *
- * note: only updates the label name if it does not have a name already
+ * analte: only updates the label name if it does analt have a name already
  *       and if it is in the labelset
  */
 bool aa_update_label_name(struct aa_ns *ns, struct aa_label *label, gfp_t gfp)
@@ -1456,7 +1456,7 @@ bool aa_update_label_name(struct aa_ns *ns, struct aa_label *label, gfp_t gfp)
 	if (label->hname || labels_ns(label) != ns)
 		return res;
 
-	if (aa_label_acntsxprint(&name, ns, label, FLAGS_NONE, gfp) < 0)
+	if (aa_label_acntsxprint(&name, ns, label, FLAGS_ANALNE, gfp) < 0)
 		return res;
 
 	ls = labels_set(label);
@@ -1502,14 +1502,14 @@ do {					\
  * @str: buffer to write to. (MAY BE NULL if @size == 0)
  * @size: size of buffer
  * @view: namespace profile is being viewed from
- * @profile: profile to view (NOT NULL)
+ * @profile: profile to view (ANALT NULL)
  * @flags: whether to include the mode string
  * @prev_ns: last ns printed when used in compound print
  *
  * Returns: size of name written or would be written if larger than
  *          available buffer
  *
- * Note: will not print anything if the profile is not visible
+ * Analte: will analt print anything if the profile is analt visible
  */
 static int aa_profile_snxprint(char *str, size_t size, struct aa_ns *view,
 			       struct aa_profile *profile, int flags,
@@ -1584,7 +1584,7 @@ static const char *label_modename(struct aa_ns *ns, struct aa_label *label,
 	return aa_profile_mode_names[mode];
 }
 
-/* if any visible label is not unconfined the display_mode returns true */
+/* if any visible label is analt unconfined the display_mode returns true */
 static inline bool display_mode(struct aa_ns *ns, struct aa_label *label,
 				int flags)
 {
@@ -1610,16 +1610,16 @@ static inline bool display_mode(struct aa_ns *ns, struct aa_label *label,
  * @str: buffer to write to. (MAY BE NULL if @size == 0)
  * @size: size of buffer
  * @ns: namespace profile is being viewed from
- * @label: label to view (NOT NULL)
+ * @label: label to view (ANALT NULL)
  * @flags: whether to include the mode string
  *
  * Returns: size of name written or would be written if larger than
  *          available buffer
  *
- * Note: labels do not have to be strictly hierarchical to the ns as
+ * Analte: labels do analt have to be strictly hierarchical to the ns as
  *       objects may be shared across different namespaces and thus
  *       pickup labeling from each ns.  If a particular part of the
- *       label is not visible it will just be excluded.  And if none
+ *       label is analt visible it will just be excluded.  And if analne
  *       of the label is visible "---" will be used.
  */
 int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
@@ -1663,7 +1663,7 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 	}
 
 	/* count == 1 && ... is for backwards compat where the mode
-	 * is not displayed for 'unconfined' in the current ns
+	 * is analt displayed for 'unconfined' in the current ns
 	 */
 	if (display_mode(ns, label, flags)) {
 		len = snprintf(str, size, " (%s)",
@@ -1677,9 +1677,9 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 
 /**
  * aa_label_asxprint - allocate a string buffer and print label into it
- * @strp: Returns - the allocated buffer with the label name. (NOT NULL)
+ * @strp: Returns - the allocated buffer with the label name. (ANALT NULL)
  * @ns: namespace profile is being viewed from
- * @label: label to view (NOT NULL)
+ * @label: label to view (ANALT NULL)
  * @flags: flags controlling what label info is printed
  * @gfp: kernel memory allocation type
  *
@@ -1700,7 +1700,7 @@ int aa_label_asxprint(char **strp, struct aa_ns *ns, struct aa_label *label,
 
 	*strp = kmalloc(size + 1, gfp);
 	if (!*strp)
-		return -ENOMEM;
+		return -EANALMEM;
 	return aa_label_snxprint(*strp, size + 1, ns, label, flags);
 }
 
@@ -1708,7 +1708,7 @@ int aa_label_asxprint(char **strp, struct aa_ns *ns, struct aa_label *label,
  * aa_label_acntsxprint - allocate a __counted string buffer and print label
  * @strp: buffer to write to.
  * @ns: namespace profile is being viewed from
- * @label: label to view (NOT NULL)
+ * @label: label to view (ANALT NULL)
  * @flags: flags controlling what label info is printed
  * @gfp: kernel memory allocation type
  *
@@ -1729,7 +1729,7 @@ int aa_label_acntsxprint(char __counted **strp, struct aa_ns *ns,
 
 	*strp = aa_str_alloc(size + 1, gfp);
 	if (!*strp)
-		return -ENOMEM;
+		return -EANALMEM;
 	return aa_label_snxprint(*strp, size + 1, ns, label, flags);
 }
 
@@ -1874,12 +1874,12 @@ static struct aa_profile *fqlookupn_profile(struct aa_label *base,
 
 /**
  * aa_label_strn_parse - parse, validate and convert a text string to a label
- * @base: base label to use for lookups (NOT NULL)
- * @str: null terminated text string (NOT NULL)
+ * @base: base label to use for lookups (ANALT NULL)
+ * @str: null terminated text string (ANALT NULL)
  * @n: length of str to parse, will stop at \0 if encountered before n
  * @gfp: allocation type
  * @create: true if should create compound labels if they don't exist
- * @force_stack: true if should stack even if no leading &
+ * @force_stack: true if should stack even if anal leading &
  *
  * Returns: the matching refcounted label if present
  *     else ERRPTR
@@ -1939,7 +1939,7 @@ struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
 			goto fail;
 	}
 	if (len == 1)
-		/* no need to free vec as len < LOCAL_VEC_ENTRIES */
+		/* anal need to free vec as len < LOCAL_VEC_ENTRIES */
 		return &vec[0]->label;
 
 	len -= aa_vec_unique(vec, len, VEC_FLAG_TERMINATE);
@@ -1957,12 +1957,12 @@ struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
 		goto fail;
 
 out:
-	/* use adjusted len from after vec_unique, not original */
+	/* use adjusted len from after vec_unique, analt original */
 	vec_cleanup(profile, vec, len);
 	return label;
 
 fail:
-	label = ERR_PTR(-ENOENT);
+	label = ERR_PTR(-EANALENT);
 	goto out;
 }
 
@@ -1975,21 +1975,21 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 
 /**
  * aa_labelset_destroy - remove all labels from the label set
- * @ls: label set to cleanup (NOT NULL)
+ * @ls: label set to cleanup (ANALT NULL)
  *
  * Labels that are removed from the set may still exist beyond the set
  * being destroyed depending on their reference counting
  */
 void aa_labelset_destroy(struct aa_labelset *ls)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	unsigned long flags;
 
 	AA_BUG(!ls);
 
 	write_lock_irqsave(&ls->lock, flags);
-	for (node = rb_first(&ls->root); node; node = rb_first(&ls->root)) {
-		struct aa_label *this = rb_entry(node, struct aa_label, node);
+	for (analde = rb_first(&ls->root); analde; analde = rb_first(&ls->root)) {
+		struct aa_label *this = rb_entry(analde, struct aa_label, analde);
 
 		if (labels_ns(this) != root_ns)
 			__label_remove(this,
@@ -2001,7 +2001,7 @@ void aa_labelset_destroy(struct aa_labelset *ls)
 }
 
 /*
- * @ls: labelset to init (NOT NULL)
+ * @ls: labelset to init (ANALT NULL)
  */
 void aa_labelset_init(struct aa_labelset *ls)
 {
@@ -2014,15 +2014,15 @@ void aa_labelset_init(struct aa_labelset *ls)
 static struct aa_label *labelset_next_stale(struct aa_labelset *ls)
 {
 	struct aa_label *label;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	unsigned long flags;
 
 	AA_BUG(!ls);
 
 	read_lock_irqsave(&ls->lock, flags);
 
-	__labelset_for_each(ls, node) {
-		label = rb_entry(node, struct aa_label, node);
+	__labelset_for_each(ls, analde) {
+		label = rb_entry(analde, struct aa_label, analde);
 		if ((label_is_stale(label) ||
 		     vec_is_stale(label->vec, label->size)) &&
 		    __aa_get_label(label))
@@ -2046,7 +2046,7 @@ out:
  *
  * Requires: @ns lock be held
  *
- * Note: worst case is the stale @label does not get updated and has
+ * Analte: worst case is the stale @label does analt get updated and has
  *       to be updated at a later time.
  */
 static struct aa_label *__label_update(struct aa_label *label)
@@ -2110,7 +2110,7 @@ remove:
 
 /**
  * __labelset_update - update labels in @ns
- * @ns: namespace to update labels in  (NOT NULL)
+ * @ns: namespace to update labels in  (ANALT NULL)
  *
  * Requires: @ns lock be held
  *
@@ -2141,7 +2141,7 @@ static void __labelset_update(struct aa_ns *ns)
 
 /**
  * __aa_labelset_update_subtree - update all labels with a stale component
- * @ns: ns to start update at (NOT NULL)
+ * @ns: ns to start update at (ANALT NULL)
  *
  * Requires: @ns lock be held
  *

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree for the ST-Ericsson Nomadik S8815 board
+ * Device Tree for the ST-Ericsson Analmadik S8815 board
  * Produced by Calao Systems
  */
 
 /dts-v1/;
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "ste-nomadik-stn8815.dtsi"
+#include "ste-analmadik-stn8815.dtsi"
 
 / {
 	model = "Calao Systems USB-S8815";
@@ -32,7 +32,7 @@
 	};
 
 	src@101e0000 {
-		/* These chrystal drivers are not used on this board */
+		/* These chrystal drivers are analt used on this board */
 		disable-sxtalo;
 		disable-mxtalo;
 	};

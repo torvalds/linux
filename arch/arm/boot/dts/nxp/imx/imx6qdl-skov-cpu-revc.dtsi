@@ -65,7 +65,7 @@
 			MX6QDL_PAD_EIM_D28__ECSPI4_MOSI			0x100b1
 			MX6QDL_PAD_EIM_D22__ECSPI4_MISO			0x000b1
 			MX6QDL_PAD_EIM_D21__ECSPI4_SCLK			0x000b1
-			/* *no* external pull up */
+			/* *anal* external pull up */
 			MX6QDL_PAD_EIM_D20__GPIO3_IO20		0x40000058
 		>;
 	};

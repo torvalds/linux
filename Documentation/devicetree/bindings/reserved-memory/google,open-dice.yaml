@@ -28,7 +28,7 @@ properties:
 required:
   - compatible
   - reg
-  - no-map
+  - anal-map
 
 unevaluatedProperties: false
 
@@ -41,6 +41,6 @@ examples:
         dice: dice@12340000 {
             compatible = "google,open-dice";
             reg = <0x00 0x12340000 0x2000>;
-            no-map;
+            anal-map;
         };
     };

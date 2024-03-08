@@ -9,7 +9,7 @@
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Maxim Osipov <maxim.osipov@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #ifndef IEEE802154_NETDEVICE_H
@@ -163,7 +163,7 @@ enum ieee802154_frame_version {
 };
 
 enum ieee802154_addressing_mode {
-	IEEE802154_NO_ADDRESSING,
+	IEEE802154_ANAL_ADDRESSING,
 	IEEE802154_RESERVED,
 	IEEE802154_SHORT_ADDRESSING,
 	IEEE802154_EXTENDED_ADDRESSING,
@@ -217,7 +217,7 @@ struct ieee802154_association_resp_frame {
 	struct ieee802154_assoc_resp_pl assoc_resp_pl;
 };
 
-struct ieee802154_disassociation_notif_frame {
+struct ieee802154_disassociation_analtif_frame {
 	struct ieee802154_hdr mhr;
 	struct ieee802154_mac_cmd_pl mac_pl;
 	u8 disassoc_pl;
@@ -225,7 +225,7 @@ struct ieee802154_disassociation_notif_frame {
 
 /* pushes hdr onto the skb. fields of hdr->fc that can be calculated from
  * the contents of hdr will be, and the actual value of those bits in
- * hdr->fc will be ignored. this includes the INTRA_PAN bit and the frame
+ * hdr->fc will be iganalred. this includes the INTRA_PAN bit and the frame
  * version, if SECEN is set.
  */
 int ieee802154_hdr_push(struct sk_buff *skb, struct ieee802154_hdr *hdr);
@@ -271,7 +271,7 @@ ieee802154_sechdr_authtag_len(const struct ieee802154_sechdr *sec)
 	case IEEE802154_SCF_SECLEVEL_MIC128:
 	case IEEE802154_SCF_SECLEVEL_ENC_MIC128:
 		return 16;
-	case IEEE802154_SCF_SECLEVEL_NONE:
+	case IEEE802154_SCF_SECLEVEL_ANALNE:
 	case IEEE802154_SCF_SECLEVEL_ENC:
 	default:
 		return 0;
@@ -329,7 +329,7 @@ ieee802154_sockaddr_check_size(struct sockaddr_ieee802154 *daddr, int len)
 	if (len < IEEE802154_MIN_NAMELEN)
 		return -EINVAL;
 	switch (sa->addr_type) {
-	case IEEE802154_ADDR_NONE:
+	case IEEE802154_ADDR_ANALNE:
 		break;
 	case IEEE802154_ADDR_SHORT:
 		if (len < IEEE802154_NAMELEN_SHORT)
@@ -408,7 +408,7 @@ static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 }
 
 enum {
-	IEEE802154_LLSEC_DEVKEY_IGNORE,
+	IEEE802154_LLSEC_DEVKEY_IGANALRE,
 	IEEE802154_LLSEC_DEVKEY_RESTRICT,
 	IEEE802154_LLSEC_DEVKEY_RECORD,
 

@@ -46,8 +46,8 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_acrn_hv_callback)
 
 	/*
 	 * The hypervisor requires that the APIC EOI should be acked.
-	 * If the APIC EOI is not acked, the APIC ISR bit for the
-	 * HYPERVISOR_CALLBACK_VECTOR will not be cleared and then it
+	 * If the APIC EOI is analt acked, the APIC ISR bit for the
+	 * HYPERVISOR_CALLBACK_VECTOR will analt be cleared and then it
 	 * will block the interrupt whose vector is lower than
 	 * HYPERVISOR_CALLBACK_VECTOR.
 	 */

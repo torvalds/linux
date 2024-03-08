@@ -18,7 +18,7 @@ The advantages, though obvious, are listed for completeness:
 
 	i.	Avoid duplicate code from the low level drivers.
 	ii.	Unburden the low level drivers from having to export the
-		character node device and related handling.
+		character analde device and related handling.
 	iii.	Implement any policy mechanisms in one place.
 	iv.	Applications have to interface with only module instead of
 		multiple low level drivers.
@@ -46,7 +46,7 @@ Credits
 	your new MPT-based RAID controllers and your existing megaraid driver,
 	then perhaps you need a single small helper module (lsiioctl or some
 	better name), loaded by both mptraid and megaraid automatically, which
-	handles registering the /dev/megaraid node dynamically. In this case,
+	handles registering the /dev/megaraid analde dynamically. In this case,
 	both mptraid and megaraid would register with lsiioctl for each
 	adapter discovered, and lsiioctl would essentially be a switch,
 	redirecting userspace tool ioctls to the appropriate driver."
@@ -61,9 +61,9 @@ module acts as a registry for low level hba drivers. The low level drivers
 (currently only megaraid) register each controller with the common module.
 
 The applications interface with the common module via the character device
-node exported by the module.
+analde exported by the module.
 
-The lower level drivers now understand only a new improved ioctl packet called
+The lower level drivers analw understand only a new improved ioctl packet called
 uioc_t. The management module converts the older ioctl packets from the older
 applications into uioc_t. After driver handles the uioc_t, the common module
 will convert that back into the old format before returning to applications.
@@ -73,5 +73,5 @@ will be retired.
 
 Common module dedicates one uioc_t packet to each controller registered. This
 can easily be more than one. But since megaraid is the only low level driver
-today, and it can handle only one ioctl, there is no reason to have more. But
+today, and it can handle only one ioctl, there is anal reason to have more. But
 as new controller classes get added, this will be tuned appropriately.

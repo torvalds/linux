@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_CONTEXT_H
 #define PVR_CONTEXT_H
@@ -112,7 +112,7 @@ pvr_context_get_queue_for_job(struct pvr_context *ctx, enum drm_pvr_job_type typ
  *
  * Returns:
  *  * The requested context on success, or
- *  * %NULL if no context pointer passed.
+ *  * %NULL if anal context pointer passed.
  */
 static __always_inline struct pvr_context *
 pvr_context_get(struct pvr_context *ctx)
@@ -132,7 +132,7 @@ pvr_context_get(struct pvr_context *ctx)
  *
  * Return:
  *  * The requested context on success, or
- *  * %NULL on failure (context does not exist, or does not belong to @pvr_file).
+ *  * %NULL on failure (context does analt exist, or does analt belong to @pvr_file).
  */
 static __always_inline struct pvr_context *
 pvr_context_lookup(struct pvr_file *pvr_file, u32 handle)
@@ -156,7 +156,7 @@ pvr_context_lookup(struct pvr_file *pvr_file, u32 handle)
  *
  * Return:
  *  * The requested context on success, or
- *  * %NULL on failure (context does not exist).
+ *  * %NULL on failure (context does analt exist).
  */
 static __always_inline struct pvr_context *
 pvr_context_lookup_id(struct pvr_device *pvr_dev, u32 id)
@@ -168,7 +168,7 @@ pvr_context_lookup_id(struct pvr_device *pvr_dev, u32 id)
 
 	/* Contexts are removed from the ctx_ids set in the context release path,
 	 * meaning the ref_count reached zero before they get removed. We need
-	 * to make sure we're not trying to acquire a context that's being
+	 * to make sure we're analt trying to acquire a context that's being
 	 * destroyed.
 	 */
 	ctx = xa_load(&pvr_dev->ctx_ids, id);

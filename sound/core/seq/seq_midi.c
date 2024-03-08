@@ -14,7 +14,7 @@ Possible options for midisynth module:
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -106,7 +106,7 @@ static int dump_midi(struct snd_rawmidi_substream *substream, const char *buf, i
 	if (tmp < count) {
 		if (printk_ratelimit())
 			pr_err("ALSA: seq_midi: MIDI output buffer overrun\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (snd_rawmidi_kernel_write(substream, buf, count) < count)
 		return -EINVAL;
@@ -125,7 +125,7 @@ static int event_process_midi(struct snd_seq_event *ev, int direct,
 		return -EINVAL;
 	substream = msynth->output_rfile.output;
 	if (substream == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (ev->type == SNDRV_SEQ_EVENT_SYSEX) {	/* special case, to save space */
 		if ((ev->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARIABLE) {
 			/* invalid event */
@@ -153,7 +153,7 @@ static int snd_seq_midisynth_new(struct seq_midisynth *msynth,
 				 int subdevice)
 {
 	if (snd_midi_event_new(MAX_MIDI_EVENT_BUF, &msynth->parser) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	msynth->card = card;
 	msynth->device = device;
 	msynth->subdevice = subdevice;
@@ -222,7 +222,7 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 	memset(&params, 0, sizeof(params));
 	params.avail_min = 1;
 	params.buffer_size = output_buffer_size;
-	params.no_active_sensing = 1;
+	params.anal_active_sensing = 1;
 	err = snd_rawmidi_output_params(msynth->output_rfile.output, &params);
 	if (err < 0) {
 		snd_rawmidi_kernel_release(&msynth->output_rfile);
@@ -278,7 +278,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 		return -EINVAL;
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->device = device;
 	info->stream = SNDRV_RAWMIDI_STREAM_OUTPUT;
 	info->subdevice = 0;
@@ -293,7 +293,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 		ports = input_count;
 	if (ports == 0) {
 		kfree(info);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (ports > (256 / SNDRV_RAWMIDI_DEVICES))
 		ports = 256 / SNDRV_RAWMIDI_DEVICES;
@@ -306,7 +306,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 		if (client == NULL) {
 			mutex_unlock(&register_mutex);
 			kfree(info);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		client->seq_client =
 			snd_seq_create_kernel_client(
@@ -316,21 +316,21 @@ snd_seq_midisynth_probe(struct device *_dev)
 			kfree(client);
 			mutex_unlock(&register_mutex);
 			kfree(info);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
 	msynth = kcalloc(ports, sizeof(struct seq_midisynth), GFP_KERNEL);
 	port = kmalloc(sizeof(*port), GFP_KERNEL);
 	if (msynth == NULL || port == NULL)
-		goto __nomem;
+		goto __analmem;
 
 	for (p = 0; p < ports; p++) {
 		ms = &msynth[p];
 		ms->rmidi = rmidi;
 
 		if (snd_seq_midisynth_new(ms, card, device, p) < 0)
-			goto __nomem;
+			goto __analmem;
 
 		/* declare port */
 		memset(port, 0, sizeof(*port));
@@ -387,7 +387,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 		if (rmidi->ops && rmidi->ops->get_port_info)
 			rmidi->ops->get_port_info(rmidi, p, port);
 		if (snd_seq_kernel_client_ctl(client->seq_client, SNDRV_SEQ_IOCTL_CREATE_PORT, port)<0)
-			goto __nomem;
+			goto __analmem;
 		ms->seq_client = client->seq_client;
 		ms->seq_port = port->addr.port;
 	}
@@ -401,7 +401,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 	kfree(port);
 	return 0;	/* success */
 
-      __nomem:
+      __analmem:
 	if (msynth != NULL) {
 	      	for (p = 0; p < ports; p++)
 	      		snd_seq_midisynth_delete(&msynth[p]);
@@ -414,7 +414,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 	kfree(info);
 	kfree(port);
 	mutex_unlock(&register_mutex);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* release midi synth port */
@@ -431,7 +431,7 @@ snd_seq_midisynth_remove(struct device *_dev)
 	client = synths[card->number];
 	if (client == NULL || client->ports[device] == NULL) {
 		mutex_unlock(&register_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ports = client->ports_per_device[device];
 	client->ports_per_device[device] = 0;

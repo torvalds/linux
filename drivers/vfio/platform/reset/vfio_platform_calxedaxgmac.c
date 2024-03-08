@@ -54,7 +54,7 @@ static int vfio_platform_calxedaxgmac_reset(struct vfio_platform_device *vdev)
 		reg->ioaddr =
 			ioremap(reg->addr, reg->size);
 		if (!reg->ioaddr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* disable IRQ */

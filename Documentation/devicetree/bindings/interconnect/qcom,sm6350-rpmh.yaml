@@ -18,14 +18,14 @@ allOf:
 properties:
   compatible:
     enum:
-      - qcom,sm6350-aggre1-noc
-      - qcom,sm6350-aggre2-noc
-      - qcom,sm6350-config-noc
-      - qcom,sm6350-dc-noc
-      - qcom,sm6350-gem-noc
-      - qcom,sm6350-mmss-noc
-      - qcom,sm6350-npu-noc
-      - qcom,sm6350-system-noc
+      - qcom,sm6350-aggre1-analc
+      - qcom,sm6350-aggre2-analc
+      - qcom,sm6350-config-analc
+      - qcom,sm6350-dc-analc
+      - qcom,sm6350-gem-analc
+      - qcom,sm6350-mmss-analc
+      - qcom,sm6350-npu-analc
+      - qcom,sm6350-system-analc
 
   reg:
     maxItems: 1
@@ -36,7 +36,7 @@ patternProperties:
   '^interconnect-[a-z0-9\-]+$':
     type: object
     description:
-      The interconnect providers do not have a separate QoS register space,
+      The interconnect providers do analt have a separate QoS register space,
       but share parent's space.
     $ref: qcom,rpmh-common.yaml#
 
@@ -44,7 +44,7 @@ patternProperties:
       compatible:
         enum:
           - qcom,sm6350-clk-virt
-          - qcom,sm6350-compute-noc
+          - qcom,sm6350-compute-analc
 
       '#interconnect-cells': true
 
@@ -61,15 +61,15 @@ unevaluatedProperties: false
 
 examples:
   - |
-    config_noc: interconnect@1500000 {
-        compatible = "qcom,sm6350-config-noc";
+    config_analc: interconnect@1500000 {
+        compatible = "qcom,sm6350-config-analc";
         reg = <0x01500000 0x28000>;
         #interconnect-cells = <2>;
         qcom,bcm-voters = <&apps_bcm_voter>;
     };
 
-    system_noc: interconnect@1620000 {
-        compatible = "qcom,sm6350-system-noc";
+    system_analc: interconnect@1620000 {
+        compatible = "qcom,sm6350-system-analc";
         reg = <0x01620000 0x17080>;
         #interconnect-cells = <2>;
         qcom,bcm-voters = <&apps_bcm_voter>;

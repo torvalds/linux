@@ -78,7 +78,7 @@ static void print_pte(pte_t pte)
 	if (val & SUN3_PAGE_VALID)	pr_cont(" valid");
 	if (val & SUN3_PAGE_WRITEABLE)	pr_cont(" write");
 	if (val & SUN3_PAGE_SYSTEM)	pr_cont(" sys");
-	if (val & SUN3_PAGE_NOCACHE)	pr_cont(" nocache");
+	if (val & SUN3_PAGE_ANALCACHE)	pr_cont(" analcache");
 	if (val & SUN3_PAGE_ACCESSED)	pr_cont(" accessed");
 	if (val & SUN3_PAGE_MODIFIED)	pr_cont(" modified");
 	switch (val & SUN3_PAGE_TYPE_MASK) {
@@ -96,7 +96,7 @@ static void print_pte(pte_t pte)
 	flags[0] = (val & SUN3_PAGE_VALID)     ? 'v' : '-';
 	flags[1] = (val & SUN3_PAGE_WRITEABLE) ? 'w' : '-';
 	flags[2] = (val & SUN3_PAGE_SYSTEM)    ? 's' : '-';
-	flags[3] = (val & SUN3_PAGE_NOCACHE)   ? 'x' : '-';
+	flags[3] = (val & SUN3_PAGE_ANALCACHE)   ? 'x' : '-';
 	flags[4] = (val & SUN3_PAGE_ACCESSED)  ? 'a' : '-';
 	flags[5] = (val & SUN3_PAGE_MODIFIED)  ? 'm' : '-';
 	flags[6] = '\0';
@@ -106,7 +106,7 @@ static void print_pte(pte_t pte)
 		case SUN3_PAGE_TYPE_IO:     type = "io"    ; break;
 		case SUN3_PAGE_TYPE_VME16:  type = "vme16" ; break;
 		case SUN3_PAGE_TYPE_VME32:  type = "vme32" ; break;
-		default: type = "unknown?"; break;
+		default: type = "unkanalwn?"; break;
 	}
 
 	pr_cont(" pte=%08lx [%07lx %s %s]\n",
@@ -134,7 +134,7 @@ void __init mmu_emu_init(unsigned long bootmem_end)
 	memset(pmeg_alloc, 0, sizeof(pmeg_alloc));
 	memset(pmeg_ctx, 0, sizeof(pmeg_ctx));
 
-	/* pmeg align the end of bootmem, adding another pmeg,
+	/* pmeg align the end of bootmem, adding aanalther pmeg,
 	 * later bootmem allocations will likely need it */
 	bootmem_end = (bootmem_end + (2 * SUN3_PMEG_SIZE)) & ~SUN3_PMEG_MASK;
 
@@ -202,7 +202,7 @@ void __init mmu_emu_init(unsigned long bootmem_end)
 
 /* erase the mappings for a dead context.  Uses the pg_dir for hints
    as the pmeg tables proved somewhat unreliable, and unmapping all of
-   TASK_SIZE was much slower and no more stable. */
+   TASK_SIZE was much slower and anal more stable. */
 /* todo: find a better way to keep track of the pmegs used by a
    context for when they're cleared */
 void clear_context(unsigned long context)
@@ -212,7 +212,7 @@ void clear_context(unsigned long context)
 
 	if (context) {
 		if (!ctx_alloc[context])
-			panic("%s: context not allocated\n", __func__);
+			panic("%s: context analt allocated\n", __func__);
 
 		ctx_alloc[context]->context = SUN3_INVALID_CONTEXT;
 		ctx_alloc[context] = (struct mm_struct *)0;
@@ -239,7 +239,7 @@ void clear_context(unsigned long context)
    die first */
 /* This context invalidation scheme is, well, totally arbitrary, I'm
    sure it could be much more intelligent...  but it gets the job done
-   for now without much overhead in making it's decision. */
+   for analw without much overhead in making it's decision. */
 /* todo: come up with optimized scheme for flushing contexts */
 unsigned long get_free_context(struct mm_struct *mm)
 {
@@ -341,14 +341,14 @@ inline void mmu_emu_map_pmeg (int context, int vaddr)
  * there is). This is necessary due to the limited size of the second-level
  * Sun3 hardware pagetables (256 groups of 16 pages). If there should be a
  * mapping present, we select a `spare' PMEG and use it to create a mapping.
- * `read_flag' is nonzero for a read fault; zero for a write. Returns nonzero
+ * `read_flag' is analnzero for a read fault; zero for a write. Returns analnzero
  * if we successfully handled the fault.
  */
-//todo: should we bump minor pagefault counter? if so, here or in caller?
+//todo: should we bump mianalr pagefault counter? if so, here or in caller?
 //todo: possibly inline this into bus_error030 in <asm/buserror.h> ?
 
 // kernel_fault is set when a kernel page couldn't be demand mapped,
-// and forces another try using the kernel page table.  basically a
+// and forces aanalther try using the kernel page table.  basically a
 // hack so that vmalloc would work correctly.
 
 int mmu_emu_handle_fault (unsigned long vaddr, int read_flag, int kernel_fault)
@@ -403,9 +403,9 @@ int mmu_emu_handle_fault (unsigned long vaddr, int read_flag, int kernel_fault)
 	sun3_put_pte (vaddr&PAGE_MASK, pte_val (*pte));
 
 	/* Update software copy of the pte value */
-// I'm not sure this is necessary. If this is required, we ought to simply
+// I'm analt sure this is necessary. If this is required, we ought to simply
 // copy this out when we reuse the PMEG or at some other convenient time.
-// Doing it here is fairly meaningless, anyway, as we only know about the
+// Doing it here is fairly meaningless, anyway, as we only kanalw about the
 // first access to a given page. --m
 	if (!read_flag) {
 		if (pte_val (*pte) & SUN3_PAGE_WRITEABLE)

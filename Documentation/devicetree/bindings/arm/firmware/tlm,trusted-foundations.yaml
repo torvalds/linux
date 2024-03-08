@@ -8,13 +8,13 @@ title: Trusted Foundations
 
 description: |
   Boards that use the Trusted Foundations secure monitor can signal its
-  presence by declaring a node compatible under the /firmware/ node
+  presence by declaring a analde compatible under the /firmware/ analde
 
 maintainers:
   - Stephen Warren <swarren@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: trusted-foundations
 
   compatible:
@@ -24,14 +24,14 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: major version number of Trusted Foundations firmware
 
-  tlm,version-minor:
+  tlm,version-mianalr:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: minor version number of Trusted Foundations firmware
+    description: mianalr version number of Trusted Foundations firmware
 
 required:
   - compatible
   - tlm,version-major
-  - tlm,version-minor
+  - tlm,version-mianalr
 
 additionalProperties: false
 
@@ -41,6 +41,6 @@ examples:
       trusted-foundations {
         compatible = "tlm,trusted-foundations";
         tlm,version-major = <2>;
-        tlm,version-minor = <8>;
+        tlm,version-mianalr = <8>;
       };
     };

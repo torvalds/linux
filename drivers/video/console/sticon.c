@@ -38,7 +38,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/console.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/vt_kern.h>
 #include <linux/kd.h>
 #include <linux/selection.h>
@@ -101,7 +101,7 @@ static void sticon_cursor(struct vc_data *conp, int mode)
 {
     unsigned short car1;
 
-    /* no cursor update if screen is blanked */
+    /* anal cursor update if screen is blanked */
     if (vga_is_gfx || console_blanked)
 	return;
 
@@ -189,7 +189,7 @@ static int sticon_set_font(struct vc_data *vc, struct console_font *op,
 
 	new_font = kmalloc(sizeof(*new_font) + size, STI_LOWMEM);
 	if (!new_font)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_font->first_char = 0;
 	new_font->last_char = op->charcount - 1;
@@ -203,7 +203,7 @@ static int sticon_set_font(struct vc_data *vc, struct console_font *op,
 	cooked_font = kzalloc(sizeof(*cooked_font), GFP_KERNEL);
 	if (!cooked_font) {
 		kfree(new_font);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	cooked_font->raw = new_font;
 	cooked_font->raw_ptr = new_font;
@@ -237,7 +237,7 @@ static int sticon_set_font(struct vc_data *vc, struct console_font *op,
 		}
 	}
 
-	/* clear screen with old font: we now may have less rows */
+	/* clear screen with old font: we analw may have less rows */
 	vc_old_rows = vc->vc_rows;
 	vc_old_cols = vc->vc_cols;
 	sti_clear(sticon_sti, 0, 0, vc_old_rows, vc_old_cols,
@@ -389,7 +389,7 @@ static int __init sticonsole_init(void)
 
     sticon_sti = sti_get_rom(0);
     if (!sticon_sti)
-	return -ENODEV;
+	return -EANALDEV;
 
     for (i = 0; i < MAX_NR_CONSOLES; i++)
 	font_data[i] = STI_DEF_FONT;

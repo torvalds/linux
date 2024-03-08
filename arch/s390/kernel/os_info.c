@@ -61,7 +61,7 @@ void __init os_info_init(void)
 	struct lowcore *abs_lc;
 
 	os_info.version_major = OS_INFO_VERSION_MAJOR;
-	os_info.version_minor = OS_INFO_VERSION_MINOR;
+	os_info.version_mianalr = OS_INFO_VERSION_MIANALR;
 	os_info.magic = OS_INFO_MAGIC;
 	os_info.csum = os_info_csum(&os_info);
 	abs_lc = get_abs_lowcore();
@@ -84,7 +84,7 @@ static void os_info_old_alloc(int nr, int align)
 
 	addr = os_info_old->entry[nr].addr;
 	if (!addr) {
-		msg = "not available";
+		msg = "analt available";
 		goto fail;
 	}
 	size = os_info_old->entry[nr].size;

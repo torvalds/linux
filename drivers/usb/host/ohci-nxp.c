@@ -11,7 +11,7 @@
  * register initialization is based on code examples provided by Philips
  * Copyright (c) 2005 Koninklijke Philips Electronics N.V.
  *
- * NOTE: This driver does not have suspend/resume functionality
+ * ANALTE: This driver does analt have suspend/resume functionality
  * This driver is intended for engineering development purposes only
  *
  * 2005-2006 (c) MontaVista Software, Inc.
@@ -154,17 +154,17 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 	const struct hc_driver *driver = &ohci_nxp_hc_driver;
 	struct resource *res;
 	int ret = 0, irq;
-	struct device_node *isp1301_node;
+	struct device_analde *isp1301_analde;
 
-	if (pdev->dev.of_node) {
-		isp1301_node = of_parse_phandle(pdev->dev.of_node,
+	if (pdev->dev.of_analde) {
+		isp1301_analde = of_parse_phandle(pdev->dev.of_analde,
 						"transceiver", 0);
 	} else {
-		isp1301_node = NULL;
+		isp1301_analde = NULL;
 	}
 
-	isp1301_i2c_client = isp1301_get_client(isp1301_node);
-	of_node_put(isp1301_node);
+	isp1301_i2c_client = isp1301_get_client(isp1301_analde);
+	of_analde_put(isp1301_analde);
 	if (!isp1301_i2c_client)
 		return -EPROBE_DEFER;
 
@@ -175,7 +175,7 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "%s: " DRIVER_DESC " (nxp)\n", hcd_name);
 	if (usb_disabled()) {
 		dev_err(&pdev->dev, "USB is disabled\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_disable;
 	}
 
@@ -198,7 +198,7 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		dev_err(&pdev->dev, "Failed to allocate HC buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_hcd;
 	}
 
@@ -270,7 +270,7 @@ static struct platform_driver ohci_hcd_nxp_driver = {
 static int __init ohci_nxp_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ohci_init_driver(&ohci_nxp_hc_driver, NULL);
 	return platform_driver_register(&ohci_hcd_nxp_driver);

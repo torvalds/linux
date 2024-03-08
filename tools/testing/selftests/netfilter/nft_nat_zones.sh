@@ -62,19 +62,19 @@ cleanup()
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 conntrack -V > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without conntrack tool"
+	echo "SKIP: Could analt run test without conntrack tool"
 	exit $ksft_skip
 fi
 
@@ -85,7 +85,7 @@ fi
 
 ip netns add "$gw"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $gw"
+	echo "SKIP: Could analt create net namespace $gw"
 	exit $ksft_skip
 fi
 ip -net "$gw" link set lo up
@@ -94,7 +94,7 @@ trap cleanup EXIT
 
 ip netns add "$srv"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create server netns $srv"
+	echo "SKIP: Could analt create server netns $srv"
 	exit $ksft_skip
 fi
 
@@ -115,12 +115,12 @@ for i in $(seq 1 $maxclients);do
 
   ip netns add "$cl"
   if [ $? -ne 0 ];then
-     echo "SKIP: Could not create client netns $cl"
+     echo "SKIP: Could analt create client netns $cl"
      exit $ksft_skip
   fi
   ip link add veth$i netns "$gw" type veth peer name eth0 netns "$cl" > /dev/null 2>&1
   if [ $? -ne 0 ];then
-    echo "SKIP: No virtual ethernet pair device support in kernel"
+    echo "SKIP: Anal virtual ethernet pair device support in kernel"
     exit $ksft_skip
   fi
 done
@@ -131,7 +131,7 @@ for i in $(seq 1 $maxclients);do
   echo netns exec "$cl" ip link set eth0 up
   echo netns exec "$cl" sysctl -q net.ipv4.tcp_syn_retries=2
   echo netns exec "$gw" ip link set veth$i up
-  echo netns exec "$gw" sysctl -q net.ipv4.conf.veth$i.arp_ignore=2
+  echo netns exec "$gw" sysctl -q net.ipv4.conf.veth$i.arp_iganalre=2
   echo netns exec "$gw" sysctl -q net.ipv4.conf.veth$i.rp_filter=0
 
   # clients have same IP addresses.
@@ -258,7 +258,7 @@ if  [ $ret -eq 0 ]; then
 fi
 
 if [ $have_iperf -eq 0 ];then
-	echo "SKIP: iperf3 not installed"
+	echo "SKIP: iperf3 analt installed"
 	if [ $ret -ne 0 ];then
 	    exit $ret
 	fi
@@ -303,7 +303,7 @@ fi
 ip netns exec $gw nft get element inet raw inflows "{ 10.3.0.99 . 5201 . \"veth0\" . 10.3.0.1 . 10000 }" > /dev/null
 if [ $? -ne 0 ];then
     ret=1
-    echo "FAIL: cannot find return entry on veth0" 1>&2
+    echo "FAIL: cananalt find return entry on veth0" 1>&2
 fi
 
 exit $ret

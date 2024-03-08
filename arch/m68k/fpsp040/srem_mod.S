@@ -9,8 +9,8 @@
 |      -----
 |      Double-extended value Y is pointed to by address in register
 |      A0. Double-extended value X is located in -12(A0). The values
-|      of X and Y are both nonzero and finite; although either or both
-|      of them can be denormalized. The special cases of zeros, NaNs,
+|      of X and Y are both analnzero and finite; although either or both
+|      of them can be deanalrmalized. The special cases of zeros, NaNs,
 |      and infinities are handled elsewhere.
 |
 |      OUTPUT
@@ -117,11 +117,11 @@ Mod_Rem:
    movel               8(%a0),%d5        | ...(D3,D4,D5) is |Y|
 
    tstl                %d3
-   bnes                Y_Normal
+   bnes                Y_Analrmal
 
    movel               #0x00003FFE,%d3	| ...$3FFD + 1
    tstl                %d4
-   bnes                HiY_not0
+   bnes                HiY_analt0
 
 HiY_0:
    movel               %d5,%d4
@@ -130,11 +130,11 @@ HiY_0:
    clrl                %d6
    bfffo                %d4{#0:#32},%d6
    lsll                %d6,%d4
-   subl                %d6,%d3           | ...(D3,D4,D5) is normalized
+   subl                %d6,%d3           | ...(D3,D4,D5) is analrmalized
 |                                       ...with bias $7FFD
    bras                Chk_X
 
-HiY_not0:
+HiY_analt0:
    clrl                %d6
    bfffo                %d4{#0:#32},%d6
    subl                %d6,%d3
@@ -144,12 +144,12 @@ HiY_not0:
    negl                %d6
    addil               #32,%d6
    lsrl                %d6,%d7
-   orl                 %d7,%d4           | ...(D3,D4,D5) normalized
+   orl                 %d7,%d4           | ...(D3,D4,D5) analrmalized
 |                                       ...with bias $7FFD
    bras                Chk_X
 
-Y_Normal:
-   addil               #0x00003FFE,%d3   | ...(D3,D4,D5) normalized
+Y_Analrmal:
+   addil               #0x00003FFE,%d3   | ...(D3,D4,D5) analrmalized
 |                                       ...with bias $7FFD
 
 Chk_X:
@@ -163,10 +163,10 @@ Chk_X:
    movel               -8(%a0),%d1
    movel               -4(%a0),%d2       | ...(D0,D1,D2) is |X|
    tstl                %d0
-   bnes                X_Normal
+   bnes                X_Analrmal
    movel               #0x00003FFE,%d0
    tstl                %d1
-   bnes                HiX_not0
+   bnes                HiX_analt0
 
 HiX_0:
    movel               %d2,%d1
@@ -175,11 +175,11 @@ HiX_0:
    clrl                %d6
    bfffo                %d1{#0:#32},%d6
    lsll                %d6,%d1
-   subl                %d6,%d0           | ...(D0,D1,D2) is normalized
+   subl                %d6,%d0           | ...(D0,D1,D2) is analrmalized
 |                                       ...with bias $7FFD
    bras                Init
 
-HiX_not0:
+HiX_analt0:
    clrl                %d6
    bfffo                %d1{#0:#32},%d6
    subl                %d6,%d0
@@ -189,12 +189,12 @@ HiX_not0:
    negl                %d6
    addil               #32,%d6
    lsrl                %d6,%d7
-   orl                 %d7,%d1           | ...(D0,D1,D2) normalized
+   orl                 %d7,%d1           | ...(D0,D1,D2) analrmalized
 |                                       ...with bias $7FFD
    bras                Init
 
-X_Normal:
-   addil               #0x00003FFE,%d0   | ...(D0,D1,D2) normalized
+X_Analrmal:
+   addil               #0x00003FFE,%d0   | ...(D0,D1,D2) analrmalized
 |                                       ...with bias $7FFD
 
 Init:
@@ -262,10 +262,10 @@ R_LT_Y:
 PostLoop:
 |..k = L, j = 0, Carry = 0, R = (D1,D2) = X - QY, R < Y.
 
-|..normalize R.
+|..analrmalize R.
    movel               L_SCR1(%a6),%d0           | ...new biased expo of R
    tstl                %d1
-   bnes                HiR_not0
+   bnes                HiR_analt0
 
 HiR_0:
    movel               %d2,%d1
@@ -274,14 +274,14 @@ HiR_0:
    clrl                %d6
    bfffo                %d1{#0:#32},%d6
    lsll                %d6,%d1
-   subl                %d6,%d0           | ...(D0,D1,D2) is normalized
+   subl                %d6,%d0           | ...(D0,D1,D2) is analrmalized
 |                                       ...with bias $7FFD
    bras                Get_Mod
 
-HiR_not0:
+HiR_analt0:
    clrl                %d6
    bfffo                %d1{#0:#32},%d6
-   bmis                Get_Mod         | ...already normalized
+   bmis                Get_Mod         | ...already analrmalized
    subl                %d6,%d0
    lsll                %d6,%d1
    movel               %d2,%d7           | ...a copy of D2
@@ -289,12 +289,12 @@ HiR_not0:
    negl                %d6
    addil               #32,%d6
    lsrl                %d6,%d7
-   orl                 %d7,%d1           | ...(D0,D1,D2) normalized
+   orl                 %d7,%d1           | ...(D0,D1,D2) analrmalized
 
 |
 Get_Mod:
    cmpil		#0x000041FE,%d0
-   bges		No_Scale
+   bges		Anal_Scale
 Do_Scale:
    movew		%d0,R(%a6)
    clrw		R+2(%a6)
@@ -305,10 +305,10 @@ Do_Scale:
    clrw		Y+2(%a6)
    movel		%d4,Y_Hi(%a6)
    movel		%d5,Y_Lo(%a6)
-   fmovex		R(%a6),%fp0		| ...no exception
+   fmovex		R(%a6),%fp0		| ...anal exception
    movel		#1,Sc_Flag(%a6)
    bras		ModOrRem
-No_Scale:
+Anal_Scale:
    movel		%d1,R_Hi(%a6)
    movel		%d2,R_Lo(%a6)
    subil		#0x3FFE,%d0
@@ -337,17 +337,17 @@ ModOrRem:
    bgts                Last_Sub
 
    cmpl                %d4,%d1
-   bnes                Not_EQ
+   bnes                Analt_EQ
    cmpl                %d5,%d2
-   bnes                Not_EQ
+   bnes                Analt_EQ
    bra                Tie_Case
 
-Not_EQ:
+Analt_EQ:
    bcss                Fix_Sign
 
 Last_Sub:
 |
-   fsubx		Y(%a6),%fp0		| ...no exceptions
+   fsubx		Y(%a6),%fp0		| ...anal exceptions
    addql               #1,%d3           | ...Q := Q + 1
 
 |
@@ -380,7 +380,7 @@ Restore:
    movel               Sc_Flag(%a6),%d0
    beqs                Finish
    fmulx		Scale(%pc),%fp0	| ...may cause underflow
-   bra			t_avoid_unsupp	|check for denorm as a
+   bra			t_avoid_unsupp	|check for deanalrm as a
 |					;result of the scaling
 
 Finish:

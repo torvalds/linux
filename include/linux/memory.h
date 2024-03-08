@@ -16,7 +16,7 @@
 #ifndef _LINUX_MEMORY_H_
 #define _LINUX_MEMORY_H_
 
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/compiler.h>
 #include <linux/mutex.h>
 
@@ -24,7 +24,7 @@
 
 /**
  * struct memory_group - a logical group of memory blocks
- * @nid: The node id for all memory blocks inside the memory group.
+ * @nid: The analde id for all memory blocks inside the memory group.
  * @blocks: List of all memory blocks belonging to this memory group.
  * @present_kernel_pages: Present (online) memory outside ZONE_MOVABLE of this
  *			  memory group.
@@ -41,8 +41,8 @@
  *
  * A memory group logically groups memory blocks; each memory block
  * belongs to at most one memory group. A memory group corresponds to
- * a memory device, such as a DIMM or a NUMA node, which spans multiple
- * memory blocks and might even span multiple non-contiguous physical memory
+ * a memory device, such as a DIMM or a NUMA analde, which spans multiple
+ * memory blocks and might even span multiple analn-contiguous physical memory
  * ranges.
  *
  * Modification of members after registration is serialized by memory
@@ -71,8 +71,8 @@ struct memory_block {
 	int nid;			/* NID for this memory block */
 	/*
 	 * The single zone of this memory block if all PFNs of this memory block
-	 * that are System RAM (not a memory hole, not ZONE_DEVICE ranges) are
-	 * managed by a single zone. NULL if multiple zones (including nodes)
+	 * that are System RAM (analt a memory hole, analt ZONE_DEVICE ranges) are
+	 * managed by a single zone. NULL if multiple zones (including analdes)
 	 * apply.
 	 */
 	struct zone *zone;
@@ -97,14 +97,14 @@ int set_memory_block_size_order(unsigned int order);
 #define	MEM_CANCEL_ONLINE	(1<<4)
 #define	MEM_CANCEL_OFFLINE	(1<<5)
 
-struct memory_notify {
+struct memory_analtify {
 	unsigned long start_pfn;
 	unsigned long nr_pages;
-	int status_change_nid_normal;
+	int status_change_nid_analrmal;
 	int status_change_nid;
 };
 
-struct notifier_block;
+struct analtifier_block;
 struct mem_section;
 
 /*
@@ -124,30 +124,30 @@ static inline void memory_dev_init(void)
 {
 	return;
 }
-static inline int register_memory_notifier(struct notifier_block *nb)
+static inline int register_memory_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
-static inline void unregister_memory_notifier(struct notifier_block *nb)
+static inline void unregister_memory_analtifier(struct analtifier_block *nb)
 {
 }
-static inline int memory_notify(unsigned long val, void *v)
+static inline int memory_analtify(unsigned long val, void *v)
 {
 	return 0;
 }
-static inline int hotplug_memory_notifier(notifier_fn_t fn, int pri)
+static inline int hotplug_memory_analtifier(analtifier_fn_t fn, int pri)
 {
 	return 0;
 }
 #else /* CONFIG_MEMORY_HOTPLUG */
-extern int register_memory_notifier(struct notifier_block *nb);
-extern void unregister_memory_notifier(struct notifier_block *nb);
+extern int register_memory_analtifier(struct analtifier_block *nb);
+extern void unregister_memory_analtifier(struct analtifier_block *nb);
 int create_memory_block_devices(unsigned long start, unsigned long size,
 				struct vmem_altmap *altmap,
 				struct memory_group *group);
 void remove_memory_block_devices(unsigned long start, unsigned long size);
 extern void memory_dev_init(void);
-extern int memory_notify(unsigned long val, void *v);
+extern int memory_analtify(unsigned long val, void *v);
 extern struct memory_block *find_memory_block(unsigned long section_nr);
 typedef int (*walk_memory_blocks_func_t)(struct memory_block *, void *);
 extern int walk_memory_blocks(unsigned long start, unsigned long size,
@@ -161,10 +161,10 @@ struct memory_group *memory_group_find_by_id(int mgid);
 typedef int (*walk_memory_groups_func_t)(struct memory_group *, void *);
 int walk_dynamic_memory_groups(int nid, walk_memory_groups_func_t func,
 			       struct memory_group *excluded, void *arg);
-#define hotplug_memory_notifier(fn, pri) ({		\
-	static __meminitdata struct notifier_block fn##_mem_nb =\
-		{ .notifier_call = fn, .priority = pri };\
-	register_memory_notifier(&fn##_mem_nb);			\
+#define hotplug_memory_analtifier(fn, pri) ({		\
+	static __meminitdata struct analtifier_block fn##_mem_nb =\
+		{ .analtifier_call = fn, .priority = pri };\
+	register_memory_analtifier(&fn##_mem_nb);			\
 })
 
 #ifdef CONFIG_NUMA

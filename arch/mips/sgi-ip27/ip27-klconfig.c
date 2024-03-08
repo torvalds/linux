@@ -50,7 +50,7 @@ klinfo_t *find_first_component(lboard_t *brd, unsigned char struct_type)
 
 lboard_t *find_lboard(lboard_t *start, unsigned char brd_type)
 {
-	/* Search all boards stored on this node. */
+	/* Search all boards stored on this analde. */
 	while (start) {
 		if (start->brd_type == brd_type)
 			return start;
@@ -62,7 +62,7 @@ lboard_t *find_lboard(lboard_t *start, unsigned char brd_type)
 
 lboard_t *find_lboard_class(lboard_t *start, unsigned char brd_type)
 {
-	/* Search all boards stored on this node. */
+	/* Search all boards stored on this analde. */
 	while (start) {
 		if (KLCLASS(start->brd_type) == KLCLASS(brd_type))
 			return start;

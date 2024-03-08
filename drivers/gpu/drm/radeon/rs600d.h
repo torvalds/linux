@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -531,7 +531,7 @@
 #define   S_000009_ENABLE_PAGE_TABLES(x)               (((x) & 0x1) << 26)
 #define   G_000009_ENABLE_PAGE_TABLES(x)               (((x) >> 26) & 0x1)
 #define   C_000009_ENABLE_PAGE_TABLES                  0xFBFFFFFF
-/* FIXME don't know the various field size need feedback from AMD */
+/* FIXME don't kanalw the various field size need feedback from AMD */
 #define R_000100_MC_PT0_CNTL                         0x000100
 #define   S_000100_ENABLE_PT(x)                        (((x) & 0x1) << 0)
 #define   G_000100_ENABLE_PT(x)                        (((x) >> 0) & 0x1)
@@ -576,7 +576,7 @@
 #define   V_00016C_SYSTEM_ACCESS_MODE_PA_ONLY          0
 #define   V_00016C_SYSTEM_ACCESS_MODE_USE_SYS_MAP      1
 #define   V_00016C_SYSTEM_ACCESS_MODE_IN_SYS           2
-#define   V_00016C_SYSTEM_ACCESS_MODE_NOT_IN_SYS       3
+#define   V_00016C_SYSTEM_ACCESS_MODE_ANALT_IN_SYS       3
 #define   S_00016C_SYSTEM_APERTURE_UNMAPPED_ACCESS(x)  (((x) & 0x1) << 10)
 #define   G_00016C_SYSTEM_APERTURE_UNMAPPED_ACCESS(x)  (((x) >> 10) & 0x1)
 #define   C_00016C_SYSTEM_APERTURE_UNMAPPED_ACCESS     0xFFFFFBFF
@@ -653,8 +653,8 @@
 #define   GLOBAL_PWRMGT_EN                             (1 << 0)
 #define   MOBILE_SU                                    (1 << 2)
 #define DYN_PWRMGT_SCLK_LENGTH                         0xc
-#define   NORMAL_POWER_SCLK_HILEN(x)                   ((x) << 0)
-#define   NORMAL_POWER_SCLK_LOLEN(x)                   ((x) << 4)
+#define   ANALRMAL_POWER_SCLK_HILEN(x)                   ((x) << 0)
+#define   ANALRMAL_POWER_SCLK_LOLEN(x)                   ((x) << 4)
 #define   REDUCED_POWER_SCLK_HILEN(x)                  ((x) << 8)
 #define   REDUCED_POWER_SCLK_LOLEN(x)                  ((x) << 12)
 #define   POWER_D1_SCLK_HILEN(x)                       ((x) << 16)

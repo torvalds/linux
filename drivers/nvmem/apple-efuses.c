@@ -48,7 +48,7 @@ static int apple_efuses_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(config.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->fuses = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->fuses))

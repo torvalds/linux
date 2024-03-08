@@ -5,7 +5,7 @@
 
 #include <linux/module.h>
 #include <linux/rcupdate.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <misc/cxl-base.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -96,7 +96,7 @@ void unregister_cxl_calls(struct cxl_calls *calls)
 }
 EXPORT_SYMBOL_GPL(unregister_cxl_calls);
 
-int cxl_update_properties(struct device_node *dn,
+int cxl_update_properties(struct device_analde *dn,
 			  struct property *new_prop)
 {
 	return of_update_property(dn, new_prop);
@@ -105,7 +105,7 @@ EXPORT_SYMBOL_GPL(cxl_update_properties);
 
 static int __init cxl_base_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct platform_device *dev;
 	int count = 0;
 
@@ -115,7 +115,7 @@ static int __init cxl_base_init(void)
 	if (cpu_has_feature(CPU_FTR_HVMODE))
 		return 0;
 
-	for_each_compatible_node(np, NULL, "ibm,coherent-platform-facility") {
+	for_each_compatible_analde(np, NULL, "ibm,coherent-platform-facility") {
 		dev = of_platform_device_create(np, NULL, NULL);
 		if (dev)
 			count++;

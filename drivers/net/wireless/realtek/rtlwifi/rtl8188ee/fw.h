@@ -135,12 +135,12 @@ enum rtl8188e_h2c_cmd {
 	H2C_88E_AOAC_GLOBAL_INFO = 0x82,
 	H2C_88E_AOAC_RSVDPAGE = 0x83,
 #endif
-	/*Not defined in new 88E H2C CMD Format*/
+	/*Analt defined in new 88E H2C CMD Format*/
 	H2C_88E_RA_MASK,
 	H2C_88E_SELECTIVE_SUSPEND_ROF_CMD,
 	H2C_88E_P2P_PS_MODE,
 	H2C_88E_PSD_RESULT,
-	/*Not defined CTW CMD for P2P yet*/
+	/*Analt defined CTW CMD for P2P yet*/
 	H2C_88E_P2P_PS_CTW_CMD,
 	MAX_88E_H2CCMD
 };

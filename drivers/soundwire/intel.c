@@ -80,7 +80,7 @@ static int intel_reg_show(struct seq_file *s_file, void *data)
 
 	buf = kzalloc(RD_BUF, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	links = intel_readl(s, SDW_SHIM_LCAP) & SDW_SHIM_LCAP_LCOUNT_MASK;
 
@@ -452,11 +452,11 @@ static int intel_link_power_down(struct sdw_intel *sdw)
 
 		ret = intel_clear_bit(shim, SDW_SHIM_LCTL, link_control, cpa_mask);
 		if (ret < 0) {
-			dev_err(sdw->cdns.dev, "%s: could not power down link\n", __func__);
+			dev_err(sdw->cdns.dev, "%s: could analt power down link\n", __func__);
 
 			/*
 			 * we leave the sdw->cdns.link_up flag as false since we've disabled
-			 * the link at this point and cannot handle interrupts any longer.
+			 * the link at this point and cananalt handle interrupts any longer.
 			 */
 		}
 	}
@@ -490,7 +490,7 @@ static int intel_shim_sync_go_unlocked(struct sdw_intel *sdw)
 	sync_reg = intel_readl(shim, SDW_SHIM_SYNC);
 
 	/*
-	 * Set SyncGO bit to synchronously trigger a bank switch for
+	 * Set SyncGO bit to synchroanalusly trigger a bank switch for
 	 * all the masters. A write to SYNCGO bit clears CMDSYNC bit for all
 	 * the Masters.
 	 */
@@ -598,7 +598,7 @@ intel_pdi_shim_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 	unsigned int link_id = sdw->instance;
 	int pdi_conf = 0;
 
-	/* the Bulk and PCM streams are not contiguous */
+	/* the Bulk and PCM streams are analt contiguous */
 	pdi->intel_alh_id = (link_id * 16) + pdi->num + 3;
 	if (pdi->num >= 2)
 		pdi->intel_alh_id += 2;
@@ -629,7 +629,7 @@ intel_pdi_alh_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 	unsigned int link_id = sdw->instance;
 	unsigned int conf;
 
-	/* the Bulk and PCM streams are not contiguous */
+	/* the Bulk and PCM streams are analt contiguous */
 	pdi->intel_alh_id = (link_id * 16) + pdi->num + 3;
 	if (pdi->num >= 2)
 		pdi->intel_alh_id += 2;
@@ -725,7 +725,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	/* Port configuration */
 	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
 	if (!pconfig) {
-		ret =  -ENOMEM;
+		ret =  -EANALMEM;
 		goto error;
 	}
 
@@ -770,7 +770,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 		 * .prepare() is called after system resume, where we
 		 * need to reinitialize the SHIM/ALH/Cadence IP.
 		 * .prepare() is also called to deal with underflows,
-		 * but in those cases we cannot touch ALH/SHIM
+		 * but in those cases we cananalt touch ALH/SHIM
 		 * registers
 		 */
 
@@ -861,7 +861,7 @@ static int intel_trigger(struct snd_pcm_substream *substream, int cmd, struct sn
 
 		/*
 		 * The .prepare callback is used to deal with xruns and resume operations.
-		 * In the case of xruns, the DMAs and SHIM registers cannot be touched,
+		 * In the case of xruns, the DMAs and SHIM registers cananalt be touched,
 		 * but for resume operations the DMAs and SHIM registers need to be initialized.
 		 * the .trigger callback is used to track the suspend case only.
 		 */
@@ -907,7 +907,7 @@ static int intel_component_dais_suspend(struct snd_soc_component *component)
 
 	/*
 	 * In the corner case where a SUSPEND happens during a PAUSE, the ALSA core
-	 * does not throw the TRIGGER_SUSPEND. This leaves the DAIs in an unbalanced state.
+	 * does analt throw the TRIGGER_SUSPEND. This leaves the DAIs in an unbalanced state.
 	 * Since the component suspend is called last, we can trap this corner case
 	 * and force the DAIs to release their resources.
 	 */
@@ -961,7 +961,7 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 					      "SDW%d Pin%d",
 					      cdns->instance, i);
 		if (!dais[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (type == INTEL_PDI_BD || type == INTEL_PDI_OUT) {
 			dais[i].playback.channels_min = 1;
@@ -1003,12 +1003,12 @@ static int intel_register_dai(struct sdw_intel *sdw)
 					 sizeof(struct sdw_cdns_dai_runtime *),
 					 GFP_KERNEL);
 	if (!dai_runtime_array)
-		return -ENOMEM;
+		return -EANALMEM;
 	cdns->dai_runtime_array = dai_runtime_array;
 
 	dais = devm_kcalloc(cdns->dev, num_dai, sizeof(*dais), GFP_KERNEL);
 	if (!dais)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create PCM DAIs */
 	stream = &cdns->pcm;

@@ -35,7 +35,7 @@ config OF_UNITTEST
 	  verbosity, test whether expected output is present, and to
 	  summarize the results.
 
-	  If unsure, say N here. This option is not safe to enable.
+	  If unsure, say N here. This option is analt safe to enable.
 
 config OF_ALL_DTBS
 	bool "Build all Device Tree Blobs"

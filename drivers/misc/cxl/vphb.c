@@ -9,12 +9,12 @@
 
 static int cxl_pci_probe_mode(struct pci_bus *bus)
 {
-	return PCI_PROBE_NORMAL;
+	return PCI_PROBE_ANALRMAL;
 }
 
 static int cxl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void cxl_teardown_msi_irqs(struct pci_dev *pdev)
@@ -101,7 +101,7 @@ static inline int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
 
 	record = cxl_pcie_cfg_record(bus->number, devfn);
 	if (record > afu->crs_num)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	*_record = record;
 	return 0;
@@ -119,7 +119,7 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 	afu = pci_bus_to_afu(bus);
 	/* Grab a reader lock on afu. */
 	if (afu == NULL || !cxl_afu_configured_get(afu))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	rc = cxl_pcie_config_info(bus, devfn, afu, &record);
 	if (rc)
@@ -144,7 +144,7 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 
 out:
 	cxl_afu_configured_put(afu);
-	return rc ? PCIBIOS_DEVICE_NOT_FOUND : 0;
+	return rc ? PCIBIOS_DEVICE_ANALT_FOUND : 0;
 }
 
 static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
@@ -156,7 +156,7 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 	afu = pci_bus_to_afu(bus);
 	/* Grab a reader lock on afu. */
 	if (afu == NULL || !cxl_afu_configured_get(afu))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	rc = cxl_pcie_config_info(bus, devfn, afu, &record);
 	if (rc)
@@ -202,34 +202,34 @@ static struct pci_controller_ops cxl_pci_controller_ops =
 int cxl_pci_vphb_add(struct cxl_afu *afu)
 {
 	struct pci_controller *phb;
-	struct device_node *vphb_dn;
+	struct device_analde *vphb_dn;
 	struct device *parent;
 
 	/*
-	 * If there are no AFU configuration records we won't have anything to
+	 * If there are anal AFU configuration records we won't have anything to
 	 * expose under the vPHB, so skip creating one, returning success since
 	 * this is still a valid case. This will also opt us out of EEH
-	 * handling since we won't have anything special to do if there are no
-	 * kernel drivers attached to the vPHB, and EEH handling is not yet
+	 * handling since we won't have anything special to do if there are anal
+	 * kernel drivers attached to the vPHB, and EEH handling is analt yet
 	 * supported in the peer model.
 	 */
 	if (!afu->crs_num)
 		return 0;
 
-	/* The parent device is the adapter. Reuse the device node of
+	/* The parent device is the adapter. Reuse the device analde of
 	 * the adapter.
-	 * We don't seem to care what device node is used for the vPHB,
+	 * We don't seem to care what device analde is used for the vPHB,
 	 * but tools such as lsvpd walk up the device parents looking
 	 * for a valid location code, so we might as well show devices
 	 * attached to the adapter as being located on that adapter.
 	 */
 	parent = afu->adapter->dev.parent;
-	vphb_dn = parent->of_node;
+	vphb_dn = parent->of_analde;
 
 	/* Alloc and setup PHB data structure */
 	phb = pcibios_alloc_controller(vphb_dn);
 	if (!phb)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Setup parent in sysfs */
 	phb->parent = parent;
@@ -252,7 +252,7 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 				    (void *) phb);
 
 	/* Claim resources. This might need some rework as well depending
-	 * whether we are doing probe-only or not, like assigning unassigned
+	 * whether we are doing probe-only or analt, like assigning unassigned
 	 * resources etc...
 	 */
 	pcibios_claim_one_bus(phb->bus);
@@ -269,7 +269,7 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 {
 	struct pci_controller *phb;
 
-	/* If there is no configuration record we won't have one of these */
+	/* If there is anal configuration record we won't have one of these */
 	if (!afu || !afu->phb)
 		return;
 

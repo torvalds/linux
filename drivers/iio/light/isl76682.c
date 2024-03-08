@@ -243,7 +243,7 @@ static int isl76682_clear_configure_reg(struct isl76682_chip *chip)
 	/*
 	 * In the success case, the command register was zeroed out.
 	 *
-	 * In the error case, we do not know in which state the command
+	 * In the error case, we do analt kanalw in which state the command
 	 * register is, so we assume it is zeroed out, so that it would
 	 * be reprogrammed at the next data read out, and at that time
 	 * we hope it would be reprogrammed successfully. That is very
@@ -288,7 +288,7 @@ static int isl76682_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 

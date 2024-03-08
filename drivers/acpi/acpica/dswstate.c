@@ -49,12 +49,12 @@ acpi_ds_result_pop(union acpi_operand_object **object,
 	/* Incorrect state of result stack */
 
 	if (state && !walk_state->result_count) {
-		ACPI_ERROR((AE_INFO, "No results on result stack"));
+		ACPI_ERROR((AE_INFO, "Anal results on result stack"));
 		return (AE_AML_INTERNAL);
 	}
 
 	if (!state && walk_state->result_count) {
-		ACPI_ERROR((AE_INFO, "No result state for result stack"));
+		ACPI_ERROR((AE_INFO, "Anal result state for result stack"));
 		return (AE_AML_INTERNAL);
 	}
 
@@ -63,7 +63,7 @@ acpi_ds_result_pop(union acpi_operand_object **object,
 	if (!state) {
 		ACPI_ERROR((AE_INFO, "Result stack is empty! State=%p",
 			    walk_state));
-		return (AE_AML_NO_RETURN_VALUE);
+		return (AE_AML_ANAL_RETURN_VALUE);
 	}
 
 	/* Return object of the top element and clean that top element result stack */
@@ -74,9 +74,9 @@ acpi_ds_result_pop(union acpi_operand_object **object,
 	*object = state->results.obj_desc[index];
 	if (!*object) {
 		ACPI_ERROR((AE_INFO,
-			    "No result objects on result stack, State=%p",
+			    "Anal result objects on result stack, State=%p",
 			    walk_state));
-		return (AE_AML_NO_RETURN_VALUE);
+		return (AE_AML_ANAL_RETURN_VALUE);
 	}
 
 	state->results.obj_desc[index] = NULL;
@@ -134,13 +134,13 @@ acpi_ds_result_push(union acpi_operand_object *object,
 	}
 
 	if (!(walk_state->result_count < walk_state->result_size)) {
-		ACPI_ERROR((AE_INFO, "No free elements in result stack"));
+		ACPI_ERROR((AE_INFO, "Anal free elements in result stack"));
 		return (AE_AML_INTERNAL);
 	}
 
 	state = walk_state->results;
 	if (!state) {
-		ACPI_ERROR((AE_INFO, "No result stack frame during push"));
+		ACPI_ERROR((AE_INFO, "Anal result stack frame during push"));
 		return (AE_AML_INTERNAL);
 	}
 
@@ -197,7 +197,7 @@ static acpi_status acpi_ds_result_stack_push(struct acpi_walk_state *walk_state)
 
 	state = acpi_ut_create_generic_state();
 	if (!state) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	state->common.descriptor_type = ACPI_DESC_TYPE_STATE_RESULT;
@@ -237,7 +237,7 @@ static acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *walk_state)
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "Result stack underflow - State=%p\n",
 				  walk_state));
-		return (AE_AML_NO_OPERAND);
+		return (AE_AML_ANAL_OPERAND);
 	}
 
 	if (walk_state->result_size < ACPI_RESULTS_FRAME_OBJ_NUM) {
@@ -314,7 +314,7 @@ acpi_ds_obj_stack_push(void *object, struct acpi_walk_state *walk_state)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Pop this walk's object stack. Objects on the stack are NOT
+ * DESCRIPTION: Pop this walk's object stack. Objects on the stack are ANALT
  *              deleted by this routine.
  *
  ******************************************************************************/
@@ -431,7 +431,7 @@ struct acpi_walk_state *acpi_ds_get_current_walk_state(struct acpi_thread_state
  * PARAMETERS:  walk_state      - State to push
  *              thread          - Thread state object
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Place the Thread state at the head of the state list
  *
@@ -480,7 +480,7 @@ struct acpi_walk_state *acpi_ds_pop_walk_state(struct acpi_thread_state *thread)
 		/*
 		 * Don't clear the NEXT field, this serves as an indicator
 		 * that there is a parent WALK STATE
-		 * Do Not: walk_state->Next = NULL;
+		 * Do Analt: walk_state->Next = NULL;
 		 */
 	}
 
@@ -549,7 +549,7 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
  *
  * PARAMETERS:  walk_state      - New state to be initialized
  *              op              - Current parse op
- *              method_node     - Control method NS node, if any
+ *              method_analde     - Control method NS analde, if any
  *              aml_start       - Start of AML
  *              aml_length      - Length of AML
  *              info            - Method info block (params, etc.)
@@ -564,7 +564,7 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
 acpi_status
 acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		      union acpi_parse_object *op,
-		      struct acpi_namespace_node *method_node,
+		      struct acpi_namespace_analde *method_analde,
 		      u8 * aml_start,
 		      u32 aml_length,
 		      struct acpi_evaluate_info *info, u8 pass_number)
@@ -600,17 +600,17 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-	if (method_node) {
-		walk_state->parser_state.start_node = method_node;
+	if (method_analde) {
+		walk_state->parser_state.start_analde = method_analde;
 		walk_state->walk_type = ACPI_WALK_METHOD;
-		walk_state->method_node = method_node;
+		walk_state->method_analde = method_analde;
 		walk_state->method_desc =
-		    acpi_ns_get_attached_object(method_node);
+		    acpi_ns_get_attached_object(method_analde);
 
 		/* Push start scope on scope stack and make it current  */
 
 		status =
-		    acpi_ds_scope_stack_push(method_node, ACPI_TYPE_METHOD,
+		    acpi_ds_scope_stack_push(method_analde, ACPI_TYPE_METHOD,
 					     walk_state);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -627,28 +627,28 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 	} else {
 		/*
 		 * Setup the current scope.
-		 * Find a Named Op that has a namespace node associated with it.
+		 * Find a Named Op that has a namespace analde associated with it.
 		 * search upwards from this Op. Current scope is the first
-		 * Op with a namespace node.
+		 * Op with a namespace analde.
 		 */
 		extra_op = parser_state->start_op;
-		while (extra_op && !extra_op->common.node) {
+		while (extra_op && !extra_op->common.analde) {
 			extra_op = extra_op->common.parent;
 		}
 
 		if (!extra_op) {
-			parser_state->start_node = NULL;
+			parser_state->start_analde = NULL;
 		} else {
-			parser_state->start_node = extra_op->common.node;
+			parser_state->start_analde = extra_op->common.analde;
 		}
 
-		if (parser_state->start_node) {
+		if (parser_state->start_analde) {
 
 			/* Push start scope on scope stack and make it current  */
 
 			status =
-			    acpi_ds_scope_stack_push(parser_state->start_node,
-						     parser_state->start_node->
+			    acpi_ds_scope_stack_push(parser_state->start_analde,
+						     parser_state->start_analde->
 						     type, walk_state);
 			if (ACPI_FAILURE(status)) {
 				return_ACPI_STATUS(status);
@@ -683,12 +683,12 @@ void acpi_ds_delete_walk_state(struct acpi_walk_state *walk_state)
 	}
 
 	if (walk_state->descriptor_type != ACPI_DESC_TYPE_WALK) {
-		ACPI_ERROR((AE_INFO, "%p is not a valid walk state",
+		ACPI_ERROR((AE_INFO, "%p is analt a valid walk state",
 			    walk_state));
 		return_VOID;
 	}
 
-	/* There should not be any open scopes */
+	/* There should analt be any open scopes */
 
 	if (walk_state->parser_state.scope) {
 		ACPI_ERROR((AE_INFO, "%p walk still has a scope list",

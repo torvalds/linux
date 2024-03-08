@@ -205,13 +205,13 @@
 					"gmb", "gmc", "gmd", "gme", "gpu7",
 					"gpv", "i2cp", "pta", "rm", "slxa",
 					"slxk", "spia", "spib", "uac";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
 					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 			};
 			conf_csus {
 				nvidia,pins = "csus", "spid", "spif";
@@ -223,7 +223,7 @@
 					"dtc", "dte", "dtf", "gpu", "sdio1",
 					"slxc", "slxd", "spdi", "spdo", "spig",
 					"uda";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_ddc {

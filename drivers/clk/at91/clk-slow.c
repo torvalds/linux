@@ -54,7 +54,7 @@ at91_clk_register_sam9260_slow(struct regmap *regmap,
 
 	slowck = kzalloc(sizeof(*slowck), GFP_KERNEL);
 	if (!slowck)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &sam9260_slow_ops;

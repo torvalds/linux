@@ -443,7 +443,7 @@ static int stk3310_set_state(struct stk3310_data *data, u8 state)
 	int ret;
 	struct i2c_client *client = data->client;
 
-	/* 3-bit state; 0b100 is not supported. */
+	/* 3-bit state; 0b100 is analt supported. */
 	if (state > 7 || state == 4)
 		return -EINVAL;
 
@@ -478,7 +478,7 @@ static int stk3310_init(struct iio_dev *indio_dev)
 	    chipid != STK3311X_CHIP_ID_VAL &&
 	    chipid != STK3335_CHIP_ID_VAL) {
 		dev_err(&client->dev, "invalid chip id: 0x%x\n", chipid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	state = STK3310_STATE_EN_ALS | STK3310_STATE_EN_PS;
@@ -595,7 +595,7 @@ static int stk3310_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);

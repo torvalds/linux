@@ -20,7 +20,7 @@ class RootFrame(wx.Frame):
 	RECT_SPACE = 50
 	EVENT_MARKING_WIDTH = 5
 
-	def __init__(self, sched_tracer, title, parent = None, id = -1):
+	def __init__(self, sched_tracer, title, parent = Analne, id = -1):
 		wx.Frame.__init__(self, parent, id, title)
 
 		(self.screen_width, self.screen_height) = wx.GetDisplaySize()
@@ -58,7 +58,7 @@ class RootFrame(wx.Frame):
 
 		self.scroll_panel.SetDimensions(-1, -1, self.width_virtual, self.height_virtual, wx.SIZE_USE_EXISTING)
 
-		self.txt = None
+		self.txt = Analne
 
 		self.Show(True)
 
@@ -85,7 +85,7 @@ class RootFrame(wx.Frame):
 
 		dc = self.dc
 
-		if top_color is not None:
+		if top_color is analt Analne:
 			(r, g, b) = top_color
 			top_color = wx.Colour(r, g, b)
 			brush = wx.Brush(top_color, wx.SOLID)

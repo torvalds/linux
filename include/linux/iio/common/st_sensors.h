@@ -198,7 +198,7 @@ struct st_sensor_data_ready_irq {
  * @das: Data Alignment Selection register.
  * @drdy_irq: Data ready register of the sensor.
  * @sim: SPI serial interface mode register of the sensor.
- * @multi_read_bit: Use or not particular bit for [I2C/SPI] multi-read.
+ * @multi_read_bit: Use or analt particular bit for [I2C/SPI] multi-read.
  * @bootime: samples to discard when sensor passing from power-down to power-up.
  */
 struct st_sensor_settings {

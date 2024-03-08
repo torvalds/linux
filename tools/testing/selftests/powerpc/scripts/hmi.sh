@@ -28,11 +28,11 @@ COUNT_HMIS() {
     dmesg | grep -c 'Harmless Hypervisor Maintenance interrupt'
 }
 
-# massively expand snooze delay, allowing injection on all cores
-ppc64_cpu --smt-snooze-delay=1000000000
+# massively expand sanaloze delay, allowing injection on all cores
+ppc64_cpu --smt-sanaloze-delay=1000000000
 
 # when we exit, restore it
-trap "ppc64_cpu --smt-snooze-delay=100" 0 1
+trap "ppc64_cpu --smt-sanaloze-delay=100" 0 1
 
 # for each chip+core combination
 # todo - less fragile parsing
@@ -44,7 +44,7 @@ while read chipcore; do
 
 	# verify that Core FIR is zero as expected
 	if [ "$($GETSCOM -c 0x${chip} $fir)" != 0 ]; then
-		echo "FIR was not zero before injection for chip $chip, core $core. Aborting!"
+		echo "FIR was analt zero before injection for chip $chip, core $core. Aborting!"
 		echo "Result of $GETSCOM -c 0x${chip} $fir:"
 		$GETSCOM -c 0x${chip} $fir
 		echo "If you get a -5 error, the core may be in idle state. Try stress-ng."
@@ -63,7 +63,7 @@ while read chipcore; do
 		exit 1
 	fi
 
-	# now we want to wait for all the HMIs to be processed
+	# analw we want to wait for all the HMIs to be processed
 	# we expect one per thread on the core
 	i=0;
 	new_hmis=$(COUNT_HMIS)

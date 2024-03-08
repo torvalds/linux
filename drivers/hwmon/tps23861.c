@@ -60,7 +60,7 @@
 #define PORT_4_STATUS			0x0f
 #define PORT_STATUS_CLASS_MASK		GENMASK(7, 4)
 #define PORT_STATUS_DETECT_MASK		GENMASK(3, 0)
-#define PORT_CLASS_UNKNOWN		0
+#define PORT_CLASS_UNKANALWN		0
 #define PORT_CLASS_1			1
 #define PORT_CLASS_2			2
 #define PORT_CLASS_3			3
@@ -69,7 +69,7 @@
 #define PORT_CLASS_0			6
 #define PORT_CLASS_OVERCURRENT		7
 #define PORT_CLASS_MISMATCH		8
-#define PORT_DETECT_UNKNOWN		0
+#define PORT_DETECT_UNKANALWN		0
 #define PORT_DETECT_SHORT		1
 #define PORT_DETECT_RESERVED		2
 #define PORT_DETECT_RESISTANCE_LOW	3
@@ -263,11 +263,11 @@ static int tps23861_write(struct device *dev, enum hwmon_sensor_types type,
 				err = -EINVAL;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -286,7 +286,7 @@ static int tps23861_read(struct device *dev, enum hwmon_sensor_types type,
 			err = tps23861_read_temp(data, val);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_in:
@@ -295,7 +295,7 @@ static int tps23861_read(struct device *dev, enum hwmon_sensor_types type,
 			err = tps23861_read_voltage(data, channel, val);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_curr:
@@ -304,11 +304,11 @@ static int tps23861_read(struct device *dev, enum hwmon_sensor_types type,
 			err = tps23861_read_current(data, channel, val);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -335,7 +335,7 @@ static int tps23861_read_string(struct device *dev,
 		*str = "Die";
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -396,8 +396,8 @@ static char *port_operating_mode_string(uint8_t mode_reg, unsigned int port)
 static char *port_detect_status_string(uint8_t status_reg)
 {
 	switch (FIELD_GET(PORT_STATUS_DETECT_MASK, status_reg)) {
-	case PORT_DETECT_UNKNOWN:
-		return "Unknown device";
+	case PORT_DETECT_UNKANALWN:
+		return "Unkanalwn device";
 	case PORT_DETECT_SHORT:
 		return "Short circuit";
 	case PORT_DETECT_RESISTANCE_LOW:
@@ -428,8 +428,8 @@ static char *port_detect_status_string(uint8_t status_reg)
 static char *port_class_status_string(uint8_t status_reg)
 {
 	switch (FIELD_GET(PORT_STATUS_CLASS_MASK, status_reg)) {
-	case PORT_CLASS_UNKNOWN:
-		return "Unknown";
+	case PORT_CLASS_UNKANALWN:
+		return "Unkanalwn";
 	case PORT_CLASS_RESERVED:
 	case PORT_CLASS_0:
 		return "0";
@@ -452,7 +452,7 @@ static char *port_class_status_string(uint8_t status_reg)
 
 static char *port_poe_plus_status_string(uint8_t poe_plus, unsigned int port)
 {
-	return (BIT(port + 4) & poe_plus) ? "Yes" : "No";
+	return (BIT(port + 4) & poe_plus) ? "Anal" : "Anal";
 }
 
 static int tps23861_port_resistance(struct tps23861_data *data, int port)
@@ -531,7 +531,7 @@ static int tps23861_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
@@ -542,7 +542,7 @@ static int tps23861_probe(struct i2c_client *client)
 		return PTR_ERR(data->regmap);
 	}
 
-	if (!of_property_read_u32(dev->of_node, "shunt-resistor-micro-ohms", &shunt_resistor))
+	if (!of_property_read_u32(dev->of_analde, "shunt-resistor-micro-ohms", &shunt_resistor))
 		data->shunt_resistor = shunt_resistor;
 	else
 		data->shunt_resistor = SHUNT_RESISTOR_DEFAULT;

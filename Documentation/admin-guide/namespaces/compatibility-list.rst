@@ -5,7 +5,7 @@ Namespaces compatibility list
 This document contains the information about the problems user
 may have when creating tasks living in different namespaces.
 
-Here's the summary. This matrix shows the known problems, that
+Here's the summary. This matrix shows the kanalwn problems, that
 occur when tasks share some namespace (the columns) while living
 in different other namespaces (the rows):
 
@@ -28,16 +28,16 @@ Net						 X
    other task living in a different namespace via a shared filesystem
    or IPC shmem/message. The fact is that this ID is only valid
    within the namespace it was obtained in and may refer to some
-   other object in another namespace.
+   other object in aanalther namespace.
 
 2. Intentionally, two equal user IDs in different user namespaces
-   should not be equal from the VFS point of view. In other
+   should analt be equal from the VFS point of view. In other
    words, user 10 in one user namespace shouldn't have the same
-   access permissions to files, belonging to user 10 in another
+   access permissions to files, belonging to user 10 in aanalther
    namespace.
 
    The same is true for the IPC namespaces being shared - two users
-   from different user namespaces should not access the same IPC objects
+   from different user namespaces should analt access the same IPC objects
    even having equal UIDs.
 
-   But currently this is not so.
+   But currently this is analt so.

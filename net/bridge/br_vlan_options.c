@@ -57,7 +57,7 @@ bool br_vlan_opts_fill(struct sk_buff *skb, const struct net_bridge_vlan *v,
 		       !!(v->priv_flags & BR_VLFLAG_NEIGH_SUPPRESS_ENABLED)))
 		return false;
 
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 	if (nla_put_u8(skb, BRIDGE_VLANDB_ENTRY_MCAST_ROUTER,
 		       br_vlan_multicast_router(v)))
 		return false;
@@ -77,7 +77,7 @@ size_t br_vlan_opts_nl_size(void)
 	return nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_ENTRY_STATE */
 	       + nla_total_size(0) /* BRIDGE_VLANDB_ENTRY_TUNNEL_INFO */
 	       + nla_total_size(sizeof(u32)) /* BRIDGE_VLANDB_TINFO_ID */
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 	       + nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_ENTRY_MCAST_ROUTER */
 	       + nla_total_size(sizeof(u32)) /* BRIDGE_VLANDB_ENTRY_MCAST_N_GROUPS */
 	       + nla_total_size(sizeof(u32)) /* BRIDGE_VLANDB_ENTRY_MCAST_MAX_GROUPS */
@@ -145,7 +145,7 @@ static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
 	int cmd, err;
 
 	if (!p) {
-		NL_SET_ERR_MSG_MOD(extack, "Can't modify tunnel mapping of non-port vlans");
+		NL_SET_ERR_MSG_MOD(extack, "Can't modify tunnel mapping of analn-port vlans");
 		return -EINVAL;
 	}
 	if (!(p->flags & BR_VLAN_TUNNEL)) {
@@ -161,14 +161,14 @@ static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
 
 	if (!tun_tb[BRIDGE_VLANDB_TINFO_CMD]) {
 		NL_SET_ERR_MSG_MOD(extack, "Missing tunnel command attribute");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	cmd = nla_get_u32(tun_tb[BRIDGE_VLANDB_TINFO_CMD]);
 	switch (cmd) {
 	case RTM_SETLINK:
 		if (!tun_tb[BRIDGE_VLANDB_TINFO_ID]) {
 			NL_SET_ERR_MSG_MOD(extack, "Missing tunnel id attribute");
-			return -ENOENT;
+			return -EANALENT;
 		}
 		/* when working on vlan ranges this is the starting tunnel id */
 		tun_id = nla_get_u32(tun_tb[BRIDGE_VLANDB_TINFO_ID]);
@@ -214,7 +214,7 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 			return err;
 	}
 
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 	if (tb[BRIDGE_VLANDB_ENTRY_MCAST_ROUTER]) {
 		u8 val;
 
@@ -228,11 +228,11 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 		u32 val;
 
 		if (!p) {
-			NL_SET_ERR_MSG_MOD(extack, "Can't set mcast_max_groups for non-port vlans");
+			NL_SET_ERR_MSG_MOD(extack, "Can't set mcast_max_groups for analn-port vlans");
 			return -EINVAL;
 		}
 		if (br_multicast_port_ctx_vlan_disabled(&v->port_mcast_ctx)) {
-			NL_SET_ERR_MSG_MOD(extack, "Multicast snooping disabled on this VLAN");
+			NL_SET_ERR_MSG_MOD(extack, "Multicast sanaloping disabled on this VLAN");
 			return -EINVAL;
 		}
 
@@ -247,7 +247,7 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 		bool val = nla_get_u8(tb[BRIDGE_VLANDB_ENTRY_NEIGH_SUPPRESS]);
 
 		if (!p) {
-			NL_SET_ERR_MSG_MOD(extack, "Can't set neigh_suppress for non-port vlans");
+			NL_SET_ERR_MSG_MOD(extack, "Can't set neigh_suppress for analn-port vlans");
 			return -EINVAL;
 		}
 
@@ -279,11 +279,11 @@ int br_vlan_process_options(const struct net_bridge *br,
 
 	if (!range_start || !br_vlan_should_use(range_start)) {
 		NL_SET_ERR_MSG_MOD(extack, "Vlan range start doesn't exist, can't process options");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	if (!range_end || !br_vlan_should_use(range_end)) {
 		NL_SET_ERR_MSG_MOD(extack, "Vlan range end doesn't exist, can't process options");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	pvid = br_get_pvid(vg);
@@ -293,7 +293,7 @@ int br_vlan_process_options(const struct net_bridge *br,
 		v = br_vlan_find(vg, vid);
 		if (!v || !br_vlan_should_use(v)) {
 			NL_SET_ERR_MSG_MOD(extack, "Vlan in range doesn't exist, can't process options");
-			err = -ENOENT;
+			err = -EANALENT;
 			break;
 		}
 
@@ -312,24 +312,24 @@ int br_vlan_process_options(const struct net_bridge *br,
 
 			if (v->vid == pvid ||
 			    !br_vlan_can_enter_range(v, curr_end)) {
-				br_vlan_notify(br, p, curr_start->vid,
+				br_vlan_analtify(br, p, curr_start->vid,
 					       curr_end->vid, RTM_NEWVLAN);
 				curr_start = v;
 			}
 			curr_end = v;
 		} else {
-			/* nothing changed and nothing to notify yet */
+			/* analthing changed and analthing to analtify yet */
 			if (!curr_start)
 				continue;
 
-			br_vlan_notify(br, p, curr_start->vid, curr_end->vid,
+			br_vlan_analtify(br, p, curr_start->vid, curr_end->vid,
 				       RTM_NEWVLAN);
 			curr_start = NULL;
 			curr_end = NULL;
 		}
 	}
 	if (curr_start)
-		br_vlan_notify(br, p, curr_start->vid, curr_end->vid,
+		br_vlan_analtify(br, p, curr_start->vid, curr_end->vid,
 			       RTM_NEWVLAN);
 
 	return err;
@@ -364,8 +364,8 @@ bool br_vlan_global_opts_fill(struct sk_buff *skb, u16 vid, u16 vid_range,
 	    nla_put_u16(skb, BRIDGE_VLANDB_GOPTS_RANGE, vid_range))
 		goto out_err;
 
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	if (nla_put_u8(skb, BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING,
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
+	if (nla_put_u8(skb, BRIDGE_VLANDB_GOPTS_MCAST_SANALOPING,
 		       !!(v_opts->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED)) ||
 	    nla_put_u8(skb, BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION,
 		       v_opts->br_mcast_ctx.multicast_igmp_version) ||
@@ -445,8 +445,8 @@ static size_t rtnl_vlan_global_opts_nlmsg_size(const struct net_bridge_vlan *v)
 	return NLMSG_ALIGN(sizeof(struct br_vlan_msg))
 		+ nla_total_size(0) /* BRIDGE_VLANDB_GLOBAL_OPTIONS */
 		+ nla_total_size(sizeof(u16)) /* BRIDGE_VLANDB_GOPTS_ID */
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING */
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
+		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_SANALOPING */
 		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION */
 		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION */
 		+ nla_total_size(sizeof(u32)) /* BRIDGE_VLANDB_GOPTS_MCAST_LAST_MEMBER_CNT */
@@ -466,16 +466,16 @@ static size_t rtnl_vlan_global_opts_nlmsg_size(const struct net_bridge_vlan *v)
 		+ nla_total_size(sizeof(u16)); /* BRIDGE_VLANDB_GOPTS_RANGE */
 }
 
-static void br_vlan_global_opts_notify(const struct net_bridge *br,
+static void br_vlan_global_opts_analtify(const struct net_bridge *br,
 				       u16 vid, u16 vid_range)
 {
 	struct net_bridge_vlan *v;
 	struct br_vlan_msg *bvm;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
-	/* right now notifications are done only with rtnl held */
+	/* right analw analtifications are done only with rtnl held */
 	ASSERT_RTNL();
 
 	/* need to find the vlan due to flags/options */
@@ -500,7 +500,7 @@ static void br_vlan_global_opts_notify(const struct net_bridge *br,
 		goto out_err;
 
 	nlmsg_end(skb, nlh);
-	rtnl_notify(skb, dev_net(br->dev), 0, RTNLGRP_BRVLAN, NULL, GFP_KERNEL);
+	rtnl_analtify(skb, dev_net(br->dev), 0, RTNLGRP_BRVLAN, NULL, GFP_KERNEL);
 	return;
 
 out_err:
@@ -518,12 +518,12 @@ static int br_vlan_process_global_one_opts(const struct net_bridge *br,
 	int err __maybe_unused;
 
 	*changed = false;
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	if (tb[BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING]) {
-		u8 mc_snooping;
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
+	if (tb[BRIDGE_VLANDB_GOPTS_MCAST_SANALOPING]) {
+		u8 mc_sanaloping;
 
-		mc_snooping = nla_get_u8(tb[BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING]);
-		if (br_multicast_toggle_global_vlan(v, !!mc_snooping))
+		mc_sanaloping = nla_get_u8(tb[BRIDGE_VLANDB_GOPTS_MCAST_SANALOPING]);
+		if (br_multicast_toggle_global_vlan(v, !!mc_sanaloping))
 			*changed = true;
 	}
 	if (tb[BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION]) {
@@ -628,7 +628,7 @@ static int br_vlan_process_global_one_opts(const struct net_bridge *br,
 static const struct nla_policy br_vlan_db_gpol[BRIDGE_VLANDB_GOPTS_MAX + 1] = {
 	[BRIDGE_VLANDB_GOPTS_ID]	= { .type = NLA_U16 },
 	[BRIDGE_VLANDB_GOPTS_RANGE]	= { .type = NLA_U16 },
-	[BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING]	= { .type = NLA_U8 },
+	[BRIDGE_VLANDB_GOPTS_MCAST_SANALOPING]	= { .type = NLA_U8 },
 	[BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION]	= { .type = NLA_U8 },
 	[BRIDGE_VLANDB_GOPTS_MCAST_QUERY_INTVL]	= { .type = NLA_U64 },
 	[BRIDGE_VLANDB_GOPTS_MCAST_QUERIER]	= { .type = NLA_U8 },
@@ -666,7 +666,7 @@ int br_vlan_rtm_process_global_options(struct net_device *dev,
 	br = netdev_priv(dev);
 	vg = br_vlan_group(br);
 	if (WARN_ON(!vg))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = nla_parse_nested(tb, BRIDGE_VLANDB_GOPTS_MAX, attr,
 			       br_vlan_db_gpol, extack);
@@ -699,7 +699,7 @@ int br_vlan_rtm_process_global_options(struct net_device *dev,
 		v = br_vlan_find(vg, vid);
 		if (!v) {
 			NL_SET_ERR_MSG_MOD(extack, "Vlan in range doesn't exist, can't process global options");
-			err = -ENOENT;
+			err = -EANALENT;
 			break;
 		}
 
@@ -717,24 +717,24 @@ int br_vlan_rtm_process_global_options(struct net_device *dev,
 			}
 
 			if (!br_vlan_global_opts_can_enter_range(v, curr_end)) {
-				br_vlan_global_opts_notify(br, curr_start->vid,
+				br_vlan_global_opts_analtify(br, curr_start->vid,
 							   curr_end->vid);
 				curr_start = v;
 			}
 			curr_end = v;
 		} else {
-			/* nothing changed and nothing to notify yet */
+			/* analthing changed and analthing to analtify yet */
 			if (!curr_start)
 				continue;
 
-			br_vlan_global_opts_notify(br, curr_start->vid,
+			br_vlan_global_opts_analtify(br, curr_start->vid,
 						   curr_end->vid);
 			curr_start = NULL;
 			curr_end = NULL;
 		}
 	}
 	if (curr_start)
-		br_vlan_global_opts_notify(br, curr_start->vid, curr_end->vid);
+		br_vlan_global_opts_analtify(br, curr_start->vid, curr_end->vid);
 
 	return err;
 }

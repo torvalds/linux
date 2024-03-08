@@ -77,12 +77,12 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 		info->flags |= MSI_ALLOC_FLAGS_PROXY_DEVICE;
 	}
 
-	/* ITS specific DeviceID, as the core ITS ignores dev. */
+	/* ITS specific DeviceID, as the core ITS iganalres dev. */
 	info->scratchpad[0].ul = pci_msi_domain_get_msi_rid(domain, pdev);
 
 	/*
 	 * Always allocate a power of 2, and special case device 0 for
-	 * broken systems where the DevID is not wired (and all devices
+	 * broken systems where the DevID is analt wired (and all devices
 	 * appear as DevID 0). For that reason, we generously allocate a
 	 * minimum of 32 MSIs for DevID 0. If you want more because all
 	 * your devices are aliasing to DevID 0, consider fixing your HW.
@@ -110,12 +110,12 @@ static struct of_device_id its_device_id[] = {
 	{},
 };
 
-static int __init its_pci_msi_init_one(struct fwnode_handle *handle,
+static int __init its_pci_msi_init_one(struct fwanalde_handle *handle,
 				       const char *name)
 {
 	struct irq_domain *parent;
 
-	parent = irq_find_matching_fwnode(handle, DOMAIN_BUS_NEXUS);
+	parent = irq_find_matching_fwanalde(handle, DOMAIN_BUS_NEXUS);
 	if (!parent || !msi_get_domain_info(parent)) {
 		pr_err("%s: Unable to locate ITS domain\n", name);
 		return -ENXIO;
@@ -124,7 +124,7 @@ static int __init its_pci_msi_init_one(struct fwnode_handle *handle,
 	if (!pci_msi_create_irq_domain(handle, &its_pci_msi_domain_info,
 				       parent)) {
 		pr_err("%s: Unable to create PCI domain\n", name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -132,16 +132,16 @@ static int __init its_pci_msi_init_one(struct fwnode_handle *handle,
 
 static int __init its_pci_of_msi_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for (np = of_find_matching_node(NULL, its_device_id); np;
-	     np = of_find_matching_node(np, its_device_id)) {
+	for (np = of_find_matching_analde(NULL, its_device_id); np;
+	     np = of_find_matching_analde(np, its_device_id)) {
 		if (!of_device_is_available(np))
 			continue;
 		if (!of_property_read_bool(np, "msi-controller"))
 			continue;
 
-		if (its_pci_msi_init_one(of_node_to_fwnode(np), np->full_name))
+		if (its_pci_msi_init_one(of_analde_to_fwanalde(np), np->full_name))
 			continue;
 
 		pr_info("PCI/MSI: %pOF domain created\n", np);
@@ -157,25 +157,25 @@ its_pci_msi_parse_madt(union acpi_subtable_headers *header,
 		       const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;
-	struct fwnode_handle *dom_handle;
-	const char *node_name;
+	struct fwanalde_handle *dom_handle;
+	const char *analde_name;
 	int err = -ENXIO;
 
 	its_entry = (struct acpi_madt_generic_translator *)header;
-	node_name = kasprintf(GFP_KERNEL, "ITS@0x%lx",
+	analde_name = kasprintf(GFP_KERNEL, "ITS@0x%lx",
 			      (long)its_entry->base_address);
 	dom_handle = iort_find_domain_token(its_entry->translation_id);
 	if (!dom_handle) {
-		pr_err("%s: Unable to locate ITS domain handle\n", node_name);
+		pr_err("%s: Unable to locate ITS domain handle\n", analde_name);
 		goto out;
 	}
 
-	err = its_pci_msi_init_one(dom_handle, node_name);
+	err = its_pci_msi_init_one(dom_handle, analde_name);
 	if (!err)
-		pr_info("PCI/MSI: %s domain created\n", node_name);
+		pr_info("PCI/MSI: %s domain created\n", analde_name);
 
 out:
-	kfree(node_name);
+	kfree(analde_name);
 	return err;
 }
 

@@ -26,29 +26,29 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 {
 	struct platform_device *pdev = msm_dsi->pdev;
 	struct platform_device *phy_pdev;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 
-	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
-	if (!phy_node) {
-		DRM_DEV_ERROR(&pdev->dev, "cannot find phy device\n");
+	phy_analde = of_parse_phandle(pdev->dev.of_analde, "phys", 0);
+	if (!phy_analde) {
+		DRM_DEV_ERROR(&pdev->dev, "cananalt find phy device\n");
 		return -ENXIO;
 	}
 
-	phy_pdev = of_find_device_by_node(phy_node);
+	phy_pdev = of_find_device_by_analde(phy_analde);
 	if (phy_pdev) {
 		msm_dsi->phy = platform_get_drvdata(phy_pdev);
 		msm_dsi->phy_dev = &phy_pdev->dev;
 	}
 
-	of_node_put(phy_node);
+	of_analde_put(phy_analde);
 
 	if (!phy_pdev) {
-		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is not ready\n", __func__);
+		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is analt ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
 	if (!msm_dsi->phy) {
 		put_device(&phy_pdev->dev);
-		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is not ready\n", __func__);
+		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is analt ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
@@ -86,7 +86,7 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 
 	msm_dsi = devm_kzalloc(&pdev->dev, sizeof(*msm_dsi), GFP_KERNEL);
 	if (!msm_dsi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	DBG("dsi probed=%p", msm_dsi);
 
 	msm_dsi->id = -1;
@@ -157,8 +157,8 @@ static int dsi_dev_probe(struct platform_device *pdev)
 	DBG("");
 	msm_dsi = dsi_init(pdev);
 	if (IS_ERR(msm_dsi)) {
-		/* Don't fail the bind if the dsi port is not connected */
-		if (PTR_ERR(msm_dsi) == -ENODEV)
+		/* Don't fail the bind if the dsi port is analt connected */
+		if (PTR_ERR(msm_dsi) == -EANALDEV)
 			return 0;
 		else
 			return PTR_ERR(msm_dsi);
@@ -229,7 +229,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 	if (msm_dsi_is_bonded_dsi(msm_dsi) &&
 	    !msm_dsi_is_master_dsi(msm_dsi)) {
 		/*
-		 * Do not return an eror here,
+		 * Do analt return an eror here,
 		 * Just skip creating encoder/connector for the slave-DSI.
 		 */
 		return 0;

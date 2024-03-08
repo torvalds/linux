@@ -57,7 +57,7 @@ int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 	}
 
 	if (dump_size > size) {
-		wil_err(wil, "not enough space for dump. Need %d have %d\n",
+		wil_err(wil, "analt eanalugh space for dump. Need %d have %d\n",
 			dump_size, size);
 		return -EINVAL;
 	}
@@ -67,7 +67,7 @@ int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 	if (test_bit(wil_status_suspending, wil->status) ||
 	    test_bit(wil_status_suspended, wil->status)) {
 		wil_err(wil,
-			"suspend/resume in progress. cannot copy crash dump\n");
+			"suspend/resume in progress. cananalt copy crash dump\n");
 		up_write(&wil->mem_lock);
 		return -EBUSY;
 	}

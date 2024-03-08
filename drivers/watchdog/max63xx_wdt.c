@@ -8,7 +8,7 @@
  *
  * This driver assumes the watchdog pins are memory mapped (as it is
  * the case for the Arcom Zeus). Should it be connected over GPIOs or
- * another interface, some abstraction will have to be introduced.
+ * aanalther interface, some abstraction will have to be introduced.
  */
 
 #include <linux/err.h>
@@ -29,7 +29,7 @@
 #define MAX_HEARTBEAT     60
 
 static unsigned int heartbeat = DEFAULT_HEARTBEAT;
-static bool nowayout  = WATCHDOG_NOWAYOUT;
+static bool analwayout  = WATCHDOG_ANALWAYOUT;
 
 /*
  * Memory mapping: a single byte, 3 first lower bits to select bit 3
@@ -40,7 +40,7 @@ static bool nowayout  = WATCHDOG_NOWAYOUT;
 
 #define MAX6369_WDSET_DISABLED	3
 
-static int nodelay;
+static int analdelay;
 
 struct max63xx_wdt {
 	struct watchdog_device wdd;
@@ -59,10 +59,10 @@ struct max63xx_wdt {
  * The timeout values used are actually the absolute minimum the chip
  * offers. Typical values on my board are slightly over twice as long
  * (10s setting ends up with a 25s timeout), and can be up to 3 times
- * the nominal setting (according to the datasheet). So please take
+ * the analminal setting (according to the datasheet). So please take
  * these values with a grain of salt. Same goes for the initial delay
  * "feature". Only max6373/74 have a few settings without this initial
- * delay (selected with the "nodelay" parameter).
+ * delay (selected with the "analdelay" parameter).
  *
  * I also decided to remove from the tables any timeout smaller than a
  * second, as it looked completly overkill...
@@ -102,10 +102,10 @@ max63xx_select_timeout(const struct max63xx_timeout *table, int value)
 {
 	while (table->twd) {
 		if (value <= table->twd) {
-			if (nodelay && table->tdelay == 0)
+			if (analdelay && table->tdelay == 0)
 				return table;
 
-			if (!nodelay)
+			if (!analdelay)
 				return table;
 		}
 
@@ -205,9 +205,9 @@ static int max63xx_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Attempt to use fwnode first */
+	/* Attempt to use fwanalde first */
 	table = device_get_match_data(dev);
 	if (!table)
 		table = (struct max63xx_timeout *)pdev->id_entry->driver_data;
@@ -234,7 +234,7 @@ static int max63xx_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.info = &max63xx_wdt_info;
 	wdt->wdd.ops = &max63xx_wdt_ops;
 
-	watchdog_set_nowayout(&wdt->wdd, nowayout);
+	watchdog_set_analwayout(&wdt->wdd, analwayout);
 
 	err = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (err)
@@ -287,12 +287,12 @@ MODULE_PARM_DESC(heartbeat,
 		 __MODULE_STRING(MAX_HEARTBEAT) ", default "
 		 __MODULE_STRING(DEFAULT_HEARTBEAT));
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
-module_param(nodelay, int, 0);
-MODULE_PARM_DESC(nodelay,
+module_param(analdelay, int, 0);
+MODULE_PARM_DESC(analdelay,
 		 "Force selection of a timeout setting without initial delay "
 		 "(max6373/74 only, default=0)");
 

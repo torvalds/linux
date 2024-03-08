@@ -18,7 +18,7 @@
  * @want_state: The minimum state the object must be at
  *
  * See if the target cache object is at the specified minimum state of
- * accessibility yet, and if not, wait for it.
+ * accessibility yet, and if analt, wait for it.
  */
 bool fscache_wait_for_operation(struct netfs_cache_resources *cres,
 				enum fscache_want_state want_state)
@@ -39,7 +39,7 @@ again:
 	case FSCACHE_COOKIE_STATE_CREATING:
 	case FSCACHE_COOKIE_STATE_INVALIDATING:
 		if (want_state == FSCACHE_WANT_PARAMS)
-			goto ready; /* There can be no content */
+			goto ready; /* There can be anal content */
 		fallthrough;
 	case FSCACHE_COOKIE_STATE_LOOKING_UP:
 	case FSCACHE_COOKIE_STATE_LRU_DISCARDING:
@@ -52,7 +52,7 @@ again:
 	case FSCACHE_COOKIE_STATE_DROPPED:
 	case FSCACHE_COOKIE_STATE_RELINQUISHING:
 	default:
-		_leave(" [not live]");
+		_leave(" [analt live]");
 		return false;
 	}
 
@@ -84,7 +84,7 @@ static int fscache_begin_operation(struct netfs_cache_resources *cres,
 	cres->inval_counter	= cookie->inval_counter;
 
 	if (!fscache_begin_cookie_access(cookie, why))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 again:
 	spin_lock(&cookie->lock);
@@ -99,16 +99,16 @@ again:
 		goto wait_for_file_wrangling;
 	case FSCACHE_COOKIE_STATE_CREATING:
 		if (want_state == FSCACHE_WANT_PARAMS)
-			goto ready; /* There can be no content */
+			goto ready; /* There can be anal content */
 		goto wait_for_file_wrangling;
 	case FSCACHE_COOKIE_STATE_ACTIVE:
 		goto ready;
 	case FSCACHE_COOKIE_STATE_DROPPED:
 	case FSCACHE_COOKIE_STATE_RELINQUISHING:
 		WARN(1, "Can't use cookie in state %u\n", cookie->state);
-		goto not_live;
+		goto analt_live;
 	default:
-		goto not_live;
+		goto analt_live;
 	}
 
 ready:
@@ -132,14 +132,14 @@ wait_for_file_wrangling:
 	}
 	goto again;
 
-not_live:
+analt_live:
 	spin_unlock(&cookie->lock);
 failed:
 	cres->cache_priv = NULL;
 	cres->ops = NULL;
-	fscache_end_cookie_access(cookie, fscache_access_io_not_live);
-	_leave(" = -ENOBUFS");
-	return -ENOBUFS;
+	fscache_end_cookie_access(cookie, fscache_access_io_analt_live);
+	_leave(" = -EANALBUFS");
+	return -EANALBUFS;
 }
 
 int __fscache_begin_read_operation(struct netfs_cache_resources *cres,
@@ -215,14 +215,14 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 	struct fscache_write_request *wreq;
 	struct netfs_cache_resources *cres;
 	struct iov_iter iter;
-	int ret = -ENOBUFS;
+	int ret = -EANALBUFS;
 
 	if (len == 0)
 		goto abandon;
 
 	_enter("%llx,%zx", start, len);
 
-	wreq = kzalloc(sizeof(struct fscache_write_request), GFP_NOFS);
+	wreq = kzalloc(sizeof(struct fscache_write_request), GFP_ANALFS);
 	if (!wreq)
 		goto abandon;
 	wreq->mapping		= mapping;
@@ -241,7 +241,7 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 	if (ret < 0)
 		goto abandon_end;
 
-	/* TODO: Consider clearing page bits now for space the write isn't
+	/* TODO: Consider clearing page bits analw for space the write isn't
 	 * covering.  This is more complicated than it appears when THPs are
 	 * taken into account.
 	 */
@@ -274,8 +274,8 @@ void __fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size)
 		fscache_stat(&fscache_n_resizes);
 		set_bit(FSCACHE_COOKIE_NEEDS_UPDATE, &cookie->flags);
 
-		/* We cannot defer a resize as we need to do it inside the
-		 * netfs's inode lock so that we're serialised with respect to
+		/* We cananalt defer a resize as we need to do it inside the
+		 * netfs's ianalde lock so that we're serialised with respect to
 		 * writes.
 		 */
 		cookie->volume->cache->ops->resize_cookie(&cres, new_size);

@@ -39,20 +39,20 @@ Affected SMT-capable processors support 1T and 2T modes of execution when SMT
 is enabled. In 2T mode, both threads in a core are executing code. For the
 processor core to enter 1T mode, it is required that one of the threads
 requests to transition out of the C0 state. This can be communicated with the
-HLT instruction or with an MWAIT instruction that requests non-C0.
+HLT instruction or with an MWAIT instruction that requests analn-C0.
 When the thread re-enters the C0 state, the processor transitions back
 to 2T mode, assuming the other thread is also still in C0 state.
 
 In affected processors, the return address predictor (RAP) is partitioned
 depending on the SMT mode. For instance, in 2T mode each thread uses a private
 16-entry RAP, but in 1T mode, the active thread uses a 32-entry RAP. Upon
-transition between 1T/2T mode, the RAP contents are not modified but the RAP
+transition between 1T/2T mode, the RAP contents are analt modified but the RAP
 pointers (which control the next return target to use for predictions) may
 change. This behavior may result in return targets from one SMT thread being
 used by RET predictions in the sibling thread following a 1T/2T switch. In
 particular, a RET instruction executed immediately after a transition to 1T may
 use a return target from the thread that just became idle. In theory, this
-could lead to information disclosure if the return targets used do not come
+could lead to information disclosure if the return targets used do analt come
 from trustworthy code.
 
 Attack scenarios
@@ -84,8 +84,8 @@ Mitigation control for KVM - module parameter
 
 By default, the KVM hypervisor mitigates this issue by intercepting guest
 attempts to transition out of C0. A VMM can use the KVM_CAP_X86_DISABLE_EXITS
-capability to override those interceptions, but since this is not common, the
-mitigation that covers this path is not enabled by default.
+capability to override those interceptions, but since this is analt common, the
+mitigation that covers this path is analt enabled by default.
 
 The mitigation for the KVM_CAP_X86_DISABLE_EXITS capability can be turned on
 using the boolean module parameter mitigate_smt_rsb, e.g. ``kvm.mitigate_smt_rsb=1``.

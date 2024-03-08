@@ -7,7 +7,7 @@ IOMMU Userspace API
 
 IOMMU UAPI is used for virtualization cases where communications are
 needed between physical and virtual IOMMU drivers. For baremetal
-usage, the IOMMU is a system device which does not need to communicate
+usage, the IOMMU is a system device which does analt need to communicate
 with userspace directly.
 
 The primary use cases are guest Shared Virtual Address (SVA) and
@@ -34,12 +34,12 @@ requirements:
 
 1. Emulated and para-virtualised vIOMMUs
 2. Multiple vendors (Intel VT-d, ARM SMMU, etc.)
-3. Extensions to the UAPI shall not break existing userspace
+3. Extensions to the UAPI shall analt break existing userspace
 
 Interfaces
 ==========
 Although the data structures defined in IOMMU UAPI are self-contained,
-there are no user API functions introduced. Instead, IOMMU UAPI is
+there are anal user API functions introduced. Instead, IOMMU UAPI is
 designed to work with existing user driver frameworks such as VFIO.
 
 Extension Rules & Precautions
@@ -47,10 +47,10 @@ Extension Rules & Precautions
 When IOMMU UAPI gets extended, the data structures can *only* be
 modified in two ways:
 
-1. Adding new fields by re-purposing the padding[] field. No size change.
+1. Adding new fields by re-purposing the padding[] field. Anal size change.
 2. Adding new union members at the end. May increase the structure sizes.
 
-No new fields can be added *after* the variable sized union in that it
+Anal new fields can be added *after* the variable sized union in that it
 will break backward compatibility when offset moves. A new flag must
 be introduced whenever a change affects the structure using either
 method. The IOMMU driver processes the data based on flags which
@@ -61,7 +61,7 @@ at its entirety.
 
 It's *always* the caller's responsibility to indicate the size of the
 structure passed by setting argsz appropriately.
-Though at the same time, argsz is user provided data which is not
+Though at the same time, argsz is user provided data which is analt
 trusted. The argsz field allows the user app to indicate how much data
 it is providing; it's still the kernel's responsibility to validate
 whether it's correct and sufficient for the requested operation.
@@ -83,7 +83,7 @@ Feature Checking
 ----------------
 While launching a guest with vIOMMU, it is strongly advised to check
 the compatibility upfront, as some subsequent errors happening during
-vIOMMU operation, such as cache invalidation failures cannot be nicely
+vIOMMU operation, such as cache invalidation failures cananalt be nicely
 escalated to the guest due to IOMMU specifications. This can lead to
 catastrophic failures for the users.
 
@@ -91,9 +91,9 @@ User applications such as QEMU are expected to import kernel UAPI
 headers. Backward compatibility is supported per feature flags.
 For example, an older QEMU (with older kernel header) can run on newer
 kernel. Newer QEMU (with new kernel header) may refuse to initialize
-on an older kernel if new feature flags are not supported by older
+on an older kernel if new feature flags are analt supported by older
 kernel. Simply recompiling existing code with newer kernel header should
-not be an issue in that only existing flags are used.
+analt be an issue in that only existing flags are used.
 
 IOMMU vendor driver should report the below features to IOMMU UAPI
 consumers (e.g. via VFIO).
@@ -170,15 +170,15 @@ divided as follows:
 - Generic IOMMU layer checks argsz range based on UAPI data in the
   current kernel version.
 
-- Generic IOMMU layer checks content of the UAPI data for non-zero
+- Generic IOMMU layer checks content of the UAPI data for analn-zero
   reserved bits in flags, padding fields, and unsupported version.
-  This is to ensure not breaking userspace in the future when these
+  This is to ensure analt breaking userspace in the future when these
   fields or flags are used.
 
 - Vendor IOMMU driver checks argsz based on vendor flags. UAPI data
   is consumed based on flags. Vendor driver has access to
   unadulterated argsz value in case of vendor specific future
-  extensions. Currently, it does not perform the copy_from_user()
+  extensions. Currently, it does analt perform the copy_from_user()
   itself. A __user pointer can be provided in some future scenarios
   where there's vendor data outside of the structure definition.
 

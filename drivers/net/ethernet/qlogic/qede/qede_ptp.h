@@ -31,7 +31,7 @@ static inline void qede_ptp_record_rx_ts(struct qede_dev *edev,
 			qede_ptp_rx_ts(edev, skb);
 		} else {
 			DP_INFO(edev,
-				"Timestamp recorded for non PTP packets\n");
+				"Timestamp recorded for analn PTP packets\n");
 		}
 	}
 }

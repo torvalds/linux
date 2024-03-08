@@ -188,7 +188,7 @@ static const struct pinctrl_ops as3722_pinctrl_ops = {
 	.get_groups_count = as3722_pinctrl_get_groups_count,
 	.get_group_name = as3722_pinctrl_get_group_name,
 	.get_group_pins = as3722_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -302,7 +302,7 @@ static int as3722_pinctrl_gpio_set_direction(struct pinctrl_dev *pctldev,
 	mode = as3722_pinctrl_gpio_get_mode(
 			as_pci->gpio_control[offset].mode_prop, input);
 	if (mode < 0) {
-		dev_err(as_pci->dev, "%s direction for GPIO %d not supported\n",
+		dev_err(as_pci->dev, "%s direction for GPIO %d analt supported\n",
 			(input) ? "Input" : "Output", offset);
 		return mode;
 	}
@@ -354,8 +354,8 @@ static int as3722_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(as_pci->dev, "Properties not supported\n");
-		return -ENOTSUPP;
+		dev_err(as_pci->dev, "Properties analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	if (as_pci->gpio_control[pin].mode_prop & prop)
@@ -403,8 +403,8 @@ static int as3722_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			dev_err(as_pci->dev, "Properties not supported\n");
-			return -ENOTSUPP;
+			dev_err(as_pci->dev, "Properties analt supported\n");
+			return -EANALTSUPP;
 		}
 
 		as_pci->gpio_control[pin].mode_prop = mode_prop;
@@ -534,11 +534,11 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 	struct as3722_pctrl_info *as_pci;
 	int ret;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	as_pci = devm_kzalloc(&pdev->dev, sizeof(*as_pci), GFP_KERNEL);
 	if (!as_pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	as_pci->dev = &pdev->dev;
 	as_pci->as3722 = dev_get_drvdata(pdev->dev.parent);

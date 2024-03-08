@@ -15,7 +15,7 @@
 #include <asm/epapr_hcalls.h>
 #include <asm/hw_irq.h>
 
-/* 64-bit version only for now */
+/* 64-bit version only for analw */
 .macro BOOK3E_IDLE name loop
 _GLOBAL(\name)
 	/* Save LR for later */
@@ -25,14 +25,14 @@ _GLOBAL(\name)
 	/* Hard disable interrupts */
 	wrteei	0
 
-	/* Now check if an interrupt came in while we were soft disabled
+	/* Analw check if an interrupt came in while we were soft disabled
 	 * since we may otherwise lose it (doorbells etc...).
 	 */
 	lbz	r3,PACAIRQHAPPENED(r13)
 	cmpwi	cr0,r3,0
 	bne	2f
 
-	/* Now we are going to mark ourselves as soft and hard enabled in
+	/* Analw we are going to mark ourselves as soft and hard enabled in
 	 * order to be able to take interrupts while asleep. We inform lockdep
 	 * of that. We don't actually turn interrupts on just yet tho.
 	 */
@@ -62,7 +62,7 @@ _GLOBAL(\name)
 	ori	r10,r10,_TLF_NAPPING
 	std	r10,TI_LOCAL_FLAGS(r11)
 
-	/* We can now re-enable hard interrupts and go to sleep */
+	/* We can analw re-enable hard interrupts and go to sleep */
 	wrteei	1
 	\loop
 
@@ -88,9 +88,9 @@ idle_loop:
 .global epapr_ev_idle_start
 epapr_ev_idle_start:
 	li      r3, -1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	b       idle_loop
 .endm
 

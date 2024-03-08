@@ -2,7 +2,7 @@
 /*
  * udc.c - ChipIdea UDC driver
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techanallogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -50,7 +50,7 @@ ctrl_endpt_in_desc = {
 };
 
 static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
-		       struct td_node *node);
+		       struct td_analde *analde);
 /**
  * hw_ep_bit: calculates the bit number
  * @num: endpoint number
@@ -310,7 +310,7 @@ static int hw_test_and_set_setup_guard(struct ci_hdrc *ci)
  * @value: new USB address
  *
  * This function explicitly sets the address, without the "USBADRA" (advance)
- * feature, which is not supported by older versions of the controller.
+ * feature, which is analt supported by older versions of the controller.
  */
 static void hw_usb_set_address(struct ci_hdrc *ci, u8 value)
 {
@@ -340,12 +340,12 @@ static int hw_usb_reset(struct ci_hdrc *ci)
 
 	/* wait until all bits cleared */
 	while (hw_read(ci, OP_ENDPTPRIME, ~0))
-		udelay(10);             /* not RTOS friendly */
+		udelay(10);             /* analt RTOS friendly */
 
 	/* reset all endpoints ? */
 
 	/* reset internal status and wait for further instructions
-	   no need to verify the port reset status (ESS does it) */
+	   anal need to verify the port reset status (ESS does it) */
 
 	return 0;
 }
@@ -359,43 +359,43 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 {
 	int i;
 	u32 temp;
-	struct td_node *lastnode, *node = kzalloc(sizeof(struct td_node),
+	struct td_analde *lastanalde, *analde = kzalloc(sizeof(struct td_analde),
 						  GFP_ATOMIC);
 
-	if (node == NULL)
-		return -ENOMEM;
+	if (analde == NULL)
+		return -EANALMEM;
 
-	node->ptr = dma_pool_zalloc(hwep->td_pool, GFP_ATOMIC, &node->dma);
-	if (node->ptr == NULL) {
-		kfree(node);
-		return -ENOMEM;
+	analde->ptr = dma_pool_zalloc(hwep->td_pool, GFP_ATOMIC, &analde->dma);
+	if (analde->ptr == NULL) {
+		kfree(analde);
+		return -EANALMEM;
 	}
 
-	node->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
-	node->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
-	node->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
+	analde->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
+	analde->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
+	analde->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
 	if (hwep->type == USB_ENDPOINT_XFER_ISOC && hwep->dir == TX) {
 		u32 mul = hwreq->req.length / hwep->ep.maxpacket;
 
 		if (hwreq->req.length == 0
 				|| hwreq->req.length % hwep->ep.maxpacket)
 			mul++;
-		node->ptr->token |= cpu_to_le32(mul << __ffs(TD_MULTO));
+		analde->ptr->token |= cpu_to_le32(mul << __ffs(TD_MULTO));
 	}
 
 	if (s) {
 		temp = (u32) (sg_dma_address(s) + hwreq->req.actual);
-		node->td_remaining_size = CI_MAX_BUF_SIZE - length;
+		analde->td_remaining_size = CI_MAX_BUF_SIZE - length;
 	} else {
 		temp = (u32) (hwreq->req.dma + hwreq->req.actual);
 	}
 
 	if (length) {
-		node->ptr->page[0] = cpu_to_le32(temp);
+		analde->ptr->page[0] = cpu_to_le32(temp);
 		for (i = 1; i < TD_PAGE_COUNT; i++) {
 			u32 page = temp + i * CI_HDRC_PAGE_SIZE;
 			page &= ~TD_RESERVED_MASK;
-			node->ptr->page[i] = cpu_to_le32(page);
+			analde->ptr->page[i] = cpu_to_le32(page);
 		}
 	}
 
@@ -403,13 +403,13 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 
 	if (!list_empty(&hwreq->tds)) {
 		/* get the last entry */
-		lastnode = list_entry(hwreq->tds.prev,
-				struct td_node, td);
-		lastnode->ptr->next = cpu_to_le32(node->dma);
+		lastanalde = list_entry(hwreq->tds.prev,
+				struct td_analde, td);
+		lastanalde->ptr->next = cpu_to_le32(analde->dma);
 	}
 
-	INIT_LIST_HEAD(&node->td);
-	list_add_tail(&node->td, &hwreq->tds);
+	INIT_LIST_HEAD(&analde->td);
+	list_add_tail(&analde->td, &hwreq->tds);
 
 	return 0;
 }
@@ -423,7 +423,7 @@ static inline u8 _usb_addr(struct ci_hw_ep *ep)
 	return ((ep->dir == TX) ? USB_ENDPOINT_DIR_MASK : 0) | ep->num;
 }
 
-static int prepare_td_for_non_sg(struct ci_hw_ep *hwep,
+static int prepare_td_for_analn_sg(struct ci_hw_ep *hwep,
 		struct ci_hw_req *hwreq)
 {
 	unsigned int rest = hwreq->req.length;
@@ -437,7 +437,7 @@ static int prepare_td_for_non_sg(struct ci_hw_ep *hwep,
 	}
 
 	/*
-	 * The first buffer could be not page aligned.
+	 * The first buffer could be analt page aligned.
 	 * In that case we have to span into one extra td.
 	 */
 	if (hwreq->req.dma % PAGE_SIZE)
@@ -485,22 +485,22 @@ static int prepare_td_per_sg(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 	return ret;
 }
 
-static void ci_add_buffer_entry(struct td_node *node, struct scatterlist *s)
+static void ci_add_buffer_entry(struct td_analde *analde, struct scatterlist *s)
 {
-	int empty_td_slot_index = (CI_MAX_BUF_SIZE - node->td_remaining_size)
+	int empty_td_slot_index = (CI_MAX_BUF_SIZE - analde->td_remaining_size)
 			/ CI_HDRC_PAGE_SIZE;
 	int i;
 	u32 token;
 
-	token = le32_to_cpu(node->ptr->token) + (sg_dma_len(s) << __ffs(TD_TOTAL_BYTES));
-	node->ptr->token = cpu_to_le32(token);
+	token = le32_to_cpu(analde->ptr->token) + (sg_dma_len(s) << __ffs(TD_TOTAL_BYTES));
+	analde->ptr->token = cpu_to_le32(token);
 
 	for (i = empty_td_slot_index; i < TD_PAGE_COUNT; i++) {
 		u32 page = (u32) sg_dma_address(s) +
 			(i - empty_td_slot_index) * CI_HDRC_PAGE_SIZE;
 
 		page &= ~TD_RESERVED_MASK;
-		node->ptr->page[i] = cpu_to_le32(page);
+		analde->ptr->page[i] = cpu_to_le32(page);
 	}
 }
 
@@ -509,29 +509,29 @@ static int prepare_td_for_sg(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	struct usb_request *req = &hwreq->req;
 	struct scatterlist *s = req->sg;
 	int ret = 0, i = 0;
-	struct td_node *node = NULL;
+	struct td_analde *analde = NULL;
 
 	if (!s || req->zero || req->length == 0) {
-		dev_err(hwep->ci->dev, "not supported operation for sg\n");
+		dev_err(hwep->ci->dev, "analt supported operation for sg\n");
 		return -EINVAL;
 	}
 
 	while (i++ < req->num_mapped_sgs) {
 		if (sg_dma_address(s) % PAGE_SIZE) {
-			dev_err(hwep->ci->dev, "not page aligned sg buffer\n");
+			dev_err(hwep->ci->dev, "analt page aligned sg buffer\n");
 			return -EINVAL;
 		}
 
-		if (node && (node->td_remaining_size >= sg_dma_len(s))) {
-			ci_add_buffer_entry(node, s);
-			node->td_remaining_size -= sg_dma_len(s);
+		if (analde && (analde->td_remaining_size >= sg_dma_len(s))) {
+			ci_add_buffer_entry(analde, s);
+			analde->td_remaining_size -= sg_dma_len(s);
 		} else {
 			ret = prepare_td_per_sg(hwep, hwreq, s);
 			if (ret)
 				return ret;
 
-			node = list_entry(hwreq->tds.prev,
-				struct td_node, td);
+			analde = list_entry(hwreq->tds.prev,
+				struct td_analde, td);
 		}
 
 		s = sg_next(s);
@@ -551,7 +551,7 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 {
 	struct ci_hdrc *ci = hwep->ci;
 	int ret = 0;
-	struct td_node *firstnode, *lastnode;
+	struct td_analde *firstanalde, *lastanalde;
 
 	/* don't queue twice */
 	if (hwreq->req.status == -EALREADY)
@@ -567,22 +567,22 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	if (hwreq->req.num_mapped_sgs)
 		ret = prepare_td_for_sg(hwep, hwreq);
 	else
-		ret = prepare_td_for_non_sg(hwep, hwreq);
+		ret = prepare_td_for_analn_sg(hwep, hwreq);
 
 	if (ret)
 		return ret;
 
-	lastnode = list_entry(hwreq->tds.prev,
-		struct td_node, td);
+	lastanalde = list_entry(hwreq->tds.prev,
+		struct td_analde, td);
 
-	lastnode->ptr->next = cpu_to_le32(TD_TERMINATE);
-	if (!hwreq->req.no_interrupt)
-		lastnode->ptr->token |= cpu_to_le32(TD_IOC);
+	lastanalde->ptr->next = cpu_to_le32(TD_TERMINATE);
+	if (!hwreq->req.anal_interrupt)
+		lastanalde->ptr->token |= cpu_to_le32(TD_IOC);
 
-	list_for_each_entry_safe(firstnode, lastnode, &hwreq->tds, td)
-		trace_ci_prepare_td(hwep, hwreq, firstnode);
+	list_for_each_entry_safe(firstanalde, lastanalde, &hwreq->tds, td)
+		trace_ci_prepare_td(hwep, hwreq, firstanalde);
 
-	firstnode = list_first_entry(&hwreq->tds, struct td_node, td);
+	firstanalde = list_first_entry(&hwreq->tds, struct td_analde, td);
 
 	wmb();
 
@@ -591,20 +591,20 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		struct ci_hw_req *hwreqprev;
 		int n = hw_ep_bit(hwep->num, hwep->dir);
 		int tmp_stat;
-		struct td_node *prevlastnode;
-		u32 next = firstnode->dma & TD_ADDR_MASK;
+		struct td_analde *prevlastanalde;
+		u32 next = firstanalde->dma & TD_ADDR_MASK;
 
 		hwreqprev = list_entry(hwep->qh.queue.prev,
 				struct ci_hw_req, queue);
-		prevlastnode = list_entry(hwreqprev->tds.prev,
-				struct td_node, td);
+		prevlastanalde = list_entry(hwreqprev->tds.prev,
+				struct td_analde, td);
 
-		prevlastnode->ptr->next = cpu_to_le32(next);
+		prevlastanalde->ptr->next = cpu_to_le32(next);
 		wmb();
 
 		if (ci->rev == CI_REVISION_22) {
 			if (!hw_read(ci, OP_ENDPTSTAT, BIT(n)))
-				reprime_dtd(ci, hwep, prevlastnode);
+				reprime_dtd(ci, hwep, prevlastanalde);
 		}
 
 		if (hw_read(ci, OP_ENDPTPRIME, BIT(n)))
@@ -619,7 +619,7 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	}
 
 	/*  QH configuration */
-	hwep->qh.ptr->td.next = cpu_to_le32(firstnode->dma);
+	hwep->qh.ptr->td.next = cpu_to_le32(firstanalde->dma);
 	hwep->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED|TD_STATUS_ACTIVE));
 
@@ -644,7 +644,7 @@ done:
  */
 static void free_pending_td(struct ci_hw_ep *hwep)
 {
-	struct td_node *pending = hwep->pending_td;
+	struct td_analde *pending = hwep->pending_td;
 
 	dma_pool_free(hwep->td_pool, pending->ptr, pending->dma);
 	hwep->pending_td = NULL;
@@ -652,9 +652,9 @@ static void free_pending_td(struct ci_hw_ep *hwep)
 }
 
 static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
-					   struct td_node *node)
+					   struct td_analde *analde)
 {
-	hwep->qh.ptr->td.next = cpu_to_le32(node->dma);
+	hwep->qh.ptr->td.next = cpu_to_le32(analde->dma);
 	hwep->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED | TD_STATUS_ACTIVE));
 
@@ -672,7 +672,7 @@ static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
 static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 {
 	u32 tmptoken;
-	struct td_node *node, *tmpnode;
+	struct td_analde *analde, *tmpanalde;
 	unsigned remaining_length;
 	unsigned actual = hwreq->req.length;
 	struct ci_hdrc *ci = hwep->ci;
@@ -682,16 +682,16 @@ static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 
 	hwreq->req.status = 0;
 
-	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
-		tmptoken = le32_to_cpu(node->ptr->token);
-		trace_ci_complete_td(hwep, hwreq, node);
+	list_for_each_entry_safe(analde, tmpanalde, &hwreq->tds, td) {
+		tmptoken = le32_to_cpu(analde->ptr->token);
+		trace_ci_complete_td(hwep, hwreq, analde);
 		if ((TD_STATUS_ACTIVE & tmptoken) != 0) {
 			int n = hw_ep_bit(hwep->num, hwep->dir);
 
 			if (ci->rev == CI_REVISION_24 ||
 			    ci->rev == CI_REVISION_22)
 				if (!hw_read(ci, OP_ENDPTSTAT, BIT(n)))
-					reprime_dtd(ci, hwep, node);
+					reprime_dtd(ci, hwep, analde);
 			hwreq->req.status = -EALREADY;
 			return -EBUSY;
 		}
@@ -726,8 +726,8 @@ static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		if (hwep->pending_td)
 			free_pending_td(hwep);
 
-		hwep->pending_td = node;
-		list_del_init(&node->td);
+		hwep->pending_td = analde;
+		list_del_init(&analde->td);
 	}
 
 	usb_gadget_unmap_request_by_dev(hwep->ci->dev->parent,
@@ -752,7 +752,7 @@ static int _ep_nuke(struct ci_hw_ep *hwep)
 __releases(hwep->lock)
 __acquires(hwep->lock)
 {
-	struct td_node *node, *tmpnode;
+	struct td_analde *analde, *tmpanalde;
 	if (hwep == NULL)
 		return -EINVAL;
 
@@ -764,11 +764,11 @@ __acquires(hwep->lock)
 		struct ci_hw_req *hwreq = list_entry(hwep->qh.queue.next,
 						     struct ci_hw_req, queue);
 
-		list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
-			dma_pool_free(hwep->td_pool, node->ptr, node->dma);
-			list_del_init(&node->td);
-			node->ptr = NULL;
-			kfree(node);
+		list_for_each_entry_safe(analde, tmpanalde, &hwreq->tds, td) {
+			dma_pool_free(hwep->td_pool, analde->ptr, analde->dma);
+			list_del_init(&analde->td);
+			analde->ptr = NULL;
+			kfree(analde);
 		}
 
 		list_del_init(&hwreq->queue);
@@ -797,7 +797,7 @@ static int _ep_set_halt(struct usb_ep *ep, int value, bool check_transfer)
 		return -EINVAL;
 
 	if (usb_endpoint_xfer_isoc(hwep->ep.desc))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	spin_lock_irqsave(hwep->lock, flags);
 
@@ -855,7 +855,7 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	}
 
 	spin_lock_irqsave(&ci->lock, flags);
-	ci->gadget.speed = USB_SPEED_UNKNOWN;
+	ci->gadget.speed = USB_SPEED_UNKANALWN;
 	ci->remote_wakeup = 0;
 	ci->suspended = 0;
 	spin_unlock_irqrestore(&ci->lock, flags);
@@ -879,7 +879,7 @@ __acquires(ci->lock)
 	int retval;
 
 	spin_unlock(&ci->lock);
-	if (ci->gadget.speed != USB_SPEED_UNKNOWN)
+	if (ci->gadget.speed != USB_SPEED_UNKANALWN)
 		usb_gadget_udc_reset(&ci->gadget, ci->driver);
 
 	retval = _gadget_stop_activity(&ci->gadget);
@@ -892,7 +892,7 @@ __acquires(ci->lock)
 
 	ci->status = usb_ep_alloc_request(&ci->ep0in->ep, GFP_ATOMIC);
 	if (ci->status == NULL)
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 
 done:
 	spin_lock(&ci->lock);
@@ -921,7 +921,7 @@ static void isr_get_status_complete(struct usb_ep *ep, struct usb_request *req)
  * _ep_queue: queues (submits) an I/O request to an endpoint
  * @ep:        endpoint
  * @req:       request
- * @gfp_flags: GFP flags (not used)
+ * @gfp_flags: GFP flags (analt used)
  *
  * Caller must hold lock
  * This function returns an error code
@@ -950,11 +950,11 @@ static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 
 	if (usb_endpoint_xfer_isoc(hwep->ep.desc) &&
 	    hwreq->req.length > hwep->ep.mult * hwep->ep.maxpacket) {
-		dev_err(hwep->ci->dev, "request length too big for isochronous\n");
+		dev_err(hwep->ci->dev, "request length too big for isochroanalus\n");
 		return -EMSGSIZE;
 	}
 
-	/* first nuke then test link, e.g. previous status has not sent */
+	/* first nuke then test link, e.g. previous status has analt sent */
 	if (!list_empty(&hwreq->queue)) {
 		dev_err(hwep->ci->dev, "request already in queue\n");
 		return -EBUSY;
@@ -998,13 +998,13 @@ __acquires(hwep->lock)
 	req = usb_ep_alloc_request(&hwep->ep, gfp_flags);
 	spin_lock(hwep->lock);
 	if (req == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->complete = isr_get_status_complete;
 	req->length   = 2;
 	req->buf      = kzalloc(req->length, gfp_flags);
 	if (req->buf == NULL) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_free_req;
 	}
 
@@ -1018,7 +1018,7 @@ __acquires(hwep->lock)
 		num =  le16_to_cpu(setup->wIndex) & USB_ENDPOINT_NUMBER_MASK;
 		*(u16 *)req->buf = hw_ep_get_halt(ci, num, dir);
 	}
-	/* else do nothing; reserved for future use */
+	/* else do analthing; reserved for future use */
 
 	retval = _ep_queue(&hwep->ep, req, gfp_flags);
 	if (retval)
@@ -1288,7 +1288,7 @@ __acquires(ci->lock)
 		break;
 	default:
 delegate:
-		if (req.wLength == 0)   /* no data phase */
+		if (req.wLength == 0)   /* anal data phase */
 			ci->ep0_dir = TX;
 
 		spin_unlock(&ci->lock);
@@ -1322,7 +1322,7 @@ __acquires(ci->lock)
 		struct ci_hw_ep *hwep  = &ci->ci_hw_ep[i];
 
 		if (hwep->ep.desc == NULL)
-			continue;   /* not configured */
+			continue;   /* analt configured */
 
 		if (hw_test_and_clear_complete(ci, i)) {
 			err = isr_tr_complete_low(hwep);
@@ -1370,7 +1370,7 @@ static int ep_enable(struct usb_ep *ep,
 	/* only internal SW should enable ctrl endpts */
 
 	if (!list_empty(&hwep->qh.queue)) {
-		dev_warn(hwep->ci->dev, "enabling a non-empty endpoint!\n");
+		dev_warn(hwep->ci->dev, "enabling a analn-empty endpoint!\n");
 		spin_unlock_irqrestore(hwep->lock, flags);
 		return -EBUSY;
 	}
@@ -1401,7 +1401,7 @@ static int ep_enable(struct usb_ep *ep,
 	hwep->qh.ptr->td.next |= cpu_to_le32(TD_TERMINATE);   /* needed? */
 
 	if (hwep->num != 0 && hwep->type == USB_ENDPOINT_XFER_CONTROL) {
-		dev_err(hwep->ci->dev, "Set control xfer at non-ep0\n");
+		dev_err(hwep->ci->dev, "Set control xfer at analn-ep0\n");
 		retval = -EINVAL;
 	}
 
@@ -1418,7 +1418,7 @@ static int ep_enable(struct usb_ep *ep,
 }
 
 /*
- * ep_disable: endpoint is no longer usable
+ * ep_disable: endpoint is anal longer usable
  *
  * Check usb_ep_disable() at "usb_gadget.h" for details
  */
@@ -1434,7 +1434,7 @@ static int ep_disable(struct usb_ep *ep)
 		return -EBUSY;
 
 	spin_lock_irqsave(hwep->lock, flags);
-	if (hwep->ci->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (hwep->ci->gadget.speed == USB_SPEED_UNKANALWN) {
 		spin_unlock_irqrestore(hwep->lock, flags);
 		return 0;
 	}
@@ -1487,7 +1487,7 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 {
 	struct ci_hw_ep  *hwep  = container_of(ep,  struct ci_hw_ep, ep);
 	struct ci_hw_req *hwreq = container_of(req, struct ci_hw_req, req);
-	struct td_node *node, *tmpnode;
+	struct td_analde *analde, *tmpanalde;
 	unsigned long flags;
 
 	if (ep == NULL || req == NULL) {
@@ -1499,11 +1499,11 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 
 	spin_lock_irqsave(hwep->lock, flags);
 
-	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
-		dma_pool_free(hwep->td_pool, node->ptr, node->dma);
-		list_del_init(&node->td);
-		node->ptr = NULL;
-		kfree(node);
+	list_for_each_entry_safe(analde, tmpanalde, &hwreq->tds, td) {
+		dma_pool_free(hwep->td_pool, analde->ptr, analde->dma);
+		list_del_init(&analde->td);
+		analde->ptr = NULL;
+		kfree(analde);
 	}
 
 	kfree(hwreq);
@@ -1527,7 +1527,7 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 		return -EINVAL;
 
 	spin_lock_irqsave(hwep->lock, flags);
-	if (hwep->ci->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (hwep->ci->gadget.speed == USB_SPEED_UNKANALWN) {
 		spin_unlock_irqrestore(hwep->lock, flags);
 		return 0;
 	}
@@ -1546,7 +1546,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	struct ci_hw_ep  *hwep  = container_of(ep,  struct ci_hw_ep, ep);
 	struct ci_hw_req *hwreq = container_of(req, struct ci_hw_req, req);
 	unsigned long flags;
-	struct td_node *node, *tmpnode;
+	struct td_analde *analde, *tmpanalde;
 
 	if (ep == NULL || req == NULL || hwreq->req.status != -EALREADY ||
 		hwep->ep.desc == NULL || list_empty(&hwreq->queue) ||
@@ -1554,13 +1554,13 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 		return -EINVAL;
 
 	spin_lock_irqsave(hwep->lock, flags);
-	if (hwep->ci->gadget.speed != USB_SPEED_UNKNOWN)
+	if (hwep->ci->gadget.speed != USB_SPEED_UNKANALWN)
 		hw_ep_flush(hwep->ci, hwep->num, hwep->dir);
 
-	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
-		dma_pool_free(hwep->td_pool, node->ptr, node->dma);
-		list_del(&node->td);
-		kfree(node);
+	list_for_each_entry_safe(analde, tmpanalde, &hwreq->tds, td) {
+		dma_pool_free(hwep->td_pool, analde->ptr, analde->dma);
+		list_del(&analde->td);
+		kfree(analde);
 	}
 
 	/* pop request */
@@ -1591,7 +1591,7 @@ static int ep_set_halt(struct usb_ep *ep, int value)
 }
 
 /*
- * ep_set_wedge: sets the halt feature and ignores clear requests
+ * ep_set_wedge: sets the halt feature and iganalres clear requests
  *
  * Check usb_ep_set_wedge() at "usb_gadget.h" for details
  */
@@ -1626,7 +1626,7 @@ static void ep_fifo_flush(struct usb_ep *ep)
 	}
 
 	spin_lock_irqsave(hwep->lock, flags);
-	if (hwep->ci->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (hwep->ci->gadget.speed == USB_SPEED_UNKANALWN) {
 		spin_unlock_irqrestore(hwep->lock, flags);
 		return;
 	}
@@ -1692,12 +1692,12 @@ static void ci_hdrc_gadget_connect(struct usb_gadget *_gadget, int is_active)
 		if (ci->driver)
 			ci->driver->disconnect(&ci->gadget);
 		hw_device_state(ci, 0);
-		if (ci->platdata->notify_event)
-			ci->platdata->notify_event(ci,
+		if (ci->platdata->analtify_event)
+			ci->platdata->analtify_event(ci,
 			CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		_gadget_stop_activity(&ci->gadget);
 		pm_runtime_put_sync(ci->dev);
-		usb_gadget_set_state(_gadget, USB_STATE_NOTATTACHED);
+		usb_gadget_set_state(_gadget, USB_STATE_ANALTATTACHED);
 	}
 }
 
@@ -1715,15 +1715,15 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 		usb_phy_set_charger_state(ci->usb_phy, is_active ?
 			USB_CHARGER_PRESENT : USB_CHARGER_ABSENT);
 
-	if (ci->platdata->notify_event)
-		ret = ci->platdata->notify_event(ci,
+	if (ci->platdata->analtify_event)
+		ret = ci->platdata->analtify_event(ci,
 				CI_HDRC_CONTROLLER_VBUS_EVENT);
 
 	if (ci->usb_phy) {
 		if (is_active)
 			usb_phy_set_event(ci->usb_phy, USB_EVENT_VBUS);
 		else
-			usb_phy_set_event(ci->usb_phy, USB_EVENT_NONE);
+			usb_phy_set_event(ci->usb_phy, USB_EVENT_ANALNE);
 	}
 
 	if (ci->driver)
@@ -1739,12 +1739,12 @@ static int ci_udc_wakeup(struct usb_gadget *_gadget)
 	int ret = 0;
 
 	spin_lock_irqsave(&ci->lock, flags);
-	if (ci->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (ci->gadget.speed == USB_SPEED_UNKANALWN) {
 		spin_unlock_irqrestore(&ci->lock, flags);
 		return 0;
 	}
 	if (!ci->remote_wakeup) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 	if (!hw_read(ci, OP_PORTSC, PORTSC_SUSP)) {
@@ -1763,7 +1763,7 @@ static int ci_udc_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 
 	if (ci->usb_phy)
 		return usb_phy_set_power(ci->usb_phy, ma);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int ci_udc_selfpowered(struct usb_gadget *_gadget, int is_on)
@@ -1885,7 +1885,7 @@ static int init_eps(struct ci_hdrc *ci)
 			hwep->qh.ptr = dma_pool_zalloc(ci->qh_pool, GFP_KERNEL,
 						       &hwep->qh.dma);
 			if (hwep->qh.ptr == NULL)
-				retval = -ENOMEM;
+				retval = -EANALMEM;
 
 			/*
 			 * set up shorthands for ep0 out and in endpoints,
@@ -1992,8 +1992,8 @@ static int ci_udc_stop(struct usb_gadget *gadget)
 	if (ci->vbus_active) {
 		hw_device_state(ci, 0);
 		spin_unlock_irqrestore(&ci->lock, flags);
-		if (ci->platdata->notify_event)
-			ci->platdata->notify_event(ci,
+		if (ci->platdata->analtify_event)
+			ci->platdata->analtify_event(ci,
 			CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		_gadget_stop_activity(&ci->gadget);
 		spin_lock_irqsave(&ci->lock, flags);
@@ -2029,13 +2029,13 @@ static irqreturn_t udc_irq(struct ci_hdrc *ci)
 		if (hw_read(ci, OP_USBMODE, USBMODE_CM) !=
 				USBMODE_CM_DC) {
 			spin_unlock(&ci->lock);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 	}
 	intr = hw_test_and_clear_intr_active(ci);
 
 	if (intr) {
-		/* order defines priority - do NOT change it */
+		/* order defines priority - do ANALT change it */
 		if (USBi_URI & intr)
 			isr_reset_handler(ci);
 
@@ -2063,7 +2063,7 @@ static irqreturn_t udc_irq(struct ci_hdrc *ci)
 		if ((USBi_SLI & intr) && !(ci->suspended)) {
 			ci->suspended = 1;
 			ci->resume_state = ci->gadget.state;
-			if (ci->gadget.speed != USB_SPEED_UNKNOWN &&
+			if (ci->gadget.speed != USB_SPEED_UNKANALWN &&
 			    ci->driver->suspend) {
 				spin_unlock(&ci->lock);
 				ci->driver->suspend(&ci->gadget);
@@ -2074,7 +2074,7 @@ static irqreturn_t udc_irq(struct ci_hdrc *ci)
 		}
 		retval = IRQ_HANDLED;
 	} else {
-		retval = IRQ_NONE;
+		retval = IRQ_ANALNE;
 	}
 	spin_unlock(&ci->lock);
 
@@ -2092,7 +2092,7 @@ static int udc_start(struct ci_hdrc *ci)
 	int retval = 0;
 
 	ci->gadget.ops          = &usb_gadget_ops;
-	ci->gadget.speed        = USB_SPEED_UNKNOWN;
+	ci->gadget.speed        = USB_SPEED_UNKANALWN;
 	ci->gadget.max_speed    = USB_SPEED_HIGH;
 	ci->gadget.name         = ci->platdata->name;
 	ci->gadget.otg_caps	= otg_caps;
@@ -2113,13 +2113,13 @@ static int udc_start(struct ci_hdrc *ci)
 				       sizeof(struct ci_hw_qh),
 				       64, CI_HDRC_PAGE_SIZE);
 	if (ci->qh_pool == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ci->td_pool = dma_pool_create("ci_hw_td", dev->parent,
 				       sizeof(struct ci_hw_td),
 				       64, CI_HDRC_PAGE_SIZE);
 	if (ci->td_pool == NULL) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto free_qh_pool;
 	}
 
@@ -2147,7 +2147,7 @@ free_qh_pool:
 /*
  * ci_hdrc_gadget_destroy: parent remove must call this to remove UDC
  *
- * No interrupts active, the IRQ has been released
+ * Anal interrupts active, the IRQ has been released
  */
 void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
 {
@@ -2196,9 +2196,9 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 static void udc_suspend(struct ci_hdrc *ci)
 {
 	/*
-	 * Set OP_ENDPTLISTADDR to be non-zero for
+	 * Set OP_ENDPTLISTADDR to be analn-zero for
 	 * checking if controller resume from power lost
-	 * in non-host mode.
+	 * in analn-host mode.
 	 */
 	if (hw_read(ci, OP_ENDPTLISTADDR, ~0) == 0)
 		hw_write(ci, OP_ENDPTLISTADDR, ~0, ~0);
@@ -2236,7 +2236,7 @@ int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 
 	rdrv = devm_kzalloc(ci->dev, sizeof(*rdrv), GFP_KERNEL);
 	if (!rdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdrv->start	= udc_id_switch_for_device;
 	rdrv->stop	= udc_id_switch_for_host;

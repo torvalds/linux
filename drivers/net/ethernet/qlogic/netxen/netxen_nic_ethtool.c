@@ -62,7 +62,7 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	u32 fw_major = 0;
-	u32 fw_minor = 0;
+	u32 fw_mianalr = 0;
 	u32 fw_build = 0;
 
 	strscpy(drvinfo->driver, netxen_nic_driver_name,
@@ -70,10 +70,10 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	strscpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID,
 		sizeof(drvinfo->version));
 	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
-	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
+	fw_mianalr = NXRD32(adapter, NETXEN_FW_VERSION_MIANALR);
 	fw_build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		"%d.%d.%d", fw_major, fw_minor, fw_build);
+		"%d.%d.%d", fw_major, fw_mianalr, fw_build);
 
 	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
@@ -214,7 +214,7 @@ skip:
 
 	if (check_sfp_module) {
 		switch (adapter->module_type) {
-		case LINKEVENT_MODULE_OPTICAL_UNKNOWN:
+		case LINKEVENT_MODULE_OPTICAL_UNKANALWN:
 		case LINKEVENT_MODULE_OPTICAL_SRLR:
 		case LINKEVENT_MODULE_OPTICAL_LRM:
 		case LINKEVENT_MODULE_OPTICAL_SFP_1G:
@@ -231,8 +231,8 @@ skip:
 	}
 
 	if (!netif_running(dev) || !adapter->ahw.linkup) {
-		cmd->base.duplex = DUPLEX_UNKNOWN;
-		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
+		cmd->base.speed = SPEED_UNKANALWN;
 	}
 
 	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
@@ -252,15 +252,15 @@ netxen_nic_set_link_ksettings(struct net_device *dev,
 	int ret;
 
 	if (adapter->ahw.port_type != NETXEN_NIC_GBE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!(adapter->capabilities & NX_FW_CAPABILITY_GBE_LINK_CFG))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = nx_fw_cmd_set_gbe_port(adapter, speed, cmd->base.duplex,
 				     cmd->base.autoneg);
-	if (ret == NX_RCODE_NOT_SUPPORTED)
-		return -EOPNOTSUPP;
+	if (ret == NX_RCODE_ANALT_SUPPORTED)
+		return -EOPANALTSUPP;
 	else if (ret)
 		return -EIO;
 
@@ -442,10 +442,10 @@ netxen_nic_set_ringparam(struct net_device *dev,
 	u16 num_rxd, num_jumbo_rxd, num_txd;
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ring->rx_mini_pending)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		max_rcv_desc = MAX_RCV_DESCRIPTORS_1G;
@@ -514,7 +514,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 		else
 			pause->tx_pause = !(netxen_xg_get_xg1_mask(val));
 	} else {
-		printk(KERN_ERR"%s: Unknown board type: %x\n",
+		printk(KERN_ERR"%s: Unkanalwn board type: %x\n",
 				netxen_nic_driver_name, adapter->ahw.port_type);
 	}
 }
@@ -527,7 +527,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 	__u32 val;
 	int port = adapter->physical_port;
 
-	/* not supported */
+	/* analt supported */
 	if (pause->autoneg)
 		return -EINVAL;
 
@@ -592,7 +592,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 		}
 		NXWR32(adapter, NETXEN_NIU_XG_PAUSE_CTL, val);
 	} else {
-		printk(KERN_ERR "%s: Unknown board type: %x\n",
+		printk(KERN_ERR "%s: Unkanalwn board type: %x\n",
 				netxen_nic_driver_name,
 				adapter->ahw.port_type);
 	}
@@ -629,7 +629,7 @@ static int netxen_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return NETXEN_NIC_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -710,14 +710,14 @@ netxen_nic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	u32 wol_cfg = 0;
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wol->wolopts & ~WAKE_MAGIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	wol_cfg = NXRD32(adapter, NETXEN_WOL_CONFIG_NV);
 	if (!(wol_cfg & (1 << adapter->portnum)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	wol_cfg = NXRD32(adapter, NETXEN_WOL_CONFIG);
 	if (wol->wolopts & WAKE_MAGIC)
@@ -730,7 +730,7 @@ netxen_nic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 
 /*
- * Set the coalescing parameters. Currently only normal is supported.
+ * Set the coalescing parameters. Currently only analrmal is supported.
  * If rx_coalesce_usecs == 0 or rx_max_coalesced_frames == 0 then set the
  * firmware coalescing to default.
  */
@@ -760,19 +760,19 @@ static int netxen_set_intr_coalesce(struct net_device *netdev,
 	if (!ethcoal->rx_coalesce_usecs ||
 		!ethcoal->rx_max_coalesced_frames) {
 		adapter->coal.flags = NETXEN_NIC_INTR_DEFAULT;
-		adapter->coal.normal.data.rx_time_us =
+		adapter->coal.analrmal.data.rx_time_us =
 			NETXEN_DEFAULT_INTR_COALESCE_RX_TIME_US;
-		adapter->coal.normal.data.rx_packets =
+		adapter->coal.analrmal.data.rx_packets =
 			NETXEN_DEFAULT_INTR_COALESCE_RX_PACKETS;
 	} else {
 		adapter->coal.flags = 0;
-		adapter->coal.normal.data.rx_time_us =
+		adapter->coal.analrmal.data.rx_time_us =
 		ethcoal->rx_coalesce_usecs;
-		adapter->coal.normal.data.rx_packets =
+		adapter->coal.analrmal.data.rx_packets =
 		ethcoal->rx_max_coalesced_frames;
 	}
-	adapter->coal.normal.data.tx_time_us = ethcoal->tx_coalesce_usecs;
-	adapter->coal.normal.data.tx_packets =
+	adapter->coal.analrmal.data.tx_time_us = ethcoal->tx_coalesce_usecs;
+	adapter->coal.analrmal.data.tx_packets =
 	ethcoal->tx_max_coalesced_frames;
 
 	netxen_config_intr_coalesce(adapter);
@@ -793,12 +793,12 @@ static int netxen_get_intr_coalesce(struct net_device *netdev,
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		return -EINVAL;
 
-	ethcoal->rx_coalesce_usecs = adapter->coal.normal.data.rx_time_us;
-	ethcoal->tx_coalesce_usecs = adapter->coal.normal.data.tx_time_us;
+	ethcoal->rx_coalesce_usecs = adapter->coal.analrmal.data.rx_time_us;
+	ethcoal->tx_coalesce_usecs = adapter->coal.analrmal.data.tx_time_us;
 	ethcoal->rx_max_coalesced_frames =
-		adapter->coal.normal.data.rx_packets;
+		adapter->coal.analrmal.data.rx_packets;
 	ethcoal->tx_max_coalesced_frames =
-		adapter->coal.normal.data.tx_packets;
+		adapter->coal.analrmal.data.tx_packets;
 
 	return 0;
 }
@@ -835,11 +835,11 @@ netxen_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	switch (val->flag) {
 	case NX_FORCE_FW_DUMP_KEY:
 		if (!mdump->md_enabled) {
-			netdev_info(netdev, "FW dump not enabled\n");
+			netdev_info(netdev, "FW dump analt enabled\n");
 			return 0;
 		}
 		if (adapter->fw_mdump_rdy) {
-			netdev_info(netdev, "Previous dump not cleared, not forcing dump\n");
+			netdev_info(netdev, "Previous dump analt cleared, analt forcing dump\n");
 			return 0;
 		}
 		netdev_info(netdev, "Forcing a fw dump\n");
@@ -891,7 +891,7 @@ netxen_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 
 
 	if (!adapter->fw_mdump_rdy) {
-		netdev_info(netdev, "Dump not available\n");
+		netdev_info(netdev, "Dump analt available\n");
 		return -EINVAL;
 	}
 	/* Copy template header first */

@@ -65,7 +65,7 @@ enum wcd_mbhc_field_function {
 #define WCD_MBHC_KEYCODE_NUM 8
 #define WCD_MBHC_USLEEP_RANGE_MARGIN_US 100
 #define WCD_MBHC_THR_HS_MICB_MV  2700
-#define WCD_MONO_HS_MIN_THR	2
+#define WCD_MOANAL_HS_MIN_THR	2
 
 enum wcd_mbhc_detect_logic {
 	WCD_DETECTION_LEGACY,
@@ -76,7 +76,7 @@ enum wcd_mbhc_cs_mb_en_flag {
 	WCD_MBHC_EN_CS = 0,
 	WCD_MBHC_EN_MB,
 	WCD_MBHC_EN_PULLUP,
-	WCD_MBHC_EN_NONE,
+	WCD_MBHC_EN_ANALNE,
 };
 
 enum {
@@ -86,7 +86,7 @@ enum {
 
 enum wcd_mbhc_plug_type {
 	MBHC_PLUG_TYPE_INVALID = -1,
-	MBHC_PLUG_TYPE_NONE,
+	MBHC_PLUG_TYPE_ANALNE,
 	MBHC_PLUG_TYPE_HEADSET,
 	MBHC_PLUG_TYPE_HEADPHONE,
 	MBHC_PLUG_TYPE_HIGH_HPH,
@@ -117,7 +117,7 @@ enum {
 	MICB_DISABLE,
 };
 
-enum wcd_notify_event {
+enum wcd_analtify_event {
 	WCD_EVENT_INVALID,
 	/* events for micbias ON and OFF */
 	WCD_EVENT_PRE_MICBIAS_2_OFF,
@@ -146,8 +146,8 @@ enum wcd_mbhc_event_state {
 };
 
 enum wcd_mbhc_hph_type {
-	WCD_MBHC_HPH_NONE = 0,
-	WCD_MBHC_HPH_MONO,
+	WCD_MBHC_HPH_ANALNE = 0,
+	WCD_MBHC_HPH_MOANAL,
 	WCD_MBHC_HPH_STEREO,
 };
 
@@ -192,7 +192,7 @@ struct wcd_mbhc_config {
 	int btn_low[WCD_MBHC_DEF_BUTTONS];
 	int v_hs_max;
 	int num_btn;
-	bool mono_stero_detection;
+	bool moanal_stero_detection;
 	bool (*swap_gnd_mic)(struct snd_soc_component *component, bool active);
 	bool hs_ext_micbias;
 	bool gnd_det_en;
@@ -201,8 +201,8 @@ struct wcd_mbhc_config {
 	int mbhc_micbias;
 	int anc_micbias;
 	bool moisture_duty_cycle_en;
-	bool hphl_swh; /*track HPHL switch NC / NO */
-	bool gnd_swh; /*track GND switch NC / NO */
+	bool hphl_swh; /*track HPHL switch NC / ANAL */
+	bool gnd_swh; /*track GND switch NC / ANAL */
 	u32 hs_thr;
 	u32 hph_thr;
 	u32 micb_mv;
@@ -281,13 +281,13 @@ struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 int wcd_mbhc_get_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 			   uint32_t *zr);
 void wcd_mbhc_deinit(struct wcd_mbhc *mbhc);
-int wcd_mbhc_event_notify(struct wcd_mbhc *mbhc, unsigned long event);
+int wcd_mbhc_event_analtify(struct wcd_mbhc *mbhc, unsigned long event);
 
 #else
 static inline int wcd_dt_parse_mbhc_data(struct device *dev,
 					 struct wcd_mbhc_config *cfg)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void wcd_mbhc_stop(struct wcd_mbhc *mbhc)
@@ -300,7 +300,7 @@ static inline struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component
 		      struct wcd_mbhc_field *fields,
 		      bool impedance_det_en)
 {
-	return ERR_PTR(-ENOTSUPP);
+	return ERR_PTR(-EANALTSUPP);
 }
 
 static inline void wcd_mbhc_set_hph_type(struct wcd_mbhc *mbhc, int hph_type)
@@ -309,12 +309,12 @@ static inline void wcd_mbhc_set_hph_type(struct wcd_mbhc *mbhc, int hph_type)
 
 static inline int wcd_mbhc_get_hph_type(struct wcd_mbhc *mbhc)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
-static inline int wcd_mbhc_event_notify(struct wcd_mbhc *mbhc, unsigned long event)
+static inline int wcd_mbhc_event_analtify(struct wcd_mbhc *mbhc, unsigned long event)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int wcd_mbhc_start(struct wcd_mbhc *mbhc,

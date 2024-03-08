@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2016 TQ-Systems GmbH
  * Author: Markus Niebel <Markus.Niebel@tq-group.com>
- * Copyright (C) 2019 Bruno Thomsen <bruno.thomsen@gmail.com>
+ * Copyright (C) 2019 Bruanal Thomsen <bruanal.thomsen@gmail.com>
  */
 
 / {
@@ -257,7 +257,7 @@
 	status = "okay";
 
 	flash0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <29000000>;
 		spi-rx-bus-width = <4>;
@@ -277,7 +277,7 @@
 	assigned-clocks = <&clks IMX7D_USDHC3_ROOT_CLK>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&vgen4_reg>;
 	vqmmc-supply = <&sw2_reg>;
 	status = "okay";

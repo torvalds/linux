@@ -75,7 +75,7 @@ enum btrfs_raid_types {
 #define BTRFS_DEV_STATE_MISSING		(2)
 #define BTRFS_DEV_STATE_REPLACE_TGT	(3)
 #define BTRFS_DEV_STATE_FLUSH_SENT	(4)
-#define BTRFS_DEV_STATE_NO_READA	(5)
+#define BTRFS_DEV_STATE_ANAL_READA	(5)
 
 struct btrfs_zoned_device_info;
 
@@ -96,7 +96,7 @@ struct btrfs_device {
 	struct btrfs_zoned_device_info *zone_info;
 
 	/*
-	 * Device's major-minor number. Must be set even if the device is not
+	 * Device's major-mianalr number. Must be set even if the device is analt
 	 * opened (bdev == NULL), unless the device is missing.
 	 */
 	dev_t devt;
@@ -173,15 +173,15 @@ struct btrfs_device {
  * Block group or device which contains an active swapfile. Used for preventing
  * unsafe operations while a swapfile is active.
  *
- * These are sorted on (ptr, inode) (note that a block group or device can
+ * These are sorted on (ptr, ianalde) (analte that a block group or device can
  * contain more than one swapfile). We compare the pointer values because we
  * don't actually care what the object is, we just need a quick check whether
  * the object exists in the rbtree.
  */
 struct btrfs_swapfile_pin {
-	struct rb_node node;
+	struct rb_analde analde;
 	void *ptr;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	/*
 	 * If true, ptr points to a struct btrfs_block_group. Otherwise, ptr
 	 * points to a struct btrfs_device.
@@ -290,7 +290,7 @@ struct btrfs_fs_devices {
 	 *   - metadata_uuid == btrfs_dev_item::fsid
 	 *
 	 * - Relations between fsid and metadata_uuid in sb and fs_devices:
-	 *   - Normal:
+	 *   - Analrmal:
 	 *       fs_devices->fsid == fs_devices->metadata_uuid == sb->fsid
 	 *       sb->metadata_uuid == 0
 	 *
@@ -360,7 +360,7 @@ struct btrfs_fs_devices {
 	/* Count fs-devices opened. */
 	int opened;
 
-	/* Set when we find or add a device that doesn't have the nonrot flag set. */
+	/* Set when we find or add a device that doesn't have the analnrot flag set. */
 	bool rotating;
 	/* Devices support TRIM/discard commands. */
 	bool discardable;
@@ -461,11 +461,11 @@ struct btrfs_io_context {
 	 *			are from.
 	 *
 	 * The @replace_stripe_src[] array is mostly for RAID56 cases.
-	 * As non-RAID56 stripes share the same contents of the mapped range,
-	 * thus no need to bother where the duplicated ones are from.
+	 * As analn-RAID56 stripes share the same contents of the mapped range,
+	 * thus anal need to bother where the duplicated ones are from.
 	 *
 	 * But for RAID56 case, all stripes contain different contents, thus
-	 * we need a way to know the mapping.
+	 * we need a way to kanalw the mapping.
 	 *
 	 * There is an example for the two members, using a RAID5 write:
 	 *
@@ -480,7 +480,7 @@ struct btrfs_io_context {
 	 *				   The duplicated stripe index would be
 	 *				   (@num_stripes - 1).
 	 *
-	 * Note, that we can still have cases replace_nr_stripes = 2 for DUP.
+	 * Analte, that we can still have cases replace_nr_stripes = 2 for DUP.
 	 * In that case, all stripes share the same content, thus we don't
 	 * need to bother @replace_stripe_src value at all.
 	 */
@@ -531,7 +531,7 @@ struct btrfs_raid_attr {
 extern const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES];
 
 struct btrfs_chunk_map {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	/* For mount time dev extent verification. */
 	int verified_stripes;
 	refcount_t refs;
@@ -552,7 +552,7 @@ struct btrfs_chunk_map {
 static inline void btrfs_free_chunk_map(struct btrfs_chunk_map *map)
 {
 	if (map && refcount_dec_and_test(&map->refs)) {
-		ASSERT(RB_EMPTY_NODE(&map->rb_node));
+		ASSERT(RB_EMPTY_ANALDE(&map->rb_analde));
 		kfree(map);
 	}
 }
@@ -709,7 +709,7 @@ int btrfs_add_chunk_map(struct btrfs_fs_info *fs_info, struct btrfs_chunk_map *m
 struct btrfs_chunk_map *btrfs_clone_chunk_map(struct btrfs_chunk_map *map, gfp_t gfp);
 struct btrfs_chunk_map *btrfs_find_chunk_map(struct btrfs_fs_info *fs_info,
 					     u64 logical, u64 length);
-struct btrfs_chunk_map *btrfs_find_chunk_map_nolock(struct btrfs_fs_info *fs_info,
+struct btrfs_chunk_map *btrfs_find_chunk_map_anallock(struct btrfs_fs_info *fs_info,
 						    u64 logical, u64 length);
 struct btrfs_chunk_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
 					    u64 logical, u64 length);

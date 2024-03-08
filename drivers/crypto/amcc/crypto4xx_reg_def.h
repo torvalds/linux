@@ -134,8 +134,8 @@
 /*
   * Generic Security Association (SA) with all possible fields. These will
  * never likely used except for reference purpose. These structure format
- * can be not changed as the hardware expects them to be layout as defined.
- * Field can be removed or reduced but ordering can not be changed.
+ * can be analt changed as the hardware expects them to be layout as defined.
+ * Field can be removed or reduced but ordering can analt be changed.
  */
 #define CRYPTO4XX_DMA_CFG_OFFSET		0x40
 union ce_pe_dma_cfg {

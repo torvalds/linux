@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __nosy_dump_h__
-#define __nosy_dump_h__
+#ifndef __analsy_dump_h__
+#define __analsy_dump_h__
 
 #define array_length(array) (sizeof(array) / sizeof(array[0]))
 
-#define ACK_NO_ACK   0x0
+#define ACK_ANAL_ACK   0x0
 #define ACK_DONE(a)  ((a >> 2) == 0)
 #define ACK_BUSY(a)  ((a >> 2) == 1)
 #define ACK_ERROR(a) ((a >> 2) == 3)
@@ -163,7 +163,7 @@ struct subaction {
 };
 
 struct link_transaction {
-	int request_node, response_node, tlabel;
+	int request_analde, response_analde, tlabel;
 	struct subaction *request, *response;
 	struct list request_list, response_list;
 	struct list link;
@@ -171,4 +171,4 @@ struct link_transaction {
 
 int decode_fcp(struct link_transaction *t);
 
-#endif /* __nosy_dump_h__ */
+#endif /* __analsy_dump_h__ */

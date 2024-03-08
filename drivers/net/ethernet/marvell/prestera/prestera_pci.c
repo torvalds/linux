@@ -75,7 +75,7 @@ struct prestera_ldr_regs {
 #define PRESTERA_LDR_STATUS_IMG_DL	BIT(0)
 #define PRESTERA_LDR_STATUS_START_FW	BIT(1)
 #define PRESTERA_LDR_STATUS_INVALID_IMG	BIT(2)
-#define PRESTERA_LDR_STATUS_NOMEM	BIT(3)
+#define PRESTERA_LDR_STATUS_ANALMEM	BIT(3)
 
 #define PRESTERA_LDR_REG_BASE(fw)	((fw)->ldr_regs)
 #define PRESTERA_LDR_REG_ADDR(fw, reg)	(PRESTERA_LDR_REG_BASE(fw) + (reg))
@@ -488,7 +488,7 @@ static int prestera_fw_init(struct prestera_fw *fw)
 	fw->evt_qnum = prestera_fw_read(fw, PRESTERA_EVT_QNUM_REG);
 	fw->evt_msg = kmalloc(PRESTERA_MSG_MAX_SIZE, GFP_KERNEL);
 	if (!fw->evt_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (qid = 0; qid < fw->evt_qnum; qid++) {
 		u32 offs = prestera_fw_read(fw, PRESTERA_EVTQ_OFFS_REG(qid));
@@ -618,7 +618,7 @@ static int prestera_ldr_fw_send(struct prestera_fw *fw,
 				      PRESTERA_LDR_STATUS_IMG_DL,
 				      5 * MSEC_PER_SEC);
 	if (err) {
-		dev_err(fw->dev.dev, "Loader is not ready to load image\n");
+		dev_err(fw->dev.dev, "Loader is analt ready to load image\n");
 		return err;
 	}
 
@@ -647,9 +647,9 @@ static int prestera_ldr_fw_send(struct prestera_fw *fw,
 	case PRESTERA_LDR_STATUS_INVALID_IMG:
 		dev_err(fw->dev.dev, "FW img has bad CRC\n");
 		return -EINVAL;
-	case PRESTERA_LDR_STATUS_NOMEM:
-		dev_err(fw->dev.dev, "Loader has no enough mem\n");
-		return -ENOMEM;
+	case PRESTERA_LDR_STATUS_ANALMEM:
+		dev_err(fw->dev.dev, "Loader has anal eanalugh mem\n");
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -881,7 +881,7 @@ static int prestera_pci_probe(struct pci_dev *pdev,
 
 	fw = devm_kzalloc(&pdev->dev, sizeof(*fw), GFP_KERNEL);
 	if (!fw) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pci_dev_alloc;
 	}
 
@@ -900,7 +900,7 @@ static int prestera_pci_probe(struct pci_dev *pdev,
 
 	fw->wq = alloc_workqueue("prestera_fw_wq", WQ_HIGHPRI, 1);
 	if (!fw->wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_wq_alloc;
 	}
 

@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/console.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/serial_core.h>
 #include <linux/sunserialcore.h>
@@ -23,37 +23,37 @@
 #include <asm/prom.h>
 
 
-static int sunserial_current_minor = 64;
+static int sunserial_current_mianalr = 64;
 
-int sunserial_register_minors(struct uart_driver *drv, int count)
+int sunserial_register_mianalrs(struct uart_driver *drv, int count)
 {
 	int err = 0;
 
-	drv->minor = sunserial_current_minor;
+	drv->mianalr = sunserial_current_mianalr;
 	drv->nr += count;
 	/* Register the driver on the first call */
 	if (drv->nr == count)
 		err = uart_register_driver(drv);
 	if (err == 0) {
-		sunserial_current_minor += count;
-		drv->tty_driver->name_base = drv->minor - 64;
+		sunserial_current_mianalr += count;
+		drv->tty_driver->name_base = drv->mianalr - 64;
 	}
 	return err;
 }
-EXPORT_SYMBOL(sunserial_register_minors);
+EXPORT_SYMBOL(sunserial_register_mianalrs);
 
-void sunserial_unregister_minors(struct uart_driver *drv, int count)
+void sunserial_unregister_mianalrs(struct uart_driver *drv, int count)
 {
 	drv->nr -= count;
-	sunserial_current_minor -= count;
+	sunserial_current_mianalr -= count;
 
 	if (drv->nr == 0)
 		uart_unregister_driver(drv);
 }
-EXPORT_SYMBOL(sunserial_unregister_minors);
+EXPORT_SYMBOL(sunserial_unregister_mianalrs);
 
-int sunserial_console_match(struct console *con, struct device_node *dp,
-			    struct uart_driver *drv, int line, bool ignore_line)
+int sunserial_console_match(struct console *con, struct device_analde *dp,
+			    struct uart_driver *drv, int line, bool iganalre_line)
 {
 	if (!con)
 		return 0;
@@ -63,7 +63,7 @@ int sunserial_console_match(struct console *con, struct device_node *dp,
 	if (of_console_device != dp)
 		return 0;
 
-	if (!ignore_line) {
+	if (!iganalre_line) {
 		int off = 0;
 
 		if (of_console_options &&
@@ -82,24 +82,24 @@ int sunserial_console_match(struct console *con, struct device_node *dp,
 }
 EXPORT_SYMBOL(sunserial_console_match);
 
-void sunserial_console_termios(struct console *con, struct device_node *uart_dp)
+void sunserial_console_termios(struct console *con, struct device_analde *uart_dp)
 {
 	const char *mode, *s;
 	char mode_prop[] = "ttyX-mode";
 	int baud, bits, stop, cflag;
 	char parity;
 
-	if (of_node_name_eq(uart_dp, "rsc") ||
-	    of_node_name_eq(uart_dp, "rsc-console") ||
-	    of_node_name_eq(uart_dp, "rsc-control")) {
+	if (of_analde_name_eq(uart_dp, "rsc") ||
+	    of_analde_name_eq(uart_dp, "rsc-console") ||
+	    of_analde_name_eq(uart_dp, "rsc-control")) {
 		mode = of_get_property(uart_dp,
 				       "ssp-console-modes", NULL);
 		if (!mode)
 			mode = "115200,8,n,1,-";
-	} else if (of_node_name_eq(uart_dp, "lom-console")) {
+	} else if (of_analde_name_eq(uart_dp, "lom-console")) {
 		mode = "9600,8,n,1,-";
 	} else {
-		struct device_node *dp;
+		struct device_analde *dp;
 		char c;
 
 		c = 'a';
@@ -108,11 +108,11 @@ void sunserial_console_termios(struct console *con, struct device_node *uart_dp)
 
 		mode_prop[3] = c;
 
-		dp = of_find_node_by_path("/options");
+		dp = of_find_analde_by_path("/options");
 		mode = of_get_property(dp, mode_prop, NULL);
 		if (!mode)
 			mode = "9600,8,n,1,-";
-		of_node_put(dp);
+		of_analde_put(dp);
 	}
 
 	cflag = CREAD | HUPCL | CLOCAL;
@@ -126,7 +126,7 @@ void sunserial_console_termios(struct console *con, struct device_node *uart_dp)
 	s = strchr(s, ',');
 	stop = simple_strtoul(++s, NULL, 0);
 	s = strchr(s, ',');
-	/* XXX handshake is not handled here. */
+	/* XXX handshake is analt handled here. */
 
 	switch (baud) {
 		case 150: cflag |= B150; break;
@@ -207,13 +207,13 @@ int suncore_mouse_baud_detection(unsigned char ch, int is_break)
 	static int ctr = 0;
 
 	if (is_break) {
-		/* Let a few normal bytes go by before we jump the gun
-		 * and say we need to try another baud rate.
+		/* Let a few analrmal bytes go by before we jump the gun
+		 * and say we need to try aanalther baud rate.
 		 */
 		if (mouse_got_break && ctr < 8)
 			return 1;
 
-		/* Ok, we need to try another baud. */
+		/* Ok, we need to try aanalther baud. */
 		ctr = 0;
 		mouse_got_break = 1;
 		return 2;

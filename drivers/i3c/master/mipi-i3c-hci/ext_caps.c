@@ -7,7 +7,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i3c/master.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -47,13 +47,13 @@ static int hci_extcap_master_config(struct i3c_hci *hci, void __iomem *base)
 	u32 master_config = readl(base + 0x04);
 	unsigned int operation_mode = FIELD_GET(GENMASK(5, 4), master_config);
 	static const char * const functionality[] = {
-		"(unknown)", "master only", "target only",
+		"(unkanalwn)", "master only", "target only",
 		"primary/secondary master" };
 	dev_info(&hci->master.dev, "operation mode: %s\n", functionality[operation_mode]);
 	if (operation_mode & 0x1)
 		return 0;
 	dev_err(&hci->master.dev, "only master mode is currently supported\n");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hci_extcap_multi_bus(struct i3c_hci *hci, void __iomem *base)
@@ -105,7 +105,7 @@ static int hci_extcap_xfer_rates(struct i3c_hci *hci, void __iomem *base)
 			 rate_id,
 			 mode_id == XFERRATE_MODE_I3C ? "I3C" :
 			 mode_id == XFERRATE_MODE_I2C ? "I2C" :
-			 "unknown mode",
+			 "unkanalwn mode",
 			 rate);
 		base += 4;
 	}
@@ -141,9 +141,9 @@ static int hci_extcap_scheduled_cmd(struct i3c_hci *hci, void __iomem *base)
 	return 0;
 }
 
-static int hci_extcap_non_curr_master(struct i3c_hci *hci, void __iomem *base)
+static int hci_extcap_analn_curr_master(struct i3c_hci *hci, void __iomem *base)
 {
-	dev_info(&hci->master.dev, "Non-Current Master support available\n");
+	dev_info(&hci->master.dev, "Analn-Current Master support available\n");
 	/* hci->NCM_regs = base; */
 	return 0;
 }
@@ -191,7 +191,7 @@ static const struct hci_ext_caps ext_capabilities[] = {
 	EXT_CAP(0x08, 0x40, hci_extcap_xfer_rates),
 	EXT_CAP(0x0c, 0x10, hci_extcap_debug),
 	EXT_CAP(0x0d, 0x0c, hci_extcap_scheduled_cmd),
-	EXT_CAP(0x0e, 0x80, hci_extcap_non_curr_master), /* TODO confirm size */
+	EXT_CAP(0x0e, 0x80, hci_extcap_analn_curr_master), /* TODO confirm size */
 	EXT_CAP(0x0f, 0x04, hci_extcap_ccc_resp_conf),
 	EXT_CAP(0x10, 0x08, hci_extcap_global_DAT),
 	EXT_CAP(0x9d, 0x04,	hci_extcap_multilane),
@@ -239,8 +239,8 @@ static int hci_extcap_vendor_specific(struct i3c_hci *hci, void __iomem *base,
 	}
 
 	if (!vendor_cap_entry) {
-		dev_notice(&hci->master.dev,
-			   "unknown ext_cap 0x%02x for vendor 0x%02x\n",
+		dev_analtice(&hci->master.dev,
+			   "unkanalwn ext_cap 0x%02x for vendor 0x%02x\n",
 			   cap_id, hci->vendor_mipi_id);
 		return 0;
 	}
@@ -293,8 +293,8 @@ int i3c_hci_parse_ext_caps(struct i3c_hci *hci)
 			}
 		}
 		if (!cap_entry) {
-			dev_notice(&hci->master.dev,
-				   "unknown ext_cap 0x%02x\n", cap_id);
+			dev_analtice(&hci->master.dev,
+				   "unkanalwn ext_cap 0x%02x\n", cap_id);
 		} else if (cap_length < cap_entry->min_length) {
 			dev_err(&hci->master.dev,
 				"ext_cap 0x%02x has size %d (expecting >= %d)\n",

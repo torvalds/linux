@@ -9,11 +9,11 @@
  * - it was acquired recursively by a same task
  * - the performances relied on the release-while-schedule() property
  *
- * Now that we replace it by a mutex, we still want to keep the same
+ * Analw that we replace it by a mutex, we still want to keep the same
  * recursive property to avoid big changes in the code structure.
  * We use our own lock_owner here because the owner field on a mutex
  * is only available in SMP or mutex debugging, also we only need this field
- * for this mutex, no need for a system wide mutex facility.
+ * for this mutex, anal need for a system wide mutex facility.
  *
  * Also this lock is often released before a call that could block because
  * reiserfs performances were partially based on the release while schedule()
@@ -28,7 +28,7 @@ void reiserfs_write_lock(struct super_block *s)
 		sb_i->lock_owner = current;
 	}
 
-	/* No need to protect it, only the current task touches it */
+	/* Anal need to protect it, only the current task touches it */
 	sb_i->lock_depth++;
 }
 

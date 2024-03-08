@@ -12,5 +12,5 @@ digraph disk_states {
 	Outdated   -> Failed           [ label = "io completion error" ]
 	UpToDate   -> Failed           [ label = "io completion error" ]
 	Inconsistent -> Failed         [ label = "io completion error" ]
-	Failed -> Diskless             [ label = "sending notify to peer" ]
+	Failed -> Diskless             [ label = "sending analtify to peer" ]
 }

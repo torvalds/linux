@@ -31,8 +31,8 @@ Required properties:
 		Specifies the number of Coherency Subdomain ID Port Mapping
 		Registers that are supported by the CCF.
 
-- fsl,ccf-num-snoopids: <u32>
-		Specifies the number of Snoop ID Port Mapping Registers that
+- fsl,ccf-num-sanalopids: <u32>
+		Specifies the number of Sanalop ID Port Mapping Registers that
 		are supported by CCF.
 
 Example:
@@ -42,5 +42,5 @@ Example:
 		reg = <0x18000 0x1000>;
 		interrupts = <16 2 1 31>;
 		fsl,ccf-num-csdids = <32>;
-		fsl,ccf-num-snoopids = <32>;
+		fsl,ccf-num-sanalopids = <32>;
 	};

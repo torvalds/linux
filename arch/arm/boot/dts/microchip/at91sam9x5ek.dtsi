@@ -85,17 +85,17 @@
 	camera_sensor {
 		pinctrl_pck0_as_isi_mck: pck0_as_isi_mck-0 {
 			atmel,pins =
-				<AT91_PIOC 15 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* ISI_MCK */
+				<AT91_PIOC 15 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;	/* ISI_MCK */
 		};
 
 		pinctrl_sensor_power: sensor_power-0 {
 			atmel,pins =
-				<AT91_PIOA 13 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+				<AT91_PIOA 13 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE>;
 		};
 
 		pinctrl_sensor_reset: sensor_reset-0 {
 			atmel,pins =
-				<AT91_PIOA 7 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+				<AT91_PIOA 7 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE>;
 		};
 	};
 

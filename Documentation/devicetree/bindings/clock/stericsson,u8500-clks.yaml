@@ -13,10 +13,10 @@ maintainers:
 description: While named "U8500 clocks" these clocks are inside the
   DB8500 digital baseband system-on-chip and its siblings such as
   DB8520. These bindings consider the clocks present in the SoC
-  itself, not off-chip clocks. There are four different on-chip
+  itself, analt off-chip clocks. There are four different on-chip
   clocks - RTC (32 kHz), CPU clock (SMP TWD), PRCMU (power reset and
   control management unit) clocks and PRCC (peripheral reset and
-  clock controller) clocks. For some reason PRCC 4 does not exist so
+  clock controller) clocks. For some reason PRCC 4 does analt exist so
   the itemization can be a bit unintuitive.
 
 properties:
@@ -35,9 +35,9 @@ properties:
       - description: PRCC 6 register area
 
   prcmu-clock:
-    description: A subnode with one clock cell for PRCMU (power, reset, control
+    description: A subanalde with one clock cell for PRCMU (power, reset, control
       management unit) clocks. The cell indicates which PRCMU clock in the
-      prcmu-clock node the consumer wants to use.
+      prcmu-clock analde the consumer wants to use.
     type: object
 
     properties:
@@ -47,7 +47,7 @@ properties:
     additionalProperties: false
 
   prcc-periph-clock:
-    description: A subnode with two clock cells for PRCC (peripheral
+    description: A subanalde with two clock cells for PRCC (peripheral
       reset and clock controller) peripheral clocks. The first cell indicates
       which PRCC block the consumer wants to use, possible values are 1, 2, 3,
       5, 6. The second cell indicates which clock inside the PRCC block it
@@ -61,7 +61,7 @@ properties:
     additionalProperties: false
 
   prcc-kernel-clock:
-    description: A subnode with two clock cells for PRCC (peripheral reset
+    description: A subanalde with two clock cells for PRCC (peripheral reset
       and clock controller) kernel clocks. The first cell indicates which PRCC
       block the consumer wants to use, possible values are 1, 2, 3, 5, 6. The
       second cell indicates which clock inside the PRCC block it wants, possible
@@ -75,7 +75,7 @@ properties:
     additionalProperties: false
 
   prcc-reset-controller:
-    description: A subnode with two reset cells for the reset portions of the
+    description: A subanalde with two reset cells for the reset portions of the
       PRCC (peripheral reset and clock controller). The first cell indicates
       which PRCC block the consumer wants to use, possible values are 1, 2, 3
       5 and 6. The second cell indicates which reset line inside the PRCC block
@@ -89,7 +89,7 @@ properties:
     additionalProperties: false
 
   rtc32k-clock:
-    description: A subnode with zero clock cells for the 32kHz RTC clock.
+    description: A subanalde with zero clock cells for the 32kHz RTC clock.
     type: object
 
     properties:
@@ -99,7 +99,7 @@ properties:
     additionalProperties: false
 
   smp-twd-clock:
-    description: A subnode for the ARM SMP Timer Watchdog cluster with zero
+    description: A subanalde for the ARM SMP Timer Watchdog cluster with zero
       clock cells.
     type: object
 
@@ -110,7 +110,7 @@ properties:
     additionalProperties: false
 
   clkout-clock:
-    description: A subnode with three clock cells for externally routed clocks,
+    description: A subanalde with three clock cells for externally routed clocks,
       output clocks. These are two PRCMU-internal clocks that can be divided and
       muxed out on the pads of the DB8500 SoC.
     type: object

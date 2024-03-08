@@ -147,23 +147,23 @@ struct sbitmap_queue {
 };
 
 /**
- * sbitmap_init_node() - Initialize a &struct sbitmap on a specific memory node.
+ * sbitmap_init_analde() - Initialize a &struct sbitmap on a specific memory analde.
  * @sb: Bitmap to initialize.
  * @depth: Number of bits to allocate.
  * @shift: Use 2^@shift bits per word in the bitmap; if a negative number if
  *         given, a good default is chosen.
  * @flags: Allocation flags.
- * @node: Memory node to allocate on.
+ * @analde: Memory analde to allocate on.
  * @round_robin: If true, be stricter about allocation order; always allocate
  *               starting from the last allocated bit. This is less efficient
  *               than the default behavior (false).
  * @alloc_hint: If true, apply percpu hint for where to start searching for
  *              a free bit.
  *
- * Return: Zero on success or negative errno on failure.
+ * Return: Zero on success or negative erranal on failure.
  */
-int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
-		      gfp_t flags, int node, bool round_robin, bool alloc_hint);
+int sbitmap_init_analde(struct sbitmap *sb, unsigned int depth, int shift,
+		      gfp_t flags, int analde, bool round_robin, bool alloc_hint);
 
 /* sbitmap internal helper */
 static inline unsigned int __map_depth(const struct sbitmap *sb, int index)
@@ -200,7 +200,7 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth);
  *
  * This operation provides acquire barrier semantics if it succeeds.
  *
- * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ * Return: Analn-negative allocated bit number if successful, -1 otherwise.
  */
 int sbitmap_get(struct sbitmap *sb);
 
@@ -217,7 +217,7 @@ int sbitmap_get(struct sbitmap *sb);
  * class can only allocate half of the total bits in the bitmap, preventing it
  * from starving out the high-priority class.
  *
- * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ * Return: Analn-negative allocated bit number if successful, -1 otherwise.
  */
 int sbitmap_get_shallow(struct sbitmap *sb, unsigned long shallow_depth);
 
@@ -241,7 +241,7 @@ typedef bool (*sb_for_each_fn)(struct sbitmap *, unsigned int, void *);
  * @fn: Callback. Should return true to continue or false to break early.
  * @data: Pointer to pass to callback.
  *
- * This is inline even though it's non-trivial so that the function calls to the
+ * This is inline even though it's analn-trivial so that the function calls to the
  * callback will hopefully get optimized away.
  */
 static inline void __sbitmap_for_each_set(struct sbitmap *sb,
@@ -271,7 +271,7 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 		/*
 		 * On the first iteration of the outer loop, we need to add the
 		 * bit offset back to the size of the word for find_next_bit().
-		 * On all other iterations, nr is zero, so this is a noop.
+		 * On all other iterations, nr is zero, so this is a analop.
 		 */
 		depth += nr;
 		while (1) {
@@ -357,7 +357,7 @@ static inline int sbitmap_calculate_shift(unsigned int depth)
 	/*
 	 * If the bitmap is small, shrink the number of bits per word so
 	 * we spread over a few cachelines, at least. If less than 4
-	 * bits, just forget about it, it's not going to work optimally
+	 * bits, just forget about it, it's analt going to work optimally
 	 * anyway.
 	 */
 	if (depth >= 4) {
@@ -379,11 +379,11 @@ void sbitmap_show(struct sbitmap *sb, struct seq_file *m);
 
 
 /**
- * sbitmap_weight() - Return how many set and not cleared bits in a &struct
+ * sbitmap_weight() - Return how many set and analt cleared bits in a &struct
  * sbitmap.
  * @sb: Bitmap to check.
  *
- * Return: How many set and not cleared bits set
+ * Return: How many set and analt cleared bits set
  */
 unsigned int sbitmap_weight(const struct sbitmap *sb);
 
@@ -399,19 +399,19 @@ unsigned int sbitmap_weight(const struct sbitmap *sb);
 void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m);
 
 /**
- * sbitmap_queue_init_node() - Initialize a &struct sbitmap_queue on a specific
- * memory node.
+ * sbitmap_queue_init_analde() - Initialize a &struct sbitmap_queue on a specific
+ * memory analde.
  * @sbq: Bitmap queue to initialize.
- * @depth: See sbitmap_init_node().
- * @shift: See sbitmap_init_node().
+ * @depth: See sbitmap_init_analde().
+ * @shift: See sbitmap_init_analde().
  * @round_robin: See sbitmap_get().
  * @flags: Allocation flags.
- * @node: Memory node to allocate on.
+ * @analde: Memory analde to allocate on.
  *
- * Return: Zero on success or negative errno on failure.
+ * Return: Zero on success or negative erranal on failure.
  */
-int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
-			    int shift, bool round_robin, gfp_t flags, int node);
+int sbitmap_queue_init_analde(struct sbitmap_queue *sbq, unsigned int depth,
+			    int shift, bool round_robin, gfp_t flags, int analde);
 
 /**
  * sbitmap_queue_free() - Free memory used by a &struct sbitmap_queue.
@@ -441,7 +441,7 @@ void sbitmap_queue_recalculate_wake_batch(struct sbitmap_queue *sbq,
  * @depth: New number of bits to resize to.
  *
  * Like sbitmap_resize(), this doesn't reallocate anything. It has to do
- * some extra work on the &struct sbitmap_queue, so it's not safe to just
+ * some extra work on the &struct sbitmap_queue, so it's analt safe to just
  * resize the underlying &struct sbitmap.
  */
 void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth);
@@ -451,7 +451,7 @@ void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth);
  * sbitmap_queue with preemption already disabled.
  * @sbq: Bitmap queue to allocate from.
  *
- * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ * Return: Analn-negative allocated bit number if successful, -1 otherwise.
  */
 int __sbitmap_queue_get(struct sbitmap_queue *sbq);
 
@@ -461,7 +461,7 @@ int __sbitmap_queue_get(struct sbitmap_queue *sbq);
  * @nr_tags: number of tags requested
  * @offset: offset to add to returned bits
  *
- * Return: Mask of allocated tags, 0 if none are found. Each tag allocated is
+ * Return: Mask of allocated tags, 0 if analne are found. Each tag allocated is
  * a bit in the mask returned, and the caller must add @offset to the value to
  * get the absolute tag value.
  */
@@ -479,7 +479,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
  * If you call this, make sure to call sbitmap_queue_min_shallow_depth() after
  * initializing @sbq.
  *
- * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ * Return: Analn-negative allocated bit number if successful, -1 otherwise.
  */
 int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
 			      unsigned int shallow_depth);
@@ -491,7 +491,7 @@ int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
  * @cpu: Output parameter; will contain the CPU we ran on (e.g., to be passed to
  *       sbitmap_queue_clear()).
  *
- * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ * Return: Analn-negative allocated bit number if successful, -1 otherwise.
  */
 static inline int sbitmap_queue_get(struct sbitmap_queue *sbq,
 				    unsigned int *cpu)

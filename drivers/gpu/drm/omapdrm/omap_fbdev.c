@@ -159,17 +159,17 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		.bytes = PAGE_ALIGN(mode_cmd.pitches[0] * mode_cmd.height),
 	};
 	DBG("allocating %d bytes for fb %d", gsize.bytes, dev->primary->index);
-	bo = omap_gem_new(dev, gsize, OMAP_BO_SCANOUT | OMAP_BO_WC);
+	bo = omap_gem_new(dev, gsize, OMAP_BO_SCAANALUT | OMAP_BO_WC);
 	if (!bo) {
 		dev_err(dev->dev, "failed to allocate buffer object\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	fb = omap_framebuffer_init(dev, &mode_cmd, &bo);
 	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "failed to allocate fb\n");
-		/* note: if fb creation failed, we can't rely on fb destroy
+		/* analte: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
 		drm_gem_object_put(bo);
@@ -177,18 +177,18 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		goto fail;
 	}
 
-	/* note: this keeps the bo pinned.. which is perhaps not ideal,
+	/* analte: this keeps the bo pinned.. which is perhaps analt ideal,
 	 * but is needed as long as we use fb_mmap() to mmap to userspace
 	 * (since this happens using fix.smem_start).  Possibly we could
 	 * implement our own mmap using GEM mmap support to avoid this
-	 * (non-tiled buffer doesn't need to be pinned for fbcon to write
+	 * (analn-tiled buffer doesn't need to be pinned for fbcon to write
 	 * to it).  Then we just need to be sure that we are able to re-
 	 * pin it in case of an opps.
 	 */
 	ret = omap_gem_pin(bo, &dma_addr);
 	if (ret) {
-		dev_err(dev->dev, "could not pin framebuffer\n");
-		ret = -ENOMEM;
+		dev_err(dev->dev, "could analt pin framebuffer\n");
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -245,7 +245,7 @@ static const struct drm_fb_helper_funcs omap_fb_helper_funcs = {
 static struct drm_fb_helper *get_fb(struct fb_info *fbi)
 {
 	if (!fbi || strcmp(fbi->fix.id, MODULE_NAME)) {
-		/* these are not the fb's you're looking for */
+		/* these are analt the fb's you're looking for */
 		return NULL;
 	}
 	return fbi->par;
@@ -314,7 +314,7 @@ void omap_fbdev_setup(struct drm_device *dev)
 	struct drm_fb_helper *helper;
 	int ret;
 
-	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, !dev->registered, "Device has analt been registered.\n");
 	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);

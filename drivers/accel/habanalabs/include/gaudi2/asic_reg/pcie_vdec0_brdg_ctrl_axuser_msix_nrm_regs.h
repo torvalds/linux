@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_PCIE_VDEC0_BRDG_CTRL_AXUSER_MSIX_NRM_REGS_H_
@@ -26,7 +26,7 @@
 
 #define mmPCIE_VDEC0_BRDG_CTRL_AXUSER_MSIX_NRM_HB_STRONG_ORDER 0x4F03A08
 
-#define mmPCIE_VDEC0_BRDG_CTRL_AXUSER_MSIX_NRM_HB_NO_SNOOP 0x4F03A0C
+#define mmPCIE_VDEC0_BRDG_CTRL_AXUSER_MSIX_NRM_HB_ANAL_SANALOP 0x4F03A0C
 
 #define mmPCIE_VDEC0_BRDG_CTRL_AXUSER_MSIX_NRM_HB_WR_REDUCTION 0x4F03A10
 

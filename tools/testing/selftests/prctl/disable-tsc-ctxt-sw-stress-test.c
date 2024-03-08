@@ -31,7 +31,7 @@
 static uint64_t rdtsc(void)
 {
 uint32_t lo, hi;
-/* We cannot use "=A", since this would use %rax on x86_64 */
+/* We cananalt use "=A", since this would use %rax on x86_64 */
 __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
 return (uint64_t)hi << 32 | lo;
 }
@@ -79,7 +79,7 @@ int main(void)
 {
 	int n_tasks = 100, i;
 
-	fprintf(stderr, "[No further output means we're all right]\n");
+	fprintf(stderr, "[Anal further output means we're all right]\n");
 
 	for (i=0; i<n_tasks; i++)
 		if (fork() == 0)

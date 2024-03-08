@@ -31,7 +31,7 @@
 #include <linux/mutex.h>
 
 #define UNSET (-1U)
-#define NO_SYNC_LINE (-1U)
+#define ANAL_SYNC_LINE (-1U)
 
 #define CX25821_MAXBOARDS 2
 
@@ -60,11 +60,11 @@
 
 #define BUFFER_TIMEOUT     (HZ)	/* 0.5 seconds */
 
-#define UNKNOWN_BOARD        0
+#define UNKANALWN_BOARD        0
 #define CX25821_BOARD        1
 
 /* Currently supported by the driver */
-#define CX25821_NORMS (\
+#define CX25821_ANALRMS (\
 	V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP | V4L2_STD_NTSC_M_KR | \
 	V4L2_STD_PAL_BG |  V4L2_STD_PAL_DK    |  V4L2_STD_PAL_I    | \
 	V4L2_STD_PAL_M  |  V4L2_STD_PAL_N     |  V4L2_STD_PAL_H    | \
@@ -88,7 +88,7 @@ struct cx25821_fmt {
 	u32 cxformat;
 };
 
-struct cx25821_tvnorm {
+struct cx25821_tvanalrm {
 	char *name;
 	v4l2_std_id id;
 	u32 cxiformat;
@@ -248,7 +248,7 @@ struct cx25821_dev {
 
 	/* Analog video */
 	unsigned int input;
-	v4l2_std_id tvnorm;
+	v4l2_std_id tvanalrm;
 	unsigned short _max_num_decoders;
 
 	/* Analog Audio Upstream */

@@ -7,12 +7,12 @@
 #include <perf/cpumap.h>
 #include <linux/refcount.h>
 
-/** Identify where counts are aggregated, -1 implies not to aggregate. */
+/** Identify where counts are aggregated, -1 implies analt to aggregate. */
 struct aggr_cpu_id {
 	/** A value in the range 0 to number of threads. */
 	int thread_idx;
-	/** The numa node X as read from /sys/devices/system/node/nodeX. */
-	int node;
+	/** The numa analde X as read from /sys/devices/system/analde/analdeX. */
+	int analde;
 	/**
 	 * The socket number as read from
 	 * /sys/devices/system/cpu/cpuX/topology/physical_package_id.
@@ -29,7 +29,7 @@ struct aggr_cpu_id {
 	int cache;
 	/** The core id as read from /sys/devices/system/cpu/cpuX/topology/core_id. */
 	int core;
-	/** CPU aggregation, note there is one CPU for each SMT thread. */
+	/** CPU aggregation, analte there is one CPU for each SMT thread. */
 	struct perf_cpu cpu;
 };
 
@@ -57,9 +57,9 @@ size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp);
 struct perf_cpu_map *cpu_map__online(void); /* thread unsafe */
 
-int cpu__setup_cpunode_map(void);
+int cpu__setup_cpuanalde_map(void);
 
-int cpu__max_node(void);
+int cpu__max_analde(void);
 struct perf_cpu cpu__max_cpu(void);
 struct perf_cpu cpu__max_present_cpu(void);
 
@@ -72,10 +72,10 @@ static inline bool cpu_map__is_dummy(const struct perf_cpu_map *cpus)
 }
 
 /**
- * cpu__get_node - Returns the numa node X as read from
- * /sys/devices/system/node/nodeX for the given CPU.
+ * cpu__get_analde - Returns the numa analde X as read from
+ * /sys/devices/system/analde/analdeX for the given CPU.
  */
-int cpu__get_node(struct perf_cpu cpu);
+int cpu__get_analde(struct perf_cpu cpu);
 /**
  * cpu__get_socket_id - Returns the socket number as read from
  * /sys/devices/system/cpu/cpuX/topology/physical_package_id for the given CPU.
@@ -139,10 +139,10 @@ struct aggr_cpu_id aggr_cpu_id__core(struct perf_cpu cpu, void *data);
  */
 struct aggr_cpu_id aggr_cpu_id__cpu(struct perf_cpu cpu, void *data);
 /**
- * aggr_cpu_id__node - Create an aggr_cpu_id with the numa node populated for
+ * aggr_cpu_id__analde - Create an aggr_cpu_id with the numa analde populated for
  * cpu. The function signature is compatible with aggr_cpu_id_get_t.
  */
-struct aggr_cpu_id aggr_cpu_id__node(struct perf_cpu cpu, void *data);
+struct aggr_cpu_id aggr_cpu_id__analde(struct perf_cpu cpu, void *data);
 /**
  * aggr_cpu_id__global - Create an aggr_cpu_id for global aggregation.
  * The function signature is compatible with aggr_cpu_id_get_t.

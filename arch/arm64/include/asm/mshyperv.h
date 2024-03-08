@@ -7,7 +7,7 @@
  * definitions are that architecture independent.
  *
  * Definitions that are specified in the Hyper-V Top Level Functional
- * Spec (TLFS) should not go in this file, but should instead go in
+ * Spec (TLFS) should analt go in this file, but should instead go in
  * hyperv-tlfs.h.
  *
  * Copyright (C) 2021, Microsoft, Inc.

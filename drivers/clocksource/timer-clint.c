@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2020 Western Digital Corporation or its affiliates.
  *
- * Most of the M-mode (i.e. NoMMU) RISC-V systems usually have a
+ * Most of the M-mode (i.e. AnalMMU) RISC-V systems usually have a
  * CLINT MMIO timer device.
  */
 
@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/sched_clock.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
@@ -77,12 +77,12 @@ static void clint_ipi_interrupt(struct irq_desc *desc)
 #endif
 
 #ifdef CONFIG_64BIT
-static u64 notrace clint_get_cycles64(void)
+static u64 analtrace clint_get_cycles64(void)
 {
 	return clint_get_cycles();
 }
 #else /* CONFIG_64BIT */
-static u64 notrace clint_get_cycles64(void)
+static u64 analtrace clint_get_cycles64(void)
 {
 	u32 hi, lo;
 
@@ -161,7 +161,7 @@ static irqreturn_t clint_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init clint_timer_init_dt(struct device_node *np)
+static int __init clint_timer_init_dt(struct device_analde *np)
 {
 	int rc;
 	u32 i, nr_irqs;
@@ -170,7 +170,7 @@ static int __init clint_timer_init_dt(struct device_node *np)
 
 	/*
 	 * Ensure that CLINT device interrupts are either RV_IRQ_TIMER or
-	 * RV_IRQ_SOFT. If it's anything else then we ignore the device.
+	 * RV_IRQ_SOFT. If it's anything else then we iganalre the device.
 	 */
 	nr_irqs = of_irq_count(np);
 	for (i = 0; i < nr_irqs; i++) {
@@ -184,7 +184,7 @@ static int __init clint_timer_init_dt(struct device_node *np)
 		     oirq.args[0] != RV_IRQ_SOFT)) {
 			pr_err("%pOFP: invalid irq %d (hwirq %d)\n",
 			       np, i, oirq.args[0]);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* Find parent irq domain and map ipi irq */
@@ -200,16 +200,16 @@ static int __init clint_timer_init_dt(struct device_node *np)
 			clint_timer_irq = irq_of_parse_and_map(np, i);
 	}
 
-	/* If CLINT ipi or timer irq not found then fail */
+	/* If CLINT ipi or timer irq analt found then fail */
 	if (!clint_ipi_irq || !clint_timer_irq) {
-		pr_err("%pOFP: ipi/timer irq not found\n", np);
-		return -ENODEV;
+		pr_err("%pOFP: ipi/timer irq analt found\n", np);
+		return -EANALDEV;
 	}
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_err("%pOFP: could not map registers\n", np);
-		return -ENODEV;
+		pr_err("%pOFP: could analt map registers\n", np);
+		return -EANALDEV;
 	}
 
 	clint_ipi_base = base + CLINT_IPI_OFF;
@@ -219,7 +219,7 @@ static int __init clint_timer_init_dt(struct device_node *np)
 
 #ifdef CONFIG_RISCV_M_MODE
 	/*
-	 * Yes, that's an odd naming scheme.  time_val is public, but hopefully
+	 * Anal, that's an odd naming scheme.  time_val is public, but hopefully
 	 * will die in favor of something cleaner.
 	 */
 	clint_time_val = clint_timer_val;
@@ -246,7 +246,7 @@ static int __init clint_timer_init_dt(struct device_node *np)
 	rc = ipi_mux_create(BITS_PER_BYTE, clint_send_ipi);
 	if (rc <= 0) {
 		pr_err("unable to create muxed IPIs\n");
-		rc = (rc < 0) ? rc : -ENODEV;
+		rc = (rc < 0) ? rc : -EANALDEV;
 		goto fail_free_irq;
 	}
 

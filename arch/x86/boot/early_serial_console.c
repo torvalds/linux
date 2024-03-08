@@ -29,8 +29,8 @@ static void early_serial_init(int port, int baud)
 	unsigned divisor;
 
 	outb(0x3, port + LCR);	/* 8n1 */
-	outb(0, port + IER);	/* no interrupt */
-	outb(0, port + FCR);	/* no fifo */
+	outb(0, port + IER);	/* anal interrupt */
+	outb(0, port + FCR);	/* anal fifo */
 	outb(0x3, port + MCR);	/* DTR + RTS */
 
 	divisor	= 115200 / baud;

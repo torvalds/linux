@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
-// Synopsys CREG (Control REGisters) GPIO driver
+// Syanalpsys CREG (Control REGisters) GPIO driver
 //
-// Copyright (C) 2018 Synopsys
-// Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+// Copyright (C) 2018 Syanalpsys
+// Author: Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>
 
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
@@ -142,18 +142,18 @@ static int creg_gpio_probe(struct platform_device *pdev)
 
 	hcg = devm_kzalloc(dev, sizeof(struct creg_gpio), GFP_KERNEL);
 	if (!hcg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcg->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hcg->regs))
 		return PTR_ERR(hcg->regs);
 
-	match = of_match_node(creg_gpio_ids, pdev->dev.of_node);
+	match = of_match_analde(creg_gpio_ids, pdev->dev.of_analde);
 	hcg->layout = match->data;
 	if (!hcg->layout)
 		return -EINVAL;
 
-	ret = of_property_read_u32(dev->of_node, "ngpios", &ngpios);
+	ret = of_property_read_u32(dev->of_analde, "ngpios", &ngpios);
 	if (ret)
 		return ret;
 

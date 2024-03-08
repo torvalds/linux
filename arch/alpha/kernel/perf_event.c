@@ -28,7 +28,7 @@
 
 /* The maximum number of PMCs on any Alpha CPU whatsoever. */
 #define MAX_HWEVENTS 3
-#define PMC_NO_INDEX -1
+#define PMC_ANAL_INDEX -1
 
 /* For tracking PMCs and the hw events they monitor on each CPU. */
 struct cpu_hw_events {
@@ -41,8 +41,8 @@ struct cpu_hw_events {
 	struct perf_event	*event[MAX_HWEVENTS];
 	/* Event type of each scheduled event. */
 	unsigned long		evtype[MAX_HWEVENTS];
-	/* Current index of each scheduled event; if not yet determined
-	 * contains PMC_NO_INDEX.
+	/* Current index of each scheduled event; if analt yet determined
+	 * contains PMC_ANAL_INDEX.
 	 */
 	int			current_idx[MAX_HWEVENTS];
 	/* The active PMCs' config for easy use with wrperfmon(). */
@@ -59,7 +59,7 @@ DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
  * type of Alpha CPU.
  */
 struct alpha_pmu_t {
-	/* Mapping of the perf system hw event types to indigenous event types */
+	/* Mapping of the perf system hw event types to indigeanalus event types */
 	const int *event_map;
 	/* The number of entries in the event_map */
 	int  max_events;
@@ -106,7 +106,7 @@ static const struct alpha_pmu_t *alpha_pmu;
 /*
  * EV67 PMC event types
  *
- * There is no one-to-one mapping of the possible hw event types to the
+ * There is anal one-to-one mapping of the possible hw event types to the
  * actual codes that are used to program the PMCs hence we introduce our
  * own hw event type identifiers.
  */
@@ -271,7 +271,7 @@ static int alpha_perf_event_set_period(struct perf_event *event,
 	}
 
 	/*
-	 * Hardware restrictions require that the counters must not be
+	 * Hardware restrictions require that the counters must analt be
 	 * written with values that are too close to the maximum period.
 	 */
 	if (unlikely(left < alpha_pmu->pmc_left[idx]))
@@ -294,9 +294,9 @@ static int alpha_perf_event_set_period(struct perf_event *event,
  * Calculates the count (the 'delta') since the last time the PMC was read.
  *
  * As the PMCs' full period can easily be exceeded within the perf system
- * sampling period we cannot use any high order bits as a guard bit in the
+ * sampling period we cananalt use any high order bits as a guard bit in the
  * PMCs to detect overflow as is done by other architectures.  The code here
- * calculates the delta on the basis that there is no overflow when ovf is
+ * calculates the delta on the basis that there is anal overflow when ovf is
  * zero.  The value passed via ovf by the interrupt handler corrects for
  * overflow.
  *
@@ -349,7 +349,7 @@ static int collect_events(struct perf_event *group, int max_count,
 			return -1;
 		event[n] = group;
 		evtype[n] = group->hw.event_base;
-		current_idx[n++] = PMC_NO_INDEX;
+		current_idx[n++] = PMC_ANAL_INDEX;
 	}
 	for_each_sibling_event(pe, group) {
 		if (!is_software_event(pe) && pe->state != PERF_EVENT_STATE_OFF) {
@@ -357,7 +357,7 @@ static int collect_events(struct perf_event *group, int max_count,
 				return -1;
 			event[n] = pe;
 			evtype[n] = pe->hw.event_base;
-			current_idx[n++] = PMC_NO_INDEX;
+			current_idx[n++] = PMC_ANAL_INDEX;
 		}
 	}
 	return n;
@@ -372,7 +372,7 @@ static int alpha_check_constraints(struct perf_event **events,
 				   unsigned long *evtypes, int n_ev)
 {
 
-	/* No HW events is possible from hw_perf_group_sched_in(). */
+	/* Anal HW events is possible from hw_perf_group_sched_in(). */
 	if (n_ev == 0)
 		return 0;
 
@@ -386,7 +386,7 @@ static int alpha_check_constraints(struct perf_event **events,
 /*
  * If new events have been scheduled then update cpuc with the new
  * configuration.  This may involve shifting cycle counts from one PMC to
- * another.
+ * aanalther.
  */
 static void maybe_change_configuration(struct cpu_hw_events *cpuc)
 {
@@ -395,14 +395,14 @@ static void maybe_change_configuration(struct cpu_hw_events *cpuc)
 	if (cpuc->n_added == 0)
 		return;
 
-	/* Find counters that are moving to another PMC and update */
+	/* Find counters that are moving to aanalther PMC and update */
 	for (j = 0; j < cpuc->n_events; j++) {
 		struct perf_event *pe = cpuc->event[j];
 
-		if (cpuc->current_idx[j] != PMC_NO_INDEX &&
+		if (cpuc->current_idx[j] != PMC_ANAL_INDEX &&
 			cpuc->current_idx[j] != pe->hw.idx) {
 			alpha_perf_event_update(pe, &pe->hw, cpuc->current_idx[j], 0);
-			cpuc->current_idx[j] = PMC_NO_INDEX;
+			cpuc->current_idx[j] = PMC_ANAL_INDEX;
 		}
 	}
 
@@ -413,7 +413,7 @@ static void maybe_change_configuration(struct cpu_hw_events *cpuc)
 		struct hw_perf_event *hwc = &pe->hw;
 		int idx = hwc->idx;
 
-		if (cpuc->current_idx[j] == PMC_NO_INDEX) {
+		if (cpuc->current_idx[j] == PMC_ANAL_INDEX) {
 			alpha_perf_event_set_period(pe, hwc, idx);
 			cpuc->current_idx[j] = idx;
 		}
@@ -442,7 +442,7 @@ static int alpha_pmu_add(struct perf_event *event, int flags)
 	 * The Sparc code has the IRQ disable first followed by the perf
 	 * disable, however this can lead to an overflowed counter with the
 	 * PMI disabled on rare occasions.  The alpha_perf_event_update()
-	 * routine should detect this situation by noting a negative delta,
+	 * routine should detect this situation by analting a negative delta,
 	 * nevertheless we disable the PMCs first to enable a potential
 	 * final PMI to occur before we disable interrupts.
 	 */
@@ -457,7 +457,7 @@ static int alpha_pmu_add(struct perf_event *event, int flags)
 	if (n0 < alpha_pmu->num_pmcs) {
 		cpuc->event[n0] = event;
 		cpuc->evtype[n0] = event->hw.event_base;
-		cpuc->current_idx[n0] = PMC_NO_INDEX;
+		cpuc->current_idx[n0] = PMC_ANAL_INDEX;
 
 		if (!alpha_check_constraints(cpuc->event, cpuc->evtype, n0+1)) {
 			cpuc->n_events++;
@@ -593,7 +593,7 @@ static int supported_cpu(void)
 
 static void hw_perf_event_destroy(struct perf_event *event)
 {
-	/* Nothing to be done! */
+	/* Analthing to be done! */
 	return;
 }
 
@@ -617,13 +617,13 @@ static int __hw_perf_event_init(struct perf_event *event)
 			return -EINVAL;
 		ev = alpha_pmu->event_map[attr->config];
 	} else if (attr->type == PERF_TYPE_HW_CACHE) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else if (attr->type == PERF_TYPE_RAW) {
 		if (!alpha_pmu->raw_event_valid(attr->config))
 			return -EINVAL;
 		ev = attr->config;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ev < 0) {
@@ -633,10 +633,10 @@ static int __hw_perf_event_init(struct perf_event *event)
 	/*
 	 * We place the event type in event_base here and leave calculation
 	 * of the codes to programme the PMU for alpha_pmu_enable() because
-	 * it is only then we will know what HW events are actually
+	 * it is only then we will kanalw what HW events are actually
 	 * scheduled on to the PMU.  At that point the code to programme the
 	 * PMU is put into config_base and the PMC to use is placed into
-	 * idx.  We initialise idx (below) to PMC_NO_INDEX to indicate that
+	 * idx.  We initialise idx (below) to PMC_ANAL_INDEX to indicate that
 	 * it is yet to be determined.
 	 */
 	hwc->event_base = ev;
@@ -661,15 +661,15 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	/* Indicate that PMU config and idx are yet to be determined. */
 	hwc->config_base = 0;
-	hwc->idx = PMC_NO_INDEX;
+	hwc->idx = PMC_ANAL_INDEX;
 
 	event->destroy = hw_perf_event_destroy;
 
 	/*
 	 * Most architectures reserve the PMU for their use at this point.
-	 * As there is no existing mechanism to arbitrate usage and there
-	 * appears to be no other user of the Alpha PMU we just assume
-	 * that we can just use it, hence a NO-OP here.
+	 * As there is anal existing mechanism to arbitrate usage and there
+	 * appears to be anal other user of the Alpha PMU we just assume
+	 * that we can just use it, hence a ANAL-OP here.
 	 *
 	 * Maybe an alpha_reserve_pmu() routine should be implemented but is
 	 * anything else ever going to use it?
@@ -689,9 +689,9 @@ static int __hw_perf_event_init(struct perf_event *event)
  */
 static int alpha_pmu_event_init(struct perf_event *event)
 {
-	/* does not support taken branch sampling */
+	/* does analt support taken branch sampling */
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (event->attr.type) {
 	case PERF_TYPE_RAW:
@@ -700,11 +700,11 @@ static int alpha_pmu_event_init(struct perf_event *event)
 		break;
 
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!alpha_pmu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Do the real initialisation work. */
 	return __hw_perf_event_init(event);
@@ -761,12 +761,12 @@ static struct pmu pmu = {
 	.start		= alpha_pmu_start,
 	.stop		= alpha_pmu_stop,
 	.read		= alpha_pmu_read,
-	.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 };
 
 
 /*
- * Main entry point - don't know when this is called but it
+ * Main entry point - don't kanalw when this is called but it
  * obviously dumps debug info.
  */
 void perf_event_print_debug(void)
@@ -843,7 +843,7 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 	if (unlikely(!event)) {
 		/* This should never occur! */
 		irq_err_count++;
-		pr_warn("PMI: No event at index %d!\n", idx);
+		pr_warn("PMI: Anal event at index %d!\n", idx);
 		wrperfmon(PERFMON_CMD_ENABLE, cpuc->idx_mask);
 		return;
 	}
@@ -875,7 +875,7 @@ int __init init_hw_perf_events(void)
 	pr_info("Performance events: ");
 
 	if (!supported_cpu()) {
-		pr_cont("No support for your CPU.\n");
+		pr_cont("Anal support for your CPU.\n");
 		return 0;
 	}
 

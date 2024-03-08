@@ -11,7 +11,7 @@
  *
  * Attempts were made, unsuccessfully, to contact the original
  * author of this code (Michael Morrow, Intel).  Below is the original
- * copyright notice.
+ * copyright analtice.
  *
  * This software has been developed by Intel Corporation.
  * Intel specifically disclaims all warranties, express or
@@ -19,9 +19,9 @@
  * other indirect damages, for the use of this program, including
  * liability for infringement of any proprietary rights,
  * and including the warranties of merchantability and fitness
- * for a particular purpose. Intel does not assume any
+ * for a particular purpose. Intel does analt assume any
  * responsibility for and errors which may appear in this program
- * not any responsibility to update it.
+ * analt any responsibility to update it.
  */
 
 #include <linux/export.h>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * ARM Power State and Coordination Interface (PSCI) header
  *
@@ -17,7 +17,7 @@
  *
  * The PSCI v0.1 function numbers are implementation defined.
  *
- * Only PSCI return values such as: SUCCESS, NOT_SUPPORTED,
+ * Only PSCI return values such as: SUCCESS, ANALT_SUPPORTED,
  * INVALID_PARAMS, and DENIED defined below are applicable
  * to PSCI v0.1.
  */
@@ -50,7 +50,7 @@
 #define PSCI_1_0_FN_PSCI_FEATURES		PSCI_0_2_FN(10)
 #define PSCI_1_0_FN_CPU_FREEZE			PSCI_0_2_FN(11)
 #define PSCI_1_0_FN_CPU_DEFAULT_SUSPEND		PSCI_0_2_FN(12)
-#define PSCI_1_0_FN_NODE_HW_STATE		PSCI_0_2_FN(13)
+#define PSCI_1_0_FN_ANALDE_HW_STATE		PSCI_0_2_FN(13)
 #define PSCI_1_0_FN_SYSTEM_SUSPEND		PSCI_0_2_FN(14)
 #define PSCI_1_0_FN_SET_SUSPEND_MODE		PSCI_0_2_FN(15)
 #define PSCI_1_0_FN_STAT_RESIDENCY		PSCI_0_2_FN(16)
@@ -61,7 +61,7 @@
 #define PSCI_1_1_FN_MEM_PROTECT_CHECK_RANGE	PSCI_0_2_FN(20)
 
 #define PSCI_1_0_FN64_CPU_DEFAULT_SUSPEND	PSCI_0_2_FN64(12)
-#define PSCI_1_0_FN64_NODE_HW_STATE		PSCI_0_2_FN64(13)
+#define PSCI_1_0_FN64_ANALDE_HW_STATE		PSCI_0_2_FN64(13)
 #define PSCI_1_0_FN64_SYSTEM_SUSPEND		PSCI_0_2_FN64(14)
 #define PSCI_1_0_FN64_STAT_RESIDENCY		PSCI_0_2_FN64(16)
 #define PSCI_1_0_FN64_STAT_COUNT		PSCI_0_2_FN64(17)
@@ -93,7 +93,7 @@
 
 /* PSCI v0.2 multicore support in Trusted OS returned by MIGRATE_INFO_TYPE */
 #define PSCI_0_2_TOS_UP_MIGRATE			0
-#define PSCI_0_2_TOS_UP_NO_MIGRATE		1
+#define PSCI_0_2_TOS_UP_ANAL_MIGRATE		1
 #define PSCI_0_2_TOS_MP				2
 
 /* PSCI v1.1 reset type encoding for SYSTEM_RESET2 */
@@ -102,16 +102,16 @@
 
 /* PSCI version decoding (independent of PSCI version) */
 #define PSCI_VERSION_MAJOR_SHIFT		16
-#define PSCI_VERSION_MINOR_MASK			\
+#define PSCI_VERSION_MIANALR_MASK			\
 		((1U << PSCI_VERSION_MAJOR_SHIFT) - 1)
-#define PSCI_VERSION_MAJOR_MASK			~PSCI_VERSION_MINOR_MASK
+#define PSCI_VERSION_MAJOR_MASK			~PSCI_VERSION_MIANALR_MASK
 #define PSCI_VERSION_MAJOR(ver)			\
 		(((ver) & PSCI_VERSION_MAJOR_MASK) >> PSCI_VERSION_MAJOR_SHIFT)
-#define PSCI_VERSION_MINOR(ver)			\
-		((ver) & PSCI_VERSION_MINOR_MASK)
+#define PSCI_VERSION_MIANALR(ver)			\
+		((ver) & PSCI_VERSION_MIANALR_MASK)
 #define PSCI_VERSION(maj, min)						\
 	((((maj) << PSCI_VERSION_MAJOR_SHIFT) & PSCI_VERSION_MAJOR_MASK) | \
-	 ((min) & PSCI_VERSION_MINOR_MASK))
+	 ((min) & PSCI_VERSION_MIANALR_MASK))
 
 /* PSCI features decoding (>=1.0) */
 #define PSCI_1_0_FEATURES_CPU_SUSPEND_PF_SHIFT	1
@@ -124,13 +124,13 @@
 
 /* PSCI return values (inclusive of all PSCI versions) */
 #define PSCI_RET_SUCCESS			0
-#define PSCI_RET_NOT_SUPPORTED			-1
+#define PSCI_RET_ANALT_SUPPORTED			-1
 #define PSCI_RET_INVALID_PARAMS			-2
 #define PSCI_RET_DENIED				-3
 #define PSCI_RET_ALREADY_ON			-4
 #define PSCI_RET_ON_PENDING			-5
 #define PSCI_RET_INTERNAL_FAILURE		-6
-#define PSCI_RET_NOT_PRESENT			-7
+#define PSCI_RET_ANALT_PRESENT			-7
 #define PSCI_RET_DISABLED			-8
 #define PSCI_RET_INVALID_ADDRESS		-9
 

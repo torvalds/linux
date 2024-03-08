@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_META_H
 #define PVR_ROGUE_META_H
@@ -192,7 +192,7 @@ struct rogue_meta_ldr_cfg_blk {
  * Config Command definitions
  *  Value   Name        Description
  *  0       Pause       Pause for x times 100 instructions
- *  1       Read        Read a value from register - No value return needed.
+ *  1       Read        Read a value from register - Anal value return needed.
  *                      Utilises effects of issuing reads to certain registers
  *  2       Write       Write to mem location
  *  3       MemSet      Set mem to value
@@ -232,7 +232,7 @@ struct rogue_meta_ldr_cfg_blk {
  * All the segments configured through the macro ROGUE_FW_SEGMMU_OUTADDR_TOP are
  * CACHED in the SLC.
  * The interface has been kept the same to simplify the code changes.
- * The bifdm argument is ignored (no longer relevant) in S7 and volcanic.
+ * The bifdm argument is iganalred (anal longer relevant) in S7 and volcanic.
  */
 #define ROGUE_FW_SEGMMU_OUTADDR_TOP_VIVT_SLC(pers, slc_policy, mmu_ctx)  \
 	((((u64)((pers) & 0x3)) << 52) | (((u64)((mmu_ctx) & 0xFF)) << 44) | \
@@ -274,9 +274,9 @@ struct rogue_meta_ldr_cfg_blk {
 #define ROGUE_FW_SEGMMU_DATA_META_UNCACHED (META_MEM_GLOBAL_RANGE_BIT)
 #define ROGUE_FW_SEGMMU_DATA_META_CACHE_MASK (META_MEM_GLOBAL_RANGE_BIT)
 /*
- * For non-VIVT SLCs the cacheability of the FW data in the SLC is selected in
- * the PTEs for the FW data, not in the Meta Segment MMU, which means these
- * defines have no real effect in those cases.
+ * For analn-VIVT SLCs the cacheability of the FW data in the SLC is selected in
+ * the PTEs for the FW data, analt in the Meta Segment MMU, which means these
+ * defines have anal real effect in those cases.
  */
 #define ROGUE_FW_SEGMMU_DATA_VIVT_SLC_CACHED (0x0U)
 #define ROGUE_FW_SEGMMU_DATA_VIVT_SLC_UNCACHED (0x60000000U)

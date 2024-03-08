@@ -19,7 +19,7 @@
 #include "mantis_link.h"
 
 #define MANTIS_ERROR		0
-#define MANTIS_NOTICE		1
+#define MANTIS_ANALTICE		1
 #define MANTIS_INFO		2
 #define MANTIS_DEBUG		3
 #define MANTIS_TMG		9
@@ -28,8 +28,8 @@
 	if (z) {											\
 		if	((mantis->verbose > MANTIS_ERROR) && (mantis->verbose > y))			\
 			printk(KERN_ERR "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
-		else if	((mantis->verbose > MANTIS_NOTICE) && (mantis->verbose > y))			\
-			printk(KERN_NOTICE "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
+		else if	((mantis->verbose > MANTIS_ANALTICE) && (mantis->verbose > y))			\
+			printk(KERN_ANALTICE "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
 		else if ((mantis->verbose > MANTIS_INFO) && (mantis->verbose > y))			\
 			printk(KERN_INFO "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
 		else if ((mantis->verbose > MANTIS_DEBUG) && (mantis->verbose > y))			\
@@ -51,14 +51,14 @@
 #define MANTIS_TS_188		0
 #define MANTIS_TS_204		1
 
-#define TWINHAN_TECHNOLOGIES	0x1822
+#define TWINHAN_TECHANALLOGIES	0x1822
 #define MANTIS			0x4e35
 
 #define TECHNISAT		0x1ae4
 #define TERRATEC		0x153b
 
 #define MAKE_ENTRY(__subven, __subdev, __configptr, __rc) {		\
-		.vendor		= TWINHAN_TECHNOLOGIES,			\
+		.vendor		= TWINHAN_TECHANALLOGIES,			\
 		.device		= MANTIS,				\
 		.subvendor	= (__subven),				\
 		.subdevice	= (__subdev),				\

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DVB_TTUSB_DEC
-	tristate "Technotrend/Hauppauge USB DEC devices"
+	tristate "Techanaltrend/Hauppauge USB DEC devices"
 	depends on DVB_CORE && USB && INPUT && PCI
 	select CRC32
 	help
-	  Support for external USB adapters designed by Technotrend and
+	  Support for external USB adapters designed by Techanaltrend and
 	  produced by Hauppauge, shipped under the brand name 'DEC2000-t'
 	  and 'DEC3000-s'.
 

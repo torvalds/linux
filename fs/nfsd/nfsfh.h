@@ -27,20 +27,20 @@
  * The fsid_type identifies how the filesystem (or export point) is
  *    encoded.
  *  Current values:
- *     0  - 4 byte device id (ms-2-bytes major, ls-2-bytes minor), 4byte inode number
- *        NOTE: we cannot use the kdev_t device id value, because kdev_t.h
+ *     0  - 4 byte device id (ms-2-bytes major, ls-2-bytes mianalr), 4byte ianalde number
+ *        ANALTE: we cananalt use the kdev_t device id value, because kdev_t.h
  *              says we mustn't.  We must break it up and reassemble.
  *     1  - 4 byte user specified identifier
- *     2  - 4 byte major, 4 byte minor, 4 byte inode number - DEPRECATED
- *     3  - 4 byte device id, encoded for user-space, 4 byte inode number
- *     4  - 4 byte inode number and 4 byte uuid
+ *     2  - 4 byte major, 4 byte mianalr, 4 byte ianalde number - DEPRECATED
+ *     3  - 4 byte device id, encoded for user-space, 4 byte ianalde number
+ *     4  - 4 byte ianalde number and 4 byte uuid
  *     5  - 8 byte uuid
  *     6  - 16 byte uuid
- *     7  - 8 byte inode number and 16 byte uuid
+ *     7  - 8 byte ianalde number and 16 byte uuid
  *
  * The fileid_type identifies how the file within the filesystem is encoded.
  *   The values for this field are filesystem specific, exccept that
- *   filesystems must not use the values '0' or '0xff'. 'See enum fid_type'
+ *   filesystems must analt use the values '0' or '0xff'. 'See enum fid_type'
  *   in include/linux/exportfs.h for currently registered values.
  */
 
@@ -61,14 +61,14 @@ struct knfsd_fh {
 	};
 };
 
-static inline __u32 ino_t_to_u32(ino_t ino)
+static inline __u32 ianal_t_to_u32(ianal_t ianal)
 {
-	return (__u32) ino;
+	return (__u32) ianal;
 }
 
-static inline ino_t u32_to_ino_t(__u32 uino)
+static inline ianal_t u32_to_ianal_t(__u32 uianal)
 {
-	return (ino_t) uino;
+	return (ianal_t) uianal;
 }
 
 /*
@@ -82,22 +82,22 @@ typedef struct svc_fh {
 	struct svc_export *	fh_export;	/* export pointer */
 
 	bool			fh_want_write;	/* remount protection taken */
-	bool			fh_no_wcc;	/* no wcc data needed */
-	bool			fh_no_atomic_attr;
+	bool			fh_anal_wcc;	/* anal wcc data needed */
+	bool			fh_anal_atomic_attr;
 						/*
-						 * wcc data is not atomic with
+						 * wcc data is analt atomic with
 						 * operation
 						 */
 	int			fh_flags;	/* FH flags */
 	bool			fh_post_saved;	/* post-op attrs saved */
 	bool			fh_pre_saved;	/* pre-op attrs saved */
 
-	/* Pre-op attributes saved when inode is locked */
+	/* Pre-op attributes saved when ianalde is locked */
 	__u64			fh_pre_size;	/* size before operation */
 	struct timespec64	fh_pre_mtime;	/* mtime before oper */
 	struct timespec64	fh_pre_ctime;	/* ctime before oper */
 	/*
-	 * pre-op nfsv4 change attr: note must check IS_I_VERSION(inode)
+	 * pre-op nfsv4 change attr: analte must check IS_I_VERSION(ianalde)
 	 *  to find out if it is valid.
 	 */
 	u64			fh_pre_change;
@@ -113,7 +113,7 @@ typedef struct svc_fh {
 enum nfsd_fsid {
 	FSID_DEV = 0,
 	FSID_NUM,
-	FSID_MAJOR_MINOR,
+	FSID_MAJOR_MIANALR,
 	FSID_ENCODE_DEV,
 	FSID_UUID4_INUM,
 	FSID_UUID8,
@@ -135,38 +135,38 @@ extern enum fsid_source fsid_source(const struct svc_fh *fhp);
  *
  * In some cases the values are considered to be host endian and in
  * others, net endian. fsidv is always considered to be u32 as the
- * callers don't know which it will be. So we must use __force to keep
+ * callers don't kanalw which it will be. So we must use __force to keep
  * sparse from complaining. Since these values are opaque to the
  * client, that shouldn't be a problem.
  */
-static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
+static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ianal_t ianal,
 			   u32 fsid, unsigned char *uuid)
 {
 	u32 *up;
 	switch(vers) {
 	case FSID_DEV:
 		fsidv[0] = (__force __u32)htonl((MAJOR(dev)<<16) |
-				 MINOR(dev));
-		fsidv[1] = ino_t_to_u32(ino);
+				 MIANALR(dev));
+		fsidv[1] = ianal_t_to_u32(ianal);
 		break;
 	case FSID_NUM:
 		fsidv[0] = fsid;
 		break;
-	case FSID_MAJOR_MINOR:
+	case FSID_MAJOR_MIANALR:
 		fsidv[0] = (__force __u32)htonl(MAJOR(dev));
-		fsidv[1] = (__force __u32)htonl(MINOR(dev));
-		fsidv[2] = ino_t_to_u32(ino);
+		fsidv[1] = (__force __u32)htonl(MIANALR(dev));
+		fsidv[2] = ianal_t_to_u32(ianal);
 		break;
 
 	case FSID_ENCODE_DEV:
 		fsidv[0] = new_encode_dev(dev);
-		fsidv[1] = ino_t_to_u32(ino);
+		fsidv[1] = ianal_t_to_u32(ianal);
 		break;
 
 	case FSID_UUID4_INUM:
-		/* 4 byte fsid and inode number */
+		/* 4 byte fsid and ianalde number */
 		up = (u32*)uuid;
-		fsidv[0] = ino_t_to_u32(ino);
+		fsidv[0] = ianal_t_to_u32(ianal);
 		fsidv[1] = up[0] ^ up[1] ^ up[2] ^ up[3];
 		break;
 
@@ -183,8 +183,8 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 		break;
 
 	case FSID_UUID16_INUM:
-		/* 8 byte inode and 16 byte fsid */
-		*(u64*)fsidv = (u64)ino;
+		/* 8 byte ianalde and 16 byte fsid */
+		*(u64*)fsidv = (u64)ianal;
 		memcpy(fsidv+2, uuid, 16);
 		break;
 	default: BUG();
@@ -196,7 +196,7 @@ static inline int key_len(int type)
 	switch(type) {
 	case FSID_DEV:		return 8;
 	case FSID_NUM: 		return 4;
-	case FSID_MAJOR_MINOR:	return 12;
+	case FSID_MAJOR_MIANALR:	return 12;
 	case FSID_ENCODE_DEV:	return 8;
 	case FSID_UUID4_INUM:	return 8;
 	case FSID_UUID8:	return 8;
@@ -294,7 +294,7 @@ static inline void fh_clear_pre_post_attrs(struct svc_fh *fhp)
 }
 
 u64 nfsd4_change_attribute(const struct kstat *stat,
-			   const struct inode *inode);
+			   const struct ianalde *ianalde);
 __be32 __must_check fh_fill_pre_attrs(struct svc_fh *fhp);
 __be32 fh_fill_post_attrs(struct svc_fh *fhp);
 __be32 __must_check fh_fill_both_attrs(struct svc_fh *fhp);

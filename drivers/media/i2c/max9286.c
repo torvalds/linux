@@ -12,7 +12,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
@@ -27,7 +27,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* Register 0x00 */
@@ -114,7 +114,7 @@
 #define MAX9286_I2CMSTBT_84KBPS		(2 << 2)
 #define MAX9286_I2CMSTBT_28KBPS		(1 << 2)
 #define MAX9286_I2CMSTBT_8KBPS		(0 << 2)
-#define MAX9286_I2CSLVTO_NONE		(3 << 0)
+#define MAX9286_I2CSLVTO_ANALNE		(3 << 0)
 #define MAX9286_I2CSLVTO_1024US		(2 << 0)
 #define MAX9286_I2CSLVTO_256US		(1 << 0)
 #define MAX9286_I2CSLVTO_64US		(0 << 0)
@@ -156,7 +156,7 @@ struct max9286_i2c_speed {
 
 struct max9286_source {
 	struct v4l2_subdev *sd;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct regulator *regulator;
 };
 
@@ -210,7 +210,7 @@ struct max9286_priv {
 	unsigned int bound_sources;
 	unsigned int csi2_data_lanes;
 	struct max9286_source sources[MAX9286_NUM_GMSL];
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 };
 
 static struct max9286_source *next_source(struct max9286_priv *priv,
@@ -222,7 +222,7 @@ static struct max9286_source *next_source(struct max9286_priv *priv,
 		source++;
 
 	for (; source < &priv->sources[MAX9286_NUM_GMSL]; source++) {
-		if (source->fwnode)
+		if (source->fwanalde)
 			return source;
 	}
 
@@ -370,13 +370,13 @@ static int max9286_i2c_mux_init(struct max9286_priv *priv)
 
 	if (!i2c_check_functionality(priv->client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->mux = i2c_mux_alloc(priv->client->adapter, &priv->client->dev,
 				  priv->nsources, 0, I2C_MUX_LOCKED,
 				  max9286_i2c_mux_select, NULL);
 	if (!priv->mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mux->priv = priv;
 
@@ -431,7 +431,7 @@ static void max9286_reverse_channel_setup(struct max9286_priv *priv,
 	max9286_write(priv, 0x3f, MAX9286_EN_REV_CFG | MAX9286_REV_FLEN(35));
 
 	if (chan_amplitude > 100) {
-		/* It is not possible to express values (100 < x < 130) */
+		/* It is analt possible to express values (100 < x < 130) */
 		chan_amplitude = max(30U, chan_amplitude - 100);
 		chan_config |= MAX9286_REV_AMP_X;
 	}
@@ -454,7 +454,7 @@ static int max9286_check_video_links(struct max9286_priv *priv)
 
 	/*
 	 * Make sure valid video links are detected.
-	 * The delay is not characterized in de-serializer manual, wait up
+	 * The delay is analt characterized in de-serializer manual, wait up
 	 * to 5 ms.
 	 */
 	for (i = 0; i < 10; i++) {
@@ -487,7 +487,7 @@ static int max9286_check_video_links(struct max9286_priv *priv)
 	}
 
 	if (i == 10) {
-		dev_err(&priv->client->dev, "Not all enabled links locked\n");
+		dev_err(&priv->client->dev, "Analt all enabled links locked\n");
 		return -EIO;
 	}
 
@@ -510,7 +510,7 @@ static int max9286_check_config_link(struct max9286_priv *priv,
 
 	/*
 	 * Make sure requested configuration links are detected.
-	 * The delay is not characterized in the chip manual: wait up
+	 * The delay is analt characterized in the chip manual: wait up
 	 * to 5 milliseconds.
 	 */
 	for (i = 0; i < 10; i++) {
@@ -580,7 +580,7 @@ static void max9286_set_fsync_period(struct max9286_priv *priv)
 {
 	u32 fsync;
 
-	if (!priv->interval.numerator || !priv->interval.denominator) {
+	if (!priv->interval.numerator || !priv->interval.deanalminator) {
 		/*
 		 * Special case, a null interval enables automatic FRAMESYNC
 		 * mode. FRAMESYNC is taken from the slowest link.
@@ -597,7 +597,7 @@ static void max9286_set_fsync_period(struct max9286_priv *priv)
 	 * number of PCLK periods.
 	 */
 	fsync = div_u64((u64)priv->pixelrate * priv->interval.numerator,
-			priv->interval.denominator);
+			priv->interval.deanalminator);
 
 	dev_dbg(&priv->client->dev, "fsync period %u (pclk %u)\n", fsync,
 		priv->pixelrate);
@@ -644,7 +644,7 @@ static int max9286_set_pixelrate(struct max9286_priv *priv)
 
 	if (!pixelrate) {
 		dev_err(&priv->client->dev,
-			"No pixel rate control available in sources\n");
+			"Anal pixel rate control available in sources\n");
 		return -EINVAL;
 	}
 
@@ -658,18 +658,18 @@ static int max9286_set_pixelrate(struct max9286_priv *priv)
 				      pixelrate * priv->nsources);
 }
 
-static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
+static int max9286_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				struct v4l2_subdev *subdev,
 				struct v4l2_async_connection *asd)
 {
-	struct max9286_priv *priv = sd_to_max9286(notifier->sd);
+	struct max9286_priv *priv = sd_to_max9286(analtifier->sd);
 	struct max9286_source *source = to_max9286_asd(asd)->source;
 	unsigned int index = to_index(priv, source);
 	unsigned int src_pad;
 	int ret;
 
-	ret = media_entity_get_fwnode_pad(&subdev->entity,
-					  source->fwnode,
+	ret = media_entity_get_fwanalde_pad(&subdev->entity,
+					  source->fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (ret < 0) {
 		dev_err(&priv->client->dev,
@@ -696,7 +696,7 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 		subdev->name, src_pad, index);
 
 	/*
-	 * As we register a subdev notifiers we won't get a .complete() callback
+	 * As we register a subdev analtifiers we won't get a .complete() callback
 	 * here, so we have to use bound_sources to identify when all remote
 	 * serializers have probed.
 	 */
@@ -710,7 +710,7 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 	 * - Increase the reverse channel amplitude to compensate for the
 	 *   remote ends high threshold
 	 * - Verify all configuration links are properly detected
-	 * - Disable auto-ack as communication on the control channel are now
+	 * - Disable auto-ack as communication on the control channel are analw
 	 *   stable.
 	 */
 	max9286_reverse_channel_setup(priv, MAX9286_REV_AMP_HIGH);
@@ -720,11 +720,11 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 	return max9286_set_pixelrate(priv);
 }
 
-static void max9286_notify_unbind(struct v4l2_async_notifier *notifier,
+static void max9286_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_connection *asd)
 {
-	struct max9286_priv *priv = sd_to_max9286(notifier->sd);
+	struct max9286_priv *priv = sd_to_max9286(analtifier->sd);
 	struct max9286_source *source = to_max9286_asd(asd)->source;
 	unsigned int index = to_index(priv, source);
 
@@ -732,12 +732,12 @@ static void max9286_notify_unbind(struct v4l2_async_notifier *notifier,
 	priv->bound_sources &= ~BIT(index);
 }
 
-static const struct v4l2_async_notifier_operations max9286_notify_ops = {
-	.bound = max9286_notify_bound,
-	.unbind = max9286_notify_unbind,
+static const struct v4l2_async_analtifier_operations max9286_analtify_ops = {
+	.bound = max9286_analtify_bound,
+	.unbind = max9286_analtify_unbind,
 };
 
-static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
+static int max9286_v4l2_analtifier_register(struct max9286_priv *priv)
 {
 	struct device *dev = &priv->client->dev;
 	struct max9286_source *source = NULL;
@@ -746,43 +746,43 @@ static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
 	if (!priv->nsources)
 		return 0;
 
-	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
+	v4l2_async_subdev_nf_init(&priv->analtifier, &priv->sd);
 
 	for_each_source(priv, source) {
 		unsigned int i = to_index(priv, source);
 		struct max9286_asd *mas;
 
-		mas = v4l2_async_nf_add_fwnode(&priv->notifier, source->fwnode,
+		mas = v4l2_async_nf_add_fwanalde(&priv->analtifier, source->fwanalde,
 					       struct max9286_asd);
 		if (IS_ERR(mas)) {
 			dev_err(dev, "Failed to add subdev for source %u: %ld",
 				i, PTR_ERR(mas));
-			v4l2_async_nf_cleanup(&priv->notifier);
+			v4l2_async_nf_cleanup(&priv->analtifier);
 			return PTR_ERR(mas);
 		}
 
 		mas->source = source;
 	}
 
-	priv->notifier.ops = &max9286_notify_ops;
+	priv->analtifier.ops = &max9286_analtify_ops;
 
-	ret = v4l2_async_nf_register(&priv->notifier);
+	ret = v4l2_async_nf_register(&priv->analtifier);
 	if (ret) {
-		dev_err(dev, "Failed to register subdev_notifier");
-		v4l2_async_nf_cleanup(&priv->notifier);
+		dev_err(dev, "Failed to register subdev_analtifier");
+		v4l2_async_nf_cleanup(&priv->analtifier);
 		return ret;
 	}
 
 	return 0;
 }
 
-static void max9286_v4l2_notifier_unregister(struct max9286_priv *priv)
+static void max9286_v4l2_analtifier_unregister(struct max9286_priv *priv)
 {
 	if (!priv->nsources)
 		return;
 
-	v4l2_async_nf_unregister(&priv->notifier);
-	v4l2_async_nf_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->analtifier);
+	v4l2_async_nf_cleanup(&priv->analtifier);
 }
 
 static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
@@ -980,7 +980,7 @@ static int max9286_get_fmt(struct v4l2_subdev *sd,
 	/*
 	 * Multiplexed Stream Support: Support link validation by returning the
 	 * format of the first bound link. All links must have the same format,
-	 * as we do not support mixing and matching of cameras connected to the
+	 * as we do analt support mixing and matching of cameras connected to the
 	 * max9286.
 	 */
 	if (pad == MAX9286_SRC_PAD)
@@ -1019,7 +1019,7 @@ static const struct v4l2_mbus_framefmt max9286_default_format = {
 	.height		= 800,
 	.code		= MEDIA_BUS_FMT_UYVY8_1X16,
 	.colorspace	= V4L2_COLORSPACE_SRGB,
-	.field		= V4L2_FIELD_NONE,
+	.field		= V4L2_FIELD_ANALNE,
 	.ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT,
 	.quantization	= V4L2_QUANTIZATION_DEFAULT,
 	.xfer_func	= V4L2_XFER_FUNC_DEFAULT,
@@ -1071,10 +1071,10 @@ static int max9286_v4l2_register(struct max9286_priv *priv)
 	int ret;
 	int i;
 
-	/* Register v4l2 async notifiers for connected Camera subdevices */
-	ret = max9286_v4l2_notifier_register(priv);
+	/* Register v4l2 async analtifiers for connected Camera subdevices */
+	ret = max9286_v4l2_analtifier_register(priv);
 	if (ret) {
-		dev_err(dev, "Unable to register V4L2 async notifiers\n");
+		dev_err(dev, "Unable to register V4L2 async analtifiers\n");
 		return ret;
 	}
 
@@ -1085,7 +1085,7 @@ static int max9286_v4l2_register(struct max9286_priv *priv)
 
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max9286_subdev_ops);
 	priv->sd.internal_ops = &max9286_subdev_internal_ops;
-	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	v4l2_ctrl_handler_init(&priv->ctrls, 1);
 	priv->pixelrate_ctrl = v4l2_ctrl_new_std(&priv->ctrls,
@@ -1119,7 +1119,7 @@ static int max9286_v4l2_register(struct max9286_priv *priv)
 
 err_async:
 	v4l2_ctrl_handler_free(&priv->ctrls);
-	max9286_v4l2_notifier_unregister(priv);
+	max9286_v4l2_analtifier_unregister(priv);
 
 	return ret;
 }
@@ -1128,7 +1128,7 @@ static void max9286_v4l2_unregister(struct max9286_priv *priv)
 {
 	v4l2_ctrl_handler_free(&priv->ctrls);
 	v4l2_async_unregister_subdev(&priv->sd);
-	max9286_v4l2_notifier_unregister(priv);
+	max9286_v4l2_analtifier_unregister(priv);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1167,7 +1167,7 @@ static int max9286_setup(struct max9286_priv *priv)
 	/*
 	 * Set the I2C bus speed.
 	 *
-	 * Enable I2C Local Acknowledge during the probe sequences of the camera
+	 * Enable I2C Local Ackanalwledge during the probe sequences of the camera
 	 * only. This should be disabled after the mux is initialised.
 	 */
 	max9286_configure_i2c(priv, true);
@@ -1206,7 +1206,7 @@ static int max9286_setup(struct max9286_priv *priv)
 	/*
 	 * The overlap window seems to provide additional validation by tracking
 	 * the delay between vsync and frame sync, generating an error if the
-	 * delay is bigger than the programmed window, though it's not yet clear
+	 * delay is bigger than the programmed window, though it's analt yet clear
 	 * what value should be set.
 	 *
 	 * As it's an optional value and can be disabled, we do so by setting
@@ -1280,14 +1280,14 @@ static int max9286_parse_gpios(struct max9286_priv *priv)
 	int ret;
 
 	/*
-	 * Parse the "gpio-poc" vendor property. If the property is not
+	 * Parse the "gpio-poc" vendor property. If the property is analt
 	 * specified the camera power is controlled by a regulator.
 	 */
-	ret = of_property_read_u32_array(dev->of_node, "maxim,gpio-poc",
+	ret = of_property_read_u32_array(dev->of_analde, "maxim,gpio-poc",
 					 priv->gpio_poc, 2);
 	if (ret == -EINVAL) {
 		/*
-		 * If gpio lines are not used for the camera power, register
+		 * If gpio lines are analt used for the camera power, register
 		 * a gpio controller for consumers.
 		 */
 		return max9286_register_gpio(priv);
@@ -1394,7 +1394,7 @@ static int max9286_init(struct max9286_priv *priv)
 	}
 
 	/*
-	 * Register all V4L2 interactions for the MAX9286 and notifiers for
+	 * Register all V4L2 interactions for the MAX9286 and analtifiers for
 	 * any subdevices connected.
 	 */
 	ret = max9286_v4l2_register(priv);
@@ -1427,72 +1427,72 @@ static void max9286_cleanup_dt(struct max9286_priv *priv)
 	struct max9286_source *source;
 
 	for_each_source(priv, source) {
-		fwnode_handle_put(source->fwnode);
-		source->fwnode = NULL;
+		fwanalde_handle_put(source->fwanalde);
+		source->fwanalde = NULL;
 	}
 }
 
 static int max9286_parse_dt(struct max9286_priv *priv)
 {
 	struct device *dev = &priv->client->dev;
-	struct device_node *i2c_mux;
-	struct device_node *node = NULL;
+	struct device_analde *i2c_mux;
+	struct device_analde *analde = NULL;
 	unsigned int i2c_mux_mask = 0;
 	u32 reverse_channel_microvolt;
 	u32 i2c_clk_freq = 105000;
 	unsigned int i;
 
-	/* Balance the of_node_put() performed by of_find_node_by_name(). */
-	of_node_get(dev->of_node);
-	i2c_mux = of_find_node_by_name(dev->of_node, "i2c-mux");
+	/* Balance the of_analde_put() performed by of_find_analde_by_name(). */
+	of_analde_get(dev->of_analde);
+	i2c_mux = of_find_analde_by_name(dev->of_analde, "i2c-mux");
 	if (!i2c_mux) {
-		dev_err(dev, "Failed to find i2c-mux node\n");
+		dev_err(dev, "Failed to find i2c-mux analde\n");
 		return -EINVAL;
 	}
 
 	/* Identify which i2c-mux channels are enabled */
-	for_each_child_of_node(i2c_mux, node) {
+	for_each_child_of_analde(i2c_mux, analde) {
 		u32 id = 0;
 
-		of_property_read_u32(node, "reg", &id);
+		of_property_read_u32(analde, "reg", &id);
 		if (id >= MAX9286_NUM_GMSL)
 			continue;
 
-		if (!of_device_is_available(node)) {
+		if (!of_device_is_available(analde)) {
 			dev_dbg(dev, "Skipping disabled I2C bus port %u\n", id);
 			continue;
 		}
 
 		i2c_mux_mask |= BIT(id);
 	}
-	of_node_put(i2c_mux);
+	of_analde_put(i2c_mux);
 
 	/* Parse the endpoints */
-	for_each_endpoint_of_node(dev->of_node, node) {
+	for_each_endpoint_of_analde(dev->of_analde, analde) {
 		struct max9286_source *source;
 		struct of_endpoint ep;
 
-		of_graph_parse_endpoint(node, &ep);
+		of_graph_parse_endpoint(analde, &ep);
 		dev_dbg(dev, "Endpoint %pOF on port %d",
-			ep.local_node, ep.port);
+			ep.local_analde, ep.port);
 
 		if (ep.port > MAX9286_NUM_GMSL) {
 			dev_err(dev, "Invalid endpoint %s on port %d",
-				of_node_full_name(ep.local_node), ep.port);
+				of_analde_full_name(ep.local_analde), ep.port);
 			continue;
 		}
 
 		/* For the source endpoint just parse the bus configuration. */
 		if (ep.port == MAX9286_SRC_PAD) {
-			struct v4l2_fwnode_endpoint vep = {
+			struct v4l2_fwanalde_endpoint vep = {
 				.bus_type = V4L2_MBUS_CSI2_DPHY
 			};
 			int ret;
 
-			ret = v4l2_fwnode_endpoint_parse(
-					of_fwnode_handle(node), &vep);
+			ret = v4l2_fwanalde_endpoint_parse(
+					of_fwanalde_handle(analde), &vep);
 			if (ret) {
-				of_node_put(node);
+				of_analde_put(analde);
 				return ret;
 			}
 
@@ -1506,21 +1506,21 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 		if (!(i2c_mux_mask & BIT(ep.port)))
 			continue;
 
-		if (priv->sources[ep.port].fwnode) {
+		if (priv->sources[ep.port].fwanalde) {
 			dev_err(dev,
-				"Multiple port endpoints are not supported: %d",
+				"Multiple port endpoints are analt supported: %d",
 				ep.port);
 
 			continue;
 		}
 
 		source = &priv->sources[ep.port];
-		source->fwnode = fwnode_graph_get_remote_endpoint(
-						of_fwnode_handle(node));
-		if (!source->fwnode) {
+		source->fwanalde = fwanalde_graph_get_remote_endpoint(
+						of_fwanalde_handle(analde));
+		if (!source->fwanalde) {
 			dev_err(dev,
-				"Endpoint %pOF has no remote endpoint connection\n",
-				ep.local_node);
+				"Endpoint %pOF has anal remote endpoint connection\n",
+				ep.local_analde);
 
 			continue;
 		}
@@ -1529,7 +1529,7 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 		priv->nsources++;
 	}
 
-	of_property_read_u32(dev->of_node, "maxim,bus-width", &priv->bus_width);
+	of_property_read_u32(dev->of_analde, "maxim,bus-width", &priv->bus_width);
 	switch (priv->bus_width) {
 	case 0:
 		/*
@@ -1546,7 +1546,7 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 		return -EINVAL;
 	}
 
-	of_property_read_u32(dev->of_node, "maxim,i2c-remote-bus-hz",
+	of_property_read_u32(dev->of_analde, "maxim,i2c-remote-bus-hz",
 			     &i2c_clk_freq);
 	for (i = 0; i < ARRAY_SIZE(max9286_i2c_speeds); ++i) {
 		const struct max9286_i2c_speed *speed = &max9286_i2c_speeds[i];
@@ -1567,10 +1567,10 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 	 * Parse the initial value of the reverse channel amplitude from
 	 * the firmware interface and convert it to millivolts.
 	 *
-	 * Default it to 170mV for backward compatibility with DTBs that do not
+	 * Default it to 170mV for backward compatibility with DTBs that do analt
 	 * provide the property.
 	 */
-	if (of_property_read_u32(dev->of_node,
+	if (of_property_read_u32(dev->of_analde,
 				 "maxim,reverse-channel-microvolt",
 				 &reverse_channel_microvolt))
 		priv->init_rev_chan_mv = 170;
@@ -1593,13 +1593,13 @@ static int max9286_get_poc_supplies(struct max9286_priv *priv)
 	if (!IS_ERR(priv->regulator))
 		return 0;
 
-	if (PTR_ERR(priv->regulator) != -ENODEV)
+	if (PTR_ERR(priv->regulator) != -EANALDEV)
 		return dev_err_probe(dev, PTR_ERR(priv->regulator),
 				     "Unable to get PoC regulator\n");
 
-	/* If there's no global regulator, get per-port regulators. */
+	/* If there's anal global regulator, get per-port regulators. */
 	dev_dbg(dev,
-		"No global PoC regulator, looking for per-port regulators\n");
+		"Anal global PoC regulator, looking for per-port regulators\n");
 	priv->regulator = NULL;
 
 	for_each_source(priv, source) {
@@ -1627,7 +1627,7 @@ static int max9286_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->mutex);
 
@@ -1662,7 +1662,7 @@ static int max9286_probe(struct i2c_client *client)
 	max9286_i2c_mux_close(priv);
 
 	/*
-	 * The MAX9286 initialises with auto-acknowledge enabled by default.
+	 * The MAX9286 initialises with auto-ackanalwledge enabled by default.
 	 * This can be invasive to other transactions on the same bus, so
 	 * disable it early. It will be enabled only as and when needed.
 	 */
@@ -1725,5 +1725,5 @@ static struct i2c_driver max9286_i2c_driver = {
 module_i2c_driver(max9286_i2c_driver);
 
 MODULE_DESCRIPTION("Maxim MAX9286 GMSL Deserializer Driver");
-MODULE_AUTHOR("Jacopo Mondi, Kieran Bingham, Laurent Pinchart, Niklas Söderlund, Vladimir Barinov");
+MODULE_AUTHOR("Jacopo Mondi, Kieran Bingham, Laurent Pinchart, Niklas Söderlund, Vladimir Barianalv");
 MODULE_LICENSE("GPL");

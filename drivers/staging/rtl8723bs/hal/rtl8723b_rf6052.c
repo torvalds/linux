@@ -9,7 +9,7 @@
  *
  * Module:	rtl8192c_rf6052.c	(Source C File)
  *
- * Note:	Provide RF 6052 series relative API.
+ * Analte:	Provide RF 6052 series relative API.
  *
  * Function:
  *
@@ -48,11 +48,11 @@
  * Input:       struct adapter *			Adapter
  *		WIRELESS_BANDWIDTH_E	Bandwidth	20M or 40M
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
- * Note:		For RF type 0222D
+ * Analte:		For RF type 0222D
  *---------------------------------------------------------------------------*/
 void PHY_RF6052SetBandwidth8723B(
 	struct adapter *Adapter, enum channel_width Bandwidth

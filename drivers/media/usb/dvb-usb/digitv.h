@@ -45,7 +45,7 @@ struct digitv_state {
  * 0x03 read remote control
  *  VV = 0; B* = 0; len = 4; R* = key
  *
- * 0x07 write to the remote (don't know why one should this, resetting ?)
+ * 0x07 write to the remote (don't kanalw why one should this, resetting ?)
  *  VV = 0; B* = key; len = 4;
  *
  * 0x08 write remote type

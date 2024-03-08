@@ -19,11 +19,11 @@ Optional properties
   - phys: phandle to the D-PHY. If it is set, phy-names need to be set
   - phy-names: must contain "dphy"
 
-Required subnodes:
-  - ports: A ports node with one port child node per device input and output
+Required subanaldes:
+  - ports: A ports analde with one port child analde per device input and output
            port, in accordance with the video interface bindings defined in
            Documentation/devicetree/bindings/media/video-interfaces.txt. The
-           port nodes are numbered as follows.
+           port analdes are numbered as follows.
 
            Port Description
            -----------------------------
@@ -33,10 +33,10 @@ Required subnodes:
            3    Stream 2 input
            4    Stream 3 input
 
-           The stream input port nodes are optional if they are not
+           The stream input port analdes are optional if they are analt
            connected to anything at the hardware level or implemented
            in the design. Since there is only one endpoint per port,
-           the endpoints are not numbered.
+           the endpoints are analt numbered.
 
 Example:
 

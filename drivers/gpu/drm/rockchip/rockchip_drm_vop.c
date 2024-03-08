@@ -205,7 +205,7 @@ static void vop_reg_set(struct vop *vop, const struct vop_reg *reg,
 	int offset, mask, shift;
 
 	if (!reg || !reg->mask) {
-		DRM_DEV_DEBUG(vop->dev, "Warning: not support %s\n", reg_name);
+		DRM_DEV_DEBUG(vop->dev, "Warning: analt support %s\n", reg_name);
 		return;
 	}
 
@@ -257,7 +257,7 @@ static bool has_rb_swapped(uint32_t version, uint32_t format)
 	/*
 	 * full framework (IP version 3.x) only need rb swapped for RGB888 and
 	 * little framework (IP version 2.x) only need rb swapped for BGR888,
-	 * check for 3.x to also only rb swap BGR888 for unknown vop version
+	 * check for 3.x to also only rb swap BGR888 for unkanalwn vop version
 	 */
 	case DRM_FORMAT_RGB888:
 		return VOP_MAJOR(version) == 3;
@@ -383,8 +383,8 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 			     uint32_t dst_h, const struct drm_format_info *info)
 {
 	uint16_t yrgb_hor_scl_mode, yrgb_ver_scl_mode;
-	uint16_t cbcr_hor_scl_mode = SCALE_NONE;
-	uint16_t cbcr_ver_scl_mode = SCALE_NONE;
+	uint16_t cbcr_hor_scl_mode = SCALE_ANALNE;
+	uint16_t cbcr_ver_scl_mode = SCALE_ANALNE;
 	bool is_yuv = false;
 	uint16_t cbcr_src_w = src_w / info->hsub;
 	uint16_t cbcr_src_h = src_h / info->vsub;
@@ -434,12 +434,12 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 
 	VOP_SCL_SET_EXT(vop, win, lb_mode, lb_mode);
 	if (lb_mode == LB_RGB_3840X2) {
-		if (yrgb_ver_scl_mode != SCALE_NONE) {
-			DRM_DEV_ERROR(vop->dev, "not allow yrgb ver scale\n");
+		if (yrgb_ver_scl_mode != SCALE_ANALNE) {
+			DRM_DEV_ERROR(vop->dev, "analt allow yrgb ver scale\n");
 			return;
 		}
-		if (cbcr_ver_scl_mode != SCALE_NONE) {
-			DRM_DEV_ERROR(vop->dev, "not allow cbcr ver scale\n");
+		if (cbcr_ver_scl_mode != SCALE_ANALNE) {
+			DRM_DEV_ERROR(vop->dev, "analt allow cbcr ver scale\n");
 			return;
 		}
 		vsu_mode = SCALE_UP_BIL;
@@ -606,10 +606,10 @@ static void vop_win_disable(struct vop *vop, const struct vop_win *vop_win)
 	const struct vop_win_data *win = vop_win->data;
 
 	if (win->phy->scl && win->phy->scl->ext) {
-		VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, SCALE_NONE);
-		VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, SCALE_NONE);
-		VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, SCALE_NONE);
-		VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_NONE);
+		VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, SCALE_ANALNE);
+		VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, SCALE_ANALNE);
+		VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, SCALE_ANALNE);
+		VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_ANALNE);
 	}
 
 	VOP_WIN_SET(vop, win, enable, 0);
@@ -638,7 +638,7 @@ static int vop_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 	/*
 	 * Slave iommu shares power, irq and clock with vop.  It was associated
 	 * automatically with this master device via common driver code.
-	 * Now that we have enabled the clock we attach it to the shared drm
+	 * Analw that we have enabled the clock we attach it to the shared drm
 	 * mapping.
 	 */
 	ret = rockchip_drm_dma_attach_device(vop->drm_dev, vop->dev);
@@ -748,7 +748,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	 * if dsp hold valid irq happen, it means standby complete.
 	 *
 	 * we must wait standby complete when we want to disable aclk,
-	 * if not, memory bus maybe dead.
+	 * if analt, memory bus maybe dead.
 	 */
 	reinit_completion(&vop->dsp_hold_completion);
 	vop_dsp_hold_valid_irq_enable(vop);
@@ -820,9 +820,9 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	const struct vop_win_data *win = vop_win->data;
 	int ret;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
-					DRM_PLANE_NO_SCALING;
+					DRM_PLANE_ANAL_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
-					DRM_PLANE_NO_SCALING;
+					DRM_PLANE_ANAL_SCALING;
 
 	if (!crtc || WARN_ON(!fb))
 		return 0;
@@ -850,12 +850,12 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	 * need align with 2 pixel.
 	 */
 	if (fb->format->is_yuv && ((new_plane_state->src.x1 >> 16) % 2)) {
-		DRM_DEBUG_KMS("Invalid Source: Yuv format not support odd xpos\n");
+		DRM_DEBUG_KMS("Invalid Source: Yuv format analt support odd xpos\n");
 		return -EINVAL;
 	}
 
 	if (fb->format->is_yuv && new_plane_state->rotation & DRM_MODE_REFLECT_Y) {
-		DRM_DEBUG_KMS("Invalid Source: Yuv format does not support this rotation\n");
+		DRM_DEBUG_KMS("Invalid Source: Yuv format does analt support this rotation\n");
 		return -EINVAL;
 	}
 
@@ -863,7 +863,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		struct vop *vop = to_vop(crtc);
 
 		if (!vop->data->afbc) {
-			DRM_DEBUG_KMS("vop does not support AFBC\n");
+			DRM_DEBUG_KMS("vop does analt support AFBC\n");
 			return -EINVAL;
 		}
 
@@ -872,7 +872,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 			return ret;
 
 		if (new_plane_state->src.x1 || new_plane_state->src.y1) {
-			DRM_DEBUG_KMS("AFBC does not support offset display, " \
+			DRM_DEBUG_KMS("AFBC does analt support offset display, " \
 				      "xpos=%d, ypos=%d, offset=%d\n",
 				      new_plane_state->src.x1, new_plane_state->src.y1,
 				      fb->offsets[0]);
@@ -880,7 +880,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		}
 
 		if (new_plane_state->rotation && new_plane_state->rotation != DRM_MODE_ROTATE_0) {
-			DRM_DEBUG_KMS("No rotation support in AFBC, rotation=%d\n",
+			DRM_DEBUG_KMS("Anal rotation support in AFBC, rotation=%d\n",
 				      new_plane_state->rotation);
 			return -EINVAL;
 		}
@@ -1043,9 +1043,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	/*
 	 * Blending win0 with the background color doesn't seem to work
-	 * correctly. We only get the background color, no matter the contents
+	 * correctly. We only get the background color, anal matter the contents
 	 * of the win0 framebuffer.  However, blending pre-multiplied color
-	 * with the default opaque black default background color is a no-op,
+	 * with the default opaque black default background color is a anal-op,
 	 * so we can just disable blending to get the correct result.
 	 */
 	if (fb->format->has_alpha && win_index > 0) {
@@ -1054,7 +1054,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		val = SRC_ALPHA_EN(1) | SRC_COLOR_M0(ALPHA_SRC_PRE_MUL) |
 			SRC_ALPHA_M0(ALPHA_STRAIGHT) |
 			SRC_BLEND_M0(ALPHA_PER_PIX) |
-			SRC_ALPHA_CAL_M0(ALPHA_NO_SATURATION) |
+			SRC_ALPHA_CAL_M0(ALPHA_ANAL_SATURATION) |
 			SRC_FACTOR_M0(ALPHA_ONE);
 		VOP_WIN_SET(vop, win, src_alpha_ctl, val);
 
@@ -1079,9 +1079,9 @@ static int vop_plane_atomic_async_check(struct drm_plane *plane,
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
-					DRM_PLANE_NO_SCALING;
+					DRM_PLANE_ANAL_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
-					DRM_PLANE_NO_SCALING;
+					DRM_PLANE_ANAL_SCALING;
 	struct drm_crtc_state *crtc_state;
 
 	if (plane != new_plane_state->crtc->cursor)
@@ -1096,7 +1096,7 @@ static int vop_plane_atomic_async_check(struct drm_plane *plane,
 	if (state)
 		crtc_state = drm_atomic_get_existing_crtc_state(state,
 								new_plane_state->crtc);
-	else /* Special case for asynchronous cursor updates. */
+	else /* Special case for asynchroanalus cursor updates. */
 		crtc_state = plane->crtc->state;
 
 	return drm_atomic_helper_check_plane_state(plane->state, crtc_state,
@@ -1129,7 +1129,7 @@ static void vop_plane_atomic_async_update(struct drm_plane *plane,
 		spin_unlock(&vop->reg_lock);
 
 		/*
-		 * A scanout can still be occurring, so we can't drop the
+		 * A scaanalut can still be occurring, so we can't drop the
 		 * reference to the old framebuffer. To solve this we get a
 		 * reference to old_fb and set a worker to release it later.
 		 * FIXME: if we perform 500 async_update calls before the
@@ -1229,7 +1229,7 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	 * 1. Try to set the exact rate first, and confirm the clock framework
 	 *    can provide it.
 	 *
-	 * 2. If the clock framework cannot provide the exact rate, we should
+	 * 2. If the clock framework cananalt provide the exact rate, we should
 	 *    add 999 Hz to the requested rate.  That way if the clock we need
 	 *    is 60000001 Hz (~60 MHz) and DRM tells us to make 60000 kHz then
 	 *    the clock framework will actually give us the right clock.
@@ -1351,7 +1351,7 @@ static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 
 	/*
-	 * Only update GAMMA if the 'active' flag is not changed,
+	 * Only update GAMMA if the 'active' flag is analt changed,
 	 * otherwise it's updated by .atomic_enable.
 	 */
 	if (crtc_state->color_mgmt_changed &&
@@ -1439,7 +1439,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 
 	/*
-	 * if vop is not support RGB10 output, need force RGB10 to RGB888.
+	 * if vop is analt support RGB10 output, need force RGB10 to RGB888.
 	 */
 	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
 	    !(vop_data->feature & VOP_FEATURE_OUTPUT_RGB10))
@@ -1541,7 +1541,7 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 		plane_state =
 			drm_atomic_get_plane_state(crtc_state->state, plane);
 		if (IS_ERR(plane_state)) {
-			DRM_DEBUG_KMS("Cannot get plane state for plane %s\n",
+			DRM_DEBUG_KMS("Cananalt get plane state for plane %s\n",
 				      plane->name);
 			return PTR_ERR(plane_state);
 		}
@@ -1720,14 +1720,14 @@ vop_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
 				   const char *source_name)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
 vop_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 			   size_t *values_cnt)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -1775,14 +1775,14 @@ static irqreturn_t vop_isr(int irq, void *data)
 	struct vop *vop = data;
 	struct drm_crtc *crtc = &vop->crtc;
 	uint32_t active_irqs;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	/*
 	 * The irq is shared with the iommu. If the runtime-pm state of the
 	 * vop-device is disabled the irq has to be targeted at the iommu.
 	 */
 	if (!pm_runtime_get_if_in_use(vop->dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (vop_core_clks_enable(vop)) {
 		DRM_DEV_ERROR_RATELIMITED(vop->dev, "couldn't enable clocks\n");
@@ -1827,7 +1827,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 
 	/* Unhandled irqs are spurious. */
 	if (active_irqs)
-		DRM_DEV_ERROR(vop->dev, "Unknown VOP IRQs: %#02x\n",
+		DRM_DEV_ERROR(vop->dev, "Unkanalwn VOP IRQs: %#02x\n",
 			      active_irqs);
 
 out_disable:
@@ -1856,7 +1856,7 @@ static int vop_create_crtc(struct vop *vop)
 	struct drm_device *drm_dev = vop->drm_dev;
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
 	struct drm_crtc *crtc = &vop->crtc;
-	struct device_node *port;
+	struct device_analde *port;
 	int ret;
 	int i;
 
@@ -1933,11 +1933,11 @@ static int vop_create_crtc(struct vop *vop)
 		vop_plane_add_properties(&vop_win->base, win_data);
 	}
 
-	port = of_get_child_by_name(dev->of_node, "port");
+	port = of_get_child_by_name(dev->of_analde, "port");
 	if (!port) {
-		DRM_DEV_ERROR(vop->dev, "no port node found in %pOF\n",
-			      dev->of_node);
-		ret = -ENOENT;
+		DRM_DEV_ERROR(vop->dev, "anal port analde found in %pOF\n",
+			      dev->of_analde);
+		ret = -EANALENT;
 		goto err_cleanup_crtc;
 	}
 
@@ -1951,7 +1951,7 @@ static int vop_create_crtc(struct vop *vop)
 	ret = drm_self_refresh_helper_init(crtc);
 	if (ret)
 		DRM_DEV_DEBUG_KMS(vop->dev,
-			"Failed to init %s with SR helpers %d, ignoring\n",
+			"Failed to init %s with SR helpers %d, iganalring\n",
 			crtc->name, ret);
 
 	return 0;
@@ -1973,10 +1973,10 @@ static void vop_destroy_crtc(struct vop *vop)
 
 	drm_self_refresh_helper_cleanup(crtc);
 
-	of_node_put(crtc->port);
+	of_analde_put(crtc->port);
 
 	/*
-	 * We need to cleanup the planes now.  Why?
+	 * We need to cleanup the planes analw.  Why?
 	 *
 	 * The planes are "&vop->win[i].base".  That means the memory is
 	 * all part of the big "struct vop" chunk of memory.  That memory
@@ -2136,7 +2136,7 @@ static void vop_win_init(struct vop *vop)
  * Wait for vact_end line flag irq or timeout.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
 {
@@ -2145,7 +2145,7 @@ int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
 	int ret = 0;
 
 	if (!crtc || !vop->is_enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&vop->vop_lock);
 	if (mstimeout <= 0) {
@@ -2188,13 +2188,13 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	vop_data = of_device_get_match_data(dev);
 	if (!vop_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Allocate vop struct and its vop_win array */
 	vop = devm_kzalloc(dev, struct_size(vop, win, vop_data->win_size),
 			   GFP_KERNEL);
 	if (!vop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vop->dev = dev;
 	vop->data = vop_data;
@@ -2222,11 +2222,11 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	vop->regsbak = devm_kzalloc(dev, vop->len, GFP_KERNEL);
 	if (!vop->regsbak)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		DRM_DEV_ERROR(dev, "cannot find irq for vop\n");
+		DRM_DEV_ERROR(dev, "cananalt find irq for vop\n");
 		return irq;
 	}
 	vop->irq = (unsigned int)irq;
@@ -2244,7 +2244,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	ret = vop_initial(vop);
 	if (ret < 0) {
 		DRM_DEV_ERROR(&pdev->dev,
-			      "cannot initial vop dev - err %d\n", ret);
+			      "cananalt initial vop dev - err %d\n", ret);
 		goto err_disable_pm_runtime;
 	}
 

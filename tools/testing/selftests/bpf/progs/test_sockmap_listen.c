@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2020 Cloudflare
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <linux/bpf.h>
 
@@ -19,7 +19,7 @@ struct {
 	__uint(max_entries, 2);
 	__type(key, __u32);
 	__type(value, __u64);
-} nop_map SEC(".maps");
+} analp_map SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SOCKHASH);

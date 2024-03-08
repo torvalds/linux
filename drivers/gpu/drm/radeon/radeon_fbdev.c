@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -83,7 +83,7 @@ static int radeon_fbdev_create_pinned_object(struct drm_fb_helper *fb_helper,
 				       0, true, &gobj);
 	if (ret) {
 		pr_err("failed to allocate framebuffer (%d)\n", aligned_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rbo = gem_to_radeon_bo(gobj);
 
@@ -217,7 +217,7 @@ static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-	/* avivo can't scanout real 24bpp */
+	/* avivo can't scaanalut real 24bpp */
 	if ((sizes->surface_bpp == 24) && ASIC_IS_AVIVO(rdev))
 		sizes->surface_bpp = 32;
 
@@ -233,7 +233,7 @@ static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (!fb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_radeon_fbdev_destroy_pinned_object;
 	}
 	ret = radeon_framebuffer_init(rdev->ddev, fb, &mode_cmd, gobj);
@@ -245,7 +245,7 @@ static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
 	/* setup helper */
 	fb_helper->fb = fb;
 
-	/* okay we have an object now allocate the framebuffer */
+	/* okay we have an object analw allocate the framebuffer */
 	info = drm_fb_helper_alloc_info(fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);

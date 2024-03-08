@@ -12,8 +12,8 @@
 
 /*
  * Transitional tables are used during system transferring from one world to
- * another: such as during hibernate restore, and kexec reboots. During these
- * phases one cannot rely on page table not being overwritten. This is because
+ * aanalther: such as during hibernate restore, and kexec reboots. During these
+ * phases one cananalt rely on page table analt being overwritten. This is because
  * hibernate and kexec can overwrite the current page tables during transition.
  */
 
@@ -41,9 +41,9 @@ static void _copy_pte(pte_t *dst_ptep, pte_t *src_ptep, unsigned long addr)
 		 * read only (code, rodata). Clear the RDONLY bit from
 		 * the temporary mappings we use during restore.
 		 */
-		set_pte(dst_ptep, pte_mkwrite_novma(pte));
+		set_pte(dst_ptep, pte_mkwrite_analvma(pte));
 	} else if ((debug_pagealloc_enabled() ||
-		   is_kfence_address((void *)addr)) && !pte_none(pte)) {
+		   is_kfence_address((void *)addr)) && !pte_analne(pte)) {
 		/*
 		 * debug_pagealloc will removed the PTE_VALID bit if
 		 * the page isn't in use by the resume kernel. It may have
@@ -55,7 +55,7 @@ static void _copy_pte(pte_t *dst_ptep, pte_t *src_ptep, unsigned long addr)
 		 */
 		BUG_ON(!pfn_valid(pte_pfn(pte)));
 
-		set_pte(dst_ptep, pte_mkpresent(pte_mkwrite_novma(pte)));
+		set_pte(dst_ptep, pte_mkpresent(pte_mkwrite_analvma(pte)));
 	}
 }
 
@@ -68,7 +68,7 @@ static int copy_pte(struct trans_pgd_info *info, pmd_t *dst_pmdp,
 
 	dst_ptep = trans_alloc(info);
 	if (!dst_ptep)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmd_populate_kernel(NULL, dst_pmdp, dst_ptep);
 	dst_ptep = pte_offset_kernel(dst_pmdp, start);
 
@@ -88,10 +88,10 @@ static int copy_pmd(struct trans_pgd_info *info, pud_t *dst_pudp,
 	unsigned long next;
 	unsigned long addr = start;
 
-	if (pud_none(READ_ONCE(*dst_pudp))) {
+	if (pud_analne(READ_ONCE(*dst_pudp))) {
 		dst_pmdp = trans_alloc(info);
 		if (!dst_pmdp)
-			return -ENOMEM;
+			return -EANALMEM;
 		pud_populate(NULL, dst_pudp, dst_pmdp);
 	}
 	dst_pmdp = pmd_offset(dst_pudp, start);
@@ -101,11 +101,11 @@ static int copy_pmd(struct trans_pgd_info *info, pud_t *dst_pudp,
 		pmd_t pmd = READ_ONCE(*src_pmdp);
 
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(pmd))
+		if (pmd_analne(pmd))
 			continue;
 		if (pmd_table(pmd)) {
 			if (copy_pte(info, dst_pmdp, src_pmdp, addr, next))
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
 			set_pmd(dst_pmdp,
 				__pmd(pmd_val(pmd) & ~PMD_SECT_RDONLY));
@@ -124,10 +124,10 @@ static int copy_pud(struct trans_pgd_info *info, p4d_t *dst_p4dp,
 	unsigned long next;
 	unsigned long addr = start;
 
-	if (p4d_none(READ_ONCE(*dst_p4dp))) {
+	if (p4d_analne(READ_ONCE(*dst_p4dp))) {
 		dst_pudp = trans_alloc(info);
 		if (!dst_pudp)
-			return -ENOMEM;
+			return -EANALMEM;
 		p4d_populate(NULL, dst_p4dp, dst_pudp);
 	}
 	dst_pudp = pud_offset(dst_p4dp, start);
@@ -137,11 +137,11 @@ static int copy_pud(struct trans_pgd_info *info, p4d_t *dst_p4dp,
 		pud_t pud = READ_ONCE(*src_pudp);
 
 		next = pud_addr_end(addr, end);
-		if (pud_none(pud))
+		if (pud_analne(pud))
 			continue;
 		if (pud_table(pud)) {
 			if (copy_pmd(info, dst_pudp, src_pudp, addr, next))
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
 			set_pud(dst_pudp,
 				__pud(pud_val(pud) & ~PUD_SECT_RDONLY));
@@ -164,10 +164,10 @@ static int copy_p4d(struct trans_pgd_info *info, pgd_t *dst_pgdp,
 	src_p4dp = p4d_offset(src_pgdp, start);
 	do {
 		next = p4d_addr_end(addr, end);
-		if (p4d_none(READ_ONCE(*src_p4dp)))
+		if (p4d_analne(READ_ONCE(*src_p4dp)))
 			continue;
 		if (copy_pud(info, dst_p4dp, src_p4dp, addr, next))
-			return -ENOMEM;
+			return -EANALMEM;
 	} while (dst_p4dp++, src_p4dp++, addr = next, addr != end);
 
 	return 0;
@@ -183,10 +183,10 @@ static int copy_page_tables(struct trans_pgd_info *info, pgd_t *dst_pgdp,
 	dst_pgdp = pgd_offset_pgd(dst_pgdp, start);
 	do {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none(READ_ONCE(*src_pgdp)))
+		if (pgd_analne(READ_ONCE(*src_pgdp)))
 			continue;
 		if (copy_p4d(info, dst_pgdp, src_pgdp, addr, next))
-			return -ENOMEM;
+			return -EANALMEM;
 	} while (dst_pgdp++, src_pgdp++, addr = next, addr != end);
 
 	return 0;
@@ -199,7 +199,7 @@ static int copy_page_tables(struct trans_pgd_info *info, pgd_t *dst_pgdp,
  * start:	Start of the interval (inclusive).
  * end:		End of the interval (exclusive).
  *
- * Returns 0 on success, and -ENOMEM on failure.
+ * Returns 0 on success, and -EANALMEM on failure.
  */
 int trans_pgd_create_copy(struct trans_pgd_info *info, pgd_t **dst_pgdp,
 			  unsigned long start, unsigned long end)
@@ -209,7 +209,7 @@ int trans_pgd_create_copy(struct trans_pgd_info *info, pgd_t **dst_pgdp,
 
 	if (!trans_pgd) {
 		pr_err("Failed to allocate memory for temporary page tables.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = copy_page_tables(info, trans_pgd, start, end);
@@ -225,7 +225,7 @@ int trans_pgd_create_copy(struct trans_pgd_info *info, pgd_t **dst_pgdp,
  * single page, we build these page tables bottom up and just assume that will
  * need the maximum T0SZ.
  *
- * Returns 0 on success, and -ENOMEM on failure.
+ * Returns 0 on success, and -EANALMEM on failure.
  * On success trans_ttbr0 contains page table with idmapped page, t0sz is set to
  * maximum T0SZ for this page.
  */
@@ -245,7 +245,7 @@ int trans_pgd_idmap_page(struct trans_pgd_info *info, phys_addr_t *trans_ttbr0,
 	for (this_level = 3; this_level >= 0; this_level--) {
 		levels[this_level] = trans_alloc(info);
 		if (!levels[this_level])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		level_lsb = ARM64_HW_PGTABLE_LEVEL_SHIFT(this_level);
 		level_msb = min(level_lsb + bits_mapped, max_msb);
@@ -278,7 +278,7 @@ int trans_pgd_copy_el2_vectors(struct trans_pgd_info *info,
 	void *hyp_stub = trans_alloc(info);
 
 	if (!hyp_stub)
-		return -ENOMEM;
+		return -EANALMEM;
 	*el2_vectors = virt_to_phys(hyp_stub);
 	memcpy(hyp_stub, &trans_pgd_stub_vectors, ARM64_VECTOR_TABLE_LEN);
 	caches_clean_inval_pou((unsigned long)hyp_stub,

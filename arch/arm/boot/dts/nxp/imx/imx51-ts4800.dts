@@ -10,8 +10,8 @@
 #include "imx51.dtsi"
 
 / {
-	model = "Technologic Systems TS-4800";
-	compatible = "technologic,imx51-ts4800", "fsl,imx51";
+	model = "Techanallogic Systems TS-4800";
+	compatible = "techanallogic,imx51-ts4800", "fsl,imx51";
 
 	chosen {
 		stdout-path = &uart1;
@@ -157,19 +157,19 @@
 			reg-io-width = <2>;
 
 			wdt {
-				compatible = "technologic,ts4800-wdt";
+				compatible = "techanallogic,ts4800-wdt";
 				syscon = <&syscon 0xe>;
 			};
 		};
 
 		touchscreen@12000 {
-			compatible = "technologic,ts4800-ts";
+			compatible = "techanallogic,ts4800-ts";
 			reg = <0x12000 0x1000>;
 			syscon = <&syscon 0x10 6>;
 		};
 
 		fpga_irqc: fpga-irqc@15000 {
-			compatible = "technologic,ts4800-irqc";
+			compatible = "techanallogic,ts4800-irqc";
 			reg = <0x15000 0x1000>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_interrupt_fpga>;
@@ -180,7 +180,7 @@
 		};
 
 		can@1a000 {
-			compatible = "technologic,sja1000";
+			compatible = "techanallogic,sja1000";
 			reg = <0x1a000 0x100>;
 			interrupt-parent = <&fpga_irqc>;
 			interrupts = <1>;

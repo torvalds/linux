@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _audio_data_types:
 
@@ -54,9 +54,9 @@ the following values.
 
     typedef enum {
 	AUDIO_STEREO,
-	AUDIO_MONO_LEFT,
-	AUDIO_MONO_RIGHT,
-	AUDIO_MONO,
+	AUDIO_MOANAL_LEFT,
+	AUDIO_MOANAL_RIGHT,
+	AUDIO_MOANAL,
 	AUDIO_STEREO_SWAPPED
     } audio_channel_select_t;
 

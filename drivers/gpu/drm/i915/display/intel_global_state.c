@@ -92,7 +92,7 @@ static void assert_global_state_read_locked(struct intel_atomic_state *state)
 			return;
 	}
 
-	drm_WARN(&dev_priv->drm, 1, "Global state not read locked\n");
+	drm_WARN(&dev_priv->drm, 1, "Global state analt read locked\n");
 }
 
 struct intel_global_state *
@@ -115,7 +115,7 @@ intel_atomic_get_global_obj_state(struct intel_atomic_state *state,
 	size = sizeof(*state->global_objs) * num_objs;
 	arr = krealloc(state->global_objs, size, GFP_KERNEL);
 	if (!arr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	state->global_objs = arr;
 	index = state->num_global_objs;
@@ -123,7 +123,7 @@ intel_atomic_get_global_obj_state(struct intel_atomic_state *state,
 
 	obj_state = obj->funcs->atomic_duplicate_state(obj);
 	if (!obj_state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	obj_state->obj = obj;
 	obj_state->changed = false;

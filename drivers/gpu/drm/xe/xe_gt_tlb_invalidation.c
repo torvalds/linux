@@ -30,8 +30,8 @@ static void xe_gt_tlb_fence_timeout(struct work_struct *work)
 			break;
 
 		trace_xe_gt_tlb_invalidation_fence_timeout(fence);
-		drm_err(&gt_to_xe(gt)->drm, "gt%d: TLB invalidation fence timeout, seqno=%d recv=%d",
-			gt->info.id, fence->seqno, gt->tlb_invalidation.seqno_recv);
+		drm_err(&gt_to_xe(gt)->drm, "gt%d: TLB invalidation fence timeout, seqanal=%d recv=%d",
+			gt->info.id, fence->seqanal, gt->tlb_invalidation.seqanal_recv);
 
 		list_del(&fence->link);
 		fence->base.error = -ETIME;
@@ -56,7 +56,7 @@ static void xe_gt_tlb_fence_timeout(struct work_struct *work)
  */
 int xe_gt_tlb_invalidation_init(struct xe_gt *gt)
 {
-	gt->tlb_invalidation.seqno = 1;
+	gt->tlb_invalidation.seqanal = 1;
 	INIT_LIST_HEAD(&gt->tlb_invalidation.pending_fences);
 	spin_lock_init(&gt->tlb_invalidation.pending_lock);
 	spin_lock_init(&gt->tlb_invalidation.lock);
@@ -92,10 +92,10 @@ void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
 {
 	struct xe_gt_tlb_invalidation_fence *fence, *next;
 	struct xe_guc *guc = &gt->uc.guc;
-	int pending_seqno;
+	int pending_seqanal;
 
 	/*
-	 * CT channel is already disabled at this point. No new TLB requests can
+	 * CT channel is already disabled at this point. Anal new TLB requests can
 	 * appear.
 	 */
 
@@ -104,16 +104,16 @@ void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
 	cancel_delayed_work(&gt->tlb_invalidation.fence_tdr);
 	/*
 	 * We might have various kworkers waiting for TLB flushes to complete
-	 * which are not tracked with an explicit TLB fence, however at this
+	 * which are analt tracked with an explicit TLB fence, however at this
 	 * stage that will never happen since the CT is already disabled, so
 	 * make sure we signal them here under the assumption that we have
 	 * completed a full GT reset.
 	 */
-	if (gt->tlb_invalidation.seqno == 1)
-		pending_seqno = TLB_INVALIDATION_SEQNO_MAX - 1;
+	if (gt->tlb_invalidation.seqanal == 1)
+		pending_seqanal = TLB_INVALIDATION_SEQANAL_MAX - 1;
 	else
-		pending_seqno = gt->tlb_invalidation.seqno - 1;
-	WRITE_ONCE(gt->tlb_invalidation.seqno_recv, pending_seqno);
+		pending_seqanal = gt->tlb_invalidation.seqanal - 1;
+	WRITE_ONCE(gt->tlb_invalidation.seqanal_recv, pending_seqanal);
 	wake_up_all(&guc->ct.wq);
 
 	list_for_each_entry_safe(fence, next,
@@ -123,17 +123,17 @@ void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
 	mutex_unlock(&gt->uc.guc.ct.lock);
 }
 
-static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)
+static bool tlb_invalidation_seqanal_past(struct xe_gt *gt, int seqanal)
 {
-	int seqno_recv = READ_ONCE(gt->tlb_invalidation.seqno_recv);
+	int seqanal_recv = READ_ONCE(gt->tlb_invalidation.seqanal_recv);
 
-	if (seqno - seqno_recv < -(TLB_INVALIDATION_SEQNO_MAX / 2))
+	if (seqanal - seqanal_recv < -(TLB_INVALIDATION_SEQANAL_MAX / 2))
 		return false;
 
-	if (seqno - seqno_recv > (TLB_INVALIDATION_SEQNO_MAX / 2))
+	if (seqanal - seqanal_recv > (TLB_INVALIDATION_SEQANAL_MAX / 2))
 		return true;
 
-	return seqno_recv >= seqno;
+	return seqanal_recv >= seqanal;
 }
 
 static int send_tlb_invalidation(struct xe_guc *guc,
@@ -141,33 +141,33 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 				 u32 *action, int len)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
-	int seqno;
+	int seqanal;
 	int ret;
 
 	/*
-	 * XXX: The seqno algorithm relies on TLB invalidation being processed
+	 * XXX: The seqanal algorithm relies on TLB invalidation being processed
 	 * in order which they currently are, if that changes the algorithm will
 	 * need to be updated.
 	 */
 
 	mutex_lock(&guc->ct.lock);
-	seqno = gt->tlb_invalidation.seqno;
+	seqanal = gt->tlb_invalidation.seqanal;
 	if (fence) {
-		fence->seqno = seqno;
+		fence->seqanal = seqanal;
 		trace_xe_gt_tlb_invalidation_fence_send(fence);
 	}
-	action[1] = seqno;
+	action[1] = seqanal;
 	ret = xe_guc_ct_send_locked(&guc->ct, action, len,
 				    G2H_LEN_DW_TLB_INVALIDATE, 1);
 	if (!ret && fence) {
 		spin_lock_irq(&gt->tlb_invalidation.pending_lock);
 		/*
 		 * We haven't actually published the TLB fence as per
-		 * pending_fences, but in theory our seqno could have already
+		 * pending_fences, but in theory our seqanal could have already
 		 * been written as we acquired the pending_lock. In such a case
 		 * we can just go ahead and signal the fence here.
 		 */
-		if (tlb_invalidation_seqno_past(gt, seqno)) {
+		if (tlb_invalidation_seqanal_past(gt, seqanal)) {
 			__invalidation_fence_signal(fence);
 		} else {
 			fence->invalidation_time = ktime_get();
@@ -184,11 +184,11 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 		__invalidation_fence_signal(fence);
 	}
 	if (!ret) {
-		gt->tlb_invalidation.seqno = (gt->tlb_invalidation.seqno + 1) %
-			TLB_INVALIDATION_SEQNO_MAX;
-		if (!gt->tlb_invalidation.seqno)
-			gt->tlb_invalidation.seqno = 1;
-		ret = seqno;
+		gt->tlb_invalidation.seqanal = (gt->tlb_invalidation.seqanal + 1) %
+			TLB_INVALIDATION_SEQANAL_MAX;
+		if (!gt->tlb_invalidation.seqanal)
+			gt->tlb_invalidation.seqanal = 1;
+		ret = seqanal;
 	}
 	mutex_unlock(&guc->ct.lock);
 
@@ -203,17 +203,17 @@ static int send_tlb_invalidation(struct xe_guc *guc,
  * xe_gt_tlb_invalidation_guc - Issue a TLB invalidation on this GT for the GuC
  * @gt: graphics tile
  *
- * Issue a TLB invalidation for the GuC. Completion of TLB is asynchronous and
- * caller can use seqno + xe_gt_tlb_invalidation_wait to wait for completion.
+ * Issue a TLB invalidation for the GuC. Completion of TLB is asynchroanalus and
+ * caller can use seqanal + xe_gt_tlb_invalidation_wait to wait for completion.
  *
- * Return: Seqno which can be passed to xe_gt_tlb_invalidation_wait on success,
+ * Return: Seqanal which can be passed to xe_gt_tlb_invalidation_wait on success,
  * negative error code on error.
  */
 int xe_gt_tlb_invalidation_guc(struct xe_gt *gt)
 {
 	u32 action[] = {
 		XE_GUC_ACTION_TLB_INVALIDATION,
-		0,  /* seqno, replaced in send_tlb_invalidation */
+		0,  /* seqanal, replaced in send_tlb_invalidation */
 		MAKE_INVAL_OP(XE_GUC_TLB_INVAL_GUC),
 	};
 
@@ -228,12 +228,12 @@ int xe_gt_tlb_invalidation_guc(struct xe_gt *gt)
  * completion, can be NULL
  * @vma: VMA to invalidate
  *
- * Issue a range based TLB invalidation if supported, if not fallback to a full
- * TLB invalidation. Completion of TLB is asynchronous and caller can either use
- * the invalidation fence or seqno + xe_gt_tlb_invalidation_wait to wait for
+ * Issue a range based TLB invalidation if supported, if analt fallback to a full
+ * TLB invalidation. Completion of TLB is asynchroanalus and caller can either use
+ * the invalidation fence or seqanal + xe_gt_tlb_invalidation_wait to wait for
  * completion.
  *
- * Return: Seqno which can be passed to xe_gt_tlb_invalidation_wait on success,
+ * Return: Seqanal which can be passed to xe_gt_tlb_invalidation_wait on success,
  * negative error code on error.
  */
 int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
@@ -247,7 +247,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 
 	xe_gt_assert(gt, vma);
 
-	/* Execlists not supported */
+	/* Execlists analt supported */
 	if (gt_to_xe(gt)->info.force_execlist) {
 		if (fence)
 			__invalidation_fence_signal(fence);
@@ -256,7 +256,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 	}
 
 	action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
-	action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
+	action[len++] = 0; /* seqanal, replaced in send_tlb_invalidation */
 	if (!xe->info.has_range_tlb_invalidation) {
 		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_FULL);
 	} else {
@@ -269,8 +269,8 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 
 		/*
 		 * We need to invalidate a higher granularity if start address
-		 * is not aligned to length. When start is not aligned with
-		 * length we need to find the length large enough to create an
+		 * is analt aligned to length. When start is analt aligned with
+		 * length we need to find the length large eanalugh to create an
 		 * address mask covering the required range.
 		 */
 		align = roundup_pow_of_two(length);
@@ -311,34 +311,34 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 /**
  * xe_gt_tlb_invalidation_wait - Wait for TLB to complete
  * @gt: graphics tile
- * @seqno: seqno to wait which was returned from xe_gt_tlb_invalidation
+ * @seqanal: seqanal to wait which was returned from xe_gt_tlb_invalidation
  *
  * Wait for 200ms for a TLB invalidation to complete, in practice we always
  * should receive the TLB invalidation within 200ms.
  *
  * Return: 0 on success, -ETIME on TLB invalidation timeout
  */
-int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno)
+int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqanal)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_guc *guc = &gt->uc.guc;
 	struct drm_printer p = drm_err_printer(__func__);
 	int ret;
 
-	/* Execlists not supported */
+	/* Execlists analt supported */
 	if (gt_to_xe(gt)->info.force_execlist)
 		return 0;
 
 	/*
-	 * XXX: See above, this algorithm only works if seqno are always in
+	 * XXX: See above, this algorithm only works if seqanal are always in
 	 * order
 	 */
 	ret = wait_event_timeout(guc->ct.wq,
-				 tlb_invalidation_seqno_past(gt, seqno),
+				 tlb_invalidation_seqanal_past(gt, seqanal),
 				 TLB_TIMEOUT);
 	if (!ret) {
-		drm_err(&xe->drm, "gt%d: TLB invalidation time'd out, seqno=%d, recv=%d\n",
-			gt->info.id, seqno, gt->tlb_invalidation.seqno_recv);
+		drm_err(&xe->drm, "gt%d: TLB invalidation time'd out, seqanal=%d, recv=%d\n",
+			gt->info.id, seqanal, gt->tlb_invalidation.seqanal_recv);
 		xe_guc_ct_print(&guc->ct, &p, true);
 		return -ETIME;
 	}
@@ -352,8 +352,8 @@ int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno)
  * @msg: message indicating TLB invalidation done
  * @len: length of message
  *
- * Parse seqno of TLB invalidation, wake any waiters for seqno, and signal any
- * invalidation fences for seqno. Algorithm for this depends on seqno being
+ * Parse seqanal of TLB invalidation, wake any waiters for seqanal, and signal any
+ * invalidation fences for seqanal. Algorithm for this depends on seqanal being
  * received in-order and asserts this assumption.
  *
  * Return: 0 on success, -EPROTO for malformed messages.
@@ -371,19 +371,19 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	 * This can also be run both directly from the IRQ handler and also in
 	 * process_g2h_msg(). Only one may process any individual CT message,
 	 * however the order they are processed here could result in skipping a
-	 * seqno. To handle that we just process all the seqnos from the last
-	 * seqno_recv up to and including the one in msg[0]. The delta should be
+	 * seqanal. To handle that we just process all the seqanals from the last
+	 * seqanal_recv up to and including the one in msg[0]. The delta should be
 	 * very small so there shouldn't be much of pending_fences we actually
 	 * need to iterate over here.
 	 *
-	 * From GuC POV we expect the seqnos to always appear in-order, so if we
+	 * From GuC POV we expect the seqanals to always appear in-order, so if we
 	 * see something later in the timeline we can be sure that anything
 	 * appearing earlier has already signalled, just that we have yet to
 	 * officially process the CT message like if racing against
 	 * process_g2h_msg().
 	 */
 	spin_lock_irqsave(&gt->tlb_invalidation.pending_lock, flags);
-	if (tlb_invalidation_seqno_past(gt, msg[0])) {
+	if (tlb_invalidation_seqanal_past(gt, msg[0])) {
 		spin_unlock_irqrestore(&gt->tlb_invalidation.pending_lock, flags);
 		return 0;
 	}
@@ -392,14 +392,14 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	 * wake_up_all() and wait_event_timeout() already have the correct
 	 * barriers.
 	 */
-	WRITE_ONCE(gt->tlb_invalidation.seqno_recv, msg[0]);
+	WRITE_ONCE(gt->tlb_invalidation.seqanal_recv, msg[0]);
 	wake_up_all(&guc->ct.wq);
 
 	list_for_each_entry_safe(fence, next,
 				 &gt->tlb_invalidation.pending_fences, link) {
 		trace_xe_gt_tlb_invalidation_fence_recv(fence);
 
-		if (!tlb_invalidation_seqno_past(gt, fence->seqno))
+		if (!tlb_invalidation_seqanal_past(gt, fence->seqanal))
 			break;
 
 		invalidation_fence_signal(fence);

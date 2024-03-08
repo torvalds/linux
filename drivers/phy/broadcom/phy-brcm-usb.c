@@ -70,20 +70,20 @@ struct brcm_usb_phy_data {
 	int			init_count;
 	int			wake_irq;
 	struct brcm_usb_phy	phys[BRCM_USB_PHY_ID_MAX];
-	struct notifier_block	pm_notifier;
+	struct analtifier_block	pm_analtifier;
 	bool			pm_active;
 };
 
-static s8 *node_reg_names[BRCM_REGS_MAX] = {
+static s8 *analde_reg_names[BRCM_REGS_MAX] = {
 	"crtl", "xhci_ec", "xhci_gbl", "usb_phy", "usb_mdio", "bdc_ec"
 };
 
-static int brcm_pm_notifier(struct notifier_block *notifier,
+static int brcm_pm_analtifier(struct analtifier_block *analtifier,
 			    unsigned long pm_event,
 			    void *unused)
 {
 	struct brcm_usb_phy_data *priv =
-		container_of(notifier, struct brcm_usb_phy_data, pm_notifier);
+		container_of(analtifier, struct brcm_usb_phy_data, pm_analtifier);
 
 	switch (pm_event) {
 	case PM_HIBERNATION_PREPARE:
@@ -96,7 +96,7 @@ static int brcm_pm_notifier(struct notifier_block *notifier,
 		priv->pm_active = false;
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static irqreturn_t brcm_usb_phy_wake_isr(int irq, void *dev_id)
@@ -181,23 +181,23 @@ static struct phy *brcm_usb_phy_xlate(struct device *dev,
 
 	/*
 	 * values 0 and 1 are for backward compatibility with
-	 * device tree nodes from older bootloaders.
+	 * device tree analdes from older bootloaders.
 	 */
 	switch (args->args[0]) {
 	case 0:
 	case PHY_TYPE_USB2:
 		if (data->phys[BRCM_USB_PHY_2_0].phy)
 			return data->phys[BRCM_USB_PHY_2_0].phy;
-		dev_warn(dev, "Error, 2.0 Phy not found\n");
+		dev_warn(dev, "Error, 2.0 Phy analt found\n");
 		break;
 	case 1:
 	case PHY_TYPE_USB3:
 		if (data->phys[BRCM_USB_PHY_3_0].phy)
 			return data->phys[BRCM_USB_PHY_3_0].phy;
-		dev_warn(dev, "Error, 3.0 Phy not found\n");
+		dev_warn(dev, "Error, 3.0 Phy analt found\n");
 		break;
 	}
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int name_to_value(const struct value_to_name_map *table, int count,
@@ -219,7 +219,7 @@ static const char *value_to_name(const struct value_to_name_map *table, int coun
 				 int value)
 {
 	if (value >= count)
-		return "unknown";
+		return "unkanalwn";
 	return table[value].name;
 }
 
@@ -351,9 +351,9 @@ static int brcm_usb_get_regs(struct platform_device *pdev,
 {
 	struct resource *res;
 
-	/* Older DT nodes have ctrl and optional xhci_ec by index only */
+	/* Older DT analdes have ctrl and optional xhci_ec by index only */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						node_reg_names[regs]);
+						analde_reg_names[regs]);
 	if (res == NULL) {
 		if (regs == BRCM_REGS_CTRL) {
 			res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -366,19 +366,19 @@ static int brcm_usb_get_regs(struct platform_device *pdev,
 		if (res == NULL) {
 			if (optional) {
 				dev_dbg(&pdev->dev,
-					"Optional reg %s not found\n",
-					node_reg_names[regs]);
+					"Optional reg %s analt found\n",
+					analde_reg_names[regs]);
 				return 0;
 			}
 			dev_err(&pdev->dev, "can't get %s base addr\n",
-				node_reg_names[regs]);
+				analde_reg_names[regs]);
 			return 1;
 		}
 	}
 	ini->regs[regs] = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ini->regs[regs])) {
 		dev_err(&pdev->dev, "can't map %s register space\n",
-			node_reg_names[regs]);
+			analde_reg_names[regs]);
 		return 1;
 	}
 	return 0;
@@ -386,7 +386,7 @@ static int brcm_usb_get_regs(struct platform_device *pdev,
 
 static int brcm_usb_phy_dvr_init(struct platform_device *pdev,
 				 struct brcm_usb_phy_data *priv,
-				 struct device_node *dn)
+				 struct device_analde *dn)
 {
 	struct device *dev = &pdev->dev;
 	struct phy *gphy = NULL;
@@ -396,7 +396,7 @@ static int brcm_usb_phy_dvr_init(struct platform_device *pdev,
 	if (IS_ERR(priv->usb_20_clk)) {
 		if (PTR_ERR(priv->usb_20_clk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(dev, "Clock not found in Device Tree\n");
+		dev_info(dev, "Clock analt found in Device Tree\n");
 		priv->usb_20_clk = NULL;
 	}
 	err = clk_prepare_enable(priv->usb_20_clk);
@@ -429,7 +429,7 @@ static int brcm_usb_phy_dvr_init(struct platform_device *pdev,
 			if (PTR_ERR(priv->usb_30_clk) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
 			dev_info(dev,
-				 "USB3.0 clock not found in Device Tree\n");
+				 "USB3.0 clock analt found in Device Tree\n");
 			priv->usb_30_clk = NULL;
 		}
 		err = clk_prepare_enable(priv->usb_30_clk);
@@ -441,7 +441,7 @@ static int brcm_usb_phy_dvr_init(struct platform_device *pdev,
 	if (IS_ERR(priv->suspend_clk)) {
 		if (PTR_ERR(priv->suspend_clk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_err(dev, "Suspend Clock not found in Device Tree\n");
+		dev_err(dev, "Suspend Clock analt found in Device Tree\n");
 		priv->suspend_clk = NULL;
 	}
 
@@ -457,7 +457,7 @@ static int brcm_usb_phy_dvr_init(struct platform_device *pdev,
 		device_set_wakeup_capable(dev, 1);
 	} else {
 		dev_info(dev,
-			 "Wake interrupt missing, system wake not supported\n");
+			 "Wake interrupt missing, system wake analt supported\n");
 	}
 
 	return 0;
@@ -468,7 +468,7 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct brcm_usb_phy_data *priv;
 	struct phy_provider *phy_provider;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	int err;
 	const char *mode;
 	const struct match_chip_info *info;
@@ -477,7 +477,7 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	priv->ini.family_id = brcmstb_get_family_id();
@@ -485,7 +485,7 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 
 	info = of_device_get_match_data(&pdev->dev);
 	if (!info)
-		return -ENOENT;
+		return -EANALENT;
 
 	info->init_func(&priv->ini);
 
@@ -530,8 +530,8 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	priv->pm_notifier.notifier_call = brcm_pm_notifier;
-	register_pm_notifier(&priv->pm_notifier);
+	priv->pm_analtifier.analtifier_call = brcm_pm_analtifier;
+	register_pm_analtifier(&priv->pm_analtifier);
 
 	mutex_init(&priv->mutex);
 
@@ -540,7 +540,7 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 
 	/*
 	 * Create sysfs entries for mode.
-	 * Remove "dual_select" attribute if not in dual mode
+	 * Remove "dual_select" attribute if analt in dual mode
 	 */
 	if (priv->ini.supported_port_modes != USB_CTLR_MODE_DRD)
 		brcm_usb_phy_attrs[1] = NULL;
@@ -549,10 +549,10 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 		dev_warn(dev, "Error creating sysfs attributes\n");
 
 	/* Get piarbctl syscon if it exists */
-	rmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+	rmap = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						 "syscon-piarbctl");
 	if (IS_ERR(rmap))
-		rmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+		rmap = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						       "brcm,syscon-piarbctl");
 	if (!IS_ERR(rmap))
 		priv->ini.syscon_piarbctl = rmap;
@@ -576,7 +576,7 @@ static void brcm_usb_phy_remove(struct platform_device *pdev)
 	struct brcm_usb_phy_data *priv = dev_get_drvdata(&pdev->dev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &brcm_usb_phy_group);
-	unregister_pm_notifier(&priv->pm_notifier);
+	unregister_pm_analtifier(&priv->pm_analtifier);
 }
 
 #ifdef CONFIG_PM_SLEEP

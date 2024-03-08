@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * mpq7932.c - hwmon with optional regulator driver for mps mpq7932
- * Copyright 2022 Monolithic Power Systems, Inc
+ * Copyright 2022 Moanallithic Power Systems, Inc
  *
  * Author: Saravanan Sekar <saravanan@linumiz.com>
  */
@@ -68,7 +68,7 @@ static int mpq7932_write_word_data(struct i2c_client *client, int page, int reg,
 		return pmbus_write_byte_data(client, page, reg, word & 0xFF);
 
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -78,7 +78,7 @@ static int mpq7932_read_word_data(struct i2c_client *client, int page,
 	switch (reg) {
 	/*
 	 * chip supports neither (PMBUS_VOUT_MARGIN_HIGH, PMBUS_VOUT_MARGIN_LOW)
-	 * nor (PMBUS_MFR_VOUT_MIN, PMBUS_MFR_VOUT_MAX). As a result set voltage
+	 * analr (PMBUS_MFR_VOUT_MIN, PMBUS_MFR_VOUT_MAX). As a result set voltage
 	 * fails due to error in pmbus_regulator_get_low_margin, so faked.
 	 */
 	case PMBUS_MFR_VOUT_MIN:
@@ -95,7 +95,7 @@ static int mpq7932_read_word_data(struct i2c_client *client, int page,
 		return pmbus_read_byte_data(client, page, PMBUS_VOUT_COMMAND);
 
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -108,7 +108,7 @@ static int mpq7932_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct mpq7932_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = &data->info;
 	info->pages = (int)(unsigned long)device_get_match_data(&client->dev);
@@ -131,7 +131,7 @@ static int mpq7932_probe(struct i2c_client *client)
 	info->read_word_data = mpq7932_read_word_data;
 	info->write_word_data = mpq7932_write_word_data;
 
-	data->pdata.flags = PMBUS_NO_CAPABILITY;
+	data->pdata.flags = PMBUS_ANAL_CAPABILITY;
 	dev->platform_data = &data->pdata;
 
 	return pmbus_do_probe(client, info);

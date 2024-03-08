@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung EXYANALS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -55,9 +55,9 @@ static const struct fimc_fmt fimc_isp_formats[FIMC_ISP_NUM_FORMATS] = {
 
 /**
  * fimc_isp_find_format - lookup color format by fourcc or media bus code
- * @pixelformat: fourcc to match, ignored if null
- * @mbus_code: media bus code to match, ignored if null
- * @index: index to the fimc_isp_formats array, ignored if negative
+ * @pixelformat: fourcc to match, iganalred if null
+ * @mbus_code: media bus code to match, iganalred if null
+ * @index: index to the fimc_isp_formats array, iganalred if negative
  */
 const struct fimc_fmt *fimc_isp_find_format(const u32 *pixelformat,
 					const u32 *mbus_code, int index)
@@ -370,7 +370,7 @@ static int fimc_isp_subdev_open(struct v4l2_subdev *sd,
 		.code = fimc_isp_formats[0].mbus_code,
 		.width = DEFAULT_PREVIEW_STILL_WIDTH + FIMC_ISP_CAC_MARGIN_WIDTH,
 		.height = DEFAULT_PREVIEW_STILL_HEIGHT + FIMC_ISP_CAC_MARGIN_HEIGHT,
-		.field = V4L2_FIELD_NONE,
+		.field = V4L2_FIELD_ANALNE,
 	};
 
 	format = v4l2_subdev_state_get_format(fh->state, FIMC_ISP_SD_PAD_SINK);
@@ -569,10 +569,10 @@ static int __ctrl_set_afc(struct fimc_is *is, int value)
 static int __ctrl_set_image_effect(struct fimc_is *is, int value)
 {
 	static const u8 effects[][2] = {
-		{ V4L2_COLORFX_NONE,	 ISP_IMAGE_EFFECT_DISABLE },
-		{ V4L2_COLORFX_BW,	 ISP_IMAGE_EFFECT_MONOCHROME },
+		{ V4L2_COLORFX_ANALNE,	 ISP_IMAGE_EFFECT_DISABLE },
+		{ V4L2_COLORFX_BW,	 ISP_IMAGE_EFFECT_MOANALCHROME },
 		{ V4L2_COLORFX_SEPIA,	 ISP_IMAGE_EFFECT_SEPIA },
-		{ V4L2_COLORFX_NEGATIVE, ISP_IMAGE_EFFECT_NEGATIVE_MONO },
+		{ V4L2_COLORFX_NEGATIVE, ISP_IMAGE_EFFECT_NEGATIVE_MOANAL },
 		{ 16 /* TODO */,	 ISP_IMAGE_EFFECT_NEGATIVE_COLOR },
 	};
 	int i;
@@ -702,7 +702,7 @@ int fimc_isp_subdev_create(struct fimc_isp *isp)
 
 	sd->owner = THIS_MODULE;
 	sd->grp_id = GRP_ID_FIMC_IS;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	snprintf(sd->name, sizeof(sd->name), "FIMC-IS-ISP");
 
 	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
@@ -756,7 +756,7 @@ int fimc_isp_subdev_create(struct fimc_isp *isp)
 
 	/* TODO: Add support for NEGATIVE_COLOR option */
 	ctrls->colorfx = v4l2_ctrl_new_std_menu(handler, ops, V4L2_CID_COLORFX,
-			V4L2_COLORFX_SET_CBCR + 1, ~0x1000f, V4L2_COLORFX_NONE);
+			V4L2_COLORFX_SET_CBCR + 1, ~0x1000f, V4L2_COLORFX_ANALNE);
 
 	if (handler->error) {
 		media_entity_cleanup(&sd->entity);

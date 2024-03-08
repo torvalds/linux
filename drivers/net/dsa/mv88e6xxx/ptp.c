@@ -54,7 +54,7 @@ static int mv88e6xxx_tai_read(struct mv88e6xxx_chip *chip, int addr,
 			      u16 *data, int len)
 {
 	if (!chip->info->ops->avb_ops->tai_read)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->avb_ops->tai_read(chip, addr, data, len);
 }
@@ -62,7 +62,7 @@ static int mv88e6xxx_tai_read(struct mv88e6xxx_chip *chip, int addr,
 static int mv88e6xxx_tai_write(struct mv88e6xxx_chip *chip, int addr, u16 data)
 {
 	if (!chip->info->ops->avb_ops->tai_write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->avb_ops->tai_write(chip, addr, data);
 }
@@ -74,7 +74,7 @@ static int mv88e6352_set_gpio_func(struct mv88e6xxx_chip *chip, int pin,
 	int err;
 
 	if (!chip->info->ops->gpio_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = chip->info->ops->gpio_ops->set_dir(chip, pin, input);
 	if (err)
@@ -283,13 +283,13 @@ static int mv88e6352_ptp_enable_extts(struct mv88e6xxx_chip *chip,
 				PTP_RISING_EDGE |
 				PTP_FALLING_EDGE |
 				PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reject requests to enable time stamping on both edges. */
 	if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
 	    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
 	    (rq->extts.flags & PTP_EXTTS_EDGES) == PTP_EXTTS_EDGES)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pin = ptp_find_pin(chip->ptp_clock, PTP_PF_EXTTS, rq->extts.index);
 
@@ -332,7 +332,7 @@ static int mv88e6352_ptp_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_EXTTS:
 		return mv88e6352_ptp_enable_extts(chip, rq, on);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -340,12 +340,12 @@ static int mv88e6352_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 				enum ptp_pin_function func, unsigned int chan)
 {
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_EXTTS:
 		break;
 	case PTP_PF_PEROUT:
 	case PTP_PF_PHYSYNC:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -357,7 +357,7 @@ const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {
 	.arr0_sts_reg = MV88E6165_PORT_PTP_ARR0_STS,
 	.arr1_sts_reg = MV88E6165_PORT_PTP_ARR1_STS,
 	.dep_sts_reg = MV88E6165_PORT_PTP_DEP_STS,
-	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	.rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
@@ -381,7 +381,7 @@ const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops = {
 	.arr0_sts_reg = MV88E6XXX_PORT_PTP_ARR0_STS,
 	.arr1_sts_reg = MV88E6XXX_PORT_PTP_ARR1_STS,
 	.dep_sts_reg = MV88E6XXX_PORT_PTP_DEP_STS,
-	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	.rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
@@ -408,7 +408,7 @@ const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {
 	.arr0_sts_reg = MV88E6XXX_PORT_PTP_ARR0_STS,
 	.arr1_sts_reg = MV88E6XXX_PORT_PTP_ARR1_STS,
 	.dep_sts_reg = MV88E6XXX_PORT_PTP_DEP_STS,
-	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	.rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
@@ -436,7 +436,7 @@ const struct mv88e6xxx_ptp_ops mv88e6390_ptp_ops = {
 	.arr0_sts_reg = MV88E6XXX_PORT_PTP_ARR0_STS,
 	.arr1_sts_reg = MV88E6XXX_PORT_PTP_ARR1_STS,
 	.dep_sts_reg = MV88E6XXX_PORT_PTP_DEP_STS,
-	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	.rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
@@ -511,7 +511,7 @@ int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 
 		snprintf(ppd->name, sizeof(ppd->name), "mv88e6xxx_gpio%d", i);
 		ppd->index = i;
-		ppd->func = PTP_PF_NONE;
+		ppd->func = PTP_PF_ANALNE;
 	}
 	chip->ptp_clock_info.pin_config = chip->pin_config;
 

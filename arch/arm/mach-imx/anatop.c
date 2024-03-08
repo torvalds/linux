@@ -93,14 +93,14 @@ void imx_anatop_post_resume(void)
 
 void __init imx_init_revision_from_anatop(void)
 {
-	struct device_node *np, *src_np;
+	struct device_analde *np, *src_np;
 	void __iomem *anatop_base;
 	unsigned int revision;
 	u32 digprog;
 	u16 offset = ANADIG_DIGPROG;
-	u8 major_part, minor_part;
+	u8 major_part, mianalr_part;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx6q-anatop");
 	anatop_base = of_iomap(np, 0);
 	WARN_ON(!anatop_base);
 	if (of_device_is_compatible(np, "fsl,imx6sl-anatop"))
@@ -119,25 +119,25 @@ void __init imx_init_revision_from_anatop(void)
 	} else {
 		/*
 		 * MAJOR: [15:8], the major silicon revison;
-		 * MINOR: [7: 0], the minor silicon revison;
+		 * MIANALR: [7: 0], the mianalr silicon revison;
 		 *
 		 * please refer to the i.MX RM for the detailed
 		 * silicon revison bit define.
-		 * format the major part and minor part to match the
+		 * format the major part and mianalr part to match the
 		 * linux kernel soc version format.
 		 */
 		major_part = (digprog >> 8) & 0xf;
-		minor_part = digprog & 0xf;
-		revision = ((major_part + 1) << 4) | minor_part;
+		mianalr_part = digprog & 0xf;
+		revision = ((major_part + 1) << 4) | mianalr_part;
 
 		if ((digprog >> 16) == MXC_CPU_IMX6ULL) {
 			void __iomem *src_base;
 			u32 sbmr2;
 
-			src_np = of_find_compatible_node(NULL, NULL,
+			src_np = of_find_compatible_analde(NULL, NULL,
 						     "fsl,imx6ul-src");
 			src_base = of_iomap(src_np, 0);
-			of_node_put(src_np);
+			of_analde_put(src_np);
 			WARN_ON(!src_base);
 			sbmr2 = readl_relaxed(src_base + SRC_SBMR2);
 			iounmap(src_base);
@@ -149,7 +149,7 @@ void __init imx_init_revision_from_anatop(void)
 			}
 		}
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
 	mxc_set_cpu_type(digprog >> 16 & 0xff);
 	imx_set_soc_revision(revision);

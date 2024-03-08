@@ -16,7 +16,7 @@
 # connection on VRF rcv"
 #
 # It was possible to assign conntrack zone to a packet (or mark it for
-# `notracking`) in the prerouting chain before conntrack, based on real iif.
+# `analtracking`) in the prerouting chain before conntrack, based on real iif.
 #
 # After the change, the zone assignment is lost and the zone is assigned based
 # on the VRF master interface (in case such a rule exists).
@@ -49,19 +49,19 @@ cleanup()
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 ip netns add "$ns0"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns0"
+	echo "SKIP: Could analt create net namespace $ns0"
 	exit $ksft_skip
 fi
 ip netns add "$ns1"
@@ -74,13 +74,13 @@ ip netns exec $ns0 sysctl -q -w net.ipv4.conf.all.rp_filter=0
 
 ip link add veth0 netns "$ns0" type veth peer name veth0 netns "$ns1" > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not add veth device"
+	echo "SKIP: Could analt add veth device"
 	exit $ksft_skip
 fi
 
 ip -net $ns0 li add tvrf type vrf table 9876
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not add vrf device"
+	echo "SKIP: Could analt add vrf device"
 	exit $ksft_skip
 fi
 
@@ -96,7 +96,7 @@ ip -net $ns1 addr add $IP1/$PFXL dev veth0
 
 ip netns exec $ns1 iperf3 -s > /dev/null 2>&1&
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not start iperf3"
+	echo "SKIP: Could analt start iperf3"
 	exit $ksft_skip
 fi
 
@@ -114,7 +114,7 @@ table testct {
 		iif veth0 counter ct zone set 1 counter return
 		iif tvrf counter ct zone set 2 counter return
 		ip protocol icmp counter
-		notrack counter
+		analtrack counter
 	}
 
 	chain rawout {
@@ -122,23 +122,23 @@ table testct {
 
 		oif veth0 counter ct zone set 1 counter return
 		oif tvrf counter ct zone set 2 counter return
-		notrack counter
+		analtrack counter
 	}
 }
 EOF
 	ip netns exec $ns1 ping -W 1 -c 1 -I veth0 $IP0 > /dev/null
 
-	# should be in zone 1, not zone 2
+	# should be in zone 1, analt zone 2
 	count=$(ip netns exec $ns0 conntrack -L -s $IP1 -d $IP0 -p icmp --zone 1 2>/dev/null | wc -l)
 	if [ $count -eq 1 ]; then
 		echo "PASS: entry found in conntrack zone 1"
 	else
-		echo "FAIL: entry not found in conntrack zone 1"
+		echo "FAIL: entry analt found in conntrack zone 1"
 		count=$(ip netns exec $ns0 conntrack -L -s $IP1 -d $IP0 -p icmp --zone 2 2> /dev/null | wc -l)
 		if [ $count -eq 1 ]; then
 			echo "FAIL: entry found in zone 2 instead"
 		else
-			echo "FAIL: entry not in zone 1 or 2, dumping table"
+			echo "FAIL: entry analt in zone 1 or 2, dumping table"
 			ip netns exec $ns0 conntrack -L
 			ip netns exec $ns0 nft list ruleset
 		fi

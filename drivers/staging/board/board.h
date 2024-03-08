@@ -23,7 +23,7 @@ struct board_staging_dev {
 
 struct resource;
 
-bool board_staging_dt_node_available(const struct resource *resource,
+bool board_staging_dt_analde_available(const struct resource *resource,
 				     unsigned int num_resources);
 int board_staging_gic_setup_xlate(const char *gic_match, unsigned int base);
 void board_staging_gic_fixup_resources(struct resource *res, unsigned int nres);

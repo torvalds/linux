@@ -15,7 +15,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <linux/filter.h>
 #include <linux/in.h>
@@ -59,18 +59,18 @@ static void build_rcv_group(int *rcv_fd, size_t len, int family, int proto)
 	for (i = 0; i < len; ++i) {
 		rcv_fd[i] = socket(family, proto, 0);
 		if (rcv_fd[i] < 0)
-			error(1, errno, "failed to create receive socket");
+			error(1, erranal, "failed to create receive socket");
 
 		opt = 1;
 		if (setsockopt(rcv_fd[i], SOL_SOCKET, SO_REUSEPORT, &opt,
 			       sizeof(opt)))
-			error(1, errno, "failed to set SO_REUSEPORT");
+			error(1, erranal, "failed to set SO_REUSEPORT");
 
 		if (bind(rcv_fd[i], (struct sockaddr *)&addr, sizeof(addr)))
-			error(1, errno, "failed to bind receive socket");
+			error(1, erranal, "failed to bind receive socket");
 
 		if (proto == SOCK_STREAM && listen(rcv_fd[i], len * 10))
-			error(1, errno, "failed to listen on receive port");
+			error(1, erranal, "failed to listen on receive port");
 	}
 }
 
@@ -88,7 +88,7 @@ static void attach_bpf(int fd)
 	};
 
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_REUSEPORT_CBPF, &p, sizeof(p)))
-		error(1, errno, "failed to set SO_ATTACH_REUSEPORT_CBPF");
+		error(1, erranal, "failed to set SO_ATTACH_REUSEPORT_CBPF");
 }
 
 static void send_from_cpu(int cpu_id, int family, int proto)
@@ -129,20 +129,20 @@ static void send_from_cpu(int cpu_id, int family, int proto)
 	memset(&cpu_set, 0, sizeof(cpu_set));
 	CPU_SET(cpu_id, &cpu_set);
 	if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0)
-		error(1, errno, "failed to pin to cpu");
+		error(1, erranal, "failed to pin to cpu");
 
 	fd = socket(family, proto, 0);
 	if (fd < 0)
-		error(1, errno, "failed to create send socket");
+		error(1, erranal, "failed to create send socket");
 
 	if (bind(fd, (struct sockaddr *)&saddr, sizeof(saddr)))
-		error(1, errno, "failed to bind send socket");
+		error(1, erranal, "failed to bind send socket");
 
 	if (connect(fd, (struct sockaddr *)&daddr, sizeof(daddr)))
-		error(1, errno, "failed to connect send socket");
+		error(1, erranal, "failed to connect send socket");
 
 	if (send(fd, "a", 1, 0) < 0)
-		error(1, errno, "failed to send message");
+		error(1, erranal, "failed to send message");
 
 	close(fd);
 }
@@ -156,12 +156,12 @@ void receive_on_cpu(int *rcv_fd, int len, int epfd, int cpu_id, int proto)
 
 	i = epoll_wait(epfd, &ev, 1, -1);
 	if (i < 0)
-		error(1, errno, "epoll_wait failed");
+		error(1, erranal, "epoll_wait failed");
 
 	if (proto == SOCK_STREAM) {
 		fd = accept(ev.data.fd, NULL, NULL);
 		if (fd < 0)
-			error(1, errno, "failed to accept");
+			error(1, erranal, "failed to accept");
 		i = recv(fd, buf, sizeof(buf), 0);
 		close(fd);
 	} else {
@@ -169,7 +169,7 @@ void receive_on_cpu(int *rcv_fd, int len, int epfd, int cpu_id, int proto)
 	}
 
 	if (i < 0)
-		error(1, errno, "failed to recv");
+		error(1, erranal, "failed to recv");
 
 	for (i = 0; i < len; ++i)
 		if (ev.data.fd == rcv_fd[i])
@@ -191,12 +191,12 @@ static void test(int *rcv_fd, int len, int family, int proto)
 
 	epfd = epoll_create(1);
 	if (epfd < 0)
-		error(1, errno, "failed to create epoll");
+		error(1, erranal, "failed to create epoll");
 	for (cpu = 0; cpu < len; ++cpu) {
 		ev.events = EPOLLIN;
 		ev.data.fd = rcv_fd[cpu];
 		if (epoll_ctl(epfd, EPOLL_CTL_ADD, rcv_fd[cpu], &ev))
-			error(1, errno, "failed to register sock epoll");
+			error(1, erranal, "failed to register sock epoll");
 	}
 
 	/* Forward iterate */
@@ -234,7 +234,7 @@ int main(void)
 
 	cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	if (cpus <= 0)
-		error(1, errno, "failed counting cpus");
+		error(1, erranal, "failed counting cpus");
 
 	rcv_fd = calloc(cpus, sizeof(int));
 	if (!rcv_fd)

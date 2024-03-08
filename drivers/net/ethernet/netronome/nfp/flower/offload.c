@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/skbuff.h>
 #include <net/devlink.h>
@@ -115,7 +115,7 @@ nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
 
 	skb = nfp_flower_cmsg_alloc(app, tot_len, mtype, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg = nfp_flower_cmsg_get_data(skb);
 	memcpy(msg, &nfp_flow->meta, meta_len);
@@ -158,7 +158,7 @@ nfp_flower_calc_opt_layer(struct flow_dissector_key_enc_opts *enc_opts,
 	if (enc_opts->len > NFP_FL_MAX_GENEVE_OPT_KEY ||
 	    (ipv6 && enc_opts->len > NFP_FL_MAX_GENEVE_OPT_KEY_V6)) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: geneve options exceed maximum length");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (enc_opts->len > 0) {
@@ -194,14 +194,14 @@ nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
 		}
 
 		if (enc_op) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options not supported on vxlan tunnels");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options analt supported on vxlan tunnels");
+			return -EOPANALTSUPP;
 		}
 		break;
 	case htons(GENEVE_UDP_PORT):
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve offload");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does analt support geneve offload");
+			return -EOPANALTSUPP;
 		}
 		*tun_type = NFP_FL_TUNNEL_GENEVE;
 		*key_layer |= NFP_FLOWER_LAYER_EXT_META;
@@ -218,8 +218,8 @@ nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
 		if (!enc_op)
 			break;
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE_OPT)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve option offload");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does analt support geneve option offload");
+			return -EOPANALTSUPP;
 		}
 		err = nfp_flower_calc_opt_layer(enc_op, key_layer_two, key_size,
 						ipv6, extack);
@@ -227,8 +227,8 @@ nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
 			return err;
 		break;
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel type unknown");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel type unkanalwn");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -251,8 +251,8 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	int err;
 
 	if (dissector->used_keys & ~NFP_FLOWER_WHITELIST_DISSECTOR) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	/* If any tun dissector is used then the required set must be used. */
@@ -261,8 +261,8 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	    != NFP_FLOWER_WHITELIST_TUN_DISSECTOR_V6_R &&
 	    (dissector->used_keys & NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R)
 	    != NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel match not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel match analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	key_layer_two = 0;
@@ -282,8 +282,8 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		flow_rule_match_vlan(rule, &vlan);
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_VLAN_PCP) &&
 		    vlan.key->vlan_priority) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support VLAN PCP offload");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does analt support VLAN PCP offload");
+			return -EOPANALTSUPP;
 		}
 		if (priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ &&
 		    !(key_layer_two & NFP_FLOWER_LAYER2_QINQ)) {
@@ -298,8 +298,8 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		struct flow_match_vlan cvlan;
 
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support VLAN QinQ offload");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does analt support VLAN QinQ offload");
+			return -EOPANALTSUPP;
 		}
 
 		flow_rule_match_vlan(rule, &cvlan);
@@ -322,22 +322,22 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		flow_rule_match_enc_control(rule, &enc_ctl);
 
 		if (enc_ctl.mask->addr_type != 0xffff) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: wildcarded protocols on tunnels are not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: wildcarded protocols on tunnels are analt supported");
+			return -EOPANALTSUPP;
 		}
 
 		ipv6_tun = enc_ctl.key->addr_type ==
 				FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 		if (ipv6_tun &&
 		    !(priv->flower_ext_feats & NFP_FL_FEATS_IPV6_TUN)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: firmware does not support IPv6 tunnels");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: firmware does analt support IPv6 tunnels");
+			return -EOPANALTSUPP;
 		}
 
 		if (!ipv6_tun &&
 		    enc_ctl.key->addr_type != FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel address type not IPv4 or IPv6");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel address type analt IPv4 or IPv6");
+			return -EOPANALTSUPP;
 		}
 
 		if (ipv6_tun) {
@@ -345,13 +345,13 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			if (memchr_inv(&ipv6_addrs.mask->dst, 0xff,
 				       sizeof(ipv6_addrs.mask->dst))) {
 				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: only an exact match IPv6 destination address is supported");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		} else {
 			flow_rule_match_enc_ipv4_addrs(rule, &ipv4_addrs);
 			if (ipv4_addrs.mask->dst != cpu_to_be32(~0)) {
 				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: only an exact match IPv4 destination address is supported");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 
@@ -359,10 +359,10 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			flow_rule_match_enc_opts(rule, &enc_op);
 
 		if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
-			/* Check if GRE, which has no enc_ports */
+			/* Check if GRE, which has anal enc_ports */
 			if (!netif_is_gretap(netdev) && !netif_is_ip6gretap(netdev)) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: an exact match on L4 destination port is required for non-GRE tunnels");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: an exact match on L4 destination port is required for analn-GRE tunnels");
+				return -EOPANALTSUPP;
 			}
 
 			*tun_type = NFP_FL_TUNNEL_GRE;
@@ -380,14 +380,14 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			}
 
 			if (enc_op.key) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options not supported on GRE tunnels");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options analt supported on GRE tunnels");
+				return -EOPANALTSUPP;
 			}
 		} else {
 			flow_rule_match_enc_ports(rule, &enc_ports);
 			if (enc_ports.mask->dst != cpu_to_be16(~0)) {
 				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: only an exact match L4 destination port is supported");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			err = nfp_flower_calc_udp_tun_layer(enc_ports.key,
@@ -404,8 +404,8 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			 * tun type.
 			 */
 			if (!nfp_fl_netdev_is_tunnel_type(netdev, *tun_type)) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress netdev does not match the expected tunnel type");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress netdev does analt match the expected tunnel type");
+				return -EOPANALTSUPP;
 			}
 		}
 	}
@@ -426,12 +426,12 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			key_size += sizeof(struct nfp_flower_ipv6);
 			break;
 
-		/* Currently we do not offload ARP
+		/* Currently we do analt offload ARP
 		 * because we rely on it to get to the host.
 		 */
 		case cpu_to_be16(ETH_P_ARP):
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ARP not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ARP analt supported");
+			return -EOPANALTSUPP;
 
 		case cpu_to_be16(ETH_P_MPLS_UC):
 		case cpu_to_be16(ETH_P_MPLS_MC):
@@ -446,12 +446,12 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			break;
 
 		default:
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on given EtherType is not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on given EtherType is analt supported");
+			return -EOPANALTSUPP;
 		}
 	} else if (nfp_flower_check_higher_than_mac(rule)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match above L2 without specified EtherType");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cananalt match above L2 without specified EtherType");
+		return -EOPANALTSUPP;
 	}
 
 	if (basic.mask && basic.mask->ip_proto) {
@@ -469,8 +469,8 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 	if (!(key_layer & NFP_FLOWER_LAYER_TP) &&
 	    nfp_flower_check_higher_than_l3(rule)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match on L4 information without specified IP protocol type");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cananalt match on L4 information without specified IP protocol type");
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_TCP)) {
@@ -481,8 +481,8 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		tcp_flags = be16_to_cpu(tcp.key->flags);
 
 		if (tcp_flags & ~NFP_FLOWER_SUPPORTED_TCPFLAGS) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: no match support for selected TCP flags");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: anal match support for selected TCP flags");
+			return -EOPANALTSUPP;
 		}
 
 		/* We only support PSH and URG flags when either
@@ -491,16 +491,16 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		if ((tcp_flags & (TCPHDR_PSH | TCPHDR_URG)) &&
 		    !(tcp_flags & (TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST))) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: PSH and URG is only supported when used with FIN, SYN or RST");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		/* We need to store TCP flags in the either the IPv4 or IPv6 key
 		 * space, thus we need to ensure we include a IPv4/IPv6 key
-		 * layer if we have not done so already.
+		 * layer if we have analt done so already.
 		 */
 		if (!basic.key) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on TCP flags requires a match on L3 protocol");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		if (!(key_layer & NFP_FLOWER_LAYER_IPV4) &&
@@ -518,7 +518,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 			default:
 				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on TCP flags requires a match on IPv4/IPv6");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 	}
@@ -528,8 +528,8 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 		flow_rule_match_control(rule, &ctl);
 		if (ctl.key->flags & ~NFP_FLOWER_SUPPORTED_CTLFLAGS) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on unknown control flag");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on unkanalwn control flag");
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -685,7 +685,7 @@ nfp_flower_update_merge_with_actions(struct nfp_fl_payload *flow,
 		case NFP_FL_ACTION_OPCODE_PUSH_GENEVE:
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		act_off += a->len_lw << NFP_FL_LW_SIZ;
@@ -712,7 +712,7 @@ nfp_flower_populate_merge_match(struct nfp_fl_payload *flow,
 	key_layer = meta_tci->nfp_flow_key_layer;
 
 	if (key_layer & ~NFP_FLOWER_MERGE_FIELDS && !extra_fields)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	merge->tci = meta_tci->tci;
 	mask += sizeof(struct nfp_flower_meta_tci);
@@ -777,12 +777,12 @@ nfp_flower_can_merge(struct nfp_fl_payload *sub_flow1,
 
 	/* Must only be 1 output action and it must be the last in sequence. */
 	if (act_out != 1 || last_act_id != NFP_FL_ACTION_OPCODE_OUTPUT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* Reject merge if sub_flow2 matches on something that is not matched
+	/* Reject merge if sub_flow2 matches on something that is analt matched
 	 * on or set in an action by sub_flow1.
 	 */
-	err = bitmap_andnot(sub_flow2_merge.vals, sub_flow2_merge.vals,
+	err = bitmap_andanalt(sub_flow2_merge.vals, sub_flow2_merge.vals,
 			    sub_flow1_merge.vals,
 			    sizeof(struct nfp_flower_merge_check) * 8);
 	if (err)
@@ -834,14 +834,14 @@ nfp_fl_verify_post_tun_acts(char *acts, int len, struct nfp_fl_push_vlan **vlan)
 		if (a->jump_id == NFP_FL_ACTION_OPCODE_PUSH_VLAN && !act_off)
 			*vlan = (struct nfp_fl_push_vlan *)a;
 		else if (a->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		act_off += a->len_lw << NFP_FL_LW_SIZ;
 	}
 
 	/* Ensure any VLAN push also has an egress action. */
 	if (*vlan && act_off <= sizeof(struct nfp_fl_push_vlan))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -867,8 +867,8 @@ nfp_fl_push_vlan_after_tun(char *acts, int len, struct nfp_fl_push_vlan *vlan)
 		act_off += a->len_lw << NFP_FL_LW_SIZ;
 	}
 
-	/* Return error if no tunnel action is found. */
-	return -EOPNOTSUPP;
+	/* Return error if anal tunnel action is found. */
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -882,7 +882,7 @@ nfp_flower_merge_action(struct nfp_fl_payload *sub_flow1,
 	char *merge_act;
 	int err;
 
-	/* The last action of sub_flow1 must be output - do not merge this. */
+	/* The last action of sub_flow1 must be output - do analt merge this. */
 	sub1_act_len = sub_flow1->meta.act_len - sizeof(struct nfp_fl_output);
 	sub2_act_len = sub_flow2->meta.act_len;
 
@@ -977,7 +977,7 @@ static int nfp_flower_link_flows(struct nfp_fl_payload *merge_flow,
 
 	link = kmalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->merge_flow.flow = merge_flow;
 	list_add_tail(&link->merge_flow.list, &merge_flow->linked_flows);
@@ -1031,7 +1031,7 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 
 	merge_flow = nfp_flower_allocate_new(&merge_key_ls);
 	if (!merge_flow)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	merge_flow->tc_flower_cookie = (unsigned long)merge_flow;
 	merge_flow->ingress_dev = sub_flow1->ingress_dev;
@@ -1058,18 +1058,18 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	if (err)
 		goto err_unlink_sub_flow2;
 
-	err = rhashtable_insert_fast(&priv->flow_table, &merge_flow->fl_node,
+	err = rhashtable_insert_fast(&priv->flow_table, &merge_flow->fl_analde,
 				     nfp_flower_table_params);
 	if (err)
 		goto err_release_metadata;
 
 	merge_info = kmalloc(sizeof(*merge_info), GFP_KERNEL);
 	if (!merge_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_remove_rhash;
 	}
 	merge_info->parent_ctx = parent_ctx;
-	err = rhashtable_insert_fast(&priv->merge_table, &merge_info->ht_node,
+	err = rhashtable_insert_fast(&priv->merge_table, &merge_info->ht_analde,
 				     merge_table_params);
 	if (err)
 		goto err_destroy_merge_info;
@@ -1086,13 +1086,13 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 
 err_remove_merge_info:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->merge_table,
-					    &merge_info->ht_node,
+					    &merge_info->ht_analde,
 					    merge_table_params));
 err_destroy_merge_info:
 	kfree(merge_info);
 err_remove_rhash:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
-					    &merge_flow->fl_node,
+					    &merge_flow->fl_analde,
 					    nfp_flower_table_params));
 err_release_metadata:
 	nfp_modify_flow_metadata(app, merge_flow);
@@ -1151,21 +1151,21 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 
 	if (key_layer & ~NFP_FLOWER_PRE_TUN_RULE_FIELDS) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: too many match fields");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else if (key_ls->key_layer_two & ~NFP_FLOWER_LAYER2_QINQ) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: non-vlan in extended match fields");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: analn-vlan in extended match fields");
+		return -EOPANALTSUPP;
 	}
 
 	if (!(key_layer & NFP_FLOWER_LAYER_MAC)) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: MAC fields match required");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!(key_layer & NFP_FLOWER_LAYER_IPV4) &&
 	    !(key_layer & NFP_FLOWER_LAYER_IPV6)) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: match on ipv4/ipv6 eth_type must be present");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (key_layer & NFP_FLOWER_LAYER_IPV6)
@@ -1173,7 +1173,7 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	else
 		flow->pre_tun_rule.is_ipv6 = false;
 
-	/* Skip fields known to exist. */
+	/* Skip fields kanalwn to exist. */
 	mask += sizeof(struct nfp_flower_meta_tci);
 	ext += sizeof(struct nfp_flower_meta_tci);
 	if (key_ls->key_layer_two) {
@@ -1186,8 +1186,8 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	/* Ensure destination MAC address is fully matched. */
 	mac = (struct nfp_flower_mac_mpls *)mask;
 	if (!is_broadcast_ether_addr(&mac->mac_dst[0])) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: dest MAC field must not be masked");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: dest MAC field must analt be masked");
+		return -EOPANALTSUPP;
 	}
 
 	/* Ensure source MAC address is fully matched. This is only needed
@@ -1198,14 +1198,14 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 		mac = (struct nfp_flower_mac_mpls *)mask;
 		if (!is_broadcast_ether_addr(&mac->mac_src[0])) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "unsupported pre-tunnel rule: source MAC field must not be masked");
-			return -EOPNOTSUPP;
+					   "unsupported pre-tunnel rule: source MAC field must analt be masked");
+			return -EOPANALTSUPP;
 		}
 	}
 
 	if (mac->mpls_lse) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: MPLS not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: MPLS analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	/* Ensure destination MAC address matches pre_tun_dev. */
@@ -1213,7 +1213,7 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	if (memcmp(&mac->mac_dst[0], flow->pre_tun_rule.dev->dev_addr, 6)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported pre-tunnel rule: dest MAC must match output dev MAC");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Save mac addresses in pre_tun_rule entry for later use */
@@ -1239,7 +1239,7 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 		for (i = 0; i < size; i++)
 			if (mask[i] && i != ip_flags && i != ip_proto) {
 				NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: only flags and proto can be matched in ip header");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		ext += size;
 		mask += size;
@@ -1272,7 +1272,7 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	if (vlan) {
 		if (act->jump_id != NFP_FL_ACTION_OPCODE_POP_VLAN) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: match on VLAN must have VLAN pop as first action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		act_offset += act->len_lw << NFP_FL_LW_SIZ;
@@ -1280,16 +1280,16 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	}
 
 	if (act->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: non egress action detected where egress was expected");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: analn egress action detected where egress was expected");
+		return -EOPANALTSUPP;
 	}
 
 	act_offset += act->len_lw << NFP_FL_LW_SIZ;
 
-	/* Ensure there are no more actions after egress. */
+	/* Ensure there are anal more actions after egress. */
 	if (act_offset != flow->meta.act_len) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: egress is not the last action");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: egress is analt the last action");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1329,7 +1329,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct flow_cls_offload *flow)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
-	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
+	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_ANALNE;
 	struct nfp_flower_priv *priv = app->priv;
 	struct netlink_ext_ack *extack = NULL;
 	struct nfp_fl_payload *flow_pay;
@@ -1348,11 +1348,11 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		return nfp_fl_ct_handle_post_ct(priv, netdev, flow, extack);
 
 	if (!offload_pre_check(flow))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	key_layer = kmalloc(sizeof(*key_layer), GFP_KERNEL);
 	if (!key_layer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = nfp_flower_calculate_key_layers(app, netdev, key_layer, rule,
 					      &tun_type, extack);
@@ -1361,7 +1361,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 
 	flow_pay = nfp_flower_allocate_new(key_layer);
 	if (!flow_pay) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_key_ls;
 	}
 
@@ -1385,10 +1385,10 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_destroy_flow;
 
 	flow_pay->tc_flower_cookie = flow->cookie;
-	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_node,
+	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_analde,
 				     nfp_flower_table_params);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot insert flow into tables for offloads");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cananalt insert flow into tables for offloads");
 		goto err_release_metadata;
 	}
 
@@ -1398,7 +1398,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 
 			predt = kzalloc(sizeof(*predt), GFP_KERNEL);
 			if (!predt) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err_remove_rhash;
 			}
 			predt->flow_pay = flow_pay;
@@ -1431,7 +1431,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 
 err_remove_rhash:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
-					    &flow_pay->fl_node,
+					    &flow_pay->fl_analde,
 					    nfp_flower_table_params));
 err_release_metadata:
 	nfp_modify_flow_metadata(app, flow_pay);
@@ -1464,7 +1464,7 @@ nfp_flower_remove_merge_flow(struct nfp_app *app,
 				struct nfp_fl_payload_link, merge_flow.list);
 	origin = link->sub_flow.flow;
 
-	/* Re-add rule the merge had overwritten if it has not been deleted. */
+	/* Re-add rule the merge had overwritten if it has analt been deleted. */
 	if (origin != del_sub_flow)
 		mod = true;
 
@@ -1505,7 +1505,7 @@ err_free_links:
 					    merge_table_params);
 	if (merge_info) {
 		WARN_ON_ONCE(rhashtable_remove_fast(&priv->merge_table,
-						    &merge_info->ht_node,
+						    &merge_info->ht_analde,
 						    merge_table_params));
 		kfree(merge_info);
 	}
@@ -1514,7 +1514,7 @@ err_free_links:
 	kfree(merge_flow->mask_data);
 	kfree(merge_flow->unmasked_data);
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
-					    &merge_flow->fl_node,
+					    &merge_flow->fl_analde,
 					    nfp_flower_table_params));
 	kfree_rcu(merge_flow, rcu);
 }
@@ -1568,8 +1568,8 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (!nfp_flow) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot remove flow that does not exist");
-		return -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cananalt remove flow that does analt exist");
+		return -EANALENT;
 	}
 
 	err = nfp_modify_flow_metadata(app, nfp_flow);
@@ -1616,7 +1616,7 @@ err_free_merge_flow:
 	kfree(nfp_flow->mask_data);
 	kfree(nfp_flow->unmasked_data);
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
-					    &nfp_flow->fl_node,
+					    &nfp_flow->fl_analde,
 					    nfp_flower_table_params));
 	kfree_rcu(nfp_flow, rcu);
 	return err;
@@ -1634,7 +1634,7 @@ __nfp_flower_update_merge_stats(struct nfp_app *app,
 
 	ctx_id = be32_to_cpu(merge_flow->meta.host_ctx_id);
 	pkts = priv->stats[ctx_id].pkts;
-	/* Do not cycle subflows if no stats to distribute. */
+	/* Do analt cycle subflows if anal stats to distribute. */
 	if (!pkts)
 		return;
 	bytes = priv->stats[ctx_id].bytes;
@@ -1699,7 +1699,7 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 	extack = flow->common.extack;
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (!nfp_flow) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot dump stats for flow that does not exist");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cananalt dump stats for flow that does analt exist");
 		return -EINVAL;
 	}
 
@@ -1729,7 +1729,7 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 	int ret;
 
 	if (!eth_proto_is_802_3(flower->common.protocol))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&priv->nfp_fl_lock);
 	switch (flower->command) {
@@ -1743,7 +1743,7 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 		ret = nfp_flower_get_stats(app, netdev, flower);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	mutex_unlock(&priv->nfp_fl_lock);
@@ -1758,7 +1758,7 @@ static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
 	struct nfp_repr *repr = cb_priv;
 
 	if (!tc_can_offload_extack(repr->netdev, common->extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
@@ -1768,7 +1768,7 @@ static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
 		return nfp_flower_setup_qos_offload(repr->app, repr->netdev,
 						    type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1782,7 +1782,7 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 	struct flow_block_cb *block_cb;
 
 	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	repr_priv = repr->app_priv;
 	repr_priv->block_shared = f->block_shared;
@@ -1808,13 +1808,13 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 						nfp_flower_setup_tc_block_cb,
 						repr);
 		if (!block_cb)
-			return -ENOENT;
+			return -EANALENT;
 
 		flow_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1825,7 +1825,7 @@ int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 	case TC_SETUP_BLOCK:
 		return nfp_flower_setup_tc_block(netdev, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1859,7 +1859,7 @@ static int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
 		return nfp_flower_repr_offload(priv->app, priv->netdev,
 					       type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1884,7 +1884,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct Qdisc *sch, str
 	     !nfp_flower_internal_port_can_offload(app, netdev)) ||
 	    (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS &&
 	     nfp_flower_internal_port_can_offload(app, netdev)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	f->unlocked_driver_cb = true;
 
@@ -1899,7 +1899,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct Qdisc *sch, str
 
 		cb_priv = kmalloc(sizeof(*cb_priv), GFP_KERNEL);
 		if (!cb_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb_priv->netdev = netdev;
 		cb_priv->app = app;
@@ -1921,34 +1921,34 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct Qdisc *sch, str
 	case FLOW_BLOCK_UNBIND:
 		cb_priv = nfp_flower_indr_block_cb_priv_lookup(app, netdev);
 		if (!cb_priv)
-			return -ENOENT;
+			return -EANALENT;
 
 		block_cb = flow_block_cb_lookup(f->block,
 						nfp_flower_setup_indr_block_cb,
 						cb_priv);
 		if (!block_cb)
-			return -ENOENT;
+			return -EANALENT;
 
 		flow_indr_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
 
 static int
-nfp_setup_tc_no_dev(struct nfp_app *app, enum tc_setup_type type, void *data)
+nfp_setup_tc_anal_dev(struct nfp_app *app, enum tc_setup_type type, void *data)
 {
 	if (!data)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_ACT:
 		return nfp_setup_tc_act_offload(app, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1959,16 +1959,16 @@ nfp_flower_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch, void *
 			    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	if (!netdev)
-		return nfp_setup_tc_no_dev(cb_priv, type, data);
+		return nfp_setup_tc_anal_dev(cb_priv, type, data);
 
 	if (!nfp_fl_is_netdev_to_offload(netdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
 		return nfp_flower_setup_indr_tc_block(netdev, sch, cb_priv,
 						      type_data, data, cleanup);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

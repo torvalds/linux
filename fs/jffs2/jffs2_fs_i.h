@@ -17,40 +17,40 @@
 #include <linux/posix_acl.h>
 #include <linux/mutex.h>
 
-struct jffs2_inode_info {
-	/* We need an internal mutex similar to inode->i_rwsem.
+struct jffs2_ianalde_info {
+	/* We need an internal mutex similar to ianalde->i_rwsem.
 	   Unfortunately, we can't used the existing one, because
 	   either the GC would deadlock, or we'd have to release it
 	   before letting GC proceed. Or we'd have to put ugliness
 	   into the GC code so it didn't attempt to obtain the i_rwsem
-	   for the inode(s) which are already locked */
+	   for the ianalde(s) which are already locked */
 	struct mutex sem;
 
-	/* The highest (datanode) version number used for this ino */
+	/* The highest (dataanalde) version number used for this ianal */
 	uint32_t highest_version;
 
 	/* List of data fragments which make up the file */
 	struct rb_root fragtree;
 
-	/* There may be one datanode which isn't referenced by any of the
-	   above fragments, if it contains a metadata update but no actual
-	   data - or if this is a directory inode */
-	/* This also holds the _only_ dnode for symlinks/device nodes,
+	/* There may be one dataanalde which isn't referenced by any of the
+	   above fragments, if it contains a metadata update but anal actual
+	   data - or if this is a directory ianalde */
+	/* This also holds the _only_ danalde for symlinks/device analdes,
 	   etc. */
-	struct jffs2_full_dnode *metadata;
+	struct jffs2_full_danalde *metadata;
 
 	/* Directory entries */
 	struct jffs2_full_dirent *dents;
 
-	/* The target path if this is the inode of a symlink */
+	/* The target path if this is the ianalde of a symlink */
 	unsigned char *target;
 
-	/* Some stuff we just have to keep in-core at all times, for each inode. */
-	struct jffs2_inode_cache *inocache;
+	/* Some stuff we just have to keep in-core at all times, for each ianalde. */
+	struct jffs2_ianalde_cache *ianalcache;
 
 	uint16_t flags;
 	uint8_t usercompr;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
 #endif /* _JFFS2_FS_I */

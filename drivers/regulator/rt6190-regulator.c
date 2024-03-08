@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  *
@@ -195,7 +195,7 @@ static int rt6190_out_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_FAST:
 		val = RT6190_FCCM_MASK;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	default:
@@ -219,7 +219,7 @@ static unsigned int rt6190_out_get_mode(struct regulator_dev *rdev)
 	if (config & RT6190_FCCM_MASK)
 		return REGULATOR_MODE_FAST;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int rt6190_out_get_error_flags(struct regulator_dev *rdev,
@@ -253,7 +253,7 @@ static unsigned int rt6190_out_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case RT6190_PSM_MODE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RT6190_FCCM_MODE:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -324,23 +324,23 @@ static irqreturn_t rt6190_irq_handler(int irq, void *devid)
 
 	ret = regmap_read(data->regmap, RT6190_REG_ALERT1, &alert);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Write clear alert events */
 	ret = regmap_write(data->regmap, RT6190_REG_ALERT1, alert);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	data->cached_alert_evt |= alert;
 
 	if (alert & RT6190_ALERT_OTPEVT)
-		regulator_notifier_call_chain(rdev, REGULATOR_EVENT_OVER_TEMP, NULL);
+		regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_OVER_TEMP, NULL);
 
 	if (alert & RT6190_ALERT_UVPEVT)
-		regulator_notifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE, NULL);
+		regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE, NULL);
 
 	if (alert & RT6190_ALERT_OVPEVT)
-		regulator_notifier_call_chain(rdev, REGULATOR_EVENT_REGULATION_OUT, NULL);
+		regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_REGULATION_OUT, NULL);
 
 	return IRQ_HANDLED;
 }
@@ -384,7 +384,7 @@ static int rt6190_probe(struct i2c_client *i2c)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(enable_gpio))
@@ -406,7 +406,7 @@ static int rt6190_probe(struct i2c_client *i2c)
 		return dev_err_probe(dev, ret, "Failed to read VID\n");
 
 	if (vid != RICHTEK_VID)
-		return dev_err_probe(dev, -ENODEV, "Incorrect VID 0x%02x\n", vid);
+		return dev_err_probe(dev, -EANALDEV, "Incorrect VID 0x%02x\n", vid);
 
 	ret = rt6190_init_registers(regmap);
 	if (ret)
@@ -418,9 +418,9 @@ static int rt6190_probe(struct i2c_client *i2c)
 		return dev_err_probe(dev, ret, "Failed to set pm_runtime enable\n");
 
 	cfg.dev = dev;
-	cfg.of_node = dev->of_node;
+	cfg.of_analde = dev->of_analde;
 	cfg.driver_data = data;
-	cfg.init_data = of_get_regulator_init_data(dev, dev->of_node,
+	cfg.init_data = of_get_regulator_init_data(dev, dev->of_analde,
 						   &rt6190_regulator_desc);
 
 	rdev = devm_regulator_register(dev, &rt6190_regulator_desc, &cfg);
@@ -483,7 +483,7 @@ MODULE_DEVICE_TABLE(of, rt6190_of_dev_table);
 static struct i2c_driver rt6190_driver = {
 	.driver = {
 		.name = "rt6190",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = rt6190_of_dev_table,
 		.pm = pm_ptr(&rt6190_dev_pm),
 	},

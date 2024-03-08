@@ -143,8 +143,8 @@ fc_gs_fchdr_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u32 ox_id)
 	fchs->ox_id = cpu_to_be16(ox_id);
 
 	/*
-	 * @todo no need to set ox_id for request
-	 *       no need to set rx_id for response
+	 * @todo anal need to set ox_id for request
+	 *       anal need to set rx_id for response
 	 */
 }
 
@@ -193,7 +193,7 @@ fc_bls_rsp_build(struct fchs_s *fchs, u32 d_id, u32 s_id, __be16 ox_id)
 
 static          u16
 fc_plogi_x_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
-		 __be16 ox_id, wwn_t port_name, wwn_t node_name,
+		 __be16 ox_id, wwn_t port_name, wwn_t analde_name,
 		 u16 pdu_size, u16 bb_cr, u8 els_code)
 {
 	struct fc_logi_s *plogi = (struct fc_logi_s *) (pld);
@@ -214,14 +214,14 @@ fc_plogi_x_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
 	plogi->csp.bbcred  = cpu_to_be16(bb_cr);
 
 	memcpy(&plogi->port_name, &port_name, sizeof(wwn_t));
-	memcpy(&plogi->node_name, &node_name, sizeof(wwn_t));
+	memcpy(&plogi->analde_name, &analde_name, sizeof(wwn_t));
 
 	return sizeof(struct fc_logi_s);
 }
 
 u16
 fc_flogi_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
-		u16 ox_id, wwn_t port_name, wwn_t node_name, u16 pdu_size,
+		u16 ox_id, wwn_t port_name, wwn_t analde_name, u16 pdu_size,
 	       u8 set_npiv, u8 set_auth, u16 local_bb_credits)
 {
 	u32        d_id = bfa_hton3b(FC_FABRIC_PORT);
@@ -234,7 +234,7 @@ fc_flogi_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 
 	flogi->csp.rxsz = flogi->class3.rxsz = cpu_to_be16(pdu_size);
 	flogi->port_name = port_name;
-	flogi->node_name = node_name;
+	flogi->analde_name = analde_name;
 
 	/*
 	 * Set the NPIV Capability Bit ( word 1, bit 31) of Common
@@ -251,7 +251,7 @@ fc_flogi_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 	vvl_info = (u32 *)&flogi->vvl[0];
 
 	/* set the flag to indicate the presence of VVL */
-	flogi->csp.npiv_supp    = 1; /* @todo. field name is not correct */
+	flogi->csp.npiv_supp    = 1; /* @todo. field name is analt correct */
 	vvl_info[0]	= cpu_to_be32(FLOGI_VVL_BRCD);
 
 	return sizeof(struct fc_logi_s);
@@ -259,7 +259,7 @@ fc_flogi_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 
 u16
 fc_flogi_acc_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
-		   __be16 ox_id, wwn_t port_name, wwn_t node_name,
+		   __be16 ox_id, wwn_t port_name, wwn_t analde_name,
 		   u16 pdu_size, u16 local_bb_credits, u8 bb_scn)
 {
 	u32        d_id = 0;
@@ -272,7 +272,7 @@ fc_flogi_acc_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 	flogi->class3.rxsz = cpu_to_be16(pdu_size);
 	flogi->csp.rxsz  = cpu_to_be16(bbscn_rxsz);	/* bb_scn/rxsz */
 	flogi->port_name = port_name;
-	flogi->node_name = node_name;
+	flogi->analde_name = analde_name;
 
 	flogi->csp.bbcred = cpu_to_be16(local_bb_credits);
 
@@ -281,7 +281,7 @@ fc_flogi_acc_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 
 u16
 fc_fdisc_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
-		u16 ox_id, wwn_t port_name, wwn_t node_name, u16 pdu_size)
+		u16 ox_id, wwn_t port_name, wwn_t analde_name, u16 pdu_size)
 {
 	u32        d_id = bfa_hton3b(FC_FABRIC_PORT);
 
@@ -292,27 +292,27 @@ fc_fdisc_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 
 	flogi->csp.rxsz = flogi->class3.rxsz = cpu_to_be16(pdu_size);
 	flogi->port_name = port_name;
-	flogi->node_name = node_name;
+	flogi->analde_name = analde_name;
 
 	return sizeof(struct fc_logi_s);
 }
 
 u16
 fc_plogi_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
-	       u16 ox_id, wwn_t port_name, wwn_t node_name,
+	       u16 ox_id, wwn_t port_name, wwn_t analde_name,
 	       u16 pdu_size, u16 bb_cr)
 {
 	return fc_plogi_x_build(fchs, pld, d_id, s_id, ox_id, port_name,
-				node_name, pdu_size, bb_cr, FC_ELS_PLOGI);
+				analde_name, pdu_size, bb_cr, FC_ELS_PLOGI);
 }
 
 u16
 fc_plogi_acc_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
-		   u16 ox_id, wwn_t port_name, wwn_t node_name,
+		   u16 ox_id, wwn_t port_name, wwn_t analde_name,
 		   u16 pdu_size, u16 bb_cr)
 {
 	return fc_plogi_x_build(fchs, pld, d_id, s_id, ox_id, port_name,
-				node_name, pdu_size, bb_cr, FC_ELS_ACC);
+				analde_name, pdu_size, bb_cr, FC_ELS_ACC);
 }
 
 enum fc_parse_status
@@ -453,7 +453,7 @@ fc_logo_build(struct fchs_s *fchs, struct fc_logo_s *logo, u32 d_id, u32 s_id,
 static u16
 fc_adisc_x_build(struct fchs_s *fchs, struct fc_adisc_s *adisc, u32 d_id,
 		 u32 s_id, __be16 ox_id, wwn_t port_name,
-		 wwn_t node_name, u8 els_code)
+		 wwn_t analde_name, u8 els_code)
 {
 	memset(adisc, '\0', sizeof(struct fc_adisc_s));
 
@@ -466,7 +466,7 @@ fc_adisc_x_build(struct fchs_s *fchs, struct fc_adisc_s *adisc, u32 d_id,
 
 	adisc->orig_HA = 0;
 	adisc->orig_port_name = port_name;
-	adisc->orig_node_name = node_name;
+	adisc->orig_analde_name = analde_name;
 	adisc->nport_id = (s_id);
 
 	return sizeof(struct fc_adisc_s);
@@ -474,24 +474,24 @@ fc_adisc_x_build(struct fchs_s *fchs, struct fc_adisc_s *adisc, u32 d_id,
 
 u16
 fc_adisc_build(struct fchs_s *fchs, struct fc_adisc_s *adisc, u32 d_id,
-		u32 s_id, __be16 ox_id, wwn_t port_name, wwn_t node_name)
+		u32 s_id, __be16 ox_id, wwn_t port_name, wwn_t analde_name)
 {
 	return fc_adisc_x_build(fchs, adisc, d_id, s_id, ox_id, port_name,
-				node_name, FC_ELS_ADISC);
+				analde_name, FC_ELS_ADISC);
 }
 
 u16
 fc_adisc_acc_build(struct fchs_s *fchs, struct fc_adisc_s *adisc, u32 d_id,
 		   u32 s_id, __be16 ox_id, wwn_t port_name,
-		   wwn_t node_name)
+		   wwn_t analde_name)
 {
 	return fc_adisc_x_build(fchs, adisc, d_id, s_id, ox_id, port_name,
-				node_name, FC_ELS_ACC);
+				analde_name, FC_ELS_ACC);
 }
 
 enum fc_parse_status
 fc_adisc_rsp_parse(struct fc_adisc_s *adisc, int len, wwn_t port_name,
-				 wwn_t node_name)
+				 wwn_t analde_name)
 {
 
 	if (len < sizeof(struct fc_adisc_s))
@@ -507,7 +507,7 @@ fc_adisc_rsp_parse(struct fc_adisc_s *adisc, int len, wwn_t port_name,
 }
 
 enum fc_parse_status
-fc_adisc_parse(struct fchs_s *fchs, void *pld, u32 host_dap, wwn_t node_name,
+fc_adisc_parse(struct fchs_s *fchs, void *pld, u32 host_dap, wwn_t analde_name,
 	       wwn_t port_name)
 {
 	struct fc_adisc_s *adisc = (struct fc_adisc_s *) pld;
@@ -517,14 +517,14 @@ fc_adisc_parse(struct fchs_s *fchs, void *pld, u32 host_dap, wwn_t node_name,
 
 	if ((adisc->nport_id == (host_dap))
 	    && wwn_is_equal(adisc->orig_port_name, port_name)
-	    && wwn_is_equal(adisc->orig_node_name, node_name))
+	    && wwn_is_equal(adisc->orig_analde_name, analde_name))
 		return FC_PARSE_OK;
 
 	return FC_PARSE_FAILURE;
 }
 
 enum fc_parse_status
-fc_pdisc_parse(struct fchs_s *fchs, wwn_t node_name, wwn_t port_name)
+fc_pdisc_parse(struct fchs_s *fchs, wwn_t analde_name, wwn_t port_name)
 {
 	struct fc_logi_s *pdisc = (struct fc_logi_s *) (fchs + 1);
 
@@ -539,7 +539,7 @@ fc_pdisc_parse(struct fchs_s *fchs, wwn_t node_name, wwn_t port_name)
 	if (!wwn_is_equal(pdisc->port_name, port_name))
 		return FC_PARSE_FAILURE;
 
-	if (!wwn_is_equal(pdisc->node_name, node_name))
+	if (!wwn_is_equal(pdisc->analde_name, analde_name))
 		return FC_PARSE_FAILURE;
 
 	return FC_PARSE_OK;
@@ -715,7 +715,7 @@ fc_rnid_build(struct fchs_s *fchs, struct fc_rnid_cmd_s *rnid, u32 d_id,
 	memset(rnid, 0, sizeof(struct fc_rnid_cmd_s));
 
 	rnid->els_cmd.els_code = FC_ELS_RNID;
-	rnid->node_id_data_format = data_format;
+	rnid->analde_id_data_format = data_format;
 
 	return sizeof(struct fc_rnid_cmd_s);
 }
@@ -731,12 +731,12 @@ fc_rnid_acc_build(struct fchs_s *fchs, struct fc_rnid_acc_s *rnid_acc, u32 d_id,
 	fc_els_rsp_build(fchs, d_id, s_id, ox_id);
 
 	rnid_acc->els_cmd.els_code = FC_ELS_ACC;
-	rnid_acc->node_id_data_format = data_format;
+	rnid_acc->analde_id_data_format = data_format;
 	rnid_acc->common_id_data_length =
 			sizeof(struct fc_rnid_common_id_data_s);
 	rnid_acc->common_id_data = *common_id_data;
 
-	if (data_format == RNID_NODEID_DATA_FORMAT_DISCOVERY) {
+	if (data_format == RNID_ANALDEID_DATA_FORMAT_DISCOVERY) {
 		rnid_acc->specific_id_data_length =
 			sizeof(struct fc_rnid_general_topology_data_s);
 		rnid_acc->gen_topology_data = *gen_topo_data;
@@ -803,7 +803,7 @@ fc_rpsc_acc_build(struct fchs_s *fchs, struct fc_rpsc_acc_s *rpsc_acc,
 
 u16
 fc_pdisc_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u16 ox_id,
-	       wwn_t port_name, wwn_t node_name, u16 pdu_size)
+	       wwn_t port_name, wwn_t analde_name, u16 pdu_size)
 {
 	struct fc_logi_s *pdisc = (struct fc_logi_s *) (fchs + 1);
 
@@ -814,7 +814,7 @@ fc_pdisc_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u16 ox_id,
 
 	pdisc->csp.rxsz = pdisc->class3.rxsz = cpu_to_be16(pdu_size);
 	pdisc->port_name = port_name;
-	pdisc->node_name = node_name;
+	pdisc->analde_name = analde_name;
 
 	return sizeof(struct fc_logi_s);
 }
@@ -831,10 +831,10 @@ fc_pdisc_rsp_parse(struct fchs_s *fchs, int len, wwn_t port_name)
 		return FC_PARSE_ACC_INVAL;
 
 	if (!wwn_is_equal(pdisc->port_name, port_name))
-		return FC_PARSE_PWWN_NOT_EQUAL;
+		return FC_PARSE_PWWN_ANALT_EQUAL;
 
 	if (!pdisc->class3.class_valid)
-		return FC_PARSE_NWWN_NOT_EQUAL;
+		return FC_PARSE_NWWN_ANALT_EQUAL;
 
 	if (be16_to_cpu(pdisc->class3.rxsz) < (FC_MIN_PDUSZ))
 		return FC_PARSE_RXSZ_INVAL;
@@ -1142,7 +1142,7 @@ fc_rspnid_build(struct fchs_s *fchs, void *pyld, u32 s_id, u16 ox_id,
 
 u16
 fc_rsnn_nn_build(struct fchs_s *fchs, void *pyld, u32 s_id,
-			wwn_t node_name, u8 *name)
+			wwn_t analde_name, u8 *name)
 {
 	struct ct_hdr_s *cthdr = (struct ct_hdr_s *) pyld;
 	struct fcgs_rsnn_nn_req_s *rsnn_nn =
@@ -1154,7 +1154,7 @@ fc_rsnn_nn_build(struct fchs_s *fchs, void *pyld, u32 s_id,
 
 	memset(rsnn_nn, 0, sizeof(struct fcgs_rsnn_nn_req_s));
 
-	rsnn_nn->node_name = node_name;
+	rsnn_nn->analde_name = analde_name;
 	strscpy(rsnn_nn->snn, name, sizeof(rsnn_nn->snn));
 	rsnn_nn->snn_len = (u8) strlen(rsnn_nn->snn);
 
@@ -1201,7 +1201,7 @@ fc_rpnid_build(struct fchs_s *fchs, void *pyld, u32 s_id, u32 port_id,
 
 u16
 fc_rnnid_build(struct fchs_s *fchs, void *pyld, u32 s_id, u32 port_id,
-	       wwn_t node_name)
+	       wwn_t analde_name)
 {
 	struct ct_hdr_s *cthdr = (struct ct_hdr_s *) pyld;
 	struct fcgs_rnnid_req_s *rnnid = (struct fcgs_rnnid_req_s *)(cthdr + 1);
@@ -1212,7 +1212,7 @@ fc_rnnid_build(struct fchs_s *fchs, void *pyld, u32 s_id, u32 port_id,
 
 	memset(rnnid, 0, sizeof(struct fcgs_rnnid_req_s));
 	rnnid->port_id = port_id;
-	rnnid->node_name = node_name;
+	rnnid->analde_name = analde_name;
 
 	return sizeof(struct fcgs_rnnid_req_s) + sizeof(struct ct_hdr_s);
 }

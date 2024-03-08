@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	ctamixer.c
  *
@@ -238,7 +238,7 @@ static int get_amixer_rsc(struct amixer_mgr *mgr,
 	/* Allocate mem for amixer resource */
 	amixer = kzalloc(sizeof(*amixer), GFP_KERNEL);
 	if (!amixer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check whether there are sufficient
 	 * amixer resources to meet request. */
@@ -300,7 +300,7 @@ int amixer_mgr_create(struct hw *hw, struct amixer_mgr **ramixer_mgr)
 	*ramixer_mgr = NULL;
 	amixer_mgr = kzalloc(sizeof(*amixer_mgr), GFP_KERNEL);
 	if (!amixer_mgr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rsc_mgr_init(&amixer_mgr->mgr, AMIXER, AMIXER_RESOURCE_NUM, hw);
 	if (err)
@@ -393,7 +393,7 @@ static int get_sum_rsc(struct sum_mgr *mgr,
 	/* Allocate mem for sum resource */
 	sum = kzalloc(sizeof(*sum), GFP_KERNEL);
 	if (!sum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check whether there are sufficient sum resources to meet request. */
 	err = 0;
@@ -454,7 +454,7 @@ int sum_mgr_create(struct hw *hw, struct sum_mgr **rsum_mgr)
 	*rsum_mgr = NULL;
 	sum_mgr = kzalloc(sizeof(*sum_mgr), GFP_KERNEL);
 	if (!sum_mgr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rsc_mgr_init(&sum_mgr->mgr, SUM, SUM_RESOURCE_NUM, hw);
 	if (err)

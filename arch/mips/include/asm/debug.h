@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  */
 
 #ifndef __MIPS_ASM_DEBUG_H__

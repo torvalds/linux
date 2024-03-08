@@ -21,7 +21,7 @@
  * synchronization helpers, and plane state and framebuffer BO mappings
  * for planes with shadow buffers.
  *
- * Before scanout, a plane's framebuffer needs to be synchronized with
+ * Before scaanalut, a plane's framebuffer needs to be synchronized with
  * possible writers that draw into the framebuffer. All drivers should
  * call drm_gem_plane_helper_prepare_fb() from their implementation of
  * struct &drm_plane_helper.prepare_fb . It sets the plane's fence from
@@ -41,7 +41,7 @@
  * A driver using a shadow buffer copies the content of the shadow buffers
  * into the HW's framebuffer memory during an atomic update. This requires
  * a mapping of the shadow buffer into kernel address space. The mappings
- * cannot be established by commit-tail functions, such as atomic_update,
+ * cananalt be established by commit-tail functions, such as atomic_update,
  * as this would violate locking rules around dma_buf_vmap().
  *
  * The helpers for shadow-buffered planes establish and release mappings,
@@ -125,12 +125,12 @@
  * shared as a struct &dma_buf. This function can be used as the
  * &drm_plane_helper_funcs.prepare_fb callback.
  *
- * There is no need for &drm_plane_helper_funcs.cleanup_fb hook for simple
+ * There is anal need for &drm_plane_helper_funcs.cleanup_fb hook for simple
  * GEM based framebuffer drivers which have their buffers always pinned in
  * memory.
  *
  * This function is the default implementation for GEM drivers of
- * &drm_plane_helper_funcs.prepare_fb if no callback is provided.
+ * &drm_plane_helper_funcs.prepare_fb if anal callback is provided.
  */
 int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane,
 				    struct drm_plane_state *state)
@@ -175,7 +175,7 @@ int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane,
 			struct dma_fence_chain *chain = dma_fence_chain_alloc();
 
 			if (!chain) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 
@@ -209,7 +209,7 @@ EXPORT_SYMBOL_GPL(drm_gem_plane_helper_prepare_fb);
  * This function duplicates shadow-buffered plane state. This is helpful for drivers
  * that subclass struct drm_shadow_plane_state.
  *
- * The function does not duplicate existing mappings of the shadow buffers.
+ * The function does analt duplicate existing mappings of the shadow buffers.
  * Mappings are maintained during the atomic commit by the plane's prepare_fb
  * and cleanup_fb helpers. See drm_gem_prepare_shadow_fb() and drm_gem_cleanup_shadow_fb()
  * for corresponding helpers.
@@ -238,7 +238,7 @@ EXPORT_SYMBOL(__drm_gem_duplicate_shadow_plane_state);
  * struct drm_shadow_plane_state and it allocates the new state to be of this
  * type.
  *
- * The function does not duplicate existing mappings of the shadow buffers.
+ * The function does analt duplicate existing mappings of the shadow buffers.
  * Mappings are maintained during the atomic commit by the plane's prepare_fb
  * and cleanup_fb helpers. See drm_gem_prepare_shadow_fb() and drm_gem_cleanup_shadow_fb()
  * for corresponding helpers.
@@ -352,7 +352,7 @@ EXPORT_SYMBOL(drm_gem_reset_shadow_plane);
  * See drm_gem_end_shadow_fb_access() for cleanup.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  */
 int drm_gem_begin_shadow_fb_access(struct drm_plane *plane, struct drm_plane_state *plane_state)
 {
@@ -399,7 +399,7 @@ EXPORT_SYMBOL(drm_gem_end_shadow_fb_access);
  * drm_gem_simple_kms_cleanup_shadow_fb() for cleanup.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  */
 int drm_gem_simple_kms_begin_shadow_fb_access(struct drm_simple_display_pipe *pipe,
 					      struct drm_plane_state *plane_state)
@@ -444,7 +444,7 @@ EXPORT_SYMBOL(drm_gem_simple_kms_reset_shadow_plane);
  * @pipe: the simple display pipe
  *
  * This function implements struct drm_simple_display_funcs.duplicate_plane_state
- * for shadow-buffered planes. It does not duplicate existing mappings of the shadow
+ * for shadow-buffered planes. It does analt duplicate existing mappings of the shadow
  * buffers. Mappings are maintained during the atomic commit by the plane's prepare_fb
  * and cleanup_fb helpers.
  *

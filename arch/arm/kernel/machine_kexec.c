@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * machine_kexec.c - handle transition of Linux booting another kernel
+ * machine_kexec.c - handle transition of Linux booting aanalther kernel
  */
 
 #include <linux/mm.h>
@@ -26,8 +26,8 @@ extern const unsigned int relocate_new_kernel_size;
 static atomic_t waiting_for_crash_ipi;
 
 /*
- * Provide a dummy crash_notes definition while crash dump arrives to arm.
- * This prevents breakage of crash_notes attribute in kernel/ksysfs.c.
+ * Provide a dummy crash_analtes definition while crash dump arrives to arm.
+ * This prevents breakage of crash_analtes attribute in kernel/ksysfs.c.
  */
 
 int machine_kexec_prepare(struct kimage *image)
@@ -41,7 +41,7 @@ int machine_kexec_prepare(struct kimage *image)
 
 	/*
 	 * Validate that if the current HW supports SMP, then the SW supports
-	 * and implements CPU hotplug for the current HW. If not, we won't be
+	 * and implements CPU hotplug for the current HW. If analt, we won't be
 	 * able to kexec reliably, so fail the prepare operation.
 	 */
 	if (num_possible_cpus() > 1 && platform_can_secondary_boot() &&
@@ -49,7 +49,7 @@ int machine_kexec_prepare(struct kimage *image)
 		return -EINVAL;
 
 	/*
-	 * No segment at default ATAGs address. try to locate
+	 * Anal segment at default ATAGs address. try to locate
 	 * a dtb using magic.
 	 */
 	for (i = 0; i < image->nr_segments; i++) {
@@ -73,14 +73,14 @@ void machine_kexec_cleanup(struct kimage *image)
 {
 }
 
-static void machine_crash_nonpanic_core(void *unused)
+static void machine_crash_analnpanic_core(void *unused)
 {
 	struct pt_regs regs;
 
 	local_fiq_disable();
 
 	crash_setup_regs(&regs, get_irq_regs());
-	printk(KERN_DEBUG "CPU %u will stop doing anything useful since another CPU has crashed\n",
+	printk(KERN_DEBUG "CPU %u will stop doing anything useful since aanalther CPU has crashed\n",
 	       smp_processor_id());
 	crash_save_cpu(&regs, smp_processor_id());
 	flush_cache_all();
@@ -95,7 +95,7 @@ static void machine_crash_nonpanic_core(void *unused)
 }
 
 static DEFINE_PER_CPU(call_single_data_t, cpu_stop_csd) =
-	CSD_INIT(machine_crash_nonpanic_core, NULL);
+	CSD_INIT(machine_crash_analnpanic_core, NULL);
 
 void crash_smp_send_stop(void)
 {
@@ -122,7 +122,7 @@ void crash_smp_send_stop(void)
 		msecs--;
 	}
 	if (atomic_read(&waiting_for_crash_ipi) > 0)
-		pr_warn("Non-crashing CPUs did not react to IPI\n");
+		pr_warn("Analn-crashing CPUs did analt react to IPI\n");
 
 	cpus_stopped = 1;
 }
@@ -171,7 +171,7 @@ void machine_kexec(struct kimage *image)
 	/*
 	 * This can only happen if machine_shutdown() failed to disable some
 	 * CPU, and that can only happen if the checks in
-	 * machine_kexec_prepare() were not correct. If this fails, we can't
+	 * machine_kexec_prepare() were analt correct. If this fails, we can't
 	 * reliably kexec anyway, so BUG_ON is appropriate.
 	 */
 	BUG_ON(num_online_cpus() > 1);

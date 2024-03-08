@@ -2,23 +2,23 @@
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
-|*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
+|*     ANALTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a analnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  analtices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
-|*     NVIDIA, CORPORATION MAKES NO REPRESENTATION ABOUT THE SUITABILITY     *|
+|*     NVIDIA, CORPORATION MAKES ANAL REPRESENTATION ABOUT THE SUITABILITY     *|
 |*     OF  THIS SOURCE  CODE  FOR ANY PURPOSE.  IT IS  PROVIDED  "AS IS"     *|
 |*     WITHOUT EXPRESS OR IMPLIED WARRANTY OF ANY KIND.  NVIDIA, CORPOR-     *|
 |*     ATION DISCLAIMS ALL WARRANTIES  WITH REGARD  TO THIS SOURCE CODE,     *|
-|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGE-     *|
-|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN NO EVENT SHALL     *|
+|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, ANALNINFRINGE-     *|
+|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN ANAL EVENT SHALL     *|
 |*     NVIDIA, CORPORATION  BE LIABLE FOR ANY SPECIAL,  INDIRECT,  INCI-     *|
 |*     DENTAL, OR CONSEQUENTIAL DAMAGES,  OR ANY DAMAGES  WHATSOEVER RE-     *|
 |*     SULTING FROM LOSS OF USE,  DATA OR PROFITS,  WHETHER IN AN ACTION     *|
@@ -38,10 +38,10 @@
  \***************************************************************************/
 
 /*
- * GPL licensing note -- nVidia is allowing a liberal interpretation of
+ * GPL licensing analte -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
- * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
+ * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Analv/99 
  */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_tbl.h,v 1.9 2002/01/30 01:35:03 mvojkovi Exp $ */
@@ -222,8 +222,8 @@ static unsigned nv3TablePRAMIN[][2] =
 };
 static unsigned nv3TablePRAMIN_8BPP[][2] =
 {
-    /*           0xXXXXX3XX For  MSB mono format */
-    /*           0xXXXXX2XX For  LSB mono format */
+    /*           0xXXXXX3XX For  MSB moanal format */
+    /*           0xXXXXX2XX For  LSB moanal format */
     {0x00000D04, 0x10110203},
     {0x00000D08, 0x10110203},
     {0x00000D0C, 0x1011020B},
@@ -235,8 +235,8 @@ static unsigned nv3TablePRAMIN_8BPP[][2] =
 };
 static unsigned nv3TablePRAMIN_15BPP[][2] =
 {
-    /*           0xXXXXX2XX For  MSB mono format */
-    /*           0xXXXXX3XX For  LSB mono format */
+    /*           0xXXXXX2XX For  MSB moanal format */
+    /*           0xXXXXX3XX For  LSB moanal format */
     {0x00000D04, 0x10110200},
     {0x00000D08, 0x10110200},
     {0x00000D0C, 0x10110208},
@@ -248,8 +248,8 @@ static unsigned nv3TablePRAMIN_15BPP[][2] =
 };
 static unsigned nv3TablePRAMIN_32BPP[][2] =
 {
-    /*           0xXXXXX3XX For  MSB mono format */
-    /*           0xXXXXX2XX For  LSB mono format */
+    /*           0xXXXXX3XX For  MSB moanal format */
+    /*           0xXXXXX2XX For  LSB moanal format */
     {0x00000D04, 0x10110201},
     {0x00000D08, 0x10110201},
     {0x00000D0C, 0x10110209},
@@ -457,8 +457,8 @@ static unsigned nv4TablePRAMIN[][2] =
 };
 static unsigned nv4TablePRAMIN_8BPP[][2] =
 {
-    /*           0xXXXXXX01 For  MSB mono format */
-    /*           0xXXXXXX02 For  LSB mono format */
+    /*           0xXXXXXX01 For  MSB moanal format */
+    /*           0xXXXXXX02 For  LSB moanal format */
     {0x00000509, 0x00000302},
     {0x0000050D, 0x00000302},
     {0x00000511, 0x00000202},
@@ -473,8 +473,8 @@ static unsigned nv4TablePRAMIN_8BPP[][2] =
 };
 static unsigned nv4TablePRAMIN_15BPP[][2] =
 {
-    /*           0xXXXXXX01 For  MSB mono format */
-    /*           0xXXXXXX02 For  LSB mono format */
+    /*           0xXXXXXX01 For  MSB moanal format */
+    /*           0xXXXXXX02 For  LSB moanal format */
     {0x00000509, 0x00000902},
     {0x0000050D, 0x00000902},
     {0x00000511, 0x00000802},
@@ -489,8 +489,8 @@ static unsigned nv4TablePRAMIN_15BPP[][2] =
 };
 static unsigned nv4TablePRAMIN_16BPP[][2] =
 {
-    /*           0xXXXXXX01 For  MSB mono format */
-    /*           0xXXXXXX02 For  LSB mono format */
+    /*           0xXXXXXX01 For  MSB moanal format */
+    /*           0xXXXXXX02 For  LSB moanal format */
     {0x00000509, 0x00000C02},
     {0x0000050D, 0x00000C02},
     {0x00000511, 0x00000B02},
@@ -505,8 +505,8 @@ static unsigned nv4TablePRAMIN_16BPP[][2] =
 };
 static unsigned nv4TablePRAMIN_32BPP[][2] =
 {
-    /*           0xXXXXXX01 For  MSB mono format */
-    /*           0xXXXXXX02 For  LSB mono format */
+    /*           0xXXXXXX01 For  MSB moanal format */
+    /*           0xXXXXXX02 For  LSB moanal format */
     {0x00000509, 0x00000E02},
     {0x0000050D, 0x00000E02},
     {0x00000511, 0x00000D02},
@@ -939,8 +939,8 @@ static unsigned nv10TablePRAMIN[][2] =
 };
 static unsigned nv10TablePRAMIN_8BPP[][2] =
 {
-    /*           0xXXXXXX01 For  MSB mono format */
-    /*           0xXXXXXX02 For  LSB mono format */
+    /*           0xXXXXXX01 For  MSB moanal format */
+    /*           0xXXXXXX02 For  LSB moanal format */
     {0x00000509, 0x00000302},
     {0x0000050D, 0x00000302},
     {0x00000511, 0x00000202},
@@ -956,8 +956,8 @@ static unsigned nv10TablePRAMIN_8BPP[][2] =
 };
 static unsigned nv10TablePRAMIN_15BPP[][2] =
 {
-    /*           0xXXXXXX01 For  MSB mono format */
-    /*           0xXXXXXX02 For  LSB mono format */
+    /*           0xXXXXXX01 For  MSB moanal format */
+    /*           0xXXXXXX02 For  LSB moanal format */
     {0x00000509, 0x00000902},
     {0x0000050D, 0x00000902},
     {0x00000511, 0x00000802},
@@ -973,8 +973,8 @@ static unsigned nv10TablePRAMIN_15BPP[][2] =
 };
 static unsigned nv10TablePRAMIN_16BPP[][2] =
 {
-    /*           0xXXXXXX01 For  MSB mono format */
-    /*           0xXXXXXX02 For  LSB mono format */
+    /*           0xXXXXXX01 For  MSB moanal format */
+    /*           0xXXXXXX02 For  LSB moanal format */
     {0x00000509, 0x00000C02},
     {0x0000050D, 0x00000C02},
     {0x00000511, 0x00000B02},
@@ -990,8 +990,8 @@ static unsigned nv10TablePRAMIN_16BPP[][2] =
 };
 static unsigned nv10TablePRAMIN_32BPP[][2] =
 {
-    /*           0xXXXXXX01 For  MSB mono format */
-    /*           0xXXXXXX02 For  LSB mono format */
+    /*           0xXXXXXX01 For  MSB moanal format */
+    /*           0xXXXXXX02 For  LSB moanal format */
     {0x00000509, 0x00000E02},
     {0x0000050D, 0x00000E02},
     {0x00000511, 0x00000D02},

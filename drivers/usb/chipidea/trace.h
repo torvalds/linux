@@ -38,11 +38,11 @@ TRACE_EVENT(ci_log,
 );
 
 DECLARE_EVENT_CLASS(ci_log_trb,
-	TP_PROTO(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq, struct td_node *td),
+	TP_PROTO(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq, struct td_analde *td),
 	TP_ARGS(hwep, hwreq, td),
 	TP_STRUCT__entry(
 		__string(name, hwep->name)
-		__field(struct td_node *, td)
+		__field(struct td_analde *, td)
 		__field(struct usb_request *, req)
 		__field(dma_addr_t, dma)
 		__field(s32, td_remaining_size)
@@ -70,12 +70,12 @@ DECLARE_EVENT_CLASS(ci_log_trb,
 );
 
 DEFINE_EVENT(ci_log_trb, ci_prepare_td,
-	TP_PROTO(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq, struct td_node *td),
+	TP_PROTO(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq, struct td_analde *td),
 	TP_ARGS(hwep, hwreq, td)
 );
 
 DEFINE_EVENT(ci_log_trb, ci_complete_td,
-	TP_PROTO(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq, struct td_node *td),
+	TP_PROTO(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq, struct td_analde *td),
 	TP_ARGS(hwep, hwreq, td)
 );
 

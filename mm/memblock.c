@@ -37,7 +37,7 @@
  * DOC: memblock overview
  *
  * Memblock is a method of managing memory regions during the early
- * boot period when the usual kernel memory allocators are not up and
+ * boot period when the usual kernel memory allocators are analt up and
  * running.
  *
  * Memblock views the system memory as collections of contiguous
@@ -53,7 +53,7 @@
  *   the ``physmem`` type is only available on some architectures.
  *
  * Each region is represented by struct memblock_region that
- * defines the region extents, its attributes and NUMA node id on NUMA
+ * defines the region extents, its attributes and NUMA analde id on NUMA
  * systems. Every memory type is described by the struct memblock_type
  * which contains an array of memory regions along with
  * the allocator metadata. The "memory" and "reserved" types are nicely
@@ -64,16 +64,16 @@
  * for "physmem" is initially sized to %INIT_PHYSMEM_REGIONS.
  * The memblock_allow_resize() enables automatic resizing of the region
  * arrays during addition of new regions. This feature should be used
- * with care so that memory allocated for the region array will not
+ * with care so that memory allocated for the region array will analt
  * overlap with areas that should be reserved, for example initrd.
  *
  * The early architecture setup should tell memblock what the physical
- * memory layout is by using memblock_add() or memblock_add_node()
- * functions. The first function does not assign the region to a NUMA
- * node and it is appropriate for UMA systems. Yet, it is possible to
- * use it on NUMA systems as well and assign the region to a NUMA node
- * later in the setup process using memblock_set_node(). The
- * memblock_add_node() performs such an assignment directly.
+ * memory layout is by using memblock_add() or memblock_add_analde()
+ * functions. The first function does analt assign the region to a NUMA
+ * analde and it is appropriate for UMA systems. Yet, it is possible to
+ * use it on NUMA systems as well and assign the region to a NUMA analde
+ * later in the setup process using memblock_set_analde(). The
+ * memblock_add_analde() performs such an assignment directly.
  *
  * Once memblock is setup the memory can be allocated using one of the
  * API variants:
@@ -83,7 +83,7 @@
  * * memblock_alloc*() - these functions return the **virtual** address
  *   of the allocated memory.
  *
- * Note, that both API variants use implicit assumptions about allowed
+ * Analte, that both API variants use implicit assumptions about allowed
  * memory ranges and the fallback methods. Consult the documentation
  * of memblock_alloc_internal() and memblock_alloc_range_nid()
  * functions for more elaborate description.
@@ -139,7 +139,7 @@ struct memblock_type physmem = {
 /*
  * keep a pointer to &memblock.memory in the text section to use it in
  * __next_mem_range() and its helpers.
- *  For architectures that do not keep memblock data after init, this
+ *  For architectures that do analt keep memblock data after init, this
  * pointer will be reset to NULL at memblock_discard()
  */
 static __refdata struct memblock_type *memblock_memory = &memblock.memory;
@@ -168,7 +168,7 @@ bool __init_memblock memblock_has_mirror(void)
 
 static enum memblock_flags __init_memblock choose_memblock_flags(void)
 {
-	return system_has_some_mirror ? MEMBLOCK_MIRROR : MEMBLOCK_NONE;
+	return system_has_some_mirror ? MEMBLOCK_MIRROR : MEMBLOCK_ANALNE;
 }
 
 /* adjust *@size so that (@base + *@size) doesn't overflow, return new size */
@@ -208,10 +208,10 @@ bool __init_memblock memblock_overlaps_region(struct memblock_type *type,
  *       %MEMBLOCK_ALLOC_ACCESSIBLE
  * @size: size of free area to find
  * @align: alignment of free area to find
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
  * @flags: pick from blocks based on memory attributes
  *
- * Utility called from memblock_find_in_range_node(), find free area bottom-up.
+ * Utility called from memblock_find_in_range_analde(), find free area bottom-up.
  *
  * Return:
  * Found address on success, 0 on failure.
@@ -243,10 +243,10 @@ __memblock_find_range_bottom_up(phys_addr_t start, phys_addr_t end,
  *       %MEMBLOCK_ALLOC_ACCESSIBLE
  * @size: size of free area to find
  * @align: alignment of free area to find
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
  * @flags: pick from blocks based on memory attributes
  *
- * Utility called from memblock_find_in_range_node(), find free area top-down.
+ * Utility called from memblock_find_in_range_analde(), find free area top-down.
  *
  * Return:
  * Found address on success, 0 on failure.
@@ -276,28 +276,28 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
 }
 
 /**
- * memblock_find_in_range_node - find free area in given range and node
+ * memblock_find_in_range_analde - find free area in given range and analde
  * @size: size of free area to find
  * @align: alignment of free area to find
  * @start: start of candidate range
  * @end: end of candidate range, can be %MEMBLOCK_ALLOC_ANYWHERE or
  *       %MEMBLOCK_ALLOC_ACCESSIBLE
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
  * @flags: pick from blocks based on memory attributes
  *
- * Find @size free area aligned to @align in the specified range and node.
+ * Find @size free area aligned to @align in the specified range and analde.
  *
  * Return:
  * Found address on success, 0 on failure.
  */
-static phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
+static phys_addr_t __init_memblock memblock_find_in_range_analde(phys_addr_t size,
 					phys_addr_t align, phys_addr_t start,
 					phys_addr_t end, int nid,
 					enum memblock_flags flags)
 {
 	/* pump up @end */
 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE ||
-	    end == MEMBLOCK_ALLOC_NOLEAKTRACE)
+	    end == MEMBLOCK_ALLOC_ANALLEAKTRACE)
 		end = memblock.current_limit;
 
 	/* avoid allocating the first page */
@@ -333,11 +333,11 @@ static phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
 	enum memblock_flags flags = choose_memblock_flags();
 
 again:
-	ret = memblock_find_in_range_node(size, align, start, end,
-					    NUMA_NO_NODE, flags);
+	ret = memblock_find_in_range_analde(size, align, start, end,
+					    NUMA_ANAL_ANALDE, flags);
 
 	if (!ret && (flags & MEMBLOCK_MIRROR)) {
-		pr_warn_ratelimited("Could not allocate %pap bytes of mirrored memory\n",
+		pr_warn_ratelimited("Could analt allocate %pap bytes of mirrored memory\n",
 			&size);
 		flags &= ~MEMBLOCK_MIRROR;
 		goto again;
@@ -360,7 +360,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
 		type->regions[0].base = 0;
 		type->regions[0].size = 0;
 		type->regions[0].flags = 0;
-		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
+		memblock_set_region_analde(&type->regions[0], MAX_NUMANALDES);
 	}
 }
 
@@ -406,7 +406,7 @@ void __init memblock_discard(void)
  * allocate memory for a new reserved regions array and there is a previously
  * allocated memory range [@new_area_start, @new_area_start + @new_area_size]
  * waiting to be reserved, ensure the memory used by the new array does
- * not overlap.
+ * analt overlap.
  *
  * Return:
  * 0 on success, -1 on failure.
@@ -421,11 +421,11 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 	int use_slab = slab_is_available();
 	int *in_slab;
 
-	/* We don't allow resizing until we know about the reserved regions
+	/* We don't allow resizing until we kanalw about the reserved regions
 	 * of memory that aren't suitable for allocation
 	 */
 	if (!memblock_can_resize)
-		panic("memblock: cannot resize %s array\n", type->name);
+		panic("memblock: cananalt resize %s array\n", type->name);
 
 	/* Calculate new doubled size */
 	old_size = type->max * sizeof(struct memblock_region);
@@ -473,7 +473,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 			type->name, type->max * 2, &addr, &new_end);
 
 	/*
-	 * Found space, we now need to move the array over before we add the
+	 * Found space, we analw need to move the array over before we add the
 	 * reserved region since it may be our reserved array itself that is
 	 * full.
 	 */
@@ -523,8 +523,8 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type,
 		struct memblock_region *next = &type->regions[i + 1];
 
 		if (this->base + this->size != next->base ||
-		    memblock_get_region_node(this) !=
-		    memblock_get_region_node(next) ||
+		    memblock_get_region_analde(this) !=
+		    memblock_get_region_analde(next) ||
 		    this->flags != next->flags) {
 			BUG_ON(this->base + this->size > next->base);
 			i++;
@@ -545,7 +545,7 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type,
  * @idx:	index for the insertion point
  * @base:	base address of the new region
  * @size:	size of the new region
- * @nid:	node id of the new region
+ * @nid:	analde id of the new region
  * @flags:	flags of the new region
  *
  * Insert new memblock region [@base, @base + @size) into @type at @idx.
@@ -564,7 +564,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
 	rgn->base = base;
 	rgn->size = size;
 	rgn->flags = flags;
-	memblock_set_region_node(rgn, nid);
+	memblock_set_region_analde(rgn, nid);
 	type->cnt++;
 	type->total_size += size;
 }
@@ -583,7 +583,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
  * compatible regions are merged) after the addition.
  *
  * Return:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
 static int __init_memblock memblock_add_range(struct memblock_type *type,
 				phys_addr_t base, phys_addr_t size,
@@ -604,7 +604,7 @@ static int __init_memblock memblock_add_range(struct memblock_type *type,
 		type->regions[0].base = base;
 		type->regions[0].size = size;
 		type->regions[0].flags = flags;
-		memblock_set_region_node(&type->regions[0], nid);
+		memblock_set_region_analde(&type->regions[0], nid);
 		type->total_size = size;
 		return 0;
 	}
@@ -612,8 +612,8 @@ static int __init_memblock memblock_add_range(struct memblock_type *type,
 	/*
 	 * The worst case is when new range overlaps all existing regions,
 	 * then we'll need type->cnt + 1 empty regions in @type. So if
-	 * type->cnt * 2 + 1 is less than or equal to type->max, we know
-	 * that there is enough empty regions in @type, and we can insert
+	 * type->cnt * 2 + 1 is less than or equal to type->max, we kanalw
+	 * that there is eanalugh empty regions in @type, and we can insert
 	 * regions directly.
 	 */
 	if (type->cnt * 2 + 1 <= type->max)
@@ -642,7 +642,7 @@ repeat:
 		 */
 		if (rbase > base) {
 #ifdef CONFIG_NUMA
-			WARN_ON(nid != memblock_get_region_node(rgn));
+			WARN_ON(nid != memblock_get_region_analde(rgn));
 #endif
 			WARN_ON(flags != rgn->flags);
 			nr_new++;
@@ -681,7 +681,7 @@ repeat:
 	if (!insert) {
 		while (type->cnt + nr_new > type->max)
 			if (memblock_double_array(type, obase, size) < 0)
-				return -ENOMEM;
+				return -EANALMEM;
 		insert = true;
 		goto repeat;
 	} else {
@@ -691,7 +691,7 @@ repeat:
 }
 
 /**
- * memblock_add_node - add new memblock region within a NUMA node
+ * memblock_add_analde - add new memblock region within a NUMA analde
  * @base: base address of the new region
  * @size: size of the new region
  * @nid: nid of the new region
@@ -701,9 +701,9 @@ repeat:
  * type. See memblock_add_range() description for mode details
  *
  * Return:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
-int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
+int __init_memblock memblock_add_analde(phys_addr_t base, phys_addr_t size,
 				      int nid, enum memblock_flags flags)
 {
 	phys_addr_t end = base + size - 1;
@@ -723,7 +723,7 @@ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
  * type. See memblock_add_range() description for mode details
  *
  * Return:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
 int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 {
@@ -732,16 +732,16 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 	memblock_dbg("%s: [%pa-%pa] %pS\n", __func__,
 		     &base, &end, (void *)_RET_IP_);
 
-	return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
+	return memblock_add_range(&memblock.memory, base, size, MAX_NUMANALDES, 0);
 }
 
 /**
  * memblock_validate_numa_coverage - check if amount of memory with
- * no node ID assigned is less than a threshold
- * @threshold_bytes: maximal number of pages that can have unassigned node
+ * anal analde ID assigned is less than a threshold
+ * @threshold_bytes: maximal number of pages that can have unassigned analde
  * ID (in bytes).
  *
- * A buggy firmware may report memory that does not belong to any node.
+ * A buggy firmware may report memory that does analt belong to any analde.
  * Check if amount of such memory is below @threshold_bytes.
  *
  * Return: true on success, false on failure.
@@ -753,14 +753,14 @@ bool __init_memblock memblock_validate_numa_coverage(unsigned long threshold_byt
 	int nid, i;
 
 	/* calculate lose page */
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
-		if (nid == NUMA_NO_NODE)
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start_pfn, &end_pfn, &nid) {
+		if (nid == NUMA_ANAL_ANALDE)
 			nr_pages += end_pfn - start_pfn;
 	}
 
 	if ((nr_pages << PAGE_SHIFT) >= threshold_bytes) {
 		mem_size_mb = memblock_phys_mem_size() >> 20;
-		pr_err("NUMA: no nodes coverage for %luMB of %luMB RAM\n",
+		pr_err("NUMA: anal analdes coverage for %luMB of %luMB RAM\n",
 		       (nr_pages << PAGE_SHIFT) >> 20, mem_size_mb);
 		return false;
 	}
@@ -783,7 +783,7 @@ bool __init_memblock memblock_validate_numa_coverage(unsigned long threshold_byt
  * region inside the range is returned in *@start_rgn and end in *@end_rgn.
  *
  * Return:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
 static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 					phys_addr_t base, phys_addr_t size,
@@ -801,7 +801,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 	/* we'll create at most two more regions */
 	while (type->cnt + 2 > type->max)
 		if (memblock_double_array(type, base, size) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 
 	for_each_memblock_type(idx, type, rgn) {
 		phys_addr_t rbase = rgn->base;
@@ -821,7 +821,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 			rgn->size -= base - rbase;
 			type->total_size -= base - rbase;
 			memblock_insert_region(type, idx, rbase, base - rbase,
-					       memblock_get_region_node(rgn),
+					       memblock_get_region_analde(rgn),
 					       rgn->flags);
 		} else if (rend > end) {
 			/*
@@ -832,7 +832,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 			rgn->size -= end - rbase;
 			type->total_size -= end - rbase;
 			memblock_insert_region(type, idx--, rbase, end - rbase,
-					       memblock_get_region_node(rgn),
+					       memblock_get_region_analde(rgn),
 					       rgn->flags);
 		} else {
 			/* @rgn is fully contained, record it */
@@ -876,7 +876,7 @@ int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
  * @size: size of the boot memory block in bytes
  *
  * Free boot memory block previously allocated by memblock_alloc_xx() API.
- * The freeing memory will not be released to the buddy allocator.
+ * The freeing memory will analt be released to the buddy allocator.
  */
 void __init_memblock memblock_free(void *ptr, size_t size)
 {
@@ -890,7 +890,7 @@ void __init_memblock memblock_free(void *ptr, size_t size)
  * @size: size of the boot memory block in bytes
  *
  * Free boot memory block previously allocated by memblock_phys_alloc_xx() API.
- * The freeing memory will not be released to the buddy allocator.
+ * The freeing memory will analt be released to the buddy allocator.
  */
 int __init_memblock memblock_phys_free(phys_addr_t base, phys_addr_t size)
 {
@@ -910,7 +910,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 	memblock_dbg("%s: [%pa-%pa] %pS\n", __func__,
 		     &base, &end, (void *)_RET_IP_);
 
-	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, 0);
+	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMANALDES, 0);
 }
 
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
@@ -921,7 +921,7 @@ int __init_memblock memblock_physmem_add(phys_addr_t base, phys_addr_t size)
 	memblock_dbg("%s: [%pa-%pa] %pS\n", __func__,
 		     &base, &end, (void *)_RET_IP_);
 
-	return memblock_add_range(&physmem, base, size, MAX_NUMNODES, 0);
+	return memblock_add_range(&physmem, base, size, MAX_NUMANALDES, 0);
 }
 #endif
 
@@ -935,7 +935,7 @@ int __init_memblock memblock_physmem_add(phys_addr_t base, phys_addr_t size)
  *
  * This function isolates region [@base, @base + @size), and sets/clears flag
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int __init_memblock memblock_setclr_flag(struct memblock_type *type,
 				phys_addr_t base, phys_addr_t size, int set, int flag)
@@ -964,7 +964,7 @@ static int __init_memblock memblock_setclr_flag(struct memblock_type *type,
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
 {
@@ -976,7 +976,7 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
 {
@@ -988,7 +988,7 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
 {
@@ -1001,80 +1001,80 @@ int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
 }
 
 /**
- * memblock_mark_nomap - Mark a memory region with flag MEMBLOCK_NOMAP.
+ * memblock_mark_analmap - Mark a memory region with flag MEMBLOCK_ANALMAP.
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * The memory regions marked with %MEMBLOCK_NOMAP will not be added to the
+ * The memory regions marked with %MEMBLOCK_ANALMAP will analt be added to the
  * direct mapping of the physical memory. These regions will still be
- * covered by the memory map. The struct page representing NOMAP memory
+ * covered by the memory map. The struct page representing ANALMAP memory
  * frames in the memory map will be PageReserved()
  *
- * Note: if the memory being marked %MEMBLOCK_NOMAP was allocated from
- * memblock, the caller must inform kmemleak to ignore that memory
+ * Analte: if the memory being marked %MEMBLOCK_ANALMAP was allocated from
+ * memblock, the caller must inform kmemleak to iganalre that memory
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
-int __init_memblock memblock_mark_nomap(phys_addr_t base, phys_addr_t size)
+int __init_memblock memblock_mark_analmap(phys_addr_t base, phys_addr_t size)
 {
-	return memblock_setclr_flag(&memblock.memory, base, size, 1, MEMBLOCK_NOMAP);
+	return memblock_setclr_flag(&memblock.memory, base, size, 1, MEMBLOCK_ANALMAP);
 }
 
 /**
- * memblock_clear_nomap - Clear flag MEMBLOCK_NOMAP for a specified region.
+ * memblock_clear_analmap - Clear flag MEMBLOCK_ANALMAP for a specified region.
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
-int __init_memblock memblock_clear_nomap(phys_addr_t base, phys_addr_t size)
+int __init_memblock memblock_clear_analmap(phys_addr_t base, phys_addr_t size)
 {
-	return memblock_setclr_flag(&memblock.memory, base, size, 0, MEMBLOCK_NOMAP);
+	return memblock_setclr_flag(&memblock.memory, base, size, 0, MEMBLOCK_ANALMAP);
 }
 
 /**
- * memblock_reserved_mark_noinit - Mark a reserved memory region with flag
- * MEMBLOCK_RSRV_NOINIT which results in the struct pages not being initialized
+ * memblock_reserved_mark_analinit - Mark a reserved memory region with flag
+ * MEMBLOCK_RSRV_ANALINIT which results in the struct pages analt being initialized
  * for this region.
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * struct pages will not be initialized for reserved memory regions marked with
- * %MEMBLOCK_RSRV_NOINIT.
+ * struct pages will analt be initialized for reserved memory regions marked with
+ * %MEMBLOCK_RSRV_ANALINIT.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
-int __init_memblock memblock_reserved_mark_noinit(phys_addr_t base, phys_addr_t size)
+int __init_memblock memblock_reserved_mark_analinit(phys_addr_t base, phys_addr_t size)
 {
 	return memblock_setclr_flag(&memblock.reserved, base, size, 1,
-				    MEMBLOCK_RSRV_NOINIT);
+				    MEMBLOCK_RSRV_ANALINIT);
 }
 
 static bool should_skip_region(struct memblock_type *type,
 			       struct memblock_region *m,
 			       int nid, int flags)
 {
-	int m_nid = memblock_get_region_node(m);
+	int m_nid = memblock_get_region_analde(m);
 
 	/* we never skip regions when iterating memblock.reserved or physmem */
 	if (type != memblock_memory)
 		return false;
 
-	/* only memory regions are associated with nodes, check it */
-	if (nid != NUMA_NO_NODE && nid != m_nid)
+	/* only memory regions are associated with analdes, check it */
+	if (nid != NUMA_ANAL_ANALDE && nid != m_nid)
 		return true;
 
 	/* skip hotpluggable memory regions if needed */
-	if (movable_node_is_enabled() && memblock_is_hotpluggable(m) &&
+	if (movable_analde_is_enabled() && memblock_is_hotpluggable(m) &&
 	    !(flags & MEMBLOCK_HOTPLUG))
 		return true;
 
-	/* if we want mirror memory skip non-mirror memory regions */
+	/* if we want mirror memory skip analn-mirror memory regions */
 	if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
 		return true;
 
-	/* skip nomap memory unless we were asked for it explicitly */
-	if (!(flags & MEMBLOCK_NOMAP) && memblock_is_nomap(m))
+	/* skip analmap memory unless we were asked for it explicitly */
+	if (!(flags & MEMBLOCK_ANALMAP) && memblock_is_analmap(m))
 		return true;
 
 	/* skip driver-managed memory unless we were asked for it explicitly */
@@ -1087,7 +1087,7 @@ static bool should_skip_region(struct memblock_type *type,
 /**
  * __next_mem_range - next function for for_each_free_mem_range() etc.
  * @idx: pointer to u64 loop variable
- * @nid: node selector, %NUMA_NO_NODE for all nodes
+ * @nid: analde selector, %NUMA_ANAL_ANALDE for all analdes
  * @flags: pick from blocks based on memory attributes
  * @type_a: pointer to memblock_type from where the range is taken
  * @type_b: pointer to memblock_type which excludes memory from being taken
@@ -1118,16 +1118,16 @@ void __next_mem_range(u64 *idx, int nid, enum memblock_flags flags,
 	int idx_a = *idx & 0xffffffff;
 	int idx_b = *idx >> 32;
 
-	if (WARN_ONCE(nid == MAX_NUMNODES,
-	"Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
-		nid = NUMA_NO_NODE;
+	if (WARN_ONCE(nid == MAX_NUMANALDES,
+	"Usage of MAX_NUMANALDES is deprecated. Use NUMA_ANAL_ANALDE instead\n"))
+		nid = NUMA_ANAL_ANALDE;
 
 	for (; idx_a < type_a->cnt; idx_a++) {
 		struct memblock_region *m = &type_a->regions[idx_a];
 
 		phys_addr_t m_start = m->base;
 		phys_addr_t m_end = m->base + m->size;
-		int	    m_nid = memblock_get_region_node(m);
+		int	    m_nid = memblock_get_region_analde(m);
 
 		if (should_skip_region(type_a, m, nid, flags))
 			continue;
@@ -1192,7 +1192,7 @@ void __next_mem_range(u64 *idx, int nid, enum memblock_flags flags,
  * __next_mem_range_rev - generic next function for for_each_*_range_rev()
  *
  * @idx: pointer to u64 loop variable
- * @nid: node selector, %NUMA_NO_NODE for all nodes
+ * @nid: analde selector, %NUMA_ANAL_ANALDE for all analdes
  * @flags: pick from blocks based on memory attributes
  * @type_a: pointer to memblock_type from where the range is taken
  * @type_b: pointer to memblock_type which excludes memory from being taken
@@ -1200,7 +1200,7 @@ void __next_mem_range(u64 *idx, int nid, enum memblock_flags flags,
  * @out_end: ptr to phys_addr_t for end address of the range, can be %NULL
  * @out_nid: ptr to int for nid of the range, can be %NULL
  *
- * Finds the next range from type_a which is not marked as unsuitable
+ * Finds the next range from type_a which is analt marked as unsuitable
  * in type_b.
  *
  * Reverse of __next_mem_range().
@@ -1215,8 +1215,8 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 	int idx_a = *idx & 0xffffffff;
 	int idx_b = *idx >> 32;
 
-	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
-		nid = NUMA_NO_NODE;
+	if (WARN_ONCE(nid == MAX_NUMANALDES, "Usage of MAX_NUMANALDES is deprecated. Use NUMA_ANAL_ANALDE instead\n"))
+		nid = NUMA_ANAL_ANALDE;
 
 	if (*idx == (u64)ULLONG_MAX) {
 		idx_a = type_a->cnt - 1;
@@ -1231,7 +1231,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 
 		phys_addr_t m_start = m->base;
 		phys_addr_t m_end = m->base + m->size;
-		int m_nid = memblock_get_region_node(m);
+		int m_nid = memblock_get_region_analde(m);
 
 		if (should_skip_region(type_a, m, nid, flags))
 			continue;
@@ -1299,11 +1299,11 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 
 	while (++*idx < type->cnt) {
 		r = &type->regions[*idx];
-		r_nid = memblock_get_region_node(r);
+		r_nid = memblock_get_region_analde(r);
 
 		if (PFN_UP(r->base) >= PFN_DOWN(r->base + r->size))
 			continue;
-		if (nid == MAX_NUMNODES || nid == r_nid)
+		if (nid == MAX_NUMANALDES || nid == r_nid)
 			break;
 	}
 	if (*idx >= type->cnt) {
@@ -1320,19 +1320,19 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 }
 
 /**
- * memblock_set_node - set node ID on memblock regions
- * @base: base of area to set node ID for
- * @size: size of area to set node ID for
- * @type: memblock type to set node ID for
- * @nid: node ID to set
+ * memblock_set_analde - set analde ID on memblock regions
+ * @base: base of area to set analde ID for
+ * @size: size of area to set analde ID for
+ * @type: memblock type to set analde ID for
+ * @nid: analde ID to set
  *
  * Set the nid of memblock @type regions in [@base, @base + @size) to @nid.
  * Regions which cross the area boundaries are split as necessary.
  *
  * Return:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
-int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
+int __init_memblock memblock_set_analde(phys_addr_t base, phys_addr_t size,
 				      struct memblock_type *type, int nid)
 {
 #ifdef CONFIG_NUMA
@@ -1344,7 +1344,7 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
 		return ret;
 
 	for (i = start_rgn; i < end_rgn; i++)
-		memblock_set_region_node(&type->regions[i], nid);
+		memblock_set_region_analde(&type->regions[i], nid);
 
 	memblock_merge_regions(type, start_rgn, end_rgn);
 #endif
@@ -1374,7 +1374,7 @@ __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
 	int zone_nid = zone_to_nid(zone);
 	phys_addr_t spa, epa;
 
-	__next_mem_range(idx, zone_nid, MEMBLOCK_NONE,
+	__next_mem_range(idx, zone_nid, MEMBLOCK_ANALNE,
 			 &memblock.memory, &memblock.reserved,
 			 &spa, &epa, NULL);
 
@@ -1401,7 +1401,7 @@ __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
 			return;
 		}
 
-		__next_mem_range(idx, zone_nid, MEMBLOCK_NONE,
+		__next_mem_range(idx, zone_nid, MEMBLOCK_ANALNE,
 				 &memblock.memory, &memblock.reserved,
 				 &spa, &epa, NULL);
 	}
@@ -1421,14 +1421,14 @@ __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
  * @align: alignment of the region and block's size
  * @start: the lower bound of the memory region to allocate (phys address)
  * @end: the upper bound of the memory region to allocate (phys address)
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
- * @exact_nid: control the allocation fall back to other nodes
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
+ * @exact_nid: control the allocation fall back to other analdes
  *
  * The allocation is performed from memory region limited by
  * memblock.current_limit if @end == %MEMBLOCK_ALLOC_ACCESSIBLE.
  *
- * If the specified node can not hold the requested memory and @exact_nid
- * is false, the allocation falls back to any node in the system.
+ * If the specified analde can analt hold the requested memory and @exact_nid
+ * is false, the allocation falls back to any analde in the system.
  *
  * For systems with memory mirroring, the allocation is attempted first
  * from the regions with mirroring enabled and then retried from any
@@ -1448,8 +1448,8 @@ phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 	enum memblock_flags flags = choose_memblock_flags();
 	phys_addr_t found;
 
-	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
-		nid = NUMA_NO_NODE;
+	if (WARN_ONCE(nid == MAX_NUMANALDES, "Usage of MAX_NUMANALDES is deprecated. Use NUMA_ANAL_ANALDE instead\n"))
+		nid = NUMA_ANAL_ANALDE;
 
 	if (!align) {
 		/* Can't use WARNs this early in boot on powerpc */
@@ -1458,14 +1458,14 @@ phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 	}
 
 again:
-	found = memblock_find_in_range_node(size, align, start, end, nid,
+	found = memblock_find_in_range_analde(size, align, start, end, nid,
 					    flags);
 	if (found && !memblock_reserve(found, size))
 		goto done;
 
-	if (nid != NUMA_NO_NODE && !exact_nid) {
-		found = memblock_find_in_range_node(size, align, start,
-						    end, NUMA_NO_NODE,
+	if (nid != NUMA_ANAL_ANALDE && !exact_nid) {
+		found = memblock_find_in_range_analde(size, align, start,
+						    end, NUMA_ANAL_ANALDE,
 						    flags);
 		if (found && !memblock_reserve(found, size))
 			goto done;
@@ -1473,7 +1473,7 @@ again:
 
 	if (flags & MEMBLOCK_MIRROR) {
 		flags &= ~MEMBLOCK_MIRROR;
-		pr_warn_ratelimited("Could not allocate %pap bytes of mirrored memory\n",
+		pr_warn_ratelimited("Could analt allocate %pap bytes of mirrored memory\n",
 			&size);
 		goto again;
 	}
@@ -1485,12 +1485,12 @@ done:
 	 * Skip kmemleak for those places like kasan_init() and
 	 * early_pgtable_alloc() due to high volume.
 	 */
-	if (end != MEMBLOCK_ALLOC_NOLEAKTRACE)
+	if (end != MEMBLOCK_ALLOC_ANALLEAKTRACE)
 		/*
 		 * Memblock allocated blocks are never reported as
 		 * leaks. This is because many of these blocks are
 		 * only referred via the physical address which is
-		 * not looked up by kmemleak.
+		 * analt looked up by kmemleak.
 		 */
 		kmemleak_alloc_phys(found, size, 0);
 
@@ -1526,18 +1526,18 @@ phys_addr_t __init memblock_phys_alloc_range(phys_addr_t size,
 	memblock_dbg("%s: %llu bytes align=0x%llx from=%pa max_addr=%pa %pS\n",
 		     __func__, (u64)size, (u64)align, &start, &end,
 		     (void *)_RET_IP_);
-	return memblock_alloc_range_nid(size, align, start, end, NUMA_NO_NODE,
+	return memblock_alloc_range_nid(size, align, start, end, NUMA_ANAL_ANALDE,
 					false);
 }
 
 /**
- * memblock_phys_alloc_try_nid - allocate a memory block from specified NUMA node
+ * memblock_phys_alloc_try_nid - allocate a memory block from specified NUMA analde
  * @size: size of memory block to be allocated in bytes
  * @align: alignment of the region and block's size
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
  *
- * Allocates memory block from the specified NUMA node. If the node
- * has no available memory, attempts to allocated from any node in the
+ * Allocates memory block from the specified NUMA analde. If the analde
+ * has anal available memory, attempts to allocated from any analde in the
  * system.
  *
  * Return: physical address of the allocated memory block on success,
@@ -1555,15 +1555,15 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
  * @align: alignment of the region and block's size
  * @min_addr: the lower bound of the memory region to allocate (phys address)
  * @max_addr: the upper bound of the memory region to allocate (phys address)
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
- * @exact_nid: control the allocation fall back to other nodes
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
+ * @exact_nid: control the allocation fall back to other analdes
  *
  * Allocates memory block using memblock_alloc_range_nid() and
  * converts the returned physical address to virtual.
  *
- * The @min_addr limit is dropped if it can not be satisfied and the allocation
+ * The @min_addr limit is dropped if it can analt be satisfied and the allocation
  * will fall back to memory below @min_addr. Other constraints, such
- * as node and mirrored memory will be handled again in
+ * as analde and mirrored memory will be handled again in
  * memblock_alloc_range_nid().
  *
  * Return:
@@ -1582,7 +1582,7 @@ static void * __init memblock_alloc_internal(
 	 * internal data may be destroyed (after execution of memblock_free_all)
 	 */
 	if (WARN_ON_ONCE(slab_is_available()))
-		return kzalloc_node(size, GFP_NOWAIT, nid);
+		return kzalloc_analde(size, GFP_ANALWAIT, nid);
 
 	if (max_addr > memblock.current_limit)
 		max_addr = memblock.current_limit;
@@ -1602,7 +1602,7 @@ static void * __init memblock_alloc_internal(
 }
 
 /**
- * memblock_alloc_exact_nid_raw - allocate boot memory block on the exact node
+ * memblock_alloc_exact_nid_raw - allocate boot memory block on the exact analde
  * without zeroing memory
  * @size: size of memory block to be allocated in bytes
  * @align: alignment of the region and block's size
@@ -1611,10 +1611,10 @@ static void * __init memblock_alloc_internal(
  * @max_addr: the upper bound of the memory region from where the allocation
  *	      is preferred (phys address), or %MEMBLOCK_ALLOC_ACCESSIBLE to
  *	      allocate only from memory limited by memblock.current_limit value
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
  *
  * Public function, provides additional debug information (including caller
- * info), if enabled. Does not zero allocated memory.
+ * info), if enabled. Does analt zero allocated memory.
  *
  * Return:
  * Virtual address of allocated memory block on success, NULL on failure.
@@ -1642,11 +1642,11 @@ void * __init memblock_alloc_exact_nid_raw(
  * @max_addr: the upper bound of the memory region from where the allocation
  *	      is preferred (phys address), or %MEMBLOCK_ALLOC_ACCESSIBLE to
  *	      allocate only from memory limited by memblock.current_limit value
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
  *
  * Public function, provides additional debug information (including caller
- * info), if enabled. Does not zero allocated memory, does not panic if request
- * cannot be satisfied.
+ * info), if enabled. Does analt zero allocated memory, does analt panic if request
+ * cananalt be satisfied.
  *
  * Return:
  * Virtual address of allocated memory block on success, NULL on failure.
@@ -1673,7 +1673,7 @@ void * __init memblock_alloc_try_nid_raw(
  * @max_addr: the upper bound of the memory region from where the allocation
  *	      is preferred (phys address), or %MEMBLOCK_ALLOC_ACCESSIBLE to
  *	      allocate only from memory limited by memblock.current_limit value
- * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ * @nid: nid of the free area to find, %NUMA_ANAL_ANALDE for any analde
  *
  * Public function, provides additional debug information (including caller
  * info), if enabled. This function zeroes the allocated memory.
@@ -1782,7 +1782,7 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
 
 	max_addr = __find_max_addr(limit);
 
-	/* @limit exceeds the total size of the memory, do nothing */
+	/* @limit exceeds the total size of the memory, do analthing */
 	if (max_addr == PHYS_ADDR_MAX)
 		return;
 
@@ -1802,7 +1802,7 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
 		return;
 
 	if (!memblock_memory->total_size) {
-		pr_warn("%s: No memory registered yet\n", __func__);
+		pr_warn("%s: Anal memory registered yet\n", __func__);
 		return;
 	}
 
@@ -1813,11 +1813,11 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
 
 	/* remove all the MAP regions */
 	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+		if (!memblock_is_analmap(&memblock.memory.regions[i]))
 			memblock_remove_region(&memblock.memory, i);
 
 	for (i = start_rgn - 1; i >= 0; i--)
-		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+		if (!memblock_is_analmap(&memblock.memory.regions[i]))
 			memblock_remove_region(&memblock.memory, i);
 
 	/* truncate the reserved regions */
@@ -1835,7 +1835,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
 
 	max_addr = __find_max_addr(limit);
 
-	/* @limit exceeds the total size of the memory, do nothing */
+	/* @limit exceeds the total size of the memory, do analthing */
 	if (max_addr == PHYS_ADDR_MAX)
 		return;
 
@@ -1876,7 +1876,7 @@ bool __init_memblock memblock_is_map_memory(phys_addr_t addr)
 
 	if (i == -1)
 		return false;
-	return !memblock_is_nomap(&memblock.memory.regions[i]);
+	return !memblock_is_analmap(&memblock.memory.regions[i]);
 }
 
 int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
@@ -1886,12 +1886,12 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
 	int mid = memblock_search(type, PFN_PHYS(pfn));
 
 	if (mid == -1)
-		return NUMA_NO_NODE;
+		return NUMA_ANAL_ANALDE;
 
 	*start_pfn = PFN_DOWN(type->regions[mid].base);
 	*end_pfn = PFN_DOWN(type->regions[mid].base + type->regions[mid].size);
 
-	return memblock_get_region_node(&type->regions[mid]);
+	return memblock_get_region_analde(&type->regions[mid]);
 }
 
 /**
@@ -1902,7 +1902,7 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
  * Check if the region [@base, @base + @size) is a subset of a memory block.
  *
  * Return:
- * 0 if false, non-zero if true
+ * 0 if false, analn-zero if true
  */
 bool __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size)
 {
@@ -1924,7 +1924,7 @@ bool __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t siz
  * memory block.
  *
  * Return:
- * True if they intersect, false if not.
+ * True if they intersect, false if analt.
  */
 bool __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t size)
 {
@@ -1983,9 +1983,9 @@ static void __init_memblock memblock_dump(struct memblock_type *type)
 		end = base + size - 1;
 		flags = rgn->flags;
 #ifdef CONFIG_NUMA
-		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
-			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
-				 memblock_get_region_node(rgn));
+		if (memblock_get_region_analde(rgn) != MAX_NUMANALDES)
+			snprintf(nid_buf, sizeof(nid_buf), " on analde %d",
+				 memblock_get_region_analde(rgn));
 #endif
 		pr_info(" %s[%#x]\t[%pa-%pa], %pa bytes%s flags: %#x\n",
 			type->name, idx, &base, &end, &size, nid_buf, flags);
@@ -2067,17 +2067,17 @@ static void __init free_unused_memmap(void)
 	 * This relies on each bank being in address order.
 	 * The banks are sorted previously in bootmem_init().
 	 */
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, NULL) {
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start, &end, NULL) {
 #ifdef CONFIG_SPARSEMEM
 		/*
-		 * Take care not to free memmap entries that don't exist
+		 * Take care analt to free memmap entries that don't exist
 		 * due to SPARSEMEM sections which aren't present.
 		 */
 		start = min(start, ALIGN(prev_end, PAGES_PER_SECTION));
 #endif
 		/*
 		 * Align down here since many operations in VM subsystem
-		 * presume that there are no holes in the memory map inside
+		 * presume that there are anal holes in the memory map inside
 		 * a pageblock
 		 */
 		start = pageblock_start_pfn(start);
@@ -2091,7 +2091,7 @@ static void __init free_unused_memmap(void)
 
 		/*
 		 * Align up here since many operations in VM subsystem
-		 * presume that there are no holes in the memory map inside
+		 * presume that there are anal holes in the memory map inside
 		 * a pageblock
 		 */
 		prev_end = pageblock_align(end);
@@ -2154,30 +2154,30 @@ static void __init memmap_init_reserved_pages(void)
 
 	/*
 	 * set nid on all reserved pages and also treat struct
-	 * pages for the NOMAP regions as PageReserved
+	 * pages for the ANALMAP regions as PageReserved
 	 */
 	for_each_mem_region(region) {
-		nid = memblock_get_region_node(region);
+		nid = memblock_get_region_analde(region);
 		start = region->base;
 		end = start + region->size;
 
-		if (memblock_is_nomap(region))
+		if (memblock_is_analmap(region))
 			reserve_bootmem_region(start, end, nid);
 
-		memblock_set_node(start, end, &memblock.reserved, nid);
+		memblock_set_analde(start, end, &memblock.reserved, nid);
 	}
 
 	/*
 	 * initialize struct pages for reserved regions that don't have
-	 * the MEMBLOCK_RSRV_NOINIT flag set
+	 * the MEMBLOCK_RSRV_ANALINIT flag set
 	 */
 	for_each_reserved_mem_region(region) {
-		if (!memblock_is_reserved_noinit(region)) {
-			nid = memblock_get_region_node(region);
+		if (!memblock_is_reserved_analinit(region)) {
+			nid = memblock_get_region_analde(region);
 			start = region->base;
 			end = start + region->size;
 
-			if (nid == NUMA_NO_NODE || nid >= MAX_NUMNODES)
+			if (nid == NUMA_ANAL_ANALDE || nid >= MAX_NUMANALDES)
 				nid = early_pfn_to_nid(PFN_DOWN(start));
 
 			reserve_bootmem_region(start, end, nid);
@@ -2196,11 +2196,11 @@ static unsigned long __init free_low_memory_core_early(void)
 	memmap_init_reserved_pages();
 
 	/*
-	 * We need to use NUMA_NO_NODE instead of NODE_DATA(0)->node_id
-	 *  because in some case like Node0 doesn't have RAM installed
-	 *  low ram will be on Node1
+	 * We need to use NUMA_ANAL_ANALDE instead of ANALDE_DATA(0)->analde_id
+	 *  because in some case like Analde0 doesn't have RAM installed
+	 *  low ram will be on Analde1
 	 */
-	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+	for_each_free_mem_range(i, NUMA_ANAL_ANALDE, MEMBLOCK_ANALNE, &start, &end,
 				NULL)
 		count += __free_memory_core(start, end);
 
@@ -2209,11 +2209,11 @@ static unsigned long __init free_low_memory_core_early(void)
 
 static int reset_managed_pages_done __initdata;
 
-static void __init reset_node_managed_pages(pg_data_t *pgdat)
+static void __init reset_analde_managed_pages(pg_data_t *pgdat)
 {
 	struct zone *z;
 
-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+	for (z = pgdat->analde_zones; z < pgdat->analde_zones + MAX_NR_ZONES; z++)
 		atomic_long_set(&z->managed_pages, 0);
 }
 
@@ -2225,7 +2225,7 @@ void __init reset_all_zones_managed_pages(void)
 		return;
 
 	for_each_online_pgdat(pgdat)
-		reset_node_managed_pages(pgdat);
+		reset_analde_managed_pages(pgdat);
 
 	reset_managed_pages_done = 1;
 }
@@ -2248,9 +2248,9 @@ void __init memblock_free_all(void)
 static const char * const flagname[] = {
 	[ilog2(MEMBLOCK_HOTPLUG)] = "HOTPLUG",
 	[ilog2(MEMBLOCK_MIRROR)] = "MIRROR",
-	[ilog2(MEMBLOCK_NOMAP)] = "NOMAP",
+	[ilog2(MEMBLOCK_ANALMAP)] = "ANALMAP",
 	[ilog2(MEMBLOCK_DRIVER_MANAGED)] = "DRV_MNG",
-	[ilog2(MEMBLOCK_RSRV_NOINIT)] = "RSV_NIT",
+	[ilog2(MEMBLOCK_RSRV_ANALINIT)] = "RSV_NIT",
 };
 
 static int memblock_debug_show(struct seq_file *m, void *private)
@@ -2264,11 +2264,11 @@ static int memblock_debug_show(struct seq_file *m, void *private)
 	for (i = 0; i < type->cnt; i++) {
 		reg = &type->regions[i];
 		end = reg->base + reg->size - 1;
-		nid = memblock_get_region_node(reg);
+		nid = memblock_get_region_analde(reg);
 
 		seq_printf(m, "%4d: ", i);
 		seq_printf(m, "%pa..%pa ", &reg->base, &end);
-		if (nid != MAX_NUMNODES)
+		if (nid != MAX_NUMANALDES)
 			seq_printf(m, "%4d ", nid);
 		else
 			seq_printf(m, "%4c ", 'x');
@@ -2280,9 +2280,9 @@ static int memblock_debug_show(struct seq_file *m, void *private)
 				}
 			}
 			if (j == count)
-				seq_printf(m, "%s\n", "UNKNOWN");
+				seq_printf(m, "%s\n", "UNKANALWN");
 		} else {
-			seq_printf(m, "%s\n", "NONE");
+			seq_printf(m, "%s\n", "ANALNE");
 		}
 	}
 	return 0;

@@ -28,7 +28,7 @@ union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op);
  * PARAMETERS:  op              - Get an argument for this op
  *              argn            - Nth argument to get
  *
- * RETURN:      The argument (as an Op object). NULL if argument does not exist
+ * RETURN:      The argument (as an Op object). NULL if argument does analt exist
  *
  * DESCRIPTION: Get the specified op's argument.
  *
@@ -50,7 +50,7 @@ union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn)
 	/* Get the info structure for this opcode */
 
 	op_info = acpi_ps_get_opcode_info(op->common.aml_opcode);
-	if (op_info->class == AML_CLASS_UNKNOWN) {
+	if (op_info->class == AML_CLASS_UNKANALWN) {
 
 		/* Invalid opcode or ASCII character */
 
@@ -61,7 +61,7 @@ union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn)
 
 	if (!(op_info->flags & AML_HAS_ARGS)) {
 
-		/* Has no linked argument objects */
+		/* Has anal linked argument objects */
 
 		return (NULL);
 	}
@@ -84,7 +84,7 @@ union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn)
  * PARAMETERS:  op              - Append an argument to this Op.
  *              arg             - Argument Op to append
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Append an argument to an op's argument list (a NULL arg is OK)
  *
@@ -105,7 +105,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 	/* Get the info structure for this opcode */
 
 	op_info = acpi_ps_get_opcode_info(op->common.aml_opcode);
-	if (op_info->class == AML_CLASS_UNKNOWN) {
+	if (op_info->class == AML_CLASS_UNKANALWN) {
 
 		/* Invalid opcode */
 
@@ -118,7 +118,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 
 	if (!(op_info->flags & AML_HAS_ARGS)) {
 
-		/* Has no linked argument objects */
+		/* Has anal linked argument objects */
 
 		return_VOID;
 	}
@@ -135,7 +135,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 		}
 		prev_arg->common.next = arg;
 	} else {
-		/* No argument list, this will be the first argument */
+		/* Anal argument list, this will be the first argument */
 
 		op->common.value.arg = arg;
 	}
@@ -183,7 +183,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 
 	next = acpi_ps_get_arg(op, 0);
 	if (next) {
-		ASL_CV_LABEL_FILENODE(next);
+		ASL_CV_LABEL_FILEANALDE(next);
 		return (next);
 	}
 
@@ -191,7 +191,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 
 	next = op->common.next;
 	if (next) {
-		ASL_CV_LABEL_FILENODE(next);
+		ASL_CV_LABEL_FILEANALDE(next);
 		return (next);
 	}
 
@@ -203,7 +203,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 		arg = acpi_ps_get_arg(parent, 0);
 		while (arg && (arg != origin) && (arg != op)) {
 
-			ASL_CV_LABEL_FILENODE(arg);
+			ASL_CV_LABEL_FILEANALDE(arg);
 			arg = arg->common.next;
 		}
 
@@ -218,7 +218,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 
 			/* Found sibling of parent */
 
-			ASL_CV_LABEL_FILENODE(parent->common.next);
+			ASL_CV_LABEL_FILEANALDE(parent->common.next);
 			return (parent->common.next);
 		}
 
@@ -226,7 +226,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 		parent = parent->common.parent;
 	}
 
-	ASL_CV_LABEL_FILENODE(next);
+	ASL_CV_LABEL_FILEANALDE(next);
 	return (next);
 }
 
@@ -237,9 +237,9 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
  *
  * PARAMETERS:  op              - Get the child of this Op
  *
- * RETURN:      Child Op, Null if none is found.
+ * RETURN:      Child Op, Null if analne is found.
  *
- * DESCRIPTION: Get op's children or NULL if none
+ * DESCRIPTION: Get op's children or NULL if analne
  *
  ******************************************************************************/
 
@@ -284,7 +284,7 @@ union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op)
 
 	default:
 
-		/* All others have no children */
+		/* All others have anal children */
 
 		break;
 	}

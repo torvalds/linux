@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <regex.h>
 #include <linux/kernel.h>
@@ -127,7 +127,7 @@ static const struct sdt_name_reg sdt_reg_tbl[] = {
  *
  * SDT events also supports indirect addressing mode with a
  * symbol as offset, scaled mode and constants in OP. But
- * perf does not support them yet. Below are few examples.
+ * perf does analt support them yet. Below are few examples.
  *
  * OP with scaled mode:
  *     (%rax,%rsi,8)
@@ -173,9 +173,9 @@ static int sdt_init_op_regex(void)
 #define SDT_REG_NAME_SIZE  6
 
 /*
- * The uprobe parser does not support all gas register names;
+ * The uprobe parser does analt support all gas register names;
  * so, we have to replace them (ex. for x86_64: %rax -> %ax).
- * Note: If register does not require renaming, just copy
+ * Analte: If register does analt require renaming, just copy
  * paste as it is, but don't leave it empty.
  */
 static void sdt_rename_register(char *sdt_reg, int sdt_len, char *uprobe_reg)
@@ -219,7 +219,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 		return ret;
 
 	/*
-	 * If unsupported OR does not match with regex OR
+	 * If unsupported OR does analt match with regex OR
 	 * register name too long, skip it.
 	 */
 	if (strchr(old_op, ',') || strchr(old_op, '$') ||
@@ -231,7 +231,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 
 	/*
 	 * Prepare prefix.
-	 * If SDT OP has parenthesis but does not provide
+	 * If SDT OP has parenthesis but does analt provide
 	 * displacement, add 0 for displacement.
 	 *     SDT         Uprobe     Prefix
 	 *     -----------------------------
@@ -264,7 +264,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 
 	*new_op = zalloc(new_len);
 	if (!*new_op)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scnprintf(*new_op, new_len, "%.*s%.*s%.*s%.*s%.*s",
 		  strlen(prefix), prefix,

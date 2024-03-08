@@ -5,7 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int f1(struct __sk_buff *skb)
 {
 	return skb->len;
@@ -13,13 +13,13 @@ int f1(struct __sk_buff *skb)
 
 int f3(int, struct __sk_buff *skb);
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int f2(int val, struct __sk_buff *skb)
 {
 	return f1(skb) + f3(val, (void *)&val); /* type mismatch */
 }
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int f3(int val, struct __sk_buff *skb)
 {
 	return skb->ifindex * val;

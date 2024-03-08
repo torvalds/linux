@@ -2,7 +2,7 @@
 /*
  * Nuvoton NPCM Serial GPIO Driver
  *
- * Copyright (C) 2021 Nuvoton Technologies
+ * Copyright (C) 2021 Nuvoton Techanallogies
  */
 
 #include <linux/bitfield.h>
@@ -63,7 +63,7 @@ struct npcm_sgpio {
 	void __iomem *base;
 	int irq;
 	u8 nin_sgpio;
-	u8 nout_sgpio;
+	u8 analut_sgpio;
 	u8 in_port;
 	u8 out_port;
 	u8 int_type[MAX_NR_HW_SGPIO];
@@ -172,7 +172,7 @@ static void npcm_sgpio_irqd_to_data(struct irq_data *d,
 	internal = irq_data_get_irq_chip_data(d);
 
 	*gpio = internal;
-	*offset -= internal->nout_sgpio;
+	*offset -= internal->analut_sgpio;
 	*bank = offset_to_bank(*offset);
 	*bit = GPIO_BIT(*offset);
 }
@@ -185,8 +185,8 @@ static int npcm_sgpio_init_port(struct npcm_sgpio *gpio)
 	if (GPIO_BIT(gpio->nin_sgpio) > 0)
 		in_port += 1;
 
-	out_port = GPIO_BANK(gpio->nout_sgpio);
-	if (GPIO_BIT(gpio->nout_sgpio) > 0)
+	out_port = GPIO_BANK(gpio->analut_sgpio);
+	if (GPIO_BIT(gpio->analut_sgpio) > 0)
 		out_port += 1;
 
 	gpio->in_port = in_port;
@@ -205,7 +205,7 @@ static int npcm_sgpio_dir_in(struct gpio_chip *gc, unsigned int offset)
 {
 	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 
-	return offset <	gpio->nout_sgpio ? -EINVAL : 0;
+	return offset <	gpio->analut_sgpio ? -EINVAL : 0;
 
 }
 
@@ -220,7 +220,7 @@ static int npcm_sgpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
 	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 
-	if (offset < gpio->nout_sgpio)
+	if (offset < gpio->analut_sgpio)
 		return GPIO_LINE_DIRECTION_OUT;
 
 	return GPIO_LINE_DIRECTION_IN;
@@ -251,11 +251,11 @@ static int npcm_sgpio_get(struct gpio_chip *gc, unsigned int offset)
 	void __iomem *addr;
 	u8 reg;
 
-	if (offset < gpio->nout_sgpio) {
+	if (offset < gpio->analut_sgpio) {
 		bank = offset_to_bank(offset);
 		addr = bank_reg(gpio, bank, WRITE_DATA);
 	} else {
-		offset -= gpio->nout_sgpio;
+		offset -= gpio->analut_sgpio;
 		bank = offset_to_bank(offset);
 		addr = bank_reg(gpio, bank, READ_DATA);
 	}
@@ -310,8 +310,8 @@ static void npcm_sgpio_irq_init_valid_mask(struct gpio_chip *gc,
 	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 
 	/* input GPIOs in the high range */
-	bitmap_set(valid_mask, gpio->nout_sgpio, gpio->nin_sgpio);
-	bitmap_clear(valid_mask, 0, gpio->nout_sgpio);
+	bitmap_set(valid_mask, gpio->analut_sgpio, gpio->nin_sgpio);
+	bitmap_clear(valid_mask, 0, gpio->analut_sgpio);
 }
 
 static void npcm_sgpio_irq_set_mask(struct irq_data *d, bool set)
@@ -445,7 +445,7 @@ static void npcm_sgpio_irq_handler(struct irq_desc *desc)
 		reg = ioread8(bank_reg(gpio, bank, EVENT_STS));
 		for_each_set_bit(j, &reg, 8) {
 			girq = irq_find_mapping(gc->irq.domain,
-						i * 8 + gpio->nout_sgpio + j);
+						i * 8 + gpio->analut_sgpio + j);
 			generic_handle_domain_irq(gc->irq.domain, girq);
 		}
 	}
@@ -489,7 +489,7 @@ static int npcm_sgpio_setup_irqs(struct npcm_sgpio *gpio,
 	gpio_irq_chip_set_chip(irq, &sgpio_irq_chip);
 	irq->init_valid_mask = npcm_sgpio_irq_init_valid_mask;
 	irq->handler = handle_bad_irq;
-	irq->default_type = IRQ_TYPE_NONE;
+	irq->default_type = IRQ_TYPE_ANALNE;
 	irq->parent_handler = npcm_sgpio_irq_handler;
 	irq->parent_handler_data = gpio;
 	irq->parents = &gpio->irq;
@@ -503,11 +503,11 @@ static int npcm_sgpio_probe(struct platform_device *pdev)
 	struct npcm_sgpio *gpio;
 	const struct npcm_clk_cfg *clk_cfg;
 	int rc;
-	u32 nin_gpios, nout_gpios;
+	u32 nin_gpios, analut_gpios;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio->base))
@@ -520,22 +520,22 @@ static int npcm_sgpio_probe(struct platform_device *pdev)
 	rc = device_property_read_u32(&pdev->dev, "nuvoton,input-ngpios",
 				      &nin_gpios);
 	if (rc < 0)
-		return dev_err_probe(&pdev->dev, rc, "Could not read ngpios property\n");
+		return dev_err_probe(&pdev->dev, rc, "Could analt read ngpios property\n");
 
 	rc = device_property_read_u32(&pdev->dev, "nuvoton,output-ngpios",
-				      &nout_gpios);
+				      &analut_gpios);
 	if (rc < 0)
-		return dev_err_probe(&pdev->dev, rc, "Could not read ngpios property\n");
+		return dev_err_probe(&pdev->dev, rc, "Could analt read ngpios property\n");
 
 	gpio->nin_sgpio = nin_gpios;
-	gpio->nout_sgpio = nout_gpios;
+	gpio->analut_sgpio = analut_gpios;
 	if (gpio->nin_sgpio > MAX_NR_HW_SGPIO ||
-	    gpio->nout_sgpio > MAX_NR_HW_SGPIO)
-		return dev_err_probe(&pdev->dev, -EINVAL, "Number of GPIOs exceeds the maximum of %d: input: %d output: %d\n", MAX_NR_HW_SGPIO, nin_gpios, nout_gpios);
+	    gpio->analut_sgpio > MAX_NR_HW_SGPIO)
+		return dev_err_probe(&pdev->dev, -EINVAL, "Number of GPIOs exceeds the maximum of %d: input: %d output: %d\n", MAX_NR_HW_SGPIO, nin_gpios, analut_gpios);
 
 	gpio->pclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(gpio->pclk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(gpio->pclk), "Could not get pclk\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpio->pclk), "Could analt get pclk\n");
 
 	rc = npcm_sgpio_setup_clk(gpio, clk_cfg);
 	if (rc < 0)
@@ -543,7 +543,7 @@ static int npcm_sgpio_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&gpio->lock);
 	gpio->chip.parent = &pdev->dev;
-	gpio->chip.ngpio = gpio->nin_sgpio + gpio->nout_sgpio;
+	gpio->chip.ngpio = gpio->nin_sgpio + gpio->analut_sgpio;
 	gpio->chip.direction_input = npcm_sgpio_dir_in;
 	gpio->chip.direction_output = npcm_sgpio_dir_out;
 	gpio->chip.get_direction = npcm_sgpio_get_direction;

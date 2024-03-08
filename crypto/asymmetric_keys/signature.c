@@ -55,7 +55,7 @@ int query_asymmetric_key(const struct kernel_pkey_params *params,
 	    !key->payload.data[0])
 		return -EINVAL;
 	if (!subtype->query)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = subtype->query(params, info);
 
@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(decrypt_blob);
  *
  * Sign the specified data blob using the private key specified by params->key.
  * The signature is wrapped in an encoding if params->encoding is specified
- * (eg. "pkcs1").  If the encoding needs to know the digest type, this can be
+ * (eg. "pkcs1").  If the encoding needs to kanalw the digest type, this can be
  * passed through params->hash_algo (eg. "sha512").
  *
  * Returns the length of the data placed in the signature buffer or an error.
@@ -149,7 +149,7 @@ int verify_signature(const struct key *key,
 	    !key->payload.data[0])
 		return -EINVAL;
 	if (!subtype->verify_signature)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = subtype->verify_signature(key, sig);
 

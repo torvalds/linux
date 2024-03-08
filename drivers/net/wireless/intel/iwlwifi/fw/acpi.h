@@ -242,24 +242,24 @@ void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
 					    int func, union acpi_object *args)
 {
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static inline int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 				      const guid_t *guid, u8 *value)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 				       const guid_t *guid, u32 *value)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int iwl_acpi_get_mcc(struct device *dev, char *mcc)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline u64 iwl_acpi_get_pwr_limit(struct device *dev)
@@ -269,24 +269,24 @@ static inline u64 iwl_acpi_get_pwr_limit(struct device *dev)
 
 static inline int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 			   __le16 *per_chain, u32 n_tables, u32 n_subbands,
 			   int prof_a, int prof_b)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
@@ -302,7 +302,7 @@ static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 				   union iwl_tas_config_cmd *cmd, int fw_ver)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
@@ -312,13 +312,13 @@ static inline __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt
 
 static inline int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt,
 				    union iwl_ppag_table_cmd *cmd, int *cmd_size)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)

@@ -66,8 +66,8 @@ static int zynqmp_dpsub_plane_atomic_check(struct drm_plane *plane,
 
 	return drm_atomic_helper_check_plane_state(new_plane_state,
 						   crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   false, false);
 }
 
@@ -122,7 +122,7 @@ static void zynqmp_dpsub_plane_atomic_update(struct drm_plane *plane,
 
 	/* Enable or re-enable the plane if the format has changed. */
 	if (format_changed)
-		zynqmp_disp_layer_enable(layer, ZYNQMP_DPSUB_LAYER_NONLIVE);
+		zynqmp_disp_layer_enable(layer, ZYNQMP_DPSUB_LAYER_ANALNLIVE);
 }
 
 static const struct drm_plane_helper_funcs zynqmp_dpsub_plane_helper_funcs = {
@@ -154,7 +154,7 @@ static int zynqmp_dpsub_create_planes(struct zynqmp_dpsub *dpsub)
 
 		formats = zynqmp_disp_layer_drm_formats(layer, &num_formats);
 		if (!formats)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Graphics layer is primary, and video layer is overlay. */
 		type = i == ZYNQMP_DPSUB_LAYER_VID
@@ -405,7 +405,7 @@ static const struct drm_driver zynqmp_dpsub_drm_driver = {
 	.desc				= "Xilinx DisplayPort Subsystem Driver",
 	.date				= "20130509",
 	.major				= 1,
-	.minor				= 0,
+	.mianalr				= 0,
 };
 
 static int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
@@ -427,10 +427,10 @@ static int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 
 	/* Create the encoder and attach the bridge. */
 	encoder->possible_crtcs |= drm_crtc_mask(&dpsub->drm->crtc);
-	drm_simple_encoder_init(&dpsub->drm->dev, encoder, DRM_MODE_ENCODER_NONE);
+	drm_simple_encoder_init(&dpsub->drm->dev, encoder, DRM_MODE_ENCODER_ANALNE);
 
 	ret = drm_bridge_attach(encoder, dpsub->bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret) {
 		dev_err(dpsub->dev, "failed to attach bridge to encoder\n");
 		return ret;

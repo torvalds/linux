@@ -87,7 +87,7 @@ static const char  * const mod_state_strings[] = {
 static const char *mod_state_to_str(unsigned short mod_state)
 {
 	if (mod_state >= ARRAY_SIZE(mod_state_strings))
-		return "Unknown module state";
+		return "Unkanalwn module state";
 	return mod_state_strings[mod_state];
 }
 
@@ -100,7 +100,7 @@ static const char * const dev_state_strings[] = {
 static const char *dev_state_to_str(unsigned short dev_state)
 {
 	if (dev_state >= ARRAY_SIZE(dev_state_strings))
-		return "Unknown device state";
+		return "Unkanalwn device state";
 	return dev_state_strings[dev_state];
 }
 
@@ -121,7 +121,7 @@ static const char * const event_strings[] = {
 static const char *event_to_str(unsigned short event)
 {
 	if (event >= ARRAY_SIZE(event_strings))
-		return "Unknown event";
+		return "Unkanalwn event";
 	return event_strings[event];
 }
 
@@ -142,7 +142,7 @@ static const char * const sm_state_strings[] = {
 static const char *sm_state_to_str(unsigned short sm_state)
 {
 	if (sm_state >= ARRAY_SIZE(sm_state_strings))
-		return "Unknown state";
+		return "Unkanalwn state";
 	return sm_state_strings[sm_state];
 }
 
@@ -165,7 +165,7 @@ static const enum gpiod_flags gpio_flags[] = {
 };
 
 /* t_start_up (SFF-8431) or t_init (SFF-8472) is the time required for a
- * non-cooled module to initialise its laser safety circuitry. We wait
+ * analn-cooled module to initialise its laser safety circuitry. We wait
  * an initial T_WAIT period before we check the tx fault to give any PHY
  * on board (for a copper SFP) time to initialise.
  */
@@ -180,7 +180,7 @@ static const enum gpiod_flags gpio_flags[] = {
 #define T_FAULT_RECOVER		msecs_to_jiffies(1000)
 
 /* N_FAULT_INIT is the number of recovery attempts at module initialisation
- * time. If the TX_FAULT signal is not deasserted after this number of
+ * time. If the TX_FAULT signal is analt deasserted after this number of
  * attempts at clearing it, we decide that the module is faulty.
  * N_FAULT is the same but after the module has initialised.
  */
@@ -209,14 +209,14 @@ static const enum gpiod_flags gpio_flags[] = {
 
 /* SFP modules appear to always have their PHY configured for bus address
  * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
- * RollBall SFPs access phy via SFP Enhanced Digital Diagnostic Interface
+ * RollBall SFPs access phy via SFP Enhanced Digital Diaganalstic Interface
  * via address 0x51 (mdio-i2c will use RollBall protocol on this address).
  */
 #define SFP_PHY_ADDR		22
 #define SFP_PHY_ADDR_ROLLBALL	17
 
 /* SFP_EEPROM_BLOCK_SIZE is the size of data chunk to read the EEPROM
- * at a time. Some SFP modules and also some Linux I2C drivers do not like
+ * at a time. Some SFP modules and also some Linux I2C drivers do analt like
  * reads longer than 16 bytes.
  */
 #define SFP_EEPROM_BLOCK_SIZE	16
@@ -257,7 +257,7 @@ struct sfp {
 	unsigned int state_hw_drive;
 	unsigned int state_hw_mask;
 	unsigned int state_soft_mask;
-	unsigned int state_ignore_mask;
+	unsigned int state_iganalre_mask;
 	unsigned int state;
 
 	struct delayed_work poll;
@@ -346,24 +346,24 @@ static void sfp_fixup_long_startup(struct sfp *sfp)
 	sfp->module_t_start_up = T_START_UP_BAD_GPON;
 }
 
-static void sfp_fixup_ignore_los(struct sfp *sfp)
+static void sfp_fixup_iganalre_los(struct sfp *sfp)
 {
-	/* This forces LOS to zero, so we ignore transitions */
-	sfp->state_ignore_mask |= SFP_F_LOS;
+	/* This forces LOS to zero, so we iganalre transitions */
+	sfp->state_iganalre_mask |= SFP_F_LOS;
 	/* Make sure that LOS options are clear */
 	sfp->id.ext.options &= ~cpu_to_be16(SFP_OPTIONS_LOS_INVERTED |
-					    SFP_OPTIONS_LOS_NORMAL);
+					    SFP_OPTIONS_LOS_ANALRMAL);
 }
 
-static void sfp_fixup_ignore_tx_fault(struct sfp *sfp)
+static void sfp_fixup_iganalre_tx_fault(struct sfp *sfp)
 {
-	sfp->state_ignore_mask |= SFP_F_TX_FAULT;
+	sfp->state_iganalre_mask |= SFP_F_TX_FAULT;
 }
 
-static void sfp_fixup_nokia(struct sfp *sfp)
+static void sfp_fixup_analkia(struct sfp *sfp)
 {
 	sfp_fixup_long_startup(sfp);
-	sfp_fixup_ignore_los(sfp);
+	sfp_fixup_iganalre_los(sfp);
 }
 
 // For 10GBASE-T short-reach modules
@@ -390,8 +390,8 @@ static void sfp_fixup_fs_10gt(struct sfp *sfp)
 	sfp_fixup_10gbaset_30m(sfp);
 	sfp_fixup_rollball(sfp);
 
-	/* The RollBall fixup is not enough for FS modules, the AQR chip inside
-	 * them does not return 0xffff for PHY ID registers in all MMDs for the
+	/* The RollBall fixup is analt eanalugh for FS modules, the AQR chip inside
+	 * them does analt return 0xffff for PHY ID registers in all MMDs for the
 	 * while initializing. They need a 4 second wait before accessing PHY.
 	 */
 	sfp->module_t_wait = msecs_to_jiffies(4000);
@@ -399,7 +399,7 @@ static void sfp_fixup_fs_10gt(struct sfp *sfp)
 
 static void sfp_fixup_halny_gsfp(struct sfp *sfp)
 {
-	/* Ignore the TX_FAULT and LOS signals on this module.
+	/* Iganalre the TX_FAULT and LOS signals on this module.
 	 * these are possibly used for other purposes on this
 	 * module, e.g. a serial port.
 	 */
@@ -446,7 +446,7 @@ static void sfp_quirk_ubnt_uf_instant(const struct sfp_eeprom_id *id,
 				      unsigned long *interfaces)
 {
 	/* Ubiquiti U-Fiber Instant module claims that support all transceiver
-	 * types including 10G Ethernet which is not truth. So clear all claimed
+	 * types including 10G Ethernet which is analt truth. So clear all claimed
 	 * modes and set only one mode which module supports: 1000baseX_Full.
 	 */
 	linkmode_zero(modes);
@@ -466,7 +466,7 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// Alcatel Lucent G-010S-A can operate at 2500base-X, but report 3.2GBd
 	// NRZ in their EEPROM
 	SFP_QUIRK("ALCATELLUCENT", "3FE46541AA", sfp_quirk_2500basex,
-		  sfp_fixup_nokia),
+		  sfp_fixup_analkia),
 
 	// Fiberstore SFP-10G-T doesn't identify as copper, and uses the
 	// Rollball protocol to talk to the PHY.
@@ -475,7 +475,7 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// Fiberstore GPON-ONU-34-20BI can operate at 2500base-X, but report 1.2GBd
 	// NRZ in their EEPROM
 	SFP_QUIRK("FS", "GPON-ONU-34-20BI", sfp_quirk_2500basex,
-		  sfp_fixup_ignore_tx_fault),
+		  sfp_fixup_iganalre_tx_fault),
 
 	SFP_QUIRK_F("HALNy", "HL-GSFP", sfp_fixup_halny_gsfp),
 
@@ -486,7 +486,7 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// Huawei MA5671A can operate at 2500base-X, but report 1.2GBd NRZ in
 	// their EEPROM
 	SFP_QUIRK("HUAWEI", "MA5671A", sfp_quirk_2500basex,
-		  sfp_fixup_ignore_tx_fault),
+		  sfp_fixup_iganalre_tx_fault),
 
 	// FS 2.5G Base-T
 	SFP_QUIRK_M("FS", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
@@ -661,7 +661,7 @@ static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 	msgs[0].len = 1 + len;
 	msgs[0].buf = kmalloc(1 + len, GFP_KERNEL);
 	if (!msgs[0].buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msgs[0].buf[0] = dev_addr;
 	memcpy(&msgs[0].buf[1], buf, len);
@@ -811,8 +811,8 @@ static void sfp_soft_start_poll(struct sfp *sfp)
 		mask |= sfp->rs_state_mask;
 
 	mutex_lock(&sfp->st_mutex);
-	// Poll the soft state for hardware pins we want to ignore
-	sfp->state_soft_mask = ~sfp->state_hw_mask & ~sfp->state_ignore_mask &
+	// Poll the soft state for hardware pins we want to iganalre
+	sfp->state_soft_mask = ~sfp->state_hw_mask & ~sfp->state_iganalre_mask &
 			       mask;
 
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
@@ -944,9 +944,9 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 	case hwmon_power:
 		/* External calibration of receive power requires
 		 * floating point arithmetic. Doing that in the kernel
-		 * is not easy, so just skip it. If the module does
-		 * not require external calibration, we can however
-		 * show receiver power, since FP is then not needed.
+		 * is analt easy, so just skip it. If the module does
+		 * analt require external calibration, we can however
+		 * show receiver power, since FP is then analt needed.
 		 */
 		if (sfp->id.ext.diagmon & SFP_DIAGMON_EXT_CAL &&
 		    channel == 1)
@@ -1160,10 +1160,10 @@ static int sfp_hwmon_temp(struct sfp *sfp, u32 attr, long *value)
 		*value = !!(status & SFP_ALARM0_TEMP_HIGH);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int sfp_hwmon_vcc(struct sfp *sfp, u32 attr, long *value)
@@ -1227,10 +1227,10 @@ static int sfp_hwmon_vcc(struct sfp *sfp, u32 attr, long *value)
 		*value = !!(status & SFP_ALARM0_VCC_HIGH);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int sfp_hwmon_bias(struct sfp *sfp, u32 attr, long *value)
@@ -1294,10 +1294,10 @@ static int sfp_hwmon_bias(struct sfp *sfp, u32 attr, long *value)
 		*value = !!(status & SFP_ALARM0_TX_BIAS_HIGH);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int sfp_hwmon_tx_power(struct sfp *sfp, u32 attr, long *value)
@@ -1361,10 +1361,10 @@ static int sfp_hwmon_tx_power(struct sfp *sfp, u32 attr, long *value)
 		*value = !!(status & SFP_ALARM0_TXPWR_HIGH);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int sfp_hwmon_rx_power(struct sfp *sfp, u32 attr, long *value)
@@ -1428,10 +1428,10 @@ static int sfp_hwmon_rx_power(struct sfp *sfp, u32 attr, long *value)
 		*value = !!(status & SFP_ALARM1_RXPWR_HIGH);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int sfp_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
@@ -1453,10 +1453,10 @@ static int sfp_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		case 1:
 			return sfp_hwmon_rx_power(sfp, attr, value);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1476,7 +1476,7 @@ static int sfp_hwmon_read_string(struct device *dev,
 			*str = "bias";
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_temp:
@@ -1485,7 +1485,7 @@ static int sfp_hwmon_read_string(struct device *dev,
 			*str = "temperature";
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_in:
@@ -1494,7 +1494,7 @@ static int sfp_hwmon_read_string(struct device *dev,
 			*str = "VCC";
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_power:
@@ -1503,14 +1503,14 @@ static int sfp_hwmon_read_string(struct device *dev,
 			*str = sfp_hwmon_power_labels[channel];
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops sfp_hwmon_ops = {
@@ -1572,16 +1572,16 @@ static void sfp_hwmon_probe(struct work_struct *work)
 	int err;
 
 	/* hwmon interface needs to access 16bit registers in atomic way to
-	 * guarantee coherency of the diagnostic monitoring data. If it is not
+	 * guarantee coherency of the diaganalstic monitoring data. If it is analt
 	 * possible to guarantee coherency because EEPROM is broken in such way
-	 * that does not support atomic 16bit read operation then we have to
+	 * that does analt support atomic 16bit read operation then we have to
 	 * skip registration of hwmon device.
 	 */
 	if (sfp->i2c_block_size < 2) {
 		dev_info(sfp->dev,
 			 "skipping hwmon device registration due to broken EEPROM\n");
 		dev_info(sfp->dev,
-			 "diagnostic EEPROM area cannot be read atomically to guarantee data coherency\n");
+			 "diaganalstic EEPROM area cananalt be read atomically to guarantee data coherency\n");
 		return;
 	}
 
@@ -1785,7 +1785,7 @@ static int sfp_sm_probe_phy(struct sfp *sfp, int addr, bool is_c45)
 	int err;
 
 	phy = get_phy_device(sfp->i2c_mii, addr, is_c45);
-	if (phy == ERR_PTR(-ENODEV))
+	if (phy == ERR_PTR(-EANALDEV))
 		return PTR_ERR(phy);
 	if (IS_ERR(phy)) {
 		dev_err(sfp->dev, "mdiobus scan returned %pe\n", phy);
@@ -1830,17 +1830,17 @@ static void sfp_sm_link_down(struct sfp *sfp)
 static void sfp_sm_link_check_los(struct sfp *sfp)
 {
 	const __be16 los_inverted = cpu_to_be16(SFP_OPTIONS_LOS_INVERTED);
-	const __be16 los_normal = cpu_to_be16(SFP_OPTIONS_LOS_NORMAL);
-	__be16 los_options = sfp->id.ext.options & (los_inverted | los_normal);
+	const __be16 los_analrmal = cpu_to_be16(SFP_OPTIONS_LOS_ANALRMAL);
+	__be16 los_options = sfp->id.ext.options & (los_inverted | los_analrmal);
 	bool los = false;
 
-	/* If neither SFP_OPTIONS_LOS_INVERTED nor SFP_OPTIONS_LOS_NORMAL
-	 * are set, we assume that no LOS signal is available. If both are
-	 * set, we assume LOS is not implemented (and is meaningless.)
+	/* If neither SFP_OPTIONS_LOS_INVERTED analr SFP_OPTIONS_LOS_ANALRMAL
+	 * are set, we assume that anal LOS signal is available. If both are
+	 * set, we assume LOS is analt implemented (and is meaningless.)
 	 */
 	if (los_options == los_inverted)
 		los = !(sfp->state & SFP_F_LOS);
-	else if (los_options == los_normal)
+	else if (los_options == los_analrmal)
 		los = !!(sfp->state & SFP_F_LOS);
 
 	if (los)
@@ -1852,21 +1852,21 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 static bool sfp_los_event_active(struct sfp *sfp, unsigned int event)
 {
 	const __be16 los_inverted = cpu_to_be16(SFP_OPTIONS_LOS_INVERTED);
-	const __be16 los_normal = cpu_to_be16(SFP_OPTIONS_LOS_NORMAL);
-	__be16 los_options = sfp->id.ext.options & (los_inverted | los_normal);
+	const __be16 los_analrmal = cpu_to_be16(SFP_OPTIONS_LOS_ANALRMAL);
+	__be16 los_options = sfp->id.ext.options & (los_inverted | los_analrmal);
 
 	return (los_options == los_inverted && event == SFP_E_LOS_LOW) ||
-	       (los_options == los_normal && event == SFP_E_LOS_HIGH);
+	       (los_options == los_analrmal && event == SFP_E_LOS_HIGH);
 }
 
 static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
 {
 	const __be16 los_inverted = cpu_to_be16(SFP_OPTIONS_LOS_INVERTED);
-	const __be16 los_normal = cpu_to_be16(SFP_OPTIONS_LOS_NORMAL);
-	__be16 los_options = sfp->id.ext.options & (los_inverted | los_normal);
+	const __be16 los_analrmal = cpu_to_be16(SFP_OPTIONS_LOS_ANALRMAL);
+	__be16 los_options = sfp->id.ext.options & (los_inverted | los_analrmal);
 
 	return (los_options == los_inverted && event == SFP_E_LOS_HIGH) ||
-	       (los_options == los_normal && event == SFP_E_LOS_LOW);
+	       (los_options == los_analrmal && event == SFP_E_LOS_LOW);
 }
 
 static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
@@ -1885,17 +1885,17 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 
 static int sfp_sm_add_mdio_bus(struct sfp *sfp)
 {
-	if (sfp->mdio_protocol != MDIO_I2C_NONE)
+	if (sfp->mdio_protocol != MDIO_I2C_ANALNE)
 		return sfp_i2c_mdiobus_create(sfp);
 
 	return 0;
 }
 
 /* Probe a SFP for a PHY device if the module supports copper - the PHY
- * normally sits at I2C bus address 0x56, and may either be a clause 22
+ * analrmally sits at I2C bus address 0x56, and may either be a clause 22
  * or clause 45 PHY.
  *
- * Clause 22 copper SFP modules normally operate in Cisco SGMII mode with
+ * Clause 22 copper SFP modules analrmally operate in Cisco SGMII mode with
  * negotiation enabled, but some may be in 1000base-X - which is for the
  * PHY driver to determine.
  *
@@ -1907,7 +1907,7 @@ static int sfp_sm_probe_for_phy(struct sfp *sfp)
 	int err = 0;
 
 	switch (sfp->mdio_protocol) {
-	case MDIO_I2C_NONE:
+	case MDIO_I2C_ANALNE:
 		break;
 
 	case MDIO_I2C_MARVELL_C22:
@@ -1934,7 +1934,7 @@ static int sfp_module_parse_power(struct sfp *sfp)
 	if (sfp->id.ext.sff8472_compliance >= SFP_SFF8472_COMPLIANCE_REV10_2 &&
 	    sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_POWER_DECL))
 		power_mW = 1500;
-	/* Added in Rev 11.9, but there is no compliance code for this */
+	/* Added in Rev 11.9, but there is anal compliance code for this */
 	if (sfp->id.ext.sff8472_compliance >= SFP_SFF8472_COMPLIANCE_REV11_4 &&
 	    sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_HIGH_POWER_LEVEL))
 		power_mW = 2000;
@@ -1946,23 +1946,23 @@ static int sfp_module_parse_power(struct sfp *sfp)
 	}
 
 	supports_a2 = sfp->id.ext.sff8472_compliance !=
-				SFP_SFF8472_COMPLIANCE_NONE ||
+				SFP_SFF8472_COMPLIANCE_ANALNE ||
 		      sfp->id.ext.diagmon & SFP_DIAGMON_DDM;
 
 	if (power_mW > sfp->max_power_mW) {
 		/* Module power specification exceeds the allowed maximum. */
 		if (!supports_a2) {
-			/* The module appears not to implement bus address
+			/* The module appears analt to implement bus address
 			 * 0xa2, so assume that the module powers up in the
 			 * indicated mode.
 			 */
 			dev_err(sfp->dev,
-				"Host does not support %u.%uW modules\n",
+				"Host does analt support %u.%uW modules\n",
 				power_mW / 1000, (power_mW / 100) % 10);
 			return -EINVAL;
 		} else {
 			dev_warn(sfp->dev,
-				 "Host does not support %u.%uW modules, module left in power mode 1\n",
+				 "Host does analt support %u.%uW modules, module left in power mode 1\n",
 				 power_mW / 1000, (power_mW / 100) % 10);
 			return 0;
 		}
@@ -1970,7 +1970,7 @@ static int sfp_module_parse_power(struct sfp *sfp)
 
 	if (!supports_a2) {
 		/* The module power level is below the host maximum and the
-		 * module appears not to implement bus address 0xa2, so assume
+		 * module appears analt to implement bus address 0xa2, so assume
 		 * that the module powers up in the indicated mode.
 		 */
 		return 0;
@@ -1978,11 +1978,11 @@ static int sfp_module_parse_power(struct sfp *sfp)
 
 	/* If the module requires a higher power mode, but also requires
 	 * an address change sequence, warn the user that the module may
-	 * not be functional.
+	 * analt be functional.
 	 */
 	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE) {
 		dev_warn(sfp->dev,
-			 "Address Change Sequence not supported but module requires %u.%uW, module may not be functional\n",
+			 "Address Change Sequence analt supported but module requires %u.%uW, module may analt be functional\n",
 			 power_mW / 1000, (power_mW / 100) % 10);
 		return 0;
 	}
@@ -2021,11 +2021,11 @@ static void sfp_module_parse_rate_select(struct sfp *sfp)
 	sfp->rs_state_mask = 0;
 
 	if (!(sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_RATE_SELECT)))
-		/* No support for RateSelect */
+		/* Anal support for RateSelect */
 		return;
 
 	/* Default to INF-8074 RateSelect operation. The signalling threshold
-	 * rate is not well specified, so always select "Full Bandwidth", but
+	 * rate is analt well specified, so always select "Full Bandwidth", but
 	 * SFF-8079 reveals that it is understood that RS0 will be low for
 	 * 1.0625Gb/s and high for 2.125Gb/s. Choose a value half-way between.
 	 * This method exists prior to SFF-8472.
@@ -2036,7 +2036,7 @@ static void sfp_module_parse_rate_select(struct sfp *sfp)
 	/* Parse the rate identifier, which is complicated due to history:
 	 * SFF-8472 rev 9.5 marks this field as reserved.
 	 * SFF-8079 references SFF-8472 rev 9.5 and defines bit 0. SFF-8472
-	 *  compliance is not required.
+	 *  compliance is analt required.
 	 * SFF-8472 rev 10.2 defines this field using values 0..4
 	 * SFF-8472 rev 11.0 redefines this field with bit 0 for SFF-8079
 	 * and even values.
@@ -2046,7 +2046,7 @@ static void sfp_module_parse_rate_select(struct sfp *sfp)
 		/* Unspecified */
 		return;
 
-	/* SFF-8472 rev 10.0..10.4 did not account for SFF-8079 using bit 0,
+	/* SFF-8472 rev 10.0..10.4 did analt account for SFF-8079 using bit 0,
 	 * and allocated value 3 to SFF-8431 independent tx/rx rate select.
 	 * Convert this to a SFF-8472 rev 11.0 rate identifier.
 	 */
@@ -2062,7 +2062,7 @@ static void sfp_module_parse_rate_select(struct sfp *sfp)
 		 */
 		if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_APP_SELECT_SFF8079)) {
 			/* SFF-8079 Part 1 - rate selection between Fibre
-			 * Channel 1.0625/2.125/4.25 Gbd modes. Note that RS0
+			 * Channel 1.0625/2.125/4.25 Gbd modes. Analte that RS0
 			 * is high for 2125, so we have to subtract 1 to
 			 * include it.
 			 */
@@ -2072,7 +2072,7 @@ static void sfp_module_parse_rate_select(struct sfp *sfp)
 		return;
 	}
 
-	/* SFF-8472 rev 9.5 does not define the rate identifier */
+	/* SFF-8472 rev 9.5 does analt define the rate identifier */
 	if (sfp->id.ext.sff8472_compliance <= SFP_SFF8472_COMPLIANCE_REV9_5)
 		return;
 
@@ -2104,11 +2104,11 @@ static void sfp_module_parse_rate_select(struct sfp *sfp)
 
 /* GPON modules based on Realtek RTL8672 and RTL9601C chips (e.g. V-SOL
  * V2801F, CarlitoxxPro CPGOS03-0490, Ubiquiti U-Fiber Instant, ...) do
- * not support multibyte reads from the EEPROM. Each multi-byte read
+ * analt support multibyte reads from the EEPROM. Each multi-byte read
  * operation returns just one byte of EEPROM followed by zeros. There is
- * no way to identify which modules are using Realtek RTL8672 and RTL9601C
+ * anal way to identify which modules are using Realtek RTL8672 and RTL9601C
  * chips. Moreover every OEM of V-SOL V2801F module puts its own vendor
- * name and vendor id into EEPROM, so there is even no way to detect if
+ * name and vendor id into EEPROM, so there is even anal way to detect if
  * module is V-SOL V2801F. Therefore check for those zeros in the read
  * data and then based on check switch to reading EEPROM to one byte
  * at a time.
@@ -2169,7 +2169,7 @@ static int sfp_module_parse_sff8472(struct sfp *sfp)
 	/* If the module requires address swap mode, warn about it */
 	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)
 		dev_warn(sfp->dev,
-			 "module address swap to access page 0xA2 is not supported.\n");
+			 "module address swap to access page 0xA2 is analt supported.\n");
 	else
 		sfp->have_a2 = true;
 
@@ -2201,11 +2201,11 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 		return -EAGAIN;
 	}
 
-	/* Some SFP modules (e.g. Nokia 3FE46541AA) lock up if read from
+	/* Some SFP modules (e.g. Analkia 3FE46541AA) lock up if read from
 	 * address 0x51 is just one byte at a time. Also SFF-8472 requires
-	 * that EEPROM supports atomic 16bit read operation for diagnostic
-	 * fields, so do not switch to one byte reading at a time unless it
-	 * is really required and we have no other option.
+	 * that EEPROM supports atomic 16bit read operation for diaganalstic
+	 * fields, so do analt switch to one byte reading at a time unless it
+	 * is really required and we have anal other option.
 	 */
 	if (sfp_id_needs_byte_io(sfp, &id.base, sizeof(id.base))) {
 		dev_info(sfp->dev,
@@ -2230,16 +2230,16 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 		}
 	}
 
-	/* Cotsworks do not seem to update the checksums when they
+	/* Cotsworks do analt seem to update the checksums when they
 	 * do the final programming with the final module part number,
 	 * serial number and date code.
 	 */
 	cotsworks = !memcmp(id.base.vendor_name, "COTSWORKS       ", 16);
 	cotsworks_sfbg = !memcmp(id.base.vendor_pn, "SFBG", 4);
 
-	/* Cotsworks SFF module EEPROM do not always have valid phys_id,
+	/* Cotsworks SFF module EEPROM do analt always have valid phys_id,
 	 * phys_ext_id, and connector bytes.  Rewrite SFF EEPROM bytes if
-	 * Cotsworks PN matches and bytes are not correct.
+	 * Cotsworks PN matches and bytes are analt correct.
 	 */
 	if (cotsworks && cotsworks_sfbg) {
 		ret = sfp_cotsworks_fixup_check(sfp, &id);
@@ -2305,12 +2305,12 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	/* Check whether we support this module */
 	if (!sfp->type->module_supported(&id)) {
 		dev_err(sfp->dev,
-			"module is not supported - phys id 0x%02x 0x%02x\n",
+			"module is analt supported - phys id 0x%02x 0x%02x\n",
 			sfp->id.base.phys_id, sfp->id.base.phys_ext_id);
 		return -EINVAL;
 	}
 
-	if (sfp->id.ext.sff8472_compliance != SFP_SFF8472_COMPLIANCE_NONE) {
+	if (sfp->id.ext.sff8472_compliance != SFP_SFF8472_COMPLIANCE_ANALNE) {
 		ret = sfp_module_parse_sff8472(sfp);
 		if (ret < 0)
 			return ret;
@@ -2339,7 +2339,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	sfp->module_t_wait = T_WAIT;
 	sfp->phy_t_retry = T_PHY_RETRY;
 
-	sfp->state_ignore_mask = 0;
+	sfp->state_iganalre_mask = 0;
 
 	if (sfp->id.base.extended_cc == SFF8024_ECC_10GBASE_T_SFI ||
 	    sfp->id.base.extended_cc == SFF8024_ECC_10GBASE_T_SR ||
@@ -2349,7 +2349,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	else if (sfp->id.base.e1000_base_t)
 		sfp->mdio_protocol = MDIO_I2C_MARVELL_C22;
 	else
-		sfp->mdio_protocol = MDIO_I2C_NONE;
+		sfp->mdio_protocol = MDIO_I2C_ANALNE;
 
 	sfp->quirk = sfp_lookup_quirk(&id);
 
@@ -2363,7 +2363,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	if (sfp->quirk && sfp->quirk->fixup)
 		sfp->quirk->fixup(sfp);
 
-	sfp->state_hw_mask &= ~sfp->state_ignore_mask;
+	sfp->state_hw_mask &= ~sfp->state_iganalre_mask;
 	mutex_unlock(&sfp->st_mutex);
 
 	return 0;
@@ -2572,7 +2572,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		/* Initialise the fault clearance retries */
 		sfp->sm_fault_retries = N_FAULT_INIT;
 
-		/* We need to check the TX_FAULT state, which is not defined
+		/* We need to check the TX_FAULT state, which is analt defined
 		 * while TX_DISABLE is asserted. The earliest we want to do
 		 * anything (such as probe for a PHY) is 50ms (or more on
 		 * specific modules).
@@ -2598,7 +2598,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 
 			sfp_sm_next(sfp, SFP_S_INIT, timeout);
 		} else {
-			/* TX_FAULT is not asserted, assume the module has
+			/* TX_FAULT is analt asserted, assume the module has
 			 * finished initialising.
 			 */
 			goto init_done;
@@ -2633,16 +2633,16 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		 * clear.  Probe for the PHY and check the LOS state.
 		 */
 		ret = sfp_sm_probe_for_phy(sfp);
-		if (ret == -ENODEV) {
+		if (ret == -EANALDEV) {
 			if (--sfp->sm_phy_retries) {
 				sfp_sm_next(sfp, SFP_S_INIT_PHY,
 					    sfp->phy_t_retry);
 				dev_dbg(sfp->dev,
-					"no PHY detected, %u tries left\n",
+					"anal PHY detected, %u tries left\n",
 					sfp->sm_phy_retries);
 				break;
 			} else {
-				dev_info(sfp->dev, "no PHY detected\n");
+				dev_info(sfp->dev, "anal PHY detected\n");
 			}
 		} else if (ret) {
 			sfp_sm_next(sfp, SFP_S_FAIL, 0);
@@ -2784,7 +2784,7 @@ static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
 	int ret;
 
 	if (!(sfp->state & SFP_F_PRESENT))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ee->len == 0)
 		return -EINVAL;
@@ -2819,22 +2819,22 @@ static int sfp_module_eeprom_by_page(struct sfp *sfp,
 				     struct netlink_ext_ack *extack)
 {
 	if (!(sfp->state & SFP_F_PRESENT))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (page->bank) {
-		NL_SET_ERR_MSG(extack, "Banks not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Banks analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (page->page) {
 		NL_SET_ERR_MSG(extack, "Only page 0 supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (page->i2c_address != 0x50 &&
 	    page->i2c_address != 0x51) {
 		NL_SET_ERR_MSG(extack, "Only address 0x50 and 0x51 supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return sfp_read(sfp, page->i2c_address == 0x51, page->offset,
@@ -2924,7 +2924,7 @@ static struct sfp *sfp_alloc(struct device *dev)
 
 	sfp = kzalloc(sizeof(*sfp), GFP_KERNEL);
 	if (!sfp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sfp->dev = dev;
 	sfp->i2c_block_size = SFP_EEPROM_BLOCK_SIZE;
@@ -2958,17 +2958,17 @@ static void sfp_cleanup(void *data)
 
 static int sfp_i2c_get(struct sfp *sfp)
 {
-	struct fwnode_handle *h;
+	struct fwanalde_handle *h;
 	struct i2c_adapter *i2c;
 	int err;
 
-	h = fwnode_find_reference(dev_fwnode(sfp->dev), "i2c-bus", 0);
+	h = fwanalde_find_reference(dev_fwanalde(sfp->dev), "i2c-bus", 0);
 	if (IS_ERR(h)) {
 		dev_err(sfp->dev, "missing 'i2c-bus' property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	i2c = i2c_get_adapter_by_fwnode(h);
+	i2c = i2c_get_adapter_by_fwanalde(h);
 	if (!i2c) {
 		err = -EPROBE_DEFER;
 		goto put;
@@ -2978,7 +2978,7 @@ static int sfp_i2c_get(struct sfp *sfp)
 	if (err)
 		i2c_put_adapter(i2c);
 put:
-	fwnode_handle_put(h);
+	fwanalde_handle_put(h);
 	return err;
 }
 
@@ -3023,7 +3023,7 @@ static int sfp_probe(struct platform_device *pdev)
 	sfp->get_state = sfp_gpio_get_state;
 	sfp->set_state = sfp_gpio_set_state;
 
-	/* Modules that have no detect signal are always present */
+	/* Modules that have anal detect signal are always present */
 	if (!(sfp->gpio[GPIO_MODDEF0]))
 		sfp->get_state = sff_gpio_get_state;
 
@@ -3040,7 +3040,7 @@ static int sfp_probe(struct platform_device *pdev)
 		 sfp->max_power_mW / 1000, (sfp->max_power_mW / 100) % 10);
 
 	/* Get the initial state, and always signal TX disable,
-	 * since the network interface will not be up.
+	 * since the network interface will analt be up.
 	 */
 	sfp->state = sfp_get_state(sfp) | SFP_F_TX_DISABLE;
 
@@ -3071,7 +3071,7 @@ static int sfp_probe(struct platform_device *pdev)
 					      gpio_names[i]);
 
 		if (!sfp_irq_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		err = devm_request_threaded_irq(sfp->dev, sfp->gpio_irq[i],
 						NULL, sfp_irq,
@@ -3088,18 +3088,18 @@ static int sfp_probe(struct platform_device *pdev)
 	if (sfp->need_poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
 
-	/* We could have an issue in cases no Tx disable pin is available or
+	/* We could have an issue in cases anal Tx disable pin is available or
 	 * wired as modules using a laser as their light source will continue to
 	 * be active when the fiber is removed. This could be a safety issue and
 	 * we should at least warn the user about that.
 	 */
 	if (!sfp->gpio[GPIO_TX_DISABLE])
 		dev_warn(sfp->dev,
-			 "No tx_disable pin: SFP modules will always be emitting.\n");
+			 "Anal tx_disable pin: SFP modules will always be emitting.\n");
 
 	sfp->sfp_bus = sfp_register_socket(sfp->dev, sfp, &sfp_module_ops);
 	if (!sfp->sfp_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sfp_debugfs_init(sfp);
 

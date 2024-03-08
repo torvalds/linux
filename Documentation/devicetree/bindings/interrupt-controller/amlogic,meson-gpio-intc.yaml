@@ -13,8 +13,8 @@ description: |
   Meson SoCs contains an interrupt controller which is able to watch the SoC
   pads and generate an interrupt on edge or level. The controller is essentially
   a 256 pads to 8 or 12 GIC interrupt multiplexer, with a filter block to select
-  edge or level and polarity. It does not expose all 256 mux inputs because the
-  documentation shows that the upper part is not mapped to any pad. The actual
+  edge or level and polarity. It does analt expose all 256 mux inputs because the
+  documentation shows that the upper part is analt mapped to any pad. The actual
   number of interrupts exposed depends on the SoC.
 
 allOf:

@@ -43,10 +43,10 @@ u8 iscsit_tmr_abort_task(
 			" %hu.\n", hdr->rtt, conn->cid);
 		return (iscsi_sna_gte(be32_to_cpu(hdr->refcmdsn), conn->sess->exp_cmd_sn) &&
 			iscsi_sna_lte(be32_to_cpu(hdr->refcmdsn), (u32) atomic_read(&conn->sess->max_cmd_sn))) ?
-			ISCSI_TMF_RSP_COMPLETE : ISCSI_TMF_RSP_NO_TASK;
+			ISCSI_TMF_RSP_COMPLETE : ISCSI_TMF_RSP_ANAL_TASK;
 	}
 	if (ref_cmd->cmd_sn != be32_to_cpu(hdr->refcmdsn)) {
-		pr_err("RefCmdSN 0x%08x does not equal"
+		pr_err("RefCmdSN 0x%08x does analt equal"
 			" task's CmdSN 0x%08x. Rejecting ABORT_TASK.\n",
 			hdr->refcmdsn, ref_cmd->cmd_sn);
 		return ISCSI_TMF_RSP_REJECTED;
@@ -68,12 +68,12 @@ int iscsit_tmr_task_warm_reset(
 	unsigned char *buf)
 {
 	struct iscsit_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
+	struct iscsi_analde_attrib *na = iscsit_tpg_get_analde_attrib(sess);
 
 	if (!na->tmr_warm_reset) {
 		pr_err("TMR Opcode TARGET_WARM_RESET authorization"
-			" failed for Initiator Node: %s\n",
-			sess->se_sess->se_node_acl->initiatorname);
+			" failed for Initiator Analde: %s\n",
+			sess->se_sess->se_analde_acl->initiatorname);
 		return -1;
 	}
 	/*
@@ -88,12 +88,12 @@ int iscsit_tmr_task_cold_reset(
 	unsigned char *buf)
 {
 	struct iscsit_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
+	struct iscsi_analde_attrib *na = iscsit_tpg_get_analde_attrib(sess);
 
 	if (!na->tmr_cold_reset) {
 		pr_err("TMR Opcode TARGET_COLD_RESET authorization"
-			" failed for Initiator Node: %s\n",
-			sess->se_sess->se_node_acl->initiatorname);
+			" failed for Initiator Analde: %s\n",
+			sess->se_sess->se_analde_acl->initiatorname);
 		return -1;
 	}
 	/*
@@ -119,9 +119,9 @@ u8 iscsit_tmr_task_reassign(
 		hdr->itt, hdr->rtt, hdr->exp_datasn, conn->cid);
 
 	if (conn->sess->sess_ops->ErrorRecoveryLevel != 2) {
-		pr_err("TMR TASK_REASSIGN not supported in ERL<2,"
-				" ignoring request.\n");
-		return ISCSI_TMF_RSP_NOT_SUPPORTED;
+		pr_err("TMR TASK_REASSIGN analt supported in ERL<2,"
+				" iganalring request.\n");
+		return ISCSI_TMF_RSP_ANALT_SUPPORTED;
 	}
 
 	ret = iscsit_find_cmd_for_recovery(conn->sess, &ref_cmd, &cr, hdr->rtt);
@@ -132,7 +132,7 @@ u8 iscsit_tmr_task_reassign(
 	} else if (ret == -1) {
 		pr_err("Unable to locate RefTaskTag: 0x%08x in"
 			" connection recovery command list.\n", hdr->rtt);
-		return ISCSI_TMF_RSP_NO_TASK;
+		return ISCSI_TMF_RSP_ANAL_TASK;
 	}
 	/*
 	 * Temporary check to prevent connection recovery for
@@ -167,7 +167,7 @@ u8 iscsit_tmr_task_reassign(
 	tmr_req->conn_recovery		= cr;
 	tmr_req->task_reassign		= 1;
 	/*
-	 * Command can now be reassigned to a new connection.
+	 * Command can analw be reassigned to a new connection.
 	 * The task management response must be sent before the
 	 * reassignment actually happens.  See iscsi_tmr_post_handler().
 	 */
@@ -191,7 +191,7 @@ static void iscsit_task_reassign_remove_cmd(
 	}
 }
 
-static int iscsit_task_reassign_complete_nop_out(
+static int iscsit_task_reassign_complete_analp_out(
 	struct iscsi_tmr_req *tmr_req,
 	struct iscsit_conn *conn)
 {
@@ -215,10 +215,10 @@ static int iscsit_task_reassign_complete_nop_out(
 	iscsit_task_reassign_remove_cmd(cmd, cr, conn->sess);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
+	list_add_tail(&cmd->i_conn_analde, &conn->conn_cmd_list);
 	spin_unlock_bh(&conn->cmd_lock);
 
-	cmd->i_state = ISTATE_SEND_NOPIN;
+	cmd->i_state = ISTATE_SEND_ANALPIN;
 	iscsit_add_cmd_to_response_queue(cmd, conn, cmd->i_state);
 	return 0;
 }
@@ -227,12 +227,12 @@ static int iscsit_task_reassign_complete_write(
 	struct iscsit_cmd *cmd,
 	struct iscsi_tmr_req *tmr_req)
 {
-	int no_build_r2ts = 0;
+	int anal_build_r2ts = 0;
 	u32 length = 0, offset = 0;
 	struct iscsit_conn *conn = cmd->conn;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	/*
-	 * The Initiator must not send a R2T SNACK with a Begrun less than
+	 * The Initiator must analt send a R2T SNACK with a Begrun less than
 	 * the TMR TASK_REASSIGN's ExpDataSN.
 	 */
 	if (!tmr_req->exp_data_sn) {
@@ -246,7 +246,7 @@ static int iscsit_task_reassign_complete_write(
 	/*
 	 * The TMR TASK_REASSIGN's ExpDataSN contains the next R2TSN the
 	 * Initiator is expecting.  The Target controls all WRITE operations
-	 * so if we have received all DataOUT we can safety ignore Initiator.
+	 * so if we have received all DataOUT we can safety iganalre Initiator.
 	 */
 	if (cmd->cmd_flags & ICF_GOT_LAST_DATAOUT) {
 		if (!(cmd->se_cmd.transport_state & CMD_T_SENT)) {
@@ -263,7 +263,7 @@ static int iscsit_task_reassign_complete_write(
 	}
 
 	/*
-	 * Special case to deal with DataSequenceInOrder=No and Non-Immeidate
+	 * Special case to deal with DataSequenceInOrder=Anal and Analn-Immeidate
 	 * Unsolicited DataOut.
 	 */
 	if (cmd->unsolicited_data) {
@@ -273,7 +273,7 @@ static int iscsit_task_reassign_complete_write(
 
 		if ((conn->sess->sess_ops->FirstBurstLength - offset) >=
 		     cmd->se_cmd.data_length) {
-			no_build_r2ts = 1;
+			anal_build_r2ts = 1;
 			length = (cmd->se_cmd.data_length - offset);
 		} else
 			length = (conn->sess->sess_ops->FirstBurstLength - offset);
@@ -286,7 +286,7 @@ static int iscsit_task_reassign_complete_write(
 		cmd->outstanding_r2ts++;
 		spin_unlock_bh(&cmd->r2t_lock);
 
-		if (no_build_r2ts)
+		if (anal_build_r2ts)
 			return 0;
 	}
 	/*
@@ -303,7 +303,7 @@ static int iscsit_task_reassign_complete_read(
 	struct iscsi_datain_req *dr;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	/*
-	 * The Initiator must not send a Data SNACK with a BegRun less than
+	 * The Initiator must analt send a Data SNACK with a BegRun less than
 	 * the TMR TASK_REASSIGN's ExpDataSN.
 	 */
 	if (!tmr_req->exp_data_sn) {
@@ -348,7 +348,7 @@ static int iscsit_task_reassign_complete_read(
 	return 0;
 }
 
-static int iscsit_task_reassign_complete_none(
+static int iscsit_task_reassign_complete_analne(
 	struct iscsit_cmd *cmd,
 	struct iscsi_tmr_req *tmr_req)
 {
@@ -383,7 +383,7 @@ static int iscsit_task_reassign_complete_scsi_cmnd(
 	iscsit_task_reassign_remove_cmd(cmd, cr, conn->sess);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
+	list_add_tail(&cmd->i_conn_analde, &conn->conn_cmd_list);
 	spin_unlock_bh(&conn->cmd_lock);
 
 	if (cmd->se_cmd.se_cmd_flags & SCF_SENT_CHECK_CONDITION) {
@@ -397,10 +397,10 @@ static int iscsit_task_reassign_complete_scsi_cmnd(
 		return iscsit_task_reassign_complete_write(cmd, tmr_req);
 	case DMA_FROM_DEVICE:
 		return iscsit_task_reassign_complete_read(cmd, tmr_req);
-	case DMA_NONE:
-		return iscsit_task_reassign_complete_none(cmd, tmr_req);
+	case DMA_ANALNE:
+		return iscsit_task_reassign_complete_analne(cmd, tmr_req);
 	default:
-		pr_err("Unknown cmd->data_direction: 0x%02x\n",
+		pr_err("Unkanalwn cmd->data_direction: 0x%02x\n",
 				cmd->data_direction);
 		return -1;
 	}
@@ -424,8 +424,8 @@ static int iscsit_task_reassign_complete(
 	cmd->conn = conn;
 
 	switch (cmd->iscsi_opcode) {
-	case ISCSI_OP_NOOP_OUT:
-		ret = iscsit_task_reassign_complete_nop_out(tmr_req, conn);
+	case ISCSI_OP_ANALOP_OUT:
+		ret = iscsit_task_reassign_complete_analp_out(tmr_req, conn);
 		break;
 	case ISCSI_OP_SCSI_CMD:
 		ret = iscsit_task_reassign_complete_scsi_cmnd(tmr_req, conn);
@@ -448,7 +448,7 @@ static int iscsit_task_reassign_complete(
 
 /*
  *	Handles special after-the-fact actions related to TMRs.
- *	Right now the only one that its really needed for is
+ *	Right analw the only one that its really needed for is
  *	connection recovery releated TASK_REASSIGN.
  */
 int iscsit_tmr_post_handler(struct iscsit_cmd *cmd, struct iscsit_conn *conn)
@@ -465,7 +465,7 @@ int iscsit_tmr_post_handler(struct iscsit_cmd *cmd, struct iscsit_conn *conn)
 EXPORT_SYMBOL(iscsit_tmr_post_handler);
 
 /*
- *	Nothing to do here, but leave it for good measure. :-)
+ *	Analthing to do here, but leave it for good measure. :-)
  */
 static int iscsit_task_reassign_prepare_read(
 	struct iscsi_tmr_req *tmr_req,
@@ -509,7 +509,7 @@ static void iscsit_task_reassign_prepare_unsolicited_dataout(
 			     cmd->seq_end_offset)) {
 				cmd->first_burst_len -= pdu->length;
 				cmd->write_data_done -= pdu->length;
-				pdu->status = ISCSI_PDU_NOT_RECEIVED;
+				pdu->status = ISCSI_PDU_ANALT_RECEIVED;
 			}
 		}
 	} else {
@@ -536,7 +536,7 @@ static void iscsit_task_reassign_prepare_unsolicited_dataout(
 				if (pdu->status != ISCSI_PDU_RECEIVED_OK)
 					continue;
 
-				pdu->status = ISCSI_PDU_NOT_RECEIVED;
+				pdu->status = ISCSI_PDU_ANALT_RECEIVED;
 			}
 		}
 	}
@@ -560,20 +560,20 @@ static int iscsit_task_reassign_prepare_write(
 
 	/*
 	 * The Initiator is requesting R2Ts starting from zero,  skip
-	 * checking acknowledged R2Ts and start checking struct iscsi_r2ts
+	 * checking ackanalwledged R2Ts and start checking struct iscsi_r2ts
 	 * greater than zero.
 	 */
 	if (!tmr_req->exp_data_sn)
-		goto drop_unacknowledged_r2ts;
+		goto drop_unackanalwledged_r2ts;
 
 	/*
-	 * We now check that the PDUs in DataOUT sequences below
+	 * We analw check that the PDUs in DataOUT sequences below
 	 * the TMR TASK_REASSIGN ExpDataSN (R2TSN the Initiator is
 	 * expecting next) have all the DataOUT they require to complete
 	 * the DataOUT sequence.  First scan from R2TSN 0 to TMR
 	 * TASK_REASSIGN ExpDataSN-1.
 	 *
-	 * If we have not received all DataOUT in question,  we must
+	 * If we have analt received all DataOUT in question,  we must
 	 * make sure to make the appropriate changes to values in
 	 * struct iscsit_cmd (and elsewhere depending on session parameters)
 	 * so iscsit_build_r2ts_for_cmd() in iscsit_task_reassign_complete_write()
@@ -590,7 +590,7 @@ static int iscsit_task_reassign_prepare_write(
 		if (r2t->r2t_sn >= tmr_req->exp_data_sn)
 			continue;
 		/*
-		 * Safely ignore Recovery R2Ts and R2Ts that have completed
+		 * Safely iganalre Recovery R2Ts and R2Ts that have completed
 		 * DataOUT sequences.
 		 */
 		if (r2t->seq_complete)
@@ -600,34 +600,34 @@ static int iscsit_task_reassign_prepare_write(
 			continue;
 
 		/*
-		 *                 DataSequenceInOrder=Yes:
+		 *                 DataSequenceInOrder=Anal:
 		 *
 		 * Taking into account the iSCSI implementation requirement of
 		 * MaxOutstandingR2T=1 while ErrorRecoveryLevel>0 and
-		 * DataSequenceInOrder=Yes, we must take into consideration
+		 * DataSequenceInOrder=Anal, we must take into consideration
 		 * the following:
 		 *
-		 *                  DataSequenceInOrder=No:
+		 *                  DataSequenceInOrder=Anal:
 		 *
 		 * Taking into account that the Initiator controls the (possibly
 		 * random) PDU Order in (possibly random) Sequence Order of
 		 * DataOUT the target requests with R2Ts,  we must take into
 		 * consideration the following:
 		 *
-		 *      DataPDUInOrder=Yes for DataSequenceInOrder=[Yes,No]:
+		 *      DataPDUInOrder=Anal for DataSequenceInOrder=[Anal,Anal]:
 		 *
-		 * While processing non-complete R2T DataOUT sequence requests
+		 * While processing analn-complete R2T DataOUT sequence requests
 		 * the Target will re-request only the total sequence length
 		 * minus current received offset.  This is because we must
 		 * assume the initiator will continue sending DataOUT from the
 		 * last PDU before the connection failed.
 		 *
-		 *      DataPDUInOrder=No for DataSequenceInOrder=[Yes,No]:
+		 *      DataPDUInOrder=Anal for DataSequenceInOrder=[Anal,Anal]:
 		 *
-		 * While processing non-complete R2T DataOUT sequence requests
+		 * While processing analn-complete R2T DataOUT sequence requests
 		 * the Target will re-request the entire DataOUT sequence if
 		 * any single PDU is missing from the sequence.  This is because
-		 * we have no logical method to determine the next PDU offset,
+		 * we have anal logical method to determine the next PDU offset,
 		 * and we must assume the Initiator will be sending any random
 		 * PDU offset in the current sequence after TASK_REASSIGN
 		 * has completed.
@@ -660,7 +660,7 @@ static int iscsit_task_reassign_prepare_write(
 						r2t->xfer_len))) {
 					cmd->next_burst_len -= pdu->length;
 					cmd->write_data_done -= pdu->length;
-					pdu->status = ISCSI_PDU_NOT_RECEIVED;
+					pdu->status = ISCSI_PDU_ANALT_RECEIVED;
 				}
 			}
 
@@ -693,7 +693,7 @@ static int iscsit_task_reassign_prepare_write(
 				if (pdu->status != ISCSI_PDU_RECEIVED_OK)
 					continue;
 
-				pdu->status = ISCSI_PDU_NOT_RECEIVED;
+				pdu->status = ISCSI_PDU_ANALT_RECEIVED;
 			}
 		}
 
@@ -703,16 +703,16 @@ next:
 	spin_unlock_bh(&cmd->r2t_lock);
 
 	/*
-	 * We now drop all unacknowledged R2Ts, ie: ExpDataSN from TMR
+	 * We analw drop all unackanalwledged R2Ts, ie: ExpDataSN from TMR
 	 * TASK_REASSIGN to the last R2T in the list..  We are also careful
-	 * to check that the Initiator is not requesting R2Ts for DataOUT
+	 * to check that the Initiator is analt requesting R2Ts for DataOUT
 	 * sequences it has already completed.
 	 *
 	 * Free each R2T in question and adjust values in struct iscsit_cmd
 	 * accordingly so iscsit_build_r2ts_for_cmd() do the rest of
 	 * the work after the TMR TASK_REASSIGN Response is sent.
 	 */
-drop_unacknowledged_r2ts:
+drop_unackanalwledged_r2ts:
 
 	cmd->cmd_flags &= ~ICF_SENT_LAST_R2T;
 	cmd->r2t_sn = tmr_req->exp_data_sn;
@@ -742,14 +742,14 @@ drop_unacknowledged_r2ts:
 			continue;
 		}
 
-		/*		   DataSequenceInOrder=Yes:
+		/*		   DataSequenceInOrder=Anal:
 		 *
 		 * Taking into account the iSCSI implementation requirement of
 		 * MaxOutstandingR2T=1 while ErrorRecoveryLevel>0 and
-		 * DataSequenceInOrder=Yes, it's safe to subtract the R2Ts
+		 * DataSequenceInOrder=Anal, it's safe to subtract the R2Ts
 		 * entire transfer length from the commands R2T offset marker.
 		 *
-		 *		   DataSequenceInOrder=No:
+		 *		   DataSequenceInOrder=Anal:
 		 *
 		 * We subtract the difference from struct iscsi_seq between the
 		 * current offset and original offset from cmd->write_data_done
@@ -787,15 +787,15 @@ int iscsit_check_task_reassign_expdatasn(
 	if (ref_cmd->se_cmd.se_cmd_flags & SCF_SENT_CHECK_CONDITION)
 		return 0;
 
-	if (ref_cmd->data_direction == DMA_NONE)
+	if (ref_cmd->data_direction == DMA_ANALNE)
 		return 0;
 
 	/*
 	 * For READs the TMR TASK_REASSIGNs ExpDataSN contains the next DataSN
 	 * of DataIN the Initiator is expecting.
 	 *
-	 * Also check that the Initiator is not re-requesting DataIN that has
-	 * already been acknowledged with a DataAck SNACK.
+	 * Also check that the Initiator is analt re-requesting DataIN that has
+	 * already been ackanalwledged with a DataAck SNACK.
 	 */
 	if (ref_cmd->data_direction == DMA_FROM_DEVICE) {
 		if (tmr_req->exp_data_sn > ref_cmd->data_sn) {
@@ -809,7 +809,7 @@ int iscsit_check_task_reassign_expdatasn(
 		    (tmr_req->exp_data_sn <= ref_cmd->acked_data_sn)) {
 			pr_err("Received ExpDataSN: 0x%08x for READ"
 				" in TMR TASK_REASSIGN for previously"
-				" acknowledged DataIN: 0x%08x,"
+				" ackanalwledged DataIN: 0x%08x,"
 				" protocol error\n", tmr_req->exp_data_sn,
 				ref_cmd->acked_data_sn);
 			return -1;
@@ -834,7 +834,7 @@ int iscsit_check_task_reassign_expdatasn(
 		return iscsit_task_reassign_prepare_write(tmr_req, conn);
 	}
 
-	pr_err("Unknown iSCSI data_direction: 0x%02x\n",
+	pr_err("Unkanalwn iSCSI data_direction: 0x%02x\n",
 			ref_cmd->data_direction);
 
 	return -1;

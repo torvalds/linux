@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_PCIE_AUX_REGS_H_
@@ -90,13 +90,13 @@
 
 #define mmPCIE_AUX_RCB 0x4C0721C
 
-#define mmPCIE_AUX_PM_NO_SOFT_RST 0x4C07220
+#define mmPCIE_AUX_PM_ANAL_SOFT_RST 0x4C07220
 
 #define mmPCIE_AUX_PBUS_NUM 0x4C07224
 
 #define mmPCIE_AUX_PBUS_DEV_NUM 0x4C07228
 
-#define mmPCIE_AUX_NO_SNOOP_EN 0x4C0722C
+#define mmPCIE_AUX_ANAL_SANALOP_EN 0x4C0722C
 
 #define mmPCIE_AUX_RELAX_ORDER_EN 0x4C07230
 

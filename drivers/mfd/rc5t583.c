@@ -19,7 +19,7 @@
 #include <linux/mfd/rc5t583.h>
 #include <linux/regmap.h>
 
-#define RICOH_ONOFFSEL_REG	0x10
+#define RICOH_OANALFFSEL_REG	0x10
 #define RICOH_SWCTL_REG		0x5E
 
 struct deepsleep_control_data {
@@ -93,10 +93,10 @@ static int __rc5t583_set_ext_pwrreq1_control(struct device *dev,
 	sleepseq_val &= ~(0xF << en_bit);
 	sleepseq_val |= BIT(en_bit);
 	sleepseq_val |= ((slots & 0x7) << slot_bit);
-	ret = rc5t583_set_bits(dev, RICOH_ONOFFSEL_REG, BIT(1));
+	ret = rc5t583_set_bits(dev, RICOH_OANALFFSEL_REG, BIT(1));
 	if (ret < 0) {
 		dev_err(dev, "Error in updating the 0x%02x register\n",
-				RICOH_ONOFFSEL_REG);
+				RICOH_OANALFFSEL_REG);
 		return ret;
 	}
 
@@ -126,9 +126,9 @@ static int __rc5t583_set_ext_pwrreq2_control(struct device *dev,
 		return -EINVAL;
 	}
 
-	ret = rc5t583_set_bits(dev, RICOH_ONOFFSEL_REG, BIT(2));
+	ret = rc5t583_set_bits(dev, RICOH_OANALFFSEL_REG, BIT(2));
 	if (ret < 0)
-		dev_err(dev, "Error in updating the ONOFFSEL 0x10 register\n");
+		dev_err(dev, "Error in updating the OANALFFSEL 0x10 register\n");
 	return ret;
 }
 
@@ -156,14 +156,14 @@ static int rc5t583_clear_ext_power_req(struct rc5t583 *rc5t583,
 	int i;
 	uint8_t on_off_val = 0;
 
-	/*  Clear ONOFFSEL register */
+	/*  Clear OANALFFSEL register */
 	if (pdata->enable_shutdown)
 		on_off_val = 0x1;
 
-	ret = rc5t583_write(rc5t583->dev, RICOH_ONOFFSEL_REG, on_off_val);
+	ret = rc5t583_write(rc5t583->dev, RICOH_OANALFFSEL_REG, on_off_val);
 	if (ret < 0)
 		dev_warn(rc5t583->dev, "Error in writing reg %d error: %d\n",
-					RICOH_ONOFFSEL_REG, ret);
+					RICOH_OANALFFSEL_REG, ret);
 
 	ret = rc5t583_write(rc5t583->dev, RICOH_SWCTL_REG, 0x0);
 	if (ret < 0)
@@ -240,13 +240,13 @@ static int rc5t583_i2c_probe(struct i2c_client *i2c)
 	int ret;
 
 	if (!pdata) {
-		dev_err(&i2c->dev, "Err: Platform data not found\n");
+		dev_err(&i2c->dev, "Err: Platform data analt found\n");
 		return -EINVAL;
 	}
 
 	rc5t583 = devm_kzalloc(&i2c->dev, sizeof(*rc5t583), GFP_KERNEL);
 	if (!rc5t583)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc5t583->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, rc5t583);

@@ -83,7 +83,7 @@
 			voltage-tolerance = <1>; /* 1% */
 			clock-latency = <300000>; /* 300 us */
 
-			/* kHz - uV - OPPs unknown yet */
+			/* kHz - uV - OPPs unkanalwn yet */
 			operating-points = <1400000 1000000>,
 					   <1225000 1000000>,
 					   <1050000 1000000>,
@@ -105,7 +105,7 @@
 			voltage-tolerance = <1>; /* 1% */
 			clock-latency = <300000>; /* 300 us */
 
-			/* kHz - uV - OPPs unknown yet */
+			/* kHz - uV - OPPs unkanalwn yet */
 			operating-points = <1400000 1000000>,
 					   <1225000 1000000>,
 					   <1050000 1000000>,
@@ -127,7 +127,7 @@
 			voltage-tolerance = <1>; /* 1% */
 			clock-latency = <300000>; /* 300 us */
 
-			/* kHz - uV - OPPs unknown yet */
+			/* kHz - uV - OPPs unkanalwn yet */
 			operating-points = <1400000 1000000>,
 					   <1225000 1000000>,
 					   <1050000 1000000>,
@@ -149,7 +149,7 @@
 			voltage-tolerance = <1>; /* 1% */
 			clock-latency = <300000>; /* 300 us */
 
-			/* kHz - uV - OPPs unknown yet */
+			/* kHz - uV - OPPs unkanalwn yet */
 			operating-points = <1400000 1000000>,
 					   <1225000 1000000>,
 					   <1050000 1000000>,

@@ -11,7 +11,7 @@ Contents
 ========
 
 - Identifying Your Adapter
-- Known Issues
+- Kanalwn Issues
 - Support
 
 This driver supports 82599, X540, X550, and X552-based virtual function devices
@@ -38,14 +38,14 @@ For information on how to identify your adapter, and for the latest Intel
 network drivers, refer to the Intel Support website:
 https://www.intel.com/support
 
-Known Issues/Troubleshooting
+Kanalwn Issues/Troubleshooting
 ============================
 
 SR-IOV requires the correct platform and OS support.
 
 The guest OS loading this driver must support MSI-X interrupts.
 
-This driver is only supported as a loadable module at this time. Intel is not
+This driver is only supported as a loadable module at this time. Intel is analt
 supplying patches against the kernel source to allow for static linking of the
 drivers.
 

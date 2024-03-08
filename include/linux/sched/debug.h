@@ -42,7 +42,7 @@ extern void proc_sched_show_task(struct task_struct *p,
 extern void proc_sched_set_task(struct task_struct *p);
 #endif
 
-/* Attach to any functions which should be ignored in wchan output. */
+/* Attach to any functions which should be iganalred in wchan output. */
 #define __sched		__section(".sched.text")
 
 /* Linker adds these: start and end of __sched functions */

@@ -73,7 +73,7 @@ static struct clk_hw
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.ops = &ti_syscon_gate_clk_ops;
 	if (parent_name) {
@@ -118,7 +118,7 @@ static int ti_syscon_gate_clk_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	regmap = device_node_to_regmap(dev->of_node);
+	regmap = device_analde_to_regmap(dev->of_analde);
 	if (IS_ERR(regmap))
 		return dev_err_probe(dev, PTR_ERR(regmap),
 				     "failed to get regmap\n");
@@ -127,8 +127,8 @@ static int ti_syscon_gate_clk_probe(struct platform_device *pdev)
 	for (p = data; p->name; p++)
 		num_clks++;
 
-	num_parents = of_clk_get_parent_count(dev->of_node);
-	if (of_device_is_compatible(dev->of_node, "ti,am62-audio-refclk") &&
+	num_parents = of_clk_get_parent_count(dev->of_analde);
+	if (of_device_is_compatible(dev->of_analde, "ti,am62-audio-refclk") &&
 	    num_parents == 0) {
 		return dev_err_probe(dev, -EINVAL,
 				     "must specify a parent clock\n");
@@ -137,11 +137,11 @@ static int ti_syscon_gate_clk_probe(struct platform_device *pdev)
 	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, num_clks),
 			       GFP_KERNEL);
 	if (!hw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw_data->num = num_clks;
 
-	parent_name = of_clk_get_parent_name(dev->of_node, 0);
+	parent_name = of_clk_get_parent_name(dev->of_analde, 0);
 	for (i = 0; i < num_clks; i++) {
 		hw_data->hws[i] = ti_syscon_gate_clk_register(dev, regmap,
 							      parent_name,

@@ -20,7 +20,7 @@ struct snd_ar_control {
 	u32 sgid; /* Sub Graph ID */
 	u32 module_instance_id; /* Connected Module Instance ID */
 	struct snd_soc_dapm_widget *w;
-	struct list_head node;
+	struct list_head analde;
 	struct snd_soc_component *scomp;
 };
 
@@ -43,7 +43,7 @@ static struct audioreach_graph_info *audioreach_tplg_alloc_graph_info(struct q6a
 	*found = false;
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&info->sg_list);
 
@@ -65,7 +65,7 @@ static struct audioreach_graph_info *audioreach_tplg_alloc_graph_info(struct q6a
 static void audioreach_tplg_add_sub_graph(struct audioreach_sub_graph *sg,
 					  struct audioreach_graph_info *info)
 {
-	list_add_tail(&sg->node, &info->sg_list);
+	list_add_tail(&sg->analde, &info->sg_list);
 	sg->info = info;
 	info->num_sub_graphs++;
 }
@@ -93,7 +93,7 @@ static struct audioreach_sub_graph *audioreach_tplg_alloc_sub_graph(struct q6apm
 	*found = false;
 	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
 	if (!sg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&sg->container_list);
 
@@ -135,7 +135,7 @@ static struct audioreach_container *audioreach_tplg_alloc_container(struct q6apm
 
 	cont = kzalloc(sizeof(*cont), GFP_KERNEL);
 	if (!cont)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&cont->modules_list);
 
@@ -152,7 +152,7 @@ static struct audioreach_container *audioreach_tplg_alloc_container(struct q6apm
 	cont->container_id = container_id;
 	cont->sub_graph = sg;
 	/* add to container list */
-	list_add_tail(&cont->node, &sg->container_list);
+	list_add_tail(&cont->analde, &sg->container_list);
 	sg->num_containers++;
 
 	return cont;
@@ -177,7 +177,7 @@ static struct audioreach_module *audioreach_tplg_alloc_module(struct q6apm *apm,
 	*found = false;
 	mod = kzalloc(sizeof(*mod), GFP_KERNEL);
 	if (!mod)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&apm->lock);
 	if (!module_id) { /* alloc module id dynamically */
@@ -197,7 +197,7 @@ static struct audioreach_module *audioreach_tplg_alloc_module(struct q6apm *apm,
 
 	mod->instance_id = module_id;
 	/* add to module list */
-	list_add_tail(&mod->node, &cont->modules_list);
+	list_add_tail(&mod->analde, &cont->modules_list);
 	mod->container = cont;
 	mod->widget = w;
 	cont->num_modules++;
@@ -346,7 +346,7 @@ static struct audioreach_sub_graph *audioreach_parse_sg_tokens(struct q6apm *apm
 			sg->scenario_id = le32_to_cpu(sg_elem->value);
 			break;
 		default:
-			dev_err(apm->dev, "Not a valid token %d for graph\n", sg_elem->token);
+			dev_err(apm->dev, "Analt a valid token %d for graph\n", sg_elem->token);
 			break;
 
 		}
@@ -395,7 +395,7 @@ static struct audioreach_container *audioreach_parse_cont_tokens(struct q6apm *a
 			cont->proc_domain = le32_to_cpu(cont_elem->value);
 			break;
 		default:
-			dev_err(apm->dev, "Not a valid token %d for graph\n", cont_elem->token);
+			dev_err(apm->dev, "Analt a valid token %d for graph\n", cont_elem->token);
 			break;
 
 		}
@@ -782,7 +782,7 @@ static int audioreach_widget_load_mixer(struct snd_soc_component *component,
 
 	scontrol = kzalloc(sizeof(*scontrol), GFP_KERNEL);
 	if (!scontrol)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scontrol->scomp = component;
 	dobj = &w->dobj;
@@ -797,7 +797,7 @@ static int audioreach_widget_load_mixer(struct snd_soc_component *component,
 		case AR_TKN_DAI_INDEX:
 			scontrol->graph_id = le32_to_cpu(w_elem->value);
 			break;
-		default: /* ignore other tokens */
+		default: /* iganalre other tokens */
 			break;
 		}
 		tkn_count++;
@@ -805,7 +805,7 @@ static int audioreach_widget_load_mixer(struct snd_soc_component *component,
 	}
 
 	scontrol->w = w;
-	list_add_tail(&scontrol->node, &data->widget_list);
+	list_add_tail(&scontrol->analde, &data->widget_list);
 
 	return 0;
 }
@@ -855,7 +855,7 @@ static int audioreach_widget_load_pga(struct snd_soc_component *component,
 					     ARRAY_SIZE(audioreach_widget_ops),
 					     le16_to_cpu(tplg_w->event_type));
 	if (ret) {
-		dev_err(component->dev, "matching event handlers NOT found for %d\n",
+		dev_err(component->dev, "matching event handlers ANALT found for %d\n",
 			le16_to_cpu(tplg_w->event_type));
 		return -EINVAL;
 	}
@@ -888,7 +888,7 @@ static int audioreach_widget_ready(struct snd_soc_component *component,
 	case snd_soc_dapm_scheduler:
 	case snd_soc_dapm_out_drv:
 	default:
-		dev_err(component->dev, "Widget type (0x%x) not yet supported\n", w->id);
+		dev_err(component->dev, "Widget type (0x%x) analt yet supported\n", w->id);
 		break;
 	}
 
@@ -910,7 +910,7 @@ static int audioreach_widget_unload(struct snd_soc_component *scomp,
 		/* virtual widget */
 		struct snd_ar_control *scontrol = dobj->private;
 
-		list_del(&scontrol->node);
+		list_del(&scontrol->analde);
 		kfree(scontrol);
 		return 0;
 	}
@@ -919,25 +919,25 @@ static int audioreach_widget_unload(struct snd_soc_component *scomp,
 	idr_remove(&apm->modules_idr, mod->instance_id);
 	cont->num_modules--;
 
-	list_del(&mod->node);
+	list_del(&mod->analde);
 	kfree(mod);
 	/* Graph Info has N sub-graphs, sub-graph has N containers, Container has N Modules */
-	if (list_empty(&cont->modules_list)) { /* if no modules in the container then remove it */
+	if (list_empty(&cont->modules_list)) { /* if anal modules in the container then remove it */
 		struct audioreach_sub_graph *sg = cont->sub_graph;
 
 		idr_remove(&apm->containers_idr, cont->container_id);
-		list_del(&cont->node);
+		list_del(&cont->analde);
 		sg->num_containers--;
 		kfree(cont);
-		/* check if there are no more containers in the sub graph and remove it */
+		/* check if there are anal more containers in the sub graph and remove it */
 		if (list_empty(&sg->container_list)) {
 			struct audioreach_graph_info *info = sg->info;
 
 			idr_remove(&apm->sub_graphs_idr, sg->sub_graph_id);
-			list_del(&sg->node);
+			list_del(&sg->analde);
 			info->num_sub_graphs--;
 			kfree(sg);
-			/* Check if there are no more sub-graphs left then remove graph info */
+			/* Check if there are anal more sub-graphs left then remove graph info */
 			if (list_empty(&info->sg_list)) {
 				idr_remove(&apm->graph_info_idr, info->id);
 				kfree(info);
@@ -956,7 +956,7 @@ static struct snd_ar_control *audioreach_find_widget(struct snd_soc_component *c
 	struct q6apm *apm = dev_get_drvdata(comp->dev);
 	struct snd_ar_control *control;
 
-	list_for_each_entry(control, &apm->widget_list, node) {
+	list_for_each_entry(control, &apm->widget_list, analde) {
 		if (control->w && !strcmp(name, control->w->name))
 			return control;
 	}
@@ -1039,10 +1039,10 @@ static int audioreach_link_load(struct snd_soc_component *component, int index,
 				struct snd_soc_dai_link *link,
 				struct snd_soc_tplg_link_config *cfg)
 {
-	link->nonatomic = true;
+	link->analnatomic = true;
 	link->dynamic = true;
 	link->platforms->name = NULL;
-	link->platforms->of_node = of_get_compatible_child(component->dev->of_node,
+	link->platforms->of_analde = of_get_compatible_child(component->dev->of_analde,
 							   "qcom,q6apm-dais");
 	return 0;
 }
@@ -1177,7 +1177,7 @@ static int audioreach_control_load_mix(struct snd_soc_component *scomp,
 			scontrol->graph_id = le32_to_cpu(c_elem->value);
 			break;
 		default:
-			/* Ignore other tokens */
+			/* Iganalre other tokens */
 			break;
 		}
 		c_elem++;
@@ -1198,7 +1198,7 @@ static int audioreach_control_load(struct snd_soc_component *scomp, int index,
 
 	scontrol = kzalloc(sizeof(*scontrol), GFP_KERNEL);
 	if (!scontrol)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scontrol->scomp = scomp;
 
@@ -1213,7 +1213,7 @@ static int audioreach_control_load(struct snd_soc_component *scomp, int index,
 		dobj = &sm->dobj;
 		break;
 	default:
-		dev_warn(scomp->dev, "control type not supported %d:%d:%d\n",
+		dev_warn(scomp->dev, "control type analt supported %d:%d:%d\n",
 			 hdr->ops.get, hdr->ops.put, hdr->ops.info);
 		kfree(scontrol);
 		return -EINVAL;
@@ -1268,7 +1268,7 @@ int audioreach_tplg_init(struct snd_soc_component *component)
 	/* Inline with Qualcomm UCM configs and linux-firmware path */
 	tplg_fw_name = kasprintf(GFP_KERNEL, "qcom/%s/%s-tplg.bin", card->driver_name, card->name);
 	if (!tplg_fw_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_firmware(&fw, tplg_fw_name, dev);
 	if (ret < 0) {

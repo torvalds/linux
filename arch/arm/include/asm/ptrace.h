@@ -169,7 +169,7 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 }
 
 /*
- * Update ITSTATE after normal execution of an IT block instruction.
+ * Update ITSTATE after analrmal execution of an IT block instruction.
  *
  * The 8 IT state bits are split into two parts in CPSR:
  *	ITSTATE<1:0> are in CPSR<26:25>

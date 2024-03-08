@@ -9,9 +9,9 @@ Required properties:
 - reg: register specifiers of MPP, MPP4, and PMU MPP registers
 
 Available mpp pins/groups and functions:
-Note: brackets (x) are not part of the mpp name for marvell,function and given
+Analte: brackets (x) are analt part of the mpp name for marvell,function and given
 only for more detailed description in this document.
-Note: pmu* also allows for Power Management functions listed below
+Analte: pmu* also allows for Power Management functions listed below
 
 name          pins     functions
 ================================================================================
@@ -58,10 +58,10 @@ mpp_spi0      58-61    gpio, spi0
 mpp_uart1     62-63    gpio, uart1
 mpp_nand      64-71    gpo, nand
 audio0        -        i2s, ac97
-twsi          -        none, opt1, opt2, opt3
+twsi          -        analne, opt1, opt2, opt3
 
 Power Management functions (pmu*):
-pmu-nc               Pin not driven by any PM function
+pmu-nc               Pin analt driven by any PM function
 pmu-low              Pin driven low (0)
 pmu-high             Pin driven high (1)
 pmic(sdi)            Pin is used for PMIC SDI
@@ -75,16 +75,16 @@ ext1-wakeup          Pin is used for EXT0_WU
 ext2-wakeup          Pin is used for EXT0_WU
 pmu-blink            Pin is used for blink function
 
-Notes:
+Analtes:
 * group "mpp_audio1" allows the following functions and gpio pins:
   - gpio          : gpio on pins 52-57
-  - i2s1/spdifo   : audio1 i2s on pins 52-55 and spdifo on 57, no gpios
+  - i2s1/spdifo   : audio1 i2s on pins 52-55 and spdifo on 57, anal gpios
   - i2s1          : audio1 i2s on pins 52-55, gpio on pins 56,57
   - spdifo        : spdifo on pin 57, gpio on pins 52-55
   - twsi          : twsi on pins 56,57, gpio on pins 52-55
-  - ssp/spdifo    : ssp on pins 52-55, spdifo on pin 57, no gpios
+  - ssp/spdifo    : ssp on pins 52-55, spdifo on pin 57, anal gpios
   - ssp           : ssp on pins 52-55, gpio on pins 56,57
-  - ssp/twsi      : ssp on pins 52-55, twsi on pins 56,57, no gpios
+  - ssp/twsi      : ssp on pins 52-55, twsi on pins 56,57, anal gpios
 * group "audio0" internally muxes i2s0 or ac97 controller to the dedicated
   audio0 pins.
 * group "twsi" internally muxes twsi controller to the dedicated or option pins.

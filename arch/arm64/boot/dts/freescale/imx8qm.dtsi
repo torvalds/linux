@@ -260,7 +260,7 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>, /* Physical Secure */
-			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>, /* Physical Non-Secure */
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>, /* Physical Analn-Secure */
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>, /* Virtual */
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>; /* Hypervisor */
 	};
@@ -322,10 +322,10 @@
 				map0 {
 					trip = <&cpu_alert0>;
 					cooling-device =
-						<&A53_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A53_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -353,8 +353,8 @@
 				map0 {
 					trip = <&cpu_alert1>;
 					cooling-device =
-						<&A72_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A72_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A72_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A72_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

@@ -32,7 +32,7 @@
  *
  * The standard 64 (N32) calling sequence is supported, with a0 holding
  * a function pointer, a1 a pointer to the new stack to call the
- * function with or 0 if no stack switching is requested, a2-a7 -- the
+ * function with or 0 if anal stack switching is requested, a2-a7 -- the
  * function call's first six arguments, and the stack -- the remaining
  * arguments (up to O32_ARGC, including a2-a7).  Static registers, gp
  * and fp are preserved, v0 holds the result.  This code relies on the

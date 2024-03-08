@@ -53,7 +53,7 @@ struct bcm7038_l1_cpu {
 };
 
 /*
- * STATUS/MASK_STATUS/MASK_SET/MASK_CLEAR are packed one right after another:
+ * STATUS/MASK_STATUS/MASK_SET/MASK_CLEAR are packed one right after aanalther:
  *
  * 7038:
  *   0x1000_1400: W0_STATUS
@@ -219,7 +219,7 @@ static int bcm7038_l1_set_affinity(struct irq_data *d,
 }
 #endif
 
-static int __init bcm7038_l1_init_one(struct device_node *dn,
+static int __init bcm7038_l1_init_one(struct device_analde *dn,
 				      unsigned int idx,
 				      struct bcm7038_l1_chip *intc)
 {
@@ -252,11 +252,11 @@ static int __init bcm7038_l1_init_one(struct device_node *dn,
 	cpu = intc->cpus[idx] = kzalloc(sizeof(*cpu) + n_words * sizeof(u32),
 					GFP_KERNEL);
 	if (!cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu->map_base = ioremap(res.start, sz);
 	if (!cpu->map_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n_words; i++) {
 		l1_writel(~intc->irq_fwd_mask[i],
@@ -284,9 +284,9 @@ static int __init bcm7038_l1_init_one(struct device_node *dn,
 #ifdef CONFIG_PM_SLEEP
 /*
  * We keep a list of bcm7038_l1_chip used for suspend/resume. This hack is
- * used because the struct chip_type suspend/resume hooks are not called
+ * used because the struct chip_type suspend/resume hooks are analt called
  * unless chip_type is hooked onto a generic_chip. Since this driver does
- * not use generic_chip, we need to manually hook our resume/suspend to
+ * analt use generic_chip, we need to manually hook our resume/suspend to
  * syscore_ops.
  */
 static LIST_HEAD(bcm7038_l1_intcs_list);
@@ -395,15 +395,15 @@ static const struct irq_domain_ops bcm7038_l1_domain_ops = {
 	.map			= bcm7038_l1_map,
 };
 
-static int __init bcm7038_l1_of_init(struct device_node *dn,
-			      struct device_node *parent)
+static int __init bcm7038_l1_of_init(struct device_analde *dn,
+			      struct device_analde *parent)
 {
 	struct bcm7038_l1_chip *intc;
 	int idx, ret;
 
 	intc = kzalloc(sizeof(*intc), GFP_KERNEL);
 	if (!intc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&intc->lock);
 	for_each_possible_cpu(idx) {
@@ -420,7 +420,7 @@ static int __init bcm7038_l1_of_init(struct device_node *dn,
 					     &bcm7038_l1_domain_ops,
 					     intc);
 	if (!intc->domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "comm.h"
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,7 +11,7 @@
 
 struct comm_str {
 	char *str;
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	refcount_t refcnt;
 };
 
@@ -21,7 +21,7 @@ static struct rw_semaphore comm_str_lock = {.lock = PTHREAD_RWLOCK_INITIALIZER,}
 
 static struct comm_str *comm_str__get(struct comm_str *cs)
 {
-	if (cs && refcount_inc_not_zero(&cs->refcnt))
+	if (cs && refcount_inc_analt_zero(&cs->refcnt))
 		return cs;
 
 	return NULL;
@@ -31,7 +31,7 @@ static void comm_str__put(struct comm_str *cs)
 {
 	if (cs && refcount_dec_and_test(&cs->refcnt)) {
 		down_write(&comm_str_lock);
-		rb_erase(&cs->rb_node, &comm_str_root);
+		rb_erase(&cs->rb_analde, &comm_str_root);
 		up_write(&comm_str_lock);
 		zfree(&cs->str);
 		free(cs);
@@ -60,19 +60,19 @@ static struct comm_str *comm_str__alloc(const char *str)
 static
 struct comm_str *__comm_str__findnew(const char *str, struct rb_root *root)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct comm_str *iter, *new;
 	int cmp;
 
 	while (*p != NULL) {
 		parent = *p;
-		iter = rb_entry(parent, struct comm_str, rb_node);
+		iter = rb_entry(parent, struct comm_str, rb_analde);
 
 		/*
 		 * If we race with comm_str__put, iter->refcnt is 0
 		 * and it will be removed within comm_str__put call
-		 * shortly, ignore it in this search.
+		 * shortly, iganalre it in this search.
 		 */
 		cmp = strcmp(str, iter->str);
 		if (!cmp && comm_str__get(iter))
@@ -88,8 +88,8 @@ struct comm_str *__comm_str__findnew(const char *str, struct rb_root *root)
 	if (!new)
 		return NULL;
 
-	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, root);
+	rb_link_analde(&new->rb_analde, parent, p);
+	rb_insert_color(&new->rb_analde, root);
 
 	return new;
 }
@@ -130,7 +130,7 @@ int comm__override(struct comm *comm, const char *str, u64 timestamp, bool exec)
 
 	new = comm_str__findnew(str, &comm_str_root);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	comm_str__put(old);
 	comm->comm_str = new;

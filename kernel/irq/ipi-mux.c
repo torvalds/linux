@@ -30,7 +30,7 @@ static void ipi_mux_mask(struct irq_data *d)
 {
 	struct ipi_mux_cpu *icpu = this_cpu_ptr(ipi_mux_pcpu);
 
-	atomic_andnot(BIT(irqd_to_hwirq(d)), &icpu->enable);
+	atomic_andanalt(BIT(irqd_to_hwirq(d)), &icpu->enable);
 }
 
 static void ipi_mux_unmask(struct irq_data *d)
@@ -66,7 +66,7 @@ static void ipi_mux_send_mask(struct irq_data *d, const struct cpumask *mask)
 		 * see the comment there. Additionally, release semantics
 		 * ensure that the vIPI flag set is ordered after any shared
 		 * memory accesses that precede it. This therefore also pairs
-		 * with the atomic_fetch_andnot in ipi_mux_process().
+		 * with the atomic_fetch_andanalt in ipi_mux_process().
 		 */
 		pending = atomic_fetch_or_release(ibit, &icpu->bits);
 
@@ -79,7 +79,7 @@ static void ipi_mux_send_mask(struct irq_data *d, const struct cpumask *mask)
 
 		/*
 		 * The flag writes must complete before the physical IPI is
-		 * issued to another CPU. This is implied by the control
+		 * issued to aanalther CPU. This is implied by the control
 		 * dependency on the result of atomic_read() below, which is
 		 * itself already ordered after the vIPI flag write.
 		 */
@@ -125,7 +125,7 @@ void ipi_mux_process(void)
 	unsigned int en;
 
 	/*
-	 * Reading enable mask does not need to be ordered as long as
+	 * Reading enable mask does analt need to be ordered as long as
 	 * this function is called from interrupt handler because only
 	 * the CPU itself can change it's own enable mask.
 	 */
@@ -135,7 +135,7 @@ void ipi_mux_process(void)
 	 * Clear the IPIs we are about to handle. This pairs with the
 	 * atomic_fetch_or_release() in ipi_mux_send_mask().
 	 */
-	ipis = atomic_fetch_andnot(en, &icpu->bits) & en;
+	ipis = atomic_fetch_andanalt(en, &icpu->bits) & en;
 
 	for_each_set_bit(hwirq, &ipis, BITS_PER_TYPE(int))
 		generic_handle_domain_irq(ipi_mux_domain, hwirq);
@@ -153,7 +153,7 @@ void ipi_mux_process(void)
  */
 int ipi_mux_create(unsigned int nr_ipi, void (*mux_send)(unsigned int cpu))
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct irq_domain *domain;
 	int rc;
 
@@ -165,27 +165,27 @@ int ipi_mux_create(unsigned int nr_ipi, void (*mux_send)(unsigned int cpu))
 
 	ipi_mux_pcpu = alloc_percpu(typeof(*ipi_mux_pcpu));
 	if (!ipi_mux_pcpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	fwnode = irq_domain_alloc_named_fwnode("IPI-Mux");
-	if (!fwnode) {
-		pr_err("unable to create IPI Mux fwnode\n");
-		rc = -ENOMEM;
+	fwanalde = irq_domain_alloc_named_fwanalde("IPI-Mux");
+	if (!fwanalde) {
+		pr_err("unable to create IPI Mux fwanalde\n");
+		rc = -EANALMEM;
 		goto fail_free_cpu;
 	}
 
-	domain = irq_domain_create_linear(fwnode, nr_ipi,
+	domain = irq_domain_create_linear(fwanalde, nr_ipi,
 					  &ipi_mux_domain_ops, NULL);
 	if (!domain) {
 		pr_err("unable to add IPI Mux domain\n");
-		rc = -ENOMEM;
-		goto fail_free_fwnode;
+		rc = -EANALMEM;
+		goto fail_free_fwanalde;
 	}
 
 	domain->flags |= IRQ_DOMAIN_FLAG_IPI_SINGLE;
 	irq_domain_update_bus_token(domain, DOMAIN_BUS_IPI);
 
-	rc = irq_domain_alloc_irqs(domain, nr_ipi, NUMA_NO_NODE, NULL);
+	rc = irq_domain_alloc_irqs(domain, nr_ipi, NUMA_ANAL_ANALDE, NULL);
 	if (rc <= 0) {
 		pr_err("unable to alloc IRQs from IPI Mux domain\n");
 		goto fail_free_domain;
@@ -198,8 +198,8 @@ int ipi_mux_create(unsigned int nr_ipi, void (*mux_send)(unsigned int cpu))
 
 fail_free_domain:
 	irq_domain_remove(domain);
-fail_free_fwnode:
-	irq_domain_free_fwnode(fwnode);
+fail_free_fwanalde:
+	irq_domain_free_fwanalde(fwanalde);
 fail_free_cpu:
 	free_percpu(ipi_mux_pcpu);
 	return rc;

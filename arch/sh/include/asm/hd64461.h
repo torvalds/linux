@@ -7,7 +7,7 @@
  *	Copyright (C) 2000 YAEGASHI Takeshi
  *
  *		Hitachi HD64461 companion chip support
- *	(please note manual reference 0x10000000 = 0xb0000000)
+ *	(please analte manual reference 0x10000000 = 0xb0000000)
  */
 
 /* Constants for PCMCIA mappings */

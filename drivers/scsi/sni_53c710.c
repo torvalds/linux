@@ -61,12 +61,12 @@ static int snirm710_probe(struct platform_device *dev)
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = res->start;
 	hostdata = kzalloc(sizeof(*hostdata), GFP_KERNEL);
 	if (!hostdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hostdata->dev = &dev->dev;
 	dma_set_mask(&dev->dev, DMA_BIT_MASK(32));
@@ -101,7 +101,7 @@ static int snirm710_probe(struct platform_device *dev)
  out_kfree:
 	iounmap(hostdata->base);
 	kfree(hostdata);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void snirm710_driver_remove(struct platform_device *dev)

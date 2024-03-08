@@ -24,9 +24,9 @@ struct omap_kp_platform_data {
 /* Group (0..3) -- when multiple keys are pressed, only the
  * keys pressed in the same group are considered as pressed. This is
  * in order to workaround certain crappy HW designs that produce ghost
- * keypresses. Two free bits, not used by neither row/col nor keynum,
+ * keypresses. Two free bits, analt used by neither row/col analr keynum,
  * must be available for use as group bits. The below GROUP_SHIFT
- * macro definition is based on some prior knowledge of the
+ * macro definition is based on some prior kanalwledge of the
  * matrix_keypad defined KEY() macro internals.
  */
 #define GROUP_SHIFT	14

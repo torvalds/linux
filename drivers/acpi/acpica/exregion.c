@@ -45,7 +45,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 	u32 length;
 	acpi_size map_length;
 	acpi_size page_boundary_map_length;
-#ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#ifdef ACPI_MISALIGNMENT_ANALT_SUPPORTED
 	u32 remainder;
 #endif
 
@@ -81,9 +81,9 @@ acpi_ex_system_memory_space_handler(u32 function,
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
 
-#ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#ifdef ACPI_MISALIGNMENT_ANALT_SUPPORTED
 	/*
-	 * Hardware does not support non-aligned data transfers, we must verify
+	 * Hardware does analt support analn-aligned data transfers, we must verify
 	 * the request.
 	 */
 	(void)acpi_ut_short_divide((u64) address, length, NULL, &remainder);
@@ -100,7 +100,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 	if (!mm || (address < mm->physical_address) ||
 	    ((u64) address + length > (u64) mm->physical_address + mm->length)) {
 		/*
-		 * The request cannot be resolved by the current memory mapping.
+		 * The request cananalt be resolved by the current memory mapping.
 		 *
 		 * Look for an existing saved mapping covering the address range
 		 * at hand.  If found, save it as the current one and carry out
@@ -127,20 +127,20 @@ acpi_ex_system_memory_space_handler(u32 function,
 			ACPI_ERROR((AE_INFO,
 				    "Unable to save memory mapping at 0x%8.8X%8.8X, size %u",
 				    ACPI_FORMAT_UINT64(address), length));
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		/*
 		 * October 2009: Attempt to map from the requested address to the
 		 * end of the region. However, we will never map more than one
-		 * page, nor will we cross a page boundary.
+		 * page, analr will we cross a page boundary.
 		 */
 		map_length = (acpi_size)
 		    ((mem_info->address + mem_info->length) - address);
 
 		/*
 		 * If mapping the entire remaining portion of the region will cross
-		 * a page boundary, just map up to the page boundary, do not cross.
+		 * a page boundary, just map up to the page boundary, do analt cross.
 		 * On some systems, crossing a page boundary while mapping regions
 		 * can cause warnings if the pages have different attributes
 		 * due to resource management.
@@ -164,11 +164,11 @@ acpi_ex_system_memory_space_handler(u32 function,
 		logical_addr_ptr = acpi_os_map_memory(address, map_length);
 		if (!logical_addr_ptr) {
 			ACPI_ERROR((AE_INFO,
-				    "Could not map memory at 0x%8.8X%8.8X, size %u",
+				    "Could analt map memory at 0x%8.8X%8.8X, size %u",
 				    ACPI_FORMAT_UINT64(address),
 				    (u32)map_length));
 			ACPI_FREE(mm);
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		/* Save the physical address and mapping size */
@@ -202,8 +202,8 @@ access:
 	/*
 	 * Perform the memory read or write
 	 *
-	 * Note: For machines that do not support non-aligned transfers, the target
-	 * address was checked for alignment above. We do not attempt to break the
+	 * Analte: For machines that do analt support analn-aligned transfers, the target
+	 * address was checked for alignment above. We do analt attempt to break the
 	 * transfer up into smaller (byte-size) chunks because the AML specifically
 	 * asked for a transfer width that the hardware may require.
 	 */

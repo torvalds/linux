@@ -64,7 +64,7 @@ struct sysinfo_1_2_2 {
 	unsigned char :3;
 	unsigned char mt_gtid :5;
 	char reserved_1[18];
-	unsigned int nominal_cap;
+	unsigned int analminal_cap;
 	unsigned int secondary_cap;
 	unsigned int capability;
 	unsigned short cpus_total;

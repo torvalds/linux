@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
- *  vineetg: May 2011: for Non-aliasing VIPT D-cache following can be NOPs
+ *  vineetg: May 2011: for Analn-aliasing VIPT D-cache following can be ANALPs
  *   -flush_cache_dup_mm (fork)
  *   -likewise for flush_cache_mm (exit/execve)
  *   -likewise for flush_cache_{range,page} (munmap, exit, COW-break)
  *
  *  vineetg: April 2008
  *   -Added a critical CacheLine flush to copy_to_user_page( ) which
- *     was causing gdbserver to not setup breakpoints consistently
+ *     was causing gdbserver to analt setup breakpoints consistently
  */
 
 #ifndef _ASM_CACHEFLUSH_H

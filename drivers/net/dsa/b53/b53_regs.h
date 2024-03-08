@@ -6,11 +6,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -68,7 +68,7 @@
 #define   PORT_CTRL_RX_MCST_EN		BIT(3) /* Multicast RX (P8 only) */
 #define   PORT_CTRL_RX_UCST_EN		BIT(4) /* Unicast RX (P8 only) */
 #define	  PORT_CTRL_STP_STATE_S		5
-#define   PORT_CTRL_NO_STP		(0 << PORT_CTRL_STP_STATE_S)
+#define   PORT_CTRL_ANAL_STP		(0 << PORT_CTRL_STP_STATE_S)
 #define   PORT_CTRL_DIS_STATE		(1 << PORT_CTRL_STP_STATE_S)
 #define   PORT_CTRL_BLOCK_STATE		(2 << PORT_CTRL_STP_STATE_S)
 #define   PORT_CTRL_LISTEN_STATE	(3 << PORT_CTRL_STP_STATE_S)
@@ -121,7 +121,7 @@
  * Override Ports 0-7 State on devices with xMII interfaces (8 bit)
  *
  * For port 8 still use B53_PORT_OVERRIDE_CTRL
- * Please note that not all ports are available on every hardware, e.g. BCM5301X
+ * Please analte that analt all ports are available on every hardware, e.g. BCM5301X
  * don't include overriding port 6, BCM63xx also have some limitations.
  */
 #define B53_GMII_PORT_OVERRIDE_CTRL(i)	(0x58 + (i))
@@ -220,7 +220,7 @@
 /* Mirror capture control register (16 bit) */
 #define B53_MIR_CAP_CTL			0x10
 #define  CAP_PORT_MASK			0xf
-#define  BLK_NOT_MIR			BIT(14)
+#define  BLK_ANALT_MIR			BIT(14)
 #define  MIRROR_EN			BIT(15)
 
 /* Ingress mirror control register (16 bit) */
@@ -382,7 +382,7 @@
 /* VLAN Control 0 (8 bit) */
 #define B53_VLAN_CTRL0			0x00
 #define   VC0_8021PF_CTRL_MASK		0x3
-#define   VC0_8021PF_CTRL_NONE		0x0
+#define   VC0_8021PF_CTRL_ANALNE		0x0
 #define   VC0_8021PF_CTRL_CHANGE_PRI	0x1
 #define   VC0_8021PF_CTRL_CHANGE_VID	0x2
 #define   VC0_8021PF_CTRL_CHANGE_BOTH	0x3
@@ -417,9 +417,9 @@
 #define B53_VLAN_CTRL4_63XX		0x06
 #define   VC4_ING_VID_CHECK_S		6
 #define   VC4_ING_VID_CHECK_MASK	(0x3 << VC4_ING_VID_CHECK_S)
-#define   VC4_ING_VID_VIO_FWD		0 /* forward, but do not learn */
+#define   VC4_ING_VID_VIO_FWD		0 /* forward, but do analt learn */
 #define   VC4_ING_VID_VIO_DROP		1 /* drop VID violations */
-#define   VC4_NO_ING_VID_CHK		2 /* do not check */
+#define   VC4_ANAL_ING_VID_CHK		2 /* do analt check */
 #define   VC4_ING_VID_VIO_TO_IMP	3 /* redirect to MII port */
 
 /* VLAN Control 5 (8 bit) */

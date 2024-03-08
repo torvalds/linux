@@ -64,7 +64,7 @@
 #define DBC_PERIOD_US(x)	DIV_ROUND_UP_ULL((1000000 * (x)), \
 							SLOW_CLOCK_FREQ)
 
-#define SHDW_CFG_NOT_USED	(32)
+#define SHDW_CFG_ANALT_USED	(32)
 
 struct shdwc_reg_config {
 	u8 wkup_pin_input;
@@ -98,7 +98,7 @@ struct shdwc {
 };
 
 /*
- * Hold configuration here, cannot be more than one instance of the driver
+ * Hold configuration here, cananalt be more than one instance of the driver
  * since pm_power_off itself is global.
  */
 static struct shdwc *at91_shdwc;
@@ -112,7 +112,7 @@ static void at91_wakeup_status(struct platform_device *pdev)
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 	const struct reg_config *rcfg = shdw->rcfg;
 	u32 reg;
-	char *reason = "unknown";
+	char *reason = "unkanalwn";
 
 	reg = readl(shdw->shdwc_base + AT91_SHDW_SR);
 
@@ -196,14 +196,14 @@ static u32 at91_shdwc_debouncer_value(struct platform_device *pdev,
 }
 
 static u32 at91_shdwc_get_wakeup_input(struct platform_device *pdev,
-				       struct device_node *np)
+				       struct device_analde *np)
 {
-	struct device_node *cnp;
+	struct device_analde *cnp;
 	u32 wk_input_mask;
 	u32 wuir = 0;
 	u32 wk_input;
 
-	for_each_child_of_node(np, cnp) {
+	for_each_child_of_analde(np, cnp) {
 		if (of_property_read_u32(cnp, "reg", &wk_input)) {
 			dev_warn(&pdev->dev, "reg property is missing for %pOF\n",
 				 cnp);
@@ -213,7 +213,7 @@ static u32 at91_shdwc_get_wakeup_input(struct platform_device *pdev,
 		wk_input_mask = 1 << wk_input;
 		if (!(wk_input_mask & AT91_SHDW_WKUPEN_MASK)) {
 			dev_warn(&pdev->dev,
-				 "wake-up input %d out of bounds ignore\n",
+				 "wake-up input %d out of bounds iganalre\n",
 				 wk_input);
 			continue;
 		}
@@ -233,11 +233,11 @@ static void at91_shdwc_dt_configure(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 	const struct reg_config *rcfg = shdw->rcfg;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 mode = 0, tmp, input;
 
 	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
+		dev_err(&pdev->dev, "device analde analt found\n");
 		return;
 	}
 
@@ -261,9 +261,9 @@ static const struct reg_config sama5d2_reg_config = {
 	.shdwc = {
 		.wkup_pin_input = 0,
 		.mr_rtcwk_shift = 17,
-		.mr_rttwk_shift	= SHDW_CFG_NOT_USED,
+		.mr_rttwk_shift	= SHDW_CFG_ANALT_USED,
 		.sr_rtcwk_shift = 5,
-		.sr_rttwk_shift = SHDW_CFG_NOT_USED,
+		.sr_rttwk_shift = SHDW_CFG_ANALT_USED,
 	},
 	.pmc = {
 		.mckr		= 0x30,
@@ -332,19 +332,19 @@ static const struct of_device_id at91_pmc_ids[] = {
 static int at91_shdwc_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 ddr_type;
 	int ret;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	if (at91_shdwc)
 		return -EBUSY;
 
 	at91_shdwc = devm_kzalloc(&pdev->dev, sizeof(*at91_shdwc), GFP_KERNEL);
 	if (!at91_shdwc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, at91_shdwc);
 
@@ -352,7 +352,7 @@ static int at91_shdwc_probe(struct platform_device *pdev)
 	if (IS_ERR(at91_shdwc->shdwc_base))
 		return PTR_ERR(at91_shdwc->shdwc_base);
 
-	match = of_match_node(at91_shdwc_of_match, pdev->dev.of_node);
+	match = of_match_analde(at91_shdwc_of_match, pdev->dev.of_analde);
 	at91_shdwc->rcfg = match->data;
 
 	at91_shdwc->sclk = devm_clk_get(&pdev->dev, NULL);
@@ -361,7 +361,7 @@ static int at91_shdwc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(at91_shdwc->sclk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could analt enable slow clock\n");
 		return ret;
 	}
 
@@ -369,33 +369,33 @@ static int at91_shdwc_probe(struct platform_device *pdev)
 
 	at91_shdwc_dt_configure(pdev);
 
-	np = of_find_matching_node(NULL, at91_pmc_ids);
+	np = of_find_matching_analde(NULL, at91_pmc_ids);
 	if (!np) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto clk_disable;
 	}
 
 	at91_shdwc->pmc_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!at91_shdwc->pmc_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clk_disable;
 	}
 
 	if (at91_shdwc->rcfg->ddrc.type_mask) {
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_analde(NULL, NULL,
 					     "atmel,sama5d3-ddramc");
 		if (!np) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto unmap;
 		}
 
 		at91_shdwc->mpddrc_base = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 
 		if (!at91_shdwc->mpddrc_base) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unmap;
 		}
 

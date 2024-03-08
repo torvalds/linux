@@ -124,12 +124,12 @@ struct am65_cpsw_stats_regs {
 	u32	ale_block_drop;			/* K3 */
 	u32	ale_secure_drop;		/* K3 */
 	u32	ale_auth_drop;			/* K3 */
-	u32	ale_unknown_ucast;
-	u32	ale_unknown_ucast_bytes;
-	u32	ale_unknown_mcast;
-	u32	ale_unknown_mcast_bytes;
-	u32	ale_unknown_bcast;
-	u32	ale_unknown_bcast_bytes;
+	u32	ale_unkanalwn_ucast;
+	u32	ale_unkanalwn_ucast_bytes;
+	u32	ale_unkanalwn_mcast;
+	u32	ale_unkanalwn_mcast_bytes;
+	u32	ale_unkanalwn_bcast;
+	u32	ale_unkanalwn_bcast_bytes;
 	u32	ale_pol_match;
 	u32	ale_pol_match_red;
 	u32	ale_pol_match_yellow;
@@ -223,12 +223,12 @@ static const struct am65_cpsw_ethtool_stat am65_host_stats[] = {
 	AM65_CPSW_STATS(p0_, ale_block_drop),
 	AM65_CPSW_STATS(p0_, ale_secure_drop),
 	AM65_CPSW_STATS(p0_, ale_auth_drop),
-	AM65_CPSW_STATS(p0_, ale_unknown_ucast),
-	AM65_CPSW_STATS(p0_, ale_unknown_ucast_bytes),
-	AM65_CPSW_STATS(p0_, ale_unknown_mcast),
-	AM65_CPSW_STATS(p0_, ale_unknown_mcast_bytes),
-	AM65_CPSW_STATS(p0_, ale_unknown_bcast),
-	AM65_CPSW_STATS(p0_, ale_unknown_bcast_bytes),
+	AM65_CPSW_STATS(p0_, ale_unkanalwn_ucast),
+	AM65_CPSW_STATS(p0_, ale_unkanalwn_ucast_bytes),
+	AM65_CPSW_STATS(p0_, ale_unkanalwn_mcast),
+	AM65_CPSW_STATS(p0_, ale_unkanalwn_mcast_bytes),
+	AM65_CPSW_STATS(p0_, ale_unkanalwn_bcast),
+	AM65_CPSW_STATS(p0_, ale_unkanalwn_bcast_bytes),
 	AM65_CPSW_STATS(p0_, ale_pol_match),
 	AM65_CPSW_STATS(p0_, ale_pol_match_red),
 	AM65_CPSW_STATS(p0_, ale_pol_match_yellow),
@@ -315,12 +315,12 @@ static const struct am65_cpsw_ethtool_stat am65_slave_stats[] = {
 	AM65_CPSW_STATS(, ale_block_drop),
 	AM65_CPSW_STATS(, ale_secure_drop),
 	AM65_CPSW_STATS(, ale_auth_drop),
-	AM65_CPSW_STATS(, ale_unknown_ucast),
-	AM65_CPSW_STATS(, ale_unknown_ucast_bytes),
-	AM65_CPSW_STATS(, ale_unknown_mcast),
-	AM65_CPSW_STATS(, ale_unknown_mcast_bytes),
-	AM65_CPSW_STATS(, ale_unknown_bcast),
-	AM65_CPSW_STATS(, ale_unknown_bcast_bytes),
+	AM65_CPSW_STATS(, ale_unkanalwn_ucast),
+	AM65_CPSW_STATS(, ale_unkanalwn_ucast_bytes),
+	AM65_CPSW_STATS(, ale_unkanalwn_mcast),
+	AM65_CPSW_STATS(, ale_unkanalwn_mcast_bytes),
+	AM65_CPSW_STATS(, ale_unkanalwn_bcast),
+	AM65_CPSW_STATS(, ale_unkanalwn_bcast_bytes),
 	AM65_CPSW_STATS(, ale_pol_match),
 	AM65_CPSW_STATS(, ale_pol_match_red),
 	AM65_CPSW_STATS(, ale_pol_match_yellow),
@@ -460,7 +460,7 @@ am65_cpsw_get_ringparam(struct net_device *ndev,
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 
-	/* not supported */
+	/* analt supported */
 	ering->tx_pending = common->tx_chns[0].descs_num;
 	ering->rx_pending = common->rx_chns.descs_num;
 }
@@ -600,7 +600,7 @@ static int am65_cpsw_get_sset_count(struct net_device *ndev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(am65_cpsw_ethtool_priv_flags);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -708,7 +708,7 @@ static int am65_cpsw_get_ethtool_ts_info(struct net_device *ndev,
 		SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->phc_index = am65_cpts_phc_index(common->cpts);
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) | BIT(HWTSTAMP_FILTER_ALL);
 	return 0;
 }
 
@@ -779,7 +779,7 @@ static int am65_cpsw_get_mm(struct net_device *ndev, struct ethtool_mm_state *st
 	u32 add_frag_size;
 
 	if (!IS_ENABLED(CONFIG_TI_AM65_CPSW_QOS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&priv->mm_lock);
 
@@ -798,12 +798,12 @@ static int am65_cpsw_get_mm(struct net_device *ndev, struct ethtool_mm_state *st
 	else if (iet_status & AM65_CPSW_PN_MAC_VERIFY_FAIL)
 		state->verify_status = ETHTOOL_MM_VERIFY_STATUS_FAILED;
 	else
-		state->verify_status = ETHTOOL_MM_VERIFY_STATUS_UNKNOWN;
+		state->verify_status = ETHTOOL_MM_VERIFY_STATUS_UNKANALWN;
 
 	add_frag_size = AM65_CPSW_PN_IET_MAC_GET_ADDFRAGSIZE(iet_ctrl);
 	state->tx_min_frag_size = ethtool_mm_frag_size_add_to_min(add_frag_size);
 
-	/* Errata i2208: RX min fragment size cannot be less than 124 */
+	/* Errata i2208: RX min fragment size cananalt be less than 124 */
 	state->rx_min_frag_size = 124;
 
 	/* FPE active if common tx_enabled and verification success or disabled (forced) */
@@ -834,7 +834,7 @@ static int am65_cpsw_set_mm(struct net_device *ndev, struct ethtool_mm_cfg *cfg,
 	int err;
 
 	if (!IS_ENABLED(CONFIG_TI_AM65_CPSW_QOS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = ethtool_mm_frag_size_min_to_add(cfg->tx_min_frag_size, &add_frag_size, extack);
 	if (err)

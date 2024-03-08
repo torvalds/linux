@@ -122,7 +122,7 @@ static unsigned int imx_lcdc_get_format(unsigned int drm_format)
 {
 	switch (drm_format) {
 	default:
-		DRM_WARN("Format not supported - fallback to XRGB8888\n");
+		DRM_WARN("Format analt supported - fallback to XRGB8888\n");
 		fallthrough;
 
 	case DRM_FORMAT_XRGB8888:
@@ -229,12 +229,12 @@ static void imx_lcdc_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ret = clk_prepare_enable(lcdc->clk_ipg);
 	if (ret) {
-		dev_err(pipe->crtc.dev->dev, "Cannot enable ipg clock: %pe\n", ERR_PTR(ret));
+		dev_err(pipe->crtc.dev->dev, "Cananalt enable ipg clock: %pe\n", ERR_PTR(ret));
 		return;
 	}
 	ret = clk_prepare_enable(lcdc->clk_ahb);
 	if (ret) {
-		dev_err(pipe->crtc.dev->dev, "Cannot enable ahb clock: %pe\n", ERR_PTR(ret));
+		dev_err(pipe->crtc.dev->dev, "Cananalt enable ahb clock: %pe\n", ERR_PTR(ret));
 
 		clk_disable_unprepare(lcdc->clk_ipg);
 
@@ -377,7 +377,7 @@ static irqreturn_t imx_lcdc_irq_handler(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int imx_lcdc_probe(struct platform_device *pdev)
@@ -398,9 +398,9 @@ static int imx_lcdc_probe(struct platform_device *pdev)
 
 	lcdc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lcdc->base))
-		return dev_err_probe(dev, PTR_ERR(lcdc->base), "Cannot get IO memory\n");
+		return dev_err_probe(dev, PTR_ERR(lcdc->base), "Cananalt get IO memory\n");
 
-	bridge = devm_drm_of_get_bridge(dev, dev->of_node, 0, 0);
+	bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 0, 0);
 	if (IS_ERR(bridge))
 		return dev_err_probe(dev, PTR_ERR(bridge), "Failed to find bridge\n");
 
@@ -419,12 +419,12 @@ static int imx_lcdc_probe(struct platform_device *pdev)
 
 	ret = dma_set_mask_and_coherent(drm->dev, DMA_BIT_MASK(32));
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot set DMA Mask\n");
+		return dev_err_probe(dev, ret, "Cananalt set DMA Mask\n");
 
 	/* Modeset init */
 	ret = drmm_mode_config_init(drm);
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot initialize mode configuration structure\n");
+		return dev_err_probe(dev, ret, "Cananalt initialize mode configuration structure\n");
 
 	/* CRTC, Plane, Encoder */
 	ret = drm_simple_display_pipe_init(drm, &lcdc->pipe,
@@ -432,26 +432,26 @@ static int imx_lcdc_probe(struct platform_device *pdev)
 					   imx_lcdc_formats,
 					   ARRAY_SIZE(imx_lcdc_formats), NULL, NULL);
 	if (ret < 0)
-		return dev_err_probe(drm->dev, ret, "Cannot setup simple display pipe\n");
+		return dev_err_probe(drm->dev, ret, "Cananalt setup simple display pipe\n");
 
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0)
 		return dev_err_probe(drm->dev, ret, "Failed to initialize vblank\n");
 
-	ret = drm_bridge_attach(&lcdc->pipe.encoder, bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	ret = drm_bridge_attach(&lcdc->pipe.encoder, bridge, NULL, DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret)
-		return dev_err_probe(drm->dev, ret, "Cannot attach bridge\n");
+		return dev_err_probe(drm->dev, ret, "Cananalt attach bridge\n");
 
 	lcdc->connector = drm_bridge_connector_init(drm, &lcdc->pipe.encoder);
 	if (IS_ERR(lcdc->connector))
-		return dev_err_probe(drm->dev, PTR_ERR(lcdc->connector), "Cannot init bridge connector\n");
+		return dev_err_probe(drm->dev, PTR_ERR(lcdc->connector), "Cananalt init bridge connector\n");
 
 	drm_connector_attach_encoder(lcdc->connector, &lcdc->pipe.encoder);
 
 	/*
-	 * The LCDC controller does not have an enable bit. The
+	 * The LCDC controller does analt have an enable bit. The
 	 * controller starts directly when the clocks are enabled.
-	 * If the clocks are enabled when the controller is not yet
+	 * If the clocks are enabled when the controller is analt yet
 	 * programmed with proper register values (enabled at the
 	 * bootloader, for example) then it just goes into some undefined
 	 * state.
@@ -462,17 +462,17 @@ static int imx_lcdc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(lcdc->clk_ipg);
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot enable ipg clock\n");
+		return dev_err_probe(dev, ret, "Cananalt enable ipg clock\n");
 	clk_disable_unprepare(lcdc->clk_ipg);
 
 	ret = clk_prepare_enable(lcdc->clk_per);
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot enable per clock\n");
+		return dev_err_probe(dev, ret, "Cananalt enable per clock\n");
 	clk_disable_unprepare(lcdc->clk_per);
 
 	ret = clk_prepare_enable(lcdc->clk_ahb);
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot enable ahb clock\n");
+		return dev_err_probe(dev, ret, "Cananalt enable ahb clock\n");
 	clk_disable_unprepare(lcdc->clk_ahb);
 
 	drm->mode_config.min_width = LCDC_MIN_XRES;
@@ -499,7 +499,7 @@ static int imx_lcdc_probe(struct platform_device *pdev)
 
 	ret = drm_dev_register(&lcdc->drm, 0);
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot register device\n");
+		return dev_err_probe(dev, ret, "Cananalt register device\n");
 
 	drm_fbdev_generic_setup(drm, 0);
 

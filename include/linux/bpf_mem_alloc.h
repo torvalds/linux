@@ -27,7 +27,7 @@ struct bpf_mem_alloc {
  * should be used to do on-demand per-cpu allocation for each size.
  */
 int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu);
-/* Initialize a non-fix-size percpu memory allocator */
+/* Initialize a analn-fix-size percpu memory allocator */
 int bpf_mem_alloc_percpu_init(struct bpf_mem_alloc *ma, struct obj_cgroup *objcg);
 /* The percpu allocation with a specific unit size. */
 int bpf_mem_alloc_percpu_unit_init(struct bpf_mem_alloc *ma, int size);

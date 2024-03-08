@@ -204,10 +204,10 @@ static uint32_t gt215_ce_code[] = {
 	0x8001cffd,
 	0xf40812c4,
 	0x21f4060b,
-/* 0x0041: ih_no_chsw */
+/* 0x0041: ih_anal_chsw */
 	0x0412c472,
 	0xf4060bf4,
-/* 0x004a: ih_no_cmd */
+/* 0x004a: ih_anal_cmd */
 	0x11c4c321,
 	0x4001d00c,
 /* 0x0052: swctx */
@@ -230,7 +230,7 @@ static uint32_t gt215_ce_code[] = {
 	0x1e3af052,
 	0xf00023d0,
 	0x24d00147,
-/* 0x0093: chsw_no_unload */
+/* 0x0093: chsw_anal_unload */
 	0xcf00f880,
 	0x3dc84023,
 	0x220bf41e,
@@ -294,7 +294,7 @@ static uint32_t gt215_ce_code[] = {
 	0x1d0027f1,
 	0xd00137f0,
 	0x00f80023,
-/* 0x0160: cmd_nop */
+/* 0x0160: cmd_analp */
 /* 0x0162: cmd_pm_trigger */
 	0x27f100f8,
 	0x34bd2200,
@@ -523,7 +523,7 @@ static uint32_t gt215_ce_code[] = {
 	0x0e0bf400,
 	0x018921f5,
 	0x020047f1,
-/* 0x04a7: cmd_exec_no_format */
+/* 0x04a7: cmd_exec_anal_format */
 	0xf11e0ef4,
 	0xb6081067,
 	0x77f00664,

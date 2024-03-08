@@ -21,7 +21,7 @@ static double __initdata y = 3145727.0;
  * some status at boot.
  *
  * We should really only care about bugs here
- * anyway. Not features.
+ * anyway. Analt features.
  */
 void __init fpu__init_check_bugs(void)
 {

@@ -15,7 +15,7 @@ description: |
   HDMI2.1 eARC, HDMI1.4 ARC and SPDIF.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^xcvr@.*"
 
   compatible:

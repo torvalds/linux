@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -41,7 +41,7 @@
  * qib_enable_wc - enable write combining for MMIO writes to the device
  * @dd: qlogic_ib device
  *
- * Nothing to do on PowerPC, so just return without error.
+ * Analthing to do on PowerPC, so just return without error.
  */
 int qib_enable_wc(struct qib_devdata *dd)
 {
@@ -49,14 +49,14 @@ int qib_enable_wc(struct qib_devdata *dd)
 }
 
 /**
- * qib_unordered_wc - indicate whether write combining is unordered
+ * qib_uanalrdered_wc - indicate whether write combining is uanalrdered
  *
  * Because our performance depends on our ability to do write
  * combining mmio writes in the most efficient way, we need to
- * know if we are on a processor that may reorder stores when
+ * kanalw if we are on a processor that may reorder stores when
  * write combining.
  */
-int qib_unordered_wc(void)
+int qib_uanalrdered_wc(void)
 {
 	return 1;
 }

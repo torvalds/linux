@@ -23,14 +23,14 @@
 #define H2_REV_AUDIO_PRESENT	0x8000	/* RO: audio present 0=present */
 #define H2_REV_BOARD_M		0x7000	/* RO: bits 14:12, board revision */
 #define H2_REV_MAJOR_CHIP_M	0x00F0	/* RO: bits 7:4, major chip revision */
-#define H2_REV_MINOR_CHIP_M	0x000F	/* RO: bits 3:0, minor chip revision */
+#define H2_REV_MIANALR_CHIP_M	0x000F	/* RO: bits 3:0, mianalr chip revision */
 
 /* Indirect address register */
 
 /*
  * Address of indirect internal register to be accessed. A write to this
  * register initiates read or write access to the indirect registers in the
- * HAL2. Note that there af four indirect data registers for write access to
+ * HAL2. Analte that there af four indirect data registers for write access to
  * registers larger than 16 byte.
  */
 
@@ -119,7 +119,7 @@
 #define H2I_AESTX_C		0x1304		/* AES TX DMA control */
 #define H2I_AESTX_C_CLKID_SHIFT	3		/* Bresenham Clock Gen 1-3 */
 #define H2I_AESTX_C_CLKID_M	0x18
-#define H2I_AESTX_C_DATAT_SHIFT	8		/* 1=mono 2=stereo (3=quad) */
+#define H2I_AESTX_C_DATAT_SHIFT	8		/* 1=moanal 2=stereo (3=quad) */
 #define H2I_AESTX_C_DATAT_M	0x300
 
 /* CODEC registers */
@@ -135,7 +135,7 @@
 #define H2I_C1_DMA_M		0x7
 #define H2I_C1_CLKID_SHIFT	3		/* Bresenham Clock Gen 1-3 */
 #define H2I_C1_CLKID_M		0x18
-#define H2I_C1_DATAT_SHIFT	8		/* 1=mono 2=stereo (3=quad) */
+#define H2I_C1_DATAT_SHIFT	8		/* 1=moanal 2=stereo (3=quad) */
 #define H2I_C1_DATAT_M		0x300
 
 /* Bits in CTL2 register */

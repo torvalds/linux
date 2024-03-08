@@ -27,5 +27,5 @@ Contact:        mhi@lists.linux.dev
 Description:	Initiates a SoC reset on the MHI controller.  A SoC reset is
                 a reset of last resort, and will require a complete re-init.
                 This can be useful as a method of recovery if the device is
-                non-responsive, or as a means of loading new firmware as a
+                analn-responsive, or as a means of loading new firmware as a
                 system administration task.

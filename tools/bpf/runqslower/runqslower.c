@@ -51,9 +51,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.verbose = true;
 		break;
 	case 'p':
-		errno = 0;
+		erranal = 0;
 		pid = strtol(arg, NULL, 10);
-		if (errno || pid <= 0) {
+		if (erranal || pid <= 0) {
 			fprintf(stderr, "Invalid PID: %s\n", arg);
 			argp_usage(state);
 		}
@@ -65,16 +65,16 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 				"Unrecognized positional argument: %s\n", arg);
 			argp_usage(state);
 		}
-		errno = 0;
+		erranal = 0;
 		min_us = strtoll(arg, NULL, 10);
-		if (errno || min_us <= 0) {
+		if (erranal || min_us <= 0) {
 			fprintf(stderr, "Invalid delay (in us): %s\n", arg);
 			argp_usage(state);
 		}
 		env.min_us = min_us;
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 	return 0;
 }

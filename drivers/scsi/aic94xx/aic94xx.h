@@ -18,12 +18,12 @@
 #define ASD_DRIVER_NAME		"aic94xx"
 #define ASD_DRIVER_DESCRIPTION	"Adaptec aic94xx SAS/SATA driver"
 
-#define asd_printk(fmt, ...)	printk(KERN_NOTICE ASD_DRIVER_NAME ": " fmt, ## __VA_ARGS__)
+#define asd_printk(fmt, ...)	printk(KERN_ANALTICE ASD_DRIVER_NAME ": " fmt, ## __VA_ARGS__)
 
 #ifdef ASD_ENTER_EXIT
-#define ENTER  printk(KERN_NOTICE "%s: ENTER %s\n", ASD_DRIVER_NAME, \
+#define ENTER  printk(KERN_ANALTICE "%s: ENTER %s\n", ASD_DRIVER_NAME, \
 		__func__)
-#define EXIT   printk(KERN_NOTICE "%s: --EXIT %s\n", ASD_DRIVER_NAME, \
+#define EXIT   printk(KERN_ANALTICE "%s: --EXIT %s\n", ASD_DRIVER_NAME, \
 		__func__)
 #else
 #define ENTER
@@ -33,7 +33,7 @@
 #ifdef ASD_DEBUG
 #define ASD_DPRINTK asd_printk
 #else
-#define ASD_DPRINTK(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
+#define ASD_DPRINTK(fmt, ...) anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* 2*ITNL timeout + 1 second */

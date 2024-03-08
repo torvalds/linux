@@ -41,7 +41,7 @@ static inline const char *icache_policy_str(int l1ip)
 	case CTR_EL0_L1Ip_PIPT:
 		return "PIPT";
 	default:
-		return "RESERVED/UNKNOWN";
+		return "RESERVED/UNKANALWN";
 	}
 }
 
@@ -136,23 +136,23 @@ static const char *const compat_hwcap_str[] = {
 	[COMPAT_KERNEL_HWCAP(SWP)]	= "swp",
 	[COMPAT_KERNEL_HWCAP(HALF)]	= "half",
 	[COMPAT_KERNEL_HWCAP(THUMB)]	= "thumb",
-	[COMPAT_KERNEL_HWCAP(26BIT)]	= NULL,	/* Not possible on arm64 */
+	[COMPAT_KERNEL_HWCAP(26BIT)]	= NULL,	/* Analt possible on arm64 */
 	[COMPAT_KERNEL_HWCAP(FAST_MULT)] = "fastmult",
-	[COMPAT_KERNEL_HWCAP(FPA)]	= NULL,	/* Not possible on arm64 */
+	[COMPAT_KERNEL_HWCAP(FPA)]	= NULL,	/* Analt possible on arm64 */
 	[COMPAT_KERNEL_HWCAP(VFP)]	= "vfp",
 	[COMPAT_KERNEL_HWCAP(EDSP)]	= "edsp",
-	[COMPAT_KERNEL_HWCAP(JAVA)]	= NULL,	/* Not possible on arm64 */
-	[COMPAT_KERNEL_HWCAP(IWMMXT)]	= NULL,	/* Not possible on arm64 */
-	[COMPAT_KERNEL_HWCAP(CRUNCH)]	= NULL,	/* Not possible on arm64 */
-	[COMPAT_KERNEL_HWCAP(THUMBEE)]	= NULL,	/* Not possible on arm64 */
+	[COMPAT_KERNEL_HWCAP(JAVA)]	= NULL,	/* Analt possible on arm64 */
+	[COMPAT_KERNEL_HWCAP(IWMMXT)]	= NULL,	/* Analt possible on arm64 */
+	[COMPAT_KERNEL_HWCAP(CRUNCH)]	= NULL,	/* Analt possible on arm64 */
+	[COMPAT_KERNEL_HWCAP(THUMBEE)]	= NULL,	/* Analt possible on arm64 */
 	[COMPAT_KERNEL_HWCAP(NEON)]	= "neon",
 	[COMPAT_KERNEL_HWCAP(VFPv3)]	= "vfpv3",
-	[COMPAT_KERNEL_HWCAP(VFPV3D16)]	= NULL,	/* Not possible on arm64 */
+	[COMPAT_KERNEL_HWCAP(VFPV3D16)]	= NULL,	/* Analt possible on arm64 */
 	[COMPAT_KERNEL_HWCAP(TLS)]	= "tls",
 	[COMPAT_KERNEL_HWCAP(VFPv4)]	= "vfpv4",
 	[COMPAT_KERNEL_HWCAP(IDIVA)]	= "idiva",
 	[COMPAT_KERNEL_HWCAP(IDIVT)]	= "idivt",
-	[COMPAT_KERNEL_HWCAP(VFPD32)]	= NULL,	/* Not possible on arm64 */
+	[COMPAT_KERNEL_HWCAP(VFPD32)]	= NULL,	/* Analt possible on arm64 */
 	[COMPAT_KERNEL_HWCAP(LPAE)]	= "lpae",
 	[COMPAT_KERNEL_HWCAP(EVTSTRM)]	= "evtstrm",
 	[COMPAT_KERNEL_HWCAP(FPHP)]	= "fphp",
@@ -210,7 +210,7 @@ static int c_show(struct seq_file *m, void *v)
 			for (j = 0; j < ARRAY_SIZE(compat_hwcap_str); j++) {
 				if (compat_elf_hwcap & (1 << j)) {
 					/*
-					 * Warn once if any feature should not
+					 * Warn once if any feature should analt
 					 * have been present on arm64 platform.
 					 */
 					if (WARN_ON_ONCE(!compat_hwcap_str[j]))
@@ -272,7 +272,7 @@ static struct kobj_type cpuregs_kobj_type = {
 /*
  * The ARM ARM uses the phrase "32-bit register" to describe a register
  * whose upper 32 bits are RES0 (per C5.1.1, ARM DDI 0487A.i), however
- * no statement is made as to whether the upper 32 bits will or will not
+ * anal statement is made as to whether the upper 32 bits will or will analt
  * be made use of in future, and between ARM DDI 0487A.c and ARM DDI
  * 0487A.d CLIDR_EL1 was expanded from 32-bit to 64-bit.
  *
@@ -327,7 +327,7 @@ static int cpuid_cpu_online(unsigned int cpu)
 
 	dev = get_cpu_device(cpu);
 	if (!dev) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 	rc = kobject_add(&info->kobj, &dev->kobj, "regs");
@@ -349,7 +349,7 @@ static int cpuid_cpu_offline(unsigned int cpu)
 
 	dev = get_cpu_device(cpu);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (info->kobj.parent) {
 		sysfs_remove_group(&info->kobj, &cpuregs_attr_group);
 		kobject_del(&info->kobj);

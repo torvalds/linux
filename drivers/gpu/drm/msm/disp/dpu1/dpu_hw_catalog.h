@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
@@ -431,7 +431,7 @@ struct dpu_dsc_sub_blks {
  * dpu_clk_ctrl_type - Defines top level clock control signals
  */
 enum dpu_clk_ctrl_type {
-	DPU_CLK_CTRL_NONE,
+	DPU_CLK_CTRL_ANALNE,
 	DPU_CLK_CTRL_VIG0,
 	DPU_CLK_CTRL_VIG1,
 	DPU_CLK_CTRL_VIG2,
@@ -510,7 +510,7 @@ struct dpu_sspp_cfg {
  * @base               register offset of this block
  * @features           bit mask identifying sub-blocks/features
  * @sblk:              LM Sub-blocks information
- * @pingpong:          ID of connected PingPong, PINGPONG_NONE if unsupported
+ * @pingpong:          ID of connected PingPong, PINGPONG_ANALNE if unsupported
  * @lm_pair:           ID of LM that can be controlled by same CTL
  */
 struct dpu_lm_cfg {
@@ -664,7 +664,7 @@ struct dpu_vbif_qos_tbl {
  * @dynamic_ot_rd_tbl  dynamic OT read configuration table
  * @dynamic_ot_wr_tbl  dynamic OT write configuration table
  * @qos_rt_tbl         real-time QoS priority table
- * @qos_nrt_tbl        non-real-time QoS priority table
+ * @qos_nrt_tbl        analn-real-time QoS priority table
  * @memtype_count      number of defined memtypes
  * @memtype            array of xin memtype definitions
  */
@@ -696,7 +696,7 @@ struct dpu_cdm_cfg {
 /**
  * Define CDP use cases
  * @DPU_PERF_CDP_UDAGE_RT: real-time use cases
- * @DPU_PERF_CDP_USAGE_NRT: non real-time use cases such as WFD
+ * @DPU_PERF_CDP_USAGE_NRT: analn real-time use cases such as WFD
  */
 enum {
 	DPU_PERF_CDP_USAGE_RT,
@@ -715,13 +715,13 @@ struct dpu_perf_cdp_cfg {
 };
 
 /**
- * struct dpu_mdss_version - DPU's major and minor versions
+ * struct dpu_mdss_version - DPU's major and mianalr versions
  * @core_major_ver: DPU core's major version
- * @core_minor_ver: DPU core's minor version
+ * @core_mianalr_ver: DPU core's mianalr version
  */
 struct dpu_mdss_version {
 	u8 core_major_ver;
-	u8 core_minor_ver;
+	u8 core_mianalr_ver;
 };
 
 /**
@@ -729,7 +729,7 @@ struct dpu_mdss_version {
  * @max_bw_low         low threshold of maximum bandwidth (kbps)
  * @max_bw_high        high threshold of maximum bandwidth (kbps)
  * @min_core_ib        minimum bandwidth for core (kbps)
- * @min_core_ib        minimum mnoc ib vote in kbps
+ * @min_core_ib        minimum manalc ib vote in kbps
  * @min_llcc_ib        minimum llcc ib vote in kbps
  * @min_dram_ib        minimum dram ib vote in kbps
  * @undersized_prefill_lines   undersized prefill in lines
@@ -774,7 +774,7 @@ struct dpu_perf_cfg {
 /**
  * struct dpu_mdss_cfg - information of MDSS HW
  * This is the main catalog data structure representing
- * this HW version. Contains dpu's major and minor versions,
+ * this HW version. Contains dpu's major and mianalr versions,
  * number of instances, register offsets, capabilities of the
  * all MDSS HW sub-blocks.
  *

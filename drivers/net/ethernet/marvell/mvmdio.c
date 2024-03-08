@@ -72,7 +72,7 @@ struct orion_mdio_dev {
 	struct clk *clk[4];
 	/*
 	 * If we have access to the error interrupt pin (which is
-	 * somewhat misnamed as it not only reflects internal errors
+	 * somewhat misnamed as it analt only reflects internal errors
 	 * but also reflects SMI completion), use that to wait for
 	 * SMI access completion instead of polling the SMI busy bit.
 	 */
@@ -89,7 +89,7 @@ struct orion_mdio_ops {
 	int (*is_done)(struct orion_mdio_dev *);
 };
 
-/* Wait for the SMI unit to be ready for another operation
+/* Wait for the SMI unit to be ready for aanalther operation
  */
 static int orion_mdio_wait_ready(const struct orion_mdio_ops *ops,
 				 struct mii_bus *bus)
@@ -103,8 +103,8 @@ static int orion_mdio_wait_ready(const struct orion_mdio_ops *ops,
 					      MVMDIO_SMI_TIMEOUT, false, dev))
 			return 0;
 	} else {
-		/* wait_event_timeout does not guarantee a delay of at
-		 * least one whole jiffie, so timeout must be no less
+		/* wait_event_timeout does analt guarantee a delay of at
+		 * least one whole jiffie, so timeout must be anal less
 		 * than two.
 		 */
 		timeout = max(usecs_to_jiffies(MVMDIO_SMI_TIMEOUT), 2);
@@ -149,8 +149,8 @@ static int orion_mdio_smi_read(struct mii_bus *bus, int mii_id,
 
 	val = readl(dev->regs);
 	if (!(val & MVMDIO_SMI_READ_VALID)) {
-		dev_err(bus->parent, "SMI bus read not valid\n");
-		return -ENODEV;
+		dev_err(bus->parent, "SMI bus read analt valid\n");
+		return -EANALDEV;
 	}
 
 	return val & GENMASK(15, 0);
@@ -206,8 +206,8 @@ static int orion_mdio_xsmi_read_c45(struct mii_bus *bus, int mii_id,
 
 	if (!(readl(dev->regs + MVMDIO_XSMI_MGNT_REG) &
 	      MVMDIO_XSMI_READ_VALID)) {
-		dev_err(bus->parent, "XSMI bus read not valid\n");
-		return -ENODEV;
+		dev_err(bus->parent, "XSMI bus read analt valid\n");
+		return -EANALDEV;
 	}
 
 	return readl(dev->regs + MVMDIO_XSMI_MGNT_REG) & GENMASK(15, 0);
@@ -241,10 +241,10 @@ static void orion_mdio_xsmi_set_mdc_freq(struct mii_bus *bus)
 	if (device_property_read_u32(bus->parent, "clock-frequency", &freq))
 		return;
 
-	mg_core = of_clk_get_by_name(bus->parent->of_node, "mg_core_clk");
+	mg_core = of_clk_get_by_name(bus->parent->of_analde, "mg_core_clk");
 	if (IS_ERR(mg_core)) {
 		dev_err(bus->parent,
-			"MG core clock unknown, not changing MDC frequency");
+			"MG core clock unkanalwn, analt changing MDC frequency");
 		return;
 	}
 
@@ -278,7 +278,7 @@ static irqreturn_t orion_mdio_err_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int orion_mdio_probe(struct platform_device *pdev)
@@ -293,14 +293,14 @@ static int orion_mdio_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "No SMI register address given\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal SMI register address given\n");
+		return -EANALDEV;
 	}
 
 	bus = devm_mdiobus_alloc_size(&pdev->dev,
 				      sizeof(struct orion_mdio_dev));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (type) {
 	case BUS_TYPE_SMI:
@@ -322,14 +322,14 @@ static int orion_mdio_probe(struct platform_device *pdev)
 	dev->regs = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!dev->regs) {
 		dev_err(&pdev->dev, "Unable to remap SMI register\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	init_waitqueue_head(&dev->smi_busy_wait);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
-			dev->clk[i] = of_clk_get(pdev->dev.of_node, i);
+			dev->clk[i] = of_clk_get(pdev->dev.of_analde, i);
 			if (PTR_ERR(dev->clk[i]) == -EPROBE_DEFER) {
 				ret = -EPROBE_DEFER;
 				goto out_clk;
@@ -339,7 +339,7 @@ static int orion_mdio_probe(struct platform_device *pdev)
 			clk_prepare_enable(dev->clk[i]);
 		}
 
-		if (!IS_ERR(of_clk_get(pdev->dev.of_node,
+		if (!IS_ERR(of_clk_get(pdev->dev.of_analde,
 				       ARRAY_SIZE(dev->clk))))
 			dev_warn(&pdev->dev,
 				 "unsupported number of clocks, limiting to the first "
@@ -380,15 +380,15 @@ static int orion_mdio_probe(struct platform_device *pdev)
 		goto out_mdio;
 	}
 
-	/* For the platforms not supporting DT/ACPI fall-back
+	/* For the platforms analt supporting DT/ACPI fall-back
 	 * to mdiobus_register via of_mdiobus_register.
 	 */
-	if (is_acpi_node(pdev->dev.fwnode))
-		ret = acpi_mdiobus_register(bus, pdev->dev.fwnode);
+	if (is_acpi_analde(pdev->dev.fwanalde))
+		ret = acpi_mdiobus_register(bus, pdev->dev.fwanalde);
 	else
-		ret = of_mdiobus_register(bus, pdev->dev.of_node);
+		ret = of_mdiobus_register(bus, pdev->dev.of_analde);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot register MDIO bus (%d)\n", ret);
+		dev_err(&pdev->dev, "Cananalt register MDIO bus (%d)\n", ret);
 		goto out_mdio;
 	}
 

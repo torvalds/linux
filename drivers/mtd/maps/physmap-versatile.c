@@ -82,20 +82,20 @@ static const struct of_device_id ebi_match[] = {
 
 static int ap_flash_init(struct platform_device *pdev)
 {
-	struct device_node *ebi;
+	struct device_analde *ebi;
 	void __iomem *ebi_base;
 	u32 val;
 	int ret;
 
 	/* Look up the EBI */
-	ebi = of_find_matching_node(NULL, ebi_match);
+	ebi = of_find_matching_analde(NULL, ebi_match);
 	if (!ebi) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ebi_base = of_iomap(ebi, 0);
-	of_node_put(ebi);
+	of_analde_put(ebi);
 	if (!ebi_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Clear VPP and write protection bits */
 	ret = regmap_write(syscon_regmap,
@@ -185,30 +185,30 @@ static void versatile_flash_set_vpp(struct map_info *map, int on)
 }
 
 int of_flash_probe_versatile(struct platform_device *pdev,
-			     struct device_node *np,
+			     struct device_analde *np,
 			     struct map_info *map)
 {
-	struct device_node *sysnp;
+	struct device_analde *sysnp;
 	const struct of_device_id *devid;
 	struct regmap *rmap;
 	static enum versatile_flashprot versatile_flashprot;
 	int ret;
 
-	/* Not all flash chips use this protection line */
+	/* Analt all flash chips use this protection line */
 	if (!of_device_is_compatible(np, "arm,versatile-flash"))
 		return 0;
 
 	/* For first chip probed, look up the syscon regmap */
 	if (!syscon_regmap) {
-		sysnp = of_find_matching_node_and_match(NULL,
+		sysnp = of_find_matching_analde_and_match(NULL,
 							syscon_match,
 							&devid);
 		if (!sysnp)
-			return -ENODEV;
+			return -EANALDEV;
 
 		versatile_flashprot = (uintptr_t)devid->data;
-		rmap = syscon_node_to_regmap(sysnp);
-		of_node_put(sysnp);
+		rmap = syscon_analde_to_regmap(sysnp);
+		of_analde_put(sysnp);
 		if (IS_ERR(rmap))
 			return PTR_ERR(rmap);
 
@@ -234,7 +234,7 @@ int of_flash_probe_versatile(struct platform_device *pdev,
 		break;
 	default:
 		dev_info(&pdev->dev, "device marked as Versatile flash "
-			 "but no system controller was found\n");
+			 "but anal system controller was found\n");
 		break;
 	}
 

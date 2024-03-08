@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -86,13 +86,13 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid device 0x%x.\n", ent->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	accel_dev = kzalloc_node(sizeof(*accel_dev), GFP_KERNEL,
-				 dev_to_node(&pdev->dev));
+	accel_dev = kzalloc_analde(sizeof(*accel_dev), GFP_KERNEL,
+				 dev_to_analde(&pdev->dev));
 	if (!accel_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	accel_dev->is_vf = true;
 	pf = adf_devmgr_pci_to_accel_dev(pdev->physfn);
@@ -109,10 +109,10 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	accel_dev->owner = THIS_MODULE;
 	/* Allocate and configure device configuration structure */
-	hw_data = kzalloc_node(sizeof(*hw_data), GFP_KERNEL,
-			       dev_to_node(&pdev->dev));
+	hw_data = kzalloc_analde(sizeof(*hw_data), GFP_KERNEL,
+			       dev_to_analde(&pdev->dev));
 	if (!hw_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err;
 	}
 	accel_dev->hw_device = hw_data;
@@ -137,7 +137,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* set dma identifier */
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (ret) {
-		dev_err(&pdev->dev, "No usable DMA configuration\n");
+		dev_err(&pdev->dev, "Anal usable DMA configuration\n");
 		goto out_err_disable;
 	}
 
@@ -224,6 +224,6 @@ module_exit(adfdrv_release);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel");
-MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
+MODULE_DESCRIPTION("Intel(R) QuickAssist Techanallogy");
 MODULE_VERSION(ADF_DRV_VERSION);
 MODULE_IMPORT_NS(CRYPTO_QAT);

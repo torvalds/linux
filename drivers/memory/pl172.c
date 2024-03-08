@@ -54,7 +54,7 @@ struct pl172_data {
 };
 
 static int pl172_timing_prop(struct amba_device *adev,
-			     const struct device_node *np, const char *name,
+			     const struct device_analde *np, const char *name,
 			     u32 reg_offset, u32 max, int start)
 {
 	struct pl172_data *pl172 = amba_get_drvdata(adev);
@@ -80,7 +80,7 @@ static int pl172_timing_prop(struct amba_device *adev,
 }
 
 static int pl172_setup_static(struct amba_device *adev,
-			      struct device_node *np, u32 cs)
+			      struct device_analde *np, u32 cs)
 {
 	struct pl172_data *pl172 = amba_get_drvdata(adev);
 	u32 cfg;
@@ -169,7 +169,7 @@ fail:
 }
 
 static int pl172_parse_cs_config(struct amba_device *adev,
-				 struct device_node *np)
+				 struct device_analde *np)
 {
 	u32 cs;
 
@@ -193,7 +193,7 @@ static const char * const pl176_revisions[] = {"r0"};
 
 static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 {
-	struct device_node *child_np, *np = adev->dev.of_node;
+	struct device_analde *child_np, *np = adev->dev.of_analde;
 	struct device *dev = &adev->dev;
 	static const char *rev = "?";
 	struct pl172_data *pl172;
@@ -214,11 +214,11 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pl172 = devm_kzalloc(dev, sizeof(*pl172), GFP_KERNEL);
 	if (!pl172)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pl172->clk = devm_clk_get(dev, "mpmcclk");
 	if (IS_ERR(pl172->clk)) {
-		dev_err(dev, "no mpmcclk provided clock\n");
+		dev_err(dev, "anal mpmcclk provided clock\n");
 		return PTR_ERR(pl172->clk);
 	}
 
@@ -245,18 +245,18 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 				   resource_size(&adev->res));
 	if (!pl172->base) {
 		dev_err(dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto err_no_ioremap;
+		ret = -EANALMEM;
+		goto err_anal_ioremap;
 	}
 
 	amba_set_drvdata(adev, pl172);
 
 	/*
-	 * Loop through each child node, which represent a chip select, and
+	 * Loop through each child analde, which represent a chip select, and
 	 * configure parameters and timing. If successful; populate devices
-	 * under that node.
+	 * under that analde.
 	 */
-	for_each_available_child_of_node(np, child_np) {
+	for_each_available_child_of_analde(np, child_np) {
 		ret = pl172_parse_cs_config(adev, child_np);
 		if (ret)
 			continue;
@@ -266,7 +266,7 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 
 	return 0;
 
-err_no_ioremap:
+err_anal_ioremap:
 	amba_release_regions(adev);
 err_clk_enable:
 	clk_disable_unprepare(pl172->clk);

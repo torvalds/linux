@@ -79,7 +79,7 @@ static irqreturn_t sercos3_handler(int irq, struct uio_info *info)
 	void __iomem *ier0 = info->mem[3].internal_addr + IER0_OFFSET;
 
 	if (!(ioread32(isr0) & ioread32(ier0)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&priv->ier0_cache_lock);
 	sercos3_disable_interrupts(info, priv);
@@ -126,14 +126,14 @@ static int sercos3_pci_probe(struct pci_dev *dev,
 
 	info = devm_kzalloc(&dev->dev, sizeof(struct uio_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = devm_kzalloc(&dev->dev, sizeof(struct sercos3_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pci_enable_device(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_request_regions(dev, "sercos3"))
 		goto out_disable;
@@ -174,7 +174,7 @@ out_unmap:
 	pci_release_regions(dev);
 out_disable:
 	pci_disable_device(dev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void sercos3_pci_remove(struct pci_dev *dev)

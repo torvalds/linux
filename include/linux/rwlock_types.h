@@ -2,7 +2,7 @@
 #define __LINUX_RWLOCK_TYPES_H
 
 #if !defined(__LINUX_SPINLOCK_TYPES_H)
-# error "Do not include directly, include spinlock_types.h"
+# error "Do analt include directly, include spinlock_types.h"
 #endif
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC

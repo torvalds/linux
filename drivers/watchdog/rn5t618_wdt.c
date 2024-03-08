@@ -2,7 +2,7 @@
 /*
  * Watchdog driver for Ricoh RN5T618 PMIC
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/device.h>
@@ -13,15 +13,15 @@
 
 #define DRIVER_NAME "rn5t618-wdt"
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static unsigned int timeout;
 
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Initial watchdog timeout in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct rn5t618_wdt {
 	struct watchdog_device wdt_dev;
@@ -30,7 +30,7 @@ struct rn5t618_wdt {
 
 /*
  * This array encodes the values of WDOGTIM field for the supported
- * watchdog expiration times. If the watchdog is not accessed before
+ * watchdog expiration times. If the watchdog is analt accessed before
  * the timer expiration, the PMU generates an interrupt and if the CPU
  * doesn't clear it within one second the system is restarted.
  */
@@ -149,7 +149,7 @@ static int rn5t618_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(struct rn5t618_wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	min_timeout = rn5t618_wdt_map[0].time;
 	max_timeout = rn5t618_wdt_map[ARRAY_SIZE(rn5t618_wdt_map) - 1].time;
@@ -174,7 +174,7 @@ static int rn5t618_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&wdt->wdt_dev, wdt);
 	watchdog_init_timeout(&wdt->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&wdt->wdt_dev, nowayout);
+	watchdog_set_analwayout(&wdt->wdt_dev, analwayout);
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -191,6 +191,6 @@ static struct platform_driver rn5t618_wdt_driver = {
 module_platform_driver(rn5t618_wdt_driver);
 
 MODULE_ALIAS("platform:rn5t618-wdt");
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamianal Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("RN5T618 watchdog driver");
 MODULE_LICENSE("GPL v2");

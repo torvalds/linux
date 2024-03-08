@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_PCIE_WRAP_REGS_H_
@@ -201,9 +201,9 @@
 
 #define mmPCIE_WRAP_MMU_BYPASS_DMA                                   0xC01A80
 
-#define mmPCIE_WRAP_MMU_BYPASS_NON_DMA                               0xC01A84
+#define mmPCIE_WRAP_MMU_BYPASS_ANALN_DMA                               0xC01A84
 
-#define mmPCIE_WRAP_ASID_NON_DMA                                     0xC01A90
+#define mmPCIE_WRAP_ASID_ANALN_DMA                                     0xC01A90
 
 #define mmPCIE_WRAP_ASID_DMA_0                                       0xC01AA0
 

@@ -1,7 +1,7 @@
 [
     {
         "ArchStdEvent": "L3D_CACHE_ALLOCATE",
-        "PublicDescription": "Counts level 3 cache line allocates that do not fetch data from outside the level 3 data or unified cache. For example, allocates due to streaming stores."
+        "PublicDescription": "Counts level 3 cache line allocates that do analt fetch data from outside the level 3 data or unified cache. For example, allocates due to streaming stores."
     },
     {
         "ArchStdEvent": "L3D_CACHE_REFILL",

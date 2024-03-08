@@ -27,7 +27,7 @@ Caveats
 =======
 
 - lksctp can be built as statically or as a module.  However, be aware that
-  module removal of lksctp is not yet a safe activity.
+  module removal of lksctp is analt yet a safe activity.
 
 - There is tentative support for IPv6, but most work has gone towards
   implementation and testing lksctp on IPv4.

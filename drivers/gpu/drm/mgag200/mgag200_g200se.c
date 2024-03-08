@@ -21,7 +21,7 @@ static int mgag200_g200se_init_pci_options(struct pci_dev *pdev)
 	err = pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
 	if (err != PCIBIOS_SUCCESSFUL) {
 		dev_err(dev, "pci_read_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 	}
 
 	has_sgram = !!(option & PCI_MGA_OPTION_HARDPWMSK);
@@ -467,7 +467,7 @@ static int mgag200_g200se_init_unique_rev_id(struct mgag200_g200se_device *g200s
 	/* stash G200 SE model number for later use */
 	g200se->unique_rev_id = RREG32(0x1e24);
 	if (!g200se->unique_rev_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_dbg(dev, "G200 SE unique revision id is 0x%x\n", g200se->unique_rev_id);
 

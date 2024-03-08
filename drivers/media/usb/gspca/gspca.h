@@ -54,15 +54,15 @@ struct cam {
 	u32 bulk_size;		/* buffer size when image transfer by bulk */
 	u32 input_flags;	/* value for ENUM_INPUT status flags */
 	u8 nmodes;		/* size of cam_mode */
-	u8 no_urb_create;	/* don't create transfer URBs */
+	u8 anal_urb_create;	/* don't create transfer URBs */
 	u8 bulk_nurbs;		/* number of URBs in bulk mode
-				 * - cannot be > MAX_NURBS
+				 * - cananalt be > MAX_NURBS
 				 * - when 0 and bulk_size != 0 means
 				 *   1 URB and submit done by subdriver */
 	u8 bulk;		/* image transfer by 0:isoc / 1:bulk */
 	u8 npkt;		/* number of packets in an ISOC message
 				 * 0 is the default value: 32 packets */
-	u8 needs_full_bandwidth;/* Set this flag to notify the bandwidth calc.
+	u8 needs_full_bandwidth;/* Set this flag to analtify the bandwidth calc.
 				 * code that the cam fills all image buffers to
 				 * the max, even when using compression. */
 };
@@ -110,7 +110,7 @@ struct sd_desc {
 	cam_pkt_op pkt_scan;
 /* optional operations */
 	cam_op isoc_init;	/* called on stream on before getting the EP */
-	cam_op isoc_nego;	/* called when URB submit failed with NOSPC */
+	cam_op isoc_nego;	/* called when URB submit failed with ANALSPC */
 	cam_v_op stopN;		/* called on stream off - main alt */
 	cam_v_op stop0;		/* called on stream off & disconnect - alt 0 */
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
@@ -128,7 +128,7 @@ struct sd_desc {
 #if IS_ENABLED(CONFIG_INPUT)
 	cam_int_pkt_op int_pkt_scan;
 	/* other_input makes the gspca core create gspca_dev->input even when
-	   int_pkt_scan is NULL, for cams with non interrupt driven buttons */
+	   int_pkt_scan is NULL, for cams with analn interrupt driven buttons */
 	u8 other_input;
 #endif
 };

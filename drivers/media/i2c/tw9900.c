@@ -44,7 +44,7 @@
 #define TW9900_REG_OUT_CTRL_II			0x1B
 #define TW9900_REG_STD				0x1C
 #define TW9900_REG_STD_AUTO_PROGRESS		BIT(7)
-#define TW9900_STDNOW_MASK			GENMASK(6, 4)
+#define TW9900_STDANALW_MASK			GENMASK(6, 4)
 #define TW9900_REG_STDR				0x1D
 #define TW9900_REG_MISSCNT			0x26
 #define TW9900_REG_MISC_CTL_II			0x2F
@@ -176,7 +176,7 @@ static void tw9900_fill_fmt(const struct tw9900_mode *mode,
 	fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(V4L2_COLORSPACE_SMPTE170M);
@@ -366,11 +366,11 @@ static int tw9900_get_stream_std(struct tw9900 *tw9900,
 
 	ret = tw9900_read_reg(tw9900->client, TW9900_REG_STD);
 	if (ret < 0) {
-		*std = V4L2_STD_UNKNOWN;
+		*std = V4L2_STD_UNKANALWN;
 		return ret;
 	}
 
-	cur_std = FIELD_GET(TW9900_STDNOW_MASK, ret);
+	cur_std = FIELD_GET(TW9900_STDANALW_MASK, ret);
 	switch (cur_std) {
 	case TW9900_STD_NTSC_M:
 		*std = V4L2_STD_NTSC;
@@ -379,10 +379,10 @@ static int tw9900_get_stream_std(struct tw9900 *tw9900,
 		*std = V4L2_STD_PAL;
 		break;
 	case TW9900_STD_AUTO:
-		*std = V4L2_STD_UNKNOWN;
+		*std = V4L2_STD_UNKANALWN;
 		break;
 	default:
-		*std = V4L2_STD_UNKNOWN;
+		*std = V4L2_STD_UNKANALWN;
 		break;
 	}
 
@@ -498,7 +498,7 @@ out_unlock:
 	return ret;
 }
 
-static int tw9900_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *std)
+static int tw9900_g_tvanalrms(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	*std = V4L2_STD_NTSC | V4L2_STD_PAL;
 
@@ -519,7 +519,7 @@ static int tw9900_g_input_status(struct v4l2_subdev *sd, u32 *status)
 
 	mutex_unlock(&tw9900->mutex);
 
-	*status = V4L2_IN_ST_NO_SIGNAL;
+	*status = V4L2_IN_ST_ANAL_SIGNAL;
 
 	ret = pm_runtime_resume_and_get(&tw9900->client->dev);
 	if (ret < 0)
@@ -534,7 +534,7 @@ static int tw9900_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	if (ret < 0)
 		return ret;
 
-	*status = ret & TW9900_REG_CHIP_STATUS_HLOCK ? 0 : V4L2_IN_ST_NO_SIGNAL;
+	*status = ret & TW9900_REG_CHIP_STATUS_HLOCK ? 0 : V4L2_IN_ST_ANAL_SIGNAL;
 
 	return 0;
 }
@@ -548,7 +548,7 @@ static const struct v4l2_subdev_video_ops tw9900_video_ops = {
 	.s_std		= tw9900_s_std,
 	.g_std		= tw9900_g_std,
 	.querystd	= tw9900_querystd,
-	.g_tvnorms	= tw9900_g_tvnorms,
+	.g_tvanalrms	= tw9900_g_tvanalrms,
 	.g_input_status = tw9900_g_input_status,
 	.s_stream	= tw9900_s_stream,
 };
@@ -590,7 +590,7 @@ static int tw9900_check_id(struct tw9900 *tw9900,
 
 	if (ret != TW9900_CHIP_ID) {
 		dev_err(dev, "Unexpected decoder id %#x\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -659,7 +659,7 @@ static int tw9900_probe(struct i2c_client *client)
 
 	tw9900 = devm_kzalloc(dev, sizeof(*tw9900), GFP_KERNEL);
 	if (!tw9900)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tw9900->client = client;
 	tw9900->cur_mode = &supported_modes[0];
@@ -676,7 +676,7 @@ static int tw9900_probe(struct i2c_client *client)
 				     "Failed to get power regulator\n");
 
 	v4l2_i2c_subdev_init(&tw9900->subdev, client, &tw9900_subdev_ops);
-	tw9900->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	tw9900->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 				V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	mutex_init(&tw9900->mutex);

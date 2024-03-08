@@ -153,7 +153,7 @@ void serial_test_map_kptr(void)
 
 		ASSERT_OK(kern_sync_rcu_tasks_trace(skel), "sync rcu_tasks_trace");
 		ASSERT_OK(kern_sync_rcu(), "sync rcu");
-		/* Observe refcount dropping to 1 on synchronous delete elem */
+		/* Observe refcount dropping to 1 on synchroanalus delete elem */
 		test_map_kptr_success(true);
 	}
 

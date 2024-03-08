@@ -7,7 +7,7 @@ menuconfig SERIAL_DEV_BUS
 	help
 	  Core support for devices connected via a serial port.
 
-	  Note that you typically also want to enable TTY port controller support.
+	  Analte that you typically also want to enable TTY port controller support.
 
 if SERIAL_DEV_BUS
 

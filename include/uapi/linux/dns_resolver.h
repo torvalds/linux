@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /* DNS resolver interface definitions.
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
@@ -43,7 +43,7 @@ enum dns_payload_protocol_type {
  * Source of record included in DNS resolver payload.
  */
 enum dns_record_source {
-	DNS_RECORD_UNAVAILABLE		= 0, /* No source available (empty record) */
+	DNS_RECORD_UNAVAILABLE		= 0, /* Anal source available (empty record) */
 	DNS_RECORD_FROM_CONFIG		= 1, /* From local configuration data */
 	DNS_RECORD_FROM_DNS_A		= 2, /* From DNS A or AAAA record */
 	DNS_RECORD_FROM_DNS_AFSDB	= 3, /* From DNS AFSDB record */
@@ -56,11 +56,11 @@ enum dns_record_source {
  * Status of record included in DNS resolver payload.
  */
 enum dns_lookup_status {
-	DNS_LOOKUP_NOT_DONE		= 0, /* No lookup has been made */
+	DNS_LOOKUP_ANALT_DONE		= 0, /* Anal lookup has been made */
 	DNS_LOOKUP_GOOD			= 1, /* Good records obtained */
 	DNS_LOOKUP_GOOD_WITH_BAD	= 2, /* Good records, some decoding errors */
 	DNS_LOOKUP_BAD			= 3, /* Couldn't decode results */
-	DNS_LOOKUP_GOT_NOT_FOUND	= 4, /* Got a "Not Found" result */
+	DNS_LOOKUP_GOT_ANALT_FOUND	= 4, /* Got a "Analt Found" result */
 	DNS_LOOKUP_GOT_LOCAL_FAILURE	= 5, /* Local failure during lookup */
 	DNS_LOOKUP_GOT_TEMP_FAILURE	= 6, /* Temporary failure during lookup */
 	DNS_LOOKUP_GOT_NS_FAILURE	= 7, /* Name server failure */
@@ -71,7 +71,7 @@ enum dns_lookup_status {
  * Header at the beginning of binary format payload.
  */
 struct dns_payload_header {
-	__u8		zero;		/* Zero byte: marks this as not being text */
+	__u8		zero;		/* Zero byte: marks this as analt being text */
 	__u8		content;	/* enum dns_payload_content_type */
 	__u8		version;	/* Encoding version */
 } __packed;
@@ -90,7 +90,7 @@ struct dns_server_list_v1_header {
 
 /*
  * Header at the beginning of each V1 server record.  This is followed by the
- * characters of the name with no NUL-terminator, followed by the address
+ * characters of the name with anal NUL-terminator, followed by the address
  * records for that server.  Each address record begins with a struct of type
  * struct dns_server_list_v1_address.
  */

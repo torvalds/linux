@@ -41,13 +41,13 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 #define __pa(x)		__phys_addr((unsigned long)(x))
 #endif
 
-#define __pa_nodebug(x)	__phys_addr_nodebug((unsigned long)(x))
+#define __pa_analdebug(x)	__phys_addr_analdebug((unsigned long)(x))
 /* __pa_symbol should be used for C visible symbols.
    This seems to be the official gcc blessed way to do such arithmetic. */
 /*
- * We need __phys_reloc_hide() here because gcc may assume that there is no
+ * We need __phys_reloc_hide() here because gcc may assume that there is anal
  * overflow during __pa() calculation and can optimize it unexpectedly.
- * Newer versions of gcc provide -fno-strict-overflow switch to handle this
+ * Newer versions of gcc provide -fanal-strict-overflow switch to handle this
  * case properly. Once all supported versions of gcc understand it, we can
  * remove this Voodoo magic stuff. (i.e. once gcc3.x is deprecated)
  */
@@ -70,14 +70,14 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 extern bool __virt_addr_valid(unsigned long kaddr);
 #define virt_addr_valid(kaddr)	__virt_addr_valid((unsigned long) (kaddr))
 
-static __always_inline u64 __canonical_address(u64 vaddr, u8 vaddr_bits)
+static __always_inline u64 __caanalnical_address(u64 vaddr, u8 vaddr_bits)
 {
 	return ((s64)vaddr << (64 - vaddr_bits)) >> (64 - vaddr_bits);
 }
 
-static __always_inline u64 __is_canonical_address(u64 vaddr, u8 vaddr_bits)
+static __always_inline u64 __is_caanalnical_address(u64 vaddr, u8 vaddr_bits)
 {
-	return __canonical_address(vaddr, vaddr_bits) == vaddr;
+	return __caanalnical_address(vaddr, vaddr_bits) == vaddr;
 }
 
 #endif	/* __ASSEMBLY__ */

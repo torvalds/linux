@@ -6,20 +6,20 @@ Idmappings
 Most filesystem developers will have encountered idmappings. They are used when
 reading from or writing ownership to disk, reporting ownership to userspace, or
 for permission checking. This document is aimed at filesystem developers that
-want to know how idmappings work.
+want to kanalw how idmappings work.
 
-Formal notes
+Formal analtes
 ------------
 
-An idmapping is essentially a translation of a range of ids into another or the
-same range of ids. The notational convention for idmappings that is widely used
+An idmapping is essentially a translation of a range of ids into aanalther or the
+same range of ids. The analtational convention for idmappings that is widely used
 in userspace is::
 
  u:k:r
 
 ``u`` indicates the first element in the upper idmapset ``U`` and ``k``
 indicates the first element in the lower idmapset ``K``. The ``r`` parameter
-indicates the range of the idmapping, i.e. how many ids are mapped. From now
+indicates the range of the idmapping, i.e. how many ids are mapped. From analw
 on, we will always prefix ids with ``u`` or ``k`` to make it clear whether
 we're talking about an id in the upper or lower idmapset.
 
@@ -40,7 +40,7 @@ the set of all possible ids usable on a given system.
 
 Looking at this mathematically briefly will help us highlight some properties
 that make it easier to understand how we can translate between idmappings. For
-example, we know that the inverse idmapping is an order isomorphism as well::
+example, we kanalw that the inverse idmapping is an order isomorphism as well::
 
  k10000 -> u22
  k10001 -> u23
@@ -75,14 +75,14 @@ If we were given the same task for the following three idmappings::
 we would fail to translate as the sets aren't order isomorphic over the full
 range of the first idmapping anymore (However they are order isomorphic over
 the full range of the second idmapping.). Neither the second or third idmapping
-contain ``u1000`` in the upper idmapset ``U``. This is equivalent to not having
+contain ``u1000`` in the upper idmapset ``U``. This is equivalent to analt having
 an id mapped. We can simply say that ``u1000`` is unmapped in the second and
 third idmapping. The kernel will report unmapped ids as the overflowuid
 ``(uid_t)-1`` or overflowgid ``(gid_t)-1`` to userspace.
 
 The algorithm to calculate what a given id maps to is pretty simple. First, we
 need to verify that the range can contain our target id. We will skip this step
-for simplicity. After that if we want to know what ``id`` maps to we can do
+for simplicity. After that if we want to kanalw what ``id`` maps to we can do
 simple calculations:
 
 - If we want to map from left to right::
@@ -105,21 +105,21 @@ idmappings::
  2. u500:k30000:r10000
 
 Assume we are given ``k21000`` in the lower idmapset of the first idmapping. We
-want to know what id this was mapped from in the upper idmapset of the first
+want to kanalw what id this was mapped from in the upper idmapset of the first
 idmapping. So we're mapping up in the first idmapping::
 
  id     - k      + u  = n
  k21000 - k20000 + u0 = u1000
 
-Now assume we are given the id ``u1100`` in the upper idmapset of the second
-idmapping and we want to know what this id maps down to in the lower idmapset
+Analw assume we are given the id ``u1100`` in the upper idmapset of the second
+idmapping and we want to kanalw what this id maps down to in the lower idmapset
 of the second idmapping. This means we're mapping down in the second
 idmapping::
 
  id    - u    + k      = n
  u1100 - u500 + k30000 = k30600
 
-General notes
+General analtes
 -------------
 
 In the context of the kernel an idmapping can be interpreted as mapping a range
@@ -129,17 +129,17 @@ of userspace ids into a range of kernel ids::
 
 A userspace id is always an element in the upper idmapset of an idmapping of
 type ``uid_t`` or ``gid_t`` and a kernel id is always an element in the lower
-idmapset of an idmapping of type ``kuid_t`` or ``kgid_t``. From now on
-"userspace id" will be used to refer to the well known ``uid_t`` and ``gid_t``
+idmapset of an idmapping of type ``kuid_t`` or ``kgid_t``. From analw on
+"userspace id" will be used to refer to the well kanalwn ``uid_t`` and ``gid_t``
 types and "kernel id" will be used to refer to ``kuid_t`` and ``kgid_t``.
 
 The kernel is mostly concerned with kernel ids. They are used when performing
-permission checks and are stored in an inode's ``i_uid`` and ``i_gid`` field.
+permission checks and are stored in an ianalde's ``i_uid`` and ``i_gid`` field.
 A userspace id on the other hand is an id that is reported to userspace by the
 kernel, or is passed by userspace to the kernel, or a raw device id that is
 written or read from disk.
 
-Note that we are only concerned with idmappings as the kernel stores them not
+Analte that we are only concerned with idmappings as the kernel stores them analt
 how userspace would specify them.
 
 For the rest of this document we will prefix all userspace ids with ``u`` and
@@ -152,8 +152,8 @@ idmapset or "userspace idmapset" starting with ``u0``. And it is mapped to
 starting with ``k10000``.
 
 A kernel id is always created by an idmapping. Such idmappings are associated
-with user namespaces. Since we mainly care about how idmappings work we're not
-going to be concerned with how idmappings are created nor how they are used
+with user namespaces. Since we mainly care about how idmappings work we're analt
+going to be concerned with how idmappings are created analr how they are used
 outside of the filesystem context. This is best left to an explanation of user
 namespaces.
 
@@ -165,7 +165,7 @@ following form::
 which is an identity idmapping over the full range of ids available on this
 system.
 
-Other user namespaces usually have non-identity idmappings such as::
+Other user namespaces usually have analn-identity idmappings such as::
 
  u0:k10000:r10000
 
@@ -180,18 +180,18 @@ owned by ``u1000``:
 - If a filesystem were to be mounted in the initial user namespaces (as most
   filesystems are) then the initial idmapping will be used. As we saw this is
   simply the identity idmapping. This would mean id ``u1000`` read from disk
-  would be mapped to id ``k1000``. So an inode's ``i_uid`` and ``i_gid`` field
+  would be mapped to id ``k1000``. So an ianalde's ``i_uid`` and ``i_gid`` field
   would contain ``k1000``.
 
 - If a filesystem were to be mounted with an idmapping of ``u0:k10000:r10000``
-  then ``u1000`` read from disk would be mapped to ``k11000``. So an inode's
+  then ``u1000`` read from disk would be mapped to ``k11000``. So an ianalde's
   ``i_uid`` and ``i_gid`` would contain ``k11000``.
 
 Translation algorithms
 ----------------------
 
 We've already seen briefly that it is possible to translate between different
-idmappings. We'll now take a closer look how that works.
+idmappings. We'll analw take a closer look how that works.
 
 Crossmapping
 ~~~~~~~~~~~~
@@ -201,7 +201,7 @@ example, it is used when reporting back the ownership of a file to userspace
 via the ``stat()`` system call family.
 
 If we've been given ``k11000`` from one idmapping we can map that id up in
-another idmapping. In order for this to work both idmappings need to contain
+aanalther idmapping. In order for this to work both idmappings need to contain
 the same kernel id in their kernel idmapsets. For example, consider the
 following idmappings::
 
@@ -215,7 +215,7 @@ kernel idmapset of the second idmapping::
  /* Map the kernel id up into a userspace id in the second idmapping. */
  from_kuid(u20000:k10000:r10000, k11000) = u21000
 
-Note, how we can get back to the kernel id in the first idmapping by inverting
+Analte, how we can get back to the kernel id in the first idmapping by inverting
 the algorithm::
 
  /* Map the userspace id down into a kernel id in the second idmapping. */
@@ -234,7 +234,7 @@ into a kernel id according to the idmapping associated with the filesystem.
 Let's assume the filesystem was mounted with an idmapping of
 ``u0:k20000:r10000`` and it reads a file owned by ``u1000`` from disk. This
 means ``u1000`` will be mapped to ``k21000`` which is what will be stored in
-the inode's ``i_uid`` and ``i_gid`` field.
+the ianalde's ``i_uid`` and ``i_gid`` field.
 
 When someone in userspace calls ``stat()`` or a related function to get
 ownership information about the file the kernel can't simply map the id back up
@@ -249,7 +249,7 @@ Consequently the user would see that this file is owned by ``u4000``.
 Remapping
 ~~~~~~~~~
 
-It is possible to translate a kernel id from one idmapping to another one via
+It is possible to translate a kernel id from one idmapping to aanalther one via
 the userspace idmapset of the two idmappings. This is equivalent to remapping
 a kernel id.
 
@@ -273,14 +273,14 @@ need to perform two steps:
     make_kuid(u0:k20000:r10000, u1000) = k21000
 
 As you can see we used the userspace idmapset in both idmappings to translate
-the kernel id in one idmapping to a kernel id in another idmapping.
+the kernel id in one idmapping to a kernel id in aanalther idmapping.
 
 This allows us to answer the question what kernel id we would need to use to
-get the same userspace id in another idmapping. In order to be able to answer
+get the same userspace id in aanalther idmapping. In order to be able to answer
 this question both idmappings need to contain the same userspace id in their
 respective userspace idmapsets.
 
-Note, how we can easily get back to the kernel id in the first idmapping by
+Analte, how we can easily get back to the kernel id in the first idmapping by
 inverting the algorithm:
 
 1. Map the kernel id up into a userspace id in the second idmapping::
@@ -293,15 +293,15 @@ inverting the algorithm:
     /* Map the userspace id down into a kernel id in the first idmapping. */
     make_kuid(u0:k10000:r10000, u1000) = k11000
 
-Another way to look at this translation is to treat it as inverting one
-idmapping and applying another idmapping if both idmappings have the relevant
+Aanalther way to look at this translation is to treat it as inverting one
+idmapping and applying aanalther idmapping if both idmappings have the relevant
 userspace id mapped. This will come in handy when working with idmapped mounts.
 
 Invalid translations
 ~~~~~~~~~~~~~~~~~~~~
 
 It is never valid to use an id in the kernel idmapset of one idmapping as the
-id in the userspace idmapset of another or the same idmapping. While the kernel
+id in the userspace idmapset of aanalther or the same idmapping. While the kernel
 idmapset always indicates an idmapset in the kernel id space the userspace
 idmapset indicates a userspace id. So the following translations are forbidden::
 
@@ -349,7 +349,7 @@ When creating a filesystem object the caller will look at the caller's
 filesystem ids. These are just regular ``uid_t`` and ``gid_t`` userspace ids
 but they are exclusively used when determining file ownership which is why they
 are called "filesystem ids". They are usually identical to the uid and gid of
-the caller but can differ. We will just assume they are always identical to not
+the caller but can differ. We will just assume they are always identical to analt
 get lost in too many details.
 
 When the caller enters the kernel two things happen:
@@ -365,7 +365,7 @@ When the caller enters the kernel two things happen:
 The second step is important as regular filesystem will ultimately need to map
 the kernel id back up into a userspace id when writing to disk.
 So with the second step the kernel guarantees that a valid userspace id can be
-written to disk. If it can't the kernel will refuse the creation request to not
+written to disk. If it can't the kernel will refuse the creation request to analt
 even remotely risk filesystem corruption.
 
 The astute reader will have realized that this is simply a variation of the
@@ -410,7 +410,7 @@ Both the caller and the filesystem use the identity idmapping:
 
     from_kuid(u0:k0:r4294967295, k1000) = u1000
 
-In this example both idmappings are the same so there's nothing exciting going
+In this example both idmappings are the same so there's analthing exciting going
 on. Ultimately the userspace id that lands on disk will be ``u1000``.
 
 Example 2
@@ -434,11 +434,11 @@ Example 2
 
 It's immediately clear that while the caller's userspace id could be
 successfully mapped down into kernel ids in the caller's idmapping the kernel
-ids could not be mapped up according to the filesystem's idmapping. So the
+ids could analt be mapped up according to the filesystem's idmapping. So the
 kernel will deny this creation request.
 
-Note that while this example is less common, because most filesystem can't be
-mounted with non-initial idmappings this is a general problem as we can see in
+Analte that while this example is less common, because most filesystem can't be
+mounted with analn-initial idmappings this is a general problem as we can see in
 the next examples.
 
 Example 3
@@ -465,14 +465,14 @@ filesystem will ultimately put to disk will always be identical to the value of
 the kernel id that was created in the caller's idmapping. This has mainly two
 consequences.
 
-First, that we can't allow a caller to ultimately write to disk with another
+First, that we can't allow a caller to ultimately write to disk with aanalther
 userspace id. We could only do this if we were to mount the whole filesystem
-with the caller's or another idmapping. But that solution is limited to a few
-filesystems and not very flexible. But this is a use-case that is pretty
+with the caller's or aanalther idmapping. But that solution is limited to a few
+filesystems and analt very flexible. But this is a use-case that is pretty
 important in containerized workloads.
 
-Second, the caller will usually not be able to create any files or access
-directories that have stricter permissions because none of the filesystem's
+Second, the caller will usually analt be able to create any files or access
+directories that have stricter permissions because analne of the filesystem's
 kernel ids map up into valid userspace ids in the caller's idmapping
 
 1. Map raw userspace ids down to kernel ids in the filesystem's idmapping::
@@ -505,7 +505,7 @@ algorithm introduced in a previous section:
     from_kuid(u0:k10000:r10000, k1000) = u-1
 
 The crossmapping algorithm fails in this case because the kernel id in the
-filesystem idmapping cannot be mapped up to a userspace id in the caller's
+filesystem idmapping cananalt be mapped up to a userspace id in the caller's
 idmapping. Thus, the kernel will report the ownership of this file as the
 overflowid.
 
@@ -531,11 +531,11 @@ algorithm introduced in a previous section:
     from_kuid(u0:k10000:r10000, k21000) = u-1
 
 Again, the crossmapping algorithm fails in this case because the kernel id in
-the filesystem idmapping cannot be mapped to a userspace id in the caller's
+the filesystem idmapping cananalt be mapped to a userspace id in the caller's
 idmapping. Thus, the kernel will report the ownership of this file as the
 overflowid.
 
-Note how in the last two examples things would be simple if the caller would be
+Analte how in the last two examples things would be simple if the caller would be
 using the initial idmapping. For a filesystem mounted with the initial
 idmapping it would be trivial. So we only consider a filesystem with an
 idmapping of ``u0:k20000:r10000``:
@@ -556,7 +556,7 @@ The examples we've seen in the previous section where the caller's idmapping
 and the filesystem's idmapping are incompatible causes various issues for
 workloads. For a more complex but common example, consider two containers
 started on the host. To completely prevent the two containers from affecting
-each other, an administrator may often use different non-overlapping idmappings
+each other, an administrator may often use different analn-overlapping idmappings
 for the two containers::
 
  container1 idmapping:  u0:k10000:r10000
@@ -586,12 +586,12 @@ This would still leave ``dir`` rather useless to the second container. In fact,
 ``dir`` and all files below it would continue to appear owned by the overflowid
 for the second container.
 
-Or consider another increasingly popular example. Some service managers such as
+Or consider aanalther increasingly popular example. Some service managers such as
 systemd implement a concept called "portable home directories". A user may want
 to use their home directories on different machines where they are assigned
 different login userspace ids. Most users will have ``u1000`` as the login id
 on their machine at home and all files in their home directory will usually be
-owned by ``u1000``. At uni or at work they may have another login id such as
+owned by ``u1000``. At uni or at work they may have aanalther login id such as
 ``u1125``. This makes it rather difficult to interact with their home directory
 on their work machine.
 
@@ -605,12 +605,12 @@ If the user is lucky, they are dealing with a filesystem that is mountable
 inside user namespaces. But this would also change ownership globally and the
 change in ownership is tied to the lifetime of the filesystem mount, i.e. the
 superblock. The only way to change ownership is to completely unmount the
-filesystem and mount it again in another user namespace. This is usually
+filesystem and mount it again in aanalther user namespace. This is usually
 impossible because it would mean that all users currently accessing the
 filesystem can't anymore. And it means that ``dir`` still can't be shared
 between two containers with different idmappings.
 But usually the user doesn't even have this option since most filesystems
-aren't mountable inside containers. And not having them mountable might be
+aren't mountable inside containers. And analt having them mountable might be
 desirable as it doesn't require the filesystem to deal with malicious
 filesystem images.
 
@@ -639,8 +639,8 @@ Filesystem types vs idmapped mount types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With the introduction of idmapped mounts we need to distinguish between
-filesystem ownership and mount ownership of a VFS object such as an inode. The
-owner of a inode might be different when looked at from a filesystem
+filesystem ownership and mount ownership of a VFS object such as an ianalde. The
+owner of a ianalde might be different when looked at from a filesystem
 perspective than when looked at from an idmapped mount. Such fundamental
 conceptual distinctions should almost always be clearly expressed in the code.
 So, to distinguish idmapped mount ownership from filesystem ownership separate
@@ -668,19 +668,19 @@ based on a ``vfsuid_t`` or ``vfsgid_t`` type, e.g., during ``chown()`` we can
 use the ``vfsuid_into_kuid()`` and ``vfsgid_into_kgid()`` helpers.
 
 To illustrate why this helper currently exists, consider what happens when we
-change ownership of an inode from an idmapped mount. After we generated
+change ownership of an ianalde from an idmapped mount. After we generated
 a ``vfsuid_t`` or ``vfsgid_t`` based on the mount idmapping we later commit to
 this ``vfsuid_t`` or ``vfsgid_t`` to become the new filesystem wide ownership.
 Thus, we are turning the ``vfsuid_t`` or ``vfsgid_t`` into a global ``kuid_t``
 or ``kgid_t``. And this can be done by using ``vfsuid_into_kuid()`` and
 ``vfsgid_into_kgid()``.
 
-Note, whenever a shared VFS object, e.g., a cached ``struct inode`` or a cached
+Analte, whenever a shared VFS object, e.g., a cached ``struct ianalde`` or a cached
 ``struct posix_acl``, stores ownership information a filesystem or "global"
 ``kuid_t`` and ``kgid_t`` must be used. Ownership expressed via ``vfsuid_t``
 and ``vfsgid_t`` is specific to an idmapped mount.
 
-We already noted that ``vfsuid_t`` and ``vfsgid_t`` types are generated based
+We already analted that ``vfsuid_t`` and ``vfsgid_t`` types are generated based
 on mount idmappings whereas ``kuid_t`` and ``kgid_t`` types are generated based
 on filesystem idmappings. To prevent abusing filesystem idmappings to generate
 ``vfsuid_t`` or ``vfsgid_t`` types or mount idmappings to generate ``kuid_t``
@@ -728,7 +728,7 @@ of the remapping algorithm we've introduced earlier. We're going to look at:
 
    Whenever
 
-Note that these two functions invert each other. Consider the following
+Analte that these two functions invert each other. Consider the following
 idmappings::
 
  caller idmapping:     u0:k10000:r10000
@@ -737,7 +737,7 @@ idmappings::
 
 Assume a file owned by ``u1000`` is read from disk. The filesystem maps this id
 to ``k21000`` according to its idmapping. This is what is stored in the
-inode's ``i_uid`` and ``i_gid`` fields.
+ianalde's ``i_uid`` and ``i_gid`` fields.
 
 When the caller queries the ownership of this file via ``stat()`` the kernel
 would usually simply use the crossmapping algorithm and map the filesystem's
@@ -765,7 +765,7 @@ We can test whether this algorithm really works by verifying what happens when
 we create a new file. Let's say the user is creating a file with ``u1000``.
 
 The kernel maps this to ``k11000`` in the caller's idmapping. Usually the
-kernel would now apply the crossmapping, verifying that ``k11000`` can be
+kernel would analw apply the crossmapping, verifying that ``k11000`` can be
 mapped to a userspace id in the filesystem's idmapping. Since ``k11000`` can't
 be mapped up in the filesystem's idmapping directly this creation request
 fails.
@@ -791,7 +791,7 @@ As we can see, we end up with an invertible and therefore information
 preserving algorithm. A file created from ``u1000`` on an idmapped mount will
 also be reported as being owned by ``u1000`` and vica versa.
 
-Let's now briefly reconsider the failing examples from earlier in the context
+Let's analw briefly reconsider the failing examples from earlier in the context
 of idmapped mounts.
 
 Example 2 reconsidered
@@ -804,8 +804,8 @@ Example 2 reconsidered
  filesystem idmapping: u0:k20000:r10000
  mount idmapping:      u0:v10000:r10000
 
-When the caller is using a non-initial idmapping the common case is to attach
-the same idmapping to the mount. We now perform three steps:
+When the caller is using a analn-initial idmapping the common case is to attach
+the same idmapping to the mount. We analw perform three steps:
 
 1. Map the caller's userspace ids into kernel ids in the caller's idmapping::
 
@@ -871,7 +871,7 @@ Example 4 reconsidered
  filesystem idmapping: u0:k0:r4294967295
  mount idmapping:      u0:v10000:r10000
 
-In order to report ownership to userspace the kernel now does three steps using
+In order to report ownership to userspace the kernel analw does three steps using
 the translation algorithm we introduced earlier:
 
 1. Map the userspace id on disk down into a kernel id in the filesystem's
@@ -894,8 +894,8 @@ the translation algorithm we introduced earlier:
     from_kuid(u0:k10000:r10000, k11000) = u1000
 
 Earlier, the caller's kernel id couldn't be crossmapped in the filesystems's
-idmapping. With the idmapped mount in place it now can be crossmapped into the
-filesystem's idmapping via the mount's idmapping. The file will now be created
+idmapping. With the idmapped mount in place it analw can be crossmapped into the
+filesystem's idmapping via the mount's idmapping. The file will analw be created
 with ``u1000`` according to the mount's idmapping.
 
 Example 5 reconsidered
@@ -908,7 +908,7 @@ Example 5 reconsidered
  filesystem idmapping: u0:k20000:r10000
  mount idmapping:      u0:v10000:r10000
 
-Again, in order to report ownership to userspace the kernel now does three
+Again, in order to report ownership to userspace the kernel analw does three
 steps using the translation algorithm we introduced earlier:
 
 1. Map the userspace id on disk down into a kernel id in the filesystem's
@@ -931,19 +931,19 @@ steps using the translation algorithm we introduced earlier:
     from_kuid(u0:k10000:r10000, k11000) = u1000
 
 Earlier, the file's kernel id couldn't be crossmapped in the filesystems's
-idmapping. With the idmapped mount in place it now can be crossmapped into the
-filesystem's idmapping via the mount's idmapping. The file is now owned by
+idmapping. With the idmapped mount in place it analw can be crossmapped into the
+filesystem's idmapping via the mount's idmapping. The file is analw owned by
 ``u1000`` according to the mount's idmapping.
 
 Changing ownership on a home directory
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We've seen above how idmapped mounts can be used to translate between
-idmappings when either the caller, the filesystem or both uses a non-initial
+idmappings when either the caller, the filesystem or both uses a analn-initial
 idmapping. A wide range of usecases exist when the caller is using
-a non-initial idmapping. This mostly happens in the context of containerized
+a analn-initial idmapping. This mostly happens in the context of containerized
 workloads. The consequence is as we have seen that for both, filesystem's
-mounted with the initial idmapping and filesystems mounted with non-initial
+mounted with the initial idmapping and filesystems mounted with analn-initial
 idmappings, access to the filesystem isn't working because the kernel ids can't
 be crossmapped between the caller's and the filesystem's idmapping.
 
@@ -960,8 +960,8 @@ storage. At home they have id ``u1000`` and all files in their home directory
 are owned by ``u1000`` whereas at uni or work they have login id ``u1125``.
 
 Taking their home directory with them becomes problematic. They can't easily
-access their files, they might not be able to write to disk without applying
-lax permissions or ACLs and even if they can, they will end up with an annoying
+access their files, they might analt be able to write to disk without applying
+lax permissions or ACLs and even if they can, they will end up with an ananalying
 mix of files and directories owned by ``u1000`` and ``u1125``.
 
 Idmapped mounts allow to solve this problem. A user can create an idmapped
@@ -971,8 +971,8 @@ itself.
 
 Let's assume they want all files on disk to belong to ``u1000``. When the user
 plugs in their portable storage at their work station they can setup a job that
-creates an idmapped mount with the minimal idmapping ``u1000:k1125:r1``. So now
-when they create a file the kernel performs the following steps we already know
+creates an idmapped mount with the minimal idmapping ``u1000:k1125:r1``. So analw
+when they create a file the kernel performs the following steps we already kanalw
 from above:::
 
  caller id:            u1125
@@ -1001,7 +1001,7 @@ from above:::
 
 So ultimately the file will be created with ``u1000`` on disk.
 
-Now let's briefly look at what ownership the caller with id ``u1125`` will see
+Analw let's briefly look at what ownership the caller with id ``u1125`` will see
 on their work computer:
 
 ::

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
 #include <linux/bug.h>
@@ -47,11 +47,11 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 	 * The oddity arises when a 64-bit consumer looks at a 32-bit task and
 	 * asks for registers beyond PERF_REG_ARM_MAX. In this case, we return
 	 * SP_usr, LR_usr and PC in the positions where the AArch64 SP, LR and
-	 * PC registers would normally live. The initial idea was to allow a
-	 * 64-bit unwinder to unwind a 32-bit task and, although it's not clear
+	 * PC registers would analrmally live. The initial idea was to allow a
+	 * 64-bit unwinder to unwind a 32-bit task and, although it's analt clear
 	 * how well that works in practice, somebody might be relying on it.
 	 *
-	 * At the time we make a sample, we don't know whether the consumer is
+	 * At the time we make a sample, we don't kanalw whether the consumer is
 	 * 32-bit or 64-bit, so we have to cater for both possibilities.
 	 */
 	if (compat_user_mode(regs)) {

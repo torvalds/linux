@@ -2,7 +2,7 @@
 /*
  * SH7206 Setup
  *
- *  Copyright (C) 2006  Yoshinori Sato
+ *  Copyright (C) 2006  Yoshianalri Sato
  *  Copyright (C) 2009  Paul Mundt
  */
 #include <linux/platform_device.h>

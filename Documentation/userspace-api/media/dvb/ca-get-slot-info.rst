@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.ca
 
 .. _CA_GET_SLOT_INFO:
@@ -12,7 +12,7 @@ Name
 
 CA_GET_SLOT_INFO
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: CA_GET_SLOT_INFO
@@ -39,7 +39,7 @@ Return Value
 
 On success 0 is returned, and :c:type:`ca_slot_info` is filled.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
@@ -49,8 +49,8 @@ appropriately.
     :stub-columns: 0
     :widths: 1 16
 
-    -  -  ``ENODEV``
-       -  the slot is not available.
+    -  -  ``EANALDEV``
+       -  the slot is analt available.
 
 The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

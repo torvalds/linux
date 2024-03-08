@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -277,7 +277,7 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 		chansize = 32;
 
 	tmp = RREG32(mmMC_SHARED_CHMAP);
-	switch ((tmp & MC_SHARED_CHMAP__NOOFCHAN_MASK) >> MC_SHARED_CHMAP__NOOFCHAN__SHIFT) {
+	switch ((tmp & MC_SHARED_CHMAP__ANALOFCHAN_MASK) >> MC_SHARED_CHMAP__ANALOFCHAN__SHIFT) {
 	case 0:
 	default:
 		numchan = 1;
@@ -324,14 +324,14 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 	/* set the gart size */
 	if (amdgpu_gart_size == -1) {
 		switch (adev->asic_type) {
-		case CHIP_HAINAN:    /* no MM engines */
+		case CHIP_HAINAN:    /* anal MM engines */
 		default:
 			adev->gmc.gart_size = 256ULL << 20;
 			break;
-		case CHIP_VERDE:    /* UVD, VCE do not support GPUVM */
-		case CHIP_TAHITI:   /* UVD, VCE do not support GPUVM */
-		case CHIP_PITCAIRN: /* UVD, VCE do not support GPUVM */
-		case CHIP_OLAND:    /* UVD, VCE do not support GPUVM */
+		case CHIP_VERDE:    /* UVD, VCE do analt support GPUVM */
+		case CHIP_TAHITI:   /* UVD, VCE do analt support GPUVM */
+		case CHIP_PITCAIRN: /* UVD, VCE do analt support GPUVM */
+		case CHIP_OLAND:    /* UVD, VCE do analt support GPUVM */
 			adev->gmc.gart_size = 1024ULL << 20;
 			break;
 		}
@@ -466,7 +466,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	int i;
 
 	if (adev->gart.bo == NULL) {
-		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
+		dev_err(adev->dev, "Anal VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
@@ -518,7 +518,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	/* set vm size, must be a multiple of 4 */
 	WREG32(mmVM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
 	WREG32(mmVM_CONTEXT1_PAGE_TABLE_END_ADDR, adev->vm_manager.max_pfn - 1);
-	/* Assign the pt base to something valid for now; the pts used for
+	/* Assign the pt base to something valid for analw; the pts used for
 	 * the VMs are determined by the application and setup and assigned
 	 * on the fly in the vm part of radeon_gart.c
 	 */
@@ -763,7 +763,7 @@ static int gmc_v6_0_convert_vram_type(int mc_seq_vram_type)
 	case MC_SEQ_MISC0__MT__DDR3:
 		return AMDGPU_VRAM_TYPE_DDR3;
 	default:
-		return AMDGPU_VRAM_TYPE_UNKNOWN;
+		return AMDGPU_VRAM_TYPE_UNKANALWN;
 	}
 }
 
@@ -812,7 +812,7 @@ static int gmc_v6_0_sw_init(void *handle)
 	set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
 
 	if (adev->flags & AMD_IS_APU) {
-		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
+		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_UNKANALWN;
 	} else {
 		u32 tmp = RREG32(mmMC_SEQ_MISC0);
 
@@ -834,7 +834,7 @@ static int gmc_v6_0_sw_init(void *handle)
 
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(40));
 	if (r) {
-		dev_warn(adev->dev, "No suitable DMA available.\n");
+		dev_warn(adev->dev, "Anal suitable DMA available.\n");
 		return r;
 	}
 	adev->need_swiotlb = drm_need_swiotlb(40);
@@ -957,7 +957,7 @@ static bool gmc_v6_0_is_idle(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
-	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK |
+	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_ANALN_DISPLAY_BUSY_MASK |
 		   SRBM_STATUS__MCC_BUSY_MASK | SRBM_STATUS__MCD_BUSY_MASK | SRBM_STATUS__VMC_BUSY_MASK))
 		return false;
 
@@ -988,7 +988,7 @@ static int gmc_v6_0_soft_reset(void *handle)
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
 						SRBM_SOFT_RESET, SOFT_RESET_VMC, 1);
 
-	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK |
+	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_ANALN_DISPLAY_BUSY_MASK |
 		   SRBM_STATUS__MCC_BUSY_MASK | SRBM_STATUS__MCD_BUSY_MASK)) {
 		if (!(adev->flags & AMD_IS_APU))
 			srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
@@ -1144,7 +1144,7 @@ static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version gmc_v6_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GMC,
 	.major = 6,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &gmc_v6_0_ip_funcs,
 };

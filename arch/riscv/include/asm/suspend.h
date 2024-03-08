@@ -51,7 +51,7 @@ int arch_hibernation_header_restore(void *addr);
 int __hibernate_cpu_resume(void);
 
 /* Used to resume on the CPU we hibernated on */
-int hibernate_resume_nonboot_cpu_disable(void);
+int hibernate_resume_analnboot_cpu_disable(void);
 
 asmlinkage void hibernate_restore_image(unsigned long resume_satp, unsigned long satp_temp,
 					unsigned long cpu_resume);

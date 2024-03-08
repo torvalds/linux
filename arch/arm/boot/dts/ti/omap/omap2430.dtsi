@@ -84,7 +84,7 @@
 				      <0x20004 0x4>;
 				reg-names = "rev", "sysc";
 				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-						<SYSC_IDLE_NO>;
+						<SYSC_IDLE_ANAL>;
 				clocks = <&func_32k_ck>;
 				clock-names = "fck";
 				#address-cells = <1>;
@@ -299,7 +299,7 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&gpt1_fck>, <&gpt1_ick>;
@@ -357,8 +357,8 @@
 
 /* Preferred always-on timer for clockevent */
 &timer1_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&gpt1_fck>;
 		assigned-clock-parents = <&func_32k_ck>;

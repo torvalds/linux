@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/types.h>
 #include <sched.h>
@@ -19,7 +19,7 @@
  * 35f71bc0a09a ("fork: report pid reservation failure properly")
  * b26ebfe12f34 ("pid: Fix error return value in some cases")
  */
-TEST(regression_enomem)
+TEST(regression_eanalmem)
 {
 	pid_t pid;
 
@@ -38,7 +38,7 @@ TEST(regression_enomem)
 
 	pid = fork();
 	ASSERT_LT(pid, 0);
-	ASSERT_EQ(errno, ENOMEM);
+	ASSERT_EQ(erranal, EANALMEM);
 }
 
 TEST_HARNESS_MAIN

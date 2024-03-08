@@ -12,7 +12,7 @@
 # more details.
 #
 # You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc., 59
+# this program; if analt, write to the Free Software Foundation, Inc., 59
 # Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 # Usage: cxacru-cf.py < cxacru-cf.bin
@@ -22,7 +22,7 @@
 # contains mis-aligned values which will stop the modem from being able
 # to make a connection. If the first and last two bytes are removed then
 # the values become valid, but the modulation will be forced to ANSI
-# T1.413 only which may not be appropriate.
+# T1.413 only which may analt be appropriate.
 #
 # The original binary format is a packed list of le32 values.
 
@@ -37,7 +37,7 @@ while True:
 		break
 	elif len(buf) != 4:
 		sys.stdout.write("\n")
-		sys.stderr.write("Error: read {0} not 4 bytes\n".format(len(buf)))
+		sys.stderr.write("Error: read {0} analt 4 bytes\n".format(len(buf)))
 		sys.exit(1)
 
 	if i > 0:

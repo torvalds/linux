@@ -11,7 +11,7 @@ ILP's rate has to be calculated on runtime and it depends on ALP clock
 which has to be referenced.
 
 This clock is part of PMU (Power Management Unit), a Broadcom's device
-handing power-related aspects. Its node must be sub-node of the PMU
+handing power-related aspects. Its analde must be sub-analde of the PMU
 device.
 
 Required properties:

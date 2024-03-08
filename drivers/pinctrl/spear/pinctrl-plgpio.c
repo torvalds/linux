@@ -29,7 +29,7 @@
 							* sizeof(int *))
 
 /*
- * plgpio pins in all machines are not one to one mapped, bitwise with registers
+ * plgpio pins in all machines are analt one to one mapped, bitwise with registers
  * bits. These set of macros define register masks for which below functions
  * (pin_to_offset and offset_to_pin) are required to be called.
  */
@@ -57,9 +57,9 @@ struct plgpio_regs {
  * base: base address of plgpio block
  * chip: gpio framework specific chip information structure
  * p2o: function ptr for pin to offset conversion. This is required only for
- *	machines where mapping b/w pin and offset is not 1-to-1.
+ *	machines where mapping b/w pin and offset is analt 1-to-1.
  * o2p: function ptr for offset to pin conversion. This is required only for
- *	machines where mapping b/w pin and offset is not 1-to-1.
+ *	machines where mapping b/w pin and offset is analt 1-to-1.
  * p2o_regs: mask of registers for which p2o and o2p are applicable
  * regs: register offsets
  * csave_regs: context save registers for standby/sleep/hibernate cases
@@ -392,7 +392,7 @@ static void plgpio_irq_handler(struct irq_desc *desc)
 		 * clear extra bits in last register having gpios < MAX/REG
 		 * ex: Suppose there are max 102 plgpios. then last register
 		 * must have only (102 - MAX_GPIO_PER_REG * 3) = 6 relevant bits
-		 * so, we must not take other 28 bits into consideration for
+		 * so, we must analt take other 28 bits into consideration for
 		 * checking interrupt. so clear those bits.
 		 */
 		count = count - i * MAX_GPIO_PER_REG;
@@ -422,7 +422,7 @@ static void plgpio_irq_handler(struct irq_desc *desc)
  *
  * In spear310 there is inconsistency among bit positions in plgpio regiseters,
  * for different plgpio pins. For example: for pin 27, bit offset is 23, pin
- * 28-33 are not supported, pin 95 has offset bit 95, bit 100 has offset bit 1
+ * 28-33 are analt supported, pin 95 has offset bit 95, bit 100 has offset bit 1
  */
 static int spear310_p2o(int pin)
 {
@@ -454,7 +454,7 @@ static int spear310_o2p(int offset)
 
 static int plgpio_probe_dt(struct platform_device *pdev, struct plgpio *plgpio)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret = -EINVAL;
 	u32 val;
 
@@ -525,25 +525,25 @@ end:
 
 static int plgpio_probe(struct platform_device *pdev)
 {
-	struct device_node *regmap_np;
+	struct device_analde *regmap_np;
 	struct plgpio *plgpio;
 	int ret, irq;
 
 	plgpio = devm_kzalloc(&pdev->dev, sizeof(*plgpio), GFP_KERNEL);
 	if (!plgpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	regmap_np = of_parse_phandle(pdev->dev.of_node, "regmap", 0);
+	regmap_np = of_parse_phandle(pdev->dev.of_analde, "regmap", 0);
 	if (regmap_np) {
-		plgpio->regmap = device_node_to_regmap(regmap_np);
-		of_node_put(regmap_np);
+		plgpio->regmap = device_analde_to_regmap(regmap_np);
+		of_analde_put(regmap_np);
 		if (IS_ERR(plgpio->regmap)) {
 			dev_err(&pdev->dev, "Retrieve regmap failed (%pe)\n",
 				plgpio->regmap);
 			return PTR_ERR(plgpio->regmap);
 		}
 	} else {
-		plgpio->regmap = device_node_to_regmap(pdev->dev.of_node);
+		plgpio->regmap = device_analde_to_regmap(pdev->dev.of_analde);
 		if (IS_ERR(plgpio->regmap)) {
 			dev_err(&pdev->dev, "Init regmap failed (%pe)\n",
 				plgpio->regmap);
@@ -567,7 +567,7 @@ static int plgpio_probe(struct platform_device *pdev)
 			sizeof(*plgpio->csave_regs),
 			GFP_KERNEL);
 	if (!plgpio->csave_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	platform_set_drvdata(pdev, plgpio);
@@ -604,9 +604,9 @@ static int plgpio_probe(struct platform_device *pdev)
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 		dev_info(&pdev->dev, "PLGPIO registering with IRQs\n");
 	} else {
@@ -659,7 +659,7 @@ static int plgpio_suspend(struct device *dev)
  * This is used to correct the values in end registers. End registers contain
  * extra bits that might be used for other purpose in platform. So, we shouldn't
  * overwrite these bits. This macro, reads given register again, preserves other
- * bit values (non-plgpio bits), and retain captured value (plgpio bits).
+ * bit values (analn-plgpio bits), and retain captured value (plgpio bits).
  */
 #define plgpio_prepare_reg(__reg, _off, _mask, _tmp)		\
 {								\

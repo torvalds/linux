@@ -14,7 +14,7 @@
 |		save stack.
 |	       (Entry point sintdo) Double-extended number X in
 |		location pointed to by the address register a0.
-|	       (Entry point sintd) Double-extended denormalized
+|	       (Entry point sintd) Double-extended deanalrmalized
 |		number X in the ETEMP space in the floating-point
 |		save stack.
 |
@@ -28,15 +28,15 @@
 |	   If exp(X) < 0, return +/- 0 or +/- 1, according to
 |	   the rounding mode.
 |
-|	2. (X is in range) set rsc = 63 - exp(X). Unnormalize the
+|	2. (X is in range) set rsc = 63 - exp(X). Unanalrmalize the
 |	   result to the exponent $403e.
 |
 |	3. Round the result in the mode given in USER_FPCR. For
 |	   sintrz, force round-to-zero mode.
 |
-|	4. Normalize the rounded result; store in fp0.
+|	4. Analrmalize the rounded result; store in fp0.
 |
-|	For the denormalized cases, force the correct result
+|	For the deanalrmalized cases, force the correct result
 |	for the given sign and rounding mode.
 |
 |		        Sign(X)
@@ -82,7 +82,7 @@ sint:
 	bras	sintexc
 
 |
-|	FINT with extended denorm inputs.
+|	FINT with extended deanalrm inputs.
 |
 	.global	sintd
 sintd:
@@ -200,7 +200,7 @@ intps:
 	fmovel	#0,%fpcr
 	fmovex LOCAL_EX(%a0),%fp0	|if exp > 63
 |					;then return X to the user
-|					;there are no fraction bits
+|					;there are anal fraction bits
 	fmovel	(%sp)+,%fpcr
 	rts
 
@@ -211,14 +211,14 @@ in_rnge:
 	movel	#0x403e,%d1		|set threshold for dnrm_lp
 |					;assumes a0 points to operand
 	bsr	dnrm_lp
-|					;returns unnormalized number
+|					;returns unanalrmalized number
 |					;pointed by a0
 |					;output d0 supplies g,r,s
 |					;used by round
 	movel	L_SCR1(%a6),%d1		|use selected rounding mode
 |
 |
-	bsr	round			|round the unnorm based on users
+	bsr	round			|round the unanalrm based on users
 |					;input	a0 ptr to ext X
 |					;	d0 g,r,s bits
 |					;	d1 PREC/MODE info
@@ -226,12 +226,12 @@ in_rnge:
 |					;inexact flag set in USER_FPSR
 |					;if initial grs set
 |
-| normalize the rounded result and store value in fp0
+| analrmalize the rounded result and store value in fp0
 |
-	bsr	nrm_set			|normalize the unnorm
+	bsr	nrm_set			|analrmalize the unanalrm
 |					;Input: a0 points to operand to
-|					;be normalized
-|					;Output: a0 points to normalized
+|					;be analrmalized
+|					;Output: a0 points to analrmalized
 |					;result
 	bfclr	LOCAL_SGN(%a0){#0:#8}
 	beqs	nrmrndp

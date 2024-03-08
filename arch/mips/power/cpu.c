@@ -34,10 +34,10 @@ void restore_processor_state(void)
 	restore_dsp(current);
 }
 
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_analsave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn = PFN_DOWN(__pa(&__nosave_begin));
-	unsigned long nosave_end_pfn = PFN_UP(__pa(&__nosave_end));
+	unsigned long analsave_begin_pfn = PFN_DOWN(__pa(&__analsave_begin));
+	unsigned long analsave_end_pfn = PFN_UP(__pa(&__analsave_end));
 
-	return	(pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
+	return	(pfn >= analsave_begin_pfn) && (pfn < analsave_end_pfn);
 }

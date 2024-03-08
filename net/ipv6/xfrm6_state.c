@@ -4,7 +4,7 @@
  *
  * Authors:
  *	Mitsuru KANDA @USAGI
- *	Kazunori MIYAZAWA @USAGI
+ *	Kazuanalri MIYAZAWA @USAGI
  *	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  *		IPv6 support
  *	YOSHIFUJI Hideaki @USAGI

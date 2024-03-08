@@ -184,7 +184,7 @@ static int max30208_probe(struct i2c_client *i2c)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = i2c;

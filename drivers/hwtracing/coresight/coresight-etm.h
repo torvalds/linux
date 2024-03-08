@@ -134,11 +134,11 @@
 				/* Resource index B */		\
 				(0x00 << 11))
 
-#define ETM_EVENT_NOT_A		BIT(14) /* NOT(A) */
+#define ETM_EVENT_ANALT_A		BIT(14) /* ANALT(A) */
 
 #define ETM_DEFAULT_EVENT_VAL	(ETM_HARD_WIRE_RES_A	|	\
 				 ETM_ADD_COMP_0		|	\
-				 ETM_EVENT_NOT_A)
+				 ETM_EVENT_ANALT_A)
 
 /**
  * struct etm_config - configuration information related to an ETM

@@ -18,8 +18,8 @@
  *    La Monte H.P. Yarroll <piggy@acm.org>
  *    Karl Knutson          <karl@athena.chicago.il.us>
  *    Jon Grimm             <jgrimm@austin.ibm.com>
- *    Hui Huang		    <hui.huang@nokia.com>
- *    Dajiang Zhang	    <dajiang.zhang@nokia.com>
+ *    Hui Huang		    <hui.huang@analkia.com>
+ *    Dajiang Zhang	    <dajiang.zhang@analkia.com>
  *    Daisy Chang	    <daisyc@us.ibm.com>
  *    Sridhar Samudrala	    <sri@us.ibm.com>
  *    Ardelle Fan	    <ardelle.fan@intel.com>
@@ -156,21 +156,21 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 	 * Ack State : This flag indicates if the next received packet
 	 * 	     : is to be responded to with a SACK. ...
 	 *	     : When DATA chunks are out of order, SACK's
-	 *           : are not delayed (see Section 6).
+	 *           : are analt delayed (see Section 6).
 	 *
-	 * [This is actually not mentioned in Section 6, but we
+	 * [This is actually analt mentioned in Section 6, but we
 	 * implement it here anyway. --piggy]
 	 */
 	if (max_tsn_seen != ctsn)
 		asoc->peer.sack_needed = 1;
 
-	/* From 6.2  Acknowledgement on Reception of DATA Chunks:
+	/* From 6.2  Ackanalwledgement on Reception of DATA Chunks:
 	 *
 	 * Section 4.2 of [RFC2581] SHOULD be followed. Specifically,
-	 * an acknowledgement SHOULD be generated for at least every
-	 * second packet (not every second DATA chunk) received, and
+	 * an ackanalwledgement SHOULD be generated for at least every
+	 * second packet (analt every second DATA chunk) received, and
 	 * SHOULD be generated within 200 ms of the arrival of any
-	 * unacknowledged DATA chunk. ...
+	 * unackanalwledged DATA chunk. ...
 	 */
 	if (!asoc->peer.sack_needed) {
 		asoc->peer.sack_cnt++;
@@ -206,7 +206,7 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 		sack = sctp_make_sack(asoc);
 		if (!sack) {
 			asoc->a_rwnd = old_a_rwnd;
-			goto nomem;
+			goto analmem;
 		}
 
 		asoc->peer.sack_needed = 0;
@@ -220,8 +220,8 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 	}
 
 	return error;
-nomem:
-	error = -ENOMEM;
+analmem:
+	error = -EANALMEM;
 	return error;
 }
 
@@ -517,7 +517,7 @@ static void sctp_generate_sack_event(struct timer_list *t)
 }
 
 sctp_timer_event_t *sctp_timer_events[SCTP_NUM_TIMEOUT_TYPES] = {
-	[SCTP_EVENT_TIMEOUT_NONE] =		NULL,
+	[SCTP_EVENT_TIMEOUT_ANALNE] =		NULL,
 	[SCTP_EVENT_TIMEOUT_T1_COOKIE] =	sctp_generate_t1_cookie_event,
 	[SCTP_EVENT_TIMEOUT_T1_INIT] =		sctp_generate_t1_init_event,
 	[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] =	sctp_generate_t2_shutdown_event,
@@ -539,12 +539,12 @@ sctp_timer_event_t *sctp_timer_events[SCTP_NUM_TIMEOUT_TYPES] = {
  * peer endpoint.
  *
  * Each time the T3-rtx timer expires on any address, or when a
- * HEARTBEAT sent to an idle address is not acknowledged within a RTO,
+ * HEARTBEAT sent to an idle address is analt ackanalwledged within a RTO,
  * the error counter of that destination address will be incremented.
  * When the value in the error counter exceeds the protocol parameter
  * 'Path.Max.Retrans' of that destination address, the endpoint should
  * mark the destination transport address as inactive, and a
- * notification SHOULD be sent to the upper layer.
+ * analtification SHOULD be sent to the upper layer.
  *
  */
 static void sctp_do_8_2_transport_strike(struct sctp_cmd_seq *commands,
@@ -556,10 +556,10 @@ static void sctp_do_8_2_transport_strike(struct sctp_cmd_seq *commands,
 	 * threshold is done in the state function.
 	 */
 	/* We are here due to a timer expiration.  If the timer was
-	 * not a HEARTBEAT, then normal error tracking is done.
+	 * analt a HEARTBEAT, then analrmal error tracking is done.
 	 * If the timer was a heartbeat, we only increment error counts
-	 * when we already have an outstanding HEARTBEAT that has not
-	 * been acknowledged.
+	 * when we already have an outstanding HEARTBEAT that has analt
+	 * been ackanalwledged.
 	 * Additionally, some tranport states inhibit error increments.
 	 */
 	if (!is_hb) {
@@ -612,7 +612,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_cmd_seq *commands,
 	 * used to provide an upper bound to this doubling operation.
 	 *
 	 * Special Case:  the first HB doesn't trigger exponential backoff.
-	 * The first unacknowledged HB triggers it.  We do this with a flag
+	 * The first unackanalwledged HB triggers it.  We do this with a flag
 	 * that indicates that we have an outstanding HB.
 	 */
 	if (!is_hb || transport->hb_sent) {
@@ -704,7 +704,7 @@ static int sctp_cmd_process_init(struct sctp_cmd_seq *commands,
 	 * just return the error and stop processing the stack.
 	 */
 	if (!sctp_process_init(asoc, chunk, sctp_source(chunk), peer_init, gfp))
-		error = -ENOMEM;
+		error = -EANALMEM;
 	else
 		error = 0;
 
@@ -718,7 +718,7 @@ static void sctp_cmd_hb_timers_start(struct sctp_cmd_seq *cmds,
 	struct sctp_transport *t;
 
 	/* Start a heartbeat timer for each transport on the association.
-	 * hold a reference on the transport to make sure none of
+	 * hold a reference on the transport to make sure analne of
 	 * the needed data structures go away.
 	 */
 	list_for_each_entry(t, &asoc->peer.transport_addr_list, transports)
@@ -780,11 +780,11 @@ static void sctp_cmd_transport_on(struct sctp_cmd_seq *cmds,
 		t->asoc->overall_error_count = 0;
 
 	/* Clear the hb_sent flag to signal that we had a good
-	 * acknowledgement.
+	 * ackanalwledgement.
 	 */
 	t->hb_sent = 0;
 
-	/* Mark the destination transport address as active if it is not so
+	/* Mark the destination transport address as active if it is analt so
 	 * marked.
 	 */
 	if ((t->state == SCTP_INACTIVE) || (t->state == SCTP_UNCONFIRMED)) {
@@ -832,9 +832,9 @@ static int sctp_cmd_process_sack(struct sctp_cmd_seq *cmds,
 	int err = 0;
 
 	if (sctp_outq_sack(&asoc->outqueue, chunk)) {
-		/* There are no more TSNs awaiting SACK.  */
+		/* There are anal more TSNs awaiting SACK.  */
 		err = sctp_do_sm(asoc->base.net, SCTP_EVENT_T_OTHER,
-				 SCTP_ST_OTHER(SCTP_EVENT_NO_PENDING_TSN),
+				 SCTP_ST_OTHER(SCTP_EVENT_ANAL_PENDING_TSN),
 				 asoc->state, asoc->ep, asoc, NULL,
 				 GFP_ATOMIC);
 	}
@@ -916,7 +916,7 @@ static void sctp_cmd_new_state(struct sctp_cmd_seq *cmds,
 		 * a TCP-style or UDP-style peeled-off socket in
 		 * sctp_wait_for_accept() or sctp_wait_for_packet().
 		 * For a UDP-style socket, the waiters are woken up by the
-		 * notifications.
+		 * analtifications.
 		 */
 		if (!sctp_style(sk, UDP))
 			sk->sk_state_change(sk);
@@ -933,8 +933,8 @@ static void sctp_cmd_delete_tcb(struct sctp_cmd_seq *cmds,
 {
 	struct sock *sk = asoc->base.sk;
 
-	/* If it is a non-temporary association belonging to a TCP-style
-	 * listening socket that is not closed, do not free it so that accept()
+	/* If it is a analn-temporary association belonging to a TCP-style
+	 * listening socket that is analt closed, do analt free it so that accept()
 	 * can pick it up later.
 	 */
 	if (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING) &&
@@ -980,16 +980,16 @@ static void sctp_cmd_process_operr(struct sctp_cmd_seq *cmds,
 		asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 
 		switch (err_hdr->cause) {
-		case SCTP_ERROR_UNKNOWN_CHUNK:
+		case SCTP_ERROR_UNKANALWN_CHUNK:
 		{
 			struct sctp_chunkhdr *unk_chunk_hdr;
 
 			unk_chunk_hdr = (struct sctp_chunkhdr *)(err_hdr + 1);
 			switch (unk_chunk_hdr->type) {
 			/* ADDIP 4.1 A9) If the peer responds to an ASCONF with
-			 * an ERROR chunk reporting that it did not recognized
+			 * an ERROR chunk reporting that it did analt recognized
 			 * the ASCONF chunk type, the sender of the ASCONF MUST
-			 * NOT send any further ASCONF chunks and MUST stop its
+			 * ANALT send any further ASCONF chunks and MUST stop its
 			 * T-4 timer.
 			 */
 			case SCTP_CID_ASCONF:
@@ -1011,10 +1011,10 @@ static void sctp_cmd_process_operr(struct sctp_cmd_seq *cmds,
 	}
 }
 
-/* Helper function to remove the association non-primary peer
+/* Helper function to remove the association analn-primary peer
  * transports.
  */
-static void sctp_cmd_del_non_primary(struct sctp_association *asoc)
+static void sctp_cmd_del_analn_primary(struct sctp_association *asoc)
 {
 	struct sctp_transport *t;
 	struct list_head *temp;
@@ -1053,12 +1053,12 @@ static void sctp_cmd_assoc_change(struct sctp_cmd_seq *commands,
 		asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 }
 
-static void sctp_cmd_peer_no_auth(struct sctp_cmd_seq *commands,
+static void sctp_cmd_peer_anal_auth(struct sctp_cmd_seq *commands,
 				  struct sctp_association *asoc)
 {
 	struct sctp_ulpevent *ev;
 
-	ev = sctp_ulpevent_make_authkey(asoc, 0, SCTP_AUTH_NO_AUTH, GFP_ATOMIC);
+	ev = sctp_ulpevent_make_authkey(asoc, 0, SCTP_AUTH_ANAL_AUTH, GFP_ATOMIC);
 	if (ev)
 		asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 }
@@ -1191,7 +1191,7 @@ static int sctp_side_effects(enum sctp_event_type event_type,
 
 	/* FIXME - Most of the dispositions left today would be categorized
 	 * as "exceptional" dispositions.  For those dispositions, it
-	 * may not be proper to run through any of the commands at all.
+	 * may analt be proper to run through any of the commands at all.
 	 * For example, the command interpreter might be run only with
 	 * disposition SCTP_DISPOSITION_CONSUME.
 	 */
@@ -1203,30 +1203,30 @@ static int sctp_side_effects(enum sctp_event_type event_type,
 
 	switch (status) {
 	case SCTP_DISPOSITION_DISCARD:
-		pr_debug("%s: ignored sctp protocol event - state:%d, "
+		pr_debug("%s: iganalred sctp protocol event - state:%d, "
 			 "event_type:%d, event_id:%d\n", __func__, state,
 			 event_type, subtype.chunk);
 		break;
 
-	case SCTP_DISPOSITION_NOMEM:
+	case SCTP_DISPOSITION_ANALMEM:
 		/* We ran out of memory, so we need to discard this
 		 * packet.
 		 */
-		/* BUG--we should now recover some memory, probably by
+		/* BUG--we should analw recover some memory, probably by
 		 * reneging...
 		 */
-		error = -ENOMEM;
+		error = -EANALMEM;
 		break;
 
 	case SCTP_DISPOSITION_DELETE_TCB:
 	case SCTP_DISPOSITION_ABORT:
-		/* This should now be a command. */
+		/* This should analw be a command. */
 		*asoc = NULL;
 		break;
 
 	case SCTP_DISPOSITION_CONSUME:
 		/*
-		 * We should no longer have much work to do here as the
+		 * We should anal longer have much work to do here as the
 		 * real work has been done as explicit commands above.
 		 */
 		break;
@@ -1236,7 +1236,7 @@ static int sctp_side_effects(enum sctp_event_type event_type,
 				    state, subtype.chunk);
 		break;
 
-	case SCTP_DISPOSITION_NOT_IMPL:
+	case SCTP_DISPOSITION_ANALT_IMPL:
 		pr_warn("unimplemented feature in state %d, event_type %d, event_id %d\n",
 			state, event_type, subtype.chunk);
 		break;
@@ -1291,7 +1291,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 	if (SCTP_EVENT_T_TIMEOUT != event_type)
 		chunk = event_arg;
 
-	/* Note:  This whole file is a huge candidate for rework.
+	/* Analte:  This whole file is a huge candidate for rework.
 	 * For example, each command could either have its own handler, so
 	 * the loop would look like:
 	 *     while (cmds)
@@ -1300,8 +1300,8 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 	 */
 	while (NULL != (cmd = sctp_next_cmd(commands))) {
 		switch (cmd->verb) {
-		case SCTP_CMD_NOP:
-			/* Do nothing. */
+		case SCTP_CMD_ANALP:
+			/* Do analthing. */
 			break;
 
 		case SCTP_CMD_NEW_ASOC:
@@ -1372,7 +1372,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 			new_obj = sctp_make_init_ack(asoc, chunk, GFP_ATOMIC,
 						     0);
 			if (!new_obj) {
-				error = -ENOMEM;
+				error = -EANALMEM;
 				break;
 			}
 
@@ -1382,7 +1382,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 
 		case SCTP_CMD_PEER_INIT:
 			/* Process a unified INIT from the peer.
-			 * Note: Only used during INIT-ACK processing.  If
+			 * Analte: Only used during INIT-ACK processing.  If
 			 * there is an error just return to the outter
 			 * layer which will bail.
 			 */
@@ -1396,7 +1396,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 			if (!new_obj) {
 				if (cmd->obj.chunk)
 					sctp_chunk_free(cmd->obj.chunk);
-				error = -ENOMEM;
+				error = -EANALMEM;
 				break;
 			}
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
@@ -1445,7 +1445,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 			/* Generate a SHUTDOWN chunk.  */
 			new_obj = sctp_make_shutdown(asoc, chunk);
 			if (!new_obj) {
-				error = -ENOMEM;
+				error = -EANALMEM;
 				break;
 			}
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
@@ -1463,7 +1463,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 			break;
 
 		case SCTP_CMD_EVENT_ULP:
-			/* Send a notification to the sockets layer.  */
+			/* Send a analtification to the sockets layer.  */
 			pr_debug("%s: sm_sideff: event_up:%p, ulpq:%p\n",
 				 __func__, cmd->obj.ulpevent, &asoc->ulpq);
 
@@ -1472,7 +1472,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 			break;
 
 		case SCTP_CMD_REPLY:
-			/* If an caller has not already corked, do cork. */
+			/* If an caller has analt already corked, do cork. */
 			if (!asoc->outqueue.cork) {
 				sctp_outq_cork(&asoc->outqueue);
 				local_cork = 1;
@@ -1538,7 +1538,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 			/*
 			 * SCTP has a hard time with timer starts.  Because we process
 			 * timer starts as side effects, it can be hard to tell if we
-			 * have already started a timer or not, which leads to BUG
+			 * have already started a timer or analt, which leads to BUG
 			 * halts when we call add_timer. So here, instead of just starting
 			 * a timer, if the timer is already started, and just mod
 			 * the timer with the shorter of the two expiration times
@@ -1737,8 +1737,8 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 		case SCTP_CMD_CLEAR_INIT_TAG:
 			asoc->peer.i.init_tag = 0;
 			break;
-		case SCTP_CMD_DEL_NON_PRIMARY:
-			sctp_cmd_del_non_primary(asoc);
+		case SCTP_CMD_DEL_ANALN_PRIMARY:
+			sctp_cmd_del_analn_primary(asoc);
 			break;
 		case SCTP_CMD_T3_RTX_TIMERS_STOP:
 			sctp_cmd_t3_rtx_timers_stop(commands, asoc);
@@ -1760,8 +1760,8 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 		case SCTP_CMD_ADAPTATION_IND:
 			sctp_cmd_adaptation_ind(commands, asoc);
 			break;
-		case SCTP_CMD_PEER_NO_AUTH:
-			sctp_cmd_peer_no_auth(commands, asoc);
+		case SCTP_CMD_PEER_ANAL_AUTH:
+			sctp_cmd_peer_anal_auth(commands, asoc);
 			break;
 
 		case SCTP_CMD_ASSOC_SHKEY:

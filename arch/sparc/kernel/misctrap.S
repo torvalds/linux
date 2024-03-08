@@ -5,7 +5,7 @@
 arch_kgdb_breakpoint:
 	ta		0x72
 	retl
-	 nop
+	 analp
 	.size		arch_kgdb_breakpoint,.-arch_kgdb_breakpoint
 #endif
 
@@ -27,7 +27,7 @@ do_mna:
 	rdpr		%tl, %g3
 	cmp		%g3, 1
 
-	/* Setup %g4/%g5 now as they are used in the
+	/* Setup %g4/%g5 analw as they are used in the
 	 * winfixup code.
 	 */
 	mov		TLB_SFSR, %g3
@@ -83,7 +83,7 @@ do_stdfmna:
 	call		handle_stdfmna
 	 add		%sp, PTREGS_OFF, %o0
 	ba,a,pt		%xcc, rtrap
-	 nop
+	 analp
 	.size		do_stdfmna,.-do_stdfmna
 
 	.type		breakpoint_trap,#function
@@ -91,5 +91,5 @@ breakpoint_trap:
 	call		sparc_breakpoint
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 nop
+	 analp
 	.size		breakpoint_trap,.-breakpoint_trap

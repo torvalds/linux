@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_GENERIC_RESOURCE_H
 #define _UAPI_ASM_GENERIC_RESOURCE_H
 
@@ -27,8 +27,8 @@
 # define RLIMIT_NPROC		6	/* max number of processes */
 #endif
 
-#ifndef RLIMIT_NOFILE
-# define RLIMIT_NOFILE		7	/* max number of open files */
+#ifndef RLIMIT_ANALFILE
+# define RLIMIT_ANALFILE		7	/* max number of open files */
 #endif
 
 #ifndef RLIMIT_MEMLOCK

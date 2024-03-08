@@ -228,7 +228,7 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 			seq_putc(s, ')');
 		}
 	} else {
-		seq_puts(s, "current: UNKNOWN");
+		seq_puts(s, "current: UNKANALWN");
 	}
 
 	if (grp->num_settings > 1) {
@@ -313,7 +313,7 @@ static int mvebu_pinmux_set(struct pinctrl_dev *pctldev, unsigned fid,
 	config = setting->val;
 	ret = mvebu_pinconf_group_set(pctldev, grp->gid, &config, 1);
 	if (ret) {
-		dev_err(pctl->dev, "cannot set group %s to %s\n",
+		dev_err(pctl->dev, "cananalt set group %s to %s\n",
 			func->groups[gid], func->name);
 		return ret;
 	}
@@ -338,7 +338,7 @@ static int mvebu_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	setting = mvebu_pinctrl_find_gpio_setting(pctl, grp);
 	if (!setting)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	config = setting->val;
 
@@ -361,13 +361,13 @@ static int mvebu_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 
 	setting = mvebu_pinctrl_find_gpio_setting(pctl, grp);
 	if (!setting)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if ((input && (setting->flags & MVEBU_SETTING_GPI)) ||
 	    (!input && (setting->flags & MVEBU_SETTING_GPO)))
 		return 0;
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct pinmux_ops mvebu_pinmux_ops = {
@@ -402,8 +402,8 @@ static int mvebu_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int mvebu_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np,
+static int mvebu_pinctrl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+					struct device_analde *np,
 					struct pinctrl_map **map,
 					unsigned *num_maps)
 {
@@ -419,20 +419,20 @@ static int mvebu_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	ret = of_property_read_string(np, "marvell,function", &function);
 	if (ret) {
 		dev_err(pctl->dev,
-			"missing marvell,function in node %pOFn\n", np);
+			"missing marvell,function in analde %pOFn\n", np);
 		return 0;
 	}
 
 	nmaps = of_property_count_strings(np, "marvell,pins");
 	if (nmaps < 0) {
 		dev_err(pctl->dev,
-			"missing marvell,pins in node %pOFn\n", np);
+			"missing marvell,pins in analde %pOFn\n", np);
 		return 0;
 	}
 
 	*map = kmalloc_array(nmaps, sizeof(**map), GFP_KERNEL);
 	if (!*map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n = 0;
 	of_property_for_each_string(np, "marvell,pins", prop, group) {
@@ -440,7 +440,7 @@ static int mvebu_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 			mvebu_pinctrl_find_group_by_name(pctl, group);
 
 		if (!grp) {
-			dev_err(pctl->dev, "unknown pin %s", group);
+			dev_err(pctl->dev, "unkanalwn pin %s", group);
 			continue;
 		}
 
@@ -471,7 +471,7 @@ static const struct pinctrl_ops mvebu_pinctrl_ops = {
 	.get_groups_count = mvebu_pinctrl_get_groups_count,
 	.get_group_name = mvebu_pinctrl_get_group_name,
 	.get_group_pins = mvebu_pinctrl_get_group_pins,
-	.dt_node_to_map = mvebu_pinctrl_dt_node_to_map,
+	.dt_analde_to_map = mvebu_pinctrl_dt_analde_to_map,
 	.dt_free_map = mvebu_pinctrl_dt_free_map,
 };
 
@@ -511,7 +511,7 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
 			     funcsize, sizeof(struct mvebu_pinctrl_function),
 			     GFP_KERNEL);
 	if (!funcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < pctl->num_groups; n++) {
 		struct mvebu_pinctrl_group *grp = &pctl->groups[n];
@@ -554,14 +554,14 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
 			f = mvebu_pinctrl_find_function_by_name(pctl,
 							grp->settings[s].name);
 
-			/* allocate group name array if not done already */
+			/* allocate group name array if analt done already */
 			if (!f->groups) {
 				f->groups = devm_kcalloc(&pdev->dev,
 						 f->num_groups,
 						 sizeof(char *),
 						 GFP_KERNEL);
 				if (!f->groups)
-					return -ENOMEM;
+					return -EANALMEM;
 			}
 
 			/* find next free group name and assign current name */
@@ -581,8 +581,8 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	struct mvebu_pinctrl *pctl;
 	struct pinctrl_pin_desc *pdesc;
 	unsigned gid, n, k;
-	unsigned size, noname = 0;
-	char *noname_buf;
+	unsigned size, analname = 0;
+	char *analname_buf;
 	void *p;
 	int ret;
 
@@ -594,7 +594,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	pctl = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pinctrl),
 			GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl->desc.name = dev_name(&pdev->dev);
 	pctl->desc.owner = THIS_MODULE;
@@ -624,7 +624,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		 */
 		if (!ctrl->name) {
 			pctl->num_groups += ctrl->npins;
-			noname += ctrl->npins;
+			analname += ctrl->npins;
 		} else {
 			pctl->num_groups += 1;
 		}
@@ -635,7 +635,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 			     sizeof(struct pinctrl_pin_desc),
 			     GFP_KERNEL);
 	if (!pdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < pctl->desc.npins; n++)
 		pdesc[n].number = n;
@@ -644,13 +644,13 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	/*
 	 * allocate groups and name buffers for unnamed groups.
 	 */
-	size = pctl->num_groups * sizeof(*pctl->groups) + noname * 8;
+	size = pctl->num_groups * sizeof(*pctl->groups) + analname * 8;
 	p = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl->groups = p;
-	noname_buf = p + pctl->num_groups * sizeof(*pctl->groups);
+	analname_buf = p + pctl->num_groups * sizeof(*pctl->groups);
 
 	/* assign mpp controls to groups */
 	gid = 0;
@@ -672,21 +672,21 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		 * each in this range and assign a default group name.
 		 */
 		if (!ctrl->name) {
-			pctl->groups[gid].name = noname_buf;
+			pctl->groups[gid].name = analname_buf;
 			pctl->groups[gid].npins = 1;
-			sprintf(noname_buf, "mpp%d", ctrl->pid+0);
-			noname_buf += 8;
+			sprintf(analname_buf, "mpp%d", ctrl->pid+0);
+			analname_buf += 8;
 
 			for (k = 1; k < ctrl->npins; k++) {
 				gid++;
 				pctl->groups[gid].gid = gid;
 				pctl->groups[gid].ctrl = ctrl;
 				pctl->groups[gid].data = data;
-				pctl->groups[gid].name = noname_buf;
+				pctl->groups[gid].name = analname_buf;
 				pctl->groups[gid].pins = &ctrl->pins[k];
 				pctl->groups[gid].npins = 1;
-				sprintf(noname_buf, "mpp%d", ctrl->pid+k);
-				noname_buf += 8;
+				sprintf(analname_buf, "mpp%d", ctrl->pid+k);
+				analname_buf += 8;
 			}
 		}
 		gid++;
@@ -722,13 +722,13 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 				set->flags = MVEBU_SETTING_GPI;
 		}
 
-		/* skip modes with no settings for this variant */
+		/* skip modes with anal settings for this variant */
 		if (!supp_settings)
 			continue;
 
 		grp = mvebu_pinctrl_find_group_by_pid(pctl, mode->pid);
 		if (!grp) {
-			dev_warn(&pdev->dev, "unknown pinctrl group %d\n",
+			dev_warn(&pdev->dev, "unkanalwn pinctrl group %d\n",
 				mode->pid);
 			continue;
 		}
@@ -779,7 +779,7 @@ int mvebu_pinctrl_simple_mmio_probe(struct platform_device *pdev)
 	mpp_data = devm_kcalloc(&pdev->dev, soc->ncontrols, sizeof(*mpp_data),
 				GFP_KERNEL);
 	if (!mpp_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < soc->ncontrols; i++)
 		mpp_data[i].base = base;
@@ -824,14 +824,14 @@ int mvebu_pinctrl_simple_regmap_probe(struct platform_device *pdev,
 	struct regmap *regmap;
 	int i;
 
-	regmap = syscon_node_to_regmap(syscon_dev->of_node);
+	regmap = syscon_analde_to_regmap(syscon_dev->of_analde);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	mpp_data = devm_kcalloc(&pdev->dev, soc->ncontrols, sizeof(*mpp_data),
 				GFP_KERNEL);
 	if (!mpp_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < soc->ncontrols; i++) {
 		mpp_data[i].regmap.map = regmap;

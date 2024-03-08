@@ -2,10 +2,10 @@
 /* sis900.h Definitions for SiS ethernet controllers including 7014/7016 and 900
  * Copyright 1999 Silicon Integrated System Corporation
  * References:
- *   SiS 7016 Fast Ethernet PCI Bus 10/100 Mbps LAN Controller with OnNow Support,
+ *   SiS 7016 Fast Ethernet PCI Bus 10/100 Mbps LAN Controller with OnAnalw Support,
  *	preliminary Rev. 1.0 Jan. 14, 1998
- *   SiS 900 Fast Ethernet PCI Bus 10/100 Mbps LAN Single Chip with OnNow Support,
- *	preliminary Rev. 1.0 Nov. 10, 1998
+ *   SiS 900 Fast Ethernet PCI Bus 10/100 Mbps LAN Single Chip with OnAnalw Support,
+ *	preliminary Rev. 1.0 Analv. 10, 1998
  *   SiS 7014 Single Chip 100BASE-TX/10BASE-T Physical Layer Solution,
  *	preliminary Rev. 1.0 Jan. 18, 1998
  *   http://www.sis.com.tw/support/databook.htm
@@ -201,7 +201,7 @@ enum sis900_buffer_status {
 };
 /* Status for TX Buffers */
 enum sis900_tx_buffer_status {
-	ABORT   = 0x04000000, UNDERRUN = 0x02000000, NOCARRIER = 0x01000000,
+	ABORT   = 0x04000000, UNDERRUN = 0x02000000, ANALCARRIER = 0x01000000,
 	DEFERD  = 0x00800000, EXCDEFER = 0x00400000, OWCOLL    = 0x00200000,
 	EXCCOLL = 0x00100000, COLCNT   = 0x000F0000
 };
@@ -263,7 +263,7 @@ enum mii_status_register_bits {
    valid for the ANAR (Auto-Negotiation Advertisement) and
    ANLPAR (Auto-Negotiation Link Partner) registers */
 enum mii_nway_register_bits {
-	MII_NWAY_NODE_SEL = 0x001f, MII_NWAY_CSMA_CD = 0x0001,
+	MII_NWAY_ANALDE_SEL = 0x001f, MII_NWAY_CSMA_CD = 0x0001,
 	MII_NWAY_T	  = 0x0020, MII_NWAY_T_FDX   = 0x0040,
 	MII_NWAY_TX       = 0x0080, MII_NWAY_TX_FDX  = 0x0100,
 	MII_NWAY_T4       = 0x0200, MII_NWAY_PAUSE   = 0x0400,
@@ -298,7 +298,7 @@ enum sis630_revision_id {
 	SIS630B0    = 0x10, SIS630B1      = 0x11
 };
 
-#define FDX_CAPABLE_DUPLEX_UNKNOWN      0
+#define FDX_CAPABLE_DUPLEX_UNKANALWN      0
 #define FDX_CAPABLE_HALF_SELECTED       1
 #define FDX_CAPABLE_FULL_SELECTED       2
 

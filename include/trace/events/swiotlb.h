@@ -32,7 +32,7 @@ TRACE_EVENT(swiotlb_bounced,
 		__entry->dma_mask,
 		(unsigned long long)__entry->dev_addr,
 		__entry->size,
-		__entry->force ? "FORCE" : "NORMAL")
+		__entry->force ? "FORCE" : "ANALRMAL")
 );
 
 #endif /*  _TRACE_SWIOTLB_H */

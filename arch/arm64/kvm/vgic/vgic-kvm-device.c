@@ -37,7 +37,7 @@ int vgic_check_iorange(struct kvm *kvm, phys_addr_t ioaddr,
 static int vgic_check_type(struct kvm *kvm, int type_needed)
 {
 	if (kvm->arch.vgic.vgic_model != type_needed)
-		return -ENODEV;
+		return -EANALDEV;
 	else
 		return 0;
 }
@@ -66,7 +66,7 @@ int kvm_set_legacy_vgic_v2_addr(struct kvm *kvm, struct kvm_arm_device_addr *dev
 			vgic->vgic_cpu_base = dev_addr->addr;
 		break;
 	default:
-		r = -ENODEV;
+		r = -EANALDEV;
 	}
 
 	mutex_unlock(&kvm->arch.config_lock);
@@ -83,10 +83,10 @@ int kvm_set_legacy_vgic_v2_addr(struct kvm *kvm, struct kvm_arm_device_addr *dev
  *
  * Set or get the vgic base addresses for the distributor and the virtual CPU
  * interface in the VM physical address space.  These addresses are properties
- * of the emulated core/SoC and therefore user space initially knows this
+ * of the emulated core/SoC and therefore user space initially kanalws this
  * information.
  * Check them for sanity (alignment, double assignment). We can't check for
- * overlapping regions in case of a virtual GICv3 here, since we don't know
+ * overlapping regions in case of a virtual GICv3 here, since we don't kanalw
  * the number of VCPUs yet, so we defer this check to map_resources().
  */
 static int kvm_vgic_addr(struct kvm *kvm, struct kvm_device_attr *attr, bool write)
@@ -171,7 +171,7 @@ static int kvm_vgic_addr(struct kvm *kvm, struct kvm_device_attr *attr, bool wri
 
 		rdreg = vgic_v3_rdist_region_from_index(kvm, index);
 		if (!rdreg) {
-			r = -ENOENT;
+			r = -EANALENT;
 			goto out;
 		}
 
@@ -181,7 +181,7 @@ static int kvm_vgic_addr(struct kvm *kvm, struct kvm_device_attr *attr, bool wri
 		goto out;
 	}
 	default:
-		r = -ENODEV;
+		r = -EANALDEV;
 	}
 
 	if (r)
@@ -214,7 +214,7 @@ static int vgic_set_common_attr(struct kvm_device *dev,
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_ADDR:
 		r = kvm_vgic_addr(dev->kvm, attr, true);
-		return (r == -ENODEV) ? -ENXIO : r;
+		return (r == -EANALDEV) ? -ENXIO : r;
 	case KVM_DEV_ARM_VGIC_GRP_NR_IRQS: {
 		u32 __user *uaddr = (u32 __user *)(long)attr->addr;
 		u32 val;
@@ -290,7 +290,7 @@ static int vgic_get_common_attr(struct kvm_device *dev,
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_ADDR:
 		r = kvm_vgic_addr(dev->kvm, attr, false);
-		return (r == -ENODEV) ? -ENXIO : r;
+		return (r == -EANALDEV) ? -ENXIO : r;
 	case KVM_DEV_ARM_VGIC_GRP_NR_IRQS: {
 		u32 __user *uaddr = (u32 __user *)(long)attr->addr;
 
@@ -315,7 +315,7 @@ static void vgic_destroy(struct kvm_device *dev)
 
 int kvm_register_vgic_device(unsigned long type)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	switch (type) {
 	case KVM_DEV_TYPE_ARM_VGIC_V2:
@@ -478,7 +478,7 @@ int vgic_v3_parse_attr(struct kvm_device *dev, struct kvm_device_attr *attr,
 
 	/*
 	 * For KVM_DEV_ARM_VGIC_GRP_DIST_REGS group,
-	 * attr might not hold MPIDR. Hence assume vcpu0.
+	 * attr might analt hold MPIDR. Hence assume vcpu0.
 	 */
 	if (attr->group != KVM_DEV_ARM_VGIC_GRP_DIST_REGS) {
 		vgic_mpidr = (attr->attr & KVM_DEV_ARM_VGIC_V3_MPIDR_MASK) >>

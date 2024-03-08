@@ -8,7 +8,7 @@
 #ifndef _DT_BINDINGS_GCE_MT8183_H
 #define _DT_BINDINGS_GCE_MT8183_H
 
-#define CMDQ_NO_TIMEOUT		0xffffffff
+#define CMDQ_ANAL_TIMEOUT		0xffffffff
 
 /* GCE HW thread priority */
 #define CMDQ_THR_PRIO_LOWEST	0

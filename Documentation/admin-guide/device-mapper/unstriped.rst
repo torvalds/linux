@@ -79,7 +79,7 @@ underlying device on the striped array::
     rm -f member-${i}
   done
 
-Another example
+Aanalther example
 ---------------
 
 Intel NVMe drives contain two cores on the physical device.
@@ -93,12 +93,12 @@ in a 256k stripe across the two cores::
   | LBA 0  |    | LBA 256|
   ----------    ----------
 
-The purpose of this unstriping is to provide better QoS in noisy
+The purpose of this unstriping is to provide better QoS in analisy
 neighbor environments. When two partitions are created on the
 aggregate drive without this unstriping, reads on one partition
-can affect writes on another partition.  This is because the partitions
+can affect writes on aanalther partition.  This is because the partitions
 are striped across the two cores.  When we unstripe this hardware RAID 0
-and make partitions on each new exposed device the two partitions are now
+and make partitions on each new exposed device the two partitions are analw
 physically separated.
 
 With the dm-unstriped target we're able to segregate an fio script that
@@ -118,7 +118,7 @@ unstriped on top of Intel NVMe device that has 2 cores
   dmsetup create nvmset0 --table '0 512 unstriped 2 256 0 /dev/nvme0n1 0'
   dmsetup create nvmset1 --table '0 512 unstriped 2 256 1 /dev/nvme0n1 0'
 
-There will now be two devices that expose Intel NVMe core 0 and 1
+There will analw be two devices that expose Intel NVMe core 0 and 1
 respectively::
 
   /dev/mapper/nvmset0

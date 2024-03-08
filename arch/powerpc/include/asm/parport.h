@@ -13,16 +13,16 @@
 
 #include <linux/of_irq.h>
 
-static int parport_pc_find_nonpci_ports (int autoirq, int autodma)
+static int parport_pc_find_analnpci_ports (int autoirq, int autodma)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const u32 *prop;
 	u32 io1, io2;
 	int propsize;
 	int count = 0;
 	int virq;
 
-	for_each_compatible_node(np, "parallel", "pnpPNP,400") {
+	for_each_compatible_analde(np, "parallel", "pnpPNP,400") {
 		prop = of_get_property(np, "reg", &propsize);
 		if (!prop || propsize > 6*sizeof(u32))
 			continue;

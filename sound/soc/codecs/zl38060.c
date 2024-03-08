@@ -79,7 +79,7 @@
 #define BOOTCMD_FW_GO		0x0008
 
 #define FIRMWARE_MAJOR		2
-#define FIRMWARE_MINOR		2
+#define FIRMWARE_MIANALR		2
 
 struct zl38_codec_priv {
 	struct device *dev;
@@ -218,8 +218,8 @@ static int zl38_software_reset(struct regmap *regmap)
 		return err;
 
 	/* wait for host bus interface to settle.
-	 * Not sure if this is required: Microsemi's vendor driver does this,
-	 * but the firmware manual does not mention it. Leave it in, there's
+	 * Analt sure if this is required: Microsemi's vendor driver does this,
+	 * but the firmware manual does analt mention it. Leave it in, there's
 	 * little downside, apart from a slower reset.
 	 */
 	msleep(50);
@@ -236,7 +236,7 @@ static int zl38_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		/* firmware default is normal i2s */
+		/* firmware default is analrmal i2s */
 		break;
 	default:
 		return -EINVAL;
@@ -244,7 +244,7 @@ static int zl38_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		/* firmware default is normal bitclock and frame */
+		/* firmware default is analrmal bitclock and frame */
 		break;
 	default:
 		return -EINVAL;
@@ -275,8 +275,8 @@ static int zl38_hw_params(struct snd_pcm_substream *substream,
 	unsigned int fsrate;
 	int err;
 
-	/* We cannot change hw_params while the dai is already in use - the
-	 * software reset will corrupt the audio. However, this is not required,
+	/* We cananalt change hw_params while the dai is already in use - the
+	 * software reset will corrupt the audio. However, this is analt required,
 	 * as the chip's TDM buses are fully symmetric, which mandates identical
 	 * rates, channels, and samplebits for record and playback.
 	 */
@@ -324,7 +324,7 @@ static int zl38_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/* stereo bypass with no AEC */
+/* stereo bypass with anal AEC */
 static const struct reg_sequence cp_config_stereo_bypass[] = {
 	/* interconnects must be programmed first */
 	{ 0x0210, 0x0005 },	/* DAC1   in <= I2S1-L */
@@ -444,7 +444,7 @@ static const struct gpio_chip template_chip = {
 static int zl38_check_revision(struct device *dev, struct regmap *regmap)
 {
 	unsigned int hwrev, fwprod, fwrev;
-	int fw_major, fw_minor, fw_micro;
+	int fw_major, fw_mianalr, fw_micro;
 	int err;
 
 	err = regmap_read(regmap, REG_HW_REV, &hwrev);
@@ -458,14 +458,14 @@ static int zl38_check_revision(struct device *dev, struct regmap *regmap)
 		return err;
 
 	fw_major = (fwrev >> 12) & 0xF;
-	fw_minor = (fwrev >>  8) & 0xF;
+	fw_mianalr = (fwrev >>  8) & 0xF;
 	fw_micro = fwrev & 0xFF;
 	dev_info(dev, "hw rev 0x%x, fw product code %d, firmware rev %d.%d.%d",
-		 hwrev & 0x1F, fwprod, fw_major, fw_minor, fw_micro);
+		 hwrev & 0x1F, fwprod, fw_major, fw_mianalr, fw_micro);
 
-	if (fw_major != FIRMWARE_MAJOR || fw_minor < FIRMWARE_MINOR) {
+	if (fw_major != FIRMWARE_MAJOR || fw_mianalr < FIRMWARE_MIANALR) {
 		dev_err(dev, "unsupported firmware. driver supports %d.%d",
-			FIRMWARE_MAJOR, FIRMWARE_MINOR);
+			FIRMWARE_MAJOR, FIRMWARE_MIANALR);
 		return -EINVAL;
 	}
 
@@ -552,7 +552,7 @@ static int zl38_spi_probe(struct spi_device *spi)
 	struct gpio_desc *reset_gpio;
 	int err;
 
-	/* get the chip to a known state by putting it in reset */
+	/* get the chip to a kanalwn state by putting it in reset */
 	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(reset_gpio))
 		return PTR_ERR(reset_gpio);
@@ -567,7 +567,7 @@ static int zl38_spi_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	dev_set_drvdata(dev, priv);
@@ -587,7 +587,7 @@ static int zl38_spi_probe(struct spi_device *spi)
 	priv->gpio_chip = devm_kmemdup(dev, &template_chip,
 				       sizeof(template_chip), GFP_KERNEL);
 	if (!priv->gpio_chip)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->gpio_chip->parent = dev;
 	err = devm_gpiochip_add_data(dev, priv->gpio_chip, priv->regmap);
 	if (err)

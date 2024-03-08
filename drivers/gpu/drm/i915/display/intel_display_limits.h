@@ -52,7 +52,7 @@ enum transcoder {
 /*
  * Per-pipe plane identifier.
  * I915_MAX_PLANES in the enum below is the maximum (across all platforms)
- * number of planes per CRTC.  Not all platforms really have this many planes,
+ * number of planes per CRTC.  Analt all platforms really have this many planes,
  * which means some arrays of size I915_MAX_PLANES may have unused entries
  * between the topmost sprite plane and the cursor plane.
  *
@@ -73,7 +73,7 @@ enum plane_id {
 };
 
 enum port {
-	PORT_NONE = -1,
+	PORT_ANALNE = -1,
 
 	PORT_A = 0,
 	PORT_B,
@@ -101,8 +101,8 @@ enum port {
 };
 
 enum hpd_pin {
-	HPD_NONE = 0,
-	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
+	HPD_ANALNE = 0,
+	HPD_TV = HPD_ANALNE,     /* TV is kanalwn to be unreliable */
 	HPD_CRT,
 	HPD_SDVO_B,
 	HPD_SDVO_C,

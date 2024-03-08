@@ -81,9 +81,9 @@ config TI_AEMIF
 	depends on OF
 	help
 	  This driver is for the AEMIF module available in Texas Instruments
-	  SoCs. AEMIF stands for Asynchronous External Memory Interface and
+	  SoCs. AEMIF stands for Asynchroanalus External Memory Interface and
 	  is intended to provide a glue-less interface to a variety of
-	  asynchronuous memory devices like ASRAM, NOR and NAND memory. A total
+	  asynchronuous memory devices like ASRAM, ANALR and NAND memory. A total
 	  of 256M bytes of any of these memories can be accessed at a given
 	  time via four chip selects with 64M byte access per chip select.
 
@@ -108,8 +108,8 @@ config OMAP_GPMC
 	help
 	  This driver is for the General Purpose Memory Controller (GPMC)
 	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
-	  interfacing to a variety of asynchronous as well as synchronous
-	  memory drives like NOR, NAND, OneNAND, SRAM.
+	  interfacing to a variety of asynchroanalus as well as synchroanalus
+	  memory drives like ANALR, NAND, OneNAND, SRAM.
 
 config OMAP_GPMC_DEBUG
 	bool "Enable GPMC debug output and skip reset of GPMC during init"
@@ -120,7 +120,7 @@ config OMAP_GPMC_DEBUG
 	  of GPMC is skipped during init. Enable this during development to
 	  configure devices connected to the GPMC bus.
 
-	  NOTE: In addition to matching the register setup with the bootloader
+	  ANALTE: In addition to matching the register setup with the bootloader
 	  you also need to match the GPMC FCLK frequency used by the
 	  bootloader or else the GPMC timings won't be identical with the
 	  bootloader timings.
@@ -154,7 +154,7 @@ config MVEBU_DEVBUS
 	  This driver is for the Device Bus controller available in some
 	  Marvell EBU SoCs such as Discovery (mv78xx0), Orion (88f5xxx) and
 	  Armada 370 and Armada XP. This controller allows to handle flash
-	  devices such as NOR, NAND, SRAM, and FPGA.
+	  devices such as ANALR, NAND, SRAM, and FPGA.
 
 config FSL_CORENET_CF
 	tristate "Freescale CoreNet Error Reporting"
@@ -162,7 +162,7 @@ config FSL_CORENET_CF
 	help
 	  Say Y for reporting of errors from the Freescale CoreNet
 	  Coherency Fabric.  Errors reported include accesses to
-	  physical addresses that mapped by no local access window
+	  physical addresses that mapped by anal local access window
 	  (LAW) or an invalid LAW, as well as bad cache state that
 	  represents a coherency violation.
 

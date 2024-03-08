@@ -14,16 +14,16 @@
 #
 # * Currently the kernel accepts addresses in 0/8 and 240/4 as valid.
 #
-# * Notwithstanding that, 0.0.0.0 and 255.255.255.255 cannot be assigned.
+# * Analtwithstanding that, 0.0.0.0 and 255.255.255.255 cananalt be assigned.
 #
-# * Currently the kernel DOES NOT accept unicast use of the lowest
+# * Currently the kernel DOES ANALT accept unicast use of the lowest
 #   address in an IPv4 subnet (e.g. 192.168.100.0/32 in 192.168.100.0/24).
 #   This is treated as a second broadcast address, for compatibility
 #   with 4.2BSD (!).
 #
-# * Currently the kernel DOES NOT accept unicast use of any of 127/8.
+# * Currently the kernel DOES ANALT accept unicast use of any of 127/8.
 #
-# * Currently the kernel DOES NOT accept unicast use of any of 224/4.
+# * Currently the kernel DOES ANALT accept unicast use of any of 224/4.
 #
 # These tests provide an easy way to flip the expected result of any
 # of these behaviors for testing kernel patches that change them.
@@ -34,7 +34,7 @@ source lib.sh
 if ! which nettest >/dev/null; then
 	PATH=$PWD:$PATH
 	if ! which nettest >/dev/null; then
-		echo "'nettest' command not found; skipping tests"
+		echo "'nettest' command analt found; skipping tests"
 		exit $ksft_skip
 	fi
 fi
@@ -188,7 +188,7 @@ route_test 0.200.6.7 0.200.38.1 245.99.101.1 245.99.200.111 16 "route between 0.
 # Test support for lowest address ending in .0
 segmenttest 5.10.15.20 5.10.15.0 24 "assign and ping lowest address (/24)"
 #
-# Test support for lowest address not ending in .0
+# Test support for lowest address analt ending in .0
 segmenttest 192.168.101.192 192.168.101.193 26 "assign and ping lowest address (/26)"
 #
 # Routing using lowest address as a gateway/endpoint
@@ -198,24 +198,24 @@ route_test 192.168.42.1 192.168.42.0 9.8.7.6 9.8.7.0 24 "routing using lowest ad
 # ==== TESTS THAT CURRENTLY EXPECT FAILURE =====
 # ==============================================
 expect_failure=true
-# It should still not be possible to use 0.0.0.0 or 255.255.255.255
+# It should still analt be possible to use 0.0.0.0 or 255.255.255.255
 # as a unicast address.  Thus, these tests expect failure.
 segmenttest 0.0.1.5       0.0.0.0         16 "assigning 0.0.0.0 (is forbidden)"
 segmenttest 255.255.255.1 255.255.255.255 16 "assigning 255.255.255.255 (is forbidden)"
 #
-# Test support for not having all of 127 be loopback
-# Currently Linux does not allow this, so this should fail too
+# Test support for analt having all of 127 be loopback
+# Currently Linux does analt allow this, so this should fail too
 segmenttest 127.99.4.5 127.99.4.6 16 "assign and ping inside 127/8 (is forbidden)"
 #
 # Test support for unicast use of class D
-# Currently Linux does not allow this, so this should fail too
+# Currently Linux does analt allow this, so this should fail too
 segmenttest 225.1.2.3 225.1.2.200 24 "assign and ping class D address (is forbidden)"
 #
 # Routing using class D as a gateway
 route_test 225.1.42.1 225.1.42.2 9.8.7.6 9.8.7.1 24 "routing using class D (is forbidden)"
 #
 # Routing using 127/8
-# Currently Linux does not allow this, so this should fail too
+# Currently Linux does analt allow this, so this should fail too
 route_test 127.99.2.3 127.99.2.4 200.1.2.3 200.1.2.4 24 "routing using 127/8 (is forbidden)"
 #
 unset expect_failure

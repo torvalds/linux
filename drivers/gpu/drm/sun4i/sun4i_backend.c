@@ -35,7 +35,7 @@ struct sun4i_backend_quirks {
 	/* backend <-> TCON muxing selection done in backend */
 	bool needs_output_muxing;
 
-	/* alpha at the lowest z position is not always supported */
+	/* alpha at the lowest z position is analt always supported */
 	bool supports_lowest_plane_alpha;
 };
 
@@ -366,7 +366,7 @@ int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend, int layer,
 {
 	struct drm_plane_state *state = plane->state;
 	struct sun4i_layer_state *p_state = state_to_sun4i_layer_state(state);
-	unsigned int priority = state->normalized_zpos;
+	unsigned int priority = state->analrmalized_zpos;
 	unsigned int pipe = p_state->pipe;
 
 	DRM_DEBUG_DRIVER("Setting layer %d's priority to %d and pipe %d\n",
@@ -423,7 +423,7 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 	 * TODO: The backend alone allows 2x and 4x integer scaling, including
 	 * support for an alpha component (which the frontend doesn't support).
 	 * Use the backend directly instead of the frontend in this case, with
-	 * another test to return false.
+	 * aanalther test to return false.
 	 */
 
 	if (sun4i_backend_plane_uses_scaler(state))
@@ -431,7 +431,7 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 
 	/*
 	 * Here the format is supported by both the frontend and the backend
-	 * and no frontend scaling is required, so use the backend directly.
+	 * and anal frontend scaling is required, so use the backend directly.
 	 */
 	return false;
 }
@@ -446,7 +446,7 @@ static bool sun4i_backend_plane_is_supported(struct drm_plane_state *state,
 
 	*uses_frontend = false;
 
-	/* Scaling is not supported without the frontend. */
+	/* Scaling is analt supported without the frontend. */
 	if (sun4i_backend_plane_uses_scaler(state))
 		return false;
 
@@ -513,10 +513,10 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 			num_alpha_planes++;
 
 		DRM_DEBUG_DRIVER("Plane zpos is %d\n",
-				 plane_state->normalized_zpos);
+				 plane_state->analrmalized_zpos);
 
 		/* Sort our planes by Zpos */
-		plane_states[plane_state->normalized_zpos] = plane_state;
+		plane_states[plane_state->analrmalized_zpos] = plane_state;
 
 		num_planes++;
 	}
@@ -545,7 +545,7 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	 * situations, since this means that we need to have one layer
 	 * with alpha at the lowest position of our two pipes.
 	 *
-	 * However, we cannot even do that on every platform, since
+	 * However, we cananalt even do that on every platform, since
 	 * the hardware has a bug where the lowest plane of the lowest
 	 * pipe (pipe 0, priority 0), if it has any alpha, will
 	 * discard the pixel data entirely and just display the pixels
@@ -558,7 +558,7 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	 * planes and their zpos.
 	 */
 
-	/* For platforms that are not affected by the issue described above. */
+	/* For platforms that are analt affected by the issue described above. */
 	if (backend->quirks->supports_lowest_plane_alpha)
 		num_alpha_planes_max++;
 
@@ -618,9 +618,9 @@ static void sun4i_backend_vblank_quirk(struct sunxi_engine *engine)
 	 * to keep the frontend enabled until the next vblank, and
 	 * only then disable it.
 	 *
-	 * This is due to the fact that the backend will not take into
+	 * This is due to the fact that the backend will analt take into
 	 * account the new configuration (with the plane that used to
-	 * be fed by the frontend now disabled) until we write to the
+	 * be fed by the frontend analw disabled) until we write to the
 	 * commit bit and the hardware fetches the new configuration
 	 * during the next vblank.
 	 *
@@ -707,53 +707,53 @@ static int sun4i_backend_free_sat(struct device *dev) {
  * there are 2 or more, we are currently probing. The number would be in
  * the "reg" property of the upstream output port endpoint.
  */
-static int sun4i_backend_of_get_id(struct device_node *node)
+static int sun4i_backend_of_get_id(struct device_analde *analde)
 {
-	struct device_node *ep, *remote;
+	struct device_analde *ep, *remote;
 	struct of_endpoint of_ep;
 
 	/* Input port is 0, and we want the first endpoint. */
-	ep = of_graph_get_endpoint_by_regs(node, 0, -1);
+	ep = of_graph_get_endpoint_by_regs(analde, 0, -1);
 	if (!ep)
 		return -EINVAL;
 
 	remote = of_graph_get_remote_endpoint(ep);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (!remote)
 		return -EINVAL;
 
 	of_graph_parse_endpoint(remote, &of_ep);
-	of_node_put(remote);
+	of_analde_put(remote);
 	return of_ep.id;
 }
 
 /* TODO: This needs to take multiple pipelines into account */
 static struct sun4i_frontend *sun4i_backend_find_frontend(struct sun4i_drv *drv,
-							  struct device_node *node)
+							  struct device_analde *analde)
 {
-	struct device_node *port, *ep, *remote;
+	struct device_analde *port, *ep, *remote;
 	struct sun4i_frontend *frontend;
 
-	port = of_graph_get_port_by_id(node, 0);
+	port = of_graph_get_port_by_id(analde, 0);
 	if (!port)
 		return ERR_PTR(-EINVAL);
 
-	for_each_available_child_of_node(port, ep) {
+	for_each_available_child_of_analde(port, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote)
 			continue;
-		of_node_put(remote);
+		of_analde_put(remote);
 
-		/* does this node match any registered engines? */
+		/* does this analde match any registered engines? */
 		list_for_each_entry(frontend, &drv->frontend_list, list) {
-			if (remote == frontend->node) {
-				of_node_put(port);
-				of_node_put(ep);
+			if (remote == frontend->analde) {
+				of_analde_put(port);
+				of_analde_put(ep);
 				return frontend;
 			}
 		}
 	}
-	of_node_put(port);
+	of_analde_put(port);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -788,11 +788,11 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 
 	backend = devm_kzalloc(dev, sizeof(*backend), GFP_KERNEL);
 	if (!backend)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, backend);
 	spin_lock_init(&backend->frontend_lock);
 
-	if (of_property_present(dev->of_node, "interconnects")) {
+	if (of_property_present(dev->of_analde, "interconnects")) {
 		/*
 		 * This assume we have the same DMA constraints for all our the
 		 * devices in our pipeline (all the backends, but also the
@@ -800,18 +800,18 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		 * for us, and DRM doesn't do per-device allocation either, so
 		 * we would need to fix DRM first...
 		 */
-		ret = of_dma_configure(drm->dev, dev->of_node, true);
+		ret = of_dma_configure(drm->dev, dev->of_analde, true);
 		if (ret)
 			return ret;
 	}
 
-	backend->engine.node = dev->of_node;
+	backend->engine.analde = dev->of_analde;
 	backend->engine.ops = &sun4i_backend_engine_ops;
-	backend->engine.id = sun4i_backend_of_get_id(dev->of_node);
+	backend->engine.id = sun4i_backend_of_get_id(dev->of_analde);
 	if (backend->engine.id < 0)
 		return backend->engine.id;
 
-	backend->frontend = sun4i_backend_find_frontend(drv, dev->of_node);
+	backend->frontend = sun4i_backend_find_frontend(drv, dev->of_analde);
 	if (IS_ERR(backend->frontend))
 		dev_warn(dev, "Couldn't find matching frontend, frontend features disabled\n");
 
@@ -862,7 +862,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	}
 	clk_prepare_enable(backend->ram_clk);
 
-	if (of_device_is_compatible(dev->of_node,
+	if (of_device_is_compatible(dev->of_analde,
 				    "allwinner,sun8i-a33-display-backend")) {
 		ret = sun4i_backend_init_sat(dev);
 		if (ret) {
@@ -904,13 +904,13 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	quirks = of_device_get_match_data(dev);
 	if (quirks->needs_output_muxing) {
 		/*
-		 * We assume there is no dynamic muxing of backends
+		 * We assume there is anal dynamic muxing of backends
 		 * and TCONs, so we select the backend with same ID.
 		 *
 		 * While dynamic selection might be interesting, since
 		 * the CRTC is tied to the TCON, while the layers are
 		 * tied to the backends, this means, we will need to
-		 * switch between groups of layers. There might not be
+		 * switch between groups of layers. There might analt be
 		 * a way to represent this constraint in DRM.
 		 */
 		regmap_update_bits(backend->engine.regs,
@@ -944,7 +944,7 @@ static void sun4i_backend_unbind(struct device *dev, struct device *master,
 
 	list_del(&backend->engine.list);
 
-	if (of_device_is_compatible(dev->of_node,
+	if (of_device_is_compatible(dev->of_analde,
 				    "allwinner,sun8i-a33-display-backend"))
 		sun4i_backend_free_sat(dev);
 

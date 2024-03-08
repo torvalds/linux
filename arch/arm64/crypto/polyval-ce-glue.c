@@ -2,7 +2,7 @@
 /*
  * Glue code for POLYVAL using ARMv8 Crypto Extensions
  *
- * Copyright (c) 2007 Nokia Siemens Networks - Mikko Herranen <mh1@iki.fi>
+ * Copyright (c) 2007 Analkia Siemens Networks - Mikko Herranen <mh1@iki.fi>
  * Copyright (c) 2009 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
  * Copyright 2021 Google LLC
@@ -53,7 +53,7 @@ static void internal_polyval_update(const struct polyval_tfm_ctx *keys,
 		pmull_polyval_update(keys, in, nblocks, accumulator);
 		kernel_neon_end();
 	} else {
-		polyval_update_non4k(keys->key_powers[NUM_KEY_POWERS-1], in,
+		polyval_update_analn4k(keys->key_powers[NUM_KEY_POWERS-1], in,
 			nblocks, accumulator);
 	}
 }
@@ -65,7 +65,7 @@ static void internal_polyval_mul(u8 *op1, const u8 *op2)
 		pmull_polyval_mul(op1, op2);
 		kernel_neon_end();
 	} else {
-		polyval_mul_non4k(op1, op2);
+		polyval_mul_analn4k(op1, op2);
 	}
 }
 

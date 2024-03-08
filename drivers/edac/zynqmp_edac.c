@@ -127,7 +127,7 @@ struct edac_priv {
  * @p:		Pointer to the OCM ECC status structure
  * @mask:	Status register mask value
  *
- * Determines there is any ECC error or not
+ * Determines there is any ECC error or analt
  *
  */
 static void get_error_info(void __iomem *base, struct ecc_status *p, int mask)
@@ -183,7 +183,7 @@ static void handle_error(struct edac_device_ctl_info *dci, struct ecc_status *p)
  * @irq:        irq number
  * @dev_id:     device id pointer
  *
- * Return: IRQ_NONE, if CE/UE interrupt not set or IRQ_HANDLED otherwise
+ * Return: IRQ_ANALNE, if CE/UE interrupt analt set or IRQ_HANDLED otherwise
  */
 static irqreturn_t intr_handler(int irq, void *dev_id)
 {
@@ -194,7 +194,7 @@ static irqreturn_t intr_handler(int irq, void *dev_id)
 	regval = readl(priv->baseaddr + OCM_ISR_OFST);
 	if (!(regval & (OCM_CEINTR_MASK | OCM_UEINTR_MASK))) {
 		WARN_ONCE(1, "Unhandled IRQ%d, ISR: 0x%x", irq, regval);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	get_error_info(priv->baseaddr, &priv->stat, regval);
@@ -326,7 +326,7 @@ static ssize_t inject_ue_write(struct file *file, const char __user *data,
 		return -EINVAL;
 
 	if (priv->ue_bitpos[0] == priv->ue_bitpos[1]) {
-		edac_printk(KERN_ERR, EDAC_DEVICE, "Bit positions should not be equal\n");
+		edac_printk(KERN_ERR, EDAC_DEVICE, "Bit positions should analt be equal\n");
 		return -EINVAL;
 	}
 
@@ -376,7 +376,7 @@ static int edac_probe(struct platform_device *pdev)
 		return PTR_ERR(baseaddr);
 
 	if (!get_eccstate(baseaddr)) {
-		edac_printk(KERN_INFO, EDAC_DEVICE, "ECC not enabled\n");
+		edac_printk(KERN_INFO, EDAC_DEVICE, "ECC analt enabled\n");
 		return -ENXIO;
 	}
 
@@ -384,7 +384,7 @@ static int edac_probe(struct platform_device *pdev)
 					 1, ZYNQMP_OCM_EDAC_STRING, 1, 0, NULL, 0,
 					 edac_device_alloc_index());
 	if (!dci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = dci->pvt_info;
 	platform_set_drvdata(pdev, dci);

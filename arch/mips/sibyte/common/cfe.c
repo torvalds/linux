@@ -41,14 +41,14 @@ int cfe_cons_handle;
 extern unsigned long initrd_start, initrd_end;
 #endif
 
-static void __noreturn cfe_linux_exit(void *arg)
+static void __analreturn cfe_linux_exit(void *arg)
 {
 	int warm = *(int *)arg;
 
 	if (smp_processor_id()) {
 		static int reboot_smp;
 
-		/* Don't repeat the process from another CPU */
+		/* Don't repeat the process from aanalther CPU */
 		if (!reboot_smp) {
 			/* Get CPU 0 to do the cfe_exit */
 			reboot_smp = 1;
@@ -62,14 +62,14 @@ static void __noreturn cfe_linux_exit(void *arg)
 	while (1);
 }
 
-static void __noreturn cfe_linux_restart(char *command)
+static void __analreturn cfe_linux_restart(char *command)
 {
 	static const int zero;
 
 	cfe_linux_exit((void *)&zero);
 }
 
-static void __noreturn cfe_linux_halt(void)
+static void __analreturn cfe_linux_halt(void)
 {
 	static const int one = 1;
 
@@ -96,7 +96,7 @@ static __init void prom_meminit(void)
 
 #endif /* INITRD */
 
-	for (idx = 0; cfe_enummem(idx, mem_flags, &addr, &size, &type) != CFE_ERR_NOMORE;
+	for (idx = 0; cfe_enummem(idx, mem_flags, &addr, &size, &type) != CFE_ERR_ANALMORE;
 	     idx++) {
 		rd_flag = 0;
 		if (type == CFE_MI_AVAILABLE) {
@@ -128,7 +128,7 @@ static __init void prom_meminit(void)
 				/*
 				 * memcpy/__copy_user prefetch, which
 				 * will cause a bus error for
-				 * KSEG/KUSEG addrs not backed by RAM.
+				 * KSEG/KUSEG addrs analt backed by RAM.
 				 * Hence, reserve some padding for the
 				 * prefetch distance.
 				 */
@@ -218,7 +218,7 @@ void __init prom_init(void)
 	pm_power_off = cfe_linux_halt;
 
 	/*
-	 * Check if a loader was used; if NOT, the 4 arguments are
+	 * Check if a loader was used; if ANALT, the 4 arguments are
 	 * what CFE gives us (handle, 0, EPT and EPTSEAL)
 	 */
 	if (argc < 0) {
@@ -229,7 +229,7 @@ void __init prom_init(void)
 		if ((int32_t)(long)prom_vec < 0) {
 			/*
 			 * Old loader; all it gives us is the handle,
-			 * so use the "known" entrypoint and assume
+			 * so use the "kanalwn" entrypoint and assume
 			 * the seal.
 			 */
 			cfe_handle = (uint64_t)(long)prom_vec;
@@ -238,7 +238,7 @@ void __init prom_init(void)
 		} else {
 			/*
 			 * Newer loaders bundle the handle/ept/eptseal
-			 * Note: prom_vec is in the loader's useg
+			 * Analte: prom_vec is in the loader's useg
 			 * which is still alive in the TLB.
 			 */
 			cfe_handle = (uint64_t)((int32_t *)prom_vec)[0];
@@ -261,7 +261,7 @@ void __init prom_init(void)
 		if (argc >= 0) {
 			/* The loader should have set the command line */
 			/* too early for panic to do any good */
-			printk("LINUX_CMDLINE not defined in cfe.");
+			printk("LINUX_CMDLINE analt defined in cfe.");
 			while (1) ;
 		}
 	}
@@ -270,7 +270,7 @@ void __init prom_init(void)
 	{
 		char *ptr;
 		/* Need to find out early whether we've got an initrd.	So scan
-		   the list looking now */
+		   the list looking analw */
 		for (ptr = arcs_cmdline; *ptr; ptr++) {
 			while (*ptr == ' ') {
 				ptr++;
@@ -287,7 +287,7 @@ void __init prom_init(void)
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 
-	/* Not sure this is needed, but it's the safe way. */
+	/* Analt sure this is needed, but it's the safe way. */
 	arcs_cmdline[COMMAND_LINE_SIZE-1] = 0;
 
 	prom_meminit();

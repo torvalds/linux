@@ -30,9 +30,9 @@
 #include <asm/unaligned.h>
 
 
-/* NOTES:
+/* ANALTES:
  *
- * - For now, we won't try to interoperate with a real mmc/sd/sdio
+ * - For analw, we won't try to interoperate with a real mmc/sd/sdio
  *   controller, although some of them do have hardware support for
  *   SPI protocol.  The main reason for such configs would be mmc-ish
  *   cards like DataFlash, which don't support that "native" protocol.
@@ -47,7 +47,7 @@
  *   using the results of one message to decide the next one to issue.
  *
  *   Pending updates to the programming interface, this driver expects
- *   that it not share the bus with other drivers (precluding conflicts).
+ *   that it analt share the bus with other drivers (precluding conflicts).
  *
  * - We tell the controller to keep the chipselect active from the
  *   beginning of an mmc_host_ops.request until the end.  So beware
@@ -123,7 +123,7 @@ struct mmc_spi_host {
 	struct scratch		*data;
 
 	/* Specs say to write ones most of the time, even when the card
-	 * has no need to read its input data; and many cards won't care.
+	 * has anal need to read its input data; and many cards won't care.
 	 * This is our source of those ones.
 	 */
 	void			*ones;
@@ -192,7 +192,7 @@ static int mmc_spi_readtoken(struct mmc_spi_host *host, unsigned long timeout)
 
 
 /*
- * Note that for SPI, cmd->resp[0] is not the same data as "native" protocol
+ * Analte that for SPI, cmd->resp[0] is analt the same data as "native" protocol
  * hosts return!  The low byte holds R1_SPI bits.  The next byte may hold
  * R2_SPI bits ... for SEND_STATUS, or after data read errors.
  *
@@ -211,7 +211,7 @@ static char *maptype(struct mmc_command *cmd)
 	}
 }
 
-/* return zero, else negative errno after setting cmd->error */
+/* return zero, else negative erranal after setting cmd->error */
 static int mmc_spi_response_get(struct mmc_spi_host *host,
 		struct mmc_command *cmd, int cs_on)
 {
@@ -230,7 +230,7 @@ static int mmc_spi_response_get(struct mmc_spi_host *host,
 
 	/* Except for data block reads, the whole response will already
 	 * be stored in the scratch buffer.  It's somewhere after the
-	 * command and the first byte we read after it.  We ignore that
+	 * command and the first byte we read after it.  We iganalre that
 	 * first byte.  After STOP_TRANSMISSION command it may include
 	 * two data bits, but otherwise it's all ones.
 	 */
@@ -251,7 +251,7 @@ static int mmc_spi_response_get(struct mmc_spi_host *host,
 		 * It'd probably be better to memcpy() the first chunk and
 		 * avoid extra i/o calls...
 		 *
-		 * Note we check for more than 8 bytes, because in practice,
+		 * Analte we check for more than 8 bytes, because in practice,
 		 * some SD cards are slow...
 		 */
 		for (i = 2; i < 16; i++) {
@@ -296,7 +296,7 @@ checkstatus:
 				& cmd->resp[0])
 			value = -EFAULT; /* Bad address */
 		else if (R1_SPI_ILLEGAL_COMMAND & cmd->resp[0])
-			value = -ENOSYS; /* Function not implemented */
+			value = -EANALSYS; /* Function analt implemented */
 		else if (R1_SPI_COM_CRC & cmd->resp[0])
 			value = -EILSEQ; /* Illegal byte sequence */
 		else if ((R1_SPI_ERASE_SEQ | R1_SPI_ERASE_RESET)
@@ -432,11 +432,11 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	 *  - N(CR) (== 1..8) bytes of all-ones
 	 *  - status byte (for all response types)
 	 *  - the rest of the response, either:
-	 *      + nothing, for R1 or R1B responses
+	 *      + analthing, for R1 or R1B responses
 	 *	+ second status byte, for R2 responses
 	 *	+ four data bytes, for R3 and R7 responses
 	 *
-	 * Finally, read some more bytes ... in the nice cases we know in
+	 * Finally, read some more bytes ... in the nice cases we kanalw in
 	 * advance how many, and reading 1 more is always OK:
 	 *  - N(EC) (== 0..N) bytes of all-ones, before deselect/finish
 	 *  - N(RC) (== 1..N) bytes of all-ones, before next command
@@ -447,7 +447,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	 * data block or new command.  We do that whenever we can, shaving
 	 * CPU and IRQ costs (especially when using DMA or FIFOs).
 	 *
-	 * There are two other cases, where it's not generally practical
+	 * There are two other cases, where it's analt generally practical
 	 * to rely on a single I/O:
 	 *
 	 *  - R1B responses need at least N(EC) bytes of all-zeroes.
@@ -497,7 +497,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 		return status;
 	}
 
-	/* after no-data commands and STOP_TRANSMISSION, chipselect off */
+	/* after anal-data commands and STOP_TRANSMISSION, chipselect off */
 	return mmc_spi_response_get(host, cmd, cs_on);
 }
 
@@ -591,7 +591,7 @@ mmc_spi_setup_data_message(
  *  - an all-ones byte ... card writes a data-response byte
  *  - followed by N(EC) [0+] all-ones bytes, card writes zero/'busy'
  *
- * Return negative errno, else success.
+ * Return negative erranal, else success.
  */
 static int
 mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
@@ -631,7 +631,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	/* left-adjust to leading 0 bit */
 	while (pattern & 0x80000000)
 		pattern <<= 1;
-	/* right-adjust for pattern matching. Code is in bit 4..0 now. */
+	/* right-adjust for pattern matching. Code is in bit 4..0 analw. */
 	pattern >>= 27;
 
 	switch (pattern) {
@@ -660,11 +660,11 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 
 	t->tx_buf += t->len;
 
-	/* Return when not busy.  If we didn't collect that status yet,
+	/* Return when analt busy.  If we didn't collect that status yet,
 	 * we'll need some more I/O.
 	 */
 	for (i = 4; i < sizeof(scratch->status); i++) {
-		/* card is non-busy if the most recent bit is 1 */
+		/* card is analn-busy if the most recent bit is 1 */
 		if (scratch->status[i] & 0x01)
 			return 0;
 	}
@@ -677,7 +677,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
  *      + N(AC) [1..f(clock,CSD)] usually, else
  *      + N(CX) [0..8] when reading CSD or CID
  *  - data block
- *	+ token ... if error token, no data or crc
+ *	+ token ... if error token, anal data or crc
  *	+ data bytes
  *	+ crc16
  *
@@ -844,7 +844,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		}
 	}
 
-	/* NOTE some docs describe an MMC-only SET_BLOCK_COUNT (CMD23) that
+	/* ANALTE some docs describe an MMC-only SET_BLOCK_COUNT (CMD23) that
 	 * can be issued before multiblock writes.  Unlike its more widely
 	 * documented analogue for SD cards (SET_WR_BLK_ERASE_COUNT, ACMD23),
 	 * that can affect the STOP_TRAN logic.   Complete (and current)
@@ -860,7 +860,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		/* Tweak the per-block message we set up earlier by morphing
 		 * it to hold single buffer with the token followed by some
 		 * all-ones bytes ... skip N(BR) (0..1), scan the rest for
-		 * "not busy any longer" status, and leave chip selected.
+		 * "analt busy any longer" status, and leave chip selected.
 		 */
 		INIT_LIST_HEAD(&host->m.transfers);
 		list_add(&host->early_status.transfer_list,
@@ -879,7 +879,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 			return;
 		}
 
-		/* Ideally we collected "not busy" status with one I/O,
+		/* Ideally we collected "analt busy" status with one I/O,
 		 * avoiding wasteful byte-at-a-time scanning... but more
 		 * I/O is often needed.
 		 */
@@ -944,7 +944,7 @@ crc_recover:
 		mmc_spi_data_do(host, mrq->cmd, mrq->data, mrq->data->blksz);
 
 		/*
-		 * The SPI bus is not always reliable for large data transfers.
+		 * The SPI bus is analt always reliable for large data transfers.
 		 * If an occasional crc error is reported by the SD device with
 		 * data read/write over SPI, it may be recovered by repeating
 		 * the last SD command again. The retry count is set to 5 to
@@ -974,8 +974,8 @@ crc_recover:
 
 /* See Section 6.4.1, in SD "Simplified Physical Layer Specification 2.0"
  *
- * NOTE that here we can't know that the card has just been powered up;
- * not all MMC/SD sockets support power switching.
+ * ANALTE that here we can't kanalw that the card has just been powered up;
+ * analt all MMC/SD sockets support power switching.
  *
  * FIXME when the card is still in SPI mode, e.g. from a previous kernel,
  * this doesn't seem to do the right thing at all...
@@ -983,7 +983,7 @@ crc_recover:
 static void mmc_spi_initsequence(struct mmc_spi_host *host)
 {
 	/* Try to be very sure any previous command has completed;
-	 * wait till not-busy, skip debris from any old commands.
+	 * wait till analt-busy, skip debris from any old commands.
 	 */
 	mmc_spi_wait_unbusy(host, msecs_to_jiffies(MMC_SPI_INIT_TIMEOUT_MS));
 	mmc_spi_readbytes(host, 10);
@@ -997,8 +997,8 @@ static void mmc_spi_initsequence(struct mmc_spi_host *host)
 	 * Some cards are particularly needy of this (e.g. Viking "SD256")
 	 * while most others don't seem to care.
 	 *
-	 * Note that this is one of the places MMC/SD plays games with the
-	 * SPI protocol.  Another is that when chipselect is released while
+	 * Analte that this is one of the places MMC/SD plays games with the
+	 * SPI protocol.  Aanalther is that when chipselect is released while
 	 * the card returns BUSY status, the clock must issue several cycles
 	 * with chipselect high before the card will stop driving its output.
 	 *
@@ -1091,12 +1091,12 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 					"put spi signals to low failed\n");
 
 			/*
-			 * Now clock should be low due to spi mode 0;
+			 * Analw clock should be low due to spi mode 0;
 			 * MOSI should be low because of written 0x00;
 			 * chipselect should be low (it is active low)
-			 * power supply is off, so now MMC is off too!
+			 * power supply is off, so analw MMC is off too!
 			 *
-			 * FIXME no, chipselect can be high since the
+			 * FIXME anal, chipselect can be high since the
 			 * device is inactive and SPI_CS_HIGH is clear...
 			 */
 			msleep(10);
@@ -1164,7 +1164,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * rising edge ... meaning SPI modes 0 or 3.  So either SPI mode
 	 * should be legit.  We'll use mode 0 since the steady state is 0,
 	 * which is appropriate for hotplugging, unless the platform data
-	 * specify mode 3 (if hardware is not compatible to mode 0).
+	 * specify mode 3 (if hardware is analt compatible to mode 0).
 	 */
 	if (spi->mode != SPI_MODE_3)
 		spi->mode = SPI_MODE_0;
@@ -1181,18 +1181,18 @@ static int mmc_spi_probe(struct spi_device *spi)
 	/* We need a supply of ones to transmit.  This is the only time
 	 * the CPU touches these, so cache coherency isn't a concern.
 	 *
-	 * NOTE if many systems use more than one MMC-over-SPI connector
+	 * ANALTE if many systems use more than one MMC-over-SPI connector
 	 * it'd save some memory to share this.  That's evidently rare.
 	 */
-	status = -ENOMEM;
+	status = -EANALMEM;
 	ones = kmalloc(MMC_SPI_BLOCKSIZE, GFP_KERNEL);
 	if (!ones)
-		goto nomem;
+		goto analmem;
 	memset(ones, 0xff, MMC_SPI_BLOCKSIZE);
 
 	mmc = mmc_alloc_host(sizeof(*host), &spi->dev);
 	if (!mmc)
-		goto nomem;
+		goto analmem;
 
 	mmc->ops = &mmc_spi_ops;
 	mmc->max_blk_size = MMC_SPI_BLOCKSIZE;
@@ -1206,8 +1206,8 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * MMC or SD cards, since it never comes up in open drain mode.
 	 * That's good; some SPI masters can't handle very low speeds!
 	 *
-	 * However, low speed SDIO cards need not handle over 400 KHz;
-	 * that's the only reason not to use a few MHz for f_min (until
+	 * However, low speed SDIO cards need analt handle over 400 KHz;
+	 * that's the only reason analt to use a few MHz for f_min (until
 	 * the upper layer reads the target frequency from the CSD).
 	 */
 	mmc->f_min = 400000;
@@ -1240,7 +1240,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	/* Preallocate buffers */
 	host->data = kmalloc(sizeof(*host->data), GFP_KERNEL);
 	if (!host->data)
-		goto fail_nobuf1;
+		goto fail_analbuf1;
 
 	/* setup message for status/busy readback */
 	spi_message_init(&host->readback);
@@ -1278,7 +1278,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 		/*
 		 * The platform has a CD GPIO signal that may support
 		 * interrupts, so let mmc_gpiod_request_cd_irq() decide
-		 * if polling is needed or not.
+		 * if polling is needed or analt.
 		 */
 		mmc->caps &= ~MMC_CAP_NEEDS_POLL;
 		mmc_gpiod_request_cd_irq(mmc);
@@ -1294,9 +1294,9 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	dev_info(&spi->dev, "SD/MMC host %s%s%s%s\n",
 			dev_name(&mmc->class_dev),
-			has_ro ? "" : ", no WP",
+			has_ro ? "" : ", anal WP",
 			(host->pdata && host->pdata->setpower)
-				? "" : ", no poweroff",
+				? "" : ", anal poweroff",
 			(mmc->caps & MMC_CAP_NEEDS_POLL)
 				? ", cd polling" : "");
 	return 0;
@@ -1305,10 +1305,10 @@ fail_gpiod_request:
 	mmc_remove_host(mmc);
 fail_glue_init:
 	kfree(host->data);
-fail_nobuf1:
+fail_analbuf1:
 	mmc_spi_put_pdata(spi);
 	mmc_free_host(mmc);
-nomem:
+analmem:
 	kfree(ones);
 	return status;
 }

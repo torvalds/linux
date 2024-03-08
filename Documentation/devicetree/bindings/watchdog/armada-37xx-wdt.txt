@@ -5,7 +5,7 @@ Required properties:
 - reg : base physical address of the controller and length of memory mapped
 	region.
 - clocks : the clock feeding the watchdog timer. See clock-bindings.txt
-- marvell,system-controller : reference to syscon node for the CPU Miscellaneous
+- marvell,system-controller : reference to syscon analde for the CPU Miscellaneous
 	Registers
 
 Example:

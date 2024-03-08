@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Linux Socket Filter Data Structures
  */
@@ -14,7 +14,7 @@
  * Current version of the filter code architecture.
  */
 #define BPF_MAJOR_VERSION 1
-#define BPF_MINOR_VERSION 1
+#define BPF_MIANALR_VERSION 1
 
 /*
  *	Try and keep these values and structures similar to BSD, especially
@@ -59,7 +59,7 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
 
 /* RATIONALE. Negative offsets are invalid in BPF.
    We use them to reference ancillary data.
-   Unlike introduction new instructions, it does not break
+   Unlike introduction new instructions, it does analt break
    existing compilers/optimizers.
  */
 #define SKF_AD_OFF    (-0x1000)

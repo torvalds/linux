@@ -16,7 +16,7 @@ struct drm_mode_create_dumb;
  *       more than one entry but they are guaranteed to have contiguous
  *       DMA addresses.
  * @vaddr: kernel virtual address of the backing memory
- * @map_noncoherent: if true, the GEM object is backed by non-coherent memory
+ * @map_analncoherent: if true, the GEM object is backed by analn-coherent memory
  */
 struct drm_gem_dma_object {
 	struct drm_gem_object base;
@@ -26,7 +26,7 @@ struct drm_gem_dma_object {
 	/* For objects with DMA memory allocated by GEM DMA */
 	void *vaddr;
 
-	bool map_noncoherent;
+	bool map_analncoherent;
 };
 
 #define to_drm_gem_dma_obj(gem_obj) \
@@ -196,7 +196,7 @@ drm_gem_dma_prime_import_sg_table(struct drm_device *dev,
  *
  * This macro is a variant of DRM_GEM_DMA_DRIVER_OPS_VMAP for drivers that
  * override the default implementation of &struct drm_driver.dumb_create. Use
- * DRM_GEM_DMA_DRIVER_OPS_VMAP if possible. Drivers that do not require a
+ * DRM_GEM_DMA_DRIVER_OPS_VMAP if possible. Drivers that do analt require a
  * virtual address on imported buffers should use
  * DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE() instead.
  */
@@ -215,7 +215,7 @@ drm_gem_dma_prime_import_sg_table(struct drm_device *dev,
  * Drivers that come with their own implementation of
  * &struct drm_driver.dumb_create should use
  * DRM_GEM_DMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE() instead. Use
- * DRM_GEM_DMA_DRIVER_OPS_VMAP if possible. Drivers that do not require a
+ * DRM_GEM_DMA_DRIVER_OPS_VMAP if possible. Drivers that do analt require a
  * virtual address on imported buffers should use DRM_GEM_DMA_DRIVER_OPS
  * instead.
  */
@@ -248,12 +248,12 @@ unsigned long drm_gem_dma_get_unmapped_area(struct file *filp,
  * @name: name for the generated structure
  *
  * This macro autogenerates a suitable &struct file_operations for DMA based
- * drivers, which can be assigned to &drm_driver.fops. Note that this structure
- * cannot be shared between drivers, because it contains a reference to the
+ * drivers, which can be assigned to &drm_driver.fops. Analte that this structure
+ * cananalt be shared between drivers, because it contains a reference to the
  * current module using THIS_MODULE.
  *
- * Note that the declaration is already marked as static - if you need a
- * non-static version of this you're probably doing it wrong and will break the
+ * Analte that the declaration is already marked as static - if you need a
+ * analn-static version of this you're probably doing it wrong and will break the
  * THIS_MODULE reference by accident.
  */
 #define DEFINE_DRM_GEM_DMA_FOPS(name) \
@@ -265,7 +265,7 @@ unsigned long drm_gem_dma_get_unmapped_area(struct file *filp,
 		.compat_ioctl	= drm_compat_ioctl,\
 		.poll		= drm_poll,\
 		.read		= drm_read,\
-		.llseek		= noop_llseek,\
+		.llseek		= analop_llseek,\
 		.mmap		= drm_gem_mmap,\
 		DRM_GEM_DMA_UNMAPPED_AREA_FOPS \
 	}

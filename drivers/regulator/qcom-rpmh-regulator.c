@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
@@ -79,7 +79,7 @@ enum rpmh_regulator_type {
  *				for LDO hardware type regulators only.
  * @pmic_mode_map:		Array indexed by regulator framework mode
  *				containing PMIC hardware modes.  Must be large
- *				enough to index all framework modes supported
+ *				eanalugh to index all framework modes supported
  *				by this regulator hardware type.
  * @of_map_mode:		Maps an RPMH_REGULATOR_MODE_* mode value defined
  *				in device tree to a regulator framework mode
@@ -111,9 +111,9 @@ struct rpmh_vreg_hw_data {
  *				if it corresponds to a strictly lower power
  *				state (e.g. enabled --> disabled).
  * @enabled:			Flag indicating if the regulator is enabled or
- *				not
+ *				analt
  * @bypassed:			Boolean indicating if the regulator is in
- *				bypass (pass-through) mode or not.  This is
+ *				bypass (pass-through) mode or analt.  This is
  *				only used by BOB rpmh-regulator resources.
  * @voltage_selector:		Selector used for get_voltage_sel() and
  *				set_voltage_sel() callbacks
@@ -135,7 +135,7 @@ struct rpmh_vreg {
 /**
  * struct rpmh_vreg_init_data - initialization data for an RPMh regulator
  * @name:			Name for the regulator which also corresponds
- *				to the device tree subnode name of the regulator
+ *				to the device tree subanalde name of the regulator
  * @resource_name:		RPMh regulator resource name format string.
  *				This must include exactly one field: '%s' which
  *				is filled at run-time with the PMIC ID provided
@@ -156,9 +156,9 @@ struct rpmh_vreg_init_data {
  * @vreg:		Pointer to the RPMh regulator
  * @cmd:		Pointer to the RPMh command to send
  * @wait_for_ack:	Boolean indicating if execution must wait until the
- *			request has been acknowledged as complete
+ *			request has been ackanalwledged as complete
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, erranal on failure
  */
 static int rpmh_regulator_send_request(struct rpmh_vreg *vreg,
 			struct tcs_cmd *cmd, bool wait_for_ack)
@@ -237,7 +237,7 @@ static int rpmh_regulator_set_enable_state(struct regulator_dev *rdev,
 	int ret;
 
 	if (vreg->enabled == -EINVAL &&
-	    vreg->voltage_selector != -ENOTRECOVERABLE) {
+	    vreg->voltage_selector != -EANALTRECOVERABLE) {
 		ret = _rpmh_regulator_vrm_set_voltage_sel(rdev,
 						vreg->voltage_selector, true);
 		if (ret < 0)
@@ -317,7 +317,7 @@ static unsigned int rpmh_regulator_vrm_get_mode(struct regulator_dev *rdev)
  * This function is used in the regulator_ops for VRM type RPMh regulator
  * devices.
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, erranal on failure
  */
 static unsigned int rpmh_regulator_vrm_get_optimum_mode(
 	struct regulator_dev *rdev, int input_uV, int output_uV, int load_uA)
@@ -325,7 +325,7 @@ static unsigned int rpmh_regulator_vrm_get_optimum_mode(
 	struct rpmh_vreg *vreg = rdev_get_drvdata(rdev);
 
 	if (load_uA >= vreg->hw_data->hpm_min_load_uA)
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	else
 		return REGULATOR_MODE_IDLE;
 }
@@ -402,17 +402,17 @@ static const struct regulator_ops rpmh_regulator_xob_ops = {
  * rpmh_regulator_init_vreg() - initialize all attributes of an rpmh-regulator
  * @vreg:		Pointer to the individual rpmh-regulator resource
  * @dev:			Pointer to the top level rpmh-regulator PMIC device
- * @node:		Pointer to the individual rpmh-regulator resource
- *			device node
+ * @analde:		Pointer to the individual rpmh-regulator resource
+ *			device analde
  * @pmic_id:		String used to identify the top level rpmh-regulator
  *			PMIC device on the board
  * @pmic_rpmh_data:	Pointer to a null-terminated array of rpmh-regulator
  *			resources defined for the top level PMIC device
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, erranal on failure
  */
 static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
-			struct device_node *node, const char *pmic_id,
+			struct device_analde *analde, const char *pmic_id,
 			const struct rpmh_vreg_init_data *pmic_rpmh_data)
 {
 	struct regulator_config reg_config = {};
@@ -425,11 +425,11 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	vreg->dev = dev;
 
 	for (rpmh_data = pmic_rpmh_data; rpmh_data->name; rpmh_data++)
-		if (of_node_name_eq(node, rpmh_data->name))
+		if (of_analde_name_eq(analde, rpmh_data->name))
 			break;
 
 	if (!rpmh_data->name) {
-		dev_err(dev, "Unknown regulator %pOFn\n", node);
+		dev_err(dev, "Unkanalwn regulator %pOFn\n", analde);
 		return -EINVAL;
 	}
 
@@ -438,9 +438,9 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 
 	vreg->addr = cmd_db_read_addr(rpmh_resource_name);
 	if (!vreg->addr) {
-		dev_err(dev, "%pOFn: could not find RPMh address for resource %s\n",
-			node, rpmh_resource_name);
-		return -ENODEV;
+		dev_err(dev, "%pOFn: could analt find RPMh address for resource %s\n",
+			analde, rpmh_resource_name);
+		return -EANALDEV;
 	}
 
 	vreg->rdesc.name = rpmh_data->name;
@@ -448,7 +448,7 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	vreg->hw_data = rpmh_data->hw_data;
 
 	vreg->enabled = -EINVAL;
-	vreg->voltage_selector = -ENOTRECOVERABLE;
+	vreg->voltage_selector = -EANALTRECOVERABLE;
 	vreg->mode = REGULATOR_MODE_INVALID;
 
 	if (rpmh_data->hw_data->n_voltages) {
@@ -457,7 +457,7 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 		vreg->rdesc.n_voltages = rpmh_data->hw_data->n_voltages;
 	}
 
-	vreg->always_wait_for_ack = of_property_read_bool(node,
+	vreg->always_wait_for_ack = of_property_read_bool(analde,
 						"qcom,always-wait-for-ack");
 
 	vreg->rdesc.owner	= THIS_MODULE;
@@ -465,9 +465,9 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	vreg->rdesc.ops		= vreg->hw_data->ops;
 	vreg->rdesc.of_map_mode	= vreg->hw_data->of_map_mode;
 
-	init_data = of_get_regulator_init_data(dev, node, &vreg->rdesc);
+	init_data = of_get_regulator_init_data(dev, analde, &vreg->rdesc);
 	if (!init_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (rpmh_data->hw_data->regulator_type == XOB &&
 	    init_data->constraints.min_uV &&
@@ -478,19 +478,19 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 
 	reg_config.dev		= dev;
 	reg_config.init_data	= init_data;
-	reg_config.of_node	= node;
+	reg_config.of_analde	= analde;
 	reg_config.driver_data	= vreg;
 
 	rdev = devm_regulator_register(dev, &vreg->rdesc, &reg_config);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
 		dev_err(dev, "%pOFn: devm_regulator_register() failed, ret=%d\n",
-			node, ret);
+			analde, ret);
 		return ret;
 	}
 
 	dev_dbg(dev, "%pOFn regulator registered for RPMh resource %s @ 0x%05X\n",
-		node, rpmh_resource_name, vreg->addr);
+		analde, rpmh_resource_name, vreg->addr);
 
 	return 0;
 }
@@ -499,7 +499,7 @@ static const int pmic_mode_map_pmic4_ldo[REGULATOR_MODE_STANDBY + 1] = {
 	[REGULATOR_MODE_INVALID] = -EINVAL,
 	[REGULATOR_MODE_STANDBY] = PMIC4_LDO_MODE_RETENTION,
 	[REGULATOR_MODE_IDLE]    = PMIC4_LDO_MODE_LPM,
-	[REGULATOR_MODE_NORMAL]  = PMIC4_LDO_MODE_HPM,
+	[REGULATOR_MODE_ANALRMAL]  = PMIC4_LDO_MODE_HPM,
 	[REGULATOR_MODE_FAST]    = -EINVAL,
 };
 
@@ -507,7 +507,7 @@ static const int pmic_mode_map_pmic5_ldo[REGULATOR_MODE_STANDBY + 1] = {
 	[REGULATOR_MODE_INVALID] = -EINVAL,
 	[REGULATOR_MODE_STANDBY] = PMIC5_LDO_MODE_RETENTION,
 	[REGULATOR_MODE_IDLE]    = PMIC5_LDO_MODE_LPM,
-	[REGULATOR_MODE_NORMAL]  = PMIC5_LDO_MODE_HPM,
+	[REGULATOR_MODE_ANALRMAL]  = PMIC5_LDO_MODE_HPM,
 	[REGULATOR_MODE_FAST]    = -EINVAL,
 };
 
@@ -515,7 +515,7 @@ static const int pmic_mode_map_pmic5_ldo_hpm[REGULATOR_MODE_STANDBY + 1] = {
 	[REGULATOR_MODE_INVALID] = -EINVAL,
 	[REGULATOR_MODE_STANDBY] = -EINVAL,
 	[REGULATOR_MODE_IDLE]    = -EINVAL,
-	[REGULATOR_MODE_NORMAL]  = PMIC5_LDO_MODE_HPM,
+	[REGULATOR_MODE_ANALRMAL]  = PMIC5_LDO_MODE_HPM,
 	[REGULATOR_MODE_FAST]    = -EINVAL,
 };
 
@@ -525,7 +525,7 @@ static unsigned int rpmh_regulator_pmic4_ldo_of_map_mode(unsigned int rpmh_mode)
 
 	switch (rpmh_mode) {
 	case RPMH_REGULATOR_MODE_HPM:
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	case RPMH_REGULATOR_MODE_LPM:
 		mode = REGULATOR_MODE_IDLE;
@@ -545,7 +545,7 @@ static const int pmic_mode_map_pmic4_smps[REGULATOR_MODE_STANDBY + 1] = {
 	[REGULATOR_MODE_INVALID] = -EINVAL,
 	[REGULATOR_MODE_STANDBY] = PMIC4_SMPS_MODE_RETENTION,
 	[REGULATOR_MODE_IDLE]    = PMIC4_SMPS_MODE_PFM,
-	[REGULATOR_MODE_NORMAL]  = PMIC4_SMPS_MODE_AUTO,
+	[REGULATOR_MODE_ANALRMAL]  = PMIC4_SMPS_MODE_AUTO,
 	[REGULATOR_MODE_FAST]    = PMIC4_SMPS_MODE_PWM,
 };
 
@@ -553,7 +553,7 @@ static const int pmic_mode_map_pmic5_smps[REGULATOR_MODE_STANDBY + 1] = {
 	[REGULATOR_MODE_INVALID] = -EINVAL,
 	[REGULATOR_MODE_STANDBY] = PMIC5_SMPS_MODE_RETENTION,
 	[REGULATOR_MODE_IDLE]    = PMIC5_SMPS_MODE_PFM,
-	[REGULATOR_MODE_NORMAL]  = PMIC5_SMPS_MODE_AUTO,
+	[REGULATOR_MODE_ANALRMAL]  = PMIC5_SMPS_MODE_AUTO,
 	[REGULATOR_MODE_FAST]    = PMIC5_SMPS_MODE_PWM,
 };
 
@@ -567,7 +567,7 @@ rpmh_regulator_pmic4_smps_of_map_mode(unsigned int rpmh_mode)
 		mode = REGULATOR_MODE_FAST;
 		break;
 	case RPMH_REGULATOR_MODE_AUTO:
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	case RPMH_REGULATOR_MODE_LPM:
 		mode = REGULATOR_MODE_IDLE;
@@ -587,7 +587,7 @@ static const int pmic_mode_map_pmic4_bob[REGULATOR_MODE_STANDBY + 1] = {
 	[REGULATOR_MODE_INVALID] = -EINVAL,
 	[REGULATOR_MODE_STANDBY] = -EINVAL,
 	[REGULATOR_MODE_IDLE]    = PMIC4_BOB_MODE_PFM,
-	[REGULATOR_MODE_NORMAL]  = PMIC4_BOB_MODE_AUTO,
+	[REGULATOR_MODE_ANALRMAL]  = PMIC4_BOB_MODE_AUTO,
 	[REGULATOR_MODE_FAST]    = PMIC4_BOB_MODE_PWM,
 };
 
@@ -595,7 +595,7 @@ static const int pmic_mode_map_pmic5_bob[REGULATOR_MODE_STANDBY + 1] = {
 	[REGULATOR_MODE_INVALID] = -EINVAL,
 	[REGULATOR_MODE_STANDBY] = -EINVAL,
 	[REGULATOR_MODE_IDLE]    = PMIC5_BOB_MODE_PFM,
-	[REGULATOR_MODE_NORMAL]  = PMIC5_BOB_MODE_AUTO,
+	[REGULATOR_MODE_ANALRMAL]  = PMIC5_BOB_MODE_AUTO,
 	[REGULATOR_MODE_FAST]    = PMIC5_BOB_MODE_PWM,
 };
 
@@ -608,7 +608,7 @@ static unsigned int rpmh_regulator_pmic4_bob_of_map_mode(unsigned int rpmh_mode)
 		mode = REGULATOR_MODE_FAST;
 		break;
 	case RPMH_REGULATOR_MODE_AUTO:
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	case RPMH_REGULATOR_MODE_LPM:
 		mode = REGULATOR_MODE_IDLE;
@@ -699,7 +699,7 @@ static const struct rpmh_vreg_hw_data pmic4_bob = {
 static const struct rpmh_vreg_hw_data pmic4_lvs = {
 	.regulator_type = XOB,
 	.ops = &rpmh_regulator_xob_ops,
-	/* LVS hardware does not support voltage or mode configuration. */
+	/* LVS hardware does analt support voltage or mode configuration. */
 };
 
 static const struct rpmh_vreg_hw_data pmic5_pldo = {
@@ -1323,7 +1323,7 @@ static const struct rpmh_vreg_init_data pm6150l_vreg_data[] = {
 static const struct rpmh_vreg_init_data pm6350_vreg_data[] = {
 	RPMH_VREG("smps1",  "smp%s1",  &pmic5_ftsmps510, NULL),
 	RPMH_VREG("smps2",  "smp%s2",  &pmic5_hfsmps510, NULL),
-	/* smps3 - smps5 not configured */
+	/* smps3 - smps5 analt configured */
 	RPMH_VREG("ldo1",   "ldo%s1",  &pmic5_nldo,      NULL),
 	RPMH_VREG("ldo2",   "ldo%s2",  &pmic5_pldo,      NULL),
 	RPMH_VREG("ldo3",   "ldo%s3",  &pmic5_pldo,      NULL),
@@ -1340,7 +1340,7 @@ static const struct rpmh_vreg_init_data pm6350_vreg_data[] = {
 	RPMH_VREG("ldo14",  "ldo%s14", &pmic5_pldo,      NULL),
 	RPMH_VREG("ldo15",  "ldo%s15", &pmic5_nldo,      NULL),
 	RPMH_VREG("ldo16",  "ldo%s16", &pmic5_nldo,      NULL),
-	/* ldo17 not configured */
+	/* ldo17 analt configured */
 	RPMH_VREG("ldo18",  "ldo%s18", &pmic5_nldo,      NULL),
 	RPMH_VREG("ldo19",  "ldo%s19", &pmic5_nldo,      NULL),
 	RPMH_VREG("ldo20",  "ldo%s20", &pmic5_nldo,      NULL),
@@ -1401,7 +1401,7 @@ static const struct rpmh_vreg_init_data pmx65_vreg_data[] = {
 	RPMH_VREG("ldo15",   "ldo%s15",   &pmic5_nldo,      "vdd-l15"),
 	RPMH_VREG("ldo16",   "ldo%s16",   &pmic5_pldo,      "vdd-l5-l6-l16"),
 	RPMH_VREG("ldo17",   "ldo%s17",   &pmic5_nldo,      "vdd-l17"),
-	/* ldo18 not configured */
+	/* ldo18 analt configured */
 	RPMH_VREG("ldo19",   "ldo%s19",   &pmic5_nldo,      "vdd-l19"),
 	RPMH_VREG("ldo20",   "ldo%s20",   &pmic5_nldo,      "vdd-l20"),
 	RPMH_VREG("ldo21",   "ldo%s21",   &pmic5_nldo,      "vdd-l21"),
@@ -1436,7 +1436,7 @@ static const struct rpmh_vreg_init_data pmx75_vreg_data[] = {
 	RPMH_VREG("ldo15",   "ldo%s15",   &pmic5_nldo515,   "vdd-l15"),
 	RPMH_VREG("ldo16",   "ldo%s16",   &pmic5_nldo515,   "vdd-l4-l16"),
 	RPMH_VREG("ldo17",   "ldo%s17",   &pmic5_nldo515,   "vdd-l17"),
-	/* ldo18 not configured */
+	/* ldo18 analt configured */
 	RPMH_VREG("ldo19",   "ldo%s19",   &pmic5_nldo515,   "vdd-l19"),
 	RPMH_VREG("ldo20",   "ldo%s20",   &pmic5_nldo515,   "vdd-l20-l21"),
 	RPMH_VREG("ldo21",   "ldo%s21",   &pmic5_nldo515,   "vdd-l20-l21"),
@@ -1537,32 +1537,32 @@ static int rpmh_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct rpmh_vreg_init_data *vreg_data;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct rpmh_vreg *vreg;
 	const char *pmic_id;
 	int ret;
 
 	vreg_data = of_device_get_match_data(dev);
 	if (!vreg_data)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = of_property_read_string(dev->of_node, "qcom,pmic-id", &pmic_id);
+	ret = of_property_read_string(dev->of_analde, "qcom,pmic-id", &pmic_id);
 	if (ret < 0) {
-		dev_err(dev, "qcom,pmic-id missing in DT node\n");
+		dev_err(dev, "qcom,pmic-id missing in DT analde\n");
 		return ret;
 	}
 
-	for_each_available_child_of_node(dev->of_node, node) {
+	for_each_available_child_of_analde(dev->of_analde, analde) {
 		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg) {
-			of_node_put(node);
-			return -ENOMEM;
+			of_analde_put(analde);
+			return -EANALMEM;
 		}
 
-		ret = rpmh_regulator_init_vreg(vreg, dev, node, pmic_id,
+		ret = rpmh_regulator_init_vreg(vreg, dev, analde, pmic_id,
 						vreg_data);
 		if (ret < 0) {
-			of_node_put(node);
+			of_analde_put(analde);
 			return ret;
 		}
 	}
@@ -1698,7 +1698,7 @@ MODULE_DEVICE_TABLE(of, rpmh_regulator_match_table);
 static struct platform_driver rpmh_regulator_driver = {
 	.driver = {
 		.name = "qcom-rpmh-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= of_match_ptr(rpmh_regulator_match_table),
 	},
 	.probe = rpmh_regulator_probe,

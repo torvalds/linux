@@ -33,7 +33,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     description:
       Enables angle measurement in the selected plane.
-      If not specified, "x-y" will be anables as default.
+      If analt specified, "x-y" will be anables as default.
     enum:
       - off
       - x-y

@@ -14,7 +14,7 @@ struct old_timespec32;
 struct pollfd;
 
 enum timespec_type {
-	TT_NONE		= 0,
+	TT_ANALNE		= 0,
 	TT_NATIVE	= 1,
 	TT_COMPAT	= 2,
 };
@@ -35,7 +35,7 @@ struct restart_block {
 			u64 time;
 			u32 __user *uaddr2;
 		} futex;
-		/* For nanosleep */
+		/* For naanalsleep */
 		struct {
 			clockid_t clockid;
 			enum timespec_type type;
@@ -44,7 +44,7 @@ struct restart_block {
 				struct old_timespec32 __user *compat_rmtp;
 			};
 			u64 expires;
-		} nanosleep;
+		} naanalsleep;
 		/* For poll */
 		struct {
 			struct pollfd __user *ufds;
@@ -56,6 +56,6 @@ struct restart_block {
 	};
 };
 
-extern long do_no_restart_syscall(struct restart_block *parm);
+extern long do_anal_restart_syscall(struct restart_block *parm);
 
 #endif /* __LINUX_RESTART_BLOCK_H */

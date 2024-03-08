@@ -15,8 +15,8 @@ int abs_lowcore_map(int cpu, struct lowcore *lc, bool alloc)
 		rc = __vmem_map_4k_page(addr, phys, PAGE_KERNEL, alloc);
 		if (rc) {
 			/*
-			 * Do not unmap allocated page tables in case the
-			 * allocation was not requested. In such a case the
+			 * Do analt unmap allocated page tables in case the
+			 * allocation was analt requested. In such a case the
 			 * request is expected coming from an atomic context,
 			 * while the unmap attempt might sleep.
 			 */

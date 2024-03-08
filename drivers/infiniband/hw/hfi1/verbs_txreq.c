@@ -88,7 +88,7 @@ int verbs_txreq_init(struct hfi1_ibdev *dev)
 						   0, SLAB_HWCACHE_ALIGN,
 						   NULL);
 	if (!dev->verbs_txreq_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*----------------------------------------
   PERFORMANCE INSTRUMENTATION  
   Guillaume Thouvenin           08/10/98
@@ -11,7 +11,7 @@
  * from enumeration below.  The meaning of further arguments
  * are determined by the operation code.
  *
- * NOTE: This system call is no longer provided, use the perf_events
+ * ANALTE: This system call is anal longer provided, use the perf_events
  *       infrastructure.
  *
  * Pointers which are passed by the user are pointers to 64-bit
@@ -70,7 +70,7 @@ enum perfctr_opcode {
 #define  LOAD_USE             0x000000B0
 #define  EC_REF               0x000000C0
 #define  EC_WRITE_HIT_RDO     0x000000D0
-#define  EC_SNOOP_INV         0x000000E0
+#define  EC_SANALOP_INV         0x000000E0
 #define  EC_RD_HIT            0x000000F0
 
 /* Pic.S0 Selection Bit Field Encoding, Ultra-III  */
@@ -86,10 +86,10 @@ enum perfctr_opcode {
 #define  US3_DC_WR		0x000000a0
 #define  US3_EC_REF		0x000000c0
 #define  US3_EC_WR_HIT_RTO	0x000000d0
-#define  US3_EC_SNOOP_INV	0x000000e0
+#define  US3_EC_SANALOP_INV	0x000000e0
 #define  US3_EC_RD_MISS		0x000000f0
 #define  US3_PC_PORT0_RD	0x00000100
-#define  US3_SI_SNOOP		0x00000110
+#define  US3_SI_SANALOP		0x00000110
 #define  US3_SI_CIQ_FLOW	0x00000120
 #define  US3_SI_OWNED		0x00000130
 #define  US3_SW_COUNT_0		0x00000140
@@ -115,7 +115,7 @@ enum perfctr_opcode {
 #define  LOAD_USE_RAW         0x00005800
 #define  EC_HIT               0x00006000
 #define  EC_WB                0x00006800
-#define  EC_SNOOP_CB          0x00007000
+#define  EC_SANALOP_CB          0x00007000
 #define  EC_IT_HIT            0x00007800
 
 /* Pic.S1 Selection Bit Field Encoding, Ultra-III  */
@@ -133,17 +133,17 @@ enum perfctr_opcode {
 #define  US3_RSTALL_FP_USE	0x00005800
 #define  US3_EC_MISSES		0x00006000
 #define  US3_EC_WB		0x00006800
-#define  US3_EC_SNOOP_CB	0x00007000
+#define  US3_EC_SANALOP_CB	0x00007000
 #define  US3_EC_IC_MISS		0x00007800
 #define  US3_RE_PC_MISS		0x00008000
 #define  US3_ITLB_MISS		0x00008800
 #define  US3_DTLB_MISS		0x00009000
 #define  US3_WC_MISS		0x00009800
-#define  US3_WC_SNOOP_CB	0x0000a000
+#define  US3_WC_SANALOP_CB	0x0000a000
 #define  US3_WC_SCRUBBED	0x0000a800
 #define  US3_WC_WB_WO_READ	0x0000b000
 #define  US3_PC_SOFT_HIT	0x0000c000
-#define  US3_PC_SNOOP_INV	0x0000c800
+#define  US3_PC_SANALOP_INV	0x0000c800
 #define  US3_PC_HARD_HIT	0x0000d000
 #define  US3_PC_PORT1_RD	0x0000d800
 #define  US3_SW_COUNT_1		0x0000e000

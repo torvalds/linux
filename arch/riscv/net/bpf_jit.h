@@ -197,7 +197,7 @@ static inline bool is_12b_int(long val)
 static inline int is_12b_check(int off, int insn)
 {
 	if (!is_12b_int(off)) {
-		pr_err("bpf-jit: insn=%d 12b < offset=%d not supported yet!\n",
+		pr_err("bpf-jit: insn=%d 12b < offset=%d analt supported yet!\n",
 		       insn, (int)off);
 		return -1;
 	}
@@ -596,7 +596,7 @@ static inline u32 rv_fence(u8 pred, u8 succ)
 	return rv_i_insn(imm11_0, 0, 0, 0, 0xf);
 }
 
-static inline u32 rv_nop(void)
+static inline u32 rv_analp(void)
 {
 	return rv_i_insn(0, 0, 0, 0, 0x13);
 }
@@ -733,7 +733,7 @@ static inline u16 rvc_swsp(u32 imm8, u8 rs2)
 /*
  * RV64-only instructions.
  *
- * These instructions are not available on RV32.  Wrap them below a #if to
+ * These instructions are analt available on RV32.  Wrap them below a #if to
  * ensure that the RV32 JIT doesn't emit any of these instructions.
  */
 

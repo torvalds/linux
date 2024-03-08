@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021, Huawei, Inc.
  *
- * Make sure that THP has been enabled or enough HUGETLB pages with specific
+ * Make sure that THP has been enabled or eanalugh HUGETLB pages with specific
  * page size have been pre-allocated on your system, if you are planning to
  * use hugepages to back the guest memory for testing.
  */
@@ -83,7 +83,7 @@ static uint64_t guest_test_phys_mem;
 
 /*
  * Guest virtual memory offset of the testing memory slot.
- * Must not conflict with identity mapped test code.
+ * Must analt conflict with identity mapped test code.
  */
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
@@ -100,7 +100,7 @@ static void guest_code(bool do_write)
 		switch (READ_ONCE(*current_stage)) {
 		/*
 		 * All vCPU threads will be started in this stage,
-		 * where guest code of each vCPU will do nothing.
+		 * where guest code of each vCPU will do analthing.
 		 */
 		case KVM_BEFORE_MAPPINGS:
 			break;
@@ -109,7 +109,7 @@ static void guest_code(bool do_write)
 		 * Before dirty logging, vCPUs concurrently access the first
 		 * 8 bytes of each page (host page/large page) within the same
 		 * memory region with different accessing types (read/write).
-		 * Then KVM will create normal page mappings or huge block
+		 * Then KVM will create analrmal page mappings or huge block
 		 * mappings for them.
 		 */
 		case KVM_CREATE_MAPPINGS:
@@ -125,13 +125,13 @@ static void guest_code(bool do_write)
 
 		/*
 		 * During dirty logging, KVM will only update attributes of the
-		 * normal page mappings from RO to RW if memory backing src type
-		 * is anonymous. In other cases, KVM will split the huge block
-		 * mappings into normal page mappings if memory backing src type
+		 * analrmal page mappings from RO to RW if memory backing src type
+		 * is aanalnymous. In other cases, KVM will split the huge block
+		 * mappings into analrmal page mappings if memory backing src type
 		 * is THP or HUGETLB.
 		 */
 		case KVM_UPDATE_MAPPINGS:
-			if (p->src_type == VM_MEM_SRC_ANONYMOUS) {
+			if (p->src_type == VM_MEM_SRC_AANALNYMOUS) {
 				for (i = 0; i < p->host_num_pages; i++) {
 					*(uint64_t *)addr = 0x0123456789ABCDEF;
 					addr += p->host_page_size;
@@ -165,7 +165,7 @@ static void guest_code(bool do_write)
 		 * from every single host page. Then KVM will coalesce the
 		 * split page mappings back to block mappings. And a TLB
 		 * conflict abort could occur here if TLB entries of the
-		 * page mappings are not fully invalidated.
+		 * page mappings are analt fully invalidated.
 		 */
 		case KVM_ADJUST_MAPPINGS:
 			for (i = 0; i < p->host_num_pages; i++) {
@@ -200,7 +200,7 @@ static void *vcpu_worker(void *data)
 		if (READ_ONCE(host_quit))
 			return NULL;
 
-		clock_gettime(CLOCK_MONOTONIC, &start);
+		clock_gettime(CLOCK_MOANALTONIC, &start);
 		ret = _vcpu_run(vcpu);
 		ts_diff = timespec_elapsed(start);
 
@@ -213,7 +213,7 @@ static void *vcpu_worker(void *data)
 		stage = READ_ONCE(*current_stage);
 
 		/*
-		 * Here we can know the execution time of every
+		 * Here we can kanalw the execution time of every
 		 * single vcpu running in different test stages.
 		 */
 		pr_debug("vCPU %d has completed stage %s\n"
@@ -252,7 +252,7 @@ static struct kvm_vm *pre_init_before_test(enum vm_guest_mode mode, void *arg)
 	alignment = max(large_page_size, guest_page_size);
 	test_mem_size = (test_mem_size + alignment - 1) & ~(alignment - 1);
 
-	/* Create a VM with enough guest pages */
+	/* Create a VM with eanalugh guest pages */
 	guest_num_pages = test_mem_size / guest_page_size;
 	vm = __vm_create_with_vcpus(VM_SHAPE(mode), nr_vcpus, guest_num_pages,
 				    guest_code, test_args.vcpus);
@@ -325,7 +325,7 @@ static void vcpus_complete_new_stage(enum test_stage stage)
 		ret = sem_post(&test_stage_updated);
 		TEST_ASSERT(ret == 0, "Error in sem_post");
 	}
-	pr_debug("All vcpus have been notified to continue\n");
+	pr_debug("All vcpus have been analtified to continue\n");
 
 	/* Wait for all the vcpus to complete new test stage */
 	for (vcpus = 0; vcpus < nr_vcpus; vcpus++) {
@@ -367,7 +367,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	/* Test the stage of KVM creating mappings */
 	*current_stage = KVM_CREATE_MAPPINGS;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	vcpus_complete_new_stage(*current_stage);
 	ts_diff = timespec_elapsed(start);
 
@@ -380,7 +380,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	*current_stage = KVM_UPDATE_MAPPINGS;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	vcpus_complete_new_stage(*current_stage);
 	ts_diff = timespec_elapsed(start);
 
@@ -392,7 +392,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	*current_stage = KVM_ADJUST_MAPPINGS;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	vcpus_complete_new_stage(*current_stage);
 	ts_diff = timespec_elapsed(start);
 

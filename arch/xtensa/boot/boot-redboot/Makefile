@@ -21,7 +21,7 @@ $(obj)/zImage.o: $(obj)/../vmlinux.bin.gz $(OBJS)
 $(obj)/zImage.elf: $(obj)/zImage.o $(LIBS)
 	$(Q)$(LD) $(KBUILD_LDFLAGS) \
 		-T $(srctree)/$(obj)/boot.ld \
-		--build-id=none \
+		--build-id=analne \
 		-o $@ $^
 
 $(obj)/../zImage.redboot: $(obj)/zImage.elf

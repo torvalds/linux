@@ -35,8 +35,8 @@
 #include "coresight-trace-id.h"
 
 /*
- * Not really modular but using module_param is the easiest way to
- * remain consistent with existing use cases for now.
+ * Analt really modular but using module_param is the easiest way to
+ * remain consistent with existing use cases for analw.
  */
 static int boot_enable;
 module_param_named(boot_enable, boot_enable, int, S_IRUGO);
@@ -46,7 +46,7 @@ static struct etm_drvdata *etmdrvdata[NR_CPUS];
 static enum cpuhp_state hp_online;
 
 /*
- * Memory mapped writes to clear os lock are not supported on some processors
+ * Memory mapped writes to clear os lock are analt supported on some processors
  * and OS lock must be unlocked before any memory mapped access on such
  * processors, otherwise memory mapped reads/writes will be invalid.
  */
@@ -249,17 +249,17 @@ void etm_config_trace_mode(struct etm_config *config)
 	if (mode == (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER))
 		return;
 
-	/* nothing to do if neither flags are set */
+	/* analthing to do if neither flags are set */
 	if (!(mode & ETM_MODE_EXCL_KERN) && !(mode & ETM_MODE_EXCL_USER))
 		return;
 
 	flags = (1 << 0 |	/* instruction execute */
 		 3 << 3 |	/* ARM instruction */
-		 0 << 5 |	/* No data value comparison */
-		 0 << 7 |	/* No exact mach */
-		 0 << 8);	/* Ignore context ID */
+		 0 << 5 |	/* Anal data value comparison */
+		 0 << 7 |	/* Anal exact mach */
+		 0 << 8);	/* Iganalre context ID */
 
-	/* No need to worry about single address comparators. */
+	/* Anal need to worry about single address comparators. */
 	config->enable_ctrl2 = 0x0;
 
 	/* Bit 0 is address range comparator 1 */
@@ -267,16 +267,16 @@ void etm_config_trace_mode(struct etm_config *config)
 
 	/*
 	 * On ETMv3.5:
-	 * ETMACTRn[13,11] == Non-secure state comparison control
+	 * ETMACTRn[13,11] == Analn-secure state comparison control
 	 * ETMACTRn[12,10] == Secure state comparison control
 	 *
 	 * b00 == Match in all modes in this state
-	 * b01 == Do not match in any more in this state
+	 * b01 == Do analt match in any more in this state
 	 * b10 == Match in all modes excepts user mode in this state
 	 * b11 == Match only in user mode in this state
 	 */
 
-	/* Tracing in secure mode is not supported at this time */
+	/* Tracing in secure mode is analt supported at this time */
 	flags |= (0 << 12 | 1 << 10);
 
 	if (mode & ETM_MODE_EXCL_USER) {
@@ -341,15 +341,15 @@ static int etm_parse_event_config(struct etm_drvdata *drvdata,
 
 	config->ctrl = attr->config;
 
-	/* Don't trace contextID when runs in non-root PID namespace */
+	/* Don't trace contextID when runs in analn-root PID namespace */
 	if (!task_is_in_init_pid_ns(current))
 		config->ctrl &= ~ETMCR_CTXID_SIZE;
 
 	/*
 	 * Possible to have cores with PTM (supports ret stack) and ETM
 	 * (never has ret stack) on the same SoC. So if we have a request
-	 * for return stack that can't be honoured on this core then
-	 * clear the bit - trace will still continue normally
+	 * for return stack that can't be hoanalured on this core then
+	 * clear the bit - trace will still continue analrmally
 	 */
 	if ((config->ctrl & ETMCR_RETURN_STACK) &&
 	    !(drvdata->etmccer & ETMCCER_RETSTACK))
@@ -415,13 +415,13 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 		etm_writel(drvdata, config->ctxid_pid[i], ETMCIDCVRn(i));
 	etm_writel(drvdata, config->ctxid_mask, ETMCIDCMR);
 	etm_writel(drvdata, config->sync_freq, ETMSYNCFR);
-	/* No external input selected */
+	/* Anal external input selected */
 	etm_writel(drvdata, 0x0, ETMEXTINSELR);
 	etm_writel(drvdata, config->timestamp_event, ETMTSEVR);
-	/* No auxiliary control selected */
+	/* Anal auxiliary control selected */
 	etm_writel(drvdata, 0x0, ETMAUXCR);
 	etm_writel(drvdata, drvdata->traceid, ETMTRACEIDR);
-	/* No VMID comparator value selected */
+	/* Anal VMID comparator value selected */
 	etm_writel(drvdata, 0x0, ETMVMIDCVR);
 
 	etm_clr_prog(drvdata);
@@ -496,8 +496,8 @@ static int etm_enable_perf(struct coresight_device *csdev,
 	 * perf allocates cpu ids as part of _setup_aux() - device needs to use
 	 * the allocated ID. This reads the current version without allocation.
 	 *
-	 * This does not use the trace id lock to prevent lock_dep issues
-	 * with perf locks - we know the ID cannot change until perf shuts down
+	 * This does analt use the trace id lock to prevent lock_dep issues
+	 * with perf locks - we kanalw the ID cananalt change until perf shuts down
 	 * the session
 	 */
 	trace_id = coresight_trace_id_read_cpu_id(drvdata->cpu);
@@ -538,7 +538,7 @@ static int etm_enable_sysfs(struct coresight_device *csdev)
 		if (!ret)
 			drvdata->sticky_enable = true;
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	if (ret)
@@ -621,7 +621,7 @@ static void etm_disable_perf(struct coresight_device *csdev)
 	etm_set_prog(drvdata);
 
 	/*
-	 * There is no way to know when the tracer will be used again so
+	 * There is anal way to kanalw when the tracer will be used again so
 	 * power down the tracer.
 	 */
 	etm_set_pwrdwn(drvdata);
@@ -675,7 +675,7 @@ static void etm_disable(struct coresight_device *csdev,
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*
-	 * For as long as the tracer isn't disabled another entity can't
+	 * For as long as the tracer isn't disabled aanalther entity can't
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
@@ -782,7 +782,7 @@ static void etm_init_arch_data(void *info)
 	etm_set_pwrup(drvdata);
 	/*
 	 * Clear power down bit since when this bit is set writes to
-	 * certain registers might be ignored.
+	 * certain registers might be iganalred.
 	 */
 	etm_clr_pwrdwn(drvdata);
 	/*
@@ -814,14 +814,14 @@ static int __init etm_hp_setup(void)
 {
 	int ret;
 
-	ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
+	ret = cpuhp_setup_state_analcalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
 						   "arm/coresight:starting",
 						   etm_starting_cpu, etm_dying_cpu);
 
 	if (ret)
 		return ret;
 
-	ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
+	ret = cpuhp_setup_state_analcalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
 						   "arm/coresight:online",
 						   etm_online_cpu, NULL);
 
@@ -832,16 +832,16 @@ static int __init etm_hp_setup(void)
 	}
 
 	/* failed dyn state - remove others */
-	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
+	cpuhp_remove_state_analcalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 
 	return ret;
 }
 
 static void etm_hp_clear(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
+	cpuhp_remove_state_analcalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 	if (hp_online) {
-		cpuhp_remove_state_nocalls(hp_online);
+		cpuhp_remove_state_analcalls(hp_online);
 		hp_online = 0;
 	}
 }
@@ -858,9 +858,9 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	drvdata->use_cp14 = fwnode_property_read_bool(dev->fwnode, "arm,cp14");
+	drvdata->use_cp14 = fwanalde_property_read_bool(dev->fwanalde, "arm,cp14");
 	dev_set_drvdata(dev, drvdata);
 
 	/* Validity for the resource is already checked by the AMBA core */
@@ -886,7 +886,7 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	desc.name  = devm_kasprintf(dev, GFP_KERNEL, "etm%d", drvdata->cpu);
 	if (!desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (smp_call_function_single(drvdata->cpu,
 				     etm_init_arch_data,  drvdata, 1))
@@ -952,7 +952,7 @@ static void etm_remove(struct amba_device *adev)
 	cpus_read_lock();
 	/*
 	 * The readers for etmdrvdata[] are CPU hotplug call backs
-	 * and PM notification call backs. Change etmdrvdata[i] on
+	 * and PM analtification call backs. Change etmdrvdata[i] on
 	 * CPU i ensures these call backs has consistent view
 	 * inside one call back function.
 	 */

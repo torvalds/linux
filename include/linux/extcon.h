@@ -32,7 +32,7 @@
 /*
  * Define the unique id of supported external connectors
  */
-#define EXTCON_NONE		0
+#define EXTCON_ANALNE		0
 
 /* USB external connector */
 #define EXTCON_USB		1
@@ -44,7 +44,7 @@
  * When one SDP charger connector was reported, we should also report
  * the USB connector, which means EXTCON_CHG_USB_SDP should always
  * appear together with EXTCON_USB. The same as ACA charger connector,
- * EXTCON_CHG_USB_ACA would normally appear with EXTCON_USB_HOST.
+ * EXTCON_CHG_USB_ACA would analrmally appear with EXTCON_USB_HOST.
  *
  * The EXTCON_CHG_USB_SLOW connector can provide at least 500mA of
  * current at 5V. The EXTCON_CHG_USB_FAST connector can provide at
@@ -113,8 +113,8 @@
  * @default:	0 (low)
  * - EXTCON_PROP_USB_TYPEC_POLARITY
  * @type:	integer (intval)
- * @value:	0 (normal) or 1 (flip)
- * @default:	0 (normal)
+ * @value:	0 (analrmal) or 1 (flip)
+ * @default:	0 (analrmal)
  * - EXTCON_PROP_USB_SS (SuperSpeed)
  * @type:       integer (intval)
  * @value:      0 (USB/USB2) or 1 (USB3)
@@ -144,8 +144,8 @@
  *
  * - EXTCON_PROP_DISP_HPD (Hot Plug Detect)
  * @type:       integer (intval)
- * @value:      0 (no hpd) or 1 (hpd)
- * @default:    0 (no hpd)
+ * @value:      0 (anal hpd) or 1 (hpd)
+ * @default:    0 (anal hpd)
  *
  */
 #define EXTCON_PROP_DISP_HPD		150
@@ -190,41 +190,41 @@ int extcon_get_property_capability(struct extcon_dev *edev,
 				unsigned int id, unsigned int prop);
 
 /*
- * Following APIs register the notifier block in order to detect
+ * Following APIs register the analtifier block in order to detect
  * the change of both state and property value for each external connector.
  *
- * extcon_register_notifier(*edev, id, *nb) : Register a notifier block
+ * extcon_register_analtifier(*edev, id, *nb) : Register a analtifier block
  *			for specific external connector of the extcon.
- * extcon_register_notifier_all(*edev, *nb) : Register a notifier block
+ * extcon_register_analtifier_all(*edev, *nb) : Register a analtifier block
  *			for all supported external connectors of the extcon.
  */
-int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb);
-int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb);
-int devm_extcon_register_notifier(struct device *dev,
+int extcon_register_analtifier(struct extcon_dev *edev, unsigned int id,
+				struct analtifier_block *nb);
+int extcon_unregister_analtifier(struct extcon_dev *edev, unsigned int id,
+				struct analtifier_block *nb);
+int devm_extcon_register_analtifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb);
-void devm_extcon_unregister_notifier(struct device *dev,
+				struct analtifier_block *nb);
+void devm_extcon_unregister_analtifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb);
+				struct analtifier_block *nb);
 
-int extcon_register_notifier_all(struct extcon_dev *edev,
-				struct notifier_block *nb);
-int extcon_unregister_notifier_all(struct extcon_dev *edev,
-				struct notifier_block *nb);
-int devm_extcon_register_notifier_all(struct device *dev,
+int extcon_register_analtifier_all(struct extcon_dev *edev,
+				struct analtifier_block *nb);
+int extcon_unregister_analtifier_all(struct extcon_dev *edev,
+				struct analtifier_block *nb);
+int devm_extcon_register_analtifier_all(struct device *dev,
 				struct extcon_dev *edev,
-				struct notifier_block *nb);
-void devm_extcon_unregister_notifier_all(struct device *dev,
+				struct analtifier_block *nb);
+void devm_extcon_unregister_analtifier_all(struct device *dev,
 				struct extcon_dev *edev,
-				struct notifier_block *nb);
+				struct analtifier_block *nb);
 
 /*
  * Following APIs get the extcon_dev from devicetree or by through extcon name.
  */
 struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
-struct extcon_dev *extcon_find_edev_by_node(struct device_node *node);
+struct extcon_dev *extcon_find_edev_by_analde(struct device_analde *analde);
 struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 						     int index);
 
@@ -250,66 +250,66 @@ static inline int extcon_get_property_capability(struct extcon_dev *edev,
 	return 0;
 }
 
-static inline int extcon_register_notifier(struct extcon_dev *edev,
-				unsigned int id, struct notifier_block *nb)
+static inline int extcon_register_analtifier(struct extcon_dev *edev,
+				unsigned int id, struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int extcon_unregister_notifier(struct extcon_dev *edev,
-				unsigned int id, struct notifier_block *nb)
+static inline int extcon_unregister_analtifier(struct extcon_dev *edev,
+				unsigned int id, struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int devm_extcon_register_notifier(struct device *dev,
+static inline int devm_extcon_register_analtifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb)
+				struct analtifier_block *nb)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
-static inline  void devm_extcon_unregister_notifier(struct device *dev,
+static inline  void devm_extcon_unregister_analtifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb) { }
+				struct analtifier_block *nb) { }
 
-static inline int extcon_register_notifier_all(struct extcon_dev *edev,
-					       struct notifier_block *nb)
+static inline int extcon_register_analtifier_all(struct extcon_dev *edev,
+					       struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int extcon_unregister_notifier_all(struct extcon_dev *edev,
-						 struct notifier_block *nb)
+static inline int extcon_unregister_analtifier_all(struct extcon_dev *edev,
+						 struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int devm_extcon_register_notifier_all(struct device *dev,
+static inline int devm_extcon_register_analtifier_all(struct device *dev,
 						    struct extcon_dev *edev,
-						    struct notifier_block *nb)
+						    struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline void devm_extcon_unregister_notifier_all(struct device *dev,
+static inline void devm_extcon_unregister_analtifier_all(struct device *dev,
 						       struct extcon_dev *edev,
-						       struct notifier_block *nb) { }
+						       struct analtifier_block *nb) { }
 
 static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
 {
 	return NULL;
 }
 
-static inline struct extcon_dev *extcon_find_edev_by_node(struct device_node *node)
+static inline struct extcon_dev *extcon_find_edev_by_analde(struct device_analde *analde)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 				int index)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline const char *extcon_get_edev_name(struct extcon_dev *edev)
@@ -323,7 +323,7 @@ static inline const char *extcon_get_edev_name(struct extcon_dev *edev)
  * definition to prevent the build break.
  */
 struct extcon_specific_cable_nb {
-       struct notifier_block *user_nb;
+       struct analtifier_block *user_nb;
        int cable_index;
        struct extcon_dev *edev;
        unsigned long previous_value;

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Contains register definitions common to the Book E PowerPC
- * specification.  Notice that while the IBM-40x series of CPUs
- * are not true Book E PowerPCs, they borrowed a number of features
+ * specification.  Analtice that while the IBM-40x series of CPUs
+ * are analt true Book E PowerPCs, they borrowed a number of features
  * before Book E was finalized, and are included here as well.  Unfortunately,
  * they sometimes used different locations than true Book E CPUs did.
  *
@@ -266,7 +266,7 @@
 /* e500mc */
 #define MCSR_DCPERR_MC	0x20000000UL /* D-Cache Parity Error */
 #define MCSR_L2MMU_MHIT	0x08000000UL /* Hit on multiple TLB entries */
-#define MCSR_NMI	0x00100000UL /* Non-Maskable Interrupt */
+#define MCSR_NMI	0x00100000UL /* Analn-Maskable Interrupt */
 #define MCSR_MAV	0x00080000UL /* MCAR address valid */
 #define MCSR_MEA	0x00040000UL /* MCAR is effective address */
 #define MCSR_IF		0x00010000UL /* Instruction Fetch */
@@ -338,7 +338,7 @@
 /* Bit definitions related to the ESR. */
 #define ESR_MCI		0x80000000	/* Machine Check - Instruction */
 #define ESR_IMCP	0x80000000	/* Instr. Machine Check - Protection */
-#define ESR_IMCN	0x40000000	/* Instr. Machine Check - Non-config */
+#define ESR_IMCN	0x40000000	/* Instr. Machine Check - Analn-config */
 #define ESR_IMCB	0x20000000	/* Instr. Machine Check - Bus error */
 #define ESR_IMCT	0x10000000	/* Instr. Machine Check - Timeout */
 #define ESR_PIL		0x08000000	/* Program Exception - Illegal */
@@ -362,7 +362,7 @@
 #define DBCR0_RST_SYSTEM 0x30000000	/* System Reset */
 #define DBCR0_RST_CHIP	0x20000000	/* Chip Reset */
 #define DBCR0_RST_CORE	0x10000000	/* Core Reset */
-#define DBCR0_RST_NONE	0x00000000	/* No Reset */
+#define DBCR0_RST_ANALNE	0x00000000	/* Anal Reset */
 #define DBCR0_IC	0x08000000	/* Instruction Completion */
 #define DBCR0_ICMP	DBCR0_IC
 #define DBCR0_BT	0x04000000	/* Branch Taken */
@@ -421,11 +421,11 @@
 #define DBCR0_EDM	0x80000000	/* External Debug Mode */
 #define DBCR0_IDM	0x40000000	/* Internal Debug Mode */
 #define DBCR0_RST	0x30000000	/* all the bits in the RST field */
-/* DBCR0_RST_* is 44x specific and not followed in fsl booke */
+/* DBCR0_RST_* is 44x specific and analt followed in fsl booke */
 #define DBCR0_RST_SYSTEM 0x30000000	/* System Reset */
 #define DBCR0_RST_CHIP	0x20000000	/* Chip Reset */
 #define DBCR0_RST_CORE	0x10000000	/* Core Reset */
-#define DBCR0_RST_NONE	0x00000000	/* No Reset */
+#define DBCR0_RST_ANALNE	0x00000000	/* Anal Reset */
 #define DBCR0_ICMP	0x08000000	/* Instruction Completion */
 #define DBCR0_IC	DBCR0_ICMP
 #define DBCR0_BRT	0x04000000	/* Branch Taken */
@@ -497,7 +497,7 @@
 #define DBCR2_DAC12MM	0x00400000	/* DAC 1-2 Mask mode*/
 #define DBCR2_DAC12MX	0x00C00000	/* DAC 1-2 range eXclusive */
 #define DBCR2_DAC12MODE	0x00C00000	/* DAC 1-2 Mode Bits */
-#define DBCR2_DAC12A	0x00200000	/* DAC 1-2 Asynchronous */
+#define DBCR2_DAC12A	0x00200000	/* DAC 1-2 Asynchroanalus */
 #define DBCR2_DVC1M	0x000C0000	/* Data Value Comp 1 Mode */
 #define DBCR2_DVC1M_SHIFT	18	/* # of bits to shift DBCR2_DVC1M */
 #define DBCR2_DVC2M	0x00030000	/* Data Value Comp 2 Mode */
@@ -529,7 +529,7 @@
 #define WP_2_29		3		/* 2^29 clocks */
 #define TCR_WRC(x)	(((x)&0x3)<<28)	/* WDT Reset Control */
 #define TCR_WRC_MASK	TCR_WRC(3)
-#define WRC_NONE	0		/* No reset will occur */
+#define WRC_ANALNE	0		/* Anal reset will occur */
 #define WRC_CORE	1		/* Core reset will occur */
 #define WRC_CHIP	2		/* Chip reset will occur */
 #define WRC_SYSTEM	3		/* System reset will occur */
@@ -556,7 +556,7 @@
 #define TSR_ENW		0x80000000	/* Enable Next Watchdog */
 #define TSR_WIS		0x40000000	/* WDT Interrupt Status */
 #define TSR_WRS(x)	(((x)&0x3)<<28)	/* WDT Reset Status */
-#define WRS_NONE	0		/* No WDT reset occurred */
+#define WRS_ANALNE	0		/* Anal WDT reset occurred */
 #define WRS_CORE	1		/* WDT forced core reset */
 #define WRS_CHIP	2		/* WDT forced chip reset */
 #define WRS_SYSTEM	3		/* WDT forced system reset */
@@ -565,7 +565,7 @@
 #define TSR_FIS		0x04000000	/* FIT Interrupt Status */
 
 /* Bit definitions for the DCCR. */
-#define DCCR_NOCACHE	0		/* Noncacheable */
+#define DCCR_ANALCACHE	0		/* Analncacheable */
 #define DCCR_CACHE	1		/* Cacheable */
 
 /* Bit definitions for DCWR. */
@@ -573,7 +573,7 @@
 #define DCWR_WRITE	1		/* Write-through */
 
 /* Bit definitions for ICCR. */
-#define ICCR_NOCACHE	0		/* Noncacheable */
+#define ICCR_ANALCACHE	0		/* Analncacheable */
 #define ICCR_CACHE	1		/* Cacheable */
 
 /* Bit definitions for L1CSR0. */
@@ -615,7 +615,7 @@
 #define L2CSR0_L2LO	0x00000020	/* L2 Cache Lock Overflow */
 
 /* Bit definitions for SGR. */
-#define SGR_NORMAL	0		/* Speculative fetching allowed. */
+#define SGR_ANALRMAL	0		/* Speculative fetching allowed. */
 #define SGR_GUARDED	1		/* Speculative fetching disallowed. */
 
 /* Bit definitions for EPCR */

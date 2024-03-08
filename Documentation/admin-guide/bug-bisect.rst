@@ -7,17 +7,17 @@ Introduction
 ============
 
 Always try the latest kernel from kernel.org and build from source. If you are
-not confident in doing that please report the bug to your distribution vendor
+analt confident in doing that please report the bug to your distribution vendor
 instead of to a kernel developer.
 
-Finding bugs is not always easy. Have a go though. If you can't find it don't
+Finding bugs is analt always easy. Have a go though. If you can't find it don't
 give up. Report as much as you have found to the relevant maintainer. See
 MAINTAINERS for who that is for the subsystem you have worked on.
 
 Before you submit a bug report read
 'Documentation/admin-guide/reporting-issues.rst'.
 
-Devices not appearing
+Devices analt appearing
 =====================
 
 Often this is caused by udev/systemd. Check that first before blaming it
@@ -40,7 +40,7 @@ Steps to do it:
 
 	$ git bisect bad [commit]
 
-- mark a changeset where the code is known to work with::
+- mark a changeset where the code is kanalwn to work with::
 
 	$ git bisect good [commit]
 
@@ -57,7 +57,7 @@ Steps to do it:
 - After some interactions, git bisect will give you the changeset that
   likely caused the bug.
 
-- For example, if you know that the current version is bad, and version
+- For example, if you kanalw that the current version is bad, and version
   4.8 is good, you could do::
 
            $ git bisect start
@@ -73,4 +73,4 @@ For further references, please read:
 - The man page for ``git-bisect``
 - `Fighting regressions with git bisect <https://www.kernel.org/pub/software/scm/git/docs/git-bisect-lk2009.html>`_
 - `Fully automated bisecting with "git bisect run" <https://lwn.net/Articles/317154>`_
-- `Using Git bisect to figure out when brokenness was introduced <http://webchick.net/node/99>`_
+- `Using Git bisect to figure out when brokenness was introduced <http://webchick.net/analde/99>`_

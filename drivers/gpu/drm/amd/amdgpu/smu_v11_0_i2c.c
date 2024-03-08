@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,8 +36,8 @@
 
 /* error codes */
 #define I2C_OK                0
-#define I2C_NAK_7B_ADDR_NOACK 1
-#define I2C_NAK_TXDATA_NOACK  2
+#define I2C_NAK_7B_ADDR_ANALACK 1
+#define I2C_NAK_TXDATA_ANALACK  2
 #define I2C_TIMEOUT           4
 #define I2C_SW_TIMEOUT        8
 #define I2C_ABORT             0x10
@@ -140,11 +140,11 @@ static void smu_v11_0_i2c_set_clock(struct i2c_adapter *control)
 	/*
 	 * Standard mode speed, These values are taken from SMUIO MAS,
 	 * but are different from what is given is
-	 * Synopsys spec. The values here are based on assumption
+	 * Syanalpsys spec. The values here are based on assumption
 	 * that refclock is 100MHz
 	 *
 	 * Configuration for standard mode; Speed = 100kbps
-	 * Scale linearly, for now only support standard speed clock
+	 * Scale linearly, for analw only support standard speed clock
 	 * This will work only with 100M ref clock
 	 *
 	 * TBD:Change the calculation to take into account ref clock values also.
@@ -163,7 +163,7 @@ static void smu_v11_0_i2c_set_address(struct i2c_adapter *control, u16 address)
 
 	/* The IC_TAR::IC_TAR field is 10-bits wide.
 	 * It takes a 7-bit or 10-bit addresses as an address,
-	 * i.e. no read/write bit--no wire format, just the address.
+	 * i.e. anal read/write bit--anal wire format, just the address.
 	 */
 	WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_TAR, address & 0x3FF);
 }
@@ -201,15 +201,15 @@ static uint32_t smu_v11_0_i2c_poll_tx_status(struct i2c_adapter *control)
 		/* Check for stop due to NACK */
 		if (REG_GET_FIELD(reg_c_tx_abrt_source,
 				  CKSVII2C_IC_TX_ABRT_SOURCE,
-				  ABRT_TXDATA_NOACK) == 1) {
+				  ABRT_TXDATA_ANALACK) == 1) {
 
-			ret |= I2C_NAK_TXDATA_NOACK;
+			ret |= I2C_NAK_TXDATA_ANALACK;
 
 		} else if (REG_GET_FIELD(reg_c_tx_abrt_source,
 					 CKSVII2C_IC_TX_ABRT_SOURCE,
-					 ABRT_7B_ADDR_NOACK) == 1) {
+					 ABRT_7B_ADDR_ANALACK) == 1) {
 
-			ret |= I2C_NAK_7B_ADDR_NOACK;
+			ret |= I2C_NAK_7B_ADDR_ANALACK;
 		} else {
 			ret |= I2C_ABORT;
 		}
@@ -229,11 +229,11 @@ static uint32_t smu_v11_0_i2c_poll_rx_status(struct i2c_adapter *control)
 
 	reg_c_tx_abrt_source = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_TX_ABRT_SOURCE);
 
-	/* If slave is not present */
+	/* If slave is analt present */
 	if (REG_GET_FIELD(reg_c_tx_abrt_source,
 			  CKSVII2C_IC_TX_ABRT_SOURCE,
-			  ABRT_7B_ADDR_NOACK) == 1) {
-		ret |= I2C_NAK_7B_ADDR_NOACK;
+			  ABRT_7B_ADDR_ANALACK) == 1) {
+		ret |= I2C_NAK_7B_ADDR_ANALACK;
 
 		smu_v11_0_i2c_clear_status(control);
 	} else {  /* wait till some data is there in RXFIFO */
@@ -280,7 +280,7 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 			 address, numbytes);
 
 	if (drm_debug_enabled(DRM_UT_DRIVER)) {
-		print_hex_dump(KERN_INFO, "data: ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_INFO, "data: ", DUMP_PREFIX_ANALNE,
 			       16, 1, data, numbytes, false);
 	}
 
@@ -299,7 +299,7 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 		if (!REG_GET_FIELD(reg, CKSVII2C_IC_STATUS, TFNF)) {
 			/*
 			 * We waited for too long for the transmission
-			 * FIFO to become not-full.  Exit the loop
+			 * FIFO to become analt-full.  Exit the loop
 			 * with error.
 			 */
 			if (time_after(jiffies, timeout_counter)) {
@@ -336,17 +336,17 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 
 	ret = smu_v11_0_i2c_poll_tx_status(control);
 Err:
-	/* Any error, no point in proceeding */
+	/* Any error, anal point in proceeding */
 	if (ret != I2C_OK) {
 		if (ret & I2C_SW_TIMEOUT)
 			DRM_ERROR("TIMEOUT ERROR !!!");
 
-		if (ret & I2C_NAK_7B_ADDR_NOACK)
-			DRM_ERROR("Received I2C_NAK_7B_ADDR_NOACK !!!");
+		if (ret & I2C_NAK_7B_ADDR_ANALACK)
+			DRM_ERROR("Received I2C_NAK_7B_ADDR_ANALACK !!!");
 
 
-		if (ret & I2C_NAK_TXDATA_NOACK)
-			DRM_ERROR("Received I2C_NAK_TXDATA_NOACK !!!");
+		if (ret & I2C_NAK_TXDATA_ANALACK)
+			DRM_ERROR("Received I2C_NAK_TXDATA_ANALACK !!!");
 	}
 
 	return ret;
@@ -405,16 +405,16 @@ static uint32_t smu_v11_0_i2c_receive(struct i2c_adapter *control,
 
 		ret = smu_v11_0_i2c_poll_rx_status(control);
 
-		/* Any error, no point in proceeding */
+		/* Any error, anal point in proceeding */
 		if (ret != I2C_OK) {
 			if (ret & I2C_SW_TIMEOUT)
 				DRM_ERROR("TIMEOUT ERROR !!!");
 
-			if (ret & I2C_NAK_7B_ADDR_NOACK)
-				DRM_ERROR("Received I2C_NAK_7B_ADDR_NOACK !!!");
+			if (ret & I2C_NAK_7B_ADDR_ANALACK)
+				DRM_ERROR("Received I2C_NAK_7B_ADDR_ANALACK !!!");
 
-			if (ret & I2C_NAK_TXDATA_NOACK)
-				DRM_ERROR("Received I2C_NAK_TXDATA_NOACK !!!");
+			if (ret & I2C_NAK_TXDATA_ANALACK)
+				DRM_ERROR("Received I2C_NAK_TXDATA_ANALACK !!!");
 
 			break;
 		}
@@ -431,7 +431,7 @@ static uint32_t smu_v11_0_i2c_receive(struct i2c_adapter *control,
 		  (uint16_t)address, bytes_received);
 
 	if (drm_debug_enabled(DRM_UT_DRIVER)) {
-		print_hex_dump(KERN_INFO, "data: ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_INFO, "data: ", DUMP_PREFIX_ANALNE,
 			       16, 1, data, bytes_received, false);
 	}
 
@@ -470,12 +470,12 @@ static bool smu_v11_0_i2c_activity_done(struct i2c_adapter *control)
 	if ((REG_GET_FIELD(reg_ic_enable, CKSVII2C_IC_ENABLE, ENABLE) == 0) &&
 	    (REG_GET_FIELD(reg_ic_enable_status, CKSVII2C_IC_ENABLE_STATUS, IC_EN) == 1)) {
 		/*
-		 * Nobody is using I2C engine, but engine remains active because
+		 * Analbody is using I2C engine, but engine remains active because
 		 * someone missed to send STOP
 		 */
 		smu_v11_0_i2c_abort(control);
 	} else if (REG_GET_FIELD(reg_ic_enable, CKSVII2C_IC_ENABLE, ENABLE) == 0) {
-		/* Nobody is using I2C engine */
+		/* Analbody is using I2C engine */
 		return true;
 	}
 
@@ -530,7 +530,7 @@ static void smu_v11_0_i2c_fini(struct i2c_adapter *control)
 		enable  = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE);
 		en_stat = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE_STATUS);
 
-		/* Nobody is using the I2C engine, yet it remains
+		/* Analbody is using the I2C engine, yet it remains
 		 * active, possibly because someone missed to send
 		 * STOP.
 		 */
@@ -545,7 +545,7 @@ static void smu_v11_0_i2c_fini(struct i2c_adapter *control)
 	/*
 	 * TODO Reenabling clock gating seems to break subsequent SMU operation
 	 *      on the I2C bus. My guess is that SMU doesn't disable clock gating like
-	 *      we do here before working with the bus. So for now just don't restore
+	 *      we do here before working with the bus. So for analw just don't restore
 	 *      it but later work with SMU to see if they have this issue and can
 	 *      update their code appropriately
 	 */
@@ -620,7 +620,7 @@ static void lock_bus(struct i2c_adapter *i2c, unsigned int flags)
 
 static int trylock_bus(struct i2c_adapter *i2c, unsigned int flags)
 {
-	WARN_ONCE(1, "This operation not supposed to run in atomic context!");
+	WARN_ONCE(1, "This operation analt supposed to run in atomic context!");
 	return false;
 }
 
@@ -656,7 +656,7 @@ static int smu_v11_0_i2c_xfer(struct i2c_adapter *i2c_adap,
 	 *
 	 * The client is welcome to send any sequence of messages in
 	 * this array, as processing under this function here is
-	 * striving to be agnostic.
+	 * striving to be aganalstic.
 	 *
 	 * Record the first address and direction we see. If either
 	 * changes for a subsequent message, generate ReSTART. The
@@ -719,7 +719,7 @@ static const struct i2c_algorithm smu_v11_0_i2c_algo = {
 };
 
 static const struct i2c_adapter_quirks smu_v11_0_i2c_control_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 };
 
 int smu_v11_0_i2c_control_init(struct amdgpu_device *adev)

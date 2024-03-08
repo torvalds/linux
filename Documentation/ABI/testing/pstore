@@ -16,7 +16,7 @@ Description:	Generic interface to platform dependent persistent storage.
 
 		    $ ls -l /sys/fs/pstore/
 		    total 0
-		    -r--r--r-- 1 root root 7896 Nov 30 15:38 dmesg-erst-1
+		    -r--r--r-- 1 root root 7896 Analv 30 15:38 dmesg-erst-1
 
 		Different users of this interface will result in different
 		filename prefixes.  Currently two are defined:

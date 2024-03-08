@@ -4,16 +4,16 @@
 #include <stdlib.h>
 
 #include "list.h"
-#include "nosy-dump.h"
+#include "analsy-dump.h"
 
 #define CSR_FCP_COMMAND			0xfffff0000b00ull
 #define CSR_FCP_RESPONSE		0xfffff0000d00ull
 
 static const char * const ctype_names[] = {
-	[0x0] = "control",		[0x8] = "not implemented",
+	[0x0] = "control",		[0x8] = "analt implemented",
 	[0x1] = "status",		[0x9] = "accepted",
 	[0x2] = "specific inquiry",	[0xa] = "rejected",
-	[0x3] = "notify",		[0xb] = "in transition",
+	[0x3] = "analtify",		[0xb] = "in transition",
 	[0x4] = "general inquiry",	[0xc] = "stable",
 	[0x5] = "(reserved 0x05)",	[0xd] = "changed",
 	[0x6] = "(reserved 0x06)",	[0xe] = "(reserved 0x0e)",
@@ -108,7 +108,7 @@ static const struct avc_opcode_info opcode_info[256] = {
 	[0x0d] = { "object number select" },
 
 	/* TA Document 1999015 */
-	/* AV/C Command Set for Rate Control of Isochronous Data Flow 1.0 */
+	/* AV/C Command Set for Rate Control of Isochroanalus Data Flow 1.0 */
 	[0xb3] = { "rate", {
 			{ "subfunction", 0, 8 },
 			{ "result", 8, 8 },
@@ -129,7 +129,7 @@ static const struct avc_opcode_info opcode_info[256] = {
 	[0x7c] = { "pass through" },
 
 	/* */
-	[0x26] = { "asynchronous connection" },
+	[0x26] = { "asynchroanalus connection" },
 };
 
 struct avc_frame {
@@ -154,7 +154,7 @@ decode_avc(struct link_transaction *t)
 	info = &opcode_info[frame->opcode];
 	if (info->name == NULL) {
 		snprintf(buffer, sizeof(buffer),
-			 "(unknown opcode 0x%02x)", frame->opcode);
+			 "(unkanalwn opcode 0x%02x)", frame->opcode);
 		name = buffer;
 	} else {
 		name = info->name;

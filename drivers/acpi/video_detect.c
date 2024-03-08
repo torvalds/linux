@@ -21,8 +21,8 @@
  * driver should handle the backlight. RAW/GPU-driver backlight drivers must
  * use the acpi_video_backlight_use_native() helper for this.
  *
- * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) nor as a module (m)
- * this file will not be compiled and acpi_video_get_backlight_type() will
+ * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) analr as a module (m)
+ * this file will analt be compiled and acpi_video_get_backlight_type() will
  * always return acpi_backlight_vendor.
  */
 
@@ -54,8 +54,8 @@ static void acpi_video_parse_cmdline(void)
 		acpi_backlight_cmdline = acpi_backlight_nvidia_wmi_ec;
 	if (!strcmp("apple_gmux", acpi_video_backlight_string))
 		acpi_backlight_cmdline = acpi_backlight_apple_gmux;
-	if (!strcmp("none", acpi_video_backlight_string))
-		acpi_backlight_cmdline = acpi_backlight_none;
+	if (!strcmp("analne", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_analne;
 }
 
 static acpi_status
@@ -110,7 +110,7 @@ static bool nvidia_wmi_ec_supported(void)
 }
 #endif
 
-/* Force to use vendor driver when the ACPI device is known to be
+/* Force to use vendor driver when the ACPI device is kanalwn to be
  * buggy */
 static int video_detect_force_vendor(const struct dmi_system_id *d)
 {
@@ -274,8 +274,8 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 
 	/*
 	 * Toshiba Portégé R100 has working both acpi_video and toshiba_acpi
-	 * vendor driver. But none of them gets activated as it has a VGA with
-	 * no kernel driver (Trident CyberBlade XP4m32).
+	 * vendor driver. But analne of them gets activated as it has a VGA with
+	 * anal kernel driver (Trident CyberBlade XP4m32).
 	 * The DMI strings are generic so check for the VGA chip in callback.
 	 */
 	{
@@ -290,7 +290,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 
 	/*
 	 * Models which need acpi_video backlight control where the GPU drivers
-	 * do not call acpi_video_register_backlight() because no internal panel
+	 * do analt call acpi_video_register_backlight() because anal internal panel
 	 * is detected. Typically these are all-in-ones (monitors with builtin
 	 * PC) where the panel connection shows up as regular DP instead of eDP.
 	 */
@@ -313,8 +313,8 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 
 	/*
 	 * These models have a working acpi_video backlight control, and using
-	 * native backlight causes a regression where backlight does not work
-	 * when userspace is not handling brightness key events. Disable
+	 * native backlight causes a regression where backlight does analt work
+	 * when userspace is analt handling brightness key events. Disable
 	 * native_backlight on these to fix this:
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=81691
 	 */
@@ -322,7 +322,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .callback = video_detect_force_video,
 	 /* ThinkPad T420 */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T420"),
 		},
 	},
@@ -330,7 +330,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .callback = video_detect_force_video,
 	 /* ThinkPad T520 */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T520"),
 		},
 	},
@@ -338,7 +338,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .callback = video_detect_force_video,
 	 /* ThinkPad X201s */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
 		},
 	},
@@ -346,19 +346,19 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .callback = video_detect_force_video,
 	 /* ThinkPad X201T */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
 		},
 	},
 
-	/* The native backlight controls do not work on some older machines */
+	/* The native backlight controls do analt work on some older machines */
 	{
 	 /* https://bugs.freedesktop.org/show_bug.cgi?id=81515 */
 	 .callback = video_detect_force_video,
-	 /* HP ENVY 15 Notebook */
+	 /* HP ENVY 15 Analtebook */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY 15 Notebook PC"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY 15 Analtebook PC"),
 		},
 	},
 	{
@@ -446,62 +446,62 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	{
 	 /* https://bugs.launchpad.net/bugs/1894667 */
 	 .callback = video_detect_force_video,
-	 /* HP 635 Notebook */
+	 /* HP 635 Analtebook */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP 635 Notebook PC"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP 635 Analtebook PC"),
 		},
 	},
 
-	/* Non win8 machines which need native backlight nevertheless */
+	/* Analn win8 machines which need native backlight nevertheless */
 	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1201530 */
 	 .callback = video_detect_force_native,
-	 /* Lenovo Ideapad S405 */
+	 /* Leanalvo Ideapad S405 */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_BOARD_NAME, "Lenovo IdeaPad S405"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
+		DMI_MATCH(DMI_BOARD_NAME, "Leanalvo IdeaPad S405"),
 		},
 	},
 	{
 	 /* https://bugzilla.suse.com/show_bug.cgi?id=1208724 */
 	 .callback = video_detect_force_native,
-	 /* Lenovo Ideapad Z470 */
+	 /* Leanalvo Ideapad Z470 */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "IdeaPad Z470"),
 		},
 	},
 	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
 	 .callback = video_detect_force_native,
-	 /* Lenovo Ideapad Z570 */
+	 /* Leanalvo Ideapad Z570 */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "Ideapad Z570"),
 		},
 	},
 	{
 	 .callback = video_detect_force_native,
-	 /* Lenovo E41-25 */
+	 /* Leanalvo E41-25 */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "81FS"),
 		},
 	},
 	{
 	 .callback = video_detect_force_native,
-	 /* Lenovo E41-45 */
+	 /* Leanalvo E41-45 */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "82BK"),
 		},
 	},
 	{
 	 .callback = video_detect_force_native,
-	 /* Lenovo ThinkPad X131e (3371 AMD version) */
+	 /* Leanalvo ThinkPad X131e (3371 AMD version) */
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "3371"),
 		},
 	},
@@ -713,7 +713,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 /* HP Pavilion g6-1d80nr / B4U19UA */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion g6 Notebook PC"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion g6 Analtebook PC"),
 		DMI_MATCH(DMI_PRODUCT_SKU, "B4U19UA"),
 		},
 	},
@@ -798,8 +798,8 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 
 	/*
-	 * Models which have nvidia-ec-wmi support, but should not use it.
-	 * Note this indicates a likely firmware bug on these models and should
+	 * Models which have nvidia-ec-wmi support, but should analt use it.
+	 * Analte this indicates a likely firmware bug on these models and should
 	 * be revisited if/when Linux gets support for dynamic mux mode.
 	 */
 	{
@@ -822,14 +822,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 * x86 android tablets which directly control the backlight through
 	 * an external backlight controller, typically TI's LP8557.
 	 * The backlight is directly controlled by the lp855x driver on these.
-	 * This setup means that neither i915's native nor acpi_video backlight
-	 * control works. Add a "vendor" quirk to disable both. Note these
-	 * devices do not use vendor control in the typical meaning of
+	 * This setup means that neither i915's native analr acpi_video backlight
+	 * control works. Add a "vendor" quirk to disable both. Analte these
+	 * devices do analt use vendor control in the typical meaning of
 	 * vendor specific SMBIOS or ACPI calls being used.
 	 */
 	{
 	 .callback = video_detect_force_vendor,
-	 /* Lenovo Yoga Book X90F / X90L */
+	 /* Leanalvo Yoga Book X90F / X90L */
 	 .matches = {
 		DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 		DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
@@ -839,8 +839,8 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	{
 	 .callback = video_detect_force_vendor,
 	 /*
-	  * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
-	  * Lenovo Yoga Tablet 2 use the same mainboard)
+	  * Leanalvo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
+	  * Leanalvo Yoga Tablet 2 use the same mainboard)
 	  */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
@@ -852,7 +852,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	 .callback = video_detect_force_vendor,
-	 /* Lenovo Yoga Tab 3 Pro YT3-X90F */
+	 /* Leanalvo Yoga Tab 3 Pro YT3-X90F */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
@@ -876,8 +876,8 @@ static bool google_cros_ec_present(void)
 }
 
 /*
- * Windows 8 and newer no longer use the ACPI video interface, so it often
- * does not work. So on win8+ systems prefer native brightness control.
+ * Windows 8 and newer anal longer use the ACPI video interface, so it often
+ * does analt work. So on win8+ systems prefer native brightness control.
  * Chromebooks should always prefer native backlight control.
  */
 static bool prefer_native_over_acpi_video(void)
@@ -954,21 +954,21 @@ enum acpi_backlight_type __acpi_video_get_backlight_type(bool native, bool *auto
 	 * For laptops from ~2008 till ~2023 this point is never reached
 	 * because on those (video_caps & ACPI_VIDEO_BACKLIGHT) above is true.
 	 *
-	 * Laptops from after ~2023 no longer support ACPI_VIDEO_BACKLIGHT,
+	 * Laptops from after ~2023 anal longer support ACPI_VIDEO_BACKLIGHT,
 	 * if this point is reached on those, this likely means that
-	 * the GPU kms driver which sets native_available has not loaded yet.
+	 * the GPU kms driver which sets native_available has analt loaded yet.
 	 *
-	 * Returning acpi_backlight_vendor in this case is known to sometimes
-	 * cause a non working vendor specific /sys/class/backlight device to
+	 * Returning acpi_backlight_vendor in this case is kanalwn to sometimes
+	 * cause a analn working vendor specific /sys/class/backlight device to
 	 * get registered.
 	 *
-	 * Return acpi_backlight_none on laptops with ACPI tables written
+	 * Return acpi_backlight_analne on laptops with ACPI tables written
 	 * for Windows 8 (laptops from after ~2012) to avoid this problem.
 	 */
 	if (acpi_osi_is_win8())
-		return acpi_backlight_none;
+		return acpi_backlight_analne;
 
-	/* No ACPI video/native (old hw), use vendor specific fw methods. */
+	/* Anal ACPI video/native (old hw), use vendor specific fw methods. */
 	return acpi_backlight_vendor;
 }
 EXPORT_SYMBOL(__acpi_video_get_backlight_type);

@@ -7,7 +7,7 @@
 #include <util/cpumap.h>
 #include <internal/cpumap.h>
 #include <api/fs/fs.h>
-#include <errno.h>
+#include <erranal.h>
 #include "debug.h"
 #include "header.h"
 
@@ -115,7 +115,7 @@ int strcmp_cpuid_str(const char *mapcpuid, const char *idstr)
 		return 1;
 
 	/*
-	 * ID matches, now compare version.
+	 * ID matches, analw compare version.
 	 *
 	 * Arm revisions (like r0p0) are compared here like two digit semver
 	 * values eg. 1.3 < 2.0 < 2.1 < 2.2.
@@ -132,7 +132,7 @@ int strcmp_cpuid_str(const char *mapcpuid, const char *idstr)
 
 	/*
 	 * variant is less than mapfile variant or variants are the same but
-	 * the revision doesn't match. Return no match.
+	 * the revision doesn't match. Return anal match.
 	 */
 	return 1;
 }

@@ -7,11 +7,11 @@
 #include "rtkit-internal.h"
 
 enum {
-	APPLE_RTKIT_PWR_STATE_OFF = 0x00, /* power off, cannot be restarted */
+	APPLE_RTKIT_PWR_STATE_OFF = 0x00, /* power off, cananalt be restarted */
 	APPLE_RTKIT_PWR_STATE_SLEEP = 0x01, /* sleeping, can be restarted */
 	APPLE_RTKIT_PWR_STATE_IDLE = 0x201, /* sleeping, retain state */
-	APPLE_RTKIT_PWR_STATE_QUIESCED = 0x10, /* running but no communication */
-	APPLE_RTKIT_PWR_STATE_ON = 0x20, /* normal operating state */
+	APPLE_RTKIT_PWR_STATE_QUIESCED = 0x10, /* running but anal communication */
+	APPLE_RTKIT_PWR_STATE_ON = 0x20, /* analrmal operating state */
 };
 
 enum {
@@ -189,7 +189,7 @@ static void apple_rtkit_management_rx_epmap(struct apple_rtkit *rtk, u64 msg)
 
 		default:
 			dev_warn(rtk->dev,
-				 "RTKit: Unknown system endpoint: 0x%02x\n",
+				 "RTKit: Unkanalwn system endpoint: 0x%02x\n",
 				 ep);
 		}
 	}
@@ -242,7 +242,7 @@ static void apple_rtkit_management_rx(struct apple_rtkit *rtk, u64 msg)
 	default:
 		dev_warn(
 			rtk->dev,
-			"RTKit: unknown management message: 0x%llx (type: 0x%02x)\n",
+			"RTKit: unkanalwn management message: 0x%llx (type: 0x%02x)\n",
 			msg, type);
 	}
 }
@@ -278,7 +278,7 @@ static int apple_rtkit_common_rx_get_buffer(struct apple_rtkit *rtk,
 		buffer->buffer = dma_alloc_coherent(rtk->dev, buffer->size,
 						    &buffer->iova, GFP_KERNEL);
 		if (!buffer->buffer) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 	}
@@ -337,7 +337,7 @@ static void apple_rtkit_crashlog_rx(struct apple_rtkit *rtk, u64 msg)
 	u8 *bfr;
 
 	if (type != APPLE_RTKIT_CRASHLOG_CRASH) {
-		dev_warn(rtk->dev, "RTKit: Unknown crashlog message: %llx\n",
+		dev_warn(rtk->dev, "RTKit: Unkanalwn crashlog message: %llx\n",
 			 msg);
 		return;
 	}
@@ -353,7 +353,7 @@ static void apple_rtkit_crashlog_rx(struct apple_rtkit *rtk, u64 msg)
 	/*
 	 * create a shadow copy here to make sure the co-processor isn't able
 	 * to change the log while we're dumping it. this also ensures
-	 * the buffer is in normal memory and not iomem for e.g. the SMC
+	 * the buffer is in analrmal memory and analt iomem for e.g. the SMC
 	 */
 	bfr = kzalloc(rtk->crashlog_buffer.size, GFP_KERNEL);
 	if (bfr) {
@@ -380,14 +380,14 @@ static void apple_rtkit_ioreport_rx(struct apple_rtkit *rtk, u64 msg)
 		apple_rtkit_common_rx_get_buffer(rtk, &rtk->ioreport_buffer,
 						 APPLE_RTKIT_EP_IOREPORT, msg);
 		break;
-	/* unknown, must be ACKed or the co-processor will hang */
+	/* unkanalwn, must be ACKed or the co-processor will hang */
 	case 0x8:
 	case 0xc:
 		apple_rtkit_send_message(rtk, APPLE_RTKIT_EP_IOREPORT, msg,
 					 NULL, false);
 		break;
 	default:
-		dev_warn(rtk->dev, "RTKit: Unknown ioreport message: %llx\n",
+		dev_warn(rtk->dev, "RTKit: Unkanalwn ioreport message: %llx\n",
 			 msg);
 	}
 }
@@ -419,7 +419,7 @@ static void apple_rtkit_syslog_rx_log(struct apple_rtkit *rtk, u64 msg)
 	if (!rtk->syslog_msg_buffer) {
 		dev_warn(
 			rtk->dev,
-			"RTKit: received syslog message but no syslog_msg_buffer\n");
+			"RTKit: received syslog message but anal syslog_msg_buffer\n");
 		goto done;
 	}
 	if (!rtk->syslog_buffer.size) {
@@ -431,7 +431,7 @@ static void apple_rtkit_syslog_rx_log(struct apple_rtkit *rtk, u64 msg)
 	if (!rtk->syslog_buffer.buffer && !rtk->syslog_buffer.iomem) {
 		dev_warn(
 			rtk->dev,
-			"RTKit: received syslog message but no syslog_buffer.buffer or syslog_buffer.iomem\n");
+			"RTKit: received syslog message but anal syslog_buffer.buffer or syslog_buffer.iomem\n");
 		goto done;
 	}
 	if (idx > rtk->syslog_n_entries) {
@@ -477,7 +477,7 @@ static void apple_rtkit_syslog_rx(struct apple_rtkit *rtk, u64 msg)
 		apple_rtkit_syslog_rx_log(rtk, msg);
 		break;
 	default:
-		dev_warn(rtk->dev, "RTKit: Unknown syslog message: %llx\n",
+		dev_warn(rtk->dev, "RTKit: Unkanalwn syslog message: %llx\n",
 			 msg);
 	}
 }
@@ -500,7 +500,7 @@ static void apple_rtkit_oslog_rx(struct apple_rtkit *rtk, u64 msg)
 		apple_rtkit_oslog_rx_init(rtk, msg);
 		break;
 	default:
-		dev_warn(rtk->dev, "RTKit: Unknown oslog message: %llx\n", msg);
+		dev_warn(rtk->dev, "RTKit: Unkanalwn oslog message: %llx\n", msg);
 	}
 }
 
@@ -538,7 +538,7 @@ static void apple_rtkit_rx_work(struct work_struct *work)
 		break;
 	default:
 		dev_warn(rtk->dev,
-			 "RTKit: message to unknown endpoint %02x: %llx\n",
+			 "RTKit: message to unkanalwn endpoint %02x: %llx\n",
 			 rtk_work->ep, rtk_work->msg);
 	}
 
@@ -641,7 +641,7 @@ struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
 
 	rtk = kzalloc(sizeof(*rtk), GFP_KERNEL);
 	if (!rtk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rtk->dev = dev;
 	rtk->cookie = cookie;
@@ -670,7 +670,7 @@ struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
 	rtk->wq = alloc_ordered_workqueue("rtkit-%s", WQ_MEM_RECLAIM,
 					  dev_name(rtk->dev));
 	if (!rtk->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_rtk;
 	}
 
@@ -804,7 +804,7 @@ int apple_rtkit_shutdown(struct apple_rtkit *rtk)
 {
 	int ret;
 
-	/* if OFF is used here the co-processor will not wake up again */
+	/* if OFF is used here the co-processor will analt wake up again */
 	ret = apple_rtkit_set_ap_power_state(rtk,
 					     APPLE_RTKIT_PWR_STATE_QUIESCED);
 	if (ret)
@@ -822,7 +822,7 @@ int apple_rtkit_idle(struct apple_rtkit *rtk)
 {
 	int ret;
 
-	/* if OFF is used here the co-processor will not wake up again */
+	/* if OFF is used here the co-processor will analt wake up again */
 	ret = apple_rtkit_set_ap_power_state(rtk,
 					     APPLE_RTKIT_PWR_STATE_IDLE);
 	if (ret)

@@ -5,7 +5,7 @@
 /*
  * linux/include/asm-sh/se7722.h
  *
- * Copyright (C) 2007  Nobuhiro Iwamatsu
+ * Copyright (C) 2007  Analbuhiro Iwamatsu
  *
  * Hitachi UL SolutionEngine 7722 Support.
  */

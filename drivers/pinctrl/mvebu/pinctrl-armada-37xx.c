@@ -252,14 +252,14 @@ static struct armada_37xx_pin_group *armada_37xx_find_next_grp_by_pin(
 static int armada_37xx_pin_config_group_get(struct pinctrl_dev *pctldev,
 			    unsigned int selector, unsigned long *config)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int armada_37xx_pin_config_group_set(struct pinctrl_dev *pctldev,
 			    unsigned int selector, unsigned long *configs,
 			    unsigned int num_configs)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct pinconf_ops armada_37xx_pinconf_ops = {
@@ -304,7 +304,7 @@ static const struct pinctrl_ops armada_37xx_pctrl_ops = {
 	.get_groups_count	= armada_37xx_get_groups_count,
 	.get_group_name		= armada_37xx_get_group_name,
 	.get_group_pins		= armada_37xx_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -354,7 +354,7 @@ static int armada_37xx_pmx_set_by_name(struct pinctrl_dev *pctldev,
 
 	func = match_string(grp->funcs, NB_FUNCS, name);
 	if (func < 0)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	val = grp->val[func];
 
@@ -689,7 +689,7 @@ static void armada_37xx_irq_handler(struct irq_desc *desc)
 					hwirq + i * GPIO_PER_REG)) {
 					/*
 					 * For spurious irq, which gpio level
-					 * is not as expected after incoming
+					 * is analt as expected after incoming
 					 * edge, just ack the gpio irq.
 					 */
 					writel(1 << hwirq,
@@ -754,7 +754,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 {
 	struct gpio_chip *gc = &info->gpio_chip;
 	struct gpio_irq_chip *girq = &gc->irq;
-	struct device_node *np = to_of_node(gc->fwnode);
+	struct device_analde *np = to_of_analde(gc->fwanalde);
 	struct device *dev = &pdev->dev;
 	unsigned int i, nr_irq_parent;
 
@@ -762,7 +762,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 
 	nr_irq_parent = of_irq_count(np);
 	if (!nr_irq_parent) {
-		dev_err(dev, "invalid or no IRQ\n");
+		dev_err(dev, "invalid or anal IRQ\n");
 		return 0;
 	}
 
@@ -774,13 +774,13 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	girq->parent_handler = armada_37xx_irq_handler;
 	/*
 	 * Many interrupts are connected to the parent interrupt
-	 * controller. But we do not take advantage of this and use
+	 * controller. But we do analt take advantage of this and use
 	 * the chained irq with all of them.
 	 */
 	girq->num_parents = nr_irq_parent;
 	girq->parents = devm_kcalloc(dev, nr_irq_parent, sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < nr_irq_parent; i++) {
 		int irq = irq_of_parse_and_map(np, i);
 
@@ -788,7 +788,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 			continue;
 		girq->parents[i] = irq;
 	}
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_edge_irq;
 
 	return 0;
@@ -798,13 +798,13 @@ static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 					struct armada_37xx_pinctrl *info)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct gpio_chip *gc;
 	int ret;
 
-	fwnode = gpiochip_node_get_first(dev);
-	if (!fwnode)
-		return -ENODEV;
+	fwanalde = gpiochip_analde_get_first(dev);
+	if (!fwanalde)
+		return -EANALDEV;
 
 	info->gpio_chip = armada_37xx_gpiolib_chip;
 
@@ -812,7 +812,7 @@ static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 	gc->ngpio = info->data->nr_pins;
 	gc->parent = dev;
 	gc->base = -1;
-	gc->fwnode = fwnode;
+	gc->fwanalde = fwanalde;
 	gc->label = info->data->name;
 
 	ret = armada_37xx_irqchip_register(pdev, info);
@@ -880,7 +880,7 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 					 sizeof(*grp->pins),
 					 GFP_KERNEL);
 		if (!grp->pins)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < grp->npins; i++)
 			grp->pins[i] = grp->start_pin + i;
@@ -932,7 +932,7 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 					       sizeof(*(funcs[n].groups)),
 					       GFP_KERNEL);
 		if (!funcs[n].groups)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		groups = funcs[n].groups;
 
@@ -972,7 +972,7 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 
 	pindesc = devm_kcalloc(dev, pin_data->nr_pins, sizeof(*pindesc), GFP_KERNEL);
 	if (!pindesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrldesc->pins = pindesc;
 	ctrldesc->npins = pin_data->nr_pins;
@@ -994,7 +994,7 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	 */
 	info->funcs = devm_kcalloc(dev, pin_data->nr_pins, sizeof(*info->funcs), GFP_KERNEL);
 	if (!info->funcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = armada_37xx_fill_group(info);
 	if (ret)
@@ -1006,7 +1006,7 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 
 	info->pctl_dev = devm_pinctrl_register(dev, ctrldesc, info);
 	if (IS_ERR(info->pctl_dev))
-		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could not register pinctrl driver\n");
+		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could analt register pinctrl driver\n");
 
 	return 0;
 }
@@ -1049,8 +1049,8 @@ static int armada_3700_pinctrl_resume(struct device *dev)
 		     info->pm.out_val_h);
 
 	/*
-	 * Input levels may change during suspend, which is not monitored at
-	 * that time. GPIOs used for both-edge IRQs may not be synchronized
+	 * Input levels may change during suspend, which is analt monitored at
+	 * that time. GPIOs used for both-edge IRQs may analt be synchronized
 	 * anymore with their polarities (rising/falling edge) and must be
 	 * re-configured manually.
 	 */
@@ -1104,7 +1104,7 @@ static int armada_3700_pinctrl_resume(struct device *dev)
  * Since pinctrl is an infrastructure module, its resume should be issued prior
  * to other IO drivers.
  */
-static DEFINE_NOIRQ_DEV_PM_OPS(armada_3700_pinctrl_pm_ops,
+static DEFINE_ANALIRQ_DEV_PM_OPS(armada_3700_pinctrl_pm_ops,
 			       armada_3700_pinctrl_suspend, armada_3700_pinctrl_resume);
 
 static const struct of_device_id armada_37xx_pinctrl_of_match[] = {
@@ -1149,7 +1149,7 @@ static int __init armada_37xx_pinctrl_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 	info->regmap = regmap;

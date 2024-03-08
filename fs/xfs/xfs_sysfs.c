@@ -230,7 +230,7 @@ pwork_threads_show(
 XFS_SYSFS_ATTR_RW(pwork_threads);
 
 /*
- * The "LARP" (Logged extended Attribute Recovery Persistence) debugging knob
+ * The "LARP" (Logged extended Attribute Recovery Persistence) debugging kanalb
  * sets the XFS_DA_OP_LOGGED flag on all xfs_attr_set operations performed on
  * V5 filesystems.  As a result, the intermediate progress of all setxattr and
  * removexattr operations are tracked via the log and can be restarted during
@@ -289,7 +289,7 @@ bload_leaf_slack_show(
 XFS_SYSFS_ATTR_RW(bload_leaf_slack);
 
 STATIC ssize_t
-bload_node_slack_store(
+bload_analde_slack_store(
 	struct kobject	*kobject,
 	const char	*buf,
 	size_t		count)
@@ -301,18 +301,18 @@ bload_node_slack_store(
 	if (ret)
 		return ret;
 
-	xfs_globals.bload_node_slack = val;
+	xfs_globals.bload_analde_slack = val;
 	return count;
 }
 
 STATIC ssize_t
-bload_node_slack_show(
+bload_analde_slack_show(
 	struct kobject	*kobject,
 	char		*buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.bload_node_slack);
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.bload_analde_slack);
 }
-XFS_SYSFS_ATTR_RW(bload_node_slack);
+XFS_SYSFS_ATTR_RW(bload_analde_slack);
 
 static struct attribute *xfs_dbg_attrs[] = {
 	ATTR_LIST(bug_on_assert),
@@ -324,7 +324,7 @@ static struct attribute *xfs_dbg_attrs[] = {
 	ATTR_LIST(larp),
 #endif
 	ATTR_LIST(bload_leaf_slack),
-	ATTR_LIST(bload_node_slack),
+	ATTR_LIST(bload_analde_slack),
 	NULL,
 };
 ATTRIBUTE_GROUPS(xfs_dbg);
@@ -483,10 +483,10 @@ const struct kobj_type xfs_log_ktype = {
  * Metadata IO error configuration
  *
  * The sysfs structure here is:
- *	...xfs/<dev>/error/<class>/<errno>/<error_attrs>
+ *	...xfs/<dev>/error/<class>/<erranal>/<error_attrs>
  *
  * where <class> allows us to discriminate between data IO and metadata IO,
- * and any other future type of IO (e.g. special inode or directory error
+ * and any other future type of IO (e.g. special ianalde or directory error
  * handling) we care to support.
  */
 static inline struct xfs_error_cfg *
@@ -650,7 +650,7 @@ struct xfs_error_init {
 	int		retry_timeout;	/* in seconds */
 };
 
-static const struct xfs_error_init xfs_error_meta_init[XFS_ERR_ERRNO_MAX] = {
+static const struct xfs_error_init xfs_error_meta_init[XFS_ERR_ERRANAL_MAX] = {
 	{ .name = "default",
 	  .max_retries = XFS_ERR_RETRY_FOREVER,
 	  .retry_timeout = XFS_ERR_RETRY_FOREVER,
@@ -659,11 +659,11 @@ static const struct xfs_error_init xfs_error_meta_init[XFS_ERR_ERRNO_MAX] = {
 	  .max_retries = XFS_ERR_RETRY_FOREVER,
 	  .retry_timeout = XFS_ERR_RETRY_FOREVER,
 	},
-	{ .name = "ENOSPC",
+	{ .name = "EANALSPC",
 	  .max_retries = XFS_ERR_RETRY_FOREVER,
 	  .retry_timeout = XFS_ERR_RETRY_FOREVER,
 	},
-	{ .name = "ENODEV",
+	{ .name = "EANALDEV",
 	  .max_retries = 0,	/* We can't recover from devices disappearing */
 	  .retry_timeout = 0,
 	},
@@ -688,7 +688,7 @@ xfs_error_sysfs_init_class(
 	if (error)
 		return error;
 
-	for (i = 0; i < XFS_ERR_ERRNO_MAX; i++) {
+	for (i = 0; i < XFS_ERR_ERRANAL_MAX; i++) {
 		cfg = &mp->m_error_cfg[class][i];
 		error = xfs_sysfs_init(&cfg->kobj, &xfs_error_cfg_ktype,
 					parent_kobj, init[i].name);
@@ -754,7 +754,7 @@ xfs_error_sysfs_del(
 	int			i, j;
 
 	for (i = 0; i < XFS_ERR_CLASS_MAX; i++) {
-		for (j = 0; j < XFS_ERR_ERRNO_MAX; j++) {
+		for (j = 0; j < XFS_ERR_ERRANAL_MAX; j++) {
 			cfg = &mp->m_error_cfg[i][j];
 
 			xfs_sysfs_del(&cfg->kobj);
@@ -779,11 +779,11 @@ xfs_error_get_cfg(
 	case EIO:
 		cfg = &mp->m_error_cfg[error_class][XFS_ERR_EIO];
 		break;
-	case ENOSPC:
-		cfg = &mp->m_error_cfg[error_class][XFS_ERR_ENOSPC];
+	case EANALSPC:
+		cfg = &mp->m_error_cfg[error_class][XFS_ERR_EANALSPC];
 		break;
-	case ENODEV:
-		cfg = &mp->m_error_cfg[error_class][XFS_ERR_ENODEV];
+	case EANALDEV:
+		cfg = &mp->m_error_cfg[error_class][XFS_ERR_EANALDEV];
 		break;
 	default:
 		cfg = &mp->m_error_cfg[error_class][XFS_ERR_DEFAULT];

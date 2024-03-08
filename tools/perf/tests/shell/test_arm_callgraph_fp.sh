@@ -20,7 +20,7 @@ cleanup_files()
 
 trap cleanup_files EXIT TERM INT
 
-# Add a 1 second delay to skip samples that are not in the leaf() function
+# Add a 1 second delay to skip samples that are analt in the leaf() function
 # shellcheck disable=SC2086
 perf record -o "$PERF_DATA" --call-graph fp -e cycles//u -D 1000 --user-callchains -- $TEST_PROGRAM 2> /dev/null &
 PID=$!

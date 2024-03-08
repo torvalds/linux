@@ -1,6 +1,6 @@
 **-c**, **--cpus** *cpu-list*
 
-        Set the osnoise tracer to run the sample threads in the cpu-list.
+        Set the osanalise tracer to run the sample threads in the cpu-list.
 
 **-H**, **--house-keeping** *cpu-list*
 
@@ -16,7 +16,7 @@
 
 **-t**, **--trace**\[*=file*]
 
-        Save the stopped trace to [*file|osnoise_trace.txt*].
+        Save the stopped trace to [*file|osanalise_trace.txt*].
 
 **-e**, **--event** *sys:event*
 
@@ -31,20 +31,20 @@
         If the *hist:* trigger is activated, the output histogram will be automatically saved to a file named *system_event_hist.txt*.
         For example, the command:
 
-        rtla <command> <mode> -t -e osnoise:irq_noise --trigger="hist:key=desc,duration/1000:sort=desc,duration/1000:vals=hitcount"
+        rtla <command> <mode> -t -e osanalise:irq_analise --trigger="hist:key=desc,duration/1000:sort=desc,duration/1000:vals=hitcount"
 
-        Will automatically save the content of the histogram associated to *osnoise:irq_noise* event in *osnoise_irq_noise_hist.txt*.
+        Will automatically save the content of the histogram associated to *osanalise:irq_analise* event in *osanalise_irq_analise_hist.txt*.
 
         For further information about event trigger see https://www.kernel.org/doc/html/latest/trace/events.html#event-triggers.
 
 **-P**, **--priority** *o:prio|r:prio|f:prio|d:runtime:period*
 
-        Set scheduling parameters to the osnoise tracer threads, the format to set the priority are:
+        Set scheduling parameters to the osanalise tracer threads, the format to set the priority are:
 
         - *o:prio* - use SCHED_OTHER with *prio*;
         - *r:prio* - use SCHED_RR with *prio*;
         - *f:prio* - use SCHED_FIFO with *prio*;
-        - *d:runtime[us|ms|s]:period[us|ms|s]* - use SCHED_DEADLINE with *runtime* and *period* in nanoseconds.
+        - *d:runtime[us|ms|s]:period[us|ms|s]* - use SCHED_DEADLINE with *runtime* and *period* in naanalseconds.
 
 **-C**, **--cgroup**\[*=cgroup*]
 

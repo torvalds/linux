@@ -1,12 +1,12 @@
 ========================
-Kernel driver exynos_tmu
+Kernel driver exyanals_tmu
 ========================
 
 Supported chips:
 
-* ARM Samsung Exynos4, Exynos5 series of SoC
+* ARM Samsung Exyanals4, Exyanals5 series of SoC
 
-  Datasheet: Not publicly available
+  Datasheet: Analt publicly available
 
 Authors: Donggeun Kim <dg77.kim@samsung.com>
 Authors: Amit Daniel <amit.daniel@samsung.com>
@@ -14,7 +14,7 @@ Authors: Amit Daniel <amit.daniel@samsung.com>
 TMU controller Description:
 ---------------------------
 
-This driver allows to read temperature inside Samsung Exynos4/5 series of SoC.
+This driver allows to read temperature inside Samsung Exyanals4/5 series of SoC.
 
 The chip only exposes the measured 8-bit temperature code value
 through a register.
@@ -30,7 +30,7 @@ The three equations are:
 
 	Tc = T + TI1 - 25
 
-  3. No trimming::
+  3. Anal trimming::
 
 	Tc = T + 50
 
@@ -43,7 +43,7 @@ The three equations are:
        Trimming info for 85 degree Celsius (stored at TRIMINFO register)
        Temperature code measured at 85 degree Celsius which is unchanged
 
-TMU(Thermal Management Unit) in Exynos4/5 generates interrupt
+TMU(Thermal Management Unit) in Exyanals4/5 generates interrupt
 when temperature exceeds pre-defined levels.
 The maximum number of configurable threshold is five.
 The threshold levels are defined as follows::
@@ -56,35 +56,35 @@ The threshold levels are defined as follows::
 The threshold and each trigger_level are set
 through the corresponding registers.
 
-When an interrupt occurs, this driver notify kernel thermal framework
-with the function exynos_report_trigger.
+When an interrupt occurs, this driver analtify kernel thermal framework
+with the function exyanals_report_trigger.
 Although an interrupt condition for level_0 can be set,
 it can be used to synchronize the cooling action.
 
 TMU driver description:
 -----------------------
 
-The exynos thermal driver is structured as::
+The exyanals thermal driver is structured as::
 
 					Kernel Core thermal framework
 				(thermal_core.c, step_wise.c, cpufreq_cooling.c)
 								^
 								|
 								|
-  TMU configuration data -----> TMU Driver  <----> Exynos Core thermal wrapper
-  (exynos_tmu_data.c)	      (exynos_tmu.c)	   (exynos_thermal_common.c)
-  (exynos_tmu_data.h)	      (exynos_tmu.h)	   (exynos_thermal_common.h)
+  TMU configuration data -----> TMU Driver  <----> Exyanals Core thermal wrapper
+  (exyanals_tmu_data.c)	      (exyanals_tmu.c)	   (exyanals_thermal_common.c)
+  (exyanals_tmu_data.h)	      (exyanals_tmu.h)	   (exyanals_thermal_common.h)
 
 a) TMU configuration data:
 		This consist of TMU register offsets/bitfields
-		described through structure exynos_tmu_registers. Also several
-		other platform data (struct exynos_tmu_platform_data) members
+		described through structure exyanals_tmu_registers. Also several
+		other platform data (struct exyanals_tmu_platform_data) members
 		are used to configure the TMU.
 b) TMU driver:
 		This component initialises the TMU controller and sets different
 		thresholds. It invokes core thermal implementation with the call
-		exynos_report_trigger.
-c) Exynos Core thermal wrapper:
+		exyanals_report_trigger.
+c) Exyanals Core thermal wrapper:
 		This provides 3 wrapper function to use the
-		Kernel core thermal framework. They are exynos_unregister_thermal,
-		exynos_register_thermal and exynos_report_trigger.
+		Kernel core thermal framework. They are exyanals_unregister_thermal,
+		exyanals_register_thermal and exyanals_report_trigger.

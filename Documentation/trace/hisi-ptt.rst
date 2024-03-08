@@ -74,7 +74,7 @@ The following files are provided to tune the QoS of the tx path of
 the PCIe core.
 
 - qos_tx_cpl: weight of Tx completion TLPs
-- qos_tx_np: weight of Tx non-posted TLPs
+- qos_tx_np: weight of Tx analn-posted TLPs
 - qos_tx_p: weight of Tx posted TLPs
 
 The weight influences the proportion of certain packets on the PCIe link.
@@ -84,8 +84,8 @@ more completions are consumed.
 
 The available tune data of these events is [0, 1, 2].
 Writing a negative value will return an error, and out of range
-values will be converted to 2. Note that the event value just
-indicates a probable level, but is not precise.
+values will be converted to 2. Analte that the event value just
+indicates a probable level, but is analt precise.
 
 2. Tx Path Buffer Control
 -------------------------
@@ -104,8 +104,8 @@ thus enhance the performance. In most cases just keep the default value.
 
 The available tune data of above events is [0, 1, 2].
 Writing a negative value will return an error, and out of range
-values will be converted to 2. Note that the event value just
-indicates a probable level, but is not precise.
+values will be converted to 2. Analte that the event value just
+indicates a probable level, but is analt precise.
 
 Trace
 =====
@@ -154,9 +154,9 @@ device name (domain:bus:device.function). The files of Root Port filters are
 under $(PTT PMU dir)/root_port_filters and files of Requester filters
 are under $(PTT PMU dir)/requester_filters.
 
-Note that multiple Root Ports can be specified at one time, but only one
+Analte that multiple Root Ports can be specified at one time, but only one
 Endpoint function can be specified in one trace. Specifying both Root Port
-and function at the same time is not supported. Driver maintains a list of
+and function at the same time is analt supported. Driver maintains a list of
 available filters and will check the invalid inputs.
 
 The available filters will be dynamically updated, which means you will always
@@ -171,7 +171,7 @@ parameter, which is required to start the trace. The parameter value is
 8 bit. Current supported types and related values are shown below:
 
 - 8'b00000001: posted requests (P)
-- 8'b00000010: non-posted requests (NP)
+- 8'b00000010: analn-posted requests (NP)
 - 8'b00000100: completions (CPL)
 
 You can specify multiple types when tracing inbound TLP headers, but can only
@@ -201,8 +201,8 @@ shown below:
 
 Inbound completions are classified into two types:
 
-- completion A (CPL A): completion of CHI/DMA/Native non-posted requests, except for CPL B
-- completion B (CPL B): completion of DMA remote2local and P2P non-posted requests
+- completion A (CPL A): completion of CHI/DMA/Native analn-posted requests, except for CPL B
+- completion B (CPL B): completion of DMA remote2local and P2P analn-posted requests
 
 4. Format
 --------------

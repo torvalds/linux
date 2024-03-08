@@ -243,8 +243,8 @@ static int ti_dac_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ti_dac));
 	if (!indio_dev) {
-		dev_err(dev, "can not allocate iio device\n");
-		return -ENOMEM;
+		dev_err(dev, "can analt allocate iio device\n");
+		return -EANALMEM;
 	}
 
 	spi->mode = SPI_MODE_1;
@@ -272,7 +272,7 @@ static int ti_dac_probe(struct spi_device *spi)
 
 	ret = regulator_enable(ti_dac->vref);
 	if (ret < 0) {
-		dev_err(dev, "can not enable regulator\n");
+		dev_err(dev, "can analt enable regulator\n");
 		return ret;
 	}
 

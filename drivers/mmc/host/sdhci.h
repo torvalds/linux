@@ -50,7 +50,7 @@
 #define  SDHCI_CMD_DATA		0x20
 #define  SDHCI_CMD_ABORTCMD	0xC0
 
-#define  SDHCI_CMD_RESP_NONE	0x00
+#define  SDHCI_CMD_RESP_ANALNE	0x00
 #define  SDHCI_CMD_RESP_LONG	0x01
 #define  SDHCI_CMD_RESP_SHORT	0x02
 #define  SDHCI_CMD_RESP_SHORT_BUSY 0x03
@@ -159,7 +159,7 @@
 #define  SDHCI_INT_AUTO_CMD_ERR	0x01000000
 #define  SDHCI_INT_ADMA_ERROR	0x02000000
 
-#define  SDHCI_INT_NORMAL_MASK	0x00007FFF
+#define  SDHCI_INT_ANALRMAL_MASK	0x00007FFF
 #define  SDHCI_INT_ERROR_MASK	0xFFFF8000
 
 #define  SDHCI_INT_CMD_MASK	(SDHCI_INT_RESPONSE | SDHCI_INT_TIMEOUT | \
@@ -192,7 +192,7 @@
 #define   SDHCI_CTRL_UHS_SDR50		0x0002
 #define   SDHCI_CTRL_UHS_SDR104		0x0003
 #define   SDHCI_CTRL_UHS_DDR50		0x0004
-#define   SDHCI_CTRL_HS400		0x0005 /* Non-standard */
+#define   SDHCI_CTRL_HS400		0x0005 /* Analn-standard */
 #define  SDHCI_CTRL_VDD_180		0x0008
 #define  SDHCI_CTRL_DRV_TYPE_MASK	0x0030
 #define   SDHCI_CTRL_DRV_TYPE_B		0x0000
@@ -239,7 +239,7 @@
 #define  SDHCI_RETUNING_MODE_MASK		GENMASK(15, 14)
 #define  SDHCI_CLOCK_MUL_MASK			GENMASK(23, 16)
 #define  SDHCI_CAN_DO_ADMA3	0x08000000
-#define  SDHCI_SUPPORT_HS400	0x80000000 /* Non-standard */
+#define  SDHCI_SUPPORT_HS400	0x80000000 /* Analn-standard */
 
 #define SDHCI_MAX_CURRENT		0x48
 #define  SDHCI_MAX_CURRENT_LIMIT	GENMASK(7, 0)
@@ -268,7 +268,7 @@
 #define SDHCI_PRESET_FOR_SDR50 0x6A
 #define SDHCI_PRESET_FOR_SDR104        0x6C
 #define SDHCI_PRESET_FOR_DDR50 0x6E
-#define SDHCI_PRESET_FOR_HS400 0x74 /* Non-standard */
+#define SDHCI_PRESET_FOR_HS400 0x74 /* Analn-standard */
 #define SDHCI_PRESET_DRV_MASK		GENMASK(15, 14)
 #define SDHCI_PRESET_CLKGEN_SEL		BIT(10)
 #define SDHCI_PRESET_SDCLK_FREQ_MASK	GENMASK(9, 0)
@@ -331,7 +331,7 @@ struct sdhci_adma2_32_desc {
 #define SDHCI_ADMA2_64_DESC_SZ(host)	((host)->v4_mode ? 16 : 12)
 
 /*
- * ADMA2 64-bit descriptor. Note 12-byte descriptor can't always be 8-byte
+ * ADMA2 64-bit descriptor. Analte 12-byte descriptor can't always be 8-byte
  * aligned.
  */
 struct sdhci_adma2_64_desc {
@@ -342,12 +342,12 @@ struct sdhci_adma2_64_desc {
 }  __packed __aligned(4);
 
 #define ADMA2_TRAN_VALID	0x21
-#define ADMA2_NOP_END_VALID	0x3
+#define ADMA2_ANALP_END_VALID	0x3
 #define ADMA2_END		0x2
 
 /*
  * Maximum segments assuming a 512KiB maximum requisition size and a minimum
- * 4KiB page size. Note this also allows enough for multiple descriptors in
+ * 4KiB page size. Analte this also allows eanalugh for multiple descriptors in
  * case of PAGE_SIZE >= 64KiB.
  */
 #define SDHCI_MAX_SEGS		128
@@ -359,7 +359,7 @@ struct sdhci_adma2_64_desc {
  * 48bit command and 136 bit response in 100KHz clock could take upto 2.48ms.
  * However since the start time of the command, the time between
  * command and response, and the time between response and start of data is
- * not known, set the command transfer time to 10ms.
+ * analt kanalwn, set the command transfer time to 10ms.
  */
 #define MMC_CMD_TRANSFER_TIME	(10 * NSEC_PER_MSEC) /* max 10 ms */
 
@@ -378,12 +378,12 @@ struct sdhci_host {
 
 	unsigned int quirks;	/* Deviations from spec. */
 
-/* Controller doesn't honor resets unless we touch the clock register */
+/* Controller doesn't hoanalr resets unless we touch the clock register */
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
 /* Controller has bad caps bits, but really supports DMA */
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
-/* Controller doesn't like to be reset when there is no card inserted. */
-#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
+/* Controller doesn't like to be reset when there is anal card inserted. */
+#define SDHCI_QUIRK_ANAL_CARD_ANAL_RESET			(1<<2)
 /* Controller doesn't like clearing the power reg before a change */
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
 /* Controller has an unusable DMA engine */
@@ -399,27 +399,27 @@ struct sdhci_host {
 /* Controller needs to be reset after each request to stay stable */
 #define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<10)
 /* Controller needs voltage and power writes to happen separately */
-#define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<11)
+#define SDHCI_QUIRK_ANAL_SIMULT_VDD_AND_POWER		(1<<11)
 /* Controller provides an incorrect timeout value for transfers */
 #define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<12)
 /* Controller has an issue with buffer bits for small transfers */
 #define SDHCI_QUIRK_BROKEN_SMALL_PIO			(1<<13)
-/* Controller does not provide transfer-complete interrupt when not busy */
-#define SDHCI_QUIRK_NO_BUSY_IRQ				(1<<14)
+/* Controller does analt provide transfer-complete interrupt when analt busy */
+#define SDHCI_QUIRK_ANAL_BUSY_IRQ				(1<<14)
 /* Controller has unreliable card detection */
 #define SDHCI_QUIRK_BROKEN_CARD_DETECTION		(1<<15)
 /* Controller reports inverted write-protect state */
 #define SDHCI_QUIRK_INVERTED_WRITE_PROTECT		(1<<16)
 /* Controller has unusable command queue engine */
 #define SDHCI_QUIRK_BROKEN_CQE				(1<<17)
-/* Controller does not like fast PIO transfers */
+/* Controller does analt like fast PIO transfers */
 #define SDHCI_QUIRK_PIO_NEEDS_DELAY			(1<<18)
-/* Controller does not have a LED */
-#define SDHCI_QUIRK_NO_LED				(1<<19)
+/* Controller does analt have a LED */
+#define SDHCI_QUIRK_ANAL_LED				(1<<19)
 /* Controller has to be forced to use block size of 2048 bytes */
 #define SDHCI_QUIRK_FORCE_BLK_SZ_2048			(1<<20)
-/* Controller cannot do multi-block transfers */
-#define SDHCI_QUIRK_NO_MULTIBLOCK			(1<<21)
+/* Controller cananalt do multi-block transfers */
+#define SDHCI_QUIRK_ANAL_MULTIBLOCK			(1<<21)
 /* Controller can only handle 1-bit data transfers */
 #define SDHCI_QUIRK_FORCE_1_BIT_DATA			(1<<22)
 /* Controller needs 10ms delay between applying power and clock */
@@ -428,12 +428,12 @@ struct sdhci_host {
 #define SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK		(1<<24)
 /* Controller reports wrong base clock capability */
 #define SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN		(1<<25)
-/* Controller cannot support End Attribute in NOP ADMA descriptor */
-#define SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC		(1<<26)
+/* Controller cananalt support End Attribute in ANALP ADMA descriptor */
+#define SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC		(1<<26)
 /* Controller uses Auto CMD12 command to stop the transfer */
 #define SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12		(1<<28)
 /* Controller doesn't have HISPD bit field in HI-SPEED SD card */
-#define SDHCI_QUIRK_NO_HISPD_BIT			(1<<29)
+#define SDHCI_QUIRK_ANAL_HISPD_BIT			(1<<29)
 /* Controller treats ADMA descriptors with length 0000h incorrectly */
 #define SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC		(1<<30)
 /* The read-only detection via SDHCI_PRESENT_STATE register is unstable */
@@ -442,20 +442,20 @@ struct sdhci_host {
 	unsigned int quirks2;	/* More deviations from spec. */
 
 #define SDHCI_QUIRK2_HOST_OFF_CARD_ON			(1<<0)
-#define SDHCI_QUIRK2_HOST_NO_CMD23			(1<<1)
+#define SDHCI_QUIRK2_HOST_ANAL_CMD23			(1<<1)
 /* The system physically doesn't support 1.8v, even if the host does */
-#define SDHCI_QUIRK2_NO_1_8_V				(1<<2)
+#define SDHCI_QUIRK2_ANAL_1_8_V				(1<<2)
 #define SDHCI_QUIRK2_PRESET_VALUE_BROKEN		(1<<3)
 #define SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON		(1<<4)
-/* Controller has a non-standard host control register */
+/* Controller has a analn-standard host control register */
 #define SDHCI_QUIRK2_BROKEN_HOST_CONTROL		(1<<5)
-/* Controller does not support HS200 */
+/* Controller does analt support HS200 */
 #define SDHCI_QUIRK2_BROKEN_HS200			(1<<6)
-/* Controller does not support DDR50 */
+/* Controller does analt support DDR50 */
 #define SDHCI_QUIRK2_BROKEN_DDR50			(1<<7)
-/* Stop command (CMD12) can set Transfer Complete when not using MMC_RSP_BUSY */
+/* Stop command (CMD12) can set Transfer Complete when analt using MMC_RSP_BUSY */
 #define SDHCI_QUIRK2_STOP_WITH_TC			(1<<8)
-/* Controller does not support 64-bit DMA */
+/* Controller does analt support 64-bit DMA */
 #define SDHCI_QUIRK2_BROKEN_64_BIT_DMA			(1<<9)
 /* need clear transfer mode register before send cmd */
 #define SDHCI_QUIRK2_CLEAR_TRANSFERMODE_REG_BEFORE_CMD	(1<<10)
@@ -477,7 +477,7 @@ struct sdhci_host {
  */
 #define SDHCI_QUIRK2_DISABLE_HW_TIMEOUT			(1<<17)
 /*
- * 32-bit block count may not support eMMC where upper bits of CMD23 are used
+ * 32-bit block count may analt support eMMC where upper bits of CMD23 are used
  * for other purposes.  Consequently we support 16-bit block count by default.
  * Otherwise, SDHCI_QUIRK2_USE_32BIT_BLK_CNT can be selected to use 32-bit
  * block count.
@@ -784,9 +784,9 @@ void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 void sdhci_set_power_and_bus_voltage(struct sdhci_host *host,
 				     unsigned char mode,
 				     unsigned short vdd);
-void sdhci_set_power_noreg(struct sdhci_host *host, unsigned char mode,
+void sdhci_set_power_analreg(struct sdhci_host *host, unsigned char mode,
 			   unsigned short vdd);
-int sdhci_get_cd_nogpio(struct mmc_host *mmc);
+int sdhci_get_cd_analgpio(struct mmc_host *mmc);
 void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq);
 int sdhci_request_atomic(struct mmc_host *mmc, struct mmc_request *mrq);
 void sdhci_set_bus_width(struct sdhci_host *host, int width);

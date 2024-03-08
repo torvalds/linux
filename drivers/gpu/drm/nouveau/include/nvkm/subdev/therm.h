@@ -26,7 +26,7 @@ enum nvkm_therm_thrs {
 };
 
 enum nvkm_therm_fan_mode {
-	NVKM_THERM_CTRL_NONE = 0,
+	NVKM_THERM_CTRL_ANALNE = 0,
 	NVKM_THERM_CTRL_MANUAL = 1,
 	NVKM_THERM_CTRL_AUTO = 2,
 };

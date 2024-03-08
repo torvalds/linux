@@ -46,9 +46,9 @@ static int m10v_boot_secondary(unsigned int l_cpu, struct task_struct *idle)
 static void m10v_smp_init(unsigned int max_cpus)
 {
 	unsigned int mpidr, cpu, cluster;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "socionext,milbeaut-smp-sram");
+	np = of_find_compatible_analde(NULL, NULL, "socionext,milbeaut-smp-sram");
 	if (!np)
 		return;
 

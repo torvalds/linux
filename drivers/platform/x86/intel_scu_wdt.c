@@ -35,10 +35,10 @@ static int tangier_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	/* IOAPIC builds identity mapping between GSI and IRQ on MID */
-	ioapic_set_alloc_attr(&info, cpu_to_node(0), 1, 0);
+	ioapic_set_alloc_attr(&info, cpu_to_analde(0), 1, 0);
 	irq = mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC, &info);
 	if (irq < 0) {
-		dev_warn(&pdev->dev, "cannot find interrupt %d in ioapic\n", gsi);
+		dev_warn(&pdev->dev, "cananalt find interrupt %d in ioapic\n", gsi);
 		return irq;
 	}
 
@@ -61,7 +61,7 @@ static int __init register_mid_wdt(void)
 
 	id = x86_match_cpu(intel_mid_cpu_ids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	wdt_dev.dev.platform_data = (struct intel_mid_wdt_pdata *)id->driver_data;
 	return platform_device_register(&wdt_dev);

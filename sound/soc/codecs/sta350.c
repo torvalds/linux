@@ -136,18 +136,18 @@ static const struct regmap_range sta350_volatile_regs_range[] = {
 };
 
 static const struct regmap_access_table sta350_write_regs = {
-	.yes_ranges =	sta350_write_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(sta350_write_regs_range),
+	.anal_ranges =	sta350_write_regs_range,
+	.n_anal_ranges =	ARRAY_SIZE(sta350_write_regs_range),
 };
 
 static const struct regmap_access_table sta350_read_regs = {
-	.yes_ranges =	sta350_read_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(sta350_read_regs_range),
+	.anal_ranges =	sta350_read_regs_range,
+	.n_anal_ranges =	ARRAY_SIZE(sta350_read_regs_range),
 };
 
 static const struct regmap_access_table sta350_volatile_regs = {
-	.yes_ranges =	sta350_volatile_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(sta350_volatile_regs_range),
+	.anal_ranges =	sta350_volatile_regs_range,
+	.n_anal_ranges =	ARRAY_SIZE(sta350_volatile_regs_range),
 };
 
 /* regulator power supply names */
@@ -183,7 +183,7 @@ static const char * const sta350_drc_ac[] = {
 	"Anti-Clipping", "Dynamic Range Compression"
 };
 static const char * const sta350_auto_gc_mode[] = {
-	"User", "AC no clipping", "AC limited clipping (10%)",
+	"User", "AC anal clipping", "AC limited clipping (10%)",
 	"DRC nighttime listening mode"
 };
 static const char * const sta350_auto_xo_mode[] = {
@@ -192,7 +192,7 @@ static const char * const sta350_auto_xo_mode[] = {
 	"340Hz", "360Hz"
 };
 static const char * const sta350_binary_output[] = {
-	"FFX 3-state output - normal operation", "Binary output"
+	"FFX 3-state output - analrmal operation", "Binary output"
 };
 static const char * const sta350_limiter_select[] = {
 	"Limiter Disabled", "Limiter #1", "Limiter #2"
@@ -207,7 +207,7 @@ static const char * const sta350_limiter_release_rate[] = {
 	"0.0264", "0.0208", "0.0198", "0.0172", "0.0147", "0.0137",
 	"0.0134", "0.0117", "0.0110", "0.0104"
 };
-static const char * const sta350_noise_shaper_type[] = {
+static const char * const sta350_analise_shaper_type[] = {
 	"Third order", "Fourth order"
 };
 
@@ -241,9 +241,9 @@ static DECLARE_TLV_DB_RANGE(sta350_limiter_drc_release_tlv,
 static SOC_ENUM_SINGLE_DECL(sta350_drc_ac_enum,
 			    STA350_CONFD, STA350_CONFD_DRC_SHIFT,
 			    sta350_drc_ac);
-static SOC_ENUM_SINGLE_DECL(sta350_noise_shaper_enum,
+static SOC_ENUM_SINGLE_DECL(sta350_analise_shaper_enum,
 			    STA350_CONFE, STA350_CONFE_NSBW_SHIFT,
-			    sta350_noise_shaper_type);
+			    sta350_analise_shaper_type);
 static SOC_ENUM_SINGLE_DECL(sta350_auto_gc_enum,
 			    STA350_AUTO1, STA350_AUTO1_AMGC_SHIFT,
 			    sta350_auto_gc_mode);
@@ -314,7 +314,7 @@ static int sta350_coefficient_get(struct snd_kcontrol *kcontrol,
 	regmap_read(sta350->regmap, STA350_CFUD, &cfud);
 	cfud &= 0xf0;
 	/*
-	 * chip documentation does not say if the bits are self clearing,
+	 * chip documentation does analt say if the bits are self clearing,
 	 * so do it explicitly
 	 */
 	regmap_write(sta350->regmap, STA350_CFUD, cfud);
@@ -354,7 +354,7 @@ static int sta350_coefficient_put(struct snd_kcontrol *kcontrol,
 	regmap_read(sta350->regmap, STA350_CFUD, &cfud);
 	cfud &= 0xf0;
 	/*
-	 * chip documentation does not say if the bits are self clearing,
+	 * chip documentation does analt say if the bits are self clearing,
 	 * so do it explicitly
 	 */
 	regmap_write(sta350->regmap, STA350_CFUD, cfud);
@@ -397,7 +397,7 @@ static int sta350_sync_coef_shadow(struct snd_soc_component *component)
 		regmap_write(sta350->regmap, STA350_B1CF3,
 			     (sta350->coef_shadow[i]) & 0xff);
 		/*
-		 * chip documentation does not say if the bits are
+		 * chip documentation does analt say if the bits are
 		 * self-clearing, so do it explicitly
 		 */
 		regmap_write(sta350->regmap, STA350_CFUD, cfud);
@@ -453,7 +453,7 @@ SOC_SINGLE("Post-scale Link Switch",
 SOC_SINGLE("Biquad Coefficient Link Switch",
 	   STA350_CONFD, STA350_CONFD_BQL_SHIFT, 1, 0),
 SOC_ENUM("Compressor/Limiter Switch", sta350_drc_ac_enum),
-SOC_ENUM("Noise Shaper Bandwidth", sta350_noise_shaper_enum),
+SOC_ENUM("Analise Shaper Bandwidth", sta350_analise_shaper_enum),
 SOC_SINGLE("Zero-detect Mute Enable Switch",
 	   STA350_CONFD, STA350_CONFD_ZDE_SHIFT, 1, 0),
 SOC_SINGLE("Submix Mode Switch",
@@ -554,7 +554,7 @@ SINGLE_COEF("Ch3 - Mix 2", 61),
 };
 
 static const struct snd_soc_dapm_widget sta350_dapm_widgets[] = {
-SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_ANALPM, 0, 0),
 SND_SOC_DAPM_OUTPUT("LEFT"),
 SND_SOC_DAPM_OUTPUT("RIGHT"),
 SND_SOC_DAPM_OUTPUT("SUB"),
@@ -591,15 +591,15 @@ static int mcs_ratio_table[3][6] = {
 /**
  * sta350_set_dai_sysclk - configure MCLK
  * @codec_dai: the codec DAI
- * @clk_id: the clock ID (ignored)
+ * @clk_id: the clock ID (iganalred)
  * @freq: the MCLK input frequency
- * @dir: the clock direction (ignored)
+ * @dir: the clock direction (iganalred)
  *
  * The value of MCLK is used to determine which sample rates are supported
  * by the STA350, based on the mcs_ratio_table.
  *
  * This function must be called by the machine driver's 'startup' function,
- * otherwise the list of supported sample rates will not be available in
+ * otherwise the list of supported sample rates will analt be available in
  * time for ALSA.
  */
 static int sta350_set_dai_sysclk(struct snd_soc_dai *codec_dai,
@@ -665,7 +665,7 @@ static int sta350_set_dai_fmt(struct snd_soc_dai *codec_dai,
  * sta350_hw_params - program the STA350 with the given hardware parameters.
  * @substream: the audio stream
  * @params: the hardware parameters to set
- * @dai: the SOC DAI (ignored)
+ * @dai: the SOC DAI (iganalred)
  *
  * This function programs the hardware with the values provided.
  * Specifically, the sample rate and the data format.
@@ -1005,7 +1005,7 @@ static int sta350_probe(struct snd_soc_component *component)
 				STA350_MISC1_BRIDGOFF : 0);
 	regmap_update_bits(sta350->regmap, STA350_MISC1,
 			   STA350_MISC1_NSHHPEN,
-			   pdata->noise_shape_dc_cut ?
+			   pdata->analise_shape_dc_cut ?
 				STA350_MISC1_NSHHPEN : 0);
 	regmap_update_bits(sta350->regmap, STA350_MISC1,
 			   STA350_MISC1_RPDNEN,
@@ -1086,7 +1086,7 @@ static const char * const sta350_ffx_modes[] = {
 
 static int sta350_probe_dt(struct device *dev, struct sta350_priv *sta350)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct sta350_platform_data *pdata;
 	const char *ffx_power_mode;
 	u16 tmp;
@@ -1094,7 +1094,7 @@ static int sta350_probe_dt(struct device *dev, struct sta350_priv *sta350)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	of_property_read_u8(np, "st,output-conf",
 			    &pdata->output_conf);
@@ -1156,8 +1156,8 @@ static int sta350_probe_dt(struct device *dev, struct sta350_priv *sta350)
 		of_property_read_bool(np, "st,activate-mute-output");
 	pdata->bridge_immediate_off =
 		of_property_read_bool(np, "st,bridge-immediate-off");
-	pdata->noise_shape_dc_cut =
-		of_property_read_bool(np, "st,noise-shape-dc-cut");
+	pdata->analise_shape_dc_cut =
+		of_property_read_bool(np, "st,analise-shape-dc-cut");
 	pdata->powerdown_master_vol =
 		of_property_read_bool(np, "st,powerdown-master-volume");
 
@@ -1183,13 +1183,13 @@ static int sta350_i2c_probe(struct i2c_client *i2c)
 
 	sta350 = devm_kzalloc(dev, sizeof(struct sta350_priv), GFP_KERNEL);
 	if (!sta350)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&sta350->coeff_lock);
 	sta350->pdata = dev_get_platdata(dev);
 
 #ifdef CONFIG_OF
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		ret = sta350_probe_dt(dev, sta350);
 		if (ret < 0)
 			return ret;

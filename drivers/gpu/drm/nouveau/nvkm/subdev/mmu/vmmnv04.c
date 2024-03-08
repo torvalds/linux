@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -83,7 +83,7 @@ nv04_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	union {
 		struct nv04_vmm_map_vn vn;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	if ((ret = nvif_unvers(ret, &argv, &argc, args->vn)))
 		VMM_DEBUG(vmm, "args");
 	return ret;
@@ -114,7 +114,7 @@ nv04_vmm_new_(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	if (ret)
 		return ret;
 
-	return nvif_unvers(-ENOSYS, &argv, &argc, args->vn);
+	return nvif_unvers(-EANALSYS, &argv, &argc, args->vn);
 }
 
 int

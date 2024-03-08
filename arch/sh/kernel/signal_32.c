@@ -15,7 +15,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -42,7 +42,7 @@ struct fdpic_func_descriptor {
  * stack frame and previous contents of the stack.  This allows
  * frame unwinding in a function epilogue but only if a frame
  * pointer is used in the function.  This is necessary because
- * current gcc compilers (<4.3) do not generate unwind info on
+ * current gcc compilers (<4.3) do analt generate unwind info on
  * SH for function epilogues.
  */
 #define UNWINDGUARD 64
@@ -53,9 +53,9 @@ struct fdpic_func_descriptor {
 
 #define MOVW(n)	 (0x9300|((n)-2))	/* Move mem word at PC+n to R3 */
 #if defined(CONFIG_CPU_SH2)
-#define TRAP_NOARG 0xc320		/* Syscall w/no args (NR in R3) */
+#define TRAP_ANALARG 0xc320		/* Syscall w/anal args (NR in R3) */
 #else
-#define TRAP_NOARG 0xc310		/* Syscall w/no args (NR in R3) */
+#define TRAP_ANALARG 0xc310		/* Syscall w/anal args (NR in R3) */
 #endif
 #define OR_R0_R0 0x200b			/* or r0,r0 (insert to avoid hardware bug) */
 
@@ -160,7 +160,7 @@ asmlinkage int sys_sigreturn(void)
 	int r0;
 
         /* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
@@ -190,7 +190,7 @@ asmlinkage int sys_rt_sigreturn(void)
 	int r0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
@@ -241,7 +241,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= save_sigcontext_fpu(sc, regs);
 #endif
 
-	/* non-iBCS2 extensions.. */
+	/* analn-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
 
 	return err;
@@ -294,7 +294,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	} else {
 		/* Generate return code (system call to sigreturn) */
 		err |= __put_user(MOVW(7), &frame->retcode[0]);
-		err |= __put_user(TRAP_NOARG, &frame->retcode[1]);
+		err |= __put_user(TRAP_ANALARG, &frame->retcode[1]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[2]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[3]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[4]);
@@ -364,7 +364,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	} else {
 		/* Generate return code (system call to rt_sigreturn) */
 		err |= __put_user(MOVW(7), &frame->retcode[0]);
-		err |= __put_user(TRAP_NOARG, &frame->retcode[1]);
+		err |= __put_user(TRAP_ANALARG, &frame->retcode[1]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[2]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[3]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[4]);
@@ -406,23 +406,23 @@ static inline void
 handle_syscall_restart(unsigned long save_r0, struct pt_regs *regs,
 		       struct sigaction *sa)
 {
-	/* If we're not from a syscall, bail out */
+	/* If we're analt from a syscall, bail out */
 	if (regs->tra < 0)
 		return;
 
 	/* check for system call restart.. */
 	switch (regs->regs[0]) {
 		case -ERESTART_RESTARTBLOCK:
-		case -ERESTARTNOHAND:
-		no_system_call_restart:
+		case -ERESTARTANALHAND:
+		anal_system_call_restart:
 			regs->regs[0] = -EINTR;
 			break;
 
 		case -ERESTARTSYS:
 			if (!(sa->sa_flags & SA_RESTART))
-				goto no_system_call_restart;
+				goto anal_system_call_restart;
 			fallthrough;
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->regs[0] = save_r0;
 			regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 			break;
@@ -448,11 +448,11 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs, unsigned int save_r0)
 }
 
 /*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  *
- * Note that we go through the signals twice: once to check the signals that
+ * Analte that we go through the signals twice: once to check the signals that
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
@@ -479,10 +479,10 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 
 	/* Did we come from a system call? */
 	if (regs->tra >= 0) {
-		/* Restart the system call - no handlers present */
-		if (regs->regs[0] == -ERESTARTNOHAND ||
+		/* Restart the system call - anal handlers present */
+		if (regs->regs[0] == -ERESTARTANALHAND ||
 		    regs->regs[0] == -ERESTARTSYS ||
-		    regs->regs[0] == -ERESTARTNOINTR) {
+		    regs->regs[0] == -ERESTARTANALINTR) {
 			regs->regs[0] = save_r0;
 			regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 		} else if (regs->regs[0] == -ERESTART_RESTARTBLOCK) {
@@ -492,19 +492,19 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
+	 * If there's anal signal to deliver, we just put the saved sigmask
 	 * back.
 	 */
 	restore_saved_sigmask();
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned int save_r0,
+asmlinkage void do_analtify_resume(struct pt_regs *regs, unsigned int save_r0,
 				 unsigned long thread_info_flags)
 {
 	/* deal with pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL))
 		do_signal(regs, save_r0);
 
-	if (thread_info_flags & _TIF_NOTIFY_RESUME)
+	if (thread_info_flags & _TIF_ANALTIFY_RESUME)
 		resume_user_mode_work(regs);
 }

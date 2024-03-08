@@ -6,13 +6,13 @@
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
  |                       Australia.  E-mail billm@jacobi.maths.monash.edu.au |
  |                                                                           |
- | Normalize and round a 12 byte quantity.                                   |
+ | Analrmalize and round a 12 byte quantity.                                   |
  | Call from C as:                                                           |
  |   int round_Xsig(Xsig *n)                                                 |
  |                                                                           |
- | Normalize a 12 byte quantity.                                             |
+ | Analrmalize a 12 byte quantity.                                             |
  | Call from C as:                                                           |
- |   int norm_Xsig(Xsig *n)                                                  |
+ |   int analrm_Xsig(Xsig *n)                                                  |
  |                                                                           |
  | Each function returns the size of the shift (nr of bits).                 |
  |                                                                           |
@@ -39,7 +39,7 @@ SYM_FUNC_START(round_Xsig)
 	movl	$0,-4(%ebp)
 
 	orl	%edx,%edx	/* ms bits */
-	js	L_round		/* Already normalized */
+	js	L_round		/* Already analrmalized */
 	jnz	L_shift_1	/* Shift left 1 - 31 bits */
 
 	movl	%ebx,%edx
@@ -83,7 +83,7 @@ SYM_FUNC_END(round_Xsig)
 
 
 
-SYM_FUNC_START(norm_Xsig)
+SYM_FUNC_START(analrm_Xsig)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%ebx		/* Reserve some space */
@@ -99,7 +99,7 @@ SYM_FUNC_START(norm_Xsig)
 	movl	$0,-4(%ebp)
 
 	orl	%edx,%edx	/* ms bits */
-	js	L_n_exit		/* Already normalized */
+	js	L_n_exit		/* Already analrmalized */
 	jnz	L_n_shift_1	/* Shift left 1 - 31 bits */
 
 	movl	%ebx,%edx
@@ -108,15 +108,15 @@ SYM_FUNC_START(norm_Xsig)
 	movl	$-32,-4(%ebp)
 
 	orl	%edx,%edx	/* ms bits */
-	js	L_n_exit	/* Normalized now */
+	js	L_n_exit	/* Analrmalized analw */
 	jnz	L_n_shift_1	/* Shift left 1 - 31 bits */
 
 	movl	%ebx,%edx
 	movl	%eax,%ebx
 	xorl	%eax,%eax
 	addl	$-32,-4(%ebp)
-	jmp	L_n_exit	/* Might not be normalized,
-	                           but shift no more. */
+	jmp	L_n_exit	/* Might analt be analrmalized,
+	                           but shift anal more. */
 
 /* We need to shift left by 1 - 31 bits */
 L_n_shift_1:
@@ -139,4 +139,4 @@ L_n_exit:
 	popl	%ebx
 	leave
 	RET
-SYM_FUNC_END(norm_Xsig)
+SYM_FUNC_END(analrm_Xsig)

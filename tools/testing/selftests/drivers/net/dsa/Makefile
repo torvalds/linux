@@ -7,7 +7,7 @@ TEST_PROGS = bridge_locked_port.sh \
 	bridge_vlan_mcast.sh \
 	bridge_vlan_unaware.sh \
 	local_termination.sh \
-	no_forwarding.sh \
+	anal_forwarding.sh \
 	tc_actions.sh \
 	test_bridge_fdb_stress.sh
 

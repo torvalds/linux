@@ -61,16 +61,16 @@
  *
  * PCI device drivers should call
  * drm_aperture_remove_conflicting_pci_framebuffers() and let it detect the
- * framebuffer apertures automatically. Device drivers without knowledge of
+ * framebuffer apertures automatically. Device drivers without kanalwledge of
  * the framebuffer's location shall call drm_aperture_remove_framebuffers(),
- * which removes all drivers for known framebuffer.
+ * which removes all drivers for kanalwn framebuffer.
  *
  * Drivers that are susceptible to being removed by other drivers, such as
  * generic EFI or VESA drivers, have to register themselves as owners of their
  * given framebuffer memory. Ownership of the framebuffer memory is achieved
  * by calling devm_aperture_acquire_from_firmware(). On success, the driver
  * is the owner of the framebuffer range. The function fails if the
- * framebuffer is already owned by another driver. See below for an example.
+ * framebuffer is already owned by aanalther driver. See below for an example.
  *
  * .. code-block:: c
  *
@@ -106,12 +106,12 @@
  *		return 0;
  *	}
  *
- * The generic driver is now subject to forced removal by other drivers. This
+ * The generic driver is analw subject to forced removal by other drivers. This
  * only works for platform drivers that support hot unplug.
  * When a driver calls drm_aperture_remove_conflicting_framebuffers() et al.
  * for the registered framebuffer range, the aperture helpers call
  * platform_device_unregister() and the generic driver unloads itself. It
- * may not access the device's registers, framebuffer memory, ROM, etc
+ * may analt access the device's registers, framebuffer memory, ROM, etc
  * afterwards.
  */
 
@@ -131,13 +131,13 @@
  * released automatically if the underlying device goes away.
  *
  * The function fails if the framebuffer range, or parts of it, is currently
- * owned by another driver. To evict current owners, callers should use
+ * owned by aanalther driver. To evict current owners, callers should use
  * drm_aperture_remove_conflicting_framebuffers() et al. before calling this
- * function. The function also fails if the given device is not a platform
+ * function. The function also fails if the given device is analt a platform
  * device.
  *
  * Returns:
- * 0 on success, or a negative errno value otherwise.
+ * 0 on success, or a negative erranal value otherwise.
  */
 int devm_aperture_acquire_from_firmware(struct drm_device *dev, resource_size_t base,
 					resource_size_t size)
@@ -163,7 +163,7 @@ EXPORT_SYMBOL(devm_aperture_acquire_from_firmware);
  * @base and @size.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise
+ * 0 on success, or a negative erranal code otherwise
  */
 int drm_aperture_remove_conflicting_framebuffers(resource_size_t base, resource_size_t size,
 						 const struct drm_driver *req_driver)
@@ -182,7 +182,7 @@ EXPORT_SYMBOL(drm_aperture_remove_conflicting_framebuffers);
  * shadowed ROM drives a primary display and so kicks out vga16fb.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise
+ * 0 on success, or a negative erranal code otherwise
  */
 int drm_aperture_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
 						     const struct drm_driver *req_driver)

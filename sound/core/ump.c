@@ -132,7 +132,7 @@ int snd_ump_endpoint_new(struct snd_card *card, char *id, int device,
 
 	ump = kzalloc(sizeof(*ump), GFP_KERNEL);
 	if (!ump)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&ump->block_list);
 	mutex_init(&ump->open_mutex);
 	init_waitqueue_head(&ump->stream_wait);
@@ -167,7 +167,7 @@ EXPORT_SYMBOL_GPL(snd_ump_endpoint_new);
 
 /*
  * Device register / unregister hooks;
- *  do nothing, placeholders for avoiding the default rawmidi handling
+ *  do analthing, placeholders for avoiding the default rawmidi handling
  */
 
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
@@ -342,7 +342,7 @@ int snd_ump_transmit(struct snd_ump_endpoint *ump, u32 *buffer, int count)
 	int err;
 
 	if (!substream)
-		return -ENODEV;
+		return -EANALDEV;
 	err = snd_rawmidi_transmit(substream, (char *)buffer, count);
 	/* received either data or an error? */
 	if (err)
@@ -374,7 +374,7 @@ int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (!fb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fb->ump = ump;
 	fb->info.card = ump->info.card;
@@ -416,7 +416,7 @@ static int snd_ump_ioctl_block(struct snd_ump_endpoint *ump,
 		return -EFAULT;
 	fb = snd_ump_get_block(ump, id);
 	if (!fb)
-		return -ENOENT;
+		return -EANALENT;
 	if (copy_to_user(argp, &fb->info, sizeof(fb->info)))
 		return -EFAULT;
 	return 0;
@@ -438,8 +438,8 @@ static long snd_ump_ioctl(struct snd_rawmidi *rmidi, unsigned int cmd,
 	case SNDRV_UMP_IOCTL_BLOCK_INFO:
 		return snd_ump_ioctl_block(ump, argp);
 	default:
-		ump_dbg(ump, "rawmidi: unknown command = 0x%x\n", cmd);
-		return -ENOTTY;
+		ump_dbg(ump, "rawmidi: unkanalwn command = 0x%x\n", cmd);
+		return -EANALTTY;
 	}
 }
 
@@ -453,7 +453,7 @@ static const char *ump_direction_string(int dir)
 	case SNDRV_UMP_DIR_BIDIRECTION:
 		return "bidirection";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -467,7 +467,7 @@ static const char *ump_ui_hint_string(int dir)
 	case SNDRV_UMP_BLOCK_UI_HINT_BOTH:
 		return "both";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -496,7 +496,7 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 			    ump->info.sw_revision[3]);
 	}
 	snd_iprintf(buffer, "Static Blocks: %s\n",
-		    (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS) ? "Yes" : "No");
+		    (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS) ? "Anal" : "Anal");
 	snd_iprintf(buffer, "Num Blocks: %d\n\n", ump->info.num_blocks);
 
 	list_for_each_entry(fb, &ump->block_list, list) {
@@ -505,12 +505,12 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "  Direction: %s\n",
 			    ump_direction_string(fb->info.direction));
 		snd_iprintf(buffer, "  Active: %s\n",
-			    fb->info.active ? "Yes" : "No");
+			    fb->info.active ? "Anal" : "Anal");
 		snd_iprintf(buffer, "  Groups: %d-%d\n",
 			    fb->info.first_group + 1,
 			    fb->info.first_group + fb->info.num_groups);
 		snd_iprintf(buffer, "  Is MIDI1: %s%s\n",
-			    (fb->info.flags & SNDRV_UMP_BLOCK_IS_MIDI1) ? "Yes" : "No",
+			    (fb->info.flags & SNDRV_UMP_BLOCK_IS_MIDI1) ? "Anal" : "Anal",
 			    (fb->info.flags & SNDRV_UMP_BLOCK_IS_LOWSPEED) ? " (Low Speed)" : "");
 		if (ump->info.version) {
 			snd_iprintf(buffer, "  MIDI-CI Version: %d\n",
@@ -607,7 +607,7 @@ static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
 {
 	ump->info.version = (buf->ep_info.ump_version_major << 8) |
-		buf->ep_info.ump_version_minor;
+		buf->ep_info.ump_version_mianalr;
 	ump->info.num_blocks = buf->ep_info.num_function_blocks;
 	if (ump->info.num_blocks > SNDRV_UMP_MAX_BLOCKS) {
 		ump_info(ump, "Invalid function blocks %d, fallback to 1\n",
@@ -667,8 +667,8 @@ static int ump_handle_product_id_msg(struct snd_ump_endpoint *ump,
 				 buf->raw, 2);
 }
 
-/* notify the protocol change to sequencer */
-static void seq_notify_protocol(struct snd_ump_endpoint *ump)
+/* analtify the protocol change to sequencer */
+static void seq_analtify_protocol(struct snd_ump_endpoint *ump)
 {
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	if (ump->seq_ops && ump->seq_ops->switch_protocol)
@@ -692,7 +692,7 @@ int snd_ump_switch_protocol(struct snd_ump_endpoint *ump, unsigned int protocol)
 	ump->info.protocol = protocol;
 	ump_dbg(ump, "New protocol = %x (caps = %x)\n",
 		protocol, ump->info.protocol_caps);
-	seq_notify_protocol(ump);
+	seq_analtify_protocol(ump);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(snd_ump_switch_protocol);
@@ -746,13 +746,13 @@ static bool is_fb_info_updated(struct snd_ump_endpoint *ump,
 	return memcmp(&fb->info, tmpbuf, sizeof(tmpbuf)) != 0;
 }
 
-/* notify the FB info/name change to sequencer */
-static void seq_notify_fb_change(struct snd_ump_endpoint *ump,
+/* analtify the FB info/name change to sequencer */
+static void seq_analtify_fb_change(struct snd_ump_endpoint *ump,
 				 struct snd_ump_block *fb)
 {
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
-	if (ump->seq_ops && ump->seq_ops->notify_fb_change)
-		ump->seq_ops->notify_fb_change(ump, fb);
+	if (ump->seq_ops && ump->seq_ops->analtify_fb_change)
+		ump->seq_ops->analtify_fb_change(ump, fb);
 #endif
 }
 
@@ -768,19 +768,19 @@ static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
 
 	/* complain only if updated after parsing */
 	if (!fb && ump->parsed) {
-		ump_info(ump, "Function Block Info Update for non-existing block %d\n",
+		ump_info(ump, "Function Block Info Update for analn-existing block %d\n",
 			 blk);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* When updated after the initial parse, check the FB info update */
 	if (ump->parsed && !is_fb_info_updated(ump, fb, buf))
-		return 1; /* no content change */
+		return 1; /* anal content change */
 
 	if (fb) {
 		fill_fb_info(ump, &fb->info, buf);
 		if (ump->parsed)
-			seq_notify_fb_change(ump, fb);
+			seq_analtify_fb_change(ump, fb);
 	}
 
 	return 1; /* finished */
@@ -797,13 +797,13 @@ static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
 	blk = buf->fb_name.function_block_id;
 	fb = snd_ump_get_block(ump, blk);
 	if (!fb)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = ump_append_string(ump, fb->info.name, sizeof(fb->info.name),
 				buf->raw, 3);
-	/* notify the FB name update to sequencer, too */
+	/* analtify the FB name update to sequencer, too */
 	if (ret > 0 && ump->parsed)
-		seq_notify_fb_change(ump, fb);
+		seq_analtify_fb_change(ump, fb);
 	return ret;
 }
 
@@ -860,7 +860,7 @@ static void ump_handle_stream_msg(struct snd_ump_endpoint *ump,
 	int ret;
 
 	/* UMP stream message suppressed (for gadget UMP)? */
-	if (ump->no_process_stream)
+	if (ump->anal_process_stream)
 		return;
 
 	BUILD_BUG_ON(sizeof(*msg) != 16);
@@ -909,7 +909,7 @@ static void ump_handle_stream_msg(struct snd_ump_endpoint *ump,
  * snd_ump_parse_endpoint - parse endpoint and create function blocks
  * @ump: UMP object
  *
- * Returns 0 for successful parse, -ENODEV if device doesn't respond
+ * Returns 0 for successful parse, -EANALDEV if device doesn't respond
  * (or the query is unsupported), or other error code for serious errors.
  */
 int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
@@ -918,7 +918,7 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 	u32 msg;
 
 	if (!(ump->core.info_flags & SNDRV_RAWMIDI_INFO_DUPLEX))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = ump_request_open(ump);
 	if (err < 0) {
@@ -971,7 +971,7 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 	ump->parsed = true;
 	ump_request_close(ump);
 	if (err == -ETIMEDOUT)
-		err = -ENODEV;
+		err = -EANALDEV;
 	return err;
 }
 EXPORT_SYMBOL_GPL(snd_ump_parse_endpoint);
@@ -1136,10 +1136,10 @@ static int fill_legacy_mapping(struct snd_ump_endpoint *ump)
 				group_maps |= 1U << (fb->info.first_group + i);
 		}
 		if (!group_maps)
-			ump_info(ump, "No UMP Group is found in FB\n");
+			ump_info(ump, "Anal UMP Group is found in FB\n");
 	}
 
-	/* use all groups for non-static case */
+	/* use all groups for analn-static case */
 	if (!group_maps)
 		group_maps = (1U << SNDRV_UMP_MAX_GROUPS) - 1;
 
@@ -1171,7 +1171,7 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	ump->out_cvts = kcalloc(SNDRV_UMP_MAX_GROUPS,
 				sizeof(*ump->out_cvts), GFP_KERNEL);
 	if (!ump->out_cvts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num = fill_legacy_mapping(ump);
 

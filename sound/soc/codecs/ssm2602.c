@@ -38,7 +38,7 @@ struct ssm2602_priv {
  * ssm2602 register cache
  * We can't read the ssm2602 register space when we are
  * using 2 wire for device control, so we cache them instead.
- * There is no point in caching the reset register
+ * There is anal point in caching the reset register
  */
 static const struct reg_default ssm2602_reg[SSM2602_CACHEREGNUM] = {
 	{ .reg = 0x00, .def = 0x0097 },
@@ -66,12 +66,12 @@ static const struct reg_sequence ssm2602_patch[] = {
 };
 
 
-/*Appending several "None"s just for OSS mixer use*/
+/*Appending several "Analne"s just for OSS mixer use*/
 static const char *ssm2602_input_select[] = {
 	"Line", "Mic",
 };
 
-static const char *ssm2602_deemph[] = {"None", "32Khz", "44.1Khz", "48Khz"};
+static const char *ssm2602_deemph[] = {"Analne", "32Khz", "44.1Khz", "48Khz"};
 
 static const struct soc_enum ssm2602_enum[] = {
 	SOC_ENUM_SINGLE(SSM2602_APANA, 2, ARRAY_SIZE(ssm2602_input_select),
@@ -161,7 +161,7 @@ SND_SOC_DAPM_MIXER("Output Mixer", SSM2602_PWR, 4, 1,
 	ssm260x_output_mixer_controls,
 	ARRAY_SIZE(ssm260x_output_mixer_controls)),
 
-SND_SOC_DAPM_MUX("Input Mux", SND_SOC_NOPM, 0, 0, &ssm2602_input_mux_controls),
+SND_SOC_DAPM_MUX("Input Mux", SND_SOC_ANALPM, 0, 0, &ssm2602_input_mux_controls),
 SND_SOC_DAPM_MICBIAS("Mic Bias", SSM2602_PWR, 1, 1),
 
 SND_SOC_DAPM_SWITCH_E("Mic Switch", SSM2602_APANA, 1, 1, &mic_ctl,
@@ -173,7 +173,7 @@ SND_SOC_DAPM_INPUT("MICIN"),
 };
 
 static const struct snd_soc_dapm_widget ssm2604_dapm_widgets[] = {
-SND_SOC_DAPM_MIXER("Output Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("Output Mixer", SND_SOC_ANALPM, 0, 0,
 	ssm260x_output_mixer_controls,
 	ARRAY_SIZE(ssm260x_output_mixer_controls) - 1), /* Last element is the mic */
 };
@@ -529,7 +529,7 @@ static const struct snd_soc_dai_ops ssm2602_dai_ops = {
 	.mute_stream	= ssm2602_mute,
 	.set_sysclk	= ssm2602_set_dai_sysclk,
 	.set_fmt	= ssm2602_set_dai_fmt,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ssm2602_dai = {
@@ -678,7 +678,7 @@ int ssm2602_probe(struct device *dev, enum ssm2602_type type,
 
 	ssm2602 = devm_kzalloc(dev, sizeof(*ssm2602), GFP_KERNEL);
 	if (ssm2602 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, ssm2602);
 	ssm2602->type = type;

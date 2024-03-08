@@ -48,10 +48,10 @@ static inline struct xhci_hcd_histb *hcd_to_histb(struct usb_hcd *hcd)
 
 static int xhci_histb_config(struct xhci_hcd_histb *histb)
 {
-	struct device_node *np = histb->dev->of_node;
+	struct device_analde *np = histb->dev->of_analde;
 	u32 regval;
 
-	if (of_property_match_string(np, "phys-names", "inno") >= 0) {
+	if (of_property_match_string(np, "phys-names", "inanal") >= 0) {
 		/* USB2 PHY chose ulpi 8bit interface */
 		regval = readl(histb->ctrl + REG_GUSB2PHYCFG0);
 		regval &= ~BIT_UTMI_ULPI;
@@ -193,15 +193,15 @@ static int xhci_histb_probe(struct platform_device *pdev)
 	struct xhci_hcd *xhci;
 	struct resource *res;
 	int irq;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver = &xhci_histb_hc_driver;
 	histb = devm_kzalloc(dev, sizeof(*histb), GFP_KERNEL);
 	if (!histb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	histb->dev = dev;
 
@@ -234,7 +234,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd(driver, dev, dev_name(dev));
 	if (!hcd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto disable_pm;
 	}
 
@@ -257,7 +257,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 	xhci->shared_hcd = usb_create_shared_hcd(driver, dev, dev_name(dev),
 						 hcd);
 	if (!xhci->shared_hcd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto disable_host;
 	}
 
@@ -267,7 +267,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 	if (device_property_read_bool(dev, "usb3-lpm-capable"))
 		xhci->quirks |= XHCI_LPM_SUPPORT;
 
-	/* imod_interval is the interrupt moderation value in nanoseconds. */
+	/* imod_interval is the interrupt moderation value in naanalseconds. */
 	xhci->imod_interval = 40000;
 	device_property_read_u32(dev, "imod-interval-ns",
 				 &xhci->imod_interval);
@@ -284,7 +284,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 		goto dealloc_usb2_hcd;
 
 	device_enable_async_suspend(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	/*
 	 * Prevent runtime pm from being on as default, users should enable

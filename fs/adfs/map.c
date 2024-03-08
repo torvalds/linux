@@ -37,7 +37,7 @@
  * of this fragment to the start of the next free fragment.
  *
  * Objects stored on the disk are allocated object ids (we use these as
- * our inode numbers.)  Object ids contain a fragment id and an optional
+ * our ianalde numbers.)  Object ids contain a fragment id and an optional
  * offset.  This allows a directory fragment to contain small files
  * associated with that directory.
  */
@@ -61,7 +61,7 @@ static DEFINE_RWLOCK(adfs_map_lock);
 
 /*
  * return the map bit offset of the fragment frag_id in the zone dm.
- * Note that the loop is optimised for best asm code - look at the
+ * Analte that the loop is optimised for best asm code - look at the
  * output of:
  *  gcc -D__KERNEL__ -O2 -I../../include -o - -S map.c
  */
@@ -109,7 +109,7 @@ error:
  * Scan the free space map, for this zone, calculating the total
  * number of map bits in each free space fragment.
  *
- * Note: idmask is limited to 15 bits [3.2]
+ * Analte: idmask is limited to 15 bits [3.2]
  */
 static unsigned int
 scan_free_map(struct adfs_sb_info *asb, struct adfs_discmap *dm)
@@ -129,7 +129,7 @@ scan_free_map(struct adfs_sb_info *asb, struct adfs_discmap *dm)
 	frag = GET_FRAG_ID(map, start, idmask);
 
 	/*
-	 * If the freelink is null, then no free fragments
+	 * If the freelink is null, then anal free fragments
 	 * exist in this zone.
 	 */
 	if (frag == 0)
@@ -247,7 +247,7 @@ int adfs_map_lookup(struct super_block *sb, u32 frag_id, unsigned int offset)
 		return secoff + signed_asl(result, asb->s_map2blk);
 	}
 
-	adfs_error(sb, "fragment 0x%04x at offset %d not found in map",
+	adfs_error(sb, "fragment 0x%04x at offset %d analt found in map",
 		   frag_id, offset);
 	return 0;
 
@@ -375,8 +375,8 @@ struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecor
 
 	dm = kmalloc_array(nzones, sizeof(*dm), GFP_KERNEL);
 	if (dm == NULL) {
-		adfs_error(sb, "not enough memory");
-		return ERR_PTR(-ENOMEM);
+		adfs_error(sb, "analt eanalugh memory");
+		return ERR_PTR(-EANALMEM);
 	}
 
 	adfs_map_layout(dm, nzones, dr);

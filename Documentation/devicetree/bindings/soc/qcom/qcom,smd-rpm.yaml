@@ -14,14 +14,14 @@ description: |
 
   The SMD or GLINK information for the RPM edge should be filled out.  See
   qcom,smd.yaml for the required edge properties.  All SMD/GLINK related
-  properties will reside within the RPM node itself.
+  properties will reside within the RPM analde itself.
 
-  The RPM exposes resources to its subnodes.  The rpm_requests node must be
-  present and this subnode may contain children that designate regulator
+  The RPM exposes resources to its subanaldes.  The rpm_requests analde must be
+  present and this subanalde may contain children that designate regulator
   resources.
 
   Refer to Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
-  for information on the regulator subnodes that can exist under the
+  for information on the regulator subanaldes that can exist under the
   rpm_requests.
 
 maintainers:

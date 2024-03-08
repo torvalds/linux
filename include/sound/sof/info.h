@@ -37,14 +37,14 @@ enum sof_ipc_ext_data {
 };
 
 /* Build u32 number in format MMmmmppp */
-#define SOF_FW_VER(MAJOR, MINOR, PATCH) ((uint32_t)( \
-	((MAJOR) << 24) | ((MINOR) << 12) | (PATCH)))
+#define SOF_FW_VER(MAJOR, MIANALR, PATCH) ((uint32_t)( \
+	((MAJOR) << 24) | ((MIANALR) << 12) | (PATCH)))
 
 /* FW version - SOF_IPC_GLB_VERSION */
 struct sof_ipc_fw_version {
 	struct sof_ipc_hdr hdr;
 	uint16_t major;
-	uint16_t minor;
+	uint16_t mianalr;
 	uint16_t micro;
 	uint16_t build;
 	uint8_t date[12];
@@ -112,7 +112,7 @@ struct sof_ipc_window {
 struct sof_ipc_cc_version {
 	struct sof_ipc_ext_data_hdr ext_hdr;
 	uint32_t major;
-	uint32_t minor;
+	uint32_t mianalr;
 	uint32_t micro;
 
 	/* reserved for future use */

@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2021 Chukun Pan <amadeus@jmu.edu.cn>
  *
- * Based on sun50i-h5-nanopi-neo-plus2.dts, which is:
- *   Copyright (C) 2017 Antony Antony <antony@phenome.org>
+ * Based on sun50i-h5-naanalpi-neo-plus2.dts, which is:
+ *   Copyright (C) 2017 Antony Antony <antony@pheanalme.org>
  *   Copyright (C) 2016 ARM Ltd.
  */
 
@@ -16,8 +16,8 @@
 #include <dt-bindings/leds/common.h>
 
 / {
-	model = "FriendlyARM NanoPi R1S H5";
-	compatible = "friendlyarm,nanopi-r1s-h5", "allwinner,sun50i-h5";
+	model = "FriendlyARM NaanalPi R1S H5";
+	compatible = "friendlyarm,naanalpi-r1s-h5", "allwinner,sun50i-h5";
 
 	aliases {
 		ethernet0 = &emac;
@@ -167,7 +167,7 @@
 	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	rtl8189etv: sdio_wifi@1 {

@@ -66,7 +66,7 @@ void pcmcia_unregister_driver(struct pcmcia_driver *driver);
  * module_pcmcia_driver() - Helper macro for registering a pcmcia driver
  * @__pcmcia_driver: pcmcia_driver struct
  *
- * Helper macro for pcmcia drivers which do not do anything special in module
+ * Helper macro for pcmcia drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only use
  * this macro once, and calling it replaces module_init() and module_exit().
  */
@@ -86,13 +86,13 @@ enum {
 };
 
 struct pcmcia_device {
-	/* the socket and the device_no [for multifunction devices]
+	/* the socket and the device_anal [for multifunction devices]
 	   uniquely define a pcmcia_device */
 	struct pcmcia_socket	*socket;
 
 	char			*devname;
 
-	u8			device_no;
+	u8			device_anal;
 
 	/* the hardware "function" device; certain subdevices can
 	 * share one hardware "function" device. */
@@ -164,7 +164,7 @@ struct pcmcia_device {
  * might change in future.
  */
 
-/* get the very first CIS entry of type @code. Note that buf is pointer
+/* get the very first CIS entry of type @code. Analte that buf is pointer
  * to u8 *buf; and that you need to kfree(buf) afterwards. */
 size_t pcmcia_get_tuple(struct pcmcia_device *p_dev, cisdata_t code,
 			u8 **buf);

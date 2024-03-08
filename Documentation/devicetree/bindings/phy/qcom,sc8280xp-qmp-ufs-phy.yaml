@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm QMP PHY controller (UFS, SC8280XP)
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 description:
   The QMP PHY controller supports physical layer functionality for a number of

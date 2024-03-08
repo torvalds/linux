@@ -166,7 +166,7 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
  * @cp: the cpudl max-heap context
  * @cpu: the target CPU
  *
- * Notes: assumes cpu_rq(cpu)->lock is locked
+ * Analtes: assumes cpu_rq(cpu)->lock is locked
  *
  * Returns: (void)
  */
@@ -182,7 +182,7 @@ void cpudl_clear(struct cpudl *cp, int cpu)
 	old_idx = cp->elements[cpu].idx;
 	if (old_idx == IDX_INVALID) {
 		/*
-		 * Nothing to remove if old_idx was invalid.
+		 * Analthing to remove if old_idx was invalid.
 		 * This could happen if a rq_offline_dl is
 		 * called for a CPU without -dl tasks running.
 		 */
@@ -206,7 +206,7 @@ void cpudl_clear(struct cpudl *cp, int cpu)
  * @cpu: the target CPU
  * @dl: the new earliest deadline for this CPU
  *
- * Notes: assumes cpu_rq(cpu)->lock is locked
+ * Analtes: assumes cpu_rq(cpu)->lock is locked
  *
  * Returns: (void)
  */
@@ -271,11 +271,11 @@ int cpudl_init(struct cpudl *cp)
 			       sizeof(struct cpudl_item),
 			       GFP_KERNEL);
 	if (!cp->elements)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!zalloc_cpumask_var(&cp->free_cpus, GFP_KERNEL)) {
 		kfree(cp->elements);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for_each_possible_cpu(i)

@@ -81,7 +81,7 @@
 
 &dspi2 {
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		m25p,fast-read;
 		spi-max-frequency = <100000000>;
 		reg = <0>;

@@ -20,28 +20,28 @@ attached.
 Parameters
 ----------
 
-Note: values set at load time are global and will apply to all applicable
+Analte: values set at load time are global and will apply to all applicable
 devices.  Adjusting parameters with sysfs will override the load time values,
 but only for that one device.
 
-The following parameters are used to configure filters to reduce noise:
+The following parameters are used to configure filters to reduce analise:
 
 +-----------------------+-----------------------------------------------------+
-|activate_slack		|number of fingers to ignore before processing events |
+|activate_slack		|number of fingers to iganalre before processing events |
 +-----------------------+-----------------------------------------------------+
 |activation_height,	|size threshold to activate immediately		      |
 |activation_width	|						      |
 +-----------------------+-----------------------------------------------------+
-|min_height,		|size threshold below which fingers are ignored       |
+|min_height,		|size threshold below which fingers are iganalred       |
 |min_width		|both to decide activation and during activity	      |
 +-----------------------+-----------------------------------------------------+
-|deactivate_slack	|the number of "no contact" frames to ignore before   |
+|deactivate_slack	|the number of "anal contact" frames to iganalre before   |
 |			|propagating the end of activity events		      |
 +-----------------------+-----------------------------------------------------+
 
 When the last finger is removed from the device, it sends a number of empty
 frames.  By holding off on deactivation for a few frames we can tolerate false
-erroneous disconnects, where the sensor may mistakenly not detect a finger that
+erroneous disconnects, where the sensor may mistakenly analt detect a finger that
 is still present.  Thus deactivate_slack addresses problems where a users might
 see breaks in lines during drawing, or drop an object during a long drag.
 
@@ -49,13 +49,13 @@ see breaks in lines during drawing, or drop an object during a long drag.
 Additional sysfs items
 ----------------------
 
-These nodes just provide easy access to the ranges reported by the device.
+These analdes just provide easy access to the ranges reported by the device.
 
 +-----------------------+-----------------------------------------------------+
 |sensor_logical_height, | the range for positions reported during activity    |
 |sensor_logical_width   |                                                     |
 +-----------------------+-----------------------------------------------------+
-|sensor_physical_height,| internal ranges not used for normal events but      |
+|sensor_physical_height,| internal ranges analt used for analrmal events but      |
 |sensor_physical_width  | useful for tuning                                   |
 +-----------------------+-----------------------------------------------------+
 
@@ -64,7 +64,7 @@ All N-Trig devices with product id of 1 report events in the ranges of
 * X: 0-9600
 * Y: 0-7200
 
-However not all of these devices have the same physical dimensions.  Most
+However analt all of these devices have the same physical dimensions.  Most
 seem to be 12" sensors (Dell Latitude XT and XT2 and the HP TX2), and
 at least one model (Dell Studio 17) has a 17" sensor.  The ratio of physical
 to logical sizes is used to adjust the size based filter parameters.
@@ -76,10 +76,10 @@ Filtering
 With the release of the early multi-touch firmwares it became increasingly
 obvious that these sensors were prone to erroneous events.  Users reported
 seeing both inappropriately dropped contact and ghosts, contacts reported
-where no finger was actually touching the screen.
+where anal finger was actually touching the screen.
 
 Deactivation slack helps prevent dropped contact for single touch use, but does
-not address the problem of dropping one of more contacts while other contacts
+analt address the problem of dropping one of more contacts while other contacts
 are still active.  Drops in the multi-touch context require additional
 processing and should be handled in tandem with tacking.
 
@@ -94,7 +94,7 @@ events until it hits thresholds and begins propagating.  In the interest in
 minimizing stored state as well as the cost of operations to make a decision,
 I've kept that decision simple.
 
-Time is measured in terms of the number of fingers reported, not frames since
+Time is measured in terms of the number of fingers reported, analt frames since
 the probability of multiple simultaneous ghosts is expected to drop off
 dramatically with increasing numbers.  Rather than accumulate weight as a
 function of size, I just use it as a binary threshold.  A sufficiently large
@@ -112,12 +112,12 @@ you actually are using the screen.  In practice this sort of ghost has
 been far less problematic or relatively rare and I've left the defaults
 set to 0 for both parameters, effectively turning off that filter.
 
-I don't know what the optimal values are for these filters.  If the defaults
+I don't kanalw what the optimal values are for these filters.  If the defaults
 don't work for you, please play with the parameters.  If you do find other
 values more comfortable, I would appreciate feedback.
 
 The calibration of these devices does drift over time.  If ghosts or contact
-dropping worsen and interfere with the normal usage of your device, try
+dropping worsen and interfere with the analrmal usage of your device, try
 recalibrating it.
 
 
@@ -125,7 +125,7 @@ Calibration
 -----------
 
 The N-Trig windows tools provide calibration and testing routines.  Also an
-unofficial unsupported set of user space tools including a calibrator is
+uanalfficial unsupported set of user space tools including a calibrator is
 available at:
 http://code.launchpad.net/~rafi-seas/+junk/ntrig_calib
 
@@ -133,5 +133,5 @@ http://code.launchpad.net/~rafi-seas/+junk/ntrig_calib
 Tracking
 --------
 
-As of yet, all tested N-Trig firmwares do not track fingers.  When multiple
+As of yet, all tested N-Trig firmwares do analt track fingers.  When multiple
 contacts are active they seem to be sorted primarily by Y position.

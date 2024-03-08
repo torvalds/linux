@@ -55,7 +55,7 @@ EXPORT_SYMBOL(kcs_bmc_update_status);
 irqreturn_t kcs_bmc_handle_event(struct kcs_bmc_device *kcs_bmc)
 {
 	struct kcs_bmc_client *client;
-	irqreturn_t rc = IRQ_NONE;
+	irqreturn_t rc = IRQ_ANALNE;
 	unsigned long flags;
 
 	spin_lock_irqsave(&kcs_bmc->lock, flags);

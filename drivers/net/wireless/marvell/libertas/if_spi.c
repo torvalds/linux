@@ -128,8 +128,8 @@ static void spu_transaction_init(struct if_spi_card *card)
 	if (!time_after(jiffies, card->prev_xfer_time + 1)) {
 		/* Unfortunately, the SPU requires a delay between successive
 		 * transactions. If our last transaction was more than a jiffy
-		 * ago, we have obviously already delayed enough.
-		 * If not, we have to busy-wait to be on the safe side. */
+		 * ago, we have obviously already delayed eanalugh.
+		 * If analt, we have to busy-wait to be on the safe side. */
 		ndelay(400);
 	}
 }
@@ -277,7 +277,7 @@ static int spu_read_u32(struct if_spi_card *card, u16 reg, u32 *val)
 /*
  * Keep reading 16 bits from an SPI register until you get the correct result.
  *
- * If mask = 0, the correct result is any non-zero number.
+ * If mask = 0, the correct result is any analn-zero number.
  * If mask != 0, the correct result is any number where
  * number & target_mask == target
  *
@@ -431,7 +431,7 @@ static int spu_init(struct if_spi_card *card, int use_dummy_writes)
 	card->spu_port_delay = delay & 0x0000ffff;
 	card->spu_reg_delay = (delay & 0xffff0000) >> 16;
 
-	/* If dummy clock delay mode has been requested, switch to it now */
+	/* If dummy clock delay mode has been requested, switch to it analw */
 	if (use_dummy_writes) {
 		card->use_dummy_writes = 1;
 		err = spu_set_bus_mode(card,
@@ -603,7 +603,7 @@ static int if_spi_prog_main_firmware(struct if_spi_card *card,
 		}
 		if (bytes < 0) {
 			/*
-			 * If there are no more bytes left, we would normally
+			 * If there are anal more bytes left, we would analrmally
 			 * expect to have terminated with len = 0
 			 */
 			netdev_err(priv->dev,
@@ -663,7 +663,7 @@ out:
 /*
  * SPI Transfer Thread
  *
- * The SPI worker handles all SPI transfers, so there is no need for a lock.
+ * The SPI worker handles all SPI transfers, so there is anal need for a lock.
  */
 
 /* Move a command from the card to the host */
@@ -676,14 +676,14 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 	u8 i;
 
 	/*
-	 * We need a buffer big enough to handle whatever people send to
+	 * We need a buffer big eanalugh to handle whatever people send to
 	 * hw_host_to_card
 	 */
 	BUILD_BUG_ON(IF_SPI_CMD_BUF_SIZE < LBS_CMD_BUFFER_SIZE);
 	BUILD_BUG_ON(IF_SPI_CMD_BUF_SIZE < LBS_UPLD_SIZE);
 
 	/*
-	 * It's just annoying if the buffer size isn't a multiple of 4, because
+	 * It's just ananalying if the buffer size isn't a multiple of 4, because
 	 * then we might have len < IF_SPI_CMD_BUF_SIZE but
 	 * ALIGN(len, 4) > IF_SPI_CMD_BUF_SIZE
 	 */
@@ -694,7 +694,7 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 	if (err)
 		goto out;
 	if (!len) {
-		netdev_err(priv->dev, "%s: error: card has no data for host\n",
+		netdev_err(priv->dev, "%s: error: card has anal data for host\n",
 			   __func__);
 		err = -EINVAL;
 		goto out;
@@ -717,7 +717,7 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 	BUG_ON(priv->resp_len[i]);
 	priv->resp_len[i] = len;
 	memcpy(priv->resp_buf[i], card->cmd_buffer, len);
-	lbs_notify_command_response(priv, i);
+	lbs_analtify_command_response(priv, i);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 out:
@@ -741,7 +741,7 @@ static int if_spi_c2h_data(struct if_spi_card *card)
 	if (err)
 		goto out;
 	if (!len) {
-		netdev_err(priv->dev, "%s: error: card has no data for host\n",
+		netdev_err(priv->dev, "%s: error: card has anal data for host\n",
 			   __func__);
 		err = -EINVAL;
 		goto out;
@@ -756,7 +756,7 @@ static int if_spi_c2h_data(struct if_spi_card *card)
 	/* TODO: should we allocate a smaller skb if we have less data? */
 	skb = dev_alloc_skb(MRVDRV_ETH_RX_PACKET_BUFFER_SIZE);
 	if (!skb) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto out;
 	}
 	skb_reserve(skb, IPFIELD_ALIGN_OFFSET);
@@ -878,7 +878,7 @@ static void if_spi_host_to_card_worker(struct work_struct *work)
 	}
 
 	/*
-	 * workaround: in PS mode, the card does not set the Command
+	 * workaround: in PS mode, the card does analt set the Command
 	 * Download Ready bit, but it sets TX Download Ready.
 	 */
 	if (hiStatus & IF_SPI_HIST_CMD_DOWNLOAD_RDY ||
@@ -888,7 +888,7 @@ static void if_spi_host_to_card_worker(struct work_struct *work)
 		 * This means two things. First of all,
 		 * if there was a previous command sent, the card has
 		 * successfully received it.
-		 * Secondly, it is now ready to download another
+		 * Secondly, it is analw ready to download aanalther
 		 * command.
 		 */
 		lbs_host_to_card_done(card->priv);
@@ -952,7 +952,7 @@ static int if_spi_host_to_card(struct lbs_private *priv,
 	blen = ALIGN(nb, 4);
 	packet = kzalloc(sizeof(struct if_spi_packet) + blen, GFP_ATOMIC);
 	if (!packet) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	packet->blen = blen;
@@ -1035,7 +1035,7 @@ static int if_spi_init_card(struct if_spi_card *card)
 		if (i == ARRAY_SIZE(fw_table)) {
 			netdev_err(priv->dev, "Unsupported chip_id: 0x%02x\n",
 				   card->card_id);
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out;
 		}
 
@@ -1115,7 +1115,7 @@ static int if_spi_probe(struct spi_device *spi)
 	/* Allocate card structure to represent this specific device */
 	card = kzalloc(sizeof(struct if_spi_card), GFP_KERNEL);
 	if (!card) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto teardown;
 	}
 	spi_set_drvdata(spi, card);
@@ -1155,7 +1155,7 @@ static int if_spi_probe(struct spi_device *spi)
 	/* Initialize interrupt handling stuff. */
 	card->workqueue = alloc_workqueue("libertas_spi", WQ_MEM_RECLAIM, 0);
 	if (!card->workqueue) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto remove_card;
 	}
 	INIT_WORK(&card->packet_work, if_spi_host_to_card_worker);

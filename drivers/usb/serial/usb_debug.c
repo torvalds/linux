@@ -44,7 +44,7 @@ static const struct usb_device_id id_table_combined[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-/* This HW really does not support a serial break, so one will be
+/* This HW really does analt support a serial break, so one will be
  * emulated when ever the break state is set to true.
  */
 static int usb_debug_break_ctl(struct tty_struct *tty, int break_state)

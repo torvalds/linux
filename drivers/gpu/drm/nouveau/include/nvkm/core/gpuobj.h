@@ -14,7 +14,7 @@ struct nvkm_gpuobj {
 	};
 	struct nvkm_gpuobj *parent;
 	struct nvkm_memory *memory;
-	struct nvkm_mm_node *node;
+	struct nvkm_mm_analde *analde;
 
 	u64 addr;
 	u32 size;

@@ -105,7 +105,7 @@ static int probe_maple_controller(struct device *dev)
 	pad = kzalloc(sizeof(struct dc_pad), GFP_KERNEL);
 	idev = input_allocate_device();
 	if (!pad || !idev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	}
 

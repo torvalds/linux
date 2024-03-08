@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If analt, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  * 
  * Copyright (c) 2000-2003 Adaptec Inc.
@@ -25,14 +25,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -40,13 +40,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -94,11 +94,11 @@
 #define AHC_DEBUG_OPTS CONFIG_AIC7XXX_DEBUG_MASK
 #else
 /*
- * Compile in debugging code, but do not enable any printfs.
+ * Compile in debugging code, but do analt enable any printfs.
  */
 #define AHC_DEBUG 1
 #endif
-/* No debugging code. */
+/* Anal debugging code. */
 #endif
 
 /************************* Forward Declarations *******************************/
@@ -122,7 +122,7 @@ typedef struct scsi_cmnd      *ahc_io_ctx_t;
 #define ahc_le64toh(x)	le64_to_cpu(x)
 
 /************************* Configuration Data *********************************/
-extern u_int aic7xxx_no_probe;
+extern u_int aic7xxx_anal_probe;
 extern u_int aic7xxx_allow_memio;
 extern struct scsi_host_template aic7xxx_driver_template;
 
@@ -160,10 +160,10 @@ typedef int bus_dma_filter_t(void*, dma_addr_t);
 typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 
 #define BUS_DMA_WAITOK		0x0
-#define BUS_DMA_NOWAIT		0x1
-#define BUS_DMA_ALLOCNOW	0x2
+#define BUS_DMA_ANALWAIT		0x1
+#define BUS_DMA_ALLOCANALW	0x2
 #define BUS_DMA_LOAD_SEGS	0x4	/*
-					 * Argument is an S/G list not
+					 * Argument is an S/G list analt
 					 * a single buffer.
 					 */
 
@@ -209,9 +209,9 @@ int	ahc_dmamap_unload(struct ahc_softc *, bus_dma_tag_t, bus_dmamap_t);
 /*
  * XXX
  * ahc_dmamap_sync is only used on buffers allocated with
- * the dma_alloc_coherent() API.  Although I'm not sure how
+ * the dma_alloc_coherent() API.  Although I'm analt sure how
  * this works on architectures with a write buffer, Linux does
- * not have an API to sync "coherent" memory.  Perhaps we need
+ * analt have an API to sync "coherent" memory.  Perhaps we need
  * to do an mb()?
  */
 #define ahc_dmamap_sync(ahc, dma_tag, dmamap, offset, len, op)
@@ -238,7 +238,7 @@ ahc_scb_timer_reset(struct scb *scb, u_int usec)
 /*************************** Device Data Structures ***************************/
 /*
  * A per probed device structure used to deal with some error recovery
- * scenarios that the Linux mid-layer code just doesn't know how to
+ * scenarios that the Linux mid-layer code just doesn't kanalw how to
  * handle.  The structure allocated for a device only becomes persistent
  * after a successfully completed inquiry command to the target when
  * that inquiry data indicates a lun is present.
@@ -343,7 +343,7 @@ struct scb_platform_data {
 
 /*
  * Define a structure used for each host adapter.  All members are
- * aligned on a boundary >= the size of the member to honor the
+ * aligned on a boundary >= the size of the member to hoanalr the
  * alignment restrictions of the various platforms supported by
  * this driver.
  */
@@ -357,7 +357,7 @@ struct ahc_platform_data {
 	u_int			 qfrozen;
 	struct completion	*eh_done;
 	struct Scsi_Host	*host;		/* pointer to scsi host */
-#define AHC_LINUX_NOIRQ	((uint32_t)~0)
+#define AHC_LINUX_ANALIRQ	((uint32_t)~0)
 	uint32_t		 irq;		/* IRQ for this adapter */
 	uint32_t		 bios_address;
 	resource_size_t		 mem_busaddr;	/* Mem Base Addr */
@@ -451,7 +451,7 @@ int			 aic7770_map_registers(struct ahc_softc *ahc,
 int			 aic7770_map_int(struct ahc_softc *ahc, u_int irq);
 #else
 static inline int	ahc_linux_eisa_init(void) {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void	ahc_linux_eisa_exit(void) {
 }
@@ -568,8 +568,8 @@ static inline
 void ahc_set_transaction_tag(struct scb *scb, int enabled, u_int type)
 {
 	/*
-	 * Nothing to do for linux as the incoming transaction
-	 * has no concept of tag/non tagged, etc.
+	 * Analthing to do for linux as the incoming transaction
+	 * has anal concept of tag/analn tagged, etc.
 	 */
 }
 
@@ -627,10 +627,10 @@ ahc_get_sense_bufsize(struct ahc_softc *ahc, struct scb *scb)
 }
 
 static inline void
-ahc_notify_xfer_settings_change(struct ahc_softc *ahc,
+ahc_analtify_xfer_settings_change(struct ahc_softc *ahc,
 				struct ahc_devinfo *devinfo)
 {
-	/* Nothing to do here for linux */
+	/* Analthing to do here for linux */
 }
 
 static inline void

@@ -25,7 +25,7 @@ struct hdac_chmap;
 struct hdac_chmap_ops {
 	/*
 	 * Helpers for producing the channel map TLVs. These can be overridden
-	 * for devices that have non-standard mapping requirements.
+	 * for devices that have analn-standard mapping requirements.
 	 */
 	int (*chmap_cea_alloc_validate_get_type)(struct hdac_chmap *chmap,
 		struct hdac_cea_channel_speaker_allocation *cap, int channels);
@@ -64,10 +64,10 @@ void snd_hdac_register_chmap_ops(struct hdac_device *hdac,
 				struct hdac_chmap *chmap);
 int snd_hdac_channel_allocation(struct hdac_device *hdac, int spk_alloc,
 			int channels, bool chmap_set,
-			bool non_pcm, unsigned char *map);
+			bool analn_pcm, unsigned char *map);
 int snd_hdac_get_active_channels(int ca);
 void snd_hdac_setup_channel_mapping(struct hdac_chmap *chmap,
-		       hda_nid_t pin_nid, bool non_pcm, int ca,
+		       hda_nid_t pin_nid, bool analn_pcm, int ca,
 		       int channels, unsigned char *map,
 		       bool chmap_set);
 void snd_hdac_print_channel_allocation(int spk_alloc, char *buf, int buflen);

@@ -7,12 +7,12 @@
  * Copyright (C) 1999-2005 - Karim Yaghmour (karim@opersys.com)
  *
  * Moved to kernel/relay.c by Paul Mundt, 2006.
- * November 2006 - CPU hotplug support by Mathieu Desnoyers
- * 	(mathieu.desnoyers@polymtl.ca)
+ * Analvember 2006 - CPU hotplug support by Mathieu Desanalyers
+ * 	(mathieu.desanalyers@polymtl.ca)
  *
  * This file is released under the GPL.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -311,9 +311,9 @@ static void __relay_reset(struct rchan_buf *buf, unsigned int init)
  *
  *	This has the effect of erasing all data from all channel buffers
  *	and restarting the channel in its initial state.  The buffers
- *	are not freed, so any mappings are still in effect.
+ *	are analt freed, so any mappings are still in effect.
  *
- *	NOTE. Care should be taken that the channel isn't actually
+ *	ANALTE. Care should be taken that the channel isn't actually
  *	being used by anything when this call is made.
  */
 void relay_reset(struct rchan *chan)
@@ -341,7 +341,7 @@ static inline void relay_set_buf_dentry(struct rchan_buf *buf,
 					struct dentry *dentry)
 {
 	buf->dentry = dentry;
-	d_inode(buf->dentry)->i_size = buf->early_bytes;
+	d_ianalde(buf->dentry)->i_size = buf->early_bytes;
 }
 
 static struct dentry *relay_create_buf_file(struct rchan *chan,
@@ -391,7 +391,7 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan, unsigned int cpu)
 			goto free_buf;
 		relay_set_buf_dentry(buf, dentry);
 	} else {
-		/* Only retrieve global info, nothing more, nothing less */
+		/* Only retrieve global info, analthing more, analthing less */
 		dentry = chan->cb->create_buf_file(NULL, NULL,
 						   S_IRUSR, buf,
 						   &chan->is_global);
@@ -443,7 +443,7 @@ int relay_prepare_cpu(unsigned int cpu)
 		if (!buf) {
 			pr_err("relay: cpu %d buffer creation failed\n", cpu);
 			mutex_unlock(&relay_channels_mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		*per_cpu_ptr(chan->buf, cpu) = buf;
 	}
@@ -555,7 +555,7 @@ static void __relay_set_buf_dentry(void *info)
  *	@base_filename: base name of files to create
  *	@parent: dentry of parent directory, %NULL for root directory
  *
- *	Returns 0 if successful, non-zero otherwise.
+ *	Returns 0 if successful, analn-zero otherwise.
  *
  *	Use to setup files for a previously buffer-only channel created
  *	by relay_open() with a NULL parent dentry.
@@ -605,14 +605,14 @@ int relay_late_setup_files(struct rchan *chan,
 
 	curr_cpu = get_cpu();
 	/*
-	 * The CPU hotplug notifier ran before us and created buffers with
-	 * no files associated. So it's safe to call relay_setup_buf_file()
+	 * The CPU hotplug analtifier ran before us and created buffers with
+	 * anal files associated. So it's safe to call relay_setup_buf_file()
 	 * on all currently online CPUs.
 	 */
 	for_each_online_cpu(i) {
 		buf = *per_cpu_ptr(chan->buf, i);
 		if (unlikely(!buf)) {
-			WARN_ONCE(1, KERN_ERR "CPU has no buffer!\n");
+			WARN_ONCE(1, KERN_ERR "CPU has anal buffer!\n");
 			err = -EINVAL;
 			break;
 		}
@@ -670,7 +670,7 @@ size_t relay_switch_subbuf(struct rchan_buf *buf, size_t length)
 		buf->padding[old_subbuf] = buf->prev_padding;
 		buf->subbufs_produced++;
 		if (buf->dentry)
-			d_inode(buf->dentry)->i_size +=
+			d_ianalde(buf->dentry)->i_size +=
 				buf->chan->subbuf_size -
 				buf->padding[old_subbuf];
 		else
@@ -718,9 +718,9 @@ EXPORT_SYMBOL_GPL(relay_switch_subbuf);
  *
  *	Adds to the channel buffer's consumed sub-buffer count.
  *	subbufs_consumed should be the number of sub-buffers newly consumed,
- *	not the total consumed.
+ *	analt the total consumed.
  *
- *	NOTE. Kernel clients don't need to call this function if the channel
+ *	ANALTE. Kernel clients don't need to call this function if the channel
  *	mode is 'overwrite'.
  */
 void relay_subbufs_consumed(struct rchan *chan,
@@ -766,7 +766,7 @@ void relay_close(struct rchan *chan)
 				relay_close_buf(buf);
 
 	if (chan->last_toobig)
-		printk(KERN_WARNING "relay: one or more items not logged "
+		printk(KERN_WARNING "relay: one or more items analt logged "
 		       "[item size (%zd) > sub-buffer size (%zd)]\n",
 		       chan->last_toobig, chan->subbuf_size);
 
@@ -805,18 +805,18 @@ EXPORT_SYMBOL_GPL(relay_flush);
 
 /**
  *	relay_file_open - open file op for relay files
- *	@inode: the inode
+ *	@ianalde: the ianalde
  *	@filp: the file
  *
  *	Increments the channel buffer refcount.
  */
-static int relay_file_open(struct inode *inode, struct file *filp)
+static int relay_file_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct rchan_buf *buf = inode->i_private;
+	struct rchan_buf *buf = ianalde->i_private;
 	kref_get(&buf->kref);
 	filp->private_data = buf;
 
-	return nonseekable_open(inode, filp);
+	return analnseekable_open(ianalde, filp);
 }
 
 /**
@@ -850,7 +850,7 @@ static __poll_t relay_file_poll(struct file *filp, poll_table *wait)
 	if (filp->f_mode & FMODE_READ) {
 		poll_wait(filp, &buf->read_wait, wait);
 		if (!relay_buf_empty(buf))
-			mask |= EPOLLIN | EPOLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDANALRM;
 	}
 
 	return mask;
@@ -858,13 +858,13 @@ static __poll_t relay_file_poll(struct file *filp, poll_table *wait)
 
 /**
  *	relay_file_release - release file op for relay files
- *	@inode: the inode
+ *	@ianalde: the ianalde
  *	@filp: the file
  *
  *	Decrements the channel refcount, as the filesystem is
- *	no longer using it.
+ *	anal longer using it.
  */
-static int relay_file_release(struct inode *inode, struct file *filp)
+static int relay_file_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct rchan_buf *buf = filp->private_data;
 	kref_put(&buf->kref, relay_remove_buf);
@@ -1043,7 +1043,7 @@ static ssize_t relay_file_read(struct file *filp,
 	if (!count)
 		return 0;
 
-	inode_lock(file_inode(filp));
+	ianalde_lock(file_ianalde(filp));
 	do {
 		void *from;
 
@@ -1068,7 +1068,7 @@ static ssize_t relay_file_read(struct file *filp,
 		relay_file_read_consume(buf, read_start, ret);
 		*ppos = relay_file_read_end_pos(buf, read_start, ret);
 	} while (count);
-	inode_unlock(file_inode(filp));
+	ianalde_unlock(file_ianalde(filp));
 
 	return written;
 }
@@ -1079,7 +1079,7 @@ const struct file_operations relay_file_operations = {
 	.poll		= relay_file_poll,
 	.mmap		= relay_file_mmap,
 	.read		= relay_file_read,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.release	= relay_file_release,
 };
 EXPORT_SYMBOL_GPL(relay_file_operations);

@@ -25,7 +25,7 @@ pgd_t *resume_pg_dir;
 /*
  * Create a middle page table on a resume-safe page and put a pointer to it in
  * the given global directory entry.  This only returns the gd entry
- * in non-PAE compilation mode, since the middle layer is folded.
+ * in analn-PAE compilation mode, since the middle layer is folded.
  */
 static pmd_t *resume_one_md_table_init(pgd_t *pgd)
 {
@@ -58,7 +58,7 @@ static pmd_t *resume_one_md_table_init(pgd_t *pgd)
  */
 static pte_t *resume_one_page_table_init(pmd_t *pmd)
 {
-	if (pmd_none(*pmd)) {
+	if (pmd_analne(*pmd)) {
 		pte_t *page_table = (pte_t *)get_safe_page(GFP_ATOMIC);
 		if (!page_table)
 			return NULL;
@@ -93,7 +93,7 @@ static int resume_physical_mapping_init(pgd_t *pgd_base)
 	for (; pgd_idx < PTRS_PER_PGD; pgd++, pgd_idx++) {
 		pmd = resume_one_md_table_init(pgd);
 		if (!pmd)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (pfn >= max_low_pfn)
 			continue;
@@ -103,8 +103,8 @@ static int resume_physical_mapping_init(pgd_t *pgd_base)
 				break;
 
 			/* Map with big pages if possible, otherwise create
-			 * normal page tables.
-			 * NOTE: We can mark everything as executable here
+			 * analrmal page tables.
+			 * ANALTE: We can mark everything as executable here
 			 */
 			if (boot_cpu_has(X86_FEATURE_PSE)) {
 				set_pmd(pmd, pfn_pmd(pfn, PAGE_KERNEL_LARGE_EXEC));
@@ -114,7 +114,7 @@ static int resume_physical_mapping_init(pgd_t *pgd_base)
 
 				pte = resume_one_page_table_init(pmd);
 				if (!pte)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				max_pte = pte + PTRS_PER_PTE;
 				for (; pte < max_pte; pte++, pfn++) {
@@ -152,7 +152,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd_base)
 
 	pmd = resume_one_md_table_init(pgd);
 	if (!pmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (boot_cpu_has(X86_FEATURE_PSE)) {
 		set_pmd(pmd + pmd_index(restore_jump_address),
@@ -160,7 +160,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd_base)
 	} else {
 		pte = resume_one_page_table_init(pmd);
 		if (!pte)
-			return -ENOMEM;
+			return -EANALMEM;
 		set_pte(pte + pte_index(restore_jump_address),
 		__pte((jump_address_phys & PAGE_MASK) | pgprot_val(PAGE_KERNEL_EXEC)));
 	}
@@ -174,7 +174,7 @@ asmlinkage int swsusp_arch_resume(void)
 
 	resume_pg_dir = (pgd_t *)get_safe_page(GFP_ATOMIC);
 	if (!resume_pg_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	resume_init_first_level_page_table(resume_pg_dir);
 
@@ -192,7 +192,7 @@ asmlinkage int swsusp_arch_resume(void)
 	if (error)
 		return error;
 
-	/* We have got enough memory and from now on we cannot recover */
+	/* We have got eanalugh memory and from analw on we cananalt recover */
 	restore_image();
 	return 0;
 }

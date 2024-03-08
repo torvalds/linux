@@ -63,7 +63,7 @@ static int parse_str(const struct hotmod_vals *v, unsigned int *val, char *name,
 
 	s = strchr(*curr, ',');
 	if (!s) {
-		pr_warn("No hotmod %s given\n", name);
+		pr_warn("Anal hotmod %s given\n", name);
 		return -EINVAL;
 	}
 	*s = '\0';
@@ -87,7 +87,7 @@ static int check_hotmod_int_op(const char *curr, const char *option,
 
 	if (strcmp(curr, name) == 0) {
 		if (!option) {
-			pr_warn("No option given for '%s'\n", curr);
+			pr_warn("Anal option given for '%s'\n", curr);
 			return -EINVAL;
 		}
 		*val = simple_strtoul(option, &n, 0);
@@ -190,7 +190,7 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 
 	str = kstrdup(val, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Kill any trailing spaces, as we can get a "\n" from echo. */
 	for (curr = strstrip(str); curr; curr = next) {

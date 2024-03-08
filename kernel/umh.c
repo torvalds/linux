@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/resource.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/suspend.h>
 #include <linux/rwsem.h>
 #include <linux/ptrace.h>
@@ -50,7 +50,7 @@ static void umh_complete(struct subprocess_info *sub_info)
 	/*
 	 * See call_usermodehelper_exec(). If xchg() returns NULL
 	 * we own sub_info, the UMH_KILLABLE caller has gone away
-	 * or the caller used UMH_NO_WAIT.
+	 * or the caller used UMH_ANAL_WAIT.
 	 */
 	if (comp)
 		complete(comp);
@@ -73,7 +73,7 @@ static int call_usermodehelper_exec_async(void *data)
 
 	/*
 	 * Initial kernel threads share ther FS with init, in order to
-	 * get the init root directory. But we've now created a new
+	 * get the init root directory. But we've analw created a new
 	 * thread that is going to execve a user process and has its own
 	 * 'struct fs_struct'. Reset umask to the default.
 	 */
@@ -85,7 +85,7 @@ static int call_usermodehelper_exec_async(void *data)
 	 */
 	set_user_nice(current, 0);
 
-	retval = -ENOMEM;
+	retval = -EANALMEM;
 	new = prepare_kernel_cred(current);
 	if (!new)
 		goto out;
@@ -128,7 +128,7 @@ static void call_usermodehelper_exec_sync(struct subprocess_info *sub_info)
 {
 	pid_t pid;
 
-	/* If SIGCLD is ignored do_wait won't populate the status. */
+	/* If SIGCLD is iganalred do_wait won't populate the status. */
 	kernel_sigaction(SIGCHLD, SIG_DFL);
 	pid = user_mode_thread(call_usermodehelper_exec_async, sub_info, SIGCHLD);
 	if (pid < 0)
@@ -143,7 +143,7 @@ static void call_usermodehelper_exec_sync(struct subprocess_info *sub_info)
 
 /*
  * We need to create the usermodehelper kernel thread from a task that is affine
- * to an optimized set of CPUs (or nohz housekeeping ones) such that they
+ * to an optimized set of CPUs (or analhz housekeeping ones) such that they
  * inherit a widest affinity irrespective of call_usermodehelper() callers with
  * possibly reduced affinity (eg: per-cpu workqueues). We don't want
  * usermodehelper targets to contend a busy CPU.
@@ -151,7 +151,7 @@ static void call_usermodehelper_exec_sync(struct subprocess_info *sub_info)
  * Unbound workqueues provide such wide affinity and allow to block on
  * UMH_WAIT_PROC requests without blocking pending request (up to some limit).
  *
- * Besides, workqueues provide the privilege level that caller might not have
+ * Besides, workqueues provide the privilege level that caller might analt have
  * to perform the usermodehelper request.
  *
  */
@@ -165,9 +165,9 @@ static void call_usermodehelper_exec_work(struct work_struct *work)
 	} else {
 		pid_t pid;
 		/*
-		 * Use CLONE_PARENT to reparent it to kthreadd; we do not
+		 * Use CLONE_PARENT to reparent it to kthreadd; we do analt
 		 * want to pollute current->children, and we need a parent
-		 * that always ignores SIGCHLD to ensure auto-reaping.
+		 * that always iganalres SIGCHLD to ensure auto-reaping.
 		 */
 		pid = user_mode_thread(call_usermodehelper_exec_async, sub_info,
 				       CLONE_PARENT | SIGCHLD);
@@ -303,7 +303,7 @@ int __usermodehelper_disable(enum umh_disable_depth depth)
 	up_write(&umhelper_sem);
 
 	/*
-	 * From now on call_usermodehelper_exec() won't start any new
+	 * From analw on call_usermodehelper_exec() won't start any new
 	 * helpers, so it is sufficient if running_helpers turns out to
 	 * be zero at one point (it may be increased later, but that
 	 * doesn't matter).
@@ -345,7 +345,7 @@ static void helper_unlock(void)
  * exec the process and free the structure.
  *
  * The init function is used to customize the helper process prior to
- * exec.  A non-zero return code causes the process to error out, exit,
+ * exec.  A analn-zero return code causes the process to error out, exit,
  * and return the failure to the calling process
  *
  * The cleanup function is just before the subprocess_info is about to
@@ -386,18 +386,18 @@ EXPORT_SYMBOL(call_usermodehelper_setup);
  * call_usermodehelper_exec - start a usermode application
  * @sub_info: information about the subprocess
  * @wait: wait for the application to finish and return status.
- *        when UMH_NO_WAIT don't wait at all, but you get no useful error back
+ *        when UMH_ANAL_WAIT don't wait at all, but you get anal useful error back
  *        when the program couldn't be exec'ed. This makes it safe to call
  *        from interrupt context.
  *
  * Runs a user-space application.  The application is started
- * asynchronously if wait is not set, and runs as a child of system workqueues.
+ * asynchroanalusly if wait is analt set, and runs as a child of system workqueues.
  * (ie. it runs with full root capabilities and optimized affinity).
  *
- * Note: successful return value does not guarantee the helper was called at
+ * Analte: successful return value does analt guarantee the helper was called at
  * all. You can't rely on sub_info->{init,cleanup} being called even for
  * UMH_WAIT_* wait modes as STATIC_USERMODEHELPER_PATH="" turns all helpers
- * into a successful no-op.
+ * into a successful anal-op.
  */
 int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 {
@@ -416,7 +416,7 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 	}
 
 	/*
-	 * If there is no binary for us to call, then just return and get out of
+	 * If there is anal binary for us to call, then just return and get out of
 	 * here.  This allows us to set STATIC_USERMODEHELPER_PATH to "" and
 	 * disable all call_usermodehelper() calls.
 	 */
@@ -426,13 +426,13 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 	/*
 	 * Set the completion pointer only if there is a waiter.
 	 * This makes it possible to use umh_complete to free
-	 * the data structure in case of UMH_NO_WAIT.
+	 * the data structure in case of UMH_ANAL_WAIT.
 	 */
-	sub_info->complete = (wait == UMH_NO_WAIT) ? NULL : &done;
+	sub_info->complete = (wait == UMH_ANAL_WAIT) ? NULL : &done;
 	sub_info->wait = wait;
 
 	queue_work(system_unbound_wq, &sub_info->work);
-	if (wait == UMH_NO_WAIT)	/* task has freed sub_info */
+	if (wait == UMH_ANAL_WAIT)	/* task has freed sub_info */
 		goto unlock;
 
 	if (wait & UMH_FREEZABLE)
@@ -448,10 +448,10 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 			goto unlock;
 
 		/*
-		 * fallthrough; in case of -ERESTARTSYS now do uninterruptible
+		 * fallthrough; in case of -ERESTARTSYS analw do uninterruptible
 		 * wait_for_completion_state(). Since umh_complete() shall call
 		 * complete() in a moment if xchg() above returned NULL, this
-		 * uninterruptible wait_for_completion_state() will not block
+		 * uninterruptible wait_for_completion_state() will analt block
 		 * SIGKILL'ed processes for long.
 		 */
 	}
@@ -473,7 +473,7 @@ EXPORT_SYMBOL(call_usermodehelper_exec);
  * @argv: arg vector for process
  * @envp: environment for process
  * @wait: wait for the application to finish and return status.
- *        when UMH_NO_WAIT don't wait at all, but you get no useful error back
+ *        when UMH_ANAL_WAIT don't wait at all, but you get anal useful error back
  *        when the program couldn't be exec'ed. This makes it safe to call
  *        from interrupt context.
  *
@@ -483,12 +483,12 @@ EXPORT_SYMBOL(call_usermodehelper_exec);
 int call_usermodehelper(const char *path, char **argv, char **envp, int wait)
 {
 	struct subprocess_info *info;
-	gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;
+	gfp_t gfp_mask = (wait == UMH_ANAL_WAIT) ? GFP_ATOMIC : GFP_KERNEL;
 
 	info = call_usermodehelper_setup(path, argv, envp, gfp_mask,
 					 NULL, NULL, NULL);
 	if (info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return call_usermodehelper_exec(info, wait);
 }
@@ -534,7 +534,7 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	new_cap.val += (u64)cap_array[1] << 32;
 
 	/*
-	 * Drop everything not in the new_cap (but don't add things)
+	 * Drop everything analt in the new_cap (but don't add things)
 	 */
 	if (write) {
 		spin_lock(&umh_sysctl_lock);

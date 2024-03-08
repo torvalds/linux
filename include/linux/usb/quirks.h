@@ -1,21 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file holds the definitions of quirks found in USB devices.
- * Only quirks that affect the whole device, not an interface,
+ * Only quirks that affect the whole device, analt an interface,
  * belong here.
  */
 
 #ifndef __LINUX_USB_QUIRKS_H
 #define __LINUX_USB_QUIRKS_H
 
-/* string descriptors must not be fetched using a 255-byte read */
+/* string descriptors must analt be fetched using a 255-byte read */
 #define USB_QUIRK_STRING_FETCH_255		BIT(0)
 
 /* device can't resume correctly so reset it instead */
 #define USB_QUIRK_RESET_RESUME			BIT(1)
 
 /* device can't handle Set-Interface requests */
-#define USB_QUIRK_NO_SET_INTF			BIT(2)
+#define USB_QUIRK_ANAL_SET_INTF			BIT(2)
 
 /* device can't handle its Configuration or Interface strings */
 #define USB_QUIRK_CONFIG_INTF_STRINGS		BIT(3)
@@ -25,7 +25,7 @@
 
 /* device has more interface descriptions than the bNumInterfaces count,
    and can't handle talking to these interfaces */
-#define USB_QUIRK_HONOR_BNUMINTERFACES		BIT(5)
+#define USB_QUIRK_HOANALR_BNUMINTERFACES		BIT(5)
 
 /* device needs a pause during initialization, after we read the device
    descriptor */
@@ -45,11 +45,11 @@
 /* device can't handle device_qualifier descriptor requests */
 #define USB_QUIRK_DEVICE_QUALIFIER		BIT(8)
 
-/* device generates spurious wakeup, ignore remote wakeup capability */
-#define USB_QUIRK_IGNORE_REMOTE_WAKEUP		BIT(9)
+/* device generates spurious wakeup, iganalre remote wakeup capability */
+#define USB_QUIRK_IGANALRE_REMOTE_WAKEUP		BIT(9)
 
 /* device can't handle Link Power Management */
-#define USB_QUIRK_NO_LPM			BIT(10)
+#define USB_QUIRK_ANAL_LPM			BIT(10)
 
 /*
  * Device reports its bInterval as linear frames instead of the
@@ -69,8 +69,8 @@
 /* Hub needs extra delay after resetting its port. */
 #define USB_QUIRK_HUB_SLOW_RESET		BIT(14)
 
-/* device has endpoints that should be ignored */
-#define USB_QUIRK_ENDPOINT_IGNORE		BIT(15)
+/* device has endpoints that should be iganalred */
+#define USB_QUIRK_ENDPOINT_IGANALRE		BIT(15)
 
 /* short SET_ADDRESS request timeout */
 #define USB_QUIRK_SHORT_SET_ADDRESS_REQ_TIMEOUT	BIT(16)

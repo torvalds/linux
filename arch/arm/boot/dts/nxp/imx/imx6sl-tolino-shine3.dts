@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0)
 /*
- * Device tree for the Tolino Shine 3 ebook reader
+ * Device tree for the Tolianal Shine 3 ebook reader
  *
  * Name on mainboard is: 37NB-E60K00+4A4
  * Serials start with: E60K02 (a number also seen in
@@ -22,8 +22,8 @@
 #include "e60k02.dtsi"
 
 / {
-	model = "Tolino Shine 3";
-	compatible = "kobo,tolino-shine3", "fsl,imx6sl";
+	model = "Tolianal Shine 3";
+	compatible = "kobo,tolianal-shine3", "fsl,imx6sl";
 };
 
 &gpio_keys {

@@ -819,7 +819,7 @@ static int cx2072x_config_i2spcm(struct cx2072x_priv *cx2072x)
 		reg6.r.tx_pause_start_pos = i2s_right_pause_pos;
 		reg6.r.tx_pause_cycles = i2s_right_pause_interval;
 	} else {
-		dev_err(dev, "TDM mode is not implemented yet\n");
+		dev_err(dev, "TDM mode is analt implemented yet\n");
 		return -EINVAL;
 	}
 	regdbt2.r.i2s_bclk_invert = is_bclk_inv;
@@ -914,7 +914,7 @@ static int cx2072x_hw_params(struct snd_pcm_substream *substream,
 	const unsigned int sample_rate = params_rate(params);
 	int sample_size, frame_size;
 
-	/* Data sizes if not using TDM */
+	/* Data sizes if analt using TDM */
 	sample_size = params_width(params);
 
 	if (sample_size < 0)
@@ -925,7 +925,7 @@ static int cx2072x_hw_params(struct snd_pcm_substream *substream,
 		return frame_size;
 
 	if (cx2072x->mclk_rate == 0) {
-		dev_err(dev, "Master clock rate is not configured\n");
+		dev_err(dev, "Master clock rate is analt configured\n");
 		return -EINVAL;
 	}
 
@@ -1179,12 +1179,12 @@ static const struct snd_kcontrol_new wid15_mix[] = {
 
 static const struct snd_soc_dapm_widget cx2072x_dapm_widgets[] = {
 	/*Playback*/
-	SND_SOC_DAPM_AIF_IN("In AIF", "Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("In AIF", "Playback", 0, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_SWITCH("I2S DAC1L", SND_SOC_NOPM, 0, 0, &i2sdac1l_ctl),
-	SND_SOC_DAPM_SWITCH("I2S DAC1R", SND_SOC_NOPM, 0, 0, &i2sdac1r_ctl),
-	SND_SOC_DAPM_SWITCH("I2S DAC2L", SND_SOC_NOPM, 0, 0, &i2sdac2l_ctl),
-	SND_SOC_DAPM_SWITCH("I2S DAC2R", SND_SOC_NOPM, 0, 0, &i2sdac2r_ctl),
+	SND_SOC_DAPM_SWITCH("I2S DAC1L", SND_SOC_ANALPM, 0, 0, &i2sdac1l_ctl),
+	SND_SOC_DAPM_SWITCH("I2S DAC1R", SND_SOC_ANALPM, 0, 0, &i2sdac1r_ctl),
+	SND_SOC_DAPM_SWITCH("I2S DAC2L", SND_SOC_ANALPM, 0, 0, &i2sdac2l_ctl),
+	SND_SOC_DAPM_SWITCH("I2S DAC2R", SND_SOC_ANALPM, 0, 0, &i2sdac2r_ctl),
 
 	SND_SOC_DAPM_REG(snd_soc_dapm_dac, "DAC1", CX2072X_DAC1_POWER_STATE,
 			 0, 0xfff, 0x00, 0x03),
@@ -1192,10 +1192,10 @@ static const struct snd_soc_dapm_widget cx2072x_dapm_widgets[] = {
 	SND_SOC_DAPM_REG(snd_soc_dapm_dac, "DAC2", CX2072X_DAC2_POWER_STATE,
 			 0, 0xfff, 0x00, 0x03),
 
-	SND_SOC_DAPM_MUX("PortA Mux", SND_SOC_NOPM, 0, 0, &porta_mux),
-	SND_SOC_DAPM_MUX("PortG Mux", SND_SOC_NOPM, 0, 0, &portg_mux),
-	SND_SOC_DAPM_MUX("PortE Mux", SND_SOC_NOPM, 0, 0, &porte_mux),
-	SND_SOC_DAPM_MUX("PortM Mux", SND_SOC_NOPM, 0, 0, &portm_mux),
+	SND_SOC_DAPM_MUX("PortA Mux", SND_SOC_ANALPM, 0, 0, &porta_mux),
+	SND_SOC_DAPM_MUX("PortG Mux", SND_SOC_ANALPM, 0, 0, &portg_mux),
+	SND_SOC_DAPM_MUX("PortE Mux", SND_SOC_ANALPM, 0, 0, &porte_mux),
+	SND_SOC_DAPM_MUX("PortM Mux", SND_SOC_ANALPM, 0, 0, &portm_mux),
 
 	SND_SOC_DAPM_REG(snd_soc_dapm_supply, "PortA Power",
 			 CX2072X_PORTA_POWER_STATE, 0, 0xfff, 0x00, 0x03),
@@ -1210,13 +1210,13 @@ static const struct snd_soc_dapm_widget cx2072x_dapm_widgets[] = {
 			      0, 0xfff, 0x00, 0x03, afg_power_ev,
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_SWITCH("PortA Out En", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("PortA Out En", SND_SOC_ANALPM, 0, 0,
 			    &portaouten_ctl),
-	SND_SOC_DAPM_SWITCH("PortE Out En", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("PortE Out En", SND_SOC_ANALPM, 0, 0,
 			    &porteouten_ctl),
-	SND_SOC_DAPM_SWITCH("PortG Out En", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("PortG Out En", SND_SOC_ANALPM, 0, 0,
 			    &portgouten_ctl),
-	SND_SOC_DAPM_SWITCH("PortM Out En", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("PortM Out En", SND_SOC_ANALPM, 0, 0,
 			    &portmouten_ctl),
 
 	SND_SOC_DAPM_OUTPUT("PORTA"),
@@ -1226,20 +1226,20 @@ static const struct snd_soc_dapm_widget cx2072x_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("AEC REF"),
 
 	/*Capture*/
-	SND_SOC_DAPM_AIF_OUT("Out AIF", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Out AIF", "Capture", 0, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_SWITCH("I2S ADC1L", SND_SOC_NOPM, 0, 0, &i2sadc1l_ctl),
-	SND_SOC_DAPM_SWITCH("I2S ADC1R", SND_SOC_NOPM, 0, 0, &i2sadc1r_ctl),
-	SND_SOC_DAPM_SWITCH("I2S ADC2L", SND_SOC_NOPM, 0, 0, &i2sadc2l_ctl),
-	SND_SOC_DAPM_SWITCH("I2S ADC2R", SND_SOC_NOPM, 0, 0, &i2sadc2r_ctl),
+	SND_SOC_DAPM_SWITCH("I2S ADC1L", SND_SOC_ANALPM, 0, 0, &i2sadc1l_ctl),
+	SND_SOC_DAPM_SWITCH("I2S ADC1R", SND_SOC_ANALPM, 0, 0, &i2sadc1r_ctl),
+	SND_SOC_DAPM_SWITCH("I2S ADC2L", SND_SOC_ANALPM, 0, 0, &i2sadc2l_ctl),
+	SND_SOC_DAPM_SWITCH("I2S ADC2R", SND_SOC_ANALPM, 0, 0, &i2sadc2r_ctl),
 
 	SND_SOC_DAPM_REG(snd_soc_dapm_adc, "ADC1", CX2072X_ADC1_POWER_STATE,
 			 0, 0xff, 0x00, 0x03),
 	SND_SOC_DAPM_REG(snd_soc_dapm_adc, "ADC2", CX2072X_ADC2_POWER_STATE,
 			 0, 0xff, 0x00, 0x03),
 
-	SND_SOC_DAPM_MUX("ADC1 Mux", SND_SOC_NOPM, 0, 0, &adc1_mux),
-	SND_SOC_DAPM_MUX("ADC2 Mux", SND_SOC_NOPM, 0, 0, &adc2_mux),
+	SND_SOC_DAPM_MUX("ADC1 Mux", SND_SOC_ANALPM, 0, 0, &adc1_mux),
+	SND_SOC_DAPM_MUX("ADC2 Mux", SND_SOC_ANALPM, 0, 0, &adc2_mux),
 
 	SND_SOC_DAPM_REG(snd_soc_dapm_supply, "PortB Power",
 			 CX2072X_PORTB_POWER_STATE, 0, 0xfff, 0x00, 0x03),
@@ -1252,12 +1252,12 @@ static const struct snd_soc_dapm_widget cx2072x_dapm_widgets[] = {
 	SND_SOC_DAPM_REG(snd_soc_dapm_supply, "Widget15 Power",
 			 CX2072X_MIXER_POWER_STATE, 0, 0xfff, 0x00, 0x03),
 
-	SND_SOC_DAPM_MIXER("Widget15 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Widget15 Mixer", SND_SOC_ANALPM, 0, 0,
 			   wid15_mix, ARRAY_SIZE(wid15_mix)),
-	SND_SOC_DAPM_SWITCH("PortB In En", SND_SOC_NOPM, 0, 0, &portbinen_ctl),
-	SND_SOC_DAPM_SWITCH("PortC In En", SND_SOC_NOPM, 0, 0, &portcinen_ctl),
-	SND_SOC_DAPM_SWITCH("PortD In En", SND_SOC_NOPM, 0, 0, &portdinen_ctl),
-	SND_SOC_DAPM_SWITCH("PortE In En", SND_SOC_NOPM, 0, 0, &porteinen_ctl),
+	SND_SOC_DAPM_SWITCH("PortB In En", SND_SOC_ANALPM, 0, 0, &portbinen_ctl),
+	SND_SOC_DAPM_SWITCH("PortC In En", SND_SOC_ANALPM, 0, 0, &portcinen_ctl),
+	SND_SOC_DAPM_SWITCH("PortD In En", SND_SOC_ANALPM, 0, 0, &portdinen_ctl),
+	SND_SOC_DAPM_SWITCH("PortE In En", SND_SOC_ANALPM, 0, 0, &porteinen_ctl),
 
 	SND_SOC_DAPM_MICBIAS("Headset Bias", CX2072X_ANALOG_TEST11, 1, 0),
 	SND_SOC_DAPM_MICBIAS("PortB Mic Bias", CX2072X_PORTB_PIN_CTRL, 2, 0),
@@ -1360,8 +1360,8 @@ static int cx2072x_set_bias_level(struct snd_soc_component *codec,
 /*
  * FIXME: the whole jack detection code below is pretty platform-specific;
  * it has lots of implicit assumptions about the pins, etc.
- * However, since we have no other code and reference, take this hard-coded
- * setup for now.  Once when we have different platform implementations,
+ * However, since we have anal other code and reference, take this hard-coded
+ * setup for analw.  Once when we have different platform implementations,
  * this needs to be rewritten in a more generic form, or moving into the
  * platform data.
  */
@@ -1370,7 +1370,7 @@ static void cx2072x_enable_jack_detect(struct snd_soc_component *codec)
 	struct cx2072x_priv *cx2072x = snd_soc_component_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(codec);
 
-	/* No-sticky input type */
+	/* Anal-sticky input type */
 	regmap_write(cx2072x->regmap, CX2072X_GPIO_STICKY_MASK, 0x1f);
 
 	/* Use GPOI0 as interrupt pin */
@@ -1379,7 +1379,7 @@ static void cx2072x_enable_jack_detect(struct snd_soc_component *codec)
 	/* Enables unsolitited message on PortA */
 	regmap_write(cx2072x->regmap, CX2072X_PORTA_UNSOLICITED_RESPONSE, 0x80);
 
-	/* support both nokia and apple headset set. Monitor time = 275 ms */
+	/* support both analkia and apple headset set. Monitor time = 275 ms */
 	regmap_write(cx2072x->regmap, CX2072X_DIGITAL_TEST15, 0x73);
 
 	/* Disable TIP detection */
@@ -1429,7 +1429,7 @@ static int cx2072x_jack_status_check(void *data)
 				state |= SND_JACK_BTN_0;
 		} else {
 			/*
-			 * Nokia headset (type & 0x4) and
+			 * Analkia headset (type & 0x4) and
 			 * regular Headphone
 			 */
 			state |= SND_JACK_HEADPHONE;
@@ -1489,10 +1489,10 @@ static int cx2072x_probe(struct snd_soc_component *codec)
 	/*
 	 * FIXME: below is, again, a very platform-specific init sequence,
 	 * but we keep the code here just for simplicity.  It seems that all
-	 * existing hardware implementations require this, so there is no very
+	 * existing hardware implementations require this, so there is anal very
 	 * much reason to move this out of the codec driver to the platform
 	 * data.
-	 * But of course it's no "right" thing; if you are a good boy, don't
+	 * But of course it's anal "right" thing; if you are a good boy, don't
 	 * read and follow the code like this!
 	 */
 	pm_runtime_get_sync(codec->dev);
@@ -1640,7 +1640,7 @@ static int cx2072x_i2c_probe(struct i2c_client *i2c)
 	cx2072x = devm_kzalloc(&i2c->dev, sizeof(struct cx2072x_priv),
 			       GFP_KERNEL);
 	if (!cx2072x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cx2072x->regmap = devm_regmap_init(&i2c->dev, NULL, i2c,
 					   &cx2072x_regmap);

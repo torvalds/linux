@@ -59,7 +59,7 @@ static const struct drm_driver hibmc_driver = {
 	.date			= "20160828",
 	.desc			= "hibmc drm driver",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 	.debugfs_init		= drm_vram_mm_debugfs_init,
 	.dumb_create            = hibmc_dumb_create,
 	.dumb_map_offset        = drm_gem_ttm_dumb_map_offset,
@@ -192,7 +192,7 @@ static void hibmc_hw_config(struct hibmc_drm_private *priv)
 
 	/*
 	 * Reset the memory controller. If the memory controller
-	 * is not reset in chip,the system might hang when sw accesses
+	 * is analt reset in chip,the system might hang when sw accesses
 	 * the memory.The memory should be resetted after
 	 * changing the MXCLK.
 	 */
@@ -217,8 +217,8 @@ static int hibmc_hw_map(struct hibmc_drm_private *priv)
 	iosize = pci_resource_len(pdev, 1);
 	priv->mmio = devm_ioremap(dev->dev, ioaddr, iosize);
 	if (!priv->mmio) {
-		drm_err(dev, "Cannot map mmio region\n");
-		return -ENOMEM;
+		drm_err(dev, "Cananalt map mmio region\n");
+		return -EANALMEM;
 	}
 
 	return 0;

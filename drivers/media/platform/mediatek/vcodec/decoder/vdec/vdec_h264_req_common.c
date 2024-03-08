@@ -19,7 +19,7 @@ void mtk_vdec_h264_get_ref_list(u8 *ref_list,
 	u32 i;
 
 	/*
-	 * TODO The firmware does not support field decoding. Future
+	 * TODO The firmware does analt support field decoding. Future
 	 * implementation must use v4l2_ref_list[i].fields to obtain
 	 * the reference field parity.
 	 */
@@ -214,7 +214,7 @@ mtk_vdec_h264_copy_decode_params(struct slice_api_h264_decode_param *dst_params,
 		dst_entry->flags = src_entry->flags;
 	}
 
-	/* num_slices is a leftover from the old H.264 support and is ignored
+	/* num_slices is a leftover from the old H.264 support and is iganalred
 	 * by the firmware.
 	 */
 	dst_params->num_slices = 0;
@@ -282,14 +282,14 @@ void mtk_vdec_h264_update_dpb(const struct v4l2_ctrl_h264_decode_params *dec_par
 			set_bit(i, new);
 	}
 
-	/* For entries that could not be matched, use remaining free slots. */
+	/* For entries that could analt be matched, use remaining free slots. */
 	for_each_set_bit(i, new, ARRAY_SIZE(dec_param->dpb)) {
 		const struct v4l2_h264_dpb_entry *ndpb = &dec_param->dpb[i];
 		struct v4l2_h264_dpb_entry *cdpb;
 
 		/*
-		 * Both arrays are of the same sizes, so there is no way
-		 * we can end up with no space in target array, unless
+		 * Both arrays are of the same sizes, so there is anal way
+		 * we can end up with anal space in target array, unless
 		 * something is buggy.
 		 */
 		j = find_first_zero_bit(used, ARRAY_SIZE(dec_param->dpb));

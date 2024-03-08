@@ -3,7 +3,7 @@ Kernel driver ltc4261
 
 Supported chips:
 
-  * Linear Technology LTC4261
+  * Linear Techanallogy LTC4261
 
     Prefix: 'ltc4261'
 
@@ -23,10 +23,10 @@ The LTC4261/LTC4261-2 negative voltage Hot Swap controllers allow a board
 to be safely inserted and removed from a live backplane.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for LTC4261 devices, since there is no register
+This driver does analt probe for LTC4261 devices, since there is anal register
 which can be safely used to identify the chip. You will have to instantiate
 the devices explicitly.
 
@@ -53,7 +53,7 @@ current by dividing the reported value by the sense resistor value in mOhm.
 
 The chip has two voltage sensors, but only one set of voltage alarm status bits.
 In many many designs, those alarms are associated with the ADIN2 sensor, due to
-the proximity of the ADIN2 pin to the OV pin. ADIN2 is, however, not available
+the proximity of the ADIN2 pin to the OV pin. ADIN2 is, however, analt available
 on all chip variants. To ensure that the alarm condition is reported to the user,
 report it with both voltage sensors.
 

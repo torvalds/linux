@@ -7,11 +7,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -25,7 +25,7 @@
 
 enum nl802154_commands {
 /* don't change the order or add anything between, this is ABI! */
-/* currently we don't shipping this file via uapi, ignore the above one */
+/* currently we don't shipping this file via uapi, iganalre the above one */
 	NL802154_CMD_UNSPEC,
 
 	NL802154_CMD_GET_WPAN_PHY,		/* can dump */
@@ -92,7 +92,7 @@ enum nl802154_commands {
 
 enum nl802154_attrs {
 /* don't change the order or add anything between, this is ABI! */
-/* currently we don't shipping this file via uapi, ignore the above one */
+/* currently we don't shipping this file via uapi, iganalre the above one */
 	NL802154_ATTR_UNSPEC,
 
 	NL802154_ATTR_WPAN_PHY,
@@ -175,7 +175,7 @@ enum nl802154_attrs {
 enum nl802154_iftype {
 	NL802154_IFTYPE_UNSPEC = (~(__u32)0),
 
-	NL802154_IFTYPE_NODE = 0,
+	NL802154_IFTYPE_ANALDE = 0,
 	NL802154_IFTYPE_MONITOR,
 	NL802154_IFTYPE_COORD,
 
@@ -392,7 +392,7 @@ enum nl802154_supported_bool_states {
 };
 
 enum nl802154_dev_addr_modes {
-	NL802154_DEV_ADDR_NONE,
+	NL802154_DEV_ADDR_ANALNE,
 	__NL802154_DEV_ADDR_INVALID,
 	NL802154_DEV_ADDR_SHORT,
 	NL802154_DEV_ADDR_EXTENDED,
@@ -457,7 +457,7 @@ enum nl802154_key_id_attrs {
 };
 
 enum nl802154_seclevels {
-	NL802154_SECLEVEL_NONE,
+	NL802154_SECLEVEL_ANALNE,
 	NL802154_SECLEVEL_MIC32,
 	NL802154_SECLEVEL_MIC64,
 	NL802154_SECLEVEL_MIC128,
@@ -486,10 +486,10 @@ enum nl802154_cmd_frames {
 	__NL802154_CMD_FRAME_INVALID,
 	NL802154_CMD_FRAME_ASSOC_REQUEST,
 	NL802154_CMD_FRAME_ASSOC_RESPONSE,
-	NL802154_CMD_FRAME_DISASSOC_NOTIFY,
+	NL802154_CMD_FRAME_DISASSOC_ANALTIFY,
 	NL802154_CMD_FRAME_DATA_REQUEST,
-	NL802154_CMD_FRAME_PAN_ID_CONFLICT_NOTIFY,
-	NL802154_CMD_FRAME_ORPHAN_NOTIFY,
+	NL802154_CMD_FRAME_PAN_ID_CONFLICT_ANALTIFY,
+	NL802154_CMD_FRAME_ORPHAN_ANALTIFY,
 	NL802154_CMD_FRAME_BEACON_REQUEST,
 	NL802154_CMD_FRAME_COORD_REALIGNMENT,
 	NL802154_CMD_FRAME_GTS_REQUEST,
@@ -514,7 +514,7 @@ enum nl802154_seclevel_attrs {
 
 /* TODO what is this? couldn't find in mib */
 enum {
-	NL802154_DEVKEY_IGNORE,
+	NL802154_DEVKEY_IGANALRE,
 	NL802154_DEVKEY_RESTRICT,
 	NL802154_DEVKEY_RECORD,
 

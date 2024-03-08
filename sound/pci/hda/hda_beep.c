@@ -2,7 +2,7 @@
 /*
  * Digital Beep Input Interface for HD-audio codec
  *
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  * Copyright (c) 2008 Embedded Alley Solutions Inc
  */
 
@@ -50,7 +50,7 @@ static void snd_hda_generate_beep(struct work_struct *work)
 		generate_tone(beep, beep->tone);
 }
 
-/* (non-standard) Linear beep tone calculation for IDT/STAC codecs 
+/* (analn-standard) Linear beep tone calculation for IDT/STAC codecs 
  *
  * The tone frequency of beep generator on IDT/STAC codecs is
  * defined from the 8bit tone parameter, in Hz,
@@ -197,7 +197,7 @@ static int beep_dev_free(struct snd_device *device)
  * @nid: beep NID
  *
  * Attach a beep object to the given widget.  If beep hint is turned off
- * explicitly or beep_mode of the codec is turned off, this doesn't nothing.
+ * explicitly or beep_mode of the codec is turned off, this doesn't analthing.
  *
  * Currently, only one beep device is allowed to each codec.
  */
@@ -219,7 +219,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 
 	beep = kzalloc(sizeof(*beep), GFP_KERNEL);
 	if (beep == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	snprintf(beep->phys, sizeof(beep->phys),
 		"card%d/codec#%d/beep0", codec->card->number, codec->addr);
 	/* enable linear scale */
@@ -235,7 +235,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -59,7 +59,7 @@
 #define __DML_NUM_PLANES__                              DCN_DML__NUM_PLANE
 #define __DML_NUM_CURSORS__                             DCN_DML__NUM_CURSOR
 #define __DML_DPP_INVALID__                             0
-#define __DML_PIPE_NO_PLANE__                           99
+#define __DML_PIPE_ANAL_PLANE__                           99
 
 #define __DML_MAX_STATE_ARRAY_SIZE__        DCN_DML__NUM_PWR_STATE
 
@@ -70,7 +70,7 @@ typedef          int   dml_int_t;   // int is 32-bit in C/C++, but Integer datat
 typedef unsigned int   dml_uint_t;
 typedef double         dml_float_t;
 
-// Note: bool is 8-bit in C/C++, but Boolean is 16-bit in VBA, use "short" in C/C++ DLL so the struct work when vba uses DLL
+// Analte: bool is 8-bit in C/C++, but Boolean is 16-bit in VBA, use "short" in C/C++ DLL so the struct work when vba uses DLL
 // Or the VBA side don't use Boolean, just use "Byte", then C side can use bool
 typedef bool          dml_bool_t;
 

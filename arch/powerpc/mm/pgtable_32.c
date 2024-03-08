@@ -35,7 +35,7 @@
 
 static u8 early_fixmap_pagetable[FIXMAP_PTE_SIZE] __page_aligned_data;
 
-notrace void __init early_ioremap_init(void)
+analtrace void __init early_ioremap_init(void)
 {
 	unsigned long addr = ALIGN_DOWN(FIXADDR_START, PGDIR_SIZE);
 	pte_t *ptep = (pte_t *)early_fixmap_pagetable;
@@ -61,7 +61,7 @@ static void __init *early_alloc_pgtable(unsigned long size)
 
 pte_t __init *early_pte_alloc_kernel(pmd_t *pmdp, unsigned long va)
 {
-	if (pmd_none(*pmdp)) {
+	if (pmd_analne(*pmdp)) {
 		pte_t *ptep = early_alloc_pgtable(PTE_FRAG_SIZE);
 
 		pmd_populate_kernel(&init_mm, pmdp, ptep);
@@ -74,7 +74,7 @@ int __ref map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 {
 	pmd_t *pd;
 	pte_t *pg;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* Use upper 10 bits of VA to index the first level map */
 	pd = pmd_off_k(va);
@@ -85,7 +85,7 @@ int __ref map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 		pg = early_pte_alloc_kernel(pd, va);
 	if (pg) {
 		err = 0;
-		/* The PTE should never be already set nor present in the
+		/* The PTE should never be already set analr present in the
 		 * hash table
 		 */
 		BUG_ON((pte_present(*pg) | pte_hashpte(*pg)) && pgprot_val(prot));
@@ -160,14 +160,14 @@ void mark_rodata_ro(void)
 	/*
 	 * mark text and rodata as read only. __end_rodata is set by
 	 * powerpc's linker script and includes tables and data
-	 * requiring relocation which are not put in RO_DATA.
+	 * requiring relocation which are analt put in RO_DATA.
 	 */
 	numpages = PFN_UP((unsigned long)__end_rodata) -
 		   PFN_DOWN((unsigned long)_stext);
 
 	set_memory_ro((unsigned long)_stext, numpages);
 
-	// mark_initmem_nx() should have already run by now
+	// mark_initmem_nx() should have already run by analw
 	ptdump_check_wx();
 }
 #endif

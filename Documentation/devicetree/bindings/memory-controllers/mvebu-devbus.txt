@@ -1,8 +1,8 @@
 Device tree bindings for MVEBU Device Bus controllers
 
 The Device Bus controller available in some Marvell's SoC allows to control
-different types of standard memory and I/O devices such as NOR, NAND, and FPGA.
-The actual devices are instantiated from the child nodes of a Device Bus node.
+different types of standard memory and I/O devices such as ANALR, NAND, and FPGA.
+The actual devices are instantiated from the child analdes of a Device Bus analde.
 
 Required properties:
 
@@ -30,11 +30,11 @@ Optional properties:
                         bootloader. It makes all the timing properties
                         described below unused.
 
-Timing properties for child nodes:
+Timing properties for child analdes:
 
 Read parameters:
 
- - devbus,turn-off-ps:  Defines the time during which the controller does not
+ - devbus,turn-off-ps:  Defines the time during which the controller does analt
                         drive the AD bus after the completion of a device read.
                         This prevents contentions on the Device Bus after a read
                         cycle from a slow device.
@@ -45,7 +45,7 @@ Read parameters:
 
  - devbus,badr-skew-ps: Defines the time delay from from A[2:0] toggle,
                         to read data sample. This parameter is useful for
-                        synchronous pipelined devices, where the address
+                        synchroanalus pipelined devices, where the address
                         precedes the read data by one or two cycles.
                         Mandatory, except if devbus,keep-config is used.
 
@@ -62,8 +62,8 @@ Read parameters:
  - devbus,rd-setup-ps:  Defines the time delay between DEV_CSn assertion to
 			DEV_OEn assertion. If set to 0 (default),
                         DEV_OEn and DEV_CSn are asserted at the same cycle.
-                        This parameter has no affect on <acc-first-ps> parameter
-                        (no affect on first data sample). Set <rd-setup-ps>
+                        This parameter has anal affect on <acc-first-ps> parameter
+                        (anal affect on first data sample). Set <rd-setup-ps>
                         to a value smaller than <acc-first-ps>.
                         Mandatory for "marvell,mvebu-devbus" compatible string,
                         except if devbus,keep-config is used.
@@ -72,9 +72,9 @@ Read parameters:
 			de-assertion of DEV_CSn. If set to 0 (default),
 			DEV_OEn and DEV_CSn are de-asserted at the same cycle
 			(the cycle of the last data sample).
-                        This parameter has no affect on DEV_OEn de-assertion.
+                        This parameter has anal affect on DEV_OEn de-assertion.
                         DEV_OEn is always de-asserted the next cycle after
-                        last data sampled. Also this parameter has no
+                        last data sampled. Also this parameter has anal
                         affect on <turn-off-ps> parameter.
                         Set <rd-hold-ps> to a value smaller than <turn-off-ps>.
                         Mandatory for "marvell,mvebu-devbus" compatible string,
@@ -94,23 +94,23 @@ Write parameters:
 
  - devbus,wr-high-ps:   Defines the time during which DEV_WEn is kept
                         inactive (high) between data beats of a burst write.
-                        DEV_A[2:0] and Data are kept valid (do not toggle) for
+                        DEV_A[2:0] and Data are kept valid (do analt toggle) for
                         <wr-high-ps> - <tick> ps.
 			This parameter defines the hold time of address and
 			data after DEV_WEn rise.
                         Mandatory.
 
- - devbus,sync-enable: Synchronous device enable.
+ - devbus,sync-enable: Synchroanalus device enable.
                        1: True
                        0: False
                        Mandatory for "marvell,mvebu-devbus" compatible string,
                        except if devbus,keep-config is used.
 
-An example for an Armada XP GP board, with a 16 MiB NOR device as child
-is showed below. Note that the Device Bus driver is in charge of allocating
+An example for an Armada XP GP board, with a 16 MiB ANALR device as child
+is showed below. Analte that the Device Bus driver is in charge of allocating
 the mbus address decoding window for each of its child devices.
 The window is created using the chip select specified in the child
-device node together with the base address and size specified in the ranges
+device analde together with the base address and size specified in the ranges
 property. For instance, in the example below the allocated decoding window
 will start at base address 0xf0000000, with a size 0x1000000 (16 MiB)
 for chip select 0 (a.k.a DEV_BOOTCS).

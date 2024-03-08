@@ -13,7 +13,7 @@ static int esw_ipsec_vf_query_generic(struct mlx5_core_dev *dev, u16 vport_num, 
 	int err;
 
 	if (!MLX5_CAP_GEN(dev, vhca_resource_manager))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!mlx5_esw_ipsec_vf_offload_supported(dev)) {
 		*result = false;
@@ -22,7 +22,7 @@ static int esw_ipsec_vf_query_generic(struct mlx5_core_dev *dev, u16 vport_num, 
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	if (!query_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_vport_get_other_func_general_cap(dev, vport_num, query_cap);
 	if (err)
@@ -62,7 +62,7 @@ int mlx5_esw_ipsec_vf_offload_get(struct mlx5_core_dev *dev, struct mlx5_vport *
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	if (!query_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_vport_get_other_func_cap(dev, vport->vport, query_cap, MLX5_CAP_IPSEC);
 	if (err)
@@ -86,12 +86,12 @@ static int esw_ipsec_vf_set_generic(struct mlx5_core_dev *dev, u16 vport_num, bo
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev, vhca_resource_manager))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	hca_cap = kvzalloc(set_sz, GFP_KERNEL);
 	if (!hca_cap || !query_cap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
@@ -126,12 +126,12 @@ static int esw_ipsec_vf_set_bytype(struct mlx5_core_dev *dev, struct mlx5_vport 
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev, vhca_resource_manager))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	hca_cap = kvzalloc(set_sz, GFP_KERNEL);
 	if (!hca_cap || !query_cap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
@@ -151,7 +151,7 @@ static int esw_ipsec_vf_set_bytype(struct mlx5_core_dev *dev, struct mlx5_vport 
 		MLX5_SET(ipsec_cap, cap, ipsec_full_offload, enable);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto free;
 	}
 
@@ -179,7 +179,7 @@ static int esw_ipsec_vf_crypto_aux_caps_set(struct mlx5_core_dev *dev, u16 vport
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	hca_cap = kvzalloc(set_sz, GFP_KERNEL);
 	if (!hca_cap || !query_cap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
@@ -210,7 +210,7 @@ static int esw_ipsec_vf_offload_set_bytype(struct mlx5_eswitch *esw, struct mlx5
 	int err;
 
 	if (vport->vport == MLX5_VPORT_PF)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (type == MLX5_ESW_VPORT_IPSEC_CRYPTO_OFFLOAD) {
 		err = esw_ipsec_vf_crypto_aux_caps_set(dev, vport->vport, enable);
@@ -266,7 +266,7 @@ static int esw_ipsec_offload_supported(struct mlx5_core_dev *dev, u16 vport_num)
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	if (!query_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mlx5_vport_get_other_func_cap(dev, vport_num, query_cap, MLX5_CAP_GENERAL);
 	if (ret)
@@ -274,7 +274,7 @@ static int esw_ipsec_offload_supported(struct mlx5_core_dev *dev, u16 vport_num)
 
 	hca_cap = MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability);
 	if (!MLX5_GET(cmd_hca_cap, hca_cap, log_max_dek))
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 free:
 	kvfree(query_cap);
 	return ret;
@@ -284,7 +284,7 @@ bool mlx5_esw_ipsec_vf_offload_supported(struct mlx5_core_dev *dev)
 {
 	/* Old firmware doesn't support ipsec_offload capability for VFs. This
 	 * can be detected by checking reformat_add_esp_trasport capability -
-	 * when this cap isn't supported it means firmware cannot be trusted
+	 * when this cap isn't supported it means firmware cananalt be trusted
 	 * about what it reports for ipsec_offload cap.
 	 */
 	return MLX5_CAP_FLOWTABLE_NIC_TX(dev, reformat_add_esp_trasport);
@@ -298,7 +298,7 @@ int mlx5_esw_ipsec_vf_crypto_offload_supported(struct mlx5_core_dev *dev,
 	int err;
 
 	if (!mlx5_esw_ipsec_vf_offload_supported(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = esw_ipsec_offload_supported(dev, vport_num);
 	if (err)
@@ -306,7 +306,7 @@ int mlx5_esw_ipsec_vf_crypto_offload_supported(struct mlx5_core_dev *dev,
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	if (!query_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_vport_get_other_func_cap(dev, vport_num, query_cap, MLX5_CAP_ETHERNET_OFFLOADS);
 	if (err)
@@ -329,7 +329,7 @@ int mlx5_esw_ipsec_vf_packet_offload_supported(struct mlx5_core_dev *dev,
 	int ret;
 
 	if (!mlx5_esw_ipsec_vf_offload_supported(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = esw_ipsec_offload_supported(dev, vport_num);
 	if (ret)
@@ -337,7 +337,7 @@ int mlx5_esw_ipsec_vf_packet_offload_supported(struct mlx5_core_dev *dev,
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	if (!query_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mlx5_vport_get_other_func_cap(dev, vport_num, query_cap, MLX5_CAP_FLOW_TABLE);
 	if (ret)
@@ -345,7 +345,7 @@ int mlx5_esw_ipsec_vf_packet_offload_supported(struct mlx5_core_dev *dev,
 
 	hca_cap = MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability);
 	if (!MLX5_GET(flow_table_nic_cap, hca_cap, flow_table_properties_nic_receive.decap)) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 

@@ -159,7 +159,7 @@ The CAIF Protocol implementation contains:
 In this layered approach the following "rules" apply.
 
       - All layers embed the same structure "struct cflayer"
-      - A layer does not depend on any other layer's private data.
+      - A layer does analt depend on any other layer's private data.
       - Layers are stacked by setting the pointers::
 
 		  layer->up , layer->dn
@@ -190,6 +190,6 @@ The Link Layer is implemented as Linux network devices (struct net_device).
 Payload handling and registration is done using standard Linux mechanisms.
 
 The CAIF Protocol relies on a loss-less link layer without implementing
-retransmission. This implies that packet drops must not happen.
+retransmission. This implies that packet drops must analt happen.
 Therefore a flow-control mechanism is implemented where the physical
 interface can initiate flow stop for all CAIF Channels.

@@ -35,7 +35,7 @@ struct path_selector {
  * The extra cost is usually offset by improved path selection for
  * some benchmarks.
  *
- * This has no effect for request-based mpath, since it already uses a
+ * This has anal effect for request-based mpath, since it already uses a
  * higher precision timer by default.
  */
 #define DM_PS_USE_HR_TIMER		0x00000001
@@ -64,13 +64,13 @@ struct path_selector_type {
 			int argc, char **argv, char **error);
 
 	/*
-	 * Chooses a path for this io, if no paths are available then
+	 * Chooses a path for this io, if anal paths are available then
 	 * NULL will be returned.
 	 */
 	struct dm_path *(*select_path)(struct path_selector *ps, size_t nr_bytes);
 
 	/*
-	 * Notify the selector that a path has failed.
+	 * Analtify the selector that a path has failed.
 	 */
 	void (*fail_path)(struct path_selector *ps, struct dm_path *p);
 

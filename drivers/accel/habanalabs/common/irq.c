@@ -106,12 +106,12 @@ static void cs_finish(struct hl_device *hdev, u16 cs_seq, ktime_t timestamp)
 	cs = hdev->shadow_cs_queue[cs_seq & (prop->max_pending_cs - 1)];
 	if (!cs) {
 		dev_warn(hdev->dev,
-			"No pointer to CS in shadow array at index %d\n",
+			"Anal pointer to CS in shadow array at index %d\n",
 			cs_seq);
 		return;
 	}
 
-	list_for_each_entry(job, &cs->job_list, cs_node) {
+	list_for_each_entry(job, &cs->job_list, cs_analde) {
 		queue = &hdev->kernel_queues[job->hw_queue_id];
 		atomic_inc(&queue->ci);
 	}
@@ -196,7 +196,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 
 /*
  * hl_ts_free_objects - handler of the free objects workqueue.
- * This function should put refcount to objects that the registration node
+ * This function should put refcount to objects that the registration analde
  * took refcount to them.
  * @work: workqueue object pointer
  */
@@ -205,12 +205,12 @@ static void hl_ts_free_objects(struct work_struct *work)
 	struct timestamp_reg_work_obj *job =
 			container_of(work, struct timestamp_reg_work_obj, free_obj);
 	struct list_head *dynamic_alloc_free_list_head = job->dynamic_alloc_free_obj_head;
-	struct timestamp_reg_free_node *free_obj, *temp_free_obj;
+	struct timestamp_reg_free_analde *free_obj, *temp_free_obj;
 	struct list_head *free_list_head = job->free_obj_head;
 
 	struct hl_device *hdev = job->hdev;
 
-	list_for_each_entry_safe(free_obj, temp_free_obj, free_list_head, free_objects_node) {
+	list_for_each_entry_safe(free_obj, temp_free_obj, free_list_head, free_objects_analde) {
 		dev_dbg(hdev->dev, "About to put refcount to buf (%p) cq_cb(%p)\n",
 					free_obj->buf,
 					free_obj->cq_cb);
@@ -224,7 +224,7 @@ static void hl_ts_free_objects(struct work_struct *work)
 
 	if (dynamic_alloc_free_list_head) {
 		list_for_each_entry_safe(free_obj, temp_free_obj, dynamic_alloc_free_list_head,
-								free_objects_node) {
+								free_objects_analde) {
 			dev_dbg(hdev->dev,
 				"Dynamic_Alloc list: About to put refcount to buf (%p) cq_cb(%p)\n",
 						free_obj->buf,
@@ -232,7 +232,7 @@ static void hl_ts_free_objects(struct work_struct *work)
 
 			hl_mmap_mem_buf_put(free_obj->buf);
 			hl_cb_put(free_obj->cq_cb);
-			list_del(&free_obj->free_objects_node);
+			list_del(&free_obj->free_objects_analde);
 			kfree(free_obj);
 		}
 
@@ -244,40 +244,40 @@ static void hl_ts_free_objects(struct work_struct *work)
 
 /*
  * This function called with spin_lock of wait_list_lock taken
- * This function will set timestamp and delete the registration node from the
+ * This function will set timestamp and delete the registration analde from the
  * wait_list_lock.
- * and since we're protected with spin_lock here, so we cannot just put the refcount
+ * and since we're protected with spin_lock here, so we cananalt just put the refcount
  * for the objects here, since the release function may be called and it's also a long
- * logic (which might sleep also) that cannot be handled in irq context.
- * so here we'll be filling a list with nodes of "put" jobs and then will send this
+ * logic (which might sleep also) that cananalt be handled in irq context.
+ * so here we'll be filling a list with analdes of "put" jobs and then will send this
  * list to a dedicated workqueue to do the actual put.
  */
-static int handle_registration_node(struct hl_device *hdev, struct hl_user_pending_interrupt *pend,
+static int handle_registration_analde(struct hl_device *hdev, struct hl_user_pending_interrupt *pend,
 						struct list_head **free_list,
 						struct list_head **dynamic_alloc_list,
 						struct hl_user_interrupt *intr)
 {
 	struct hl_ts_free_jobs *ts_free_jobs_data;
-	struct timestamp_reg_free_node *free_node;
-	u32 free_node_index;
+	struct timestamp_reg_free_analde *free_analde;
+	u32 free_analde_index;
 	u64 timestamp;
 
 	ts_free_jobs_data = &intr->ts_free_jobs_data;
-	free_node_index = ts_free_jobs_data->next_avail_free_node_idx;
+	free_analde_index = ts_free_jobs_data->next_avail_free_analde_idx;
 
 	if (!(*free_list)) {
 		/* Alloc/Init the timestamp registration free objects list */
 		*free_list = kmalloc(sizeof(struct list_head), GFP_ATOMIC);
 		if (!(*free_list))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		INIT_LIST_HEAD(*free_list);
 	}
 
-	free_node = &ts_free_jobs_data->free_nodes_pool[free_node_index];
-	if (atomic_cmpxchg(&free_node->in_use, 0, 1)) {
+	free_analde = &ts_free_jobs_data->free_analdes_pool[free_analde_index];
+	if (atomic_cmpxchg(&free_analde->in_use, 0, 1)) {
 		dev_dbg(hdev->dev,
-			"Timestamp free node pool is full, buff: %p, record: %p, irq: %u\n",
+			"Timestamp free analde pool is full, buff: %p, record: %p, irq: %u\n",
 				pend->ts_reg_info.buf,
 				pend,
 				intr->interrupt_id);
@@ -285,16 +285,16 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 		if (!(*dynamic_alloc_list)) {
 			*dynamic_alloc_list = kmalloc(sizeof(struct list_head), GFP_ATOMIC);
 			if (!(*dynamic_alloc_list))
-				return -ENOMEM;
+				return -EANALMEM;
 
 			INIT_LIST_HEAD(*dynamic_alloc_list);
 		}
 
-		free_node = kmalloc(sizeof(struct timestamp_reg_free_node), GFP_ATOMIC);
-		if (!free_node)
-			return -ENOMEM;
+		free_analde = kmalloc(sizeof(struct timestamp_reg_free_analde), GFP_ATOMIC);
+		if (!free_analde)
+			return -EANALMEM;
 
-		free_node->dynamic_alloc = 1;
+		free_analde->dynamic_alloc = 1;
 	}
 
 	timestamp = ktime_to_ns(intr->timestamp);
@@ -304,20 +304,20 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	dev_dbg(hdev->dev, "Irq handle: Timestamp record (%p) ts cb address (%p), interrupt_id: %u\n",
 			pend, pend->ts_reg_info.timestamp_kernel_addr, intr->interrupt_id);
 
-	list_del(&pend->list_node);
+	list_del(&pend->list_analde);
 
 	/* Putting the refcount for ts_buff and cq_cb objects will be handled
 	 * in workqueue context, just add job to free_list.
 	 */
-	free_node->buf = pend->ts_reg_info.buf;
-	free_node->cq_cb = pend->ts_reg_info.cq_cb;
+	free_analde->buf = pend->ts_reg_info.buf;
+	free_analde->cq_cb = pend->ts_reg_info.cq_cb;
 
-	if (free_node->dynamic_alloc) {
-		list_add(&free_node->free_objects_node, *dynamic_alloc_list);
+	if (free_analde->dynamic_alloc) {
+		list_add(&free_analde->free_objects_analde, *dynamic_alloc_list);
 	} else {
-		ts_free_jobs_data->next_avail_free_node_idx =
-				(++free_node_index) % ts_free_jobs_data->free_nodes_length;
-		list_add(&free_node->free_objects_node, *free_list);
+		ts_free_jobs_data->next_avail_free_analde_idx =
+				(++free_analde_index) % ts_free_jobs_data->free_analdes_length;
+		list_add(&free_analde->free_objects_analde, *free_list);
 	}
 
 	/* Mark TS record as free */
@@ -331,17 +331,17 @@ static void handle_user_interrupt_ts_list(struct hl_device *hdev, struct hl_user
 	struct list_head *ts_reg_free_list_head = NULL, *dynamic_alloc_list_head = NULL;
 	struct hl_user_pending_interrupt *pend, *temp_pend;
 	struct timestamp_reg_work_obj *job;
-	bool reg_node_handle_fail = false;
+	bool reg_analde_handle_fail = false;
 	unsigned long flags;
 	int rc;
 
-	/* For registration nodes:
-	 * As part of handling the registration nodes, we should put refcount to
-	 * some objects. the problem is that we cannot do that under spinlock
+	/* For registration analdes:
+	 * As part of handling the registration analdes, we should put refcount to
+	 * some objects. the problem is that we cananalt do that under spinlock
 	 * or in irq handler context at all (since release functions are long and
 	 * might sleep), so we will need to handle that part in workqueue context.
 	 * To avoid handling kmalloc failure which compels us rolling back actions
-	 * and move nodes hanged on the free list back to the interrupt ts list
+	 * and move analdes hanged on the free list back to the interrupt ts list
 	 * we always alloc the job of the WQ at the beginning.
 	 */
 	job = kmalloc(sizeof(*job), GFP_ATOMIC);
@@ -349,15 +349,15 @@ static void handle_user_interrupt_ts_list(struct hl_device *hdev, struct hl_user
 		return;
 
 	spin_lock_irqsave(&intr->ts_list_lock, flags);
-	list_for_each_entry_safe(pend, temp_pend, &intr->ts_list_head, list_node) {
+	list_for_each_entry_safe(pend, temp_pend, &intr->ts_list_head, list_analde) {
 		if ((pend->cq_kernel_addr && *(pend->cq_kernel_addr) >= pend->cq_target_value) ||
 				!pend->cq_kernel_addr) {
-			if (!reg_node_handle_fail) {
-				rc = handle_registration_node(hdev, pend,
+			if (!reg_analde_handle_fail) {
+				rc = handle_registration_analde(hdev, pend,
 						&ts_reg_free_list_head,
 						&dynamic_alloc_list_head, intr);
 				if (rc)
-					reg_node_handle_fail = true;
+					reg_analde_handle_fail = true;
 			}
 		}
 	}
@@ -380,10 +380,10 @@ static void handle_user_interrupt_wait_list(struct hl_device *hdev, struct hl_us
 	unsigned long flags;
 
 	spin_lock_irqsave(&intr->wait_list_lock, flags);
-	list_for_each_entry_safe(pend, temp_pend, &intr->wait_list_head, list_node) {
+	list_for_each_entry_safe(pend, temp_pend, &intr->wait_list_head, list_analde) {
 		if ((pend->cq_kernel_addr && *(pend->cq_kernel_addr) >= pend->cq_target_value) ||
 				!pend->cq_kernel_addr) {
-			/* Handle wait target value node */
+			/* Handle wait target value analde */
 			pend->fence.timestamp = intr->timestamp;
 			complete_all(&pend->fence.completion);
 		}
@@ -396,9 +396,9 @@ static void handle_tpc_interrupt(struct hl_device *hdev)
 	u64 event_mask;
 	u32 flags;
 
-	event_mask = HL_NOTIFIER_EVENT_TPC_ASSERT |
-		HL_NOTIFIER_EVENT_USER_ENGINE_ERR |
-		HL_NOTIFIER_EVENT_DEVICE_RESET;
+	event_mask = HL_ANALTIFIER_EVENT_TPC_ASSERT |
+		HL_ANALTIFIER_EVENT_USER_ENGINE_ERR |
+		HL_ANALTIFIER_EVENT_DEVICE_RESET;
 
 	flags = HL_DRV_RESET_DELAY;
 
@@ -476,7 +476,7 @@ irqreturn_t hl_irq_user_interrupt_thread_handler(int irq, void *arg)
 
 irqreturn_t hl_irq_eq_error_interrupt_thread_handler(int irq, void *arg)
 {
-	u64 event_mask = HL_NOTIFIER_EVENT_DEVICE_RESET | HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE;
+	u64 event_mask = HL_ANALTIFIER_EVENT_DEVICE_RESET | HL_ANALTIFIER_EVENT_DEVICE_UNAVAILABLE;
 	struct hl_device *hdev = arg;
 
 	dev_err(hdev->dev, "EQ error interrupt received\n");
@@ -517,7 +517,7 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 		if ((hdev->event_queue.check_eqe_index) &&
 				(((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK) != cur_eqe_index)) {
 			dev_err(hdev->dev,
-				"EQE %#x in queue is ready but index does not match %d!=%d",
+				"EQE %#x in queue is ready but index does analt match %d!=%d",
 				cur_eqe,
 				((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK),
 				cur_eqe_index);
@@ -586,7 +586,7 @@ irqreturn_t hl_irq_handler_dec_abnrm(int irq, void *arg)
  * @hdev: pointer to device structure
  * @q: pointer to cq structure
  * @hw_queue_id: The H/W queue ID this completion queue belongs to
- *               HL_INVALID_QUEUE if cq is not attached to any specific queue
+ *               HL_INVALID_QUEUE if cq is analt attached to any specific queue
  *
  * Allocate dma-able memory for the completion queue and initialize fields
  * Returns 0 on success
@@ -598,7 +598,7 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 	p = hl_asic_dma_alloc_coherent(hdev, HL_CQ_SIZE_IN_BYTES, &q->bus_address,
 					GFP_KERNEL | __GFP_ZERO);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->hdev = hdev;
 	q->kernel_address = p;
@@ -632,7 +632,7 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
 	atomic_set(&q->free_slots_cnt, HL_CQ_LENGTH);
 
 	/*
-	 * It's not enough to just reset the PI/CI because the H/W may have
+	 * It's analt eanalugh to just reset the PI/CI because the H/W may have
 	 * written valid completion entries before it was halted and therefore
 	 * we need to clean the actual queues so we won't process old entries
 	 * when the device is operational again
@@ -656,7 +656,7 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 
 	p = hl_cpu_accessible_dma_pool_alloc(hdev, HL_EQ_SIZE_IN_BYTES, &q->bus_address);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->hdev = hdev;
 	q->kernel_address = p;
@@ -687,7 +687,7 @@ void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
 	q->prev_eqe_index = 0;
 
 	/*
-	 * It's not enough to just reset the PI/CI because the H/W may have
+	 * It's analt eanalugh to just reset the PI/CI because the H/W may have
 	 * written valid completion entries before it was halted and therefore
 	 * we need to clean the actual queues so we won't process old entries
 	 * when the device is operational again

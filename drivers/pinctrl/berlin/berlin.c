@@ -2,7 +2,7 @@
 /*
  * Marvell Berlin SoC pinctrl core driver
  *
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */
@@ -47,8 +47,8 @@ static const char *berlin_pinctrl_get_group_name(struct pinctrl_dev *pctrl_dev,
 	return pctrl->desc->groups[group].name;
 }
 
-static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
-					 struct device_node *node,
+static int berlin_pinctrl_dt_analde_to_map(struct pinctrl_dev *pctrl_dev,
+					 struct device_analde *analde,
 					 struct pinctrl_map **map,
 					 unsigned *num_maps)
 {
@@ -61,17 +61,17 @@ static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
 	*map = NULL;
 	*num_maps = 0;
 
-	ret = of_property_read_string(node, "function", &function_name);
+	ret = of_property_read_string(analde, "function", &function_name);
 	if (ret) {
 		dev_err(pctrl->dev,
-			"missing function property in node %pOFn\n", node);
+			"missing function property in analde %pOFn\n", analde);
 		return -EINVAL;
 	}
 
-	ngroups = of_property_count_strings(node, "groups");
+	ngroups = of_property_count_strings(analde, "groups");
 	if (ngroups < 0) {
 		dev_err(pctrl->dev,
-			"missing groups property in node %pOFn\n", node);
+			"missing groups property in analde %pOFn\n", analde);
 		return -EINVAL;
 	}
 
@@ -82,7 +82,7 @@ static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
 		return ret;
 	}
 
-	of_property_for_each_string(node, "groups", prop, group_name) {
+	of_property_for_each_string(analde, "groups", prop, group_name) {
 		ret = pinctrl_utils_add_map_mux(pctrl_dev, map, &reserved_maps,
 						num_maps, group_name,
 						function_name);
@@ -98,7 +98,7 @@ static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
 static const struct pinctrl_ops berlin_pinctrl_ops = {
 	.get_groups_count	= berlin_pinctrl_get_group_count,
 	.get_group_name		= berlin_pinctrl_get_group_name,
-	.dt_node_to_map		= berlin_pinctrl_dt_node_to_map,
+	.dt_analde_to_map		= berlin_pinctrl_dt_analde_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -217,7 +217,7 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 	pctrl->functions = kcalloc(max_functions,
 				   sizeof(*pctrl->functions), GFP_KERNEL);
 	if (!pctrl->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* register all functions */
 	for (i = 0; i < pctrl->desc->ngroups; i++) {
@@ -234,7 +234,7 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 				    pctrl->nfunctions * sizeof(*pctrl->functions),
 				    GFP_KERNEL);
 	if (!pctrl->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* map functions to theirs groups */
 	for (i = 0; i < pctrl->desc->ngroups; i++) {
@@ -269,7 +269,7 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 
 				if (!function->groups) {
 					kfree(pctrl->functions);
-					return -ENOMEM;
+					return -EANALMEM;
 				}
 			}
 
@@ -303,7 +303,7 @@ int berlin_pinctrl_probe_regmap(struct platform_device *pdev,
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pctrl);
 
@@ -313,7 +313,7 @@ int berlin_pinctrl_probe_regmap(struct platform_device *pdev,
 
 	ret = berlin_pinctrl_build_state(pdev);
 	if (ret) {
-		dev_err(dev, "cannot build driver state: %d\n", ret);
+		dev_err(dev, "cananalt build driver state: %d\n", ret);
 		return ret;
 	}
 
@@ -331,10 +331,10 @@ int berlin_pinctrl_probe(struct platform_device *pdev,
 			 const struct berlin_pinctrl_desc *desc)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent_np = of_get_parent(dev->of_node);
-	struct regmap *regmap = syscon_node_to_regmap(parent_np);
+	struct device_analde *parent_np = of_get_parent(dev->of_analde);
+	struct regmap *regmap = syscon_analde_to_regmap(parent_np);
 
-	of_node_put(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 

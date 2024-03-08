@@ -27,19 +27,19 @@
  *
  * Xe PM shall be guided by the simplicity.
  * Use the simplest hook options whenever possible.
- * Let's not reinvent the runtime_pm references and hooks.
+ * Let's analt reinvent the runtime_pm references and hooks.
  * Shall have a clear separation of display and gt underneath this component.
  *
  * What's next:
  *
- * For now s2idle and s3 are only working in integrated devices. The next step
+ * For analw s2idle and s3 are only working in integrated devices. The next step
  * is to iterate through all VRAM's BO backing them up into the system memory
  * before allowing the system suspend.
  *
  * Also runtime_pm needs to be here from the beginning.
  *
  * RC6/RPS are also critical PM features. Let's start with GuCRC and GuC SLPC
- * and no wait boost. Frequency optimizations should come on a next stage.
+ * and anal wait boost. Frequency optimizations should come on a next stage.
  */
 
 /**
@@ -147,13 +147,13 @@ static void xe_pm_runtime_init(struct xe_device *xe)
 	/*
 	 * Disable the system suspend direct complete optimization.
 	 * We need to ensure that the regular device suspend/resume functions
-	 * are called since our runtime_pm cannot guarantee local memory
+	 * are called since our runtime_pm cananalt guarantee local memory
 	 * eviction for d3cold.
 	 * TODO: Check HDA audio dependencies claimed by i915, and then enforce
 	 *       this option to integrated graphics as well.
 	 */
 	if (IS_DGFX(xe))
-		dev_pm_set_driver_flags(dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+		dev_pm_set_driver_flags(dev, DPM_FLAG_ANAL_DIRECT_COMPLETE);
 
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 1000);
@@ -167,7 +167,7 @@ void xe_pm_init(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
-	/* For now suspend/resume is only allowed with GuC */
+	/* For analw suspend/resume is only allowed with GuC */
 	if (!xe_device_uc_enabled(xe))
 		return;
 
@@ -226,10 +226,10 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 
 	/*
 	 * The actual xe_device_mem_access_put() is always async underneath, so
-	 * exactly where that is called should makes no difference to us. However
+	 * exactly where that is called should makes anal difference to us. However
 	 * we still need to be very careful with the locks that this callback
 	 * acquires and the locks that are acquired and held by any callers of
-	 * xe_device_mem_access_get(). We already have the matching annotation
+	 * xe_device_mem_access_get(). We already have the matching ananaltation
 	 * on that side, but we also need it here. For example lockdep should be
 	 * able to tell us if the following scenario is in theory possible:
 	 *
@@ -242,7 +242,7 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 	 * This will clearly deadlock since rpm core needs to wait for
 	 * xe_pm_runtime_suspend() to complete, but here we are holding lock(A)
 	 * on CPU0 which prevents CPU1 making forward progress.  With the
-	 * annotation here and in xe_device_mem_access_get() lockdep will see
+	 * ananaltation here and in xe_device_mem_access_get() lockdep will see
 	 * the potential lock inversion and give us a nice splat.
 	 */
 	lock_map_acquire(&xe_device_mem_access_lockdep_map);
@@ -279,7 +279,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 
 	/*
 	 * It can be possible that xe has allowed d3cold but other pcie devices
-	 * in gfx card soc would have blocked d3cold, therefore card has not
+	 * in gfx card soc would have blocked d3cold, therefore card has analt
 	 * really lost power. Detecting primary Gt power is sufficient.
 	 */
 	gt = xe_device_get_gt(xe, 0);
@@ -343,7 +343,7 @@ void xe_pm_assert_unbounded_bridge(struct xe_device *xe)
 
 	if (!bridge->driver) {
 		drm_warn(&xe->drm, "unbounded parent pci bridge, device won't support any PM support.\n");
-		device_set_pm_not_required(&pdev->dev);
+		device_set_pm_analt_required(&pdev->dev);
 	}
 }
 
@@ -401,5 +401,5 @@ void xe_pm_d3cold_allowed_toggle(struct xe_device *xe)
 	mutex_unlock(&xe->d3cold.lock);
 
 	drm_dbg(&xe->drm,
-		"d3cold: allowed=%s\n", str_yes_no(xe->d3cold.allowed));
+		"d3cold: allowed=%s\n", str_anal_anal(xe->d3cold.allowed));
 }

@@ -24,8 +24,8 @@ struct gic_kvm_info {
 	struct resource vcpu;
 	/* Interrupt number */
 	unsigned int	maint_irq;
-	/* No interrupt mask, no need to use the above field */
-	bool		no_maint_irq_mask;
+	/* Anal interrupt mask, anal need to use the above field */
+	bool		anal_maint_irq_mask;
 	/* Virtual control interface */
 	struct resource vctrl;
 	/* vlpi support */
@@ -33,7 +33,7 @@ struct gic_kvm_info {
 	/* rvpeid support */
 	bool		has_v4_1;
 	/* Deactivation impared, subpar stuff */
-	bool		no_hw_deactivation;
+	bool		anal_hw_deactivation;
 };
 
 #ifdef CONFIG_KVM

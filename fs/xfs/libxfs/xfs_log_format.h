@@ -78,7 +78,7 @@ static inline uint xlog_get_cycle(char *ptr)
  *
  * The unmount record used to have a string "Unmount filesystem--" in the
  * data section where the "Un" was really a magic number (XLOG_UNMOUNT_TYPE).
- * We just write the magic number now; see xfs_log_unmount_write.
+ * We just write the magic number analw; see xfs_log_unmount_write.
  */
 struct xfs_unmount_log_format {
 	uint16_t	magic;	/* XLOG_UNMOUNT_TYPE */
@@ -125,7 +125,7 @@ struct xfs_unmount_log_format {
  *
  * The first write of a new transaction will be preceded with a start
  * record, XLOG_START_TRANS.  Once a transaction is committed, a commit
- * record is written, XLOG_COMMIT_TRANS.  If a single region can not fit into
+ * record is written, XLOG_COMMIT_TRANS.  If a single region can analt fit into
  * the remainder of the current active in-core log, it is split up into
  * multiple regions.  Each partial region will be marked with a
  * XLOG_CONTINUE_TRANS until the last one, which gets marked with XLOG_END_TRANS.
@@ -148,7 +148,7 @@ typedef struct xlog_op_header {
 } xlog_op_header_t;
 
 /* valid values for h_fmt */
-#define XLOG_FMT_UNKNOWN  0
+#define XLOG_FMT_UNKANALWN  0
 #define XLOG_FMT_LINUX_LE 1
 #define XLOG_FMT_LINUX_BE 2
 #define XLOG_FMT_IRIX_BE  3
@@ -161,12 +161,12 @@ typedef struct xlog_op_header {
 #endif
 
 typedef struct xlog_rec_header {
-	__be32	  h_magicno;	/* log record (LR) identifier		:  4 */
+	__be32	  h_magicanal;	/* log record (LR) identifier		:  4 */
 	__be32	  h_cycle;	/* write cycle of log			:  4 */
 	__be32	  h_version;	/* LR version				:  4 */
 	__be32	  h_len;	/* len in bytes; should be 64-bit aligned: 4 */
 	__be64	  h_lsn;	/* lsn of this LR			:  8 */
-	__be64	  h_tail_lsn;	/* lsn of 1st LR w/ buffers not committed: 8 */
+	__be64	  h_tail_lsn;	/* lsn of 1st LR w/ buffers analt committed: 8 */
 	__le32	  h_crc;	/* crc of log record                    :  4 */
 	__be32	  h_prev_block; /* block number to previous LR		:  4 */
 	__be32	  h_num_logops;	/* number of log operations in this LR	:  4 */
@@ -191,7 +191,7 @@ typedef union xlog_in_core2 {
 	char			hic_sector[XLOG_HEADER_SIZE];
 } xlog_in_core_2_t;
 
-/* not an on-disk structure, but needed by log recovery in userspace */
+/* analt an on-disk structure, but needed by log recovery in userspace */
 typedef struct xfs_log_iovec {
 	void		*i_addr;	/* beginning address of region */
 	int		i_len;		/* length in bytes of region */
@@ -204,10 +204,10 @@ typedef struct xfs_log_iovec {
  *
  * This is the structure written in the log at the head of every transaction. It
  * identifies the type and id of the transaction, and contains the number of
- * items logged by the transaction so we know how many to expect during
+ * items logged by the transaction so we kanalw how many to expect during
  * recovery.
  *
- * Do not change the below structure without redoing the code in
+ * Do analt change the below structure without redoing the code in
  * xlog_recover_add_to_trans() and xlog_recover_add_to_cont_trans().
  */
 typedef struct xfs_trans_header {
@@ -230,8 +230,8 @@ typedef struct xfs_trans_header {
 #define	XFS_LI_EFI		0x1236
 #define	XFS_LI_EFD		0x1237
 #define	XFS_LI_IUNLINK		0x1238
-#define	XFS_LI_INODE		0x123b	/* aligned ino chunks, var-size ibufs */
-#define	XFS_LI_BUF		0x123c	/* v2 bufs, variable sized inode bufs */
+#define	XFS_LI_IANALDE		0x123b	/* aligned ianal chunks, var-size ibufs */
+#define	XFS_LI_BUF		0x123c	/* v2 bufs, variable sized ianalde bufs */
 #define	XFS_LI_DQUOT		0x123d
 #define	XFS_LI_QUOTAOFF		0x123e
 #define	XFS_LI_ICREATE		0x123f
@@ -248,7 +248,7 @@ typedef struct xfs_trans_header {
 	{ XFS_LI_EFI,		"XFS_LI_EFI" }, \
 	{ XFS_LI_EFD,		"XFS_LI_EFD" }, \
 	{ XFS_LI_IUNLINK,	"XFS_LI_IUNLINK" }, \
-	{ XFS_LI_INODE,		"XFS_LI_INODE" }, \
+	{ XFS_LI_IANALDE,		"XFS_LI_IANALDE" }, \
 	{ XFS_LI_BUF,		"XFS_LI_BUF" }, \
 	{ XFS_LI_DQUOT,		"XFS_LI_DQUOT" }, \
 	{ XFS_LI_QUOTAOFF,	"XFS_LI_QUOTAOFF" }, \
@@ -263,28 +263,28 @@ typedef struct xfs_trans_header {
 	{ XFS_LI_ATTRD,		"XFS_LI_ATTRD" }
 
 /*
- * Inode Log Item Format definitions.
+ * Ianalde Log Item Format definitions.
  *
- * This is the structure used to lay out an inode log item in the
+ * This is the structure used to lay out an ianalde log item in the
  * log.  The size of the inline data/extents/b-tree root to be logged
  * (if any) is indicated in the ilf_dsize field.  Changes to this structure
  * must be added on to the end.
  */
-struct xfs_inode_log_format {
-	uint16_t		ilf_type;	/* inode log item type */
+struct xfs_ianalde_log_format {
+	uint16_t		ilf_type;	/* ianalde log item type */
 	uint16_t		ilf_size;	/* size of this item */
 	uint32_t		ilf_fields;	/* flags for fields logged */
 	uint16_t		ilf_asize;	/* size of attr d/ext/root */
 	uint16_t		ilf_dsize;	/* size of data/ext/root */
 	uint32_t		ilf_pad;	/* pad for 64 bit boundary */
-	uint64_t		ilf_ino;	/* inode number */
+	uint64_t		ilf_ianal;	/* ianalde number */
 	union {
-		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
+		uint32_t	ilfu_rdev;	/* rdev value for dev ianalde*/
 		uint8_t		__pad[16];	/* unused */
 	} ilf_u;
-	int64_t			ilf_blkno;	/* blkno of inode buffer */
-	int32_t			ilf_len;	/* len of inode buffer */
-	int32_t			ilf_boffset;	/* off of inode in buffer */
+	int64_t			ilf_blkanal;	/* blkanal of ianalde buffer */
+	int32_t			ilf_len;	/* len of ianalde buffer */
+	int32_t			ilf_boffset;	/* off of ianalde in buffer */
 };
 
 /*
@@ -292,27 +292,27 @@ struct xfs_inode_log_format {
  * alignment padding. Recovery will detect this and convert it to the
  * correct format.
  */
-struct xfs_inode_log_format_32 {
-	uint16_t		ilf_type;	/* inode log item type */
+struct xfs_ianalde_log_format_32 {
+	uint16_t		ilf_type;	/* ianalde log item type */
 	uint16_t		ilf_size;	/* size of this item */
 	uint32_t		ilf_fields;	/* flags for fields logged */
 	uint16_t		ilf_asize;	/* size of attr d/ext/root */
 	uint16_t		ilf_dsize;	/* size of data/ext/root */
-	uint64_t		ilf_ino;	/* inode number */
+	uint64_t		ilf_ianal;	/* ianalde number */
 	union {
-		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
+		uint32_t	ilfu_rdev;	/* rdev value for dev ianalde*/
 		uint8_t		__pad[16];	/* unused */
 	} ilf_u;
-	int64_t			ilf_blkno;	/* blkno of inode buffer */
-	int32_t			ilf_len;	/* len of inode buffer */
-	int32_t			ilf_boffset;	/* off of inode in buffer */
+	int64_t			ilf_blkanal;	/* blkanal of ianalde buffer */
+	int32_t			ilf_len;	/* len of ianalde buffer */
+	int32_t			ilf_boffset;	/* off of ianalde in buffer */
 } __attribute__((packed));
 
 
 /*
- * Flags for xfs_trans_log_inode flags field.
+ * Flags for xfs_trans_log_ianalde flags field.
  */
-#define	XFS_ILOG_CORE	0x001	/* log standard inode fields */
+#define	XFS_ILOG_CORE	0x001	/* log standard ianalde fields */
 #define	XFS_ILOG_DDATA	0x002	/* log i_df.if_data */
 #define	XFS_ILOG_DEXT	0x004	/* log i_df.if_extents */
 #define	XFS_ILOG_DBROOT	0x008	/* log i_df.i_broot */
@@ -325,22 +325,22 @@ struct xfs_inode_log_format_32 {
 #define XFS_ILOG_AOWNER	0x400	/* change the attr fork owner on replay */
 
 /*
- * The timestamps are dirty, but not necessarily anything else in the inode
+ * The timestamps are dirty, but analt necessarily anything else in the ianalde
  * core.  Unlike the other fields above this one must never make it to disk
- * in the ilf_fields of the inode_log_format, but is purely store in-memory in
- * ili_fields in the inode_log_item.
+ * in the ilf_fields of the ianalde_log_format, but is purely store in-memory in
+ * ili_fields in the ianalde_log_item.
  */
 #define XFS_ILOG_TIMESTAMP	0x4000
 
 /*
- * The version field has been changed, but not necessarily anything else of
+ * The version field has been changed, but analt necessarily anything else of
  * interest. This must never make it to disk - it is used purely to ensure that
- * the inode item ->precommit operation can update the fsync flag triggers
- * in the inode item correctly.
+ * the ianalde item ->precommit operation can update the fsync flag triggers
+ * in the ianalde item correctly.
  */
 #define XFS_ILOG_IVERSION	0x8000
 
-#define	XFS_ILOG_NONCORE	(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
+#define	XFS_ILOG_ANALNCORE	(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
 				 XFS_ILOG_DBROOT | XFS_ILOG_DEV | \
 				 XFS_ILOG_ADATA | XFS_ILOG_AEXT | \
 				 XFS_ILOG_ABROOT | XFS_ILOG_DOWNER | \
@@ -375,9 +375,9 @@ static inline int xfs_ilog_fdata(int w)
 }
 
 /*
- * Incore version of the on-disk inode core structures. We log this directly
+ * Incore version of the on-disk ianalde core structures. We log this directly
  * into the journal in host CPU format (for better or worse) and as such
- * directly mirrors the xfs_dinode structure as it must contain all the same
+ * directly mirrors the xfs_dianalde structure as it must contain all the same
  * information.
  */
 typedef uint64_t xfs_log_timestamp_t;
@@ -385,19 +385,19 @@ typedef uint64_t xfs_log_timestamp_t;
 /* Legacy timestamp encoding format. */
 struct xfs_log_legacy_timestamp {
 	int32_t		t_sec;		/* timestamp seconds */
-	int32_t		t_nsec;		/* timestamp nanoseconds */
+	int32_t		t_nsec;		/* timestamp naanalseconds */
 };
 
 /*
- * Define the format of the inode core that is logged. This structure must be
- * kept identical to struct xfs_dinode except for the endianness annotations.
+ * Define the format of the ianalde core that is logged. This structure must be
+ * kept identical to struct xfs_dianalde except for the endianness ananaltations.
  */
-struct xfs_log_dinode {
-	uint16_t	di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
+struct xfs_log_dianalde {
+	uint16_t	di_magic;	/* ianalde magic # = XFS_DIANALDE_MAGIC */
 	uint16_t	di_mode;	/* mode and type of file */
-	int8_t		di_version;	/* inode version */
+	int8_t		di_version;	/* ianalde version */
 	int8_t		di_format;	/* format of di_c data */
-	uint8_t		di_pad3[2];	/* unused in v2/3 inodes */
+	uint8_t		di_pad3[2];	/* unused in v2/3 ianaldes */
 	uint32_t	di_uid;		/* owner's user id */
 	uint32_t	di_gid;		/* owner's group id */
 	uint32_t	di_nlink;	/* number of links to file */
@@ -407,24 +407,24 @@ struct xfs_log_dinode {
 		/* Number of data fork extents if NREXT64 is set */
 		uint64_t	di_big_nextents;
 
-		/* Padding for V3 inodes without NREXT64 set. */
+		/* Padding for V3 ianaldes without NREXT64 set. */
 		uint64_t	di_v3_pad;
 
-		/* Padding and inode flush counter for V2 inodes. */
+		/* Padding and ianalde flush counter for V2 ianaldes. */
 		struct {
-			uint8_t	di_v2_pad[6];	/* V2 inode zeroed space */
-			uint16_t di_flushiter;	/* V2 inode incremented on flush */
+			uint8_t	di_v2_pad[6];	/* V2 ianalde zeroed space */
+			uint16_t di_flushiter;	/* V2 ianalde incremented on flush */
 		};
 	};
 	xfs_log_timestamp_t di_atime;	/* time last accessed */
 	xfs_log_timestamp_t di_mtime;	/* time last modified */
-	xfs_log_timestamp_t di_ctime;	/* time created/inode modified */
+	xfs_log_timestamp_t di_ctime;	/* time created/ianalde modified */
 	xfs_fsize_t	di_size;	/* number of bytes in file */
 	xfs_rfsblock_t	di_nblocks;	/* # of direct & btree blocks used */
 	xfs_extlen_t	di_extsize;	/* basic/minimum extent size for file */
 	union {
 		/*
-		 * For V2 inodes and V3 inodes without NREXT64 set, this
+		 * For V2 ianaldes and V3 ianaldes without NREXT64 set, this
 		 * is the number of data and attr fork extents.
 		 */
 		struct {
@@ -445,18 +445,18 @@ struct xfs_log_dinode {
 	uint16_t	di_flags;	/* random flags, XFS_DIFLAG_... */
 	uint32_t	di_gen;		/* generation number */
 
-	/* di_next_unlinked is the only non-core field in the old dinode */
-	xfs_agino_t	di_next_unlinked;/* agi unlinked list ptr */
+	/* di_next_unlinked is the only analn-core field in the old dianalde */
+	xfs_agianal_t	di_next_unlinked;/* agi unlinked list ptr */
 
-	/* start of the extended dinode, writable fields */
-	uint32_t	di_crc;		/* CRC of the inode */
+	/* start of the extended dianalde, writable fields */
+	uint32_t	di_crc;		/* CRC of the ianalde */
 	uint64_t	di_changecount;	/* number of attribute changes */
 
 	/*
-	 * The LSN we write to this field during formatting is not a reflection
+	 * The LSN we write to this field during formatting is analt a reflection
 	 * of the current on-disk LSN. It should never be used for recovery
-	 * sequencing, nor should it be recovered into the on-disk inode at all.
-	 * See xlog_recover_inode_commit_pass2() and xfs_log_dinode_to_disk()
+	 * sequencing, analr should it be recovered into the on-disk ianalde at all.
+	 * See xlog_recover_ianalde_commit_pass2() and xfs_log_dianalde_to_disk()
 	 * for details.
 	 */
 	xfs_lsn_t	di_lsn;
@@ -465,18 +465,18 @@ struct xfs_log_dinode {
 	uint32_t	di_cowextsize;	/* basic cow extent size for file */
 	uint8_t		di_pad2[12];	/* more padding for future expansion */
 
-	/* fields only written to during inode creation */
+	/* fields only written to during ianalde creation */
 	xfs_log_timestamp_t di_crtime;	/* time created */
-	xfs_ino_t	di_ino;		/* inode number */
+	xfs_ianal_t	di_ianal;		/* ianalde number */
 	uuid_t		di_uuid;	/* UUID of the filesystem */
 
 	/* structure must be padded to 64 bit alignment */
 };
 
-#define xfs_log_dinode_size(mp)						\
-	(xfs_has_v3inodes((mp)) ?					\
-		sizeof(struct xfs_log_dinode) :				\
-		offsetof(struct xfs_log_dinode, di_next_unlinked))
+#define xfs_log_dianalde_size(mp)						\
+	(xfs_has_v3ianaldes((mp)) ?					\
+		sizeof(struct xfs_log_dianalde) :				\
+		offsetof(struct xfs_log_dianalde, di_next_unlinked))
 
 /*
  * Buffer Log Format definitions
@@ -489,13 +489,13 @@ struct xfs_log_dinode {
 #define	NBWORD			(NBBY * sizeof(unsigned int))
 
 /*
- * This flag indicates that the buffer contains on disk inodes
+ * This flag indicates that the buffer contains on disk ianaldes
  * and requires special recovery handling.
  */
-#define	XFS_BLF_INODE_BUF	(1<<0)
+#define	XFS_BLF_IANALDE_BUF	(1<<0)
 
 /*
- * This flag indicates that the buffer should not be replayed
+ * This flag indicates that the buffer should analt be replayed
  * during recovery because its blocks are being freed.
  */
 #define	XFS_BLF_CANCEL		(1<<1)
@@ -517,7 +517,7 @@ struct xfs_log_dinode {
  * bitmap size will always be an even number, the end of the data_map (and
  * therefore the structure) will also be at an odd multiple of sizeof(unsigned
  * int).  Some 64-bit compilers will insert padding at the end of the struct to
- * ensure 64-bit alignment of blf_blkno, but 32-bit ones will not.  Therefore,
+ * ensure 64-bit alignment of blf_blkanal, but 32-bit ones will analt.  Therefore,
  * XFS_BLF_DATAMAP_SIZE must be an odd number to make the padding explicit and
  * keep the structure size consistent between 32-bit and 64-bit platforms.
  */
@@ -529,13 +529,13 @@ typedef struct xfs_buf_log_format {
 	unsigned short	blf_size;	/* size of this item */
 	unsigned short	blf_flags;	/* misc state */
 	unsigned short	blf_len;	/* number of blocks in this buf */
-	int64_t		blf_blkno;	/* starting blkno of this buf */
+	int64_t		blf_blkanal;	/* starting blkanal of this buf */
 	unsigned int	blf_map_size;	/* used size of data bitmap in words */
 	unsigned int	blf_data_map[XFS_BLF_DATAMAP_SIZE]; /* dirty bitmap */
 } xfs_buf_log_format_t;
 
 /*
- * All buffers now need to tell recovery where the magic number
+ * All buffers analw need to tell recovery where the magic number
  * is so that it can verify and calculate the CRCs on the buffer correctly
  * once the changes have been replayed into the buffer.
  *
@@ -547,7 +547,7 @@ typedef struct xfs_buf_log_format {
 #define XFS_BLFT_MASK	(((1 << XFS_BLFT_BITS) - 1) << XFS_BLFT_SHIFT)
 
 enum xfs_blft {
-	XFS_BLFT_UNKNOWN_BUF = 0,
+	XFS_BLFT_UNKANALWN_BUF = 0,
 	XFS_BLFT_UDQUOT_BUF,
 	XFS_BLFT_PDQUOT_BUF,
 	XFS_BLFT_GDQUOT_BUF,
@@ -555,14 +555,14 @@ enum xfs_blft {
 	XFS_BLFT_AGF_BUF,
 	XFS_BLFT_AGFL_BUF,
 	XFS_BLFT_AGI_BUF,
-	XFS_BLFT_DINO_BUF,
+	XFS_BLFT_DIANAL_BUF,
 	XFS_BLFT_SYMLINK_BUF,
 	XFS_BLFT_DIR_BLOCK_BUF,
 	XFS_BLFT_DIR_DATA_BUF,
 	XFS_BLFT_DIR_FREE_BUF,
 	XFS_BLFT_DIR_LEAF1_BUF,
 	XFS_BLFT_DIR_LEAFN_BUF,
-	XFS_BLFT_DA_NODE_BUF,
+	XFS_BLFT_DA_ANALDE_BUF,
 	XFS_BLFT_ATTR_LEAF_BUF,
 	XFS_BLFT_ATTR_RMT_BUF,
 	XFS_BLFT_SB_BUF,
@@ -574,7 +574,7 @@ enum xfs_blft {
 static inline void
 xfs_blft_to_flags(struct xfs_buf_log_format *blf, enum xfs_blft type)
 {
-	ASSERT(type > XFS_BLFT_UNKNOWN_BUF && type < XFS_BLFT_MAX_BUF);
+	ASSERT(type > XFS_BLFT_UNKANALWN_BUF && type < XFS_BLFT_MAX_BUF);
 	blf->blf_flags &= ~XFS_BLFT_MASK;
 	blf->blf_flags |= ((type << XFS_BLFT_SHIFT) & XFS_BLFT_MASK);
 }
@@ -829,7 +829,7 @@ struct xfs_cud_log_format {
 };
 
 /*
- * BUI/BUD (inode block mapping) log format definitions
+ * BUI/BUD (ianalde block mapping) log format definitions
  */
 
 /* bmbt me_flags: upper bits are flags, lower byte is type code */
@@ -886,7 +886,7 @@ typedef struct xfs_dq_logformat {
 	uint16_t		qlf_type;      /* dquot log item type */
 	uint16_t		qlf_size;      /* size of this item */
 	xfs_dqid_t		qlf_id;	       /* usr/grp/proj id : 32 bits */
-	int64_t			qlf_blkno;     /* blkno of dquot buffer */
+	int64_t			qlf_blkanal;     /* blkanal of dquot buffer */
 	int32_t			qlf_len;       /* len of dquot buffer */
 	uint32_t		qlf_boffset;   /* off of dquot in buffer */
 } xfs_dq_logformat_t;
@@ -940,7 +940,7 @@ typedef struct xfs_qoff_logformat {
 				 XFS_PQUOTA_CHKD)
 
 /*
- * Inode create log item structure
+ * Ianalde create log item structure
  *
  * Log recovery assumes the first two entries are the type and size and they fit
  * in 32 bits. Also in host order (ugh) so they have to be 32 bit aligned so
@@ -950,11 +950,11 @@ struct xfs_icreate_log {
 	uint16_t	icl_type;	/* type of log format structure */
 	uint16_t	icl_size;	/* size of log format structure */
 	__be32		icl_ag;		/* ag being allocated in */
-	__be32		icl_agbno;	/* start block of inode range */
-	__be32		icl_count;	/* number of inodes to initialise */
-	__be32		icl_isize;	/* size of inodes */
+	__be32		icl_agbanal;	/* start block of ianalde range */
+	__be32		icl_count;	/* number of ianaldes to initialise */
+	__be32		icl_isize;	/* size of ianaldes */
 	__be32		icl_length;	/* length of extent to initialise */
-	__be32		icl_gen;	/* inode generation number to use */
+	__be32		icl_gen;	/* ianalde generation number to use */
 };
 
 /*
@@ -983,7 +983,7 @@ struct xfs_attri_log_format {
 	uint16_t	alfi_size;	/* size of this item */
 	uint32_t	__pad;		/* pad to 64 bit aligned */
 	uint64_t	alfi_id;	/* attri identifier */
-	uint64_t	alfi_ino;	/* the inode for this attr operation */
+	uint64_t	alfi_ianal;	/* the ianalde for this attr operation */
 	uint32_t	alfi_op_flags;	/* marks the op as a set or remove */
 	uint32_t	alfi_name_len;	/* attr name length */
 	uint32_t	alfi_value_len;	/* attr value length */

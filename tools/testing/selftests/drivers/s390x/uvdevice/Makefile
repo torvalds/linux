@@ -3,7 +3,7 @@ include ../../../../../build/Build.include
 UNAME_M := $(shell uname -m)
 
 ifneq ($(UNAME_M),s390x)
-nothing:
+analthing:
 .PHONY: all clean run_tests install
 .SILENT:
 else

@@ -24,7 +24,7 @@
 	size_t groupname##_##name##__offset = ({			       \
 		size_t offset = 0;					       \
 		if (groupname##__next != SIZE_MAX) {			       \
-			size_t align_mask = __alignof__(type) - 1;	       \
+			size_t align_mask = __aliganalf__(type) - 1;	       \
 			size_t size = array_size(n, sizeof(type));	       \
 			offset = (groupname##__next + align_mask) &	       \
 				  ~align_mask;				       \
@@ -42,7 +42,7 @@
 	size_t groupname##_##name##__offset = ({			        \
 		size_t offset = 0;						\
 		if (groupname##__next != SIZE_MAX) {				\
-			size_t align_mask = __alignof__(type) - 1;		\
+			size_t align_mask = __aliganalf__(type) - 1;		\
 			offset = (groupname##__next + align_mask) &		\
 				  ~align_mask;					\
 			if (check_add_overflow(offset, groupname##_##name##__sz,\

@@ -10,7 +10,7 @@ maintainers:
   - Lubomir Rintel <lkundrak@v3.sk>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

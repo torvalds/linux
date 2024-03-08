@@ -2,7 +2,7 @@
 AMDGPU Glossary
 ===============
 
-Here you can find some generic acronyms used in the amdgpu driver. Notice that
+Here you can find some generic acronyms used in the amdgpu driver. Analtice that
 we have a dedicated glossary for Display Core at
 'Documentation/gpu/amdgpu/display/dc-glossary.rst'.
 

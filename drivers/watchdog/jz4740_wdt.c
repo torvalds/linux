@@ -23,11 +23,11 @@
 #define DEFAULT_HEARTBEAT 5
 #define MAX_HEARTBEAT     2048
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static unsigned int heartbeat = DEFAULT_HEARTBEAT;
 module_param(heartbeat, uint, 0);
@@ -145,11 +145,11 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(dev, sizeof(struct jz4740_wdt_drvdata),
 			       GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->clk = devm_clk_get(&pdev->dev, "wdt");
 	if (IS_ERR(drvdata->clk)) {
-		dev_err(&pdev->dev, "cannot find WDT clock\n");
+		dev_err(&pdev->dev, "cananalt find WDT clock\n");
 		return PTR_ERR(drvdata->clk);
 	}
 
@@ -172,12 +172,12 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 				    jz4740_wdt->min_timeout,
 				    jz4740_wdt->max_timeout);
 	jz4740_wdt->parent = dev;
-	watchdog_set_nowayout(jz4740_wdt, nowayout);
+	watchdog_set_analwayout(jz4740_wdt, analwayout);
 	watchdog_set_drvdata(jz4740_wdt, drvdata);
 
-	drvdata->map = device_node_to_regmap(dev->parent->of_node);
+	drvdata->map = device_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(drvdata->map)) {
-		dev_err(dev, "regmap not found\n");
+		dev_err(dev, "regmap analt found\n");
 		return PTR_ERR(drvdata->map);
 	}
 

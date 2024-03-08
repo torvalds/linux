@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_DBG_G_CHIP_INFO:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_DBG_G_CHIP_INFO - Identify the chips on a TV card
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_DBG_G_CHIP_INFO
@@ -31,14 +31,14 @@ Arguments
 Description
 ===========
 
-.. note::
+.. analte::
 
     This is an :ref:`experimental` interface and may
     change in the future.
 
 For driver debugging purposes this ioctl allows test applications to
 query the driver about the chips present on the TV card. Regular
-applications must not use it. When you found a chip specific bug, please
+applications must analt use it. When you found a chip specific bug, please
 contact the linux-media mailing list
 (`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__)
 so it can be fixed.
@@ -58,7 +58,7 @@ selects the nth bridge 'chip' on the TV card. You can enumerate all
 chips by starting at zero and incrementing ``match.addr`` by one until
 :ref:`VIDIOC_DBG_G_CHIP_INFO` fails with an ``EINVAL`` error code. The number
 zero always selects the bridge chip itself, e. g. the chip connected to
-the PCI or USB bus. Non-zero numbers identify specific parts of the
+the PCI or USB bus. Analn-zero numbers identify specific parts of the
 bridge chip such as an AC97 register block.
 
 When ``match.type`` is ``V4L2_CHIP_MATCH_SUBDEV``, ``match.addr``
@@ -88,7 +88,7 @@ instructions.
       - ``type``
       - See :ref:`name-chip-match-types` for a list of possible types.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
     * - __u32
       - ``addr``
       - Match a chip by this number, interpreted according to the ``type``
@@ -138,7 +138,7 @@ instructions.
 
     * - ``V4L2_CHIP_MATCH_BRIDGE``
       - 0
-      - Match the nth chip on the card, zero for the bridge chip. Does not
+      - Match the nth chip on the card, zero for the bridge chip. Does analt
 	match sub-devices.
     * - ``V4L2_CHIP_MATCH_SUBDEV``
       - 4
@@ -147,9 +147,9 @@ instructions.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The ``match_type`` is invalid or no device could be matched.
+    The ``match_type`` is invalid or anal device could be matched.

@@ -79,18 +79,18 @@ static const struct of_device_id of_match_clk_mt7988_apmixed[] = {
 static int clk_mt7988_apmixed_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(ARRAY_SIZE(plls));
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	r = mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	r = mtk_clk_register_plls(analde, plls, ARRAY_SIZE(plls), clk_data);
 	if (r)
 		goto free_apmixed_data;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		goto unregister_plls;
 

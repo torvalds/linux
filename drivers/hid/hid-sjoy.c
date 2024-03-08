@@ -60,8 +60,8 @@ static int sjoyff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output reports found\n");
-		return -ENODEV;
+		hid_err(hid, "anal output reports found\n");
+		return -EANALDEV;
 	}
 
 	list_for_each_entry(hidinput, &hid->inputs, list) {
@@ -69,23 +69,23 @@ static int sjoyff_init(struct hid_device *hid)
 
 		if (report_ptr == report_list) {
 			hid_err(hid, "required output report is missing\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		report = list_entry(report_ptr, struct hid_report, list);
 		if (report->maxfield < 1) {
-			hid_err(hid, "no fields in the report\n");
-			return -ENODEV;
+			hid_err(hid, "anal fields in the report\n");
+			return -EANALDEV;
 		}
 
 		if (report->field[0]->report_count < 3) {
-			hid_err(hid, "not enough values in the field\n");
-			return -ENODEV;
+			hid_err(hid, "analt eanalugh values in the field\n");
+			return -EANALDEV;
 		}
 
 		sjoyff = kzalloc(sizeof(struct sjoyff_device), GFP_KERNEL);
 		if (!sjoyff)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev = hidinput->input;
 
@@ -142,12 +142,12 @@ err:
 
 static const struct hid_device_id sjoy_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP_LTD, USB_DEVICE_ID_SUPER_JOY_BOX_3_PRO),
-		.driver_data = HID_QUIRK_NOGET },
+		.driver_data = HID_QUIRK_ANALGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP_LTD, USB_DEVICE_ID_SUPER_DUAL_BOX_PRO),
-		.driver_data = HID_QUIRK_MULTI_INPUT | HID_QUIRK_NOGET |
+		.driver_data = HID_QUIRK_MULTI_INPUT | HID_QUIRK_ANALGET |
 			       HID_QUIRK_SKIP_OUTPUT_REPORTS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP_LTD, USB_DEVICE_ID_SUPER_JOY_BOX_5_PRO),
-		.driver_data = HID_QUIRK_MULTI_INPUT | HID_QUIRK_NOGET |
+		.driver_data = HID_QUIRK_MULTI_INPUT | HID_QUIRK_ANALGET |
 			       HID_QUIRK_SKIP_OUTPUT_REPORTS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_SMARTJOY_PLUS) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_SUPER_JOY_BOX_3) },

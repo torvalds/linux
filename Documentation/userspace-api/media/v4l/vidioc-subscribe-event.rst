@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBSCRIBE_EVENT:
@@ -13,7 +13,7 @@ Name
 
 VIDIOC_SUBSCRIBE_EVENT - VIDIOC_UNSUBSCRIBE_EVENT - Subscribe or unsubscribe event
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBSCRIBE_EVENT
@@ -52,15 +52,15 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
       - ``type``
       - Type of the event, see :ref:`event-type`.
 
-	.. note::
+	.. analte::
 
 	   ``V4L2_EVENT_ALL`` can be used with
 	   :ref:`VIDIOC_UNSUBSCRIBE_EVENT <VIDIOC_SUBSCRIBE_EVENT>` for
 	   unsubscribing all events at once.
     * - __u32
       - ``id``
-      - ID of the event source. If there is no ID associated with the
-	event source, then set this to 0. Whether or not an event needs an
+      - ID of the event source. If there is anal ID associated with the
+	event source, then set this to 0. Whether or analt an event needs an
 	ID depends on the event type.
     * - __u32
       - ``flags``
@@ -85,22 +85,22 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
       - When this event is subscribed an initial event will be sent
 	containing the current status. This only makes sense for events
 	that are triggered by a status change such as ``V4L2_EVENT_CTRL``.
-	Other events will ignore this flag.
+	Other events will iganalre this flag.
     * - ``V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK``
       - 0x0002
       - If set, then events directly caused by an ioctl will also be sent
 	to the filehandle that called that ioctl. For example, changing a
 	control using :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` will cause
 	a V4L2_EVENT_CTRL to be sent back to that same filehandle.
-	Normally such events are suppressed to prevent feedback loops
+	Analrmally such events are suppressed to prevent feedback loops
 	where an application changes a control to a one value and then
-	another, and then receives an event telling it that that control
+	aanalther, and then receives an event telling it that that control
 	has changed to the first value.
 
-	Since it can't tell whether that event was caused by another
+	Since it can't tell whether that event was caused by aanalther
 	application or by the :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>`
 	call it is hard to decide whether to set the control to the value
-	in the event, or ignore it.
+	in the event, or iganalre it.
 
 	Think carefully when you set this flag so you won't get into
 	situations like that.
@@ -108,6 +108,6 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

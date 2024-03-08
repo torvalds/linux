@@ -14,18 +14,18 @@
 /* OBP version string. */
 extern char prom_version[];
 
-/* Root node of the prom device tree, this stays constant after
+/* Root analde of the prom device tree, this stays constant after
  * initialization is complete.
  */
-extern phandle prom_root_node;
+extern phandle prom_root_analde;
 
 /* PROM stdout */
 extern int prom_stdout;
 
-/* /chosen node of the prom device tree, this stays constant after
+/* /chosen analde of the prom device tree, this stays constant after
  * initialization is complete.
  */
-extern phandle prom_chosen_node;
+extern phandle prom_chosen_analde;
 
 /* Helper values and strings in arch/sparc64/kernel/head.S */
 extern const char prom_peer_name[];
@@ -82,15 +82,15 @@ void prom_feval(const char *forth_string);
  */
 void prom_cmdline(void);
 
-/* Enter the prom, with no chance of continuation for the stand-alone
+/* Enter the prom, with anal chance of continuation for the stand-alone
  * which calls this.
  */
-void prom_halt(void) __attribute__ ((noreturn));
+void prom_halt(void) __attribute__ ((analreturn));
 
 /* Halt and power-off the machine. */
-void prom_halt_power_off(void) __attribute__ ((noreturn));
+void prom_halt_power_off(void) __attribute__ ((analreturn));
 
-/* Acquire the IDPROM of the root node in the prom device tree.  This
+/* Acquire the IDPROM of the root analde in the prom device tree.  This
  * gets passed a buffer where you would like it stuffed.  The return value
  * is the format type of this idprom or 0xff on error.
  */
@@ -105,10 +105,10 @@ void prom_write(const char *buf, unsigned int len);
 
 /* Multiprocessor operations... */
 #ifdef CONFIG_SMP
-/* Start the CPU with the given device tree node at the passed program
+/* Start the CPU with the given device tree analde at the passed program
  * counter with the given arg passed in via register %o0.
  */
-void prom_startcpu(int cpunode, unsigned long pc, unsigned long arg);
+void prom_startcpu(int cpuanalde, unsigned long pc, unsigned long arg);
 
 /* Start the CPU with the given cpu ID at the passed program
  * counter with the given arg passed in via register %o0.
@@ -124,8 +124,8 @@ void prom_stopself(void);
 /* Idle the current CPU. */
 void prom_idleself(void);
 
-/* Resume the CPU with the passed device tree node. */
-void prom_resumecpu(int cpunode);
+/* Resume the CPU with the passed device tree analde. */
+void prom_resumecpu(int cpuanalde);
 #endif
 
 /* Power management interfaces. */
@@ -179,66 +179,66 @@ void prom_unmap(unsigned long size, unsigned long vaddr);
 
 /* PROM device tree traversal functions... */
 
-/* Get the child node of the given node, or zero if no child exists. */
-phandle prom_getchild(phandle parent_node);
+/* Get the child analde of the given analde, or zero if anal child exists. */
+phandle prom_getchild(phandle parent_analde);
 
-/* Get the next sibling node of the given node, or zero if no further
+/* Get the next sibling analde of the given analde, or zero if anal further
  * siblings exist.
  */
-phandle prom_getsibling(phandle node);
+phandle prom_getsibling(phandle analde);
 
-/* Get the length, at the passed node, of the given property type.
- * Returns -1 on error (ie. no such property at this node).
+/* Get the length, at the passed analde, of the given property type.
+ * Returns -1 on error (ie. anal such property at this analde).
  */
-int prom_getproplen(phandle thisnode, const char *property);
+int prom_getproplen(phandle thisanalde, const char *property);
 
 /* Fetch the requested property using the given buffer.  Returns
  * the number of bytes the prom put into your buffer or -1 on error.
  */
-int prom_getproperty(phandle thisnode, const char *property,
+int prom_getproperty(phandle thisanalde, const char *property,
 		     char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
-int prom_getint(phandle node, const char *property);
+int prom_getint(phandle analde, const char *property);
 
 /* Acquire an integer property, with a default value. */
-int prom_getintdefault(phandle node, const char *property, int defval);
+int prom_getintdefault(phandle analde, const char *property, int defval);
 
 /* Acquire a boolean property, 0=FALSE 1=TRUE. */
-int prom_getbool(phandle node, const char *prop);
+int prom_getbool(phandle analde, const char *prop);
 
 /* Acquire a string property, null string on error. */
-void prom_getstring(phandle node, const char *prop, char *buf,
+void prom_getstring(phandle analde, const char *prop, char *buf,
 		    int bufsize);
 
-/* Does the passed node have the given "name"? YES=1 NO=0 */
-int prom_nodematch(phandle thisnode, const char *name);
+/* Does the passed analde have the given "name"? ANAL=1 ANAL=0 */
+int prom_analdematch(phandle thisanalde, const char *name);
 
-/* Search all siblings starting at the passed node for "name" matching
- * the given string.  Returns the node on success, zero on failure.
+/* Search all siblings starting at the passed analde for "name" matching
+ * the given string.  Returns the analde on success, zero on failure.
  */
-phandle prom_searchsiblings(phandle node_start, const char *name);
+phandle prom_searchsiblings(phandle analde_start, const char *name);
 
-/* Return the first property type, as a string, for the given node.
+/* Return the first property type, as a string, for the given analde.
  * Returns a null string on error. Buffer should be at least 32B long.
  */
-char *prom_firstprop(phandle node, char *buffer);
+char *prom_firstprop(phandle analde, char *buffer);
 
 /* Returns the next property after the passed property for the given
- * node.  Returns null string on failure. Buffer should be at least 32B long.
+ * analde.  Returns null string on failure. Buffer should be at least 32B long.
  */
-char *prom_nextprop(phandle node, const char *prev_property, char *buf);
+char *prom_nextprop(phandle analde, const char *prev_property, char *buf);
 
-/* Returns 1 if the specified node has given property. */
-int prom_node_has_property(phandle node, const char *property);
+/* Returns 1 if the specified analde has given property. */
+int prom_analde_has_property(phandle analde, const char *property);
 
 /* Returns phandle of the path specified */
 phandle prom_finddevice(const char *name);
 
-/* Set the indicated property at the given node with the passed value.
+/* Set the indicated property at the given analde with the passed value.
  * Returns the number of bytes of your value that the prom took.
  */
-int prom_setprop(phandle node, const char *prop_name, char *prop_value,
+int prom_setprop(phandle analde, const char *prop_name, char *prop_value,
 		 int value_size);
 
 phandle prom_inst2pkg(int);

@@ -107,7 +107,7 @@ Other items in mlme_priv are protected by mlme_priv.lock, while items in
 xmit_priv are protected by xmit_priv.lock.
 
 To avoid possible dead lock, any thread trying to modifiying mlme_priv
-SHALL not lock up more than one locks at a time!
+SHALL analt lock up more than one locks at a time!
 
 The only exception is that queue functions which take the __queue.lock
 may be called with the xmit_priv.lock held. In this case the order
@@ -169,19 +169,19 @@ struct tx_provdisc_req_info {
 	struct ndis_802_11_ssid	ssid;
 	u8			peerDevAddr[ETH_ALEN];		/*	Peer device address */
 	u8			peerIFAddr[ETH_ALEN];		/*	Peer interface address */
-	u8 			benable;					/* 	This provision discovery request frame is trigger to send or not */
+	u8 			benable;					/* 	This provision discovery request frame is trigger to send or analt */
 };
 
 struct rx_provdisc_req_info {	/* When peer device issue prov_disc_req first, we should store the following information */
 	u8			peerDevAddr[ETH_ALEN];		/*	Peer device address */
 	u8 			strconfig_method_desc_of_prov_disc_req[4];	/* 	description for the config method located in the provisioning discovery request frame. */
-																	/* 	The UI must know this information to know which config method the remote p2p device is requiring. */
+																	/* 	The UI must kanalw this information to kanalw which config method the remote p2p device is requiring. */
 };
 
 struct tx_nego_req_info {
 	u16 				peer_channel_num[2];		/* 	The channel number which the receiver stands. */
 	u8			peerDevAddr[ETH_ALEN];		/*	Peer device address */
-	u8 			benable;					/* 	This negotiation request frame is trigger to send or not */
+	u8 			benable;					/* 	This negotiation request frame is trigger to send or analt */
 };
 
 struct group_id_info {
@@ -238,7 +238,7 @@ struct wifidirect_info {
 	u8 				nego_ssidlen;
 	u8 				p2p_group_ssid[WLAN_SSID_MAXLEN];
 	u8 				p2p_group_ssid_len;
-	u8 				persistent_supported;		/* 	Flag to know the persistent function should be supported or not. */
+	u8 				persistent_supported;		/* 	Flag to kanalw the persistent function should be supported or analt. */
 														/* 	In the Sigma test, the Sigma will provide this enable from the sta_set_p2p CAPI. */
 														/* 	0: disable */
 														/* 	1: enable */
@@ -284,7 +284,7 @@ enum {
 struct mlme_priv {
 
 	spinlock_t	lock;
-	signed int	fw_state;	/* shall we protect this variable? maybe not necessarily... */
+	signed int	fw_state;	/* shall we protect this variable? maybe analt necessarily... */
 	u8 bScanInProcess;
 	u8 to_join; /* flag */
 
@@ -298,7 +298,7 @@ struct mlme_priv {
 
 	u8 *nic_hdl;
 
-	u8 not_indic_disco;
+	u8 analt_indic_disco;
 	struct list_head		*pscanned;
 	struct __queue	free_bss_pool;
 	struct __queue	scanned_queue;
@@ -310,7 +310,7 @@ struct mlme_priv {
 	struct wlan_network	cur_network;
 	struct wlan_network *cur_network_scanned;
 
-	/* uint wireless_mode; no used, remove it */
+	/* uint wireless_mode; anal used, remove it */
 
 	u32 auto_scan_int_ms;
 
@@ -327,8 +327,8 @@ struct mlme_priv {
 
 	struct qos_priv qospriv;
 
-	/* Number of non-HT AP/stations */
-	int num_sta_no_ht;
+	/* Number of analn-HT AP/stations */
+	int num_sta_anal_ht;
 
 	/* Number of HT AP/stations 20 MHz */
 	/* int num_sta_ht_20mhz; */
@@ -348,23 +348,23 @@ struct mlme_priv {
 	u8 *wps_probe_req_ie;
 	u32 wps_probe_req_ie_len;
 
-	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
+	/* Number of associated Analn-ERP stations (i.e., stations using 802.11b
 	 * in 802.11g BSS) */
-	int num_sta_non_erp;
+	int num_sta_analn_erp;
 
-	/* Number of associated stations that do not support Short Slot Time */
-	int num_sta_no_short_slot_time;
+	/* Number of associated stations that do analt support Short Slot Time */
+	int num_sta_anal_short_slot_time;
 
-	/* Number of associated stations that do not support Short Preamble */
-	int num_sta_no_short_preamble;
+	/* Number of associated stations that do analt support Short Preamble */
+	int num_sta_anal_short_preamble;
 
 	int olbc; /* Overlapping Legacy BSS Condition */
 
-	/* Number of HT associated stations that do not support greenfield */
-	int num_sta_ht_no_gf;
+	/* Number of HT associated stations that do analt support greenfield */
+	int num_sta_ht_anal_gf;
 
-	/* Number of associated non-HT stations */
-	/* int num_sta_no_ht; */
+	/* Number of associated analn-HT stations */
+	/* int num_sta_anal_ht; */
 
 	/* Number of HT associated stations 20 MHz */
 	int num_sta_ht_20mhz;
@@ -467,10 +467,10 @@ static inline signed int get_fwstate(struct mlme_priv *pmlmepriv)
 }
 
 /*
- * No Limit on the calling context,
+ * Anal Limit on the calling context,
  * therefore set it to be the critical section...
  *
- * ### NOTE:#### (!!!!)
+ * ### ANALTE:#### (!!!!)
  * MUST TAKE CARE THAT BEFORE CALLING THIS FUNC, YOU SHOULD HAVE LOCKED pmlmepriv->lock
  */
 static inline void set_fwstate(struct mlme_priv *pmlmepriv, signed int state)
@@ -529,7 +529,7 @@ extern struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv);
 
 
 extern void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork, u8 isfreeall);
-extern void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork);
+extern void _rtw_free_network_anallock(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork);
 
 
 extern struct wlan_network *_rtw_find_network(struct __queue *scanned_queue, u8 *addr);

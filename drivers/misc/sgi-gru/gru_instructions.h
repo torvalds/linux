@@ -12,7 +12,7 @@
  *  GNU Lesser General Public License for more details.
  *
  *  You should have received a copy of the GNU Lesser General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
@@ -54,7 +54,7 @@ extern void gru_wait_abort_proc(void *cb);
 #define CBSS_IMPLICIT_ABORT_ACTIVE_MASK	8
 
 /* CB substatus message queue values (low 3 bits of substatus) */
-#define CBSS_NO_ERROR			0
+#define CBSS_ANAL_ERROR			0
 #define CBSS_LB_OVERFLOWED		1
 #define CBSS_QLIMIT_REACHED		2
 #define CBSS_PAGE_OVERFLOW		3
@@ -157,7 +157,7 @@ struct gru_instruction {
 #define GRU_ISTATUS_MASK	0x3
 
 /* GRU instruction opcodes (opc field) */
-#define OP_NOP		0x00
+#define OP_ANALP		0x00
 #define OP_BCOPY	0x01
 #define OP_VLOAD	0x02
 #define OP_IVLOAD	0x03
@@ -224,9 +224,9 @@ struct gru_instruction {
 
 
 /* Instruction access attributes (iaa0, iaa1 fields) */
-#define IAA_RAM		0x0	/* normal cached RAM access */
-#define IAA_NCRAM	0x2	/* noncoherent RAM access */
-#define IAA_MMIO	0x1	/* noncoherent memory-mapped I/O space */
+#define IAA_RAM		0x0	/* analrmal cached RAM access */
+#define IAA_NCRAM	0x2	/* analncoherent RAM access */
+#define IAA_MMIO	0x1	/* analncoherent memory-mapped I/O space */
 #define IAA_REGISTER	0x3	/* memory-mapped registers, etc. */
 
 
@@ -249,9 +249,9 @@ struct gru_instruction {
 #define CBE_CAUSE_RA_REQUEST_TIMEOUT		(1 << 9)
 #define CBE_CAUSE_HA_REQUEST_TIMEOUT		(1 << 10)
 #define CBE_CAUSE_RA_RESPONSE_FATAL		(1 << 11)
-#define CBE_CAUSE_RA_RESPONSE_NON_FATAL		(1 << 12)
+#define CBE_CAUSE_RA_RESPONSE_ANALN_FATAL		(1 << 12)
 #define CBE_CAUSE_HA_RESPONSE_FATAL		(1 << 13)
-#define CBE_CAUSE_HA_RESPONSE_NON_FATAL		(1 << 14)
+#define CBE_CAUSE_HA_RESPONSE_ANALN_FATAL		(1 << 14)
 #define CBE_CAUSE_ADDRESS_SPACE_DECODE_ERROR	(1 << 15)
 #define CBE_CAUSE_PROTOCOL_STATE_DATA_ERROR	(1 << 16)
 #define CBE_CAUSE_RA_RESPONSE_DATA_ERROR	(1 << 17)
@@ -277,13 +277,13 @@ struct gru_instruction {
 
 /*
  * Exceptions are retried for the following cases. If any OTHER bits are set
- * in ecause, the exception is not retryable.
+ * in ecause, the exception is analt retryable.
  */
 #define EXCEPTION_RETRY_BITS (CBE_CAUSE_EXECUTION_HW_ERROR |		\
 			      CBE_CAUSE_TLBHW_ERROR |			\
 			      CBE_CAUSE_RA_REQUEST_TIMEOUT |		\
-			      CBE_CAUSE_RA_RESPONSE_NON_FATAL |		\
-			      CBE_CAUSE_HA_RESPONSE_NON_FATAL |		\
+			      CBE_CAUSE_RA_RESPONSE_ANALN_FATAL |		\
+			      CBE_CAUSE_HA_RESPONSE_ANALN_FATAL |		\
 			      CBE_CAUSE_RA_RESPONSE_DATA_ERROR |	\
 			      CBE_CAUSE_HA_RESPONSE_DATA_ERROR		\
 			      )
@@ -342,7 +342,7 @@ static inline void gru_start_instruction(struct gru_instruction *ins, unsigned l
 #define GRU_DINDEX(i)		((i) * GRU_CACHE_LINE_BYTES)
 
 /* Inline functions for GRU instructions.
- *     Note:
+ *     Analte:
  *     	- nelem and stride are in elements
  *     	- tri0/tri1 is in bytes for the beginning of the data segment.
  */
@@ -463,11 +463,11 @@ static inline void gru_vflush(void *cb, unsigned long mem_addr,
 					0, CB_IMA(hints)));
 }
 
-static inline void gru_nop(void *cb, int hints)
+static inline void gru_analp(void *cb, int hints)
 {
 	struct gru_instruction *ins = (void *)cb;
 
-	gru_start_instruction(ins, __opdword(OP_NOP, 0, 0, 0, 0, 0, CB_IMA(hints)));
+	gru_start_instruction(ins, __opdword(OP_ANALP, 0, 0, 0, 0, 0, CB_IMA(hints)));
 }
 
 
@@ -648,7 +648,7 @@ static inline int gru_get_cb_substatus(void *cb)
 
 /*
  * User interface to check an instruction status. UPM and exceptions
- * are handled automatically. However, this function does NOT wait
+ * are handled automatically. However, this function does ANALT wait
  * for an active instruction to complete.
  *
  */
@@ -676,7 +676,7 @@ static inline int gru_wait(void *cb)
 }
 
 /*
- * Wait for CB to complete. Aborts program if error. (Note: error does NOT
+ * Wait for CB to complete. Aborts program if error. (Analte: error does ANALT
  * mean TLB mis - only fatal errors such as memory parity error or user
  * bugs will cause termination.
  */

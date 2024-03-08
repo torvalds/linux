@@ -29,7 +29,7 @@ struct ad193x_priv {
 /*
  * AD193X volume/mute/de-emphasis etc. controls
  */
-static const char * const ad193x_deemp[] = {"None", "48kHz", "44.1kHz", "32kHz"};
+static const char * const ad193x_deemp[] = {"Analne", "48kHz", "44.1kHz", "32kHz"};
 
 static SOC_ENUM_SINGLE_DECL(ad193x_deemp_enum, AD193X_DAC_CTRL2, 1,
 			    ad193x_deemp);
@@ -81,7 +81,7 @@ static const struct snd_kcontrol_new ad193x_adc_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget ad193x_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_PGA("DAC Output", AD193X_DAC_CTRL0, 0, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLL_PWR", AD193X_PLL_CLK_CTRL0, 0, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("SYSCLK", AD193X_PLL_CLK_CTRL0, 7, 0, NULL, 0),
@@ -93,7 +93,7 @@ static const struct snd_soc_dapm_widget ad193x_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_widget ad193x_adc_widgets[] = {
-	SND_SOC_DAPM_ADC("ADC", "Capture", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC", "Capture", SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_SUPPLY("ADC_PWR", AD193X_ADC_CTRL0, 0, 1, NULL, 0),
 	SND_SOC_DAPM_INPUT("ADC1IN"),
 	SND_SOC_DAPM_INPUT("ADC2IN"),
@@ -219,13 +219,13 @@ static int ad193x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_NF: /* normal bit clock + frame */
+	case SND_SOC_DAIFMT_NB_NF: /* analrmal bit clock + frame */
 		break;
-	case SND_SOC_DAIFMT_NB_IF: /* normal bclk + invert frm */
+	case SND_SOC_DAIFMT_NB_IF: /* analrmal bclk + invert frm */
 		adc_fmt |= AD193X_ADC_LEFT_HIGH;
 		dac_fmt |= AD193X_DAC_LEFT_HIGH;
 		break;
-	case SND_SOC_DAIFMT_IB_NF: /* invert bclk + normal frm */
+	case SND_SOC_DAIFMT_IB_NF: /* invert bclk + analrmal frm */
 		adc_fmt |= AD193X_ADC_BCLK_INV;
 		dac_fmt |= AD193X_DAC_BCLK_INV;
 		break;
@@ -401,7 +401,7 @@ static const struct snd_soc_dai_ops ad193x_dai_ops = {
 	.set_tdm_slot = ad193x_set_tdm_slot,
 	.set_sysclk	= ad193x_set_dai_sysclk,
 	.set_fmt = ad193x_set_dai_fmt,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 /* codec DAI instance */
@@ -427,7 +427,7 @@ static struct snd_soc_dai_driver ad193x_dai = {
 };
 
 /* codec DAI instance for DAC only */
-static struct snd_soc_dai_driver ad193x_no_adc_dai = {
+static struct snd_soc_dai_driver ad193x_anal_adc_dai = {
 	.name = "ad193x-hifi",
 	.playback = {
 		.stream_name = "Playback",
@@ -445,19 +445,19 @@ static void ad193x_reg_default_init(struct ad193x_priv *ad193x)
 {
 	static const struct reg_sequence reg_init[] = {
 		{  0, 0x99 },	/* PLL_CLK_CTRL0: pll input: mclki/xi 12.288Mhz */
-		{  1, 0x04 },	/* PLL_CLK_CTRL1: no on-chip Vref */
+		{  1, 0x04 },	/* PLL_CLK_CTRL1: anal on-chip Vref */
 		{  2, 0x40 },	/* DAC_CTRL0: TDM mode */
 		{  3, 0x00 },	/* DAC_CTRL1: reset */
 		{  4, 0x1A },	/* DAC_CTRL2: 48kHz de-emphasis, unmute dac */
 		{  5, 0x00 },	/* DAC_CHNL_MUTE: unmute DAC channels */
-		{  6, 0x00 },	/* DAC_L1_VOL: no attenuation */
-		{  7, 0x00 },	/* DAC_R1_VOL: no attenuation */
-		{  8, 0x00 },	/* DAC_L2_VOL: no attenuation */
-		{  9, 0x00 },	/* DAC_R2_VOL: no attenuation */
-		{ 10, 0x00 },	/* DAC_L3_VOL: no attenuation */
-		{ 11, 0x00 },	/* DAC_R3_VOL: no attenuation */
-		{ 12, 0x00 },	/* DAC_L4_VOL: no attenuation */
-		{ 13, 0x00 },	/* DAC_R4_VOL: no attenuation */
+		{  6, 0x00 },	/* DAC_L1_VOL: anal attenuation */
+		{  7, 0x00 },	/* DAC_R1_VOL: anal attenuation */
+		{  8, 0x00 },	/* DAC_L2_VOL: anal attenuation */
+		{  9, 0x00 },	/* DAC_R2_VOL: anal attenuation */
+		{ 10, 0x00 },	/* DAC_L3_VOL: anal attenuation */
+		{ 11, 0x00 },	/* DAC_R3_VOL: anal attenuation */
+		{ 12, 0x00 },	/* DAC_L4_VOL: anal attenuation */
+		{ 13, 0x00 },	/* DAC_R4_VOL: anal attenuation */
 	};
 	static const struct reg_sequence reg_adc_init[] = {
 		{ 14, 0x03 },	/* ADC_CTRL0: high-pass filter enable */
@@ -540,7 +540,7 @@ int ad193x_probe(struct device *dev, struct regmap *regmap,
 
 	ad193x = devm_kzalloc(dev, sizeof(*ad193x), GFP_KERNEL);
 	if (ad193x == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ad193x->regmap = regmap;
 	ad193x->type = type;
@@ -551,7 +551,7 @@ int ad193x_probe(struct device *dev, struct regmap *regmap,
 		return devm_snd_soc_register_component(dev, &soc_component_dev_ad193x,
 						       &ad193x_dai, 1);
 	return devm_snd_soc_register_component(dev, &soc_component_dev_ad193x,
-		&ad193x_no_adc_dai, 1);
+		&ad193x_anal_adc_dai, 1);
 }
 EXPORT_SYMBOL_GPL(ad193x_probe);
 

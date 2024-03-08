@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -124,7 +124,7 @@ nvbios_extend(struct nvkm_bios *bios, u32 length)
 		u8 *prev = bios->data;
 		if (!(bios->data = kmalloc(length, GFP_KERNEL))) {
 			bios->data = prev;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memcpy(bios->data, prev, bios->size);
 		bios->size = length;
@@ -157,7 +157,7 @@ nvkm_bios_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	int ret, idx = 0;
 
 	if (!(bios = *pbios = kzalloc(sizeof(*bios), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_subdev_ctor(&nvkm_bios, device, type, inst, &bios->subdev);
 
 	ret = nvbios_shadow(bios);
@@ -165,7 +165,7 @@ nvkm_bios_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		return ret;
 
 	/* Some tables have weird pointers that need adjustment before
-	 * they're dereferenced.  I'm not entirely sure why...
+	 * they're dereferenced.  I'm analt entirely sure why...
 	 */
 	if (nvbios_image(bios, idx++, &image)) {
 		bios->image0_size = image.size;
@@ -195,19 +195,19 @@ nvkm_bios_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	if (!bit_entry(bios, 'i', &bit_i) && bit_i.length >= 4) {
 		bios->version.major = nvbios_rd08(bios, bit_i.offset + 3);
 		bios->version.chip  = nvbios_rd08(bios, bit_i.offset + 2);
-		bios->version.minor = nvbios_rd08(bios, bit_i.offset + 1);
+		bios->version.mianalr = nvbios_rd08(bios, bit_i.offset + 1);
 		bios->version.micro = nvbios_rd08(bios, bit_i.offset + 0);
 		bios->version.patch = nvbios_rd08(bios, bit_i.offset + 4);
 	} else
 	if (bmp_version(bios)) {
 		bios->version.major = nvbios_rd08(bios, bios->bmp_offset + 13);
 		bios->version.chip  = nvbios_rd08(bios, bios->bmp_offset + 12);
-		bios->version.minor = nvbios_rd08(bios, bios->bmp_offset + 11);
+		bios->version.mianalr = nvbios_rd08(bios, bios->bmp_offset + 11);
 		bios->version.micro = nvbios_rd08(bios, bios->bmp_offset + 10);
 	}
 
 	nvkm_info(&bios->subdev, "version %02x.%02x.%02x.%02x.%02x\n",
 		  bios->version.major, bios->version.chip,
-		  bios->version.minor, bios->version.micro, bios->version.patch);
+		  bios->version.mianalr, bios->version.micro, bios->version.patch);
 	return 0;
 }

@@ -5,7 +5,7 @@
 
 #include "lan966x_main.h"
 
-static struct notifier_block lan966x_netdevice_nb __read_mostly;
+static struct analtifier_block lan966x_netdevice_nb __read_mostly;
 
 static void lan966x_port_set_mcast_ip_flood(struct lan966x_port *port,
 					    u32 pgid_ip)
@@ -16,8 +16,8 @@ static void lan966x_port_set_mcast_ip_flood(struct lan966x_port *port,
 	flood_mask_ip = lan_rd(lan966x, ANA_PGID(pgid_ip));
 	flood_mask_ip = ANA_PGID_PGID_GET(flood_mask_ip);
 
-	/* If mcast snooping is not enabled then use mcast flood mask
-	 * to decide to enable multicast flooding or not.
+	/* If mcast sanaloping is analt enabled then use mcast flood mask
+	 * to decide to enable multicast flooding or analt.
 	 */
 	if (!port->mcast_ena) {
 		u32 flood_mask;
@@ -236,7 +236,7 @@ static int lan966x_port_attr_set(struct net_device *dev, const void *ctx,
 		lan966x_port_mc_set(port, !attr->u.mc_disabled);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -257,8 +257,8 @@ static int lan966x_port_bridge_join(struct lan966x_port *port,
 		lan966x->bridge = bridge;
 	} else {
 		if (lan966x->bridge != bridge) {
-			NL_SET_ERR_MSG_MOD(extack, "Not allow to add port to different bridge");
-			return -ENODEV;
+			NL_SET_ERR_MSG_MOD(extack, "Analt allow to add port to different bridge");
+			return -EANALDEV;
 		}
 	}
 
@@ -301,13 +301,13 @@ static void lan966x_port_bridge_leave(struct lan966x_port *port,
 
 int lan966x_port_changeupper(struct net_device *dev,
 			     struct net_device *brport_dev,
-			     struct netdev_notifier_changeupper_info *info)
+			     struct netdev_analtifier_changeupper_info *info)
 {
 	struct lan966x_port *port = netdev_priv(dev);
 	struct netlink_ext_ack *extack;
 	int err = 0;
 
-	extack = netdev_notifier_info_to_extack(&info->info);
+	extack = netdev_analtifier_info_to_extack(&info->info);
 
 	if (netif_is_bridge_master(info->upper_dev)) {
 		if (info->linking)
@@ -332,13 +332,13 @@ int lan966x_port_changeupper(struct net_device *dev,
 
 int lan966x_port_prechangeupper(struct net_device *dev,
 				struct net_device *brport_dev,
-				struct netdev_notifier_changeupper_info *info)
+				struct netdev_analtifier_changeupper_info *info)
 {
 	struct lan966x_port *port = netdev_priv(dev);
-	int err = NOTIFY_DONE;
+	int err = ANALTIFY_DONE;
 
 	if (netif_is_bridge_master(info->upper_dev) && !info->linking) {
-		switchdev_bridge_port_unoffload(port->dev, port, NULL, NULL);
+		switchdev_bridge_port_uanalffload(port->dev, port, NULL, NULL);
 		lan966x_fdb_flush_workqueue(port->lan966x);
 	}
 
@@ -347,7 +347,7 @@ int lan966x_port_prechangeupper(struct net_device *dev,
 		if (err || info->linking)
 			return err;
 
-		switchdev_bridge_port_unoffload(brport_dev, port, NULL, NULL);
+		switchdev_bridge_port_uanalffload(brport_dev, port, NULL, NULL);
 		lan966x_fdb_flush_workqueue(port->lan966x);
 	}
 
@@ -411,7 +411,7 @@ static int lan966x_foreign_bridging_check(struct net_device *upper,
 }
 
 static int lan966x_bridge_check(struct net_device *dev,
-				struct netdev_notifier_changeupper_info *info)
+				struct netdev_analtifier_changeupper_info *info)
 {
 	bool has_foreign = false;
 	bool seen_lan966x = false;
@@ -423,7 +423,7 @@ static int lan966x_bridge_check(struct net_device *dev,
 }
 
 static int lan966x_netdevice_port_event(struct net_device *dev,
-					struct notifier_block *nb,
+					struct analtifier_block *nb,
 					unsigned long event, void *ptr)
 {
 	int err = 0;
@@ -473,15 +473,15 @@ static int lan966x_netdevice_port_event(struct net_device *dev,
 	return err;
 }
 
-static int lan966x_netdevice_event(struct notifier_block *nb,
+static int lan966x_netdevice_event(struct analtifier_block *nb,
 				   unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	int ret;
 
 	ret = lan966x_netdevice_port_event(dev, nb, event, ptr);
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 static bool lan966x_foreign_dev_check(const struct net_device *dev,
@@ -504,10 +504,10 @@ static bool lan966x_foreign_dev_check(const struct net_device *dev,
 	return true;
 }
 
-static int lan966x_switchdev_event(struct notifier_block *nb,
+static int lan966x_switchdev_event(struct analtifier_block *nb,
 				   unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -515,17 +515,17 @@ static int lan966x_switchdev_event(struct notifier_block *nb,
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     lan966x_netdevice_check,
 						     lan966x_port_attr_set);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		err = switchdev_handle_fdb_event_to_device(dev, event, ptr,
 							   lan966x_netdevice_check,
 							   lan966x_foreign_dev_check,
 							   lan966x_handle_fdb);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int lan966x_handle_port_vlan_add(struct lan966x_port *port,
@@ -563,7 +563,7 @@ static int lan966x_handle_port_obj_add(struct net_device *dev, const void *ctx,
 		err = lan966x_handle_port_mdb_add(port, obj);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -602,18 +602,18 @@ static int lan966x_handle_port_obj_del(struct net_device *dev, const void *ctx,
 		err = lan966x_handle_port_mdb_del(port, obj);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
 	return err;
 }
 
-static int lan966x_switchdev_blocking_event(struct notifier_block *nb,
+static int lan966x_switchdev_blocking_event(struct analtifier_block *nb,
 					    unsigned long event,
 					    void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -621,44 +621,44 @@ static int lan966x_switchdev_blocking_event(struct notifier_block *nb,
 		err = switchdev_handle_port_obj_add(dev, ptr,
 						    lan966x_netdevice_check,
 						    lan966x_handle_port_obj_add);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	case SWITCHDEV_PORT_OBJ_DEL:
 		err = switchdev_handle_port_obj_del(dev, ptr,
 						    lan966x_netdevice_check,
 						    lan966x_handle_port_obj_del);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     lan966x_netdevice_check,
 						     lan966x_port_attr_set);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block lan966x_netdevice_nb __read_mostly = {
-	.notifier_call = lan966x_netdevice_event,
+static struct analtifier_block lan966x_netdevice_nb __read_mostly = {
+	.analtifier_call = lan966x_netdevice_event,
 };
 
-struct notifier_block lan966x_switchdev_nb __read_mostly = {
-	.notifier_call = lan966x_switchdev_event,
+struct analtifier_block lan966x_switchdev_nb __read_mostly = {
+	.analtifier_call = lan966x_switchdev_event,
 };
 
-struct notifier_block lan966x_switchdev_blocking_nb __read_mostly = {
-	.notifier_call = lan966x_switchdev_blocking_event,
+struct analtifier_block lan966x_switchdev_blocking_nb __read_mostly = {
+	.analtifier_call = lan966x_switchdev_blocking_event,
 };
 
-void lan966x_register_notifier_blocks(void)
+void lan966x_register_analtifier_blocks(void)
 {
-	register_netdevice_notifier(&lan966x_netdevice_nb);
-	register_switchdev_notifier(&lan966x_switchdev_nb);
-	register_switchdev_blocking_notifier(&lan966x_switchdev_blocking_nb);
+	register_netdevice_analtifier(&lan966x_netdevice_nb);
+	register_switchdev_analtifier(&lan966x_switchdev_nb);
+	register_switchdev_blocking_analtifier(&lan966x_switchdev_blocking_nb);
 }
 
-void lan966x_unregister_notifier_blocks(void)
+void lan966x_unregister_analtifier_blocks(void)
 {
-	unregister_switchdev_blocking_notifier(&lan966x_switchdev_blocking_nb);
-	unregister_switchdev_notifier(&lan966x_switchdev_nb);
-	unregister_netdevice_notifier(&lan966x_netdevice_nb);
+	unregister_switchdev_blocking_analtifier(&lan966x_switchdev_blocking_nb);
+	unregister_switchdev_analtifier(&lan966x_switchdev_nb);
+	unregister_netdevice_analtifier(&lan966x_netdevice_nb);
 }

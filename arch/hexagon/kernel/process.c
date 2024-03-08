@@ -19,7 +19,7 @@
 
 /*
  * Program thread launch.  Often defined as a macro in processor.h,
- * but we're shooting for a small footprint and it's not an inner-loop
+ * but we're shooting for a small footprint and it's analt an inner-loop
  * performance-critical operation.
  *
  * The Hexagon ABI specifies that R28 is zero'ed before program launch,
@@ -67,7 +67,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	/*
 	 * Establish kernel stack pointer and initial PC for new thread
-	 * Note that unlike the usual situation, we do not copy the
+	 * Analte that unlike the usual situation, we do analt copy the
 	 * parent's callee-saved here; those are in pt_regs and whatever
 	 * we leave here will be overridden on return to userland.
 	 */
@@ -105,7 +105,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		childregs->ugp = tls;
 
 	/*
-	 * Parent sees new pid -- not necessary, not even possible at
+	 * Parent sees new pid -- analt necessary, analt even possible at
 	 * this point in the fork process
 	 */
 
@@ -120,7 +120,7 @@ void flush_thread(void)
 }
 
 /*
- * The "wait channel" terminology is archaic, but what we want
+ * The "wait channel" termianallogy is archaic, but what we want
  * is an identification of the point at which the scheduler
  * was invoked by a blocked thread.
  */
@@ -150,7 +150,7 @@ unsigned long __get_wchan(struct task_struct *p)
  *
  * Interrupts will already be disabled.
  *
- * Returns 0 if there's no need to re-check for more work.
+ * Returns 0 if there's anal need to re-check for more work.
  */
 
 int do_work_pending(struct pt_regs *regs, u32 thread_info_flags);
@@ -158,7 +158,7 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 {
 	if (!(thread_info_flags & _TIF_WORK_MASK)) {
 		return 0;
-	}  /* shortcut -- no work to be done */
+	}  /* shortcut -- anal work to be done */
 
 	local_irq_enable();
 
@@ -167,17 +167,17 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 		return 1;
 	}
 
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL)) {
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL)) {
 		do_signal(regs);
 		return 1;
 	}
 
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+	if (thread_info_flags & _TIF_ANALTIFY_RESUME) {
 		resume_user_mode_work(regs);
 		return 1;
 	}
 
-	/* Should not even reach here */
+	/* Should analt even reach here */
 	panic("%s: bad thread_info flags 0x%08x\n", __func__,
 		thread_info_flags);
 }

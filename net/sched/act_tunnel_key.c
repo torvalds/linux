@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016, Amir Vadai <amir@vadai.me>
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -112,7 +112,7 @@ tunnel_key_copy_geneve_opt(const struct nlattr *nla, void *dst, int dst_len,
 		return -ERANGE;
 	}
 	if (data_len % 4) {
-		NL_SET_ERR_MSG(extack, "Tunnel key geneve option data is not a multiple of 4 bytes long");
+		NL_SET_ERR_MSG(extack, "Tunnel key geneve option data is analt a multiple of 4 bytes long");
 		return -ERANGE;
 	}
 
@@ -306,7 +306,7 @@ static int tunnel_key_opts_set(struct nlattr *nla, struct ip_tunnel_info *info,
 		return tunnel_key_copy_opts(nla, ip_tunnel_info_opts(info),
 					    opts_len, extack);
 #else
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 #endif
 	case TCA_TUNNEL_KEY_ENC_OPTS_VXLAN:
 #if IS_ENABLED(CONFIG_INET)
@@ -314,7 +314,7 @@ static int tunnel_key_opts_set(struct nlattr *nla, struct ip_tunnel_info *info,
 		return tunnel_key_copy_opts(nla, ip_tunnel_info_opts(info),
 					    opts_len, extack);
 #else
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 #endif
 	case TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN:
 #if IS_ENABLED(CONFIG_INET)
@@ -322,10 +322,10 @@ static int tunnel_key_opts_set(struct nlattr *nla, struct ip_tunnel_info *info,
 		return tunnel_key_copy_opts(nla, ip_tunnel_info_opts(info),
 					    opts_len, extack);
 #else
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 #endif
 	default:
-		NL_SET_ERR_MSG(extack, "Cannot set tunnel options for unknown tunnel type");
+		NL_SET_ERR_MSG(extack, "Cananalt set tunnel options for unkanalwn tunnel type");
 		return -EINVAL;
 	}
 }
@@ -338,7 +338,7 @@ static const struct nla_policy tunnel_key_policy[TCA_TUNNEL_KEY_MAX + 1] = {
 	[TCA_TUNNEL_KEY_ENC_IPV6_DST] = { .len = sizeof(struct in6_addr) },
 	[TCA_TUNNEL_KEY_ENC_KEY_ID]   = { .type = NLA_U32 },
 	[TCA_TUNNEL_KEY_ENC_DST_PORT] = {.type = NLA_U16},
-	[TCA_TUNNEL_KEY_NO_CSUM]      = { .type = NLA_U8 },
+	[TCA_TUNNEL_KEY_ANAL_CSUM]      = { .type = NLA_U8 },
 	[TCA_TUNNEL_KEY_ENC_OPTS]     = { .type = NLA_NESTED },
 	[TCA_TUNNEL_KEY_ENC_TOS]      = { .type = NLA_U8 },
 	[TCA_TUNNEL_KEY_ENC_TTL]      = { .type = NLA_U8 },
@@ -416,11 +416,11 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		}
 
 		flags |= TUNNEL_CSUM;
-		if (tb[TCA_TUNNEL_KEY_NO_CSUM] &&
-		    nla_get_u8(tb[TCA_TUNNEL_KEY_NO_CSUM]))
+		if (tb[TCA_TUNNEL_KEY_ANAL_CSUM] &&
+		    nla_get_u8(tb[TCA_TUNNEL_KEY_ANAL_CSUM]))
 			flags &= ~TUNNEL_CSUM;
 
-		if (nla_get_flag(tb[TCA_TUNNEL_KEY_NO_FRAG]))
+		if (nla_get_flag(tb[TCA_TUNNEL_KEY_ANAL_FRAG]))
 			flags |= TUNNEL_DONT_FRAGMENT;
 
 		if (tb[TCA_TUNNEL_KEY_ENC_DST_PORT])
@@ -471,8 +471,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		}
 
 		if (!metadata) {
-			NL_SET_ERR_MSG(extack, "Cannot allocate tunnel metadata dst");
-			ret = -ENOMEM;
+			NL_SET_ERR_MSG(extack, "Cananalt allocate tunnel metadata dst");
+			ret = -EANALMEM;
 			goto err_out;
 		}
 
@@ -493,7 +493,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		metadata->u.tun_info.mode |= IP_TUNNEL_INFO_TX;
 		break;
 	default:
-		NL_SET_ERR_MSG(extack, "Unknown tunnel key action");
+		NL_SET_ERR_MSG(extack, "Unkanalwn tunnel key action");
 		ret = -EINVAL;
 		goto err_out;
 	}
@@ -503,7 +503,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 						&act_tunnel_key_ops, bind,
 						act_flags);
 		if (ret) {
-			NL_SET_ERR_MSG(extack, "Cannot create TC IDR");
+			NL_SET_ERR_MSG(extack, "Cananalt create TC IDR");
 			goto release_tun_meta;
 		}
 
@@ -524,8 +524,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
-		ret = -ENOMEM;
+		NL_SET_ERR_MSG(extack, "Cananalt allocate tunnel key parameters");
+		ret = -EANALMEM;
 		exists = true;
 		goto put_chain;
 	}
@@ -575,7 +575,7 @@ static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
 	u8 *src = (u8 *)(info + 1);
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_GENEVE);
+	start = nla_nest_start_analflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_GENEVE);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -606,7 +606,7 @@ static int tunnel_key_vxlan_opts_dump(struct sk_buff *skb,
 	struct vxlan_metadata *md = (struct vxlan_metadata *)(info + 1);
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_VXLAN);
+	start = nla_nest_start_analflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_VXLAN);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -625,7 +625,7 @@ static int tunnel_key_erspan_opts_dump(struct sk_buff *skb,
 	struct erspan_metadata *md = (struct erspan_metadata *)(info + 1);
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN);
+	start = nla_nest_start_analflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -659,7 +659,7 @@ static int tunnel_key_opts_dump(struct sk_buff *skb,
 	if (!info->options_len)
 		return 0;
 
-	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS);
+	start = nla_nest_start_analflag(skb, TCA_TUNNEL_KEY_ENC_OPTS);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -748,10 +748,10 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		    (key->tp_dst &&
 		      nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_DST_PORT,
 				   key->tp_dst)) ||
-		    nla_put_u8(skb, TCA_TUNNEL_KEY_NO_CSUM,
+		    nla_put_u8(skb, TCA_TUNNEL_KEY_ANAL_CSUM,
 			       !(key->tun_flags & TUNNEL_CSUM)) ||
 		    ((key->tun_flags & TUNNEL_DONT_FRAGMENT) &&
-		     nla_put_flag(skb, TCA_TUNNEL_KEY_NO_FRAG)) ||
+		     nla_put_flag(skb, TCA_TUNNEL_KEY_ANAL_FRAG)) ||
 		    tunnel_key_opts_dump(skb, info))
 			goto nla_put_failure;
 
@@ -788,7 +788,7 @@ static int tcf_tunnel_encap_get_tunnel(struct flow_action_entry *entry,
 {
 	entry->tunnel = tcf_tunnel_info_copy(act);
 	if (!entry->tunnel)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry->destructor = tcf_tunnel_encap_put_tunnel;
 	entry->destructor_priv = entry->tunnel;
 	return 0;
@@ -814,7 +814,7 @@ static int tcf_tunnel_key_offload_act_setup(struct tc_action *act,
 			entry->id = FLOW_ACTION_TUNNEL_DECAP;
 		} else {
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported tunnel key mode offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		*index_inc = 1;
 	} else {
@@ -825,7 +825,7 @@ static int tcf_tunnel_key_offload_act_setup(struct tc_action *act,
 		else if (is_tcf_tunnel_release(act))
 			fl_action->id = FLOW_ACTION_TUNNEL_DECAP;
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	return 0;

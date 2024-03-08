@@ -21,20 +21,20 @@
 #include <linux/slab.h>
 #include <linux/watchdog.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 /**
  * struct max77620_variant - Data specific to a chip variant
  * @wdt_info:            watchdog descriptor
- * @reg_onoff_cnfg2:     ONOFF_CNFG2 register offset
+ * @reg_oanalff_cnfg2:     OANALFF_CNFG2 register offset
  * @reg_cnfg_glbl2:      CNFG_GLBL2 register offset
  * @reg_cnfg_glbl3:      CNFG_GLBL3 register offset
  * @wdtc_mask:           WDTC bit mask in CNFG_GLBL3 (=bits to update to ping the watchdog)
- * @bit_wd_rst_wk:       WD_RST_WK bit offset within ONOFF_CNFG2
+ * @bit_wd_rst_wk:       WD_RST_WK bit offset within OANALFF_CNFG2
  * @cnfg_glbl2_cfg_bits: configuration bits to enable in CNFG_GLBL2 register
  */
 struct max77620_variant {
-	u8 reg_onoff_cnfg2;
+	u8 reg_oanalff_cnfg2;
 	u8 reg_cnfg_glbl2;
 	u8 reg_cnfg_glbl3;
 	u8 wdtc_mask;
@@ -50,22 +50,22 @@ struct max77620_wdt {
 };
 
 static const struct max77620_variant max77620_wdt_data = {
-	.reg_onoff_cnfg2     = MAX77620_REG_ONOFFCNFG2,
+	.reg_oanalff_cnfg2     = MAX77620_REG_OANALFFCNFG2,
 	.reg_cnfg_glbl2      = MAX77620_REG_CNFGGLBL2,
 	.reg_cnfg_glbl3      = MAX77620_REG_CNFGGLBL3,
 	.wdtc_mask           = MAX77620_WDTC_MASK,
-	.bit_wd_rst_wk       = MAX77620_ONOFFCNFG2_WD_RST_WK,
+	.bit_wd_rst_wk       = MAX77620_OANALFFCNFG2_WD_RST_WK,
 	/* Set WDT clear in OFF and sleep mode */
 	.cnfg_glbl2_cfg_bits = MAX77620_WDTSLPC | MAX77620_WDTOFFC,
 };
 
 static const struct max77620_variant max77714_wdt_data = {
-	.reg_onoff_cnfg2     = MAX77714_CNFG2_ONOFF,
+	.reg_oanalff_cnfg2     = MAX77714_CNFG2_OANALFF,
 	.reg_cnfg_glbl2      = MAX77714_CNFG_GLBL2,
 	.reg_cnfg_glbl3      = MAX77714_CNFG_GLBL3,
 	.wdtc_mask           = MAX77714_WDTC,
 	.bit_wd_rst_wk       = MAX77714_WD_RST_WK,
-	/* Set WDT clear in sleep mode (there is no WDTOFFC on MAX77714) */
+	/* Set WDT clear in sleep mode (there is anal WDTOFFC on MAX77714) */
 	.cnfg_glbl2_cfg_bits = MAX77714_WDTSLPC,
 };
 
@@ -166,7 +166,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->dev = dev;
 	wdt->drv_data = (const struct max77620_variant *) id->driver_data;
@@ -174,7 +174,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 	wdt->rmap = dev_get_regmap(dev->parent, NULL);
 	if (!wdt->rmap) {
 		dev_err(wdt->dev, "Failed to get parent regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	wdt_dev = &wdt->wdt_dev;
@@ -187,7 +187,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wdt);
 
 	/* Enable WD_RST_WK - WDT expire results in a restart */
-	ret = regmap_update_bits(wdt->rmap, wdt->drv_data->reg_onoff_cnfg2,
+	ret = regmap_update_bits(wdt->rmap, wdt->drv_data->reg_oanalff_cnfg2,
 				 wdt->drv_data->bit_wd_rst_wk,
 				 wdt->drv_data->bit_wd_rst_wk);
 	if (ret < 0) {
@@ -204,7 +204,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Check if WDT running and if yes then set flags properly */
+	/* Check if WDT running and if anal then set flags properly */
 	ret = regmap_read(wdt->rmap, wdt->drv_data->reg_cnfg_glbl2, &regval);
 	if (ret < 0) {
 		dev_err(wdt->dev, "Failed to read WDT CFG register: %d\n", ret);
@@ -229,7 +229,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 	if (regval & MAX77620_WDTEN)
 		set_bit(WDOG_HW_RUNNING, &wdt_dev->status);
 
-	watchdog_set_nowayout(wdt_dev, nowayout);
+	watchdog_set_analwayout(wdt_dev, analwayout);
 	watchdog_set_drvdata(wdt_dev, wdt);
 
 	watchdog_stop_on_unregister(wdt_dev);
@@ -255,9 +255,9 @@ module_platform_driver(max77620_wdt_driver);
 
 MODULE_DESCRIPTION("Max77620 watchdog timer driver");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+	"(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
 MODULE_AUTHOR("Luca Ceresoli <luca.ceresoli@bootlin.com>");

@@ -162,7 +162,7 @@ static void ieee80211_set_vif_links_bitmaps(struct ieee80211_sub_if_data *sdata,
 		/* in an AP all links are always active */
 		sdata->vif.active_links = valid_links;
 
-		/* AP links are not expected to be disabled */
+		/* AP links are analt expected to be disabled */
 		WARN_ON(dormant_links);
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -198,7 +198,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 	if (old_links == new_links && dormant_links == sdata->vif.dormant_links)
 		return 0;
 
-	/* if there were no old links, need to clear the pointers to deflink */
+	/* if there were anal old links, need to clear the pointers to deflink */
 	if (!old_links)
 		rem |= BIT(0);
 
@@ -206,7 +206,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		link = kzalloc(sizeof(*link), GFP_KERNEL);
 		if (!link) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free;
 		}
 		links[link_id] = link;
@@ -224,7 +224,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		if (rcu_access_pointer(sdata->link[link_id]) != &sdata->deflink) {
 			/*
 			 * we must have allocated the data through this path so
-			 * we know we can free both at the same time
+			 * we kanalw we can free both at the same time
 			 */
 			to_free[link_id] = container_of(rcu_access_pointer(sdata->link[link_id]),
 							typeof(*links[link_id]),
@@ -254,7 +254,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 
 	ret = ieee80211_check_dup_link_addrs(sdata);
 	if (!ret) {
-		/* for keys we will not be able to undo this */
+		/* for keys we will analt be able to undo this */
 		ieee80211_tear_down_links(sdata, to_free, rem);
 
 		ieee80211_set_vif_links_bitmaps(sdata, new_links, dormant_links);
@@ -278,7 +278,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		goto free;
 	}
 
-	/* use deflink/bss_conf again if and only if there are no more links */
+	/* use deflink/bss_conf again if and only if there are anal more links */
 	use_deflink = new_links == 0;
 
 	goto deinit;
@@ -329,7 +329,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	if (active_links & ~ieee80211_vif_usable_links(&sdata->vif))
 		return -EINVAL;
 
-	/* nothing to do */
+	/* analthing to do */
 	if (old_active == active_links)
 		return 0;
 
@@ -392,7 +392,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 		 * well have called ieee80211_sta_recalc_aggregates()
 		 * from there when filling in the new links, which
 		 * would set it wrong since the vif's active links are
-		 * not switched yet...
+		 * analt switched yet...
 		 */
 		__ieee80211_sta_recalc_aggregates(sta, active_links);
 	}
@@ -407,7 +407,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 		WARN_ON_ONCE(ret);
 
 		ieee80211_mgd_set_link_qos_params(link);
-		ieee80211_link_info_change_notify(sdata, link,
+		ieee80211_link_info_change_analtify(sdata, link,
 						  BSS_CHANGED_ERP_CTS_PROT |
 						  BSS_CHANGED_ERP_PREAMBLE |
 						  BSS_CHANGED_ERP_SLOT |
@@ -481,7 +481,7 @@ void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
 	if (active_links & ~ieee80211_vif_usable_links(&sdata->vif))
 		return;
 
-	/* nothing to do */
+	/* analthing to do */
 	if (sdata->vif.active_links == active_links)
 		return;
 

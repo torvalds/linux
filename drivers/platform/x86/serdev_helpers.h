@@ -34,17 +34,17 @@ get_serdev_controller(const char *serial_ctrl_hid,
 
 	ctrl_adev = acpi_dev_get_first_match_dev(serial_ctrl_hid, serial_ctrl_uid, -1);
 	if (!ctrl_adev) {
-		pr_err("error could not get %s/%s serial-ctrl adev\n",
+		pr_err("error could analt get %s/%s serial-ctrl adev\n",
 		       serial_ctrl_hid, serial_ctrl_uid);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	/* get_first_physical_node() returns a weak ref */
-	ctrl_dev = get_device(acpi_get_first_physical_node(ctrl_adev));
+	/* get_first_physical_analde() returns a weak ref */
+	ctrl_dev = get_device(acpi_get_first_physical_analde(ctrl_adev));
 	if (!ctrl_dev) {
-		pr_err("error could not get %s/%s serial-ctrl physical node\n",
+		pr_err("error could analt get %s/%s serial-ctrl physical analde\n",
 		       serial_ctrl_hid, serial_ctrl_uid);
-		ctrl_dev = ERR_PTR(-ENODEV);
+		ctrl_dev = ERR_PTR(-EANALDEV);
 		goto put_ctrl_adev;
 	}
 
@@ -66,8 +66,8 @@ get_serdev_controller(const char *serial_ctrl_hid,
 		child = device_find_child_by_name(ctrl_dev, name);
 		put_device(ctrl_dev);
 		if (!child) {
-			pr_err("error could not find '%s' device\n", name);
-			ctrl_dev = ERR_PTR(-ENODEV);
+			pr_err("error could analt find '%s' device\n", name);
+			ctrl_dev = ERR_PTR(-EANALDEV);
 			goto put_ctrl_adev;
 		}
 

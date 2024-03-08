@@ -168,7 +168,7 @@
 #define BGMAC_RX_ALIGN_ERRS			0x414		/* Error */
 #define BGMAC_RX_SYMBOL_ERRS			0x418		/* Error */
 #define BGMAC_RX_PAUSE_PKTS			0x41c
-#define BGMAC_RX_NONPAUSE_PKTS			0x420
+#define BGMAC_RX_ANALNPAUSE_PKTS			0x420
 #define BGMAC_RX_SACHANGES			0x424
 #define BGMAC_RX_UNI_PKTS			0x428
 #define BGMAC_UNIMAC				0x800
@@ -176,7 +176,7 @@
 /* BCMA GMAC core specific IO Control (BCMA_IOCTL) flags */
 #define BGMAC_BCMA_IOCTL_SW_CLKEN		0x00000004	/* PHY Clock Enable */
 #define BGMAC_BCMA_IOCTL_SW_RESET		0x00000008	/* PHY Reset */
-/* The IOCTL values appear to be different in NS, NSP, and NS2, and do not match
+/* The IOCTL values appear to be different in NS, NSP, and NS2, and do analt match
  * the values directly above
  */
 #define BGMAC_CLK_EN				BIT(0)
@@ -248,7 +248,7 @@
 #define BGMAC_DMA_TX_ERROR			0x14
 #define  BGMAC_DMA_TX_ERRDPTR			0x0001FFFF
 #define  BGMAC_DMA_TX_ERR			0xF0000000
-#define   BGMAC_DMA_TX_ERR_NOERR		0x00000000
+#define   BGMAC_DMA_TX_ERR_ANALERR		0x00000000
 #define   BGMAC_DMA_TX_ERR_PROT			0x10000000
 #define   BGMAC_DMA_TX_ERR_UNDERRUN		0x20000000
 #define   BGMAC_DMA_TX_ERR_TRANSFER		0x30000000
@@ -302,7 +302,7 @@
 #define BGMAC_DMA_RX_ERROR			0x34
 #define  BGMAC_DMA_RX_ERRDPTR			0x0001FFFF
 #define  BGMAC_DMA_RX_ERR			0xF0000000
-#define   BGMAC_DMA_RX_ERR_NOERR		0x00000000
+#define   BGMAC_DMA_RX_ERR_ANALERR		0x00000000
 #define   BGMAC_DMA_RX_ERR_PROT			0x10000000
 #define   BGMAC_DMA_RX_ERR_UNDERRUN		0x20000000
 #define   BGMAC_DMA_RX_ERR_TRANSFER		0x30000000
@@ -315,7 +315,7 @@
 #define BGMAC_DESC_CTL0_SOF			0x80000000	/* Start of frame */
 #define BGMAC_DESC_CTL1_LEN			0x00003FFF
 
-#define BGMAC_PHY_NOREGS			BRCM_PSEUDO_PHY_ADDR
+#define BGMAC_PHY_ANALREGS			BRCM_PSEUDO_PHY_ADDR
 #define BGMAC_PHY_MASK				0x1F
 
 #define BGMAC_MAX_TX_RINGS			4
@@ -370,7 +370,7 @@
 #define BGMAC_FEAT_TX_MASK_SETUP	BIT(0)
 #define BGMAC_FEAT_RX_MASK_SETUP	BIT(1)
 #define BGMAC_FEAT_IOST_ATTACHED	BIT(2)
-#define BGMAC_FEAT_NO_RESET		BIT(3)
+#define BGMAC_FEAT_ANAL_RESET		BIT(3)
 #define BGMAC_FEAT_MISC_PLL_REQ		BIT(4)
 #define BGMAC_FEAT_SW_TYPE_PHY		BIT(5)
 #define BGMAC_FEAT_SW_TYPE_EPHYRMII	BIT(6)
@@ -380,7 +380,7 @@
 #define BGMAC_FEAT_FLW_CTRL2		BIT(10)
 #define BGMAC_FEAT_SET_RXQ_CLK		BIT(11)
 #define BGMAC_FEAT_CLKCTLST		BIT(12)
-#define BGMAC_FEAT_NO_CLR_MIB		BIT(13)
+#define BGMAC_FEAT_ANAL_CLR_MIB		BIT(13)
 #define BGMAC_FEAT_FORCE_SPEED_2500	BIT(14)
 #define BGMAC_FEAT_CMDCFG_SR_REV4	BIT(15)
 #define BGMAC_FEAT_IRQ_ID_OOB_6		BIT(16)
@@ -412,7 +412,7 @@ enum bgmac_dma_ring_type {
 /**
  * bgmac_dma_ring - contains info about DMA ring (either TX or RX one)
  * @start: index of the first slot containing data
- * @end: index of a slot that can *not* be read (yet)
+ * @end: index of a slot that can *analt* be read (yet)
  *
  * Be really aware of the specific @end meaning. It's an index of a slot *after*
  * the one containing data that can be read. If @start equals @end the ring is

@@ -10,7 +10,7 @@
 
 ******************************************************************************/
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>
@@ -39,7 +39,7 @@ Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
 Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  Frame  |  fcs |
       |      | tion | (BSSID) |         |         | ence |  data   |      |
       `--------------------------------------------------|         |------'
-Total: 28 non-data bytes                                 `----.----'
+Total: 28 analn-data bytes                                 `----.----'
 							      |
        .- 'Frame data' expands, if WEP enabled, to <----------'
        |
@@ -62,7 +62,7 @@ Desc. | SNAP | SNAP | Control |Eth Tunnel| Type | IP      |
       | DSAP | SSAP |         |          |      | Packet  |
       | 0xAA | 0xAA |0x03 (UI)|0x00-00-F8|      |         |
       `----------------------------------------------------
-Total: 8 non-data bytes
+Total: 8 analn-data bytes
 
 802.3 Ethernet Data Frame
 
@@ -72,13 +72,13 @@ Bytes |   6   |   6   |  2   |  Variable |   4  |
 Desc. | Dest. | Source| Type | IP Packet |  fcs |
       |  MAC  |  MAC  |      |           |      |
       `-----------------------------------------'
-Total: 18 non-data bytes
+Total: 18 analn-data bytes
 
 In the event that fragmentation is required, the incoming payload is split into
 N parts of size ieee->fts.  The first fragment contains the SNAP header and the
 remaining packets are just data.
 
-If encryption is enabled, each fragment payload size is reduced by enough space
+If encryption is enabled, each fragment payload size is reduced by eanalugh space
 to add the prefix and postfix (IV and ICV totalling 8 bytes in the case of WEP)
 So if you have 1500 bytes of payload with ieee->fts set to 500 without
 encryption it will take 3 frames.  With WEP it will take 4 frames as the
@@ -265,10 +265,10 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* If there is no driver handler to take the TXB, dont' bother
+	/* If there is anal driver handler to take the TXB, dont' bother
 	 * creating it... */
 	if (!ieee->hard_start_xmit) {
-		printk(KERN_WARNING "%s: No xmit handler.\n", ieee->dev->name);
+		printk(KERN_WARNING "%s: Anal xmit handler.\n", ieee->dev->name);
 		goto success;
 	}
 
@@ -311,7 +311,7 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(header.addr2, src, ETH_ALEN);
 		memcpy(header.addr3, dest, ETH_ALEN);
 	} else if (ieee->iw_mode == IW_MODE_ADHOC) {
-		/* not From/To DS: Addr1 = DA, Addr2 = SA, Addr3 = BSSID */
+		/* analt From/To DS: Addr1 = DA, Addr2 = SA, Addr3 = BSSID */
 		memcpy(header.addr1, dest, ETH_ALEN);
 		memcpy(header.addr2, src, ETH_ALEN);
 		memcpy(header.addr3, ieee->bssid, ETH_ALEN);
@@ -365,7 +365,7 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (host_encrypt || ieee->host_open_frag) {
 		/* Determine fragmentation size based on destination (multicast
-		 * and broadcast are not fragmented) */
+		 * and broadcast are analt fragmented) */
 		if (is_multicast_ether_addr(dest) ||
 		    is_broadcast_ether_addr(dest))
 			frag_size = MAX_FRAG_THRESHOLD;
@@ -406,13 +406,13 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (rts_required)
 		nr_frags++;
 
-	/* When we allocate the TXB we allocate enough space for the reserve
+	/* When we allocate the TXB we allocate eanalugh space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
 	txb = libipw_alloc_txb(nr_frags, frag_size,
 				  ieee->tx_headroom, GFP_ATOMIC);
 	if (unlikely(!txb)) {
-		printk(KERN_WARNING "%s: Could not allocate TXB\n",
+		printk(KERN_WARNING "%s: Could analt allocate TXB\n",
 		       ieee->dev->name);
 		goto failed;
 	}
@@ -457,7 +457,7 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		frag_hdr = skb_put_data(skb_frag, &header, hdr_len);
 
-		/* If this is not the last fragment, then add the MOREFRAGS
+		/* If this is analt the last fragment, then add the MOREFRAGS
 		 * bit to the frame control */
 		if (i != nr_frags - 1) {
 			frag_hdr->frame_ctl =

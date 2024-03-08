@@ -20,7 +20,7 @@
  *
  *   ->failfast exists for the truncate case, and is described below.
  *
- * NORMAL OPERATION
+ * ANALRMAL OPERATION
  *
  *   -> Reserve
  *     Entrance: btrfs_block_rsv_add, btrfs_block_rsv_refill
@@ -37,8 +37,8 @@
  *
  *     When we do a btrfs_alloc_tree_block() we call into btrfs_use_block_rsv()
  *     to determine the appropriate block_rsv to use, and then verify that
- *     ->reserved has enough space for our tree block allocation.  Once
- *     successful we subtract fs_info->nodesize from ->reserved.
+ *     ->reserved has eanalugh space for our tree block allocation.  Once
+ *     successful we subtract fs_info->analdesize from ->reserved.
  *
  *   -> Finish
  *     Entrance: btrfs_block_rsv_release
@@ -54,24 +54,24 @@
  * TYPES OF BLOCK RESERVES
  *
  * BLOCK_RSV_TRANS, BLOCK_RSV_DELOPS, BLOCK_RSV_CHUNK
- *   These behave normally, as described above, just within the confines of the
+ *   These behave analrmally, as described above, just within the confines of the
  *   lifetime of their particular operation (transaction for the whole trans
  *   handle lifetime, for example).
  *
  * BLOCK_RSV_GLOBAL
  *   It is impossible to properly account for all the space that may be required
  *   to make our extent tree updates.  This block reserve acts as an overflow
- *   buffer in case our delayed refs reserve does not reserve enough space to
+ *   buffer in case our delayed refs reserve does analt reserve eanalugh space to
  *   update the extent tree.
  *
- *   We can steal from this in some cases as well, notably on evict() or
- *   truncate() in order to help users recover from ENOSPC conditions.
+ *   We can steal from this in some cases as well, analtably on evict() or
+ *   truncate() in order to help users recover from EANALSPC conditions.
  *
  * BLOCK_RSV_DELALLOC
- *   The individual item sizes are determined by the per-inode size
+ *   The individual item sizes are determined by the per-ianalde size
  *   calculations, which are described with the delalloc code.  This is pretty
  *   straightforward, it's just the calculation of ->size encodes a lot of
- *   different items, and thus it gets used when updating inodes, inserting file
+ *   different items, and thus it gets used when updating ianaldes, inserting file
  *   extents, and inserting checksums.
  *
  * BLOCK_RSV_DELREFS
@@ -95,8 +95,8 @@
  * BLOCK_RSV_TEMP
  *   This is used by things like truncate and iput.  We will temporarily
  *   allocate a block reserve, set it to some size, and then truncate bytes
- *   until we have no space left.  With ->failfast set we'll simply return
- *   ENOSPC from btrfs_use_block_rsv() to signal that we need to unwind and try
+ *   until we have anal space left.  With ->failfast set we'll simply return
+ *   EANALSPC from btrfs_use_block_rsv() to signal that we need to unwind and try
  *   to make a new reservation.  This is because these operations are
  *   unbounded, so we want to do as much work as we can, and then back off and
  *   re-reserve.
@@ -195,7 +195,7 @@ struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_block_rsv *block_rsv;
 
-	block_rsv = kmalloc(sizeof(*block_rsv), GFP_NOFS);
+	block_rsv = kmalloc(sizeof(*block_rsv), GFP_ANALFS);
 	if (!block_rsv)
 		return NULL;
 
@@ -232,7 +232,7 @@ int btrfs_block_rsv_add(struct btrfs_fs_info *fs_info,
 int btrfs_block_rsv_check(struct btrfs_block_rsv *block_rsv, int min_percent)
 {
 	u64 num_bytes = 0;
-	int ret = -ENOSPC;
+	int ret = -EANALSPC;
 
 	spin_lock(&block_rsv->lock);
 	num_bytes = mult_perc(block_rsv->size, min_percent);
@@ -247,7 +247,7 @@ int btrfs_block_rsv_refill(struct btrfs_fs_info *fs_info,
 			   struct btrfs_block_rsv *block_rsv, u64 num_bytes,
 			   enum btrfs_reserve_flush_enum flush)
 {
-	int ret = -ENOSPC;
+	int ret = -EANALSPC;
 
 	if (!block_rsv)
 		return 0;
@@ -282,7 +282,7 @@ u64 btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * If we are a delayed block reserve then push to the global rsv,
-	 * otherwise dump into the global delayed reserve if it is not full.
+	 * otherwise dump into the global delayed reserve if it is analt full.
 	 */
 	if (block_rsv->type == BTRFS_BLOCK_RSV_DELOPS)
 		target = global_rsv;
@@ -298,7 +298,7 @@ u64 btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 
 int btrfs_block_rsv_use_bytes(struct btrfs_block_rsv *block_rsv, u64 num_bytes)
 {
-	int ret = -ENOSPC;
+	int ret = -EANALSPC;
 
 	spin_lock(&block_rsv->lock);
 	if (block_rsv->reserved >= num_bytes) {
@@ -341,7 +341,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	 */
 	read_lock(&fs_info->global_root_lock);
 	rbtree_postorder_for_each_entry_safe(root, tmp, &fs_info->global_root_tree,
-					     rb_node) {
+					     rb_analde) {
 		if (root->root_key.objectid == BTRFS_EXTENT_TREE_OBJECTID ||
 		    root->root_key.objectid == BTRFS_CSUM_TREE_OBJECTID ||
 		    root->root_key.objectid == BTRFS_FREE_SPACE_TREE_OBJECTID) {
@@ -362,7 +362,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	}
 
 	/*
-	 * But we also want to reserve enough space so we can do the fallback
+	 * But we also want to reserve eanalugh space so we can do the fallback
 	 * global reserve for an unlink, which is an additional
 	 * BTRFS_UNLINK_METADATA_UNITS items.
 	 *
@@ -515,7 +515,7 @@ again:
 	 * warn_on if we are short on our delayed refs reserve.
 	 */
 	if (block_rsv->type != BTRFS_BLOCK_RSV_DELREFS &&
-	    btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
+	    btrfs_test_opt(fs_info, EANALSPC_DEBUG)) {
 		static DEFINE_RATELIMIT_STATE(_rs,
 				DEFAULT_RATELIMIT_INTERVAL * 10,
 				/*DEFAULT_RATELIMIT_BURST*/ 1);
@@ -526,7 +526,7 @@ again:
 	}
 try_reserve:
 	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info,
-					   blocksize, BTRFS_RESERVE_NO_FLUSH);
+					   blocksize, BTRFS_RESERVE_ANAL_FLUSH);
 	if (!ret)
 		return block_rsv;
 	/*
@@ -543,8 +543,8 @@ try_reserve:
 
 	/*
 	 * All hope is lost, but of course our reservations are overly
-	 * pessimistic, so instead of possibly having an ENOSPC abort here, try
-	 * one last time to force a reservation if there's enough actual space
+	 * pessimistic, so instead of possibly having an EANALSPC abort here, try
+	 * one last time to force a reservation if there's eanalugh actual space
 	 * on disk to make the reservation.
 	 */
 	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info, blocksize,
@@ -561,13 +561,13 @@ int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
 	u64 needed_bytes;
 	int ret;
 
-	/* 1 for slack space, 1 for updating the inode */
+	/* 1 for slack space, 1 for updating the ianalde */
 	needed_bytes = btrfs_calc_insert_metadata_size(fs_info, 1) +
 		btrfs_calc_metadata_size(fs_info, 1);
 
 	spin_lock(&rsv->lock);
 	if (rsv->reserved < needed_bytes)
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 	else
 		ret = 0;
 	spin_unlock(&rsv->lock);

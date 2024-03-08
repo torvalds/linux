@@ -147,7 +147,7 @@ superio_exit(int ioreg)
 #define W83627EHF_REG_CONFIG		0x40
 
 /*
- * Not currently used:
+ * Analt currently used:
  * REG_MAN_ID has the value 0x5ca3 for all supported chips.
  * REG_CHIP_ID == 0x88/0xa1/0xc1 depending on chip model.
  * REG_MAN_ID is at port 0x4f
@@ -725,14 +725,14 @@ store_fan_min(struct device *dev, struct w83627ehf_data *data, int channel,
 
 	mutex_lock(&data->update_lock);
 	if (!val) {
-		/* No min limit, alarm disabled */
+		/* Anal min limit, alarm disabled */
 		data->fan_min[channel] = 255;
-		new_div = data->fan_div[channel]; /* No change */
+		new_div = data->fan_div[channel]; /* Anal change */
 		dev_info(dev, "fan%u low limit and alarm disabled\n",
 			 channel + 1);
 	} else if ((reg = 1350000U / val) >= 128 * 255) {
 		/*
-		 * Speed below this value cannot possibly be represented,
+		 * Speed below this value cananalt possibly be represented,
 		 * even with the highest divider (128)
 		 */
 		data->fan_min[channel] = 254;
@@ -742,7 +742,7 @@ store_fan_min(struct device *dev, struct w83627ehf_data *data, int channel,
 			 channel + 1, val, fan_from_reg8(254, 7));
 	} else if (!reg) {
 		/*
-		 * Speed above this value cannot possibly be represented,
+		 * Speed above this value cananalt possibly be represented,
 		 * even with the lowest divider (1)
 		 */
 		data->fan_min[channel] = 1;
@@ -1115,7 +1115,7 @@ static umode_t w83627ehf_attrs_visible(struct kobject *kobj,
 
 	devattr = container_of(a, struct device_attribute, attr);
 
-	/* Not sensor */
+	/* Analt sensor */
 	if (devattr->show == cpu0_vid_show && data->have_vid)
 		return a->mode;
 
@@ -1160,7 +1160,7 @@ static umode_t w83627ehf_attrs_visible(struct kobject *kobj,
 	return 0;
 }
 
-/* These groups handle non-standard attributes used in this device */
+/* These groups handle analn-standard attributes used in this device */
 static struct attribute *w83627ehf_attrs[] = {
 
 	&sensor_dev_attr_pwm1_stop_time.dev_attr.attr,
@@ -1293,7 +1293,7 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 {
 	int fan3pin, fan4pin, fan5pin, regval;
 
-	/* The W83627UHG is simple, only two fan inputs, no config */
+	/* The W83627UHG is simple, only two fan inputs, anal config */
 	if (sio_data->kind == w83627uhg) {
 		data->has_fan = 0x03; /* fan1 and fan2 */
 		data->has_fan_min = 0x03;
@@ -1320,7 +1320,7 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 	 * as fan on/off switches, but fan5 control is write only :/
 	 * We assume that if the serial interface is disabled, designers
 	 * connected fan5 as input unless they are emitting log 1, which
-	 * is not the default.
+	 * is analt the default.
 	 */
 	regval = w83627ehf_read_value(data, W83627EHF_REG_FANDIV1);
 	if ((regval & (1 << 2)) && fan4pin) {
@@ -1458,7 +1458,7 @@ w83627ehf_do_read_temp(struct w83627ehf_data *data, u32 attr,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1487,7 +1487,7 @@ w83627ehf_do_read_in(struct w83627ehf_data *data, u32 attr,
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1515,7 +1515,7 @@ w83627ehf_do_read_fan(struct w83627ehf_data *data, u32 attr,
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1535,7 +1535,7 @@ w83627ehf_do_read_pwm(struct w83627ehf_data *data, u32 attr,
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1543,7 +1543,7 @@ w83627ehf_do_read_intrusion(struct w83627ehf_data *data, u32 attr,
 			    int channel, long *val)
 {
 	if (attr != hwmon_intrusion_alarm || channel != 0)
-		return -EOPNOTSUPP; /* shouldn't happen */
+		return -EOPANALTSUPP; /* shouldn't happen */
 
 	*val = !!(data->caseopen & 0x10);
 	return 0;
@@ -1575,7 +1575,7 @@ w83627ehf_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1595,8 +1595,8 @@ w83627ehf_read_string(struct device *dev, enum hwmon_sensor_types type,
 	default:
 		break;
 	}
-	/* Nothing else should be read as a string */
-	return -EOPNOTSUPP;
+	/* Analthing else should be read as a string */
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1630,7 +1630,7 @@ w83627ehf_write(struct device *dev, enum hwmon_sensor_types type,
 	if (type == hwmon_intrusion && attr == hwmon_intrusion_alarm)
 		return clear_caseopen(dev, data, channel, val);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops w83627ehf_ops = {
@@ -1708,7 +1708,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->addr = res->start;
 	mutex_init(&data->lock);
@@ -1753,7 +1753,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 		data->temp_src[2] = (reg >> 4) & 0x07;
 
 		/*
-		 * W83667HG-B has another temperature register at 0x7e.
+		 * W83667HG-B has aanalther temperature register at 0x7e.
 		 * The temperature source is selected with register 0x7d.
 		 * Support it if the source differs from already reported
 		 * sources.
@@ -1815,9 +1815,9 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 		     data->temp_src[2] == data->temp_src[1]))
 			data->have_temp &= ~(1 << 2);
 		else
-			data->temp3_val_only = 1;	/* No limit regs */
+			data->temp3_val_only = 1;	/* Anal limit regs */
 
-		data->in6_skip = 1;			/* No VIN3 */
+		data->in6_skip = 1;			/* Anal VIN3 */
 
 		data->temp_label = w83667hg_b_temp_label;
 		data->have_temp_offset = data->have_temp & 0x03;
@@ -1889,7 +1889,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 		if (superio_inb(sio_data->sioreg, SIO_REG_VID_CTRL) & 0x80) {
 			/*
 			 * Set VID input sensibility if needed. In theory the
-			 * BIOS should have set it, but in practice it's not
+			 * BIOS should have set it, but in practice it's analt
 			 * always the case. We only do it for the W83627EHF/EHG
 			 * because the W83627DHG is more complex in this
 			 * respect.
@@ -1920,7 +1920,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 			data->have_vid = true;
 		} else {
 			dev_info(dev,
-				 "VID pins in output mode, CPU VID not available\n");
+				 "VID pins in output mode, CPU VID analt available\n");
 		}
 	}
 
@@ -2077,10 +2077,10 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 		if (val != 0xffff)
 			pr_debug("unsupported chip ID: 0x%04x\n", val);
 		superio_exit(sioaddr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* We have a known chip, find the HWM I/O address */
+	/* We have a kanalwn chip, find the HWM I/O address */
 	superio_select(sioaddr, W83627EHF_LD_HWM);
 	val = (superio_inb(sioaddr, SIO_REG_ADDR) << 8)
 	    | superio_inb(sioaddr, SIO_REG_ADDR + 1);
@@ -2088,7 +2088,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	if (*addr == 0) {
 		pr_err("Refusing to enable a Super-I/O device with a base I/O port 0\n");
 		superio_exit(sioaddr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Activate logical device if needed */
@@ -2131,7 +2131,7 @@ static int __init sensors_w83627ehf_init(void)
 	 */
 	if (w83627ehf_find(0x2e, &address, &sio_data) &&
 	    w83627ehf_find(0x4e, &address, &sio_data))
-		return -ENODEV;
+		return -EANALDEV;
 
 	res.start = address + IOREGION_OFFSET;
 	res.end = address + IOREGION_OFFSET + IOREGION_LENGTH - 1;

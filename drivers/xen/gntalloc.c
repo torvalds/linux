@@ -10,14 +10,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 /*
  * This driver exists to allow userspace programs in Linux to allocate kernel
- * memory that will later be shared with another domain.  Without this device,
- * Linux userspace programs cannot create grant references.
+ * memory that will later be shared with aanalther domain.  Without this device,
+ * Linux userspace programs cananalt create grant references.
  *
  * How this stuff works:
  *   X -> granting a page to Y
@@ -32,17 +32,17 @@
  *      application running in Y. This is the first point at which Xen does any
  *      tracking of the page.
  *   5. A program in X mmap()s a segment of the gntalloc device that corresponds
- *      to the shared page, and can now communicate with Y over the shared page.
+ *      to the shared page, and can analw communicate with Y over the shared page.
  *
  *
- * NOTE TO USERSPACE LIBRARIES:
+ * ANALTE TO USERSPACE LIBRARIES:
  *   The grant allocation and mmap()ing are, naturally, two separate operations.
  *   You set up the sharing by calling the create ioctl() and then the mmap().
  *   Teardown requires munmap() and either close() or ioctl().
  *
- * WARNING: Since Xen does not allow a guest to forcibly end the use of a grant
+ * WARNING: Since Xen does analt allow a guest to forcibly end the use of a grant
  * reference, this device can be used to consume kernel memory by leaving grant
- * references mapped by another domain when an application exits. Therefore,
+ * references mapped by aanalther domain when an application exits. Therefore,
  * there is a global limit on the number of pages that can be allocated. When
  * all references to the page are unmapped, it will be freed during the next
  * grant operation.
@@ -79,10 +79,10 @@ static LIST_HEAD(gref_list);
 static DEFINE_MUTEX(gref_mutex);
 static int gref_size;
 
-struct notify_info {
+struct analtify_info {
 	uint16_t pgoff:12;    /* Bits 0-11: Offset of the byte to clear */
-	uint16_t flags:2;     /* Bits 12-13: Unmap notification flags */
-	int event;            /* Port (event channel) to notify */
+	uint16_t flags:2;     /* Bits 12-13: Unmap analtification flags */
+	int event;            /* Port (event channel) to analtify */
 };
 
 /* Metadata on a grant reference. */
@@ -93,7 +93,7 @@ struct gntalloc_gref {
 	uint64_t file_index;         /* File offset for mmap() */
 	unsigned int users;          /* Use count - when zero, waiting on Xen */
 	grant_ref_t gref_id;         /* The grant reference number */
-	struct notify_info notify;   /* Unmap notification */
+	struct analtify_info analtify;   /* Unmap analtification */
 };
 
 struct gntalloc_file_private_data {
@@ -130,7 +130,7 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 	for (i = 0; i < op->count; i++) {
 		gref = kzalloc(sizeof(*gref), GFP_KERNEL);
 		if (!gref) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto undo;
 		}
 		list_add_tail(&gref->next_gref, &queue_gref);
@@ -139,7 +139,7 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 		gref->file_index = op->index + i * PAGE_SIZE;
 		gref->page = alloc_page(GFP_KERNEL|__GFP_ZERO);
 		if (!gref->page) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto undo;
 		}
 
@@ -175,17 +175,17 @@ undo:
 
 static void __del_gref(struct gntalloc_gref *gref)
 {
-	if (gref->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
+	if (gref->analtify.flags & UNMAP_ANALTIFY_CLEAR_BYTE) {
 		uint8_t *tmp = kmap_local_page(gref->page);
-		tmp[gref->notify.pgoff] = 0;
+		tmp[gref->analtify.pgoff] = 0;
 		kunmap_local(tmp);
 	}
-	if (gref->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
-		notify_remote_via_evtchn(gref->notify.event);
-		evtchn_put(gref->notify.event);
+	if (gref->analtify.flags & UNMAP_ANALTIFY_SEND_EVENT) {
+		analtify_remote_via_evtchn(gref->analtify.event);
+		evtchn_put(gref->analtify.event);
 	}
 
-	gref->notify.flags = 0;
+	gref->analtify.flags = 0;
 
 	if (gref->gref_id) {
 		if (gref->page)
@@ -225,13 +225,13 @@ static struct gntalloc_gref *find_grefs(struct gntalloc_file_private_data *priv,
  *  File operations.
  * -------------------------------------
  */
-static int gntalloc_open(struct inode *inode, struct file *filp)
+static int gntalloc_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct gntalloc_file_private_data *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		goto out_nomem;
+		goto out_analmem;
 	INIT_LIST_HEAD(&priv->list);
 
 	filp->private_data = priv;
@@ -240,11 +240,11 @@ static int gntalloc_open(struct inode *inode, struct file *filp)
 
 	return 0;
 
-out_nomem:
-	return -ENOMEM;
+out_analmem:
+	return -EANALMEM;
 }
 
-static int gntalloc_release(struct inode *inode, struct file *filp)
+static int gntalloc_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct gntalloc_file_private_data *priv = filp->private_data;
 	struct gntalloc_gref *gref;
@@ -282,7 +282,7 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 
 	gref_ids = kcalloc(op.count, sizeof(gref_ids[0]), GFP_KERNEL);
 	if (!gref_ids) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -294,7 +294,7 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 	do_cleanup();
 	if (gref_size + op.count > limit) {
 		mutex_unlock(&gref_mutex);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		goto out_free;
 	}
 	gref_size += op.count;
@@ -368,10 +368,10 @@ dealloc_grant_out:
 	return rc;
 }
 
-static long gntalloc_ioctl_unmap_notify(struct gntalloc_file_private_data *priv,
+static long gntalloc_ioctl_unmap_analtify(struct gntalloc_file_private_data *priv,
 		void __user *arg)
 {
-	struct ioctl_gntalloc_unmap_notify op;
+	struct ioctl_gntalloc_unmap_analtify op;
 	struct gntalloc_gref *gref;
 	uint64_t index;
 	int pgoff;
@@ -387,35 +387,35 @@ static long gntalloc_ioctl_unmap_notify(struct gntalloc_file_private_data *priv,
 
 	gref = find_grefs(priv, index, 1);
 	if (!gref) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto unlock_out;
 	}
 
-	if (op.action & ~(UNMAP_NOTIFY_CLEAR_BYTE|UNMAP_NOTIFY_SEND_EVENT)) {
+	if (op.action & ~(UNMAP_ANALTIFY_CLEAR_BYTE|UNMAP_ANALTIFY_SEND_EVENT)) {
 		rc = -EINVAL;
 		goto unlock_out;
 	}
 
 	/* We need to grab a reference to the event channel we are going to use
-	 * to send the notify before releasing the reference we may already have
+	 * to send the analtify before releasing the reference we may already have
 	 * (if someone has called this ioctl twice). This is required so that
-	 * it is possible to change the clear_byte part of the notification
-	 * without disturbing the event channel part, which may now be the last
+	 * it is possible to change the clear_byte part of the analtification
+	 * without disturbing the event channel part, which may analw be the last
 	 * reference to that event channel.
 	 */
-	if (op.action & UNMAP_NOTIFY_SEND_EVENT) {
+	if (op.action & UNMAP_ANALTIFY_SEND_EVENT) {
 		if (evtchn_get(op.event_channel_port)) {
 			rc = -EINVAL;
 			goto unlock_out;
 		}
 	}
 
-	if (gref->notify.flags & UNMAP_NOTIFY_SEND_EVENT)
-		evtchn_put(gref->notify.event);
+	if (gref->analtify.flags & UNMAP_ANALTIFY_SEND_EVENT)
+		evtchn_put(gref->analtify.event);
 
-	gref->notify.flags = op.action;
-	gref->notify.pgoff = pgoff;
-	gref->notify.event = op.event_channel_port;
+	gref->analtify.flags = op.action;
+	gref->analtify.pgoff = pgoff;
+	gref->analtify.event = op.event_channel_port;
 	rc = 0;
 
  unlock_out:
@@ -435,11 +435,11 @@ static long gntalloc_ioctl(struct file *filp, unsigned int cmd,
 	case IOCTL_GNTALLOC_DEALLOC_GREF:
 		return gntalloc_ioctl_dealloc(priv, (void __user *)arg);
 
-	case IOCTL_GNTALLOC_SET_UNMAP_NOTIFY:
-		return gntalloc_ioctl_unmap_notify(priv, (void __user *)arg);
+	case IOCTL_GNTALLOC_SET_UNMAP_ANALTIFY:
+		return gntalloc_ioctl_unmap_analtify(priv, (void __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -503,7 +503,7 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	vm_priv = kmalloc(sizeof(*vm_priv), GFP_KERNEL);
 	if (!vm_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&gref_mutex);
 
@@ -512,8 +512,8 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	gref = find_grefs(priv, vma->vm_pgoff << PAGE_SHIFT, count);
 	if (gref == NULL) {
-		rv = -ENOENT;
-		pr_debug("%s: Could not find grant reference",
+		rv = -EANALENT;
+		pr_debug("%s: Could analt find grant reference",
 				__func__);
 		kfree(vm_priv);
 		goto out_unlock;
@@ -560,7 +560,7 @@ static const struct file_operations gntalloc_fops = {
  * -------------------------------------
  */
 static struct miscdevice gntalloc_miscdev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name	= "xen/gntalloc",
 	.fops	= &gntalloc_fops,
 };
@@ -570,16 +570,16 @@ static int __init gntalloc_init(void)
 	int err;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = misc_register(&gntalloc_miscdev);
 	if (err != 0) {
-		pr_err("Could not register misc gntalloc device\n");
+		pr_err("Could analt register misc gntalloc device\n");
 		return err;
 	}
 
 	pr_debug("Created grant allocation device at %d,%d\n",
-			MISC_MAJOR, gntalloc_miscdev.minor);
+			MISC_MAJOR, gntalloc_miscdev.mianalr);
 
 	return 0;
 }

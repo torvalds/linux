@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #if defined(__i386__) || defined(__x86_64__)
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdint.h>
 
@@ -85,12 +85,12 @@ static int get_cof(union core_pstate pstate)
  * pstates -> a pointer to an array of size MAX_HW_PSTATES
  *            must be initialized with zeros.
  *            All available  HW pstates (including boost states)
- * no      -> amount of pstates above array got filled up with
+ * anal      -> amount of pstates above array got filled up with
  *
  * returns zero on success, -1 on failure
  */
 int decode_pstates(unsigned int cpu, int boost_states,
-		   unsigned long *pstates, int *no)
+		   unsigned long *pstates, int *anal)
 {
 	int i, psmax;
 	union core_pstate pstate;
@@ -122,7 +122,7 @@ int decode_pstates(unsigned int cpu, int boost_states,
 
 		pstates[i] = get_cof(pstate);
 	}
-	*no = i;
+	*anal = i;
 	return 0;
 }
 
@@ -137,7 +137,7 @@ int amd_pci_get_num_boost_states(int *active, int *states)
 	device = pci_slot_func_init(&pci_acc, 0x18, 4);
 
 	if (device == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = pci_read_byte(device, 0x15c);
 	if (val & 3)
@@ -156,14 +156,14 @@ int amd_pci_get_num_boost_states(int *active, int *states)
 enum amd_pstate_value {
 	AMD_PSTATE_HIGHEST_PERF,
 	AMD_PSTATE_MAX_FREQ,
-	AMD_PSTATE_LOWEST_NONLINEAR_FREQ,
+	AMD_PSTATE_LOWEST_ANALNLINEAR_FREQ,
 	MAX_AMD_PSTATE_VALUE_READ_FILES,
 };
 
 static const char *amd_pstate_value_files[MAX_AMD_PSTATE_VALUE_READ_FILES] = {
 	[AMD_PSTATE_HIGHEST_PERF] = "amd_pstate_highest_perf",
 	[AMD_PSTATE_MAX_FREQ] = "amd_pstate_max_freq",
-	[AMD_PSTATE_LOWEST_NONLINEAR_FREQ] = "amd_pstate_lowest_nonlinear_freq",
+	[AMD_PSTATE_LOWEST_ANALNLINEAR_FREQ] = "amd_pstate_lowest_analnlinear_freq",
 };
 
 static unsigned long amd_pstate_get_data(unsigned int cpu,
@@ -177,13 +177,13 @@ static unsigned long amd_pstate_get_data(unsigned int cpu,
 
 void amd_pstate_boost_init(unsigned int cpu, int *support, int *active)
 {
-	unsigned long highest_perf, nominal_perf, cpuinfo_min,
+	unsigned long highest_perf, analminal_perf, cpuinfo_min,
 		      cpuinfo_max, amd_pstate_max;
 
 	highest_perf = amd_pstate_get_data(cpu, AMD_PSTATE_HIGHEST_PERF);
-	nominal_perf = acpi_cppc_get_data(cpu, NOMINAL_PERF);
+	analminal_perf = acpi_cppc_get_data(cpu, ANALMINAL_PERF);
 
-	*support = highest_perf > nominal_perf ? 1 : 0;
+	*support = highest_perf > analminal_perf ? 1 : 0;
 	if (!(*support))
 		return;
 
@@ -193,7 +193,7 @@ void amd_pstate_boost_init(unsigned int cpu, int *support, int *active)
 	*active = cpuinfo_max == amd_pstate_max ? 1 : 0;
 }
 
-void amd_pstate_show_perf_and_freq(unsigned int cpu, int no_rounding)
+void amd_pstate_show_perf_and_freq(unsigned int cpu, int anal_rounding)
 {
 	printf(_("    AMD PSTATE Highest Performance: %lu. Maximum Frequency: "),
 	       amd_pstate_get_data(cpu, AMD_PSTATE_HIGHEST_PERF));
@@ -201,24 +201,24 @@ void amd_pstate_show_perf_and_freq(unsigned int cpu, int no_rounding)
 	 * If boost isn't active, the cpuinfo_max doesn't indicate real max
 	 * frequency. So we read it back from amd-pstate sysfs entry.
 	 */
-	print_speed(amd_pstate_get_data(cpu, AMD_PSTATE_MAX_FREQ), no_rounding);
+	print_speed(amd_pstate_get_data(cpu, AMD_PSTATE_MAX_FREQ), anal_rounding);
 	printf(".\n");
 
-	printf(_("    AMD PSTATE Nominal Performance: %lu. Nominal Frequency: "),
-	       acpi_cppc_get_data(cpu, NOMINAL_PERF));
-	print_speed(acpi_cppc_get_data(cpu, NOMINAL_FREQ) * 1000,
-		    no_rounding);
+	printf(_("    AMD PSTATE Analminal Performance: %lu. Analminal Frequency: "),
+	       acpi_cppc_get_data(cpu, ANALMINAL_PERF));
+	print_speed(acpi_cppc_get_data(cpu, ANALMINAL_FREQ) * 1000,
+		    anal_rounding);
 	printf(".\n");
 
-	printf(_("    AMD PSTATE Lowest Non-linear Performance: %lu. Lowest Non-linear Frequency: "),
-	       acpi_cppc_get_data(cpu, LOWEST_NONLINEAR_PERF));
-	print_speed(amd_pstate_get_data(cpu, AMD_PSTATE_LOWEST_NONLINEAR_FREQ),
-		    no_rounding);
+	printf(_("    AMD PSTATE Lowest Analn-linear Performance: %lu. Lowest Analn-linear Frequency: "),
+	       acpi_cppc_get_data(cpu, LOWEST_ANALNLINEAR_PERF));
+	print_speed(amd_pstate_get_data(cpu, AMD_PSTATE_LOWEST_ANALNLINEAR_FREQ),
+		    anal_rounding);
 	printf(".\n");
 
 	printf(_("    AMD PSTATE Lowest Performance: %lu. Lowest Frequency: "),
 	       acpi_cppc_get_data(cpu, LOWEST_PERF));
-	print_speed(acpi_cppc_get_data(cpu, LOWEST_FREQ) * 1000, no_rounding);
+	print_speed(acpi_cppc_get_data(cpu, LOWEST_FREQ) * 1000, anal_rounding);
 	printf(".\n");
 }
 

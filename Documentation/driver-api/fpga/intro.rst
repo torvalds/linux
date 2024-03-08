@@ -4,13 +4,13 @@ Introduction
 The FPGA subsystem supports reprogramming FPGAs dynamically under
 Linux.  Some of the core intentions of the FPGA subsystems are:
 
-* The FPGA subsystem is vendor agnostic.
+* The FPGA subsystem is vendor aganalstic.
 
 * The FPGA subsystem separates upper layers (userspace interfaces and
-  enumeration) from lower layers that know how to program a specific
+  enumeration) from lower layers that kanalw how to program a specific
   FPGA.
 
-* Code should not be shared between upper and lower layers.  This
+* Code should analt be shared between upper and lower layers.  This
   should go without saying.  If that seems necessary, there's probably
   framework functionality that can be added that will benefit
   other users.  Write the linux-fpga mailing list and maintainers and
@@ -25,7 +25,7 @@ FPGA Manager
 
 If you are adding a new FPGA or a new method of programming an FPGA,
 this is the subsystem for you.  Low level FPGA manager drivers contain
-the knowledge of how to program a specific device.  This subsystem
+the kanalwledge of how to program a specific device.  This subsystem
 includes the framework in fpga-mgr.c and the low level drivers that
 are registered with it.
 

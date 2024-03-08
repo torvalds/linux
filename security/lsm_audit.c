@@ -49,7 +49,7 @@ int ipv4_skb_to_auditdata(struct sk_buff *skb,
 
 	if (proto)
 		*proto = ih->protocol;
-	/* non initial fragment */
+	/* analn initial fragment */
 	if (ntohs(ih->frag_off) & IP_OFFSET)
 		return 0;
 
@@ -200,7 +200,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	char comm[sizeof(current->comm)];
 
 	/*
-	 * To keep stack sizes in check force programmers to notice if they
+	 * To keep stack sizes in check force programmers to analtice if they
 	 * start making this union too large!  See struct lsm_network_audit
 	 * as an example of how to deal with large data.
 	 */
@@ -210,7 +210,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	audit_log_untrustedstring(ab, memcpy(comm, current->comm, sizeof(comm)));
 
 	switch (a->type) {
-	case LSM_AUDIT_DATA_NONE:
+	case LSM_AUDIT_DATA_ANALNE:
 		return;
 	case LSM_AUDIT_DATA_IPC:
 		audit_log_format(ab, " ipc_key=%d ", a->u.ipc_id);
@@ -219,69 +219,69 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		audit_log_format(ab, " capability=%d ", a->u.cap);
 		break;
 	case LSM_AUDIT_DATA_PATH: {
-		struct inode *inode;
+		struct ianalde *ianalde;
 
 		audit_log_d_path(ab, " path=", &a->u.path);
 
-		inode = d_backing_inode(a->u.path.dentry);
-		if (inode) {
+		ianalde = d_backing_ianalde(a->u.path.dentry);
+		if (ianalde) {
 			audit_log_format(ab, " dev=");
-			audit_log_untrustedstring(ab, inode->i_sb->s_id);
-			audit_log_format(ab, " ino=%lu", inode->i_ino);
+			audit_log_untrustedstring(ab, ianalde->i_sb->s_id);
+			audit_log_format(ab, " ianal=%lu", ianalde->i_ianal);
 		}
 		break;
 	}
 	case LSM_AUDIT_DATA_FILE: {
-		struct inode *inode;
+		struct ianalde *ianalde;
 
 		audit_log_d_path(ab, " path=", &a->u.file->f_path);
 
-		inode = file_inode(a->u.file);
-		if (inode) {
+		ianalde = file_ianalde(a->u.file);
+		if (ianalde) {
 			audit_log_format(ab, " dev=");
-			audit_log_untrustedstring(ab, inode->i_sb->s_id);
-			audit_log_format(ab, " ino=%lu", inode->i_ino);
+			audit_log_untrustedstring(ab, ianalde->i_sb->s_id);
+			audit_log_format(ab, " ianal=%lu", ianalde->i_ianal);
 		}
 		break;
 	}
 	case LSM_AUDIT_DATA_IOCTL_OP: {
-		struct inode *inode;
+		struct ianalde *ianalde;
 
 		audit_log_d_path(ab, " path=", &a->u.op->path);
 
-		inode = a->u.op->path.dentry->d_inode;
-		if (inode) {
+		ianalde = a->u.op->path.dentry->d_ianalde;
+		if (ianalde) {
 			audit_log_format(ab, " dev=");
-			audit_log_untrustedstring(ab, inode->i_sb->s_id);
-			audit_log_format(ab, " ino=%lu", inode->i_ino);
+			audit_log_untrustedstring(ab, ianalde->i_sb->s_id);
+			audit_log_format(ab, " ianal=%lu", ianalde->i_ianal);
 		}
 
 		audit_log_format(ab, " ioctlcmd=0x%hx", a->u.op->cmd);
 		break;
 	}
 	case LSM_AUDIT_DATA_DENTRY: {
-		struct inode *inode;
+		struct ianalde *ianalde;
 
 		audit_log_format(ab, " name=");
 		spin_lock(&a->u.dentry->d_lock);
 		audit_log_untrustedstring(ab, a->u.dentry->d_name.name);
 		spin_unlock(&a->u.dentry->d_lock);
 
-		inode = d_backing_inode(a->u.dentry);
-		if (inode) {
+		ianalde = d_backing_ianalde(a->u.dentry);
+		if (ianalde) {
 			audit_log_format(ab, " dev=");
-			audit_log_untrustedstring(ab, inode->i_sb->s_id);
-			audit_log_format(ab, " ino=%lu", inode->i_ino);
+			audit_log_untrustedstring(ab, ianalde->i_sb->s_id);
+			audit_log_format(ab, " ianal=%lu", ianalde->i_ianal);
 		}
 		break;
 	}
-	case LSM_AUDIT_DATA_INODE: {
+	case LSM_AUDIT_DATA_IANALDE: {
 		struct dentry *dentry;
-		struct inode *inode;
+		struct ianalde *ianalde;
 
 		rcu_read_lock();
-		inode = a->u.inode;
-		dentry = d_find_alias_rcu(inode);
+		ianalde = a->u.ianalde;
+		dentry = d_find_alias_rcu(ianalde);
 		if (dentry) {
 			audit_log_format(ab, " name=");
 			spin_lock(&dentry->d_lock);
@@ -289,8 +289,8 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 			spin_unlock(&dentry->d_lock);
 		}
 		audit_log_format(ab, " dev=");
-		audit_log_untrustedstring(ab, inode->i_sb->s_id);
-		audit_log_format(ab, " ino=%lu", inode->i_ino);
+		audit_log_untrustedstring(ab, ianalde->i_sb->s_id);
+		audit_log_format(ab, " ianal=%lu", ianalde->i_ianal);
 		rcu_read_unlock();
 		break;
 	}
@@ -381,7 +381,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		if (a->u.net->netif > 0) {
 			struct net_device *dev;
 
-			/* NOTE: we always use init's namespace */
+			/* ANALTE: we always use init's namespace */
 			dev = dev_get_by_index(&init_net, a->u.net->netif);
 			if (dev) {
 				audit_log_format(ab, " netif=%s", dev->name);
@@ -422,8 +422,8 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		audit_log_format(ab, " lockdown_reason=\"%s\"",
 				 lockdown_reasons[a->u.reason]);
 		break;
-	case LSM_AUDIT_DATA_ANONINODE:
-		audit_log_format(ab, " anonclass=%s", a->u.anonclass);
+	case LSM_AUDIT_DATA_AANALNIANALDE:
+		audit_log_format(ab, " aanalnclass=%s", a->u.aanalnclass);
 		break;
 	} /* switch (a->type) */
 }
@@ -446,7 +446,7 @@ void common_lsm_audit(struct common_audit_data *a,
 	if (a == NULL)
 		return;
 	/* we use GFP_ATOMIC so we won't sleep */
-	ab = audit_log_start(audit_context(), GFP_ATOMIC | __GFP_NOWARN,
+	ab = audit_log_start(audit_context(), GFP_ATOMIC | __GFP_ANALWARN,
 			     AUDIT_AVC);
 
 	if (ab == NULL)

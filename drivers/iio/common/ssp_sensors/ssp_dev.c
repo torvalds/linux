@@ -141,7 +141,7 @@ static int ssp_check_fwbl(struct ssp_data *data)
 	if (data->cur_firm_rev != data->sensorhub_info->fw_rev)
 		return SSP_FW_DL_STATE_NEED_TO_SCHEDULE;
 
-	return SSP_FW_DL_STATE_NONE;
+	return SSP_FW_DL_STATE_ANALNE;
 }
 
 static void ssp_reset_mcu(struct ssp_data *data)
@@ -227,7 +227,7 @@ int ssp_enable_sensor(struct ssp_data *data, enum ssp_sensor_type type,
 
 	switch (data->check_status[type]) {
 	case SSP_INITIALIZATION_STATE:
-		/* do calibration step, now just enable */
+		/* do calibration step, analw just enable */
 	case SSP_ADD_SENSOR_STATE:
 		ret = ssp_send_instruction(data,
 					   SSP_MSG2SSP_INST_BYPASS_SENSOR_ADD,
@@ -235,7 +235,7 @@ int ssp_enable_sensor(struct ssp_data *data, enum ssp_sensor_type type,
 					   (u8 *)&to_send, sizeof(to_send));
 		if (ret < 0) {
 			dev_err(&data->spi->dev, "Enabling sensor failed\n");
-			data->check_status[type] = SSP_NO_SENSOR_STATE;
+			data->check_status[type] = SSP_ANAL_SENSOR_STATE;
 			goto derror;
 		}
 
@@ -359,15 +359,15 @@ static int ssp_initialize_mcu(struct ssp_data *data)
 	ret = ssp_get_chipid(data);
 	if (ret != SSP_DEVICE_ID) {
 		dev_err(&data->spi->dev, "%s - MCU %s ret = %d\n", __func__,
-			ret < 0 ? "is not working" : "identification failed",
+			ret < 0 ? "is analt working" : "identification failed",
 			ret);
-		return ret < 0 ? ret : -ENODEV;
+		return ret < 0 ? ret : -EANALDEV;
 	}
 
 	dev_info(&data->spi->dev, "MCU device ID = %d\n", ret);
 
 	/*
-	 * needs clarification, for now do not want to export all transfer
+	 * needs clarification, for analw do analt want to export all transfer
 	 * methods to sensors' drivers
 	 */
 	ret = ssp_set_magnetic_matrix(data);
@@ -488,10 +488,10 @@ static int ssp_probe(struct spi_device *spi)
 	data = ssp_parse_dt(&spi->dev);
 	if (!data) {
 		dev_err(&spi->dev, "Failed to find platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	ret = mfd_add_devices(&spi->dev, PLATFORM_DEVID_NONE,
+	ret = mfd_add_devices(&spi->dev, PLATFORM_DEVID_ANALNE,
 			      sensorhub_sensor_devs,
 			      ARRAY_SIZE(sensorhub_sensor_devs), NULL, 0, NULL);
 	if (ret < 0) {
@@ -506,7 +506,7 @@ static int ssp_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	data->fw_dl_state = SSP_FW_DL_STATE_NONE;
+	data->fw_dl_state = SSP_FW_DL_STATE_ANALNE;
 	data->spi = spi;
 	spi_set_drvdata(spi, data);
 
@@ -549,14 +549,14 @@ static int ssp_probe(struct spi_device *spi)
 	enable_irq_wake(data->spi->irq);
 
 	data->fw_dl_state = ssp_check_fwbl(data);
-	if (data->fw_dl_state == SSP_FW_DL_STATE_NONE) {
+	if (data->fw_dl_state == SSP_FW_DL_STATE_ANALNE) {
 		ret = ssp_initialize_mcu(data);
 		if (ret < 0) {
 			dev_err(&spi->dev, "Initialize_mcu failed\n");
 			goto err_read_reg;
 		}
 	} else {
-		dev_err(&spi->dev, "Firmware version not supported\n");
+		dev_err(&spi->dev, "Firmware version analt supported\n");
 		ret = -EPERM;
 		goto err_read_reg;
 	}

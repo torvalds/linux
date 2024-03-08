@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/hash.h>
 #include <linux/hashtable.h>
@@ -14,7 +14,7 @@
 #include "../nfp_app.h"
 
 struct nfp_mask_id_table {
-	struct hlist_node link;
+	struct hlist_analde link;
 	u32 hash_key;
 	u32 ref_cnt;
 	u8 mask_id;
@@ -26,14 +26,14 @@ struct nfp_fl_flow_table_cmp_arg {
 };
 
 struct nfp_fl_stats_ctx_to_flow {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	u32 stats_cxt;
 	struct nfp_fl_payload *flow;
 };
 
 static const struct rhashtable_params stats_ctx_table_params = {
 	.key_offset	= offsetof(struct nfp_fl_stats_ctx_to_flow, stats_cxt),
-	.head_offset	= offsetof(struct nfp_fl_stats_ctx_to_flow, ht_node),
+	.head_offset	= offsetof(struct nfp_fl_stats_ctx_to_flow, ht_analde),
 	.key_len	= sizeof(u32),
 };
 
@@ -45,7 +45,7 @@ static int nfp_release_stats_entry(struct nfp_app *app, u32 stats_context_id)
 	ring = &priv->stats_ids.free_list;
 	/* Check if buffer is full, stats_ring_size must be power of 2 */
 	if (!CIRC_SPACE(ring->head, ring->tail, priv->stats_ring_size))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* Each increment of head represents size of NFP_FL_STATS_ELEM_RS */
 	memcpy(&ring->buf[ring->head * NFP_FL_STATS_ELEM_RS],
@@ -82,7 +82,7 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 	/* Check if buffer is empty. */
 	if (ring->head == ring->tail) {
 		*stats_context_id = freed_stats_id;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Each increment of tail represents size of NFP_FL_STATS_ELEM_RS */
@@ -144,7 +144,7 @@ static int nfp_release_mask_id(struct nfp_app *app, u8 mask_id)
 	 * NFP_FLOWER_MASK_ENTRY_RS must be power of 2
 	 */
 	if (CIRC_SPACE(ring->head, ring->tail, NFP_FLOWER_MASK_ENTRY_RS) == 0)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* Each increment of head represents size of
 	 * NFP_FLOWER_MASK_ELEMENT_RS
@@ -176,7 +176,7 @@ static int nfp_mask_alloc(struct nfp_app *app, u8 *mask_id)
 
 	/* Checking if buffer is empty. */
 	if (ring->head == ring->tail)
-		goto err_not_found;
+		goto err_analt_found;
 
 	/* Each increment of tail represents size of
 	 * NFP_FLOWER_MASK_ELEMENT_RS
@@ -189,7 +189,7 @@ static int nfp_mask_alloc(struct nfp_app *app, u8 *mask_id)
 				     NFP_FL_MASK_REUSE_TIME_NS);
 
 	if (ktime_before(ktime_get(), reuse_timeout))
-		goto err_not_found;
+		goto err_analt_found;
 
 	memcpy(&ring->buf[ring->tail * NFP_FLOWER_MASK_ELEMENT_RS], &freed_id,
 	       NFP_FLOWER_MASK_ELEMENT_RS);
@@ -198,9 +198,9 @@ static int nfp_mask_alloc(struct nfp_app *app, u8 *mask_id)
 
 	return 0;
 
-err_not_found:
+err_analt_found:
 	*mask_id = freed_id;
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int
@@ -212,15 +212,15 @@ nfp_add_mask_table(struct nfp_app *app, char *mask_data, u32 mask_len)
 	u8 mask_id;
 
 	if (nfp_mask_alloc(app, &mask_id))
-		return -ENOENT;
+		return -EANALENT;
 
 	mask_entry = kmalloc(sizeof(*mask_entry), GFP_KERNEL);
 	if (!mask_entry) {
 		nfp_release_mask_id(app, mask_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	INIT_HLIST_NODE(&mask_entry->link);
+	INIT_HLIST_ANALDE(&mask_entry->link);
 	mask_entry->mask_id = mask_id;
 	hash_key = jhash(mask_data, mask_len, priv->mask_id_seed);
 	mask_entry->hash_key = hash_key;
@@ -253,7 +253,7 @@ nfp_find_in_mask_table(struct nfp_app *app, char *mask_data, u32 mask_len)
 
 	mask_entry = nfp_search_mask_table(app, mask_data, mask_len);
 	if (!mask_entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	mask_entry->ref_cnt++;
 
@@ -316,7 +316,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 
 	err = nfp_get_stats_entry(app, &stats_cxt);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot allocate new stats context");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cananalt allocate new stats context");
 		return err;
 	}
 
@@ -326,20 +326,20 @@ int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 
 	ctx_entry = kzalloc(sizeof(*ctx_entry), GFP_KERNEL);
 	if (!ctx_entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_stats;
 	}
 
 	ctx_entry->stats_cxt = stats_cxt;
 	ctx_entry->flow = nfp_flow;
 
-	if (rhashtable_insert_fast(&priv->stats_ctx_table, &ctx_entry->ht_node,
+	if (rhashtable_insert_fast(&priv->stats_ctx_table, &ctx_entry->ht_analde,
 				   stats_ctx_table_params)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_ctx_entry;
 	}
 
-	/* Do not allocate a mask-id for pre_tun_rules. These flows are used to
+	/* Do analt allocate a mask-id for pre_tun_rules. These flows are used to
 	 * configure the pre_tun table and are never actually send to the
 	 * firmware as an add-flow message. This causes the mask-id allocation
 	 * on the firmware to get out of sync if allocated here.
@@ -349,8 +349,8 @@ int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 	    !nfp_check_mask_add(app, nfp_flow->mask_data,
 				nfp_flow->meta.mask_len,
 				&nfp_flow->meta.flags, &new_mask_id)) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot allocate a new mask id");
-		err = -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cananalt allocate a new mask id");
+		err = -EANALENT;
 		goto err_remove_rhash;
 	}
 
@@ -365,7 +365,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 
 	check_entry = nfp_flower_search_fl_table(app, cookie, netdev);
 	if (check_entry) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot offload duplicate flow entry");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cananalt offload duplicate flow entry");
 		err = -EEXIST;
 		goto err_remove_mask;
 	}
@@ -379,7 +379,7 @@ err_remove_mask:
 				      NULL, &new_mask_id);
 err_remove_rhash:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->stats_ctx_table,
-					    &ctx_entry->ht_node,
+					    &ctx_entry->ht_analde,
 					    stats_ctx_table_params));
 err_free_ctx_entry:
 	kfree(ctx_entry);
@@ -421,10 +421,10 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 	ctx_entry = rhashtable_lookup_fast(&priv->stats_ctx_table, &temp_ctx_id,
 					   stats_ctx_table_params);
 	if (!ctx_entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->stats_ctx_table,
-					    &ctx_entry->ht_node,
+					    &ctx_entry->ht_analde,
 					    stats_ctx_table_params));
 	kfree(ctx_entry);
 
@@ -475,7 +475,7 @@ static u32 nfp_fl_key_hashfn(const void *data, u32 len, u32 seed)
 }
 
 const struct rhashtable_params nfp_flower_table_params = {
-	.head_offset		= offsetof(struct nfp_fl_payload, fl_node),
+	.head_offset		= offsetof(struct nfp_fl_payload, fl_analde),
 	.hashfn			= nfp_fl_key_hashfn,
 	.obj_cmpfn		= nfp_fl_obj_cmpfn,
 	.obj_hashfn		= nfp_fl_obj_hashfn,
@@ -484,19 +484,19 @@ const struct rhashtable_params nfp_flower_table_params = {
 
 const struct rhashtable_params merge_table_params = {
 	.key_offset	= offsetof(struct nfp_merge_info, parent_ctx),
-	.head_offset	= offsetof(struct nfp_merge_info, ht_node),
+	.head_offset	= offsetof(struct nfp_merge_info, ht_analde),
 	.key_len	= sizeof(u64),
 };
 
 const struct rhashtable_params nfp_zone_table_params = {
-	.head_offset		= offsetof(struct nfp_fl_ct_zone_entry, hash_node),
+	.head_offset		= offsetof(struct nfp_fl_ct_zone_entry, hash_analde),
 	.key_len		= sizeof(u16),
 	.key_offset		= offsetof(struct nfp_fl_ct_zone_entry, zone),
 	.automatic_shrinking	= false,
 };
 
 const struct rhashtable_params nfp_ct_map_params = {
-	.head_offset		= offsetof(struct nfp_fl_ct_map_entry, hash_node),
+	.head_offset		= offsetof(struct nfp_fl_ct_map_entry, hash_analde),
 	.key_len		= sizeof(unsigned long),
 	.key_offset		= offsetof(struct nfp_fl_ct_map_entry, cookie),
 	.automatic_shrinking	= true,
@@ -504,7 +504,7 @@ const struct rhashtable_params nfp_ct_map_params = {
 
 const struct rhashtable_params neigh_table_params = {
 	.key_offset	= offsetof(struct nfp_neigh_entry, neigh_cookie),
-	.head_offset	= offsetof(struct nfp_neigh_entry, ht_node),
+	.head_offset	= offsetof(struct nfp_neigh_entry, ht_analde),
 	.key_len	= sizeof(unsigned long),
 };
 
@@ -601,7 +601,7 @@ err_free_stats_ctx_table:
 	rhashtable_destroy(&priv->stats_ctx_table);
 err_free_flow_table:
 	rhashtable_destroy(&priv->flow_table);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void nfp_zone_table_entry_destroy(struct nfp_fl_ct_zone_entry *zt)
@@ -614,14 +614,14 @@ static void nfp_zone_table_entry_destroy(struct nfp_fl_ct_zone_entry *zt)
 		struct nfp_fl_ct_flow_entry *entry, *tmp;
 		struct nfp_fl_ct_map_entry *map;
 
-		WARN_ONCE(1, "pre_ct_list not empty as expected, cleaning up\n");
+		WARN_ONCE(1, "pre_ct_list analt empty as expected, cleaning up\n");
 		list_for_each_entry_safe(entry, tmp, &zt->pre_ct_list,
-					 list_node) {
+					 list_analde) {
 			map = rhashtable_lookup_fast(m_table,
 						     &entry->cookie,
 						     nfp_ct_map_params);
 			WARN_ON_ONCE(rhashtable_remove_fast(m_table,
-							    &map->hash_node,
+							    &map->hash_analde,
 							    nfp_ct_map_params));
 			nfp_fl_ct_clean_flow_entry(entry);
 			kfree(map);
@@ -633,14 +633,14 @@ static void nfp_zone_table_entry_destroy(struct nfp_fl_ct_zone_entry *zt)
 		struct nfp_fl_ct_flow_entry *entry, *tmp;
 		struct nfp_fl_ct_map_entry *map;
 
-		WARN_ONCE(1, "post_ct_list not empty as expected, cleaning up\n");
+		WARN_ONCE(1, "post_ct_list analt empty as expected, cleaning up\n");
 		list_for_each_entry_safe(entry, tmp, &zt->post_ct_list,
-					 list_node) {
+					 list_analde) {
 			map = rhashtable_lookup_fast(m_table,
 						     &entry->cookie,
 						     nfp_ct_map_params);
 			WARN_ON_ONCE(rhashtable_remove_fast(m_table,
-							    &map->hash_node,
+							    &map->hash_analde,
 							    nfp_ct_map_params));
 			nfp_fl_ct_clean_flow_entry(entry);
 			kfree(map);
@@ -659,14 +659,14 @@ static void nfp_zone_table_entry_destroy(struct nfp_fl_ct_zone_entry *zt)
 		struct nfp_fl_ct_flow_entry *entry, *tmp;
 		struct nfp_fl_ct_map_entry *map;
 
-		WARN_ONCE(1, "nft_flows_list not empty as expected, cleaning up\n");
+		WARN_ONCE(1, "nft_flows_list analt empty as expected, cleaning up\n");
 		list_for_each_entry_safe(entry, tmp, &zt->nft_flows_list,
-					 list_node) {
+					 list_analde) {
 			map = rhashtable_lookup_fast(m_table,
 						     &entry->cookie,
 						     nfp_ct_map_params);
 			WARN_ON_ONCE(rhashtable_remove_fast(m_table,
-							    &map->hash_node,
+							    &map->hash_analde,
 							    nfp_ct_map_params));
 			nfp_fl_ct_clean_flow_entry(entry);
 			kfree(map);

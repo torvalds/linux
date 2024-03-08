@@ -370,7 +370,7 @@ static int tc358768_calc_pll(struct tc358768_priv *priv,
 	}
 
 	if (best_diff == UINT_MAX) {
-		dev_err(priv->dev, "could not find suitable PLL setup\n");
+		dev_err(priv->dev, "could analt find suitable PLL setup\n");
 		return -EINVAL;
 	}
 
@@ -393,7 +393,7 @@ static int tc358768_dsi_host_attach(struct mipi_dsi_host *host,
 	struct tc358768_priv *priv = dsi_host_to_tc358768(host);
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
-	struct device_node *ep;
+	struct device_analde *ep;
 	int ret;
 
 	if (dev->lanes > 4) {
@@ -408,7 +408,7 @@ static int tc358768_dsi_host_attach(struct mipi_dsi_host *host,
 	 */
 	if (!(dev->mode_flags & MIPI_DSI_MODE_VIDEO)) {
 		dev_err(priv->dev, "Only MIPI_DSI_MODE_VIDEO is supported\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	/*
@@ -417,10 +417,10 @@ static int tc358768_dsi_host_attach(struct mipi_dsi_host *host,
 	 */
 	if (dev->format != MIPI_DSI_FMT_RGB888) {
 		dev_warn(priv->dev, "Only MIPI_DSI_FMT_RGB888 tested!\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
-	ret = drm_of_find_panel_or_bridge(host->dev->of_node, 1, 0, &panel,
+	ret = drm_of_find_panel_or_bridge(host->dev->of_analde, 1, 0, &panel,
 					  &bridge);
 	if (ret)
 		return ret;
@@ -441,11 +441,11 @@ static int tc358768_dsi_host_attach(struct mipi_dsi_host *host,
 
 	/* get input ep (port0/endpoint0) */
 	ret = -EINVAL;
-	ep = of_graph_get_endpoint_by_regs(host->dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(host->dev->of_analde, 0, 0);
 	if (ep) {
 		ret = of_property_read_u32(ep, "data-lines", &priv->pd_lines);
 
-		of_node_put(ep);
+		of_analde_put(ep);
 	}
 
 	if (ret)
@@ -476,18 +476,18 @@ static ssize_t tc358768_dsi_host_transfer(struct mipi_dsi_host *host,
 	int ret;
 
 	if (!priv->enabled) {
-		dev_err(priv->dev, "Bridge is not enabled\n");
-		return -ENODEV;
+		dev_err(priv->dev, "Bridge is analt enabled\n");
+		return -EANALDEV;
 	}
 
 	if (msg->rx_len) {
-		dev_warn(priv->dev, "MIPI rx is not supported\n");
-		return -ENOTSUPP;
+		dev_warn(priv->dev, "MIPI rx is analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	if (msg->tx_len > 8) {
 		dev_warn(priv->dev, "Maximum 8 byte MIPI tx is supported\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	ret = mipi_dsi_create_packet(&packet, msg);
@@ -541,7 +541,7 @@ static int tc358768_bridge_attach(struct drm_bridge *bridge,
 
 	if (!drm_core_check_feature(bridge->dev, DRIVER_ATOMIC)) {
 		dev_err(priv->dev, "needs atomic updates support\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return drm_bridge_attach(bridge->encoder, priv->output.bridge, bridge,
@@ -643,7 +643,7 @@ static u32 tc358768_ps_to_ns(u32 ps)
 
 static u32 tc358768_dpi_to_ns(u32 val, u32 pclk)
 {
-	return (u32)div_u64((u64)val * NANO, pclk);
+	return (u32)div_u64((u64)val * NAANAL, pclk);
 }
 
 /* Convert value in DPI pixel clock units to DSI byte count */
@@ -657,7 +657,7 @@ static u32 tc358768_dpi_to_dsi_bytes(struct tc358768_priv *priv, u32 val)
 
 static u32 tc358768_dsi_bytes_to_ns(struct tc358768_priv *priv, u32 val)
 {
-	u64 m = (u64)val * NANO;
+	u64 m = (u64)val * NAANAL;
 	u64 n = priv->dsiclk / 4 * priv->dsi_lanes;
 
 	return (u32)div_u64(m, n);
@@ -686,9 +686,9 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	u32 dsi_vsdly;
 	const u32 internal_dly = 40;
 
-	if (mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) {
-		dev_warn_once(dev, "Non-continuous mode unimplemented, falling back to continuous\n");
-		mode_flags &= ~MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	if (mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS) {
+		dev_warn_once(dev, "Analn-continuous mode unimplemented, falling back to continuous\n");
+		mode_flags &= ~MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 	}
 
 	tc358768_hw_enable(priv);
@@ -747,16 +747,16 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 
 	/*
 	 * There are three important things to make TC358768 work correctly,
-	 * which are not trivial to manage:
+	 * which are analt trivial to manage:
 	 *
 	 * 1. Keep the DPI line-time and the DSI line-time as close to each
 	 *    other as possible.
 	 * 2. TC358768 goes to LP mode after each line's active area. The DSI
-	 *    HFP period has to be long enough for entering and exiting LP mode.
-	 *    But it is not clear how to calculate this.
-	 * 3. VSDly (video start delay) has to be long enough to ensure that the
-	 *    DSI TX does not start transmitting until we have started receiving
-	 *    pixel data from the DPI input. It is not clear how to calculate
+	 *    HFP period has to be long eanalugh for entering and exiting LP mode.
+	 *    But it is analt clear how to calculate this.
+	 * 3. VSDly (video start delay) has to be long eanalugh to ensure that the
+	 *    DSI TX does analt start transmitting until we have started receiving
+	 *    pixel data from the DPI input. It is analt clear how to calculate
 	 *    this either.
 	 */
 
@@ -803,8 +803,8 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 		dsi_hfp = dsi_dpi_htot - dsi_hact - dsi_hsw - dsi_hss;
 
 		/*
-		 * Here we should check if HFP is long enough for entering LP
-		 * and exiting LP, but it's not clear how to calculate that.
+		 * Here we should check if HFP is long eanalugh for entering LP
+		 * and exiting LP, but it's analt clear how to calculate that.
 		 * Instead, this is a naive algorithm that just adjusts the HFP
 		 * and HSW so that HFP is (at least) roughly 2/3 of the total
 		 * blanking time.
@@ -818,7 +818,7 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 
 			/*
 			 * Seems like sometimes HSW has to be divisible by num-lanes, but
-			 * not always...
+			 * analt always...
 			 */
 			dsi_hsw = roundup(dsi_hsw, priv->dsi_lanes);
 
@@ -875,7 +875,7 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	/*
 	 * The docs say that there is an internal delay of 40 cycles.
 	 * However, we get underflows if we follow that rule. If we
-	 * instead ignore the internal delay, things work. So either
+	 * instead iganalre the internal delay, things work. So either
 	 * the docs are wrong or the calculations are wrong.
 	 *
 	 * As a temporary fix, add the internal delay here, to counter
@@ -971,7 +971,7 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	tc358768_write(priv, TC358768_HSTXVREGEN, val);
 
 	tc358768_write(priv, TC358768_TXOPTIONCNTRL,
-		       (mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) ? 0 : BIT(0));
+		       (mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS) ? 0 : BIT(0));
 
 	/* TXTAGOCNT[26:16] RXTASURECNT[10:0] */
 	val = tc358768_ps_to_ns((lptxcnt + 1) * hsbyteclk_ps * 4);
@@ -1009,7 +1009,7 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 		tc358768_write(priv, TC358768_DSI_VSW,
 			       vm.vsync_len + vm.vback_porch);
 
-		/* vbp (not used in event mode) */
+		/* vbp (analt used in event mode) */
 		tc358768_write(priv, TC358768_DSI_VBPR, 0);
 	}
 
@@ -1044,10 +1044,10 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 
 	val |= TC358768_DSI_CONTROL_TXMD;
 
-	if (!(mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+	if (!(mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS))
 		val |= TC358768_DSI_CONTROL_HSCKMD;
 
-	if (dsi_dev->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET)
+	if (dsi_dev->mode_flags & MIPI_DSI_MODE_ANAL_EOT_PACKET)
 		val |= TC358768_DSI_CONTROL_EOTDIS;
 
 	tc358768_write(priv, TC358768_DSI_CONFW, val);
@@ -1070,7 +1070,7 @@ static void tc358768_bridge_enable(struct drm_bridge *bridge)
 	int ret;
 
 	if (!priv->enabled) {
-		dev_err(priv->dev, "Bridge is not enabled\n");
+		dev_err(priv->dev, "Bridge is analt enabled\n");
 		return;
 	}
 
@@ -1217,7 +1217,7 @@ static const struct regmap_config tc358768_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 16,
 	.max_register = TC358768_DSI_HACT,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.writeable_reg = tc358768_writeable_reg,
 	.readable_reg = tc358768_readable_reg,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
@@ -1257,15 +1257,15 @@ static int tc358768_i2c_probe(struct i2c_client *client)
 {
 	struct tc358768_priv *priv;
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, priv);
 	priv->dev = dev;
@@ -1299,7 +1299,7 @@ static int tc358768_i2c_probe(struct i2c_client *client)
 
 	priv->bridge.funcs = &tc358768_bridge_funcs;
 	priv->bridge.timings = &default_tc358768_timings;
-	priv->bridge.of_node = np;
+	priv->bridge.of_analde = np;
 
 	i2c_set_clientdata(client, priv);
 

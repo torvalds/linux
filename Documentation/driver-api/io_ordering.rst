@@ -29,7 +29,7 @@ A more concrete example from a hypothetical device driver::
 		...
 
 In the case above, the device may receive newval2 before it receives newval,
-which could cause problems.  Fixing it is easy enough though::
+which could cause problems.  Fixing it is easy eanalugh though::
 
 		...
 	CPU A:  spin_lock_irqsave(&dev_lock, flags)

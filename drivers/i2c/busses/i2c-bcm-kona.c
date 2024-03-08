@@ -19,7 +19,7 @@
 #define CS_ACK_CMD_GEN_START			0x00000000
 #define CS_ACK_CMD_GEN_RESTART			0x00000001
 #define CS_CMD_SHIFT				1
-#define CS_CMD_CMD_NO_ACTION			0x00000000
+#define CS_CMD_CMD_ANAL_ACTION			0x00000000
 #define CS_CMD_CMD_START_RESTART		0x00000001
 #define CS_CMD_CMD_STOP				0x00000002
 #define CS_EN_SHIFT				0
@@ -28,7 +28,7 @@
 #define TIM_OFFSET				0x00000024
 #define TIM_PRESCALE_SHIFT			6
 #define TIM_P_SHIFT				3
-#define TIM_NO_DIV_SHIFT			2
+#define TIM_ANAL_DIV_SHIFT			2
 #define TIM_DIV_SHIFT				0
 
 #define DAT_OFFSET				0x00000028
@@ -43,7 +43,7 @@
 #define IER_READ_COMPLETE_INT_MASK		0x00000010
 #define IER_I2C_INT_EN_MASK			0x00000008
 #define IER_FIFO_INT_EN_MASK			0x00000002
-#define IER_NOACK_EN_MASK			0x00000001
+#define IER_ANALACK_EN_MASK			0x00000001
 
 #define ISR_OFFSET				0x00000048
 #define ISR_RESERVED_MASK			0xffffff60
@@ -52,7 +52,7 @@
 #define ISR_SES_DONE_MASK			0x00000008
 #define ISR_ERR_MASK				0x00000004
 #define ISR_TXFIFOEMPTY_MASK			0x00000002
-#define ISR_NOACK_MASK				0x00000001
+#define ISR_ANALACK_MASK				0x00000001
 
 #define CLKEN_OFFSET				0x0000004C
 #define CLKEN_AUTOSENSE_OFF_MASK		0x00000080
@@ -91,7 +91,7 @@
 
 /* Operations that can be commanded to the controller */
 enum bcm_kona_cmd_t {
-	BCM_CMD_NOACTION = 0,
+	BCM_CMD_ANALACTION = 0,
 	BCM_CMD_START,
 	BCM_CMD_RESTART,
 	BCM_CMD_STOP,
@@ -113,7 +113,7 @@ struct bus_speed_cfg {
 	uint8_t time_n;		/* Number of cycles for hold time */
 	uint8_t prescale;	/* Prescale divider */
 	uint8_t time_p;		/* Timing coefficient */
-	uint8_t no_div;		/* Disable clock divider */
+	uint8_t anal_div;		/* Disable clock divider */
 	uint8_t time_div;	/* Post-prescale divider */
 };
 
@@ -127,7 +127,7 @@ struct hs_bus_speed_cfg {
 				   before it rises  */
 	uint8_t prescale;	/* Prescale divider */
 	uint8_t time_p;		/* Timing coefficient */
-	uint8_t no_div;		/* Disable clock divider */
+	uint8_t anal_div;		/* Disable clock divider */
 	uint8_t time_div;	/* Post-prescale divider */
 };
 
@@ -162,8 +162,8 @@ static void bcm_kona_i2c_send_cmd_to_ctrl(struct bcm_kona_i2c_dev *dev,
 	dev_dbg(dev->device, "%s, %d\n", __func__, cmd);
 
 	switch (cmd) {
-	case BCM_CMD_NOACTION:
-		writel((CS_CMD_CMD_NO_ACTION << CS_CMD_SHIFT) |
+	case BCM_CMD_ANALACTION:
+		writel((CS_CMD_CMD_ANAL_ACTION << CS_CMD_SHIFT) |
 		       (CS_EN_CMD_ENABLE_BSC << CS_EN_SHIFT),
 		       dev->base + CS_OFFSET);
 		break;
@@ -189,7 +189,7 @@ static void bcm_kona_i2c_send_cmd_to_ctrl(struct bcm_kona_i2c_dev *dev,
 		break;
 
 	default:
-		dev_err(dev->device, "Unknown command %d\n", cmd);
+		dev_err(dev->device, "Unkanalwn command %d\n", cmd);
 	}
 }
 
@@ -211,10 +211,10 @@ static irqreturn_t bcm_kona_i2c_isr(int irq, void *devid)
 	uint32_t status = readl(dev->base + ISR_OFFSET);
 
 	if ((status & ~ISR_RESERVED_MASK) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Must flush the TX FIFO when NAK detected */
-	if (status & ISR_NOACK_MASK)
+	if (status & ISR_ANALACK_MASK)
 		writel(TXFCR_FIFO_FLUSH_MASK | TXFCR_FIFO_EN_MASK,
 		       dev->base + TXFCR_OFFSET);
 
@@ -271,7 +271,7 @@ static int bcm_kona_send_i2c_cmd(struct bcm_kona_i2c_dev *dev,
 	}
 
 	/* Clear command */
-	bcm_kona_i2c_send_cmd_to_ctrl(dev, BCM_CMD_NOACTION);
+	bcm_kona_i2c_send_cmd_to_ctrl(dev, BCM_CMD_ANALACTION);
 
 	return rc;
 }
@@ -399,7 +399,7 @@ static int bcm_kona_i2c_write_fifo_single(struct bcm_kona_i2c_dev *dev,
 	reinit_completion(&dev->done);
 
 	/* Unmask the fifo empty and nak interrupt */
-	writel(IER_FIFO_INT_EN_MASK | IER_NOACK_EN_MASK,
+	writel(IER_FIFO_INT_EN_MASK | IER_ANALACK_EN_MASK,
 	       dev->base + IER_OFFSET);
 
 	/* Disable IRQ to load a FIFO worth of data without interruption */
@@ -409,7 +409,7 @@ static int bcm_kona_i2c_write_fifo_single(struct bcm_kona_i2c_dev *dev,
 	for (k = 0; k < len; k++)
 		writel(buf[k], (dev->base + DAT_OFFSET));
 
-	/* Enable IRQ now that data has been loaded */
+	/* Enable IRQ analw that data has been loaded */
 	enable_irq(dev->irq);
 
 	/* Wait for FIFO to empty */
@@ -513,7 +513,7 @@ static void bcm_kona_i2c_config_timing(struct bcm_kona_i2c_dev *dev)
 
 	writel((dev->std_cfg->prescale << TIM_PRESCALE_SHIFT) |
 	       (dev->std_cfg->time_p << TIM_P_SHIFT) |
-	       (dev->std_cfg->no_div << TIM_NO_DIV_SHIFT) |
+	       (dev->std_cfg->anal_div << TIM_ANAL_DIV_SHIFT) |
 	       (dev->std_cfg->time_div	<< TIM_DIV_SHIFT),
 	       dev->base + TIM_OFFSET);
 
@@ -527,7 +527,7 @@ static void bcm_kona_i2c_config_timing_hs(struct bcm_kona_i2c_dev *dev)
 {
 	writel((dev->hs_cfg->prescale << TIM_PRESCALE_SHIFT) |
 	       (dev->hs_cfg->time_p << TIM_P_SHIFT) |
-	       (dev->hs_cfg->no_div << TIM_NO_DIV_SHIFT) |
+	       (dev->hs_cfg->anal_div << TIM_ANAL_DIV_SHIFT) |
 	       (dev->hs_cfg->time_div << TIM_DIV_SHIFT),
 	       dev->base + TIM_OFFSET);
 
@@ -628,7 +628,7 @@ static int bcm_kona_i2c_xfer(struct i2c_adapter *adapter,
 		pmsg = &msgs[i];
 
 		/* Send restart for subsequent messages */
-		if ((i != 0) && ((pmsg->flags & I2C_M_NOSTART) == 0)) {
+		if ((i != 0) && ((pmsg->flags & I2C_M_ANALSTART) == 0)) {
 			rc = bcm_kona_send_i2c_cmd(dev, BCM_CMD_RESTART);
 			if (rc < 0) {
 				dev_err(dev->device,
@@ -638,7 +638,7 @@ static int bcm_kona_i2c_xfer(struct i2c_adapter *adapter,
 		}
 
 		/* Send slave address */
-		if (!(pmsg->flags & I2C_M_NOSTART)) {
+		if (!(pmsg->flags & I2C_M_ANALSTART)) {
 			rc = bcm_kona_i2c_do_addr(dev, pmsg);
 			if (rc < 0) {
 				dev_err(dev->device,
@@ -693,7 +693,7 @@ xfer_disable_pad:
 static uint32_t bcm_kona_i2c_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
-	    I2C_FUNC_NOSTART;
+	    I2C_FUNC_ANALSTART;
 }
 
 static const struct i2c_algorithm bcm_algo = {
@@ -704,11 +704,11 @@ static const struct i2c_algorithm bcm_algo = {
 static int bcm_kona_i2c_assign_bus_speed(struct bcm_kona_i2c_dev *dev)
 {
 	unsigned int bus_speed;
-	int ret = of_property_read_u32(dev->device->of_node, "clock-frequency",
+	int ret = of_property_read_u32(dev->device->of_analde, "clock-frequency",
 				       &bus_speed);
 	if (ret < 0) {
 		dev_err(dev->device, "missing clock-frequency property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (bus_speed) {
@@ -727,7 +727,7 @@ static int bcm_kona_i2c_assign_bus_speed(struct bcm_kona_i2c_dev *dev)
 		dev->hs_cfg = &hs_cfg_table[BCM_SPD_3P4MHZ];
 		break;
 	default:
-		pr_err("%d hz bus speed not supported\n", bus_speed);
+		pr_err("%d hz bus speed analt supported\n", bus_speed);
 		pr_err("Valid speeds are 100khz, 400khz, 1mhz, and 3.4mhz\n");
 		return -EINVAL;
 	}
@@ -744,7 +744,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	/* Allocate memory for private data structure */
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dev);
 	dev->device = &pdev->dev;
@@ -759,7 +759,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	dev->external_clk = devm_clk_get(dev->device, NULL);
 	if (IS_ERR(dev->external_clk)) {
 		dev_err(dev->device, "couldn't get clock\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = clk_set_rate(dev->external_clk, STD_EXT_CLK_FREQ);
@@ -805,7 +805,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	       ISR_SES_DONE_MASK |
 	       ISR_ERR_MASK |
 	       ISR_TXFIFOEMPTY_MASK |
-	       ISR_NOACK_MASK,
+	       ISR_ANALACK_MASK,
 	       dev->base + ISR_OFFSET);
 
 	/* Get the interrupt number */
@@ -824,7 +824,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	}
 
 	/* Enable the controller but leave it idle */
-	bcm_kona_i2c_send_cmd_to_ctrl(dev, BCM_CMD_NOACTION);
+	bcm_kona_i2c_send_cmd_to_ctrl(dev, BCM_CMD_ANALACTION);
 
 	/* Disable pad output */
 	writel(PADCTL_PAD_OUT_EN_MASK, dev->base + PADCTL_OFFSET);
@@ -842,7 +842,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	strscpy(adap->name, "Broadcom I2C adapter", sizeof(adap->name));
 	adap->algo = &bcm_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 
 	rc = i2c_add_adapter(adap);
 	if (rc)

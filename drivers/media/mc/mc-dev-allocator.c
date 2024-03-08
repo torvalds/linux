@@ -104,7 +104,7 @@ struct media_device *media_device_usb_allocate(struct usb_device *udev,
 	mdev = __media_device_get(&udev->dev, module_name, owner);
 	if (!mdev) {
 		mutex_unlock(&media_device_lock);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* check if media device is already initialized */

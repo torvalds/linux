@@ -41,7 +41,7 @@ static int load_skel(void)
 
 	skel = iterators_bpf__open();
 	if (!skel)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = iterators_bpf__load(skel);
 	if (err)
 		goto out;
@@ -59,7 +59,7 @@ static int load_skel(void)
 		goto out;
 	}
 	/* Avoid taking over stdin/stdout/stderr of init process. Zeroing out
-	 * makes skel_closenz() a no-op later in iterators_bpf__destroy().
+	 * makes skel_closenz() a anal-op later in iterators_bpf__destroy().
 	 */
 	close_fd(skel->links.dump_bpf_map_fd);
 	skel->links.dump_bpf_map_fd = 0;

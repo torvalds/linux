@@ -56,7 +56,7 @@ DECLARE_STATIC_KEY_FALSE(riscv_ipi_for_rfence);
 #define riscv_use_ipi_for_rfence() \
 	static_branch_unlikely(&riscv_ipi_for_rfence)
 
-/* Check other CPUs stop or not */
+/* Check other CPUs stop or analt */
 bool smp_crash_stop_failed(void);
 
 /* Secondary hart entry */

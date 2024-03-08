@@ -38,7 +38,7 @@ a :c:type:`struct pwm_device <pwm_device>`. Operations can be
 performed on PWM devices to control the period, duty cycle, polarity and
 active state of the signal.
 
-Note that PWM devices are exclusive resources: they can always only be
+Analte that PWM devices are exclusive resources: they can always only be
 used by one consumer at a time.
 
 .. kernel-doc:: include/linux/pwm.h

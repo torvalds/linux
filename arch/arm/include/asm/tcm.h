@@ -18,7 +18,7 @@
 /* Tag constants with this */
 #define __tcmconst __section(".tcm.rodata")
 /* Tag functions inside TCM called from outside TCM with this */
-#define __tcmfunc __attribute__((long_call)) __section(".tcm.text") noinline
+#define __tcmfunc __attribute__((long_call)) __section(".tcm.text") analinline
 /* Tag function inside TCM called from inside TCM  with this */
 #define __tcmlocalfunc __section(".tcm.text")
 
@@ -29,7 +29,7 @@ bool tcm_itcm_present(void);
 
 void __init tcm_init(void);
 #else
-/* No TCM support, just blank inlines to be optimized out */
+/* Anal TCM support, just blank inlines to be optimized out */
 static inline void tcm_init(void)
 {
 }

@@ -2,7 +2,7 @@
 /*
  * This file is part of wl1251
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  */
 
 #ifndef WL1251_DEBUGFS_H

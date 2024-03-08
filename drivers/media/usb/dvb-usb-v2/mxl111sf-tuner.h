@@ -40,7 +40,7 @@ struct mxl111sf_tuner_config {
 	int (*write_reg)(struct mxl111sf_state *state, u8 addr, u8 data);
 	int (*program_regs)(struct mxl111sf_state *state,
 			    struct mxl111sf_reg_ctrl_info *ctrl_reg_info);
-	int (*top_master_ctrl)(struct mxl111sf_state *state, int onoff);
+	int (*top_master_ctrl)(struct mxl111sf_state *state, int oanalff);
 	int (*ant_hunt)(struct dvb_frontend *fe);
 };
 

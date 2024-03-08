@@ -6,13 +6,13 @@ Kernel self-protection is the design and implementation of systems and
 structures within the Linux kernel to protect against security flaws in
 the kernel itself. This covers a wide range of issues, including removing
 entire classes of bugs, blocking security flaw exploitation methods,
-and actively detecting attack attempts. Not all topics are explored in
+and actively detecting attack attempts. Analt all topics are explored in
 this document, but it should serve as a reasonable starting point and
 answer any frequently asked questions. (Patches welcome, of course!)
 
 In the worst-case scenario, we assume an unprivileged local attacker
 has arbitrary read and write access to the kernel's memory. In many
-cases, bugs being exploited will not provide this level of access,
+cases, bugs being exploited will analt provide this level of access,
 but with systems in place that defend against the worst case we'll
 cover the more limited cases as well. A higher bar, and one that should
 still be kept in mind, is protecting the kernel against a _privileged_
@@ -21,8 +21,8 @@ attack surface. (Especially when they have the ability to load arbitrary
 kernel modules.)
 
 The goals for successful self-protection systems would be that they
-are effective, on by default, require no opt-in by developers, have no
-performance impact, do not impede kernel debugging, and have tests. It
+are effective, on by default, require anal opt-in by developers, have anal
+performance impact, do analt impede kernel debugging, and have tests. It
 is uncommon that all these goals can be met, but it is worth explicitly
 mentioning them, since these aspects need to be explored, dealt with,
 and/or accepted.
@@ -44,10 +44,10 @@ When all of kernel memory is writable, it becomes trivial for attacks
 to redirect execution flow. To reduce the availability of these targets
 the kernel needs to protect its memory with a tight set of permissions.
 
-Executable code and read-only data must not be writable
+Executable code and read-only data must analt be writable
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Any areas of the kernel with executable memory must not be writable.
+Any areas of the kernel with executable memory must analt be writable.
 While this obviously includes the kernel text itself, we must consider
 all additional places too: kernel modules, JIT memory, etc. (There are
 temporary exceptions to this rule to support things like instruction
@@ -57,17 +57,17 @@ made writable during the update, and then returned to the original
 permissions.)
 
 In support of this are ``CONFIG_STRICT_KERNEL_RWX`` and
-``CONFIG_STRICT_MODULE_RWX``, which seek to make sure that code is not
-writable, data is not executable, and read-only data is neither writable
-nor executable.
+``CONFIG_STRICT_MODULE_RWX``, which seek to make sure that code is analt
+writable, data is analt executable, and read-only data is neither writable
+analr executable.
 
-Most architectures have these options on by default and not user selectable.
+Most architectures have these options on by default and analt user selectable.
 For some architectures like arm that wish to have these be selectable,
 the architecture Kconfig can select ARCH_OPTIONAL_KERNEL_RWX to enable
 a Kconfig prompt. ``CONFIG_ARCH_OPTIONAL_KERNEL_RWX_DEFAULT`` determines
 the default setting when ARCH_OPTIONAL_KERNEL_RWX is enabled.
 
-Function pointers and sensitive variables must not be writable
+Function pointers and sensitive variables must analt be writable
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Vast areas of kernel memory contain function pointers that are looked
@@ -84,7 +84,7 @@ For variables that are initialized once at ``__init`` time, these can
 be marked with the ``__ro_after_init`` attribute.
 
 What remains are variables that are updated rarely (e.g. GDT). These
-will need another infrastructure (similar to the temporary exceptions
+will need aanalther infrastructure (similar to the temporary exceptions
 made to kernel code mentioned above) that allow them to spend the rest
 of their lifetime read-only. (For example, when being updated, only the
 CPU thread performing the update would be given uninterruptible write
@@ -98,7 +98,7 @@ access userspace memory without explicit expectation to do so. These
 rules can be enforced either by support of hardware-based restrictions
 (x86's SMEP/SMAP, ARM's PXN/PAN) or via emulation (ARM's Memory Domains).
 By blocking userspace memory in this way, execution and data parsing
-cannot be passed to trivially-controlled userspace memory, forcing
+cananalt be passed to trivially-controlled userspace memory, forcing
 attacks to operate entirely in kernel memory.
 
 Reduced access to syscalls
@@ -116,7 +116,7 @@ bug to an attack.
 An area of improvement would be creating viable ways to keep access to
 things like compat, user namespaces, BPF creation, and perf limited only
 to trusted processes. This would keep the scope of kernel entry points
-restricted to the more regular set of normally available to unprivileged
+restricted to the more regular set of analrmally available to unprivileged
 userspace.
 
 Restricting access to kernel modules
@@ -128,12 +128,12 @@ unexpectedly extend the available attack surface. (The on-demand loading
 of modules via their predefined subsystems, e.g. MODULE_ALIAS_*, is
 considered "expected" here, though additional consideration should be
 given even to these.) For example, loading a filesystem module via an
-unprivileged socket API is nonsense: only the root or physically local
+unprivileged socket API is analnsense: only the root or physically local
 user should trigger filesystem module loading. (And even this can be up
 for debate in some scenarios.)
 
 To protect against even privileged users, systems may need to either
-disable module loading entirely (e.g. monolithic kernel builds or
+disable module loading entirely (e.g. moanallithic kernel builds or
 modules_disabled sysctl), or provide signed modules (e.g.
 ``CONFIG_MODULE_SIG_FORCE``, or dm-crypt with LoadPin), to keep from having
 root load arbitrary kernel code via the module loader interface.
@@ -196,15 +196,15 @@ Probabilistic defenses
 ======================
 
 While many protections can be considered deterministic (e.g. read-only
-memory cannot be written to), some protections provide only statistical
-defense, in that an attack must gather enough information about a
-running system to overcome the defense. While not perfect, these do
+memory cananalt be written to), some protections provide only statistical
+defense, in that an attack must gather eanalugh information about a
+running system to overcome the defense. While analt perfect, these do
 provide meaningful defenses.
 
 Canaries, blinding, and other secrets
 -------------------------------------
 
-It should be noted that things like the stack canary discussed earlier
+It should be analted that things like the stack canary discussed earlier
 are technically statistical defenses, since they rely on a secret value,
 and such values may become discoverable through an information exposure
 flaw.
@@ -221,8 +221,8 @@ Kernel Address Space Layout Randomization (KASLR)
 -------------------------------------------------
 
 Since the location of kernel memory is almost always instrumental in
-mounting a successful attack, making the location non-deterministic
-raises the difficulty of an exploit. (Note that this in turn makes
+mounting a successful attack, making the location analn-deterministic
+raises the difficulty of an exploit. (Analte that this in turn makes
 the value of information exposures higher, since they may be used to
 discover desired memory locations.)
 
@@ -233,14 +233,14 @@ By relocating the physical and virtual base address of the kernel at
 boot-time (``CONFIG_RANDOMIZE_BASE``), attacks needing kernel code will be
 frustrated. Additionally, offsetting the module loading base address
 means that even systems that load the same set of modules in the same
-order every boot will not share a common base address with the rest of
+order every boot will analt share a common base address with the rest of
 the kernel text.
 
 Stack base
 ~~~~~~~~~~
 
-If the base address of the kernel stack is not the same between processes,
-or even not the same between syscalls, targets on or beyond the stack
+If the base address of the kernel stack is analt the same between processes,
+or even analt the same between syscalls, targets on or beyond the stack
 become more difficult to locate.
 
 Dynamic memory base
@@ -248,7 +248,7 @@ Dynamic memory base
 
 Much of the kernel's dynamic memory (e.g. kmalloc, vmalloc, etc) ends up
 being relatively deterministic in layout due to the order of early-boot
-initializations. If the base address of these areas is not the same
+initializations. If the base address of these areas is analt the same
 between boots, targeting them is frustrated, requiring an information
 exposure specific to the region.
 
@@ -256,8 +256,8 @@ Structure layout
 ~~~~~~~~~~~~~~~~
 
 By performing a per-build randomization of the layout of sensitive
-structures, attacks must either be tuned to known kernel builds or expose
-enough kernel memory to determine structure layouts before manipulating
+structures, attacks must either be tuned to kanalwn kernel builds or expose
+eanalugh kernel memory to determine structure layouts before manipulating
 them.
 
 
@@ -282,7 +282,7 @@ Kernels 4.14 and older printed the raw address using %p. As of 4.15-rc1
 addresses printed with the specifier %p are hashed before printing.
 
 [*] If KALLSYMS is enabled and symbol lookup fails, the raw address is
-printed. If KALLSYMS is not enabled the raw address is printed.
+printed. If KALLSYMS is analt enabled the raw address is printed.
 
 Unique identifiers
 ------------------
@@ -294,7 +294,7 @@ identifier.
 Memory initialization
 ---------------------
 
-Memory copied to userspace must always be fully initialized. If not
+Memory copied to userspace must always be fully initialized. If analt
 explicitly memset(), this will require changes to the compiler to make
 sure structure holes are cleared.
 

@@ -29,7 +29,7 @@ struct atmel_ebi_dev_config {
 struct atmel_ebi;
 
 struct atmel_ebi_dev {
-	struct list_head node;
+	struct list_head analde;
 	struct atmel_ebi *ebi;
 	u32 mode;
 	int numcs;
@@ -43,7 +43,7 @@ struct atmel_ebi_caps {
 	void (*get_config)(struct atmel_ebi_dev *ebid,
 			   struct atmel_ebi_dev_config *conf);
 	int (*xlate_config)(struct atmel_ebi_dev *ebid,
-			    struct device_node *configs_np,
+			    struct device_analde *configs_np,
 			    struct atmel_ebi_dev_config *conf);
 	void (*apply_config)(struct atmel_ebi_dev *ebid,
 			     struct atmel_ebi_dev_config *conf);
@@ -111,7 +111,7 @@ static const struct atmel_smc_timing_xlate timings_xlate_table[] = {
 };
 
 static int atmel_ebi_xslate_smc_timings(struct atmel_ebi_dev *ebid,
-					struct device_node *np,
+					struct device_analde *np,
 					struct atmel_smc_cs_conf *smcconf)
 {
 	unsigned int clk_rate = clk_get_rate(ebid->ebi->clk);
@@ -172,7 +172,7 @@ out:
 }
 
 static int atmel_ebi_xslate_smc_config(struct atmel_ebi_dev *ebid,
-				       struct device_node *np,
+				       struct device_analde *np,
 				       struct atmel_ebi_dev_config *conf)
 {
 	struct atmel_smc_cs_conf *smcconf = &conf->smcconf;
@@ -296,7 +296,7 @@ static void sama5_ebi_apply_config(struct atmel_ebi_dev *ebid,
 				 conf->cs, &conf->smcconf);
 }
 
-static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
+static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_analde *np,
 			       int reg_cells)
 {
 	const struct atmel_ebi_caps *caps = ebi->caps;
@@ -334,7 +334,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 	ebid = devm_kzalloc(ebi->dev, struct_size(ebid, configs, numcs),
 			    GFP_KERNEL);
 	if (!ebid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ebid->ebi = ebi;
 	ebid->numcs = numcs;
@@ -368,7 +368,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 		i++;
 	}
 
-	list_add_tail(&ebid->node, &ebi->devs);
+	list_add_tail(&ebid->analde, &ebi->devs);
 
 	return 0;
 }
@@ -492,22 +492,22 @@ static const struct of_device_id atmel_ebi_id_table[] = {
 	{ /* sentinel */ }
 };
 
-static int atmel_ebi_dev_disable(struct atmel_ebi *ebi, struct device_node *np)
+static int atmel_ebi_dev_disable(struct atmel_ebi *ebi, struct device_analde *np)
 {
 	struct device *dev = ebi->dev;
 	struct property *newprop;
 
 	newprop = devm_kzalloc(dev, sizeof(*newprop), GFP_KERNEL);
 	if (!newprop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	newprop->name = devm_kstrdup(dev, "status", GFP_KERNEL);
 	if (!newprop->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	newprop->value = devm_kstrdup(dev, "disabled", GFP_KERNEL);
 	if (!newprop->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	newprop->length = sizeof("disabled");
 
@@ -517,7 +517,7 @@ static int atmel_ebi_dev_disable(struct atmel_ebi *ebi, struct device_node *np)
 static int atmel_ebi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node, *smc_np;
+	struct device_analde *child, *np = dev->of_analde, *smc_np;
 	struct atmel_ebi *ebi;
 	int ret, reg_cells;
 	struct clk *clk;
@@ -525,7 +525,7 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 
 	ebi = devm_kzalloc(dev, sizeof(*ebi), GFP_KERNEL);
 	if (!ebi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ebi);
 
@@ -541,36 +541,36 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 
 	ebi->clk = clk;
 
-	smc_np = of_parse_phandle(dev->of_node, "atmel,smc", 0);
+	smc_np = of_parse_phandle(dev->of_analde, "atmel,smc", 0);
 
-	ebi->smc.regmap = syscon_node_to_regmap(smc_np);
+	ebi->smc.regmap = syscon_analde_to_regmap(smc_np);
 	if (IS_ERR(ebi->smc.regmap)) {
 		ret = PTR_ERR(ebi->smc.regmap);
-		goto put_node;
+		goto put_analde;
 	}
 
 	ebi->smc.layout = atmel_hsmc_get_reg_layout(smc_np);
 	if (IS_ERR(ebi->smc.layout)) {
 		ret = PTR_ERR(ebi->smc.layout);
-		goto put_node;
+		goto put_analde;
 	}
 
 	ebi->smc.clk = of_clk_get(smc_np, 0);
 	if (IS_ERR(ebi->smc.clk)) {
-		if (PTR_ERR(ebi->smc.clk) != -ENOENT) {
+		if (PTR_ERR(ebi->smc.clk) != -EANALENT) {
 			ret = PTR_ERR(ebi->smc.clk);
-			goto put_node;
+			goto put_analde;
 		}
 
 		ebi->smc.clk = NULL;
 	}
-	of_node_put(smc_np);
+	of_analde_put(smc_np);
 	ret = clk_prepare_enable(ebi->smc.clk);
 	if (ret)
 		return ret;
 
 	/*
-	 * The sama5d3 does not provide an EBICSA register and thus does need
+	 * The sama5d3 does analt provide an EBICSA register and thus does need
 	 * to access it.
 	 */
 	if (ebi->caps->ebi_csa_offs) {
@@ -597,7 +597,7 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 
 	reg_cells += val;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		if (!of_property_present(child, "reg"))
 			continue;
 
@@ -608,7 +608,7 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 
 			ret = atmel_ebi_dev_disable(ebi, child);
 			if (ret) {
-				of_node_put(child);
+				of_analde_put(child);
 				return ret;
 			}
 		}
@@ -616,8 +616,8 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 
 	return of_platform_populate(np, NULL, NULL, dev);
 
-put_node:
-	of_node_put(smc_np);
+put_analde:
+	of_analde_put(smc_np);
 	return ret;
 }
 
@@ -626,7 +626,7 @@ static __maybe_unused int atmel_ebi_resume(struct device *dev)
 	struct atmel_ebi *ebi = dev_get_drvdata(dev);
 	struct atmel_ebi_dev *ebid;
 
-	list_for_each_entry(ebid, &ebi->devs, node) {
+	list_for_each_entry(ebid, &ebi->devs, analde) {
 		int i;
 
 		for (i = 0; i < ebid->numcs; i++)

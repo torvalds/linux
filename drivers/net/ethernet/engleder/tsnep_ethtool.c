@@ -39,7 +39,7 @@ static const char tsnep_rx_queue_stats_strings[][ETH_GSTRING_LEN] = {
 	"rx_%d_dropped",
 	"rx_%d_multicast",
 	"rx_%d_alloc_failed",
-	"rx_%d_no_descriptor_errors",
+	"rx_%d_anal_descriptor_errors",
 	"rx_%d_buffer_too_small_errors",
 	"rx_%d_fifo_overflow_errors",
 	"rx_%d_invalid_frame_errors",
@@ -51,7 +51,7 @@ struct tsnep_rx_queue_stats {
 	u64 rx_dropped;
 	u64 rx_multicast;
 	u64 rx_alloc_failed;
-	u64 rx_no_descriptor_errors;
+	u64 rx_anal_descriptor_errors;
 	u64 rx_buffer_too_small_errors;
 	u64 rx_fifo_overflow_errors;
 	u64 rx_invalid_frame_errors;
@@ -209,9 +209,9 @@ static void tsnep_ethtool_get_ethtool_stats(struct net_device *netdev,
 			adapter->rx[i].alloc_failed;
 		reg = ioread32(adapter->addr + TSNEP_QUEUE(i) +
 			       TSNEP_RX_STATISTIC);
-		tsnep_rx_queue_stats.rx_no_descriptor_errors =
-			(reg & TSNEP_RX_STATISTIC_NO_DESC_MASK) >>
-			TSNEP_RX_STATISTIC_NO_DESC_SHIFT;
+		tsnep_rx_queue_stats.rx_anal_descriptor_errors =
+			(reg & TSNEP_RX_STATISTIC_ANAL_DESC_MASK) >>
+			TSNEP_RX_STATISTIC_ANAL_DESC_SHIFT;
 		tsnep_rx_queue_stats.rx_buffer_too_small_errors =
 			(reg & TSNEP_RX_STATISTIC_BUFFER_TOO_SMALL_MASK) >>
 			TSNEP_RX_STATISTIC_BUFFER_TOO_SMALL_SHIFT;
@@ -253,7 +253,7 @@ static int tsnep_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_TEST:
 		return tsnep_ethtool_get_test_count();
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -276,7 +276,7 @@ static int tsnep_ethtool_get_rxnfc(struct net_device *netdev,
 	case ETHTOOL_GRXCLSRLALL:
 		return tsnep_rxnfc_get_all(adapter, cmd, rule_locs);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -291,7 +291,7 @@ static int tsnep_ethtool_set_rxnfc(struct net_device *netdev,
 	case ETHTOOL_SRXCLSRLDEL:
 		return tsnep_rxnfc_del_rule(adapter, cmd);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -323,7 +323,7 @@ static int tsnep_ethtool_get_ts_info(struct net_device *netdev,
 
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
 			 BIT(HWTSTAMP_TX_ON);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;

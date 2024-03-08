@@ -216,7 +216,7 @@ examples:
             clock-names = "iface",
                           "ref";
 
-            required-opps = <&rpmpd_opp_nom>;
+            required-opps = <&rpmpd_opp_analm>;
             power-domains = <&rpmpd SM6125_VDDMX>;
         };
     };

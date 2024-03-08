@@ -72,28 +72,28 @@ static inline unsigned long _upa_readq(unsigned long addr)
 static inline void _upa_writeb(unsigned char b, unsigned long addr)
 {
 	__asm__ __volatile__("stba\t%0, [%1] %2\t/* upa_writeb */"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (b), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
 static inline void _upa_writew(unsigned short w, unsigned long addr)
 {
 	__asm__ __volatile__("stha\t%0, [%1] %2\t/* upa_writew */"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
 static inline void _upa_writel(unsigned int l, unsigned long addr)
 {
 	__asm__ __volatile__("stwa\t%0, [%1] %2\t/* upa_writel */"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (l), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
 static inline void _upa_writeq(unsigned long q, unsigned long addr)
 {
 	__asm__ __volatile__("stxa\t%0, [%1] %2\t/* upa_writeq */"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (q), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 

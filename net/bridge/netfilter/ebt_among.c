@@ -149,7 +149,7 @@ ebt_among_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			if (!ebt_mac_wormhash_contains(wh_src, smac, sip))
 				return false;
 		} else {
-			/* we match only if it DOES NOT contain */
+			/* we match only if it DOES ANALT contain */
 			if (ebt_mac_wormhash_contains(wh_src, smac, sip))
 				return false;
 		}
@@ -164,7 +164,7 @@ ebt_among_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			if (!ebt_mac_wormhash_contains(wh_dst, dmac, dip))
 				return false;
 		} else {
-			/* we match only if it DOES NOT contain */
+			/* we match only if it DOES ANALT contain */
 			if (ebt_mac_wormhash_contains(wh_dst, dmac, dip))
 				return false;
 		}
@@ -180,11 +180,11 @@ static bool poolsize_invalid(const struct ebt_mac_wormhash *w)
 
 static bool wormhash_offset_invalid(int off, unsigned int len)
 {
-	if (off == 0) /* not present */
+	if (off == 0) /* analt present */
 		return false;
 
 	if (off < (int)sizeof(struct ebt_among_info) ||
-	    off % __alignof__(struct ebt_mac_wormhash))
+	    off % __aliganalf__(struct ebt_mac_wormhash))
 		return true;
 
 	off += sizeof(struct ebt_mac_wormhash);

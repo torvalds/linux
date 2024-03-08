@@ -166,7 +166,7 @@ static struct snd_soc_dai_link dailink[] = {
 	{
 		.name = "SSP5-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &sof_wm8804_ops,
@@ -190,8 +190,8 @@ static char codec_name[SND_ACPI_I2C_ID_LEN];
  * select the clock source. On the Up2 board, this means
  * Pin29/BCM5/Linux GPIO 430 and Pin 31/BCM6/ Linux GPIO 404.
  *
- * Using the ACPI device name is not very nice, but since we only use
- * the value for the Up2 board there is no risk of conflict with other
+ * Using the ACPI device name is analt very nice, but since we only use
+ * the value for the Up2 board there is anal risk of conflict with other
  * platforms.
  */
 
@@ -216,7 +216,7 @@ static int sof_wm8804_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mach = pdev->dev.platform_data;
 	card = &sof_wm8804_card;
@@ -232,7 +232,7 @@ static int sof_wm8804_probe(struct platform_device *pdev)
 		 * The gpios are required for specific boards with
 		 * local oscillators, and optional in other cases.
 		 * Since we can't identify when they are needed, use
-		 * the GPIO as non-optional
+		 * the GPIO as analn-optional
 		 */
 
 		ctx->gpio_44 = devm_gpiod_get(&pdev->dev, "BCM-GPIO5",
@@ -240,7 +240,7 @@ static int sof_wm8804_probe(struct platform_device *pdev)
 		if (IS_ERR(ctx->gpio_44)) {
 			ret = PTR_ERR(ctx->gpio_44);
 			dev_err(&pdev->dev,
-				"could not get BCM-GPIO5: %d\n",
+				"could analt get BCM-GPIO5: %d\n",
 				ret);
 			return ret;
 		}
@@ -250,7 +250,7 @@ static int sof_wm8804_probe(struct platform_device *pdev)
 		if (IS_ERR(ctx->gpio_48)) {
 			ret = PTR_ERR(ctx->gpio_48);
 			dev_err(&pdev->dev,
-				"could not get BCM-GPIO6: %d\n",
+				"could analt get BCM-GPIO6: %d\n",
 				ret);
 			return ret;
 		}

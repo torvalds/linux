@@ -6,7 +6,7 @@
 struct timerlat_u_params {
 	/* timerlat -> timerlat_u: user-space threads can keep running */
 	int should_run;
-	/* timerlat_u -> timerlat: all timerlat_u threads left, no reason to continue */
+	/* timerlat_u -> timerlat: all timerlat_u threads left, anal reason to continue */
 	int stopped_running;
 
 	/* threads config */

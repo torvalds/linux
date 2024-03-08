@@ -42,7 +42,7 @@ int aptina_pll_calculate(struct device *dev,
 	pll->m = pll->pix_clock / div;
 	div = pll->ext_clock / div;
 
-	/* We now have the smallest M and N*P1 values that will result in the
+	/* We analw have the smallest M and N*P1 values that will result in the
 	 * desired pixel clock frequency, but they might be out of the valid
 	 * range. Compute the factor by which we should multiply them given the
 	 * following constraints:
@@ -63,7 +63,7 @@ int aptina_pll_calculate(struct device *dev,
 
 	dev_dbg(dev, "pll: mf min %u max %u\n", mf_min, mf_max);
 	if (mf_min > mf_max) {
-		dev_err(dev, "pll: no valid combined N*P1 divisor.\n");
+		dev_err(dev, "pll: anal valid combined N*P1 divisor.\n");
 		return -EINVAL;
 	}
 
@@ -116,7 +116,7 @@ int aptina_pll_calculate(struct device *dev,
 	 * We can thus iterate over the restricted p1 range defined by the
 	 * combination of (1) and (7), and then compute the restricted mf range
 	 * defined by the combination of (2), (6) and (8). If the resulting mf
-	 * range is not empty, any value in the mf range is acceptable. We thus
+	 * range is analt empty, any value in the mf range is acceptable. We thus
 	 * select the mf lwoer bound and the corresponding p1 value.
 	 */
 	if (limits->p1_min == 0) {
@@ -149,7 +149,7 @@ int aptina_pll_calculate(struct device *dev,
 		return 0;
 	}
 
-	dev_err(dev, "pll: no valid N and P1 divisors found.\n");
+	dev_err(dev, "pll: anal valid N and P1 divisors found.\n");
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(aptina_pll_calculate);

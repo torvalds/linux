@@ -41,7 +41,7 @@ enum es58x_fd_can_cmd_id {
 	ES58X_FD_CAN_CMD_ID_ERROR_OR_EVENT_MSG = 0x11,
 	ES58X_FD_CAN_CMD_ID_RESET_RX = 0x20,
 	ES58X_FD_CAN_CMD_ID_RESET_TX = 0x21,
-	ES58X_FD_CAN_CMD_ID_TX_MSG_NO_ACK = 0x55
+	ES58X_FD_CAN_CMD_ID_TX_MSG_ANAL_ACK = 0x55
 };
 
 /* Command IDs for ES58X_FD_CMD_TYPE_DEVICE. */
@@ -53,15 +53,15 @@ enum es58x_fd_dev_cmd_id {
 /**
  * enum es58x_fd_ctrlmode - Controller mode.
  * @ES58X_FD_CTRLMODE_ACTIVE: send and receive messages.
- * @ES58X_FD_CTRLMODE_PASSIVE: only receive messages (monitor). Do not
- *	send anything, not even the acknowledgment bit.
+ * @ES58X_FD_CTRLMODE_PASSIVE: only receive messages (monitor). Do analt
+ *	send anything, analt even the ackanalwledgment bit.
  * @ES58X_FD_CTRLMODE_FD: CAN FD according to ISO11898-1.
- * @ES58X_FD_CTRLMODE_FD_NON_ISO: follow Bosch CAN FD Specification
+ * @ES58X_FD_CTRLMODE_FD_ANALN_ISO: follow Bosch CAN FD Specification
  *	V1.0
  * @ES58X_FD_CTRLMODE_DISABLE_PROTOCOL_EXCEPTION_HANDLING: How to
  *	behave when CAN FD reserved bit is monitored as
  *	dominant. (c.f. ISO 11898-1:2015, section 10.4.2.4 "Control
- *	field", paragraph "r0 bit"). 0 (not disable = enable): send
+ *	field", paragraph "r0 bit"). 0 (analt disable = enable): send
  *	error frame. 1 (disable): goes into bus integration mode
  *	(c.f. below).
  * @ES58X_FD_CTRLMODE_EDGE_FILTER_DURING_BUS_INTEGRATION: 0: Edge
@@ -73,7 +73,7 @@ enum es58x_fd_ctrlmode {
 	ES58X_FD_CTRLMODE_ACTIVE = 0,
 	ES58X_FD_CTRLMODE_PASSIVE = BIT(0),
 	ES58X_FD_CTRLMODE_FD = BIT(4),
-	ES58X_FD_CTRLMODE_FD_NON_ISO = BIT(5),
+	ES58X_FD_CTRLMODE_FD_ANALN_ISO = BIT(5),
 	ES58X_FD_CTRLMODE_DISABLE_PROTOCOL_EXCEPTION_HANDLING = BIT(6),
 	ES58X_FD_CTRLMODE_EDGE_FILTER_DURING_BUS_INTEGRATION = BIT(7)
 };
@@ -88,7 +88,7 @@ struct es58x_fd_bittiming {
 
 /**
  * struct es58x_fd_tx_conf_msg - Channel configuration.
- * @nominal_bittiming: Nominal bittiming.
+ * @analminal_bittiming: Analminal bittiming.
  * @samples_per_bit: type enum es58x_samples_per_bit.
  * @sync_edge: type enum es58x_sync_edge.
  * @physical_layer: type enum es58x_physical_layer.
@@ -106,7 +106,7 @@ struct es58x_fd_bittiming {
  * information.
  */
 struct es58x_fd_tx_conf_msg {
-	struct es58x_fd_bittiming nominal_bittiming;
+	struct es58x_fd_bittiming analminal_bittiming;
 	u8 samples_per_bit;
 	u8 sync_edge;
 	u8 physical_layer;
@@ -192,14 +192,14 @@ struct es58x_fd_tx_ack_msg {
  * @echo_msg: Array of echo messages (e.g. Tx messages being looped
  *	back).
  * @rx_event_msg: Error or event message.
- * @tx_ack_msg: Tx acknowledgment message.
+ * @tx_ack_msg: Tx ackanalwledgment message.
  * @timestamp: Timestamp reply.
  * @rx_cmd_ret_le32: Rx 32 bits return code (type: enum
  *	es58x_cmd_ret_code_u32).
  * @raw_msg: Message raw payload.
- * @reserved_for_crc16_do_not_use: The structure ends with a
+ * @reserved_for_crc16_do_analt_use: The structure ends with a
  *	CRC16. Because the structures in above union are of variable
- *	lengths, we can not predict the offset of the CRC in
+ *	lengths, we can analt predict the offset of the CRC in
  *	advance. Use functions es58x_get_crc() and es58x_set_crc() to
  *	manipulate it.
  */
@@ -222,7 +222,7 @@ struct es58x_fd_urb_cmd {
 		DECLARE_FLEX_ARRAY(u8, raw_msg);
 	} __packed;
 
-	__le16 reserved_for_crc16_do_not_use;
+	__le16 reserved_for_crc16_do_analt_use;
 } __packed;
 
 #define ES58X_FD_URB_CMD_HEADER_LEN (offsetof(struct es58x_fd_urb_cmd, raw_msg))

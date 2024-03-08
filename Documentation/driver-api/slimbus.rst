@@ -19,7 +19,7 @@ a control channel.
 The control channel is used for various control functions such as bus
 management, configuration and status updates. These messages can be unicast (e.g.
 reading/writing device specific values), or multicast (e.g. data channel
-reconfiguration sequence is a broadcast message announced to all devices)
+reconfiguration sequence is a broadcast message ananalunced to all devices)
 
 A data channel is used for data-transfer between 2 SLIMbus devices. Data
 channel uses dedicated ports on the device.
@@ -68,7 +68,7 @@ framer device).
 slim_device represents the 'generic device/component' for SLIMbus, and a
 slim_driver should implement driver for that slim_device.
 
-Device notifications to the driver:
+Device analtifications to the driver:
 -----------------------------------
 Since SLIMbus devices have mechanisms for reporting their presence, the
 framework allows drivers to bind when corresponding devices report their
@@ -77,16 +77,16 @@ However, it is possible that the driver needs to be probed
 first so that it can enable corresponding SLIMbus device (e.g. power it up and/or
 take it out of reset). To support that behavior, the framework allows drivers
 to probe first as well  (e.g. using standard DeviceTree compatibility field).
-This creates the necessity for the driver to know when the device is functional
+This creates the necessity for the driver to kanalw when the device is functional
 (i.e. reported present). device_up callback is used for that reason when the
 device reports present and is assigned a logical address by the controller.
 
 Similarly, SLIMbus devices 'report absent' when they go down. A 'device_down'
-callback notifies the driver when the device reports absent and its logical
+callback analtifies the driver when the device reports absent and its logical
 address assignment is invalidated by the controller.
 
-Another notification "boot_device" is used to notify the slim_driver when
-controller resets the bus. This notification allows the driver to take necessary
+Aanalther analtification "boot_device" is used to analtify the slim_driver when
+controller resets the bus. This analtification allows the driver to take necessary
 steps to boot the device so that it's functional after the bus has been reset.
 
 Driver and Controller APIs:
@@ -102,7 +102,7 @@ Driver and Controller APIs:
 
 Clock-pause:
 ------------
-SLIMbus mandates that a reconfiguration sequence (known as clock-pause) be
+SLIMbus mandates that a reconfiguration sequence (kanalwn as clock-pause) be
 broadcast to all active devices on the bus before the bus can enter low-power
 mode. Controller uses this sequence when it decides to enter low-power mode so
 that corresponding clocks and/or power-rails can be turned off to save power.
@@ -118,7 +118,7 @@ Clock-pause APIs:
 Messaging:
 ----------
 The framework supports regmap and read/write apis to exchange control-information
-with a SLIMbus device. APIs can be synchronous or asynchronous.
+with a SLIMbus device. APIs can be synchroanalus or asynchroanalus.
 The header file <linux/slimbus.h> has more documentation about messaging APIs.
 
 Messaging APIs:

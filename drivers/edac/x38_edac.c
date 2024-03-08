@@ -15,7 +15,7 @@
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include "edac_module.h"
 
 #define EDAC_MOD_STR		"x38_edac"
@@ -44,15 +44,15 @@
 #define X38_ERRSTS	0xc8	/* Error Status Register (16b)
 				 *
 				 * 15    reserved
-				 * 14    Isochronous TBWRR Run Behind FIFO Full
+				 * 14    Isochroanalus TBWRR Run Behind FIFO Full
 				 *       (ITCV)
-				 * 13    Isochronous TBWRR Run Behind FIFO Put
+				 * 13    Isochroanalus TBWRR Run Behind FIFO Put
 				 *       (ITSTV)
 				 * 12    reserved
 				 * 11    MCH Thermal Sensor Event
 				 *       for SMI/SCI/SERR (GTSE)
 				 * 10    reserved
-				 *  9    LOCK to non-DRAM Memory Flag (LCKF)
+				 *  9    LOCK to analn-DRAM Memory Flag (LCKF)
 				 *  8    reserved
 				 *  7    DRAM Throttle Flag (DTF)
 				 *  6:2  reserved
@@ -155,7 +155,7 @@ static void x38_clear_error_info(struct mem_ctl_info *mci)
 
 	/*
 	 * Clear any error bits.
-	 * (Yes, we really clear bits by writing 1 to them.)
+	 * (Anal, we really clear bits by writing 1 to them.)
 	 */
 	pci_write_bits16(pdev, X38_ERRSTS, X38_ERRSTS_BITS,
 			 X38_ERRSTS_BITS);
@@ -170,7 +170,7 @@ static void x38_get_and_clear_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is anal atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -187,7 +187,7 @@ static void x38_get_and_clear_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same for both reads then the first set
 	 * of reads is valid.  If there is a change then there is a CE
-	 * with no info and the second set of reads is valid and
+	 * with anal info and the second set of reads is valid and
 	 * should be UE info.
 	 */
 	if ((info->errsts ^ info->errsts2) & X38_ERRSTS_BITS) {
@@ -267,7 +267,7 @@ static void __iomem *x38_map_mchbar(struct pci_dev *pdev)
 
 	window = ioremap(u.mchbar, X38_MMR_WINDOW_SIZE);
 	if (!window)
-		printk(KERN_ERR "x38: cannot map mmio space at 0x%llx\n",
+		printk(KERN_ERR "x38: cananalt map mmio space at 0x%llx\n",
 			(unsigned long long)u.mchbar);
 
 	return window;
@@ -328,7 +328,7 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 
 	window = x38_map_mchbar(pdev);
 	if (!window)
-		return -ENODEV;
+		return -EANALDEV;
 
 	x38_get_drbs(window, drbs);
 
@@ -343,7 +343,7 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].is_virt_csrow = false;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(3, "MC: init mci\n");
 
@@ -385,14 +385,14 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 			dimm->nr_pages = nr_pages / x38_channel_num;
 			dimm->grain = nr_pages << PAGE_SHIFT;
 			dimm->mtype = MEM_DDR2;
-			dimm->dtype = DEV_UNKNOWN;
-			dimm->edac_mode = EDAC_UNKNOWN;
+			dimm->dtype = DEV_UNKANALWN;
+			dimm->edac_mode = EDAC_UNKANALWN;
 		}
 	}
 
 	x38_clear_error_info(mci);
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	if (edac_mc_add_mc(mci)) {
 		edac_dbg(3, "MC: failed edac_mc_add_mc()\n");
 		goto fail;
@@ -478,14 +478,14 @@ static int __init x38_init(void)
 					PCI_DEVICE_ID_INTEL_X38_HB, NULL);
 		if (!mci_pdev) {
 			edac_dbg(0, "x38 pci_get_device fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 
 		pci_rc = x38_init_one(mci_pdev, x38_pci_tbl);
 		if (pci_rc < 0) {
 			edac_dbg(0, "x38 init fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 	}

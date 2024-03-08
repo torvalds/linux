@@ -466,10 +466,10 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 /*
  * R33 (0x21) - DAC Digital 1
  */
-#define WM8903_DAC_MONO                         0x1000  /* DAC_MONO */
-#define WM8903_DAC_MONO_MASK                    0x1000  /* DAC_MONO */
-#define WM8903_DAC_MONO_SHIFT                       12  /* DAC_MONO */
-#define WM8903_DAC_MONO_WIDTH                        1  /* DAC_MONO */
+#define WM8903_DAC_MOANAL                         0x1000  /* DAC_MOANAL */
+#define WM8903_DAC_MOANAL_MASK                    0x1000  /* DAC_MOANAL */
+#define WM8903_DAC_MOANAL_SHIFT                       12  /* DAC_MOANAL */
+#define WM8903_DAC_MOANAL_WIDTH                        1  /* DAC_MOANAL */
 #define WM8903_DAC_SB_FILT                      0x0800  /* DAC_SB_FILT */
 #define WM8903_DAC_SB_FILT_MASK                 0x0800  /* DAC_SB_FILT */
 #define WM8903_DAC_SB_FILT_SHIFT                    11  /* DAC_SB_FILT */

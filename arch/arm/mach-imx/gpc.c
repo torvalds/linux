@@ -96,7 +96,7 @@ static int imx_gpc_irq_set_wake(struct irq_data *d, unsigned int on)
 				  gpc_wake_irqs[idx] & ~mask;
 
 	/*
-	 * Do *not* call into the parent, as the GIC doesn't have any
+	 * Do *analt* call into the parent, as the GIC doesn't have any
 	 * wake-up facility...
 	 */
 	return 0;
@@ -174,11 +174,11 @@ static int imx_gpc_domain_translate(struct irq_domain *d,
 				    unsigned long *hwirq,
 				    unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_analde(fwspec->fwanalde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
-		/* No PPI should point to this domain */
+		/* Anal PPI should point to this domain */
 		if (fwspec->param[0] != 0)
 			return -EINVAL;
 
@@ -200,9 +200,9 @@ static int imx_gpc_domain_alloc(struct irq_domain *domain,
 	int i;
 
 	if (fwspec->param_count != 3)
-		return -EINVAL;	/* Not GIC compliant */
+		return -EINVAL;	/* Analt GIC compliant */
 	if (fwspec->param[0] != 0)
-		return -EINVAL;	/* No PPI should point to this domain */
+		return -EINVAL;	/* Anal PPI should point to this domain */
 
 	hwirq = fwspec->param[1];
 	if (hwirq >= GPC_MAX_IRQS)
@@ -213,7 +213,7 @@ static int imx_gpc_domain_alloc(struct irq_domain *domain,
 					      &imx_gpc_chip, NULL);
 
 	parent_fwspec = *fwspec;
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs,
 					    &parent_fwspec);
 }
@@ -224,33 +224,33 @@ static const struct irq_domain_ops imx_gpc_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int __init imx_gpc_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init imx_gpc_init(struct device_analde *analde,
+			       struct device_analde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	int i;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
-		return -ENODEV;
+		pr_err("%pOF: anal parent, giving up\n", analde);
+		return -EANALDEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to obtain parent domain\n", node);
+		pr_err("%pOF: unable to obtain parent domain\n", analde);
 		return -ENXIO;
 	}
 
-	gpc_base = of_iomap(node, 0);
+	gpc_base = of_iomap(analde, 0);
 	if (WARN_ON(!gpc_base))
-	        return -ENOMEM;
+	        return -EANALMEM;
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, GPC_MAX_IRQS,
-					  node, &imx_gpc_domain_ops,
+					  analde, &imx_gpc_domain_ops,
 					  NULL);
 	if (!domain) {
 		iounmap(gpc_base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Initially mask all interrupts */
@@ -259,9 +259,9 @@ static int __init imx_gpc_init(struct device_node *node,
 
 	/*
 	 * Clear the OF_POPULATED flag set in of_irq_init so that
-	 * later the GPC power domain driver will not be skipped.
+	 * later the GPC power domain driver will analt be skipped.
 	 */
-	of_node_clear_flag(node, OF_POPULATED);
+	of_analde_clear_flag(analde, OF_POPULATED);
 
 	return 0;
 }
@@ -269,17 +269,17 @@ IRQCHIP_DECLARE(imx_gpc, "fsl,imx6q-gpc", imx_gpc_init);
 
 void __init imx_gpc_check_dt(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpc");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx6q-gpc");
 	if (WARN_ON(!np))
 		return;
 
 	if (WARN_ON(!of_property_read_bool(np, "interrupt-controller"))) {
-		pr_warn("Outdated DT detected, suspend/resume will NOT work\n");
+		pr_warn("Outdated DT detected, suspend/resume will ANALT work\n");
 
 		/* map GPC, so that at least CPUidle and WARs keep working */
 		gpc_base = of_iomap(np, 0);
 	}
-	of_node_put(np);
+	of_analde_put(np);
 }

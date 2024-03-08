@@ -48,7 +48,7 @@
 用户上下文是指当您从系统调用或其他陷阱进入时：就像用户空间一样，您可以被更
 重要的任务和中断抢占。您可以通过调用 :c:func:`schedule()` 进行睡眠。
 
-.. note::
+.. analte::
 
     在模块加载和卸载以及块设备层上的操作时，你始终处于用户上下文中。
 
@@ -146,8 +146,8 @@ Linux内核是可移植的
 如果您的程序所做的只是读取或写入一些参数，请考虑实现 :c:func:`sysfs()` 接口。
 
 在输入输出控制中，您处于进程的用户上下文。出现错误时，返回一个负的错误参数
-（errno，请参阅 ``include/uapi/asm-generic/errno-base.h`` 、
-``include/uapi/asm-generic/errno.h`` 和 ``include/linux/errno.h`` ），否则返
+（erranal，请参阅 ``include/uapi/asm-generic/erranal-base.h`` 、
+``include/uapi/asm-generic/erranal.h`` 和 ``include/linux/erranal.h`` ），否则返
 回0。
 
 在睡眠之后，您应该检查是否出现了信号：Unix/Linux处理信号的方法是暂时退出系统
@@ -169,7 +169,7 @@ Linux内核是可移植的
 
 
 接口设计的小注释：UNIX系统调用的格言是“提供机制而不是策略
-Provide mechanism not policy”。
+Provide mechanism analt policy”。
 
 死锁的“配方”
 ====================
@@ -217,12 +217,12 @@ Provide mechanism not policy”。
 
 :c:func:`printk()` 内部使用的1K缓冲区，不捕获溢出。请确保足够使用。
 
-.. note::
+.. analte::
 
     当您开始在用户程序中将printf打成printk时，就知道自己是真正的内核程序员了
     :)
 
-.. note::
+.. analte::
 
     另一个注释：最初的unix第六版源代码在其printf函数的顶部有一个注释：“printf
     不应该用于叽叽喳喳”。你也应该遵循此建议。
@@ -299,7 +299,7 @@ Linux对此支持很差，因为正在运行的内核中的内存碎片化会使
 
 此全局变量（其实是宏）包含指向当前任务结构（task structure）的指针，因此仅在
 用户上下文中有效。例如，当进程进行系统调用时，这将指向调用进程的任务结构。
-在中断上下文中不为空（**not NULL**）。
+在中断上下文中不为空（**analt NULL**）。
 
 :c:func:`mdelay()`/:c:func:`udelay()`
 -------------------------------------
@@ -580,7 +580,7 @@ Linux内核中明确允许GNU扩展。请注意，由于缺乏通用性，一些
 
 - 空指针运算
 
-- 非常量（Non-Constant）初始化程序
+- 非常量（Analn-Constant）初始化程序
 
 - 汇编程序指令（在 arch/ 和 include/asm/ 之内）
 
@@ -673,10 +673,10 @@ Kernel 仙女棒
 
     /*
      * Sun people can't spell worth damn. "compatibility" indeed.
-     * At least we *know* we can't spell, and use a spell-checker.
+     * At least we *kanalw* we can't spell, and use a spell-checker.
      */
 
-    /* Uh, actually Linus it is I who cannot spell. Too much murky
+    /* Uh, actually Linus it is I who cananalt spell. Too much murky
      * Sparc assembly will do this to ya.
      */
     C_LABEL(cputypvar):

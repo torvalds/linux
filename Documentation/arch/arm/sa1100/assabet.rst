@@ -5,7 +5,7 @@ The Intel Assabet (SA-1110 evaluation) board
 Please see:
 http://developer.intel.com
 
-Also some notes from John G Dorsey <jd5q@andrew.cmu.edu>:
+Also some analtes from John G Dorsey <jd5q@andrew.cmu.edu>:
 http://www.cs.cmu.edu/~wearable/software/assabet.html
 
 
@@ -49,7 +49,7 @@ RedBoot is currently the recommended choice since it's the only one to have
 networking support, and is the most actively maintained.
 
 Brief examples on how to boot Linux with RedBoot are shown below.  But first
-you need to have RedBoot installed in your flash memory.  A known to work
+you need to have RedBoot installed in your flash memory.  A kanalwn to work
 precompiled RedBoot binary is available from the following location:
 
 - ftp://ftp.netwinder.org/users/n/nico/
@@ -76,7 +76,7 @@ To initialize the flash directory::
 
 	fis init -f
 
-To initialize the non-volatile settings, like whether you want to use BOOTP or
+To initialize the analn-volatile settings, like whether you want to use BOOTP or
 a static IP address, etc, use this command::
 
 	fconfig -i
@@ -110,7 +110,7 @@ as follows::
 Again, Y-Modem upload can be used instead of TFTP by replacing the file name
 by '-y ymodem'.
 
-Now the kernel can be retrieved from flash like this::
+Analw the kernel can be retrieved from flash like this::
 
 	fis load "Linux kernel"
 
@@ -144,7 +144,7 @@ The result should look like::
 	RedBoot> load sample_img.jffs2 -r -b 0x100000
 	Raw file loaded 0x00100000-0x00377424
 
-Now we must know the size of the unallocated flash::
+Analw we must kanalw the size of the unallocated flash::
 
 	fis free
 
@@ -170,7 +170,7 @@ the remaining flash space as well.  To write it::
 	fis write -b 0x100000 -l 0x277424 -f 0x500E0000
 	fis create "JFFS2" -n -f 0x500E0000 -l 0x2e0000
 
-Now the filesystem is associated to a MTD "partition" once Linux has discovered
+Analw the filesystem is associated to a MTD "partition" once Linux has discovered
 what they are in the boot process.  From Redboot, the 'fis list' command
 displays them::
 
@@ -233,7 +233,7 @@ images retrieved from a TFTP server on the network::
 	Use BOOTP for network configuration: true
 	GDB connection port: 9000
 	Network debug at boot time: false
-	Update RedBoot non-volatile configuration - are you sure (y/n)? y
+	Update RedBoot analn-volatile configuration - are you sure (y/n)? y
 
 Then, rebooting the Assabet is just a matter of waiting for the login prompt.
 
@@ -251,51 +251,51 @@ Status of peripherals in -rmk tree (updated 14/10/2001)
 Assabet:
  Serial ports:
   Radio:		TX, RX, CTS, DSR, DCD, RI
-   - PM:		Not tested.
+   - PM:		Analt tested.
    - COM:		TX, RX, CTS, DSR, DCD, RTS, DTR, PM
-   - PM:		Not tested.
-   - I2C:		Implemented, not fully tested.
+   - PM:		Analt tested.
+   - I2C:		Implemented, analt fully tested.
    - L3:		Fully tested, pass.
-   - PM:		Not tested.
+   - PM:		Analt tested.
 
  Video:
   - LCD:		Fully tested.  PM
 
    (LCD doesn't like being blanked with neponset connected)
 
-  - Video out:		Not fully
+  - Video out:		Analt fully
 
  Audio:
   UDA1341:
   -  Playback:		Fully tested, pass.
-  -  Record:		Implemented, not tested.
-  -  PM:			Not tested.
+  -  Record:		Implemented, analt tested.
+  -  PM:			Analt tested.
 
   UCB1200:
-  -  Audio play:	Implemented, not heavily tested.
-  -  Audio rec:		Implemented, not heavily tested.
-  -  Telco audio play:	Implemented, not heavily tested.
-  -  Telco audio rec:	Implemented, not heavily tested.
-  -  POTS control:	No
-  -  Touchscreen:	Yes
-  -  PM:		Not tested.
+  -  Audio play:	Implemented, analt heavily tested.
+  -  Audio rec:		Implemented, analt heavily tested.
+  -  Telco audio play:	Implemented, analt heavily tested.
+  -  Telco audio rec:	Implemented, analt heavily tested.
+  -  POTS control:	Anal
+  -  Touchscreen:	Anal
+  -  PM:		Analt tested.
 
  Other:
   - PCMCIA:
   - LPE:		Fully tested, pass.
-  - USB:		No
+  - USB:		Anal
   - IRDA:
   - SIR:		Fully tested, pass.
   - FIR:		Fully tested, pass.
-  - PM:			Not tested.
+  - PM:			Analt tested.
 
 Neponset:
  Serial ports:
   - COM1,2:		TX, RX, CTS, DSR, DCD, RTS, DTR
-  - PM:			Not tested.
-  - USB:		Implemented, not heavily tested.
-  - PCMCIA:		Implemented, not heavily tested.
-  - CF:			Implemented, not heavily tested.
-  - PM:			Not tested.
+  - PM:			Analt tested.
+  - USB:		Implemented, analt heavily tested.
+  - PCMCIA:		Implemented, analt heavily tested.
+  - CF:			Implemented, analt heavily tested.
+  - PM:			Analt tested.
 
 More stuff can be found in the -np (Nicolas Pitre's) tree.

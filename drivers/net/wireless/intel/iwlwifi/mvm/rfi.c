@@ -72,7 +72,7 @@ static const struct iwl_rfi_lut_entry iwl_rfi_table[IWL_RFI_LUT_SIZE] = {
 
 bool iwl_rfi_supported(struct iwl_mvm *mvm)
 {
-	/* The feature depends on a platform bugfix, so for now
+	/* The feature depends on a platform bugfix, so for analw
 	 * it's always disabled.
 	 * When the platform support detection is implemented we should
 	 * check FW TLV and platform support instead.
@@ -92,16 +92,16 @@ int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm, struct iwl_rfi_lut_entry *rfi_t
 	};
 
 	if (!iwl_rfi_supported(mvm))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* in case no table is passed, use the default one */
+	/* in case anal table is passed, use the default one */
 	if (!rfi_table) {
 		memcpy(cmd.table, iwl_rfi_table, sizeof(cmd.table));
 	} else {
 		memcpy(cmd.table, rfi_table, sizeof(cmd.table));
-		/* notify FW the table is not the default one */
+		/* analtify FW the table is analt the default one */
 		cmd.oem = 1;
 	}
 
@@ -124,7 +124,7 @@ struct iwl_rfi_freq_table_resp_cmd *iwl_rfi_get_freq_table(struct iwl_mvm *mvm)
 	};
 
 	if (!iwl_rfi_supported(mvm))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
@@ -137,17 +137,17 @@ struct iwl_rfi_freq_table_resp_cmd *iwl_rfi_get_freq_table(struct iwl_mvm *mvm)
 
 	resp = kmemdup(cmd.resp_pkt->data, resp_size, GFP_KERNEL);
 	if (!resp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	iwl_free_resp(&cmd);
 	return resp;
 }
 
-void iwl_rfi_deactivate_notif_handler(struct iwl_mvm *mvm,
+void iwl_rfi_deactivate_analtif_handler(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_rfi_deactivate_notif *notif = (void *)pkt->data;
+	struct iwl_rfi_deactivate_analtif *analtif = (void *)pkt->data;
 
-	IWL_INFO(mvm, "RFIm is deactivated, reason = %d\n", notif->reason);
+	IWL_INFO(mvm, "RFIm is deactivated, reason = %d\n", analtif->reason);
 }

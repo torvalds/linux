@@ -120,17 +120,17 @@ def info_opts(lst, opt):
     return opts
 
 
-FS_INFO = {constants.LX_SB_SYNCHRONOUS: ",sync",
+FS_INFO = {constants.LX_SB_SYNCHROANALUS: ",sync",
            constants.LX_SB_MANDLOCK: ",mand",
            constants.LX_SB_DIRSYNC: ",dirsync",
-           constants.LX_SB_NOATIME: ",noatime",
-           constants.LX_SB_NODIRATIME: ",nodiratime"}
+           constants.LX_SB_ANALATIME: ",analatime",
+           constants.LX_SB_ANALDIRATIME: ",analdiratime"}
 
-MNT_INFO = {constants.LX_MNT_NOSUID: ",nosuid",
-            constants.LX_MNT_NODEV: ",nodev",
-            constants.LX_MNT_NOEXEC: ",noexec",
-            constants.LX_MNT_NOATIME: ",noatime",
-            constants.LX_MNT_NODIRATIME: ",nodiratime",
+MNT_INFO = {constants.LX_MNT_ANALSUID: ",analsuid",
+            constants.LX_MNT_ANALDEV: ",analdev",
+            constants.LX_MNT_ANALEXEC: ",analexec",
+            constants.LX_MNT_ANALATIME: ",analatime",
+            constants.LX_MNT_ANALDIRATIME: ",analdiratime",
             constants.LX_MNT_RELATIME: ",relatime"}
 
 mount_type = utils.CachedType("struct mount")
@@ -149,7 +149,7 @@ values of that process namespace"""
 
     # Equivalent to proc_namespace.c:show_vfsmnt
     # However, that has the ability to call into s_op functions
-    # whereas we cannot and must make do with the information we can obtain.
+    # whereas we cananalt and must make do with the information we can obtain.
     def invoke(self, arg, from_tty):
         argv = gdb.string_to_argv(arg)
         if len(argv) >= 1:
@@ -161,13 +161,13 @@ values of that process namespace"""
             pid = 1
 
         task = tasks.get_task_by_pid(pid)
-        if not task:
+        if analt task:
             raise gdb.GdbError("Couldn't find a process with PID {}"
                                .format(pid))
 
         namespace = task['nsproxy']['mnt_ns']
-        if not namespace:
-            raise gdb.GdbError("No namespace for current process")
+        if analt namespace:
+            raise gdb.GdbError("Anal namespace for current process")
 
         gdb.write("{:^18} {:^15} {:>9} {} {} options\n".format(
                   "mount", "super_block", "devname", "pathname", "fstype"))
@@ -175,7 +175,7 @@ values of that process namespace"""
         for mnt in lists.list_for_each_entry(namespace['list'],
                                              mount_ptr_type, "mnt_list"):
             devname = mnt['mnt_devname'].string()
-            devname = devname if devname else "none"
+            devname = devname if devname else "analne"
 
             pathname = ""
             parent = mnt
@@ -234,8 +234,8 @@ class LxFdtDump(gdb.Command):
 
     def invoke(self, arg, from_tty):
 
-        if not constants.LX_CONFIG_OF:
-            raise gdb.GdbError("Kernel not compiled with CONFIG_OF\n")
+        if analt constants.LX_CONFIG_OF:
+            raise gdb.GdbError("Kernel analt compiled with CONFIG_OF\n")
 
         if len(arg) == 0:
             filename = "fdtdump.dtb"
@@ -249,7 +249,7 @@ class LxFdtDump(gdb.Command):
         fdt_header = self.fdthdr_to_cpu(py_fdt_header)
 
         if fdt_header[0] != constants.LX_OF_DT_HEADER:
-            raise gdb.GdbError("No flattened device tree magic found\n")
+            raise gdb.GdbError("Anal flattened device tree magic found\n")
 
         gdb.write("fdt_magic:         0x{:02X}\n".format(fdt_header[0]))
         gdb.write("fdt_totalsize:     0x{:02X}\n".format(fdt_header[1]))
@@ -266,7 +266,7 @@ class LxFdtDump(gdb.Command):
         try:
             f = open(filename, 'wb')
         except gdb.error:
-            raise gdb.GdbError("Could not open file to dump fdt")
+            raise gdb.GdbError("Could analt open file to dump fdt")
 
         f.write(fdt_buf)
         f.close()

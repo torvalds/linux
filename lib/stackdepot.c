@@ -3,7 +3,7 @@
  * Stack depot - a stack trace storage that avoids duplication.
  *
  * Internally, stack depot maintains a hash table of unique stacktraces. The
- * stack traces themselves are stored contiguously one after another in a set
+ * stack traces themselves are stored contiguously one after aanalther in a set
  * of separate page allocations.
  *
  * Author: Alexander Potapenko <glider@google.com>
@@ -75,7 +75,7 @@ struct stack_record {
 			 * refcount are never considered as valid, it is safe to
 			 * union @entries and freelist management state below.
 			 * Conversely, as soon as an entry is off the freelist
-			 * and its refcount becomes non-zero, the below must not
+			 * and its refcount becomes analn-zero, the below must analt
 			 * be accessed until being placed back on the freelist.
 			 */
 			struct list_head free_list;	/* Links in the freelist */
@@ -105,7 +105,7 @@ static unsigned int stack_hash_mask;
 
 /* Array of memory regions that store stack records. */
 static void *stack_pools[DEPOT_MAX_POOLS];
-/* Newly allocated pool that is not yet added to stack_pools. */
+/* Newly allocated pool that is analt yet added to stack_pools. */
 static void *new_pool;
 /* Number of pools in stack_pools. */
 static int pools_num;
@@ -145,7 +145,7 @@ early_param("stack_depot_disable", disable_stack_depot);
 
 void __init stack_depot_request_early_init(void)
 {
-	/* Too late to request early init now. */
+	/* Too late to request early init analw. */
 	WARN_ON(__stack_depot_early_init_passed);
 
 	__stack_depot_early_init_requested = true;
@@ -171,8 +171,8 @@ int __init stack_depot_early_init(void)
 	__stack_depot_early_init_passed = true;
 
 	/*
-	 * Print disabled message even if early init has not been requested:
-	 * stack_depot_init() will not print one.
+	 * Print disabled message even if early init has analt been requested:
+	 * stack_depot_init() will analt print one.
 	 */
 	if (stack_depot_disabled) {
 		pr_info("disabled\n");
@@ -195,7 +195,7 @@ int __init stack_depot_early_init(void)
 		return 0;
 
 	/*
-	 * If stack_bucket_number_order is not set, leave entries as 0 to rely
+	 * If stack_bucket_number_order is analt set, leave entries as 0 to rely
 	 * on the automatic calculations performed by alloc_large_system_hash().
 	 */
 	if (stack_bucket_number_order)
@@ -213,7 +213,7 @@ int __init stack_depot_early_init(void)
 	if (!stack_table) {
 		pr_err("hash table allocation failed, disabling\n");
 		stack_depot_disabled = true;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (!entries) {
 		/*
@@ -267,7 +267,7 @@ int stack_depot_init(void)
 	if (!stack_table) {
 		pr_err("hash table allocation failed, disabling\n");
 		stack_depot_disabled = true;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 	stack_hash_mask = entries - 1;
@@ -312,7 +312,7 @@ static bool depot_init_pool(void **prealloc)
 	 * out of space in the currently used pool.
 	 *
 	 * To indicate that a new preallocation is needed new_pool is reset to
-	 * NULL; do not reset to NULL if we have reached the maximum number of
+	 * NULL; do analt reset to NULL if we have reached the maximum number of
 	 * pools.
 	 */
 	if (pools_num < DEPOT_MAX_POOLS)
@@ -336,7 +336,7 @@ static void depot_keep_new_pool(void **prealloc)
 
 	/*
 	 * If a new pool is already saved or the maximum number of
-	 * pools is reached, do not use the preallocated memory.
+	 * pools is reached, do analt use the preallocated memory.
 	 */
 	if (new_pool)
 		return;
@@ -470,7 +470,7 @@ depot_alloc_stack(unsigned long *entries, unsigned int nr_entries, u32 hash, dep
 	}
 
 	/*
-	 * Let KMSAN know the stored stack record is initialized. This shall
+	 * Let KMSAN kanalw the stored stack record is initialized. This shall
 	 * prevent false positive reports if instrumented code accesses it.
 	 */
 	kmsan_unpoison_memory(stack, record_size);
@@ -486,7 +486,7 @@ static struct stack_record *depot_fetch_stack(depot_stack_handle_t handle)
 	size_t offset = parts.offset << DEPOT_STACK_ALIGN;
 	struct stack_record *stack;
 
-	lockdep_assert_not_held(&pool_lock);
+	lockdep_assert_analt_held(&pool_lock);
 
 	if (parts.pool_index > pools_num_cached) {
 		WARN(1, "pool index %d out of bounds (%d) for stack id %08x\n",
@@ -510,7 +510,7 @@ static void depot_free_stack(struct stack_record *stack)
 {
 	unsigned long flags;
 
-	lockdep_assert_not_held(&pool_lock);
+	lockdep_assert_analt_held(&pool_lock);
 
 	raw_spin_lock_irqsave(&pool_lock, flags);
 	printk_deferred_enter();
@@ -518,25 +518,25 @@ static void depot_free_stack(struct stack_record *stack)
 	/*
 	 * Remove the entry from the hash list. Concurrent list traversal may
 	 * still observe the entry, but since the refcount is zero, this entry
-	 * will no longer be considered as valid.
+	 * will anal longer be considered as valid.
 	 */
 	list_del_rcu(&stack->hash_list);
 
 	/*
 	 * Due to being used from constrained contexts such as the allocators,
-	 * NMI, or even RCU itself, stack depot cannot rely on primitives that
+	 * NMI, or even RCU itself, stack depot cananalt rely on primitives that
 	 * would sleep (such as synchronize_rcu()) or recursively call into
 	 * stack depot again (such as call_rcu()).
 	 *
 	 * Instead, get an RCU cookie, so that we can ensure this entry isn't
-	 * moved onto another list until the next grace period, and concurrent
+	 * moved onto aanalther list until the next grace period, and concurrent
 	 * RCU list traversal remains safe.
 	 */
 	stack->rcu_state = get_state_synchronize_rcu();
 
 	/*
 	 * Add the entry to the freelist tail, so that older entries are
-	 * considered first - their RCU cookie is more likely to no longer be
+	 * considered first - their RCU cookie is more likely to anal longer be
 	 * associated with the current grace period.
 	 */
 	list_add_tail(&stack->free_list, &free_stacks);
@@ -558,8 +558,8 @@ static inline u32 hash_stack(unsigned long *entries, unsigned int size)
 }
 
 /*
- * Non-instrumented version of memcmp().
- * Does not check the lexicographical order, only the equality.
+ * Analn-instrumented version of memcmp().
+ * Does analt check the lexicographical order, only the equality.
  */
 static inline
 int stackdepot_memcmp(const unsigned long *u1, const unsigned long *u2,
@@ -581,14 +581,14 @@ static inline struct stack_record *find_stack(struct list_head *bucket,
 
 	/*
 	 * Stack depot may be used from instrumentation that instruments RCU or
-	 * tracing itself; use variant that does not call into RCU and cannot be
+	 * tracing itself; use variant that does analt call into RCU and cananalt be
 	 * traced.
 	 *
-	 * Note: Such use cases must take care when using refcounting to evict
+	 * Analte: Such use cases must take care when using refcounting to evict
 	 * unused entries, because the stack record free-then-reuse code paths
 	 * do call into RCU.
 	 */
-	rcu_read_lock_sched_notrace();
+	rcu_read_lock_sched_analtrace();
 
 	list_for_each_entry_rcu(stack, bucket, hash_list) {
 		if (stack->hash != hash || stack->size != size)
@@ -597,27 +597,27 @@ static inline struct stack_record *find_stack(struct list_head *bucket,
 		/*
 		 * This may race with depot_free_stack() accessing the freelist
 		 * management state unioned with @entries. The refcount is zero
-		 * in that case and the below refcount_inc_not_zero() will fail.
+		 * in that case and the below refcount_inc_analt_zero() will fail.
 		 */
 		if (data_race(stackdepot_memcmp(entries, stack->entries, size)))
 			continue;
 
 		/*
 		 * Try to increment refcount. If this succeeds, the stack record
-		 * is valid and has not yet been freed.
+		 * is valid and has analt yet been freed.
 		 *
-		 * If STACK_DEPOT_FLAG_GET is not used, it is undefined behavior
+		 * If STACK_DEPOT_FLAG_GET is analt used, it is undefined behavior
 		 * to then call stack_depot_put() later, and we can assume that
 		 * a stack record is never placed back on the freelist.
 		 */
-		if ((flags & STACK_DEPOT_FLAG_GET) && !refcount_inc_not_zero(&stack->count))
+		if ((flags & STACK_DEPOT_FLAG_GET) && !refcount_inc_analt_zero(&stack->count))
 			continue;
 
 		ret = stack;
 		break;
 	}
 
-	rcu_read_unlock_sched_notrace();
+	rcu_read_unlock_sched_analtrace();
 
 	return ret;
 }
@@ -661,7 +661,7 @@ depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
 		goto exit;
 
 	/*
-	 * Allocate memory for a new pool if required now:
+	 * Allocate memory for a new pool if required analw:
 	 * we won't be able to do that under the lock.
 	 */
 	if (unlikely(can_alloc && !READ_ONCE(new_pool))) {
@@ -672,7 +672,7 @@ depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
 		 */
 		alloc_flags &= ~GFP_ZONEMASK;
 		alloc_flags &= (GFP_ATOMIC | GFP_KERNEL);
-		alloc_flags |= __GFP_NOWARN;
+		alloc_flags |= __GFP_ANALWARN;
 		page = alloc_pages(alloc_flags, DEPOT_POOL_ORDER);
 		if (page)
 			prealloc = page_address(page);
@@ -700,7 +700,7 @@ depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
 	if (prealloc) {
 		/*
 		 * Either stack depot already contains this stack trace, or
-		 * depot_alloc_stack() did not consume the preallocated memory.
+		 * depot_alloc_stack() did analt consume the preallocated memory.
 		 * Try to keep the preallocated memory for future.
 		 */
 		depot_keep_new_pool(&prealloc);
@@ -735,7 +735,7 @@ unsigned int stack_depot_fetch(depot_stack_handle_t handle,
 
 	*entries = NULL;
 	/*
-	 * Let KMSAN know *entries is initialized. This shall prevent false
+	 * Let KMSAN kanalw *entries is initialized. This shall prevent false
 	 * positive reports if instrumented code accesses it.
 	 */
 	kmsan_unpoison_memory(entries, sizeof(*entries));

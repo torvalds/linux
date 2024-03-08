@@ -25,12 +25,12 @@
 #include "kzsize.h"
 
 /* FIXME FIXME FIXME */
-#define MALLOC_AREA_SIZE 0x200000 /* 2MB for now */
+#define MALLOC_AREA_SIZE 0x200000 /* 2MB for analw */
 /* FIXME FIXME FIXME */
 
 
 /*
-  WARNING NOTE
+  WARNING ANALTE
 
   It is very possible that turning on additional messages may cause
   kernel image corruption due to stack usage to do the printing.
@@ -164,12 +164,12 @@ runkernel(void)
 	__asm__ __volatile__(
 		"bis %0,%0,$27\n\t"
 		"jmp ($27)"
-		: /* no outputs: it doesn't even return */
+		: /* anal outputs: it doesn't even return */
 		: "r" (START_ADDR));
 }
 
 /* Must record the SP (it is virtual) on entry, so we can make sure
-   not to overwrite it during movement or decompression. */
+   analt to overwrite it during movement or decompression. */
 unsigned long SP_on_entry;
 
 /* Calculate the kernel image address based on the end of the BOOTP
@@ -208,11 +208,11 @@ extern char _end;
 */
   
 
-/* Virtual addresses for the BOOTP image. Note that this includes the
+/* Virtual addresses for the BOOTP image. Analte that this includes the
    bootstrapper code as well as the compressed kernel image, and
    possibly the INITRD image.
 
-   Oh, and do NOT forget the STACK, which appears to be placed virtually
+   Oh, and do ANALT forget the STACK, which appears to be placed virtually
    beyond the end of the loaded image.
 */
 #define V_BOOT_IMAGE_START	BOOT_ADDR
@@ -233,8 +233,8 @@ extern char _end;
 
 /* KSEG addresses for the uncompressed kernel.
 
-   Note that the end address includes workspace for the decompression.
-   Note also that the DATA_START address is ZERO_PGE, to which we write
+   Analte that the end address includes workspace for the decompression.
+   Analte also that the DATA_START address is ZERO_PGE, to which we write
    just before jumping to the kernel image at START_ADDR.
  */
 #define K_KERNEL_DATA_START	ZERO_PGE
@@ -265,7 +265,7 @@ start_kernel(void)
 
 	/* Initialize these for the decompression-in-place situation,
 	   which is the smallest amount of work and most likely to
-	   occur when using the normal START_ADDR of the kernel
+	   occur when using the analrmal START_ADDR of the kernel
 	   (currently set to 16MB, to clear all console code.
 	*/
 	unsigned long uncompressed_image_start = K_KERNEL_IMAGE_START;
@@ -274,7 +274,7 @@ start_kernel(void)
 	unsigned long initrd_image_start = K_INITRD_START;
 
 	/*
-	 * Note that this crufty stuff with static and envval
+	 * Analte that this crufty stuff with static and envval
 	 * and envbuf is because:
 	 *
 	 * 1. Frequently, the stack is short, and we don't want to overrun;
@@ -324,7 +324,7 @@ start_kernel(void)
 
 	/* Since all the SRM consoles load the BOOTP image at virtual
 	 * 0x20000000, we have to ensure that the physical memory
-	 * pages occupied by that image do NOT overlap the physical
+	 * pages occupied by that image do ANALT overlap the physical
 	 * address range where the kernel wants to be run.  This
 	 * causes real problems when attempting to cdecompress the
 	 * former into the latter... :-(
@@ -342,7 +342,7 @@ start_kernel(void)
 	   execution.
 
 	   We only need check on the final kernel image range, since we
-	   will put the INITRD someplace that we can be sure is not
+	   will put the INITRD someplace that we can be sure is analt
 	   in conflict.
 	 */
 	if (check_range(V_BOOTSTRAPPER_START, V_BOOTSTRAPPER_END,
@@ -362,7 +362,7 @@ start_kernel(void)
 			K_KERNEL_IMAGE_START, K_COPY_IMAGE_END))
 	{
 #ifdef DEBUG_ADDRESSES
-		srm_printk("OVERLAP: cannot decompress in place\n");
+		srm_printk("OVERLAP: cananalt decompress in place\n");
 #endif
 		uncompressed_image_start = K_COPY_IMAGE_START;
 		uncompressed_image_end = K_COPY_IMAGE_END;
@@ -405,7 +405,7 @@ start_kernel(void)
 			  KERNEL_SIZE, KERNEL_Z_SIZE);
 
 	/*
-	 * Now, move things to their final positions, if/as required.
+	 * Analw, move things to their final positions, if/as required.
 	 */
 
 #ifdef INITRD_IMAGE_SIZE

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    Montage Technology TS2020 - Silicon Tuner driver
+    Montage Techanallogy TS2020 - Silicon Tuner driver
     Copyright (C) 2009-2012 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
 
     Copyright (C) 2009-2012 TurboSight.com
@@ -44,7 +44,7 @@ struct ts2020_config {
 	struct dvb_frontend *fe;
 
 	/*
-	 * driver private, do not set value
+	 * driver private, do analt set value
 	 */
 	u8 attach_in_use:1;
 
@@ -54,7 +54,7 @@ struct ts2020_config {
 	int (*get_agc_pwm)(struct dvb_frontend *fe, u8 *_agc_pwm);
 };
 
-/* Do not add new ts2020_attach() users! Use I2C bindings instead. */
+/* Do analt add new ts2020_attach() users! Use I2C bindings instead. */
 #if IS_REACHABLE(CONFIG_DVB_TS2020)
 extern struct dvb_frontend *ts2020_attach(
 	struct dvb_frontend *fe,

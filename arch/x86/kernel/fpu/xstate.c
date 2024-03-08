@@ -8,7 +8,7 @@
 #include <linux/compat.h>
 #include <linux/cpu.h>
 #include <linux/mman.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/pkeys.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
@@ -52,13 +52,13 @@ static const char *xfeature_names[] =
 	"PASID state",
 	"Control-flow User registers",
 	"Control-flow Kernel registers (unused)",
-	"unknown xstate feature",
-	"unknown xstate feature",
-	"unknown xstate feature",
-	"unknown xstate feature",
+	"unkanalwn xstate feature",
+	"unkanalwn xstate feature",
+	"unkanalwn xstate feature",
+	"unkanalwn xstate feature",
 	"AMX Tile config",
 	"AMX Tile data",
-	"unknown xstate feature",
+	"unkanalwn xstate feature",
 };
 
 static unsigned short xsave_cpuid_features[] __initdata = {
@@ -140,7 +140,7 @@ static unsigned int xfeature_get_offset(u64 xcomp_bv, int xfeature)
 	unsigned int offs, i;
 
 	/*
-	 * Non-compacted format and legacy features use the cached fixed
+	 * Analn-compacted format and legacy features use the cached fixed
 	 * offsets.
 	 */
 	if (!cpu_feature_enabled(X86_FEATURE_XCOMPACTED) ||
@@ -177,7 +177,7 @@ void fpu__init_cpu_xstate(void)
 	/*
 	 * Must happen after CR4 setup and before xsetbv() to allow KVM
 	 * lazy passthrough.  Write independent of the dynamic state static
-	 * key as that does not work on the boot CPU. This also ensures
+	 * key as that does analt work on the boot CPU. This also ensures
 	 * that any stale state is wiped out from XFD.
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_XFD))
@@ -306,8 +306,8 @@ static void __init print_xstate_offset_size(void)
 }
 
 /*
- * This function is called only during boot time when x86 caps are not set
- * up and alternative can not be used yet.
+ * This function is called only during boot time when x86 caps are analt set
+ * up and alternative can analt be used yet.
  */
 static __init void os_xrstor_booting(struct xregs_state *xstate)
 {
@@ -331,7 +331,7 @@ static __init void os_xrstor_booting(struct xregs_state *xstate)
 /*
  * All supported features have either init state all zeros or are
  * handled in setup_init_fpu() individually. This is an explicit
- * feature list and does not use XFEATURE_MASK*SUPPORTED to catch
+ * feature list and does analt use XFEATURE_MASK*SUPPORTED to catch
  * newly added supported features at build time and make people
  * actually look at the init state for the new feature.
  */
@@ -371,9 +371,9 @@ static void __init setup_init_fpu_buf(void)
 	os_xrstor_booting(&init_fpstate.regs.xsave);
 
 	/*
-	 * All components are now in init state. Read the state back so
-	 * that init_fpstate contains all non-zero init state. This only
-	 * works with XSAVE, but not with XSAVEOPT and XSAVEC/S because
+	 * All components are analw in init state. Read the state back so
+	 * that init_fpstate contains all analn-zero init state. This only
+	 * works with XSAVE, but analt with XSAVEOPT and XSAVEC/S because
 	 * those use the init optimization which skips writing data for
 	 * components in init state.
 	 *
@@ -383,7 +383,7 @@ static void __init setup_init_fpu_buf(void)
 	 * components have an all zeros init state except for the legacy
 	 * ones (FP and SSE). Those can be saved with FXSAVE into the
 	 * legacy area. Adding new features requires to ensure that init
-	 * state is all zeroes or if not to add the necessary handling
+	 * state is all zeroes or if analt to add the necessary handling
 	 * here.
 	 */
 	fxsave(&init_fpstate.regs.fxsave);
@@ -402,7 +402,7 @@ int xfeature_size(int xfeature_nr)
 static int validate_user_xstate_header(const struct xstate_header *hdr,
 				       struct fpstate *fpstate)
 {
-	/* No unknown or supervisor features may be set */
+	/* Anal unkanalwn or supervisor features may be set */
 	if (hdr->xfeatures & ~fpstate->user_xfeatures)
 		return -EINVAL;
 
@@ -416,7 +416,7 @@ static int validate_user_xstate_header(const struct xstate_header *hdr,
 	 */
 	BUILD_BUG_ON(sizeof(hdr->reserved) != 48);
 
-	/* No reserved bits may be set */
+	/* Anal reserved bits may be set */
 	if (memchr_inv(hdr->reserved, 0, sizeof(hdr->reserved)))
 		return -EINVAL;
 
@@ -549,7 +549,7 @@ static bool __init check_xstate_against_struct(int nr)
 	case XFEATURE_CET_USER:	  return XCHECK_SZ(sz, nr, struct cet_user_state);
 	case XFEATURE_XTILE_DATA: check_xtile_data_against_struct(sz); return true;
 	default:
-		XSTATE_WARN_ON(1, "No structure for xstate: %d\n", nr);
+		XSTATE_WARN_ON(1, "Anal structure for xstate: %d\n", nr);
 		return false;
 	}
 
@@ -574,11 +574,11 @@ static unsigned int xstate_calculate_size(u64 xfeatures, bool compacted)
  * how large the XSAVE buffer needs to be.  We are recalculating
  * it to be safe.
  *
- * Independent XSAVE features allocate their own buffers and are not
+ * Independent XSAVE features allocate their own buffers and are analt
  * covered by these checks. Only the size of the buffer for task->fpu
  * is checked here.
  */
-static bool __init paranoid_xstate_size_valid(unsigned int kernel_size)
+static bool __init paraanalid_xstate_size_valid(unsigned int kernel_size)
 {
 	bool compacted = cpu_feature_enabled(X86_FEATURE_XCOMPACTED);
 	bool xsaves = cpu_feature_enabled(X86_FEATURE_XSAVES);
@@ -593,7 +593,7 @@ static bool __init paranoid_xstate_size_valid(unsigned int kernel_size)
 		 * XSAVES.
 		 */
 		if (!xsaves && xfeature_is_supervisor(i)) {
-			XSTATE_WARN_ON(1, "Got supervisor feature %d, but XSAVES not advertised\n", i);
+			XSTATE_WARN_ON(1, "Got supervisor feature %d, but XSAVES analt advertised\n", i);
 			return false;
 		}
 	}
@@ -606,7 +606,7 @@ static bool __init paranoid_xstate_size_valid(unsigned int kernel_size)
 /*
  * Get total size of enabled xstates in XCR0 | IA32_XSS.
  *
- * Note the SDM's wording here.  "sub-function 0" only enumerates
+ * Analte the SDM's wording here.  "sub-function 0" only enumerates
  * the size of the *user* states.  If we use it to size a buffer
  * that we use 'XSAVES' on, we could potentially overflow the
  * buffer because 'XSAVES' saves system states too.
@@ -625,8 +625,8 @@ static unsigned int __init get_compacted_size(void)
 	 *    corresponding to bits currently set in
 	 *    XCR0 | IA32_XSS.
 	 *
-	 * When XSAVES is not available but XSAVEC is (virt), then there
-	 * are no supervisor states, but XSAVEC still uses compacted
+	 * When XSAVES is analt available but XSAVEC is (virt), then there
+	 * are anal supervisor states, but XSAVEC still uses compacted
 	 * format.
 	 */
 	cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
@@ -685,10 +685,10 @@ static int __init init_xstate_size(void)
 
 	/*
 	 * XSAVES kernel size includes supervisor states and uses compacted
-	 * format. XSAVEC uses compacted format, but does not save
+	 * format. XSAVEC uses compacted format, but does analt save
 	 * supervisor states.
 	 *
-	 * XSAVE[OPT] do not support supervisor states so kernel and user
+	 * XSAVE[OPT] do analt support supervisor states so kernel and user
 	 * size is identical.
 	 */
 	if (compacted)
@@ -699,7 +699,7 @@ static int __init init_xstate_size(void)
 	kernel_default_size =
 		xstate_calculate_size(fpu_kernel_cfg.default_features, compacted);
 
-	if (!paranoid_xstate_size_valid(kernel_size))
+	if (!paraanalid_xstate_size_valid(kernel_size))
 		return -EINVAL;
 
 	fpu_kernel_cfg.max_size = kernel_size;
@@ -714,7 +714,7 @@ static int __init init_xstate_size(void)
 
 /*
  * We enabled the XSAVE hardware, but something went wrong and
- * we can not use it.  Disable it.
+ * we can analt use it.  Disable it.
  */
 static void __init fpu__init_disable_system_xstate(unsigned int legacy_size)
 {
@@ -749,7 +749,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	int i;
 
 	if (!boot_cpu_has(X86_FEATURE_FPU)) {
-		pr_info("x86/fpu: No FPU detected\n");
+		pr_info("x86/fpu: Anal FPU detected\n");
 		return;
 	}
 
@@ -782,13 +782,13 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 		 * with the enumeration.  Disable XSAVE and try to continue
 		 * booting without it.  This is too early to BUG().
 		 */
-		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n",
+		pr_err("x86/fpu: FP/SSE analt present amongst the CPU's xstate features: 0x%llx.\n",
 		       fpu_kernel_cfg.max_features);
 		goto out_disable;
 	}
 
 	/*
-	 * Clear XSAVE features that are disabled in the normal CPUID.
+	 * Clear XSAVE features that are disabled in the analrmal CPUID.
 	 */
 	for (i = 0; i < ARRAY_SIZE(xsave_cpuid_features); i++) {
 		unsigned short cid = xsave_cpuid_features[i];
@@ -817,13 +817,13 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	fpu_user_cfg.default_features = fpu_user_cfg.max_features;
 	fpu_user_cfg.default_features &= ~XFEATURE_MASK_USER_DYNAMIC;
 
-	/* Store it for paranoia check at the end */
+	/* Store it for paraanalia check at the end */
 	xfeatures = fpu_kernel_cfg.max_features;
 
 	/*
 	 * Initialize the default XFD state in initfp_state and enable the
 	 * dynamic sizing mechanism if dynamic states are available.  The
-	 * static key cannot be enabled here because this runs before
+	 * static key cananalt be enabled here because this runs before
 	 * jump_label_init(). This is delayed to an initcall.
 	 */
 	init_fpstate.xfd = fpu_user_cfg.max_features & XFEATURE_MASK_USER_DYNAMIC;
@@ -847,7 +847,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	fpstate_reset(&current->thread.fpu);
 
 	/*
-	 * Update info used for ptrace frames; use standard-format size and no
+	 * Update info used for ptrace frames; use standard-format size and anal
 	 * supervisor xstates:
 	 */
 	update_regset_xstate_info(fpu_user_cfg.max_size,
@@ -869,7 +869,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	setup_init_fpu_buf();
 
 	/*
-	 * Paranoia check whether something in the setup modified the
+	 * Paraanalia check whether something in the setup modified the
 	 * xfeatures mask.
 	 */
 	if (xfeatures != fpu_kernel_cfg.max_features) {
@@ -880,7 +880,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 
 	/*
 	 * CPU capabilities initialization runs before FPU init. So
-	 * X86_FEATURE_OSXSAVE is not set. Now that XSAVE is completely
+	 * X86_FEATURE_OSXSAVE is analt set. Analw that XSAVE is completely
 	 * functional, set the feature bit so depending code works.
 	 */
 	setup_force_cpu_cap(X86_FEATURE_OSXSAVE);
@@ -948,7 +948,7 @@ static void *__raw_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
  * This is the API that is called to get xstate address in either
  * standard format or compacted format of xsave area.
  *
- * Note that if there is no data for the field in the xsave buffer
+ * Analte that if there is anal data for the field in the xsave buffer
  * this will return NULL.
  *
  * Inputs:
@@ -957,7 +957,7 @@ static void *__raw_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
  *	XFEATURE_SSE, etc...)
  * Output:
  *	address of the state in the xsave area, or NULL if the
- *	field is not present in the xsave buffer.
+ *	field is analt present in the xsave buffer.
  */
 void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 {
@@ -968,8 +968,8 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 		return NULL;
 
 	/*
-	 * We should not ever be requesting features that we
-	 * have not enabled.
+	 * We should analt ever be requesting features that we
+	 * have analt enabled.
 	 */
 	if (WARN_ON_ONCE(!xfeature_enabled(xfeature_nr)))
 		return NULL;
@@ -977,13 +977,13 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 	/*
 	 * This assumes the last 'xsave*' instruction to
 	 * have requested that 'xfeature_nr' be saved.
-	 * If it did not, we might be seeing and old value
+	 * If it did analt, we might be seeing and old value
 	 * of the field in the buffer.
 	 *
-	 * This can happen because the last 'xsave' did not
+	 * This can happen because the last 'xsave' did analt
 	 * request that this feature be saved (unlikely)
 	 * or because the "init optimization" caused it
-	 * to not be saved.
+	 * to analt be saved.
 	 */
 	if (!(xsave->header.xfeatures & BIT_ULL(xfeature_nr)))
 		return NULL;
@@ -1124,11 +1124,11 @@ void __copy_xstate_to_uabi_buf(struct membuf to, struct fpstate *fpstate,
 
 	/*
 	 * This 'mask' indicates which states to copy from fpstate.
-	 * Those extended states that are not present in fpstate are
+	 * Those extended states that are analt present in fpstate are
 	 * either disabled or initialized:
 	 *
-	 * In non-compacted format, disabled features still occupy
-	 * state space but there is no state to copy from in the
+	 * In analn-compacted format, disabled features still occupy
+	 * state space but there is anal state to copy from in the
 	 * compacted init_fpstate. The gap tracking will zero these
 	 * states.
 	 *
@@ -1149,7 +1149,7 @@ void __copy_xstate_to_uabi_buf(struct membuf to, struct fpstate *fpstate,
 		if (i == XFEATURE_PKRU) {
 			struct pkru_state pkru = {0};
 			/*
-			 * PKRU is not necessarily up to date in the
+			 * PKRU is analt necessarily up to date in the
 			 * XSAVE buffer. Use the provided value.
 			 */
 			pkru.pkru = pkru_val;
@@ -1160,7 +1160,7 @@ void __copy_xstate_to_uabi_buf(struct membuf to, struct fpstate *fpstate,
 				     xstate_sizes[i]);
 		}
 		/*
-		 * Keep track of the last copied state in the non-compacted
+		 * Keep track of the last copied state in the analn-compacted
 		 * target buffer for gap zeroing.
 		 */
 		zerofrom = xstate_offsets[i] + xstate_sizes[i];
@@ -1225,12 +1225,12 @@ static int copy_from_buffer(void *dst, unsigned int offset, unsigned int size,
  *	thread_struct's pkru field. A pointer to that is passed in @pkru.
  *	The kernel will restore it manually, so the XRSTOR behavior that resets
  *	the PKRU register to the hardware init value (0) if the corresponding
- *	xfeatures bit is not set is emulated here.
+ *	xfeatures bit is analt set is emulated here.
  * 3.	When called from KVM the PKRU register will be restored from the vcpu's
  *	pkru field. A pointer to that is passed in @pkru. KVM hasn't used
  *	XRSTOR and hasn't had the PKRU resetting behavior described above. To
  *	preserve that KVM behavior, it passes NULL for @pkru if the xfeatures
- *	bit is not set.
+ *	bit is analt set.
  */
 static int copy_uabi_to_xstate(struct fpstate *fpstate, const void *kbuf,
 			       const void __user *ubuf, u32 *pkru)
@@ -1261,7 +1261,7 @@ static int copy_uabi_to_xstate(struct fpstate *fpstate, const void *kbuf,
 		if (mxcsr[0] & ~mxcsr_feature_mask)
 			return -EINVAL;
 
-		/* SSE and YMM require MXCSR even when FP is not in use. */
+		/* SSE and YMM require MXCSR even when FP is analt in use. */
 		if (!(hdr.xfeatures & XFEATURE_MASK_FP)) {
 			xsave->i387.mxcsr = mxcsr[0];
 			xsave->i387.mxcsr_mask = mxcsr[1];
@@ -1289,7 +1289,7 @@ static int copy_uabi_to_xstate(struct fpstate *fpstate, const void *kbuf,
 		*pkru = xpkru->pkru;
 	} else {
 		/*
-		 * KVM may pass NULL here to indicate that it does not need
+		 * KVM may pass NULL here to indicate that it does analt need
 		 * PKRU updated.
 		 */
 		if (pkru)
@@ -1351,7 +1351,7 @@ static bool validate_independent_components(u64 mask)
  * @mask:	Feature mask to select the components to save
  *
  * The @xstate buffer must be 64 byte aligned and correctly initialized as
- * XSAVES does not write the full xstate header. Before first use the
+ * XSAVES does analt write the full xstate header. Before first use the
  * buffer should be zeroed otherwise a consecutive XRSTORS from that buffer
  * can #GP.
  *
@@ -1418,7 +1418,7 @@ static bool xstate_op_valid(struct fpstate *fpstate, u64 mask, bool rstor)
 		return true;
 
 	 /*
-	  * The XFD MSR does not match fpstate->xfd. That's invalid when
+	  * The XFD MSR does analt match fpstate->xfd. That's invalid when
 	  * the passed in fpstate is current's fpstate.
 	  */
 	if (fpstate->xfd == current->thread.fpu.fpstate->xfd)
@@ -1426,7 +1426,7 @@ static bool xstate_op_valid(struct fpstate *fpstate, u64 mask, bool rstor)
 
 	/*
 	 * XRSTOR(S) from init_fpstate are always correct as it will just
-	 * bring all components into init state and not read from the
+	 * bring all components into init state and analt read from the
 	 * buffer. XSAVE(S) raises #PF after init.
 	 */
 	if (fpstate == &init_fpstate)
@@ -1438,7 +1438,7 @@ static bool xstate_op_valid(struct fpstate *fpstate, u64 mask, bool rstor)
 	 */
 
 	/*
-	 * No XSAVE/XRSTOR instructions (except XSAVE itself) touch
+	 * Anal XSAVE/XRSTOR instructions (except XSAVE itself) touch
 	 * the buffer area for XFD-disabled state components.
 	 */
 	mask &= ~xfd;
@@ -1489,11 +1489,11 @@ void fpstate_free(struct fpu *fpu)
  * @usize:	The required size for user space buffers
  * @guest_fpu:	Pointer to a guest FPU container. NULL for host allocations
  *
- * Note vs. vmalloc(): If the task with a vzalloc()-allocated buffer
+ * Analte vs. vmalloc(): If the task with a vzalloc()-allocated buffer
  * terminates quickly, vfree()-induced IPIs may be a concern, but tasks
  * with large states are likely to live longer.
  *
- * Returns: 0 on success, -ENOMEM on allocation error.
+ * Returns: 0 on success, -EANALMEM on allocation error.
  */
 static int fpstate_realloc(u64 xfeatures, unsigned int ksize,
 			   unsigned int usize, struct fpu_guest *guest_fpu)
@@ -1507,14 +1507,14 @@ static int fpstate_realloc(u64 xfeatures, unsigned int ksize,
 
 	newfps = vzalloc(fpsize);
 	if (!newfps)
-		return -ENOMEM;
+		return -EANALMEM;
 	newfps->size = ksize;
 	newfps->user_size = usize;
 	newfps->is_valloc = true;
 
 	/*
 	 * When a guest FPU is supplied, use @guest_fpu->fpstate
-	 * as reference independent whether it is in use or not.
+	 * as reference independent whether it is in use or analt.
 	 */
 	curfps = guest_fpu ? guest_fpu->fpstate : fpu->fpstate;
 
@@ -1577,7 +1577,7 @@ static int validate_sigaltstack(unsigned int usize)
 	framesize += usize;
 	for_each_thread(leader, thread) {
 		if (thread->sas_ss_size && thread->sas_ss_size < framesize)
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 	return 0;
 }
@@ -1585,7 +1585,7 @@ static int validate_sigaltstack(unsigned int usize)
 static int __xstate_request_perm(u64 permitted, u64 requested, bool guest)
 {
 	/*
-	 * This deliberately does not exclude !XSAVES as we still might
+	 * This deliberately does analt exclude !XSAVES as we still might
 	 * decide to optionally context switch XCR0 or talk the silicon
 	 * vendors into extending XFD for the pre AMX states, especially
 	 * AVX512.
@@ -1646,13 +1646,13 @@ static int xstate_request_perm(unsigned long idx, bool guest)
 	 * Look up the facility mask which can require more than
 	 * one xstate component.
 	 */
-	idx = array_index_nospec(idx, ARRAY_SIZE(xstate_prctl_req));
+	idx = array_index_analspec(idx, ARRAY_SIZE(xstate_prctl_req));
 	requested = xstate_prctl_req[idx];
 	if (!requested)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((fpu_user_cfg.max_features & requested) != requested)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Lockless quick check */
 	permitted = xstate_get_group_perm(guest);
@@ -1688,7 +1688,7 @@ int __xfd_enable_feature(u64 xfd_err, struct fpu_guest *guest_fpu)
 	/* Protect against concurrent modifications */
 	spin_lock_irq(&current->sighand->siglock);
 
-	/* If not permitted let it die */
+	/* If analt permitted let it die */
 	if ((xstate_get_group_perm(!!guest_fpu) & xfd_event) != xfd_event) {
 		spin_unlock_irq(&current->sighand->siglock);
 		return -EPERM;
@@ -1702,13 +1702,13 @@ int __xfd_enable_feature(u64 xfd_err, struct fpu_guest *guest_fpu)
 	/*
 	 * The feature is permitted. State size is sufficient.  Dropping
 	 * the lock is safe here even if more features are added from
-	 * another task, the retrieved buffer sizes are valid for the
+	 * aanalther task, the retrieved buffer sizes are valid for the
 	 * currently requested feature(s).
 	 */
 	spin_unlock_irq(&current->sighand->siglock);
 
 	/*
-	 * Try to allocate a new fpstate. If that fails there is no way
+	 * Try to allocate a new fpstate. If that fails there is anal way
 	 * out.
 	 */
 	if (fpstate_realloc(xfd_event, ksize, usize, guest_fpu))
@@ -1783,7 +1783,7 @@ long fpu_xstate_prctl(int option, unsigned long arg2)
 
 	case ARCH_REQ_XCOMP_PERM:
 		if (!IS_ENABLED(CONFIG_X86_64))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		return xstate_request_perm(idx, guest);
 
@@ -1804,7 +1804,7 @@ static void avx512_status(struct seq_file *m, struct task_struct *task)
 
 	if (!timestamp) {
 		/*
-		 * Report -1 if no AVX512 usage
+		 * Report -1 if anal AVX512 usage
 		 */
 		delta = -1;
 	} else {

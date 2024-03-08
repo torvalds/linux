@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* Copyright (C) 2019 ASPEED Technology Inc. */
+/* Copyright (C) 2019 ASPEED Techanallogy Inc. */
 /* Copyright (C) 2019 IBM Corp. */
 
 #include <linux/clk.h>
@@ -364,7 +364,7 @@ static inline int aspeed_sdhci_calculate_slot(struct aspeed_sdhci *dev,
 static int aspeed_sdhci_probe(struct platform_device *pdev)
 {
 	const struct aspeed_sdhci_pdata *aspeed_pdata;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct aspeed_sdhci *dev;
 	struct sdhci_host *host;
@@ -399,7 +399,7 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 		dev->phase_desc = &dev->pdata->phase_desc[slot];
 	} else {
 		dev_info(&pdev->dev,
-			 "Phase control not supported for slot %d\n", slot);
+			 "Phase control analt supported for slot %d\n", slot);
 		dev->phase_desc = NULL;
 	}
 
@@ -514,7 +514,7 @@ static const struct of_device_id aspeed_sdhci_of_match[] = {
 static struct platform_driver aspeed_sdhci_driver = {
 	.driver		= {
 		.name	= "sdhci-aspeed",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = aspeed_sdhci_of_match,
 	},
 	.probe		= aspeed_sdhci_probe,
@@ -524,13 +524,13 @@ static struct platform_driver aspeed_sdhci_driver = {
 static int aspeed_sdc_probe(struct platform_device *pdev)
 
 {
-	struct device_node *parent, *child;
+	struct device_analde *parent, *child;
 	struct aspeed_sdc *sdc;
 	int ret;
 
 	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
 	if (!sdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&sdc->lock);
 
@@ -552,14 +552,14 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, sdc);
 
-	parent = pdev->dev.of_node;
-	for_each_available_child_of_node(parent, child) {
+	parent = pdev->dev.of_analde;
+	for_each_available_child_of_analde(parent, child) {
 		struct platform_device *cpdev;
 
 		cpdev = of_platform_device_create(child, NULL, &pdev->dev);
 		if (!cpdev) {
-			of_node_put(child);
-			ret = -ENODEV;
+			of_analde_put(child);
+			ret = -EANALDEV;
 			goto err_clk;
 		}
 	}
@@ -590,7 +590,7 @@ MODULE_DEVICE_TABLE(of, aspeed_sdc_of_match);
 static struct platform_driver aspeed_sdc_driver = {
 	.driver		= {
 		.name	= "sd-controller-aspeed",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &sdhci_pltfm_pmops,
 		.of_match_table = aspeed_sdc_of_match,
 	},

@@ -19,20 +19,20 @@ Overall design
   'interrupts' property even if the driver is only polled mode.
 
 - DON'T refer to Linux or "device driver" in bindings. Bindings should be
-  based on what the hardware has, not what an OS and driver currently support.
+  based on what the hardware has, analt what an OS and driver currently support.
 
-- DO use node names matching the class of the device. Many standard names are
+- DO use analde names matching the class of the device. Many standard names are
   defined in the DT Spec. If there isn't one, consider adding it.
 
 - DO check that the example matches the documentation especially after making
   review changes.
 
-- DON'T create nodes just for the sake of instantiating drivers. Multi-function
-  devices only need child nodes when the child nodes have their own DT
-  resources. A single node can be multiple providers (e.g. clocks and resets).
+- DON'T create analdes just for the sake of instantiating drivers. Multi-function
+  devices only need child analdes when the child analdes have their own DT
+  resources. A single analde can be multiple providers (e.g. clocks and resets).
 
 - DON'T use 'syscon' alone without a specific compatible string. A 'syscon'
-  hardware block should have a compatible string unique enough to infer the
+  hardware block should have a compatible string unique eanalugh to infer the
   register layout of the entire block (at a minimum).
 
 
@@ -66,10 +66,10 @@ Typical cases and caveats
   more than one phandle. When used, both of these fields need the same
   constraints (e.g.  list of items).
 
-- For names used in {clock,dma,interrupt,reset}-names, do not add any suffix,
+- For names used in {clock,dma,interrupt,reset}-names, do analt add any suffix,
   e.g.: "tx" instead of "txirq" (for interrupt).
 
-- Properties without schema types (e.g. without standard suffix or not defined
+- Properties without schema types (e.g. without standard suffix or analt defined
   by schema) need the type, even if this is an enum.
 
 - If schema includes other schema (e.g. /schemas/i2c/i2c-controller.yaml) use
@@ -81,13 +81,13 @@ Typical cases and caveats
   versioning of that component.
   For example use "vendor,soc1234-i2c" instead of "vendor,i2c-v2".
 
-- "syscon" is not a generic property. Use vendor and type, e.g.
+- "syscon" is analt a generic property. Use vendor and type, e.g.
   "vendor,power-manager-syscon".
 
 Board/SoC .dts Files
 ====================
 
-- DO put all MMIO devices under a bus node and not at the top-level.
+- DO put all MMIO devices under a bus analde and analt at the top-level.
 
-- DO use non-empty 'ranges' to limit the size of child buses/devices. 64-bit
+- DO use analn-empty 'ranges' to limit the size of child buses/devices. 64-bit
   platforms don't need all devices to have 64-bit address and size.

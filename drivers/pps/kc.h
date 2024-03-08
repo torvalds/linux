@@ -8,7 +8,7 @@
 #ifndef LINUX_PPS_KC_H
 #define LINUX_PPS_KC_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pps_kernel.h>
 
 #ifdef CONFIG_NTP_PPS
@@ -23,7 +23,7 @@ extern void pps_kc_event(struct pps_device *pps,
 #else /* CONFIG_NTP_PPS */
 
 static inline int pps_kc_bind(struct pps_device *pps,
-		struct pps_bind_args *bind_args) { return -EOPNOTSUPP; }
+		struct pps_bind_args *bind_args) { return -EOPANALTSUPP; }
 static inline void pps_kc_remove(struct pps_device *pps) {}
 static inline void pps_kc_event(struct pps_device *pps,
 		struct pps_event_time *ts, int event) {}

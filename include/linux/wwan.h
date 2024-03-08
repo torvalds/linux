@@ -13,12 +13,12 @@
  * @WWAN_PORT_AT: AT commands
  * @WWAN_PORT_MBIM: Mobile Broadband Interface Model control
  * @WWAN_PORT_QMI: Qcom modem/MSM interface for modem control
- * @WWAN_PORT_QCDM: Qcom Modem diagnostic interface
+ * @WWAN_PORT_QCDM: Qcom Modem diaganalstic interface
  * @WWAN_PORT_FIREHOSE: XML based command protocol
  * @WWAN_PORT_XMMRPC: Control protocol for Intel XMM modems
  *
  * @WWAN_PORT_MAX: Highest supported port types
- * @WWAN_PORT_UNKNOWN: Special value to indicate an unknown port type
+ * @WWAN_PORT_UNKANALWN: Special value to indicate an unkanalwn port type
  * @__WWAN_PORT_MAX: Internal use
  */
 enum wwan_port_type {
@@ -33,7 +33,7 @@ enum wwan_port_type {
 
 	__WWAN_PORT_MAX,
 	WWAN_PORT_MAX = __WWAN_PORT_MAX - 1,
-	WWAN_PORT_UNKNOWN,
+	WWAN_PORT_UNKANALWN,
 };
 
 struct device;
@@ -45,7 +45,7 @@ struct wwan_port;
 /** struct wwan_port_ops - The WWAN port operations
  * @start: The routine for starting the WWAN port device.
  * @stop: The routine for stopping the WWAN port device.
- * @tx: Non-blocking routine that sends WWAN port protocol data to the device.
+ * @tx: Analn-blocking routine that sends WWAN port protocol data to the device.
  * @tx_blocking: Optional blocking routine that sends WWAN port protocol data
  *               to the device.
  * @tx_poll: Optional routine that sets additional TX poll flags.
@@ -159,10 +159,10 @@ static inline void *wwan_netdev_drvpriv(struct net_device *dev)
 }
 
 /*
- * Used to indicate that the WWAN core should not create a default network
+ * Used to indicate that the WWAN core should analt create a default network
  * link.
  */
-#define WWAN_NO_DEFAULT_LINK		U32_MAX
+#define WWAN_ANAL_DEFAULT_LINK		U32_MAX
 
 /**
  * struct wwan_ops - WWAN device ops
@@ -191,7 +191,7 @@ void wwan_put_debugfs_dir(struct dentry *dir);
 #else
 static inline struct dentry *wwan_get_debugfs_dir(struct device *parent)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 static inline void wwan_put_debugfs_dir(struct dentry *dir) {}
 #endif

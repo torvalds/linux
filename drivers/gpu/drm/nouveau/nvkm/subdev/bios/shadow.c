@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,7 +55,7 @@ shadow_image(struct nvkm_bios *bios, int idx, u32 offset, struct shadow *mthd)
 	struct nvbios_image image;
 	int score = 1;
 
-	if (mthd->func->no_pcir) {
+	if (mthd->func->anal_pcir) {
 		image.base = 0;
 		image.type = 0;
 		image.size = mthd->func->size(mthd->data);
@@ -82,7 +82,7 @@ shadow_image(struct nvkm_bios *bios, int idx, u32 offset, struct shadow *mthd)
 
 	switch (image.type) {
 	case 0x00:
-		if (!mthd->func->ignore_checksum &&
+		if (!mthd->func->iganalre_checksum &&
 		    nvbios_checksum(&bios->data[image.base], image.size)) {
 			nvkm_debug(subdev, "%08x: checksum failed\n",
 				   image.base);
@@ -150,7 +150,7 @@ shadow_fw_init(struct nvkm_bios *bios, const char *name)
 	const struct firmware *fw;
 	int ret = request_firmware(&fw, name, dev);
 	if (ret)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	return (void *)fw;
 }
 

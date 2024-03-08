@@ -155,7 +155,7 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 	bool			of_match;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver = &xhci_plat_hc_driver;
 
@@ -172,12 +172,12 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	hcd = __usb_create_hcd(driver, sysdev, &pdev->dev,
 			       dev_name(&pdev->dev), NULL);
 	if (!hcd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto disable_runtime;
 	}
 
@@ -195,8 +195,8 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 	xhci->allow_single_roothub = 1;
 
 	/*
-	 * Not all platforms have clks so it is not an error if the
-	 * clock do not exist.
+	 * Analt all platforms have clks so it is analt an error if the
+	 * clock do analt exist.
 	 */
 	xhci->reg_clk = devm_clk_get_optional(&pdev->dev, "reg");
 	if (IS_ERR(xhci->reg_clk)) {
@@ -230,7 +230,7 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 
 	if (priv_match) {
 		priv = hcd_to_xhci_priv(hcd);
-		/* Just copy data for now */
+		/* Just copy data for analw */
 		*priv = *priv_match;
 	}
 
@@ -238,10 +238,10 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 
 	xhci->main_hcd = hcd;
 
-	/* imod_interval is the interrupt moderation value in nanoseconds. */
+	/* imod_interval is the interrupt moderation value in naanalseconds. */
 	xhci->imod_interval = 40000;
 
-	/* Iterate over all parent nodes for finding quirks */
+	/* Iterate over all parent analdes for finding quirks */
 	for (tmpdev = &pdev->dev; tmpdev; tmpdev = tmpdev->parent) {
 
 		if (device_property_read_bool(tmpdev, "usb2-lpm-disable"))
@@ -279,7 +279,7 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 		}
 	}
 
-	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_node);
+	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_analde);
 
 	if (priv && (priv->quirks & XHCI_SKIP_PHY_INIT))
 		hcd->skip_phy_initialization = 1;
@@ -295,7 +295,7 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 		xhci->shared_hcd = __usb_create_hcd(driver, sysdev, &pdev->dev,
 						    dev_name(&pdev->dev), hcd);
 		if (!xhci->shared_hcd) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto dealloc_usb2_hcd;
 		}
 
@@ -326,7 +326,7 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 	}
 
 	device_enable_async_suspend(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	/*
 	 * Prevent runtime pm from being on as default, users should enable
@@ -359,7 +359,7 @@ put_hcd:
 	usb_put_hcd(hcd);
 
 disable_runtime:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return ret;
@@ -373,15 +373,15 @@ static int xhci_generic_plat_probe(struct platform_device *pdev)
 	int ret;
 
 	/*
-	 * sysdev must point to a device that is known to the system firmware
+	 * sysdev must point to a device that is kanalwn to the system firmware
 	 * or PCI hardware. We handle these three cases here:
 	 * 1. xhci_plat comes from firmware
 	 * 2. xhci_plat is child of a device from firmware (dwc3-plat)
 	 * 3. xhci_plat is grandchild of a pci device (dwc3-pci)
 	 */
 	for (sysdev = &pdev->dev; sysdev; sysdev = sysdev->parent) {
-		if (is_of_node(sysdev->fwnode) ||
-			is_acpi_device_node(sysdev->fwnode))
+		if (is_of_analde(sysdev->fwanalde) ||
+			is_acpi_device_analde(sysdev->fwanalde))
 			break;
 		else if (dev_is_pci(sysdev))
 			break;
@@ -391,13 +391,13 @@ static int xhci_generic_plat_probe(struct platform_device *pdev)
 		sysdev = &pdev->dev;
 
 	if (WARN_ON(!sysdev->dma_mask)) {
-		/* Platform did not initialize dma_mask */
+		/* Platform did analt initialize dma_mask */
 		ret = dma_coerce_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
 		if (ret)
 			return ret;
 	}
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		priv_match = of_device_get_match_data(&pdev->dev);
 	else
 		priv_match = dev_get_platdata(&pdev->dev);
@@ -434,7 +434,7 @@ void xhci_plat_remove(struct platform_device *dev)
 	usb_put_hcd(hcd);
 
 	pm_runtime_disable(&dev->dev);
-	pm_runtime_put_noidle(&dev->dev);
+	pm_runtime_put_analidle(&dev->dev);
 	pm_runtime_set_suspended(&dev->dev);
 }
 EXPORT_SYMBOL_GPL(xhci_plat_remove);
@@ -452,7 +452,7 @@ static int xhci_plat_suspend(struct device *dev)
 	if (ret)
 		return ret;
 	/*
-	 * xhci_suspend() needs `do_wakeup` to know whether host is allowed
+	 * xhci_suspend() needs `do_wakeup` to kanalw whether host is allowed
 	 * to do wakeup during suspend.
 	 */
 	ret = xhci_suspend(xhci, device_may_wakeup(dev));

@@ -4,7 +4,7 @@
 #include <linux/module.h>
 #include <linux/bitrev.h>
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akianalbu Mita <akianalbu.mita@gmail.com>");
 MODULE_DESCRIPTION("Bit ordering reversal functions");
 MODULE_LICENSE("GPL");
 

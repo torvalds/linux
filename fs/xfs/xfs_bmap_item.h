@@ -19,7 +19,7 @@
  * Should the system crash after the commit of the first transaction but
  * before the commit of the final transaction in a series, log recovery will
  * use the redo information recorded by the intent items to replay the
- * bmbt metadata updates in the non-first transaction.
+ * bmbt metadata updates in the analn-first transaction.
  */
 
 /* kernel only BUI/BUD definitions */

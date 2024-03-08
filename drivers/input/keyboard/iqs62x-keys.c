@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/iqs62x.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -22,7 +22,7 @@ enum {
 };
 
 static const char * const iqs62x_switch_names[] = {
-	[IQS62X_SW_HALL_N] = "hall-switch-north",
+	[IQS62X_SW_HALL_N] = "hall-switch-analrth",
 	[IQS62X_SW_HALL_S] = "hall-switch-south",
 };
 
@@ -35,7 +35,7 @@ struct iqs62x_switch_desc {
 struct iqs62x_keys_private {
 	struct iqs62x_core *iqs62x;
 	struct input_dev *input;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	struct iqs62x_switch_desc switches[ARRAY_SIZE(iqs62x_switch_names)];
 	unsigned int keycode[IQS62X_NUM_KEYS];
 	unsigned int keycodemax;
@@ -45,7 +45,7 @@ struct iqs62x_keys_private {
 static int iqs62x_keys_parse_prop(struct platform_device *pdev,
 				  struct iqs62x_keys_private *iqs62x_keys)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	unsigned int val;
 	int ret, i;
 
@@ -68,22 +68,22 @@ static int iqs62x_keys_parse_prop(struct platform_device *pdev,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(iqs62x_keys->switches); i++) {
-		child = device_get_named_child_node(&pdev->dev,
+		child = device_get_named_child_analde(&pdev->dev,
 						    iqs62x_switch_names[i]);
 		if (!child)
 			continue;
 
-		ret = fwnode_property_read_u32(child, "linux,code", &val);
+		ret = fwanalde_property_read_u32(child, "linux,code", &val);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to read switch code: %d\n",
 				ret);
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 		iqs62x_keys->switches[i].code = val;
 		iqs62x_keys->switches[i].enabled = true;
 
-		if (fwnode_property_present(child, "azoteq,use-prox"))
+		if (fwanalde_property_present(child, "azoteq,use-prox"))
 			iqs62x_keys->switches[i].flag = (i == IQS62X_SW_HALL_N ?
 							 IQS62X_EVENT_HALL_N_P :
 							 IQS62X_EVENT_HALL_S_P);
@@ -92,7 +92,7 @@ static int iqs62x_keys_parse_prop(struct platform_device *pdev,
 							 IQS62X_EVENT_HALL_N_T :
 							 IQS62X_EVENT_HALL_S_T);
 
-		fwnode_handle_put(child);
+		fwanalde_handle_put(child);
 	}
 
 	return 0;
@@ -134,7 +134,7 @@ static int iqs62x_keys_init(struct iqs62x_keys_private *iqs62x_keys)
 
 		/*
 		 * Hall UI flags represent switches and are unmasked if their
-		 * corresponding child nodes are present.
+		 * corresponding child analdes are present.
 		 */
 		for (i = 0; i < ARRAY_SIZE(iqs62x_keys->switches); i++) {
 			if (!(iqs62x_keys->switches[i].enabled))
@@ -184,25 +184,25 @@ static int iqs62x_keys_init(struct iqs62x_keys_private *iqs62x_keys)
 	return regmap_update_bits(iqs62x->regmap, event_reg, event_mask, 0);
 }
 
-static int iqs62x_keys_notifier(struct notifier_block *notifier,
+static int iqs62x_keys_analtifier(struct analtifier_block *analtifier,
 				unsigned long event_flags, void *context)
 {
 	struct iqs62x_event_data *event_data = context;
 	struct iqs62x_keys_private *iqs62x_keys;
 	int ret, i;
 
-	iqs62x_keys = container_of(notifier, struct iqs62x_keys_private,
-				   notifier);
+	iqs62x_keys = container_of(analtifier, struct iqs62x_keys_private,
+				   analtifier);
 
 	if (event_flags & BIT(IQS62X_EVENT_SYS_RESET)) {
 		ret = iqs62x_keys_init(iqs62x_keys);
 		if (ret) {
 			dev_err(iqs62x_keys->input->dev.parent,
 				"Failed to re-initialize device: %d\n", ret);
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		}
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	for (i = 0; i < iqs62x_keys->keycodemax; i++) {
@@ -224,7 +224,7 @@ static int iqs62x_keys_notifier(struct notifier_block *notifier,
 	input_sync(iqs62x_keys->input);
 
 	if (event_data->interval == iqs62x_keys->interval)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	/*
 	 * Each frame contains at most one wheel event (up or down), in which
@@ -244,7 +244,7 @@ static int iqs62x_keys_notifier(struct notifier_block *notifier,
 
 	iqs62x_keys->interval = event_data->interval;
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int iqs62x_keys_probe(struct platform_device *pdev)
@@ -257,7 +257,7 @@ static int iqs62x_keys_probe(struct platform_device *pdev)
 	iqs62x_keys = devm_kzalloc(&pdev->dev, sizeof(*iqs62x_keys),
 				   GFP_KERNEL);
 	if (!iqs62x_keys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, iqs62x_keys);
 
@@ -267,7 +267,7 @@ static int iqs62x_keys_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->keycodemax = iqs62x_keys->keycodemax;
 	input->keycode = iqs62x_keys->keycode;
@@ -301,11 +301,11 @@ static int iqs62x_keys_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	iqs62x_keys->notifier.notifier_call = iqs62x_keys_notifier;
-	ret = blocking_notifier_chain_register(&iqs62x_keys->iqs62x->nh,
-					       &iqs62x_keys->notifier);
+	iqs62x_keys->analtifier.analtifier_call = iqs62x_keys_analtifier;
+	ret = blocking_analtifier_chain_register(&iqs62x_keys->iqs62x->nh,
+					       &iqs62x_keys->analtifier);
 	if (ret)
-		dev_err(&pdev->dev, "Failed to register notifier: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register analtifier: %d\n", ret);
 
 	return ret;
 }
@@ -315,10 +315,10 @@ static void iqs62x_keys_remove(struct platform_device *pdev)
 	struct iqs62x_keys_private *iqs62x_keys = platform_get_drvdata(pdev);
 	int ret;
 
-	ret = blocking_notifier_chain_unregister(&iqs62x_keys->iqs62x->nh,
-						 &iqs62x_keys->notifier);
+	ret = blocking_analtifier_chain_unregister(&iqs62x_keys->iqs62x->nh,
+						 &iqs62x_keys->analtifier);
 	if (ret)
-		dev_err(&pdev->dev, "Failed to unregister notifier: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to unregister analtifier: %d\n", ret);
 }
 
 static struct platform_driver iqs62x_keys_platform_driver = {

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,17 +45,17 @@ static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 	struct intel_gt *gt = gvt->gt;
 	unsigned int flags;
 	u64 start, end, size;
-	struct drm_mm_node *node;
+	struct drm_mm_analde *analde;
 	int ret;
 
 	if (high_gm) {
-		node = &vgpu->gm.high_gm_node;
+		analde = &vgpu->gm.high_gm_analde;
 		size = vgpu_hidden_sz(vgpu);
 		start = ALIGN(gvt_hidden_gmadr_base(gvt), I915_GTT_PAGE_SIZE);
 		end = ALIGN(gvt_hidden_gmadr_end(gvt), I915_GTT_PAGE_SIZE);
 		flags = PIN_HIGH;
 	} else {
-		node = &vgpu->gm.low_gm_node;
+		analde = &vgpu->gm.low_gm_analde;
 		size = vgpu_aperture_sz(vgpu);
 		start = ALIGN(gvt_aperture_gmadr_base(gvt), I915_GTT_PAGE_SIZE);
 		end = ALIGN(gvt_aperture_gmadr_end(gvt), I915_GTT_PAGE_SIZE);
@@ -64,7 +64,7 @@ static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 
 	mutex_lock(&gt->ggtt->vm.mutex);
 	mmio_hw_access_pre(gt);
-	ret = i915_gem_gtt_insert(&gt->ggtt->vm, NULL, node,
+	ret = i915_gem_gtt_insert(&gt->ggtt->vm, NULL, analde,
 				  size, I915_GTT_PAGE_SIZE,
 				  I915_COLOR_UNEVICTABLE,
 				  start, end, flags);
@@ -100,7 +100,7 @@ static int alloc_vgpu_gm(struct intel_vgpu *vgpu)
 	return 0;
 out_free_aperture:
 	mutex_lock(&gt->ggtt->vm.mutex);
-	drm_mm_remove_node(&vgpu->gm.low_gm_node);
+	drm_mm_remove_analde(&vgpu->gm.low_gm_analde);
 	mutex_unlock(&gt->ggtt->vm.mutex);
 	return ret;
 }
@@ -111,8 +111,8 @@ static void free_vgpu_gm(struct intel_vgpu *vgpu)
 	struct intel_gt *gt = gvt->gt;
 
 	mutex_lock(&gt->ggtt->vm.mutex);
-	drm_mm_remove_node(&vgpu->gm.low_gm_node);
-	drm_mm_remove_node(&vgpu->gm.high_gm_node);
+	drm_mm_remove_analde(&vgpu->gm.low_gm_analde);
+	drm_mm_remove_analde(&vgpu->gm.high_gm_analde);
 	mutex_unlock(&gt->ggtt->vm.mutex);
 }
 
@@ -227,7 +227,7 @@ out_free_fence:
 	}
 	mutex_unlock(&gvt->gt->ggtt->vm.mutex);
 	intel_runtime_pm_put_unchecked(uncore->rpm);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static void free_resource(struct intel_vgpu *vgpu)
@@ -258,7 +258,7 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	request = conf->low_mm;
 
 	if (request > avail)
-		goto no_enough_resource;
+		goto anal_eanalugh_resource;
 
 	vgpu_aperture_sz(vgpu) = ALIGN(request, I915_GTT_PAGE_SIZE);
 
@@ -269,7 +269,7 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	request = conf->high_mm;
 
 	if (request > avail)
-		goto no_enough_resource;
+		goto anal_eanalugh_resource;
 
 	vgpu_hidden_sz(vgpu) = ALIGN(request, I915_GTT_PAGE_SIZE);
 
@@ -280,7 +280,7 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	request = conf->fence;
 
 	if (request > avail)
-		goto no_enough_resource;
+		goto anal_eanalugh_resource;
 
 	vgpu_fence_sz(vgpu) = request;
 
@@ -289,12 +289,12 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	gvt->fence.vgpu_allocated_fence_num += conf->fence;
 	return 0;
 
-no_enough_resource:
+anal_eanalugh_resource:
 	gvt_err("fail to allocate resource %s\n", item);
 	gvt_err("request %luMB avail %luMB max %luMB taken %luMB\n",
 		BYTES_TO_MB(request), BYTES_TO_MB(avail),
 		BYTES_TO_MB(max), BYTES_TO_MB(taken));
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**

@@ -355,7 +355,7 @@ static int tps6594_set_crc_feature(struct tps6594 *tps)
 	ret = tps6594_check_crc_mode(tps, true);
 	if (ret) {
 		/*
-		 * If CRC is not already enabled, force PFSM I2C_2 trigger to enable it
+		 * If CRC is analt already enabled, force PFSM I2C_2 trigger to enable it
 		 * on primary PMIC.
 		 */
 		tps->use_crc = false;
@@ -391,14 +391,14 @@ static int tps6594_enable_crc(struct tps6594 *tps)
 	 * In this multi-PMIC synchronization scheme, the primary PMIC is the controller device
 	 * on the SPMI bus, and the secondary PMICs are the target devices on the SPMI bus.
 	 */
-	is_primary = of_property_read_bool(dev->of_node, "ti,primary-pmic");
+	is_primary = of_property_read_bool(dev->of_analde, "ti,primary-pmic");
 	if (is_primary) {
 		/* Enable CRC feature on primary PMIC */
 		ret = tps6594_set_crc_feature(tps);
 		if (ret)
 			return ret;
 
-		/* Notify secondary PMICs that CRC feature is enabled */
+		/* Analtify secondary PMICs that CRC feature is enabled */
 		complete_all(&tps6594_crc_comp);
 	} else {
 		/* Wait for CRC feature enabling event from primary PMIC */
@@ -434,7 +434,7 @@ int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 					       dev->driver->name, tps->chip_id, tps->reg);
 
 	if (!tps6594_irq_chip.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_regmap_add_irq_chip(dev, tps->regmap, tps->irq, IRQF_SHARED | IRQF_ONESHOT,
 				       0, &tps6594_irq_chip, &tps->irq_data);
@@ -447,7 +447,7 @@ int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add common child devices\n");
 
-	/* No RTC for LP8764 */
+	/* Anal RTC for LP8764 */
 	if (tps->chip_id != LP8764) {
 		ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, tps6594_rtc_cells,
 					   ARRAY_SIZE(tps6594_rtc_cells), NULL, 0,

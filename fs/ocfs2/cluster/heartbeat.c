@@ -23,7 +23,7 @@
 #include <linux/ktime.h>
 #include "heartbeat.h"
 #include "tcp.h"
-#include "nodemanager.h"
+#include "analdemanager.h"
 #include "quorum.h"
 
 #include "masklog.h"
@@ -38,20 +38,20 @@
 static DECLARE_RWSEM(o2hb_callback_sem);
 
 /*
- * multiple hb threads are watching multiple regions.  A node is live
- * whenever any of the threads sees activity from the node in its region.
+ * multiple hb threads are watching multiple regions.  A analde is live
+ * whenever any of the threads sees activity from the analde in its region.
  */
 static DEFINE_SPINLOCK(o2hb_live_lock);
-static struct list_head o2hb_live_slots[O2NM_MAX_NODES];
-static unsigned long o2hb_live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
-static LIST_HEAD(o2hb_node_events);
+static struct list_head o2hb_live_slots[O2NM_MAX_ANALDES];
+static unsigned long o2hb_live_analde_bitmap[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
+static LIST_HEAD(o2hb_analde_events);
 static DECLARE_WAIT_QUEUE_HEAD(o2hb_steady_queue);
 
 /*
  * In global heartbeat, we maintain a series of region bitmaps.
  * 	- o2hb_region_bitmap allows us to limit the region number to max region.
  * 	- o2hb_live_region_bitmap tracks live regions (seen steady iterations).
- * 	- o2hb_quorum_region_bitmap tracks live regions that have seen all nodes
+ * 	- o2hb_quorum_region_bitmap tracks live regions that have seen all analdes
  * 		heartbeat on it.
  * 	- o2hb_failed_region_bitmap tracks the regions that have seen io timeouts.
  */
@@ -60,11 +60,11 @@ static unsigned long o2hb_live_region_bitmap[BITS_TO_LONGS(O2NM_MAX_REGIONS)];
 static unsigned long o2hb_quorum_region_bitmap[BITS_TO_LONGS(O2NM_MAX_REGIONS)];
 static unsigned long o2hb_failed_region_bitmap[BITS_TO_LONGS(O2NM_MAX_REGIONS)];
 
-#define O2HB_DB_TYPE_LIVENODES		0
+#define O2HB_DB_TYPE_LIVEANALDES		0
 #define O2HB_DB_TYPE_LIVEREGIONS	1
 #define O2HB_DB_TYPE_QUORUMREGIONS	2
 #define O2HB_DB_TYPE_FAILEDREGIONS	3
-#define O2HB_DB_TYPE_REGION_LIVENODES	4
+#define O2HB_DB_TYPE_REGION_LIVEANALDES	4
 #define O2HB_DB_TYPE_REGION_NUMBER	5
 #define O2HB_DB_TYPE_REGION_ELAPSED_TIME	6
 #define O2HB_DB_TYPE_REGION_PINNED	7
@@ -75,13 +75,13 @@ struct o2hb_debug_buf {
 	void *db_data;
 };
 
-static struct o2hb_debug_buf *o2hb_db_livenodes;
+static struct o2hb_debug_buf *o2hb_db_liveanaldes;
 static struct o2hb_debug_buf *o2hb_db_liveregions;
 static struct o2hb_debug_buf *o2hb_db_quorumregions;
 static struct o2hb_debug_buf *o2hb_db_failedregions;
 
 #define O2HB_DEBUG_DIR			"o2hb"
-#define O2HB_DEBUG_LIVENODES		"livenodes"
+#define O2HB_DEBUG_LIVEANALDES		"liveanaldes"
 #define O2HB_DEBUG_LIVEREGIONS		"live_regions"
 #define O2HB_DEBUG_QUORUMREGIONS	"quorum_regions"
 #define O2HB_DEBUG_FAILEDREGIONS	"failed_regions"
@@ -116,7 +116,7 @@ static unsigned int o2hb_heartbeat_mode = O2HB_HEARTBEAT_LOCAL;
 /*
  * o2hb_dependent_users tracks the number of registered callbacks that depend
  * on heartbeat. o2net and o2dlm are two entities that register this callback.
- * However only o2dlm depends on the heartbeat. It does not want the heartbeat
+ * However only o2dlm depends on the heartbeat. It does analt want the heartbeat
  * to stop while a dlm domain is still active.
  */
 static unsigned int o2hb_dependent_users;
@@ -131,8 +131,8 @@ static unsigned int o2hb_dependent_users;
 
 /*
  * In local heartbeat mode, we assume the dlm domain name to be the same as
- * region uuid. This is true for domains created for the file system but not
- * necessarily true for userdlm domains. This is a known limitation.
+ * region uuid. This is true for domains created for the file system but analt
+ * necessarily true for userdlm domains. This is a kanalwn limitation.
  *
  * In global heartbeat mode, we pin/unpin all o2hb regions. This solution
  * works for both file system and userdlm domains.
@@ -140,11 +140,11 @@ static unsigned int o2hb_dependent_users;
 static int o2hb_region_pin(const char *region_uuid);
 static void o2hb_region_unpin(const char *region_uuid);
 
-/* Only sets a new threshold if there are no active regions.
+/* Only sets a new threshold if there are anal active regions.
  *
- * No locking or otherwise interesting code is required for reading
+ * Anal locking or otherwise interesting code is required for reading
  * o2hb_dead_threshold as it can't change once regions are active and
- * it's not interesting to anyone until then anyway. */
+ * it's analt interesting to anyone until then anyway. */
 static void o2hb_dead_threshold_set(unsigned int threshold)
 {
 	if (threshold > O2HB_MIN_DEAD_THRESHOLD) {
@@ -171,16 +171,16 @@ static int o2hb_global_heartbeat_mode_set(unsigned int hb_mode)
 	return ret;
 }
 
-struct o2hb_node_event {
+struct o2hb_analde_event {
 	struct list_head        hn_item;
 	enum o2hb_callback_type hn_event_type;
-	struct o2nm_node        *hn_node;
-	int                     hn_node_num;
+	struct o2nm_analde        *hn_analde;
+	int                     hn_analde_num;
 };
 
 struct o2hb_disk_slot {
 	struct o2hb_disk_heartbeat_block *ds_raw_block;
-	u8			ds_node_num;
+	u8			ds_analde_num;
 	u64			ds_last_time;
 	u64			ds_last_generation;
 	u16			ds_equal_samples;
@@ -198,7 +198,7 @@ struct o2hb_region {
 				hr_aborted_start:1,
 				hr_item_pinned:1,
 				hr_item_dropped:1,
-				hr_node_deleted:1;
+				hr_analde_deleted:1;
 
 	/* protected by the hr_callback_sem */
 	struct task_struct 	*hr_task;
@@ -216,12 +216,12 @@ struct o2hb_region {
 	struct bdev_handle	*hr_bdev_handle;
 	struct o2hb_disk_slot	*hr_slots;
 
-	/* live node map of this region */
-	unsigned long		hr_live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	/* live analde map of this region */
+	unsigned long		hr_live_analde_bitmap[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 	unsigned int		hr_region_num;
 
 	struct dentry		*hr_debug_dir;
-	struct o2hb_debug_buf	*hr_db_livenodes;
+	struct o2hb_debug_buf	*hr_db_liveanaldes;
 	struct o2hb_debug_buf	*hr_db_regnum;
 	struct o2hb_debug_buf	*hr_db_elapsed_time;
 	struct o2hb_debug_buf	*hr_db_pinned;
@@ -231,14 +231,14 @@ struct o2hb_region {
 	 * a more complete api that doesn't lead to this sort of fragility. */
 	atomic_t		hr_steady_iterations;
 
-	/* terminate o2hb thread if it does not reach steady state
+	/* terminate o2hb thread if it does analt reach steady state
 	 * (hr_steady_iterations == 0) within hr_unsteady_iterations */
 	atomic_t		hr_unsteady_iterations;
 
 	unsigned int		hr_timeout_ms;
 
-	/* randomized as the region goes up and down so that a node
-	 * recognizes a node going up and down in one iteration */
+	/* randomized as the region goes up and down so that a analde
+	 * recognizes a analde going up and down in one iteration */
 	u64			hr_generation;
 
 	struct delayed_work	hr_write_timeout_work;
@@ -246,7 +246,7 @@ struct o2hb_region {
 
 	/* negotiate timer, used to negotiate extending hb timeout. */
 	struct delayed_work	hr_nego_timeout_work;
-	unsigned long		hr_nego_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long		hr_nego_analde_bitmap[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 
 	/* Used during o2hb_check_slot to hold a copy of the block
 	 * being checked because we temporarily have to zero out the
@@ -280,7 +280,7 @@ enum {
 };
 
 struct o2hb_nego_msg {
-	u8 node_num;
+	u8 analde_num;
 };
 
 static void o2hb_write_timeout(struct work_struct *work)
@@ -340,7 +340,7 @@ static void o2hb_arm_timeout(struct o2hb_region *reg)
 	/* negotiate timeout must be less than write timeout. */
 	schedule_delayed_work(&reg->hr_nego_timeout_work,
 			      msecs_to_jiffies(O2HB_NEGO_TIMEOUT_MS));
-	bitmap_zero(reg->hr_nego_node_bitmap, O2NM_MAX_NODES);
+	bitmap_zero(reg->hr_nego_analde_bitmap, O2NM_MAX_ANALDES);
 }
 
 static void o2hb_disarm_timeout(struct o2hb_region *reg)
@@ -354,12 +354,12 @@ static int o2hb_send_nego_msg(int key, int type, u8 target)
 	struct o2hb_nego_msg msg;
 	int status, ret;
 
-	msg.node_num = o2nm_this_node();
+	msg.analde_num = o2nm_this_analde();
 again:
 	ret = o2net_send_message(type, key, &msg, sizeof(msg),
 			target, &status);
 
-	if (ret == -EAGAIN || ret == -ENOMEM) {
+	if (ret == -EAGAIN || ret == -EANALMEM) {
 		msleep(100);
 		goto again;
 	}
@@ -369,8 +369,8 @@ again:
 
 static void o2hb_nego_timeout(struct work_struct *work)
 {
-	unsigned long live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
-	int master_node, i, ret;
+	unsigned long live_analde_bitmap[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
+	int master_analde, i, ret;
 	struct o2hb_region *reg;
 
 	reg = container_of(work, struct o2hb_region, hr_nego_timeout_work.work);
@@ -380,19 +380,19 @@ static void o2hb_nego_timeout(struct work_struct *work)
 	if (reg->hr_last_hb_status)
 		return;
 
-	o2hb_fill_node_map(live_node_bitmap, O2NM_MAX_NODES);
-	/* lowest node as master node to make negotiate decision. */
-	master_node = find_first_bit(live_node_bitmap, O2NM_MAX_NODES);
+	o2hb_fill_analde_map(live_analde_bitmap, O2NM_MAX_ANALDES);
+	/* lowest analde as master analde to make negotiate decision. */
+	master_analde = find_first_bit(live_analde_bitmap, O2NM_MAX_ANALDES);
 
-	if (master_node == o2nm_this_node()) {
-		if (!test_bit(master_node, reg->hr_nego_node_bitmap)) {
-			printk(KERN_NOTICE "o2hb: node %d hb write hung for %ds on region %s (%pg).\n",
-				o2nm_this_node(), O2HB_NEGO_TIMEOUT_MS/1000,
+	if (master_analde == o2nm_this_analde()) {
+		if (!test_bit(master_analde, reg->hr_nego_analde_bitmap)) {
+			printk(KERN_ANALTICE "o2hb: analde %d hb write hung for %ds on region %s (%pg).\n",
+				o2nm_this_analde(), O2HB_NEGO_TIMEOUT_MS/1000,
 				config_item_name(&reg->hr_item), reg_bdev(reg));
-			set_bit(master_node, reg->hr_nego_node_bitmap);
+			set_bit(master_analde, reg->hr_nego_analde_bitmap);
 		}
-		if (!bitmap_equal(reg->hr_nego_node_bitmap, live_node_bitmap,
-				  O2NM_MAX_NODES)) {
+		if (!bitmap_equal(reg->hr_nego_analde_bitmap, live_analde_bitmap,
+				  O2NM_MAX_ANALDES)) {
 			/* check negotiate bitmap every second to do timeout
 			 * approve decision.
 			 */
@@ -402,35 +402,35 @@ static void o2hb_nego_timeout(struct work_struct *work)
 			return;
 		}
 
-		printk(KERN_NOTICE "o2hb: all nodes hb write hung, maybe region %s (%pg) is down.\n",
+		printk(KERN_ANALTICE "o2hb: all analdes hb write hung, maybe region %s (%pg) is down.\n",
 			config_item_name(&reg->hr_item),
 			reg_bdev(reg));
 		/* approve negotiate timeout request. */
 		o2hb_arm_timeout(reg);
 
 		i = -1;
-		while ((i = find_next_bit(live_node_bitmap,
-				O2NM_MAX_NODES, i + 1)) < O2NM_MAX_NODES) {
-			if (i == master_node)
+		while ((i = find_next_bit(live_analde_bitmap,
+				O2NM_MAX_ANALDES, i + 1)) < O2NM_MAX_ANALDES) {
+			if (i == master_analde)
 				continue;
 
-			mlog(ML_HEARTBEAT, "send NEGO_APPROVE msg to node %d\n", i);
+			mlog(ML_HEARTBEAT, "send NEGO_APPROVE msg to analde %d\n", i);
 			ret = o2hb_send_nego_msg(reg->hr_key,
 					O2HB_NEGO_APPROVE_MSG, i);
 			if (ret)
-				mlog(ML_ERROR, "send NEGO_APPROVE msg to node %d fail %d\n",
+				mlog(ML_ERROR, "send NEGO_APPROVE msg to analde %d fail %d\n",
 					i, ret);
 		}
 	} else {
-		/* negotiate timeout with master node. */
-		printk(KERN_NOTICE "o2hb: node %d hb write hung for %ds on region %s (%pg), negotiate timeout with node %d.\n",
-			o2nm_this_node(), O2HB_NEGO_TIMEOUT_MS/1000, config_item_name(&reg->hr_item),
-			reg_bdev(reg), master_node);
+		/* negotiate timeout with master analde. */
+		printk(KERN_ANALTICE "o2hb: analde %d hb write hung for %ds on region %s (%pg), negotiate timeout with analde %d.\n",
+			o2nm_this_analde(), O2HB_NEGO_TIMEOUT_MS/1000, config_item_name(&reg->hr_item),
+			reg_bdev(reg), master_analde);
 		ret = o2hb_send_nego_msg(reg->hr_key, O2HB_NEGO_TIMEOUT_MSG,
-				master_node);
+				master_analde);
 		if (ret)
-			mlog(ML_ERROR, "send NEGO_TIMEOUT msg to node %d fail %d\n",
-				master_node, ret);
+			mlog(ML_ERROR, "send NEGO_TIMEOUT msg to analde %d fail %d\n",
+				master_analde, ret);
 	}
 }
 
@@ -441,13 +441,13 @@ static int o2hb_nego_timeout_handler(struct o2net_msg *msg, u32 len, void *data,
 	struct o2hb_nego_msg *nego_msg;
 
 	nego_msg = (struct o2hb_nego_msg *)msg->buf;
-	printk(KERN_NOTICE "o2hb: receive negotiate timeout message from node %d on region %s (%pg).\n",
-		nego_msg->node_num, config_item_name(&reg->hr_item),
+	printk(KERN_ANALTICE "o2hb: receive negotiate timeout message from analde %d on region %s (%pg).\n",
+		nego_msg->analde_num, config_item_name(&reg->hr_item),
 		reg_bdev(reg));
-	if (nego_msg->node_num < O2NM_MAX_NODES)
-		set_bit(nego_msg->node_num, reg->hr_nego_node_bitmap);
+	if (nego_msg->analde_num < O2NM_MAX_ANALDES)
+		set_bit(nego_msg->analde_num, reg->hr_nego_analde_bitmap);
 	else
-		mlog(ML_ERROR, "got nego timeout message from bad node.\n");
+		mlog(ML_ERROR, "got nego timeout message from bad analde.\n");
 
 	return 0;
 }
@@ -457,7 +457,7 @@ static int o2hb_nego_approve_handler(struct o2net_msg *msg, u32 len, void *data,
 {
 	struct o2hb_region *reg = data;
 
-	printk(KERN_NOTICE "o2hb: negotiate timeout approved by master node on region %s (%pg).\n",
+	printk(KERN_ANALTICE "o2hb: negotiate timeout approved by master analde on region %s (%pg).\n",
 		config_item_name(&reg->hr_item), reg_bdev(reg));
 	o2hb_arm_timeout(reg);
 	return 0;
@@ -496,7 +496,7 @@ static void o2hb_bio_end_io(struct bio *bio)
 
 	if (bio->bi_status) {
 		mlog(ML_ERROR, "IO Error %d\n", bio->bi_status);
-		wc->wc_error = blk_status_to_errno(bio->bi_status);
+		wc->wc_error = blk_status_to_erranal(bio->bi_status);
 	}
 
 	o2hb_bio_wait_dec(wc, 1);
@@ -518,14 +518,14 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
 	struct bio *bio;
 	struct page *page;
 
-	/* Testing has shown this allocation to take long enough under
-	 * GFP_KERNEL that the local node can get fenced. It would be
+	/* Testing has shown this allocation to take long eanalugh under
+	 * GFP_KERNEL that the local analde can get fenced. It would be
 	 * nicest if we could pre-allocate these bios and avoid this
 	 * all together. */
 	bio = bio_alloc(reg_bdev(reg), 16, opf, GFP_ATOMIC);
 	if (!bio) {
-		mlog(ML_ERROR, "Could not alloc slots BIO!\n");
-		bio = ERR_PTR(-ENOMEM);
+		mlog(ML_ERROR, "Could analt alloc slots BIO!\n");
+		bio = ERR_PTR(-EANALMEM);
 		goto bail;
 	}
 
@@ -573,7 +573,7 @@ static int o2hb_read_slots(struct o2hb_region *reg,
 					 REQ_OP_READ);
 		if (IS_ERR(bio)) {
 			status = PTR_ERR(bio);
-			mlog_errno(status);
+			mlog_erranal(status);
 			goto bail_and_wait;
 		}
 
@@ -591,7 +591,7 @@ bail_and_wait:
 	return status;
 }
 
-static int o2hb_issue_node_write(struct o2hb_region *reg,
+static int o2hb_issue_analde_write(struct o2hb_region *reg,
 				 struct o2hb_bio_wait_ctxt *write_wc)
 {
 	int status;
@@ -600,13 +600,13 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
 
 	o2hb_bio_wait_init(write_wc);
 
-	slot = o2nm_this_node();
+	slot = o2nm_this_analde();
 
 	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1,
 				 REQ_OP_WRITE | REQ_SYNC);
 	if (IS_ERR(bio)) {
 		status = PTR_ERR(bio);
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail;
 	}
 
@@ -639,10 +639,10 @@ static u32 o2hb_compute_block_crc_le(struct o2hb_region *reg,
 
 static void o2hb_dump_slot(struct o2hb_disk_heartbeat_block *hb_block)
 {
-	mlog(ML_ERROR, "Dump slot information: seq = 0x%llx, node = %u, "
+	mlog(ML_ERROR, "Dump slot information: seq = 0x%llx, analde = %u, "
 	     "cksum = 0x%x, generation 0x%llx\n",
 	     (long long)le64_to_cpu(hb_block->hb_seq),
-	     hb_block->hb_node, le32_to_cpu(hb_block->hb_cksum),
+	     hb_block->hb_analde, le32_to_cpu(hb_block->hb_cksum),
 	     (long long)le64_to_cpu(hb_block->hb_generation));
 }
 
@@ -660,7 +660,7 @@ static int o2hb_verify_crc(struct o2hb_region *reg,
 /*
  * Compare the slot data with what we wrote in the last iteration.
  * If the match fails, print an appropriate error message. This is to
- * detect errors like... another node hearting on the same slot,
+ * detect errors like... aanalther analde hearting on the same slot,
  * flaky device that is losing writes, etc.
  * Returns 1 if check succeeds, 0 otherwise.
  */
@@ -670,7 +670,7 @@ static int o2hb_check_own_slot(struct o2hb_region *reg)
 	struct o2hb_disk_heartbeat_block *hb_block;
 	char *errstr;
 
-	slot = &reg->hr_slots[o2nm_this_node()];
+	slot = &reg->hr_slots[o2nm_this_analde()];
 	/* Don't check on our 1st timestamp */
 	if (!slot->ds_last_time)
 		return 0;
@@ -678,14 +678,14 @@ static int o2hb_check_own_slot(struct o2hb_region *reg)
 	hb_block = slot->ds_raw_block;
 	if (le64_to_cpu(hb_block->hb_seq) == slot->ds_last_time &&
 	    le64_to_cpu(hb_block->hb_generation) == slot->ds_last_generation &&
-	    hb_block->hb_node == slot->ds_node_num)
+	    hb_block->hb_analde == slot->ds_analde_num)
 		return 1;
 
-#define ERRSTR1		"Another node is heartbeating on device"
+#define ERRSTR1		"Aanalther analde is heartbeating on device"
 #define ERRSTR2		"Heartbeat generation mismatch on device"
 #define ERRSTR3		"Heartbeat sequence mismatch on device"
 
-	if (hb_block->hb_node != slot->ds_node_num)
+	if (hb_block->hb_analde != slot->ds_analde_num)
 		errstr = ERRSTR1;
 	else if (le64_to_cpu(hb_block->hb_generation) !=
 		 slot->ds_last_generation)
@@ -695,8 +695,8 @@ static int o2hb_check_own_slot(struct o2hb_region *reg)
 
 	mlog(ML_ERROR, "%s (%pg): expected(%u:0x%llx, 0x%llx), "
 	     "ondisk(%u:0x%llx, 0x%llx)\n", errstr, reg_bdev(reg),
-	     slot->ds_node_num, (unsigned long long)slot->ds_last_generation,
-	     (unsigned long long)slot->ds_last_time, hb_block->hb_node,
+	     slot->ds_analde_num, (unsigned long long)slot->ds_last_generation,
+	     (unsigned long long)slot->ds_last_time, hb_block->hb_analde,
 	     (unsigned long long)le64_to_cpu(hb_block->hb_generation),
 	     (unsigned long long)le64_to_cpu(hb_block->hb_seq));
 
@@ -706,13 +706,13 @@ static int o2hb_check_own_slot(struct o2hb_region *reg)
 static inline void o2hb_prepare_block(struct o2hb_region *reg,
 				      u64 generation)
 {
-	int node_num;
+	int analde_num;
 	u64 cputime;
 	struct o2hb_disk_slot *slot;
 	struct o2hb_disk_heartbeat_block *hb_block;
 
-	node_num = o2nm_this_node();
-	slot = &reg->hr_slots[node_num];
+	analde_num = o2nm_this_analde();
+	slot = &reg->hr_slots[analde_num];
 
 	hb_block = (struct o2hb_disk_heartbeat_block *)slot->ds_raw_block;
 	memset(hb_block, 0, reg->hr_block_bytes);
@@ -722,7 +722,7 @@ static inline void o2hb_prepare_block(struct o2hb_region *reg,
 		cputime = 1;
 
 	hb_block->hb_seq = cpu_to_le64(cputime);
-	hb_block->hb_node = node_num;
+	hb_block->hb_analde = analde_num;
 	hb_block->hb_generation = cpu_to_le64(generation);
 	hb_block->hb_dead_ms = cpu_to_le32(o2hb_dead_threshold * O2HB_REGION_TIMEOUT_MS);
 
@@ -730,28 +730,28 @@ static inline void o2hb_prepare_block(struct o2hb_region *reg,
 	hb_block->hb_cksum = cpu_to_le32(o2hb_compute_block_crc_le(reg,
 								   hb_block));
 
-	mlog(ML_HB_BIO, "our node generation = 0x%llx, cksum = 0x%x\n",
+	mlog(ML_HB_BIO, "our analde generation = 0x%llx, cksum = 0x%x\n",
 	     (long long)generation,
 	     le32_to_cpu(hb_block->hb_cksum));
 }
 
 static void o2hb_fire_callbacks(struct o2hb_callback *hbcall,
-				struct o2nm_node *node,
+				struct o2nm_analde *analde,
 				int idx)
 {
 	struct o2hb_callback_func *f;
 
 	list_for_each_entry(f, &hbcall->list, hc_item) {
 		mlog(ML_HEARTBEAT, "calling funcs %p\n", f);
-		(f->hc_func)(node, idx, f->hc_data);
+		(f->hc_func)(analde, idx, f->hc_data);
 	}
 }
 
 /* Will run the list in order until we process the passed event */
-static void o2hb_run_event_list(struct o2hb_node_event *queued_event)
+static void o2hb_run_event_list(struct o2hb_analde_event *queued_event)
 {
 	struct o2hb_callback *hbcall;
-	struct o2hb_node_event *event;
+	struct o2hb_analde_event *event;
 
 	/* Holding callback sem assures we don't alter the callback
 	 * lists when doing this, and serializes ourselves with other
@@ -759,17 +759,17 @@ static void o2hb_run_event_list(struct o2hb_node_event *queued_event)
 	down_write(&o2hb_callback_sem);
 
 	spin_lock(&o2hb_live_lock);
-	while (!list_empty(&o2hb_node_events)
+	while (!list_empty(&o2hb_analde_events)
 	       && !list_empty(&queued_event->hn_item)) {
-		event = list_entry(o2hb_node_events.next,
-				   struct o2hb_node_event,
+		event = list_entry(o2hb_analde_events.next,
+				   struct o2hb_analde_event,
 				   hn_item);
 		list_del_init(&event->hn_item);
 		spin_unlock(&o2hb_live_lock);
 
-		mlog(ML_HEARTBEAT, "Node %s event for %d\n",
-		     event->hn_event_type == O2HB_NODE_UP_CB ? "UP" : "DOWN",
-		     event->hn_node_num);
+		mlog(ML_HEARTBEAT, "Analde %s event for %d\n",
+		     event->hn_event_type == O2HB_ANALDE_UP_CB ? "UP" : "DOWN",
+		     event->hn_analde_num);
 
 		hbcall = hbcall_from_type(event->hn_event_type);
 
@@ -778,7 +778,7 @@ static void o2hb_run_event_list(struct o2hb_node_event *queued_event)
 		 * to recover from. */
 		BUG_ON(IS_ERR(hbcall));
 
-		o2hb_fire_callbacks(hbcall, event->hn_node, event->hn_node_num);
+		o2hb_fire_callbacks(hbcall, event->hn_analde, event->hn_analde_num);
 
 		spin_lock(&o2hb_live_lock);
 	}
@@ -787,48 +787,48 @@ static void o2hb_run_event_list(struct o2hb_node_event *queued_event)
 	up_write(&o2hb_callback_sem);
 }
 
-static void o2hb_queue_node_event(struct o2hb_node_event *event,
+static void o2hb_queue_analde_event(struct o2hb_analde_event *event,
 				  enum o2hb_callback_type type,
-				  struct o2nm_node *node,
-				  int node_num)
+				  struct o2nm_analde *analde,
+				  int analde_num)
 {
 	assert_spin_locked(&o2hb_live_lock);
 
-	BUG_ON((!node) && (type != O2HB_NODE_DOWN_CB));
+	BUG_ON((!analde) && (type != O2HB_ANALDE_DOWN_CB));
 
 	event->hn_event_type = type;
-	event->hn_node = node;
-	event->hn_node_num = node_num;
+	event->hn_analde = analde;
+	event->hn_analde_num = analde_num;
 
-	mlog(ML_HEARTBEAT, "Queue node %s event for node %d\n",
-	     type == O2HB_NODE_UP_CB ? "UP" : "DOWN", node_num);
+	mlog(ML_HEARTBEAT, "Queue analde %s event for analde %d\n",
+	     type == O2HB_ANALDE_UP_CB ? "UP" : "DOWN", analde_num);
 
-	list_add_tail(&event->hn_item, &o2hb_node_events);
+	list_add_tail(&event->hn_item, &o2hb_analde_events);
 }
 
 static void o2hb_shutdown_slot(struct o2hb_disk_slot *slot)
 {
-	struct o2hb_node_event event =
+	struct o2hb_analde_event event =
 		{ .hn_item = LIST_HEAD_INIT(event.hn_item), };
-	struct o2nm_node *node;
+	struct o2nm_analde *analde;
 	int queued = 0;
 
-	node = o2nm_get_node_by_num(slot->ds_node_num);
-	if (!node)
+	analde = o2nm_get_analde_by_num(slot->ds_analde_num);
+	if (!analde)
 		return;
 
 	spin_lock(&o2hb_live_lock);
 	if (!list_empty(&slot->ds_live_item)) {
-		mlog(ML_HEARTBEAT, "Shutdown, node %d leaves region\n",
-		     slot->ds_node_num);
+		mlog(ML_HEARTBEAT, "Shutdown, analde %d leaves region\n",
+		     slot->ds_analde_num);
 
 		list_del_init(&slot->ds_live_item);
 
-		if (list_empty(&o2hb_live_slots[slot->ds_node_num])) {
-			clear_bit(slot->ds_node_num, o2hb_live_node_bitmap);
+		if (list_empty(&o2hb_live_slots[slot->ds_analde_num])) {
+			clear_bit(slot->ds_analde_num, o2hb_live_analde_bitmap);
 
-			o2hb_queue_node_event(&event, O2HB_NODE_DOWN_CB, node,
-					      slot->ds_node_num);
+			o2hb_queue_analde_event(&event, O2HB_ANALDE_DOWN_CB, analde,
+					      slot->ds_analde_num);
 			queued = 1;
 		}
 	}
@@ -837,7 +837,7 @@ static void o2hb_shutdown_slot(struct o2hb_disk_slot *slot)
 	if (queued)
 		o2hb_run_event_list(&event);
 
-	o2nm_node_put(node);
+	o2nm_analde_put(analde);
 }
 
 static void o2hb_set_quorum_device(struct o2hb_region *reg)
@@ -860,14 +860,14 @@ static void o2hb_set_quorum_device(struct o2hb_region *reg)
 
 	/*
 	 * A region can be added to the quorum only when it sees all
-	 * live nodes heartbeat on it. In other words, the region has been
-	 * added to all nodes.
+	 * live analdes heartbeat on it. In other words, the region has been
+	 * added to all analdes.
 	 */
-	if (!bitmap_equal(reg->hr_live_node_bitmap, o2hb_live_node_bitmap,
-			  O2NM_MAX_NODES))
+	if (!bitmap_equal(reg->hr_live_analde_bitmap, o2hb_live_analde_bitmap,
+			  O2NM_MAX_ANALDES))
 		goto unlock;
 
-	printk(KERN_NOTICE "o2hb: Region %s (%pg) is now a quorum device\n",
+	printk(KERN_ANALTICE "o2hb: Region %s (%pg) is analw a quorum device\n",
 	       config_item_name(&reg->hr_item), reg_bdev(reg));
 
 	set_bit(reg->hr_region_num, o2hb_quorum_region_bitmap);
@@ -887,9 +887,9 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 			   struct o2hb_disk_slot *slot)
 {
 	int changed = 0, gen_changed = 0;
-	struct o2hb_node_event event =
+	struct o2hb_analde_event event =
 		{ .hn_item = LIST_HEAD_INIT(event.hn_item), };
-	struct o2nm_node *node;
+	struct o2nm_analde *analde;
 	struct o2hb_disk_heartbeat_block *hb_block = reg->hr_tmp_block;
 	u64 cputime;
 	unsigned int dead_ms = o2hb_dead_threshold * O2HB_REGION_TIMEOUT_MS;
@@ -900,13 +900,13 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 	memcpy(hb_block, slot->ds_raw_block, reg->hr_block_bytes);
 
 	/*
-	 * If a node is no longer configured but is still in the livemap, we
+	 * If a analde is anal longer configured but is still in the livemap, we
 	 * may need to clear that bit from the livemap.
 	 */
-	node = o2nm_get_node_by_num(slot->ds_node_num);
-	if (!node) {
+	analde = o2nm_get_analde_by_num(slot->ds_analde_num);
+	if (!analde) {
 		spin_lock(&o2hb_live_lock);
-		tmp = test_bit(slot->ds_node_num, o2hb_live_node_bitmap);
+		tmp = test_bit(slot->ds_analde_num, o2hb_live_analde_bitmap);
 		spin_unlock(&o2hb_live_lock);
 		if (!tmp)
 			return 0;
@@ -918,16 +918,16 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 		spin_lock(&o2hb_live_lock);
 
 		/* Don't print an error on the console in this case -
-		 * a freshly formatted heartbeat area will not have a
+		 * a freshly formatted heartbeat area will analt have a
 		 * crc set on it. */
 		if (list_empty(&slot->ds_live_item))
 			goto out;
 
-		/* The node is live but pushed out a bad crc. We
+		/* The analde is live but pushed out a bad crc. We
 		 * consider it a transient miss but don't populate any
 		 * other values as they may be junk. */
-		mlog(ML_ERROR, "Node %d has written a bad crc to %pg\n",
-		     slot->ds_node_num, reg_bdev(reg));
+		mlog(ML_ERROR, "Analde %d has written a bad crc to %pg\n",
+		     slot->ds_analde_num, reg_bdev(reg));
 		o2hb_dump_slot(hb_block);
 
 		slot->ds_equal_samples++;
@@ -943,7 +943,7 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 		slot->ds_equal_samples++;
 	slot->ds_last_time = cputime;
 
-	/* The node changed heartbeat generations. We assume this to
+	/* The analde changed heartbeat generations. We assume this to
 	 * mean it dropped off but came back before we timed out. We
 	 * want to consider it down for the time being but don't want
 	 * to lose any changed_samples state we might build up to
@@ -951,8 +951,8 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 	if (slot->ds_last_generation != le64_to_cpu(hb_block->hb_generation)) {
 		gen_changed = 1;
 		slot->ds_equal_samples = 0;
-		mlog(ML_HEARTBEAT, "Node %d changed generation (0x%llx "
-		     "to 0x%llx)\n", slot->ds_node_num,
+		mlog(ML_HEARTBEAT, "Analde %d changed generation (0x%llx "
+		     "to 0x%llx)\n", slot->ds_analde_num,
 		     (long long)slot->ds_last_generation,
 		     (long long)le64_to_cpu(hb_block->hb_generation));
 	}
@@ -961,7 +961,7 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 
 	mlog(ML_HEARTBEAT, "Slot %d gen 0x%llx cksum 0x%x "
 	     "seq %llu last %llu changed %u equal %u\n",
-	     slot->ds_node_num, (long long)slot->ds_last_generation,
+	     slot->ds_analde_num, (long long)slot->ds_last_generation,
 	     le32_to_cpu(hb_block->hb_cksum),
 	     (unsigned long long)le64_to_cpu(hb_block->hb_seq),
 	     (unsigned long long)slot->ds_last_time, slot->ds_changed_samples,
@@ -970,47 +970,47 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 	spin_lock(&o2hb_live_lock);
 
 fire_callbacks:
-	/* dead nodes only come to life after some number of
+	/* dead analdes only come to life after some number of
 	 * changes at any time during their dead time */
 	if (list_empty(&slot->ds_live_item) &&
 	    slot->ds_changed_samples >= O2HB_LIVE_THRESHOLD) {
-		mlog(ML_HEARTBEAT, "Node %d (id 0x%llx) joined my region\n",
-		     slot->ds_node_num, (long long)slot->ds_last_generation);
+		mlog(ML_HEARTBEAT, "Analde %d (id 0x%llx) joined my region\n",
+		     slot->ds_analde_num, (long long)slot->ds_last_generation);
 
-		set_bit(slot->ds_node_num, reg->hr_live_node_bitmap);
+		set_bit(slot->ds_analde_num, reg->hr_live_analde_bitmap);
 
 		/* first on the list generates a callback */
-		if (list_empty(&o2hb_live_slots[slot->ds_node_num])) {
-			mlog(ML_HEARTBEAT, "o2hb: Add node %d to live nodes "
-			     "bitmap\n", slot->ds_node_num);
-			set_bit(slot->ds_node_num, o2hb_live_node_bitmap);
+		if (list_empty(&o2hb_live_slots[slot->ds_analde_num])) {
+			mlog(ML_HEARTBEAT, "o2hb: Add analde %d to live analdes "
+			     "bitmap\n", slot->ds_analde_num);
+			set_bit(slot->ds_analde_num, o2hb_live_analde_bitmap);
 
-			o2hb_queue_node_event(&event, O2HB_NODE_UP_CB, node,
-					      slot->ds_node_num);
+			o2hb_queue_analde_event(&event, O2HB_ANALDE_UP_CB, analde,
+					      slot->ds_analde_num);
 
 			changed = 1;
 			queued = 1;
 		}
 
 		list_add_tail(&slot->ds_live_item,
-			      &o2hb_live_slots[slot->ds_node_num]);
+			      &o2hb_live_slots[slot->ds_analde_num]);
 
 		slot->ds_equal_samples = 0;
 
-		/* We want to be sure that all nodes agree on the
-		 * number of milliseconds before a node will be
+		/* We want to be sure that all analdes agree on the
+		 * number of milliseconds before a analde will be
 		 * considered dead. The self-fencing timeout is
 		 * computed from this value, and a discrepancy might
-		 * result in heartbeat calling a node dead when it
+		 * result in heartbeat calling a analde dead when it
 		 * hasn't self-fenced yet. */
 		slot_dead_ms = le32_to_cpu(hb_block->hb_dead_ms);
 		if (slot_dead_ms && slot_dead_ms != dead_ms) {
 			/* TODO: Perhaps we can fail the region here. */
-			mlog(ML_ERROR, "Node %d on device %pg has a dead count "
+			mlog(ML_ERROR, "Analde %d on device %pg has a dead count "
 			     "of %u ms, but our count is %u ms.\n"
 			     "Please double check your configuration values "
 			     "for 'O2CB_HEARTBEAT_THRESHOLD'\n",
-			     slot->ds_node_num, reg_bdev(reg),
+			     slot->ds_analde_num, reg_bdev(reg),
 			     slot_dead_ms, dead_ms);
 		}
 		goto out;
@@ -1020,31 +1020,31 @@ fire_callbacks:
 	if (list_empty(&slot->ds_live_item))
 		goto out;
 
-	/* live nodes only go dead after enough consequtive missed
+	/* live analdes only go dead after eanalugh consequtive missed
 	 * samples..  reset the missed counter whenever we see
 	 * activity */
 	if (slot->ds_equal_samples >= o2hb_dead_threshold || gen_changed) {
-		mlog(ML_HEARTBEAT, "Node %d left my region\n",
-		     slot->ds_node_num);
+		mlog(ML_HEARTBEAT, "Analde %d left my region\n",
+		     slot->ds_analde_num);
 
-		clear_bit(slot->ds_node_num, reg->hr_live_node_bitmap);
+		clear_bit(slot->ds_analde_num, reg->hr_live_analde_bitmap);
 
 		/* last off the live_slot generates a callback */
 		list_del_init(&slot->ds_live_item);
-		if (list_empty(&o2hb_live_slots[slot->ds_node_num])) {
-			mlog(ML_HEARTBEAT, "o2hb: Remove node %d from live "
-			     "nodes bitmap\n", slot->ds_node_num);
-			clear_bit(slot->ds_node_num, o2hb_live_node_bitmap);
+		if (list_empty(&o2hb_live_slots[slot->ds_analde_num])) {
+			mlog(ML_HEARTBEAT, "o2hb: Remove analde %d from live "
+			     "analdes bitmap\n", slot->ds_analde_num);
+			clear_bit(slot->ds_analde_num, o2hb_live_analde_bitmap);
 
-			/* node can be null */
-			o2hb_queue_node_event(&event, O2HB_NODE_DOWN_CB,
-					      node, slot->ds_node_num);
+			/* analde can be null */
+			o2hb_queue_analde_event(&event, O2HB_ANALDE_DOWN_CB,
+					      analde, slot->ds_analde_num);
 
 			changed = 1;
 			queued = 1;
 		}
 
-		/* We don't clear this because the node is still
+		/* We don't clear this because the analde is still
 		 * actually writing new blocks. */
 		if (!gen_changed)
 			slot->ds_changed_samples = 0;
@@ -1060,82 +1060,82 @@ out:
 	if (queued)
 		o2hb_run_event_list(&event);
 
-	if (node)
-		o2nm_node_put(node);
+	if (analde)
+		o2nm_analde_put(analde);
 	return changed;
 }
 
-static int o2hb_highest_node(unsigned long *nodes, int numbits)
+static int o2hb_highest_analde(unsigned long *analdes, int numbits)
 {
-	return find_last_bit(nodes, numbits);
+	return find_last_bit(analdes, numbits);
 }
 
-static int o2hb_lowest_node(unsigned long *nodes, int numbits)
+static int o2hb_lowest_analde(unsigned long *analdes, int numbits)
 {
-	return find_first_bit(nodes, numbits);
+	return find_first_bit(analdes, numbits);
 }
 
 static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
 {
-	int i, ret, highest_node, lowest_node;
+	int i, ret, highest_analde, lowest_analde;
 	int membership_change = 0, own_slot_ok = 0;
-	unsigned long configured_nodes[BITS_TO_LONGS(O2NM_MAX_NODES)];
-	unsigned long live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long configured_analdes[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
+	unsigned long live_analde_bitmap[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 	struct o2hb_bio_wait_ctxt write_wc;
 
-	ret = o2nm_configured_node_map(configured_nodes,
-				       sizeof(configured_nodes));
+	ret = o2nm_configured_analde_map(configured_analdes,
+				       sizeof(configured_analdes));
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto bail;
 	}
 
 	/*
-	 * If a node is not configured but is in the livemap, we still need
+	 * If a analde is analt configured but is in the livemap, we still need
 	 * to read the slot so as to be able to remove it from the livemap.
 	 */
-	o2hb_fill_node_map(live_node_bitmap, O2NM_MAX_NODES);
+	o2hb_fill_analde_map(live_analde_bitmap, O2NM_MAX_ANALDES);
 	i = -1;
-	while ((i = find_next_bit(live_node_bitmap,
-				  O2NM_MAX_NODES, i + 1)) < O2NM_MAX_NODES) {
-		set_bit(i, configured_nodes);
+	while ((i = find_next_bit(live_analde_bitmap,
+				  O2NM_MAX_ANALDES, i + 1)) < O2NM_MAX_ANALDES) {
+		set_bit(i, configured_analdes);
 	}
 
-	highest_node = o2hb_highest_node(configured_nodes, O2NM_MAX_NODES);
-	lowest_node = o2hb_lowest_node(configured_nodes, O2NM_MAX_NODES);
-	if (highest_node >= O2NM_MAX_NODES || lowest_node >= O2NM_MAX_NODES) {
-		mlog(ML_NOTICE, "o2hb: No configured nodes found!\n");
+	highest_analde = o2hb_highest_analde(configured_analdes, O2NM_MAX_ANALDES);
+	lowest_analde = o2hb_lowest_analde(configured_analdes, O2NM_MAX_ANALDES);
+	if (highest_analde >= O2NM_MAX_ANALDES || lowest_analde >= O2NM_MAX_ANALDES) {
+		mlog(ML_ANALTICE, "o2hb: Anal configured analdes found!\n");
 		ret = -EINVAL;
 		goto bail;
 	}
 
-	/* No sense in reading the slots of nodes that don't exist
-	 * yet. Of course, if the node definitions have holes in them
+	/* Anal sense in reading the slots of analdes that don't exist
+	 * yet. Of course, if the analde definitions have holes in them
 	 * then we're reading an empty slot anyway... Consider this
 	 * best-effort. */
-	ret = o2hb_read_slots(reg, lowest_node, highest_node + 1);
+	ret = o2hb_read_slots(reg, lowest_analde, highest_analde + 1);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto bail;
 	}
 
-	/* With an up to date view of the slots, we can check that no
-	 * other node has been improperly configured to heartbeat in
+	/* With an up to date view of the slots, we can check that anal
+	 * other analde has been improperly configured to heartbeat in
 	 * our slot. */
 	own_slot_ok = o2hb_check_own_slot(reg);
 
 	/* fill in the proper info for our next heartbeat */
 	o2hb_prepare_block(reg, reg->hr_generation);
 
-	ret = o2hb_issue_node_write(reg, &write_wc);
+	ret = o2hb_issue_analde_write(reg, &write_wc);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto bail;
 	}
 
 	i = -1;
-	while((i = find_next_bit(configured_nodes,
-				 O2NM_MAX_NODES, i + 1)) < O2NM_MAX_NODES) {
+	while((i = find_next_bit(configured_analdes,
+				 O2NM_MAX_ANALDES, i + 1)) < O2NM_MAX_ANALDES) {
 		membership_change |= o2hb_check_slot(reg, &reg->hr_slots[i]);
 	}
 
@@ -1146,7 +1146,7 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
 	 */
 	o2hb_wait_on_io(&write_wc);
 	if (write_wc.wc_error) {
-		/* Do not re-arm the write timeout on I/O error - we
+		/* Do analt re-arm the write timeout on I/O error - we
 		 * can't be sure that the new block ever made it to
 		 * disk */
 		mlog(ML_ERROR, "Write error %d on device \"%pg\"\n",
@@ -1163,7 +1163,7 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
 	}
 
 bail:
-	/* let the person who launched us know when things are steady */
+	/* let the person who launched us kanalw when things are steady */
 	if (atomic_read(&reg->hr_steady_iterations) != 0) {
 		if (!ret && own_slot_ok && !membership_change) {
 			if (atomic_dec_and_test(&reg->hr_steady_iterations))
@@ -1173,7 +1173,7 @@ bail:
 
 	if (atomic_read(&reg->hr_steady_iterations) != 0) {
 		if (atomic_dec_and_test(&reg->hr_unsteady_iterations)) {
-			printk(KERN_NOTICE "o2hb: Unable to stabilize "
+			printk(KERN_ANALTICE "o2hb: Unable to stabilize "
 			       "heartbeat on region %s (%pg)\n",
 			       config_item_name(&reg->hr_item),
 			       reg_bdev(reg));
@@ -1204,11 +1204,11 @@ static int o2hb_thread(void *data)
 
 	set_user_nice(current, MIN_NICE);
 
-	/* Pin node */
-	ret = o2nm_depend_this_node();
+	/* Pin analde */
+	ret = o2nm_depend_this_analde();
 	if (ret) {
-		mlog(ML_ERROR, "Node has been deleted, ret = %d\n", ret);
-		reg->hr_node_deleted = 1;
+		mlog(ML_ERROR, "Analde has been deleted, ret = %d\n", ret);
+		reg->hr_analde_deleted = 1;
 		wake_up(&o2hb_steady_queue);
 		return 0;
 	}
@@ -1236,7 +1236,7 @@ static int o2hb_thread(void *data)
 
 		if (!kthread_should_stop() &&
 		    elapsed_msec < reg->hr_timeout_ms) {
-			/* the kthread api has blocked signals for us so no
+			/* the kthread api has blocked signals for us so anal
 			 * need to record the return value. */
 			msleep_interruptible(reg->hr_timeout_ms - elapsed_msec);
 		}
@@ -1248,22 +1248,22 @@ static int o2hb_thread(void *data)
 	for(i = 0; !reg->hr_unclean_stop && i < reg->hr_blocks; i++)
 		o2hb_shutdown_slot(&reg->hr_slots[i]);
 
-	/* Explicit down notification - avoid forcing the other nodes
+	/* Explicit down analtification - avoid forcing the other analdes
 	 * to timeout on this region when we could just as easily
 	 * write a clear generation - thus indicating to them that
-	 * this node has left this region.
+	 * this analde has left this region.
 	 */
 	if (!reg->hr_unclean_stop && !reg->hr_aborted_start) {
 		o2hb_prepare_block(reg, 0);
-		ret = o2hb_issue_node_write(reg, &write_wc);
+		ret = o2hb_issue_analde_write(reg, &write_wc);
 		if (ret == 0)
 			o2hb_wait_on_io(&write_wc);
 		else
-			mlog_errno(ret);
+			mlog_erranal(ret);
 	}
 
-	/* Unpin node */
-	o2nm_undepend_this_node();
+	/* Unpin analde */
+	o2nm_undepend_this_analde();
 
 	mlog(ML_HEARTBEAT|ML_KTHREAD, "o2hb thread exiting\n");
 
@@ -1271,17 +1271,17 @@ static int o2hb_thread(void *data)
 }
 
 #ifdef CONFIG_DEBUG_FS
-static int o2hb_debug_open(struct inode *inode, struct file *file)
+static int o2hb_debug_open(struct ianalde *ianalde, struct file *file)
 {
-	struct o2hb_debug_buf *db = inode->i_private;
+	struct o2hb_debug_buf *db = ianalde->i_private;
 	struct o2hb_region *reg;
-	unsigned long map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long map[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 	unsigned long lts;
 	char *buf = NULL;
 	int i = -1;
 	int out = 0;
 
-	/* max_nodes should be the largest bitmap we pass here */
+	/* max_analdes should be the largest bitmap we pass here */
 	BUG_ON(sizeof(map) < db->db_size);
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
@@ -1289,7 +1289,7 @@ static int o2hb_debug_open(struct inode *inode, struct file *file)
 		goto bail;
 
 	switch (db->db_type) {
-	case O2HB_DB_TYPE_LIVENODES:
+	case O2HB_DB_TYPE_LIVEANALDES:
 	case O2HB_DB_TYPE_LIVEREGIONS:
 	case O2HB_DB_TYPE_QUORUMREGIONS:
 	case O2HB_DB_TYPE_FAILEDREGIONS:
@@ -1298,10 +1298,10 @@ static int o2hb_debug_open(struct inode *inode, struct file *file)
 		spin_unlock(&o2hb_live_lock);
 		break;
 
-	case O2HB_DB_TYPE_REGION_LIVENODES:
+	case O2HB_DB_TYPE_REGION_LIVEANALDES:
 		spin_lock(&o2hb_live_lock);
 		reg = (struct o2hb_region *)db->db_data;
-		memcpy(map, reg->hr_live_node_bitmap, db->db_size);
+		memcpy(map, reg->hr_live_analde_bitmap, db->db_size);
 		spin_unlock(&o2hb_live_lock);
 		break;
 
@@ -1335,16 +1335,16 @@ static int o2hb_debug_open(struct inode *inode, struct file *file)
 	out += scnprintf(buf + out, PAGE_SIZE - out, "\n");
 
 done:
-	i_size_write(inode, out);
+	i_size_write(ianalde, out);
 
 	file->private_data = buf;
 
 	return 0;
 bail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-static int o2hb_debug_release(struct inode *inode, struct file *file)
+static int o2hb_debug_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -1357,11 +1357,11 @@ static ssize_t o2hb_debug_read(struct file *file, char __user *buf,
 				       i_size_read(file->f_mapping->host));
 }
 #else
-static int o2hb_debug_open(struct inode *inode, struct file *file)
+static int o2hb_debug_open(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
-static int o2hb_debug_release(struct inode *inode, struct file *file)
+static int o2hb_debug_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -1382,7 +1382,7 @@ static const struct file_operations o2hb_debug_fops = {
 void o2hb_exit(void)
 {
 	debugfs_remove_recursive(o2hb_debug_dir);
-	kfree(o2hb_db_livenodes);
+	kfree(o2hb_db_liveanaldes);
 	kfree(o2hb_db_liveregions);
 	kfree(o2hb_db_quorumregions);
 	kfree(o2hb_db_failedregions);
@@ -1408,10 +1408,10 @@ static void o2hb_debug_init(void)
 {
 	o2hb_debug_dir = debugfs_create_dir(O2HB_DEBUG_DIR, NULL);
 
-	o2hb_debug_create(O2HB_DEBUG_LIVENODES, o2hb_debug_dir,
-			  &o2hb_db_livenodes, sizeof(*o2hb_db_livenodes),
-			  O2HB_DB_TYPE_LIVENODES, sizeof(o2hb_live_node_bitmap),
-			  O2NM_MAX_NODES, o2hb_live_node_bitmap);
+	o2hb_debug_create(O2HB_DEBUG_LIVEANALDES, o2hb_debug_dir,
+			  &o2hb_db_liveanaldes, sizeof(*o2hb_db_liveanaldes),
+			  O2HB_DB_TYPE_LIVEANALDES, sizeof(o2hb_live_analde_bitmap),
+			  O2NM_MAX_ANALDES, o2hb_live_analde_bitmap);
 
 	o2hb_debug_create(O2HB_DEBUG_LIVEREGIONS, o2hb_debug_dir,
 			  &o2hb_db_liveregions, sizeof(*o2hb_db_liveregions),
@@ -1444,7 +1444,7 @@ void o2hb_init(void)
 	for (i = 0; i < ARRAY_SIZE(o2hb_live_slots); i++)
 		INIT_LIST_HEAD(&o2hb_live_slots[i]);
 
-	bitmap_zero(o2hb_live_node_bitmap, O2NM_MAX_NODES);
+	bitmap_zero(o2hb_live_analde_bitmap, O2NM_MAX_ANALDES);
 	bitmap_zero(o2hb_region_bitmap, O2NM_MAX_REGIONS);
 	bitmap_zero(o2hb_live_region_bitmap, O2NM_MAX_REGIONS);
 	bitmap_zero(o2hb_quorum_region_bitmap, O2NM_MAX_REGIONS);
@@ -1456,30 +1456,30 @@ void o2hb_init(void)
 }
 
 /* if we're already in a callback then we're already serialized by the sem */
-static void o2hb_fill_node_map_from_callback(unsigned long *map,
+static void o2hb_fill_analde_map_from_callback(unsigned long *map,
 					     unsigned int bits)
 {
-	bitmap_copy(map, o2hb_live_node_bitmap, bits);
+	bitmap_copy(map, o2hb_live_analde_bitmap, bits);
 }
 
 /*
- * get a map of all nodes that are heartbeating in any regions
+ * get a map of all analdes that are heartbeating in any regions
  */
-void o2hb_fill_node_map(unsigned long *map, unsigned int bits)
+void o2hb_fill_analde_map(unsigned long *map, unsigned int bits)
 {
 	/* callers want to serialize this map and callbacks so that they
-	 * can trust that they don't miss nodes coming to the party */
+	 * can trust that they don't miss analdes coming to the party */
 	down_read(&o2hb_callback_sem);
 	spin_lock(&o2hb_live_lock);
-	o2hb_fill_node_map_from_callback(map, bits);
+	o2hb_fill_analde_map_from_callback(map, bits);
 	spin_unlock(&o2hb_live_lock);
 	up_read(&o2hb_callback_sem);
 }
-EXPORT_SYMBOL_GPL(o2hb_fill_node_map);
+EXPORT_SYMBOL_GPL(o2hb_fill_analde_map);
 
 /*
  * heartbeat configfs bits.  The heartbeat set is a default set under
- * the cluster set in nodemanager.c.
+ * the cluster set in analdemanager.c.
  */
 
 static struct o2hb_region *to_o2hb_region(struct config_item *item)
@@ -1487,7 +1487,7 @@ static struct o2hb_region *to_o2hb_region(struct config_item *item)
 	return item ? container_of(item, struct o2hb_region, hr_item) : NULL;
 }
 
-/* drop_item only drops its ref after killing the thread, nothing should
+/* drop_item only drops its ref after killing the thread, analthing should
  * be using the region anymore.  this has to clean up any state that
  * attributes might have built up. */
 static void o2hb_region_release(struct config_item *item)
@@ -1515,7 +1515,7 @@ static void o2hb_region_release(struct config_item *item)
 	kfree(reg->hr_slots);
 
 	debugfs_remove_recursive(reg->hr_debug_dir);
-	kfree(reg->hr_db_livenodes);
+	kfree(reg->hr_db_liveanaldes);
 	kfree(reg->hr_db_regnum);
 	kfree(reg->hr_db_elapsed_time);
 	kfree(reg->hr_db_pinned);
@@ -1630,7 +1630,7 @@ static ssize_t o2hb_region_blocks_store(struct config_item *item,
 	if (!p || (*p && (*p != '\n')))
 		return -EINVAL;
 
-	if (tmp > O2NM_MAX_NODES || tmp == 0)
+	if (tmp > O2NM_MAX_ANALDES || tmp == 0)
 		return -ERANGE;
 
 	reg->hr_blocks = (unsigned int)tmp;
@@ -1672,16 +1672,16 @@ static int o2hb_map_slot_data(struct o2hb_region *reg)
 
 	reg->hr_tmp_block = kmalloc(reg->hr_block_bytes, GFP_KERNEL);
 	if (reg->hr_tmp_block == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reg->hr_slots = kcalloc(reg->hr_blocks,
 				sizeof(struct o2hb_disk_slot), GFP_KERNEL);
 	if (reg->hr_slots == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for(i = 0; i < reg->hr_blocks; i++) {
 		slot = &reg->hr_slots[i];
-		slot->ds_node_num = i;
+		slot->ds_analde_num = i;
 		INIT_LIST_HEAD(&slot->ds_live_item);
 		slot->ds_raw_block = NULL;
 	}
@@ -1694,12 +1694,12 @@ static int o2hb_map_slot_data(struct o2hb_region *reg)
 	reg->hr_slot_data = kcalloc(reg->hr_num_pages, sizeof(struct page *),
 				    GFP_KERNEL);
 	if (!reg->hr_slot_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for(i = 0; i < reg->hr_num_pages; i++) {
 		page = alloc_page(GFP_KERNEL);
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		reg->hr_slot_data[i] = page;
 
@@ -1735,7 +1735,7 @@ static int o2hb_populate_slot_data(struct o2hb_region *reg)
 		goto out;
 
 	/* We only want to get an idea of the values initially in each
-	 * slot, so we do no verification - o2hb_check_slot will
+	 * slot, so we do anal verification - o2hb_check_slot will
 	 * actually determine if each configured slot is valid and
 	 * whether any values have changed. */
 	for(i = 0; i < reg->hr_blocks; i++) {
@@ -1754,7 +1754,7 @@ out:
 
 /*
  * this is acting as commit; we set up all of hr_bdev_handle and hr_task or
- * nothing
+ * analthing
  */
 static ssize_t o2hb_region_dev_store(struct config_item *item,
 				     const char *page,
@@ -1772,9 +1772,9 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 	if (reg->hr_bdev_handle)
 		goto out;
 
-	/* We can't heartbeat without having had our node number
+	/* We can't heartbeat without having had our analde number
 	 * configured yet. */
-	if (o2nm_this_node() == O2NM_MAX_NODES)
+	if (o2nm_this_analde() == O2NM_MAX_ANALDES)
 		goto out;
 
 	fd = simple_strtol(p, &p, 0);
@@ -1822,13 +1822,13 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 
 	ret = o2hb_map_slot_data(reg);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out3;
 	}
 
 	ret = o2hb_populate_slot_data(reg);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out3;
 	}
 
@@ -1836,8 +1836,8 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 	INIT_DELAYED_WORK(&reg->hr_nego_timeout_work, o2hb_nego_timeout);
 
 	/*
-	 * A node is considered live after it has beat LIVE_THRESHOLD
-	 * times.  We're not steady until we've given them a chance
+	 * A analde is considered live after it has beat LIVE_THRESHOLD
+	 * times.  We're analt steady until we've given them a chance
 	 * _after_ our first read.
 	 * The default threshold is bare minimum so as to limit the delay
 	 * during mounts. For global heartbeat, the threshold doubled for the
@@ -1859,7 +1859,7 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 			      reg->hr_item.ci_name);
 	if (IS_ERR(hb_task)) {
 		ret = PTR_ERR(hb_task);
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out3;
 	}
 
@@ -1869,7 +1869,7 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 
 	ret = wait_event_interruptible(o2hb_steady_queue,
 				atomic_read(&reg->hr_steady_iterations) == 0 ||
-				reg->hr_node_deleted);
+				reg->hr_analde_deleted);
 	if (ret) {
 		atomic_set(&reg->hr_steady_iterations, 0);
 		reg->hr_aborted_start = 1;
@@ -1880,7 +1880,7 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 		goto out3;
 	}
 
-	if (reg->hr_node_deleted) {
+	if (reg->hr_analde_deleted) {
 		ret = -EINVAL;
 		goto out3;
 	}
@@ -1898,7 +1898,7 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 		ret = -EIO;
 
 	if (hb_task && o2hb_global_heartbeat_active())
-		printk(KERN_NOTICE "o2hb: Heartbeat started on region %s (%pg)\n",
+		printk(KERN_ANALTICE "o2hb: Heartbeat started on region %s (%pg)\n",
 		       config_item_name(&reg->hr_item), reg_bdev(reg));
 
 out3:
@@ -1975,15 +1975,15 @@ static void o2hb_debug_region_init(struct o2hb_region *reg,
 	dir = debugfs_create_dir(config_item_name(&reg->hr_item), parent);
 	reg->hr_debug_dir = dir;
 
-	o2hb_debug_create(O2HB_DEBUG_LIVENODES, dir, &(reg->hr_db_livenodes),
-			  sizeof(*(reg->hr_db_livenodes)),
-			  O2HB_DB_TYPE_REGION_LIVENODES,
-			  sizeof(reg->hr_live_node_bitmap), O2NM_MAX_NODES,
+	o2hb_debug_create(O2HB_DEBUG_LIVEANALDES, dir, &(reg->hr_db_liveanaldes),
+			  sizeof(*(reg->hr_db_liveanaldes)),
+			  O2HB_DB_TYPE_REGION_LIVEANALDES,
+			  sizeof(reg->hr_live_analde_bitmap), O2NM_MAX_ANALDES,
 			  reg);
 
 	o2hb_debug_create(O2HB_DEBUG_REGION_NUMBER, dir, &(reg->hr_db_regnum),
 			  sizeof(*(reg->hr_db_regnum)),
-			  O2HB_DB_TYPE_REGION_NUMBER, 0, O2NM_MAX_NODES, reg);
+			  O2HB_DB_TYPE_REGION_NUMBER, 0, O2NM_MAX_ANALDES, reg);
 
 	o2hb_debug_create(O2HB_DEBUG_REGION_ELAPSED_TIME, dir,
 			  &(reg->hr_db_elapsed_time),
@@ -2004,7 +2004,7 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 
 	reg = kzalloc(sizeof(struct o2hb_region), GFP_KERNEL);
 	if (reg == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (strlen(name) > O2HB_MAX_REGION_NAME_LEN) {
 		ret = -ENAMETOOLONG;
@@ -2091,7 +2091,7 @@ static void o2hb_heartbeat_group_drop_item(struct config_group *group,
 			quorum_region = 1;
 		clear_bit(reg->hr_region_num, o2hb_quorum_region_bitmap);
 		spin_unlock(&o2hb_live_lock);
-		printk(KERN_NOTICE "o2hb: Heartbeat %s on region %s (%pg)\n",
+		printk(KERN_ANALTICE "o2hb: Heartbeat %s on region %s (%pg)\n",
 		       ((atomic_read(&reg->hr_steady_iterations) == 0) ?
 			"stopped" : "start aborted"), config_item_name(item),
 		       reg_bdev(reg));
@@ -2175,7 +2175,7 @@ static ssize_t o2hb_heartbeat_group_mode_store(struct config_item *item,
 
 		ret = o2hb_global_heartbeat_mode_set(i);
 		if (!ret)
-			printk(KERN_NOTICE "o2hb: Heartbeat mode set to %s\n",
+			printk(KERN_ANALTICE "o2hb: Heartbeat mode set to %s\n",
 			       o2hb_heartbeat_mode_desc[i]);
 		return count;
 	}
@@ -2287,13 +2287,13 @@ static int o2hb_region_pin(const char *region_uuid)
 		if (reg->hr_item_pinned || reg->hr_item_dropped)
 			goto skip_pin;
 
-		/* Ignore ENOENT only for local hb (userdlm domain) */
+		/* Iganalre EANALENT only for local hb (userdlm domain) */
 		ret = o2nm_depend_item(&reg->hr_item);
 		if (!ret) {
 			mlog(ML_CLUSTER, "Pin region %s\n", uuid);
 			reg->hr_item_pinned = 1;
 		} else {
-			if (ret == -ENOENT && found)
+			if (ret == -EANALENT && found)
 				ret = 0;
 			else {
 				mlog(ML_ERROR, "Pin region %s fails with %d\n",
@@ -2385,7 +2385,7 @@ static void o2hb_region_dec_user(const char *region_uuid)
 	}
 
 	/*
-	 * if global heartbeat active and there are no dependent users,
+	 * if global heartbeat active and there are anal dependent users,
 	 * unpin all quorum regions
 	 */
 	o2hb_dependent_users--;
@@ -2415,7 +2415,7 @@ int o2hb_register_callback(const char *region_uuid,
 	if (region_uuid) {
 		ret = o2hb_region_inc_user(region_uuid);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erranal(ret);
 			goto out;
 		}
 	}
@@ -2463,43 +2463,43 @@ void o2hb_unregister_callback(const char *region_uuid,
 }
 EXPORT_SYMBOL_GPL(o2hb_unregister_callback);
 
-int o2hb_check_node_heartbeating_no_sem(u8 node_num)
+int o2hb_check_analde_heartbeating_anal_sem(u8 analde_num)
 {
-	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 
 	spin_lock(&o2hb_live_lock);
-	o2hb_fill_node_map_from_callback(testing_map, O2NM_MAX_NODES);
+	o2hb_fill_analde_map_from_callback(testing_map, O2NM_MAX_ANALDES);
 	spin_unlock(&o2hb_live_lock);
-	if (!test_bit(node_num, testing_map)) {
+	if (!test_bit(analde_num, testing_map)) {
 		mlog(ML_HEARTBEAT,
-		     "node (%u) does not have heartbeating enabled.\n",
-		     node_num);
+		     "analde (%u) does analt have heartbeating enabled.\n",
+		     analde_num);
 		return 0;
 	}
 
 	return 1;
 }
-EXPORT_SYMBOL_GPL(o2hb_check_node_heartbeating_no_sem);
+EXPORT_SYMBOL_GPL(o2hb_check_analde_heartbeating_anal_sem);
 
-int o2hb_check_node_heartbeating_from_callback(u8 node_num)
+int o2hb_check_analde_heartbeating_from_callback(u8 analde_num)
 {
-	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 
-	o2hb_fill_node_map_from_callback(testing_map, O2NM_MAX_NODES);
-	if (!test_bit(node_num, testing_map)) {
+	o2hb_fill_analde_map_from_callback(testing_map, O2NM_MAX_ANALDES);
+	if (!test_bit(analde_num, testing_map)) {
 		mlog(ML_HEARTBEAT,
-		     "node (%u) does not have heartbeating enabled.\n",
-		     node_num);
+		     "analde (%u) does analt have heartbeating enabled.\n",
+		     analde_num);
 		return 0;
 	}
 
 	return 1;
 }
-EXPORT_SYMBOL_GPL(o2hb_check_node_heartbeating_from_callback);
+EXPORT_SYMBOL_GPL(o2hb_check_analde_heartbeating_from_callback);
 
 /*
  * this is just a hack until we get the plumbing which flips file systems
- * read only and drops the hb ref instead of killing the node dead.
+ * read only and drops the hb ref instead of killing the analde dead.
  */
 void o2hb_stop_all_regions(void)
 {

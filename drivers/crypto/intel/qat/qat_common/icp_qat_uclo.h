@@ -107,7 +107,7 @@ enum icp_qat_uof_mem_region {
 };
 
 enum icp_qat_uof_regtype {
-	ICP_NO_DEST	= 0,
+	ICP_ANAL_DEST	= 0,
 	ICP_GPA_REL	= 1,
 	ICP_GPA_ABS	= 2,
 	ICP_GPB_REL	= 3,

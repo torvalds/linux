@@ -2,7 +2,7 @@
 /*
  * Hisilicon Fast Ethernet MAC Driver
  *
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/circ_buf.h>
@@ -351,12 +351,12 @@ static int hisi_femac_init_queue(struct device *dev,
 	queue->skb = devm_kcalloc(dev, num, sizeof(struct sk_buff *),
 				  GFP_KERNEL);
 	if (!queue->skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	queue->dma_phys = devm_kcalloc(dev, num, sizeof(dma_addr_t),
 				       GFP_KERNEL);
 	if (!queue->dma_phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	queue->num = num;
 	queue->head = 0;
@@ -553,7 +553,7 @@ static int hisi_femac_set_mac_address(struct net_device *dev, void *p)
 	struct sockaddr *skaddr = p;
 
 	if (!is_valid_ether_addr(skaddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, skaddr->sa_data);
 	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
@@ -768,7 +768,7 @@ static void hisi_femac_port_init(struct hisi_femac_priv *priv)
 static int hisi_femac_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct net_device *ndev;
 	struct hisi_femac_priv *priv;
 	struct phy_device *phy;
@@ -776,7 +776,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(*priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -800,7 +800,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev, "failed to get clk\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free_netdev;
 	}
 
@@ -821,7 +821,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->phy_rst)) {
 		priv->phy_rst = NULL;
 	} else {
-		ret = of_property_read_u32_array(node,
+		ret = of_property_read_u32_array(analde,
 						 PHY_RESET_DELAYS_PROPERTY,
 						 priv->phy_reset_delays,
 						 DELAYS_NUM);
@@ -830,10 +830,10 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 		hisi_femac_phy_reset(priv);
 	}
 
-	phy = of_phy_get_and_connect(ndev, node, hisi_femac_adjust_link);
+	phy = of_phy_get_and_connect(ndev, analde, hisi_femac_adjust_link);
 	if (!phy) {
 		dev_err(dev, "connect to PHY failed!\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_disable_clk;
 	}
 
@@ -841,7 +841,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 			   (unsigned long)phy->phy_id,
 			   phy_modes(phy->interface));
 
-	ret = of_get_ethdev_address(node, ndev);
+	ret = of_get_ethdev_address(analde, ndev);
 	if (ret) {
 		eth_hw_addr_random(ndev);
 		dev_warn(dev, "using random MAC address %pM\n",

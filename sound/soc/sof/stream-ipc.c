@@ -64,7 +64,7 @@ int sof_set_stream_data_offset(struct snd_sof_dev *sdev,
 			       struct snd_sof_pcm_stream *sps,
 			       size_t posn_offset)
 {
-	/* check if offset is overflow or it is not aligned */
+	/* check if offset is overflow or it is analt aligned */
 	if (posn_offset > sdev->stream_box.size ||
 	    posn_offset % sizeof(struct sof_ipc_stream_posn) != 0)
 		return -EINVAL;
@@ -84,7 +84,7 @@ int sof_set_stream_data_offset(struct snd_sof_dev *sdev,
 		dev_dbg(sdev->dev, "compr: stream dir %d, posn mailbox offset is %zu",
 			sps->cstream->direction, posn_offset);
 	} else {
-		dev_err(sdev->dev, "No stream opened");
+		dev_err(sdev->dev, "Anal stream opened");
 		return -EINVAL;
 	}
 
@@ -98,7 +98,7 @@ int sof_stream_pcm_open(struct snd_sof_dev *sdev,
 	struct sof_stream *stream = kmalloc(sizeof(*stream), GFP_KERNEL);
 
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* binding pcm substream to hda stream */
 	substream->runtime->private_data = stream;

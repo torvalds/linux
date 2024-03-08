@@ -133,8 +133,8 @@
 #define	MPC10X_EUMB_EPIC_SIZE		0x00030000 /* EPIC size */
 #define MPC10X_EUMB_PM_OFFSET		0x000fe000 /* Performance Monitor reg offset (8245) */
 #define MPC10X_EUMB_PM_SIZE		0x00001000 /* Performance Monitor reg size (8245) */
-#define MPC10X_EUMB_WP_OFFSET		0x000ff000 /* Data path diagnostic, watchpoint reg offset */
-#define MPC10X_EUMB_WP_SIZE		0x00001000 /* Data path diagnostic, watchpoint reg size */
+#define MPC10X_EUMB_WP_OFFSET		0x000ff000 /* Data path diaganalstic, watchpoint reg offset */
+#define MPC10X_EUMB_WP_SIZE		0x00001000 /* Data path diaganalstic, watchpoint reg size */
 
 enum ppc_sys_devices {
 	MPC10X_IIC1,

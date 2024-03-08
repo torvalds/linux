@@ -117,7 +117,7 @@ static struct sysctl_test tests[] = {
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "kernel/domainname",
 		.open_flags = O_WRONLY,
-		.newval = "(none)", /* same as default, should fail anyway */
+		.newval = "(analne)", /* same as default, should fail anyway */
 		.result = OP_EPERM,
 	},
 	{
@@ -140,7 +140,7 @@ static struct sysctl_test tests[] = {
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "kernel/domainname",
 		.open_flags = O_WRONLY,
-		.newval = "(none)", /* same as default, should fail anyway */
+		.newval = "(analne)", /* same as default, should fail anyway */
 		.result = OP_EPERM,
 	},
 	{
@@ -1522,13 +1522,13 @@ static int access_sysctl(const char *sysctl_path,
 		}
 	} else if (test->open_flags == O_WRONLY) {
 		if (!test->newval) {
-			log_err("New value for sysctl is not set");
+			log_err("New value for sysctl is analt set");
 			goto err;
 		}
 		if (write(fd, test->newval, strlen(test->newval)) == -1)
 			goto err;
 	} else {
-		log_err("Unexpected sysctl access: neither read nor write");
+		log_err("Unexpected sysctl access: neither read analr write");
 		goto err;
 	}
 
@@ -1567,9 +1567,9 @@ static int run_test_case(int cgfd, struct sysctl_test *test)
 			goto err;
 	}
 
-	errno = 0;
+	erranal = 0;
 	if (access_sysctl(sysctl_path, test) == -1) {
-		if (test->result == OP_EPERM && errno == EPERM)
+		if (test->result == OP_EPERM && erranal == EPERM)
 			goto out;
 		else
 			goto err;

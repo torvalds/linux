@@ -50,7 +50,7 @@
 #define	CC2520_CHANNEL_SPACING		5
 
 /* command strobes */
-#define	CC2520_CMD_SNOP			0x00
+#define	CC2520_CMD_SANALP			0x00
 #define	CC2520_CMD_IBUFLD		0x02
 #define	CC2520_CMD_SIBUFEX		0x03
 #define	CC2520_CMD_SSAMPLECCA		0x04
@@ -195,7 +195,7 @@
 
 /* CC2520_FRMCTRL1 */
 #define FRMCTRL1_SET_RXENMASK_ON_TX	BIT(0)
-#define FRMCTRL1_IGNORE_TX_UNDERF	BIT(1)
+#define FRMCTRL1_IGANALRE_TX_UNDERF	BIT(1)
 
 /* Driver private information */
 struct cc2520_private {
@@ -256,7 +256,7 @@ cc2520_get_status(struct cc2520_private *priv, u8 *status)
 	spi_message_add_tail(&xfer, &msg);
 
 	mutex_lock(&priv->buffer_mutex);
-	priv->buf[xfer.len++] = CC2520_CMD_SNOP;
+	priv->buf[xfer.len++] = CC2520_CMD_SANALP;
 	dev_vdbg(&priv->spi->dev,
 		 "get status command buf[0] = %02x\n", priv->buf[0]);
 
@@ -551,7 +551,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 
 	skb = dev_alloc_skb(len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (cc2520_read_rxfifo(priv, skb_put(skb, len), len)) {
 		dev_dbg(&priv->spi->dev, "frame reception failed\n");
@@ -560,7 +560,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 	}
 
 	/* In promiscuous mode, we configure the radio to include the
-	 * CRC (AUTOCRC==0) and we pass on the packet unconditionally. If not
+	 * CRC (AUTOCRC==0) and we pass on the packet unconditionally. If analt
 	 * in promiscuous mode, we check the CRC here, but leave the
 	 * RSSI/LQI/CRC_OK bytes as they will get removed in the mac layer.
 	 */
@@ -585,7 +585,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 		 * the range 0-255. According to section 20.6, the correlation
 		 * value ranges from 50-110. Ideally this would be calibrated
 		 * per hardware design, but we use roughly the datasheet values
-		 * to get close enough while avoiding floating point.
+		 * to get close eanalugh while avoiding floating point.
 		 */
 		lqi = skb->data[len - 1] & 0x7f;
 		if (lqi < 50)
@@ -824,7 +824,7 @@ static const struct ieee802154_ops cc2520_ops = {
 
 static int cc2520_register(struct cc2520_private *priv)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	priv->hw = ieee802154_alloc_hw(sizeof(*priv), &cc2520_ops);
 	if (!priv->hw)
@@ -941,7 +941,7 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 	/* If the CC2520 is connected to a CC2591 amplifier, we must both
 	 * configure GPIOs on the CC2520 to correctly configure the CC2591
 	 * and change a couple settings of the CC2520 to work with the
-	 * amplifier. See section 8 page 17 of TI application note AN065.
+	 * amplifier. See section 8 page 17 of TI application analte AN065.
 	 * http://www.ti.com/lit/an/swra229a/swra229a.pdf
 	 */
 	if (priv->amplified) {
@@ -1015,7 +1015,7 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 	/* Configure registers correctly for this driver. */
 	ret = cc2520_write_register(priv, CC2520_FRMCTRL1,
 				    FRMCTRL1_SET_RXENMASK_ON_TX |
-				    FRMCTRL1_IGNORE_TX_UNDERF);
+				    FRMCTRL1_IGANALRE_TX_UNDERF);
 	if (ret)
 		goto err_ret;
 
@@ -1041,12 +1041,12 @@ static int cc2520_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, priv);
 
 	/* CC2591 front end for CC2520 */
-	/* Assumption that CC2591 is not connected */
+	/* Assumption that CC2591 is analt connected */
 	priv->amplified = false;
 	if (device_property_read_bool(&spi->dev, "amplified"))
 		priv->amplified = true;
@@ -1056,7 +1056,7 @@ static int cc2520_probe(struct spi_device *spi)
 	priv->buf = devm_kzalloc(&spi->dev,
 				 SPI_COMMAND_BUFFER, GFP_KERNEL);
 	if (!priv->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->buffer_mutex);
 	INIT_WORK(&priv->fifop_irqwork, cc2520_fifop_irqwork);
@@ -1066,42 +1066,42 @@ static int cc2520_probe(struct spi_device *spi)
 	/* Request all the gpio's */
 	priv->fifo_pin = devm_gpiod_get(&spi->dev, "fifo", GPIOD_IN);
 	if (IS_ERR(priv->fifo_pin)) {
-		dev_err(&spi->dev, "fifo gpio is not valid\n");
+		dev_err(&spi->dev, "fifo gpio is analt valid\n");
 		ret = PTR_ERR(priv->fifo_pin);
 		goto err_hw_init;
 	}
 
 	cca = devm_gpiod_get(&spi->dev, "cca", GPIOD_IN);
 	if (IS_ERR(cca)) {
-		dev_err(&spi->dev, "cca gpio is not valid\n");
+		dev_err(&spi->dev, "cca gpio is analt valid\n");
 		ret = PTR_ERR(cca);
 		goto err_hw_init;
 	}
 
 	fifop = devm_gpiod_get(&spi->dev, "fifop", GPIOD_IN);
 	if (IS_ERR(fifop)) {
-		dev_err(&spi->dev, "fifop gpio is not valid\n");
+		dev_err(&spi->dev, "fifop gpio is analt valid\n");
 		ret = PTR_ERR(fifop);
 		goto err_hw_init;
 	}
 
 	sfd = devm_gpiod_get(&spi->dev, "sfd", GPIOD_IN);
 	if (IS_ERR(sfd)) {
-		dev_err(&spi->dev, "sfd gpio is not valid\n");
+		dev_err(&spi->dev, "sfd gpio is analt valid\n");
 		ret = PTR_ERR(sfd);
 		goto err_hw_init;
 	}
 
 	reset = devm_gpiod_get(&spi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(reset)) {
-		dev_err(&spi->dev, "reset gpio is not valid\n");
+		dev_err(&spi->dev, "reset gpio is analt valid\n");
 		ret = PTR_ERR(reset);
 		goto err_hw_init;
 	}
 
 	vreg = devm_gpiod_get(&spi->dev, "vreg", GPIOD_OUT_LOW);
 	if (IS_ERR(vreg)) {
-		dev_err(&spi->dev, "vreg gpio is not valid\n");
+		dev_err(&spi->dev, "vreg gpio is analt valid\n");
 		ret = PTR_ERR(vreg);
 		goto err_hw_init;
 	}
@@ -1124,7 +1124,7 @@ static int cc2520_probe(struct spi_device *spi)
 			       dev_name(&spi->dev),
 			       priv);
 	if (ret) {
-		dev_err(&spi->dev, "could not get fifop irq\n");
+		dev_err(&spi->dev, "could analt get fifop irq\n");
 		goto err_hw_init;
 	}
 
@@ -1136,7 +1136,7 @@ static int cc2520_probe(struct spi_device *spi)
 			       dev_name(&spi->dev),
 			       priv);
 	if (ret) {
-		dev_err(&spi->dev, "could not get sfd irq\n");
+		dev_err(&spi->dev, "could analt get sfd irq\n");
 		goto err_hw_init;
 	}
 

@@ -202,8 +202,8 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 					intr_ctrl_regset);
 	}
 
-	if (qcq->flags & IONIC_QCQ_F_NOTIFYQ) {
-		stats_dentry = debugfs_create_dir("notifyblock", qcq->dentry);
+	if (qcq->flags & IONIC_QCQ_F_ANALTIFYQ) {
+		stats_dentry = debugfs_create_dir("analtifyblock", qcq->dentry);
 
 		debugfs_create_u64("eid", 0400, stats_dentry,
 				   (u64 *)&lif->info->status.eid);
@@ -231,7 +231,7 @@ static int lif_filters_show(struct seq_file *seq, void *v)
 	struct ionic_lif *lif = seq->private;
 	struct ionic_rx_filter *f;
 	struct hlist_head *head;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	unsigned int i;
 
 	seq_puts(seq, "id      flow        state type  filter\n");

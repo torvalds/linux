@@ -8,7 +8,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ctype.h>
 #include <linux/sysctl.h>
 #include <linux/module.h>
@@ -50,7 +50,7 @@ int ctcm_register_dbf_views(void)
 						ctcm_dbf[x].len);
 		if (ctcm_dbf[x].id == NULL) {
 			ctcm_unregister_dbf_views();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* register a view */

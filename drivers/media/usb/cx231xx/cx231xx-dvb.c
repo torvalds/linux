@@ -72,7 +72,7 @@ static struct s5h1432_config dvico_s5h1432_config = {
 	.vsb_if        = S5H1432_IF_4000,
 	.inversion     = S5H1432_INVERSION_OFF,
 	.status_mode   = S5H1432_DEMODLOCKING,
-	.mpeg_timing   = S5H1432_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1432_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct tda18271_std_map cnxt_rde253s_tda18271_std_map = {
@@ -101,7 +101,7 @@ static struct s5h1411_config tda18271_s5h1411_config = {
 	.qam_if        = S5H1411_IF_4000,
 	.inversion     = S5H1411_INVERSION_ON,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 static struct s5h1411_config xc5000_s5h1411_config = {
 	.output_mode   = S5H1411_SERIAL_OUTPUT,
@@ -110,7 +110,7 @@ static struct s5h1411_config xc5000_s5h1411_config = {
 	.qam_if        = S5H1411_IF_3250,
 	.inversion     = S5H1411_INVERSION_OFF,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct lgdt3305_config hcw_lgdt3305_config = {
@@ -166,20 +166,20 @@ static struct r820t_config astrometa_t2hybrid_r820t_config = {
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkanalwn";
 
 	switch (status) {
-	case -ENOENT:
-		errmsg = "unlinked synchronously";
+	case -EANALENT:
+		errmsg = "unlinked synchroanalusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroanalusly";
 		break;
-	case -ENOSR:
+	case -EANALSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device analt responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -191,7 +191,7 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does analt respond";
 		break;
 	}
 	if (packet < 0) {
@@ -216,7 +216,7 @@ static inline int dvb_isoc_copy(struct cx231xx *dev, struct urb *urb)
 
 	if (urb->status < 0) {
 		print_err_status(dev, -1, urb->status);
-		if (urb->status == -ENOENT)
+		if (urb->status == -EANALENT)
 			return 0;
 	}
 
@@ -248,7 +248,7 @@ static inline int dvb_bulk_copy(struct cx231xx *dev, struct urb *urb)
 
 	if (urb->status < 0) {
 		print_err_status(dev, -1, urb->status);
-		if (urb->status == -ENOENT)
+		if (urb->status == -EANALENT)
 			return 0;
 	}
 
@@ -378,7 +378,7 @@ static int attach_xc5000(u8 addr, struct cx231xx *dev)
 	cfg.i2c_addr = addr;
 
 	if (!dev->dvb->frontend[0]) {
-		dev_err(dev->dev, "%s/2: dvb frontend not attached. Can't attach xc5000\n",
+		dev_err(dev->dev, "%s/2: dvb frontend analt attached. Can't attach xc5000\n",
 			dev->name);
 		return -EINVAL;
 	}
@@ -407,7 +407,7 @@ int cx231xx_set_analog_freq(struct cx231xx *dev, u32 freq)
 			struct analog_parameters params;
 
 			params.frequency = freq;
-			params.std = dev->norm;
+			params.std = dev->analrm;
 			params.mode = 0;	/* 0- Air; 1 - cable */
 			/*params.audmode = ;       */
 
@@ -465,7 +465,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 				      adapter_nr);
 	if (result < 0) {
 		dev_warn(dev->dev,
-		       "%s: dvb_register_adapter failed (errno = %d)\n",
+		       "%s: dvb_register_adapter failed (erranal = %d)\n",
 		       dev->name, result);
 		goto fail_adapter;
 	}
@@ -482,7 +482,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend[0]);
 	if (result < 0) {
 		dev_warn(dev->dev,
-		       "%s: dvb_register_frontend failed (errno = %d)\n",
+		       "%s: dvb_register_frontend failed (erranal = %d)\n",
 		       dev->name, result);
 		goto fail_frontend0;
 	}
@@ -491,7 +491,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 		result = dvb_register_frontend(&dvb->adapter, dvb->frontend[1]);
 		if (result < 0) {
 			dev_warn(dev->dev,
-				 "%s: 2nd dvb_register_frontend failed (errno = %d)\n",
+				 "%s: 2nd dvb_register_frontend failed (erranal = %d)\n",
 				dev->name, result);
 			goto fail_frontend1;
 		}
@@ -513,7 +513,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
 		dev_warn(dev->dev,
-			 "%s: dvb_dmx_init failed (errno = %d)\n",
+			 "%s: dvb_dmx_init failed (erranal = %d)\n",
 		       dev->name, result);
 		goto fail_dmx;
 	}
@@ -524,7 +524,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
 		dev_warn(dev->dev,
-			 "%s: dvb_dmxdev_init failed (errno = %d)\n",
+			 "%s: dvb_dmxdev_init failed (erranal = %d)\n",
 			 dev->name, result);
 		goto fail_dmxdev;
 	}
@@ -533,7 +533,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
 		dev_warn(dev->dev,
-		       "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		       "%s: add_frontend failed (DMX_FRONTEND_0, erranal = %d)\n",
 		       dev->name, result);
 		goto fail_fe_hw;
 	}
@@ -542,7 +542,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
 		dev_warn(dev->dev,
-			 "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+			 "%s: add_frontend failed (DMX_MEMORY_FE, erranal = %d)\n",
 			 dev->name, result);
 		goto fail_fe_mem;
 	}
@@ -550,7 +550,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
 		dev_warn(dev->dev,
-			 "%s: connect_frontend failed (errno = %d)\n",
+			 "%s: connect_frontend failed (erranal = %d)\n",
 			 dev->name, result);
 		goto fail_fe_conn;
 	}
@@ -623,7 +623,7 @@ static int dvb_init(struct cx231xx *dev)
 	struct i2c_adapter *adapter;
 
 	if (!dev->board.has_dvb) {
-		/* This device does not support the extension */
+		/* This device does analt support the extension */
 		return 0;
 	}
 
@@ -632,7 +632,7 @@ static int dvb_init(struct cx231xx *dev)
 	if (dvb == NULL) {
 		dev_info(dev->dev,
 			 "cx231xx_dvb: memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev->dvb = dvb;
 	dev->cx231xx_set_analog_freq = cx231xx_set_analog_freq;
@@ -780,7 +780,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.demod_addr,
 						&si2165_pdata);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dvb->i2c_client_demod[0] = client;
@@ -812,7 +812,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.demod_addr,
 						&si2165_pdata);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dvb->i2c_client_demod[0] = client;
@@ -835,7 +835,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.tuner_addr,
 						&si2157_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dev->cx231xx_reset_analog_tuner = NULL;
@@ -857,7 +857,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.demod_addr,
 						&lgdt3306a_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dvb->i2c_client_demod[0] = client;
@@ -880,7 +880,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.tuner_addr,
 						&si2157_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dev->cx231xx_reset_analog_tuner = NULL;
@@ -930,7 +930,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.demod_addr,
 						&si2168_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dvb->i2c_client_demod[0] = client;
@@ -948,7 +948,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.tuner_addr,
 						&si2157_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dev->cx231xx_reset_analog_tuner = NULL;
@@ -969,7 +969,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.demod_addr,
 						&mn88473_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dvb->i2c_client_demod[0] = client;
@@ -999,7 +999,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.demod_addr,
 						&si2168_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dvb->i2c_client_demod[0] = client;
@@ -1021,7 +1021,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.tuner_addr,
 						&si2157_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dev->cx231xx_reset_analog_tuner = NULL;
@@ -1045,7 +1045,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.demod_addr,
 						&lgdt3306a_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dvb->i2c_client_demod[0] = client;
@@ -1061,7 +1061,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.demod_addr2,
 						&si2168_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dvb->i2c_client_demod[1] = client;
@@ -1084,7 +1084,7 @@ static int dvb_init(struct cx231xx *dev)
 						dev->board.tuner_addr,
 						&si2157_config);
 		if (!client) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_free;
 		}
 		dev->cx231xx_reset_analog_tuner = NULL;
@@ -1141,7 +1141,7 @@ out_free:
 static int dvb_fini(struct cx231xx *dev)
 {
 	if (!dev->board.has_dvb) {
-		/* This device does not support the extension */
+		/* This device does analt support the extension */
 		return 0;
 	}
 

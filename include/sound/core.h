@@ -17,10 +17,10 @@
 #include <linux/xarray.h>
 
 /* number of supported soundcards */
-#ifdef CONFIG_SND_DYNAMIC_MINORS
+#ifdef CONFIG_SND_DYNAMIC_MIANALRS
 #define SNDRV_CARDS CONFIG_SND_MAX_CARDS
 #else
-#define SNDRV_CARDS 8		/* don't change - minor numbers */
+#define SNDRV_CARDS 8		/* don't change - mianalr numbers */
 #endif
 
 #define CONFIG_SND_MAJOR	116	/* standard configuration */
@@ -47,7 +47,7 @@ enum snd_device_type {
 	SNDRV_DEV_SEQUENCER,
 	SNDRV_DEV_HWDEP,
 	SNDRV_DEV_JACK,
-	SNDRV_DEV_CONTROL,	/* NOTE: this must be the last one */
+	SNDRV_DEV_CONTROL,	/* ANALTE: this must be the last one */
 };
 
 enum snd_device_state {
@@ -212,7 +212,7 @@ static inline void snd_power_sync_ref(struct snd_card *card) {}
 
 #endif /* CONFIG_PM */
 
-struct snd_minor {
+struct snd_mianalr {
 	int type;			/* SNDRV_DEVICE_TYPE_XXX */
 	int card;			/* card number */
 	int device;			/* device number */
@@ -245,23 +245,23 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 			const struct file_operations *f_ops,
 			void *private_data, struct device *device);
 int snd_unregister_device(struct device *dev);
-void *snd_lookup_minor_data(unsigned int minor, int type);
+void *snd_lookup_mianalr_data(unsigned int mianalr, int type);
 
 #ifdef CONFIG_SND_OSSEMUL
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
 			    const struct file_operations *f_ops, void *private_data);
 int snd_unregister_oss_device(int type, struct snd_card *card, int dev);
-void *snd_lookup_oss_minor_data(unsigned int minor, int type);
+void *snd_lookup_oss_mianalr_data(unsigned int mianalr, int type);
 #endif
 
-int snd_minor_info_init(void);
+int snd_mianalr_info_init(void);
 
 /* sound_oss.c */
 
 #ifdef CONFIG_SND_OSSEMUL
-int snd_minor_info_oss_init(void);
+int snd_mianalr_info_oss_init(void);
 #else
-static inline int snd_minor_info_oss_init(void) { return 0; }
+static inline int snd_mianalr_info_oss_init(void) { return 0; }
 #endif
 
 /* memory.c */
@@ -273,10 +273,10 @@ int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size
 
 int snd_card_locked(int card);
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
-#define SND_MIXER_OSS_NOTIFY_REGISTER	0
-#define SND_MIXER_OSS_NOTIFY_DISCONNECT	1
-#define SND_MIXER_OSS_NOTIFY_FREE	2
-extern int (*snd_mixer_oss_notify_callback)(struct snd_card *card, int cmd);
+#define SND_MIXER_OSS_ANALTIFY_REGISTER	0
+#define SND_MIXER_OSS_ANALTIFY_DISCONNECT	1
+#define SND_MIXER_OSS_ANALTIFY_FREE	2
+extern int (*snd_mixer_oss_analtify_callback)(struct snd_card *card, int cmd);
 #endif
 
 int snd_card_new(struct device *parent, int idx, const char *xid,
@@ -307,7 +307,7 @@ struct snd_card *snd_card_ref(int card);
  * @card: the card object to unreference
  *
  * Call this function for the card object that was obtained via snd_card_ref()
- * or snd_lookup_minor_data().
+ * or snd_lookup_mianalr_data().
  */
 static inline void snd_card_unref(struct snd_card *card)
 {
@@ -331,7 +331,7 @@ int snd_device_get_state(struct snd_card *card, void *device_data);
 /* isadma.c */
 
 #ifdef CONFIG_ISA_DMA_API
-#define DMA_MODE_NO_ENABLE	0x0100
+#define DMA_MODE_ANAL_ENABLE	0x0100
 
 void snd_dma_program(unsigned long dma, unsigned long addr, unsigned int size, unsigned short mode);
 void snd_dma_disable(unsigned long dma);
@@ -377,7 +377,7 @@ void __snd_printk(unsigned int level, const char *file, int line,
  * @fmt: format string
  *
  * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG is not set.
+ * Iganalred when CONFIG_SND_DEBUG is analt set.
  */
 #define snd_printd(fmt, ...) \
 	__snd_printk(1, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
@@ -388,7 +388,7 @@ void __snd_printk(unsigned int level, const char *file, int line,
  * snd_BUG - give a BUG warning message and stack trace
  *
  * Calls WARN() if CONFIG_SND_DEBUG is set.
- * Ignored when CONFIG_SND_DEBUG is not set.
+ * Iganalred when CONFIG_SND_DEBUG is analt set.
  */
 #define snd_BUG()		WARN(1, "BUG?\n")
 
@@ -431,7 +431,7 @@ static inline bool snd_printd_ratelimit(void) { return false; }
  * @format: format string
  *
  * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
+ * Iganalred when CONFIG_SND_DEBUG_VERBOSE is analt set.
  */
 #define snd_printdd(format, ...) \
 	__snd_printk(2, __FILE__, __LINE__, format, ##__VA_ARGS__)

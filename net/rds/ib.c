@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -66,18 +66,18 @@ MODULE_PARM_DESC(rds_ib_retry_count, " Number of hw retries before reporting an 
 DECLARE_RWSEM(rds_ib_devices_lock);
 struct list_head rds_ib_devices;
 
-/* NOTE: if also grabbing ibdev lock, grab this first */
-DEFINE_SPINLOCK(ib_nodev_conns_lock);
-LIST_HEAD(ib_nodev_conns);
+/* ANALTE: if also grabbing ibdev lock, grab this first */
+DEFINE_SPINLOCK(ib_analdev_conns_lock);
+LIST_HEAD(ib_analdev_conns);
 
-static void rds_ib_nodev_connect(void)
+static void rds_ib_analdev_connect(void)
 {
 	struct rds_ib_connection *ic;
 
-	spin_lock(&ib_nodev_conns_lock);
-	list_for_each_entry(ic, &ib_nodev_conns, ib_node)
+	spin_lock(&ib_analdev_conns_lock);
+	list_for_each_entry(ic, &ib_analdev_conns, ib_analde)
 		rds_conn_connect_if_down(ic->conn);
-	spin_unlock(&ib_nodev_conns_lock);
+	spin_unlock(&ib_analdev_conns_lock);
 }
 
 static void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
@@ -86,7 +86,7 @@ static void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rds_ibdev->spinlock, flags);
-	list_for_each_entry(ic, &rds_ibdev->conn_list, ib_node)
+	list_for_each_entry(ic, &rds_ibdev->conn_list, ib_analde)
 		rds_conn_path_drop(&ic->conn->c_path[0], true);
 	spin_unlock_irqrestore(&rds_ibdev->spinlock, flags);
 }
@@ -130,18 +130,18 @@ static int rds_ib_add_one(struct ib_device *device)
 	struct rds_ib_device *rds_ibdev;
 	int ret;
 
-	/* Only handle IB (no iWARP) devices */
-	if (device->node_type != RDMA_NODE_IB_CA)
-		return -EOPNOTSUPP;
+	/* Only handle IB (anal iWARP) devices */
+	if (device->analde_type != RDMA_ANALDE_IB_CA)
+		return -EOPANALTSUPP;
 
 	/* Device must support FRWR */
 	if (!(device->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	rds_ibdev = kzalloc_node(sizeof(struct rds_ib_device), GFP_KERNEL,
-				 ibdev_to_node(device));
+	rds_ibdev = kzalloc_analde(sizeof(struct rds_ib_device), GFP_KERNEL,
+				 ibdev_to_analde(device));
 	if (!rds_ibdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&rds_ibdev->spinlock);
 	refcount_set(&rds_ibdev->refcount, 1);
@@ -178,7 +178,7 @@ static int rds_ib_add_one(struct ib_device *device)
 	if (!rds_ibdev->vector_load) {
 		pr_err("RDS/IB: %s failed to allocate vector memory\n",
 			__func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_dev;
 	}
 
@@ -219,7 +219,7 @@ static int rds_ib_add_one(struct ib_device *device)
 
 	ib_set_client_data(device, &rds_ib_client, rds_ibdev);
 
-	rds_ib_nodev_connect();
+	rds_ib_analdev_connect();
 	return 0;
 
 put_dev:
@@ -229,7 +229,7 @@ put_dev:
 
 /*
  * New connections use this to find the device to associate with the
- * connection.  It's not in the fast path so we're not concerned about the
+ * connection.  It's analt in the fast path so we're analt concerned about the
  * performance of the IB call.  (As of this writing, it uses an interrupt
  * blocking spinlock to serialize walking a per-device list of all registered
  * clients.)
@@ -256,7 +256,7 @@ struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device)
 }
 
 /*
- * The IB stack is letting us know that a device is going away.  This can
+ * The IB stack is letting us kanalw that a device is going away.  This can
  * happen if the underlying HCA driver is removed or if PCI hotplug is removing
  * the pci function, for example.
  *
@@ -398,7 +398,7 @@ static void rds6_ib_ic_info(struct socket *sock, unsigned int len,
  * device with that address set.
  *
  * If it were me, I'd advocate for something more flexible.  Sending and
- * receiving should be device-agnostic.  Transports would try and maintain
+ * receiving should be device-aganalstic.  Transports would try and maintain
  * connections between peers who have messages queued.  Userspace would be
  * allowed to influence which paths have priority.  We could call userspace
  * asserting this policy "routing".
@@ -446,27 +446,27 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 			struct net_device *dev;
 
 			if (scope_id == 0) {
-				ret = -EADDRNOTAVAIL;
+				ret = -EADDRANALTAVAIL;
 				goto out;
 			}
 
-			/* Use init_net for now as RDS is not network
+			/* Use init_net for analw as RDS is analt network
 			 * name space aware.
 			 */
 			dev = dev_get_by_index(&init_net, scope_id);
 			if (!dev) {
-				ret = -EADDRNOTAVAIL;
+				ret = -EADDRANALTAVAIL;
 				goto out;
 			}
 			if (!ipv6_chk_addr(&init_net, addr, dev, 1)) {
 				dev_put(dev);
-				ret = -EADDRNOTAVAIL;
+				ret = -EADDRANALTAVAIL;
 				goto out;
 			}
 			dev_put(dev);
 		}
 #else
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		goto out;
 #endif
 	}
@@ -474,14 +474,14 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 	/* rdma_bind_addr will only succeed for IB & iWARP devices */
 	ret = rdma_bind_addr(cm_id, sa);
 	/* due to this, we will claim to support iWARP devices unless we
-	   check node_type. */
+	   check analde_type. */
 	if (ret || !cm_id->device ||
-	    cm_id->device->node_type != RDMA_NODE_IB_CA)
-		ret = -EADDRNOTAVAIL;
+	    cm_id->device->analde_type != RDMA_ANALDE_IB_CA)
+		ret = -EADDRANALTAVAIL;
 
-	rdsdebug("addr %pI6c%%%u ret %d node type %d\n",
+	rdsdebug("addr %pI6c%%%u ret %d analde type %d\n",
 		 addr, scope_id, ret,
-		 cm_id->device ? cm_id->device->node_type : -1);
+		 cm_id->device ? cm_id->device->analde_type : -1);
 
 out:
 	rdma_destroy_id(cm_id);
@@ -518,7 +518,7 @@ void rds_ib_exit(void)
 	rds_info_deregister_func(RDS6_INFO_IB_CONNECTIONS, rds6_ib_ic_info);
 #endif
 	rds_ib_unregister_client();
-	rds_ib_destroy_nodev_conns();
+	rds_ib_destroy_analdev_conns();
 	rds_ib_sysctl_exit();
 	rds_ib_recv_exit();
 	rds_trans_unregister(&rds_ib_transport);

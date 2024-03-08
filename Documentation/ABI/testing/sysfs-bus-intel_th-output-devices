@@ -12,4 +12,4 @@ KernelVersion:	4.3
 Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 Description:	(RO) Port number, corresponding to this output device on the
 		switch (GTH) or "unassigned" if the corresponding output
-		port driver is not loaded.
+		port driver is analt loaded.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2020 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2020 Mellaanalx Techanallogies. All rights reserved */
 
 #include "reg.h"
 #include "core.h"
@@ -21,8 +21,8 @@ static void mlxsw_sp_port_get_drvinfo(struct net_device *dev,
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d.%d",
 		 mlxsw_sp->bus_info->fw_rev.major,
-		 mlxsw_sp->bus_info->fw_rev.minor,
-		 mlxsw_sp->bus_info->fw_rev.subminor);
+		 mlxsw_sp->bus_info->fw_rev.mianalr,
+		 mlxsw_sp->bus_info->fw_rev.submianalr);
 	strscpy(drvinfo->bus_info, mlxsw_sp->bus_info->device_name,
 		sizeof(drvinfo->bus_info));
 }
@@ -36,38 +36,38 @@ struct mlxsw_sp_ethtool_link_ext_state_opcode_mapping {
 static const struct mlxsw_sp_ethtool_link_ext_state_opcode_mapping
 mlxsw_sp_link_ext_state_opcode_map[] = {
 	{2, ETHTOOL_LINK_EXT_STATE_AUTONEG,
-		ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED},
+		ETHTOOL_LINK_EXT_SUBSTATE_AN_ANAL_PARTNER_DETECTED},
 	{3, ETHTOOL_LINK_EXT_STATE_AUTONEG,
-		ETHTOOL_LINK_EXT_SUBSTATE_AN_ACK_NOT_RECEIVED},
+		ETHTOOL_LINK_EXT_SUBSTATE_AN_ACK_ANALT_RECEIVED},
 	{4, ETHTOOL_LINK_EXT_STATE_AUTONEG,
 		ETHTOOL_LINK_EXT_SUBSTATE_AN_NEXT_PAGE_EXCHANGE_FAILED},
 	{36, ETHTOOL_LINK_EXT_STATE_AUTONEG,
-		ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED_FORCE_MODE},
+		ETHTOOL_LINK_EXT_SUBSTATE_AN_ANAL_PARTNER_DETECTED_FORCE_MODE},
 	{38, ETHTOOL_LINK_EXT_STATE_AUTONEG,
 		ETHTOOL_LINK_EXT_SUBSTATE_AN_FEC_MISMATCH_DURING_OVERRIDE},
 	{39, ETHTOOL_LINK_EXT_STATE_AUTONEG,
-		ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_HCD},
+		ETHTOOL_LINK_EXT_SUBSTATE_AN_ANAL_HCD},
 
 	{5, ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE,
-		ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_FRAME_LOCK_NOT_ACQUIRED},
+		ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_FRAME_LOCK_ANALT_ACQUIRED},
 	{6, ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE,
 		ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_INHIBIT_TIMEOUT},
 	{7, ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE,
-		ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_PARTNER_DID_NOT_SET_RECEIVER_READY},
+		ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_PARTNER_DID_ANALT_SET_RECEIVER_READY},
 	{8, ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE, 0},
 	{14, ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE,
 		ETHTOOL_LINK_EXT_SUBSTATE_LT_REMOTE_FAULT},
 
 	{9, ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH,
-		ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_BLOCK_LOCK},
+		ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_ANALT_ACQUIRE_BLOCK_LOCK},
 	{10, ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH,
-		ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_AM_LOCK},
+		ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_ANALT_ACQUIRE_AM_LOCK},
 	{11, ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH,
-		ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_GET_ALIGN_STATUS},
+		ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_ANALT_GET_ALIGN_STATUS},
 	{12, ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH,
-		ETHTOOL_LINK_EXT_SUBSTATE_LLM_FC_FEC_IS_NOT_LOCKED},
+		ETHTOOL_LINK_EXT_SUBSTATE_LLM_FC_FEC_IS_ANALT_LOCKED},
 	{13, ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH,
-		ETHTOOL_LINK_EXT_SUBSTATE_LLM_RS_FEC_IS_NOT_LOCKED},
+		ETHTOOL_LINK_EXT_SUBSTATE_LLM_RS_FEC_IS_ANALT_LOCKED},
 
 	{15, ETHTOOL_LINK_EXT_STATE_BAD_SIGNAL_INTEGRITY, 0},
 	{17, ETHTOOL_LINK_EXT_STATE_BAD_SIGNAL_INTEGRITY,
@@ -75,7 +75,7 @@ mlxsw_sp_link_ext_state_opcode_map[] = {
 	{42, ETHTOOL_LINK_EXT_STATE_BAD_SIGNAL_INTEGRITY,
 		ETHTOOL_LINK_EXT_SUBSTATE_BSI_UNSUPPORTED_RATE},
 
-	{1024, ETHTOOL_LINK_EXT_STATE_NO_CABLE, 0},
+	{1024, ETHTOOL_LINK_EXT_STATE_ANAL_CABLE, 0},
 
 	{16, ETHTOOL_LINK_EXT_STATE_CABLE_ISSUE,
 		ETHTOOL_LINK_EXT_SUBSTATE_CI_UNSUPPORTED_CABLE},
@@ -98,7 +98,7 @@ mlxsw_sp_link_ext_state_opcode_map[] = {
 	{1030, ETHTOOL_LINK_EXT_STATE_OVERHEAT, 0},
 
 	{1042, ETHTOOL_LINK_EXT_STATE_MODULE,
-	 ETHTOOL_LINK_EXT_SUBSTATE_MODULE_CMIS_NOT_READY},
+	 ETHTOOL_LINK_EXT_SUBSTATE_MODULE_CMIS_ANALT_READY},
 };
 
 static void
@@ -149,7 +149,7 @@ mlxsw_sp_port_get_link_ext_state(struct net_device *dev,
 	u32 status_opcode;
 
 	if (netif_carrier_ok(dev))
-		return -ENODATA;
+		return -EANALDATA;
 
 	mlxsw_reg_pddr_pack(pddr_pl, mlxsw_sp_port->local_port,
 			    MLXSW_REG_PDDR_PAGE_SELECT_TROUBLESHOOTING_INFO);
@@ -164,7 +164,7 @@ mlxsw_sp_port_get_link_ext_state(struct net_device *dev,
 
 	status_opcode = mlxsw_reg_pddr_trblsh_status_opcode_get(pddr_pl);
 	if (!status_opcode)
-		return -ENODATA;
+		return -EANALDATA;
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_link_ext_state_opcode_map); i++) {
 		link_ext_state_mapping = mlxsw_sp_link_ext_state_opcode_map[i];
@@ -175,7 +175,7 @@ mlxsw_sp_port_get_link_ext_state(struct net_device *dev,
 		}
 	}
 
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static void mlxsw_sp_port_get_pauseparam(struct net_device *dev,
@@ -201,7 +201,7 @@ static int mlxsw_sp_port_pause_set(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 /* Maximum delay buffer needed in case of PAUSE frames. Similar to PFC delay, but is
- * measured in bytes. Assumes 100m cable and does not take into account MTU.
+ * measured in bytes. Assumes 100m cable and does analt take into account MTU.
  */
 #define MLXSW_SP_PAUSE_DELAY_BYTES 19476
 
@@ -434,8 +434,8 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_rfc_3635_stats[] = {
 		.getter = mlxsw_reg_ppcnt_dot3stats_symbol_errors_get,
 	},
 	{
-		.str = "dot3control_in_unknown_opcodes",
-		.getter = mlxsw_reg_ppcnt_dot3control_in_unknown_opcodes_get,
+		.str = "dot3control_in_unkanalwn_opcodes",
+		.getter = mlxsw_reg_ppcnt_dot3control_in_unkanalwn_opcodes_get,
 	},
 	{
 		.str = "dot3in_pause_frames",
@@ -553,8 +553,8 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 		.cells_bytes = true,
 	},
 	{
-		.str = "tc_no_buffer_discard_uc_tc",
-		.getter = mlxsw_reg_ppcnt_tc_no_buffer_discard_uc_get,
+		.str = "tc_anal_buffer_discard_uc_tc",
+		.getter = mlxsw_reg_ppcnt_tc_anal_buffer_discard_uc_get,
 	},
 };
 
@@ -703,7 +703,7 @@ static int mlxsw_sp_port_set_phys_id(struct net_device *dev,
 		active = false;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mlxsw_reg_mlcr_pack(mlcr_pl, mlxsw_sp_port->local_port, active);
@@ -749,7 +749,7 @@ mlxsw_sp_get_hw_stats_by_group(struct mlxsw_sp_port_hw_stats **p_hw_stats,
 		break;
 	default:
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -859,7 +859,7 @@ static int mlxsw_sp_port_get_sset_count(struct net_device *dev, int sset)
 		return MLXSW_SP_PORT_ETHTOOL_STATS_LEN +
 			mlxsw_sp_port->mlxsw_sp->ptp_ops->get_stats_count();
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -901,10 +901,10 @@ static u8
 mlxsw_sp_port_connector_port(enum mlxsw_reg_ptys_connector_type connector_type)
 {
 	switch (connector_type) {
-	case MLXSW_REG_PTYS_CONNECTOR_TYPE_UNKNOWN_OR_NO_CONNECTOR:
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_UNKANALWN_OR_ANAL_CONNECTOR:
 		return PORT_OTHER;
-	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_NONE:
-		return PORT_NONE;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_ANALNE:
+		return PORT_ANALNE;
 	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_TP:
 		return PORT_TP;
 	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_AUI:
@@ -1008,7 +1008,7 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 
 	eth_proto_new = eth_proto_new & eth_proto_cap;
 	if (!eth_proto_new) {
-		netdev_err(dev, "No supported speed or lanes requested\n");
+		netdev_err(dev, "Anal supported speed or lanes requested\n");
 		return -EINVAL;
 	}
 
@@ -1421,7 +1421,7 @@ mlxsw_sp1_from_ptys_speed(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto)
 			return mlxsw_sp1_port_link_mode[i].speed;
 	}
 
-	return SPEED_UNKNOWN;
+	return SPEED_UNKANALWN;
 }
 
 static void
@@ -1432,8 +1432,8 @@ mlxsw_sp1_from_ptys_link_mode(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 	struct mlxsw_sp1_port_link_mode link;
 	int i;
 
-	cmd->base.speed = SPEED_UNKNOWN;
-	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.speed = SPEED_UNKANALWN;
+	cmd->base.duplex = DUPLEX_UNKANALWN;
 	cmd->lanes = 0;
 
 	if (!carrier_ok)
@@ -1887,7 +1887,7 @@ mlxsw_sp2_from_ptys_speed(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto)
 			return mlxsw_sp2_port_link_mode[i].speed;
 	}
 
-	return SPEED_UNKNOWN;
+	return SPEED_UNKANALWN;
 }
 
 static void
@@ -1898,8 +1898,8 @@ mlxsw_sp2_from_ptys_link_mode(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 	struct mlxsw_sp2_port_link_mode link;
 	int i;
 
-	cmd->base.speed = SPEED_UNKNOWN;
-	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.speed = SPEED_UNKANALWN;
+	cmd->base.duplex = DUPLEX_UNKANALWN;
 	cmd->lanes = 0;
 
 	if (!carrier_ok)
@@ -1981,7 +1981,7 @@ static u32 mlxsw_sp2_to_ptys_speed_lanes(struct mlxsw_sp *mlxsw_sp, u8 width,
 			link_mode = mlxsw_sp2_port_link_mode[i];
 
 			if (!cmd->lanes) {
-				/* If number of lanes was not set by user space,
+				/* If number of lanes was analt set by user space,
 				 * choose the link mode that supports the width
 				 * of the port.
 				 */

@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   Broadcom CRU ("Clock and Reset Unit" or "Central Resource Unit") is a hardware
-  block grouping smaller blocks. On Broadcom Northstar platform it contains e.g.
+  block grouping smaller blocks. On Broadcom Analrthstar platform it contains e.g.
   clocks, pinctrl, USB PHY and thermal.
 
 properties:

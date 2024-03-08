@@ -46,8 +46,8 @@ struct ccci_header {
 	__le32 ex_msg;
 };
 
-/* Coupled with HW - indicates if there is data following the CCCI header or not */
-#define CCCI_HEADER_NO_DATA	0xffffffff
+/* Coupled with HW - indicates if there is data following the CCCI header or analt */
+#define CCCI_HEADER_ANAL_DATA	0xffffffff
 
 #define CCCI_H_AST_BIT		BIT(31)
 #define CCCI_H_SEQ_FLD		GENMASK(30, 16)
@@ -71,7 +71,7 @@ struct ctrl_msg_header {
 
 /* Modem exception check identification code - "EXCP" */
 #define MD_EX_CHK_ID		0x45584350
-/* Modem exception check acknowledge identification code - "EREC" */
+/* Modem exception check ackanalwledge identification code - "EREC" */
 #define MD_EX_CHK_ACK_ID	0x45524543
 
 #define PORT_INFO_RSRVD		GENMASK(31, 16)
@@ -94,7 +94,7 @@ extern struct port_ops t7xx_trace_port_ops;
 void t7xx_port_proxy_reset(struct port_proxy *port_prox);
 void t7xx_port_proxy_uninit(struct port_proxy *port_prox);
 int t7xx_port_proxy_init(struct t7xx_modem *md);
-void t7xx_port_proxy_md_status_notify(struct port_proxy *port_prox, unsigned int state);
+void t7xx_port_proxy_md_status_analtify(struct port_proxy *port_prox, unsigned int state);
 int t7xx_port_enum_msg_handler(struct t7xx_modem *md, void *msg);
 int t7xx_port_proxy_chl_enable_disable(struct port_proxy *port_prox, unsigned int ch_id,
 				       bool en_flag);

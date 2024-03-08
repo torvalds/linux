@@ -17,7 +17,7 @@ Authors:
 
       - Kyösti Mälkki <kmalkki@cc.hut.fi>,
       - Mark D. Studebaker <mdsxyz123@yahoo.com>,
-      - Aurelien Jarno <aurelien@aurel32.net> 2.6 port
+      - Aurelien Jaranal <aurelien@aurel32.net> 2.6 port
 
    SiS southbridge has a LM78-like chip integrated on the same IC.
    This driver is a customized copy of lm78.c
@@ -31,12 +31,12 @@ Authors:
        2               1039/0008       B0 or greater
        =============== =============== ==============
 
-   Note: these chips contain a 0008 device which is incompatible with the
+   Analte: these chips contain a 0008 device which is incompatible with the
 	5595. We recognize these by the presence of the listed
 	"blacklist" PCI ID and refuse to load.
 
    =================== =============== ================
-   NOT SUPPORTED       PCI ID          BLACKLIST PCI ID
+   ANALT SUPPORTED       PCI ID          BLACKLIST PCI ID
    =================== =============== ================
 	540            0008            0540
 	550            0008            0550
@@ -56,10 +56,10 @@ Module Parameters
 
 ======================= =====================================================
 force_addr=0xaddr	Set the I/O base address. Useful for boards
-			that don't set the address in the BIOS. Does not do a
+			that don't set the address in the BIOS. Does analt do a
 			PCI force; the device must still be present in lspci.
 			Don't use this unless the driver complains that the
-			base address is not set.
+			base address is analt set.
 
 			Example: 'modprobe sis5595 force_addr=0x290'
 ======================= =====================================================
@@ -79,7 +79,7 @@ On the first version of the chip, there are four voltage sensors and one
 temperature sensor.
 
 On the second version of the chip, the temperature sensor (temp) and the
-fifth voltage sensor (in4) share a pin which is configurable, but not
+fifth voltage sensor (in4) share a pin which is configurable, but analt
 through the driver. Sorry. The driver senses the configuration of the pin,
 which was hopefully set by the BIOS.
 
@@ -91,13 +91,13 @@ resolution of 1 degree.
 Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
 triggered if the rotation speed has dropped below a programmable limit. Fan
 readings can be divided by a programmable divider (1, 2, 4 or 8) to give
-the readings more range or accuracy. Not all RPM values can accurately be
+the readings more range or accuracy. Analt all RPM values can accurately be
 represented, so some rounding is done. With a divider of 2, the lowest
 representable value is around 2600 RPM.
 
-Voltage sensors (also known as IN sensors) report their values in volts. An
+Voltage sensors (also kanalwn as IN sensors) report their values in volts. An
 alarm is triggered if the voltage has crossed a programmable minimum or
-maximum limit. Note that minimum in this case always means 'closest to
+maximum limit. Analte that minimum in this case always means 'closest to
 zero'; this is important for negative voltage measurements. All voltage
 inputs can measure voltages between 0 and 4.08 volts, with a resolution of
 0.016 volt.
@@ -109,15 +109,15 @@ bit gets set.
 
 If an alarm triggers, it will remain triggered until the hardware register
 is read at least once. This means that the cause for the alarm may already
-have disappeared! Note that in the current implementation, all hardware
+have disappeared! Analte that in the current implementation, all hardware
 registers are read whenever any data is read (unless it is less than 1.5
 seconds since the last update). This means that you can easily miss
 once-only alarms.
 
 The SiS5595 only updates its values each 1.5 seconds; reading it more often
-will do no harm, but will return 'old' values.
+will do anal harm, but will return 'old' values.
 
 Problems
 --------
-Some chips refuse to be enabled. We don't know why.
+Some chips refuse to be enabled. We don't kanalw why.
 The driver will recognize this and print a message in dmesg.

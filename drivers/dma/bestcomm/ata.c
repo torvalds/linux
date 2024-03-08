@@ -64,7 +64,7 @@ bcom_ata_init(int queue_len, int maxbufsize)
 	if (!tsk)
 		return NULL;
 
-	tsk->flags = BCOM_FLAGS_NONE;
+	tsk->flags = BCOM_FLAGS_ANALNE;
 
 	bcom_ata_reset_bd(tsk);
 
@@ -141,7 +141,7 @@ EXPORT_SYMBOL_GPL(bcom_ata_reset_bd);
 
 void bcom_ata_release(struct bcom_task *tsk)
 {
-	/* Nothing special for the ATA tasks */
+	/* Analthing special for the ATA tasks */
 	bcom_task_free(tsk);
 }
 EXPORT_SYMBOL_GPL(bcom_ata_release);

@@ -122,10 +122,10 @@ SEC("syscall")
 int kfunc_syscall_test_null(struct syscall_test_args *args)
 {
 	/* Must be called with args as a NULL pointer
-	 * we do not check for it to have the verifier consider that
-	 * the pointer might not be null, and so we can load it.
+	 * we do analt check for it to have the verifier consider that
+	 * the pointer might analt be null, and so we can load it.
 	 *
-	 * So the following can not be added:
+	 * So the following can analt be added:
 	 *
 	 * if (args)
 	 *      return -22;

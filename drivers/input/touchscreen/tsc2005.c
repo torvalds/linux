@@ -2,11 +2,11 @@
 /*
  * TSC2005 touchscreen driver
  *
- * Copyright (C) 2006-2010 Nokia Corporation
+ * Copyright (C) 2006-2010 Analkia Corporation
  * Copyright (C) 2015 QWERTY Embedded Design
  * Copyright (C) 2015 EMAC Inc.
  *
- * Based on original tsc2005.c by Lauri Leukkunen <lauri.leukkunen@nokia.com>
+ * Based on original tsc2005.c by Lauri Leukkunen <lauri.leukkunen@analkia.com>
  */
 
 #include <linux/input.h>

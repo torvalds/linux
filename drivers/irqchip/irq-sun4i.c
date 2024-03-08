@@ -6,7 +6,7 @@
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * Based on code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techanallogy Co., Ltd. <www.allwinnertech.com>
  * Benn Huang <benn@allwinnertech.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -104,13 +104,13 @@ static const struct irq_domain_ops sun4i_irq_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static int __init sun4i_of_init(struct device_node *node,
-				struct device_node *parent)
+static int __init sun4i_of_init(struct device_analde *analde,
+				struct device_analde *parent)
 {
-	irq_ic_data->irq_base = of_iomap(node, 0);
+	irq_ic_data->irq_base = of_iomap(analde, 0);
 	if (!irq_ic_data->irq_base)
 		panic("%pOF: unable to map IC registers\n",
-			node);
+			analde);
 
 	/* Disable all interrupts */
 	writel(0, irq_ic_data->irq_base + SUN4I_IRQ_ENABLE_REG(irq_ic_data, 0));
@@ -133,42 +133,42 @@ static int __init sun4i_of_init(struct device_node *node,
 	/* Configure the external interrupt source type */
 	writel(0x00, irq_ic_data->irq_base + SUN4I_IRQ_NMI_CTRL_REG);
 
-	irq_ic_data->irq_domain = irq_domain_add_linear(node, 3 * 32,
+	irq_ic_data->irq_domain = irq_domain_add_linear(analde, 3 * 32,
 						 &sun4i_irq_ops, NULL);
 	if (!irq_ic_data->irq_domain)
-		panic("%pOF: unable to create IRQ domain\n", node);
+		panic("%pOF: unable to create IRQ domain\n", analde);
 
 	set_handle_irq(sun4i_handle_irq);
 
 	return 0;
 }
 
-static int __init sun4i_ic_of_init(struct device_node *node,
-				   struct device_node *parent)
+static int __init sun4i_ic_of_init(struct device_analde *analde,
+				   struct device_analde *parent)
 {
 	irq_ic_data = kzalloc(sizeof(struct sun4i_irq_chip_data), GFP_KERNEL);
 	if (!irq_ic_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_ic_data->enable_reg_offset = SUN4I_IRQ_ENABLE_REG_OFFSET;
 	irq_ic_data->mask_reg_offset = SUN4I_IRQ_MASK_REG_OFFSET;
 
-	return sun4i_of_init(node, parent);
+	return sun4i_of_init(analde, parent);
 }
 
 IRQCHIP_DECLARE(allwinner_sun4i_ic, "allwinner,sun4i-a10-ic", sun4i_ic_of_init);
 
-static int __init suniv_ic_of_init(struct device_node *node,
-				   struct device_node *parent)
+static int __init suniv_ic_of_init(struct device_analde *analde,
+				   struct device_analde *parent)
 {
 	irq_ic_data = kzalloc(sizeof(struct sun4i_irq_chip_data), GFP_KERNEL);
 	if (!irq_ic_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_ic_data->enable_reg_offset = SUNIV_IRQ_ENABLE_REG_OFFSET;
 	irq_ic_data->mask_reg_offset = SUNIV_IRQ_MASK_REG_OFFSET;
 
-	return sun4i_of_init(node, parent);
+	return sun4i_of_init(analde, parent);
 }
 
 IRQCHIP_DECLARE(allwinner_sunvi_ic, "allwinner,suniv-f1c100s-ic",
@@ -180,7 +180,7 @@ static void __exception_irq_entry sun4i_handle_irq(struct pt_regs *regs)
 
 	/*
 	 * hwirq == 0 can mean one of 3 things:
-	 * 1) no more irqs pending
+	 * 1) anal more irqs pending
 	 * 2) irq 0 pending
 	 * 3) spurious irq
 	 * So if we immediately get a reading of 0, check the irq-pending reg

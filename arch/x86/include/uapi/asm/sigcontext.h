@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_X86_SIGCONTEXT_H
 #define _UAPI_ASM_X86_SIGCONTEXT_H
 
@@ -25,7 +25,7 @@
 /*
  * Bytes 464..511 in the current 512-byte layout of the FXSAVE/FXRSTOR frame
  * are reserved for SW usage. On CPUs supporting XSAVE/XRSTOR, these bytes are
- * used to extend the fpstate pointer in the sigcontext, which now includes the
+ * used to extend the fpstate pointer in the sigcontext, which analw includes the
  * extended state information along with fpstate information.
  *
  * If sw_reserved.magic1 == FP_XSTATE_MAGIC1 then there's a
@@ -72,12 +72,12 @@ struct _fpx_sw_bytes {
 /*
  * As documented in the iBCS2 standard:
  *
- * The first part of "struct _fpstate" is just the normal i387 hardware setup,
+ * The first part of "struct _fpstate" is just the analrmal i387 hardware setup,
  * the extra "status" word is used to save the coprocessor status word before
  * entering the handler.
  *
  * The FPU state data structure has had to grow to accommodate the extended FPU
- * state required by the Streaming SIMD Extensions.  There is no documented
+ * state required by the Streaming SIMD Extensions.  There is anal documented
  * standard to accomplish this at the moment.
  */
 
@@ -119,10 +119,10 @@ struct _fpstate_32 {
 							/* 0x0000: FXSR FPU data */
 
 	/* FXSR FPU environment */
-	__u32				_fxsr_env[6];	/* FXSR FPU env is ignored */
+	__u32				_fxsr_env[6];	/* FXSR FPU env is iganalred */
 	__u32				mxcsr;
 	__u32				reserved;
-	struct _fpxreg			_fxsr_st[8];	/* FXSR FPU reg data is ignored */
+	struct _fpxreg			_fxsr_st[8];	/* FXSR FPU reg data is iganalred */
 	struct _xmmreg			_xmm[8];	/* First 8 XMM registers */
 	union {
 		__u32			padding1[44];	/* Second 8 XMM registers plus padding */
@@ -138,18 +138,18 @@ struct _fpstate_32 {
 /*
  * The 64-bit FPU frame. (FXSAVE format and later)
  *
- * Note1: If sw_reserved.magic1 == FP_XSTATE_MAGIC1 then the structure is
- *        larger: 'struct _xstate'. Note that 'struct _xstate' embeds
+ * Analte1: If sw_reserved.magic1 == FP_XSTATE_MAGIC1 then the structure is
+ *        larger: 'struct _xstate'. Analte that 'struct _xstate' embeds
  *        'struct _fpstate' so that you can always assume the _fpstate portion
  *        exists so that you can check the magic value.
  *
- * Note2: Reserved fields may someday contain valuable data. Always
+ * Analte2: Reserved fields may someday contain valuable data. Always
  *	  save/restore them when you change signal frames.
  */
 struct _fpstate_64 {
 	__u16				cwd;
 	__u16				swd;
-	/* Note this is not the same as the 32-bit/x87/FSAVE twd: */
+	/* Analte this is analt the same as the 32-bit/x87/FSAVE twd: */
 	__u16				twd;
 	__u16				fop;
 	__u64				rip;
@@ -212,7 +212,7 @@ struct sigcontext_32 {
 	__u32				dx;
 	__u32				cx;
 	__u32				ax;
-	__u32				trapno;
+	__u32				trapanal;
 	__u32				err;
 	__u32				ip;
 	__u16				cs, __csh;
@@ -227,7 +227,7 @@ struct sigcontext_32 {
 	 * of extended memory layout. See comments at the definition of
 	 * (struct _fpx_sw_bytes)
 	 */
-	__u32				fpstate; /* Zero when no FPU/extended context */
+	__u32				fpstate; /* Zero when anal FPU/extended context */
 	__u32				oldmask;
 	__u32				cr2;
 };
@@ -259,7 +259,7 @@ struct sigcontext_64 {
 	__u16				fs;
 	__u16				ss;
 	__u64				err;
-	__u64				trapno;
+	__u64				trapanal;
 	__u64				oldmask;
 	__u64				cr2;
 
@@ -270,7 +270,7 @@ struct sigcontext_64 {
 	 * of extended memory layout. See comments at the definition of
 	 * (struct _fpx_sw_bytes)
 	 */
-	__u64				fpstate; /* Zero when no FPU/extended context */
+	__u64				fpstate; /* Zero when anal FPU/extended context */
 	__u64				reserved1[8];
 };
 
@@ -310,7 +310,7 @@ struct sigcontext {
 	__u32				edx;
 	__u32				ecx;
 	__u32				eax;
-	__u32				trapno;
+	__u32				trapanal;
 	__u32				err;
 	__u32				eip;
 	__u16				cs, __csh;
@@ -360,7 +360,7 @@ struct sigcontext {
 	 *    confused.  I doubt that many such binaries still work,
 	 *    though, since the same patch in 2.5.64 also removed the
 	 *    64-bit set_thread_area syscall, so it appears that there
-	 *    is no TLS API beyond modify_ldt that works in both pre-
+	 *    is anal TLS API beyond modify_ldt that works in both pre-
 	 *    and post-2.5.64 kernels.
 	 *
 	 * If the kernel ever adds explicit fs, gs, fsbase, and gsbase
@@ -374,10 +374,10 @@ struct sigcontext {
 		__u16			__pad0;	/* Alias name for old (!UC_SIGCONTEXT_SS) user-space */
 	};
 	__u64				err;
-	__u64				trapno;
+	__u64				trapanal;
 	__u64				oldmask;
 	__u64				cr2;
-	struct _fpstate __user		*fpstate;	/* Zero when no FPU context */
+	struct _fpstate __user		*fpstate;	/* Zero when anal FPU context */
 #  ifdef __ILP32__
 	__u32				__fpstate_pad;
 #  endif

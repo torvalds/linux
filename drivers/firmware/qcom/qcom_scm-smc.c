@@ -3,7 +3,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -75,7 +75,7 @@ int scm_get_wq_ctx(u32 *wq_ctx, u32 *flags, u32 *more_pending)
 				ARM_SMCCC_SMC_64, ARM_SMCCC_OWNER_SIP,
 				SCM_SMC_FNID(QCOM_SCM_SVC_WAITQ, QCOM_SCM_WAITQ_GET_WQ_CTX));
 
-	/* Guaranteed to return only success or error, no WAITQ_* */
+	/* Guaranteed to return only success or error, anal WAITQ_* */
 	__scm_smc_do_quirk(&get_wq_ctx, &get_wq_res);
 	ret = get_wq_res.a0;
 	if (ret)
@@ -176,7 +176,7 @@ int __scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
 		args_virt = kzalloc(PAGE_ALIGN(alloc_len), flag);
 
 		if (!args_virt)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (qcom_smccc_convention == ARM_SMCCC_SMC_32) {
 			__le32 *args = args_virt;
@@ -197,7 +197,7 @@ int __scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
 
 		if (dma_mapping_error(dev, args_phys)) {
 			kfree(args_virt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		smc.args[SCM_SMC_LAST_REG_IDX] = args_phys;

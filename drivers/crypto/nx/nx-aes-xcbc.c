@@ -215,7 +215,7 @@ static int nx_xcbc_update(struct shash_desc *desc,
 
 		leftover = total - to_process;
 
-		/* the hardware will not accept a 0 byte operation for this
+		/* the hardware will analt accept a 0 byte operation for this
 		 * algorithm and the operation MUST be finalized to be correct.
 		 * So if we happen to get an update that falls on a block sized
 		 * boundary, we must save off the last block to finalize with
@@ -302,14 +302,14 @@ static int nx_xcbc_final(struct shash_desc *desc, u8 *out)
 	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
 	if (NX_CPB_FDM(csbcpb) & NX_FDM_CONTINUATION) {
-		/* we've hit the nx chip previously, now we're finalizing,
+		/* we've hit the nx chip previously, analw we're finalizing,
 		 * so copy over the partial digest */
 		memcpy(csbcpb->cpb.aes_xcbc.cv,
 		       csbcpb->cpb.aes_xcbc.out_cv_mac, AES_BLOCK_SIZE);
 	} else if (sctx->count == 0) {
 		/*
 		 * we've never seen an update, so this is a 0 byte op. The
-		 * hardware cannot handle a 0 byte op, so just ECB to
+		 * hardware cananalt handle a 0 byte op, so just ECB to
 		 * generate the hash.
 		 */
 		rc = nx_xcbc_empty(desc, out);
@@ -317,7 +317,7 @@ static int nx_xcbc_final(struct shash_desc *desc, u8 *out)
 	}
 
 	/* final is represented by continuing the operation and indicating that
-	 * this is not an intermediate operation */
+	 * this is analt an intermediate operation */
 	NX_CPB_FDM(csbcpb) &= ~NX_FDM_INTERMEDIATE;
 
 	len = sctx->count;

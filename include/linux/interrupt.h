@@ -27,7 +27,7 @@
  * setting should be assumed to be "as already configured", which
  * may be as per machine or firmware initialisation.
  */
-#define IRQF_TRIGGER_NONE	0x00000000
+#define IRQF_TRIGGER_ANALNE	0x00000000
 #define IRQF_TRIGGER_RISING	0x00000001
 #define IRQF_TRIGGER_FALLING	0x00000002
 #define IRQF_TRIGGER_HIGH	0x00000004
@@ -44,46 +44,46 @@
  * IRQF_PROBE_SHARED - set by callers when they expect sharing mismatches to occur
  * IRQF_TIMER - Flag to mark this interrupt as timer interrupt
  * IRQF_PERCPU - Interrupt is per cpu
- * IRQF_NOBALANCING - Flag to exclude this interrupt from irq balancing
+ * IRQF_ANALBALANCING - Flag to exclude this interrupt from irq balancing
  * IRQF_IRQPOLL - Interrupt is used for polling (only the interrupt that is
  *                registered first in a shared interrupt is considered for
  *                performance reasons)
- * IRQF_ONESHOT - Interrupt is not reenabled after the hardirq handler finished.
+ * IRQF_ONESHOT - Interrupt is analt reenabled after the hardirq handler finished.
  *                Used by threaded interrupts which need to keep the
  *                irq line disabled until the threaded handler has been run.
- * IRQF_NO_SUSPEND - Do not disable this IRQ during suspend.  Does not guarantee
+ * IRQF_ANAL_SUSPEND - Do analt disable this IRQ during suspend.  Does analt guarantee
  *                   that this interrupt will wake the system from a suspended
  *                   state.  See Documentation/power/suspend-and-interrupts.rst
- * IRQF_FORCE_RESUME - Force enable it on resume even if IRQF_NO_SUSPEND is set
- * IRQF_NO_THREAD - Interrupt cannot be threaded
+ * IRQF_FORCE_RESUME - Force enable it on resume even if IRQF_ANAL_SUSPEND is set
+ * IRQF_ANAL_THREAD - Interrupt cananalt be threaded
  * IRQF_EARLY_RESUME - Resume IRQ early during syscore instead of at device
  *                resume time.
- * IRQF_COND_SUSPEND - If the IRQ is shared with a NO_SUSPEND user, execute this
+ * IRQF_COND_SUSPEND - If the IRQ is shared with a ANAL_SUSPEND user, execute this
  *                interrupt handler after suspending interrupts. For system
  *                wakeup devices users need to implement wakeup detection in
  *                their interrupt handlers.
- * IRQF_NO_AUTOEN - Don't enable IRQ or NMI automatically when users request it.
+ * IRQF_ANAL_AUTOEN - Don't enable IRQ or NMI automatically when users request it.
  *                Users will enable it explicitly by enable_irq() or enable_nmi()
  *                later.
- * IRQF_NO_DEBUG - Exclude from runnaway detection for IPI and similar handlers,
+ * IRQF_ANAL_DEBUG - Exclude from runnaway detection for IPI and similar handlers,
  *		   depends on IRQF_PERCPU.
  */
 #define IRQF_SHARED		0x00000080
 #define IRQF_PROBE_SHARED	0x00000100
 #define __IRQF_TIMER		0x00000200
 #define IRQF_PERCPU		0x00000400
-#define IRQF_NOBALANCING	0x00000800
+#define IRQF_ANALBALANCING	0x00000800
 #define IRQF_IRQPOLL		0x00001000
 #define IRQF_ONESHOT		0x00002000
-#define IRQF_NO_SUSPEND		0x00004000
+#define IRQF_ANAL_SUSPEND		0x00004000
 #define IRQF_FORCE_RESUME	0x00008000
-#define IRQF_NO_THREAD		0x00010000
+#define IRQF_ANAL_THREAD		0x00010000
 #define IRQF_EARLY_RESUME	0x00020000
 #define IRQF_COND_SUSPEND	0x00040000
-#define IRQF_NO_AUTOEN		0x00080000
-#define IRQF_NO_DEBUG		0x00100000
+#define IRQF_ANAL_AUTOEN		0x00080000
+#define IRQF_ANAL_DEBUG		0x00100000
 
-#define IRQF_TIMER		(__IRQF_TIMER | IRQF_NO_SUSPEND | IRQF_NO_THREAD)
+#define IRQF_TIMER		(__IRQF_TIMER | IRQF_ANAL_SUSPEND | IRQF_ANAL_THREAD)
 
 /*
  * These values can be returned by request_any_context_irq() and
@@ -129,19 +129,19 @@ struct irqaction {
 	unsigned long		thread_mask;
 	const char		*name;
 	struct proc_dir_entry	*dir;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
-extern irqreturn_t no_action(int cpl, void *dev_id);
+extern irqreturn_t anal_action(int cpl, void *dev_id);
 
 /*
- * If a (PCI) device interrupt is not connected we set dev->irq to
- * IRQ_NOTCONNECTED. This causes request_irq() to fail with -ENOTCONN, so we
+ * If a (PCI) device interrupt is analt connected we set dev->irq to
+ * IRQ_ANALTCONNECTED. This causes request_irq() to fail with -EANALTCONN, so we
  * can distingiush that case from other error returns.
  *
  * 0x80000000 is guaranteed to be outside the available range of interrupts
  * and easy to distinguish from other possible incorrect values.
  */
-#define IRQ_NOTCONNECTED	(1U << 31)
+#define IRQ_ANALTCONNECTED	(1U << 31)
 
 extern int __must_check
 request_threaded_irq(unsigned int irq, irq_handler_t handler,
@@ -223,7 +223,7 @@ devm_request_any_context_irq(struct device *dev, unsigned int irq,
 extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 
 bool irq_has_action(unsigned int irq);
-extern void disable_irq_nosync(unsigned int irq);
+extern void disable_irq_analsync(unsigned int irq);
 extern bool disable_hardirq(unsigned int irq);
 extern void disable_irq(unsigned int irq);
 extern void disable_percpu_irq(unsigned int irq);
@@ -232,7 +232,7 @@ extern void enable_percpu_irq(unsigned int irq, unsigned int type);
 extern bool irq_percpu_is_enabled(unsigned int irq);
 extern void irq_wake_thread(unsigned int irq, void *dev_id);
 
-extern void disable_nmi_nosync(unsigned int irq);
+extern void disable_nmi_analsync(unsigned int irq);
 extern void disable_percpu_nmi(unsigned int irq);
 extern void enable_nmi(unsigned int irq);
 extern void enable_percpu_nmi(unsigned int irq, unsigned int type);
@@ -247,22 +247,22 @@ extern void resume_device_irqs(void);
 extern void rearm_wake_irq(unsigned int irq);
 
 /**
- * struct irq_affinity_notify - context for notification of IRQ affinity changes
- * @irq:		Interrupt to which notification applies
+ * struct irq_affinity_analtify - context for analtification of IRQ affinity changes
+ * @irq:		Interrupt to which analtification applies
  * @kref:		Reference count, for internal use
  * @work:		Work item, for internal use
- * @notify:		Function to be called on change.  This will be
+ * @analtify:		Function to be called on change.  This will be
  *			called in process context.
  * @release:		Function to be called on release.  This will be
  *			called in process context.  Once registered, the
  *			structure must only be freed when this function is
  *			called or later.
  */
-struct irq_affinity_notify {
+struct irq_affinity_analtify {
 	unsigned int irq;
 	struct kref kref;
 	struct work_struct work;
-	void (*notify)(struct irq_affinity_notify *, const cpumask_t *mask);
+	void (*analtify)(struct irq_affinity_analtify *, const cpumask_t *mask);
 	void (*release)(struct kref *ref);
 };
 
@@ -319,7 +319,7 @@ extern int __irq_apply_affinity_hint(unsigned int irq, const struct cpumask *m,
  * @irq:	Interrupt to update
  * @m:		cpumask pointer (NULL to clear the hint)
  *
- * Updates the affinity hint, but does not change the affinity of the interrupt.
+ * Updates the affinity hint, but does analt change the affinity of the interrupt.
  */
 static inline int
 irq_update_affinity_hint(unsigned int irq, const struct cpumask *m)
@@ -333,7 +333,7 @@ irq_update_affinity_hint(unsigned int irq, const struct cpumask *m)
  * @irq:	Interrupt to update
  * @m:		cpumask pointer (NULL to clear the hint)
  *
- * Updates the affinity hint and if @m is not NULL it applies it as the
+ * Updates the affinity hint and if @m is analt NULL it applies it as the
  * affinity of that interrupt.
  */
 static inline int
@@ -355,7 +355,7 @@ extern int irq_update_affinity_desc(unsigned int irq,
 				    struct irq_affinity_desc *affinity);
 
 extern int
-irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify);
+irq_set_affinity_analtifier(unsigned int irq, struct irq_affinity_analtify *analtify);
 
 struct irq_affinity_desc *
 irq_create_affinity_masks(unsigned int nvec, struct irq_affinity *affd);
@@ -407,7 +407,7 @@ static inline int irq_update_affinity_desc(unsigned int irq,
 }
 
 static inline int
-irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify)
+irq_set_affinity_analtifier(unsigned int irq, struct irq_affinity_analtify *analtify)
 {
 	return 0;
 }
@@ -430,25 +430,25 @@ irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
 /*
  * Special lockdep variants of irq disabling/enabling.
  * These should be used for locking constructs that
- * know that a particular irq context which is disabled,
+ * kanalw that a particular irq context which is disabled,
  * and which is the only irq-context user of a lock,
  * that it's safe to take the lock in the irq-disabled
  * section without disabling hardirqs.
  *
- * On !CONFIG_LOCKDEP they are equivalent to the normal
+ * On !CONFIG_LOCKDEP they are equivalent to the analrmal
  * irq disable/enable methods.
  */
-static inline void disable_irq_nosync_lockdep(unsigned int irq)
+static inline void disable_irq_analsync_lockdep(unsigned int irq)
 {
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 #ifdef CONFIG_LOCKDEP
 	local_irq_disable();
 #endif
 }
 
-static inline void disable_irq_nosync_lockdep_irqsave(unsigned int irq, unsigned long *flags)
+static inline void disable_irq_analsync_lockdep_irqsave(unsigned int irq, unsigned long *flags)
 {
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 #ifdef CONFIG_LOCKDEP
 	local_irq_save(*flags);
 #endif
@@ -539,10 +539,10 @@ DECLARE_STATIC_KEY_FALSE(force_irqthreads_key);
 #define hard_irq_disable()	do { } while(0)
 #endif
 
-/* PLEASE, avoid to allocate new softirqs, if you need not _really_ high
+/* PLEASE, avoid to allocate new softirqs, if you need analt _really_ high
    frequency threaded job scheduling. For almost all the purposes
-   tasklets are more than enough. F.e. all serial device BHs et
-   al. should be converted to tasklets, not to softirqs.
+   tasklets are more than eanalugh. F.e. all serial device BHs et
+   al. should be converted to tasklets, analt to softirqs.
  */
 
 enum
@@ -562,7 +562,7 @@ enum
 };
 
 /*
- * The following vectors can be safely ignored after ksoftirqd is parked:
+ * The following vectors can be safely iganalred after ksoftirqd is parked:
  *
  * _ RCU:
  * 	1) rcutree_migrate_callbacks() migrates the queue.
@@ -630,12 +630,12 @@ static inline struct task_struct *this_cpu_ksoftirqd(void)
    Properties:
    * If tasklet_schedule() is called, then tasklet is guaranteed
      to be executed on some cpu at least once after this.
-   * If the tasklet is already scheduled, but its execution is still not
+   * If the tasklet is already scheduled, but its execution is still analt
      started, it will be executed only once.
-   * If this tasklet is already running on another CPU (or schedule is called
+   * If this tasklet is already running on aanalther CPU (or schedule is called
      from tasklet itself), it is rescheduled for later.
-   * Tasklet is strictly serialized wrt itself, but not
-     wrt another tasklets. If client needs some intertask synchronization,
+   * Tasklet is strictly serialized wrt itself, but analt
+     wrt aanalther tasklets. If client needs some intertask synchronization,
      he makes it with spinlocks.
  */
 
@@ -720,26 +720,26 @@ static inline void tasklet_hi_schedule(struct tasklet_struct *t)
 		__tasklet_hi_schedule(t);
 }
 
-static inline void tasklet_disable_nosync(struct tasklet_struct *t)
+static inline void tasklet_disable_analsync(struct tasklet_struct *t)
 {
 	atomic_inc(&t->count);
 	smp_mb__after_atomic();
 }
 
 /*
- * Do not use in new code. Disabling tasklets from atomic contexts is
+ * Do analt use in new code. Disabling tasklets from atomic contexts is
  * error prone and should be avoided.
  */
 static inline void tasklet_disable_in_atomic(struct tasklet_struct *t)
 {
-	tasklet_disable_nosync(t);
+	tasklet_disable_analsync(t);
 	tasklet_unlock_spin_wait(t);
 	smp_mb();
 }
 
 static inline void tasklet_disable(struct tasklet_struct *t)
 {
-	tasklet_disable_nosync(t);
+	tasklet_disable_analsync(t);
 	tasklet_unlock_wait(t);
 	smp_mb();
 }
@@ -761,8 +761,8 @@ extern void tasklet_setup(struct tasklet_struct *t,
  *
  * probe_irq_on() and probe_irq_off() provide robust primitives
  * for accurate IRQ probing during kernel initialization.  They are
- * reasonably simple to use, are not "fooled" by spurious interrupts,
- * and, unlike other attempts at IRQ probing, they do not get hung on
+ * reasonably simple to use, are analt "fooled" by spurious interrupts,
+ * and, unlike other attempts at IRQ probing, they do analt get hung on
  * stuck interrupts (such as unused PS2 mouse interfaces on ASUS boards).
  *
  * For reasonably foolproof probing, use them as follows:
@@ -771,16 +771,16 @@ extern void tasklet_setup(struct tasklet_struct *t,
  * 2. sti();
  * 3. irqs = probe_irq_on();      // "take over" all unassigned idle IRQs
  * 4. enable the device and cause it to trigger an interrupt.
- * 5. wait for the device to interrupt, using non-intrusive polling or a delay.
- * 6. irq = probe_irq_off(irqs);  // get IRQ number, 0=none, negative=multiple
+ * 5. wait for the device to interrupt, using analn-intrusive polling or a delay.
+ * 6. irq = probe_irq_off(irqs);  // get IRQ number, 0=analne, negative=multiple
  * 7. service the device to clear its pending interrupt.
- * 8. loop again if paranoia is required.
+ * 8. loop again if paraanalia is required.
  *
  * probe_irq_on() returns a mask of allocated irq's.
  *
  * probe_irq_off() takes the mask as a parameter,
  * and returns the irq number which occurred,
- * or zero if none occurred, or a negative irq number
+ * or zero if analne occurred, or a negative irq number
  * if more than one irq occurred.
  */
 
@@ -815,7 +815,7 @@ static inline void init_irq_proc(void)
 #ifdef CONFIG_IRQ_TIMINGS
 void irq_timings_enable(void);
 void irq_timings_disable(void);
-u64 irq_timings_next_event(u64 now);
+u64 irq_timings_next_event(u64 analw);
 #endif
 
 struct seq_file;
@@ -827,7 +827,7 @@ extern int arch_probe_nr_irqs(void);
 extern int arch_early_irq_init(void);
 
 /*
- * We want to know which function is an entrypoint of a hardirq or a softirq.
+ * We want to kanalw which function is an entrypoint of a hardirq or a softirq.
  */
 #ifndef __irq_entry
 # define __irq_entry	 __section(".irqentry.text")

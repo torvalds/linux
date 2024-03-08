@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2022 Microchip Technology Inc.
+// Copyright (C) 2022 Microchip Techanallogy Inc.
 
 #include <linux/mfd/core.h>
 #include <linux/module.h>
@@ -40,12 +40,12 @@ static int gp_aux_bus_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 	aux_bus = devm_kzalloc(&pdev->dev, sizeof(*aux_bus), GFP_KERNEL);
 	if (!aux_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aux_bus->aux_device_wrapper[0] = kzalloc(sizeof(*aux_bus->aux_device_wrapper[0]),
 						 GFP_KERNEL);
 	if (!aux_bus->aux_device_wrapper[0])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = ida_alloc(&gp_client_ida, GFP_KERNEL);
 	if (retval < 0)
@@ -70,7 +70,7 @@ static int gp_aux_bus_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	aux_bus->aux_device_wrapper[1] = kzalloc(sizeof(*aux_bus->aux_device_wrapper[1]),
 						 GFP_KERNEL);
 	if (!aux_bus->aux_device_wrapper[1])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = ida_alloc(&gp_client_ida, GFP_KERNEL);
 	if (retval < 0)
@@ -160,6 +160,6 @@ static struct pci_driver pci1xxxx_gp_driver = {
 
 module_pci_driver(pci1xxxx_gp_driver);
 
-MODULE_DESCRIPTION("Microchip Technology Inc. PCI1xxxx GP expander");
+MODULE_DESCRIPTION("Microchip Techanallogy Inc. PCI1xxxx GP expander");
 MODULE_AUTHOR("Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>");
 MODULE_LICENSE("GPL");

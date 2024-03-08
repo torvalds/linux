@@ -42,14 +42,14 @@ int tpm2_init_space(struct tpm_space *space, unsigned int buf_size)
 {
 	space->context_buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!space->context_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	space->session_buf = kzalloc(buf_size, GFP_KERNEL);
 	if (space->session_buf == NULL) {
 		kfree(space->context_buf);
 		/* Prevent caller getting a dangling pointer. */
 		space->context_buf = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	space->buf_size = buf_size;
@@ -76,7 +76,7 @@ static int tpm2_load_context(struct tpm_chip *chip, u8 *buf,
 	unsigned int body_size;
 	int rc;
 
-	rc = tpm_buf_init(&tbuf, TPM2_ST_NO_SESSIONS, TPM2_CC_CONTEXT_LOAD);
+	rc = tpm_buf_init(&tbuf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_CONTEXT_LOAD);
 	if (rc)
 		return rc;
 
@@ -104,7 +104,7 @@ static int tpm2_load_context(struct tpm_chip *chip, u8 *buf,
 		 */
 		*handle = 0;
 		tpm_buf_destroy(&tbuf);
-		return -ENOENT;
+		return -EANALENT;
 	} else if (rc > 0) {
 		dev_warn(&chip->dev, "%s: failed with a TPM error 0x%04X\n",
 			 __func__, rc);
@@ -126,7 +126,7 @@ static int tpm2_save_context(struct tpm_chip *chip, u32 handle, u8 *buf,
 	unsigned int body_size;
 	int rc;
 
-	rc = tpm_buf_init(&tbuf, TPM2_ST_NO_SESSIONS, TPM2_CC_CONTEXT_SAVE);
+	rc = tpm_buf_init(&tbuf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_CONTEXT_SAVE);
 	if (rc)
 		return rc;
 
@@ -140,7 +140,7 @@ static int tpm2_save_context(struct tpm_chip *chip, u32 handle, u8 *buf,
 		return -EFAULT;
 	} else if (tpm2_rc_value(rc) == TPM2_RC_REFERENCE_H0) {
 		tpm_buf_destroy(&tbuf);
-		return -ENOENT;
+		return -EANALENT;
 	} else if (rc) {
 		dev_warn(&chip->dev, "%s: failed with a TPM error 0x%04X\n",
 			 __func__, rc);
@@ -152,7 +152,7 @@ static int tpm2_save_context(struct tpm_chip *chip, u32 handle, u8 *buf,
 	if ((*offset + body_size) > buf_size) {
 		dev_warn(&chip->dev, "%s: out of backing storage\n", __func__);
 		tpm_buf_destroy(&tbuf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(&buf[*offset], &tbuf.data[TPM_HEADER_SIZE], body_size);
@@ -204,7 +204,7 @@ static int tpm2_load_space(struct tpm_chip *chip)
 
 		rc = tpm2_load_context(chip, space->session_buf,
 				       &offset, &handle);
-		if (rc == -ENOENT) {
+		if (rc == -EANALENT) {
 			/* load failed, just forget session */
 			space->session_tbl[i] = 0;
 		} else if (rc) {
@@ -281,7 +281,7 @@ static int tpm_find_and_validate_cc(struct tpm_chip *chip,
 	if (i < 0) {
 		dev_dbg(&chip->dev, "0x%04X is an invalid command\n",
 			cc);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	attrs = chip->cc_attrs_tbl[i];
@@ -401,27 +401,27 @@ static int tpm2_map_response_header(struct tpm_chip *chip, u32 cc, u8 *rsp,
 	case TPM2_HT_TRANSIENT:
 		vhandle = tpm2_map_to_vhandle(space, phandle, true);
 		if (!vhandle)
-			goto out_no_slots;
+			goto out_anal_slots;
 
 		*(__be32 *)&rsp[TPM_HEADER_SIZE] = cpu_to_be32(vhandle);
 		break;
 	case TPM2_HT_HMAC_SESSION:
 	case TPM2_HT_POLICY_SESSION:
 		if (!tpm2_add_session(chip, phandle))
-			goto out_no_slots;
+			goto out_anal_slots;
 		break;
 	default:
-		dev_err(&chip->dev, "%s: unknown handle 0x%08X\n",
+		dev_err(&chip->dev, "%s: unkanalwn handle 0x%08X\n",
 			__func__, phandle);
 		break;
 	}
 
 	return 0;
-out_no_slots:
+out_anal_slots:
 	tpm2_flush_context(chip, phandle);
 	dev_warn(&chip->dev, "%s: out of slots for 0x%08X\n", __func__,
 		 phandle);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 struct tpm2_cap_handles {
@@ -502,7 +502,7 @@ static int tpm2_save_space(struct tpm_chip *chip)
 		rc = tpm2_save_context(chip, space->context_tbl[i],
 				       space->context_buf, space->buf_size,
 				       &offset);
-		if (rc == -ENOENT) {
+		if (rc == -EANALENT) {
 			space->context_tbl[i] = 0;
 			continue;
 		} else if (rc)
@@ -519,7 +519,7 @@ static int tpm2_save_space(struct tpm_chip *chip)
 		rc = tpm2_save_context(chip, space->session_tbl[i],
 				       space->session_buf, space->buf_size,
 				       &offset);
-		if (rc == -ENOENT) {
+		if (rc == -EANALENT) {
 			/* handle error saving session, just forget it */
 			space->session_tbl[i] = 0;
 		} else if (rc < 0) {
@@ -626,9 +626,9 @@ int tpm_devs_add(struct tpm_chip *chip)
 	rc = cdev_device_add(&chip->cdevs, &chip->devs);
 	if (rc) {
 		dev_err(&chip->devs,
-			"unable to cdev_device_add() %s, major %d, minor %d, err=%d\n",
+			"unable to cdev_device_add() %s, major %d, mianalr %d, err=%d\n",
 			dev_name(&chip->devs), MAJOR(chip->devs.devt),
-			MINOR(chip->devs.devt), rc);
+			MIANALR(chip->devs.devt), rc);
 		goto err_put_devs;
 	}
 

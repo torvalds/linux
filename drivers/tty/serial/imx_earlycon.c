@@ -36,7 +36,7 @@ static int __init
 imx_console_early_setup(struct earlycon_device *dev, const char *opt)
 {
 	if (!dev->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->con->write = imx_uart_console_early_write;
 

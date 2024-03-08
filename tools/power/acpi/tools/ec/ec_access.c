@@ -23,7 +23,7 @@
 #define SYSFS_PATH "/sys/kernel/debug/ec/ec0/io"
 
 /* TBD/Enhancements:
-   - Provide param for accessing different ECs (not supported by kernel yet)
+   - Provide param for accessing different ECs (analt supported by kernel yet)
 */
 
 static int read_mode = -1;
@@ -91,7 +91,7 @@ void parse_opts(int argc, char *argv[])
 		case 'h':
 			usage(argv[0], EXIT_SUCCESS);
 		default:
-			fprintf(stderr, "Unknown option!\n");
+			fprintf(stderr, "Unkanalwn option!\n");
 			usage(argv[0], EXIT_FAILURE);
 		}
 	}
@@ -131,7 +131,7 @@ void dump_ec(int fd)
 	bytes_read = read(fd, buf, EC_SPACE_SIZE);
 
 	if (bytes_read == -1)
-		err(EXIT_FAILURE, "Could not read from %s\n", SYSFS_PATH);
+		err(EXIT_FAILURE, "Could analt read from %s\n", SYSFS_PATH);
 
 	if (bytes_read != EC_SPACE_SIZE)
 		fprintf(stderr, "Could only read %d bytes\n", bytes_read);
@@ -154,7 +154,7 @@ void dump_ec(int fd)
 	bytes_read = read(fd, buf2, EC_SPACE_SIZE);
 
 	if (bytes_read == -1)
-		err(EXIT_FAILURE, "Could not read from %s\n", SYSFS_PATH);
+		err(EXIT_FAILURE, "Could analt read from %s\n", SYSFS_PATH);
 
 	if (bytes_read != EC_SPACE_SIZE)
 		fprintf(stderr, "Could only read %d bytes\n", bytes_read);
@@ -179,11 +179,11 @@ void read_ec_val(int fd, int byte_offset)
 
 	error = lseek(fd, byte_offset, SEEK_SET);
 	if (error != byte_offset)
-		err(EXIT_FAILURE, "Cannot set offset to 0x%.2x", byte_offset);
+		err(EXIT_FAILURE, "Cananalt set offset to 0x%.2x", byte_offset);
 
 	error = read(fd, &buf, 1);
 	if (error != 1)
-		err(EXIT_FAILURE, "Could not read byte 0x%.2x from %s\n",
+		err(EXIT_FAILURE, "Could analt read byte 0x%.2x from %s\n",
 		    byte_offset, SYSFS_PATH);
 	printf("0x%.2x\n", buf);
 	return;
@@ -195,11 +195,11 @@ void write_ec_val(int fd, int byte_offset, uint8_t value)
 
 	error = lseek(fd, byte_offset, SEEK_SET);
 	if (error != byte_offset)
-		err(EXIT_FAILURE, "Cannot set offset to 0x%.2x", byte_offset);
+		err(EXIT_FAILURE, "Cananalt set offset to 0x%.2x", byte_offset);
 
 	error = write(fd, &value, 1);
 	if (error != 1)
-		err(EXIT_FAILURE, "Cannot write value 0x%.2x to offset 0x%.2x",
+		err(EXIT_FAILURE, "Cananalt write value 0x%.2x to offset 0x%.2x",
 		    value, byte_offset);
 }
 

@@ -178,9 +178,9 @@ static int tegra210_adx_get_byte_map(struct snd_kcontrol *kcontrol,
 	 * TODO: Simplify this logic to just return from bytes_map[]
 	 *
 	 * Presently below is required since bytes_map[] is
-	 * tightly packed and cannot store the control value of 256.
-	 * Byte mask state is used to know if 256 needs to be returned.
-	 * Note that for control value of 256, the put() call stores 0
+	 * tightly packed and cananalt store the control value of 256.
+	 * Byte mask state is used to kanalw if 256 needs to be returned.
+	 * Analte that for control value of 256, the put() call stores 0
 	 * in the bytes_map[] and disables the corresponding bit in
 	 * byte_mask[].
 	 */
@@ -483,7 +483,7 @@ static int tegra210_adx_platform_probe(struct platform_device *pdev)
 
 	adx = devm_kzalloc(dev, sizeof(*adx), GFP_KERNEL);
 	if (!adx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, adx);
 

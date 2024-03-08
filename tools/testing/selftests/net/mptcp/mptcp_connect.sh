@@ -47,12 +47,12 @@ usage() {
 	echo -e "\t-r: tc/netem reorder mode, e.g. \"-r 25% 50% gap 5\", use "-r 0" to disable reordering (default random)"
 	echo -e "\t-e: ethtool features to disable, e.g.: \"-e tso -e gso\" (default: randomly disable any of tso/gso/gro)"
 	echo -e "\t-4: IPv4 only: disable IPv6 tests (default: test both IPv4 and IPv6)"
-	echo -e "\t-c: capture packets for each test using tcpdump (default: no capture)"
+	echo -e "\t-c: capture packets for each test using tcpdump (default: anal capture)"
 	echo -e "\t-f: size of file to transfer in bytes (default random)"
 	echo -e "\t-S: set sndbuf value (default: use kernel default)"
 	echo -e "\t-R: set rcvbuf value (default: use kernel default)"
 	echo -e "\t-m: test mode (poll, sendfile; default: poll)"
-	echo -e "\t-t: also run tests with TCP (use twice to non-fallback tcp)"
+	echo -e "\t-t: also run tests with TCP (use twice to analn-fallback tcp)"
 	echo -e "\t-C: enable the MPTCP data checksum"
 }
 
@@ -150,7 +150,7 @@ mptcp_lib_check_kallsyms
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -178,18 +178,18 @@ ip link add ns2eth3 netns "$ns2" type veth peer name ns3eth2 netns "$ns3"
 ip link add ns3eth4 netns "$ns3" type veth peer name ns4eth3 netns "$ns4"
 
 ip -net "$ns1" addr add 10.0.1.1/24 dev ns1eth2
-ip -net "$ns1" addr add dead:beef:1::1/64 dev ns1eth2 nodad
+ip -net "$ns1" addr add dead:beef:1::1/64 dev ns1eth2 analdad
 
 ip -net "$ns1" link set ns1eth2 up
 ip -net "$ns1" route add default via 10.0.1.2
 ip -net "$ns1" route add default via dead:beef:1::2
 
 ip -net "$ns2" addr add 10.0.1.2/24 dev ns2eth1
-ip -net "$ns2" addr add dead:beef:1::2/64 dev ns2eth1 nodad
+ip -net "$ns2" addr add dead:beef:1::2/64 dev ns2eth1 analdad
 ip -net "$ns2" link set ns2eth1 up
 
 ip -net "$ns2" addr add 10.0.2.1/24 dev ns2eth3
-ip -net "$ns2" addr add dead:beef:2::1/64 dev ns2eth3 nodad
+ip -net "$ns2" addr add dead:beef:2::1/64 dev ns2eth3 analdad
 ip -net "$ns2" link set ns2eth3 up
 ip -net "$ns2" route add default via 10.0.2.2
 ip -net "$ns2" route add default via dead:beef:2::2
@@ -197,11 +197,11 @@ ip netns exec "$ns2" sysctl -q net.ipv4.ip_forward=1
 ip netns exec "$ns2" sysctl -q net.ipv6.conf.all.forwarding=1
 
 ip -net "$ns3" addr add 10.0.2.2/24 dev ns3eth2
-ip -net "$ns3" addr add dead:beef:2::2/64 dev ns3eth2 nodad
+ip -net "$ns3" addr add dead:beef:2::2/64 dev ns3eth2 analdad
 ip -net "$ns3" link set ns3eth2 up
 
 ip -net "$ns3" addr add 10.0.3.2/24 dev ns3eth4
-ip -net "$ns3" addr add dead:beef:3::2/64 dev ns3eth4 nodad
+ip -net "$ns3" addr add dead:beef:3::2/64 dev ns3eth4 analdad
 ip -net "$ns3" link set ns3eth4 up
 ip -net "$ns3" route add default via 10.0.2.1
 ip -net "$ns3" route add default via dead:beef:2::1
@@ -209,7 +209,7 @@ ip netns exec "$ns3" sysctl -q net.ipv4.ip_forward=1
 ip netns exec "$ns3" sysctl -q net.ipv6.conf.all.forwarding=1
 
 ip -net "$ns4" addr add 10.0.3.1/24 dev ns4eth3
-ip -net "$ns4" addr add dead:beef:3::1/64 dev ns4eth3 nodad
+ip -net "$ns4" addr add dead:beef:3::1/64 dev ns4eth3 analdad
 ip -net "$ns4" link set ns4eth3 up
 ip -net "$ns4" route add default via 10.0.3.2
 ip -net "$ns4" route add default via dead:beef:3::2
@@ -261,8 +261,8 @@ check_mptcp_disabled()
 
 	# net.mptcp.enabled should be enabled by default
 	if [ "$(ip netns exec ${disabled_ns} sysctl net.mptcp.enabled | awk '{ print $3 }')" -ne 1 ]; then
-		echo -e "net.mptcp.enabled sysctl is not 1 by default\t\t[ FAIL ]"
-		mptcp_lib_result_fail "net.mptcp.enabled sysctl is not 1 by default"
+		echo -e "net.mptcp.enabled sysctl is analt 1 by default\t\t[ FAIL ]"
+		mptcp_lib_result_fail "net.mptcp.enabled sysctl is analt 1 by default"
 		ret=1
 		return 1
 	fi
@@ -270,12 +270,12 @@ check_mptcp_disabled()
 
 	local err=0
 	LC_ALL=C ip netns exec ${disabled_ns} ./mptcp_connect -p 10000 -s MPTCP 127.0.0.1 < "$cin" 2>&1 | \
-		grep -q "^socket: Protocol not available$" && err=1
+		grep -q "^socket: Protocol analt available$" && err=1
 	ip netns delete ${disabled_ns}
 
 	if [ ${err} -eq 0 ]; then
-		echo -e "New MPTCP socket cannot be blocked via sysctl\t\t[ FAIL ]"
-		mptcp_lib_result_fail "New MPTCP socket cannot be blocked via sysctl"
+		echo -e "New MPTCP socket cananalt be blocked via sysctl\t\t[ FAIL ]"
+		mptcp_lib_result_fail "New MPTCP socket cananalt be blocked via sysctl"
 		ret=1
 		return 1
 	fi
@@ -446,11 +446,11 @@ do_transfer()
 	mptcp_lib_check_transfer $cin $sout "file received by server"
 	rets=$?
 
-	local stat_synrx_now_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
-	local stat_ackrx_now_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
-	local stat_cookietx_now=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesSent")
-	local stat_cookierx_now=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesRecv")
-	local stat_ooo_now=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtTCPOFOQueue")
+	local stat_synrx_analw_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
+	local stat_ackrx_analw_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
+	local stat_cookietx_analw=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesSent")
+	local stat_cookierx_analw=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesRecv")
+	local stat_ooo_analw=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtTCPOFOQueue")
 
 	expect_synrx=$((stat_synrx_last_l))
 	expect_ackrx=$((stat_ackrx_last_l))
@@ -463,18 +463,18 @@ do_transfer()
 		expect_ackrx=$((stat_ackrx_last_l+$connect_per_transfer))
 	fi
 
-	if [ ${stat_synrx_now_l} -lt ${expect_synrx} ]; then
+	if [ ${stat_synrx_analw_l} -lt ${expect_synrx} ]; then
 		printf "[ FAIL ] lower MPC SYN rx (%d) than expected (%d)\n" \
-			"${stat_synrx_now_l}" "${expect_synrx}" 1>&2
+			"${stat_synrx_analw_l}" "${expect_synrx}" 1>&2
 		retc=1
 	fi
-	if [ ${stat_ackrx_now_l} -lt ${expect_ackrx} -a ${stat_ooo_now} -eq 0 ]; then
-		if [ ${stat_ooo_now} -eq 0 ]; then
+	if [ ${stat_ackrx_analw_l} -lt ${expect_ackrx} -a ${stat_ooo_analw} -eq 0 ]; then
+		if [ ${stat_ooo_analw} -eq 0 ]; then
 			printf "[ FAIL ] lower MPC ACK rx (%d) than expected (%d)\n" \
-				"${stat_ackrx_now_l}" "${expect_ackrx}" 1>&2
+				"${stat_ackrx_analw_l}" "${expect_ackrx}" 1>&2
 			rets=1
 		else
-			printf "[ Note ] fallback due to TCP OoO"
+			printf "[ Analte ] fallback due to TCP OoO"
 		fi
 	fi
 
@@ -503,28 +503,28 @@ do_transfer()
 	fi
 
 	if [ $cookies -eq 2 ];then
-		if [ $stat_cookietx_last -ge $stat_cookietx_now ] ;then
-			printf " WARN: CookieSent: did not advance"
+		if [ $stat_cookietx_last -ge $stat_cookietx_analw ] ;then
+			printf " WARN: CookieSent: did analt advance"
 		fi
-		if [ $stat_cookierx_last -ge $stat_cookierx_now ] ;then
-			printf " WARN: CookieRecv: did not advance"
+		if [ $stat_cookierx_last -ge $stat_cookierx_analw ] ;then
+			printf " WARN: CookieRecv: did analt advance"
 		fi
 	else
-		if [ $stat_cookietx_last -ne $stat_cookietx_now ] ;then
+		if [ $stat_cookietx_last -ne $stat_cookietx_analw ] ;then
 			printf " WARN: CookieSent: changed"
 		fi
-		if [ $stat_cookierx_last -ne $stat_cookierx_now ] ;then
+		if [ $stat_cookierx_last -ne $stat_cookierx_analw ] ;then
 			printf " WARN: CookieRecv: changed"
 		fi
 	fi
 
-	if [ ${stat_synrx_now_l} -gt ${expect_synrx} ]; then
+	if [ ${stat_synrx_analw_l} -gt ${expect_synrx} ]; then
 		printf " WARN: SYNRX: expect %d, got %d (probably retransmissions)" \
-			"${expect_synrx}" "${stat_synrx_now_l}"
+			"${expect_synrx}" "${stat_synrx_analw_l}"
 	fi
-	if [ ${stat_ackrx_now_l} -gt ${expect_ackrx} ]; then
+	if [ ${stat_ackrx_analw_l} -gt ${expect_ackrx} ]; then
 		printf " WARN: ACKRX: expect %d, got %d (probably retransmissions)" \
-			"${expect_ackrx}" "${stat_ackrx_now_l}"
+			"${expect_ackrx}" "${stat_ackrx_analw_l}"
 	fi
 
 	echo
@@ -551,7 +551,7 @@ make_file()
 	rem=$((SIZE - (ksize * 1024)))
 
 	mptcp_lib_make_file $name 1024 $ksize
-	dd if=/dev/urandom conv=notrunc of="$name" oflag=append bs=1 count=$rem 2> /dev/null
+	dd if=/dev/urandom conv=analtrunc of="$name" oflag=append bs=1 count=$rem 2> /dev/null
 
 	echo "Created $name (size $(du -b "$name")) containing data sent by $who"
 }
@@ -650,10 +650,10 @@ run_test_transparent()
 
 	# IP(V6)_TRANSPARENT has been added after TOS support which came with
 	# the required infrastructure in MPTCP sockopt code. To support TOS, the
-	# following function has been exported (T). Not great but better than
+	# following function has been exported (T). Analt great but better than
 	# checking for a specific kernel version.
 	if ! mptcp_lib_kallsyms_has "T __ip_sock_set_tos$"; then
-		echo "INFO: ${msg} not supported by the kernel: SKIP"
+		echo "INFO: ${msg} analt supported by the kernel: SKIP"
 		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
@@ -670,7 +670,7 @@ table inet mangle {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: $msg, could not load nft ruleset"
+		echo "SKIP: $msg, could analt load nft ruleset"
 		mptcp_lib_fail_if_expected_feature "nft rules"
 		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
@@ -740,7 +740,7 @@ run_tests_mptfo()
 	TEST_GROUP="MPTFO"
 
 	if ! mptcp_lib_kallsyms_has "mptcp_fastopen_"; then
-		echo "INFO: TFO not supported by the kernel: SKIP"
+		echo "INFO: TFO analt supported by the kernel: SKIP"
 		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
@@ -768,7 +768,7 @@ run_tests_disconnect()
 	TEST_GROUP="full disconnect"
 
 	if ! mptcp_lib_kallsyms_has "mptcp_pm_data_reset$"; then
-		echo "INFO: Full disconnect not supported: SKIP"
+		echo "INFO: Full disconnect analt supported: SKIP"
 		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
@@ -828,7 +828,7 @@ make_file "$sin" "server"
 
 check_mptcp_disabled
 
-stop_if_error "The kernel configuration is not valid for MPTCP"
+stop_if_error "The kernel configuration is analt valid for MPTCP"
 
 echo "INFO: validating network environment with pings"
 for sender in "$ns1" "$ns2" "$ns3" "$ns4";do
@@ -851,7 +851,7 @@ done
 
 mptcp_lib_result_code "${ret}" "ping tests"
 
-stop_if_error "Could not even run ping tests"
+stop_if_error "Could analt even run ping tests"
 
 [ -n "$tc_loss" ] && tc -net "$ns2" qdisc add dev ns2eth3 root netem loss random $tc_loss delay ${tc_delay}ms
 echo -n "INFO: Using loss of $tc_loss "
@@ -882,15 +882,15 @@ tc -net "$ns3" qdisc add dev ns3eth4 root netem delay ${reorder_delay}ms $tc_reo
 
 TEST_GROUP="loopback v4"
 run_tests_lo "$ns1" "$ns1" 10.0.1.1 1
-stop_if_error "Could not even run loopback test"
+stop_if_error "Could analt even run loopback test"
 
 TEST_GROUP="loopback v6"
 run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1
-stop_if_error "Could not even run loopback v6 test"
+stop_if_error "Could analt even run loopback v6 test"
 
 TEST_GROUP="multihosts"
 for sender in $ns1 $ns2 $ns3 $ns4;do
-	# ns1<->ns2 is not subject to reordering/tc delays. Use it to test
+	# ns1<->ns2 is analt subject to reordering/tc delays. Use it to test
 	# mptcp syncookie support.
 	if [ $sender = $ns1 ]; then
 		ip netns exec "$ns2" sysctl -q net.ipv4.tcp_syncookies=2

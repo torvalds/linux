@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netroanalme Systems, Inc.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -7,7 +7,7 @@
  *
  * THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS"
  * WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
- * BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE
  * OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
@@ -29,7 +29,7 @@
 
 /* Protects offdevs, members of bpf_offload_netdev and offload members
  * of all progs.
- * RTNL lock cannot be taken when holding this lock.
+ * RTNL lock cananalt be taken when holding this lock.
  */
 static DECLARE_RWSEM(bpf_devs_lock);
 
@@ -63,7 +63,7 @@ static int bpf_dev_offload_check(struct net_device *netdev)
 	if (!netdev)
 		return -EINVAL;
 	if (!netdev->netdev_ops->ndo_bpf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -83,7 +83,7 @@ static int __bpf_offload_dev_netdev_register(struct bpf_offload_dev *offdev,
 
 	ondev = kzalloc(sizeof(*ondev), GFP_KERNEL);
 	if (!ondev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ondev->netdev = netdev;
 	ondev->offdev = offdev;
@@ -157,7 +157,7 @@ static void __bpf_offload_dev_netdev_unregister(struct bpf_offload_dev *offdev,
 
 	WARN_ON(rhashtable_remove_fast(&offdevs, &ondev->l, offdevs_params));
 
-	/* Try to move the objects to another netdev of the device */
+	/* Try to move the objects to aanalther netdev of the device */
 	if (offdev) {
 		list_del(&ondev->offdev_netdevs);
 		altdev = list_first_entry_or_null(&offdev->netdevs,
@@ -193,7 +193,7 @@ static int __bpf_prog_dev_bound_init(struct bpf_prog *prog, struct net_device *n
 
 	offload = kzalloc(sizeof(*offload), GFP_USER);
 	if (!offload)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offload->prog = prog;
 	offload->netdev = netdev;
@@ -237,7 +237,7 @@ int bpf_prog_dev_bound_init(struct bpf_prog *prog, union bpf_attr *attr)
 	if (attr->prog_flags & ~(BPF_F_XDP_DEV_BOUND_ONLY | BPF_F_XDP_HAS_FRAGS))
 		return -EINVAL;
 
-	/* Frags are allowed only if program is dev-bound-only, but not
+	/* Frags are allowed only if program is dev-bound-only, but analt
 	 * if it is requesting bpf offload.
 	 */
 	if (attr->prog_flags & BPF_F_XDP_HAS_FRAGS &&
@@ -296,7 +296,7 @@ out:
 int bpf_prog_offload_verifier_prep(struct bpf_prog *prog)
 {
 	struct bpf_prog_offload *offload;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	down_read(&bpf_devs_lock);
 	offload = prog->aux->offload;
@@ -313,7 +313,7 @@ int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 				 int insn_idx, int prev_insn_idx)
 {
 	struct bpf_prog_offload *offload;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	down_read(&bpf_devs_lock);
 	offload = env->prog->aux->offload;
@@ -328,7 +328,7 @@ int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 int bpf_prog_offload_finalize(struct bpf_verifier_env *env)
 {
 	struct bpf_prog_offload *offload;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	down_read(&bpf_devs_lock);
 	offload = env->prog->aux->offload;
@@ -349,7 +349,7 @@ bpf_prog_offload_replace_insn(struct bpf_verifier_env *env, u32 off,
 {
 	const struct bpf_prog_offload_ops *ops;
 	struct bpf_prog_offload *offload;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	down_read(&bpf_devs_lock);
 	offload = env->prog->aux->offload;
@@ -366,7 +366,7 @@ void
 bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
 {
 	struct bpf_prog_offload *offload;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	down_read(&bpf_devs_lock);
 	offload = env->prog->aux->offload;
@@ -402,7 +402,7 @@ void bpf_prog_dev_bound_destroy(struct bpf_prog *prog)
 static int bpf_prog_offload_translate(struct bpf_prog *prog)
 {
 	struct bpf_prog_offload *offload;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	down_read(&bpf_devs_lock);
 	offload = prog->aux->offload;
@@ -466,7 +466,7 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 		.info	= info,
 	};
 	struct bpf_prog_aux *aux = prog->aux;
-	struct inode *ns_inode;
+	struct ianalde *ns_ianalde;
 	struct path ns_path;
 	char __user *uinsns;
 	int res;
@@ -475,7 +475,7 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 	res = ns_get_path_cb(&ns_path, bpf_prog_offload_info_fill_ns, &args);
 	if (res) {
 		if (!info->ifindex)
-			return -ENODEV;
+			return -EANALDEV;
 		return res;
 	}
 
@@ -483,7 +483,7 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 
 	if (!aux->offload) {
 		up_read(&bpf_devs_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ulen = info->jited_prog_len;
@@ -499,9 +499,9 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 
 	up_read(&bpf_devs_lock);
 
-	ns_inode = ns_path.dentry->d_inode;
-	info->netns_dev = new_encode_dev(ns_inode->i_sb->s_dev);
-	info->netns_ino = ns_inode->i_ino;
+	ns_ianalde = ns_path.dentry->d_ianalde;
+	info->netns_dev = new_encode_dev(ns_ianalde->i_sb->s_dev);
+	info->netns_ianal = ns_ianalde->i_ianal;
 	path_put(&ns_path);
 
 	return 0;
@@ -523,9 +523,9 @@ struct bpf_map *bpf_map_offload_map_alloc(union bpf_attr *attr)
 	    attr->map_type != BPF_MAP_TYPE_HASH)
 		return ERR_PTR(-EINVAL);
 
-	offmap = bpf_map_area_alloc(sizeof(*offmap), NUMA_NO_NODE);
+	offmap = bpf_map_area_alloc(sizeof(*offmap), NUMA_ANAL_ANALDE);
 	if (!offmap)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bpf_map_init_from_attr(&offmap->map, attr);
 
@@ -575,14 +575,14 @@ void bpf_map_offload_map_free(struct bpf_map *map)
 
 u64 bpf_map_offload_map_mem_usage(const struct bpf_map *map)
 {
-	/* The memory dynamically allocated in netdev dev_ops is not counted */
+	/* The memory dynamically allocated in netdev dev_ops is analt counted */
 	return sizeof(struct bpf_offloaded_map);
 }
 
 int bpf_map_offload_lookup_elem(struct bpf_map *map, void *key, void *value)
 {
 	struct bpf_offloaded_map *offmap = map_to_offmap(map);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	down_read(&bpf_devs_lock);
 	if (offmap->netdev)
@@ -596,7 +596,7 @@ int bpf_map_offload_update_elem(struct bpf_map *map,
 				void *key, void *value, u64 flags)
 {
 	struct bpf_offloaded_map *offmap = map_to_offmap(map);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (unlikely(flags > BPF_EXIST))
 		return -EINVAL;
@@ -613,7 +613,7 @@ int bpf_map_offload_update_elem(struct bpf_map *map,
 int bpf_map_offload_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_offloaded_map *offmap = map_to_offmap(map);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	down_read(&bpf_devs_lock);
 	if (offmap->netdev)
@@ -626,7 +626,7 @@ int bpf_map_offload_delete_elem(struct bpf_map *map, void *key)
 int bpf_map_offload_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
 	struct bpf_offloaded_map *offmap = map_to_offmap(map);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	down_read(&bpf_devs_lock);
 	if (offmap->netdev)
@@ -672,20 +672,20 @@ int bpf_map_offload_info_fill(struct bpf_map_info *info, struct bpf_map *map)
 		.offmap	= map_to_offmap(map),
 		.info	= info,
 	};
-	struct inode *ns_inode;
+	struct ianalde *ns_ianalde;
 	struct path ns_path;
 	int res;
 
 	res = ns_get_path_cb(&ns_path, bpf_map_offload_info_fill_ns, &args);
 	if (res) {
 		if (!info->ifindex)
-			return -ENODEV;
+			return -EANALDEV;
 		return res;
 	}
 
-	ns_inode = ns_path.dentry->d_inode;
-	info->netns_dev = new_encode_dev(ns_inode->i_sb->s_dev);
-	info->netns_ino = ns_inode->i_ino;
+	ns_ianalde = ns_path.dentry->d_ianalde;
+	info->netns_dev = new_encode_dev(ns_ianalde->i_sb->s_dev);
+	info->netns_ianal = ns_ianalde->i_ianal;
 	path_put(&ns_path);
 
 	return 0;
@@ -784,7 +784,7 @@ bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops, void *priv)
 
 	offdev = kzalloc(sizeof(*offdev), GFP_KERNEL);
 	if (!offdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	offdev->ops = ops;
 	offdev->priv = priv;

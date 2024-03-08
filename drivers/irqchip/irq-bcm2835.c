@@ -11,12 +11,12 @@
  *
  * If an interrupt fires on bank 1 that _is_ in the shortcuts list, its
  * shortcut bit in bank 0 is set as well as its interrupt bit in the bank 1
- * status register, but bank 0 bit 8 is _not_ set.
+ * status register, but bank 0 bit 8 is _analt_ set.
  *
  * Quirk 2: You can't mask the register 1/2 pending interrupts
  *
  * In a proper cascaded interrupt controller, the interrupt lines with
- * cascaded interrupt controllers on them are just normal interrupt lines.
+ * cascaded interrupt controllers on them are just analrmal interrupt lines.
  * You can mask the interrupts and get on with things. With this controller
  * you can't do that.
  *
@@ -24,7 +24,7 @@
  *
  * Those interrupts that have shortcuts can only be masked/unmasked in
  * their respective banks' enable/disable registers. Doing so in the bank 0
- * enable/disable registers has no effect.
+ * enable/disable registers has anal effect.
  *
  * The FIQ control register:
  *  Bits 0-6: IRQ (index in order of interrupts from banks 1, 2, then 0)
@@ -51,7 +51,7 @@
 
 #define NR_IRQS_BANK0		8
 #define BANK0_HWIRQ_MASK	0xff
-/* Shortcuts can't be disabled so any unknown new ones need to be masked */
+/* Shortcuts can't be disabled so any unkanalwn new ones need to be masked */
 #define SHORTCUT1_MASK		0x00007c00
 #define SHORTCUT2_MASK		0x001f8000
 #define SHORTCUT_SHIFT		10
@@ -105,7 +105,7 @@ static struct irq_chip armctrl_chip = {
 	.irq_unmask = armctrl_unmask_irq
 };
 
-static int armctrl_xlate(struct irq_domain *d, struct device_node *ctrlr,
+static int armctrl_xlate(struct irq_domain *d, struct device_analde *ctrlr,
 	const u32 *intspec, unsigned int intsize,
 	unsigned long *out_hwirq, unsigned int *out_type)
 {
@@ -122,7 +122,7 @@ static int armctrl_xlate(struct irq_domain *d, struct device_node *ctrlr,
 		return -EINVAL;
 
 	*out_hwirq = MAKE_HWIRQ(intspec[0], intspec[1]);
-	*out_type = IRQ_TYPE_NONE;
+	*out_type = IRQ_TYPE_ANALNE;
 	return 0;
 }
 
@@ -130,22 +130,22 @@ static const struct irq_domain_ops armctrl_ops = {
 	.xlate = armctrl_xlate
 };
 
-static int __init armctrl_of_init(struct device_node *node,
-				  struct device_node *parent,
+static int __init armctrl_of_init(struct device_analde *analde,
+				  struct device_analde *parent,
 				  bool is_2836)
 {
 	void __iomem *base;
 	int irq, b, i;
 	u32 reg;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base)
-		panic("%pOF: unable to map IC registers\n", node);
+		panic("%pOF: unable to map IC registers\n", analde);
 
-	intc.domain = irq_domain_add_linear(node, MAKE_HWIRQ(NR_BANKS, 0),
+	intc.domain = irq_domain_add_linear(analde, MAKE_HWIRQ(NR_BANKS, 0),
 			&armctrl_ops, NULL);
 	if (!intc.domain)
-		panic("%pOF: unable to create IRQ domain\n", node);
+		panic("%pOF: unable to create IRQ domain\n", analde);
 
 	for (b = 0; b < NR_BANKS; b++) {
 		intc.pending[b] = base + reg_pending[b];
@@ -175,11 +175,11 @@ static int __init armctrl_of_init(struct device_node *node,
 	}
 
 	if (is_2836) {
-		int parent_irq = irq_of_parse_and_map(node, 0);
+		int parent_irq = irq_of_parse_and_map(analde, 0);
 
 		if (!parent_irq) {
 			panic("%pOF: unable to get parent interrupt.\n",
-			      node);
+			      analde);
 		}
 		irq_set_chained_handler(parent_irq, bcm2836_chained_handle_irq);
 	} else {
@@ -189,16 +189,16 @@ static int __init armctrl_of_init(struct device_node *node,
 	return 0;
 }
 
-static int __init bcm2835_armctrl_of_init(struct device_node *node,
-					  struct device_node *parent)
+static int __init bcm2835_armctrl_of_init(struct device_analde *analde,
+					  struct device_analde *parent)
 {
-	return armctrl_of_init(node, parent, false);
+	return armctrl_of_init(analde, parent, false);
 }
 
-static int __init bcm2836_armctrl_of_init(struct device_node *node,
-					  struct device_node *parent)
+static int __init bcm2836_armctrl_of_init(struct device_analde *analde,
+					  struct device_analde *parent)
 {
-	return armctrl_of_init(node, parent, true);
+	return armctrl_of_init(analde, parent, true);
 }
 
 

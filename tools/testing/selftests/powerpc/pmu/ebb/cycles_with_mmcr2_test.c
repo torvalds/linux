@@ -14,7 +14,7 @@
  * Test of counting cycles while manipulating the user accessible bits in MMCR2.
  */
 
-/* We use two values because the first freezes PMC1 and so we would get no EBBs */
+/* We use two values because the first freezes PMC1 and so we would get anal EBBs */
 #define MMCR2_EXPECTED_1 0x4020100804020000UL /* (FC1P|FC2P|FC3P|FC4P|FC5P|FC6P) */
 #define MMCR2_EXPECTED_2 0x0020100804020000UL /* (     FC2P|FC3P|FC4P|FC5P|FC6P) */
 

@@ -16,7 +16,7 @@
 	const struct drbd_device *__d = (device);		\
 	const struct drbd_resource *__r = __d->resource
 #define __drbd_printk_drbd_device_fmt(fmt)	"drbd %s/%u drbd%u: " fmt
-#define __drbd_printk_drbd_device_args()	__r->name, __d->vnr, __d->minor
+#define __drbd_printk_drbd_device_args()	__r->name, __d->vnr, __d->mianalr
 #define __drbd_printk_drbd_device_unprep()
 
 #define __drbd_printk_drbd_peer_device_prep(peer_device)	\
@@ -27,7 +27,7 @@
 #define __drbd_printk_drbd_peer_device_fmt(fmt) \
 	"drbd %s/%u drbd%u: " fmt
 #define __drbd_printk_drbd_peer_device_args() \
-	__r->name, __d->vnr, __d->minor
+	__r->name, __d->vnr, __d->mianalr
 #define __drbd_printk_drbd_peer_device_unprep()
 
 #define __drbd_printk_drbd_resource_prep(resource) \
@@ -104,8 +104,8 @@ void drbd_dyn_dbg_with_wrong_object_type(void);
 	drbd_printk(KERN_ERR, device, fmt, ## args)
 #define drbd_warn(device, fmt, args...) \
 	drbd_printk(KERN_WARNING, device, fmt, ## args)
-#define drbd_notice(device, fmt, args...) \
-	drbd_printk(KERN_NOTICE, device, fmt, ## args)
+#define drbd_analtice(device, fmt, args...) \
+	drbd_printk(KERN_ANALTICE, device, fmt, ## args)
 #define drbd_info(device, fmt, args...) \
 	drbd_printk(KERN_INFO, device, fmt, ## args)
 

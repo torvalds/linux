@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /* ARC700 has a relatively long pipeline and branch prediction, so we want
    to avoid branches that are hard to predict.  On the other hand, the
-   presence of the norm instruction makes it easier to operate on whole
+   presence of the analrm instruction makes it easier to operate on whole
    words branch-free.  */
 
 #include <linux/linkage.h>
@@ -69,11 +69,11 @@ ENTRY_CFI(strchr)
 #ifdef __LITTLE_ENDIAN__
 /* We only need the information about the first matching byte
    (i.e. the least significant matching byte) to be exact,
-   hence there is no problem with carry effects.  */
+   hence there is anal problem with carry effects.  */
 .Lfound_char:
 	sub	r3,r7,1
 	bic	r3,r3,r7
-	norm	r2,r3
+	analrm	r2,r3
 	sub_s	r0,r0,1
 	asr_s	r2,r2,3
 	j.d	[blink]
@@ -89,7 +89,7 @@ ENTRY_CFI(strchr)
 	or_s	r12,r12,r2
 	sub_s	r3,r12,1
 	bic_s	r3,r3,r12
-	norm	r3,r3
+	analrm	r3,r3
 	add_s	r0,r0,3
 	asr_s	r12,r3,3
 	asl.f	0,r2,r3
@@ -102,7 +102,7 @@ ENTRY_CFI(strchr)
 
 	bic	r2,r7,r6
 .Lfound_char_b:
-	norm	r2,r2
+	analrm	r2,r2
 	sub_s	r0,r0,4
 	asr_s	r2,r2,3
 	j.d	[blink]
@@ -118,7 +118,7 @@ ENTRY_CFI(strchr)
 	or	r2,r2,r6
 	bic	r12,r2,r12
 	bic.f	r3,r4,r12
-	norm	r3,r3
+	analrm	r3,r3
 
 	add.pl	r3,r3,1
 	asr_s	r12,r3,3

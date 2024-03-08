@@ -103,7 +103,7 @@ static int cdns3_pci_probe(struct pci_dev *pdev,
 		wrap = kzalloc(sizeof(*wrap), GFP_KERNEL);
 		if (!wrap) {
 			pci_disable_device(pdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -153,7 +153,7 @@ static int cdns3_pci_probe(struct pci_dev *pdev,
 		/* set up platform device info */
 		memset(&plat_info, 0, sizeof(plat_info));
 		plat_info.parent = &pdev->dev;
-		plat_info.fwnode = pdev->dev.fwnode;
+		plat_info.fwanalde = pdev->dev.fwanalde;
 		plat_info.name = PLAT_DRIVER_NAME;
 		plat_info.id = pdev->devfn;
 		wrap->devfn  = pdev->devfn;

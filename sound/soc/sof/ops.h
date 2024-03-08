@@ -198,7 +198,7 @@ static inline int snd_sof_dsp_parse_platform_ext_manifest(struct snd_sof_dev *sd
  * @type: section type as described by snd_sof_fw_blk_type
  *
  * Returns the corresponding BAR index (a positive integer) or -EINVAL
- * in case there is no mapping
+ * in case there is anal mapping
  */
 static inline int snd_sof_dsp_get_bar_index(struct snd_sof_dev *sdev, u32 type)
 {
@@ -213,8 +213,8 @@ static inline int snd_sof_dsp_get_mailbox_offset(struct snd_sof_dev *sdev)
 	if (sof_ops(sdev)->get_mailbox_offset)
 		return sof_ops(sdev)->get_mailbox_offset(sdev);
 
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -EOPNOTSUPP;
+	dev_err(sdev->dev, "error: %s analt defined\n", __func__);
+	return -EOPANALTSUPP;
 }
 
 static inline int snd_sof_dsp_get_window_offset(struct snd_sof_dev *sdev,
@@ -223,8 +223,8 @@ static inline int snd_sof_dsp_get_window_offset(struct snd_sof_dev *sdev,
 	if (sof_ops(sdev)->get_window_offset)
 		return sof_ops(sdev)->get_window_offset(sdev, id);
 
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -EOPNOTSUPP;
+	dev_err(sdev->dev, "error: %s analt defined\n", __func__);
+	return -EOPANALTSUPP;
 }
 /* power management */
 static inline int snd_sof_dsp_resume(struct snd_sof_dev *sdev)
@@ -580,7 +580,7 @@ snd_sof_set_mach_params(struct snd_soc_acpi_mach *mach,
  * @timeout_us: Timeout in us, 0 means never timeout
  *
  * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
- * case, the last read value at @addr is stored in @val. Must not
+ * case, the last read value at @addr is stored in @val. Must analt
  * be called from atomic context if sleep_us or timeout_us are used.
  *
  * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
@@ -636,5 +636,5 @@ int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			      u32 mask, u32 target, u32 timeout_ms,
 			      u32 interval_us);
 
-void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool non_recoverable);
+void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool analn_recoverable);
 #endif

@@ -343,7 +343,7 @@ void rtl88ee_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -466,12 +466,12 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 		}
 	case HW_VAR_AMPDU_FACTOR:{
-		u8 regtoset_normal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
+		u8 regtoset_analrmal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
 		u8 factor_toset;
 		u8 *p_regtoset = NULL;
 		u8 index = 0;
 
-		p_regtoset = regtoset_normal;
+		p_regtoset = regtoset_analrmal;
 
 		factor_toset = *val;
 		if (factor_toset <= 3) {
@@ -551,7 +551,7 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				acm_ctrl &= (~ACMHW_VOQEN);
 				break;
 			default:
-				pr_err("switch case %#x not processed\n",
+				pr_err("switch case %#x analt processed\n",
 				       e_aci);
 				break;
 			}
@@ -715,7 +715,7 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				    2, array);
 		break; }
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -732,7 +732,7 @@ static bool _rtl88ee_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 
 	do {
 		value = rtl_read_dword(rtlpriv, REG_LLT_INIT);
-		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
+		if (_LLT_ANAL_ACTIVE == _LLT_OP_VALUE(value))
 			break;
 
 		if (count > POLLING_LLT_THRESHOLD) {
@@ -907,7 +907,7 @@ static bool _rtl88ee_init_mac(struct ieee80211_hw *hw)
 			DMA_BIT_MASK(32));
 
 	/* if we want to support 64 bit DMA, we should set it here,
-	 * but now we do not support 64 bit DMA
+	 * but analw we do analt support 64 bit DMA
 	 */
 	rtl_write_dword(rtlpriv, REG_INT_MIG, 0);
 
@@ -1007,7 +1007,7 @@ void rtl88ee_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
-			"not open hw encryption\n");
+			"analt open hw encryption\n");
 		return;
 	}
 
@@ -1075,7 +1075,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	err = rtl88e_download_fw(hw, false);
 	if (err) {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Failed to download FW. Init HW without FW now..\n");
+			"Failed to download FW. Init HW without FW analw..\n");
 		err = 1;
 		goto exit;
 	}
@@ -1169,14 +1169,14 @@ static enum version_8188e _rtl88ee_read_chip_version(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	enum version_8188e version = VERSION_UNKNOWN;
+	enum version_8188e version = VERSION_UNKANALWN;
 	u32 value32;
 
 	value32 = rtl_read_dword(rtlpriv, REG_SYS_CFG);
 	if (value32 & TRP_VAUX_EN) {
 		version = (enum version_8188e) VERSION_TEST_CHIP_88E;
 	} else {
-		version = NORMAL_CHIP;
+		version = ANALRMAL_CHIP;
 		version = version | ((value32 & TYPE_ID) ? RF_TYPE_2T2R : 0);
 		version = version | ((value32 & VENDOR_ID) ?
 			  CHIP_VENDOR_UMC : 0);
@@ -1195,14 +1195,14 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR) & 0xfc;
-	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
-	u8 mode = MSR_NOLINK;
+	enum led_ctl_mode ledaction = LED_CTL_ANAL_LINK;
+	u8 mode = MSR_ANALLINK;
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		mode = MSR_NOLINK;
+		mode = MSR_ANALLINK;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
-			"Set Network type to NO LINK!\n");
+			"Set Network type to ANAL LINK!\n");
 		break;
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
@@ -1223,7 +1223,7 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 			"Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not support!\n", type);
+		pr_err("Network type %d analt support!\n", type);
 		return 1;
 	}
 
@@ -1231,14 +1231,14 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 	 * MSR_ADHOC == Link in ad hoc network;
 	 * Therefore, check link state is necessary.
 	 *
-	 * MSR_AP == AP mode; link state is not cared here.
+	 * MSR_AP == AP mode; link state is analt cared here.
 	 */
 	if (mode != MSR_AP && rtlpriv->mac80211.link_state < MAC80211_LINKED) {
-		mode = MSR_NOLINK;
-		ledaction = LED_CTL_NO_LINK;
+		mode = MSR_ANALLINK;
+		ledaction = LED_CTL_ANAL_LINK;
 	}
 
-	if (mode == MSR_NOLINK || mode == MSR_INFRA) {
+	if (mode == MSR_ANALLINK || mode == MSR_INFRA) {
 		_rtl88ee_stop_tx_beacon(hw);
 		_rtl88ee_enable_bcn_sub_func(hw);
 	} else if (mode == MSR_ADHOC || mode == MSR_AP) {
@@ -1246,7 +1246,7 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 		_rtl88ee_disable_bcn_sub_func(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Set HW_VAR_MEDIA_STATUS: No such media status(%x).\n",
+			"Set HW_VAR_MEDIA_STATUS: Anal such media status(%x).\n",
 			mode);
 	}
 
@@ -1288,7 +1288,7 @@ int rtl88ee_set_network_type(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (_rtl88ee_set_media_status(hw, type))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rtlpriv->mac80211.link_state == MAC80211_LINKED) {
 		if (type != NL80211_IFTYPE_AP &&
@@ -1338,7 +1338,7 @@ void rtl88ee_enable_interrupt(struct ieee80211_hw *hw)
 	rtlpci->irq_enabled = true;
 	/* there are some C2H CMDs have been sent
 	 * before system interrupt is enabled, e.g., C2H, CPWM.
-	 * So we need to clear all C2H events that FW has notified,
+	 * So we need to clear all C2H events that FW has analtified,
 	 * otherwise FW won't schedule any commands anymore.
 	 */
 	rtl_write_byte(rtlpriv, REG_C2HEVT_CLEAR, 0);
@@ -1426,7 +1426,7 @@ void rtl88ee_card_disable(struct ieee80211_hw *hw)
 
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "RTL8188ee card disable\n");
 
-	mac->link_state = MAC80211_NOLINK;
+	mac->link_state = MAC80211_ANALLINK;
 	opmode = NL80211_IFTYPE_UNSPECIFIED;
 
 	_rtl88ee_set_media_status(hw, opmode);
@@ -1782,7 +1782,7 @@ static void _rtl88ee_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		rtlefuse->eeprom_thermalmeter = EEPROM_DEFAULT_THERMALMETER;
 
 	if (rtlefuse->eeprom_thermalmeter == 0xff || autoload_fail) {
-		rtlefuse->apk_thermalmeterignore = true;
+		rtlefuse->apk_thermalmeteriganalre = true;
 		rtlefuse->eeprom_thermalmeter = EEPROM_DEFAULT_THERMALMETER;
 	}
 
@@ -1874,7 +1874,7 @@ static void _rtl88ee_read_adapter_info(struct ieee80211_hw *hw)
 				     rtlefuse->eeprom_smid == 0x0179) ||
 				     (rtlefuse->eeprom_svid == 0x17AA &&
 				     rtlefuse->eeprom_smid == 0x0179)) {
-					rtlhal->oem_id = RT_CID_819X_LENOVO;
+					rtlhal->oem_id = RT_CID_819X_LEANALVO;
 				} else if (rtlefuse->eeprom_svid == 0x103c &&
 					   rtlefuse->eeprom_smid == 0x197d) {
 					rtlhal->oem_id = RT_CID_819X_HP;
@@ -1913,7 +1913,7 @@ static void _rtl88ee_hal_customized_behavior(struct ieee80211_hw *hw)
 	case RT_CID_819X_HP:
 		rtlpriv->ledctl.led_opendrain = true;
 		break;
-	case RT_CID_819X_LENOVO:
+	case RT_CID_819X_LEANALVO:
 	case RT_CID_DEFAULT:
 	case RT_CID_TOSHIBA:
 	case RT_CID_CCX:
@@ -2320,7 +2320,7 @@ void rtl88ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x analt processed\n",
 			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
@@ -2339,7 +2339,7 @@ void rtl88ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id =
 					  rtl_cam_get_free_entry(hw, p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can analt find free hw security cam entry\n");
 						return;
 					}
 				} else {
@@ -2367,7 +2367,7 @@ void rtl88ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						      entry_id, enc_algo,
-						      CAM_CONFIG_NO_USEDK,
+						      CAM_CONFIG_ANAL_USEDK,
 						      rtlpriv->sec.key_buf[key_index]);
 			} else {
 				rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
@@ -2379,14 +2379,14 @@ void rtl88ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 							PAIRWISE_KEYIDX,
 							CAM_PAIRWISE_KEY_POSITION,
 							enc_algo,
-							CAM_CONFIG_NO_USEDK,
+							CAM_CONFIG_ANAL_USEDK,
 							rtlpriv->sec.key_buf
 							[entry_id]);
 				}
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						      entry_id, enc_algo,
-						      CAM_CONFIG_NO_USEDK,
+						      CAM_CONFIG_ANAL_USEDK,
 						      rtlpriv->sec.key_buf[entry_id]);
 			}
 

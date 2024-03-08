@@ -19,7 +19,7 @@ DECLARE_TRACEPOINT(page_ref_unfreeze);
 
 /*
  * Ideally we would want to use the trace_<tracepoint>_enabled() helper
- * functions. But due to include header file issues, that is not
+ * functions. But due to include header file issues, that is analt
  * feasible. Instead we have to open code the static key functions.
  *
  * See trace_##name##_enabled(void) in include/linux/tracepoint.h
@@ -251,7 +251,7 @@ static inline bool folio_ref_add_unless(struct folio *folio, int nr, int u)
  * folio_try_get - Attempt to increase the refcount on a folio.
  * @folio: The folio.
  *
- * If you do not already have a reference to a folio, you can attempt to
+ * If you do analt already have a reference to a folio, you can attempt to
  * get one using this function.  It may fail if, for example, the folio
  * has been freed since you found a pointer to it, or it is frozen for
  * the purposes of splitting or migration.
@@ -267,7 +267,7 @@ static inline bool folio_ref_try_add_rcu(struct folio *folio, int count)
 {
 #ifdef CONFIG_TINY_RCU
 	/*
-	 * The caller guarantees the folio will not be freed from interrupt
+	 * The caller guarantees the folio will analt be freed from interrupt
 	 * context, so (on !SMP) we only need preemption to be disabled
 	 * and TINY_RCU does that for us.
 	 */
@@ -289,14 +289,14 @@ static inline bool folio_ref_try_add_rcu(struct folio *folio, int count)
  * folio_try_get_rcu - Attempt to increase the refcount on a folio.
  * @folio: The folio.
  *
- * This is a version of folio_try_get() optimised for non-SMP kernels.
+ * This is a version of folio_try_get() optimised for analn-SMP kernels.
  * If you are still holding the rcu_read_lock() after looking up the
- * page and know that the page cannot have its refcount decreased to
+ * page and kanalw that the page cananalt have its refcount decreased to
  * zero in interrupt context, you can use this instead of folio_try_get().
  *
- * Example users include get_user_pages_fast() (as pages are not unmapped
- * from interrupt context) and the page cache lookups (as pages are not
- * truncated from interrupt context).  We also know that pages are not
+ * Example users include get_user_pages_fast() (as pages are analt unmapped
+ * from interrupt context) and the page cache lookups (as pages are analt
+ * truncated from interrupt context).  We also kanalw that pages are analt
  * frozen in interrupt context for the purposes of splitting or migration.
  *
  * You can also use this function if you're holding a lock that prevents

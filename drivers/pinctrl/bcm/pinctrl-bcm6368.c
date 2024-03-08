@@ -2,7 +2,7 @@
 /*
  * Driver for BCM6368 GPIO unit (pinctrl + GPIO)
  *
- * Copyright (C) 2021 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2021 Álvaro Fernández Rojas <analltari@gmail.com>
  * Copyright (C) 2016 Jonas Gorski <jonas.gorski@gmail.com>
  */
 
@@ -446,7 +446,7 @@ static int bcm6368_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 static const struct pinctrl_ops bcm6368_pctl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.get_group_name = bcm6368_pinctrl_get_group_name,
 	.get_group_pins = bcm6368_pinctrl_get_group_pins,
 	.get_groups_count = bcm6368_pinctrl_get_group_count,
@@ -479,7 +479,7 @@ static int bcm6368_pinctrl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = bcm63xx_pinctrl_probe(pdev, &bcm6368_soc, (void *) priv);
 	if (err)

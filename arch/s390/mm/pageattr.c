@@ -93,23 +93,23 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 	ptep = pte_offset_kernel(pmdp, addr);
 	do {
 		new = *ptep;
-		if (pte_none(new))
+		if (pte_analne(new))
 			return -EINVAL;
 		if (flags & SET_MEMORY_RO)
 			new = pte_wrprotect(new);
 		else if (flags & SET_MEMORY_RW)
-			new = pte_mkwrite_novma(pte_mkdirty(new));
+			new = pte_mkwrite_analvma(pte_mkdirty(new));
 		if (flags & SET_MEMORY_NX)
-			new = set_pte_bit(new, __pgprot(_PAGE_NOEXEC));
+			new = set_pte_bit(new, __pgprot(_PAGE_ANALEXEC));
 		else if (flags & SET_MEMORY_X)
-			new = clear_pte_bit(new, __pgprot(_PAGE_NOEXEC));
+			new = clear_pte_bit(new, __pgprot(_PAGE_ANALEXEC));
 		if (flags & SET_MEMORY_INV) {
 			new = set_pte_bit(new, __pgprot(_PAGE_INVALID));
 		} else if (flags & SET_MEMORY_DEF) {
 			new = __pte(pte_val(new) & PAGE_MASK);
 			new = set_pte_bit(new, PAGE_KERNEL);
 			if (!MACHINE_HAS_NX)
-				new = clear_pte_bit(new, __pgprot(_PAGE_NOEXEC));
+				new = clear_pte_bit(new, __pgprot(_PAGE_ANALEXEC));
 		}
 		pgt_set((unsigned long *)ptep, pte_val(new), addr, CRDTE_DTT_PAGE);
 		ptep++;
@@ -128,13 +128,13 @@ static int split_pmd_page(pmd_t *pmdp, unsigned long addr)
 
 	pt_dir = vmem_pte_alloc();
 	if (!pt_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 	pte_addr = pmd_pfn(*pmdp) << PAGE_SHIFT;
 	ro = !!(pmd_val(*pmdp) & _SEGMENT_ENTRY_PROTECT);
-	nx = !!(pmd_val(*pmdp) & _SEGMENT_ENTRY_NOEXEC);
+	nx = !!(pmd_val(*pmdp) & _SEGMENT_ENTRY_ANALEXEC);
 	prot = pgprot_val(ro ? PAGE_KERNEL_RO : PAGE_KERNEL);
 	if (!nx)
-		prot &= ~_PAGE_NOEXEC;
+		prot &= ~_PAGE_ANALEXEC;
 	ptep = pt_dir;
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		set_pte(ptep, __pte(pte_addr | prot));
@@ -156,18 +156,18 @@ static void modify_pmd_page(pmd_t *pmdp, unsigned long addr,
 	if (flags & SET_MEMORY_RO)
 		new = pmd_wrprotect(new);
 	else if (flags & SET_MEMORY_RW)
-		new = pmd_mkwrite_novma(pmd_mkdirty(new));
+		new = pmd_mkwrite_analvma(pmd_mkdirty(new));
 	if (flags & SET_MEMORY_NX)
-		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_ANALEXEC));
 	else if (flags & SET_MEMORY_X)
-		new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
+		new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_ANALEXEC));
 	if (flags & SET_MEMORY_INV) {
 		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_INVALID));
 	} else if (flags & SET_MEMORY_DEF) {
 		new = __pmd(pmd_val(new) & PMD_MASK);
 		new = set_pmd_bit(new, SEGMENT_KERNEL);
 		if (!MACHINE_HAS_NX)
-			new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
+			new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_ANALEXEC));
 	}
 	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
 }
@@ -182,7 +182,7 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 
 	pmdp = pmd_offset(pudp, addr);
 	do {
-		if (pmd_none(*pmdp))
+		if (pmd_analne(*pmdp))
 			return -EINVAL;
 		next = pmd_addr_end(addr, end);
 		if (pmd_large(*pmdp)) {
@@ -217,13 +217,13 @@ static int split_pud_page(pud_t *pudp, unsigned long addr)
 
 	pm_dir = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 	if (!pm_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmd_addr = pud_pfn(*pudp) << PAGE_SHIFT;
 	ro = !!(pud_val(*pudp) & _REGION_ENTRY_PROTECT);
-	nx = !!(pud_val(*pudp) & _REGION_ENTRY_NOEXEC);
+	nx = !!(pud_val(*pudp) & _REGION_ENTRY_ANALEXEC);
 	prot = pgprot_val(ro ? SEGMENT_KERNEL_RO : SEGMENT_KERNEL);
 	if (!nx)
-		prot &= ~_SEGMENT_ENTRY_NOEXEC;
+		prot &= ~_SEGMENT_ENTRY_ANALEXEC;
 	pmdp = pm_dir;
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		set_pmd(pmdp, __pmd(pmd_addr | prot));
@@ -247,16 +247,16 @@ static void modify_pud_page(pud_t *pudp, unsigned long addr,
 	else if (flags & SET_MEMORY_RW)
 		new = pud_mkwrite(pud_mkdirty(new));
 	if (flags & SET_MEMORY_NX)
-		new = set_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
+		new = set_pud_bit(new, __pgprot(_REGION_ENTRY_ANALEXEC));
 	else if (flags & SET_MEMORY_X)
-		new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
+		new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_ANALEXEC));
 	if (flags & SET_MEMORY_INV) {
 		new = set_pud_bit(new, __pgprot(_REGION_ENTRY_INVALID));
 	} else if (flags & SET_MEMORY_DEF) {
 		new = __pud(pud_val(new) & PUD_MASK);
 		new = set_pud_bit(new, REGION3_KERNEL);
 		if (!MACHINE_HAS_NX)
-			new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
+			new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_ANALEXEC));
 	}
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
 }
@@ -271,7 +271,7 @@ static int walk_pud_level(p4d_t *p4d, unsigned long addr, unsigned long end,
 
 	pudp = pud_offset(p4d, addr);
 	do {
-		if (pud_none(*pudp))
+		if (pud_analne(*pudp))
 			return -EINVAL;
 		next = pud_addr_end(addr, end);
 		if (pud_large(*pudp)) {
@@ -304,7 +304,7 @@ static int walk_p4d_level(pgd_t *pgd, unsigned long addr, unsigned long end,
 
 	p4dp = p4d_offset(pgd, addr);
 	do {
-		if (p4d_none(*p4dp))
+		if (p4d_analne(*p4dp))
 			return -EINVAL;
 		next = p4d_addr_end(addr, end);
 		rc = walk_pud_level(p4dp, addr, next, flags);
@@ -326,7 +326,7 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 
 	pgdp = pgd_offset_k(addr);
 	do {
-		if (pgd_none(*pgdp))
+		if (pgd_analne(*pgdp))
 			break;
 		next = pgd_addr_end(addr, end);
 		rc = walk_p4d_level(pgdp, addr, next, flags);
@@ -347,8 +347,8 @@ static int change_page_attr_alias(unsigned long addr, unsigned long end,
 	/*
 	 * Changes to read-only permissions on kernel VA mappings are also
 	 * applied to the kernel direct mapping. Execute permissions are
-	 * intentionally not transferred to keep all allocated pages within
-	 * the direct mapping non-executable.
+	 * intentionally analt transferred to keep all allocated pages within
+	 * the direct mapping analn-executable.
 	 */
 	flags &= SET_MEMORY_RO | SET_MEMORY_RW;
 	if (!flags)
@@ -396,12 +396,12 @@ out:
 	return rc;
 }
 
-int set_direct_map_invalid_noflush(struct page *page)
+int set_direct_map_invalid_analflush(struct page *page)
 {
 	return __set_memory((unsigned long)page_to_virt(page), 1, SET_MEMORY_INV);
 }
 
-int set_direct_map_default_noflush(struct page *page)
+int set_direct_map_default_analflush(struct page *page)
 {
 	return __set_memory((unsigned long)page_to_virt(page), 1, SET_MEMORY_DEF);
 }

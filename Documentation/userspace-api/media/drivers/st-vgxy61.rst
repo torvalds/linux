@@ -16,10 +16,10 @@ The ST VGXY61 driver implements the following controls:
     :widths:       1 4
 
     * - HDR linearize
-      - The merger outputs a long exposure capture as long as it is not
+      - The merger outputs a long exposure capture as long as it is analt
         saturated.
     * - HDR subtraction
       - This involves subtracting the short exposure frame from the long
         exposure frame.
-    * - No HDR
+    * - Anal HDR
       - This mode is used for standard dynamic range (SDR) exposures.

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _V4L2-TCH-FMT-DELTA-TD08:
 
@@ -16,8 +16,8 @@ Description
 This format represents delta data from a touch controller.
 
 Delta values may range from -128 to 127. Typically the values will vary through
-a small range depending on whether the sensor is touched or not. The full value
-may be seen if one of the touchscreen nodes has a fault or the line is not
+a small range depending on whether the sensor is touched or analt. The full value
+may be seen if one of the touchscreen analdes has a fault or the line is analt
 connected.
 
 **Byte Order.**

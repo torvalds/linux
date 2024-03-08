@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -70,7 +70,7 @@
 /**
  * Flag from driver to set the current ABM pipe index or ABM operating level.
  */
-#define SET_ABM_PIPE_NORMAL                      1
+#define SET_ABM_PIPE_ANALRMAL                      1
 
 /**
  * Number of ambient light levels in ABM algorithm.
@@ -95,7 +95,7 @@
 /* Maximum number of SubVP streams */
 #define DMUB_MAX_SUBVP_STREAMS 2
 
-/* Define max FPO streams as 4 for now. Current implementation today
+/* Define max FPO streams as 4 for analw. Current implementation today
  * only supports 1, but could be more in the future. Reduce array
  * size to ensure the command size remains less than 64 bytes if
  * adding new fields.
@@ -120,7 +120,7 @@
  *
  * PSR control version legacy
  */
-#define DMUB_CMD_PSR_CONTROL_VERSION_UNKNOWN 0x0
+#define DMUB_CMD_PSR_CONTROL_VERSION_UNKANALWN 0x0
 /**
  * PSR control version with multi edp support
  */
@@ -130,7 +130,7 @@
 /**
  * ABM control version legacy
  */
-#define DMUB_CMD_ABM_CONTROL_VERSION_UNKNOWN 0x0
+#define DMUB_CMD_ABM_CONTROL_VERSION_UNKANALWN 0x0
 
 /**
  * ABM control version with multi edp support
@@ -145,14 +145,14 @@
 #endif
 
 /**
- * OS/FW agnostic memcpy
+ * OS/FW aganalstic memcpy
  */
 #ifndef dmub_memcpy
 #define dmub_memcpy(dest, source, bytes) memcpy((dest), (source), (bytes))
 #endif
 
 /**
- * OS/FW agnostic memset
+ * OS/FW aganalstic memset
  */
 #ifndef dmub_memset
 #define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
@@ -163,7 +163,7 @@ extern "C" {
 #endif
 
 /**
- * OS/FW agnostic udelay
+ * OS/FW aganalstic udelay
  */
 #ifndef dmub_udelay
 #define dmub_udelay(microseconds) udelay(microseconds)
@@ -252,7 +252,7 @@ struct abm_save_restore {
 	uint16_t curr_bl_level;
 
 	/**
-	 * @curr_user_bl_level: Current nominal backlight level converging to level requested by user.
+	 * @curr_user_bl_level: Current analminal backlight level converging to level requested by user.
 	 */
 	uint16_t curr_user_bl_level;
 
@@ -324,7 +324,7 @@ union dmub_psr_debug_flags {
 		uint32_t force_wakeup_by_tps3 : 1;
 
 		/**
-		 * Back to back flip, therefore cannot power down PHY
+		 * Back to back flip, therefore cananalt power down PHY
 		 */
 		uint32_t back_to_back_flip : 1;
 
@@ -367,7 +367,7 @@ union replay_debug_flags {
 
 		/**
 		 * 0x10 (bit 4)
-		 * @timing_resync_disabled: Disabled Replay normal sleep mode timing resync
+		 * @timing_resync_disabled: Disabled Replay analrmal sleep mode timing resync
 		 */
 		uint32_t timing_resync_disabled : 1;
 
@@ -397,9 +397,9 @@ union replay_debug_flags {
 
 		/**
 		 * 0x200 (bit 9)
-		 * @force_self_update_when_abm_non_steady: Force self update if abm is not steady
+		 * @force_self_update_when_abm_analn_steady: Force self update if abm is analt steady
 		 */
-		uint32_t force_self_update_when_abm_non_steady : 1;
+		uint32_t force_self_update_when_abm_analn_steady : 1;
 
 		/**
 		 * 0x400 (bit 10)
@@ -509,8 +509,8 @@ struct dmub_visual_confirm_color {
 /**
  * struct dmub_fw_meta_info - metadata associated with fw binary
  *
- * NOTE: This should be considered a stable API. Fields should
- *       not be repurposed or reordered. New fields should be
+ * ANALTE: This should be considered a stable API. Fields should
+ *       analt be repurposed or reordered. New fields should be
  *       added instead to extend the structure.
  *
  * @magic_value: magic value identifying DMUB firmware meta info
@@ -582,7 +582,7 @@ union dmub_fw_boot_status {
 		uint32_t fams_enabled : 1; /**< 1 if VBIOS data is deferred programmed */
 		uint32_t detection_required: 1; /**<  if detection need to be triggered by driver */
 		uint32_t hw_power_init_done: 1; /**< 1 if hw power init is completed */
-		uint32_t ono_regions_enabled: 1; /**< 1 if ONO regions are enabled */
+		uint32_t oanal_regions_enabled: 1; /**< 1 if OANAL regions are enabled */
 	} bits; /**< status bits */
 	uint32_t all; /**< 32-bit access to status bits */
 };
@@ -599,7 +599,7 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_FAMS_ENABLED = (1 << 5), /**< 1 if FAMS is enabled*/
 	DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED = (1 << 6), /**< 1 if detection need to be triggered by driver*/
 	DMUB_FW_BOOT_STATUS_BIT_HW_POWER_INIT_DONE = (1 << 7), /**< 1 if hw power init is completed */
-	DMUB_FW_BOOT_STATUS_BIT_ONO_REGIONS_ENABLED = (1 << 8), /**< 1 if ONO regions are enabled */
+	DMUB_FW_BOOT_STATUS_BIT_OANAL_REGIONS_ENABLED = (1 << 8), /**< 1 if OANAL regions are enabled */
 };
 
 /* Register bit definition for SCRATCH5 */
@@ -649,14 +649,14 @@ union dmub_fw_boot_options {
 		uint32_t sel_mux_phy_c_d_phy_f_g: 1; /**< 1 if PHYF/PHYG should be enabled on DCN31 */
 		/**< 1 if all root clock gating is enabled and low power memory is enabled*/
 		uint32_t power_optimization: 1;
-		uint32_t diag_env: 1; /* 1 if diagnostic environment */
+		uint32_t diag_env: 1; /* 1 if diaganalstic environment */
 		uint32_t gpint_scratch8: 1; /* 1 if GPINT is in scratch8*/
 		uint32_t usb4_cm_version: 1; /**< 1 CM support */
 		uint32_t dpia_hpd_int_enable_supported: 1; /* 1 if dpia hpd int enable supported */
 		uint32_t reserved0: 1;
 		uint32_t disable_clk_ds: 1; /* 1 if disallow dispclk_ds and dppclk_ds*/
 		uint32_t disable_timeout_recovery : 1; /* 1 if timeout recovery should be disabled */
-		uint32_t ips_pg_disable: 1; /* 1 to disable ONO domains power gating*/
+		uint32_t ips_pg_disable: 1; /* 1 to disable OANAL domains power gating*/
 		uint32_t ips_disable: 3; /* options to disable ips support*/
 		uint32_t reserved : 9; /**< reserved */
 	} bits; /**< boot bits */
@@ -679,7 +679,7 @@ enum dmub_fw_boot_options_bit {
  * enum dmub_cmd_vbios_type - VBIOS commands.
  *
  * Command IDs should be treated as stable ABI.
- * Do not reuse or modify IDs.
+ * Do analt reuse or modify IDs.
  */
 enum dmub_cmd_vbios_type {
 	/**
@@ -757,11 +757,11 @@ union dmub_gpint_data_register {
  * enum dmub_gpint_command - GPINT command to DMCUB FW
  *
  * Command IDs should be treated as stable ABI.
- * Do not reuse or modify IDs.
+ * Do analt reuse or modify IDs.
  */
 enum dmub_gpint_command {
 	/**
-	 * Invalid command, ignored.
+	 * Invalid command, iganalred.
 	 */
 	DMUB_GPINT__INVALID_COMMAND = 0,
 	/**
@@ -780,10 +780,10 @@ enum dmub_gpint_command {
 	 */
 	DMUB_GPINT__GET_PSR_STATE = 7,
 	/**
-	 * DESC: Notifies DMCUB of the currently active streams.
+	 * DESC: Analtifies DMCUB of the currently active streams.
 	 * ARGS: Stream mask, 1 bit per active stream index.
 	 */
-	DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK = 8,
+	DMUB_GPINT__IDLE_OPT_ANALTIFY_STREAM_MASK = 8,
 	/**
 	 * DESC: Start PSR residency counter. Stop PSR resdiency counter and get value.
 	 * ARGS: We can measure residency from various points. The argument will specify the residency mode.
@@ -793,9 +793,9 @@ enum dmub_gpint_command {
 	DMUB_GPINT__PSR_RESIDENCY = 9,
 
 	/**
-	 * DESC: Notifies DMCUB detection is done so detection required can be cleared.
+	 * DESC: Analtifies DMCUB detection is done so detection required can be cleared.
 	 */
-	DMUB_GPINT__NOTIFY_DETECTION_DONE = 12,
+	DMUB_GPINT__ANALTIFY_DETECTION_DONE = 12,
 
 	/**
 	 * DESC: Get REPLAY state from FW.
@@ -892,15 +892,15 @@ union dmub_inbox0_cmd_lock_hw {
 	struct {
 		uint32_t command_code: 8;
 
-		/* NOTE: Must be have enough bits to match: enum hw_lock_client */
+		/* ANALTE: Must be have eanalugh bits to match: enum hw_lock_client */
 		uint32_t hw_lock_client: 2;
 
-		/* NOTE: Below fields must match with: struct dmub_hw_lock_inst_flags */
+		/* ANALTE: Below fields must match with: struct dmub_hw_lock_inst_flags */
 		uint32_t otg_inst: 3;
 		uint32_t opp_inst: 3;
 		uint32_t dig_inst: 3;
 
-		/* NOTE: Below fields must match with: union dmub_hw_lock_flags */
+		/* ANALTE: Below fields must match with: union dmub_hw_lock_flags */
 		uint32_t lock_pipe: 1;
 		uint32_t lock_cursor: 1;
 		uint32_t lock_dig: 1;
@@ -920,11 +920,11 @@ union dmub_inbox0_data_register {
 
 enum dmub_inbox0_command {
 	/**
-	 * DESC: Invalid command, ignored.
+	 * DESC: Invalid command, iganalred.
 	 */
 	DMUB_INBOX0_CMD__INVALID_COMMAND = 0,
 	/**
-	 * DESC: Notification to acquire/release HW lock
+	 * DESC: Analtification to acquire/release HW lock
 	 * ARGS:
 	 */
 	DMUB_INBOX0_CMD__HW_LOCK = 1,
@@ -959,7 +959,7 @@ enum dmub_inbox0_command {
  * enum dmub_cmd_type - DMUB inbox command.
  *
  * Command IDs should be treated as stable ABI.
- * Do not reuse or modify IDs.
+ * Do analt reuse or modify IDs.
  */
 enum dmub_cmd_type {
 	/**
@@ -1023,7 +1023,7 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__DP_AUX_ACCESS = 70,
 	/**
-	 * Command type used for OUTBOX1 notification enable
+	 * Command type used for OUTBOX1 analtification enable
 	 */
 	DMUB_CMD__OUTBOX1_ENABLE = 71,
 
@@ -1089,25 +1089,25 @@ enum dmub_cmd_type {
  */
 enum dmub_out_cmd_type {
 	/**
-	 * Invalid outbox command, ignored.
+	 * Invalid outbox command, iganalred.
 	 */
 	DMUB_OUT_CMD__NULL = 0,
 	/**
-	 * Command type used for DP AUX Reply data notification
+	 * Command type used for DP AUX Reply data analtification
 	 */
 	DMUB_OUT_CMD__DP_AUX_REPLY = 1,
 	/**
-	 * Command type used for DP HPD event notification
+	 * Command type used for DP HPD event analtification
 	 */
-	DMUB_OUT_CMD__DP_HPD_NOTIFY = 2,
+	DMUB_OUT_CMD__DP_HPD_ANALTIFY = 2,
 	/**
-	 * Command type used for SET_CONFIG Reply notification
+	 * Command type used for SET_CONFIG Reply analtification
 	 */
 	DMUB_OUT_CMD__SET_CONFIG_REPLY = 3,
 	/**
-	 * Command type used for USB4 DPIA notification
+	 * Command type used for USB4 DPIA analtification
 	 */
-	DMUB_OUT_CMD__DPIA_NOTIFICATION = 5,
+	DMUB_OUT_CMD__DPIA_ANALTIFICATION = 5,
 };
 
 /* DMUB_CMD__DPIA command sub-types. */
@@ -1117,9 +1117,9 @@ enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_MST_ALLOC_SLOTS = 2,
 };
 
-/* DMUB_OUT_CMD__DPIA_NOTIFICATION command types. */
-enum dmub_cmd_dpia_notification_type {
-	DPIA_NOTIFY__BW_ALLOCATION = 0,
+/* DMUB_OUT_CMD__DPIA_ANALTIFICATION command types. */
+enum dmub_cmd_dpia_analtification_type {
+	DPIA_ANALTIFY__BW_ALLOCATION = 0,
 };
 
 #pragma pack(push, 1)
@@ -1307,7 +1307,7 @@ enum dmub_cmd_mall_type {
 	/**
 	 * Controls DF requests.
 	 */
-	DMUB_CMD__MALL_ACTION_NO_DF_REQ = 3,
+	DMUB_CMD__MALL_ACTION_ANAL_DF_REQ = 3,
 };
 
 /**
@@ -1334,21 +1334,21 @@ struct dmub_rb_cmd_mall {
  */
 enum dmub_cmd_cab_type {
 	/**
-	 * No idle optimizations (i.e. no CAB)
+	 * Anal idle optimizations (i.e. anal CAB)
 	 */
-	DMUB_CMD__CAB_NO_IDLE_OPTIMIZATION = 0,
+	DMUB_CMD__CAB_ANAL_IDLE_OPTIMIZATION = 0,
 	/**
-	 * No DCN requests for memory
+	 * Anal DCN requests for memory
 	 */
-	DMUB_CMD__CAB_NO_DCN_REQ = 1,
+	DMUB_CMD__CAB_ANAL_DCN_REQ = 1,
 	/**
 	 * Fit surfaces in CAB (i.e. CAB enable)
 	 */
 	DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB = 2,
 	/**
-	 * Do not fit surfaces in CAB (i.e. no CAB)
+	 * Do analt fit surfaces in CAB (i.e. anal CAB)
 	 */
-	DMUB_CMD__CAB_DCN_SS_NOT_FIT_IN_CAB = 3,
+	DMUB_CMD__CAB_DCN_SS_ANALT_FIT_IN_CAB = 3,
 };
 
 /**
@@ -1364,7 +1364,7 @@ struct dmub_rb_cmd_cab_for_ss {
  * Enum for indicating which MCLK switch mode per pipe
  */
 enum mclk_switch_mode {
-	NONE = 0,
+	ANALNE = 0,
 	FPO = 1,
 	SUBVP = 2,
 	VBLANK = 3,
@@ -1372,7 +1372,7 @@ enum mclk_switch_mode {
 
 /* Per pipe struct which stores the MCLK switch mode
  * data to be sent to DMUB.
- * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * Named "v2" for analw -- once FPO and SUBVP are fully merged
  * the type name can be updated
  */
 struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
@@ -1393,10 +1393,10 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
 			 * include any scaling factors to make sure when we get accurate
 			 * conversion when programming MALL_START_LINE (which is in terms
 			 * of HUBP lines). If 4K is being downscaled to 1080p, scale factor
-			 * is 1/2 (numerator = 1, denominator = 2).
+			 * is 1/2 (numerator = 1, deanalminator = 2).
 			 */
 			uint8_t scale_factor_numerator;
-			uint8_t scale_factor_denominator;
+			uint8_t scale_factor_deanalminator;
 			uint8_t is_drr;
 			uint8_t main_split_pipe_index;
 			uint8_t phantom_split_pipe_index;
@@ -1416,7 +1416,7 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
 				uint8_t drr_window_size_ms;	// Indicates largest VMIN/VMAX adjustment per frame
 				uint16_t min_vtotal_supported;	// Min VTOTAL that supports switching in VBLANK
 				uint16_t max_vtotal_supported;	// Max VTOTAL that can support SubVP static scheduling
-				uint8_t use_ramping;		// Use ramping or not
+				uint8_t use_ramping;		// Use ramping or analt
 				uint8_t drr_vblank_start_margin;
 			} drr_info;				// DRR considered as part of SubVP + VBLANK case
 		} vblank_data;
@@ -1431,7 +1431,7 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
 
 /**
  * Config data for Sub-VP and FPO
- * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * Named "v2" for analw -- once FPO and SUBVP are fully merged
  * the type name can be updated
  */
 struct dmub_cmd_fw_assisted_mclk_switch_config_v2 {
@@ -1443,7 +1443,7 @@ struct dmub_cmd_fw_assisted_mclk_switch_config_v2 {
 
 /**
  * DMUB rb command definition for Sub-VP and FPO
- * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * Named "v2" for analw -- once FPO and SUBVP are fully merged
  * the type name can be updated
  */
 struct dmub_rb_cmd_fw_assisted_mclk_switch_v2 {
@@ -1466,9 +1466,9 @@ enum dmub_cmd_idle_opt_type {
 	DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT = 1,
 
 	/**
-	 * DCN hardware notify idle.
+	 * DCN hardware analtify idle.
 	 */
-	DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE = 2
+	DMUB_CMD__IDLE_OPT_DCN_ANALTIFY_IDLE = 2
 };
 
 /**
@@ -1479,23 +1479,23 @@ struct dmub_rb_cmd_idle_opt_dcn_restore {
 };
 
 /**
- * struct dmub_dcn_notify_idle_cntl_data - Data passed to FW in a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
+ * struct dmub_dcn_analtify_idle_cntl_data - Data passed to FW in a DMUB_CMD__IDLE_OPT_DCN_ANALTIFY_IDLE command.
  */
-struct dmub_dcn_notify_idle_cntl_data {
+struct dmub_dcn_analtify_idle_cntl_data {
 	uint8_t driver_idle;
 	uint8_t pad[1];
 };
 
 /**
- * struct dmub_rb_cmd_idle_opt_dcn_notify_idle - Data passed to FW in a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
+ * struct dmub_rb_cmd_idle_opt_dcn_analtify_idle - Data passed to FW in a DMUB_CMD__IDLE_OPT_DCN_ANALTIFY_IDLE command.
  */
-struct dmub_rb_cmd_idle_opt_dcn_notify_idle {
+struct dmub_rb_cmd_idle_opt_dcn_analtify_idle {
 	struct dmub_cmd_header header; /**< header */
-	struct dmub_dcn_notify_idle_cntl_data cntl_data;
+	struct dmub_dcn_analtify_idle_cntl_data cntl_data;
 };
 
 /**
- * struct dmub_clocks - Clock update notification.
+ * struct dmub_clocks - Clock update analtification.
  */
 struct dmub_clocks {
 	uint32_t dispclk_khz; /**< dispclk kHz */
@@ -1509,15 +1509,15 @@ struct dmub_clocks {
  */
 enum dmub_cmd_clk_mgr_type {
 	/**
-	 * Notify DMCUB of clock update.
+	 * Analtify DMCUB of clock update.
 	 */
-	DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS = 0,
+	DMUB_CMD__CLK_MGR_ANALTIFY_CLOCKS = 0,
 };
 
 /**
- * struct dmub_rb_cmd_clk_mgr_notify_clocks - Clock update notification.
+ * struct dmub_rb_cmd_clk_mgr_analtify_clocks - Clock update analtification.
  */
-struct dmub_rb_cmd_clk_mgr_notify_clocks {
+struct dmub_rb_cmd_clk_mgr_analtify_clocks {
 	struct dmub_cmd_header header; /**< header */
 	struct dmub_clocks clocks; /**< clock data */
 };
@@ -1581,9 +1581,9 @@ struct dmub_dig_transmitter_control_data_v1_7 {
 	union {
 		uint32_t symclk_10khz; /**< Symbol Clock in 10Khz */
 	} symclk_units;
-	uint8_t hpdsel; /**< =1: HPD1, =2: HPD2, ..., =6: HPD6, =0: HPD is not assigned */
+	uint8_t hpdsel; /**< =1: HPD1, =2: HPD2, ..., =6: HPD6, =0: HPD is analt assigned */
 	uint8_t digfe_sel; /**< DIG front-end selection, bit0 means DIG0 FE is enabled */
-	uint8_t connobj_id; /**< Connector Object Id defined in ObjectId.h */
+	uint8_t conanalbj_id; /**< Connector Object Id defined in ObjectId.h */
 	uint8_t HPO_instance; /**< HPO instance (0: inst0, 1: inst1) */
 	uint8_t reserved1; /**< For future use */
 	uint8_t reserved2[3]; /**< For future use */
@@ -1635,7 +1635,7 @@ struct dmub_cmd_dig_dpia_control_data {
 	} mode_laneset;
 	uint8_t lanenum;        /** Lane number 1, 2, 4, 8 */
 	uint32_t symclk_10khz;  /** Symbol Clock in 10Khz */
-	uint8_t hpdsel;         /** =0: HPD is not assigned */
+	uint8_t hpdsel;         /** =0: HPD is analt assigned */
 	uint8_t digfe_sel;      /** DIG stream( front-end ) selection, bit0 - DIG0 FE */
 	uint8_t dpia_id;        /** Index of DPIA */
 	uint8_t fec_rdy : 1;
@@ -1682,7 +1682,7 @@ struct dmub_rb_cmd_set_config_access {
 struct dmub_cmd_mst_alloc_slots_control_data {
 	uint8_t mst_alloc_slots; /* mst slots to be allotted */
 	uint8_t instance; /* DPIA instance */
-	uint8_t immed_status; /* Immediate status returned as there is no outbox msg posted */
+	uint8_t immed_status; /* Immediate status returned as there is anal outbox msg posted */
 	uint8_t mst_slots_in_use; /* returns slots in use for error cases */
 };
 
@@ -1740,8 +1740,8 @@ enum dp_aux_request_action {
 enum aux_return_code_type {
 	/** AUX process succeeded */
 	AUX_RET_SUCCESS = 0,
-	/** AUX process failed with unknown reason */
-	AUX_RET_ERROR_UNKNOWN,
+	/** AUX process failed with unkanalwn reason */
+	AUX_RET_ERROR_UNKANALWN,
 	/** AUX process completed with invalid reply */
 	AUX_RET_ERROR_INVALID_REPLY,
 	/** AUX process timed out */
@@ -1750,9 +1750,9 @@ enum aux_return_code_type {
 	AUX_RET_ERROR_HPD_DISCON,
 	/** Failed to acquire AUX engine */
 	AUX_RET_ERROR_ENGINE_ACQUIRE,
-	/** AUX request not supported */
+	/** AUX request analt supported */
 	AUX_RET_ERROR_INVALID_OPERATION,
-	/** AUX process not available */
+	/** AUX process analt available */
 	AUX_RET_ERROR_PROTOCOL_ERROR,
 };
 
@@ -1815,8 +1815,8 @@ struct dmub_rb_cmd_outbox1_enable {
 	 */
 	struct dmub_cmd_header header;
 	/**
-	 *  enable: 0x0 -> disable outbox1 notification (default value)
-	 *			0x1 -> enable outbox1 notification
+	 *  enable: 0x0 -> disable outbox1 analtification (default value)
+	 *			0x1 -> enable outbox1 analtification
 	 */
 	uint32_t enable;
 };
@@ -1884,13 +1884,13 @@ struct dmub_rb_cmd_dp_aux_reply {
 	struct aux_reply_data reply_data;
 };
 
-/* DP HPD Notify command - OutBox Cmd */
+/* DP HPD Analtify command - OutBox Cmd */
 /**
  * DP HPD Type
  */
 enum dp_hpd_type {
 	/**
-	 * Normal DP HPD
+	 * Analrmal DP HPD
 	 */
 	DP_HPD = 0,
 	/**
@@ -1914,7 +1914,7 @@ enum dp_hpd_status {
 };
 
 /**
- * Data passed to driver from FW in a DMUB_OUT_CMD__DP_HPD_NOTIFY command.
+ * Data passed to driver from FW in a DMUB_OUT_CMD__DP_HPD_ANALTIFY command.
  */
 struct dp_hpd_data {
 	/**
@@ -1936,15 +1936,15 @@ struct dp_hpd_data {
 };
 
 /**
- * Definition of a DMUB_OUT_CMD__DP_HPD_NOTIFY command.
+ * Definition of a DMUB_OUT_CMD__DP_HPD_ANALTIFY command.
  */
-struct dmub_rb_cmd_dp_hpd_notify {
+struct dmub_rb_cmd_dp_hpd_analtify {
 	/**
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
 	/**
-	 * Data passed to driver from FW in a DMUB_OUT_CMD__DP_HPD_NOTIFY command.
+	 * Data passed to driver from FW in a DMUB_OUT_CMD__DP_HPD_ANALTIFY command.
 	 */
 	struct dp_hpd_data hpd_data;
 };
@@ -1956,7 +1956,7 @@ enum set_config_status {
 	SET_CONFIG_PENDING = 0,
 	SET_CONFIG_ACK_RECEIVED,
 	SET_CONFIG_RX_TIMEOUT,
-	SET_CONFIG_UNKNOWN_ERROR,
+	SET_CONFIG_UNKANALWN_ERROR,
 };
 
 /**
@@ -1977,26 +1977,26 @@ struct dmub_rb_cmd_dp_set_config_reply {
 };
 
 /**
- * Definition of a DPIA notification header
+ * Definition of a DPIA analtification header
  */
-struct dpia_notification_header {
+struct dpia_analtification_header {
 	uint8_t instance; /**< DPIA Instance */
 	uint8_t reserved[3];
-	enum dmub_cmd_dpia_notification_type type; /**< DPIA notification type */
+	enum dmub_cmd_dpia_analtification_type type; /**< DPIA analtification type */
 };
 
 /**
- * Definition of the common data struct of DPIA notification
+ * Definition of the common data struct of DPIA analtification
  */
-struct dpia_notification_common {
+struct dpia_analtification_common {
 	uint8_t cmd_buffer[DMUB_RB_CMD_SIZE - sizeof(struct dmub_cmd_header)
-								- sizeof(struct dpia_notification_header)];
+								- sizeof(struct dpia_analtification_header)];
 };
 
 /**
- * Definition of a DPIA notification data
+ * Definition of a DPIA analtification data
  */
-struct dpia_bw_allocation_notify_data {
+struct dpia_bw_allocation_analtify_data {
 	union {
 		struct {
 			uint16_t cm_bw_alloc_support: 1; /**< USB4 CM BW Allocation mode support */
@@ -2019,34 +2019,34 @@ struct dpia_bw_allocation_notify_data {
 };
 
 /**
- * union dpia_notify_data_type - DPIA Notification in Outbox command
+ * union dpia_analtify_data_type - DPIA Analtification in Outbox command
  */
-union dpia_notification_data {
+union dpia_analtification_data {
 	/**
-	 * DPIA Notification for common data struct
+	 * DPIA Analtification for common data struct
 	 */
-	struct dpia_notification_common common_data;
+	struct dpia_analtification_common common_data;
 
 	/**
-	 * DPIA Notification for DP BW Allocation support
+	 * DPIA Analtification for DP BW Allocation support
 	 */
-	struct dpia_bw_allocation_notify_data dpia_bw_alloc;
+	struct dpia_bw_allocation_analtify_data dpia_bw_alloc;
 };
 
 /**
- * Definition of a DPIA notification payload
+ * Definition of a DPIA analtification payload
  */
-struct dpia_notification_payload {
-	struct dpia_notification_header header;
-	union dpia_notification_data data; /**< DPIA notification payload data */
+struct dpia_analtification_payload {
+	struct dpia_analtification_header header;
+	union dpia_analtification_data data; /**< DPIA analtification payload data */
 };
 
 /**
- * Definition of a DMUB_OUT_CMD__DPIA_NOTIFICATION command.
+ * Definition of a DMUB_OUT_CMD__DPIA_ANALTIFICATION command.
  */
-struct dmub_rb_cmd_dpia_notification {
-	struct dmub_cmd_header header; /**< DPIA notification header */
-	struct dpia_notification_payload payload; /**< DPIA notification payload */
+struct dmub_rb_cmd_dpia_analtification {
+	struct dmub_cmd_header header; /**< DPIA analtification header */
+	struct dpia_analtification_payload payload; /**< DPIA analtification payload */
 };
 
 /**
@@ -2076,7 +2076,7 @@ struct dmub_rb_cmd_query_hpd_state {
 
 /*
  * Command IDs should be treated as stable ABI.
- * Do not reuse or modify IDs.
+ * Do analt reuse or modify IDs.
  */
 
 /**
@@ -2147,7 +2147,7 @@ enum psr_version {
 	 */
 	PSR_VERSION_SU_1			= 1,
 	/**
-	 * PSR not supported.
+	 * PSR analt supported.
 	 */
 	PSR_VERSION_UNSUPPORTED			= 0xFF,	// psr_version field is only 8 bits wide
 };
@@ -2157,9 +2157,9 @@ enum psr_version {
  */
 enum phy_link_rate {
 	/**
-	 * not supported.
+	 * analt supported.
 	 */
-	PHY_RATE_UNKNOWN = 0,
+	PHY_RATE_UNKANALWN = 0,
 	/**
 	 * Rate_1 (RBR)	- 1.62 Gbps/Lane
 	 */
@@ -2247,13 +2247,13 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t dpp_inst;
 	/**
 	 * MPCC HW instance.
-	 * Not used in dmub fw,
+	 * Analt used in dmub fw,
 	 * dmub fw will get active opp by reading odm registers.
 	 */
 	uint8_t mpcc_inst;
 	/**
 	 * OPP HW instance.
-	 * Not used in dmub fw,
+	 * Analt used in dmub fw,
 	 * dmub fw will get active opp by reading odm registers.
 	 */
 	uint8_t opp_inst;
@@ -2288,7 +2288,7 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t frame_delay;
 	/**
 	 * If RFB setup time is greater than the total VBLANK time,
-	 * it is not possible for the sink to capture the video frame
+	 * it is analt possible for the sink to capture the video frame
 	 * in the same frame the SDP is sent. In this case,
 	 * the frame capture indication bit should be set and an extra
 	 * static frame should be transmitted to the sink.
@@ -2437,7 +2437,7 @@ struct dmub_rb_cmd_psr_enable_data {
 	/**
 	 * Phy rate for DP - RBR/HBR/HBR2/HBR3.
 	 * Set this using enum phy_link_rate.
-	 * This does not support HDMI/DP2 for now.
+	 * This does analt support HDMI/DP2 for analw.
 	 */
 	uint8_t phy_rate;
 };
@@ -2943,12 +2943,12 @@ struct dmub_cmd_replay_copy_settings_data {
 	uint8_t panel_inst;
 	/**
 	 * @pixel_deviation_per_line: Indicate the maximum pixel deviation per line compare
-	 * to Source timing when Sink maintains coasting vtotal during the Replay normal sleep mode
+	 * to Source timing when Sink maintains coasting vtotal during the Replay analrmal sleep mode
 	 */
 	uint8_t pixel_deviation_per_line;
 	/**
 	 * @max_deviation_line: The max number of deviation line that can keep the timing
-	 * synchronized between the Source and Sink during Replay normal sleep mode.
+	 * synchronized between the Source and Sink during Replay analrmal sleep mode.
 	 */
 	uint8_t max_deviation_line;
 	/**
@@ -3023,7 +3023,7 @@ struct dmub_rb_cmd_replay_enable_data {
 	/**
 	 * Phy rate for DP - RBR/HBR/HBR2/HBR3.
 	 * Set this using enum phy_link_rate.
-	 * This does not support HDMI/DP2 for now.
+	 * This does analt support HDMI/DP2 for analw.
 	 */
 	uint8_t phy_rate;
 };
@@ -3206,7 +3206,7 @@ struct dmub_cmd_replay_frameupdate_timer_data {
 	 */
 	uint8_t panel_inst;
 	/**
-	 * Replay Frameupdate Timer Enable or not
+	 * Replay Frameupdate Timer Enable or analt
 	 */
 	uint8_t enable;
 	/**
@@ -3255,7 +3255,7 @@ union dmub_replay_cmd_set {
 /**
  * Set of HW components that can be locked.
  *
- * Note: If updating with more HW components, fields
+ * Analte: If updating with more HW components, fields
  * in dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 union dmub_hw_lock_flags {
@@ -3290,7 +3290,7 @@ union dmub_hw_lock_flags {
 /**
  * Instances of HW to be locked.
  *
- * Note: If updating with more HW components, fields
+ * Analte: If updating with more HW components, fields
  * in dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 struct dmub_hw_lock_inst_flags {
@@ -3316,7 +3316,7 @@ struct dmub_hw_lock_inst_flags {
 /**
  * Clients that can acquire the HW Lock Manager.
  *
- * Note: If updating with more clients, fields in
+ * Analte: If updating with more clients, fields in
  * dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 enum hw_lock_client {
@@ -4067,7 +4067,7 @@ struct dmub_cmd_edid_cea_ack {
  */
 enum dmub_cmd_edid_cea_reply_type {
 	DMUB_CMD__EDID_CEA_AMD_VSDB	= 1, /**< VSDB parsing has finished */
-	DMUB_CMD__EDID_CEA_ACK		= 2, /**< acknowledges the CEA sending is OK or failing */
+	DMUB_CMD__EDID_CEA_ACK		= 2, /**< ackanalwledges the CEA sending is OK or failing */
 };
 
 /**
@@ -4102,7 +4102,7 @@ struct dmub_cmd_cable_id_output {
 	uint8_t UHBR10_20_CAPABILITY	:2; /**< b'01 for UHBR10 support, b'10 for both UHBR10 and UHBR20 support */
 	uint8_t UHBR13_5_CAPABILITY	:1; /**< b'1 for UHBR13.5 support */
 	uint8_t CABLE_TYPE		:3; /**< b'01 for passive cable, b'10 for active LRD cable, b'11 for active retimer cable */
-	uint8_t RESERVED		:2; /**< reserved means not defined */
+	uint8_t RESERVED		:2; /**< reserved means analt defined */
 };
 
 /**
@@ -4126,7 +4126,7 @@ struct dmub_rb_cmd_get_usbc_cable_id {
 enum dmub_cmd_secure_display_type {
 	DMUB_CMD__SECURE_DISPLAY_TEST_CMD = 0,		/* test command to only check if inbox message works */
 	DMUB_CMD__SECURE_DISPLAY_CRC_STOP_UPDATE,
-	DMUB_CMD__SECURE_DISPLAY_CRC_WIN_NOTIFY
+	DMUB_CMD__SECURE_DISPLAY_CRC_WIN_ANALTIFY
 };
 
 /**
@@ -4258,9 +4258,9 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_idle_opt_dcn_restore dcn_restore;
 
 	/**
-	 * Definition of a DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS command.
+	 * Definition of a DMUB_CMD__CLK_MGR_ANALTIFY_CLOCKS command.
 	 */
-	struct dmub_rb_cmd_clk_mgr_notify_clocks notify_clocks;
+	struct dmub_rb_cmd_clk_mgr_analtify_clocks analtify_clocks;
 
 	/**
 	 * Definition of DMUB_CMD__PANEL_CNTL commands.
@@ -4372,9 +4372,9 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_dpia_hpd_int_enable dpia_hpd_int_enable;
 	/**
-	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
+	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_ANALTIFY_IDLE command.
 	 */
-	struct dmub_rb_cmd_idle_opt_dcn_notify_idle idle_opt_notify_idle;
+	struct dmub_rb_cmd_idle_opt_dcn_analtify_idle idle_opt_analtify_idle;
 	/*
 	 * Definition of a DMUB_CMD__REPLAY_COPY_SETTINGS command.
 	 */
@@ -4420,17 +4420,17 @@ union dmub_rb_out_cmd {
 	 */
 	struct dmub_rb_cmd_dp_aux_reply dp_aux_reply;
 	/**
-	 * HPD notify command.
+	 * HPD analtify command.
 	 */
-	struct dmub_rb_cmd_dp_hpd_notify dp_hpd_notify;
+	struct dmub_rb_cmd_dp_hpd_analtify dp_hpd_analtify;
 	/**
 	 * SET_CONFIG reply command.
 	 */
 	struct dmub_rb_cmd_dp_set_config_reply set_config_reply;
 	/**
-	 * DPIA notification command.
+	 * DPIA analtification command.
 	 */
-	struct dmub_rb_cmd_dpia_notification dpia_notification;
+	struct dmub_rb_cmd_dpia_analtification dpia_analtification;
 };
 #pragma pack(pop)
 
@@ -4505,7 +4505,7 @@ static inline bool dmub_rb_full(struct dmub_rb *rb)
  *
  * @param rb DMUB ringbuffer
  * @param cmd The command to push
- * @return true if the ringbuffer was not full
+ * @return true if the ringbuffer was analt full
  * @return false otherwise
  */
 static inline bool dmub_rb_push_front(struct dmub_rb *rb,
@@ -4535,7 +4535,7 @@ static inline bool dmub_rb_push_front(struct dmub_rb *rb,
  *
  * @param rb DMUB outbox ringbuffer
  * @param cmd Outbox command
- * @return true if not full
+ * @return true if analt full
  * @return false otherwise
  */
 static inline bool dmub_rb_out_push_front(struct dmub_rb *rb,
@@ -4562,7 +4562,7 @@ static inline bool dmub_rb_out_push_front(struct dmub_rb *rb,
  *
  * @param rb DMUB ringbuffer
  * @param cmd The command to return
- * @return true if not empty
+ * @return true if analt empty
  * @return false otherwise
  */
 static inline bool dmub_rb_front(struct dmub_rb *rb,
@@ -4601,7 +4601,7 @@ static inline void dmub_rb_get_rptr_with_offset(struct dmub_rb *rb,
  * @param rb DMUB inbox ringbuffer
  * @param cmd The inbox command to return
  * @param rptr The ringbuffer offset
- * @return true if not empty
+ * @return true if analt empty
  * @return false otherwise
  */
 static inline bool dmub_rb_peek_offset(struct dmub_rb *rb,
@@ -4623,7 +4623,7 @@ static inline bool dmub_rb_peek_offset(struct dmub_rb *rb,
  *
  * @param rb DMUB outbox ringbuffer
  * @param cmd The outbox command to return
- * @return true if not empty
+ * @return true if analt empty
  * @return false otherwise
  */
 static inline bool dmub_rb_out_front(struct dmub_rb *rb,
@@ -4648,7 +4648,7 @@ static inline bool dmub_rb_out_front(struct dmub_rb *rb,
  *
  * @param rb DMUB ringbuffer
  * @return true if the command was removed
- * @return false if there were no commands
+ * @return false if there were anal commands
  */
 static inline bool dmub_rb_pop_front(struct dmub_rb *rb)
 {

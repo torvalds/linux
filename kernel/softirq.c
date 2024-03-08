@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/local_lock.h>
 #include <linux/mm.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/percpu.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
@@ -34,16 +34,16 @@
 #include <trace/events/irq.h>
 
 /*
-   - No shared variables, all the data are CPU local.
+   - Anal shared variables, all the data are CPU local.
    - If a softirq needs serialization, let it serialize itself
      by its own spinlocks.
    - Even if softirq is serialized, only local cpu is marked for
      execution. Hence, we get something sort of weak cpu binding.
-     Though it is still not clear, will it result in better locality
-     or will not.
+     Though it is still analt clear, will it result in better locality
+     or will analt.
 
    Examples:
-   - NET RX softirq. It is multithreaded and does not require
+   - NET RX softirq. It is multithreaded and does analt require
      any global serialization.
    - NET TX softirq. It kicks software netdevice queues, hence
      it is logically serialized per device, but this serialization
@@ -66,14 +66,14 @@ const char * const softirq_to_name[NR_SOFTIRQS] = {
 };
 
 /*
- * we cannot loop indefinitely here to avoid userspace starvation,
+ * we cananalt loop indefinitely here to avoid userspace starvation,
  * but we also don't want to introduce a worst case 1/HZ latency
  * to the pending events, so lets the scheduler to balance
  * the softirq load for us.
  */
 static void wakeup_softirqd(void)
 {
-	/* Interrupts are disabled: no need to stop preemption */
+	/* Interrupts are disabled: anal need to stop preemption */
 	struct task_struct *tsk = __this_cpu_read(ksoftirqd);
 
 	if (tsk)
@@ -214,7 +214,7 @@ void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 	curcnt = __this_cpu_read(softirq_ctrl.cnt);
 
 	/*
-	 * If this is not reenabling soft interrupts, no point in trying to
+	 * If this is analt reenabling soft interrupts, anal point in trying to
 	 * run pending ones.
 	 */
 	if (curcnt != cnt)
@@ -225,7 +225,7 @@ void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 		goto out;
 
 	/*
-	 * If this was called from non preemptible context, wake up the
+	 * If this was called from analn preemptible context, wake up the
 	 * softirq daemon.
 	 */
 	if (!preempt_on) {
@@ -281,7 +281,7 @@ static inline void invoke_softirq(void)
 
 /*
  * flush_smp_call_function_queue() can raise a soft interrupt in a function
- * call. On RT kernels this is undesired and the only known functionality
+ * call. On RT kernels this is undesired and the only kanalwn functionality
  * in the block layer which does this is disabled on RT. If soft interrupts
  * get raised which haven't been raised before the flush, warn so it can be
  * investigated.
@@ -363,7 +363,7 @@ void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 	local_irq_disable();
 #endif
 	/*
-	 * Are softirqs going to be turned on now:
+	 * Are softirqs going to be turned on analw:
 	 */
 	if (softirq_count() == SOFTIRQ_DISABLE_OFFSET)
 		lockdep_softirqs_on(ip);
@@ -469,7 +469,7 @@ asmlinkage __visible void do_softirq(void)
  * These limits have been established via experimentation.
  * The two things to balance is latency against fairness -
  * we want to handle softirqs as soon as possible, but they
- * should not be able to lock up the box.
+ * should analt be able to lock up the box.
  */
 #define MAX_SOFTIRQ_TIME  msecs_to_jiffies(2)
 #define MAX_SOFTIRQ_RESTART 10
@@ -478,7 +478,7 @@ asmlinkage __visible void do_softirq(void)
 /*
  * When we run softirqs from irq_exit() and thus on the hardirq stack we need
  * to keep the lockdep irq context tracking as tight as possible in order to
- * not miss-qualify lock contexts and miss possible deadlocks.
+ * analt miss-qualify lock contexts and miss possible deadlocks.
  */
 
 static inline bool lockdep_softirq_start(void)
@@ -590,7 +590,7 @@ void irq_enter_rcu(void)
 {
 	__irq_enter_raw();
 
-	if (tick_nohz_full_cpu(smp_processor_id()) ||
+	if (tick_analhz_full_cpu(smp_processor_id()) ||
 	    (is_idle_task(current) && (irq_count() == HARDIRQ_OFFSET)))
 		tick_irq_enter();
 
@@ -608,13 +608,13 @@ void irq_enter(void)
 
 static inline void tick_irq_exit(void)
 {
-#ifdef CONFIG_NO_HZ_COMMON
+#ifdef CONFIG_ANAL_HZ_COMMON
 	int cpu = smp_processor_id();
 
 	/* Make sure that timer wheel updates are propagated */
-	if ((sched_core_idle_cpu(cpu) && !need_resched()) || tick_nohz_full_cpu(cpu)) {
+	if ((sched_core_idle_cpu(cpu) && !need_resched()) || tick_analhz_full_cpu(cpu)) {
 		if (!in_hardirq())
-			tick_nohz_irq_exit();
+			tick_analhz_irq_exit();
 	}
 #endif
 }
@@ -748,7 +748,7 @@ static bool tasklet_clear_sched(struct tasklet_struct *t)
 		return true;
 	}
 
-	WARN_ONCE(1, "tasklet SCHED state not set: %s %pS\n",
+	WARN_ONCE(1, "tasklet SCHED state analt set: %s %pS\n",
 		  t->use_callback ? "callback" : "func",
 		  t->use_callback ? (void *)t->callback : (void *)t->func);
 
@@ -836,7 +836,7 @@ EXPORT_SYMBOL(tasklet_init);
 
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT)
 /*
- * Do not use in new code. Waiting for tasklets from atomic contexts is
+ * Do analt use in new code. Waiting for tasklets from atomic contexts is
  * error prone and should be avoided.
  */
 void tasklet_unlock_spin_wait(struct tasklet_struct *t)
@@ -847,8 +847,8 @@ void tasklet_unlock_spin_wait(struct tasklet_struct *t)
 			 * Prevent a live lock when current preempted soft
 			 * interrupt processing or prevents ksoftirqd from
 			 * running. If the tasklet runs on a different CPU
-			 * then this has no effect other than doing the BH
-			 * disable/enable dance for nothing.
+			 * then this has anal effect other than doing the BH
+			 * disable/enable dance for analthing.
 			 */
 			local_bh_disable();
 			local_bh_enable();
@@ -863,7 +863,7 @@ EXPORT_SYMBOL(tasklet_unlock_spin_wait);
 void tasklet_kill(struct tasklet_struct *t)
 {
 	if (in_interrupt())
-		pr_notice("Attempt to kill tasklet from interrupt\n");
+		pr_analtice("Attempt to kill tasklet from interrupt\n");
 
 	while (test_and_set_bit(TASKLET_STATE_SCHED, &t->state))
 		wait_var_event(&t->state, !test_bit(TASKLET_STATE_SCHED, &t->state));
@@ -915,7 +915,7 @@ static void run_ksoftirqd(unsigned int cpu)
 	ksoftirqd_run_begin();
 	if (local_softirq_pending()) {
 		/*
-		 * We can safely run softirq on inline stack, as we are not deep
+		 * We can safely run softirq on inline stack, as we are analt deep
 		 * in the task stack here.
 		 */
 		__do_softirq();
@@ -929,7 +929,7 @@ static void run_ksoftirqd(unsigned int cpu)
 #ifdef CONFIG_HOTPLUG_CPU
 static int takeover_tasklets(unsigned int cpu)
 {
-	/* CPU is dead, so no lock needed. */
+	/* CPU is dead, so anal lock needed. */
 	local_irq_disable();
 
 	/* Find end, append list for that CPU. */
@@ -965,7 +965,7 @@ static struct smp_hotplug_thread softirq_threads = {
 
 static __init int spawn_ksoftirqd(void)
 {
-	cpuhp_setup_state_nocalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL,
+	cpuhp_setup_state_analcalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL,
 				  takeover_tasklets);
 	BUG_ON(smpboot_register_percpu_thread(&softirq_threads));
 
@@ -975,7 +975,7 @@ early_initcall(spawn_ksoftirqd);
 
 /*
  * [ These __weak aliases are kept in a separate compilation unit, so that
- *   GCC does not inline them incorrectly. ]
+ *   GCC does analt inline them incorrectly. ]
  */
 
 int __init __weak early_irq_init(void)

@@ -5,7 +5,7 @@
  *	Based on acquirewdt.c by Alan Cox <alan@lxorguk.ukuu.org.uk>
  *	and some other existing drivers
  *
- *	The authors do NOT admit liability nor provide warranty for
+ *	The authors do ANALT admit liability analr provide warranty for
  *	any of this software. This material is provided "AS-IS" in
  *	the hope that it may be useful for others.
  *
@@ -13,7 +13,7 @@
  *
  *  History:
  *	2003 - Created version 1.0 for Linux 2.4.x.
- *	2006 - Ported to Linux 2.6, added nowayout and MAGICCLOSE
+ *	2006 - Ported to Linux 2.6, added analwayout and MAGICCLOSE
  *	       features. Released version 1.1
  *
  *  Theory of operation:
@@ -22,18 +22,18 @@
  *	reset the computer system in case of a software fault.
  *	You probably knew that already.
  *
- *	Usually a userspace daemon will notify the kernel WDT driver
+ *	Usually a userspace daemon will analtify the kernel WDT driver
  *	via the /dev/watchdog special device file that userspace is
- *	still alive, at regular intervals.  When such a notification
+ *	still alive, at regular intervals.  When such a analtification
  *	occurs, the driver will usually tell the hardware watchdog
  *	that everything is in order, and that the watchdog should wait
- *	for yet another little while to reset the system.
+ *	for yet aanalther little while to reset the system.
  *	If userspace fails (RAM error, kernel bug, whatever), the
- *	notifications cease to occur, and the hardware watchdog will
+ *	analtifications cease to occur, and the hardware watchdog will
  *	reset the system (causing a reboot) after the timeout occurs.
  *
  * Create device with:
- *  mknod /dev/watchdog c 10 130
+ *  mkanald /dev/watchdog c 10 130
  *
  * For an example userspace keep-alive daemon, see:
  *   Documentation/watchdog/wdt.rst
@@ -49,7 +49,7 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -58,7 +58,7 @@
 
 
 /* enable support for minutes as units? */
-/* (does not always work correctly, so disabled by default!) */
+/* (does analt always work correctly, so disabled by default!) */
 #define SMSC_SUPPORT_MINUTES
 #undef SMSC_SUPPORT_MINUTES
 
@@ -71,7 +71,7 @@
 
 #define IOPORT		0x3F0
 #define IOPORT_SIZE     2
-#define IODEV_NO	8
+#define IODEV_ANAL	8
 
 static int unit = UNIT_SECOND;	/* timer's unit */
 static int timeout = 60;	/* timeout value: default is 60 "units" */
@@ -81,7 +81,7 @@ static char expect_close;       /* is the close expected? */
 
 static DEFINE_SPINLOCK(io_lock);/* to guard the watchdog from io races */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 /* -- Low level function ----------------------------------------*/
 
@@ -101,10 +101,10 @@ static inline void close_io_config(void)
 }
 
 /* select the IO device */
-static inline void select_io_device(unsigned char devno)
+static inline void select_io_device(unsigned char devanal)
 {
 	outb(0x07, IOPORT);
-	outb(devno, IOPORT+1);
+	outb(devanal, IOPORT+1);
 }
 
 /* write to the control register */
@@ -127,7 +127,7 @@ static inline void gpio_bit12(unsigned char reg)
 {
 	/* -- General Purpose I/O Bit 1.2 --
 	 * Bit 0,   In/Out: 0 = Output, 1 = Input
-	 * Bit 1,   Polarity: 0 = No Invert, 1 = Invert
+	 * Bit 1,   Polarity: 0 = Anal Invert, 1 = Invert
 	 * Bit 2,   Group Enable Intr.: 0 = Disable, 1 = Enable
 	 * Bit 3/4, Function select: 00 = GPI/O, 01 = WDT, 10 = P17,
 	 *                           11 = Either Edge Triggered Intr. 2
@@ -141,7 +141,7 @@ static inline void gpio_bit13(unsigned char reg)
 {
 	/* -- General Purpose I/O Bit 1.3 --
 	 * Bit 0,  In/Out: 0 = Output, 1 = Input
-	 * Bit 1,  Polarity: 0 = No Invert, 1 = Invert
+	 * Bit 1,  Polarity: 0 = Anal Invert, 1 = Invert
 	 * Bit 2,  Group Enable Intr.: 0 = Disable, 1 = Enable
 	 * Bit 3,  Function select: 0 = GPI/O, 1 = LED
 	 * Bit 4-6 (Reserved)
@@ -171,10 +171,10 @@ static inline void wdt_timeout_value(unsigned char new_timeout)
 static inline void wdt_timer_conf(unsigned char conf)
 {
 	/* -- Watchdog timer configuration --
-	 * Bit 0   Joystick enable: 0* = No Reset, 1 = Reset WDT upon
+	 * Bit 0   Joystick enable: 0* = Anal Reset, 1 = Reset WDT upon
 	 *							Gameport I/O
-	 * Bit 1   Keyboard enable: 0* = No Reset, 1 = Reset WDT upon KBD Intr.
-	 * Bit 2   Mouse enable: 0* = No Reset, 1 = Reset WDT upon Mouse Intr
+	 * Bit 1   Keyboard enable: 0* = Anal Reset, 1 = Reset WDT upon KBD Intr.
+	 * Bit 2   Mouse enable: 0* = Anal Reset, 1 = Reset WDT upon Mouse Intr
 	 * Bit 3   Reset the timer
 	 *         (Wrong in SMsC documentation? Given as: PowerLED Timout
 	 *							Enabled)
@@ -191,7 +191,7 @@ static inline void wdt_timer_ctrl(unsigned char reg)
 	 * Bit 1   Power LED Toggle: 0 = Disable Toggle, 1 = Toggle at 1 Hz
 	 * Bit 2   Force Timeout: 1 = Forces WD timeout event (self-cleaning)
 	 * Bit 3   P20 Force Timeout enabled:
-	 *          0 = P20 activity does not generate the WD timeout event
+	 *          0 = P20 activity does analt generate the WD timeout event
 	 *          1 = P20 Allows rising edge of P20, from the keyboard
 	 *              controller, to force the WD timeout event.
 	 * Bit 4   (Reserved)
@@ -216,11 +216,11 @@ static void wb_smsc_wdt_initialize(void)
 
 	spin_lock(&io_lock);
 	open_io_config();
-	select_io_device(IODEV_NO);
+	select_io_device(IODEV_ANAL);
 
 	/* enable the watchdog */
-	gpio_bit13(0x08);  /* Select pin 80 = LED not GPIO */
-	gpio_bit12(0x0A);  /* Set pin 79 = WDT not
+	gpio_bit13(0x08);  /* Select pin 80 = LED analt GPIO */
+	gpio_bit12(0x0A);  /* Set pin 79 = WDT analt
 			      GPIO/Output/Polarity=Invert */
 	/* disable the timeout */
 	wdt_timeout_value(0);
@@ -249,7 +249,7 @@ static void wb_smsc_wdt_shutdown(void)
 {
 	spin_lock(&io_lock);
 	open_io_config();
-	select_io_device(IODEV_NO);
+	select_io_device(IODEV_ANAL);
 
 	/* disable the watchdog */
 	gpio_bit13(0x09);
@@ -274,7 +274,7 @@ static void wb_smsc_wdt_set_timeout(unsigned char new_timeout)
 {
 	spin_lock(&io_lock);
 	open_io_config();
-	select_io_device(IODEV_NO);
+	select_io_device(IODEV_ANAL);
 
 	/* set Power LED to blink, if we enable the timeout */
 	wdt_timer_ctrl((new_timeout == 0) ? 0x00 : 0x02);
@@ -294,7 +294,7 @@ static unsigned char wb_smsc_wdt_get_timeout(void)
 
 	spin_lock(&io_lock);
 	open_io_config();
-	select_io_device(IODEV_NO);
+	select_io_device(IODEV_ANAL);
 	set_timeout = read_io_cr(0xF2);
 	close_io_config();
 	spin_unlock(&io_lock);
@@ -324,7 +324,7 @@ static void wb_smsc_wdt_reset_timer(void)
 {
 	spin_lock(&io_lock);
 	open_io_config();
-	select_io_device(IODEV_NO);
+	select_io_device(IODEV_ANAL);
 
 	/* reset the timer */
 	wdt_timeout_value(timeout);
@@ -346,14 +346,14 @@ static int wb_smsc_wdt_status(void)
 
 /* open => enable watchdog and set initial timeout */
 
-static int wb_smsc_wdt_open(struct inode *inode, struct file *file)
+static int wb_smsc_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 
 	if (test_and_set_bit(0, &timer_enabled))
 		return -EBUSY;
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
 	/* Reload and activate timer */
@@ -362,12 +362,12 @@ static int wb_smsc_wdt_open(struct inode *inode, struct file *file)
 	pr_info("Watchdog enabled. Timeout set to %d %s\n",
 		timeout, (unit == UNIT_SECOND) ? "second(s)" : "minute(s)");
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /* close => shut off the timer */
 
-static int wb_smsc_wdt_release(struct inode *inode, struct file *file)
+static int wb_smsc_wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	/* Shut off the timer. */
 
@@ -375,7 +375,7 @@ static int wb_smsc_wdt_release(struct inode *inode, struct file *file)
 		wb_smsc_wdt_disable();
 		pr_info("Watchdog disabled, sleeping again...\n");
 	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, analt stopping watchdog!\n");
 		wb_smsc_wdt_reset_timer();
 	}
 
@@ -391,13 +391,13 @@ static ssize_t wb_smsc_wdt_write(struct file *file, const char __user *data,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (len) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/* reset expect flag */
 			expect_close = 0;
 
-			/* scan to see whether or not we got the
+			/* scan to see whether or analt we got the
 			   magic character */
 			for (i = 0; i != len; i++) {
 				char c;
@@ -481,13 +481,13 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 			new_timeout *= 60;
 		return put_user(new_timeout, uarg.i);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-/* -- Notifier funtions -----------------------------------------*/
+/* -- Analtifier funtions -----------------------------------------*/
 
-static int wb_smsc_wdt_notify_sys(struct notifier_block *this,
+static int wb_smsc_wdt_analtify_sys(struct analtifier_block *this,
 					unsigned long code, void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT) {
@@ -495,14 +495,14 @@ static int wb_smsc_wdt_notify_sys(struct notifier_block *this,
 		timeout = 0;
 		wb_smsc_wdt_disable();
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* -- Module's structures ---------------------------------------*/
 
 static const struct file_operations wb_smsc_wdt_fops = {
 	.owner	  = THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= wb_smsc_wdt_write,
 	.unlocked_ioctl	= wb_smsc_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -510,12 +510,12 @@ static const struct file_operations wb_smsc_wdt_fops = {
 	.release	= wb_smsc_wdt_release,
 };
 
-static struct notifier_block wb_smsc_wdt_notifier = {
-	.notifier_call  = wb_smsc_wdt_notify_sys,
+static struct analtifier_block wb_smsc_wdt_analtifier = {
+	.analtifier_call  = wb_smsc_wdt_analtify_sys,
 };
 
 static struct miscdevice wb_smsc_wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &wb_smsc_wdt_fops,
 };
@@ -544,29 +544,29 @@ static int __init wb_smsc_wdt_init(void)
 	/* init the watchdog timer */
 	wb_smsc_wdt_initialize();
 
-	ret = register_reboot_notifier(&wb_smsc_wdt_notifier);
+	ret = register_reboot_analtifier(&wb_smsc_wdt_analtifier);
 	if (ret) {
-		pr_err("Unable to register reboot notifier err = %d\n", ret);
+		pr_err("Unable to register reboot analtifier err = %d\n", ret);
 		goto out_io;
 	}
 
 	ret = misc_register(&wb_smsc_wdt_miscdev);
 	if (ret) {
-		pr_err("Unable to register miscdev on minor %d\n",
-		       WATCHDOG_MINOR);
+		pr_err("Unable to register miscdev on mianalr %d\n",
+		       WATCHDOG_MIANALR);
 		goto out_rbt;
 	}
 
 	/* output info */
 	pr_info("Timeout set to %d %s\n",
 		timeout, (unit == UNIT_SECOND) ? "second(s)" : "minute(s)");
-	pr_info("Watchdog initialized and sleeping (nowayout=%d)...\n",
-		nowayout);
+	pr_info("Watchdog initialized and sleeping (analwayout=%d)...\n",
+		analwayout);
 out_clean:
 	return ret;
 
 out_rbt:
-	unregister_reboot_notifier(&wb_smsc_wdt_notifier);
+	unregister_reboot_analtifier(&wb_smsc_wdt_analtifier);
 
 out_io:
 	release_region(IOPORT, IOPORT_SIZE);
@@ -580,13 +580,13 @@ out_pnp:
 static void __exit wb_smsc_wdt_exit(void)
 {
 	/* Stop the timer before we leave */
-	if (!nowayout) {
+	if (!analwayout) {
 		wb_smsc_wdt_shutdown();
 		pr_info("Watchdog disabled\n");
 	}
 
 	misc_deregister(&wb_smsc_wdt_miscdev);
-	unregister_reboot_notifier(&wb_smsc_wdt_notifier);
+	unregister_reboot_analtifier(&wb_smsc_wdt_analtifier);
 	release_region(IOPORT, IOPORT_SIZE);
 
 	pr_info("SMsC 37B787 watchdog component driver removed\n");
@@ -609,7 +609,7 @@ MODULE_PARM_DESC(unit,
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "range is 1-255 units, default is 60");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");

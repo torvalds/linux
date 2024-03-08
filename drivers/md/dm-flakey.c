@@ -65,7 +65,7 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		{0, PROBABILITY_BASE, "Invalid random corrupt argument"},
 	};
 
-	/* No feature arguments supplied. */
+	/* Anal feature arguments supplied. */
 	if (!as->argc)
 		return 0;
 
@@ -234,7 +234,7 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
  *
  *   Nth_byte starts from 1 for the first byte.
  *   Direction is r for READ or w for WRITE.
- *   bio_flags is ignored if 0.
+ *   bio_flags is iganalred if 0.
  */
 static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
@@ -260,8 +260,8 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (!fc) {
-		ti->error = "Cannot allocate context";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate context";
+		return -EANALMEM;
 	}
 	fc->start_time = jiffies;
 
@@ -422,7 +422,7 @@ static struct bio *clone_bio(struct dm_target *ti, struct flakey_c *fc, struct b
 	size = bio->bi_iter.bi_size;
 	nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	clone = bio_kmalloc(nr_iovecs, GFP_NOIO | __GFP_NORETRY | __GFP_NOWARN);
+	clone = bio_kmalloc(nr_iovecs, GFP_ANALIO | __GFP_ANALRETRY | __GFP_ANALWARN);
 	if (!clone)
 		return NULL;
 
@@ -443,7 +443,7 @@ static struct bio *clone_bio(struct dm_target *ti, struct flakey_c *fc, struct b
 		order = min(order, remaining_order);
 
 retry_alloc_pages:
-		pages = alloc_pages(GFP_NOIO | __GFP_NORETRY | __GFP_NOWARN | __GFP_COMP, order);
+		pages = alloc_pages(GFP_ANALIO | __GFP_ANALRETRY | __GFP_ANALWARN | __GFP_COMP, order);
 		if (unlikely(!pages)) {
 			if (order) {
 				order--;
@@ -578,7 +578,7 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 		if (test_bit(ERROR_READS, &fc->flags)) {
 			/*
 			 * Error read during the down_interval if drop_writes
-			 * and error_writes were not configured.
+			 * and error_writes were analt configured.
 			 */
 			*error = BLK_STS_IOERR;
 		}

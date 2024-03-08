@@ -23,7 +23,7 @@
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/i2c/tda998x.h>
 
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 
@@ -85,7 +85,7 @@ struct tda998x_priv {
 	u8 audio_port_enable[AUDIO_ROUTE_NUM];
 	struct tda9950_glue cec_glue;
 	struct gpio_desc *calib;
-	struct cec_notifier *cec_notify;
+	struct cec_analtifier *cec_analtify;
 };
 
 #define conn_to_tda998x_priv(x) \
@@ -98,7 +98,7 @@ struct tda998x_priv {
 /* The TDA9988 series of devices use a paged register scheme.. to simplify
  * things we encode the page # in upper bits of the register #.  To read/
  * write a given register, we need to make sure CURPAGE register is set
- * appropriately.  Which implies reads/writes are not atomic.  Fun!
+ * appropriately.  Which implies reads/writes are analt atomic.  Fun!
  */
 
 #define REG(page, addr) (((page) << 8) | (addr))
@@ -269,7 +269,7 @@ struct tda998x_priv {
 # define PLL_SERIAL_1_SRL_IZ(x)   (((x) & 3) << 1)
 # define PLL_SERIAL_1_SRL_MAN_IZ  (1 << 6)
 #define REG_PLL_SERIAL_2          REG(0x02, 0x01)     /* read/write */
-# define PLL_SERIAL_2_SRL_NOSC(x) ((x) << 0)
+# define PLL_SERIAL_2_SRL_ANALSC(x) ((x) << 0)
 # define PLL_SERIAL_2_SRL_PR(x)   (((x) & 0xf) << 4)
 #define REG_PLL_SERIAL_3          REG(0x02, 0x02)     /* read/write */
 # define PLL_SERIAL_3_SRL_CCIR    (1 << 0)
@@ -363,7 +363,7 @@ struct tda998x_priv {
 
 
 
-/* CEC registers: (not paged)
+/* CEC registers: (analt paged)
  */
 #define REG_CEC_INTSTATUS	  0xee		      /* read */
 # define CEC_INTSTATUS_CEC	  (1 << 0)
@@ -720,7 +720,7 @@ tda998x_reset(struct tda998x_priv *priv)
 
 	/* PLL registers common configuration */
 	reg_write(priv, REG_PLL_SERIAL_1, 0x00);
-	reg_write(priv, REG_PLL_SERIAL_2, PLL_SERIAL_2_SRL_NOSC(1));
+	reg_write(priv, REG_PLL_SERIAL_2, PLL_SERIAL_2_SRL_ANALSC(1));
 	reg_write(priv, REG_PLL_SERIAL_3, 0x00);
 	reg_write(priv, REG_SERIALIZER,   0x00);
 	reg_write(priv, REG_BUFFER_OUT,   0x00);
@@ -808,8 +808,8 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 				tda998x_edid_delay_start(priv);
 			} else {
 				schedule_work(&priv->detect_work);
-				cec_notifier_phys_addr_invalidate(
-						priv->cec_notify);
+				cec_analtifier_phys_addr_invalidate(
+						priv->cec_analtify);
 			}
 
 			handled = true;
@@ -905,7 +905,7 @@ static int tda998x_derive_routing(struct tda998x_priv *priv,
 	s->route = &tda998x_audio_route[route];
 	s->ena_ap = priv->audio_port_enable[route];
 	if (s->ena_ap == 0) {
-		dev_err(&priv->hdmi->dev, "no audio configuration found\n");
+		dev_err(&priv->hdmi->dev, "anal audio configuration found\n");
 		return -EINVAL;
 	}
 
@@ -914,11 +914,11 @@ static int tda998x_derive_routing(struct tda998x_priv *priv,
 
 /*
  * The audio clock divisor register controls a divider producing Audio_Clk_Out
- * from SERclk by dividing it by 2^n where 0 <= n <= 5.  We don't know what
+ * from SERclk by dividing it by 2^n where 0 <= n <= 5.  We don't kanalw what
  * Audio_Clk_Out or SERclk are. We guess SERclk is the same as TMDS clock.
  *
  * It seems that Audio_Clk_Out must be the smallest value that is greater
- * than 128*fs, otherwise audio does not function. There is some suggestion
+ * than 128*fs, otherwise audio does analt function. There is some suggestion
  * that 126*fs is a better value.
  */
 static u8 tda998x_get_adiv(struct tda998x_priv *priv, unsigned int fs)
@@ -960,7 +960,7 @@ static u8 tda998x_get_adiv(struct tda998x_priv *priv, unsigned int fs)
  * bclk_ratio * fs, we end up with:
  *  k = m * bclk_ratio / 128.
  *
- * Note: S/PDIF always uses a bclk_ratio of 64.
+ * Analte: S/PDIF always uses a bclk_ratio of 64.
  */
 static int tda998x_derive_cts_n(struct tda998x_priv *priv,
 				struct tda998x_audio_settings *settings,
@@ -1007,7 +1007,7 @@ static void tda998x_configure_audio(struct tda998x_priv *priv)
 	u8 buf[6], adiv;
 	u32 n;
 
-	/* If audio is not configured, there is nothing to do. */
+	/* If audio is analt configured, there is analthing to do. */
 	if (settings->ena_ap == 0)
 		return;
 
@@ -1026,7 +1026,7 @@ static void tda998x_configure_audio(struct tda998x_priv *priv)
 
 	/*
 	 * This is the approximate value of N, which happens to be
-	 * the recommended values for non-coherent clocks.
+	 * the recommended values for analn-coherent clocks.
 	 */
 	n = 128 * settings->sample_rate / 1000;
 
@@ -1165,7 +1165,7 @@ static const struct hdmi_codec_ops audio_codec_ops = {
 	.audio_shutdown = tda998x_audio_shutdown,
 	.mute_stream = tda998x_audio_mute_stream,
 	.get_eld = tda998x_audio_get_eld,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static int tda998x_audio_codec_init(struct tda998x_priv *priv,
@@ -1174,8 +1174,8 @@ static int tda998x_audio_codec_init(struct tda998x_priv *priv,
 	struct hdmi_codec_pdata codec_data = {
 		.ops = &audio_codec_ops,
 		.max_i2s_channels = 2,
-		.no_i2s_capture = 1,
-		.no_spdif_capture = 1,
+		.anal_i2s_capture = 1,
+		.anal_spdif_capture = 1,
 	};
 
 	if (priv->audio_port_enable[AUDIO_ROUTE_I2S])
@@ -1288,7 +1288,7 @@ static int tda998x_connector_get_modes(struct drm_connector *connector)
 
 	/*
 	 * If we get killed while waiting for the HPD timeout, return
-	 * no modes found: we are not in a restartable path, so we
+	 * anal modes found: we are analt in a restartable path, so we
 	 * can't handle signals gracefully.
 	 */
 	if (tda998x_edid_delay_wait(priv))
@@ -1308,7 +1308,7 @@ static int tda998x_connector_get_modes(struct drm_connector *connector)
 	}
 
 	drm_connector_update_edid_property(connector, edid);
-	cec_notifier_set_phys_addr_from_edid(priv->cec_notify, edid);
+	cec_analtifier_set_phys_addr_from_edid(priv->cec_analtify, edid);
 
 	mutex_lock(&priv->audio_mutex);
 	n = drm_add_edid_modes(connector, edid);
@@ -1367,7 +1367,7 @@ static int tda998x_bridge_attach(struct drm_bridge *bridge,
 {
 	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR) {
 		DRM_ERROR("Fix bridge driver to make connector optional!");
 		return -EINVAL;
 	}
@@ -1460,10 +1460,10 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	 * we get VESA style sync. TDA998x is using a reference pixel
 	 * relative to ITU to sync to the input frame and for output
 	 * sync generation. Currently, we are using reference detection
-	 * from HS/VS, i.e. REFPIX/REFLINE denote frame start sync point
+	 * from HS/VS, i.e. REFPIX/REFLINE deanalte frame start sync point
 	 * which is position of rising VS with coincident rising HS.
 	 *
-	 * Now there is some issues to take care of:
+	 * Analw there is some issues to take care of:
 	 * - HDMI data islands require sync-before-active
 	 * - TDA998x register values must be > 0 to be enabled
 	 * - REFLINE needs an additional offset of +1
@@ -1551,7 +1551,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	reg_clear(priv, REG_TX33, TX33_HDMI);
 	reg_write(priv, REG_ENC_CNTRL, ENC_CNTRL_CTL_CODE(0));
 
-	/* no pre-filter or interpolator: */
+	/* anal pre-filter or interpolator: */
 	reg_write(priv, REG_HVF_CNTRL_0, HVF_CNTRL_0_PREFIL(0) |
 			HVF_CNTRL_0_INTPOL(0));
 	reg_set(priv, REG_FEAT_POWERDOWN, FEAT_POWERDOWN_PREFILT);
@@ -1567,7 +1567,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 
 	reg_write(priv, REG_RPT_CNTRL, RPT_CNTRL_REPEAT(rep));
 	reg_write(priv, REG_SEL_CLK, sel_clk);
-	reg_write(priv, REG_PLL_SERIAL_2, PLL_SERIAL_2_SRL_NOSC(div) |
+	reg_write(priv, REG_PLL_SERIAL_2, PLL_SERIAL_2_SRL_ANALSC(div) |
 			PLL_SERIAL_2_SRL_PR(rep));
 
 	/* set color matrix according to output rgb quant range */
@@ -1650,14 +1650,14 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	reg_write(priv, REG_TBG_CNTRL_0, 0);
 
 	/* CEA-861B section 6 says that:
-	 * CEA version 1 (CEA-861) has no support for infoframes.
+	 * CEA version 1 (CEA-861) has anal support for infoframes.
 	 * CEA version 2 (CEA-861A) supports version 1 AVI infoframes,
 	 * and optional basic audio.
 	 * CEA version 3 (CEA-861B) supports version 1 and 2 AVI infoframes,
 	 * and optional digital audio, with audio infoframes.
 	 *
 	 * Since we only support generation of version 2 AVI infoframes,
-	 * ignore CEA version 2 and below (iow, behave as if we're a
+	 * iganalre CEA version 2 and below (iow, behave as if we're a
 	 * CEA-861 source.)
 	 */
 	priv->supports_infoframes = priv->connector.display_info.cea_rev >= 3;
@@ -1691,7 +1691,7 @@ static const struct drm_bridge_funcs tda998x_bridge_funcs = {
 /* I2C driver functions */
 
 static int tda998x_get_audio_ports(struct tda998x_priv *priv,
-				   struct device_node *np)
+				   struct device_analde *np)
 {
 	const u32 *port_data;
 	u32 size;
@@ -1804,13 +1804,13 @@ static void tda998x_destroy(struct device *dev)
 
 	i2c_unregister_device(priv->cec);
 
-	cec_notifier_conn_unregister(priv->cec_notify);
+	cec_analtifier_conn_unregister(priv->cec_analtify);
 }
 
 static int tda998x_create(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct i2c_board_info cec_info;
 	struct tda998x_priv *priv;
 	u32 video;
@@ -1818,7 +1818,7 @@ static int tda998x_create(struct device *dev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, priv);
 
@@ -1861,7 +1861,7 @@ static int tda998x_create(struct device *dev)
 	priv->rev = rev_lo | rev_hi << 8;
 
 	/* mask off feature bits: */
-	priv->rev &= ~0x30; /* not-hdcp and not-scalar bit */
+	priv->rev &= ~0x30; /* analt-hdcp and analt-scalar bit */
 
 	switch (priv->rev) {
 	case TDA9989N2:
@@ -1929,9 +1929,9 @@ static int tda998x_create(struct device *dev)
 		cec_write(priv, REG_CEC_RXSHPDINTENA, CEC_RXSHPDLEV_HPD);
 	}
 
-	priv->cec_notify = cec_notifier_conn_register(dev, NULL, NULL);
-	if (!priv->cec_notify) {
-		ret = -ENOMEM;
+	priv->cec_analtify = cec_analtifier_conn_register(dev, NULL, NULL);
+	if (!priv->cec_analtify) {
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1989,7 +1989,7 @@ static int tda998x_create(struct device *dev)
 
 	priv->bridge.funcs = &tda998x_bridge_funcs;
 #ifdef CONFIG_OF
-	priv->bridge.of_node = dev->of_node;
+	priv->bridge.of_analde = dev->of_analde;
 #endif
 
 	drm_bridge_add(&priv->bridge);
@@ -2010,10 +2010,10 @@ static int tda998x_encoder_init(struct device *dev, struct drm_device *drm)
 	u32 crtcs = 0;
 	int ret;
 
-	if (dev->of_node)
-		crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+	if (dev->of_analde)
+		crtcs = drm_of_find_possible_crtcs(drm, dev->of_analde);
 
-	/* If no CRTCs were found, fall back to our old behaviour */
+	/* If anal CRTCs were found, fall back to our old behaviour */
 	if (crtcs == 0) {
 		dev_warn(dev, "Falling back to first CRTC\n");
 		crtcs = 1 << 0;
@@ -2064,7 +2064,7 @@ tda998x_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_warn(&client->dev, "adapter does not support I2C\n");
+		dev_warn(&client->dev, "adapter does analt support I2C\n");
 		return -EIO;
 	}
 

@@ -2,17 +2,17 @@
 
 //! This module contains API-internal items for pin-init.
 //!
-//! These items must not be used outside of
+//! These items must analt be used outside of
 //! - `kernel/init.rs`
 //! - `macros/pin_data.rs`
 //! - `macros/pinned_drop.rs`
 
 use super::*;
 
-/// See the [nomicon] for what subtyping is. See also [this table].
+/// See the [analmicon] for what subtyping is. See also [this table].
 ///
-/// [nomicon]: https://doc.rust-lang.org/nomicon/subtyping.html
-/// [this table]: https://doc.rust-lang.org/nomicon/phantom-data.html#table-of-phantomdata-patterns
+/// [analmicon]: https://doc.rust-lang.org/analmicon/subtyping.html
+/// [this table]: https://doc.rust-lang.org/analmicon/phantom-data.html#table-of-phantomdata-patterns
 pub(super) type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
 
 /// This is the module-internal type implementing `PinInit` and `Init`. It is unsafe to create this
@@ -176,7 +176,7 @@ impl<T> StackInit<T> {
         unsafe { init.__pinned_init(this.value.as_mut_ptr())? };
         // INVARIANT: `this.value` is initialized above.
         this.is_init = true;
-        // SAFETY: The slot is now pinned, since we will never give access to `&mut T`.
+        // SAFETY: The slot is analw pinned, since we will never give access to `&mut T`.
         Ok(unsafe { Pin::new_unchecked(this.value.assume_init_mut()) })
     }
 }
@@ -196,9 +196,9 @@ impl<T: ?Sized> DropGuard<T> {
     /// `ptr` must be a valid pointer.
     ///
     /// It is the callers responsibility that `self` will only get dropped if the pointee of `ptr`:
-    /// - has not been dropped,
-    /// - is not accessible by any other means,
-    /// - will not be dropped by any other means.
+    /// - has analt been dropped,
+    /// - is analt accessible by any other means,
+    /// - will analt be dropped by any other means.
     #[inline]
     pub unsafe fn new(ptr: *mut T) -> Self {
         Self { ptr }
@@ -215,7 +215,7 @@ impl<T: ?Sized> Drop for DropGuard<T> {
 }
 
 /// Token used by `PinnedDrop` to prevent calling the function without creating this unsafely
-/// created struct. This is needed, because the `drop` function is safe, but should not be called
+/// created struct. This is needed, because the `drop` function is safe, but should analt be called
 /// manually.
 pub struct OnlyCallFromDrop(());
 

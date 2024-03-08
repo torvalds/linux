@@ -24,7 +24,7 @@ for this jack. The jack injection is implemented based on the
 ``jack_kctl`` instead of ``snd_jack``.
 
 To inject events to audio jacks, we need to enable the jack injection
-via ``sw_inject_enable`` first, once it is enabled, this jack will not
+via ``sw_inject_enable`` first, once it is enabled, this jack will analt
 change the state by hardware events anymore, we could inject plugin or
 plugout events via ``jackin_inject`` and check the jack state via
 ``status``, after we finish our test, we need to disable the jack
@@ -80,7 +80,7 @@ jack injection interface will be created as below:
            |-- sw_inject_enable
            |-- type
 
-The Explanation Of The Nodes
+The Explanation Of The Analdes
 ======================================
 
 kctl_id

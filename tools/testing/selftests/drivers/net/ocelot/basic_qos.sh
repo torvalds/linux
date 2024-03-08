@@ -7,8 +7,8 @@
 
 WAIT_TIME=1
 NUM_NETIFS=4
-STABLE_MAC_ADDRS=yes
-NETIF_CREATE=no
+STABLE_MAC_ADDRS=anal
+NETIF_CREATE=anal
 lib_dir=$(dirname $0)/../../../net/forwarding
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh

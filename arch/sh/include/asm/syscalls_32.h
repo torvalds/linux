@@ -21,7 +21,7 @@ asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
 /* Misc syscall related bits */
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_leave(struct pt_regs *regs);
-asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned int save_r0,
+asmlinkage void do_analtify_resume(struct pt_regs *regs, unsigned int save_r0,
 				 unsigned long thread_info_flags);
 
 #endif /* __ASM_SH_SYSCALLS_32_H */

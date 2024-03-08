@@ -70,7 +70,7 @@ struct fc_frame *fc_frame_alloc_fill(struct fc_lport *lp, size_t payload_len)
 	fp = _fc_frame_alloc(payload_len + fill);
 	if (fp) {
 		memset((char *) fr_hdr(fp) + payload_len, 0, fill);
-		/* trim is OK, we just allocated it so there are no fragments */
+		/* trim is OK, we just allocated it so there are anal fragments */
 		skb_trim(fp_skb(fp),
 			 payload_len + sizeof(struct fc_frame_header));
 	}

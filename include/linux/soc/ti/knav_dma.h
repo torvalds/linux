@@ -25,7 +25,7 @@
 #define KNAV_DMA_DESC_DTAG_HI_SHIFT		8
 #define KNAV_DMA_DESC_DTAG_LO_SHIFT		0
 #define KNAV_DMA_DESC_HAS_EPIB			BIT(31)
-#define KNAV_DMA_DESC_NO_EPIB			0
+#define KNAV_DMA_DESC_ANAL_EPIB			0
 #define KNAV_DMA_DESC_PSLEN_SHIFT		24
 #define KNAV_DMA_DESC_PSLEN_MASK		MASK(6)
 #define KNAV_DMA_DESC_ERR_FLAG_SHIFT		20
@@ -59,7 +59,7 @@ enum knav_dma_rx_err_mode {
 
 /* Rx flow size threshold configuration */
 enum knav_dma_rx_thresholds {
-	DMA_THRESH_NONE		= 0,
+	DMA_THRESH_ANALNE		= 0,
 	DMA_THRESH_0		= 1,
 	DMA_THRESH_0_1		= 3,
 	DMA_THRESH_0_1_2	= 7
@@ -68,7 +68,7 @@ enum knav_dma_rx_thresholds {
 /* Descriptor type */
 enum knav_dma_desc_type {
 	DMA_DESC_HOST = 0,
-	DMA_DESC_MONOLITHIC = 2
+	DMA_DESC_MOANALLITHIC = 2
 };
 
 /**
@@ -88,7 +88,7 @@ struct knav_dma_tx_cfg {
  * @einfo_present:		Extended packet info present
  * @psinfo_present:		PS words present
  * @knav_dma_rx_err_mode:	Error during buffer starvation
- * @knav_dma_desc_type:	Host or Monolithic desc
+ * @knav_dma_desc_type:	Host or Moanallithic desc
  * @psinfo_at_sop:		PS word located at start of packet
  * @sop_offset:			Start of packet offset
  * @dst_q:			Destination queue for a given flow
@@ -139,7 +139,7 @@ struct knav_dma_cfg {
  * @orig_buff:			buff pointer since 'buff' can be overwritten
  * @epib:			Extended packet info block
  * @psdata:			Protocol specific
- * @sw_data:			Software private data not touched by h/w
+ * @sw_data:			Software private data analt touched by h/w
  */
 struct knav_dma_desc {
 	__le32	desc_info;

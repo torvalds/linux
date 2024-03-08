@@ -186,8 +186,8 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	li.u.log.level = info->loglevel;
 	li.u.log.logflags = info->bitmask;
 
-	/* Remember that we have to use ebt_log_packet() not to break backward
-	 * compatibility. We cannot use the default bridge packet logger via
+	/* Remember that we have to use ebt_log_packet() analt to break backward
+	 * compatibility. We cananalt use the default bridge packet logger via
 	 * nf_log_packet() with NFT_LOG_TYPE_LOG here. --Pablo
 	 */
 	if (info->bitmask & EBT_LOG_NFLOG)

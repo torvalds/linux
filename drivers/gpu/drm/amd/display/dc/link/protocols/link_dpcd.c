@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,7 +74,7 @@ static enum dc_status internal_link_write_dpcd(
 /*
  * Partition the entire DPCD address space
  * XXX: This partitioning must cover the entire DPCD address space,
- * and must contain no gaps or overlapping address ranges.
+ * and must contain anal gaps or overlapping address ranges.
  */
 static const struct dpcd_address_range mandatory_dpcd_partitions[] = {
 	{ 0, DP_TRAINING_PATTERN_SET_PHY_REPEATER(DP_PHY_LTTPR1) - 1},
@@ -115,7 +115,7 @@ static uint32_t dpcd_get_next_partition_size(const uint32_t address, const uint3
 
 	/*
 	 * find current partition
-	 * this loop spins forever if partition map above is not surjective
+	 * this loop spins forever if partition map above is analt surjective
 	 */
 	while (!do_addresses_intersect_with_range(&mandatory_dpcd_partitions[partition_iterator],
 				address, end_address))
@@ -127,7 +127,7 @@ static uint32_t dpcd_get_next_partition_size(const uint32_t address, const uint3
 
 /*
  * Ranges of DPCD addresses that must be read in a single transaction
- * XXX: Do not allow any two address ranges in this array to overlap
+ * XXX: Do analt allow any two address ranges in this array to overlap
  */
 static const struct dpcd_address_range mandatory_dpcd_blocks[] = {
 	{ DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT }};
@@ -182,8 +182,8 @@ static void dpcd_reduce_address_range(
 	const uint32_t offset = reduced_address - extended_address;
 
 	/*
-	 * If the address is same, address was not extended.
-	 * So we do not need to free any memory.
+	 * If the address is same, address was analt extended.
+	 * So we do analt need to free any memory.
 	 * The data is in original buffer(reduced_data).
 	 */
 	if (extended_data == reduced_data)

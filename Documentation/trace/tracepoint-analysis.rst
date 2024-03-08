@@ -1,5 +1,5 @@
 =========================================================
-Notes on Analysing Behaviour Using Events and Tracepoints
+Analtes on Analysing Behaviour Using Events and Tracepoints
 =========================================================
 :Author: Mel Gorman (PCL information heavily based on email from Ingo Molnar)
 
@@ -41,9 +41,9 @@ are available with the perf tool. Getting a list of available events is a
 simple case of::
 
   $ perf list 2>&1 | grep Tracepoint
-  ext4:ext4_free_inode                     [Tracepoint event]
-  ext4:ext4_request_inode                  [Tracepoint event]
-  ext4:ext4_allocate_inode                 [Tracepoint event]
+  ext4:ext4_free_ianalde                     [Tracepoint event]
+  ext4:ext4_request_ianalde                  [Tracepoint event]
+  ext4:ext4_allocate_ianalde                 [Tracepoint event]
   ext4:ext4_write_begin                    [Tracepoint event]
   ext4:ext4_ordered_write_end              [Tracepoint event]
   [ .... remaining output snipped .... ]
@@ -145,7 +145,7 @@ as any script reading trace_pipe.
 =====================================
 
 Any workload can exhibit variances between runs and it can be important
-to know what the standard deviation is. By and large, this is left to the
+to kanalw what the standard deviation is. By and large, this is left to the
 performance analyst to do it by hand. In the event that the discrete event
 occurrences are useful to the performance analyst, then perf can be used.
 ::
@@ -207,7 +207,7 @@ also can do more such as
 
   - Derive high-level events from many low-level events. If a number of pages
     are freed to the main allocator from the per-CPU lists, it recognises
-    that as one per-CPU drain even though there is no specific tracepoint
+    that as one per-CPU drain even though there is anal specific tracepoint
     for that event
   - It can aggregate based on PID or individual process number
   - In the event memory is getting externally fragmented, it reports
@@ -232,7 +232,7 @@ data must be recorded. At the time of writing, this required root:
   Time: 0.894
   [ perf record: Captured and wrote 0.733 MB perf.data (~32010 samples) ]
 
-Note the use of '-c 1' to set the event period to sample. The default sample
+Analte the use of '-c 1' to set the event period to sample. The default sample
 period is quite high to minimise overhead but the information collected can be
 very coarse as a result.
 
@@ -263,7 +263,7 @@ perf report.
 According to this, the vast majority of events triggered on events
 within the VDSO. With simple binaries, this will often be the case so let's
 take a slightly different example. In the course of writing this, it was
-noticed that X was generating an insane amount of page allocations so let's look
+analticed that X was generating an insane amount of page allocations so let's look
 at it:
 ::
 
@@ -310,7 +310,7 @@ symbol:
 To see where within the function pixmanFillsse2 things are going wrong:
 ::
 
-  $ perf annotate pixmanFillsse2
+  $ perf ananaltate pixmanFillsse2
   [ ... ]
     0.00 :         34eeb:       0f 18 08                prefetcht0 (%eax)
          :      }

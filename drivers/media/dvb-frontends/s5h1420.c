@@ -42,7 +42,7 @@ struct s5h1420_state {
 	u32 symbol_rate;
 
 	/* FIXME: ugly workaround for flexcop's incapable i2c-controller
-	 * it does not support repeated-start, workaround: write addr-1
+	 * it does analt support repeated-start, workaround: write addr-1
 	 * and then read
 	 */
 	u8 shadow[256];
@@ -231,7 +231,7 @@ static int s5h1420_recv_slave_reply (struct dvb_frontend* fe,
 		goto exit;
 	}
 
-	/* check error flag - FIXME: not sure what this does - docs do not describe
+	/* check error flag - FIXME: analt sure what this does - docs do analt describe
 	 * beyond "error flag for diseqc receive data :( */
 	if (s5h1420_readreg(state, 0x49)) {
 		result = -EIO;
@@ -613,7 +613,7 @@ static enum fe_code_rate s5h1420_getfec(struct s5h1420_state *state)
 		return FEC_7_8;
 	}
 
-	return FEC_NONE;
+	return FEC_ANALNE;
 }
 
 static enum fe_spectral_inversion
@@ -840,7 +840,7 @@ static int s5h1420_tuner_i2c_tuner_xfer(struct i2c_adapter *i2c_adap, struct i2c
 		printk(KERN_WARNING
 		       "%s: i2c xfer: num=%d is too big!\n",
 		       KBUILD_MODNAME, num);
-		return  -EOPNOTSUPP;
+		return  -EOPANALTSUPP;
 	}
 
 	memset(m, 0, sizeof(struct i2c_msg) * (1 + num));
@@ -884,7 +884,7 @@ struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 	state->postlocked = 0;
 	state->fclk = 88000000;
 	state->tunedfreq = 0;
-	state->fec_inner = FEC_NONE;
+	state->fec_inner = FEC_ANALNE;
 	state->symbol_rate = 0;
 
 	/* check if the demod is there + identify it */
@@ -908,7 +908,7 @@ struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 	state->tuner_i2c_adapter.algo_data = NULL;
 	i2c_set_adapdata(&state->tuner_i2c_adapter, state);
 	if (i2c_add_adapter(&state->tuner_i2c_adapter) < 0) {
-		printk(KERN_ERR "S5H1420/PN1010: tuner i2c bus could not be initialized\n");
+		printk(KERN_ERR "S5H1420/PN1010: tuner i2c bus could analt be initialized\n");
 		goto error;
 	}
 

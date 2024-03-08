@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_IF_TUNNEL_H_
 #define _UAPI_IF_TUNNEL_H_
 
@@ -82,7 +82,7 @@ enum {
 #define IFLA_IPTUN_MAX	(__IFLA_IPTUN_MAX - 1)
 
 enum tunnel_encap_types {
-	TUNNEL_ENCAP_NONE,
+	TUNNEL_ENCAP_ANALNE,
 	TUNNEL_ENCAP_FOU,
 	TUNNEL_ENCAP_GUE,
 	TUNNEL_ENCAP_MPLS,
@@ -134,7 +134,7 @@ enum {
 	IFLA_GRE_ENCAP_SPORT,
 	IFLA_GRE_ENCAP_DPORT,
 	IFLA_GRE_COLLECT_METADATA,
-	IFLA_GRE_IGNORE_DF,
+	IFLA_GRE_IGANALRE_DF,
 	IFLA_GRE_FWMARK,
 	IFLA_GRE_ERSPAN_INDEX,
 	IFLA_GRE_ERSPAN_VER,
@@ -168,13 +168,13 @@ enum {
 #define TUNNEL_STRICT		__cpu_to_be16(0x10)
 #define TUNNEL_REC		__cpu_to_be16(0x20)
 #define TUNNEL_VERSION		__cpu_to_be16(0x40)
-#define TUNNEL_NO_KEY		__cpu_to_be16(0x80)
+#define TUNNEL_ANAL_KEY		__cpu_to_be16(0x80)
 #define TUNNEL_DONT_FRAGMENT    __cpu_to_be16(0x0100)
 #define TUNNEL_OAM		__cpu_to_be16(0x0200)
 #define TUNNEL_CRIT_OPT		__cpu_to_be16(0x0400)
 #define TUNNEL_GENEVE_OPT	__cpu_to_be16(0x0800)
 #define TUNNEL_VXLAN_OPT	__cpu_to_be16(0x1000)
-#define TUNNEL_NOCACHE		__cpu_to_be16(0x2000)
+#define TUNNEL_ANALCACHE		__cpu_to_be16(0x2000)
 #define TUNNEL_ERSPAN_OPT	__cpu_to_be16(0x4000)
 #define TUNNEL_GTP_OPT		__cpu_to_be16(0x8000)
 

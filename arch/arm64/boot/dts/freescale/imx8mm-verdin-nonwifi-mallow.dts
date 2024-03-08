@@ -6,13 +6,13 @@
 /dts-v1/;
 
 #include "imx8mm-verdin.dtsi"
-#include "imx8mm-verdin-nonwifi.dtsi"
+#include "imx8mm-verdin-analnwifi.dtsi"
 #include "imx8mm-verdin-mallow.dtsi"
 
 / {
 	model = "Toradex Verdin iMX8M Mini on Mallow";
-	compatible = "toradex,verdin-imx8mm-nonwifi-mallow",
-		     "toradex,verdin-imx8mm-nonwifi",
+	compatible = "toradex,verdin-imx8mm-analnwifi-mallow",
+		     "toradex,verdin-imx8mm-analnwifi",
 		     "toradex,verdin-imx8mm",
 		     "fsl,imx8mm";
 };

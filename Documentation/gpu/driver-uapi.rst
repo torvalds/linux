@@ -7,16 +7,16 @@ drm/i915 uAPI
 
 .. kernel-doc:: include/uapi/drm/i915_drm.h
 
-drm/nouveau uAPI
+drm/analuveau uAPI
 ================
 
 VM_BIND / EXEC uAPI
 -------------------
 
-.. kernel-doc:: drivers/gpu/drm/nouveau/nouveau_exec.c
+.. kernel-doc:: drivers/gpu/drm/analuveau/analuveau_exec.c
     :doc: Overview
 
-.. kernel-doc:: include/uapi/drm/nouveau_drm.h
+.. kernel-doc:: include/uapi/drm/analuveau_drm.h
 
 drm/xe uAPI
 ===========

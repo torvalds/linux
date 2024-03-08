@@ -25,7 +25,7 @@
 #define HDCP_CONFIG_2_2     BIT(1) /* use HDCP 2.2 only */
 /* use All HDCP versions */
 #define HDCP_CONFIG_ALL     (BIT(0) | BIT(1))
-#define HDCP_CONFIG_NONE    0
+#define HDCP_CONFIG_ANALNE    0
 
 enum {
 	HDCP_GENERAL_SET_LC_128,

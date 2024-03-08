@@ -356,7 +356,7 @@ struct tegra_pmc_soc {
 	const struct tegra_pmc_regs *regs;
 	void (*init)(struct tegra_pmc *pmc);
 	void (*setup_irq_polarity)(struct tegra_pmc *pmc,
-				   struct device_node *np,
+				   struct device_analde *np,
 				   bool invert);
 	void (*set_wake_filters)(struct tegra_pmc *pmc);
 	int (*irq_set_wake)(struct irq_data *data, unsigned int on);
@@ -417,8 +417,8 @@ struct tegra_pmc_soc {
  * @clk_nb: pclk clock changes handler
  * @core_domain_state_synced: flag marking the core domain's state as synced
  * @core_domain_registered: flag marking the core domain as registered
- * @wake_type_level_map: Bitmap indicating level type for non-dual edge wakes
- * @wake_type_dual_edge_map: Bitmap indicating if a wake is dual-edge or not
+ * @wake_type_level_map: Bitmap indicating level type for analn-dual edge wakes
+ * @wake_type_dual_edge_map: Bitmap indicating if a wake is dual-edge or analt
  * @wake_sw_status_map: Bitmap to hold raw status of wakes without mask
  * @wake_cntrl_level_map: Bitmap to hold wake levels to be programmed in
  *     cntrl register associated with each wake during system suspend.
@@ -457,7 +457,7 @@ struct tegra_pmc {
 	struct irq_domain *domain;
 	struct irq_chip irq;
 
-	struct notifier_block clk_nb;
+	struct analtifier_block clk_nb;
 
 	bool core_domain_state_synced;
 	bool core_domain_registered;
@@ -471,7 +471,7 @@ struct tegra_pmc {
 
 static struct tegra_pmc *pmc = &(struct tegra_pmc) {
 	.base = NULL,
-	.suspend_mode = TEGRA_SUSPEND_NOT_READY,
+	.suspend_mode = TEGRA_SUSPEND_ANALT_READY,
 };
 
 static inline struct tegra_powergate *
@@ -578,7 +578,7 @@ static int tegra_powergate_lookup(struct tegra_pmc *pmc, const char *name)
 			return i;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int tegra20_powergate_set(struct tegra_pmc *pmc, unsigned int id,
@@ -721,7 +721,7 @@ static int tegra_powergate_prepare_clocks(struct tegra_powergate *pg)
 			continue;
 
 		/*
-		 * We don't know whether voltage state is okay for the
+		 * We don't kanalw whether voltage state is okay for the
 		 * current clock rate, hence it's better to temporally
 		 * switch clock to a safe rate which is suitable for
 		 * all voltages, before enabling the clock.
@@ -1010,12 +1010,12 @@ int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 
 	pg = kzalloc(sizeof(*pg), GFP_KERNEL);
 	if (!pg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pg->clk_rates = kzalloc(sizeof(*pg->clk_rates), GFP_KERNEL);
 	if (!pg->clk_rates) {
 		kfree(pg->clks);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pg->id = id;
@@ -1119,17 +1119,17 @@ static void tegra_pmc_program_reboot_reason(const char *cmd)
 	tegra_pmc_scratch_writel(pmc, value, pmc->soc->regs->scratch0);
 }
 
-static int tegra_pmc_reboot_notify(struct notifier_block *this,
+static int tegra_pmc_reboot_analtify(struct analtifier_block *this,
 				   unsigned long action, void *data)
 {
 	if (action == SYS_RESTART)
 		tegra_pmc_program_reboot_reason(data);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block tegra_pmc_reboot_notifier = {
-	.notifier_call = tegra_pmc_reboot_notify,
+static struct analtifier_block tegra_pmc_reboot_analtifier = {
+	.analtifier_call = tegra_pmc_reboot_analtify,
 };
 
 static void tegra_pmc_restart(void)
@@ -1146,7 +1146,7 @@ static int tegra_pmc_restart_handler(struct sys_off_data *data)
 {
 	tegra_pmc_restart();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int tegra_pmc_power_off_handler(struct sys_off_data *data)
@@ -1163,7 +1163,7 @@ static int tegra_pmc_power_off_handler(struct sys_off_data *data)
 		tegra_pmc_restart();
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int powergate_show(struct seq_file *s, void *data)
@@ -1180,7 +1180,7 @@ static int powergate_show(struct seq_file *s, void *data)
 			continue;
 
 		seq_printf(s, " %9s %7s\n", pmc->soc->powergates[i],
-			   status ? "yes" : "no");
+			   status ? "anal" : "anal");
 	}
 
 	return 0;
@@ -1189,7 +1189,7 @@ static int powergate_show(struct seq_file *s, void *data)
 DEFINE_SHOW_ATTRIBUTE(powergate);
 
 static int tegra_powergate_of_get_clks(struct tegra_powergate *pg,
-				       struct device_node *np)
+				       struct device_analde *np)
 {
 	struct clk *clk;
 	unsigned int i, count;
@@ -1197,16 +1197,16 @@ static int tegra_powergate_of_get_clks(struct tegra_powergate *pg,
 
 	count = of_clk_get_parent_count(np);
 	if (count == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pg->clks = kcalloc(count, sizeof(clk), GFP_KERNEL);
 	if (!pg->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pg->clk_rates = kcalloc(count, sizeof(*pg->clk_rates), GFP_KERNEL);
 	if (!pg->clk_rates) {
 		kfree(pg->clks);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < count; i++) {
@@ -1232,7 +1232,7 @@ err:
 }
 
 static int tegra_powergate_of_get_resets(struct tegra_powergate *pg,
-					 struct device_node *np, bool off)
+					 struct device_analde *np, bool off)
 {
 	struct device *dev = pg->pmc->dev;
 	int err;
@@ -1269,7 +1269,7 @@ out:
 	return err;
 }
 
-static int tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
+static int tegra_powergate_add(struct tegra_pmc *pmc, struct device_analde *np)
 {
 	struct device *dev = pmc->dev;
 	struct tegra_powergate *pg;
@@ -1278,17 +1278,17 @@ static int tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	pg = kzalloc(sizeof(*pg), GFP_KERNEL);
 	if (!pg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = tegra_powergate_lookup(pmc, np->name);
 	if (id < 0) {
 		dev_err(dev, "powergate lookup failed for %pOFn: %d\n", np, id);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto free_mem;
 	}
 
 	/*
-	 * Clear the bit for this powergate so it cannot be managed
+	 * Clear the bit for this powergate so it cananalt be managed
 	 * directly via the legacy APIs for controlling powergates.
 	 */
 	clear_bit(id, pmc->powergates_available);
@@ -1393,7 +1393,7 @@ tegra_pmc_core_pd_set_performance_state(struct generic_pm_domain *genpd,
 	return 0;
 }
 
-static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
+static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_analde *np)
 {
 	struct generic_pm_domain *genpd;
 	const char *rname[] = { "core", NULL};
@@ -1401,7 +1401,7 @@ static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	genpd = devm_kzalloc(pmc->dev, sizeof(*genpd), GFP_KERNEL);
 	if (!genpd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	genpd->name = "core";
 	genpd->set_performance_state = tegra_pmc_core_pd_set_performance_state;
@@ -1434,10 +1434,10 @@ remove_genpd:
 }
 
 static int tegra_powergate_init(struct tegra_pmc *pmc,
-				struct device_node *parent)
+				struct device_analde *parent)
 {
 	struct of_phandle_args child_args, parent_args;
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 	int err = 0;
 
 	/*
@@ -1447,7 +1447,7 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 	np = of_get_child_by_name(parent, "core-domain");
 	if (np) {
 		err = tegra_pmc_core_pd_add(pmc, np);
-		of_node_put(np);
+		of_analde_put(np);
 		if (err)
 			return err;
 	}
@@ -1456,10 +1456,10 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 	if (!np)
 		return 0;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		err = tegra_powergate_add(pmc, child);
 		if (err < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 
@@ -1472,14 +1472,14 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 		child_args.args_count = 0;
 
 		err = of_genpd_add_subdomain(&parent_args, &child_args);
-		of_node_put(parent_args.np);
+		of_analde_put(parent_args.np);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return err;
 }
@@ -1500,16 +1500,16 @@ static void tegra_powergate_remove(struct generic_pm_domain *genpd)
 	kfree(pg);
 }
 
-static void tegra_powergate_remove_all(struct device_node *parent)
+static void tegra_powergate_remove_all(struct device_analde *parent)
 {
 	struct generic_pm_domain *genpd;
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 
 	np = of_get_child_by_name(parent, "powergates");
 	if (!np)
 		return;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		of_genpd_del_provider(child);
 
 		genpd = of_genpd_remove_last(child);
@@ -1519,7 +1519,7 @@ static void tegra_powergate_remove_all(struct device_node *parent)
 		tegra_powergate_remove(genpd);
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	np = of_get_child_by_name(parent, "core-domain");
 	if (np) {
@@ -1559,7 +1559,7 @@ static int tegra_io_pad_prepare(struct tegra_pmc *pmc,
 		rate = pmc->rate;
 		if (!rate) {
 			dev_err(pmc->dev, "failed to get clock rate\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		tegra_pmc_writel(pmc, DPD_SAMPLE_ENABLE, DPD_SAMPLE);
@@ -1613,7 +1613,7 @@ int tegra_io_pad_power_enable(enum tegra_io_pad id)
 	pad = tegra_io_pad_find(pmc, id);
 	if (!pad) {
 		dev_err(pmc->dev, "invalid I/O pad ID %u\n", id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	mutex_lock(&pmc->powergates_lock);
@@ -1656,7 +1656,7 @@ int tegra_io_pad_power_disable(enum tegra_io_pad id)
 	pad = tegra_io_pad_find(pmc, id);
 	if (!pad) {
 		dev_err(pmc->dev, "invalid I/O pad ID %u\n", id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	mutex_lock(&pmc->powergates_lock);
@@ -1692,7 +1692,7 @@ static int tegra_io_pad_is_powered(struct tegra_pmc *pmc, enum tegra_io_pad id)
 	pad = tegra_io_pad_find(pmc, id);
 	if (!pad) {
 		dev_err(pmc->dev, "invalid I/O pad ID %u\n", id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (pad->dpd == UINT_MAX)
@@ -1714,10 +1714,10 @@ static int tegra_io_pad_set_voltage(struct tegra_pmc *pmc, enum tegra_io_pad id,
 
 	pad = tegra_io_pad_find(pmc, id);
 	if (!pad)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (pad->voltage == UINT_MAX)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	mutex_lock(&pmc->powergates_lock);
 
@@ -1761,10 +1761,10 @@ static int tegra_io_pad_get_voltage(struct tegra_pmc *pmc, enum tegra_io_pad id)
 
 	pad = tegra_io_pad_find(pmc, id);
 	if (!pad)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (pad->voltage == UINT_MAX)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (pmc->soc->has_impl_33v_pwr)
 		value = tegra_pmc_readl(pmc, PMC_IMPL_E_33V_PWR);
@@ -1809,7 +1809,7 @@ enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
 
 void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
 {
-	if (mode < TEGRA_SUSPEND_NONE || mode >= TEGRA_MAX_SUSPEND_MODE)
+	if (mode < TEGRA_SUSPEND_ANALNE || mode >= TEGRA_MAX_SUSPEND_MODE)
 		return;
 
 	pmc->suspend_mode = mode;
@@ -1852,12 +1852,12 @@ void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode)
 }
 #endif
 
-static int tegra_pmc_parse_dt(struct tegra_pmc *pmc, struct device_node *np)
+static int tegra_pmc_parse_dt(struct tegra_pmc *pmc, struct device_analde *np)
 {
 	u32 value, values[2];
 
 	if (of_property_read_u32(np, "nvidia,suspend-mode", &value)) {
-		pmc->suspend_mode = TEGRA_SUSPEND_NONE;
+		pmc->suspend_mode = TEGRA_SUSPEND_ANALNE;
 	} else {
 		switch (value) {
 		case 0:
@@ -1873,7 +1873,7 @@ static int tegra_pmc_parse_dt(struct tegra_pmc *pmc, struct device_node *np)
 			break;
 
 		default:
-			pmc->suspend_mode = TEGRA_SUSPEND_NONE;
+			pmc->suspend_mode = TEGRA_SUSPEND_ANALNE;
 			break;
 		}
 	}
@@ -1881,24 +1881,24 @@ static int tegra_pmc_parse_dt(struct tegra_pmc *pmc, struct device_node *np)
 	pmc->suspend_mode = tegra_pm_validate_suspend_mode(pmc->suspend_mode);
 
 	if (of_property_read_u32(np, "nvidia,cpu-pwr-good-time", &value))
-		pmc->suspend_mode = TEGRA_SUSPEND_NONE;
+		pmc->suspend_mode = TEGRA_SUSPEND_ANALNE;
 
 	pmc->cpu_good_time = value;
 
 	if (of_property_read_u32(np, "nvidia,cpu-pwr-off-time", &value))
-		pmc->suspend_mode = TEGRA_SUSPEND_NONE;
+		pmc->suspend_mode = TEGRA_SUSPEND_ANALNE;
 
 	pmc->cpu_off_time = value;
 
 	if (of_property_read_u32_array(np, "nvidia,core-pwr-good-time",
 				       values, ARRAY_SIZE(values)))
-		pmc->suspend_mode = TEGRA_SUSPEND_NONE;
+		pmc->suspend_mode = TEGRA_SUSPEND_ANALNE;
 
 	pmc->core_osc_time = values[0];
 	pmc->core_pmu_time = values[1];
 
 	if (of_property_read_u32(np, "nvidia,core-pwr-off-time", &value))
-		pmc->suspend_mode = TEGRA_SUSPEND_NONE;
+		pmc->suspend_mode = TEGRA_SUSPEND_ANALNE;
 
 	pmc->core_off_time = value;
 
@@ -1930,19 +1930,19 @@ static int tegra_pmc_init(struct tegra_pmc *pmc)
 	if (pmc->soc->max_wake_events > 0) {
 		pmc->wake_type_level_map = bitmap_zalloc(pmc->soc->max_wake_events, GFP_KERNEL);
 		if (!pmc->wake_type_level_map)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pmc->wake_type_dual_edge_map = bitmap_zalloc(pmc->soc->max_wake_events, GFP_KERNEL);
 		if (!pmc->wake_type_dual_edge_map)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pmc->wake_sw_status_map = bitmap_zalloc(pmc->soc->max_wake_events, GFP_KERNEL);
 		if (!pmc->wake_sw_status_map)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pmc->wake_cntrl_level_map = bitmap_zalloc(pmc->soc->max_wake_events, GFP_KERNEL);
 		if (!pmc->wake_cntrl_level_map)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (pmc->soc->init)
@@ -1956,15 +1956,15 @@ static void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 	static const char disabled[] = "emergency thermal reset disabled";
 	u32 pmu_addr, ctrl_id, reg_addr, reg_data, pinmux;
 	struct device *dev = pmc->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 value, checksum;
 
 	if (!pmc->soc->has_tsense_reset)
 		return;
 
-	np = of_get_child_by_name(pmc->dev->of_node, "i2c-thermtrip");
+	np = of_get_child_by_name(pmc->dev->of_analde, "i2c-thermtrip");
 	if (!np) {
-		dev_warn(dev, "i2c-thermtrip node not found, %s.\n", disabled);
+		dev_warn(dev, "i2c-thermtrip analde analt found, %s.\n", disabled);
 		return;
 	}
 
@@ -2006,7 +2006,7 @@ static void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 
 	/*
 	 * Calculate checksum of SCRATCH54, SCRATCH55 fields. Bits 23:16 will
-	 * contain the checksum and are currently zero, so they are not added.
+	 * contain the checksum and are currently zero, so they are analt added.
 	 */
 	checksum = reg_addr + reg_data + (value & 0xff) + ((value >> 8) & 0xff)
 		+ ((value >> 24) & 0xff);
@@ -2024,7 +2024,7 @@ static void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 	dev_info(pmc->dev, "emergency thermal reset enabled\n");
 
 out:
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 static int tegra_io_pad_pinctrl_get_groups_count(struct pinctrl_dev *pctl_dev)
@@ -2059,7 +2059,7 @@ static const struct pinctrl_ops tegra_io_pad_pinctrl_ops = {
 	.get_groups_count = tegra_io_pad_pinctrl_get_groups_count,
 	.get_group_name = tegra_io_pad_pinctrl_get_group_name,
 	.get_group_pins = tegra_io_pad_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -2190,7 +2190,7 @@ static ssize_t reset_reason_show(struct device *dev,
 	value >>= pmc->soc->regs->rst_source_shift;
 
 	if (WARN_ON(value >= pmc->soc->num_reset_sources))
-		return sprintf(buf, "%s\n", "UNKNOWN");
+		return sprintf(buf, "%s\n", "UNKANALWN");
 
 	return sprintf(buf, "%s\n", pmc->soc->reset_sources[value]);
 }
@@ -2207,7 +2207,7 @@ static ssize_t reset_level_show(struct device *dev,
 	value >>= pmc->soc->regs->rst_level_shift;
 
 	if (WARN_ON(value >= pmc->soc->num_reset_levels))
-		return sprintf(buf, "%s\n", "UNKNOWN");
+		return sprintf(buf, "%s\n", "UNKANALWN");
 
 	return sprintf(buf, "%s\n", pmc->soc->reset_levels[value]);
 }
@@ -2284,7 +2284,7 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 				break;
 			}
 
-			spec.fwnode = &pmc->dev->of_node->fwnode;
+			spec.fwanalde = &pmc->dev->of_analde->fwanalde;
 			spec.param_count = 3;
 			spec.param[0] = GIC_SPI;
 			spec.param[1] = event->irq;
@@ -2314,7 +2314,7 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 		}
 	}
 
-	/* If there is no wake-up event, there is no PMC mapping */
+	/* If there is anal wake-up event, there is anal PMC mapping */
 	if (i == soc->num_wake_events)
 		err = irq_domain_disconnect_hierarchy(domain, virq);
 
@@ -2507,12 +2507,12 @@ static int tegra_irq_set_affinity_parent(struct irq_data *data,
 static int tegra_pmc_irq_init(struct tegra_pmc *pmc)
 {
 	struct irq_domain *parent = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_irq_find_parent(pmc->dev->of_node);
+	np = of_irq_find_parent(pmc->dev->of_analde);
 	if (np) {
 		parent = irq_find_host(np);
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	if (!parent)
@@ -2526,21 +2526,21 @@ static int tegra_pmc_irq_init(struct tegra_pmc *pmc)
 	pmc->irq.irq_set_type = pmc->soc->irq_set_type;
 	pmc->irq.irq_set_wake = pmc->soc->irq_set_wake;
 
-	pmc->domain = irq_domain_add_hierarchy(parent, 0, 96, pmc->dev->of_node,
+	pmc->domain = irq_domain_add_hierarchy(parent, 0, 96, pmc->dev->of_analde,
 					       &tegra_pmc_irq_domain_ops, pmc);
 	if (!pmc->domain) {
 		dev_err(pmc->dev, "failed to allocate domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
 }
 
-static int tegra_pmc_clk_notify_cb(struct notifier_block *nb,
+static int tegra_pmc_clk_analtify_cb(struct analtifier_block *nb,
 				   unsigned long action, void *ptr)
 {
 	struct tegra_pmc *pmc = container_of(nb, struct tegra_pmc, clk_nb);
-	struct clk_notifier_data *data = ptr;
+	struct clk_analtifier_data *data = ptr;
 
 	switch (action) {
 	case PRE_RATE_CHANGE:
@@ -2557,10 +2557,10 @@ static int tegra_pmc_clk_notify_cb(struct notifier_block *nb,
 
 	default:
 		WARN_ON_ONCE(1);
-		return notifier_from_errno(-EINVAL);
+		return analtifier_from_erranal(-EINVAL);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void pmc_clk_fence_udelay(u32 offset)
@@ -2650,13 +2650,13 @@ tegra_pmc_clk_out_register(struct tegra_pmc *pmc,
 
 	pmc_clk = devm_kzalloc(pmc->dev, sizeof(*pmc_clk), GFP_KERNEL);
 	if (!pmc_clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = data->name;
 	init.ops = &pmc_clk_ops;
 	init.parent_names = data->parents;
 	init.num_parents = data->num_parents;
-	init.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT |
+	init.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_SET_RATE_PARENT |
 		     CLK_SET_PARENT_GATE;
 
 	pmc_clk->hw.init = &init;
@@ -2706,7 +2706,7 @@ tegra_pmc_clk_gate_register(struct tegra_pmc *pmc, const char *name,
 
 	gate = devm_kzalloc(pmc->dev, sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &pmc_clk_gate_ops;
@@ -2722,7 +2722,7 @@ tegra_pmc_clk_gate_register(struct tegra_pmc *pmc, const char *name,
 }
 
 static void tegra_pmc_clock_register(struct tegra_pmc *pmc,
-				     struct device_node *np)
+				     struct device_analde *np)
 {
 	struct clk *clk;
 	struct clk_onecell_data *clk_data;
@@ -2748,7 +2748,7 @@ static void tegra_pmc_clock_register(struct tegra_pmc *pmc,
 	clk_data->clk_num = TEGRA_PMC_CLK_MAX;
 
 	for (i = 0; i < TEGRA_PMC_CLK_MAX; i++)
-		clk_data->clks[i] = ERR_PTR(-ENOENT);
+		clk_data->clks[i] = ERR_PTR(-EANALENT);
 
 	for (i = 0; i < pmc->soc->num_pmc_clks; i++) {
 		const struct pmc_clk_init_data *data;
@@ -2827,8 +2827,8 @@ static const struct regmap_range pmc_usb_sleepwalk_ranges[] = {
 };
 
 static const struct regmap_access_table pmc_usb_sleepwalk_table = {
-	.yes_ranges = pmc_usb_sleepwalk_ranges,
-	.n_yes_ranges = ARRAY_SIZE(pmc_usb_sleepwalk_ranges),
+	.anal_ranges = pmc_usb_sleepwalk_ranges,
+	.n_anal_ranges = ARRAY_SIZE(pmc_usb_sleepwalk_ranges),
 };
 
 static int tegra_pmc_regmap_readl(void *context, unsigned int offset, unsigned int *value)
@@ -2878,7 +2878,7 @@ static int tegra_pmc_regmap_init(struct tegra_pmc *pmc)
 
 static void tegra_pmc_reset_suspend_mode(void *data)
 {
-	pmc->suspend_mode = TEGRA_SUSPEND_NOT_READY;
+	pmc->suspend_mode = TEGRA_SUSPEND_ANALT_READY;
 }
 
 static int tegra_pmc_probe(struct platform_device *pdev)
@@ -2890,12 +2890,12 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	/*
 	 * Early initialisation should have configured an initial
 	 * register mapping and setup the soc data pointer. If these
-	 * are not valid then something went badly wrong!
+	 * are analt valid then something went badly wrong!
 	 */
 	if (WARN_ON(!pmc->base || !pmc->soc))
-		return -ENODEV;
+		return -EANALDEV;
 
-	err = tegra_pmc_parse_dt(pmc, pdev->dev.of_node);
+	err = tegra_pmc_parse_dt(pmc, pdev->dev.of_analde);
 	if (err < 0)
 		return err;
 
@@ -2945,10 +2945,10 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	 * PMC should be last resort for restarting since it soft-resets
 	 * CPU without resetting everything else.
 	 */
-	err = devm_register_reboot_notifier(&pdev->dev,
-					    &tegra_pmc_reboot_notifier);
+	err = devm_register_reboot_analtifier(&pdev->dev,
+					    &tegra_pmc_reboot_analtifier);
 	if (err) {
-		dev_err(&pdev->dev, "unable to register reboot notifier, %d\n",
+		dev_err(&pdev->dev, "unable to register reboot analtifier, %d\n",
 			err);
 		return err;
 	}
@@ -2980,15 +2980,15 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	/*
 	 * PCLK clock rate can't be retrieved using CLK API because it
 	 * causes lockup if CPU enters LP2 idle state from some other
-	 * CLK notifier, hence we're caching the rate's value locally.
+	 * CLK analtifier, hence we're caching the rate's value locally.
 	 */
 	if (pmc->clk) {
-		pmc->clk_nb.notifier_call = tegra_pmc_clk_notify_cb;
-		err = devm_clk_notifier_register(&pdev->dev, pmc->clk,
+		pmc->clk_nb.analtifier_call = tegra_pmc_clk_analtify_cb;
+		err = devm_clk_analtifier_register(&pdev->dev, pmc->clk,
 						 &pmc->clk_nb);
 		if (err) {
 			dev_err(&pdev->dev,
-				"failed to register clk notifier\n");
+				"failed to register clk analtifier\n");
 			return err;
 		}
 
@@ -3015,7 +3015,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto cleanup_sysfs;
 
-	err = tegra_powergate_init(pmc, pdev->dev.of_node);
+	err = tegra_powergate_init(pmc, pdev->dev.of_analde);
 	if (err < 0)
 		goto cleanup_powergates;
 
@@ -3028,7 +3028,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	pmc->base = base;
 	mutex_unlock(&pmc->powergates_lock);
 
-	tegra_pmc_clock_register(pmc, pdev->dev.of_node);
+	tegra_pmc_clock_register(pmc, pdev->dev.of_analde);
 	platform_set_drvdata(pdev, pmc);
 	tegra_pm_init_suspend();
 
@@ -3041,7 +3041,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	return 0;
 
 cleanup_powergates:
-	tegra_powergate_remove_all(pdev->dev.of_node);
+	tegra_powergate_remove_all(pdev->dev.of_analde);
 cleanup_sysfs:
 	device_remove_file(&pdev->dev, &dev_attr_reset_reason);
 	device_remove_file(&pdev->dev, &dev_attr_reset_level);
@@ -3109,7 +3109,7 @@ static void wke_read_sw_wake_status(struct tegra_pmc *pmc)
 
 	/*
 	 * Wait for the update to be synced into the 32kHz domain,
-	 * and let enough time lapse, so that the wake signals have time to
+	 * and let eanalugh time lapse, so that the wake signals have time to
 	 * be sampled.
 	 */
 	udelay(300);
@@ -3187,7 +3187,7 @@ static int tegra186_pmc_wake_syscore_suspend(void)
 	/* flip the wakeup trigger for dual-edge triggered pads
 	 * which are currently asserting as wakeups
 	 */
-	bitmap_andnot(pmc->wake_cntrl_level_map, pmc->wake_type_dual_edge_map,
+	bitmap_andanalt(pmc->wake_cntrl_level_map, pmc->wake_type_dual_edge_map,
 		      pmc->wake_sw_status_map, pmc->soc->max_wake_events);
 	bitmap_or(pmc->wake_cntrl_level_map, pmc->wake_cntrl_level_map,
 		  pmc->wake_type_level_map, pmc->soc->max_wake_events);
@@ -3265,13 +3265,13 @@ static void tegra20_pmc_init(struct tegra_pmc *pmc)
 	/* configure the output polarity while the request is tristated */
 	tegra_pmc_writel(pmc, value, PMC_CNTRL);
 
-	/* now enable the request */
+	/* analw enable the request */
 	value = tegra_pmc_readl(pmc, PMC_CNTRL);
 	value |= PMC_CNTRL_SYSCLK_OE;
 	tegra_pmc_writel(pmc, value, PMC_CNTRL);
 
 	/* program core timings which are applicable only for suspend state */
-	if (pmc->suspend_mode != TEGRA_SUSPEND_NONE) {
+	if (pmc->suspend_mode != TEGRA_SUSPEND_ANALNE) {
 		osc = DIV_ROUND_UP(pmc->core_osc_time * 8192, 1000000);
 		pmu = DIV_ROUND_UP(pmc->core_pmu_time * 32768, 1000000);
 		off = DIV_ROUND_UP(pmc->core_off_time * 32768, 1000000);
@@ -3282,7 +3282,7 @@ static void tegra20_pmc_init(struct tegra_pmc *pmc)
 }
 
 static void tegra20_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
-					   struct device_node *np,
+					   struct device_analde *np,
 					   bool invert)
 {
 	u32 value;
@@ -3633,7 +3633,7 @@ static const struct tegra_io_pad_soc tegra210_io_pads[] = {
 	TEGRA_IO_PAD(TEGRA_IO_PAD_CSIE, 12, 0x1c0, 0x1c4, UINT_MAX, "csie"),
 	TEGRA_IO_PAD(TEGRA_IO_PAD_CSIF, 13, 0x1c0, 0x1c4, UINT_MAX, "csif"),
 	TEGRA_IO_PAD(TEGRA_IO_PAD_DBG, 25, 0x1b8, 0x1bc, 19, "dbg"),
-	TEGRA_IO_PAD(TEGRA_IO_PAD_DEBUG_NONAO, 26, 0x1b8, 0x1bc, UINT_MAX, "debug-nonao"),
+	TEGRA_IO_PAD(TEGRA_IO_PAD_DEBUG_ANALNAO, 26, 0x1b8, 0x1bc, UINT_MAX, "debug-analnao"),
 	TEGRA_IO_PAD(TEGRA_IO_PAD_DMIC, 18, 0x1c0, 0x1c4, 20, "dmic"),
 	TEGRA_IO_PAD(TEGRA_IO_PAD_DP, 19, 0x1c0, 0x1c4, UINT_MAX, "dp"),
 	TEGRA_IO_PAD(TEGRA_IO_PAD_DSI, 2, 0x1b8, 0x1bc, UINT_MAX, "dsi"),
@@ -3674,7 +3674,7 @@ static const struct pinctrl_pin_desc tegra210_pin_descs[] = {
 	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_CSIE, "csie"),
 	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_CSIF, "csif"),
 	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_DBG, "dbg"),
-	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_DEBUG_NONAO, "debug-nonao"),
+	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_DEBUG_ANALNAO, "debug-analnao"),
 	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_DMIC, "dmic"),
 	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_DP, "dp"),
 	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_DSI, "dsi"),
@@ -3851,7 +3851,7 @@ static void tegra186_pmc_init(struct tegra_pmc *pmc)
 }
 
 static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
-					    struct device_node *np,
+					    struct device_analde *np,
 					    bool invert)
 {
 	struct resource regs;
@@ -4288,7 +4288,7 @@ static void tegra_pmc_sync_state(struct device *dev)
 
 	/*
 	 * Older device-trees don't have core PD, and thus, there are
-	 * no dependencies that will block the state syncing. We shouldn't
+	 * anal dependencies that will block the state syncing. We shouldn't
 	 * mark the domain as synced in this case.
 	 */
 	if (!pmc->core_domain_registered)
@@ -4296,7 +4296,7 @@ static void tegra_pmc_sync_state(struct device *dev)
 
 	pmc->core_domain_state_synced = true;
 
-	/* this is a no-op if core regulator isn't used */
+	/* this is a anal-op if core regulator isn't used */
 	mutex_lock(&pmc->powergates_lock);
 	err = dev_pm_opp_sync_regulators(dev);
 	mutex_unlock(&pmc->powergates_lock);
@@ -4352,27 +4352,27 @@ static bool __init tegra_pmc_detect_tz_only(struct tegra_pmc *pmc)
 static int __init tegra_pmc_early_init(void)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource regs;
 	unsigned int i;
 	bool invert;
 
 	mutex_init(&pmc->powergates_lock);
 
-	np = of_find_matching_node_and_match(NULL, tegra_pmc_match, &match);
+	np = of_find_matching_analde_and_match(NULL, tegra_pmc_match, &match);
 	if (!np) {
 		/*
 		 * Fall back to legacy initialization for 32-bit ARM only. All
 		 * 64-bit ARM device tree files for Tegra are required to have
-		 * a PMC node.
+		 * a PMC analde.
 		 *
 		 * This is for backwards-compatibility with old device trees
-		 * that didn't contain a PMC node. Note that in this case the
+		 * that didn't contain a PMC analde. Analte that in this case the
 		 * SoC data can't be matched and therefore powergating is
 		 * disabled.
 		 */
 		if (IS_ENABLED(CONFIG_ARM) && soc_is_tegra()) {
-			pr_warn("DT node not found, powergating disabled\n");
+			pr_warn("DT analde analt found, powergating disabled\n");
 
 			regs.start = 0x7000e400;
 			regs.end = 0x7000e7ff;
@@ -4381,7 +4381,7 @@ static int __init tegra_pmc_early_init(void)
 			pr_warn("Using memory region %pR\n", &regs);
 		} else {
 			/*
-			 * At this point we're not running on Tegra, so play
+			 * At this point we're analt running on Tegra, so play
 			 * nice with multi-platform kernels.
 			 */
 			return 0;
@@ -4389,11 +4389,11 @@ static int __init tegra_pmc_early_init(void)
 	} else {
 		/*
 		 * Extract information from the device tree if we've found a
-		 * matching node.
+		 * matching analde.
 		 */
 		if (of_address_to_resource(np, 0, &regs) < 0) {
 			pr_err("failed to get PMC registers\n");
-			of_node_put(np);
+			of_analde_put(np);
 			return -ENXIO;
 		}
 	}
@@ -4401,7 +4401,7 @@ static int __init tegra_pmc_early_init(void)
 	pmc->base = ioremap(regs.start, resource_size(&regs));
 	if (!pmc->base) {
 		pr_err("failed to map PMC registers\n");
-		of_node_put(np);
+		of_analde_put(np);
 		return -ENXIO;
 	}
 
@@ -4417,14 +4417,14 @@ static int __init tegra_pmc_early_init(void)
 				set_bit(i, pmc->powergates_available);
 
 		/*
-		 * Invert the interrupt polarity if a PMC device tree node
+		 * Invert the interrupt polarity if a PMC device tree analde
 		 * exists and contains the nvidia,invert-interrupt property.
 		 */
 		invert = of_property_read_bool(np, "nvidia,invert-interrupt");
 
 		pmc->soc->setup_irq_polarity(pmc, np, invert);
 
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	return 0;

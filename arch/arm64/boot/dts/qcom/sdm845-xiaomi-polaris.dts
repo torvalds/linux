@@ -22,15 +22,15 @@
  * Delete following upstream (sdm845.dtsi) reserved
  * memory mappings which are different in this device.
  */
-/delete-node/ &rmtfs_mem;
-/delete-node/ &adsp_mem;
-/delete-node/ &wlan_msa_mem;
-/delete-node/ &mpss_region;
-/delete-node/ &venus_mem;
-/delete-node/ &cdsp_mem;
-/delete-node/ &mba_region;
-/delete-node/ &slpi_mem;
-/delete-node/ &spss_mem;
+/delete-analde/ &rmtfs_mem;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &wlan_msa_mem;
+/delete-analde/ &mpss_region;
+/delete-analde/ &venus_mem;
+/delete-analde/ &cdsp_mem;
+/delete-analde/ &mba_region;
+/delete-analde/ &slpi_mem;
+/delete-analde/ &spss_mem;
 
 / {
 	model = "Xiaomi Mi MIX 2S";
@@ -64,48 +64,48 @@
 	reserved-memory {
 		adsp_mem: memory@8c500000 {
 			reg = <0 0x8c500000 0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: memory@8e300000 {
 			reg = <0 0x8e300000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_region: memory@8e400000 {
 			reg = <0 0x8e400000 0 0x7800000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@95c00000 {
 			reg = <0 0x95c00000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: memory@96100000 {
 			reg = <0 0x96100000 0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_region: memory@96900000 {
 			reg = <0 0x96900000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		slpi_mem: memory@96b00000 {
 			reg = <0 0x96b00000 0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		spss_mem: memory@97f00000 {
 			reg = <0 0x97f00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: memory@f6301000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0 0xf6301000 0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -376,7 +376,7 @@
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 				<GCC_QSPI_CORE_CLK_SRC>,
-				<GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+				<GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
 				<GCC_LPASS_Q6_AXI_CLK>,
 				<GCC_LPASS_SWAY_CLK>;
 };
@@ -440,7 +440,7 @@
 		syna,reset-delay-ms = <0xc8>;
 
 		rmi4-f01@1 {
-			syna,nosleep-mode = <0x1>;
+			syna,analsleep-mode = <0x1>;
 			reg = <0x1>;
 		};
 
@@ -524,8 +524,8 @@
 &pm8998_gpios {
 	volume_up_gpio: pm8998-gpio6-state {
 		pinconf {
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
-			function = "normal";
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
+			function = "analrmal";
 			pins = "gpio6";
 			input-enable;
 			bias-pull-up;

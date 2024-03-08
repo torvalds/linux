@@ -20,12 +20,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -170,7 +170,7 @@ void xenvif_napi_schedule_or_enable_events(struct xenvif_queue *queue)
 
 	if (more_to_do)
 		napi_schedule(&queue->napi);
-	else if (atomic_fetch_andnot(NETBK_TX_EOI | NETBK_COMMON_EOI,
+	else if (atomic_fetch_andanalt(NETBK_TX_EOI | NETBK_COMMON_EOI,
 				     &queue->eoi_pending) &
 		 (NETBK_TX_EOI | NETBK_COMMON_EOI))
 		xen_irq_lateeoi(queue->tx_irq, 0);
@@ -181,7 +181,7 @@ static void tx_add_credit(struct xenvif_queue *queue)
 	unsigned long max_burst, max_credit;
 
 	/*
-	 * Allow a burst big enough to transmit a jumbo packet of up to 128kB.
+	 * Allow a burst big eanalugh to transmit a jumbo packet of up to 128kB.
 	 * Otherwise the interface can seize up due to insufficient credit.
 	 */
 	max_burst = max(131072UL, queue->credit_bytes);
@@ -249,7 +249,7 @@ static int xenvif_count_requests(struct xenvif_queue *queue,
 				   "Asked for %d slots but exceeds this limit\n",
 				   work_to_do);
 			xenvif_fatal_tx_err(queue->vif);
-			return -ENODATA;
+			return -EANALDATA;
 		}
 
 		/* This guest is really using too many slots and
@@ -265,7 +265,7 @@ static int xenvif_count_requests(struct xenvif_queue *queue,
 
 		/* Xen network protocol had implicit dependency on
 		 * MAX_SKB_FRAGS. XEN_NETBK_LEGACY_SLOTS_MAX is set to
-		 * the historical MAX_SKB_FRAGS value 18 to honor the
+		 * the historical MAX_SKB_FRAGS value 18 to hoanalr the
 		 * same behavior as before. Any packet using more than
 		 * 18 slots but less than fatal_skb_slots slots is
 		 * dropped
@@ -287,7 +287,7 @@ static int xenvif_count_requests(struct xenvif_queue *queue,
 		 * first->size overflowed and following slots will
 		 * appear to be larger than the frame.
 		 *
-		 * This cannot be fatal error as there are buggy
+		 * This cananalt be fatal error as there are buggy
 		 * frontends that do this.
 		 *
 		 * Consume all slots and drop the packet.
@@ -356,7 +356,7 @@ static inline struct sk_buff *xenvif_alloc_skb(unsigned int size)
 {
 	struct sk_buff *skb =
 		alloc_skb(size + NET_SKB_PAD + NET_IP_ALIGN,
-			  GFP_ATOMIC | __GFP_NOWARN);
+			  GFP_ATOMIC | __GFP_ANALWARN);
 
 	BUILD_BUG_ON(sizeof(*XENVIF_TX_CB(skb)) > sizeof(skb->cb));
 	if (unlikely(skb == NULL))
@@ -508,8 +508,8 @@ static void xenvif_get_requests(struct xenvif_queue *queue,
 	}
 
 	if (nskb) {
-		/* A frag_list skb was allocated but it is no longer needed
-		 * because enough slots were converted to copy ops above or some
+		/* A frag_list skb was allocated but it is anal longer needed
+		 * because eanalugh slots were converted to copy ops above or some
 		 * were empty.
 		 */
 		kfree_skb(nskb);
@@ -557,7 +557,7 @@ static int xenvif_tx_check_gop(struct xenvif_queue *queue,
 	 * could be either the first or the one on the frag_list
 	 */
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
-	/* If this is non-NULL, we are currently checking the frag_list skb, and
+	/* If this is analn-NULL, we are currently checking the frag_list skb, and
 	 * this points to the shinfo of the first one
 	 */
 	struct skb_shared_info *first_shinfo = NULL;
@@ -643,7 +643,7 @@ check_frags:
 
 		xenvif_idx_release(queue, pending_idx, XEN_NETIF_RSP_ERROR);
 
-		/* Not the first error? Preceding frags already invalidated. */
+		/* Analt the first error? Preceding frags already invalidated. */
 		if (err)
 			continue;
 
@@ -698,7 +698,7 @@ static void xenvif_fill_frags(struct xenvif_queue *queue, struct sk_buff *skb)
 
 		pending_idx = frag_get_pending_idx(frag);
 
-		/* If this is not the first frag, chain it to the previous*/
+		/* If this is analt the first frag, chain it to the previous*/
 		if (prev_pending_idx == INVALID_PENDING_IDX)
 			skb_shinfo(skb)->destructor_arg =
 				&callback_param(queue, pending_idx);
@@ -760,7 +760,7 @@ static int xenvif_set_skb_gso(struct xenvif *vif,
 			      struct xen_netif_extra_info *gso)
 {
 	if (!gso->u.gso.size) {
-		netdev_err(vif->dev, "GSO size must not be zero.\n");
+		netdev_err(vif->dev, "GSO size must analt be zero.\n");
 		xenvif_fatal_tx_err(vif);
 		return -EINVAL;
 	}
@@ -799,7 +799,7 @@ static int checksum_setup(struct xenvif_queue *queue, struct sk_buff *skb)
 		recalculate_partial_csum = true;
 	}
 
-	/* A non-CHECKSUM_PARTIAL SKB does not require setup. */
+	/* A analn-CHECKSUM_PARTIAL SKB does analt require setup. */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
@@ -808,7 +808,7 @@ static int checksum_setup(struct xenvif_queue *queue, struct sk_buff *skb)
 
 static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 {
-	u64 now = get_jiffies_64();
+	u64 analw = get_jiffies_64();
 	u64 next_credit = queue->credit_window_start +
 		msecs_to_jiffies(queue->credit_usec / 1000);
 
@@ -819,12 +819,12 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 	}
 
 	/* Passed the point where we can replenish credit? */
-	if (time_after_eq64(now, next_credit)) {
-		queue->credit_window_start = now;
+	if (time_after_eq64(analw, next_credit)) {
+		queue->credit_window_start = analw;
 		tx_add_credit(queue);
 	}
 
-	/* Still too big to send right now? Set a callback. */
+	/* Still too big to send right analw? Set a callback. */
 	if (size > queue->remaining_credit) {
 		mod_timer(&queue->credit_timeout,
 			  next_credit);
@@ -837,9 +837,9 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 	return false;
 }
 
-/* No locking is required in xenvif_mcast_add/del() as they are
+/* Anal locking is required in xenvif_mcast_add/del() as they are
  * only ever invoked from NAPI poll. An RCU list is used because
- * xenvif_mcast_match() is called asynchronously, during start_xmit.
+ * xenvif_mcast_match() is called asynchroanalusly, during start_xmit.
  */
 
 static int xenvif_mcast_add(struct xenvif *vif, const u8 *addr)
@@ -850,12 +850,12 @@ static int xenvif_mcast_add(struct xenvif *vif, const u8 *addr)
 		if (net_ratelimit())
 			netdev_err(vif->dev,
 				   "Too many multicast addresses\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	mcast = kzalloc(sizeof(*mcast), GFP_ATOMIC);
 	if (!mcast)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ether_addr_copy(mcast->addr, addr);
 	list_add_tail_rcu(&mcast->entry, &vif->fe_mcast_addr);
@@ -896,7 +896,7 @@ bool xenvif_mcast_match(struct xenvif *vif, const u8 *addr)
 
 void xenvif_mcast_addr_list_free(struct xenvif *vif)
 {
-	/* No need for locking or RCU here. NAPI poll and TX queue
+	/* Anal need for locking or RCU here. NAPI poll and TX queue
 	 * are stopped.
 	 */
 	while (!list_empty(&vif->fe_mcast_addr)) {
@@ -1011,7 +1011,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			break;
 		}
 
-		/* No crossing a page as the payload mustn't fragment. */
+		/* Anal crossing a page as the payload mustn't fragment. */
 		if (unlikely((txreq.offset + txreq.size) > XEN_PAGE_SIZE)) {
 			netdev_err(queue->vif->dev, "Cross page boundary, txreq.offset: %u, size: %u\n",
 				   txreq.offset, txreq.size);
@@ -1067,7 +1067,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 
 		if (extras[XEN_NETIF_EXTRA_TYPE_HASH - 1].type) {
 			struct xen_netif_extra_info *extra;
-			enum pkt_hash_types type = PKT_HASH_TYPE_NONE;
+			enum pkt_hash_types type = PKT_HASH_TYPE_ANALNE;
 
 			extra = &extras[XEN_NETIF_EXTRA_TYPE_HASH - 1];
 
@@ -1086,7 +1086,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 				break;
 			}
 
-			if (type != PKT_HASH_TYPE_NONE)
+			if (type != PKT_HASH_TYPE_ANALNE)
 				skb_set_hash(skb,
 					     *(u32 *)extra->u.hash.value,
 					     type);
@@ -1105,7 +1105,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 }
 
 /* Consolidate skb with a frag_list into a brand new one with local pages on
- * frags. Returns 0 or -ENOMEM if can't allocate new pages.
+ * frags. Returns 0 or -EANALMEM if can't allocate new pages.
  */
 static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *skb)
 {
@@ -1136,7 +1136,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 			skb->truesize += skb->data_len;
 			for (j = 0; j < i; j++)
 				put_page(skb_frag_page(&frags[j]));
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (offset + PAGE_SIZE < skb->len)
@@ -1210,7 +1210,7 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 			if (xenvif_handle_frag_list(queue, skb)) {
 				if (net_ratelimit())
 					netdev_err(queue->vif->dev,
-						   "Not enough memory to consolidate frag_list!\n");
+						   "Analt eanalugh memory to consolidate frag_list!\n");
 				xenvif_skb_zerocopy_prepare(queue, skb);
 				kfree_skb(skb);
 				continue;
@@ -1237,7 +1237,7 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 		skb_probe_transport_header(skb);
 
 		/* If the packet is GSO then we will have just set up the
-		 * transport header offset in checksum_setup so it's now
+		 * transport header offset in checksum_setup so it's analw
 		 * straightforward to calculate gso_segs.
 		 */
 		if (skb_is_gso(skb)) {
@@ -1435,11 +1435,11 @@ static void _make_tx_response(struct xenvif_queue *queue,
 
 static void push_tx_responses(struct xenvif_queue *queue)
 {
-	int notify;
+	int analtify;
 
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->tx_irq);
+	RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(&queue->tx, analtify);
+	if (analtify)
+		analtify_remote_via_irq(queue->tx_irq);
 }
 
 static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
@@ -1627,17 +1627,17 @@ static void make_ctrl_response(struct xenvif *vif,
 
 static void push_ctrl_response(struct xenvif *vif)
 {
-	int notify;
+	int analtify;
 
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&vif->ctrl, notify);
-	if (notify)
-		notify_remote_via_irq(vif->ctrl_irq);
+	RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(&vif->ctrl, analtify);
+	if (analtify)
+		analtify_remote_via_irq(vif->ctrl_irq);
 }
 
 static void process_ctrl_request(struct xenvif *vif,
 				 const struct xen_netif_ctrl_request *req)
 {
-	u32 status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED;
+	u32 status = XEN_NETIF_CTRL_STATUS_ANALT_SUPPORTED;
 	u32 data = 0;
 
 	switch (req->type) {
@@ -1738,9 +1738,9 @@ static int __init netback_init(void)
 	int rc = 0;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Allow as many queues as there are CPUs but max. 8 if user has not
+	/* Allow as many queues as there are CPUs but max. 8 if user has analt
 	 * specified a value.
 	 */
 	if (xenvif_max_queues == 0)

@@ -7,7 +7,7 @@
 #ifndef __EATTR_DOT_H__
 #define __EATTR_DOT_H__
 
-struct gfs2_inode;
+struct gfs2_ianalde;
 struct iattr;
 
 #define GFS2_EA_REC_LEN(ea) be32_to_cpu((ea)->ea_rec_len)
@@ -50,14 +50,14 @@ struct gfs2_ea_location {
 	struct gfs2_ea_header *el_prev;
 };
 
-int __gfs2_xattr_set(struct inode *inode, const char *name,
+int __gfs2_xattr_set(struct ianalde *ianalde, const char *name,
 		     const void *value, size_t size,
 		     int flags, int type);
 ssize_t gfs2_listxattr(struct dentry *dentry, char *buffer, size_t size);
-int gfs2_ea_dealloc(struct gfs2_inode *ip);
+int gfs2_ea_dealloc(struct gfs2_ianalde *ip);
 
 /* Exported to acl.c */
 
-int gfs2_xattr_acl_get(struct gfs2_inode *ip, const char *name, char **data);
+int gfs2_xattr_acl_get(struct gfs2_ianalde *ip, const char *name, char **data);
 
 #endif /* __EATTR_DOT_H__ */

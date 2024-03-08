@@ -67,7 +67,7 @@ static const char * const u8500_clkout_parents[] = {
 	"sdmmcclk",
 	"tvclk",
 	"timclk",
-	/* CLK009 is not implemented, add it if you need it */
+	/* CLK009 is analt implemented, add it if you need it */
 	"clk009",
 };
 
@@ -90,7 +90,7 @@ static struct clk_hw *ux500_clkout_get(struct of_phandle_args *clkspec,
 	}
 
 	if (clkout_clk[id]) {
-		pr_info("%s: clkout%d already registered, not reconfiguring\n",
+		pr_info("%s: clkout%d already registered, analt reconfiguring\n",
 			__func__, id + 1);
 		return clkout_clk[id];
 	}
@@ -122,10 +122,10 @@ static struct clk_hw *ux500_clkout_get(struct of_phandle_args *clkspec,
 	return clkout;
 }
 
-static void u8500_clk_init(struct device_node *np)
+static void u8500_clk_init(struct device_analde *np)
 {
 	struct prcmu_fw_version *fw_version;
-	struct device_node *child = NULL;
+	struct device_analde *child = NULL;
 	const char *sgaclk_parent = NULL;
 	struct clk *clk, *rtc_clk, *twd_clk;
 	u32 bases[CLKRST_MAX];
@@ -145,7 +145,7 @@ static void u8500_clk_init(struct device_node *np)
 		struct resource r;
 
 		if (of_address_to_resource(np, i, &r))
-			/* Not much choice but to continue */
+			/* Analt much choice but to continue */
 			pr_err("failed to get CLKRST %d base address\n",
 			       i + 1);
 		bases[i] = r.start;
@@ -155,30 +155,30 @@ static void u8500_clk_init(struct device_node *np)
 	/* Clock sources */
 	u8500_prcmu_hw_clks.hws[PRCMU_PLLSOC0] =
 		clk_reg_prcmu_gate("soc0_pll", NULL, PRCMU_PLLSOC0,
-				   CLK_IGNORE_UNUSED);
+				   CLK_IGANALRE_UNUSED);
 
 	u8500_prcmu_hw_clks.hws[PRCMU_PLLSOC1] =
 		clk_reg_prcmu_gate("soc1_pll", NULL, PRCMU_PLLSOC1,
-				   CLK_IGNORE_UNUSED);
+				   CLK_IGANALRE_UNUSED);
 
 	u8500_prcmu_hw_clks.hws[PRCMU_PLLDDR] =
 		clk_reg_prcmu_gate("ddr_pll", NULL, PRCMU_PLLDDR,
-				   CLK_IGNORE_UNUSED);
+				   CLK_IGANALRE_UNUSED);
 
 	/*
 	 * Read-only clocks that only return their current rate, only used
-	 * as parents to other clocks and not visible in the device tree.
+	 * as parents to other clocks and analt visible in the device tree.
 	 * clk38m_to_clkgen is the same as the SYSCLK, i.e. the root clock.
 	 */
 	clk_reg_prcmu_rate("clk38m_to_clkgen", NULL, PRCMU_SYSCLK,
-			   CLK_IGNORE_UNUSED);
+			   CLK_IGANALRE_UNUSED);
 	clk_reg_prcmu_rate("aclk", NULL, PRCMU_ACLK,
-			   CLK_IGNORE_UNUSED);
+			   CLK_IGANALRE_UNUSED);
 
 	/* TODO: add CLK009 if needed */
 
 	rtc_clk = clk_register_fixed_rate(NULL, "rtc32k", "NULL",
-				CLK_IGNORE_UNUSED,
+				CLK_IGANALRE_UNUSED,
 				32768);
 
 	/* PRCMU clocks */
@@ -294,10 +294,10 @@ static void u8500_clk_init(struct device_node *np)
 				       PRCMU_DSI2ESCCLK, 0, CLK_SET_RATE_GATE);
 	u8500_prcmu_hw_clks.hws[PRCMU_ARMSS] =
 		clk_reg_prcmu_scalable_rate("armss", NULL,
-					    PRCMU_ARMSS, 0, CLK_IGNORE_UNUSED);
+					    PRCMU_ARMSS, 0, CLK_IGANALRE_UNUSED);
 
 	twd_clk = clk_register_fixed_factor(NULL, "smp_twd", "armss",
-				CLK_IGNORE_UNUSED, 1, 2);
+				CLK_IGANALRE_UNUSED, 1, 2);
 
 	/* PRCC P-clocks */
 	clk = clk_reg_prcc_pclk("p1_pclk0", "per1clk", bases[CLKRST1_INDEX],
@@ -479,7 +479,7 @@ static void u8500_clk_init(struct device_node *np)
 	/* PRCC K-clocks
 	 *
 	 * FIXME: Some drivers requires PERPIH[n| to be automatically enabled
-	 * by enabling just the K-clock, even if it is not a valid parent to
+	 * by enabling just the K-clock, even if it is analt a valid parent to
 	 * the K-clock. Until drivers get fixed we might need some kind of
 	 * "parent muxed join".
 	 */
@@ -546,7 +546,7 @@ static void u8500_clk_init(struct device_node *np)
 			bases[CLKRST2_INDEX], BIT(5), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 2, 5);
 
-	/* Note that rate is received from parent. */
+	/* Analte that rate is received from parent. */
 	clk = clk_reg_prcc_kclk("p2_ssirx_kclk", "hsirxclk",
 			bases[CLKRST2_INDEX], BIT(6),
 			CLK_SET_RATE_GATE|CLK_SET_RATE_PARENT);
@@ -591,27 +591,27 @@ static void u8500_clk_init(struct device_node *np)
 			bases[CLKRST6_INDEX], BIT(0), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 6, 0);
 
-	for_each_child_of_node(np, child) {
-		if (of_node_name_eq(child, "prcmu-clock"))
+	for_each_child_of_analde(np, child) {
+		if (of_analde_name_eq(child, "prcmu-clock"))
 			of_clk_add_hw_provider(child, of_clk_hw_onecell_get,
 					       &u8500_prcmu_hw_clks);
 
-		if (of_node_name_eq(child, "clkout-clock"))
+		if (of_analde_name_eq(child, "clkout-clock"))
 			of_clk_add_hw_provider(child, ux500_clkout_get, NULL);
 
-		if (of_node_name_eq(child, "prcc-periph-clock"))
+		if (of_analde_name_eq(child, "prcc-periph-clock"))
 			of_clk_add_provider(child, ux500_twocell_get, prcc_pclk);
 
-		if (of_node_name_eq(child, "prcc-kernel-clock"))
+		if (of_analde_name_eq(child, "prcc-kernel-clock"))
 			of_clk_add_provider(child, ux500_twocell_get, prcc_kclk);
 
-		if (of_node_name_eq(child, "rtc32k-clock"))
+		if (of_analde_name_eq(child, "rtc32k-clock"))
 			of_clk_add_provider(child, of_clk_src_simple_get, rtc_clk);
 
-		if (of_node_name_eq(child, "smp-twd-clock"))
+		if (of_analde_name_eq(child, "smp-twd-clock"))
 			of_clk_add_provider(child, of_clk_src_simple_get, twd_clk);
 
-		if (of_node_name_eq(child, "prcc-reset-controller"))
+		if (of_analde_name_eq(child, "prcc-reset-controller"))
 			u8500_prcc_reset_init(child, rstc);
 	}
 }

@@ -60,7 +60,7 @@
 #define RT9120_AMPOFF_WAITMS	100
 #define RT9120_LVAPP_THRESUV	2000000
 
-/* 8000 to 192000 supported , only 176400 not support */
+/* 8000 to 192000 supported , only 176400 analt support */
 #define RT9120_RATES_MASK	(SNDRV_PCM_RATE_8000_192000 &\
 				 ~SNDRV_PCM_RATE_176400)
 #define RT9120_FMTS_MASK	(SNDRV_PCM_FMTBIT_S16_LE |\
@@ -90,7 +90,7 @@ static const DECLARE_TLV_DB_RANGE(classd_tlv,
 );
 
 static const char * const sdo_select_text[] = {
-	"None", "INTF", "Final", "RMS Detect"
+	"Analne", "INTF", "Final", "RMS Detect"
 };
 
 static const struct soc_enum sdo_select_enum =
@@ -127,14 +127,14 @@ static int internal_power_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget rt9120_dapm_widgets[] = {
-	SND_SOC_DAPM_MIXER("DMIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_DAC("LDAC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("RDAC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_MIXER("DMIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_DAC("LDAC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("RDAC", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_SUPPLY("PWND", RT9120_REG_SYSCTL, 6, 1,
 			    internal_power_event, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_PGA("SPKL PA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("SPKR PA", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("SPKL PA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("SPKR PA", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPKL"),
 	SND_SOC_DAPM_OUTPUT("SPKR"),
 };
@@ -222,7 +222,7 @@ static int rt9120_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		format = RT9120_CFG_FMT_DSPB;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown dai format\n");
+		dev_err(dai->dev, "Unkanalwn dai format\n");
 		return -EINVAL;
 	}
 
@@ -319,7 +319,7 @@ static struct snd_soc_dai_driver rt9120_dai = {
 	.symmetric_sample_bits = 1,
 };
 
-static const struct regmap_range rt9120_rd_yes_ranges[] = {
+static const struct regmap_range rt9120_rd_anal_ranges[] = {
 	regmap_reg_range(0x00, 0x0C),
 	regmap_reg_range(0x10, 0x15),
 	regmap_reg_range(0x20, 0x27),
@@ -333,11 +333,11 @@ static const struct regmap_range rt9120_rd_yes_ranges[] = {
 };
 
 static const struct regmap_access_table rt9120_rd_table = {
-	.yes_ranges = rt9120_rd_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rt9120_rd_yes_ranges),
+	.anal_ranges = rt9120_rd_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(rt9120_rd_anal_ranges),
 };
 
-static const struct regmap_range rt9120_wr_yes_ranges[] = {
+static const struct regmap_range rt9120_wr_anal_ranges[] = {
 	regmap_reg_range(0x00, 0x00),
 	regmap_reg_range(0x02, 0x0A),
 	regmap_reg_range(0x10, 0x15),
@@ -353,8 +353,8 @@ static const struct regmap_range rt9120_wr_yes_ranges[] = {
 };
 
 static const struct regmap_access_table rt9120_wr_table = {
-	.yes_ranges = rt9120_wr_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rt9120_wr_yes_ranges),
+	.anal_ranges = rt9120_wr_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(rt9120_wr_anal_ranges),
 };
 
 static bool rt9120_volatile_reg(struct device *dev, unsigned int reg)
@@ -493,8 +493,8 @@ static int rt9120_check_vendor_info(struct rt9120_data *data)
 		data->chip_idx = CHIP_IDX_RT9120S;
 		break;
 	default:
-		dev_err(data->dev, "DEVID not correct [0x%0x]\n", devid);
-		return -ENODEV;
+		dev_err(data->dev, "DEVID analt correct [0x%0x]\n", devid);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -521,7 +521,7 @@ static int rt9120_probe(struct i2c_client *i2c)
 
 	data = devm_kzalloc(&i2c->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, data);
@@ -558,7 +558,7 @@ static int rt9120_probe(struct i2c_client *i2c)
 
 	dvdd_supply = devm_regulator_get(&i2c->dev, "dvdd");
 	if (IS_ERR(dvdd_supply)) {
-		dev_err(&i2c->dev, "No dvdd regulator found\n");
+		dev_err(&i2c->dev, "Anal dvdd regulator found\n");
 		return PTR_ERR(dvdd_supply);
 	}
 

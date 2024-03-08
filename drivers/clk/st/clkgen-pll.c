@@ -190,8 +190,8 @@ static const struct clkgen_pll_data_clks st_pll4600c28_418_a9_data = {
  * Traits of this clock:
  * prepare - clk_(un)prepare only ensures parent is (un)prepared
  * enable - clk_enable/disable only ensures parent is enabled
- * rate - rate is fixed. No clk_set_rate support
- * parent - fixed parent.  No clk_set_parent support
+ * rate - rate is fixed. Anal clk_set_rate support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 /*
@@ -352,7 +352,7 @@ static int clk_pll3200c32_get_params(unsigned long input, unsigned long output,
 		}
 	}
 
-	if (deviation == ~0) /* No solution found */
+	if (deviation == ~0) /* Anal solution found */
 		return -EINVAL;
 
 	/* Computing recommended charge pump value */
@@ -387,7 +387,7 @@ static unsigned long recalc_stm_pll3200c32(struct clk_hw *hw,
 	idf = CLKGEN_READ(pll, idf);
 
 	if (idf)
-		/* Note: input is divided to avoid overflow */
+		/* Analte: input is divided to avoid overflow */
 		rate = ((2 * (parent_rate/1000) * ndiv) / idf) * 1000;
 
 	pr_debug("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
@@ -460,7 +460,7 @@ static int set_rate_stm_pll3200c32(struct clk_hw *hw, unsigned long rate,
 }
 
 /* PLL output structure
- * FVCO >> /2 >> FVCOBY2 (no output)
+ * FVCO >> /2 >> FVCOBY2 (anal output)
  *                 |> Divider (ODF) >> PHI
  *
  * FVCOby2 output = (input * 2 * NDIV) / IDF (assuming FRAC_CONTROL==L)
@@ -512,7 +512,7 @@ static int clk_pll4600c28_get_params(unsigned long input, unsigned long output,
 		}
 	}
 
-	if (deviation == ~0) /* No solution found */
+	if (deviation == ~0) /* Anal solution found */
 		return -EINVAL;
 
 	return 0;
@@ -652,12 +652,12 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = clk_name;
 	init.ops = pll_data->ops;
 
-	init.flags = pll_flags | CLK_GET_RATE_NOCACHE;
+	init.flags = pll_flags | CLK_GET_RATE_ANALCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents  = 1;
 
@@ -681,18 +681,18 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 }
 
 static void __iomem * __init clkgen_get_register_base(
-				struct device_node *np)
+				struct device_analde *np)
 {
-	struct device_node *pnode;
+	struct device_analde *panalde;
 	void __iomem *reg = NULL;
 
-	pnode = of_get_parent(np);
-	if (!pnode)
+	panalde = of_get_parent(np);
+	if (!panalde)
 		return NULL;
 
-	reg = of_iomap(pnode, 0);
+	reg = of_iomap(panalde, 0);
 
-	of_node_put(pnode);
+	of_analde_put(panalde);
 	return reg;
 }
 
@@ -708,11 +708,11 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 	struct clk_gate *gate;
 	struct clk_divider *div;
 
-	flags = pll_flags | CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT;
+	flags = pll_flags | CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT;
 
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gate->flags = CLK_GATE_SET_TO_DISABLE;
 	gate->reg = reg + pll_data->odf_gate[odf].offset;
@@ -722,7 +722,7 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div) {
 		kfree(gate);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	div->flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO;
@@ -747,7 +747,7 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 }
 
 
-static void __init clkgen_c32_pll_setup(struct device_node *np,
+static void __init clkgen_c32_pll_setup(struct device_analde *np,
 		struct clkgen_pll_data_clks *datac)
 {
 	struct clk *clk;
@@ -822,49 +822,49 @@ err:
 	kfree(clk_data->clks);
 	kfree(clk_data);
 }
-static void __init clkgen_c32_pll0_setup(struct device_node *np)
+static void __init clkgen_c32_pll0_setup(struct device_analde *np)
 {
 	clkgen_c32_pll_setup(np,
 		(struct clkgen_pll_data_clks *) &st_pll3200c32_cx_0_legacy_data);
 }
 CLK_OF_DECLARE(c32_pll0, "st,clkgen-pll0", clkgen_c32_pll0_setup);
 
-static void __init clkgen_c32_pll0_a0_setup(struct device_node *np)
+static void __init clkgen_c32_pll0_a0_setup(struct device_analde *np)
 {
 	clkgen_c32_pll_setup(np,
 		(struct clkgen_pll_data_clks *) &st_pll3200c32_a0_data);
 }
 CLK_OF_DECLARE(c32_pll0_a0, "st,clkgen-pll0-a0", clkgen_c32_pll0_a0_setup);
 
-static void __init clkgen_c32_pll0_c0_setup(struct device_node *np)
+static void __init clkgen_c32_pll0_c0_setup(struct device_analde *np)
 {
 	clkgen_c32_pll_setup(np,
 		(struct clkgen_pll_data_clks *) &st_pll3200c32_c0_data);
 }
 CLK_OF_DECLARE(c32_pll0_c0, "st,clkgen-pll0-c0", clkgen_c32_pll0_c0_setup);
 
-static void __init clkgen_c32_pll1_setup(struct device_node *np)
+static void __init clkgen_c32_pll1_setup(struct device_analde *np)
 {
 	clkgen_c32_pll_setup(np,
 		(struct clkgen_pll_data_clks *) &st_pll3200c32_cx_1_legacy_data);
 }
 CLK_OF_DECLARE(c32_pll1, "st,clkgen-pll1", clkgen_c32_pll1_setup);
 
-static void __init clkgen_c32_pll1_c0_setup(struct device_node *np)
+static void __init clkgen_c32_pll1_c0_setup(struct device_analde *np)
 {
 	clkgen_c32_pll_setup(np,
 		(struct clkgen_pll_data_clks *) &st_pll3200c32_c1_data);
 }
 CLK_OF_DECLARE(c32_pll1_c0, "st,clkgen-pll1-c0", clkgen_c32_pll1_c0_setup);
 
-static void __init clkgen_c32_plla9_setup(struct device_node *np)
+static void __init clkgen_c32_plla9_setup(struct device_analde *np)
 {
 	clkgen_c32_pll_setup(np,
 		(struct clkgen_pll_data_clks *) &st_pll3200c32_407_a9_data);
 }
 CLK_OF_DECLARE(c32_plla9, "st,stih407-clkgen-plla9", clkgen_c32_plla9_setup);
 
-static void __init clkgen_c28_plla9_setup(struct device_node *np)
+static void __init clkgen_c28_plla9_setup(struct device_analde *np)
 {
 	clkgen_c32_pll_setup(np,
 		(struct clkgen_pll_data_clks *) &st_pll4600c28_418_a9_data);

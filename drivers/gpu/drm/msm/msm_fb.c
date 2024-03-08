@@ -39,7 +39,7 @@ static int msm_framebuffer_dirtyfb(struct drm_framebuffer *fb,
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 
-	/* If this fb is not used on any display requiring pixel data to be
+	/* If this fb is analt used on any display requiring pixel data to be
 	 * flushed, then skip dirtyfb
 	 */
 	if (refcount_read(&msm_fb->dirtyfb) == 1)
@@ -73,7 +73,7 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 }
 #endif
 
-/* prepare/pin all the fb's bo's for scanout.
+/* prepare/pin all the fb's bo's for scaanalut.
  */
 int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace,
@@ -192,7 +192,7 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 
 	msm_fb = kzalloc(sizeof(*msm_fb), GFP_KERNEL);
 	if (!msm_fb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -258,11 +258,11 @@ msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format
 	/* allocate backing bo */
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	DBG("allocating %d bytes for fb %d", size, dev->primary->index);
-	bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC | MSM_BO_STOLEN);
+	bo = msm_gem_new(dev, size, MSM_BO_SCAANALUT | MSM_BO_WC | MSM_BO_STOLEN);
 	if (IS_ERR(bo)) {
-		dev_warn(dev->dev, "could not allocate stolen bo\n");
+		dev_warn(dev->dev, "could analt allocate stolen bo\n");
 		/* try regular bo: */
-		bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC);
+		bo = msm_gem_new(dev, size, MSM_BO_SCAANALUT | MSM_BO_WC);
 	}
 	if (IS_ERR(bo)) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate buffer object\n");
@@ -274,7 +274,7 @@ msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format
 	fb = msm_framebuffer_init(dev, &mode_cmd, &bo);
 	if (IS_ERR(fb)) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate fb\n");
-		/* note: if fb creation failed, we can't rely on fb destroy
+		/* analte: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
 		drm_gem_object_put(bo);

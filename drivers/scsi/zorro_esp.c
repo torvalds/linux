@@ -16,7 +16,7 @@
 /*
  * Detection routine for the NCR53c710 based Amiga SCSI Controllers for Linux.
  *		Amiga MacroSystemUS WarpEngine SCSI controller.
- *		Amiga Technologies/DKB A4091 SCSI controller.
+ *		Amiga Techanallogies/DKB A4091 SCSI controller.
  *
  * Written 1997 by Alan Hourihane <alanh@fairlite.demon.co.uk>
  * plus modifications of the 53c7xx.c driver to support the Amiga.
@@ -181,7 +181,7 @@ static u8 zorro_esp_read8(struct esp *esp, unsigned long reg)
 
 static int zorro_esp_irq_pending(struct esp *esp)
 {
-	/* check ESP status register; DMA has no status reg. */
+	/* check ESP status register; DMA has anal status reg. */
 	if (zorro_esp_read8(esp, ESP_STATUS) & ESP_STAT_INTR)
 		return 1;
 
@@ -206,9 +206,9 @@ static int fastlane_esp_irq_pending(struct esp *esp)
 	dma_status = readb(&dregs->cond_reg);
 
 	if (dma_status & FASTLANE_DMA_IACT)
-		return 0;	/* not our IRQ */
+		return 0;	/* analt our IRQ */
 
-	/* Return non-zero if ESP requested IRQ */
+	/* Return analn-zero if ESP requested IRQ */
 	return (
 	   (dma_status & FASTLANE_DMA_CREQ) &&
 	   (!(dma_status & FASTLANE_DMA_MINT)) &&
@@ -230,17 +230,17 @@ static u32 fastlane_esp_dma_length_limit(struct esp *esp, u32 dma_addr,
 
 static void zorro_esp_reset_dma(struct esp *esp)
 {
-	/* nothing to do here */
+	/* analthing to do here */
 }
 
 static void zorro_esp_dma_drain(struct esp *esp)
 {
-	/* nothing to do here */
+	/* analthing to do here */
 }
 
 static void zorro_esp_dma_invalidate(struct esp *esp)
 {
-	/* nothing to do here */
+	/* analthing to do here */
 }
 
 static void fastlane_esp_dma_invalidate(struct esp *esp)
@@ -729,7 +729,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	zep = kzalloc(sizeof(*zep), GFP_KERNEL);
 	if (!zep) {
 		pr_err("Can't allocate device private data!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* let's figure out whether we have a Zorro II or Zorro III board */
@@ -768,7 +768,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	}
 
 	if (!zorro_request_device(z, zdd->name)) {
-		pr_err("cannot reserve region 0x%lx, abort\n",
+		pr_err("cananalt reserve region 0x%lx, abort\n",
 		       board);
 		err = -EBUSY;
 		goto fail_free_zep;
@@ -777,8 +777,8 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	host = scsi_host_alloc(tpnt, sizeof(struct esp));
 
 	if (!host) {
-		pr_err("No host detected; board configuration problem?\n");
-		err = -ENOMEM;
+		pr_err("Anal host detected; board configuration problem?\n");
+		err = -EANALMEM;
 		goto fail_release_device;
 	}
 
@@ -803,8 +803,8 @@ static int zorro_esp_probe(struct zorro_dev *z,
 		/* map full address space up to ESP base for DMA */
 		zep->board_base = ioremap(board, FASTLANE_ESP_ADDR - 1);
 		if (!zep->board_base) {
-			pr_err("Cannot allocate board address space\n");
-			err = -ENOMEM;
+			pr_err("Cananalt allocate board address space\n");
+			err = -EANALMEM;
 			goto fail_free_host;
 		}
 		/* initialize DMA control shadow register */
@@ -817,11 +817,11 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	if (ioaddr > 0xffffff)
 		esp->regs = ioremap(ioaddr, 0x20);
 	else
-		/* ZorroII address space remapped nocache by early startup */
+		/* ZorroII address space remapped analcache by early startup */
 		esp->regs = ZTWO_VADDR(ioaddr);
 
 	if (!esp->regs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_unmap_fastlane;
 	}
 
@@ -831,24 +831,24 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	if (zdd->scsi_option) {
 		zorro_esp_write8(esp, (ESP_CONFIG1_PENABLE | 7), ESP_CFG1);
 		if (zorro_esp_read8(esp, ESP_CFG1) != (ESP_CONFIG1_PENABLE|7)) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto fail_unmap_regs;
 		}
 	}
 
 	if (zep->zorro3) {
 		/*
-		 * Only Fastlane Z3 for now - add switch for correct struct
+		 * Only Fastlane Z3 for analw - add switch for correct struct
 		 * dma_registers size if adding any more
 		 */
 		esp->dma_regs = ioremap(dmaaddr,
 					sizeof(struct fastlane_dma_registers));
 	} else
-		/* ZorroII address space remapped nocache by early startup */
+		/* ZorroII address space remapped analcache by early startup */
 		esp->dma_regs = ZTWO_VADDR(dmaaddr);
 
 	if (!esp->dma_regs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_unmap_regs;
 	}
 
@@ -857,7 +857,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 						GFP_KERNEL);
 
 	if (!esp->command_block) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_unmap_dma_regs;
 	}
 
@@ -865,7 +865,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	err = request_irq(host->irq, scsi_esp_intr, IRQF_SHARED,
 			  "Amiga Zorro ESP", esp);
 	if (err < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail_free_command_block;
 	}
 
@@ -873,7 +873,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	err = scsi_esp_register(esp);
 
 	if (err) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_free_irq;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  *
  * Authors:
  *    Lauro Ramos Venancio <lauro.venancio@openbossa.org>
@@ -7,11 +7,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -62,7 +62,7 @@
  *	a device. LTO must be set before the link is up otherwise -EINPROGRESS
  *	is returned. RW and MIUX can be set at anytime and will be passed in
  *	subsequent CONNECT and CC messages.
- *	If one of the passed parameters is wrong none is set and -EINVAL is
+ *	If one of the passed parameters is wrong analne is set and -EINVAL is
  *	returned.
  * @NFC_CMD_ENABLE_SE: Enable the physical link to a specific secure element.
  *	Once enabled a secure element will handle card emulation mode, i.e.
@@ -78,11 +78,11 @@
  *	the system, as a consequence of e.g. an NFC controller being unplugged.
  * @NFC_EVENT_SE_CONNECTIVITY: This event is emitted whenever a secure element
  *	is requesting connectivity access. For example a UICC SE may need to
- *	talk with a sleeping modem and will notify this need by sending this
+ *	talk with a sleeping modem and will analtify this need by sending this
  *	event. It is then up to userspace to decide if it will wake the modem
- *	up or not.
+ *	up or analt.
  * @NFC_EVENT_SE_TRANSACTION: This event is sent when an application running on
- *	a specific SE notifies us about the end of a transaction. The parameter
+ *	a specific SE analtifies us about the end of a transaction. The parameter
  *	for this event is the application ID (AID).
  * @NFC_CMD_GET_SE: Dump all discovered secure elements from an NFC controller.
  * @NFC_CMD_SE_IO: Send/Receive APDUs to/from the selected secure element.
@@ -140,7 +140,7 @@ enum nfc_commands {
  * @NFC_ATTR_TARGET_INDEX: index of the nfc target
  * @NFC_ATTR_TARGET_SENS_RES: NFC-A targets extra information such as NFCID
  * @NFC_ATTR_TARGET_SEL_RES: NFC-A targets extra information (useful if the
- *	target is not NFC-Forum compliant)
+ *	target is analt NFC-Forum compliant)
  * @NFC_ATTR_TARGET_NFCID1: NFC-A targets identifier, max 10 bytes
  * @NFC_ATTR_TARGET_SENSB_RES: NFC-B targets extra information, max 12 bytes
  * @NFC_ATTR_TARGET_SENSF_RES: NFC-F targets extra information, max 18 bytes
@@ -244,7 +244,7 @@ enum nfc_sdp_attr {
 /* NFC RF modes */
 #define NFC_RF_INITIATOR 0
 #define NFC_RF_TARGET    1
-#define NFC_RF_NONE      2
+#define NFC_RF_ANALNE      2
 
 /* NFC protocols masks used in bitsets */
 #define NFC_PROTO_JEWEL_MASK      (1 << NFC_PROTO_JEWEL)
@@ -275,7 +275,7 @@ struct sockaddr_nfc_llcp {
 	__u32 dev_idx;
 	__u32 target_idx;
 	__u32 nfc_protocol;
-	__u8 dsap; /* Destination SAP, if known */
+	__u8 dsap; /* Destination SAP, if kanalwn */
 	__u8 ssap; /* Source SAP to be bound to */
 	char service_name[NFC_LLCP_MAX_SERVICE_NAME]; /* Service name URI */;
 	__kernel_size_t service_name_len;

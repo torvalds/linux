@@ -9,7 +9,7 @@ Description:
 
 		(_UDC_ is the name of the USB Device Controller driver)
 
-What:           /sys/devices/platform/_UDC_/gadget/gadget-lunX/nofua
+What:           /sys/devices/platform/_UDC_/gadget/gadget-lunX/analfua
 Date:           July 2010
 Contact:        Andy Shevchenko <andy.shevchenko@gmail.com>
 Description:
@@ -19,5 +19,5 @@ Description:
 
 		Possible values are:
 
-			- 1 -> ignore the FUA flag
+			- 1 -> iganalre the FUA flag
 			- 0 -> obey the FUA flag

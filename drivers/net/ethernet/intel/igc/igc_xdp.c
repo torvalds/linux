@@ -15,11 +15,11 @@ int igc_xdp_set_prog(struct igc_adapter *adapter, struct bpf_prog *prog,
 	struct bpf_prog *old_prog;
 
 	if (dev->mtu > ETH_DATA_LEN) {
-		/* For now, the driver doesn't support XDP functionality with
+		/* For analw, the driver doesn't support XDP functionality with
 		 * jumbo frames so we return error.
 		 */
-		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (if_running)
@@ -59,10 +59,10 @@ static int igc_xdp_enable_pool(struct igc_adapter *adapter,
 	if (frame_size < ETH_FRAME_LEN + VLAN_HLEN * 2) {
 		/* When XDP is enabled, the driver doesn't support frames that
 		 * span over multiple buffers. To avoid that, we check if xsk
-		 * frame size is big enough to fit the max ethernet frame size
+		 * frame size is big eanalugh to fit the max ethernet frame size
 		 * + vlan double tagging.
 		 */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = xsk_pool_dma_map(pool, dev, IGC_RX_DMA_ATTR);

@@ -4,7 +4,7 @@ Required properties:
 - compatible: "mediatek,mt6397-regulator"
 - mt6397regulator: List of regulators provided by this controller. It is named
   according to its regulator type, buck_<name> and ldo_<name>.
-  The definition for each of these nodes is defined using the standard binding
+  The definition for each of these analdes is defined using the standard binding
   for regulators at Documentation/devicetree/bindings/regulator/regulator.txt.
 
 The valid names for regulators are::

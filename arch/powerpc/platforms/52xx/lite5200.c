@@ -4,7 +4,7 @@
  *
  * Written by: Grant Likely <grant.likely@secretlab.ca>
  *
- * Copyright (C) Secret Lab Technologies Ltd. 2006. All rights reserved.
+ * Copyright (C) Secret Lab Techanallogies Ltd. 2006. All rights reserved.
  * Copyright 2006 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Description:
@@ -46,20 +46,20 @@ static const struct of_device_id mpc5200_gpio_ids[] __initconst = {
  * Fix clock configuration.
  *
  * Firmware is supposed to be responsible for this.  If you are creating a
- * new board port, do *NOT* duplicate this code.  Fix your boot firmware
+ * new board port, do *ANALT* duplicate this code.  Fix your boot firmware
  * to set it correctly in the first place
  */
 static void __init
 lite5200_fix_clock_config(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct mpc52xx_cdm  __iomem *cdm;
 	/* Map zones */
-	np = of_find_matching_node(NULL, mpc5200_cdm_ids);
+	np = of_find_matching_analde(NULL, mpc5200_cdm_ids);
 	cdm = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!cdm) {
-		printk(KERN_ERR "%s() failed; expect abnormal behaviour\n",
+		printk(KERN_ERR "%s() failed; expect abanalrmal behaviour\n",
 		       __func__);
 		return;
 	}
@@ -80,21 +80,21 @@ lite5200_fix_clock_config(void)
  * Fix setting of port_config register.
  *
  * Firmware is supposed to be responsible for this.  If you are creating a
- * new board port, do *NOT* duplicate this code.  Fix your boot firmware
+ * new board port, do *ANALT* duplicate this code.  Fix your boot firmware
  * to set it correctly in the first place
  */
 static void __init
 lite5200_fix_port_config(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct mpc52xx_gpio __iomem *gpio;
 	u32 port_config;
 
-	np = of_find_matching_node(NULL, mpc5200_gpio_ids);
+	np = of_find_matching_analde(NULL, mpc5200_gpio_ids);
 	gpio = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!gpio) {
-		printk(KERN_ERR "%s() failed. expect abnormal behavior\n",
+		printk(KERN_ERR "%s() failed. expect abanalrmal behavior\n",
 		       __func__);
 		return;
 	}

@@ -106,7 +106,7 @@ enum cc_std_body {
 /* Definitions for HW descriptors DIN/DOUT fields */
 #define NS_BIT 1
 #define AXI_ID 0
-/* AXI_ID is not actually the AXI ID of the transaction but the value of AXI_ID
+/* AXI_ID is analt actually the AXI ID of the transaction but the value of AXI_ID
  * field in the HW descriptor. The DMA engine +8 that value.
  */
 
@@ -141,7 +141,7 @@ struct cc_drvdata {
 	void *aead_handle;
 	void *request_mgr_handle;
 	void *fips_handle;
-	u32 sram_free_offset;	/* offset to non-allocated area in SRAM */
+	u32 sram_free_offset;	/* offset to analn-allocated area in SRAM */
 	struct dentry *dir;	/* for debugfs */
 	struct clk *clk;
 	bool coherent;
@@ -160,7 +160,7 @@ struct cc_drvdata {
 struct cc_crypto_alg {
 	struct list_head entry;
 	int cipher_mode;
-	int flow_mode; /* Note: currently, refers to the cipher mode only. */
+	int flow_mode; /* Analte: currently, refers to the cipher mode only. */
 	int auth_mode;
 	struct cc_drvdata *drvdata;
 	struct skcipher_alg skcipher_alg;
@@ -176,7 +176,7 @@ struct cc_alg_template {
 		struct aead_alg aead;
 	} template_u;
 	int cipher_mode;
-	int flow_mode; /* Note: currently, refers to the cipher mode only. */
+	int flow_mode; /* Analte: currently, refers to the cipher mode only. */
 	int auth_mode;
 	u32 min_hw_rev;
 	enum cc_std_body std_body;

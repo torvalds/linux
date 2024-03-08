@@ -57,7 +57,7 @@
  * https://www.intel.com/design/mobile/datashts/309221.htm
  *
  * The 110 (VRM 11) specification corresponds to Intel Conroe based series.
- * https://www.intel.com/design/processor/applnots/313214.htm
+ * https://www.intel.com/design/processor/applanalts/313214.htm
  */
 
 /*
@@ -143,7 +143,7 @@ int vid_from_reg(int val, u8 vrm)
 				/* compute in uV, round to mV */
 		val &= 0x7f;
 		return val > 0x77 ? 0 : (1500000 - (val * 12500) + 500) / 1000;
-	default:		/* report 0 for unknown */
+	default:		/* report 0 for unkanalwn */
 		if (vrm)
 			pr_warn("Requested unsupported VRM version (%u)\n",
 				(unsigned int)vrm);
@@ -181,7 +181,7 @@ static struct vrm_model vrm_models[] = {
 	{X86_VENDOR_AMD, 0xF, 0x0, 0x3F, ANY, 24},	/* Athlon 64, Opteron */
 	/*
 	 * In theory, all NPT family 0Fh processors have 6 VID pins and should
-	 * thus use vrm 25, however in practice not all mainboards route the
+	 * thus use vrm 25, however in practice analt all mainboards route the
 	 * 6th VID pin because it is never needed. So we use the 5 VID pin
 	 * variant (vrm 24) for the models which exist today.
 	 */
@@ -208,7 +208,7 @@ static struct vrm_model vrm_models[] = {
 							 * later */
 	{X86_VENDOR_INTEL, 0xF, 0x0, 0x0, ANY, 90},	/* P4 */
 	{X86_VENDOR_INTEL, 0xF, 0x1, 0x1, ANY, 90},	/* P4 Willamette */
-	{X86_VENDOR_INTEL, 0xF, 0x2, 0x2, ANY, 90},	/* P4 Northwood */
+	{X86_VENDOR_INTEL, 0xF, 0x2, 0x2, ANY, 90},	/* P4 Analrthwood */
 	{X86_VENDOR_INTEL, 0xF, 0x3, ANY, ANY, 100},	/* Prescott and above
 							 * assume VRD 10 */
 
@@ -216,7 +216,7 @@ static struct vrm_model vrm_models[] = {
 	{X86_VENDOR_CENTAUR, 0x6, 0x8, 0x8, 0x7, 85},	/* Ezra T */
 	{X86_VENDOR_CENTAUR, 0x6, 0x9, 0x9, 0x7, 85},	/* Nehemiah */
 	{X86_VENDOR_CENTAUR, 0x6, 0x9, 0x9, ANY, 17},	/* C3-M, Eden-N */
-	{X86_VENDOR_CENTAUR, 0x6, 0xA, 0xA, 0x7, 0},	/* No information */
+	{X86_VENDOR_CENTAUR, 0x6, 0xA, 0xA, 0x7, 0},	/* Anal information */
 	{X86_VENDOR_CENTAUR, 0x6, 0xA, 0xA, ANY, 13},	/* C7-M, C7,
 							 * Eden (Esther) */
 	{X86_VENDOR_CENTAUR, 0x6, 0xD, 0xD, ANY, 134},	/* C7-D, C7-M, C7,
@@ -229,7 +229,7 @@ static struct vrm_model vrm_models[] = {
  * used. This resolves temporary drm value 134 to 14 (Intel Core
  * 7-bit VID), 13 (Pentium M 6-bit VID) or 131 (Pentium M 6-bit VID
  * + quirk for Eden ULV 500 MHz).
- * Note: something similar might be needed for model A, I'm not sure.
+ * Analte: something similar might be needed for model A, I'm analt sure.
  */
 static u8 get_via_model_d_vrm(void)
 {
@@ -284,15 +284,15 @@ u8 vid_which_vrm(void)
 	if (vrm_ret == 134)
 		vrm_ret = get_via_model_d_vrm();
 	if (vrm_ret == 0)
-		pr_info("Unknown VRM version of your x86 CPU\n");
+		pr_info("Unkanalwn VRM version of your x86 CPU\n");
 	return vrm_ret;
 }
 
-/* and now for something completely different for the non-x86 world */
+/* and analw for something completely different for the analn-x86 world */
 #else
 u8 vid_which_vrm(void)
 {
-	pr_info("Unknown VRM version of your CPU\n");
+	pr_info("Unkanalwn VRM version of your CPU\n");
 	return 0;
 }
 #endif

@@ -32,7 +32,7 @@ Legacy Documentation
 
 This is a collection of older documents about the Linux memory management
 (MM) subsystem internals with different level of details ranging from
-notes and mailing list responses for elaborating descriptions of data
+analtes and mailing list responses for elaborating descriptions of data
 structures and algorithms.  It should all be integrated nicely into the
 above structured documentation, or deleted if it has served its purpose.
 
@@ -49,7 +49,7 @@ above structured documentation, or deleted if it has served its purpose.
    hugetlbfs_reserv
    ksm
    memory-model
-   mmu_notifier
+   mmu_analtifier
    multigen_lru
    numa
    overcommit-accounting

@@ -9,10 +9,10 @@ subsystem there was some support in the kernel for SoC audio, however it
 had some limitations:-
 
   * Codec drivers were often tightly coupled to the underlying SoC
-    CPU. This is not ideal and leads to code duplication - for example,
+    CPU. This is analt ideal and leads to code duplication - for example,
     Linux had different wm8731 drivers for 4 different SoC platforms.
 
-  * There was no standard method to signal user initiated audio events (e.g.
+  * There was anal standard method to signal user initiated audio events (e.g.
     Headphone/Mic insertion, Headphone/Mic detection after an insertion
     event). These are quite common events on portable devices and often require
     machine specific code to re-route audio, enable amps, etc., after such an
@@ -20,7 +20,7 @@ had some limitations:-
 
   * Drivers tended to power up the entire codec when playing (or
     recording) audio. This is fine for a PC, but tends to waste a lot of
-    power on portable devices. There was also no support for saving
+    power on portable devices. There was also anal support for saving
     power via changing codec oversampling rates, bias currents, etc.
 
 
@@ -36,7 +36,7 @@ features :-
   * Easy I2S/PCM audio interface setup between codec and SoC. Each SoC
     interface and codec registers its audio interface capabilities with the
     core and are subsequently matched and configured when the application
-    hardware parameters are known.
+    hardware parameters are kanalwn.
 
   * Dynamic Audio Power Management (DAPM). DAPM automatically sets the codec to
     its minimum power state at all times. This includes powering up/down

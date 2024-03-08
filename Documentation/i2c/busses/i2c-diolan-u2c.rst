@@ -19,7 +19,7 @@ The Diolan U2C-12 I2C-USB Adapter provides a low cost solution to connect
 a computer to I2C slave devices using a USB interface. It also supports
 connectivity to SPI devices.
 
-This driver only supports the I2C interface of U2C-12. The driver does not use
+This driver only supports the I2C interface of U2C-12. The driver does analt use
 interrupts.
 
 

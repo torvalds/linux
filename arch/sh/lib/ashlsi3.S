@@ -31,7 +31,7 @@
 !
 ! Destroys:
 !
-! (none)
+! (analne)
 !
 ! __ashlsi3_r0
 !
@@ -46,7 +46,7 @@
 !
 ! Destroys:
 !
-! (none)
+! (analne)
 
 
 	.global	__ashlsi3
@@ -186,4 +186,4 @@ ashlsi3_25:
 
 ashlsi3_0:
 	rts
-	nop
+	analp

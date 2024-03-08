@@ -1,18 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_PKT_SCHED_H
 #define __LINUX_PKT_SCHED_H
 
 #include <linux/types.h>
 
-/* Logical priority bands not depending on specific packet scheduler.
+/* Logical priority bands analt depending on specific packet scheduler.
    Every scheduler will map them to real traffic classes, if it has
-   no more precise mechanism to classify packets.
+   anal more precise mechanism to classify packets.
 
-   These numbers have no special meaning, though their coincidence
-   with obsolete IPv6 values is not occasional :-). New IPv6 drafts
+   These numbers have anal special meaning, though their coincidence
+   with obsolete IPv6 values is analt occasional :-). New IPv6 drafts
    preferred full anarchy inspired by diffserv group.
 
-   Note: TC_PRIO_BESTEFFORT does not mean that it is the most unhappy
+   Analte: TC_PRIO_BESTEFFORT does analt mean that it is the most unhappy
    class, actually, as rule it will be handled with more care than
    filler or even bulk.
  */
@@ -54,12 +54,12 @@ struct tc_estimator {
 
     They can be considered as opaque numbers from user API viewpoint,
     but actually they always consist of two fields: major and
-    minor numbers, which are interpreted by kernel specially,
-    that may be used by applications, though not recommended.
+    mianalr numbers, which are interpreted by kernel specially,
+    that may be used by applications, though analt recommended.
 
-    F.e. qdisc handles always have minor number equal to zero,
+    F.e. qdisc handles always have mianalr number equal to zero,
     classes (or flows) have major equal to parent qdisc major, and
-    minor uniquely identifying class inside qdisc.
+    mianalr uniquely identifying class inside qdisc.
 
     Macros to manipulate handles:
  */
@@ -205,7 +205,7 @@ enum {
 
 /* TEQL section */
 
-/* TEQL does not require any parameters */
+/* TEQL does analt require any parameters */
 
 /* SFQ section */
 
@@ -402,7 +402,7 @@ struct tc_htb_glob {
 	__u32 debug;		/* debug flags */
 
 	/* stats */
-	__u32 direct_pkts; /* count of non shaped packets */
+	__u32 direct_pkts; /* count of analn shaped packets */
 };
 enum {
 	TCA_HTB_UNSPEC,
@@ -482,9 +482,9 @@ enum {
 struct tc_netem_qopt {
 	__u32	latency;	/* added delay (us) */
 	__u32   limit;		/* fifo limit (packets) */
-	__u32	loss;		/* random packet loss (0=none ~0=100%) */
-	__u32	gap;		/* re-ordering gap (0 for none) */
-	__u32   duplicate;	/* random packet dup  (0=none ~0=100%) */
+	__u32	loss;		/* random packet loss (0=analne ~0=100%) */
+	__u32	gap;		/* re-ordering gap (0 for analne) */
+	__u32   duplicate;	/* random packet dup  (0=analne ~0=100%) */
 	__u32	jitter;		/* random jitter in latency (us) */
 };
 
@@ -567,8 +567,8 @@ struct tc_drr_stats {
 #define TC_QOPT_MAX_QUEUE 16
 
 enum {
-	TC_MQPRIO_HW_OFFLOAD_NONE,	/* no offload requested */
-	TC_MQPRIO_HW_OFFLOAD_TCS,	/* offload TCs, no queue counts */
+	TC_MQPRIO_HW_OFFLOAD_ANALNE,	/* anal offload requested */
+	TC_MQPRIO_HW_OFFLOAD_TCS,	/* offload TCs, anal queue counts */
 	__TC_MQPRIO_HW_OFFLOAD_MAX
 };
 
@@ -625,7 +625,7 @@ enum {
 #define TCA_SFB_MAX (__TCA_SFB_MAX - 1)
 
 /*
- * Note: increment, decrement are Q0.16 fixed-point values.
+ * Analte: increment, decrement are Q0.16 fixed-point values.
  */
 struct tc_sfb_qopt {
 	__u32 rehash_interval;	/* delay between hash move, in ms */
@@ -771,7 +771,7 @@ enum {
 
 	TCA_FQ_RATE_ENABLE,	/* enable/disable rate limiting */
 
-	TCA_FQ_FLOW_DEFAULT_RATE,/* obsolete, do not use */
+	TCA_FQ_FLOW_DEFAULT_RATE,/* obsolete, do analt use */
 
 	TCA_FQ_FLOW_MAX_RATE,	/* per flow max rate */
 
@@ -816,7 +816,7 @@ enum {
 	TCA_HHF_RESET_TIMEOUT,
 	TCA_HHF_ADMIT_BYTES,
 	TCA_HHF_EVICT_TIMEOUT,
-	TCA_HHF_NON_HH_WEIGHT,
+	TCA_HHF_ANALN_HH_WEIGHT,
 	__TCA_HHF_MAX
 };
 
@@ -972,7 +972,7 @@ enum {
 #define TC_CAKE_MAX_TINS (8)
 
 enum {
-	CAKE_FLOW_NONE = 0,
+	CAKE_FLOW_ANALNE = 0,
 	CAKE_FLOW_SRC_IP,
 	CAKE_FLOW_DST_IP,
 	CAKE_FLOW_HOSTS,    /* = CAKE_FLOW_SRC_IP | CAKE_FLOW_DST_IP */
@@ -993,14 +993,14 @@ enum {
 };
 
 enum {
-	CAKE_ACK_NONE = 0,
+	CAKE_ACK_ANALNE = 0,
 	CAKE_ACK_FILTER,
 	CAKE_ACK_AGGRESSIVE,
 	CAKE_ACK_MAX
 };
 
 enum {
-	CAKE_ATM_NONE = 0,
+	CAKE_ATM_ANALNE = 0,
 	CAKE_ATM_ATM,
 	CAKE_ATM_PTM,
 	CAKE_ATM_MAX

@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,10 +30,10 @@
 extern "C" {
 #endif
 
-/* Please note that modifications to all structs defined here are
+/* Please analte that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
  *
- * Do not use pointers, use __u64 instead for 32 bit / 64 bit user/kernel
+ * Do analt use pointers, use __u64 instead for 32 bit / 64 bit user/kernel
  * compatibility Keep fields aligned to their size
  */
 
@@ -104,7 +104,7 @@ struct drm_virtgpu_getparam {
 	__u64 value;
 };
 
-/* NO_BO flags? NO resource flag? */
+/* ANAL_BO flags? ANAL resource flag? */
 /* resource flag for y_0_top */
 struct drm_virtgpu_resource_create {
 	__u32 target;
@@ -157,7 +157,7 @@ struct drm_virtgpu_3d_transfer_from_host {
 	__u32 layer_stride;
 };
 
-#define VIRTGPU_WAIT_NOWAIT 1 /* like it */
+#define VIRTGPU_WAIT_ANALWAIT 1 /* like it */
 struct drm_virtgpu_3d_wait {
 	__u32 handle; /* 0 is an invalid handle */
 	__u32 flags;
@@ -215,7 +215,7 @@ struct drm_virtgpu_context_init {
 
 /*
  * Event code that's given when VIRTGPU_CONTEXT_PARAM_POLL_RINGS_MASK is in
- * effect.  The event size is sizeof(drm_event), since there is no additional
+ * effect.  The event size is sizeof(drm_event), since there is anal additional
  * payload.
  */
 #define VIRTGPU_EVENT_FENCE_SIGNALED 0x90000000

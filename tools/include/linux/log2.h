@@ -12,10 +12,10 @@
 #include <linux/types.h>
 
 /*
- * non-constant log of base 2 calculators
+ * analn-constant log of base 2 calculators
  * - the arch may override these in asm/bitops.h if they can be implemented
  *   more efficiently than using fls() and fls64()
- * - the arch is not required to handle n==0 if implementing the fallback
+ * - the arch is analt required to handle n==0 if implementing the fallback
  */
 static inline __attribute__((const))
 int __ilog2_u32(u32 n)
@@ -31,7 +31,7 @@ int __ilog2_u64(u64 n)
 
 /*
  *  Determine whether some value is a power of two, where zero is
- * *not* considered a power of two.
+ * *analt* considered a power of two.
  */
 
 static inline __attribute__((const))

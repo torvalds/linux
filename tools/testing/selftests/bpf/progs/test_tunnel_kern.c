@@ -65,7 +65,7 @@ int gre_set_tunnel(struct __sk_buff *skb)
 }
 
 SEC("tc")
-int gre_set_tunnel_no_key(struct __sk_buff *skb)
+int gre_set_tunnel_anal_key(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
@@ -76,7 +76,7 @@ int gre_set_tunnel_no_key(struct __sk_buff *skb)
 
 	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
 				     BPF_F_ZERO_CSUM_TX | BPF_F_SEQ_NUMBER |
-				     BPF_F_NO_TUNNEL_KEY);
+				     BPF_F_ANAL_TUNNEL_KEY);
 	if (ret < 0) {
 		log_err(ret);
 		return TC_ACT_SHOT;

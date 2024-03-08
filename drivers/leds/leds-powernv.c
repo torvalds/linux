@@ -154,7 +154,7 @@ static enum led_brightness powernv_led_get(struct powernv_led_data *powernv_led)
 
 	/* LED status available */
 	if (!((led_mask >> powernv_led->led_type) & OPAL_SLOT_LED_STATE_ON)) {
-		dev_err(dev, "%s: LED status not available for %s\n",
+		dev_err(dev, "%s: LED status analt available for %s\n",
 			__func__, powernv_led->cdev.name);
 		return LED_OFF;
 	}
@@ -178,7 +178,7 @@ static int powernv_brightness_set(struct led_classdev *led_cdev,
 	struct powernv_led_common *powernv_led_common = powernv_led->common;
 	int rc;
 
-	/* Do not modify LED in unload path */
+	/* Do analt modify LED in unload path */
 	if (powernv_led_common->led_disabled)
 		return 0;
 
@@ -200,7 +200,7 @@ static enum led_brightness powernv_brightness_get(struct led_classdev *led_cdev)
 
 /*
  * This function registers classdev structure for any given type of LED on
- * a given child LED device node.
+ * a given child LED device analde.
  */
 static int powernv_led_create(struct device *dev,
 			      struct powernv_led_data *powernv_led,
@@ -211,7 +211,7 @@ static int powernv_led_create(struct device *dev,
 	/* Make sure LED type is supported */
 	powernv_led->led_type = powernv_get_led_type(led_type_desc);
 	if (powernv_led->led_type == -1) {
-		dev_warn(dev, "%s: No support for led type : %s\n",
+		dev_warn(dev, "%s: Anal support for led type : %s\n",
 			 __func__, led_type_desc);
 		return -EINVAL;
 	}
@@ -221,7 +221,7 @@ static int powernv_led_create(struct device *dev,
 						powernv_led->loc_code,
 						led_type_desc);
 	if (!powernv_led->cdev.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	powernv_led->cdev.brightness_set_blocking = powernv_brightness_set;
 	powernv_led->cdev.brightness_get = powernv_brightness_get;
@@ -238,27 +238,27 @@ static int powernv_led_create(struct device *dev,
 	return rc;
 }
 
-/* Go through LED device tree node and register LED classdev structure */
+/* Go through LED device tree analde and register LED classdev structure */
 static int powernv_led_classdev(struct platform_device *pdev,
-				struct device_node *led_node,
+				struct device_analde *led_analde,
 				struct powernv_led_common *powernv_led_common)
 {
 	const char *cur = NULL;
 	int rc = -1;
 	struct property *p;
-	struct device_node *np;
+	struct device_analde *np;
 	struct powernv_led_data *powernv_led;
 	struct device *dev = &pdev->dev;
 
-	for_each_available_child_of_node(led_node, np) {
+	for_each_available_child_of_analde(led_analde, np) {
 		p = of_find_property(np, "led-types", NULL);
 
 		while ((cur = of_prop_next_string(p, cur)) != NULL) {
 			powernv_led = devm_kzalloc(dev, sizeof(*powernv_led),
 						   GFP_KERNEL);
 			if (!powernv_led) {
-				of_node_put(np);
-				return -ENOMEM;
+				of_analde_put(np);
+				return -EANALMEM;
 			}
 
 			powernv_led->common = powernv_led_common;
@@ -266,7 +266,7 @@ static int powernv_led_classdev(struct platform_device *pdev,
 
 			rc = powernv_led_create(dev, powernv_led, cur);
 			if (rc) {
-				of_node_put(np);
+				of_analde_put(np);
 				return rc;
 			}
 		} /* while end */
@@ -278,14 +278,14 @@ static int powernv_led_classdev(struct platform_device *pdev,
 /* Platform driver probe */
 static int powernv_led_probe(struct platform_device *pdev)
 {
-	struct device_node *led_node;
+	struct device_analde *led_analde;
 	struct powernv_led_common *powernv_led_common;
 	struct device *dev = &pdev->dev;
 	int rc;
 
-	led_node = of_find_node_by_path("/ibm,opal/leds");
-	if (!led_node) {
-		dev_err(dev, "%s: LED parent device node not found\n",
+	led_analde = of_find_analde_by_path("/ibm,opal/leds");
+	if (!led_analde) {
+		dev_err(dev, "%s: LED parent device analde analt found\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -293,7 +293,7 @@ static int powernv_led_probe(struct platform_device *pdev)
 	powernv_led_common = devm_kzalloc(dev, sizeof(*powernv_led_common),
 					  GFP_KERNEL);
 	if (!powernv_led_common) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -302,9 +302,9 @@ static int powernv_led_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, powernv_led_common);
 
-	rc = powernv_led_classdev(pdev, led_node, powernv_led_common);
+	rc = powernv_led_classdev(pdev, led_analde, powernv_led_common);
 out:
-	of_node_put(led_node);
+	of_analde_put(led_analde);
 	return rc;
 }
 

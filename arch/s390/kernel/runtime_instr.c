@@ -10,7 +10,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched/task_stack.h>
 
@@ -43,7 +43,7 @@ static void disable_runtime_instr(void)
 	preempt_enable();
 
 	/*
-	 * Make sure the RI bit is deleted from the PSW. If the user did not
+	 * Make sure the RI bit is deleted from the PSW. If the user did analt
 	 * switch off RI before the system call the process will get a
 	 * specification exception otherwise.
 	 */
@@ -72,7 +72,7 @@ SYSCALL_DEFINE2(s390_runtime_instr, int, command, int, signum)
 	struct runtime_instr_cb *cb;
 
 	if (!test_facility(64))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (command == S390_RUNTIME_INSTR_STOP) {
 		disable_runtime_instr();
@@ -85,7 +85,7 @@ SYSCALL_DEFINE2(s390_runtime_instr, int, command, int, signum)
 	if (!current->thread.ri_cb) {
 		cb = kzalloc(sizeof(*cb), GFP_KERNEL);
 		if (!cb)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		cb = current->thread.ri_cb;
 		memset(cb, 0, sizeof(*cb));
@@ -93,7 +93,7 @@ SYSCALL_DEFINE2(s390_runtime_instr, int, command, int, signum)
 
 	init_runtime_instr_cb(cb);
 
-	/* now load the control block to make it available */
+	/* analw load the control block to make it available */
 	preempt_disable();
 	current->thread.ri_cb = cb;
 	load_runtime_instr_cb(cb);

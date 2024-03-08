@@ -1089,15 +1089,15 @@ static bool rt5663_v2_volatile_register(struct device *dev, unsigned int reg)
 	case RT5663_STO_DRE_5:
 	case RT5663_STO_DRE_6:
 	case RT5663_STO_DRE_7:
-	case RT5663_MONO_DYNA_6:
+	case RT5663_MOANAL_DYNA_6:
 	case RT5663_STO1_SIL_DET:
-	case RT5663_MONOL_SIL_DET:
-	case RT5663_MONOR_SIL_DET:
+	case RT5663_MOANALL_SIL_DET:
+	case RT5663_MOANALR_SIL_DET:
 	case RT5663_STO2_DAC_SIL:
-	case RT5663_MONO_AMP_CAL_ST1:
-	case RT5663_MONO_AMP_CAL_ST2:
-	case RT5663_MONO_AMP_CAL_ST3:
-	case RT5663_MONO_AMP_CAL_ST4:
+	case RT5663_MOANAL_AMP_CAL_ST1:
+	case RT5663_MOANAL_AMP_CAL_ST2:
+	case RT5663_MOANAL_AMP_CAL_ST3:
+	case RT5663_MOANAL_AMP_CAL_ST4:
 	case RT5663_HP_IMP_SEN_2:
 	case RT5663_HP_IMP_SEN_3:
 	case RT5663_HP_IMP_SEN_4:
@@ -1124,8 +1124,8 @@ static bool rt5663_v2_readable_register(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case RT5663_LOUT_CTRL:
 	case RT5663_HP_AMP_2:
-	case RT5663_MONO_OUT:
-	case RT5663_MONO_GAIN:
+	case RT5663_MOANAL_OUT:
+	case RT5663_MOANAL_GAIN:
 	case RT5663_AEC_BST:
 	case RT5663_IN1_IN2:
 	case RT5663_IN3_IN4:
@@ -1137,14 +1137,14 @@ static bool rt5663_v2_readable_register(struct device *dev, unsigned int reg)
 	case RT5663_CBJ_TYPE_8:
 	case RT5663_DAC3_DIG_VOL:
 	case RT5663_DAC3_CTRL:
-	case RT5663_MONO_ADC_DIG_VOL:
+	case RT5663_MOANAL_ADC_DIG_VOL:
 	case RT5663_STO2_ADC_DIG_VOL:
-	case RT5663_MONO_ADC_BST_GAIN:
+	case RT5663_MOANAL_ADC_BST_GAIN:
 	case RT5663_STO2_ADC_BST_GAIN:
 	case RT5663_SIDETONE_CTRL:
-	case RT5663_MONO1_ADC_MIXER:
+	case RT5663_MOANAL1_ADC_MIXER:
 	case RT5663_STO2_ADC_MIXER:
-	case RT5663_MONO_DAC_MIXER:
+	case RT5663_MOANAL_DAC_MIXER:
 	case RT5663_DAC2_SRC_CTRL:
 	case RT5663_IF_3_4_DATA_CTL:
 	case RT5663_IF_5_DATA_CTL:
@@ -1164,8 +1164,8 @@ static bool rt5663_v2_readable_register(struct device *dev, unsigned int reg)
 	case RT5663_RECMIX2_R_2:
 	case RT5663_CALIB_REC_LR:
 	case RT5663_ALC_BK_GAIN:
-	case RT5663_MONOMIX_GAIN:
-	case RT5663_MONOMIX_IN_GAIN:
+	case RT5663_MOANALMIX_GAIN:
+	case RT5663_MOANALMIX_IN_GAIN:
 	case RT5663_OUT_MIXL_GAIN:
 	case RT5663_OUT_LMIX_IN_GAIN:
 	case RT5663_OUT_RMIX_IN_GAIN:
@@ -1217,15 +1217,15 @@ static bool rt5663_v2_readable_register(struct device *dev, unsigned int reg)
 	case RT5663_TEST_MODE_4:
 	case RT5663_TEST_MODE_5:
 	case RT5663_STO_DRE_9:
-	case RT5663_MONO_DYNA_1:
-	case RT5663_MONO_DYNA_2:
-	case RT5663_MONO_DYNA_3:
-	case RT5663_MONO_DYNA_4:
-	case RT5663_MONO_DYNA_5:
-	case RT5663_MONO_DYNA_6:
+	case RT5663_MOANAL_DYNA_1:
+	case RT5663_MOANAL_DYNA_2:
+	case RT5663_MOANAL_DYNA_3:
+	case RT5663_MOANAL_DYNA_4:
+	case RT5663_MOANAL_DYNA_5:
+	case RT5663_MOANAL_DYNA_6:
 	case RT5663_STO1_SIL_DET:
-	case RT5663_MONOL_SIL_DET:
-	case RT5663_MONOR_SIL_DET:
+	case RT5663_MOANALL_SIL_DET:
+	case RT5663_MOANALR_SIL_DET:
 	case RT5663_STO2_DAC_SIL:
 	case RT5663_PWR_SAV_CTL1:
 	case RT5663_PWR_SAV_CTL2:
@@ -1233,18 +1233,18 @@ static bool rt5663_v2_readable_register(struct device *dev, unsigned int reg)
 	case RT5663_PWR_SAV_CTL4:
 	case RT5663_PWR_SAV_CTL5:
 	case RT5663_PWR_SAV_CTL6:
-	case RT5663_MONO_AMP_CAL1:
-	case RT5663_MONO_AMP_CAL2:
-	case RT5663_MONO_AMP_CAL3:
-	case RT5663_MONO_AMP_CAL4:
-	case RT5663_MONO_AMP_CAL5:
-	case RT5663_MONO_AMP_CAL6:
-	case RT5663_MONO_AMP_CAL7:
-	case RT5663_MONO_AMP_CAL_ST1:
-	case RT5663_MONO_AMP_CAL_ST2:
-	case RT5663_MONO_AMP_CAL_ST3:
-	case RT5663_MONO_AMP_CAL_ST4:
-	case RT5663_MONO_AMP_CAL_ST5:
+	case RT5663_MOANAL_AMP_CAL1:
+	case RT5663_MOANAL_AMP_CAL2:
+	case RT5663_MOANAL_AMP_CAL3:
+	case RT5663_MOANAL_AMP_CAL4:
+	case RT5663_MOANAL_AMP_CAL5:
+	case RT5663_MOANAL_AMP_CAL6:
+	case RT5663_MOANAL_AMP_CAL7:
+	case RT5663_MOANAL_AMP_CAL_ST1:
+	case RT5663_MOANAL_AMP_CAL_ST2:
+	case RT5663_MOANAL_AMP_CAL_ST3:
+	case RT5663_MOANAL_AMP_CAL_ST4:
+	case RT5663_MOANAL_AMP_CAL_ST5:
 	case RT5663_V2_HP_IMP_SEN_13:
 	case RT5663_V2_HP_IMP_SEN_14:
 	case RT5663_V2_HP_IMP_SEN_6:
@@ -1409,20 +1409,20 @@ static void rt5663_enable_push_button_irq(struct snd_soc_component *component,
 			RT5663_RESET_4BTN_INL_RESET);
 		snd_soc_component_update_bits(component, RT5663_IL_CMD_6,
 			RT5663_RESET_4BTN_INL_MASK,
-			RT5663_RESET_4BTN_INL_NOR);
+			RT5663_RESET_4BTN_INL_ANALR);
 		switch (rt5663->codec_ver) {
 		case CODEC_VER_1:
 			snd_soc_component_update_bits(component, RT5663_IRQ_3,
 				RT5663_V2_EN_IRQ_INLINE_MASK,
-				RT5663_V2_EN_IRQ_INLINE_NOR);
+				RT5663_V2_EN_IRQ_INLINE_ANALR);
 			break;
 		case CODEC_VER_0:
 			snd_soc_component_update_bits(component, RT5663_IRQ_2,
 				RT5663_EN_IRQ_INLINE_MASK,
-				RT5663_EN_IRQ_INLINE_NOR);
+				RT5663_EN_IRQ_INLINE_ANALR);
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkanalwn CODEC Version\n");
 		}
 	} else {
 		switch (rt5663->codec_ver) {
@@ -1437,7 +1437,7 @@ static void rt5663_enable_push_button_irq(struct snd_soc_component *component,
 				RT5663_EN_IRQ_INLINE_BYP);
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkanalwn CODEC Version\n");
 		}
 		snd_soc_component_update_bits(component, RT5663_IL_CMD_6,
 			RT5663_EN_4BTN_INL_MASK, RT5663_EN_4BTN_INL_DIS);
@@ -1447,16 +1447,16 @@ static void rt5663_enable_push_button_irq(struct snd_soc_component *component,
 			RT5663_RESET_4BTN_INL_RESET);
 		snd_soc_component_update_bits(component, RT5663_IL_CMD_6,
 			RT5663_RESET_4BTN_INL_MASK,
-			RT5663_RESET_4BTN_INL_NOR);
+			RT5663_RESET_4BTN_INL_ANALR);
 	}
 }
 
 /**
  * rt5663_v2_jack_detect - Detect headset.
  * @component: SoC audio component device.
- * @jack_insert: Jack insert or not.
+ * @jack_insert: Jack insert or analt.
  *
- * Detect whether is headset or not when jack inserted.
+ * Detect whether is headset or analt when jack inserted.
  *
  * Returns detect status.
  */
@@ -1527,9 +1527,9 @@ static int rt5663_v2_jack_detect(struct snd_soc_component *component, int jack_i
 /**
  * rt5663_jack_detect - Detect headset.
  * @component: SoC audio component device.
- * @jack_insert: Jack insert or not.
+ * @jack_insert: Jack insert or analt.
  *
- * Detect whether is headset or not when jack inserted.
+ * Detect whether is headset or analt when jack inserted.
  *
  * Returns detect status.
  */
@@ -1582,7 +1582,7 @@ static int rt5663_jack_detect(struct snd_soc_component *component, int jack_inse
 		snd_soc_component_update_bits(component, RT5663_EM_JACK_TYPE_1,
 			RT5663_EM_JD_MASK, RT5663_EM_JD_RST);
 		snd_soc_component_update_bits(component, RT5663_EM_JACK_TYPE_1,
-			RT5663_EM_JD_MASK, RT5663_EM_JD_NOR);
+			RT5663_EM_JD_MASK, RT5663_EM_JD_ANALR);
 
 		while (true) {
 			regmap_read(rt5663->regmap, RT5663_INT_ST_2, &val);
@@ -1891,7 +1891,7 @@ static bool rt5663_check_jd_status(struct snd_soc_component *component)
 	case CODEC_VER_0:
 		return !(val & 0x1000);
 	default:
-		dev_err(component->dev, "Unknown CODEC Version\n");
+		dev_err(component->dev, "Unkanalwn CODEC Version\n");
 	}
 
 	return false;
@@ -1922,10 +1922,10 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 					rt5663_impedance_sensing(rt5663->component);
 				break;
 			default:
-				dev_err(component->dev, "Unknown CODEC Version\n");
+				dev_err(component->dev, "Unkanalwn CODEC Version\n");
 			}
 
-			/* Delay the jack insert report to avoid pop noise */
+			/* Delay the jack insert report to avoid pop analise */
 			msleep(30);
 		} else {
 			/* jack is already in, report button event */
@@ -1989,7 +1989,7 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 			report = rt5663_jack_detect(rt5663->component, 0);
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkanalwn CODEC Version\n");
 		}
 	}
 	dev_dbg(component->dev, "%s jack report: 0x%04x\n", __func__, report);
@@ -2017,7 +2017,7 @@ static void rt5663_jd_unplug_work(struct work_struct *work)
 			rt5663_jack_detect(rt5663->component, 0);
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkanalwn CODEC Version\n");
 		}
 
 		snd_soc_jack_report(rt5663->hs_jack, 0, SND_JACK_HEADSET |
@@ -2143,7 +2143,7 @@ static int rt5663_i2s_use_asrc(struct snd_soc_dapm_widget *source,
 			RT5663_AD_STO1_TRACK_MASK) ? 1 : 0;
 		break;
 	default:
-		dev_err(component->dev, "Unknown CODEC Version\n");
+		dev_err(component->dev, "Unkanalwn CODEC Version\n");
 		return 1;
 	}
 
@@ -2162,7 +2162,7 @@ static int rt5663_i2s_use_asrc(struct snd_soc_dapm_widget *source,
  * @filter_mask: mask of filters.
  * @clk_src: clock source
  *
- * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5663 can
+ * The ASRC function is for asynchroanalus MCLK and LRCK. Also, since RT5663 can
  * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
  * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
  * ASRC function will track i2s clock and generate a corresponding system clock
@@ -2204,7 +2204,7 @@ int rt5663_sel_asrc_clk_src(struct snd_soc_component *component,
 			asrc2_value |= clk_src << RT5663_AD_STO1_TRACK_SHIFT;
 			break;
 		default:
-			dev_err(component->dev, "Unknown CODEC Version\n");
+			dev_err(component->dev, "Unkanalwn CODEC Version\n");
 		}
 	}
 
@@ -2470,14 +2470,14 @@ static const struct snd_soc_dapm_widget rt5663_dapm_widgets[] = {
 		RT5663_PWR_RECMIX1_SHIFT, 0, NULL, 0),
 
 	/* ADCs */
-	SND_SOC_DAPM_ADC("ADC L", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC L", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_SUPPLY("ADC L Power", RT5663_PWR_DIG_1,
 		RT5663_PWR_ADC_L1_SHIFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("ADC Clock", RT5663_CHOP_ADC,
 		RT5663_CKGEN_ADCC_SHIFT, 0, NULL, 0),
 
 	/* ADC Mixer */
-	SND_SOC_DAPM_MIXER("STO1 ADC MIXL", SND_SOC_NOPM,
+	SND_SOC_DAPM_MIXER("STO1 ADC MIXL", SND_SOC_ANALPM,
 		0, 0, rt5663_sto1_adc_l_mix,
 		ARRAY_SIZE(rt5663_sto1_adc_l_mix)),
 
@@ -2488,30 +2488,30 @@ static const struct snd_soc_dapm_widget rt5663_dapm_widgets[] = {
 	/* Digital Interface */
 	SND_SOC_DAPM_SUPPLY("I2S", RT5663_PWR_DIG_1, RT5663_PWR_I2S1_SHIFT, 0,
 		NULL, 0),
-	SND_SOC_DAPM_PGA("IF DAC", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 DAC1 L", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 DAC1 R", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 ADC1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF DAC", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 DAC1 L", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 DAC1 R", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 ADC1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF ADC", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIFTX", "AIF Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIFTX", "AIF Capture", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* DAC mixer before sound effect  */
-	SND_SOC_DAPM_MIXER("ADDA MIXL", SND_SOC_NOPM, 0, 0, rt5663_adda_l_mix,
+	SND_SOC_DAPM_MIXER("ADDA MIXL", SND_SOC_ANALPM, 0, 0, rt5663_adda_l_mix,
 		ARRAY_SIZE(rt5663_adda_l_mix)),
-	SND_SOC_DAPM_MIXER("ADDA MIXR", SND_SOC_NOPM, 0, 0, rt5663_adda_r_mix,
+	SND_SOC_DAPM_MIXER("ADDA MIXR", SND_SOC_ANALPM, 0, 0, rt5663_adda_r_mix,
 		ARRAY_SIZE(rt5663_adda_r_mix)),
-	SND_SOC_DAPM_PGA("DAC L1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("DAC R1", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DAC L1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DAC R1", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* DAC Mixer */
 	SND_SOC_DAPM_SUPPLY("STO1 DAC Filter", RT5663_PWR_DIG_2,
 		RT5663_PWR_DAC_S1F_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("STO1 DAC MIXL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("STO1 DAC MIXL", SND_SOC_ANALPM, 0, 0,
 		rt5663_sto1_dac_l_mix, ARRAY_SIZE(rt5663_sto1_dac_l_mix)),
-	SND_SOC_DAPM_MIXER("STO1 DAC MIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("STO1 DAC MIXR", SND_SOC_ANALPM, 0, 0,
 		rt5663_sto1_dac_r_mix, ARRAY_SIZE(rt5663_sto1_dac_r_mix)),
 
 	/* DACs */
@@ -2519,14 +2519,14 @@ static const struct snd_soc_dapm_widget rt5663_dapm_widgets[] = {
 		RT5663_PWR_DAC_L1_SHIFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("STO1 DAC R Power", RT5663_PWR_DIG_1,
 		RT5663_PWR_DAC_R1_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_DAC("DAC L", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC R", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC L", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC R", NULL, SND_SOC_ANALPM, 0, 0),
 
 	/* Headphone*/
-	SND_SOC_DAPM_SUPPLY("HP Charge Pump", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("HP Charge Pump", SND_SOC_ANALPM, 0, 0,
 		rt5663_charge_pump_event, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_PGA_S("HP Amp", 1, SND_SOC_NOPM, 0, 0, rt5663_hp_event,
+	SND_SOC_DAPM_PGA_S("HP Amp", 1, SND_SOC_ANALPM, 0, 0, rt5663_hp_event,
 		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
 	/* Output Lines */
@@ -2555,24 +2555,24 @@ static const struct snd_soc_dapm_widget rt5663_v2_specific_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN2N"),
 
 	/* Boost */
-	SND_SOC_DAPM_PGA("BST1 CBJ", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("BST1 CBJ", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("CBJ Power", RT5663_PWR_ANLG_3,
 		RT5663_PWR_CBJ_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("BST2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("BST2 Power", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA("BST2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("BST2 Power", SND_SOC_ANALPM, 0, 0,
 		rt5663_bst2_power, SND_SOC_DAPM_PRE_PMD |
 		SND_SOC_DAPM_POST_PMU),
 
 	/* REC Mixer */
-	SND_SOC_DAPM_MIXER("RECMIX1L", SND_SOC_NOPM, 0, 0, rt5663_recmix1l,
+	SND_SOC_DAPM_MIXER("RECMIX1L", SND_SOC_ANALPM, 0, 0, rt5663_recmix1l,
 		ARRAY_SIZE(rt5663_recmix1l)),
-	SND_SOC_DAPM_MIXER("RECMIX1R", SND_SOC_NOPM, 0, 0, rt5663_recmix1r,
+	SND_SOC_DAPM_MIXER("RECMIX1R", SND_SOC_ANALPM, 0, 0, rt5663_recmix1r,
 		ARRAY_SIZE(rt5663_recmix1r)),
 	SND_SOC_DAPM_SUPPLY("RECMIX1R Power", RT5663_PWR_ANLG_2,
 		RT5663_PWR_RECMIX2_SHIFT, 0, NULL, 0),
 
 	/* ADC */
-	SND_SOC_DAPM_ADC("ADC R", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC R", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_SUPPLY("ADC R Power", RT5663_PWR_DIG_1,
 		RT5663_PWR_ADC_R1_SHIFT, 0, NULL, 0),
 
@@ -2586,13 +2586,13 @@ static const struct snd_soc_dapm_widget rt5663_v2_specific_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("STO1 ADC R2", RT5663_STO1_ADC_MIXER,
 		RT5663_STO1_ADC_R2_SRC_SHIFT, 1, NULL, 0),
 
-	SND_SOC_DAPM_MUX("STO1 ADC L Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("STO1 ADC L Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5663_sto1_adcl_mux),
-	SND_SOC_DAPM_MUX("STO1 ADC R Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("STO1 ADC R Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5663_sto1_adcr_mux),
 
 	/* ADC Mix */
-	SND_SOC_DAPM_MIXER("STO1 ADC MIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("STO1 ADC MIXR", SND_SOC_ANALPM, 0, 0,
 		rt5663_sto1_adc_r_mix, ARRAY_SIZE(rt5663_sto1_adc_r_mix)),
 
 	/* Analog DAC Clock */
@@ -2600,13 +2600,13 @@ static const struct snd_soc_dapm_widget rt5663_v2_specific_dapm_widgets[] = {
 		RT5663_CKGEN_DAC1_SHIFT, 0, NULL, 0),
 
 	/* Headphone out */
-	SND_SOC_DAPM_SWITCH("HPO Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HPO Playback", SND_SOC_ANALPM, 0, 0,
 		&rt5663_hpo_switch),
 };
 
 static const struct snd_soc_dapm_widget rt5663_specific_dapm_widgets[] = {
 	/* System Clock Pre Divider Gating */
-	SND_SOC_DAPM_SUPPLY("Pre Div Power", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Pre Div Power", SND_SOC_ANALPM, 0, 0,
 		rt5663_pre_div_power, SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_PRE_PMD),
 
@@ -2623,15 +2623,15 @@ static const struct snd_soc_dapm_widget rt5663_specific_dapm_widgets[] = {
 		RT5663_ADC_STO1_ASRC_SHIFT, 0, NULL, 0),
 
 	/* Boost */
-	SND_SOC_DAPM_PGA("BST1", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("BST1", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* STO ADC */
-	SND_SOC_DAPM_PGA("STO1 ADC L1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("STO1 ADC L2", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("STO1 ADC L1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("STO1 ADC L2", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Analog DAC source */
-	SND_SOC_DAPM_MUX("DAC L Mux", SND_SOC_NOPM, 0, 0, &rt5663_alg_dacl_mux),
-	SND_SOC_DAPM_MUX("DAC R Mux", SND_SOC_NOPM, 0, 0, &rt5663_alg_dacr_mux),
+	SND_SOC_DAPM_MUX("DAC L Mux", SND_SOC_ANALPM, 0, 0, &rt5663_alg_dacl_mux),
+	SND_SOC_DAPM_MUX("DAC R Mux", SND_SOC_ANALPM, 0, 0, &rt5663_alg_dacr_mux),
 };
 
 static const struct snd_soc_dapm_route rt5663_dapm_routes[] = {
@@ -2923,7 +2923,7 @@ static int rt5663_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		shift = RT5663_PLL1_SRC_SHIFT;
 		break;
 	default:
-		dev_err(component->dev, "Unknown CODEC Version\n");
+		dev_err(component->dev, "Unkanalwn CODEC Version\n");
 		return -EINVAL;
 	}
 
@@ -2935,7 +2935,7 @@ static int rt5663_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		val = 0x1;
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL source %d\n", source);
 		return -EINVAL;
 	}
 	snd_soc_component_update_bits(component, RT5663_GLB_CLK, mask, (val << shift));
@@ -3019,7 +3019,7 @@ static int rt5663_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		reg = RT5663_TDM_1;
 		break;
 	default:
-		dev_err(component->dev, "Unknown CODEC Version\n");
+		dev_err(component->dev, "Unkanalwn CODEC Version\n");
 		return -EINVAL;
 	}
 
@@ -3297,13 +3297,13 @@ static const struct regmap_config rt5663_regmap = {
 };
 
 static const struct regmap_config temp_regmap = {
-	.name = "nocache",
+	.name = "analcache",
 	.reg_bits = 16,
 	.val_bits = 16,
 	.use_single_read = true,
 	.use_single_write = true,
 	.max_register = 0x03f3,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct i2c_device_id rt5663_i2c_id[] = {
@@ -3488,7 +3488,7 @@ static int rt5663_parse_dp(struct rt5663_priv *rt5663, struct device *dev)
 			rt5663->pdata.impedance_sensing_num;
 		rt5663->imp_table = devm_kzalloc(dev, table_size, GFP_KERNEL);
 		if (!rt5663->imp_table)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = device_property_read_u32_array(dev,
 			"realtek,impedance_sensing_table",
 			(u32 *)rt5663->imp_table, table_size);
@@ -3511,7 +3511,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c)
 		GFP_KERNEL);
 
 	if (rt5663 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt5663);
 
@@ -3566,7 +3566,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c)
 	ret = regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
 	if (ret || (val != RT5663_DEVICE_ID_2 && val != RT5663_DEVICE_ID_1)) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5663, retry one time.\n",
+			"Device with ID register %#x is analt rt5663, retry one time.\n",
 			val);
 		msleep(100);
 		regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
@@ -3583,9 +3583,9 @@ static int rt5663_i2c_probe(struct i2c_client *i2c)
 		break;
 	default:
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5663\n",
+			"Device with ID register %#x is analt rt5663\n",
 			val);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_enable;
 	}
 
@@ -3607,7 +3607,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c)
 		rt5663_calibrate(rt5663);
 		break;
 	default:
-		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
+		dev_err(&i2c->dev, "%s:Unkanalwn codec type\n", __func__);
 	}
 	regcache_cache_bypass(rt5663->regmap, false);
 	regmap_write(rt5663->regmap, RT5663_RESET, 0);
@@ -3624,7 +3624,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c)
 				"Failed to apply regmap patch: %d\n", ret);
 		break;
 	default:
-		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
+		dev_err(&i2c->dev, "%s:Unkanalwn codec type\n", __func__);
 	}
 
 	/* GPIO1 as IRQ */
@@ -3681,7 +3681,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c)
 			RT5663_DATA_SWAP_ADCDAT1_LL);
 		break;
 	default:
-		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
+		dev_err(&i2c->dev, "%s:Unkanalwn codec type\n", __func__);
 	}
 
 	INIT_DELAYED_WORK(&rt5663->jack_detect_work, rt5663_jack_detect_work);

@@ -30,22 +30,22 @@ int elf_open(const char *binary_path, struct elf_fd *elf_fd)
 	int fd, ret;
 	Elf *elf;
 
-	if (elf_version(EV_CURRENT) == EV_NONE) {
+	if (elf_version(EV_CURRENT) == EV_ANALNE) {
 		pr_warn("elf: failed to init libelf for %s\n", binary_path);
-		return -LIBBPF_ERRNO__LIBELF;
+		return -LIBBPF_ERRANAL__LIBELF;
 	}
 	fd = open(binary_path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
-		ret = -errno;
+		ret = -erranal;
 		pr_warn("elf: failed to open %s: %s\n", binary_path,
 			libbpf_strerror_r(ret, errmsg, sizeof(errmsg)));
 		return ret;
 	}
 	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
 	if (!elf) {
-		pr_warn("elf: could not read elf from %s: %s\n", binary_path, elf_errmsg(-1));
+		pr_warn("elf: could analt read elf from %s: %s\n", binary_path, elf_errmsg(-1));
 		close(fd);
-		return -LIBBPF_ERRNO__FORMAT;
+		return -LIBBPF_ERRANAL__FORMAT;
 	}
 	elf_fd->fd = fd;
 	elf_fd->elf = elf;
@@ -114,7 +114,7 @@ static int elf_sym_iter_new(struct elf_sym_iter *iter,
 	if (!scn) {
 		pr_debug("elf: failed to find symbol table ELF sections in '%s'\n",
 			 binary_path);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!gelf_getshdr(scn, &sh))
@@ -239,7 +239,7 @@ static bool symbol_match(struct elf_sym_iter *iter, int sh_type, struct elf_sym 
 	if (sym->name[name_len] != '\0' && sym->name[name_len] != '@')
 		return false;
 
-	/* If user does not specify symbol version, then we got a match */
+	/* If user does analt specify symbol version, then we got a match */
 	if (!lib_ver)
 		return true;
 
@@ -253,7 +253,7 @@ static bool symbol_match(struct elf_sym_iter *iter, int sh_type, struct elf_sym 
 		return strcmp(ver_name, lib_ver) == 0;
 	}
 
-	/* For normal symbols, it is already in form of func@LIB_VER */
+	/* For analrmal symbols, it is already in form of func@LIB_VER */
 	return strcmp(sym->name, name) == 0;
 }
 
@@ -280,16 +280,16 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 	int i, sh_types[2] = { SHT_DYNSYM, SHT_SYMTAB };
 	const char *at_symbol, *lib_ver;
 	bool is_shared_lib;
-	long ret = -ENOENT;
+	long ret = -EANALENT;
 	size_t name_len;
 	GElf_Ehdr ehdr;
 
 	if (!gelf_getehdr(elf, &ehdr)) {
 		pr_warn("elf: failed to get ehdr from %s: %s\n", binary_path, elf_errmsg(-1));
-		ret = -LIBBPF_ERRNO__FORMAT;
+		ret = -LIBBPF_ERRANAL__FORMAT;
 		goto out;
 	}
-	/* for shared lib case, we do not need to calculate relative offset */
+	/* for shared lib case, we do analt need to calculate relative offset */
 	is_shared_lib = ehdr.e_type == ET_DYN;
 
 	/* Does name specify "@@LIB_VER" or "@LIB_VER" ? */
@@ -307,7 +307,7 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 
 	/* Search SHT_DYNSYM, SHT_SYMTAB for symbol. This search order is used because if
 	 * a binary is stripped, it may only have SHT_DYNSYM, and a fully-statically
-	 * linked binary may not have SHT_DYMSYM, so absence of a section should not be
+	 * linked binary may analt have SHT_DYMSYM, so absence of a section should analt be
 	 * reported as a warning/error.
 	 */
 	for (i = 0; i < ARRAY_SIZE(sh_types); i++) {
@@ -317,7 +317,7 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 		int cur_bind;
 
 		ret = elf_sym_iter_new(&iter, elf, binary_path, sh_types[i], STT_FUNC);
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			continue;
 		if (ret)
 			goto out;
@@ -331,17 +331,17 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 			if (ret > 0) {
 				/* handle multiple matches */
 				if (elf_sym_offset(sym) == ret) {
-					/* same offset, no problem */
+					/* same offset, anal problem */
 					continue;
 				} else if (last_bind != STB_WEAK && cur_bind != STB_WEAK) {
-					/* Only accept one non-weak bind. */
+					/* Only accept one analn-weak bind. */
 					pr_warn("elf: ambiguous match for '%s', '%s' in '%s'\n",
 						sym->name, name, binary_path);
-					ret = -LIBBPF_ERRNO__FORMAT;
+					ret = -LIBBPF_ERRANAL__FORMAT;
 					goto out;
 				} else if (cur_bind == STB_WEAK) {
-					/* already have a non-weak bind, and
-					 * this is a weak bind, so ignore.
+					/* already have a analn-weak bind, and
+					 * this is a weak bind, so iganalre.
 					 */
 					continue;
 				}
@@ -360,9 +360,9 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 	} else {
 		if (ret == 0) {
 			pr_warn("elf: '%s' is 0 in symtab for '%s': %s\n", name, binary_path,
-				is_shared_lib ? "should not be 0 in a shared library" :
+				is_shared_lib ? "should analt be 0 in a shared library" :
 						"try using shared library path instead");
-			ret = -ENOENT;
+			ret = -EANALENT;
 		} else {
 			pr_warn("elf: failed to find symbol '%s' in '%s'\n", name, binary_path);
 		}
@@ -377,7 +377,7 @@ out:
 long elf_find_func_offset_from_file(const char *binary_path, const char *name)
 {
 	struct elf_fd elf_fd;
-	long ret = -ENOENT;
+	long ret = -EANALENT;
 
 	ret = elf_open(binary_path, &elf_fd);
 	if (ret)
@@ -424,7 +424,7 @@ int elf_resolve_syms_offsets(const char *binary_path, int cnt,
 	symbols = calloc(cnt, sizeof(*symbols));
 
 	if (!offsets || !symbols) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -440,7 +440,7 @@ int elf_resolve_syms_offsets(const char *binary_path, int cnt,
 		struct elf_sym *sym;
 
 		err = elf_sym_iter_new(&iter, elf_fd.elf, binary_path, sh_types[i], st_type);
-		if (err == -ENOENT)
+		if (err == -EANALENT)
 			continue;
 		if (err)
 			goto out;
@@ -459,19 +459,19 @@ int elf_resolve_syms_offsets(const char *binary_path, int cnt,
 
 			offset = &offsets[found->idx];
 			if (*offset > 0) {
-				/* same offset, no problem */
+				/* same offset, anal problem */
 				if (*offset == sym_offset)
 					continue;
 				/* handle multiple matches */
 				if (found->bind != STB_WEAK && bind != STB_WEAK) {
-					/* Only accept one non-weak bind. */
+					/* Only accept one analn-weak bind. */
 					pr_warn("elf: ambiguous match found '%s@%lu' in '%s' previous offset %lu\n",
 						sym->name, sym_offset, binary_path, *offset);
 					err = -ESRCH;
 					goto out;
 				} else if (bind == STB_WEAK) {
-					/* already have a non-weak bind, and
-					 * this is a weak bind, so ignore.
+					/* already have a analn-weak bind, and
+					 * this is a weak bind, so iganalre.
 					 */
 					continue;
 				}
@@ -484,7 +484,7 @@ int elf_resolve_syms_offsets(const char *binary_path, int cnt,
 	}
 
 	if (cnt != cnt_done) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -521,7 +521,7 @@ int elf_resolve_pattern_offsets(const char *binary_path, const char *pattern,
 		struct elf_sym *sym;
 
 		err = elf_sym_iter_new(&iter, elf_fd.elf, binary_path, sh_types[i], STT_FUNC);
-		if (err == -ENOENT)
+		if (err == -EANALENT)
 			continue;
 		if (err)
 			goto out;
@@ -539,7 +539,7 @@ int elf_resolve_pattern_offsets(const char *binary_path, const char *pattern,
 		}
 
 		/* If we found anything in the first symbol section,
-		 * do not search others to avoid duplicates.
+		 * do analt search others to avoid duplicates.
 		 */
 		if (cnt)
 			break;
@@ -549,7 +549,7 @@ int elf_resolve_pattern_offsets(const char *binary_path, const char *pattern,
 		*poffsets = offsets;
 		*pcnt = cnt;
 	} else {
-		err = -ENOENT;
+		err = -EANALENT;
 	}
 
 out:

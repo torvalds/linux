@@ -425,7 +425,7 @@ static unsigned int as3722_sd_get_mode(struct regulator_dev *rdev)
 	int ret;
 
 	if (!as3722_reg_lookup[id].control_reg)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = as3722_read(as3722, as3722_reg_lookup[id].control_reg, &val);
 	if (ret < 0) {
@@ -437,7 +437,7 @@ static unsigned int as3722_sd_get_mode(struct regulator_dev *rdev)
 	if (val & as3722_reg_lookup[id].mode_mask)
 		return REGULATOR_MODE_FAST;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int as3722_sd_set_mode(struct regulator_dev *rdev,
@@ -456,7 +456,7 @@ static int as3722_sd_set_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = as3722_reg_lookup[id].mode_mask;
 		fallthrough;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		break;
 	default:
 		return -EINVAL;
@@ -585,39 +585,39 @@ static struct of_regulator_match as3722_regulator_matches[] = {
 static int as3722_get_regulator_dt_data(struct platform_device *pdev,
 		struct as3722_regulators *as3722_regs)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct as3722_regulator_config_data *reg_config;
 	u32 prop;
 	int id;
 	int ret;
 
-	np = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
+	np = of_get_child_by_name(pdev->dev.parent->of_analde, "regulators");
 	if (!np) {
-		dev_err(&pdev->dev, "Device is not having regulators node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Device is analt having regulators analde\n");
+		return -EANALDEV;
 	}
-	pdev->dev.of_node = np;
+	pdev->dev.of_analde = np;
 
 	ret = of_regulator_match(&pdev->dev, np, as3722_regulator_matches,
 			ARRAY_SIZE(as3722_regulator_matches));
-	of_node_put(np);
+	of_analde_put(np);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Parsing of regulator node failed: %d\n",
+		dev_err(&pdev->dev, "Parsing of regulator analde failed: %d\n",
 			ret);
 		return ret;
 	}
 
 	for (id = 0; id < ARRAY_SIZE(as3722_regulator_matches); ++id) {
-		struct device_node *reg_node;
+		struct device_analde *reg_analde;
 
 		reg_config = &as3722_regs->reg_config_data[id];
 		reg_config->reg_init = as3722_regulator_matches[id].init_data;
-		reg_node = as3722_regulator_matches[id].of_node;
+		reg_analde = as3722_regulator_matches[id].of_analde;
 
-		if (!reg_config->reg_init || !reg_node)
+		if (!reg_config->reg_init || !reg_analde)
 			continue;
 
-		ret = of_property_read_u32(reg_node, "ams,ext-control", &prop);
+		ret = of_property_read_u32(reg_analde, "ams,ext-control", &prop);
 		if (!ret) {
 			if (prop < 3)
 				reg_config->ext_control = prop;
@@ -627,7 +627,7 @@ static int as3722_get_regulator_dt_data(struct platform_device *pdev,
 					prop);
 		}
 		reg_config->enable_tracking =
-			of_property_read_bool(reg_node, "ams,enable-tracking");
+			of_property_read_bool(reg_analde, "ams,enable-tracking");
 	}
 	return 0;
 }
@@ -646,7 +646,7 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 	as3722_regs = devm_kzalloc(&pdev->dev, sizeof(*as3722_regs),
 				GFP_KERNEL);
 	if (!as3722_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	as3722_regs->dev = &pdev->dev;
 	as3722_regs->as3722 = as3722;
@@ -793,7 +793,7 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 		}
 		desc->ops = ops;
 		config.init_data = reg_config->reg_init;
-		config.of_node = as3722_regulator_matches[id].of_node;
+		config.of_analde = as3722_regulator_matches[id].of_analde;
 		rdev = devm_regulator_register(&pdev->dev, desc, &config);
 		if (IS_ERR(rdev)) {
 			ret = PTR_ERR(rdev);
@@ -831,7 +831,7 @@ MODULE_DEVICE_TABLE(of, of_as3722_regulator_match);
 static struct platform_driver as3722_regulator_driver = {
 	.driver = {
 		.name = "as3722-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_as3722_regulator_match,
 	},
 	.probe = as3722_regulator_probe,

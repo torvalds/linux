@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/regulator/qcom,rpmh-regulator.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. RPMh Regulators
+title: Qualcomm Techanallogies, Inc. RPMh Regulators
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
@@ -23,17 +23,17 @@ description: |
     which have a fixed voltage and mode.
 
     =======================
-    Required Node Structure
+    Required Analde Structure
     =======================
 
-    RPMh regulators must be described in two levels of device nodes.  The first
+    RPMh regulators must be described in two levels of device analdes.  The first
     level describes the PMIC containing the regulators and must reside within an
-    RPMh device node.  The second level describes each regulator within the PMIC
+    RPMh device analde.  The second level describes each regulator within the PMIC
     which is to be used on the board.  Each of these regulators maps to a single
     RPMh resource.
 
-    The names used for regulator nodes must match those supported by a given
-    PMIC. Supported regulator node names are
+    The names used for regulator analdes must match those supported by a given
+    PMIC. Supported regulator analde names are
       For PM6150, smps1 - smps5, ldo1 - ldo19
       For PM6150L, smps1 - smps8, ldo1 - ldo11, bob
       For PM6350, smps1 - smps5, ldo1 - ldo22
@@ -116,7 +116,7 @@ properties:
     type: object
     $ref: regulator.yaml#
     unevaluatedProperties: false
-    description: BOB regulator node.
+    description: BOB regulator analde.
     dependencies:
       regulator-allow-set-load: [ regulator-allowed-modes ]
 
@@ -125,7 +125,7 @@ patternProperties:
     type: object
     $ref: regulator.yaml#
     unevaluatedProperties: false
-    description: smps/ldo regulator nodes(s).
+    description: smps/ldo regulator analdes(s).
     dependencies:
       regulator-allow-set-load: [ regulator-allowed-modes ]
 

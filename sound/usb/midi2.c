@@ -303,7 +303,7 @@ static int alloc_midi_urbs(struct snd_usb_midi2_endpoint *ep)
 		ctx->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!ctx->urb) {
 			dev_err(&ep->dev->dev, "URB alloc failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		ctx->ep = ep;
 		buffer = usb_alloc_coherent(ep->dev, len, GFP_KERNEL,
@@ -311,7 +311,7 @@ static int alloc_midi_urbs(struct snd_usb_midi2_endpoint *ep)
 		if (!buffer) {
 			dev_err(&ep->dev->dev,
 				"URB buffer alloc failed (size %d)\n", len);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (ep->interval)
 			usb_fill_int_urb(ctx->urb, ep->dev, ep->pipe,
@@ -325,7 +325,7 @@ static int alloc_midi_urbs(struct snd_usb_midi2_endpoint *ep)
 				endpoint);
 			return err;
 		}
-		ctx->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		ctx->urb->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 		ep->num_urbs++;
 	}
 	ep->urb_free = ep->urb_free_mask = GENMASK(ep->num_urbs - 1, 0);
@@ -347,7 +347,7 @@ static int snd_usb_midi_v2_open(struct snd_ump_endpoint *ump, int dir)
 	int err = 0;
 
 	if (!ep || !ep->endpoint)
-		return -ENODEV;
+		return -EANALDEV;
 	if (ep->disconnected)
 		return -EIO;
 	if (ep->direction == STR_OUT) {
@@ -442,7 +442,7 @@ static int create_midi2_endpoint(struct snd_usb_midi2_interface *umidi,
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ep->lock);
 	init_waitqueue_head(&ep->wait);
@@ -543,7 +543,7 @@ static int get_group_terminal_block_descs(struct snd_usb_midi2_interface *umidi)
 
 	data = kzalloc(size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
 			      USB_REQ_GET_DESCRIPTOR,
@@ -713,7 +713,7 @@ static int create_midi2_ump(struct snd_usb_midi2_interface *umidi,
 
 	rmidi = kzalloc(sizeof(*rmidi), GFP_KERNEL);
 	if (!rmidi)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&rmidi->list);
 	rmidi->dev = umidi->chip->dev;
 	rmidi->umidi = umidi;
@@ -811,7 +811,7 @@ static int parse_ump_endpoints(struct snd_usb_midi2_interface *umidi)
 		if (!err) {
 			rmidi->ump_parsed = true;
 		} else {
-			if (err == -ENOMEM)
+			if (err == -EANALMEM)
 				return err;
 			/* fall back to GTB later */
 		}
@@ -948,8 +948,8 @@ static int parse_midi_2_0(struct snd_usb_midi2_interface *umidi)
 	if (err < 0)
 		return err;
 	if (list_empty(&umidi->ep_list)) {
-		usb_audio_warn(umidi->chip, "No MIDI endpoints found\n");
-		return -ENODEV;
+		usb_audio_warn(umidi->chip, "Anal MIDI endpoints found\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -1053,7 +1053,7 @@ static void set_fallback_rawmidi_names(struct snd_usb_midi2_interface *umidi)
 		/* fill fallback name */
 		if (!*ump->info.name)
 			sprintf(ump->info.name, "USB MIDI %d", rmidi->index);
-		/* copy as rawmidi name if not set */
+		/* copy as rawmidi name if analt set */
 		if (!*ump->core.name)
 			strscpy(ump->core.name, ump->info.name,
 				sizeof(ump->core.name));
@@ -1085,16 +1085,16 @@ int snd_usb_midi_v2_create(struct snd_usb_audio *chip,
 	}
 	if ((quirk && quirk->type != QUIRK_MIDI_STANDARD_INTERFACE) ||
 	    iface->num_altsetting < 2) {
-		usb_audio_info(chip, "Quirk or no altset; falling back to MIDI 1.0\n");
+		usb_audio_info(chip, "Quirk or anal altset; falling back to MIDI 1.0\n");
 		goto fallback_to_midi1;
 	}
 	hostif = &iface->altsetting[1];
 	if (!is_midi2_altset(hostif)) {
-		usb_audio_info(chip, "No MIDI 2.0 at altset 1, falling back to MIDI 1.0\n");
+		usb_audio_info(chip, "Anal MIDI 2.0 at altset 1, falling back to MIDI 1.0\n");
 		goto fallback_to_midi1;
 	}
 	if (!hostif->desc.bNumEndpoints) {
-		usb_audio_info(chip, "No endpoint at altset 1, falling back to MIDI 1.0\n");
+		usb_audio_info(chip, "Anal endpoint at altset 1, falling back to MIDI 1.0\n");
 		goto fallback_to_midi1;
 	}
 
@@ -1104,7 +1104,7 @@ int snd_usb_midi_v2_create(struct snd_usb_audio *chip,
 
 	umidi = kzalloc(sizeof(*umidi), GFP_KERNEL);
 	if (!umidi)
-		return -ENOMEM;
+		return -EANALMEM;
 	umidi->chip = chip;
 	umidi->iface = iface;
 	umidi->hostif = hostif;

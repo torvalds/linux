@@ -95,7 +95,7 @@ mwifiex_wmm_ac_debug_print(const struct ieee_types_wmm_ac_parameters *ac_param)
  * The function also initializes the list with the provided RA.
  */
 static struct mwifiex_ra_list_tbl *
-mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, const u8 *ra)
+mwifiex_wmm_allocate_ralist_analde(struct mwifiex_adapter *adapter, const u8 *ra)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 
@@ -115,8 +115,8 @@ mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, const u8 *ra)
 	return ra_list;
 }
 
-/* This function returns random no between 16 and 32 to be used as threshold
- * for no of packets after which BA setup is initiated.
+/* This function returns random anal between 16 and 32 to be used as threshold
+ * for anal of packets after which BA setup is initiated.
  */
 static u8 mwifiex_get_random_ba_threshold(void)
 {
@@ -140,11 +140,11 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 	int i;
 	struct mwifiex_ra_list_tbl *ra_list;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_analde *analde;
 
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
-		ra_list = mwifiex_wmm_allocate_ralist_node(adapter, ra);
+		ra_list = mwifiex_wmm_allocate_ralist_analde(adapter, ra);
 		mwifiex_dbg(adapter, INFO,
 			    "info: created ra_list %p\n", ra_list);
 
@@ -153,7 +153,7 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 
 		ra_list->is_11n_enabled = 0;
 		ra_list->tdls_link = false;
-		ra_list->ba_status = BA_SETUP_NONE;
+		ra_list->ba_status = BA_SETUP_ANALNE;
 		ra_list->amsdu_in_ampdu = false;
 		if (!mwifiex_queuing_ra_based(priv)) {
 			if (mwifiex_is_tdls_link_setup
@@ -166,13 +166,13 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 			}
 		} else {
 			spin_lock_bh(&priv->sta_list_spinlock);
-			node = mwifiex_get_sta_entry(priv, ra);
-			if (node)
-				ra_list->tx_paused = node->tx_pause;
+			analde = mwifiex_get_sta_entry(priv, ra);
+			if (analde)
+				ra_list->tx_paused = analde->tx_pause;
 			ra_list->is_11n_enabled =
-				      mwifiex_is_sta_11n_enabled(priv, node);
+				      mwifiex_is_sta_11n_enabled(priv, analde);
 			if (ra_list->is_11n_enabled)
-				ra_list->max_amsdu = node->max_amsdu;
+				ra_list->max_amsdu = analde->max_amsdu;
 			spin_unlock_bh(&priv->sta_list_spinlock);
 		}
 
@@ -234,7 +234,7 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 	u8 ac_idx;
 
 	if (!wmm_ie || !priv->wmm_enabled) {
-		/* WMM is not enabled, just set the defaults and return */
+		/* WMM is analt enabled, just set the defaults and return */
 		mwifiex_wmm_default_queue_priorities(priv);
 		return;
 	}
@@ -283,10 +283,10 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 }
 
 /*
- * This function evaluates whether or not an AC is to be downgraded.
+ * This function evaluates whether or analt an AC is to be downgraded.
  *
- * In case the AC is not enabled, the highest AC is returned that is
- * enabled and does not require admission control.
+ * In case the AC is analt enabled, the highest AC is returned that is
+ * enabled and does analt require admission control.
  */
 static enum mwifiex_wmm_ac_e
 mwifiex_wmm_eval_downgrade_ac(struct mwifiex_private *priv,
@@ -306,17 +306,17 @@ mwifiex_wmm_eval_downgrade_ac(struct mwifiex_private *priv,
 	ret_ac = WMM_AC_BK;
 
 	/*
-	 *  Find the highest AC that is enabled and does not require
+	 *  Find the highest AC that is enabled and does analt require
 	 *  admission control. The spec disallows downgrading to an AC,
 	 *  which is enabled due to a completed admission control.
-	 *  Unadmitted traffic is not to be sent on an AC with admitted
+	 *  Unadmitted traffic is analt to be sent on an AC with admitted
 	 *  traffic.
 	 */
 	for (down_ac = WMM_AC_BK; down_ac < eval_ac; down_ac++) {
 		ac_status = &priv->wmm.ac_status[down_ac];
 
 		if (!ac_status->disabled && !ac_status->flow_required)
-			/* AC is enabled and does not require admission
+			/* AC is enabled and does analt require admission
 			   control */
 			ret_ac = (enum mwifiex_wmm_ac_e) down_ac;
 	}
@@ -336,7 +336,7 @@ mwifiex_wmm_setup_ac_downgrade(struct mwifiex_private *priv)
 		    "BK(0), BE(1), VI(2), VO(3)\n");
 
 	if (!priv->wmm_enabled) {
-		/* WMM is not enabled, default priorities */
+		/* WMM is analt enabled, default priorities */
 		for (ac_val = WMM_AC_BK; ac_val <= WMM_AC_VO; ac_val++)
 			priv->wmm.ac_down_graded_vals[ac_val] =
 						(enum mwifiex_wmm_ac_e) ac_val;
@@ -422,7 +422,7 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 							priv->tos_to_tid_inv[i];
 			else
 				priv->aggr_prio_tbl[i].amsdu =
-							BA_STREAM_NOT_ALLOWED;
+							BA_STREAM_ANALT_ALLOWED;
 			priv->aggr_prio_tbl[i].ampdu_ap =
 							priv->tos_to_tid_inv[i];
 			priv->aggr_prio_tbl[i].ampdu_user =
@@ -432,11 +432,11 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 		priv->aggr_prio_tbl[6].amsdu
 					= priv->aggr_prio_tbl[6].ampdu_ap
 					= priv->aggr_prio_tbl[6].ampdu_user
-					= BA_STREAM_NOT_ALLOWED;
+					= BA_STREAM_ANALT_ALLOWED;
 
 		priv->aggr_prio_tbl[7].amsdu = priv->aggr_prio_tbl[7].ampdu_ap
 					= priv->aggr_prio_tbl[7].ampdu_user
-					= BA_STREAM_NOT_ALLOWED;
+					= BA_STREAM_ANALT_ALLOWED;
 
 		mwifiex_set_ba_params(priv);
 		mwifiex_reset_11n_rx_seq_num(priv);
@@ -493,14 +493,14 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 }
 
 /*
- * This function deletes all packets in an RA list node.
+ * This function deletes all packets in an RA list analde.
  *
  * The packet sent completion callback handler are called with
  * status failure, after they are dequeued to ensure proper
- * cleanup. The RA list node itself is freed at the end.
+ * cleanup. The RA list analde itself is freed at the end.
  */
 static void
-mwifiex_wmm_del_pkts_in_ralist_node(struct mwifiex_private *priv,
+mwifiex_wmm_del_pkts_in_ralist_analde(struct mwifiex_private *priv,
 				    struct mwifiex_ra_list_tbl *ra_list)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -515,7 +515,7 @@ mwifiex_wmm_del_pkts_in_ralist_node(struct mwifiex_private *priv,
 /*
  * This function deletes all packets in an RA list.
  *
- * Each nodes in the RA list are freed individually first, and then
+ * Each analdes in the RA list are freed individually first, and then
  * the RA list itself is freed.
  */
 static void
@@ -525,7 +525,7 @@ mwifiex_wmm_del_pkts_in_ralist(struct mwifiex_private *priv,
 	struct mwifiex_ra_list_tbl *ra_list;
 
 	list_for_each_entry(ra_list, ra_list_head, list)
-		mwifiex_wmm_del_pkts_in_ralist_node(priv, ra_list);
+		mwifiex_wmm_del_pkts_in_ralist_analde(priv, ra_list);
 }
 
 /*
@@ -548,13 +548,13 @@ static void mwifiex_wmm_cleanup_queues(struct mwifiex_private *priv)
  */
 static void mwifiex_wmm_delete_all_ralist(struct mwifiex_private *priv)
 {
-	struct mwifiex_ra_list_tbl *ra_list, *tmp_node;
+	struct mwifiex_ra_list_tbl *ra_list, *tmp_analde;
 	int i;
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
 		mwifiex_dbg(priv->adapter, INFO,
 			    "info: ra_list: freeing buf for tid %d\n", i);
-		list_for_each_entry_safe(ra_list, tmp_node,
+		list_for_each_entry_safe(ra_list, tmp_analde,
 					 &priv->wmm.tid_tbl_ptr[i].ra_list,
 					 list) {
 			list_del(&ra_list->list);
@@ -620,11 +620,11 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
 }
 
 /*
- * This function retrieves a particular RA list node, matching with the
+ * This function retrieves a particular RA list analde, matching with the
  * given TID and RA address.
  */
 struct mwifiex_ra_list_tbl *
-mwifiex_wmm_get_ralist_node(struct mwifiex_private *priv, u8 tid,
+mwifiex_wmm_get_ralist_analde(struct mwifiex_private *priv, u8 tid,
 			    const u8 *ra_addr)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
@@ -648,7 +648,7 @@ void mwifiex_update_ralist_tx_pause(struct mwifiex_private *priv, u8 *mac,
 	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
-		ra_list = mwifiex_wmm_get_ralist_node(priv, i, mac);
+		ra_list = mwifiex_wmm_get_ralist_analde(priv, i, mac);
 		if (ra_list && ra_list->tx_paused != tx_pause) {
 			pkt_cnt += ra_list->total_pkt_count;
 			ra_list->tx_paused = tx_pause;
@@ -674,7 +674,7 @@ void mwifiex_update_ralist_tx_pause(struct mwifiex_private *priv, u8 *mac,
 	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 }
 
-/* This function updates non-tdls peer ralist tx_pause while
+/* This function updates analn-tdls peer ralist tx_pause while
  * tdls channel switching
  */
 void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
@@ -719,10 +719,10 @@ void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
 }
 
 /*
- * This function retrieves an RA list node for a given TID and
+ * This function retrieves an RA list analde for a given TID and
  * RA address pair.
  *
- * If no such node is found, a new node is added first and then
+ * If anal such analde is found, a new analde is added first and then
  * retrieved.
  */
 struct mwifiex_ra_list_tbl *
@@ -731,16 +731,16 @@ mwifiex_wmm_get_queue_raptr(struct mwifiex_private *priv, u8 tid,
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 
-	ra_list = mwifiex_wmm_get_ralist_node(priv, tid, ra_addr);
+	ra_list = mwifiex_wmm_get_ralist_analde(priv, tid, ra_addr);
 	if (ra_list)
 		return ra_list;
 	mwifiex_ralist_add(priv, ra_addr);
 
-	return mwifiex_wmm_get_ralist_node(priv, tid, ra_addr);
+	return mwifiex_wmm_get_ralist_analde(priv, tid, ra_addr);
 }
 
 /*
- * This function deletes RA list nodes for given mac for all TIDs.
+ * This function deletes RA list analdes for given mac for all TIDs.
  * Function also decrements TX pending count accordingly.
  */
 void
@@ -752,11 +752,11 @@ mwifiex_wmm_del_peer_ra_list(struct mwifiex_private *priv, const u8 *ra_addr)
 	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
-		ra_list = mwifiex_wmm_get_ralist_node(priv, i, ra_addr);
+		ra_list = mwifiex_wmm_get_ralist_analde(priv, i, ra_addr);
 
 		if (!ra_list)
 			continue;
-		mwifiex_wmm_del_pkts_in_ralist_node(priv, ra_list);
+		mwifiex_wmm_del_pkts_in_ralist_analde(priv, ra_list);
 		if (ra_list->tx_paused)
 			priv->wmm.pkts_paused[i] -= ra_list->total_pkt_count;
 		else
@@ -769,7 +769,7 @@ mwifiex_wmm_del_peer_ra_list(struct mwifiex_private *priv, const u8 *ra_addr)
 }
 
 /*
- * This function checks if a particular RA list node exists in a given TID
+ * This function checks if a particular RA list analde exists in a given TID
  * table index.
  */
 int
@@ -805,7 +805,7 @@ mwifiex_wmm_add_buf_bypass_txqueue(struct mwifiex_private *priv,
  * In disconnected state the packet is immediately dropped and the
  * packet send completion callback is called with status failure.
  *
- * Otherwise, the correct RA list node is located and the packet
+ * Otherwise, the correct RA list analde is located and the packet
  * is queued at the list tail.
  */
 void
@@ -817,7 +817,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	struct mwifiex_ra_list_tbl *ra_list;
 	u8 ra[ETH_ALEN], tid_down;
 	struct list_head list_head;
-	int tdls_status = TDLS_NOT_SETUP;
+	int tdls_status = TDLS_ANALT_SETUP;
 	struct ethhdr *eth_hdr = (struct ethhdr *)skb->data;
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
 
@@ -1144,7 +1144,7 @@ try_again:
 				goto try_again;
 			} else
 				atomic_set(&priv_tmp->wmm.highest_queued_prio,
-					   NO_PKT_PRIO_TID);
+					   ANAL_PKT_PRIO_TID);
 		}
 	}
 
@@ -1166,7 +1166,7 @@ found:
  *
  * After a packet is successfully transmitted, rotate the ra list, so the ra
  * next to the one transmitted, will come first in the list. This way we pick
- * the ra' in a round robin fashion. Same applies to bss nodes of equal
+ * the ra' in a round robin fashion. Same applies to bss analdes of equal
  * priority.
  *
  * Function also increments wmm.packets_out counter.
@@ -1182,7 +1182,7 @@ void mwifiex_rotate_priolists(struct mwifiex_private *priv,
 	spin_lock_bh(&tbl[priv->bss_priority].bss_prio_lock);
 	/*
 	 * dirty trick: we remove 'head' temporarily and reinsert it after
-	 * curr bss node. imagine list to stay fixed while head is moved
+	 * curr bss analde. imagine list to stay fixed while head is moved
 	 */
 	list_move(&tbl[priv->bss_priority].bss_prio_head,
 		  &tbl[priv->bss_priority].bss_prio_cur->list);
@@ -1241,7 +1241,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 
 	if (skb_queue_empty(&ptr->skb_head)) {
 		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
-		mwifiex_dbg(adapter, DATA, "data: nothing to send\n");
+		mwifiex_dbg(adapter, DATA, "data: analthing to send\n");
 		return;
 	}
 
@@ -1287,7 +1287,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 
 /*
  * This function checks if the first packet in the given RA list
- * is already processed or not.
+ * is already processed or analt.
  */
 static int
 mwifiex_is_ptr_processed(struct mwifiex_private *priv,
@@ -1504,7 +1504,7 @@ void mwifiex_process_bypass_tx(struct mwifiex_adapter *adapter)
 		skb = skb_dequeue(&priv->bypass_txq);
 		tx_info = MWIFIEX_SKB_TXCB(skb);
 
-		/* no aggregation for bypass packets */
+		/* anal aggregation for bypass packets */
 		tx_param.next_pkt_len = 0;
 
 		if (mwifiex_process_tx(priv, skb, &tx_param) == -EBUSY) {

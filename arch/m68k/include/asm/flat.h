@@ -3,8 +3,8 @@
  * flat.h -- uClinux flat-format executables
  */
 
-#ifndef __M68KNOMMU_FLAT_H__
-#define __M68KNOMMU_FLAT_H__
+#ifndef __M68KANALMMU_FLAT_H__
+#define __M68KANALMMU_FLAT_H__
 
 #include <asm-generic/flat.h>
 
@@ -14,4 +14,4 @@
 			(regs)->d5 = current->mm->start_data; \
 	} while (0)
 
-#endif /* __M68KNOMMU_FLAT_H__ */
+#endif /* __M68KANALMMU_FLAT_H__ */

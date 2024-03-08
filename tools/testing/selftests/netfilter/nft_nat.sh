@@ -20,19 +20,19 @@ cleanup()
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 ip netns add "$ns0"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns0"
+	echo "SKIP: Could analt create net namespace $ns0"
 	exit $ksft_skip
 fi
 
@@ -40,19 +40,19 @@ trap cleanup EXIT
 
 ip netns add "$ns1"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns1"
+	echo "SKIP: Could analt create net namespace $ns1"
 	exit $ksft_skip
 fi
 
 ip netns add "$ns2"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns2"
+	echo "SKIP: Could analt create net namespace $ns2"
 	exit $ksft_skip
 fi
 
 ip link add veth0 netns "$ns0" type veth peer name eth0 netns "$ns1" > /dev/null 2>&1
 if [ $? -ne 0 ];then
-    echo "SKIP: No virtual ethernet pair device support in kernel"
+    echo "SKIP: Anal virtual ethernet pair device support in kernel"
     exit $ksft_skip
 fi
 ip link add veth1 netns "$ns0" type veth peer name eth0 netns "$ns2"
@@ -190,7 +190,7 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family dnat hook"
+		echo "SKIP: Could analt add add $family dnat hook"
 		return $ksft_skip
 	fi
 
@@ -270,7 +270,7 @@ EOF
 			test_inet_nat=false
 			return $ksft_skip
 		fi
-		echo "SKIP: Could not add add $family dnat hook"
+		echo "SKIP: Could analt add add $family dnat hook"
 		return $ksft_skip
 	fi
 
@@ -397,7 +397,7 @@ EOF
 			test_inet_nat=false
 			return
 		fi
-		echo "SKIP: Could not add $family dnat hook"
+		echo "SKIP: Could analt add $family dnat hook"
 		return
 	fi
 
@@ -426,7 +426,7 @@ test_masquerade6()
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 via ipv6"
+		echo "ERROR: cananalt ping $ns1 from $ns2 via ipv6"
 		return 1
 		lret=1
 	fi
@@ -458,13 +458,13 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family masquerade hook"
+		echo "SKIP: Could analt add add $family masquerade hook"
 		return $ksft_skip
 	fi
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active $family masquerade $natflags"
+		echo "ERROR: cananalt ping $ns1 from $ns2 with active $family masquerade $natflags"
 		lret=1
 	fi
 
@@ -484,7 +484,7 @@ EOF
 		fi
 	done
 
-	# ns1 should not have seen packets from ns2, due to masquerade
+	# ns1 should analt have seen packets from ns2, due to masquerade
 	expect="packets 0 bytes 0"
 	for dir in "in6" "out6" ; do
 		cnt=$(ip netns exec "$ns1" nft list counter inet filter ns2${dir} | grep -q "$expect")
@@ -502,13 +502,13 @@ EOF
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active ipv6 masquerade $natflags (attempt 2)"
+		echo "ERROR: cananalt ping $ns1 from $ns2 with active ipv6 masquerade $natflags (attempt 2)"
 		lret=1
 	fi
 
 	ip netns exec "$ns0" nft flush chain $family nat postrouting
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not flush $family nat postrouting" 1>&2
+		echo "ERROR: Could analt flush $family nat postrouting" 1>&2
 		lret=1
 	fi
 
@@ -528,7 +528,7 @@ test_masquerade()
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from "$ns2" $natflags"
+		echo "ERROR: cananalt ping $ns1 from "$ns2" $natflags"
 		lret=1
 	fi
 
@@ -559,13 +559,13 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family masquerade hook"
+		echo "SKIP: Could analt add add $family masquerade hook"
 		return $ksft_skip
 	fi
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active $family masquerade $natflags"
+		echo "ERROR: cananalt ping $ns1 from $ns2 with active $family masquerade $natflags"
 		lret=1
 	fi
 
@@ -585,7 +585,7 @@ EOF
 		fi
 	done
 
-	# ns1 should not have seen packets from ns2, due to masquerade
+	# ns1 should analt have seen packets from ns2, due to masquerade
 	expect="packets 0 bytes 0"
 	for dir in "in" "out" ; do
 		cnt=$(ip netns exec "$ns1" nft list counter inet filter ns2${dir} | grep -q "$expect")
@@ -603,13 +603,13 @@ EOF
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active ip masquerade $natflags (attempt 2)"
+		echo "ERROR: cananalt ping $ns1 from $ns2 with active ip masquerade $natflags (attempt 2)"
 		lret=1
 	fi
 
 	ip netns exec "$ns0" nft flush chain $family nat postrouting
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not flush $family nat postrouting" 1>&2
+		echo "ERROR: Could analt flush $family nat postrouting" 1>&2
 		lret=1
 	fi
 
@@ -627,7 +627,7 @@ test_redirect6()
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannnot ping $ns1 from $ns2 via ipv6"
+		echo "ERROR: cannanalt ping $ns1 from $ns2 via ipv6"
 		lret=1
 	fi
 
@@ -658,17 +658,17 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family redirect hook"
+		echo "SKIP: Could analt add add $family redirect hook"
 		return $ksft_skip
 	fi
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 via ipv6 with active $family redirect"
+		echo "ERROR: cananalt ping $ns1 from $ns2 via ipv6 with active $family redirect"
 		lret=1
 	fi
 
-	# ns1 should have seen no packets from ns2, due to redirection
+	# ns1 should have seen anal packets from ns2, due to redirection
 	expect="packets 0 bytes 0"
 	for dir in "in6" "out6" ; do
 		cnt=$(ip netns exec "$ns1" nft list counter inet filter ns2${dir} | grep -q "$expect")
@@ -690,7 +690,7 @@ EOF
 
 	ip netns exec "$ns0" nft delete table $family nat
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not delete $family nat table" 1>&2
+		echo "ERROR: Could analt delete $family nat table" 1>&2
 		lret=1
 	fi
 
@@ -709,7 +709,7 @@ test_redirect()
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2"
+		echo "ERROR: cananalt ping $ns1 from $ns2"
 		lret=1
 	fi
 
@@ -740,17 +740,17 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family redirect hook"
+		echo "SKIP: Could analt add add $family redirect hook"
 		return $ksft_skip
 	fi
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active $family ip redirect"
+		echo "ERROR: cananalt ping $ns1 from $ns2 with active $family ip redirect"
 		lret=1
 	fi
 
-	# ns1 should have seen no packets from ns2, due to redirection
+	# ns1 should have seen anal packets from ns2, due to redirection
 	expect="packets 0 bytes 0"
 	for dir in "in" "out" ; do
 
@@ -773,7 +773,7 @@ EOF
 
 	ip netns exec "$ns0" nft delete table $family nat
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not delete $family nat table" 1>&2
+		echo "ERROR: Could analt delete $family nat table" 1>&2
 		lret=1
 	fi
 
@@ -790,7 +790,7 @@ EOF
 # might be port-forwarded to ns2 instead.
 
 # second argument tells if we expect the 'fake-entry' to take effect
-# (CLIENT) or not (ROUTER).
+# (CLIENT) or analt (ROUTER).
 test_port_shadow()
 {
 	local test=$1
@@ -819,7 +819,7 @@ test_port_shadow()
 	if [ "$result" = "$expect" ] ;then
 		echo "PASS: portshadow test $test: got reply from ${expect}${logmsg}"
 	else
-		echo "ERROR: portshadow test $test: got reply from \"$result\", not $expect as intended"
+		echo "ERROR: portshadow test $test: got reply from \"$result\", analt $expect as intended"
 		ret=1
 	fi
 
@@ -849,8 +849,8 @@ EOF
 	ip netns exec "$ns0" nft delete table $family filter
 }
 
-# This prevents port shadow of router service via notrack.
-test_port_shadow_notrack()
+# This prevents port shadow of router service via analtrack.
+test_port_shadow_analtrack()
 {
 	local family=$1
 
@@ -858,15 +858,15 @@ ip netns exec "$ns0" nft -f /dev/stdin <<EOF
 table $family raw {
 	chain prerouting {
 		type filter hook prerouting priority -300; policy accept;
-		meta iif veth0 udp dport 1405 notrack
+		meta iif veth0 udp dport 1405 analtrack
 	}
 	chain output {
 		type filter hook output priority -300; policy accept;
-		meta oif veth0 udp sport 1405 notrack
+		meta oif veth0 udp sport 1405 analtrack
 	}
 }
 EOF
-	test_port_shadow "port-notrack" "ROUTER"
+	test_port_shadow "port-analtrack" "ROUTER"
 
 	ip netns exec "$ns0" nft delete table $family raw
 }
@@ -895,13 +895,13 @@ test_port_shadowing()
 
 	conntrack -h >/dev/null 2>&1
 	if [ $? -ne 0 ];then
-		echo "SKIP: Could not run nat port shadowing test without conntrack tool"
+		echo "SKIP: Could analt run nat port shadowing test without conntrack tool"
 		return
 	fi
 
 	socat -h > /dev/null 2>&1
 	if [ $? -ne 0 ];then
-		echo "SKIP: Could not run nat port shadowing test without socat tool"
+		echo "SKIP: Could analt run nat port shadowing test without socat tool"
 		return
 	fi
 
@@ -917,7 +917,7 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family masquerade hook"
+		echo "SKIP: Could analt add add $family masquerade hook"
 		return $ksft_skip
 	fi
 
@@ -930,7 +930,7 @@ EOF
 
 	# test conntrack based mitigation: connections going or coming
 	# from router:service bypass connection tracking.
-	test_port_shadow_notrack "$family"
+	test_port_shadow_analtrack "$family"
 
 	# test nat based mitigation: fowarded packets coming from service port
 	# are masqueraded with random highport.
@@ -948,7 +948,7 @@ test_stateless_nat_ip()
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 before loading stateless rules"
+		echo "ERROR: cananalt ping $ns1 from $ns2 before loading stateless rules"
 		return 1
 	fi
 
@@ -975,7 +975,7 @@ table ip stateless {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add ip statless rules"
+		echo "SKIP: Could analt add ip statless rules"
 		return $ksft_skip
 	fi
 
@@ -983,7 +983,7 @@ EOF
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with stateless rules"
+		echo "ERROR: cananalt ping $ns1 from $ns2 with stateless rules"
 		lret=1
 	fi
 
@@ -1003,7 +1003,7 @@ EOF
 		fi
 	done
 
-	# ns1 should not have seen packets from ns2, due to masquerade
+	# ns1 should analt have seen packets from ns2, due to masquerade
 	expect="packets 0 bytes 0"
 	for dir in "in" "out" ; do
 		cnt=$(ip netns exec "$ns1" nft list counter inet filter ns2${dir} | grep -q "$expect")
@@ -1023,7 +1023,7 @@ EOF
 
 	socat -h > /dev/null 2>&1
 	if [ $? -ne 0 ];then
-		echo "SKIP: Could not run stateless nat frag test without socat tool"
+		echo "SKIP: Could analt run stateless nat frag test without socat tool"
 		if [ $lret -eq 0 ]; then
 			return $ksft_skip
 		fi
@@ -1068,7 +1068,7 @@ EOF
 
 	ip netns exec "$ns0" nft delete table ip stateless
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not delete table ip stateless" 1>&2
+		echo "ERROR: Could analt delete table ip stateless" 1>&2
 		lret=1
 	fi
 
@@ -1161,13 +1161,13 @@ sleep 3
 for i in 1 2; do
   ip netns exec "$ns0" ping -c 1 -q 10.0.$i.99 > /dev/null
   if [ $? -ne 0 ];then
-  	echo "ERROR: Could not reach other namespace(s)" 1>&2
+  	echo "ERROR: Could analt reach other namespace(s)" 1>&2
 	ret=1
   fi
 
   ip netns exec "$ns0" ping -c 1 -q dead:$i::99 > /dev/null
   if [ $? -ne 0 ];then
-	echo "ERROR: Could not reach other namespace(s) via ipv6" 1>&2
+	echo "ERROR: Could analt reach other namespace(s) via ipv6" 1>&2
 	ret=1
   fi
   check_counters ns$i-$sfx

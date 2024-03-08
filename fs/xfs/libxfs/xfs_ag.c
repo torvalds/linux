@@ -28,7 +28,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_trace.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_icache.h"
 
 
@@ -41,12 +41,12 @@
 struct xfs_perag *
 xfs_perag_get(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		aganal)
 {
 	struct xfs_perag	*pag;
 
 	rcu_read_lock();
-	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
+	pag = radix_tree_lookup(&mp->m_perag_tree, aganal);
 	if (pag) {
 		trace_xfs_perag_get(pag, _RET_IP_);
 		ASSERT(atomic_read(&pag->pag_ref) >= 0);
@@ -112,15 +112,15 @@ xfs_perag_put(
 struct xfs_perag *
 xfs_perag_grab(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		aganal)
 {
 	struct xfs_perag	*pag;
 
 	rcu_read_lock();
-	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
+	pag = radix_tree_lookup(&mp->m_perag_tree, aganal);
 	if (pag) {
 		trace_xfs_perag_grab(pag, _RET_IP_);
-		if (!atomic_inc_not_zero(&pag->pag_active_ref))
+		if (!atomic_inc_analt_zero(&pag->pag_active_ref))
 			pag = NULL;
 	}
 	rcu_read_unlock();
@@ -147,7 +147,7 @@ xfs_perag_grab_tag(
 		return NULL;
 	}
 	trace_xfs_perag_grab_tag(pag, _RET_IP_);
-	if (!atomic_inc_not_zero(&pag->pag_active_ref))
+	if (!atomic_inc_analt_zero(&pag->pag_active_ref))
 		pag = NULL;
 	rcu_read_unlock();
 	return pag;
@@ -166,8 +166,8 @@ xfs_perag_rele(
  * xfs_initialize_perag_data
  *
  * Read in each per-ag structure so we can count up the number of
- * allocated inodes, free inodes and used filesystem blocks as this
- * information is no longer persistent in the superblock. Once we have
+ * allocated ianaldes, free ianaldes and used filesystem blocks as this
+ * information is anal longer persistent in the superblock. Once we have
  * this information, write it into the in-core superblock structure.
  */
 int
@@ -252,11 +252,11 @@ xfs_free_perag(
 	struct xfs_mount	*mp)
 {
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+	for (aganal = 0; aganal < mp->m_sb.sb_agcount; aganal++) {
 		spin_lock(&mp->m_perag_lock);
-		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+		pag = radix_tree_delete(&mp->m_perag_tree, aganal);
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		XFS_IS_CORRUPT(pag->pag_mount, atomic_read(&pag->pag_ref) != 0);
@@ -277,59 +277,59 @@ xfs_free_perag(
 static xfs_agblock_t
 __xfs_ag_block_count(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
+	xfs_agnumber_t		aganal,
 	xfs_agnumber_t		agcount,
 	xfs_rfsblock_t		dblocks)
 {
-	ASSERT(agno < agcount);
+	ASSERT(aganal < agcount);
 
-	if (agno < agcount - 1)
+	if (aganal < agcount - 1)
 		return mp->m_sb.sb_agblocks;
-	return dblocks - (agno * mp->m_sb.sb_agblocks);
+	return dblocks - (aganal * mp->m_sb.sb_agblocks);
 }
 
 xfs_agblock_t
 xfs_ag_block_count(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		aganal)
 {
-	return __xfs_ag_block_count(mp, agno, mp->m_sb.sb_agcount,
+	return __xfs_ag_block_count(mp, aganal, mp->m_sb.sb_agcount,
 			mp->m_sb.sb_dblocks);
 }
 
-/* Calculate the first and last possible inode number in an AG. */
+/* Calculate the first and last possible ianalde number in an AG. */
 static void
-__xfs_agino_range(
+__xfs_agianal_range(
 	struct xfs_mount	*mp,
 	xfs_agblock_t		eoag,
-	xfs_agino_t		*first,
-	xfs_agino_t		*last)
+	xfs_agianal_t		*first,
+	xfs_agianal_t		*last)
 {
-	xfs_agblock_t		bno;
+	xfs_agblock_t		banal;
 
 	/*
-	 * Calculate the first inode, which will be in the first
+	 * Calculate the first ianalde, which will be in the first
 	 * cluster-aligned block after the AGFL.
 	 */
-	bno = round_up(XFS_AGFL_BLOCK(mp) + 1, M_IGEO(mp)->cluster_align);
-	*first = XFS_AGB_TO_AGINO(mp, bno);
+	banal = round_up(XFS_AGFL_BLOCK(mp) + 1, M_IGEO(mp)->cluster_align);
+	*first = XFS_AGB_TO_AGIANAL(mp, banal);
 
 	/*
-	 * Calculate the last inode, which will be at the end of the
+	 * Calculate the last ianalde, which will be at the end of the
 	 * last (aligned) cluster that can be allocated in the AG.
 	 */
-	bno = round_down(eoag, M_IGEO(mp)->cluster_align);
-	*last = XFS_AGB_TO_AGINO(mp, bno) - 1;
+	banal = round_down(eoag, M_IGEO(mp)->cluster_align);
+	*last = XFS_AGB_TO_AGIANAL(mp, banal) - 1;
 }
 
 void
-xfs_agino_range(
+xfs_agianal_range(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		*first,
-	xfs_agino_t		*last)
+	xfs_agnumber_t		aganal,
+	xfs_agianal_t		*first,
+	xfs_agianal_t		*last)
 {
-	return __xfs_agino_range(mp, xfs_ag_block_count(mp, agno), first, last);
+	return __xfs_agianal_range(mp, xfs_ag_block_count(mp, aganal), first, last);
 }
 
 /*
@@ -383,13 +383,13 @@ xfs_initialize_perag(
 
 		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
 		if (!pag) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out_unwind_new_pags;
 		}
-		pag->pag_agno = index;
+		pag->pag_aganal = index;
 		pag->pag_mount = mp;
 
-		error = radix_tree_preload(GFP_NOFS);
+		error = radix_tree_preload(GFP_ANALFS);
 		if (error)
 			goto out_free_pag;
 
@@ -435,11 +435,11 @@ xfs_initialize_perag(
 		pag->block_count = __xfs_ag_block_count(mp, index, agcount,
 				dblocks);
 		pag->min_block = XFS_AGFL_BLOCK(mp);
-		__xfs_agino_range(mp, pag->block_count, &pag->agino_min,
-				&pag->agino_max);
+		__xfs_agianal_range(mp, pag->block_count, &pag->agianal_min,
+				&pag->agianal_max);
 	}
 
-	index = xfs_set_inode_alloc(mp, agcount);
+	index = xfs_set_ianalde_alloc(mp, agcount);
 
 	if (maxagi)
 		*maxagi = index;
@@ -463,7 +463,7 @@ out_unwind_new_pags:
 static int
 xfs_get_aghdr_buf(
 	struct xfs_mount	*mp,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	size_t			numblks,
 	struct xfs_buf		**bpp,
 	const struct xfs_buf_ops *ops)
@@ -475,7 +475,7 @@ xfs_get_aghdr_buf(
 	if (error)
 		return error;
 
-	bp->b_maps[0].bm_bn = blkno;
+	bp->b_maps[0].bm_bn = blkanal;
 	bp->b_ops = ops;
 
 	*bpp = bp;
@@ -491,7 +491,7 @@ xfs_btroot_init(
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	xfs_btree_init_block(mp, bp, id->type, 0, 0, id->agno);
+	xfs_btree_init_block(mp, bp, id->type, 0, 0, id->aganal);
 }
 
 /* Finish initializing a free space btree. */
@@ -507,9 +507,9 @@ xfs_freesp_init_recs(
 	arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
 	arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
 
-	if (xfs_ag_contains_log(mp, id->agno)) {
+	if (xfs_ag_contains_log(mp, id->aganal)) {
 		struct xfs_alloc_rec	*nrec;
-		xfs_agblock_t		start = XFS_FSB_TO_AGBNO(mp,
+		xfs_agblock_t		start = XFS_FSB_TO_AGBANAL(mp,
 							mp->m_sb.sb_logstart);
 
 		ASSERT(start >= mp->m_ag_prealloc_blocks);
@@ -539,7 +539,7 @@ xfs_freesp_init_recs(
 	}
 
 	/*
-	 * Calculate the block count of this record; if it is nonzero,
+	 * Calculate the block count of this record; if it is analnzero,
 	 * increment the record count.
 	 */
 	arec->ar_blockcount = cpu_to_be32(id->agsize -
@@ -552,12 +552,12 @@ xfs_freesp_init_recs(
  * Alloc btree root block init functions
  */
 static void
-xfs_bnoroot_init(
+xfs_banalroot_init(
 	struct xfs_mount	*mp,
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	xfs_btree_init_block(mp, bp, XFS_BTNUM_BNO, 0, 0, id->agno);
+	xfs_btree_init_block(mp, bp, XFS_BTNUM_BANAL, 0, 0, id->aganal);
 	xfs_freesp_init_recs(mp, bp, id);
 }
 
@@ -567,7 +567,7 @@ xfs_cntroot_init(
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	xfs_btree_init_block(mp, bp, XFS_BTNUM_CNT, 0, 0, id->agno);
+	xfs_btree_init_block(mp, bp, XFS_BTNUM_CNT, 0, 0, id->aganal);
 	xfs_freesp_init_recs(mp, bp, id);
 }
 
@@ -583,36 +583,36 @@ xfs_rmaproot_init(
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
 	struct xfs_rmap_rec	*rrec;
 
-	xfs_btree_init_block(mp, bp, XFS_BTNUM_RMAP, 0, 4, id->agno);
+	xfs_btree_init_block(mp, bp, XFS_BTNUM_RMAP, 0, 4, id->aganal);
 
 	/*
-	 * mark the AG header regions as static metadata The BNO
+	 * mark the AG header regions as static metadata The BANAL
 	 * btree block is the first block after the headers, so
 	 * it's location defines the size of region the static
 	 * metadata consumes.
 	 *
-	 * Note: unlike mkfs, we never have to account for log
+	 * Analte: unlike mkfs, we never have to account for log
 	 * space when growing the data regions
 	 */
 	rrec = XFS_RMAP_REC_ADDR(block, 1);
 	rrec->rm_startblock = 0;
-	rrec->rm_blockcount = cpu_to_be32(XFS_BNO_BLOCK(mp));
+	rrec->rm_blockcount = cpu_to_be32(XFS_BANAL_BLOCK(mp));
 	rrec->rm_owner = cpu_to_be64(XFS_RMAP_OWN_FS);
 	rrec->rm_offset = 0;
 
 	/* account freespace btree root blocks */
 	rrec = XFS_RMAP_REC_ADDR(block, 2);
-	rrec->rm_startblock = cpu_to_be32(XFS_BNO_BLOCK(mp));
+	rrec->rm_startblock = cpu_to_be32(XFS_BANAL_BLOCK(mp));
 	rrec->rm_blockcount = cpu_to_be32(2);
 	rrec->rm_owner = cpu_to_be64(XFS_RMAP_OWN_AG);
 	rrec->rm_offset = 0;
 
-	/* account inode btree root blocks */
+	/* account ianalde btree root blocks */
 	rrec = XFS_RMAP_REC_ADDR(block, 3);
 	rrec->rm_startblock = cpu_to_be32(XFS_IBT_BLOCK(mp));
 	rrec->rm_blockcount = cpu_to_be32(XFS_RMAP_BLOCK(mp) -
 					  XFS_IBT_BLOCK(mp));
-	rrec->rm_owner = cpu_to_be64(XFS_RMAP_OWN_INOBT);
+	rrec->rm_owner = cpu_to_be64(XFS_RMAP_OWN_IANALBT);
 	rrec->rm_offset = 0;
 
 	/* account for rmap btree root */
@@ -633,11 +633,11 @@ xfs_rmaproot_init(
 	}
 
 	/* account for the log space */
-	if (xfs_ag_contains_log(mp, id->agno)) {
+	if (xfs_ag_contains_log(mp, id->aganal)) {
 		rrec = XFS_RMAP_REC_ADDR(block,
 				be16_to_cpu(block->bb_numrecs) + 1);
 		rrec->rm_startblock = cpu_to_be32(
-				XFS_FSB_TO_AGBNO(mp, mp->m_sb.sb_logstart));
+				XFS_FSB_TO_AGBANAL(mp, mp->m_sb.sb_logstart));
 		rrec->rm_blockcount = cpu_to_be32(mp->m_sb.sb_logblocks);
 		rrec->rm_owner = cpu_to_be64(XFS_RMAP_OWN_LOG);
 		rrec->rm_offset = 0;
@@ -647,7 +647,7 @@ xfs_rmaproot_init(
 
 /*
  * Initialise new secondary superblocks with the pre-grow geometry, but mark
- * them as "in progress" so we know they haven't yet been activated. This will
+ * them as "in progress" so we kanalw they haven't yet been activated. This will
  * get cleared when the update with the new geometry information is done after
  * changes to the primary are committed. This isn't strictly necessary, but we
  * get it for free with the delayed buffer write lists and it means we can tell
@@ -676,11 +676,11 @@ xfs_agfblock_init(
 
 	agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
 	agf->agf_versionnum = cpu_to_be32(XFS_AGF_VERSION);
-	agf->agf_seqno = cpu_to_be32(id->agno);
+	agf->agf_seqanal = cpu_to_be32(id->aganal);
 	agf->agf_length = cpu_to_be32(id->agsize);
-	agf->agf_roots[XFS_BTNUM_BNOi] = cpu_to_be32(XFS_BNO_BLOCK(mp));
+	agf->agf_roots[XFS_BTNUM_BANALi] = cpu_to_be32(XFS_BANAL_BLOCK(mp));
 	agf->agf_roots[XFS_BTNUM_CNTi] = cpu_to_be32(XFS_CNT_BLOCK(mp));
-	agf->agf_levels[XFS_BTNUM_BNOi] = cpu_to_be32(1);
+	agf->agf_levels[XFS_BTNUM_BANALi] = cpu_to_be32(1);
 	agf->agf_levels[XFS_BTNUM_CNTi] = cpu_to_be32(1);
 	if (xfs_has_rmapbt(mp)) {
 		agf->agf_roots[XFS_BTNUM_RMAPi] =
@@ -704,12 +704,12 @@ xfs_agfblock_init(
 		agf->agf_refcount_blocks = cpu_to_be32(1);
 	}
 
-	if (xfs_ag_contains_log(mp, id->agno)) {
+	if (xfs_ag_contains_log(mp, id->aganal)) {
 		int64_t	logblocks = mp->m_sb.sb_logblocks;
 
 		be32_add_cpu(&agf->agf_freeblks, -logblocks);
 		agf->agf_longest = cpu_to_be32(id->agsize -
-			XFS_FSB_TO_AGBNO(mp, mp->m_sb.sb_logstart) - logblocks);
+			XFS_FSB_TO_AGBANAL(mp, mp->m_sb.sb_logstart) - logblocks);
 	}
 }
 
@@ -720,18 +720,18 @@ xfs_agflblock_init(
 	struct aghdr_init_data	*id)
 {
 	struct xfs_agfl		*agfl = XFS_BUF_TO_AGFL(bp);
-	__be32			*agfl_bno;
+	__be32			*agfl_banal;
 	int			bucket;
 
 	if (xfs_has_crc(mp)) {
 		agfl->agfl_magicnum = cpu_to_be32(XFS_AGFL_MAGIC);
-		agfl->agfl_seqno = cpu_to_be32(id->agno);
+		agfl->agfl_seqanal = cpu_to_be32(id->aganal);
 		uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid);
 	}
 
-	agfl_bno = xfs_buf_to_agfl_bno(bp);
+	agfl_banal = xfs_buf_to_agfl_banal(bp);
 	for (bucket = 0; bucket < xfs_agfl_size(mp); bucket++)
-		agfl_bno[bucket] = cpu_to_be32(NULLAGBLOCK);
+		agfl_banal[bucket] = cpu_to_be32(NULLAGBLOCK);
 }
 
 static void
@@ -745,25 +745,25 @@ xfs_agiblock_init(
 
 	agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
 	agi->agi_versionnum = cpu_to_be32(XFS_AGI_VERSION);
-	agi->agi_seqno = cpu_to_be32(id->agno);
+	agi->agi_seqanal = cpu_to_be32(id->aganal);
 	agi->agi_length = cpu_to_be32(id->agsize);
 	agi->agi_count = 0;
 	agi->agi_root = cpu_to_be32(XFS_IBT_BLOCK(mp));
 	agi->agi_level = cpu_to_be32(1);
 	agi->agi_freecount = 0;
-	agi->agi_newino = cpu_to_be32(NULLAGINO);
-	agi->agi_dirino = cpu_to_be32(NULLAGINO);
+	agi->agi_newianal = cpu_to_be32(NULLAGIANAL);
+	agi->agi_dirianal = cpu_to_be32(NULLAGIANAL);
 	if (xfs_has_crc(mp))
 		uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_meta_uuid);
-	if (xfs_has_finobt(mp)) {
+	if (xfs_has_fianalbt(mp)) {
 		agi->agi_free_root = cpu_to_be32(XFS_FIBT_BLOCK(mp));
 		agi->agi_free_level = cpu_to_be32(1);
 	}
 	for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++)
-		agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
-	if (xfs_has_inobtcounts(mp)) {
+		agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGIANAL);
+	if (xfs_has_ianalbtcounts(mp)) {
 		agi->agi_iblocks = cpu_to_be32(1);
-		if (xfs_has_finobt(mp))
+		if (xfs_has_fianalbt(mp))
 			agi->agi_fblocks = cpu_to_be32(1);
 	}
 }
@@ -806,7 +806,7 @@ struct xfs_aghdr_grow_data {
  * valid filesystem address space. Using cached buffers would trip over EOFS
  * corruption detection alogrithms in the buffer cache lookup routines.
  *
- * This is a non-transactional function, but the prepared buffers are added to a
+ * This is a analn-transactional function, but the prepared buffers are added to a
  * delayed write buffer list supplied by the caller so they can submit them to
  * disk and wait on them as required.
  */
@@ -818,72 +818,72 @@ xfs_ag_init_headers(
 {
 	struct xfs_aghdr_grow_data aghdr_data[] = {
 	{ /* SB */
-		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_SB_DADDR),
+		.daddr = XFS_AG_DADDR(mp, id->aganal, XFS_SB_DADDR),
 		.numblks = XFS_FSS_TO_BB(mp, 1),
 		.ops = &xfs_sb_buf_ops,
 		.work = &xfs_sbblock_init,
 		.need_init = true
 	},
 	{ /* AGF */
-		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGF_DADDR(mp)),
+		.daddr = XFS_AG_DADDR(mp, id->aganal, XFS_AGF_DADDR(mp)),
 		.numblks = XFS_FSS_TO_BB(mp, 1),
 		.ops = &xfs_agf_buf_ops,
 		.work = &xfs_agfblock_init,
 		.need_init = true
 	},
 	{ /* AGFL */
-		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGFL_DADDR(mp)),
+		.daddr = XFS_AG_DADDR(mp, id->aganal, XFS_AGFL_DADDR(mp)),
 		.numblks = XFS_FSS_TO_BB(mp, 1),
 		.ops = &xfs_agfl_buf_ops,
 		.work = &xfs_agflblock_init,
 		.need_init = true
 	},
 	{ /* AGI */
-		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGI_DADDR(mp)),
+		.daddr = XFS_AG_DADDR(mp, id->aganal, XFS_AGI_DADDR(mp)),
 		.numblks = XFS_FSS_TO_BB(mp, 1),
 		.ops = &xfs_agi_buf_ops,
 		.work = &xfs_agiblock_init,
 		.need_init = true
 	},
-	{ /* BNO root block */
-		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_BNO_BLOCK(mp)),
+	{ /* BANAL root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->aganal, XFS_BANAL_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_bnobt_buf_ops,
-		.work = &xfs_bnoroot_init,
+		.ops = &xfs_banalbt_buf_ops,
+		.work = &xfs_banalroot_init,
 		.need_init = true
 	},
 	{ /* CNT root block */
-		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_CNT_BLOCK(mp)),
+		.daddr = XFS_AGB_TO_DADDR(mp, id->aganal, XFS_CNT_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
 		.ops = &xfs_cntbt_buf_ops,
 		.work = &xfs_cntroot_init,
 		.need_init = true
 	},
-	{ /* INO root block */
-		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_IBT_BLOCK(mp)),
+	{ /* IANAL root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->aganal, XFS_IBT_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_inobt_buf_ops,
+		.ops = &xfs_ianalbt_buf_ops,
 		.work = &xfs_btroot_init,
-		.type = XFS_BTNUM_INO,
+		.type = XFS_BTNUM_IANAL,
 		.need_init = true
 	},
-	{ /* FINO root block */
-		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_FIBT_BLOCK(mp)),
+	{ /* FIANAL root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->aganal, XFS_FIBT_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_finobt_buf_ops,
+		.ops = &xfs_fianalbt_buf_ops,
 		.work = &xfs_btroot_init,
-		.type = XFS_BTNUM_FINO,
-		.need_init =  xfs_has_finobt(mp)
+		.type = XFS_BTNUM_FIANAL,
+		.need_init =  xfs_has_fianalbt(mp)
 	},
 	{ /* RMAP root block */
-		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_RMAP_BLOCK(mp)),
+		.daddr = XFS_AGB_TO_DADDR(mp, id->aganal, XFS_RMAP_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
 		.ops = &xfs_rmapbt_buf_ops,
 		.work = &xfs_rmaproot_init,
 		.need_init = xfs_has_rmapbt(mp)
 	},
 	{ /* REFC root block */
-		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, xfs_refc_block(mp)),
+		.daddr = XFS_AGB_TO_DADDR(mp, id->aganal, xfs_refc_block(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
 		.ops = &xfs_refcountbt_buf_ops,
 		.work = &xfs_btroot_init,
@@ -927,7 +927,7 @@ xfs_ag_shrink_space(
 		.minlen = delta,
 		.maxlen = delta,
 		.oinfo	= XFS_RMAP_OINFO_SKIP_UPDATE,
-		.resv	= XFS_AG_RESV_NONE,
+		.resv	= XFS_AG_RESV_ANALNE,
 		.prod	= 1
 	};
 	struct xfs_buf		*agibp, *agfbp;
@@ -936,7 +936,7 @@ xfs_ag_shrink_space(
 	xfs_agblock_t		aglen;
 	int			error, err2;
 
-	ASSERT(pag->pag_agno == mp->m_sb.sb_agcount - 1);
+	ASSERT(pag->pag_aganal == mp->m_sb.sb_agcount - 1);
 	error = xfs_ialloc_read_agi(pag, *tpp, &agibp);
 	if (error)
 		return error;
@@ -949,14 +949,14 @@ xfs_ag_shrink_space(
 
 	agf = agfbp->b_addr;
 	aglen = be32_to_cpu(agi->agi_length);
-	/* some extra paranoid checks before we shrink the ag */
+	/* some extra paraanalid checks before we shrink the ag */
 	if (XFS_IS_CORRUPT(mp, agf->agf_length != agi->agi_length))
 		return -EFSCORRUPTED;
 	if (delta >= aglen)
 		return -EINVAL;
 
 	/*
-	 * Make sure that the last inode cluster cannot overlap with the new
+	 * Make sure that the last ianalde cluster cananalt overlap with the new
 	 * end of the AG, even if it's sparse.
 	 */
 	error = xfs_ialloc_check_shrink(pag, *tpp, agibp, aglen - delta);
@@ -972,10 +972,10 @@ xfs_ag_shrink_space(
 		return error;
 
 	/* internal log shouldn't also show up in the free space btrees */
-	error = xfs_alloc_vextent_exact_bno(&args,
-			XFS_AGB_TO_FSB(mp, pag->pag_agno, aglen - delta));
-	if (!error && args.agbno == NULLAGBLOCK)
-		error = -ENOSPC;
+	error = xfs_alloc_vextent_exact_banal(&args,
+			XFS_AGB_TO_FSB(mp, pag->pag_aganal, aglen - delta));
+	if (!error && args.agbanal == NULLAGBLOCK)
+		error = -EANALSPC;
 
 	if (error) {
 		/*
@@ -1001,11 +1001,11 @@ xfs_ag_shrink_space(
 	if (err2) {
 		be32_add_cpu(&agi->agi_length, delta);
 		be32_add_cpu(&agf->agf_length, delta);
-		if (err2 != -ENOSPC)
+		if (err2 != -EANALSPC)
 			goto resv_err;
 
-		err2 = xfs_free_extent_later(*tpp, args.fsbno, delta, NULL,
-				XFS_AG_RESV_NONE, true);
+		err2 = xfs_free_extent_later(*tpp, args.fsbanal, delta, NULL,
+				XFS_AG_RESV_ANALNE, true);
 		if (err2)
 			goto resv_err;
 
@@ -1018,14 +1018,14 @@ xfs_ag_shrink_space(
 		if (error)
 			return error;
 
-		error = -ENOSPC;
+		error = -EANALSPC;
 		goto resv_init_out;
 	}
 
 	/* Update perag geometry */
 	pag->block_count -= delta;
-	__xfs_agino_range(pag->pag_mount, pag->block_count, &pag->agino_min,
-				&pag->agino_max);
+	__xfs_agianal_range(pag->pag_mount, pag->block_count, &pag->agianal_min,
+				&pag->agianal_max);
 
 	xfs_ialloc_log_agi(*tpp, agibp, XFS_AGI_LENGTH);
 	xfs_alloc_log_agf(*tpp, agfbp, XFS_AGF_LENGTH);
@@ -1055,7 +1055,7 @@ xfs_ag_extend_space(
 	struct xfs_agf		*agf;
 	int			error;
 
-	ASSERT(pag->pag_agno == pag->pag_mount->m_sb.sb_agcount - 1);
+	ASSERT(pag->pag_aganal == pag->pag_mount->m_sb.sb_agcount - 1);
 
 	error = xfs_ialloc_read_agi(pag, tp, &bp);
 	if (error)
@@ -1089,14 +1089,14 @@ xfs_ag_extend_space(
 		return error;
 
 	error = xfs_free_extent(tp, pag, be32_to_cpu(agf->agf_length) - len,
-			len, &XFS_RMAP_OINFO_SKIP_UPDATE, XFS_AG_RESV_NONE);
+			len, &XFS_RMAP_OINFO_SKIP_UPDATE, XFS_AG_RESV_ANALNE);
 	if (error)
 		return error;
 
 	/* Update perag geometry */
 	pag->block_count = be32_to_cpu(agf->agf_length);
-	__xfs_agino_range(pag->pag_mount, pag->block_count, &pag->agino_min,
-				&pag->agino_max);
+	__xfs_agianal_range(pag->pag_mount, pag->block_count, &pag->agianal_min,
+				&pag->agianal_max);
 	return 0;
 }
 
@@ -1123,7 +1123,7 @@ xfs_ag_get_geometry(
 
 	/* Fill out form. */
 	memset(ageo, 0, sizeof(*ageo));
-	ageo->ag_number = pag->pag_agno;
+	ageo->ag_number = pag->pag_aganal;
 
 	agi = agi_bp->b_addr;
 	ageo->ag_icount = be32_to_cpu(agi->agi_count);
@@ -1134,7 +1134,7 @@ xfs_ag_get_geometry(
 	freeblks = pag->pagf_freeblks +
 		   pag->pagf_flcount +
 		   pag->pagf_btreeblks -
-		   xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE);
+		   xfs_ag_resv_needed(pag, XFS_AG_RESV_ANALNE);
 	ageo->ag_freeblks = freeblks;
 	xfs_ag_geom_health(pag, ageo);
 

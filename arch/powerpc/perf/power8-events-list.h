@@ -9,7 +9,7 @@
  * Power8 event codes.
  */
 EVENT(PM_CYC,					0x0001e)
-EVENT(PM_GCT_NOSLOT_CYC,			0x100f8)
+EVENT(PM_GCT_ANALSLOT_CYC,			0x100f8)
 EVENT(PM_CMPLU_STALL,				0x4000a)
 EVENT(PM_INST_CMPL,				0x00002)
 EVENT(PM_BRU_FIN,				0x10068)
@@ -33,7 +33,7 @@ EVENT(PM_L1_DEMAND_WRITE,			0x0408c)
 EVENT(PM_IC_PREF_WRITE,				0x0408e)
 /* The data cache was reloaded from local core's L3 due to a demand load */
 EVENT(PM_DATA_FROM_L3,				0x4c042)
-/* Demand LD - L3 Miss (not L2 hit and not L3 hit) */
+/* Demand LD - L3 Miss (analt L2 hit and analt L3 hit) */
 EVENT(PM_DATA_FROM_L3MISS,			0x300fe)
 /* All successful D-side store dispatches for this thread */
 EVENT(PM_L2_ST,					0x17080)

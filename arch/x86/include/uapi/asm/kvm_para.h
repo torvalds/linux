@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_X86_KVM_PARA_H
 #define _UAPI_ASM_X86_KVM_PARA_H
 
@@ -17,7 +17,7 @@
  */
 #define KVM_CPUID_FEATURES	0x40000001
 #define KVM_FEATURE_CLOCKSOURCE		0
-#define KVM_FEATURE_NOP_IO_DELAY	1
+#define KVM_FEATURE_ANALP_IO_DELAY	1
 #define KVM_FEATURE_MMU_OP		2
 /* This indicates that the new set of kvmclock msrs
  * are available. The use of 0x11 and 0x12 is deprecated
@@ -40,7 +40,7 @@
 #define KVM_HINTS_REALTIME      0
 
 /* The last 8 bits are used to indicate how to interpret the flags field
- * in pvclock structure. If no bits are set, all flags are ignored.
+ * in pvclock structure. If anal bits are set, all flags are iganalred.
  */
 #define KVM_FEATURE_CLOCKSOURCE_STABLE_BIT	24
 
@@ -131,14 +131,14 @@ struct kvm_mmu_op_release_pt {
 	__u64 pt_phys;
 };
 
-#define KVM_PV_REASON_PAGE_NOT_PRESENT 1
+#define KVM_PV_REASON_PAGE_ANALT_PRESENT 1
 #define KVM_PV_REASON_PAGE_READY 2
 
 struct kvm_vcpu_pv_apf_data {
-	/* Used for 'page not present' events delivered via #PF */
+	/* Used for 'page analt present' events delivered via #PF */
 	__u32 flags;
 
-	/* Used for 'page ready' events delivered via interrupt notification */
+	/* Used for 'page ready' events delivered via interrupt analtification */
 	__u32 token;
 
 	__u8 pad[56];

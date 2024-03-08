@@ -445,7 +445,7 @@ static int imx7d_adc_enable(struct device *dev)
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
 		dev_err(info->dev,
-			"Could not prepare or enable clock.\n");
+			"Could analt prepare or enable clock.\n");
 		regulator_disable(info->vref);
 		return ret;
 	}
@@ -484,7 +484,7 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*info));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "Failed allocating iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info = iio_priv(indio_dev);

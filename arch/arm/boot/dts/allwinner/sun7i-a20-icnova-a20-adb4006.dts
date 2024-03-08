@@ -3,14 +3,14 @@
 
 /dts-v1/;
 
-#include "sun7i-a20-icnova-a20.dtsi"
+#include "sun7i-a20-icanalva-a20.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 
 / {
-	model = "In-Circuit ICnova A20 ADB4006";
-	compatible = "incircuit,icnova-a20-adb4006", "incircuit,icnova-a20",
+	model = "In-Circuit ICanalva A20 ADB4006";
+	compatible = "incircuit,icanalva-a20-adb4006", "incircuit,icanalva-a20",
 		     "allwinner,sun7i-a20";
 
 	aliases {

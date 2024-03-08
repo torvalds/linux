@@ -49,7 +49,7 @@ struct emac_rrd {
 	u32	word[6];
 
 /* number of RFD */
-#define RRD_NOR(rrd)			BITS_GET((rrd)->word[0], 16, 19)
+#define RRD_ANALR(rrd)			BITS_GET((rrd)->word[0], 16, 19)
 /* start consumer index of rfd-ring */
 #define RRD_SI(rrd)			BITS_GET((rrd)->word[0], 20, 31)
 /* vlan-tag (CVID, CFI and PRI) */

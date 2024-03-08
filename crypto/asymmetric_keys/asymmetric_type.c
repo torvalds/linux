@@ -76,7 +76,7 @@ struct key *find_asymmetric_key(struct key *keyring,
 	/* Construct an identifier "id:<keyid>". */
 	p = req = kmalloc(2 + 1 + len * 2 + 1, GFP_KERNEL);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!id_0 && !id_1) {
 		*p++ = 'd';
@@ -104,9 +104,9 @@ struct key *find_asymmetric_key(struct key *keyring,
 		switch (PTR_ERR(ref)) {
 			/* Hide some search errors */
 		case -EACCES:
-		case -ENOTDIR:
+		case -EANALTDIR:
 		case -EAGAIN:
-			return ERR_PTR(-ENOKEY);
+			return ERR_PTR(-EANALKEY);
 		default:
 			return ERR_CAST(ref);
 		}
@@ -121,7 +121,7 @@ struct key *find_asymmetric_key(struct key *keyring,
 			goto reject;
 		}
 		if (!asymmetric_key_id_same(id_1, kids->id[1])) {
-			pr_debug("First ID matches, but second does not\n");
+			pr_debug("First ID matches, but second does analt\n");
 			goto reject;
 		}
 	}
@@ -154,7 +154,7 @@ struct asymmetric_key_id *asymmetric_key_generate_id(const void *val_1,
 	kid = kmalloc(sizeof(struct asymmetric_key_id) + len_1 + len_2,
 		      GFP_KERNEL);
 	if (!kid)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	kid->len = len_1 + len_2;
 	memcpy(kid->data, val_1, len_1);
 	memcpy(kid->data + len_1, val_2, len_2);
@@ -246,7 +246,7 @@ struct asymmetric_key_id *asymmetric_key_hex_to_key_id(const char *id)
 	match_id = kmalloc(sizeof(struct asymmetric_key_id) + asciihexlen / 2,
 			   GFP_KERNEL);
 	if (!match_id)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ret = __asymmetric_key_hex_to_key_id(id, match_id, asciihexlen / 2);
 	if (ret < 0) {
 		kfree(match_id);
@@ -491,7 +491,7 @@ static struct key_restriction *asymmetric_restriction_alloc(
 		kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
 
 	if (!keyres)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	keyres->check = check;
 	keyres->key = key;
@@ -521,7 +521,7 @@ static struct key_restriction *asymmetric_lookup_restriction(
 
 	parse_buf = kstrndup(restriction, PAGE_SIZE, GFP_KERNEL);
 	if (!parse_buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	next = parse_buf;
 	restrict_method = strsep(&next, ":");
@@ -583,7 +583,7 @@ int asymmetric_key_eds_op(struct kernel_pkey_params *params,
 	    !key->payload.data[0])
 		return -EINVAL;
 	if (!subtype->eds_op)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = subtype->eds_op(params, in, out);
 
@@ -644,7 +644,7 @@ int register_asymmetric_key_parser(struct asymmetric_key_parser *parser)
 
 	list_add_tail(&parser->link, &asymmetric_key_parsers);
 
-	pr_notice("Asymmetric key parser '%s' registered\n", parser->name);
+	pr_analtice("Asymmetric key parser '%s' registered\n", parser->name);
 	ret = 0;
 
 out:
@@ -663,7 +663,7 @@ void unregister_asymmetric_key_parser(struct asymmetric_key_parser *parser)
 	list_del(&parser->link);
 	up_write(&asymmetric_key_parsers_sem);
 
-	pr_notice("Asymmetric key parser '%s' unregistered\n", parser->name);
+	pr_analtice("Asymmetric key parser '%s' unregistered\n", parser->name);
 }
 EXPORT_SYMBOL_GPL(unregister_asymmetric_key_parser);
 

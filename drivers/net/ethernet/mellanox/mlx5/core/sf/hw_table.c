@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Ltd */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd */
 #include <linux/mlx5/driver.h>
 #include "vhca_event.h"
 #include "priv.h"
@@ -32,7 +32,7 @@ enum mlx5_sf_hwc_index {
 struct mlx5_sf_hw_table {
 	struct mlx5_core_dev *dev;
 	struct mutex table_lock; /* Serializes sf deletion and vhca state change handler. */
-	struct notifier_block vhca_nb;
+	struct analtifier_block vhca_nb;
 	struct mlx5_sf_hwc_table hwc[MLX5_SF_HWC_MAX];
 };
 
@@ -80,7 +80,7 @@ static int mlx5_sf_hw_table_id_alloc(struct mlx5_sf_hw_table *table, u32 control
 
 	hwc = mlx5_sf_controller_to_hwc(table->dev, controller);
 	if (!hwc->sfs)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (i = 0; i < hwc->max_fn; i++) {
 		if (!hwc->sfs[i].allocated && free_idx == -1) {
@@ -93,7 +93,7 @@ static int mlx5_sf_hw_table_id_alloc(struct mlx5_sf_hw_table *table, u32 control
 	}
 
 	if (free_idx == -1)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	hwc->sfs[free_idx].usr_sfnum = usr_sfnum;
 	hwc->sfs[free_idx].allocated = true;
@@ -117,7 +117,7 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 controller, u32 usr
 	int err;
 
 	if (!table)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&table->table_lock);
 	sw_id = mlx5_sf_hw_table_id_alloc(table, controller, usr_sfnum);
@@ -231,7 +231,7 @@ static int mlx5_sf_hw_table_hwc_init(struct mlx5_sf_hwc_table *hwc, u16 max_fn, 
 
 	sfs = kcalloc(max_fn, sizeof(*sfs), GFP_KERNEL);
 	if (!sfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwc->sfs = sfs;
 	hwc->max_fn = max_fn;
@@ -296,7 +296,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto alloc_err;
 	}
 
@@ -342,7 +342,7 @@ res_unregister:
 	mlx5_sf_hw_table_res_unregister(dev);
 }
 
-static int mlx5_sf_hw_vhca_event(struct notifier_block *nb, unsigned long opcode, void *data)
+static int mlx5_sf_hw_vhca_event(struct analtifier_block *nb, unsigned long opcode, void *data)
 {
 	struct mlx5_sf_hw_table *table = container_of(nb, struct mlx5_sf_hw_table, vhca_nb);
 	const struct mlx5_vhca_state_event *event = data;
@@ -361,7 +361,7 @@ static int mlx5_sf_hw_vhca_event(struct notifier_block *nb, unsigned long opcode
 	sf_hw = &hwc->sfs[sw_id];
 
 	mutex_lock(&table->table_lock);
-	/* SF driver notified through firmware that SF is finally detached.
+	/* SF driver analtified through firmware that SF is finally detached.
 	 * Hence recycle the sf hardware id for reuse.
 	 */
 	if (sf_hw->allocated && sf_hw->pending_delete)
@@ -377,8 +377,8 @@ int mlx5_sf_hw_table_create(struct mlx5_core_dev *dev)
 	if (!table)
 		return 0;
 
-	table->vhca_nb.notifier_call = mlx5_sf_hw_vhca_event;
-	return mlx5_vhca_event_notifier_register(dev, &table->vhca_nb);
+	table->vhca_nb.analtifier_call = mlx5_sf_hw_vhca_event;
+	return mlx5_vhca_event_analtifier_register(dev, &table->vhca_nb);
 }
 
 void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
@@ -388,7 +388,7 @@ void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
 	if (!table)
 		return;
 
-	mlx5_vhca_event_notifier_unregister(dev, &table->vhca_nb);
+	mlx5_vhca_event_analtifier_unregister(dev, &table->vhca_nb);
 	/* Dealloc SFs whose firmware event has been missed. */
 	mlx5_sf_hw_table_dealloc_all(table);
 }

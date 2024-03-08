@@ -41,7 +41,7 @@
 #define SHARP_STRENGTH_DEFAULT	32
 #define SHARP_EDGE_THR_DEFAULT	112
 #define SHARP_SMOOTH_THR_DEFAULT	8
-#define SHARP_NOISE_THR_DEFAULT	2
+#define SHARP_ANALISE_THR_DEFAULT	2
 
 #define DPU_PLANE_COLOR_FILL_FLAG	BIT(31)
 #define DPU_ZPOS_MAX 255
@@ -220,7 +220,7 @@ static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 			total_fl = (fixed_buff_size / 2) /
 				((src_width + 32) * fmt->bpp);
 		} else {
-			/* non NV12 */
+			/* analn NV12 */
 			total_fl = (fixed_buff_size / 2) * 2 /
 				((src_width + 32) * fmt->bpp);
 		}
@@ -368,7 +368,7 @@ static void _dpu_plane_set_ot_limit(struct drm_plane *plane,
 
 	memset(&ot_params, 0, sizeof(ot_params));
 	ot_params.xin_id = pipe->sspp->cap->xin_id;
-	ot_params.num = pipe->sspp->idx - SSPP_NONE;
+	ot_params.num = pipe->sspp->idx - SSPP_ANALNE;
 	ot_params.width = drm_rect_width(&pipe_cfg->src_rect);
 	ot_params.height = drm_rect_height(&pipe_cfg->src_rect);
 	ot_params.is_wfd = !pdpu->is_rt_pipe;
@@ -627,7 +627,7 @@ static void _dpu_plane_color_fill(struct dpu_plane *pdpu,
 	 * h/w only supports RGB variants
 	 */
 	fmt = dpu_get_dpu_format(DRM_FORMAT_ABGR8888);
-	/* should not happen ever */
+	/* should analt happen ever */
 	if (!fmt)
 		return;
 
@@ -825,12 +825,12 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	pipe->multirect_index = DPU_SSPP_RECT_SOLO;
-	pipe->multirect_mode = DPU_SSPP_MULTIRECT_NONE;
+	pipe->multirect_mode = DPU_SSPP_MULTIRECT_ANALNE;
 	r_pipe->multirect_index = DPU_SSPP_RECT_SOLO;
-	r_pipe->multirect_mode = DPU_SSPP_MULTIRECT_NONE;
+	r_pipe->multirect_mode = DPU_SSPP_MULTIRECT_ANALNE;
 	r_pipe->sspp = NULL;
 
-	pstate->stage = DPU_STAGE_0 + pstate->base.normalized_zpos;
+	pstate->stage = DPU_STAGE_0 + pstate->base.analrmalized_zpos;
 	if (pstate->stage >= pdpu->catalog->caps->max_mixer_blendstages) {
 		DPU_ERROR("> %d plane stages assigned\n",
 			  pdpu->catalog->caps->max_mixer_blendstages - DPU_STAGE_0);
@@ -839,7 +839,7 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 
 	pipe_cfg->src_rect = new_plane_state->src;
 
-	/* state->src is 16.16, src_rect is not */
+	/* state->src is 16.16, src_rect is analt */
 	pipe_cfg->src_rect.x1 >>= 16;
 	pipe_cfg->src_rect.x2 >>= 16;
 	pipe_cfg->src_rect.y1 >>= 16;
@@ -866,7 +866,7 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 	     _dpu_plane_calc_clk(&crtc_state->adjusted_mode, pipe_cfg) > max_mdp_clk_rate) {
 		/*
 		 * In parallel multirect case only the half of the usual width
-		 * is supported for tiled formats. If we are here, we know that
+		 * is supported for tiled formats. If we are here, we kanalw that
 		 * full width is more than max_linewidth, thus each rect is
 		 * wider than allowed.
 		 */
@@ -894,8 +894,8 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 		}
 
 		/*
-		 * Use multirect for wide plane. We do not support dynamic
-		 * assignment of SSPPs, so we know the configuration.
+		 * Use multirect for wide plane. We do analt support dynamic
+		 * assignment of SSPPs, so we kanalw the configuration.
 		 */
 		pipe->multirect_index = DPU_SSPP_RECT_0;
 		pipe->multirect_mode = DPU_SSPP_MULTIRECT_PARALLEL;
@@ -980,7 +980,7 @@ void dpu_plane_flush(struct drm_plane *plane)
 
 	/*
 	 * These updates have to be done immediately before the plane flush
-	 * timing, and may not be moved to the atomic_update/mode_set functions.
+	 * timing, and may analt be moved to the atomic_update/mode_set functions.
 	 */
 	if (pdpu->is_error)
 		/* force white frame with 100% alpha pipe output on error */
@@ -1027,7 +1027,7 @@ static void dpu_plane_sspp_update_pipe(struct drm_plane *plane,
 	struct dpu_plane_state *pstate = to_dpu_plane_state(state);
 
 	if (layout && pipe->sspp->ops.setup_sourceaddress) {
-		trace_dpu_plane_set_scanout(pipe, layout);
+		trace_dpu_plane_set_scaanalut(pipe, layout);
 		pipe->sspp->ops.setup_sourceaddress(pipe, layout);
 	}
 
@@ -1158,7 +1158,7 @@ static void _dpu_plane_atomic_disable(struct drm_plane *plane)
 
 	if (r_pipe->sspp) {
 		r_pipe->multirect_index = DPU_SSPP_RECT_SOLO;
-		r_pipe->multirect_mode = DPU_SSPP_MULTIRECT_NONE;
+		r_pipe->multirect_mode = DPU_SSPP_MULTIRECT_ANALNE;
 
 		if (r_pipe->sspp->ops.setup_multirect)
 			r_pipe->sspp->ops.setup_multirect(r_pipe);
@@ -1225,7 +1225,7 @@ dpu_plane_duplicate_state(struct drm_plane *plane)
 }
 
 static const char * const multirect_mode_name[] = {
-	[DPU_SSPP_MULTIRECT_NONE] = "none",
+	[DPU_SSPP_MULTIRECT_ANALNE] = "analne",
 	[DPU_SSPP_MULTIRECT_PARALLEL] = "parallel",
 	[DPU_SSPP_MULTIRECT_TIME_MX] = "time_mx",
 };
@@ -1239,7 +1239,7 @@ static const char * const multirect_index_name[] = {
 static const char *dpu_get_multirect_mode(enum dpu_sspp_multirect_mode mode)
 {
 	if (WARN_ON(mode >= ARRAY_SIZE(multirect_mode_name)))
-		return "unknown";
+		return "unkanalwn";
 
 	return multirect_mode_name[mode];
 }
@@ -1247,7 +1247,7 @@ static const char *dpu_get_multirect_mode(enum dpu_sspp_multirect_mode mode)
 static const char *dpu_get_multirect_index(enum dpu_sspp_multirect_index index)
 {
 	if (WARN_ON(index >= ARRAY_SIZE(multirect_index_name)))
-		return "unknown";
+		return "unkanalwn";
 
 	return multirect_index_name[index];
 }
@@ -1313,7 +1313,7 @@ static void dpu_plane_reset(struct drm_plane *plane)
 	 */
 	pstate->pipe.sspp = dpu_rm_get_sspp(&dpu_kms->rm, pdpu->pipe);
 	pstate->pipe.multirect_index = DPU_SSPP_RECT_SOLO;
-	pstate->pipe.multirect_mode = DPU_SSPP_MULTIRECT_NONE;
+	pstate->pipe.multirect_mode = DPU_SSPP_MULTIRECT_ANALNE;
 
 	pstate->r_pipe.sspp = NULL;
 
@@ -1412,7 +1412,7 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_blend_mode_property(plane,
-			BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+			BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 			BIT(DRM_MODE_BLEND_PREMULTI) |
 			BIT(DRM_MODE_BLEND_COVERAGE));
 

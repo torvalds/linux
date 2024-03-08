@@ -29,7 +29,7 @@ DEFINE_CORESIGHT_DEVLIST(replicator_devs, "replicator");
 /**
  * struct replicator_drvdata - specifics associated to a replicator component
  * @base:	memory mapped base address for this component. Also indicates
- *		whether this one is programmable or not.
+ *		whether this one is programmable or analt.
  * @atclk:	optional clock for the core parts of the replicator.
  * @csdev:	component vitals needed by the framework
  * @spinlock:	serialize enable/disable operations.
@@ -223,18 +223,18 @@ static int replicator_probe(struct device *dev, struct resource *res)
 	struct coresight_desc desc = { 0 };
 	void __iomem *base;
 
-	if (is_of_node(dev_fwnode(dev)) &&
-	    of_device_is_compatible(dev->of_node, "arm,coresight-replicator"))
+	if (is_of_analde(dev_fwanalde(dev)) &&
+	    of_device_is_compatible(dev->of_analde, "arm,coresight-replicator"))
 		dev_warn_once(dev,
 			      "Uses OBSOLETE CoreSight replicator binding\n");
 
 	desc.name = coresight_alloc_device_name(&replicator_devs, dev);
 	if (!desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->atclk = devm_clk_get(dev, "atclk"); /* optional */
 	if (!IS_ERR(drvdata->atclk)) {
@@ -258,7 +258,7 @@ static int replicator_probe(struct device *dev, struct resource *res)
 		desc.access = CSDEV_ACCESS_IOMEM(base);
 	}
 
-	if (fwnode_property_present(dev_fwnode(dev),
+	if (fwanalde_property_present(dev_fwanalde(dev),
 				    "qcom,replicator-loses-context"))
 		drvdata->check_idfilter_val = true;
 
@@ -305,15 +305,15 @@ static int static_replicator_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	/* Static replicators do not have programming base */
+	/* Static replicators do analt have programming base */
 	ret = replicator_probe(&pdev->dev, NULL);
 
 	if (ret) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
 	}
 

@@ -199,7 +199,7 @@
 #define UDC_EPINT_IN_MSK_OFS			0
 
 #define UDC_EPINT_MSK_DISABLE_ALL		0xffffffff
-/* mask non-EP0 endpoints */
+/* mask analn-EP0 endpoints */
 #define UDC_EPDATAINT_MSK_DISABLE		0xfffefffe
 /* mask all dev interrupts */
 #define UDC_DEV_MSK_DISABLE			0x7f
@@ -358,7 +358,7 @@
 #define UDC_EPOUT_NUM				16
 /* EP number of EP's really used = EP0 + 8 data EP's */
 #define UDC_USED_EP_NUM				9
-/* UDC CSR regs are aligned but AHB regs not - offset for OUT EP's */
+/* UDC CSR regs are aligned but AHB regs analt - offset for OUT EP's */
 #define UDC_CSR_EP_OUT_IX_OFS			12
 
 #define UDC_EP0OUT_IX				16
@@ -460,7 +460,7 @@ struct udc_stp_dma {
 	u32	data34;
 } __attribute__ ((aligned (16)));
 
-/* normal data DMA desc */
+/* analrmal data DMA desc */
 struct udc_data_dma {
 	/* status quadlet */
 	u32	status;
@@ -535,7 +535,7 @@ struct udc {
 	/* operational flags */
 	unsigned			stall_ep0in : 1,
 					waiting_zlp_ack_ep0in : 1,
-					set_cfg_not_acked : 1,
+					set_cfg_analt_acked : 1,
 					data_ep_enabled : 1,
 					data_ep_queued : 1,
 					sys_suspended : 1,
@@ -570,7 +570,7 @@ struct udc {
 	struct phy			*udc_phy;
 	struct extcon_dev		*edev;
 	struct extcon_specific_cable_nb	extcon_nb;
-	struct notifier_block		nb;
+	struct analtifier_block		nb;
 	struct delayed_work		drd_work;
 	u32				conn_type;
 };

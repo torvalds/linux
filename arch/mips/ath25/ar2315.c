@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003 Atheros Communications, Inc.,  All Rights Reserved.
- * Copyright (C) 2006 FON Technology, SL.
+ * Copyright (C) 2006 FON Techanallogy, SL.
  * Copyright (C) 2006 Imre Kaloz <kaloz@openwrt.org>
  * Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2012 Alexandros C. Couloumbis <alex@ozo.com>
@@ -182,7 +182,7 @@ static void ar2315_restart(char *command)
 	/* try reset the system via reset control */
 	ar2315_rst_reg_write(AR2315_COLD_RESET, AR2317_RESET_SYSTEM);
 
-	/* Cold reset does not work on the AR2315/6, use the GPIO reset bits
+	/* Cold reset does analt work on the AR2315/6, use the GPIO reset bits
 	 * a workaround. Give it some time to attempt a gpio based hardware
 	 * reset (atheros reference design workaround) */
 
@@ -296,7 +296,7 @@ void __init ar2315_plat_mem_setup(void)
 	write_c0_config(config & ~0x3);
 	ar2315_rst_reg_write(AR2315_AHB_ERR0, AR2315_AHB_ERROR_DET);
 	ar2315_rst_reg_read(AR2315_AHB_ERR1);
-	ar2315_rst_reg_write(AR2315_WDT_CTRL, AR2315_WDT_CTRL_IGNORE);
+	ar2315_rst_reg_write(AR2315_WDT_CTRL, AR2315_WDT_CTRL_IGANALRE);
 
 	_machine_restart = ar2315_restart;
 }

@@ -52,15 +52,15 @@ static int drm_plane_helper_init(struct kunit *test)
 	struct drm_plane_state *mock;
 
 	plane = kunit_kzalloc(test, sizeof(*plane), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, plane);
+	KUNIT_ASSERT_ANALT_NULL(test, plane);
 
 	fb = kunit_kzalloc(test, sizeof(*fb), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, fb);
+	KUNIT_ASSERT_ANALT_NULL(test, fb);
 	fb->width = 2048;
 	fb->height = 2048;
 
 	mock = kunit_kzalloc(test, sizeof(*mock), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, mock);
+	KUNIT_ASSERT_ANALT_NULL(test, mock);
 	mock->plane = plane;
 	mock->crtc = ZERO_SIZE_PTR;
 	mock->fb = fb;
@@ -142,8 +142,8 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 			 2048 << 16 },
 		.crtc = { 0, 0, 2048, 2048 },
 		.rotation = DRM_MODE_ROTATE_0,
-		.min_scale = DRM_PLANE_NO_SCALING,
-		.max_scale = DRM_PLANE_NO_SCALING,
+		.min_scale = DRM_PLANE_ANAL_SCALING,
+		.max_scale = DRM_PLANE_ANAL_SCALING,
 		.can_position = false,
 		.src_expected = { 0, 0, 1024 << 16, 768 << 16 },
 		.crtc_expected = { 0, 0, 1024, 768 },
@@ -156,8 +156,8 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 			 2048 << 16 },
 		.crtc = { 0, 0, 2048, 2048 },
 		.rotation = DRM_MODE_ROTATE_90 | DRM_MODE_REFLECT_X,
-		.min_scale = DRM_PLANE_NO_SCALING,
-		.max_scale = DRM_PLANE_NO_SCALING,
+		.min_scale = DRM_PLANE_ANAL_SCALING,
+		.max_scale = DRM_PLANE_ANAL_SCALING,
 		.can_position = false,
 		.src_expected = { 0, 0, 768 << 16, 1024 << 16 },
 		.crtc_expected = { 0, 0, 1024, 768 },
@@ -168,8 +168,8 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 		.src = { 0, 0, 1023 << 16, 767 << 16 },
 		.crtc = { 0, 0, 1023, 767 },
 		.rotation = DRM_MODE_ROTATE_0,
-		.min_scale = DRM_PLANE_NO_SCALING,
-		.max_scale = DRM_PLANE_NO_SCALING,
+		.min_scale = DRM_PLANE_ANAL_SCALING,
+		.max_scale = DRM_PLANE_ANAL_SCALING,
 		.can_position = true,
 		.src_expected = { 0, 0, 1023 << 16, 767 << 16 },
 		.crtc_expected = { 0, 0, 1023, 767 },
@@ -181,7 +181,7 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 		.crtc = { 0, 0, 1024, 768 },
 		.rotation = DRM_MODE_ROTATE_0,
 		.min_scale = 0x8000,
-		.max_scale = DRM_PLANE_NO_SCALING,
+		.max_scale = DRM_PLANE_ANAL_SCALING,
 		.can_position = false,
 		.src_expected = { 0, 0, 512 << 16, 384 << 16 },
 		.crtc_expected = { 0, 0, 1024, 768 },
@@ -192,7 +192,7 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 		.src = { 0, 0, 2048 << 16, 1536 << 16 },
 		.crtc = { 0, 0, 1024, 768 },
 		.rotation = DRM_MODE_ROTATE_0,
-		.min_scale = DRM_PLANE_NO_SCALING,
+		.min_scale = DRM_PLANE_ANAL_SCALING,
 		.max_scale = 0x20000,
 		.can_position = false,
 		.src_expected = { 0, 0, 2048 << 16, 1536 << 16 },
@@ -204,7 +204,7 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 		.src = { 0, 0, 0x40001, 0x40001 },
 		.crtc = { 1022, 766, 4, 4 },
 		.rotation = DRM_MODE_ROTATE_0,
-		.min_scale = DRM_PLANE_NO_SCALING,
+		.min_scale = DRM_PLANE_ANAL_SCALING,
 		.max_scale = 0x10001,
 		.can_position = true,
 		.src_expected = { 0, 0, 2 << 16, 2 << 16 },
@@ -216,7 +216,7 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 		.src = { 0x20001, 0x20001, 0x4040001, 0x3040001 },
 		.crtc = { -2, -2, 1028, 772 },
 		.rotation = DRM_MODE_ROTATE_0,
-		.min_scale = DRM_PLANE_NO_SCALING,
+		.min_scale = DRM_PLANE_ANAL_SCALING,
 		.max_scale = 0x10001,
 		.can_position = false,
 		.src_expected = { 0x40002, 0x40002, 1024 << 16, 768 << 16 },
@@ -229,9 +229,9 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 		.crtc = { 1022, 766, 4, 4 },
 		.rotation = DRM_MODE_ROTATE_0,
 		.min_scale = 0xffff,
-		.max_scale = DRM_PLANE_NO_SCALING,
+		.max_scale = DRM_PLANE_ANAL_SCALING,
 		.can_position = true,
-		/* Should not be rounded to 0x20001, which would be upscaling. */
+		/* Should analt be rounded to 0x20001, which would be upscaling. */
 		.src_expected = { 0, 0, 2 << 16, 2 << 16 },
 		.crtc_expected = { 1022, 766, 2, 2 },
 	},
@@ -242,7 +242,7 @@ static const struct drm_check_plane_state_test drm_check_plane_state_tests[] = {
 		.crtc = { -2, -2, 1028, 772 },
 		.rotation = DRM_MODE_ROTATE_0,
 		.min_scale = 0xffff,
-		.max_scale = DRM_PLANE_NO_SCALING,
+		.max_scale = DRM_PLANE_ANAL_SCALING,
 		.can_position = false,
 		.src_expected = { 0x3fffe, 0x3fffe, 1024 << 16, 768 << 16 },
 		.crtc_expected = { 0, 0, 1024, 768 },
@@ -267,12 +267,12 @@ static void drm_test_check_invalid_plane_state(struct kunit *test)
 static const struct drm_check_plane_state_test drm_check_invalid_plane_state_tests[] = {
 	{
 		.name = "positioning_invalid",
-		.msg = "Should not be able to position on the crtc with can_position=false",
+		.msg = "Should analt be able to position on the crtc with can_position=false",
 		.src = { 0, 0, 1023 << 16, 767 << 16 },
 		.crtc = { 0, 0, 1023, 767 },
 		.rotation = DRM_MODE_ROTATE_0,
-		.min_scale = DRM_PLANE_NO_SCALING,
-		.max_scale = DRM_PLANE_NO_SCALING,
+		.min_scale = DRM_PLANE_ANAL_SCALING,
+		.max_scale = DRM_PLANE_ANAL_SCALING,
 		.can_position = false,
 	},
 	{
@@ -282,7 +282,7 @@ static const struct drm_check_plane_state_test drm_check_invalid_plane_state_tes
 		.crtc = { 0, 0, 1024, 768 },
 		.rotation = DRM_MODE_ROTATE_0,
 		.min_scale = 0x8001,
-		.max_scale = DRM_PLANE_NO_SCALING,
+		.max_scale = DRM_PLANE_ANAL_SCALING,
 		.can_position = false,
 	},
 	{
@@ -291,7 +291,7 @@ static const struct drm_check_plane_state_test drm_check_invalid_plane_state_tes
 		.src = { 0, 0, 2048 << 16, 1536 << 16 },
 		.crtc = { 0, 0, 1024, 768 },
 		.rotation = DRM_MODE_ROTATE_0,
-		.min_scale = DRM_PLANE_NO_SCALING,
+		.min_scale = DRM_PLANE_ANAL_SCALING,
 		.max_scale = 0x1ffff,
 		.can_position = false,
 	},

@@ -72,9 +72,9 @@ static struct hpet_scope ir_hpet[MAX_HPET_TBS];
  *	->irq_2_ir_lock
  *		->qi->q_lock
  *	->iommu->register_lock
- * Note:
+ * Analte:
  * intel_irq_remap_ops.{supported,prepare,enable,disable,reenable} are called
- * in single-threaded environment with interrupt disabled, so no need to tabke
+ * in single-threaded environment with interrupt disabled, so anal need to tabke
  * the dmar_global_lock.
  */
 DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
@@ -177,7 +177,7 @@ static int modify_irte(struct irq_2_iommu *irq_iommu,
 	if ((irte->pst == 1) || (irte_modified->pst == 1)) {
 		/*
 		 * We use cmpxchg16 to atomically update the 128-bit IRTE,
-		 * and it cannot be updated by the hardware or other processors
+		 * and it cananalt be updated by the hardware or other processors
 		 * behind us, so the return value of cmpxchg16 should be the
 		 * same as the old value.
 		 */
@@ -255,7 +255,7 @@ static int clear_entries(struct irq_2_iommu *irq_iommu)
 /*
  * source validation type
  */
-#define SVT_NO_VERIFY		0x0  /* no verification is required */
+#define SVT_ANAL_VERIFY		0x0  /* anal verification is required */
 #define SVT_VERIFY_SID_SQ	0x1  /* verify using SID and SQ fields */
 #define SVT_VERIFY_BUS		0x2  /* verify bus of request-id */
 
@@ -263,13 +263,13 @@ static int clear_entries(struct irq_2_iommu *irq_iommu)
  * source-id qualifier
  */
 #define SQ_ALL_16	0x0  /* verify all 16 bits of request-id */
-#define SQ_13_IGNORE_1	0x1  /* verify most significant 13 bits, ignore
+#define SQ_13_IGANALRE_1	0x1  /* verify most significant 13 bits, iganalre
 			      * the third least significant bit
 			      */
-#define SQ_13_IGNORE_2	0x2  /* verify most significant 13 bits, ignore
+#define SQ_13_IGANALRE_2	0x2  /* verify most significant 13 bits, iganalre
 			      * the second and third least significant bits
 			      */
-#define SQ_13_IGNORE_3	0x3  /* verify most significant 13 bits, ignore
+#define SQ_13_IGANALRE_3	0x3  /* verify most significant 13 bits, iganalre
 			      * the least three significant bits
 			      */
 
@@ -281,7 +281,7 @@ static void set_irte_sid(struct irte *irte, unsigned int svt,
 			 unsigned int sq, unsigned int sid)
 {
 	if (disable_sourceid_checking)
-		svt = SVT_NO_VERIFY;
+		svt = SVT_ANAL_VERIFY;
 	irte->svt = svt;
 	irte->sq = sq;
 	irte->sid = sid;
@@ -347,9 +347,9 @@ static int set_hpet_sid(struct irte *irte, u8 id)
 	/*
 	 * Should really use SQ_ALL_16. Some platforms are broken.
 	 * While we figure out the right quirks for these broken platforms, use
-	 * SQ_13_IGNORE_3 for now.
+	 * SQ_13_IGANALRE_3 for analw.
 	 */
-	set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_13_IGNORE_3, sid);
+	set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_13_IGANALRE_3, sid);
 
 	return 0;
 }
@@ -400,7 +400,7 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	 * If the alias device is on a different bus than our source device
 	 * then we have a topology based alias, use it.
 	 *
-	 * Otherwise, the alias is for a device DMA quirk and we cannot
+	 * Otherwise, the alias is for a device DMA quirk and we cananalt
 	 * assume that MSI uses the same requester ID.  Therefore use the
 	 * original device.
 	 */
@@ -438,7 +438,7 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 	/* Map the old IR table */
 	old_ir_table = memremap(irt_phys, size, MEMREMAP_WB);
 	if (!old_ir_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Copy data over */
 	memcpy(iommu->ir_table->base, old_ir_table, size);
@@ -446,7 +446,7 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 	__iommu_flush_cache(iommu, iommu->ir_table->base, size);
 
 	/*
-	 * Now check the table for used entries and mark those as
+	 * Analw check the table for used entries and mark those as
 	 * allocated in the bitmap
 	 */
 	for (i = 0; i < INTR_REMAP_TABLE_ENTRIES; i++) {
@@ -525,7 +525,7 @@ static void iommu_enable_irq_remapping(struct intel_iommu *iommu)
 static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 {
 	struct ir_table *ir_table;
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 	unsigned long *bitmap;
 	struct page *pages;
 
@@ -534,9 +534,9 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 
 	ir_table = kzalloc(sizeof(struct ir_table), GFP_KERNEL);
 	if (!ir_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pages = alloc_pages_node(iommu->node, GFP_KERNEL | __GFP_ZERO,
+	pages = alloc_pages_analde(iommu->analde, GFP_KERNEL | __GFP_ZERO,
 				 INTR_REMAP_PAGE_ORDER);
 	if (!pages) {
 		pr_err("IR%d: failed to allocate pages of order %d\n",
@@ -550,7 +550,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 		goto out_free_pages;
 	}
 
-	fn = irq_domain_alloc_named_id_fwnode("INTEL-IR", iommu->seq_id);
+	fn = irq_domain_alloc_named_id_fwanalde("INTEL-IR", iommu->seq_id);
 	if (!fn)
 		goto out_free_bitmap;
 
@@ -561,7 +561,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 					    iommu);
 	if (!iommu->ir_domain) {
 		pr_err("IR%d: failed to allocate irqdomain\n", iommu->seq_id);
-		goto out_free_fwnode;
+		goto out_free_fwanalde;
 	}
 
 	irq_domain_update_bus_token(iommu->ir_domain,  DOMAIN_BUS_DMAR);
@@ -598,7 +598,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 
 	if (ir_pre_enabled(iommu)) {
 		if (!is_kdump_kernel()) {
-			pr_warn("IRQ remapping was enabled on %s but we are not in kdump mode\n",
+			pr_warn("IRQ remapping was enabled on %s but we are analt in kdump mode\n",
 				iommu->name);
 			clear_ir_pre_enabled(iommu);
 			iommu_disable_irq_remapping(iommu);
@@ -617,8 +617,8 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 out_free_ir_domain:
 	irq_domain_remove(iommu->ir_domain);
 	iommu->ir_domain = NULL;
-out_free_fwnode:
-	irq_domain_free_fwnode(fn);
+out_free_fwanalde:
+	irq_domain_free_fwanalde(fn);
 out_free_bitmap:
 	bitmap_free(bitmap);
 out_free_pages:
@@ -628,19 +628,19 @@ out_free_table:
 
 	iommu->ir_table  = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void intel_teardown_irq_remapping(struct intel_iommu *iommu)
 {
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 
 	if (iommu && iommu->ir_table) {
 		if (iommu->ir_domain) {
-			fn = iommu->ir_domain->fwnode;
+			fn = iommu->ir_domain->fwanalde;
 
 			irq_domain_remove(iommu->ir_domain);
-			irq_domain_free_fwnode(fn);
+			irq_domain_free_fwanalde(fn);
 			iommu->ir_domain = NULL;
 		}
 		free_pages((unsigned long)iommu->ir_table->base,
@@ -689,7 +689,7 @@ static int __init dmar_x2apic_optout(void)
 {
 	struct acpi_table_dmar *dmar;
 	dmar = (struct acpi_table_dmar *)dmar_tbl;
-	if (!dmar || no_x2apic_optout)
+	if (!dmar || anal_x2apic_optout)
 		return 0;
 	return dmar->flags & DMAR_X2APIC_OPT_OUT;
 }
@@ -723,20 +723,20 @@ static int __init intel_prepare_irq_remapping(void)
 			"interrupt remapping is being disabled.  Please\n"
 			"contact your BIOS vendor for an update\n");
 		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dmar_table_init() < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (intel_cap_audit(CAP_AUDIT_STATIC_IRQR, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!dmar_ir_support())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (parse_ioapics_under_ir()) {
-		pr_info("Not enabling interrupt remapping\n");
+		pr_info("Analt enabling interrupt remapping\n");
 		goto error;
 	}
 
@@ -750,13 +750,13 @@ static int __init intel_prepare_irq_remapping(void)
 		eim = !dmar_x2apic_optout();
 		if (!eim) {
 			pr_info("x2apic is disabled because BIOS sets x2apic opt out bit.");
-			pr_info("Use 'intremap=no_x2apic_optout' to override the BIOS setting.\n");
+			pr_info("Use 'intremap=anal_x2apic_optout' to override the BIOS setting.\n");
 		}
 	}
 
 	for_each_iommu(iommu, drhd) {
 		if (eim && !ecap_eim_support(iommu->ecap)) {
-			pr_info("%s does not support EIM\n", iommu->name);
+			pr_info("%s does analt support EIM\n", iommu->name);
 			eim = 0;
 		}
 	}
@@ -778,7 +778,7 @@ static int __init intel_prepare_irq_remapping(void)
 
 error:
 	intel_cleanup_irq_remapping();
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -817,7 +817,7 @@ static int __init intel_enable_irq_remapping(void)
 	bool setup = false;
 
 	/*
-	 * Setup Interrupt-remapping for all the DRHD's now.
+	 * Setup Interrupt-remapping for all the DRHD's analw.
 	 */
 	for_each_iommu(iommu, drhd) {
 		if (!ir_pre_enabled(iommu))
@@ -873,7 +873,7 @@ static int ir_parse_one_hpet_scope(struct acpi_dmar_device_scope *scope,
 	}
 	if (free == -1) {
 		pr_warn("Exceeded Max HPET blocks\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	ir_hpet[free].iommu = iommu;
@@ -918,7 +918,7 @@ static int ir_parse_one_ioapic_scope(struct acpi_dmar_device_scope *scope,
 	}
 	if (free == -1) {
 		pr_warn("Exceeded Max IO APICS\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	ir_ioapic[free].bus   = bus;
@@ -993,12 +993,12 @@ static int __init parse_ioapics_under_ir(void)
 	}
 
 	if (!ir_supported)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (ioapic_idx = 0; ioapic_idx < nr_ioapics; ioapic_idx++) {
 		int ioapic_id = mpc_ioapic_id(ioapic_idx);
 		if (!map_ioapic_to_iommu(ioapic_id)) {
-			pr_err(FW_BUG "ioapic %d has no mapping iommu, "
+			pr_err(FW_BUG "ioapic %d has anal mapping iommu, "
 			       "interrupt remapping will be disabled\n",
 			       ioapic_id);
 			return -1;
@@ -1029,7 +1029,7 @@ static void disable_irq_remapping(void)
 	struct intel_iommu *iommu = NULL;
 
 	/*
-	 * Disable Interrupt-remapping for all the DRHD's now.
+	 * Disable Interrupt-remapping for all the DRHD's analw.
 	 */
 	for_each_iommu(iommu, drhd) {
 		if (!ecap_ir_support(iommu->ecap))
@@ -1056,7 +1056,7 @@ static int reenable_irq_remapping(int eim)
 			dmar_reenable_qi(iommu);
 
 	/*
-	 * Setup Interrupt-remapping for all the DRHD's now.
+	 * Setup Interrupt-remapping for all the DRHD's analw.
 	 */
 	for_each_iommu(iommu, drhd) {
 		if (!ecap_ir_support(iommu->ecap))
@@ -1086,11 +1086,11 @@ error:
  * Store the MSI remapping domain pointer in the device if enabled.
  *
  * This is called from dmar_pci_bus_add_dev() so it works even when DMA
- * remapping is disabled. Only update the pointer if the device is not
- * already handled by a non default PCI/MSI interrupt domain. This protects
+ * remapping is disabled. Only update the pointer if the device is analt
+ * already handled by a analn default PCI/MSI interrupt domain. This protects
  * e.g. VMD devices.
  */
-void intel_irq_remap_add_device(struct dmar_pci_notify_info *info)
+void intel_irq_remap_add_device(struct dmar_pci_analtify_info *info)
 {
 	if (!irq_remapping_enabled || !pci_dev_has_default_msi_parent_domain(info->dev))
 		return;
@@ -1201,7 +1201,7 @@ static int intel_ir_set_vcpu_affinity(struct irq_data *data, void *info)
 		struct irte irte_pi;
 
 		/*
-		 * We are not caching the posted interrupt entry. We
+		 * We are analt caching the posted interrupt entry. We
 		 * copy the data from the remapped entry and modify
 		 * the fields which are relevant for posted mode. The
 		 * cached remapped entry is used for switching back to
@@ -1326,7 +1326,7 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 	if (ret < 0)
 		return ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		goto out_free_parent;
@@ -1448,20 +1448,20 @@ static int dmar_ir_add(struct dmar_drhd_unit *dmaru, struct intel_iommu *iommu)
 		return ret;
 
 	if (eim && !ecap_eim_support(iommu->ecap)) {
-		pr_info("DRHD %Lx: EIM not supported by DRHD, ecap %Lx\n",
+		pr_info("DRHD %Lx: EIM analt supported by DRHD, ecap %Lx\n",
 			iommu->reg_phys, iommu->ecap);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ir_parse_ioapic_hpet_scope(dmaru->hdr, iommu)) {
 		pr_warn("DRHD %Lx: failed to parse managed IOAPIC/HPET\n",
 			iommu->reg_phys);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* TODO: check all IOAPICs are covered by IOMMU */
 
-	/* Setup Interrupt-remapping now. */
+	/* Setup Interrupt-remapping analw. */
 	ret = intel_setup_irq_remapping(iommu);
 	if (ret) {
 		pr_err("Failed to setup irq remapping for %s\n",

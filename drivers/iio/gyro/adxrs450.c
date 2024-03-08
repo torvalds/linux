@@ -244,7 +244,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (t != 0x01)
-		dev_warn(&st->us->dev, "The initial power on response is not correct! Restart without reset?\n");
+		dev_warn(&st->us->dev, "The initial power on response is analt correct! Restart without reset?\n");
 
 	msleep(ADXRS450_STARTUP_DELAY);
 	ret = adxrs450_spi_initial(st, &t, 0);
@@ -256,7 +256,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (((t & 0xff) | 0x01) != 0xff || ADXRS450_GET_ST(t) != 2) {
-		dev_err(&st->us->dev, "The second response is not correct!\n");
+		dev_err(&st->us->dev, "The second response is analt correct!\n");
 		return -EIO;
 
 	}
@@ -264,7 +264,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (((t & 0xff) | 0x01) != 0xff || ADXRS450_GET_ST(t) != 2) {
-		dev_err(&st->us->dev, "The third response is not correct!\n");
+		dev_err(&st->us->dev, "The third response is analt correct!\n");
 		return -EIO;
 
 	}
@@ -272,7 +272,7 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 	if (data & 0x0fff) {
-		dev_err(&st->us->dev, "The device is not in normal status!\n");
+		dev_err(&st->us->dev, "The device is analt in analrmal status!\n");
 		return -EINVAL;
 	}
 
@@ -337,7 +337,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 		case IIO_ANGL_VEL:
 			*val = 0;
 			*val2 = 218166;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_TEMP:
 			*val = 200;
 			*val2 = 0;
@@ -417,7 +417,7 @@ static int adxrs450_probe(struct spi_device *spi)
 	/* setup the industrialio driver allocated elements */
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	st = iio_priv(indio_dev);
 	st->us = spi;
 	mutex_init(&st->buf_lock);

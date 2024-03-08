@@ -30,7 +30,7 @@ properties:
     const: 1
     description:
       The number of cells to define the interrupts.  It must be 1 as the
-      VIC has no configuration options for interrupt sources. The single
+      VIC has anal configuration options for interrupt sources. The single
       cell defines the interrupt number.
 
   reg:

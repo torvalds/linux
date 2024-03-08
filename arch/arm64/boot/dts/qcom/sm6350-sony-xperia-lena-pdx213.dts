@@ -305,7 +305,7 @@
 &pm6350_gpios {
 	vol_down_n: vol-down-n-state {
 		pins = "gpio2";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		power-source = <0>;
 		bias-disable;
 		input-enable;

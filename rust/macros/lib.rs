@@ -26,7 +26,7 @@ use proc_macro::TokenStream;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```iganalre
 /// use kernel::prelude::*;
 ///
 /// module!{
@@ -83,26 +83,26 @@ pub fn module(ts: TokenStream) -> TokenStream {
 ///
 /// Linux's use of pure vtables is very close to Rust traits, but they differ
 /// in how unimplemented functions are represented. In Rust, traits can provide
-/// default implementation for all non-required methods (and the default
+/// default implementation for all analn-required methods (and the default
 /// implementation could just return `Error::EINVAL`); Linux typically use C
 /// `NULL` pointers to represent these functions.
 ///
-/// This attribute closes that gap. A trait can be annotated with the
+/// This attribute closes that gap. A trait can be ananaltated with the
 /// `#[vtable]` attribute. Implementers of the trait will then also have to
-/// annotate the trait with `#[vtable]`. This attribute generates a `HAS_*`
+/// ananaltate the trait with `#[vtable]`. This attribute generates a `HAS_*`
 /// associated constant bool for each method in the trait that is set to true if
 /// the implementer has overridden the associated method.
 ///
 /// For a trait method to be optional, it must have a default implementation.
-/// This is also the case for traits annotated with `#[vtable]`, but in this
+/// This is also the case for traits ananaltated with `#[vtable]`, but in this
 /// case the default implementation will never be executed. The reason for this
 /// is that the functions will be called through function pointers installed in
-/// C side vtables. When an optional method is not implemented on a `#[vtable]`
+/// C side vtables. When an optional method is analt implemented on a `#[vtable]`
 /// trait, a NULL entry is installed in the vtable. Thus the default
-/// implementation is never called. Since these traits are not designed to be
-/// used on the Rust side, it should not be possible to call the default
+/// implementation is never called. Since these traits are analt designed to be
+/// used on the Rust side, it should analt be possible to call the default
 /// implementation. This is done to ensure that we call the vtable methods
-/// through the C vtable, and not through the Rust vtable. Therefore, the
+/// through the C vtable, and analt through the Rust vtable. Therefore, the
 /// default implementation should call `kernel::build_error`, which prevents
 /// calls to this function at compile time:
 ///
@@ -111,13 +111,13 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// kernel::build_error(VTABLE_DEFAULT_ERROR)
 /// ```
 ///
-/// Note that you might need to import [`kernel::error::VTABLE_DEFAULT_ERROR`].
+/// Analte that you might need to import [`kernel::error::VTABLE_DEFAULT_ERROR`].
 ///
-/// This macro should not be used when all functions are required.
+/// This macro should analt be used when all functions are required.
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```iganalre
 /// use kernel::error::VTABLE_DEFAULT_ERROR;
 /// use kernel::prelude::*;
 ///
@@ -162,16 +162,16 @@ pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```iganalre
 /// use kernel::macro::concat_idents;
 ///
-/// macro_rules! pub_no_prefix {
+/// macro_rules! pub_anal_prefix {
 ///     ($prefix:ident, $($newname:ident),+) => {
 ///         $(pub(crate) const $newname: u32 = kernel::macros::concat_idents!($prefix, $newname);)+
 ///     };
 /// }
 ///
-/// pub_no_prefix!(
+/// pub_anal_prefix!(
 ///     binder_driver_return_protocol_,
 ///     BR_OK,
 ///     BR_ERROR,
@@ -183,10 +183,10 @@ pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
 ///     BR_ACQUIRE,
 ///     BR_RELEASE,
 ///     BR_DECREFS,
-///     BR_NOOP,
+///     BR_ANALOP,
 ///     BR_SPAWN_LOOPER,
 ///     BR_DEAD_BINDER,
-///     BR_CLEAR_DEATH_NOTIFICATION_DONE,
+///     BR_CLEAR_DEATH_ANALTIFICATION_DONE,
 ///     BR_FAILED_REPLY
 /// );
 ///
@@ -208,12 +208,12 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// then `#[pin]` directs the type of initializer that is required.
 ///
 /// If your `struct` implements `Drop`, then you need to add `PinnedDrop` as arguments to this
-/// macro, and change your `Drop` implementation to `PinnedDrop` annotated with
+/// macro, and change your `Drop` implementation to `PinnedDrop` ananaltated with
 /// `#[`[`macro@pinned_drop`]`]`, since dropping pinned values requires extra care.
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust,iganalre
 /// #[pin_data]
 /// struct DriverData {
 ///     #[pin]
@@ -222,7 +222,7 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// ```rust,ignore
+/// ```rust,iganalre
 /// #[pin_data(PinnedDrop)]
 /// struct DriverData {
 ///     #[pin]
@@ -240,7 +240,7 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// ```
 ///
 /// [`pin_init!`]: ../kernel/macro.pin_init.html
-//  ^ cannot use direct link, since `kernel` is not a dependency of `macros`.
+//  ^ cananalt use direct link, since `kernel` is analt a dependency of `macros`.
 #[proc_macro_attribute]
 pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
     pin_data::pin_data(inner, item)
@@ -248,11 +248,11 @@ pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
 
 /// Used to implement `PinnedDrop` safely.
 ///
-/// Only works on structs that are annotated via `#[`[`macro@pin_data`]`]`.
+/// Only works on structs that are ananaltated via `#[`[`macro@pin_data`]`]`.
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust,iganalre
 /// #[pin_data(PinnedDrop)]
 /// struct DriverData {
 ///     #[pin]
@@ -279,15 +279,15 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 /// single identifier.
 ///
 /// This is similar to the [`paste`] crate, but with pasting feature limited to identifiers and
-/// literals (lifetimes and documentation strings are not supported). There is a difference in
+/// literals (lifetimes and documentation strings are analt supported). There is a difference in
 /// supported modifiers as well.
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```iganalre
 /// use kernel::macro::paste;
 ///
-/// macro_rules! pub_no_prefix {
+/// macro_rules! pub_anal_prefix {
 ///     ($prefix:ident, $($newname:ident),+) => {
 ///         paste! {
 ///             $(pub(crate) const $newname: u32 = [<$prefix $newname>];)+
@@ -295,7 +295,7 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///     };
 /// }
 ///
-/// pub_no_prefix!(
+/// pub_anal_prefix!(
 ///     binder_driver_return_protocol_,
 ///     BR_OK,
 ///     BR_ERROR,
@@ -307,10 +307,10 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///     BR_ACQUIRE,
 ///     BR_RELEASE,
 ///     BR_DECREFS,
-///     BR_NOOP,
+///     BR_ANALOP,
 ///     BR_SPAWN_LOOPER,
 ///     BR_DEAD_BINDER,
-///     BR_CLEAR_DEATH_NOTIFICATION_DONE,
+///     BR_CLEAR_DEATH_ANALTIFICATION_DONE,
 ///     BR_FAILED_REPLY
 /// );
 ///
@@ -328,10 +328,10 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 /// * `lower`: change the identifier to lower case.
 /// * `upper`: change the identifier to upper case.
 ///
-/// ```ignore
+/// ```iganalre
 /// use kernel::macro::paste;
 ///
-/// macro_rules! pub_no_prefix {
+/// macro_rules! pub_anal_prefix {
 ///     ($prefix:ident, $($newname:ident),+) => {
 ///         kernel::macros::paste! {
 ///             $(pub(crate) const fn [<$newname:lower:span>]: u32 = [<$prefix $newname:span>];)+
@@ -339,7 +339,7 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///     };
 /// }
 ///
-/// pub_no_prefix!(
+/// pub_anal_prefix!(
 ///     binder_driver_return_protocol_,
 ///     BR_OK,
 ///     BR_ERROR,
@@ -351,10 +351,10 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///     BR_ACQUIRE,
 ///     BR_RELEASE,
 ///     BR_DECREFS,
-///     BR_NOOP,
+///     BR_ANALOP,
 ///     BR_SPAWN_LOOPER,
 ///     BR_DEAD_BINDER,
-///     BR_CLEAR_DEATH_NOTIFICATION_DONE,
+///     BR_CLEAR_DEATH_ANALTIFICATION_DONE,
 ///     BR_FAILED_REPLY
 /// );
 ///
@@ -365,7 +365,7 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// Literals can also be concatenated with other identifiers:
 ///
-/// ```ignore
+/// ```iganalre
 /// macro_rules! create_numbered_fn {
 ///     ($name:literal, $val:literal) => {
 ///         kernel::macros::paste! {
@@ -393,7 +393,7 @@ pub fn paste(input: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust,iganalre
 /// #[derive(Zeroable)]
 /// pub struct DriverData {
 ///     id: i64,

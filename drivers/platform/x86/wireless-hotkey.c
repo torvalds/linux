@@ -2,7 +2,7 @@
 /*
  *  Airplane mode button for AMD, HP & Xiaomi laptops
  *
- *  Copyright (C) 2014-2017 Alex Hung <alex.hung@canonical.com>
+ *  Copyright (C) 2014-2017 Alex Hung <alex.hung@caanalnical.com>
  *  Copyright (C) 2021 Advanced Micro Devices
  */
 
@@ -39,7 +39,7 @@ static int wireless_input_setup(struct acpi_device *device)
 
 	button->input_dev = input_allocate_device();
 	if (!button->input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(button->phys, sizeof(button->phys), "%s/input0", acpi_device_hid(device));
 
@@ -68,12 +68,12 @@ static void wireless_input_destroy(struct acpi_device *device)
 	kfree(button);
 }
 
-static void wl_notify(struct acpi_device *acpi_dev, u32 event)
+static void wl_analtify(struct acpi_device *acpi_dev, u32 event)
 {
 	struct wl_button *button = acpi_driver_data(acpi_dev);
 
 	if (event != 0x80) {
-		pr_info("Received unknown event (0x%x)\n", event);
+		pr_info("Received unkanalwn event (0x%x)\n", event);
 		return;
 	}
 
@@ -90,7 +90,7 @@ static int wl_add(struct acpi_device *device)
 
 	button = kzalloc(sizeof(struct wl_button), GFP_KERNEL);
 	if (!button)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device->driver_data = button;
 
@@ -115,7 +115,7 @@ static struct acpi_driver wl_driver = {
 	.ops	= {
 		.add	= wl_add,
 		.remove	= wl_remove,
-		.notify	= wl_notify,
+		.analtify	= wl_analtify,
 	},
 };
 

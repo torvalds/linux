@@ -11,11 +11,11 @@
  *      Gowrishankar <gowrishankar.m@in.ibm.com>
  *
  * HISTORY
- *      2009-Nov-14: Initial version by Gowrishankar <gowrishankar.m@in.ibm.com>
+ *      2009-Analv-14: Initial version by Gowrishankar <gowrishankar.m@in.ibm.com>
  *
  *****************************************************************************/
 
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -74,18 +74,18 @@ int main(int argc, char *argv[])
 
 	info("Calling futex_wait on f1: %u @ %p with val=%u\n", f1, &f1, f1+1);
 	res = futex_wait(&f1, f1+1, &to, FUTEX_PRIVATE_FLAG);
-	if (!res || errno != EWOULDBLOCK) {
+	if (!res || erranal != EWOULDBLOCK) {
 		ksft_test_result_fail("futex_wait returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_wait\n");
 	}
 
-	if (clock_gettime(CLOCK_MONOTONIC, &to)) {
-		error("clock_gettime failed\n", errno);
-		return errno;
+	if (clock_gettime(CLOCK_MOANALTONIC, &to)) {
+		error("clock_gettime failed\n", erranal);
+		return erranal;
 	}
 
 	to.tv_nsec += timeout_ns;
@@ -96,11 +96,11 @@ int main(int argc, char *argv[])
 	}
 
 	info("Calling futex_waitv on f1: %u @ %p with val=%u\n", f1, &f1, f1+1);
-	res = futex_waitv(&waitv, 1, 0, &to, CLOCK_MONOTONIC);
-	if (!res || errno != EWOULDBLOCK) {
+	res = futex_waitv(&waitv, 1, 0, &to, CLOCK_MOANALTONIC);
+	if (!res || erranal != EWOULDBLOCK) {
 		ksft_test_result_pass("futex_waitv returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_waitv\n");

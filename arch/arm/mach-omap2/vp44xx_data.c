@@ -7,7 +7,7 @@
  * Lesly A M <x0080970@ti.com>
  * Thara Gopinath <thara@ti.com>
  *
- * Copyright (C) 2008, 2011 Nokia Corporation
+ * Copyright (C) 2008, 2011 Analkia Corporation
  * Kalle Jokiniemi
  * Paul Walmsley
  */

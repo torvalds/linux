@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -23,7 +23,7 @@
 
 /*
  * SOC Interconnect Address Map.
- * All regions may not exist on all chips.
+ * All regions may analt exist on all chips.
  */
 /* each core gets 4Kbytes for registers */
 #define SI_CORE_SIZE		0x1000
@@ -72,7 +72,7 @@
 /* ALP avail in chipc and pcmcia on 4328a0 */
 #define	CCS0_ALPAVAIL		0x00020000
 
-/* Not really related to SOC Interconnect, but a couple of software
+/* Analt really related to SOC Interconnect, but a couple of software
  * conventions for the use the flash space:
  */
 
@@ -106,7 +106,7 @@
 /* GPIO usage priorities */
 #define GPIO_DRV_PRIORITY	0	/* Driver */
 #define GPIO_APP_PRIORITY	1	/* Application */
-#define GPIO_HI_PRIORITY	2	/* Highest priority. Ignore GPIO
+#define GPIO_HI_PRIORITY	2	/* Highest priority. Iganalre GPIO
 					 * reservation
 					 */
 
@@ -159,7 +159,7 @@ struct si_info {
  * Allocate this by calling si_attach().  Free it by calling si_detach().
  * At any one time, the sih is logically focused on one particular si core
  * (the "current core").
- * Use si_setcore() or si_setcoreidx() to change the association to another core
+ * Use si_setcore() or si_setcoreidx() to change the association to aanalther core
  */
 
 

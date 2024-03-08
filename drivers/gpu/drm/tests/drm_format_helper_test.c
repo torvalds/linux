@@ -75,7 +75,7 @@ struct convert_to_argb2101010_result {
 	const u32 expected[TEST_BUF_SIZE];
 };
 
-struct convert_to_mono_result {
+struct convert_to_moanal_result {
 	unsigned int dst_pitch;
 	const u8 expected[TEST_BUF_SIZE];
 };
@@ -110,7 +110,7 @@ struct convert_xrgb8888_case {
 	struct convert_to_argb8888_result argb8888_result;
 	struct convert_to_xrgb2101010_result xrgb2101010_result;
 	struct convert_to_argb2101010_result argb2101010_result;
-	struct convert_to_mono_result mono_result;
+	struct convert_to_moanal_result moanal_result;
 	struct fb_swab_result swab_result;
 	struct convert_to_xbgr8888_result xbgr8888_result;
 	struct convert_to_abgr8888_result abgr8888_result;
@@ -163,7 +163,7 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 			.dst_pitch = TEST_USE_DEFAULT_PITCH,
 			.expected = { 0xFFF00000 },
 		},
-		.mono_result = {
+		.moanal_result = {
 			.dst_pitch =  TEST_USE_DEFAULT_PITCH,
 			.expected = { 0b0 },
 		},
@@ -229,7 +229,7 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 			.dst_pitch = TEST_USE_DEFAULT_PITCH,
 			.expected = { 0xFFF00000 },
 		},
-		.mono_result = {
+		.moanal_result = {
 			.dst_pitch = TEST_USE_DEFAULT_PITCH,
 			.expected = { 0b0 },
 		},
@@ -247,11 +247,11 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 		},
 	},
 	{
-		/* Well known colors: White, black, red, green, blue, magenta,
+		/* Well kanalwn colors: White, black, red, green, blue, magenta,
 		 * yellow and cyan. Different values for the X in XRGB8888 to
-		 * make sure it is ignored. Partial clip area.
+		 * make sure it is iganalred. Partial clip area.
 		 */
-		.name = "well_known_colors",
+		.name = "well_kanalwn_colors",
 		.pitch = 4 * 4,
 		.clip = DRM_RECT_INIT(1, 1, 2, 4),
 		.xrgb8888 = {
@@ -357,7 +357,7 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 				0xFFFFFC00, 0xC00FFFFF,
 			},
 		},
-		.mono_result = {
+		.moanal_result = {
 			.dst_pitch =  TEST_USE_DEFAULT_PITCH,
 			.expected = {
 				0b01,
@@ -492,7 +492,7 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 				0xEA20300C, 0xDB1F0DCD, 0xC3844672, 0x00000000, 0x00000000,
 			},
 		},
-		.mono_result = {
+		.moanal_result = {
 			.dst_pitch = 2,
 			.expected = {
 				0b100, 0b000,
@@ -624,11 +624,11 @@ static void drm_test_fb_xrgb8888_to_gray8(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -657,11 +657,11 @@ static void drm_test_fb_xrgb8888_to_rgb332(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -690,11 +690,11 @@ static void drm_test_fb_xrgb8888_to_rgb565(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -744,11 +744,11 @@ static void drm_test_fb_xrgb8888_to_xrgb1555(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -791,11 +791,11 @@ static void drm_test_fb_xrgb8888_to_argb1555(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -838,11 +838,11 @@ static void drm_test_fb_xrgb8888_to_rgba5551(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -885,16 +885,16 @@ static void drm_test_fb_xrgb8888_to_rgb888(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	/*
 	 * RGB888 expected results are already in little-endian
-	 * order, so there's no need to convert the test output.
+	 * order, so there's anal need to convert the test output.
 	 */
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
 		NULL : &result->dst_pitch;
@@ -933,11 +933,11 @@ static void drm_test_fb_xrgb8888_to_argb8888(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -980,11 +980,11 @@ static void drm_test_fb_xrgb8888_to_xrgb2101010(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -1025,11 +1025,11 @@ static void drm_test_fb_xrgb8888_to_argb2101010(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -1053,10 +1053,10 @@ static void drm_test_fb_xrgb8888_to_argb2101010(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
-static void drm_test_fb_xrgb8888_to_mono(struct kunit *test)
+static void drm_test_fb_xrgb8888_to_moanal(struct kunit *test)
 {
 	const struct convert_xrgb8888_case *params = test->param_value;
-	const struct convert_to_mono_result *result = &params->mono_result;
+	const struct convert_to_moanal_result *result = &params->moanal_result;
 	size_t dst_size;
 	u8 *buf = NULL;
 	__le32 *xrgb8888 = NULL;
@@ -1072,17 +1072,17 @@ static void drm_test_fb_xrgb8888_to_mono(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
 		NULL : &result->dst_pitch;
 
-	drm_fb_xrgb8888_to_mono(&dst, dst_pitch, &src, &fb, &params->clip, &fmtcnv_state);
+	drm_fb_xrgb8888_to_moanal(&dst, dst_pitch, &src, &fb, &params->clip, &fmtcnv_state);
 	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
@@ -1105,11 +1105,11 @@ static void drm_test_fb_swab(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -1176,11 +1176,11 @@ static void drm_test_fb_xrgb8888_to_abgr8888(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -1216,11 +1216,11 @@ static void drm_test_fb_xrgb8888_to_xbgr8888(struct kunit *test)
 	KUNIT_ASSERT_GT(test, dst_size, 0);
 
 	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
 	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
 	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
@@ -1317,7 +1317,7 @@ static void drm_test_fb_clip_offset(struct kunit *test)
 						  drm_rect_width(&params->clip));
 
 	/*
-	 * Assure that the pitch is not zero, because this will inevitable cause the
+	 * Assure that the pitch is analt zero, because this will inevitable cause the
 	 * wrong expected result
 	 */
 	KUNIT_ASSERT_NE(test, pitch, 0);
@@ -1337,7 +1337,7 @@ struct fb_build_fourcc_list_case {
 
 static struct fb_build_fourcc_list_case fb_build_fourcc_list_cases[] = {
 	{
-		.name = "no native formats",
+		.name = "anal native formats",
 		.native_fourccs = { },
 		.native_fourccs_size = 0,
 		.expected = { DRM_FORMAT_XRGB8888 },
@@ -1455,10 +1455,10 @@ static void drm_test_fb_build_fourcc_list(struct kunit *test)
 	struct device *dev;
 
 	dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*drm), 0, DRIVER_MODESET);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, drm);
 
 	nfourccs_out = drm_fb_build_fourcc_list(drm, params->native_fourccs,
 						params->native_fourccs_size,
@@ -1482,7 +1482,7 @@ struct fb_memcpy_case {
  * have a cpp != 4 the values are stored together on the same u32 number in a
  * way so the order in memory is correct in a little-endian machine.
  *
- * Because of that, on some occasions, parts of a u32 will not be part of the
+ * Because of that, on some occasions, parts of a u32 will analt be part of the
  * test, to make this explicit the 0xFF byte is used on those parts.
  */
 
@@ -1580,7 +1580,7 @@ static struct fb_memcpy_case fb_memcpy_cases[] = {
 		},
 	},
 	{
-		.name = "well_known_colors",
+		.name = "well_kanalwn_colors",
 		.format = DRM_FORMAT_XBGR8888,
 		.clip = DRM_RECT_INIT(1, 1, 2, 4),
 		.src_pitches = { 4 * 4 },
@@ -1604,7 +1604,7 @@ static struct fb_memcpy_case fb_memcpy_cases[] = {
 		},
 	},
 	{
-		.name = "well_known_colors",
+		.name = "well_kanalwn_colors",
 		.format = DRM_FORMAT_XRGB8888_A8,
 		.clip = DRM_RECT_INIT(1, 1, 2, 4),
 		.src_pitches = { 4 * 4, 4 * 1 },
@@ -1639,7 +1639,7 @@ static struct fb_memcpy_case fb_memcpy_cases[] = {
 		},
 	},
 	{
-		.name = "well_known_colors",
+		.name = "well_kanalwn_colors",
 		.format = DRM_FORMAT_YUV444,
 		.clip = DRM_RECT_INIT(1, 1, 2, 4),
 		.src_pitches = { 4 * 1, 4 * 1, 4 * 1 },
@@ -1810,7 +1810,7 @@ static void drm_test_fb_memcpy(struct kunit *test)
 		KUNIT_ASSERT_GT(test, dst_size[i], 0);
 
 		buf[i] = kunit_kzalloc(test, dst_size[i], GFP_KERNEL);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf[i]);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf[i]);
 		iosys_map_set_vaddr(&dst[i], buf[i]);
 
 		src_cp[i] = cpubuf_to_le32(test, params->src[i], TEST_BUF_SIZE);
@@ -1854,7 +1854,7 @@ static struct kunit_case drm_format_helper_test_cases[] = {
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_argb8888, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_xrgb2101010, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_argb2101010, convert_xrgb8888_gen_params),
-	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_mono, convert_xrgb8888_gen_params),
+	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_moanal, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_swab, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_xbgr8888, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_abgr8888, convert_xrgb8888_gen_params),

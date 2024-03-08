@@ -84,7 +84,7 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
 		c->strength.stat[0].uvalue = utmp1;
 	} else {
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* CNR */
@@ -151,14 +151,14 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		utmp1 = buf[0] << 8 | buf[1] << 0; /* signal */
-		utmp2 = buf[2] << 8 | buf[3] << 0; /* noise */
+		utmp2 = buf[2] << 8 | buf[3] << 0; /* analise */
 		if (utmp1 && utmp2) {
-			/* CNR[dB]: 10 * log10(8 * (signal / noise)) */
+			/* CNR[dB]: 10 * log10(8 * (signal / analise)) */
 			/* log10(8) = 15151336 */
 			stmp = ((u64)15151336 + intlog10(utmp1)
 			       - intlog10(utmp2)) * 10000 >> 24;
 
-			dev_dbg(&client->dev, "cnr=%d signal=%u noise=%u\n",
+			dev_dbg(&client->dev, "cnr=%d signal=%u analise=%u\n",
 				stmp, utmp1, utmp2);
 		} else {
 			stmp = 0;
@@ -167,7 +167,7 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].svalue = stmp;
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 	} else {
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* PER */
@@ -186,8 +186,8 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->block_count.stat[0].uvalue += utmp2;
 	} else {
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return 0;
@@ -369,7 +369,7 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 		if (ret)
 			goto err;
 		ret = regmap_write(dev->regmap[2], 0x32,
-				(c->stream_id == NO_STREAM_ID_FILTER) ? 0 :
+				(c->stream_id == ANAL_STREAM_ID_FILTER) ? 0 :
 				c->stream_id );
 		if (ret)
 			goto err;
@@ -422,7 +422,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 
 	ret = request_firmware(&firmware, name, &client->dev);
 	if (ret) {
-		dev_err(&client->dev, "firmware file '%s' not found\n", name);
+		dev_err(&client->dev, "firmware file '%s' analt found\n", name);
 		goto err;
 	}
 
@@ -450,7 +450,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 		goto err_release_firmware;
 	if (utmp & 0x10) {
 		ret = -EINVAL;
-		dev_err(&client->dev, "firmware did not run\n");
+		dev_err(&client->dev, "firmware did analt run\n");
 		goto err_release_firmware;
 	}
 
@@ -588,7 +588,7 @@ static int mn88472_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -608,7 +608,7 @@ static int mn88472_probe(struct i2c_client *client)
 	 * addresses are 0x18, 0x1a and 0x1c. We register two dummy clients,
 	 * 0x1a and 0x1c, in order to get own I2C client for each register bank.
 	 *
-	 * Also, register bank 2 do not support sequential I/O. Only single
+	 * Also, register bank 2 do analt support sequential I/O. Only single
 	 * register write or read is allowed to that bank.
 	 */
 	dev->client[1] = i2c_new_dummy_device(client->adapter, 0x1a);
@@ -645,7 +645,7 @@ static int mn88472_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "chip id=%02x\n", utmp);
 
 	if (utmp != 0x02) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_regmap_2_regmap_exit;
 	}
 

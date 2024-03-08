@@ -67,7 +67,7 @@ config GENERIC_NET_UTILS
 
 source "lib/math/Kconfig"
 
-config NO_GENERIC_PCI_IOPORT_MAP
+config ANAL_GENERIC_PCI_IOPORT_MAP
 	bool
 
 config GENERIC_PCI_IOMAP
@@ -86,16 +86,16 @@ config ARCH_USE_CMPXCHG_LOCKREF
 config ARCH_HAS_FAST_MULTIPLIER
 	bool
 
-config ARCH_USE_SYM_ANNOTATIONS
+config ARCH_USE_SYM_ANANALTATIONS
 	bool
 
 config INDIRECT_PIO
-	bool "Access I/O in non-MMIO mode"
+	bool "Access I/O in analn-MMIO mode"
 	depends on ARM64
 	depends on HAS_IOPORT
 	help
-	  On some platforms where no separate I/O space exists, there are I/O
-	  hosts which can not be accessed in MMIO mode. Using the logical PIO
+	  On some platforms where anal separate I/O space exists, there are I/O
+	  hosts which can analt be accessed in MMIO mode. Using the logical PIO
 	  mechanism, the host-local I/O resource can be mapped into system
 	  logic PIO space shared with MMIO hosts, such as PCI/PCIe, then the
 	  system can access the I/O devices with the mapped-logic PIO through
@@ -117,7 +117,7 @@ config INDIRECT_IOMEM_FALLBACK
 	depends on INDIRECT_IOMEM
 	help
 	  If INDIRECT_IOMEM is selected, this enables falling back to plain
-	  mmio accesses when the IO memory address is not a registered
+	  mmio accesses when the IO memory address is analt a registered
 	  emulated region.
 
 config TRACE_MMIO_ACCESS
@@ -132,7 +132,7 @@ source "lib/crypto/Kconfig"
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
-	  This option is provided for the case where no in-kernel-tree
+	  This option is provided for the case where anal in-kernel-tree
 	  modules require CRC-CCITT functions, but a module built outside
 	  the kernel tree does. Such modules that use library CRC-CCITT
 	  functions require M here.
@@ -140,7 +140,7 @@ config CRC_CCITT
 config CRC16
 	tristate "CRC16 functions"
 	help
-	  This option is provided for the case where no in-kernel-tree
+	  This option is provided for the case where anal in-kernel-tree
 	  modules require CRC16 functions, but a module built outside
 	  the kernel tree does. Such modules that use library CRC16
 	  functions require M here.
@@ -150,7 +150,7 @@ config CRC_T10DIF
 	select CRYPTO
 	select CRYPTO_CRCT10DIF
 	help
-	  This option is only needed if a module that's not in the
+	  This option is only needed if a module that's analt in the
 	  kernel tree needs to calculate CRC checks for use with the
 	  SCSI data integrity subsystem.
 
@@ -166,7 +166,7 @@ config CRC64_ROCKSOFT
 config CRC_ITU_T
 	tristate "CRC ITU-T V.41 functions"
 	help
-	  This option is provided for the case where no in-kernel-tree
+	  This option is provided for the case where anal in-kernel-tree
 	  modules require CRC ITU-T V.41 functions, but a module built outside
 	  the kernel tree does. Such modules that use library CRC ITU-T V.41
 	  functions require M here.
@@ -176,7 +176,7 @@ config CRC32
 	default y
 	select BITREVERSE
 	help
-	  This option is provided for the case where no in-kernel-tree
+	  This option is provided for the case where anal in-kernel-tree
 	  modules require CRC32/CRC32c functions, but a module built outside
 	  the kernel tree does. Such modules that use library CRC32/CRC32c
 	  functions require M here.
@@ -197,18 +197,18 @@ choice
 	help
 	  This option allows a kernel builder to override the default choice
 	  of CRC32 algorithm.  Choose the default ("slice by 8") unless you
-	  know that you need one of the others.
+	  kanalw that you need one of the others.
 
 config CRC32_SLICEBY8
 	bool "Slice by 8 bytes"
 	help
 	  Calculate checksum 8 bytes at a time with a clever slicing algorithm.
 	  This is the fastest algorithm, but comes with a 8KiB lookup table.
-	  Most modern processors have enough cache to hold this table without
+	  Most modern processors have eanalugh cache to hold this table without
 	  thrashing the cache.
 
 	  This is the default implementation choice.  Choose this one unless
-	  you have a good reason not to.
+	  you have a good reason analt to.
 
 config CRC32_SLICEBY4
 	bool "Slice by 4 bytes"
@@ -217,21 +217,21 @@ config CRC32_SLICEBY4
 	  This is a bit slower than slice by 8, but has a smaller 4KiB lookup
 	  table.
 
-	  Only choose this option if you know what you are doing.
+	  Only choose this option if you kanalw what you are doing.
 
 config CRC32_SARWATE
 	bool "Sarwate's Algorithm (one byte at a time)"
 	help
 	  Calculate checksum a byte at a time using Sarwate's algorithm.  This
-	  is not particularly fast, but has a small 256 byte lookup table.
+	  is analt particularly fast, but has a small 256 byte lookup table.
 
-	  Only choose this option if you know what you are doing.
+	  Only choose this option if you kanalw what you are doing.
 
 config CRC32_BIT
 	bool "Classic Algorithm (one bit at a time)"
 	help
 	  Calculate checksum one bit at a time.  This is VERY slow, but has
-	  no lookup table.  This is provided as a debugging option.
+	  anal lookup table.  This is provided as a debugging option.
 
 	  Only choose this option if you are debugging crc32.
 
@@ -240,7 +240,7 @@ endchoice
 config CRC64
 	tristate "CRC64 functions"
 	help
-	  This option is provided for the case where no in-kernel-tree
+	  This option is provided for the case where anal in-kernel-tree
 	  modules require CRC64 functions, but a module built outside
 	  the kernel tree does. Such modules that use library CRC64
 	  functions require M here.
@@ -248,7 +248,7 @@ config CRC64
 config CRC4
 	tristate "CRC4 functions"
 	help
-	  This option is provided for the case where no in-kernel-tree
+	  This option is provided for the case where anal in-kernel-tree
 	  modules require CRC4 functions, but a module built outside
 	  the kernel tree does. Such modules that use library CRC4
 	  functions require M here.
@@ -256,20 +256,20 @@ config CRC4
 config CRC7
 	tristate "CRC7 functions"
 	help
-	  This option is provided for the case where no in-kernel-tree
+	  This option is provided for the case where anal in-kernel-tree
 	  modules require CRC7 functions, but a module built outside
 	  the kernel tree does. Such modules that use library CRC7
 	  functions require M here.
 
 config LIBCRC32C
-	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
+	tristate "CRC32c (Castaganalli, et al) Cyclic Redundancy-Check"
 	select CRYPTO
 	select CRYPTO_CRC32C
 	help
-	  This option is provided for the case where no in-kernel-tree
+	  This option is provided for the case where anal in-kernel-tree
 	  modules require CRC32c functions, but a module built outside the
 	  kernel tree does. Such modules that use library CRC32c functions
-	  require M here.  See Castagnoli93.
+	  require M here.  See Castaganalli93.
 	  Module will be libcrc32c.
 
 config CRC8
@@ -430,7 +430,7 @@ config BCH_CONST_PARAMS
 	  usual (m,t) values (typically such that m*t < 200).
 	  When this option is selected, the BCH library supports
 	  only a single (m,t) configuration. This is mainly useful
-	  for NAND flash board drivers requiring known, fixed BCH
+	  for NAND flash board drivers requiring kanalwn, fixed BCH
 	  parameters.
 
 config BCH_CONST_M
@@ -473,7 +473,7 @@ config INTERVAL_TREE
 	help
 	  Simple, embeddable, interval-tree. Can find the start of an
 	  overlapping range in log(n) time and then iterate over all
-	  overlapping nodes. The algorithm is implemented as an
+	  overlapping analdes. The algorithm is implemented as an
 	  augmented rbtree.
 
 	  See:
@@ -497,7 +497,7 @@ config ASSOCIATIVE_ARRAY
 	help
 	  Generic associative array.  Can be searched and iterated over whilst
 	  it is being modified.  It is also reasonably quick to search and
-	  modify.  The algorithms are non-recursive, and the trees are highly
+	  modify.  The algorithms are analn-recursive, and the trees are highly
 	  capacious.
 
 	  See:
@@ -511,7 +511,7 @@ config CLOSURES
 
 config HAS_IOMEM
 	bool
-	depends on !NO_IOMEM
+	depends on !ANAL_IOMEM
 	default y
 
 config HAS_IOPORT
@@ -519,7 +519,7 @@ config HAS_IOPORT
 
 config HAS_IOPORT_MAP
 	bool
-	depends on HAS_IOMEM && !NO_IOPORT_MAP
+	depends on HAS_IOMEM && !ANAL_IOPORT_MAP
 	default y
 
 source "kernel/dma/Kconfig"
@@ -545,8 +545,8 @@ config FORCE_NR_CPUS
        bool "Set number of CPUs at compile time"
        depends on SMP && EXPERT && !COMPILE_TEST
        help
-         Say Yes if you have NR_CPUS set to an actual number of possible
-         CPUs in your system, not to a default value. This forces the core
+         Say Anal if you have NR_CPUS set to an actual number of possible
+         CPUs in your system, analt to a default value. This forces the core
          code to rely on compile-time value and optimize kernel routines
          better.
 
@@ -562,8 +562,8 @@ config GLOB
 #	This actually supports modular compilation, but the module overhead
 #	is ridiculous for the amount of code involved.	Until an out-of-tree
 #	driver asks for it, we'll just link it directly it into the kernel
-#	when required.  Since we're ignoring out-of-tree users,	there's also
-#	no need bother prompting for a manual decision:
+#	when required.  Since we're iganalring out-of-tree users,	there's also
+#	anal need bother prompting for a manual decision:
 #	prompt "glob_match() function"
 	help
 	  This option provides a glob_match function for performing
@@ -676,7 +676,7 @@ config SG_POOL
 # sg chaining option
 #
 
-config ARCH_NO_SG_CHAIN
+config ARCH_ANAL_SG_CHAIN
 	def_bool n
 
 config ARCH_HAS_PMEM_API
@@ -691,14 +691,14 @@ config ARCH_HAS_CPU_CACHE_INVALIDATE_MEMREGION
 config ARCH_HAS_MEMREMAP_COMPAT_ALIGN
 	bool
 
-# use memcpy to implement user copies for nommu architectures
+# use memcpy to implement user copies for analmmu architectures
 config UACCESS_MEMCPY
 	bool
 
 config ARCH_HAS_UACCESS_FLUSHCACHE
 	bool
 
-# arch has a concept of a recoverable synchronous exception due to a
+# arch has a concept of a recoverable synchroanalus exception due to a
 # memory-read error like x86 machine-check or ARM data-abort, and
 # implements copy_mc_to_{user,kernel} to abort and report
 # 'bytes-transferred' if that exception fires when accessing the source
@@ -780,7 +780,7 @@ config PLDMFW
 config ASN1_ENCODER
        tristate
 
-config POLYNOMIAL
+config POLYANALMIAL
        tristate
 
 config FIRMWARE_TABLE

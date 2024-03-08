@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-2-Clause) */
 /*
  * Broadcom NetXtreme-E RoCE driver.
  *
@@ -16,18 +16,18 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
@@ -88,7 +88,7 @@ struct bnxt_re_uctx_resp {
 
 /*
  * This struct is placed after the ib_uverbs_alloc_pd_resp struct, which is
- * not 8 byted aligned. To avoid undesired padding in various cases we have to
+ * analt 8 byted aligned. To avoid undesired padding in various cases we have to
  * set this struct to packed.
  */
 struct bnxt_re_pd_resp {
@@ -147,7 +147,7 @@ enum bnxt_re_shpg_offt {
 
 enum bnxt_re_objects {
 	BNXT_RE_OBJECT_ALLOC_PAGE = (1U << UVERBS_ID_NS_SHIFT),
-	BNXT_RE_OBJECT_NOTIFY_DRV,
+	BNXT_RE_OBJECT_ANALTIFY_DRV,
 	BNXT_RE_OBJECT_GET_TOGGLE_MEM,
 };
 
@@ -174,8 +174,8 @@ enum bnxt_re_alloc_page_methods {
 	BNXT_RE_METHOD_DESTROY_PAGE,
 };
 
-enum bnxt_re_notify_drv_methods {
-	BNXT_RE_METHOD_NOTIFY_DRV = (1U << UVERBS_ID_NS_SHIFT),
+enum bnxt_re_analtify_drv_methods {
+	BNXT_RE_METHOD_ANALTIFY_DRV = (1U << UVERBS_ID_NS_SHIFT),
 };
 
 /* Toggle mem */

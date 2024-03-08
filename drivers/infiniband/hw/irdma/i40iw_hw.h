@@ -37,7 +37,7 @@
 
 #define I40E_GLPES_PFIP4RXDISCARD(_i)            (0x00010600 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
 #define I40E_GLPES_PFIP4RXTRUNC(_i)              (0x00010700 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
-#define I40E_GLPES_PFIP4TXNOROUTE(_i)            (0x00012E00 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
+#define I40E_GLPES_PFIP4TXANALROUTE(_i)            (0x00012E00 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
 #define I40E_GLPES_PFIP6RXDISCARD(_i)            (0x00011200 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
 #define I40E_GLPES_PFIP6RXTRUNC(_i)              (0x00011300 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
 
@@ -48,7 +48,7 @@
 #define I40E_GLPES_PFUDPRXPKTSLO(_i)             (0x00013800 + ((_i) * 8)) /* _i=0...15 */ /* Reset: PE_CORER */
 #define I40E_GLPES_PFUDPTXPKTSLO(_i)             (0x00013A00 + ((_i) * 8)) /* _i=0...15 */ /* Reset: PE_CORER */
 
-#define I40E_GLPES_PFIP6TXNOROUTE(_i)            (0x00012F00 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
+#define I40E_GLPES_PFIP6TXANALROUTE(_i)            (0x00012F00 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
 #define I40E_GLPES_PFTCPRTXSEG(_i)               (0x00013600 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
 #define I40E_GLPES_PFTCPRXOPTERR(_i)             (0x00013200 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */
 #define I40E_GLPES_PFTCPRXPROTOERR(_i)           (0x00013300 + ((_i) * 4)) /* _i=0...15 */ /* Reset: PE_CORER */

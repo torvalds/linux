@@ -222,8 +222,8 @@ static void send_close_req(struct cxgbi_sock *csk)
 /*
  * CPL connection abort request: host ->
  *
- * Send an ABORT_REQ message. Makes sure we do not send multiple ABORT_REQs
- * for the same connection and also that we do not try to send a message
+ * Send an ABORT_REQ message. Makes sure we do analt send multiple ABORT_REQs
+ * for the same connection and also that we do analt try to send a message
  * after the connection has closed.
  */
 static void abort_arp_failure(struct t3cdev *tdev, struct sk_buff *skb)
@@ -233,7 +233,7 @@ static void abort_arp_failure(struct t3cdev *tdev, struct sk_buff *skb)
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"t3dev 0x%p, tid %u, skb 0x%p.\n",
 		tdev, GET_TID(req), skb);
-	req->cmd = CPL_ABORT_NO_RST;
+	req->cmd = CPL_ABORT_ANAL_RST;
 	cxgb3_ofld_send(tdev, skb);
 }
 
@@ -527,7 +527,7 @@ static int do_act_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
  * Process a CPL_ACT_OPEN_RPL message: -> host
  * Handle active open failures.
  */
-static int act_open_rpl_status_to_errno(int status)
+static int act_open_rpl_status_to_erranal(int status)
 {
 	switch (status) {
 	case CPL_ERR_CONN_RESET:
@@ -537,7 +537,7 @@ static int act_open_rpl_status_to_errno(int status)
 	case CPL_ERR_CONN_TIMEDOUT:
 		return -ETIMEDOUT;
 	case CPL_ERR_TCAM_FULL:
-		return -ENOMEM;
+		return -EANALMEM;
 	case CPL_ERR_CONN_EXIST:
 		return -EADDRINUSE;
 	default:
@@ -558,7 +558,7 @@ static void act_open_retry_timer(struct timer_list *t)
 	spin_lock_bh(&csk->lock);
 	skb = alloc_wr(sizeof(struct cpl_act_open_req), 0, GFP_ATOMIC);
 	if (!skb)
-		cxgbi_sock_fail_act_open(csk, -ENOMEM);
+		cxgbi_sock_fail_act_open(csk, -EANALMEM);
 	else {
 		skb->sk = (struct sock *)csk;
 		set_arp_failure_handler(skb, act_open_arp_failure);
@@ -591,7 +591,7 @@ static int do_act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		mod_timer(&csk->retry_timer, jiffies + HZ / 2);
 	} else
 		cxgbi_sock_fail_act_open(csk,
-				act_open_rpl_status_to_errno(rpl->status));
+				act_open_rpl_status_to_erranal(rpl->status));
 
 	spin_unlock_bh(&csk->lock);
 	cxgbi_sock_put(csk);
@@ -637,11 +637,11 @@ static int do_close_con_rpl(struct t3cdev *cdev, struct sk_buff *skb,
 
 /*
  * Process ABORT_REQ_RSS CPL message: -> host
- * Process abort requests.  If we are waiting for an ABORT_RPL we ignore this
+ * Process abort requests.  If we are waiting for an ABORT_RPL we iganalre this
  * request except that we need to reply to it.
  */
 
-static int abort_status_to_errno(struct cxgbi_sock *csk, int abort_reason,
+static int abort_status_to_erranal(struct cxgbi_sock *csk, int abort_reason,
 				 int *need_rst)
 {
 	switch (abort_reason) {
@@ -662,7 +662,7 @@ static int do_abort_req(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
 {
 	const struct cpl_abort_req_rss *req = cplhdr(skb);
 	struct cxgbi_sock *csk = ctx;
-	int rst_status = CPL_ABORT_NO_RST;
+	int rst_status = CPL_ABORT_ANAL_RST;
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx,%u.\n",
@@ -686,7 +686,7 @@ static int do_abort_req(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
 	send_abort_rpl(csk, rst_status);
 
 	if (!cxgbi_sock_flag(csk, CTPF_ABORT_RPL_PENDING)) {
-		csk->err = abort_status_to_errno(csk, req->status, &rst_status);
+		csk->err = abort_status_to_erranal(csk, req->status, &rst_status);
 		cxgbi_sock_closed(csk);
 	}
 
@@ -715,10 +715,10 @@ static int do_abort_rpl(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
 		rpl->status, csk, csk ? csk->state : 0,
 		csk ? csk->flags : 0UL);
 	/*
-	 * Ignore replies to post-close aborts indicating that the abort was
+	 * Iganalre replies to post-close aborts indicating that the abort was
 	 * requested too late.  These connections are terminated when we get
 	 * PEER_CLOSE or CLOSE_CON_RPL and by the time the abort_rpl_rss
-	 * arrives the TID is either no longer used or it has been recycled.
+	 * arrives the TID is either anal longer used or it has been recycled.
 	 */
 	if (rpl->status == CPL_ERR_ABORT_FAILED)
 		goto rel_skb;
@@ -727,7 +727,7 @@ static int do_abort_rpl(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
 	 * abort races with ABORT_REQ_RSS, the latter frees the connection
 	 * expecting the ABORT_REQ will fail with CPL_ERR_ABORT_FAILED,
 	 * but FW turns the ABORT_REQ into a regular one and so we get
-	 * ABORT_RPL_RSS with status 0 and no connection.
+	 * ABORT_RPL_RSS with status 0 and anal connection.
 	 */
 	if (csk)
 		cxgbi_sock_rcv_abort_rpl(csk);
@@ -738,15 +738,15 @@ rel_skb:
 
 /*
  * Process RX_ISCSI_HDR CPL message: -> host
- * Handle received PDUs, the payload could be DDP'ed. If not, the payload
+ * Handle received PDUs, the payload could be DDP'ed. If analt, the payload
  * follow after the bhs.
  */
 static int do_iscsi_hdr(struct t3cdev *t3dev, struct sk_buff *skb, void *ctx)
 {
 	struct cxgbi_sock *csk = ctx;
 	struct cpl_iscsi_hdr *hdr_cpl = cplhdr(skb);
-	struct cpl_iscsi_hdr_norss data_cpl;
-	struct cpl_rx_data_ddp_norss ddp_cpl;
+	struct cpl_iscsi_hdr_analrss data_cpl;
+	struct cpl_rx_data_ddp_analrss ddp_cpl;
 	unsigned int hdr_len, data_len, status;
 	unsigned int len;
 	int err;
@@ -774,7 +774,7 @@ static int do_iscsi_hdr(struct t3cdev *t3dev, struct sk_buff *skb, void *ctx)
 	__skb_pull(skb, sizeof(struct cpl_iscsi_hdr));
 
 	len = hdr_len = ntohs(hdr_cpl->len);
-	/* msg coalesce is off or not enough data received */
+	/* msg coalesce is off or analt eanalugh data received */
 	if (skb->len <= hdr_len) {
 		pr_err("%s: tid %u, CPL_ISCSI_HDR, skb len %u < %u.\n",
 			csk->cdev->ports[csk->port_id]->name, csk->tid,
@@ -818,7 +818,7 @@ static int do_iscsi_hdr(struct t3cdev *t3dev, struct sk_buff *skb, void *ctx)
 		}
 		data_len = ntohs(data_cpl.len);
 		log_debug(1 << CXGBI_DBG_DDP | 1 << CXGBI_DBG_PDU_RX,
-			"skb 0x%p, pdu not ddp'ed %u/%u, status 0x%x.\n",
+			"skb 0x%p, pdu analt ddp'ed %u/%u, status 0x%x.\n",
 			skb, data_len, cxgbi_skcb_rx_pdulen(skb), status);
 		len += sizeof(data_cpl) + data_len;
 	} else if (status & (1 << CPL_RX_DDP_STATUS_DDP_SHIFT))
@@ -842,7 +842,7 @@ discard:
 
 /*
  * Process TX_DATA_ACK CPL messages: -> host
- * Process an acknowledgment of WR completion.  Advance snd_una and send the
+ * Process an ackanalwledgment of WR completion.  Advance snd_una and send the
  * next batch of work requests from the write queue.
  */
 static int do_wr_ack(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
@@ -868,7 +868,7 @@ static int alloc_cpls(struct cxgbi_sock *csk)
 	csk->cpl_close = alloc_wr(sizeof(struct cpl_close_con_req), 0,
 					GFP_KERNEL);
 	if (!csk->cpl_close)
-		return -ENOMEM;
+		return -EANALMEM;
 	csk->cpl_abort_req = alloc_wr(sizeof(struct cpl_abort_req), 0,
 					GFP_KERNEL);
 	if (!csk->cpl_abort_req)
@@ -883,7 +883,7 @@ static int alloc_cpls(struct cxgbi_sock *csk)
 
 free_cpl_skbs:
 	cxgbi_sock_free_cpl_skbs(csk);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void l2t_put(struct cxgbi_sock *csk)
@@ -971,14 +971,14 @@ static int init_act_open(struct cxgbi_sock *csk)
 	csk->l2t = t3_l2t_get(t3dev, dst, ndev,
 			      &csk->daddr.sin_addr.s_addr);
 	if (!csk->l2t) {
-		pr_err("NO l2t available.\n");
+		pr_err("ANAL l2t available.\n");
 		return -EINVAL;
 	}
 	cxgbi_sock_get(csk);
 
 	csk->atid = cxgb3_alloc_atid(t3dev, &t3_client, csk);
 	if (csk->atid < 0) {
-		pr_err("NO atid available.\n");
+		pr_err("ANAL atid available.\n");
 		ret = -EINVAL;
 		goto put_sock;
 	}
@@ -987,7 +987,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 
 	skb = alloc_wr(sizeof(struct cpl_act_open_req), 0, GFP_KERNEL);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_atid;
 	}
 	skb->sk = (struct sock *)csk;
@@ -1110,7 +1110,7 @@ static int ddp_set_map(struct cxgbi_ppm *ppm, struct cxgbi_sock *csk,
 					       IPPOD_SIZE, 0, GFP_ATOMIC);
 
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		ulp_mem_io_set_hdr(skb, pm_addr);
 		req = (struct ulp_mem_io *)skb->head;
 		ppod = (struct cxgbi_pagepod *)(req + 1);
@@ -1161,13 +1161,13 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
 	log_debug(1 << CXGBI_DBG_DDP,
 		"csk 0x%p, tid %u, pg_idx %d.\n", csk, tid, pg_idx);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set up ulp submode and page size */
 	req = (struct cpl_set_tcb_field *)skb->head;
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(1);
+	req->reply = V_ANAL_REPLY(1);
 	req->cpu_idx = 0;
 	req->word = htons(31);
 	req->mask = cpu_to_be64(0xF0000000);
@@ -1197,13 +1197,13 @@ static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 	log_debug(1 << CXGBI_DBG_DDP,
 		"csk 0x%p, tid %u, crc %d,%d.\n", csk, tid, hcrc, dcrc);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set up ulp submode and page size */
 	req = (struct cpl_set_tcb_field *)skb->head;
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(1);
+	req->reply = V_ANAL_REPLY(1);
 	req->cpu_idx = 0;
 	req->word = htons(31);
 	req->mask = cpu_to_be64(0x0F000000);
@@ -1235,7 +1235,7 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 		return err;
 	}
 	if (uinfo.llimit >= uinfo.ulimit) {
-		pr_warn("T3 %s, iscsi NOT enabled %u ~ %u!\n",
+		pr_warn("T3 %s, iscsi ANALT enabled %u ~ %u!\n",
 			ndev->name, uinfo.llimit, uinfo.ulimit);
 		return -EACCES;
 	}
@@ -1277,9 +1277,9 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 	cdev->csk_ddp_clear_map = ddp_clear_map;
 	cdev->cdev2ppm = cdev2ppm;
 	cdev->tx_max_size = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				  uinfo.max_txsz - ISCSI_PDU_NONPAYLOAD_LEN);
+				  uinfo.max_txsz - ISCSI_PDU_ANALNPAYLOAD_LEN);
 	cdev->rx_max_size = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				  uinfo.max_rxsz - ISCSI_PDU_NONPAYLOAD_LEN);
+				  uinfo.max_rxsz - ISCSI_PDU_ANALNPAYLOAD_LEN);
 
 	return 0;
 }
@@ -1326,7 +1326,7 @@ static void cxgb3i_dev_open(struct t3cdev *t3dev)
 	cdev->nmtus = NMTUS;
 	cdev->rx_credit_thres = cxgb3i_rx_credit_thres;
 	cdev->skb_tx_rsvd = CXGB3I_TX_HEADER_LEN;
-	cdev->skb_rx_extra = sizeof(struct cpl_iscsi_hdr_norss);
+	cdev->skb_rx_extra = sizeof(struct cpl_iscsi_hdr_analrss);
 	cdev->itp = &cxgb3i_iscsi_transport;
 
 	err = cxgb3i_ddp_init(cdev);

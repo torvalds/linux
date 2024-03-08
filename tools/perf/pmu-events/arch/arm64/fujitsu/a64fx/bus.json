@@ -18,28 +18,28 @@
     "BriefDescription": "This event counts read transactions from measured CMG local memory to measured CMG."
   },
   {
-    "PublicDescription": "This event counts write transactions from measured CMG to CMG0, if measured CMG is not CMG0.",
+    "PublicDescription": "This event counts write transactions from measured CMG to CMG0, if measured CMG is analt CMG0.",
     "EventCode": "0x318",
     "EventName": "BUS_WRITE_TOTAL_CMG0",
-    "BriefDescription": "This event counts write transactions from measured CMG to CMG0, if measured CMG is not CMG0."
+    "BriefDescription": "This event counts write transactions from measured CMG to CMG0, if measured CMG is analt CMG0."
   },
   {
-    "PublicDescription": "This event counts write transactions from measured CMG to CMG1, if measured CMG is not CMG1.",
+    "PublicDescription": "This event counts write transactions from measured CMG to CMG1, if measured CMG is analt CMG1.",
     "EventCode": "0x319",
     "EventName": "BUS_WRITE_TOTAL_CMG1",
-    "BriefDescription": "This event counts write transactions from measured CMG to CMG1, if measured CMG is not CMG1."
+    "BriefDescription": "This event counts write transactions from measured CMG to CMG1, if measured CMG is analt CMG1."
   },
   {
-    "PublicDescription": "This event counts write transactions from measured CMG to CMG2, if measured CMG is not CMG2.",
+    "PublicDescription": "This event counts write transactions from measured CMG to CMG2, if measured CMG is analt CMG2.",
     "EventCode": "0x31A",
     "EventName": "BUS_WRITE_TOTAL_CMG2",
-    "BriefDescription": "This event counts write transactions from measured CMG to CMG2, if measured CMG is not CMG2."
+    "BriefDescription": "This event counts write transactions from measured CMG to CMG2, if measured CMG is analt CMG2."
   },
   {
-    "PublicDescription": "This event counts write transactions from measured CMG to CMG3, if measured CMG is not CMG3.",
+    "PublicDescription": "This event counts write transactions from measured CMG to CMG3, if measured CMG is analt CMG3.",
     "EventCode": "0x31B",
     "EventName": "BUS_WRITE_TOTAL_CMG3",
-    "BriefDescription": "This event counts write transactions from measured CMG to CMG3, if measured CMG is not CMG3."
+    "BriefDescription": "This event counts write transactions from measured CMG to CMG3, if measured CMG is analt CMG3."
   },
   {
     "PublicDescription": "This event counts write transactions from measured CMG to tofu controller.",

@@ -294,7 +294,7 @@ static int snd_ali_codec_ready(struct snd_ali *codec,
 	}
 
 	snd_ali_5451_poke(codec, port, res & ~0x8000);
-	dev_dbg(codec->card->dev, "ali_codec_ready: codec is not ready.\n ");
+	dev_dbg(codec->card->dev, "ali_codec_ready: codec is analt ready.\n ");
 	return -EIO;
 }
 
@@ -315,7 +315,7 @@ static int snd_ali_stimer_ready(struct snd_ali *codec)
 		schedule_timeout_uninterruptible(1);
 	}
 
-	dev_err(codec->card->dev, "ali_stimer_read: stimer is not ready.\n");
+	dev_err(codec->card->dev, "ali_stimer_read: stimer is analt ready.\n");
 	return -EIO;
 }
 
@@ -448,7 +448,7 @@ static int snd_ali_reset_5451(struct snd_ali *codec)
 		mdelay(5);
 	}
 
-	/* non-fatal if you have a non PM capable codec */
+	/* analn-fatal if you have a analn PM capable codec */
 	/* dev_warn(codec->card->dev, "ali5451: reset time out\n"); */
 	return 0;
 }
@@ -517,14 +517,14 @@ static int snd_ali_alloc_pcm_channel(struct snd_ali *codec, int channel)
 
 	if (codec->synth.chcnt >= ALI_CHANNELS){
 		dev_err(codec->card->dev,
-			   "ali_alloc_pcm_channel: no free channels.\n");
+			   "ali_alloc_pcm_channel: anal free channels.\n");
 		return -1;
 	}
 
 	if (!(codec->synth.chmap & (1 << idx))) {
 		codec->synth.chmap |= 1 << idx;
 		codec->synth.chcnt++;
-		dev_dbg(codec->card->dev, "alloc_pcm_channel no. %d.\n", idx);
+		dev_dbg(codec->card->dev, "alloc_pcm_channel anal. %d.\n", idx);
 		return idx;
 	}
 	return -1;
@@ -552,7 +552,7 @@ static int snd_ali_find_free_channel(struct snd_ali * codec, int rec)
 			return result;
 		else {
 			dev_err(codec->card->dev,
-				"ali_find_free_channel: record channel is busy now.\n");
+				"ali_find_free_channel: record channel is busy analw.\n");
 			return -1;
 		}
 	}
@@ -567,7 +567,7 @@ static int snd_ali_find_free_channel(struct snd_ali * codec, int rec)
 			return result;
 		else
 			dev_err(codec->card->dev,
-				"ali_find_free_channel: S/PDIF out channel is in busy now.\n");
+				"ali_find_free_channel: S/PDIF out channel is in busy analw.\n");
 	}
 
 	for (idx = 0; idx < ALI_CHANNELS; idx++) {
@@ -575,7 +575,7 @@ static int snd_ali_find_free_channel(struct snd_ali * codec, int rec)
 		if (result >= 0)
 			return result;
 	}
-	dev_err(codec->card->dev, "ali_find_free_channel: no free channels.\n");
+	dev_err(codec->card->dev, "ali_find_free_channel: anal free channels.\n");
 	return -1;
 }
 
@@ -590,7 +590,7 @@ static void snd_ali_free_channel_pcm(struct snd_ali *codec, int channel)
 
 	if (!(codec->synth.chmap & (1 << idx))) {
 		dev_err(codec->card->dev,
-			"ali_free_channel_pcm: channel %d is not in use.\n",
+			"ali_free_channel_pcm: channel %d is analt in use.\n",
 			channel);
 		return;
 	} else {
@@ -790,7 +790,7 @@ static void snd_ali_enable_spdif_out(struct snd_ali *codec)
 	snd_ali_disable_special_channel(codec, ALI_SPDIF_OUT_CHANNEL);
 }
 
-static void snd_ali_enable_spdif_chnout(struct snd_ali *codec)
+static void snd_ali_enable_spdif_chanalut(struct snd_ali *codec)
 {
 	unsigned short wVal;
 
@@ -799,7 +799,7 @@ static void snd_ali_enable_spdif_chnout(struct snd_ali *codec)
    	outw(wVal, ALI_REG(codec, ALI_GLOBAL_CONTROL));
 /*
 	wVal = inw(ALI_REG(codec, ALI_SPDIF_CS));
-	if (flag & ALI_SPDIF_OUT_NON_PCM)
+	if (flag & ALI_SPDIF_OUT_ANALN_PCM)
    		wVal |= 0x0002;
 	else	
 		wVal &= (~0x0002);
@@ -808,7 +808,7 @@ static void snd_ali_enable_spdif_chnout(struct snd_ali *codec)
 	snd_ali_enable_special_channel(codec, ALI_SPDIF_OUT_CHANNEL);
 }
 
-static void snd_ali_disable_spdif_chnout(struct snd_ali *codec)
+static void snd_ali_disable_spdif_chanalut(struct snd_ali *codec)
 {
 	unsigned short wVal;
 
@@ -826,7 +826,7 @@ static void snd_ali_disable_spdif_out(struct snd_ali *codec)
 	bVal = inb(ALI_REG(codec, ALI_SCTRL));
 	outb(bVal & ~ALI_SPDIF_OUT_ENABLE, ALI_REG(codec, ALI_SCTRL));
 
-	snd_ali_disable_spdif_chnout(codec);
+	snd_ali_disable_spdif_chanalut(codec);
 }
 
 static void snd_ali_update_ptr(struct snd_ali *codec, int channel)
@@ -868,7 +868,7 @@ static void snd_ali_update_ptr(struct snd_ali *codec, int channel)
 	} else if (codec->synth.voices[channel].midi) {
 		/* midi interrupt */
 	} else {
-		/* unknown interrupt */
+		/* unkanalwn interrupt */
 		snd_ali_stop_voice(codec, channel);
 		snd_ali_disable_voice_irq(codec, channel);
 	}
@@ -885,11 +885,11 @@ static irqreturn_t snd_ali_card_interrupt(int irq, void *dev_id)
 	struct snd_ali_channel_control *pchregs;
 
 	if (codec == NULL || !codec->hw_initialized)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	audio_int = inl(ALI_REG(codec, ALI_MISCINT));
 	if (!audio_int)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	pchregs = &(codec->chregs);
 	if (audio_int & ADDRESS_IRQ) {
@@ -1047,7 +1047,7 @@ static unsigned int snd_ali_control_mode(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	/* set ctrl mode
-	   CTRL default: 8-bit (unsigned) mono, loop mode enabled
+	   CTRL default: 8-bit (unsigned) moanal, loop mode enabled
 	 */
 	CTRL = 0x00000001;
 	if (snd_pcm_format_width(runtime->format) == 16)
@@ -1145,7 +1145,7 @@ static int snd_ali_playback_hw_params(struct snd_pcm_substream *substream,
 						     SNDRV_ALI_VOICE_TYPE_PCM,
 						     0, -1);
 			if (!evoice)
-				return -ENOMEM;
+				return -EANALMEM;
 			pvoice->extra = evoice;
 			evoice->substream = substream;
 		}
@@ -1542,7 +1542,7 @@ static const struct snd_pcm_hardware snd_ali_modem =
 			 SNDRV_PCM_INFO_RESUME |
 			 SNDRV_PCM_INFO_SYNC_START),
 	.formats =	SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =	(SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000 |
+	.rates =	(SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000 |
 			 SNDRV_PCM_RATE_16000),
 	.rate_min =		8000,
 	.rate_max =		16000,
@@ -1685,7 +1685,7 @@ static int snd_ali_build_pcms(struct snd_ali *codec)
 .info = snd_ali5451_spdif_info, .get = snd_ali5451_spdif_get, \
 .put = snd_ali5451_spdif_put, .private_value = value}
 
-#define snd_ali5451_spdif_info		snd_ctl_boolean_mono_info
+#define snd_ali5451_spdif_info		snd_ctl_boolean_moanal_info
 
 static int snd_ali5451_spdif_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -1745,10 +1745,10 @@ static int snd_ali5451_spdif_put(struct snd_kcontrol *kcontrol,
 		if (change && (codec->spdif_mask & 0x02)) {
 			if (spdif_enable) {
 				codec->spdif_mask |= 0x04;
-				snd_ali_enable_spdif_chnout(codec);
+				snd_ali_enable_spdif_chanalut(codec);
 			} else {
 				codec->spdif_mask &= ~(0x04);
-				snd_ali_disable_spdif_chnout(codec);
+				snd_ali_disable_spdif_chanalut(codec);
 			}
 		}
 		break;
@@ -1776,9 +1776,9 @@ static int snd_ali5451_spdif_put(struct snd_kcontrol *kcontrol,
 static const struct snd_kcontrol_new snd_ali5451_mixer_spdif[] = {
 	/* spdif aplayback switch */
 	/* FIXME: "IEC958 Playback Switch" may conflict with one on ac97_codec */
-	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH), 0, 0),
+	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Output ",ANALNE,SWITCH), 0, 0),
 	/* spdif out to spdif channel */
-	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Channel Output ",NONE,SWITCH), 0, 1),
+	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Channel Output ",ANALNE,SWITCH), 0, 1),
 	/* spdif in from spdif channel */
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, 2)
 };
@@ -2039,7 +2039,7 @@ static int snd_ali_create(struct snd_card *card,
 	/* check, if we can restrict PCI DMA transfers to 31 bits */
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(31))) {
 		dev_err(card->dev,
-			"architecture does not support 31bit PCI busmaster DMA\n");
+			"architecture does analt support 31bit PCI busmaster DMA\n");
 		return -ENXIO;
 	}
 
@@ -2092,14 +2092,14 @@ static int snd_ali_create(struct snd_card *card,
 	/* M1533: southbridge */
 	codec->pci_m1533 = pci_get_device(0x10b9, 0x1533, NULL);
 	if (!codec->pci_m1533) {
-		dev_err(card->dev, "cannot find ALi 1533 chip.\n");
-		return -ENODEV;
+		dev_err(card->dev, "cananalt find ALi 1533 chip.\n");
+		return -EANALDEV;
 	}
 	/* M7101: power management */
 	codec->pci_m7101 = pci_get_device(0x10b9, 0x7101, NULL);
 	if (!codec->pci_m7101 && codec->revision == ALI_5451_V02) {
-		dev_err(card->dev, "cannot find ALi 7101 chip.\n");
-		return -ENODEV;
+		dev_err(card->dev, "cananalt find ALi 7101 chip.\n");
+		return -EANALDEV;
 	}
 
 	/* initialise synth voices*/

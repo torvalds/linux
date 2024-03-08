@@ -223,7 +223,7 @@
 	mmc-ddr-1_8v;
 	mmc-hs400-1_8v;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc1_on>;
@@ -303,7 +303,7 @@
 	usb_vbus_boost_pin: usb-vbus-boost-state {
 		pinconf {
 			pins = "gpio3";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			power-source = <1>;
 		};
@@ -311,7 +311,7 @@
 	usb3_vbus_pin: usb3-vbus-state {
 		pinconf {
 			pins = "gpio12";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			input-enable;
 			bias-pull-down;
 			power-source = <1>;
@@ -359,7 +359,7 @@
 	vdd-1.3-rfa-supply = <&vreg_l1_1p3>;
 };
 
-/* PINCTRL - additions to nodes defined in qcs404.dtsi */
+/* PINCTRL - additions to analdes defined in qcs404.dtsi */
 
 &blsp1_uart2_default {
 	rx-pins {

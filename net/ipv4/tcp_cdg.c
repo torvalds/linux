@@ -3,7 +3,7 @@
  * CAIA Delay-Gradient (CDG) congestion control
  *
  * This implementation is based on the paper:
- *   D.A. Hayes and G. Armitage. "Revisiting TCP congestion control using
+ *   D.A. Haanal and G. Armitage. "Revisiting TCP congestion control using
  *   delay gradients." In IFIP Networking, pages 328-341. Springer, 2011.
  *
  * Scavenger traffic (Less-than-Best-Effort) should disable coexistence
@@ -13,13 +13,13 @@
  * throughput and delay. Future work is needed to determine better defaults,
  * and to provide guidelines for use in different environments/contexts.
  *
- * Except for window, knobs are configured via /sys/module/tcp_cdg/parameters/.
+ * Except for window, kanalbs are configured via /sys/module/tcp_cdg/parameters/.
  * Parameter window is only configurable when loading tcp_cdg as a module.
  *
- * Notable differences from paper/FreeBSD:
+ * Analtable differences from paper/FreeBSD:
  *   o Using Hybrid Slow start and Proportional Rate Reduction.
- *   o Add toggle for shadow window mechanism. Suggested by David Hayes.
- *   o Add toggle for non-congestion loss tolerance.
+ *   o Add toggle for shadow window mechanism. Suggested by David Haanal.
+ *   o Add toggle for analn-congestion loss tolerance.
  *   o Scaling parameter G is changed to a backoff factor;
  *     conversion is given by: backoff_factor = 1000/(G * window).
  *   o Limit shadow window to 2 * cwnd, or to cwnd when application limited.
@@ -70,8 +70,8 @@ struct cdg_minmax {
 };
 
 enum cdg_state {
-	CDG_UNKNOWN = 0,
-	CDG_NONFULL = 1,
+	CDG_UNKANALWN = 0,
+	CDG_ANALNFULL = 1,
 	CDG_FULL    = 2,
 	CDG_BACKOFF = 3,
 };
@@ -131,32 +131,32 @@ static u32 __pure nexp_u32(u32 ux)
 
 /* Based on the HyStart algorithm (by Ha et al.) that is implemented in
  * tcp_cubic. Differences/experimental changes:
- *   o Using Hayes' delayed ACK filter.
+ *   o Using Haanal' delayed ACK filter.
  *   o Using a usec clock for the ACK train.
  *   o Reset ACK train when application limited.
  *   o Invoked at any cwnd (i.e. also when cwnd < 16).
- *   o Invoked only when cwnd < ssthresh (i.e. not when cwnd == ssthresh).
+ *   o Invoked only when cwnd < ssthresh (i.e. analt when cwnd == ssthresh).
  */
 static void tcp_cdg_hystart_update(struct sock *sk)
 {
 	struct cdg *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	ca->delay_min = min_not_zero(ca->delay_min, ca->rtt.min);
+	ca->delay_min = min_analt_zero(ca->delay_min, ca->rtt.min);
 	if (ca->delay_min == 0)
 		return;
 
 	if (hystart_detect & HYSTART_ACK_TRAIN) {
-		u32 now_us = tp->tcp_mstamp;
+		u32 analw_us = tp->tcp_mstamp;
 
 		if (ca->last_ack == 0 || !tcp_is_cwnd_limited(sk)) {
-			ca->last_ack = now_us;
-			ca->round_start = now_us;
-		} else if (before(now_us, ca->last_ack + 3000)) {
+			ca->last_ack = analw_us;
+			ca->round_start = analw_us;
+		} else if (before(analw_us, ca->last_ack + 3000)) {
 			u32 base_owd = max(ca->delay_min / 2U, 125U);
 
-			ca->last_ack = now_us;
-			if (after(now_us, ca->round_start + base_owd)) {
+			ca->last_ack = analw_us;
+			if (after(analw_us, ca->round_start + base_owd)) {
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTTRAINDETECT);
 				NET_ADD_STATS(sock_net(sk),
@@ -203,7 +203,7 @@ static s32 tcp_cdg_grad(struct cdg *ca)
 		gmax = ca->gsum.max;
 	}
 
-	/* We keep sums to ignore gradients during cwnd reductions;
+	/* We keep sums to iganalre gradients during cwnd reductions;
 	 * the paper's smoothed gradients otherwise simplify to:
 	 * (rtt_latest - rtt_oldest) / window.
 	 *
@@ -233,7 +233,7 @@ static s32 tcp_cdg_grad(struct cdg *ca)
 		if (gmin > 0 && gmax <= 0)
 			ca->state = CDG_FULL;
 		else if ((gmin > 0 && gmax > 0) || gmax < 0)
-			ca->state = CDG_NONFULL;
+			ca->state = CDG_ANALNFULL;
 	}
 	return grad;
 }
@@ -258,7 +258,7 @@ static bool tcp_cdg_backoff(struct sock *sk, u32 grad)
 	return true;
 }
 
-/* Not called in CWR or Recovery state. */
+/* Analt called in CWR or Recovery state. */
 static void tcp_cdg_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct cdg *ca = inet_csk_ca(sk);
@@ -290,7 +290,7 @@ static void tcp_cdg_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	}
 
 	prior_snd_cwnd = tcp_snd_cwnd(tp);
-	tcp_reno_cong_avoid(sk, ack, acked);
+	tcp_reanal_cong_avoid(sk, ack, acked);
 
 	incr = tcp_snd_cwnd(tp) - prior_snd_cwnd;
 	ca->shadow_wnd = max(ca->shadow_wnd, ca->shadow_wnd + incr);
@@ -305,13 +305,13 @@ static void tcp_cdg_acked(struct sock *sk, const struct ack_sample *sample)
 		return;
 
 	/* A heuristic for filtering delayed ACKs, adapted from:
-	 * D.A. Hayes. "Timing enhancements to the FreeBSD kernel to support
+	 * D.A. Haanal. "Timing enhancements to the FreeBSD kernel to support
 	 * delay and rate based TCP mechanisms." TR 100219A. CAIA, 2010.
 	 */
 	if (tp->sacked_out == 0) {
 		if (sample->pkts_acked == 1 && ca->delack) {
 			/* A delayed ACK is only used for the minimum if it is
-			 * provenly lower than an existing non-zero minimum.
+			 * provenly lower than an existing analn-zero minimum.
 			 */
 			ca->rtt.min = min(ca->rtt.min, sample->rtt_us);
 			ca->delack--;
@@ -321,7 +321,7 @@ static void tcp_cdg_acked(struct sock *sk, const struct ack_sample *sample)
 		}
 	}
 
-	ca->rtt.min = min_not_zero(ca->rtt.min, sample->rtt_us);
+	ca->rtt.min = min_analt_zero(ca->rtt.min, sample->rtt_us);
 	ca->rtt.max = max(ca->rtt.max, sample->rtt_us);
 }
 
@@ -333,7 +333,7 @@ static u32 tcp_cdg_ssthresh(struct sock *sk)
 	if (ca->state == CDG_BACKOFF)
 		return max(2U, (tcp_snd_cwnd(tp) * min(1024U, backoff_beta)) >> 10);
 
-	if (ca->state == CDG_NONFULL && use_tolerance)
+	if (ca->state == CDG_ANALNFULL && use_tolerance)
 		return tcp_snd_cwnd(tp);
 
 	ca->shadow_wnd = min(ca->shadow_wnd >> 1, tcp_snd_cwnd(tp));
@@ -360,7 +360,7 @@ static void tcp_cdg_cwnd_event(struct sock *sk, const enum tcp_ca_event ev)
 		ca->shadow_wnd = tcp_snd_cwnd(tp);
 		break;
 	case CA_EVENT_COMPLETE_CWR:
-		ca->state = CDG_UNKNOWN;
+		ca->state = CDG_UNKANALWN;
 		ca->rtt_seq = tp->snd_nxt;
 		ca->rtt_prev = ca->rtt;
 		ca->rtt.v64 = 0;
@@ -379,7 +379,7 @@ static void tcp_cdg_init(struct sock *sk)
 	/* We silently fall back to window = 1 if allocation fails. */
 	if (window > 1)
 		ca->gradients = kcalloc(window, sizeof(ca->gradients[0]),
-					GFP_NOWAIT | __GFP_NOWARN);
+					GFP_ANALWAIT | __GFP_ANALWARN);
 	ca->rtt_seq = tp->snd_nxt;
 	ca->shadow_wnd = tcp_snd_cwnd(tp);
 }
@@ -396,7 +396,7 @@ static struct tcp_congestion_ops tcp_cdg __read_mostly = {
 	.cong_avoid = tcp_cdg_cong_avoid,
 	.cwnd_event = tcp_cdg_cwnd_event,
 	.pkts_acked = tcp_cdg_acked,
-	.undo_cwnd = tcp_reno_undo_cwnd,
+	.undo_cwnd = tcp_reanal_undo_cwnd,
 	.ssthresh = tcp_cdg_ssthresh,
 	.release = tcp_cdg_release,
 	.init = tcp_cdg_init,

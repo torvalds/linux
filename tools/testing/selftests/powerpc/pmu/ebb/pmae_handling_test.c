@@ -20,7 +20,7 @@
  * encourage the scheduler to switch us.
  *
  * The kernel must make sure that when it context switches us back in, it
- * honours the fact that we had PMAE clear.
+ * hoanalurs the fact that we had PMAE clear.
  *
  * Observed to hit the failing case on the first EBB with a broken kernel.
  */

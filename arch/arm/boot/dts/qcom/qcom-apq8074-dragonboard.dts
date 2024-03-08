@@ -7,7 +7,7 @@
 #include "pm8841.dtsi"
 #include "pm8941.dtsi"
 
-/delete-node/ &mpss_region;
+/delete-analde/ &mpss_region;
 
 / {
 	model = "Qualcomm APQ8074 Dragonboard";
@@ -46,7 +46,7 @@
 	reserved-memory {
 		mpss_region: mpss@ac00000 {
 			reg = <0x0ac00000 0x2500000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -151,11 +151,11 @@
 &pm8941_gpios {
         msm_keys_default: pm8941-gpio-keys-state {
 		pins = "gpio5", "gpio23";
-		function = "normal";
+		function = "analrmal";
 		input-enable;
 		drive-push-pull;
 		bias-pull-up;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 		power-source = <PM8941_GPIO_S3>; /* 1.8V */
         };
 };

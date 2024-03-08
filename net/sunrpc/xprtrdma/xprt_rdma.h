@@ -14,24 +14,24 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      analtice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright analtice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. analr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -58,7 +58,7 @@
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
 
 #define RDMA_RESOLVE_TIMEOUT	(5000)	/* 5 seconds */
-#define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
+#define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if anal listener backlog */
 
 #define RPCRDMA_BIND_TO		(60U * HZ)
 #define RPCRDMA_INIT_REEST_TO	(5U * HZ)
@@ -149,11 +149,11 @@ static inline void *rdmab_data(const struct rpcrdma_regbuf *rb)
 	return rb->rg_data;
 }
 
-/* Do not use emergency memory reserves, and fail quickly if memory
- * cannot be allocated easily. These flags may be used wherever there
+/* Do analt use emergency memory reserves, and fail quickly if memory
+ * cananalt be allocated easily. These flags may be used wherever there
  * is robust logic to handle a failure to allocate.
  */
-#define XPRTRDMA_GFP_FLAGS  (__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN)
+#define XPRTRDMA_GFP_FLAGS  (__GFP_ANALMEMALLOC | __GFP_ANALRETRY | __GFP_ANALWARN)
 
 /* To ensure a transport can always make forward progress,
  * the number of RDMA segments allowed in header chunk lists
@@ -162,12 +162,12 @@ static inline void *rdmab_data(const struct rpcrdma_regbuf *rb)
  *
  * Elements of the Read list take up more room than the
  * Write list or Reply chunk. 16 read segments means the
- * chunk lists cannot consume more than
+ * chunk lists cananalt consume more than
  *
  * ((16 + 2) * read segment size) + 1 XDR words,
  *
  * or about 400 bytes. The fixed part of the header is
- * another 24 bytes. Thus when the inline threshold is
+ * aanalther 24 bytes. Thus when the inline threshold is
  * 1024 bytes, at least 600 bytes are available for RPC
  * message bodies.
  */
@@ -177,11 +177,11 @@ enum {
 
 /*
  * struct rpcrdma_rep -- this structure encapsulates state required
- * to receive and complete an RPC Reply, asychronously. It needs
+ * to receive and complete an RPC Reply, asychroanalusly. It needs
  * several pieces of state:
  *
  *   o receive buffer and ib_sge (donated to provider)
- *   o status of receive (success or not, length, inv rkey)
+ *   o status of receive (success or analt, length, inv rkey)
  *   o bookkeeping state to get run by reply handler (XDR stream)
  *
  * These structures are allocated during transport initialization.
@@ -204,7 +204,7 @@ struct rpcrdma_rep {
 	struct rpc_rqst		*rr_rqst;
 	struct xdr_buf		rr_hdrbuf;
 	struct xdr_stream	rr_stream;
-	struct llist_node	rr_node;
+	struct llist_analde	rr_analde;
 	struct ib_recv_wr	rr_recv_wr;
 	struct list_head	rr_all;
 };
@@ -234,7 +234,7 @@ struct rpcrdma_sendctx {
  * struct rpcrdma_mr - external memory region metadata
  *
  * An external memory region is any buffer or page that is registered
- * on the fly (ie, not pre-registered).
+ * on the fly (ie, analt pre-registered).
  */
 struct rpcrdma_req;
 struct rpcrdma_mr {
@@ -267,14 +267,14 @@ struct rpcrdma_mr {
  * struct rpcrdma_buffer. N is the max number of outstanding requests.
  *
  * It includes pre-registered buffer memory for send AND recv.
- * The recv buffer, however, is not owned by this structure, and
+ * The recv buffer, however, is analt owned by this structure, and
  * is "donated" to the hardware when a recv is posted. When a
  * reply is handled, the recv buffer used is given back to the
  * struct rpcrdma_req associated with the request.
  *
  * In addition to the basic memory, this structure includes an array
  * of iovs for send operations. The reason is that the iovs passed to
- * ib_post_{send,recv} must not be modified until the work request
+ * ib_post_{send,recv} must analt be modified until the work request
  * completes.
  */
 
@@ -411,7 +411,7 @@ struct rpcrdma_stats {
 	unsigned long long	fixup_copy_count;
 	unsigned long		reply_waits_for_send;
 	unsigned long		local_inv_needed;
-	unsigned long		nomsg_call_count;
+	unsigned long		analmsg_call_count;
 	unsigned long		bcall_count;
 };
 
@@ -419,8 +419,8 @@ struct rpcrdma_stats {
  * RPCRDMA transport -- encapsulates the structures above for
  * integration with RPC.
  *
- * The contained structures are embedded, not pointers,
- * for convenience. This structure need not be visible externally.
+ * The contained structures are embedded, analt pointers,
+ * for convenience. This structure need analt be visible externally.
  *
  * It is allocated and initialized during mount, and released
  * during unmount.
@@ -496,7 +496,7 @@ bool __rpcrdma_regbuf_dma_map(struct rpcrdma_xprt *r_xprt,
 /**
  * rpcrdma_regbuf_is_mapped - check if buffer is DMA mapped
  *
- * Returns true if the buffer is now mapped to rb->rg_device.
+ * Returns true if the buffer is analw mapped to rb->rg_device.
  */
 static inline bool rpcrdma_regbuf_is_mapped(struct rpcrdma_regbuf *rb)
 {
@@ -549,9 +549,9 @@ int frwr_wp_create(struct rpcrdma_xprt *r_xprt);
  */
 
 enum rpcrdma_chunktype {
-	rpcrdma_noch = 0,
-	rpcrdma_noch_pullup,
-	rpcrdma_noch_mapped,
+	rpcrdma_analch = 0,
+	rpcrdma_analch_pullup,
+	rpcrdma_analch_mapped,
 	rpcrdma_readch,
 	rpcrdma_areadch,
 	rpcrdma_writech,

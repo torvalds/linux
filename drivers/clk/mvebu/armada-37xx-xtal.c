@@ -18,9 +18,9 @@
 
 static int armada_3700_xtal_clock_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const char *xtal_name = "xtal";
-	struct device_node *parent;
+	struct device_analde *parent;
 	struct regmap *regmap;
 	struct clk_hw *xtal_hw;
 	unsigned int rate;
@@ -29,25 +29,25 @@ static int armada_3700_xtal_clock_probe(struct platform_device *pdev)
 
 	xtal_hw = devm_kzalloc(&pdev->dev, sizeof(*xtal_hw), GFP_KERNEL);
 	if (!xtal_hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, xtal_hw);
 
 	parent = np->parent;
 	if (!parent) {
-		dev_err(&pdev->dev, "no parent\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal parent\n");
+		return -EANALDEV;
 	}
 
-	regmap = syscon_node_to_regmap(parent);
+	regmap = syscon_analde_to_regmap(parent);
 	if (IS_ERR(regmap)) {
-		dev_err(&pdev->dev, "cannot get regmap\n");
+		dev_err(&pdev->dev, "cananalt get regmap\n");
 		return PTR_ERR(regmap);
 	}
 
 	ret = regmap_read(regmap, NB_GPIO1_LATCH, &reg);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot read from regmap\n");
+		dev_err(&pdev->dev, "cananalt read from regmap\n");
 		return ret;
 	}
 
@@ -67,7 +67,7 @@ static int armada_3700_xtal_clock_probe(struct platform_device *pdev)
 
 static void armada_3700_xtal_clock_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 }
 
 static const struct of_device_id armada_3700_xtal_clock_of_match[] = {

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  include/linux/timerfd.h
  *
@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 
-/* For O_CLOEXEC and O_NONBLOCK */
+/* For O_CLOEXEC and O_ANALNBLOCK */
 #include <linux/fcntl.h>
 
 /* For _IO helpers */
@@ -30,7 +30,7 @@
 #define TFD_TIMER_ABSTIME (1 << 0)
 #define TFD_TIMER_CANCEL_ON_SET (1 << 1)
 #define TFD_CLOEXEC O_CLOEXEC
-#define TFD_NONBLOCK O_NONBLOCK
+#define TFD_ANALNBLOCK O_ANALNBLOCK
 
 #define TFD_IOC_SET_TICKS	_IOW('T', 0, __u64)
 

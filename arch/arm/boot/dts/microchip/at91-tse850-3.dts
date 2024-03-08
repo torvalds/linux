@@ -2,7 +2,7 @@
 /*
  * at91-tse850-3.dts - Device Tree file for the Axentia TSE-850 3.0 board
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techanallogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -298,7 +298,7 @@
 &dbgu {
 	status = "okay";
 
-	dmas = <0>, <0>;	/*  Do not use DMA for dbgu */
+	dmas = <0>, <0>;	/*  Do analt use DMA for dbgu */
 };
 
 &pioA {
@@ -345,7 +345,7 @@
 	/* 12 */	"", "", "", "",
 	/* 16 */	"", ">LIN", "LIN>", "",
 	/* 20 */	"VREFEN", "", "", "",
-	/* 24 */	"", "", "VINOK", "",
+	/* 24 */	"", "", "VIANALK", "",
 	/* 28 */	"POEOK", "USBON", "POELOAD", "";
 };
 

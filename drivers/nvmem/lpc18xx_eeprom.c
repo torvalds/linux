@@ -23,8 +23,8 @@
 #define LPC18XX_EEPROM_CLKDIV			0x014
 
 #define LPC18XX_EEPROM_PWRDWN			0x018
-#define LPC18XX_EEPROM_PWRDWN_NO		0x0
-#define LPC18XX_EEPROM_PWRDWN_YES		0x1
+#define LPC18XX_EEPROM_PWRDWN_ANAL		0x0
+#define LPC18XX_EEPROM_PWRDWN_ANAL		0x1
 
 #define LPC18XX_EEPROM_INTSTAT			0xfe0
 #define LPC18XX_EEPROM_INTSTAT_END_OF_PROG	BIT(2)
@@ -95,7 +95,7 @@ static int lpc18xx_eeprom_gather_write(void *context, unsigned int reg,
 	int ret;
 
 	/*
-	 * The last page contains the EEPROM initialization data and is not
+	 * The last page contains the EEPROM initialization data and is analt
 	 * writable.
 	 */
 	if ((reg > eeprom->size - LPC18XX_EEPROM_PAGE_SIZE) ||
@@ -104,7 +104,7 @@ static int lpc18xx_eeprom_gather_write(void *context, unsigned int reg,
 
 
 	lpc18xx_eeprom_writel(eeprom, LPC18XX_EEPROM_PWRDWN,
-			      LPC18XX_EEPROM_PWRDWN_NO);
+			      LPC18XX_EEPROM_PWRDWN_ANAL);
 
 	/* Wait 100 us while the EEPROM wakes up */
 	usleep_range(100, 200);
@@ -121,7 +121,7 @@ static int lpc18xx_eeprom_gather_write(void *context, unsigned int reg,
 	}
 
 	lpc18xx_eeprom_writel(eeprom, LPC18XX_EEPROM_PWRDWN,
-			      LPC18XX_EEPROM_PWRDWN_YES);
+			      LPC18XX_EEPROM_PWRDWN_ANAL);
 
 	return 0;
 }
@@ -132,7 +132,7 @@ static int lpc18xx_eeprom_read(void *context, unsigned int offset,
 	struct lpc18xx_eeprom_dev *eeprom = context;
 
 	lpc18xx_eeprom_writel(eeprom, LPC18XX_EEPROM_PWRDWN,
-			      LPC18XX_EEPROM_PWRDWN_NO);
+			      LPC18XX_EEPROM_PWRDWN_ANAL);
 
 	/* Wait 100 us while the EEPROM wakes up */
 	usleep_range(100, 200);
@@ -145,7 +145,7 @@ static int lpc18xx_eeprom_read(void *context, unsigned int offset,
 	}
 
 	lpc18xx_eeprom_writel(eeprom, LPC18XX_EEPROM_PWRDWN,
-			      LPC18XX_EEPROM_PWRDWN_YES);
+			      LPC18XX_EEPROM_PWRDWN_ANAL);
 
 	return 0;
 }
@@ -170,7 +170,7 @@ static int lpc18xx_eeprom_probe(struct platform_device *pdev)
 
 	eeprom = devm_kzalloc(dev, sizeof(*eeprom), GFP_KERNEL);
 	if (!eeprom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg");
 	eeprom->reg_base = devm_ioremap_resource(dev, res);
@@ -226,7 +226,7 @@ static int lpc18xx_eeprom_probe(struct platform_device *pdev)
 			      LPC18XX_EEPROM_AUTOPROG_WORD);
 
 	lpc18xx_eeprom_writel(eeprom, LPC18XX_EEPROM_PWRDWN,
-			      LPC18XX_EEPROM_PWRDWN_YES);
+			      LPC18XX_EEPROM_PWRDWN_ANAL);
 
 	eeprom->size = resource_size(res);
 	lpc18xx_nvmem_config.size = resource_size(res);

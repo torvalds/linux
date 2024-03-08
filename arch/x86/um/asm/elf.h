@@ -10,7 +10,7 @@
 
 #ifdef CONFIG_X86_32
 
-#define R_386_NONE	0
+#define R_386_ANALNE	0
 #define R_386_32	1
 #define R_386_PC32	2
 #define R_386_GOT32	3
@@ -99,7 +99,7 @@ do {								\
 #else
 
 /* x86-64 relocation types, taken from asm-x86_64/elf.h */
-#define R_X86_64_NONE		0	/* No reloc */
+#define R_X86_64_ANALNE		0	/* Anal reloc */
 #define R_X86_64_64		1	/* Direct 64 bit  */
 #define R_X86_64_PC32		2	/* PC relative 32 bit signed */
 #define R_X86_64_GOT32		3	/* 32 bit GOT entry */
@@ -177,7 +177,7 @@ do {								\
 
 #define ELF_PLATFORM "x86_64"
 
-/* No user-accessible fixmap addresses, i.e. vsyscall */
+/* Anal user-accessible fixmap addresses, i.e. vsyscall */
 #define FIXADDR_USER_START      0
 #define FIXADDR_USER_END        0
 

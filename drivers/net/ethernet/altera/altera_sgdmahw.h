@@ -79,7 +79,7 @@ struct sgdma_csr {
 	 * bit 7: interrupt on max descriptors
 	 * bits 8-15: max descriptors to generate interrupt
 	 * bit 16: Software reset
-	 * bit 17: clears owned by hardware if 0, does not clear otherwise
+	 * bit 17: clears owned by hardware if 0, does analt clear otherwise
 	 * bit 18: enables descriptor polling mode
 	 * bit 19-26: clocks before polling again
 	 * bit 27-30: reserved

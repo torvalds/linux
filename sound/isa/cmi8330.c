@@ -6,12 +6,12 @@
  */
 
 /*
- * NOTES
+ * ANALTES
  *
  *  The extended registers contain mixer settings which are largely
  *  untapped for the time being.
  *
- *  MPU401 and SPDIF are not supported yet.  I don't have the hardware
+ *  MPU401 and SPDIF are analt supported yet.  I don't have the hardware
  *  to aid in coding and testing, so I won't bother.
  *
  *  To quickly load the module,
@@ -323,7 +323,7 @@ static int snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 	struct pnp_dev *pdev;
 	int err;
 
-	/* CMI8329 has a device with ID A@@0001, CMI8330 does not */
+	/* CMI8329 has a device with ID A@@0001, CMI8330 does analt */
 	acard->type = (id->devs[3].id[0]) ? CMI8329 : CMI8330;
 
 	acard->cap = pnp_request_card_device(card, id->devs[0].id, NULL);
@@ -510,7 +510,7 @@ static int snd_cmi8330_card_new(struct device *pdev, int dev,
 	err = snd_devm_card_new(pdev, index[dev], id[dev], THIS_MODULE,
 				sizeof(struct snd_cmi8330), &card);
 	if (err < 0) {
-		snd_printk(KERN_ERR PFX "could not get a new card\n");
+		snd_printk(KERN_ERR PFX "could analt get a new card\n");
 		return err;
 	}
 	acard = card->private_data;
@@ -535,8 +535,8 @@ static int snd_cmi8330_probe(struct snd_card *card, int dev)
 		return err;
 	}
 	if (acard->wss->hardware != WSS_HW_CMI8330) {
-		snd_printk(KERN_ERR PFX "AD1848 not found during probe\n");
-		return -ENODEV;
+		snd_printk(KERN_ERR PFX "AD1848 analt found during probe\n");
+		return -EANALDEV;
 	}
 
 	err = snd_sbdsp_create(card, sbport[dev],
@@ -550,8 +550,8 @@ static int snd_cmi8330_probe(struct snd_card *card, int dev)
 		return err;
 	}
 	if (acard->sb->hardware != SB_HW_16) {
-		snd_printk(KERN_ERR PFX "SB16 not found during probe\n");
-		return -ENODEV;
+		snd_printk(KERN_ERR PFX "SB16 analt found during probe\n");
+		return -EANALDEV;
 	}
 
 	snd_wss_out(acard->wss, CS4231_MISC_INFO, 0x40); /* switch on MODE2 */
@@ -575,7 +575,7 @@ static int snd_cmi8330_probe(struct snd_card *card, int dev)
 				    fmport[dev], fmport[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
 			snd_printk(KERN_ERR PFX
-				   "no OPL device at 0x%lx-0x%lx ?\n",
+				   "anal OPL device at 0x%lx-0x%lx ?\n",
 				   fmport[dev], fmport[dev] + 2);
 		} else {
 			err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
@@ -588,7 +588,7 @@ static int snd_cmi8330_probe(struct snd_card *card, int dev)
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
 					mpuport[dev], 0, mpuirq[dev],
 					NULL) < 0)
-			printk(KERN_ERR PFX "no MPU-401 device at 0x%lx.\n",
+			printk(KERN_ERR PFX "anal MPU-401 device at 0x%lx.\n",
 				mpuport[dev]);
 	}
 
@@ -676,7 +676,7 @@ static int snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
 			break;
 	}
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 			       
 	res = snd_cmi8330_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)

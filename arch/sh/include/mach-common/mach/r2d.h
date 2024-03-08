@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2000  Atom Create Engineering Co., Ltd.
  *
- * Renesas Technology Sales RTS7751R2D support
+ * Renesas Techanallogy Sales RTS7751R2D support
  */
 
 /* Board specific addresses.  */

@@ -15,7 +15,7 @@ int mxc_set_irq_fiq(unsigned int irq, unsigned int type)
 	struct mxc_extra_irq *exirq;
 	int ret;
 
-	ret = -ENOSYS;
+	ret = -EANALSYS;
 
 	gc = irq_get_chip_data(irq);
 	if (gc && gc->private) {

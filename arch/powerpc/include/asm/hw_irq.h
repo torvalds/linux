@@ -7,7 +7,7 @@
 
 #ifdef __KERNEL__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/compiler.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -40,7 +40,7 @@
 
 /*
  * Some soft-masked interrupts must be hard masked until they are replayed
- * (e.g., because the soft-masked handler does not clear the exception).
+ * (e.g., because the soft-masked handler does analt clear the exception).
  * Interrupt replay itself must remain hard masked too.
  */
 #ifdef CONFIG_PPC_BOOK3S
@@ -113,7 +113,7 @@ static inline void __hard_RI_enable(void)
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 
-static inline notrace unsigned long irq_soft_mask_return(void)
+static inline analtrace unsigned long irq_soft_mask_return(void)
 {
 	unsigned long flags;
 
@@ -130,7 +130,7 @@ static inline notrace unsigned long irq_soft_mask_return(void)
  * for the critical section and as a clobber because
  * we changed paca->irq_soft_mask
  */
-static inline notrace void irq_soft_mask_set(unsigned long mask)
+static inline analtrace void irq_soft_mask_set(unsigned long mask)
 {
 	/*
 	 * The irq mask must always include the STD bit if any are set.
@@ -139,11 +139,11 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 	 * interrupt (local_irq_disable()) is unmasked.
 	 *
 	 * Other masks must only provide additional masking beyond
-	 * the standard, and they are also not replayed until the
+	 * the standard, and they are also analt replayed until the
 	 * standard interrupt becomes unmasked.
 	 *
 	 * This could be changed, but it will require partial
-	 * unmasks to be replayed, among other things. For now, take
+	 * unmasks to be replayed, among other things. For analw, take
 	 * the simple approach.
 	 */
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
@@ -157,7 +157,7 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 		: "memory");
 }
 
-static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
+static inline analtrace unsigned long irq_soft_mask_set_return(unsigned long mask)
 {
 	unsigned long flags = irq_soft_mask_return();
 
@@ -166,7 +166,7 @@ static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
 	return flags;
 }
 
-static inline notrace unsigned long irq_soft_mask_or_return(unsigned long mask)
+static inline analtrace unsigned long irq_soft_mask_or_return(unsigned long mask)
 {
 	unsigned long flags = irq_soft_mask_return();
 
@@ -175,7 +175,7 @@ static inline notrace unsigned long irq_soft_mask_or_return(unsigned long mask)
 	return flags;
 }
 
-static inline notrace unsigned long irq_soft_mask_andc_return(unsigned long mask)
+static inline analtrace unsigned long irq_soft_mask_andc_return(unsigned long mask)
 {
 	unsigned long flags = irq_soft_mask_return();
 
@@ -324,11 +324,11 @@ static inline bool lazy_irq_pending(void)
 }
 
 /*
- * Check if a lazy IRQ is pending, with no debugging checks.
+ * Check if a lazy IRQ is pending, with anal debugging checks.
  * Should be called with IRQs hard disabled.
  * For use in RI disabled code or other constrained situations.
  */
-static inline bool lazy_irq_pending_nocheck(void)
+static inline bool lazy_irq_pending_analcheck(void)
 {
 	return __lazy_irq_pending(local_paca->irq_happened);
 }
@@ -336,7 +336,7 @@ static inline bool lazy_irq_pending_nocheck(void)
 bool power_pmu_wants_prompt_pmi(void);
 
 /*
- * This is called by asynchronous interrupts to check whether to
+ * This is called by asynchroanalus interrupts to check whether to
  * conditionally re-enable hard interrupts after having cleared
  * the source of the interrupt. They are kept disabled if there
  * is a different soft-masked interrupt pending that requires hard
@@ -353,7 +353,7 @@ static inline bool should_hard_irq_enable(struct pt_regs *regs)
 	if (!IS_ENABLED(CONFIG_PERF_EVENTS))
 		return false;
 	/*
-	 * If the PMU is not running, there is not much reason to enable
+	 * If the PMU is analt running, there is analt much reason to enable
 	 * MSR[EE] in irq handlers because any interrupts would just be
 	 * soft-masked.
 	 *
@@ -412,7 +412,7 @@ static inline void irq_soft_mask_regs_set_state(struct pt_regs *regs, unsigned l
 }
 #else /* CONFIG_PPC64 */
 
-static inline notrace unsigned long irq_soft_mask_return(void)
+static inline analtrace unsigned long irq_soft_mask_return(void)
 {
 	return 0;
 }
@@ -496,9 +496,9 @@ static inline unsigned long mtmsr_isync_irqsafe(unsigned long msr)
 	if (arch_irqs_disabled()) {
 		/*
 		 * With soft-masking, MSR[EE] can change from 1 to 0
-		 * asynchronously when irqs are disabled, and we don't want to
+		 * asynchroanalusly when irqs are disabled, and we don't want to
 		 * set MSR[EE] back to 1 here if that has happened. A race-free
-		 * way to do this is ensure EE is already 0. Another way it
+		 * way to do this is ensure EE is already 0. Aanalther way it
 		 * could be done is with a RESTART_TABLE handler, but that's
 		 * probably overkill here.
 		 */
@@ -514,7 +514,7 @@ static inline unsigned long mtmsr_isync_irqsafe(unsigned long msr)
 }
 
 
-#define ARCH_IRQ_INIT_FLAGS	IRQ_NOREQUEST
+#define ARCH_IRQ_INIT_FLAGS	IRQ_ANALREQUEST
 
 #endif  /* __ASSEMBLY__ */
 #endif	/* __KERNEL__ */

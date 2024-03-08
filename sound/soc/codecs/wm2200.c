@@ -994,7 +994,7 @@ static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 static DECLARE_TLV_DB_SCALE(out_tlv, -6400, 100, 0);
 
 static const char * const wm2200_mixer_texts[] = {
-	"None",
+	"Analne",
 	"Tone Generator",
 	"AEC Loopback",
 	"IN1L",
@@ -1104,7 +1104,7 @@ static unsigned int wm2200_mixer_values[] = {
 	static WM2200_MUX_CTL_DECL(name##_aux6);
 
 static const char *wm2200_rxanc_input_sel_texts[] = {
-	"None", "IN1", "IN2", "IN3",
+	"Analne", "IN1", "IN2", "IN3",
 };
 
 static SOC_ENUM_SINGLE_DECL(wm2200_rxanc_input_sel,
@@ -1204,14 +1204,14 @@ WM2200_MIXER_ENUMS(LHPF1, WM2200_LHPF1MIX_INPUT_1_SOURCE);
 WM2200_MIXER_ENUMS(LHPF2, WM2200_LHPF2MIX_INPUT_1_SOURCE);
 
 #define WM2200_MUX(name, ctrl) \
-	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_ANALPM, 0, 0, ctrl)
 
 #define WM2200_MIXER_WIDGETS(name, name_str)	\
 	WM2200_MUX(name_str " Input 1", &name##_in1_mux), \
 	WM2200_MUX(name_str " Input 2", &name##_in2_mux), \
 	WM2200_MUX(name_str " Input 3", &name##_in3_mux), \
 	WM2200_MUX(name_str " Input 4", &name##_in4_mux), \
-	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_NOPM, 0, 0, NULL, 0)
+	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0)
 
 #define WM2200_DSP_WIDGETS(name, name_str) \
 	WM2200_MIXER_WIDGETS(name##L, name_str "L"), \
@@ -1693,7 +1693,7 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 	int i, bclk, lrclk, wl, fl, sr_code;
 	int *bclk_rates;
 
-	/* Data sizes if not using TDM */
+	/* Data sizes if analt using TDM */
 	wl = params_width(params);
 	if (wl < 0)
 		return wl;
@@ -1710,7 +1710,7 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 		return bclk;
 
 	if (!wm2200->sysclk) {
-		dev_err(component->dev, "SYSCLK has no rate set\n");
+		dev_err(component->dev, "SYSCLK has anal rate set\n");
 		return -EINVAL;
 	}
 
@@ -1737,7 +1737,7 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 			break;
 	if (i == WM2200_NUM_BCLK_RATES) {
 		dev_err(component->dev,
-			"No valid BCLK for %dHz found from %dHz SYSCLK\n",
+			"Anal valid BCLK for %dHz found from %dHz SYSCLK\n",
 			bclk, wm2200->sysclk);
 		return -EINVAL;
 	}
@@ -1784,7 +1784,7 @@ static int wm2200_set_sysclk(struct snd_soc_component *component, int clk_id,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown clock %d\n", clk_id);
+		dev_err(component->dev, "Unkanalwn clock %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -2118,7 +2118,7 @@ static irqreturn_t wm2200_irq(int irq, void *data)
 	ret = regmap_read(wm2200->regmap, WM2200_INTERRUPT_STATUS_2, &val);
 	if (ret != 0) {
 		dev_err(wm2200->dev, "Failed to read IRQ status: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_read(wm2200->regmap, WM2200_INTERRUPT_STATUS_2_MASK,
@@ -2140,7 +2140,7 @@ static irqreturn_t wm2200_irq(int irq, void *data)
 		
 		return IRQ_HANDLED;
 	} else {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 }
 
@@ -2189,7 +2189,7 @@ static int wm2200_i2c_probe(struct i2c_client *i2c)
 	wm2200 = devm_kzalloc(&i2c->dev, sizeof(struct wm2200_priv),
 			      GFP_KERNEL);
 	if (wm2200 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm2200->dev = &i2c->dev;
 	init_completion(&wm2200->fll_lock);
@@ -2282,7 +2282,7 @@ static int wm2200_i2c_probe(struct i2c_client *i2c)
 		break;
 
 	default:
-		dev_err(&i2c->dev, "Device is not a WM2200, ID is %x\n", reg);
+		dev_err(&i2c->dev, "Device is analt a WM2200, ID is %x\n", reg);
 		ret = -EINVAL;
 		goto err_reset;
 	}

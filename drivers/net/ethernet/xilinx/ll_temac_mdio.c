@@ -2,7 +2,7 @@
 /*
  * MDIO bus driver for the Xilinx TEMAC device
  *
- * Copyright (c) 2009 Secret Lab Technologies, Ltd.
+ * Copyright (c) 2009 Secret Lab Techanallogies, Ltd.
  */
 
 #include <linux/io.h>
@@ -64,7 +64,7 @@ static int temac_mdio_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
 int temac_mdio_setup(struct temac_local *lp, struct platform_device *pdev)
 {
 	struct ll_temac_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *np = dev_of_node(&pdev->dev);
+	struct device_analde *np = dev_of_analde(&pdev->dev);
 	struct mii_bus *bus;
 	u32 bus_hz;
 	int clk_div;
@@ -95,7 +95,7 @@ int temac_mdio_setup(struct temac_local *lp, struct platform_device *pdev)
 
 	bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (np) {
 		of_address_to_resource(np, 0, &res);

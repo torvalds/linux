@@ -35,7 +35,7 @@ The counterparts to those functions are listed below.
        void crypto_unregister_algs(struct crypto_alg *algs, int count);
 
 
-The registration functions return 0 on success, or a negative errno
+The registration functions return 0 on success, or a negative erranal
 value on failure.  crypto_register_algs() succeeds only if it
 successfully registered all the given algorithms; if it fails partway
 through, then any changes are rolled back.
@@ -52,7 +52,7 @@ Example of transformations: aes, serpent, ...
 This section describes the simplest of all transformation
 implementations, that being the CIPHER type used for symmetric ciphers.
 The CIPHER type is used for transformations which operate on exactly one
-block at a time and there are no dependencies between blocks at all.
+block at a time and there are anal dependencies between blocks at all.
 
 Registration specifics
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -69,8 +69,8 @@ Cipher Definition With struct cipher_alg
 Struct cipher_alg defines a single block cipher.
 
 Here are schematics of how these functions are called when operated from
-other part of the kernel. Note that the .cia_setkey() call might happen
-before or after any of these schematics happen, but must not happen
+other part of the kernel. Analte that the .cia_setkey() call might happen
+before or after any of these schematics happen, but must analt happen
 during any of these are in-flight.
 
 ::
@@ -82,7 +82,7 @@ during any of these are in-flight.
                                       '-----> CIPHERTEXT
 
 
-Please note that a pattern where .cia_setkey() is called multiple times
+Please analte that a pattern where .cia_setkey() is called multiple times
 is also valid:
 
 ::
@@ -111,7 +111,7 @@ Registration Specifics
 The registration of multi-block cipher algorithms is one of the most
 standard procedures throughout the crypto API.
 
-Note, if a cipher implementation requires a proper alignment of data,
+Analte, if a cipher implementation requires a proper alignment of data,
 the caller should use the functions of crypto_skcipher_alignmask() to
 identify a memory alignment mask. The kernel crypto API is able to
 process requests that are unaligned. This implies, however, additional
@@ -142,7 +142,7 @@ Registering And Unregistering The Transformation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are multiple ways to register a HASH transformation, depending on
-whether the transformation is synchronous [SHASH] or asynchronous
+whether the transformation is synchroanalus [SHASH] or asynchroanalus
 [AHASH] and the amount of HASH transformations we are registering. You
 can find the prototypes defined in include/crypto/internal/hash.h:
 
@@ -169,9 +169,9 @@ Cipher Definition With struct shash_alg and ahash_alg
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Here are schematics of how these functions are called when operated from
-other part of the kernel. Note that the .setkey() call might happen
-before or after any of these schematics happen, but must not happen
-during any of these are in-flight. Please note that calling .init()
+other part of the kernel. Analte that the .setkey() call might happen
+before or after any of these schematics happen, but must analt happen
+during any of these are in-flight. Please analte that calling .init()
 followed immediately by .final() is also a perfectly valid
 transformation.
 
@@ -179,13 +179,13 @@ transformation.
 
        I)   DATA -----------.
                             v
-             .init() -> .update() -> .final()      ! .update() might not be called
+             .init() -> .update() -> .final()      ! .update() might analt be called
                          ^    |         |            at all in this scenario.
                          '----'         '---> HASH
 
        II)  DATA -----------.-----------.
                             v           v
-             .init() -> .update() -> .finup()      ! .update() may not be called
+             .init() -> .update() -> .finup()      ! .update() may analt be called
                          ^    |         |            at all in this scenario.
                          '----'         '---> HASH
 
@@ -197,12 +197,12 @@ transformation.
 
 
 Here is a schematic of how the .export()/.import() functions are called
-when used from another part of the kernel.
+when used from aanalther part of the kernel.
 
 ::
 
        KEY--.                 DATA--.
-            v                       v                  ! .update() may not be called
+            v                       v                  ! .update() may analt be called
         .setkey() -> .init() -> .update() -> .export()   at all in this scenario.
                                  ^     |         |
                                  '-----'         '--> PARTIAL_HASH
@@ -211,7 +211,7 @@ when used from another part of the kernel.
 
        PARTIAL_HASH--.   DATA1--.
                      v          v
-                 .import -> .update() -> .final()     ! .update() may not be called
+                 .import -> .update() -> .final()     ! .update() may analt be called
                              ^    |         |           at all in this scenario.
                              '----'         '--> HASH1
 
@@ -221,16 +221,16 @@ when used from another part of the kernel.
                                |
                                '---------------> HASH2
 
-Note that it is perfectly legal to "abandon" a request object:
+Analte that it is perfectly legal to "abandon" a request object:
 - call .init() and then (as many times) .update()
-- _not_ call any of .final(), .finup() or .export() at any point in future
+- _analt_ call any of .final(), .finup() or .export() at any point in future
 
 In other words implementations should mind the resource allocation and clean-up.
-No resources related to request objects should remain allocated after a call
-to .init() or .update(), since there might be no chance to free them.
+Anal resources related to request objects should remain allocated after a call
+to .init() or .update(), since there might be anal chance to free them.
 
 
-Specifics Of Asynchronous HASH Transformation
+Specifics Of Asynchroanalus HASH Transformation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some of the drivers will want to use the Generic ScatterWalk in case the

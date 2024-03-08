@@ -10,7 +10,7 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <string.h>
 #include <pthread.h>
@@ -18,7 +18,7 @@
 #include "../kselftest.h"
 #include "cgroup_util.h"
 
-static int touch_anon(char *buf, size_t size)
+static int touch_aanaln(char *buf, size_t size)
 {
 	int fd;
 	char *pos = buf;
@@ -31,7 +31,7 @@ static int touch_anon(char *buf, size_t size)
 		ssize_t ret = read(fd, pos, size);
 
 		if (ret < 0) {
-			if (errno != EINTR) {
+			if (erranal != EINTR) {
 				close(fd);
 				return -1;
 			}
@@ -45,18 +45,18 @@ static int touch_anon(char *buf, size_t size)
 	return 0;
 }
 
-static int alloc_and_touch_anon_noexit(const char *cgroup, void *arg)
+static int alloc_and_touch_aanaln_analexit(const char *cgroup, void *arg)
 {
 	int ppid = getppid();
 	size_t size = (size_t)arg;
 	void *buf;
 
-	buf = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON,
+	buf = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_AANALN,
 		   0, 0);
 	if (buf == MAP_FAILED)
 		return -1;
 
-	if (touch_anon((char *)buf, size)) {
+	if (touch_aanaln((char *)buf, size)) {
 		munmap(buf, size);
 		return -1;
 	}
@@ -91,7 +91,7 @@ static int test_cgcore_destroy(const char *root)
 		if (cg_create(cg_test))
 			goto cleanup;
 
-		child_pid = cg_run_nowait(cg_test, alloc_and_touch_anon_noexit,
+		child_pid = cg_run_analwait(cg_test, alloc_and_touch_aanaln_analexit,
 					  (void *) MB(100));
 
 		if (child_pid < 0)
@@ -203,7 +203,7 @@ static int test_cgcore_populated(const char *root)
 
 	pid = clone_into_cgroup(cgroup_fd);
 	if (pid < 0) {
-		if (errno == ENOSYS)
+		if (erranal == EANALSYS)
 			goto cleanup_pass;
 		goto cleanup;
 	}
@@ -268,7 +268,7 @@ cleanup:
  * test that C can't be used until it is turned into a
  * threaded cgroup.  "cgroup.type" file will report "domain (invalid)" in
  * these cases. Operations which fail due to invalid topology use
- * EOPNOTSUPP as the errno.
+ * EOPANALTSUPP as the erranal.
  */
 static int test_cgcore_invalid_domain(const char *root)
 {
@@ -299,16 +299,16 @@ static int test_cgcore_invalid_domain(const char *root)
 	if (!cg_enter_current(child))
 		goto cleanup;
 
-	if (errno != EOPNOTSUPP)
+	if (erranal != EOPANALTSUPP)
 		goto cleanup;
 
 	if (!clone_into_cgroup_run_wait(child))
 		goto cleanup;
 
-	if (errno == ENOSYS)
+	if (erranal == EANALSYS)
 		goto cleanup_pass;
 
-	if (errno != EOPNOTSUPP)
+	if (erranal != EOPANALTSUPP)
 		goto cleanup;
 
 cleanup_pass:
@@ -368,10 +368,10 @@ cleanup:
 }
 
 /*
- * Test that there's no internal process constrain on threaded cgroups.
+ * Test that there's anal internal process constrain on threaded cgroups.
  * You can add threads/processes on a parent with a controller enabled.
  */
-static int test_cgcore_no_internal_process_constraint_on_threads(const char *root)
+static int test_cgcore_anal_internal_process_constraint_on_threads(const char *root)
 {
 	int ret = KSFT_FAIL;
 	char *parent = NULL, *child = NULL;
@@ -420,7 +420,7 @@ cleanup:
 }
 
 /*
- * Test that you can't enable a controller on a child if it's not enabled
+ * Test that you can't enable a controller on a child if it's analt enabled
  * on the parent.
  */
 static int test_cgcore_top_down_constraint_enable(const char *root)
@@ -724,7 +724,7 @@ static int test_cgcore_lesser_euid_open(const char *root)
 	if (cg_test_b_procs_fd < 0)
 		goto cleanup;
 
-	if (write(cg_test_b_procs_fd, "0", 1) >= 0 || errno != EACCES)
+	if (write(cg_test_b_procs_fd, "0", 1) >= 0 || erranal != EACCES)
 		goto cleanup;
 
 	ret = KSFT_PASS;
@@ -755,7 +755,7 @@ static int lesser_ns_open_thread_fn(void *arg)
 	struct lesser_ns_open_thread_arg *targ = arg;
 
 	targ->fd = open(targ->path, O_RDWR);
-	targ->err = errno;
+	targ->err = erranal;
 	return 0;
 }
 
@@ -766,7 +766,7 @@ static int lesser_ns_open_thread_fn(void *arg)
 static int test_cgcore_lesser_ns_open(const char *root)
 {
 	static char stack[65536];
-	const uid_t test_euid = 65534;	/* usually nobody, any !root is fine */
+	const uid_t test_euid = 65534;	/* usually analbody, any !root is fine */
 	int ret = KSFT_FAIL;
 	char *cg_test_a = NULL, *cg_test_b = NULL;
 	char *cg_test_a_procs = NULL, *cg_test_b_procs = NULL;
@@ -817,7 +817,7 @@ static int test_cgcore_lesser_ns_open(const char *root)
 	if (cg_enter_current(cg_test_a))
 		goto cleanup;
 
-	if ((status = write(cg_test_b_procs_fd, "0", 1)) >= 0 || errno != ENOENT)
+	if ((status = write(cg_test_b_procs_fd, "0", 1)) >= 0 || erranal != EANALENT)
 		goto cleanup;
 
 	ret = KSFT_PASS;
@@ -845,7 +845,7 @@ struct corecg_test {
 	T(test_cgcore_internal_process_constraint),
 	T(test_cgcore_top_down_constraint_enable),
 	T(test_cgcore_top_down_constraint_disable),
-	T(test_cgcore_no_internal_process_constraint_on_threads),
+	T(test_cgcore_anal_internal_process_constraint_on_threads),
 	T(test_cgcore_parent_becomes_threaded),
 	T(test_cgcore_invalid_domain),
 	T(test_cgcore_populated),

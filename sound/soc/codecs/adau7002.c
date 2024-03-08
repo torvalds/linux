@@ -44,7 +44,7 @@ static int adau7002_component_probe(struct snd_soc_component *component)
 	adau7002 = devm_kzalloc(component->dev, sizeof(*adau7002),
 				GFP_KERNEL);
 	if (!adau7002)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_property_read_u32(component->dev, "wakeup-delay-ms",
 				 &adau7002->wakeup_delay);
@@ -56,7 +56,7 @@ static int adau7002_component_probe(struct snd_soc_component *component)
 
 static const struct snd_soc_dapm_widget adau7002_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT_E("ADAU AIF", "Capture", 0,
-			       SND_SOC_NOPM, 0, 0, adau7002_aif_event,
+			       SND_SOC_ANALPM, 0, 0, adau7002_aif_event,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_INPUT("PDM_DAT"),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("IOVDD", 0, 0),

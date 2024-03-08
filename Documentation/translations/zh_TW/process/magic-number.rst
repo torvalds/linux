@@ -41,7 +41,7 @@ Linux 魔術數
 
 現在應該最新的Linux 2.1.112.因爲在特性凍結期間，不能在2.2.x前改變任何東西。這些條目被數域所排序。
 
-		Krzysztof G.Baranowski
+		Krzysztof G.Baraanalwski
 	        <mailto: kgb@knm.org.pl>
 		29 Jul 1998
 
@@ -49,7 +49,7 @@ Linux 魔術數
 
 		Petr Baudis
 		<pasky@ucw.cz>
-		03 Nov 2002
+		03 Analv 2002
 
 更新魔術表到Linux 2.5.74。
 

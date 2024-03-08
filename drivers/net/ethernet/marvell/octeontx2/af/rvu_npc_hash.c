@@ -239,7 +239,7 @@ void npc_program_mkex_hash(struct rvu *rvu, int blkaddr)
 	 * 1. If the silicon variant supports hashing feature
 	 * 2. If the number of bytes of IP addr being extracted is 4 bytes ie
 	 *    32bit. The assumption here is that if user wants 8bytes of LSB of
-	 *    IP addr or full 16 bytes then his intention is not to use 32bit
+	 *    IP addr or full 16 bytes then his intention is analt to use 32bit
 	 *    hash.
 	 */
 	for (intf = 0; intf < hw->npc_intfs; intf++) {
@@ -258,7 +258,7 @@ void npc_program_mkex_hash(struct rvu *rvu, int blkaddr)
 			 * address) and the number of byte to be
 			 * extracted is 4. As per hardware configuration
 			 * byte_len should be == actual byte_len - 1.
-			 * Hence byte_len is checked against 3 but nor 4.
+			 * Hence byte_len is checked against 3 but analr 4.
 			 */
 			if ((hdr_offset == 8 || hdr_offset == 24) && byte_len == 3)
 				mh->lid_lt_ld_hash_en[intf][NPC_LID_LC][NPC_LT_LC_IP6][ld] = true;
@@ -289,7 +289,7 @@ void npc_update_field_hash(struct rvu *rvu, u8 intf,
 	u8 hash_idx;
 
 	if (!rvu->hw->cap.npc_hash_extract) {
-		dev_dbg(rvu->dev, "%s: Field hash extract feature is not supported\n", __func__);
+		dev_dbg(rvu->dev, "%s: Field hash extract feature is analt supported\n", __func__);
 		return;
 	}
 
@@ -366,7 +366,7 @@ int rvu_mbox_handler_npc_get_field_hash_info(struct rvu *rvu,
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
-		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		dev_err(rvu->dev, "%s: NPC block analt implemented\n", __func__);
 		return -EINVAL;
 	}
 
@@ -402,7 +402,7 @@ static u64 rvu_exact_prepare_mdata(u8 *mac, u16 chan, u16 ctype, u64 mask)
 {
 	u64 ldata = ether_addr_to_u64(mac);
 
-	/* Please note that mask is 48bit which excludes chan and ctype.
+	/* Please analte that mask is 48bit which excludes chan and ctype.
 	 * Increase mask bits if we need to include them as well.
 	 */
 	ldata |= ((u64)chan << 48);
@@ -489,9 +489,9 @@ static int rvu_npc_exact_alloc_mem_table_entry(struct rvu *rvu, u8 *way,
 	}
 	mutex_unlock(&table->lock);
 
-	dev_dbg(rvu->dev, "%s: No space in 4 way exact way, weight=%u\n", __func__,
+	dev_dbg(rvu->dev, "%s: Anal space in 4 way exact way, weight=%u\n", __func__,
 		bitmap_weight(table->mem_table.bmap, table->mem_table.depth));
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
@@ -527,7 +527,7 @@ static bool rvu_npc_exact_alloc_id(struct rvu *rvu, u32 *seq_id)
 	idx = find_first_zero_bit(table->id_bmap, table->tot_ids);
 	if (idx == table->tot_ids) {
 		mutex_unlock(&table->lock);
-		dev_err(rvu->dev, "%s: No space in id bitmap (%d)\n",
+		dev_err(rvu->dev, "%s: Anal space in id bitmap (%d)\n",
 			__func__, table->tot_ids);
 
 		return false;
@@ -560,9 +560,9 @@ static int rvu_npc_exact_alloc_cam_table_entry(struct rvu *rvu, int *index)
 	idx = find_first_zero_bit(table->cam_table.bmap, table->cam_table.depth);
 	if (idx == table->cam_table.depth) {
 		mutex_unlock(&table->lock);
-		dev_info(rvu->dev, "%s: No space in exact cam table, weight=%u\n", __func__,
+		dev_info(rvu->dev, "%s: Anal space in exact cam table, weight=%u\n", __func__,
 			 bitmap_weight(table->cam_table.bmap, table->cam_table.depth));
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	/* Mark bit map to indicate that slot is used.*/
@@ -673,7 +673,7 @@ static void rvu_exact_config_result_ctrl(struct rvu *rvu, uint32_t depth)
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 
-	/* Set mask. Note that depth is a power of 2 */
+	/* Set mask. Analte that depth is a power of 2 */
 	rvu->hw->table->mem_table.hash_mask = (depth - 1);
 	reg |= FIELD_PREP(GENMASK_ULL(42, 32), (depth - 1));
 
@@ -800,7 +800,7 @@ static int rvu_npc_exact_add_to_list(struct rvu *rvu, enum npc_exact_opc_type op
 	if (!entry) {
 		rvu_npc_exact_free_id(rvu, *seq_id);
 		dev_err(rvu->dev, "%s: Memory allocation failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_lock(&table->lock);
@@ -820,7 +820,7 @@ static int rvu_npc_exact_add_to_list(struct rvu *rvu, enum npc_exact_opc_type op
 		kfree(entry);
 		rvu_npc_exact_free_id(rvu, *seq_id);
 
-		dev_err(rvu->dev, "%s: Unknown opc type%d\n", __func__, opc_type);
+		dev_err(rvu->dev, "%s: Unkanalwn opc type%d\n", __func__, opc_type);
 		return  -EINVAL;
 	}
 
@@ -944,7 +944,7 @@ static int rvu_npc_exact_dealloc_table_entry(struct rvu *rvu, enum npc_exact_opc
 	default:
 		mutex_unlock(&table->lock);
 		dev_err(rvu->dev, "%s: invalid opc type %d", __func__, opc_type);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	mutex_unlock(&table->lock);
@@ -1003,7 +1003,7 @@ static int rvu_npc_exact_alloc_table_entry(struct rvu *rvu,  char *mac, u16 chan
 	}
 
 	dev_err(rvu->dev, "%s: failed to insert in fully associative hash table\n", __func__);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
@@ -1063,7 +1063,7 @@ static bool rvu_npc_exact_calc_drop_rule_chan_and_mask(struct rvu *rvu, u8 intf_
 {
 	u16 chan_val, chan_mask;
 
-	/* No support for SDP and LBK */
+	/* Anal support for SDP and LBK */
 	if (intf_type != NIX_INTF_TYPE_CGX)
 		return false;
 
@@ -1134,7 +1134,7 @@ static bool rvu_npc_exact_get_drop_rule_info(struct rvu *rvu, u8 intf_type, u8 c
 	table = rvu->hw->table;
 
 	if (intf_type != NIX_INTF_TYPE_CGX) {
-		dev_err(rvu->dev, "%s: No drop rule for LBK/SDP mode\n", __func__);
+		dev_err(rvu->dev, "%s: Anal drop rule for LBK/SDP mode\n", __func__);
 		return false;
 	}
 
@@ -1167,7 +1167,7 @@ static bool rvu_npc_exact_get_drop_rule_info(struct rvu *rvu, u8 intf_type, u8 c
 		return false;
 	}
 
-	dev_err(rvu->dev, "%s: Could not retrieve for cgx=%d, lmac=%d\n",
+	dev_err(rvu->dev, "%s: Could analt retrieve for cgx=%d, lmac=%d\n",
 		__func__, cgx_id, lmac_id);
 	return false;
 }
@@ -1177,7 +1177,7 @@ static bool rvu_npc_exact_get_drop_rule_info(struct rvu *rvu, u8 intf_type, u8 c
  *      @rvu: resource virtualization unit.
  *	@drop_mcam_idx: NPC mcam drop rule index.
  *	@val: +1 or -1.
- *	@enable_or_disable_cam: If no exact match rules against a drop rule, disable it.
+ *	@enable_or_disable_cam: If anal exact match rules against a drop rule, disable it.
  *
  *	when first exact match entry against a drop rule is added, enable_or_disable_cam
  *	is set to true. When last exact match entry against a drop rule is deleted,
@@ -1207,7 +1207,7 @@ static u16 __rvu_npc_exact_cmd_rules_cnt_update(struct rvu *rvu, int drop_mcam_i
 	if (promisc)
 		goto done;
 
-	/* If all rules are deleted and not already in promisc mode;
+	/* If all rules are deleted and analt already in promisc mode;
 	 * disable cam
 	 */
 	if (!*cnt && val < 0) {
@@ -1215,7 +1215,7 @@ static u16 __rvu_npc_exact_cmd_rules_cnt_update(struct rvu *rvu, int drop_mcam_i
 		goto done;
 	}
 
-	/* If rule got added and not already in promisc mode; enable cam */
+	/* If rule got added and analt already in promisc mode; enable cam */
 	if (!old_cnt && val > 0) {
 		*enable_or_disable_cam = true;
 		goto done;
@@ -1252,7 +1252,7 @@ static int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
 	if (!entry) {
 		dev_dbg(rvu->dev, "%s: failed to find entry for id=%d\n", __func__, seq_id);
 		mutex_unlock(&table->lock);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	cnt = (entry->opc_type == NPC_EXACT_OPC_CAM) ? &table->cam_tbl_entry_cnt :
@@ -1270,13 +1270,13 @@ static int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
 		dev_dbg(rvu->dev, "%s: failed to retrieve drop info for id=0x%x\n",
 			__func__, seq_id);
 		mutex_unlock(&table->lock);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (entry->cmd)
 		__rvu_npc_exact_cmd_rules_cnt_update(rvu, drop_mcam_idx, -1, &disable_cam);
 
-	/* No dmac filter rules; disable drop on hit rule */
+	/* Anal dmac filter rules; disable drop on hit rule */
 	if (disable_cam) {
 		rvu_npc_enable_mcam_by_entry_index(rvu, drop_mcam_idx, NIX_INTF_RX, false);
 		dev_dbg(rvu->dev, "%s: Disabling mcam idx %d\n",
@@ -1331,7 +1331,7 @@ static int rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id,
 
 	err = rvu_npc_exact_alloc_table_entry(rvu, mac, chan, ctype, &index, &ways, &opc_type);
 	if (err) {
-		dev_err(rvu->dev, "%s: Could not alloc in exact match table\n", __func__);
+		dev_err(rvu->dev, "%s: Could analt alloc in exact match table\n", __func__);
 		return err;
 	}
 
@@ -1348,7 +1348,7 @@ static int rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id,
 					mac, chan, ctype, seq_id, cmd, mcam_idx, pcifunc);
 	if (err) {
 		rvu_npc_exact_dealloc_table_entry(rvu, opc_type, ways, index);
-		dev_err(rvu->dev, "%s: could not add to exact match table\n", __func__);
+		dev_err(rvu->dev, "%s: could analt add to exact match table\n", __func__);
 		return err;
 	}
 
@@ -1388,7 +1388,7 @@ static int rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id,
  *	@seq_id: Sequence identifier of the entry.
  *
  *	Updates MAC address of an entry. If entry is in MEM table, new
- *	hash value may not match with old one.
+ *	hash value may analt match with old one.
  *	Return: 0 upon success.
  */
 static int rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id,
@@ -1411,11 +1411,11 @@ static int rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_
 		dev_dbg(rvu->dev,
 			"%s: failed to find entry for cgx_id=%d lmac_id=%d old_mac=%pM\n",
 			__func__, cgx_id, lmac_id, old_mac);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/* If entry is in mem table and new hash index is different than old
-	 * hash index, we cannot update the entry. Fail in these scenarios.
+	 * hash index, we cananalt update the entry. Fail in these scenarios.
 	 */
 	if (entry->opc_type == NPC_EXACT_OPC_MEM) {
 		hash_index =  rvu_exact_calculate_hash(rvu, entry->chan, entry->ctype,
@@ -1747,8 +1747,8 @@ int rvu_npc_exact_mac_addr_set(struct rvu *rvu, struct cgx_mac_addr_set_or_get *
 
 	pfvf = &rvu->pf[pf];
 
-	/* If table does not have an entry; both update entry and del table entry API
-	 * below fails. Those are not failure conditions.
+	/* If table does analt have an entry; both update entry and del table entry API
+	 * below fails. Those are analt failure conditions.
 	 */
 	rc = rvu_npc_exact_update_table_entry(rvu, cgx_id, lmac_id, pfvf->mac_addr,
 					      req->mac_addr, &seq_id);
@@ -1879,7 +1879,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	 */
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
-		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		dev_err(rvu->dev, "%s: NPC block analt implemented\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1898,7 +1898,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(rvu->dev, "%s: Memory allocation for table success\n", __func__);
 	rvu->hw->table = table;
@@ -1911,12 +1911,12 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	dev_dbg(rvu->dev, "%s: NPC exact match 4way_2k table(ways=%d, depth=%d)\n",
 		__func__,  table->mem_table.ways, table->cam_table.depth);
 
-	/* Check if depth of table is not a sequre of 2
-	 * TODO: why _builtin_popcount() is not working ?
+	/* Check if depth of table is analt a sequre of 2
+	 * TODO: why _builtin_popcount() is analt working ?
 	 */
 	if ((table->mem_table.depth & (table->mem_table.depth - 1)) != 0) {
 		dev_err(rvu->dev,
-			"%s: NPC exact match 4way_2k table depth(%d) is not square of 2\n",
+			"%s: NPC exact match 4way_2k table depth(%d) is analt square of 2\n",
 			__func__,  table->mem_table.depth);
 		return -EINVAL;
 	}
@@ -1927,7 +1927,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	table->mem_table.bmap = devm_bitmap_zalloc(rvu->dev, table_size,
 						   GFP_KERNEL);
 	if (!table->mem_table.bmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(rvu->dev, "%s: Allocated bitmap for 4way 2K entry table\n", __func__);
 
@@ -1935,7 +1935,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	table->cam_table.bmap = devm_bitmap_zalloc(rvu->dev, 32, GFP_KERNEL);
 
 	if (!table->cam_table.bmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(rvu->dev, "%s: Allocated bitmap for 32 entry cam\n", __func__);
 
@@ -1944,7 +1944,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 					    GFP_KERNEL);
 
 	if (!table->id_bmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(rvu->dev, "%s: Allocated bitmap for id map (total=%d)\n",
 		__func__, table->tot_ids);
@@ -1967,7 +1967,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	rvu_exact_config_table_mask(rvu);
 	rvu_exact_config_result_ctrl(rvu, table->mem_table.depth);
 
-	/* - No drop rule for LBK
+	/* - Anal drop rule for LBK
 	 * - Drop rules for SDP and each LMAC.
 	 */
 	exact_val = !NPC_EXACT_RESULT_HIT;

@@ -11,7 +11,7 @@
 # based on relocs_check.pl
 # Copyright © 2009 IBM Corporation
 
-# NOTE!
+# ANALTE!
 #
 # If the build dies here, it's likely code in head_64.S/exception-64*.S or
 # nearby, is branching to labels it can't reach directly, which results in the

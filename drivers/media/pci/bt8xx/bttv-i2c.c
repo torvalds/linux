@@ -7,7 +7,7 @@
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
-    (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
+    (c) 1999-2003 Gerd Kanalrr <kraxel@bytesex.org>
 
     (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
 	- Multituner support and i2c address binding
@@ -134,7 +134,7 @@ bttv_i2c_sendbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 	/* start, address + first byte */
 	xmit = (msg->addr << 25) | (msg->buf[0] << 16) | I2C_HW;
 	if (msg->len > 1 || !last)
-		xmit |= BT878_I2C_NOSTOP;
+		xmit |= BT878_I2C_ANALSTOP;
 	btwrite(xmit, BT848_I2C);
 	retval = bttv_i2c_wait_done(btv);
 	if (retval < 0)
@@ -147,9 +147,9 @@ bttv_i2c_sendbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 
 	for (cnt = 1; cnt < msg->len; cnt++ ) {
 		/* following bytes */
-		xmit = (msg->buf[cnt] << 24) | I2C_HW | BT878_I2C_NOSTART;
+		xmit = (msg->buf[cnt] << 24) | I2C_HW | BT878_I2C_ANALSTART;
 		if (cnt < msg->len-1 || !last)
-			xmit |= BT878_I2C_NOSTOP;
+			xmit |= BT878_I2C_ANALSTOP;
 		btwrite(xmit, BT848_I2C);
 		retval = bttv_i2c_wait_done(btv);
 		if (retval < 0)
@@ -159,7 +159,7 @@ bttv_i2c_sendbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 		if (i2c_debug)
 			pr_cont(" %02x", msg->buf[cnt]);
 	}
-	if (i2c_debug && !(xmit & BT878_I2C_NOSTOP))
+	if (i2c_debug && !(xmit & BT878_I2C_ANALSTOP))
 		pr_cont(">\n");
 	return msg->len;
 
@@ -183,12 +183,12 @@ bttv_i2c_readbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 		if (cnt < msg->len-1)
 			xmit |= BT848_I2C_W3B;
 		if (cnt < msg->len-1 || !last)
-			xmit |= BT878_I2C_NOSTOP;
+			xmit |= BT878_I2C_ANALSTOP;
 		if (cnt)
-			xmit |= BT878_I2C_NOSTART;
+			xmit |= BT878_I2C_ANALSTART;
 
 		if (i2c_debug) {
-			if (!(xmit & BT878_I2C_NOSTART))
+			if (!(xmit & BT878_I2C_ANALSTART))
 				pr_cont(" <R %02x", (msg->addr << 1) +1);
 		}
 
@@ -202,7 +202,7 @@ bttv_i2c_readbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 		if (i2c_debug) {
 			pr_cont(" =%02x", msg->buf[cnt]);
 		}
-		if (i2c_debug && !(xmit & BT878_I2C_NOSTOP))
+		if (i2c_debug && !(xmit & BT878_I2C_ANALSTOP))
 			pr_cont(" >\n");
 	}
 
@@ -269,7 +269,7 @@ int bttv_I2CRead(struct bttv *btv, unsigned char addr, char *probe_for)
 	if (1 != i2c_master_recv(&btv->i2c_client, &buffer, 1)) {
 		if (NULL != probe_for) {
 			if (bttv_verbose)
-				pr_cont("not found\n");
+				pr_cont("analt found\n");
 		} else
 			pr_warn("%d: i2c read 0x%x: error\n",
 				btv->c.nr, addr);

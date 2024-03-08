@@ -77,7 +77,7 @@ static int platform_lcd_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(dev, "no platform data supplied\n");
+		dev_err(dev, "anal platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -90,19 +90,19 @@ static int platform_lcd_probe(struct platform_device *pdev)
 	plcd = devm_kzalloc(&pdev->dev, sizeof(struct platform_lcd),
 			    GFP_KERNEL);
 	if (!plcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plcd->us = dev;
 	plcd->pdata = pdata;
 	plcd->lcd = devm_lcd_device_register(&pdev->dev, dev_name(dev), dev,
 						plcd, &platform_lcd_ops);
 	if (IS_ERR(plcd->lcd)) {
-		dev_err(dev, "cannot register lcd device\n");
+		dev_err(dev, "cananalt register lcd device\n");
 		return PTR_ERR(plcd->lcd);
 	}
 
 	platform_set_drvdata(pdev, plcd);
-	platform_lcd_set_power(plcd->lcd, FB_BLANK_NORMAL);
+	platform_lcd_set_power(plcd->lcd, FB_BLANK_ANALRMAL);
 
 	return 0;
 }

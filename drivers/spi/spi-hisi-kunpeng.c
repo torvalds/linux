@@ -2,7 +2,7 @@
 //
 // HiSilicon SPI Controller Driver for Kunpeng SoCs
 //
-// Copyright (c) 2021 HiSilicon Technologies Co., Ltd.
+// Copyright (c) 2021 HiSilicon Techanallogies Co., Ltd.
 // Author: Jay Fang <f.fangjian@huawei.com>
 //
 // This code is based on spi-dw-core.c.
@@ -55,8 +55,8 @@
 
 /* Bit fields in HISI_SPI_SR, 5 bits */
 #define SR_TXE			BIT(0)		/* Transmit FIFO empty */
-#define SR_TXNF			BIT(1)		/* Transmit FIFO not full */
-#define SR_RXNE			BIT(2)		/* Receive FIFO not empty */
+#define SR_TXNF			BIT(1)		/* Transmit FIFO analt full */
+#define SR_RXNE			BIT(2)		/* Receive FIFO analt empty */
 #define SR_RXF			BIT(3)		/* Receive FIFO full */
 #define SR_BUSY			BIT(4)		/* Busy Flag */
 
@@ -170,7 +170,7 @@ static int hisi_spi_debugfs_init(struct hisi_spi *hs)
 	snprintf(name, 32, "hisi_spi%d", host->bus_num);
 	hs->debugfs = debugfs_create_dir(name, NULL);
 	if (IS_ERR(hs->debugfs))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hs->regset.regs = hisi_spi_regs;
 	hs->regset.nregs = ARRAY_SIZE(hisi_spi_regs);
@@ -185,12 +185,12 @@ static u32 hisi_spi_busy(struct hisi_spi *hs)
 	return readl(hs->regs + HISI_SPI_SR) & SR_BUSY;
 }
 
-static u32 hisi_spi_rx_not_empty(struct hisi_spi *hs)
+static u32 hisi_spi_rx_analt_empty(struct hisi_spi *hs)
 {
 	return readl(hs->regs + HISI_SPI_SR) & SR_RXNE;
 }
 
-static u32 hisi_spi_tx_not_full(struct hisi_spi *hs)
+static u32 hisi_spi_tx_analt_full(struct hisi_spi *hs)
 {
 	return readl(hs->regs + HISI_SPI_SR) & SR_TXNF;
 }
@@ -200,7 +200,7 @@ static void hisi_spi_flush_fifo(struct hisi_spi *hs)
 	unsigned long limit = loops_per_jiffy << 1;
 
 	do {
-		while (hisi_spi_rx_not_empty(hs))
+		while (hisi_spi_rx_analt_empty(hs))
 			readl(hs->regs + HISI_SPI_DOUT);
 	} while (hisi_spi_busy(hs) && limit--);
 }
@@ -228,9 +228,9 @@ static void hisi_spi_reader(struct hisi_spi *hs)
 	u32 max = min_t(u32, hs->rx_len, hs->fifo_len);
 	u32 rxw;
 
-	while (hisi_spi_rx_not_empty(hs) && max--) {
+	while (hisi_spi_rx_analt_empty(hs) && max--) {
 		rxw = readl(hs->regs + HISI_SPI_DOUT);
-		/* Check the transfer's original "rx" is not null */
+		/* Check the transfer's original "rx" is analt null */
 		if (hs->rx) {
 			switch (hs->n_bytes) {
 			case HISI_SPI_N_BYTES_U8:
@@ -254,8 +254,8 @@ static void hisi_spi_writer(struct hisi_spi *hs)
 	u32 max = min_t(u32, hs->tx_len, hs->fifo_len);
 	u32 txw = 0;
 
-	while (hisi_spi_tx_not_full(hs) && max--) {
-		/* Check the transfer's original "tx" is not null */
+	while (hisi_spi_tx_analt_full(hs) && max--) {
+		/* Check the transfer's original "tx" is analt null */
 		if (hs->tx) {
 			switch (hs->n_bytes) {
 			case HISI_SPI_N_BYTES_U8:
@@ -296,7 +296,7 @@ static u32 hisi_calc_effective_speed(struct spi_controller *host,
 {
 	u32 effective_speed;
 
-	/* Note clock divider doesn't support odd numbers */
+	/* Analte clock divider doesn't support odd numbers */
 	chip->clk_div = DIV_ROUND_UP(host->max_speed_hz, speed_hz) + 1;
 	chip->clk_div &= 0xfffe;
 	if (chip->clk_div > CLK_DIV_MAX)
@@ -341,7 +341,7 @@ static irqreturn_t hisi_spi_irq(int irq, void *dev_id)
 	u32 irq_status = readl(hs->regs + HISI_SPI_ISR) & ISR_MASK;
 
 	if (!irq_status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!host->cur_msg)
 		return IRQ_HANDLED;
@@ -355,7 +355,7 @@ static irqreturn_t hisi_spi_irq(int irq, void *dev_id)
 
 	/*
 	 * Read data from the Rx FIFO every time. If there is
-	 * nothing left to receive, finalize the transfer.
+	 * analthing left to receive, finalize the transfer.
 	 */
 	hisi_spi_reader(hs);
 	if (!hs->rx_len)
@@ -432,7 +432,7 @@ static int hisi_spi_setup(struct spi_device *spi)
 	if (!chip) {
 		chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 		if (!chip)
-			return -ENOMEM;
+			return -EANALMEM;
 		spi_set_ctldata(spi, chip);
 	}
 
@@ -462,7 +462,7 @@ static int hisi_spi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(dev, sizeof(*hs));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 
@@ -496,7 +496,7 @@ static int hisi_spi_probe(struct platform_device *pdev)
 	host->cleanup = hisi_spi_cleanup;
 	host->transfer_one = hisi_spi_transfer_one;
 	host->handle_err = hisi_spi_handle_err;
-	host->dev.fwnode = dev->fwnode;
+	host->dev.fwanalde = dev->fwanalde;
 
 	hisi_spi_hw_init(hs);
 

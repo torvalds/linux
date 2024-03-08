@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -83,13 +83,13 @@ struct ibmveth_stat {
 
 static struct ibmveth_stat ibmveth_stats[] = {
 	{ "replenish_task_cycles", IBMVETH_STAT_OFF(replenish_task_cycles) },
-	{ "replenish_no_mem", IBMVETH_STAT_OFF(replenish_no_mem) },
+	{ "replenish_anal_mem", IBMVETH_STAT_OFF(replenish_anal_mem) },
 	{ "replenish_add_buff_failure",
 			IBMVETH_STAT_OFF(replenish_add_buff_failure) },
 	{ "replenish_add_buff_success",
 			IBMVETH_STAT_OFF(replenish_add_buff_success) },
 	{ "rx_invalid_buffer", IBMVETH_STAT_OFF(rx_invalid_buffer) },
-	{ "rx_no_buffer", IBMVETH_STAT_OFF(rx_no_buffer) },
+	{ "rx_anal_buffer", IBMVETH_STAT_OFF(rx_anal_buffer) },
 	{ "tx_map_failed", IBMVETH_STAT_OFF(tx_map_failed) },
 	{ "tx_send_failed", IBMVETH_STAT_OFF(tx_send_failed) },
 	{ "fw_enabled_ipv4_csum", IBMVETH_STAT_OFF(fw_ipv4_csum_support) },
@@ -206,7 +206,7 @@ static inline void ibmveth_flush_buffer(void *addr, unsigned long length)
 		asm("dcbf %0,%1,1" :: "b" (addr), "r" (offset));
 }
 
-/* replenish the buffers for a pool.  note that we don't need to
+/* replenish the buffers for a pool.  analte that we don't need to
  * skb_reserve these since they are used for incoming...
  */
 static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter,
@@ -231,7 +231,7 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter,
 		if (!skb) {
 			netdev_dbg(adapter->netdev,
 				   "replenish: unable to allocate skb\n");
-			adapter->replenish_no_mem++;
+			adapter->replenish_anal_mem++;
 			break;
 		}
 
@@ -301,14 +301,14 @@ failure:
 
 /*
  * The final 8 bytes of the buffer list is a counter of frames dropped
- * because there was not a buffer in the buffer list capable of holding
+ * because there was analt a buffer in the buffer list capable of holding
  * the frame.
  */
-static void ibmveth_update_rx_no_buffer(struct ibmveth_adapter *adapter)
+static void ibmveth_update_rx_anal_buffer(struct ibmveth_adapter *adapter)
 {
 	__be64 *p = adapter->buffer_list_addr + 4096 - 8;
 
-	adapter->rx_no_buffer = be64_to_cpup(p);
+	adapter->rx_anal_buffer = be64_to_cpup(p);
 }
 
 /* replenish routine */
@@ -326,7 +326,7 @@ static void ibmveth_replenish_task(struct ibmveth_adapter *adapter)
 			ibmveth_replenish_buffer_pool(adapter, pool);
 	}
 
-	ibmveth_update_rx_no_buffer(adapter);
+	ibmveth_update_rx_anal_buffer(adapter);
 }
 
 /* empty and free ana buffer pool - also used to do cleanup in error paths */
@@ -478,7 +478,7 @@ static int ibmveth_allocate_tx_ltb(struct ibmveth_adapter *adapter, int idx)
 	if (!adapter->tx_ltb_ptr[idx]) {
 		netdev_err(adapter->netdev,
 			   "unable to allocate tx long term buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	adapter->tx_ltb_dma[idx] = dma_map_single(&adapter->vdev->dev,
 						  adapter->tx_ltb_ptr[idx],
@@ -489,7 +489,7 @@ static int ibmveth_allocate_tx_ltb(struct ibmveth_adapter *adapter, int idx)
 			   "unable to DMA map tx long term buffer\n");
 		kfree(adapter->tx_ltb_ptr[idx]);
 		adapter->tx_ltb_ptr[idx] = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -540,7 +540,7 @@ static int ibmveth_open(struct net_device *netdev)
 	for(i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++)
 		rxq_entries += adapter->rx_buff_pool[i].size;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	adapter->buffer_list_addr = (void*) get_zeroed_page(GFP_KERNEL);
 	if (!adapter->buffer_list_addr) {
 		netdev_err(netdev, "unable to allocate list pages\n");
@@ -609,7 +609,7 @@ static int ibmveth_open(struct net_device *netdev)
 				     adapter->filter_list_dma,
 				     rxq_desc.desc,
 				     mac_address);
-		rc = -ENONET;
+		rc = -EANALNET;
 		goto out_unmap_filter_list;
 	}
 
@@ -619,7 +619,7 @@ static int ibmveth_open(struct net_device *netdev)
 		if (ibmveth_alloc_buffer_pool(&adapter->rx_buff_pool[i])) {
 			netdev_err(netdev, "unable to alloc pool\n");
 			adapter->rx_buff_pool[i].active = 0;
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_free_buffer_pools;
 		}
 	}
@@ -637,7 +637,7 @@ static int ibmveth_open(struct net_device *netdev)
 		goto out_free_buffer_pools;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 
 	netdev_dbg(netdev, "initial replenish cycle\n");
 	ibmveth_interrupt(netdev->irq, netdev);
@@ -705,7 +705,7 @@ static int ibmveth_close(struct net_device *netdev)
 
 	free_irq(netdev->irq, netdev);
 
-	ibmveth_update_rx_no_buffer(adapter);
+	ibmveth_update_rx_anal_buffer(adapter);
 
 	dma_unmap_single(dev, adapter->buffer_list_dma, 4096,
 			 DMA_BIDIRECTIONAL);
@@ -773,11 +773,11 @@ static netdev_features_t ibmveth_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	/*
-	 * Since the ibmveth firmware interface does not have the
+	 * Since the ibmveth firmware interface does analt have the
 	 * concept of separate tx/rx checksum offload enable, if rx
 	 * checksum is disabled we also have to disable tx checksum
-	 * offload. Once we disable rx checksum offload, we are no
-	 * longer allowed to send tx buffers that are not properly
+	 * offload. Once we disable rx checksum offload, we are anal
+	 * longer allowed to send tx buffers that are analt properly
 	 * checksummed.
 	 */
 
@@ -914,7 +914,7 @@ static int ibmveth_set_tso(struct net_device *dev, u32 data)
 			adapter->large_send = data;
 		}
 	} else {
-		/* Older firmware version of large send offload does not
+		/* Older firmware version of large send offload does analt
 		 * support tcp6/ipv6
 		 */
 		if (data == 1) {
@@ -973,7 +973,7 @@ static int ibmveth_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(ibmveth_stats);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1005,7 +1005,7 @@ static int ibmveth_set_channels(struct net_device *netdev,
 		     goal = channels->tx_count;
 	int rc, i;
 
-	/* If ndo_open has not been called yet then don't allocate, just set
+	/* If ndo_open has analt been called yet then don't allocate, just set
 	 * desired netdev_queue's and return
 	 */
 	if (!(netdev->flags & IFF_UP))
@@ -1039,7 +1039,7 @@ static int ibmveth_set_channels(struct net_device *netdev,
 		goal = old;
 		old = i;
 	}
-	/* Free any that are no longer needed */
+	/* Free any that are anal longer needed */
 	for (i = old; i > goal; i--) {
 		if (adapter->tx_ltb_ptr[i - 1])
 			ibmveth_free_tx_ltb(adapter, i - 1);
@@ -1064,7 +1064,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 
 static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ibmveth_send(struct ibmveth_adapter *adapter,
@@ -1106,7 +1106,7 @@ static int ibmveth_is_packet_unsupported(struct sk_buff *skb,
 	if (ether_addr_equal(ether_header->h_dest, netdev->dev_addr)) {
 		netdev_dbg(netdev, "veth doesn't support loopback packets, dropping packet.\n");
 		netdev->stats.tx_dropped++;
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -1142,7 +1142,7 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 		unsigned char *buf = skb_transport_header(skb) +
 						skb->csum_offset;
 
-		desc_flags |= (IBMVETH_BUF_NO_CSUM | IBMVETH_BUF_CSUM_GOOD);
+		desc_flags |= (IBMVETH_BUF_ANAL_CSUM | IBMVETH_BUF_CSUM_GOOD);
 
 		/* Need to zero out the checksum */
 		buf[0] = 0;
@@ -1240,7 +1240,7 @@ static void ibmveth_rx_mss_helper(struct sk_buff *skb, u16 mss, int lrg_pkt)
 	} else {
 		return;
 	}
-	/* if mss is not set through Large Packet bit/mss in rx buffer,
+	/* if mss is analt set through Large Packet bit/mss in rx buffer,
 	 * expect that the mss will be written to the tcp header checksum.
 	 */
 	tcph = (struct tcphdr *)(skb->data + offset);
@@ -1274,7 +1274,7 @@ static void ibmveth_rx_csum_helper(struct sk_buff *skb,
 	if (skb_proto == ETH_P_IP) {
 		iph = (struct iphdr *)skb->data;
 
-		/* If the IP checksum is not offloaded and if the packet
+		/* If the IP checksum is analt offloaded and if the packet
 		 *  is large send, the checksum must be rebuilt.
 		 */
 		if (iph->check == 0xffff) {
@@ -1298,7 +1298,7 @@ static void ibmveth_rx_csum_helper(struct sk_buff *skb,
 	 * then be recalculated by the destination NIC (CSO must be enabled
 	 * on the destination NIC).
 	 *
-	 * In an OVS environment, when a flow is not cached, specifically for a
+	 * In an OVS environment, when a flow is analt cached, specifically for a
 	 * new TCP connection, the first packet information is passed up to
 	 * the user space for finding a flow. During this process, OVS computes
 	 * checksum on the first packet when CHECKSUM_PARTIAL flag is set.
@@ -1616,7 +1616,7 @@ static int ibmveth_set_mac_addr(struct net_device *dev, void *p)
 	int rc;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	mac_address = ether_addr_to_u64(addr->sa_data);
 	rc = h_change_logical_lan_mac(adapter->vdev->unit_address, mac_address);
@@ -1685,7 +1685,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	netdev = alloc_etherdev_mqs(sizeof(struct ibmveth_adapter), IBMVETH_MAX_QUEUES, 1);
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter = netdev_priv(netdev);
 	dev_set_drvdata(&dev->dev, netdev);
@@ -1711,7 +1711,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	ret = h_illan_attributes(adapter->vdev->unit_address, 0, 0, &ret_attr);
 
-	/* If running older firmware, TSO should not be enabled by default */
+	/* If running older firmware, TSO should analt be enabled by default */
 	if (ret == H_SUCCESS && (ret_attr & IBMVETH_ILLAN_LRG_SND_SUPPORT) &&
 	    !old_large_send) {
 		netdev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
@@ -1830,7 +1830,7 @@ static ssize_t veth_pool_store(struct kobject *kobj, struct attribute *attr,
 				if (ibmveth_alloc_buffer_pool(pool)) {
 					netdev_err(netdev,
 						   "unable to alloc pool\n");
-					return -ENOMEM;
+					return -EANALMEM;
 				}
 				pool->active = 1;
 				ibmveth_close(netdev);
@@ -1854,7 +1854,7 @@ static ssize_t veth_pool_store(struct kobject *kobj, struct attribute *attr,
 			}
 
 			if (i == IBMVETH_NUM_BUFF_POOLS) {
-				netdev_err(netdev, "no active pool >= MTU\n");
+				netdev_err(netdev, "anal active pool >= MTU\n");
 				return -EPERM;
 			}
 

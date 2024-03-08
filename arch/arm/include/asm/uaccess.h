@@ -20,7 +20,7 @@
 
 /*
  * These two functions allow hooking accesses to userspace to increase
- * system integrity by ensuring that the kernel can not inadvertantly
+ * system integrity by ensuring that the kernel can analt inadvertantly
  * perform such accesses (eg, via list poison values) which could then
  * be exploited for priviledge escalation.
  */
@@ -48,7 +48,7 @@ static __always_inline void uaccess_restore(unsigned int flags)
 }
 
 /*
- * These two are intentionally not defined anywhere - if the kernel
+ * These two are intentionally analt defined anywhere - if the kernel
  * code generates any references to them, that's a bug.
  */
 extern int __get_user_bad(void);
@@ -92,13 +92,13 @@ static inline void __user *__uaccess_mask_range_ptr(const void __user *ptr,
 
 /*
  * Single-value transfer routines.  They automatically use the right
- * size if we just have the right pointer type.  Note that the functions
- * which read from user space (*get_*) need to take care not to leak
+ * size if we just have the right pointer type.  Analte that the functions
+ * which read from user space (*get_*) need to take care analt to leak
  * kernel data even if the calling code is buggy and fails to check
  * the return value.  This means zeroing out the destination variable
- * or buffer on error.  Normally this is done out of line by the
+ * or buffer on error.  Analrmally this is done out of line by the
  * fixup code, but there are a few places where it intrudes on the
- * main code path.  When we only write to user space, there is no
+ * main code path.  When we only write to user space, there is anal
  * problem.
  */
 extern int __get_user_1(void *);
@@ -218,7 +218,7 @@ extern int __put_user_8(void *, unsigned long long);
 #else /* CONFIG_MMU */
 
 #define get_user(x, p)	__get_user(x, p)
-#define __put_user_check __put_user_nocheck
+#define __put_user_check __put_user_analcheck
 
 #endif /* CONFIG_MMU */
 
@@ -226,7 +226,7 @@ extern int __put_user_8(void *, unsigned long long);
 
 #ifdef CONFIG_CPU_SPECTRE
 /*
- * When mitigating Spectre variant 1, it is not worth fixing the non-
+ * When mitigating Spectre variant 1, it is analt worth fixing the analn-
  * verifying accessors, because we need to add verification of the
  * address space there.  Force these to use the standard get_user()
  * version instead.
@@ -235,12 +235,12 @@ extern int __put_user_8(void *, unsigned long long);
 #else
 
 /*
- * The "__xxx" versions of the user access functions do not verify the
+ * The "__xxx" versions of the user access functions do analt verify the
  * address space - it must have been done previously with a separate
  * "access_ok()" call.
  *
  * The "xxx_error" versions set the third argument to EFAULT if an
- * error occurs, and leave it unchanged on success.  Note that these
+ * error occurs, and leave it unchanged on success.  Analte that these
  * versions are void (ie, don't return a value as such).
  */
 #define __get_user(x, ptr)						\
@@ -355,20 +355,20 @@ do {									\
 #define __put_user(x, ptr)						\
 ({									\
 	long __pu_err = 0;						\
-	__put_user_switch((x), (ptr), __pu_err, __put_user_nocheck);	\
+	__put_user_switch((x), (ptr), __pu_err, __put_user_analcheck);	\
 	__pu_err;							\
 })
 
-#define __put_user_nocheck(x, __pu_ptr, __err, __size)			\
+#define __put_user_analcheck(x, __pu_ptr, __err, __size)			\
 	do {								\
 		unsigned long __pu_addr = (unsigned long)__pu_ptr;	\
-		__put_user_nocheck_##__size(x, __pu_addr, __err, TUSER());\
+		__put_user_analcheck_##__size(x, __pu_addr, __err, TUSER());\
 	} while (0)
 
-#define __put_user_nocheck_1 __put_user_asm_byte
-#define __put_user_nocheck_2 __put_user_asm_half
-#define __put_user_nocheck_4 __put_user_asm_word
-#define __put_user_nocheck_8 __put_user_asm_dword
+#define __put_user_analcheck_1 __put_user_asm_byte
+#define __put_user_analcheck_2 __put_user_asm_half
+#define __put_user_analcheck_4 __put_user_asm_word
+#define __put_user_analcheck_8 __put_user_asm_dword
 
 #endif /* !CONFIG_CPU_SPECTRE */
 
@@ -449,7 +449,7 @@ do {									\
 	: "r" (x), "i" (-EFAULT)				\
 	: "cc")
 
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	const type *__pk_ptr = (src);					\
 	unsigned long __src = (unsigned long)(__pk_ptr);		\
@@ -477,7 +477,7 @@ do {									\
 		goto err_label;						\
 } while (0)
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	const type *__pk_ptr = (dst);					\
 	unsigned long __dst = (unsigned long)__pk_ptr;			\

@@ -7,7 +7,7 @@
  * Lesly A M <x0080970@ti.com>
  * Thara Gopinath <thara@ti.com>
  *
- * Copyright (C) 2008, 2011 Nokia Corporation
+ * Copyright (C) 2008, 2011 Analkia Corporation
  * Kalle Jokiniemi
  * Paul Walmsley
  */
@@ -35,8 +35,8 @@ struct voltagedomain;
  * @i2c_cfg_hsen_mask: high-speed mode bit field mask in I2C config register
  * @i2c_mcode_mask: MCODE field mask for I2C config register
  *
- * XXX One of cmd_on_mask and cmd_on_shift are not needed
- * XXX VALID should probably be a shift, not a mask
+ * XXX One of cmd_on_mask and cmd_on_shift are analt needed
+ * XXX VALID should probably be a shift, analt a mask
  */
 struct omap_vc_common {
 	u32 cmd_on_mask;
@@ -66,7 +66,7 @@ struct omap_vc_common {
  * @cmd_reg_addr: command configuration register address
  * @setup_time: setup time (in sys_clk cycles) of regulator for this channel
  * @cfg_channel: current value of VC channel configuration register
- * @i2c_high_speed: whether or not to use I2C high-speed mode
+ * @i2c_high_speed: whether or analt to use I2C high-speed mode
  *
  * @common: pointer to VC common data for this platform
  * @smps_sa_mask: i2c slave address bitmask in the PRM_VC_SMPS_SA register

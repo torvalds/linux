@@ -89,9 +89,9 @@ static inline void mt7621_phy_rmw(struct mt7621_pci_phy *phy,
 	u32 val;
 
 	/*
-	 * We cannot use 'regmap_write_bits' here because internally
+	 * We cananalt use 'regmap_write_bits' here because internally
 	 * 'set' is masked before is set to the value that will be
-	 * written to the register. That way results in no reliable
+	 * written to the register. That way results in anal reliable
 	 * pci setup. Avoid to mask 'set' before set value to 'val'
 	 * completely avoid the problem.
 	 */
@@ -268,7 +268,7 @@ static struct phy *mt7621_pcie_phy_of_xlate(struct device *dev,
 	struct mt7621_pci_phy *mt7621_phy = dev_get_drvdata(dev);
 
 	if (WARN_ON(args->args[0] >= MAX_PHYS))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mt7621_phy->has_dual_port = args->args[0];
 
@@ -299,7 +299,7 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attr = soc_device_match(mt7621_pci_quirks_match);
 	if (attr)
@@ -319,7 +319,7 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy->regmap))
 		return PTR_ERR(phy->regmap);
 
-	phy->phy = devm_phy_create(dev, dev->of_node, &mt7621_pci_phy_ops);
+	phy->phy = devm_phy_create(dev, dev->of_analde, &mt7621_pci_phy_ops);
 	if (IS_ERR(phy->phy)) {
 		dev_err(dev, "failed to create phy\n");
 		return PTR_ERR(phy->phy);

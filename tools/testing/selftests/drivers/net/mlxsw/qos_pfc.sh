@@ -12,8 +12,8 @@
 #   shaped, and thus the PFC pool eventually fills, therefore the headroom
 #   fills, and $swp3 is paused.
 #
-# - since $swp3 now can't send traffic, the traffic ingressing $swp1 is kept at
-#   a pool ("overflow pool"). The overflow pool needs to be large enough to
+# - since $swp3 analw can't send traffic, the traffic ingressing $swp1 is kept at
+#   a pool ("overflow pool"). The overflow pool needs to be large eanalugh to
 #   contain the whole burst.
 #
 # - eventually the PFC pool gets some traffic out, headroom therefore gets some
@@ -25,7 +25,7 @@
 #   also be seen ingressing $h2. If it doesn't, there will be drops due to
 #   discrepancy between the speeds of $swp1 and $h2.
 #
-# - it should all play out relatively quickly, so that SLL and HLL will not
+# - it should all play out relatively quickly, so that SLL and HLL will analt
 #   cause drops.
 #
 # +-----------------------+
@@ -152,7 +152,7 @@ switch_create()
 	devlink_pool_size_thtype_set 5 static $_10MB
 
 	# PFC pools. As per the writ, the size of egress PFC pool should be
-	# infinice, but actually it just needs to be large enough to not matter
+	# infinice, but actually it just needs to be large eanalugh to analt matter
 	# in practice, so reuse the 10MB limit.
 	devlink_pool_size_thtype_set 2 static $_1MB
 	devlink_pool_size_thtype_set 6 static $_10MB
@@ -208,7 +208,7 @@ switch_create()
 
 	# Need to enable PFC so that PAUSE takes effect. Therefore need to put
 	# the lossless prio into a buffer of its own. Don't bother with buffer
-	# sizes though, there is not going to be any pressure in the "backward"
+	# sizes though, there is analt going to be any pressure in the "backward"
 	# direction.
 	dcb buffer set dev $swp3 prio-buffer all:0 1:1
 	dcb pfc set dev $swp3 prio-pfc all:off 1:on
@@ -275,13 +275,13 @@ switch_destroy()
 	# -------
 
 	ip link set dev br2 down
-	ip link set dev $swp4.111 nomaster
-	ip link set dev $swp2.111 nomaster
+	ip link set dev $swp4.111 analmaster
+	ip link set dev $swp2.111 analmaster
 	ip link del dev br2
 
 	ip link set dev br1 down
-	ip link set dev $swp3.111 nomaster
-	ip link set dev $swp1.111 nomaster
+	ip link set dev $swp3.111 analmaster
+	ip link set dev $swp1.111 analmaster
 	ip link del dev br1
 
 	# $swp4

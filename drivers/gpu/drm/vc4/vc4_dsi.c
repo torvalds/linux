@@ -56,25 +56,25 @@
 # define DSI_TXPKT1C_CMD_REPEAT_MASK	VC4_MASK(23, 10)
 # define DSI_TXPKT1C_CMD_REPEAT_SHIFT	10
 
-# define DSI_TXPKT1C_DISPLAY_NO_MASK	VC4_MASK(9, 8)
-# define DSI_TXPKT1C_DISPLAY_NO_SHIFT	8
+# define DSI_TXPKT1C_DISPLAY_ANAL_MASK	VC4_MASK(9, 8)
+# define DSI_TXPKT1C_DISPLAY_ANAL_SHIFT	8
 /* Short, trigger, BTA, or a long packet that fits all in CMDFIFO. */
-# define DSI_TXPKT1C_DISPLAY_NO_SHORT		0
+# define DSI_TXPKT1C_DISPLAY_ANAL_SHORT		0
 /* Primary display where cmdfifo provides part of the payload and
  * pixelvalve the rest.
  */
-# define DSI_TXPKT1C_DISPLAY_NO_PRIMARY		1
+# define DSI_TXPKT1C_DISPLAY_ANAL_PRIMARY		1
 /* Secondary display where cmdfifo provides part of the payload and
  * pixfifo the rest.
  */
-# define DSI_TXPKT1C_DISPLAY_NO_SECONDARY	2
+# define DSI_TXPKT1C_DISPLAY_ANAL_SECONDARY	2
 
 # define DSI_TXPKT1C_CMD_TX_TIME_MASK	VC4_MASK(7, 6)
 # define DSI_TXPKT1C_CMD_TX_TIME_SHIFT	6
 
 # define DSI_TXPKT1C_CMD_CTRL_MASK	VC4_MASK(5, 4)
 # define DSI_TXPKT1C_CMD_CTRL_SHIFT	4
-/* Command only.  Uses TXPKT1H and DISPLAY_NO */
+/* Command only.  Uses TXPKT1H and DISPLAY_ANAL */
 # define DSI_TXPKT1C_CMD_CTRL_TX	0
 /* Command with BTA for either ack or read data. */
 # define DSI_TXPKT1C_CMD_CTRL_RX	1
@@ -154,7 +154,7 @@
 # define DSI_DISP_HBP_CTRL		BIT(7)
 # define DSI_DISP0_CHANNEL_MASK		VC4_MASK(6, 5)
 # define DSI_DISP0_CHANNEL_SHIFT	5
-/* Enables end events for HSYNC/VSYNC, not just start events. */
+/* Enables end events for HSYNC/VSYNC, analt just start events. */
 # define DSI_DISP0_ST_END		BIT(4)
 # define DSI_DISP0_PFORMAT_MASK		VC4_MASK(3, 2)
 # define DSI_DISP0_PFORMAT_SHIFT	2
@@ -186,7 +186,7 @@
 # define DSI0_INT_FIFO_ERR		BIT(25)
 # define DSI0_INT_CMDC_DONE_MASK	VC4_MASK(24, 23)
 # define DSI0_INT_CMDC_DONE_SHIFT	23
-#  define DSI0_INT_CMDC_DONE_NO_REPEAT		1
+#  define DSI0_INT_CMDC_DONE_ANAL_REPEAT		1
 #  define DSI0_INT_CMDC_DONE_REPEAT		3
 # define DSI0_INT_PHY_DIR_RTF		BIT(22)
 # define DSI0_INT_PHY_D1_ULPS		BIT(21)
@@ -257,7 +257,7 @@
 
 /* Control error: incorrect line state sequence on data lane 0. */
 # define DSI1_INT_ERR_CONTROL		BIT(7)
-/* LPDT synchronization error (bits received not a multiple of 8. */
+/* LPDT synchronization error (bits received analt a multiple of 8. */
 
 # define DSI1_INT_ERR_SYNC_ESC		BIT(6)
 /* Signaled after receiving an error packet from the display in
@@ -620,7 +620,7 @@ dsi_dma_workaround_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 
 	kunit_fail_current_test("Accessing a register in a unit test!\n");
 
-	/* DSI0 should be able to write normally. */
+	/* DSI0 should be able to write analrmally. */
 	if (!chan) {
 		writel(val, dsi->regs + offset);
 		return;
@@ -726,18 +726,18 @@ static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
 /* Enters or exits Ultra Low Power State. */
 static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 {
-	bool non_continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
-	u32 phyc_ulps = ((non_continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
+	bool analn_continuous = dsi->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
+	u32 phyc_ulps = ((analn_continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
 			 DSI_PHYC_DLANE0_ULPS |
 			 (dsi->lanes > 1 ? DSI_PHYC_DLANE1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI_PHYC_DLANE2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI_PHYC_DLANE3_ULPS : 0));
-	u32 stat_ulps = ((non_continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
+	u32 stat_ulps = ((analn_continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
 			 DSI1_STAT_PHY_D0_ULPS |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_ULPS : 0));
-	u32 stat_stop = ((non_continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
+	u32 stat_stop = ((analn_continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
 			 DSI1_STAT_PHY_D0_STOP |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_STOP : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_STOP : 0) |
@@ -825,7 +825,7 @@ static void vc4_dsi_bridge_post_disable(struct drm_bridge *bridge,
 /* Extends the mode's blank intervals to handle BCM2835's integer-only
  * DSI PLL divider.
  *
- * On 2835, PLLD is set to 2Ghz, and may not be changed by the display
+ * On 2835, PLLD is set to 2Ghz, and may analt be changed by the display
  * driver since most peripherals are hanging off of the PLLD_PER
  * divider.  PLLD_DSI1, which drives our DSI bit clock (and therefore
  * the pixel clock), only has an integer divider off of DSI.
@@ -854,7 +854,7 @@ static bool vc4_dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 			break;
 	}
 
-	/* Now that we've picked a PLL divider, calculate back to its
+	/* Analw that we've picked a PLL divider, calculate back to its
 	 * pixel clock.
 	 */
 	pll_clock = parent_rate / divider;
@@ -998,8 +998,8 @@ static void vc4_dsi_bridge_pre_enable(struct drm_bridge *bridge,
 
 	hs_clock = clk_get_rate(dsi->pll_phy_clock);
 
-	/* Yes, we set the DSI0P/DSI1P pixel clock to the byte rate,
-	 * not the pixel clock rate.  DSIxP take from the APHY's byte,
+	/* Anal, we set the DSI0P/DSI1P pixel clock to the byte rate,
+	 * analt the pixel clock rate.  DSIxP take from the APHY's byte,
 	 * DDR2, or DDR4 clock (we use byte) and feed into the PV at
 	 * that rate.  Separately, a value derived from PIX_CLK_DIV
 	 * and HS_CLKC is fed into the PV to divide down to the actual
@@ -1018,7 +1018,7 @@ static void vc4_dsi_bridge_pre_enable(struct drm_bridge *bridge,
 		return;
 	}
 
-	/* How many ns one DSI unit interval is.  Note that the clock
+	/* How many ns one DSI unit interval is.  Analte that the clock
 	 * is DDR, so there's an extra divide by 2.
 	 */
 	ui_ns = DIV_ROUND_UP(500000000, hs_clock);
@@ -1086,7 +1086,7 @@ static void vc4_dsi_bridge_pre_enable(struct drm_bridge *bridge,
 		       (dsi->lanes >= 3 ? DSI_PHYC_DLANE2_ENABLE : 0) |
 		       (dsi->lanes >= 4 ? DSI_PHYC_DLANE3_ENABLE : 0) |
 		       DSI_PORT_BIT(PHYC_CLANE_ENABLE) |
-		       ((dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) ?
+		       ((dsi->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS) ?
 			0 : DSI_PORT_BIT(PHYC_HS_CLK_CONTINUOUS)) |
 		       (dsi->variant->port == 0 ?
 			VC4_SET_FIELD(lpx - 1, DSI0_PHYC_ESC_CLK_LPDT) :
@@ -1241,11 +1241,11 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	pktc |= DSI_TXPKT1C_CMD_EN;
 	if (pix_fifo_len) {
-		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_DISPLAY_NO_SECONDARY,
-				      DSI_TXPKT1C_DISPLAY_NO);
+		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_DISPLAY_ANAL_SECONDARY,
+				      DSI_TXPKT1C_DISPLAY_ANAL);
 	} else {
-		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_DISPLAY_NO_SHORT,
-				      DSI_TXPKT1C_DISPLAY_NO);
+		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_DISPLAY_ANAL_SHORT,
+				      DSI_TXPKT1C_DISPLAY_ANAL);
 	}
 
 	/* Enable the appropriate interrupt for the transfer completion. */
@@ -1260,7 +1260,7 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 		} else {
 			DSI_PORT_WRITE(INT_EN,
 				       (DSI0_INTERRUPTS_ALWAYS_ENABLED |
-					VC4_SET_FIELD(DSI0_INT_CMDC_DONE_NO_REPEAT,
+					VC4_SET_FIELD(DSI0_INT_CMDC_DONE_ANAL_REPEAT,
 						      DSI0_INT_CMDC_DONE)));
 		}
 	} else {
@@ -1368,7 +1368,7 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 		dsi->divider = 16 / dsi->lanes;
 		break;
 	default:
-		dev_err(&dsi->pdev->dev, "Unknown DSI format: %d.\n",
+		dev_err(&dsi->pdev->dev, "Unkanalwn DSI format: %d.\n",
 			dsi->format);
 		return 0;
 	}
@@ -1484,20 +1484,20 @@ static irqreturn_t vc4_dsi_irq_defer_to_thread_handler(int irq, void *data)
 	u32 stat = DSI_PORT_READ(INT_STAT);
 
 	if (!stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return IRQ_WAKE_THREAD;
 }
 
 /*
- * Normal IRQ handler for port 0, or the threaded IRQ handler for port
+ * Analrmal IRQ handler for port 0, or the threaded IRQ handler for port
  * 1 where we need the reg_dma workaround.
  */
 static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
 {
 	struct vc4_dsi *dsi = data;
 	u32 stat = DSI_PORT_READ(INT_STAT);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	DSI_PORT_WRITE(INT_STAT, stat);
 
@@ -1558,7 +1558,7 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 					sizeof(struct clk_hw *),
 					GFP_KERNEL);
 	if (!dsi->clk_onecell)
-		return -ENOMEM;
+		return -EANALMEM;
 	dsi->clk_onecell->num = ARRAY_SIZE(phy_clocks);
 
 	for (i = 0; i < ARRAY_SIZE(phy_clocks); i++) {
@@ -1576,7 +1576,7 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 		 * setting if we use the DDR/DDR2 clocks.  However,
 		 * vc4_dsi_encoder_enable() is setting up both AFEC0,
 		 * setting both our parent DSI PLL's rate and this
-		 * clock's rate, so it knows if DDR/DDR2 are going to
+		 * clock's rate, so it kanalws if DDR/DDR2 are going to
 		 * be used and could enable the gates itself.
 		 */
 		fix->mult = 1;
@@ -1596,7 +1596,7 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 		dsi->clk_onecell->hws[i] = &fix->hw;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node,
+	return of_clk_add_hw_provider(dev->of_analde,
 				      of_clk_hw_onecell_get,
 				      dsi->clk_onecell);
 }
@@ -1673,7 +1673,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
 			DSI_PORT_READ(ID), DSI_ID_VALUE);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* DSI1 on BCM2835/6/7 has a broken AXI slave that doesn't respond to
@@ -1688,7 +1688,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 						      GFP_KERNEL);
 		if (!dsi->reg_dma_mem) {
 			DRM_ERROR("Failed to get DMA memory\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ret = devm_add_action_or_reset(dev, vc4_dsi_dma_mem_release, dsi);
@@ -1715,12 +1715,12 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		 * struct resource for the regs gives us the bus address
 		 * instead.
 		 */
-		dsi->reg_paddr = be32_to_cpup(of_get_address(dev->of_node,
+		dsi->reg_paddr = be32_to_cpup(of_get_address(dev->of_analde,
 							     0, NULL, NULL));
 	}
 
 	init_completion(&dsi->xfer_completion);
-	/* At startup enable error-reporting interrupts and nothing else. */
+	/* At startup enable error-reporting interrupts and analthing else. */
 	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
 	/* Clear any existing interrupt state. */
 	DSI_PORT_WRITE(INT_STAT, DSI_PORT_READ(INT_STAT));
@@ -1764,7 +1764,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	dsi->out_bridge = drmm_of_get_bridge(drm, dev->of_node, 0, 0);
+	dsi->out_bridge = drmm_of_get_bridge(drm, dev->of_analde, 0, 0);
 	if (IS_ERR(dsi->out_bridge))
 		return PTR_ERR(dsi->out_bridge);
 
@@ -1808,7 +1808,7 @@ static int vc4_dsi_dev_probe(struct platform_device *pdev)
 
 	dsi = kzalloc(sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, dsi);
 
 	kref_init(&dsi->kref);
@@ -1816,7 +1816,7 @@ static int vc4_dsi_dev_probe(struct platform_device *pdev)
 	dsi->pdev = pdev;
 	dsi->bridge.funcs = &vc4_dsi_bridge_funcs;
 #ifdef CONFIG_OF
-	dsi->bridge.of_node = dev->of_node;
+	dsi->bridge.of_analde = dev->of_analde;
 #endif
 	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
 	dsi->dsi_host.ops = &vc4_dsi_host_ops;

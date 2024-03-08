@@ -3,19 +3,19 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Rahul Sharma <rahul.sharma@samsung.com>
  *
- * Common Clock Framework support for Exynos5260 SoC.
+ * Common Clock Framework support for Exyanals5260 SoC.
  */
 
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include "clk-exynos5260.h"
+#include "clk-exyanals5260.h"
 #include "clk.h"
 #include "clk-pll.h"
 
-#include <dt-bindings/clock/exynos5260-clk.h>
+#include <dt-bindings/clock/exyanals5260-clk.h>
 
-/* NOTE: Must be equal to the last clock ID increased by one */
+/* ANALTE: Must be equal to the last clock ID increased by one */
 #define CLKS_NR_TOP			(PHYCLK_USBDRD30_UDRD30_PHYCLOCK + 1)
 #define CLKS_NR_EGL			(EGL_DOUT_EGL1 + 1)
 #define CLKS_NR_KFC			(KFC_DOUT_KFC1 + 1)
@@ -31,7 +31,7 @@
 #define CLKS_NR_ISP			(ISP_SCLK_UART_EXT + 1)
 
 /*
- * Applicable for all 2550 Type PLLS for Exynos5260, listed below
+ * Applicable for all 2550 Type PLLS for Exyanals5260, listed below
  * DISP_PLL, EGL_PLL, KFC_PLL, MEM_PLL, BUS_PLL, MEDIA_PLL, G3D_PLL.
  */
 static const struct samsung_pll_rate_table pll2550_24mhz_tbl[] __initconst = {
@@ -155,13 +155,13 @@ static const struct samsung_cmu_info aud_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(aud_clk_regs),
 };
 
-static void __init exynos5260_clk_aud_init(struct device_node *np)
+static void __init exyanals5260_clk_aud_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &aud_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_aud, "samsung,exynos5260-clock-aud",
-		exynos5260_clk_aud_init);
+CLK_OF_DECLARE(exyanals5260_clk_aud, "samsung,exyanals5260-clock-aud",
+		exyanals5260_clk_aud_init);
 
 
 /* CMU_DISP */
@@ -320,9 +320,9 @@ static const struct samsung_gate_clock disp_gate_clks[] __initconst = {
 	GATE(DISP_CLK_MIXER, "clk_mixer", "mout_aclk_disp_222_user",
 			EN_IP_DISP, 11, 0, 0),
 	GATE(DISP_CLK_PIXEL_DISP, "clk_pixel_disp", "mout_aclk_disp_222_user",
-			EN_IP_DISP, 12, CLK_IGNORE_UNUSED, 0),
+			EN_IP_DISP, 12, CLK_IGANALRE_UNUSED, 0),
 	GATE(DISP_CLK_PIXEL_MIXER, "clk_pixel_mixer", "mout_aclk_disp_222_user",
-			EN_IP_DISP, 13, CLK_IGNORE_UNUSED, 0),
+			EN_IP_DISP, 13, CLK_IGANALRE_UNUSED, 0),
 	GATE(DISP_CLK_SMMU_FIMD1M0, "clk_smmu3_fimd1m0",
 			"mout_aclk_disp_222_user",
 			EN_IP_DISP, 22, 0, 0),
@@ -345,13 +345,13 @@ static const struct samsung_cmu_info disp_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(disp_clk_regs),
 };
 
-static void __init exynos5260_clk_disp_init(struct device_node *np)
+static void __init exyanals5260_clk_disp_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &disp_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_disp, "samsung,exynos5260-clock-disp",
-		exynos5260_clk_disp_init);
+CLK_OF_DECLARE(exyanals5260_clk_disp, "samsung,exyanals5260-clock-disp",
+		exyanals5260_clk_disp_init);
 
 
 /* CMU_EGL */
@@ -409,13 +409,13 @@ static const struct samsung_cmu_info egl_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(egl_clk_regs),
 };
 
-static void __init exynos5260_clk_egl_init(struct device_node *np)
+static void __init exyanals5260_clk_egl_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &egl_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_egl, "samsung,exynos5260-clock-egl",
-		exynos5260_clk_egl_init);
+CLK_OF_DECLARE(exyanals5260_clk_egl, "samsung,exyanals5260-clock-egl",
+		exyanals5260_clk_egl_init);
 
 
 /* CMU_FSYS */
@@ -509,13 +509,13 @@ static const struct samsung_cmu_info fsys_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(fsys_clk_regs),
 };
 
-static void __init exynos5260_clk_fsys_init(struct device_node *np)
+static void __init exyanals5260_clk_fsys_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &fsys_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_fsys, "samsung,exynos5260-clock-fsys",
-		exynos5260_clk_fsys_init);
+CLK_OF_DECLARE(exyanals5260_clk_fsys, "samsung,exyanals5260-clock-fsys",
+		exyanals5260_clk_fsys_init);
 
 
 /* CMU_G2D */
@@ -600,13 +600,13 @@ static const struct samsung_cmu_info g2d_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(g2d_clk_regs),
 };
 
-static void __init exynos5260_clk_g2d_init(struct device_node *np)
+static void __init exyanals5260_clk_g2d_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &g2d_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_g2d, "samsung,exynos5260-clock-g2d",
-		exynos5260_clk_g2d_init);
+CLK_OF_DECLARE(exyanals5260_clk_g2d, "samsung,exyanals5260-clock-g2d",
+		exyanals5260_clk_g2d_init);
 
 
 /* CMU_G3D */
@@ -663,13 +663,13 @@ static const struct samsung_cmu_info g3d_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(g3d_clk_regs),
 };
 
-static void __init exynos5260_clk_g3d_init(struct device_node *np)
+static void __init exyanals5260_clk_g3d_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &g3d_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_g3d, "samsung,exynos5260-clock-g3d",
-		exynos5260_clk_g3d_init);
+CLK_OF_DECLARE(exyanals5260_clk_g3d, "samsung,exyanals5260-clock-g3d",
+		exyanals5260_clk_g3d_init);
 
 
 /* CMU_GSCL */
@@ -796,13 +796,13 @@ static const struct samsung_cmu_info gscl_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(gscl_clk_regs),
 };
 
-static void __init exynos5260_clk_gscl_init(struct device_node *np)
+static void __init exyanals5260_clk_gscl_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &gscl_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_gscl, "samsung,exynos5260-clock-gscl",
-		exynos5260_clk_gscl_init);
+CLK_OF_DECLARE(exyanals5260_clk_gscl, "samsung,exyanals5260-clock-gscl",
+		exyanals5260_clk_gscl_init);
 
 
 /* CMU_ISP */
@@ -915,13 +915,13 @@ static const struct samsung_cmu_info isp_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(isp_clk_regs),
 };
 
-static void __init exynos5260_clk_isp_init(struct device_node *np)
+static void __init exyanals5260_clk_isp_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &isp_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_isp, "samsung,exynos5260-clock-isp",
-		exynos5260_clk_isp_init);
+CLK_OF_DECLARE(exyanals5260_clk_isp, "samsung,exyanals5260-clock-isp",
+		exyanals5260_clk_isp_init);
 
 
 /* CMU_KFC */
@@ -979,13 +979,13 @@ static const struct samsung_cmu_info kfc_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(kfc_clk_regs),
 };
 
-static void __init exynos5260_clk_kfc_init(struct device_node *np)
+static void __init exyanals5260_clk_kfc_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &kfc_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_kfc, "samsung,exynos5260-clock-kfc",
-		exynos5260_clk_kfc_init);
+CLK_OF_DECLARE(exyanals5260_clk_kfc, "samsung,exyanals5260-clock-kfc",
+		exyanals5260_clk_kfc_init);
 
 
 /* CMU_MFC */
@@ -1035,13 +1035,13 @@ static const struct samsung_cmu_info mfc_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(mfc_clk_regs),
 };
 
-static void __init exynos5260_clk_mfc_init(struct device_node *np)
+static void __init exyanals5260_clk_mfc_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &mfc_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_mfc, "samsung,exynos5260-clock-mfc",
-		exynos5260_clk_mfc_init);
+CLK_OF_DECLARE(exyanals5260_clk_mfc, "samsung,exyanals5260-clock-mfc",
+		exyanals5260_clk_mfc_init);
 
 
 /* CMU_MIF */
@@ -1067,13 +1067,13 @@ static const unsigned long mif_clk_regs[] __initconst = {
 	EN_ACLK_MIF_SECURE_DREX0_TZ,
 	EN_ACLK_MIF_SECURE_INTMEM,
 	EN_PCLK_MIF,
-	EN_PCLK_MIF_SECURE_MONOCNT,
+	EN_PCLK_MIF_SECURE_MOANALCNT,
 	EN_PCLK_MIF_SECURE_RTC_APBIF,
 	EN_PCLK_MIF_SECURE_DREX1_TZ,
 	EN_PCLK_MIF_SECURE_DREX0_TZ,
 	EN_SCLK_MIF,
 	EN_IP_MIF,
-	EN_IP_MIF_SECURE_MONOCNT,
+	EN_IP_MIF_SECURE_MOANALCNT,
 	EN_IP_MIF_SECURE_RTC_APBIF,
 	EN_IP_MIF_SECURE_DREX1_TZ,
 	EN_IP_MIF_SECURE_DREX0_TZ,
@@ -1126,36 +1126,36 @@ static const struct samsung_div_clock mif_div_clks[] __initconst = {
 
 static const struct samsung_gate_clock mif_gate_clks[] __initconst = {
 	GATE(MIF_CLK_LPDDR3PHY_WRAP0, "clk_lpddr3phy_wrap0", "dout_clk2x_phy",
-			EN_IP_MIF, 12, CLK_IGNORE_UNUSED, 0),
+			EN_IP_MIF, 12, CLK_IGANALRE_UNUSED, 0),
 	GATE(MIF_CLK_LPDDR3PHY_WRAP1, "clk_lpddr3phy_wrap1", "dout_clk2x_phy",
-			EN_IP_MIF, 13, CLK_IGNORE_UNUSED, 0),
+			EN_IP_MIF, 13, CLK_IGANALRE_UNUSED, 0),
 
-	GATE(MIF_CLK_MONOCNT, "clk_monocnt", "dout_aclk_bus_100",
-			EN_IP_MIF_SECURE_MONOCNT, 22,
-			CLK_IGNORE_UNUSED, 0),
+	GATE(MIF_CLK_MOANALCNT, "clk_moanalcnt", "dout_aclk_bus_100",
+			EN_IP_MIF_SECURE_MOANALCNT, 22,
+			CLK_IGANALRE_UNUSED, 0),
 
 	GATE(MIF_CLK_MIF_RTC, "clk_mif_rtc", "dout_aclk_bus_100",
 			EN_IP_MIF_SECURE_RTC_APBIF, 23,
-			CLK_IGNORE_UNUSED, 0),
+			CLK_IGANALRE_UNUSED, 0),
 
 	GATE(MIF_CLK_DREX1, "clk_drex1", "dout_aclk_mif_466",
 			EN_IP_MIF_SECURE_DREX1_TZ, 9,
-			CLK_IGNORE_UNUSED, 0),
+			CLK_IGANALRE_UNUSED, 0),
 
 	GATE(MIF_CLK_DREX0, "clk_drex0", "dout_aclk_mif_466",
 			EN_IP_MIF_SECURE_DREX0_TZ, 9,
-			CLK_IGNORE_UNUSED, 0),
+			CLK_IGANALRE_UNUSED, 0),
 
 	GATE(MIF_CLK_INTMEM, "clk_intmem", "dout_aclk_bus_200",
 			EN_IP_MIF_SECURE_INTEMEM, 11,
-			CLK_IGNORE_UNUSED, 0),
+			CLK_IGANALRE_UNUSED, 0),
 
 	GATE(MIF_SCLK_LPDDR3PHY_WRAP_U0, "sclk_lpddr3phy_wrap_u0",
 			"dout_clkm_phy", EN_SCLK_MIF, 0,
-			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
+			CLK_IGANALRE_UNUSED | CLK_SET_RATE_PARENT, 0),
 	GATE(MIF_SCLK_LPDDR3PHY_WRAP_U1, "sclk_lpddr3phy_wrap_u1",
 			"dout_clkm_phy", EN_SCLK_MIF, 1,
-			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
+			CLK_IGANALRE_UNUSED | CLK_SET_RATE_PARENT, 0),
 };
 
 static const struct samsung_pll_clock mif_pll_clks[] __initconst = {
@@ -1184,13 +1184,13 @@ static const struct samsung_cmu_info mif_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(mif_clk_regs),
 };
 
-static void __init exynos5260_clk_mif_init(struct device_node *np)
+static void __init exyanals5260_clk_mif_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &mif_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_mif, "samsung,exynos5260-clock-mif",
-		exynos5260_clk_mif_init);
+CLK_OF_DECLARE(exyanals5260_clk_mif, "samsung,exyanals5260-clock-mif",
+		exyanals5260_clk_mif_init);
 
 
 /* CMU_PERI */
@@ -1390,13 +1390,13 @@ static const struct samsung_cmu_info peri_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(peri_clk_regs),
 };
 
-static void __init exynos5260_clk_peri_init(struct device_node *np)
+static void __init exyanals5260_clk_peri_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &peri_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_peri, "samsung,exynos5260-clock-peri",
-		exynos5260_clk_peri_init);
+CLK_OF_DECLARE(exyanals5260_clk_peri, "samsung,exyanals5260-clock-peri",
+		exyanals5260_clk_peri_init);
 
 
 /* CMU_TOP */
@@ -1817,7 +1817,7 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
 			"dout_sclk_fsys_mmc2_sdclkin_b",
 			EN_SCLK_TOP, 9, CLK_SET_RATE_PARENT, 0),
 	GATE(TOP_SCLK_FIMD1, "sclk_disp_pixel", "dout_sclk_disp_pixel",
-			EN_ACLK_TOP, 10, CLK_IGNORE_UNUSED |
+			EN_ACLK_TOP, 10, CLK_IGANALRE_UNUSED |
 			CLK_SET_RATE_PARENT, 0),
 };
 
@@ -1846,10 +1846,10 @@ static const struct samsung_cmu_info top_cmu __initconst = {
 	.nr_clk_regs	= ARRAY_SIZE(top_clk_regs),
 };
 
-static void __init exynos5260_clk_top_init(struct device_node *np)
+static void __init exyanals5260_clk_top_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &top_cmu);
 }
 
-CLK_OF_DECLARE(exynos5260_clk_top, "samsung,exynos5260-clock-top",
-		exynos5260_clk_top_init);
+CLK_OF_DECLARE(exyanals5260_clk_top, "samsung,exyanals5260-clock-top",
+		exyanals5260_clk_top_init);

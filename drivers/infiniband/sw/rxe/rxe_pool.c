@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -132,7 +132,7 @@ int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem,
 
 	/* AH objects are unique in that the create_ah verb
 	 * can be called in atomic context. If the create_ah
-	 * call is not sleepable use GFP_ATOMIC.
+	 * call is analt sleepable use GFP_ATOMIC.
 	 */
 	gfp_flags = sleepable ? GFP_KERNEL : GFP_ATOMIC;
 
@@ -219,7 +219,7 @@ int __rxe_cleanup(struct rxe_pool_elem *elem, bool sleepable)
 		/* AH objects are unique in that the destroy_ah verb
 		 * can be called in atomic context. This delay
 		 * replaces the wait_for_completion call above
-		 * when the destroy_ah call is not sleepable
+		 * when the destroy_ah call is analt sleepable
 		 */
 		while (!completion_done(&elem->complete) &&
 				time_before(jiffies, until))

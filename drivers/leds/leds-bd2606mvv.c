@@ -5,7 +5,7 @@
  * Datasheet:
  * https://fscdn.rohm.com/en/products/databook/datasheet/ic/power/led_driver/bd2606mvv_1-e.pdf
  *
- * If LED brightness cannot be controlled independently due to shared
+ * If LED brightness cananalt be controlled independently due to shared
  * brightness registers, max_brightness is set to 1 and only on/off
  * is possible for the affected LED pair.
  */
@@ -24,7 +24,7 @@
 #define ldev_to_led(c)	container_of(c, struct bd2606mvv_led, ldev)
 
 struct bd2606mvv_led {
-	unsigned int led_no;
+	unsigned int led_anal;
 	struct led_classdev ldev;
 	struct bd2606mvv_priv *priv;
 };
@@ -45,11 +45,11 @@ bd2606mvv_brightness_set(struct led_classdev *led_cdev,
 	if (brightness == 0)
 		return regmap_update_bits(priv->regmap,
 					  BD2606_REG_PWRCNT,
-					  1 << led->led_no,
+					  1 << led->led_anal,
 					  0);
 
 	/* shared brightness register */
-	err = regmap_write(priv->regmap, led->led_no / 2,
+	err = regmap_write(priv->regmap, led->led_anal / 2,
 			   led_cdev->max_brightness == 1 ?
 			   BD2606_MAX_BRIGHTNESS : brightness);
 	if (err)
@@ -57,8 +57,8 @@ bd2606mvv_brightness_set(struct led_classdev *led_cdev,
 
 	return regmap_update_bits(priv->regmap,
 				  BD2606_REG_PWRCNT,
-				  1 << led->led_no,
-				  1 << led->led_no);
+				  1 << led->led_anal,
+				  1 << led->led_anal);
 }
 
 static const struct regmap_config bd2606mvv_regmap = {
@@ -69,21 +69,21 @@ static const struct regmap_config bd2606mvv_regmap = {
 
 static int bd2606mvv_probe(struct i2c_client *client)
 {
-	struct fwnode_handle *np, *child;
+	struct fwanalde_handle *np, *child;
 	struct device *dev = &client->dev;
 	struct bd2606mvv_priv *priv;
-	struct fwnode_handle *led_fwnodes[BD2606_MAX_LEDS] = { 0 };
+	struct fwanalde_handle *led_fwanaldes[BD2606_MAX_LEDS] = { 0 };
 	int active_pairs[BD2606_MAX_LEDS / 2] = { 0 };
 	int err, reg;
 	int i;
 
-	np = dev_fwnode(dev);
+	np = dev_fwanalde(dev);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = devm_regmap_init_i2c(client, &bd2606mvv_regmap);
 	if (IS_ERR(priv->regmap)) {
@@ -94,23 +94,23 @@ static int bd2606mvv_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, priv);
 
-	fwnode_for_each_available_child_node(np, child) {
+	fwanalde_for_each_available_child_analde(np, child) {
 		struct bd2606mvv_led *led;
 
-		err = fwnode_property_read_u32(child, "reg", &reg);
+		err = fwanalde_property_read_u32(child, "reg", &reg);
 		if (err) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return err;
 		}
-		if (reg < 0 || reg >= BD2606_MAX_LEDS || led_fwnodes[reg]) {
-			fwnode_handle_put(child);
+		if (reg < 0 || reg >= BD2606_MAX_LEDS || led_fwanaldes[reg]) {
+			fwanalde_handle_put(child);
 			return -EINVAL;
 		}
 		led = &priv->leds[reg];
-		led_fwnodes[reg] = child;
+		led_fwanaldes[reg] = child;
 		active_pairs[reg / 2]++;
 		led->priv = priv;
-		led->led_no = reg;
+		led->led_anal = reg;
 		led->ldev.brightness_set_blocking = bd2606mvv_brightness_set;
 		led->ldev.max_brightness = BD2606_MAX_BRIGHTNESS;
 	}
@@ -118,10 +118,10 @@ static int bd2606mvv_probe(struct i2c_client *client)
 	for (i = 0; i < BD2606_MAX_LEDS; i++) {
 		struct led_init_data init_data = {};
 
-		if (!led_fwnodes[i])
+		if (!led_fwanaldes[i])
 			continue;
 
-		init_data.fwnode = led_fwnodes[i];
+		init_data.fwanalde = led_fwanaldes[i];
 		/* Check whether brightness can be independently adjusted. */
 		if (active_pairs[i / 2] == 2)
 			priv->leds[i].ldev.max_brightness = 1;
@@ -130,7 +130,7 @@ static int bd2606mvv_probe(struct i2c_client *client)
 						     &priv->leds[i].ldev,
 						     &init_data);
 		if (err < 0) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(dev, err,
 					     "couldn't register LED %s\n",
 					     priv->leds[i].ldev.name);

@@ -120,7 +120,7 @@ static const struct clk_ops twl6040_pdmclk_ops = {
 static const struct clk_init_data twl6040_pdmclk_init = {
 	.name = "pdmclk",
 	.ops = &twl6040_pdmclk_ops,
-	.flags = CLK_GET_RATE_NOCACHE,
+	.flags = CLK_GET_RATE_ANALCACHE,
 };
 
 static int twl6040_pdmclk_probe(struct platform_device *pdev)
@@ -131,7 +131,7 @@ static int twl6040_pdmclk_probe(struct platform_device *pdev)
 
 	clkdata = devm_kzalloc(&pdev->dev, sizeof(*clkdata), GFP_KERNEL);
 	if (!clkdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clkdata->dev = &pdev->dev;
 	clkdata->twl6040 = twl6040;

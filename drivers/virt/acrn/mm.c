@@ -22,7 +22,7 @@ static int modify_region(struct acrn_vm *vm, struct vm_memory_region_op *region)
 
 	regions = kzalloc(sizeof(*regions), GFP_KERNEL);
 	if (!regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regions->vmid = vm->vmid;
 	regions->regions_num = 1;
@@ -56,7 +56,7 @@ int acrn_mm_region_add(struct acrn_vm *vm, u64 user_gpa, u64 service_gpa,
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	region->type = ACRN_MEM_REGION_ADD;
 	region->user_vm_pa = user_gpa;
@@ -88,7 +88,7 @@ int acrn_mm_region_del(struct acrn_vm *vm, u64 user_gpa, u64 size)
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	region->type = ACRN_MEM_REGION_DEL;
 	region->user_vm_pa = user_gpa;
@@ -194,7 +194,7 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 	nr_pages = memmap->len >> PAGE_SHIFT;
 	pages = vzalloc(array_size(nr_pages, sizeof(*pages)));
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Lock the pages of user memory map region */
 	pinned = pin_user_pages_fast(memmap->vma_base,
@@ -211,7 +211,7 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 	/* Create a kernel map for the map region */
 	remap_vaddr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
 	if (!remap_vaddr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_pages;
 	}
 
@@ -228,9 +228,9 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 	} else {
 		dev_warn(acrn_dev.this_device,
 			"Run out of memory mapping slots!\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		mutex_unlock(&vm->regions_mapping_lock);
-		goto unmap_no_count;
+		goto unmap_anal_count;
 	}
 	mutex_unlock(&vm->regions_mapping_lock);
 
@@ -247,7 +247,7 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 	regions_info = kzalloc(struct_size(regions_info, regions_op,
 					   nr_regions), GFP_KERNEL);
 	if (!regions_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unmap_kernel_map;
 	}
 	regions_info->regions_num = nr_regions;
@@ -298,7 +298,7 @@ unmap_kernel_map:
 	mutex_lock(&vm->regions_mapping_lock);
 	vm->regions_mapping_count--;
 	mutex_unlock(&vm->regions_mapping_lock);
-unmap_no_count:
+unmap_anal_count:
 	vunmap(remap_vaddr);
 put_pages:
 	for (i = 0; i < pinned; i++)

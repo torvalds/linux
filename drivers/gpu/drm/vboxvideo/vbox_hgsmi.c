@@ -29,7 +29,7 @@ static u32 hgsmi_hash_end(u32 hash)
 	return hash;
 }
 
-/* Not really a checksum but that is the naming used in all vbox code */
+/* Analt really a checksum but that is the naming used in all vbox code */
 static u32 hgsmi_checksum(u32 offset,
 			  const struct hgsmi_buffer_header *header,
 			  const struct hgsmi_buffer_tail *tail)
@@ -38,7 +38,7 @@ static u32 hgsmi_checksum(u32 offset,
 
 	checksum = hgsmi_hash_process(0, (u8 *)&offset, sizeof(offset));
 	checksum = hgsmi_hash_process(checksum, (u8 *)header, sizeof(*header));
-	/* 4 -> Do not checksum the checksum itself */
+	/* 4 -> Do analt checksum the checksum itself */
 	checksum = hgsmi_hash_process(checksum, (u8 *)tail, 4);
 
 	return hgsmi_hash_end(checksum);

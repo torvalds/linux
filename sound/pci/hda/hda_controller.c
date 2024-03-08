@@ -328,7 +328,7 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 }
 
 /*
- * azx_scale64: Scale base by mult/div while not overflowing sanely
+ * azx_scale64: Scale base by mult/div while analt overflowing sanely
  *
  * Derived from scale64_check_overflow in kernel/time/timekeeping.c
  *
@@ -382,7 +382,7 @@ static int azx_get_sync_time(ktime_t *device,
 	else
 		direction = 0;
 
-	/* 0th stream tag is not used, so DMA ch 0 is for 1st stream tag */
+	/* 0th stream tag is analt used, so DMA ch 0 is for 1st stream tag */
 	do {
 		timeout = 100;
 		dma_select = (direction << GTSCC_CDMAS_DMA_DIR_SHIFT) |
@@ -518,11 +518,11 @@ static int azx_get_time_info(struct snd_pcm_substream *substream,
 			return ret;
 
 		switch (runtime->tstamp_type) {
-		case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC:
+		case SNDRV_PCM_TSTAMP_TYPE_MOANALTONIC:
 			return -EINVAL;
 
-		case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW:
-			*system_ts = ktime_to_timespec64(xtstamp.sys_monoraw);
+		case SNDRV_PCM_TSTAMP_TYPE_MOANALTONIC_RAW:
+			*system_ts = ktime_to_timespec64(xtstamp.sys_moanalraw);
 			break;
 
 		default:
@@ -551,13 +551,13 @@ static const struct snd_pcm_hardware azx_pcm_hw = {
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID |
-				 /* No full-resume yet implemented */
+				 /* Anal full-resume yet implemented */
 				 /* SNDRV_PCM_INFO_RESUME |*/
 				 SNDRV_PCM_INFO_PAUSE |
 				 SNDRV_PCM_INFO_SYNC_START |
 				 SNDRV_PCM_INFO_HAS_WALL_CLOCK | /* legacy */
 				 SNDRV_PCM_INFO_HAS_LINK_ATIME |
-				 SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
+				 SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,
 	.rate_min =		48000,
@@ -618,7 +618,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	else
 		/* Don't enforce steps on buffer sizes, still need to
 		   be multiple of 4 bytes (HDA spec). Tested on Intel
-		   HDA controllers, may not work on all devices where
+		   HDA controllers, may analt work on all devices where
 		   option needs to be disabled */
 		buff_step = 4;
 
@@ -630,7 +630,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	if (hinfo->ops.open)
 		err = hinfo->ops.open(hinfo, apcm->codec, substream);
 	else
-		err = -ENODEV;
+		err = -EANALDEV;
 	if (err < 0) {
 		azx_release_device(azx_dev);
 		goto powerdown;
@@ -719,7 +719,7 @@ int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
 	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
 	if (apcm == NULL) {
 		snd_device_free(chip->card, pcm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	apcm->chip = chip;
 	apcm->pcm = pcm;
@@ -771,7 +771,7 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 	if (!err)
 		return 0;
 
-	if (hbus->no_response_fallback)
+	if (hbus->anal_response_fallback)
 		return -EIO;
 
 	if (!bus->polling_mode) {
@@ -784,7 +784,7 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 
 	if (chip->msi) {
 		dev_warn(chip->card->dev,
-			 "No response from codec, disabling MSI: last cmd=0x%08x\n",
+			 "Anal response from codec, disabling MSI: last cmd=0x%08x\n",
 			 bus->last_cmd[addr]);
 		if (chip->ops->disable_msi_reset_irq &&
 		    chip->ops->disable_msi_reset_irq(chip) < 0)
@@ -794,13 +794,13 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 
 	if (chip->probing) {
 		/* If this critical timeout happens during the codec probing
-		 * phase, this is likely an access to a non-existing codec
+		 * phase, this is likely an access to a analn-existing codec
 		 * slot.  Better to return an error and reset the system.
 		 */
 		return -EIO;
 	}
 
-	/* no fallback mechanism? */
+	/* anal fallback mechanism? */
 	if (!chip->fallback_to_single_cmd)
 		return -EIO;
 
@@ -810,7 +810,7 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 	if (hbus->allow_bus_reset && !hbus->response_reset && !hbus->in_reset) {
 		hbus->response_reset = 1;
 		dev_err(chip->card->dev,
-			"No response from codec, resetting bus: last cmd=0x%08x\n",
+			"Anal response from codec, resetting bus: last cmd=0x%08x\n",
 			bus->last_cmd[addr]);
 		return -EAGAIN; /* give a chance to retry */
 	}
@@ -827,9 +827,9 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 /*
  * Use the single immediate command instead of CORB/RIRB for simplicity
  *
- * Note: according to Intel, this is not preferred use.  The command was
+ * Analte: according to Intel, this is analt preferred use.  The command was
  *       intended for the BIOS only, and may get confused with unsolicited
- *       responses.  So, we shouldn't use it for normal operation from the
+ *       responses.  So, we shouldn't use it for analrmal operation from the
  *       driver.
  *       I left the codes, however, for debugging/testing purposes.
  */
@@ -1070,7 +1070,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 #ifdef CONFIG_PM
 	if (azx_has_pm_runtime(chip))
 		if (!pm_runtime_active(chip->card->dev))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 #endif
 
 	spin_lock(&bus->reg_lock);
@@ -1091,7 +1091,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 		status = azx_readb(chip, RIRBSTS);
 		if (status & RIRB_INT_MASK) {
 			/*
-			 * Clearing the interrupt status here ensures that no
+			 * Clearing the interrupt status here ensures that anal
 			 * interrupt gets masked after the RIRB wp is read in
 			 * snd_hdac_bus_update_rirb. This avoids a possible
 			 * race condition where codec response in RIRB may
@@ -1124,7 +1124,7 @@ EXPORT_SYMBOL_GPL(azx_interrupt);
  */
 static int probe_codec(struct azx *chip, int addr)
 {
-	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
+	unsigned int cmd = (addr << 28) | (AC_ANALDE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	struct hdac_bus *bus = azx_bus(chip);
 	int err;
@@ -1169,7 +1169,7 @@ int azx_bus_init(struct azx *chip, const char *model)
 	bus->pci = chip->pci;
 	bus->modelname = model;
 	bus->mixer_assigned = -1;
-	bus->core.snoop = azx_snoop(chip);
+	bus->core.sanalop = azx_sanalop(chip);
 	if (chip->get_position[0] != azx_get_pos_lpib ||
 	    chip->get_position[1] != azx_get_pos_lpib)
 		bus->core.use_posbuf = true;
@@ -1207,7 +1207,7 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 				dev_warn(chip->card->dev,
 					 "Codec #%d probe error; disabling it...\n", c);
 				bus->codec_mask &= ~(1 << c);
-				/* More badly, accessing to a non-existing
+				/* More badly, accessing to a analn-existing
 				 * codec often screws up the controller chip,
 				 * and disturbs the further communications.
 				 * Thus if an error occurs during probing,
@@ -1234,7 +1234,7 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 		}
 	}
 	if (!codecs) {
-		dev_err(chip->card->dev, "no codecs initialized\n");
+		dev_err(chip->card->dev, "anal codecs initialized\n");
 		return -ENXIO;
 	}
 	return 0;
@@ -1262,7 +1262,7 @@ int azx_codec_configure(struct azx *chip)
 		}
 	}
 
-	return success ? 0 : -ENODEV;
+	return success ? 0 : -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(azx_codec_configure);
 
@@ -1289,7 +1289,7 @@ int azx_init_streams(struct azx *chip)
 		int dir, tag;
 
 		if (!azx_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dir = stream_direction(chip, i);
 		/* stream tag must be unique throughout

@@ -21,7 +21,7 @@
 
 /*
  * When power is turned off to this panel a minimum off time of 500ms has to be
- * observed before powering back on as there's no external reset pin. Keep
+ * observed before powering back on as there's anal external reset pin. Keep
  * track of earliest wakeup time and delay subsequent prepare call accordingly
  */
 #define MIN_POFF_MS (500)
@@ -161,7 +161,7 @@ static int wuxga_nt_panel_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -226,12 +226,12 @@ static int wuxga_nt_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
 			MIPI_DSI_MODE_VIDEO_HSE |
-			MIPI_DSI_CLOCK_NON_CONTINUOUS |
+			MIPI_DSI_CLOCK_ANALN_CONTINUOUS |
 			MIPI_DSI_MODE_LPM;
 
 	wuxga_nt = devm_kzalloc(&dsi->dev, sizeof(*wuxga_nt), GFP_KERNEL);
 	if (!wuxga_nt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, wuxga_nt);
 
@@ -285,5 +285,5 @@ static struct mipi_dsi_driver wuxga_nt_panel_driver = {
 module_mipi_dsi_driver(wuxga_nt_panel_driver);
 
 MODULE_AUTHOR("Werner Johansson <werner.johansson@sonymobile.com>");
-MODULE_DESCRIPTION("Panasonic VVX10F034N00 Novatek NT1397-based WUXGA (1920x1200) video mode panel driver");
+MODULE_DESCRIPTION("Panasonic VVX10F034N00 Analvatek NT1397-based WUXGA (1920x1200) video mode panel driver");
 MODULE_LICENSE("GPL v2");

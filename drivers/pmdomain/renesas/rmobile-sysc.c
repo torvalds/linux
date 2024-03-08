@@ -3,7 +3,7 @@
  * rmobile power management support
  *
  * Copyright (C) 2012  Renesas Solutions Corp.
- * Copyright (C) 2012  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2012  Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  * Copyright (C) 2014  Glider bvba
  *
  * based on pm-sh7372.c
@@ -31,7 +31,7 @@
 
 struct rmobile_pm_domain {
 	struct generic_pm_domain genpd;
-	struct dev_power_governor *gov;
+	struct dev_power_goveranalr *gov;
 	int (*suspend)(void);
 	void __iomem *base;
 	unsigned int bit_shift;
@@ -98,7 +98,7 @@ static int rmobile_pd_power_up(struct generic_pm_domain *genpd)
 static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 {
 	struct generic_pm_domain *genpd = &rmobile_pd->genpd;
-	struct dev_power_governor *gov = rmobile_pd->gov;
+	struct dev_power_goveranalr *gov = rmobile_pd->gov;
 
 	genpd->flags |= GENPD_FLAG_PM_CLK | GENPD_FLAG_ACTIVE_WAKEUP;
 	genpd->attach_dev = cpg_mstp_attach_dev;
@@ -110,20 +110,20 @@ static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 		__rmobile_pd_power_up(rmobile_pd);
 	}
 
-	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
+	pm_genpd_init(genpd, gov ? : &simple_qos_goveranalr, false);
 }
 
 static int rmobile_pd_suspend_console(void)
 {
 	/*
 	 * Serial consoles make use of SCIF hardware located in this domain,
-	 * hence keep the power domain on if "no_console_suspend" is set.
+	 * hence keep the power domain on if "anal_console_suspend" is set.
 	 */
 	return console_suspend_enabled ? 0 : -EBUSY;
 }
 
 enum pd_types {
-	PD_NORMAL,
+	PD_ANALRMAL,
 	PD_CPU,
 	PD_CONSOLE,
 	PD_DEBUG,
@@ -133,7 +133,7 @@ enum pd_types {
 #define MAX_NUM_SPECIAL_PDS	16
 
 static struct special_pd {
-	struct device_node *pd;
+	struct device_analde *pd;
 	enum pd_types type;
 } special_pds[MAX_NUM_SPECIAL_PDS] __initdata;
 
@@ -147,10 +147,10 @@ static const struct of_device_id special_ids[] __initconst = {
 	{ /* sentinel */ },
 };
 
-static void __init add_special_pd(struct device_node *np, enum pd_types type)
+static void __init add_special_pd(struct device_analde *np, enum pd_types type)
 {
 	unsigned int i;
-	struct device_node *pd;
+	struct device_analde *pd;
 
 	pd = of_parse_phandle(np, "power-domains", 0);
 	if (!pd)
@@ -158,13 +158,13 @@ static void __init add_special_pd(struct device_node *np, enum pd_types type)
 
 	for (i = 0; i < num_special_pds; i++)
 		if (pd == special_pds[i].pd && type == special_pds[i].type) {
-			of_node_put(pd);
+			of_analde_put(pd);
 			return;
 		}
 
 	if (num_special_pds == ARRAY_SIZE(special_pds)) {
 		pr_warn("Too many special PM domains\n");
-		of_node_put(pd);
+		of_analde_put(pd);
 		return;
 	}
 
@@ -177,11 +177,11 @@ static void __init add_special_pd(struct device_node *np, enum pd_types type)
 
 static void __init get_special_pds(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *id;
 
 	/* PM domains containing CPUs */
-	for_each_of_cpu_node(np)
+	for_each_of_cpu_analde(np)
 		add_special_pd(np, PD_CPU);
 
 	/* PM domain containing console */
@@ -189,7 +189,7 @@ static void __init get_special_pds(void)
 		add_special_pd(of_stdout, PD_CONSOLE);
 
 	/* PM domains containing other special devices */
-	for_each_matching_node_and_match(np, special_ids, &id)
+	for_each_matching_analde_and_match(np, special_ids, &id)
 		add_special_pd(np, (uintptr_t)id->data);
 }
 
@@ -198,10 +198,10 @@ static void __init put_special_pds(void)
 	unsigned int i;
 
 	for (i = 0; i < num_special_pds; i++)
-		of_node_put(special_pds[i].pd);
+		of_analde_put(special_pds[i].pd);
 }
 
-static enum pd_types __init pd_type(const struct device_node *pd)
+static enum pd_types __init pd_type(const struct device_analde *pd)
 {
 	unsigned int i;
 
@@ -209,10 +209,10 @@ static enum pd_types __init pd_type(const struct device_node *pd)
 		if (pd == special_pds[i].pd)
 			return special_pds[i].type;
 
-	return PD_NORMAL;
+	return PD_ANALRMAL;
 }
 
-static void __init rmobile_setup_pm_domain(struct device_node *np,
+static void __init rmobile_setup_pm_domain(struct device_analde *np,
 					   struct rmobile_pm_domain *pd)
 {
 	const char *name = pd->genpd.name;
@@ -221,7 +221,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 	case PD_CPU:
 		/*
 		 * This domain contains the CPU core and therefore it should
-		 * only be turned off if the CPU is not in use.
+		 * only be turned off if the CPU is analt in use.
 		 */
 		pr_debug("PM domain %s contains CPU\n", name);
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
@@ -237,7 +237,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		/*
 		 * This domain contains the Coresight-ETM hardware block and
 		 * therefore it should only be turned off if the debug module
-		 * is not in use.
+		 * is analt in use.
 		 */
 		pr_debug("PM domain %s contains Coresight-ETM\n", name);
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
@@ -246,13 +246,13 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 	case PD_MEMCTL:
 		/*
 		 * This domain contains a memory-controller and therefore it
-		 * should only be turned off if memory is not in use.
+		 * should only be turned off if memory is analt in use.
 		 */
 		pr_debug("PM domain %s contains MEMCTL\n", name);
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
-	case PD_NORMAL:
+	case PD_ANALRMAL:
 		if (pd->bit_shift == ~0) {
 			/* Top-level always-on domain */
 			pr_debug("PM domain %s is always-on domain\n", name);
@@ -265,12 +265,12 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 }
 
 static int __init rmobile_add_pm_domains(void __iomem *base,
-					 struct device_node *parent,
+					 struct device_analde *parent,
 					 struct generic_pm_domain *genpd_parent)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_child_of_node(parent, np) {
+	for_each_child_of_analde(parent, np) {
 		struct rmobile_pm_domain *pd;
 		u32 idx = ~0;
 
@@ -280,8 +280,8 @@ static int __init rmobile_add_pm_domains(void __iomem *base,
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
-			of_node_put(np);
-			return -ENOMEM;
+			of_analde_put(np);
+			return -EANALMEM;
 		}
 
 		pd->genpd.name = np->name;
@@ -300,22 +300,22 @@ static int __init rmobile_add_pm_domains(void __iomem *base,
 
 static int __init rmobile_init_pm_domains(void)
 {
-	struct device_node *np, *pmd;
+	struct device_analde *np, *pmd;
 	bool scanned = false;
 	void __iomem *base;
 	int ret = 0;
 
-	for_each_compatible_node(np, NULL, "renesas,sysc-rmobile") {
+	for_each_compatible_analde(np, NULL, "renesas,sysc-rmobile") {
 		base = of_iomap(np, 0);
 		if (!base) {
-			pr_warn("%pOF cannot map reg 0\n", np);
+			pr_warn("%pOF cananalt map reg 0\n", np);
 			continue;
 		}
 
 		pmd = of_get_child_by_name(np, "pm-domains");
 		if (!pmd) {
 			iounmap(base);
-			pr_warn("%pOF lacks pm-domains node\n", np);
+			pr_warn("%pOF lacks pm-domains analde\n", np);
 			continue;
 		}
 
@@ -326,13 +326,13 @@ static int __init rmobile_init_pm_domains(void)
 		}
 
 		ret = rmobile_add_pm_domains(base, pmd, NULL);
-		of_node_put(pmd);
+		of_analde_put(pmd);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
-		fwnode_dev_initialized(of_fwnode_handle(np), true);
+		fwanalde_dev_initialized(of_fwanalde_handle(np), true);
 	}
 
 	put_special_pds();

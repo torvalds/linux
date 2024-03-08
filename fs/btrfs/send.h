@@ -18,14 +18,14 @@
 #endif
 
 /*
- * In send stream v1, no command is larger than 64K. In send stream v2, no
+ * In send stream v1, anal command is larger than 64K. In send stream v2, anal
  * limit should be assumed, the buffer size is set to be a header with
  * compressed extent size.
  */
 #define BTRFS_SEND_BUF_SIZE_V1				SZ_64K
 #define BTRFS_SEND_BUF_SIZE_V2	ALIGN(SZ_16K + BTRFS_MAX_COMPRESSED, PAGE_SIZE)
 
-struct inode;
+struct ianalde;
 struct btrfs_ioctl_send_args;
 
 enum btrfs_tlv_type {
@@ -68,7 +68,7 @@ enum btrfs_send_cmd {
 
 	BTRFS_SEND_C_MKFILE		= 3,
 	BTRFS_SEND_C_MKDIR		= 4,
-	BTRFS_SEND_C_MKNOD		= 5,
+	BTRFS_SEND_C_MKANALD		= 5,
 	BTRFS_SEND_C_MKFIFO		= 6,
 	BTRFS_SEND_C_MKSOCK		= 7,
 	BTRFS_SEND_C_SYMLINK		= 8,
@@ -114,7 +114,7 @@ enum {
 	BTRFS_SEND_A_UUID		= 1,
 	BTRFS_SEND_A_CTRANSID		= 2,
 
-	BTRFS_SEND_A_INO		= 3,
+	BTRFS_SEND_A_IANAL		= 3,
 	BTRFS_SEND_A_SIZE		= 4,
 	BTRFS_SEND_A_MODE		= 5,
 	BTRFS_SEND_A_UID		= 6,
@@ -153,9 +153,9 @@ enum {
 
 	/*
 	 * File attributes from the FS_*_FL namespace (i_flags, xflags),
-	 * translated to BTRFS_INODE_* bits (BTRFS_INODE_FLAG_MASK) and stored
-	 * in btrfs_inode_item::flags (represented by btrfs_inode::flags and
-	 * btrfs_inode::ro_flags).
+	 * translated to BTRFS_IANALDE_* bits (BTRFS_IANALDE_FLAG_MASK) and stored
+	 * in btrfs_ianalde_item::flags (represented by btrfs_ianalde::flags and
+	 * btrfs_ianalde::ro_flags).
 	 */
 	BTRFS_SEND_A_FILEATTR		= 26,
 
@@ -163,7 +163,7 @@ enum {
 	BTRFS_SEND_A_UNENCODED_LEN	= 28,
 	BTRFS_SEND_A_UNENCODED_OFFSET	= 29,
 	/*
-	 * COMPRESSION and ENCRYPTION default to NONE (0) if omitted from
+	 * COMPRESSION and ENCRYPTION default to ANALNE (0) if omitted from
 	 * BTRFS_SEND_C_ENCODED_WRITE.
 	 */
 	BTRFS_SEND_A_COMPRESSION	= 30,
@@ -180,6 +180,6 @@ enum {
 	__BTRFS_SEND_A_MAX		= 35,
 };
 
-long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg);
+long btrfs_ioctl_send(struct ianalde *ianalde, struct btrfs_ioctl_send_args *arg);
 
 #endif

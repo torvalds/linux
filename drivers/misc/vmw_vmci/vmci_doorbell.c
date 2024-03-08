@@ -27,14 +27,14 @@
 #define VMCI_DOORBELL_HASH(_idx)	hash_32(_idx, VMCI_DOORBELL_INDEX_BITS)
 
 /*
- * DoorbellEntry describes the a doorbell notification handle allocated by the
+ * DoorbellEntry describes the a doorbell analtification handle allocated by the
  * host.
  */
 struct dbell_entry {
 	struct vmci_resource resource;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct work_struct work;
-	vmci_callback notify_cb;
+	vmci_callback analtify_cb;
 	void *client_data;
 	u32 idx;
 	u32 priv_flags;
@@ -53,26 +53,26 @@ static struct dbell_index_table vmci_doorbell_it = {
 };
 
 /*
- * The max_notify_idx is one larger than the currently known bitmap index in
+ * The max_analtify_idx is one larger than the currently kanalwn bitmap index in
  * use, and is used to determine how much of the bitmap needs to be scanned.
  */
-static u32 max_notify_idx;
+static u32 max_analtify_idx;
 
 /*
- * The notify_idx_count is used for determining whether there are free entries
- * within the bitmap (if notify_idx_count + 1 < max_notify_idx).
+ * The analtify_idx_count is used for determining whether there are free entries
+ * within the bitmap (if analtify_idx_count + 1 < max_analtify_idx).
  */
-static u32 notify_idx_count;
+static u32 analtify_idx_count;
 
 /*
- * The last_notify_idx_reserved is used to track the last index handed out - in
- * the case where multiple handles share a notification index, we hand out
- * indexes round robin based on last_notify_idx_reserved.
+ * The last_analtify_idx_reserved is used to track the last index handed out - in
+ * the case where multiple handles share a analtification index, we hand out
+ * indexes round robin based on last_analtify_idx_reserved.
  */
-static u32 last_notify_idx_reserved;
+static u32 last_analtify_idx_reserved;
 
 /* This is a one entry cache used to by the index allocation. */
-static u32 last_notify_idx_released = PAGE_SIZE;
+static u32 last_analtify_idx_released = PAGE_SIZE;
 
 
 /*
@@ -80,7 +80,7 @@ static u32 last_notify_idx_released = PAGE_SIZE;
  * with a given doorbell handle. For guest endpoints, the
  * privileges are determined by the context ID, but for host
  * endpoints privileges are associated with the complete
- * handle. Hypervisor endpoints are not yet supported.
+ * handle. Hypervisor endpoints are analt yet supported.
  */
 int vmci_dbell_get_priv_flags(struct vmci_handle handle, u32 *priv_flags)
 {
@@ -94,14 +94,14 @@ int vmci_dbell_get_priv_flags(struct vmci_handle handle, u32 *priv_flags)
 		resource = vmci_resource_by_handle(handle,
 						   VMCI_RESOURCE_TYPE_DOORBELL);
 		if (!resource)
-			return VMCI_ERROR_NOT_FOUND;
+			return VMCI_ERROR_ANALT_FOUND;
 
 		entry = container_of(resource, struct dbell_entry, resource);
 		*priv_flags = entry->priv_flags;
 		vmci_resource_put(resource);
 	} else if (handle.context == VMCI_HYPERVISOR_CONTEXT_ID) {
 		/*
-		 * Hypervisor endpoints for notifications are not
+		 * Hypervisor endpoints for analtifications are analt
 		 * supported (yet).
 		 */
 		return VMCI_ERROR_INVALID_ARGS;
@@ -121,7 +121,7 @@ static struct dbell_entry *dbell_index_table_find(u32 idx)
 	struct dbell_entry *dbell;
 
 	hlist_for_each_entry(dbell, &vmci_doorbell_it.entries[bucket],
-			     node) {
+			     analde) {
 		if (idx == dbell->idx)
 			return dbell;
 	}
@@ -131,61 +131,61 @@ static struct dbell_entry *dbell_index_table_find(u32 idx)
 
 /*
  * Add the given entry to the index table.  This willi take a reference to the
- * entry's resource so that the entry is not deleted before it is removed from
+ * entry's resource so that the entry is analt deleted before it is removed from
  * the * table.
  */
 static void dbell_index_table_add(struct dbell_entry *entry)
 {
 	u32 bucket;
-	u32 new_notify_idx;
+	u32 new_analtify_idx;
 
 	vmci_resource_get(&entry->resource);
 
 	spin_lock_bh(&vmci_doorbell_it.lock);
 
 	/*
-	 * Below we try to allocate an index in the notification
-	 * bitmap with "not too much" sharing between resources. If we
+	 * Below we try to allocate an index in the analtification
+	 * bitmap with "analt too much" sharing between resources. If we
 	 * use less that the full bitmap, we either add to the end if
-	 * there are no unused flags within the currently used area,
+	 * there are anal unused flags within the currently used area,
 	 * or we search for unused ones. If we use the full bitmap, we
 	 * allocate the index round robin.
 	 */
-	if (max_notify_idx < PAGE_SIZE || notify_idx_count < PAGE_SIZE) {
-		if (last_notify_idx_released < max_notify_idx &&
-		    !dbell_index_table_find(last_notify_idx_released)) {
-			new_notify_idx = last_notify_idx_released;
-			last_notify_idx_released = PAGE_SIZE;
+	if (max_analtify_idx < PAGE_SIZE || analtify_idx_count < PAGE_SIZE) {
+		if (last_analtify_idx_released < max_analtify_idx &&
+		    !dbell_index_table_find(last_analtify_idx_released)) {
+			new_analtify_idx = last_analtify_idx_released;
+			last_analtify_idx_released = PAGE_SIZE;
 		} else {
 			bool reused = false;
-			new_notify_idx = last_notify_idx_reserved;
-			if (notify_idx_count + 1 < max_notify_idx) {
+			new_analtify_idx = last_analtify_idx_reserved;
+			if (analtify_idx_count + 1 < max_analtify_idx) {
 				do {
 					if (!dbell_index_table_find
-					    (new_notify_idx)) {
+					    (new_analtify_idx)) {
 						reused = true;
 						break;
 					}
-					new_notify_idx = (new_notify_idx + 1) %
-					    max_notify_idx;
-				} while (new_notify_idx !=
-					 last_notify_idx_released);
+					new_analtify_idx = (new_analtify_idx + 1) %
+					    max_analtify_idx;
+				} while (new_analtify_idx !=
+					 last_analtify_idx_released);
 			}
 			if (!reused) {
-				new_notify_idx = max_notify_idx;
-				max_notify_idx++;
+				new_analtify_idx = max_analtify_idx;
+				max_analtify_idx++;
 			}
 		}
 	} else {
-		new_notify_idx = (last_notify_idx_reserved + 1) % PAGE_SIZE;
+		new_analtify_idx = (last_analtify_idx_reserved + 1) % PAGE_SIZE;
 	}
 
-	last_notify_idx_reserved = new_notify_idx;
-	notify_idx_count++;
+	last_analtify_idx_reserved = new_analtify_idx;
+	analtify_idx_count++;
 
-	entry->idx = new_notify_idx;
+	entry->idx = new_analtify_idx;
 	bucket = VMCI_DOORBELL_HASH(entry->idx);
-	hlist_add_head(&entry->node, &vmci_doorbell_it.entries[bucket]);
+	hlist_add_head(&entry->analde, &vmci_doorbell_it.entries[bucket]);
 
 	spin_unlock_bh(&vmci_doorbell_it.lock);
 }
@@ -198,23 +198,23 @@ static void dbell_index_table_remove(struct dbell_entry *entry)
 {
 	spin_lock_bh(&vmci_doorbell_it.lock);
 
-	hlist_del_init(&entry->node);
+	hlist_del_init(&entry->analde);
 
-	notify_idx_count--;
-	if (entry->idx == max_notify_idx - 1) {
+	analtify_idx_count--;
+	if (entry->idx == max_analtify_idx - 1) {
 		/*
-		 * If we delete an entry with the maximum known
-		 * notification index, we take the opportunity to
+		 * If we delete an entry with the maximum kanalwn
+		 * analtification index, we take the opportunity to
 		 * prune the current max. As there might be other
 		 * unused indices immediately below, we lower the
 		 * maximum until we hit an index in use.
 		 */
-		while (max_notify_idx > 0 &&
-		       !dbell_index_table_find(max_notify_idx - 1))
-			max_notify_idx--;
+		while (max_analtify_idx > 0 &&
+		       !dbell_index_table_find(max_analtify_idx - 1))
+			max_analtify_idx--;
 	}
 
-	last_notify_idx_released = entry->idx;
+	last_analtify_idx_released = entry->idx;
 
 	spin_unlock_bh(&vmci_doorbell_it.lock);
 
@@ -223,26 +223,26 @@ static void dbell_index_table_remove(struct dbell_entry *entry)
 
 /*
  * Creates a link between the given doorbell handle and the given
- * index in the bitmap in the device backend. A notification state
+ * index in the bitmap in the device backend. A analtification state
  * is created in hypervisor.
  */
-static int dbell_link(struct vmci_handle handle, u32 notify_idx)
+static int dbell_link(struct vmci_handle handle, u32 analtify_idx)
 {
 	struct vmci_doorbell_link_msg link_msg;
 
 	link_msg.hdr.dst = vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
 					    VMCI_DOORBELL_LINK);
-	link_msg.hdr.src = VMCI_ANON_SRC_HANDLE;
+	link_msg.hdr.src = VMCI_AANALN_SRC_HANDLE;
 	link_msg.hdr.payload_size = sizeof(link_msg) - VMCI_DG_HEADERSIZE;
 	link_msg.handle = handle;
-	link_msg.notify_idx = notify_idx;
+	link_msg.analtify_idx = analtify_idx;
 
 	return vmci_send_datagram(&link_msg.hdr);
 }
 
 /*
  * Unlinks the given doorbell handle from an index in the bitmap in
- * the device backend. The notification state is destroyed in hypervisor.
+ * the device backend. The analtification state is destroyed in hypervisor.
  */
 static int dbell_unlink(struct vmci_handle handle)
 {
@@ -250,7 +250,7 @@ static int dbell_unlink(struct vmci_handle handle)
 
 	unlink_msg.hdr.dst = vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
 					      VMCI_DOORBELL_UNLINK);
-	unlink_msg.hdr.src = VMCI_ANON_SRC_HANDLE;
+	unlink_msg.hdr.src = VMCI_AANALN_SRC_HANDLE;
 	unlink_msg.hdr.payload_size = sizeof(unlink_msg) - VMCI_DG_HEADERSIZE;
 	unlink_msg.handle = handle;
 
@@ -258,20 +258,20 @@ static int dbell_unlink(struct vmci_handle handle)
 }
 
 /*
- * Notify another guest or the host.  We send a datagram down to the
- * host via the hypervisor with the notification info.
+ * Analtify aanalther guest or the host.  We send a datagram down to the
+ * host via the hypervisor with the analtification info.
  */
-static int dbell_notify_as_guest(struct vmci_handle handle, u32 priv_flags)
+static int dbell_analtify_as_guest(struct vmci_handle handle, u32 priv_flags)
 {
-	struct vmci_doorbell_notify_msg notify_msg;
+	struct vmci_doorbell_analtify_msg analtify_msg;
 
-	notify_msg.hdr.dst = vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
-					      VMCI_DOORBELL_NOTIFY);
-	notify_msg.hdr.src = VMCI_ANON_SRC_HANDLE;
-	notify_msg.hdr.payload_size = sizeof(notify_msg) - VMCI_DG_HEADERSIZE;
-	notify_msg.handle = handle;
+	analtify_msg.hdr.dst = vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
+					      VMCI_DOORBELL_ANALTIFY);
+	analtify_msg.hdr.src = VMCI_AANALN_SRC_HANDLE;
+	analtify_msg.hdr.payload_size = sizeof(analtify_msg) - VMCI_DG_HEADERSIZE;
+	analtify_msg.handle = handle;
 
-	return vmci_send_datagram(&notify_msg.hdr);
+	return vmci_send_datagram(&analtify_msg.hdr);
 }
 
 /*
@@ -282,20 +282,20 @@ static void dbell_delayed_dispatch(struct work_struct *work)
 	struct dbell_entry *entry = container_of(work,
 						 struct dbell_entry, work);
 
-	entry->notify_cb(entry->client_data);
+	entry->analtify_cb(entry->client_data);
 	vmci_resource_put(&entry->resource);
 }
 
 /*
- * Dispatches a doorbell notification to the host context.
+ * Dispatches a doorbell analtification to the host context.
  */
-int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle)
+int vmci_dbell_host_context_analtify(u32 src_cid, struct vmci_handle handle)
 {
 	struct dbell_entry *entry;
 	struct vmci_resource *resource;
 
 	if (vmci_handle_is_invalid(handle)) {
-		pr_devel("Notifying an invalid doorbell (handle=0x%x:0x%x)\n",
+		pr_devel("Analtifying an invalid doorbell (handle=0x%x:0x%x)\n",
 			 handle.context, handle.resource);
 		return VMCI_ERROR_INVALID_ARGS;
 	}
@@ -303,9 +303,9 @@ int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle)
 	resource = vmci_resource_by_handle(handle,
 					   VMCI_RESOURCE_TYPE_DOORBELL);
 	if (!resource) {
-		pr_devel("Notifying an unknown doorbell (handle=0x%x:0x%x)\n",
+		pr_devel("Analtifying an unkanalwn doorbell (handle=0x%x:0x%x)\n",
 			 handle.context, handle.resource);
-		return VMCI_ERROR_NOT_FOUND;
+		return VMCI_ERROR_ANALT_FOUND;
 	}
 
 	entry = container_of(resource, struct dbell_entry, resource);
@@ -313,7 +313,7 @@ int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle)
 		if (!schedule_work(&entry->work))
 			vmci_resource_put(resource);
 	} else {
-		entry->notify_cb(entry->client_data);
+		entry->analtify_cb(entry->client_data);
 		vmci_resource_put(resource);
 	}
 
@@ -321,16 +321,16 @@ int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle)
 }
 
 /*
- * Register the notification bitmap with the host.
+ * Register the analtification bitmap with the host.
  */
-bool vmci_dbell_register_notification_bitmap(u64 bitmap_ppn)
+bool vmci_dbell_register_analtification_bitmap(u64 bitmap_ppn)
 {
 	int result;
-	struct vmci_notify_bm_set_msg bitmap_set_msg = { };
+	struct vmci_analtify_bm_set_msg bitmap_set_msg = { };
 
 	bitmap_set_msg.hdr.dst = vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
-						  VMCI_SET_NOTIFY_BITMAP);
-	bitmap_set_msg.hdr.src = VMCI_ANON_SRC_HANDLE;
+						  VMCI_SET_ANALTIFY_BITMAP);
+	bitmap_set_msg.hdr.src = VMCI_AANALN_SRC_HANDLE;
 	bitmap_set_msg.hdr.payload_size = sizeof(bitmap_set_msg) -
 	    VMCI_DG_HEADERSIZE;
 	if (vmci_use_ppn64())
@@ -340,7 +340,7 @@ bool vmci_dbell_register_notification_bitmap(u64 bitmap_ppn)
 
 	result = vmci_send_datagram(&bitmap_set_msg.hdr);
 	if (result != VMCI_SUCCESS) {
-		pr_devel("Failed to register (PPN=%llu) as notification bitmap (error=%d)\n",
+		pr_devel("Failed to register (PPN=%llu) as analtification bitmap (error=%d)\n",
 			 bitmap_ppn, result);
 		return false;
 	}
@@ -348,24 +348,24 @@ bool vmci_dbell_register_notification_bitmap(u64 bitmap_ppn)
 }
 
 /*
- * Executes or schedules the handlers for a given notify index.
+ * Executes or schedules the handlers for a given analtify index.
  */
-static void dbell_fire_entries(u32 notify_idx)
+static void dbell_fire_entries(u32 analtify_idx)
 {
-	u32 bucket = VMCI_DOORBELL_HASH(notify_idx);
+	u32 bucket = VMCI_DOORBELL_HASH(analtify_idx);
 	struct dbell_entry *dbell;
 
 	spin_lock_bh(&vmci_doorbell_it.lock);
 
-	hlist_for_each_entry(dbell, &vmci_doorbell_it.entries[bucket], node) {
-		if (dbell->idx == notify_idx &&
+	hlist_for_each_entry(dbell, &vmci_doorbell_it.entries[bucket], analde) {
+		if (dbell->idx == analtify_idx &&
 		    atomic_read(&dbell->active) == 1) {
 			if (dbell->run_delayed) {
 				vmci_resource_get(&dbell->resource);
 				if (!schedule_work(&dbell->work))
 					vmci_resource_put(&dbell->resource);
 			} else {
-				dbell->notify_cb(dbell->client_data);
+				dbell->analtify_cb(dbell->client_data);
 			}
 		}
 	}
@@ -374,14 +374,14 @@ static void dbell_fire_entries(u32 notify_idx)
 }
 
 /*
- * Scans the notification bitmap, collects pending notifications,
+ * Scans the analtification bitmap, collects pending analtifications,
  * resets the bitmap and invokes appropriate callbacks.
  */
-void vmci_dbell_scan_notification_entries(u8 *bitmap)
+void vmci_dbell_scan_analtification_entries(u8 *bitmap)
 {
 	u32 idx;
 
-	for (idx = 0; idx < max_notify_idx; idx++) {
+	for (idx = 0; idx < max_analtify_idx; idx++) {
 		if (bitmap[idx] & 0x1) {
 			bitmap[idx] &= ~1;
 			dbell_fire_entries(idx);
@@ -394,7 +394,7 @@ void vmci_dbell_scan_notification_entries(u8 *bitmap)
  * @handle:     A handle used to track the resource.  Can be invalid.
  * @flags:      Flag that determines context of callback.
  * @priv_flags: Privileges flags.
- * @notify_cb:  The callback to be ivoked when the doorbell fires.
+ * @analtify_cb:  The callback to be ivoked when the doorbell fires.
  * @client_data:        A parameter to be passed to the callback.
  *
  * Creates a doorbell with the given callback. If the handle is
@@ -402,27 +402,27 @@ void vmci_dbell_scan_notification_entries(u8 *bitmap)
  * possible. The callback can be run immediately (potentially with
  * locks held - the default) or delayed (in a kernel thread) by
  * specifying the flag VMCI_FLAG_DELAYED_CB. If delayed execution
- * is selected, a given callback may not be run if the kernel is
+ * is selected, a given callback may analt be run if the kernel is
  * unable to allocate memory for the delayed execution (highly
  * unlikely).
  */
 int vmci_doorbell_create(struct vmci_handle *handle,
 			 u32 flags,
 			 u32 priv_flags,
-			 vmci_callback notify_cb, void *client_data)
+			 vmci_callback analtify_cb, void *client_data)
 {
 	struct dbell_entry *entry;
 	struct vmci_handle new_handle;
 	int result;
 
-	if (!handle || !notify_cb || flags & ~VMCI_FLAG_DELAYED_CB ||
+	if (!handle || !analtify_cb || flags & ~VMCI_FLAG_DELAYED_CB ||
 	    priv_flags & ~VMCI_PRIVILEGE_ALL_FLAGS)
 		return VMCI_ERROR_INVALID_ARGS;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL) {
 		pr_warn("Failed allocating memory for datagram entry\n");
-		return VMCI_ERROR_NO_MEM;
+		return VMCI_ERROR_ANAL_MEM;
 	}
 
 	if (vmci_handle_is_invalid(*handle)) {
@@ -430,7 +430,7 @@ int vmci_doorbell_create(struct vmci_handle *handle,
 
 		if (context_id == VMCI_INVALID_ID) {
 			pr_warn("Failed to get context ID\n");
-			result = VMCI_ERROR_NO_RESOURCES;
+			result = VMCI_ERROR_ANAL_RESOURCES;
 			goto free_mem;
 		}
 
@@ -463,11 +463,11 @@ int vmci_doorbell_create(struct vmci_handle *handle,
 	}
 
 	entry->idx = 0;
-	INIT_HLIST_NODE(&entry->node);
+	INIT_HLIST_ANALDE(&entry->analde);
 	entry->priv_flags = priv_flags;
 	INIT_WORK(&entry->work, dbell_delayed_dispatch);
 	entry->run_delayed = flags & VMCI_FLAG_DELAYED_CB;
-	entry->notify_cb = notify_cb;
+	entry->analtify_cb = analtify_cb;
 	entry->client_data = client_data;
 	atomic_set(&entry->active, 0);
 
@@ -523,12 +523,12 @@ int vmci_doorbell_destroy(struct vmci_handle handle)
 	if (!resource) {
 		pr_devel("Failed to destroy doorbell (handle=0x%x:0x%x)\n",
 			 handle.context, handle.resource);
-		return VMCI_ERROR_NOT_FOUND;
+		return VMCI_ERROR_ANALT_FOUND;
 	}
 
 	entry = container_of(resource, struct dbell_entry, resource);
 
-	if (!hlist_unhashed(&entry->node)) {
+	if (!hlist_unhashed(&entry->analde)) {
 		int result;
 
 		dbell_index_table_remove(entry);
@@ -546,16 +546,16 @@ int vmci_doorbell_destroy(struct vmci_handle handle)
 			 * following a hibernation at a time where the
 			 * doorbell state hasn't been restored on the
 			 * hypervisor side yet. Since the handle has
-			 * now been removed in the guest, we just
+			 * analw been removed in the guest, we just
 			 * print a warning and return success.
 			 */
-			pr_devel("Unlink of doorbell (handle=0x%x:0x%x) unknown by hypervisor (error=%d)\n",
+			pr_devel("Unlink of doorbell (handle=0x%x:0x%x) unkanalwn by hypervisor (error=%d)\n",
 				 handle.context, handle.resource, result);
 		}
 	}
 
 	/*
-	 * Now remove the resource from the table.  It might still be in use
+	 * Analw remove the resource from the table.  It might still be in use
 	 * after this, in a callback or still on the delayed work queue.
 	 */
 	vmci_resource_put(&entry->resource);
@@ -568,15 +568,15 @@ int vmci_doorbell_destroy(struct vmci_handle handle)
 EXPORT_SYMBOL_GPL(vmci_doorbell_destroy);
 
 /*
- * vmci_doorbell_notify() - Ring the doorbell (and hide in the bushes).
+ * vmci_doorbell_analtify() - Ring the doorbell (and hide in the bushes).
  * @dst:        The handlle identifying the doorbell resource
  * @priv_flags: Priviledge flags.
  *
- * Generates a notification on the doorbell identified by the
- * handle. For host side generation of notifications, the caller
+ * Generates a analtification on the doorbell identified by the
+ * handle. For host side generation of analtifications, the caller
  * can specify what the privilege of the calling side is.
  */
-int vmci_doorbell_notify(struct vmci_handle dst, u32 priv_flags)
+int vmci_doorbell_analtify(struct vmci_handle dst, u32 priv_flags)
 {
 	int retval;
 	enum vmci_route route;
@@ -592,13 +592,13 @@ int vmci_doorbell_notify(struct vmci_handle dst, u32 priv_flags)
 		return retval;
 
 	if (VMCI_ROUTE_AS_HOST == route)
-		return vmci_ctx_notify_dbell(VMCI_HOST_CONTEXT_ID,
+		return vmci_ctx_analtify_dbell(VMCI_HOST_CONTEXT_ID,
 					     dst, priv_flags);
 
 	if (VMCI_ROUTE_AS_GUEST == route)
-		return dbell_notify_as_guest(dst, priv_flags);
+		return dbell_analtify_as_guest(dst, priv_flags);
 
-	pr_warn("Unknown route (%d) for doorbell\n", route);
+	pr_warn("Unkanalwn route (%d) for doorbell\n", route);
 	return VMCI_ERROR_DST_UNREACHABLE;
 }
-EXPORT_SYMBOL_GPL(vmci_doorbell_notify);
+EXPORT_SYMBOL_GPL(vmci_doorbell_analtify);

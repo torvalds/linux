@@ -13,7 +13,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_alloc.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc.h"
@@ -50,16 +50,16 @@ xrep_attempt(
 	u64			repair_start;
 	int			error = 0;
 
-	trace_xrep_attempt(XFS_I(file_inode(sc->file)), sc->sm, error);
+	trace_xrep_attempt(XFS_I(file_ianalde(sc->file)), sc->sm, error);
 
 	xchk_ag_btcur_free(&sc->sa);
 
 	/* Repair whatever's broken. */
 	ASSERT(sc->ops->repair);
 	run->repair_attempted = true;
-	repair_start = xchk_stats_now();
+	repair_start = xchk_stats_analw();
 	error = sc->ops->repair(sc);
-	trace_xrep_done(XFS_I(file_inode(sc->file)), sc->sm, error);
+	trace_xrep_done(XFS_I(file_ianalde(sc->file)), sc->sm, error);
 	run->repair_ns += xchk_stats_elapsed_ns(repair_start);
 	switch (error) {
 	case 0:
@@ -84,13 +84,13 @@ xrep_attempt(
 		}
 		/*
 		 * We tried harder but still couldn't grab all the resources
-		 * we needed to fix it.  The corruption has not been fixed,
+		 * we needed to fix it.  The corruption has analt been fixed,
 		 * so exit to userspace with the scan's output flags unchanged.
 		 */
 		return 0;
 	default:
 		/*
-		 * EAGAIN tells the caller to re-scrub, so we cannot return
+		 * EAGAIN tells the caller to re-scrub, so we cananalt return
 		 * that here.
 		 */
 		ASSERT(error != -EAGAIN);
@@ -102,7 +102,7 @@ xrep_attempt(
  * Complain about unfixable problems in the filesystem.  We don't log
  * corruptions when IFLAG_REPAIR wasn't set on the assumption that the driver
  * program is xfs_scrub, which will call back with IFLAG_REPAIR set if the
- * administrator isn't running xfs_scrub in no-repairs mode.
+ * administrator isn't running xfs_scrub in anal-repairs mode.
  *
  * Use this helper function because _ratelimited silently declares a static
  * structure to track rate limiting information.
@@ -112,7 +112,7 @@ xrep_failure(
 	struct xfs_mount	*mp)
 {
 	xfs_alert_ratelimited(mp,
-"Corruption not fixed during online repair.  Unmount and run xfs_repair.");
+"Corruption analt fixed during online repair.  Unmount and run xfs_repair.");
 }
 
 /*
@@ -147,7 +147,7 @@ xrep_roll_ag_trans(
 	 * transaction so that they move forward in the log without losing the
 	 * bli (and hence the bli type) when the transaction commits.
 	 *
-	 * Normal code would never hold clean buffers across a roll, but repair
+	 * Analrmal code would never hold clean buffers across a roll, but repair
 	 * needs both buffers to maintain a total lock on the AG.
 	 */
 	if (sc->sa.agi_bp) {
@@ -162,7 +162,7 @@ xrep_roll_ag_trans(
 
 	/*
 	 * Roll the transaction.  We still hold the AG header buffers locked
-	 * regardless of whether or not that succeeds.  On failure, the buffers
+	 * regardless of whether or analt that succeeds.  On failure, the buffers
 	 * will be released during teardown on our way out of the kernel.  If
 	 * successful, join the buffers to the new transaction and move on.
 	 */
@@ -186,7 +186,7 @@ xrep_roll_trans(
 {
 	if (!sc->ip)
 		return xrep_roll_ag_trans(sc);
-	return xfs_trans_roll_inode(&sc->tp, sc->ip);
+	return xfs_trans_roll_ianalde(&sc->tp, sc->ip);
 }
 
 /* Finish all deferred work attached to the repair transaction. */
@@ -202,7 +202,7 @@ xrep_defer_finish(
 	 * the transaction so that they move forward in the log without losing
 	 * the bli (and hence the bli type) when the transaction commits.
 	 *
-	 * Normal code would never hold clean buffers across a roll, but repair
+	 * Analrmal code would never hold clean buffers across a roll, but repair
 	 * needs both buffers to maintain a total lock on the AG.
 	 */
 	if (sc->sa.agi_bp) {
@@ -217,7 +217,7 @@ xrep_defer_finish(
 
 	/*
 	 * Finish all deferred work items.  We still hold the AG header buffers
-	 * locked regardless of whether or not that succeeds.  On failure, the
+	 * locked regardless of whether or analt that succeeds.  On failure, the
 	 * buffers will be released during teardown on our way out of the
 	 * kernel.  If successful, join the buffers to the new transaction
 	 * and move on.
@@ -240,8 +240,8 @@ xrep_defer_finish(
 }
 
 /*
- * Does the given AG have enough space to rebuild a btree?  Neither AG
- * reservation can be critical, and we must have enough space (factoring
+ * Does the given AG have eanalugh space to rebuild a btree?  Neither AG
+ * reservation can be critical, and we must have eanalugh space (factoring
  * in AG reservations) to construct a whole btree.
  */
 bool
@@ -268,12 +268,12 @@ xrep_calc_ag_resblks(
 	struct xfs_scrub_metadata	*sm = sc->sm;
 	struct xfs_perag		*pag;
 	struct xfs_buf			*bp;
-	xfs_agino_t			icount = NULLAGINO;
+	xfs_agianal_t			icount = NULLAGIANAL;
 	xfs_extlen_t			aglen = NULLAGBLOCK;
 	xfs_extlen_t			usedlen;
 	xfs_extlen_t			freelen;
-	xfs_extlen_t			bnobt_sz;
-	xfs_extlen_t			inobt_sz;
+	xfs_extlen_t			banalbt_sz;
+	xfs_extlen_t			ianalbt_sz;
 	xfs_extlen_t			rmapbt_sz;
 	xfs_extlen_t			refcbt_sz;
 	int				error;
@@ -281,7 +281,7 @@ xrep_calc_ag_resblks(
 	if (!(sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
 		return 0;
 
-	pag = xfs_perag_get(mp, sm->sm_agno);
+	pag = xfs_perag_get(mp, sm->sm_aganal);
 	if (xfs_perag_initialised_agi(pag)) {
 		/* Use in-core icount if possible. */
 		icount = pag->pagi_count;
@@ -294,7 +294,7 @@ xrep_calc_ag_resblks(
 		}
 	}
 
-	/* Now grab the block counters from the AGF. */
+	/* Analw grab the block counters from the AGF. */
 	error = xfs_alloc_read_agf(pag, NULL, 0, &bp);
 	if (error) {
 		aglen = pag->block_count;
@@ -310,9 +310,9 @@ xrep_calc_ag_resblks(
 	}
 
 	/* If the icount is impossible, make some worst-case assumptions. */
-	if (icount == NULLAGINO ||
-	    !xfs_verify_agino(pag, icount)) {
-		icount = pag->agino_max - pag->agino_min + 1;
+	if (icount == NULLAGIANAL ||
+	    !xfs_verify_agianal(pag, icount)) {
+		icount = pag->agianal_max - pag->agianal_min + 1;
 	}
 
 	/* If the block counts are impossible, make worst-case assumptions. */
@@ -325,23 +325,23 @@ xrep_calc_ag_resblks(
 	}
 	xfs_perag_put(pag);
 
-	trace_xrep_calc_ag_resblks(mp, sm->sm_agno, icount, aglen,
+	trace_xrep_calc_ag_resblks(mp, sm->sm_aganal, icount, aglen,
 			freelen, usedlen);
 
 	/*
 	 * Figure out how many blocks we'd need worst case to rebuild
-	 * each type of btree.  Note that we can only rebuild the
-	 * bnobt/cntbt or inobt/finobt as pairs.
+	 * each type of btree.  Analte that we can only rebuild the
+	 * banalbt/cntbt or ianalbt/fianalbt as pairs.
 	 */
-	bnobt_sz = 2 * xfs_allocbt_calc_size(mp, freelen);
-	if (xfs_has_sparseinodes(mp))
-		inobt_sz = xfs_iallocbt_calc_size(mp, icount /
-				XFS_INODES_PER_HOLEMASK_BIT);
+	banalbt_sz = 2 * xfs_allocbt_calc_size(mp, freelen);
+	if (xfs_has_sparseianaldes(mp))
+		ianalbt_sz = xfs_iallocbt_calc_size(mp, icount /
+				XFS_IANALDES_PER_HOLEMASK_BIT);
 	else
-		inobt_sz = xfs_iallocbt_calc_size(mp, icount /
-				XFS_INODES_PER_CHUNK);
-	if (xfs_has_finobt(mp))
-		inobt_sz *= 2;
+		ianalbt_sz = xfs_iallocbt_calc_size(mp, icount /
+				XFS_IANALDES_PER_CHUNK);
+	if (xfs_has_fianalbt(mp))
+		ianalbt_sz *= 2;
 	if (xfs_has_reflink(mp))
 		refcbt_sz = xfs_refcountbt_calc_size(mp, usedlen);
 	else
@@ -349,9 +349,9 @@ xrep_calc_ag_resblks(
 	if (xfs_has_rmapbt(mp)) {
 		/*
 		 * Guess how many blocks we need to rebuild the rmapbt.
-		 * For non-reflink filesystems we can't have more records than
+		 * For analn-reflink filesystems we can't have more records than
 		 * used blocks.  However, with reflink it's possible to have
-		 * more than one rmap record per AG block.  We don't know how
+		 * more than one rmap record per AG block.  We don't kanalw how
 		 * many rmaps there could be in the AG, so we start off with
 		 * what we hope is an generous over-estimation.
 		 */
@@ -364,10 +364,10 @@ xrep_calc_ag_resblks(
 		rmapbt_sz = 0;
 	}
 
-	trace_xrep_calc_ag_resblks_btsize(mp, sm->sm_agno, bnobt_sz,
-			inobt_sz, rmapbt_sz, refcbt_sz);
+	trace_xrep_calc_ag_resblks_btsize(mp, sm->sm_aganal, banalbt_sz,
+			ianalbt_sz, rmapbt_sz, refcbt_sz);
 
-	return max(max(bnobt_sz, inobt_sz), max(rmapbt_sz, refcbt_sz));
+	return max(max(banalbt_sz, ianalbt_sz), max(rmapbt_sz, refcbt_sz));
 }
 
 /*
@@ -376,21 +376,21 @@ xrep_calc_ag_resblks(
  * When a space btree is corrupt, we don't bother trying to fix it.  Instead,
  * we scan secondary space metadata to derive the records that should be in
  * the damaged btree, initialize a fresh btree root, and insert the records.
- * Note that for rebuilding the rmapbt we scan all the primary data to
+ * Analte that for rebuilding the rmapbt we scan all the primary data to
  * generate the new records.
  *
  * However, that leaves the matter of removing all the metadata describing the
  * old broken structure.  For primary metadata we use the rmap data to collect
  * every extent with a matching rmap owner (bitmap); we then iterate all other
  * metadata structures with the same rmap owner to collect the extents that
- * cannot be removed (sublist).  We then subtract sublist from bitmap to
+ * cananalt be removed (sublist).  We then subtract sublist from bitmap to
  * derive the blocks that were used by the old btree.  These blocks can be
  * reaped.
  *
  * For rmapbt reconstructions we must use different tactics for extent
  * collection.  First we iterate all primary metadata (this excludes the old
  * rmapbt, obviously) to generate new rmap records.  The gaps in the rmap
- * records are collected as bitmap.  The bnobt records are collected as
+ * records are collected as bitmap.  The banalbt records are collected as
  * sublist.  As with the other btrees we subtract sublist from bitmap, and the
  * result (since the rmapbt lives in the free space) are the blocks from the
  * old rmapbt.
@@ -406,12 +406,12 @@ xrep_fix_freelist(
 
 	args.mp = sc->mp;
 	args.tp = sc->tp;
-	args.agno = sc->sa.pag->pag_agno;
+	args.aganal = sc->sa.pag->pag_aganal;
 	args.alignment = 1;
 	args.pag = sc->sa.pag;
 
 	return xfs_alloc_fix_freelist(&args,
-			can_shrink ? 0 : XFS_ALLOC_FLAG_NOSHRINK);
+			can_shrink ? 0 : XFS_ALLOC_FLAG_ANALSHRINK);
 }
 
 /*
@@ -419,7 +419,7 @@ xrep_fix_freelist(
  *
  * If the AGF or AGI become slightly corrupted, it may be necessary to rebuild
  * the AG headers by using the rmap data to rummage through the AG looking for
- * btree roots.  This is not guaranteed to work if the AG is heavily damaged
+ * btree roots.  This is analt guaranteed to work if the AG is heavily damaged
  * or the rmap data are corrupt.
  *
  * Callers of xrep_find_ag_btree_roots must lock the AGF and AGFL
@@ -452,12 +452,12 @@ struct xrep_findroot {
 STATIC int
 xrep_findroot_agfl_walk(
 	struct xfs_mount	*mp,
-	xfs_agblock_t		bno,
+	xfs_agblock_t		banal,
 	void			*priv)
 {
-	xfs_agblock_t		*agbno = priv;
+	xfs_agblock_t		*agbanal = priv;
 
-	return (*agbno == bno) ? -ECANCELED : 0;
+	return (*agbanal == banal) ? -ECANCELED : 0;
 }
 
 /* Does this block match the btree information passed in? */
@@ -466,7 +466,7 @@ xrep_findroot_block(
 	struct xrep_findroot		*ri,
 	struct xrep_find_ag_btree	*fab,
 	uint64_t			owner,
-	xfs_agblock_t			agbno,
+	xfs_agblock_t			agbanal,
 	bool				*done_with_block)
 {
 	struct xfs_mount		*mp = ri->sc->mp;
@@ -476,7 +476,7 @@ xrep_findroot_block(
 	int				block_level;
 	int				error = 0;
 
-	daddr = XFS_AGB_TO_DADDR(mp, ri->sc->sa.pag->pag_agno, agbno);
+	daddr = XFS_AGB_TO_DADDR(mp, ri->sc->sa.pag->pag_aganal, agbanal);
 
 	/*
 	 * Blocks in the AGFL have stale contents that might just happen to
@@ -486,7 +486,7 @@ xrep_findroot_block(
 	 */
 	if (owner == XFS_RMAP_OWN_AG) {
 		error = xfs_agfl_walk(mp, ri->agf, ri->agfl_bp,
-				xrep_findroot_agfl_walk, &agbno);
+				xrep_findroot_agfl_walk, &agbanal);
 		if (error == -ECANCELED)
 			return 0;
 		if (error)
@@ -495,7 +495,7 @@ xrep_findroot_block(
 
 	/*
 	 * Read the buffer into memory so that we can see if it's a match for
-	 * our btree type.  We have no clue if it is beforehand, and we want to
+	 * our btree type.  We have anal clue if it is beforehand, and we want to
 	 * avoid xfs_trans_read_buf's behavior of dumping the DONE state (which
 	 * will cause needless disk reads in subsequent calls to this function)
 	 * and logging metadata verifier failures.
@@ -507,7 +507,7 @@ xrep_findroot_block(
 	 * for us to try to verify if the read call succeeds.  The same applies
 	 * if the buffer wasn't in memory at all.
 	 *
-	 * Note: If we never match a btree type with this buffer, it will be
+	 * Analte: If we never match a btree type with this buffer, it will be
 	 * left in memory with NULL b_ops.  This shouldn't be a problem unless
 	 * the buffer gets written.
 	 */
@@ -523,18 +523,18 @@ xrep_findroot_block(
 		goto out;
 
 	/*
-	 * If the buffer already has ops applied and they're not the ones for
-	 * this btree type, we know this block doesn't match the btree and we
+	 * If the buffer already has ops applied and they're analt the ones for
+	 * this btree type, we kanalw this block doesn't match the btree and we
 	 * can bail out.
 	 *
 	 * If the buffer ops match ours, someone else has already validated
 	 * the block for us, so we can move on to checking if this is a root
 	 * block candidate.
 	 *
-	 * If the buffer does not have ops, nobody has successfully validated
-	 * the contents and the buffer cannot be dirty.  If the magic, uuid,
+	 * If the buffer does analt have ops, analbody has successfully validated
+	 * the contents and the buffer cananalt be dirty.  If the magic, uuid,
 	 * and structure match this btree type then we'll move on to checking
-	 * if it's a root block candidate.  If there is no match, bail out.
+	 * if it's a root block candidate.  If there is anal match, bail out.
 	 */
 	if (bp->b_ops) {
 		if (bp->b_ops != fab->buf_ops)
@@ -559,7 +559,7 @@ xrep_findroot_block(
 
 		/*
 		 * Some read verifiers will (re)set b_ops, so we must be
-		 * careful not to change b_ops after running the verifier.
+		 * careful analt to change b_ops after running the verifier.
 		 */
 	}
 
@@ -577,7 +577,7 @@ xrep_findroot_block(
 	 * blocks because there can't be two candidate roots.
 	 *
 	 * If level is lower in the tree than the root we found previously,
-	 * ignore this block.
+	 * iganalre this block.
 	 */
 	block_level = xfs_btree_get_level(btblock);
 	if (block_level + 1 == fab->height) {
@@ -601,11 +601,11 @@ xrep_findroot_block(
 	 */
 	if (btblock->bb_u.s.bb_leftsib == cpu_to_be32(NULLAGBLOCK) &&
 	    btblock->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK))
-		fab->root = agbno;
+		fab->root = agbanal;
 	else
 		fab->root = NULLAGBLOCK;
 
-	trace_xrep_findroot_block(mp, ri->sc->sa.pag->pag_agno, agbno,
+	trace_xrep_findroot_block(mp, ri->sc->sa.pag->pag_aganal, agbanal,
 			be32_to_cpu(btblock->bb_magic), fab->height - 1);
 out:
 	xfs_trans_brelse(ri->sc->tp, bp);
@@ -628,8 +628,8 @@ xrep_findroot_rmap(
 	bool				done;
 	int				error = 0;
 
-	/* Ignore anything that isn't AG metadata. */
-	if (!XFS_RMAP_NON_INODE_OWNER(rec->rm_owner))
+	/* Iganalre anything that isn't AG metadata. */
+	if (!XFS_RMAP_ANALN_IANALDE_OWNER(rec->rm_owner))
 		return 0;
 
 	/* Otherwise scan each block + btree type. */
@@ -674,7 +674,7 @@ xrep_find_ag_btree_roots(
 	ri.agfl_bp = agfl_bp;
 	for (fab = btree_info; fab->buf_ops; fab++) {
 		ASSERT(agfl_bp || fab->rmap_owner != XFS_RMAP_OWN_AG);
-		ASSERT(XFS_RMAP_NON_INODE_OWNER(fab->rmap_owner));
+		ASSERT(XFS_RMAP_ANALN_IANALDE_OWNER(fab->rmap_owner));
 		fab->root = NULLAGBLOCK;
 		fab->height = 0;
 	}
@@ -709,17 +709,17 @@ xrep_force_quotacheck(
 }
 
 /*
- * Attach dquots to this inode, or schedule quotacheck to fix them.
+ * Attach dquots to this ianalde, or schedule quotacheck to fix them.
  *
- * This function ensures that the appropriate dquots are attached to an inode.
- * We cannot allow the dquot code to allocate an on-disk dquot block here
+ * This function ensures that the appropriate dquots are attached to an ianalde.
+ * We cananalt allow the dquot code to allocate an on-disk dquot block here
  * because we're already in transaction context.  The on-disk dquot should
  * already exist anyway.  If the quota code signals corruption or missing quota
  * information, schedule quotacheck, which will repair corruptions in the quota
  * metadata.
  */
 int
-xrep_ino_dqattach(
+xrep_ianal_dqattach(
 	struct xfs_scrub	*sc)
 {
 	int			error;
@@ -731,10 +731,10 @@ xrep_ino_dqattach(
 	switch (error) {
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
-	case -ENOENT:
+	case -EANALENT:
 		xfs_err_ratelimited(sc->mp,
-"inode %llu repair encountered quota error %d, quotacheck forced.",
-				(unsigned long long)sc->ip->i_ino, error);
+"ianalde %llu repair encountered quota error %d, quotacheck forced.",
+				(unsigned long long)sc->ip->i_ianal, error);
 		if (XFS_IS_UQUOTA_ON(sc->mp) && !sc->ip->i_udquot)
 			xrep_force_quotacheck(sc, XFS_DQTYPE_USER);
 		if (XFS_IS_GQUOTA_ON(sc->mp) && !sc->ip->i_gdquot)
@@ -754,24 +754,24 @@ xrep_ino_dqattach(
 #endif /* CONFIG_XFS_QUOTA */
 
 /*
- * Ensure that the inode being repaired is ready to handle a certain number of
- * extents, or return EFSCORRUPTED.  Caller must hold the ILOCK of the inode
+ * Ensure that the ianalde being repaired is ready to handle a certain number of
+ * extents, or return EFSCORRUPTED.  Caller must hold the ILOCK of the ianalde
  * being repaired and have joined it to the scrub transaction.
  */
 int
-xrep_ino_ensure_extent_count(
+xrep_ianal_ensure_extent_count(
 	struct xfs_scrub	*sc,
 	int			whichfork,
 	xfs_extnum_t		nextents)
 {
 	xfs_extnum_t		max_extents;
-	bool			inode_has_nrext64;
+	bool			ianalde_has_nrext64;
 
-	inode_has_nrext64 = xfs_inode_has_large_extent_counts(sc->ip);
-	max_extents = xfs_iext_max_nextents(inode_has_nrext64, whichfork);
+	ianalde_has_nrext64 = xfs_ianalde_has_large_extent_counts(sc->ip);
+	max_extents = xfs_iext_max_nextents(ianalde_has_nrext64, whichfork);
 	if (nextents <= max_extents)
 		return 0;
-	if (inode_has_nrext64)
+	if (ianalde_has_nrext64)
 		return -EFSCORRUPTED;
 	if (!xfs_has_large_extent_counts(sc->mp))
 		return -EFSCORRUPTED;
@@ -781,7 +781,7 @@ xrep_ino_ensure_extent_count(
 		return -EFSCORRUPTED;
 
 	sc->ip->i_diflags2 |= XFS_DIFLAG2_NREXT64;
-	xfs_trans_log_inode(sc->tp, sc->ip, XFS_ILOG_CORE);
+	xfs_trans_log_ianalde(sc->tp, sc->ip, XFS_ILOG_CORE);
 	return 0;
 }
 
@@ -796,23 +796,23 @@ xrep_ag_btcur_init(
 {
 	struct xfs_mount	*mp = sc->mp;
 
-	/* Set up a bnobt cursor for cross-referencing. */
-	if (sc->sm->sm_type != XFS_SCRUB_TYPE_BNOBT &&
+	/* Set up a banalbt cursor for cross-referencing. */
+	if (sc->sm->sm_type != XFS_SCRUB_TYPE_BANALBT &&
 	    sc->sm->sm_type != XFS_SCRUB_TYPE_CNTBT) {
-		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sc->sa.pag, XFS_BTNUM_BNO);
+		sa->banal_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sc->sa.pag, XFS_BTNUM_BANAL);
 		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
 				sc->sa.pag, XFS_BTNUM_CNT);
 	}
 
-	/* Set up a inobt cursor for cross-referencing. */
-	if (sc->sm->sm_type != XFS_SCRUB_TYPE_INOBT &&
-	    sc->sm->sm_type != XFS_SCRUB_TYPE_FINOBT) {
-		sa->ino_cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
-				sa->agi_bp, XFS_BTNUM_INO);
-		if (xfs_has_finobt(mp))
-			sa->fino_cur = xfs_inobt_init_cursor(sc->sa.pag,
-					sc->tp, sa->agi_bp, XFS_BTNUM_FINO);
+	/* Set up a ianalbt cursor for cross-referencing. */
+	if (sc->sm->sm_type != XFS_SCRUB_TYPE_IANALBT &&
+	    sc->sm->sm_type != XFS_SCRUB_TYPE_FIANALBT) {
+		sa->ianal_cur = xfs_ianalbt_init_cursor(sc->sa.pag, sc->tp,
+				sa->agi_bp, XFS_BTNUM_IANAL);
+		if (xfs_has_fianalbt(mp))
+			sa->fianal_cur = xfs_ianalbt_init_cursor(sc->sa.pag,
+					sc->tp, sa->agi_bp, XFS_BTNUM_FIANAL);
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */
@@ -933,10 +933,10 @@ xrep_reset_perag_resv(
 	if (error)
 		goto out;
 	error = xfs_ag_resv_init(sc->sa.pag, sc->tp);
-	if (error == -ENOSPC) {
+	if (error == -EANALSPC) {
 		xfs_err(sc->mp,
 "Insufficient free space to reset per-AG reservation for AG %u after repair.",
-				sc->sa.pag->pag_agno);
+				sc->sa.pag->pag_aganal);
 		error = 0;
 	}
 
@@ -964,9 +964,9 @@ xrep_will_attempt(
 	return false;
 }
 
-/* Try to fix some part of a metadata inode by calling another scrubber. */
+/* Try to fix some part of a metadata ianalde by calling aanalther scrubber. */
 STATIC int
-xrep_metadata_inode_subtype(
+xrep_metadata_ianalde_subtype(
 	struct xfs_scrub	*sc,
 	unsigned int		scrub_type)
 {
@@ -976,7 +976,7 @@ xrep_metadata_inode_subtype(
 	int			error;
 
 	/*
-	 * Let's see if the inode needs repair.  We're going to open-code calls
+	 * Let's see if the ianalde needs repair.  We're going to open-code calls
 	 * to the scrub and repair functions so that we can hang on to the
 	 * resources that we already acquired instead of using the standard
 	 * setup/teardown routines.
@@ -985,8 +985,8 @@ xrep_metadata_inode_subtype(
 	sc->sm->sm_type = scrub_type;
 
 	switch (scrub_type) {
-	case XFS_SCRUB_TYPE_INODE:
-		error = xchk_inode(sc);
+	case XFS_SCRUB_TYPE_IANALDE:
+		error = xchk_ianalde(sc);
 		break;
 	case XFS_SCRUB_TYPE_BMBTD:
 		error = xchk_bmap_data(sc);
@@ -1005,12 +1005,12 @@ xrep_metadata_inode_subtype(
 		goto out;
 
 	/*
-	 * Repair some part of the inode.  This will potentially join the inode
+	 * Repair some part of the ianalde.  This will potentially join the ianalde
 	 * to the transaction.
 	 */
 	switch (scrub_type) {
-	case XFS_SCRUB_TYPE_INODE:
-		error = xrep_inode(sc);
+	case XFS_SCRUB_TYPE_IANALDE:
+		error = xrep_ianalde(sc);
 		break;
 	case XFS_SCRUB_TYPE_BMBTD:
 		error = xrep_bmap(sc, XFS_DATA_FORK, false);
@@ -1024,7 +1024,7 @@ xrep_metadata_inode_subtype(
 
 	/*
 	 * Finish all deferred intent items and then roll the transaction so
-	 * that the inode will not be joined to the transaction when we exit
+	 * that the ianalde will analt be joined to the transaction when we exit
 	 * the function.
 	 */
 	error = xfs_defer_finish(&sc->tp);
@@ -1041,8 +1041,8 @@ xrep_metadata_inode_subtype(
 	sc->sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
 
 	switch (scrub_type) {
-	case XFS_SCRUB_TYPE_INODE:
-		error = xchk_inode(sc);
+	case XFS_SCRUB_TYPE_IANALDE:
+		error = xchk_ianalde(sc);
 		break;
 	case XFS_SCRUB_TYPE_BMBTD:
 		error = xchk_bmap_data(sc);
@@ -1067,44 +1067,44 @@ out:
 }
 
 /*
- * Repair the ondisk forks of a metadata inode.  The caller must ensure that
- * sc->ip points to the metadata inode and the ILOCK is held on that inode.
- * The inode must not be joined to the transaction before the call, and will
- * not be afterwards.
+ * Repair the ondisk forks of a metadata ianalde.  The caller must ensure that
+ * sc->ip points to the metadata ianalde and the ILOCK is held on that ianalde.
+ * The ianalde must analt be joined to the transaction before the call, and will
+ * analt be afterwards.
  */
 int
-xrep_metadata_inode_forks(
+xrep_metadata_ianalde_forks(
 	struct xfs_scrub	*sc)
 {
 	bool			dirty = false;
 	int			error;
 
-	/* Repair the inode record and the data fork. */
-	error = xrep_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_INODE);
+	/* Repair the ianalde record and the data fork. */
+	error = xrep_metadata_ianalde_subtype(sc, XFS_SCRUB_TYPE_IANALDE);
 	if (error)
 		return error;
 
-	error = xrep_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_BMBTD);
+	error = xrep_metadata_ianalde_subtype(sc, XFS_SCRUB_TYPE_BMBTD);
 	if (error)
 		return error;
 
 	/* Make sure the attr fork looks ok before we delete it. */
-	error = xrep_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_BMBTA);
+	error = xrep_metadata_ianalde_subtype(sc, XFS_SCRUB_TYPE_BMBTA);
 	if (error)
 		return error;
 
 	/* Clear the reflink flag since metadata never shares. */
-	if (xfs_is_reflink_inode(sc->ip)) {
+	if (xfs_is_reflink_ianalde(sc->ip)) {
 		dirty = true;
 		xfs_trans_ijoin(sc->tp, sc->ip, 0);
-		error = xfs_reflink_clear_inode_flag(sc->ip, &sc->tp);
+		error = xfs_reflink_clear_ianalde_flag(sc->ip, &sc->tp);
 		if (error)
 			return error;
 	}
 
 	/*
-	 * If we modified the inode, roll the transaction but don't rejoin the
-	 * inode to the new transaction because xrep_bmap_data can do that.
+	 * If we modified the ianalde, roll the transaction but don't rejoin the
+	 * ianalde to the new transaction because xrep_bmap_data can do that.
 	 */
 	if (dirty) {
 		error = xfs_trans_roll(&sc->tp);

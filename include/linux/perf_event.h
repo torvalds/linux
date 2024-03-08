@@ -105,17 +105,17 @@ static __always_inline bool perf_raw_frag_last(const struct perf_raw_frag *frag)
  *  nr: number of taken branches stored in entries[]
  *  hw_idx: The low level index of raw branch records
  *          for the most recent branch.
- *          -1ULL means invalid/unknown.
+ *          -1ULL means invalid/unkanalwn.
  *
- * Note that nr can vary from sample to sample
+ * Analte that nr can vary from sample to sample
  * branches (to, from) are stored from most recent
  * to least recent, i.e., entries[0] contains the most
  * recent branch.
  * The entries[] is an abstraction of raw branch records,
- * which may not be stored in age order in HW, e.g. Intel LBR.
+ * which may analt be stored in age order in HW, e.g. Intel LBR.
  * The hw_idx is to expose the low level index of raw
  * branch record for the most recent branch aka entries[0].
- * The hw_idx index is between -1 (unknown) and max depth,
+ * The hw_idx index is between -1 (unkanalwn) and max depth,
  * which can be retrieved in /sys/devices/cpu/caps/branches.
  * For the architectures whose raw branch records are
  * already stored in age order, the hw_idx should be 0.
@@ -242,7 +242,7 @@ struct hw_perf_event {
 
 			/*
 			 * However much is left of the current period;
-			 * note that this is a full 64bit value and
+			 * analte that this is a full 64bit value and
 			 * allows for generation of periods longer
 			 * than hardware might allow.
 			 */
@@ -282,13 +282,13 @@ struct perf_event_pmu_context;
 /**
  * pmu::capabilities flags
  */
-#define PERF_PMU_CAP_NO_INTERRUPT		0x0001
-#define PERF_PMU_CAP_NO_NMI			0x0002
-#define PERF_PMU_CAP_AUX_NO_SG			0x0004
+#define PERF_PMU_CAP_ANAL_INTERRUPT		0x0001
+#define PERF_PMU_CAP_ANAL_NMI			0x0002
+#define PERF_PMU_CAP_AUX_ANAL_SG			0x0004
 #define PERF_PMU_CAP_EXTENDED_REGS		0x0008
 #define PERF_PMU_CAP_EXCLUSIVE			0x0010
 #define PERF_PMU_CAP_ITRACE			0x0020
-#define PERF_PMU_CAP_NO_EXCLUDE			0x0040
+#define PERF_PMU_CAP_ANAL_EXCLUDE			0x0040
 #define PERF_PMU_CAP_AUX_OUTPUT			0x0080
 #define PERF_PMU_CAP_EXTENDED_HW_TYPE		0x0100
 
@@ -335,13 +335,13 @@ struct pmu {
 	 * Try and initialize the event for this PMU.
 	 *
 	 * Returns:
-	 *  -ENOENT	-- @event is not for this PMU
+	 *  -EANALENT	-- @event is analt for this PMU
 	 *
-	 *  -ENODEV	-- @event is for this PMU but PMU not present
+	 *  -EANALDEV	-- @event is for this PMU but PMU analt present
 	 *  -EBUSY	-- @event is for this PMU but PMU temporarily unavailable
-	 *  -EINVAL	-- @event is for this PMU but @event is not valid
-	 *  -EOPNOTSUPP -- @event is for this PMU, @event is valid, but not supported
-	 *  -EACCES	-- @event is for this PMU, @event is valid, but no privileges
+	 *  -EINVAL	-- @event is for this PMU but @event is analt valid
+	 *  -EOPANALTSUPP -- @event is for this PMU, @event is valid, but analt supported
+	 *  -EACCES	-- @event is for this PMU, @event is valid, but anal privileges
 	 *
 	 *  0		-- @event is for this PMU and valid
 	 *
@@ -350,7 +350,7 @@ struct pmu {
 	int (*event_init)		(struct perf_event *event);
 
 	/*
-	 * Notification that the event was mapped or unmapped.  Called
+	 * Analtification that the event was mapped or unmapped.  Called
 	 * in the context of the mapping task.
 	 */
 	void (*event_mapped)		(struct perf_event *event, struct mm_struct *mm); /* optional */
@@ -444,7 +444,7 @@ struct pmu {
 
 	/*
 	 * Will return the value for perf_event_mmap_page::index for this event,
-	 * if no implementation is provided it will default to 0 (see
+	 * if anal implementation is provided it will default to 0 (see
 	 * perf_event_idx_default).
 	 */
 	int (*event_idx)		(struct perf_event *event); /*optional */
@@ -485,7 +485,7 @@ struct pmu {
 	/*
 	 * Take a snapshot of the AUX buffer without touching the event
 	 * state, so that preempting ->start()/->stop() callbacks does
-	 * not interfere with their logic. Called in PMI context.
+	 * analt interfere with their logic. Called in PMI context.
 	 *
 	 * Returns the size of AUX data copied to the output handle.
 	 *
@@ -498,9 +498,9 @@ struct pmu {
 	/*
 	 * Validate address range filters: make sure the HW supports the
 	 * requested configuration and number of filters; return 0 if the
-	 * supplied filters are valid, -errno otherwise.
+	 * supplied filters are valid, -erranal otherwise.
 	 *
-	 * Runs in the context of the ioctl()ing process and is not serialized
+	 * Runs in the context of the ioctl()ing process and is analt serialized
 	 * with the rest of the PMU callbacks.
 	 */
 	int (*addr_filters_validate)	(struct list_head *filters);
@@ -508,7 +508,7 @@ struct pmu {
 
 	/*
 	 * Synchronize address range filter configuration:
-	 * translate hw-agnostic filters into hardware configuration in
+	 * translate hw-aganalstic filters into hardware configuration in
 	 * event::hw::addr_filters.
 	 *
 	 * Runs as a part of filter sync sequence that is done in ->start()
@@ -524,8 +524,8 @@ struct pmu {
 	 * Check if event can be used for aux_output purposes for
 	 * events of this PMU.
 	 *
-	 * Runs from perf_event_open(). Should return 0 for "no match"
-	 * or non-zero for "match".
+	 * Runs from perf_event_open(). Should return 0 for "anal match"
+	 * or analn-zero for "match".
 	 */
 	int (*aux_output_match)		(struct perf_event *event);
 					/* optional */
@@ -556,7 +556,7 @@ enum perf_addr_filter_action_t {
  * @size:	filter range size (size==0 means single address trigger)
  * @action:	filter/start/stop
  *
- * This is a hardware-agnostic filter configuration as specified by the user.
+ * This is a hardware-aganalstic filter configuration as specified by the user.
  */
 struct perf_addr_filter {
 	struct list_head	entry;
@@ -613,7 +613,7 @@ typedef void (*perf_overflow_handler_t)(struct perf_event *,
  * PERF_EV_CAP_READ_ACTIVE_PKG: A CPU event (or cgroup event) that can be read
  * from any CPU in the package where it is active.
  * PERF_EV_CAP_SIBLING: An event with this flag must be a group sibling and
- * cannot be a group leader. If an event with this flag is detached from the
+ * cananalt be a group leader. If an event with this flag is detached from the
  * group it is scheduled out and moved into an unrecoverable ERROR state.
  */
 #define PERF_EV_CAP_SOFTWARE		BIT(0)
@@ -684,22 +684,22 @@ struct perf_event {
 	struct list_head		sibling_list;
 	struct list_head		active_list;
 	/*
-	 * Node on the pinned or flexible tree located at the event context;
+	 * Analde on the pinned or flexible tree located at the event context;
 	 */
-	struct rb_node			group_node;
+	struct rb_analde			group_analde;
 	u64				group_index;
 	/*
 	 * We need storage to track the entries in perf_pmu_migrate_context; we
-	 * cannot use the event_entry because of RCU and we want to keep the
+	 * cananalt use the event_entry because of RCU and we want to keep the
 	 * group in tact which avoids us using the other two entries.
 	 */
 	struct list_head		migrate_entry;
 
-	struct hlist_node		hlist_entry;
+	struct hlist_analde		hlist_entry;
 	struct list_head		active_entry;
 	int				nr_siblings;
 
-	/* Not serialized. Only written during event initialization. */
+	/* Analt serialized. Only written during event initialization. */
 	int				event_caps;
 	/* The cumulative AND of all event_caps for events in this group. */
 	int				group_caps;
@@ -720,7 +720,7 @@ struct perf_event {
 	atomic64_t			child_count;
 
 	/*
-	 * These are the total time in nanoseconds that the event
+	 * These are the total time in naanalseconds that the event
 	 * has been enabled (i.e. eligible to run, and the task has
 	 * been scheduled in, if this is a per-task event)
 	 * and running (scheduled onto the CPU), respectively.
@@ -739,13 +739,13 @@ struct perf_event {
 	/*
 	 * event->pmu_ctx points to perf_event_pmu_context in which the event
 	 * is added. This pmu_ctx can be of other pmu for sw event when that
-	 * sw event is part of a group which also contains non-sw events.
+	 * sw event is part of a group which also contains analn-sw events.
 	 */
 	struct perf_event_pmu_context	*pmu_ctx;
 	atomic_long_t			refcount;
 
 	/*
-	 * These accumulate total time (in nanoseconds) that children
+	 * These accumulate total time (in naanalseconds) that children
 	 * events have been enabled and running, respectively.
 	 */
 	atomic64_t			child_total_time_enabled;
@@ -833,7 +833,7 @@ struct perf_event {
 	struct list_head		sb_list;
 
 	/*
-	 * Certain events gets forwarded to another pmu internally by over-
+	 * Certain events gets forwarded to aanalther pmu internally by over-
 	 * writing kernel copy of event->attr.type without user being aware
 	 * of it. event->orig_type contains original 'type' requested by
 	 * user.
@@ -864,7 +864,7 @@ struct perf_event {
  * Specificially, sys_perf_event_open()'s group_leader case depends on
  * ctx->mutex pinning the configuration. Since we hold a reference on
  * group_leader (through the filedesc) it can't go away, therefore it's
- * associated pmu_ctx must exist and cannot change due to ctx->mutex.
+ * associated pmu_ctx must exist and cananalt change due to ctx->mutex.
  *
  * perf_event holds a refcount on perf_event_context
  * perf_event holds a refcount on perf_event_pmu_context
@@ -891,7 +891,7 @@ struct perf_event_pmu_context {
 	/*
 	 * Set when one or more (plausibly active) event can't be scheduled
 	 * due to pmu overcommit or pmu constraints, except tolerant to
-	 * events not necessary to be active due to scheduling constraints,
+	 * events analt necessary to be active due to scheduling constraints,
 	 * such as cgroups.
 	 */
 	int				rotate_necessary;
@@ -1049,8 +1049,8 @@ struct perf_cgroup {
 
 /*
  * Must ensure cgroup is pinned (css_get) before calling
- * this function. In other words, we cannot call this function
- * if there is no cgroup event for the current CPU context.
+ * this function. In other words, we cananalt call this function
+ * if there is anal cgroup event for the current CPU context.
  */
 static inline struct perf_cgroup *
 perf_cgroup_from_task(struct task_struct *task, struct perf_event_context *ctx)
@@ -1118,14 +1118,14 @@ extern u64 perf_event_read_value(struct perf_event *event,
 
 extern struct perf_callchain_entry *perf_callchain(struct perf_event *event, struct pt_regs *regs);
 
-static inline bool branch_sample_no_flags(const struct perf_event *event)
+static inline bool branch_sample_anal_flags(const struct perf_event *event)
 {
-	return event->attr.branch_sample_type & PERF_SAMPLE_BRANCH_NO_FLAGS;
+	return event->attr.branch_sample_type & PERF_SAMPLE_BRANCH_ANAL_FLAGS;
 }
 
-static inline bool branch_sample_no_cycles(const struct perf_event *event)
+static inline bool branch_sample_anal_cycles(const struct perf_event *event)
 {
-	return event->attr.branch_sample_type & PERF_SAMPLE_BRANCH_NO_CYCLES;
+	return event->attr.branch_sample_type & PERF_SAMPLE_BRANCH_ANAL_CYCLES;
 }
 
 static inline bool branch_sample_type(const struct perf_event *event)
@@ -1207,7 +1207,7 @@ struct perf_sample_data {
 /* default value for data source */
 #define PERF_MEM_NA (PERF_MEM_S(OP, NA)   |\
 		    PERF_MEM_S(LVL, NA)   |\
-		    PERF_MEM_S(SNOOP, NA) |\
+		    PERF_MEM_S(SANALOP, NA) |\
 		    PERF_MEM_S(LOCK, NA)  |\
 		    PERF_MEM_S(TLB, NA)   |\
 		    PERF_MEM_S(LVLNUM, NA))
@@ -1300,7 +1300,7 @@ static inline u32 perf_sample_data_size(struct perf_sample_data *data,
 
 /*
  * Clear all bitfields in the perf_branch_entry.
- * The to and from fields are not cleared because they are
+ * The to and from fields are analt cleared because they are
  * systematically modified by caller.
  */
 static inline void perf_clear_branch_entry_bitfields(struct perf_branch_entry *br)
@@ -1434,7 +1434,7 @@ static inline void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned lo
  * - sp for PERF_SAMPLE_CALLCHAIN
  * - eflags for MISC bits and CALLCHAIN (see: perf_hw_regs())
  *
- * NOTE: assumes @regs is otherwise already 0 filled; this is important for
+ * ANALTE: assumes @regs is otherwise already 0 filled; this is important for
  * things like PERF_SAMPLE_REGS_INTR.
  */
 static inline void perf_fetch_caller_regs(struct pt_regs *regs)
@@ -1452,8 +1452,8 @@ perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)
 DECLARE_PER_CPU(struct pt_regs, __perf_regs[4]);
 
 /*
- * 'Special' version for the scheduler, it hard assumes no recursion,
- * which is guaranteed by us not actually scheduling inside other swevents
+ * 'Special' version for the scheduler, it hard assumes anal recursion,
+ * which is guaranteed by us analt actually scheduling inside other swevents
  * because those disable preemption.
  */
 static __always_inline void __perf_sw_event_sched(u32 event_id, u64 nr, u64 addr)
@@ -1575,7 +1575,7 @@ static inline int perf_callchain_store_context(struct perf_callchain_entry_ctx *
 		return 0;
 	} else {
 		ctx->contexts_maxed = true;
-		return -1; /* no more room, stop walking the stack */
+		return -1; /* anal more room, stop walking the stack */
 	}
 }
 
@@ -1587,11 +1587,11 @@ static inline int perf_callchain_store(struct perf_callchain_entry_ctx *ctx, u64
 		++ctx->nr;
 		return 0;
 	} else {
-		return -1; /* no more room, stop walking the stack */
+		return -1; /* anal more room, stop walking the stack */
 	}
 }
 
-extern int sysctl_perf_event_paranoid;
+extern int sysctl_perf_event_paraanalid;
 extern int sysctl_perf_event_mlock;
 extern int sysctl_perf_event_sample_rate;
 extern int sysctl_perf_cpu_time_max_percent;
@@ -1613,14 +1613,14 @@ int perf_event_max_stack_handler(struct ctl_table *table, int write,
 #define PERF_SECURITY_KERNEL		2
 #define PERF_SECURITY_TRACEPOINT	3
 
-static inline int perf_is_paranoid(void)
+static inline int perf_is_paraanalid(void)
 {
-	return sysctl_perf_event_paranoid > -1;
+	return sysctl_perf_event_paraanalid > -1;
 }
 
 static inline int perf_allow_kernel(struct perf_event_attr *attr)
 {
-	if (sysctl_perf_event_paranoid > 1 && !perfmon_capable())
+	if (sysctl_perf_event_paraanalid > 1 && !perfmon_capable())
 		return -EACCES;
 
 	return security_perf_event_open(attr, PERF_SECURITY_KERNEL);
@@ -1628,7 +1628,7 @@ static inline int perf_allow_kernel(struct perf_event_attr *attr)
 
 static inline int perf_allow_cpu(struct perf_event_attr *attr)
 {
-	if (sysctl_perf_event_paranoid > 0 && !perfmon_capable())
+	if (sysctl_perf_event_paraanalid > 0 && !perfmon_capable())
 		return -EACCES;
 
 	return security_perf_event_open(attr, PERF_SECURITY_CPU);
@@ -1636,7 +1636,7 @@ static inline int perf_allow_cpu(struct perf_event_attr *attr)
 
 static inline int perf_allow_tracepoint(struct perf_event_attr *attr)
 {
-	if (sysctl_perf_event_paranoid > -1 && !perfmon_capable())
+	if (sysctl_perf_event_paraanalid > -1 && !perfmon_capable())
 		return -EPERM;
 
 	return security_perf_event_open(attr, PERF_SECURITY_TRACEPOINT);
@@ -1837,7 +1837,7 @@ struct perf_pmu_events_ht_attr {
 	struct device_attribute			attr;
 	u64					id;
 	const char				*event_str_ht;
-	const char				*event_str_noht;
+	const char				*event_str_analht;
 };
 
 struct perf_pmu_events_hybrid_attr {
@@ -1900,14 +1900,14 @@ int perf_event_exit_cpu(unsigned int cpu);
 
 extern void arch_perf_update_userpage(struct perf_event *event,
 				      struct perf_event_mmap_page *userpg,
-				      u64 now);
+				      u64 analw);
 
 /*
  * Snapshot branch stack on software events.
  *
  * Branch stack can be very useful in understanding software events. For
  * example, when a long function, e.g. sys_perf_event_open, returns an
- * errno, it is not obvious why the function failed. Branch stack could
+ * erranal, it is analt obvious why the function failed. Branch stack could
  * provide very helpful information in this type of scenarios.
  *
  * On software event, it is necessary to stop the hardware branch recorder

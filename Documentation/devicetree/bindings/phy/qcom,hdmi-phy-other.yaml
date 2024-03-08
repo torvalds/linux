@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/phy/qcom,hdmi-phy-other.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Adreno/Snapdragon HDMI phy
+title: Qualcomm Adreanal/Snapdragon HDMI phy
 
 maintainers:
   - Rob Clark <robdclark@gmail.com>

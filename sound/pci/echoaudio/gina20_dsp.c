@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -38,12 +38,12 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != GINA20))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = init_dsp_comm_page(chip);
 	if (err) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could analt initialize DSP comm page\n");
 		return err;
 	}
 
@@ -53,7 +53,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	chip->dsp_code_to_load = FW_GINA20_DSP;
 	chip->spdif_status = GD_SPDIF_STATUS_UNDEF;
 	chip->clock_state = GD_CLOCK_UNDEF;
-	/* Since this card has no ASIC, mark it as loaded so everything
+	/* Since this card has anal ASIC, mark it as loaded so everything
 	   works OK */
 	chip->asic_loaded = true;
 	chip->input_clock_types = ECHO_CLOCK_BIT_INTERNAL |
@@ -95,7 +95,7 @@ static u32 detect_input_clocks(const struct echoaudio *chip)
 
 
 
-/* The Gina20 has no ASIC. Just do nothing */
+/* The Gina20 has anal ASIC. Just do analthing */
 static int load_asic(struct echoaudio *chip)
 {
 	return 0;
@@ -120,15 +120,15 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 		spdif_status = GD_SPDIF_STATUS_48;
 		break;
 	default:
-		clock_state = GD_CLOCK_NOCHANGE;
-		spdif_status = GD_SPDIF_STATUS_NOCHANGE;
+		clock_state = GD_CLOCK_ANALCHANGE;
+		spdif_status = GD_SPDIF_STATUS_ANALCHANGE;
 		break;
 	}
 
 	if (chip->clock_state == clock_state)
-		clock_state = GD_CLOCK_NOCHANGE;
+		clock_state = GD_CLOCK_ANALCHANGE;
 	if (spdif_status == chip->spdif_status)
-		spdif_status = GD_SPDIF_STATUS_NOCHANGE;
+		spdif_status = GD_SPDIF_STATUS_ANALCHANGE;
 
 	chip->comm_page->sample_rate = cpu_to_le32(rate);
 	chip->comm_page->gd_clock_state = clock_state;
@@ -136,9 +136,9 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	chip->comm_page->gd_resampler_state = 3;	/* magic number - should always be 3 */
 
 	/* Save the new audio state if it changed */
-	if (clock_state != GD_CLOCK_NOCHANGE)
+	if (clock_state != GD_CLOCK_ANALCHANGE)
 		chip->clock_state = clock_state;
-	if (spdif_status != GD_SPDIF_STATUS_NOCHANGE)
+	if (spdif_status != GD_SPDIF_STATUS_ANALCHANGE)
 		chip->spdif_status = spdif_status;
 	chip->sample_rate = rate;
 
@@ -153,7 +153,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 
 	switch (clock) {
 	case ECHO_CLOCK_INTERNAL:
-		/* Reset the audio state to unknown (just in case) */
+		/* Reset the audio state to unkanalwn (just in case) */
 		chip->clock_state = GD_CLOCK_UNDEF;
 		chip->spdif_status = GD_SPDIF_STATUS_UNDEF;
 		set_sample_rate(chip, chip->sample_rate);
@@ -161,7 +161,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		break;
 	case ECHO_CLOCK_SPDIF:
 		chip->comm_page->gd_clock_state = GD_CLOCK_SPDIFIN;
-		chip->comm_page->gd_spdif_status = GD_SPDIF_STATUS_NOCHANGE;
+		chip->comm_page->gd_spdif_status = GD_SPDIF_STATUS_ANALCHANGE;
 		clear_handshake(chip);
 		send_vector(chip, DSP_VC_SET_GD_AUDIO_STATE);
 		chip->clock_state = GD_CLOCK_SPDIFIN;

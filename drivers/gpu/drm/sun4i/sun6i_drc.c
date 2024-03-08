@@ -27,7 +27,7 @@ static int sun6i_drc_bind(struct device *dev, struct device *master,
 
 	drc = devm_kzalloc(dev, sizeof(*drc), GFP_KERNEL);
 	if (!drc)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, drc);
 
 	drc->reset = devm_reset_control_get(dev, NULL);

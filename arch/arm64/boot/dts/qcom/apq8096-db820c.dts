@@ -18,9 +18,9 @@
 
 /*
  * GPIO name legend: proper name = the GPIO line is used as GPIO
- *         NC      = not connected (pin out but not routed from the chip to
+ *         NC      = analt connected (pin out but analt routed from the chip to
  *                   anything the board)
- *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
+ *         "[PER]" = pin is muxed for [peripheral] (analt GPIO)
  *         LSEC    = Low Speed External Connector
  *         P HSEC  = Primary High Speed External Connector
  *         S HSEC  = Secondary High Speed External Connector
@@ -28,7 +28,7 @@
  *         TP      = Test Points
  *
  * Line names are taken from the schematic "DragonBoard 820c",
- * drawing no: LM25-P2751-1
+ * drawing anal: LM25-P2751-1
  *
  * For the lines routed to the external connectors the
  * lines are named after the 96Boards CE Specification 1.0,
@@ -44,7 +44,7 @@
  */
 
 / {
-	model = "Qualcomm Technologies, Inc. DB820c";
+	model = "Qualcomm Techanallogies, Inc. DB820c";
 	compatible = "arrow,apq8096-db820c", "qcom,apq8096-sbc", "qcom,apq8096";
 
 	aliases {
@@ -514,7 +514,7 @@
 	ls_exp_gpio_f: pm8994-gpio5-state {
 		pinconf {
 			pins = "gpio5";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
@@ -523,7 +523,7 @@
 	bt_en_gpios: bt-en-pios-state {
 		pinconf {
 			pins = "gpio19";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -534,7 +534,7 @@
 	wlan_en_gpios: wlan-en-gpios-state {
 		pinconf {
 			pins = "gpio8";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -553,11 +553,11 @@
 	volume_up_gpio: pm8996-gpio2-state {
 		pinconf {
 			pins = "gpio2";
-			function = "normal";
+			function = "analrmal";
 			input-enable;
 			drive-push-pull;
 			bias-pull-up;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
@@ -575,10 +575,10 @@
 	usb3_vbus_det_gpio: pm8996-gpio22-state {
 		pinconf {
 			pins = "gpio22";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			input-enable;
 			bias-pull-down;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
@@ -631,10 +631,10 @@
 	usb2_vbus_det_gpio: pmi8996-gpio6-state {
 		pinconf {
 			pins = "gpio6";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			input-enable;
 			bias-pull-down;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};

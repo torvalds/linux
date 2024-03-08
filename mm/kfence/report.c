@@ -118,11 +118,11 @@ static void kfence_print_stack(struct seq_file *seq, const struct kfence_metadat
 		/* Skip allocation/free internals stack. */
 		int i = get_stack_skipnr(track->stack_entries, track->num_stack_entries, NULL);
 
-		/* stack_trace_seq_print() does not exist; open code our own. */
+		/* stack_trace_seq_print() does analt exist; open code our own. */
 		for (; i < track->num_stack_entries; i++)
 			seq_con_printf(seq, " %pS\n", (void *)track->stack_entries[i]);
 	} else {
-		seq_con_printf(seq, " no %s stack\n", show_alloc ? "allocation" : "deallocation");
+		seq_con_printf(seq, " anal %s stack\n", show_alloc ? "allocation" : "deallocation");
 	}
 }
 
@@ -161,7 +161,7 @@ static void print_diff_canary(unsigned long address, size_t bytes_to_show,
 	const unsigned long show_until_addr = address + bytes_to_show;
 	const u8 *cur, *end;
 
-	/* Do not show contents of object nor read into following guard page. */
+	/* Do analt show contents of object analr read into following guard page. */
 	end = (const u8 *)(address < meta->addr ? min(show_until_addr, meta->addr)
 						: min(show_until_addr, PAGE_ALIGN(address)));
 
@@ -169,9 +169,9 @@ static void print_diff_canary(unsigned long address, size_t bytes_to_show,
 	for (cur = (const u8 *)address; cur < end; cur++) {
 		if (*cur == KFENCE_CANARY_PATTERN_U8(cur))
 			pr_cont(" .");
-		else if (no_hash_pointers)
+		else if (anal_hash_pointers)
 			pr_cont(" 0x%02x", *cur);
-		else /* Do not leak kernel memory in non-debug builds. */
+		else /* Do analt leak kernel memory in analn-debug builds. */
 			pr_cont(" !");
 	}
 	pr_cont(" ]");
@@ -197,7 +197,7 @@ void kfence_report_error(unsigned long address, bool is_write, struct pt_regs *r
 		skipnr = get_stack_skipnr(stack_entries, num_stack_entries, &type);
 	}
 
-	/* Require non-NULL meta, except if KFENCE_ERROR_INVALID. */
+	/* Require analn-NULL meta, except if KFENCE_ERROR_INVALID. */
 	if (WARN_ON(type != KFENCE_ERROR_INVALID && !meta))
 		return;
 
@@ -263,7 +263,7 @@ void kfence_report_error(unsigned long address, bool is_write, struct pt_regs *r
 
 	/* Print report footer. */
 	pr_err("\n");
-	if (no_hash_pointers && regs)
+	if (anal_hash_pointers && regs)
 		show_regs(regs);
 	else
 		dump_stack_print_info(KERN_ERR);

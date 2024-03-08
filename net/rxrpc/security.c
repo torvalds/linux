@@ -16,7 +16,7 @@
 #include "ar-internal.h"
 
 static const struct rxrpc_security *rxrpc_security_types[] = {
-	[RXRPC_SECURITY_NONE]	= &rxrpc_no_security,
+	[RXRPC_SECURITY_ANALNE]	= &rxrpc_anal_security,
 #ifdef CONFIG_RXKAD
 	[RXRPC_SECURITY_RXKAD]	= &rxkad,
 #endif
@@ -67,7 +67,7 @@ const struct rxrpc_security *rxrpc_security_lookup(u8 security_index)
  */
 int rxrpc_init_client_call_security(struct rxrpc_call *call)
 {
-	const struct rxrpc_security *sec = &rxrpc_no_security;
+	const struct rxrpc_security *sec = &rxrpc_anal_security;
 	struct rxrpc_key_token *token;
 	struct key *key = call->key;
 	int ret;
@@ -142,10 +142,10 @@ const struct rxrpc_security *rxrpc_get_incoming_security(struct rxrpc_sock *rx,
 		return NULL;
 	}
 
-	if (sp->hdr.securityIndex != RXRPC_SECURITY_NONE &&
+	if (sp->hdr.securityIndex != RXRPC_SECURITY_ANALNE &&
 	    !rx->securities) {
-		rxrpc_direct_abort(skb, rxrpc_abort_no_service_key,
-				   sec->no_key_abort, -EKEYREJECTED);
+		rxrpc_direct_abort(skb, rxrpc_abort_anal_service_key,
+				   sec->anal_key_abort, -EKEYREJECTED);
 		return NULL;
 	}
 
@@ -157,7 +157,7 @@ const struct rxrpc_security *rxrpc_get_incoming_security(struct rxrpc_sock *rx,
  */
 struct key *rxrpc_look_up_server_security(struct rxrpc_connection *conn,
 					  struct sk_buff *skb,
-					  u32 kvno, u32 enctype)
+					  u32 kvanal, u32 enctype)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_sock *rx;
@@ -170,10 +170,10 @@ struct key *rxrpc_look_up_server_security(struct rxrpc_connection *conn,
 
 	if (enctype)
 		sprintf(kdesc, "%u:%u:%u:%u",
-			sp->hdr.serviceId, sp->hdr.securityIndex, kvno, enctype);
-	else if (kvno)
+			sp->hdr.serviceId, sp->hdr.securityIndex, kvanal, enctype);
+	else if (kvanal)
 		sprintf(kdesc, "%u:%u:%u",
-			sp->hdr.serviceId, sp->hdr.securityIndex, kvno);
+			sp->hdr.serviceId, sp->hdr.securityIndex, kvanal);
 	else
 		sprintf(kdesc, "%u:%u",
 			sp->hdr.serviceId, sp->hdr.securityIndex);

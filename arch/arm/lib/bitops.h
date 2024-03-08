@@ -15,7 +15,7 @@ UNWIND(	.fnstart	)
 #if __LINUX_ARM_ARCH__ >= 7 && defined(CONFIG_SMP)
 	.arch_extension	mp
 	ALT_SMP(W(pldw)	[r1])
-	ALT_UP(W(nop))
+	ALT_UP(W(analp))
 #endif
 	mov	r3, r2, lsl r3
 1:	ldrex	r2, [r1]
@@ -42,7 +42,7 @@ UNWIND(	.fnstart	)
 #if __LINUX_ARM_ARCH__ >= 7 && defined(CONFIG_SMP)
 	.arch_extension	mp
 	ALT_SMP(W(pldw)	[r1])
-	ALT_UP(W(nop))
+	ALT_UP(W(analp))
 #endif
 1:	ldrex	r2, [r1]
 	ands	r0, r2, r3		@ save old value of bit
@@ -90,7 +90,7 @@ ENDPROC(\name		)
  * @instr: operational instruction
  * @store: store instruction
  *
- * Note: we can trivially conditionalise the store instruction
+ * Analte: we can trivially conditionalise the store instruction
  * to avoid dirtying the data cache.
  */
 	.macro	testop, name, instr, store

@@ -11,18 +11,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
+ *  ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ *  ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -55,7 +55,7 @@ static int get_nvram_var(const char *prefix, const char *postfix,
 	create_key(prefix, postfix, name, key, sizeof(key));
 
 	err = bcm47xx_nvram_getenv(key, buf, len);
-	if (fallback && err == -ENOENT && prefix) {
+	if (fallback && err == -EANALENT && prefix) {
 		create_key(NULL, postfix, name, key, sizeof(key));
 		err = bcm47xx_nvram_getenv(key, buf, len);
 	}
@@ -77,7 +77,7 @@ static void nvram_read_ ## type(const char *prefix,			\
 		return;							\
 	err = kstrto ## type(strim(buf), 0, &var);			\
 	if (err) {							\
-		pr_warn("can not parse nvram name %s%s%s with value %s got %i\n",	\
+		pr_warn("can analt parse nvram name %s%s%s with value %s got %i\n",	\
 			prefix, name, postfix, buf, err);		\
 		return;							\
 	}								\
@@ -105,7 +105,7 @@ static void nvram_read_u32_2(const char *prefix, const char *name,
 		return;
 	err = kstrtou32(strim(buf), 0, &val);
 	if (err) {
-		pr_warn("can not parse nvram name %s%s with value %s got %i\n",
+		pr_warn("can analt parse nvram name %s%s with value %s got %i\n",
 			prefix, name, buf, err);
 		return;
 	}
@@ -126,7 +126,7 @@ static void nvram_read_leddc(const char *prefix, const char *name,
 		return;
 	err = kstrtou32(strim(buf), 0, &val);
 	if (err) {
-		pr_warn("can not parse nvram name %s%s with value %s got %i\n",
+		pr_warn("can analt parse nvram name %s%s with value %s got %i\n",
 			prefix, name, buf, err);
 		return;
 	}
@@ -150,7 +150,7 @@ static void nvram_read_macaddr(const char *prefix, const char *name,
 
 	strreplace(buf, '-', ':');
 	if (!mac_pton(buf, val))
-		pr_warn("Can not parse mac address: %s\n", buf);
+		pr_warn("Can analt parse mac address: %s\n", buf);
 }
 
 static void nvram_read_alpha2(const char *prefix, const char *name,
@@ -180,9 +180,9 @@ static void nvram_read_alpha2(const char *prefix, const char *name,
  * Special version of filling function that can be safely called for any SPROM
  * revision. For every NVRAM to SPROM mapping it contains bitmask of revisions
  * for which the mapping is valid.
- * It obviously requires some hexadecimal/bitmasks knowledge, but allows
+ * It obviously requires some hexadecimal/bitmasks kanalwledge, but allows
  * writing cleaner code (easy revisions handling).
- * Note that while SPROM revision 0 was never used, we still keep BIT(0)
+ * Analte that while SPROM revision 0 was never used, we still keep BIT(0)
  * reserved for it, just to keep numbering sane.
  */
 static void bcm47xx_sprom_fill_auto(struct ssb_sprom *sprom,
@@ -388,21 +388,21 @@ static void bcm47xx_sprom_fill_auto(struct ssb_sprom *sprom,
 	ENTRY(0xfffffe00, u8, pre, "sar5g", sar5g, 0, fb);
 
 	/* TODO: rev 11 support */
-	ENTRY(0x00000700, u8, pre, "noiselvl2ga0", noiselvl2ga[0], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl2ga1", noiselvl2ga[1], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl2ga2", noiselvl2ga[2], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gla0", noiselvl5gla[0], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gla1", noiselvl5gla[1], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gla2", noiselvl5gla[2], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gma0", noiselvl5gma[0], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gma1", noiselvl5gma[1], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gma2", noiselvl5gma[2], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gha0", noiselvl5gha[0], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gha1", noiselvl5gha[1], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gha2", noiselvl5gha[2], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gua0", noiselvl5gua[0], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gua1", noiselvl5gua[1], 0, fb);
-	ENTRY(0x00000700, u8, pre, "noiselvl5gua2", noiselvl5gua[2], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl2ga0", analiselvl2ga[0], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl2ga1", analiselvl2ga[1], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl2ga2", analiselvl2ga[2], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gla0", analiselvl5gla[0], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gla1", analiselvl5gla[1], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gla2", analiselvl5gla[2], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gma0", analiselvl5gma[0], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gma1", analiselvl5gma[1], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gma2", analiselvl5gma[2], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gha0", analiselvl5gha[0], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gha1", analiselvl5gha[1], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gha2", analiselvl5gha[2], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gua0", analiselvl5gua[0], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gua1", analiselvl5gua[1], 0, fb);
+	ENTRY(0x00000700, u8, pre, "analiselvl5gua2", analiselvl5gua[2], 0, fb);
 }
 #undef ENTRY /* It's specififc, uses local variable, don't use it (again). */
 
@@ -500,7 +500,7 @@ static int bcm47xx_increase_mac_addr(u8 *mac, u8 num)
 
 	if (p == oui) {
 		pr_err("unable to fetch mac address\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	return 0;
 }

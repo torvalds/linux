@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (c) 2019 Nuvoton Technology corporation.
+// Copyright (c) 2019 Nuvoton Techanallogy corporation.
 
 #ifndef _DT_BINDINGS_NPCM7XX_RESET_H
 #define _DT_BINDINGS_NPCM7XX_RESET_H

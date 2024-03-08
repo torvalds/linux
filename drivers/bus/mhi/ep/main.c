@@ -56,15 +56,15 @@ static int mhi_ep_send_event(struct mhi_ep_cntrl *mhi_cntrl, u32 ring_idx,
 	/*
 	 * As per the MHI specification, section 4.3, Interrupt moderation:
 	 *
-	 * 1. If BEI flag is not set, cancel any pending intmodt work if started
+	 * 1. If BEI flag is analt set, cancel any pending intmodt work if started
 	 * for the event ring and raise IRQ immediately.
 	 *
-	 * 2. If both BEI and intmodt are set, and if no IRQ is pending for the
+	 * 2. If both BEI and intmodt are set, and if anal IRQ is pending for the
 	 * same event ring, start the IRQ delayed work as per the value of
-	 * intmodt. If previous IRQ is pending, then do nothing as the pending
-	 * IRQ is enough for the host to process the current event ring element.
+	 * intmodt. If previous IRQ is pending, then do analthing as the pending
+	 * IRQ is eanalugh for the host to process the current event ring element.
 	 *
-	 * 3. If BEI is set and intmodt is not set, no need to raise IRQ.
+	 * 3. If BEI is set and intmodt is analt set, anal need to raise IRQ.
 	 */
 	if (!bei) {
 		if (READ_ONCE(ring->irq_pending))
@@ -92,7 +92,7 @@ static int mhi_ep_send_completion_event(struct mhi_ep_cntrl *mhi_cntrl, struct m
 
 	event = kmem_cache_zalloc(mhi_cntrl->ev_ring_el_cache, GFP_KERNEL | GFP_DMA);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->ptr = cpu_to_le64(ring->rbase + ring->rd_offset * sizeof(*tre));
 	event->dword[0] = MHI_TRE_EV_DWORD0(code, len);
@@ -111,7 +111,7 @@ int mhi_ep_send_state_change_event(struct mhi_ep_cntrl *mhi_cntrl, enum mhi_stat
 
 	event = kmem_cache_zalloc(mhi_cntrl->ev_ring_el_cache, GFP_KERNEL | GFP_DMA);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->dword[0] = MHI_SC_EV_DWORD0(state);
 	event->dword[1] = MHI_SC_EV_DWORD1(MHI_PKT_TYPE_STATE_CHANGE_EVENT);
@@ -129,7 +129,7 @@ int mhi_ep_send_ee_event(struct mhi_ep_cntrl *mhi_cntrl, enum mhi_ee_type exec_e
 
 	event = kmem_cache_zalloc(mhi_cntrl->ev_ring_el_cache, GFP_KERNEL | GFP_DMA);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->dword[0] = MHI_EE_EV_DWORD0(exec_env);
 	event->dword[1] = MHI_SC_EV_DWORD1(MHI_PKT_TYPE_EE_EVENT);
@@ -148,7 +148,7 @@ static int mhi_ep_send_cmd_comp_event(struct mhi_ep_cntrl *mhi_cntrl, enum mhi_e
 
 	event = kmem_cache_zalloc(mhi_cntrl->ev_ring_el_cache, GFP_KERNEL | GFP_DMA);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->ptr = cpu_to_le64(ring->rbase + ring->rd_offset * sizeof(struct mhi_ring_element));
 	event->dword[0] = MHI_CC_EV_DWORD0(code);
@@ -174,8 +174,8 @@ static int mhi_ep_process_cmd_ring(struct mhi_ep_ring *ring, struct mhi_ring_ele
 
 	/* Check if the channel is supported by the controller */
 	if ((ch_id >= mhi_cntrl->max_chan) || !mhi_cntrl->mhi_chan[ch_id].name) {
-		dev_dbg(dev, "Channel (%u) not supported!\n", ch_id);
-		return -ENODEV;
+		dev_dbg(dev, "Channel (%u) analt supported!\n", ch_id);
+		return -EANALDEV;
 	}
 
 	mhi_chan = &mhi_cntrl->mhi_chan[ch_id];
@@ -244,8 +244,8 @@ static int mhi_ep_process_cmd_ring(struct mhi_ep_ring *ring, struct mhi_ring_ele
 	case MHI_PKT_TYPE_STOP_CHAN_CMD:
 		dev_dbg(dev, "Received STOP command for channel (%u)\n", ch_id);
 		if (!ch_ring->started) {
-			dev_err(dev, "Channel (%u) not opened\n", ch_id);
-			return -ENODEV;
+			dev_err(dev, "Channel (%u) analt opened\n", ch_id);
+			return -EANALDEV;
 		}
 
 		mutex_lock(&mhi_chan->lock);
@@ -254,7 +254,7 @@ static int mhi_ep_process_cmd_ring(struct mhi_ep_ring *ring, struct mhi_ring_ele
 
 		/* Send channel disconnect status to client drivers */
 		if (mhi_chan->xfer_cb) {
-			result.transaction_status = -ENOTCONN;
+			result.transaction_status = -EANALTCONN;
 			result.bytes_xferd = 0;
 			mhi_chan->xfer_cb(mhi_chan->mhi_dev, &result);
 		}
@@ -278,8 +278,8 @@ static int mhi_ep_process_cmd_ring(struct mhi_ep_ring *ring, struct mhi_ring_ele
 	case MHI_PKT_TYPE_RESET_CHAN_CMD:
 		dev_dbg(dev, "Received RESET command for channel (%u)\n", ch_id);
 		if (!ch_ring->started) {
-			dev_err(dev, "Channel (%u) not opened\n", ch_id);
-			return -ENODEV;
+			dev_err(dev, "Channel (%u) analt opened\n", ch_id);
+			return -EANALDEV;
 		}
 
 		mutex_lock(&mhi_chan->lock);
@@ -288,7 +288,7 @@ static int mhi_ep_process_cmd_ring(struct mhi_ep_ring *ring, struct mhi_ring_ele
 
 		/* Send channel disconnect status to client driver */
 		if (mhi_chan->xfer_cb) {
-			result.transaction_status = -ENOTCONN;
+			result.transaction_status = -EANALTCONN;
 			result.bytes_xferd = 0;
 			mhi_chan->xfer_cb(mhi_chan->mhi_dev, &result);
 		}
@@ -415,10 +415,10 @@ static int mhi_ep_read_channel(struct mhi_ep_cntrl *mhi_cntrl,
 	buf_left = len;
 
 	do {
-		/* Don't process the transfer ring if the channel is not in RUNNING state */
+		/* Don't process the transfer ring if the channel is analt in RUNNING state */
 		if (mhi_chan->state != MHI_CH_STATE_RUNNING) {
-			dev_err(dev, "Channel not available\n");
-			return -ENODEV;
+			dev_err(dev, "Channel analt available\n");
+			return -EANALDEV;
 		}
 
 		el = &ring->ring_cache[mhi_chan->rd_offset];
@@ -440,7 +440,7 @@ static int mhi_ep_read_channel(struct mhi_ep_cntrl *mhi_cntrl,
 
 		buf_addr = kmem_cache_zalloc(mhi_cntrl->tre_buf_cache, GFP_KERNEL | GFP_DMA);
 		if (!buf_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		buf_info.host_addr = mhi_chan->tre_loc + read_offset;
 		buf_info.dev_addr = buf_addr + write_offset;
@@ -488,12 +488,12 @@ static int mhi_ep_process_ch_ring(struct mhi_ep_ring *ring)
 	mhi_chan = &mhi_cntrl->mhi_chan[ring->ch_id];
 
 	/*
-	 * Bail out if transfer callback is not registered for the channel.
-	 * This is most likely due to the client driver not loaded at this point.
+	 * Bail out if transfer callback is analt registered for the channel.
+	 * This is most likely due to the client driver analt loaded at this point.
 	 */
 	if (!mhi_chan->xfer_cb) {
-		dev_err(&mhi_chan->mhi_dev->dev, "Client driver not available\n");
-		return -ENODEV;
+		dev_err(&mhi_chan->mhi_dev->dev, "Client driver analt available\n");
+		return -EANALDEV;
 	}
 
 	if (ring->ch_id % 2) {
@@ -565,16 +565,16 @@ int mhi_ep_queue_skb(struct mhi_ep_device *mhi_dev, struct sk_buff *skb)
 	mutex_lock(&mhi_chan->lock);
 
 	do {
-		/* Don't process the transfer ring if the channel is not in RUNNING state */
+		/* Don't process the transfer ring if the channel is analt in RUNNING state */
 		if (mhi_chan->state != MHI_CH_STATE_RUNNING) {
-			dev_err(dev, "Channel not available\n");
-			ret = -ENODEV;
+			dev_err(dev, "Channel analt available\n");
+			ret = -EANALDEV;
 			goto err_exit;
 		}
 
 		if (mhi_ep_queue_is_empty(mhi_dev, DMA_FROM_DEVICE)) {
-			dev_err(dev, "TRE not available!\n");
-			ret = -ENOSPC;
+			dev_err(dev, "TRE analt available!\n");
+			ret = -EANALSPC;
 			goto err_exit;
 		}
 
@@ -771,7 +771,7 @@ static int mhi_ep_enable(struct mhi_ep_cntrl *mhi_cntrl)
 
 	mhi_ep_mmio_set_env(mhi_cntrl, MHI_EE_AMSS);
 
-	/* Enable all interrupts now */
+	/* Enable all interrupts analw */
 	mhi_ep_enable_int(mhi_cntrl);
 
 	return 0;
@@ -804,7 +804,7 @@ static void mhi_ep_cmd_ring_worker(struct work_struct *work)
 		el = &ring->ring_cache[ring->rd_offset];
 
 		ret = mhi_ep_process_cmd_ring(ring, el);
-		if (ret && ret != -ENODEV)
+		if (ret && ret != -EANALDEV)
 			dev_err(dev, "Error processing cmd ring element: %zu\n", ring->rd_offset);
 
 		mhi_ep_ring_inc_index(ring);
@@ -827,8 +827,8 @@ static void mhi_ep_ch_ring_worker(struct work_struct *work)
 	spin_unlock_irqrestore(&mhi_cntrl->list_lock, flags);
 
 	/* Process each queued channel ring. In case of an error, just process next element. */
-	list_for_each_entry_safe(itr, tmp, &head, node) {
-		list_del(&itr->node);
+	list_for_each_entry_safe(itr, tmp, &head, analde) {
+		list_del(&itr->analde);
 		ring = itr->ring;
 
 		chan = &mhi_cntrl->mhi_chan[ring->ch_id];
@@ -888,8 +888,8 @@ static void mhi_ep_state_worker(struct work_struct *work)
 	list_splice_tail_init(&mhi_cntrl->st_transition_list, &head);
 	spin_unlock_irqrestore(&mhi_cntrl->list_lock, flags);
 
-	list_for_each_entry_safe(itr, tmp, &head, node) {
-		list_del(&itr->node);
+	list_for_each_entry_safe(itr, tmp, &head, analde) {
+		list_del(&itr->analde);
 		dev_dbg(dev, "Handling MHI state transition to %s\n",
 			 mhi_state_str(itr->state));
 
@@ -932,10 +932,10 @@ static void mhi_ep_queue_channel_db(struct mhi_ep_cntrl *mhi_cntrl, unsigned lon
 			return;
 
 		item->ring = ring;
-		list_add_tail(&item->node, &head);
+		list_add_tail(&item->analde, &head);
 	}
 
-	/* Now, splice the local list into ch_db_list and queue the work item */
+	/* Analw, splice the local list into ch_db_list and queue the work item */
 	if (work) {
 		spin_lock(&mhi_cntrl->list_lock);
 		list_splice_tail_init(&head, &mhi_cntrl->ch_db_list);
@@ -954,7 +954,7 @@ static void mhi_ep_check_channel_interrupt(struct mhi_ep_cntrl *mhi_cntrl)
 {
 	u32 ch_int, ch_idx, i;
 
-	/* Bail out if there is no channel doorbell interrupt */
+	/* Bail out if there is anal channel doorbell interrupt */
 	if (!mhi_ep_mmio_read_chdb_status_interrupts(mhi_cntrl))
 		return;
 
@@ -982,7 +982,7 @@ static void mhi_ep_process_ctrl_interrupt(struct mhi_ep_cntrl *mhi_cntrl,
 
 	item->state = state;
 	spin_lock(&mhi_cntrl->list_lock);
-	list_add_tail(&item->node, &mhi_cntrl->st_transition_list);
+	list_add_tail(&item->analde, &mhi_cntrl->st_transition_list);
 	spin_unlock(&mhi_cntrl->list_lock);
 
 	queue_work(mhi_cntrl->wq, &mhi_cntrl->state_work);
@@ -1001,7 +1001,7 @@ static irqreturn_t mhi_ep_irq(int irq, void *data)
 	u32 int_value;
 	bool mhi_reset;
 
-	/* Acknowledge the ctrl interrupt */
+	/* Ackanalwledge the ctrl interrupt */
 	int_value = mhi_ep_mmio_read(mhi_cntrl, MHI_CTRL_INT_STATUS);
 	mhi_ep_mmio_write(mhi_cntrl, MHI_CTRL_INT_CLEAR, int_value);
 
@@ -1011,7 +1011,7 @@ static irqreturn_t mhi_ep_irq(int irq, void *data)
 		mhi_ep_mmio_get_mhi_state(mhi_cntrl, &state, &mhi_reset);
 		if (mhi_reset) {
 			dev_info(dev, "Host triggered MHI reset!\n");
-			disable_irq_nosync(mhi_cntrl->irq);
+			disable_irq_analsync(mhi_cntrl->irq);
 			schedule_work(&mhi_cntrl->reset_work);
 			return IRQ_HANDLED;
 		}
@@ -1047,7 +1047,7 @@ static void mhi_ep_abort_transfer(struct mhi_ep_cntrl *mhi_cntrl)
 		mutex_lock(&mhi_chan->lock);
 		/* Send channel disconnect status to client drivers */
 		if (mhi_chan->xfer_cb) {
-			result.transaction_status = -ENOTCONN;
+			result.transaction_status = -EANALTCONN;
 			result.bytes_xferd = 0;
 			mhi_chan->xfer_cb(mhi_chan->mhi_dev, &result);
 		}
@@ -1152,7 +1152,7 @@ int mhi_ep_power_up(struct mhi_ep_cntrl *mhi_cntrl)
 	mhi_cntrl->mhi_event = kzalloc(mhi_cntrl->event_rings * (sizeof(*mhi_cntrl->mhi_event)),
 					GFP_KERNEL);
 	if (!mhi_cntrl->mhi_event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize command, channel and event rings */
 	mhi_ep_ring_init(&mhi_cntrl->mhi_cmd->ring, RING_TYPE_CMD, 0);
@@ -1166,12 +1166,12 @@ int mhi_ep_power_up(struct mhi_ep_cntrl *mhi_cntrl)
 	/* Set AMSS EE before signaling ready state */
 	mhi_ep_mmio_set_env(mhi_cntrl, MHI_EE_AMSS);
 
-	/* All set, notify the host that we are ready */
+	/* All set, analtify the host that we are ready */
 	ret = mhi_ep_set_ready_state(mhi_cntrl);
 	if (ret)
 		goto err_free_event;
 
-	dev_dbg(dev, "READY state notification sent to the host\n");
+	dev_dbg(dev, "READY state analtification sent to the host\n");
 
 	ret = mhi_ep_enable(mhi_cntrl);
 	if (ret) {
@@ -1214,7 +1214,7 @@ void mhi_ep_suspend_channels(struct mhi_ep_cntrl *mhi_cntrl)
 			continue;
 
 		mutex_lock(&mhi_chan->lock);
-		/* Skip if the channel is not currently running */
+		/* Skip if the channel is analt currently running */
 		tmp = le32_to_cpu(mhi_cntrl->ch_ctx_cache[i].chcfg);
 		if (FIELD_GET(CHAN_CTX_CHSTATE_MASK, tmp) != MHI_CH_STATE_RUNNING) {
 			mutex_unlock(&mhi_chan->lock);
@@ -1244,7 +1244,7 @@ void mhi_ep_resume_channels(struct mhi_ep_cntrl *mhi_cntrl)
 			continue;
 
 		mutex_lock(&mhi_chan->lock);
-		/* Skip if the channel is not currently suspended */
+		/* Skip if the channel is analt currently suspended */
 		tmp = le32_to_cpu(mhi_cntrl->ch_ctx_cache[i].chcfg);
 		if (FIELD_GET(CHAN_CTX_CHSTATE_MASK, tmp) != MHI_CH_STATE_SUSPENDED) {
 			mutex_unlock(&mhi_chan->lock);
@@ -1290,7 +1290,7 @@ static struct mhi_ep_device *mhi_ep_alloc_device(struct mhi_ep_cntrl *mhi_cntrl,
 
 	mhi_dev = kzalloc(sizeof(*mhi_dev), GFP_KERNEL);
 	if (!mhi_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev = &mhi_dev->dev;
 	device_initialize(dev);
@@ -1326,7 +1326,7 @@ static int mhi_ep_create_device(struct mhi_ep_cntrl *mhi_cntrl, u32 ch_id)
 
 	/* Check if the channel name is same for both UL and DL */
 	if (strcmp(mhi_chan->name, mhi_chan[1].name)) {
-		dev_err(dev, "UL and DL channel names are not same: (%s) != (%s)\n",
+		dev_err(dev, "UL and DL channel names are analt same: (%s) != (%s)\n",
 			mhi_chan->name, mhi_chan[1].name);
 		return -EINVAL;
 	}
@@ -1391,7 +1391,7 @@ static int mhi_ep_destroy_device(struct device *dev, void *data)
 	dev_dbg(&mhi_cntrl->mhi_dev->dev, "Destroying device for chan:%s\n",
 		 mhi_dev->name);
 
-	/* Notify the client and remove the device from MHI bus */
+	/* Analtify the client and remove the device from MHI bus */
 	device_del(dev);
 	put_device(dev);
 
@@ -1415,7 +1415,7 @@ static int mhi_ep_chan_init(struct mhi_ep_cntrl *mhi_cntrl,
 	mhi_cntrl->mhi_chan = kcalloc(mhi_cntrl->max_chan, sizeof(*mhi_cntrl->mhi_chan),
 				      GFP_KERNEL);
 	if (!mhi_cntrl->mhi_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < config->num_channels; i++) {
 		struct mhi_ep_chan *mhi_chan;
@@ -1429,8 +1429,8 @@ static int mhi_ep_chan_init(struct mhi_ep_cntrl *mhi_cntrl,
 			goto error_chan_cfg;
 		}
 
-		/* Bi-directional and direction less channels are not supported */
-		if (ch_cfg->dir == DMA_BIDIRECTIONAL || ch_cfg->dir == DMA_NONE) {
+		/* Bi-directional and direction less channels are analt supported */
+		if (ch_cfg->dir == DMA_BIDIRECTIONAL || ch_cfg->dir == DMA_ANALNE) {
 			dev_err(dev, "Invalid direction (%u) for channel (%u)\n",
 				ch_cfg->dir, chan);
 			goto error_chan_cfg;
@@ -1474,7 +1474,7 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 
 	mhi_cntrl->mhi_cmd = kcalloc(NR_OF_CMD_RINGS, sizeof(*mhi_cntrl->mhi_cmd), GFP_KERNEL);
 	if (!mhi_cntrl->mhi_cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ch;
 	}
 
@@ -1482,14 +1482,14 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 							sizeof(struct mhi_ring_element), 0,
 							SLAB_CACHE_DMA, NULL);
 	if (!mhi_cntrl->ev_ring_el_cache) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_cmd;
 	}
 
 	mhi_cntrl->tre_buf_cache = kmem_cache_create("mhi_ep_tre_buf", MHI_EP_DEFAULT_MTU, 0,
 						      SLAB_CACHE_DMA, NULL);
 	if (!mhi_cntrl->tre_buf_cache) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_ev_ring_el_cache;
 	}
 
@@ -1497,7 +1497,7 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 							sizeof(struct mhi_ep_ring_item), 0,
 							0, NULL);
 	if (!mhi_cntrl->ev_ring_el_cache) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_tre_buf_cache;
 	}
 
@@ -1508,7 +1508,7 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 
 	mhi_cntrl->wq = alloc_workqueue("mhi_ep_wq", 0, 0);
 	if (!mhi_cntrl->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_ring_item_cache;
 	}
 
@@ -1529,7 +1529,7 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 
 	mhi_cntrl->index = ret;
 
-	irq_set_status_flags(mhi_cntrl->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(mhi_cntrl->irq, IRQ_ANALAUTOEN);
 	ret = request_irq(mhi_cntrl->irq, mhi_ep_irq, IRQF_TRIGGER_HIGH,
 			  "doorbell_irq", mhi_cntrl);
 	if (ret) {
@@ -1643,7 +1643,7 @@ static int mhi_ep_driver_remove(struct device *dev)
 		mutex_lock(&mhi_chan->lock);
 		/* Send channel disconnect status to the client driver */
 		if (mhi_chan->xfer_cb) {
-			result.transaction_status = -ENOTCONN;
+			result.transaction_status = -EANALTCONN;
 			result.bytes_xferd = 0;
 			mhi_chan->xfer_cb(mhi_chan->mhi_dev, &result);
 		}
@@ -1653,7 +1653,7 @@ static int mhi_ep_driver_remove(struct device *dev)
 		mutex_unlock(&mhi_chan->lock);
 	}
 
-	/* Remove the client driver now */
+	/* Remove the client driver analw */
 	mhi_drv->remove(mhi_dev);
 
 	return 0;
@@ -1700,7 +1700,7 @@ static int mhi_ep_match(struct device *dev, struct device_driver *drv)
 	const struct mhi_device_id *id;
 
 	/*
-	 * If the device is a controller type then there is no client driver
+	 * If the device is a controller type then there is anal client driver
 	 * associated with it
 	 */
 	if (mhi_dev->dev_type == MHI_DEVICE_CONTROLLER)

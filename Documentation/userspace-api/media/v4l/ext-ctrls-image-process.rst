@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _image-process-controls:
 
@@ -8,7 +8,7 @@ Image Process Control Reference
 
 The Image Process control class is intended for low-level control of
 image processing functions. Unlike ``V4L2_CID_IMAGE_SOURCE_CLASS``, the
-controls in this class affect processing the image, and do not control
+controls in this class affect processing the image, and do analt control
 capturing of it.
 
 
@@ -52,6 +52,6 @@ Image Process Control IDs
 ``V4L2_CID_DIGITAL_GAIN (integer)``
     Digital gain is the value by which all colour components
     are multiplied by. Typically the digital gain applied is the
-    control value divided by e.g. 0x100, meaning that to get no
-    digital gain the control value needs to be 0x100. The no-gain
+    control value divided by e.g. 0x100, meaning that to get anal
+    digital gain the control value needs to be 0x100. The anal-gain
     configuration is also typically the default.

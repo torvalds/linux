@@ -47,7 +47,7 @@ static u8 zr36050_read(struct zr36050 *ptr, u16 reg)
 	if (ptr->codec->master_data->readreg)
 		value = (ptr->codec->master_data->readreg(ptr->codec, reg)) & 0xFF;
 	else
-		zrdev_err(zr, "%s: invalid I/O setup, nothing read!\n", ptr->name);
+		zrdev_err(zr, "%s: invalid I/O setup, analthing read!\n", ptr->name);
 
 	zrdev_dbg(zr, "%s: reading from 0x%04x: %02x\n", ptr->name, reg, value);
 
@@ -64,7 +64,7 @@ static void zr36050_write(struct zr36050 *ptr, u16 reg, u8 value)
 	if (ptr->codec->master_data->writereg)
 		ptr->codec->master_data->writereg(ptr->codec, reg, value);
 	else
-		zrdev_err(zr, "%s: invalid I/O setup, nothing written!\n",
+		zrdev_err(zr, "%s: invalid I/O setup, analthing written!\n",
 			  ptr->name);
 }
 
@@ -170,7 +170,7 @@ static int zr36050_pushit(struct zr36050 *ptr, u16 startreg, u16 len, const char
  * jpeg baseline setup data (you find it on lots places in internet, or just
  * extract it from any regular .jpg image...)
  *
- * Could be variable, but until it's not needed it they are just fixed to save
+ * Could be variable, but until it's analt needed it they are just fixed to save
  * memory. Otherwise expand zr36050 structure with arrays, push the values to
  * it and initialize from there, as e.g. the linux zr36057/60 driver does it.
  */
@@ -256,7 +256,7 @@ static const char zr36050_dht[0x1a4] = {
 };
 
 /* jpeg baseline setup, this is just fixed in this driver (YUV pictures) */
-#define NO_OF_COMPONENTS          0x3	//Y,U,V
+#define ANAL_OF_COMPONENTS          0x3	//Y,U,V
 #define BASELINE_PRECISION        0x8	//MCU size (?)
 static const char zr36050_tq[8] = { 0, 1, 1, 0, 0, 0, 0, 0 };	//table idx's QT
 static const char zr36050_td[8] = { 0, 1, 1, 0, 0, 0, 0, 0 };	//table idx's DC
@@ -286,25 +286,25 @@ static int zr36050_set_sof(struct zr36050 *ptr)
 	int i;
 
 	zrdev_dbg(zr, "%s: write SOF (%dx%d, %d components)\n", ptr->name,
-		  ptr->width, ptr->height, NO_OF_COMPONENTS);
+		  ptr->width, ptr->height, ANAL_OF_COMPONENTS);
 	sof_data[0] = 0xff;
 	sof_data[1] = 0xc0;
 	sof_data[2] = 0x00;
-	sof_data[3] = (3 * NO_OF_COMPONENTS) + 8;
+	sof_data[3] = (3 * ANAL_OF_COMPONENTS) + 8;
 	sof_data[4] = BASELINE_PRECISION;	// only '8' possible with zr36050
 	sof_data[5] = (ptr->height) >> 8;
 	sof_data[6] = (ptr->height) & 0xff;
 	sof_data[7] = (ptr->width) >> 8;
 	sof_data[8] = (ptr->width) & 0xff;
-	sof_data[9] = NO_OF_COMPONENTS;
-	for (i = 0; i < NO_OF_COMPONENTS; i++) {
+	sof_data[9] = ANAL_OF_COMPONENTS;
+	for (i = 0; i < ANAL_OF_COMPONENTS; i++) {
 		sof_data[10 + (i * 3)] = i;	// index identifier
 		sof_data[11 + (i * 3)] = (ptr->h_samp_ratio[i] << 4) |
 					 (ptr->v_samp_ratio[i]);	// sampling ratios
 		sof_data[12 + (i * 3)] = zr36050_tq[i];	// Q table selection
 	}
 	return zr36050_pushit(ptr, ZR050_SOF_IDX,
-			      (3 * NO_OF_COMPONENTS) + 10, sof_data);
+			      (3 * ANAL_OF_COMPONENTS) + 10, sof_data);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -324,17 +324,17 @@ static int zr36050_set_sos(struct zr36050 *ptr)
 	sos_data[0] = 0xff;
 	sos_data[1] = 0xda;
 	sos_data[2] = 0x00;
-	sos_data[3] = 2 + 1 + (2 * NO_OF_COMPONENTS) + 3;
-	sos_data[4] = NO_OF_COMPONENTS;
-	for (i = 0; i < NO_OF_COMPONENTS; i++) {
+	sos_data[3] = 2 + 1 + (2 * ANAL_OF_COMPONENTS) + 3;
+	sos_data[4] = ANAL_OF_COMPONENTS;
+	for (i = 0; i < ANAL_OF_COMPONENTS; i++) {
 		sos_data[5 + (i * 2)] = i;	// index
 		sos_data[6 + (i * 2)] = (zr36050_td[i] << 4) | zr36050_ta[i];	// AC/DC tbl.sel.
 	}
-	sos_data[2 + 1 + (2 * NO_OF_COMPONENTS) + 2] = 00;	// scan start
-	sos_data[2 + 1 + (2 * NO_OF_COMPONENTS) + 3] = 0x3F;
-	sos_data[2 + 1 + (2 * NO_OF_COMPONENTS) + 4] = 00;
+	sos_data[2 + 1 + (2 * ANAL_OF_COMPONENTS) + 2] = 00;	// scan start
+	sos_data[2 + 1 + (2 * ANAL_OF_COMPONENTS) + 3] = 0x3F;
+	sos_data[2 + 1 + (2 * ANAL_OF_COMPONENTS) + 4] = 00;
 	return zr36050_pushit(ptr, ZR050_SOS1_IDX,
-			      4 + 1 + (2 * NO_OF_COMPONENTS) + 3,
+			      4 + 1 + (2 * ANAL_OF_COMPONENTS) + 3,
 			      sos_data);
 }
 
@@ -539,8 +539,8 @@ static int zr36050_set_mode(struct videocodec *codec, int mode)
 	return 0;
 }
 
-/* set picture size (norm is ignored as the codec doesn't know about it) */
-static int zr36050_set_video(struct videocodec *codec, const struct tvnorm *norm,
+/* set picture size (analrm is iganalred as the codec doesn't kanalw about it) */
+static int zr36050_set_video(struct videocodec *codec, const struct tvanalrm *analrm,
 			     struct vfe_settings *cap, struct vfe_polarity *pol)
 {
 	struct zr36050 *ptr = (struct zr36050 *)codec->data;
@@ -548,12 +548,12 @@ static int zr36050_set_video(struct videocodec *codec, const struct tvnorm *norm
 	int size;
 
 	zrdev_dbg(zr, "%s: set_video %d.%d, %d/%d-%dx%d (0x%x) q%d call\n",
-		  ptr->name, norm->h_start, norm->v_start,
+		  ptr->name, analrm->h_start, analrm->v_start,
 		  cap->x, cap->y, cap->width, cap->height,
 		  cap->decimation, cap->quality);
 	/*
-	 * trust the master driver that it knows what it does - so
-	 * we allow invalid startx/y and norm for now ...
+	 * trust the master driver that it kanalws what it does - so
+	 * we allow invalid startx/y and analrm for analw ...
 	 */
 	ptr->width = cap->width / (cap->decimation & 0xff);
 	ptr->height = cap->height / ((cap->decimation >> 8) & 0xff);
@@ -611,16 +611,16 @@ static int zr36050_control(struct videocodec *codec, int type, int size, void *d
 			return -EFAULT;
 		if (*ival != CODEC_MODE_BJPG)
 			return -EINVAL;
-		/* not needed, do nothing */
+		/* analt needed, do analthing */
 		return 0;
 
 	case CODEC_G_VFE:
 	case CODEC_S_VFE:
-		/* not needed, do nothing */
+		/* analt needed, do analthing */
 		return 0;
 
 	case CODEC_S_MMAP:
-		/* not available, give an error */
+		/* analt available, give an error */
 		return -ENXIO;
 
 	case CODEC_G_JPEG_TDS_BYTE:	/* get target volume in byte */
@@ -738,13 +738,13 @@ static int zr36050_setup(struct videocodec *codec)
 	if (zr36050_codecs == MAX_CODECS) {
 		zrdev_err(zr,
 			  "zr36050: Can't attach more codecs!\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	//mem structure init
 	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
 	codec->data = ptr;
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(ptr->name, sizeof(ptr->name), "zr36050[%d]",
 		 zr36050_codecs);
@@ -771,7 +771,7 @@ static int zr36050_setup(struct videocodec *codec)
 	ptr->scalefact = 0x100;
 	ptr->dri = 1;
 
-	/* no app/com marker by default */
+	/* anal app/com marker by default */
 	ptr->app.appn = 0;
 	ptr->app.len = 0;
 	ptr->com.len = 0;
@@ -786,7 +786,7 @@ static int zr36050_setup(struct videocodec *codec)
 
 static const struct videocodec zr36050_codec = {
 	.name = "zr36050",
-	.magic = 0L,		// magic not used
+	.magic = 0L,		// magic analt used
 	.flags =
 	    CODEC_FLAG_JPEG | CODEC_FLAG_HARDWARE | CODEC_FLAG_ENCODER |
 	    CODEC_FLAG_DECODER,
@@ -796,7 +796,7 @@ static const struct videocodec zr36050_codec = {
 	.set_mode = zr36050_set_mode,
 	.set_video = zr36050_set_video,
 	.control = zr36050_control,
-	// others are not used
+	// others are analt used
 };
 
 /* HOOK IN DRIVER AS KERNEL MODULE */

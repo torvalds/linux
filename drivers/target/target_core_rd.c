@@ -36,7 +36,7 @@ static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 
 	rd_host = kzalloc(sizeof(*rd_host), GFP_KERNEL);
 	if (!rd_host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_host->rd_host_id = host_id;
 
@@ -134,7 +134,7 @@ static int rd_allocate_sgl_table(struct rd_dev *rd_dev, struct rd_dev_sg_table *
 		sg = kmalloc_array(sg_per_table + chain_entry, sizeof(*sg),
 				GFP_KERNEL);
 		if (!sg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sg_init_table(sg, sg_per_table + chain_entry);
 
@@ -154,7 +154,7 @@ static int rd_allocate_sgl_table(struct rd_dev *rd_dev, struct rd_dev_sg_table *
 			if (!pg) {
 				pr_err("Unable to allocate scatterlist"
 					" pages for struct rd_dev_sg_table\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			sg_assign_page(&sg[j], pg);
 			sg[j].length = PAGE_SIZE;
@@ -194,7 +194,7 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
 	sg_table = kcalloc(sg_tables, sizeof(*sg_table), GFP_KERNEL);
 	if (!sg_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_dev->sg_table_array = sg_table;
 	rd_dev->sg_table_count = sg_tables;
@@ -251,7 +251,7 @@ static int rd_build_prot_space(struct rd_dev *rd_dev, int prot_length, int block
 	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
 	sg_table = kcalloc(sg_tables, sizeof(*sg_table), GFP_KERNEL);
 	if (!sg_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_dev->sg_prot_array = sg_table;
 	rd_dev->sg_prot_count = sg_tables;
@@ -299,7 +299,7 @@ static int rd_configure_device(struct se_device *dev)
 	dev->dev_attrib.hw_block_size = RD_BLOCKSIZE;
 	dev->dev_attrib.hw_max_sectors = UINT_MAX;
 	dev->dev_attrib.hw_queue_depth = RD_MAX_DEVICE_QUEUE_DEPTH;
-	dev->dev_attrib.is_nonrot = 1;
+	dev->dev_attrib.is_analnrot = 1;
 
 	rd_dev->rd_dev_id = rd_host->rd_host_dev_id_count++;
 
@@ -550,7 +550,7 @@ static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	orig = opts;
 
@@ -610,7 +610,7 @@ static ssize_t rd_show_configfs_dev_params(struct se_device *dev, char *b)
 static u32 rd_get_device_type(struct se_device *dev)
 {
 	if (RD_DEV(dev)->rd_flags & RDF_DUMMY)
-		return 0x3f; /* Unknown device type, not connected */
+		return 0x3f; /* Unkanalwn device type, analt connected */
 	else
 		return sbc_get_device_type(dev);
 }

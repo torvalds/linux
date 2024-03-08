@@ -4,7 +4,7 @@
  *
  * Xen transport layer.
  *
- * Copyright (C) 2017 by Stefano Stabellini <stefano@aporeto.com>
+ * Copyright (C) 2017 by Stefaanal Stabellini <stefaanal@aporeto.com>
  */
 
 #include <xen/events.h>
@@ -161,7 +161,7 @@ again:
 	prod += size;
 	ring->intf->out_prod = prod;
 	spin_unlock_irqrestore(&ring->lock, flags);
-	notify_remote_via_irq(ring->irq);
+	analtify_remote_via_irq(ring->irq);
 	p9_req_put(client, p9_req);
 
 	return 0;
@@ -186,7 +186,7 @@ static void p9_xen_response(struct work_struct *work)
 
 		if (xen_9pfs_queued(prod, cons, XEN_9PFS_RING_SIZE(ring)) <
 		    sizeof(h)) {
-			notify_remote_via_irq(ring->irq);
+			analtify_remote_via_irq(ring->irq);
 			return;
 		}
 
@@ -243,7 +243,7 @@ static irqreturn_t xen_9pfs_front_event_handler(int irq, void *r)
 	struct xen_9pfs_dataring *ring = r;
 
 	if (!ring || !ring->priv->client) {
-		/* ignore spurious interrupt */
+		/* iganalre spurious interrupt */
 		return IRQ_HANDLED;
 	}
 
@@ -321,7 +321,7 @@ static int xen_9pfs_front_alloc_dataring(struct xenbus_device *dev,
 					 unsigned int order)
 {
 	int i = 0;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	void *bytes = NULL;
 
 	init_waitqueue_head(&ring->wq);
@@ -339,7 +339,7 @@ static int xen_9pfs_front_alloc_dataring(struct xenbus_device *dev,
 	bytes = alloc_pages_exact(1UL << (order + XEN_PAGE_SHIFT),
 				  GFP_KERNEL | __GFP_ZERO);
 	if (!bytes) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	for (; i < (1 << order); i++) {
@@ -411,7 +411,7 @@ static int xen_9pfs_front_init(struct xenbus_device *dev)
 			      GFP_KERNEL);
 	if (!priv->rings) {
 		kfree(priv);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < XEN_9PFS_NUM_RINGS; i++) {
@@ -428,10 +428,10 @@ static int xen_9pfs_front_init(struct xenbus_device *dev)
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		goto error;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, "version", "%u", 1);
+	ret = xenbus_printf(xbt, dev->analdename, "version", "%u", 1);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "num-rings", "%u",
+	ret = xenbus_printf(xbt, dev->analdename, "num-rings", "%u",
 			    XEN_9PFS_NUM_RINGS);
 	if (ret)
 		goto error_xenbus;
@@ -441,18 +441,18 @@ static int xen_9pfs_front_init(struct xenbus_device *dev)
 
 		BUILD_BUG_ON(XEN_9PFS_NUM_RINGS > 9);
 		sprintf(str, "ring-ref%d", i);
-		ret = xenbus_printf(xbt, dev->nodename, str, "%d",
+		ret = xenbus_printf(xbt, dev->analdename, str, "%d",
 				    priv->rings[i].ref);
 		if (ret)
 			goto error_xenbus;
 
 		sprintf(str, "event-channel-%d", i);
-		ret = xenbus_printf(xbt, dev->nodename, str, "%u",
+		ret = xenbus_printf(xbt, dev->analdename, str, "%u",
 				    priv->rings[i].evtchn);
 		if (ret)
 			goto error_xenbus;
 	}
-	priv->tag = xenbus_read(xbt, dev->nodename, "tag", NULL);
+	priv->tag = xenbus_read(xbt, dev->analdename, "tag", NULL);
 	if (IS_ERR(priv->tag)) {
 		ret = PTR_ERR(priv->tag);
 		goto error_xenbus;
@@ -482,7 +482,7 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	dev_set_drvdata(&dev->dev, priv);
@@ -508,7 +508,7 @@ static void xen_9pfs_front_changed(struct xenbus_device *dev,
 	case XenbusStateReconfigured:
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateUnknown:
+	case XenbusStateUnkanalwn:
 		break;
 
 	case XenbusStateInitWait:
@@ -543,7 +543,7 @@ static int __init p9_trans_xen_init(void)
 	int rc;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Initialising Xen transport for 9pfs\n");
 
@@ -565,6 +565,6 @@ static void __exit p9_trans_xen_exit(void)
 module_exit(p9_trans_xen_exit);
 
 MODULE_ALIAS("xen:9pfs");
-MODULE_AUTHOR("Stefano Stabellini <stefano@aporeto.com>");
+MODULE_AUTHOR("Stefaanal Stabellini <stefaanal@aporeto.com>");
 MODULE_DESCRIPTION("Xen Transport for 9P");
 MODULE_LICENSE("GPL");

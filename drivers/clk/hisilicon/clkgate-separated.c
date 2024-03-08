@@ -92,7 +92,7 @@ struct clk *hisi_register_clkgate_sep(struct device *dev, const char *name,
 
 	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
 	if (!sclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clkgate_separated_ops;

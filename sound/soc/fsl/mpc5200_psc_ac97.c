@@ -39,7 +39,7 @@ static unsigned short psc_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	if (status == 0) {
 		pr_err("timeout on ac97 bus (rdy)\n");
 		mutex_unlock(&psc_dma->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Force clear the data valid bit */
@@ -55,14 +55,14 @@ static unsigned short psc_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 		pr_err("timeout on ac97 read (val) %x\n",
 				in_be16(&psc_dma->psc_regs->sr_csr.status));
 		mutex_unlock(&psc_dma->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* Get the data */
 	val = in_be32(&psc_dma->psc_regs->ac97_data);
 	if (((val >> 24) & 0x7f) != reg) {
 		pr_err("reg echo error on ac97 read\n");
 		mutex_unlock(&psc_dma->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	val = (val >> 8) & 0xffff;
 
@@ -114,7 +114,7 @@ static void psc_ac97_cold_reset(struct snd_ac97 *ac97)
 
 	mpc5200_psc_ac97_gpio_reset(psc_dma->id);
 
-	/* Notify the PSC that a reset has occurred */
+	/* Analtify the PSC that a reset has occurred */
 	out_be32(&regs->sicr, psc_dma->sicr | MPC52xx_PSC_SICR_ACRB);
 
 	/* Re-enable RX and TX */
@@ -304,7 +304,7 @@ static int psc_ac97_of_probe(struct platform_device *op)
 	psc_dma->sicr = MPC52xx_PSC_SICR_SIM_AC97 | MPC52xx_PSC_SICR_ENAC97;
 	out_be32(&regs->sicr, psc_dma->sicr);
 
-	/* No slots active */
+	/* Anal slots active */
 	out_be32(&regs->ac97_slots, 0x00000000);
 
 	return 0;

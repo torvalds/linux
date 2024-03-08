@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@ int vega10_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 		struct phm_fan_speed_info *fan_speed_info)
 {
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
 		return 0;
 
 	fan_speed_info->supports_percent_read = true;
@@ -94,7 +94,7 @@ int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 	uint32_t crystal_clock_freq;
 	int result = 0;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
 		return -1;
 
 	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
@@ -213,7 +213,7 @@ static int vega10_disable_fan_control_feature(struct pp_hwmgr *hwmgr)
 
 int vega10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
 		return -1;
 
 	PP_ASSERT_WITH_CODE(!vega10_enable_fan_control_feature(hwmgr),
@@ -228,7 +228,7 @@ int vega10_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
 		return -1;
 
 	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
@@ -252,7 +252,7 @@ int vega10_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 	uint32_t duty;
 	uint64_t tmp64;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
 		return 0;
 
 	speed = min_t(uint32_t, speed, 255);
@@ -284,7 +284,7 @@ int vega10_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
  */
 int vega10_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
 		return 0;
 
 	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
@@ -297,7 +297,7 @@ int vega10_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
  * vega10_fan_ctrl_set_fan_speed_rpm - Set Fan Speed in RPM.
  * @hwmgr:  the address of the powerplay hardware manager.
  * @speed: is the percentage value (min - max) to be set.
- * Exception: Fails is the speed not lie between min and max.
+ * Exception: Fails is the speed analt lie between min and max.
  */
 int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 {
@@ -306,7 +306,7 @@ int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 	uint32_t crystal_clock_freq;
 	int result = 0;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan ||
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan ||
 	    speed == 0 ||
 	    (speed < hwmgr->thermal_controller.fanInfo.ulMinRPM) ||
 	    (speed > hwmgr->thermal_controller.fanInfo.ulMaxRPM))
@@ -354,7 +354,7 @@ int vega10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
  * @hwmgr: The address of the hardware manager.
  * @range: Temperature range to be programmed for
  *           high and low alert signals
- * Exception: PP_Result_BadInput if the input data is not valid.
+ * Exception: PP_Result_BadInput if the input data is analt valid.
  */
 static int vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)
@@ -492,7 +492,7 @@ int vega10_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	int result = vega10_thermal_disable_alert(hwmgr);
 
-	if (!hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (!hwmgr->thermal_controller.fanInfo.bAnalFan)
 		vega10_fan_ctrl_set_default_mode(hwmgr);
 
 	return result;
@@ -649,7 +649,7 @@ int vega10_start_thermal_controller(struct pp_hwmgr *hwmgr,
 
 int vega10_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr)
 {
-	if (!hwmgr->thermal_controller.fanInfo.bNoFan) {
+	if (!hwmgr->thermal_controller.fanInfo.bAnalFan) {
 		vega10_fan_ctrl_set_default_mode(hwmgr);
 		vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 	}

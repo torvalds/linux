@@ -57,8 +57,8 @@ enum packet_state {
 };
 
 struct packet_cb {
-	u64 nonce;
-	struct noise_keypair *keypair;
+	u64 analnce;
+	struct analise_keypair *keypair;
 	atomic_t state;
 	u32 mtu;
 	u8 ds;
@@ -86,7 +86,7 @@ static inline void wg_reset_packet(struct sk_buff *skb, bool encapsulating)
 		skb->hash = hash;
 	}
 	skb->queue_mapping = 0;
-	skb->nohdr = 0;
+	skb->analhdr = 0;
 	skb->peeked = 0;
 	skb->mac_len = 0;
 	skb->dev = NULL;
@@ -165,7 +165,7 @@ static inline int wg_queue_enqueue_per_device_and_peer(
 	 * will wait for the state to change to CRYPTED or DEAD before.
 	 */
 	if (unlikely(!wg_prev_queue_enqueue(peer_queue, skb)))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Then we queue it up in the device queue, which consumes the
 	 * packet as soon as it can.

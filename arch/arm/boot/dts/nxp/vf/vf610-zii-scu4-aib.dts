@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 //
-// Copyright (C) 2016-2018 Zodiac Inflight Innovations
+// Copyright (C) 2016-2018 Zodiac Inflight Inanalvations
 
 /dts-v1/;
 #include "vf610.dtsi"
@@ -440,7 +440,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 
@@ -453,7 +453,7 @@
 	flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <1>;
 		spi-max-frequency = <50000000>;
 
@@ -486,10 +486,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc0>;
 	bus-width = <8>;
-	non-removable;
-	no-1-8-v;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-1-8-v;
+	anal-sd;
+	anal-sdio;
 	keep-power-in-suspend;
 	status = "okay";
 };
@@ -498,7 +498,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
-	no-sdio;
+	anal-sdio;
 	status = "okay";
 };
 

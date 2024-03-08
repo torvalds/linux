@@ -32,8 +32,8 @@
 #define PIN_INPUT_PULLUP	(INPUT_EN | PULL_UP)
 #define PIN_INPUT_PULLDOWN	(INPUT_EN)
 
-/* undef non-existing modes */
-#undef PIN_OFF_NONE
+/* undef analn-existing modes */
+#undef PIN_OFF_ANALNE
 #undef PIN_OFF_OUTPUT_HIGH
 #undef PIN_OFF_OUTPUT_LOW
 #undef PIN_OFF_INPUT_PULLUP

@@ -76,7 +76,7 @@ allOf:
           enum: [ 250, 2000, 4000 ]
 
         trickle-diode-disable:
-          description: Do not use internal trickle charger diode. Should be given if internal
+          description: Do analt use internal trickle charger diode. Should be given if internal
             trickle charger diode should be disabled (superseded by aux-voltage-chargeable)
           deprecated: true
 

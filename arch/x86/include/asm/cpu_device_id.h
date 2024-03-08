@@ -18,7 +18,7 @@
 /* Centaur FAM6 models */
 #define X86_CENTAUR_FAM6_C7_A		0xa
 #define X86_CENTAUR_FAM6_C7_D		0xd
-#define X86_CENTAUR_FAM6_NANO		0xf
+#define X86_CENTAUR_FAM6_NAANAL		0xf
 
 #define X86_STEPPINGS(mins, maxs)    GENMASK(maxs, mins)
 /**
@@ -34,9 +34,9 @@
  *		etc. is casted to unsigned long internally.
  *
  * Use only if you need all selectors. Otherwise use one of the shorter
- * macros of the X86_MATCH_* family. If there is no matching shorthand
+ * macros of the X86_MATCH_* family. If there is anal matching shorthand
  * macro, consider to add one. If you really need to wrap one of the macros
- * into another macro at the usage site for good reasons, then please
+ * into aanalther macro at the usage site for good reasons, then please
  * start this local macro with X86_MATCH to allow easy grepping.
  */
 #define X86_MATCH_VENDOR_FAM_MODEL_STEPPINGS_FEATURE(_vendor, _family, _model, \

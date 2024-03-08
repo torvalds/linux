@@ -41,7 +41,7 @@ properties:
 
   power-supplies:
     minItems: 1
-    maxItems: 8 # Should be enough
+    maxItems: 8 # Should be eanalugh
 
   monitored-battery:
     description:

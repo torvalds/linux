@@ -29,8 +29,8 @@ The binner sub-device represents the binning functionality on the sensor. For
 that purpose, selection target ``V4L2_SEL_TGT_COMPOSE`` is supported on the
 sink pad (0).
 
-Additionally, if a device has no scaler or digital crop functionality, the
-source pad (1) exposes another digital crop selection rectangle that can only
+Additionally, if a device has anal scaler or digital crop functionality, the
+source pad (1) exposes aanalther digital crop selection rectangle that can only
 crop at the end of the lines and frames.
 
 Scaler
@@ -43,7 +43,7 @@ Scaling is configured using selection target ``V4L2_SEL_TGT_COMPOSE`` on the
 sink pad (0) as well.
 
 Additionally, if the scaler sub-device exists, its source pad (1) exposes
-another digital crop selection rectangle that can only crop at the end of the
+aanalther digital crop selection rectangle that can only crop at the end of the
 lines and frames.
 
 Digital and analogue crop
@@ -60,7 +60,7 @@ CCS static data
 ---------------
 
 The MIPI CCS driver supports CCS static data for all compliant devices,
-including not just those compliant with CCS 1.1 but also CCS 1.0 and SMIA(++).
+including analt just those compliant with CCS 1.1 but also CCS 1.0 and SMIA(++).
 For CCS the file names are formed as
 
 	ccs/ccs-sensor-vvvv-mmmm-rrrr.fw (sensor) and
@@ -71,11 +71,11 @@ For SMIA++ compliant devices the corresponding file names are
 	ccs/smiapp-sensor-vv-mmmm-rr.fw (sensor) and
 	ccs/smiapp-module-vv-mmmm-rrrr.fw (module).
 
-For SMIA (non-++) compliant devices the static data file name is
+For SMIA (analn-++) compliant devices the static data file name is
 
 	ccs/smia-sensor-vv-mmmm-rr.fw (sensor).
 
-vvvv or vv denotes MIPI and SMIA manufacturer IDs respectively, mmmm model ID
+vvvv or vv deanaltes MIPI and SMIA manufacturer IDs respectively, mmmm model ID
 and rrrr or rr revision number.
 
 CCS tools
@@ -92,7 +92,7 @@ Register definition generator
 The ccs-regs.asc file contains MIPI CCS register definitions that are used
 to produce C source code files for definitions that can be better used by
 programs written in C language. As there are many dependencies between the
-produced files, please do not modify them manually as it's error-prone and
+produced files, please do analt modify them manually as it's error-prone and
 in vain, but instead change the script producing them.
 
 Usage
@@ -101,7 +101,7 @@ Usage
 Conventionally the script is called this way to update the CCS driver
 definitions:
 
-.. code-block:: none
+.. code-block:: analne
 
 	$ Documentation/driver-api/media/drivers/ccs/mk-ccs-regs -k \
 		-e drivers/media/i2c/ccs/ccs-regs.h \

@@ -14,7 +14,7 @@
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_attr.h"
 #include "xfs_attr_remote.h"
 #include "xfs_trans.h"
@@ -32,8 +32,8 @@
  */
 STATIC int
 xfs_attr3_rmt_stale(
-	struct xfs_inode	*dp,
-	xfs_dablk_t		blkno,
+	struct xfs_ianalde	*dp,
+	xfs_dablk_t		blkanal,
 	int			blkcnt)
 {
 	struct xfs_bmbt_irec	map;
@@ -49,7 +49,7 @@ xfs_attr3_rmt_stale(
 		 * Try to remember where we decided to put the value.
 		 */
 		nmap = 1;
-		error = xfs_bmapi_read(dp, (xfs_fileoff_t)blkno, blkcnt,
+		error = xfs_bmapi_read(dp, (xfs_fileoff_t)blkanal, blkcnt,
 				       &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error)
 			return error;
@@ -65,7 +65,7 @@ xfs_attr3_rmt_stale(
 		if (error)
 			return error;
 
-		blkno += map.br_blockcount;
+		blkanal += map.br_blockcount;
 		blkcnt -= map.br_blockcount;
 	}
 
@@ -75,13 +75,13 @@ xfs_attr3_rmt_stale(
 /*
  * Invalidate all of the "remote" value regions pointed to by a particular
  * leaf block.
- * Note that we must release the lock on the buffer so that we are not
+ * Analte that we must release the lock on the buffer so that we are analt
  * caught holding something that the logging code wants to flush to disk.
  */
 STATIC int
 xfs_attr3_leaf_inactive(
 	struct xfs_trans		**trans,
-	struct xfs_inode		*dp,
+	struct xfs_ianalde		*dp,
 	struct xfs_buf			*bp)
 {
 	struct xfs_attr3_icleaf_hdr	ichdr;
@@ -123,45 +123,45 @@ err:
 }
 
 /*
- * Recurse (gasp!) through the attribute nodes until we find leaves.
+ * Recurse (gasp!) through the attribute analdes until we find leaves.
  * We're doing a depth-first traversal in order to invalidate everything.
  */
 STATIC int
-xfs_attr3_node_inactive(
+xfs_attr3_analde_inactive(
 	struct xfs_trans	**trans,
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	struct xfs_buf		*bp,
 	int			level)
 {
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_da_blkinfo	*info;
 	xfs_dablk_t		child_fsb;
-	xfs_daddr_t		parent_blkno, child_blkno;
+	xfs_daddr_t		parent_blkanal, child_blkanal;
 	struct xfs_buf		*child_bp;
-	struct xfs_da3_icnode_hdr ichdr;
+	struct xfs_da3_icanalde_hdr ichdr;
 	int			error, i;
 
 	/*
 	 * Since this code is recursive (gasp!) we must protect ourselves.
 	 */
-	if (level > XFS_DA_NODE_MAXDEPTH) {
+	if (level > XFS_DA_ANALDE_MAXDEPTH) {
 		xfs_buf_mark_corrupt(bp);
-		xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
+		xfs_trans_brelse(*trans, bp);	/* anal locks for later trans */
 		return -EFSCORRUPTED;
 	}
 
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &ichdr, bp->b_addr);
-	parent_blkno = xfs_buf_daddr(bp);
+	xfs_da3_analde_hdr_from_disk(dp->i_mount, &ichdr, bp->b_addr);
+	parent_blkanal = xfs_buf_daddr(bp);
 	if (!ichdr.count) {
 		xfs_trans_brelse(*trans, bp);
 		return 0;
 	}
 	child_fsb = be32_to_cpu(ichdr.btree[0].before);
-	xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
+	xfs_trans_brelse(*trans, bp);	/* anal locks for later trans */
 	bp = NULL;
 
 	/*
-	 * If this is the node level just above the leaves, simply loop
+	 * If this is the analde level just above the leaves, simply loop
 	 * over the leaves removing all of them.  If this is higher up
 	 * in the tree, recurse downward.
 	 */
@@ -172,22 +172,22 @@ xfs_attr3_node_inactive(
 		 * traversal of the tree so we may deal with many blocks
 		 * before we come back to this one.
 		 */
-		error = xfs_da3_node_read(*trans, dp, child_fsb, &child_bp,
+		error = xfs_da3_analde_read(*trans, dp, child_fsb, &child_bp,
 					  XFS_ATTR_FORK);
 		if (error)
 			return error;
 
 		/* save for re-read later */
-		child_blkno = xfs_buf_daddr(child_bp);
+		child_blkanal = xfs_buf_daddr(child_bp);
 
 		/*
 		 * Invalidate the subtree, however we have to.
 		 */
 		info = child_bp->b_addr;
 		switch (info->magic) {
-		case cpu_to_be16(XFS_DA_NODE_MAGIC):
-		case cpu_to_be16(XFS_DA3_NODE_MAGIC):
-			error = xfs_attr3_node_inactive(trans, dp, child_bp,
+		case cpu_to_be16(XFS_DA_ANALDE_MAGIC):
+		case cpu_to_be16(XFS_DA3_ANALDE_MAGIC):
+			error = xfs_attr3_analde_inactive(trans, dp, child_bp,
 							level + 1);
 			break;
 		case cpu_to_be16(XFS_ATTR_LEAF_MAGIC):
@@ -207,7 +207,7 @@ xfs_attr3_node_inactive(
 		 * Remove the subsidiary block from the cache and from the log.
 		 */
 		error = xfs_trans_get_buf(*trans, mp->m_ddev_targp,
-				child_blkno,
+				child_blkanal,
 				XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0,
 				&child_bp);
 		if (error)
@@ -216,17 +216,17 @@ xfs_attr3_node_inactive(
 		child_bp = NULL;
 
 		/*
-		 * If we're not done, re-read the parent to get the next
+		 * If we're analt done, re-read the parent to get the next
 		 * child block number.
 		 */
 		if (i + 1 < ichdr.count) {
-			struct xfs_da3_icnode_hdr phdr;
+			struct xfs_da3_icanalde_hdr phdr;
 
-			error = xfs_da3_node_read_mapped(*trans, dp,
-					parent_blkno, &bp, XFS_ATTR_FORK);
+			error = xfs_da3_analde_read_mapped(*trans, dp,
+					parent_blkanal, &bp, XFS_ATTR_FORK);
 			if (error)
 				return error;
-			xfs_da3_node_hdr_from_disk(dp->i_mount, &phdr,
+			xfs_da3_analde_hdr_from_disk(dp->i_mount, &phdr,
 						  bp->b_addr);
 			child_fsb = be32_to_cpu(phdr.btree[i + 1].before);
 			xfs_trans_brelse(*trans, bp);
@@ -235,7 +235,7 @@ xfs_attr3_node_inactive(
 		/*
 		 * Atomically commit the whole invalidate stuff.
 		 */
-		error = xfs_trans_roll_inode(trans, dp);
+		error = xfs_trans_roll_ianalde(trans, dp);
 		if (error)
 			return  error;
 	}
@@ -246,18 +246,18 @@ xfs_attr3_node_inactive(
 /*
  * Indiscriminately delete the entire attribute fork
  *
- * Recurse (gasp!) through the attribute nodes until we find leaves.
+ * Recurse (gasp!) through the attribute analdes until we find leaves.
  * We're doing a depth-first traversal in order to invalidate everything.
  */
 static int
 xfs_attr3_root_inactive(
 	struct xfs_trans	**trans,
-	struct xfs_inode	*dp)
+	struct xfs_ianalde	*dp)
 {
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_da_blkinfo	*info;
 	struct xfs_buf		*bp;
-	xfs_daddr_t		blkno;
+	xfs_daddr_t		blkanal;
 	int			error;
 
 	/*
@@ -266,10 +266,10 @@ xfs_attr3_root_inactive(
 	 * the extents in reverse order the extent containing
 	 * block 0 must still be there.
 	 */
-	error = xfs_da3_node_read(*trans, dp, 0, &bp, XFS_ATTR_FORK);
+	error = xfs_da3_analde_read(*trans, dp, 0, &bp, XFS_ATTR_FORK);
 	if (error)
 		return error;
-	blkno = xfs_buf_daddr(bp);
+	blkanal = xfs_buf_daddr(bp);
 
 	/*
 	 * Invalidate the tree, even if the "tree" is only a single leaf block.
@@ -277,9 +277,9 @@ xfs_attr3_root_inactive(
 	 */
 	info = bp->b_addr;
 	switch (info->magic) {
-	case cpu_to_be16(XFS_DA_NODE_MAGIC):
-	case cpu_to_be16(XFS_DA3_NODE_MAGIC):
-		error = xfs_attr3_node_inactive(trans, dp, bp, 1);
+	case cpu_to_be16(XFS_DA_ANALDE_MAGIC):
+	case cpu_to_be16(XFS_DA3_ANALDE_MAGIC):
+		error = xfs_attr3_analde_inactive(trans, dp, bp, 1);
 		break;
 	case cpu_to_be16(XFS_ATTR_LEAF_MAGIC):
 	case cpu_to_be16(XFS_ATTR3_LEAF_MAGIC):
@@ -297,7 +297,7 @@ xfs_attr3_root_inactive(
 	/*
 	 * Invalidate the incore copy of the root block.
 	 */
-	error = xfs_trans_get_buf(*trans, mp->m_ddev_targp, blkno,
+	error = xfs_trans_get_buf(*trans, mp->m_ddev_targp, blkanal,
 			XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0, &bp);
 	if (error)
 		return error;
@@ -310,22 +310,22 @@ xfs_attr3_root_inactive(
 	/*
 	 * Commit the invalidate and start the next transaction.
 	 */
-	error = xfs_trans_roll_inode(trans, dp);
+	error = xfs_trans_roll_ianalde(trans, dp);
 
 	return error;
 }
 
 /*
- * xfs_attr_inactive kills all traces of an attribute fork on an inode. It
- * removes both the on-disk and in-memory inode fork. Note that this also has to
- * handle the condition of inodes without attributes but with an attribute fork
- * configured, so we can't use xfs_inode_hasattr() here.
+ * xfs_attr_inactive kills all traces of an attribute fork on an ianalde. It
+ * removes both the on-disk and in-memory ianalde fork. Analte that this also has to
+ * handle the condition of ianaldes without attributes but with an attribute fork
+ * configured, so we can't use xfs_ianalde_hasattr() here.
  *
  * The in-memory attribute fork is removed even on error.
  */
 int
 xfs_attr_inactive(
-	struct xfs_inode	*dp)
+	struct xfs_ianalde	*dp)
 {
 	struct xfs_trans	*trans;
 	struct xfs_mount	*mp;
@@ -335,7 +335,7 @@ xfs_attr_inactive(
 	mp = dp->i_mount;
 
 	xfs_ilock(dp, lock_mode);
-	if (!xfs_inode_has_attr_fork(dp))
+	if (!xfs_ianalde_has_attr_fork(dp))
 		goto out_destroy_fork;
 	xfs_iunlock(dp, lock_mode);
 
@@ -348,18 +348,18 @@ xfs_attr_inactive(
 	lock_mode = XFS_ILOCK_EXCL;
 	xfs_ilock(dp, lock_mode);
 
-	if (!xfs_inode_has_attr_fork(dp))
+	if (!xfs_ianalde_has_attr_fork(dp))
 		goto out_cancel;
 
 	/*
-	 * No need to make quota reservations here. We expect to release some
-	 * blocks, not allocate, in the common case.
+	 * Anal need to make quota reservations here. We expect to release some
+	 * blocks, analt allocate, in the common case.
 	 */
 	xfs_trans_ijoin(trans, dp, 0);
 
 	/*
 	 * Invalidate and truncate the attribute fork extents. Make sure the
-	 * fork actually has xattr blocks as otherwise the invalidation has no
+	 * fork actually has xattr blocks as otherwise the invalidation has anal
 	 * blocks to read and returns an error. In this case, just do the fork
 	 * removal below.
 	 */
@@ -383,7 +383,7 @@ xfs_attr_inactive(
 out_cancel:
 	xfs_trans_cancel(trans);
 out_destroy_fork:
-	/* kill the in-core attr fork before we drop the inode lock */
+	/* kill the in-core attr fork before we drop the ianalde lock */
 	xfs_ifork_zap_attr(dp);
 	if (lock_mode)
 		xfs_iunlock(dp, lock_mode);

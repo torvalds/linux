@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright (C) 2022 Huawei Technologies Duesseldorf GmbH
+ * Copyright (C) 2022 Huawei Techanallogies Duesseldorf GmbH
  *
  * Author: Roberto Sassu <roberto.sassu@huawei.com>
  */
 
 #include "vmlinux.h"
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
@@ -38,7 +38,7 @@ int BPF_PROG(bpf, int cmd, union bpf_attr *attr, unsigned int size)
 		bkey = bpf_lookup_system_key(key_id);
 
 	if (!bkey)
-		return -ENOENT;
+		return -EANALENT;
 
 	bpf_key_put(bkey);
 

@@ -12,7 +12,7 @@ obj-y     := route.o inetpeer.o protocol.o \
 	     tcp_rate.o tcp_recovery.o tcp_ulp.o \
 	     tcp_offload.o tcp_plb.o datagram.o raw.o udp.o udplite.o \
 	     udp_offload.o arp.o icmp.o devinet.o af_inet.o igmp.o \
-	     fib_frontend.o fib_semantics.o fib_trie.o fib_notifier.o \
+	     fib_frontend.o fib_semantics.o fib_trie.o fib_analtifier.o \
 	     inet_fragment.o ping.o ip_tunnel_core.o gre_offload.o \
 	     metrics.o netlink.o nexthop.o udp_tunnel_stub.o
 
@@ -55,11 +55,11 @@ obj-$(CONFIG_TCP_CONG_HYBLA) += tcp_hybla.o
 obj-$(CONFIG_TCP_CONG_HTCP) += tcp_htcp.o
 obj-$(CONFIG_TCP_CONG_VEGAS) += tcp_vegas.o
 obj-$(CONFIG_TCP_CONG_NV) += tcp_nv.o
-obj-$(CONFIG_TCP_CONG_VENO) += tcp_veno.o
+obj-$(CONFIG_TCP_CONG_VEANAL) += tcp_veanal.o
 obj-$(CONFIG_TCP_CONG_SCALABLE) += tcp_scalable.o
 obj-$(CONFIG_TCP_CONG_LP) += tcp_lp.o
 obj-$(CONFIG_TCP_CONG_YEAH) += tcp_yeah.o
-obj-$(CONFIG_TCP_CONG_ILLINOIS) += tcp_illinois.o
+obj-$(CONFIG_TCP_CONG_ILLIANALIS) += tcp_illianalis.o
 obj-$(CONFIG_TCP_SIGPOOL) += tcp_sigpool.o
 obj-$(CONFIG_NET_SOCK_MSG) += tcp_bpf.o
 obj-$(CONFIG_BPF_SYSCALL) += udp_bpf.o

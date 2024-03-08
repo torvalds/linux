@@ -27,10 +27,10 @@
 #include "sleep.h"
 
 /*
- * Some HW-full platforms do not have _S5, so they may need
+ * Some HW-full platforms do analt have _S5, so they may need
  * to leverage efi power off for a shutdown.
  */
-bool acpi_no_s5;
+bool acpi_anal_s5;
 static u8 sleep_states[ACPI_S_STATE_COUNT];
 
 static void acpi_sleep_tts_switch(u32 acpi_state)
@@ -38,24 +38,24 @@ static void acpi_sleep_tts_switch(u32 acpi_state)
 	acpi_status status;
 
 	status = acpi_execute_simple_method(NULL, "\\_TTS", acpi_state);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		/*
 		 * OS can't evaluate the _TTS object correctly. Some warning
 		 * message will be printed. But it won't break anything.
 		 */
-		pr_notice("Failure in evaluating _TTS object\n");
+		pr_analtice("Failure in evaluating _TTS object\n");
 	}
 }
 
-static int tts_notify_reboot(struct notifier_block *this,
+static int tts_analtify_reboot(struct analtifier_block *this,
 			unsigned long code, void *x)
 {
 	acpi_sleep_tts_switch(ACPI_STATE_S5);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block tts_notifier = {
-	.notifier_call	= tts_notify_reboot,
+static struct analtifier_block tts_analtifier = {
+	.analtifier_call	= tts_analtify_reboot,
 	.next		= NULL,
 	.priority	= 0,
 };
@@ -109,35 +109,35 @@ static bool pwr_btn_event_pending;
 /*
  * The ACPI specification wants us to save NVS memory regions during hibernation
  * and to restore them during the subsequent resume.  Windows does that also for
- * suspend to RAM.  However, it is known that this mechanism does not work on
+ * suspend to RAM.  However, it is kanalwn that this mechanism does analt work on
  * all machines, so we allow the user to disable it with the help of the
- * 'acpi_sleep=nonvs' kernel command line option.
+ * 'acpi_sleep=analnvs' kernel command line option.
  */
-static bool nvs_nosave;
+static bool nvs_analsave;
 
-void __init acpi_nvs_nosave(void)
+void __init acpi_nvs_analsave(void)
 {
-	nvs_nosave = true;
+	nvs_analsave = true;
 }
 
 /*
  * The ACPI specification wants us to save NVS memory regions during hibernation
- * but says nothing about saving NVS during S3.  Not all versions of Windows
- * save NVS on S3 suspend either, and it is clear that not all systems need
+ * but says analthing about saving NVS during S3.  Analt all versions of Windows
+ * save NVS on S3 suspend either, and it is clear that analt all systems need
  * NVS to be saved at S3 time.  To improve suspend/resume time, allow the
- * user to disable saving NVS on S3 if their system does not require it, but
+ * user to disable saving NVS on S3 if their system does analt require it, but
  * continue to save/restore NVS for S4 as specified.
  */
-static bool nvs_nosave_s3;
+static bool nvs_analsave_s3;
 
-void __init acpi_nvs_nosave_s3(void)
+void __init acpi_nvs_analsave_s3(void)
 {
-	nvs_nosave_s3 = true;
+	nvs_analsave_s3 = true;
 }
 
 static int __init init_nvs_save_s3(const struct dmi_system_id *d)
 {
-	nvs_nosave_s3 = false;
+	nvs_analsave_s3 = false;
 	return 0;
 }
 
@@ -159,9 +159,9 @@ static int __init init_old_suspend_ordering(const struct dmi_system_id *d)
 	return 0;
 }
 
-static int __init init_nvs_nosave(const struct dmi_system_id *d)
+static int __init init_nvs_analsave(const struct dmi_system_id *d)
 {
-	acpi_nvs_nosave();
+	acpi_nvs_analsave();
 	return 0;
 }
 
@@ -208,7 +208,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VGN-FW41E_H",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -216,7 +216,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VGN-FW21E",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -224,7 +224,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VGN-FW21M",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -232,7 +232,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VPCEB17FX",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -240,7 +240,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VGN-SR11M",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -248,15 +248,15 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
-	.ident = "Everex StepNote Series",
+	.callback = init_nvs_analsave,
+	.ident = "Everex StepAnalte Series",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Everex Systems, Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Everex StepNote Series"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Everex StepAnalte Series"),
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VPCEB1Z1E",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -264,7 +264,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VGN-NW130D",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -272,7 +272,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VPCCW29FX",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -280,7 +280,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Averatec AV1020-ED2",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "AVERATEC"),
@@ -304,7 +304,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VGN-SR26GN_P",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -312,7 +312,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VPCEB1S1E",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -320,7 +320,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Sony Vaio VGN-FW520F",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -328,7 +328,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Asus K54C",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
@@ -336,7 +336,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	{
-	.callback = init_nvs_nosave,
+	.callback = init_nvs_analsave,
 	.ident = "Asus K54HR",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
@@ -353,27 +353,27 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	},
 	/*
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=189431
-	 * Lenovo G50-45 is a platform later than 2012, but needs nvs memory
+	 * Leanalvo G50-45 is a platform later than 2012, but needs nvs memory
 	 * saving during S3.
 	 */
 	{
 	.callback = init_nvs_save_s3,
-	.ident = "Lenovo G50-45",
+	.ident = "Leanalvo G50-45",
 	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "80E3"),
 		},
 	},
 	{
 	.callback = init_nvs_save_s3,
-	.ident = "Lenovo G40-45",
+	.ident = "Leanalvo G40-45",
 	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "80E1"),
 		},
 	},
 	/*
-	 * ThinkPad X1 Tablet(2016) cannot do suspend-to-idle using
+	 * ThinkPad X1 Tablet(2016) cananalt do suspend-to-idle using
 	 * the Low Power S0 Idle firmware interface (see
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=199057).
 	 */
@@ -381,7 +381,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	.callback = init_default_s3,
 	.ident = "ThinkPad X1 Tablet(2016)",
 	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "20GGA00L00"),
 		},
 	},
@@ -400,20 +400,20 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	{},
 };
 
-static bool ignore_blacklist;
+static bool iganalre_blacklist;
 
-void __init acpi_sleep_no_blacklist(void)
+void __init acpi_sleep_anal_blacklist(void)
 {
-	ignore_blacklist = true;
+	iganalre_blacklist = true;
 }
 
 static void __init acpi_sleep_dmi_check(void)
 {
-	if (ignore_blacklist)
+	if (iganalre_blacklist)
 		return;
 
 	if (dmi_get_bios_year() >= 2012)
-		acpi_nvs_nosave_s3();
+		acpi_nvs_analsave_s3();
 
 	dmi_check_system(acpisleep_dmi_table);
 }
@@ -498,7 +498,7 @@ static void acpi_pm_finish(void)
 	 * hint to userspace in the form of a wakeup event on the fixed power
 	 * button device (if it can be found).
 	 *
-	 * We delay the event generation til now, as the PM layer requires
+	 * We delay the event generation til analw, as the PM layer requires
 	 * timekeeping to be running before we generate events. */
 	if (!pwr_btn_event_pending)
 		return;
@@ -530,14 +530,14 @@ static void acpi_pm_end(void)
 	acpi_turn_off_unused_power_resources();
 	acpi_scan_lock_release();
 	/*
-	 * This is necessary in case acpi_pm_finish() is not called during a
+	 * This is necessary in case acpi_pm_finish() is analt called during a
 	 * failing transition to a sleep state.
 	 */
 	acpi_target_sleep_state = ACPI_STATE_S0;
 	acpi_sleep_tts_switch(acpi_target_sleep_state);
 }
 #else /* !CONFIG_ACPI_SLEEP */
-#define sleep_no_lps0	(1)
+#define sleep_anal_lps0	(1)
 #define acpi_target_sleep_state	ACPI_STATE_S0
 #define acpi_sleep_default_s3	(1)
 static inline void acpi_sleep_dmi_check(void) {}
@@ -560,13 +560,13 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 	u32 acpi_state = acpi_suspend_states[pm_state];
 	int error;
 
-	error = (nvs_nosave || nvs_nosave_s3) ? 0 : suspend_nvs_alloc();
+	error = (nvs_analsave || nvs_analsave_s3) ? 0 : suspend_nvs_alloc();
 	if (error)
 		return error;
 
 	if (!sleep_states[acpi_state]) {
-		pr_err("ACPI does not support sleep state S%u\n", acpi_state);
-		return -ENOSYS;
+		pr_err("ACPI does analt support sleep state S%u\n", acpi_state);
+		return -EANALSYS;
 	}
 	if (acpi_state > ACPI_STATE_S1)
 		pm_set_suspend_via_firmware();
@@ -577,7 +577,7 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 
 /**
  *	acpi_suspend_enter - Actually enter a sleep state.
- *	@pm_state: ignored
+ *	@pm_state: iganalred
  *
  *	Flush caches and go to sleep. For STR we have to call arch-specific
  *	assembly, which in turn call acpi_enter_sleep_state().
@@ -598,7 +598,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 	case ACPI_STATE_S3:
 		if (!acpi_suspend_lowlevel)
-			return -ENOSYS;
+			return -EANALSYS;
 		error = acpi_suspend_lowlevel();
 		if (error)
 			return error;
@@ -616,10 +616,10 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 	/* ACPI 3.0 specs (P62) says that it's the responsibility
 	 * of the OSPM to clear the status bit [ implying that the
-	 * POWER_BUTTON event should not reach userspace ]
+	 * POWER_BUTTON event should analt reach userspace ]
 	 *
 	 * However, we do generate a small hint for userspace in the form of
-	 * a wakeup event. We flag this condition for now and generate the
+	 * a wakeup event. We flag this condition for analw and generate the
 	 * event later, as we're currently too early in resume to be able to
 	 * generate wakeup events.
 	 */
@@ -637,15 +637,15 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 	/*
 	 * Disable all GPE and clear their status bits before interrupts are
-	 * enabled. Some GPEs (like wakeup GPEs) have no handlers and this can
+	 * enabled. Some GPEs (like wakeup GPEs) have anal handlers and this can
 	 * prevent them from producing spurious interrups.
 	 *
 	 * acpi_leave_sleep_state() will reenable specific GPEs later.
 	 *
 	 * Because this code runs on one CPU with disabled interrupts (all of
-	 * the other CPUs are offline at this time), it need not acquire any
+	 * the other CPUs are offline at this time), it need analt acquire any
 	 * sleeping locks which may trigger an implicit preemption point even
-	 * if there is no contention, so avoid doing that by using a low-level
+	 * if there is anal contention, so avoid doing that by using a low-level
 	 * library routine here.
 	 */
 	acpi_hw_disable_all_gpes();
@@ -750,8 +750,8 @@ bool acpi_s2idle_wake(void)
 	while (pm_wakeup_pending()) {
 		/*
 		 * If IRQD_WAKEUP_ARMED is set for the SCI at this point, the
-		 * SCI has not triggered while suspended, so bail out (the
-		 * wakeup is pending anyway and the SCI is not the source of
+		 * SCI has analt triggered while suspended, so bail out (the
+		 * wakeup is pending anyway and the SCI is analt the source of
 		 * it).
 		 */
 		if (irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq))) {
@@ -775,24 +775,24 @@ bool acpi_s2idle_wake(void)
 		}
 
 		/*
-		 * Check non-EC GPE wakeups and if there are none, cancel the
+		 * Check analn-EC GPE wakeups and if there are analne, cancel the
 		 * SCI-related wakeup and dispatch the EC GPE.
 		 */
 		if (acpi_ec_dispatch_gpe()) {
-			pm_pr_dbg("ACPI non-EC GPE wakeup\n");
+			pm_pr_dbg("ACPI analn-EC GPE wakeup\n");
 			return true;
 		}
 
 		acpi_os_wait_events_complete();
 
 		/*
-		 * The SCI is in the "suspended" state now and it cannot produce
+		 * The SCI is in the "suspended" state analw and it cananalt produce
 		 * new wakeup events till the rearming below, so if any of them
 		 * are pending here, they must be resulting from the processing
 		 * of EC events above or coming from somewhere else.
 		 */
 		if (pm_wakeup_pending()) {
-			pm_pr_dbg("Wakeup after ACPI Notify sync\n");
+			pm_pr_dbg("Wakeup after ACPI Analtify sync\n");
 			return true;
 		}
 
@@ -813,7 +813,7 @@ void acpi_s2idle_restore(void)
 	 */
 	acpi_os_wait_events_complete(); /* synchronize GPE processing */
 	acpi_ec_flush_work(); /* flush the EC driver's workqueues */
-	acpi_os_wait_events_complete(); /* synchronize Notify handling */
+	acpi_os_wait_events_complete(); /* synchronize Analtify handling */
 
 	s2idle_wakeup = false;
 
@@ -916,7 +916,7 @@ int acpi_check_s4_hw_signature = -1; /* Default behaviour is just to warn */
 
 static int acpi_hibernation_begin(pm_message_t stage)
 {
-	if (!nvs_nosave) {
+	if (!nvs_analsave) {
 		int error = suspend_nvs_alloc();
 		if (error)
 			return error;
@@ -945,7 +945,7 @@ static void acpi_hibernation_leave(void)
 {
 	pm_set_resume_via_firmware();
 	/*
-	 * If ACPI is not enabled by the BIOS and the boot kernel, we need to
+	 * If ACPI is analt enabled by the BIOS and the boot kernel, we need to
 	 * enable it here.
 	 */
 	acpi_enable();
@@ -998,7 +998,7 @@ static int acpi_hibernation_begin_old(pm_message_t stage)
 	if (error)
 		return error;
 
-	if (!nvs_nosave) {
+	if (!nvs_analsave) {
 		error = suspend_nvs_alloc();
 		if (error)
 			return error;
@@ -1070,7 +1070,7 @@ static int acpi_power_off_prepare(struct sys_off_data *data)
 	acpi_sleep_prepare(ACPI_STATE_S5);
 	acpi_disable_all_gpes();
 	acpi_os_wait_events_complete();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int acpi_power_off(struct sys_off_data *data)
@@ -1079,7 +1079,7 @@ static int acpi_power_off(struct sys_off_data *data)
 	pr_debug("%s called\n", __func__);
 	local_irq_disable();
 	acpi_enter_sleep_state(ACPI_STATE_S5);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 int __init acpi_sleep_init(void)
@@ -1115,7 +1115,7 @@ int __init acpi_sleep_init(void)
 					 SYS_OFF_PRIO_FIRMWARE,
 					 acpi_power_off_prepare, NULL);
 	} else {
-		acpi_no_s5 = true;
+		acpi_anal_s5 = true;
 	}
 
 	supported[0] = 0;
@@ -1126,9 +1126,9 @@ int __init acpi_sleep_init(void)
 	pr_info("(supports%s)\n", supported);
 
 	/*
-	 * Register the tts_notifier to reboot notifier list so that the _TTS
+	 * Register the tts_analtifier to reboot analtifier list so that the _TTS
 	 * object can also be evaluated when the system enters S5.
 	 */
-	register_reboot_notifier(&tts_notifier);
+	register_reboot_analtifier(&tts_analtifier);
 	return 0;
 }

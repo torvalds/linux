@@ -101,7 +101,7 @@ static int wfx_hif_receive_indication(struct wfx_dev *wdev, const struct wfx_hif
 	const struct wfx_hif_ind_rx *body = buf;
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+		dev_warn(wdev->dev, "%s: received event for analn-existent vif\n", __func__);
 		return -EIO;
 	}
 	skb_pull(skb, sizeof(struct wfx_hif_msg) + sizeof(struct wfx_hif_ind_rx));
@@ -118,7 +118,7 @@ static int wfx_hif_event_indication(struct wfx_dev *wdev,
 	int type = le32_to_cpu(body->event_id);
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+		dev_warn(wdev->dev, "%s: received event for analn-existent vif\n", __func__);
 		return -EIO;
 	}
 
@@ -131,7 +131,7 @@ static int wfx_hif_event_indication(struct wfx_dev *wdev,
 		break;
 	case HIF_EVENT_IND_BSSREGAINED:
 		cancel_delayed_work(&wvif->beacon_loss_work);
-		dev_dbg(wdev->dev, "ignore BSSREGAINED indication\n");
+		dev_dbg(wdev->dev, "iganalre BSSREGAINED indication\n");
 		break;
 	case HIF_EVENT_IND_PS_MODE_ERROR:
 		dev_warn(wdev->dev, "error while processing power save request: %d\n",
@@ -150,7 +150,7 @@ static int wfx_hif_pm_mode_complete_indication(struct wfx_dev *wdev,
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+		dev_warn(wdev->dev, "%s: received event for analn-existent vif\n", __func__);
 		return -EIO;
 	}
 	complete(&wvif->set_pm_mode_complete);
@@ -165,7 +165,7 @@ static int wfx_hif_scan_complete_indication(struct wfx_dev *wdev,
 	const struct wfx_hif_ind_scan_cmpl *body = buf;
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+		dev_warn(wdev->dev, "%s: received event for analn-existent vif\n", __func__);
 		return -EIO;
 	}
 
@@ -180,7 +180,7 @@ static int wfx_hif_join_complete_indication(struct wfx_dev *wdev,
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+		dev_warn(wdev->dev, "%s: received event for analn-existent vif\n", __func__);
 		return -EIO;
 	}
 	dev_warn(wdev->dev, "unattended JoinCompleteInd\n");
@@ -197,20 +197,20 @@ static int wfx_hif_suspend_resume_indication(struct wfx_dev *wdev,
 	if (body->bc_mc_only) {
 		wvif = wdev_to_wvif(wdev, hif->interface);
 		if (!wvif) {
-			dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+			dev_warn(wdev->dev, "%s: received event for analn-existent vif\n", __func__);
 			return -EIO;
 		}
 		if (body->resume)
-			wfx_suspend_resume_mc(wvif, STA_NOTIFY_AWAKE);
+			wfx_suspend_resume_mc(wvif, STA_ANALTIFY_AWAKE);
 		else
-			wfx_suspend_resume_mc(wvif, STA_NOTIFY_SLEEP);
+			wfx_suspend_resume_mc(wvif, STA_ANALTIFY_SLEEP);
 	} else {
 		WARN(body->peer_sta_set, "misunderstood indication");
 		WARN(hif->interface != 2, "misunderstood indication");
 		if (body->resume)
-			wfx_suspend_hot_dev(wdev, STA_NOTIFY_AWAKE);
+			wfx_suspend_hot_dev(wdev, STA_ANALTIFY_AWAKE);
 		else
-			wfx_suspend_hot_dev(wdev, STA_NOTIFY_SLEEP);
+			wfx_suspend_hot_dev(wdev, STA_ANALTIFY_SLEEP);
 	}
 
 	return 0;
@@ -244,7 +244,7 @@ static int wfx_hif_generic_indication(struct wfx_dev *wdev,
 		mutex_unlock(&wdev->tx_power_loop_info_lock);
 		return 0;
 	default:
-		dev_err(wdev->dev, "generic_indication: unknown indication type: %#.8x\n", type);
+		dev_err(wdev->dev, "generic_indication: unkanalwn indication type: %#.8x\n", type);
 		return -EIO;
 	}
 }
@@ -259,23 +259,23 @@ static const struct {
 	{ HIF_ERROR_FIRMWARE_DEBUG_ENABLED,
 		"debug feature enabled" },
 	{ HIF_ERROR_PDS_PAYLOAD,
-		"PDS version is not supported" },
+		"PDS version is analt supported" },
 	{ HIF_ERROR_PDS_TESTFEATURE,
-		"PDS ask for an unknown test mode" },
+		"PDS ask for an unkanalwn test mode" },
 	{ HIF_ERROR_OOR_VOLTAGE,
 		"out-of-range power supply voltage", true },
 	{ HIF_ERROR_OOR_TEMPERATURE,
 		"out-of-range temperature", true },
 	{ HIF_ERROR_SLK_REQ_DURING_KEY_EXCHANGE,
-		"secure link does not expect request during key exchange" },
+		"secure link does analt expect request during key exchange" },
 	{ HIF_ERROR_SLK_SESSION_KEY,
 		"secure link session key is invalid" },
 	{ HIF_ERROR_SLK_OVERFLOW,
 		"secure link overflow" },
 	{ HIF_ERROR_SLK_WRONG_ENCRYPTION_STATE,
-		"secure link messages list does not match message encryption" },
+		"secure link messages list does analt match message encryption" },
 	{ HIF_ERROR_SLK_UNCONFIGURED,
-		"secure link not yet configured" },
+		"secure link analt yet configured" },
 	{ HIF_ERROR_HIF_BUS_FREQUENCY_TOO_LOW,
 		"bus clock is too slow (<1kHz)" },
 	{ HIF_ERROR_HIF_RX_DATA_TOO_LARGE,
@@ -286,11 +286,11 @@ static const struct {
 	{ HIF_ERROR_HIF_BUS,
 		"HIF bus" },
 	{ HIF_ERROR_SLK_MULTI_TX_UNSUPPORTED,
-		"secure link does not support multi-tx confirmations" },
+		"secure link does analt support multi-tx confirmations" },
 	{ HIF_ERROR_SLK_OUTDATED_SESSION_KEY,
 		"secure link session key is outdated" },
 	{ HIF_ERROR_SLK_DECRYPTION,
-		"secure link params (nonce or tag) mismatch" },
+		"secure link params (analnce or tag) mismatch" },
 };
 
 static int wfx_hif_error_indication(struct wfx_dev *wdev,
@@ -306,12 +306,12 @@ static int wfx_hif_error_indication(struct wfx_dev *wdev,
 			break;
 	if (i < ARRAY_SIZE(hif_errors))
 		if (hif_errors[i].has_param)
-			dev_err(wdev->dev, "asynchronous error: %s: %d\n",
+			dev_err(wdev->dev, "asynchroanalus error: %s: %d\n",
 				hif_errors[i].str, param);
 		else
-			dev_err(wdev->dev, "asynchronous error: %s\n", hif_errors[i].str);
+			dev_err(wdev->dev, "asynchroanalus error: %s\n", hif_errors[i].str);
 	else
-		dev_err(wdev->dev, "asynchronous error: unknown: %08x\n", type);
+		dev_err(wdev->dev, "asynchroanalus error: unkanalwn: %08x\n", type);
 	print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET,
 		       16, 1, hif, le16_to_cpu(hif->len), false);
 	wdev->chip_frozen = true;
@@ -369,7 +369,7 @@ void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
 		wfx_hif_receive_indication(wdev, hif, hif->body, skb);
 		return;
 	}
-	/* Note: mutex_is_lock cause an implicit memory barrier that protect buf_send */
+	/* Analte: mutex_is_lock cause an implicit memory barrier that protect buf_send */
 	if (mutex_is_locked(&wdev->hif_cmd.lock) &&
 	    wdev->hif_cmd.buf_send && wdev->hif_cmd.buf_send->id == hif_id) {
 		wfx_hif_generic_confirm(wdev, hif, hif->body);

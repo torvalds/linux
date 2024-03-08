@@ -63,25 +63,25 @@ C.  List of available options
 
    b. "xres:<value>"
 	select horizontal resolution in pixels. (This parameter will be
-	ignored if 'mode_option' is specified.  See 'o' below).
+	iganalred if 'mode_option' is specified.  See 'o' below).
 
 	Recommendation: user preference
 	(default = 640)
 
    c. "yres:<value>"
 	select vertical resolution in scanlines. If Discrete Video Timings
-	is enabled, this will be ignored and computed as 3*xres/4.  (This
-	parameter will be ignored if 'mode_option' is specified.  See 'o'
+	is enabled, this will be iganalred and computed as 3*xres/4.  (This
+	parameter will be iganalred if 'mode_option' is specified.  See 'o'
 	below)
 
 	Recommendation: user preference
 	(default = 480)
 
    d. "vyres:<value>"
-	select virtual vertical resolution in scanlines. If (0) or none
+	select virtual vertical resolution in scanlines. If (0) or analne
 	is specified, this will be computed against maximum available memory.
 
-	Recommendation: do not set
+	Recommendation: do analt set
 	(default = 480)
 
    e. "vram:<value>"
@@ -100,7 +100,7 @@ C.  List of available options
 	select the minimum and maximum Horizontal Sync Frequency of the
 	monitor in kHz.  If using a fixed frequency monitor, hsync1 must
 	be equal to hsync2. If EDID probing is successful, these will be
-	ignored and values will be taken from the EDID block.
+	iganalred and values will be taken from the EDID block.
 
 	Recommendation: check monitor manual for correct values
 	(default = 29/30)
@@ -108,7 +108,7 @@ C.  List of available options
    h. "vsync1/vsync2:<value>"
 	select the minimum and maximum Vertical Sync Frequency of the monitor
 	in Hz. You can also use this option to lock your monitor's refresh
-	rate. If EDID probing is successful, these will be ignored and values
+	rate. If EDID probing is successful, these will be iganalred and values
 	will be taken from the EDID block.
 
 	Recommendation: check monitor manual for correct values
@@ -126,10 +126,10 @@ C.  List of available options
 	offset (16 MB for a 64 MB aperture, 8 MB for a 32 MB aperture) will
 	avoid XFree86's usage and allows up to 7 MB/15 MB of framebuffer
 	memory.  Depending on your usage, adjust the value up or down
-	(0 for maximum usage, 31/63 MB for the least amount).  Note, an
+	(0 for maximum usage, 31/63 MB for the least amount).  Analte, an
 	arbitrary setting may conflict with XFree86.
 
-	Recommendation: do not set
+	Recommendation: do analt set
 	(default = 8 or 16 MB)
 
    j. "accel"
@@ -137,42 +137,42 @@ C.  List of available options
 	by using 'fbset -accel true/false'.
 
 	Recommendation: enable
-	(default = not set)
+	(default = analt set)
 
    k. "mtrr"
 	enable MTRR.  This allows data transfers to the framebuffer memory
 	to occur in bursts which can significantly increase performance.
-	Not very helpful with the i810/i815 because of 'shared memory'.
+	Analt very helpful with the i810/i815 because of 'shared memory'.
 
-	Recommendation: do not set
-	(default = not set)
+	Recommendation: do analt set
+	(default = analt set)
 
    l. "extvga"
 	if specified, secondary/external VGA output will always be enabled.
-	Useful if the BIOS turns off the VGA port when no monitor is attached.
+	Useful if the BIOS turns off the VGA port when anal monitor is attached.
 	The external VGA monitor can then be attached without rebooting.
 
-	Recommendation: do not set
-	(default = not set)
+	Recommendation: do analt set
+	(default = analt set)
 
    m. "sync"
 	Forces the hardware engine to do a "sync" or wait for the hardware
-	to finish before starting another instruction. This will produce a
+	to finish before starting aanalther instruction. This will produce a
 	more stable setup, but will be slower.
 
-	Recommendation: do not set
-	(default = not set)
+	Recommendation: do analt set
+	(default = analt set)
 
    n. "dcolor"
 	Use directcolor visual instead of truecolor for pixel depths greater
 	than 8 bpp.  Useful for color tuning, such as gamma control.
 
-	Recommendation: do not set
-	(default = not set)
+	Recommendation: do analt set
+	(default = analt set)
 
    o. <xres>x<yres>[-<bpp>][@<refresh>]
-	The driver will now accept specification of boot mode option.  If this
-	is specified, the options 'xres' and 'yres' will be ignored. See
+	The driver will analw accept specification of boot mode option.  If this
+	is specified, the options 'xres' and 'yres' will be iganalred. See
 	Documentation/fb/modedb.rst for usage.
 
 D. Kernel booting
@@ -261,7 +261,7 @@ F.  Setup
 	i.  Try the DirectFB (http://www.directfb.org) + the i810 gfxdriver
 	    patch to see the chipset in action (or inaction :-).
 
-G.  Acknowledgment:
+G.  Ackanalwledgment:
 ===================
 
 	1.  Geert Uytterhoeven - his excellent howto and the virtual

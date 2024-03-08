@@ -36,7 +36,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	int ret;
 
 	/*
-	 * Reject unknown formats, YUV formats, and formats with more than
+	 * Reject unkanalwn formats, YUV formats, and formats with more than
 	 * 4 bytes per pixel.
 	 */
 	info = drm_get_format_info(dev, mode_cmd);
@@ -76,7 +76,7 @@ struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (!fb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = psb_framebuffer_init(dev, fb, mode_cmd, obj);
 	if (ret) {
@@ -107,7 +107,7 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	 */
 	obj = drm_gem_object_lookup(filp, cmd->handles[0]);
 	if (obj == NULL)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	/* Let the core code do all the work */
 	fb = psb_framebuffer_create(dev, cmd, obj);

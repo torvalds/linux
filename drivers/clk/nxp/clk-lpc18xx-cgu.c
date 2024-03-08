@@ -358,7 +358,7 @@ static unsigned long lpc18xx_pll0_recalc_rate(struct clk_hw *hw,
 		return parent_rate;
 
 	if (npdiv != LPC18XX_PLL0_NP_DIVS_1) {
-		pr_warn("%s: pre/post dividers not supported\n", __func__);
+		pr_warn("%s: pre/post dividers analt supported\n", __func__);
 		return 0;
 	}
 
@@ -377,7 +377,7 @@ static long lpc18xx_pll0_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long m;
 
 	if (*prate < rate) {
-		pr_warn("%s: pll dividers not supported\n", __func__);
+		pr_warn("%s: pll dividers analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -398,7 +398,7 @@ static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
 	int retry = 3;
 
 	if (parent_rate < rate) {
-		pr_warn("%s: pll dividers not supported\n", __func__);
+		pr_warn("%s: pll dividers analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -492,7 +492,7 @@ static int lpc18xx_cgu_gate_is_enabled(struct clk_hw *hw)
 	const struct clk_hw *parent;
 
 	/*
-	 * The consumer of base clocks needs know if the
+	 * The consumer of base clocks needs kanalw if the
 	 * base clock is really enabled before it can be
 	 * accessed. It is therefore necessary to verify
 	 * this all the way up.
@@ -555,14 +555,14 @@ static struct clk *lpc18xx_register_base_clk(struct lpc18xx_cgu_base_clk *clk,
 	const char *parents[CLK_SRC_MAX];
 
 	if (clk->n_parents == 0)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	clk->mux.reg = reg;
 	clk->gate.reg = reg;
 
 	lpc18xx_fill_parent_names(parents, clk->mux.table, clk->n_parents);
 
-	/* SAFE_CLK can not be turned off */
+	/* SAFE_CLK can analt be turned off */
 	if (n == BASE_SAFE_CLK)
 		return clk_register_composite(NULL, name, parents, clk->n_parents,
 					      &clk->mux.hw, &clk_mux_ops,
@@ -593,7 +593,7 @@ static struct clk *lpc18xx_cgu_register_pll(struct lpc18xx_cgu_pll_clk *clk,
 				      &clk->gate.hw, &lpc18xx_gate_ops, 0);
 }
 
-static void __init lpc18xx_cgu_register_source_clks(struct device_node *np,
+static void __init lpc18xx_cgu_register_source_clks(struct device_analde *np,
 						    void __iomem *base)
 {
 	const char *parents[CLK_SRC_MAX];
@@ -644,12 +644,12 @@ static void __init lpc18xx_cgu_register_base_clks(void __iomem *reg_base)
 	for (i = BASE_SAFE_CLK; i < BASE_CLK_MAX; i++) {
 		clk_base[i] = lpc18xx_register_base_clk(&lpc18xx_cgu_base_clks[i],
 							reg_base, i);
-		if (IS_ERR(clk_base[i]) && PTR_ERR(clk_base[i]) != -ENOENT)
+		if (IS_ERR(clk_base[i]) && PTR_ERR(clk_base[i]) != -EANALENT)
 			pr_warn("%s: register base clk %d failed\n", __func__, i);
 	}
 }
 
-static void __init lpc18xx_cgu_init(struct device_node *np)
+static void __init lpc18xx_cgu_init(struct device_analde *np)
 {
 	void __iomem *reg_base;
 

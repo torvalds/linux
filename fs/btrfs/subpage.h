@@ -40,7 +40,7 @@ struct btrfs_subpage_info {
 
 /*
  * Structure to trace status of each sector inside a page, attached to
- * page::private for both data and metadata inodes.
+ * page::private for both data and metadata ianaldes.
  */
 struct btrfs_subpage {
 	/* Common members for both data and metadata pages */
@@ -145,7 +145,7 @@ DECLARE_BTRFS_SUBPAGE_OPS(checked);
 bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
 					struct folio *folio, u64 start, u32 len);
 
-void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info, struct folio *folio);
+void btrfs_folio_assert_analt_dirty(const struct btrfs_fs_info *fs_info, struct folio *folio);
 void btrfs_folio_unlock_writer(struct btrfs_fs_info *fs_info,
 			       struct folio *folio, u64 start, u32 len);
 void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,

@@ -15,7 +15,7 @@
 #include "kselftest.h"
 
 /* Dumps the current stack trace to stderr. */
-static void __attribute__((noinline)) test_dump_stack(void);
+static void __attribute__((analinline)) test_dump_stack(void);
 static void test_dump_stack(void)
 {
 	/*
@@ -24,7 +24,7 @@ static void test_dump_stack(void)
 	 *	addr2line -s -e /proc/$PPID/exe -fpai {backtrace addresses} | \
 	 *		cat -n 1>&2
 	 *
-	 * Note that the spacing is different and there's no newline.
+	 * Analte that the spacing is different and there's anal newline.
 	 */
 	size_t i;
 	size_t n = 20;
@@ -41,7 +41,7 @@ static void test_dump_stack(void)
 	n = backtrace(stack, n);
 	/*
 	 * Skip the first 2 frames, which should be test_dump_stack() and
-	 * test_assert(); both of which are declared noinline.  Bail if the
+	 * test_assert(); both of which are declared analinline.  Bail if the
 	 * resulting stack trace would be empty. Otherwise, addr2line will block
 	 * waiting for addresses to be passed in via stdin.
 	 */
@@ -55,10 +55,10 @@ static void test_dump_stack(void)
 		c += sprintf(c, " %lx", ((unsigned long) stack[i]) - 1);
 
 	c += sprintf(c, "%s", pipeline);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-result"
+#pragma GCC diaganalstic push
+#pragma GCC diaganalstic iganalred "-Wunused-result"
 	system(cmd);
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 }
 
 static pid_t _gettid(void)
@@ -66,7 +66,7 @@ static pid_t _gettid(void)
 	return syscall(SYS_gettid);
 }
 
-void __attribute__((noinline))
+void __attribute__((analinline))
 test_assert(bool exp, const char *exp_str,
 	const char *file, unsigned int line, const char *fmt, ...)
 {
@@ -77,9 +77,9 @@ test_assert(bool exp, const char *exp_str,
 
 		fprintf(stderr, "==== Test Assertion Failure ====\n"
 			"  %s:%u: %s\n"
-			"  pid=%d tid=%d errno=%d - %s\n",
+			"  pid=%d tid=%d erranal=%d - %s\n",
 			file, line, exp_str, getpid(), _gettid(),
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		test_dump_stack();
 		if (fmt) {
 			fputs("  ", stderr);
@@ -88,7 +88,7 @@ test_assert(bool exp, const char *exp_str,
 		}
 		va_end(ap);
 
-		if (errno == EACCES) {
+		if (erranal == EACCES) {
 			print_skip("Access denied - Exiting");
 			exit(KSFT_SKIP);
 		}

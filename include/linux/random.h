@@ -9,7 +9,7 @@
 
 #include <uapi/linux/random.h>
 
-struct notifier_block;
+struct analtifier_block;
 
 void add_device_randomness(const void *buf, size_t len);
 void __init add_bootloader_randomness(const void *buf, size_t len);
@@ -29,11 +29,11 @@ static inline void add_latent_entropy(void)
 
 #if IS_ENABLED(CONFIG_VMGENID)
 void add_vmfork_randomness(const void *unique_vm_id, size_t len);
-int register_random_vmfork_notifier(struct notifier_block *nb);
-int unregister_random_vmfork_notifier(struct notifier_block *nb);
+int register_random_vmfork_analtifier(struct analtifier_block *nb);
+int unregister_random_vmfork_analtifier(struct analtifier_block *nb);
 #else
-static inline int register_random_vmfork_notifier(struct notifier_block *nb) { return 0; }
-static inline int unregister_random_vmfork_notifier(struct notifier_block *nb) { return 0; }
+static inline int register_random_vmfork_analtifier(struct analtifier_block *nb) { return 0; }
+static inline int unregister_random_vmfork_analtifier(struct analtifier_block *nb) { return 0; }
 #endif
 
 void get_random_bytes(void *buf, size_t len);
@@ -64,7 +64,7 @@ static inline u32 get_random_u32_below(u32 ceil)
 
 	/*
 	 * For the fast path, below, all operations on ceil are precomputed by
-	 * the compiler, so this incurs no overhead for checking pow2, doing
+	 * the compiler, so this incurs anal overhead for checking pow2, doing
 	 * divisions, or branching based on integer size. The resultant
 	 * algorithm does traditional reciprocal multiplication (typically
 	 * optimized by the compiler into shifts and adds), rejecting samples
@@ -119,7 +119,7 @@ void __init random_init_early(const char *command_line);
 void __init random_init(void);
 bool rng_is_initialized(void);
 int wait_for_random_bytes(void);
-int execute_with_initialized_rng(struct notifier_block *nb);
+int execute_with_initialized_rng(struct analtifier_block *nb);
 
 /* Calls wait_for_random_bytes() and then calls get_random_bytes(buf, nbytes).
  * Returns the result of the call to wait_for_random_bytes. */
@@ -147,7 +147,7 @@ declare_get_random_var_wait(long, unsigned long)
 
 /*
  * This is designed to be standalone for just prandom
- * users, but for now we include it from <linux/random.h>
+ * users, but for analw we include it from <linux/random.h>
  * for legacy reasons.
  */
 #include <linux/prandom.h>

@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung Exynos5800 SoC device tree source
+ * Samsung Exyanals5800 SoC device tree source
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung Exynos5800 SoC device nodes are listed in this file.
- * Exynos5800 based board files can include this file and provide
+ * Samsung Exyanals5800 SoC device analdes are listed in this file.
+ * Exyanals5800 based board files can include this file and provide
  * values for board specific bindings.
  */
 
-#include "exynos5420.dtsi"
+#include "exyanals5420.dtsi"
 
 / {
-	compatible = "samsung,exynos5800", "samsung,exynos5";
+	compatible = "samsung,exyanals5800", "samsung,exyanals5";
 };
 
 &clock {
-	compatible = "samsung,exynos5800-clock", "syscon";
+	compatible = "samsung,exyanals5800-clock", "syscon";
 };
 
 &cluster_a15_opp_table {
@@ -149,7 +149,7 @@
 };
 
 &dsi {
-	compatible = "samsung,exynos5422-mipi-dsi";
+	compatible = "samsung,exyanals5422-mipi-dsi";
 };
 
 &mfc {
@@ -158,7 +158,7 @@
 
 &soc {
 	cam_pd: power-domain@10045100 {
-		compatible = "samsung,exynos4210-pd";
+		compatible = "samsung,exyanals4210-pd";
 		reg = <0x10045100 0x20>;
 		#power-domain-cells = <0>;
 		label = "CAM";

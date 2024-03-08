@@ -20,24 +20,24 @@ Required properties:
 
 - clock-names:		Must contain "mpmcclk" and "apb_pclk".
 
-- clock-ranges:		Empty property indicating that child nodes can inherit
+- clock-ranges:		Empty property indicating that child analdes can inherit
 			named clocks. Required only if clock tree data present
 			in device tree.
 			See clock-bindings.txt
 
-Child chip-select (cs) nodes contain the memory devices nodes connected to
-such as NOR (e.g. cfi-flash) and NAND.
+Child chip-select (cs) analdes contain the memory devices analdes connected to
+such as ANALR (e.g. cfi-flash) and NAND.
 
-Required child cs node properties:
+Required child cs analde properties:
 
 - #address-cells:	Must be 2.
 
 - #size-cells:		Must be 1.
 
-- ranges:		Empty property indicating that child nodes can inherit
+- ranges:		Empty property indicating that child analdes can inherit
 			memory layout.
 
-- clock-ranges:		Empty property indicating that child nodes can inherit
+- clock-ranges:		Empty property indicating that child analdes can inherit
 			named clocks. Required only if clock tree data present
 			in device tree.
 
@@ -47,9 +47,9 @@ Required child cs node properties:
 - mpmc,memory-width:	Width of the chip select memory. Must be equal to
 			either 8, 16 or 32.
 
-Optional child cs node config properties:
+Optional child cs analde config properties:
 
-- mpmc,async-page-mode:	Enable asynchronous page mode.
+- mpmc,async-page-mode:	Enable asynchroanalus page mode.
 
 - mpmc,cs-active-high:	Set chip select polarity to active high.
 
@@ -57,35 +57,35 @@ Optional child cs node config properties:
 
 - mpmc,extended-wait:	Enable extended wait.
 
-- mpmc,buffer-enable:	Enable write buffer, option is not supported by
+- mpmc,buffer-enable:	Enable write buffer, option is analt supported by
 			PL175 and PL176 controllers.
 
 - mpmc,write-protect:	Enable write protect.
 
-Optional child cs node timing properties:
+Optional child cs analde timing properties:
 
 - mpmc,write-enable-delay:	Delay from chip select assertion to write
-				enable (WE signal) in nano seconds.
+				enable (WE signal) in naanal seconds.
 
 - mpmc,output-enable-delay:	Delay from chip select assertion to output
-				enable (OE signal) in nano seconds.
+				enable (OE signal) in naanal seconds.
 
 - mpmc,write-access-delay:	Delay from chip select assertion to write
-				access in nano seconds.
+				access in naanal seconds.
 
 - mpmc,read-access-delay:	Delay from chip select assertion to read
-				access in nano seconds.
+				access in naanal seconds.
 
-- mpmc,page-mode-read-delay:	Delay for asynchronous page mode sequential
-				accesses in nano seconds.
+- mpmc,page-mode-read-delay:	Delay for asynchroanalus page mode sequential
+				accesses in naanal seconds.
 
-- mpmc,turn-round-delay:	Delay between access to memory banks in nano
+- mpmc,turn-round-delay:	Delay between access to memory banks in naanal
 				seconds.
 
 If any of the above timing parameters are absent, current parameter value will
 be taken from the corresponding HW reg.
 
-Example for pl172 with nor flash on chip select 0 shown below.
+Example for pl172 with analr flash on chip select 0 shown below.
 
 emc: memory-controller@40005000 {
 	compatible = "arm,pl172", "arm,primecell";

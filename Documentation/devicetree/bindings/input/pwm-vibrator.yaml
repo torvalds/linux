@@ -12,7 +12,7 @@ maintainers:
 description: >
   Registers a PWM device as vibrator. It is expected, that the vibrator's
   strength increases based on the duty cycle of the enable PWM channel
-  (100% duty cycle meaning strongest vibration, 0% meaning no vibration).
+  (100% duty cycle meaning strongest vibration, 0% meaning anal vibration).
 
   The binding supports an optional direction PWM channel, that can be
   driven at fixed duty cycle. If available this is can be used to increase
@@ -38,7 +38,7 @@ properties:
 
   direction-duty-cycle-ns:
     description: >
-      Duty cycle of the direction PWM channel in nanoseconds,
+      Duty cycle of the direction PWM channel in naanalseconds,
       defaults to 50% of the channel's period.
 
 required:

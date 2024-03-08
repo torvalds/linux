@@ -5,7 +5,7 @@
    really early to actually display a visible error message before the
    kernel dies.  Make sure to assign features to the proper mask!
 
-   Some requirements that are not in CPUID yet are also in the
+   Some requirements that are analt in CPUID yet are also in the
    CONFIG_X86_MINIMUM_CPU_FAMILY which is checked too.
 
    The real information is in arch/x86/Kconfig.cpu, this just converts
@@ -35,12 +35,12 @@
 # define NEED_CMOV	0
 #endif
 
-# define NEED_3DNOW	0
+# define NEED_3DANALW	0
 
-#if defined(CONFIG_X86_P6_NOP) || defined(CONFIG_X86_64)
-# define NEED_NOPL	(1<<(X86_FEATURE_NOPL & 31))
+#if defined(CONFIG_X86_P6_ANALP) || defined(CONFIG_X86_64)
+# define NEED_ANALPL	(1<<(X86_FEATURE_ANALPL & 31))
 #else
-# define NEED_NOPL	0
+# define NEED_ANALPL	0
 #endif
 
 #ifdef CONFIG_MATOM
@@ -51,7 +51,7 @@
 
 #ifdef CONFIG_X86_64
 #ifdef CONFIG_PARAVIRT_XXL
-/* Paravirtualized systems may not have PSE or PGE available */
+/* Paravirtualized systems may analt have PSE or PGE available */
 #define NEED_PSE	0
 #define NEED_PGE	0
 #else
@@ -78,10 +78,10 @@
 			 NEED_XMM|NEED_XMM2)
 #define SSE_MASK	(NEED_XMM|NEED_XMM2)
 
-#define REQUIRED_MASK1	(NEED_LM|NEED_3DNOW)
+#define REQUIRED_MASK1	(NEED_LM|NEED_3DANALW)
 
 #define REQUIRED_MASK2	0
-#define REQUIRED_MASK3	(NEED_NOPL)
+#define REQUIRED_MASK3	(NEED_ANALPL)
 #define REQUIRED_MASK4	(NEED_MOVBE)
 #define REQUIRED_MASK5	0
 #define REQUIRED_MASK6	0

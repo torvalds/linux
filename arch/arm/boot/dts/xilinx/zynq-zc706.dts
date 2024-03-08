@@ -28,7 +28,7 @@
 	};
 
 	usb_phy0: phy0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 };
@@ -195,7 +195,7 @@
 			bias-pull-up;
 		};
 
-		conf-pull-none {
+		conf-pull-analne {
 			pins = "MIO7";
 			bias-disable;
 		};

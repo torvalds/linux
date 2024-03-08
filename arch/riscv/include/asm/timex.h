@@ -34,7 +34,7 @@ static inline u32 get_cycles_hi(void)
 #endif /* CONFIG_64BIT */
 
 /*
- * Much like MIPS, we may not have a viable counter to use at an early point
+ * Much like MIPS, we may analt have a viable counter to use at an early point
  * in the boot process. Unfortunately we don't have a fallback, so instead
  * we just return 0.
  */

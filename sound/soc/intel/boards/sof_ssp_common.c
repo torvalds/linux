@@ -76,7 +76,7 @@ enum sof_ssp_codec sof_ssp_detect_codec_type(struct device *dev)
 		return codecs[i].codec_type;
 	}
 
-	return CODEC_NONE;
+	return CODEC_ANALNE;
 }
 EXPORT_SYMBOL_NS(sof_ssp_detect_codec_type, SND_SOC_INTEL_SOF_SSP_COMMON);
 
@@ -92,7 +92,7 @@ enum sof_ssp_codec sof_ssp_detect_amp_type(struct device *dev)
 		return amps[i].codec_type;
 	}
 
-	return CODEC_NONE;
+	return CODEC_ANALNE;
 }
 EXPORT_SYMBOL_NS(sof_ssp_detect_amp_type, SND_SOC_INTEL_SOF_SSP_COMMON);
 

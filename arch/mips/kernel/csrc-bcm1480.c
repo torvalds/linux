@@ -29,7 +29,7 @@ struct clocksource bcm1480_clocksource = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace sb1480_read_sched_clock(void)
+static u64 analtrace sb1480_read_sched_clock(void)
 {
 	return __raw_readq(IOADDR(A_SCD_ZBBUS_CYCLE_COUNT));
 }

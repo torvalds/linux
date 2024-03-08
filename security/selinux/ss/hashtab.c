@@ -6,11 +6,11 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "hashtab.h"
 #include "security.h"
 
-static struct kmem_cache *hashtab_node_cachep __ro_after_init;
+static struct kmem_cache *hashtab_analde_cachep __ro_after_init;
 
 /*
  * Here we simply round the number of elements up to the nearest power of two.
@@ -41,24 +41,24 @@ int hashtab_init(struct hashtab *h, u32 nel_hint)
 	if (size) {
 		h->htable = kcalloc(size, sizeof(*h->htable), GFP_KERNEL);
 		if (!h->htable)
-			return -ENOMEM;
+			return -EANALMEM;
 		h->size = size;
 	}
 	return 0;
 }
 
-int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst,
+int __hashtab_insert(struct hashtab *h, struct hashtab_analde **dst,
 		     void *key, void *datum)
 {
-	struct hashtab_node *newnode;
+	struct hashtab_analde *newanalde;
 
-	newnode = kmem_cache_zalloc(hashtab_node_cachep, GFP_KERNEL);
-	if (!newnode)
-		return -ENOMEM;
-	newnode->key = key;
-	newnode->datum = datum;
-	newnode->next = *dst;
-	*dst = newnode;
+	newanalde = kmem_cache_zalloc(hashtab_analde_cachep, GFP_KERNEL);
+	if (!newanalde)
+		return -EANALMEM;
+	newanalde->key = key;
+	newanalde->datum = datum;
+	newanalde->next = *dst;
+	*dst = newanalde;
 
 	h->nel++;
 	return 0;
@@ -67,14 +67,14 @@ int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst,
 void hashtab_destroy(struct hashtab *h)
 {
 	u32 i;
-	struct hashtab_node *cur, *temp;
+	struct hashtab_analde *cur, *temp;
 
 	for (i = 0; i < h->size; i++) {
 		cur = h->htable[i];
 		while (cur) {
 			temp = cur;
 			cur = cur->next;
-			kmem_cache_free(hashtab_node_cachep, temp);
+			kmem_cache_free(hashtab_analde_cachep, temp);
 		}
 		h->htable[i] = NULL;
 	}
@@ -89,7 +89,7 @@ int hashtab_map(struct hashtab *h,
 {
 	u32 i;
 	int ret;
-	struct hashtab_node *cur;
+	struct hashtab_analde *cur;
 
 	for (i = 0; i < h->size; i++) {
 		cur = h->htable[i];
@@ -108,7 +108,7 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 {
 	u32 i, chain_len, slots_used, max_chain_len;
 	u64 chain2_len_sum;
-	struct hashtab_node *cur;
+	struct hashtab_analde *cur;
 
 	slots_used = 0;
 	max_chain_len = 0;
@@ -137,12 +137,12 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 #endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
 int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
-		int (*copy)(struct hashtab_node *new,
-			struct hashtab_node *orig, void *args),
+		int (*copy)(struct hashtab_analde *new,
+			struct hashtab_analde *orig, void *args),
 		int (*destroy)(void *k, void *d, void *args),
 		void *args)
 {
-	struct hashtab_node *cur, *tmp, *tail;
+	struct hashtab_analde *cur, *tmp, *tail;
 	u32 i;
 	int rc;
 
@@ -150,20 +150,20 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 
 	new->htable = kcalloc(orig->size, sizeof(*new->htable), GFP_KERNEL);
 	if (!new->htable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new->size = orig->size;
 
 	for (i = 0; i < orig->size; i++) {
 		tail = NULL;
 		for (cur = orig->htable[i]; cur; cur = cur->next) {
-			tmp = kmem_cache_zalloc(hashtab_node_cachep,
+			tmp = kmem_cache_zalloc(hashtab_analde_cachep,
 						GFP_KERNEL);
 			if (!tmp)
 				goto error;
 			rc = copy(tmp, cur, args);
 			if (rc) {
-				kmem_cache_free(hashtab_node_cachep, tmp);
+				kmem_cache_free(hashtab_analde_cachep, tmp);
 				goto error;
 			}
 			tmp->next = NULL;
@@ -183,17 +183,17 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 		for (cur = new->htable[i]; cur; cur = tmp) {
 			tmp = cur->next;
 			destroy(cur->key, cur->datum, args);
-			kmem_cache_free(hashtab_node_cachep, cur);
+			kmem_cache_free(hashtab_analde_cachep, cur);
 		}
 	}
 	kfree(new->htable);
 	memset(new, 0, sizeof(*new));
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void __init hashtab_cache_init(void)
 {
-		hashtab_node_cachep = kmem_cache_create("hashtab_node",
-			sizeof(struct hashtab_node),
+		hashtab_analde_cachep = kmem_cache_create("hashtab_analde",
+			sizeof(struct hashtab_analde),
 			0, SLAB_PANIC, NULL);
 }

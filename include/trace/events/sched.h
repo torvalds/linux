@@ -173,7 +173,7 @@ DEFINE_EVENT(sched_wakeup_template, sched_waking,
 
 /*
  * Tracepoint called when the task is actually woken; p->state == TASK_RUNNING.
- * It is not always called from the waking context.
+ * It is analt always called from the waking context.
  */
 DEFINE_EVENT(sched_wakeup_template, sched_wakeup,
 	     TP_PROTO(struct task_struct *p),
@@ -198,8 +198,8 @@ static inline long __trace_sched_switch_state(bool preempt,
 #endif /* CONFIG_SCHED_DEBUG */
 
 	/*
-	 * Preemption ignores task state, therefore preempted tasks are always
-	 * RUNNING (we will not have dequeued if state != RUNNING).
+	 * Preemption iganalres task state, therefore preempted tasks are always
+	 * RUNNING (we will analt have dequeued if state != RUNNING).
 	 */
 	if (preempt)
 		return TASK_REPORT_MAX;
@@ -425,8 +425,8 @@ TRACE_EVENT(sched_process_exec,
 #define DEFINE_EVENT_SCHEDSTAT DEFINE_EVENT
 #define DECLARE_EVENT_CLASS_SCHEDSTAT DECLARE_EVENT_CLASS
 #else
-#define DEFINE_EVENT_SCHEDSTAT DEFINE_EVENT_NOP
-#define DECLARE_EVENT_CLASS_SCHEDSTAT DECLARE_EVENT_CLASS_NOP
+#define DEFINE_EVENT_SCHEDSTAT DEFINE_EVENT_ANALP
+#define DECLARE_EVENT_CLASS_SCHEDSTAT DECLARE_EVENT_CLASS_ANALP
 #endif
 
 /*
@@ -458,14 +458,14 @@ DECLARE_EVENT_CLASS_SCHEDSTAT(sched_stat_template,
 
 /*
  * Tracepoint for accounting wait time (time the task is runnable
- * but not actually running due to scheduler contention).
+ * but analt actually running due to scheduler contention).
  */
 DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_wait,
 	     TP_PROTO(struct task_struct *tsk, u64 delay),
 	     TP_ARGS(tsk, delay));
 
 /*
- * Tracepoint for accounting sleep time (time the task is not runnable,
+ * Tracepoint for accounting sleep time (time the task is analt runnable,
  * including iowait, see below).
  */
 DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_sleep,
@@ -473,7 +473,7 @@ DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_sleep,
 	     TP_ARGS(tsk, delay));
 
 /*
- * Tracepoint for accounting iowait time (time the task is not runnable
+ * Tracepoint for accounting iowait time (time the task is analt runnable
  * due to waiting on IO to complete).
  */
 DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_iowait,
@@ -540,8 +540,8 @@ TRACE_EVENT(sched_pi_setprio,
 		__entry->pid		= tsk->pid;
 		__entry->oldprio	= tsk->prio;
 		__entry->newprio	= pi_task ?
-				min(tsk->normal_prio, pi_task->prio) :
-				tsk->normal_prio;
+				min(tsk->analrmal_prio, pi_task->prio) :
+				tsk->analrmal_prio;
 		/* XXX SCHED_DEADLINE bits missing */
 	),
 
@@ -570,8 +570,8 @@ TRACE_EVENT(sched_process_hang,
 #endif /* CONFIG_DETECT_HUNG_TASK */
 
 /*
- * Tracks migration of tasks from one runqueue to another. Can be used to
- * detect if automatic NUMA balancing is bouncing between nodes.
+ * Tracks migration of tasks from one runqueue to aanalther. Can be used to
+ * detect if automatic NUMA balancing is bouncing between analdes.
  */
 TRACE_EVENT(sched_move_numa,
 
@@ -594,9 +594,9 @@ TRACE_EVENT(sched_move_numa,
 		__entry->tgid		= task_tgid_nr(tsk);
 		__entry->ngid		= task_numa_group_id(tsk);
 		__entry->src_cpu	= src_cpu;
-		__entry->src_nid	= cpu_to_node(src_cpu);
+		__entry->src_nid	= cpu_to_analde(src_cpu);
 		__entry->dst_cpu	= dst_cpu;
-		__entry->dst_nid	= cpu_to_node(dst_cpu);
+		__entry->dst_nid	= cpu_to_analde(dst_cpu);
 	),
 
 	TP_printk("pid=%d tgid=%d ngid=%d src_cpu=%d src_nid=%d dst_cpu=%d dst_nid=%d",
@@ -630,12 +630,12 @@ DECLARE_EVENT_CLASS(sched_numa_pair_template,
 		__entry->src_tgid	= task_tgid_nr(src_tsk);
 		__entry->src_ngid	= task_numa_group_id(src_tsk);
 		__entry->src_cpu	= src_cpu;
-		__entry->src_nid	= cpu_to_node(src_cpu);
+		__entry->src_nid	= cpu_to_analde(src_cpu);
 		__entry->dst_pid	= dst_tsk ? task_pid_nr(dst_tsk) : 0;
 		__entry->dst_tgid	= dst_tsk ? task_tgid_nr(dst_tsk) : 0;
 		__entry->dst_ngid	= dst_tsk ? task_numa_group_id(dst_tsk) : 0;
 		__entry->dst_cpu	= dst_cpu;
-		__entry->dst_nid	= dst_cpu >= 0 ? cpu_to_node(dst_cpu) : -1;
+		__entry->dst_nid	= dst_cpu >= 0 ? cpu_to_analde(dst_cpu) : -1;
 	),
 
 	TP_printk("src_pid=%d src_tgid=%d src_ngid=%d src_cpu=%d src_nid=%d dst_pid=%d dst_tgid=%d dst_ngid=%d dst_cpu=%d dst_nid=%d",
@@ -668,7 +668,7 @@ DEFINE_EVENT(sched_numa_pair_template, sched_swap_numa,
 	EM( NUMAB_SKIP_INACCESSIBLE,		"inaccessible" )	\
 	EM( NUMAB_SKIP_SCAN_DELAY,		"scan_delay" )	\
 	EM( NUMAB_SKIP_PID_INACTIVE,		"pid_inactive" )	\
-	EM( NUMAB_SKIP_IGNORE_PID,		"ignore_pid_inactive" )		\
+	EM( NUMAB_SKIP_IGANALRE_PID,		"iganalre_pid_inactive" )		\
 	EMe(NUMAB_SKIP_SEQ_COMPLETED,		"seq_completed" )
 
 /* Redefine for export. */
@@ -735,7 +735,7 @@ TRACE_EVENT(sched_wake_idle_without_ipi,
 );
 
 /*
- * Following tracepoints are not exported in tracefs and provide hooking
+ * Following tracepoints are analt exported in tracefs and provide hooking
  * mechanisms only for testing and debugging purposes.
  *
  * Postfixed with _tp to make them easily identifiable in the code.

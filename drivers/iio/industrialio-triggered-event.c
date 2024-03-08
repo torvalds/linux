@@ -16,12 +16,12 @@
  * @h:		Function which will be used as pollfunc_event top half
  * @thread:	Function which will be used as pollfunc_event bottom half
  *
- * This function combines some common tasks which will normally be performed
+ * This function combines some common tasks which will analrmally be performed
  * when setting up a triggered event. It will allocate the pollfunc_event and
  * set mode to use it for triggered event.
  *
  * Before calling this function the indio_dev structure should already be
- * completely initialized, but not yet registered. In practice this means that
+ * completely initialized, but analt yet registered. In practice this means that
  * this function should be called right before iio_device_register().
  *
  * To free the resources allocated by this function call
@@ -39,7 +39,7 @@ int iio_triggered_event_setup(struct iio_dev *indio_dev,
 						       indio_dev->name,
 						       iio_device_id(indio_dev));
 	if (indio_dev->pollfunc_event == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Flag that events polling is possible */
 	indio_dev->modes |= INDIO_EVENT_TRIGGERED;
@@ -59,6 +59,6 @@ void iio_triggered_event_cleanup(struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL(iio_triggered_event_cleanup);
 
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Barianalv");
 MODULE_DESCRIPTION("IIO helper functions for setting up triggered events");
 MODULE_LICENSE("GPL");

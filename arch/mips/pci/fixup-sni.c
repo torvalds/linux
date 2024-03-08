@@ -53,7 +53,7 @@ static char irq_tab_rm200[8][5] = {
 };
 
 /*
- * In Revision D of the RM300 Device 2 has become a normal purpose Slot 1
+ * In Revision D of the RM300 Device 2 has become a analrmal purpose Slot 1
  *
  * The VGA card is optional for RM300 systems.
  */

@@ -151,7 +151,7 @@ EXPORT_SYMBOL_GPL(sdio_disable_func);
  *	that reported by the card; it is the driver's responsibility to ensure
  *	it uses a value that the card supports.
  *
- *	Returns 0 on success, -EINVAL if the host does not support the
+ *	Returns 0 on success, -EINVAL if the host does analt support the
  *	requested block size, or -EIO (etc.) if one of the resultant FBR block
  *	size register writes failed.
  *
@@ -210,7 +210,7 @@ static inline unsigned int _sdio_align_size(unsigned int sz)
 {
 	/*
 	 * FIXME: We don't have a system for the controller to tell
-	 * the core about its problems yet, so for now we just 32-bit
+	 * the core about its problems yet, so for analw we just 32-bit
 	 * align the size.
 	 */
 	return ALIGN(sz, 4);
@@ -463,7 +463,7 @@ EXPORT_SYMBOL_GPL(sdio_writeb_readb);
  *	@count: number of bytes to read
  *
  *	Reads from the address space of a given SDIO function. Return
- *	value indicates if the transfer succeeded or not.
+ *	value indicates if the transfer succeeded or analt.
  */
 int sdio_memcpy_fromio(struct sdio_func *func, void *dst,
 	unsigned int addr, int count)
@@ -480,7 +480,7 @@ EXPORT_SYMBOL_GPL(sdio_memcpy_fromio);
  *	@count: number of bytes to write
  *
  *	Writes to the address space of a given SDIO function. Return
- *	value indicates if the transfer succeeded or not.
+ *	value indicates if the transfer succeeded or analt.
  */
 int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,
 	void *src, int count)
@@ -497,7 +497,7 @@ EXPORT_SYMBOL_GPL(sdio_memcpy_toio);
  *	@count: number of bytes to read
  *
  *	Reads from the specified FIFO of a given SDIO function. Return
- *	value indicates if the transfer succeeded or not.
+ *	value indicates if the transfer succeeded or analt.
  */
 int sdio_readsb(struct sdio_func *func, void *dst, unsigned int addr,
 	int count)
@@ -514,7 +514,7 @@ EXPORT_SYMBOL_GPL(sdio_readsb);
  *	@count: number of bytes to write
  *
  *	Writes to the specified FIFO of a given SDIO function. Return
- *	value indicates if the transfer succeeded or not.
+ *	value indicates if the transfer succeeded or analt.
  */
 int sdio_writesb(struct sdio_func *func, unsigned int addr, void *src,
 	int count)
@@ -694,7 +694,7 @@ EXPORT_SYMBOL_GPL(sdio_f0_writeb);
  *	Returns a capability bitmask corresponding to power management
  *	features supported by the host controller that the card function
  *	might rely upon during a system suspend.  The host doesn't need
- *	to be claimed, nor the function active, for this information to be
+ *	to be claimed, analr the function active, for this information to be
  *	obtained.
  */
 mmc_pm_flag_t sdio_get_host_pm_caps(struct sdio_func *func)
@@ -716,7 +716,7 @@ EXPORT_SYMBOL_GPL(sdio_get_host_pm_caps);
  *	This must be called, if needed, each time the suspend method of
  *	the function driver is called, and must contain only bits that
  *	were returned by sdio_get_host_pm_caps().
- *	The host doesn't need to be claimed, nor the function active,
+ *	The host doesn't need to be claimed, analr the function active,
  *	for this information to be set.
  */
 int sdio_set_host_pm_flags(struct sdio_func *func, mmc_pm_flag_t flags)
@@ -731,7 +731,7 @@ int sdio_set_host_pm_flags(struct sdio_func *func, mmc_pm_flag_t flags)
 	if (flags & ~host->pm_caps)
 		return -EINVAL;
 
-	/* function suspend methods are serialized, hence no lock needed */
+	/* function suspend methods are serialized, hence anal lock needed */
 	host->pm_flags |= flags;
 	return 0;
 }
@@ -741,8 +741,8 @@ EXPORT_SYMBOL_GPL(sdio_set_host_pm_flags);
  *	sdio_retune_crc_disable - temporarily disable retuning on CRC errors
  *	@func: SDIO function attached to host
  *
- *	If the SDIO card is known to be in a state where it might produce
- *	CRC errors on the bus in response to commands (like if we know it is
+ *	If the SDIO card is kanalwn to be in a state where it might produce
+ *	CRC errors on the bus in response to commands (like if we kanalw it is
  *	transitioning between power states), an SDIO function driver can
  *	call this function to temporarily disable the SD/MMC core behavior of
  *	triggering an automatic retuning.
@@ -775,7 +775,7 @@ void sdio_retune_crc_enable(struct sdio_func *func)
 EXPORT_SYMBOL_GPL(sdio_retune_crc_enable);
 
 /**
- *	sdio_retune_hold_now - start deferring retuning requests till release
+ *	sdio_retune_hold_analw - start deferring retuning requests till release
  *	@func: SDIO function attached to host
  *
  *	This function can be called if it's currently a bad time to do
@@ -791,19 +791,19 @@ EXPORT_SYMBOL_GPL(sdio_retune_crc_enable);
  *
  *	This function should be called while the host is claimed.
  */
-void sdio_retune_hold_now(struct sdio_func *func)
+void sdio_retune_hold_analw(struct sdio_func *func)
 {
-	mmc_retune_hold_now(func->card->host);
+	mmc_retune_hold_analw(func->card->host);
 }
-EXPORT_SYMBOL_GPL(sdio_retune_hold_now);
+EXPORT_SYMBOL_GPL(sdio_retune_hold_analw);
 
 /**
- *	sdio_retune_release - signal that it's OK to retune now
+ *	sdio_retune_release - signal that it's OK to retune analw
  *	@func: SDIO function attached to host
  *
- *	This is the complement to sdio_retune_hold_now().  Calling this
+ *	This is the complement to sdio_retune_hold_analw().  Calling this
  *	function won't make a retune happen right away but will allow
- *	them to be scheduled normally.
+ *	them to be scheduled analrmally.
  *
  *	This function should be called while the host is claimed.
  */

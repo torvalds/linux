@@ -95,7 +95,7 @@ static int qcom_dma_start(struct mmci_host *host, unsigned int *datactrl)
 	return 0;
 }
 
-static int of_get_dml_pipe_index(struct device_node *np, const char *name)
+static int of_get_dml_pipe_index(struct device_analde *np, const char *name)
 {
 	int index;
 	struct of_phandle_args	dma_spec;
@@ -103,16 +103,16 @@ static int of_get_dml_pipe_index(struct device_node *np, const char *name)
 	index = of_property_match_string(np, "dma-names", name);
 
 	if (index < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (of_parse_phandle_with_args(np, "dmas", "#dma-cells", index,
 				       &dma_spec))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dma_spec.args_count)
 		return dma_spec.args[0];
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* Initialize the dml hardware connected to SD Card controller */
@@ -121,7 +121,7 @@ static int qcom_dma_setup(struct mmci_host *host)
 	u32 config;
 	void __iomem *base;
 	int consumer_id, producer_id;
-	struct device_node *np = host->mmc->parent->of_node;
+	struct device_analde *np = host->mmc->parent->of_analde;
 
 	if (mmci_dmae_setup(host))
 		return -EINVAL;

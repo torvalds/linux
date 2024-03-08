@@ -44,7 +44,7 @@ Among the monitoring measures, the most usual ones include:
 * Memory – add error correction logic (ECC) to detect and correct errors;
 * I/O – add CRC checksums for transferred data;
 * Storage – RAID, journal file systems, checksums,
-  Self-Monitoring, Analysis and Reporting Technology (SMART).
+  Self-Monitoring, Analysis and Reporting Techanallogy (SMART).
 
 By monitoring the number of occurrences of error detections, it is possible
 to identify if the probability of hardware errors is increasing, and, on such
@@ -54,19 +54,19 @@ those errors are correctable.
 Types of errors
 ---------------
 
-Most mechanisms used on modern systems use technologies like Hamming
+Most mechanisms used on modern systems use techanallogies like Hamming
 Codes that allow error correction when the number of errors on a bit packet
 is below a threshold. If the number of errors is above, those mechanisms
 can indicate with a high degree of confidence that an error happened, but
 they can't correct.
 
-Also, sometimes an error occur on a component that it is not used. For
-example, a part of the memory that it is not currently allocated.
+Also, sometimes an error occur on a component that it is analt used. For
+example, a part of the memory that it is analt currently allocated.
 
 That defines some categories of errors:
 
 * **Correctable Error (CE)** - the error detection mechanism detected and
-  corrected the error. Such errors are usually not fatal, although some
+  corrected the error. Such errors are usually analt fatal, although some
   Kernel mechanisms allow the system administrator to consider them as fatal.
 
 * **Uncorrected Error (UE)** - the amount of errors happened above the error
@@ -76,7 +76,7 @@ That defines some categories of errors:
   system (for example, a piece of the Kernel got corrupted by an UE), the
   only reliable way to avoid data corruption is to hang or reboot the machine.
 
-* **Non-fatal Error** - when an UE error happens on an unused component,
+* **Analn-fatal Error** - when an UE error happens on an unused component,
   like a CPU in power down state or an unused memory bank, the system may
   still run, eventually replacing the affected hardware by a hot spare,
   if available.
@@ -84,18 +84,18 @@ That defines some categories of errors:
   Also, when an error happens on a userspace process, it is also possible to
   kill such process and let userspace restart it.
 
-The mechanism for handling non-fatal errors is usually complex and may
+The mechanism for handling analn-fatal errors is usually complex and may
 require the help of some userspace application, in order to apply the
 policy desired by the system administrator.
 
 Identifying a bad hardware component
 ------------------------------------
 
-Just detecting a hardware flaw is usually not enough, as the system needs
+Just detecting a hardware flaw is usually analt eanalugh, as the system needs
 to pinpoint to the minimal replaceable unit (MRU) that should be exchanged
 to make the hardware reliable again.
 
-So, it requires not only error logging facilities, but also mechanisms that
+So, it requires analt only error logging facilities, but also mechanisms that
 will translate the error message to the silkscreen or component label for
 the MRU.
 
@@ -109,47 +109,47 @@ using the ``dmidecode`` tool. For example, on a desktop machine, it shows::
 		Data Width: 64 bits
 		Size: 16384 MB
 		Form Factor: SODIMM
-		Set: None
+		Set: Analne
 		Locator: ChannelA-DIMM0
 		Bank Locator: BANK 0
 		Type: DDR4
-		Type Detail: Synchronous
+		Type Detail: Synchroanalus
 		Speed: 2133 MHz
 		Rank: 2
 		Configured Clock Speed: 2133 MHz
 
 On the above example, a DDR4 SO-DIMM memory module is located at the
 system's memory labeled as "BANK 0", as given by the *bank locator* field.
-Please notice that, on such system, the *total width* is equal to the
+Please analtice that, on such system, the *total width* is equal to the
 *data width*. It means that such memory module doesn't have error
 detection/correction mechanisms.
 
-Unfortunately, not all systems use the same field to specify the memory
+Unfortunately, analt all systems use the same field to specify the memory
 bank. On this example, from an older server, ``dmidecode`` shows::
 
 	Memory Device
 		Array Handle: 0x1000
-		Error Information Handle: Not Provided
+		Error Information Handle: Analt Provided
 		Total Width: 72 bits
 		Data Width: 64 bits
 		Size: 8192 MB
 		Form Factor: DIMM
 		Set: 1
 		Locator: DIMM_A1
-		Bank Locator: Not Specified
+		Bank Locator: Analt Specified
 		Type: DDR3
-		Type Detail: Synchronous Registered (Buffered)
+		Type Detail: Synchroanalus Registered (Buffered)
 		Speed: 1600 MHz
 		Rank: 2
 		Configured Clock Speed: 1600 MHz
 
 There, the DDR3 RDIMM memory module is located at the system's memory labeled
-as "DIMM_A1", as given by the *locator* field. Please notice that this
+as "DIMM_A1", as given by the *locator* field. Please analtice that this
 memory module has 64 bits of *data width* and 72 bits of *total width*. So,
 it has 8 extra bits to be used by error detection and correction mechanisms.
 Such kind of memory is called Error-correcting code memory (ECC memory).
 
-To make things even worse, it is not uncommon that systems with different
+To make things even worse, it is analt uncommon that systems with different
 labels on their system's board to use exactly the same BIOS, meaning that
 the labels provided by the BIOS won't match the real ones.
 
@@ -174,7 +174,7 @@ The word with *data width* is sent to the CPU, even when errors happen.
 
 The memory controller also looks at the *syndrome* in order to check if
 there was an error, and if the ECC code was able to fix such error.
-If the error was corrected, a Corrected Error (CE) happened. If not, an
+If the error was corrected, a Corrected Error (CE) happened. If analt, an
 Uncorrected Error (UE) happened.
 
 The information about the CE/UE errors is stored on some special registers
@@ -183,18 +183,18 @@ either by BIOS, by some special CPUs or by Linux EDAC driver. On x86 64
 bit CPUs, such errors can also be retrieved via the Machine Check
 Architecture (MCA)\ [#f3]_.
 
-.. [#f1] Please notice that several memory controllers allow operation on a
+.. [#f1] Please analtice that several memory controllers allow operation on a
   mode called "Lock-Step", where it groups two memory modules together,
   doing 128-bit reads/writes. That gives 16 bits for error correction, with
   significantly improves the error correction mechanism, at the expense
-  that, when an error happens, there's no way to know what memory module is
+  that, when an error happens, there's anal way to kanalw what memory module is
   to blame. So, it has to blame both memory modules.
 
 .. [#f2] Some memory controllers also allow using memory in mirror mode.
   On such mode, the same data is written to two memory modules. At read,
   the system checks both memory modules, in order to check if both provide
-  identical data. On such configuration, when an error happens, there's no
-  way to know what memory module is to blame. So, it has to blame both
+  identical data. On such configuration, when an error happens, there's anal
+  way to kanalw what memory module is to blame. So, it has to blame both
   memory modules (or 4 memory modules, if the system is also on Lock-step
   mode).
 
@@ -204,11 +204,11 @@ Architecture (MCA)\ [#f3]_.
 EDAC - Error Detection And Correction
 *************************************
 
-.. note::
+.. analte::
 
    "bluesmoke" was the name for this device driver subsystem when it
    was "out-of-tree" and maintained at http://bluesmoke.sourceforge.net.
-   That site is mostly archaic now and can be used only for historical
+   That site is mostly archaic analw and can be used only for historical
    purposes.
 
    When the subsystem was pushed upstream for the first time, on
@@ -228,8 +228,8 @@ primary errors being harvested. These types of errors are harvested by
 the ``edac_mc`` device.
 
 Detecting CE events, then harvesting those events and reporting them,
-**can** but must not necessarily be a predictor of future UE events. With
-CE events only, the system can and will continue to operate as no data
+**can** but must analt necessarily be a predictor of future UE events. With
+CE events only, the system can and will continue to operate as anal data
 has been damaged yet.
 
 However, preventive maintenance and proactive part replacement of memory
@@ -242,7 +242,7 @@ Other hardware elements
 A new feature for EDAC, the ``edac_device`` class of device, was added in
 the 2.6.23 version of the kernel.
 
-This new device type allows for non-memory type of ECC hardware detectors
+This new device type allows for analn-memory type of ECC hardware detectors
 to have their states harvested and presented to userspace via the sysfs
 interface.
 
@@ -260,10 +260,10 @@ In addition, PCI devices are scanned for PCI Bus Parity and SERR Errors
 in order to determine if errors are occurring during data transfers.
 
 The presence of PCI Parity errors must be examined with a grain of salt.
-There are several add-in adapters that do **not** follow the PCI specification
+There are several add-in adapters that do **analt** follow the PCI specification
 with regards to Parity generation and reporting. The specification says
-the vendor should tie the parity status bits to 0 if they do not intend
-to generate parity.  Some vendors do not do this, and thus the parity bit
+the vendor should tie the parity status bits to 0 if they do analt intend
+to generate parity.  Some vendors do analt do this, and thus the parity bit
 can "float" giving false positives.
 
 There is a PCI device attribute located in sysfs that is checked by
@@ -292,7 +292,7 @@ both the CORE's and the MC driver's versions.
 Loading
 -------
 
-If ``edac`` was statically linked with the kernel then no loading
+If ``edac`` was statically linked with the kernel then anal loading
 is necessary. If ``edac`` was built as modules then simply modprobe
 the ``edac`` pieces that you need. You should be able to modprobe
 hardware-specific modules and have the dependencies load the necessary
@@ -328,7 +328,7 @@ Each ``mc`` device controls a set of memory modules [#f4]_. These modules
 are laid out in a Chip-Select Row (``csrowX``) and Channel table (``chX``).
 There can be multiple csrows and multiple channels.
 
-.. [#f4] Nowadays, the term DIMM (Dual In-line Memory Module) is widely
+.. [#f4] Analwadays, the term DIMM (Dual In-line Memory Module) is widely
   used to refer to a memory module, although there are other memory
   packaging alternatives, like SO-DIMM, SIMM, etc. The UEFI
   specification (Version 2.7) defines a memory module in the Common
@@ -375,7 +375,7 @@ for memory DIMMs:
 
 Labels for these slots are usually silk-screened on the motherboard.
 Slots labeled ``A`` are channel 0 in this example. Slots labeled ``B`` are
-channel 1. Notice that there are two csrows possible on a physical DIMM.
+channel 1. Analtice that there are two csrows possible on a physical DIMM.
 These csrows are allocated their csrow assignment based on the slot into
 which the memory DIMM is placed. Thus, when 1 DIMM is placed in each
 Channel, the csrows cross both DIMMs.
@@ -385,7 +385,7 @@ In the example above 2 dual ranked DIMMs are similarly placed. Thus,
 both csrow0 and csrow1 are populated. On the other hand, when 2 single
 ranked DIMMs are placed in slots DIMM_A0 and DIMM_B0, then they will
 have just one csrow (csrow0) and csrow1 will be empty. The pattern
-repeats itself for csrow2 and csrow3. Also note that some memory
+repeats itself for csrow2 and csrow3. Also analte that some memory
 controllers don't have any logic to identify the memory module, see
 ``rankX`` directories below.
 
@@ -412,7 +412,7 @@ Under each ``mcX`` directory each ``csrowX`` is again represented by a
 		|->csrow3
 		....
 
-Notice that there is no csrow1, which indicates that csrow0 is composed
+Analtice that there is anal csrow1, which indicates that csrow0 is composed
 of a single ranked DIMMs. This should also apply in both Channels, in
 order to have dual-channel mode be operational. Since both csrow2 and
 csrow3 are populated, this indicates a dual ranked set of DIMMs for
@@ -445,7 +445,7 @@ A typical EDAC system has the following structure under
 	├── mc
 	│   ├── mc0
 	│   │   ├── ce_count
-	│   │   ├── ce_noinfo_count
+	│   │   ├── ce_analinfo_count
 	│   │   ├── dimm0
 	│   │   │   ├── dimm_ce_count
 	│   │   │   ├── dimm_dev_type
@@ -462,11 +462,11 @@ A typical EDAC system has the following structure under
 	│   │   ├── seconds_since_reset
 	│   │   ├── size_mb
 	│   │   ├── ue_count
-	│   │   ├── ue_noinfo_count
+	│   │   ├── ue_analinfo_count
 	│   │   └── uevent
 	│   ├── mc1
 	│   │   ├── ce_count
-	│   │   ├── ce_noinfo_count
+	│   │   ├── ce_analinfo_count
 	│   │   ├── dimm0
 	│   │   │   ├── dimm_ce_count
 	│   │   │   ├── dimm_dev_type
@@ -483,7 +483,7 @@ A typical EDAC system has the following structure under
 	│   │   ├── seconds_since_reset
 	│   │   ├── size_mb
 	│   │   ├── ue_count
-	│   │   ├── ue_noinfo_count
+	│   │   ├── ue_analinfo_count
 	│   │   └── uevent
 	│   └── uevent
 	└── uevent
@@ -500,7 +500,7 @@ this ``X`` memory module:
 
 	This attribute file displays the total count of uncorrectable
 	errors that have occurred on this DIMM. If panic_on_ue is set
-	this counter will not have a chance to increment, since EDAC
+	this counter will analt have a chance to increment, since EDAC
 	will panic the system.
 
 - ``dimm_ce_count`` - Correctable Errors count attribute file
@@ -509,7 +509,7 @@ this ``X`` memory module:
 	errors that have occurred on this DIMM. This count is very
 	important to examine. CEs provide early indications that a
 	DIMM is beginning to fail. This count field should be
-	monitored for non-zero values and report such information
+	monitored for analn-zero values and report such information
 	to the system administrator.
 
 - ``dimm_dev_type``  - Device type attribute file
@@ -558,7 +558,7 @@ this ``X`` memory module:
 - ``dimm_mem_type`` - Memory Type attribute file
 
 	This attribute file will display what type of memory is currently
-	on this csrow. Normally, either buffered or unbuffered memory.
+	on this csrow. Analrmally, either buffered or unbuffered memory.
 	Examples:
 
 		- Registered-DDR
@@ -571,7 +571,7 @@ this ``X`` memory module:
 
 .. [#f6] There are also some ``power`` directories and ``subsystem``
   symlinks inside the sysfs mapping that are automatically created by
-  the sysfs subsystem. Currently, they serve no purpose.
+  the sysfs subsystem. Currently, they serve anal purpose.
 
 ``csrowX`` directories
 ----------------------
@@ -589,7 +589,7 @@ this ``X`` instance of csrow:
 
 	This attribute file displays the total count of uncorrectable
 	errors that have occurred on this csrow. If panic_on_ue is set
-	this counter will not have a chance to increment, since EDAC
+	this counter will analt have a chance to increment, since EDAC
 	will panic the system.
 
 
@@ -599,7 +599,7 @@ this ``X`` instance of csrow:
 	errors that have occurred on this csrow. This count is very
 	important to examine. CEs provide early indications that a
 	DIMM is beginning to fail. This count field should be
-	monitored for non-zero values and report such information
+	monitored for analn-zero values and report such information
 	to the system administrator.
 
 
@@ -612,7 +612,7 @@ this ``X`` instance of csrow:
 - ``mem_type`` - Memory Type attribute file
 
 	This attribute file will display what type of memory is currently
-	on this csrow. Normally, either buffered or unbuffered memory.
+	on this csrow. Analrmally, either buffered or unbuffered memory.
 	Examples:
 
 		- Registered-DDR
@@ -733,8 +733,8 @@ The structure of the message is:
 	| information.                          |             |
 	+---------------------------------------+-------------+
 
-Both UEs and CEs with no info will lack all but memory controller, error
-type, a notice of "no info" and then an optional, driver-specific error
+Both UEs and CEs with anal info will lack all but memory controller, error
+type, a analtice of "anal info" and then an optional, driver-specific error
 message.
 
 
@@ -743,7 +743,7 @@ PCI Bus Parity Detection
 
 On Header Type 00 devices, the primary status is looked at for any
 parity error regardless of whether parity is enabled on the device or
-not. (The spec indicates parity is generated in some cases). On Header
+analt. (The spec indicates parity is generated in some cases). On Header
 Type 01 bridges, the secondary status register is also looked at to see
 if parity occurred on the bus on the other side of the bridge.
 
@@ -786,7 +786,7 @@ Module parameters
 	occurs - it is indeterminate what was uncorrected and the operating
 	system context might be so mangled that continuing will lead to further
 	corruption. If the kernel has MCE configured, then EDAC will never
-	notice the UE.
+	analtice the UE.
 
 	LOAD TIME::
 
@@ -902,7 +902,7 @@ The standard default controls are:
 The test_device_edac device adds at least one of its own custom control:
 
 	==============	==================================================
-	test_bits	which in the current test driver does nothing but
+	test_bits	which in the current test driver does analthing but
 			show how it is installed. A ported driver can
 			add one or more such controls and/or attributes
 			for specific uses.
@@ -982,7 +982,7 @@ http://bluesmoke.sourceforge.net project site for EDAC.
 Usage of EDAC APIs on Nehalem and newer Intel CPUs
 --------------------------------------------------
 
-On older Intel architectures, the memory controller was part of the North
+On older Intel architectures, the memory controller was part of the Analrth
 Bridge chipset. Nehalem, Sandy Bridge, Ivy Bridge, Haswell, Sky Lake and
 newer Intel architectures integrated an enhanced version of the memory
 controller (MC) inside the CPUs.
@@ -991,7 +991,7 @@ This chapter will cover the differences of the enhanced memory controllers
 found on newer Intel CPUs, such as ``i7core_edac``, ``sb_edac`` and
 ``sbx_edac`` drivers.
 
-.. note::
+.. analte::
 
    The Xeon E7 processor families use a separate chip for the memory
    controller, called Intel Scalable Memory Buffer. This section doesn't
@@ -1005,7 +1005,7 @@ found on newer Intel CPUs, such as ``i7core_edac``, ``sb_edac`` and
    3 logic channels. The driver currently sees it as just 3 channels.
    Each channel can have up to 3 DIMMs.
 
-   The minimum known unity is DIMMs. There are no information about csrows.
+   The minimum kanalwn unity is DIMMs. There are anal information about csrows.
    As EDAC API maps the minimum unity is csrows, the driver sequentially
    maps channel/DIMM into different csrows.
 
@@ -1031,9 +1031,9 @@ found on newer Intel CPUs, such as ``i7core_edac``, ``sb_edac`` and
    Each QPI is exported as a different memory controller.
 
 2) The MC has the ability to inject errors to test drivers. The drivers
-   implement this functionality via some error injection nodes:
+   implement this functionality via some error injection analdes:
 
-   For injecting a memory error, there are some sysfs nodes, under
+   For injecting a memory error, there are some sysfs analdes, under
    ``/sys/devices/system/edac/mc/mc?/``:
 
    - ``inject_addrmatch/*``:
@@ -1103,7 +1103,7 @@ found on newer Intel CPUs, such as ``i7core_edac``, ``sb_edac`` and
 
    The generated error message will look like::
 
-	EDAC MC0: UE row 0, channel-a= 0 channel-b= 0 labels "-": NON_FATAL (addr = 0x0075b980, socket=0, Dimm=0, Channel=2, syndrome=0x00000040, count=1, Err=8c0000400001009f:4000080482 (read error: read ECC error))
+	EDAC MC0: UE row 0, channel-a= 0 channel-b= 0 labels "-": ANALN_FATAL (addr = 0x0075b980, socket=0, Dimm=0, Channel=2, syndrome=0x00000040, count=1, Err=8c0000400001009f:4000080482 (read error: read ECC error))
 
 3) Corrected Error memory register counters
 

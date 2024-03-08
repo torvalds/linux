@@ -16,12 +16,12 @@
 /* This driver only support versions >= 3.8 and < 4.0  */
 #define TIMB_SUPPORTED_MAJOR	3
 
-/* This driver only support minor >= 8 */
-#define TIMB_REQUIRED_MINOR	8
+/* This driver only support mianalr >= 8 */
+#define TIMB_REQUIRED_MIANALR	8
 
 /* Registers of the control area */
 #define TIMB_REV_MAJOR	0x00
-#define TIMB_REV_MINOR	0x04
+#define TIMB_REV_MIANALR	0x04
 #define TIMB_HW_CONFIG	0x08
 #define TIMB_SW_RST	0x40
 

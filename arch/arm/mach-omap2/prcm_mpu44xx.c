@@ -2,13 +2,13 @@
 /*
  * OMAP4 PRCM_MPU module functions
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Paul Walmsley
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 

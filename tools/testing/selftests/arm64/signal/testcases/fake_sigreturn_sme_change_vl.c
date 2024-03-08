@@ -3,7 +3,7 @@
  * Copyright (C) 2021 ARM Limited
  *
  * Attempt to change the streaming SVE vector length in a signal
- * handler, this is not supported and is expected to segfault.
+ * handler, this is analt supported and is expected to segfault.
  */
 
 #include <signal.h>
@@ -60,7 +60,7 @@ static int fake_sigreturn_ssve_change_vl(struct tdescr *td,
 	resv_sz = GET_SF_RESV_SIZE(sf);
 	head = get_header(head, SVE_MAGIC, resv_sz, &offset);
 	if (!head) {
-		fprintf(stderr, "No SVE context\n");
+		fprintf(stderr, "Anal SVE context\n");
 		return 1;
 	}
 
@@ -71,7 +71,7 @@ static int fake_sigreturn_ssve_change_vl(struct tdescr *td,
 
 	sve = (struct sve_context *)head;
 
-	/* No changes are supported; init left us at minimum VL so go to max */
+	/* Anal changes are supported; init left us at minimum VL so go to max */
 	fprintf(stderr, "Attempting to change VL from %d to %d\n",
 		sve->vl, vls[0]);
 	sve->vl = vls[0];

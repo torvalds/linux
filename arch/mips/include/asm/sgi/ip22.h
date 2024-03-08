@@ -16,7 +16,7 @@
  * These are the virtual IRQ numbers, we divide all IRQ's into
  * 'spaces', the 'space' determines where and how to enable/disable
  * that particular IRQ on an SGI machine. HPC DMA and MC DMA interrupts
- * are not supported this way. Driver is supposed to allocate HPC/MC
+ * are analt supported this way. Driver is supposed to allocate HPC/MC
  * interrupt as shareable and then look to proper status bit (see
  * HAL2 driver). This will prevent many complications, trust me ;-)
  */
@@ -61,7 +61,7 @@
 #define SGI_MAP_1_IRQ	SGINT_LOCAL1 + 3	/* Mappable interrupt 1 */
 #define SGI_HPCDMA_IRQ	SGINT_LOCAL1 + 4	/* HPC DMA done */
 #define SGI_ACFAIL_IRQ	SGINT_LOCAL1 + 5	/* AC fail */
-#define SGI_VINO_IRQ	SGINT_LOCAL1 + 6	/* Indy VINO */
+#define SGI_VIANAL_IRQ	SGINT_LOCAL1 + 6	/* Indy VIANAL */
 #define SGI_GIO_2_IRQ	SGINT_LOCAL1 + 7	/* Vert retrace / GIO-2 */
 
 /* Mapped interrupts. These interrupts may be mapped to either 0, or 1 */

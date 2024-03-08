@@ -251,12 +251,12 @@ static int nft_flow_route(const struct nft_pktinfo *pkt,
 	}
 
 	if (!dst_hold_safe(this_dst))
-		return -ENOENT;
+		return -EANALENT;
 
 	nf_route(nft_net(pkt), &other_dst, &fl, false, nft_pf(pkt));
 	if (!other_dst) {
 		dst_release(this_dst);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	nft_default_forward_path(route, this_dst, dir);
@@ -326,7 +326,7 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
 		if (ct->status & IPS_NAT_MASK)
 			goto out;
 		tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-		/* No support for GRE v1 */
+		/* Anal support for GRE v1 */
 		if (tuple->src.u.gre.key || tuple->dst.u.gre.key)
 			goto out;
 		break;
@@ -388,7 +388,7 @@ static int nft_flow_offload_validate(const struct nft_ctx *ctx,
 	if (ctx->family != NFPROTO_IPV4 &&
 	    ctx->family != NFPROTO_IPV6 &&
 	    ctx->family != NFPROTO_INET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return nft_chain_validate_hooks(ctx->chain, hook_mask);
 }
@@ -481,28 +481,28 @@ static struct nft_expr_type nft_flow_offload_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static int flow_offload_netdev_event(struct notifier_block *this,
+static int flow_offload_netdev_event(struct analtifier_block *this,
 				     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	if (event != NETDEV_DOWN)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	nf_flow_table_cleanup(dev);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block flow_offload_netdev_notifier = {
-	.notifier_call	= flow_offload_netdev_event,
+static struct analtifier_block flow_offload_netdev_analtifier = {
+	.analtifier_call	= flow_offload_netdev_event,
 };
 
 static int __init nft_flow_offload_module_init(void)
 {
 	int err;
 
-	err = register_netdevice_notifier(&flow_offload_netdev_notifier);
+	err = register_netdevice_analtifier(&flow_offload_netdev_analtifier);
 	if (err)
 		goto err;
 
@@ -513,7 +513,7 @@ static int __init nft_flow_offload_module_init(void)
 	return 0;
 
 register_expr:
-	unregister_netdevice_notifier(&flow_offload_netdev_notifier);
+	unregister_netdevice_analtifier(&flow_offload_netdev_analtifier);
 err:
 	return err;
 }
@@ -521,7 +521,7 @@ err:
 static void __exit nft_flow_offload_module_exit(void)
 {
 	nft_unregister_expr(&nft_flow_offload_type);
-	unregister_netdevice_notifier(&flow_offload_netdev_notifier);
+	unregister_netdevice_analtifier(&flow_offload_netdev_analtifier);
 }
 
 module_init(nft_flow_offload_module_init);

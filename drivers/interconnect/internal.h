@@ -10,9 +10,9 @@
 #define __DRIVERS_INTERCONNECT_INTERNAL_H
 
 /**
- * struct icc_req - constraints that are attached to each node
- * @req_node: entry in list of requests for the particular @node
- * @node: the interconnect node to which this constraint applies
+ * struct icc_req - constraints that are attached to each analde
+ * @req_analde: entry in list of requests for the particular @analde
+ * @analde: the interconnect analde to which this constraint applies
  * @dev: reference to the device that sets the constraints
  * @enabled: indicates whether the path with this request is enabled
  * @tag: path tag (optional)
@@ -20,8 +20,8 @@
  * @peak_bw: an integer describing the peak bandwidth in kBps
  */
 struct icc_req {
-	struct hlist_node req_node;
-	struct icc_node *node;
+	struct hlist_analde req_analde;
+	struct icc_analde *analde;
 	struct device *dev;
 	bool enabled;
 	u32 tag;
@@ -32,13 +32,13 @@ struct icc_req {
 /**
  * struct icc_path - interconnect path structure
  * @name: a string name of the path (useful for ftrace)
- * @num_nodes: number of hops (nodes)
- * @reqs: array of the requests applicable to this path of nodes
+ * @num_analdes: number of hops (analdes)
+ * @reqs: array of the requests applicable to this path of analdes
  */
 struct icc_path {
 	const char *name;
-	size_t num_nodes;
-	struct icc_req reqs[] __counted_by(num_nodes);
+	size_t num_analdes;
+	struct icc_req reqs[] __counted_by(num_analdes);
 };
 
 struct icc_path *icc_get(struct device *dev, const char *src, const char *dst);

@@ -26,7 +26,7 @@ struct pxa2xx_spi_controller {
 	void *tx_param;
 	void *rx_param;
 
-	/* For non-PXA arches */
+	/* For analn-PXA arches */
 	struct ssp_device ssp;
 };
 

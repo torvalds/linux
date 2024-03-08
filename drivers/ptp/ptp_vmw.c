@@ -44,12 +44,12 @@ static int ptp_vmw_pclk_read(u64 *ns)
 
 static int ptp_vmw_adjtime(struct ptp_clock_info *info, s64 delta)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ptp_vmw_adjfine(struct ptp_clock_info *info, long delta)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ptp_vmw_gettime(struct ptp_clock_info *info, struct timespec64 *ts)
@@ -65,13 +65,13 @@ static int ptp_vmw_gettime(struct ptp_clock_info *info, struct timespec64 *ts)
 static int ptp_vmw_settime(struct ptp_clock_info *info,
 			  const struct timespec64 *ts)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ptp_vmw_enable(struct ptp_clock_info *info,
 			 struct ptp_clock_request *request, int on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static struct ptp_clock_info ptp_vmw_clock_info = {

@@ -164,7 +164,7 @@ static const struct snd_soc_dapm_widget st_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 
-	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_ANALPM, 0, 0,
 			    sof_es8316_speaker_power_event,
 			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 };
@@ -199,12 +199,12 @@ static int st_es8336_late_probe(struct snd_soc_card *card)
 
 	adev = acpi_dev_get_first_match_dev("ESSX8336", NULL, -1);
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	codec_dev = acpi_get_first_physical_node(adev);
+	codec_dev = acpi_get_first_physical_analde(adev);
 	acpi_dev_put(adev);
 	if (!codec_dev)
-		dev_err(card->dev, "can not find codec dev\n");
+		dev_err(card->dev, "can analt find codec dev\n");
 
 	ret = devm_acpi_dev_add_driver_gpios(codec_dev, acpi_es8336_gpios);
 	if (ret)
@@ -213,7 +213,7 @@ static int st_es8336_late_probe(struct snd_soc_card *card)
 	gpio_pa = gpiod_get_optional(codec_dev, "pa-enable", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio_pa)) {
 		ret = dev_err_probe(card->dev, PTR_ERR(gpio_pa),
-				    "could not get pa-enable GPIO\n");
+				    "could analt get pa-enable GPIO\n");
 		put_device(codec_dev);
 		return ret;
 	}
@@ -251,7 +251,7 @@ static const struct dmi_system_id st_es8336_quirk_table[] = {
 	{
 		.callback = st_es8336_quirk_cb,
 		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "IP3 Technology CO.,Ltd."),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "IP3 Techanallogy CO.,Ltd."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "ASN1D"),
 		},
 	},
@@ -273,7 +273,7 @@ static int st_es8336_probe(struct platform_device *pdev)
 
 	machine = devm_kzalloc(&pdev->dev, sizeof(struct acp_platform_info), GFP_KERNEL);
 	if (!machine)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmi_check_system(st_es8336_quirk_table);
 	switch (acp2x_machine_id) {
@@ -282,7 +282,7 @@ static int st_es8336_probe(struct platform_device *pdev)
 		st_card.dev = &pdev->dev;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	platform_set_drvdata(pdev, card);

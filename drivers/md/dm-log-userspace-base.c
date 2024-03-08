@@ -100,7 +100,7 @@ retry:
 	if (r != -ESRCH)
 		return r;
 
-	DMERR(" Userspace log server not found.");
+	DMERR(" Userspace log server analt found.");
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(2*HZ);
@@ -143,7 +143,7 @@ static int build_constructor_string(struct dm_target *ti,
 	str = kzalloc(str_size, GFP_KERNEL);
 	if (!str) {
 		DMWARN("Unable to allocate memory for constructor string");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	str_size = sprintf(str, "%llu", (unsigned long long)ti->len);
@@ -177,7 +177,7 @@ static void do_flush(struct work_struct *work)
  *
  * Example:
  *	<UUID> [integrated_flush] clustered-disk <arg count> <log dev>
- *	<region_size> [[no]sync]
+ *	<region_size> [[anal]sync]
  *
  * This module strips off the <UUID> and uses it for identification
  * purposes when communicating with userspace about a log.
@@ -208,7 +208,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 	lc = kzalloc(sizeof(*lc), GFP_KERNEL);
 	if (!lc) {
 		DMWARN("Unable to allocate userspace log context.");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* The ptr value is sufficient for local unique id */
@@ -246,7 +246,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 	devices_rdata = kzalloc(devices_rdata_size, GFP_KERNEL);
 	if (!devices_rdata) {
 		DMERR("Failed to allocate memory for device information");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto out;
 	}
 
@@ -266,13 +266,13 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 
 	if (r < 0) {
 		if (r == -ESRCH)
-			DMERR("Userspace log server not found");
+			DMERR("Userspace log server analt found");
 		else
 			DMERR("Userspace log server failed to create log");
 		goto out;
 	}
 
-	/* Since the region size does not change, get it now */
+	/* Since the region size does analt change, get it analw */
 	rdata_size = sizeof(rdata);
 	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_GET_REGION_SIZE,
 				 NULL, 0, (char *)&rdata, &rdata_size);
@@ -287,7 +287,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 
 	if (devices_rdata_size) {
 		if (devices_rdata[devices_rdata_size - 1] != '\0') {
-			DMERR("DM_ULOG_CTR device return string not properly terminated");
+			DMERR("DM_ULOG_CTR device return string analt properly terminated");
 			r = -EINVAL;
 			goto out;
 		}
@@ -302,7 +302,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		lc->dmlog_wq = alloc_workqueue("dmlogd", WQ_MEM_RECLAIM, 0);
 		if (!lc->dmlog_wq) {
 			DMERR("couldn't start dmlogd");
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto out;
 		}
 
@@ -399,7 +399,7 @@ static uint32_t userspace_get_region_size(struct dm_dirty_log *log)
  * userspace_is_clean
  *
  * Check whether a region is clean.  If there is any sort of
- * failure when consulting the server, we return not clean.
+ * failure when consulting the server, we return analt clean.
  *
  * Returns: 1 if clean, 0 otherwise
  */
@@ -424,11 +424,11 @@ static int userspace_is_clean(struct dm_dirty_log *log, region_t region)
  *
  * Check if the region is in-sync.  If there is any sort
  * of failure when consulting the server, we assume that
- * the region is not in sync.
+ * the region is analt in sync.
  *
  * If 'can_block' is set, return immediately
  *
- * Returns: 1 if in-sync, 0 if not-in-sync, -EWOULDBLOCK
+ * Returns: 1 if in-sync, 0 if analt-in-sync, -EWOULDBLOCK
  */
 static int userspace_in_sync(struct dm_dirty_log *log, region_t region,
 			     int can_block)
@@ -441,7 +441,7 @@ static int userspace_in_sync(struct dm_dirty_log *log, region_t region,
 
 	/*
 	 * We can never respond directly - even if in_sync_hint is
-	 * set.  This is because another machine could see a device
+	 * set.  This is because aanalther machine could see a device
 	 * failure and mark the region out-of-sync.  If we don't go
 	 * to userspace to ask, we might think the region is in-sync
 	 * and allow a read to pick up data that is stale.  (This is
@@ -449,7 +449,7 @@ static int userspace_in_sync(struct dm_dirty_log *log, region_t region,
 	 * likely if a connection to one device from one machine fails.)
 	 *
 	 * There still might be a problem if the mirror caches the region
-	 * state as in-sync... but then this call would not be made.  So,
+	 * state as in-sync... but then this call would analt be made.  So,
 	 * that is a mirror problem.
 	 */
 	if (!can_block)
@@ -551,7 +551,7 @@ static int flush_by_group(struct log_c *lc, struct list_head *flush_list,
  * server a chance to optimise the commit, instead of
  * doing it for every request.
  *
- * Additionally, we could implement another thread that
+ * Additionally, we could implement aanalther thread that
  * sends the requests up to the server - reducing the
  * load on flush.  Then the flush would have less in
  * the list and be responsible for the finishing commit.
@@ -620,7 +620,7 @@ static int userspace_flush(struct dm_dirty_log *log)
 out:
 	/*
 	 * We can safely remove these entries, even after failure.
-	 * Calling code will receive an error and will know that
+	 * Calling code will receive an error and will kanalw that
 	 * the log facility has failed.
 	 */
 	list_for_each_entry_safe(fe, tmp_fe, &mark_list, list) {
@@ -651,7 +651,7 @@ static void userspace_mark_region(struct dm_dirty_log *log, region_t region)
 	struct dm_dirty_log_flush_entry *fe;
 
 	/* Wait for an allocation, but _never_ fail */
-	fe = mempool_alloc(&lc->flush_entry_pool, GFP_NOIO);
+	fe = mempool_alloc(&lc->flush_entry_pool, GFP_ANALIO);
 	BUG_ON(!fe);
 
 	spin_lock_irqsave(&lc->flush_lock, flags);
@@ -664,10 +664,10 @@ static void userspace_mark_region(struct dm_dirty_log *log, region_t region)
 /*
  * userspace_clear_region
  *
- * This function must not block.
+ * This function must analt block.
  * So, the alloc can't block.  In the worst case, it is ok to
  * fail.  It would simply mean we can't clear the region.
- * Does nothing to current sync context, but does mean
+ * Does analthing to current sync context, but does mean
  * the region will be re-sync'ed on a reload of the mirror
  * even though it is in-sync.
  */
@@ -702,7 +702,7 @@ static void userspace_clear_region(struct dm_dirty_log *log, region_t region)
  * Get a region that needs recovery.  It is valid to return
  * an error for this function.
  *
- * Returns: 1 if region filled, 0 if no work, <0 on error
+ * Returns: 1 if region filled, 0 if anal work, <0 on error
  */
 static int userspace_get_resync_work(struct dm_dirty_log *log, region_t *region)
 {
@@ -729,7 +729,7 @@ static int userspace_get_resync_work(struct dm_dirty_log *log, region_t *region)
  * userspace_set_region_sync
  *
  * Set the sync status of a given region.  This function
- * must not fail.
+ * must analt fail.
  */
 static void userspace_set_region_sync(struct dm_dirty_log *log,
 				      region_t region, int in_sync)
@@ -748,7 +748,7 @@ static void userspace_set_region_sync(struct dm_dirty_log *log,
 
 	/*
 	 * It would be nice to be able to report failures.
-	 * However, it is easy enough to detect and resolve.
+	 * However, it is easy eanalugh to detect and resolve.
 	 */
 }
 
@@ -842,7 +842,7 @@ static int userspace_is_remote_recovering(struct dm_dirty_log *log,
 	/*
 	 * Once the mirror has been reported to be in-sync,
 	 * it will never again ask for recovery work.  So,
-	 * we can safely say there is not a remote machine
+	 * we can safely say there is analt a remote machine
 	 * recovering if the device is in-sync.  (in_sync_hint
 	 * must be reset at resume time.)
 	 */
@@ -890,8 +890,8 @@ static int __init userspace_dirty_log_init(void)
 
 	_flush_entry_cache = KMEM_CACHE(dm_dirty_log_flush_entry, 0);
 	if (!_flush_entry_cache) {
-		DMWARN("Unable to create flush_entry_cache: No memory.");
-		return -ENOMEM;
+		DMWARN("Unable to create flush_entry_cache: Anal memory.");
+		return -EANALMEM;
 	}
 
 	r = dm_ulog_tfr_init();

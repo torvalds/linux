@@ -132,7 +132,7 @@ static int sja1000_isa_probe(struct platform_device *pdev)
 		}
 		base = ioremap(mem[idx], iosize);
 		if (!base) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto exit_release;
 		}
 	} else {
@@ -147,7 +147,7 @@ static int sja1000_isa_probe(struct platform_device *pdev)
 
 	dev = alloc_sja1000dev(0);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_unmap;
 	}
 	priv = netdev_priv(dev);
@@ -260,7 +260,7 @@ static int __init sja1000_isa_init(void)
 			sja1000_isa_devs[idx] =
 				platform_device_alloc(DRV_NAME, idx);
 			if (!sja1000_isa_devs[idx]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto exit_free_devices;
 			}
 			err = platform_device_add(sja1000_isa_devs[idx]);

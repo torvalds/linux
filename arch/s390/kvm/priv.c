@@ -10,7 +10,7 @@
 
 #include <linux/kvm.h>
 #include <linux/gfp.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm_types.h>
 #include <linux/pgtable.h>
 #include <linux/io.h>
@@ -47,7 +47,7 @@ int kvm_s390_handle_aa(struct kvm_vcpu *vcpu)
 	if ((vcpu->arch.sie_block->ipa & 0xf) <= 4)
 		return handle_ri(vcpu);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static int handle_gs(struct kvm_vcpu *vcpu)
@@ -77,7 +77,7 @@ int kvm_s390_handle_e3(struct kvm_vcpu *vcpu)
 	if (code == 0x49 || code == 0x4d)
 		return handle_gs(vcpu);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 /* Handle SCK (SET CLOCK) interception */
 static int handle_set_clock(struct kvm_vcpu *vcpu)
@@ -103,10 +103,10 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 	/*
 	 * To set the TOD clock the kvm lock must be taken, but the vcpu lock
 	 * is already held in handle_set_clock. The usual lock order is the
-	 * opposite.  As SCK is deprecated and should not be used in several
+	 * opposite.  As SCK is deprecated and should analt be used in several
 	 * cases, for example when the multiple epoch facility or TOD clock
 	 * steering facility is installed (see Principles of Operation),  a
-	 * slow path can be used.  If the lock can not be taken via try_lock,
+	 * slow path can be used.  If the lock can analt be taken via try_lock,
 	 * the instruction will be retried via -EAGAIN at a later point in
 	 * time.
 	 */
@@ -467,7 +467,7 @@ static int handle_test_block(struct kvm_vcpu *vcpu)
 	if (kvm_is_error_gpa(vcpu->kvm, addr))
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	/*
-	 * We don't expect errors on modern systems, and do not care
+	 * We don't expect errors on modern systems, and do analt care
 	 * about storage keys (yet), so let's just clear the page.
 	 */
 	if (kvm_clear_guest(vcpu->kvm, addr, PAGE_SIZE))
@@ -519,7 +519,7 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 		 */
 		len = sizeof(tpi_data);
 		if (write_guest_lc(vcpu, __LC_SUBCHANNEL_ID, &tpi_data, len)) {
-			/* failed writes to the low core are not recoverable */
+			/* failed writes to the low core are analt recoverable */
 			rc = -EFAULT;
 			goto reinject_interrupt;
 		}
@@ -560,7 +560,7 @@ static int handle_tsch(struct kvm_vcpu *vcpu)
 	 * We indicate whether we dequeued a pending I/O interrupt
 	 * so that userspace can re-inject it if the instruction gets
 	 * a program check. While this may re-order the pending I/O
-	 * interrupts, this is no problem since the priority is kept
+	 * interrupts, this is anal problem since the priority is kept
 	 * intact.
 	 */
 	vcpu->run->exit_reason = KVM_EXIT_S390_TSCH;
@@ -594,7 +594,7 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 			return handle_tsch(vcpu);
 		/* Handle in userspace. */
 		vcpu->stat.instruction_io_other++;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else {
 		/*
 		 * Set condition code 3 to stop the guest from issuing channel
@@ -609,14 +609,14 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
  * handle_pqap: Handling pqap interception
  * @vcpu: the vcpu having issue the pqap instruction
  *
- * We now support PQAP/AQIC instructions and we need to correctly
- * answer the guest even if no dedicated driver's hook is available.
+ * We analw support PQAP/AQIC instructions and we need to correctly
+ * answer the guest even if anal dedicated driver's hook is available.
  *
  * The intercepting code calls a dedicated callback for this instruction
  * if a driver did register one in the CRYPTO satellite of the
  * SIE block.
  *
- * If no callback is available, the queues are not available, return this
+ * If anal callback is available, the queues are analt available, return this
  * response code to the caller and set CC to 3.
  * Else return the response code returned by the callback.
  */
@@ -630,22 +630,22 @@ static int handle_pqap(struct kvm_vcpu *vcpu)
 
 	/* Verify that the AP instruction are available */
 	if (!ap_instructions_available())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* Verify that the guest is allowed to use AP instructions */
 	if (!(vcpu->arch.sie_block->eca & ECA_APIE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/*
 	 * The only possibly intercepted functions when AP instructions are
 	 * available for the guest are AQIC and TAPQ with the t bit set
-	 * since we do not set IC.3 (FIII) we currently will only intercept
+	 * since we do analt set IC.3 (FIII) we currently will only intercept
 	 * the AQIC function code.
-	 * Note: running nested under z/VM can result in intercepts for other
-	 * function codes, e.g. PQAP(QCI). We do not support this and bail out.
+	 * Analte: running nested under z/VM can result in intercepts for other
+	 * function codes, e.g. PQAP(QCI). We do analt support this and bail out.
 	 */
 	reg0 = vcpu->run->s.regs.gprs[0];
 	fc = (reg0 >> 24) & 0xff;
 	if (fc != 0x03)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* PQAP instruction is allowed for guest kernel only */
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
@@ -655,15 +655,15 @@ static int handle_pqap(struct kvm_vcpu *vcpu)
 	/* bits 41-47 must all be zeros */
 	if (reg0 & 0x007f0000UL)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-	/* APFT not install and T bit set */
+	/* APFT analt install and T bit set */
 	if (!test_kvm_facility(vcpu->kvm, 15) && (reg0 & 0x00800000UL))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-	/* APXA not installed and APID greater 64 or APQI greater 16 */
+	/* APXA analt installed and APID greater 64 or APQI greater 16 */
 	if (!(vcpu->kvm->arch.crypto.crycbd & 0x02) && (reg0 & 0x0000c0f0UL))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	/* AQIC function code specific exception */
-	/* facility 65 not present for AQIC function code */
+	/* facility 65 analt present for AQIC function code */
 	if (!test_kvm_facility(vcpu->kvm, 65))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
@@ -688,7 +688,7 @@ static int handle_pqap(struct kvm_vcpu *vcpu)
 	up_read(&vcpu->kvm->arch.crypto.pqap_hook_rwsem);
 	/*
 	 * A vfio_driver must register a hook.
-	 * No hook means no driver to enable the SIE CRYCB and no queues.
+	 * Anal hook means anal driver to enable the SIE CRYCB and anal queues.
 	 * We send this response to the guest.
 	 */
 	status.response_code = 0x01;
@@ -878,7 +878,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 
 	/* Bailout forbidden function codes */
 	if (fc > 3 && fc != 15)
-		goto out_no_data;
+		goto out_anal_data;
 
 	/*
 	 * fc 15 is provided only with
@@ -887,7 +887,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	 */
 	if (fc == 15 && (!test_kvm_facility(vcpu->kvm, 11) ||
 			 !vcpu->kvm->arch.user_stsi))
-		goto out_no_data;
+		goto out_anal_data;
 
 	if (vcpu->run->s.regs.gprs[0] & 0x0fffff00
 	    || vcpu->run->s.regs.gprs[1] & 0xffff0000)
@@ -909,16 +909,16 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	case 2:
 		mem = get_zeroed_page(GFP_KERNEL_ACCOUNT);
 		if (!mem)
-			goto out_no_data;
+			goto out_anal_data;
 		if (stsi((void *) mem, fc, sel1, sel2))
-			goto out_no_data;
+			goto out_anal_data;
 		break;
 	case 3:
 		if (sel1 != 2 || sel2 != 2)
-			goto out_no_data;
+			goto out_anal_data;
 		mem = get_zeroed_page(GFP_KERNEL_ACCOUNT);
 		if (!mem)
-			goto out_no_data;
+			goto out_anal_data;
 		handle_stsi_3_2_2(vcpu, (void *) mem);
 		break;
 	case 15: /* fc 15 is fully handled in userspace */
@@ -945,7 +945,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	kvm_s390_set_psw_cc(vcpu, 0);
 	vcpu->run->s.regs.gprs[0] = 0;
 	return rc;
-out_no_data:
+out_anal_data:
 	kvm_s390_set_psw_cc(vcpu, 3);
 out:
 	free_page(mem);
@@ -1006,7 +1006,7 @@ int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 	case 0xb2:
 		return handle_lpswe(vcpu);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1059,7 +1059,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	if (vcpu->run->s.regs.gprs[reg1] & PFMF_RESERVED)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	/* Only provide non-quiescing support if enabled for the guest */
+	/* Only provide analn-quiescing support if enabled for the guest */
 	if (vcpu->run->s.regs.gprs[reg1] & PFMF_NQ &&
 	    !test_kvm_facility(vcpu->kvm, 14))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -1092,7 +1092,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		break;
 	case 0x00002000:
 		/* only support 2G frame size if EDAT2 is available and we are
-		   not in 24-bit addressing mode */
+		   analt in 24-bit addressing mode */
 		if (!test_kvm_facility(vcpu->kvm, 78) ||
 		    psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_BITS_AMODE_24BIT)
 			return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -1182,8 +1182,8 @@ static inline int __do_essa(struct kvm_vcpu *vcpu, const int orc)
 	res = (pgstev & _PGSTE_GPS_USAGE_MASK) >> 22;
 	/*
 	 * Set the block-content state part of the result. 0 means resident, so
-	 * nothing to do if the page is valid. 2 is for preserved pages
-	 * (non-present and non-zero), and 3 for zero pages (non-present and
+	 * analthing to do if the page is valid. 2 is for preserved pages
+	 * (analn-present and analn-zero), and 3 for zero pages (analn-present and
 	 * zero).
 	 */
 	if (ptev & _PAGE_INVALID) {
@@ -1191,13 +1191,13 @@ static inline int __do_essa(struct kvm_vcpu *vcpu, const int orc)
 		if (pgstev & _PGSTE_GPS_ZERO)
 			res |= 1;
 	}
-	if (pgstev & _PGSTE_GPS_NODAT)
+	if (pgstev & _PGSTE_GPS_ANALDAT)
 		res |= 0x20;
 	vcpu->run->s.regs.gprs[r1] = res;
 	/*
-	 * It is possible that all the normal 511 slots were full, in which case
-	 * we will now write in the 512th slot, which is reserved for host use.
-	 * In both cases we let the normal essa handling code process all the
+	 * It is possible that all the analrmal 511 slots were full, in which case
+	 * we will analw write in the 512th slot, which is reserved for host use.
+	 * In both cases we let the analrmal essa handling code process all the
 	 * slots, including the reserved one, if needed.
 	 */
 	if (nappended > 0) {
@@ -1235,19 +1235,19 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 	/* Check for invalid operation request code */
 	orc = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
 	/* ORCs 0-6 are always valid */
-	if (orc > (test_kvm_facility(vcpu->kvm, 147) ? ESSA_SET_STABLE_NODAT
+	if (orc > (test_kvm_facility(vcpu->kvm, 147) ? ESSA_SET_STABLE_ANALDAT
 						: ESSA_SET_STABLE_IF_RESIDENT))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	if (!vcpu->kvm->arch.migration_mode) {
 		/*
 		 * CMMA is enabled in the KVM settings, but is disabled in
-		 * the SIE block and in the mm_context, and we are not doing
+		 * the SIE block and in the mm_context, and we are analt doing
 		 * a migration. Enable CMMA in the mm_context.
 		 * Since we need to take a write lock to write to the context
 		 * to avoid races with storage keys handling, we check if the
 		 * value really needs to be written to; if the value is
-		 * already correct, we do nothing and avoid the lock.
+		 * already correct, we do analthing and avoid the lock.
 		 */
 		if (vcpu->kvm->mm->context.uses_cmm == 0) {
 			mmap_write_lock(vcpu->kvm->mm);
@@ -1259,8 +1259,8 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 		 * the SIE block. Enabling CMMA works on a per-CPU basis,
 		 * while the context use_cmma flag is per process.
 		 * It's possible that the context flag is enabled and the
-		 * SIE flag is not, so we set the flag always; if it was
-		 * already set, nothing changes, otherwise we enable it
+		 * SIE flag is analt, so we set the flag always; if it was
+		 * already set, analthing changes, otherwise we enable it
 		 * on this CPU too.
 		 */
 		vcpu->arch.sie_block->ecb2 |= ECB2_CMMA;
@@ -1302,7 +1302,7 @@ int kvm_s390_handle_b9(struct kvm_vcpu *vcpu)
 	case 0xaf:
 		return handle_pfmf(vcpu);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1463,7 +1463,7 @@ int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)
 	case 0x62:
 		return handle_ri(vcpu);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1503,13 +1503,13 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 		/* Fetching permitted; storing permitted */
 		if (ret == 0 && writable)
 			cc = 0;
-		/* Fetching permitted; storing not permitted */
+		/* Fetching permitted; storing analt permitted */
 		else if (ret == 0 && !writable)
 			cc = 1;
-		/* Fetching not permitted; storing not permitted */
+		/* Fetching analt permitted; storing analt permitted */
 		else if (ret == PGM_PROTECTION)
 			cc = 2;
-		/* Translation not available */
+		/* Translation analt available */
 		else if (ret != PGM_ADDRESSING && ret != PGM_TRANSLATION_SPEC)
 			cc = 3;
 
@@ -1532,7 +1532,7 @@ int kvm_s390_handle_e5(struct kvm_vcpu *vcpu)
 	case 0x01:
 		return handle_tprot(vcpu);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1572,6 +1572,6 @@ int kvm_s390_handle_01(struct kvm_vcpu *vcpu)
 	case 0x07:
 		return handle_sckpf(vcpu);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

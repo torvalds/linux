@@ -64,7 +64,7 @@
 #define	TWO_DB_BNDWDTH_THRSHLD_REG	0x91
 #define	THREE_DB_BNDWDTH_THRSHLD_REG	0x92
 #define	INBAND_POWER_THRSHLD_REG	0x93
-#define	REF_NOISE_LVL_MRGN_THRSHLD_REG	0x94
+#define	REF_ANALISE_LVL_MRGN_THRSHLD_REG	0x94
 
 #define	VIT_SRCH_CTRL_REG_1		0xa0
 #define	VIT_SRCH_CTRL_REG_2		0xa1
@@ -732,7 +732,7 @@ static int si21xx_set_frontend(struct dvb_frontend *fe)
 	if (c->delivery_system != SYS_DVBS) {
 			dprintk("%s: unsupported delivery system selected (%d)\n",
 				__func__, c->delivery_system);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	for (i = 0; i < ALLOWABLE_FS_COUNT; ++i)

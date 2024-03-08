@@ -31,8 +31,8 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		/*
-		 * If we've not already clocked things via hw_params()
-		 * then do so now, otherwise these are noops.
+		 * If we've analt already clocked things via hw_params()
+		 * then do so analw, otherwise these are analops.
 		 */
 		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
 			ret = snd_soc_dai_set_pll(aif1_dai, WM8994_FLL1,
@@ -166,7 +166,7 @@ static struct snd_soc_dai_link littlemill_dai[] = {
 		.stream_name = "Baseband",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.c2c_params = &baseband_params,
 		.num_c2c_params = 1,
 		SND_SOC_DAILINK_REG(baseband),
@@ -238,7 +238,7 @@ static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_MIC("AMIC", NULL),
 	SND_SOC_DAPM_MIC("DMIC", NULL),
 
-	SND_SOC_DAPM_SUPPLY_S("Baseband Clock", -1, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("Baseband Clock", -1, SND_SOC_ANALPM, 0, 0,
 			      bbclk_ev,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };

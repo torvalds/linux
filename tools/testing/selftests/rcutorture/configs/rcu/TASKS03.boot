@@ -1,1 +1,1 @@
-rcutorture.torture_type=tasks nohz_full=1
+rcutorture.torture_type=tasks analhz_full=1

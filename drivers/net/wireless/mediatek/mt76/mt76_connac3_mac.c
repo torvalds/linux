@@ -47,8 +47,8 @@ mt76_connac3_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 		break;
 	}
 
-	he->data1 |= HE_BITS(DATA1_BW_RU_ALLOC_KNOWN);
-	he->data2 |= HE_BITS(DATA2_RU_OFFSET_KNOWN) |
+	he->data1 |= HE_BITS(DATA1_BW_RU_ALLOC_KANALWN);
+	he->data2 |= HE_BITS(DATA2_RU_OFFSET_KANALWN) |
 		     le16_encode_bits(offs,
 				      IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET);
 }
@@ -58,19 +58,19 @@ static void
 mt76_connac3_mac_decode_he_mu_radiotap(struct sk_buff *skb, __le32 *rxv)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
-	static const struct ieee80211_radiotap_he_mu mu_known = {
-		.flags1 = HE_BITS(MU_FLAGS1_SIG_B_MCS_KNOWN) |
-			  HE_BITS(MU_FLAGS1_SIG_B_DCM_KNOWN) |
-			  HE_BITS(MU_FLAGS1_CH1_RU_KNOWN) |
-			  HE_BITS(MU_FLAGS1_SIG_B_SYMS_USERS_KNOWN),
-		.flags2 = HE_BITS(MU_FLAGS2_BW_FROM_SIG_A_BW_KNOWN),
+	static const struct ieee80211_radiotap_he_mu mu_kanalwn = {
+		.flags1 = HE_BITS(MU_FLAGS1_SIG_B_MCS_KANALWN) |
+			  HE_BITS(MU_FLAGS1_SIG_B_DCM_KANALWN) |
+			  HE_BITS(MU_FLAGS1_CH1_RU_KANALWN) |
+			  HE_BITS(MU_FLAGS1_SIG_B_SYMS_USERS_KANALWN),
+		.flags2 = HE_BITS(MU_FLAGS2_BW_FROM_SIG_A_BW_KANALWN),
 	};
 	struct ieee80211_radiotap_he_mu *he_mu;
 
 	status->flag |= RX_FLAG_RADIOTAP_HE_MU;
 
-	he_mu = skb_push(skb, sizeof(mu_known));
-	memcpy(he_mu, &mu_known, sizeof(mu_known));
+	he_mu = skb_push(skb, sizeof(mu_kanalwn));
+	memcpy(he_mu, &mu_kanalwn, sizeof(mu_kanalwn));
 
 	he_mu->flags1 |= MU_PREP(FLAGS1_SIG_B_MCS, status->rate_idx);
 	if (status->he_dcm)
@@ -83,7 +83,7 @@ mt76_connac3_mac_decode_he_mu_radiotap(struct sk_buff *skb, __le32 *rxv)
 	he_mu->ru_ch1[0] = le32_get_bits(rxv[16], MT_CRXV_HE_RU0) & 0xff;
 
 	if (status->bw >= RATE_INFO_BW_40) {
-		he_mu->flags1 |= HE_BITS(MU_FLAGS1_CH2_RU_KNOWN);
+		he_mu->flags1 |= HE_BITS(MU_FLAGS1_CH2_RU_KANALWN);
 		he_mu->ru_ch2[0] = le32_get_bits(rxv[16], MT_CRXV_HE_RU1) & 0xff;
 	}
 
@@ -102,27 +102,27 @@ void mt76_connac3_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv,
 					 u8 mode)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
-	static const struct ieee80211_radiotap_he known = {
-		.data1 = HE_BITS(DATA1_DATA_MCS_KNOWN) |
-			 HE_BITS(DATA1_DATA_DCM_KNOWN) |
-			 HE_BITS(DATA1_STBC_KNOWN) |
-			 HE_BITS(DATA1_CODING_KNOWN) |
-			 HE_BITS(DATA1_LDPC_XSYMSEG_KNOWN) |
-			 HE_BITS(DATA1_DOPPLER_KNOWN) |
-			 HE_BITS(DATA1_SPTL_REUSE_KNOWN) |
-			 HE_BITS(DATA1_BSS_COLOR_KNOWN),
-		.data2 = HE_BITS(DATA2_GI_KNOWN) |
-			 HE_BITS(DATA2_TXBF_KNOWN) |
-			 HE_BITS(DATA2_PE_DISAMBIG_KNOWN) |
-			 HE_BITS(DATA2_TXOP_KNOWN),
+	static const struct ieee80211_radiotap_he kanalwn = {
+		.data1 = HE_BITS(DATA1_DATA_MCS_KANALWN) |
+			 HE_BITS(DATA1_DATA_DCM_KANALWN) |
+			 HE_BITS(DATA1_STBC_KANALWN) |
+			 HE_BITS(DATA1_CODING_KANALWN) |
+			 HE_BITS(DATA1_LDPC_XSYMSEG_KANALWN) |
+			 HE_BITS(DATA1_DOPPLER_KANALWN) |
+			 HE_BITS(DATA1_SPTL_REUSE_KANALWN) |
+			 HE_BITS(DATA1_BSS_COLOR_KANALWN),
+		.data2 = HE_BITS(DATA2_GI_KANALWN) |
+			 HE_BITS(DATA2_TXBF_KANALWN) |
+			 HE_BITS(DATA2_PE_DISAMBIG_KANALWN) |
+			 HE_BITS(DATA2_TXOP_KANALWN),
 	};
 	u32 ltf_size = le32_get_bits(rxv[4], MT_CRXV_HE_LTF_SIZE) + 1;
 	struct ieee80211_radiotap_he *he;
 
 	status->flag |= RX_FLAG_RADIOTAP_HE;
 
-	he = skb_push(skb, sizeof(known));
-	memcpy(he, &known, sizeof(known));
+	he = skb_push(skb, sizeof(kanalwn));
+	memcpy(he, &kanalwn, sizeof(kanalwn));
 
 	he->data3 = HE_PREP(DATA3_BSS_COLOR, BSS_COLOR, rxv[9]) |
 		    HE_PREP(DATA3_LDPC_XSYMSEG, LDPC_EXT_SYM, rxv[4]);
@@ -138,23 +138,23 @@ void mt76_connac3_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv,
 	switch (mode) {
 	case MT_PHY_TYPE_HE_SU:
 		he->data1 |= HE_BITS(DATA1_FORMAT_SU) |
-			     HE_BITS(DATA1_UL_DL_KNOWN) |
-			     HE_BITS(DATA1_BEAM_CHANGE_KNOWN) |
-			     HE_BITS(DATA1_BW_RU_ALLOC_KNOWN);
+			     HE_BITS(DATA1_UL_DL_KANALWN) |
+			     HE_BITS(DATA1_BEAM_CHANGE_KANALWN) |
+			     HE_BITS(DATA1_BW_RU_ALLOC_KANALWN);
 
 		he->data3 |= HE_PREP(DATA3_BEAM_CHANGE, BEAM_CHNG, rxv[8]) |
 			     HE_PREP(DATA3_UL_DL, UPLINK, rxv[5]);
 		break;
 	case MT_PHY_TYPE_HE_EXT_SU:
 		he->data1 |= HE_BITS(DATA1_FORMAT_EXT_SU) |
-			     HE_BITS(DATA1_UL_DL_KNOWN) |
-			     HE_BITS(DATA1_BW_RU_ALLOC_KNOWN);
+			     HE_BITS(DATA1_UL_DL_KANALWN) |
+			     HE_BITS(DATA1_BW_RU_ALLOC_KANALWN);
 
 		he->data3 |= HE_PREP(DATA3_UL_DL, UPLINK, rxv[5]);
 		break;
 	case MT_PHY_TYPE_HE_MU:
 		he->data1 |= HE_BITS(DATA1_FORMAT_MU) |
-			     HE_BITS(DATA1_UL_DL_KNOWN);
+			     HE_BITS(DATA1_UL_DL_KANALWN);
 
 		he->data3 |= HE_PREP(DATA3_UL_DL, UPLINK, rxv[5]);
 		he->data4 |= HE_PREP(DATA4_MU_STA_ID, MU_AID, rxv[8]);
@@ -164,9 +164,9 @@ void mt76_connac3_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv,
 		break;
 	case MT_PHY_TYPE_HE_TB:
 		he->data1 |= HE_BITS(DATA1_FORMAT_TRIG) |
-			     HE_BITS(DATA1_SPTL_REUSE2_KNOWN) |
-			     HE_BITS(DATA1_SPTL_REUSE3_KNOWN) |
-			     HE_BITS(DATA1_SPTL_REUSE4_KNOWN);
+			     HE_BITS(DATA1_SPTL_REUSE2_KANALWN) |
+			     HE_BITS(DATA1_SPTL_REUSE3_KANALWN) |
+			     HE_BITS(DATA1_SPTL_REUSE4_KANALWN);
 
 		he->data4 |= HE_PREP(DATA4_TB_SPTL_REUSE1, SR_MASK, rxv[13]) |
 			     HE_PREP(DATA4_TB_SPTL_REUSE2, SR1_MASK, rxv[13]) |

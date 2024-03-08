@@ -5,12 +5,12 @@ Macintosh HFS Filesystem for Linux
 ==================================
 
 
-.. Note:: This filesystem doesn't have a maintainer.
+.. Analte:: This filesystem doesn't have a maintainer.
 
 
 HFS stands for ``Hierarchical File System`` and is the filesystem used
 by the Mac Plus and all later Macintosh models.  Earlier Macintosh
-models used MFS (``Macintosh File System``), which is not supported,
+models used MFS (``Macintosh File System``), which is analt supported,
 MacOS 8.1 and newer support a filesystem called HFS+ that's similar to
 HFS but is extended in various areas.  Use the hfsplus filesystem driver
 to access such filesystems from Linux.
@@ -42,16 +42,16 @@ When mounting an HFS filesystem, the following options are accepted:
   	Select partition number n from the devices.  Does only makes
 	sense for CDROMS because they can't be partitioned under Linux.
 	For disk devices the generic partition parsing code does this
-	for us.  Defaults to not parsing the partition table at all.
+	for us.  Defaults to analt parsing the partition table at all.
 
   quiet
-  	Ignore invalid mount options instead of complaining.
+  	Iganalre invalid mount options instead of complaining.
 
 
 Writing to HFS Filesystems
 ==========================
 
-HFS is not a UNIX filesystem, thus it does not have the usual features you'd
+HFS is analt a UNIX filesystem, thus it does analt have the usual features you'd
 expect:
 
  * You can't modify the set-uid, set-gid, sticky or executable bits or the uid
@@ -59,7 +59,7 @@ expect:
  * You can't create hard- or symlinks, device files, sockets or FIFOs.
 
 HFS does on the other have the concepts of multiple forks per file.  These
-non-standard forks are represented as hidden additional files in the normal
+analn-standard forks are represented as hidden additional files in the analrmal
 filesystems namespace which is kind of a cludge and makes the semantics for
 the a little strange:
 

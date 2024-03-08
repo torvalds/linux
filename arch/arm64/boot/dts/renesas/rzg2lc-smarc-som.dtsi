@@ -15,7 +15,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 	};
 
 	memory@48000000 {
@@ -236,7 +236,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "micron,mt25qu512a", "jedec,spi-nor";
+		compatible = "micron,mt25qu512a", "jedec,spi-analr";
 		reg = <0>;
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
@@ -284,7 +284,7 @@
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	fixed-emmc-driver-type = <1>;
 	status = "okay";
 };

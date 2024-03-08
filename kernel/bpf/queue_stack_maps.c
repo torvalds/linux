@@ -2,7 +2,7 @@
 /*
  * queue_stack_maps.c: BPF queue and stack maps
  *
- * Copyright (c) 2018 Politecnico di Torino
+ * Copyright (c) 2018 Politecnico di Torianal
  */
 #include <linux/bpf.h>
 #include <linux/list.h>
@@ -11,7 +11,7 @@
 #include "percpu_freelist.h"
 
 #define QUEUE_STACK_CREATE_FLAG_MASK \
-	(BPF_F_NUMA_NODE | BPF_F_ACCESS_MASK)
+	(BPF_F_NUMA_ANALDE | BPF_F_ACCESS_MASK)
 
 struct bpf_queue_stack {
 	struct bpf_map map;
@@ -63,16 +63,16 @@ static int queue_stack_map_alloc_check(union bpf_attr *attr)
 
 static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 {
-	int numa_node = bpf_map_attr_numa_node(attr);
+	int numa_analde = bpf_map_attr_numa_analde(attr);
 	struct bpf_queue_stack *qs;
 	u64 size, queue_size;
 
 	size = (u64) attr->max_entries + 1;
 	queue_size = sizeof(*qs) + size * attr->value_size;
 
-	qs = bpf_map_area_alloc(queue_size, numa_node);
+	qs = bpf_map_area_alloc(queue_size, numa_analde);
 	if (!qs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bpf_map_init_from_attr(&qs->map, attr);
 
@@ -107,7 +107,7 @@ static long __queue_map_get(struct bpf_map *map, void *value, bool delete)
 
 	if (queue_stack_map_is_empty(qs)) {
 		memset(value, 0, qs->map.value_size);
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -142,7 +142,7 @@ static long __stack_map_get(struct bpf_map *map, void *value, bool delete)
 
 	if (queue_stack_map_is_empty(qs)) {
 		memset(value, 0, qs->map.value_size);
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -200,7 +200,7 @@ static long queue_stack_map_push_elem(struct bpf_map *map, void *value,
 	bool replace = (flags & BPF_EXIST);
 
 	/* Check supported flags for queue and stack maps */
-	if (flags & BPF_NOEXIST || flags > BPF_EXIST)
+	if (flags & BPF_ANALEXIST || flags > BPF_EXIST)
 		return -EINVAL;
 
 	if (in_nmi()) {

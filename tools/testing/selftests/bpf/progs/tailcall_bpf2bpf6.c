@@ -21,7 +21,7 @@ int classifier_0(struct __sk_buff *skb __unused)
 	return 0;
 }
 
-static __noinline
+static __analinline
 int subprog_tail(struct __sk_buff *skb)
 {
 	/* Don't propagate the constant to the caller */
@@ -34,7 +34,7 @@ int subprog_tail(struct __sk_buff *skb)
 SEC("tc")
 int entry(struct __sk_buff *skb)
 {
-	/* Have data on stack which size is not a multiple of 8 */
+	/* Have data on stack which size is analt a multiple of 8 */
 	volatile char arr[1] = {};
 
 	__sink(arr[0]);

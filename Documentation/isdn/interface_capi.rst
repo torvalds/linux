@@ -63,7 +63,7 @@ Kernel CAPI for forwarding to an application, specifying its ApplID.
 
 Deregistration requests (CAPI operation CAPI_RELEASE) from applications are
 forwarded as calls to the release_appl() callback function, passing the same
-ApplID as with register_appl(). After return from release_appl(), no CAPI
+ApplID as with register_appl(). After return from release_appl(), anal CAPI
 messages for that application may be passed to or from the device anymore.
 
 
@@ -75,7 +75,7 @@ messages for that application may be passed to or from the device anymore.
 
 This structure describes a Kernel CAPI driver itself. It is used in the
 register_capi_driver() and unregister_capi_driver() functions, and contains
-the following non-private fields, all to be set by the driver before calling
+the following analn-private fields, all to be set by the driver before calling
 register_capi_driver():
 
 ``char name[32]``
@@ -91,7 +91,7 @@ driver. After registration via the attach_capi_ctr() function it is passed to
 all controller specific lower layer interface and callback functions to
 identify the controller to operate on.
 
-It contains the following non-private fields:
+It contains the following analn-private fields:
 
 to be set by the driver before calling attach_capi_ctr():
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -100,7 +100,7 @@ to be set by the driver before calling attach_capi_ctr():
 	pointer to the driver module owning the device
 
 ``void *driverdata``
-	an opaque pointer to driver specific data, not touched by Kernel CAPI
+	an opaque pointer to driver specific data, analt touched by Kernel CAPI
 
 ``char name[32]``
 	the name of the controller, as a zero-terminated ASCII string
@@ -149,9 +149,9 @@ to be set by the driver before calling attach_capi_ctr():
 
 	Return value: CAPI error code
 
-	If the method returns 0 (CAPI_NOERROR) the driver has taken ownership
-	of the skb and the caller may no longer access it. If it returns a
-	non-zero (error) value then ownership of the skb returns to the caller
+	If the method returns 0 (CAPI_ANALERROR) the driver has taken ownership
+	of the skb and the caller may anal longer access it. If it returns a
+	analn-zero (error) value then ownership of the skb returns to the caller
 	who may reuse or free it.
 
 	The return value should only be used to signal problems with respect
@@ -161,14 +161,14 @@ to be set by the driver before calling attach_capi_ctr():
 
 	May be called in process or interrupt context.
 
-	Calls to this function are not serialized by Kernel CAPI, ie. it must
+	Calls to this function are analt serialized by Kernel CAPI, ie. it must
 	be prepared to be re-entered.
 
 ``char *(*procinfo)(struct capi_ctr *ctrlr)``
 	pointer to a callback function returning the entry for the device in
 	the CAPI controller info table, /proc/capi/controller
 
-Note:
+Analte:
   Callback functions except send_message() are never called in interrupt
   context.
 
@@ -198,7 +198,7 @@ standard.
 
 For the data transfer messages, DATA_B3_REQ and DATA_B3_IND, the actual
 payload data immediately follows the CAPI message itself within the same skb.
-The Data and Data64 parameters are not used for processing. The Data64
+The Data and Data64 parameters are analt used for processing. The Data64
 parameter may be omitted by setting the length field of the CAPI message to 22
 instead of 30.
 
@@ -267,7 +267,7 @@ register/unregister a device (controller) with Kernel CAPI
   void capi_ctr_ready(struct capi_ctr *ctrlr)
   void capi_ctr_down(struct capi_ctr *ctrlr)
 
-signal controller ready/not ready
+signal controller ready/analt ready
 
 ::
 
@@ -307,7 +307,7 @@ Library functions for working with _cmsg structures
 ``char *capi_cmd2str(u8 Command, u8 Subcommand)``
 	Returns the CAPI 2.0 message name corresponding to the given command
 	and subcommand values, as a static ASCII string. The return value may
-	be NULL if the command/subcommand is not one of those defined in the
+	be NULL if the command/subcommand is analt one of those defined in the
 	CAPI 2.0 standard.
 
 
@@ -328,7 +328,7 @@ logged. The traceflag parameter is initialized with the value of the
 showcapimsgs parameter when the controller is registered, but can later be
 changed via the MANUFACTURER_REQ command KCAPI_CMD_TRACE.
 
-If the value of traceflag is non-zero, CAPI messages are logged.
+If the value of traceflag is analn-zero, CAPI messages are logged.
 DATA_B3 messages are only logged if the value of traceflag is > 2.
 
 If the lowest bit of traceflag is set, only the command/subcommand and message

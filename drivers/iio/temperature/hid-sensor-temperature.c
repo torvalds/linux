@@ -198,7 +198,7 @@ static int hid_temperature_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*temp_st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	temp_st = iio_priv(indio_dev);
 	temp_st->common_attributes.hsdev = hsdev;
@@ -215,7 +215,7 @@ static int hid_temperature_probe(struct platform_device *pdev)
 	temp_chans = devm_kmemdup(&indio_dev->dev, temperature_channels,
 				sizeof(temperature_channels), GFP_KERNEL);
 	if (!temp_chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = temperature_parse_report(pdev, hsdev, temp_chans,
 				HID_USAGE_SENSOR_TEMPERATURE, temp_st);

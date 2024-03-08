@@ -10,9 +10,9 @@
 #include <linux/mmdebug.h>
 #include <asm/smp.h>
 
-extern struct pglist_data *node_data[];
+extern struct pglist_data *analde_data[];
 
-#define NODE_DATA(nid)		(node_data[nid])
+#define ANALDE_DATA(nid)		(analde_data[nid])
 
 #endif
 #endif /* _ASM_X86_MMZONE_64_H */

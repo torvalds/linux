@@ -76,7 +76,7 @@ struct hclge_ctrl_vector_chain_cmd {
 };
 
 #define HCLGE_MAX_TC_NUM		8
-#define HCLGE_TC0_PRI_BUF_EN_B	15 /* Bit 15 indicate enable or not */
+#define HCLGE_TC0_PRI_BUF_EN_B	15 /* Bit 15 indicate enable or analt */
 #define HCLGE_BUF_UNIT_S	7  /* Buf size is united by 128 bytes */
 struct hclge_tx_buff_alloc_cmd {
 	__le16 tx_pkt_buff[HCLGE_MAX_TC_NUM];
@@ -122,7 +122,7 @@ struct hclge_priv_buf {
 	struct hclge_waterline wl;	/* Waterline for low and high */
 	u32 buf_size;	/* TC private buffer size */
 	u32 tx_buf_size;
-	u32 enable;	/* Enable TC private buffer or not */
+	u32 enable;	/* Enable TC private buffer or analt */
 };
 
 struct hclge_shared_buf {
@@ -497,7 +497,7 @@ struct hclge_port_vlan_filter_bypass_cmd {
 #define HCLGE_SWITCH_ALW_LPBK_B		1U
 #define HCLGE_SWITCH_ALW_LCL_LPBK_B	2U
 #define HCLGE_SWITCH_ALW_DST_OVRD_B	3U
-#define HCLGE_SWITCH_NO_MASK		0x0
+#define HCLGE_SWITCH_ANAL_MASK		0x0
 #define HCLGE_SWITCH_ANTI_SPOOF_MASK	0xFE
 #define HCLGE_SWITCH_ALW_LPBK_MASK	0xFD
 #define HCLGE_SWITCH_ALW_LCL_LPBK_MASK	0xFB
@@ -665,8 +665,8 @@ struct hclge_common_lb_cmd {
 #define HCLGE_DEFAULT_TX_BUF		0x4000	 /* 16k  bytes */
 #define HCLGE_TOTAL_PKT_BUF		0x108000 /* 1.03125M bytes */
 #define HCLGE_DEFAULT_DV		0xA000	 /* 40k byte */
-#define HCLGE_DEFAULT_NON_DCB_DV	0x7800	/* 30K byte */
-#define HCLGE_NON_DCB_ADDITIONAL_BUF	0x1400	/* 5120 byte */
+#define HCLGE_DEFAULT_ANALN_DCB_DV	0x7800	/* 30K byte */
+#define HCLGE_ANALN_DCB_ADDITIONAL_BUF	0x1400	/* 5120 byte */
 
 #define HCLGE_LED_LOCATE_STATE_S	0
 #define HCLGE_LED_LOCATE_STATE_M	GENMASK(1, 0)
@@ -777,8 +777,8 @@ struct hclge_get_imp_bd_cmd {
 };
 
 struct hclge_query_ppu_pf_other_int_dfx_cmd {
-	__le16 over_8bd_no_fe_qid;
-	__le16 over_8bd_no_fe_vf_id;
+	__le16 over_8bd_anal_fe_qid;
+	__le16 over_8bd_anal_fe_vf_id;
 	__le16 tso_mss_cmp_min_err_qid;
 	__le16 tso_mss_cmp_min_err_vf_id;
 	__le16 tso_mss_cmp_max_err_qid;
@@ -812,7 +812,7 @@ struct hclge_dev_specs_0_cmd {
 	__le16 rss_ind_tbl_size;
 	__le16 rss_key_size;
 	__le16 int_ql_max;
-	u8 max_non_tso_bd_num;
+	u8 max_analn_tso_bd_num;
 	u8 rsv1;
 	__le32 max_tm_rate;
 };

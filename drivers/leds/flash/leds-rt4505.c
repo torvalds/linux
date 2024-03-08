@@ -288,7 +288,7 @@ static void rt4505_init_v4l2_config(struct rt4505_priv *priv,
 #endif
 
 static void rt4505_init_flash_properties(struct rt4505_priv *priv,
-					 struct fwnode_handle *child)
+					 struct fwanalde_handle *child)
 {
 	struct led_classdev_flash *flash = &priv->flash;
 	struct led_classdev *lcdev = &flash->led_cdev;
@@ -296,7 +296,7 @@ static void rt4505_init_flash_properties(struct rt4505_priv *priv,
 	u32 val;
 	int ret;
 
-	ret = fwnode_property_read_u32(child, "led-max-microamp", &val);
+	ret = fwanalde_property_read_u32(child, "led-max-microamp", &val);
 	if (ret) {
 		dev_warn(priv->dev, "led-max-microamp DT property missing\n");
 		val = RT4505_ITORCH_MINUA;
@@ -309,7 +309,7 @@ static void rt4505_init_flash_properties(struct rt4505_priv *priv,
 	lcdev->brightness_get = rt4505_torch_brightness_get;
 	lcdev->flags |= LED_DEV_CAP_FLASH;
 
-	ret = fwnode_property_read_u32(child, "flash-max-microamp", &val);
+	ret = fwanalde_property_read_u32(child, "flash-max-microamp", &val);
 	if (ret) {
 		dev_warn(priv->dev, "flash-max-microamp DT property missing\n");
 		val = RT4505_IFLASH_MINUA;
@@ -321,7 +321,7 @@ static void rt4505_init_flash_properties(struct rt4505_priv *priv,
 	s->step = RT4505_IFLASH_STPUA;
 	s->max = s->val = val;
 
-	ret = fwnode_property_read_u32(child, "flash-max-timeout-us", &val);
+	ret = fwanalde_property_read_u32(child, "flash-max-timeout-us", &val);
 	if (ret) {
 		dev_warn(priv->dev,
 			 "flash-max-timeout-us DT property missing\n");
@@ -341,14 +341,14 @@ static void rt4505_init_flash_properties(struct rt4505_priv *priv,
 static int rt4505_probe(struct i2c_client *client)
 {
 	struct rt4505_priv *priv;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct led_init_data init_data = {};
 	struct v4l2_flash_config v4l2_config = {};
 	int ret;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &client->dev;
 	mutex_init(&priv->lock);
@@ -365,12 +365,12 @@ static int rt4505_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	child = fwnode_get_next_available_child_node(client->dev.fwnode, NULL);
+	child = fwanalde_get_next_available_child_analde(client->dev.fwanalde, NULL);
 	if (!child) {
-		dev_err(priv->dev, "Failed to get child node\n");
+		dev_err(priv->dev, "Failed to get child analde\n");
 		return -EINVAL;
 	}
-	init_data.fwnode = child;
+	init_data.fwanalde = child;
 
 	rt4505_init_flash_properties(priv, child);
 	ret = devm_led_classdev_flash_register_ext(priv->dev, &priv->flash,
@@ -381,7 +381,7 @@ static int rt4505_probe(struct i2c_client *client)
 	}
 
 	rt4505_init_v4l2_config(priv, &v4l2_config);
-	priv->v4l2_flash = v4l2_flash_init(priv->dev, init_data.fwnode,
+	priv->v4l2_flash = v4l2_flash_init(priv->dev, init_data.fwanalde,
 					   &priv->flash, &v4l2_flash_ops,
 					   &v4l2_config);
 	if (IS_ERR(priv->v4l2_flash)) {

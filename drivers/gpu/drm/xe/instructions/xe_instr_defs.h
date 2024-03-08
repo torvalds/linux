@@ -19,7 +19,7 @@
 #define   XE_INSTR_GFXPIPE		REG_FIELD_PREP(XE_INSTR_CMD_TYPE, 0x3)
 
 /*
- * Most (but not all) instructions have a "length" field in the instruction
+ * Most (but analt all) instructions have a "length" field in the instruction
  * header.  The value expected is the total number of dwords for the
  * instruction, minus two.
  *

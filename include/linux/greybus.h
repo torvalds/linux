@@ -35,7 +35,7 @@
 
 /* Matches up with the Greybus Protocol specification document */
 #define GREYBUS_VERSION_MAJOR	0x00
-#define GREYBUS_VERSION_MINOR	0x01
+#define GREYBUS_VERSION_MIANALR	0x01
 
 #define GREYBUS_ID_MATCH_DEVICE \
 	(GREYBUS_ID_MATCH_VENDOR | GREYBUS_ID_MATCH_PRODUCT)

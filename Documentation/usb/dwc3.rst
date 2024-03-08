@@ -28,17 +28,17 @@ Please pick something while reading :)
 
     - primary handler of the device
       goes through every event and calls generic_handle_irq() for event
-      it. On return from generic_handle_irq() in acknowledges the event
+      it. On return from generic_handle_irq() in ackanalwledges the event
       counter so interrupt goes away (eventually).
 
     - threaded handler of the device
-      none
+      analne
 
     - primary handler of the EP-interrupt
       reads the event and tries to process it. Everything that requires
       sleeping is handed over to the Thread. The event is saved in an
       per-endpoint data-structure.
-      We probably have to pay attention not to process events once we
+      We probably have to pay attention analt to process events once we
       handed something to thread so we don't process event X prio Y
       where X > Y.
 
@@ -48,6 +48,6 @@ Please pick something while reading :)
 
   Latency:
 
-   There should be no increase in latency since the interrupt-thread has a
+   There should be anal increase in latency since the interrupt-thread has a
    high priority and will be run before an average task in user land
    (except the user changed priorities).

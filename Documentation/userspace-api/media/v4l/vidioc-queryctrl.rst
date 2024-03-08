@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_QUERYCTRL:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_QUERYCTRL - VIDIOC_QUERY_EXT_CTRL - VIDIOC_QUERYMENU - Enumerate controls and menu control items
 
-Synopsis
+Syanalpsis
 ========
 
 ``int ioctl(int fd, int VIDIOC_QUERYCTRL, struct v4l2_queryctrl *argp)``
@@ -47,28 +47,28 @@ fills the rest of the structure or returns an ``EINVAL`` error code when the
 It is possible to enumerate controls by calling ``VIDIOC_QUERYCTRL``
 with successive ``id`` values starting from ``V4L2_CID_BASE`` up to and
 exclusive ``V4L2_CID_LASTP1``. Drivers may return ``EINVAL`` if a control in
-this range is not supported. Further applications can enumerate private
-controls, which are not defined in this specification, by starting at
+this range is analt supported. Further applications can enumerate private
+controls, which are analt defined in this specification, by starting at
 ``V4L2_CID_PRIVATE_BASE`` and incrementing ``id`` until the driver
 returns ``EINVAL``.
 
 In both cases, when the driver sets the ``V4L2_CTRL_FLAG_DISABLED`` flag
 in the ``flags`` field this control is permanently disabled and should
-be ignored by the application. [#f1]_
+be iganalred by the application. [#f1]_
 
 When the application ORs ``id`` with ``V4L2_CTRL_FLAG_NEXT_CTRL`` the
-driver returns the next supported non-compound control, or ``EINVAL`` if
-there is none. In addition, the ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` flag
+driver returns the next supported analn-compound control, or ``EINVAL`` if
+there is analne. In addition, the ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` flag
 can be specified to enumerate all compound controls (i.e. controls with
 type ≥ ``V4L2_CTRL_COMPOUND_TYPES`` and/or array control, in other words
 controls that contain more than one value). Specify both
 ``V4L2_CTRL_FLAG_NEXT_CTRL`` and ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` in
-order to enumerate all controls, compound or not. Drivers which do not
+order to enumerate all controls, compound or analt. Drivers which do analt
 support these flags yet always return ``EINVAL``.
 
 The ``VIDIOC_QUERY_EXT_CTRL`` ioctl was introduced in order to better
 support controls that can use compound types, and to expose additional
-control information that cannot be returned in struct
+control information that cananalt be returned in struct
 :ref:`v4l2_queryctrl <v4l2-queryctrl>` since that structure is full.
 
 ``VIDIOC_QUERY_EXT_CTRL`` is used in the same way as
@@ -85,12 +85,12 @@ fills the rest of the structure or returns an ``EINVAL`` error code when the
 :ref:`v4l2_queryctrl <v4l2-queryctrl>` ``minimum`` to ``maximum``,
 inclusive.
 
-.. note::
+.. analte::
 
    It is possible for ``VIDIOC_QUERYMENU`` to return
    an ``EINVAL`` error code for some indices between ``minimum`` and
-   ``maximum``. In that case that particular menu item is not supported by
-   this driver. Also note that the ``minimum`` value is not necessarily 0.
+   ``maximum``. In that case that particular menu item is analt supported by
+   this driver. Also analte that the ``minimum`` value is analt necessarily 0.
 
 See also the examples in :ref:`control`.
 
@@ -110,7 +110,7 @@ See also the examples in :ref:`control`.
       - Identifies the control, set by the application. See
 	:ref:`control-id` for predefined IDs. When the ID is ORed with
 	V4L2_CTRL_FLAG_NEXT_CTRL the driver clears the flag and
-	returns the first control with a higher ID. Drivers which do not
+	returns the first control with a higher ID. Drivers which do analt
 	support this flag yet always return an ``EINVAL`` error code.
     * - __u32
       - ``type``
@@ -124,25 +124,25 @@ See also the examples in :ref:`control`.
       - Minimum value, inclusive. This field gives a lower bound for the
 	control. See enum :c:type:`v4l2_ctrl_type` how
 	the minimum value is to be used for each possible control type.
-	Note that this a signed 32-bit value.
+	Analte that this a signed 32-bit value.
     * - __s32
       - ``maximum``
       - Maximum value, inclusive. This field gives an upper bound for the
 	control. See enum :c:type:`v4l2_ctrl_type` how
 	the maximum value is to be used for each possible control type.
-	Note that this a signed 32-bit value.
+	Analte that this a signed 32-bit value.
     * - __s32
       - ``step``
       - This field gives a step size for the control. See enum
 	:c:type:`v4l2_ctrl_type` how the step value is
-	to be used for each possible control type. Note that this an
+	to be used for each possible control type. Analte that this an
 	unsigned 32-bit value.
 
-	Generally drivers should not scale hardware control values. It may
+	Generally drivers should analt scale hardware control values. It may
 	be necessary for example when the ``name`` or ``id`` imply a
 	particular unit and the hardware actually accepts only multiples
 	of said unit. If so, drivers must take care values are properly
-	rounded when scaling, such that errors will not accumulate on
+	rounded when scaling, such that errors will analt accumulate on
 	repeated read-write cycles.
 
 	This field gives the smallest change of an integer control
@@ -151,15 +151,15 @@ See also the examples in :ref:`control`.
 	than a slider. When for example a hardware register accepts values
 	0-511 and the driver reports 0-65535, step should be 128.
 
-	Note that although signed, the step value is supposed to be always
+	Analte that although signed, the step value is supposed to be always
 	positive.
     * - __s32
       - ``default_value``
       - The default value of a ``V4L2_CTRL_TYPE_INTEGER``, ``_BOOLEAN``,
-	``_BITMASK``, ``_MENU`` or ``_INTEGER_MENU`` control. Not valid
+	``_BITMASK``, ``_MENU`` or ``_INTEGER_MENU`` control. Analt valid
 	for other types of controls.
 
-	.. note::
+	.. analte::
 
 	   Drivers reset controls to their default value only when
 	   the driver is first loaded, never afterwards.
@@ -188,10 +188,10 @@ See also the examples in :ref:`control`.
       - Identifies the control, set by the application. See
 	:ref:`control-id` for predefined IDs. When the ID is ORed with
 	``V4L2_CTRL_FLAG_NEXT_CTRL`` the driver clears the flag and
-	returns the first non-compound control with a higher ID. When the
+	returns the first analn-compound control with a higher ID. When the
 	ID is ORed with ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` the driver clears
 	the flag and returns the first compound control with a higher ID.
-	Set both to get the first control (compound or not) with a higher
+	Set both to get the first control (compound or analt) with a higher
 	ID.
     * - __u32
       - ``type``
@@ -205,25 +205,25 @@ See also the examples in :ref:`control`.
       - Minimum value, inclusive. This field gives a lower bound for the
 	control. See enum :c:type:`v4l2_ctrl_type` how
 	the minimum value is to be used for each possible control type.
-	Note that this a signed 64-bit value.
+	Analte that this a signed 64-bit value.
     * - __s64
       - ``maximum``
       - Maximum value, inclusive. This field gives an upper bound for the
 	control. See enum :c:type:`v4l2_ctrl_type` how
 	the maximum value is to be used for each possible control type.
-	Note that this a signed 64-bit value.
+	Analte that this a signed 64-bit value.
     * - __u64
       - ``step``
       - This field gives a step size for the control. See enum
 	:c:type:`v4l2_ctrl_type` how the step value is
-	to be used for each possible control type. Note that this an
+	to be used for each possible control type. Analte that this an
 	unsigned 64-bit value.
 
-	Generally drivers should not scale hardware control values. It may
+	Generally drivers should analt scale hardware control values. It may
 	be necessary for example when the ``name`` or ``id`` imply a
 	particular unit and the hardware actually accepts only multiples
 	of said unit. If so, drivers must take care values are properly
-	rounded when scaling, such that errors will not accumulate on
+	rounded when scaling, such that errors will analt accumulate on
 	repeated read-write cycles.
 
 	This field gives the smallest change of an integer control
@@ -235,9 +235,9 @@ See also the examples in :ref:`control`.
       - ``default_value``
       - The default value of a ``V4L2_CTRL_TYPE_INTEGER``, ``_INTEGER64``,
 	``_BOOLEAN``, ``_BITMASK``, ``_MENU``, ``_INTEGER_MENU``, ``_U8``
-	or ``_U16`` control. Not valid for other types of controls.
+	or ``_U16`` control. Analt valid for other types of controls.
 
-	.. note::
+	.. analte::
 
 	   Drivers reset controls to their default value only when
 	   the driver is first loaded, never afterwards.
@@ -256,16 +256,16 @@ See also the examples in :ref:`control`.
     * - __u32
       - ``elems``
       - The number of elements in the N-dimensional array. If this control
-	is not an array, then ``elems`` is 1. The ``elems`` field can
+	is analt an array, then ``elems`` is 1. The ``elems`` field can
 	never be 0.
     * - __u32
       - ``nr_of_dims``
       - The number of dimension in the N-dimensional array. If this
-	control is not an array, then this field is 0.
+	control is analt an array, then this field is 0.
     * - __u32
       - ``dims[V4L2_CTRL_MAX_DIMS]``
       - The size of each dimension. The first ``nr_of_dims`` elements of
-	this array must be non-zero, all remaining elements must be zero.
+	this array must be analn-zero, all remaining elements must be zero.
     * - __u32
       - ``reserved``\ [32]
       - Reserved for future extensions. Applications and drivers must set
@@ -289,7 +289,7 @@ See also the examples in :ref:`control`.
       - ``index``
       - Index of the menu item, starting at zero, set by the application.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
     * - __u8
       - ``name``\ [32]
       - Name of the menu item, a NUL-terminated ASCII string. This
@@ -310,7 +310,7 @@ See also the examples in :ref:`control`.
 
 .. raw:: latex
 
-   \footnotesize
+   \footanaltesize
 
 .. tabularcolumns:: |p{6.5cm}|p{1.5cm}|p{1.1cm}|p{1.5cm}|p{6.8cm}|
 
@@ -363,7 +363,7 @@ See also the examples in :ref:`control`.
       - 0
       - 0
       - 0
-      - A control which performs an action when set. Drivers must ignore
+      - A control which performs an action when set. Drivers must iganalre
 	the value passed with ``VIDIOC_S_CTRL`` and return an ``EACCES`` error
 	code on a ``VIDIOC_G_CTRL`` attempt.
     * - ``V4L2_CTRL_TYPE_INTEGER64``
@@ -371,7 +371,7 @@ See also the examples in :ref:`control`.
       - any
       - any
       - A 64-bit integer valued control. Minimum, maximum and step size
-	cannot be queried using ``VIDIOC_QUERYCTRL``. Only
+	cananalt be queried using ``VIDIOC_QUERYCTRL``. Only
 	``VIDIOC_QUERY_EXT_CTRL`` can retrieve the 64-bit min/max/step
 	values, they should be interpreted as n/a when using
 	``VIDIOC_QUERYCTRL``.
@@ -381,7 +381,7 @@ See also the examples in :ref:`control`.
       - ≥ 0
       - The minimum and maximum string lengths. The step size means that
 	the string must be (minimum + N * step) characters long for N ≥ 0.
-	These lengths do not include the terminating zero, so in order to
+	These lengths do analt include the terminating zero, so in order to
 	pass a string of length 8 to
 	:ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you need to
 	set the ``size`` field of struct
@@ -394,10 +394,10 @@ See also the examples in :ref:`control`.
       - n/a
       - n/a
       - n/a
-      - This is not a control. When ``VIDIOC_QUERYCTRL`` is called with a
+      - This is analt a control. When ``VIDIOC_QUERYCTRL`` is called with a
 	control ID equal to a control class code (see :ref:`ctrl-class`)
 	+ 1, the ioctl returns the name of the control class and this
-	control type. Older drivers which do not support this feature
+	control type. Older drivers which do analt support this feature
 	return an ``EINVAL`` error code.
     * - ``V4L2_CTRL_TYPE_U8``
       - any
@@ -552,7 +552,7 @@ See also the examples in :ref:`control`.
 
 .. raw:: latex
 
-   \normalsize
+   \analrmalsize
 
 .. tabularcolumns:: |p{7.3cm}|p{1.8cm}|p{8.2cm}|
 
@@ -567,13 +567,13 @@ See also the examples in :ref:`control`.
 
     * - ``V4L2_CTRL_FLAG_DISABLED``
       - 0x0001
-      - This control is permanently disabled and should be ignored by the
+      - This control is permanently disabled and should be iganalred by the
 	application. Any attempt to change the control will result in an
 	``EINVAL`` error code.
     * - ``V4L2_CTRL_FLAG_GRABBED``
       - 0x0002
       - This control is temporarily unchangeable, for example because
-	another application took over control of the respective resource.
+	aanalther application took over control of the respective resource.
 	Such controls may be displayed specially in a user interface.
 	Attempts to change the control may result in an ``EBUSY`` error code.
     * - ``V4L2_CTRL_FLAG_READ_ONLY``
@@ -587,10 +587,10 @@ See also the examples in :ref:`control`.
 	their user interface accordingly.
     * - ``V4L2_CTRL_FLAG_INACTIVE``
       - 0x0010
-      - This control is not applicable to the current configuration and
+      - This control is analt applicable to the current configuration and
 	should be displayed accordingly in a user interface. For example
 	the flag may be set on a MPEG audio level 2 bitrate control when
-	MPEG audio encoding level 1 was selected with another control.
+	MPEG audio encoding level 1 was selected with aanalther control.
     * - ``V4L2_CTRL_FLAG_SLIDER``
       - 0x0020
       - A hint that this control is best represented as a slider-like
@@ -601,7 +601,7 @@ See also the examples in :ref:`control`.
 	control will result in an ``EACCES`` error code error code. This flag
 	is typically present for relative controls or action controls
 	where writing a value will cause the device to carry out a given
-	action (e. g. motor control) but no meaningful value can be
+	action (e. g. motor control) but anal meaningful value can be
 	returned.
     * - ``V4L2_CTRL_FLAG_VOLATILE``
       - 0x0080
@@ -611,9 +611,9 @@ See also the examples in :ref:`control`.
 	case the hardware calculates the gain value based on the lighting
 	conditions which can change over time.
 
-	.. note::
+	.. analte::
 
-	   Setting a new value for a volatile control will be ignored
+	   Setting a new value for a volatile control will be iganalred
 	   unless
 	   :ref:`V4L2_CTRL_FLAG_EXECUTE_ON_WRITE <FLAG_EXECUTE_ON_WRITE>`
 	   is also set.
@@ -645,9 +645,9 @@ See also the examples in :ref:`control`.
 
 	A typical example would be the ``V4L2_CID_ROTATE`` control.
 
-	Note that typically controls with this flag will also set the
+	Analte that typically controls with this flag will also set the
 	``V4L2_CTRL_FLAG_GRABBED`` flag when buffers are allocated or
-	streaming is in progress since most drivers do not support changing
+	streaming is in progress since most drivers do analt support changing
 	the format in that case.
     * - ``V4L2_CTRL_FLAG_DYNAMIC_ARRAY``
       - 0x0800
@@ -661,7 +661,7 @@ See also the examples in :ref:`control`.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -669,7 +669,7 @@ EINVAL
     The struct :ref:`v4l2_queryctrl <v4l2-queryctrl>` ``id`` is
     invalid. The struct :ref:`v4l2_querymenu <v4l2-querymenu>` ``id``
     is invalid or ``index`` is out of range (less than ``minimum`` or
-    greater than ``maximum``) or this particular menu item is not
+    greater than ``maximum``) or this particular menu item is analt
     supported by the driver.
 
 EACCES
@@ -677,8 +677,8 @@ EACCES
 
 .. [#f1]
    ``V4L2_CTRL_FLAG_DISABLED`` was intended for two purposes: Drivers
-   can skip predefined controls not supported by the hardware (although
+   can skip predefined controls analt supported by the hardware (although
    returning ``EINVAL`` would do as well), or disable predefined and private
    controls after hardware detection without the trouble of reordering
-   control arrays and indices (``EINVAL`` cannot be used to skip private
+   control arrays and indices (``EINVAL`` cananalt be used to skip private
    controls because it would prematurely end the enumeration).

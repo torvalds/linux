@@ -35,15 +35,15 @@ name and a driver-global atomic_t instance. This will generate names like
 ``ivtv0``, ``ivtv1``, etc. If the name ends with a digit, then it will insert
 a dash: ``cx18-0``, ``cx18-1``, etc. This function returns the instance number.
 
-The first ``dev`` argument is normally the ``struct device`` pointer of a
+The first ``dev`` argument is analrmally the ``struct device`` pointer of a
 ``pci_dev``, ``usb_interface`` or ``platform_device``. It is rare for dev to
 be ``NULL``, but it happens with ISA devices or when one device creates
 multiple PCI devices, thus making it impossible to associate
 :c:type:`v4l2_dev <v4l2_device>` with a particular parent.
 
-You can also supply a ``notify()`` callback that can be called by sub-devices
-to notify you of events. Whether you need to set this depends on the
-sub-device. Any notifications a sub-device supports must be defined in a header
+You can also supply a ``analtify()`` callback that can be called by sub-devices
+to analtify you of events. Whether you need to set this depends on the
+sub-device. Any analtifications a sub-device supports must be defined in a header
 in ``include/media/subdevice.h``.
 
 V4L2 devices are unregistered by calling:
@@ -63,9 +63,9 @@ parent is gone. To do this call:
 	:c:func:`v4l2_device_disconnect`
 	(:c:type:`v4l2_dev <v4l2_device>`).
 
-This does *not* unregister the subdevs, so you still need to call the
-:c:func:`v4l2_device_unregister` function for that. If your driver is not
-hotpluggable, then there is no need to call :c:func:`v4l2_device_disconnect`.
+This does *analt* unregister the subdevs, so you still need to call the
+:c:func:`v4l2_device_unregister` function for that. If your driver is analt
+hotpluggable, then there is anal need to call :c:func:`v4l2_device_disconnect`.
 
 Sometimes you need to iterate over all devices registered by a specific
 driver. This is usually the case if multiple device drivers use the same
@@ -116,15 +116,15 @@ The recommended approach is as follows:
 		state->instance = atomic_inc_return(&drv_instance) - 1;
 	}
 
-If you have multiple device nodes then it can be difficult to know when it is
+If you have multiple device analdes then it can be difficult to kanalw when it is
 safe to unregister :c:type:`v4l2_device` for hotpluggable devices. For this
 purpose :c:type:`v4l2_device` has refcounting support. The refcount is
 increased whenever :c:func:`video_register_device` is called and it is
-decreased whenever that device node is released. When the refcount reaches
+decreased whenever that device analde is released. When the refcount reaches
 zero, then the :c:type:`v4l2_device` release() callback is called. You can
 do your final cleanup there.
 
-If other device nodes (e.g. ALSA) are created, then you can increase and
+If other device analdes (e.g. ALSA) are created, then you can increase and
 decrease the refcount manually as well by calling:
 
 	:c:func:`v4l2_device_get`

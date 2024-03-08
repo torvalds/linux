@@ -31,26 +31,26 @@
  * is too much of a performance impact. Thus we have a few rather ugly
  * macros here, and hide all the uglyness from the user.
  *
- * Careful to not
+ * Careful to analt
  * (a) re-use the arguments for side effects (sizeof is ok)
- * (b) require any knowledge of processes at this stage
+ * (b) require any kanalwledge of processes at this stage
  */
 #define put_user(x, ptr)	__put_user_check((x), (ptr), sizeof(*(ptr)))
 #define get_user(x, ptr) __get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
+ * do analt verify the address space, that must have been done previously
  * with a separate "access_ok()" call (this is used when we do multiple
  * accesses to the same area of user memory).
  */
-#define __put_user(x, ptr) __put_user_nocheck((x), (ptr), sizeof(*(ptr)))
-#define __get_user(x, ptr) __get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+#define __put_user(x, ptr) __put_user_analcheck((x), (ptr), sizeof(*(ptr)))
+#define __get_user(x, ptr) __get_user_analcheck((x), (ptr), sizeof(*(ptr)))
 
 
 extern long __put_user_bad(void);
 
-#define __put_user_nocheck(x, ptr, size)		\
+#define __put_user_analcheck(x, ptr, size)		\
 ({							\
 	long __pu_err;					\
 	__put_user_size((x), (ptr), (size), __pu_err);	\
@@ -93,8 +93,8 @@ do {									\
  * Kernel tries to access the variable.
  * Unaligned exception occurs.
  * Unaligned exception handler tries to make aligned accesses.
- * Double exception occurs for MMU-related cause (e.g., page not mapped).
- * do_page_fault() thinks the fault address belongs to the kernel, not the
+ * Double exception occurs for MMU-related cause (e.g., page analt mapped).
+ * do_page_fault() thinks the fault address belongs to the kernel, analt the
  * user, and panics.
  *
  * The kernel currently prohibits user unaligned accesses.  We use the
@@ -121,8 +121,8 @@ do {									\
 
 /*
  * We don't tell gcc that we are accessing memory, but this is OK
- * because we do not write to any memory gcc knows about, so there
- * are no aliasing issues.
+ * because we do analt write to any memory gcc kanalws about, so there
+ * are anal aliasing issues.
  *
  * WARNING: If you modify this macro at all, verify that the
  * __check_align_* macros still work.
@@ -146,7 +146,7 @@ __asm__ __volatile__(					\
 	:[err] "+r"(err_), [tmp] "=r"(cb), [mem] "=m"(*(addr_))		\
 	:[x] "r"(x_), [efault] "i"(-EFAULT))
 
-#define __get_user_nocheck(x, ptr, size)			\
+#define __get_user_analcheck(x, ptr, size)			\
 ({								\
 	long __gu_err;						\
 	__get_user_size((x), (ptr), (size), __gu_err);		\
@@ -241,9 +241,9 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 #define INLINE_COPY_TO_USER
 
 /*
- * We need to return the number of bytes not cleared.  Our memset()
+ * We need to return the number of bytes analt cleared.  Our memset()
  * returns zero if a problem occurs while accessing user-space memory.
- * In that event, return no memory cleared.  Otherwise, zero for
+ * In that event, return anal memory cleared.  Otherwise, zero for
  * success.
  */
 

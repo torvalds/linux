@@ -19,7 +19,7 @@
 #include <soc/fsl/qe/ucc.h>
 #include <soc/fsl/qe/ucc_fast.h>
 
-struct device_node;
+struct device_analde;
 
 /* SI RAM entries */
 #define SIR_LAST	0x0001
@@ -33,7 +33,7 @@ struct device_node;
 
 /* SIxMR fields */
 #define SIMR_SAD(x) ((x) << 12)
-#define SIMR_SDM_NORMAL	0x0000
+#define SIMR_SDM_ANALRMAL	0x0000
 #define SIMR_SDM_INTERNAL_LOOPBACK	0x0800
 #define SIMR_SDM_MASK	0x0c00
 #define SIMR_CRT	0x0040
@@ -56,7 +56,7 @@ enum tdm_framer_t {
 
 enum tdm_mode_t {
 	TDM_INTERNAL_LOOPBACK,
-	TDM_NORMAL
+	TDM_ANALRMAL
 };
 
 struct si_mode_info {
@@ -86,7 +86,7 @@ struct ucc_tdm {
 	u32 rx_ts_mask;		/* rx time slot mask */
 };
 
-int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
+int ucc_of_parse_tdm(struct device_analde *np, struct ucc_tdm *utdm,
 		     struct ucc_tdm_info *ut_info);
 void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info);
 #endif

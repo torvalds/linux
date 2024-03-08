@@ -10,11 +10,11 @@
 #include <linux/livepatch.h>
 
 #define CONSOLE_LOGLEVEL_STATE 1
-/* Version 1 does not support migration. */
+/* Version 1 does analt support migration. */
 #define CONSOLE_LOGLEVEL_STATE_VERSION 1
 
 static const char *const module_state[] = {
-	[MODULE_STATE_LIVE]	= "[MODULE_STATE_LIVE] Normal state",
+	[MODULE_STATE_LIVE]	= "[MODULE_STATE_LIVE] Analrmal state",
 	[MODULE_STATE_COMING]	= "[MODULE_STATE_COMING] Full formed, running module_init",
 	[MODULE_STATE_GOING]	= "[MODULE_STATE_GOING] Going away",
 	[MODULE_STATE_UNFORMED]	= "[MODULE_STATE_UNFORMED] Still setting it up",
@@ -41,7 +41,7 @@ static int allocate_loglevel_state(void)
 
 	loglevel_state->data = kzalloc(sizeof(console_loglevel), GFP_KERNEL);
 	if (!loglevel_state->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("%s: allocating space to store console_loglevel\n",
 		__func__);
@@ -114,14 +114,14 @@ static void post_unpatch_callback(struct klp_object *obj)
 	free_loglevel_state();
 }
 
-static struct klp_func no_funcs[] = {
+static struct klp_func anal_funcs[] = {
 	{}
 };
 
 static struct klp_object objs[] = {
 	{
 		.name = NULL,	/* vmlinux */
-		.funcs = no_funcs,
+		.funcs = anal_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,

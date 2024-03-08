@@ -62,7 +62,7 @@ static struct xe_lmtt_pt *lmtt_pt_alloc(struct xe_lmtt *lmtt, unsigned int level
 
 	pt = kzalloc(struct_size(pt, entries, num_entries), GFP_KERNEL);
 	if (!pt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -91,7 +91,7 @@ out:
 
 static void lmtt_pt_free(struct xe_lmtt_pt *pt)
 {
-	xe_bo_unpin_map_no_vm(pt->bo);
+	xe_bo_unpin_map_anal_vm(pt->bo);
 	kfree(pt);
 }
 
@@ -149,7 +149,7 @@ static void fini_lmtt(struct drm_device *drm, void *arg)
  *
  * In next step xe_lmtt_init_hw() will register this directory on the hardware.
  *
- * Notes:
+ * Analtes:
  * The LMTT allocations are managed and will be implicitly released on driver unload.
  * This function shall be called only once and only when running as a PF driver.
  * Any LMTT initialization failure should block VFs enabling.
@@ -327,7 +327,7 @@ static int lmtt_alloc_range(struct xe_lmtt *lmtt, unsigned int vfid, u64 start, 
 	lmtt_assert(lmtt, IS_ALIGNED(end, lmtt_page_size(lmtt)));
 
 	if (pd->entries[vfid])
-		return -ENOTEMPTY;
+		return -EANALTEMPTY;
 
 	pt = lmtt_pt_alloc(lmtt, pd->level - 1);
 	if (IS_ERR(pt))
@@ -415,7 +415,7 @@ static void lmtt_insert_bo(struct xe_lmtt *lmtt, unsigned int vfid, struct xe_bo
  * up to maximum #range LMEM offset. The LMTT page tables created by this
  * function must be released using xe_lmtt_drop_pages() function.
  *
- * Notes:
+ * Analtes:
  * This function shall be called only after successful LMTT initialization.
  * See xe_lmtt_init().
  *
@@ -438,7 +438,7 @@ int xe_lmtt_prepare_pages(struct xe_lmtt *lmtt, unsigned int vfid, u64 range)
  *
  * This function updates VF's LMTT entries to use given buffer object as a backstore.
  *
- * Notes:
+ * Analtes:
  * This function shall be called only after successful preparation of the
  * VF's LMTT Page Tables. See xe_lmtt_prepare().
  *

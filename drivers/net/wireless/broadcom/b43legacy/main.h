@@ -4,7 +4,7 @@
   Broadcom B43legacy wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005 Stefaanal Brivio <stefaanal.brivio@polimi.it>
   Copyright (c) 2005, 2006 Michael Buesch <m@bues.ch>
   Copyright (c) 2005  Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005  Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -24,7 +24,7 @@
 
 #define P4D_BYT3S(magic, nr_bytes)	u8 __p4dding##magic[nr_bytes]
 #define P4D_BYTES(line, nr_bytes)	P4D_BYT3S(line, nr_bytes)
-/* Magic helper macro to pad structures. Ignore those above. It's magic. */
+/* Magic helper macro to pad structures. Iganalre those above. It's magic. */
 #define PAD_BYTES(nr_bytes)		P4D_BYTES(__LINE__ , (nr_bytes))
 
 

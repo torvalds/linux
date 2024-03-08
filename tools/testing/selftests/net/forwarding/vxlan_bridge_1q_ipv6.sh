@@ -165,8 +165,8 @@ rp1_unset_addr()
 switch_create()
 {
 	ip link add name br1 type bridge vlan_filtering 1 vlan_default_pvid 0 \
-		mcast_snooping 0
-	# Make sure the bridge uses the MAC address of the local port and not
+		mcast_sanaloping 0
+	# Make sure the bridge uses the MAC address of the local port and analt
 	# that of the VxLAN's device.
 	ip link set dev br1 address $(mac_get $swp1)
 	ip link set dev br1 up
@@ -176,7 +176,7 @@ switch_create()
 	tc qdisc add dev $rp1 clsact
 
 	ip link add name vx10 type vxlan id 1000 local 2001:db8:3::1 \
-		dstport "$VXPORT" nolearning udp6zerocsumrx udp6zerocsumtx \
+		dstport "$VXPORT" anallearning udp6zerocsumrx udp6zerocsumtx \
 		tos inherit ttl 100
 	ip link set dev vx10 up
 
@@ -184,7 +184,7 @@ switch_create()
 	bridge vlan add vid 10 dev vx10 pvid untagged
 
 	ip link add name vx20 type vxlan id 2000 local 2001:db8:3::1 \
-		dstport "$VXPORT" nolearning udp6zerocsumrx udp6zerocsumtx \
+		dstport "$VXPORT" anallearning udp6zerocsumrx udp6zerocsumtx \
 		tos inherit ttl 100
 	ip link set dev vx20 up
 
@@ -220,22 +220,22 @@ switch_destroy()
 	bridge vlan del vid 20 dev $swp2
 	bridge vlan del vid 10 dev $swp2
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 
 	bridge vlan del vid 20 dev $swp1
 	bridge vlan del vid 10 dev $swp1
 	tc qdisc del dev $swp1 clsact
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	bridge vlan del vid 20 dev vx20
-	ip link set dev vx20 nomaster
+	ip link set dev vx20 analmaster
 
 	ip link set dev vx20 down
 	ip link del dev vx20
 
 	bridge vlan del vid 10 dev vx10
-	ip link set dev vx10 nomaster
+	ip link set dev vx10 analmaster
 
 	ip link set dev vx10 down
 	ip link del dev vx10
@@ -412,8 +412,8 @@ reapply_config()
 	bridge fdb del dev vx10 00:00:00:00:00:00 dst 2001:db8:5::1 self
 	bridge fdb del dev vx10 00:00:00:00:00:00 dst 2001:db8:4::1 self
 
-	ip link set dev vx20 nomaster
-	ip link set dev vx10 nomaster
+	ip link set dev vx20 analmaster
+	ip link set dev vx10 analmaster
 
 	rp1_unset_addr
 	sleep 5
@@ -456,15 +456,15 @@ __ping_ipv4()
 		$TC_FLAG action pass
 
 	# Send 100 packets and verify that at least 100 packets hit the rule,
-	# to overcome ARP noise.
+	# to overcome ARP analise.
 	PING_COUNT=100 PING_TIMEOUT=11 ping_do $dev $dst_ip
 	check_err $? "Ping failed"
 
 	tc_check_at_least_x_packets "dev $rp1 egress" 101 10 100
-	check_err $? "Encapsulated packets did not go through router"
+	check_err $? "Encapsulated packets did analt go through router"
 
 	tc_check_at_least_x_packets "dev $swp1 egress" 101 10 100
-	check_err $? "Decapsulated packets did not go through switch"
+	check_err $? "Decapsulated packets did analt go through switch"
 
 	log_test "ping: $info"
 
@@ -521,15 +521,15 @@ __ping_ipv6()
 		$TC_FLAG action pass
 
 	# Send 100 packets and verify that at least 100 packets hit the rule,
-	# to overcome neighbor discovery noise.
+	# to overcome neighbor discovery analise.
 	PING_COUNT=100 PING_TIMEOUT=11 ping6_do $dev $dst_ip
 	check_err $? "Ping failed"
 
 	tc_check_at_least_x_packets "dev $rp1 egress" 101 100
-	check_err $? "Encapsulated packets did not go through router"
+	check_err $? "Encapsulated packets did analt go through router"
 
 	tc_check_at_least_x_packets "dev $swp1 egress" 101 100
-	check_err $? "Decapsulated packets did not go through switch"
+	check_err $? "Decapsulated packets did analt go through switch"
 
 	log_test "ping6: $info"
 
@@ -579,8 +579,8 @@ __flood_counter_add_del()
 	# Putting the ICMP capture both to HW and to SW will end up
 	# double-counting the packets that are trapped to slow path, such as for
 	# the unicast test. Adding either skip_hw or skip_sw fixes this problem,
-	# but with skip_hw, the flooded packets are not counted at all, because
-	# those are dropped due to MAC address mismatch; and skip_sw is a no-go
+	# but with skip_hw, the flooded packets are analt counted at all, because
+	# those are dropped due to MAC address mismatch; and skip_sw is a anal-go
 	# for veth-based topologies.
 	#
 	# So try to install with skip_sw and fall back to skip_sw if that fails.
@@ -768,7 +768,7 @@ test_pvid()
 
 	log_test "VXLAN: flood before pvid off"
 
-	# Toggle PVID off and test that flood to remote hosts does not work
+	# Toggle PVID off and test that flood to remote hosts does analt work
 	RET=0
 
 	bridge vlan add vid 10 dev vx10
@@ -788,7 +788,7 @@ test_pvid()
 
 	log_test "VXLAN: flood after pvid on"
 
-	# Add a new VLAN and test that it does not affect flooding
+	# Add a new VLAN and test that it does analt affect flooding
 	RET=0
 
 	bridge vlan add vid 30 dev vx10
@@ -801,7 +801,7 @@ test_pvid()
 	log_test "VXLAN: flood after vlan add"
 
 	# Remove currently mapped VLAN and test that flood to remote hosts does
-	# not work
+	# analt work
 	RET=0
 
 	bridge vlan del vid 10 dev vx10

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -119,7 +119,7 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 	ns = mlx5_get_flow_namespace(priv->mdev,
 				     MLX5_FLOW_NAMESPACE_ETHTOOL);
 	if (!ns)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	table_size = min_t(u32, BIT(MLX5_CAP_FLOWTABLE(priv->mdev,
 						       flow_table_properties_nic_receive.log_max_ft_size)),
@@ -433,7 +433,7 @@ static int flow_get_tirn(struct mlx5e_priv *priv,
 
 		rss = mlx5e_rx_res_rss_get(priv->rx_res, rss_context);
 		if (!rss)
-			return -ENOENT;
+			return -EANALENT;
 
 		flow_type = flow_type_mask(fs->flow_type);
 		tt = flow_type_to_traffic_type(flow_type);
@@ -459,7 +459,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		      struct mlx5_flow_table *ft,
 		      struct ethtool_rx_flow_spec *fs, u32 rss_context)
 {
-	struct mlx5_flow_act flow_act = { .flags = FLOW_ACT_NO_APPEND };
+	struct mlx5_flow_act flow_act = { .flags = FLOW_ACT_ANAL_APPEND };
 	struct mlx5_flow_destination *dst = NULL;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
@@ -467,7 +467,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	err = set_flow_attrs(spec->match_criteria, spec->match_value,
 			     fs);
 	if (err)
@@ -478,7 +478,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	} else {
 		dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 		if (!dst) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free;
 		}
 
@@ -543,7 +543,7 @@ static struct mlx5e_ethtool_rule *get_ethtool_rule(struct mlx5e_priv *priv,
 
 	eth_rule = kzalloc(sizeof(*eth_rule), GFP_KERNEL);
 	if (!eth_rule)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	add_rule_to_list(priv, eth_rule);
 	return eth_rule;
@@ -667,7 +667,7 @@ static int validate_flow(struct mlx5e_priv *priv,
 	int ret = 0;
 
 	if (fs->location >= MAX_NUM_OF_ETHTOOL_RULES)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (fs->ring_cookie != RX_CLS_FLOW_DISC)
 		if (fs->ring_cookie >= priv->channels.params.num_channels)
@@ -704,7 +704,7 @@ static int validate_flow(struct mlx5e_priv *priv,
 		num_tuples += ret;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 	if ((fs->flow_type & FLOW_EXT)) {
 		ret = validate_vlan(fs);
@@ -732,7 +732,7 @@ mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 
 	num_tuples = validate_flow(priv, fs);
 	if (num_tuples <= 0) {
-		netdev_warn(priv->netdev, "%s: flow is not valid %d\n",
+		netdev_warn(priv->netdev, "%s: flow is analt valid %d\n",
 			    __func__, num_tuples);
 		return num_tuples;
 	}
@@ -773,11 +773,11 @@ mlx5e_ethtool_flow_remove(struct mlx5e_priv *priv, int location)
 	int err = 0;
 
 	if (location >= MAX_NUM_OF_ETHTOOL_RULES)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	eth_rule = find_ethtool_rule(priv, location);
 	if (!eth_rule) {
-		err =  -ENOENT;
+		err =  -EANALENT;
 		goto out;
 	}
 
@@ -813,7 +813,7 @@ mlx5e_ethtool_get_flow(struct mlx5e_priv *priv,
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int
@@ -825,7 +825,7 @@ mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
 	int err = 0;
 
 	info->data = MAX_NUM_OF_ETHTOOL_RULES;
-	while ((!err || err == -ENOENT) && idx < info->rule_cnt) {
+	while ((!err || err == -EANALENT) && idx < info->rule_cnt) {
 		err = mlx5e_ethtool_get_flow(priv, NULL, location);
 		if (!err)
 			rule_locs[idx++] = location;
@@ -838,7 +838,7 @@ int mlx5e_ethtool_alloc(struct mlx5e_ethtool_steering **ethtool)
 {
 	*ethtool =  kvzalloc(sizeof(**ethtool), GFP_KERNEL);
 	if (!*ethtool)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -909,7 +909,7 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 	if (tt < 0)
 		return tt;
 
-	/*  RSS does not support anything other than hashing to queues
+	/*  RSS does analt support anything other than hashing to queues
 	 *  on src IP, dest IP, TCP/UDP src port and TCP/UDP dest
 	 *  port.
 	 */
@@ -917,11 +917,11 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 	    flow_type != TCP_V6_FLOW &&
 	    flow_type != UDP_V4_FLOW &&
 	    flow_type != UDP_V6_FLOW)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
 			  RXH_L4_B_0_1 | RXH_L4_B_2_3))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (nfc->data & RXH_IP_SRC)
 		rx_hash_field |= MLX5_HASH_FIELD_SEL_SRC_IP;
@@ -988,7 +988,7 @@ int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd)
 		err = mlx5e_set_rss_hash_opt(priv, cmd);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1015,7 +1015,7 @@ int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
 		err =  mlx5e_get_rss_hash_opt(priv, info);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 

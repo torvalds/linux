@@ -66,8 +66,8 @@ static __always_inline unsigned int cea_offset(unsigned int cpu)
 static inline void init_cea_offsets(void) { }
 #endif
 
-/* Is called from entry code, so must be noinstr */
-noinstr struct cpu_entry_area *get_cpu_entry_area(int cpu)
+/* Is called from entry code, so must be analinstr */
+analinstr struct cpu_entry_area *get_cpu_entry_area(int cpu)
 {
 	unsigned long va = CPU_ENTRY_AREA_PER_CPU + cea_offset(cpu) * CPU_ENTRY_AREA_SIZE;
 	BUILD_BUG_ON(sizeof(struct cpu_entry_area) % PAGE_SIZE != 0);
@@ -84,8 +84,8 @@ void cea_set_pte(void *cea_vaddr, phys_addr_t pa, pgprot_t flags)
 	/*
 	 * The cpu_entry_area is shared between the user and kernel
 	 * page tables.  All of its ptes can safely be global.
-	 * _PAGE_GLOBAL gets reused to help indicate PROT_NONE for
-	 * non-present PTEs, so be careful not to set it in that
+	 * _PAGE_GLOBAL gets reused to help indicate PROT_ANALNE for
+	 * analn-present PTEs, so be careful analt to set it in that
 	 * case to avoid confusion.
 	 */
 	if (boot_cpu_has(X86_FEATURE_PGE) &&
@@ -119,12 +119,12 @@ static void __init percpu_setup_debug_store(unsigned int cpu)
 
 	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers;
 	/*
-	 * Force the population of PMDs for not yet allocated per cpu
+	 * Force the population of PMDs for analt yet allocated per cpu
 	 * memory like debug store buffers.
 	 */
 	npages = sizeof(struct debug_store_buffers) / PAGE_SIZE;
 	for (; npages; npages--, cea += PAGE_SIZE)
-		cea_set_pte(cea, 0, PAGE_NONE);
+		cea_set_pte(cea, 0, PAGE_ANALNE);
 #endif
 }
 
@@ -149,7 +149,7 @@ static void __init percpu_setup_exception_stacks(unsigned int cpu)
 	/*
 	 * The exceptions stack mappings in the per cpu area are protected
 	 * by guard pages so each stack must be mapped separately. DB2 is
-	 * not mapped; it just exists to catch triple nesting of #DB.
+	 * analt mapped; it just exists to catch triple nesting of #DB.
 	 */
 	cea_map_stack(DF);
 	cea_map_stack(NMI);
@@ -183,10 +183,10 @@ static void __init setup_cpu_entry_area(unsigned int cpu)
 	pgprot_t tss_prot = PAGE_KERNEL_RO;
 #else
 	/*
-	 * On 32-bit systems, the GDT cannot be read-only because
+	 * On 32-bit systems, the GDT cananalt be read-only because
 	 * our double fault handler uses a task gate, and entering through
 	 * a task gate needs to change an available TSS to busy.  If the
-	 * GDT is read-only, that will triple fault.  The TSS cannot be
+	 * GDT is read-only, that will triple fault.  The TSS cananalt be
 	 * read-only because the CPU writes to it on task switches.
 	 */
 	pgprot_t gdt_prot = PAGE_KERNEL;
@@ -194,7 +194,7 @@ static void __init setup_cpu_entry_area(unsigned int cpu)
 #endif
 
 	kasan_populate_shadow_for_vaddr(cea, CPU_ENTRY_AREA_SIZE,
-					early_cpu_to_node(cpu));
+					early_cpu_to_analde(cpu));
 
 	cea_set_pte(&cea->gdt, get_cpu_gdt_paddr(cpu), gdt_prot);
 
@@ -207,17 +207,17 @@ static void __init setup_cpu_entry_area(unsigned int cpu)
 	 *
 	 *  Avoid placing a page boundary in the part of the TSS that the
 	 *  processor reads during a task switch (the first 104 bytes). The
-	 *  processor may not correctly perform address translations if a
+	 *  processor may analt correctly perform address translations if a
 	 *  boundary occurs in this area. During a task switch, the processor
 	 *  reads and writes into the first 104 bytes of each TSS (using
 	 *  contiguous physical addresses beginning with the physical address
 	 *  of the first byte of the TSS). So, after TSS access begins, if
-	 *  part of the 104 bytes is not physically contiguous, the processor
+	 *  part of the 104 bytes is analt physically contiguous, the processor
 	 *  will access incorrect information without generating a page-fault
 	 *  exception.
 	 *
 	 * There are also a lot of errata involving the TSS spanning a page
-	 * boundary.  Assert that we're not doing that.
+	 * boundary.  Assert that we're analt doing that.
 	 */
 	BUILD_BUG_ON((offsetof(struct tss_struct, x86_tss) ^
 		      offsetofend(struct tss_struct, x86_tss)) & PAGE_MASK);

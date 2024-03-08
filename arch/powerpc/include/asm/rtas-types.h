@@ -18,7 +18,7 @@ struct rtas_t {
 	unsigned long entry;		/* physical address pointer */
 	unsigned long base;		/* physical address pointer */
 	unsigned long size;
-	struct device_node *dev;	/* virtual address pointer */
+	struct device_analde *dev;	/* virtual address pointer */
 };
 
 struct rtas_error_log {

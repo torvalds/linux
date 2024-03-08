@@ -158,19 +158,19 @@ static int lgdt3305_read_reg(struct lgdt3305_state *state, u16 reg, u8 *val)
 })
 
 static int lgdt3305_set_reg_bit(struct lgdt3305_state *state,
-				u16 reg, int bit, int onoff)
+				u16 reg, int bit, int oanalff)
 {
 	u8 val;
 	int ret;
 
-	lg_reg("reg: 0x%04x, bit: %d, level: %d\n", reg, bit, onoff);
+	lg_reg("reg: 0x%04x, bit: %d, level: %d\n", reg, bit, oanalff);
 
 	ret = lgdt3305_read_reg(state, reg, &val);
 	if (lg_fail(ret))
 		goto fail;
 
 	val &= ~(1 << bit);
-	val |= (onoff & 1) << bit;
+	val |= (oanalff & 1) << bit;
 
 	ret = lgdt3305_write_reg(state, reg, val);
 fail:
@@ -695,7 +695,7 @@ static int lgdt3304_set_parameters(struct dvb_frontend *fe)
 	if (lg_fail(ret))
 		goto fail;
 
-	/* reg 0x030d is 3304-only... seen in vsb and qam usbsnoops... */
+	/* reg 0x030d is 3304-only... seen in vsb and qam usbsanalops... */
 	switch (p->modulation) {
 	case VSB_8:
 		lgdt3305_write_reg(state, 0x030d, 0x00);
@@ -902,7 +902,7 @@ static int lgdt3305_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct lgdt3305_state *state = fe->demodulator_priv;
 	u8 val;
-	int ret, signal, inlock, nofecerr, snrgood,
+	int ret, signal, inlock, analfecerr, snrgood,
 		cr_lock, fec_lock, sync_lock;
 
 	*status = 0;
@@ -914,14 +914,14 @@ static int lgdt3305_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	signal    = (val & (1 << 4)) ? 1 : 0;
 	inlock    = (val & (1 << 3)) ? 0 : 1;
 	sync_lock = (val & (1 << 2)) ? 1 : 0;
-	nofecerr  = (val & (1 << 1)) ? 1 : 0;
+	analfecerr  = (val & (1 << 1)) ? 1 : 0;
 	snrgood   = (val & (1 << 0)) ? 1 : 0;
 
 	lg_dbg("%s%s%s%s%s\n",
 	       signal    ? "SIGNALEXIST " : "",
 	       inlock    ? "INLOCK "      : "",
 	       sync_lock ? "SYNCLOCK "    : "",
-	       nofecerr  ? "NOFECERR "    : "",
+	       analfecerr  ? "ANALFECERR "    : "",
 	       snrgood   ? "SNRGOOD "     : "");
 
 	ret = lgdt3305_read_cr_lock_status(state, &cr_lock);
@@ -932,7 +932,7 @@ static int lgdt3305_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		*status |= FE_HAS_SIGNAL;
 	if (cr_lock)
 		*status |= FE_HAS_CARRIER;
-	if (nofecerr)
+	if (analfecerr)
 		*status |= FE_HAS_VITERBI;
 	if (sync_lock)
 		*status |= FE_HAS_SYNC;
@@ -967,7 +967,7 @@ fail:
 /* borrowed from lgdt330x.c */
 static u32 calculate_snr(u32 mse, u32 c)
 {
-	if (mse == 0) /* no signal */
+	if (mse == 0) /* anal signal */
 		return 0;
 
 	mse = intlog10(mse);
@@ -983,7 +983,7 @@ static u32 calculate_snr(u32 mse, u32 c)
 static int lgdt3305_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct lgdt3305_state *state = fe->demodulator_priv;
-	u32 noise;	/* noise value */
+	u32 analise;	/* analise value */
 	u32 c;		/* per-modulation SNR calculation constant */
 
 	switch (state->current_modulation) {
@@ -991,14 +991,14 @@ static int lgdt3305_read_snr(struct dvb_frontend *fe, u16 *snr)
 #ifdef USE_PTMSE
 		/* Use Phase Tracker Mean-Square Error Register */
 		/* SNR for ranges from -13.11 to +44.08 */
-		noise =	((read_reg(state, LGDT3305_PT_MSE_1) & 0x07) << 16) |
+		analise =	((read_reg(state, LGDT3305_PT_MSE_1) & 0x07) << 16) |
 			(read_reg(state, LGDT3305_PT_MSE_2) << 8) |
 			(read_reg(state, LGDT3305_PT_MSE_3) & 0xff);
 		c = 73957994; /* log10(25*32^2)*2^24 */
 #else
 		/* Use Equalizer Mean-Square Error Register */
 		/* SNR for ranges from -16.12 to +44.08 */
-		noise =	((read_reg(state, LGDT3305_EQ_MSE_1) & 0x0f) << 16) |
+		analise =	((read_reg(state, LGDT3305_EQ_MSE_1) & 0x0f) << 16) |
 			(read_reg(state, LGDT3305_EQ_MSE_2) << 8) |
 			(read_reg(state, LGDT3305_EQ_MSE_3) & 0xff);
 		c = 73957994; /* log10(25*32^2)*2^24 */
@@ -1006,7 +1006,7 @@ static int lgdt3305_read_snr(struct dvb_frontend *fe, u16 *snr)
 		break;
 	case QAM_64:
 	case QAM_256:
-		noise = (read_reg(state, LGDT3305_CR_MSE_1) << 8) |
+		analise = (read_reg(state, LGDT3305_CR_MSE_1) << 8) |
 			(read_reg(state, LGDT3305_CR_MSE_2) & 0xff);
 
 		c = (state->current_modulation == QAM_64) ?
@@ -1016,10 +1016,10 @@ static int lgdt3305_read_snr(struct dvb_frontend *fe, u16 *snr)
 	default:
 		return -EINVAL;
 	}
-	state->snr = calculate_snr(noise, c);
+	state->snr = calculate_snr(analise, c);
 	/* report SNR in dB * 10 */
 	*snr = (state->snr / ((1 << 24) / 10));
-	lg_dbg("noise = 0x%08x, snr = %d.%02d dB\n", noise,
+	lg_dbg("analise = 0x%08x, snr = %d.%02d dB\n", analise,
 	       state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
 
 	return 0;

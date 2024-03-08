@@ -144,12 +144,12 @@ static int tegra210_dmic_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(dai->dev, "unsupported format!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	cif_conf.client_bits = TEGRA_ACIF_BITS_24;
-	cif_conf.mono_conv = dmic->mono_to_stereo;
-	cif_conf.stereo_conv = dmic->stereo_to_mono;
+	cif_conf.moanal_conv = dmic->moanal_to_stereo;
+	cif_conf.stereo_conv = dmic->stereo_to_moanal;
 
 	tegra_set_cif(dmic->regmap, TEGRA210_DMIC_TX_CIF_CTRL, &cif_conf);
 
@@ -208,54 +208,54 @@ static int tegra210_dmic_put_ch_select(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static int tegra210_dmic_get_mono_to_stereo(struct snd_kcontrol *kcontrol,
+static int tegra210_dmic_get_moanal_to_stereo(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
 
-	ucontrol->value.enumerated.item[0] = dmic->mono_to_stereo;
+	ucontrol->value.enumerated.item[0] = dmic->moanal_to_stereo;
 
 	return 0;
 }
 
-static int tegra210_dmic_put_mono_to_stereo(struct snd_kcontrol *kcontrol,
+static int tegra210_dmic_put_moanal_to_stereo(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
-	if (value == dmic->mono_to_stereo)
+	if (value == dmic->moanal_to_stereo)
 		return 0;
 
-	dmic->mono_to_stereo = value;
+	dmic->moanal_to_stereo = value;
 
 	return 1;
 }
 
-static int tegra210_dmic_get_stereo_to_mono(struct snd_kcontrol *kcontrol,
+static int tegra210_dmic_get_stereo_to_moanal(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
 
-	ucontrol->value.enumerated.item[0] = dmic->stereo_to_mono;
+	ucontrol->value.enumerated.item[0] = dmic->stereo_to_moanal;
 
 	return 0;
 }
 
-static int tegra210_dmic_put_stereo_to_mono(struct snd_kcontrol *kcontrol,
+static int tegra210_dmic_put_stereo_to_moanal(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
-	if (value == dmic->stereo_to_mono)
+	if (value == dmic->stereo_to_moanal)
 		return 0;
 
-	dmic->stereo_to_mono = value;
+	dmic->stereo_to_moanal = value;
 
 	return 1;
 }
@@ -364,7 +364,7 @@ static const struct soc_enum tegra210_dmic_ch_enum =
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(tegra210_dmic_ch_select),
 			tegra210_dmic_ch_select);
 
-static const char * const tegra210_dmic_mono_conv_text[] = {
+static const char * const tegra210_dmic_moanal_conv_text[] = {
 	"Zero", "Copy",
 };
 
@@ -372,9 +372,9 @@ static const char * const tegra210_dmic_stereo_conv_text[] = {
 	"CH0", "CH1", "AVG",
 };
 
-static const struct soc_enum tegra210_dmic_mono_conv_enum =
-	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(tegra210_dmic_mono_conv_text),
-			tegra210_dmic_mono_conv_text);
+static const struct soc_enum tegra210_dmic_moanal_conv_enum =
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(tegra210_dmic_moanal_conv_text),
+			tegra210_dmic_moanal_conv_text);
 
 static const struct soc_enum tegra210_dmic_stereo_conv_enum =
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(tegra210_dmic_stereo_conv_text),
@@ -402,14 +402,14 @@ static const struct snd_kcontrol_new tegra210_dmic_controls[] = {
 		       tegra210_dmic_put_boost_gain),
 	SOC_ENUM_EXT("Channel Select", tegra210_dmic_ch_enum,
 		     tegra210_dmic_get_ch_select, tegra210_dmic_put_ch_select),
-	SOC_ENUM_EXT("Mono To Stereo",
-		     tegra210_dmic_mono_conv_enum,
-		     tegra210_dmic_get_mono_to_stereo,
-		     tegra210_dmic_put_mono_to_stereo),
-	SOC_ENUM_EXT("Stereo To Mono",
+	SOC_ENUM_EXT("Moanal To Stereo",
+		     tegra210_dmic_moanal_conv_enum,
+		     tegra210_dmic_get_moanal_to_stereo,
+		     tegra210_dmic_put_moanal_to_stereo),
+	SOC_ENUM_EXT("Stereo To Moanal",
 		     tegra210_dmic_stereo_conv_enum,
-		     tegra210_dmic_get_stereo_to_mono,
-		     tegra210_dmic_put_stereo_to_mono),
+		     tegra210_dmic_get_stereo_to_moanal,
+		     tegra210_dmic_put_stereo_to_moanal),
 	SOC_ENUM_EXT("OSR Value", tegra210_dmic_osr_enum,
 		     tegra210_dmic_get_osr_val, tegra210_dmic_put_osr_val),
 	SOC_ENUM_EXT("LR Polarity Select", tegra210_dmic_lrsel_enum,
@@ -492,13 +492,13 @@ static int tegra210_dmic_probe(struct platform_device *pdev)
 
 	dmic = devm_kzalloc(dev, sizeof(*dmic), GFP_KERNEL);
 	if (!dmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmic->osr_val = DMIC_OSR_64;
 	dmic->ch_select = DMIC_CH_SELECT_STEREO;
 	dmic->lrsel = DMIC_LRSEL_LEFT;
 	dmic->boost_gain = 0;
-	dmic->stereo_to_mono = 0; /* "CH0" */
+	dmic->stereo_to_moanal = 0; /* "CH0" */
 
 	dev_set_drvdata(dev, dmic);
 

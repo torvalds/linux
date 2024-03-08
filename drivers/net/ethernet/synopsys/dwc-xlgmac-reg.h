@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syanalpsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syanalpsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syanalpsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syanalpsys and you. The Software IS ANALT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syanalpsys or any supplement thereto.
+ * Syanalpsys is a registered trademark of Syanalpsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -646,32 +646,32 @@
 #define RX_PACKET_ATTRIBUTES_RSS_HASH_POS	6
 #define RX_PACKET_ATTRIBUTES_RSS_HASH_LEN	1
 
-#define RX_NORMAL_DESC0_OVT_POS			0
-#define RX_NORMAL_DESC0_OVT_LEN			16
-#define RX_NORMAL_DESC2_HL_POS			0
-#define RX_NORMAL_DESC2_HL_LEN			10
-#define RX_NORMAL_DESC3_CDA_POS			27
-#define RX_NORMAL_DESC3_CDA_LEN			1
-#define RX_NORMAL_DESC3_CTXT_POS		30
-#define RX_NORMAL_DESC3_CTXT_LEN		1
-#define RX_NORMAL_DESC3_ES_POS			15
-#define RX_NORMAL_DESC3_ES_LEN			1
-#define RX_NORMAL_DESC3_ETLT_POS		16
-#define RX_NORMAL_DESC3_ETLT_LEN		4
-#define RX_NORMAL_DESC3_FD_POS			29
-#define RX_NORMAL_DESC3_FD_LEN			1
-#define RX_NORMAL_DESC3_INTE_POS		30
-#define RX_NORMAL_DESC3_INTE_LEN		1
-#define RX_NORMAL_DESC3_L34T_POS		20
-#define RX_NORMAL_DESC3_L34T_LEN		4
-#define RX_NORMAL_DESC3_LD_POS			28
-#define RX_NORMAL_DESC3_LD_LEN			1
-#define RX_NORMAL_DESC3_OWN_POS			31
-#define RX_NORMAL_DESC3_OWN_LEN			1
-#define RX_NORMAL_DESC3_PL_POS			0
-#define RX_NORMAL_DESC3_PL_LEN			14
-#define RX_NORMAL_DESC3_RSV_POS			26
-#define RX_NORMAL_DESC3_RSV_LEN			1
+#define RX_ANALRMAL_DESC0_OVT_POS			0
+#define RX_ANALRMAL_DESC0_OVT_LEN			16
+#define RX_ANALRMAL_DESC2_HL_POS			0
+#define RX_ANALRMAL_DESC2_HL_LEN			10
+#define RX_ANALRMAL_DESC3_CDA_POS			27
+#define RX_ANALRMAL_DESC3_CDA_LEN			1
+#define RX_ANALRMAL_DESC3_CTXT_POS		30
+#define RX_ANALRMAL_DESC3_CTXT_LEN		1
+#define RX_ANALRMAL_DESC3_ES_POS			15
+#define RX_ANALRMAL_DESC3_ES_LEN			1
+#define RX_ANALRMAL_DESC3_ETLT_POS		16
+#define RX_ANALRMAL_DESC3_ETLT_LEN		4
+#define RX_ANALRMAL_DESC3_FD_POS			29
+#define RX_ANALRMAL_DESC3_FD_LEN			1
+#define RX_ANALRMAL_DESC3_INTE_POS		30
+#define RX_ANALRMAL_DESC3_INTE_LEN		1
+#define RX_ANALRMAL_DESC3_L34T_POS		20
+#define RX_ANALRMAL_DESC3_L34T_LEN		4
+#define RX_ANALRMAL_DESC3_LD_POS			28
+#define RX_ANALRMAL_DESC3_LD_LEN			1
+#define RX_ANALRMAL_DESC3_OWN_POS			31
+#define RX_ANALRMAL_DESC3_OWN_LEN			1
+#define RX_ANALRMAL_DESC3_PL_POS			0
+#define RX_ANALRMAL_DESC3_PL_LEN			14
+#define RX_ANALRMAL_DESC3_RSV_POS			26
+#define RX_ANALRMAL_DESC3_RSV_LEN			1
 
 #define RX_DESC3_L34T_IPV4_TCP			1
 #define RX_DESC3_L34T_IPV4_UDP			2
@@ -705,36 +705,36 @@
 #define TX_CONTEXT_DESC3_VT_POS			0
 #define TX_CONTEXT_DESC3_VT_LEN			16
 
-#define TX_NORMAL_DESC2_HL_B1L_POS		0
-#define TX_NORMAL_DESC2_HL_B1L_LEN		14
-#define TX_NORMAL_DESC2_IC_POS			31
-#define TX_NORMAL_DESC2_IC_LEN			1
-#define TX_NORMAL_DESC2_TTSE_POS		30
-#define TX_NORMAL_DESC2_TTSE_LEN		1
-#define TX_NORMAL_DESC2_VTIR_POS		14
-#define TX_NORMAL_DESC2_VTIR_LEN		2
-#define TX_NORMAL_DESC3_CIC_POS			16
-#define TX_NORMAL_DESC3_CIC_LEN			2
-#define TX_NORMAL_DESC3_CPC_POS			26
-#define TX_NORMAL_DESC3_CPC_LEN			2
-#define TX_NORMAL_DESC3_CTXT_POS		30
-#define TX_NORMAL_DESC3_CTXT_LEN		1
-#define TX_NORMAL_DESC3_FD_POS			29
-#define TX_NORMAL_DESC3_FD_LEN			1
-#define TX_NORMAL_DESC3_FL_POS			0
-#define TX_NORMAL_DESC3_FL_LEN			15
-#define TX_NORMAL_DESC3_LD_POS			28
-#define TX_NORMAL_DESC3_LD_LEN			1
-#define TX_NORMAL_DESC3_OWN_POS			31
-#define TX_NORMAL_DESC3_OWN_LEN			1
-#define TX_NORMAL_DESC3_TCPHDRLEN_POS		19
-#define TX_NORMAL_DESC3_TCPHDRLEN_LEN		4
-#define TX_NORMAL_DESC3_TCPPL_POS		0
-#define TX_NORMAL_DESC3_TCPPL_LEN		18
-#define TX_NORMAL_DESC3_TSE_POS			18
-#define TX_NORMAL_DESC3_TSE_LEN			1
+#define TX_ANALRMAL_DESC2_HL_B1L_POS		0
+#define TX_ANALRMAL_DESC2_HL_B1L_LEN		14
+#define TX_ANALRMAL_DESC2_IC_POS			31
+#define TX_ANALRMAL_DESC2_IC_LEN			1
+#define TX_ANALRMAL_DESC2_TTSE_POS		30
+#define TX_ANALRMAL_DESC2_TTSE_LEN		1
+#define TX_ANALRMAL_DESC2_VTIR_POS		14
+#define TX_ANALRMAL_DESC2_VTIR_LEN		2
+#define TX_ANALRMAL_DESC3_CIC_POS			16
+#define TX_ANALRMAL_DESC3_CIC_LEN			2
+#define TX_ANALRMAL_DESC3_CPC_POS			26
+#define TX_ANALRMAL_DESC3_CPC_LEN			2
+#define TX_ANALRMAL_DESC3_CTXT_POS		30
+#define TX_ANALRMAL_DESC3_CTXT_LEN		1
+#define TX_ANALRMAL_DESC3_FD_POS			29
+#define TX_ANALRMAL_DESC3_FD_LEN			1
+#define TX_ANALRMAL_DESC3_FL_POS			0
+#define TX_ANALRMAL_DESC3_FL_LEN			15
+#define TX_ANALRMAL_DESC3_LD_POS			28
+#define TX_ANALRMAL_DESC3_LD_LEN			1
+#define TX_ANALRMAL_DESC3_OWN_POS			31
+#define TX_ANALRMAL_DESC3_OWN_LEN			1
+#define TX_ANALRMAL_DESC3_TCPHDRLEN_POS		19
+#define TX_ANALRMAL_DESC3_TCPHDRLEN_LEN		4
+#define TX_ANALRMAL_DESC3_TCPPL_POS		0
+#define TX_ANALRMAL_DESC3_TCPPL_LEN		18
+#define TX_ANALRMAL_DESC3_TSE_POS			18
+#define TX_ANALRMAL_DESC3_TSE_LEN			1
 
-#define TX_NORMAL_DESC2_VLAN_INSERT		0x2
+#define TX_ANALRMAL_DESC2_VLAN_INSERT		0x2
 
 #define XLGMAC_MTL_REG(pdata, n, reg)					\
 	((pdata)->mac_regs + MTL_Q_BASE + ((n) * MTL_Q_INC) + (reg))

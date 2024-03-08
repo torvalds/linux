@@ -15,7 +15,7 @@
  *     Yogesh Gaur <yogeshnarayan.gaur@nxp.com>
  *     Suresh Gupta <suresh.gupta@nxp.com>
  *
- * Based on the original fsl-quadspi.c SPI NOR driver:
+ * Based on the original fsl-quadspi.c SPI ANALR driver:
  * Author: Freescale Semiconductor, Inc.
  *
  */
@@ -25,7 +25,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -181,12 +181,12 @@
  */
 #define QUADSPI_QUIRK_TKT253890		BIT(2)
 
-/* TKT245618, the controller cannot wake up from wait mode */
+/* TKT245618, the controller cananalt wake up from wait mode */
 #define QUADSPI_QUIRK_TKT245618		BIT(3)
 
 /*
  * Controller adds QSPI_AMBA_BASE (base address of the mapped memory)
- * internally. No need to add it when setting SFXXAD and SFAR registers
+ * internally. Anal need to add it when setting SFXXAD and SFAR registers
  */
 #define QUADSPI_QUIRK_BASE_INTERNAL	BIT(4)
 
@@ -361,7 +361,7 @@ static int fsl_qspi_check_buswidth(struct fsl_qspi *q, u8 width)
 		return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static bool fsl_qspi_supports_op(struct spi_mem *mem,
@@ -423,7 +423,7 @@ static void fsl_qspi_prepare_lut(struct fsl_qspi *q,
 			     op->cmd.opcode);
 
 	/*
-	 * For some unknown reason, using LUT_ADDR doesn't work in some
+	 * For some unkanalwn reason, using LUT_ADDR doesn't work in some
 	 * cases (at least with only one byte long addresses), so
 	 * let's use LUT_MODE to write the address bytes one by one
 	 */
@@ -500,7 +500,7 @@ static void fsl_qspi_clk_disable_unprep(struct fsl_qspi *q)
 /*
  * If we have changed the content of the flash by writing or erasing, or if we
  * read from flash with a different offset into the page buffer, we need to
- * invalidate the AHB buffer. If we do not do so, we may read out the wrong
+ * invalidate the AHB buffer. If we do analt do so, we may read out the wrong
  * data. The spec tells us reset the AHB domain and Serial Flash domain at
  * the same time.
  */
@@ -514,7 +514,7 @@ static void fsl_qspi_invalidate(struct fsl_qspi *q)
 
 	/*
 	 * The minimum delay : 1 AHB + 2 SFCK clocks.
-	 * Delay 1 us is enough.
+	 * Delay 1 us is eanalugh.
 	 */
 	udelay(1);
 
@@ -611,7 +611,7 @@ static int fsl_qspi_do_op(struct fsl_qspi *q, const struct spi_mem_op *op)
 	/*
 	 * Always start the sequence at the same index since we update
 	 * the LUT at each exec_op() call. And also specify the DATA
-	 * length, since it's has not been specified in the LUT.
+	 * length, since it's has analt been specified in the LUT.
 	 */
 	qspi_writel(q, op->data.nbytes | QUADSPI_IPCR_SEQID(SEQID_LUT),
 		    base + QUADSPI_IPCR);
@@ -746,7 +746,7 @@ static int fsl_qspi_default_setup(struct fsl_qspi *q)
 
 	/*
 	 * Previous boot stages (BootROM, bootloader) might have used DDR
-	 * mode and did not clear the TDH bits. As we currently use SDR mode
+	 * mode and did analt clear the TDH bits. As we currently use SDR mode
 	 * only, clear the TDH bits if necessary.
 	 */
 	if (needs_tdh_setting(q))
@@ -814,10 +814,10 @@ static const char *fsl_qspi_get_name(struct spi_mem *mem)
 
 	/*
 	 * In order to keep mtdparts compatible with the old MTD driver at
-	 * mtd/spi-nor/fsl-quadspi.c, we set a custom name derived from the
+	 * mtd/spi-analr/fsl-quadspi.c, we set a custom name derived from the
 	 * platform_device of the controller.
 	 */
-	if (of_get_available_child_count(q->dev->of_node) == 1)
+	if (of_get_available_child_count(q->dev->of_analde) == 1)
 		return dev_name(q->dev);
 
 	name = devm_kasprintf(dev, GFP_KERNEL,
@@ -826,7 +826,7 @@ static const char *fsl_qspi_get_name(struct spi_mem *mem)
 
 	if (!name) {
 		dev_err(dev, "failed to get memory for custom flash name\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return name;
@@ -843,14 +843,14 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct resource *res;
 	struct fsl_qspi *q;
 	int ret;
 
 	ctlr = spi_alloc_host(&pdev->dev, sizeof(*q));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr->mode_bits = SPI_RX_DUAL | SPI_RX_QUAD |
 			  SPI_TX_DUAL | SPI_TX_QUAD;
@@ -859,7 +859,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	q->dev = dev;
 	q->devtype_data = of_device_get_match_data(dev);
 	if (!q->devtype_data) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_put_ctrl;
 	}
 
@@ -883,7 +883,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	q->ahb_addr = devm_ioremap(dev, q->memmap_phy,
 				   (q->devtype_data->ahb_buf_size * 4));
 	if (!q->ahb_addr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_ctrl;
 	}
 
@@ -902,7 +902,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	ret = fsl_qspi_clk_prep_enable(q);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can analt enable the clock\n");
 		goto err_put_ctrl;
 	}
 
@@ -926,7 +926,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	fsl_qspi_default_setup(q);
 
-	ctlr->dev.of_node = np;
+	ctlr->dev.of_analde = np;
 
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret)

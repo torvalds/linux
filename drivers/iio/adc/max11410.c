@@ -221,7 +221,7 @@ static const struct regmap_config regmap_config = {
 	.max_register = 0x39,
 };
 
-static ssize_t max11410_notch_en_show(struct device *dev,
+static ssize_t max11410_analtch_en_show(struct device *dev,
 				      struct device_attribute *devattr,
 				      char *buf)
 {
@@ -252,7 +252,7 @@ static ssize_t max11410_notch_en_show(struct device *dev,
 	return sysfs_emit(buf, "%d\n", val);
 }
 
-static ssize_t max11410_notch_en_store(struct device *dev,
+static ssize_t max11410_analtch_en_store(struct device *dev,
 				       struct device_attribute *devattr,
 				       const char *buf, size_t count)
 {
@@ -294,7 +294,7 @@ static ssize_t max11410_notch_en_store(struct device *dev,
 	return count;
 }
 
-static ssize_t in_voltage_filter2_notch_center_show(struct device *dev,
+static ssize_t in_voltage_filter2_analtch_center_show(struct device *dev,
 						    struct device_attribute *devattr,
 						    char *buf)
 {
@@ -314,24 +314,24 @@ static ssize_t in_voltage_filter2_notch_center_show(struct device *dev,
 	return sysfs_emit(buf, "%d\n", filter);
 }
 
-static IIO_CONST_ATTR(in_voltage_filter0_notch_center, "50");
-static IIO_CONST_ATTR(in_voltage_filter1_notch_center, "60");
-static IIO_DEVICE_ATTR_RO(in_voltage_filter2_notch_center, 2);
+static IIO_CONST_ATTR(in_voltage_filter0_analtch_center, "50");
+static IIO_CONST_ATTR(in_voltage_filter1_analtch_center, "60");
+static IIO_DEVICE_ATTR_RO(in_voltage_filter2_analtch_center, 2);
 
-static IIO_DEVICE_ATTR(in_voltage_filter0_notch_en, 0644,
-		       max11410_notch_en_show, max11410_notch_en_store, 0);
-static IIO_DEVICE_ATTR(in_voltage_filter1_notch_en, 0644,
-		       max11410_notch_en_show, max11410_notch_en_store, 1);
-static IIO_DEVICE_ATTR(in_voltage_filter2_notch_en, 0644,
-		       max11410_notch_en_show, max11410_notch_en_store, 2);
+static IIO_DEVICE_ATTR(in_voltage_filter0_analtch_en, 0644,
+		       max11410_analtch_en_show, max11410_analtch_en_store, 0);
+static IIO_DEVICE_ATTR(in_voltage_filter1_analtch_en, 0644,
+		       max11410_analtch_en_show, max11410_analtch_en_store, 1);
+static IIO_DEVICE_ATTR(in_voltage_filter2_analtch_en, 0644,
+		       max11410_analtch_en_show, max11410_analtch_en_store, 2);
 
 static struct attribute *max11410_attributes[] = {
-	&iio_const_attr_in_voltage_filter0_notch_center.dev_attr.attr,
-	&iio_const_attr_in_voltage_filter1_notch_center.dev_attr.attr,
-	&iio_dev_attr_in_voltage_filter2_notch_center.dev_attr.attr,
-	&iio_dev_attr_in_voltage_filter0_notch_en.dev_attr.attr,
-	&iio_dev_attr_in_voltage_filter1_notch_en.dev_attr.attr,
-	&iio_dev_attr_in_voltage_filter2_notch_en.dev_attr.attr,
+	&iio_const_attr_in_voltage_filter0_analtch_center.dev_attr.attr,
+	&iio_const_attr_in_voltage_filter1_analtch_center.dev_attr.attr,
+	&iio_dev_attr_in_voltage_filter2_analtch_center.dev_attr.attr,
+	&iio_dev_attr_in_voltage_filter0_analtch_en.dev_attr.attr,
+	&iio_dev_attr_in_voltage_filter1_analtch_en.dev_attr.attr,
+	&iio_dev_attr_in_voltage_filter2_analtch_en.dev_attr.attr,
 	NULL
 };
 
@@ -519,7 +519,7 @@ static int max11410_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		scale_avail = st->channels[chan->address].scale_avail;
 		if (!scale_avail)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* Accept values in range 0.000001 <= scale < 1.000000 */
 		if (val != 0 || val2 == 0)
@@ -628,7 +628,7 @@ static irqreturn_t max11410_trigger_handler(int irq, void *p)
 
 	ret = max11410_read_reg(st, MAX11410_REG_DATA0, &st->scan.data);
 	if (ret) {
-		dev_err(&indio_dev->dev, "cannot read data\n");
+		dev_err(&indio_dev->dev, "cananalt read data\n");
 		goto out;
 	}
 
@@ -636,7 +636,7 @@ static irqreturn_t max11410_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -696,92 +696,92 @@ static int max11410_parse_channels(struct max11410_state *st,
 	struct device *dev = &st->spi_dev->dev;
 	struct max11410_channel_config *cfg;
 	struct iio_chan_spec *channels;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	u32 reference, sig_path;
-	const char *node_name;
+	const char *analde_name;
 	u32 inputs[2], scale;
 	unsigned int num_ch;
 	int chan_idx = 0;
 	int ret, i;
 
-	num_ch = device_get_child_node_count(dev);
+	num_ch = device_get_child_analde_count(dev);
 	if (num_ch == 0)
-		return dev_err_probe(&indio_dev->dev, -ENODEV,
-				     "FW has no channels defined\n");
+		return dev_err_probe(&indio_dev->dev, -EANALDEV,
+				     "FW has anal channels defined\n");
 
 	/* Reserve space for soft timestamp channel */
 	num_ch++;
 	channels = devm_kcalloc(dev, num_ch, sizeof(*channels), GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->channels = devm_kcalloc(dev, num_ch, sizeof(*st->channels),
 				    GFP_KERNEL);
 	if (!st->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	device_for_each_child_node(dev, child) {
-		node_name = fwnode_get_name(child);
-		if (fwnode_property_present(child, "diff-channels")) {
-			ret = fwnode_property_read_u32_array(child,
+	device_for_each_child_analde(dev, child) {
+		analde_name = fwanalde_get_name(child);
+		if (fwanalde_property_present(child, "diff-channels")) {
+			ret = fwanalde_property_read_u32_array(child,
 							     "diff-channels",
 							     inputs,
 							     ARRAY_SIZE(inputs));
 
 			chanspec.differential = 1;
 		} else {
-			ret = fwnode_property_read_u32(child, "reg", &inputs[0]);
+			ret = fwanalde_property_read_u32(child, "reg", &inputs[0]);
 
 			inputs[1] = 0;
 			chanspec.differential = 0;
 		}
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
 		if (inputs[0] > MAX11410_CHANNEL_INDEX_MAX ||
 		    inputs[1] > MAX11410_CHANNEL_INDEX_MAX) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(&indio_dev->dev, -EINVAL,
 					     "Invalid channel index for %s, should be less than %d\n",
-					     node_name,
+					     analde_name,
 					     MAX11410_CHANNEL_INDEX_MAX + 1);
 		}
 
 		cfg = &st->channels[chan_idx];
 
 		reference = MAX11410_REFSEL_AVDD_AGND;
-		fwnode_property_read_u32(child, "adi,reference", &reference);
+		fwanalde_property_read_u32(child, "adi,reference", &reference);
 		if (reference > MAX11410_REFSEL_MAX) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(&indio_dev->dev, -EINVAL,
 					     "Invalid adi,reference value for %s, should be less than %d.\n",
-					     node_name, MAX11410_REFSEL_MAX + 1);
+					     analde_name, MAX11410_REFSEL_MAX + 1);
 		}
 
 		if (!max11410_get_vrefp(st, reference) ||
 		    (!max11410_get_vrefn(st, reference) && reference <= 2)) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(&indio_dev->dev, -EINVAL,
 					     "Invalid VREF configuration for %s, either specify corresponding VREF regulators or change adi,reference property.\n",
-					     node_name);
+					     analde_name);
 		}
 
 		sig_path = MAX11410_PGA_SIG_PATH_BUFFERED;
-		fwnode_property_read_u32(child, "adi,input-mode", &sig_path);
+		fwanalde_property_read_u32(child, "adi,input-mode", &sig_path);
 		if (sig_path > MAX11410_SIG_PATH_MAX) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(&indio_dev->dev, -EINVAL,
 					     "Invalid adi,input-mode value for %s, should be less than %d.\n",
-					     node_name, MAX11410_SIG_PATH_MAX + 1);
+					     analde_name, MAX11410_SIG_PATH_MAX + 1);
 		}
 
-		fwnode_property_read_u32(child, "settling-time-us",
+		fwanalde_property_read_u32(child, "settling-time-us",
 					 &cfg->settling_time_us);
-		cfg->bipolar = fwnode_property_read_bool(child, "bipolar");
-		cfg->buffered_vrefp = fwnode_property_read_bool(child, "adi,buffered-vrefp");
-		cfg->buffered_vrefn = fwnode_property_read_bool(child, "adi,buffered-vrefn");
+		cfg->bipolar = fwanalde_property_read_bool(child, "bipolar");
+		cfg->buffered_vrefp = fwanalde_property_read_bool(child, "adi,buffered-vrefp");
+		cfg->buffered_vrefn = fwanalde_property_read_bool(child, "adi,buffered-vrefn");
 		cfg->refsel = reference;
 		cfg->sig_path = sig_path;
 		cfg->gain = 0;
@@ -794,8 +794,8 @@ static int max11410_parse_channels(struct max11410_state *st,
 							sizeof(*cfg->scale_avail),
 							GFP_KERNEL);
 			if (!cfg->scale_avail) {
-				fwnode_handle_put(child);
-				return -ENOMEM;
+				fwanalde_handle_put(child);
+				return -EANALMEM;
 			}
 
 			scale = max11410_get_scale(st, *cfg);
@@ -838,7 +838,7 @@ static int max11410_init_vref(struct device *dev,
 	int ret;
 
 	reg = devm_regulator_get_optional(dev, id);
-	if (PTR_ERR(reg) == -ENODEV) {
+	if (PTR_ERR(reg) == -EANALDEV) {
 		*vref = NULL;
 		return 0;
 	} else if (IS_ERR(reg)) {
@@ -935,7 +935,7 @@ static int max11410_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->spi_dev = spi;
@@ -973,8 +973,8 @@ static int max11410_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	irqs[0] = fwnode_irq_get_byname(dev_fwnode(dev), "gpio0");
-	irqs[1] = fwnode_irq_get_byname(dev_fwnode(dev), "gpio1");
+	irqs[0] = fwanalde_irq_get_byname(dev_fwanalde(dev), "gpio0");
+	irqs[1] = fwanalde_irq_get_byname(dev_fwanalde(dev), "gpio1");
 
 	if (irqs[0] > 0) {
 		st->irq = irqs[0];
@@ -985,8 +985,8 @@ static int max11410_probe(struct spi_device *spi)
 		ret = regmap_write(st->regmap, MAX11410_REG_GPIO_CTRL(1),
 				   MAX11410_GPIO_INTRB);
 	} else if (spi->irq > 0) {
-		return dev_err_probe(dev, -ENODEV,
-				     "no interrupt name specified");
+		return dev_err_probe(dev, -EANALDEV,
+				     "anal interrupt name specified");
 	}
 
 	if (ret)
@@ -1008,7 +1008,7 @@ static int max11410_probe(struct spi_device *spi)
 						  indio_dev->name,
 						  iio_device_id(indio_dev));
 		if (!st->trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		st->trig->ops = &max11410_trigger_ops;
 		ret = devm_iio_trigger_register(dev, st->trig);
@@ -1026,7 +1026,7 @@ static int max11410_probe(struct spi_device *spi)
 	ret = max11410_self_calibrate(st);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "cannot perform device self calibration\n");
+				     "cananalt perform device self calibration\n");
 
 	return devm_iio_device_register(dev, indio_dev);
 }

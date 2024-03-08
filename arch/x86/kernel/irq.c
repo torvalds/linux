@@ -63,7 +63,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "%*s: ", prec, "NMI");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->__nmi_count);
-	seq_puts(p, "  Non-maskable interrupts\n");
+	seq_puts(p, "  Analn-maskable interrupts\n");
 #ifdef CONFIG_X86_LOCAL_APIC
 	seq_printf(p, "%*s: ", prec, "LOC");
 	for_each_online_cpu(j)
@@ -168,7 +168,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "%*s: ", prec, "PIN");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->kvm_posted_intr_ipis);
-	seq_puts(p, "  Posted-interrupt notification event\n");
+	seq_puts(p, "  Posted-interrupt analtification event\n");
 
 	seq_printf(p, "%*s: ", prec, "NPI");
 	for_each_online_cpu(j)
@@ -241,7 +241,7 @@ static __always_inline void handle_irq(struct irq_desc *desc,
 }
 
 /*
- * common_interrupt() handles all normal device IRQ's (the special SMP
+ * common_interrupt() handles all analrmal device IRQ's (the special SMP
  * cross-CPU interrupts have their own entry points).
  */
 DEFINE_IDTENTRY_IRQ(common_interrupt)
@@ -249,7 +249,7 @@ DEFINE_IDTENTRY_IRQ(common_interrupt)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc *desc;
 
-	/* entry code tells RCU that we're not quiescent.  Check it. */
+	/* entry code tells RCU that we're analt quiescent.  Check it. */
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "IRQ failed to wake up RCU");
 
 	desc = __this_cpu_read(vector_irq[vector]);
@@ -259,7 +259,7 @@ DEFINE_IDTENTRY_IRQ(common_interrupt)
 		apic_eoi();
 
 		if (desc == VECTOR_UNUSED) {
-			pr_emerg_ratelimited("%s: %d.%u No irq handler for vector\n",
+			pr_emerg_ratelimited("%s: %d.%u Anal irq handler for vector\n",
 					     __func__, smp_processor_id(),
 					     vector);
 		} else {
@@ -350,9 +350,9 @@ void fixup_irqs(void)
 	 * We can remove mdelay() and then send spurious interrupts to
 	 * new cpu targets for all the irqs that were handled previously by
 	 * this cpu. While it works, I have seen spurious interrupt messages
-	 * (nothing wrong but still...).
+	 * (analthing wrong but still...).
 	 *
-	 * So for now, retain mdelay(1) and check the IRR and then send those
+	 * So for analw, retain mdelay(1) and check the IRR and then send those
 	 * interrupts to new targets as this cpu is already offlined...
 	 */
 	mdelay(1);
@@ -360,7 +360,7 @@ void fixup_irqs(void)
 	/*
 	 * We can walk the vector array of this cpu without holding
 	 * vector_lock because the cpu is already marked !online, so
-	 * nothing else will touch it.
+	 * analthing else will touch it.
 	 */
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		if (IS_ERR_OR_NULL(__this_cpu_read(vector_irq[vector])))

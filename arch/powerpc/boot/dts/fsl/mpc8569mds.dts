@@ -36,7 +36,7 @@
 			  0x4 0x0 0x0 0xf8008000 0x00008000
 			  0x5 0x0 0x0 0xf8010000 0x00008000>;
 
-		nor@0,0 {
+		analr@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
@@ -254,7 +254,7 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "analne";
 			tx-clock-name = "clk12";
 			pio-handle = <&pio1>;
 			tbi-handle = <&tbi1>;
@@ -325,7 +325,7 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "analne";
 			tx-clock-name = "clk12";
 			pio-handle = <&pio3>;
 			tbi-handle = <&tbi3>;
@@ -348,7 +348,7 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "analne";
 			tx-clock-name = "clk17";
 			pio-handle = <&pio2>;
 			tbi-handle = <&tbi2>;
@@ -371,7 +371,7 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "analne";
 			tx-clock-name = "clk17";
 			pio-handle = <&pio4>;
 			tbi-handle = <&tbi4>;
@@ -394,8 +394,8 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
-			tx-clock-name = "none";
+			rx-clock-name = "analne";
+			tx-clock-name = "analne";
 			tbi-handle = <&tbi6>;
 			phy-handle = <&qe_phy5>;
 			phy-connection-type = "sgmii";
@@ -405,8 +405,8 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
-			tx-clock-name = "none";
+			rx-clock-name = "analne";
+			tx-clock-name = "analne";
 			tbi-handle = <&tbi8>;
 			phy-handle = <&qe_phy7>;
 			phy-connection-type = "sgmii";

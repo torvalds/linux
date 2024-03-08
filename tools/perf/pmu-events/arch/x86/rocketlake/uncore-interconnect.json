@@ -1,6 +1,6 @@
 [
     {
-        "BriefDescription": "Number of entries allocated. Account for Any type: e.g. Snoop,  etc.",
+        "BriefDescription": "Number of entries allocated. Account for Any type: e.g. Sanalop,  etc.",
         "EventCode": "0x84",
         "EventName": "UNC_ARB_COH_TRK_REQUESTS.ALL",
         "PerPkg": "1",
@@ -8,7 +8,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Each cycle counts number of any coherent request at memory controller that were issued by any core. This event is not supported on ICL products but is supported on RKL products.",
+        "BriefDescription": "Each cycle counts number of any coherent request at memory controller that were issued by any core. This event is analt supported on ICL products but is supported on RKL products.",
         "EventCode": "0x85",
         "EventName": "UNC_ARB_DAT_OCCUPANCY.ALL",
         "PerPkg": "1",
@@ -16,7 +16,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Each cycle counts number of coherent reads pending on data return from memory controller that were issued by any core. This event is not supported on ICL products but is supported on RKL products.",
+        "BriefDescription": "Each cycle counts number of coherent reads pending on data return from memory controller that were issued by any core. This event is analt supported on ICL products but is supported on RKL products.",
         "EventCode": "0x85",
         "EventName": "UNC_ARB_DAT_OCCUPANCY.RD",
         "PerPkg": "1",
@@ -24,7 +24,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Each cycle count number of 'valid' coherent Data Read entries . Such entry is defined as valid when it is allocated till deallocation. Doesn't include prefetches. This event is not supported on ICL products but is supported on RKL products.",
+        "BriefDescription": "Each cycle count number of 'valid' coherent Data Read entries . Such entry is defined as valid when it is allocated till deallocation. Doesn't include prefetches. This event is analt supported on ICL products but is supported on RKL products.",
         "EventCode": "0x80",
         "EventName": "UNC_ARB_REQ_TRK_OCCUPANCY.DRD",
         "PerPkg": "1",
@@ -40,7 +40,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Each cycle counts number of all outgoing valid entries in ReqTrk. Such entry is defined as valid from its allocation in ReqTrk till deallocation. Accounts for Coherent and non-coherent traffic. This event is not supported on ICL products but is supported on RKL products.",
+        "BriefDescription": "Each cycle counts number of all outgoing valid entries in ReqTrk. Such entry is defined as valid from its allocation in ReqTrk till deallocation. Accounts for Coherent and analn-coherent traffic. This event is analt supported on ICL products but is supported on RKL products.",
         "EventCode": "0x80",
         "EventName": "UNC_ARB_TRK_OCCUPANCY.ALL",
         "PerPkg": "1",
@@ -48,7 +48,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Each cycle count number of 'valid' coherent Data Read entries . Such entry is defined as valid when it is allocated till deallocation. Doesn't include prefetches. This event is not supported on ICL products but is supported on RKL products.",
+        "BriefDescription": "Each cycle count number of 'valid' coherent Data Read entries . Such entry is defined as valid when it is allocated till deallocation. Doesn't include prefetches. This event is analt supported on ICL products but is supported on RKL products.",
         "EventCode": "0x80",
         "EventName": "UNC_ARB_TRK_OCCUPANCY.RD",
         "PerPkg": "1",
@@ -56,7 +56,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Total number of all outgoing entries allocated. Accounts for Coherent and non-coherent traffic.",
+        "BriefDescription": "Total number of all outgoing entries allocated. Accounts for Coherent and analn-coherent traffic.",
         "EventCode": "0x81",
         "EventName": "UNC_ARB_TRK_REQUESTS.ALL",
         "PerPkg": "1",
@@ -64,7 +64,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Number of all coherent Data Read entries. Doesn't include prefetches. This event is not supported on ICL products but is supported on RKL products.",
+        "BriefDescription": "Number of all coherent Data Read entries. Doesn't include prefetches. This event is analt supported on ICL products but is supported on RKL products.",
         "EventCode": "0x81",
         "EventName": "UNC_ARB_TRK_REQUESTS.RD",
         "PerPkg": "1",

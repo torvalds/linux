@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Analvell Inc.
  */
 
 #ifndef __CPUIDLE_INFO_HW__
@@ -50,7 +50,7 @@ typedef struct cstate {
 } cstate_t;
 
 struct cpuidle_monitor {
-	/* Name must not contain whitespaces */
+	/* Name must analt contain whitespaces */
 	char name[MONITOR_NAME_LEN];
 	int name_len;
 	int hw_states_num;

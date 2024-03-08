@@ -52,7 +52,7 @@ void __init plat_mem_setup(void)
 	pci_reg = ioremap(pci0_res[0].start,
 				pci0_res[0].end - pci0_res[0].start);
 	if (!pci_reg) {
-		printk(KERN_ERR "Could not remap PCI registers\n");
+		printk(KERN_ERR "Could analt remap PCI registers\n");
 		return;
 	}
 

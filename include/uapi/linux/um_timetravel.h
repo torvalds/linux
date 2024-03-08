@@ -1,11 +1,11 @@
 /*
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -27,7 +27,7 @@
  * order to implement common scheduling.
  *
  * Whenever UML has an event it will request runtime for it from the
- * calendar, and then wait for its turn until it can run, etc. Note
+ * calendar, and then wait for its turn until it can run, etc. Analte
  * that it will only ever request the single next runtime, i.e. multiple
  * REQUEST messages override each other.
  */
@@ -45,7 +45,7 @@ struct um_timetravel_msg {
 	__u32 seq;
 
 	/**
-	 * @time: time in nanoseconds
+	 * @time: time in naanalseconds
 	 */
 	__u64 time;
 };
@@ -77,7 +77,7 @@ enum um_timetravel_ops {
 	/**
 	 * @UM_TIMETRAVEL_WAIT: Indicate waiting for the previously requested
 	 *	runtime, new requests may be made while waiting (e.g. due to
-	 *	interrupts); the time field is ignored. The calendar must process
+	 *	interrupts); the time field is iganalred. The calendar must process
 	 *	this message and later	send a %UM_TIMETRAVEL_RUN message when
 	 *	the host can run again.
 	 *	(host -> calendar)
@@ -86,14 +86,14 @@ enum um_timetravel_ops {
 
 	/**
 	 * @UM_TIMETRAVEL_GET: return the current time from the calendar in the
-	 *	ACK message, the time in the request message is ignored
+	 *	ACK message, the time in the request message is iganalred
 	 *	(host -> calendar)
 	 */
 	UM_TIMETRAVEL_GET		= 4,
 
 	/**
 	 * @UM_TIMETRAVEL_UPDATE: time update to the calendar, must be sent e.g.
-	 *	before kicking an interrupt to another calendar
+	 *	before kicking an interrupt to aanalther calendar
 	 *	(host -> calendar)
 	 */
 	UM_TIMETRAVEL_UPDATE		= 5,
@@ -110,7 +110,7 @@ enum um_timetravel_ops {
 	 *	this is a message from the calendar telling the host that it can
 	 *	freely do its own scheduling for anything before the indicated
 	 *	time.
-	 *	Note that if a calendar sends this message once, the host may
+	 *	Analte that if a calendar sends this message once, the host may
 	 *	assume that it will also do so in the future, if it implements
 	 *	wraparound semantics for the time field.
 	 *	(calendar -> host)

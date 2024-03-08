@@ -13,7 +13,7 @@
  *     Dave Peterson <dsp@llnl.gov> <dave_peterson@pobox.com>
  *
  * Refactored for multi-source files:
- *	Doug Thompson <norsk5@xmission.com>
+ *	Doug Thompson <analrsk5@xmission.com>
  *
  * Please look at Documentation/driver-api/edac.rst for more info about
  * EDAC core structs and functions.
@@ -56,7 +56,7 @@ struct edac_pci_ctl_info {
 	struct delayed_work work;
 
 	/* pointer to edac polling checking routine:
-	 *      If NOT NULL: points to polling check routine
+	 *      If ANALT NULL: points to polling check routine
 	 *      If NULL: Then assumes INTERRUPT operation, where
 	 *              MC driver will receive events
 	 */
@@ -131,7 +131,7 @@ static inline void pci_write_bits16(struct pci_dev *pdev, int offset,
  * pci_write_bits32
  *
  * edac local routine to do pci_write_config_dword, but adds
- * a mask parameter. If mask is all ones, ignore the mask.
+ * a mask parameter. If mask is all ones, iganalre the mask.
  * Otherwise utilize the mask to isolate specified bits
  *
  * write all or some bits in a dword-register
@@ -220,7 +220,7 @@ extern int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx);
  *
  * Returns:
  *	Pointer to removed edac_pci structure,
- *	or %NULL if device not found
+ *	or %NULL if device analt found
  */
 extern struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev);
 

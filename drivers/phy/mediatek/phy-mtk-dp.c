@@ -115,7 +115,7 @@ static int mtk_dp_phy_configure(struct phy *phy, union phy_configure_opts *opts)
 		switch (opts->dp.link_rate) {
 		default:
 			dev_err(&phy->dev,
-				"Implementation error, unknown linkrate %x\n",
+				"Implementation error, unkanalwn linkrate %x\n",
 				opts->dp.link_rate);
 			return -EINVAL;
 		case 1620:
@@ -170,11 +170,11 @@ static int mtk_dp_phy_probe(struct platform_device *pdev)
 	regs = *(struct regmap **)dev->platform_data;
 	if (!regs)
 		return dev_err_probe(dev, -EINVAL,
-				     "No data passed, requires struct regmap**\n");
+				     "Anal data passed, requires struct regmap**\n");
 
 	dp_phy = devm_kzalloc(dev, sizeof(*dp_phy), GFP_KERNEL);
 	if (!dp_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp_phy->regs = regs;
 	phy = devm_phy_create(dev, NULL, &mtk_dp_phy_dev_ops);
@@ -183,7 +183,7 @@ static int mtk_dp_phy_probe(struct platform_device *pdev)
 				     "Failed to create DP PHY\n");
 
 	phy_set_drvdata(phy, dp_phy);
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		phy_create_lookup(phy, "dp", dev_name(dev));
 
 	return 0;

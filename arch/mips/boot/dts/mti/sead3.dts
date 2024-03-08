@@ -226,7 +226,7 @@
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>; /* GIC 3 or CPU 4 */
 
-		no-loopback-test;
+		anal-loopback-test;
 	};
 
 	/* UART connected to RS232 socket */
@@ -241,7 +241,7 @@
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 2 IRQ_TYPE_LEVEL_HIGH>; /* GIC 2 or CPU 4 */
 
-		no-loopback-test;
+		anal-loopback-test;
 	};
 
 	ethernet@1f010000 {

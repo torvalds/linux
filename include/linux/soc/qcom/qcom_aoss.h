@@ -21,12 +21,12 @@ void qmp_put(struct qmp *qmp);
 
 static inline int qmp_send(struct qmp *qmp, const char *fmt, ...)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline struct qmp *qmp_get(struct device *dev)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void qmp_put(struct qmp *qmp)

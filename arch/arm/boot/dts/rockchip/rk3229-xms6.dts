@@ -143,7 +143,7 @@
 
 &emmc {
 	cap-mmc-highspeed;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -200,7 +200,7 @@
 &pinctrl {
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -218,7 +218,7 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	vqmmc-supply = <&vccio_1v8>;
 	status = "okay";
 };

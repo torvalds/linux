@@ -34,10 +34,10 @@ struct a21_wdt_drv {
 	struct gpio_desc *gpios[NUM_GPIOS];
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-			    __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+			    __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static unsigned int a21_wdt_get_bootstatus(struct a21_wdt_drv *drv)
 {
@@ -91,7 +91,7 @@ static int a21_wdt_set_timeout(struct watchdog_device *wdt,
 
 	if (timeout == 30 && wdt->timeout == 1) {
 		dev_err(wdt->parent,
-			"Transition from fast to slow mode not allowed\n");
+			"Transition from fast to slow mode analt allowed\n");
 		return -EINVAL;
 	}
 
@@ -136,13 +136,13 @@ static int a21_wdt_probe(struct platform_device *pdev)
 
 	drv = devm_kzalloc(dev, sizeof(struct a21_wdt_drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_gpios = gpiod_count(dev, NULL);
 	if (num_gpios != NUM_GPIOS) {
 		dev_err(dev, "gpios DT property wrong, got %d want %d",
 			num_gpios, NUM_GPIOS);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Request the used GPIOs */
@@ -172,7 +172,7 @@ static int a21_wdt_probe(struct platform_device *pdev)
 	}
 
 	watchdog_init_timeout(&a21_wdt, 30, dev);
-	watchdog_set_nowayout(&a21_wdt, nowayout);
+	watchdog_set_analwayout(&a21_wdt, analwayout);
 	watchdog_set_drvdata(&a21_wdt, drv);
 	a21_wdt.parent = dev;
 

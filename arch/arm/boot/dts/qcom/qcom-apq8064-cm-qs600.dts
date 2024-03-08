@@ -84,7 +84,7 @@
 	wlan_default_gpios: wlan-gpios-state {
 		pinconf {
 			pins = "gpio43";
-			function = "normal";
+			function = "analrmal";
 			bias-disable;
 			power-source = <PM8921_GPIO_S4>;
 		};

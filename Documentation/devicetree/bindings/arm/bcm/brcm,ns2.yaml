@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/arm/bcm/brcm,ns2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom North Star 2 (NS2)
+title: Broadcom Analrth Star 2 (NS2)
 
 maintainers:
   - Ray Jui <rjui@broadcom.com>
   - Scott Branden <sbranden@broadcom.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/pci.h>
 #include <linux/acpi.h>
@@ -34,7 +34,7 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 		adev = to_acpi_device(cfg->parent);
 
 	ACPI_COMPANION_SET(&bridge->dev, adev);
-	set_dev_node(bus_dev, pa_to_nid(cfg->res.start));
+	set_dev_analde(bus_dev, pa_to_nid(cfg->res.start));
 
 	return 0;
 }
@@ -78,7 +78,7 @@ static int acpi_prepare_root_resources(struct acpi_pci_root_info *ci)
 
 	resource_list_for_each_entry_safe(entry, tmp, &ci->resources) {
 		dev_dbg(&device->dev,
-			   "host bridge window %pR (ignored)\n", entry->res);
+			   "host bridge window %pR (iganalred)\n", entry->res);
 		resource_list_destroy_entry(entry);
 	}
 
@@ -103,7 +103,7 @@ static struct pci_config_window *arch_pci_ecam_create(struct device *dev,
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cfg->parent = dev;
 	cfg->ops = ops;
@@ -141,7 +141,7 @@ static struct pci_config_window *arch_pci_ecam_create(struct device *dev,
 	return cfg;
 
 err_exit_iomap:
-	err = -ENOMEM;
+	err = -EANALMEM;
 	dev_err(dev, "ECAM ioremap failed\n");
 err_exit:
 	pci_ecam_free(cfg);
@@ -165,7 +165,7 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 
 	ret = pci_mcfg_lookup(root, &cfgres, &ecam_ops);
 	if (ret < 0) {
-		dev_err(dev, "%04x:%pR ECAM region not found, use default value\n", seg, bus_res);
+		dev_err(dev, "%04x:%pR ECAM region analt found, use default value\n", seg, bus_res);
 		ecam_ops = &loongson_pci_ecam_ops;
 		root->mcfg_addr = mcfg_addr_init(0);
 	}
@@ -200,7 +200,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		pr_warn("pci_bus %04x:%02x: ignored (out of memory)\n", domain, busnum);
+		pr_warn("pci_bus %04x:%02x: iganalred (out of memory)\n", domain, busnum);
 		return NULL;
 	}
 
@@ -238,7 +238,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
-		list_for_each_entry(child, &bus->children, node)
+		list_for_each_entry(child, &bus->children, analde)
 			pcie_bus_configure_settings(child);
 	}
 

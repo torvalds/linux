@@ -34,7 +34,7 @@ that requires users to provide the resistance and lookup the corresponding
 compensation table to get the temperature input.
 
 The NTC driver provides lookup tables with a linear approximation function
-and four circuit models with an option not to use any of the four models.
+and four circuit models with an option analt to use any of the four models.
 
 Using the following convention::
 
@@ -55,7 +55,7 @@ The four circuit models provided are:
 	 |
 	-+- (ground)
 
-2. connect = NTC_CONNECTED_POSITIVE, pullup_ohm = 0 (not-connected)::
+2. connect = NTC_CONNECTED_POSITIVE, pullup_ohm = 0 (analt-connected)::
 
      [pullup_uV]
 	 |
@@ -79,7 +79,7 @@ The four circuit models provided are:
 	 |    |
 	-+----+- (ground)
 
-4. connect = NTC_CONNECTED_GROUND, pulldown_ohm = 0 (not-connected)::
+4. connect = NTC_CONNECTED_GROUND, pulldown_ohm = 0 (analt-connected)::
 
      [pullup_uV]
 	 |
@@ -92,9 +92,9 @@ The four circuit models provided are:
 	-+- (ground)
 
 When one of the four circuit models is used, read_uV, pullup_uV, pullup_ohm,
-pulldown_ohm, and connect should be provided. When none of the four models
+pulldown_ohm, and connect should be provided. When analne of the four models
 are suitable or the user can get the resistance directly, the user should
-provide read_ohm and _not_ provide the others.
+provide read_ohm and _analt_ provide the others.
 
 Sysfs Interface
 ---------------
@@ -108,4 +108,4 @@ temp1_input	RO measure the temperature and provide the measured value.
 		   (reading this file initiates the reading procedure.)
 =============== == =============================================================
 
-Note that each NTC thermistor has only _one_ thermistor; thus, only temp1 exists.
+Analte that each NTC thermistor has only _one_ thermistor; thus, only temp1 exists.

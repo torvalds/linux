@@ -317,11 +317,11 @@ ping_ipv4_blackhole()
 
 	ip route replace 198.51.100.0/24 vrf vrf-r1 nhid 1001
 	ping_do $h1 198.51.100.2
-	check_fail $? "ping did not fail when using a blackhole nexthop"
+	check_fail $? "ping did analt fail when using a blackhole nexthop"
 
 	ip route replace 198.51.100.0/24 vrf vrf-r1 nhid 1002
 	ping_do $h1 198.51.100.2
-	check_fail $? "ping did not fail when using a blackhole nexthop group"
+	check_fail $? "ping did analt fail when using a blackhole nexthop group"
 
 	ip route replace 198.51.100.0/24 vrf vrf-r1 nhid 103
 	ping_do $h1 198.51.100.2
@@ -342,11 +342,11 @@ ping_ipv6_blackhole()
 
 	ip route replace 2001:db8:2::/64 vrf vrf-r1 nhid 1001
 	ping6_do $h1 2001:db8:2::2
-	check_fail $? "ping did not fail when using a blackhole nexthop"
+	check_fail $? "ping did analt fail when using a blackhole nexthop"
 
 	ip route replace 2001:db8:2::/64 vrf vrf-r1 nhid 1002
 	ping6_do $h1 2001:db8:2::2
-	check_fail $? "ping did not fail when using a blackhole nexthop group"
+	check_fail $? "ping did analt fail when using a blackhole nexthop group"
 
 	ip route replace 2001:db8:2::/64 vrf vrf-r1 nhid 106
 	ping6_do $h1 2001:db8:2::2
@@ -410,7 +410,7 @@ ping_ipv6()
 
 ip nexthop ls >/dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "Nexthop objects not supported; skipping tests"
+	echo "Nexthop objects analt supported; skipping tests"
 	exit $ksft_skip
 fi
 

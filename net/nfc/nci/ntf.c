@@ -8,7 +8,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on hci_event.c, which was written
  *  by Maxim Krasnyansky.
  */
@@ -25,12 +25,12 @@
 #include <net/nfc/nci_core.h>
 #include <linux/nfc.h>
 
-/* Handle NCI Notification packets */
+/* Handle NCI Analtification packets */
 
 static void nci_core_reset_ntf_packet(struct nci_dev *ndev,
 				      const struct sk_buff *skb)
 {
-	/* Handle NCI 2.x core reset notification */
+	/* Handle NCI 2.x core reset analtification */
 	const struct nci_core_reset_ntf *ntf = (void *)skb->data;
 
 	ndev->nci_ver = ntf->nci_ver;
@@ -230,7 +230,7 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 		protocol = nci_get_prop_rf_protocol(ndev, rf_protocol);
 
 	if (!(protocol & ndev->poll_prots)) {
-		pr_err("the target found does not have the desired protocol\n");
+		pr_err("the target found does analt have the desired protocol\n");
 		return -EPROTO;
 	}
 
@@ -301,9 +301,9 @@ static void nci_add_new_target(struct nci_dev *ndev,
 		}
 	}
 
-	/* This is a new target, check if we've enough room */
+	/* This is a new target, check if we've eanalugh room */
 	if (ndev->n_targets == NCI_MAX_DISCOVERED_TARGETS) {
-		pr_debug("not enough room, ignoring new target...\n");
+		pr_debug("analt eanalugh room, iganalring new target...\n");
 		return;
 	}
 
@@ -561,7 +561,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 
 	/* If this contains a value of 0x00 (NFCEE Direct RF
 	 * Interface) then all following parameters SHALL contain a
-	 * value of 0 and SHALL be ignored.
+	 * value of 0 and SHALL be iganalred.
 	 */
 	if (ntf.rf_interface == NCI_RF_INTERFACE_NFCEE_DIRECT)
 		goto listen;
@@ -589,7 +589,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 			break;
 
 		case NCI_NFC_A_PASSIVE_LISTEN_MODE:
-			/* no RF technology specific parameters */
+			/* anal RF techanallogy specific parameters */
 			break;
 
 		case NCI_NFC_F_PASSIVE_LISTEN_MODE:
@@ -630,7 +630,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 			break;
 
 		case NCI_RF_INTERFACE_FRAME:
-			/* no activation params */
+			/* anal activation params */
 			break;
 
 		default:
@@ -769,7 +769,7 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	skb_pull(skb, NCI_CTRL_HDR_SIZE);
 
 	if (nci_opcode_gid(ntf_opcode) == NCI_GID_PROPRIETARY) {
-		if (nci_prop_ntf_packet(ndev, ntf_opcode, skb) == -ENOTSUPP) {
+		if (nci_prop_ntf_packet(ndev, ntf_opcode, skb) == -EANALTSUPP) {
 			pr_err("unsupported ntf opcode 0x%x\n",
 			       ntf_opcode);
 		}
@@ -814,7 +814,7 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 
 	default:
-		pr_err("unknown ntf opcode 0x%x\n", ntf_opcode);
+		pr_err("unkanalwn ntf opcode 0x%x\n", ntf_opcode);
 		break;
 	}
 

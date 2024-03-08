@@ -59,8 +59,8 @@ static int zpff_init(struct hid_device *hid)
 	int i, error;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	dev = hidinput->input;
@@ -68,12 +68,12 @@ static int zpff_init(struct hid_device *hid)
 	for (i = 0; i < 4; i++) {
 		report = hid_validate_values(hid, HID_OUTPUT_REPORT, 0, i, 1);
 		if (!report)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	zpff = kzalloc(sizeof(struct zpff_device), GFP_KERNEL);
 	if (!zpff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_bit(FF_RUMBLE, dev->ffbit);
 

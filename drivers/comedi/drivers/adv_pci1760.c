@@ -15,10 +15,10 @@
  * Description: Advantech PCI-1760 Relay & Isolated Digital Input Card
  * Devices: [Advantech] PCI-1760 (adv_pci1760)
  * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
- * Updated: Fri, 13 Nov 2015 12:34:00 -0700
+ * Updated: Fri, 13 Analv 2015 12:34:00 -0700
  * Status: untested
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  */
 
 #include <linux/module.h>
@@ -28,7 +28,7 @@
  * PCI-1760 Register Map
  *
  * Outgoing Mailbox Bytes
- * OMB3: Not used (must be 0)
+ * OMB3: Analt used (must be 0)
  * OMB2: The command code to the PCI-1760
  * OMB1: The hi byte of the parameter for the command in OMB2
  * OMB0: The lo byte of the parameter for the command in OMB2
@@ -40,10 +40,10 @@
  * IMB0: The lo byte of the feedback data for the command in OMB2
  *
  * Interrupt Control/Status
- * INTCSR3: Not used (must be 0)
+ * INTCSR3: Analt used (must be 0)
  * INTCSR2: The interrupt status (read only)
  * INTCSR1: Interrupt enable/disable
- * INTCSR0: Not used (must be 0)
+ * INTCSR0: Analt used (must be 0)
  */
 #define PCI1760_OMB_REG(x)		(0x0c + (x))
 #define PCI1760_IMB_REG(x)		(0x1c + (x))

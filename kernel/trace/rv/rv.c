@@ -18,7 +18,7 @@
  * The development of this interface roots in the development of the
  * paper:
  *
- * De Oliveira, Daniel Bristot; Cucinotta, Tommaso; De Oliveira, Romulo
+ * De Oliveira, Daniel Bristot; Cucianaltta, Tommaso; De Oliveira, Romulo
  * Silva. Efficient formal verification for the Linux kernel. In:
  * International Conference on Software Engineering and Formal Methods.
  * Springer, Cham, 2019. p. 315-332.
@@ -110,11 +110,11 @@
  *      # cat enabled_monitors
  *      #
  *
- *    Note that more than one monitor can be enabled concurrently.
+ *    Analte that more than one monitor can be enabled concurrently.
  *
  *  "monitoring_on"
- *    - It is an on/off general switcher for monitoring. Note
- *    that it does not disable enabled monitors or detach events,
+ *    - It is an on/off general switcher for monitoring. Analte
+ *    that it does analt disable enabled monitors or detach events,
  *    but stops the per-entity monitors from monitoring the events
  *    received from the instrumentation. It resembles the "tracing_on"
  *    switcher.
@@ -304,7 +304,7 @@ static ssize_t monitor_enable_write_data(struct file *filp, const char __user *u
 
 static const struct file_operations interface_enable_fops = {
 	.open   = simple_open,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.write  = monitor_enable_write_data,
 	.read   = monitor_enable_read_data,
 };
@@ -327,7 +327,7 @@ static ssize_t monitor_desc_read_data(struct file *filp, char __user *user_buf, 
 
 static const struct file_operations interface_desc_fops = {
 	.open   = simple_open,
-	.llseek	= no_llseek,
+	.llseek	= anal_llseek,
 	.read	= monitor_desc_read_data,
 };
 
@@ -345,17 +345,17 @@ static int create_monitor_dir(struct rv_monitor_def *mdef)
 
 	mdef->root_d = rv_create_dir(name, root);
 	if (!mdef->root_d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp = rv_create_file("enable", RV_MODE_WRITE, mdef->root_d, mdef, &interface_enable_fops);
 	if (!tmp) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_remove_root;
 	}
 
 	tmp = rv_create_file("desc", RV_MODE_READ, mdef->root_d, mdef, &interface_desc_fops);
 	if (!tmp) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_remove_root;
 	}
 
@@ -462,7 +462,7 @@ static const struct seq_operations enabled_monitors_seq_ops = {
 /*
  * available_monitors interface.
  */
-static int available_monitors_open(struct inode *inode, struct file *file)
+static int available_monitors_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &available_monitors_seq_ops);
 };
@@ -499,7 +499,7 @@ static void disable_all_monitors(void)
 	mutex_unlock(&rv_interface_lock);
 }
 
-static int enabled_monitors_open(struct inode *inode, struct file *file)
+static int enabled_monitors_open(struct ianalde *ianalde, struct file *file)
 {
 	if ((file->f_mode & FMODE_WRITE) && (file->f_flags & O_TRUNC))
 		disable_all_monitors();
@@ -633,7 +633,7 @@ static void turn_monitoring_on_with_reset(void)
 		return;
 
 	/*
-	 * Monitors might be out of sync with the system if events were not
+	 * Monitors might be out of sync with the system if events were analt
 	 * processed because of !rv_monitoring_on().
 	 *
 	 * Reset all monitors, forcing a re-sync.
@@ -672,7 +672,7 @@ static ssize_t monitoring_on_write_data(struct file *filp, const char __user *us
 
 static const struct file_operations monitoring_on_fops = {
 	.open   = simple_open,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.write  = monitoring_on_write_data,
 	.read   = monitoring_on_read_data,
 };
@@ -712,7 +712,7 @@ int rv_register_monitor(struct rv_monitor *monitor)
 
 	r = kzalloc(sizeof(struct rv_monitor_def), GFP_KERNEL);
 	if (!r) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_unlock;
 	}
 

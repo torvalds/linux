@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_DECODER_CMD:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_DECODER_CMD - VIDIOC_TRY_DECODER_CMD - Execute an decoder command
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_DECODER_CMD
@@ -47,7 +47,7 @@ The ``cmd`` field must contain the command code. Some commands use the
 ``flags`` field for additional information.
 
 A :c:func:`write()` or :ref:`VIDIOC_STREAMON`
-call sends an implicit START command to the decoder if it has not been
+call sends an implicit START command to the decoder if it has analt been
 started yet. Applies to both queues of mem2mem decoders.
 
 A :c:func:`close()` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
@@ -55,7 +55,7 @@ call of a streaming file descriptor sends an implicit immediate STOP
 command to the decoder, and all buffered data is discarded. Applies to both
 queues of mem2mem decoders.
 
-In principle, these ioctls are optional, not all drivers may support them. They were
+In principle, these ioctls are optional, analt all drivers may support them. They were
 introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decoders
 (as further documented in :ref:`decoder`).
 
@@ -77,10 +77,10 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
     * - __u32
       - ``flags``
       -
-      - Flags to go with the command. If no flags are defined for this
+      - Flags to go with the command. If anal flags are defined for this
 	command, drivers and applications must set this field to zero.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
     * - struct
       - ``start``
       -
@@ -90,18 +90,18 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
       - __s32
       - ``speed``
       - Playback speed and direction. The playback speed is defined as
-	``speed``/1000 of the normal speed. So 1000 is normal playback.
-	Negative numbers denote reverse playback, so -1000 does reverse
-	playback at normal speed. Speeds -1, 0 and 1 have special
-	meanings: speed 0 is shorthand for 1000 (normal playback). A speed
+	``speed``/1000 of the analrmal speed. So 1000 is analrmal playback.
+	Negative numbers deanalte reverse playback, so -1000 does reverse
+	playback at analrmal speed. Speeds -1, 0 and 1 have special
+	meanings: speed 0 is shorthand for 1000 (analrmal playback). A speed
 	of 1 steps just one frame forward, a speed of -1 steps just one
 	frame back.
     * -
       - __u32
       - ``format``
-      - Format restrictions. This field is set by the driver, not the
-	application. Possible values are ``V4L2_DEC_START_FMT_NONE`` if
-	there are no format restrictions or ``V4L2_DEC_START_FMT_GOP`` if
+      - Format restrictions. This field is set by the driver, analt the
+	application. Possible values are ``V4L2_DEC_START_FMT_ANALNE`` if
+	there are anal format restrictions or ``V4L2_DEC_START_FMT_GOP`` if
 	the decoder operates on full GOPs (*Group Of Pictures*). This is
 	usually the case for reverse playback: the decoder needs full
 	GOPs, which it can then play in reverse order. So to implement
@@ -145,10 +145,10 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
       - Start the decoder. When the decoder is already running or paused,
 	this command will just change the playback speed. That means that
 	calling ``V4L2_DEC_CMD_START`` when the decoder was paused will
-	*not* resume the decoder. You have to explicitly call
+	*analt* resume the decoder. You have to explicitly call
 	``V4L2_DEC_CMD_RESUME`` for that. This command has one flag:
 	``V4L2_DEC_CMD_START_MUTE_AUDIO``. If set, then audio will be
-	muted when playing back at a non-standard speed.
+	muted when playing back at a analn-standard speed.
 
 	For a device implementing the :ref:`decoder`, once the drain sequence
 	is initiated with the ``V4L2_DEC_CMD_STOP`` command, it must be driven
@@ -161,32 +161,32 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
     * - ``V4L2_DEC_CMD_STOP``
       - 1
       - Stop the decoder. When the decoder is already stopped, this
-	command does nothing. This command has two flags: if
+	command does analthing. This command has two flags: if
 	``V4L2_DEC_CMD_STOP_TO_BLACK`` is set, then the decoder will set
 	the picture to black after it stopped decoding. Otherwise the last
 	image will repeat. If
 	``V4L2_DEC_CMD_STOP_IMMEDIATELY`` is set, then the decoder stops
-	immediately (ignoring the ``pts`` value), otherwise it will keep
+	immediately (iganalring the ``pts`` value), otherwise it will keep
 	decoding until timestamp >= pts or until the last of the pending
 	data from its internal buffers was decoded.
 
 	For a device implementing the :ref:`decoder`, the command will initiate
-	the drain sequence as documented in :ref:`decoder`.  No flags or other
+	the drain sequence as documented in :ref:`decoder`.  Anal flags or other
 	arguments are accepted in this case. Any attempt to invoke the command
 	again before the sequence completes will trigger an ``EBUSY`` error
 	code.
     * - ``V4L2_DEC_CMD_PAUSE``
       - 2
-      - Pause the decoder. When the decoder has not been started yet, the
+      - Pause the decoder. When the decoder has analt been started yet, the
 	driver will return an ``EPERM`` error code. When the decoder is
-	already paused, this command does nothing. This command has one
+	already paused, this command does analthing. This command has one
 	flag: if ``V4L2_DEC_CMD_PAUSE_TO_BLACK`` is set, then set the
 	decoder output to black when paused.
     * - ``V4L2_DEC_CMD_RESUME``
       - 3
-      - Resume decoding after a PAUSE command. When the decoder has not
+      - Resume decoding after a PAUSE command. When the decoder has analt
 	been started yet, the driver will return an ``EPERM`` error code. When
-	the decoder is already running, this command does nothing. No
+	the decoder is already running, this command does analthing. Anal
 	flags are defined for this command.
     * - ``V4L2_DEC_CMD_FLUSH``
       - 4
@@ -196,18 +196,18 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
 	``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF`` flag set. This would prevent
 	dequeueing the capture buffer containing the last decoded frame.
 	So this command can be used to explicitly flush that final decoded
-	frame. This command does nothing if there are no held capture buffers.
+	frame. This command does analthing if there are anal held capture buffers.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EBUSY
     A drain sequence of a device implementing the :ref:`decoder` is still in
-    progress. It is not allowed to issue another decoder command until it
+    progress. It is analt allowed to issue aanalther decoder command until it
     completes.
 
 EINVAL
@@ -215,4 +215,4 @@ EINVAL
 
 EPERM
     The application sent a PAUSE or RESUME command when the decoder was
-    not running.
+    analt running.

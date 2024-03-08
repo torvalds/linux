@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/device.h>
 #include <linux/dca.h>
 #include <linux/slab.h>
@@ -24,7 +24,7 @@ static DEFINE_RAW_SPINLOCK(dca_lock);
 
 static LIST_HEAD(dca_domains);
 
-static BLOCKING_NOTIFIER_HEAD(dca_provider_chain);
+static BLOCKING_ANALTIFIER_HEAD(dca_provider_chain);
 
 static int dca_providers_blocked;
 
@@ -43,7 +43,7 @@ static struct dca_domain *dca_allocate_domain(struct pci_bus *rc)
 {
 	struct dca_domain *domain;
 
-	domain = kzalloc(sizeof(*domain), GFP_NOWAIT);
+	domain = kzalloc(sizeof(*domain), GFP_ANALWAIT);
 	if (!domain)
 		return NULL;
 
@@ -55,7 +55,7 @@ static struct dca_domain *dca_allocate_domain(struct pci_bus *rc)
 
 static void dca_free_domain(struct dca_domain *domain)
 {
-	list_del(&domain->node);
+	list_del(&domain->analde);
 	kfree(domain);
 }
 
@@ -81,7 +81,7 @@ static void unregister_dca_providers(void)
 	struct dca_domain *domain;
 	unsigned long flags;
 
-	blocking_notifier_call_chain(&dca_provider_chain,
+	blocking_analtifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_REMOVE, NULL);
 
 	INIT_LIST_HEAD(&unregistered_providers);
@@ -94,18 +94,18 @@ static void unregister_dca_providers(void)
 	}
 
 	/* at this point only one domain in the list is expected */
-	domain = list_first_entry(&dca_domains, struct dca_domain, node);
+	domain = list_first_entry(&dca_domains, struct dca_domain, analde);
 
-	list_for_each_entry_safe(dca, _dca, &domain->dca_providers, node)
-		list_move(&dca->node, &unregistered_providers);
+	list_for_each_entry_safe(dca, _dca, &domain->dca_providers, analde)
+		list_move(&dca->analde, &unregistered_providers);
 
 	dca_free_domain(domain);
 
 	raw_spin_unlock_irqrestore(&dca_lock, flags);
 
-	list_for_each_entry_safe(dca, _dca, &unregistered_providers, node) {
+	list_for_each_entry_safe(dca, _dca, &unregistered_providers, analde) {
 		dca_sysfs_remove_provider(dca);
-		list_del(&dca->node);
+		list_del(&dca->analde);
 	}
 }
 
@@ -113,7 +113,7 @@ static struct dca_domain *dca_find_domain(struct pci_bus *rc)
 {
 	struct dca_domain *domain;
 
-	list_for_each_entry(domain, &dca_domains, node)
+	list_for_each_entry(domain, &dca_domains, analde)
 		if (domain->pci_rc == rc)
 			return domain;
 
@@ -151,12 +151,12 @@ static struct dca_provider *dca_find_provider_by_dev(struct device *dev)
 		if (!list_empty(&dca_domains))
 			domain = list_first_entry(&dca_domains,
 						  struct dca_domain,
-						  node);
+						  analde);
 		else
 			return NULL;
 	}
 
-	list_for_each_entry(dca, &domain->dca_providers, node)
+	list_for_each_entry(dca, &domain->dca_providers, analde)
 		if ((!dev) || (dca->ops->dev_managed(dca, dev)))
 			return dca;
 
@@ -170,7 +170,7 @@ static struct dca_provider *dca_find_provider_by_dev(struct device *dev)
 int dca_add_requester(struct device *dev)
 {
 	struct dca_provider *dca;
-	int err, slot = -ENODEV;
+	int err, slot = -EANALDEV;
 	unsigned long flags;
 	struct pci_bus *pci_rc;
 	struct dca_domain *domain;
@@ -180,7 +180,7 @@ int dca_add_requester(struct device *dev)
 
 	raw_spin_lock_irqsave(&dca_lock, flags);
 
-	/* check if the requester has not been added already */
+	/* check if the requester has analt been added already */
 	dca = dca_find_provider_by_dev(dev);
 	if (dca) {
 		raw_spin_unlock_irqrestore(&dca_lock, flags);
@@ -191,10 +191,10 @@ int dca_add_requester(struct device *dev)
 	domain = dca_find_domain(pci_rc);
 	if (!domain) {
 		raw_spin_unlock_irqrestore(&dca_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	list_for_each_entry(dca, &domain->dca_providers, node) {
+	list_for_each_entry(dca, &domain->dca_providers, analde) {
 		slot = dca->ops->add_requester(dca, dev);
 		if (slot >= 0)
 			break;
@@ -235,7 +235,7 @@ int dca_remove_requester(struct device *dev)
 	dca = dca_find_provider_by_dev(dev);
 	if (!dca) {
 		raw_spin_unlock_irqrestore(&dca_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	slot = dca->ops->remove_requester(dca, dev);
 	raw_spin_unlock_irqrestore(&dca_lock, flags);
@@ -265,7 +265,7 @@ static u8 dca_common_get_tag(struct device *dev, int cpu)
 	dca = dca_find_provider_by_dev(dev);
 	if (!dca) {
 		raw_spin_unlock_irqrestore(&dca_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	tag = dca->ops->get_tag(dca, dev, cpu);
 
@@ -344,7 +344,7 @@ int register_dca_provider(struct dca_provider *dca, struct device *dev)
 	raw_spin_lock_irqsave(&dca_lock, flags);
 	if (dca_providers_blocked) {
 		raw_spin_unlock_irqrestore(&dca_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	raw_spin_unlock_irqrestore(&dca_lock, flags);
 
@@ -361,27 +361,27 @@ int register_dca_provider(struct dca_provider *dca, struct device *dev)
 			raw_spin_unlock_irqrestore(&dca_lock, flags);
 			dca_sysfs_remove_provider(dca);
 			unregister_dca_providers();
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		raw_spin_unlock_irqrestore(&dca_lock, flags);
 		rc = dca_pci_rc_from_dev(dev);
 		newdomain = dca_allocate_domain(rc);
 		if (!newdomain)
-			return -ENODEV;
+			return -EANALDEV;
 		raw_spin_lock_irqsave(&dca_lock, flags);
 		/* Recheck, we might have raced after dropping the lock */
 		domain = dca_get_domain(dev);
 		if (!domain) {
 			domain = newdomain;
 			newdomain = NULL;
-			list_add(&domain->node, &dca_domains);
+			list_add(&domain->analde, &dca_domains);
 		}
 	}
-	list_add(&dca->node, &domain->dca_providers);
+	list_add(&dca->analde, &domain->dca_providers);
 	raw_spin_unlock_irqrestore(&dca_lock, flags);
 
-	blocking_notifier_call_chain(&dca_provider_chain,
+	blocking_analtifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_ADD, NULL);
 	kfree(newdomain);
 	return 0;
@@ -398,7 +398,7 @@ void unregister_dca_provider(struct dca_provider *dca, struct device *dev)
 	struct pci_bus *pci_rc;
 	struct dca_domain *domain;
 
-	blocking_notifier_call_chain(&dca_provider_chain,
+	blocking_analtifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_REMOVE, NULL);
 
 	raw_spin_lock_irqsave(&dca_lock, flags);
@@ -408,7 +408,7 @@ void unregister_dca_provider(struct dca_provider *dca, struct device *dev)
 		return;
 	}
 
-	list_del(&dca->node);
+	list_del(&dca->analde);
 
 	pci_rc = dca_pci_rc_from_dev(dev);
 	domain = dca_find_domain(pci_rc);
@@ -422,22 +422,22 @@ void unregister_dca_provider(struct dca_provider *dca, struct device *dev)
 EXPORT_SYMBOL_GPL(unregister_dca_provider);
 
 /**
- * dca_register_notify - register a client's notifier callback
+ * dca_register_analtify - register a client's analtifier callback
  */
-void dca_register_notify(struct notifier_block *nb)
+void dca_register_analtify(struct analtifier_block *nb)
 {
-	blocking_notifier_chain_register(&dca_provider_chain, nb);
+	blocking_analtifier_chain_register(&dca_provider_chain, nb);
 }
-EXPORT_SYMBOL_GPL(dca_register_notify);
+EXPORT_SYMBOL_GPL(dca_register_analtify);
 
 /**
- * dca_unregister_notify - remove a client's notifier callback
+ * dca_unregister_analtify - remove a client's analtifier callback
  */
-void dca_unregister_notify(struct notifier_block *nb)
+void dca_unregister_analtify(struct analtifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&dca_provider_chain, nb);
+	blocking_analtifier_chain_unregister(&dca_provider_chain, nb);
 }
-EXPORT_SYMBOL_GPL(dca_unregister_notify);
+EXPORT_SYMBOL_GPL(dca_unregister_analtify);
 
 static int __init dca_init(void)
 {

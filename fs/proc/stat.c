@@ -30,7 +30,7 @@ u64 get_idle_time(struct kernel_cpustat *kcs, int cpu)
 		idle_usecs = get_cpu_idle_time_us(cpu, NULL);
 
 	if (idle_usecs == -1ULL)
-		/* !NO_HZ or cpu offline so we can rely on cpustat.idle */
+		/* !ANAL_HZ or cpu offline so we can rely on cpustat.idle */
 		idle = kcs->cpustat[CPUTIME_IDLE];
 	else
 		idle = idle_usecs * NSEC_PER_USEC;
@@ -46,7 +46,7 @@ static u64 get_iowait_time(struct kernel_cpustat *kcs, int cpu)
 		iowait_usecs = get_cpu_iowait_time_us(cpu, NULL);
 
 	if (iowait_usecs == -1ULL)
-		/* !NO_HZ or cpu offline so we can rely on cpustat.iowait */
+		/* !ANAL_HZ or cpu offline so we can rely on cpustat.iowait */
 		iowait = kcs->cpustat[CPUTIME_IOWAIT];
 	else
 		iowait = iowait_usecs * NSEC_PER_USEC;
@@ -191,7 +191,7 @@ static int show_stat(struct seq_file *p, void *v)
 	return 0;
 }
 
-static int stat_open(struct inode *inode, struct file *file)
+static int stat_open(struct ianalde *ianalde, struct file *file)
 {
 	unsigned int size = 1024 + 128 * num_online_cpus();
 

@@ -128,10 +128,10 @@ static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
-static const struct acpi_device_id i2c_acpi_ignored_device_ids[] = {
+static const struct acpi_device_id i2c_acpi_iganalred_device_ids[] = {
 	/*
 	 * ACPI video acpi_devices, which are handled by the acpi-video driver
-	 * sometimes contain a SERIAL_TYPE_I2C ACPI resource, ignore these.
+	 * sometimes contain a SERIAL_TYPE_I2C ACPI resource, iganalre these.
 	 */
 	{ ACPI_VIDEO_HID, 0 },
 	{}
@@ -153,10 +153,10 @@ static int i2c_acpi_do_lookup(struct acpi_device *adev,
 		return -EINVAL;
 
 	if (!acpi_dev_ready_for_enumeration(adev))
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (acpi_match_device_ids(adev, i2c_acpi_ignored_device_ids) == 0)
-		return -ENODEV;
+	if (acpi_match_device_ids(adev, i2c_acpi_iganalred_device_ids) == 0)
+		return -EANALDEV;
 
 	memset(info, 0, sizeof(*info));
 	lookup->device_handle = acpi_device_handle(adev);
@@ -187,7 +187,7 @@ static int i2c_acpi_add_irq_resource(struct acpi_resource *ares, void *data)
 	irq_ctx->irq = i2c_dev_irq_from_resources(&r, 1);
 	irq_ctx->wake_capable = r.flags & IORESOURCE_IRQ_WAKECAPABLE;
 
-	return 1; /* No need to add resource to the list */
+	return 1; /* Anal need to add resource to the list */
 }
 
 /**
@@ -204,7 +204,7 @@ int i2c_acpi_get_irq(struct i2c_client *client, bool *wake_capable)
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
 	struct list_head resource_list;
 	struct i2c_acpi_irq_context irq_ctx = {
-		.irq = -ENOENT,
+		.irq = -EANALENT,
 	};
 	int ret;
 
@@ -217,7 +217,7 @@ int i2c_acpi_get_irq(struct i2c_client *client, bool *wake_capable)
 
 	acpi_dev_free_resource_list(&resource_list);
 
-	if (irq_ctx.irq == -ENOENT)
+	if (irq_ctx.irq == -EANALENT)
 		irq_ctx.irq = acpi_dev_gpio_irq_wake_get(adev, 0, &irq_ctx.wake_capable);
 
 	if (irq_ctx.irq < 0)
@@ -251,20 +251,20 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 	if (adapter) {
 		/* The adapter must match the one in I2cSerialBus() connector */
 		if (ACPI_HANDLE(&adapter->dev) != lookup.adapter_handle)
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		struct acpi_device *adapter_adev;
 
 		/* The adapter must be present */
 		adapter_adev = acpi_fetch_acpi_dev(lookup.adapter_handle);
 		if (!adapter_adev)
-			return -ENODEV;
+			return -EANALDEV;
 		if (acpi_bus_get_status(adapter_adev) ||
 		    !adapter_adev->status.present)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
-	info->fwnode = acpi_fwnode_handle(adev);
+	info->fwanalde = acpi_fwanalde_handle(adev);
 	if (adapter_handle)
 		*adapter_handle = lookup.adapter_handle;
 
@@ -280,16 +280,16 @@ static void i2c_acpi_register_device(struct i2c_adapter *adapter,
 {
 	/*
 	 * Skip registration on boards where the ACPI tables are
-	 * known to contain bogus I2C devices.
+	 * kanalwn to contain bogus I2C devices.
 	 */
 	if (acpi_quirk_skip_i2c_client_enumeration(adev))
 		return;
 
-	adev->power.flags.ignore_parent = true;
+	adev->power.flags.iganalre_parent = true;
 	acpi_device_set_enumerated(adev);
 
 	if (IS_ERR(i2c_new_client_device(adapter, info)))
-		adev->power.flags.ignore_parent = false;
+		adev->power.flags.iganalre_parent = false;
 }
 
 static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
@@ -345,8 +345,8 @@ void i2c_acpi_register_devices(struct i2c_adapter *adap)
 static const struct acpi_device_id i2c_acpi_force_400khz_device_ids[] = {
 	/*
 	 * These Silead touchscreen controllers only work at 400KHz, for
-	 * some reason they do not work at 100KHz. On some devices the ACPI
-	 * tables list another device at their bus as only being capable
+	 * some reason they do analt work at 100KHz. On some devices the ACPI
+	 * tables list aanalther device at their bus as only being capable
 	 * of 100KHz, testing has shown that these other devices work fine
 	 * at 400KHz (as can be expected of any recent i2c hw) so we force
 	 * the speed of the bus to 400 KHz if a Silead device is present.
@@ -412,7 +412,7 @@ u32 i2c_acpi_find_bus_speed(struct device *dev)
 
 	if (lookup.force_speed) {
 		if (lookup.force_speed != lookup.min_speed)
-			dev_warn(dev, FW_BUG "DSDT uses known not-working I2C bus speed %d, forcing it to %d\n",
+			dev_warn(dev, FW_BUG "DSDT uses kanalwn analt-working I2C bus speed %d, forcing it to %d\n",
 				 lookup.min_speed, lookup.force_speed);
 		return lookup.force_speed;
 	} else if (lookup.min_speed != UINT_MAX) {
@@ -442,10 +442,10 @@ EXPORT_SYMBOL_GPL(i2c_acpi_find_adapter_by_handle);
 
 static struct i2c_client *i2c_acpi_find_client_by_adev(struct acpi_device *adev)
 {
-	return i2c_find_device_by_fwnode(acpi_fwnode_handle(adev));
+	return i2c_find_device_by_fwanalde(acpi_fwanalde_handle(adev));
 }
 
-static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
+static int i2c_acpi_analtify(struct analtifier_block *nb, unsigned long value,
 			   void *arg)
 {
 	struct acpi_device *adev = arg;
@@ -479,18 +479,18 @@ static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-struct notifier_block i2c_acpi_notifier = {
-	.notifier_call = i2c_acpi_notify,
+struct analtifier_block i2c_acpi_analtifier = {
+	.analtifier_call = i2c_acpi_analtify,
 };
 
 /**
- * i2c_acpi_new_device_by_fwnode - Create i2c-client for the Nth I2cSerialBus resource
- * @fwnode:  fwnode with the ACPI resources to get the client from
+ * i2c_acpi_new_device_by_fwanalde - Create i2c-client for the Nth I2cSerialBus resource
+ * @fwanalde:  fwanalde with the ACPI resources to get the client from
  * @index:   Index of ACPI resource to get
- * @info:    describes the I2C device; note this is modified (addr gets set)
+ * @info:    describes the I2C device; analte this is modified (addr gets set)
  * Context: can sleep
  *
  * By default the i2c subsys creates an i2c-client for the first I2cSerialBus
@@ -502,9 +502,9 @@ struct notifier_block i2c_acpi_notifier = {
  * i2c-client.
  *
  * Returns a pointer to the new i2c-client, or error pointer in case of failure.
- * Specifically, -EPROBE_DEFER is returned if the adapter is not found.
+ * Specifically, -EPROBE_DEFER is returned if the adapter is analt found.
  */
-struct i2c_client *i2c_acpi_new_device_by_fwnode(struct fwnode_handle *fwnode,
+struct i2c_client *i2c_acpi_new_device_by_fwanalde(struct fwanalde_handle *fwanalde,
 						 int index,
 						 struct i2c_board_info *info)
 {
@@ -514,9 +514,9 @@ struct i2c_client *i2c_acpi_new_device_by_fwnode(struct fwnode_handle *fwnode,
 	LIST_HEAD(resource_list);
 	int ret;
 
-	adev = to_acpi_device_node(fwnode);
+	adev = to_acpi_device_analde(fwanalde);
 	if (!adev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.info = info;
@@ -531,7 +531,7 @@ struct i2c_client *i2c_acpi_new_device_by_fwnode(struct fwnode_handle *fwnode,
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (!info->addr)
-		return ERR_PTR(-EADDRNOTAVAIL);
+		return ERR_PTR(-EADDRANALTAVAIL);
 
 	adapter = i2c_acpi_find_adapter_by_handle(lookup.adapter_handle);
 	if (!adapter)
@@ -539,7 +539,7 @@ struct i2c_client *i2c_acpi_new_device_by_fwnode(struct fwnode_handle *fwnode,
 
 	return i2c_new_client_device(adapter, info);
 }
-EXPORT_SYMBOL_GPL(i2c_acpi_new_device_by_fwnode);
+EXPORT_SYMBOL_GPL(i2c_acpi_new_device_by_fwanalde);
 
 bool i2c_acpi_waive_d0_probe(struct device *dev)
 {
@@ -562,7 +562,7 @@ static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 
 	buffer = kzalloc(data_len, GFP_KERNEL);
 	if (!buffer)
-		return AE_NO_MEMORY;
+		return AE_ANAL_MEMORY;
 
 	msgs[0].addr = client->addr;
 	msgs[0].flags = client->flags;
@@ -576,7 +576,7 @@ static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret < 0) {
-		/* Getting a NACK is unfortunately normal with some DSTDs */
+		/* Getting a NACK is unfortunately analrmal with some DSTDs */
 		if (ret == -EREMOTEIO)
 			dev_dbg(&client->adapter->dev, "i2c read %d bytes from client@%#x starting at reg %#x failed, error: %d\n",
 				data_len, client->addr, cmd, ret);
@@ -605,7 +605,7 @@ static int acpi_gsb_i2c_write_bytes(struct i2c_client *client,
 
 	buffer = kzalloc(data_len + 1, GFP_KERNEL);
 	if (!buffer)
-		return AE_NO_MEMORY;
+		return AE_ANAL_MEMORY;
 
 	buffer[0] = cmd;
 	memcpy(buffer + 1, data, data_len);
@@ -651,7 +651,7 @@ i2c_acpi_space_handler(u32 function, acpi_physical_address command,
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client) {
-		ret = AE_NO_MEMORY;
+		ret = AE_ANAL_MEMORY;
 		goto err;
 	}
 
@@ -730,7 +730,7 @@ i2c_acpi_space_handler(u32 function, acpi_physical_address command,
 		break;
 
 	default:
-		dev_warn(&adapter->dev, "protocol 0x%02x not supported for client 0x%02x\n",
+		dev_warn(&adapter->dev, "protocol 0x%02x analt supported for client 0x%02x\n",
 			 accessor_type, client->addr);
 		ret = AE_BAD_PARAMETER;
 		goto err;
@@ -752,23 +752,23 @@ int i2c_acpi_install_space_handler(struct i2c_adapter *adapter)
 	acpi_status status;
 
 	if (!adapter->dev.parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	handle = ACPI_HANDLE(adapter->dev.parent);
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = kzalloc(sizeof(struct i2c_acpi_handler_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->adapter = adapter;
 	status = acpi_bus_attach_private_data(handle, (void *)data);
 	if (ACPI_FAILURE(status)) {
 		kfree(data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	status = acpi_install_address_space_handler(handle,
@@ -780,7 +780,7 @@ int i2c_acpi_install_space_handler(struct i2c_adapter *adapter)
 		dev_err(&adapter->dev, "Error installing i2c space handler\n");
 		acpi_bus_detach_private_data(handle);
 		kfree(data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

@@ -79,8 +79,8 @@ void sas_porte_timer_event(struct work_struct *work);
 void sas_porte_hard_reset(struct work_struct *work);
 bool sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw);
 
-int sas_notify_lldd_dev_found(struct domain_device *);
-void sas_notify_lldd_dev_gone(struct domain_device *);
+int sas_analtify_lldd_dev_found(struct domain_device *);
+void sas_analtify_lldd_dev_gone(struct domain_device *);
 
 void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		struct sas_rphy *rphy);
@@ -117,7 +117,7 @@ static inline void sas_smp_host_handler(struct bsg_job *job,
 		struct Scsi_Host *shost)
 {
 	shost_printk(KERN_ERR, shost,
-		"Cannot send SMP to a sas host (not enabled in CONFIG)\n");
+		"Cananalt send SMP to a sas host (analt enabled in CONFIG)\n");
 	bsg_job_done(job, -EINVAL, 0);
 }
 #endif
@@ -164,8 +164,8 @@ static inline void sas_fill_in_rphy(struct domain_device *dev,
 	case SAS_EDGE_EXPANDER_DEVICE:
 		rphy->identify.device_type = SAS_EDGE_EXPANDER_DEVICE;
 		break;
-	case SAS_FANOUT_EXPANDER_DEVICE:
-		rphy->identify.device_type = SAS_FANOUT_EXPANDER_DEVICE;
+	case SAS_FAANALUT_EXPANDER_DEVICE:
+		rphy->identify.device_type = SAS_FAANALUT_EXPANDER_DEVICE;
 		break;
 	default:
 		rphy->identify.device_type = SAS_PHY_UNUSED;
@@ -210,8 +210,8 @@ static inline struct domain_device *sas_alloc_device(void)
 
 	if (dev) {
 		INIT_LIST_HEAD(&dev->siblings);
-		INIT_LIST_HEAD(&dev->dev_list_node);
-		INIT_LIST_HEAD(&dev->disco_list_node);
+		INIT_LIST_HEAD(&dev->dev_list_analde);
+		INIT_LIST_HEAD(&dev->disco_list_analde);
 		kref_init(&dev->kref);
 		spin_lock_init(&dev->done_lock);
 	}

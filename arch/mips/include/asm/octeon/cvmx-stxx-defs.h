@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -131,7 +131,7 @@ union cvmx_stxx_int_msk {
 		uint64_t reserved_8_63:56;
 		uint64_t frmerr:1;
 		uint64_t unxfrm:1;
-		uint64_t nosync:1;
+		uint64_t analsync:1;
 		uint64_t diperr:1;
 		uint64_t datovr:1;
 		uint64_t ovrbst:1;
@@ -143,7 +143,7 @@ union cvmx_stxx_int_msk {
 		uint64_t ovrbst:1;
 		uint64_t datovr:1;
 		uint64_t diperr:1;
-		uint64_t nosync:1;
+		uint64_t analsync:1;
 		uint64_t unxfrm:1;
 		uint64_t frmerr:1;
 		uint64_t reserved_8_63:56;
@@ -159,7 +159,7 @@ union cvmx_stxx_int_reg {
 		uint64_t syncerr:1;
 		uint64_t frmerr:1;
 		uint64_t unxfrm:1;
-		uint64_t nosync:1;
+		uint64_t analsync:1;
 		uint64_t diperr:1;
 		uint64_t datovr:1;
 		uint64_t ovrbst:1;
@@ -171,7 +171,7 @@ union cvmx_stxx_int_reg {
 		uint64_t ovrbst:1;
 		uint64_t datovr:1;
 		uint64_t diperr:1;
-		uint64_t nosync:1;
+		uint64_t analsync:1;
 		uint64_t unxfrm:1;
 		uint64_t frmerr:1;
 		uint64_t syncerr:1;
@@ -187,7 +187,7 @@ union cvmx_stxx_int_sync {
 		uint64_t reserved_8_63:56;
 		uint64_t frmerr:1;
 		uint64_t unxfrm:1;
-		uint64_t nosync:1;
+		uint64_t analsync:1;
 		uint64_t diperr:1;
 		uint64_t datovr:1;
 		uint64_t ovrbst:1;
@@ -199,7 +199,7 @@ union cvmx_stxx_int_sync {
 		uint64_t ovrbst:1;
 		uint64_t datovr:1;
 		uint64_t diperr:1;
-		uint64_t nosync:1;
+		uint64_t analsync:1;
 		uint64_t unxfrm:1;
 		uint64_t frmerr:1;
 		uint64_t reserved_8_63:56;

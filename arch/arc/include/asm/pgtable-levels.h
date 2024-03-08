@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2020 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /*
@@ -36,7 +36,7 @@
 #define PGDIR_SHIFT		21
 #else
 /*
- * No Super page case
+ * Anal Super page case
  * Default value provides 11:8:13 (8K), 10:10:12 (4K)
  * Limits imposed by pgtable_t only PAGE_SIZE long
  * (so 4K page can only have 1K entries: or 10 bits)
@@ -88,11 +88,11 @@
 #ifndef __ASSEMBLY__
 
 #if CONFIG_PGTABLE_LEVELS > 3
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-analp4d.h>
 #elif CONFIG_PGTABLE_LEVELS > 2
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 #else
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 #endif
 
 /*
@@ -104,7 +104,7 @@
 #if CONFIG_PGTABLE_LEVELS > 3
 
 /* In 4 level paging, p4d_* macros work on pgd */
-#define p4d_none(x)		(!p4d_val(x))
+#define p4d_analne(x)		(!p4d_val(x))
 #define p4d_bad(x)		((p4d_val(x) & ~PAGE_MASK))
 #define p4d_present(x)		(p4d_val(x))
 #define p4d_clear(xp)		do { p4d_val(*(xp)) = 0; } while (0)
@@ -126,7 +126,7 @@
  * In 3 level paging, pud_* macros work on pgd
  * In 4 level paging, pud_* macros work on pud
  */
-#define pud_none(x)		(!pud_val(x))
+#define pud_analne(x)		(!pud_val(x))
 #define pud_bad(x)		((pud_val(x) & ~PAGE_MASK))
 #define pud_present(x)		(pud_val(x))
 #define pud_clear(xp)		do { pud_val(*(xp)) = 0; } while (0)
@@ -153,7 +153,7 @@
  * In 2  level paging        (pgd -> pte), pmd_* macros work on pgd
  * In 3+ level paging (pgd -> pmd -> pte), pmd_* macros work on pmd
  */
-#define pmd_none(x)		(!pmd_val(x))
+#define pmd_analne(x)		(!pmd_val(x))
 #define pmd_bad(x)		((pmd_val(x) & ~PAGE_MASK))
 #define pmd_present(x)		(pmd_val(x))
 #define pmd_clear(xp)		do { pmd_val(*(xp)) = 0; } while (0)
@@ -170,7 +170,7 @@
 	pr_crit("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
 
 #define PFN_PTE_SHIFT		PAGE_SHIFT
-#define pte_none(x)		(!pte_val(x))
+#define pte_analne(x)		(!pte_val(x))
 #define pte_present(x)		(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm,addr,ptep)	set_pte_at(mm, addr, ptep, __pte(0))
 #define pte_page(pte)		pfn_to_page(pte_pfn(pte))

@@ -13,7 +13,7 @@ u"""
 
     * Moved the *duplicate C object description* warnings for function
       declarations in the nitpicky mode. See Sphinx documentation for
-      the config values for ``nitpick`` and ``nitpick_ignore``.
+      the config values for ``nitpick`` and ``nitpick_iganalre``.
 
     * Add option 'name' to the "c:function:" directive.  With option 'name' the
       ref-name of a function can be modified. E.g.::
@@ -32,11 +32,11 @@ u"""
 
 """
 
-from docutils import nodes
+from docutils import analdes
 from docutils.parsers.rst import directives
 
 import sphinx
-from sphinx import addnodes
+from sphinx import addanaldes
 from sphinx.domains.c import c_funcptr_sig_re, c_sig_re
 from sphinx.domains.c import CObject as Base_CObject
 from sphinx.domains.c import CDomain as Base_CDomain
@@ -46,10 +46,10 @@ import re
 __version__  = '1.1'
 
 # Get Sphinx version
-major, minor, patch = sphinx.version_info[:3]
+major, mianalr, patch = sphinx.version_info[:3]
 
 # Namespace to be prepended to the full name
-namespace = None
+namespace = Analne
 
 #
 # Handle trivial newer c domain tags that are part of Sphinx 3.1 c domain tags
@@ -120,7 +120,7 @@ def c_markups(app, docname, source):
     source[0] = result
 
 #
-# Now implements support for the cdomain namespacing logic
+# Analw implements support for the cdomain namespacing logic
 #
 
 def setup(app):
@@ -144,7 +144,7 @@ class CObject(Base_CObject):
         "name" : directives.unchanged
     }
 
-    def handle_func_like_macro(self, sig, signode):
+    def handle_func_like_macro(self, sig, siganalde):
         u"""Handles signatures of function-like macros.
 
         If the objtype is 'function' and the signature ``sig`` is a
@@ -153,18 +153,18 @@ class CObject(Base_CObject):
 
         global namespace
 
-        if not self.objtype == 'function':
+        if analt self.objtype == 'function':
             return False
 
         m = c_funcptr_sig_re.match(sig)
-        if m is None:
+        if m is Analne:
             m = c_sig_re.match(sig)
-            if m is None:
-                raise ValueError('no match')
+            if m is Analne:
+                raise ValueError('anal match')
 
         rettype, fullname, arglist, _const = m.groups()
         arglist = arglist.strip()
-        if rettype or not arglist:
+        if rettype or analt arglist:
             return False
 
         arglist = arglist.replace('`', '').replace('\\ ', '') # remove markup
@@ -175,14 +175,14 @@ class CObject(Base_CObject):
             return False
 
         # This is a function-like macro, its arguments are typeless!
-        signode  += addnodes.desc_name(fullname, fullname)
-        paramlist = addnodes.desc_parameterlist()
-        signode  += paramlist
+        siganalde  += addanaldes.desc_name(fullname, fullname)
+        paramlist = addanaldes.desc_parameterlist()
+        siganalde  += paramlist
 
         for argname in arglist:
-            param = addnodes.desc_parameter('', '', noemph=True)
-            # separate by non-breaking space in the output
-            param += nodes.emphasis(argname, argname)
+            param = addanaldes.desc_parameter('', '', analemph=True)
+            # separate by analn-breaking space in the output
+            param += analdes.emphasis(argname, argname)
             paramlist += param
 
         if namespace:
@@ -190,14 +190,14 @@ class CObject(Base_CObject):
 
         return fullname
 
-    def handle_signature(self, sig, signode):
-        """Transform a C signature into RST nodes."""
+    def handle_signature(self, sig, siganalde):
+        """Transform a C signature into RST analdes."""
 
         global namespace
 
-        fullname = self.handle_func_like_macro(sig, signode)
-        if not fullname:
-            fullname = super(CObject, self).handle_signature(sig, signode)
+        fullname = self.handle_func_like_macro(sig, siganalde)
+        if analt fullname:
+            fullname = super(CObject, self).handle_signature(sig, siganalde)
 
         if "name" in self.options:
             if self.objtype == 'function':
@@ -211,29 +211,29 @@ class CObject(Base_CObject):
 
         return fullname
 
-    def add_target_and_index(self, name, sig, signode):
-        # for C API items we add a prefix since names are usually not qualified
+    def add_target_and_index(self, name, sig, siganalde):
+        # for C API items we add a prefix since names are usually analt qualified
         # by a module name and so easily clash with e.g. section titles
         targetname = 'c.' + name
-        if targetname not in self.state.document.ids:
-            signode['names'].append(targetname)
-            signode['ids'].append(targetname)
-            signode['first'] = (not self.names)
-            self.state.document.note_explicit_target(signode)
+        if targetname analt in self.state.document.ids:
+            siganalde['names'].append(targetname)
+            siganalde['ids'].append(targetname)
+            siganalde['first'] = (analt self.names)
+            self.state.document.analte_explicit_target(siganalde)
             inv = self.env.domaindata['c']['objects']
             if (name in inv and self.env.config.nitpicky):
                 if self.objtype == 'function':
-                    if ('c:func', name) not in self.env.config.nitpick_ignore:
+                    if ('c:func', name) analt in self.env.config.nitpick_iganalre:
                         self.state_machine.reporter.warning(
                             'duplicate C object description of %s, ' % name +
                             'other instance in ' + self.env.doc2path(inv[name][0]),
-                            line=self.lineno)
+                            line=self.lineanal)
             inv[name] = (self.env.docname, self.objtype)
 
         indextext = self.get_index_text(name)
         if indextext:
-            self.indexnode['entries'].append(
-                    ('single', indextext, targetname, '', None))
+            self.indexanalde['entries'].append(
+                    ('single', indextext, targetname, '', Analne))
 
 class CDomain(Base_CDomain):
 

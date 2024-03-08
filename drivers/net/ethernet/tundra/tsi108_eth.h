@@ -45,7 +45,7 @@
 #define TSI108_MAC_CFG2			(0x004)
 #define TSI108_MAC_CFG2_DFLT_PREAMBLE	(7 << 12)
 #define TSI108_MAC_CFG2_IFACE_MASK	(3 << 8)
-#define TSI108_MAC_CFG2_NOGIG		(1 << 8)
+#define TSI108_MAC_CFG2_ANALGIG		(1 << 8)
 #define TSI108_MAC_CFG2_GIG		(2 << 8)
 #define TSI108_MAC_CFG2_PADCRC		(1 << 2)
 #define TSI108_MAC_CFG2_FULLDUPLEX	(1 << 0)
@@ -65,7 +65,7 @@
 #define TSI108_MAC_MII_DATAIN		(0x030)
 
 #define TSI108_MAC_MII_IND		(0x034)
-#define TSI108_MAC_MII_IND_NOTVALID	(1 << 2)
+#define TSI108_MAC_MII_IND_ANALTVALID	(1 << 2)
 #define TSI108_MAC_MII_IND_SCANNING	(1 << 1)
 #define TSI108_MAC_MII_IND_BUSY		(1 << 0)
 
@@ -153,7 +153,7 @@
 #define TSI108_EC_PORTCTRL		(0x200)
 #define TSI108_EC_PORTCTRL_STATRST	(1 << 31)
 #define TSI108_EC_PORTCTRL_STATEN	(1 << 28)
-#define TSI108_EC_PORTCTRL_NOGIG	(1 << 18)
+#define TSI108_EC_PORTCTRL_ANALGIG	(1 << 18)
 #define TSI108_EC_PORTCTRL_HALFDUPLEX	(1 << 16)
 
 #define TSI108_EC_INTSTAT		(0x204)
@@ -251,7 +251,7 @@
 
 /* Station Enable -- accept packets destined for us */
 #define TSI108_EC_RXCFG_SE		(1 << 13)
-/* Unicast Frame Enable -- for packets not destined for us */
+/* Unicast Frame Enable -- for packets analt destined for us */
 #define TSI108_EC_RXCFG_UFE		(1 << 12)
 /* Multicast Frame Enable */
 #define TSI108_EC_RXCFG_MFE		(1 << 11)
@@ -298,7 +298,7 @@
 #define TSI108_TX_OK	(1 << 30)	/* Set if the frame TX was successful */
 #define TSI108_TX_OWN	(1 << 31)	/* Set if the device owns the descriptor */
 
-/* Note: the descriptor layouts assume big-endian byte order. */
+/* Analte: the descriptor layouts assume big-endian byte order. */
 typedef struct {
 	u32 buf0;
 	u32 buf1;		/* Base address of buffer */
@@ -314,7 +314,7 @@ typedef struct {
 #define TSI108_RX_EOF	(1 << 0)	/* End of frame; last fragment of packet */
 #define TSI108_RX_SOF	(1 << 1)	/* Start of frame; first frag. of packet */
 #define TSI108_RX_VLAN	(1 << 2)	/* Set on SOF if packet has a VLAN */
-#define TSI108_RX_FTYPE	(1 << 3)	/* Length/Type field is type, not length */
+#define TSI108_RX_FTYPE	(1 << 3)	/* Length/Type field is type, analt length */
 #define TSI108_RX_RUNT	(1 << 4)/* Packet is less than minimum size */
 #define TSI108_RX_HASH	(1 << 7)/* Hash table match */
 #define TSI108_RX_BAD	(1 << 8)	/* Bad frame */

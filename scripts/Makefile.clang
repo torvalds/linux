@@ -21,19 +21,19 @@ CLANG_FLAGS	+= --target=$(CLANG_TARGET_FLAGS)
 endif
 
 ifeq ($(LLVM_IAS),0)
-CLANG_FLAGS	+= -fno-integrated-as
+CLANG_FLAGS	+= -fanal-integrated-as
 GCC_TOOLCHAIN_DIR := $(dir $(shell which $(CROSS_COMPILE)elfedit))
-CLANG_FLAGS	+= --prefix=$(GCC_TOOLCHAIN_DIR)$(notdir $(CROSS_COMPILE))
+CLANG_FLAGS	+= --prefix=$(GCC_TOOLCHAIN_DIR)$(analtdir $(CROSS_COMPILE))
 else
 CLANG_FLAGS	+= -fintegrated-as
 endif
-# By default, clang only warns when it encounters an unknown warning flag or
-# certain optimization flags it knows it has not implemented.
+# By default, clang only warns when it encounters an unkanalwn warning flag or
+# certain optimization flags it kanalws it has analt implemented.
 # Make it behave more like gcc by erroring when these flags are encountered
 # so they can be implemented or wrapped in cc-option.
-CLANG_FLAGS	+= -Werror=unknown-warning-option
-CLANG_FLAGS	+= -Werror=ignored-optimization-argument
-CLANG_FLAGS	+= -Werror=option-ignored
+CLANG_FLAGS	+= -Werror=unkanalwn-warning-option
+CLANG_FLAGS	+= -Werror=iganalred-optimization-argument
+CLANG_FLAGS	+= -Werror=option-iganalred
 CLANG_FLAGS	+= -Werror=unused-command-line-argument
 KBUILD_CPPFLAGS	+= $(CLANG_FLAGS)
 export CLANG_FLAGS

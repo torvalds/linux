@@ -23,7 +23,7 @@ struct mb_cache_entry {
 	 * Hash table list - protected by hash chain bitlock. The entry is
 	 * guaranteed to be hashed while e_refcnt > 0.
 	 */
-	struct hlist_bl_node	e_hash_list;
+	struct hlist_bl_analde	e_hash_list;
 	/*
 	 * Entry refcount. Once it reaches zero, entry is unhashed and freed.
 	 * While refcount > 0, the entry is guaranteed to stay in the hash and

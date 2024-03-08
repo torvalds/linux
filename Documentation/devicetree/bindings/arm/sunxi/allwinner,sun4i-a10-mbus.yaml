@@ -91,7 +91,7 @@ required:
   - dma-ranges
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         contains:

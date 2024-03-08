@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -45,7 +45,7 @@ struct drm_syncobj {
 	 * @fence:
 	 * NULL or a pointer to the fence bound to this object.
 	 *
-	 * This field should not be used directly. Use drm_syncobj_fence_get()
+	 * This field should analt be used directly. Use drm_syncobj_fence_get()
 	 * and drm_syncobj_replace_fence() instead.
 	 */
 	struct dma_fence __rcu *fence;
@@ -74,7 +74,7 @@ void drm_syncobj_free(struct kref *kref);
  * @obj: sync object
  *
  * This acquires an additional reference to @obj. It is illegal to call this
- * without already holding a reference. No locks required.
+ * without already holding a reference. Anal locks required.
  */
 static inline void
 drm_syncobj_get(struct drm_syncobj *obj)
@@ -97,11 +97,11 @@ drm_syncobj_put(struct drm_syncobj *obj)
  * @syncobj: sync object.
  *
  * This acquires additional reference to &drm_syncobj.fence contained in @obj,
- * if not NULL. It is illegal to call this without already holding a reference.
- * No locks required.
+ * if analt NULL. It is illegal to call this without already holding a reference.
+ * Anal locks required.
  *
  * Returns:
- * Either the fence of @obj or NULL if there's none.
+ * Either the fence of @obj or NULL if there's analne.
  */
 static inline struct dma_fence *
 drm_syncobj_fence_get(struct drm_syncobj *syncobj)

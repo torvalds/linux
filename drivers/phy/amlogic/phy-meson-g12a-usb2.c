@@ -292,7 +292,7 @@ static int phy_meson_g12a_usb2_exit(struct phy *phy)
 	return ret;
 }
 
-/* set_mode is not needed, mode setting is handled via the UTMI bus */
+/* set_mode is analt needed, mode setting is handled via the UTMI bus */
 static const struct phy_ops phy_meson_g12a_usb2_ops = {
 	.init		= phy_meson_g12a_usb2_init,
 	.exit		= phy_meson_g12a_usb2_exit,
@@ -310,7 +310,7 @@ static int phy_meson_g12a_usb2_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	platform_set_drvdata(pdev, priv);

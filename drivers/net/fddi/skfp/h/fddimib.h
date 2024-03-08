@@ -68,7 +68,7 @@ typedef struct {
 #define MIB_PMDCLASS_SONET	3
 #define MIB_PMDCLASS_LCF	4
 #define MIB_PMDCLASS_TP		5
-#define MIB_PMDCLASS_UNKNOWN	6
+#define MIB_PMDCLASS_UNKANALWN	6
 #define MIB_PMDCLASS_UNSPEC	7
 
 /*
@@ -100,7 +100,7 @@ struct fddi_mib {
 #endif	/* ESS */
 #ifdef	SBA
 	/*
-	 * private variables for the Synchronous Bandwidth Allocator
+	 * private variables for the Synchroanalus Bandwidth Allocator
 	 */
 	char	fddiSBACommand ;	/* holds the parsed SBA cmd */
 	u_char	fddiSBAAvailable ;	/* SBA allocatable value */
@@ -121,13 +121,13 @@ struct fddi_mib {
 	 * ConfigGrp
 	 */
 	u_char			fddiSMTMac_Ct ;
-	u_char			fddiSMTNonMaster_Ct ;
+	u_char			fddiSMTAnalnMaster_Ct ;
 	u_char			fddiSMTMaster_Ct ;
 	u_char			fddiSMTAvailablePaths ;
 	u_short			fddiSMTConfigCapabilities ;
 	u_short			fddiSMTConfigPolicy ;
 	u_short			fddiSMTConnectionPolicy ;
-	u_short			fddiSMTTT_Notify ;
+	u_short			fddiSMTTT_Analtify ;
 	u_char			fddiSMTStatRptPolicy ;
 	u_long			fddiSMTTrace_MaxExpiration ;
 	u_short			fddiSMTPORTIndexes[NUMPHYS] ;
@@ -199,7 +199,7 @@ struct fddi_mib {
 		Counter		fddiMACError_Ct ;
 		Counter		fddiMACLost_Ct ;
 		Counter		fddiMACTvxExpired_Ct ;
-		Counter		fddiMACNotCopied_Ct ;
+		Counter		fddiMACAnaltCopied_Ct ;
 		Counter		fddiMACRingOp_Ct ;
 
 		Counter		fddiMACSMTCopied_Ct ;		/* private */
@@ -210,22 +210,22 @@ struct fddi_mib {
 		Counter		fddiMACOld_Copied_Ct ;
 		Counter		fddiMACOld_Error_Ct ;
 		Counter		fddiMACOld_Lost_Ct ;
-		Counter		fddiMACOld_NotCopied_Ct ;
+		Counter		fddiMACOld_AnaltCopied_Ct ;
 
 		/* FrameErrorConditionGrp */
 		u_short		fddiMACFrameErrorThreshold ;
 		u_short		fddiMACFrameErrorRatio ;
 
-		/* NotCopiedConditionGrp */
-		u_short		fddiMACNotCopiedThreshold ;
-		u_short		fddiMACNotCopiedRatio ;
+		/* AnaltCopiedConditionGrp */
+		u_short		fddiMACAnaltCopiedThreshold ;
+		u_short		fddiMACAnaltCopiedRatio ;
 
 		/* StatusGrp */
 		SMTEnum		fddiMACRMTState ;
 		SMTFlag		fddiMACDA_Flag ;
 		SMTFlag		fddiMACUNDA_Flag ;
 		SMTFlag		fddiMACFrameErrorFlag ;
-		SMTFlag		fddiMACNotCopiedFlag ;
+		SMTFlag		fddiMACAnaltCopiedFlag ;
 		SMTFlag		fddiMACMA_UnitdataAvailable ;
 		SMTFlag		fddiMACHardwarePresent ;
 		SMTFlag		fddiMACMA_UnitdataEnable ;
@@ -259,7 +259,7 @@ struct fddi_mib {
 		SMTEnum		fddiPORTCurrentPath ;
 		/* must be 4: is 32 bit in SMT format
 		 * indices :
-		 *	1	none
+		 *	1	analne
 		 *	2	tree
 		 *	3	peer
 		 */

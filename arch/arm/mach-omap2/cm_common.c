@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bug.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -34,7 +34,7 @@ struct omap_domain_base cm_base;
 /* cm2_base: base virtual address of the CM2 IP block (OMAP44xx only) */
 struct omap_domain_base cm2_base;
 
-#define CM_NO_CLOCKS		0x1
+#define CM_ANAL_CLOCKS		0x1
 #define CM_SINGLE_INSTANCE	0x2
 
 /**
@@ -54,7 +54,7 @@ int cm_split_idlest_reg(struct clk_omap_reg *idlest_reg, s16 *prcm_inst,
 {
 	int ret;
 	if (!cm_ll_data->split_idlest_reg) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: anal low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -75,14 +75,14 @@ int cm_split_idlest_reg(struct clk_omap_reg *idlest_reg, s16 *prcm_inst,
  * Wait for the PRCM to indicate that the module identified by
  * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
  * success, -EBUSY if the module doesn't enable in time, or -EINVAL if
- * no per-SoC wait_module_ready() function pointer has been registered
- * or if the idlest register is unknown on the SoC.
+ * anal per-SoC wait_module_ready() function pointer has been registered
+ * or if the idlest register is unkanalwn on the SoC.
  */
 int omap_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_reg,
 			      u8 idlest_shift)
 {
 	if (!cm_ll_data->wait_module_ready) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: anal low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -99,16 +99,16 @@ int omap_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_reg,
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
  *
  * Wait for the PRCM to indicate that the module identified by
- * (@prcm_mod, @idlest_id, @idlest_shift) is no longer clocked.  Return
+ * (@prcm_mod, @idlest_id, @idlest_shift) is anal longer clocked.  Return
  * 0 upon success, -EBUSY if the module doesn't enable in time, or
- * -EINVAL if no per-SoC wait_module_idle() function pointer has been
- * registered or if the idlest register is unknown on the SoC.
+ * -EINVAL if anal per-SoC wait_module_idle() function pointer has been
+ * registered or if the idlest register is unkanalwn on the SoC.
  */
 int omap_cm_wait_module_idle(u8 part, s16 prcm_mod, u16 idlest_reg,
 			     u8 idlest_shift)
 {
 	if (!cm_ll_data->wait_module_idle) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: anal low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -125,13 +125,13 @@ int omap_cm_wait_module_idle(u8 part, s16 prcm_mod, u16 idlest_reg,
  * @clkctrl_offs: CM_CLKCTRL register offset for the module
  *
  * Enables clocks for a module identified by (@part, @inst, @clkctrl_offs)
- * making its IO space accessible. Return 0 upon success, -EINVAL if no
+ * making its IO space accessible. Return 0 upon success, -EINVAL if anal
  * per-SoC module_enable() function pointer has been registered.
  */
 int omap_cm_module_enable(u8 mode, u8 part, u16 inst, u16 clkctrl_offs)
 {
 	if (!cm_ll_data->module_enable) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: anal low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -148,12 +148,12 @@ int omap_cm_module_enable(u8 mode, u8 part, u16 inst, u16 clkctrl_offs)
  *
  * Disables clocks for a module identified by (@part, @inst, @clkctrl_offs)
  * makings its IO space inaccessible. Return 0 upon success, -EINVAL if
- * no per-SoC module_disable() function pointer has been registered.
+ * anal per-SoC module_disable() function pointer has been registered.
  */
 int omap_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	if (!cm_ll_data->module_disable) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: anal low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -165,7 +165,7 @@ int omap_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 u32 omap_cm_xlate_clkctrl(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	if (!cm_ll_data->xlate_clkctrl) {
-		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+		WARN_ONCE(1, "cm: %s: anal low-level function defined\n",
 			  __func__);
 		return 0;
 	}
@@ -202,9 +202,9 @@ int cm_register(const struct cm_ll_data *cld)
  *
  * Unregister per-SoC low-level OMAP CM data and function pointers
  * that were previously registered with cm_register().  The
- * caller may not destroy any of the data pointed to by @cld until
+ * caller may analt destroy any of the data pointed to by @cld until
  * this function returns successfully.  Returns 0 upon success, or
- * -EINVAL if @cld is NULL or if @cld does not match the struct
+ * -EINVAL if @cld is NULL or if @cld does analt match the struct
  * cm_ll_data * previously registered by cm_register().
  */
 int cm_unregister(const struct cm_ll_data *cld)
@@ -234,7 +234,7 @@ static struct omap_prcm_init_data cm2_data __initdata = {
 static struct omap_prcm_init_data omap2_prcm_data __initdata = {
 	.index = TI_CLKM_CM,
 	.init = omap2xxx_cm_init,
-	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
+	.flags = CM_ANAL_CLOCKS | CM_SINGLE_INSTANCE,
 };
 #endif
 
@@ -255,7 +255,7 @@ static struct omap_prcm_init_data omap3_cm_data __initdata = {
 #if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_TI81XX)
 static struct omap_prcm_init_data am3_prcm_data __initdata = {
 	.index = TI_CLKM_CM,
-	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
+	.flags = CM_ANAL_CLOCKS | CM_SINGLE_INSTANCE,
 	.init = am33xx_cm_init,
 };
 #endif
@@ -263,7 +263,7 @@ static struct omap_prcm_init_data am3_prcm_data __initdata = {
 #ifdef CONFIG_SOC_AM43XX
 static struct omap_prcm_init_data am4_prcm_data __initdata = {
 	.index = TI_CLKM_CM,
-	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
+	.flags = CM_ANAL_CLOCKS | CM_SINGLE_INSTANCE,
 	.init = omap4_cm_init,
 };
 #endif
@@ -309,19 +309,19 @@ static const struct of_device_id omap_cm_dt_match_table[] __initconst = {
  */
 int __init omap2_cm_base_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 	struct omap_prcm_init_data *data;
 	struct resource res;
 	int ret;
 	struct omap_domain_base *mem = NULL;
 
-	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
+	for_each_matching_analde_and_match(np, omap_cm_dt_match_table, &match) {
 		data = (struct omap_prcm_init_data *)match->data;
 
 		ret = of_address_to_resource(np, 0, &res);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
@@ -357,20 +357,20 @@ int __init omap2_cm_base_init(void)
  */
 int __init omap_cm_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 	const struct omap_prcm_init_data *data;
 	int ret;
 
-	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
+	for_each_matching_analde_and_match(np, omap_cm_dt_match_table, &match) {
 		data = match->data;
 
-		if (data->flags & CM_NO_CLOCKS)
+		if (data->flags & CM_ANAL_CLOCKS)
 			continue;
 
 		ret = omap2_clk_provider_init(np, data->index, NULL, data->mem);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}

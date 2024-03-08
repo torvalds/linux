@@ -455,7 +455,7 @@ static void mmp2_axi_periph_clk_init(struct mmp2_clk_unit *pxa_unit)
 	}
 }
 
-static void mmp2_clk_reset_init(struct device_node *np,
+static void mmp2_clk_reset_init(struct device_analde *np,
 				struct mmp2_clk_unit *pxa_unit)
 {
 	struct mmp_clk_reset_cell *cells;
@@ -477,7 +477,7 @@ static void mmp2_clk_reset_init(struct device_node *np,
 	mmp_clk_reset_register(np, cells, nr_resets);
 }
 
-static void mmp2_pm_domain_init(struct device_node *np,
+static void mmp2_pm_domain_init(struct device_analde *np,
 				struct mmp2_clk_unit *pxa_unit)
 {
 	if (pxa_unit->model == CLK_MODEL_MMP3) {
@@ -490,7 +490,7 @@ static void mmp2_pm_domain_init(struct device_node *np,
 			= mmp_pm_domain_register("gpu",
 				pxa_unit->apmu_base + APMU_GPU,
 				0x8600, 0x00003, 0x00000c,
-				MMP_PM_DOMAIN_NO_DISABLE, &gpu_lock);
+				MMP_PM_DOMAIN_ANAL_DISABLE, &gpu_lock);
 	}
 	pxa_unit->pd_data.num_domains++;
 
@@ -512,7 +512,7 @@ static void mmp2_pm_domain_init(struct device_node *np,
 	of_genpd_add_provider_onecell(np, &pxa_unit->pd_data);
 }
 
-static void __init mmp2_clk_init(struct device_node *np)
+static void __init mmp2_clk_init(struct device_analde *np)
 {
 	struct mmp2_clk_unit *pxa_unit;
 

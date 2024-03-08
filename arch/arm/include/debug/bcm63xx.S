@@ -13,7 +13,7 @@
 	.endm
 
 	.macro	senduart, rd, rx
-	/* word access do not work */
+	/* word access do analt work */
 	strb	\rd, [\rx, #UART_FIFO_REG]
 	.endm
 

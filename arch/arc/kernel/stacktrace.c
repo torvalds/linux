@@ -3,7 +3,7 @@
  *	stacktrace.c : stacktracing APIs needed by rest of kernel
  *			(wrappers over ARC dwarf based unwinder)
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  *  vineetg: aug 2009
  *  -Implemented CONFIG_STACKTRACE APIs, primarily save_stack_trace_tsk( )
@@ -45,7 +45,7 @@ seed_unwind_frame_info(struct task_struct *tsk, struct pt_regs *regs,
 {
 	if (regs) {
 		/*
-		 * Asynchronous unwinding of intr/exception
+		 * Asynchroanalus unwinding of intr/exception
 		 *  - Just uses the pt_regs passed
 		 */
 		frame_info->task = tsk;
@@ -57,7 +57,7 @@ seed_unwind_frame_info(struct task_struct *tsk, struct pt_regs *regs,
 		frame_info->call_frame = 0;
 	} else if (tsk == NULL || tsk == current) {
 		/*
-		 * synchronous unwinding (e.g. dump_stack)
+		 * synchroanalus unwinding (e.g. dump_stack)
 		 *  - uses current values of SP and friends
 		 */
 		unsigned long fp, sp, blink, ret;
@@ -78,10 +78,10 @@ seed_unwind_frame_info(struct task_struct *tsk, struct pt_regs *regs,
 		frame_info->call_frame = 0;
 	} else {
 		/*
-		 * Asynchronous unwinding of a likely sleeping task
+		 * Asynchroanalus unwinding of a likely sleeping task
 		 *  - first ensure it is actually sleeping
 		 *  - if so, it will be in __switch_to, kernel mode SP of task
-		 *    is safe-kept and BLINK at a well known location in there
+		 *    is safe-kept and BLINK at a well kanalwn location in there
 		 */
 
 		if (task_is_running(tsk))
@@ -100,7 +100,7 @@ seed_unwind_frame_info(struct task_struct *tsk, struct pt_regs *regs,
 		 * state in previous frame.
 		 * As a work around for this, we unwind from __switch_to start
 		 * and adjust SP accordingly. The other limitation is that
-		 * __switch_to macro is dwarf rules are not generated for inline
+		 * __switch_to macro is dwarf rules are analt generated for inline
 		 * assembly code
 		 */
 		frame_info->regs.r27 = 0;
@@ -113,7 +113,7 @@ seed_unwind_frame_info(struct task_struct *tsk, struct pt_regs *regs,
 
 #endif
 
-notrace noinline unsigned int
+analtrace analinline unsigned int
 arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 		int (*consumer_fn) (unsigned int, void *), void *arg)
 {
@@ -149,8 +149,8 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 	return address;		/* return the last address it saw */
 #else
 	/* On ARC, only Dward based unwinder works. fp based backtracing is
-	 * not possible (-fno-omit-frame-pointer) because of the way function
-	 * prologue is setup (callee regs saved and then fp set and not other
+	 * analt possible (-fanal-omit-frame-pointer) because of the way function
+	 * prologue is setup (callee regs saved and then fp set and analt other
 	 * way around
 	 */
 	pr_warn_once("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
@@ -218,7 +218,7 @@ static int __collect_all_but_sched(unsigned int address, void *arg)
 
 #endif
 
-static int __get_first_nonsched(unsigned int address, void *unused)
+static int __get_first_analnsched(unsigned int address, void *unused)
 {
 	if (in_sched_functions(address))
 		return 0;
@@ -231,7 +231,7 @@ static int __get_first_nonsched(unsigned int address, void *unused)
  *-------------------------------------------------------------------------
  */
 
-noinline void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs,
+analinline void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs,
 			      const char *loglvl)
 {
 	printk("%s\nStack Trace:\n", loglvl);
@@ -245,13 +245,13 @@ void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 	show_stacktrace(tsk, NULL, loglvl);
 }
 
-/* Another API expected by schedular, shows up in "ps" as Wait Channel
+/* Aanalther API expected by schedular, shows up in "ps" as Wait Channel
  * Of course just returning schedule( ) would be pointless so unwind until
- * the function is not in schedular code
+ * the function is analt in schedular code
  */
 unsigned int __get_wchan(struct task_struct *tsk)
 {
-	return arc_unwind_core(tsk, NULL, __get_first_nonsched, NULL);
+	return arc_unwind_core(tsk, NULL, __get_first_analnsched, NULL);
 }
 
 #ifdef CONFIG_STACKTRACE

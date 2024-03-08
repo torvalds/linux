@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -119,7 +119,7 @@ int tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 	else {
 		u32 i;
 
-		ret = scnprintf(buf, len, "UNKNOWN(%u)", a->media_id);
+		ret = scnprintf(buf, len, "UNKANALWN(%u)", a->media_id);
 		for (i = 0; i < sizeof(a->value); i++)
 			ret += scnprintf(buf + ret, len - ret,
 					    "-%x", a->value[i]);
@@ -130,7 +130,7 @@ int tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 /**
  * bearer_name_validate - validate & (optionally) deconstruct bearer name
  * @name: ptr to bearer name string
- * @name_parts: ptr to area for bearer name components (or NULL if not needed)
+ * @name_parts: ptr to area for bearer name components (or NULL if analt needed)
  *
  * Return: 1 if bearer name is valid, otherwise 0.
  */
@@ -269,8 +269,8 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 
 	m = tipc_media_find(b_names.media_name);
 	if (!m) {
-		errstr = "media not registered";
-		NL_SET_ERR_MSG(extack, "Media not registered");
+		errstr = "media analt registered";
+		NL_SET_ERR_MSG(extack, "Media analt registered");
 		goto rejected;
 	}
 
@@ -298,8 +298,8 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 				name, prio);
 
 			if (prio == TIPC_MIN_LINK_PRI) {
-				errstr = "cannot adjust to lower";
-				NL_SET_ERR_MSG(extack, "Cannot adjust to lower");
+				errstr = "cananalt adjust to lower";
+				NL_SET_ERR_MSG(extack, "Cananalt adjust to lower");
 				goto rejected;
 			}
 
@@ -320,7 +320,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 
 	b = kzalloc(sizeof(*b), GFP_ATOMIC);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(b->name, name);
 	b->media = m;
@@ -353,7 +353,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	if (tipc_mon_create(net, bearer_id)) {
 		bearer_disable(net, b);
 		kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	test_and_set_bit_lock(0, &b->up);
@@ -377,14 +377,14 @@ rejected:
 static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b)
 {
 	pr_info("Resetting bearer <%s>\n", b->name);
-	tipc_node_delete_links(net, b->identity);
+	tipc_analde_delete_links(net, b->identity);
 	tipc_disc_reset(net, b);
 	return 0;
 }
 
 bool tipc_bearer_hold(struct tipc_bearer *b)
 {
-	return (b && refcount_inc_not_zero(&b->refcnt));
+	return (b && refcount_inc_analt_zero(&b->refcnt));
 }
 
 void tipc_bearer_put(struct tipc_bearer *b)
@@ -398,7 +398,7 @@ void tipc_bearer_put(struct tipc_bearer *b)
  * @net: the applicable net namespace
  * @b: the bearer to disable
  *
- * Note: This routine assumes caller holds RTNL lock.
+ * Analte: This routine assumes caller holds RTNL lock.
  */
 static void bearer_disable(struct net *net, struct tipc_bearer *b)
 {
@@ -407,7 +407,7 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b)
 
 	pr_info("Disabling bearer <%s>\n", b->name);
 	clear_bit_unlock(0, &b->up);
-	tipc_node_delete_links(net, bearer_id);
+	tipc_analde_delete_links(net, bearer_id);
 	b->media->disable_media(b);
 	RCU_INIT_POINTER(b->media_ptr, NULL);
 	if (b->disc)
@@ -422,31 +422,31 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 {
 	char *dev_name = strchr((const char *)b->name, ':') + 1;
 	int hwaddr_len = b->media->hwaddr_len;
-	u8 node_id[NODE_ID_LEN] = {0,};
+	u8 analde_id[ANALDE_ID_LEN] = {0,};
 	struct net_device *dev;
 
 	/* Find device with specified name */
 	dev = dev_get_by_name(net, dev_name);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (tipc_mtu_bad(dev)) {
 		dev_put(dev);
 		return -EINVAL;
 	}
 	if (dev == net->loopback_dev) {
 		dev_put(dev);
-		pr_info("Enabling <%s> not permitted\n", b->name);
+		pr_info("Enabling <%s> analt permitted\n", b->name);
 		return -EINVAL;
 	}
 
-	/* Autoconfigure own node identity if needed */
-	if (!tipc_own_id(net) && hwaddr_len <= NODE_ID_LEN) {
-		memcpy(node_id, dev->dev_addr, hwaddr_len);
-		tipc_net_init(net, node_id, 0);
+	/* Autoconfigure own analde identity if needed */
+	if (!tipc_own_id(net) && hwaddr_len <= ANALDE_ID_LEN) {
+		memcpy(analde_id, dev->dev_addr, hwaddr_len);
+		tipc_net_init(net, analde_id, 0);
 	}
 	if (!tipc_own_id(net)) {
 		dev_put(dev);
-		pr_warn("Failed to obtain node identity\n");
+		pr_warn("Failed to obtain analde identity\n");
 		return -EINVAL;
 	}
 
@@ -580,7 +580,7 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		      struct sk_buff_head *xmitq,
 		      struct tipc_media_addr *dst,
-		      struct tipc_node *__dnode)
+		      struct tipc_analde *__danalde)
 {
 	struct tipc_bearer *b;
 	struct sk_buff *skb, *tmp;
@@ -596,7 +596,7 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		__skb_dequeue(xmitq);
 		if (likely(test_bit(0, &b->up) || msg_is_reset(buf_msg(skb)))) {
 #ifdef CONFIG_TIPC_CRYPTO
-			tipc_crypto_xmit(net, &skb, b, dst, __dnode);
+			tipc_crypto_xmit(net, &skb, b, dst, __danalde);
 			if (skb)
 #endif
 				b->media->send_msg(net, skb, b, dst);
@@ -625,7 +625,7 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 		__skb_queue_purge(xmitq);
 	skb_queue_walk_safe(xmitq, skb, tmp) {
 		hdr = buf_msg(skb);
-		msg_set_non_seq(hdr, 1);
+		msg_set_analn_seq(hdr, 1);
 		msg_set_mc_netid(hdr, net_id);
 		__skb_dequeue(xmitq);
 		dst = &b->bcast_addr;
@@ -645,9 +645,9 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
  * @pt: the packet_type structure which was used to register this handler
  * @orig_dev: the original receive net device in case the device is a bond
  *
- * Accept only packets explicitly sent to this node, or broadcast packets;
- * ignores packets sent using interface multicast, and traffic sent to other
- * nodes (which can happen if interface is running in promiscuous mode).
+ * Accept only packets explicitly sent to this analde, or broadcast packets;
+ * iganalres packets sent using interface multicast, and traffic sent to other
+ * analdes (which can happen if interface is running in promiscuous mode).
  */
 static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *pt, struct net_device *orig_dev)
@@ -659,7 +659,7 @@ static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 		rcu_dereference(orig_dev->tipc_ptr);
 	if (likely(b && test_bit(0, &b->up) &&
 		   (skb->pkt_type <= PACKET_MULTICAST))) {
-		skb_mark_not_on_list(skb);
+		skb_mark_analt_on_list(skb);
 		TIPC_SKB_CB(skb)->flags = 0;
 		tipc_rcv(dev_net(b->pt.dev), skb, b);
 		rcu_read_unlock();
@@ -672,23 +672,23 @@ static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 
 /**
  * tipc_l2_device_event - handle device events from network device
- * @nb: the context of the notification
+ * @nb: the context of the analtification
  * @evt: the type of event
  * @ptr: the net device that the event was on
  *
  * This function is called by the Ethernet driver in case of link
  * change event.
  */
-static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
+static int tipc_l2_device_event(struct analtifier_block *nb, unsigned long evt,
 				void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct tipc_bearer *b;
 
 	b = rtnl_dereference(dev->tipc_ptr);
 	if (!b)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	trace_tipc_l2_device_event(dev, b, evt);
 	switch (evt) {
@@ -723,22 +723,22 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		bearer_disable(net, b);
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block notifier = {
-	.notifier_call  = tipc_l2_device_event,
+static struct analtifier_block analtifier = {
+	.analtifier_call  = tipc_l2_device_event,
 	.priority	= 0,
 };
 
 int tipc_bearer_setup(void)
 {
-	return register_netdevice_notifier(&notifier);
+	return register_netdevice_analtifier(&analtifier);
 }
 
 void tipc_bearer_cleanup(void)
 {
-	unregister_netdevice_notifier(&notifier);
+	unregister_netdevice_analtifier(&analtifier);
 }
 
 void tipc_bearer_stop(struct net *net)
@@ -797,7 +797,7 @@ int tipc_attach_loopback(struct net *net)
 	struct tipc_net *tn = tipc_net(net);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	netdev_hold(dev, &tn->loopback_pt.dev_tracker, GFP_KERNEL);
 	tn->loopback_pt.dev = dev;
@@ -828,14 +828,14 @@ static int __tipc_nl_add_bearer(struct tipc_nl_msg *msg,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_BEARER);
+	attrs = nla_nest_start_analflag(msg->skb, TIPC_NLA_BEARER);
 	if (!attrs)
 		goto msg_full;
 
 	if (nla_put_string(msg->skb, TIPC_NLA_BEARER_NAME, bearer->name))
 		goto attr_msg_full;
 
-	prop = nla_nest_start_noflag(msg->skb, TIPC_NLA_BEARER_PROP);
+	prop = nla_nest_start_analflag(msg->skb, TIPC_NLA_BEARER_PROP);
 	if (!prop)
 		goto prop_msg_full;
 	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_PRIO, bearer->priority))
@@ -929,7 +929,7 @@ int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info)
 
 	rep = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!rep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg.skb = rep;
 	msg.portid = info->snd_portid;
@@ -939,7 +939,7 @@ int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info)
 	bearer = tipc_bearer_find(net, name);
 	if (!bearer) {
 		err = -EINVAL;
-		NL_SET_ERR_MSG(info->extack, "Bearer not found");
+		NL_SET_ERR_MSG(info->extack, "Bearer analt found");
 		goto err_out;
 	}
 
@@ -980,7 +980,7 @@ int __tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 
 	bearer = tipc_bearer_find(net, name);
 	if (!bearer) {
-		NL_SET_ERR_MSG(info->extack, "Bearer not found");
+		NL_SET_ERR_MSG(info->extack, "Bearer analt found");
 		return -EINVAL;
 	}
 
@@ -1080,7 +1080,7 @@ int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info)
 	b = tipc_bearer_find(net, name);
 	if (!b) {
 		rtnl_unlock();
-		NL_SET_ERR_MSG(info->extack, "Bearer not found");
+		NL_SET_ERR_MSG(info->extack, "Bearer analt found");
 		return -EINVAL;
 	}
 
@@ -1128,7 +1128,7 @@ int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 
 	b = tipc_bearer_find(net, name);
 	if (!b) {
-		NL_SET_ERR_MSG(info->extack, "Bearer not found");
+		NL_SET_ERR_MSG(info->extack, "Bearer analt found");
 		return -EINVAL;
 	}
 
@@ -1142,7 +1142,7 @@ int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 
 		if (props[TIPC_NLA_PROP_TOL]) {
 			b->tolerance = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
-			tipc_node_apply_property(net, b, TIPC_NLA_PROP_TOL);
+			tipc_analde_apply_property(net, b, TIPC_NLA_PROP_TOL);
 		}
 		if (props[TIPC_NLA_PROP_PRIO])
 			b->priority = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
@@ -1162,7 +1162,7 @@ int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 				return -EINVAL;
 			}
 			b->mtu = nla_get_u32(props[TIPC_NLA_PROP_MTU]);
-			tipc_node_apply_property(net, b, TIPC_NLA_PROP_MTU);
+			tipc_analde_apply_property(net, b, TIPC_NLA_PROP_MTU);
 #endif
 		}
 	}
@@ -1193,14 +1193,14 @@ static int __tipc_nl_add_media(struct tipc_nl_msg *msg,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MEDIA);
+	attrs = nla_nest_start_analflag(msg->skb, TIPC_NLA_MEDIA);
 	if (!attrs)
 		goto msg_full;
 
 	if (nla_put_string(msg->skb, TIPC_NLA_MEDIA_NAME, media->name))
 		goto attr_msg_full;
 
-	prop = nla_nest_start_noflag(msg->skb, TIPC_NLA_MEDIA_PROP);
+	prop = nla_nest_start_analflag(msg->skb, TIPC_NLA_MEDIA_PROP);
 	if (!prop)
 		goto prop_msg_full;
 	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_PRIO, media->priority))
@@ -1279,7 +1279,7 @@ int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info)
 
 	rep = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!rep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg.skb = rep;
 	msg.portid = info->snd_portid;
@@ -1288,7 +1288,7 @@ int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info)
 	rtnl_lock();
 	media = tipc_media_find(name);
 	if (!media) {
-		NL_SET_ERR_MSG(info->extack, "Media not found");
+		NL_SET_ERR_MSG(info->extack, "Media analt found");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -1326,7 +1326,7 @@ int __tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
 
 	m = tipc_media_find(name);
 	if (!m) {
-		NL_SET_ERR_MSG(info->extack, "Media not found");
+		NL_SET_ERR_MSG(info->extack, "Media analt found");
 		return -EINVAL;
 	}
 	if (attrs[TIPC_NLA_MEDIA_PROP]) {

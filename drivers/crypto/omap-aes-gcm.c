@@ -13,7 +13,7 @@
 #include <crypto/internal/aead.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
@@ -264,7 +264,7 @@ static int omap_aes_gcm_crypt(struct aead_request *req, unsigned long mode)
 
 	dd = omap_aes_find_dev(rctx);
 	if (!dd)
-		return -ENODEV;
+		return -EANALDEV;
 	rctx->mode = mode;
 
 	return omap_aes_gcm_handle_queue(dd, req);
@@ -291,7 +291,7 @@ int omap_aes_4106gcm_encrypt(struct aead_request *req)
 	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 
-	memcpy(rctx->iv, ctx->octx.nonce, 4);
+	memcpy(rctx->iv, ctx->octx.analnce, 4);
 	memcpy(rctx->iv + 4, req->iv, 8);
 	return crypto_ipsec_check_assoclen(req->assoclen) ?:
 	       omap_aes_gcm_crypt(req, FLAGS_ENCRYPT | FLAGS_GCM |
@@ -303,7 +303,7 @@ int omap_aes_4106gcm_decrypt(struct aead_request *req)
 	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 
-	memcpy(rctx->iv, ctx->octx.nonce, 4);
+	memcpy(rctx->iv, ctx->octx.analnce, 4);
 	memcpy(rctx->iv + 4, req->iv, 8);
 	return crypto_ipsec_check_assoclen(req->assoclen) ?:
 	       omap_aes_gcm_crypt(req, FLAGS_GCM | FLAGS_RFC4106_GCM);
@@ -340,7 +340,7 @@ int omap_aes_4106gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 		return ret;
 
 	memcpy(ctx->octx.key, key, keylen);
-	memcpy(ctx->octx.nonce, key + keylen, 4);
+	memcpy(ctx->octx.analnce, key + keylen, 4);
 	ctx->octx.keylen = keylen;
 
 	return 0;
@@ -366,7 +366,7 @@ int omap_aes_gcm_crypt_req(struct crypto_engine *engine, void *areq)
 	int ret;
 
 	if (!dd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = omap_aes_gcm_prepare_req(req, dd);
 	if (ret)

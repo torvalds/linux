@@ -23,7 +23,7 @@ description: |
   interface SerDes 2.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^serdes@[0-9a-f]+$"
 
   compatible:

@@ -112,7 +112,7 @@ struct v4l2_vp9_frame_context {
  * @eob: eob counts
  *
  * The fields correspond to what is specified in section 8.3 "Clear counts process" of the spec.
- * Different pieces of hardware can report the counts in different order, so we cannot rely on
+ * Different pieces of hardware can report the counts in different order, so we cananalt rely on
  * simply overlaying a struct on a relevant block of memory. Instead we provide pointers to
  * arrays or array of pointers to arrays in case of coeff, or array of pointers for eob.
  */
@@ -188,7 +188,7 @@ u8 v4l2_vp9_reset_frame_ctx(const struct v4l2_ctrl_vp9_frame *dec_params,
  *
  * This function performs backward updates of coefficients probabilities for the vp9 boolean
  * decoder. After a frame has been decoded the counts of how many times a given symbol has
- * occurred are known and are used to update the probability of each symbol.
+ * occurred are kanalwn and are used to update the probability of each symbol.
  */
 void v4l2_vp9_adapt_coef_probs(struct v4l2_vp9_frame_context *probs,
 			       struct v4l2_vp9_frame_symbol_counts *counts,
@@ -196,7 +196,7 @@ void v4l2_vp9_adapt_coef_probs(struct v4l2_vp9_frame_context *probs,
 			       bool frame_is_intra);
 
 /**
- * v4l2_vp9_adapt_noncoef_probs() - Perform backward update of vp9 non-coefficients probabilities
+ * v4l2_vp9_adapt_analncoef_probs() - Perform backward update of vp9 analn-coefficients probabilities
  *
  * @probs: current probabilities values
  * @counts: values of symbol counts after the current frame has been decoded
@@ -207,11 +207,11 @@ void v4l2_vp9_adapt_coef_probs(struct v4l2_vp9_frame_context *probs,
  * @tx_mode: specifies the TX mode. See &v4l2_vp9_tx_mode for more details
  * @flags: combination of V4L2_VP9_FRAME_FLAG_* flags
  *
- * This function performs backward updates of non-coefficients probabilities for the vp9 boolean
+ * This function performs backward updates of analn-coefficients probabilities for the vp9 boolean
  * decoder. After a frame has been decoded the counts of how many times a given symbol has
- * occurred are known and are used to update the probability of each symbol.
+ * occurred are kanalwn and are used to update the probability of each symbol.
  */
-void v4l2_vp9_adapt_noncoef_probs(struct v4l2_vp9_frame_context *probs,
+void v4l2_vp9_adapt_analncoef_probs(struct v4l2_vp9_frame_context *probs,
 				  struct v4l2_vp9_frame_symbol_counts *counts,
 				  u8 reference_mode, u8 interpolation_filter, u8 tx_mode,
 				  u32 flags);

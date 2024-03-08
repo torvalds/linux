@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -55,7 +55,7 @@
 #define RESP_FAILED		0x01
 #define RESP_BAD_MEMADDR	0x04
 #define RESP_DATA_ERR		0x05
-#define RESP_NOT_IMPLEMENTED	0x06
+#define RESP_ANALT_IMPLEMENTED	0x06
 #define RESP_NACK		0x07
 #define RESP_TIMEOUT		0x09
 
@@ -119,7 +119,7 @@ static int diolan_usb_transfer(struct i2c_diolan_u2c *dev)
 			/*
 			 * Stop command processing if a previous command
 			 * returned an error.
-			 * Note that we still need to retrieve all messages.
+			 * Analte that we still need to retrieve all messages.
 			 */
 			if (ret < 0)
 				continue;
@@ -160,7 +160,7 @@ static int diolan_write_cmd(struct i2c_diolan_u2c *dev, bool flush)
 	return 0;
 }
 
-/* Send command (no data) */
+/* Send command (anal data) */
 static int diolan_usb_cmd(struct i2c_diolan_u2c *dev, u8 command, bool flush)
 {
 	dev->obuffer[dev->olen++] = command;
@@ -192,7 +192,7 @@ static int diolan_usb_cmd_data2(struct i2c_diolan_u2c *dev, u8 command, u8 d1,
 /*
  * Flush input queue.
  * If we don't do this at startup and the controller has queued up
- * messages which were not retrieved, it will stop responding
+ * messages which were analt retrieved, it will stop responding
  * at some point.
  */
 static void diolan_flush_input(struct i2c_diolan_u2c *dev)
@@ -442,12 +442,12 @@ static int diolan_u2c_probe(struct usb_interface *interface,
 
 	if (hostif->desc.bInterfaceNumber != 0
 	    || hostif->desc.bNumEndpoints < 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	dev->ep_out = hostif->endpoint[0].desc.bEndpointAddress;

@@ -614,7 +614,7 @@ static int m88rs6000t_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(&client->dev, "kzalloc() failed\n");
 		goto err;
 	}
@@ -648,7 +648,7 @@ static int m88rs6000t_probe(struct i2c_client *client)
 		goto err;
 	dev_info(&dev->client->dev, "chip_id=%02x\n", utmp);
 	if (utmp != 0x64) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 

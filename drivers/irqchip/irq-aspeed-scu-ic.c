@@ -141,17 +141,17 @@ static const struct irq_domain_ops aspeed_scu_ic_domain_ops = {
 };
 
 static int aspeed_scu_ic_of_init_common(struct aspeed_scu_ic *scu_ic,
-					struct device_node *node)
+					struct device_analde *analde)
 {
 	int irq;
 	int rc = 0;
 
-	if (!node->parent) {
-		rc = -ENODEV;
+	if (!analde->parent) {
+		rc = -EANALDEV;
 		goto err;
 	}
 
-	scu_ic->scu = syscon_node_to_regmap(node->parent);
+	scu_ic->scu = syscon_analde_to_regmap(analde->parent);
 	if (IS_ERR(scu_ic->scu)) {
 		rc = PTR_ERR(scu_ic->scu);
 		goto err;
@@ -159,17 +159,17 @@ static int aspeed_scu_ic_of_init_common(struct aspeed_scu_ic *scu_ic,
 	regmap_write_bits(scu_ic->scu, scu_ic->reg, ASPEED_SCU_IC_STATUS, ASPEED_SCU_IC_STATUS);
 	regmap_write_bits(scu_ic->scu, scu_ic->reg, ASPEED_SCU_IC_ENABLE, 0);
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (!irq) {
 		rc = -EINVAL;
 		goto err;
 	}
 
-	scu_ic->irq_domain = irq_domain_add_linear(node, scu_ic->num_irqs,
+	scu_ic->irq_domain = irq_domain_add_linear(analde, scu_ic->num_irqs,
 						   &aspeed_scu_ic_domain_ops,
 						   scu_ic);
 	if (!scu_ic->irq_domain) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -184,52 +184,52 @@ err:
 	return rc;
 }
 
-static int __init aspeed_scu_ic_of_init(struct device_node *node,
-					struct device_node *parent)
+static int __init aspeed_scu_ic_of_init(struct device_analde *analde,
+					struct device_analde *parent)
 {
 	struct aspeed_scu_ic *scu_ic = kzalloc(sizeof(*scu_ic), GFP_KERNEL);
 
 	if (!scu_ic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scu_ic->irq_enable = ASPEED_SCU_IC_ENABLE;
 	scu_ic->irq_shift = ASPEED_SCU_IC_SHIFT;
 	scu_ic->num_irqs = ASPEED_SCU_IC_NUM_IRQS;
 	scu_ic->reg = ASPEED_SCU_IC_REG;
 
-	return aspeed_scu_ic_of_init_common(scu_ic, node);
+	return aspeed_scu_ic_of_init_common(scu_ic, analde);
 }
 
-static int __init aspeed_ast2600_scu_ic0_of_init(struct device_node *node,
-						 struct device_node *parent)
+static int __init aspeed_ast2600_scu_ic0_of_init(struct device_analde *analde,
+						 struct device_analde *parent)
 {
 	struct aspeed_scu_ic *scu_ic = kzalloc(sizeof(*scu_ic), GFP_KERNEL);
 
 	if (!scu_ic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scu_ic->irq_enable = ASPEED_AST2600_SCU_IC0_ENABLE;
 	scu_ic->irq_shift = ASPEED_AST2600_SCU_IC0_SHIFT;
 	scu_ic->num_irqs = ASPEED_AST2600_SCU_IC0_NUM_IRQS;
 	scu_ic->reg = ASPEED_AST2600_SCU_IC0_REG;
 
-	return aspeed_scu_ic_of_init_common(scu_ic, node);
+	return aspeed_scu_ic_of_init_common(scu_ic, analde);
 }
 
-static int __init aspeed_ast2600_scu_ic1_of_init(struct device_node *node,
-						 struct device_node *parent)
+static int __init aspeed_ast2600_scu_ic1_of_init(struct device_analde *analde,
+						 struct device_analde *parent)
 {
 	struct aspeed_scu_ic *scu_ic = kzalloc(sizeof(*scu_ic), GFP_KERNEL);
 
 	if (!scu_ic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scu_ic->irq_enable = ASPEED_AST2600_SCU_IC1_ENABLE;
 	scu_ic->irq_shift = ASPEED_AST2600_SCU_IC1_SHIFT;
 	scu_ic->num_irqs = ASPEED_AST2600_SCU_IC1_NUM_IRQS;
 	scu_ic->reg = ASPEED_AST2600_SCU_IC1_REG;
 
-	return aspeed_scu_ic_of_init_common(scu_ic, node);
+	return aspeed_scu_ic_of_init_common(scu_ic, analde);
 }
 
 IRQCHIP_DECLARE(ast2400_scu_ic, "aspeed,ast2400-scu-ic", aspeed_scu_ic_of_init);

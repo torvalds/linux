@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/mps,mp2629.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MP2629 Battery Charger PMIC from Monolithic Power System.
+title: MP2629 Battery Charger PMIC from Moanallithic Power System.
 
 maintainers:
   - Saravanan Sekar <sravanhome@gmail.com>

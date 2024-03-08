@@ -112,7 +112,7 @@ static irqreturn_t lp8788_irq_handler(int irq, void *ptr)
 	int i;
 
 	if (lp8788_read_multi_bytes(lp, LP8788_INT_1, status, NUM_REGS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0 ; i < LP8788_INT_MAX ; i++) {
 		addr = _irq_to_addr(i);
@@ -125,7 +125,7 @@ static irqreturn_t lp8788_irq_handler(int irq, void *ptr)
 		}
 	}
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int lp8788_irq_map(struct irq_domain *d, unsigned int virq,
@@ -137,7 +137,7 @@ static int lp8788_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, irqd);
 	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -158,10 +158,10 @@ int lp8788_irq_init(struct lp8788 *lp, int irq)
 
 	irqd = devm_kzalloc(lp->dev, sizeof(*irqd), GFP_KERNEL);
 	if (!irqd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irqd->lp = lp;
-	irqd->domain = irq_domain_add_linear(lp->dev->of_node, LP8788_INT_MAX,
+	irqd->domain = irq_domain_add_linear(lp->dev->of_analde, LP8788_INT_MAX,
 					&lp8788_domain_ops, irqd);
 	if (!irqd->domain) {
 		dev_err(lp->dev, "failed to add irq domain err\n");

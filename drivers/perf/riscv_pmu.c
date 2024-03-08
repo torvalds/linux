@@ -28,7 +28,7 @@ static bool riscv_perf_user_access(struct perf_event *event)
 }
 
 void arch_perf_update_userpage(struct perf_event *event,
-			       struct perf_event_mmap_page *userpg, u64 now)
+			       struct perf_event_mmap_page *userpg, u64 analw)
 {
 	struct clock_read_data *rd;
 	unsigned int seq;
@@ -60,20 +60,20 @@ void arch_perf_update_userpage(struct perf_event *event,
 
 		/*
 		 * Subtract the cycle base, such that software that
-		 * doesn't know about cap_user_time_short still 'works'
-		 * assuming no wraps.
+		 * doesn't kanalw about cap_user_time_short still 'works'
+		 * assuming anal wraps.
 		 */
 		ns = mul_u64_u32_shr(rd->epoch_cyc, rd->mult, rd->shift);
 		userpg->time_zero -= ns;
 
 	} while (sched_clock_read_retry(seq));
 
-	userpg->time_offset = userpg->time_zero - now;
+	userpg->time_offset = userpg->time_zero - analw;
 
 	/*
-	 * time_shift is not expected to be greater than 31 due to
+	 * time_shift is analt expected to be greater than 31 due to
 	 * the original published conversion algorithm shifting a
-	 * 32-bit value (now specifies a 64-bit value) - refer
+	 * 32-bit value (analw specifies a 64-bit value) - refer
 	 * perf_event_mmap_page documentation in perf_event.h.
 	 */
 	if (userpg->time_shift == 32) {
@@ -151,7 +151,7 @@ u64 riscv_pmu_ctr_get_width_mask(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (hwc->idx == -1)
-		/* Handle init case where idx is not initialized yet */
+		/* Handle init case where idx is analt initialized yet */
 		cwidth = rvpmu->ctr_get_width(0);
 	else
 		cwidth = rvpmu->ctr_get_width(hwc->idx);
@@ -316,13 +316,13 @@ static int riscv_pmu_event_init(struct perf_event *event)
 	hwc->flags = 0;
 	mapped_event = rvpmu->event_map(event, &event_config);
 	if (mapped_event < 0) {
-		pr_debug("event %x:%llx not supported\n", event->attr.type,
+		pr_debug("event %x:%llx analt supported\n", event->attr.type,
 			 event->attr.config);
 		return mapped_event;
 	}
 
 	/*
-	 * idx is set to -1 because the index of a general event should not be
+	 * idx is set to -1 because the index of a general event should analt be
 	 * decided until binding to some counter in pmu->add().
 	 * config will contain the information about counter CSR
 	 * the idx will contain the counter index
@@ -336,7 +336,7 @@ static int riscv_pmu_event_init(struct perf_event *event)
 
 	if (!is_sampling_event(event)) {
 		/*
-		 * For non-sampling runs, limit the sample_period to half
+		 * For analn-sampling runs, limit the sample_period to half
 		 * of the counter width. That way, the new counter value
 		 * is far less likely to overtake the previous one unless
 		 * you have some serious IRQ latency issues.

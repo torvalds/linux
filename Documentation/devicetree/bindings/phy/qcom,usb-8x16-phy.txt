@@ -25,17 +25,17 @@ Qualcomm's APQ8016/MSM8916 USB transceiver controller
 - vddcx-supply:
     Usage: required
     Value type: <phandle>
-    Definition: phandle to the regulator VDCCX supply node.
+    Definition: phandle to the regulator VDCCX supply analde.
 
 - v1p8-supply:
     Usage: required
     Value type: <phandle>
-    Definition: phandle to the regulator 1.8V supply node.
+    Definition: phandle to the regulator 1.8V supply analde.
 
 - v3p3-supply:
     Usage: required
     Value type: <phandle>
-    Definition: phandle to the regulator 3.3V supply node.
+    Definition: phandle to the regulator 3.3V supply analde.
 
 - resets:
     Usage: required

@@ -18,7 +18,7 @@ enum PipePollFlags {
 enum PipeErrors {
 	PIPE_ERROR_INVAL	= -1,
 	PIPE_ERROR_AGAIN	= -2,
-	PIPE_ERROR_NOMEM	= -3,
+	PIPE_ERROR_ANALMEM	= -3,
 	PIPE_ERROR_IO		= -4
 };
 
@@ -27,10 +27,10 @@ enum PipeWakeFlags {
 	/* emulator closed pipe */
 	PIPE_WAKE_CLOSED		= 1 << 0,
 
-	/* pipe can now be read from */
+	/* pipe can analw be read from */
 	PIPE_WAKE_READ			= 1 << 1,
 
-	/* pipe can now be written to */
+	/* pipe can analw be written to */
 	PIPE_WAKE_WRITE			= 1 << 2,
 
 	/* unlock this pipe's DMA buffer */

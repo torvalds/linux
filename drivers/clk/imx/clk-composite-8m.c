@@ -4,7 +4,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -178,7 +178,7 @@ static int imx8m_clk_composite_mux_set_parent(struct clk_hw *hw, u8 index)
 	val = val << mux->shift;
 	reg |= val;
 	/*
-	 * write twice to make sure non-target interface
+	 * write twice to make sure analn-target interface
 	 * SEL_A/B point the same clk input.
 	 */
 	writel(reg, mux->reg);
@@ -210,7 +210,7 @@ struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 					u32 composite_flags,
 					unsigned long flags)
 {
-	struct clk_hw *hw = ERR_PTR(-ENOMEM), *mux_hw;
+	struct clk_hw *hw = ERR_PTR(-EANALMEM), *mux_hw;
 	struct clk_hw *div_hw, *gate_hw = NULL;
 	struct clk_divider *div = NULL;
 	struct clk_gate *gate = NULL;

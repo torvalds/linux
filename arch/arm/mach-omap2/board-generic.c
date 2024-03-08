@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2005 Nokia Corporation
- * Author: Paul Mundt <paul.mundt@nokia.com>
+ * Copyright (C) 2005 Analkia Corporation
+ * Author: Paul Mundt <paul.mundt@analkia.com>
  *
  * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  *
@@ -39,7 +39,7 @@ static void __init __maybe_unused omap_init_time_of(void)
 	timer_probe();
 }
 
-/* Used by am437x for ARM timer in non-SMP configurations */
+/* Used by am437x for ARM timer in analn-SMP configurations */
 #if !defined(CONFIG_SMP) && defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
 void tick_broadcast(const struct cpumask *mask)
 {
@@ -83,7 +83,7 @@ MACHINE_END
 #ifdef CONFIG_ARCH_OMAP3
 /* Some boards need board name for legacy userspace in /proc/cpuinfo */
 static const char *const n900_boards_compat[] __initconst = {
-	"nokia,omap3-n900",
+	"analkia,omap3-n900",
 	NULL,
 };
 
@@ -103,8 +103,8 @@ static void __init rx51_set_system_rev(const struct tag *tags)
 	}
 }
 
-/* Legacy userspace on Nokia N900 needs ATAGS exported in /proc/atags,
- * save them while the data is still not overwritten
+/* Legacy userspace on Analkia N900 needs ATAGS exported in /proc/atags,
+ * save them while the data is still analt overwritten
  */
 static void __init rx51_reserve(void)
 {
@@ -115,7 +115,7 @@ static void __init rx51_reserve(void)
 	omap_reserve();
 }
 
-DT_MACHINE_START(OMAP3_N900_DT, "Nokia RX-51 board")
+DT_MACHINE_START(OMAP3_N900_DT, "Analkia RX-51 board")
 	.reserve	= rx51_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3430_init_early,

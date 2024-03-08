@@ -3,7 +3,7 @@
 .SH NAME
 \fBthermometer\fP - A thermal profiling tool
 
-.SH SYNOPSIS
+.SH SYANALPSIS
 .ft B
 .B thermometer
 .RB [ options ]
@@ -18,7 +18,7 @@ to prevent disrupting the running application we may want to profile.
 This low overhead also allows a high rate sampling for the temperature
 which could be necessary to spot overshots and undershots.
 
-If no configuration file is specified, then all the thermal zones will
+If anal configuration file is specified, then all the thermal zones will
 be monitored at 4Hz, so every 250ms. A configuration file specifies
 the thermal zone names and the desired sampling period. A thermal zone
 name can be a regular expression to specify a group of thermal zone.
@@ -33,9 +33,9 @@ zone temperatures every 250ms and write to the current directory the
 captured files postfixed with the current date.
 
 If a running \fBduration\fP is specified or a \fBcommand\fP, the
-capture ends at the end of the duration if the command did not
+capture ends at the end of the duration if the command did analt
 finished before. The \fBduration\fP can be specified alone as well as
-the \fBcommand\fP. If none is specified, the capture will continue
+the \fBcommand\fP. If analne is specified, the capture will continue
 indefinitively until interrupted by \fBSIGINT\fP or \fBSIGQUIT\fP.
 .PP
 
@@ -50,7 +50,7 @@ The \fB-c <config>, --config <config>\fP option specifies the configuration file
 .PP
 The \fB-d <seconds>, --duration <seconds>\fP option specifies the duration of the capture
 .PP
-The \fB-l <loglevel>, --loglevel <loglevel>\fP option sets the loglevel [DEBUG,INFO,NOTICE,WARN,ERROR]
+The \fB-l <loglevel>, --loglevel <loglevel>\fP option sets the loglevel [DEBUG,INFO,ANALTICE,WARN,ERROR]
 .PP
 The \fB-p <string>, --postfix <string>\fP option appends \fBstring\fP at the end of the capture filenames
 .PP
@@ -89,4 +89,4 @@ is any thermal event. The second one is the temperature in milli
 degree. The first line contains the label of each column.
 
 .SH AUTHOR
-Daniel Lezcano <daniel.lezcano@kernel.org>
+Daniel Lezcaanal <daniel.lezcaanal@kernel.org>

@@ -18,7 +18,7 @@ u32 iwl_mvm_sta_fw_id_mask(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-	/* it's easy when the STA is not an MLD */
+	/* it's easy when the STA is analt an MLD */
 	if (!sta->valid_links)
 		return BIT(mvmsta->deflink.sta_id);
 
@@ -86,7 +86,7 @@ static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
 
 /*
  * Remove a station from the FW table. Before sending the command to remove
- * the station validate that the station is indeed known to the driver (sanity
+ * the station validate that the station is indeed kanalwn to the driver (sanity
  * only).
  */
 static int iwl_mvm_mld_rm_sta_from_fw(struct iwl_mvm *mvm, u32 sta_id)
@@ -96,7 +96,7 @@ static int iwl_mvm_mld_rm_sta_from_fw(struct iwl_mvm *mvm, u32 sta_id)
 	};
 	int ret;
 
-	/* Note: internal stations are marked as error values */
+	/* Analte: internal stations are marked as error values */
 	if (!rcu_access_pointer(mvm->fw_id_to_mac_id[sta_id])) {
 		IWL_ERR(mvm, "Invalid station id %d\n", sta_id);
 		return -EINVAL;
@@ -144,7 +144,7 @@ int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 		mvm->trans->trans_cfg->base_params->wd_timeout;
 
 	if (WARN_ON_ONCE(sta->sta_id == IWL_MVM_INVALID_STA))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (sta->type == STATION_TYPE_AUX)
 		ret = iwl_mvm_add_aux_sta_to_fw(mvm, sta, link_id);
@@ -154,7 +154,7 @@ int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 		return ret;
 
 	/*
-	 * For 22000 firmware and on we cannot add queue to a station unknown
+	 * For 22000 firmware and on we cananalt add queue to a station unkanalwn
 	 * to firmware so enable queue here - after the station was added
 	 */
 	txq = iwl_mvm_tvqm_enable_txq(mvm, NULL, sta->sta_id, tid,
@@ -183,7 +183,7 @@ static int iwl_mvm_mld_add_int_sta(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* qmask argument is not used in the new tx api, send a don't care */
+	/* qmask argument is analt used in the new tx api, send a don't care */
 	ret = iwl_mvm_allocate_int_sta(mvm, int_sta, 0, iftype,
 				       sta_type);
 	if (ret)
@@ -201,7 +201,7 @@ static int iwl_mvm_mld_add_int_sta(struct iwl_mvm *mvm,
 
 /* Allocate a new station entry for the broadcast station to the given vif,
  * and send it to the FW.
- * Note that each P2P mac should have its own broadcast station.
+ * Analte that each P2P mac should have its own broadcast station.
  */
 int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *link_conf)
@@ -240,7 +240,7 @@ int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 /* Allocate a new station entry for the broadcast station to the given vif,
  * and send it to the FW.
- * Note that each AP/GO mac should have its own multicast station.
+ * Analte that each AP/GO mac should have its own multicast station.
  */
 int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *link_conf)
@@ -257,11 +257,11 @@ int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (WARN_ON(vif->type != NL80211_IFTYPE_AP &&
 		    vif->type != NL80211_IFTYPE_ADHOC))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* In IBSS, ieee80211_check_queues() sets the cab_queue to be
 	 * invalid, so make sure we use the queue we want.
-	 * Note that this is done here as we want to avoid making DQA
+	 * Analte that this is done here as we want to avoid making DQA
 	 * changes in mac80211 layer.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC)
@@ -480,7 +480,7 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		cmd.mimo_protection = cpu_to_le32(1);
 		break;
 	case IEEE80211_SMPS_OFF:
-		/* nothing */
+		/* analthing */
 		break;
 	}
 
@@ -557,14 +557,14 @@ static int iwl_mvm_mld_alloc_sta_link(struct iwl_mvm *mvm,
 					  ieee80211_vif_type_p2p(vif));
 
 	if (sta_id == IWL_MVM_INVALID_STA)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (rcu_access_pointer(sta->link[link_id]) == &sta->deflink) {
 		link = &mvm_sta->deflink;
 	} else {
 		link = kzalloc(sizeof(*link), GFP_KERNEL);
 		if (!link)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	link->sta_id = sta_id;
@@ -627,7 +627,7 @@ static int iwl_mvm_alloc_sta_after_restart(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_link_sta *link_sta;
 	unsigned int link_id;
-	/* no active link found */
+	/* anal active link found */
 	int ret = -EINVAL;
 	int sta_id;
 
@@ -874,7 +874,7 @@ void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,
 	cmd.sta_id = cpu_to_le32(mvmsta->deflink.sta_id);
 	cmd.disable = cpu_to_le32(disable);
 
-	if (WARN_ON(iwl_mvm_has_no_host_disable_tx(mvm)))
+	if (WARN_ON(iwl_mvm_has_anal_host_disable_tx(mvm)))
 		return;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,

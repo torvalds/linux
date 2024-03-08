@@ -14,7 +14,7 @@ Description
 -----------
 
 This driver adds support for reading the built-in temperature sensor on the
-JH7100 and JH7110 RISC-V SoCs by StarFive Technology Co. Ltd.
+JH7100 and JH7110 RISC-V SoCs by StarFive Techanallogy Co. Ltd.
 
 ``sysfs`` interface
 -------------------

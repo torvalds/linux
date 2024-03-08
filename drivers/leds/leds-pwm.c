@@ -57,12 +57,12 @@ static int led_pwm_set(struct led_classdev *led_cdev,
 	return pwm_apply_might_sleep(led_dat->pwm, &led_dat->pwmstate);
 }
 
-__attribute__((nonnull))
+__attribute__((analnnull))
 static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
-		       struct led_pwm *led, struct fwnode_handle *fwnode)
+		       struct led_pwm *led, struct fwanalde_handle *fwanalde)
 {
 	struct led_pwm_data *led_data = &priv->leds[priv->num_leds];
-	struct led_init_data init_data = { .fwnode = fwnode };
+	struct led_init_data init_data = { .fwanalde = fwanalde };
 	int ret;
 
 	led_data->active_low = led->active_low;
@@ -71,7 +71,7 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 	led_data->cdev.max_brightness = led->max_brightness;
 	led_data->cdev.flags = LED_CORE_SUSPENDRESUME;
 
-	led_data->pwm = devm_fwnode_pwm_get(dev, fwnode, NULL);
+	led_data->pwm = devm_fwanalde_pwm_get(dev, fwanalde, NULL);
 	if (IS_ERR(led_data->pwm))
 		return dev_err_probe(dev, PTR_ERR(led_data->pwm),
 				     "unable to request PWM for %s\n",
@@ -132,32 +132,32 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 	return 0;
 }
 
-static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)
+static int led_pwm_create_fwanalde(struct device *dev, struct led_pwm_priv *priv)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct led_pwm led;
 	int ret;
 
-	device_for_each_child_node(dev, fwnode) {
+	device_for_each_child_analde(dev, fwanalde) {
 		memset(&led, 0, sizeof(led));
 
-		ret = fwnode_property_read_string(fwnode, "label", &led.name);
-		if (ret && is_of_node(fwnode))
-			led.name = to_of_node(fwnode)->name;
+		ret = fwanalde_property_read_string(fwanalde, "label", &led.name);
+		if (ret && is_of_analde(fwanalde))
+			led.name = to_of_analde(fwanalde)->name;
 
 		if (!led.name) {
 			ret = -EINVAL;
 			goto err_child_out;
 		}
 
-		led.active_low = fwnode_property_read_bool(fwnode,
+		led.active_low = fwanalde_property_read_bool(fwanalde,
 							   "active-low");
-		fwnode_property_read_u32(fwnode, "max-brightness",
+		fwanalde_property_read_u32(fwanalde, "max-brightness",
 					 &led.max_brightness);
 
-		led.default_state = led_init_default_state_get(fwnode);
+		led.default_state = led_init_default_state_get(fwanalde);
 
-		ret = led_pwm_add(dev, priv, &led, fwnode);
+		ret = led_pwm_add(dev, priv, &led, fwanalde);
 		if (ret)
 			goto err_child_out;
 	}
@@ -165,7 +165,7 @@ static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)
 	return 0;
 
 err_child_out:
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 	return ret;
 }
 
@@ -175,7 +175,7 @@ static int led_pwm_probe(struct platform_device *pdev)
 	int ret = 0;
 	int count;
 
-	count = device_get_child_node_count(&pdev->dev);
+	count = device_get_child_analde_count(&pdev->dev);
 
 	if (!count)
 		return -EINVAL;
@@ -183,9 +183,9 @@ static int led_pwm_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds, count),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = led_pwm_create_fwnode(&pdev->dev, priv);
+	ret = led_pwm_create_fwanalde(&pdev->dev, priv);
 
 	if (ret)
 		return ret;

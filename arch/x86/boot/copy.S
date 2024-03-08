@@ -15,7 +15,7 @@
 	.code16
 	.text
 
-SYM_FUNC_START_NOALIGN(memcpy)
+SYM_FUNC_START_ANALALIGN(memcpy)
 	pushw	%si
 	pushw	%di
 	movw	%ax, %di
@@ -31,7 +31,7 @@ SYM_FUNC_START_NOALIGN(memcpy)
 	retl
 SYM_FUNC_END(memcpy)
 
-SYM_FUNC_START_NOALIGN(memset)
+SYM_FUNC_START_ANALALIGN(memset)
 	pushw	%di
 	movw	%ax, %di
 	movzbl	%dl, %eax
@@ -46,7 +46,7 @@ SYM_FUNC_START_NOALIGN(memset)
 	retl
 SYM_FUNC_END(memset)
 
-SYM_FUNC_START_NOALIGN(copy_from_fs)
+SYM_FUNC_START_ANALALIGN(copy_from_fs)
 	pushw	%ds
 	pushw	%fs
 	popw	%ds
@@ -55,7 +55,7 @@ SYM_FUNC_START_NOALIGN(copy_from_fs)
 	retl
 SYM_FUNC_END(copy_from_fs)
 
-SYM_FUNC_START_NOALIGN(copy_to_fs)
+SYM_FUNC_START_ANALALIGN(copy_to_fs)
 	pushw	%es
 	pushw	%fs
 	popw	%es

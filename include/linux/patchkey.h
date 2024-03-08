@@ -7,7 +7,7 @@
  * This exists because awe_voice.h defined its own _PATCHKEY and it wasn't
  * clear whether removing this would break anything in userspace.
  *
- * Do not include this file directly.  Please use <sys/soundcard.h> instead.
+ * Do analt include this file directly.  Please use <sys/soundcard.h> instead.
  * For kernel code, use <linux/soundcard.h>
  */
 #ifndef _LINUX_PATCHKEY_H
@@ -21,6 +21,6 @@
 #  elif defined(__LITTLE_ENDIAN)
 #    define _PATCHKEY(id) ((id<<8)|0x00fd)
 #  else
-#    error "could not determine byte order"
+#    error "could analt determine byte order"
 #  endif
 #endif /* _LINUX_PATCHKEY_H */

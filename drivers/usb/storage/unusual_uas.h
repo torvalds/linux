@@ -10,7 +10,7 @@
  */
 
 /*
- * IMPORTANT NOTE: This file must be included in another file which defines
+ * IMPORTANT ANALTE: This file must be included in aanalther file which defines
  * a UNUSUAL_DEV macro before this file is included.
  */
 
@@ -33,7 +33,7 @@ UNUSUAL_DEV(0x054c, 0x087d, 0x0000, 0x9999,
 		"Sony",
 		"PSZ-HA*",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES),
+		US_FL_ANAL_REPORT_OPCODES),
 
 /*
  *  Initially Reported-by: Julian Groß <julian.g@posteo.de>
@@ -43,21 +43,21 @@ UNUSUAL_DEV(0x059f, 0x105f, 0x0000, 0x9999,
 		"LaCie",
 		"2Big Quadra USB3",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES | US_FL_NO_SAME),
+		US_FL_ANAL_REPORT_OPCODES | US_FL_ANAL_SAME),
 
 /* Reported-by: Julian Sikorski <belegdol@gmail.com> */
 UNUSUAL_DEV(0x059f, 0x1061, 0x0000, 0x9999,
 		"LaCie",
 		"Rugged USB3-FW",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES | US_FL_NO_SAME),
+		US_FL_ANAL_REPORT_OPCODES | US_FL_ANAL_SAME),
 
-/* Reported-by: Hongling Zeng <zenghongling@kylinos.cn> */
+/* Reported-by: Hongling Zeng <zenghongling@kylianals.cn> */
 UNUSUAL_DEV(0x090c, 0x2000, 0x0000, 0x9999,
 		"Hiksemi",
 		"External HDD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
+		US_FL_IGANALRE_UAS),
 
 /*
  * Apricorn USB3 dongle sometimes returns "USBSUSBSUSBS" in response to SCSI
@@ -67,42 +67,42 @@ UNUSUAL_DEV(0x0984, 0x0301, 0x0128, 0x0128,
 		"Apricorn",
 		"",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
+		US_FL_IGANALRE_UAS),
 
-/* Reported-by: Tom Hu <huxiaoying@kylinos.cn> */
+/* Reported-by: Tom Hu <huxiaoying@kylianals.cn> */
 UNUSUAL_DEV(0x0b05, 0x1932, 0x0000, 0x9999,
 		"ASUS",
 		"External HDD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
+		US_FL_IGANALRE_UAS),
 
-/* Reported-by: David Webb <djw@noc.ac.uk> */
+/* Reported-by: David Webb <djw@analc.ac.uk> */
 UNUSUAL_DEV(0x0bc2, 0x331a, 0x0000, 0x9999,
 		"Seagate",
 		"Expansion Desk",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_LUNS),
+		US_FL_ANAL_REPORT_LUNS),
 
 /* Reported-by: Benjamin Tissoires <benjamin.tissoires@redhat.com> */
 UNUSUAL_DEV(0x13fd, 0x3940, 0x0000, 0x9999,
 		"Initio Corporation",
 		"INIC-3069",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_ATA_1X | US_FL_IGNORE_RESIDUE),
+		US_FL_ANAL_ATA_1X | US_FL_IGANALRE_RESIDUE),
 
 /* Reported-by: Tom Arild Naess <tanaess@gmail.com> */
 UNUSUAL_DEV(0x152d, 0x0539, 0x0000, 0x9999,
 		"JMicron",
 		"JMS539",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES),
+		US_FL_ANAL_REPORT_OPCODES),
 
 /* Reported-by: Claudio Bizzarri <claudio.bizzarri@gmail.com> */
 UNUSUAL_DEV(0x152d, 0x0567, 0x0000, 0x9999,
 		"JMicron",
 		"JMS567",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_BROKEN_FUA | US_FL_NO_REPORT_OPCODES),
+		US_FL_BROKEN_FUA | US_FL_ANAL_REPORT_OPCODES),
 
 /* Reported-by: David Kozub <zub@linux.fjfi.cvut.cz> */
 UNUSUAL_DEV(0x152d, 0x0578, 0x0000, 0x9999,
@@ -116,66 +116,66 @@ UNUSUAL_DEV(0x152d, 0x0583, 0x0000, 0x9999,
 		"JMicron",
 		"JMS583Gen 2",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES),
+		US_FL_ANAL_REPORT_OPCODES),
 
-/* Reported-by: Thinh Nguyen <thinhn@synopsys.com> */
+/* Reported-by: Thinh Nguyen <thinhn@syanalpsys.com> */
 UNUSUAL_DEV(0x154b, 0xf00b, 0x0000, 0x9999,
 		"PNY",
 		"Pro Elite SSD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_ATA_1X),
+		US_FL_ANAL_ATA_1X),
 
-/* Reported-by: Thinh Nguyen <thinhn@synopsys.com> */
+/* Reported-by: Thinh Nguyen <thinhn@syanalpsys.com> */
 UNUSUAL_DEV(0x154b, 0xf00d, 0x0000, 0x9999,
 		"PNY",
 		"Pro Elite SSD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_ATA_1X),
+		US_FL_ANAL_ATA_1X),
 
-/* Reported-by: Hongling Zeng <zenghongling@kylinos.cn> */
+/* Reported-by: Hongling Zeng <zenghongling@kylianals.cn> */
 UNUSUAL_DEV(0x17ef, 0x3899, 0x0000, 0x9999,
 		"Thinkplus",
 		"External HDD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
+		US_FL_IGANALRE_UAS),
 
 /* Reported-by: Hans de Goede <hdegoede@redhat.com> */
 UNUSUAL_DEV(0x2109, 0x0711, 0x0000, 0x9999,
 		"VIA",
 		"VL711",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_ATA_1X),
+		US_FL_ANAL_ATA_1X),
 
-/* Reported-by: Icenowy Zheng <icenowy@aosc.io> */
+/* Reported-by: Iceanalwy Zheng <iceanalwy@aosc.io> */
 UNUSUAL_DEV(0x2537, 0x1068, 0x0000, 0x9999,
-		"Norelsys",
+		"Analrelsys",
 		"NS1068X",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
+		US_FL_IGANALRE_UAS),
 
 /*
  * Initially Reported-by: Takeo Nakayama <javhera@gmx.com>
- * UAS Ignore Reported by Steven Ellis <sellis@redhat.com>
+ * UAS Iganalre Reported by Steven Ellis <sellis@redhat.com>
  */
 UNUSUAL_DEV(0x357d, 0x7788, 0x0000, 0x9999,
 		"JMicron",
 		"JMS566",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES | US_FL_IGNORE_UAS),
+		US_FL_ANAL_REPORT_OPCODES | US_FL_IGANALRE_UAS),
 
 /* Reported-by: Hans de Goede <hdegoede@redhat.com> */
 UNUSUAL_DEV(0x4971, 0x1012, 0x0000, 0x9999,
 		"Hitachi",
 		"External HDD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
+		US_FL_IGANALRE_UAS),
 
 /* Reported-by: Richard Henderson <rth@redhat.com> */
 UNUSUAL_DEV(0x4971, 0x8017, 0x0000, 0x9999,
 		"SimpleTech",
 		"External HDD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES),
+		US_FL_ANAL_REPORT_OPCODES),
 
 /* "G-DRIVE" external HDD hangs on write without these.
  * Patch submitted by Alexander Kappner <agk@godking.net>

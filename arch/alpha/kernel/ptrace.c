@@ -10,7 +10,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/security.h>
@@ -39,7 +39,7 @@ enum {
 #define BREAKINST	0x00000080	/* call_pal bpt */
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does analt yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -63,8 +63,8 @@ enum {
 /* 
  * The following table maps a register index into the stack offset at
  * which the register is saved.  Register indices are 0-31 for integer
- * regs, 32-63 for fp regs, and 64 for the pc.  Notice that sp and
- * zero have no stack-slot and need to be treated specially (see
+ * regs, 32-63 for fp regs, and 64 for the pc.  Analtice that sp and
+ * zero have anal stack-slot and need to be treated specially (see
  * get_reg/put_reg below).
  */
 enum {
@@ -103,56 +103,56 @@ static int regoff[] = {
 static unsigned long zero;
 
 /*
- * Get address of register REGNO in task TASK.
+ * Get address of register REGANAL in task TASK.
  */
 static unsigned long *
-get_reg_addr(struct task_struct * task, unsigned long regno)
+get_reg_addr(struct task_struct * task, unsigned long reganal)
 {
 	unsigned long *addr;
 
-	if (regno == 30) {
+	if (reganal == 30) {
 		addr = &task_thread_info(task)->pcb.usp;
-	} else if (regno == 65) {
+	} else if (reganal == 65) {
 		addr = &task_thread_info(task)->pcb.unique;
-	} else if (regno == 31 || regno > 65) {
+	} else if (reganal == 31 || reganal > 65) {
 		zero = 0;
 		addr = &zero;
 	} else {
-		addr = task_stack_page(task) + regoff[regno];
+		addr = task_stack_page(task) + regoff[reganal];
 	}
 	return addr;
 }
 
 /*
- * Get contents of register REGNO in task TASK.
+ * Get contents of register REGANAL in task TASK.
  */
 static unsigned long
-get_reg(struct task_struct * task, unsigned long regno)
+get_reg(struct task_struct * task, unsigned long reganal)
 {
 	/* Special hack for fpcr -- combine hardware and software bits.  */
-	if (regno == 63) {
-		unsigned long fpcr = *get_reg_addr(task, regno);
+	if (reganal == 63) {
+		unsigned long fpcr = *get_reg_addr(task, reganal);
 		unsigned long swcr
 		  = task_thread_info(task)->ieee_state & IEEE_SW_MASK;
 		swcr = swcr_update_status(swcr, fpcr);
 		return fpcr | swcr;
 	}
-	return *get_reg_addr(task, regno);
+	return *get_reg_addr(task, reganal);
 }
 
 /*
- * Write contents of register REGNO in task TASK.
+ * Write contents of register REGANAL in task TASK.
  */
 static int
-put_reg(struct task_struct *task, unsigned long regno, unsigned long data)
+put_reg(struct task_struct *task, unsigned long reganal, unsigned long data)
 {
-	if (regno == 63) {
+	if (reganal == 63) {
 		task_thread_info(task)->ieee_state
 		  = ((task_thread_info(task)->ieee_state & ~IEEE_SW_MASK)
 		     | (data & IEEE_SW_MASK));
 		data = (data & FPCR_DYN_MASK) | ieee_swcr_to_fpcr(data);
 	}
-	*get_reg_addr(task, regno) = data;
+	*get_reg_addr(task, reganal) = data;
 	return 0;
 }
 
@@ -191,15 +191,15 @@ ptrace_set_bpt(struct task_struct * child)
 	if (op_code >= 0x30) {
 		/*
 		 * It's a branch: instead of trying to figure out
-		 * whether the branch will be taken or not, we'll put
+		 * whether the branch will be taken or analt, we'll put
 		 * a breakpoint at either location.  This is simpler,
-		 * more reliable, and probably not a whole lot slower
+		 * more reliable, and probably analt a whole lot slower
 		 * than the alternative approach of emulating the
 		 * branch (emulation can be tricky for fp branches).
 		 */
 		displ = ((s32)(insn << 11)) >> 9;
 		task_thread_info(child)->bpt_addr[nsaved++] = pc + 4;
-		if (displ)		/* guard against unoptimized code */
+		if (displ)		/* guard against uanalptimized code */
 			task_thread_info(child)->bpt_addr[nsaved++]
 			  = pc + 4 + displ;
 		DBG(DBG_BPT, ("execing branch\n"));
@@ -209,7 +209,7 @@ ptrace_set_bpt(struct task_struct * child)
 		DBG(DBG_BPT, ("execing jump\n"));
 	} else {
 		task_thread_info(child)->bpt_addr[nsaved++] = pc + 4;
-		DBG(DBG_BPT, ("execing normal insn\n"));
+		DBG(DBG_BPT, ("execing analrmal insn\n"));
 	}
 
 	/* install breakpoints: */
@@ -231,7 +231,7 @@ ptrace_set_bpt(struct task_struct * child)
 }
 
 /*
- * Ensure no single-step breakpoint is pending.  Returns non-zero
+ * Ensure anal single-step breakpoint is pending.  Returns analn-zero
  * value if child was being single-stepped.
  */
 int
@@ -267,7 +267,7 @@ void user_disable_single_step(struct task_struct *child)
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure the single step bit is not set.
+ * Make sure the single step bit is analt set.
  */
 void ptrace_disable(struct task_struct *child)
 { 

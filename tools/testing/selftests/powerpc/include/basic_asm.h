@@ -23,8 +23,8 @@
 	ori	reg, reg, (expr)@l;
 
 /*
- * Note: These macros assume that variables being stored on the stack are
- * sizeof(long), while this is usually the case it may not always be the
+ * Analte: These macros assume that variables being stored on the stack are
+ * sizeof(long), while this is usually the case it may analt always be the
  * case for each use case.
  */
 #ifdef  __powerpc64__
@@ -75,11 +75,11 @@
 	__STACK_FRAME_LOCAL(num_params, var)
 
 /*
- * It is very important to note here that _extra is the extra amount of
+ * It is very important to analte here that _extra is the extra amount of
  * stack space needed. This space can be accessed using STACK_FRAME_PARAM()
  * or STACK_FRAME_LOCAL() macros.
  *
- * r1 and r2 are not defined in ppc-asm.h (instead they are defined as sp
+ * r1 and r2 are analt defined in ppc-asm.h (instead they are defined as sp
  * and toc). Kernel programmers tend to prefer rX even for r1 and r2, hence
  * %1 and %r2. r0 is defined in ppc-asm.h and therefore %r0 gets
  * preprocessed incorrectly, hence r0.

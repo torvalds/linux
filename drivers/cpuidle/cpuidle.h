@@ -7,10 +7,10 @@
 #define __DRIVER_CPUIDLE_H
 
 /* For internal use only */
-extern char param_governor[];
-extern struct cpuidle_governor *cpuidle_curr_governor;
-extern struct cpuidle_governor *cpuidle_prev_governor;
-extern struct list_head cpuidle_governors;
+extern char param_goveranalr[];
+extern struct cpuidle_goveranalr *cpuidle_curr_goveranalr;
+extern struct cpuidle_goveranalr *cpuidle_prev_goveranalr;
+extern struct list_head cpuidle_goveranalrs;
 extern struct list_head cpuidle_detected_devices;
 extern struct mutex cpuidle_lock;
 extern spinlock_t cpuidle_driver_lock;
@@ -22,9 +22,9 @@ extern int cpuidle_enter_state(struct cpuidle_device *dev,
 extern void cpuidle_install_idle_handler(void);
 extern void cpuidle_uninstall_idle_handler(void);
 
-/* governors */
-extern struct cpuidle_governor *cpuidle_find_governor(const char *str);
-extern int cpuidle_switch_governor(struct cpuidle_governor *gov);
+/* goveranalrs */
+extern struct cpuidle_goveranalr *cpuidle_find_goveranalr(const char *str);
+extern int cpuidle_switch_goveranalr(struct cpuidle_goveranalr *gov);
 
 /* sysfs */
 

@@ -27,7 +27,7 @@
  *
  * As realized in the 405EX[r], this controller features:
  *
- *   - Support for registered- and non-registered DDR1 and DDR2 memory.
+ *   - Support for registered- and analn-registered DDR1 and DDR2 memory.
  *   - 32-bit or 16-bit memory interface with optional ECC.
  *
  *     o ECC support includes:
@@ -78,7 +78,7 @@
  *
  * Eventually, this driver will likely be adapted to the above variant
  * realizations of this controller as well as broken apart to handle
- * the other known ECC-capable controllers prevalent in other 4xx
+ * the other kanalwn ECC-capable controllers prevalent in other 4xx
  * processors:
  *
  *   - IBM SDRAM (405GP, 405CR and 405EP) "ibm,sdram-4xx"
@@ -86,7 +86,7 @@
  *   - Denali DDR1/DDR2 (440EPX and 440GRX) "denali,sdram-4xx-ddr2"
  *
  * For this controller, unfortunately, correctable errors report
- * nothing more than the beat/cycle and byte/lane the correction
+ * analthing more than the beat/cycle and byte/lane the correction
  * occurred on and the check bit group that covered the error.
  *
  * In contrast, uncorrectable errors also report the failing address,
@@ -106,7 +106,7 @@
 
 #define EDAC_OPSTATE_INT_STR		"interrupt"
 #define EDAC_OPSTATE_POLL_STR		"polled"
-#define EDAC_OPSTATE_UNKNOWN_STR	"unknown"
+#define EDAC_OPSTATE_UNKANALWN_STR	"unkanalwn"
 
 #define PPC4XX_EDAC_MODULE_NAME		"ppc4xx_edac"
 #define PPC4XX_EDAC_MODULE_REVISION	"v1.0.0"
@@ -181,7 +181,7 @@ struct ppc4xx_ecc_status {
 /* Global Variables */
 
 /*
- * Device tree node type and compatible tuples this driver can match
+ * Device tree analde type and compatible tuples this driver can match
  * on.
  */
 static const struct of_device_id ppc4xx_edac_match[] = {
@@ -326,7 +326,7 @@ ppc4xx_edac_generate_bank_message(const struct mem_ctl_info *mci,
 		}
 	}
 
-	n = snprintf(buffer, size, "%s; ", rows ? "" : "None");
+	n = snprintf(buffer, size, "%s; ", rows ? "" : "Analne");
 
 	if (n < 0 || n >= size)
 		goto fail;
@@ -366,8 +366,8 @@ ppc4xx_edac_generate_checkbit_message(const struct mem_ctl_info *mci,
 	const char *ckber = NULL;
 
 	switch (status->ecces & SDRAM_ECCES_CKBER_MASK) {
-	case SDRAM_ECCES_CKBER_NONE:
-		ckber = "None";
+	case SDRAM_ECCES_CKBER_ANALNE:
+		ckber = "Analne";
 		break;
 	case SDRAM_ECCES_CKBER_32_ECC_0_3:
 		ckber = "ECC0:3";
@@ -382,7 +382,7 @@ ppc4xx_edac_generate_checkbit_message(const struct mem_ctl_info *mci,
 			ckber = "ECC4:8";
 			break;
 		default:
-			ckber = "Unknown";
+			ckber = "Unkanalwn";
 			break;
 		}
 		break;
@@ -390,7 +390,7 @@ ppc4xx_edac_generate_checkbit_message(const struct mem_ctl_info *mci,
 		ckber = "ECC0:8";
 		break;
 	default:
-		ckber = "Unknown";
+		ckber = "Unkanalwn";
 		break;
 	}
 
@@ -449,7 +449,7 @@ ppc4xx_edac_generate_lane_message(const struct mem_ctl_info *mci,
 		}
 	}
 
-	n = snprintf(buffer, size, "%s; ", lanes ? "" : "None");
+	n = snprintf(buffer, size, "%s; ", lanes ? "" : "Analne");
 
 	if (n < 0 || n >= size)
 		goto fail;
@@ -547,7 +547,7 @@ ppc4xx_edac_generate_plb_message(const struct mem_ctl_info *mci,
 	if ((status->besr & SDRAM_BESR_MASK) == 0)
 		return 0;
 
-	if ((status->besr & SDRAM_BESR_M0ET_MASK) == SDRAM_BESR_M0ET_NONE)
+	if ((status->besr & SDRAM_BESR_M0ET_MASK) == SDRAM_BESR_M0ET_ANALNE)
 		return 0;
 
 	read = ((status->besr & SDRAM_BESR_M0RW_MASK) == SDRAM_BESR_M0RW_READ);
@@ -560,7 +560,7 @@ ppc4xx_edac_generate_plb_message(const struct mem_ctl_info *mci,
 			master,
 			(((master >= SDRAM_PLB_M0ID_FIRST) &&
 			  (master <= SDRAM_PLB_M0ID_LAST)) ?
-			 ppc4xx_plb_masters[master] : "UNKNOWN"));
+			 ppc4xx_plb_masters[master] : "UNKANALWN"));
 }
 
 /**
@@ -693,9 +693,9 @@ ppc4xx_ecc_clear_status(const struct mem_ctl_info *mci,
  *          the correctable error being handled and reported.
  *
  * This routine handles an ibm,sdram-4xx-ddr2 controller ECC
- * correctable error. Per the aforementioned discussion, there's not
- * enough status available to use the full EDAC correctable error
- * interface, so we just pass driver-unique message to the "no info"
+ * correctable error. Per the aforementioned discussion, there's analt
+ * eanalugh status available to use the full EDAC correctable error
+ * interface, so we just pass driver-unique message to the "anal info"
  * interface.
  */
 static void
@@ -828,7 +828,7 @@ static enum dev_type ppc4xx_edac_get_dtype(u32 mcopt1)
 	case SDRAM_MCOPT1_WDTH_32:
 		return DEV_X4;
 	default:
-		return DEV_UNKNOWN;
+		return DEV_UNKANALWN;
 	}
 }
 
@@ -853,7 +853,7 @@ static enum mem_type ppc4xx_edac_get_mtype(u32 mcopt1)
 	case SDRAM_MCOPT1_DDR1_TYPE:
 		return rden ? MEM_RDDR : MEM_DDR;
 	default:
-		return MEM_UNKNOWN;
+		return MEM_UNKANALWN;
 	}
 }
 
@@ -871,7 +871,7 @@ static enum mem_type ppc4xx_edac_get_mtype(u32 mcopt1)
  * controller bank/rank is mapped to a row.
  *
  * Returns 0 if OK; otherwise, -EINVAL if the memory bank size
- * configuration cannot be determined.
+ * configuration cananalt be determined.
  */
 static int ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 {
@@ -895,7 +895,7 @@ static int ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 	else if (mci->edac_cap & EDAC_FLAG_EC)
 		edac_mode = EDAC_EC;
 	else
-		edac_mode = EDAC_NONE;
+		edac_mode = EDAC_ANALNE;
 
 	/*
 	 * Initialize each chip select row structure which correspond
@@ -948,8 +948,8 @@ static int ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 		 * here. The SDRAM_ECCES register allows resolution of
 		 * an error down to a nibble which would potentially
 		 * argue for a grain of '1' byte, even though we only
-		 * know the associated address for uncorrectable
-		 * errors. This value is not used at present for
+		 * kanalw the associated address for uncorrectable
+		 * errors. This value is analt used at present for
 		 * anything other than error reporting so getting it
 		 * wrong should be of little consequence. Other
 		 * possible values would be the PLB width (16), the
@@ -976,7 +976,7 @@ static int ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
  * ppc4xx_edac_mc_init - initialize driver instance
  * @mci: A pointer to the EDAC memory controller instance being
  *       initialized.
- * @op: A pointer to the OpenFirmware device tree node associated
+ * @op: A pointer to the OpenFirmware device tree analde associated
  *      with the controller this EDAC instance is bound to.
  * @dcr_host: A pointer to the DCR data containing the DCR mapping
  *            for this controller instance.
@@ -997,7 +997,7 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	int status = 0;
 	const u32 memcheck = (mcopt1 & SDRAM_MCOPT1_MCHK_MASK);
 	struct ppc4xx_edac_pdata *pdata = NULL;
-	const struct device_node *np = op->dev.of_node;
+	const struct device_analde *np = op->dev.of_analde;
 
 	if (of_match_device(ppc4xx_edac_match, &op->dev) == NULL)
 		return -EINVAL;
@@ -1017,12 +1017,12 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	mci->mtype_cap		= (MEM_FLAG_DDR | MEM_FLAG_RDDR |
 				   MEM_FLAG_DDR2 | MEM_FLAG_RDDR2);
 
-	mci->edac_ctl_cap	= (EDAC_FLAG_NONE |
+	mci->edac_ctl_cap	= (EDAC_FLAG_ANALNE |
 				   EDAC_FLAG_EC |
 				   EDAC_FLAG_SECDED);
 
-	mci->scrub_cap		= SCRUB_NONE;
-	mci->scrub_mode		= SCRUB_NONE;
+	mci->scrub_cap		= SCRUB_ANALNE;
+	mci->scrub_mode		= SCRUB_ANALNE;
 
 	/*
 	 * Update the actual capabilites based on the MCOPT1[MCHK]
@@ -1038,7 +1038,7 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 		mci->scrub_mode	= SCRUB_SW_SRC;
 		break;
 	default:
-		mci->edac_cap	= EDAC_FLAG_NONE;
+		mci->edac_cap	= EDAC_FLAG_ANALNE;
 		break;
 	}
 
@@ -1066,17 +1066,17 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 
 /**
  * ppc4xx_edac_register_irq - setup and register controller interrupts
- * @op: A pointer to the OpenFirmware device tree node associated
+ * @op: A pointer to the OpenFirmware device tree analde associated
  *      with the controller this EDAC instance is bound to.
  * @mci: A pointer to the EDAC memory controller instance
  *       associated with the ibm,sdram-4xx-ddr2 controller for which
  *       interrupts are being registered.
  *
  * This routine parses the correctable (CE) and uncorrectable error (UE)
- * interrupts from the device tree node and maps and assigns them to
+ * interrupts from the device tree analde and maps and assigns them to
  * the associated EDAC memory controller instance.
  *
- * Returns 0 if OK; otherwise, -ENODEV if the interrupts could not be
+ * Returns 0 if OK; otherwise, -EANALDEV if the interrupts could analt be
  * mapped and assigned.
  */
 static int ppc4xx_edac_register_irq(struct platform_device *op,
@@ -1085,7 +1085,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 	int status = 0;
 	int ded_irq, sec_irq;
 	struct ppc4xx_edac_pdata *pdata = mci->pvt_info;
-	struct device_node *np = op->dev.of_node;
+	struct device_analde *np = op->dev.of_analde;
 
 	ded_irq = irq_of_parse_and_map(np, INTMAP_ECCDED_INDEX);
 	sec_irq = irq_of_parse_and_map(np, INTMAP_ECCSEC_INDEX);
@@ -1093,7 +1093,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 	if (!ded_irq || !sec_irq) {
 		ppc4xx_edac_mc_printk(KERN_ERR, mci,
 				      "Unable to map interrupts.\n");
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto fail;
 	}
 
@@ -1107,7 +1107,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 		ppc4xx_edac_mc_printk(KERN_ERR, mci,
 				      "Unable to request irq %d for ECC DED",
 				      ded_irq);
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto fail1;
 	}
 
@@ -1121,7 +1121,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 		ppc4xx_edac_mc_printk(KERN_ERR, mci,
 				      "Unable to request irq %d for ECC SEC",
 				      sec_irq);
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto fail2;
 	}
 
@@ -1145,7 +1145,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 
 /**
  * ppc4xx_edac_map_dcrs - locate and map controller registers
- * @np: A pointer to the device tree node containing the DCR
+ * @np: A pointer to the device tree analde containing the DCR
  *      resources to map.
  * @dcr_host: A pointer to the DCR data to populate with the
  *            DCR mapping.
@@ -1157,7 +1157,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
  * Returns 0 if the DCRs were successfully mapped; otherwise, < 0 on
  * error.
  */
-static int ppc4xx_edac_map_dcrs(const struct device_node *np,
+static int ppc4xx_edac_map_dcrs(const struct device_analde *np,
 				dcr_host_t *dcr_host)
 {
 	unsigned int dcr_base, dcr_len;
@@ -1173,14 +1173,14 @@ static int ppc4xx_edac_map_dcrs(const struct device_node *np,
 	if (dcr_base == 0 || dcr_len == 0) {
 		ppc4xx_edac_printk(KERN_ERR,
 				   "Failed to obtain DCR property.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dcr_len != SDRAM_DCR_RESOURCE_LEN) {
 		ppc4xx_edac_printk(KERN_ERR,
 				   "Unexpected DCR length %d, expected %d.\n",
 				   dcr_len, SDRAM_DCR_RESOURCE_LEN);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*  Attempt to map the DCR extent. */
@@ -1189,7 +1189,7 @@ static int ppc4xx_edac_map_dcrs(const struct device_node *np,
 
 	if (!DCR_MAP_OK(*dcr_host)) {
 		ppc4xx_edac_printk(KERN_INFO, "Failed to map DCRs.\n");
-		    return -ENODEV;
+		    return -EANALDEV;
 	}
 
 	return 0;
@@ -1197,7 +1197,7 @@ static int ppc4xx_edac_map_dcrs(const struct device_node *np,
 
 /**
  * ppc4xx_edac_probe - check controller and bind driver
- * @op: A pointer to the OpenFirmware device tree node associated
+ * @op: A pointer to the OpenFirmware device tree analde associated
  *      with the controller being probed for driver binding.
  *
  * This routine probes a specific ibm,sdram-4xx-ddr2 controller
@@ -1211,7 +1211,7 @@ static int ppc4xx_edac_probe(struct platform_device *op)
 	int status = 0;
 	u32 mcopt1, memcheck;
 	dcr_host_t dcr_host;
-	const struct device_node *np = op->dev.of_node;
+	const struct device_analde *np = op->dev.of_analde;
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
 	static int ppc4xx_edac_instance;
@@ -1223,9 +1223,9 @@ static int ppc4xx_edac_probe(struct platform_device *op)
 
 	if (!of_device_is_compatible(np, "ibm,sdram-405ex") &&
 	    !of_device_is_compatible(np, "ibm,sdram-405exr")) {
-		ppc4xx_edac_printk(KERN_NOTICE,
+		ppc4xx_edac_printk(KERN_ANALTICE,
 				   "Only the PPC405EX[r] is supported.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -1239,23 +1239,23 @@ static int ppc4xx_edac_probe(struct platform_device *op)
 		return status;
 
 	/*
-	 * First determine whether ECC is enabled at all. If not,
-	 * there is no useful checking or monitoring that can be done
+	 * First determine whether ECC is enabled at all. If analt,
+	 * there is anal useful checking or monitoring that can be done
 	 * for this controller.
 	 */
 
 	mcopt1 = mfsdram(&dcr_host, SDRAM_MCOPT1);
 	memcheck = (mcopt1 & SDRAM_MCOPT1_MCHK_MASK);
 
-	if (memcheck == SDRAM_MCOPT1_MCHK_NON) {
-		ppc4xx_edac_printk(KERN_INFO, "%pOF: No ECC memory detected or "
+	if (memcheck == SDRAM_MCOPT1_MCHK_ANALN) {
+		ppc4xx_edac_printk(KERN_INFO, "%pOF: Anal ECC memory detected or "
 				   "ECC is disabled.\n", np);
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto done;
 	}
 
 	/*
-	 * At this point, we know ECC is enabled, allocate an EDAC
+	 * At this point, we kanalw ECC is enabled, allocate an EDAC
 	 * controller instance and perform the appropriate
 	 * initialization.
 	 */
@@ -1271,7 +1271,7 @@ static int ppc4xx_edac_probe(struct platform_device *op)
 		ppc4xx_edac_printk(KERN_ERR, "%pOF: "
 				   "Failed to allocate EDAC MC instance!\n",
 				   np);
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto done;
 	}
 
@@ -1292,7 +1292,7 @@ static int ppc4xx_edac_probe(struct platform_device *op)
 	if (edac_mc_add_mc(mci)) {
 		ppc4xx_edac_mc_printk(KERN_ERR, mci,
 				      "Failed to add instance!\n");
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto fail;
 	}
 
@@ -1319,13 +1319,13 @@ static int ppc4xx_edac_probe(struct platform_device *op)
 
 /**
  * ppc4xx_edac_remove - unbind driver from controller
- * @op: A pointer to the OpenFirmware device tree node associated
+ * @op: A pointer to the OpenFirmware device tree analde associated
  *      with the controller this EDAC instance is to be unbound/removed
  *      from.
  *
  * This routine unbinds the EDAC memory controller instance associated
  * with the specified ibm,sdram-4xx-ddr2 controller described by the
- * OpenFirmware device tree node passed as a parameter.
+ * OpenFirmware device tree analde passed as a parameter.
  *
  * Unconditionally returns 0.
  */
@@ -1371,7 +1371,7 @@ ppc4xx_edac_opstate_init(void)
 			    EDAC_OPSTATE_POLL_STR :
 			    ((edac_op_state == EDAC_OPSTATE_INT) ?
 			     EDAC_OPSTATE_INT_STR :
-			     EDAC_OPSTATE_UNKNOWN_STR)));
+			     EDAC_OPSTATE_UNKANALWN_STR)));
 }
 
 static struct platform_driver ppc4xx_edac_driver = {

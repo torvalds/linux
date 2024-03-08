@@ -73,7 +73,7 @@ struct xr_txrx_clk_mask {
 
 #define XR_UART_PARITY_MASK		GENMASK(6, 4)
 #define XR_UART_PARITY_SHIFT		4
-#define XR_UART_PARITY_NONE		(0x0 << XR_UART_PARITY_SHIFT)
+#define XR_UART_PARITY_ANALNE		(0x0 << XR_UART_PARITY_SHIFT)
 #define XR_UART_PARITY_ODD		(0x1 << XR_UART_PARITY_SHIFT)
 #define XR_UART_PARITY_EVEN		(0x2 <<	XR_UART_PARITY_SHIFT)
 #define XR_UART_PARITY_MARK		(0x3 << XR_UART_PARITY_SHIFT)
@@ -84,7 +84,7 @@ struct xr_txrx_clk_mask {
 #define XR_UART_STOP_1			(0x0 << XR_UART_STOP_SHIFT)
 #define XR_UART_STOP_2			(0x1 << XR_UART_STOP_SHIFT)
 
-#define XR_UART_FLOW_MODE_NONE		0x0
+#define XR_UART_FLOW_MODE_ANALNE		0x0
 #define XR_UART_FLOW_MODE_HW		0x1
 #define XR_UART_FLOW_MODE_SW		0x2
 
@@ -276,7 +276,7 @@ static int xr_get_reg(struct usb_serial_port *port, u8 channel, u16 reg, u16 *va
 
 	dmabuf = kmalloc(len, GFP_KERNEL);
 	if (!dmabuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			type->get_reg,
@@ -448,7 +448,7 @@ static int xr_tiocmget(struct tty_struct *tty)
 
 	/*
 	 * Modem control pins are active low, so reading '0' means it is active
-	 * and '1' means not active.
+	 * and '1' means analt active.
 	 */
 	ret = ((status & XR_GPIO_DTR) ? 0 : TIOCM_DTR) |
 	      ((status & XR_GPIO_RTS) ? 0 : TIOCM_RTS) |
@@ -479,7 +479,7 @@ static int xr_tiocmset_port(struct usb_serial_port *port,
 	if (clear & TIOCM_DTR)
 		gpio_set |= XR_GPIO_DTR;
 
-	/* Writing '0' to gpio_{set/clr} bits has no effect, so no need to do */
+	/* Writing '0' to gpio_{set/clr} bits has anal effect, so anal need to do */
 	if (gpio_clr)
 		ret = xr_set_reg_uart(port, type->gpio_clear, gpio_clr);
 
@@ -673,7 +673,7 @@ static void xr_set_flow_mode(struct tty_struct *tty,
 		xr_set_reg_uart(port, type->xoff_char, stop_char);
 	} else {
 		dev_dbg(&port->dev, "Disabling flow ctrl\n");
-		flow = XR_UART_FLOW_MODE_NONE;
+		flow = XR_UART_FLOW_MODE_ANALNE;
 	}
 
 	xr_set_reg_uart(port, type->flow_control, flow);
@@ -701,7 +701,7 @@ static void xr21v141x_set_line_settings(struct tty_struct *tty,
 	switch (C_CSIZE(tty)) {
 	case CS5:
 	case CS6:
-		/* CS5 and CS6 are not supported, so just restore old setting */
+		/* CS5 and CS6 are analt supported, so just restore old setting */
 		termios->c_cflag &= ~CSIZE;
 		if (old_termios)
 			termios->c_cflag |= old_termios->c_cflag & CSIZE;
@@ -783,7 +783,7 @@ static void xr_cdc_set_line_coding(struct tty_struct *tty,
 				lc->bParityType = USB_CDC_EVEN_PARITY;
 		}
 	} else {
-		lc->bParityType = USB_CDC_NO_PARITY;
+		lc->bParityType = USB_CDC_ANAL_PARITY;
 	}
 
 	if (!data->type->have_5_6_bit_mode &&
@@ -892,7 +892,7 @@ static int xr_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 		return xr_set_rs485_config(tty, argp);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static void xr_set_termios(struct tty_struct *tty,
@@ -902,7 +902,7 @@ static void xr_set_termios(struct tty_struct *tty,
 	struct xr_data *data = usb_get_serial_port_data(port);
 
 	/*
-	 * XR21V141X does not have a CUSTOM_DRIVER flag and always enters CDC
+	 * XR21V141X does analt have a CUSTOM_DRIVER flag and always enters CDC
 	 * mode upon receiving CDC requests.
 	 */
 	if (data->type->set_line_settings)
@@ -958,15 +958,15 @@ static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	ret = cdc_parse_cdc_header(&hdrs, control, alt->extra, alt->extralen);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	desc = hdrs.usb_cdc_union_desc;
 	if (!desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = usb_ifnum_to_if(serial->dev, desc->bSlaveInterface0);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = usb_serial_claim_interface(serial, data);
 	if (ret)
@@ -1022,7 +1022,7 @@ static int xr_port_probe(struct usb_serial_port *port)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->type = type;
 

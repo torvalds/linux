@@ -19,7 +19,7 @@
  *	8  - RTC
  *	9  - PCI slot
  *	14 - IDE0
- *	15 - IDE1(no connector on board)
+ *	15 - IDE1(anal connector on board)
  */
 #define I8259A_IRQ_BASE			0
 

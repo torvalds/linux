@@ -98,8 +98,8 @@ struct phy;
 #define CDNS_DP_NUM_LANES(x)			((x) - 1)
 #define CDNS_DP_MST_EN				BIT(2)
 #define CDNS_DP_FRAMER_EN			BIT(3)
-#define CDNS_DP_RATE_GOVERNOR_EN		BIT(4)
-#define CDNS_DP_NO_VIDEO_MODE			BIT(5)
+#define CDNS_DP_RATE_GOVERANALR_EN		BIT(4)
+#define CDNS_DP_ANAL_VIDEO_MODE			BIT(5)
 #define CDNS_DP_DISABLE_PHY_RST			BIT(6)
 #define CDNS_DP_WR_FAILING_EDGE_VSYNC		BIT(7)
 
@@ -265,7 +265,7 @@ struct phy;
 #define CDNS_LANE_MAPPING_TYPE_C_LANE_1(x)	((x) & GENMASK(3, 2))
 #define CDNS_LANE_MAPPING_TYPE_C_LANE_2(x)	((x) & GENMASK(5, 4))
 #define CDNS_LANE_MAPPING_TYPE_C_LANE_3(x)	((x) & GENMASK(7, 6))
-#define CDNS_LANE_MAPPING_NORMAL		0xe4
+#define CDNS_LANE_MAPPING_ANALRMAL		0xe4
 #define CDNS_LANE_MAPPING_FLIPPED		0x1b
 
 #define CDNS_DP_MAX_NUM_LANES			4
@@ -369,7 +369,7 @@ struct cdns_mhdp_device {
 	 * "link_mutex" protects the access to all the link parameters
 	 * including the link training process. Link training will be
 	 * invoked both from threaded interrupt handler and from atomic
-	 * callbacks when link_up is not set. So this mutex protects
+	 * callbacks when link_up is analt set. So this mutex protects
 	 * flags such as link_up, bridge_enabled, link.num_lanes,
 	 * link.rate etc.
 	 */
@@ -394,7 +394,7 @@ struct cdns_mhdp_device {
 	 * hw_state data members that control the delayed firmware
 	 * loading and attaching the bridge. They are accessed from
 	 * both the DRM core and cdns_mhdp_fw_cb(). In most cases just
-	 * protecting the data members is enough, but the irq mask
+	 * protecting the data members is eanalugh, but the irq mask
 	 * setting needs to be protected when enabling the FW.
 	 */
 	spinlock_t start_lock;

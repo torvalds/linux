@@ -24,7 +24,7 @@
 #define IPCC_SIGNAL_ID_MASK		GENMASK(15, 0)
 #define IPCC_CLIENT_ID_MASK		GENMASK(31, 16)
 
-#define IPCC_NO_PENDING_IRQ		GENMASK(31, 0)
+#define IPCC_ANAL_PENDING_IRQ		GENMASK(31, 0)
 
 /**
  * struct qcom_ipcc_chan_info - Per-mailbox-channel info
@@ -77,7 +77,7 @@ static irqreturn_t qcom_ipcc_irq_fn(int irq, void *data)
 
 	for (;;) {
 		hwirq = readl(ipcc->base + IPCC_REG_RECV_ID);
-		if (hwirq == IPCC_NO_PENDING_IRQ)
+		if (hwirq == IPCC_ANAL_PENDING_IRQ)
 			break;
 
 		virq = irq_find_mapping(ipcc->irq_domain, hwirq);
@@ -118,13 +118,13 @@ static int qcom_ipcc_domain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler(irq, &qcom_ipcc_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, ipcc);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
 
 static int qcom_ipcc_domain_xlate(struct irq_domain *d,
-				  struct device_node *node, const u32 *intspec,
+				  struct device_analde *analde, const u32 *intspec,
 				  unsigned int intsize,
 				  unsigned long *out_hwirq,
 				  unsigned int *out_type)
@@ -190,7 +190,7 @@ static struct mbox_chan *qcom_ipcc_mbox_xlate(struct mbox_controller *mbox,
 
 	mchan = devm_kzalloc(dev, sizeof(*mchan), GFP_KERNEL);
 	if (!mchan)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mchan->client_id = ph->args[0];
 	mchan->signal_id = ph->args[1];
@@ -205,10 +205,10 @@ static const struct mbox_chan_ops ipcc_mbox_chan_ops = {
 };
 
 static int qcom_ipcc_setup_mbox(struct qcom_ipcc *ipcc,
-				struct device_node *controller_dn)
+				struct device_analde *controller_dn)
 {
 	struct of_phandle_args curr_ph;
-	struct device_node *client_dn;
+	struct device_analde *client_dn;
 	struct mbox_controller *mbox;
 	struct device *dev = ipcc->dev;
 	int i, j, ret;
@@ -218,7 +218,7 @@ static int qcom_ipcc_setup_mbox(struct qcom_ipcc *ipcc,
 	 * and create channels accordingly.
 	 */
 	ipcc->num_chans = 0;
-	for_each_node_with_property(client_dn, "mboxes") {
+	for_each_analde_with_property(client_dn, "mboxes") {
 		if (!of_device_is_available(client_dn))
 			continue;
 		i = of_count_phandle_with_args(client_dn,
@@ -226,20 +226,20 @@ static int qcom_ipcc_setup_mbox(struct qcom_ipcc *ipcc,
 		for (j = 0; j < i; j++) {
 			ret = of_parse_phandle_with_args(client_dn, "mboxes",
 						"#mbox-cells", j, &curr_ph);
-			of_node_put(curr_ph.np);
+			of_analde_put(curr_ph.np);
 			if (!ret && curr_ph.np == controller_dn)
 				ipcc->num_chans++;
 		}
 	}
 
-	/* If no clients are found, skip registering as a mbox controller */
+	/* If anal clients are found, skip registering as a mbox controller */
 	if (!ipcc->num_chans)
 		return 0;
 
 	ipcc->chans = devm_kcalloc(dev, ipcc->num_chans,
 					sizeof(struct mbox_chan), GFP_KERNEL);
 	if (!ipcc->chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox = &ipcc->mbox;
 	mbox->dev = dev;
@@ -260,7 +260,7 @@ static int qcom_ipcc_pm_resume(struct device *dev)
 	int virq;
 
 	hwirq = readl(ipcc->base + IPCC_REG_RECV_ID);
-	if (hwirq == IPCC_NO_PENDING_IRQ)
+	if (hwirq == IPCC_ANAL_PENDING_IRQ)
 		return 0;
 
 	virq = irq_find_mapping(ipcc->irq_domain, hwirq);
@@ -280,7 +280,7 @@ static int qcom_ipcc_probe(struct platform_device *pdev)
 
 	ipcc = devm_kzalloc(&pdev->dev, sizeof(*ipcc), GFP_KERNEL);
 	if (!ipcc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipcc->dev = &pdev->dev;
 
@@ -294,20 +294,20 @@ static int qcom_ipcc_probe(struct platform_device *pdev)
 
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "ipcc_%d", id++);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ipcc->irq_domain = irq_domain_add_tree(pdev->dev.of_node,
+	ipcc->irq_domain = irq_domain_add_tree(pdev->dev.of_analde,
 					       &qcom_ipcc_irq_ops, ipcc);
 	if (!ipcc->irq_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = qcom_ipcc_setup_mbox(ipcc, pdev->dev.of_node);
+	ret = qcom_ipcc_setup_mbox(ipcc, pdev->dev.of_analde);
 	if (ret)
 		goto err_mbox;
 
 	ret = devm_request_irq(&pdev->dev, ipcc->irq, qcom_ipcc_irq_fn,
-			       IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND |
-			       IRQF_NO_THREAD, name, ipcc);
+			       IRQF_TRIGGER_HIGH | IRQF_ANAL_SUSPEND |
+			       IRQF_ANAL_THREAD, name, ipcc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register the irq: %d\n", ret);
 		goto err_req_irq;
@@ -341,7 +341,7 @@ static const struct of_device_id qcom_ipcc_of_match[] = {
 MODULE_DEVICE_TABLE(of, qcom_ipcc_of_match);
 
 static const struct dev_pm_ops qcom_ipcc_dev_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, qcom_ipcc_pm_resume)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(NULL, qcom_ipcc_pm_resume)
 };
 
 static struct platform_driver qcom_ipcc_driver = {
@@ -363,5 +363,5 @@ arch_initcall(qcom_ipcc_init);
 
 MODULE_AUTHOR("Venkata Narendra Kumar Gutta <vnkgutta@codeaurora.org>");
 MODULE_AUTHOR("Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>");
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. IPCC driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. IPCC driver");
 MODULE_LICENSE("GPL v2");

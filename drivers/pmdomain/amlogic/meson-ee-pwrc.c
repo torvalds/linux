@@ -41,12 +41,12 @@
 #define HHI_VPU_MEM_PD_REG3		(0x43 << 2)
 #define HHI_VPU_MEM_PD_REG4		(0x44 << 2)
 #define HHI_AUDIO_MEM_PD_REG0		(0x45 << 2)
-#define HHI_NANOQ_MEM_PD_REG0		(0x46 << 2)
-#define HHI_NANOQ_MEM_PD_REG1		(0x47 << 2)
+#define HHI_NAANALQ_MEM_PD_REG0		(0x46 << 2)
+#define HHI_NAANALQ_MEM_PD_REG1		(0x47 << 2)
 #define HHI_VPU_MEM_PD_REG2		(0x4d << 2)
 
-#define G12A_HHI_NANOQ_MEM_PD_REG0	(0x43 << 2)
-#define G12A_HHI_NANOQ_MEM_PD_REG1	(0x44 << 2)
+#define G12A_HHI_NAANALQ_MEM_PD_REG0	(0x43 << 2)
+#define G12A_HHI_NAANALQ_MEM_PD_REG1	(0x44 << 2)
 #define G12A_HHI_ISP_MEM_PD_REG0	(0x45 << 2)
 #define G12A_HHI_ISP_MEM_PD_REG1	(0x46 << 2)
 
@@ -199,8 +199,8 @@ static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_vpu[] = {
 };
 
 static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_nna[] = {
-	{ HHI_NANOQ_MEM_PD_REG0, 0xff },
-	{ HHI_NANOQ_MEM_PD_REG1, 0xff },
+	{ HHI_NAANALQ_MEM_PD_REG0, 0xff },
+	{ HHI_NAANALQ_MEM_PD_REG1, 0xff },
 };
 
 static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_usb[] = {
@@ -236,8 +236,8 @@ static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_audio[] = {
 };
 
 static struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_nna[] = {
-	{ G12A_HHI_NANOQ_MEM_PD_REG0, GENMASK(31, 0) },
-	{ G12A_HHI_NANOQ_MEM_PD_REG1, GENMASK(31, 0) },
+	{ G12A_HHI_NAANALQ_MEM_PD_REG0, GENMASK(31, 0) },
+	{ G12A_HHI_NAANALQ_MEM_PD_REG1, GENMASK(31, 0) },
 };
 
 static struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_isp[] = {
@@ -469,7 +469,7 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 	/*
          * TOFIX: This is a special case for the VPU power domain, which can
 	 * be enabled previously by the bootloader. In this case the VPU
-         * pipeline may be functional but no driver maybe never attach
+         * pipeline may be functional but anal driver maybe never attach
          * to this power domain, and if the domain is disabled it could
          * cause system errors. This is why the pm_domain_always_on_gov
          * is used here.
@@ -501,42 +501,42 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 {
 	const struct meson_ee_pwrc_domain_data *match;
 	struct regmap *regmap_ao, *regmap_hhi;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 	struct meson_ee_pwrc *pwrc;
 	int i, ret;
 
 	match = of_device_get_match_data(&pdev->dev);
 	if (!match) {
 		dev_err(&pdev->dev, "failed to get match data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pwrc = devm_kzalloc(&pdev->dev, sizeof(*pwrc), GFP_KERNEL);
 	if (!pwrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrc->xlate.domains = devm_kcalloc(&pdev->dev, match->count,
 					   sizeof(*pwrc->xlate.domains),
 					   GFP_KERNEL);
 	if (!pwrc->xlate.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrc->domains = devm_kcalloc(&pdev->dev, match->count,
 				     sizeof(*pwrc->domains), GFP_KERNEL);
 	if (!pwrc->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrc->xlate.num_domains = match->count;
 
-	parent_np = of_get_parent(pdev->dev.of_node);
-	regmap_hhi = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	parent_np = of_get_parent(pdev->dev.of_analde);
+	regmap_hhi = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap_hhi)) {
 		dev_err(&pdev->dev, "failed to get HHI regmap\n");
 		return PTR_ERR(regmap_hhi);
 	}
 
-	regmap_ao = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	regmap_ao = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 						    "amlogic,ao-sysctrl");
 	if (IS_ERR(regmap_ao)) {
 		dev_err(&pdev->dev, "failed to get AO regmap\n");
@@ -560,7 +560,7 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 		pwrc->xlate.domains[i] = &dom->base;
 	}
 
-	return of_genpd_add_provider_onecell(pdev->dev.of_node, &pwrc->xlate);
+	return of_genpd_add_provider_onecell(pdev->dev.of_analde, &pwrc->xlate);
 }
 
 static void meson_ee_pwrc_shutdown(struct platform_device *pdev)

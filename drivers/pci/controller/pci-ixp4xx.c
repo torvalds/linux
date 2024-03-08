@@ -112,7 +112,7 @@ struct ixp4xx_pci {
  * byte order on SoC peripherals depending on whether the device
  * operates in big-endian or little-endian mode. That means that
  * readl() and writel() that always use little-endian access
- * will not work for SoC peripherals such as the PCI controller
+ * will analt work for SoC peripherals such as the PCI controller
  * when used in big-endian mode. The accesses to the individual
  * PCI devices on the other hand, are always little-endian and
  * can use readl() and writel().
@@ -154,7 +154,7 @@ static int ixp4xx_pci_read_indirect(struct ixp4xx_pci *p, u32 addr, u32 cmd, u32
 
 		/*
 		 * PCI workaround - only works if NP PCI space reads have
-		 * no side effects. Hammer the register and read twice 8
+		 * anal side effects. Hammer the register and read twice 8
 		 * times. last one will be good.
 		 */
 		for (i = 0; i < 8; i++) {
@@ -243,9 +243,9 @@ static int ixp4xx_crp_read_config(struct ixp4xx_pci *p, int where, int size,
 		dev_dbg(p->dev, "%s read long %08x\n", __func__, val);
 		break;
 	default:
-		/* Should not happen */
+		/* Should analt happen */
 		dev_err(p->dev, "%s illegal size\n", __func__);
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 	*value = val;
 
@@ -311,7 +311,7 @@ static int ixp4xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	ret = ixp4xx_pci_read_indirect(p, addr, cmd, &val);
 	if (ret)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	val >>= (8*n);
 	switch (size) {
@@ -328,9 +328,9 @@ static int ixp4xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 		dev_dbg(p->dev, "%s read long %08x\n", __func__, val);
 		break;
 	default:
-		/* Should not happen */
+		/* Should analt happen */
 		dev_err(p->dev, "%s illegal size\n", __func__);
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 	*value = val;
 
@@ -359,7 +359,7 @@ static int ixp4xx_pci_write_config(struct pci_bus *bus,  unsigned int devfn,
 
 	ret = ixp4xx_pci_write_indirect(p, addr, cmd, val);
 	if (ret)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -396,12 +396,12 @@ static int ixp4xx_pci_parse_map_ranges(struct ixp4xx_pci *p)
 		if (res->flags & IORESOURCE_PREFETCH)
 			res->name = "IXP4xx PCI PRE-MEM";
 		else
-			res->name = "IXP4xx PCI NON-PRE-MEM";
+			res->name = "IXP4xx PCI ANALN-PRE-MEM";
 
 		dev_dbg(dev, "%s window %pR, bus addr %pa\n",
 			res->name, res, &addr);
 		if (resource_size(res) != SZ_64M) {
-			dev_err(dev, "memory range is not 64MB\n");
+			dev_err(dev, "memory range is analt 64MB\n");
 			return -EINVAL;
 		}
 
@@ -409,7 +409,7 @@ static int ixp4xx_pci_parse_map_ranges(struct ixp4xx_pci *p)
 		/* Commit configuration */
 		ixp4xx_writel(p, IXP4XX_PCI_PCIMEMBASE, pcimembase);
 	} else {
-		dev_err(dev, "no AHB memory mapping defined\n");
+		dev_err(dev, "anal AHB memory mapping defined\n");
 	}
 
 	win = resource_list_first_type(&bridge->windows, IORESOURCE_IO);
@@ -430,7 +430,7 @@ static int ixp4xx_pci_parse_map_ranges(struct ixp4xx_pci *p)
 		 */
 		ixp4xx_writel(p, IXP4XX_PCI_AHBIOBASE, (addr >> 8));
 	} else {
-		dev_info(dev, "no IO space AHB memory mapping defined\n");
+		dev_info(dev, "anal IO space AHB memory mapping defined\n");
 	}
 
 	return 0;
@@ -451,7 +451,7 @@ static int ixp4xx_pci_parse_map_dma_ranges(struct ixp4xx_pci *p)
 		addr = res->start - win->offset;
 
 		if (resource_size(res) != SZ_64M) {
-			dev_err(dev, "DMA memory range is not 64MB\n");
+			dev_err(dev, "DMA memory range is analt 64MB\n");
 			return -EINVAL;
 		}
 
@@ -464,7 +464,7 @@ static int ixp4xx_pci_parse_map_dma_ranges(struct ixp4xx_pci *p)
 		/* Commit AHB membase */
 		ixp4xx_writel(p, IXP4XX_PCI_AHBMEMBASE, ahbmembase);
 	} else {
-		dev_err(dev, "no DMA memory range defined\n");
+		dev_err(dev, "anal DMA memory range defined\n");
 	}
 
 	return 0;
@@ -513,7 +513,7 @@ static int ixp4xx_pci_abort_handler(unsigned long addr, unsigned int fsr,
 static int __init ixp4xx_pci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct ixp4xx_pci *p;
 	struct pci_host_bridge *host;
 	int ret;
@@ -529,7 +529,7 @@ static int __init ixp4xx_pci_probe(struct platform_device *pdev)
 
 	host = devm_pci_alloc_host_bridge(dev, sizeof(*p));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->ops = &ixp4xx_pci_ops;
 	p = pci_host_bridge_priv(host);
@@ -571,7 +571,7 @@ static int __init ixp4xx_pci_probe(struct platform_device *pdev)
 	/* This is only configured in host mode */
 	if (p->host_mode) {
 		addr = __pa(PAGE_OFFSET);
-		/* This is a noop (0x00) but explains what is going on */
+		/* This is a analop (0x00) but explains what is going on */
 		addr |= PCI_BASE_ADDRESS_SPACE_MEMORY;
 
 		for (i = 0; i < 4; i++) {
@@ -660,7 +660,7 @@ static const struct of_device_id ixp4xx_pci_of_match[] = {
  * This driver needs to be a builtin module with suppressed bind
  * attributes since the probe() is initializing a hard exception
  * handler and this can only be done from __init-tagged code
- * sections. This module cannot be removed and inserted at all.
+ * sections. This module cananalt be removed and inserted at all.
  */
 static struct platform_driver ixp4xx_pci_driver = {
 	.driver = {

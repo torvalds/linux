@@ -24,8 +24,8 @@
 #define VMOVDQ		vmovdqu
 
 /*
- * Note: the "x" prefix in these aliases means "this is an xmm register".  The
- * alias prefixes have no relation to XCTR where the "X" prefix means "XOR
+ * Analte: the "x" prefix in these aliases means "this is an xmm register".  The
+ * alias prefixes have anal relation to XCTR where the "X" prefix means "XOR
  * counter".
  */
 #define xdata0		%xmm0
@@ -102,12 +102,12 @@ ddq_add_8:
 	.if \name == XDATA
 		setxdata %\id
 	.endif
-.noaltmacro
+.analaltmacro
 .endm
 
 /*
  * do_aes num_in_par load_keys key_len
- * This increments p_in, but not p_out
+ * This increments p_in, but analt p_out
  */
 .macro do_aes b, k, key_len, xctr
 	.set by, \b
@@ -401,7 +401,7 @@ ddq_add_8:
 	do_aes \val, 1, \key_len, \xctr
 .endm
 
-.macro do_aes_noload val, key_len, xctr
+.macro do_aes_analload val, key_len, xctr
 	do_aes \val, 0, \key_len, \xctr
 .endm
 
@@ -504,7 +504,7 @@ ddq_add_8:
 .align 16
 .Lmain_loop2\xctr\key_len:
 	/* num_bytes is a multiple of 8 and >0 */
-	do_aes_noload	8, \key_len, \xctr
+	do_aes_analload	8, \key_len, \xctr
 	add	$(8*16), p_out
 	sub	$(8*16), num_bytes
 	jne	.Lmain_loop2\xctr\key_len

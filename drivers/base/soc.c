@@ -62,7 +62,7 @@ static umode_t soc_attribute_mode(struct kobject *kobj,
 	if ((attr == &dev_attr_soc_id.attr) && soc_dev->attr->soc_id)
 		return attr->mode;
 
-	/* Unknown or unfilled attribute */
+	/* Unkanalwn or unfilled attribute */
 	return 0;
 }
 
@@ -113,14 +113,14 @@ static void soc_release(struct device *dev)
 
 static void soc_device_get_machine(struct soc_device_attribute *soc_dev_attr)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (soc_dev_attr->machine)
 		return;
 
-	np = of_find_node_by_path("/");
+	np = of_find_analde_by_path("/");
 	of_property_read_string(np, "model", &soc_dev_attr->machine);
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 static struct soc_device_attribute *early_soc_dev_attr;
@@ -142,13 +142,13 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
 
 	soc_dev = kzalloc(sizeof(*soc_dev), GFP_KERNEL);
 	if (!soc_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out1;
 	}
 
 	soc_attr_groups = kcalloc(3, sizeof(*soc_attr_groups), GFP_KERNEL);
 	if (!soc_attr_groups) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out2;
 	}
 	soc_attr_groups[0] = &soc_attr_group;
@@ -242,14 +242,14 @@ static int soc_device_match_one(struct device *dev, void *arg)
  * @matches: zero-terminated array of possible matches
  *
  * returns the first matching entry of the argument array, or NULL
- * if none of them match.
+ * if analne of them match.
  *
- * This function is meant as a helper in place of of_match_node()
- * in cases where either no device tree is available or the information
- * in a device node is insufficient to identify a particular variant
+ * This function is meant as a helper in place of of_match_analde()
+ * in cases where either anal device tree is available or the information
+ * in a device analde is insufficient to identify a particular variant
  * by its compatible strings or other properties. For new devices,
  * the DT binding should always provide unique compatible strings
- * that allow the use of of_match_node() instead.
+ * that allow the use of of_match_analde() instead.
  *
  * The calling function can use the .data entry of the
  * soc_device_attribute to pass a structure or function pointer for

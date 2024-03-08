@@ -89,7 +89,7 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	struct kvm_msi msi;
 
 	if (!vgic_has_its(kvm))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!level)
 		return -1;
@@ -141,7 +141,7 @@ int kvm_vgic_setup_default_irq_routing(struct kvm *kvm)
 
 	entries = kcalloc(nr, sizeof(*entries), GFP_KERNEL_ACCOUNT);
 	if (!entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr; i++) {
 		entries[i].gsi = i;

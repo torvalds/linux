@@ -26,7 +26,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_h264_sps_tmpl,
 		  "max_num_ref_frames %u\n"
 		  "num_ref_frames_in_pic_order_cnt_cycle %u\n"
 		  "offset_for_ref_frame %s\n"
-		  "offset_for_non_ref_pic %d\n"
+		  "offset_for_analn_ref_pic %d\n"
 		  "offset_for_top_to_bottom_field %d\n"
 		  "pic_width_in_mbs_minus1 %u\n"
 		  "pic_height_in_map_units_minus1 %u\n"
@@ -52,7 +52,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_h264_sps_tmpl,
 		  __print_array(__entry->s.offset_for_ref_frame,
 				ARRAY_SIZE(__entry->s.offset_for_ref_frame),
 				sizeof(__entry->s.offset_for_ref_frame[0])),
-		  __entry->s.offset_for_non_ref_pic,
+		  __entry->s.offset_for_analn_ref_pic,
 		  __entry->s.offset_for_top_to_bottom_field,
 		  __entry->s.pic_width_in_mbs_minus1,
 		  __entry->s.pic_height_in_map_units_minus1,
@@ -111,11 +111,11 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_h264_scaling_matrix_tmpl,
 	TP_STRUCT__entry(__field_struct(struct v4l2_ctrl_h264_scaling_matrix, s)),
 	TP_fast_assign(__entry->s = *s),
 	TP_printk("\nscaling_list_4x4 {%s}\nscaling_list_8x8 {%s}",
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->s.scaling_list_4x4,
 				   sizeof(__entry->s.scaling_list_4x4),
 				   false),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->s.scaling_list_8x8,
 				   sizeof(__entry->s.scaling_list_8x8),
 				   false)
@@ -127,8 +127,8 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_h264_pred_weights_tmpl,
 	TP_ARGS(p),
 	TP_STRUCT__entry(__field_struct(struct v4l2_ctrl_h264_pred_weights, p)),
 	TP_fast_assign(__entry->p = *p),
-	TP_printk("\nluma_log2_weight_denom %u\n"
-		  "chroma_log2_weight_denom %u\n"
+	TP_printk("\nluma_log2_weight_deanalm %u\n"
+		  "chroma_log2_weight_deanalm %u\n"
 		  "weight_factor[0].luma_weight %s\n"
 		  "weight_factor[0].luma_offset %s\n"
 		  "weight_factor[0].chroma_weight {%s}\n"
@@ -137,19 +137,19 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_h264_pred_weights_tmpl,
 		  "weight_factor[1].luma_offset %s\n"
 		  "weight_factor[1].chroma_weight {%s}\n"
 		  "weight_factor[1].chroma_offset {%s}\n",
-		  __entry->p.luma_log2_weight_denom,
-		  __entry->p.chroma_log2_weight_denom,
+		  __entry->p.luma_log2_weight_deanalm,
+		  __entry->p.chroma_log2_weight_deanalm,
 		  __print_array(__entry->p.weight_factors[0].luma_weight,
 				ARRAY_SIZE(__entry->p.weight_factors[0].luma_weight),
 				sizeof(__entry->p.weight_factors[0].luma_weight[0])),
 		  __print_array(__entry->p.weight_factors[0].luma_offset,
 				ARRAY_SIZE(__entry->p.weight_factors[0].luma_offset),
 				sizeof(__entry->p.weight_factors[0].luma_offset[0])),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.weight_factors[0].chroma_weight,
 				   sizeof(__entry->p.weight_factors[0].chroma_weight),
 				   false),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.weight_factors[0].chroma_offset,
 				   sizeof(__entry->p.weight_factors[0].chroma_offset),
 				   false),
@@ -159,11 +159,11 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_h264_pred_weights_tmpl,
 		  __print_array(__entry->p.weight_factors[1].luma_offset,
 				ARRAY_SIZE(__entry->p.weight_factors[1].luma_offset),
 				sizeof(__entry->p.weight_factors[1].luma_offset[0])),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.weight_factors[1].chroma_weight,
 				   sizeof(__entry->p.weight_factors[1].chroma_weight),
 				   false),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.weight_factors[1].chroma_offset,
 				   sizeof(__entry->p.weight_factors[1].chroma_offset),
 				   false)

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2022. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2022. Huawei Techanallogies Co., Ltd */
 #define _GNU_SOURCE
 #include <sched.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <pthread.h>
 
@@ -78,7 +78,7 @@ void test_task_storage_map_stress_lookup(void)
 
 	/* Only for a fully preemptible kernel */
 	if (!skel->kconfig->CONFIG_PREEMPT) {
-		printf("%s SKIP (no CONFIG_PREEMPT)\n", __func__);
+		printf("%s SKIP (anal CONFIG_PREEMPT)\n", __func__);
 		read_bpf_task_storage_busy__destroy(skel);
 		skips++;
 		return;

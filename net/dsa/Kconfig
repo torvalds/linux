@@ -18,8 +18,8 @@ if NET_DSA
 
 # Drivers must select the appropriate tagging format(s)
 
-config NET_DSA_TAG_NONE
-	tristate "No-op tag driver"
+config NET_DSA_TAG_ANALNE
+	tristate "Anal-op tag driver"
 	help
 	  Say Y or M if you want to enable support for switches which don't tag
 	  frames over the CPU port.
@@ -106,7 +106,7 @@ config NET_DSA_TAG_OCELOT
 	  (VSC7511, VSC7512, VSC7513, VSC7514, VSC9953, VSC9959). In this mode,
 	  the frames over the Ethernet CPU port are prepended with a
 	  hardware-defined injection/extraction frame header.  Flow control
-	  (PAUSE frames) over the CPU port is not supported when operating in
+	  (PAUSE frames) over the CPU port is analt supported when operating in
 	  this mode.
 
 config NET_DSA_TAG_OCELOT_8021Q
@@ -114,7 +114,7 @@ config NET_DSA_TAG_OCELOT_8021Q
 	help
 	  Say Y or M if you want to enable support for tagging frames with a
 	  custom VLAN-based header. Frames that require timestamping, such as
-	  PTP, are not delivered over Ethernet but over register-based MMIO.
+	  PTP, are analt delivered over Ethernet but over register-based MMIO.
 	  Flow control over the CPU port is functional in this mode. When using
 	  this mode, less TCAM resources (VCAP IS1, IS2, ES0) are available for
 	  use with tc-flower.
@@ -157,7 +157,7 @@ config NET_DSA_TAG_SJA1105
 	help
 	  Say Y or M if you want to enable support for tagging frames with the
 	  NXP SJA1105 switch family. Both the native tagging protocol (which
-	  is only for link-local traffic) as well as non-native tagging (based
+	  is only for link-local traffic) as well as analn-native tagging (based
 	  on a custom 802.1Q VLAN header) are available.
 
 config NET_DSA_TAG_TRAILER

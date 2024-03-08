@@ -76,7 +76,7 @@
 #define CMD_GET_SOFTWARE_INFO_REPLY	39
 #define CMD_ERROR_EVENT			45
 #define CMD_FLUSH_QUEUE			48
-#define CMD_TX_ACKNOWLEDGE		50
+#define CMD_TX_ACKANALWLEDGE		50
 #define CMD_CAN_ERROR_EVENT		51
 #define CMD_FLUSH_QUEUE_REPLY		68
 #define CMD_GET_CAPABILITIES_REQ	95
@@ -105,13 +105,13 @@
 /* Only Leaf-based devices can report M16C error factors,
  * thus define our own error status flags for USBCANII
  */
-#define USBCAN_ERROR_STATE_NONE		0
+#define USBCAN_ERROR_STATE_ANALNE		0
 #define USBCAN_ERROR_STATE_TX_ERROR	BIT(0)
 #define USBCAN_ERROR_STATE_RX_ERROR	BIT(1)
 #define USBCAN_ERROR_STATE_BUSERROR	BIT(2)
 
 /* ctrl modes */
-#define KVASER_CTRL_MODE_NORMAL		1
+#define KVASER_CTRL_MODE_ANALRMAL		1
 #define KVASER_CTRL_MODE_SILENT		2
 #define KVASER_CTRL_MODE_SELFRECEPTION	3
 #define KVASER_CTRL_MODE_OFF		4
@@ -230,7 +230,7 @@ struct usbcan_cmd_chip_state_event {
 	u8 padding[3];
 } __packed;
 
-struct kvaser_cmd_tx_acknowledge_header {
+struct kvaser_cmd_tx_ackanalwledge_header {
 	u8 channel;
 	u8 tid;
 } __packed;
@@ -317,7 +317,7 @@ struct kvaser_cmd_cap_req {
 
 /* Status codes for cap_res */
 #define KVASER_USB_LEAF_CAP_STAT_OK 0x00
-#define KVASER_USB_LEAF_CAP_STAT_NOT_IMPL 0x01
+#define KVASER_USB_LEAF_CAP_STAT_ANALT_IMPL 0x01
 #define KVASER_USB_LEAF_CAP_STAT_UNAVAIL 0x02
 struct kvaser_cmd_cap_res {
 	__le16 padding;
@@ -336,7 +336,7 @@ struct kvaser_cmd {
 		struct kvaser_cmd_busparams busparams;
 
 		struct kvaser_cmd_rx_can_header rx_can_header;
-		struct kvaser_cmd_tx_acknowledge_header tx_acknowledge_header;
+		struct kvaser_cmd_tx_ackanalwledge_header tx_ackanalwledge_header;
 
 		union {
 			struct leaf_cmd_softinfo softinfo;
@@ -370,7 +370,7 @@ static const u8 kvaser_usb_leaf_cmd_sizes_leaf[] = {
 	[CMD_START_CHIP_REPLY]		= kvaser_fsize(u.simple),
 	[CMD_STOP_CHIP_REPLY]		= kvaser_fsize(u.simple),
 	[CMD_GET_CARD_INFO_REPLY]	= kvaser_fsize(u.cardinfo),
-	[CMD_TX_ACKNOWLEDGE]		= kvaser_fsize(u.tx_acknowledge_header),
+	[CMD_TX_ACKANALWLEDGE]		= kvaser_fsize(u.tx_ackanalwledge_header),
 	[CMD_GET_SOFTWARE_INFO_REPLY]	= kvaser_fsize(u.leaf.softinfo),
 	[CMD_RX_STD_MESSAGE]		= kvaser_fsize(u.leaf.rx_can),
 	[CMD_RX_EXT_MESSAGE]		= kvaser_fsize(u.leaf.rx_can),
@@ -380,7 +380,7 @@ static const u8 kvaser_usb_leaf_cmd_sizes_leaf[] = {
 	[CMD_GET_CAPABILITIES_RESP]	= kvaser_fsize(u.leaf.cap_res),
 	[CMD_GET_BUS_PARAMS_REPLY]	= kvaser_fsize(u.busparams),
 	[CMD_ERROR_EVENT]		= kvaser_fsize(u.leaf.error_event),
-	/* ignored events: */
+	/* iganalred events: */
 	[CMD_FLUSH_QUEUE_REPLY]		= CMD_SIZE_ANY,
 };
 
@@ -388,21 +388,21 @@ static const u8 kvaser_usb_leaf_cmd_sizes_usbcan[] = {
 	[CMD_START_CHIP_REPLY]		= kvaser_fsize(u.simple),
 	[CMD_STOP_CHIP_REPLY]		= kvaser_fsize(u.simple),
 	[CMD_GET_CARD_INFO_REPLY]	= kvaser_fsize(u.cardinfo),
-	[CMD_TX_ACKNOWLEDGE]		= kvaser_fsize(u.tx_acknowledge_header),
+	[CMD_TX_ACKANALWLEDGE]		= kvaser_fsize(u.tx_ackanalwledge_header),
 	[CMD_GET_SOFTWARE_INFO_REPLY]	= kvaser_fsize(u.usbcan.softinfo),
 	[CMD_RX_STD_MESSAGE]		= kvaser_fsize(u.usbcan.rx_can),
 	[CMD_RX_EXT_MESSAGE]		= kvaser_fsize(u.usbcan.rx_can),
 	[CMD_CHIP_STATE_EVENT]		= kvaser_fsize(u.usbcan.chip_state_event),
 	[CMD_CAN_ERROR_EVENT]		= kvaser_fsize(u.usbcan.can_error_event),
 	[CMD_ERROR_EVENT]		= kvaser_fsize(u.usbcan.error_event),
-	/* ignored events: */
+	/* iganalred events: */
 	[CMD_USBCAN_CLOCK_OVERFLOW_EVENT] = CMD_SIZE_ANY,
 };
 
 /* Summary of a kvaser error event, for a unified Leaf/Usbcan error
  * handling. Some discrepancies between the two families exist:
  *
- * - USBCAN firmware does not report M16C "error factors"
+ * - USBCAN firmware does analt report M16C "error factors"
  * - USBCAN controllers has difficulties reporting if the raised error
  *   event is for ch0 or ch1. They leave such arbitration to the OS
  *   driver by letting it compare error counters with previous values
@@ -427,7 +427,7 @@ struct kvaser_usb_net_leaf_priv {
 
 	struct delayed_work chip_state_req_work;
 
-	/* started but not reported as bus-on yet */
+	/* started but analt reported as bus-on yet */
 	bool joining_bus;
 };
 
@@ -594,7 +594,7 @@ static int kvaser_usb_leaf_wait_cmd(const struct kvaser_usb *dev, u8 id,
 
 	buf = kzalloc(KVASER_USB_RX_BUFFER_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do {
 		err = kvaser_usb_recv_cmd(dev, buf, KVASER_USB_RX_BUFFER_SIZE,
@@ -651,7 +651,7 @@ static int kvaser_usb_leaf_send_simple_cmd(const struct kvaser_usb *dev,
 
 	cmd = kmalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->id = cmd_id;
 	cmd->len = CMD_HEADER_LEN + sizeof(struct kvaser_cmd_simple);
@@ -675,7 +675,7 @@ static void kvaser_usb_leaf_get_software_info_leaf(struct kvaser_usb *dev,
 	if (sw_options & KVASER_USB_LEAF_SWOPTION_EXT_CAP)
 		dev->card_data.capabilities |= KVASER_USB_CAP_EXT_CAP;
 
-	if (dev->driver_info->quirks & KVASER_USB_QUIRK_IGNORE_CLK_FREQ) {
+	if (dev->driver_info->quirks & KVASER_USB_QUIRK_IGANALRE_CLK_FREQ) {
 		/* Firmware expects bittiming parameters calculated for 16MHz
 		 * clock, regardless of the actual clock
 		 */
@@ -729,7 +729,7 @@ static int kvaser_usb_leaf_get_software_info(struct kvaser_usb *dev)
 	int retry = 3;
 
 	/* On some x86 laptops, plugging a Kvaser device again after
-	 * an unplug makes the firmware always ignore the very first
+	 * an unplug makes the firmware always iganalre the very first
 	 * command. For such a case, provide some room for retries
 	 * instead of completely exiting the driver.
 	 */
@@ -775,7 +775,7 @@ static int kvaser_usb_leaf_get_single_capability(struct kvaser_usb *dev,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->id = CMD_GET_CAPABILITIES_REQ;
 	cmd->u.leaf.cap_req.cap_cmd = cpu_to_le16(cap_cmd_req);
@@ -802,7 +802,7 @@ static int kvaser_usb_leaf_get_single_capability(struct kvaser_usb *dev,
 		mask = le32_to_cpu(cmd->u.leaf.cap_res.mask);
 		break;
 	default:
-		dev_warn(&dev->intf->dev, "Unknown capability command %u\n",
+		dev_warn(&dev->intf->dev, "Unkanalwn capability command %u\n",
 			 cap_cmd_res);
 		break;
 	}
@@ -812,7 +812,7 @@ static int kvaser_usb_leaf_get_single_capability(struct kvaser_usb *dev,
 			switch (cap_cmd_res) {
 			case KVASER_USB_LEAF_CAP_CMD_LISTEN_MODE:
 				card_data->ctrlmode_supported |=
-						CAN_CTRLMODE_LISTENONLY;
+						CAN_CTRLMODE_LISTEANALNLY;
 				break;
 			case KVASER_USB_LEAF_CAP_CMD_ERR_REPORT:
 				card_data->capabilities |=
@@ -835,7 +835,7 @@ static int kvaser_usb_leaf_get_capabilities_leaf(struct kvaser_usb *dev)
 
 	if (!(dev->card_data.capabilities & KVASER_USB_CAP_EXT_CAP)) {
 		dev_info(&dev->intf->dev,
-			 "No extended capability support. Upgrade device firmware.\n");
+			 "Anal extended capability support. Upgrade device firmware.\n");
 		return 0;
 	}
 
@@ -872,7 +872,7 @@ static int kvaser_usb_leaf_get_capabilities(struct kvaser_usb *dev)
 	return err;
 }
 
-static void kvaser_usb_leaf_tx_acknowledge(const struct kvaser_usb *dev,
+static void kvaser_usb_leaf_tx_ackanalwledge(const struct kvaser_usb *dev,
 					   const struct kvaser_cmd *cmd)
 {
 	struct net_device_stats *stats;
@@ -881,8 +881,8 @@ static void kvaser_usb_leaf_tx_acknowledge(const struct kvaser_usb *dev,
 	unsigned long flags;
 	u8 channel, tid;
 
-	channel = cmd->u.tx_acknowledge_header.channel;
-	tid = cmd->u.tx_acknowledge_header.tid;
+	channel = cmd->u.tx_ackanalwledge_header.channel;
+	tid = cmd->u.tx_ackanalwledge_header.tid;
 
 	if (channel >= dev->nchannels) {
 		dev_err(&dev->intf->dev,
@@ -911,7 +911,7 @@ static void kvaser_usb_leaf_tx_acknowledge(const struct kvaser_usb *dev,
 			netif_rx(skb);
 		} else {
 			netdev_err(priv->netdev,
-				   "No memory left for err_skb\n");
+				   "Anal memory left for err_skb\n");
 		}
 
 		priv->can.can_stats.restarts++;
@@ -940,7 +940,7 @@ static int kvaser_usb_leaf_simple_cmd_async(struct kvaser_usb_net_priv *priv,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->len = CMD_HEADER_LEN + sizeof(struct kvaser_cmd_simple);
 	cmd->id = cmd_id;
@@ -998,11 +998,11 @@ kvaser_usb_leaf_rx_error_update_can_state(struct kvaser_usb_net_priv *priv,
 	 * bit set if the channel was bus-off when it was last stopped (even
 	 * across chip resets). This bit will clear shortly afterwards, without
 	 * triggering a second unsolicited chip state event.
-	 * Ignore this initial bus-off.
+	 * Iganalre this initial bus-off.
 	 */
 	if (leaf->joining_bus) {
 		if (new_state == CAN_STATE_BUS_OFF) {
-			netdev_dbg(priv->netdev, "ignoring bus-off during startup");
+			netdev_dbg(priv->netdev, "iganalring bus-off during startup");
 			new_state = cur_state;
 		} else {
 			leaf->joining_bus = false;
@@ -1064,12 +1064,12 @@ static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 	leaf = priv->sub_priv;
 	stats = &priv->netdev->stats;
 
-	/* Ignore e.g. state change to bus-off reported just after stopping */
+	/* Iganalre e.g. state change to bus-off reported just after stopping */
 	if (!netif_running(priv->netdev))
 		return;
 
 	/* Update all of the CAN interface's state and error counters before
-	 * trying any memory allocation that can actually fail with -ENOMEM.
+	 * trying any memory allocation that can actually fail with -EANALMEM.
 	 *
 	 * We send a temporary stack-allocated error CAN frame to
 	 * can_change_state() for the very same reason.
@@ -1083,7 +1083,7 @@ static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 	new_state = priv->can.state;
 
 	/* If there are errors, request status updates periodically as we do
-	 * not get automatic notifications of improved state.
+	 * analt get automatic analtifications of improved state.
 	 * Also request updates if we saw a stale BUS_OFF during startup
 	 * (joining_bus).
 	 */
@@ -1217,7 +1217,7 @@ static void kvaser_usb_leaf_usbcan_rx_error(const struct kvaser_usb *dev,
 		kvaser_usb_leaf_usbcan_conditionally_rx_error(dev, &es);
 
 		/* The USBCAN firmware supports up to 2 channels.
-		 * Now that ch0 was checked, check if ch1 has any errors.
+		 * Analw that ch0 was checked, check if ch1 has any errors.
 		 */
 		if (dev->nchannels == MAX_USBCAN_NET_DEVICES) {
 			es.channel = 1;
@@ -1279,7 +1279,7 @@ static void kvaser_usb_leaf_rx_can_err(const struct kvaser_usb_net_priv *priv,
 					 MSG_FLAG_NERR)) {
 		struct net_device_stats *stats = &priv->netdev->stats;
 
-		netdev_err(priv->netdev, "Unknown error (flags: 0x%02x)\n",
+		netdev_err(priv->netdev, "Unkanalwn error (flags: 0x%02x)\n",
 			   cmd->u.rx_can_header.flag);
 
 		stats->rx_errors++;
@@ -1395,7 +1395,7 @@ static void kvaser_usb_leaf_error_event_parameter(const struct kvaser_usb *dev,
 		break;
 	}
 
-	/* info1 will contain the offending cmd_no */
+	/* info1 will contain the offending cmd_anal */
 	switch (info1) {
 	case CMD_SET_CTRL_MODE:
 		dev_warn(&dev->intf->dev,
@@ -1409,7 +1409,7 @@ static void kvaser_usb_leaf_error_event_parameter(const struct kvaser_usb *dev,
 
 	default:
 		dev_warn(&dev->intf->dev,
-			 "Unhandled parameter error event cmd_no (%u)\n",
+			 "Unhandled parameter error event cmd_anal (%u)\n",
 			 info1);
 		break;
 	}
@@ -1502,8 +1502,8 @@ static void kvaser_usb_leaf_get_busparams_reply(const struct kvaser_usb *dev,
 	}
 
 	priv = dev->nets[channel];
-	memcpy(&priv->busparams_nominal, &cmd->u.busparams.busparams,
-	       sizeof(priv->busparams_nominal));
+	memcpy(&priv->busparams_analminal, &cmd->u.busparams.busparams,
+	       sizeof(priv->busparams_analminal));
 
 	complete(&priv->get_busparams_comp);
 }
@@ -1542,8 +1542,8 @@ static void kvaser_usb_leaf_handle_command(const struct kvaser_usb *dev,
 			kvaser_usb_leaf_usbcan_rx_error(dev, cmd);
 		break;
 
-	case CMD_TX_ACKNOWLEDGE:
-		kvaser_usb_leaf_tx_acknowledge(dev, cmd);
+	case CMD_TX_ACKANALWLEDGE:
+		kvaser_usb_leaf_tx_ackanalwledge(dev, cmd);
 		break;
 
 	case CMD_ERROR_EVENT:
@@ -1554,7 +1554,7 @@ static void kvaser_usb_leaf_handle_command(const struct kvaser_usb *dev,
 		kvaser_usb_leaf_get_busparams_reply(dev, cmd);
 		break;
 
-	/* Ignored commands */
+	/* Iganalred commands */
 	case CMD_USBCAN_CLOCK_OVERFLOW_EVENT:
 		if (dev->driver_info->family != KVASER_USBCAN)
 			goto warn;
@@ -1581,7 +1581,7 @@ static void kvaser_usb_leaf_read_bulk_callback(struct kvaser_usb *dev,
 		cmd = buf + pos;
 
 		/* The Kvaser firmware can only read and write commands that
-		 * does not cross the USB's endpoint wMaxPacketSize boundary.
+		 * does analt cross the USB's endpoint wMaxPacketSize boundary.
 		 * If a follow-up command crosses such boundary, firmware puts
 		 * a placeholder zero-length command in its place then aligns
 		 * the real command to the next max packet size.
@@ -1612,17 +1612,17 @@ static int kvaser_usb_leaf_set_opt_mode(const struct kvaser_usb_net_priv *priv)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->id = CMD_SET_CTRL_MODE;
 	cmd->len = CMD_HEADER_LEN + sizeof(struct kvaser_cmd_ctrl_mode);
 	cmd->u.ctrl_mode.tid = 0xff;
 	cmd->u.ctrl_mode.channel = priv->channel;
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		cmd->u.ctrl_mode.ctrl_mode = KVASER_CTRL_MODE_SILENT;
 	else
-		cmd->u.ctrl_mode.ctrl_mode = KVASER_CTRL_MODE_NORMAL;
+		cmd->u.ctrl_mode.ctrl_mode = KVASER_CTRL_MODE_ANALRMAL;
 
 	rc = kvaser_usb_send_cmd(priv->dev, cmd, cmd->len);
 
@@ -1684,7 +1684,7 @@ static int kvaser_usb_leaf_flush_queue(struct kvaser_usb_net_priv *priv)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->id = CMD_FLUSH_QUEUE;
 	cmd->len = CMD_HEADER_LEN + sizeof(struct kvaser_cmd_flush_queue);
@@ -1712,7 +1712,7 @@ static int kvaser_usb_leaf_init_channel(struct kvaser_usb_net_priv *priv)
 
 	leaf = devm_kzalloc(&priv->dev->intf->dev, sizeof(*leaf), GFP_KERNEL);
 	if (!leaf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	leaf->net = priv;
 	INIT_DELAYED_WORK(&leaf->chip_state_req_work,
@@ -1741,7 +1741,7 @@ static int kvaser_usb_leaf_set_bittiming(const struct net_device *netdev,
 
 	cmd = kmalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->id = CMD_SET_BUS_PARAMS;
 	cmd->len = CMD_HEADER_LEN + sizeof(struct kvaser_cmd_busparams);
@@ -1761,7 +1761,7 @@ static int kvaser_usb_leaf_get_busparams(struct kvaser_usb_net_priv *priv)
 	int err;
 
 	if (priv->dev->driver_info->family == KVASER_USBCAN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	reinit_completion(&priv->get_busparams_comp);
 
@@ -1797,7 +1797,7 @@ static int kvaser_usb_leaf_set_mode(struct net_device *netdev,
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1835,7 +1835,7 @@ static int kvaser_usb_leaf_setup_endpoints(struct kvaser_usb *dev)
 			return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 const struct kvaser_usb_dev_ops kvaser_usb_leaf_dev_ops = {

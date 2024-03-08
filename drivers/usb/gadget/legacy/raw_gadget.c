@@ -4,7 +4,7 @@
  * See Documentation/usb/raw-gadget.rst for more details.
  *
  * Copyright (c) 2020 Google, Inc.
- * Author: Andrey Konovalov <andreyknvl@gmail.com>
+ * Author: Andrey Koanalvalov <andreyknvl@gmail.com>
  */
 
 #include <linux/compiler.h>
@@ -33,7 +33,7 @@
 #define DRIVER_NAME "raw-gadget"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_AUTHOR("Andrey Konovalov");
+MODULE_AUTHOR("Andrey Koanalvalov");
 MODULE_LICENSE("GPL");
 
 /*----------------------------------------------------------------------*/
@@ -67,12 +67,12 @@ static int raw_event_queue_add(struct raw_event_queue *queue,
 	spin_lock_irqsave(&queue->lock, flags);
 	if (queue->size >= RAW_EVENT_QUEUE_SIZE) {
 		spin_unlock_irqrestore(&queue->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	event = kmalloc(sizeof(*event) + length, GFP_ATOMIC);
 	if (!event) {
 		spin_unlock_irqrestore(&queue->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	event->type = type;
 	event->length = length;
@@ -107,7 +107,7 @@ static struct usb_raw_event *raw_event_queue_fetch(
 	 */
 	if (WARN_ON(!queue->size)) {
 		spin_unlock_irqrestore(&queue->lock, flags);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 	event = queue->events[0];
 	queue->size--;
@@ -269,7 +269,7 @@ static u8 get_ep_addr(const char *name)
 	/* If the endpoint has fixed function (named as e.g. "ep12out-bulk"),
 	 * parse the endpoint address from its name. We deliberately use
 	 * deprecated simple_strtoul() function here, as the number isn't
-	 * followed by '\0' nor '\n'.
+	 * followed by '\0' analr '\n'.
 	 */
 	if (isdigit(name[2]))
 		return simple_strtoul(&name[2], NULL, 10);
@@ -287,14 +287,14 @@ static int gadget_bind(struct usb_gadget *gadget,
 	unsigned long flags;
 
 	if (strcmp(gadget->name, dev->udc_name) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	set_gadget_data(gadget, dev);
 	req = usb_ep_alloc_request(gadget->ep0, GFP_KERNEL);
 	if (!req) {
 		dev_err(&gadget->dev, "usb_ep_alloc_request failed\n");
 		set_gadget_data(gadget, NULL);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -342,8 +342,8 @@ static int gadget_setup(struct usb_gadget *gadget,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_err(&gadget->dev, "ignoring, device is not running\n");
-		ret = -ENODEV;
+		dev_err(&gadget->dev, "iganalring, device is analt running\n");
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 	if (dev->ep0_in_pending || dev->ep0_out_pending) {
@@ -423,24 +423,24 @@ static void gadget_reset(struct usb_gadget *gadget)
 
 static struct miscdevice raw_misc_device;
 
-static int raw_open(struct inode *inode, struct file *fd)
+static int raw_open(struct ianalde *ianalde, struct file *fd)
 {
 	struct raw_dev *dev;
 
-	/* Nonblocking I/O is not supported yet. */
-	if (fd->f_flags & O_NONBLOCK)
+	/* Analnblocking I/O is analt supported yet. */
+	if (fd->f_flags & O_ANALNBLOCK)
 		return -EINVAL;
 
 	dev = dev_new();
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	fd->private_data = dev;
 	dev->state = STATE_DEV_OPENED;
 	dev->dev = raw_misc_device.this_device;
 	return 0;
 }
 
-static int raw_release(struct inode *inode, struct file *fd)
+static int raw_release(struct ianalde *ianalde, struct file *fd)
 {
 	int ret = 0;
 	struct raw_dev *dev = fd->private_data;
@@ -490,7 +490,7 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 		return -EFAULT;
 
 	switch (arg.speed) {
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 		arg.speed = USB_SPEED_HIGH;
 		break;
 	case USB_SPEED_LOW:
@@ -508,7 +508,7 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 
 	driver_driver_name = kmalloc(DRIVER_DRIVER_NAME_LENGTH_MAX, GFP_KERNEL);
 	if (!driver_driver_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_driver_id_number;
 	}
 	snprintf(driver_driver_name, DRIVER_DRIVER_NAME_LENGTH_MAX,
@@ -516,7 +516,7 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 
 	udc_driver_name = kmalloc(UDC_NAME_LENGTH_MAX, GFP_KERNEL);
 	if (!udc_driver_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_driver_driver_name;
 	}
 	ret = strscpy(udc_driver_name, &arg.driver_name[0],
@@ -527,7 +527,7 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 
 	udc_device_name = kmalloc(UDC_NAME_LENGTH_MAX, GFP_KERNEL);
 	if (!udc_device_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_udc_driver_name;
 	}
 	ret = strscpy(udc_device_name, &arg.device_name[0],
@@ -538,7 +538,7 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_OPENED) {
-		dev_dbg(dev->dev, "fail, device is not opened\n");
+		dev_dbg(dev->dev, "fail, device is analt opened\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -585,7 +585,7 @@ static int raw_ioctl_run(struct raw_dev *dev, unsigned long value)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_INITIALIZED) {
-		dev_dbg(dev->dev, "fail, device is not initialized\n");
+		dev_dbg(dev->dev, "fail, device is analt initialized\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -623,12 +623,12 @@ static int raw_ioctl_event_fetch(struct raw_dev *dev, unsigned long value)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		spin_unlock_irqrestore(&dev->lock, flags);
 		return -EINVAL;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		spin_unlock_irqrestore(&dev->lock, flags);
 		return -EBUSY;
 	}
@@ -644,7 +644,7 @@ static int raw_ioctl_event_fetch(struct raw_dev *dev, unsigned long value)
 		spin_lock_irqsave(&dev->lock, flags);
 		dev->state = STATE_DEV_FAILED;
 		spin_unlock_irqrestore(&dev->lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	length = min(arg.length, event->length);
 	if (copy_to_user((void __user *)value, event, sizeof(*event) + length)) {
@@ -674,7 +674,7 @@ static void *raw_alloc_io_data(struct usb_raw_ep_io *io, void __user *ptr,
 	else {
 		data = kmalloc(io->length, GFP_KERNEL);
 		if (!data)
-			data = ERR_PTR(-ENOMEM);
+			data = ERR_PTR(-EANALMEM);
 	}
 	return data;
 }
@@ -687,12 +687,12 @@ static int raw_process_ep0_io(struct raw_dev *dev, struct usb_raw_ep_io *io,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -708,12 +708,12 @@ static int raw_process_ep0_io(struct raw_dev *dev, struct usb_raw_ep_io *io,
 		goto out_unlock;
 	}
 	if (WARN_ON(in && dev->ep0_out_pending)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev->state = STATE_DEV_FAILED;
 		goto out_unlock;
 	}
 	if (WARN_ON(!in && dev->ep0_in_pending)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev->state = STATE_DEV_FAILED;
 		goto out_unlock;
 	}
@@ -801,12 +801,12 @@ static int raw_ioctl_ep0_stall(struct raw_dev *dev, unsigned long value)
 		return -EINVAL;
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -816,7 +816,7 @@ static int raw_ioctl_ep0_stall(struct raw_dev *dev, unsigned long value)
 		goto out_unlock;
 	}
 	if (!dev->ep0_in_pending && !dev->ep0_out_pending) {
-		dev_dbg(&dev->gadget->dev, "fail, no request pending\n");
+		dev_dbg(&dev->gadget->dev, "fail, anal request pending\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -860,12 +860,12 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		goto out_free;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		goto out_free;
 	}
@@ -892,7 +892,7 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 			dev_err(&dev->gadget->dev,
 				"fail, usb_ep_alloc_request failed\n");
 			usb_ep_disable(ep->ep);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free;
 		}
 		ep->state = STATE_EP_ENABLED;
@@ -905,7 +905,7 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 		dev_dbg(&dev->gadget->dev, "fail, bad endpoint descriptor\n");
 		ret = -EINVAL;
 	} else {
-		dev_dbg(&dev->gadget->dev, "fail, no endpoints available\n");
+		dev_dbg(&dev->gadget->dev, "fail, anal endpoints available\n");
 		ret = -EBUSY;
 	}
 
@@ -923,12 +923,12 @@ static int raw_ioctl_ep_disable(struct raw_dev *dev, unsigned long value)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -938,7 +938,7 @@ static int raw_ioctl_ep_disable(struct raw_dev *dev, unsigned long value)
 		goto out_unlock;
 	}
 	if (dev->eps[i].state == STATE_EP_DISABLED) {
-		dev_dbg(&dev->gadget->dev, "fail, endpoint is not enabled\n");
+		dev_dbg(&dev->gadget->dev, "fail, endpoint is analt enabled\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -978,12 +978,12 @@ static int raw_ioctl_ep_set_clear_halt_wedge(struct raw_dev *dev,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -993,7 +993,7 @@ static int raw_ioctl_ep_set_clear_halt_wedge(struct raw_dev *dev,
 		goto out_unlock;
 	}
 	if (dev->eps[i].state == STATE_EP_DISABLED) {
-		dev_dbg(&dev->gadget->dev, "fail, endpoint is not enabled\n");
+		dev_dbg(&dev->gadget->dev, "fail, endpoint is analt enabled\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1064,12 +1064,12 @@ static int raw_process_ep_io(struct raw_dev *dev, struct usb_raw_ep_io *io,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -1080,7 +1080,7 @@ static int raw_process_ep_io(struct raw_dev *dev, struct usb_raw_ep_io *io,
 	}
 	ep = &dev->eps[io->ep];
 	if (ep->state != STATE_EP_ENABLED) {
-		dev_dbg(&dev->gadget->dev, "fail, endpoint is not enabled\n");
+		dev_dbg(&dev->gadget->dev, "fail, endpoint is analt enabled\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -1187,12 +1187,12 @@ static int raw_ioctl_configure(struct raw_dev *dev, unsigned long value)
 		return -EINVAL;
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -1210,12 +1210,12 @@ static int raw_ioctl_vbus_draw(struct raw_dev *dev, unsigned long value)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -1252,19 +1252,19 @@ static int raw_ioctl_eps_info(struct raw_dev *dev, unsigned long value)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
-		dev_dbg(dev->dev, "fail, device is not running\n");
+		dev_dbg(dev->dev, "fail, device is analt running\n");
 		ret = -EINVAL;
 		spin_unlock_irqrestore(&dev->lock, flags);
 		goto out_free;
 	}
 	if (!dev->gadget) {
-		dev_dbg(dev->dev, "fail, gadget is not bound\n");
+		dev_dbg(dev->dev, "fail, gadget is analt bound\n");
 		ret = -EBUSY;
 		spin_unlock_irqrestore(&dev->lock, flags);
 		goto out_free;
@@ -1364,11 +1364,11 @@ static const struct file_operations raw_fops = {
 	.unlocked_ioctl =	raw_ioctl,
 	.compat_ioctl =		raw_ioctl,
 	.release =		raw_release,
-	.llseek =		no_llseek,
+	.llseek =		anal_llseek,
 };
 
 static struct miscdevice raw_misc_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = DRIVER_NAME,
 	.fops = &raw_fops,
 };

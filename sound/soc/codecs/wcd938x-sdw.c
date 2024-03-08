@@ -82,9 +82,9 @@ static struct sdw_dpn_prop wcd938x_dpn_prop[WCD938X_MAX_SWR_PORTS] = {
 	}
 };
 
-struct device *wcd938x_sdw_device_get(struct device_node *np)
+struct device *wcd938x_sdw_device_get(struct device_analde *np)
 {
-	return bus_find_device_by_of_node(&sdw_bus_type, np);
+	return bus_find_device_by_of_analde(&sdw_bus_type, np);
 
 }
 EXPORT_SYMBOL_GPL(wcd938x_sdw_device_get);
@@ -1223,25 +1223,25 @@ static int wcd9380_probe(struct sdw_slave *pdev,
 
 	wcd = devm_kzalloc(dev, sizeof(*wcd), GFP_KERNEL);
 	if (!wcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/**
 	 * Port map index starts with 0, however the data port for this codec
 	 * are from index 1
 	 */
-	if (of_property_read_bool(dev->of_node, "qcom,tx-port-mapping")) {
+	if (of_property_read_bool(dev->of_analde, "qcom,tx-port-mapping")) {
 		wcd->is_tx = true;
-		ret = of_property_read_u32_array(dev->of_node, "qcom,tx-port-mapping",
+		ret = of_property_read_u32_array(dev->of_analde, "qcom,tx-port-mapping",
 						 &pdev->m_port_map[1],
 						 WCD938X_MAX_TX_SWR_PORTS);
 	} else {
-		ret = of_property_read_u32_array(dev->of_node, "qcom,rx-port-mapping",
+		ret = of_property_read_u32_array(dev->of_analde, "qcom,rx-port-mapping",
 						 &pdev->m_port_map[1],
 						 WCD938X_MAX_SWR_PORTS);
 	}
 
 	if (ret < 0)
-		dev_info(dev, "Static Port mapping not specified\n");
+		dev_info(dev, "Static Port mapping analt specified\n");
 
 	wcd->sdev = pdev;
 	dev_set_drvdata(dev, wcd);

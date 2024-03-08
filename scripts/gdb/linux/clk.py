@@ -12,7 +12,7 @@ clk_core_type = utils.CachedType("struct clk_core")
 
 def clk_core_for_each_child(hlist_head):
     return lists.hlist_for_each_entry(hlist_head,
-            clk_core_type.get_type().pointer(), "child_node")
+            clk_core_type.get_type().pointer(), "child_analde")
 
 
 class LxClkSummary(gdb.Command):
@@ -20,7 +20,7 @@ class LxClkSummary(gdb.Command):
 
 Output is a subset of /sys/kernel/debug/clk/clk_summary
 
-No calls are made during printing, instead a (c) if printed after values which
+Anal calls are made during printing, instead a (c) if printed after values which
 are cached and potentially out of date"""
 
     def __init__(self):
@@ -35,14 +35,14 @@ are cached and potentially out of date"""
                 clk['prepare_count'],
                 clk['protect_count'],
                 clk['rate'],
-                '(c)' if clk['flags'] & constants.LX_CLK_GET_RATE_NOCACHE else '   '))
+                '(c)' if clk['flags'] & constants.LX_CLK_GET_RATE_ANALCACHE else '   '))
 
         for child in clk_core_for_each_child(clk['children']):
             self.show_subtree(child, level + 1)
 
     def invoke(self, arg, from_tty):
-        if utils.gdb_eval_or_none("clk_root_list") is None:
-            raise gdb.GdbError("No clocks registered")
+        if utils.gdb_eval_or_analne("clk_root_list") is Analne:
+            raise gdb.GdbError("Anal clocks registered")
         gdb.write("                                 enable  prepare  protect               \n")
         gdb.write("   clock                          count    count    count        rate   \n")
         gdb.write("------------------------------------------------------------------------\n")

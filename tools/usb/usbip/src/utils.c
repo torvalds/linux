@@ -4,7 +4,7 @@
  *               2005-2007 Takahiro Hirofuchi
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -35,7 +35,7 @@ int modify_match_busid(char *busid, int add)
 	rc = write_sysfs_attribute(match_busid_attr_path, command,
 				   cmd_size);
 	if (rc < 0) {
-		dbg("failed to write match_busid: %s", strerror(errno));
+		dbg("failed to write match_busid: %s", strerror(erranal));
 		return -1;
 	}
 

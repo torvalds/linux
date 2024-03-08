@@ -9,8 +9,8 @@
 #include "rk3588s.dtsi"
 
 / {
-	model = "Indiedroid Nova";
-	compatible = "indiedroid,nova", "rockchip,rk3588s";
+	model = "Indiedroid Analva";
+	compatible = "indiedroid,analva", "rockchip,rk3588s";
 
 	adc-keys-0 {
 		compatible = "adc-keys";
@@ -174,8 +174,8 @@
 };
 
 /*
- * Add labels for each GPIO pin exposed on the 40 pin header. Note that
- * voltage of each GPIO pin could be either 3.3v or 1.8v (as noted by
+ * Add labels for each GPIO pin exposed on the 40 pin header. Analte that
+ * voltage of each GPIO pin could be either 3.3v or 1.8v (as analted by
  * label).
  */
 &gpio0 {
@@ -390,12 +390,12 @@
 	bluetooth-pins {
 		bt_reset: bt-reset {
 			rockchip,pins =
-				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_dev: bt-wake-dev {
 			rockchip,pins =
-				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_host: bt-wake-host {
@@ -414,14 +414,14 @@
 
 		hym8563_int: hym8563-int {
 			rockchip,pins =
-				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -433,7 +433,7 @@
 
 		typec5v_pwren: typec5v-pwren {
 			rockchip,pins =
-				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -446,10 +446,10 @@
 /* HS400 modes seemed to cause io errors. */
 &sdhci {
 	bus-width = <8>;
-	no-mmc-hs400;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-mmc-hs400;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	vmmc-supply = <&vcc_3v3_s0>;
 	vqmmc-supply = <&vcc_1v8_s3>;
 	status = "okay";
@@ -463,9 +463,9 @@
 	keep-power-in-suspend;
 	max-frequency = <100000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	no-mmc;
-	no-sd;
-	non-removable;
+	anal-mmc;
+	anal-sd;
+	analn-removable;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_s3>;
 	vqmmc-supply = <&vcc_1v8_s3>;
@@ -477,8 +477,8 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	disable-wp;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_s3>;
 	vqmmc-supply = <&vccio_sd_s0>;
@@ -773,7 +773,7 @@
 				};
 			};
 
-			/* Schematics show not in use */
+			/* Schematics show analt in use */
 			nldo-reg5 {
 			};
 		};
@@ -807,7 +807,7 @@
 	status = "okay";
 };
 
-/* DMA seems to interfere with bluetooth device normal operation. */
+/* DMA seems to interfere with bluetooth device analrmal operation. */
 &uart9 {
 	pinctrl-0 = <&uart9m2_xfer>, <&uart9m2_ctsn>, <&uart9m2_rtsn>;
 	pinctrl-names = "default";

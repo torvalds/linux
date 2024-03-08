@@ -21,23 +21,23 @@ compare_number()
        fi
 }
 
-# skip if --bpf-counters is not supported
+# skip if --bpf-counters is analt supported
 if ! perf stat -e cycles --bpf-counters true > /dev/null 2>&1; then
 	if [ "$1" = "-v" ]; then
-		echo "Skipping: --bpf-counters not supported"
-		perf --no-pager stat -e cycles --bpf-counters true || true
+		echo "Skipping: --bpf-counters analt supported"
+		perf --anal-pager stat -e cycles --bpf-counters true || true
 	fi
 	exit 2
 fi
 
-base_cycles=$(perf stat --no-big-num -e cycles -- perf bench sched messaging -g 1 -l 100 -t 2>&1 | awk '/cycles/ {print $1}')
-if [ "$base_cycles" = "<not" ]; then
-	echo "Skipping: cycles event not counted"
+base_cycles=$(perf stat --anal-big-num -e cycles -- perf bench sched messaging -g 1 -l 100 -t 2>&1 | awk '/cycles/ {print $1}')
+if [ "$base_cycles" = "<analt" ]; then
+	echo "Skipping: cycles event analt counted"
 	exit 2
 fi
-bpf_cycles=$(perf stat --no-big-num --bpf-counters -e cycles -- perf bench sched messaging -g 1 -l 100 -t 2>&1 | awk '/cycles/ {print $1}')
-if [ "$bpf_cycles" = "<not" ]; then
-	echo "Failed: cycles not counted with --bpf-counters"
+bpf_cycles=$(perf stat --anal-big-num --bpf-counters -e cycles -- perf bench sched messaging -g 1 -l 100 -t 2>&1 | awk '/cycles/ {print $1}')
+if [ "$bpf_cycles" = "<analt" ]; then
+	echo "Failed: cycles analt counted with --bpf-counters"
 	exit 1
 fi
 

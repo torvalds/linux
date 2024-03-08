@@ -38,7 +38,7 @@ Todolist:
 * hugetlbpage
 * idle_page_tracking
 * memory-hotplug
-* nommu-mmap
+* analmmu-mmap
 * numa_memory_policy
 * numaperf
 * pagemap

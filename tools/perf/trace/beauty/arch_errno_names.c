@@ -1,1 +1,1 @@
-#include "trace/beauty/generated/arch_errno_name_array.c"
+#include "trace/beauty/generated/arch_erranal_name_array.c"

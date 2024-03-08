@@ -6,7 +6,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/synch.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg) \
@@ -53,7 +53,7 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 		__futex_atomic_op("xor %1,%0,%4\n", ret, oldval, uaddr, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 	user_access_end();
 

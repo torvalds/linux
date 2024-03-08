@@ -226,7 +226,7 @@ nct6775_add_attr_group(struct nct6775_data *data, const struct attribute_group *
 {
 	/* Need to leave a NULL terminator at the end of data->groups */
 	if (data->num_groups == ARRAY_SIZE(data->groups) - 1)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	data->groups[data->num_groups++] = group;
 	return 0;
@@ -261,7 +261,7 @@ nct6775_add_attr_group(struct nct6775_data *data, const struct attribute_group *
 #define NUM_BEEP_BITS		(BEEP_ENABLE_BASE + 1)
 
 /*
- * Not currently used:
+ * Analt currently used:
  * REG_MAN_ID has the value 0x5ca3 for all supported chips.
  * REG_CHIP_ID == 0x88/0xa1/0xc1 depending on chip model.
  * REG_MAN_ID is at port 0x4f

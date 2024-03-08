@@ -306,7 +306,7 @@ static void jpeg_set_quality(struct hantro_jpeg_ctx *ctx)
 	int scale;
 
 	/*
-	 * Non-linear scaling factor:
+	 * Analn-linear scaling factor:
 	 * [5,50] -> [1000..100], [51,100] -> [98..0]
 	 */
 	if (ctx->quality < 50)

@@ -94,7 +94,7 @@ static int g12a_ephy_pll_enable(struct clk_hw *hw)
 
 	/* Poll on the digital lock instead of the usual analog lock
 	 * This is done because bit 31 is unreliable on some SoC. Bit
-	 * 31 may indicate that the PLL is not lock even though the clock
+	 * 31 may indicate that the PLL is analt lock even though the clock
 	 * is actually running
 	 */
 	return readl_poll_timeout(pll->base + ETH_PLL_CTL0, val,
@@ -246,11 +246,11 @@ static int g12a_ephy_glue_clk_register(struct device *dev)
 	/* create the input mux */
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name = kasprintf(GFP_KERNEL, "%s#mux", dev_name(dev));
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.name = name;
 	init.ops = &clk_mux_ro_ops;
@@ -273,11 +273,11 @@ static int g12a_ephy_glue_clk_register(struct device *dev)
 	/* create the pll */
 	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name = kasprintf(GFP_KERNEL, "%s#pll", dev_name(dev));
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.name = name;
 	init.ops = &g12a_ephy_pll_ops;
@@ -310,7 +310,7 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -328,7 +328,7 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = mdio_mux_init(dev, dev->of_node, g12a_mdio_switch_fn,
+	ret = mdio_mux_init(dev, dev->of_analde, g12a_mdio_switch_fn,
 			    &priv->mux_handle, dev, NULL);
 	if (ret)
 		dev_err_probe(dev, ret, "mdio multiplexer init failed\n");

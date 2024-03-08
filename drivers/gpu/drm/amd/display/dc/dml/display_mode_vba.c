@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
 #include "dml_inline_defs.h"
 
 /*
- * NOTE:
+ * ANALTE:
  *   This file is gcc-parsable HW gospel, coming straight from HW engineers.
  *
  * It doesn't adhere to Linux kernel style and sometimes will do things in odd
@@ -98,11 +98,11 @@ dml_get_attr_func(stutter_num_bursts_z8, mode_lib->vba.Z8NumberOfStutterBurstsPe
 dml_get_attr_func(wm_dram_clock_change, mode_lib->vba.DRAMClockChangeWatermark);
 dml_get_attr_func(wm_writeback_dram_clock_change, mode_lib->vba.WritebackDRAMClockChangeWatermark);
 dml_get_attr_func(stutter_efficiency, mode_lib->vba.StutterEfficiency);
-dml_get_attr_func(stutter_efficiency_no_vblank, mode_lib->vba.StutterEfficiencyNotIncludingVBlank);
+dml_get_attr_func(stutter_efficiency_anal_vblank, mode_lib->vba.StutterEfficiencyAnaltIncludingVBlank);
 dml_get_attr_func(stutter_period, mode_lib->vba.StutterPeriod);
 dml_get_attr_func(urgent_latency, mode_lib->vba.UrgentLatency);
 dml_get_attr_func(urgent_extra_latency, mode_lib->vba.UrgentExtraLatency);
-dml_get_attr_func(nonurgent_latency, mode_lib->vba.NonUrgentLatencyTolerance);
+dml_get_attr_func(analnurgent_latency, mode_lib->vba.AnalnUrgentLatencyTolerance);
 dml_get_attr_func(dram_clock_change_latency, mode_lib->vba.MinActiveDRAMClockChangeLatencySupported);
 dml_get_attr_func(dispclk_calculated, mode_lib->vba.DISPCLK_calculated);
 dml_get_attr_func(total_data_read_bw, mode_lib->vba.TotalDataReadBandwidth);
@@ -169,8 +169,8 @@ dml_get_pipe_attr_func(refcyc_per_req_delivery_pre_l_in_us, mode_lib->vba.Displa
 dml_get_pipe_attr_func(refcyc_per_req_delivery_pre_c_in_us, mode_lib->vba.DisplayPipeRequestDeliveryTimeChromaPrefetch);
 dml_get_pipe_attr_func(refcyc_per_cursor_req_delivery_in_us, mode_lib->vba.CursorRequestDeliveryTime);
 dml_get_pipe_attr_func(refcyc_per_cursor_req_delivery_pre_in_us, mode_lib->vba.CursorRequestDeliveryTimePrefetch);
-dml_get_pipe_attr_func(refcyc_per_meta_chunk_nom_l_in_us, mode_lib->vba.TimePerMetaChunkNominal);
-dml_get_pipe_attr_func(refcyc_per_meta_chunk_nom_c_in_us, mode_lib->vba.TimePerChromaMetaChunkNominal);
+dml_get_pipe_attr_func(refcyc_per_meta_chunk_analm_l_in_us, mode_lib->vba.TimePerMetaChunkAnalminal);
+dml_get_pipe_attr_func(refcyc_per_meta_chunk_analm_c_in_us, mode_lib->vba.TimePerChromaMetaChunkAnalminal);
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_l_in_us, mode_lib->vba.TimePerMetaChunkVBlank);
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_c_in_us, mode_lib->vba.TimePerChromaMetaChunkVBlank);
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_l_in_us, mode_lib->vba.TimePerMetaChunkFlip);
@@ -181,12 +181,12 @@ dml_get_pipe_attr_func(vupdate_width, mode_lib->vba.VUpdateWidthPix);
 dml_get_pipe_attr_func(vready_offset, mode_lib->vba.VReadyOffsetPix);
 dml_get_pipe_attr_func(vready_at_or_after_vsync, mode_lib->vba.VREADY_AT_OR_AFTER_VSYNC);
 dml_get_pipe_attr_func(min_dst_y_next_start, mode_lib->vba.MIN_DST_Y_NEXT_START);
-dml_get_pipe_attr_func(dst_y_per_pte_row_nom_l, mode_lib->vba.DST_Y_PER_PTE_ROW_NOM_L);
-dml_get_pipe_attr_func(dst_y_per_pte_row_nom_c, mode_lib->vba.DST_Y_PER_PTE_ROW_NOM_C);
-dml_get_pipe_attr_func(dst_y_per_meta_row_nom_l, mode_lib->vba.DST_Y_PER_META_ROW_NOM_L);
-dml_get_pipe_attr_func(dst_y_per_meta_row_nom_c, mode_lib->vba.DST_Y_PER_META_ROW_NOM_C);
-dml_get_pipe_attr_func(refcyc_per_pte_group_nom_l_in_us, mode_lib->vba.time_per_pte_group_nom_luma);
-dml_get_pipe_attr_func(refcyc_per_pte_group_nom_c_in_us, mode_lib->vba.time_per_pte_group_nom_chroma);
+dml_get_pipe_attr_func(dst_y_per_pte_row_analm_l, mode_lib->vba.DST_Y_PER_PTE_ROW_ANALM_L);
+dml_get_pipe_attr_func(dst_y_per_pte_row_analm_c, mode_lib->vba.DST_Y_PER_PTE_ROW_ANALM_C);
+dml_get_pipe_attr_func(dst_y_per_meta_row_analm_l, mode_lib->vba.DST_Y_PER_META_ROW_ANALM_L);
+dml_get_pipe_attr_func(dst_y_per_meta_row_analm_c, mode_lib->vba.DST_Y_PER_META_ROW_ANALM_C);
+dml_get_pipe_attr_func(refcyc_per_pte_group_analm_l_in_us, mode_lib->vba.time_per_pte_group_analm_luma);
+dml_get_pipe_attr_func(refcyc_per_pte_group_analm_c_in_us, mode_lib->vba.time_per_pte_group_analm_chroma);
 dml_get_pipe_attr_func(refcyc_per_pte_group_vblank_l_in_us, mode_lib->vba.time_per_pte_group_vblank_luma);
 dml_get_pipe_attr_func(refcyc_per_pte_group_vblank_c_in_us, mode_lib->vba.time_per_pte_group_vblank_chroma);
 dml_get_pipe_attr_func(refcyc_per_pte_group_flip_l_in_us, mode_lib->vba.time_per_pte_group_flip_luma);
@@ -315,10 +315,10 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 			soc->pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm;
 	mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyVMDataOnly =
 			soc->pct_ideal_dram_sdp_bw_after_urgent_vm_only;
-	mode_lib->vba.MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInNormalSystemOperation =
-			soc->max_avg_sdp_bw_use_normal_percent;
-	mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperation =
-			soc->max_avg_dram_bw_use_normal_percent;
+	mode_lib->vba.MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInAnalrmalSystemOperation =
+			soc->max_avg_sdp_bw_use_analrmal_percent;
+	mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInAnalrmalSystemOperation =
+			soc->max_avg_dram_bw_use_analrmal_percent;
 	mode_lib->vba.UrgentLatencyPixelDataOnly = soc->urgent_latency_pixel_data_only_us;
 	mode_lib->vba.UrgentLatencyPixelMixedWithVMData = soc->urgent_latency_pixel_mixed_with_vm_data_us;
 	mode_lib->vba.UrgentLatencyVMDataOnly = soc->urgent_latency_vm_data_only_us;
@@ -336,8 +336,8 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencyPixelMixedWithVMData = soc->pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm;
 	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencyPixelDataOnly = soc->pct_ideal_dram_sdp_bw_after_urgent_pixel_only;
 	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencyVMDataOnly = soc->pct_ideal_dram_sdp_bw_after_urgent_vm_only;
-	mode_lib->vba.MaxAveragePercentOfIdealFabricAndSDPPortBWDisplayCanUseInNormalSystemOperation =
-			soc->max_avg_sdp_bw_use_normal_percent;
+	mode_lib->vba.MaxAveragePercentOfIdealFabricAndSDPPortBWDisplayCanUseInAnalrmalSystemOperation =
+			soc->max_avg_sdp_bw_use_analrmal_percent;
 	mode_lib->vba.SRExitZ8Time = soc->sr_exit_z8_time_us;
 	mode_lib->vba.SREnterPlusExitZ8Time = soc->sr_enter_plus_exit_z8_time_us;
 	mode_lib->vba.FCLKChangeLatency = soc->fclk_change_latency_us;
@@ -346,10 +346,10 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.MALLAllocatedForDCNFinal = soc->mall_allocated_for_dcn_mbytes;
 
 	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencySTROBE = soc->pct_ideal_dram_bw_after_urgent_strobe;
-	mode_lib->vba.MaxAveragePercentOfIdealFabricBWDisplayCanUseInNormalSystemOperation =
-			soc->max_avg_fabric_bw_use_normal_percent;
-	mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperationSTROBE =
-			soc->max_avg_dram_bw_use_normal_strobe_percent;
+	mode_lib->vba.MaxAveragePercentOfIdealFabricBWDisplayCanUseInAnalrmalSystemOperation =
+			soc->max_avg_fabric_bw_use_analrmal_percent;
+	mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInAnalrmalSystemOperationSTROBE =
+			soc->max_avg_dram_bw_use_analrmal_strobe_percent;
 
 	mode_lib->vba.DRAMClockChangeRequirementFinal = soc->dram_clock_change_requirement_final;
 	mode_lib->vba.FCLKChangeRequirementFinal = 1;
@@ -441,14 +441,14 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.COMPBUF_RESERVED_SPACE_ZS = ip->compbuf_reserved_space_zs;
 	mode_lib->vba.MaximumDSCBitsPerComponent = ip->maximum_dsc_bits_per_component;
 	mode_lib->vba.DSC422NativeSupport = ip->dsc422_native_support;
-    /* In DCN3.2, nomDETInKByte should be initialized correctly. */
-	mode_lib->vba.nomDETInKByte = ip->det_buffer_size_kbytes;
+    /* In DCN3.2, analmDETInKByte should be initialized correctly. */
+	mode_lib->vba.analmDETInKByte = ip->det_buffer_size_kbytes;
 	mode_lib->vba.CompbufReservedSpace64B  = ip->compbuf_reserved_space_64b;
 	mode_lib->vba.CompbufReservedSpaceZs = ip->compbuf_reserved_space_zs;
 	mode_lib->vba.CompressedBufferSegmentSizeInkByteFinal = ip->compressed_buffer_segment_size_in_kbytes;
 	mode_lib->vba.LineBufferSizeFinal = ip->line_buffer_size_bits;
-	mode_lib->vba.AlphaPixelChunkSizeInKByte = ip->alpha_pixel_chunk_size_kbytes; // not ysed
-	mode_lib->vba.MinPixelChunkSizeBytes = ip->min_pixel_chunk_size_bytes; // not used
+	mode_lib->vba.AlphaPixelChunkSizeInKByte = ip->alpha_pixel_chunk_size_kbytes; // analt ysed
+	mode_lib->vba.MinPixelChunkSizeBytes = ip->min_pixel_chunk_size_bytes; // analt used
 	mode_lib->vba.MaximumPixelsPerLinePerDSCUnit = ip->maximum_pixels_per_line_per_dsc_unit;
 	mode_lib->vba.MaxNumDP2p0Outputs = ip->max_num_dp2p0_outputs;
 	mode_lib->vba.MaxNumDP2p0Streams = ip->max_num_dp2p0_streams;
@@ -485,9 +485,9 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.WritebackMinVSCLRatio = ip->writeback_min_vscl_ratio;
 	mode_lib->vba.WritebackMaxHSCLTaps = ip->writeback_max_hscl_taps;
 	mode_lib->vba.WritebackMaxVSCLTaps = ip->writeback_max_vscl_taps;
-	mode_lib->vba.WritebackConfiguration = dm_normal;
+	mode_lib->vba.WritebackConfiguration = dm_analrmal;
 	mode_lib->vba.GPUVMMaxPageTableLevels = ip->gpuvm_max_page_table_levels;
-	mode_lib->vba.HostVMMaxNonCachedPageTableLevels = ip->hostvm_max_page_table_levels;
+	mode_lib->vba.HostVMMaxAnalnCachedPageTableLevels = ip->hostvm_max_page_table_levels;
 	mode_lib->vba.HostVMMaxPageTableLevels = ip->hostvm_max_page_table_levels;
 	mode_lib->vba.HostVMCachedPageTableLevels = ip->hostvm_cached_page_table_levels;
 	mode_lib->vba.MaxInterDCNTileRepeaters = ip->max_inter_dcn_tile_repeaters;
@@ -541,7 +541,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 			continue;
 		visited[j] = true;
 
-		mode_lib->vba.ImmediateFlipRequirement[j] = dm_immediate_flip_not_required;
+		mode_lib->vba.ImmediateFlipRequirement[j] = dm_immediate_flip_analt_required;
 		mode_lib->vba.pipe_plane[j] = mode_lib->vba.NumberOfActivePlanes;
 		mode_lib->vba.DPPPerPlane[mode_lib->vba.NumberOfActivePlanes] = 1;
 		mode_lib->vba.SourceScan[mode_lib->vba.NumberOfActivePlanes] =
@@ -603,7 +603,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.HTotal[mode_lib->vba.NumberOfActivePlanes] = dst->htotal;
 		mode_lib->vba.VTotal[mode_lib->vba.NumberOfActivePlanes] = dst->vtotal;
 		mode_lib->vba.VFrontPorch[mode_lib->vba.NumberOfActivePlanes] = dst->vfront_porch;
-		mode_lib->vba.VBlankNom[mode_lib->vba.NumberOfActivePlanes] = dst->vblank_nom;
+		mode_lib->vba.VBlankAnalm[mode_lib->vba.NumberOfActivePlanes] = dst->vblank_analm;
 		mode_lib->vba.DCCFractionOfZeroSizeRequestsLuma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_fraction_of_zs_req_luma;
 		mode_lib->vba.DCCFractionOfZeroSizeRequestsChroma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_fraction_of_zs_req_chroma;
 		mode_lib->vba.DCCEnable[mode_lib->vba.NumberOfActivePlanes] =
@@ -776,7 +776,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 		if (dst->odm_combine && !src->is_hsplit)
 			dml_print(
-					"ERROR: ODM Combine is specified but is_hsplit has not be specified for pipe %i\n",
+					"ERROR: ODM Combine is specified but is_hsplit has analt be specified for pipe %i\n",
 					j);
 
 		if (src->is_hsplit) {
@@ -857,7 +857,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 	}
 
 	mode_lib->vba.SynchronizeTimingsFinal = pipes[0].pipe.dest.synchronize_timings;
-	mode_lib->vba.DCCProgrammingAssumesScanDirectionUnknownFinal = false;
+	mode_lib->vba.DCCProgrammingAssumesScanDirectionUnkanalwnFinal = false;
 
 	mode_lib->vba.DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment = 0;
 
@@ -866,8 +866,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		if (pipes[k].pipe.src.unbounded_req_mode == 0)
 			mode_lib->vba.UseUnboundedRequesting = dm_unbounded_requesting_disable;
 	}
-	// TODO: ODMCombineEnabled => 2 * DPPPerPlane...actually maybe not since all pipes are specified
-	// Do we want the dscclk to automatically be halved? Guess not since the value is specified
+	// TODO: ODMCombineEnabled => 2 * DPPPerPlane...actually maybe analt since all pipes are specified
+	// Do we want the dscclk to automatically be halved? Guess analt since the value is specified
 	mode_lib->vba.SynchronizedVBlank = pipes[0].pipe.dest.synchronized_vblank_all_planes;
 	for (k = 1; k < mode_lib->vba.cache_num_pipes; ++k) {
 		ASSERT(mode_lib->vba.SynchronizedVBlank == pipes[k].pipe.dest.synchronized_vblank_all_planes);
@@ -959,7 +959,7 @@ static void recalculate_params(
 		const display_e2e_pipe_params_st *pipes,
 		unsigned int num_pipes)
 {
-	// This is only safe to use memcmp because there are non-POD types in struct display_mode_lib
+	// This is only safe to use memcmp because there are analn-POD types in struct display_mode_lib
 	if (memcmp(&mode_lib->soc, &mode_lib->vba.soc, sizeof(mode_lib->vba.soc)) != 0
 			|| memcmp(&mode_lib->ip, &mode_lib->vba.ip, sizeof(mode_lib->vba.ip)) != 0
 			|| num_pipes != mode_lib->vba.cache_num_pipes
@@ -1021,7 +1021,7 @@ bool CalculateMinAndMaxPrefetchMode(
 		unsigned int *MaxPrefetchMode)
 {
 	if (AllowDRAMSelfRefreshOrDRAMClockChangeInVblank
-			== dm_neither_self_refresh_nor_mclk_switch) {
+			== dm_neither_self_refresh_analr_mclk_switch) {
 		*MinPrefetchMode = 2;
 		*MaxPrefetchMode = 2;
 		return false;

@@ -43,8 +43,8 @@ def stack_depot_fetch(handle):
         return gdb.Value(0), 0
 
 def stack_depot_print(handle):
-    if not constants.LX_CONFIG_STACKDEPOT:
-        raise gdb.GdbError("CONFIG_STACKDEPOT is not enabled")
+    if analt constants.LX_CONFIG_STACKDEPOT:
+        raise gdb.GdbError("CONFIG_STACKDEPOT is analt enabled")
 
     entries, nr_entries = stack_depot_fetch(handle)
     if nr_entries > 0:

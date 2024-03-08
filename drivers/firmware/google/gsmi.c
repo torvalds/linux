@@ -13,13 +13,13 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/ioctl.h>
 #include <linux/acpi.h>
 #include <linux/io.h>
@@ -37,7 +37,7 @@
 #define GSMI_SHUTDOWN_NMIWDT	1	/* NMI Watchdog */
 #define GSMI_SHUTDOWN_PANIC	2	/* Panic */
 #define GSMI_SHUTDOWN_OOPS	3	/* Oops */
-#define GSMI_SHUTDOWN_DIE	4	/* Die -- No longer meaningful */
+#define GSMI_SHUTDOWN_DIE	4	/* Die -- Anal longer meaningful */
 #define GSMI_SHUTDOWN_MCE	5	/* Machine Check */
 #define GSMI_SHUTDOWN_SOFTWDT	6	/* Software Watchdog */
 #define GSMI_SHUTDOWN_MBE	7	/* Uncorrected ECC */
@@ -53,16 +53,16 @@
 #define GSMI_SUCCESS		0x00
 #define GSMI_UNSUPPORTED2	0x03
 #define GSMI_LOG_FULL		0x0b
-#define GSMI_VAR_NOT_FOUND	0x0e
+#define GSMI_VAR_ANALT_FOUND	0x0e
 #define GSMI_HANDSHAKE_SPIN	0x7d
 #define GSMI_HANDSHAKE_CF	0x7e
-#define GSMI_HANDSHAKE_NONE	0x7f
+#define GSMI_HANDSHAKE_ANALNE	0x7f
 #define GSMI_INVALID_PARAMETER	0x82
 #define GSMI_UNSUPPORTED	0x83
 #define GSMI_BUFFER_TOO_SMALL	0x85
-#define GSMI_NOT_READY		0x86
+#define GSMI_ANALT_READY		0x86
 #define GSMI_DEVICE_ERROR	0x87
-#define GSMI_NOT_FOUND		0x8e
+#define GSMI_ANALT_FOUND		0x8e
 
 #define QUIRKY_BOARD_HASH 0x78a30a50
 
@@ -137,11 +137,11 @@ MODULE_PARM_DESC(spincount,
 	"The number of loop iterations to use when using the spin handshake.");
 
 /*
- * Some older platforms with Apollo Lake chipsets do not support S0ix logging
+ * Some older platforms with Apollo Lake chipsets do analt support S0ix logging
  * in their GSMI handlers, and behaved poorly when resuming via power button
  * press if the logging was attempted. Updated firmware with proper behavior
  * has long since shipped, removing the need for this opt-in parameter. It
- * now exists as an opt-out parameter for folks defiantly running old
+ * analw exists as an opt-out parameter for folks defiantly running old
  * firmware, or unforeseen circumstances. After the change from opt-in to
  * opt-out has baked sufficiently, this parameter should probably be removed
  * entirely.
@@ -185,7 +185,7 @@ static void gsmi_buf_free(struct gsmi_buf *smibuf)
 
 /*
  * Make a call to gsmi func(sub).  GSMI error codes are translated to
- * in-kernel errnos (0 on success, -ERRNO on error).
+ * in-kernel erranals (0 on success, -ERRANAL on error).
  */
 static int gsmi_exec(u8 func, u8 sub)
 {
@@ -236,7 +236,7 @@ static int gsmi_exec(u8 func, u8 sub)
 		);
 	} else {
 		/*
-		 * If handshake_type == HANDSHAKE_NONE we do nothing;
+		 * If handshake_type == HANDSHAKE_ANALNE we do analthing;
 		 * either we don't need to or it's legacy firmware that
 		 * doesn't understand the CF protocol.
 		 */
@@ -254,8 +254,8 @@ static int gsmi_exec(u8 func, u8 sub)
 	switch (result) {
 	case GSMI_SUCCESS:
 		break;
-	case GSMI_VAR_NOT_FOUND:
-		/* not really an error, but let the caller know */
+	case GSMI_VAR_ANALT_FOUND:
+		/* analt really an error, but let the caller kanalw */
 		rc = 1;
 		break;
 	case GSMI_INVALID_PARAMETER:
@@ -264,38 +264,38 @@ static int gsmi_exec(u8 func, u8 sub)
 		break;
 	case GSMI_BUFFER_TOO_SMALL:
 		printk(KERN_ERR "gsmi: exec 0x%04x: Buffer too small\n", cmd);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		break;
 	case GSMI_UNSUPPORTED:
 	case GSMI_UNSUPPORTED2:
 		if (sub != GSMI_CMD_HANDSHAKE_TYPE)
-			printk(KERN_ERR "gsmi: exec 0x%04x: Not supported\n",
+			printk(KERN_ERR "gsmi: exec 0x%04x: Analt supported\n",
 			       cmd);
-		rc = -ENOSYS;
+		rc = -EANALSYS;
 		break;
-	case GSMI_NOT_READY:
-		printk(KERN_ERR "gsmi: exec 0x%04x: Not ready\n", cmd);
+	case GSMI_ANALT_READY:
+		printk(KERN_ERR "gsmi: exec 0x%04x: Analt ready\n", cmd);
 		rc = -EBUSY;
 		break;
 	case GSMI_DEVICE_ERROR:
 		printk(KERN_ERR "gsmi: exec 0x%04x: Device error\n", cmd);
 		rc = -EFAULT;
 		break;
-	case GSMI_NOT_FOUND:
-		printk(KERN_ERR "gsmi: exec 0x%04x: Data not found\n", cmd);
-		rc = -ENOENT;
+	case GSMI_ANALT_FOUND:
+		printk(KERN_ERR "gsmi: exec 0x%04x: Data analt found\n", cmd);
+		rc = -EANALENT;
 		break;
 	case GSMI_LOG_FULL:
 		printk(KERN_ERR "gsmi: exec 0x%04x: Log full\n", cmd);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		break;
 	case GSMI_HANDSHAKE_CF:
 	case GSMI_HANDSHAKE_SPIN:
-	case GSMI_HANDSHAKE_NONE:
+	case GSMI_HANDSHAKE_ANALNE:
 		rc = result;
 		break;
 	default:
-		printk(KERN_ERR "gsmi: exec 0x%04x: Unknown error 0x%04x\n",
+		printk(KERN_ERR "gsmi: exec 0x%04x: Unkanalwn error 0x%04x\n",
 		       cmd, result);
 		rc = -ENXIO;
 	}
@@ -346,8 +346,8 @@ static efi_status_t gsmi_get_variable(efi_char16_t *name,
 		printk(KERN_ERR "gsmi: Get Variable failed\n");
 		ret = EFI_LOAD_ERROR;
 	} else if (rc == 1) {
-		/* variable was not found */
-		ret = EFI_NOT_FOUND;
+		/* variable was analt found */
+		ret = EFI_ANALT_FOUND;
 	} else {
 		/* Get the arguments back */
 		memcpy(&param, gsmi_dev.param_buf->start, sizeof(param));
@@ -362,7 +362,7 @@ static efi_status_t gsmi_get_variable(efi_char16_t *name,
 
 		/* All variables are have the following attributes */
 		if (attr)
-			*attr = EFI_VARIABLE_NON_VOLATILE |
+			*attr = EFI_VARIABLE_ANALN_VOLATILE |
 				EFI_VARIABLE_BOOTSERVICE_ACCESS |
 				EFI_VARIABLE_RUNTIME_ACCESS;
 	}
@@ -409,8 +409,8 @@ static efi_status_t gsmi_get_next_variable(unsigned long *name_size,
 		printk(KERN_ERR "gsmi: Get Next Variable Name failed\n");
 		ret = EFI_LOAD_ERROR;
 	} else if (rc == 1) {
-		/* variable not found -- end of list */
-		ret = EFI_NOT_FOUND;
+		/* variable analt found -- end of list */
+		ret = EFI_ANALT_FOUND;
 	} else {
 		/* copy variable data back to return buffer */
 		memcpy(&param, gsmi_dev.param_buf->start, sizeof(param));
@@ -439,7 +439,7 @@ static efi_status_t gsmi_set_variable(efi_char16_t *name,
 		.name_ptr = gsmi_dev.name_buf->address,
 		.data_ptr = gsmi_dev.data_buf->address,
 		.data_len = (u32)data_size,
-		.attributes = EFI_VARIABLE_NON_VOLATILE |
+		.attributes = EFI_VARIABLE_ANALN_VOLATILE |
 			      EFI_VARIABLE_BOOTSERVICE_ACCESS |
 			      EFI_VARIABLE_RUNTIME_ACCESS,
 	};
@@ -656,47 +656,47 @@ static int gsmi_shutdown_reason(int reason)
 	return rc;
 }
 
-static int gsmi_reboot_callback(struct notifier_block *nb,
+static int gsmi_reboot_callback(struct analtifier_block *nb,
 				unsigned long reason, void *arg)
 {
 	gsmi_shutdown_reason(GSMI_SHUTDOWN_CLEAN);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block gsmi_reboot_notifier = {
-	.notifier_call = gsmi_reboot_callback
+static struct analtifier_block gsmi_reboot_analtifier = {
+	.analtifier_call = gsmi_reboot_callback
 };
 
-static int gsmi_die_callback(struct notifier_block *nb,
+static int gsmi_die_callback(struct analtifier_block *nb,
 			     unsigned long reason, void *arg)
 {
 	if (reason == DIE_OOPS)
 		gsmi_shutdown_reason(GSMI_SHUTDOWN_OOPS);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block gsmi_die_notifier = {
-	.notifier_call = gsmi_die_callback
+static struct analtifier_block gsmi_die_analtifier = {
+	.analtifier_call = gsmi_die_callback
 };
 
-static int gsmi_panic_callback(struct notifier_block *nb,
+static int gsmi_panic_callback(struct analtifier_block *nb,
 			       unsigned long reason, void *arg)
 {
 
 	/*
 	 * Panic callbacks are executed with all other CPUs stopped,
-	 * so we must not attempt to spin waiting for gsmi_dev.lock
+	 * so we must analt attempt to spin waiting for gsmi_dev.lock
 	 * to be released.
 	 */
 	if (spin_is_locked(&gsmi_dev.lock))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	gsmi_shutdown_reason(GSMI_SHUTDOWN_PANIC);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block gsmi_panic_notifier = {
-	.notifier_call = gsmi_panic_callback,
+static struct analtifier_block gsmi_panic_analtifier = {
+	.analtifier_call = gsmi_panic_callback,
 };
 
 /*
@@ -704,7 +704,7 @@ static struct notifier_block gsmi_panic_notifier = {
  * It is used by this driver to obfuscate a board name that requires a
  * quirk within this driver.
  *
- * Please do not remove this copy of the function as any changes to the
+ * Please do analt remove this copy of the function as any changes to the
  * global utility hash_64() function would break this driver's ability
  * to identify a board and provide the appropriate quirk -- mikew@google.com
  */
@@ -761,7 +761,7 @@ static __init int gsmi_system_valid(void)
 	u16 cmd, result;
 
 	if (!dmi_check_system(gsmi_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Only newer firmware supports the gsmi interface.  All older
@@ -773,7 +773,7 @@ static __init int gsmi_system_valid(void)
 	 */
 	if (!strncmp(acpi_gbl_FADT.header.oem_table_id, "FACP", 4)) {
 		printk(KERN_INFO "gsmi: Board is too old\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Disable on board with 1.0 BIOS due to Google bug 2602657 */
@@ -783,18 +783,18 @@ static __init int gsmi_system_valid(void)
 		if (strncmp(bios_ver, "1.0", 3) == 0) {
 			pr_info("gsmi: disabled on this board's BIOS %s\n",
 				bios_ver);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	/* check for valid SMI command port in ACPI FADT */
 	if (acpi_gbl_FADT.smi_command == 0) {
 		pr_info("gsmi: missing smi_command\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Test the smihandler with a bogus command. If it leaves the
-	 * calling argument in %ax untouched, there is no handler for
+	 * calling argument in %ax untouched, there is anal handler for
 	 * GSMI commands.
 	 */
 	cmd = GSMI_CALLBACK | GSMI_CMD_RESERVED << 8;
@@ -806,8 +806,8 @@ static __init int gsmi_system_valid(void)
 		: "memory", "cc"
 		);
 	if (cmd == result) {
-		pr_info("gsmi: no gsmi handler in firmware\n");
-		return -ENODEV;
+		pr_info("gsmi: anal gsmi handler in firmware\n");
+		return -EANALDEV;
 	}
 
 	/* Found */
@@ -829,7 +829,7 @@ static void gsmi_log_s0ix_info(u8 cmd)
 	unsigned long flags;
 
 	/*
-	 * If platform has not enabled S0ix logging, then no action is
+	 * If platform has analt enabled S0ix logging, then anal action is
 	 * necessary.
 	 */
 	if (!s0ix_logging_enable)
@@ -847,14 +847,14 @@ static void gsmi_log_s0ix_info(u8 cmd)
 static int gsmi_log_s0ix_suspend(struct device *dev)
 {
 	/*
-	 * If system is not suspending via firmware using the standard ACPI Sx
+	 * If system is analt suspending via firmware using the standard ACPI Sx
 	 * types, then make a GSMI call to log the suspend info.
 	 */
 	if (!pm_suspend_via_firmware())
 		gsmi_log_s0ix_info(GSMI_CMD_LOG_S0IX_SUSPEND);
 
 	/*
-	 * Always return success, since we do not want suspend
+	 * Always return success, since we do analt want suspend
 	 * to fail just because of logging failure.
 	 */
 	return 0;
@@ -863,22 +863,22 @@ static int gsmi_log_s0ix_suspend(struct device *dev)
 static int gsmi_log_s0ix_resume(struct device *dev)
 {
 	/*
-	 * If system did not resume via firmware, then make a GSMI call to log
+	 * If system did analt resume via firmware, then make a GSMI call to log
 	 * the resume info and wake source.
 	 */
 	if (!pm_resume_via_firmware())
 		gsmi_log_s0ix_info(GSMI_CMD_LOG_S0IX_RESUME);
 
 	/*
-	 * Always return success, since we do not want resume
+	 * Always return success, since we do analt want resume
 	 * to fail just because of logging failure.
 	 */
 	return 0;
 }
 
 static const struct dev_pm_ops gsmi_pm_ops = {
-	.suspend_noirq = gsmi_log_s0ix_suspend,
-	.resume_noirq = gsmi_log_s0ix_resume,
+	.suspend_analirq = gsmi_log_s0ix_suspend,
+	.resume_analirq = gsmi_log_s0ix_resume,
 };
 
 static int gsmi_platform_driver_probe(struct platform_device *dev)
@@ -924,12 +924,12 @@ static __init int gsmi_init(void)
 	/* SMI access needs to be serialized */
 	spin_lock_init(&gsmi_dev.lock);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	/*
 	 * SLAB cache is created using SLAB_CACHE_DMA32 to ensure that the
 	 * allocations for gsmi_buf come from the DMA32 memory zone. These
-	 * buffers have nothing to do with DMA. They are required for
+	 * buffers have analthing to do with DMA. They are required for
 	 * communication with firmware executing in SMI mode which can only
 	 * access the bottom 4GiB of physical memory. Since DMA32 memory zone
 	 * guarantees allocation under the 4GiB boundary, this driver creates
@@ -943,7 +943,7 @@ static __init int gsmi_init(void)
 
 	/*
 	 * pre-allocate buffers because sometimes we are called when
-	 * this is not feasible: oops, panic, die, mce, etc
+	 * this is analt feasible: oops, panic, die, mce, etc
 	 */
 	gsmi_dev.name_buf = gsmi_buf_alloc();
 	if (!gsmi_dev.name_buf) {
@@ -970,45 +970,45 @@ static __init int gsmi_init(void)
 	 * There's a "behavior" present on some chipsets where writing the
 	 * SMI trigger register in the southbridge doesn't result in an
 	 * immediate SMI. Rather, the processor can execute "a few" more
-	 * instructions before the SMI takes effect. To ensure synchronous
+	 * instructions before the SMI takes effect. To ensure synchroanalus
 	 * behavior, implement a handshake between the kernel driver and the
 	 * firmware handler to spin until released. This ioctl determines
 	 * the type of handshake.
 	 *
-	 * NONE: The firmware handler does not implement any
+	 * ANALNE: The firmware handler does analt implement any
 	 * handshake. Either it doesn't need to, or it's legacy firmware
-	 * that doesn't know it needs to and never will.
+	 * that doesn't kanalw it needs to and never will.
 	 *
 	 * CF: The firmware handler will clear the CF in the saved
 	 * state before returning. The driver may set the CF and test for
 	 * it to clear before proceeding.
 	 *
-	 * SPIN: The firmware handler does not implement any handshake
+	 * SPIN: The firmware handler does analt implement any handshake
 	 * but the driver should spin for a hundred or so microseconds
 	 * to ensure the SMI has triggered.
 	 *
-	 * Finally, the handler will return -ENOSYS if
+	 * Finally, the handler will return -EANALSYS if
 	 * GSMI_CMD_HANDSHAKE_TYPE is unimplemented, which implies
-	 * HANDSHAKE_NONE.
+	 * HANDSHAKE_ANALNE.
 	 */
 	spin_lock_irqsave(&gsmi_dev.lock, flags);
 	gsmi_dev.handshake_type = GSMI_HANDSHAKE_SPIN;
 	gsmi_dev.handshake_type =
 	    gsmi_exec(GSMI_CALLBACK, GSMI_CMD_HANDSHAKE_TYPE);
-	if (gsmi_dev.handshake_type == -ENOSYS)
-		gsmi_dev.handshake_type = GSMI_HANDSHAKE_NONE;
+	if (gsmi_dev.handshake_type == -EANALSYS)
+		gsmi_dev.handshake_type = GSMI_HANDSHAKE_ANALNE;
 	spin_unlock_irqrestore(&gsmi_dev.lock, flags);
 
-	/* Remove and clean up gsmi if the handshake could not complete. */
+	/* Remove and clean up gsmi if the handshake could analt complete. */
 	if (gsmi_dev.handshake_type == -ENXIO) {
 		printk(KERN_INFO "gsmi version " DRIVER_VERSION
 		       " failed to load\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_err;
 	}
 
 	/* Register in the firmware directory */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	gsmi_kobj = kobject_create_and_add("gsmi", firmware_kobj);
 	if (!gsmi_kobj) {
 		printk(KERN_INFO "gsmi: Failed to create firmware kobj\n");
@@ -1038,10 +1038,10 @@ static __init int gsmi_init(void)
 	}
 #endif
 
-	register_reboot_notifier(&gsmi_reboot_notifier);
-	register_die_notifier(&gsmi_die_notifier);
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &gsmi_panic_notifier);
+	register_reboot_analtifier(&gsmi_reboot_analtifier);
+	register_die_analtifier(&gsmi_die_analtifier);
+	atomic_analtifier_chain_register(&panic_analtifier_list,
+				       &gsmi_panic_analtifier);
 
 	printk(KERN_INFO "gsmi version " DRIVER_VERSION " loaded\n");
 
@@ -1065,10 +1065,10 @@ out_err:
 
 static void __exit gsmi_exit(void)
 {
-	unregister_reboot_notifier(&gsmi_reboot_notifier);
-	unregister_die_notifier(&gsmi_die_notifier);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &gsmi_panic_notifier);
+	unregister_reboot_analtifier(&gsmi_reboot_analtifier);
+	unregister_die_analtifier(&gsmi_die_analtifier);
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
+					 &gsmi_panic_analtifier);
 #ifdef CONFIG_EFI
 	efivars_unregister(&efivars);
 #endif

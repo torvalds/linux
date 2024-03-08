@@ -96,7 +96,7 @@ static const struct seq_operations netfs_requests_seq_ops = {
 
 static int __init netfs_init(void)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (!proc_mkdir("fs/netfs", NULL))
 		goto error;

@@ -74,7 +74,7 @@ u32 __init tegra_fuse_read_spare(unsigned int spare);
 u32 __init tegra_fuse_read_early(unsigned int offset);
 
 u8 tegra_get_major_rev(void);
-u8 tegra_get_minor_rev(void);
+u8 tegra_get_mianalr_rev(void);
 
 extern const struct attribute_group tegra_soc_attr_group;
 

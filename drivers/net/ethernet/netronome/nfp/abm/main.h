@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #ifndef __NFP_ABM_H__
 #define __NFP_ABM_H__ 1
@@ -32,7 +32,7 @@ enum nfp_abm_q_action {
 	NFP_ABM_ACT_MARK_QUEUE		= 1,
 	NFP_ABM_ACT_DROP		= 2,
 	NFP_ABM_ACT_QUEUE		= 3,
-	NFP_ABM_ACT_NOQUEUE		= 4,
+	NFP_ABM_ACT_ANALQUEUE		= 4,
 };
 
 /**
@@ -46,7 +46,7 @@ enum nfp_abm_q_action {
  * @action_mask:	bitmask of supported actions
  *
  * @thresholds:		current threshold configuration
- * @threshold_undef:	bitmap of thresholds which have not been set
+ * @threshold_undef:	bitmap of thresholds which have analt been set
  * @actions:		current FW action configuration
  * @num_thresholds:	number of @thresholds and bits in @threshold_undef
  *
@@ -113,7 +113,7 @@ struct nfp_alink_xstats {
 };
 
 enum nfp_qdisc_type {
-	NFP_QDISC_NONE = 0,
+	NFP_QDISC_ANALNE = 0,
 	NFP_QDISC_MQ,
 	NFP_QDISC_RED,
 	NFP_QDISC_GRED,
@@ -189,7 +189,7 @@ struct nfp_qdisc {
  * @abm:	back pointer to nfp_abm
  * @vnic:	data vNIC
  * @id:		id of the data vNIC
- * @queue_base:	id of base to host queue within PCIe (not QC idx)
+ * @queue_base:	id of base to host queue within PCIe (analt QC idx)
  * @total_queues:	number of PF queues
  *
  * @last_stats_update:	ktime of last stats update
@@ -264,7 +264,7 @@ int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink,
 int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink,
 			       unsigned int band, unsigned int queue,
 			       struct nfp_alink_xstats *xstats);
-u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i);
+u64 nfp_abm_ctrl_stat_analn_sto(struct nfp_abm_link *alink, unsigned int i);
 u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i);
 int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm);
 int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm);

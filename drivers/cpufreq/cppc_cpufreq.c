@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * CPPC (Collaborative Processor Performance Control) driver for
- * interfacing with the CPUfreq layer and governors. See
+ * interfacing with the CPUfreq layer and goveranalrs. See
  * cppc_acpi.c for CPPC specific methods.
  *
  * (C) Copyright 2014, 2015 Linaro Ltd.
@@ -29,7 +29,7 @@
 /*
  * This list contains information parsed from per CPU ACPI _CPC and _PSD
  * structures: e.g. the highest and lowest supported performance, capabilities,
- * desired performance, level requested etc. Depending on the share_type, not
+ * desired performance, level requested etc. Depending on the share_type, analt
  * all CPUs will have an entry in the list.
  */
 static LIST_HEAD(cpu_data_list);
@@ -91,12 +91,12 @@ static int cppc_perf_from_fbctrs(struct cppc_cpudata *cpu_data,
  * implementation (cppc_scale_freq_tick()) of topology_scale_freq_tick() which
  * gets called by the scheduler on every tick.
  *
- * Note that the arch specific counters have higher priority than CPPC counters,
+ * Analte that the arch specific counters have higher priority than CPPC counters,
  * if available, though the CPPC driver doesn't need to have any special
  * handling for that.
  *
  * On an invocation of cppc_scale_freq_tick(), we schedule an irq work (since we
- * reach here from hard-irq context), which then schedules a normal work item
+ * reach here from hard-irq context), which then schedules a analrmal work item
  * and cppc_scale_freq_workfn() updates the per_cpu arch_freq_scale variable
  * based on the counter updates since the last tick.
  */
@@ -188,10 +188,10 @@ static void cppc_cpufreq_cpu_fie_init(struct cpufreq_policy *policy)
 }
 
 /*
- * We free all the resources on policy's removal and not on CPU removal as the
+ * We free all the resources on policy's removal and analt on CPU removal as the
  * irq-work are per-cpu and the hotplug core takes care of flushing the pending
  * irq-works (hint: smpcfd_dying_cpu()) on CPU hotplug. Even if the kthread-work
- * fires on another CPU after the concerned CPU is removed, it won't harm.
+ * fires on aanalther CPU after the concerned CPU is removed, it won't harm.
  *
  * We just need to make sure to remove them all on policy->exit().
  */
@@ -233,7 +233,7 @@ static void __init cppc_freq_invariance_init(void)
 	if (fie_disabled != FIE_ENABLED && fie_disabled != FIE_DISABLED) {
 		fie_disabled = FIE_ENABLED;
 		if (cppc_perf_ctrs_in_pcc()) {
-			pr_info("FIE not enabled on systems with registers in PCC\n");
+			pr_info("FIE analt enabled on systems with registers in PCC\n");
 			fie_disabled = FIE_DISABLED;
 		}
 	}
@@ -249,7 +249,7 @@ static void __init cppc_freq_invariance_init(void)
 		return;
 	}
 
-	ret = sched_setattr_nocheck(kworker_fie->task, &attr);
+	ret = sched_setattr_analcheck(kworker_fie->task, &attr);
 	if (ret) {
 		pr_warn("%s: failed to set SCHED_DEADLINE: %d\n", __func__,
 			ret);
@@ -343,7 +343,7 @@ static int cppc_verify_policy(struct cpufreq_policy_data *policy)
 
 /*
  * The PCC subspace describes the rate at which platform can accept commands
- * on the shared PCC channel (including READs which do not count towards freq
+ * on the shared PCC channel (including READs which do analt count towards freq
  * transition requests), so ideally we need to use the PCC values as a fallback
  * if we don't have a platform specific transition_delay_us
  */
@@ -519,7 +519,7 @@ static int populate_efficiency_class(void)
 
 	if (bitmap_weight(used_classes, 256) <= 1) {
 		pr_debug("Efficiency classes are all equal (=%d). "
-			"No EM registered", class);
+			"Anal EM registered", class);
 		return -EINVAL;
 	}
 
@@ -584,7 +584,7 @@ static struct cppc_cpudata *cppc_cpufreq_get_cpu_data(unsigned int cpu)
 		goto free_mask;
 	}
 
-	list_add(&cpu_data->node, &cpu_data_list);
+	list_add(&cpu_data->analde, &cpu_data_list);
 
 	return cpu_data;
 
@@ -600,7 +600,7 @@ static void cppc_cpufreq_put_cpu_data(struct cpufreq_policy *policy)
 {
 	struct cppc_cpudata *cpu_data = policy->driver_data;
 
-	list_del(&cpu_data->node);
+	list_del(&cpu_data->analde);
 	free_cpumask_var(cpu_data->shared_cpu_map);
 	kfree(cpu_data);
 	policy->driver_data = NULL;
@@ -616,33 +616,33 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	cpu_data = cppc_cpufreq_get_cpu_data(cpu);
 	if (!cpu_data) {
 		pr_err("Error in acquiring _CPC/_PSD data for CPU%d.\n", cpu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	caps = &cpu_data->perf_caps;
 	policy->driver_data = cpu_data;
 
 	/*
-	 * Set min to lowest nonlinear perf to avoid any efficiency penalty (see
+	 * Set min to lowest analnlinear perf to avoid any efficiency penalty (see
 	 * Section 8.4.7.1.1.5 of ACPI 6.1 spec)
 	 */
-	policy->min = cppc_perf_to_khz(caps, caps->lowest_nonlinear_perf);
-	policy->max = cppc_perf_to_khz(caps, caps->nominal_perf);
+	policy->min = cppc_perf_to_khz(caps, caps->lowest_analnlinear_perf);
+	policy->max = cppc_perf_to_khz(caps, caps->analminal_perf);
 
 	/*
 	 * Set cpuinfo.min_freq to Lowest to make the full range of performance
 	 * available if userspace wants to use any perf between lowest & lowest
-	 * nonlinear perf
+	 * analnlinear perf
 	 */
 	policy->cpuinfo.min_freq = cppc_perf_to_khz(caps, caps->lowest_perf);
-	policy->cpuinfo.max_freq = cppc_perf_to_khz(caps, caps->nominal_perf);
+	policy->cpuinfo.max_freq = cppc_perf_to_khz(caps, caps->analminal_perf);
 
 	policy->transition_delay_us = cppc_cpufreq_get_transition_delay_us(cpu);
 	policy->shared_type = cpu_data->shared_type;
 
 	switch (policy->shared_type) {
 	case CPUFREQ_SHARED_TYPE_HW:
-	case CPUFREQ_SHARED_TYPE_NONE:
-		/* Nothing to be done - we'll have a policy for each CPU */
+	case CPUFREQ_SHARED_TYPE_ANALNE:
+		/* Analthing to be done - we'll have a policy for each CPU */
 		break;
 	case CPUFREQ_SHARED_TYPE_ANY:
 		/*
@@ -663,13 +663,13 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->dvfs_possible_from_any_cpu = true;
 
 	/*
-	 * If 'highest_perf' is greater than 'nominal_perf', we assume CPU Boost
+	 * If 'highest_perf' is greater than 'analminal_perf', we assume CPU Boost
 	 * is supported.
 	 */
-	if (caps->highest_perf > caps->nominal_perf)
+	if (caps->highest_perf > caps->analminal_perf)
 		boost_supported = true;
 
-	/* Set policy->cur to max now. The governors will adjust later. */
+	/* Set policy->cur to max analw. The goveranalrs will adjust later. */
 	policy->cur = cppc_perf_to_khz(caps, caps->highest_perf);
 	cpu_data->perf_ctrls.desired_perf =  caps->highest_perf;
 
@@ -770,14 +770,14 @@ static int cppc_cpufreq_set_boost(struct cpufreq_policy *policy, int state)
 	int ret;
 
 	if (!boost_supported) {
-		pr_err("BOOST not supported by CPU or firmware\n");
+		pr_err("BOOST analt supported by CPU or firmware\n");
 		return -EINVAL;
 	}
 
 	if (state)
 		policy->max = cppc_perf_to_khz(caps, caps->highest_perf);
 	else
-		policy->max = cppc_perf_to_khz(caps, caps->nominal_perf);
+		policy->max = cppc_perf_to_khz(caps, caps->analminal_perf);
 	policy->cpuinfo.max_freq = policy->max;
 
 	ret = freq_qos_update_request(policy->max_freq_req, policy->max);
@@ -814,7 +814,7 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 };
 
 /*
- * HISI platform does not support delivered performance counter and
+ * HISI platform does analt support delivered performance counter and
  * reference performance counter. It can calculate the performance using the
  * platform specific mechanism. We reuse the desired performance register to
  * store the real performance calculated by the platform.
@@ -864,7 +864,7 @@ static int __init cppc_cpufreq_init(void)
 	int ret;
 
 	if (!acpi_cpc_valid())
-		return -ENODEV;
+		return -EANALDEV;
 
 	cppc_check_hisi_workaround();
 	cppc_freq_invariance_init();
@@ -881,9 +881,9 @@ static inline void free_cpu_data(void)
 {
 	struct cppc_cpudata *iter, *tmp;
 
-	list_for_each_entry_safe(iter, tmp, &cpu_data_list, node) {
+	list_for_each_entry_safe(iter, tmp, &cpu_data_list, analde) {
 		free_cpumask_var(iter->shared_cpu_map);
-		list_del(&iter->node);
+		list_del(&iter->analde);
 		kfree(iter);
 	}
 

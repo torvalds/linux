@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -40,13 +40,13 @@ struct kfd_event_waiter {
 	wait_queue_entry_t wait;
 	struct kfd_event *event; /* Event to wait for */
 	bool activated;		 /* Becomes true when event is signaled */
-	bool event_age_enabled;  /* set to true when last_event_age is non-zero */
+	bool event_age_enabled;  /* set to true when last_event_age is analn-zero */
 };
 
 /*
  * Each signal event needs a 64-bit signal slot where the signaler will write
  * a 1 before sending an interrupt. (This is needed because some interrupts
- * do not contain enough spare data bits to identify an event.)
+ * do analt contain eanalugh spare data bits to identify an event.)
  * We get whole pages and map them to the process VA.
  * Individual signal events use their event_id as slot index.
  */
@@ -91,7 +91,7 @@ fail_alloc_signal_store:
 	return NULL;
 }
 
-static int allocate_event_notification_slot(struct kfd_process *p,
+static int allocate_event_analtification_slot(struct kfd_process *p,
 					    struct kfd_event *ev,
 					    const int *restore_id)
 {
@@ -100,7 +100,7 @@ static int allocate_event_notification_slot(struct kfd_process *p,
 	if (!p->signal_page) {
 		p->signal_page = allocate_signal_page(p);
 		if (!p->signal_page)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Oldest user mode expects 256 event slots */
 		p->signal_mapped_size = 256*8;
 	}
@@ -129,7 +129,7 @@ static int allocate_event_notification_slot(struct kfd_process *p,
 
 /*
  * Assumes that p->event_mutex or rcu_readlock is held and of course that p is
- * not going away.
+ * analt going away.
  */
 static struct kfd_event *lookup_event_by_id(struct kfd_process *p, uint32_t id)
 {
@@ -142,13 +142,13 @@ static struct kfd_event *lookup_event_by_id(struct kfd_process *p, uint32_t id)
  * @id:    ID to look up
  * @bits:  Number of valid bits in @id
  *
- * Finds the first signaled event with a matching partial ID. If no
+ * Finds the first signaled event with a matching partial ID. If anal
  * matching signaled event is found, returns NULL. In that case the
  * caller should assume that the partial ID is invalid and do an
  * exhaustive search of all siglaned events.
  *
  * If multiple events with the same partial ID signal at the same
- * time, they will be found one interrupt at a time, not necessarily
+ * time, they will be found one interrupt at a time, analt necessarily
  * in the same order the interrupts occurred. As long as the number of
  * interrupts is correct, all signaled events will be seen by the
  * driver.
@@ -161,7 +161,7 @@ static struct kfd_event *lookup_signaled_event_by_partial_id(
 	if (!p->signal_page || id >= KFD_SIGNAL_EVENT_LIMIT)
 		return NULL;
 
-	/* Fast path for the common case that @id is not a partial ID
+	/* Fast path for the common case that @id is analt a partial ID
 	 * and we only need a single lookup.
 	 */
 	if (bits > 31 || (1U << bits) >= KFD_SIGNAL_EVENT_LIMIT) {
@@ -195,10 +195,10 @@ static int create_signal_event(struct file *devkfd, struct kfd_process *p,
 			pr_debug("Signal event wasn't created because limit was reached\n");
 			p->signal_event_limit_reached = true;
 		}
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
-	ret = allocate_event_notification_slot(p, ev, restore_id);
+	ret = allocate_event_analtification_slot(p, ev, restore_id);
 	if (ret) {
 		pr_warn("Signal event wasn't created because out of kernel memory\n");
 		return ret;
@@ -222,13 +222,13 @@ static int create_other_event(struct kfd_process *p, struct kfd_event *ev, const
 		id = idr_alloc(&p->event_idr, ev, *restore_id, *restore_id + 1,
 			GFP_KERNEL);
 	else
-		/* Cast KFD_LAST_NONSIGNAL_EVENT to uint32_t. This allows an
+		/* Cast KFD_LAST_ANALNSIGNAL_EVENT to uint32_t. This allows an
 		 * intentional integer overflow to -1 without a compiler
 		 * warning. idr_alloc treats a negative value as "maximum
 		 * signed integer".
 		 */
-		id = idr_alloc(&p->event_idr, ev, KFD_FIRST_NONSIGNAL_EVENT_ID,
-				(uint32_t)KFD_LAST_NONSIGNAL_EVENT_ID + 1,
+		id = idr_alloc(&p->event_idr, ev, KFD_FIRST_ANALNSIGNAL_EVENT_ID,
+				(uint32_t)KFD_LAST_ANALNSIGNAL_EVENT_ID + 1,
 				GFP_KERNEL);
 
 	if (id < 0)
@@ -246,7 +246,7 @@ int kfd_event_init_process(struct kfd_process *p)
 	idr_init(&p->event_idr);
 	p->signal_page = NULL;
 	p->signal_event_count = 1;
-	/* Allocate event ID 0. It is used for a fast path to ignore bogus events
+	/* Allocate event ID 0. It is used for a fast path to iganalre bogus events
 	 * that are sent by the CP without a context ID
 	 */
 	id = idr_alloc(&p->event_idr, NULL, 0, 1, GFP_KERNEL);
@@ -290,7 +290,7 @@ static void destroy_events(struct kfd_process *p)
 }
 
 /*
- * We assume that the process is being destroyed and there is no need to
+ * We assume that the process is being destroyed and there is anal need to
  * unmap the pages or keep bookkeeping data in order.
  */
 static void shutdown_signal_page(struct kfd_process *p)
@@ -332,7 +332,7 @@ static int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
 
 	page = kzalloc(sizeof(*page), GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize all events to unsignaled */
 	memset(kernel_address, (uint8_t) UNSIGNALED_EVENT_SLOT,
@@ -348,7 +348,7 @@ static int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
 
 int kfd_kmap_event_page(struct kfd_process *p, uint64_t event_page_offset)
 {
-	struct kfd_node *kfd;
+	struct kfd_analde *kfd;
 	struct kfd_process_device *pdd;
 	void *mem, *kern_addr;
 	uint64_t size;
@@ -393,7 +393,7 @@ int kfd_kmap_event_page(struct kfd_process *p, uint64_t event_page_offset)
 }
 
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
-		     uint32_t event_type, bool auto_reset, uint32_t node_id,
+		     uint32_t event_type, bool auto_reset, uint32_t analde_id,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index)
 {
@@ -401,7 +401,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 	struct kfd_event *ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 
 	if (!ev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev->type = event_type;
 	ev->auto_reset = auto_reset;
@@ -453,11 +453,11 @@ int kfd_criu_restore_event(struct file *devkfd,
 
 	ev_priv = kmalloc(sizeof(*ev_priv), GFP_KERNEL);
 	if (!ev_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -535,7 +535,7 @@ int kfd_criu_checkpoint_events(struct kfd_process *p,
 
 	ev_privs = kvzalloc(num_events * sizeof(*ev_privs), GFP_KERNEL);
 	if (!ev_privs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	idr_for_each_entry(&p->event_idr, ev, ev_id) {
@@ -624,7 +624,7 @@ static void set_event(struct kfd_event *ev)
 {
 	struct kfd_event_waiter *waiter;
 
-	/* Auto reset if the list is non-empty and we're waking
+	/* Auto reset if the list is analn-empty and we're waking
 	 * someone. waitqueue_active is safe here because we're
 	 * protected by the ev->lock, which is also held when
 	 * updating the wait queues in kfd_wait_on_events.
@@ -700,7 +700,7 @@ unlock_rcu:
 
 }
 
-static void acknowledge_signal(struct kfd_process *p, struct kfd_event *ev)
+static void ackanalwledge_signal(struct kfd_process *p, struct kfd_event *ev)
 {
 	WRITE_ONCE(page_slots(p->signal_page)[ev->event_id], UNSIGNALED_EVENT_SLOT);
 }
@@ -709,7 +709,7 @@ static void set_event_from_interrupt(struct kfd_process *p,
 					struct kfd_event *ev)
 {
 	if (ev && event_can_be_gpu_signaled(ev)) {
-		acknowledge_signal(p, ev);
+		ackanalwledge_signal(p, ev);
 		spin_lock(&ev->lock);
 		set_event(ev);
 		spin_unlock(&ev->lock);
@@ -830,7 +830,7 @@ static int init_event_waiter(struct kfd_process *p,
  * @event_waiters: Array of event waiters, one per event
  *
  * Returns KFD_IOC_WAIT_RESULT_COMPLETE if all (or one) event(s) have
- * signaled. Returns KFD_IOC_WAIT_RESULT_TIMEOUT if no (or not all)
+ * signaled. Returns KFD_IOC_WAIT_RESULT_TIMEOUT if anal (or analt all)
  * events have signaled. Returns KFD_IOC_WAIT_RESULT_FAIL if any of
  * the events have been destroyed.
  */
@@ -909,7 +909,7 @@ static long user_timeout_to_jiffies(uint32_t user_timeout_ms)
 	/*
 	 * msecs_to_jiffies interprets all values above 2^31-1 as infinite,
 	 * but we consider them finite.
-	 * This hack is wrong, but nobody is likely to notice.
+	 * This hack is wrong, but analbody is likely to analtice.
 	 */
 	user_timeout_ms = min_t(uint32_t, user_timeout_ms, 0x7FFFFFFF);
 
@@ -950,7 +950,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 
 	event_waiters = alloc_event_waiters(num_events);
 	if (!event_waiters) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -980,7 +980,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 					       event_waiters, events);
 		goto out_unlock;
 	} else if (WARN_ON(*wait_result == KFD_IOC_WAIT_RESULT_FAIL)) {
-		/* This should not happen. Events shouldn't be
+		/* This should analt happen. Events shouldn't be
 		 * destroyed while we're holding the event_mutex
 		 */
 		goto out_unlock;
@@ -1006,7 +1006,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 		/* Set task state to interruptible sleep before
 		 * checking wake-up conditions. A concurrent wake-up
 		 * will put the task back into runnable state. In that
-		 * case schedule_timeout will not put the task to
+		 * case schedule_timeout will analt put the task to
 		 * sleep and we'll get a chance to re-check the
 		 * updated conditions almost immediately. Otherwise,
 		 * this race condition would lead to a soft hang or a
@@ -1067,14 +1067,14 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	page = p->signal_page;
 	if (!page) {
 		/* Probably KFD bug, but mmap is user-accessible. */
-		pr_debug("Signal page could not be found\n");
+		pr_debug("Signal page could analt be found\n");
 		return -EINVAL;
 	}
 
 	pfn = __pa(page->kernel_address);
 	pfn >>= PAGE_SHIFT;
 
-	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
+	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_ANALRESERVE
 		       | VM_DONTDUMP | VM_PFNMAP);
 
 	pr_debug("Mapping signal page\n");
@@ -1097,7 +1097,7 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 }
 
 /*
- * Assumes that p is not going away.
+ * Assumes that p is analt going away.
  */
 static void lookup_events_by_type_and_signal(struct kfd_process *p,
 		int type, void *event_data)
@@ -1111,7 +1111,7 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 
 	rcu_read_lock();
 
-	id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+	id = KFD_FIRST_ANALNSIGNAL_EVENT_ID;
 	idr_for_each_entry_continue(&p->event_idr, ev, id)
 		if (ev->type == type) {
 			send_signal = false;
@@ -1132,7 +1132,7 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 		send_sig(SIGSEGV, p->lead_thread, 0);
 	}
 
-	/* Send SIGTERM no event of type "type" has been found*/
+	/* Send SIGTERM anal event of type "type" has been found*/
 	if (send_signal) {
 		if (send_sigterm) {
 			dev_warn(kfd_device,
@@ -1165,7 +1165,7 @@ void kfd_signal_hw_exception_event(u32 pasid)
 	kfd_unref_process(p);
 }
 
-void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
+void kfd_signal_vm_fault_event(struct kfd_analde *dev, u32 pasid,
 				struct kfd_vm_fault_info *info,
 				struct kfd_hsa_memory_exception_data *data)
 {
@@ -1180,11 +1180,11 @@ void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
 
 	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
 	if (unlikely(user_gpu_id == -EINVAL)) {
-		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+		WARN_ONCE(1, "Could analt get user_gpu_id from dev->id:%x\n", dev->id);
 		return;
 	}
 
-	/* SoC15 chips and onwards will pass in data from now on. */
+	/* SoC15 chips and onwards will pass in data from analw on. */
 	if (!data) {
 		memset(&memory_exception_data, 0, sizeof(memory_exception_data));
 		memory_exception_data.gpu_id = user_gpu_id;
@@ -1194,9 +1194,9 @@ void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
 		if (info) {
 			memory_exception_data.va = (info->page_addr) <<
 								PAGE_SHIFT;
-			memory_exception_data.failure.NotPresent =
+			memory_exception_data.failure.AnaltPresent =
 				info->prot_valid ? 1 : 0;
-			memory_exception_data.failure.NoExecute =
+			memory_exception_data.failure.AnalExecute =
 				info->prot_exec ? 1 : 0;
 			memory_exception_data.failure.ReadOnly =
 				info->prot_write ? 1 : 0;
@@ -1206,7 +1206,7 @@ void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
 
 	rcu_read_lock();
 
-	id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+	id = KFD_FIRST_ANALNSIGNAL_EVENT_ID;
 	idr_for_each_entry_continue(&p->event_idr, ev, id)
 		if (ev->type == KFD_EVENT_TYPE_MEMORY) {
 			spin_lock(&ev->lock);
@@ -1220,7 +1220,7 @@ void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
 	kfd_unref_process(p);
 }
 
-void kfd_signal_reset_event(struct kfd_node *dev)
+void kfd_signal_reset_event(struct kfd_analde *dev)
 {
 	struct kfd_hsa_hw_exception_data hw_exception_data;
 	struct kfd_hsa_memory_exception_data memory_exception_data;
@@ -1246,13 +1246,13 @@ void kfd_signal_reset_event(struct kfd_node *dev)
 		int user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
 
 		if (unlikely(user_gpu_id == -EINVAL)) {
-			WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+			WARN_ONCE(1, "Could analt get user_gpu_id from dev->id:%x\n", dev->id);
 			continue;
 		}
 
 		rcu_read_lock();
 
-		id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+		id = KFD_FIRST_ANALNSIGNAL_EVENT_ID;
 		idr_for_each_entry_continue(&p->event_idr, ev, id) {
 			if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
 				spin_lock(&ev->lock);
@@ -1276,13 +1276,13 @@ void kfd_signal_reset_event(struct kfd_node *dev)
 	srcu_read_unlock(&kfd_processes_srcu, idx);
 }
 
-void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
+void kfd_signal_poison_consumed_event(struct kfd_analde *dev, u32 pasid)
 {
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 	struct kfd_hsa_memory_exception_data memory_exception_data;
 	struct kfd_hsa_hw_exception_data hw_exception_data;
 	struct kfd_event *ev;
-	uint32_t id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+	uint32_t id = KFD_FIRST_ANALNSIGNAL_EVENT_ID;
 	int user_gpu_id;
 
 	if (!p)
@@ -1290,7 +1290,7 @@ void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
 
 	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
 	if (unlikely(user_gpu_id == -EINVAL)) {
-		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+		WARN_ONCE(1, "Could analt get user_gpu_id from dev->id:%x\n", dev->id);
 		return;
 	}
 

@@ -92,11 +92,11 @@ static void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
  ************************************************************************/
 
 static ssize_t
-nilfs_snapshot_inodes_count_show(struct nilfs_snapshot_attr *attr,
+nilfs_snapshot_ianaldes_count_show(struct nilfs_snapshot_attr *attr,
 				 struct nilfs_root *root, char *buf)
 {
 	return sysfs_emit(buf, "%llu\n",
-			(unsigned long long)atomic64_read(&root->inodes_count));
+			(unsigned long long)atomic64_read(&root->ianaldes_count));
 }
 
 static ssize_t
@@ -109,7 +109,7 @@ nilfs_snapshot_blocks_count_show(struct nilfs_snapshot_attr *attr,
 
 static const char snapshot_readme_str[] =
 	"The group contains details about mounted snapshot.\n\n"
-	"(1) inodes_count\n\tshow number of inodes for snapshot.\n\n"
+	"(1) ianaldes_count\n\tshow number of ianaldes for snapshot.\n\n"
 	"(2) blocks_count\n\tshow number of blocks for snapshot.\n\n";
 
 static ssize_t
@@ -119,12 +119,12 @@ nilfs_snapshot_README_show(struct nilfs_snapshot_attr *attr,
 	return sysfs_emit(buf, snapshot_readme_str);
 }
 
-NILFS_SNAPSHOT_RO_ATTR(inodes_count);
+NILFS_SNAPSHOT_RO_ATTR(ianaldes_count);
 NILFS_SNAPSHOT_RO_ATTR(blocks_count);
 NILFS_SNAPSHOT_RO_ATTR(README);
 
 static struct attribute *nilfs_snapshot_attrs[] = {
-	NILFS_SNAPSHOT_ATTR_LIST(inodes_count),
+	NILFS_SNAPSHOT_ATTR_LIST(ianaldes_count),
 	NILFS_SNAPSHOT_ATTR_LIST(blocks_count),
 	NILFS_SNAPSHOT_ATTR_LIST(README),
 	NULL,
@@ -183,7 +183,7 @@ int nilfs_sysfs_create_snapshot_group(struct nilfs_root *root)
 	root->snapshot_kobj.kset = nilfs_kset;
 	init_completion(&root->snapshot_kobj_unregister);
 
-	if (root->cno == NILFS_CPTREE_CURRENT_CNO) {
+	if (root->canal == NILFS_CPTREE_CURRENT_CANAL) {
 		err = kobject_init_and_add(&root->snapshot_kobj,
 					    &nilfs_snapshot_ktype,
 					    &nilfs->ns_dev_kobj,
@@ -192,7 +192,7 @@ int nilfs_sysfs_create_snapshot_group(struct nilfs_root *root)
 		err = kobject_init_and_add(&root->snapshot_kobj,
 					    &nilfs_snapshot_ktype,
 					    parent,
-					    "%llu", root->cno);
+					    "%llu", root->canal);
 	}
 
 	if (err)
@@ -288,13 +288,13 @@ nilfs_checkpoints_last_seg_checkpoint_show(struct nilfs_checkpoints_attr *attr,
 					    struct the_nilfs *nilfs,
 					    char *buf)
 {
-	__u64 last_cno;
+	__u64 last_canal;
 
 	spin_lock(&nilfs->ns_last_segment_lock);
-	last_cno = nilfs->ns_last_cno;
+	last_canal = nilfs->ns_last_canal;
 	spin_unlock(&nilfs->ns_last_segment_lock);
 
-	return sysfs_emit(buf, "%llu\n", last_cno);
+	return sysfs_emit(buf, "%llu\n", last_canal);
 }
 
 static ssize_t
@@ -302,13 +302,13 @@ nilfs_checkpoints_next_checkpoint_show(struct nilfs_checkpoints_attr *attr,
 					struct the_nilfs *nilfs,
 					char *buf)
 {
-	__u64 cno;
+	__u64 canal;
 
 	down_read(&nilfs->ns_segctor_sem);
-	cno = nilfs->ns_cno;
+	canal = nilfs->ns_canal;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return sysfs_emit(buf, "%llu\n", cno);
+	return sysfs_emit(buf, "%llu\n", canal);
 }
 
 static const char checkpoints_readme_str[] =
@@ -475,13 +475,13 @@ nilfs_segctor_last_seg_checkpoint_show(struct nilfs_segctor_attr *attr,
 					struct the_nilfs *nilfs,
 					char *buf)
 {
-	__u64 last_cno;
+	__u64 last_canal;
 
 	spin_lock(&nilfs->ns_last_segment_lock);
-	last_cno = nilfs->ns_last_cno;
+	last_canal = nilfs->ns_last_canal;
 	spin_unlock(&nilfs->ns_last_segment_lock);
 
-	return sysfs_emit(buf, "%llu\n", last_cno);
+	return sysfs_emit(buf, "%llu\n", last_canal);
 }
 
 static ssize_t
@@ -545,13 +545,13 @@ nilfs_segctor_next_checkpoint_show(struct nilfs_segctor_attr *attr,
 					struct the_nilfs *nilfs,
 					char *buf)
 {
-	__u64 cno;
+	__u64 canal;
 
 	down_read(&nilfs->ns_segctor_sem);
-	cno = nilfs->ns_cno;
+	canal = nilfs->ns_canal;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return sysfs_emit(buf, "%llu\n", cno);
+	return sysfs_emit(buf, "%llu\n", canal);
 }
 
 static ssize_t
@@ -583,31 +583,31 @@ nilfs_segctor_last_seg_write_time_secs_show(struct nilfs_segctor_attr *attr,
 }
 
 static ssize_t
-nilfs_segctor_last_nongc_write_time_show(struct nilfs_segctor_attr *attr,
+nilfs_segctor_last_analngc_write_time_show(struct nilfs_segctor_attr *attr,
 					 struct the_nilfs *nilfs,
 					 char *buf)
 {
-	time64_t nongc_ctime;
+	time64_t analngc_ctime;
 
 	down_read(&nilfs->ns_segctor_sem);
-	nongc_ctime = nilfs->ns_nongc_ctime;
+	analngc_ctime = nilfs->ns_analngc_ctime;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return sysfs_emit(buf, "%ptTs\n", &nongc_ctime);
+	return sysfs_emit(buf, "%ptTs\n", &analngc_ctime);
 }
 
 static ssize_t
-nilfs_segctor_last_nongc_write_time_secs_show(struct nilfs_segctor_attr *attr,
+nilfs_segctor_last_analngc_write_time_secs_show(struct nilfs_segctor_attr *attr,
 						struct the_nilfs *nilfs,
 						char *buf)
 {
-	time64_t nongc_ctime;
+	time64_t analngc_ctime;
 
 	down_read(&nilfs->ns_segctor_sem);
-	nongc_ctime = nilfs->ns_nongc_ctime;
+	analngc_ctime = nilfs->ns_analngc_ctime;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return sysfs_emit(buf, "%llu\n", nongc_ctime);
+	return sysfs_emit(buf, "%llu\n", analngc_ctime);
 }
 
 static ssize_t
@@ -645,11 +645,11 @@ static const char segctor_readme_str[] =
 	"\tshow write time of the last segment in human-readable format.\n\n"
 	"(10) last_seg_write_time_secs\n"
 	"\tshow write time of the last segment in seconds.\n\n"
-	"(11) last_nongc_write_time\n"
-	"\tshow write time of the last segment not for cleaner operation "
+	"(11) last_analngc_write_time\n"
+	"\tshow write time of the last segment analt for cleaner operation "
 	"in human-readable format.\n\n"
-	"(12) last_nongc_write_time_secs\n"
-	"\tshow write time of the last segment not for cleaner operation "
+	"(12) last_analngc_write_time_secs\n"
+	"\tshow write time of the last segment analt for cleaner operation "
 	"in seconds.\n\n"
 	"(13) dirty_data_blocks_count\n"
 	"\tshow number of dirty data blocks.\n\n";
@@ -671,8 +671,8 @@ NILFS_SEGCTOR_RO_ATTR(next_pseg_offset);
 NILFS_SEGCTOR_RO_ATTR(next_checkpoint);
 NILFS_SEGCTOR_RO_ATTR(last_seg_write_time);
 NILFS_SEGCTOR_RO_ATTR(last_seg_write_time_secs);
-NILFS_SEGCTOR_RO_ATTR(last_nongc_write_time);
-NILFS_SEGCTOR_RO_ATTR(last_nongc_write_time_secs);
+NILFS_SEGCTOR_RO_ATTR(last_analngc_write_time);
+NILFS_SEGCTOR_RO_ATTR(last_analngc_write_time_secs);
 NILFS_SEGCTOR_RO_ATTR(dirty_data_blocks_count);
 NILFS_SEGCTOR_RO_ATTR(README);
 
@@ -687,8 +687,8 @@ static struct attribute *nilfs_segctor_attrs[] = {
 	NILFS_SEGCTOR_ATTR_LIST(next_checkpoint),
 	NILFS_SEGCTOR_ATTR_LIST(last_seg_write_time),
 	NILFS_SEGCTOR_ATTR_LIST(last_seg_write_time_secs),
-	NILFS_SEGCTOR_ATTR_LIST(last_nongc_write_time),
-	NILFS_SEGCTOR_ATTR_LIST(last_nongc_write_time_secs),
+	NILFS_SEGCTOR_ATTR_LIST(last_analngc_write_time),
+	NILFS_SEGCTOR_ATTR_LIST(last_analngc_write_time_secs),
 	NILFS_SEGCTOR_ATTR_LIST(dirty_data_blocks_count),
 	NILFS_SEGCTOR_ATTR_LIST(README),
 	NULL,
@@ -777,7 +777,7 @@ nilfs_superblock_sb_update_frequency_store(struct nilfs_superblock_attr *attr,
 	if (val < NILFS_SB_FREQ) {
 		val = NILFS_SB_FREQ;
 		nilfs_warn(nilfs->ns_sb,
-			   "superblock update frequency cannot be lesser than 10 seconds");
+			   "superblock update frequency cananalt be lesser than 10 seconds");
 	}
 
 	down_write(&nilfs->ns_sem);
@@ -838,9 +838,9 @@ ssize_t nilfs_dev_revision_show(struct nilfs_dev_attr *attr,
 {
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
 	u32 major = le32_to_cpu(sbp[0]->s_rev_level);
-	u16 minor = le16_to_cpu(sbp[0]->s_minor_rev_level);
+	u16 mianalr = le16_to_cpu(sbp[0]->s_mianalr_rev_level);
 
-	return sysfs_emit(buf, "%d.%d\n", major, minor);
+	return sysfs_emit(buf, "%d.%d\n", major, mianalr);
 }
 
 static
@@ -981,7 +981,7 @@ int nilfs_sysfs_create_device_group(struct super_block *sb)
 
 	nilfs->ns_dev_subgroups = kzalloc(devgrp_size, GFP_KERNEL);
 	if (unlikely(!nilfs->ns_dev_subgroups)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		nilfs_err(sb, "unable to allocate memory for device group");
 		goto failed_create_device_group;
 	}
@@ -1055,7 +1055,7 @@ static ssize_t nilfs_feature_revision_show(struct kobject *kobj,
 					    struct attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%d.%d\n",
-			NILFS_CURRENT_REV, NILFS_MINOR_REV);
+			NILFS_CURRENT_REV, NILFS_MIANALR_REV);
 }
 
 static const char features_readme_str[] =
@@ -1090,7 +1090,7 @@ int __init nilfs_sysfs_init(void)
 
 	nilfs_kset = kset_create_and_add(NILFS_ROOT_GROUP_NAME, NULL, fs_kobj);
 	if (!nilfs_kset) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		nilfs_err(NULL, "unable to create sysfs entry: err=%d", err);
 		goto failed_sysfs_init;
 	}

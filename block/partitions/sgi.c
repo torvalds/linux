@@ -67,9 +67,9 @@ int sgi_partition(struct parsed_partitions *state)
 		return 0;
 	}
 	/* All SGI disk labels have 16 partitions, disks under Linux only
-	 * have 15 minor's.  Luckily there are always a few zero length
+	 * have 15 mianalr's.  Luckily there are always a few zero length
 	 * partitions which we don't care about so we never overflow the
-	 * current_minor.
+	 * current_mianalr.
 	 */
 	for(i = 0; i < 16; i++, p++) {
 		blocks = be32_to_cpu(p->num_blocks);

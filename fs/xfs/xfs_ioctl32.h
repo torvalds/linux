@@ -31,11 +31,11 @@
 
 typedef struct compat_xfs_bstime {
 	old_time32_t	tv_sec;		/* seconds		*/
-	__s32		tv_nsec;	/* and nanoseconds	*/
+	__s32		tv_nsec;	/* and naanalseconds	*/
 } compat_xfs_bstime_t;
 
 struct compat_xfs_bstat {
-	__u64		bs_ino;		/* inode number			*/
+	__u64		bs_ianal;		/* ianalde number			*/
 	__u16		bs_mode;	/* type and mode		*/
 	__u16		bs_nlink;	/* number of links		*/
 	__u32		bs_uid;		/* user id			*/
@@ -45,7 +45,7 @@ struct compat_xfs_bstat {
 	__s64		bs_size;	/* file size			*/
 	compat_xfs_bstime_t bs_atime;	/* access time			*/
 	compat_xfs_bstime_t bs_mtime;	/* modify time			*/
-	compat_xfs_bstime_t bs_ctime;	/* inode change time		*/
+	compat_xfs_bstime_t bs_ctime;	/* ianalde change time		*/
 	int64_t		bs_blocks;	/* number of blocks		*/
 	__u32		bs_xflags;	/* extended flags		*/
 	__s32		bs_extsize;	/* extent size			*/
@@ -53,7 +53,7 @@ struct compat_xfs_bstat {
 	__u32		bs_gen;		/* generation count		*/
 	__u16		bs_projid_lo;	/* lower part of project id	*/
 #define	bs_projid	bs_projid_lo	/* (previously just bs_projid)	*/
-	__u16		bs_forkoff;	/* inode fork offset in bytes	*/
+	__u16		bs_forkoff;	/* ianalde fork offset in bytes	*/
 	__u16		bs_projid_hi;	/* high part of project id	*/
 	unsigned char	bs_pad[10];	/* pad space, unused		*/
 	__u32		bs_dmevmask;	/* DMIG event mask		*/
@@ -62,9 +62,9 @@ struct compat_xfs_bstat {
 } __compat_packed;
 
 struct compat_xfs_fsop_bulkreq {
-	compat_uptr_t	lastip;		/* last inode # pointer		*/
+	compat_uptr_t	lastip;		/* last ianalde # pointer		*/
 	__s32		icount;		/* count of entries in buffer	*/
-	compat_uptr_t	ubuffer;	/* user buffer for inode desc.	*/
+	compat_uptr_t	ubuffer;	/* user buffer for ianalde desc.	*/
 	compat_uptr_t	ocount;		/* output count pointer		*/
 };
 
@@ -117,7 +117,7 @@ typedef struct compat_xfs_fsop_attrlist_handlereq {
 	compat_uptr_t			buffer;	/* returned names */
 } __compat_packed compat_xfs_fsop_attrlist_handlereq_t;
 
-/* Note: actually this is read/write */
+/* Analte: actually this is read/write */
 #define XFS_IOC_ATTRLIST_BY_HANDLE_32 \
 	_IOW('X', 122, struct compat_xfs_fsop_attrlist_handlereq)
 
@@ -149,8 +149,8 @@ typedef struct compat_xfs_fsop_geom_v1 {
 	__u32		agcount;	/* number of allocation groups	*/
 	__u32		logblocks;	/* fsblocks in the log		*/
 	__u32		sectsize;	/* (data) sector size, bytes	*/
-	__u32		inodesize;	/* inode size in bytes		*/
-	__u32		imaxpct;	/* max allowed inode space(%)	*/
+	__u32		ianaldesize;	/* ianalde size in bytes		*/
+	__u32		imaxpct;	/* max allowed ianalde space(%)	*/
 	__u64		datablocks;	/* fsblocks in data subvolume	*/
 	__u64		rtblocks;	/* fsblocks in realtime subvol	*/
 	__u64		rtextents;	/* rt extents in realtime subvol*/
@@ -168,16 +168,16 @@ typedef struct compat_xfs_fsop_geom_v1 {
 #define XFS_IOC_FSGEOMETRY_V1_32  \
 	_IOR('X', 100, struct compat_xfs_fsop_geom_v1)
 
-struct compat_xfs_inogrp {
-	__u64		xi_startino;	/* starting inode number	*/
+struct compat_xfs_ianalgrp {
+	__u64		xi_startianal;	/* starting ianalde number	*/
 	__s32		xi_alloccount;	/* # bits set in allocmask	*/
-	__u64		xi_allocmask;	/* mask of allocated inodes	*/
+	__u64		xi_allocmask;	/* mask of allocated ianaldes	*/
 } __attribute__((packed));
 
 /* These growfs input structures have padding on the end, so must translate */
 typedef struct compat_xfs_growfs_data {
 	__u64		newblocks;	/* new data subvol size, fsblocks */
-	__u32		imaxpct;	/* new inode space percentage limit */
+	__u32		imaxpct;	/* new ianalde space percentage limit */
 } __attribute__((packed)) compat_xfs_growfs_data_t;
 
 typedef struct compat_xfs_growfs_rt {

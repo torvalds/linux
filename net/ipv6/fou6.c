@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -83,7 +83,7 @@ static int gue6_err_proto_handler(int proto, struct sk_buff *skb,
 			return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int gue6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -117,16 +117,16 @@ static int gue6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 						     type, code, offset, info);
 			goto out;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto out;
 		}
 	}
 	default: /* Undefined version */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (guehdr->control)
-		return -ENOENT;
+		return -EANALENT;
 
 	optlen = guehdr->hlen << 2;
 
@@ -143,7 +143,7 @@ static int gue6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	 */
 	if (guehdr->proto_ctype == IPPROTO_UDP ||
 	    guehdr->proto_ctype == IPPROTO_UDPLITE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb_set_transport_header(skb, -(int)sizeof(struct icmp6hdr));
 	ret = gue6_err_proto_handler(guehdr->proto_ctype, skb,

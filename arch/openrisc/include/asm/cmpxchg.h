@@ -8,7 +8,7 @@
  * version 2.  This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  *
- * Note:
+ * Analte:
  * The portable implementations of 1 and 2 byte xchg and cmpxchg using a 4
  * byte cmpxchg is sourced heavily from the sh and mips implementations.
  */
@@ -29,10 +29,10 @@ static inline unsigned long cmpxchg_u32(volatile void *ptr,
 		"1:	l.lwa %0, 0(%1)		\n"
 		"	l.sfeq %0, %2		\n"
 		"	l.bnf 2f		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		"	l.swa 0(%1), %3		\n"
 		"	l.bnf 1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		"2:				\n"
 		: "=&r"(old)
 		: "r"(ptr), "r"(old), "r"(new)
@@ -48,7 +48,7 @@ static inline unsigned long xchg_u32(volatile void *ptr,
 		"1:	l.lwa %0, 0(%1)		\n"
 		"	l.swa 0(%1), %2		\n"
 		"	l.bnf 1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		: "=&r"(val)
 		: "r"(ptr), "r"(val)
 		: "cc", "memory");

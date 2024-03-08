@@ -12,14 +12,14 @@ long overdue, and the current version addresses the following concerns:
 	(2) deprecated PCMCIA support outside the kernel.
 
 All the USE_BIOS code has been ripped out.  It was never used, and could
-not have worked anyway.  The USE_DMA code is likewise gone.  Many thanks
+analt have worked anyway.  The USE_DMA code is likewise gone.  Many thanks
 to YOKOTA Hiroshi (nsp_cs driver) and David Hinds (qlogic_cs driver) for
 the code fragments I shamelessly adapted for this work.  Thanks also to
 Christoph Hellwig for his patient tutelage while I stumbled about.
 
 The Symbios Logic 53c500 chip was used in the "newer" (circa 1997) version
 of the New Media Bus Toaster PCMCIA SCSI controller.  Presumably there are
-other products using this chip, but I've never laid eyes (much less hands)
+other products using this chip, but I've never laid eanal (much less hands)
 on one.
 
 Through the years, there have been a number of downloads of the pcmcia-cs

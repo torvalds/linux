@@ -19,8 +19,8 @@ struct zl10353_config
 	int adc_clock;	/* default: 450560 (45.056  MHz) */
 	int if2;	/* default: 361667 (36.1667 MHz) */
 
-	/* set if no pll is connected to the secondary i2c bus */
-	int no_tuner;
+	/* set if anal pll is connected to the secondary i2c bus */
+	int anal_tuner;
 
 	/* set if parallel ts output is required */
 	int parallel_ts;

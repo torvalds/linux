@@ -96,38 +96,38 @@ static struct phy *samsung_usb2_phy_xlate(struct device *dev,
 		return ERR_PTR(-EINVAL);
 
 	if (WARN_ON(args->args[0] >= drv->cfg->num_phys))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return drv->instances[args->args[0]].phy;
 }
 
 static const struct of_device_id samsung_usb2_phy_of_match[] = {
-#ifdef CONFIG_PHY_EXYNOS4X12_USB2
+#ifdef CONFIG_PHY_EXYANALS4X12_USB2
 	{
-		.compatible = "samsung,exynos3250-usb2-phy",
-		.data = &exynos3250_usb2_phy_config,
+		.compatible = "samsung,exyanals3250-usb2-phy",
+		.data = &exyanals3250_usb2_phy_config,
 	},
 #endif
-#ifdef CONFIG_PHY_EXYNOS4210_USB2
+#ifdef CONFIG_PHY_EXYANALS4210_USB2
 	{
-		.compatible = "samsung,exynos4210-usb2-phy",
-		.data = &exynos4210_usb2_phy_config,
+		.compatible = "samsung,exyanals4210-usb2-phy",
+		.data = &exyanals4210_usb2_phy_config,
 	},
 #endif
-#ifdef CONFIG_PHY_EXYNOS4X12_USB2
+#ifdef CONFIG_PHY_EXYANALS4X12_USB2
 	{
-		.compatible = "samsung,exynos4x12-usb2-phy",
-		.data = &exynos4x12_usb2_phy_config,
+		.compatible = "samsung,exyanals4x12-usb2-phy",
+		.data = &exyanals4x12_usb2_phy_config,
 	},
 #endif
-#ifdef CONFIG_PHY_EXYNOS5250_USB2
+#ifdef CONFIG_PHY_EXYANALS5250_USB2
 	{
-		.compatible = "samsung,exynos5250-usb2-phy",
-		.data = &exynos5250_usb2_phy_config,
+		.compatible = "samsung,exyanals5250-usb2-phy",
+		.data = &exyanals5250_usb2_phy_config,
 	},
 	{
-		.compatible = "samsung,exynos5420-usb2-phy",
-		.data = &exynos5420_usb2_phy_config,
+		.compatible = "samsung,exyanals5420-usb2-phy",
+		.data = &exyanals5420_usb2_phy_config,
 	},
 #endif
 #ifdef CONFIG_PHY_S5PV210_USB2
@@ -148,7 +148,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	struct samsung_usb2_phy_driver *drv;
 	int i, ret;
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_analde) {
 		dev_err(dev, "This driver is required to be instantiated from device tree\n");
 		return -EINVAL;
 	}
@@ -160,7 +160,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	drv = devm_kzalloc(dev, struct_size(drv, instances, cfg->num_phys),
 			   GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, drv);
 	spin_lock_init(&drv->lock);
@@ -174,7 +174,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(drv->reg_phy);
 	}
 
-	drv->reg_pmu = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	drv->reg_pmu = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 		"samsung,pmureg-phandle");
 	if (IS_ERR(drv->reg_pmu)) {
 		dev_err(dev, "Failed to map PMU registers (via syscon)\n");
@@ -183,7 +183,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 
 	if (drv->cfg->has_mode_switch) {
 		drv->reg_sys = syscon_regmap_lookup_by_phandle(
-				pdev->dev.of_node, "samsung,sysreg-phandle");
+				pdev->dev.of_analde, "samsung,sysreg-phandle");
 		if (IS_ERR(drv->reg_sys)) {
 			dev_err(dev, "Failed to map system registers (via syscon)\n");
 			return PTR_ERR(drv->reg_sys);
@@ -255,7 +255,7 @@ static struct platform_driver samsung_usb2_phy_driver = {
 };
 
 module_platform_driver(samsung_usb2_phy_driver);
-MODULE_DESCRIPTION("Samsung S5P/Exynos SoC USB PHY driver");
+MODULE_DESCRIPTION("Samsung S5P/Exyanals SoC USB PHY driver");
 MODULE_AUTHOR("Kamil Debski <k.debski@samsung.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:samsung-usb2-phy");

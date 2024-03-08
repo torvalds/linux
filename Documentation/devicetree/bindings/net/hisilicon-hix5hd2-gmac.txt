@@ -33,7 +33,7 @@ Required properties:
 The MAC address will be determined using the properties defined in
 ethernet.txt[1].
 
-- PHY subnode: inherits from phy binding [2]
+- PHY subanalde: inherits from phy binding [2]
 
 [1] Documentation/devicetree/bindings/net/ethernet.txt
 [2] Documentation/devicetree/bindings/net/phy.txt

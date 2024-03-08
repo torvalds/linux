@@ -33,9 +33,9 @@ int __mt76u_vendor_request(struct mt76_dev *dev, u8 req, u8 req_type,
 
 		ret = usb_control_msg(udev, pipe, req, req_type, val,
 				      offset, buf, len, MT_VEND_REQ_TOUT_MS);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			set_bit(MT76_REMOVED, &dev->phy.state);
-		if (ret >= 0 || ret == -ENODEV)
+		if (ret >= 0 || ret == -EANALDEV)
 			return ret;
 		usleep_range(5000, 10000);
 	}
@@ -286,7 +286,7 @@ static bool mt76u_check_sg(struct mt76_dev *dev)
 	struct usb_device *udev = interface_to_usbdev(uintf);
 
 	return (!disable_usb_sg && udev->bus->sg_tablesize > 0 &&
-		udev->bus->no_sg_constraint);
+		udev->bus->anal_sg_constraint);
 }
 
 static int
@@ -346,7 +346,7 @@ mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76_queue *q, struct urb *urb,
 	urb->transfer_buffer_length = urb->num_sgs * q->buf_size;
 	sg_init_marker(urb->sg, urb->num_sgs);
 
-	return i ? : -ENOMEM;
+	return i ? : -EANALMEM;
 }
 
 static int
@@ -362,7 +362,7 @@ mt76u_refill_rx(struct mt76_dev *dev, struct mt76_queue *q,
 	urb->transfer_buffer_length = q->buf_size;
 	urb->transfer_buffer = mt76_get_page_pool_buf(q, &offset, q->buf_size);
 
-	return urb->transfer_buffer ? 0 : -ENOMEM;
+	return urb->transfer_buffer ? 0 : -EANALMEM;
 }
 
 static int
@@ -376,7 +376,7 @@ mt76u_urb_alloc(struct mt76_dev *dev, struct mt76_queue_entry *e,
 
 	e->urb = kzalloc(size, GFP_KERNEL);
 	if (!e->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_init_urb(e->urb);
 
@@ -480,7 +480,7 @@ mt76u_build_rx_skb(struct mt76_dev *dev, void *data,
 	if (SKB_WITH_OVERHEAD(buf_size) < head_room + len) {
 		struct page *page;
 
-		/* slow path, not enough space for data and
+		/* slow path, analt eanalugh space for data and
 		 * skb_shared_info
 		 */
 		skb = alloc_skb(MT_SKB_HEAD_LEN, GFP_ATOMIC);
@@ -563,7 +563,7 @@ static void mt76u_complete_rx(struct urb *urb)
 	switch (urb->status) {
 	case -ECONNRESET:
 	case -ESHUTDOWN:
-	case -ENOENT:
+	case -EANALENT:
 	case -EPROTO:
 		return;
 	default:
@@ -672,7 +672,7 @@ mt76u_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 				MT_NUM_RX_ENTRIES, sizeof(*q->entry),
 				GFP_KERNEL);
 	if (!q->entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->ndesc = MT_NUM_RX_ENTRIES;
 	q->buf_size = PAGE_SIZE;
@@ -844,7 +844,7 @@ mt76u_tx_setup_buffers(struct mt76_dev *dev, struct sk_buff *skb,
 	sg_init_table(urb->sg, MT_TX_SG_MAX_SIZE);
 	urb->num_sgs = skb_to_sgvec(skb, urb->sg, 0, skb->len);
 	if (!urb->num_sgs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return urb->num_sgs;
 }
@@ -861,7 +861,7 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	int err;
 
 	if (q->queued == q->ndesc)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	skb->prev = skb->next = NULL;
 	err = dev->drv->tx_prepare_skb(dev, NULL, qid, wcid, sta, &tx_info);
@@ -895,7 +895,7 @@ static void mt76u_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 		trace_submit_urb(dev, urb);
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err < 0) {
-			if (err == -ENODEV)
+			if (err == -EANALDEV)
 				set_bit(MT76_REMOVED, &dev->phy.state);
 			else
 				dev_err(dev->dev, "tx urb submit failed:%d\n",
@@ -939,7 +939,7 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 
 		q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
 		if (!q)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spin_lock_init(&q->lock);
 		q->hw_idx = mt76u_ac_to_hwq(dev, i);
@@ -950,7 +950,7 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 					MT_NUM_TX_ENTRIES, sizeof(*q->entry),
 					GFP_KERNEL);
 		if (!q->entry)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		q->ndesc = MT_NUM_TX_ENTRIES;
 		for (j = 0; j < q->ndesc; j++) {
@@ -1079,7 +1079,7 @@ int __mt76u_init(struct mt76_dev *dev, struct usb_interface *intf,
 
 	usb->data = devm_kmalloc(dev->dev, usb->data_len, GFP_KERNEL);
 	if (!usb->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&usb->usb_ctrl_mtx);
 	dev->bus = ops;

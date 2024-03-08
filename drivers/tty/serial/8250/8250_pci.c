@@ -101,9 +101,9 @@
 #define PCI_DEVICE_ID_MOXA_CP138E_A	0x1381
 #define PCI_DEVICE_ID_MOXA_CP168EL_A	0x1683
 
-/* Unknown vendors/cards - this should not be in linux/pci_ids.h */
-#define PCI_SUBDEVICE_ID_UNKNOWN_0x1584	0x1584
-#define PCI_SUBDEVICE_ID_UNKNOWN_0x1588	0x1588
+/* Unkanalwn vendors/cards - this should analt be in linux/pci_ids.h */
+#define PCI_SUBDEVICE_ID_UNKANALWN_0x1584	0x1584
+#define PCI_SUBDEVICE_ID_UNKANALWN_0x1588	0x1588
 
 /*
  * init function returns:
@@ -202,7 +202,7 @@ static int addidata_apci7800_setup(struct serial_private *priv,
 
 /*
  * AFAVLAB uses a different mixture of BARs and offsets
- * Not that ugly ;) -- HW
+ * Analt that ugly ;) -- HW
  */
 static int
 afavlab_setup(struct serial_private *priv, const struct pciserial_board *board,
@@ -294,13 +294,13 @@ static int pci_inteli960ni_init(struct pci_dev *dev)
 	u32 oldval;
 
 	if (!(dev->subsystem_device & 0x1000))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* is firmware started? */
 	pci_read_config_dword(dev, 0x44, &oldval);
 	if (oldval == 0x00001000L) { /* RESET value */
 		pci_dbg(dev, "Local i960 firmware missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -317,7 +317,7 @@ static int pci_plx9050_init(struct pci_dev *dev)
 	void __iomem *p;
 
 	if ((pci_resource_flags(dev, 0) & IORESOURCE_MEM) == 0) {
-		moan_device("no memory in bar 0", dev);
+		moan_device("anal memory in bar 0", dev);
 		return 0;
 	}
 
@@ -342,7 +342,7 @@ static int pci_plx9050_init(struct pci_dev *dev)
 	 */
 	p = ioremap(pci_resource_start(dev, 0), 0x80);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	writel(irq_config, p + 0x4c);
 
 	/*
@@ -385,7 +385,7 @@ static void pci_ni8420_exit(struct pci_dev *dev)
 	unsigned int bar = 0;
 
 	if ((pci_resource_flags(dev, bar) & IORESOURCE_MEM) == 0) {
-		moan_device("no memory in bar", dev);
+		moan_device("anal memory in bar", dev);
 		return;
 	}
 
@@ -414,7 +414,7 @@ static void pci_ni8430_exit(struct pci_dev *dev)
 	unsigned int bar = 0;
 
 	if ((pci_resource_flags(dev, bar) & IORESOURCE_MEM) == 0) {
-		moan_device("no memory in bar", dev);
+		moan_device("anal memory in bar", dev);
 		return;
 	}
 
@@ -427,7 +427,7 @@ static void pci_ni8430_exit(struct pci_dev *dev)
 	iounmap(p);
 }
 
-/* SBS Technologies Inc. PMC-OCTPRO and P-OCTAL cards */
+/* SBS Techanallogies Inc. PMC-OCTPRO and P-OCTAL cards */
 static int
 sbs_setup(struct serial_private *priv, const struct pciserial_board *board,
 		struct uart_8250_port *port, int idx)
@@ -465,7 +465,7 @@ static int sbs_init(struct pci_dev *dev)
 	p = pci_ioremap_bar(dev, 0);
 
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Set bit-4 Control Register (UART RESET) in to reset the uarts */
 	writeb(0x10, p + OCT_REG_CR_OFF);
 	udelay(50);
@@ -511,13 +511,13 @@ static void sbs_exit(struct pci_dev *dev)
  *     - 10x cards have control registers in IO and/or memory space;
  *     - 20x cards have control registers in standard PCI configuration space.
  *
- * Note: all 10x cards have PCI device ids 0x10..
+ * Analte: all 10x cards have PCI device ids 0x10..
  *       all 20x cards have PCI device ids 0x20..
  *
  * There are also Quartet Serial cards which use Oxford Semiconductor
  * 16954 quad UART PCI chip clocked by 18.432 MHz quartz.
  *
- * Note: some SIIG cards are probed by the parport_serial object.
+ * Analte: some SIIG cards are probed by the parport_serial object.
  */
 
 #define PCI_DEVICE_ID_SIIG_1S_10x (PCI_DEVICE_ID_SIIG_1S_10x_550 & 0xfffc)
@@ -542,7 +542,7 @@ static int pci_siig10x_init(struct pci_dev *dev)
 
 	p = ioremap(pci_resource_start(dev, 0), 0x80);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	writew(readw(p + 0x28) & data, p + 0x28);
 	readw(p + 0x28);
@@ -579,8 +579,8 @@ static int pci_siig_init(struct pci_dev *dev)
 	if (type == 0x2000)
 		return pci_siig20x_init(dev);
 
-	moan_device("Unknown SIIG card", dev);
-	return -ENODEV;
+	moan_device("Unkanalwn SIIG card", dev);
+	return -EANALDEV;
 }
 
 static int pci_siig_setup(struct serial_private *priv,
@@ -649,9 +649,9 @@ static int pci_timedia_probe(struct pci_dev *dev)
 	 * (0,2,3,5,6: serial only -- 7,8,9: serial + parallel)
 	 */
 	if ((dev->subsystem_device & 0x00f0) >= 0x70) {
-		pci_info(dev, "ignoring Timedia subdevice %04x for parport_serial\n",
+		pci_info(dev, "iganalring Timedia subdevice %04x for parport_serial\n",
 			 dev->subsystem_device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -743,13 +743,13 @@ static int pci_ni8420_init(struct pci_dev *dev)
 	unsigned int bar = 0;
 
 	if ((pci_resource_flags(dev, bar) & IORESOURCE_MEM) == 0) {
-		moan_device("no memory in bar", dev);
+		moan_device("anal memory in bar", dev);
 		return 0;
 	}
 
 	p = pci_ioremap_bar(dev, bar);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enable CPU Interrupt */
 	writel(readl(p + NI8420_INT_ENABLE_REG) | NI8420_INT_ENABLE_BIT,
@@ -774,16 +774,16 @@ static int pci_ni8430_init(struct pci_dev *dev)
 	unsigned int bar = 0;
 
 	if ((pci_resource_flags(dev, bar) & IORESOURCE_MEM) == 0) {
-		moan_device("no memory in bar", dev);
+		moan_device("anal memory in bar", dev);
 		return 0;
 	}
 
 	p = pci_ioremap_bar(dev, bar);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Set device window address and size in BAR0, while acknowledging that
+	 * Set device window address and size in BAR0, while ackanalwledging that
 	 * the resource structure may contain a translated address that differs
 	 * from the address the device responds to.
 	 */
@@ -827,7 +827,7 @@ pci_ni8430_setup(struct serial_private *priv,
 
 	p = pci_ioremap_bar(dev, bar);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* enable the transceiver */
 	writeb(readb(p + offset + NI8430_PORTCON) | NI8430_PORTCON_TXVR_ENABLE,
@@ -878,7 +878,7 @@ static int pci_netmos_9900_numports(struct pci_dev *dev)
 
 	if ((pi == 0) && (dev->device == PCI_DEVICE_ID_NETMOS_9900)) {
 		/* two possibilities: 0x30ps encodes number of parallel and
-		 * serial ports, or 0x1000 indicates *something*. This is not
+		 * serial ports, or 0x1000 indicates *something*. This is analt
 		 * immediately obvious, since the 2s1p+4s configuration seems
 		 * to offer all functionality on functions 0..2, while still
 		 * advertising the same function 3 as the 4s+2s1p config.
@@ -887,11 +887,11 @@ static int pci_netmos_9900_numports(struct pci_dev *dev)
 		if (sub_serports > 0)
 			return sub_serports;
 
-		pci_err(dev, "NetMos/Mostech serial driver ignoring port on ambiguous config.\n");
+		pci_err(dev, "NetMos/Mostech serial driver iganalring port on ambiguous config.\n");
 		return 0;
 	}
 
-	moan_device("unknown NetMos/Mostech program interface", dev);
+	moan_device("unkanalwn NetMos/Mostech program interface", dev);
 	return 0;
 }
 
@@ -921,8 +921,8 @@ static int pci_netmos_init(struct pci_dev *dev)
 	}
 
 	if (num_serial == 0) {
-		moan_device("unknown NetMos/Mostech device", dev);
-		return -ENODEV;
+		moan_device("unkanalwn NetMos/Mostech device", dev);
+		return -EANALDEV;
 	}
 
 	return num_serial;
@@ -986,8 +986,8 @@ static int pci_ite887x_init(struct pci_dev *dev)
 	}
 
 	if (i == ARRAY_SIZE(inta_addr)) {
-		pci_err(dev, "could not find iobase\n");
-		return -ENODEV;
+		pci_err(dev, "could analt find iobase\n");
+		return -EANALDEV;
 	}
 
 	/* start of undocumented type checking (see parport_pc.c) */
@@ -1008,8 +1008,8 @@ static int pci_ite887x_init(struct pci_dev *dev)
 		ret = 2;
 		break;
 	default:
-		moan_device("Unknown ITE887x", dev);
-		ret = -ENODEV;
+		moan_device("Unkanalwn ITE887x", dev);
+		ret = -EANALDEV;
 	}
 
 	/* configure all serial ports */
@@ -1039,7 +1039,7 @@ static int pci_ite887x_init(struct pci_dev *dev)
 	}
 
 	if (ret <= 0) {
-		/* the device has no UARTs if we get here */
+		/* the device has anal UARTs if we get here */
 		release_region(iobase->start, ITE_887x_IOSIZE);
 	}
 
@@ -1091,7 +1091,7 @@ static int pci_oxsemi_tornado_init(struct pci_dev *dev)
 
 	p = pci_iomap(dev, 0, 5);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	deviceID = ioread32(p);
 	/* Tornado device */
@@ -1123,7 +1123,7 @@ static int pci_oxsemi_tornado_init(struct pci_dev *dev)
  * The allowed oversampling rates are from 4 up to 16 inclusive (values
  * from 0 to 3 inclusive map to 16).  Likewise the clock prescaler allows
  * values between 1.000 and 63.875 inclusive (operation for values from
- * 0.000 to 0.875 has not been specified).  The clock divisor is the usual
+ * 0.000 to 0.875 has analt been specified).  The clock divisor is the usual
  * unsigned 16-bit integer.
  *
  * For the most accurate baud rate we use a table of predetermined
@@ -1259,7 +1259,7 @@ static unsigned int pci_oxsemi_tornado_get_divisor(struct uart_port *port,
 /*
  * Set the oversampling rate in the transmitter clock cycle register (TCR),
  * the clock prescaler in the clock prescaler register (CPR and CPR2), and
- * the clock divisor in the divisor latch (DLL and DLM).  Note that for
+ * the clock divisor in the divisor latch (DLL and DLM).  Analte that for
  * backwards compatibility any write to CPR clears CPR2 and therefore CPR
  * has to be written first, followed by CPR2, which occupies the location
  * of CKS used with earlier UART designs.
@@ -1282,7 +1282,7 @@ static void pci_oxsemi_tornado_set_divisor(struct uart_port *port,
 
 /*
  * For Tornado devices we force MCR[7] set for the Divide-by-M N/8 baud rate
- * generator prescaler (CPR and CPR2).  Otherwise no prescaler would be used.
+ * generator prescaler (CPR and CPR2).  Otherwise anal prescaler would be used.
  */
 static void pci_oxsemi_tornado_set_mctrl(struct uart_port *port,
 					 unsigned int mctrl)
@@ -1518,7 +1518,7 @@ static int pci_quatech_init(struct pci_dev *dev)
 	if (match)
 		amcc = match->driver_data;
 	else
-		pci_err(dev, "unknown port type '0x%04X'.\n", dev->device);
+		pci_err(dev, "unkanalwn port type '0x%04X'.\n", dev->device);
 
 	if (amcc) {
 		unsigned long base = pci_resource_start(dev, 0);
@@ -1542,9 +1542,9 @@ static int pci_quatech_setup(struct serial_private *priv,
 	port->port.iobase = pci_resource_start(priv->dev, FL_GET_BASE(board->flags));
 	/* Set up the clocking */
 	port->port.uartclk = pci_quatech_clock(port);
-	/* For now just warn about RS422 */
+	/* For analw just warn about RS422 */
 	if (pci_quatech_rs422(port))
-		pci_warn(priv->dev, "software control of RS422 features not currently supported.\n");
+		pci_warn(priv->dev, "software control of RS422 features analt currently supported.\n");
 	return pci_default_setup(priv, board, port, idx);
 }
 
@@ -1643,7 +1643,7 @@ static int pci_fintek_rs485_config(struct uart_port *port, struct ktermios *term
 
 static const struct serial_rs485 pci_fintek_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND,
-	/* F81504/508/512 does not support RTS delay before or after send */
+	/* F81504/508/512 does analt support RTS delay before or after send */
 };
 
 static int pci_fintek_setup(struct serial_private *priv,
@@ -1669,7 +1669,7 @@ static int pci_fintek_setup(struct serial_private *priv,
 
 	data = devm_kzalloc(&pdev->dev, sizeof(u8), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* preserve index in PCI configuration space */
 	*data = idx;
@@ -1689,7 +1689,7 @@ static int pci_fintek_init(struct pci_dev *dev)
 	if (!(pci_resource_flags(dev, 5) & IORESOURCE_IO) ||
 			!(pci_resource_flags(dev, 4) & IORESOURCE_IO) ||
 			!(pci_resource_flags(dev, 3) & IORESOURCE_IO))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (dev->device) {
 	case 0x1104: /* 4 ports */
@@ -1762,7 +1762,7 @@ static int pci_fintek_f815xxa_setup(struct serial_private *priv,
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->idx = idx;
 	spin_lock_init(&data->lock);
@@ -1782,7 +1782,7 @@ static int pci_fintek_f815xxa_init(struct pci_dev *dev)
 	int config_base;
 
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_MEM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (dev->device) {
 	case 0x1204: /* 4 ports */
@@ -1817,7 +1817,7 @@ static int skip_tx_en_setup(struct serial_private *priv,
 			const struct pciserial_board *board,
 			struct uart_8250_port *port, int idx)
 {
-	port->port.quirks |= UPQ_NO_TXEN_TEST;
+	port->port.quirks |= UPQ_ANAL_TXEN_TEST;
 	pci_dbg(priv->dev,
 		"serial8250: skipping TxEn test for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		priv->dev->vendor, priv->dev->device,
@@ -1873,7 +1873,7 @@ static int kt_serial_setup(struct serial_private *priv,
 static int pci_eg20t_init(struct pci_dev *dev)
 {
 #if defined(CONFIG_SERIAL_PCH_UART) || defined(CONFIG_SERIAL_PCH_UART_MODULE)
-	return -ENODEV;
+	return -EANALDEV;
 #else
 	return 0;
 #endif
@@ -2083,7 +2083,7 @@ pci_moxa_setup(struct serial_private *priv,
 
 /*
  * Master list of serial port init/setup/exit quirks.
- * This does not describe the general nature of the port.
+ * This does analt describe the general nature of the port.
  * (ie, baud base, number and location of ports, etc)
  *
  * This list is ordered alphabetically by vendor then device.
@@ -2102,7 +2102,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 	},
 	/*
 	 * AFAVLAB cards - these may be called via parport_serial
-	 *  It is not clear whether this applies to all products.
+	 *  It is analt clear whether this applies to all products.
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_AFAVLAB,
@@ -2371,7 +2371,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.exit		= pci_plx9050_exit,
 	},
 	/*
-	 * SBS Technologies, Inc., PMC-OCTALPRO 232
+	 * SBS Techanallogies, Inc., PMC-OCTALPRO 232
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_SBSMODULARIO,
@@ -2383,7 +2383,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.exit		= sbs_exit,
 	},
 	/*
-	 * SBS Technologies, Inc., PMC-OCTALPRO 422
+	 * SBS Techanallogies, Inc., PMC-OCTALPRO 422
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_SBSMODULARIO,
@@ -2395,7 +2395,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.exit		= sbs_exit,
 	},
 	/*
-	 * SBS Technologies, Inc., P-Octal 232
+	 * SBS Techanallogies, Inc., P-Octal 232
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_SBSMODULARIO,
@@ -2407,7 +2407,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.exit		= sbs_exit,
 	},
 	/*
-	 * SBS Technologies, Inc., P-Octal 422
+	 * SBS Techanallogies, Inc., P-Octal 422
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_SBSMODULARIO,
@@ -2498,7 +2498,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.setup		= pci_netmos_9900_setup,
 	},
 	/*
-	 * EndRun Technologies
+	 * EndRun Techanallogies
 	*/
 	{
 		.vendor		= PCI_VENDOR_ID_ENDRUN,
@@ -2963,7 +2963,7 @@ static struct pci_serial_quirk *find_quirk(struct pci_dev *dev)
  *
  * This table is sorted by (in order): bn, bt, baud, offsetindex, n.
  *
- * Please note: in theory if n = 1, _bt infix should make no difference.
+ * Please analte: in theory if n = 1, _bt infix should make anal difference.
  * ie, pbn_b0_1_115200 is the same as pbn_b0_bt_1_115200
  */
 enum pci_board_num_t {
@@ -3589,7 +3589,7 @@ static struct pciserial_board pci_boards[] = {
 
 	/*
 	 * This board uses the size of PCI Base region 0 to
-	 * signal now many ports are available
+	 * signal analw many ports are available
 	 */
 	[pbn_oxsemi] = {
 		.flags		= FL_BASE0|FL_REGION_SZ_CAP,
@@ -3640,7 +3640,7 @@ static struct pciserial_board pci_boards[] = {
 		.first_offset	= 0x10000,
 	},
 	[pbn_sgi_ioc3] = {
-		.flags		= FL_BASE0|FL_NOIRQ,
+		.flags		= FL_BASE0|FL_ANALIRQ,
 		.num_ports	= 1,
 		.base_baud	= 458333,
 		.uart_offset	= 8,
@@ -3960,22 +3960,22 @@ static const struct pci_device_id blacklist[] = {
 static int serial_pci_is_class_communication(struct pci_dev *dev)
 {
 	/*
-	 * If it is not a communications device or the programming
+	 * If it is analt a communications device or the programming
 	 * interface is greater than 6, give up.
 	 */
 	if ((((dev->class >> 8) != PCI_CLASS_COMMUNICATION_SERIAL) &&
 	     ((dev->class >> 8) != PCI_CLASS_COMMUNICATION_MULTISERIAL) &&
 	     ((dev->class >> 8) != PCI_CLASS_COMMUNICATION_MODEM)) ||
 	    (dev->class & 0xff) > 6)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
 
 /*
- * Given a complete unknown PCI device, try to use some heuristics to
+ * Given a complete unkanalwn PCI device, try to use some heuristics to
  * guess what the configuration might be, based on the pitiful PCI
- * serial specs.  Returns 0 on success, -ENODEV on failure.
+ * serial specs.  Returns 0 on success, -EANALDEV on failure.
  */
 static int
 serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
@@ -3991,7 +3991,7 @@ serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 	 * Should we try to make guesses for multiport serial devices later?
 	 */
 	if ((dev->class >> 8) == PCI_CLASS_COMMUNICATION_MULTISERIAL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	num_iomem = num_port = 0;
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
@@ -4016,7 +4016,7 @@ serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 	}
 
 	/*
-	 * Now guess if we've got a board which indexes by BARs.
+	 * Analw guess if we've got a board which indexes by BARs.
 	 * Each IO BAR should be 8 bytes, and they should follow
 	 * consecutively.
 	 */
@@ -4038,7 +4038,7 @@ serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int
@@ -4087,7 +4087,7 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 
 	priv = kzalloc(struct_size(priv, line, nr_ports), GFP_KERNEL);
 	if (!priv) {
-		priv = ERR_PTR(-ENOMEM);
+		priv = ERR_PTR(-EANALMEM);
 		goto err_deinit;
 	}
 
@@ -4098,7 +4098,7 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 	uart.port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
 	uart.port.uartclk = board->base_baud * 16;
 
-	if (board->flags & FL_NOIRQ) {
+	if (board->flags & FL_ANALIRQ) {
 		uart.port.irq = 0;
 	} else {
 		if (pci_match_id(pci_use_msi, dev)) {
@@ -4205,7 +4205,7 @@ void pciserial_resume_ports(struct serial_private *priv)
 EXPORT_SYMBOL_GPL(pciserial_resume_ports);
 
 /*
- * Probe one serial board.  Unfortunately, there is no rhyme nor reason
+ * Probe one serial board.  Unfortunately, there is anal rhyme analr reason
  * to the arrangement of serial ports on a PCI card.
  */
 static int
@@ -4235,9 +4235,9 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	exclude = pci_match_id(blacklist, dev);
 	if (exclude) {
 		if (exclude->driver_data)
-			pci_warn(dev, "ignoring port, enable %s to handle\n",
+			pci_warn(dev, "iganalring port, enable %s to handle\n",
 				 (const char *)exclude->driver_data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = pcim_enable_device(dev);
@@ -4264,7 +4264,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 		/*
 		 * We matched an explicit entry.  If we are able to
 		 * detect this boards settings with our heuristic,
-		 * then we no longer need this entry.
+		 * then we anal longer need this entry.
 		 */
 		memcpy(&tmp, &pci_boards[pbn_default],
 		       sizeof(struct pciserial_board));
@@ -4311,7 +4311,7 @@ static int pciserial_resume_one(struct device *dev)
 		 * The device may have been disabled.  Re-enable it.
 		 */
 		err = pci_enable_device(pdev);
-		/* FIXME: We cannot simply error out here */
+		/* FIXME: We cananalt simply error out here */
 		if (err)
 			pci_err(pdev, "Unable to re-enable ports, trying to continue.\n");
 		pciserial_resume_ports(priv);
@@ -4450,15 +4450,15 @@ static const struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_1077,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b2_4_921600 },
-	/* Unknown card - subdevice 0x1584 */
+	/* Unkanalwn card - subdevice 0x1584 */
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
 		PCI_VENDOR_ID_PLX,
-		PCI_SUBDEVICE_ID_UNKNOWN_0x1584, 0, 0,
+		PCI_SUBDEVICE_ID_UNKANALWN_0x1584, 0, 0,
 		pbn_b2_4_115200 },
-	/* Unknown card - subdevice 0x1588 */
+	/* Unkanalwn card - subdevice 0x1588 */
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
 		PCI_VENDOR_ID_PLX,
-		PCI_SUBDEVICE_ID_UNKNOWN_0x1588, 0, 0,
+		PCI_SUBDEVICE_ID_UNKANALWN_0x1588, 0, 0,
 		pbn_b2_8_115200 },
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
 		PCI_SUBVENDOR_ID_KEYSPAN,
@@ -4511,7 +4511,7 @@ static const struct pci_device_id serial_pci_tbl[] = {
 		pbn_plx_romulus },
 	/*
 	 * Quatech cards. These actually have configurable clocks but for
-	 * now we just use the default.
+	 * analw we just use the default.
 	 *
 	 * 100 series are RS232, 200 series RS422,
 	 */
@@ -4589,7 +4589,7 @@ static const struct pci_device_id serial_pci_tbl[] = {
 		 * The below card is a little controversial since it is the
 		 * subject of a PCI vendor/device ID clash.  (See
 		 * www.ussg.iu.edu/hypermail/linux/kernel/0303.1/0516.html).
-		 * For now just used the hex ID 0x950a.
+		 * For analw just used the hex ID 0x950a.
 		 */
 	{	PCI_VENDOR_ID_OXSEMI, 0x950a,
 		PCI_SUBVENDOR_ID_SIIG, PCI_SUBDEVICE_ID_SIIG_DUAL_00,
@@ -4771,7 +4771,7 @@ static const struct pci_device_id serial_pci_tbl[] = {
 		PCI_SUBVENDOR_ID_IBM, PCI_ANY_ID, 0, 0,
 		pbn_oxsemi_2_15625000 },
 	/*
-	 * EndRun Technologies. PCI express device range.
+	 * EndRun Techanallogies. PCI express device range.
 	 * EndRun PTP/1588 has 2 Native UARTs utilizing OxSemi 952.
 	 */
 	{	PCI_VENDOR_ID_ENDRUN, PCI_DEVICE_ID_ENDRUN_1588,
@@ -4779,7 +4779,7 @@ static const struct pci_device_id serial_pci_tbl[] = {
 		pbn_oxsemi_2_15625000 },
 
 	/*
-	 * SBS Technologies, Inc. P-Octal and PMC-OCTPRO cards,
+	 * SBS Techanallogies, Inc. P-Octal and PMC-OCTPRO cards,
 	 * from skokodyn@yahoo.com
 	 */
 	{	PCI_VENDOR_ID_SBSMODULARIO, PCI_DEVICE_ID_OCTPRO,
@@ -5043,8 +5043,8 @@ static const struct pci_device_id serial_pci_tbl[] = {
 	 * Cards are identified by their subsystem vendor IDs, which
 	 * (in hex) match the model number.
 	 *
-	 * Note that JC140x are RS422/485 cards which require ox950
-	 * ACR = 0x10, and as such are not currently fully supported.
+	 * Analte that JC140x are RS422/485 cards which require ox950
+	 * ACR = 0x10, and as such are analt currently fully supported.
 	 */
 	{	PCI_VENDOR_ID_KORENIX, PCI_DEVICE_ID_KORENIX_JETCARDF0,
 		0x1204, 0x0004, 0, 0,
@@ -5106,7 +5106,7 @@ static const struct pci_device_id serial_pci_tbl[] = {
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b0_1_115200 },
 	/*
-	 * Xircom RBM56G cardbus modem - Dirk Arnold (temp entry)
+	 * Xircom RBM56G cardbus modem - Dirk Aranalld (temp entry)
 	 */
 	{	PCI_VENDOR_ID_XIRCOM, PCI_DEVICE_ID_XIRCOM_RBM56G,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
@@ -5997,7 +5997,7 @@ static const struct pci_device_id serial_pci_tbl[] = {
 
 	/*
 	 * WCH CH353 series devices: The 2S1P is handled by parport_serial
-	 * so not listed here.
+	 * so analt listed here.
 	 */
 	{	PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH353_4S,
 		PCI_ANY_ID, PCI_ANY_ID,

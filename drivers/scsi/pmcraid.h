@@ -23,7 +23,7 @@
 /*
  * Driver name   : string representing the driver name
  * Device file   : /dev file to be used for management interfaces
- * Driver version: version string in major_version.minor_version.patch format
+ * Driver version: version string in major_version.mianalr_version.patch format
  * Driver date   : date information in "Mon dd yyyy" format
  */
 #define PMCRAID_DRIVER_NAME		"PMC MaxRAID"
@@ -135,9 +135,9 @@
 
 /* IOA shutdown command and various shutdown types */
 #define PMCRAID_IOA_SHUTDOWN                     0xF7
-#define PMCRAID_SHUTDOWN_NORMAL                  0x00
-#define PMCRAID_SHUTDOWN_PREPARE_FOR_NORMAL      0x40
-#define PMCRAID_SHUTDOWN_NONE                    0x100
+#define PMCRAID_SHUTDOWN_ANALRMAL                  0x00
+#define PMCRAID_SHUTDOWN_PREPARE_FOR_ANALRMAL      0x40
+#define PMCRAID_SHUTDOWN_ANALNE                    0x100
 #define PMCRAID_SHUTDOWN_ABBREV                  0x80
 
 /* SET SUPPORTED DEVICES command and the option to select all the
@@ -157,12 +157,12 @@
 #define PMCRAID_IOASC_SENSE_STATUS(ioasc)        ((ioasc) & 0x000000ff)
 
 #define PMCRAID_IOASC_GOOD_COMPLETION			0x00000000
-#define PMCRAID_IOASC_GC_IOARCB_NOTFOUND		0x005A0000
+#define PMCRAID_IOASC_GC_IOARCB_ANALTFOUND		0x005A0000
 #define PMCRAID_IOASC_NR_INIT_CMD_REQUIRED		0x02040200
 #define PMCRAID_IOASC_NR_IOA_RESET_REQUIRED		0x02048000
 #define PMCRAID_IOASC_NR_SYNC_REQUIRED			0x023F0000
-#define PMCRAID_IOASC_ME_READ_ERROR_NO_REALLOC		0x03110C00
-#define PMCRAID_IOASC_HW_CANNOT_COMMUNICATE		0x04050000
+#define PMCRAID_IOASC_ME_READ_ERROR_ANAL_REALLOC		0x03110C00
+#define PMCRAID_IOASC_HW_CANANALT_COMMUNICATE		0x04050000
 #define PMCRAID_IOASC_HW_DEVICE_TIMEOUT			0x04080100
 #define PMCRAID_IOASC_HW_DEVICE_BUS_STATUS_ERROR	0x04448500
 #define PMCRAID_IOASC_HW_IOA_RESET_REQUIRED		0x04448600
@@ -246,7 +246,7 @@ struct pmcraid_ioarcb {
 	struct pmcraid_ioarcb_add_data add_data;
 };
 
-/* well known resource handle values */
+/* well kanalwn resource handle values */
 #define PMCRAID_IOA_RES_HANDLE        0xffffffff
 #define PMCRAID_INVALID_RES_HANDLE    0
 
@@ -260,7 +260,7 @@ struct pmcraid_ioarcb {
 #define INHIBIT_UL_CHECK              PMC_BIT8(2)
 #define SYNC_OVERRIDE                 PMC_BIT8(3)
 #define SYNC_COMPLETE                 PMC_BIT8(4)
-#define NO_LINK_DESCS                 PMC_BIT8(5)
+#define ANAL_LINK_DESCS                 PMC_BIT8(5)
 
 /* pmcraid_ioarcb.flags1 values */
 #define DELAY_AFTER_RESET             PMC_BIT8(0)
@@ -343,11 +343,11 @@ struct pmcraid_config_table_entry_ext {
 /* unique_flags1 */
 #define IMPORT_MODE_MANUAL   PMC_BIT8(0)
 
-/* well known resource handle values */
+/* well kanalwn resource handle values */
 #define RES_HANDLE_IOA       0xFFFFFFFF
-#define RES_HANDLE_NONE      0x00000000
+#define RES_HANDLE_ANALNE      0x00000000
 
-/* well known resource address values */
+/* well kanalwn resource address values */
 #define RES_ADDRESS_IOAFP    0xFEFFFFFF
 #define RES_ADDRESS_INVALID  0xFFFFFFFF
 
@@ -379,7 +379,7 @@ struct pmcraid_config_table {
  */
 #define PMCRAID_HOSTRCB_LDNSIZE			4056
 
-/* Error log notification format */
+/* Error log analtification format */
 struct pmcraid_hostrcb_error {
 	__le32 fd_ioasc;
 	__le32 fd_ra;
@@ -392,8 +392,8 @@ struct pmcraid_hostrcb_error {
 
 struct pmcraid_hcam_hdr {
 	__u8  op_code;
-	__u8  notification_type;
-	__u8  notification_lost;
+	__u8  analtification_type;
+	__u8  analtification_lost;
 	__u8  flags;
 	__u8  overlay_id;
 	__u8  reserved1[3];
@@ -428,16 +428,16 @@ struct pmcraid_hcam_ldn {
 #define HOSTRCB_TYPE_CCN			0xE1
 #define HOSTRCB_TYPE_LDN			0xE2
 
-/* pmcraid_hcam.notification_type values */
-#define NOTIFICATION_TYPE_ENTRY_CHANGED		0x0
-#define NOTIFICATION_TYPE_ENTRY_NEW		0x1
-#define NOTIFICATION_TYPE_ENTRY_DELETED		0x2
-#define NOTIFICATION_TYPE_STATE_CHANGE		0x3
-#define NOTIFICATION_TYPE_ENTRY_STATECHANGED	0x4
-#define NOTIFICATION_TYPE_ERROR_LOG		0x10
-#define NOTIFICATION_TYPE_INFORMATION_LOG	0x11
+/* pmcraid_hcam.analtification_type values */
+#define ANALTIFICATION_TYPE_ENTRY_CHANGED		0x0
+#define ANALTIFICATION_TYPE_ENTRY_NEW		0x1
+#define ANALTIFICATION_TYPE_ENTRY_DELETED		0x2
+#define ANALTIFICATION_TYPE_STATE_CHANGE		0x3
+#define ANALTIFICATION_TYPE_ENTRY_STATECHANGED	0x4
+#define ANALTIFICATION_TYPE_ERROR_LOG		0x10
+#define ANALTIFICATION_TYPE_INFORMATION_LOG	0x11
 
-#define HOSTRCB_NOTIFICATIONS_LOST		PMC_BIT8(0)
+#define HOSTRCB_ANALTIFICATIONS_LOST		PMC_BIT8(0)
 
 /* pmcraid_hcam.flags values */
 #define HOSTRCB_INTERNAL_OP_ERROR		PMC_BIT8(0)
@@ -478,7 +478,7 @@ struct pmcraid_chip_details {
 #define INTRS_TRANSITION_TO_OPERATIONAL		PMC_BIT32(0)
 #define INTRS_IOARCB_TRANSFER_FAILED		PMC_BIT32(3)
 #define INTRS_IOA_UNIT_CHECK			PMC_BIT32(4)
-#define INTRS_NO_HRRQ_FOR_CMD_RESPONSE		PMC_BIT32(5)
+#define INTRS_ANAL_HRRQ_FOR_CMD_RESPONSE		PMC_BIT32(5)
 #define INTRS_CRITICAL_OP_IN_PROGRESS		PMC_BIT32(6)
 #define INTRS_IO_DEBUG_ACK			PMC_BIT32(7)
 #define INTRS_IOARRIN_LOST			PMC_BIT32(27)
@@ -503,7 +503,7 @@ struct pmcraid_chip_details {
 
 #define PMCRAID_ERROR_INTERRUPTS	(INTRS_IOARCB_TRANSFER_FAILED | \
 					 INTRS_IOA_UNIT_CHECK | \
-					 INTRS_NO_HRRQ_FOR_CMD_RESPONSE | \
+					 INTRS_ANAL_HRRQ_FOR_CMD_RESPONSE | \
 					 INTRS_IOARRIN_LOST | \
 					 INTRS_SYSTEM_BUS_MMIO_ERROR | \
 					 INTRS_IOA_PROCESSOR_ERROR)
@@ -587,7 +587,7 @@ struct pmcraid_cmd {
 		int hrrq_index;
 
 		/* used during IO command error handling. Sense buffer
-		 * for REQUEST SENSE command if firmware is not sending
+		 * for REQUEST SENSE command if firmware is analt sending
 		 * auto sense data
 		 */
 		struct  {
@@ -620,7 +620,7 @@ struct pmcraid_isr_param {
 
 /* AEN message header sent as part of event data to applications */
 struct pmcraid_aen_msg {
-	u32 hostno;
+	u32 hostanal;
 	u32 length;
 	u8  reserved[8];
 	u8  data[];
@@ -645,7 +645,7 @@ struct pmcraid_hostrcb {
 	struct pmcraid_hcam_hdr *hcam;	/* pointer to hcam buffer */
 	struct pmcraid_cmd  *cmd;       /* pointer to command block used */
 	dma_addr_t baddr;		/* system address of hcam buffer */
-	atomic_t ignore;		/* process HCAM response ? */
+	atomic_t iganalre;		/* process HCAM response ? */
 };
 
 #define PMCRAID_AEN_HDR_SIZE	sizeof(struct pmcraid_aen_msg)
@@ -719,7 +719,7 @@ struct pmcraid_instance {
 	struct Scsi_Host *host;	/* mid layer interface structure handle */
 	struct pci_dev *pdev;	/* PCI device structure handle */
 
-	/* No of Reset IOA retries . IOA marked dead if threshold exceeds */
+	/* Anal of Reset IOA retries . IOA marked dead if threshold exceeds */
 	u8 ioa_reset_attempts;
 #define PMCRAID_RESET_ATTEMPTS 3
 
@@ -727,7 +727,7 @@ struct pmcraid_instance {
 
 	u8  num_hrrq;		/* Number of interrupt vectors allocated */
 	u8  interrupt_mode;	/* current interrupt mode legacy or msix */
-	dev_t dev;		/* Major-Minor numbers for Char device */
+	dev_t dev;		/* Major-Mianalr numbers for Char device */
 
 	/* Used as ISR handler argument */
 	struct pmcraid_isr_param hrrq_vector[PMCRAID_NUM_MSIX_VECTORS];
@@ -758,17 +758,17 @@ struct pmcraid_instance {
 	/* Work-queue (Shared) for deferred reset processing */
 	struct work_struct worker_q;
 
-	/* No of IO commands pending with FW */
+	/* Anal of IO commands pending with FW */
 	atomic_t outstanding_cmds;
 
-	/* should add/delete resources to mid-layer now ?*/
+	/* should add/delete resources to mid-layer analw ?*/
 	atomic_t expose_resources;
 
 
 
 	u32 ioa_state:4;	/* For IOA Reset sequence FSM */
 #define IOA_STATE_OPERATIONAL       0x0
-#define IOA_STATE_UNKNOWN           0x1
+#define IOA_STATE_UNKANALWN           0x1
 #define IOA_STATE_DEAD              0x2
 #define IOA_STATE_IN_SOFT_RESET     0x3
 #define IOA_STATE_IN_HARD_RESET     0x4
@@ -783,8 +783,8 @@ struct pmcraid_instance {
 	u32 force_ioa_reset:1;  /* force adapter reset ? */
 	u32 reinit_cfg_table:1; /* reinit config table due to lost CCN */
 	u32 ioa_shutdown_type:2;/* shutdown type used during reset */
-#define SHUTDOWN_NONE               0x0
-#define SHUTDOWN_NORMAL             0x1
+#define SHUTDOWN_ANALNE               0x0
+#define SHUTDOWN_ANALRMAL             0x1
 #define SHUTDOWN_ABBREV             0x2
 	u32 timestamp_error:1; /* indicate set timestamp for out of sync */
 
@@ -809,7 +809,7 @@ struct pmcraid_resource_entry {
 	u8 reset_progress;      /* Device is resetting */
 
 	/*
-	 * When IOA asks for sync (i.e. IOASC = Not Ready, Sync Required), this
+	 * When IOA asks for sync (i.e. IOASC = Analt Ready, Sync Required), this
 	 * flag will be set, mid layer will be asked to retry. In the next
 	 * attempt, this flag will be checked in queuecommand() to set
 	 * SYNC_COMPLETE flag in IOARCB (flag_0).
@@ -817,7 +817,7 @@ struct pmcraid_resource_entry {
 	u8 sync_reqd;
 
 	/* target indicates the mapped target_id assigned to this resource if
-	 * this is VSET resource. For non-VSET resources this will be un-used
+	 * this is VSET resource. For analn-VSET resources this will be un-used
 	 * or zero
 	 */
 	u8 target;
@@ -831,7 +831,7 @@ struct pmcraid_ioasc_error {
 };
 
 /* Initial log_level assignments for various IOASCs */
-#define IOASC_LOG_LEVEL_NONE	    0x0 /* no logging */
+#define IOASC_LOG_LEVEL_ANALNE	    0x0 /* anal logging */
 #define IOASC_LOG_LEVEL_MUST        0x1	/* must log: all high-severity errors */
 #define IOASC_LOG_LEVEL_HARD        0x2	/* optional – low severity errors */
 
@@ -848,13 +848,13 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x015D9200, IOASC_LOG_LEVEL_HARD,
 	 "Recovered Error, soft Cache Card Battery error threshold"},
 	{0x02048000, IOASC_LOG_LEVEL_HARD,
-	 "Not Ready, IOA Reset Required"},
+	 "Analt Ready, IOA Reset Required"},
 	{0x02408500, IOASC_LOG_LEVEL_HARD,
-	 "Not Ready, IOA microcode download required"},
+	 "Analt Ready, IOA microcode download required"},
 	{0x03110B00, IOASC_LOG_LEVEL_HARD,
 	 "Medium Error, data unreadable, reassignment suggested"},
 	{0x03110C00, IOASC_LOG_LEVEL_MUST,
-	 "Medium Error, data unreadable do not reassign"},
+	 "Medium Error, data unreadable do analt reassign"},
 	{0x03310000, IOASC_LOG_LEVEL_HARD,
 	 "Medium Error, media corrupted"},
 	{0x04050000, IOASC_LOG_LEVEL_HARD,
@@ -862,7 +862,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x04080000, IOASC_LOG_LEVEL_MUST,
 	 "Hardware Error, device bus error"},
 	{0x04088000, IOASC_LOG_LEVEL_MUST,
-	 "Hardware Error, device bus is not functioning"},
+	 "Hardware Error, device bus is analt functioning"},
 	{0x04118000, IOASC_LOG_LEVEL_HARD,
 	 "Hardware Error, IOA reserved area data check"},
 	{0x04118100, IOASC_LOG_LEVEL_HARD,
@@ -950,7 +950,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x07278600, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, exposed array is short a required device"},
 	{0x07278700, IOASC_LOG_LEVEL_HARD,
-	 "Data Protect, array members not at required addresses"},
+	 "Data Protect, array members analt at required addresses"},
 	{0x07278800, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, exposed mode device resource address conflict"},
 	{0x07278900, IOASC_LOG_LEVEL_HARD,
@@ -960,7 +960,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x07278B00, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, maximum number of arrays already exist"},
 	{0x07278C00, IOASC_LOG_LEVEL_HARD,
-	 "Data Protect, cannot locate cache data for device"},
+	 "Data Protect, cananalt locate cache data for device"},
 	{0x07278D00, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, cache data exits for a changed device"},
 	{0x07279100, IOASC_LOG_LEVEL_HARD,
@@ -968,7 +968,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x07279200, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, IOA exceeds maximum number of devices"},
 	{0x07279600, IOASC_LOG_LEVEL_HARD,
-	 "Data Protect, missing array, volume set is not functional"},
+	 "Data Protect, missing array, volume set is analt functional"},
 	{0x07279700, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, single device for a volume set"},
 	{0x07279800, IOASC_LOG_LEVEL_HARD,
@@ -1011,7 +1011,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
  * buffers given as ioctl arguments.
  *
  * .signature           : always ASCII string, "PMCRAID"
- * .reserved            : not used
+ * .reserved            : analt used
  * .buffer_length       : length of the buffer following the header
  */
 struct pmcraid_ioctl_header {
@@ -1035,7 +1035,7 @@ struct pmcraid_ioctl_header {
 /*
  * _ARGSIZE: macro that gives size of the argument type passed to an IOCTL cmd.
  * This is to facilitate applications avoiding un-necessary memory allocations.
- * For example, most of driver handled ioctls do not require ioarcb, ioasa.
+ * For example, most of driver handled ioctls do analt require ioarcb, ioasa.
  */
 #define _ARGSIZE(arg) (sizeof(struct pmcraid_ioctl_header) + sizeof(arg))
 

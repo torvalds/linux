@@ -132,7 +132,7 @@ int snd_gus_create(struct snd_card *card,
 	*rgus = NULL;
 	gus = kzalloc(sizeof(*gus), GFP_KERNEL);
 	if (gus == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&gus->reg_lock);
 	spin_lock_init(&gus->voice_alloc);
 	spin_lock_init(&gus->active_voice_lock);
@@ -230,7 +230,7 @@ static int snd_gus_detect_memory(struct snd_gus_card * gus)
 	snd_gf1_poke(gus, 1L, 0x55);
 	if (snd_gf1_peek(gus, 0L) != 0xaa || snd_gf1_peek(gus, 1L) != 0x55) {
 		snd_printk(KERN_ERR "plain GF1 card at 0x%lx without onboard DRAM?\n", gus->gf1.port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (idx = 1, d = 0xab; idx < 4; idx++, d++) {
 		local = idx << 18;
@@ -382,7 +382,7 @@ static int snd_gus_check_version(struct snd_gus_card * gus)
 				strcpy(card->longname, "Gravis UltraSound Extreme");
 				gus->ess_flag = 1;
 			} else {
-				snd_printk(KERN_ERR "unknown GF1 revision number at 0x%lx - 0x%x (0x%x)\n", gus->gf1.port, rev, val);
+				snd_printk(KERN_ERR "unkanalwn GF1 revision number at 0x%lx - 0x%x (0x%x)\n", gus->gf1.port, rev, val);
 				snd_printk(KERN_ERR "  please - report to <perex@perex.cz>\n");
 			}
 		}

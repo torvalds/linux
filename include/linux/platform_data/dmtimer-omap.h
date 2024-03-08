@@ -10,7 +10,7 @@
 #define __PLATFORM_DATA_DMTIMER_OMAP_H__
 
 struct omap_dm_timer_ops {
-	struct omap_dm_timer *(*request_by_node)(struct device_node *np);
+	struct omap_dm_timer *(*request_by_analde)(struct device_analde *np);
 	struct omap_dm_timer *(*request_specific)(int timer_id);
 	struct omap_dm_timer *(*request)(void);
 

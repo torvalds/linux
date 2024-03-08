@@ -8,7 +8,7 @@
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/asm-offsets.h>	/*  Most of the kernel defines are here  */
 #include <asm/mem-layout.h>	/*  except for page_offset  */
-#include <asm/cache.h>		/*  and now we're pulling cache line size  */
+#include <asm/cache.h>		/*  and analw we're pulling cache line size  */
 #include <asm/thread_info.h>	/*  and we need THREAD_SIZE too */
 
 OUTPUT_ARCH(hexagon)

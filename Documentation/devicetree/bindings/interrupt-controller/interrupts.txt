@@ -1,13 +1,13 @@
 Specifying interrupt information for devices
 ============================================
 
-1) Interrupt client nodes
+1) Interrupt client analdes
 -------------------------
 
-Nodes that describe devices which generate interrupts must contain an
+Analdes that describe devices which generate interrupts must contain an
 "interrupts" property, an "interrupts-extended" property, or both. If both are
 present, the latter should take precedence; the former may be provided simply
-for compatibility with software that does not recognize the latter. These
+for compatibility with software that does analt recognize the latter. These
 properties contain a list of interrupt specifiers, one per output interrupt. The
 format of the interrupt specifier is determined by the interrupt controller to
 which the interrupts are routed; see section 2 below for details.
@@ -18,11 +18,11 @@ which the interrupts are routed; see section 2 below for details.
 
 The "interrupt-parent" property is used to specify the controller to which
 interrupts are routed and contains a single phandle referring to the interrupt
-controller node. This property is inherited, so it may be specified in an
-interrupt client node or in any of its parent nodes. Interrupts listed in the
-"interrupts" property are always in reference to the node's interrupt parent.
+controller analde. This property is inherited, so it may be specified in an
+interrupt client analde or in any of its parent analdes. Interrupts listed in the
+"interrupts" property are always in reference to the analde's interrupt parent.
 
-The "interrupts-extended" property is a special form; useful when a node needs
+The "interrupts-extended" property is a special form; useful when a analde needs
 to reference multiple interrupt parents or a different interrupt parent than
 the inherited one. Each entry in this property contains both the parent phandle
 and the interrupt specifier.
@@ -30,7 +30,7 @@ and the interrupt specifier.
   Example:
 	interrupts-extended = <&intc1 5 1>, <&intc2 1 0>;
 
-2) Interrupt controller nodes
+2) Interrupt controller analdes
 -----------------------------
 
 A device is marked as an interrupt controller with the "interrupt-controller"
@@ -114,7 +114,7 @@ commonly used:
 
 Some interrupt controllers in a SoC, are always powered on and have a select
 interrupts routed to them, so that they can wakeup the SoC from suspend. These
-interrupt controllers do not fall into the category of a parent interrupt
+interrupt controllers do analt fall into the category of a parent interrupt
 controller and can be specified by the "wakeup-parent" property and contain a
 single phandle referring to the wakeup capable interrupt controller.
 

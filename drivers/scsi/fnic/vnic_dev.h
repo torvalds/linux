@@ -26,13 +26,13 @@
 #define vnic_dev_stats_clear fnic_dev_stats_clear
 #define vnic_dev_cmd_init fnic_dev_cmd_init
 #define vnic_dev_stats_dump fnic_dev_stats_dump
-#define vnic_dev_hang_notify fnic_dev_hang_notify
+#define vnic_dev_hang_analtify fnic_dev_hang_analtify
 #define vnic_dev_packet_filter fnic_dev_packet_filter
 #define vnic_dev_add_addr fnic_dev_add_addr
 #define vnic_dev_del_addr fnic_dev_del_addr
 #define vnic_dev_mac_addr fnic_dev_mac_addr
-#define vnic_dev_notify_set fnic_dev_notify_set
-#define vnic_dev_notify_unset fnic_dev_notify_unset
+#define vnic_dev_analtify_set fnic_dev_analtify_set
+#define vnic_dev_analtify_unset fnic_dev_analtify_unset
 #define vnic_dev_link_status fnic_dev_link_status
 #define vnic_dev_port_speed fnic_dev_port_speed
 #define vnic_dev_msg_lvl fnic_dev_msg_lvl
@@ -69,7 +69,7 @@ static inline void writeq(u64 val, void __iomem *reg)
 #endif
 
 enum vnic_dev_intr_mode {
-	VNIC_DEV_INTR_MODE_UNKNOWN,
+	VNIC_DEV_INTR_MODE_UNKANALWN,
 	VNIC_DEV_INTR_MODE_INTX,
 	VNIC_DEV_INTR_MODE_MSI,
 	VNIC_DEV_INTR_MODE_MSIX,
@@ -119,14 +119,14 @@ int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset,
 int vnic_dev_stats_clear(struct vnic_dev *vdev);
 int vnic_dev_cmd_init(struct vnic_dev *vdev);
 int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats);
-int vnic_dev_hang_notify(struct vnic_dev *vdev);
+int vnic_dev_hang_analtify(struct vnic_dev *vdev);
 void vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 			    int broadcast, int promisc, int allmulti);
 void vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr);
 void vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr);
 int vnic_dev_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
-int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr);
-void vnic_dev_notify_unset(struct vnic_dev *vdev);
+int vnic_dev_analtify_set(struct vnic_dev *vdev, u16 intr);
+void vnic_dev_analtify_unset(struct vnic_dev *vdev);
 int vnic_dev_link_status(struct vnic_dev *vdev);
 u32 vnic_dev_port_speed(struct vnic_dev *vdev);
 u32 vnic_dev_msg_lvl(struct vnic_dev *vdev);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <fcntl.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -134,7 +134,7 @@ static inline bool elf_sym__is_object(const GElf_Sym *sym)
 
 static inline int elf_sym__is_label(const GElf_Sym *sym)
 {
-	return elf_sym__type(sym) == STT_NOTYPE &&
+	return elf_sym__type(sym) == STT_ANALTYPE &&
 		sym->st_name != 0 &&
 		sym->st_shndx != SHN_UNDEF &&
 		sym->st_shndx != SHN_ABS &&
@@ -273,7 +273,7 @@ static int elf_read_program_header(Elf *elf, u64 vaddr, GElf_Phdr *phdr)
 			return 0;
 	}
 
-	/* Not found any valid program header */
+	/* Analt found any valid program header */
 	return -1;
 }
 
@@ -318,7 +318,7 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 	if (demangled == NULL) {
 		demangled = ocaml_demangle_sym(elf_name);
 		if (demangled == NULL) {
-			demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+			demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_ANALRET);
 		}
 	}
 	else if (rust_is_mangled(demangled))
@@ -414,7 +414,7 @@ static bool get_ifunc_name(Elf *elf, struct dso *dso, GElf_Ehdr *ehdr,
 
 	addr -= phdr.p_vaddr - phdr.p_offset;
 
-	sym = dso__find_symbol_nocache(dso, addr);
+	sym = dso__find_symbol_analcache(dso, addr);
 
 	/* Expecting the address to be an IFUNC or IFUNC alias */
 	if (!sym || sym->start != addr || (sym->type != STT_GNU_IFUNC && !sym->ifunc_alias))
@@ -457,7 +457,7 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 	case EM_386:
 	case EM_X86_64:
 		*plt_entry_size = shdr_plt->sh_entsize;
-		/* Size is 8 or 16, if not, assume alignment indicates size */
+		/* Size is 8 or 16, if analt, assume alignment indicates size */
 		if (*plt_entry_size != 8 && *plt_entry_size != 16)
 			*plt_entry_size = shdr_plt->sh_addralign == 8 ? 8 : 16;
 		*plt_header_size = *plt_entry_size;
@@ -665,8 +665,8 @@ out:
  * We need to check if we have a .dynsym, so that we can handle the
  * .plt, synthesizing its symbols, that aren't on the symtabs (be it
  * .dynsym or .symtab).
- * And always look at the original dso, not at debuginfo packages, that
- * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
+ * And always look at the original dso, analt at debuginfo packages, that
+ * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_ANALBITS).
  */
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 {
@@ -696,7 +696,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	 * by symbols__fixup_end() to overlap .plt. Truncate it before adding
 	 * a symbol for .plt header.
 	 */
-	f = dso__find_symbol_nocache(dso, shdr_plt.sh_offset);
+	f = dso__find_symbol_analcache(dso, shdr_plt.sh_offset);
 	if (f && f->start < shdr_plt.sh_offset && f->end > shdr_plt.sh_offset)
 		f->end = shdr_plt.sh_offset;
 
@@ -751,7 +751,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	} else if (shdr_rel_plt.sh_link == ss->symtab_idx) {
 		/*
 		 * A static executable can have a .plt due to IFUNCs, in which
-		 * case .symtab is used not .dynsym.
+		 * case .symtab is used analt .dynsym.
 		 */
 		scn_dynsym = ss->symtab;
 		shdr_dynsym = ss->symshdr;
@@ -792,7 +792,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	if (lazy_plt) {
 		/*
 		 * Assume a .plt with the same number of entries as the number
-		 * of relocation entries is not lazy and does not have a header.
+		 * of relocation entries is analt lazy and does analt have a header.
 		 */
 		if (ri.nr_entries * plt_entry_size == shdr_plt.sh_size)
 			dso__delete_symbol(dso, plt_sym);
@@ -849,9 +849,9 @@ char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 }
 
 /*
- * Align offset to 4 bytes as needed for note name and descriptor data.
+ * Align offset to 4 bytes as needed for analte name and descriptor data.
  */
-#define NOTE_ALIGN(n) (((n) + 3) & -4U)
+#define ANALTE_ALIGN(n) (((n) + 3) & -4U)
 
 static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 {
@@ -871,29 +871,29 @@ static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 		goto out;
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		pr_err("%s: cannot get elf header.\n", __func__);
+		pr_err("%s: cananalt get elf header.\n", __func__);
 		goto out;
 	}
 
 	/*
-	 * Check following sections for notes:
-	 *   '.note.gnu.build-id'
-	 *   '.notes'
-	 *   '.note' (VDSO specific)
+	 * Check following sections for analtes:
+	 *   '.analte.gnu.build-id'
+	 *   '.analtes'
+	 *   '.analte' (VDSO specific)
 	 */
 	do {
 		sec = elf_section_by_name(elf, &ehdr, &shdr,
-					  ".note.gnu.build-id", NULL);
+					  ".analte.gnu.build-id", NULL);
 		if (sec)
 			break;
 
 		sec = elf_section_by_name(elf, &ehdr, &shdr,
-					  ".notes", NULL);
+					  ".analtes", NULL);
 		if (sec)
 			break;
 
 		sec = elf_section_by_name(elf, &ehdr, &shdr,
-					  ".note", NULL);
+					  ".analte", NULL);
 		if (sec)
 			break;
 
@@ -908,8 +908,8 @@ static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 	ptr = data->d_buf;
 	while (ptr < (data->d_buf + data->d_size)) {
 		GElf_Nhdr *nhdr = ptr;
-		size_t namesz = NOTE_ALIGN(nhdr->n_namesz),
-		       descsz = NOTE_ALIGN(nhdr->n_descsz);
+		size_t namesz = ANALTE_ALIGN(nhdr->n_namesz),
+		       descsz = ANALTE_ALIGN(nhdr->n_descsz);
 		const char *name;
 
 		ptr += sizeof(*nhdr);
@@ -945,7 +945,7 @@ static int read_build_id(const char *filename, struct build_id *bid)
 		return -1;
 
 	if (!bfd_check_format(abfd, bfd_object)) {
-		pr_debug2("%s: cannot read %s bfd file.\n", __func__, filename);
+		pr_debug2("%s: cananalt read %s bfd file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -978,7 +978,7 @@ static int read_build_id(const char *filename, struct build_id *bid)
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug2("%s: cannot read %s ELF file.\n", __func__, filename);
+		pr_debug2("%s: cananalt read %s ELF file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -1045,8 +1045,8 @@ int sysfs__read_build_id(const char *filename, struct build_id *bid)
 		if (read(fd, &nhdr, sizeof(nhdr)) != sizeof(nhdr))
 			break;
 
-		namesz = NOTE_ALIGN(nhdr.n_namesz);
-		descsz = NOTE_ALIGN(nhdr.n_descsz);
+		namesz = ANALTE_ALIGN(nhdr.n_namesz);
+		descsz = ANALTE_ALIGN(nhdr.n_descsz);
 		if (nhdr.n_type == NT_GNU_BUILD_ID &&
 		    nhdr.n_namesz == sizeof("GNU")) {
 			if (read(fd, bf, namesz) != (ssize_t)namesz)
@@ -1092,7 +1092,7 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 		return -1;
 
 	if (!bfd_check_format(abfd, bfd_object)) {
-		pr_debug2("%s: cannot read %s bfd file.\n", __func__, filename);
+		pr_debug2("%s: cananalt read %s bfd file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -1133,7 +1133,7 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug2("%s: cannot read %s ELF file.\n", __func__, filename);
+		pr_debug2("%s: cananalt read %s ELF file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -1142,7 +1142,7 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 		goto out_elf_end;
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		pr_err("%s: cannot get elf header.\n", __func__);
+		pr_err("%s: cananalt get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
@@ -1174,19 +1174,19 @@ static int dso__swap_init(struct dso *dso, unsigned char eidata)
 {
 	static unsigned int const endian = 1;
 
-	dso->needs_swap = DSO_SWAP__NO;
+	dso->needs_swap = DSO_SWAP__ANAL;
 
 	switch (eidata) {
 	case ELFDATA2LSB:
 		/* We are big endian, DSO is little endian. */
 		if (*(unsigned char const *)&endian != 1)
-			dso->needs_swap = DSO_SWAP__YES;
+			dso->needs_swap = DSO_SWAP__ANAL;
 		break;
 
 	case ELFDATA2MSB:
 		/* We are little endian, DSO is big endian. */
 		if (*(unsigned char const *)&endian != 0)
-			dso->needs_swap = DSO_SWAP__YES;
+			dso->needs_swap = DSO_SWAP__ANAL;
 		break;
 
 	default:
@@ -1241,45 +1241,45 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	} else {
 		fd = open(name, O_RDONLY);
 		if (fd < 0) {
-			dso->load_errno = errno;
+			dso->load_erranal = erranal;
 			return -1;
 		}
 	}
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
-		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
+		pr_debug("%s: cananalt read %s ELF file.\n", __func__, name);
+		dso->load_erranal = DSO_LOAD_ERRANAL__INVALID_ELF;
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
-		pr_debug("%s: cannot get elf header.\n", __func__);
+		dso->load_erranal = DSO_LOAD_ERRANAL__INVALID_ELF;
+		pr_debug("%s: cananalt get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
 	if (dso__swap_init(dso, ehdr.e_ident[EI_DATA])) {
-		dso->load_errno = DSO_LOAD_ERRNO__INTERNAL_ERROR;
+		dso->load_erranal = DSO_LOAD_ERRANAL__INTERNAL_ERROR;
 		goto out_elf_end;
 	}
 
 	/* Always reject images with a mismatched build-id: */
-	if (dso->has_build_id && !symbol_conf.ignore_vmlinux_buildid) {
+	if (dso->has_build_id && !symbol_conf.iganalre_vmlinux_buildid) {
 		u8 build_id[BUILD_ID_SIZE];
 		struct build_id bid;
 		int size;
 
 		size = elf_read_build_id(elf, build_id, BUILD_ID_SIZE);
 		if (size <= 0) {
-			dso->load_errno = DSO_LOAD_ERRNO__CANNOT_READ_BUILDID;
+			dso->load_erranal = DSO_LOAD_ERRANAL__CANANALT_READ_BUILDID;
 			goto out_elf_end;
 		}
 
 		build_id__init(&bid, build_id, size);
 		if (!dso__build_id_equal(dso, &bid)) {
 			pr_debug("%s: build id mismatch for %s.\n", __func__, name);
-			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
+			dso->load_erranal = DSO_LOAD_ERRANAL__MISMATCHING_BUILDID;
 			goto out_elf_end;
 		}
 	}
@@ -1311,7 +1311,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 
 	ss->name   = strdup(name);
 	if (!ss->name) {
-		dso->load_errno = errno;
+		dso->load_erranal = erranal;
 		goto out_elf_end;
 	}
 
@@ -1330,14 +1330,14 @@ out_close:
 }
 
 /**
- * ref_reloc_sym_not_found - has kernel relocation symbol been found.
+ * ref_reloc_sym_analt_found - has kernel relocation symbol been found.
  * @kmap: kernel maps and relocation reference symbol
  *
  * This function returns %true if we are dealing with the kernel maps and the
- * relocation reference symbol has not yet been found.  Otherwise %false is
+ * relocation reference symbol has analt yet been found.  Otherwise %false is
  * returned.
  */
-static bool ref_reloc_sym_not_found(struct kmap *kmap)
+static bool ref_reloc_sym_analt_found(struct kmap *kmap)
 {
 	return kmap && kmap->ref_reloc_sym && kmap->ref_reloc_sym->name &&
 	       !kmap->ref_reloc_sym->unrelocated_addr;
@@ -1348,7 +1348,7 @@ static bool ref_reloc_sym_not_found(struct kmap *kmap)
  * @kmap: kernel maps and relocation reference symbol
  *
  * This function returns the offset of kernel addresses as determined by using
- * the relocation reference symbol i.e. if the kernel has not been relocated
+ * the relocation reference symbol i.e. if the kernel has analt been relocated
  * then the return value is zero.
  */
 static u64 ref_reloc(struct kmap *kmap)
@@ -1556,7 +1556,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	 * The kernel relocation symbol is needed in advance in order to adjust
 	 * kernel maps correctly.
 	 */
-	if (ref_reloc_sym_not_found(kmap)) {
+	if (ref_reloc_sym_analt_found(kmap)) {
 		elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) {
 			const char *elf_name = elf_sym__name(&sym, symstrs);
 
@@ -1577,7 +1577,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
-	 * Initial kernel and module mappings do not map to the dso.
+	 * Initial kernel and module mappings do analt map to the dso.
 	 * Flag the fixups.
 	 */
 	if (dso->kernel) {
@@ -1617,9 +1617,9 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		 * When loading symbols in a data mapping, ABS symbols (which
 		 * has a value of SHN_ABS in its st_shndx) failed at
 		 * elf_getscn().  And it marks the loading as a failure so
-		 * already loaded symbols cannot be fixed up.
+		 * already loaded symbols cananalt be fixed up.
 		 *
-		 * I'm not sure what should be done. Just ignore them for now.
+		 * I'm analt sure what should be done. Just iganalre them for analw.
 		 * - Namhyung Kim
 		 */
 		if (sym.st_shndx == SHN_ABS)
@@ -1632,7 +1632,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		gelf_getshdr(sec, &shdr);
 
 		/*
-		 * If the attribute bit SHF_ALLOC is not set, the section
+		 * If the attribute bit SHF_ALLOC is analt set, the section
 		 * doesn't occupy memory during process execution.
 		 * E.g. ".gnu.warning.*" section is used by linker to generate
 		 * warnings when calling deprecated functions, the symbols in
@@ -1646,11 +1646,11 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 		/*
 		 * We have to fallback to runtime when syms' section header has
-		 * NOBITS set. NOBITS results in file offset (sh_offset) not
+		 * ANALBITS set. ANALBITS results in file offset (sh_offset) analt
 		 * being incremented. So sh_offset used below has different
 		 * values for syms (invalid) and runtime (valid).
 		 */
-		if (shdr.sh_type == SHT_NOBITS) {
+		if (shdr.sh_type == SHT_ANALBITS) {
 			sec = elf_getscn(runtime_ss->elf, sym.st_shndx);
 			if (!sec)
 				goto out_elf_end;
@@ -1692,7 +1692,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 				 * Fail to find program header, let's rollback
 				 * to use shdr.sh_addr and shdr.sh_offset to
 				 * calibrate symbol's file address, though this
-				 * is not necessary for normal C ELF file, we
+				 * is analt necessary for analrmal C ELF file, we
 				 * still need to handle java JIT symbols in this
 				 * case.
 				 */
@@ -1724,7 +1724,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	}
 
 	/*
-	 * For misannotated, zeroed, ASM function sizes.
+	 * For misananaltated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0) {
 		symbols__fixup_end(&dso->symbols, false);
@@ -1839,7 +1839,7 @@ int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,
 
 enum dso_type dso__type_fd(int fd)
 {
-	enum dso_type dso_type = DSO__TYPE_UNKNOWN;
+	enum dso_type dso_type = DSO__TYPE_UNKANALWN;
 	GElf_Ehdr ehdr;
 	Elf_Kind ek;
 	Elf *elf;
@@ -1931,7 +1931,7 @@ static int kcore__open(struct kcore *kcore, const char *filename)
 		goto out_close;
 
 	kcore->elfclass = gelf_getclass(kcore->elf);
-	if (kcore->elfclass == ELFCLASSNONE)
+	if (kcore->elfclass == ELFCLASSANALNE)
 		goto out_end;
 
 	ehdr = gelf_getehdr(kcore->elf, &kcore->ehdr);
@@ -2050,13 +2050,13 @@ struct phdr_data {
 	off_t rel;
 	u64 addr;
 	u64 len;
-	struct list_head node;
+	struct list_head analde;
 	struct phdr_data *remaps;
 };
 
 struct sym_data {
 	u64 addr;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct kcore_copy_info {
@@ -2073,7 +2073,7 @@ struct kcore_copy_info {
 };
 
 #define kcore_copy__for_each_phdr(k, p) \
-	list_for_each_entry((p), &(k)->phdrs, node)
+	list_for_each_entry((p), &(k)->phdrs, analde)
 
 static struct phdr_data *phdr_data__new(u64 addr, u64 len, off_t offset)
 {
@@ -2095,7 +2095,7 @@ static struct phdr_data *kcore_copy_info__addnew(struct kcore_copy_info *kci,
 	struct phdr_data *p = phdr_data__new(addr, len, offset);
 
 	if (p)
-		list_add_tail(&p->node, &kci->phdrs);
+		list_add_tail(&p->analde, &kci->phdrs);
 
 	return p;
 }
@@ -2104,8 +2104,8 @@ static void kcore_copy__free_phdrs(struct kcore_copy_info *kci)
 {
 	struct phdr_data *p, *tmp;
 
-	list_for_each_entry_safe(p, tmp, &kci->phdrs, node) {
-		list_del_init(&p->node);
+	list_for_each_entry_safe(p, tmp, &kci->phdrs, analde) {
+		list_del_init(&p->analde);
 		free(p);
 	}
 }
@@ -2117,7 +2117,7 @@ static struct sym_data *kcore_copy__new_sym(struct kcore_copy_info *kci,
 
 	if (s) {
 		s->addr = addr;
-		list_add_tail(&s->node, &kci->syms);
+		list_add_tail(&s->analde, &kci->syms);
 	}
 
 	return s;
@@ -2127,8 +2127,8 @@ static void kcore_copy__free_syms(struct kcore_copy_info *kci)
 {
 	struct sym_data *s, *tmp;
 
-	list_for_each_entry_safe(s, tmp, &kci->syms, node) {
-		list_del_init(&s->node);
+	list_for_each_entry_safe(s, tmp, &kci->syms, analde) {
+		list_del_init(&s->analde);
 		free(s);
 	}
 }
@@ -2244,7 +2244,7 @@ static int kcore_copy__read_map(u64 start, u64 len, u64 pgoff, void *data)
 			    kci->last_module_symbol))
 		return -1;
 
-	list_for_each_entry(sdat, &kci->syms, node) {
+	list_for_each_entry(sdat, &kci->syms, analde) {
 		u64 s = round_down(sdat->addr, page_size);
 
 		if (kcore_copy__map(kci, start, end, pgoff, s, s + len))
@@ -2460,12 +2460,12 @@ static int kcore_copy__compare_file(const char *from_dir, const char *to_dir,
 }
 
 /**
- * kcore_copy - copy kallsyms, modules and kcore from one directory to another.
+ * kcore_copy - copy kallsyms, modules and kcore from one directory to aanalther.
  * @from_dir: from directory
  * @to_dir: to directory
  *
  * This function copies kallsyms, modules and kcore files from one directory to
- * another.  kallsyms and modules are copied entirely.  Only code segments are
+ * aanalther.  kallsyms and modules are copied entirely.  Only code segments are
  * copied from kcore.  It is assumed that two segments suffice: one for the
  * kernel proper and one for all the modules.  The code segments are determined
  * from kallsyms and modules files.  The kernel map starts at _stext or the
@@ -2476,9 +2476,9 @@ static int kcore_copy__compare_file(const char *from_dir, const char *to_dir,
  * highest kernel symbol and highest module symbol to, hopefully, encompass that
  * symbol too.  Because it contains only code sections, the resulting kcore is
  * unusual.  One significant peculiarity is that the mapping (start -> pgoff)
- * is not the same for the kernel map and the modules map.  That happens because
+ * is analt the same for the kernel map and the modules map.  That happens because
  * the data is copied adjacently whereas the original kcore has gaps.  Finally,
- * kallsyms file is compared with its copy to check that modules have not been
+ * kallsyms file is compared with its copy to check that modules have analt been
  * loaded or unloaded while the copies were taking place.
  *
  * Return: %0 on success, %-1 on failure.
@@ -2611,51 +2611,51 @@ void kcore_extract__delete(struct kcore_extract *kce)
 	unlink(kce->extract_filename);
 }
 
-#ifdef HAVE_GELF_GETNOTE_SUPPORT
+#ifdef HAVE_GELF_GETANALTE_SUPPORT
 
-static void sdt_adjust_loc(struct sdt_note *tmp, GElf_Addr base_off)
+static void sdt_adjust_loc(struct sdt_analte *tmp, GElf_Addr base_off)
 {
 	if (!base_off)
 		return;
 
 	if (tmp->bit32)
-		tmp->addr.a32[SDT_NOTE_IDX_LOC] =
-			tmp->addr.a32[SDT_NOTE_IDX_LOC] + base_off -
-			tmp->addr.a32[SDT_NOTE_IDX_BASE];
+		tmp->addr.a32[SDT_ANALTE_IDX_LOC] =
+			tmp->addr.a32[SDT_ANALTE_IDX_LOC] + base_off -
+			tmp->addr.a32[SDT_ANALTE_IDX_BASE];
 	else
-		tmp->addr.a64[SDT_NOTE_IDX_LOC] =
-			tmp->addr.a64[SDT_NOTE_IDX_LOC] + base_off -
-			tmp->addr.a64[SDT_NOTE_IDX_BASE];
+		tmp->addr.a64[SDT_ANALTE_IDX_LOC] =
+			tmp->addr.a64[SDT_ANALTE_IDX_LOC] + base_off -
+			tmp->addr.a64[SDT_ANALTE_IDX_BASE];
 }
 
-static void sdt_adjust_refctr(struct sdt_note *tmp, GElf_Addr base_addr,
+static void sdt_adjust_refctr(struct sdt_analte *tmp, GElf_Addr base_addr,
 			      GElf_Addr base_off)
 {
 	if (!base_off)
 		return;
 
-	if (tmp->bit32 && tmp->addr.a32[SDT_NOTE_IDX_REFCTR])
-		tmp->addr.a32[SDT_NOTE_IDX_REFCTR] -= (base_addr - base_off);
-	else if (tmp->addr.a64[SDT_NOTE_IDX_REFCTR])
-		tmp->addr.a64[SDT_NOTE_IDX_REFCTR] -= (base_addr - base_off);
+	if (tmp->bit32 && tmp->addr.a32[SDT_ANALTE_IDX_REFCTR])
+		tmp->addr.a32[SDT_ANALTE_IDX_REFCTR] -= (base_addr - base_off);
+	else if (tmp->addr.a64[SDT_ANALTE_IDX_REFCTR])
+		tmp->addr.a64[SDT_ANALTE_IDX_REFCTR] -= (base_addr - base_off);
 }
 
 /**
- * populate_sdt_note : Parse raw data and identify SDT note
+ * populate_sdt_analte : Parse raw data and identify SDT analte
  * @elf: elf of the opened file
  * @data: raw data of a section with description offset applied
- * @len: note description size
- * @type: type of the note
- * @sdt_notes: List to add the SDT note
+ * @len: analte description size
+ * @type: type of the analte
+ * @sdt_analtes: List to add the SDT analte
  *
- * Responsible for parsing the @data in section .note.stapsdt in @elf and
- * if its an SDT note, it appends to @sdt_notes list.
+ * Responsible for parsing the @data in section .analte.stapsdt in @elf and
+ * if its an SDT analte, it appends to @sdt_analtes list.
  */
-static int populate_sdt_note(Elf **elf, const char *data, size_t len,
-			     struct list_head *sdt_notes)
+static int populate_sdt_analte(Elf **elf, const char *data, size_t len,
+			     struct list_head *sdt_analtes)
 {
 	const char *provider, *name, *args;
-	struct sdt_note *tmp = NULL;
+	struct sdt_analte *tmp = NULL;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
 	int ret = -EINVAL;
@@ -2676,48 +2676,48 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 		.d_align = 0
 	};
 
-	tmp = (struct sdt_note *)calloc(1, sizeof(struct sdt_note));
+	tmp = (struct sdt_analte *)calloc(1, sizeof(struct sdt_analte));
 	if (!tmp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err;
 	}
 
-	INIT_LIST_HEAD(&tmp->note_list);
+	INIT_LIST_HEAD(&tmp->analte_list);
 
 	if (len < dst.d_size + 3)
-		goto out_free_note;
+		goto out_free_analte;
 
 	/* Translation from file representation to memory representation */
 	if (gelf_xlatetom(*elf, &dst, &src,
 			  elf_getident(*elf, NULL)[EI_DATA]) == NULL) {
 		pr_err("gelf_xlatetom : %s\n", elf_errmsg(-1));
-		goto out_free_note;
+		goto out_free_analte;
 	}
 
-	/* Populate the fields of sdt_note */
+	/* Populate the fields of sdt_analte */
 	provider = data + dst.d_size;
 
 	name = (const char *)memchr(provider, '\0', data + len - provider);
 	if (name++ == NULL)
-		goto out_free_note;
+		goto out_free_analte;
 
 	tmp->provider = strdup(provider);
 	if (!tmp->provider) {
-		ret = -ENOMEM;
-		goto out_free_note;
+		ret = -EANALMEM;
+		goto out_free_analte;
 	}
 	tmp->name = strdup(name);
 	if (!tmp->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_prov;
 	}
 
 	args = memchr(name, '\0', data + len - name);
 
 	/*
-	 * There is no argument if:
-	 * - We reached the end of the note;
-	 * - There is not enough room to hold a potential string;
+	 * There is anal argument if:
+	 * - We reached the end of the analte;
+	 * - There is analt eanalugh room to hold a potential string;
 	 * - The argument string is empty or just contains ':'.
 	 */
 	if (args == NULL || data + len - args < 2 ||
@@ -2726,7 +2726,7 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	else {
 		tmp->args = strdup(++args);
 		if (!tmp->args) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free_name;
 		}
 	}
@@ -2740,7 +2740,7 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	}
 
 	if (!gelf_getehdr(*elf, &ehdr)) {
-		pr_debug("%s : cannot get elf header.\n", __func__);
+		pr_debug("%s : cananalt get elf header.\n", __func__);
 		ret = -EBADF;
 		goto out_free_args;
 	}
@@ -2749,8 +2749,8 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	 * Find out the .stapsdt.base section.
 	 * This scn will help us to handle prelinking (if present).
 	 * Compare the retrieved file offset of the base section with the
-	 * base address in the description of the SDT note. If its different,
-	 * then accordingly, adjust the note location.
+	 * base address in the description of the SDT analte. If its different,
+	 * then accordingly, adjust the analte location.
 	 */
 	if (elf_section_by_name(*elf, &ehdr, &shdr, SDT_BASE_SCN, NULL))
 		sdt_adjust_loc(tmp, shdr.sh_offset);
@@ -2759,7 +2759,7 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	if (elf_section_by_name(*elf, &ehdr, &shdr, SDT_PROBES_SCN, NULL))
 		sdt_adjust_refctr(tmp, shdr.sh_addr, shdr.sh_offset);
 
-	list_add_tail(&tmp->note_list, sdt_notes);
+	list_add_tail(&tmp->analte_list, sdt_analtes);
 	return 0;
 
 out_free_args:
@@ -2768,22 +2768,22 @@ out_free_name:
 	zfree(&tmp->name);
 out_free_prov:
 	zfree(&tmp->provider);
-out_free_note:
+out_free_analte:
 	free(tmp);
 out_err:
 	return ret;
 }
 
 /**
- * construct_sdt_notes_list : constructs a list of SDT notes
+ * construct_sdt_analtes_list : constructs a list of SDT analtes
  * @elf : elf to look into
- * @sdt_notes : empty list_head
+ * @sdt_analtes : empty list_head
  *
  * Scans the sections in 'elf' for the section
- * .note.stapsdt. It, then calls populate_sdt_note to find
- * out the SDT events and populates the 'sdt_notes'.
+ * .analte.stapsdt. It, then calls populate_sdt_analte to find
+ * out the SDT events and populates the 'sdt_analtes'.
  */
-static int construct_sdt_notes_list(Elf *elf, struct list_head *sdt_notes)
+static int construct_sdt_analtes_list(Elf *elf, struct list_head *sdt_analtes)
 {
 	GElf_Ehdr ehdr;
 	Elf_Scn *scn = NULL;
@@ -2804,51 +2804,51 @@ static int construct_sdt_notes_list(Elf *elf, struct list_head *sdt_notes)
 	}
 
 	/* Look for the required section */
-	scn = elf_section_by_name(elf, &ehdr, &shdr, SDT_NOTE_SCN, NULL);
+	scn = elf_section_by_name(elf, &ehdr, &shdr, SDT_ANALTE_SCN, NULL);
 	if (!scn) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_ret;
 	}
 
-	if ((shdr.sh_type != SHT_NOTE) || (shdr.sh_flags & SHF_ALLOC)) {
-		ret = -ENOENT;
+	if ((shdr.sh_type != SHT_ANALTE) || (shdr.sh_flags & SHF_ALLOC)) {
+		ret = -EANALENT;
 		goto out_ret;
 	}
 
 	data = elf_getdata(scn, NULL);
 
-	/* Get the SDT notes */
-	for (offset = 0; (next = gelf_getnote(data, offset, &nhdr, &name_off,
+	/* Get the SDT analtes */
+	for (offset = 0; (next = gelf_getanalte(data, offset, &nhdr, &name_off,
 					      &desc_off)) > 0; offset = next) {
-		if (nhdr.n_namesz == sizeof(SDT_NOTE_NAME) &&
-		    !memcmp(data->d_buf + name_off, SDT_NOTE_NAME,
-			    sizeof(SDT_NOTE_NAME))) {
-			/* Check the type of the note */
-			if (nhdr.n_type != SDT_NOTE_TYPE)
+		if (nhdr.n_namesz == sizeof(SDT_ANALTE_NAME) &&
+		    !memcmp(data->d_buf + name_off, SDT_ANALTE_NAME,
+			    sizeof(SDT_ANALTE_NAME))) {
+			/* Check the type of the analte */
+			if (nhdr.n_type != SDT_ANALTE_TYPE)
 				goto out_ret;
 
-			ret = populate_sdt_note(&elf, ((data->d_buf) + desc_off),
-						nhdr.n_descsz, sdt_notes);
+			ret = populate_sdt_analte(&elf, ((data->d_buf) + desc_off),
+						nhdr.n_descsz, sdt_analtes);
 			if (ret < 0)
 				goto out_ret;
 		}
 	}
-	if (list_empty(sdt_notes))
-		ret = -ENOENT;
+	if (list_empty(sdt_analtes))
+		ret = -EANALENT;
 
 out_ret:
 	return ret;
 }
 
 /**
- * get_sdt_note_list : Wrapper to construct a list of sdt notes
+ * get_sdt_analte_list : Wrapper to construct a list of sdt analtes
  * @head : empty list_head
- * @target : file to find SDT notes from
+ * @target : file to find SDT analtes from
  *
  * This opens the file, initializes
- * the ELF and then calls construct_sdt_notes_list.
+ * the ELF and then calls construct_sdt_analtes_list.
  */
-int get_sdt_note_list(struct list_head *head, const char *target)
+int get_sdt_analte_list(struct list_head *head, const char *target)
 {
 	Elf *elf;
 	int fd, ret;
@@ -2862,7 +2862,7 @@ int get_sdt_note_list(struct list_head *head, const char *target)
 		ret = -EBADF;
 		goto out_close;
 	}
-	ret = construct_sdt_notes_list(elf, head);
+	ret = construct_sdt_analtes_list(elf, head);
 	elf_end(elf);
 out_close:
 	close(fd);
@@ -2870,19 +2870,19 @@ out_close:
 }
 
 /**
- * cleanup_sdt_note_list : free the sdt notes' list
- * @sdt_notes: sdt notes' list
+ * cleanup_sdt_analte_list : free the sdt analtes' list
+ * @sdt_analtes: sdt analtes' list
  *
- * Free up the SDT notes in @sdt_notes.
- * Returns the number of SDT notes free'd.
+ * Free up the SDT analtes in @sdt_analtes.
+ * Returns the number of SDT analtes free'd.
  */
-int cleanup_sdt_note_list(struct list_head *sdt_notes)
+int cleanup_sdt_analte_list(struct list_head *sdt_analtes)
 {
-	struct sdt_note *tmp, *pos;
+	struct sdt_analte *tmp, *pos;
 	int nr_free = 0;
 
-	list_for_each_entry_safe(pos, tmp, sdt_notes, note_list) {
-		list_del_init(&pos->note_list);
+	list_for_each_entry_safe(pos, tmp, sdt_analtes, analte_list) {
+		list_del_init(&pos->analte_list);
 		zfree(&pos->args);
 		zfree(&pos->name);
 		zfree(&pos->provider);
@@ -2893,17 +2893,17 @@ int cleanup_sdt_note_list(struct list_head *sdt_notes)
 }
 
 /**
- * sdt_notes__get_count: Counts the number of sdt events
- * @start: list_head to sdt_notes list
+ * sdt_analtes__get_count: Counts the number of sdt events
+ * @start: list_head to sdt_analtes list
  *
- * Returns the number of SDT notes in a list
+ * Returns the number of SDT analtes in a list
  */
-int sdt_notes__get_count(struct list_head *start)
+int sdt_analtes__get_count(struct list_head *start)
 {
-	struct sdt_note *sdt_ptr;
+	struct sdt_analte *sdt_ptr;
 	int count = 0;
 
-	list_for_each_entry(sdt_ptr, start, note_list)
+	list_for_each_entry(sdt_ptr, start, analte_list)
 		count++;
 	return count;
 }

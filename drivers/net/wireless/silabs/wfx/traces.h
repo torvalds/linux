@@ -41,7 +41,7 @@
  *          #undef xxx_name
  *          #define xxx_name(msg) { msg, #msg },
  *
- *   5. list_name can now nearly be used with __print_symbolic() but, __print_symbolic() dislike
+ *   5. list_name can analw nearly be used with __print_symbolic() but, __print_symbolic() dislike
  *      last comma of list. So we define a new list with a dummy element:
  *
  *          #define list_for_print_symbolic list_names { -1, NULL }
@@ -129,7 +129,7 @@ hif_msg_list_enum
 	hif_mib_name(MAC_ADDR_DATAFRAME_CONDITION)   \
 	hif_mib_name(MAGIC_DATAFRAME_CONDITION)      \
 	hif_mib_name(MAX_TX_POWER_LEVEL)             \
-	hif_mib_name(NON_ERP_PROTECTION)             \
+	hif_mib_name(ANALN_ERP_PROTECTION)             \
 	hif_mib_name(NS_IP_ADDRESSES_TABLE)          \
 	hif_mib_name(OVERRIDE_INTERNAL_TX_RATE)      \
 	hif_mib_name(PORT_DATAFRAME_CONDITION)       \
@@ -312,25 +312,25 @@ DEFINE_EVENT(io_data32, io_read32,
 #define _trace_io_read32(reg, val) trace_io_read32(reg, -1, val)
 
 DECLARE_EVENT_CLASS(piggyback,
-	TP_PROTO(u32 val, bool ignored),
-	TP_ARGS(val, ignored),
+	TP_PROTO(u32 val, bool iganalred),
+	TP_ARGS(val, iganalred),
 	TP_STRUCT__entry(
 		__field(int, val)
-		__field(bool, ignored)
+		__field(bool, iganalred)
 	),
 	TP_fast_assign(
 		__entry->val = val;
-		__entry->ignored = ignored;
+		__entry->iganalred = iganalred;
 	),
 	TP_printk("CONTROL: %08x%s",
 		__entry->val,
-		__entry->ignored ? " (ignored)" : ""
+		__entry->iganalred ? " (iganalred)" : ""
 	)
 );
 DEFINE_EVENT(piggyback, piggyback,
-	TP_PROTO(u32 val, bool ignored),
-	TP_ARGS(val, ignored));
-#define _trace_piggyback(val, ignored) trace_piggyback(val, ignored)
+	TP_PROTO(u32 val, bool iganalred),
+	TP_ARGS(val, iganalred));
+#define _trace_piggyback(val, iganalred) trace_piggyback(val, iganalred)
 
 TRACE_EVENT(bh_stats,
 	TP_PROTO(int ind, int req, int cnf, int busy, bool release),
@@ -463,7 +463,7 @@ TRACE_EVENT(queues_stats,
 				WARN_ON(j >= IEEE80211_NUM_ACS * 2);
 				queue = &wvif->tx_queue[i];
 				__entry->hw[j] = atomic_read(&queue->pending_frames);
-				__entry->drv[j] = skb_queue_len(&queue->normal);
+				__entry->drv[j] = skb_queue_len(&queue->analrmal);
 				__entry->cab[j] = skb_queue_len(&queue->cab);
 				if (queue == elected_queue) {
 					__entry->vif_id = wvif->id;
@@ -472,7 +472,7 @@ TRACE_EVENT(queues_stats,
 			}
 		}
 	),
-	TP_printk("got skb from %d/%d, pend. hw/norm/cab: [ %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d ] [ %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d ]",
+	TP_printk("got skb from %d/%d, pend. hw/analrm/cab: [ %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d ] [ %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d ]",
 		__entry->vif_id, __entry->queue_id,
 		__entry->hw[0], __entry->drv[0], __entry->cab[0],
 		__entry->hw[1], __entry->drv[1], __entry->cab[1],

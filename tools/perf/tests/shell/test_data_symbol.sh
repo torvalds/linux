@@ -11,12 +11,12 @@ shelldir=$(dirname "$0")
 # shellcheck source=lib/perf_has_symbol.sh
 . "${shelldir}"/lib/perf_has_symbol.sh
 
-skip_if_no_mem_event() {
+skip_if_anal_mem_event() {
 	perf mem record -e list 2>&1 | grep -E -q 'available' && return 0
 	return 2
 }
 
-skip_if_no_mem_event || exit 2
+skip_if_anal_mem_event || exit 2
 
 skip_test_missing_symbol buf1
 
@@ -30,7 +30,7 @@ check_result() {
 	result=$(perf mem report -i ${PERF_DATA} -s symbol_daddr -q 2>&1 |
 		 awk '/buf1/ { print $4 }')
 
-	# Testing is failed if has no any sample for "buf1"
+	# Testing is failed if has anal any sample for "buf1"
 	[ -z "$result" ] && return 1
 
 	while IFS= read -r line; do

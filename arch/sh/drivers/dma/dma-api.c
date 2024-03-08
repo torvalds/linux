@@ -119,9 +119,9 @@ static int search_cap(const char **haystack, const char *needle)
  *
  * Search all channels of all DMA controllers to find a channel which
  * matches the requested capabilities. The result is the channel
- * number if a match is found, or %-ENODEV if no match is found.
+ * number if a match is found, or %-EANALDEV if anal match is found.
  *
- * Note that not all DMA controllers export capabilities, in which
+ * Analte that analt all DMA controllers export capabilities, in which
  * case they can never be allocated using this API, and so
  * request_dma() must be used specifying the channel number.
  */
@@ -141,7 +141,7 @@ int request_dma_bycap(const char **dmac, const char **caps, const char *dev_id)
 		}
 
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < info->nr_channels; i++) {
 		struct dma_channel *channel = &info->channels[i];
@@ -170,7 +170,7 @@ int dmac_search_free_channel(const char *dev_id)
 	for (i = 0; i < info->nr_channels; i++) {
 		channel = &info->channels[i];
 		if (unlikely(!channel))
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (atomic_read(&channel->busy) == 0)
 			break;
@@ -185,7 +185,7 @@ int dmac_search_free_channel(const char *dev_id)
 		return channel->chan;
 	}
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int request_dma(unsigned int chan, const char *dev_id)
@@ -253,7 +253,7 @@ int register_chan_caps(const char *dmac, struct dma_chan_caps *caps)
 		}
 
 	if (unlikely(!found))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < info->nr_channels; i++, caps++) {
 		struct dma_channel *channel;
@@ -302,7 +302,7 @@ int dma_extend(unsigned int chan, unsigned long op, void *param)
 	if (info->ops->extend)
 		return info->ops->extend(channel, op, param);
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 EXPORT_SYMBOL(dma_extend);
 
@@ -362,7 +362,7 @@ int register_dmac(struct dma_info *info)
 
 		info->channels = kzalloc(size, GFP_KERNEL);
 		if (!info->channels)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	total_channels = get_nr_channels();
@@ -407,8 +407,8 @@ EXPORT_SYMBOL(unregister_dmac);
 
 static int __init dma_api_init(void)
 {
-	printk(KERN_NOTICE "DMA: Registering DMA API.\n");
-	return proc_create_single("dma", 0, NULL, dma_proc_show) ? 0 : -ENOMEM;
+	printk(KERN_ANALTICE "DMA: Registering DMA API.\n");
+	return proc_create_single("dma", 0, NULL, dma_proc_show) ? 0 : -EANALMEM;
 }
 subsys_initcall(dma_api_init);
 

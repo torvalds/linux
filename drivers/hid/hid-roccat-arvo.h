@@ -17,11 +17,11 @@ struct arvo_mode_key { /* 2 bytes */
 } __packed;
 
 struct arvo_button {
-	uint8_t unknown[24];
+	uint8_t unkanalwn[24];
 } __packed;
 
 struct arvo_info {
-	uint8_t unknown[8];
+	uint8_t unkanalwn[8];
 } __packed;
 
 struct arvo_key_mask { /* 2 bytes */
@@ -44,9 +44,9 @@ enum arvo_commands {
 };
 
 struct arvo_special_report {
-	uint8_t unknown1; /* always 0x01 */
+	uint8_t unkanalwn1; /* always 0x01 */
 	uint8_t event;
-	uint8_t unknown2; /* always 0x70 */
+	uint8_t unkanalwn2; /* always 0x70 */
 } __packed;
 
 enum arvo_special_report_events {
@@ -72,7 +72,7 @@ enum arvo_roccat_report_action {
 
 struct arvo_device {
 	int roccat_claimed;
-	int chrdev_minor;
+	int chrdev_mianalr;
 
 	struct mutex arvo_lock;
 

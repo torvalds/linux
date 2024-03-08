@@ -31,19 +31,19 @@ config FSL_USB2_OTG
 config KEYSTONE_USB_PHY
 	tristate "Keystone USB PHY Driver"
 	depends on ARCH_KEYSTONE || COMPILE_TEST
-	depends on NOP_USB_XCEIV
+	depends on ANALP_USB_XCEIV
 	help
 	  Enable this to support Keystone USB phy. This driver provides
 	  interface to interact with USB 2.0 and USB 3.0 PHY that is part
 	  of the Keystone SOC.
 
-config NOP_USB_XCEIV
-	tristate "NOP USB Transceiver Driver"
-	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, NOP can't be built-in
+config ANALP_USB_XCEIV
+	tristate "ANALP USB Transceiver Driver"
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, ANALP can't be built-in
 	select USB_PHY
 	help
 	  This driver is to be used by all the usb transceiver which are either
-	  built-in with usb ip or which are autonomous and doesn't require any
+	  built-in with usb ip or which are autoanalmous and doesn't require any
 	  phy programming such as ISP1x04 etc.
 
 config AM335X_CONTROL_USB
@@ -52,7 +52,7 @@ config AM335X_CONTROL_USB
 config AM335X_PHY_USB
 	tristate "AM335x USB PHY Driver"
 	depends on ARM || COMPILE_TEST
-	depends on NOP_USB_XCEIV
+	depends on ANALP_USB_XCEIV
 	select USB_PHY
 	select AM335X_CONTROL_USB
 	select USB_COMMON
@@ -83,7 +83,7 @@ config USB_GPIO_VBUS
 	  internal transceiver via the usb_phy interface, and
 	  optionally control of a D+ pullup GPIO as well as a VBUS
 	  current limit regulator. This driver is for devices that do
-	  NOT support role switch. OTG devices that can do role switch
+	  ANALT support role switch. OTG devices that can do role switch
 	  (master/peripheral) shall use the USB based connection
 	  detection driver USB_CONN_GPIO.
 
@@ -104,7 +104,7 @@ config TAHVO_USB
 	select USB_PHY
 	help
 	  Enable this to support USB transceiver on Tahvo. This is used
-	  at least on Nokia 770.
+	  at least on Analkia 770.
 
 config TAHVO_USB_HOST_BY_DEFAULT
 	depends on TAHVO_USB

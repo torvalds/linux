@@ -29,7 +29,7 @@ properties:
   qcom,use-guard-pages:
     type: boolean
     description: >
-      Indicates that the firmware, or hardware, does not gracefully handle
+      Indicates that the firmware, or hardware, does analt gracefully handle
       memory protection of this region when placed adjacent to other protected
       memory regions, and that padding around the used portion of the memory
       region is necessary.
@@ -59,7 +59,7 @@ examples:
         rmtfs@86700000 {
             compatible = "qcom,rmtfs-mem";
             reg = <0x86700000 0xe0000>;
-            no-map;
+            anal-map;
 
             qcom,client-id = <1>;
         };

@@ -187,16 +187,16 @@ config RT2800USB_RT55XX
 	  rt2800usb driver.
 	  Supported chips: RT5572
 
-config RT2800USB_UNKNOWN
-	bool "rt2800usb - Include support for unknown (USB) devices"
+config RT2800USB_UNKANALWN
+	bool "rt2800usb - Include support for unkanalwn (USB) devices"
 	default n
 	help
-	  This adds support for rt2800usb devices that are known to
+	  This adds support for rt2800usb devices that are kanalwn to
 	  have a rt28xx family compatible chipset, but for which the exact
-	  chipset is unknown.
+	  chipset is unkanalwn.
 
-	  Support status for these devices is unknown, and enabling these
-	  devices may or may not work.
+	  Support status for these devices is unkanalwn, and enabling these
+	  devices may or may analt work.
 
 endif
 

@@ -33,25 +33,25 @@ static int logical_die_id;
 
 static int get_device_die_id(struct pci_dev *dev)
 {
-	int node = pcibus_to_node(dev->bus);
+	int analde = pcibus_to_analde(dev->bus);
 
 	/*
-	 * If the NUMA info is not available, assume that the logical die id is
+	 * If the NUMA info is analt available, assume that the logical die id is
 	 * continuous in the order in which the discovery table devices are
 	 * detected.
 	 */
-	if (node < 0)
+	if (analde < 0)
 		return logical_die_id++;
 
 	return uncore_device_to_die(dev);
 }
 
-#define __node_2_type(cur)	\
-	rb_entry((cur), struct intel_uncore_discovery_type, node)
+#define __analde_2_type(cur)	\
+	rb_entry((cur), struct intel_uncore_discovery_type, analde)
 
-static inline int __type_cmp(const void *key, const struct rb_node *b)
+static inline int __type_cmp(const void *key, const struct rb_analde *b)
 {
-	struct intel_uncore_discovery_type *type_b = __node_2_type(b);
+	struct intel_uncore_discovery_type *type_b = __analde_2_type(b);
 	const u16 *type_id = key;
 
 	if (type_b->type > *type_id)
@@ -65,14 +65,14 @@ static inline int __type_cmp(const void *key, const struct rb_node *b)
 static inline struct intel_uncore_discovery_type *
 search_uncore_discovery_type(u16 type_id)
 {
-	struct rb_node *node = rb_find(&type_id, &discovery_tables, __type_cmp);
+	struct rb_analde *analde = rb_find(&type_id, &discovery_tables, __type_cmp);
 
-	return (node) ? __node_2_type(node) : NULL;
+	return (analde) ? __analde_2_type(analde) : NULL;
 }
 
-static inline bool __type_less(struct rb_node *a, const struct rb_node *b)
+static inline bool __type_less(struct rb_analde *a, const struct rb_analde *b)
 {
-	return (__node_2_type(a)->type < __node_2_type(b)->type);
+	return (__analde_2_type(a)->type < __analde_2_type(b)->type);
 }
 
 static struct intel_uncore_discovery_type *
@@ -97,7 +97,7 @@ add_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	num_discovered_types[type->access_type]++;
 	type->type = unit->box_type;
 
-	rb_add(&type->node, &discovery_tables, __type_less);
+	rb_add(&type->analde, &discovery_tables, __type_less);
 
 	return type;
 
@@ -204,15 +204,15 @@ free_box_offset:
 }
 
 static bool
-uncore_ignore_unit(struct uncore_unit_discovery *unit, int *ignore)
+uncore_iganalre_unit(struct uncore_unit_discovery *unit, int *iganalre)
 {
 	int i;
 
-	if (!ignore)
+	if (!iganalre)
 		return false;
 
-	for (i = 0; ignore[i] != UNCORE_IGNORE_END ; i++) {
-		if (unit->box_type == ignore[i])
+	for (i = 0; iganalre[i] != UNCORE_IGANALRE_END ; i++) {
+		if (unit->box_type == iganalre[i])
 			return true;
 	}
 
@@ -221,7 +221,7 @@ uncore_ignore_unit(struct uncore_unit_discovery *unit, int *ignore)
 
 static int parse_discovery_table(struct pci_dev *dev, int die,
 				 u32 bar_offset, bool *parsed,
-				 int *ignore)
+				 int *iganalre)
 {
 	struct uncore_global_discovery global;
 	struct uncore_unit_discovery unit;
@@ -248,7 +248,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 	size = UNCORE_DISCOVERY_GLOBAL_MAP_SIZE;
 	io_addr = ioremap(addr, size);
 	if (!io_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Read Global Discovery State */
 	memcpy_fromio(&global, io_addr, sizeof(struct uncore_global_discovery));
@@ -263,7 +263,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 	size = (1 + global.max_units) * global.stride * 8;
 	io_addr = ioremap(addr, size);
 	if (!io_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Parsing Unit Discovery State */
 	for (i = 0; i < global.max_units; i++) {
@@ -276,7 +276,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 		if (unit.access_type >= UNCORE_ACCESS_MAX)
 			continue;
 
-		if (uncore_ignore_unit(&unit, ignore))
+		if (uncore_iganalre_unit(&unit, iganalre))
 			continue;
 
 		uncore_insert_box_info(&unit, die, *parsed);
@@ -287,7 +287,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 	return 0;
 }
 
-bool intel_uncore_has_discovery_tables(int *ignore)
+bool intel_uncore_has_discovery_tables(int *iganalre)
 {
 	u32 device, val, entry_id, bar_offset;
 	int die, dvsec = 0, ret = true;
@@ -323,11 +323,11 @@ bool intel_uncore_has_discovery_tables(int *ignore)
 			if (die < 0)
 				continue;
 
-			parse_discovery_table(dev, die, bar_offset, &parsed, ignore);
+			parse_discovery_table(dev, die, bar_offset, &parsed, iganalre);
 		}
 	}
 
-	/* None of the discovery tables are available */
+	/* Analne of the discovery tables are available */
 	if (!parsed)
 		ret = false;
 err:
@@ -340,7 +340,7 @@ void intel_uncore_clear_discovery_tables(void)
 {
 	struct intel_uncore_discovery_type *type, *next;
 
-	rbtree_postorder_for_each_entry_safe(type, next, &discovery_tables, node) {
+	rbtree_postorder_for_each_entry_safe(type, next, &discovery_tables, analde) {
 		kfree(type->box_ctrl_die);
 		kfree(type);
 	}
@@ -603,7 +603,7 @@ intel_uncore_generic_init_uncores(enum uncore_access_type type_id, int num_extra
 	struct intel_uncore_discovery_type *type;
 	struct intel_uncore_type **uncores;
 	struct intel_uncore_type *uncore;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int i = 0;
 
 	uncores = kcalloc(num_discovered_types[type_id] + num_extra + 1,
@@ -611,8 +611,8 @@ intel_uncore_generic_init_uncores(enum uncore_access_type type_id, int num_extra
 	if (!uncores)
 		return empty_uncore;
 
-	for (node = rb_first(&discovery_tables); node; node = rb_next(node)) {
-		type = rb_entry(node, struct intel_uncore_discovery_type, node);
+	for (analde = rb_first(&discovery_tables); analde; analde = rb_next(analde)) {
+		type = rb_entry(analde, struct intel_uncore_discovery_type, analde);
 		if (type->access_type != type_id)
 			continue;
 

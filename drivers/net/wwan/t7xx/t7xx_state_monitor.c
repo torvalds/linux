@@ -47,45 +47,45 @@
 #define FSM_MD_EX_PASS_TIMEOUT_MS		45000
 #define FSM_CMD_TIMEOUT_MS			2000
 
-void t7xx_fsm_notifier_register(struct t7xx_modem *md, struct t7xx_fsm_notifier *notifier)
+void t7xx_fsm_analtifier_register(struct t7xx_modem *md, struct t7xx_fsm_analtifier *analtifier)
 {
 	struct t7xx_fsm_ctl *ctl = md->fsm_ctl;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctl->notifier_lock, flags);
-	list_add_tail(&notifier->entry, &ctl->notifier_list);
-	spin_unlock_irqrestore(&ctl->notifier_lock, flags);
+	spin_lock_irqsave(&ctl->analtifier_lock, flags);
+	list_add_tail(&analtifier->entry, &ctl->analtifier_list);
+	spin_unlock_irqrestore(&ctl->analtifier_lock, flags);
 }
 
-void t7xx_fsm_notifier_unregister(struct t7xx_modem *md, struct t7xx_fsm_notifier *notifier)
+void t7xx_fsm_analtifier_unregister(struct t7xx_modem *md, struct t7xx_fsm_analtifier *analtifier)
 {
-	struct t7xx_fsm_notifier *notifier_cur, *notifier_next;
+	struct t7xx_fsm_analtifier *analtifier_cur, *analtifier_next;
 	struct t7xx_fsm_ctl *ctl = md->fsm_ctl;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctl->notifier_lock, flags);
-	list_for_each_entry_safe(notifier_cur, notifier_next, &ctl->notifier_list, entry) {
-		if (notifier_cur == notifier)
-			list_del(&notifier->entry);
+	spin_lock_irqsave(&ctl->analtifier_lock, flags);
+	list_for_each_entry_safe(analtifier_cur, analtifier_next, &ctl->analtifier_list, entry) {
+		if (analtifier_cur == analtifier)
+			list_del(&analtifier->entry);
 	}
-	spin_unlock_irqrestore(&ctl->notifier_lock, flags);
+	spin_unlock_irqrestore(&ctl->analtifier_lock, flags);
 }
 
-static void fsm_state_notify(struct t7xx_modem *md, enum md_state state)
+static void fsm_state_analtify(struct t7xx_modem *md, enum md_state state)
 {
 	struct t7xx_fsm_ctl *ctl = md->fsm_ctl;
-	struct t7xx_fsm_notifier *notifier;
+	struct t7xx_fsm_analtifier *analtifier;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctl->notifier_lock, flags);
-	list_for_each_entry(notifier, &ctl->notifier_list, entry) {
-		spin_unlock_irqrestore(&ctl->notifier_lock, flags);
-		if (notifier->notifier_fn)
-			notifier->notifier_fn(state, notifier->data);
+	spin_lock_irqsave(&ctl->analtifier_lock, flags);
+	list_for_each_entry(analtifier, &ctl->analtifier_list, entry) {
+		spin_unlock_irqrestore(&ctl->analtifier_lock, flags);
+		if (analtifier->analtifier_fn)
+			analtifier->analtifier_fn(state, analtifier->data);
 
-		spin_lock_irqsave(&ctl->notifier_lock, flags);
+		spin_lock_irqsave(&ctl->analtifier_lock, flags);
 	}
-	spin_unlock_irqrestore(&ctl->notifier_lock, flags);
+	spin_unlock_irqrestore(&ctl->analtifier_lock, flags);
 }
 
 void t7xx_fsm_broadcast_state(struct t7xx_fsm_ctl *ctl, enum md_state state)
@@ -93,8 +93,8 @@ void t7xx_fsm_broadcast_state(struct t7xx_fsm_ctl *ctl, enum md_state state)
 	ctl->md_state = state;
 
 	/* Update to port first, otherwise sending message on HS2 may fail */
-	t7xx_port_proxy_md_status_notify(ctl->md->port_prox, state);
-	fsm_state_notify(ctl->md, state);
+	t7xx_port_proxy_md_status_analtify(ctl->md->port_prox, state);
+	fsm_state_analtify(ctl->md, state);
 }
 
 static void fsm_finish_command(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_command *cmd, int result)
@@ -137,7 +137,7 @@ static void fsm_flush_event_cmd_qs(struct t7xx_fsm_ctl *ctl)
 }
 
 static void fsm_wait_for_event(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_event_state event_expected,
-			       enum t7xx_fsm_event_state event_ignore, int retries)
+			       enum t7xx_fsm_event_state event_iganalre, int retries)
 {
 	struct t7xx_fsm_event *event;
 	bool event_received = false;
@@ -154,7 +154,7 @@ static void fsm_wait_for_event(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_event_sta
 		event = list_first_entry_or_null(&ctl->event_queue, struct t7xx_fsm_event, entry);
 		if (event) {
 			event_received = event->event_id == event_expected;
-			if (event_received || event->event_id == event_ignore) {
+			if (event_received || event->event_id == event_iganalre) {
 				fsm_del_kf_event(event);
 				sleep_required = false;
 			}
@@ -262,8 +262,8 @@ static void t7xx_fsm_broadcast_ready_state(struct t7xx_fsm_ctl *ctl)
 
 	ctl->md_state = MD_STATE_READY;
 
-	fsm_state_notify(ctl->md, MD_STATE_READY);
-	t7xx_port_proxy_md_status_notify(ctl->md->port_prox, MD_STATE_READY);
+	fsm_state_analtify(ctl->md, MD_STATE_READY);
+	t7xx_port_proxy_md_status_analtify(ctl->md->port_prox, MD_STATE_READY);
 }
 
 static void fsm_routine_ready(struct t7xx_fsm_ctl *ctl)
@@ -272,7 +272,7 @@ static void fsm_routine_ready(struct t7xx_fsm_ctl *ctl)
 
 	ctl->curr_state = FSM_STATE_READY;
 	t7xx_fsm_broadcast_ready_state(ctl);
-	t7xx_md_event_notify(md, FSM_READY);
+	t7xx_md_event_analtify(md, FSM_READY);
 }
 
 static int fsm_routine_starting(struct t7xx_fsm_ctl *ctl)
@@ -283,7 +283,7 @@ static int fsm_routine_starting(struct t7xx_fsm_ctl *ctl)
 	ctl->curr_state = FSM_STATE_STARTING;
 
 	t7xx_fsm_broadcast_state(ctl, MD_STATE_WAITING_FOR_HS1);
-	t7xx_md_event_notify(md, FSM_START);
+	t7xx_md_event_analtify(md, FSM_START);
 
 	wait_event_interruptible_timeout(ctl->async_hk_wq,
 					 (md->core_md.ready && md->core_ap.ready) ||
@@ -330,7 +330,7 @@ static void fsm_routine_start(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_command 
 	}
 
 	ctl->curr_state = FSM_STATE_PRE_START;
-	t7xx_md_event_notify(md, FSM_PRE_START);
+	t7xx_md_event_analtify(md, FSM_PRE_START);
 
 	ret = read_poll_timeout(ioread32, dev_status,
 				(dev_status & MISC_STAGE_MASK) == LINUX_STAGE, 20000, 2000000,
@@ -403,7 +403,7 @@ int t7xx_fsm_append_cmd(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_cmd_state cmd_id
 
 	cmd = kzalloc(sizeof(*cmd), flag & FSM_CMD_FLAG_IN_INTERRUPT ? GFP_ATOMIC : GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&cmd->entry);
 	cmd->cmd_id = cmd_id;
@@ -448,7 +448,7 @@ int t7xx_fsm_append_event(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_event_state ev
 	event = kmalloc(struct_size(event, data, length),
 			in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&event->entry);
 	event->event_id = event_id;
@@ -526,7 +526,7 @@ int t7xx_fsm_init(struct t7xx_modem *md)
 
 	ctl = devm_kzalloc(dev, sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	md->fsm_ctl = ctl;
 	ctl->md = md;
@@ -535,12 +535,12 @@ int t7xx_fsm_init(struct t7xx_modem *md)
 	INIT_LIST_HEAD(&ctl->event_queue);
 	init_waitqueue_head(&ctl->async_hk_wq);
 	init_waitqueue_head(&ctl->event_wq);
-	INIT_LIST_HEAD(&ctl->notifier_list);
+	INIT_LIST_HEAD(&ctl->analtifier_list);
 	init_waitqueue_head(&ctl->command_wq);
 	spin_lock_init(&ctl->event_lock);
 	spin_lock_init(&ctl->command_lock);
 	ctl->exp_flg = false;
-	spin_lock_init(&ctl->notifier_lock);
+	spin_lock_init(&ctl->analtifier_lock);
 
 	ctl->fsm_thread = kthread_run(fsm_main_thread, ctl, "t7xx_fsm");
 	return PTR_ERR_OR_ZERO(ctl->fsm_thread);

@@ -14,7 +14,7 @@ description: |
   DisplayPort 1.3 Ultra-HDi (4096x2160p60). It is an Analogix ANX7688 chip
   which is connected to and operated by the ChromeOS Embedded Controller
   (See google,cros-ec.yaml). It is accessed using I2C tunneling through
-  the EC and therefore its node should be a child of an EC I2C tunnel node
+  the EC and therefore its analde should be a child of an EC I2C tunnel analde
   (See google,cros-ec-i2c-tunnel.yaml).
 
 properties:

@@ -19,13 +19,13 @@
  * GT683R_LED_OFF: all LEDs are off
  * GT683R_LED_AUDIO: LEDs brightness depends on sound level
  * GT683R_LED_BREATHING: LEDs brightness varies at human breathing rate
- * GT683R_LED_NORMAL: LEDs are fully on when enabled
+ * GT683R_LED_ANALRMAL: LEDs are fully on when enabled
  */
 enum gt683r_led_mode {
 	GT683R_LED_OFF = 0,
 	GT683R_LED_AUDIO = 2,
 	GT683R_LED_BREATHING = 3,
-	GT683R_LED_NORMAL = 5
+	GT683R_LED_ANALRMAL = 5
 };
 
 enum gt683r_panels {
@@ -83,7 +83,7 @@ static ssize_t mode_show(struct device *dev,
 	struct hid_device *hdev = to_hid_device(dev->parent);
 	struct gt683r_led *led = hid_get_drvdata(hdev);
 
-	if (led->mode == GT683R_LED_NORMAL)
+	if (led->mode == GT683R_LED_ANALRMAL)
 		sysfs_mode = 0;
 	else if (led->mode == GT683R_LED_AUDIO)
 		sysfs_mode = 1;
@@ -108,7 +108,7 @@ static ssize_t mode_store(struct device *dev,
 	mutex_lock(&led->lock);
 
 	if (sysfs_mode == 0)
-		led->mode = GT683R_LED_NORMAL;
+		led->mode = GT683R_LED_ANALRMAL;
 	else if (sysfs_mode == 1)
 		led->mode = GT683R_LED_AUDIO;
 	else
@@ -144,7 +144,7 @@ static int gt683r_leds_set(struct gt683r_led *led, u8 leds)
 
 	buffer = kzalloc(GT683R_BUFFER_SIZE, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer[0] = 0x01;
 	buffer[1] = 0x02;
@@ -163,7 +163,7 @@ static int gt683r_mode_set(struct gt683r_led *led, u8 mode)
 
 	buffer = kzalloc(GT683R_BUFFER_SIZE, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer[0] = 0x01;
 	buffer[1] = 0x02;
@@ -231,12 +231,12 @@ static int gt683r_led_probe(struct hid_device *hdev,
 
 	led = devm_kzalloc(&hdev->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&led->lock);
 	INIT_WORK(&led->work, gt683r_led_work);
 
-	led->mode = GT683R_LED_NORMAL;
+	led->mode = GT683R_LED_ANALRMAL;
 	led->hdev = hdev;
 	hid_set_drvdata(hdev, led);
 
@@ -258,7 +258,7 @@ static int gt683r_led_probe(struct hid_device *hdev,
 
 		name = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
 		if (!name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -271,7 +271,7 @@ static int gt683r_led_probe(struct hid_device *hdev,
 
 		ret = led_classdev_register(&hdev->dev, &led->led_devs[i]);
 		if (ret) {
-			hid_err(hdev, "could not register led device\n");
+			hid_err(hdev, "could analt register led device\n");
 			goto fail;
 		}
 	}

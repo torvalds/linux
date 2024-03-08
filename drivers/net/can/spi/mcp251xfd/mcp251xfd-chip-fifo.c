@@ -22,7 +22,7 @@ mcp251xfd_chip_rx_fifo_init_one(const struct mcp251xfd_priv *priv,
 {
 	u32 fifo_con;
 
-	/* Enable RXOVIE on _all_ RX FIFOs, not just the last one.
+	/* Enable RXOVIE on _all_ RX FIFOs, analt just the last one.
 	 *
 	 * FIFOs hit by a RX MAB overflow and RXOVIE enabled will
 	 * generate a RXOVIF, use this to properly detect RX MAB

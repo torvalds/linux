@@ -23,7 +23,7 @@
 #include "ia_css_vf_param.h"
 
 /* compute the log2 of the downscale factor needed to get closest
- * to the requested viewfinder resolution on the upper side. The output cannot
+ * to the requested viewfinder resolution on the upper side. The output cananalt
  * be smaller than the requested viewfinder resolution.
  */
 int

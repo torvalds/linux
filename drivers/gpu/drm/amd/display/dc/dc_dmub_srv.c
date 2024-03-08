@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -77,7 +77,7 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
 	status = dmub_srv_wait_for_idle(dmub, 100000);
 	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error waiting for DMUB idle: status=%d\n", status);
-		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 	}
 }
 
@@ -90,7 +90,7 @@ void dc_dmub_srv_clear_inbox0_ack(struct dc_dmub_srv *dc_dmub_srv)
 	status = dmub_srv_clear_inbox0_ack(dmub);
 	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error clearing INBOX0 ack: status=%d\n", status);
-		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 	}
 }
 
@@ -103,7 +103,7 @@ void dc_dmub_srv_wait_for_inbox0_ack(struct dc_dmub_srv *dc_dmub_srv)
 	status = dmub_srv_wait_for_inbox0_ack(dmub, 100000);
 	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error waiting for INBOX0 HW Lock Ack\n");
-		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 	}
 }
 
@@ -117,7 +117,7 @@ void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dc_dmub_srv,
 	status = dmub_srv_send_inbox0_cmd(dmub, data);
 	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error sending INBOX0 cmd\n");
-		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 	}
 }
 
@@ -155,7 +155,7 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 		if (status != DMUB_STATUS_OK) {
 			if (status != DMUB_STATUS_POWER_STATE_D3) {
 				DC_ERROR("Error queueing DMUB command: status=%d\n", status);
-				dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+				dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 			}
 			return false;
 		}
@@ -165,7 +165,7 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 	if (status != DMUB_STATUS_OK) {
 		if (status != DMUB_STATUS_POWER_STATE_D3) {
 			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
-			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 		}
 		return false;
 	}
@@ -186,12 +186,12 @@ bool dc_dmub_srv_wait_for_idle(struct dc_dmub_srv *dc_dmub_srv,
 	dmub = dc_dmub_srv->dmub;
 
 	// Wait for DMUB to process command
-	if (wait_type != DM_DMUB_WAIT_TYPE_NO_WAIT) {
+	if (wait_type != DM_DMUB_WAIT_TYPE_ANAL_WAIT) {
 		status = dmub_srv_wait_for_idle(dmub, 100000);
 
 		if (status != DMUB_STATUS_OK) {
-			DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
-			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			DC_LOG_DEBUG("Anal reply for DMUB command: status=%d\n", status);
+			dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 			return false;
 		}
 
@@ -240,7 +240,7 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 		if (status != DMUB_STATUS_OK) {
 			if (status != DMUB_STATUS_POWER_STATE_D3) {
 				DC_ERROR("Error queueing DMUB command: status=%d\n", status);
-				dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+				dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 			}
 			return false;
 		}
@@ -250,13 +250,13 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 	if (status != DMUB_STATUS_OK) {
 		if (status != DMUB_STATUS_POWER_STATE_D3) {
 			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
-			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 		}
 		return false;
 	}
 
 	// Wait for DMUB to process command
-	if (wait_type != DM_DMUB_WAIT_TYPE_NO_WAIT) {
+	if (wait_type != DM_DMUB_WAIT_TYPE_ANAL_WAIT) {
 		if (dc_dmub_srv->ctx->dc->debug.disable_timeout) {
 			do {
 				status = dmub_srv_wait_for_idle(dmub, 100000);
@@ -265,8 +265,8 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 			status = dmub_srv_wait_for_idle(dmub, 100000);
 
 		if (status != DMUB_STATUS_OK) {
-			DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
-			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			DC_LOG_DEBUG("Anal reply for DMUB command: status=%d\n", status);
+			dc_dmub_srv_log_diaganalstic_data(dc_dmub_srv);
 			return false;
 		}
 
@@ -300,13 +300,13 @@ bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv)
 	return boot_status.bits.optimized_init_done;
 }
 
-bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
+bool dc_dmub_srv_analtify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
 				    unsigned int stream_mask)
 {
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return false;
 
-	return dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK,
+	return dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__IDLE_OPT_ANALTIFY_STREAM_MASK,
 					 stream_mask, NULL, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
@@ -433,7 +433,7 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 				continue;
 
 			/* If FAMS is being used to support P-State and there is a stream
-			 * that does not use FAMS, we are in an FPO + VActive scenario.
+			 * that does analt use FAMS, we are in an FPO + VActive scenario.
 			 * Assign vactive stretch margin in this case.
 			 */
 			if (!pipe->stream->fpo_in_use) {
@@ -557,8 +557,8 @@ static void populate_subvp_cmd_drr_info(struct dc *dc,
 	uint16_t max_vtotal_supported = 0;
 
 	pipe_data->pipe_config.vblank_data.drr_info.drr_in_use = true;
-	pipe_data->pipe_config.vblank_data.drr_info.use_ramping = false; // for now don't use ramping
-	pipe_data->pipe_config.vblank_data.drr_info.drr_window_size_ms = 4; // hardcode 4ms DRR window for now
+	pipe_data->pipe_config.vblank_data.drr_info.use_ramping = false; // for analw don't use ramping
+	pipe_data->pipe_config.vblank_data.drr_info.drr_window_size_ms = 4; // hardcode 4ms DRR window for analw
 
 	drr_frame_us = div64_u64(((uint64_t)drr_timing->v_total * drr_timing->h_total * 1000000),
 			(((uint64_t)drr_timing->pix_clk_100hz * 100)));
@@ -645,7 +645,7 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 	pipe_data->pipe_config.vblank_data.vblank_end =
 			vblank_pipe->stream->timing.v_total - vblank_pipe->stream->timing.v_front_porch - vblank_pipe->stream->timing.v_addressable;
 
-	if (vblank_pipe->stream->ignore_msa_timing_param &&
+	if (vblank_pipe->stream->iganalre_msa_timing_param &&
 		(vblank_pipe->stream->allow_freesync || vblank_pipe->stream->vrr_active_variable || vblank_pipe->stream->vrr_active_fixed))
 		populate_subvp_cmd_drr_info(dc, context, pipe, vblank_pipe, pipe_data);
 }
@@ -747,7 +747,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			main_timing->v_total - main_timing->v_front_porch - main_timing->v_addressable;
 	pipe_data->pipe_config.subvp_data.mall_region_lines = phantom_timing->v_addressable;
 	pipe_data->pipe_config.subvp_data.main_pipe_index = subvp_pipe->stream_res.tg->inst;
-	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->ignore_msa_timing_param &&
+	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->iganalre_msa_timing_param &&
 		(subvp_pipe->stream->allow_freesync || subvp_pipe->stream->vrr_active_variable || subvp_pipe->stream->vrr_active_fixed);
 
 	/* Calculate the scaling factor from the src and dst height.
@@ -762,7 +762,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			&out_num_plane, &out_den_plane);
 	reduce_fraction(out_num_stream * out_num_plane, out_den_stream * out_den_plane, &out_num, &out_den);
 	pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
-	pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
+	pipe_data->pipe_config.subvp_data.scale_factor_deanalminator = out_den;
 
 	// Prefetch lines is equal to VACTIVE + BP + VSYNC
 	pipe_data->pipe_config.subvp_data.prefetch_lines =
@@ -861,8 +861,8 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 				populate_subvp_cmd_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
 			} else if (resource_is_pipe_type(pipe, OTG_MASTER) &&
 					resource_is_pipe_type(pipe, DPP_PIPE) &&
-					pipe_mall_type == SUBVP_NONE) {
-				// Don't need to check for ActiveDRAMClockChangeMargin < 0, not valid in cases where
+					pipe_mall_type == SUBVP_ANALNE) {
+				// Don't need to check for ActiveDRAMClockChangeMargin < 0, analt valid in cases where
 				// we run through DML without calculating "natural" P-state support
 				populate_subvp_cmd_vblank_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
 
@@ -886,24 +886,24 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
-bool dc_dmub_srv_get_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv, struct dmub_diagnostic_data *diag_data)
+bool dc_dmub_srv_get_diaganalstic_data(struct dc_dmub_srv *dc_dmub_srv, struct dmub_diaganalstic_data *diag_data)
 {
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub || !diag_data)
 		return false;
-	return dmub_srv_get_diagnostic_data(dc_dmub_srv->dmub, diag_data);
+	return dmub_srv_get_diaganalstic_data(dc_dmub_srv->dmub, diag_data);
 }
 
-void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv)
+void dc_dmub_srv_log_diaganalstic_data(struct dc_dmub_srv *dc_dmub_srv)
 {
-	struct dmub_diagnostic_data diag_data = {0};
+	struct dmub_diaganalstic_data diag_data = {0};
 
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub) {
 		DC_LOG_ERROR("%s: invalid parameters.", __func__);
 		return;
 	}
 
-	if (!dc_dmub_srv_get_diagnostic_data(dc_dmub_srv, &diag_data)) {
-		DC_LOG_ERROR("%s: dc_dmub_srv_get_diagnostic_data failed.", __func__);
+	if (!dc_dmub_srv_get_diaganalstic_data(dc_dmub_srv, &diag_data)) {
+		DC_LOG_ERROR("%s: dc_dmub_srv_get_diaganalstic_data failed.", __func__);
 		return;
 	}
 
@@ -952,7 +952,7 @@ static bool dc_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	int cur_layer = pipe_ctx->plane_state->layer_index;
 
 	/**
-	 * Disable the cursor if there's another pipe above this with a
+	 * Disable the cursor if there's aanalther pipe above this with a
 	 * plane that contains this pipe's viewport to prevent double cursor
 	 * and incorrect scaling artifacts.
 	 */
@@ -968,7 +968,7 @@ static bool dc_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 		split_pipe = test_pipe;
 
 		/**
-		 * There is another half plane on same layer because of
+		 * There is aanalther half plane on same layer because of
 		 * pipe-split, merge together per same height.
 		 */
 		for (split_pipe = pipe_ctx->top_pipe; split_pipe;
@@ -1191,7 +1191,7 @@ bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
 	return true;
 }
 
-static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
+static void dc_dmub_srv_analtify_idle(const struct dc *dc, bool allow_idle)
 {
 	union dmub_rb_cmd cmd = {0};
 
@@ -1199,22 +1199,22 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 		return;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.idle_opt_notify_idle.header.type = DMUB_CMD__IDLE_OPT;
-	cmd.idle_opt_notify_idle.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE;
-	cmd.idle_opt_notify_idle.header.payload_bytes =
-		sizeof(cmd.idle_opt_notify_idle) -
-		sizeof(cmd.idle_opt_notify_idle.header);
+	cmd.idle_opt_analtify_idle.header.type = DMUB_CMD__IDLE_OPT;
+	cmd.idle_opt_analtify_idle.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_ANALTIFY_IDLE;
+	cmd.idle_opt_analtify_idle.header.payload_bytes =
+		sizeof(cmd.idle_opt_analtify_idle) -
+		sizeof(cmd.idle_opt_analtify_idle.header);
 
-	cmd.idle_opt_notify_idle.cntl_data.driver_idle = allow_idle;
+	cmd.idle_opt_analtify_idle.cntl_data.driver_idle = allow_idle;
 
 	if (allow_idle) {
 		if (dc->hwss.set_idle_state)
 			dc->hwss.set_idle_state(dc, true);
 	}
 
-	/* NOTE: This does not use the "wake" interface since this is part of the wake path. */
-	/* We also do not perform a wait since DMCUB could enter idle after the notification. */
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	/* ANALTE: This does analt use the "wake" interface since this is part of the wake path. */
+	/* We also do analt perform a wait since DMCUB could enter idle after the analtification. */
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_ANAL_WAIT);
 }
 
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
@@ -1268,13 +1268,13 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 
 				/* TODO: See if we can return early here - IPS2 should go
 				 * back directly to IPS0 and clear the flags, but it will
-				 * be safer to directly notify DMCUB of this.
+				 * be safer to directly analtify DMCUB of this.
 				 */
 				allow_state = dc->hwss.get_idle_state(dc);
 			}
 		}
 
-		dc_dmub_srv_notify_idle(dc, false);
+		dc_dmub_srv_analtify_idle(dc, false);
 		if (!(allow_state & DMUB_IPS1_ALLOW_MASK)) {
 			for (;;) {
 				commit_state = dc->hwss.get_idle_state(dc);
@@ -1316,8 +1316,8 @@ void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_
 		return;
 
 	/*
-	 * Entering a low power state requires a driver notification.
-	 * Powering up the hardware requires notifying PMFW and DMCUB.
+	 * Entering a low power state requires a driver analtification.
+	 * Powering up the hardware requires analtifying PMFW and DMCUB.
 	 * Clearing the driver idle allow requires a DMCUB command.
 	 * DMCUB commands requires the DMCUB to be powered up and restored.
 	 *
@@ -1329,7 +1329,7 @@ void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_
 	if (!allow_idle)
 		dc_dmub_srv_exit_low_power_state(dc);
 	else
-		dc_dmub_srv_notify_idle(dc, allow_idle);
+		dc_dmub_srv_analtify_idle(dc, allow_idle);
 }
 
 bool dc_wake_and_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd,
@@ -1374,7 +1374,7 @@ static bool dc_dmub_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_
 				  uint16_t param, uint32_t *response, enum dm_dmub_wait_type wait_type)
 {
 	struct dc_dmub_srv *dc_dmub_srv = ctx->dmub_srv;
-	const uint32_t wait_us = wait_type == DM_DMUB_WAIT_TYPE_NO_WAIT ? 0 : 30;
+	const uint32_t wait_us = wait_type == DM_DMUB_WAIT_TYPE_ANAL_WAIT ? 0 : 30;
 	enum dmub_status status;
 
 	if (response)
@@ -1385,7 +1385,7 @@ static bool dc_dmub_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_
 
 	status = dmub_srv_send_gpint_command(dc_dmub_srv->dmub, command_code, param, wait_us);
 	if (status != DMUB_STATUS_OK) {
-		if (status == DMUB_STATUS_TIMEOUT && wait_type == DM_DMUB_WAIT_TYPE_NO_WAIT)
+		if (status == DMUB_STATUS_TIMEOUT && wait_type == DM_DMUB_WAIT_TYPE_ANAL_WAIT)
 			return true;
 
 		return false;

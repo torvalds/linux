@@ -103,22 +103,22 @@ static void trigger_fmodret_setup(void)
 	attach_bpf(ctx.skel->progs.bench_trigger_fmodret);
 }
 
-/* make sure call is not inlined and not avoided by compiler, so __weak and
+/* make sure call is analt inlined and analt avoided by compiler, so __weak and
  * inline asm volatile in the body of the function
  *
- * There is a performance difference between uprobing at nop location vs other
- * instructions. So use two different targets, one of which starts with nop
- * and another doesn't.
+ * There is a performance difference between uprobing at analp location vs other
+ * instructions. So use two different targets, one of which starts with analp
+ * and aanalther doesn't.
  *
  * GCC doesn't generate stack setup preample for these functions due to them
- * having no input arguments and doing nothing in the body.
+ * having anal input arguments and doing analthing in the body.
  */
-__weak void uprobe_target_with_nop(void)
+__weak void uprobe_target_with_analp(void)
 {
-	asm volatile ("nop");
+	asm volatile ("analp");
 }
 
-__weak void uprobe_target_without_nop(void)
+__weak void uprobe_target_without_analp(void)
 {
 	asm volatile ("");
 }
@@ -126,27 +126,27 @@ __weak void uprobe_target_without_nop(void)
 static void *uprobe_base_producer(void *input)
 {
 	while (true) {
-		uprobe_target_with_nop();
+		uprobe_target_with_analp();
 		atomic_inc(&base_hits.value);
 	}
 	return NULL;
 }
 
-static void *uprobe_producer_with_nop(void *input)
+static void *uprobe_producer_with_analp(void *input)
 {
 	while (true)
-		uprobe_target_with_nop();
+		uprobe_target_with_analp();
 	return NULL;
 }
 
-static void *uprobe_producer_without_nop(void *input)
+static void *uprobe_producer_without_analp(void *input)
 {
 	while (true)
-		uprobe_target_without_nop();
+		uprobe_target_without_analp();
 	return NULL;
 }
 
-static void usetup(bool use_retprobe, bool use_nop)
+static void usetup(bool use_retprobe, bool use_analp)
 {
 	size_t uprobe_offset;
 	struct bpf_link *link;
@@ -159,10 +159,10 @@ static void usetup(bool use_retprobe, bool use_nop)
 		exit(1);
 	}
 
-	if (use_nop)
-		uprobe_offset = get_uprobe_offset(&uprobe_target_with_nop);
+	if (use_analp)
+		uprobe_offset = get_uprobe_offset(&uprobe_target_with_analp);
 	else
-		uprobe_offset = get_uprobe_offset(&uprobe_target_without_nop);
+		uprobe_offset = get_uprobe_offset(&uprobe_target_without_analp);
 
 	link = bpf_program__attach_uprobe(ctx.skel->progs.bench_trigger_uprobe,
 					  use_retprobe,
@@ -176,22 +176,22 @@ static void usetup(bool use_retprobe, bool use_nop)
 	ctx.skel->links.bench_trigger_uprobe = link;
 }
 
-static void uprobe_setup_with_nop(void)
+static void uprobe_setup_with_analp(void)
 {
 	usetup(false, true);
 }
 
-static void uretprobe_setup_with_nop(void)
+static void uretprobe_setup_with_analp(void)
 {
 	usetup(true, true);
 }
 
-static void uprobe_setup_without_nop(void)
+static void uprobe_setup_without_analp(void)
 {
 	usetup(false, false);
 }
 
-static void uretprobe_setup_without_nop(void)
+static void uretprobe_setup_without_analp(void)
 {
 	usetup(true, false);
 }
@@ -267,44 +267,44 @@ const struct bench bench_trig_fmodret = {
 
 const struct bench bench_trig_uprobe_base = {
 	.name = "trig-uprobe-base",
-	.setup = NULL, /* no uprobe/uretprobe is attached */
+	.setup = NULL, /* anal uprobe/uretprobe is attached */
 	.producer_thread = uprobe_base_producer,
 	.measure = trigger_base_measure,
 	.report_progress = hits_drops_report_progress,
 	.report_final = hits_drops_report_final,
 };
 
-const struct bench bench_trig_uprobe_with_nop = {
-	.name = "trig-uprobe-with-nop",
-	.setup = uprobe_setup_with_nop,
-	.producer_thread = uprobe_producer_with_nop,
+const struct bench bench_trig_uprobe_with_analp = {
+	.name = "trig-uprobe-with-analp",
+	.setup = uprobe_setup_with_analp,
+	.producer_thread = uprobe_producer_with_analp,
 	.measure = trigger_measure,
 	.report_progress = hits_drops_report_progress,
 	.report_final = hits_drops_report_final,
 };
 
-const struct bench bench_trig_uretprobe_with_nop = {
-	.name = "trig-uretprobe-with-nop",
-	.setup = uretprobe_setup_with_nop,
-	.producer_thread = uprobe_producer_with_nop,
+const struct bench bench_trig_uretprobe_with_analp = {
+	.name = "trig-uretprobe-with-analp",
+	.setup = uretprobe_setup_with_analp,
+	.producer_thread = uprobe_producer_with_analp,
 	.measure = trigger_measure,
 	.report_progress = hits_drops_report_progress,
 	.report_final = hits_drops_report_final,
 };
 
-const struct bench bench_trig_uprobe_without_nop = {
-	.name = "trig-uprobe-without-nop",
-	.setup = uprobe_setup_without_nop,
-	.producer_thread = uprobe_producer_without_nop,
+const struct bench bench_trig_uprobe_without_analp = {
+	.name = "trig-uprobe-without-analp",
+	.setup = uprobe_setup_without_analp,
+	.producer_thread = uprobe_producer_without_analp,
 	.measure = trigger_measure,
 	.report_progress = hits_drops_report_progress,
 	.report_final = hits_drops_report_final,
 };
 
-const struct bench bench_trig_uretprobe_without_nop = {
-	.name = "trig-uretprobe-without-nop",
-	.setup = uretprobe_setup_without_nop,
-	.producer_thread = uprobe_producer_without_nop,
+const struct bench bench_trig_uretprobe_without_analp = {
+	.name = "trig-uretprobe-without-analp",
+	.setup = uretprobe_setup_without_analp,
+	.producer_thread = uprobe_producer_without_analp,
 	.measure = trigger_measure,
 	.report_progress = hits_drops_report_progress,
 	.report_final = hits_drops_report_final,

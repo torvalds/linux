@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -44,7 +44,7 @@
  *			"linux/gpio.h" for config details.
  * @consumer:		The name of consumer, such as "sysfs",
  *			"powerkey". This is useful for other users to
- *			know who is using.
+ *			kanalw who is using.
  *
  * Request gpio lines through the ioctl provided by chardev. User
  * could call gpiotools_set_values() and gpiotools_get_values() to
@@ -52,7 +52,7 @@
  * gpiotools_release_line() to release these lines after that.
  *
  * Return:		On success return the fd;
- *			On failure return the errno.
+ *			On failure return the erranal.
  */
 int gpiotools_request_line(const char *device_name, unsigned int *lines,
 			   unsigned int num_lines,
@@ -67,13 +67,13 @@ int gpiotools_request_line(const char *device_name, unsigned int *lines,
 
 	ret = asprintf(&chrdev_name, "/dev/%s", device_name);
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr, "Failed to open %s, %s\n",
-			chrdev_name, strerror(errno));
+			chrdev_name, strerror(erranal));
 		goto exit_free_name;
 	}
 
@@ -87,9 +87,9 @@ int gpiotools_request_line(const char *device_name, unsigned int *lines,
 
 	ret = ioctl(fd, GPIO_V2_GET_LINE_IOCTL, &req);
 	if (ret == -1) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr, "Failed to issue %s (%d), %s\n",
-			"GPIO_GET_LINE_IOCTL", ret, strerror(errno));
+			"GPIO_GET_LINE_IOCTL", ret, strerror(erranal));
 	}
 
 	if (close(fd) == -1)
@@ -106,7 +106,7 @@ exit_free_name:
  * @values:		The array of values want to set.
  *
  * Return:		On success return 0;
- *			On failure return the errno.
+ *			On failure return the erranal.
  */
 int gpiotools_set_values(const int fd, struct gpio_v2_line_values *values)
 {
@@ -114,10 +114,10 @@ int gpiotools_set_values(const int fd, struct gpio_v2_line_values *values)
 
 	ret = ioctl(fd, GPIO_V2_LINE_SET_VALUES_IOCTL, values);
 	if (ret == -1) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr, "Failed to issue %s (%d), %s\n",
 			"GPIOHANDLE_SET_LINE_VALUES_IOCTL", ret,
-			strerror(errno));
+			strerror(erranal));
 	}
 
 	return ret;
@@ -130,7 +130,7 @@ int gpiotools_set_values(const int fd, struct gpio_v2_line_values *values)
  * @values:		The array of values get from hardware.
  *
  * Return:		On success return 0;
- *			On failure return the errno.
+ *			On failure return the erranal.
  */
 int gpiotools_get_values(const int fd, struct gpio_v2_line_values *values)
 {
@@ -138,10 +138,10 @@ int gpiotools_get_values(const int fd, struct gpio_v2_line_values *values)
 
 	ret = ioctl(fd, GPIO_V2_LINE_GET_VALUES_IOCTL, values);
 	if (ret == -1) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr, "Failed to issue %s (%d), %s\n",
 			"GPIOHANDLE_GET_LINE_VALUES_IOCTL", ret,
-			strerror(errno));
+			strerror(erranal));
 	}
 
 	return ret;
@@ -153,7 +153,7 @@ int gpiotools_get_values(const int fd, struct gpio_v2_line_values *values)
  *			gpiotools_request_line().
  *
  * Return:		On success return 0;
- *			On failure return the errno.
+ *			On failure return the erranal.
  */
 int gpiotools_release_line(const int fd)
 {
@@ -162,7 +162,7 @@ int gpiotools_release_line(const int fd)
 	ret = close(fd);
 	if (ret == -1) {
 		perror("Failed to close GPIO LINE device file");
-		ret = -errno;
+		ret = -erranal;
 	}
 
 	return ret;
@@ -175,7 +175,7 @@ int gpiotools_release_line(const int fd)
  * @line:		number of line, such as 2.
  *
  * Return:		On success return 0;
- *			On failure return the errno.
+ *			On failure return the erranal.
  */
 int gpiotools_get(const char *device_name, unsigned int line)
 {
@@ -200,7 +200,7 @@ int gpiotools_get(const char *device_name, unsigned int line)
  * @values:		The array of values get from gpiochip.
  *
  * Return:		On success return 0;
- *			On failure return the errno.
+ *			On failure return the erranal.
  */
 int gpiotools_gets(const char *device_name, unsigned int *lines,
 		   unsigned int num_lines, unsigned int *values)
@@ -237,7 +237,7 @@ int gpiotools_gets(const char *device_name, unsigned int *lines,
  * @value:		The value of gpio, must be 0(low) or 1(high).
  *
  * Return:		On success return 0;
- *			On failure return the errno.
+ *			On failure return the erranal.
  */
 int gpiotools_set(const char *device_name, unsigned int line,
 		  unsigned int value)
@@ -258,7 +258,7 @@ int gpiotools_set(const char *device_name, unsigned int line,
  *			0(low) or 1(high).
  *
  * Return:		On success return 0;
- *			On failure return the errno.
+ *			On failure return the erranal.
  */
 int gpiotools_sets(const char *device_name, unsigned int *lines,
 		   unsigned int num_lines, unsigned int *values)

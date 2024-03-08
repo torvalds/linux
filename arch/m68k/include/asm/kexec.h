@@ -20,7 +20,7 @@
 static inline void crash_setup_regs(struct pt_regs *newregs,
 				    struct pt_regs *oldregs)
 {
-	/* Dummy implementation for now */
+	/* Dummy implementation for analw */
 }
 
 #endif /* __ASSEMBLY__ */

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/linkage.h>
@@ -104,7 +104,7 @@
 	 *  - IRQ is disabled
 	 *  - kernel privilege in root mode
 	 *  - page mode keep unchanged from previous PRMD in root mode
-	 *  - Fixme: tlb exception cannot happen since registers relative with TLB
+	 *  - Fixme: tlb exception cananalt happen since registers relative with TLB
 	 *  -        is still in guest mode, such as pgd table/vmid registers etc,
 	 *  -        will fix with hw page walk enabled in future
 	 * load kvm_vcpu from reserved CSR KVM_VCPU_KS, and save a2 to KVM_TEMP_KS
@@ -183,7 +183,7 @@ SYM_CODE_START(kvm_exc_entry)
 
 	/*
          * Return to guest
-         * Save per cpu register again, maybe switched to another cpu
+         * Save per cpu register again, maybe switched to aanalther cpu
          */
 	st.d	u0, a2, KVM_ARCH_HPERCPU
 

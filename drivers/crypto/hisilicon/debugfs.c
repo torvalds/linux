@@ -49,7 +49,7 @@ struct qm_cmd_dump_item {
 static struct qm_dfx_item qm_dfx_files[] = {
 	{"err_irq", offsetof(struct qm_dfx, err_irq_cnt)},
 	{"aeq_irq", offsetof(struct qm_dfx, aeq_irq_cnt)},
-	{"abnormal_irq", offsetof(struct qm_dfx, abnormal_irq_cnt)},
+	{"abanalrmal_irq", offsetof(struct qm_dfx, abanalrmal_irq_cnt)},
 	{"create_qp_err", offsetof(struct qm_dfx, create_qp_err_cnt)},
 	{"mb_err", offsetof(struct qm_dfx, mb_err_cnt)},
 };
@@ -219,7 +219,7 @@ static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, char *name)
 	u8 cmd;
 
 	if (strsep(&s, " ")) {
-		dev_err(dev, "Please do not input extra characters!\n");
+		dev_err(dev, "Please do analt input extra characters!\n");
 		return -EINVAL;
 	}
 
@@ -275,7 +275,7 @@ static int q_dump_param_parse(struct hisi_qm *qm, char *s,
 	}
 
 	if (strsep(&s, " ")) {
-		dev_err(dev, "Please do not input extra characters!\n");
+		dev_err(dev, "Please do analt input extra characters!\n");
 		return -EINVAL;
 	}
 
@@ -296,7 +296,7 @@ static int qm_sq_dump(struct hisi_qm *qm, char *s, char *name)
 
 	sqe = kzalloc(qm->sqe_size * sq_depth, GFP_KERNEL);
 	if (!sqe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qp = &qm->qp_array[qp_id];
 	memcpy(sqe, qp->sqe, qm->sqe_size * sq_depth);
@@ -381,7 +381,7 @@ static int qm_dbg_help(struct hisi_qm *qm, char *s)
 	struct device *dev = &qm->pdev->dev;
 
 	if (strsep(&s, " ")) {
-		dev_err(dev, "Please do not input extra characters!\n");
+		dev_err(dev, "Please do analt input extra characters!\n");
 		return -EINVAL;
 	}
 
@@ -442,7 +442,7 @@ static int qm_cmd_write_dump(struct hisi_qm *qm, const char *cmd_buf)
 
 	s = kstrdup(cmd_buf, GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s_tmp = s;
 	presult = strsep(&s, " ");
@@ -497,7 +497,7 @@ static ssize_t qm_cmd_write(struct file *filp, const char __user *buffer,
 	}
 
 	if (count > QM_DBG_WRITE_LEN) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto put_dfx_access;
 	}
 
@@ -732,7 +732,7 @@ static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
 		return 0;
 
 	if (count >= QM_DBG_TMP_BUF_LEN)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = simple_write_to_buffer(tbuf, QM_DBG_TMP_BUF_LEN - 1, pos, buf,
 				     count);
@@ -800,7 +800,7 @@ static struct dfx_diff_registers *dfx_regs_init(struct hisi_qm *qm,
 
 	diff_regs = kcalloc(reg_len, sizeof(*diff_regs), GFP_KERNEL);
 	if (!diff_regs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < reg_len; i++) {
 		if (!cregs[i].reg_len)
@@ -828,7 +828,7 @@ alloc_error:
 		kfree(diff_regs[i].regs);
 	}
 	kfree(diff_regs);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static int qm_diff_regs_init(struct hisi_qm *qm,
@@ -869,7 +869,7 @@ static int qm_last_regs_init(struct hisi_qm *qm)
 
 	debug->qm_last_words = kcalloc(dfx_regs_num, sizeof(unsigned int), GFP_KERNEL);
 	if (!debug->qm_last_words)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < dfx_regs_num; i++) {
 		debug->qm_last_words[i] = readl_relaxed(qm->io_base +

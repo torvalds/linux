@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -92,7 +92,7 @@ struct aux_payload {
 	uint8_t *data;
 	/*
 	 * used to return the reply type of the transaction
-	 * ignored if NULL
+	 * iganalred if NULL
 	 */
 	uint8_t *reply;
 	/* expressed in milliseconds
@@ -158,7 +158,7 @@ struct ddc_flags {
 };
 
 enum ddc_transaction_type {
-	DDC_TRANSACTION_TYPE_NONE = 0,
+	DDC_TRANSACTION_TYPE_ANALNE = 0,
 	DDC_TRANSACTION_TYPE_I2C,
 	DDC_TRANSACTION_TYPE_I2C_OVER_AUX,
 	DDC_TRANSACTION_TYPE_I2C_OVER_AUX_WITH_DEFER,
@@ -166,7 +166,7 @@ enum ddc_transaction_type {
 };
 
 enum display_dongle_type {
-	DISPLAY_DONGLE_NONE = 0,
+	DISPLAY_DONGLE_ANALNE = 0,
 	/* Active converter types*/
 	DISPLAY_DONGLE_DP_VGA_CONVERTER,
 	DISPLAY_DONGLE_DP_DVI_CONVERTER,

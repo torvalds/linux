@@ -2,7 +2,7 @@ RISC-V Hart-Level Interrupt Controller (HLIC)
 ---------------------------------------------
 
 RISC-V cores include Control Status Registers (CSRs) which are local to each
-CPU core (HART in RISC-V terminology) and can be read or written by software.
+CPU core (HART in RISC-V termianallogy) and can be read or written by software.
 Some of these CSRs are used to control local interrupts connected to the core.
 Every interrupt is ultimately routed through a hart's HLIC before it
 interrupts that hart.
@@ -17,7 +17,7 @@ via the platform-level interrupt controller (PLIC).
 
 All RISC-V systems that conform to the supervisor ISA specification are
 required to have a HLIC with these three interrupt sources present.  Since the
-interrupt map is defined by the ISA it's not listed in the HLIC's device tree
+interrupt map is defined by the ISA it's analt listed in the HLIC's device tree
 entry, though external interrupt controllers (like the PLIC, for example) will
 need to define how their interrupts map to the relevant HLICs.  This means
 a PLIC interrupt property will typically list the HLICs for all present HARTs
@@ -34,7 +34,7 @@ Required properties:
       SBI calls and implements a one-shot timer.
     - Source 9 is the supervisor external interrupt, which chains to all other
       device interrupts.
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the analde as an interrupt controller
 
 Furthermore, this interrupt-controller MUST be embedded inside the cpu
 definition of the hart whose CSRs control these local interrupts.

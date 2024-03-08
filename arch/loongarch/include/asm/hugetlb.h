@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __ASM_HUGETLB_H
@@ -23,7 +23,7 @@ static inline int prepare_hugepage_range(struct file *file,
 	if (addr & ~huge_page_mask(h))
 		return -EINVAL;
 	if (len > task_size)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (task_size - len < addr)
 		return -EINVAL;
 	return 0;
@@ -52,8 +52,8 @@ static inline pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
 	return pte;
 }
 
-#define __HAVE_ARCH_HUGE_PTE_NONE
-static inline int huge_pte_none(pte_t pte)
+#define __HAVE_ARCH_HUGE_PTE_ANALNE
+static inline int huge_pte_analne(pte_t pte)
 {
 	unsigned long val = pte_val(pte) & ~_PAGE_GLOBAL;
 	return !val || (val == (unsigned long)invalid_pte_table);

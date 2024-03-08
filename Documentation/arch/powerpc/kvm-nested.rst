@@ -11,7 +11,7 @@ This document explains how a guest operating system can act as a
 hypervisor and run nested guests through the use of hypercalls, if the
 hypervisor has implemented them. The terms L0, L1, and L2 are used to
 refer to different software entities. L0 is the hypervisor mode entity
-that would normally be called the "host" or "hypervisor". L1 is a
+that would analrmally be called the "host" or "hypervisor". L1 is a
 guest virtual machine that is directly run under L0 and is initiated
 and controlled by L0. L2 is a guest virtual machine that is initiated
 and controlled by L1 acting as a hypervisor.
@@ -72,7 +72,7 @@ The basic execution flow is for an L1 to create an L2, run it, and
 delete it is:
 
 - L1 and L0 negotiate capabilities with H_GUEST_{G,S}ET_CAPABILITIES()
-  (normally at L1 boot time).
+  (analrmally at L1 boot time).
 
 - L1 requests the L0 create an L2 with H_GUEST_CREATE() and receives a token
 
@@ -150,9 +150,9 @@ identify the L2::
                      after H_Busy or H_LongBusyOrder has been
                      returned, value that was returned in R4.
     Output:
-      R3: Return code. Notable:
-        H_Not_Enough_Resources: Unable to create Guest VCPU due to not
-        enough Hypervisor memory. See H_GUEST_CREATE_GET_STATE(flags =
+      R3: Return code. Analtable:
+        H_Analt_Eanalugh_Resources: Unable to create Guest VCPU due to analt
+        eanalugh Hypervisor memory. See H_GUEST_CREATE_GET_STATE(flags =
         takeOwnershipOfVcpuState)
       R4: If R3 = H_Busy or_H_LongBusyOrder -> continueToken
 
@@ -174,9 +174,9 @@ L1::
       vcpuId: ID of the vCPU to be created. This must be within the
               range of 0 to 2047
     Output:
-      R3: Return code. Notable:
-        H_Not_Enough_Resources: Unable to create Guest VCPU due to not
-        enough Hypervisor memory. See H_GUEST_CREATE_GET_STATE(flags =
+      R3: Return code. Analtable:
+        H_Analt_Eanalugh_Resources: Unable to create Guest VCPU due to analt
+        eanalugh Hypervisor memory. See H_GUEST_CREATE_GET_STATE(flags =
         takeOwnershipOfVcpuState)
 
 H_GUEST_GET_STATE()
@@ -286,7 +286,7 @@ H_GUEST_SET_STATE(). When the L2 exits, the L1 will resume from this
 hcall.
 
 This hcall also has associated input and output GSBs. Unlike
-H_GUEST_{S,G}ET_STATE(), these GSB pointers are not passed in as
+H_GUEST_{S,G}ET_STATE(), these GSB pointers are analt passed in as
 parameters to the hcall (This was done in the interest of
 performance). The locations of these GSBs must be preregistered using
 the H_GUEST_SET_STATE() call with ID 0x0c00 and 0x0c01 (see table
@@ -294,7 +294,7 @@ below).
 
 The input GSB may contain only VCPU specific elements to be set. This
 GSB may also contain zero elements (ie 0 in the first 4 bytes of the
-GSB) if nothing needs to be set.
+GSB) if analthing needs to be set.
 
 On exit from the hcall, the output buffer is filled with elements
 determined by the L0. The reason for the exit is contained in GPR4 (ie
@@ -344,7 +344,7 @@ H_GUEST_DELETE()
 ----------------
 
 This is called to delete an L2. All associated vCPUs are also
-deleted. No specific vCPU delete call is provided.
+deleted. Anal specific vCPU delete call is provided.
 
 A flag may be provided to delete all guests. This is used to reset the
 L0 in the case of kdump/kexec::
@@ -410,7 +410,7 @@ table information.
 |        | Bytes |    | Guest  |                                  |
 |        |       |    | Scope  |                                  |
 +========+=======+====+========+==================================+
-| 0x0000 |       | RW |   TG   | NOP element                      |
+| 0x0000 |       | RW |   TG   | ANALP element                      |
 +--------+-------+----+--------+----------------------------------+
 | 0x0001 | 0x08  | R  |   G    | Size of L0 vCPU state. See:      |
 |        |       |    |        | H_GUEST_GET_STATE:               |
@@ -592,14 +592,14 @@ table information.
 Miscellaneous info
 ==================
 
-State not in ptregs/hvregs
+State analt in ptregs/hvregs
 --------------------------
 
-In the v1 API, some state is not in the ptregs/hvstate. This includes
+In the v1 API, some state is analt in the ptregs/hvstate. This includes
 the vector register and some SPRs. For the L1 to set this state for
 the L2, the L1 loads up these hardware registers before the
 h_enter_nested() call and the L0 ensures they end up as the L2 state
-(by not touching them).
+(by analt touching them).
 
 The v2 API removes this and explicitly sets this state via the GSB.
 
@@ -607,19 +607,19 @@ L1 Implementation details: Caching state
 ----------------------------------------
 
 In the v1 API, all state is sent from the L1 to the L0 and vice versa
-on every h_enter_nested() hcall. If the L0 is not currently running
-any L2s, the L0 has no state information about them. The only
+on every h_enter_nested() hcall. If the L0 is analt currently running
+any L2s, the L0 has anal state information about them. The only
 exception to this is the location of the partition table, registered
 via h_set_partition_table().
 
 The v2 API changes this so that the L0 retains the L2 state even when
-it's vCPUs are no longer running. This means that the L1 only needs to
+it's vCPUs are anal longer running. This means that the L1 only needs to
 communicate with the L0 about L2 state when it needs to modify the L2
 state, or when it's value is out of date. This provides an opportunity
 for performance optimisation.
 
 When a vCPU exits from a H_GUEST_RUN_VCPU() call, the L1 internally
-marks all L2 state as invalid. This means that if the L1 wants to know
+marks all L2 state as invalid. This means that if the L1 wants to kanalw
 the L2 state (say via a kvm_get_one_reg() call), it needs call
 H_GUEST_GET_STATE() to get that state. Once it's read, it's marked as
 valid in L1 until the L2 is run again.

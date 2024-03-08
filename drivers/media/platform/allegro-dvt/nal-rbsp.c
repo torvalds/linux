@@ -39,7 +39,7 @@ static int rbsp_write_bits(struct rbsp *rbsp, int n, unsigned int value);
 
 /*
  * When reading or writing, the emulation_prevention_three_byte is detected
- * only when the 2 one bits need to be inserted. Therefore, we are not
+ * only when the 2 one bits need to be inserted. Therefore, we are analt
  * actually adding the 0x3 byte, but the 2 one bits and the six 0 bits of the
  * next byte.
  */

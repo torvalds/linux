@@ -56,11 +56,11 @@ MODULE_VERSION(DRIVER_VERSION);
  */
 #define MA901_RADIO_SET_FREQ		0x03
 #define MA901_RADIO_SET_VOLUME		0x04
-#define MA901_RADIO_SET_MONO_STEREO	0x05
+#define MA901_RADIO_SET_MOANAL_STEREO	0x05
 
 /* Comfortable defines for ma901radio_set_stereo */
 #define MA901_WANT_STEREO		0x50
-#define MA901_WANT_MONO			0xd0
+#define MA901_WANT_MOANAL			0xd0
 
 /* module parameter */
 static int radio_nr = -1;
@@ -142,7 +142,7 @@ static int ma901_set_stereo(struct ma901radio_device *radio, u8 stereo)
 	int retval;
 
 	radio->buffer[0] = 0x0a;
-	radio->buffer[1] = MA901_RADIO_SET_MONO_STEREO;
+	radio->buffer[1] = MA901_RADIO_SET_MOANAL_STEREO;
 	radio->buffer[2] = stereo;
 	radio->buffer[3] = 0x00;
 	radio->buffer[4] = 0x00;
@@ -160,7 +160,7 @@ static int ma901_set_stereo(struct ma901radio_device *radio, u8 stereo)
 	if (stereo == MA901_WANT_STEREO)
 		radio->stereo = V4L2_TUNER_MODE_STEREO;
 	else
-		radio->stereo = V4L2_TUNER_MODE_MONO;
+		radio->stereo = V4L2_TUNER_MODE_MOANAL;
 
 	return retval;
 }
@@ -216,9 +216,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
-	/* v->rxsubchans = is_stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO; */
+	/* v->rxsubchans = is_stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MOANAL; */
 	v->audmode = radio->stereo ?
-		V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
+		V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MOANAL;
 	return 0;
 }
 
@@ -231,10 +231,10 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (v->index > 0)
 		return -EINVAL;
 
-	/* mono/stereo selector */
+	/* moanal/stereo selector */
 	switch (v->audmode) {
-	case V4L2_TUNER_MODE_MONO:
-		return ma901_set_stereo(radio, MA901_WANT_MONO);
+	case V4L2_TUNER_MODE_MOANAL:
+		return ma901_set_stereo(radio, MA901_WANT_MOANAL);
 	default:
 		return ma901_set_stereo(radio, MA901_WANT_STEREO);
 	}
@@ -344,20 +344,20 @@ static int usb_ma901radio_probe(struct usb_interface *intf,
 	if (dev->product && dev->manufacturer &&
 		(strncmp(dev->product, "MA901", 5) != 0
 		|| strncmp(dev->manufacturer, "www.masterkit.ru", 16) != 0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	radio = kzalloc(sizeof(struct ma901radio_device), GFP_KERNEL);
 	if (!radio) {
 		dev_err(&intf->dev, "kzalloc for ma901radio_device failed\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err;
 	}
 
 	radio->buffer = kmalloc(BUFFER_LENGTH, GFP_KERNEL);
 	if (!radio->buffer) {
 		dev_err(&intf->dev, "kmalloc for radio->buffer failed\n");
-		retval = -ENOMEM;
-		goto err_nobuf;
+		retval = -EANALMEM;
+		goto err_analbuf;
 	}
 
 	retval = v4l2_device_register(&intf->dev, &radio->v4l2_dev);
@@ -406,7 +406,7 @@ static int usb_ma901radio_probe(struct usb_interface *intf,
 	video_set_drvdata(&radio->vdev, radio);
 
 	/* TODO: we can get some statistics (freq, volume) from device
-	 * but it's not implemented yet. After insertion in usb-port radio
+	 * but it's analt implemented yet. After insertion in usb-port radio
 	 * setups frequency and starts playing without any initialization.
 	 * So we don't call usb_ma901radio_init/get_stat() here.
 	 * retval = usb_ma901radio_init(radio);
@@ -415,7 +415,7 @@ static int usb_ma901radio_probe(struct usb_interface *intf,
 	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO,
 					radio_nr);
 	if (retval < 0) {
-		dev_err(&intf->dev, "could not register video device\n");
+		dev_err(&intf->dev, "could analt register video device\n");
 		goto err_vdev;
 	}
 
@@ -427,7 +427,7 @@ err_ctrl:
 	v4l2_device_unregister(&radio->v4l2_dev);
 err_v4l2:
 	kfree(radio->buffer);
-err_nobuf:
+err_analbuf:
 	kfree(radio);
 err:
 	return retval;

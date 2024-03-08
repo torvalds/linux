@@ -18,9 +18,9 @@ additional information needs a kernel patch.
 
 To solve this problem, the `drgn
 <https://www.kernel.org/doc/html/latest/bpf/drgn.html>`_ tool is often used to
-dig out the kernel data with no kernel change. However, the main drawback for
-drgn is performance, as it cannot do pointer tracing inside the kernel. In
-addition, drgn cannot validate a pointer value and may read invalid data if the
+dig out the kernel data with anal kernel change. However, the main drawback for
+drgn is performance, as it cananalt do pointer tracing inside the kernel. In
+addition, drgn cananalt validate a pointer value and may read invalid data if the
 pointer becomes invalid inside the kernel.
 
 The BPF iterator solves the above problem by providing flexibility on what data
@@ -39,7 +39,7 @@ should be executed for every entry in a variety of kernel data structures.
 
 For example, users can define a BPF iterator that iterates over every task on
 the system and dumps the total amount of CPU runtime currently used by each of
-them. Another BPF task iterator may instead dump the cgroup information for each
+them. Aanalther BPF task iterator may instead dump the cgroup information for each
 task. Such flexibility is the core value of BPF iterators.
 
 A BPF program is always loaded into the kernel at the behest of a user space
@@ -78,7 +78,7 @@ following steps:
   specified with the BPF program file descriptor received from the kernel.
 * Next, obtain a BPF iterator file descriptor (``bpf_iter_fd``) by calling the
   ``bpf_iter_create()`` specified with the ``bpf_link`` received from Step 2.
-* Trigger the iteration by calling ``read(bpf_iter_fd)`` until no data is
+* Trigger the iteration by calling ``read(bpf_iter_fd)`` until anal data is
   available.
 * Close the iterator fd using ``close(bpf_iter_fd)``.
 * If needed to reread the data, get a new ``bpf_iter_fd`` and do the read again.
@@ -294,7 +294,7 @@ example later.
 Creating a File Iterator with Parameters
 ----------------------------------------
 
-Now, let us look at how to create an iterator that includes only files of a
+Analw, let us look at how to create an iterator that includes only files of a
 process.
 
 First,  fill the ``bpf_iter_attach_opts`` struct as shown below:
@@ -308,17 +308,17 @@ First,  fill the ``bpf_iter_attach_opts`` struct as shown below:
   opts.link_info = &linfo;
   opts.link_info_len = sizeof(linfo);
 
-``linfo.task.pid``, if it is non-zero, directs the kernel to create an iterator
+``linfo.task.pid``, if it is analn-zero, directs the kernel to create an iterator
 that only includes opened files for the process with the specified ``pid``. In
 this example, we will only be iterating files for our process. If
 ``linfo.task.pid`` is zero, the iterator will visit every opened file of every
 process. Similarly, ``linfo.task.tid`` directs the kernel to create an iterator
-that visits opened files of a specific thread, not a process. In this example,
+that visits opened files of a specific thread, analt a process. In this example,
 ``linfo.task.tid`` is different from ``linfo.task.pid`` only if the thread has a
 separate file descriptor table. In most circumstances, all process threads share
 a single file descriptor table.
 
-Now, in the userspace program, pass the pointer of struct to the
+Analw, in the userspace program, pass the pointer of struct to the
 ``bpf_program__attach_iter()``.
 
 ::
@@ -359,7 +359,7 @@ The whole program looks like the following code:
                 ret = -1;
                 goto free_link;
         }
-        /* not check contents, but ensure read() ends without error */
+        /* analt check contents, but ensure read() ends without error */
         while ((len = read(iter_fd, buf, sizeof(buf) - 1)) > 0) {
                 buf[len] = 0;
                 printf("%s", buf);
@@ -469,14 +469,14 @@ Parametrizing VMA Iterators
 
 By default, a BPF VMA iterator includes every VMA in every process.  However,
 you can still specify a process or a thread to include only its VMAs. Unlike
-files, a thread can not have a separate address space (since Linux 2.6.0-test6).
-Here, using *tid* makes no difference from using *pid*.
+files, a thread can analt have a separate address space (since Linux 2.6.0-test6).
+Here, using *tid* makes anal difference from using *pid*.
 
 ----------------------------
 Parametrizing Task Iterators
 ----------------------------
 
 A BPF task iterator with *pid* includes all tasks (threads) of a process. The
-BPF program receives these tasks one after another. You can specify a BPF task
+BPF program receives these tasks one after aanalther. You can specify a BPF task
 iterator with *tid* parameter to include only the tasks that match the given
 *tid*.

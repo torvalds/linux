@@ -45,7 +45,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 /*
  * Number of CPort IN urbs in flight at any point in time.
- * Adjust if we are having stalls in the USB buffer due to not enough urbs in
+ * Adjust if we are having stalls in the USB buffer due to analt eanalugh urbs in
  * flight.
  */
 #define NUM_CPORT_IN_URB	4
@@ -81,7 +81,7 @@ struct es2_cport_in {
  * @cport_out_endpoint: endpoint for cport out messages
  * @cport_out_urb: array of urbs for the CPort out messages
  * @cport_out_urb_busy: array of flags to see if the @cport_out_urb is busy or
- *			not.
+ *			analt.
  * @cport_out_urb_cancelled: array of flags indicating whether the
  *			corresponding @cport_out_urb is being cancelled
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
@@ -152,7 +152,7 @@ static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 
 	data = kmemdup(req, size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 cmd,
@@ -186,12 +186,12 @@ static int output_async(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dr = kmalloc(sizeof(*dr) + size, GFP_ATOMIC);
 	if (!dr) {
 		usb_free_urb(urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buf = (u8 *)dr + sizeof(*dr);
@@ -331,7 +331,7 @@ static struct urb *next_free_urb(struct es2_ap_dev *es2, gfp_t gfp_mask)
 	 * dynamically as we have to succeed.
 	 */
 	dev_dbg(&es2->usb_dev->dev,
-		"No free CPort OUT urbs, having to dynamically allocate one!\n");
+		"Anal free CPort OUT urbs, having to dynamically allocate one!\n");
 	return usb_alloc_urb(0, gfp_mask);
 }
 
@@ -353,7 +353,7 @@ static void free_urb(struct es2_ap_dev *es2, struct urb *urb)
 	}
 	spin_unlock_irqrestore(&es2->cport_out_urb_lock, flags);
 
-	/* If urb is not NULL, then we need to free this urb */
+	/* If urb is analt NULL, then we need to free this urb */
 	usb_free_urb(urb);
 }
 
@@ -384,7 +384,7 @@ static u16 gb_message_cport_unpack(struct gb_operation_msg_hdr *header)
 }
 
 /*
- * Returns zero if the message was successfully queued, or a negative errno
+ * Returns zero if the message was successfully queued, or a negative erranal
  * otherwise.
  */
 static int message_send(struct gb_host_device *hd, u16 cport_id,
@@ -410,7 +410,7 @@ static int message_send(struct gb_host_device *hd, u16 cport_id,
 	/* Find a free urb */
 	urb = next_free_urb(es2, gfp_mask);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 	message->hcpriv = urb;
@@ -448,7 +448,7 @@ static int message_send(struct gb_host_device *hd, u16 cport_id,
 }
 
 /*
- * Can not be called in atomic context.
+ * Can analt be called in atomic context.
  */
 static void message_cancel(struct gb_message *message)
 {
@@ -495,7 +495,7 @@ static int es2_cport_allocate(struct gb_host_device *hd, int cport_id,
 	switch (cport_id) {
 	case ES2_CPORT_CDSI0:
 	case ES2_CPORT_CDSI1:
-		dev_err(&hd->dev, "cport %d not available\n", cport_id);
+		dev_err(&hd->dev, "cport %d analt available\n", cport_id);
 		return -EBUSY;
 	}
 
@@ -518,7 +518,7 @@ static int es2_cport_allocate(struct gb_host_device *hd, int cport_id,
 		ida_start = cport_id;
 		ida_end = cport_id + 1;
 	} else {
-		dev_err(&hd->dev, "cport %d not available\n", cport_id);
+		dev_err(&hd->dev, "cport %d analt available\n", cport_id);
 		return -EINVAL;
 	}
 
@@ -549,7 +549,7 @@ static int cport_enable(struct gb_host_device *hd, u16 cport_id,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection_flags = 0;
 	if (flags & GB_CONNECTION_FLAG_CONTROL)
@@ -703,7 +703,7 @@ static int latency_tag_enable(struct gb_host_device *hd, u16 cport_id)
 				 0, ES2_USB_CTRL_TIMEOUT);
 
 	if (retval < 0)
-		dev_err(&udev->dev, "Cannot enable latency tag for cport %d\n",
+		dev_err(&udev->dev, "Cananalt enable latency tag for cport %d\n",
 			cport_id);
 	return retval;
 }
@@ -721,7 +721,7 @@ static int latency_tag_disable(struct gb_host_device *hd, u16 cport_id)
 				 0, ES2_USB_CTRL_TIMEOUT);
 
 	if (retval < 0)
-		dev_err(&udev->dev, "Cannot disable latency tag for cport %d\n",
+		dev_err(&udev->dev, "Cananalt disable latency tag for cport %d\n",
 			cport_id);
 	return retval;
 }
@@ -758,14 +758,14 @@ static int check_urb_status(struct urb *urb)
 			__func__, urb->actual_length);
 		fallthrough;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -EILSEQ:
 	case -EPROTO:
 		/* device is gone, stop sending */
 		return status;
 	}
-	dev_err(dev, "%s: unknown status %d\n", __func__, status);
+	dev_err(dev, "%s: unkanalwn status %d\n", __func__, status);
 
 	return -EAGAIN;
 }
@@ -824,7 +824,7 @@ static void cport_in_callback(struct urb *urb)
 			goto exit;
 
 		/* The urb is being unlinked */
-		if (status == -ENOENT || status == -ESHUTDOWN)
+		if (status == -EANALENT || status == -ESHUTDOWN)
 			return;
 
 		dev_err(dev, "urb cport in error %d (dropped)\n", status);
@@ -980,7 +980,7 @@ static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
 
 	rpc = arpc_alloc(payload, size, type);
 	if (!rpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&es2->arpc_lock, flags);
 	arpc_add(es2, rpc);
@@ -1036,7 +1036,7 @@ static void arpc_in_callback(struct urb *urb)
 			goto exit;
 
 		/* The urb is being unlinked */
-		if (status == -ENOENT || status == -ESHUTDOWN)
+		if (status == -EANALENT || status == -ESHUTDOWN)
 			return;
 
 		dev_err(dev, "arpc in-urb error %d (dropped)\n", status);
@@ -1097,7 +1097,7 @@ static int apb_log_poll(void *data)
 
 	buf = kmalloc(APB1_LOG_MSG_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (!kthread_should_stop()) {
 		msleep(1000);
@@ -1112,7 +1112,7 @@ static int apb_log_poll(void *data)
 static ssize_t apb_log_read(struct file *f, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	struct es2_ap_dev *es2 = file_inode(f)->i_private;
+	struct es2_ap_dev *es2 = file_ianalde(f)->i_private;
 	ssize_t ret;
 	size_t copied;
 	char *tmp_buf;
@@ -1122,7 +1122,7 @@ static ssize_t apb_log_read(struct file *f, char __user *buf,
 
 	tmp_buf = kmalloc(count, GFP_KERNEL);
 	if (!tmp_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	copied = kfifo_out(&es2->apb_log_fifo, tmp_buf, count);
 	ret = simple_read_from_buffer(buf, count, ppos, tmp_buf, copied);
@@ -1166,7 +1166,7 @@ static void usb_log_disable(struct es2_ap_dev *es2)
 static ssize_t apb_log_enable_read(struct file *f, char __user *buf,
 				   size_t count, loff_t *ppos)
 {
-	struct es2_ap_dev *es2 = file_inode(f)->i_private;
+	struct es2_ap_dev *es2 = file_ianalde(f)->i_private;
 	int enable = !IS_ERR_OR_NULL(es2->apb_log_task);
 	char tmp_buf[3];
 
@@ -1179,7 +1179,7 @@ static ssize_t apb_log_enable_write(struct file *f, const char __user *buf,
 {
 	int enable;
 	ssize_t retval;
-	struct es2_ap_dev *es2 = file_inode(f)->i_private;
+	struct es2_ap_dev *es2 = file_ianalde(f)->i_private;
 
 	retval = kstrtoint_from_user(buf, count, 10, &enable);
 	if (retval)
@@ -1205,7 +1205,7 @@ static int apb_get_cport_count(struct usb_device *udev)
 
 	cport_count = kzalloc(sizeof(*cport_count), GFP_KERNEL);
 	if (!cport_count)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 GB_APB_REQUEST_CPORT_COUNT,
@@ -1213,7 +1213,7 @@ static int apb_get_cport_count(struct usb_device *udev)
 				 USB_RECIP_INTERFACE, 0, 0, cport_count,
 				 sizeof(*cport_count), ES2_USB_CTRL_TIMEOUT);
 	if (retval != sizeof(*cport_count)) {
-		dev_err(&udev->dev, "Cannot retrieve CPort count: %d\n",
+		dev_err(&udev->dev, "Cananalt retrieve CPort count: %d\n",
 			retval);
 
 		if (retval >= 0)
@@ -1262,7 +1262,7 @@ static int ap_probe(struct usb_interface *interface,
 	num_cports = apb_get_cport_count(udev);
 	if (num_cports < 0) {
 		usb_put_dev(udev);
-		dev_err(&udev->dev, "Cannot retrieve CPort count: %d\n",
+		dev_err(&udev->dev, "Cananalt retrieve CPort count: %d\n",
 			num_cports);
 		return num_cports;
 	}
@@ -1325,12 +1325,12 @@ static int ap_probe(struct usb_interface *interface,
 			continue;
 		}
 		dev_warn(&udev->dev,
-			 "Unknown endpoint type found, address 0x%02x\n",
+			 "Unkanalwn endpoint type found, address 0x%02x\n",
 			 ep_addr);
 	}
 	if (!bulk_in_found || !arpc_in_found || !bulk_out_found) {
-		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
-		retval = -ENODEV;
+		dev_err(&udev->dev, "Analt eanalugh endpoints found in device, aborting!\n");
+		retval = -EANALDEV;
 		goto error;
 	}
 
@@ -1341,14 +1341,14 @@ static int ap_probe(struct usb_interface *interface,
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto error;
 		}
 		es2->cport_in.urb[i] = urb;
 
 		buffer = kmalloc(ES2_GBUF_MSG_SIZE_MAX, GFP_KERNEL);
 		if (!buffer) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto error;
 		}
 
@@ -1367,14 +1367,14 @@ static int ap_probe(struct usb_interface *interface,
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto error;
 		}
 		es2->arpc_urb[i] = urb;
 
 		buffer = kmalloc(ARPC_IN_SIZE_MAX, GFP_KERNEL);
 		if (!buffer) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto error;
 		}
 
@@ -1393,7 +1393,7 @@ static int ap_probe(struct usb_interface *interface,
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto error;
 		}
 

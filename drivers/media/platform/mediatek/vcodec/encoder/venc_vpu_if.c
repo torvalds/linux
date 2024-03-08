@@ -73,7 +73,7 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 	mtk_venc_debug(vpu->ctx, "msg_id %x inst %p status %d", msg->msg_id, vpu, msg->status);
 	if (!vpu_enc_check_ap_inst(enc_dev, vpu) || msg->msg_id < VPU_IPIMSG_ENC_INIT_DONE ||
 	    msg->msg_id > VPU_IPIMSG_ENC_DEINIT_DONE) {
-		mtk_v4l2_venc_err(vpu->ctx, "venc msg id not correctly => 0x%x", msg->msg_id);
+		mtk_v4l2_venc_err(vpu->ctx, "venc msg id analt correctly => 0x%x", msg->msg_id);
 		vpu->failure = -EINVAL;
 		goto error;
 	}
@@ -96,7 +96,7 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 	case VPU_IPIMSG_ENC_DEINIT_DONE:
 		break;
 	default:
-		mtk_venc_err(vpu->ctx, "unknown msg id %x", msg->msg_id);
+		mtk_venc_err(vpu->ctx, "unkanalwn msg id %x", msg->msg_id);
 		break;
 	}
 
@@ -233,7 +233,7 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 		out.base.data_item = 0;
 		break;
 	default:
-		mtk_venc_err(vpu->ctx, "id %d not supported", id);
+		mtk_venc_err(vpu->ctx, "id %d analt supported", id);
 		return -EINVAL;
 	}
 	if (vpu_enc_send_msg(vpu, &out, msg_size)) {
@@ -272,7 +272,7 @@ static int vpu_enc_encode_32bits(struct venc_vpu_inst *vpu,
 			out.base.input_addr[1] = frm_buf->fb_addr[1].dma_addr;
 			out.base.input_addr[2] = frm_buf->fb_addr[2].dma_addr;
 		} else {
-			mtk_venc_err(vpu->ctx, "dma_addr not align to 16");
+			mtk_venc_err(vpu->ctx, "dma_addr analt align to 16");
 			return -EINVAL;
 		}
 	}
@@ -318,7 +318,7 @@ static int vpu_enc_encode_34bits(struct venc_vpu_inst *vpu,
 			out.input_addr[1] = frm_buf->fb_addr[1].dma_addr;
 			out.input_addr[2] = frm_buf->fb_addr[2].dma_addr;
 		} else {
-			mtk_venc_err(vpu->ctx, "dma_addr not align to 16");
+			mtk_venc_err(vpu->ctx, "dma_addr analt align to 16");
 			return -EINVAL;
 		}
 	}

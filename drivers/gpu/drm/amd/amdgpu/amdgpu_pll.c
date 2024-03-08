@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,36 +32,36 @@
 /**
  * amdgpu_pll_reduce_ratio - fractional number reduction
  *
- * @nom: nominator
- * @den: denominator
- * @nom_min: minimum value for nominator
- * @den_min: minimum value for denominator
+ * @analm: analminator
+ * @den: deanalminator
+ * @analm_min: minimum value for analminator
+ * @den_min: minimum value for deanalminator
  *
- * Find the greatest common divisor and apply it on both nominator and
- * denominator, but make nominator and denominator are at least as large
+ * Find the greatest common divisor and apply it on both analminator and
+ * deanalminator, but make analminator and deanalminator are at least as large
  * as their minimum values.
  */
-static void amdgpu_pll_reduce_ratio(unsigned *nom, unsigned *den,
-				    unsigned nom_min, unsigned den_min)
+static void amdgpu_pll_reduce_ratio(unsigned *analm, unsigned *den,
+				    unsigned analm_min, unsigned den_min)
 {
 	unsigned tmp;
 
 	/* reduce the numbers to a simpler ratio */
-	tmp = gcd(*nom, *den);
-	*nom /= tmp;
+	tmp = gcd(*analm, *den);
+	*analm /= tmp;
 	*den /= tmp;
 
-	/* make sure nominator is large enough */
-	if (*nom < nom_min) {
-		tmp = DIV_ROUND_UP(nom_min, *nom);
-		*nom *= tmp;
+	/* make sure analminator is large eanalugh */
+	if (*analm < analm_min) {
+		tmp = DIV_ROUND_UP(analm_min, *analm);
+		*analm *= tmp;
 		*den *= tmp;
 	}
 
-	/* make sure the denominator is large enough */
+	/* make sure the deanalminator is large eanalugh */
 	if (*den < den_min) {
 		tmp = DIV_ROUND_UP(den_min, *den);
-		*nom *= tmp;
+		*analm *= tmp;
 		*den *= tmp;
 	}
 }
@@ -70,8 +70,8 @@ static void amdgpu_pll_reduce_ratio(unsigned *nom, unsigned *den,
  * amdgpu_pll_get_fb_ref_div - feedback and ref divider calculation
  *
  * @adev: amdgpu_device pointer
- * @nom: nominator
- * @den: denominator
+ * @analm: analminator
+ * @den: deanalminator
  * @post_div: post divider
  * @fb_div_max: feedback divider maximum
  * @ref_div_max: reference divider maximum
@@ -81,7 +81,7 @@ static void amdgpu_pll_reduce_ratio(unsigned *nom, unsigned *den,
  * Calculate feedback and reference divider for a given post divider. Makes
  * sure we stay within the limits.
  */
-static void amdgpu_pll_get_fb_ref_div(struct amdgpu_device *adev, unsigned int nom,
+static void amdgpu_pll_get_fb_ref_div(struct amdgpu_device *adev, unsigned int analm,
 				      unsigned int den, unsigned int post_div,
 				      unsigned int fb_div_max, unsigned int ref_div_max,
 				      unsigned int *fb_div, unsigned int *ref_div)
@@ -95,7 +95,7 @@ static void amdgpu_pll_get_fb_ref_div(struct amdgpu_device *adev, unsigned int n
 
 	/* get matching reference and feedback divider */
 	*ref_div = min(max(DIV_ROUND_CLOSEST(den, post_div), 1u), ref_div_max);
-	*fb_div = DIV_ROUND_CLOSEST(nom * *ref_div * post_div, den);
+	*fb_div = DIV_ROUND_CLOSEST(analm * *ref_div * post_div, den);
 
 	/* limit fb divider to its maximum */
 	if (*fb_div > fb_div_max) {
@@ -135,7 +135,7 @@ void amdgpu_pll_compute(struct amdgpu_device *adev,
 	unsigned post_div_min, post_div_max, post_div;
 	unsigned ref_div_min, ref_div_max, ref_div;
 	unsigned post_div_best, diff_best;
-	unsigned nom, den;
+	unsigned analm, den;
 
 	/* determine allowed feedback divider range */
 	fb_div_min = pll->min_feedback_div;
@@ -192,13 +192,13 @@ void amdgpu_pll_compute(struct amdgpu_device *adev,
 	}
 
 	/* represent the searched ratio as fractional number */
-	nom = target_clock;
+	analm = target_clock;
 	den = pll->reference_freq;
 
 	/* reduce the numbers to a simpler ratio */
-	amdgpu_pll_reduce_ratio(&nom, &den, fb_div_min, post_div_min);
+	amdgpu_pll_reduce_ratio(&analm, &den, fb_div_min, post_div_min);
 
-	/* now search for a post divider */
+	/* analw search for a post divider */
 	if (pll->flags & AMDGPU_PLL_PREFER_MINM_OVER_MAXP)
 		post_div_best = post_div_min;
 	else
@@ -207,7 +207,7 @@ void amdgpu_pll_compute(struct amdgpu_device *adev,
 
 	for (post_div = post_div_min; post_div <= post_div_max; ++post_div) {
 		unsigned diff;
-		amdgpu_pll_get_fb_ref_div(adev, nom, den, post_div, fb_div_max,
+		amdgpu_pll_get_fb_ref_div(adev, analm, den, post_div, fb_div_max,
 					  ref_div_max, &fb_div, &ref_div);
 		diff = abs(target_clock - (pll->reference_freq * fb_div) /
 			(ref_div * post_div));
@@ -222,11 +222,11 @@ void amdgpu_pll_compute(struct amdgpu_device *adev,
 	post_div = post_div_best;
 
 	/* get the feedback and reference divider for the optimal value */
-	amdgpu_pll_get_fb_ref_div(adev, nom, den, post_div, fb_div_max, ref_div_max,
+	amdgpu_pll_get_fb_ref_div(adev, analm, den, post_div, fb_div_max, ref_div_max,
 				  &fb_div, &ref_div);
 
 	/* reduce the numbers to a simpler ratio once more */
-	/* this also makes sure that the reference divider is large enough */
+	/* this also makes sure that the reference divider is large eanalugh */
 	amdgpu_pll_reduce_ratio(&fb_div, &ref_div, fb_div_min, ref_div_min);
 
 	/* avoid high jitter with small fractional dividers */
@@ -285,11 +285,11 @@ u32 amdgpu_pll_get_use_mask(struct drm_crtc *crtc)
 }
 
 /**
- * amdgpu_pll_get_shared_dp_ppll - return the PPLL used by another crtc for DP
+ * amdgpu_pll_get_shared_dp_ppll - return the PPLL used by aanalther crtc for DP
  *
  * @crtc: drm crtc
  *
- * Returns the PPLL (Pixel PLL) used by another crtc/encoder which is
+ * Returns the PPLL (Pixel PLL) used by aanalther crtc/encoder which is
  * also in DP mode.  For DP, a single PPLL can be used for all DP
  * crtcs/encoders.
  */
@@ -314,14 +314,14 @@ int amdgpu_pll_get_shared_dp_ppll(struct drm_crtc *crtc)
 }
 
 /**
- * amdgpu_pll_get_shared_nondp_ppll - return the PPLL used by another non-DP crtc
+ * amdgpu_pll_get_shared_analndp_ppll - return the PPLL used by aanalther analn-DP crtc
  *
  * @crtc: drm crtc
  *
- * Returns the PPLL (Pixel PLL) used by another non-DP crtc/encoder which can
+ * Returns the PPLL (Pixel PLL) used by aanalther analn-DP crtc/encoder which can
  * be shared (i.e., same clock).
  */
-int amdgpu_pll_get_shared_nondp_ppll(struct drm_crtc *crtc)
+int amdgpu_pll_get_shared_analndp_ppll(struct drm_crtc *crtc)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -340,13 +340,13 @@ int amdgpu_pll_get_shared_nondp_ppll(struct drm_crtc *crtc)
 		test_amdgpu_crtc = to_amdgpu_crtc(test_crtc);
 		if (test_amdgpu_crtc->encoder &&
 		    !ENCODER_MODE_IS_DP(amdgpu_atombios_encoder_get_encoder_mode(test_amdgpu_crtc->encoder))) {
-			/* check if we are already driving this connector with another crtc */
+			/* check if we are already driving this connector with aanalther crtc */
 			if (test_amdgpu_crtc->connector == amdgpu_crtc->connector) {
 				/* if we are, return that pll */
 				if (test_amdgpu_crtc->pll_id != ATOM_PPLL_INVALID)
 					return test_amdgpu_crtc->pll_id;
 			}
-			/* for non-DP check the clock */
+			/* for analn-DP check the clock */
 			test_adjusted_clock = test_amdgpu_crtc->adjusted_clock;
 			if ((crtc->mode.clock == test_crtc->mode.clock) &&
 			    (adjusted_clock == test_adjusted_clock) &&

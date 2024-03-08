@@ -15,7 +15,7 @@ Required properties:
 
 Optional properties:
 - assigned-clocks:	The same with "multclk".
-- assigned-clock-rates	The rate of "multclk" in order to not rely on the
+- assigned-clock-rates	The rate of "multclk" in order to analt rely on the
 			gck configuration set by previous components.
 - microchip,sdcal-inverted: when present, polarity on the SDCAL SoC pin is
   inverted. The default polarity for this signal is described in the datasheet.

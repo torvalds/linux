@@ -43,8 +43,8 @@ static const struct regmap_range ds1347_ranges[] = {
 };
 
 static const struct regmap_access_table ds1347_access_table = {
-	.yes_ranges = ds1347_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ds1347_ranges),
+	.anal_ranges = ds1347_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ds1347_ranges),
 };
 
 static int ds1347_read_time(struct device *dev, struct rtc_time *dt)

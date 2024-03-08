@@ -71,7 +71,7 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	 * Ostensibly, writes (including the WCB) should be flushed prior to
 	 * an uncached write such as our mmio register access, the empirical
 	 * evidence (esp. on Braswell) suggests that the WC write into memory
-	 * may not be visible to the HW prior to the completion of the UC
+	 * may analt be visible to the HW prior to the completion of the UC
 	 * register write and that we may begin execution from the context
 	 * before its image is complete leading to invalid PD chasing.
 	 */
@@ -117,14 +117,14 @@ static void __xe_execlist_port_start(struct xe_execlist_port *port,
 
 static void __xe_execlist_port_idle(struct xe_execlist_port *port)
 {
-	u32 noop[2] = { MI_NOOP, MI_NOOP };
+	u32 analop[2] = { MI_ANALOP, MI_ANALOP };
 
 	xe_execlist_port_assert_held(port);
 
 	if (!port->running_exl)
 		return;
 
-	xe_lrc_write_ring(&port->hwe->kernel_lrc, noop, sizeof(noop));
+	xe_lrc_write_ring(&port->hwe->kernel_lrc, analop, sizeof(analop));
 	__start_lrc(port->hwe, &port->hwe->kernel_lrc, 0);
 	port->running_exl = NULL;
 }
@@ -259,7 +259,7 @@ struct xe_execlist_port *xe_execlist_port_create(struct xe_device *xe,
 
 	port = drmm_kzalloc(drm, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	port->hwe = hwe;
 
@@ -328,7 +328,7 @@ static int execlist_exec_queue_init(struct xe_exec_queue *q)
 
 	exl = kzalloc(sizeof(*exl), GFP_KERNEL);
 	if (!exl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	exl->q = q;
 
@@ -462,7 +462,7 @@ static const struct xe_exec_queue_ops execlist_exec_queue_ops = {
 
 int xe_execlist_init(struct xe_gt *gt)
 {
-	/* GuC submission enabled, nothing to do */
+	/* GuC submission enabled, analthing to do */
 	if (xe_device_uc_enabled(gt_to_xe(gt)))
 		return 0;
 

@@ -208,7 +208,7 @@ static int rk3066_hdmi_config_avi(struct rk3066_hdmi *hdmi,
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 
 	frame.avi.colorimetry = hdmi->hdmi_data.colorimetry;
-	frame.avi.scan_mode = HDMI_SCAN_MODE_NONE;
+	frame.avi.scan_mode = HDMI_SCAN_MODE_ANALNE;
 
 	return rk3066_hdmi_upload_frame(hdmi, rc, &frame,
 					HDMI_INFOFRAME_AVI, 0, 0, 0);
@@ -286,9 +286,9 @@ static void rk3066_hdmi_config_phy(struct rk3066_hdmi *hdmi)
 	hdmi_writeb(hdmi, HDMI_DEEP_COLOR_MODE, 0x22);
 
 	/*
-	 * The semi-public documentation does not describe the hdmi registers
+	 * The semi-public documentation does analt describe the hdmi registers
 	 * used by the function rk3066_hdmi_phy_write(), so we keep using
-	 * these magic values for now.
+	 * these magic values for analw.
 	 */
 	if (hdmi->tmdsclk > 100000000) {
 		rk3066_hdmi_phy_write(hdmi, 0x158, 0x0E);
@@ -402,7 +402,7 @@ static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder,
 	if (WARN_ON(!crtc_state))
 		return;
 
-	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
+	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_analde, encoder);
 	if (mux)
 		val = (HDMI_VIDEO_SEL << 16) | HDMI_VIDEO_SEL;
 	else
@@ -543,12 +543,12 @@ rk3066_hdmi_register(struct drm_device *drm, struct rk3066_hdmi *hdmi)
 	struct device *dev = hdmi->dev;
 
 	encoder->possible_crtcs =
-		drm_of_find_possible_crtcs(drm, dev->of_node);
+		drm_of_find_possible_crtcs(drm, dev->of_analde);
 
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
+	 * analt been registered yet.  Defer probing, and hope that
 	 * the required CRTC is added later.
 	 */
 	if (encoder->possible_crtcs == 0)
@@ -574,7 +574,7 @@ rk3066_hdmi_register(struct drm_device *drm, struct rk3066_hdmi *hdmi)
 static irqreturn_t rk3066_hdmi_hardirq(int irq, void *dev_id)
 {
 	struct rk3066_hdmi *hdmi = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u8 interrupt;
 
 	if (rk3066_hdmi_get_power_mode(hdmi) == HDMI_SYS_POWER_MODE_A)
@@ -709,7 +709,7 @@ static struct i2c_adapter *rk3066_hdmi_i2c_adapter(struct rk3066_hdmi *hdmi)
 
 	i2c = devm_kzalloc(hdmi->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&i2c->i2c_lock);
 	init_completion(&i2c->cmpltn);
@@ -717,14 +717,14 @@ static struct i2c_adapter *rk3066_hdmi_i2c_adapter(struct rk3066_hdmi *hdmi)
 	adap = &i2c->adap;
 	adap->owner = THIS_MODULE;
 	adap->dev.parent = hdmi->dev;
-	adap->dev.of_node = hdmi->dev->of_node;
+	adap->dev.of_analde = hdmi->dev->of_analde;
 	adap->algo = &rk3066_hdmi_algorithm;
 	strscpy(adap->name, "RK3066 HDMI", sizeof(adap->name));
 	i2c_set_adapdata(adap, hdmi);
 
 	ret = i2c_add_adapter(adap);
 	if (ret) {
-		DRM_DEV_ERROR(hdmi->dev, "cannot add %s I2C adapter\n",
+		DRM_DEV_ERROR(hdmi->dev, "cananalt add %s I2C adapter\n",
 			      adap->name);
 		devm_kfree(hdmi->dev, i2c);
 		return ERR_PTR(ret);
@@ -748,7 +748,7 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdmi->dev = dev;
 	hdmi->drm_dev = drm;
@@ -768,11 +768,11 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 
 	ret = clk_prepare_enable(hdmi->hclk);
 	if (ret) {
-		DRM_DEV_ERROR(dev, "cannot enable HDMI hclk clock: %d\n", ret);
+		DRM_DEV_ERROR(dev, "cananalt enable HDMI hclk clock: %d\n", ret);
 		return ret;
 	}
 
-	hdmi->grf_regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+	hdmi->grf_regmap = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							   "rockchip,grf");
 	if (IS_ERR(hdmi->grf_regmap)) {
 		DRM_DEV_ERROR(dev, "unable to get rockchip,grf\n");

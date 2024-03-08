@@ -41,7 +41,7 @@ void *abatron_pteptrs[2];
  * particularly on SMP systems.
  *  -- paulus.
  */
-#define NO_CONTEXT      	((unsigned long) -1)
+#define ANAL_CONTEXT      	((unsigned long) -1)
 #define LAST_CONTEXT    	32767
 #define FIRST_CONTEXT    	1
 
@@ -94,9 +94,9 @@ EXPORT_SYMBOL_GPL(__destroy_context);
 void destroy_context(struct mm_struct *mm)
 {
 	preempt_disable();
-	if (mm->context.id != NO_CONTEXT) {
+	if (mm->context.id != ANAL_CONTEXT) {
 		__destroy_context(mm->context.id);
-		mm->context.id = NO_CONTEXT;
+		mm->context.id = ANAL_CONTEXT;
 	}
 	preempt_enable();
 }
@@ -116,7 +116,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next, struct t
 	long id = next->context.id;
 
 	if (id < 0)
-		panic("mm_struct %p has no context ID", next);
+		panic("mm_struct %p has anal context ID", next);
 
 	isync();
 

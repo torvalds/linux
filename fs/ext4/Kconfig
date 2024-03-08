@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Ext3 configs are here for backward compatibility with old configs which may
-# have EXT3_FS set but not EXT4_FS set and thus would result in non-bootable
+# have EXT3_FS set but analt EXT4_FS set and thus would result in analn-bootable
 # kernels after the removal of ext3 driver.
 config EXT3_FS
 	tristate "The Extended 3 (ext3) filesystem"
 	select EXT4_FS
 	help
 	  This config option is here only for backward compatibility. ext3
-	  filesystem is now handled by the ext4 driver.
+	  filesystem is analw handled by the ext4 driver.
 
 config EXT3_FS_POSIX_ACL
 	bool "Ext3 POSIX Access Control Lists"
@@ -16,7 +16,7 @@ config EXT3_FS_POSIX_ACL
 	select FS_POSIX_ACL
 	help
 	  This config option is here only for backward compatibility. ext3
-	  filesystem is now handled by the ext4 driver.
+	  filesystem is analw handled by the ext4 driver.
 
 config EXT3_FS_SECURITY
 	bool "Ext3 Security Labels"
@@ -24,7 +24,7 @@ config EXT3_FS_SECURITY
 	select EXT4_FS_SECURITY
 	help
 	  This config option is here only for backward compatibility. ext3
-	  filesystem is now handled by the ext4 driver.
+	  filesystem is analw handled by the ext4 driver.
 
 config EXT4_FS
 	tristate "The Extended 4 (ext4) filesystem"
@@ -39,7 +39,7 @@ config EXT4_FS
 	  This is the next generation of the ext3 filesystem.
 
 	  Unlike the change from ext2 filesystem to ext3 filesystem,
-	  the on-disk format of ext4 is not forwards compatible with
+	  the on-disk format of ext4 is analt forwards compatible with
 	  ext3; it is based on extent maps and it supports 48-bit
 	  physical block numbers.  The ext4 filesystem also supports delayed
 	  allocation, persistent preallocation, high resolution time stamps,
@@ -48,7 +48,7 @@ config EXT4_FS
 	  http://ext4.wiki.kernel.org.
 
 	  The ext4 filesystem supports mounting an ext3 filesystem; while there
-	  are some performance gains from the delayed allocation and inode
+	  are some performance gains from the delayed allocation and ianalde
 	  table readahead, the best performance gains require enabling ext4
 	  features in the filesystem using tune2fs, or formatting a new
 	  filesystem as an ext4 filesystem initially. Without explicit enabling
@@ -79,7 +79,7 @@ config EXT4_FS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N
+	  If you don't kanalw what Access Control Lists are, say N
 
 config EXT4_FS_SECURITY
 	bool "Ext4 Security Labels"
@@ -90,7 +90,7 @@ config EXT4_FS_SECURITY
 	  enables an extended attribute handler for file security
 	  labels in the ext4 filesystem.
 
-	  If you are not using a security module that requires using
+	  If you are analt using a security module that requires using
 	  extended attributes for file security labels, say N.
 
 config EXT4_DEBUG
@@ -111,7 +111,7 @@ config EXT4_KUNIT_TESTS
 
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (https://testanything.org/). Only useful for kernel devs
-	  running KUnit test harness and are not for inclusion into a production
+	  running KUnit test harness and are analt for inclusion into a production
 	  build.
 
 	  For more information on KUnit and unit tests in general please refer

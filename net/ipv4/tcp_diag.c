@@ -60,7 +60,7 @@ static int tcp_diag_put_md5sig(struct sk_buff *skb,
 	struct nlattr *attr;
 	int md5sig_count = 0;
 
-	hlist_for_each_entry_rcu(key, &md5sig->head, node)
+	hlist_for_each_entry_rcu(key, &md5sig->head, analde)
 		md5sig_count++;
 	if (md5sig_count == 0)
 		return 0;
@@ -72,7 +72,7 @@ static int tcp_diag_put_md5sig(struct sk_buff *skb,
 
 	info = nla_data(attr);
 	memset(info, 0, md5sig_count * sizeof(struct tcp_diag_md5sig));
-	hlist_for_each_entry_rcu(key, &md5sig->head, node) {
+	hlist_for_each_entry_rcu(key, &md5sig->head, analde) {
 		tcp_diag_md5sig_fill(info++, key);
 		if (--md5sig_count == 0)
 			break;
@@ -88,7 +88,7 @@ static int tcp_diag_put_ulp(struct sk_buff *skb, struct sock *sk,
 	struct nlattr *nest;
 	int err;
 
-	nest = nla_nest_start_noflag(skb, INET_DIAG_ULP_INFO);
+	nest = nla_nest_start_analflag(skb, INET_DIAG_ULP_INFO);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -155,7 +155,7 @@ static size_t tcp_diag_get_aux_size(struct sock *sk, bool net_admin)
 		rcu_read_lock();
 		md5sig = rcu_dereference(tcp_sk(sk)->md5sig_info);
 		if (md5sig) {
-			hlist_for_each_entry_rcu(key, &md5sig->head, node)
+			hlist_for_each_entry_rcu(key, &md5sig->head, analde)
 				md5sig_count++;
 		}
 		rcu_read_unlock();

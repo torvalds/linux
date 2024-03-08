@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_IF_ADDR_H
 #define __LINUX_IF_ADDR_H
 
@@ -16,12 +16,12 @@ struct ifaddrmsg {
 /*
  * Important comment:
  * IFA_ADDRESS is prefix address, rather than local interface address.
- * It makes no difference for normally configured broadcast interfaces,
+ * It makes anal difference for analrmally configured broadcast interfaces,
  * but for point-to-point IFA_ADDRESS is DESTINATION address,
  * local address is supplied in IFA_LOCAL attribute.
  *
  * IFA_FLAGS is a u32 attribute that extends the u8 field ifa_flags.
- * If present, the value from struct ifaddrmsg will be ignored.
+ * If present, the value from struct ifaddrmsg will be iganalred.
  */
 enum {
 	IFA_UNSPEC,
@@ -45,7 +45,7 @@ enum {
 #define IFA_F_SECONDARY		0x01
 #define IFA_F_TEMPORARY		IFA_F_SECONDARY
 
-#define	IFA_F_NODAD		0x02
+#define	IFA_F_ANALDAD		0x02
 #define IFA_F_OPTIMISTIC	0x04
 #define IFA_F_DADFAILED		0x08
 #define	IFA_F_HOMEADDRESS	0x10
@@ -53,7 +53,7 @@ enum {
 #define IFA_F_TENTATIVE		0x40
 #define IFA_F_PERMANENT		0x80
 #define IFA_F_MANAGETEMPADDR	0x100
-#define IFA_F_NOPREFIXROUTE	0x200
+#define IFA_F_ANALPREFIXROUTE	0x200
 #define IFA_F_MCAUTOJOIN	0x400
 #define IFA_F_STABLE_PRIVACY	0x800
 
@@ -73,7 +73,7 @@ struct ifa_cacheinfo {
 /* ifa_proto */
 #define IFAPROT_UNSPEC		0
 #define IFAPROT_KERNEL_LO	1	/* loopback */
-#define IFAPROT_KERNEL_RA	2	/* set by kernel from router announcement */
+#define IFAPROT_KERNEL_RA	2	/* set by kernel from router ananaluncement */
 #define IFAPROT_KERNEL_LL	3	/* link-local set by kernel */
 
 #endif

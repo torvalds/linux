@@ -30,7 +30,7 @@ struct raid_internal {
 };
 
 struct raid_component {
-	struct list_head node;
+	struct list_head analde;
 	struct device dev;
 	int num;
 };
@@ -83,7 +83,7 @@ static int raid_setup(struct transport_container *tc, struct device *dev,
 
 	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&rd->component_list);
 	dev_set_drvdata(cdev, rd);
@@ -98,8 +98,8 @@ static int raid_remove(struct transport_container *tc, struct device *dev,
 	struct raid_component *rc, *next;
 	dev_printk(KERN_ERR, dev, "RAID REMOVE\n");
 	dev_set_drvdata(cdev, NULL);
-	list_for_each_entry_safe(rc, next, &rd->component_list, node) {
-		list_del(&rc->node);
+	list_for_each_entry_safe(rc, next, &rd->component_list, analde) {
+		list_del(&rc->analde);
 		dev_printk(KERN_ERR, rc->dev.parent, "RAID COMPONENT REMOVE\n");
 		device_unregister(&rc->dev);
 	}
@@ -118,7 +118,7 @@ static const struct {
 	enum raid_state	value;
 	char		*name;
 } raid_states[] = {
-	{ RAID_STATE_UNKNOWN, "unknown" },
+	{ RAID_STATE_UNKANALWN, "unkanalwn" },
 	{ RAID_STATE_ACTIVE, "active" },
 	{ RAID_STATE_DEGRADED, "degraded" },
 	{ RAID_STATE_RESYNCING, "resyncing" },
@@ -143,7 +143,7 @@ static struct {
 	enum raid_level value;
 	char *name;
 } raid_levels[] = {
-	{ RAID_LEVEL_UNKNOWN, "unknown" },
+	{ RAID_LEVEL_UNKANALWN, "unkanalwn" },
 	{ RAID_LEVEL_LINEAR, "linear" },
 	{ RAID_LEVEL_0, "raid0" },
 	{ RAID_LEVEL_1, "raid1" },

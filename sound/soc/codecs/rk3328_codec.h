@@ -43,7 +43,7 @@
 
 /* REG04: DAC_INIT_CTRL2 */
 #define DAC_I2S_LRP_MASK		BIT(7)
-#define DAC_I2S_LRP_NORMAL		(0x0 << 7)
+#define DAC_I2S_LRP_ANALRMAL		(0x0 << 7)
 #define DAC_I2S_LRP_REVERSAL		(0x1 << 7)
 #define DAC_VDL_MASK			GENMASK(6, 5)
 #define DAC_VDL_16BITS			(0x0 << 5)
@@ -69,7 +69,7 @@
 #define DAC_RST_EN			(0x0 << 1)
 #define DAC_RST_DIS			(0x1 << 1)
 #define DAC_BCP_MASK			BIT(0)
-#define DAC_BCP_NORMAL			(0x0 << 0)
+#define DAC_BCP_ANALRMAL			(0x0 << 0)
 #define DAC_BCP_REVERSAL		(0x1 << 0)
 
 /* REG22: DAC_PRECHARGE_CTRL */

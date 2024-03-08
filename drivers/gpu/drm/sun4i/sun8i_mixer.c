@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  * Based on sun4i_backend.c, which is:
  *   Copyright (C) 2015 Free Electrons
@@ -87,7 +87,7 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_ARGB4444,
 	},
 	{
-		/* for DE2 VI layer which ignores alpha */
+		/* for DE2 VI layer which iganalres alpha */
 		.drm_fmt = DRM_FORMAT_XRGB4444,
 		.de2_fmt = SUN8I_MIXER_FBFMT_ARGB4444,
 	},
@@ -96,7 +96,7 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_ABGR4444,
 	},
 	{
-		/* for DE2 VI layer which ignores alpha */
+		/* for DE2 VI layer which iganalres alpha */
 		.drm_fmt = DRM_FORMAT_XBGR4444,
 		.de2_fmt = SUN8I_MIXER_FBFMT_ABGR4444,
 	},
@@ -105,7 +105,7 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_RGBA4444,
 	},
 	{
-		/* for DE2 VI layer which ignores alpha */
+		/* for DE2 VI layer which iganalres alpha */
 		.drm_fmt = DRM_FORMAT_RGBX4444,
 		.de2_fmt = SUN8I_MIXER_FBFMT_RGBA4444,
 	},
@@ -114,7 +114,7 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_BGRA4444,
 	},
 	{
-		/* for DE2 VI layer which ignores alpha */
+		/* for DE2 VI layer which iganalres alpha */
 		.drm_fmt = DRM_FORMAT_BGRX4444,
 		.de2_fmt = SUN8I_MIXER_FBFMT_BGRA4444,
 	},
@@ -123,7 +123,7 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_ARGB1555,
 	},
 	{
-		/* for DE2 VI layer which ignores alpha */
+		/* for DE2 VI layer which iganalres alpha */
 		.drm_fmt = DRM_FORMAT_XRGB1555,
 		.de2_fmt = SUN8I_MIXER_FBFMT_ARGB1555,
 	},
@@ -132,7 +132,7 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_ABGR1555,
 	},
 	{
-		/* for DE2 VI layer which ignores alpha */
+		/* for DE2 VI layer which iganalres alpha */
 		.drm_fmt = DRM_FORMAT_XBGR1555,
 		.de2_fmt = SUN8I_MIXER_FBFMT_ABGR1555,
 	},
@@ -141,7 +141,7 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_RGBA5551,
 	},
 	{
-		/* for DE2 VI layer which ignores alpha */
+		/* for DE2 VI layer which iganalres alpha */
 		.drm_fmt = DRM_FORMAT_RGBX5551,
 		.de2_fmt = SUN8I_MIXER_FBFMT_RGBA5551,
 	},
@@ -150,7 +150,7 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_BGRA5551,
 	},
 	{
-		/* for DE2 VI layer which ignores alpha */
+		/* for DE2 VI layer which iganalres alpha */
 		.drm_fmt = DRM_FORMAT_BGRX5551,
 		.de2_fmt = SUN8I_MIXER_FBFMT_BGRA5551,
 	},
@@ -268,7 +268,7 @@ static struct drm_plane **sun8i_layers_init(struct drm_device *drm,
 			      mixer->cfg->vi_num + mixer->cfg->ui_num + 1,
 			      sizeof(*planes), GFP_KERNEL);
 	if (!planes)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < mixer->cfg->vi_num; i++) {
 		struct sun8i_vi_layer *layer;
@@ -341,23 +341,23 @@ static const struct regmap_config sun8i_mixer_regmap_config = {
 	.max_register	= 0xffffc, /* guessed */
 };
 
-static int sun8i_mixer_of_get_id(struct device_node *node)
+static int sun8i_mixer_of_get_id(struct device_analde *analde)
 {
-	struct device_node *ep, *remote;
+	struct device_analde *ep, *remote;
 	struct of_endpoint of_ep;
 
 	/* Output port is 1, and we want the first endpoint. */
-	ep = of_graph_get_endpoint_by_regs(node, 1, -1);
+	ep = of_graph_get_endpoint_by_regs(analde, 1, -1);
 	if (!ep)
 		return -EINVAL;
 
 	remote = of_graph_get_remote_endpoint(ep);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (!remote)
 		return -EINVAL;
 
 	of_graph_parse_endpoint(remote, &of_ep);
-	of_node_put(remote);
+	of_analde_put(remote);
 	return of_ep.id;
 }
 
@@ -375,25 +375,25 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 
 	/*
 	 * The mixer uses single 32-bit register to store memory
-	 * addresses, so that it cannot deal with 64-bit memory
+	 * addresses, so that it cananalt deal with 64-bit memory
 	 * addresses.
 	 * Restrict the DMA mask so that the mixer won't be
 	 * allocated some memory that is too high.
 	 */
 	ret = dma_set_mask(dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(dev, "Cannot do 32-bit DMA.\n");
+		dev_err(dev, "Cananalt do 32-bit DMA.\n");
 		return ret;
 	}
 
 	mixer = devm_kzalloc(dev, sizeof(*mixer), GFP_KERNEL);
 	if (!mixer)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, mixer);
 	mixer->engine.ops = &sun8i_engine_ops;
-	mixer->engine.node = dev->of_node;
+	mixer->engine.analde = dev->of_analde;
 
-	if (of_property_present(dev->of_node, "iommus")) {
+	if (of_property_present(dev->of_analde, "iommus")) {
 		/*
 		 * This assume we have the same DMA constraints for
 		 * all our the mixers in our pipeline. This sounds
@@ -401,7 +401,7 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 		 * DRM doesn't do per-device allocation either, so we
 		 * would need to fix DRM first...
 		 */
-		ret = of_dma_configure(drm->dev, dev->of_node, true);
+		ret = of_dma_configure(drm->dev, dev->of_analde, true);
 		if (ret)
 			return ret;
 	}
@@ -410,11 +410,11 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	 * While this function can fail, we shouldn't do anything
 	 * if this happens. Some early DE2 DT entries don't provide
 	 * mixer id but work nevertheless because matching between
-	 * TCON and mixer is done by comparing node pointers (old
+	 * TCON and mixer is done by comparing analde pointers (old
 	 * way) instead comparing ids. If this function fails and
 	 * id is needed, it will fail during id matching anyway.
 	 */
-	mixer->engine.id = sun8i_mixer_of_get_id(dev->of_node);
+	mixer->engine.id = sun8i_mixer_of_get_id(dev->of_analde);
 
 	mixer->cfg = of_device_get_match_data(dev);
 	if (!mixer->cfg)
@@ -509,7 +509,7 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 		     SUN8I_MIXER_BLEND_COLOR_BLACK);
 
 	/*
-	 * Set fill color of bottom plane to black. Generally not needed
+	 * Set fill color of bottom plane to black. Generally analt needed
 	 * except when VI plane is at bottom (zpos = 0) and enabled.
 	 */
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL(base),
@@ -719,6 +719,6 @@ static struct platform_driver sun8i_mixer_platform_driver = {
 };
 module_platform_driver(sun8i_mixer_platform_driver);
 
-MODULE_AUTHOR("Icenowy Zheng <icenowy@aosc.io>");
+MODULE_AUTHOR("Iceanalwy Zheng <iceanalwy@aosc.io>");
 MODULE_DESCRIPTION("Allwinner DE2 Mixer driver");
 MODULE_LICENSE("GPL");

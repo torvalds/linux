@@ -71,8 +71,8 @@
 
 #define STIH4XX_RETIME_SRC_MASK			GENMASK(8, 6)
 #define STIH4XX_ETH_SEL_TX_RETIME_CLK		BIT(8)
-#define STIH4XX_ETH_SEL_INTERNAL_NOTEXT_PHYCLK	BIT(7)
-#define STIH4XX_ETH_SEL_TXCLK_NOT_CLK125	BIT(6)
+#define STIH4XX_ETH_SEL_INTERNAL_ANALTEXT_PHYCLK	BIT(7)
+#define STIH4XX_ETH_SEL_TXCLK_ANALT_CLK125	BIT(6)
 
 #define ENMII_MASK	GENMASK(5, 5)
 #define ENMII		BIT(5)
@@ -128,11 +128,11 @@ enum {
 };
 
 static u32 stih4xx_tx_retime_val[] = {
-	[TX_RETIME_SRC_TXCLK] = STIH4XX_ETH_SEL_TXCLK_NOT_CLK125,
+	[TX_RETIME_SRC_TXCLK] = STIH4XX_ETH_SEL_TXCLK_ANALT_CLK125,
 	[TX_RETIME_SRC_CLK_125] = 0x0,
 	[TX_RETIME_SRC_PHYCLK] = STIH4XX_ETH_SEL_TX_RETIME_CLK,
 	[TX_RETIME_SRC_CLKGEN] = STIH4XX_ETH_SEL_TX_RETIME_CLK
-				 | STIH4XX_ETH_SEL_INTERNAL_NOTEXT_PHYCLK,
+				 | STIH4XX_ETH_SEL_INTERNAL_ANALTEXT_PHYCLK,
 };
 
 static void stih4xx_fix_retime_src(void *priv, u32 spd, unsigned int mode)
@@ -197,7 +197,7 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 {
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct regmap *regmap;
 	int err;
 
@@ -218,7 +218,7 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	}
 
 	err = of_get_phy_mode(np, &dwmac->interface);
-	if (err && err != -ENODEV) {
+	if (err && err != -EANALDEV) {
 		dev_err(dev, "Can't get phy-mode\n");
 		return err;
 	}
@@ -248,7 +248,7 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 
 	dwmac->clk = devm_clk_get(dev, "sti-ethclk");
 	if (IS_ERR(dwmac->clk)) {
-		dev_warn(dev, "No phy clock provided...\n");
+		dev_warn(dev, "Anal phy clock provided...\n");
 		dwmac->clk = NULL;
 	}
 
@@ -265,7 +265,7 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "No OF match data provided\n");
+		dev_err(&pdev->dev, "Anal OF match data provided\n");
 		return -EINVAL;
 	}
 
@@ -279,7 +279,7 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sti_dwmac_parse_data(dwmac, pdev);
 	if (ret) {

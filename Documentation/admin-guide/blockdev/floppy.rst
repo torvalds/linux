@@ -77,7 +77,7 @@ The floppy driver related options are:
  floppy=two_fdc / floppy=<address>,two_fdc
 	Tells the floppy driver that you have two floppy controllers.
 	The second floppy controller is assumed to be at <address>.
-	This option is not needed if the second controller is at address
+	This option is analt needed if the second controller is at address
 	0x370, and if you use the 'cmos' option.
 
  floppy=thinkpad
@@ -87,29 +87,29 @@ The floppy driver related options are:
  floppy=0,thinkpad
 	Tells the floppy driver that you don't have a Thinkpad.
 
- floppy=omnibook / floppy=nodma
-	Tells the floppy driver not to use Dma for data transfers.
+ floppy=omnibook / floppy=analdma
+	Tells the floppy driver analt to use Dma for data transfers.
 	This is needed on HP Omnibooks, which don't have a workable
 	DMA channel for the floppy driver. This option is also useful
 	if you frequently get "Unable to allocate DMA memory" messages.
 	Indeed, dma memory needs to be continuous in physical memory,
-	and is thus harder to find, whereas non-dma buffers may be
+	and is thus harder to find, whereas analn-dma buffers may be
 	allocated in virtual memory. However, I advise against this if
 	you have an FDC without a FIFO (8272A or 82072). 82072A and
-	later are OK. You also need at least a 486 to use nodma.
-	If you use nodma mode, I suggest you also set the FIFO
+	later are OK. You also need at least a 486 to use analdma.
+	If you use analdma mode, I suggest you also set the FIFO
 	threshold to 10 or lower, in order to limit the number of data
 	transfer interrupts.
 
 	If you have a FIFO-able FDC, the floppy driver automatically
-	falls back on non DMA mode if no DMA-able memory can be found.
-	If you want to avoid this, explicitly ask for 'yesdma'.
+	falls back on analn DMA mode if anal DMA-able memory can be found.
+	If you want to avoid this, explicitly ask for 'analdma'.
 
- floppy=yesdma
+ floppy=analdma
 	Tells the floppy driver that a workable DMA channel is available.
 	(default)
 
- floppy=nofifo
+ floppy=analfifo
 	Disables the FIFO entirely. This is needed if you get "Bus
 	master arbitration error" messages from your Ethernet card (or
 	from other devices) while accessing the floppy.
@@ -133,18 +133,18 @@ The floppy driver related options are:
 	higher value, until you only get an occasional Over/Underrun.
 	It is a good idea to compile the floppy driver as a module
 	when doing this tuning. Indeed, it allows to try different
-	fifo values without rebooting the machine for each test. Note
+	fifo values without rebooting the machine for each test. Analte
 	that you need to do 'floppycontrol --messages' every time you
 	re-insert the module.
 
-	Usually, tuning the fifo threshold should not be needed, as
+	Usually, tuning the fifo threshold should analt be needed, as
 	the default (0xa) is reasonable.
 
  floppy=<drive>,<type>,cmos
 	Sets the CMOS type of <drive> to <type>. This is mandatory if
 	you have more than two floppy drives (only two can be
 	described in the physical CMOS), or if your BIOS uses
-	non-standard CMOS types. The CMOS types are:
+	analn-standard CMOS types. The CMOS types are:
 
 	       ==  ==================================
 		0  Use the value of the physical CMOS
@@ -154,45 +154,45 @@ The floppy driver related options are:
 		4  3 1/2 HD
 		5  3 1/2 ED
 		6  3 1/2 ED
-	       16  unknown or not installed
+	       16  unkanalwn or analt installed
 	       ==  ==================================
 
-	(Note: there are two valid types for ED drives. This is because 5 was
+	(Analte: there are two valid types for ED drives. This is because 5 was
 	initially chosen to represent floppy *tapes*, and 6 for ED drives.
-	AMI ignored this, and used 5 for ED drives. That's why the floppy
+	AMI iganalred this, and used 5 for ED drives. That's why the floppy
 	driver handles both.)
 
  floppy=unexpected_interrupts
 	Print a warning message when an unexpected interrupt is received.
 	(default)
 
- floppy=no_unexpected_interrupts / floppy=L40SX
+ floppy=anal_unexpected_interrupts / floppy=L40SX
 	Don't print a message when an unexpected interrupt is received. This
 	is needed on IBM L40SX laptops in certain video modes. (There seems
 	to be an interaction between video and floppy. The unexpected
-	interrupts affect only performance, and can be safely ignored.)
+	interrupts affect only performance, and can be safely iganalred.)
 
  floppy=broken_dcl
 	Don't use the disk change line, but assume that the disk was
-	changed whenever the device node is reopened. Needed on some
+	changed whenever the device analde is reopened. Needed on some
 	boxes where the disk change line is broken or unsupported.
 	This should be regarded as a stopgap measure, indeed it makes
 	floppy operation less efficient due to unneeded cache
 	flushings, and slightly more unreliable. Please verify your
 	cable, connection and jumper settings if you have any DCL
 	problems. However, some older drives, and also some laptops
-	are known not to have a DCL.
+	are kanalwn analt to have a DCL.
 
  floppy=debug
 	Print debugging messages.
 
  floppy=messages
 	Print informational messages for some operations (disk change
-	notifications, warnings about over and underruns, and about
+	analtifications, warnings about over and underruns, and about
 	autodetection).
 
  floppy=silent_dcl_clear
-	Uses a less noisy way to clear the disk change line (which
+	Uses a less analisy way to clear the disk change line (which
 	doesn't involve seeks). Implied by 'daring' option.
 
  floppy=<nr>,irq

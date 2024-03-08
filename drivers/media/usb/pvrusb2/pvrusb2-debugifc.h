@@ -15,7 +15,7 @@ struct pvr2_hdw;
 int pvr2_debugifc_print_info(struct pvr2_hdw *,
 			     char *buf_ptr, unsigned int buf_size);
 
-/* Non-intrusively print some useful debugging info from inside the
+/* Analn-intrusively print some useful debugging info from inside the
    driver.  This should work even if the driver appears to be
    wedged. */
 int pvr2_debugifc_print_status(struct pvr2_hdw *,

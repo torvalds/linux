@@ -441,7 +441,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 	},
 };
 
-static void __init jz4770_cgu_init(struct device_node *np)
+static void __init jz4770_cgu_init(struct device_analde *np)
 {
 	int retval;
 
@@ -459,5 +459,5 @@ static void __init jz4770_cgu_init(struct device_node *np)
 	ingenic_cgu_register_syscore_ops(cgu);
 }
 
-/* We only probe via devicetree, no need for a platform driver */
+/* We only probe via devicetree, anal need for a platform driver */
 CLK_OF_DECLARE_DRIVER(jz4770_cgu, "ingenic,jz4770-cgu", jz4770_cgu_init);

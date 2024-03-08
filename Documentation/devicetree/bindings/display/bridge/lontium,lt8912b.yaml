@@ -48,7 +48,7 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description: |
-          HDMI port, should be connected to a node compatible with the
+          HDMI port, should be connected to a analde compatible with the
           hdmi-connector binding.
 
     required:

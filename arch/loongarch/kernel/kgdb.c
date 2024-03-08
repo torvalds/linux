@@ -2,7 +2,7 @@
 /*
  * LoongArch KGDB support
  *
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/hw_breakpoint.h>
@@ -104,21 +104,21 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{ "fcsr", 4, 0 },
 };
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int reganal, void *mem, struct pt_regs *regs)
 {
 	int reg_offset, reg_size;
 
-	if (regno < 0 || regno >= DBG_MAX_REG_NUM)
+	if (reganal < 0 || reganal >= DBG_MAX_REG_NUM)
 		return NULL;
 
-	reg_offset = dbg_reg_def[regno].offset;
-	reg_size = dbg_reg_def[regno].size;
+	reg_offset = dbg_reg_def[reganal].offset;
+	reg_size = dbg_reg_def[reganal].size;
 
 	if (reg_offset == -1)
 		goto out;
 
 	/* Handle general-purpose/orig_a0/pc/badv registers */
-	if (regno <= DBG_PT_REGS_END) {
+	if (reganal <= DBG_PT_REGS_END) {
 		memcpy(mem, (void *)regs + reg_offset, reg_size);
 		goto out;
 	}
@@ -129,7 +129,7 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 	save_fp(current);
 
 	/* Handle FP registers */
-	switch (regno) {
+	switch (reganal) {
 	case DBG_FCSR:				/* Process the fcsr */
 		memcpy(mem, (void *)&current->thread.fpu.fcsr, reg_size);
 		break;
@@ -144,24 +144,24 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 	}
 
 out:
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[reganal].name;
 }
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int reganal, void *mem, struct pt_regs *regs)
 {
 	int reg_offset, reg_size;
 
-	if (regno < 0 || regno >= DBG_MAX_REG_NUM)
+	if (reganal < 0 || reganal >= DBG_MAX_REG_NUM)
 		return -EINVAL;
 
-	reg_offset = dbg_reg_def[regno].offset;
-	reg_size = dbg_reg_def[regno].size;
+	reg_offset = dbg_reg_def[reganal].offset;
+	reg_size = dbg_reg_def[reganal].size;
 
 	if (reg_offset == -1)
 		return 0;
 
 	/* Handle general-purpose/orig_a0/pc/badv registers */
-	if (regno <= DBG_PT_REGS_END) {
+	if (reganal <= DBG_PT_REGS_END) {
 		memcpy((void *)regs + reg_offset, mem, reg_size);
 		return 0;
 	}
@@ -170,7 +170,7 @@ int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
 		return 0;
 
 	/* Handle FP registers */
-	switch (regno) {
+	switch (reganal) {
 	case DBG_FCSR:				/* Process the fcsr */
 		memcpy((void *)&current->thread.fpu.fcsr, mem, reg_size);
 		break;
@@ -191,7 +191,7 @@ int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
 
 /*
  * Similar to regs_to_gdb_regs() except that process is sleeping and so
- * we may not be able to get all the info.
+ * we may analt be able to get all the info.
  */
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 {
@@ -228,7 +228,7 @@ void arch_kgdb_breakpoint(void)
 {
 	__asm__ __volatile__ (			\
 		".globl kgdb_breakinst\n\t"	\
-		"nop\n"				\
+		"analp\n"				\
 		"kgdb_breakinst:\tbreak 2\n\t"); /* BRK_KDB = 2 */
 }
 
@@ -236,29 +236,29 @@ void arch_kgdb_breakpoint(void)
  * Calls linux_debug_hook before the kernel dies. If KGDB is enabled,
  * then try to fall into the debugger
  */
-static int kgdb_loongarch_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
+static int kgdb_loongarch_analtify(struct analtifier_block *self, unsigned long cmd, void *ptr)
 {
 	struct die_args *args = (struct die_args *)ptr;
 	struct pt_regs *regs = args->regs;
 
-	/* Userspace events, ignore. */
+	/* Userspace events, iganalre. */
 	if (user_mode(regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!kgdb_io_module_registered)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (atomic_read(&kgdb_active) != -1)
 		kgdb_nmicallback(smp_processor_id(), regs);
 
 	if (kgdb_handle_exception(args->trapnr, args->signr, cmd, regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (atomic_read(&kgdb_setting_breakpoint))
 		if (regs->csr_era == (unsigned long)&kgdb_breakinst)
 			regs->csr_era += LOONGARCH_INSN_SIZE;
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
 bool kgdb_breakpoint_handler(struct pt_regs *regs)
@@ -272,11 +272,11 @@ bool kgdb_breakpoint_handler(struct pt_regs *regs)
 
 	};
 
-	return (kgdb_loongarch_notify(NULL, DIE_TRAP, &args) == NOTIFY_STOP) ? true : false;
+	return (kgdb_loongarch_analtify(NULL, DIE_TRAP, &args) == ANALTIFY_STOP) ? true : false;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call = kgdb_loongarch_notify,
+static struct analtifier_block kgdb_analtifier = {
+	.analtifier_call = kgdb_loongarch_analtify,
 };
 
 static inline void kgdb_arch_update_addr(struct pt_regs *regs,
@@ -386,14 +386,14 @@ static int do_single_step(struct pt_regs *regs)
 		return error;
 
 	/* Store the opcode in the stepped address */
-	error = get_kernel_nofault(stepped_opcode, (void *)addr);
+	error = get_kernel_analfault(stepped_opcode, (void *)addr);
 	if (error)
 		return error;
 
 	stepped_address = addr;
 
 	/* Replace the opcode with the break instruction */
-	error = copy_to_kernel_nofault((void *)stepped_address,
+	error = copy_to_kernel_analfault((void *)stepped_address,
 				       arch_kgdb_ops.gdb_bpt_instr, BREAK_INSTR_SIZE);
 	flush_icache_range(addr, addr + BREAK_INSTR_SIZE);
 
@@ -412,7 +412,7 @@ static int do_single_step(struct pt_regs *regs)
 static void undo_single_step(struct pt_regs *regs)
 {
 	if (stepped_opcode) {
-		copy_to_kernel_nofault((void *)stepped_address,
+		copy_to_kernel_analfault((void *)stepped_address,
 				       (void *)&stepped_opcode, BREAK_INSTR_SIZE);
 		flush_icache_range(stepped_address, stepped_address + BREAK_INSTR_SIZE);
 	}
@@ -423,7 +423,7 @@ static void undo_single_step(struct pt_regs *regs)
 	atomic_set(&kgdb_cpu_doing_single_step, -1);
 }
 
-int kgdb_arch_handle_exception(int vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int vector, int siganal, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
 			       struct pt_regs *regs)
 {
@@ -459,14 +459,14 @@ static struct hw_breakpoint {
 	struct perf_event	* __percpu *pev;
 } breakinfo[LOONGARCH_MAX_BRP];
 
-static int hw_break_reserve_slot(int breakno)
+static int hw_break_reserve_slot(int breakanal)
 {
 	int cpu, cnt = 0;
 	struct perf_event **pevent;
 
 	for_each_online_cpu(cpu) {
 		cnt++;
-		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
+		pevent = per_cpu_ptr(breakinfo[breakanal].pev, cpu);
 		if (dbg_reserve_bp_slot(*pevent))
 			goto fail;
 	}
@@ -478,14 +478,14 @@ fail:
 		cnt--;
 		if (!cnt)
 			break;
-		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
+		pevent = per_cpu_ptr(breakinfo[breakanal].pev, cpu);
 		dbg_release_bp_slot(*pevent);
 	}
 
 	return -1;
 }
 
-static int hw_break_release_slot(int breakno)
+static int hw_break_release_slot(int breakanal)
 {
 	int cpu;
 	struct perf_event **pevent;
@@ -494,7 +494,7 @@ static int hw_break_release_slot(int breakno)
 		return 0;
 
 	for_each_online_cpu(cpu) {
-		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
+		pevent = per_cpu_ptr(breakinfo[breakanal].pev, cpu);
 		if (dbg_release_bp_slot(*pevent))
 			/*
 			 * The debugger is responsible for handing the retry on
@@ -573,7 +573,7 @@ static int kgdb_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype bp
 		return -1;
 
 	if (hw_break_release_slot(i)) {
-		pr_err("Cannot remove hw breakpoint at %lx\n", addr);
+		pr_err("Cananalt remove hw breakpoint at %lx\n", addr);
 		return -1;
 	}
 	breakinfo[i].enabled = 0;
@@ -675,7 +675,7 @@ const struct kgdb_arch arch_kgdb_ops = {
 
 int kgdb_arch_init(void)
 {
-	return register_die_notifier(&kgdb_notifier);
+	return register_die_analtifier(&kgdb_analtifier);
 }
 
 void kgdb_arch_late(void)
@@ -697,7 +697,7 @@ void kgdb_arch_late(void)
 
 		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL, NULL);
 		if (IS_ERR((void * __force)breakinfo[i].pev)) {
-			pr_err("kgdb: Could not allocate hw breakpoints.\n");
+			pr_err("kgdb: Could analt allocate hw breakpoints.\n");
 			breakinfo[i].pev = NULL;
 			return;
 		}
@@ -723,5 +723,5 @@ void kgdb_arch_exit(void)
 		}
 	}
 
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_analtifier(&kgdb_analtifier);
 }

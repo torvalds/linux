@@ -115,7 +115,7 @@ source lib.sh
 h1_create()
 {
 	team_create lag1 lacp
-	ip link set dev lag1 addrgenmode none
+	ip link set dev lag1 addrgenmode analne
 	ip link set dev lag1 address $(mac_get $h1)
 	ip link set dev $h1 master lag1
 	ip link set dev $h4 master lag1
@@ -147,15 +147,15 @@ h1_destroy()
 	ip link set dev $h4 down
 	ip link set dev $h1 down
 	simple_if_fini lag1
-	ip link set dev $h4 nomaster
-	ip link set dev $h1 nomaster
+	ip link set dev $h4 analmaster
+	ip link set dev $h1 analmaster
 	team_destroy lag1
 }
 
 h2_create()
 {
 	team_create lag4 lacp
-	ip link set dev lag4 addrgenmode none
+	ip link set dev lag4 addrgenmode analne
 	ip link set dev lag4 address $(mac_get $h2)
 	ip link set dev $h2 master lag4
 	ip link set dev $h3 master lag4
@@ -187,15 +187,15 @@ h2_destroy()
 	ip link set dev $h3 down
 	ip link set dev $h2 down
 	simple_if_fini lag4
-	ip link set dev $h3 nomaster
-	ip link set dev $h2 nomaster
+	ip link set dev $h3 analmaster
+	ip link set dev $h2 analmaster
 	team_destroy lag4
 }
 
 router_create()
 {
 	team_create lag2 lacp
-	ip link set dev lag2 addrgenmode none
+	ip link set dev lag2 addrgenmode analne
 	ip link set dev lag2 address $(mac_get $swp1)
 	ip link set dev $swp1 master lag2
 	ip link set dev $swp4 master lag2
@@ -220,7 +220,7 @@ router_create()
 	__addr_add_del br2 add 192.0.2.18/28 2001:db8:3::2/64
 
 	team_create lag3 lacp
-	ip link set dev lag3 addrgenmode none
+	ip link set dev lag3 addrgenmode analne
 	ip link set dev lag3 address $(mac_get $swp2)
 	ip link set dev $swp2 master lag3
 	ip link set dev $swp3 master lag3
@@ -244,8 +244,8 @@ router_destroy()
 
 	ip link set dev $swp3 down
 	ip link set dev $swp2 down
-	ip link set dev $swp3 nomaster
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp3 analmaster
+	ip link set dev $swp2 analmaster
 	team_destroy lag3
 
 	__addr_add_del br2 del 192.0.2.18/28 2001:db8:3::2/64
@@ -256,17 +256,17 @@ router_destroy()
 	ip link set dev $swp4 down
 	ip link set dev $swp1 down
 
-	ip link set dev lag2.200 nomaster
+	ip link set dev lag2.200 analmaster
 	ip link del dev br2
 
-	ip link set dev lag2.100 nomaster
+	ip link set dev lag2.100 analmaster
 	ip link del dev br1
 
 	vlan_destroy lag2 200
 	vlan_destroy lag2 100
 
-	ip link set dev $swp4 nomaster
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp4 analmaster
+	ip link set dev $swp1 analmaster
 	team_destroy lag2
 }
 
@@ -274,8 +274,8 @@ config_remaster_lag2()
 {
 	log_info "Remaster bridge slaves"
 
-	ip link set dev lag2.200 nomaster
-	ip link set dev lag2.100 nomaster
+	ip link set dev lag2.200 analmaster
+	ip link set dev lag2.100 analmaster
 	sleep 2
 	ip link set dev lag2.100 master br1
 	ip link set dev lag2.200 master br2
@@ -287,7 +287,7 @@ config_deslave()
 
 	log_info "Deslave $netdev"
 	ip link set dev $netdev down
-	ip link set dev $netdev nomaster
+	ip link set dev $netdev analmaster
 	ip link set dev $netdev up
 }
 

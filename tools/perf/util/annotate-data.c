@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-#include "annotate-data.h"
+#include "ananaltate-data.h"
 #include "debuginfo.h"
 #include "debug.h"
 #include "dso.h"
@@ -23,28 +23,28 @@
 
 /*
  * Compare type name and size to maintain them in a tree.
- * I'm not sure if DWARF would have information of a single type in many
- * different places (compilation units).  If not, it could compare the
+ * I'm analt sure if DWARF would have information of a single type in many
+ * different places (compilation units).  If analt, it could compare the
  * offset of the type entry in the .debug_info section.
  */
-static int data_type_cmp(const void *_key, const struct rb_node *node)
+static int data_type_cmp(const void *_key, const struct rb_analde *analde)
 {
-	const struct annotated_data_type *key = _key;
-	struct annotated_data_type *type;
+	const struct ananaltated_data_type *key = _key;
+	struct ananaltated_data_type *type;
 
-	type = rb_entry(node, struct annotated_data_type, node);
+	type = rb_entry(analde, struct ananaltated_data_type, analde);
 
 	if (key->self.size != type->self.size)
 		return key->self.size - type->self.size;
 	return strcmp(key->self.type_name, type->self.type_name);
 }
 
-static bool data_type_less(struct rb_node *node_a, const struct rb_node *node_b)
+static bool data_type_less(struct rb_analde *analde_a, const struct rb_analde *analde_b)
 {
-	struct annotated_data_type *a, *b;
+	struct ananaltated_data_type *a, *b;
 
-	a = rb_entry(node_a, struct annotated_data_type, node);
-	b = rb_entry(node_b, struct annotated_data_type, node);
+	a = rb_entry(analde_a, struct ananaltated_data_type, analde);
+	b = rb_entry(analde_b, struct ananaltated_data_type, analde);
 
 	if (a->self.size != b->self.size)
 		return a->self.size < b->self.size;
@@ -54,8 +54,8 @@ static bool data_type_less(struct rb_node *node_a, const struct rb_node *node_b)
 /* Recursively add new members for struct/union */
 static int __add_member_cb(Dwarf_Die *die, void *arg)
 {
-	struct annotated_member *parent = arg;
-	struct annotated_member *member;
+	struct ananaltated_member *parent = arg;
+	struct ananaltated_member *member;
 	Dwarf_Die member_type, die_mem;
 	Dwarf_Word size, loc;
 	Dwarf_Attribute attr;
@@ -88,7 +88,7 @@ static int __add_member_cb(Dwarf_Die *die, void *arg)
 	member->size = size;
 	member->offset = loc + parent->offset;
 	INIT_LIST_HEAD(&member->children);
-	list_add_tail(&member->node, &parent->children);
+	list_add_tail(&member->analde, &parent->children);
 
 	tag = dwarf_tag(&member_type);
 	switch (tag) {
@@ -102,19 +102,19 @@ static int __add_member_cb(Dwarf_Die *die, void *arg)
 	return DIE_FIND_CB_SIBLING;
 }
 
-static void add_member_types(struct annotated_data_type *parent, Dwarf_Die *type)
+static void add_member_types(struct ananaltated_data_type *parent, Dwarf_Die *type)
 {
 	Dwarf_Die die_mem;
 
 	die_find_child(type, __add_member_cb, &parent->self, &die_mem);
 }
 
-static void delete_members(struct annotated_member *member)
+static void delete_members(struct ananaltated_member *member)
 {
-	struct annotated_member *child, *tmp;
+	struct ananaltated_member *child, *tmp;
 
-	list_for_each_entry_safe(child, tmp, &member->children, node) {
-		list_del(&child->node);
+	list_for_each_entry_safe(child, tmp, &member->children, analde) {
+		list_del(&child->analde);
 		delete_members(child);
 		free(child->type_name);
 		free(child->var_name);
@@ -122,33 +122,33 @@ static void delete_members(struct annotated_member *member)
 	}
 }
 
-static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
+static struct ananaltated_data_type *dso__findnew_data_type(struct dso *dso,
 							  Dwarf_Die *type_die)
 {
-	struct annotated_data_type *result = NULL;
-	struct annotated_data_type key;
-	struct rb_node *node;
+	struct ananaltated_data_type *result = NULL;
+	struct ananaltated_data_type key;
+	struct rb_analde *analde;
 	struct strbuf sb;
 	char *type_name;
 	Dwarf_Word size;
 
 	strbuf_init(&sb, 32);
 	if (die_get_typename_from_type(type_die, &sb) < 0)
-		strbuf_add(&sb, "(unknown type)", 14);
+		strbuf_add(&sb, "(unkanalwn type)", 14);
 	type_name = strbuf_detach(&sb, NULL);
 	dwarf_aggregate_size(type_die, &size);
 
-	/* Check existing nodes in dso->data_types tree */
+	/* Check existing analdes in dso->data_types tree */
 	key.self.type_name = type_name;
 	key.self.size = size;
-	node = rb_find(&key, &dso->data_types, data_type_cmp);
-	if (node) {
-		result = rb_entry(node, struct annotated_data_type, node);
+	analde = rb_find(&key, &dso->data_types, data_type_cmp);
+	if (analde) {
+		result = rb_entry(analde, struct ananaltated_data_type, analde);
 		free(type_name);
 		return result;
 	}
 
-	/* If not, add a new one */
+	/* If analt, add a new one */
 	result = zalloc(sizeof(*result));
 	if (result == NULL) {
 		free(type_name);
@@ -159,10 +159,10 @@ static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
 	result->self.size = size;
 	INIT_LIST_HEAD(&result->self.children);
 
-	if (symbol_conf.annotate_data_member)
+	if (symbol_conf.ananaltate_data_member)
 		add_member_types(result, type_die);
 
-	rb_add(&result->node, &dso->data_types, data_type_less);
+	rb_add(&result->analde, &dso->data_types, data_type_less);
 	return result;
 }
 
@@ -198,8 +198,8 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
 
 	/* Get the type of the variable */
 	if (die_get_real_type(var_die, type_die) == NULL) {
-		pr_debug("variable has no type\n");
-		ann_data_stat.no_typeinfo++;
+		pr_debug("variable has anal type\n");
+		ann_data_stat.anal_typeinfo++;
 		return -1;
 	}
 
@@ -209,14 +209,14 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
 	 */
 	if (dwarf_tag(type_die) != DW_TAG_pointer_type ||
 	    die_get_real_type(type_die, type_die) == NULL) {
-		pr_debug("no pointer or no type\n");
-		ann_data_stat.no_typeinfo++;
+		pr_debug("anal pointer or anal type\n");
+		ann_data_stat.anal_typeinfo++;
 		return -1;
 	}
 
 	/* Get the size of the actual type */
 	if (dwarf_aggregate_size(type_die, &size) < 0) {
-		pr_debug("type size is unknown\n");
+		pr_debug("type size is unkanalwn\n");
 		ann_data_stat.invalid_size++;
 		return -1;
 	}
@@ -242,8 +242,8 @@ static int find_data_type_die(struct debuginfo *di, u64 pc,
 
 	/* Get a compile_unit for this address */
 	if (!find_cu_die(di, pc, &cu_die)) {
-		pr_debug("cannot find CU for address %" PRIx64 "\n", pc);
-		ann_data_stat.no_cuinfo++;
+		pr_debug("cananalt find CU for address %" PRIx64 "\n", pc);
+		ann_data_stat.anal_cuinfo++;
 		return -1;
 	}
 
@@ -261,7 +261,7 @@ static int find_data_type_die(struct debuginfo *di, u64 pc,
 		goto out;
 	}
 	if (ret < 0)
-		ann_data_stat.no_var++;
+		ann_data_stat.anal_var++;
 
 out:
 	free(scopes);
@@ -277,12 +277,12 @@ out:
  *
  * This functions searches the debug information of the binary to get the data
  * type it accesses.  The exact location is expressed by (ip, reg, offset).
- * It return %NULL if not found.
+ * It return %NULL if analt found.
  */
-struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
+struct ananaltated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
 					   int reg, int offset)
 {
-	struct annotated_data_type *result = NULL;
+	struct ananaltated_data_type *result = NULL;
 	struct dso *dso = map__dso(ms->map);
 	struct debuginfo *di;
 	Dwarf_Die type_die;
@@ -290,7 +290,7 @@ struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
 
 	di = debuginfo__new(dso->long_name);
 	if (di == NULL) {
-		pr_debug("cannot get the debug info\n");
+		pr_debug("cananalt get the debug info\n");
 		return NULL;
 	}
 
@@ -310,7 +310,7 @@ out:
 	return result;
 }
 
-static int alloc_data_type_histograms(struct annotated_data_type *adt, int nr_entries)
+static int alloc_data_type_histograms(struct ananaltated_data_type *adt, int nr_entries)
 {
 	int i;
 	size_t sz = sizeof(struct type_hist);
@@ -321,7 +321,7 @@ static int alloc_data_type_histograms(struct annotated_data_type *adt, int nr_en
 	adt->nr_histograms = nr_entries;
 	adt->histograms = calloc(nr_entries, sizeof(*adt->histograms));
 	if (adt->histograms == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Each histogram is allocated for the whole size of the type.
@@ -338,25 +338,25 @@ err:
 	while (--i >= 0)
 		free(adt->histograms[i]);
 	free(adt->histograms);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-static void delete_data_type_histograms(struct annotated_data_type *adt)
+static void delete_data_type_histograms(struct ananaltated_data_type *adt)
 {
 	for (int i = 0; i < adt->nr_histograms; i++)
 		free(adt->histograms[i]);
 	free(adt->histograms);
 }
 
-void annotated_data_type__tree_delete(struct rb_root *root)
+void ananaltated_data_type__tree_delete(struct rb_root *root)
 {
-	struct annotated_data_type *pos;
+	struct ananaltated_data_type *pos;
 
 	while (!RB_EMPTY_ROOT(root)) {
-		struct rb_node *node = rb_first(root);
+		struct rb_analde *analde = rb_first(root);
 
-		rb_erase(node, root);
-		pos = rb_entry(node, struct annotated_data_type, node);
+		rb_erase(analde, root);
+		pos = rb_entry(analde, struct ananaltated_data_type, analde);
 		delete_members(&pos->self);
 		delete_data_type_histograms(pos);
 		free(pos->self.type_name);
@@ -365,7 +365,7 @@ void annotated_data_type__tree_delete(struct rb_root *root)
 }
 
 /**
- * annotated_data_type__update_samples - Update histogram
+ * ananaltated_data_type__update_samples - Update histogram
  * @adt: Data type to update
  * @evsel: Event to update
  * @offset: Offset in the type
@@ -376,7 +376,7 @@ void annotated_data_type__tree_delete(struct rb_root *root)
  * aggregated before calling this function so it can be called with more
  * than one samples at a certain offset.
  */
-int annotated_data_type__update_samples(struct annotated_data_type *adt,
+int ananaltated_data_type__update_samples(struct ananaltated_data_type *adt,
 					struct evsel *evsel, int offset,
 					int nr_samples, u64 period)
 {

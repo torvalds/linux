@@ -13,11 +13,11 @@
 #include <linux/of.h>
 #include <linux/dmaengine.h>
 
-struct device_node;
+struct device_analde;
 
 struct of_dma {
 	struct list_head	of_dma_controllers;
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 	struct dma_chan		*(*of_dma_xlate)
 				(struct of_phandle_args *, struct of_dma *);
 	void			*(*of_dma_route_allocate)
@@ -32,19 +32,19 @@ struct of_dma_filter_info {
 };
 
 #ifdef CONFIG_DMA_OF
-extern int of_dma_controller_register(struct device_node *np,
+extern int of_dma_controller_register(struct device_analde *np,
 		struct dma_chan *(*of_dma_xlate)
 		(struct of_phandle_args *, struct of_dma *),
 		void *data);
-extern void of_dma_controller_free(struct device_node *np);
+extern void of_dma_controller_free(struct device_analde *np);
 
-extern int of_dma_router_register(struct device_node *np,
+extern int of_dma_router_register(struct device_analde *np,
 		void *(*of_dma_route_allocate)
 		(struct of_phandle_args *, struct of_dma *),
 		struct dma_router *dma_router);
 #define of_dma_router_free of_dma_controller_free
 
-extern struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
+extern struct dma_chan *of_dma_request_slave_channel(struct device_analde *np,
 						     const char *name);
 extern struct dma_chan *of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 		struct of_dma *ofdma);
@@ -52,32 +52,32 @@ extern struct dma_chan *of_dma_xlate_by_chan_id(struct of_phandle_args *dma_spec
 		struct of_dma *ofdma);
 
 #else
-static inline int of_dma_controller_register(struct device_node *np,
+static inline int of_dma_controller_register(struct device_analde *np,
 		struct dma_chan *(*of_dma_xlate)
 		(struct of_phandle_args *, struct of_dma *),
 		void *data)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static inline void of_dma_controller_free(struct device_node *np)
+static inline void of_dma_controller_free(struct device_analde *np)
 {
 }
 
-static inline int of_dma_router_register(struct device_node *np,
+static inline int of_dma_router_register(struct device_analde *np,
 		void *(*of_dma_route_allocate)
 		(struct of_phandle_args *, struct of_dma *),
 		struct dma_router *dma_router)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #define of_dma_router_free of_dma_controller_free
 
-static inline struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
+static inline struct dma_chan *of_dma_request_slave_channel(struct device_analde *np,
 						     const char *name)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct dma_chan *of_dma_simple_xlate(struct of_phandle_args *dma_spec,

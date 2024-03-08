@@ -126,13 +126,13 @@ void hw_timer_init(void)
 	/*
 	 *	The coldfire slice timer (SLT) runs from STCNT to 0 included,
 	 *	then STCNT again and so on.  It counts thus actually
-	 *	STCNT + 1 steps for 1 tick, not STCNT.  So if you want
+	 *	STCNT + 1 steps for 1 tick, analt STCNT.  So if you want
 	 *	n cycles, initialize STCNT with n - 1.
 	 */
 	__raw_writel(mcfslt_cycles_per_jiffy - 1, TA(MCFSLT_STCNT));
 	__raw_writel(MCFSLT_SCR_RUN | MCFSLT_SCR_IEN | MCFSLT_SCR_TEN,
 								TA(MCFSLT_SCR));
-	/* initialize mcfslt_cnt knowing that slice timers count down */
+	/* initialize mcfslt_cnt kanalwing that slice timers count down */
 	mcfslt_cnt = mcfslt_cycles_per_jiffy;
 
 	r = request_irq(MCF_IRQ_TIMER, mcfslt_tick, IRQF_TIMER, "timer", NULL);

@@ -12,7 +12,7 @@
 struct analogix_dp_device;
 
 enum analogix_dp_devtype {
-	EXYNOS_DP,
+	EXYANALS_DP,
 	RK3288_DP,
 	RK3399_EDP,
 };

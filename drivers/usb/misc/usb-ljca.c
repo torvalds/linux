@@ -124,7 +124,7 @@ struct ljca_gpio_descriptor {
  * @cmd_completion: completion object as the command receives ack
  * @mutex: mutex to avoid command download concurrently
  * @client_list: client device list
- * @disconnect: usb disconnect ongoing or not
+ * @disconnect: usb disconnect ongoing or analt
  * @reset_id: used to reset firmware
  */
 struct ljca_adapter {
@@ -255,7 +255,7 @@ static void ljca_recv(struct urb *urb)
 	case 0:
 		/* success */
 		break;
-	case -ENOENT:
+	case -EANALENT:
 		/*
 		 * directly complete the possible ongoing transfer
 		 * during disconnect
@@ -300,7 +300,7 @@ static int ljca_send(struct ljca_adapter *adap, u8 type, u8 cmd,
 	int ret;
 
 	if (adap->disconnect)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (msg_len > adap->tx_buf_len)
 		return -EINVAL;
@@ -373,13 +373,13 @@ int ljca_transfer(struct ljca_client *client, u8 cmd, const u8 *obuf,
 }
 EXPORT_SYMBOL_NS_GPL(ljca_transfer, LJCA);
 
-int ljca_transfer_noack(struct ljca_client *client, u8 cmd, const u8 *obuf,
+int ljca_transfer_analack(struct ljca_client *client, u8 cmd, const u8 *obuf,
 			u8 obuf_len)
 {
 	return ljca_send(client->adapter, client->type, cmd, obuf,
 			 obuf_len, NULL, 0, false, LJCA_WRITE_ACK_TIMEOUT_MS);
 }
-EXPORT_SYMBOL_NS_GPL(ljca_transfer_noack, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_transfer_analack, LJCA);
 
 int ljca_register_event_cb(struct ljca_client *client, ljca_event_cb_t event_cb,
 			   void *context)
@@ -434,7 +434,7 @@ static int ljca_match_device_ids(struct acpi_device *adev, void *data)
 		 * Some DSDTs have only one ACPI companion for the two I2C
 		 * controllers and they don't set a UID at all (e.g. Dell
 		 * Latitude 9420). On these platforms only the first I2C
-		 * controller is used, so if a HID match has no UID we use
+		 * controller is used, so if a HID match has anal UID we use
 		 * "0" as the UID and assign ACPI companion to the first
 		 * I2C controller.
 		 */
@@ -519,7 +519,7 @@ static int ljca_new_client_device(struct ljca_adapter *adap, u8 type, u8 id,
 
 	client = kzalloc(sizeof *client, GFP_KERNEL);
 	if (!client)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client->type = type;
 	client->id = id;
@@ -583,7 +583,7 @@ static int ljca_enumerate_gpio(struct ljca_adapter *adap)
 	/* construct platform data */
 	gpio_info = kzalloc(sizeof *gpio_info, GFP_KERNEL);
 	if (!gpio_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	gpio_info->num = gpio_num;
 
 	for (i = 0; i < desc->bank_num; i++)
@@ -620,7 +620,7 @@ static int ljca_enumerate_i2c(struct ljca_adapter *adap)
 		/* construct platform data */
 		i2c_info = kzalloc(sizeof *i2c_info, GFP_KERNEL);
 		if (!i2c_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		i2c_info->id = desc->info[i].id;
 		i2c_info->capacity = desc->info[i].capacity;
@@ -646,7 +646,7 @@ static int ljca_enumerate_spi(struct ljca_adapter *adap)
 	unsigned int i;
 	int ret;
 
-	/* Not all LJCA chips implement SPI, a timeout reading the descriptors is normal */
+	/* Analt all LJCA chips implement SPI, a timeout reading the descriptors is analrmal */
 	ret = ljca_send(adap, LJCA_CLIENT_MNG, LJCA_MNG_ENUM_SPI, NULL, 0, buf,
 			sizeof(buf), true, LJCA_ENUM_CLIENT_TIMEOUT_MS);
 	if (ret < 0)
@@ -661,7 +661,7 @@ static int ljca_enumerate_spi(struct ljca_adapter *adap)
 		/* construct platform data */
 		spi_info = kzalloc(sizeof *spi_info, GFP_KERNEL);
 		if (!spi_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spi_info->id = desc->info[i].id;
 		spi_info->capacity = desc->info[i].capacity;
@@ -755,12 +755,12 @@ static int ljca_probe(struct usb_interface *interface,
 
 	adap = devm_kzalloc(dev, sizeof(*adap), GFP_KERNEL);
 	if (!adap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* separate tx buffer allocation for alignment */
 	adap->tx_buf = devm_kzalloc(dev, LJCA_MAX_PACKET_SIZE, GFP_KERNEL);
 	if (!adap->tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	adap->tx_buf_len = LJCA_MAX_PACKET_SIZE;
 
 	mutex_init(&adap->mutex);
@@ -774,11 +774,11 @@ static int ljca_probe(struct usb_interface *interface,
 
 	/*
 	 * find the first bulk in and out endpoints.
-	 * ignore any others.
+	 * iganalre any others.
 	 */
 	ret = usb_find_common_endpoints(alt, &ep_in, &ep_out, NULL, NULL);
 	if (ret) {
-		dev_err(dev, "bulk endpoints not found\n");
+		dev_err(dev, "bulk endpoints analt found\n");
 		goto err_put;
 	}
 	adap->rx_pipe = usb_rcvbulkpipe(usb_dev, usb_endpoint_num(ep_in));
@@ -788,14 +788,14 @@ static int ljca_probe(struct usb_interface *interface,
 	adap->rx_len = usb_endpoint_maxp(ep_in);
 	adap->rx_buf = devm_kzalloc(dev, adap->rx_len, GFP_KERNEL);
 	if (!adap->rx_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put;
 	}
 
 	/* alloc rx urb */
 	adap->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!adap->rx_urb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put;
 	}
 	usb_fill_bulk_urb(adap->rx_urb, usb_dev, adap->rx_pipe,

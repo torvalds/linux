@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed and/or modified under the
@@ -19,11 +19,11 @@
  * version.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -160,7 +160,7 @@ struct opl4_voice {
 	struct list_head list;
 	int number;
 	struct snd_midi_channel *chan;
-	int note;
+	int analte;
 	int velocity;
 	const struct opl4_sound *sound;
 	u8 level_direct;
@@ -222,9 +222,9 @@ extern int volume_boost;
 /* opl4_synth.c */
 void snd_opl4_synth_reset(struct snd_opl4 *opl4);
 void snd_opl4_synth_shutdown(struct snd_opl4 *opl4);
-void snd_opl4_note_on(void *p, int note, int vel, struct snd_midi_channel *chan);
-void snd_opl4_note_off(void *p, int note, int vel, struct snd_midi_channel *chan);
-void snd_opl4_terminate_note(void *p, int note, struct snd_midi_channel *chan);
+void snd_opl4_analte_on(void *p, int analte, int vel, struct snd_midi_channel *chan);
+void snd_opl4_analte_off(void *p, int analte, int vel, struct snd_midi_channel *chan);
+void snd_opl4_terminate_analte(void *p, int analte, struct snd_midi_channel *chan);
 void snd_opl4_control(void *p, int type, struct snd_midi_channel *chan);
 void snd_opl4_sysex(void *p, unsigned char *buf, int len, int parsed, struct snd_midi_channel_set *chset);
 

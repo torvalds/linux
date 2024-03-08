@@ -35,21 +35,21 @@ static int cn_already_initialized;
  *
  * msg->seq and msg->ack are used to determine message genealogy.
  * When someone sends message it puts there locally unique sequence
- * and random acknowledge numbers.  Sequence number may be copied into
+ * and random ackanalwledge numbers.  Sequence number may be copied into
  * nlmsghdr->nlmsg_seq too.
  *
  * Sequence number is incremented with each message to be sent.
  *
  * If we expect a reply to our message then the sequence number in
  * received message MUST be the same as in original message, and
- * acknowledge number MUST be the same + 1.
+ * ackanalwledge number MUST be the same + 1.
  *
- * If we receive a message and its sequence number is not equal to the
+ * If we receive a message and its sequence number is analt equal to the
  * one we are expecting then it is a new message.
  *
  * If we receive a message and its sequence number is the same as one
- * we are expecting but it's acknowledgement number is not equal to
- * the acknowledgement number in the original message + 1, then it is
+ * we are expecting but it's ackanalwledgement number is analt equal to
+ * the ackanalwledgement number in the original message + 1, then it is
  * a new message.
  *
  * If msg->len != len, then additional cn_msg messages are expected following
@@ -86,7 +86,7 @@ int cn_netlink_send_mult(struct cn_msg *msg, u16 len, u32 portid, u32 __group,
 		spin_unlock_bh(&dev->cbdev->queue_lock);
 
 		if (!found)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (!portid && !netlink_has_listeners(dev->nls, group))
@@ -96,7 +96,7 @@ int cn_netlink_send_mult(struct cn_msg *msg, u16 len, u32 portid, u32 __group,
 
 	skb = nlmsg_new(size, gfp_mask);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nlh = nlmsg_put(skb, 0, msg->seq, NLMSG_DONE, size, 0);
 	if (!nlh) {
@@ -138,7 +138,7 @@ static int cn_call_callback(struct sk_buff *skb)
 	struct cn_dev *dev = &cdev;
 	struct cn_msg *msg = nlmsg_data(nlmsg_hdr(skb));
 	struct netlink_skb_parms *nsp = &NETLINK_CB(skb);
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	/* verify msg->len is within skb */
 	nlh = nlmsg_hdr(skb);
@@ -166,7 +166,7 @@ static int cn_call_callback(struct sk_buff *skb)
 }
 
 /*
- * Allow non-root access for NETLINK_CONNECTOR family having CN_IDX_PROC
+ * Allow analn-root access for NETLINK_CONNECTOR family having CN_IDX_PROC
  * multicast group.
  */
 static int cn_bind(struct net *net, int group)
@@ -217,7 +217,7 @@ static void cn_rx_skb(struct sk_buff *skb)
 
 /*
  * Callback add routing - adds callback with given ID and name.
- * If there is registered callback with the same ID it will not be added.
+ * If there is registered callback with the same ID it will analt be added.
  *
  * May sleep.
  */
@@ -237,8 +237,8 @@ EXPORT_SYMBOL_GPL(cn_add_callback);
 /*
  * Callback remove routing - removes callback
  * with given ID.
- * If there is no registered callback with given
- * ID nothing happens.
+ * If there is anal registered callback with given
+ * ID analthing happens.
  *
  * May sleep while waiting for reference counter to become zero.
  */
@@ -277,7 +277,7 @@ static int cn_init(void)
 	struct netlink_kernel_cfg cfg = {
 		.groups	= CN_NETLINK_USERS + 0xf,
 		.input	= cn_rx_skb,
-		.flags  = NL_CFG_F_NONROOT_RECV,
+		.flags  = NL_CFG_F_ANALNROOT_RECV,
 		.bind   = cn_bind,
 		.release = cn_release,
 	};

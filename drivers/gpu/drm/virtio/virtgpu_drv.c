@@ -13,13 +13,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -79,7 +79,7 @@ static int virtio_gpu_probe(struct virtio_device *vdev)
 
 	/*
 	 * The virtio-gpu device is a virtual device that doesn't have DMA
-	 * ops assigned to it, nor DMA mask set and etc. Its parent device
+	 * ops assigned to it, analr DMA mask set and etc. Its parent device
 	 * is actual GPU device we want to use it for the DRM's device in
 	 * order to benefit from using generic DRM APIs.
 	 */
@@ -201,7 +201,7 @@ static const struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
 	.release = virtio_gpu_release,

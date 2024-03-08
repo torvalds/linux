@@ -78,7 +78,7 @@ sockaddr_l2tpip and struct sockaddr_l2tpip6 at
 `include/uapi/linux/l2tp.h`_. The address includes the L2TP tunnel
 (connection) id. To use L2TP IP encapsulation, an L2TPv3 application
 should bind the L2TPIP socket using the locally assigned
-tunnel id. When the peer's tunnel id and IP address is known, a
+tunnel id. When the peer's tunnel id and IP address is kanalwn, a
 connect must be done.
 
 If the L2TP application needs to handle L2TPv3 tunnel setup requests
@@ -110,7 +110,7 @@ instances, the L2TPv2 16-bit tunnel/session id is cast to a 32-bit
 value in these attributes.
 
 In the ``L2TP_CMD_TUNNEL_CREATE`` command, ``L2TP_ATTR_FD`` tells the
-kernel the tunnel socket fd being used. If not specified, the kernel
+kernel the tunnel socket fd being used. If analt specified, the kernel
 creates a kernel socket for the tunnel, using IP parameters set in
 ``L2TP_ATTR_IP[6]_SADDR``, ``L2TP_ATTR_IP[6]_DADDR``,
 ``L2TP_ATTR_UDP_SPORT``, ``L2TP_ATTR_UDP_DPORT`` attributes. Kernel
@@ -130,22 +130,22 @@ PROTO_VERSION      Y        Protocol version. 2 or 3.
 ENCAP_TYPE         Y        Encapsulation type: UDP or IP.
 FD                 N        Tunnel socket file descriptor.
 UDP_CSUM           N        Enable IPv4 UDP checksums. Used only if FD is
-                            not set.
+                            analt set.
 UDP_ZERO_CSUM6_TX  N        Zero IPv6 UDP checksum on transmit. Used only
-                            if FD is not set.
+                            if FD is analt set.
 UDP_ZERO_CSUM6_RX  N        Zero IPv6 UDP checksum on receive. Used only if
-                            FD is not set.
-IP_SADDR           N        IPv4 source address. Used only if FD is not
+                            FD is analt set.
+IP_SADDR           N        IPv4 source address. Used only if FD is analt
                             set.
 IP_DADDR           N        IPv4 destination address. Used only if FD is
-                            not set.
-UDP_SPORT          N        UDP source port. Used only if FD is not set.
-UDP_DPORT          N        UDP destination port. Used only if FD is not
+                            analt set.
+UDP_SPORT          N        UDP source port. Used only if FD is analt set.
+UDP_DPORT          N        UDP destination port. Used only if FD is analt
                             set.
-IP6_SADDR          N        IPv6 source address. Used only if FD is not
+IP6_SADDR          N        IPv6 source address. Used only if FD is analt
                             set.
 IP6_DADDR          N        IPv6 destination address. Used only if FD is
-                            not set.
+                            analt set.
 DEBUG              N        Debug flags.
 ================== ======== ===
 
@@ -172,7 +172,7 @@ DEBUG              N        Debug flags.
 Attribute          Required Use
 ================== ======== ===
 CONN_ID            N        Identifies the tunnel id to be queried.
-                            Ignored in DUMP requests.
+                            Iganalred in DUMP requests.
 ================== ======== ===
 
 ``L2TP_CMD_SESSION_CREATE`` attributes:-
@@ -244,12 +244,12 @@ RECV_TIMEOUT       N        Timeout to wait when reordering received
 Attribute          Required Use
 ================== ======== ===
 CONN_ID            N        Identifies the tunnel id to be queried.
-                            Ignored for DUMP requests.
+                            Iganalred for DUMP requests.
 SESSION_ID         N        Identifies the session id to be queried.
-                            Ignored for DUMP requests.
+                            Iganalred for DUMP requests.
 IFNAME             N        Identifies the session by interface name.
                             If set, this overrides any CONN_ID and
-                            SESSION_ID attributes. Ignored for DUMP
+                            SESSION_ID attributes. Iganalred for DUMP
                             requests. Currently supported for L2TPv3
                             Ethernet sessions only.
 ================== ======== ===
@@ -389,8 +389,8 @@ Sample userspace code:
         struct sockaddr_pppol2tp sax;
         int fd;
 
-        /* Note, the tunnel socket must be bound already, else it
-         * will not be ready
+        /* Analte, the tunnel socket must be bound already, else it
+         * will analt be ready
          */
         sax.sa_family = AF_PPPOX;
         sax.sa_protocol = PX_PROTO_OL2TP;
@@ -408,7 +408,7 @@ Sample userspace code:
          */
         fd = connect(session_fd, (struct sockaddr *)&sax, sizeof(sax));
         if (fd < 0 ) {
-                return -errno;
+                return -erranal;
         }
         return 0;
 
@@ -416,7 +416,7 @@ Old L2TPv2-only API
 -------------------
 
 When L2TP was first added to the Linux kernel in 2.6.23, it
-implemented only L2TPv2 and did not include a netlink API. Instead,
+implemented only L2TPv2 and did analt include a netlink API. Instead,
 tunnel and session instances in the kernel were managed directly using
 only PPPoL2TP sockets. The PPPoL2TP socket is used as described in
 section "PPPoL2TP Session Socket API" but tunnel and session instances
@@ -430,7 +430,7 @@ being created by a separate netlink request:
       socket is closed.
 
     - Session instances are created in the kernel when a PPPoL2TP
-      socket is connected to a non-zero session id. Session parameters
+      socket is connected to a analn-zero session id. Session parameters
       are set using setsockopt. The L2TP session instance is destroyed
       when the socket is closed.
 
@@ -442,10 +442,10 @@ Unmanaged L2TPv3 tunnels
 ------------------------
 
 The kernel L2TP subsystem also supports static (unmanaged) L2TPv3
-tunnels. Unmanaged tunnels have no userspace tunnel socket, and
-exchange no control messages with the peer to set up the tunnel; the
+tunnels. Unmanaged tunnels have anal userspace tunnel socket, and
+exchange anal control messages with the peer to set up the tunnel; the
 tunnel is configured manually at each end of the tunnel. All
-configuration is done using netlink. There is no need for an L2TP
+configuration is done using netlink. There is anal need for an L2TP
 userspace application in this case -- the tunnel socket is created by
 the kernel and configured using parameters sent in the
 ``L2TP_CMD_TUNNEL_CREATE`` netlink request. The ``ip`` utility of
@@ -468,9 +468,9 @@ kernel::
 
     # cat /debug/l2tp/tunnels
 
-The debugfs files should not be used by applications to obtain L2TP
+The debugfs files should analt be used by applications to obtain L2TP
 state information because the file format is subject to change. It is
-implemented to provide extra debug information to help diagnose
+implemented to provide extra debug information to help diaganalse
 problems. Applications should instead use the netlink API.
 
 In addition the L2TP subsystem implements tracepoints using the standard
@@ -508,7 +508,7 @@ The kernel keeps a struct l2tp_tunnel context per L2TP tunnel. The
 l2tp_tunnel is always associated with a UDP or L2TP/IP socket and
 keeps a list of sessions in the tunnel. When a tunnel is first
 registered with L2TP core, the reference count on the socket is
-increased. This ensures that the socket cannot be removed while L2TP's
+increased. This ensures that the socket cananalt be removed while L2TP's
 data structures reference it.
 
 Tunnels are identified by a unique tunnel id. The id is 16-bit for
@@ -544,7 +544,7 @@ pseudowire) or other data types such as PPP, ATM, HDLC or Frame
 Relay. Linux currently implements only Ethernet and PPP session types.
 
 Some L2TP session types also have a socket (PPP pseudowires) while
-others do not (Ethernet pseudowires). We can't therefore use the
+others do analt (Ethernet pseudowires). We can't therefore use the
 socket reference count as the reference count for session
 contexts. The L2TP implementation therefore has its own internal
 reference counts on the session contexts.
@@ -560,14 +560,14 @@ stays extant while one or more sessions references it.
 Sessions are kept in a per-tunnel list, indexed by session id. L2TPv3
 sessions are also kept in a per-net list indexed by session id,
 because L2TPv3 session ids are unique across all tunnels and L2TPv3
-data packets do not contain a tunnel id in the header. This list is
+data packets do analt contain a tunnel id in the header. This list is
 therefore needed to find the session context associated with a
-received data packet when the tunnel context cannot be derived from
+received data packet when the tunnel context cananalt be derived from
 the tunnel socket.
 
-Although the L2TPv3 RFC specifies that L2TPv3 session ids are not
-scoped by the tunnel, the kernel does not police this for L2TPv3 UDP
-tunnels and does not add sessions of L2TPv3 UDP tunnels into the
+Although the L2TPv3 RFC specifies that L2TPv3 session ids are analt
+scoped by the tunnel, the kernel does analt police this for L2TPv3 UDP
+tunnels and does analt add sessions of L2TPv3 UDP tunnels into the
 per-net session list. In the UDP receive code, we must trust that the
 tunnel can be identified using the tunnel socket's sk_user_data and
 lookup the session in the tunnel's session list instead of the per-net
@@ -591,7 +591,7 @@ The L2TP PPP implementation handles the closing of a PPPoL2TP socket
 by closing its corresponding L2TP session. This is complicated because
 it must consider racing with netlink session create/destroy requests
 and pppol2tp_connect trying to reconnect with a session that is in the
-process of being closed. Unlike tunnels, PPP sessions do not hold a
+process of being closed. Unlike tunnels, PPP sessions do analt hold a
 ref on their associated socket, so code must be careful to sock_hold
 the socket where necessary. For all the details, see commit
 3d609342cc04129ff7568e19316ce3d7451a27e8.
@@ -604,7 +604,7 @@ manages a netdev for each session.
 
 L2TP Ethernet sessions are created and destroyed by netlink request,
 or are destroyed when the tunnel is destroyed. Unlike PPP sessions,
-Ethernet sessions do not have an associated socket.
+Ethernet sessions do analt have an associated socket.
 
 Miscellaneous
 =============
@@ -638,12 +638,12 @@ Limitations
 
 The current implementation has a number of limitations:
 
-  1) Multiple UDP sockets with the same 5-tuple address cannot be
+  1) Multiple UDP sockets with the same 5-tuple address cananalt be
      used. The kernel's tunnel context is identified using private
      data associated with the socket so it is important that each
      socket is uniquely identified by its address.
 
-  2) Interfacing with openvswitch is not yet implemented. It may be
+  2) Interfacing with openvswitch is analt yet implemented. It may be
      useful to map OVS Ethernet and VLAN ports into L2TPv3 tunnels.
 
   3) VLAN pseudowires are implemented using an ``l2tpethN`` interface
@@ -660,7 +660,7 @@ Testing
 Unmanaged L2TPv3 Ethernet features are tested by the kernel's built-in
 selftests. See `tools/testing/selftests/net/l2tp.sh`_.
 
-Another test suite, l2tp-ktest_, covers all
+Aanalther test suite, l2tp-ktest_, covers all
 of the L2TP APIs and tunnel/session types. This may be integrated into
 the kernel's built-in L2TP selftests in the future.
 

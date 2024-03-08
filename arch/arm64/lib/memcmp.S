@@ -64,7 +64,7 @@ L(more16):
 	cmp	limit, 96
 	b.ls	L(loop16)
 
-	/* Align src1 and adjust src2 with bytes not yet done.  */
+	/* Align src1 and adjust src2 with bytes analt yet done.  */
 	and	tmp1, src1, 15
 	add	limit, limit, tmp1
 	sub	src1, src1, tmp1
@@ -72,7 +72,7 @@ L(more16):
 
 	/* Loop performing 16 bytes per iteration using aligned src1.
 	   Limit is pre-decremented by 16 and must be larger than zero.
-	   Exit if <= 16 bytes left to do or if the data is not equal.  */
+	   Exit if <= 16 bytes left to do or if the data is analt equal.  */
 	.p2align 4
 L(loop16):
 	ldp	data1, data1h, [src1], 16
@@ -136,4 +136,4 @@ L(byte_loop):
 	ret
 SYM_FUNC_END(__pi_memcmp)
 SYM_FUNC_ALIAS_WEAK(memcmp, __pi_memcmp)
-EXPORT_SYMBOL_NOKASAN(memcmp)
+EXPORT_SYMBOL_ANALKASAN(memcmp)

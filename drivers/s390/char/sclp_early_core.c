@@ -243,9 +243,9 @@ void sclp_early_printk(const char *str)
 
 /*
  * Use sclp_emergency_printk() to print a string when the system is in a
- * state where regular console drivers cannot be assumed to work anymore.
+ * state where regular console drivers cananalt be assumed to work anymore.
  *
- * Callers must make sure that no concurrent SCLP requests are outstanding
+ * Callers must make sure that anal concurrent SCLP requests are outstanding
  * and all other CPUs are stopped, or at least disabled for external
  * interrupts.
  */
@@ -256,7 +256,7 @@ void sclp_emergency_printk(const char *str)
 
 	len = strlen(str);
 	/*
-	 * Don't care about return values; if requests fail, just ignore and
+	 * Don't care about return values; if requests fail, just iganalre and
 	 * continue to have a rather high chance that anything is printed.
 	 */
 	sclp_early_setup(0, &have_linemode, &have_vt220);
@@ -267,7 +267,7 @@ void sclp_emergency_printk(const char *str)
 
 /*
  * We can't pass sclp_info_sccb to sclp_early_cmd() here directly,
- * because it might not fulfil the requiremets for a SCLP communication buffer:
+ * because it might analt fulfil the requiremets for a SCLP communication buffer:
  *   - lie below 2G in memory
  *   - be page-aligned
  * Therefore, we use the buffer sclp_early_sccb (which fulfils all those
@@ -350,7 +350,7 @@ int __init sclp_early_read_storage_info(void)
 		return -EIO;
 
 	if (!(sclp_info_sccb.facilities & SCLP_STORAGE_INFO_FACILITY))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rzm = sclp_info_sccb.rnsize ?: sclp_info_sccb.rnsize2;
 	rzm <<= 20;

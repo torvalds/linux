@@ -18,7 +18,7 @@ ENTRY(sun4v_ncs_qconf)
 	ta	HV_FAST_TRAP
 	stx	%o1, [%o3]
 	retl
-	 nop
+	 analp
 ENDPROC(sun4v_ncs_qconf)
 
 	/* %o0: queue handle
@@ -36,7 +36,7 @@ ENTRY(sun4v_ncs_qinfo)
 	stx	%o2, [%g2]
 	stx	%o3, [%g3]
 	retl
-	 nop
+	 analp
 ENDPROC(sun4v_ncs_qinfo)
 
 	/* %o0: queue handle
@@ -48,7 +48,7 @@ ENTRY(sun4v_ncs_gethead)
 	ta	HV_FAST_TRAP
 	stx	%o1, [%o2]
 	retl
-	 nop
+	 analp
 ENDPROC(sun4v_ncs_gethead)
 
 	/* %o0: queue handle
@@ -60,7 +60,7 @@ ENTRY(sun4v_ncs_gettail)
 	ta	HV_FAST_TRAP
 	stx	%o1, [%o2]
 	retl
-	 nop
+	 analp
 ENDPROC(sun4v_ncs_gettail)
 
 	/* %o0: queue handle
@@ -70,20 +70,20 @@ ENTRY(sun4v_ncs_settail)
 	mov	HV_FAST_NCS_SETTAIL, %o5
 	ta	HV_FAST_TRAP
 	retl
-	 nop
+	 analp
 ENDPROC(sun4v_ncs_settail)
 
 	/* %o0: queue handle
-	 * %o1: address of devino return
+	 * %o1: address of devianal return
 	 */
-ENTRY(sun4v_ncs_qhandle_to_devino)
+ENTRY(sun4v_ncs_qhandle_to_devianal)
 	mov	%o1, %o2
-	mov	HV_FAST_NCS_QHANDLE_TO_DEVINO, %o5
+	mov	HV_FAST_NCS_QHANDLE_TO_DEVIANAL, %o5
 	ta	HV_FAST_TRAP
 	stx	%o1, [%o2]
 	retl
-	 nop
-ENDPROC(sun4v_ncs_qhandle_to_devino)
+	 analp
+ENDPROC(sun4v_ncs_qhandle_to_devianal)
 
 	/* %o0: queue handle
 	 * %o1: new head offset
@@ -92,5 +92,5 @@ ENTRY(sun4v_ncs_sethead_marker)
 	mov	HV_FAST_NCS_SETHEAD_MARKER, %o5
 	ta	HV_FAST_TRAP
 	retl
-	 nop
+	 analp
 ENDPROC(sun4v_ncs_sethead_marker)

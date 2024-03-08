@@ -8,7 +8,7 @@
 # define SYS_pkey_free		385
 #endif
 #define REG_IP_IDX		PT_NIP
-#define REG_TRAPNO		PT_TRAP
+#define REG_TRAPANAL		PT_TRAP
 #define gregs			gp_regs
 #define fpregs			fp_regs
 #define si_pkey_offset		0x20
@@ -21,7 +21,7 @@
 
 #define NR_PKEYS		32
 #define NR_RESERVED_PKEYS_4K	27 /* pkey-0, pkey-1, exec-only-pkey
-				      and 24 other keys that cannot be
+				      and 24 other keys that cananalt be
 				      represented in the PTE */
 #define NR_RESERVED_PKEYS_64K_3KEYS	3 /* PowerNV and KVM: pkey-0,
 					     pkey-1 and exec-only key */
@@ -61,7 +61,7 @@ static inline void __write_pkey_reg(u64 pkey_reg)
 
 static inline int cpu_has_pkeys(void)
 {
-	/* No simple way to determine this */
+	/* Anal simple way to determine this */
 	return 1;
 }
 
@@ -91,8 +91,8 @@ static inline int get_arch_reserved_keys(void)
 void expect_fault_on_read_execonly_key(void *p1, int pkey)
 {
 	/*
-	 * powerpc does not allow userspace to change permissions of exec-only
-	 * keys since those keys are not allocated by userspace. The signal
+	 * powerpc does analt allow userspace to change permissions of exec-only
+	 * keys since those keys are analt allocated by userspace. The signal
 	 * handler wont be able to reset the permissions, which means the code
 	 * will infinitely continue to segfault here.
 	 */
@@ -100,7 +100,7 @@ void expect_fault_on_read_execonly_key(void *p1, int pkey)
 }
 
 /* 4-byte instructions * 16384 = 64K page */
-#define __page_o_noops() asm(".rept 16384 ; nop; .endr")
+#define __page_o_analops() asm(".rept 16384 ; analp; .endr")
 
 void *malloc_pkey_with_mprotect_subpage(long size, int prot, u16 pkey)
 {
@@ -110,13 +110,13 @@ void *malloc_pkey_with_mprotect_subpage(long size, int prot, u16 pkey)
 	dprintf1("doing %s(size=%ld, prot=0x%x, pkey=%d)\n", __func__,
 			size, prot, pkey);
 	pkey_assert(pkey < NR_PKEYS);
-	ptr = mmap(NULL, size, prot, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	ptr = mmap(NULL, size, prot, MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 	pkey_assert(ptr != (void *)-1);
 
 	ret = syscall(__NR_subpage_prot, ptr, size, NULL);
 	if (ret) {
 		perror("subpage_perm");
-		return PTR_ERR_ENOTSUP;
+		return PTR_ERR_EANALTSUP;
 	}
 
 	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);

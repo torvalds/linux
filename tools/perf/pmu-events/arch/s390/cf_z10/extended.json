@@ -32,14 +32,14 @@
 		"EventCode": "132",
 		"EventName": "L1I_L3_REMOTE_WRITES",
 		"BriefDescription": "L1I L3 Remote Writes",
-		"PublicDescription": "A directory write to the Level-1 Instruction Cache directory where the installed cache line was sourced from a Level-3 cache that is not on the same book as the Instruction cache (Remote L2 cache)."
+		"PublicDescription": "A directory write to the Level-1 Instruction Cache directory where the installed cache line was sourced from a Level-3 cache that is analt on the same book as the Instruction cache (Remote L2 cache)."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "133",
 		"EventName": "L1D_L3_REMOTE_WRITES",
 		"BriefDescription": "L1D L3 Remote Writes",
-		"PublicDescription": "A directory write to the Level-1 Data Cache directory where the installed cache line was sourced from a Level-3 cache that is not on the same book as the Data cache (Remote L2 cache)."
+		"PublicDescription": "A directory write to the Level-1 Data Cache directory where the installed cache line was sourced from a Level-3 cache that is analt on the same book as the Data cache (Remote L2 cache)."
 	},
 	{
 		"Unit": "CPU-M-CF",

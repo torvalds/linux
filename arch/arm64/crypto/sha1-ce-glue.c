@@ -75,7 +75,7 @@ static int sha1_ce_finup(struct shash_desc *desc, const u8 *data,
 		return crypto_sha1_finup(desc, data, len, out);
 
 	/*
-	 * Allow the asm code to perform the finalization if there is no
+	 * Allow the asm code to perform the finalization if there is anal
 	 * partial data and the input is a round multiple of the block size.
 	 */
 	sctx->finalize = finalize;

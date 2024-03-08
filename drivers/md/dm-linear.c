@@ -41,8 +41,8 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	lc = kmalloc(sizeof(*lc), GFP_KERNEL);
 	if (lc == NULL) {
-		ti->error = "Cannot allocate linear context";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate linear context";
+		return -EANALMEM;
 	}
 
 	ret = -EINVAL;
@@ -199,7 +199,7 @@ static size_t linear_dax_recovery_write(struct dm_target *ti, pgoff_t pgoff,
 static struct target_type linear_target = {
 	.name   = "linear",
 	.version = {1, 4, 0},
-	.features = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_NOWAIT |
+	.features = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_ANALWAIT |
 		    DM_TARGET_ZONED_HM | DM_TARGET_PASSES_CRYPTO,
 	.report_zones = linear_report_zones,
 	.module = THIS_MODULE,

@@ -31,7 +31,7 @@
 
 struct lpc18xx_rgu_data {
 	struct reset_controller_dev rcdev;
-	struct notifier_block restart_nb;
+	struct analtifier_block restart_nb;
 	struct clk *clk_delay;
 	struct clk *clk_reg;
 	void __iomem *base;
@@ -41,7 +41,7 @@ struct lpc18xx_rgu_data {
 
 #define to_rgu_data(p) container_of(p, struct lpc18xx_rgu_data, rcdev)
 
-static int lpc18xx_rgu_restart(struct notifier_block *nb, unsigned long mode,
+static int lpc18xx_rgu_restart(struct analtifier_block *nb, unsigned long mode,
 			       void *cmd)
 {
 	struct lpc18xx_rgu_data *rc = container_of(nb, struct lpc18xx_rgu_data,
@@ -52,7 +52,7 @@ static int lpc18xx_rgu_restart(struct notifier_block *nb, unsigned long mode,
 
 	pr_emerg("%s: unable to restart system\n", __func__);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -144,7 +144,7 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 
 	rc = devm_kzalloc(&pdev->dev, sizeof(*rc), GFP_KERNEL);
 	if (!rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rc->base))
@@ -152,13 +152,13 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 
 	rc->clk_reg = devm_clk_get(&pdev->dev, "reg");
 	if (IS_ERR(rc->clk_reg)) {
-		dev_err(&pdev->dev, "reg clock not found\n");
+		dev_err(&pdev->dev, "reg clock analt found\n");
 		return PTR_ERR(rc->clk_reg);
 	}
 
 	rc->clk_delay = devm_clk_get(&pdev->dev, "delay");
 	if (IS_ERR(rc->clk_delay)) {
-		dev_err(&pdev->dev, "delay clock not found\n");
+		dev_err(&pdev->dev, "delay clock analt found\n");
 		return PTR_ERR(rc->clk_delay);
 	}
 
@@ -186,7 +186,7 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 	rc->rcdev.owner = THIS_MODULE;
 	rc->rcdev.nr_resets = 64;
 	rc->rcdev.ops = &lpc18xx_rgu_ops;
-	rc->rcdev.of_node = pdev->dev.of_node;
+	rc->rcdev.of_analde = pdev->dev.of_analde;
 
 	ret = reset_controller_register(&rc->rcdev);
 	if (ret) {
@@ -195,7 +195,7 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 	}
 
 	rc->restart_nb.priority = 192,
-	rc->restart_nb.notifier_call = lpc18xx_rgu_restart,
+	rc->restart_nb.analtifier_call = lpc18xx_rgu_restart,
 	ret = register_restart_handler(&rc->restart_nb);
 	if (ret)
 		dev_warn(&pdev->dev, "failed to register restart handler\n");

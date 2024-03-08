@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syanalpsys, Inc. and/or its affiliates.
  *
- * Author: Vitor Soares <vitor.soares@synopsys.com>
+ * Author: Vitor Soares <vitor.soares@syanalpsys.com>
  */
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -62,7 +62,7 @@
 
 #define RESPONSE_QUEUE_PORT		0x10
 #define RESPONSE_PORT_ERR_STATUS(x)	(((x) & GENMASK(31, 28)) >> 28)
-#define RESPONSE_NO_ERROR		0
+#define RESPONSE_ANAL_ERROR		0
 #define RESPONSE_ERROR_CRC		1
 #define RESPONSE_ERROR_PARITY		2
 #define RESPONSE_ERROR_FRAME		3
@@ -229,7 +229,7 @@ struct dw_i3c_cmd {
 };
 
 struct dw_i3c_xfer {
-	struct list_head node;
+	struct list_head analde;
 	struct completion comp;
 	int ret;
 	unsigned int ncmds;
@@ -319,7 +319,7 @@ static int dw_i3c_master_get_addr_pos(struct dw_i3c_master *master, u8 addr)
 static int dw_i3c_master_get_free_pos(struct dw_i3c_master *master)
 {
 	if (!(master->free_pos & GENMASK(master->maxdevs - 1, 0)))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return ffs(master->free_pos) - 1;
 }
@@ -369,7 +369,7 @@ dw_i3c_master_alloc_xfer(struct dw_i3c_master *master, unsigned int ncmds)
 	if (!xfer)
 		return NULL;
 
-	INIT_LIST_HEAD(&xfer->node);
+	INIT_LIST_HEAD(&xfer->analde);
 	xfer->ncmds = ncmds;
 	xfer->ret = -ETIMEDOUT;
 
@@ -417,7 +417,7 @@ static void dw_i3c_master_enqueue_xfer(struct dw_i3c_master *master,
 	init_completion(&xfer->comp);
 	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	if (master->xferqueue.cur) {
-		list_add_tail(&xfer->node, &master->xferqueue.list);
+		list_add_tail(&xfer->analde, &master->xferqueue.list);
 	} else {
 		master->xferqueue.cur = xfer;
 		dw_i3c_master_start_xfer_locked(master);
@@ -440,7 +440,7 @@ static void dw_i3c_master_dequeue_xfer_locked(struct dw_i3c_master *master,
 		readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
 					  !status, 10, 1000000);
 	} else {
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->analde);
 	}
 }
 
@@ -482,7 +482,7 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 
 	for (i = 0; i < nresp; i++) {
 		switch (xfer->cmds[i].error) {
-		case RESPONSE_NO_ERROR:
+		case RESPONSE_ANAL_ERROR:
 			break;
 		case RESPONSE_ERROR_PARITY:
 		case RESPONSE_ERROR_IBA_NACK:
@@ -492,7 +492,7 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 			ret = -EIO;
 			break;
 		case RESPONSE_ERROR_OVER_UNDER_FLOW:
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			break;
 		case RESPONSE_ERROR_I2C_W_NACK_ERR:
 		case RESPONSE_ERROR_ADDRESS_NACK:
@@ -513,9 +513,9 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 
 	xfer = list_first_entry_or_null(&master->xferqueue.list,
 					struct dw_i3c_xfer,
-					node);
+					analde);
 	if (xfer)
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->analde);
 
 	master->xferqueue.cur = xfer;
 	dw_i3c_master_start_xfer_locked(master);
@@ -661,7 +661,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_SIR_REQ_REJECT);
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
 
-	/* For now don't support Hot-Join */
+	/* For analw don't support Hot-Join */
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_HOT_JOIN_NACK,
 	       master->regs + DEVICE_CTRL);
 
@@ -692,7 +692,7 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 
 	xfer = dw_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = xfer->cmds;
 	cmd->tx_buf = ccc->dests[0].payload.data;
@@ -732,7 +732,7 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 
 	xfer = dw_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = xfer->cmds;
 	cmd->rx_buf = ccc->dests[0].payload.data;
@@ -795,7 +795,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 
 		ret = i3c_master_get_free_addr(m, last_addr + 1);
 		if (ret < 0)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		master->devs[pos].addr = ret;
 		p = even_parity(ret);
@@ -809,7 +809,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 
 	xfer = dw_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = dw_i3c_master_get_free_pos(master);
 	if (pos < 0) {
@@ -857,7 +857,7 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 		return 0;
 
 	if (i3c_nxfers > master->caps.cmdfifodepth)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for (i = 0; i < i3c_nxfers; i++) {
 		if (i3c_xfers[i].rnw)
@@ -868,11 +868,11 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 
 	if (ntxwords > master->caps.datafifodepth ||
 	    nrxwords > master->caps.datafifodepth)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	xfer = dw_i3c_master_alloc_xfer(master, i3c_nxfers);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < i3c_nxfers; i++) {
 		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
@@ -963,7 +963,7 @@ static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->index = pos;
 	master->devs[pos].addr = dev->info.dyn_addr ? : dev->info.static_addr;
@@ -1008,7 +1008,7 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 		return 0;
 
 	if (i2c_nxfers > master->caps.cmdfifodepth)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for (i = 0; i < i2c_nxfers; i++) {
 		if (i2c_xfers[i].flags & I2C_M_RD)
@@ -1019,11 +1019,11 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 	if (ntxwords > master->caps.datafifodepth ||
 	    nrxwords > master->caps.datafifodepth)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	xfer = dw_i3c_master_alloc_xfer(master, i2c_nxfers);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < i2c_nxfers; i++) {
 		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
@@ -1071,7 +1071,7 @@ static int dw_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->index = pos;
 	master->devs[pos].addr = dev->addr;
@@ -1263,14 +1263,14 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 	idx = dw_i3c_master_get_addr_pos(master, addr);
 	if (idx < 0) {
 		dev_dbg_ratelimited(&master->base.dev,
-			 "IBI from unknown addr 0x%x\n", addr);
+			 "IBI from unkanalwn addr 0x%x\n", addr);
 		goto err_drain;
 	}
 
 	dev = master->devs[idx].ibi_dev;
 	if (!dev || !dev->ibi) {
 		dev_dbg_ratelimited(&master->base.dev,
-			 "IBI from non-requested dev idx %d\n", idx);
+			 "IBI from analn-requested dev idx %d\n", idx);
 		goto err_drain;
 	}
 
@@ -1278,7 +1278,7 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 	slot = i3c_generic_ibi_get_free_slot(data->ibi_pool);
 	if (!slot) {
 		dev_dbg_ratelimited(&master->base.dev,
-				    "No IBI slots available\n");
+				    "Anal IBI slots available\n");
 		goto err_drain;
 	}
 
@@ -1305,9 +1305,9 @@ err_drain:
 	spin_unlock_irqrestore(&master->devs_lock, flags);
 }
 
-/* "ibis": referring to In-Band Interrupts, and not
+/* "ibis": referring to In-Band Interrupts, and analt
  * https://en.wikipedia.org/wiki/Australian_white_ibis. The latter should
- * not be handled.
+ * analt be handled.
  */
 static void dw_i3c_master_irq_handle_ibis(struct dw_i3c_master *master)
 {
@@ -1343,7 +1343,7 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 
 	if (!(status & readl(master->regs + INTR_STATUS_EN))) {
 		writel(INTR_ALL, master->regs + INTR_STATUS);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	spin_lock(&master->xferqueue.lock);
@@ -1394,20 +1394,20 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ibi_ops = {
 };
 
 /* default platform ops implementations */
-static int dw_i3c_platform_init_nop(struct dw_i3c_master *i3c)
+static int dw_i3c_platform_init_analp(struct dw_i3c_master *i3c)
 {
 	return 0;
 }
 
-static void dw_i3c_platform_set_dat_ibi_nop(struct dw_i3c_master *i3c,
+static void dw_i3c_platform_set_dat_ibi_analp(struct dw_i3c_master *i3c,
 					struct i3c_dev_desc *dev,
 					bool enable, u32 *dat)
 {
 }
 
 static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
-	.init = dw_i3c_platform_init_nop,
-	.set_dat_ibi = dw_i3c_platform_set_dat_ibi_nop,
+	.init = dw_i3c_platform_init_analp,
+	.set_dat_ibi = dw_i3c_platform_set_dat_ibi_analp,
 };
 
 int dw_i3c_common_probe(struct dw_i3c_master *master,
@@ -1501,7 +1501,7 @@ static int dw_i3c_probe(struct platform_device *pdev)
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return dw_i3c_common_probe(master, pdev);
 }
@@ -1529,6 +1529,6 @@ static struct platform_driver dw_i3c_driver = {
 };
 module_platform_driver(dw_i3c_driver);
 
-MODULE_AUTHOR("Vitor Soares <vitor.soares@synopsys.com>");
+MODULE_AUTHOR("Vitor Soares <vitor.soares@syanalpsys.com>");
 MODULE_DESCRIPTION("DesignWare MIPI I3C driver");
 MODULE_LICENSE("GPL v2");

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,7 +33,7 @@
 #include "smu_cmn.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -160,7 +160,7 @@ err2_out:
 err1_out:
 	kfree(smu_table->clocks_table);
 err0_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int smu_v13_0_5_fini_smc_tables(struct smu_context *smu)
@@ -390,7 +390,7 @@ static int smu_v13_0_5_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -515,7 +515,7 @@ static int smu_v13_0_5_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (size != 2) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 
@@ -541,7 +541,7 @@ static int smu_v13_0_5_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM
 		break;
 	case PP_OD_RESTORE_DEFAULT_TABLE:
 		if (size != 0) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		} else {
 			smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
@@ -550,7 +550,7 @@ static int smu_v13_0_5_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
 		if (size != 0) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		} else {
 			if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
@@ -577,7 +577,7 @@ static int smu_v13_0_5_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM
 		}
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return ret;
@@ -1050,8 +1050,8 @@ static int smu_v13_0_5_set_performance_level(struct smu_context *smu,
 		smu_v13_0_5_get_dpm_profile_freq(smu, level, SMU_DCLK, &dclk_min, &dclk_max);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
-		dev_err(adev->dev, "The performance level profile_min_mclk is not supported.");
-		return -EOPNOTSUPP;
+		dev_err(adev->dev, "The performance level profile_min_mclk is analt supported.");
+		return -EOPANALTSUPP;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 		return 0;

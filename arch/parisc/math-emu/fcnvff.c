@@ -63,7 +63,7 @@ sgl_to_dbl_fcnvff(
 			 */
 			Dbl_setinfinity_exponentmantissa(resultp1,resultp2);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		else {
 			/* 
@@ -85,23 +85,23 @@ sgl_to_dbl_fcnvff(
 			Dbl_setinfinity_exponent(resultp1);
 			Sgl_to_dbl_mantissa(src,resultp1,resultp2);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 	}
 	/* 
- 	 * Test for zero or denormalized
+ 	 * Test for zero or deanalrmalized
  	 */
 	if (src_exponent == 0) {
 		/*
-		 * determine if zero or denormalized
+		 * determine if zero or deanalrmalized
 		 */
-		if (Sgl_isnotzero_mantissa(src)) {
+		if (Sgl_isanaltzero_mantissa(src)) {
 			/*
-			 * is denormalized; want to normalize
+			 * is deanalrmalized; want to analrmalize
 			 */
 			Sgl_clear_signexponent(src);
 			Sgl_leftshiftby1(src);
-			Sgl_normalize(src,src_exponent);
+			Sgl_analrmalize(src,src_exponent);
 			Sgl_to_dbl_exponent(src_exponent,resultp1);
 			Sgl_to_dbl_mantissa(src,resultp1,resultp2);
 		}
@@ -109,15 +109,15 @@ sgl_to_dbl_fcnvff(
 			Dbl_setzero_exponentmantissa(resultp1,resultp2);
 		}
 		Dbl_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 	/*
-	 * No special cases, just complete the conversion
+	 * Anal special cases, just complete the conversion
 	 */
 	Sgl_to_dbl_exponent(src_exponent, resultp1);
 	Sgl_to_dbl_mantissa(Sgl_mantissa(src), resultp1,resultp2);
 	Dbl_copytoptr(resultp1,resultp2,dstptr);
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -153,7 +153,7 @@ dbl_to_sgl_fcnvff(
                          */
                         Sgl_setinfinity_exponentmantissa(result);
                         *dstptr = result;
-                        return(NOEXCEPTION);
+                        return(ANALEXCEPTION);
                 }
                 /* 
                  * is NaN; signaling or quiet?
@@ -174,7 +174,7 @@ dbl_to_sgl_fcnvff(
 		Sgl_set_mantissa(result,Dallp1(srcp1)<<3 | Dallp2(srcp2)>>29);
 		if (Sgl_iszero_mantissa(result)) Sgl_set_quiet(result);
                 *dstptr = result;
-                return(NOEXCEPTION);
+                return(ANALEXCEPTION);
         }
         /*
          * Generate result
@@ -188,7 +188,7 @@ dbl_to_sgl_fcnvff(
 		if (Dbl_iszero_exponentmantissa(srcp1,srcp2)){
 			Sgl_setzero_exponentmantissa(result);
 			*dstptr = result;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
                 if (Is_underflowtrap_enabled()) {
 			Dbl_to_sgl_mantissa(srcp1,srcp2,dest_mantissa,inexact,
@@ -198,13 +198,13 @@ dbl_to_sgl_fcnvff(
 			/* compute result, determine inexact info,
 			 * and set Underflowflag if appropriate
 			 */
-			Dbl_to_sgl_denormalized(srcp1,srcp2,dest_exponent,
+			Dbl_to_sgl_deanalrmalized(srcp1,srcp2,dest_exponent,
 			dest_mantissa,inexact,guardbit,stickybit,lsb_odd,
 			is_tiny);
 		}
 	}
         /* 
-         * Now round result if not exact
+         * Analw round result if analt exact
          */
         if (inexact) {
                 switch (Rounding_mode()) {
@@ -279,7 +279,7 @@ dbl_to_sgl_fcnvff(
                         return(UNDERFLOWEXCEPTION);
                 }
                  /* 
-                  * result is denormalized or signed zero
+                  * result is deanalrmalized or signed zero
                   */
                if (inexact && is_tiny) Set_underflowflag();
 
@@ -292,5 +292,5 @@ dbl_to_sgl_fcnvff(
         if (inexact)
         	if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
         	else Set_inexactflag();
-        return(NOEXCEPTION);
+        return(ANALEXCEPTION);
 }

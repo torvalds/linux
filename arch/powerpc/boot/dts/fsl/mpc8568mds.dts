@@ -30,7 +30,7 @@
 			  0x4 0x0 0xf8008000 0x00008000
 			  0x5 0x0 0xf8010000 0x00008000>;
 
-		nor@0,0 {
+		analr@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
@@ -198,7 +198,7 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "analne";
 			tx-clock-name = "clk16";
 			pio-handle = <&pio1>;
 			phy-handle = <&phy0>;
@@ -209,7 +209,7 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "analne";
 			tx-clock-name = "clk16";
 			pio-handle = <&pio2>;
 			phy-handle = <&phy1>;

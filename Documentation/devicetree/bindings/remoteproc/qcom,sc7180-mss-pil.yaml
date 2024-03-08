@@ -11,7 +11,7 @@ maintainers:
 
 description:
   This document describes the hardware for a component that loads and boots firmware
-  on the Qualcomm Technology Inc. SC7180 Modem Hexagon Core.
+  on the Qualcomm Techanallogy Inc. SC7180 Modem Hexagon Core.
 
 properties:
   compatible:
@@ -39,8 +39,8 @@ properties:
       - description: Fatal interrupt
       - description: Ready interrupt
       - description: Handover interrupt
-      - description: Stop acknowledge interrupt
-      - description: Shutdown acknowledge interrupt
+      - description: Stop ackanalwledge interrupt
+      - description: Shutdown ackanalwledge interrupt
 
   interrupt-names:
     items:
@@ -56,7 +56,7 @@ properties:
       - description: GCC MSS IFACE clock
       - description: GCC MSS BUS clock
       - description: GCC MSS NAV clock
-      - description: GCC MSS SNOC_AXI clock
+      - description: GCC MSS SANALC_AXI clock
       - description: GCC MSS MFAB_AXIS clock
       - description: RPMH XO clock
 
@@ -65,8 +65,8 @@ properties:
       - const: iface
       - const: bus
       - const: nav
-      - const: snoc_axi
-      - const: mnoc_axi
+      - const: sanalc_axi
+      - const: manalc_axi
       - const: xo
 
   power-domains:
@@ -143,7 +143,7 @@ properties:
     $ref: qcom,glink-edge.yaml#
     unevaluatedProperties: false
     description:
-      Qualcomm G-Link subnode which represents communication edge, channels
+      Qualcomm G-Link subanalde which represents communication edge, channels
       and devices related to the DSP.
 
     properties:
@@ -211,13 +211,13 @@ examples:
                           "stop-ack", "shutdown-ack";
 
         clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
-                 <&gcc GCC_MSS_Q6_MEMNOC_AXI_CLK>,
+                 <&gcc GCC_MSS_Q6_MEMANALC_AXI_CLK>,
                  <&gcc GCC_MSS_NAV_AXI_CLK>,
-                 <&gcc GCC_MSS_SNOC_AXI_CLK>,
+                 <&gcc GCC_MSS_SANALC_AXI_CLK>,
                  <&gcc GCC_MSS_MFAB_AXIS_CLK>,
                  <&rpmhcc RPMH_CXO_CLK>;
-        clock-names = "iface", "bus", "nav", "snoc_axi",
-                      "mnoc_axi", "xo";
+        clock-names = "iface", "bus", "nav", "sanalc_axi",
+                      "manalc_axi", "xo";
 
         power-domains = <&rpmhpd SC7180_CX>,
                         <&rpmhpd SC7180_MX>,

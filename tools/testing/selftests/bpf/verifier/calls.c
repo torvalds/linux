@@ -1,5 +1,5 @@
 {
-	"calls: invalid kfunc call not eliminated",
+	"calls: invalid kfunc call analt eliminated",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, BPF_PSEUDO_KFUNC_CALL, 0, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -7,7 +7,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 	.result  = REJECT,
-	.errstr = "invalid kernel function call not eliminated in verifier pass",
+	.errstr = "invalid kernel function call analt eliminated in verifier pass",
 },
 {
 	"calls: invalid kfunc call unreachable",
@@ -22,7 +22,7 @@
 	.result  = ACCEPT,
 },
 {
-	"calls: invalid kfunc call: ptr_to_mem to struct with non-scalar",
+	"calls: invalid kfunc call: ptr_to_mem to struct with analn-scalar",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -8),
@@ -82,7 +82,7 @@
 	},
 },
 {
-	"calls: invalid kfunc call: void * not allowed in func proto without mem size arg",
+	"calls: invalid kfunc call: void * analt allowed in func proto without mem size arg",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -8),
@@ -91,7 +91,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "arg#0 pointer type UNKNOWN  must point to scalar",
+	.errstr = "arg#0 pointer type UNKANALWN  must point to scalar",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_mem_len_fail1", 2 },
 	},
@@ -288,7 +288,7 @@
 	.result = ACCEPT,
 },
 {
-	"calls: not on unprivileged",
+	"calls: analt on unprivileged",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),
 	BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -392,7 +392,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "last insn is not an exit or jmp",
+	.errstr = "last insn is analt an exit or jmp",
 	.result = REJECT,
 },
 {
@@ -891,7 +891,7 @@
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, -2),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "not an exit",
+	.errstr = "analt an exit",
 	.result = REJECT,
 },
 {
@@ -964,7 +964,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "not an exit",
+	.errstr = "analt an exit",
 	.result = REJECT,
 },
 {
@@ -1264,7 +1264,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_XDP,
-	.errstr = "cannot spill",
+	.errstr = "cananalt spill",
 	.result = REJECT,
 },
 {
@@ -1295,7 +1295,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_XDP,
-	.errstr = "cannot return stack pointer",
+	.errstr = "cananalt return stack pointer",
 	.result = REJECT,
 },
 {
@@ -1879,7 +1879,7 @@
 	/* spill unchecked pkt_ptr into stack of caller */
 	BPF_STX_MEM(BPF_DW, BPF_REG_4, BPF_REG_2, 0),
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 2),
-	/* now the pkt range is verified, read pkt_ptr from stack */
+	/* analw the pkt range is verified, read pkt_ptr from stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_4, 0),
 	/* write 4 bytes into packet */
 	BPF_ST_MEM(BPF_W, BPF_REG_2, 0, 0),
@@ -1896,7 +1896,7 @@
 	BPF_MOV64_REG(BPF_REG_4, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, -8),
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 3),
-	/* Marking is still kept, but not in all cases safe. */
+	/* Marking is still kept, but analt in all cases safe. */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_10, -8),
 	BPF_ST_MEM(BPF_W, BPF_REG_4, 0, 0),
 	BPF_EXIT_INSN(),
@@ -1911,7 +1911,7 @@
 	/* spill unchecked pkt_ptr into stack of caller */
 	BPF_STX_MEM(BPF_DW, BPF_REG_4, BPF_REG_2, 0),
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 2),
-	/* now the pkt range is verified, read pkt_ptr from stack */
+	/* analw the pkt range is verified, read pkt_ptr from stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_4, 0),
 	/* write 4 bytes into packet */
 	BPF_ST_MEM(BPF_W, BPF_REG_2, 0, 0),
@@ -1946,7 +1946,7 @@
 	BPF_MOV64_IMM(BPF_REG_5, 0),
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 3),
 	BPF_MOV64_IMM(BPF_REG_5, 1),
-	/* now the pkt range is verified, read pkt_ptr from stack */
+	/* analw the pkt range is verified, read pkt_ptr from stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_4, 0),
 	/* write 4 bytes into packet */
 	BPF_ST_MEM(BPF_W, BPF_REG_2, 0, 0),
@@ -2023,7 +2023,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "same insn cannot be used with different",
+	.errstr = "same insn cananalt be used with different",
 	.result = REJECT,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
@@ -2219,7 +2219,7 @@
 	.insns = {
 	/* first make allocated_stack 16 byte */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -16, 0),
-	/* now fork the execution such that the false branch
+	/* analw fork the execution such that the false branch
 	 * of JGT insn will be verified second and it skisp zero
 	 * init of fp-8 stack slot. If stack liveness marking
 	 * is missing live_read marks from call map_lookup
@@ -2360,7 +2360,7 @@
 	/* r6 = ktime_get_ns() */
 	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
-	/* if r6 > r7 goto +1      ; no new information about the state is derived from
+	/* if r6 > r7 goto +1      ; anal new information about the state is derived from
 	 *                         ; this check, thus produced verifier states differ
 	 *                         ; only in 'insn_idx'
 	 * r9 = r8
@@ -2379,8 +2379,8 @@
 	 */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_9, 0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_9, 0, 1),
-	/* r8 = *r8                ; read map value via r8, this is not safe
-	 * r0 = *r8                ; because r8 might be not equal to r9.
+	/* r8 = *r8                ; read map value via r8, this is analt safe
+	 * r0 = *r8                ; because r8 might be analt equal to r9.
 	 */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_8, BPF_REG_8, 0),
 	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_8, 0),

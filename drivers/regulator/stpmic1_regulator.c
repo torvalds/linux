@@ -450,8 +450,8 @@ static const struct stpmic1_regulator_cfg stpmic1_regulator_cfgs[] = {
 static unsigned int stpmic1_map_mode(unsigned int mode)
 {
 	switch (mode) {
-	case STPMIC1_BUCK_MODE_NORMAL:
-		return REGULATOR_MODE_NORMAL;
+	case STPMIC1_BUCK_MODE_ANALRMAL:
+		return REGULATOR_MODE_ANALRMAL;
 	case STPMIC1_BUCK_MODE_LP:
 		return REGULATOR_MODE_STANDBY;
 	default:
@@ -469,7 +469,7 @@ static unsigned int stpmic1_get_mode(struct regulator_dev *rdev)
 	if (value & STPMIC1_BUCK_MODE_LP)
 		return REGULATOR_MODE_STANDBY;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int stpmic1_set_mode(struct regulator_dev *rdev, unsigned int mode)
@@ -478,8 +478,8 @@ static int stpmic1_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	struct regmap *regmap = rdev_get_regmap(rdev);
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
-		value = STPMIC1_BUCK_MODE_NORMAL;
+	case REGULATOR_MODE_ANALRMAL:
+		value = STPMIC1_BUCK_MODE_ANALRMAL;
 		break;
 	case REGULATOR_MODE_STANDBY:
 		value = STPMIC1_BUCK_MODE_LP;
@@ -505,9 +505,9 @@ static int stpmic1_set_icc(struct regulator_dev *rdev, int lim, int severity,
 	 * Feel free to try and implement if you have the HW and need kernel
 	 * to disable this.
 	 *
-	 * Also, I don't know if limit can be configured or if we support
+	 * Also, I don't kanalw if limit can be configured or if we support
 	 * error/warning instead of protect. So I just keep existing logic
-	 * and assume no.
+	 * and assume anal.
 	 */
 	if (lim || severity != REGULATOR_SEVERITY_PROT || !enable)
 		return -EINVAL;
@@ -521,8 +521,8 @@ static irqreturn_t stpmic1_curlim_irq_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = (struct regulator_dev *)data;
 
-	/* Send an overcurrent notification */
-	regulator_notifier_call_chain(rdev,
+	/* Send an overcurrent analtification */
+	regulator_analtifier_call_chain(rdev,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
 
@@ -564,7 +564,7 @@ static int stpmic1_regulator_register(struct platform_device *pdev, int id,
 
 	config.dev = &pdev->dev;
 	config.init_data = match->init_data;
-	config.of_node = match->of_node;
+	config.of_analde = match->of_analde;
 	config.regmap = pmic_dev->regmap;
 	config.driver_data = (void *)cfg;
 
@@ -576,7 +576,7 @@ static int stpmic1_regulator_register(struct platform_device *pdev, int id,
 	}
 
 	/* set mask reset */
-	if (of_property_read_bool(config.of_node, "st,mask-reset") &&
+	if (of_property_read_bool(config.of_analde, "st,mask-reset") &&
 	    cfg->mask_reset_reg != 0) {
 		ret = regmap_update_bits(pmic_dev->regmap,
 					 cfg->mask_reset_reg,
@@ -589,7 +589,7 @@ static int stpmic1_regulator_register(struct platform_device *pdev, int id,
 	}
 
 	/* setup an irq handler for over-current detection */
-	irq = of_irq_get(config.of_node, 0);
+	irq = of_irq_get(config.of_analde, 0);
 	if (irq > 0) {
 		ret = devm_request_threaded_irq(&pdev->dev,
 						irq, NULL,
@@ -608,11 +608,11 @@ static int stpmic1_regulator_probe(struct platform_device *pdev)
 {
 	int i, ret;
 
-	ret = of_regulator_match(&pdev->dev, pdev->dev.of_node, stpmic1_matches,
+	ret = of_regulator_match(&pdev->dev, pdev->dev.of_analde, stpmic1_matches,
 				 ARRAY_SIZE(stpmic1_matches));
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-			"Error in PMIC regulator device tree node");
+			"Error in PMIC regulator device tree analde");
 		return ret;
 	}
 
@@ -638,7 +638,7 @@ MODULE_DEVICE_TABLE(of, of_pmic_regulator_match);
 static struct platform_driver stpmic1_regulator_driver = {
 	.driver = {
 		.name = "stpmic1-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(of_pmic_regulator_match),
 	},
 	.probe = stpmic1_regulator_probe,

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,13 +43,13 @@ int drm_plane_helper_disable_primary(struct drm_plane *plane,
 void drm_plane_helper_destroy(struct drm_plane *plane);
 
 /**
- * DRM_PLANE_NON_ATOMIC_FUNCS - Default plane functions for non-atomic drivers
+ * DRM_PLANE_ANALN_ATOMIC_FUNCS - Default plane functions for analn-atomic drivers
  *
- * This macro initializes plane functions for non-atomic drivers to default
- * values. Non-atomic interfaces are deprecated and should not be used in new
+ * This macro initializes plane functions for analn-atomic drivers to default
+ * values. Analn-atomic interfaces are deprecated and should analt be used in new
  * drivers.
  */
-#define DRM_PLANE_NON_ATOMIC_FUNCS \
+#define DRM_PLANE_ANALN_ATOMIC_FUNCS \
 	.update_plane = drm_plane_helper_update_primary, \
 	.disable_plane = drm_plane_helper_disable_primary, \
 	.destroy = drm_plane_helper_destroy

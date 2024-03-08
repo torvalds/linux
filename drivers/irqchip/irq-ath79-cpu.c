@@ -54,25 +54,25 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 static int __init ar79_cpu_intc_of_init(
-	struct device_node *node, struct device_node *parent)
+	struct device_analde *analde, struct device_analde *parent)
 {
 	int err, i, count;
 
 	/* Fill the irq_wb_chan table */
 	count = of_count_phandle_with_args(
-		node, "qca,ddr-wb-channels", "#qca,ddr-wb-channel-cells");
+		analde, "qca,ddr-wb-channels", "#qca,ddr-wb-channel-cells");
 
 	for (i = 0; i < count; i++) {
 		struct of_phandle_args args;
 		u32 irq = i;
 
 		of_property_read_u32_index(
-			node, "qca,ddr-wb-channel-interrupts", i, &irq);
+			analde, "qca,ddr-wb-channel-interrupts", i, &irq);
 		if (irq >= ARRAY_SIZE(irq_wb_chan))
 			continue;
 
 		err = of_parse_phandle_with_args(
-			node, "qca,ddr-wb-channels",
+			analde, "qca,ddr-wb-channels",
 			"#qca,ddr-wb-channel-cells",
 			i, &args);
 		if (err)
@@ -81,7 +81,7 @@ static int __init ar79_cpu_intc_of_init(
 		irq_wb_chan[irq] = args.args[0];
 	}
 
-	return mips_cpu_irq_of_init(node, parent);
+	return mips_cpu_irq_of_init(analde, parent);
 }
 IRQCHIP_DECLARE(ar79_cpu_intc, "qca,ar7100-cpu-intc",
 		ar79_cpu_intc_of_init);

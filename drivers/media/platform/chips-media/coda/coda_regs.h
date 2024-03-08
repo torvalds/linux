@@ -145,7 +145,7 @@
 #define CODA_CMD_DEC_SEQ_BB_START		0x180
 #define CODA_CMD_DEC_SEQ_BB_SIZE		0x184
 #define CODA_CMD_DEC_SEQ_OPTION			0x188
-#define		CODA_NO_INT_ENABLE			(1 << 10)
+#define		CODA_ANAL_INT_ENABLE			(1 << 10)
 #define		CODA_REORDER_ENABLE			(1 << 1)
 #define		CODADX6_QP_REPORT			(1 << 0)
 #define		CODA7_MP4_DEBLK_ENABLE			(1 << 0)
@@ -377,7 +377,7 @@
 #define		CODA_ROT_90					(0x1 << 0)
 #define		CODA_ROT_180					(0x2 << 0)
 #define		CODA_ROT_270					(0x3 << 0)
-#define		CODA_MIR_NONE					(0x0 << 2)
+#define		CODA_MIR_ANALNE					(0x0 << 2)
 #define		CODA_MIR_VER					(0x1 << 2)
 #define		CODA_MIR_HOR					(0x2 << 2)
 #define		CODA_MIR_VER_HOR				(0x3 << 2)
@@ -443,11 +443,11 @@
 #define CODA_CMD_FIRMWARE_VERNUM		0x1c0
 #define		CODA_FIRMWARE_PRODUCT(x)	(((x) >> 16) & 0xffff)
 #define		CODA_FIRMWARE_MAJOR(x)		(((x) >> 12) & 0x0f)
-#define		CODA_FIRMWARE_MINOR(x)		(((x) >> 8) & 0x0f)
+#define		CODA_FIRMWARE_MIANALR(x)		(((x) >> 8) & 0x0f)
 #define		CODA_FIRMWARE_RELEASE(x)	((x) & 0xff)
-#define		CODA_FIRMWARE_VERNUM(product, major, minor, release)	\
+#define		CODA_FIRMWARE_VERNUM(product, major, mianalr, release)	\
 			((product) << 16 | ((major) << 12) |		\
-			((minor) << 8) | (release))
+			((mianalr) << 8) | (release))
 #define CODA9_CMD_FIRMWARE_CODE_REV		0x1c4
 
 #define CODA9_GDMA_BASE				0x1000

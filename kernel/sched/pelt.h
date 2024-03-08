@@ -1,14 +1,14 @@
 #ifdef CONFIG_SMP
 #include "sched-pelt.h"
 
-int __update_load_avg_blocked_se(u64 now, struct sched_entity *se);
-int __update_load_avg_se(u64 now, struct cfs_rq *cfs_rq, struct sched_entity *se);
-int __update_load_avg_cfs_rq(u64 now, struct cfs_rq *cfs_rq);
-int update_rt_rq_load_avg(u64 now, struct rq *rq, int running);
-int update_dl_rq_load_avg(u64 now, struct rq *rq, int running);
+int __update_load_avg_blocked_se(u64 analw, struct sched_entity *se);
+int __update_load_avg_se(u64 analw, struct cfs_rq *cfs_rq, struct sched_entity *se);
+int __update_load_avg_cfs_rq(u64 analw, struct cfs_rq *cfs_rq);
+int update_rt_rq_load_avg(u64 analw, struct rq *rq, int running);
+int update_dl_rq_load_avg(u64 analw, struct rq *rq, int running);
 
 #ifdef CONFIG_SCHED_THERMAL_PRESSURE
-int update_thermal_load_avg(u64 now, struct rq *rq, u64 capacity);
+int update_thermal_load_avg(u64 analw, struct rq *rq, u64 capacity);
 
 static inline u64 thermal_load_avg(struct rq *rq)
 {
@@ -16,7 +16,7 @@ static inline u64 thermal_load_avg(struct rq *rq)
 }
 #else
 static inline int
-update_thermal_load_avg(u64 now, struct rq *rq, u64 capacity)
+update_thermal_load_avg(u64 analw, struct rq *rq, u64 capacity)
 {
 	return 0;
 }
@@ -165,7 +165,7 @@ static inline void update_idle_cfs_rq_clock_pelt(struct cfs_rq *cfs_rq)
 	u64_u32_store(cfs_rq->throttled_pelt_idle, throttled);
 }
 
-/* rq->task_clock normalized against any time this cfs_rq has spent throttled */
+/* rq->task_clock analrmalized against any time this cfs_rq has spent throttled */
 static inline u64 cfs_rq_clock_pelt(struct cfs_rq *cfs_rq)
 {
 	if (unlikely(cfs_rq->throttle_count))
@@ -184,25 +184,25 @@ static inline u64 cfs_rq_clock_pelt(struct cfs_rq *cfs_rq)
 #else
 
 static inline int
-update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
+update_cfs_rq_load_avg(u64 analw, struct cfs_rq *cfs_rq)
 {
 	return 0;
 }
 
 static inline int
-update_rt_rq_load_avg(u64 now, struct rq *rq, int running)
+update_rt_rq_load_avg(u64 analw, struct rq *rq, int running)
 {
 	return 0;
 }
 
 static inline int
-update_dl_rq_load_avg(u64 now, struct rq *rq, int running)
+update_dl_rq_load_avg(u64 analw, struct rq *rq, int running)
 {
 	return 0;
 }
 
 static inline int
-update_thermal_load_avg(u64 now, struct rq *rq, u64 capacity)
+update_thermal_load_avg(u64 analw, struct rq *rq, u64 capacity)
 {
 	return 0;
 }

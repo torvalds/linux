@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: MAC routines
@@ -96,7 +96,7 @@
 #define MAC_REG_WAKEOKTMR	0x68
 #define MAC_REG_CALTMR		0x69
 #define MAC_REG_SYNSPACCNT	0x6a
-#define MAC_REG_WAKSYNOPT	0x6b
+#define MAC_REG_WAKSYANALPT	0x6b
 
 /* Baseband/IF Control Group */
 #define MAC_REG_BBREGCTL	0x6c
@@ -145,7 +145,7 @@
 #define I2MCFG_WAITCTL		BIT(5)
 #define I2MCFG_SCLOECTL		BIT(4)
 #define I2MCFG_WBUSYCTL		BIT(3)
-#define I2MCFG_NORETRY		BIT(2)
+#define I2MCFG_ANALRETRY		BIT(2)
 #define I2MCFG_I2MLDSEQ		BIT(1)
 #define I2MCFG_I2CMFAST		BIT(0)
 
@@ -195,19 +195,19 @@
 #define CFG_TMOT_HW		0x00
 #define CFG_CFPENDOPT		BIT(3)
 #define CFG_BCNSUSEN		BIT(2)
-#define CFG_NOTXTIMEOUT		BIT(1)
-#define CFG_NOBUFOPT		BIT(0)
+#define CFG_ANALTXTIMEOUT		BIT(1)
+#define CFG_ANALBUFOPT		BIT(0)
 
 /* Bits in the TEST register */
 #define TEST_LBEXT		BIT(7)
 #define TEST_LBINT		BIT(6)
-#define TEST_LBNONE		0x00
+#define TEST_LBANALNE		0x00
 #define TEST_SOFTINT		BIT(5)
 #define TEST_CONTTX		BIT(4)
 #define TEST_TXPE		BIT(3)
 #define TEST_NAVDIS		BIT(2)
-#define TEST_NOCTS		BIT(1)
-#define TEST_NOACK		BIT(0)
+#define TEST_ANALCTS		BIT(1)
+#define TEST_ANALACK		BIT(0)
 
 /* Bits in the HOSTCR register */
 #define HOSTCR_TXONST		BIT(7)
@@ -240,7 +240,7 @@
 
 /* ISR1 */
 #define ISR_GPIO3		BIT(6)
-#define ISR_RXNOBUF		BIT(3)
+#define ISR_RXANALBUF		BIT(3)
 #define ISR_MIBNEARFULL		BIT(2)
 #define ISR_SOFTINT		BIT(1)
 #define ISR_FETALERR		BIT(0)
@@ -320,10 +320,10 @@
 /* Loopback mode */
 #define MAC_LB_EXT		BIT(1)
 #define MAC_LB_INTERNAL		BIT(0)
-#define MAC_LB_NONE		0x00
+#define MAC_LB_ANALNE		0x00
 
 /* Ethernet address filter type */
-#define PKT_TYPE_NONE		0x00 /* turn off receiver */
+#define PKT_TYPE_ANALNE		0x00 /* turn off receiver */
 #define PKT_TYPE_ALL_MULTICAST	BIT(7)
 #define PKT_TYPE_PROMISCUOUS	BIT(6)
 #define PKT_TYPE_DIRECTED	BIT(5)	/* obselete */

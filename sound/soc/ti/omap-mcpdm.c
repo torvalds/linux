@@ -222,7 +222,7 @@ static irqreturn_t omap_mcpdm_irq_handler(int irq, void *dev_id)
 
 	irq_status = omap_mcpdm_read(mcpdm, MCPDM_REG_IRQSTATUS);
 
-	/* Acknowledge irq event */
+	/* Ackanalwledge irq event */
 	omap_mcpdm_write(mcpdm, MCPDM_REG_IRQSTATUS, irq_status);
 
 	if (irq_status & MCPDM_DN_IRQ_FULL)
@@ -337,7 +337,7 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		link_mask <<= 3;
 
-		/* If capture is not running assume a stereo stream to come */
+		/* If capture is analt running assume a stereo stream to come */
 		if (!mcpdm->config[!stream].link_mask)
 			mcpdm->config[!stream].link_mask = 0x3;
 
@@ -345,7 +345,7 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 				(MCPDM_DN_THRES_MAX - threshold) * channels;
 		latency = threshold;
 	} else {
-		/* If playback is not running assume a stereo stream to come */
+		/* If playback is analt running assume a stereo stream to come */
 		if (!mcpdm->config[!stream].link_mask)
 			mcpdm->config[!stream].link_mask = (0x3 << 3);
 
@@ -535,7 +535,7 @@ void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
 {
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 
-	mcpdm->dn_rx_offset = MCPDM_DNOFST_RX1(rx1) | MCPDM_DNOFST_RX2(rx2);
+	mcpdm->dn_rx_offset = MCPDM_DANALFST_RX1(rx1) | MCPDM_DANALFST_RX2(rx2);
 }
 EXPORT_SYMBOL_GPL(omap_mcpdm_configure_dn_offsets);
 
@@ -547,7 +547,7 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 
 	mcpdm = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcpdm), GFP_KERNEL);
 	if (!mcpdm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mcpdm);
 
@@ -555,7 +555,7 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma");
 	if (res == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mcpdm->dma_data[0].addr = res->start + MCPDM_REG_DN_DATA;
 	mcpdm->dma_data[1].addr = res->start + MCPDM_REG_UP_DATA;

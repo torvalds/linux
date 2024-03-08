@@ -38,7 +38,7 @@ const char *ishtp_dev_state_str(int state)
 	case ISHTP_DEV_POWER_UP:
 		return	"POWER_UP";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -85,7 +85,7 @@ EXPORT_SYMBOL(ishtp_device_init);
  *
  * Start ISHTP processing by sending query subscriber message
  *
- * Return: 0 on success else -ENODEV
+ * Return: 0 on success else -EANALDEV
  */
 int ishtp_start(struct ishtp_device *dev)
 {
@@ -94,13 +94,13 @@ int ishtp_start(struct ishtp_device *dev)
 		goto err;
 	}
 
-	/* suspend & resume notification - send QUERY_SUBSCRIBERS msg */
+	/* suspend & resume analtification - send QUERY_SUBSCRIBERS msg */
 	ishtp_query_subscribers(dev);
 
 	return 0;
 err:
 	dev_err(dev->devc, "link layer initialization failed.\n");
 	dev->dev_state = ISHTP_DEV_DISABLED;
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL(ishtp_start);

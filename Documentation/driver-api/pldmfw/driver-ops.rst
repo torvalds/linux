@@ -38,7 +38,7 @@ device driver should send the component information to the device firmware,
 and wait for a response. The provided transfer flag indicates whether this
 is the first, last, or a middle component, and is expected to be forwarded
 to firmware as part of the component table information. The driver should an
-error in the case when the firmware indicates that the component cannot be
+error in the case when the firmware indicates that the component cananalt be
 updated, or return zero if the component can be updated.
 
 ``.flash_component``

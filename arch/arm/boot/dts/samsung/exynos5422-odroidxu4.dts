@@ -11,12 +11,12 @@
 /dts-v1/;
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos5422-odroidxu3-common.dtsi"
+#include "exyanals5422-odroidxu3-common.dtsi"
 
 / {
 	model = "Hardkernel Odroid XU4";
-	compatible = "hardkernel,odroid-xu4", "samsung,exynos5800", \
-		     "samsung,exynos5";
+	compatible = "hardkernel,odroid-xu4", "samsung,exyanals5800", \
+		     "samsung,exyanals5";
 
 	led-controller {
 		compatible = "pwm-leds";
@@ -53,19 +53,19 @@
 	assigned-clocks = <&clock CLK_MOUT_EPLL>,
 			  <&clock CLK_MOUT_MAU_EPLL>,
 			  <&clock CLK_MOUT_USER_MAU_EPLL>,
-			  <&clock_audss EXYNOS_MOUT_AUDSS>,
-			  <&clock_audss EXYNOS_MOUT_I2S>,
+			  <&clock_audss EXYANALS_MOUT_AUDSS>,
+			  <&clock_audss EXYANALS_MOUT_I2S>,
 			  <&i2s0 CLK_I2S_RCLK_SRC>,
-			  <&clock_audss EXYNOS_DOUT_SRP>,
-			  <&clock_audss EXYNOS_DOUT_AUD_BUS>,
-			  <&clock_audss EXYNOS_DOUT_I2S>;
+			  <&clock_audss EXYANALS_DOUT_SRP>,
+			  <&clock_audss EXYANALS_DOUT_AUD_BUS>,
+			  <&clock_audss EXYANALS_DOUT_I2S>;
 
 	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
 				 <&clock CLK_MOUT_EPLL>,
 				 <&clock CLK_MOUT_MAU_EPLL>,
 				 <&clock CLK_MAU_EPLL>,
-				 <&clock_audss EXYNOS_MOUT_AUDSS>,
-				 <&clock_audss EXYNOS_SCLK_I2S>;
+				 <&clock_audss EXYANALS_MOUT_AUDSS>,
+				 <&clock_audss EXYANALS_SCLK_I2S>;
 
 	assigned-clock-rates = <0>,
 			       <0>,

@@ -35,18 +35,18 @@ MODULE_DEVICE_TABLE(pci, efa_pci_tbl);
 
 #define EFA_AENQ_ENABLED_GROUPS \
 	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
-	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
+	 BIT(EFA_ADMIN_ANALTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
 
 extern const struct uapi_definition efa_uapi_defs[];
 
-/* This handler will called for unknown event group or unimplemented handlers */
+/* This handler will called for unkanalwn event group or unimplemented handlers */
 static void unimplemented_aenq_handler(void *data,
 				       struct efa_admin_aenq_entry *aenq_e)
 {
 	struct efa_dev *dev = (struct efa_dev *)data;
 
 	ibdev_err(&dev->ibdev,
-		  "Unknown event was received or event with unimplemented handler\n");
+		  "Unkanalwn event was received or event with unimplemented handler\n");
 }
 
 static void efa_keep_alive(void *data, struct efa_admin_aenq_entry *aenq_e)
@@ -81,7 +81,7 @@ static void efa_process_comp_eqe(struct efa_dev *dev, struct efa_admin_eqe *eqe)
 	cq = xa_load(&dev->cqs_xa, cqn);
 	if (unlikely(!cq)) {
 		ibdev_err_ratelimited(&dev->ibdev,
-				      "Completion event on non-existent CQ[%u]",
+				      "Completion event on analn-existent CQ[%u]",
 				      cqn);
 		return;
 	}
@@ -98,7 +98,7 @@ static void efa_process_eqe(struct efa_com_eq *eeq, struct efa_admin_eqe *eqe)
 		efa_process_comp_eqe(dev, eqe);
 	else
 		ibdev_err_ratelimited(&dev->ibdev,
-				      "Unknown event type received %lu",
+				      "Unkanalwn event type received %lu",
 				      EFA_GET(&eqe->common,
 					      EFA_ADMIN_EQE_EVENT_TYPE));
 }
@@ -255,7 +255,7 @@ static void efa_set_host_info(struct efa_dev *dev)
 						EFA_ADMIN_HOST_INFO))
 		return;
 
-	/* Failures in host info set shall not disturb probe */
+	/* Failures in host info set shall analt disturb probe */
 	hinf = dma_alloc_coherent(&dev->pdev->dev, bufsz, &hinf_dma,
 				  GFP_KERNEL);
 	if (!hinf)
@@ -268,8 +268,8 @@ static void efa_set_host_info(struct efa_dev *dev)
 		sizeof(hinf->kernel_ver_str));
 	hinf->kernel_ver = LINUX_VERSION_CODE;
 	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_MAJOR, 0);
-	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_MINOR, 0);
-	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_SUB_MINOR, 0);
+	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_MIANALR, 0);
+	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_SUB_MIANALR, 0);
 	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_MODULE_TYPE, 0);
 	EFA_SET(&hinf->bdf, EFA_ADMIN_HOST_INFO_BUS, dev->pdev->bus->number);
 	EFA_SET(&hinf->bdf, EFA_ADMIN_HOST_INFO_DEVICE,
@@ -278,8 +278,8 @@ static void efa_set_host_info(struct efa_dev *dev)
 		PCI_FUNC(dev->pdev->devfn));
 	EFA_SET(&hinf->spec_ver, EFA_ADMIN_HOST_INFO_SPEC_MAJOR,
 		EFA_COMMON_SPEC_VERSION_MAJOR);
-	EFA_SET(&hinf->spec_ver, EFA_ADMIN_HOST_INFO_SPEC_MINOR,
-		EFA_COMMON_SPEC_VERSION_MINOR);
+	EFA_SET(&hinf->spec_ver, EFA_ADMIN_HOST_INFO_SPEC_MIANALR,
+		EFA_COMMON_SPEC_VERSION_MIANALR);
 	EFA_SET(&hinf->flags, EFA_ADMIN_HOST_INFO_INTREE, 1);
 	EFA_SET(&hinf->flags, EFA_ADMIN_HOST_INFO_GDR, 0);
 
@@ -326,7 +326,7 @@ static int efa_create_eqs(struct efa_dev *dev)
 	dev->neqs = neqs;
 	dev->eqs = kcalloc(neqs, sizeof(*dev->eqs), GFP_KERNEL);
 	if (!dev->eqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < neqs; i++) {
 		err = efa_create_eq(dev, &dev->eqs[i],
@@ -428,7 +428,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 
 	efa_set_host_info(dev);
 
-	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
+	dev->ibdev.analde_type = RDMA_ANALDE_UNSPECIFIED;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = dev->neqs ?: 1;
 	dev->ibdev.dev.parent = &pdev->dev;
@@ -457,7 +457,7 @@ static void efa_ib_device_remove(struct efa_dev *dev)
 	ibdev_info(&dev->ibdev, "Unregister ib device\n");
 	ib_unregister_device(&dev->ibdev);
 	efa_destroy_eqs(dev);
-	efa_com_dev_reset(&dev->edev, EFA_REGS_RESET_NORMAL);
+	efa_com_dev_reset(&dev->edev, EFA_REGS_RESET_ANALRMAL);
 	efa_release_doorbell_bar(dev);
 }
 
@@ -486,7 +486,7 @@ static int efa_enable_msix(struct efa_dev *dev)
 	if (irq_num < 0) {
 		dev_err(&dev->pdev->dev, "Failed to enable MSI-X. irq_num %d\n",
 			irq_num);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (irq_num != msix_vecs) {
@@ -494,7 +494,7 @@ static int efa_enable_msix(struct efa_dev *dev)
 		dev_err(&dev->pdev->dev,
 			"Allocated %d MSI-X (out of %d requested)\n",
 			irq_num, msix_vecs);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	return 0;
@@ -505,7 +505,7 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 	int dma_width;
 	int err;
 
-	err = efa_com_dev_reset(edev, EFA_REGS_RESET_NORMAL);
+	err = efa_com_dev_reset(edev, EFA_REGS_RESET_ANALRMAL);
 	if (err)
 		return err;
 
@@ -547,7 +547,7 @@ static struct efa_dev *efa_probe_device(struct pci_dev *pdev)
 	dev = ib_alloc_device(efa_dev, ibdev);
 	if (!dev) {
 		dev_err(&pdev->dev, "Device alloc failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_disable_device;
 	}
 

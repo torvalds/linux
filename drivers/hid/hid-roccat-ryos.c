@@ -99,7 +99,7 @@ static int ryos_init_specials(struct hid_device *hdev)
 	ryos = kzalloc(sizeof(*ryos), GFP_KERNEL);
 	if (!ryos) {
 		hid_err(hdev, "can't alloc device descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	hid_set_drvdata(hdev, ryos);
 
@@ -114,7 +114,7 @@ static int ryos_init_specials(struct hid_device *hdev)
 	if (retval < 0) {
 		hid_err(hdev, "couldn't init char dev\n");
 	} else {
-		ryos->chrdev_minor = retval;
+		ryos->chrdev_mianalr = retval;
 		ryos->roccat_claimed = 1;
 	}
 
@@ -135,7 +135,7 @@ static void ryos_remove_specials(struct hid_device *hdev)
 
 	ryos = hid_get_drvdata(hdev);
 	if (ryos->roccat_claimed)
-		roccat_disconnect(ryos->chrdev_minor);
+		roccat_disconnect(ryos->chrdev_mianalr);
 	kfree(ryos);
 }
 
@@ -193,7 +193,7 @@ static int ryos_raw_event(struct hid_device *hdev,
 		return 0;
 
 	if (ryos != NULL && ryos->roccat_claimed)
-		roccat_report_event(ryos->chrdev_minor, data);
+		roccat_report_event(ryos->chrdev_mianalr, data);
 
 	return 0;
 }

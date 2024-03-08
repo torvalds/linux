@@ -81,7 +81,7 @@ static const struct coreclk_soc_desc mv88f5181_coreclks = {
 	.num_ratios = ARRAY_SIZE(orion_coreclk_ratios),
 };
 
-static void __init mv88f5181_clk_init(struct device_node *np)
+static void __init mv88f5181_clk_init(struct device_analde *np)
 {
 	return mvebu_coreclk_setup(np, &mv88f5181_coreclks);
 }
@@ -149,7 +149,7 @@ static const struct coreclk_soc_desc mv88f5182_coreclks = {
 	.num_ratios = ARRAY_SIZE(orion_coreclk_ratios),
 };
 
-static void __init mv88f5182_clk_init(struct device_node *np)
+static void __init mv88f5182_clk_init(struct device_analde *np)
 {
 	return mvebu_coreclk_setup(np, &mv88f5182_coreclks);
 }
@@ -206,7 +206,7 @@ static const struct coreclk_soc_desc mv88f5281_coreclks = {
 	.num_ratios = ARRAY_SIZE(orion_coreclk_ratios),
 };
 
-static void __init mv88f5281_clk_init(struct device_node *np)
+static void __init mv88f5281_clk_init(struct device_analde *np)
 {
 	return mvebu_coreclk_setup(np, &mv88f5281_coreclks);
 }
@@ -270,7 +270,7 @@ static const struct coreclk_soc_desc mv88f6183_coreclks = {
 };
 
 
-static void __init mv88f6183_clk_init(struct device_node *np)
+static void __init mv88f6183_clk_init(struct device_analde *np)
 {
 	return mvebu_coreclk_setup(np, &mv88f6183_coreclks);
 }

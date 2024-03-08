@@ -19,7 +19,7 @@ static void iio_test_iio_format_value_integer(struct kunit *test)
 	int ret;
 
 	buf = kunit_kmalloc(test, PAGE_SIZE, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 
 	val = 42;
 	ret = iio_format_value(buf, IIO_VAL_INT, 1, &val);
@@ -49,7 +49,7 @@ static void iio_test_iio_format_value_fixedpoint(struct kunit *test)
 	int ret;
 
 	buf = kunit_kmalloc(test, PAGE_SIZE, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 
 	/* positive >= 1 */
 	values[0] = 1;
@@ -61,7 +61,7 @@ static void iio_test_iio_format_value_fixedpoint(struct kunit *test)
 	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_MICRO_DB, ARRAY_SIZE(values), values);
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "1.000010 dB\n");
 
-	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_NANO, ARRAY_SIZE(values), values);
+	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_NAANAL, ARRAY_SIZE(values), values);
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "1.000000010\n");
 
 	/* positive < 1 */
@@ -74,7 +74,7 @@ static void iio_test_iio_format_value_fixedpoint(struct kunit *test)
 	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_MICRO_DB, ARRAY_SIZE(values), values);
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "0.000012 dB\n");
 
-	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_NANO, ARRAY_SIZE(values), values);
+	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_NAANAL, ARRAY_SIZE(values), values);
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "0.000000012\n");
 
 	/* negative <= -1 */
@@ -87,7 +87,7 @@ static void iio_test_iio_format_value_fixedpoint(struct kunit *test)
 	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_MICRO_DB, ARRAY_SIZE(values), values);
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "-1.000010 dB\n");
 
-	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_NANO, ARRAY_SIZE(values), values);
+	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_NAANAL, ARRAY_SIZE(values), values);
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "-1.000000010\n");
 
 	/* negative > -1 */
@@ -99,7 +99,7 @@ static void iio_test_iio_format_value_fixedpoint(struct kunit *test)
 	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_MICRO_DB, ARRAY_SIZE(values), values);
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "-0.000123 dB\n");
 
-	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_NANO, ARRAY_SIZE(values), values);
+	ret = iio_format_value(buf, IIO_VAL_INT_PLUS_NAANAL, ARRAY_SIZE(values), values);
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "-0.000000123\n");
 }
 
@@ -110,7 +110,7 @@ static void iio_test_iio_format_value_fractional(struct kunit *test)
 	int ret;
 
 	buf = kunit_kmalloc(test, PAGE_SIZE, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 
 	/* positive < 1 */
 	values[0] = 1;
@@ -150,7 +150,7 @@ static void iio_test_iio_format_value_fractional_log2(struct kunit *test)
 	int ret;
 
 	buf = kunit_kmalloc(test, PAGE_SIZE, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 
 	/* positive < 1 */
 	values[0] = 123;
@@ -190,7 +190,7 @@ static void iio_test_iio_format_value_multiple(struct kunit *test)
 	int ret;
 
 	buf = kunit_kmalloc(test, PAGE_SIZE, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 
 	ret = iio_format_value(buf, IIO_VAL_INT_MULTIPLE,
 			       ARRAY_SIZE(values), values);
@@ -205,7 +205,7 @@ static void iio_test_iio_format_value_integer_64(struct kunit *test)
 	int ret;
 
 	buf = kunit_kmalloc(test, PAGE_SIZE, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 
 	value = 24;
 	values[0] = lower_32_bits(value);

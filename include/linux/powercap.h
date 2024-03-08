@@ -26,7 +26,7 @@ struct powercap_zone_constraint;
  *			Default is enabled. But this callback allows all zones
  *			to be in disable state and remove any applied power
  *			limits. If disabled power zone can only be monitored
- *			not controlled.
+ *			analt controlled.
  * @get_enable:		get Enable/Disable status.
  * @release:		Callback to inform that last reference to this
  *			control type is closed. So it is safe to free data
@@ -55,11 +55,11 @@ struct powercap_control_type_ops {
  *			this flag is set to false by framework to
  *			prevent deallocation during release process.
  *			Otherwise this flag is set to true.
- * @node:		linked-list node
+ * @analde:		linked-list analde
  *
  * Defines powercap control_type. This acts as a container for power
  * zones, which use same method to control power. E.g. RAPL, RAPL-PCI etc.
- * All fields are private and should not be used by client drivers.
+ * All fields are private and should analt be used by client drivers.
  */
 struct powercap_control_type {
 	struct device dev;
@@ -68,7 +68,7 @@ struct powercap_control_type {
 	const struct powercap_control_type_ops *ops;
 	struct mutex lock;
 	bool allocated;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -131,7 +131,7 @@ struct powercap_zone_ops {
  * @constraints:	List of constraints for this zone.
  *
  * This defines a power zone instance. The fields of this structure are
- * private, and should not be used by client drivers.
+ * private, and should analt be used by client drivers.
  */
 struct powercap_zone {
 	int id;
@@ -243,7 +243,7 @@ static inline void *powercap_get_zone_data(struct powercap_zone *power_zone)
 * @ops:			Callbacks for control type. This parameter is optional.
 *
 * Used to create a control_type with the power capping class. Here control_type
-* can represent a type of technology, which can control a range of power zones.
+* can represent a type of techanallogy, which can control a range of power zones.
 * For example a control_type can be RAPL (Running Average Power Limit)
 * Intel® 64 and IA-32 Processor Architectures. The name can be any string
 * which must be unique, otherwise this function returns NULL.
@@ -277,7 +277,7 @@ int powercap_unregister_control_type(struct powercap_control_type *instance);
 * @name:	A name for this zone.
 * @parent:	A pointer to the parent power zone instance if any or NULL
 * @ops:		Pointer to zone operation callback structure.
-* @no_constraints: Number of constraints for this zone
+* @anal_constraints: Number of constraints for this zone
 * @const_ops:	Pointer to constraint callback structure
 *
 * Register a power zone under a given control type. A power zone must register

@@ -118,7 +118,7 @@ static struct platform_device *ssb_hcd_create_pdev(struct ssb_device *dev, bool 
 	hci_dev = platform_device_alloc(ohci ? "ohci-platform" :
 					"ehci-platform" , 0);
 	if (!hci_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hci_dev->dev.parent = dev->dev;
 	hci_dev->dev.dma_mask = &hci_dev->dev.coherent_dma_mask;
@@ -158,17 +158,17 @@ static int ssb_hcd_probe(struct ssb_device *dev,
 	/* USBcores are only connected on embedded devices. */
 	chipid_top = (dev->bus->chip_id & 0xFF00);
 	if (chipid_top != 0x4700 && chipid_top != 0x5300)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* TODO: Probably need checks here; is the core connected? */
 
 	if (dma_set_mask_and_coherent(dev->dma_dev, DMA_BIT_MASK(32)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	usb_dev = devm_kzalloc(dev->dev, sizeof(struct ssb_hcd_device),
 			       GFP_KERNEL);
 	if (!usb_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* We currently always attach SSB_DEV_USB11_HOSTDEV
 	 * as HOST OHCI. If we want to attach it as Client device,

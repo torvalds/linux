@@ -268,7 +268,7 @@ asm volatile("mcr p14, "#op1", %0, "#crn", "#crm", "#op2 : : "r" (val));\
  *
  * Write only
  * ETMOSLAR, ETMLAR
- * Note: ETMCCER[11] controls WO nature of certain regs. Refer ETM arch spec.
+ * Analte: ETMCCER[11] controls WO nature of certain regs. Refer ETM arch spec.
  */
 #define RCP14_ETMCR()			MRC14(1, c0, c0, 0)
 #define RCP14_ETMCCR()			MRC14(1, c0, c1, 0)
@@ -385,7 +385,7 @@ asm volatile("mcr p14, "#op1", %0, "#crn", "#crm", "#op2 : : "r" (val));\
 #define RCP14_ETMIDR2()			MRC14(1, c1, c2, 0)
 #define RCP14_ETMVMIDCVR()		MRC14(1, c1, c0, 1)
 #define RCP14_ETMOSLSR()		MRC14(1, c1, c1, 4)
-/* Not available in PFTv1.1 */
+/* Analt available in PFTv1.1 */
 #define RCP14_ETMOSSRR()		MRC14(1, c1, c2, 4)
 #define RCP14_ETMPDCR()			MRC14(1, c1, c4, 4)
 #define RCP14_ETMPDSR()			MRC14(1, c1, c5, 4)
@@ -521,14 +521,14 @@ asm volatile("mcr p14, "#op1", %0, "#crn", "#crm", "#op2 : : "r" (val));\
 #define WCP14_ETMIDR2(val)		MCR14(val, 1, c1, c2, 0)
 #define WCP14_ETMVMIDCVR(val)		MCR14(val, 1, c1, c0, 1)
 #define WCP14_ETMOSLAR(val)		MCR14(val, 1, c1, c0, 4)
-/* Not available in PFTv1.1 */
+/* Analt available in PFTv1.1 */
 #define WCP14_ETMOSSRR(val)		MCR14(val, 1, c1, c2, 4)
 #define WCP14_ETMPDCR(val)		MCR14(val, 1, c1, c4, 4)
 #define WCP14_ETMPDSR(val)		MCR14(val, 1, c1, c5, 4)
 #define WCP14_ETMITCTRL(val)		MCR14(val, 1, c7, c0, 4)
 #define WCP14_ETMCLAIMSET(val)		MCR14(val, 1, c7, c8, 6)
 #define WCP14_ETMCLAIMCLR(val)		MCR14(val, 1, c7, c9, 6)
-/* Writes to this from CP14 interface are ignored */
+/* Writes to this from CP14 interface are iganalred */
 #define WCP14_ETMLAR(val)		MCR14(val, 1, c7, c12, 6)
 
 #endif

@@ -30,15 +30,15 @@ struct bsg_device {
 	bsg_sg_io_fn *sg_io_fn;
 };
 
-static inline struct bsg_device *to_bsg_device(struct inode *inode)
+static inline struct bsg_device *to_bsg_device(struct ianalde *ianalde)
 {
-	return container_of(inode->i_cdev, struct bsg_device, cdev);
+	return container_of(ianalde->i_cdev, struct bsg_device, cdev);
 }
 
 #define BSG_DEFAULT_CMDS	64
-#define BSG_MAX_DEVS		(1 << MINORBITS)
+#define BSG_MAX_DEVS		(1 << MIANALRBITS)
 
-static DEFINE_IDA(bsg_minor_ida);
+static DEFINE_IDA(bsg_mianalr_ida);
 static const struct class bsg_class;
 static int bsg_major;
 
@@ -71,16 +71,16 @@ static int bsg_sg_io(struct bsg_device *bd, bool open_for_write,
 	return ret;
 }
 
-static int bsg_open(struct inode *inode, struct file *file)
+static int bsg_open(struct ianalde *ianalde, struct file *file)
 {
-	if (!blk_get_queue(to_bsg_device(inode)->queue))
+	if (!blk_get_queue(to_bsg_device(ianalde)->queue))
 		return -ENXIO;
 	return 0;
 }
 
-static int bsg_release(struct inode *inode, struct file *file)
+static int bsg_release(struct ianalde *ianalde, struct file *file)
 {
-	blk_put_queue(to_bsg_device(inode)->queue);
+	blk_put_queue(to_bsg_device(ianalde)->queue);
 	return 0;
 }
 
@@ -103,7 +103,7 @@ static int bsg_set_command_q(struct bsg_device *bd, int __user *uarg)
 
 static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct bsg_device *bd = to_bsg_device(file_inode(file));
+	struct bsg_device *bd = to_bsg_device(file_ianalde(file));
 	struct request_queue *q = bd->queue;
 	void __user *uarg = (void __user *) arg;
 	int __user *intp = uarg;
@@ -154,7 +154,7 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				current->comm);
 		return -EINVAL;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -171,7 +171,7 @@ static void bsg_device_release(struct device *dev)
 {
 	struct bsg_device *bd = container_of(dev, struct bsg_device, device);
 
-	ida_free(&bsg_minor_ida, MINOR(bd->device.devt));
+	ida_free(&bsg_mianalr_ida, MIANALR(bd->device.devt));
 	kfree(bd);
 }
 
@@ -194,15 +194,15 @@ struct bsg_device *bsg_register_queue(struct request_queue *q,
 
 	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
 	if (!bd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	bd->max_queue = BSG_DEFAULT_CMDS;
 	bd->reserved_size = INT_MAX;
 	bd->queue = q;
 	bd->sg_io_fn = sg_io_fn;
 
-	ret = ida_alloc_max(&bsg_minor_ida, BSG_MAX_DEVS - 1, GFP_KERNEL);
+	ret = ida_alloc_max(&bsg_mianalr_ida, BSG_MAX_DEVS - 1, GFP_KERNEL);
 	if (ret < 0) {
-		if (ret == -ENOSPC)
+		if (ret == -EANALSPC)
 			dev_err(parent, "bsg: too many bsg devices\n");
 		kfree(bd);
 		return ERR_PTR(ret);
@@ -237,14 +237,14 @@ out_put_device:
 }
 EXPORT_SYMBOL_GPL(bsg_register_queue);
 
-static char *bsg_devnode(const struct device *dev, umode_t *mode)
+static char *bsg_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "bsg/%s", dev_name(dev));
 }
 
 static const struct class bsg_class = {
 	.name		= "bsg",
-	.devnode	= bsg_devnode,
+	.devanalde	= bsg_devanalde,
 };
 
 static int __init bsg_init(void)

@@ -20,16 +20,16 @@ enum {
 	FC11_REG_XINLO,		/* XIN low 8 bit */
 	FC11_REG_VCO,		/* VCO */
 	FC11_REG_VCOSEL,	/* VCO select */
-	FC11_REG_7,		/* Unknown tuner reg 7 */
-	FC11_REG_8,		/* Unknown tuner reg 8 */
+	FC11_REG_7,		/* Unkanalwn tuner reg 7 */
+	FC11_REG_8,		/* Unkanalwn tuner reg 8 */
 	FC11_REG_9,
-	FC11_REG_10,		/* Unknown tuner reg 10 */
-	FC11_REG_11,		/* Unknown tuner reg 11 */
+	FC11_REG_10,		/* Unkanalwn tuner reg 10 */
+	FC11_REG_11,		/* Unkanalwn tuner reg 11 */
 	FC11_REG_12,
 	FC11_REG_RCCAL,		/* RC calibrate */
 	FC11_REG_VCOCAL,	/* VCO calibrate */
 	FC11_REG_15,
-	FC11_REG_16,		/* Unknown tuner reg 16 */
+	FC11_REG_16,		/* Unkanalwn tuner reg 16 */
 	FC11_REG_17,
 
 	FC11_NR_REGS,		/* Number of registers */

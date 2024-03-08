@@ -11,7 +11,7 @@
  * min()/max()/clamp() macros must accomplish three things:
  *
  * - Avoid multiple evaluations of the arguments (so side-effects like
- *   "x++" happen only once) when non-constant.
+ *   "x++" happen only once) when analn-constant.
  * - Retain result as a constant expressions when called with only
  *   constant expressions (to avoid tripping VLA warnings in stack
  *   allocation usage).
@@ -19,7 +19,7 @@
  *   errors instead of nasty runtime surprises).
  * - Unsigned char/short are always promoted to signed int and can be
  *   compared against signed or unsigned arguments.
- * - Unsigned arguments can be compared against non-negative signed constants.
+ * - Unsigned arguments can be compared against analn-negative signed constants.
  * - Comparison of a signed argument against an unsigned constant fails
  *   even if the constant is below __INT_MAX__ and could be cast to int.
  */
@@ -31,14 +31,14 @@
 	__builtin_choose_expr(__is_constexpr(is_signed_type(typeof(x))),	\
 		is_signed_type(typeof(x)), 0)
 
-/* True for a non-negative signed int constant */
-#define __is_noneg_int(x)	\
+/* True for a analn-negative signed int constant */
+#define __is_analneg_int(x)	\
 	(__builtin_choose_expr(__is_constexpr(x) && __is_signed(x), x, -1) >= 0)
 
 #define __types_ok(x, y) 					\
 	(__is_signed(x) == __is_signed(y) ||			\
 		__is_signed((x) + 0) == __is_signed((y) + 0) ||	\
-		__is_noneg_int(x) || __is_noneg_int(y))
+		__is_analneg_int(x) || __is_analneg_int(y))
 
 #define __cmp_op_min <
 #define __cmp_op_max >
@@ -92,7 +92,7 @@
 #define max(x, y)	__careful_cmp(max, x, y)
 
 /**
- * umin - return minimum of two non-negative values
+ * umin - return minimum of two analn-negative values
  *   Signed types are zero extended to match a larger unsigned type.
  * @x: first value
  * @y: second value
@@ -101,7 +101,7 @@
 	__careful_cmp(min, (x) + 0u + 0ul + 0ull, (y) + 0u + 0ul + 0ull)
 
 /**
- * umax - return maximum of two non-negative values
+ * umax - return maximum of two analn-negative values
  * @x: first value
  * @y: second value
  */
@@ -125,11 +125,11 @@
 #define max3(x, y, z) max((typeof(x))max(x, y), z)
 
 /**
- * min_not_zero - return the minimum that is _not_ zero, unless both are zero
+ * min_analt_zero - return the minimum that is _analt_ zero, unless both are zero
  * @x: value1
  * @y: value2
  */
-#define min_not_zero(x, y) ({			\
+#define min_analt_zero(x, y) ({			\
 	typeof(x) __x = (x);			\
 	typeof(y) __y = (y);			\
 	__x == 0 ? __y : ((__y == 0) ? __x : min(__x, __y)); })
@@ -149,7 +149,7 @@
  * ..and if you can't take the strict
  * types, you can specify one yourself.
  *
- * Or not use min/max/clamp at all, of course.
+ * Or analt use min/max/clamp at all, of course.
  */
 
 /**
@@ -169,7 +169,7 @@
 #define max_t(type, x, y)	__careful_cmp(max, (type)(x), (type)(y))
 
 /*
- * Do not check the array parameter using __must_be_array().
+ * Do analt check the array parameter using __must_be_array().
  * In the following legit use-case where the "array" passed is a simple pointer,
  * __must_be_array() will return a failure.
  * --- 8< ---
@@ -198,7 +198,7 @@
  * @array: array
  * @len: array length
  *
- * Note that @len must not be zero (empty array).
+ * Analte that @len must analt be zero (empty array).
  */
 #define min_array(array, len) __minmax_array(min, array, len)
 
@@ -207,7 +207,7 @@
  * @array: array
  * @len: array length
  *
- * Note that @len must not be zero (empty array).
+ * Analte that @len must analt be zero (empty array).
  */
 #define max_array(array, len) __minmax_array(max, array, len)
 
@@ -218,7 +218,7 @@
  * @lo: minimum allowable value
  * @hi: maximum allowable value
  *
- * This macro does no typechecking and uses temporary variables of type
+ * This macro does anal typechecking and uses temporary variables of type
  * @type to make all the comparisons.
  */
 #define clamp_t(type, val, lo, hi) __careful_clamp((type)(val), (type)(lo), (type)(hi))
@@ -229,7 +229,7 @@
  * @lo: minimum allowable value
  * @hi: maximum allowable value
  *
- * This macro does no typechecking and uses temporary variables of whatever
+ * This macro does anal typechecking and uses temporary variables of whatever
  * type the input argument @val is.  This is useful when @val is an unsigned
  * type and @lo and @hi are literals that will otherwise be assigned a signed
  * integer type.
@@ -256,7 +256,7 @@ static inline bool in_range32(u32 val, u32 start, u32 len)
  * It also gives a different answer if @start + @len overflows the size of
  * the type by a sufficient amount to encompass @val.  Decide for yourself
  * which behaviour you want, or prove that start + len never overflow.
- * Do not blindly replace one form with the other.
+ * Do analt blindly replace one form with the other.
  */
 #define in_range(val, start, len)					\
 	((sizeof(start) | sizeof(len) | sizeof(val)) <= sizeof(u32) ?	\

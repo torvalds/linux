@@ -4,7 +4,7 @@ ASoC Platform Driver
 
 An ASoC platform driver class can be divided into audio DMA drivers, SoC DAI
 drivers and DSP drivers. The platform drivers only target the SoC CPU and must
-have no board specific code.
+have anal board specific code.
 
 Audio DMA
 =========

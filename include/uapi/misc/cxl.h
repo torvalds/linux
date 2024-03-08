@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -132,7 +132,7 @@ struct cxl_event_afu_driver_reserved {
 	/*
 	 * Defines the buffer passed to the cxl driver by the AFU driver.
 	 *
-	 * This is not ABI since the event header.size passed to the user for
+	 * This is analt ABI since the event header.size passed to the user for
 	 * existing events is set in the read call to sizeof(cxl_event_header)
 	 * + sizeof(whatever event is being dispatched) and the user is already
 	 * required to use a 4K buffer on the read call.

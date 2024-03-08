@@ -5,7 +5,7 @@ NAME
 ----
 perf-sched - Tool to trace/measure scheduler properties (latencies)
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf sched' {record|latency|map|replay|script|timehist}
@@ -21,7 +21,7 @@ There are several variants of 'perf sched':
   and other scheduling properties of the workload.
 
   'perf sched script' to see a detailed trace of the workload that
-   was recorded (aliased to 'perf script' for now).
+   was recorded (aliased to 'perf script' for analw).
 
   'perf sched replay' to simulate the workload that was recorded
   via perf sched record. (this is done by starting up mockup threads
@@ -33,7 +33,7 @@ There are several variants of 'perf sched':
   'perf sched map' to print a textual context-switching outline of
   workload captured via perf sched record.  Columns stand for
   individual CPUs, and the two-letter shortcuts stand for tasks that
-  are running on a CPU. A '*' denotes the CPU that had the event, and
+  are running on a CPU. A '*' deanaltes the CPU that had the event, and
   a dot signals an idle CPU.
 
   'perf sched timehist' provides an analysis of scheduling events.
@@ -158,9 +158,9 @@ OPTIONS for 'perf sched timehist'
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
-	have the format seconds.microseconds. If start is not given (i.e., time
+	have the format seconds.microseconds. If start is analt given (i.e., time
 	string is ',x.y') then analysis starts at the beginning of the file. If
-	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	stop time is analt given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
 
 --state::

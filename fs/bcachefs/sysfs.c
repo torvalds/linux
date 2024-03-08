@@ -6,7 +6,7 @@
  * Copyright 2012 Google, Inc.
  */
 
-#ifndef NO_BCACHEFS_SYSFS
+#ifndef ANAL_BCACHEFS_SYSFS
 
 #include "bcachefs.h"
 #include "alloc_background.h"
@@ -24,12 +24,12 @@
 #include "compress.h"
 #include "disk_groups.h"
 #include "ec.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "journal.h"
 #include "keylist.h"
 #include "move.h"
 #include "movinggc.h"
-#include "nocow_locking.h"
+#include "analcow_locking.h"
 #include "opts.h"
 #include "rebalance.h"
 #include "replicas.h"
@@ -62,7 +62,7 @@ static ssize_t fn ## _show(struct kobject *kobj, struct attribute *attr,\
 		prt_newline(&out);					\
 									\
 	if (!ret && out.allocation_failure)				\
-		ret = -ENOMEM;						\
+		ret = -EANALMEM;						\
 									\
 	if (!ret) {							\
 		ret = min_t(size_t, out.pos, PAGE_SIZE - 1);		\
@@ -145,7 +145,7 @@ rw_attribute(btree_gc_periodic);
 rw_attribute(gc_gens_pos);
 
 read_attribute(uuid);
-read_attribute(minor);
+read_attribute(mianalr);
 read_attribute(flags);
 read_attribute(bucket_size);
 read_attribute(first_bucket);
@@ -173,7 +173,7 @@ read_attribute(stripes_heap);
 read_attribute(open_buckets);
 read_attribute(open_buckets_partial);
 read_attribute(write_points);
-read_attribute(nocow_lock_table);
+read_attribute(analcow_lock_table);
 
 #ifdef BCH_WRITE_REF_DEBUG
 read_attribute(write_refs);
@@ -381,7 +381,7 @@ SHOW(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
 
-	sysfs_print(minor,			c->minor);
+	sysfs_print(mianalr,			c->mianalr);
 	sysfs_printf(internal_uuid, "%pU",	c->sb.uuid.b);
 
 	if (attr == &sysfs_flags)
@@ -456,8 +456,8 @@ SHOW(bch2_fs)
 		bch2_write_refs_to_text(out, c);
 #endif
 
-	if (attr == &sysfs_nocow_lock_table)
-		bch2_nocow_locks_to_text(out, &c->nocow_locks);
+	if (attr == &sysfs_analcow_lock_table)
+		bch2_analcow_locks_to_text(out, &c->analcow_locks);
 
 	if (attr == &sysfs_disk_groups)
 		bch2_disk_groups_to_text(out, c);
@@ -563,7 +563,7 @@ STORE(bch2_fs)
 SYSFS_OPS(bch2_fs);
 
 struct attribute *bch2_fs_files[] = {
-	&sysfs_minor,
+	&sysfs_mianalr,
 	&sysfs_btree_cache_size,
 	&sysfs_btree_write_stats,
 
@@ -650,7 +650,7 @@ struct attribute *bch2_fs_internal_files[] = {
 #ifdef BCH_WRITE_REF_DEBUG
 	&sysfs_write_refs,
 #endif
-	&sysfs_nocow_lock_table,
+	&sysfs_analcow_lock_table,
 	&sysfs_io_timers_read,
 	&sysfs_io_timers_write,
 
@@ -709,7 +709,7 @@ STORE(bch2_fs_opts_dir)
 
 	tmp = kstrdup(buf, GFP_KERNEL);
 	if (!tmp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -983,7 +983,7 @@ STORE(bch2_dev)
 
 		tmp = kstrdup(buf, GFP_KERNEL);
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = bch2_dev_group_set(c, ca, strim(tmp));
 		kfree(tmp);

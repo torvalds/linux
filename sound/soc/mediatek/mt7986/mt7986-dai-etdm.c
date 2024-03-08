@@ -98,11 +98,11 @@ static const struct snd_kcontrol_new o125_mix[] = {
 static const struct snd_soc_dapm_widget mtk_dai_etdm_widgets[] = {
 
 	/* DL */
-	SND_SOC_DAPM_MIXER("I150", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I151", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I150", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I151", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	/* UL */
-	SND_SOC_DAPM_MIXER("O124", SND_SOC_NOPM, 0, 0, o124_mix, ARRAY_SIZE(o124_mix)),
-	SND_SOC_DAPM_MIXER("O125", SND_SOC_NOPM, 0, 0, o125_mix, ARRAY_SIZE(o125_mix)),
+	SND_SOC_DAPM_MIXER("O124", SND_SOC_ANALPM, 0, 0, o124_mix, ARRAY_SIZE(o124_mix)),
+	SND_SOC_DAPM_MIXER("O125", SND_SOC_ANALPM, 0, 0, o125_mix, ARRAY_SIZE(o125_mix)),
 };
 
 static const struct snd_soc_dapm_route mtk_dai_etdm_routes[] = {
@@ -299,7 +299,7 @@ static int mtk_dai_etdm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case MT7986_DAI_ETDM:
 		break;
 	default:
-		dev_warn(afe->dev, "%s(), id %d not support\n",
+		dev_warn(afe->dev, "%s(), id %d analt support\n",
 			 __func__, dai->id);
 		return -EINVAL;
 	}
@@ -307,7 +307,7 @@ static int mtk_dai_etdm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	priv_data = devm_kzalloc(afe->dev, sizeof(struct mtk_dai_etdm_priv),
 				 GFP_KERNEL);
 	if (!priv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe_priv->dai_priv[dai->id] = priv_data;
 	etdm_data = afe_priv->dai_priv[dai->id];
@@ -410,7 +410,7 @@ int mt7986_dai_etdm_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

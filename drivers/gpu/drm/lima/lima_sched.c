@@ -31,7 +31,7 @@ int lima_sched_slab_init(void)
 			"lima_fence", sizeof(struct lima_fence), 0,
 			SLAB_HWCACHE_ALIGN, NULL);
 		if (!lima_fence_slab)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	lima_fence_slab_refcnt++;
@@ -94,7 +94,7 @@ static struct lima_fence *lima_fence_create(struct lima_sched_pipe *pipe)
 
 	fence->pipe = pipe;
 	dma_fence_init(&fence->base, &lima_fence_ops, &pipe->fence_lock,
-		       pipe->fence_context, ++pipe->fence_seqno);
+		       pipe->fence_context, ++pipe->fence_seqanal);
 
 	return fence;
 }
@@ -118,7 +118,7 @@ int lima_sched_task_init(struct lima_sched_task *task,
 
 	task->bos = kmemdup(bos, sizeof(*bos) * num_bos, GFP_KERNEL);
 	if (!task->bos)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_bos; i++)
 		drm_gem_object_get(&bos[i]->base.base);
@@ -158,7 +158,7 @@ int lima_sched_context_init(struct lima_sched_pipe *pipe,
 {
 	struct drm_gpu_scheduler *sched = &pipe->base;
 
-	return drm_sched_entity_init(&context->base, DRM_SCHED_PRIORITY_NORMAL,
+	return drm_sched_entity_init(&context->base, DRM_SCHED_PRIORITY_ANALRMAL,
 				     &sched, 1, guilty);
 }
 
@@ -231,7 +231,7 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	pipe->current_task = task;
 
 	/* this is needed for MMU to work correctly, otherwise GP/PP
-	 * will hang or page fault for unknown reason after running for
+	 * will hang or page fault for unkanalwn reason after running for
 	 * a while.
 	 *
 	 * Need to investigate:
@@ -432,7 +432,7 @@ static enum drm_gpu_sched_stat lima_sched_timedout_job(struct drm_sched_job *job
 	drm_sched_resubmit_jobs(&pipe->base);
 	drm_sched_start(&pipe->base, true);
 
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_ANALMINAL;
 }
 
 static void lima_sched_free_job(struct drm_sched_job *job)

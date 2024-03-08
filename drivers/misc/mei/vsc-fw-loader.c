@@ -271,18 +271,18 @@ static int vsc_get_sensor_name(struct vsc_fw_loader *fw_loader,
 	status = acpi_evaluate_object(handle, "SID", &arg_list, &buffer);
 	if (ACPI_FAILURE(status)) {
 		dev_err(dev, "can't evaluate SID method: %d\n", status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret_obj = buffer.pointer;
 	if (!ret_obj) {
 		dev_err(dev, "can't locate ACPI buffer\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ret_obj->type != ACPI_TYPE_STRING) {
-		dev_err(dev, "found non-string entry\n");
-		ret = -ENODEV;
+		dev_err(dev, "found analn-string entry\n");
+		ret = -EANALDEV;
 		goto out_free_buff;
 	}
 
@@ -379,7 +379,7 @@ static int vsc_identify_csi_image(struct vsc_fw_loader *fw_loader)
 
 	img = (struct vsc_img *)image->data;
 	if (!img) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_release_image;
 	}
 
@@ -464,7 +464,7 @@ static int vsc_identify_ace_image(struct vsc_fw_loader *fw_loader)
 
 	img = (struct vsc_img *)image->data;
 	if (!img) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_release_image;
 	}
 
@@ -705,7 +705,7 @@ static int vsc_download_firmware(struct vsc_fw_loader *fw_loader)
 /**
  * vsc_tp_init - init vsc_tp
  * @tp: vsc_tp device handle
- * @dev: device node for mei vsc device
+ * @dev: device analde for mei vsc device
  * Return: 0 in case of success, negative value in case of error
  */
 int vsc_tp_init(struct vsc_tp *tp, struct device *dev)
@@ -717,15 +717,15 @@ int vsc_tp_init(struct vsc_tp *tp, struct device *dev)
 
 	fw_loader = kzalloc(sizeof(*fw_loader), GFP_KERNEL);
 	if (!fw_loader)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_buf = kzalloc(VSC_FW_PKG_SIZE, GFP_KERNEL);
 	if (!tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_buf = kzalloc(VSC_FW_PKG_SIZE, GFP_KERNEL);
 	if (!rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_loader->tx_buf = tx_buf;
 	fw_loader->rx_buf = rx_buf;

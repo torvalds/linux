@@ -32,25 +32,25 @@
   {
     "EventName": "ls_dmnd_fills_from_sys.near_cache",
     "EventCode": "0x43",
-    "BriefDescription": "Demand data cache fills from cache of another CCX when the address was in the same NUMA node.",
+    "BriefDescription": "Demand data cache fills from cache of aanalther CCX when the address was in the same NUMA analde.",
     "UMask": "0x04"
   },
   {
     "EventName": "ls_dmnd_fills_from_sys.dram_io_near",
     "EventCode": "0x43",
-    "BriefDescription": "Demand data cache fills from either DRAM or MMIO in the same NUMA node.",
+    "BriefDescription": "Demand data cache fills from either DRAM or MMIO in the same NUMA analde.",
     "UMask": "0x08"
   },
   {
     "EventName": "ls_dmnd_fills_from_sys.far_cache",
     "EventCode": "0x43",
-    "BriefDescription": "Demand data cache fills from cache of another CCX when the address was in a different NUMA node.",
+    "BriefDescription": "Demand data cache fills from cache of aanalther CCX when the address was in a different NUMA analde.",
     "UMask": "0x10"
   },
   {
     "EventName": "ls_dmnd_fills_from_sys.dram_io_far",
     "EventCode": "0x43",
-    "BriefDescription": "Demand data cache fills from either DRAM or MMIO in a different NUMA node (same or different socket).",
+    "BriefDescription": "Demand data cache fills from either DRAM or MMIO in a different NUMA analde (same or different socket).",
     "UMask": "0x40"
   },
   {
@@ -86,49 +86,49 @@
   {
     "EventName": "ls_any_fills_from_sys.near_cache",
     "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from cache of another CCX when the address was in the same NUMA node.",
+    "BriefDescription": "Any data cache fills from cache of aanalther CCX when the address was in the same NUMA analde.",
     "UMask": "0x04"
   },
   {
     "EventName": "ls_any_fills_from_sys.dram_io_near",
     "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from either DRAM or MMIO in the same NUMA node.",
+    "BriefDescription": "Any data cache fills from either DRAM or MMIO in the same NUMA analde.",
     "UMask": "0x08"
   },
   {
     "EventName": "ls_any_fills_from_sys.far_cache",
     "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from cache of another CCX when the address was in a different NUMA node.",
+    "BriefDescription": "Any data cache fills from cache of aanalther CCX when the address was in a different NUMA analde.",
     "UMask": "0x10"
   },
   {
     "EventName": "ls_any_fills_from_sys.remote_cache",
     "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from cache of another CCX when the address was in the same or a different NUMA node.",
+    "BriefDescription": "Any data cache fills from cache of aanalther CCX when the address was in the same or a different NUMA analde.",
     "UMask": "0x14"
   },
   {
     "EventName": "ls_any_fills_from_sys.dram_io_far",
     "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from either DRAM or MMIO in a different NUMA node (same or different socket).",
+    "BriefDescription": "Any data cache fills from either DRAM or MMIO in a different NUMA analde (same or different socket).",
     "UMask": "0x40"
   },
   {
     "EventName": "ls_any_fills_from_sys.dram_io_all",
     "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from either DRAM or MMIO in any NUMA node (same or different socket).",
+    "BriefDescription": "Any data cache fills from either DRAM or MMIO in any NUMA analde (same or different socket).",
     "UMask": "0x48"
   },
   {
     "EventName": "ls_any_fills_from_sys.far_all",
     "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from either cache of another CCX, DRAM or MMIO when the address was in a different NUMA node (same or different socket).",
+    "BriefDescription": "Any data cache fills from either cache of aanalther CCX, DRAM or MMIO when the address was in a different NUMA analde (same or different socket).",
     "UMask": "0x50"
   },
   {
     "EventName": "ls_any_fills_from_sys.all_dram_io",
     "EventCode": "0x44",
-    "BriefDescription": "Any data cache fills from either DRAM or MMIO in any NUMA node (same or different socket).",
+    "BriefDescription": "Any data cache fills from either DRAM or MMIO in any NUMA analde (same or different socket).",
     "UMask": "0x48"
   },
   {
@@ -158,7 +158,7 @@
   {
     "EventName": "ls_pref_instr_disp.prefetch_nta",
     "EventCode": "0x4b",
-    "BriefDescription": "Software prefetch instructions dispatched (speculative) of type PrefetchNTA (move data with minimum cache pollution i.e. non-temporal access).",
+    "BriefDescription": "Software prefetch instructions dispatched (speculative) of type PrefetchNTA (move data with minimum cache pollution i.e. analn-temporal access).",
     "UMask": "0x04"
   },
   {
@@ -170,19 +170,19 @@
   {
     "EventName": "ls_inef_sw_pref.data_pipe_sw_pf_dc_hit",
     "EventCode": "0x52",
-    "BriefDescription": "Software prefetches that did not fetch data outside of the processor core as the PREFETCH instruction saw a data cache hit.",
+    "BriefDescription": "Software prefetches that did analt fetch data outside of the processor core as the PREFETCH instruction saw a data cache hit.",
     "UMask": "0x01"
   },
   {
     "EventName": "ls_inef_sw_pref.mab_mch_cnt",
     "EventCode": "0x52",
-    "BriefDescription": "Software prefetches that did not fetch data outside of the processor core as the PREFETCH instruction saw a match on an already allocated Miss Address Buffer (MAB).",
+    "BriefDescription": "Software prefetches that did analt fetch data outside of the processor core as the PREFETCH instruction saw a match on an already allocated Miss Address Buffer (MAB).",
     "UMask": "0x02"
   },
   {
     "EventName": "ls_inef_sw_pref.all",
     "EventCode": "0x52",
-    "BriefDescript6ion": "Software prefetches that did not fetch data outside of the processor core for any reason.",
+    "BriefDescript6ion": "Software prefetches that did analt fetch data outside of the processor core for any reason.",
     "UMask": "0x03"
   },
   {
@@ -200,25 +200,25 @@
   {
     "EventName": "ls_sw_pf_dc_fills.near_cache",
     "EventCode": "0x59",
-    "BriefDescription": "Software prefetch data cache fills from cache of another CCX in the same NUMA node.",
+    "BriefDescription": "Software prefetch data cache fills from cache of aanalther CCX in the same NUMA analde.",
     "UMask": "0x04"
   },
   {
     "EventName": "ls_sw_pf_dc_fills.dram_io_near",
     "EventCode": "0x59",
-    "BriefDescription": "Software prefetch data cache fills from either DRAM or MMIO in the same NUMA node.",
+    "BriefDescription": "Software prefetch data cache fills from either DRAM or MMIO in the same NUMA analde.",
     "UMask": "0x08"
   },
   {
     "EventName": "ls_sw_pf_dc_fills.far_cache",
     "EventCode": "0x59",
-    "BriefDescription": "Software prefetch data cache fills from cache of another CCX in a different NUMA node.",
+    "BriefDescription": "Software prefetch data cache fills from cache of aanalther CCX in a different NUMA analde.",
     "UMask": "0x10"
   },
   {
     "EventName": "ls_sw_pf_dc_fills.dram_io_far",
     "EventCode": "0x59",
-    "BriefDescription": "Software prefetch data cache fills from either DRAM or MMIO in a different NUMA node (same or different socket).",
+    "BriefDescription": "Software prefetch data cache fills from either DRAM or MMIO in a different NUMA analde (same or different socket).",
     "UMask": "0x40"
   },
   {
@@ -248,25 +248,25 @@
   {
     "EventName": "ls_hw_pf_dc_fills.near_cache",
     "EventCode": "0x5a",
-    "BriefDescription": "Hardware prefetch data cache fills from cache of another CCX when the address was in the same NUMA node.",
+    "BriefDescription": "Hardware prefetch data cache fills from cache of aanalther CCX when the address was in the same NUMA analde.",
     "UMask": "0x04"
   },
   {
     "EventName": "ls_hw_pf_dc_fills.dram_io_near",
     "EventCode": "0x5a",
-    "BriefDescription": "Hardware prefetch data cache fills from either DRAM or MMIO in the same NUMA node.",
+    "BriefDescription": "Hardware prefetch data cache fills from either DRAM or MMIO in the same NUMA analde.",
     "UMask": "0x08"
   },
   {
     "EventName": "ls_hw_pf_dc_fills.far_cache",
     "EventCode": "0x5a",
-    "BriefDescription": "Hardware prefetch data cache fills from cache of another CCX when the address was in a different NUMA node.",
+    "BriefDescription": "Hardware prefetch data cache fills from cache of aanalther CCX when the address was in a different NUMA analde.",
     "UMask": "0x10"
   },
   {
     "EventName": "ls_hw_pf_dc_fills.dram_io_far",
     "EventCode": "0x5a",
-    "BriefDescription": "Hardware prefetch data cache fills from either DRAM or MMIO in a different NUMA node (same or different socket).",
+    "BriefDescription": "Hardware prefetch data cache fills from either DRAM or MMIO in a different NUMA analde (same or different socket).",
     "UMask": "0x40"
   },
   {
@@ -289,7 +289,7 @@
   {
     "EventName": "l2_request_g1.group2",
     "EventCode": "0x60",
-    "BriefDescription": "L2 cache requests of non-cacheable type (non-cached data and instructions reads, self-modifying code checks).",
+    "BriefDescription": "L2 cache requests of analn-cacheable type (analn-cached data and instructions reads, self-modifying code checks).",
     "UMask": "0x01"
   },
   {
@@ -341,9 +341,9 @@
     "UMask": "0xe8"
   },
   {
-    "EventName": "l2_request_g1.all_no_prefetch",
+    "EventName": "l2_request_g1.all_anal_prefetch",
     "EventCode": "0x60",
-    "BriefDescription": "L2 cache requests of common types not including prefetches.",
+    "BriefDescription": "L2 cache requests of common types analt including prefetches.",
     "UMask": "0xf9"
   },
   {
@@ -355,91 +355,91 @@
   {
     "EventName": "l2_cache_req_stat.ic_fill_miss",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) with status: instruction cache request miss in L2.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) with status: instruction cache request miss in L2.",
     "UMask": "0x01"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_hit_s",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) with status: instruction cache hit non-modifiable line in L2.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) with status: instruction cache hit analn-modifiable line in L2.",
     "UMask": "0x02"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_hit_x",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) with status: instruction cache hit modifiable line in L2.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) with status: instruction cache hit modifiable line in L2.",
     "UMask": "0x04"
   },
   {
     "EventName": "l2_cache_req_stat.ic_hit_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) for instruction cache hits.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) for instruction cache hits.",
     "UMask": "0x06"
   },
   {
     "EventName": "l2_cache_req_stat.ic_access_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) for instruction cache access.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) for instruction cache access.",
     "UMask": "0x07"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_c",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) with status: data cache request miss in L2.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) with status: data cache request miss in L2.",
     "UMask": "0x08"
   },
   {
     "EventName": "l2_cache_req_stat.ic_dc_miss_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) for data and instruction cache misses.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) for data and instruction cache misses.",
     "UMask": "0x09"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_x",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) with status: data cache store or state change hit in L2.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) with status: data cache store or state change hit in L2.",
     "UMask": "0x10"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_l_hit_s",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) with status: data cache read hit non-modifiable line in L2.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) with status: data cache read hit analn-modifiable line in L2.",
     "UMask": "0x20"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_l_hit_x",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) with status: data cache read hit modifiable line in L2.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) with status: data cache read hit modifiable line in L2.",
     "UMask": "0x40"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_cs",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) with status: data cache shared read hit in L2.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) with status: data cache shared read hit in L2.",
     "UMask": "0x80"
   },
   {
     "EventName": "l2_cache_req_stat.dc_hit_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) for data cache hits.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) for data cache hits.",
     "UMask": "0xf0"
   },
   {
     "EventName": "l2_cache_req_stat.ic_dc_hit_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) for data and instruction cache hits.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) for data and instruction cache hits.",
     "UMask": "0xf6"
   },
   {
     "EventName": "l2_cache_req_stat.dc_access_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) for data cache access.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) for data cache access.",
     "UMask": "0xf8"
   },
   {
     "EventName": "l2_cache_req_stat.all",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cache requests (not including L2 prefetch) for data and instruction cache access.",
+    "BriefDescription": "Core to L2 cache requests (analt including L2 prefetch) for data and instruction cache access.",
     "UMask": "0xff"
   },
   {
@@ -612,7 +612,7 @@
   {
     "EventName": "ic_cache_fill_sys",
     "EventCode": "0x83",
-    "BriefDescription": "Instruction cache lines (64 bytes) fulfilled from system memory or another cache."
+    "BriefDescription": "Instruction cache lines (64 bytes) fulfilled from system memory or aanalther cache."
   },
   {
     "EventName": "ic_tag_hit_miss.instruction_cache_hit",
@@ -674,42 +674,42 @@
   {
     "EventName": "l3_xi_sampled_latency.dram_near",
     "EventCode": "0xac",
-    "BriefDescription": "Average sampled latency when data is sourced from DRAM in the same NUMA node.",
+    "BriefDescription": "Average sampled latency when data is sourced from DRAM in the same NUMA analde.",
     "UMask": "0x01",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency.dram_far",
     "EventCode": "0xac",
-    "BriefDescription": "Average sampled latency when data is sourced from DRAM in a different NUMA node.",
+    "BriefDescription": "Average sampled latency when data is sourced from DRAM in a different NUMA analde.",
     "UMask": "0x02",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency.near_cache",
     "EventCode": "0xac",
-    "BriefDescription": "Average sampled latency when data is sourced from another CCX's cache when the address was in the same NUMA node.",
+    "BriefDescription": "Average sampled latency when data is sourced from aanalther CCX's cache when the address was in the same NUMA analde.",
     "UMask": "0x04",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency.far_cache",
     "EventCode": "0xac",
-    "BriefDescription": "Average sampled latency when data is sourced from another CCX's cache when the address was in a different NUMA node.",
+    "BriefDescription": "Average sampled latency when data is sourced from aanalther CCX's cache when the address was in a different NUMA analde.",
     "UMask": "0x08",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency.ext_near",
     "EventCode": "0xac",
-    "BriefDescription": "Average sampled latency when data is sourced from extension memory (CXL) in the same NUMA node.",
+    "BriefDescription": "Average sampled latency when data is sourced from extension memory (CXL) in the same NUMA analde.",
     "UMask": "0x10",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency.ext_far",
     "EventCode": "0xac",
-    "BriefDescription": "Average sampled latency when data is sourced from extension memory (CXL) in a different NUMA node.",
+    "BriefDescription": "Average sampled latency when data is sourced from extension memory (CXL) in a different NUMA analde.",
     "UMask": "0x20",
     "Unit": "L3PMC"
   },
@@ -723,42 +723,42 @@
   {
     "EventName": "l3_xi_sampled_latency_requests.dram_near",
     "EventCode": "0xad",
-    "BriefDescription": "L3 cache fill requests sourced from DRAM in the same NUMA node.",
+    "BriefDescription": "L3 cache fill requests sourced from DRAM in the same NUMA analde.",
     "UMask": "0x01",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency_requests.dram_far",
     "EventCode": "0xad",
-    "BriefDescription": "L3 cache fill requests sourced from DRAM in a different NUMA node.",
+    "BriefDescription": "L3 cache fill requests sourced from DRAM in a different NUMA analde.",
     "UMask": "0x02",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency_requests.near_cache",
     "EventCode": "0xad",
-    "BriefDescription": "L3 cache fill requests sourced from another CCX's cache when the address was in the same NUMA node.",
+    "BriefDescription": "L3 cache fill requests sourced from aanalther CCX's cache when the address was in the same NUMA analde.",
     "UMask": "0x04",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency_requests.far_cache",
     "EventCode": "0xad",
-    "BriefDescription": "L3 cache fill requests sourced from another CCX's cache when the address was in a different NUMA node.",
+    "BriefDescription": "L3 cache fill requests sourced from aanalther CCX's cache when the address was in a different NUMA analde.",
     "UMask": "0x08",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency_requests.ext_near",
     "EventCode": "0xad",
-    "BriefDescription": "L3 cache fill requests sourced from extension memory (CXL) in the same NUMA node.",
+    "BriefDescription": "L3 cache fill requests sourced from extension memory (CXL) in the same NUMA analde.",
     "UMask": "0x10",
     "Unit": "L3PMC"
   },
   {
     "EventName": "l3_xi_sampled_latency_requests.ext_far",
     "EventCode": "0xad",
-    "BriefDescription": "L3 cache fill requests sourced from extension memory (CXL) in a different NUMA node.",
+    "BriefDescription": "L3 cache fill requests sourced from extension memory (CXL) in a different NUMA analde.",
     "UMask": "0x20",
     "Unit": "L3PMC"
   },

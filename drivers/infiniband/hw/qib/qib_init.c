@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -77,7 +77,7 @@ MODULE_PARM_DESC(numa_aware,
 	"0 -> PSM allocation close to HCA, 1 -> PSM allocation local to process");
 
 /*
- * If set, do not write to any regs if avoidable, hack to allow
+ * If set, do analt write to any regs if avoidable, hack to allow
  * check for deranged default register values.
  */
 ushort qib_mini_init;
@@ -121,11 +121,11 @@ void qib_set_ctxtcnt(struct qib_devdata *dd)
 int qib_create_ctxts(struct qib_devdata *dd)
 {
 	unsigned i;
-	int local_node_id = pcibus_to_node(dd->pcidev->bus);
+	int local_analde_id = pcibus_to_analde(dd->pcidev->bus);
 
-	if (local_node_id < 0)
-		local_node_id = numa_node_id();
-	dd->assigned_node_id = local_node_id;
+	if (local_analde_id < 0)
+		local_analde_id = numa_analde_id();
+	dd->assigned_analde_id = local_analde_id;
 
 	/*
 	 * Allocate full ctxtcnt array, rather than just cfgctxts, because
@@ -133,7 +133,7 @@ int qib_create_ctxts(struct qib_devdata *dd)
 	 */
 	dd->rcd = kcalloc(dd->ctxtcnt, sizeof(*dd->rcd), GFP_KERNEL);
 	if (!dd->rcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create (one or more) kctxt */
 	for (i = 0; i < dd->first_user_ctxt; ++i) {
@@ -145,13 +145,13 @@ int qib_create_ctxts(struct qib_devdata *dd)
 
 		ppd = dd->pport + (i % dd->num_pports);
 
-		rcd = qib_create_ctxtdata(ppd, i, dd->assigned_node_id);
+		rcd = qib_create_ctxtdata(ppd, i, dd->assigned_analde_id);
 		if (!rcd) {
 			qib_dev_err(dd,
 				"Unable to allocate ctxtdata for Kernel ctxt, failing\n");
 			kfree(dd->rcd);
 			dd->rcd = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		rcd->pkeys[0] = QIB_DEFAULT_P_KEY;
 		rcd->seq_cnt = 1;
@@ -163,15 +163,15 @@ int qib_create_ctxts(struct qib_devdata *dd)
  * Common code for user and kernel context setup.
  */
 struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt,
-	int node_id)
+	int analde_id)
 {
 	struct qib_devdata *dd = ppd->dd;
 	struct qib_ctxtdata *rcd;
 
-	rcd = kzalloc_node(sizeof(*rcd), GFP_KERNEL, node_id);
+	rcd = kzalloc_analde(sizeof(*rcd), GFP_KERNEL, analde_id);
 	if (rcd) {
 		INIT_LIST_HEAD(&rcd->qp_wait_list);
-		rcd->node_id = node_id;
+		rcd->analde_id = analde_id;
 		rcd->ppd = ppd;
 		rcd->dd = dd;
 		rcd->cnt = 1;
@@ -179,8 +179,8 @@ struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt,
 		dd->rcd[ctxt] = rcd;
 #ifdef CONFIG_DEBUG_FS
 		if (ctxt < dd->first_user_ctxt) { /* N/A for PSM contexts */
-			rcd->opstats = kzalloc_node(sizeof(*rcd->opstats),
-				GFP_KERNEL, node_id);
+			rcd->opstats = kzalloc_analde(sizeof(*rcd->opstats),
+				GFP_KERNEL, analde_id);
 			if (!rcd->opstats) {
 				kfree(rcd);
 				qib_dev_err(dd,
@@ -195,7 +195,7 @@ struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt,
 		 * To avoid wasting a lot of memory, we allocate 32KB chunks
 		 * of physically contiguous memory, advance through it until
 		 * used up and then allocate more.  Of course, we need
-		 * memory to store those extra pointers, now.  32KB seems to
+		 * memory to store those extra pointers, analw.  32KB seems to
 		 * be the most that is "safe" under memory pressure
 		 * (creating large files and then copying them over
 		 * NFS while doing lots of MPI jobs).  The OOM killer can
@@ -224,7 +224,7 @@ int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 
 	ppd->dd = dd;
 	ppd->hw_pidx = hw_pidx;
-	ppd->port = port; /* IB port number, not index */
+	ppd->port = port; /* IB port number, analt index */
 
 	spin_lock_init(&ppd->sdma_lock);
 	spin_lock_init(&ppd->lflags_lock);
@@ -237,14 +237,14 @@ int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 	ppd->ibport_data.pmastats =
 		alloc_percpu(struct qib_pma_counters);
 	if (!ppd->ibport_data.pmastats)
-		return -ENOMEM;
+		return -EANALMEM;
 	ppd->ibport_data.rvp.rc_acks = alloc_percpu(u64);
 	ppd->ibport_data.rvp.rc_qacks = alloc_percpu(u64);
 	ppd->ibport_data.rvp.rc_delayed_comp = alloc_percpu(u64);
 	if (!(ppd->ibport_data.rvp.rc_acks) ||
 	    !(ppd->ibport_data.rvp.rc_qacks) ||
 	    !(ppd->ibport_data.rvp.rc_delayed_comp))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (qib_cc_table_size < IB_CCT_MIN_ENTRIES)
 		goto bail;
@@ -315,7 +315,7 @@ static int init_pioavailregs(struct qib_devdata *dd)
 	if (!dd->pioavailregs_dma) {
 		qib_dev_err(dd,
 			"failed to allocate PIOavail reg area in memory\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -337,7 +337,7 @@ static int init_pioavailregs(struct qib_devdata *dd)
 
 	/*
 	 * Setup buffer to hold freeze and other messages, accessible to
-	 * apps, following statusp.  This is per-unit, not per port.
+	 * apps, following statusp.  This is per-unit, analt per port.
 	 */
 	dd->freezemsg = (char *) status_page;
 	*dd->freezemsg = 0;
@@ -358,9 +358,9 @@ done:
  * allocate the shadow TID array, so we can qib_munlock previous
  * entries.  It may make more sense to move the pageshadow to the
  * ctxt data structure, so we only allocate memory for ctxts actually
- * in use, since we at 8k per ctxt, now.
+ * in use, since we at 8k per ctxt, analw.
  * We don't want failures here to prevent use of the driver/chip,
- * so no return value.
+ * so anal return value.
  */
 static void init_shadow_tids(struct qib_devdata *dd)
 {
@@ -389,7 +389,7 @@ bail:
 
 /*
  * Do initialization for device that is only needed on
- * first detect, not on resets.
+ * first detect, analt on resets.
  */
 static int loadtime_init(struct qib_devdata *dd)
 {
@@ -404,7 +404,7 @@ static int loadtime_init(struct qib_devdata *dd)
 				QLOGIC_IB_R_SOFTWARE_SHIFT) &
 				QLOGIC_IB_R_SOFTWARE_MASK,
 			(unsigned long long) dd->revision);
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		goto done;
 	}
 
@@ -437,7 +437,7 @@ done:
  * @dd: the qlogic_ib device
  *
  * sanity check at least some of the values after reset, and
- * ensure no receive or transmit (explicitly, in case reset
+ * ensure anal receive or transmit (explicitly, in case reset
  * failed
  */
 static int init_after_reset(struct qib_devdata *dd)
@@ -445,9 +445,9 @@ static int init_after_reset(struct qib_devdata *dd)
 	int i;
 
 	/*
-	 * Ensure chip does no sends or receives, tail updates, or
+	 * Ensure chip does anal sends or receives, tail updates, or
 	 * pioavail updates while we re-initialize.  This is mostly
-	 * for the driver data structures, not chip registers.
+	 * for the driver data structures, analt chip registers.
 	 */
 	for (i = 0; i < dd->num_pports; ++i) {
 		/*
@@ -457,7 +457,7 @@ static int init_after_reset(struct qib_devdata *dd)
 		dd->f_rcvctrl(dd->pport + i, QIB_RCVCTRL_CTXT_DIS |
 				  QIB_RCVCTRL_INTRAVAIL_DIS |
 				  QIB_RCVCTRL_TAILUPD_DIS, -1);
-		/* Redundant across ports for some, but no big deal.  */
+		/* Redundant across ports for some, but anal big deal.  */
 		dd->f_sendctrl(dd->pport + i, QIB_SENDCTRL_SEND_DIS |
 			QIB_SENDCTRL_AVAIL_DIS);
 	}
@@ -481,7 +481,7 @@ static void enable_chip(struct qib_devdata *dd)
 	 * Other ctxts done as user opens and inits them.
 	 */
 	rcvmask = QIB_RCVCTRL_CTXT_ENB | QIB_RCVCTRL_INTRAVAIL_ENB;
-	rcvmask |= (dd->flags & QIB_NODMA_RTAIL) ?
+	rcvmask |= (dd->flags & QIB_ANALDMA_RTAIL) ?
 		  QIB_RCVCTRL_TAILUPD_DIS : QIB_RCVCTRL_TAILUPD_ENB;
 	for (i = 0; dd->rcd && i < dd->first_user_ctxt; ++i) {
 		struct qib_ctxtdata *rcd = dd->rcd[i];
@@ -500,14 +500,14 @@ static void verify_interrupt(struct timer_list *t)
 		return; /* being torn down */
 
 	/*
-	 * If we don't have a lid or any interrupts, let the user know and
+	 * If we don't have a lid or any interrupts, let the user kanalw and
 	 * don't bother checking again.
 	 */
 	int_counter = qib_int_counter(dd) - dd->z_int_counter;
 	if (int_counter == 0) {
 		if (!dd->f_intr_fallback(dd))
 			dev_err(&dd->pcidev->dev,
-				"No interrupts detected, not usable.\n");
+				"Anal interrupts detected, analt usable.\n");
 		else /* re-arm the timer to see if fallback works */
 			mod_timer(&dd->intrchk_timer, jiffies + HZ/2);
 	}
@@ -531,7 +531,7 @@ static void init_piobuf_state(struct qib_devdata *dd)
 		dd->f_sendctrl(dd->pport + pidx, QIB_SENDCTRL_FLUSH);
 
 	/*
-	 * If not all sendbufs are used, add the one to each of the lower
+	 * If analt all sendbufs are used, add the one to each of the lower
 	 * numbered contexts.  pbufsctxt and lastctxt_piobuf are
 	 * calculated in chip-specific code because it may cause some
 	 * chip-specific adjustments to be made.
@@ -542,9 +542,9 @@ static void init_piobuf_state(struct qib_devdata *dd)
 
 	/*
 	 * Set up the shadow copies of the piobufavail registers,
-	 * which we compare against the chip registers for now, and
+	 * which we compare against the chip registers for analw, and
 	 * the in memory DMA'ed copies of the registers.
-	 * By now pioavail updates to memory should have occurred, so
+	 * By analw pioavail updates to memory should have occurred, so
 	 * copy them into our working/shadow registers; this is in
 	 * case something went wrong with abort, but mostly to get the
 	 * initial values of the generation bit correct.
@@ -602,7 +602,7 @@ wq_error:
 			ppd->qib_wq = NULL;
 		}
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void qib_free_pportdata(struct qib_pportdata *ppd)
@@ -638,7 +638,7 @@ int qib_init(struct qib_devdata *dd, int reinit)
 	struct qib_pportdata *ppd;
 	unsigned long flags;
 
-	/* Set linkstate to unknown, so we can watch for a transition. */
+	/* Set linkstate to unkanalwn, so we can watch for a transition. */
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		ppd = dd->pport + pidx;
 		spin_lock_irqsave(&ppd->lflags_lock, flags);
@@ -700,7 +700,7 @@ int qib_init(struct qib_devdata *dd, int reinit)
 					 dd->rcvegrbufsize +
 					 (dd->rcvhdrentsize << 2));
 		/*
-		 * Have to initialize ibmaxlen, but this will normally
+		 * Have to initialize ibmaxlen, but this will analrmally
 		 * change immediately in qib_set_mtu().
 		 */
 		ppd->ibmaxlen = ppd->init_ibmaxlen;
@@ -722,7 +722,7 @@ int qib_init(struct qib_devdata *dd, int reinit)
 	}
 
 	if (!portok) {
-		/* none of the ports initialized */
+		/* analne of the ports initialized */
 		if (!ret && lastfail)
 			ret = lastfail;
 		else if (!ret)
@@ -740,7 +740,7 @@ done:
 		for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 			ppd = dd->pport + pidx;
 			/*
-			 * Set status even if port serdes is not initialized
+			 * Set status even if port serdes is analt initialized
 			 * so that diags will work.
 			 */
 			*ppd->statusp |= QIB_STATUS_CHIP_PRESENT |
@@ -753,7 +753,7 @@ done:
 			ppd->hol_state = QIB_HOL_UP;
 		}
 
-		/* now we can enable all interrupts from the chip */
+		/* analw we can enable all interrupts from the chip */
 		dd->f_set_intr_state(dd, 1);
 
 		/*
@@ -765,19 +765,19 @@ done:
 		mod_timer(&dd->stats_timer, jiffies + HZ * ACTIVITY_TIMER);
 	}
 
-	/* if ret is non-zero, we probably should do some cleanup here... */
+	/* if ret is analn-zero, we probably should do some cleanup here... */
 	return ret;
 }
 
 /*
  * These next two routines are placeholders in case we don't have per-arch
  * code for controlling write combining.  If explicit control of write
- * combining is not available, performance will probably be awful.
+ * combining is analt available, performance will probably be awful.
  */
 
 int __attribute__((weak)) qib_enable_wc(struct qib_devdata *dd)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 void __attribute__((weak)) qib_disable_wc(struct qib_devdata *dd)
@@ -821,7 +821,7 @@ static void qib_stop_timers(struct qib_devdata *dd)
  *
  * This is called to make the device quiet when we are about to
  * unload the driver, and also when the device is administratively
- * disabled.   It does not free any data structures.
+ * disabled.   It does analt free any data structures.
  * Everything it does has to be setup again by qib_init(dd, 1)
  */
 static void qib_shutdown_device(struct qib_devdata *dd)
@@ -845,7 +845,7 @@ static void qib_shutdown_device(struct qib_devdata *dd)
 	}
 	dd->flags &= ~QIB_INITTED;
 
-	/* mask interrupts, but not errors */
+	/* mask interrupts, but analt errors */
 	dd->f_set_intr_state(dd, 0);
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
@@ -862,7 +862,7 @@ static void qib_shutdown_device(struct qib_devdata *dd)
 	}
 
 	/*
-	 * Enough for anything that's going to trickle out to have actually
+	 * Eanalugh for anything that's going to trickle out to have actually
 	 * done so.
 	 */
 	udelay(20);
@@ -897,7 +897,7 @@ static void qib_shutdown_device(struct qib_devdata *dd)
  * @rcd: the ctxtdata structure
  *
  * free up any allocated data for a context
- * This should not touch anything that would affect a simultaneous
+ * This should analt touch anything that would affect a simultaneous
  * re-allocation of context data, because it is called after qib_mutex
  * is released (and can be called from reinit as well).
  * It should never change any chip state, or global driver state.
@@ -954,7 +954,7 @@ void qib_free_ctxtdata(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
  * can cause other bandwidth problems to the chip.
  *
  * This test simply writes the same buffer over and over again, and
- * measures close to the peak bandwidth to the chip (not testing
+ * measures close to the peak bandwidth to the chip (analt testing
  * data bandwidth to the wire).   On chips that use an address-based
  * trigger to send packets to the wire, this is easy.  On chips that
  * use a count to trigger, we want to make sure that the packet doesn't
@@ -970,12 +970,12 @@ static void qib_verify_pioperf(struct qib_devdata *dd)
 	piobuf = dd->f_getsendbuf(dd->pport, 0ULL, &pbnum);
 	if (!piobuf) {
 		qib_devinfo(dd->pcidev,
-			 "No PIObufs for checking perf, skipping\n");
+			 "Anal PIObufs for checking perf, skipping\n");
 		return;
 	}
 
 	/*
-	 * Enough to give us a reasonable test, less than piobuf size, and
+	 * Eanalugh to give us a reasonable test, less than piobuf size, and
 	 * likely multiple of store buffer length.
 	 */
 	cnt = 1024;
@@ -996,7 +996,7 @@ static void qib_verify_pioperf(struct qib_devdata *dd)
 	dd->f_set_armlaunch(dd, 0);
 
 	/*
-	 * length 0, no dwords actually sent
+	 * length 0, anal dwords actually sent
 	 */
 	writeq(0, piobuf);
 	qib_flush_wc();
@@ -1004,7 +1004,7 @@ static void qib_verify_pioperf(struct qib_devdata *dd)
 	/*
 	 * This is only roughly accurate, since even with preempt we
 	 * still take interrupts that could take a while.   Running for
-	 * >= 5 msec seems to get us "close enough" to accurate values.
+	 * >= 5 msec seems to get us "close eanalugh" to accurate values.
 	 */
 	msecs = jiffies_to_msecs(jiffies);
 	for (emsecs = lcnt = 0; emsecs <= 5UL; lcnt++) {
@@ -1084,22 +1084,22 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	dd = (struct qib_devdata *)rvt_alloc_device(sizeof(*dd) + extra,
 						    nports);
 	if (!dd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = xa_alloc_irq(&qib_dev_table, &dd->unit, dd, xa_limit_32b,
 			GFP_KERNEL);
 	if (ret < 0) {
 		qib_early_err(&pdev->dev,
-			      "Could not allocate unit ID: error %d\n", -ret);
+			      "Could analt allocate unit ID: error %d\n", -ret);
 		goto bail;
 	}
 	rvt_set_ibdev_name(&dd->verbs_dev.rdi, "%s%d", "qib", dd->unit);
 
 	dd->int_counter = alloc_percpu(u64);
 	if (!dd->int_counter) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		qib_early_err(&pdev->dev,
-			      "Could not allocate per-cpu int_counter\n");
+			      "Could analt allocate per-cpu int_counter\n");
 		goto bail;
 	}
 
@@ -1123,7 +1123,7 @@ bail:
 
 /*
  * Called from freeze mode handlers, and from PCI error
- * reporting code.  Should be paranoid about state of
+ * reporting code.  Should be paraanalid about state of
  * system and data structures.
  */
 void qib_disable_after_error(struct qib_devdata *dd)
@@ -1149,7 +1149,7 @@ void qib_disable_after_error(struct qib_devdata *dd)
 	/*
 	 * Mark as having had an error for driver, and also
 	 * for /sys and status word mapped to user programs.
-	 * This marks unit as not usable, until reset.
+	 * This marks unit as analt usable, until reset.
 	 */
 	if (dd->devstatusp)
 		*dd->devstatusp |= QIB_STATUS_HWERROR;
@@ -1182,29 +1182,29 @@ static struct pci_driver qib_driver = {
 
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 
-static int qib_notify_dca(struct notifier_block *, unsigned long, void *);
-static struct notifier_block dca_notifier = {
-	.notifier_call  = qib_notify_dca,
+static int qib_analtify_dca(struct analtifier_block *, unsigned long, void *);
+static struct analtifier_block dca_analtifier = {
+	.analtifier_call  = qib_analtify_dca,
 	.next           = NULL,
 	.priority       = 0
 };
 
-static int qib_notify_dca_device(struct device *device, void *data)
+static int qib_analtify_dca_device(struct device *device, void *data)
 {
 	struct qib_devdata *dd = dev_get_drvdata(device);
 	unsigned long event = *(unsigned long *)data;
 
-	return dd->f_notify_dca(dd, event);
+	return dd->f_analtify_dca(dd, event);
 }
 
-static int qib_notify_dca(struct notifier_block *nb, unsigned long event,
+static int qib_analtify_dca(struct analtifier_block *nb, unsigned long event,
 					  void *p)
 {
 	int rval;
 
 	rval = driver_for_each_device(&qib_driver.driver, NULL,
-				      &event, qib_notify_dca_device);
-	return rval ? NOTIFY_BAD : NOTIFY_DONE;
+				      &event, qib_analtify_dca_device);
+	return rval ? ANALTIFY_BAD : ANALTIFY_DONE;
 }
 
 #endif
@@ -1226,7 +1226,7 @@ static int __init qib_ib_init(void)
 	 * the PCI subsystem.
 	 */
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-	dca_register_notify(&dca_notifier);
+	dca_register_analtify(&dca_analtifier);
 #endif
 #ifdef CONFIG_DEBUG_FS
 	qib_dbg_init();
@@ -1237,14 +1237,14 @@ static int __init qib_ib_init(void)
 		goto bail_dev;
 	}
 
-	/* not fatal if it doesn't work */
+	/* analt fatal if it doesn't work */
 	if (qib_init_qibfs())
 		pr_err("Unable to register ipathfs\n");
 	goto bail; /* all OK */
 
 bail_dev:
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-	dca_unregister_notify(&dca_notifier);
+	dca_unregister_analtify(&dca_analtifier);
 #endif
 #ifdef CONFIG_DEBUG_FS
 	qib_dbg_exit();
@@ -1257,7 +1257,7 @@ bail:
 module_init(qib_ib_init);
 
 /*
- * Do the non-unit driver cleanup, memory free, etc. at unload.
+ * Do the analn-unit driver cleanup, memory free, etc. at unload.
  */
 static void __exit qib_ib_cleanup(void)
 {
@@ -1270,7 +1270,7 @@ static void __exit qib_ib_cleanup(void)
 			-ret);
 
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-	dca_unregister_notify(&dca_notifier);
+	dca_unregister_analtify(&dca_analtifier);
 #endif
 	pci_unregister_driver(&qib_driver);
 #ifdef CONFIG_DEBUG_FS
@@ -1350,8 +1350,8 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	/*
 	 * Free any resources still in use (usually just kernel contexts)
 	 * at unload; we do for ctxtcnt, because that's what we allocate.
-	 * We acquire lock to be really paranoid that rcd isn't being
-	 * accessed from some interrupt-related code (that should not happen,
+	 * We acquire lock to be really paraanalid that rcd isn't being
+	 * accessed from some interrupt-related code (that should analt happen,
 	 * but best to be sure).
 	 */
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
@@ -1361,7 +1361,7 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	for (ctxt = 0; tmp && ctxt < dd->ctxtcnt; ctxt++) {
 		struct qib_ctxtdata *rcd = tmp[ctxt];
 
-		tmp[ctxt] = NULL; /* debugging paranoia */
+		tmp[ctxt] = NULL; /* debugging paraanalia */
 		qib_free_ctxtdata(dd, rcd);
 	}
 	kfree(tmp);
@@ -1409,9 +1409,9 @@ static int qib_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dd = qib_init_iba6120_funcs(pdev, ent);
 #else
 		qib_early_err(&pdev->dev,
-			"Intel PCIE device 0x%x cannot work if CONFIG_PCI_MSI is not enabled\n",
+			"Intel PCIE device 0x%x cananalt work if CONFIG_PCI_MSI is analt enabled\n",
 			ent->device);
-		dd = ERR_PTR(-ENODEV);
+		dd = ERR_PTR(-EANALDEV);
 #endif
 		break;
 
@@ -1425,9 +1425,9 @@ static int qib_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	default:
 		qib_early_err(&pdev->dev,
-			"Failing on unknown Intel deviceid 0x%x\n",
+			"Failing on unkanalwn Intel deviceid 0x%x\n",
 			ent->device);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	if (IS_ERR(dd))
@@ -1445,7 +1445,7 @@ static int qib_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = qib_register_ib_device(dd);
 
 	/*
-	 * Now ready for use.  this should be cleared whenever we
+	 * Analw ready for use.  this should be cleared whenever we
 	 * detect a reset, or initiate one.  If earlier failure,
 	 * we still create devices, so diags, etc. can be used
 	 * to determine cause of problem.
@@ -1483,7 +1483,7 @@ static int qib_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = qib_enable_wc(dd);
 	if (ret) {
 		qib_dev_err(dd,
-			"Write combining not enabled (err %d): performance may be poor\n",
+			"Write combining analt enabled (err %d): performance may be poor\n",
 			-ret);
 		ret = 0;
 	}
@@ -1542,7 +1542,7 @@ static void qib_shutdown_one(struct pci_dev *pdev)
 int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 {
 	unsigned amt;
-	int old_node_id;
+	int old_analde_id;
 
 	if (!rcd->rcvhdrq) {
 		dma_addr_t phys_hdrqtail;
@@ -1550,11 +1550,11 @@ int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 		amt = ALIGN(dd->rcvhdrcnt * dd->rcvhdrentsize *
 			    sizeof(u32), PAGE_SIZE);
 
-		old_node_id = dev_to_node(&dd->pcidev->dev);
-		set_dev_node(&dd->pcidev->dev, rcd->node_id);
+		old_analde_id = dev_to_analde(&dd->pcidev->dev);
+		set_dev_analde(&dd->pcidev->dev, rcd->analde_id);
 		rcd->rcvhdrq = dma_alloc_coherent(&dd->pcidev->dev, amt,
 				&rcd->rcvhdrq_phys, GFP_KERNEL);
-		set_dev_node(&dd->pcidev->dev, old_node_id);
+		set_dev_analde(&dd->pcidev->dev, old_analde_id);
 
 		if (!rcd->rcvhdrq) {
 			qib_dev_err(dd,
@@ -1569,12 +1569,12 @@ int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 				goto bail_free_hdrq;
 		}
 
-		if (!(dd->flags & QIB_NODMA_RTAIL)) {
-			set_dev_node(&dd->pcidev->dev, rcd->node_id);
+		if (!(dd->flags & QIB_ANALDMA_RTAIL)) {
+			set_dev_analde(&dd->pcidev->dev, rcd->analde_id);
 			rcd->rcvhdrtail_kvaddr = dma_alloc_coherent(
 				&dd->pcidev->dev, PAGE_SIZE, &phys_hdrqtail,
 				GFP_KERNEL);
-			set_dev_node(&dd->pcidev->dev, old_node_id);
+			set_dev_analde(&dd->pcidev->dev, old_analde_id);
 			if (!rcd->rcvhdrtail_kvaddr)
 				goto bail_free;
 			rcd->rcvhdrqtailaddr_phys = phys_hdrqtail;
@@ -1600,7 +1600,7 @@ bail_free_hdrq:
 			  rcd->rcvhdrq_phys);
 	rcd->rcvhdrq = NULL;
 bail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -1608,7 +1608,7 @@ bail:
  * @rcd: the context we are setting up.
  *
  * Allocate the eager TID buffers and program them into hip.
- * They are no longer completely contiguous, we do multiple allocation
+ * They are anal longer completely contiguous, we do multiple allocation
  * calls.  Otherwise we get the OOM code involved, by asking for too
  * much per call, with disastrous results on some kernels.
  */
@@ -1617,7 +1617,7 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 	struct qib_devdata *dd = rcd->dd;
 	unsigned e, egrcnt, egrperchunk, chunk, egrsize, egroff;
 	size_t size;
-	int old_node_id;
+	int old_analde_id;
 
 	egrcnt = rcd->rcvegrcnt;
 	egroff = rcd->rcvegr_tid_base;
@@ -1628,16 +1628,16 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 	size = rcd->rcvegrbuf_size;
 	if (!rcd->rcvegrbuf) {
 		rcd->rcvegrbuf =
-			kcalloc_node(chunk, sizeof(rcd->rcvegrbuf[0]),
-				     GFP_KERNEL, rcd->node_id);
+			kcalloc_analde(chunk, sizeof(rcd->rcvegrbuf[0]),
+				     GFP_KERNEL, rcd->analde_id);
 		if (!rcd->rcvegrbuf)
 			goto bail;
 	}
 	if (!rcd->rcvegrbuf_phys) {
 		rcd->rcvegrbuf_phys =
-			kmalloc_array_node(chunk,
+			kmalloc_array_analde(chunk,
 					   sizeof(rcd->rcvegrbuf_phys[0]),
-					   GFP_KERNEL, rcd->node_id);
+					   GFP_KERNEL, rcd->analde_id);
 		if (!rcd->rcvegrbuf_phys)
 			goto bail_rcvegrbuf;
 	}
@@ -1645,13 +1645,13 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 		if (rcd->rcvegrbuf[e])
 			continue;
 
-		old_node_id = dev_to_node(&dd->pcidev->dev);
-		set_dev_node(&dd->pcidev->dev, rcd->node_id);
+		old_analde_id = dev_to_analde(&dd->pcidev->dev);
+		set_dev_analde(&dd->pcidev->dev, rcd->analde_id);
 		rcd->rcvegrbuf[e] =
 			dma_alloc_coherent(&dd->pcidev->dev, size,
 					   &rcd->rcvegrbuf_phys[e],
 					   GFP_KERNEL);
-		set_dev_node(&dd->pcidev->dev, old_node_id);
+		set_dev_analde(&dd->pcidev->dev, old_analde_id);
 		if (!rcd->rcvegrbuf[e])
 			goto bail_rcvegrbuf_phys;
 	}
@@ -1689,12 +1689,12 @@ bail_rcvegrbuf:
 	kfree(rcd->rcvegrbuf);
 	rcd->rcvegrbuf = NULL;
 bail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
- * Note: Changes to this routine should be mirrored
- * for the diagnostics routine qib_remap_ioaddr32().
+ * Analte: Changes to this routine should be mirrored
+ * for the diaganalstics routine qib_remap_ioaddr32().
  * There is also related code for VL15 buffers in qib_init_7322_variables().
  * The teardown code that unmaps is in qib_pcie_ddcleanup()
  */
@@ -1714,7 +1714,7 @@ int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 
 	/*
 	 * Free the old mapping because the kernel will try to reuse the
-	 * old mapping and not create a new mapping with the
+	 * old mapping and analt create a new mapping with the
 	 * write combining attribute.
 	 */
 	iounmap(dd->kregbase);
@@ -1740,11 +1740,11 @@ int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 		qib_piolen = qib_pio2koffset + qib_pio2klen - qib_kreglen;
 	}
 	qib_piolen += vl15buflen;
-	/* Map just the configured ports (not all hw ports) */
+	/* Map just the configured ports (analt all hw ports) */
 	if (dd->uregbase > qib_kreglen)
 		qib_userlen = dd->ureg_align * dd->cfgctxts;
 
-	/* Sanity checks passed, now create the new mappings */
+	/* Sanity checks passed, analw create the new mappings */
 	qib_kregbase = ioremap(qib_physaddr, qib_kreglen);
 	if (!qib_kregbase)
 		goto bail;
@@ -1772,7 +1772,7 @@ int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 			(((char __iomem *) dd->piobase) +
 			 qib_pio4koffset - qib_kreglen);
 	if (qib_userlen)
-		/* ureg will now be accessed relative to dd->userbase */
+		/* ureg will analw be accessed relative to dd->userbase */
 		dd->userbase = qib_userbase;
 	return 0;
 
@@ -1781,5 +1781,5 @@ bail_piobase:
 bail_kregbase:
 	iounmap(qib_kregbase);
 bail:
-	return -ENOMEM;
+	return -EANALMEM;
 }

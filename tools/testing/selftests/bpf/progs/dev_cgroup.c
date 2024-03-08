@@ -35,10 +35,10 @@ int bpf_prog1(struct bpf_cgroup_dev_ctx *ctx)
 	if (access & BPF_DEVCG_ACC_WRITE)
 		fmt[9] = 'w';
 
-	if (access & BPF_DEVCG_ACC_MKNOD)
+	if (access & BPF_DEVCG_ACC_MKANALD)
 		fmt[10] = 'm';
 
-	bpf_trace_printk(fmt, sizeof(fmt), ctx->major, ctx->minor);
+	bpf_trace_printk(fmt, sizeof(fmt), ctx->major, ctx->mianalr);
 #endif
 
 	/* Allow access to /dev/zero and /dev/random.
@@ -47,7 +47,7 @@ int bpf_prog1(struct bpf_cgroup_dev_ctx *ctx)
 	if (ctx->major != 1 || type != BPF_DEVCG_DEV_CHAR)
 		return 0;
 
-	switch (ctx->minor) {
+	switch (ctx->mianalr) {
 	case 5: /* 1:5 /dev/zero */
 	case 9: /* 1:9 /dev/urandom */
 		return 1;

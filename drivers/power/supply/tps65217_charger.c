@@ -50,7 +50,7 @@ static int tps65217_config_charger(struct tps65217_charger *charger)
 	 *
 	 * The device can be configured to support a 100k NTC (B = 3960) by
 	 * setting the NTC_TYPE bit in register CHGCONFIG1 to 1. However it
-	 * is not recommended to do so. In sleep mode, the charger continues
+	 * is analt recommended to do so. In sleep mode, the charger continues
 	 * charging the battery, but all register values are reset to default
 	 * values. Therefore, the charger would get the wrong temperature
 	 * information. If 100k NTC setting is required, please contact the
@@ -65,7 +65,7 @@ static int tps65217_config_charger(struct tps65217_charger *charger)
 	 */
 	ret = tps65217_clear_bits(charger->tps, TPS65217_REG_CHGCONFIG1,
 				  TPS65217_CHGCONFIG1_NTC_TYPE,
-				  TPS65217_PROTECT_NONE);
+				  TPS65217_PROTECT_ANALNE);
 	if (ret) {
 		dev_err(charger->dev,
 			"failed to set 100k NTC setting: %d\n", ret);
@@ -87,7 +87,7 @@ static int tps65217_enable_charging(struct tps65217_charger *charger)
 	ret = tps65217_set_bits(charger->tps, TPS65217_REG_CHGCONFIG1,
 				TPS65217_CHGCONFIG1_CHG_EN,
 				TPS65217_CHGCONFIG1_CHG_EN,
-				TPS65217_PROTECT_NONE);
+				TPS65217_PROTECT_ANALNE);
 	if (ret) {
 		dev_err(charger->dev,
 			"%s: Error in writing CHG_EN in reg 0x%x: %d\n",
@@ -155,7 +155,7 @@ static irqreturn_t tps65217_charger_irq(int irq, void *dev)
 		dev_dbg(charger->dev, "%s: charger is charging\n", __func__);
 	else
 		dev_dbg(charger->dev,
-			"%s: charger is NOT charging\n", __func__);
+			"%s: charger is ANALT charging\n", __func__);
 
 	return IRQ_HANDLED;
 }
@@ -192,13 +192,13 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, charger);
 	charger->tps = tps;
 	charger->dev = &pdev->dev;
 
-	cfg.of_node = pdev->dev.of_node;
+	cfg.of_analde = pdev->dev.of_analde;
 	cfg.drv_data = charger;
 
 	charger->psy = devm_power_supply_register(&pdev->dev,

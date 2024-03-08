@@ -33,7 +33,7 @@
 #define ALTR_A10SR_REG_BIT_MASK(X)   (1 << ALTR_A10SR_REG_BIT(X))
 
 /* Arria10 System Controller Register Defines */
-#define ALTR_A10SR_NOP                0x00    /* No Change */
+#define ALTR_A10SR_ANALP                0x00    /* Anal Change */
 #define ALTR_A10SR_VERSION_READ       0x00    /* MAX5 Version Read */
 
 #define ALTR_A10SR_LED_REG            0x02    /* LED - Upper 4 bits */

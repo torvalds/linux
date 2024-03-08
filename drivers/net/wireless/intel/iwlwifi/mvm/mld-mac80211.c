@@ -16,7 +16,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 
 	mvmvif->mvm = mvm;
 
-	/* Not much to do here. The stack will not allow interface
+	/* Analt much to do here. The stack will analt allow interface
 	 * types or combinations that we didn't advertise, so we
 	 * don't really have to check the types.
 	 */
@@ -146,9 +146,9 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 #ifdef CONFIG_NL80211_TESTMODE
-		if (vif == mvm->noa_vif) {
-			mvm->noa_vif = NULL;
-			mvm->noa_duration = 0;
+		if (vif == mvm->anala_vif) {
+			mvm->anala_vif = NULL;
+			mvm->anala_duration = 0;
 		}
 #endif
 	}
@@ -158,7 +158,7 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 	/* Before the interface removal, mac80211 would cancel the ROC, and the
 	 * ROC worker would be scheduled if needed. The worker would be flushed
 	 * in iwl_mvm_prepare_mac_removal() and thus at this point the link is
-	 * not active. So need only to remove the link.
+	 * analt active. So need only to remove the link.
 	 */
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 		if (mvmvif->deflink.phy_ctxt) {
@@ -250,12 +250,12 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	unsigned int link_id = link_conf->link_id;
 	int ret;
 
-	/* if the assigned one was not counted yet, count it now */
+	/* if the assigned one was analt counted yet, count it analw */
 	if (!rcu_access_pointer(link_conf->chanctx_conf))
 		n_active++;
 
 	if (n_active > iwl_mvm_max_active_links(mvm, vif))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
 		return -EINVAL;
@@ -295,14 +295,14 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 		goto out;
 
 	/* Initialize rate control for the AP station, since we might be
-	 * doing a link switch here - we cannot initialize it before since
-	 * this needs the phy context assigned (and in FW?), and we cannot
+	 * doing a link switch here - we cananalt initialize it before since
+	 * this needs the phy context assigned (and in FW?), and we cananalt
 	 * do it later because it needs to be initialized as soon as we're
 	 * able to TX on the link, i.e. when active.
 	 *
 	 * Firmware restart isn't quite correct yet for MLO, but we don't
 	 * need to do it in that case anyway since it will happen from the
-	 * normal station state callback.
+	 * analrmal station state callback.
 	 */
 	if (mvmvif->ap_sta &&
 	    !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
@@ -468,7 +468,7 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_mld_unassign_vif_chanctx(mvm, vif, link_conf, ctx, false);
-	/* in the non-MLD case, remove/re-add the link to clean up FW state */
+	/* in the analn-MLD case, remove/re-add the link to clean up FW state */
 	if (!ieee80211_vif_is_mld(vif) && !mvmvif->ap_sta &&
 	    !WARN_ON_ONCE(vif->cfg.assoc)) {
 		iwl_mvm_remove_link(mvm, vif, link_conf);
@@ -696,7 +696,7 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				BIT(data[j].link_id);
 	} else {
 		/* Try to find a valid link pair for EMLSR operation. If a pair
-		 * is not found continue using the current active link.
+		 * is analt found continue using the current active link.
 		 */
 		for (i = 0; i < n_data; i++) {
 			for (j = 0; j < n_data; j++) {
@@ -867,9 +867,9 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 				unsigned int link_id =
 					ffs(vif->active_links) - 1;
 
-				/* If we're not restarting and still haven't
-				 * heard a beacon (dtim period unknown) then
-				 * make sure we still have enough minimum time
+				/* If we're analt restarting and still haven't
+				 * heard a beacon (dtim period unkanalwn) then
+				 * make sure we still have eanalugh minimum time
 				 * remaining in the time event, since the auth
 				 * might actually have taken quite a while
 				 * (especially for SAE) and so the remaining
@@ -898,7 +898,7 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 			/* If we get an assert during the connection (after the
 			 * station has been added, but before the vif is set
 			 * to associated), mac80211 will re-add the station and
-			 * then configure the vif. Since the vif is not
+			 * then configure the vif. Since the vif is analt
 			 * associated, we would remove the station here and
 			 * this would fail the recovery.
 			 */
@@ -1062,7 +1062,7 @@ iwl_mvm_mld_mac_conf_tx(struct ieee80211_hw *hw,
 
 	mvm_link->queue_params[ac] = *params;
 
-	/* No need to update right away, we'll get BSS_CHANGED_QOS
+	/* Anal need to update right away, we'll get BSS_CHANGED_QOS
 	 * The exception is P2P_DEVICE interface which needs immediate update.
 	 */
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
@@ -1131,7 +1131,7 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 
 	if (hweight16(new_links) > 1 &&
 	    n_active > iwl_mvm_max_active_links(mvm, vif))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
 		int r;
@@ -1143,7 +1143,7 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 			continue;
 		new_link[i] = kzalloc(sizeof(*new_link[i]), GFP_KERNEL);
 		if (!new_link[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free;
 		}
 
@@ -1245,7 +1245,7 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.cancel_hw_scan = iwl_mvm_mac_cancel_hw_scan,
 	.sta_pre_rcu_remove = iwl_mvm_sta_pre_rcu_remove,
 	.sta_state = iwl_mvm_mld_mac_sta_state,
-	.sta_notify = iwl_mvm_mac_sta_notify,
+	.sta_analtify = iwl_mvm_mac_sta_analtify,
 	.allow_buffered_frames = iwl_mvm_mac_allow_buffered_frames,
 	.release_buffered_frames = iwl_mvm_mac_release_buffered_frames,
 	.set_rts_threshold = iwl_mvm_mac_set_rts_threshold,

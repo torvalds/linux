@@ -82,18 +82,18 @@ static const struct reset_control_ops sunxi_ve_reset_ops = {
 	.deassert	= sunxi_ve_reset_deassert,
 };
 
-static void __init sun4i_ve_clk_setup(struct device_node *node)
+static void __init sun4i_ve_clk_setup(struct device_analde *analde)
 {
 	struct clk *clk;
 	struct clk_divider *div;
 	struct clk_gate *gate;
 	struct ve_reset_data *reset_data;
 	const char *parent;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	void __iomem *reg;
 	int err;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg))
 		return;
 
@@ -105,8 +105,8 @@ static void __init sun4i_ve_clk_setup(struct device_node *node)
 	if (!gate)
 		goto err_free_div;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
-	parent = of_clk_get_parent_name(node, 0);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
+	parent = of_clk_get_parent_name(analde, 0);
 
 	gate->reg = reg;
 	gate->bit_idx = SUN4I_VE_ENABLE;
@@ -125,7 +125,7 @@ static void __init sun4i_ve_clk_setup(struct device_node *node)
 	if (IS_ERR(clk))
 		goto err_free_gate;
 
-	err = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	err = of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 	if (err)
 		goto err_unregister_clk;
 
@@ -137,7 +137,7 @@ static void __init sun4i_ve_clk_setup(struct device_node *node)
 	reset_data->lock = &ve_lock;
 	reset_data->rcdev.nr_resets = 1;
 	reset_data->rcdev.ops = &sunxi_ve_reset_ops;
-	reset_data->rcdev.of_node = node;
+	reset_data->rcdev.of_analde = analde;
 	reset_data->rcdev.of_xlate = sunxi_ve_of_xlate;
 	reset_data->rcdev.of_reset_n_cells = 0;
 	err = reset_controller_register(&reset_data->rcdev);
@@ -149,7 +149,7 @@ static void __init sun4i_ve_clk_setup(struct device_node *node)
 err_free_reset:
 	kfree(reset_data);
 err_del_provider:
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 err_unregister_clk:
 	clk_unregister(clk);
 err_free_gate:

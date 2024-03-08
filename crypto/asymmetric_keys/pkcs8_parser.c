@@ -27,10 +27,10 @@ struct pkcs8_parse_context {
 };
 
 /*
- * Note an OID when we find one for later processing when we know how to
+ * Analte an OID when we find one for later processing when we kanalw how to
  * interpret it.
  */
-int pkcs8_note_OID(void *context, size_t hdrlen,
+int pkcs8_analte_OID(void *context, size_t hdrlen,
 		   unsigned char tag,
 		   const void *value, size_t vlen)
 {
@@ -41,16 +41,16 @@ int pkcs8_note_OID(void *context, size_t hdrlen,
 		char buffer[50];
 
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		pr_info("Unknown OID: [%lu] %s\n",
+		pr_info("Unkanalwn OID: [%lu] %s\n",
 			(unsigned long)value - ctx->data, buffer);
 	}
 	return 0;
 }
 
 /*
- * Note the version number of the ASN.1 blob.
+ * Analte the version number of the ASN.1 blob.
  */
-int pkcs8_note_version(void *context, size_t hdrlen,
+int pkcs8_analte_version(void *context, size_t hdrlen,
 		       unsigned char tag,
 		       const void *value, size_t vlen)
 {
@@ -62,25 +62,25 @@ int pkcs8_note_version(void *context, size_t hdrlen,
 }
 
 /*
- * Note the public algorithm.
+ * Analte the public algorithm.
  */
-int pkcs8_note_algo(void *context, size_t hdrlen,
+int pkcs8_analte_algo(void *context, size_t hdrlen,
 		    unsigned char tag,
 		    const void *value, size_t vlen)
 {
 	struct pkcs8_parse_context *ctx = context;
 
 	if (ctx->last_oid != OID_rsaEncryption)
-		return -ENOPKG;
+		return -EANALPKG;
 
 	ctx->pub->pkey_algo = "rsa";
 	return 0;
 }
 
 /*
- * Note the key data of the ASN.1 blob.
+ * Analte the key data of the ASN.1 blob.
  */
-int pkcs8_note_key(void *context, size_t hdrlen,
+int pkcs8_analte_key(void *context, size_t hdrlen,
 		   unsigned char tag,
 		   const void *value, size_t vlen)
 {
@@ -102,7 +102,7 @@ static struct public_key *pkcs8_parse(const void *data, size_t datalen)
 
 	memset(&ctx, 0, sizeof(ctx));
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ctx.pub = kzalloc(sizeof(struct public_key), GFP_KERNEL);
 	if (!ctx.pub)
 		goto error;
@@ -114,7 +114,7 @@ static struct public_key *pkcs8_parse(const void *data, size_t datalen)
 	if (ret < 0)
 		goto error_decode;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	pub = ctx.pub;
 	pub->key = kmemdup(ctx.key, ctx.key_size, GFP_KERNEL);
 	if (!pub->key)

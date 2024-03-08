@@ -32,7 +32,7 @@ static bool is_ref_relative(const char *ref)
 %}
 
 %union {
-	char *propnodename;
+	char *propanaldename;
 	char *labelref;
 	uint8_t byte;
 	struct data data;
@@ -44,8 +44,8 @@ static bool is_ref_relative(const char *ref)
 
 	struct property *prop;
 	struct property *proplist;
-	struct node *node;
-	struct node *nodelist;
+	struct analde *analde;
+	struct analde *analdelist;
 	struct reserve_info *re;
 	uint64_t integer;
 	unsigned int flags;
@@ -57,9 +57,9 @@ static bool is_ref_relative(const char *ref)
 %token DT_LSHIFT DT_RSHIFT DT_LE DT_GE DT_EQ DT_NE DT_AND DT_OR
 %token DT_BITS
 %token DT_DEL_PROP
-%token DT_DEL_NODE
-%token DT_OMIT_NO_REF
-%token <propnodename> DT_PROPNODENAME
+%token DT_DEL_ANALDE
+%token DT_OMIT_ANAL_REF
+%token <propanaldename> DT_PROPANALDENAME
 %token <integer> DT_LITERAL
 %token <integer> DT_CHAR_LITERAL
 %token <byte> DT_BYTE
@@ -81,10 +81,10 @@ static bool is_ref_relative(const char *ref)
 %type <proplist> proplist
 %type <labelref> dt_ref
 
-%type <node> devicetree
-%type <node> nodedef
-%type <node> subnode
-%type <nodelist> subnodes
+%type <analde> devicetree
+%type <analde> analdedef
+%type <analde> subanalde
+%type <analdelist> subanaldes
 
 %type <integer> integer_prim
 %type <integer> integer_unary
@@ -158,15 +158,15 @@ memreserve:
 dt_ref: DT_LABEL_REF | DT_PATH_REF;
 
 devicetree:
-	  '/' nodedef
+	  '/' analdedef
 		{
-			$$ = name_node($2, "");
+			$$ = name_analde($2, "");
 		}
-	| devicetree '/' nodedef
+	| devicetree '/' analdedef
 		{
-			$$ = merge_nodes($1, $3);
+			$$ = merge_analdes($1, $3);
 		}
-	| dt_ref nodedef
+	| dt_ref analdedef
 		{
 			/*
 			 * We rely on the rule being always:
@@ -174,29 +174,29 @@ devicetree:
 			 * so $-1 is what we want (plugindecl)
 			 */
 			if (!($<flags>-1 & DTSF_PLUGIN))
-				ERROR(&@2, "Label or path %s not found", $1);
+				ERROR(&@2, "Label or path %s analt found", $1);
 			else if (is_ref_relative($1))
-				ERROR(&@2, "Label-relative reference %s not supported in plugin", $1);
-			$$ = add_orphan_node(
-					name_node(build_node(NULL, NULL, NULL),
+				ERROR(&@2, "Label-relative reference %s analt supported in plugin", $1);
+			$$ = add_orphan_analde(
+					name_analde(build_analde(NULL, NULL, NULL),
 						  ""),
 					$2, $1);
 		}
-	| devicetree DT_LABEL dt_ref nodedef
+	| devicetree DT_LABEL dt_ref analdedef
 		{
-			struct node *target = get_node_by_ref($1, $3);
+			struct analde *target = get_analde_by_ref($1, $3);
 
 			if (($<flags>-1 & DTSF_PLUGIN) && is_ref_relative($3))
-				ERROR(&@2, "Label-relative reference %s not supported in plugin", $3);
+				ERROR(&@2, "Label-relative reference %s analt supported in plugin", $3);
 
 			if (target) {
 				add_label(&target->labels, $2);
-				merge_nodes(target, $4);
+				merge_analdes(target, $4);
 			} else
-				ERROR(&@3, "Label or path %s not found", $3);
+				ERROR(&@3, "Label or path %s analt found", $3);
 			$$ = $1;
 		}
-	| devicetree DT_PATH_REF nodedef
+	| devicetree DT_PATH_REF analdedef
 		{
 			/*
 			 * We rely on the rule being always:
@@ -205,24 +205,24 @@ devicetree:
 			 */
 			if ($<flags>-1 & DTSF_PLUGIN) {
 				if (is_ref_relative($2))
-					ERROR(&@2, "Label-relative reference %s not supported in plugin", $2);
-				add_orphan_node($1, $3, $2);
+					ERROR(&@2, "Label-relative reference %s analt supported in plugin", $2);
+				add_orphan_analde($1, $3, $2);
 			} else {
-				struct node *target = get_node_by_ref($1, $2);
+				struct analde *target = get_analde_by_ref($1, $2);
 
 				if (target)
-					merge_nodes(target, $3);
+					merge_analdes(target, $3);
 				else
-					ERROR(&@2, "Label or path %s not found", $2);
+					ERROR(&@2, "Label or path %s analt found", $2);
 			}
 			$$ = $1;
 		}
-	| devicetree DT_LABEL_REF nodedef
+	| devicetree DT_LABEL_REF analdedef
 		{
-			struct node *target = get_node_by_ref($1, $2);
+			struct analde *target = get_analde_by_ref($1, $2);
 
 			if (target) {
-				merge_nodes(target, $3);
+				merge_analdes(target, $3);
 			} else {
 				/*
 				 * We rely on the rule being always:
@@ -230,42 +230,42 @@ devicetree:
 				 * so $-1 is what we want (plugindecl)
 				 */
 				if ($<flags>-1 & DTSF_PLUGIN)
-					add_orphan_node($1, $3, $2);
+					add_orphan_analde($1, $3, $2);
 				else
-					ERROR(&@2, "Label or path %s not found", $2);
+					ERROR(&@2, "Label or path %s analt found", $2);
 			}
 			$$ = $1;
 		}
-	| devicetree DT_DEL_NODE dt_ref ';'
+	| devicetree DT_DEL_ANALDE dt_ref ';'
 		{
-			struct node *target = get_node_by_ref($1, $3);
+			struct analde *target = get_analde_by_ref($1, $3);
 
 			if (target)
-				delete_node(target);
+				delete_analde(target);
 			else
-				ERROR(&@3, "Label or path %s not found", $3);
+				ERROR(&@3, "Label or path %s analt found", $3);
 
 
 			$$ = $1;
 		}
-	| devicetree DT_OMIT_NO_REF dt_ref ';'
+	| devicetree DT_OMIT_ANAL_REF dt_ref ';'
 		{
-			struct node *target = get_node_by_ref($1, $3);
+			struct analde *target = get_analde_by_ref($1, $3);
 
 			if (target)
-				omit_node_if_unused(target);
+				omit_analde_if_unused(target);
 			else
-				ERROR(&@3, "Label or path %s not found", $3);
+				ERROR(&@3, "Label or path %s analt found", $3);
 
 
 			$$ = $1;
 		}
 	;
 
-nodedef:
-	  '{' proplist subnodes '}' ';'
+analdedef:
+	  '{' proplist subanaldes '}' ';'
 		{
-			$$ = build_node($2, $3, &@$);
+			$$ = build_analde($2, $3, &@$);
 		}
 	;
 
@@ -281,15 +281,15 @@ proplist:
 	;
 
 propdef:
-	  DT_PROPNODENAME '=' propdata ';'
+	  DT_PROPANALDENAME '=' propdata ';'
 		{
 			$$ = build_property($1, $3, &@$);
 		}
-	| DT_PROPNODENAME ';'
+	| DT_PROPANALDENAME ';'
 		{
 			$$ = build_property($1, empty_data, &@$);
 		}
-	| DT_DEL_PROP DT_PROPNODENAME ';'
+	| DT_DEL_PROP DT_PROPANALDENAME ';'
 		{
 			$$ = build_property_delete($2);
 		}
@@ -327,7 +327,7 @@ propdata:
 				if (fseek(f, $6, SEEK_SET) != 0)
 					die("Couldn't seek to offset %llu in \"%s\": %s",
 					    (unsigned long long)$6, $4.val,
-					    strerror(errno));
+					    strerror(erranal));
 
 			d = data_copy_file(f, $8);
 
@@ -550,36 +550,36 @@ bytestring:
 		}
 	;
 
-subnodes:
+subanaldes:
 	  /* empty */
 		{
 			$$ = NULL;
 		}
-	| subnode subnodes
+	| subanalde subanaldes
 		{
-			$$ = chain_node($1, $2);
+			$$ = chain_analde($1, $2);
 		}
-	| subnode propdef
+	| subanalde propdef
 		{
-			ERROR(&@2, "Properties must precede subnodes");
+			ERROR(&@2, "Properties must precede subanaldes");
 			YYERROR;
 		}
 	;
 
-subnode:
-	  DT_PROPNODENAME nodedef
+subanalde:
+	  DT_PROPANALDENAME analdedef
 		{
-			$$ = name_node($2, $1);
+			$$ = name_analde($2, $1);
 		}
-	| DT_DEL_NODE DT_PROPNODENAME ';'
+	| DT_DEL_ANALDE DT_PROPANALDENAME ';'
 		{
-			$$ = name_node(build_node_delete(&@$), $2);
+			$$ = name_analde(build_analde_delete(&@$), $2);
 		}
-	| DT_OMIT_NO_REF subnode
+	| DT_OMIT_ANAL_REF subanalde
 		{
-			$$ = omit_node_if_unused($2);
+			$$ = omit_analde_if_unused($2);
 		}
-	| DT_LABEL subnode
+	| DT_LABEL subanalde
 		{
 			add_label(&$2->labels, $1);
 			$$ = $2;

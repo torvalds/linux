@@ -51,7 +51,7 @@ static int sdhci_probe(struct platform_device *pdev)
 	host = sdhci_alloc_host(dev, sizeof(*sdhci));
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
-		dev_dbg(&pdev->dev, "cannot allocate memory for sdhci\n");
+		dev_dbg(&pdev->dev, "cananalt allocate memory for sdhci\n");
 		goto err;
 	}
 
@@ -177,7 +177,7 @@ MODULE_DEVICE_TABLE(of, sdhci_spear_id_table);
 static struct platform_driver sdhci_driver = {
 	.driver = {
 		.name	= "sdhci",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &sdhci_pm_ops,
 		.of_match_table = sdhci_spear_id_table,
 	},

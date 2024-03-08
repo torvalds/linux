@@ -51,7 +51,7 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
 /************************************************************************************************/
 
 #define PTR			0x00		/* Indexed register set pointer register	*/
-						/* NOTE: The CHANNELNUM and ADDRESS words can	*/
+						/* ANALTE: The CHANNELNUM and ADDRESS words can	*/
 						/* be modified independently of each other.	*/
 
 #define DATA			0x04		/* Indexed register set data register		*/
@@ -77,7 +77,7 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
 #define HCFG			0x14		/* Hardware config register			*/
 
 #define HCFG_LOCKSOUNDCACHE	0x00000008	/* 1 = Cancel bustmaster accesses to soundcache */
-						/* NOTE: This should generally never be used.  	*/
+						/* ANALTE: This should generally never be used.  	*/
 #define HCFG_AUDIOENABLE	0x00000001	/* 0 = CODECs transmit zero-valued samples	*/
 						/* Should be set to 1 when the EMU10K1 is	*/
 						/* completely initialized.			*/
@@ -102,14 +102,14 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
 #define PLAYBACK_DMA_ADDR	0x04		/* Playback DMA address */
 #define PLAYBACK_PERIOD_SIZE	0x05		/* Playback period size */
 #define PLAYBACK_POINTER	0x06		/* Playback period pointer. Sample currently in DAC */
-#define PLAYBACK_UNKNOWN1       0x07
-#define PLAYBACK_UNKNOWN2       0x08
+#define PLAYBACK_UNKANALWN1       0x07
+#define PLAYBACK_UNKANALWN2       0x08
 
 /* Only one capture channel supported */
 #define CAPTURE_DMA_ADDR	0x10		/* Capture DMA address */
 #define CAPTURE_BUFFER_SIZE	0x11		/* Capture buffer size */
 #define CAPTURE_POINTER		0x12		/* Capture buffer pointer. Sample currently in ADC */
-#define CAPTURE_UNKNOWN         0x13
+#define CAPTURE_UNKANALWN         0x13
 
 /* From 0x20 - 0x3f, last samples played on each channel */
 
@@ -150,10 +150,10 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
 #define SPCS_CATEGORYCODEMASK	0x00007f00	/* Category code (see IEC-958 spec)		*/
 #define SPCS_MODEMASK		0x000000c0	/* Mode (see IEC-958 spec)			*/
 #define SPCS_EMPHASISMASK	0x00000038	/* Emphasis					*/
-#define SPCS_EMPHASIS_NONE	0x00000000	/* No emphasis					*/
+#define SPCS_EMPHASIS_ANALNE	0x00000000	/* Anal emphasis					*/
 #define SPCS_EMPHASIS_50_15	0x00000008	/* 50/15 usec 2 channel				*/
-#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do not modify	*/
-#define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = not audio		*/
+#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do analt modify	*/
+#define SPCS_ANALTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = analt audio		*/
 #define SPCS_PROFESSIONAL	0x00000001	/* 0 = Consumer (IEC-958), 1 = pro (AES3-1992)	*/
 
 #define SPDIF_SELECT		0x45		/* Enables SPDIF or Analogue outputs 0-Analogue, 0x700-SPDIF */
@@ -176,7 +176,7 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
  * the front/rear channel mixing in the REAR OUT jack. When using the
  * 4-Speaker Stereo, both front and rear channels will be mixed in the
  * REAR OUT.
- * The center/lfe channel has no volume control and cannot be muted during
+ * The center/lfe channel has anal volume control and cananalt be muted during
  * playback.
  */
 
@@ -380,7 +380,7 @@ static int snd_emu10k1x_playback_open(struct snd_pcm_substream *substream)
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	epcm->emu = chip;
 	epcm->substream = substream;
   
@@ -454,8 +454,8 @@ static int snd_emu10k1x_pcm_prepare(struct snd_pcm_substream *substream)
 	snd_emu10k1x_ptr_write(emu, PLAYBACK_LIST_SIZE, voice, (runtime->periods - 1) << 19);
 	snd_emu10k1x_ptr_write(emu, PLAYBACK_LIST_PTR, voice, 0);
 	snd_emu10k1x_ptr_write(emu, PLAYBACK_POINTER, voice, 0);
-	snd_emu10k1x_ptr_write(emu, PLAYBACK_UNKNOWN1, voice, 0);
-	snd_emu10k1x_ptr_write(emu, PLAYBACK_UNKNOWN2, voice, 0);
+	snd_emu10k1x_ptr_write(emu, PLAYBACK_UNKANALWN1, voice, 0);
+	snd_emu10k1x_ptr_write(emu, PLAYBACK_UNKANALWN2, voice, 0);
 	snd_emu10k1x_ptr_write(emu, PLAYBACK_DMA_ADDR, voice, runtime->dma_addr);
 
 	snd_emu10k1x_ptr_write(emu, PLAYBACK_PERIOD_SIZE, voice, frames_to_bytes(runtime, runtime->period_size)<<16);
@@ -560,7 +560,7 @@ static int snd_emu10k1x_pcm_open_capture(struct snd_pcm_substream *substream)
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epcm->emu = chip;
 	epcm->substream = substream;
@@ -626,7 +626,7 @@ static int snd_emu10k1x_pcm_prepare_capture(struct snd_pcm_substream *substream)
 	snd_emu10k1x_ptr_write(emu, CAPTURE_DMA_ADDR, 0, runtime->dma_addr);
 	snd_emu10k1x_ptr_write(emu, CAPTURE_BUFFER_SIZE, 0, frames_to_bytes(runtime, runtime->buffer_size)<<16); // buffer size in bytes
 	snd_emu10k1x_ptr_write(emu, CAPTURE_POINTER, 0, 0);
-	snd_emu10k1x_ptr_write(emu, CAPTURE_UNKNOWN, 0, 0);
+	snd_emu10k1x_ptr_write(emu, CAPTURE_UNKANALWN, 0, 0);
 
 	return 0;
 }
@@ -728,11 +728,11 @@ static int snd_emu10k1x_ac97(struct emu10k1x *chip)
 	err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus);
 	if (err < 0)
 		return err;
-	pbus->no_vra = 1; /* we don't need VRA */
+	pbus->anal_vra = 1; /* we don't need VRA */
 
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
-	ac97.scaps = AC97_SCAP_NO_SPDIF;
+	ac97.scaps = AC97_SCAP_ANAL_SPDIF;
 	return snd_ac97_mixer(pbus, &ac97, &chip->ac97);
 }
 
@@ -759,7 +759,7 @@ static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id)
 	status = inl(chip->port + IPR);
 
 	if (! status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	// capture interrupt
 	if (status & (IPR_CAP_0_LOOP | IPR_CAP_0_HALF_LOOP)) {
@@ -791,7 +791,7 @@ static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id)
 			snd_emu10k1x_intr_disable(chip, INTE_MIDITXENABLE|INTE_MIDIRXENABLE);
 	}
 		
-	// acknowledge the interrupt if necessary
+	// ackanalwledge the interrupt if necessary
 	outl(status, chip->port + IPR);
 
 	/* dev_dbg(chip->card->dev, "interrupt %08x\n", status); */
@@ -891,7 +891,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 
 	if (devm_request_irq(&pci->dev, pci->irq, snd_emu10k1x_interrupt,
 			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
-		dev_err(card->dev, "cannot grab irq %d\n", pci->irq);
+		dev_err(card->dev, "cananalt grab irq %d\n", pci->irq);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
@@ -901,7 +901,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	chip->dma_buffer = snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV,
 						4 * 1024);
 	if (!chip->dma_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_master(pci);
 	/* read revision & serial */
@@ -927,7 +927,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	 *  Generation Status = 1     (Original for Cat Code 12)
 	 *  Cat Code          = 12    (Digital Signal Mixer)
 	 *  Mode              = 0     (Mode 0)
-	 *  Emphasis          = 0     (None)
+	 *  Emphasis          = 0     (Analne)
 	 *  CP                = 1     (Copyright unasserted)
 	 *  AN                = 0     (Audio data)
 	 *  P                 = 0     (Consumer)
@@ -937,19 +937,19 @@ static int snd_emu10k1x_create(struct snd_card *card,
 			       SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
 			       SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 			       SPCS_GENERATIONSTATUS | 0x00001200 |
-			       0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
+			       0x00000000 | SPCS_EMPHASIS_ANALNE | SPCS_COPYRIGHT);
 	snd_emu10k1x_ptr_write(chip, SPCS1, 0,
 			       chip->spdif_bits[1] = 
 			       SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
 			       SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 			       SPCS_GENERATIONSTATUS | 0x00001200 |
-			       0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
+			       0x00000000 | SPCS_EMPHASIS_ANALNE | SPCS_COPYRIGHT);
 	snd_emu10k1x_ptr_write(chip, SPCS2, 0,
 			       chip->spdif_bits[2] = 
 			       SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
 			       SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 			       SPCS_GENERATIONSTATUS | 0x00001200 |
-			       0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
+			       0x00000000 | SPCS_EMPHASIS_ANALNE | SPCS_COPYRIGHT);
 
 	snd_emu10k1x_ptr_write(chip, SPDIF_SELECT, 0, 0x700); // disable SPDIF
 	snd_emu10k1x_ptr_write(chip, ROUTING, 0, 0x1003F); // routing
@@ -1012,7 +1012,7 @@ static int snd_emu10k1x_proc_init(struct emu10k1x *emu)
 	return 0;
 }
 
-#define snd_emu10k1x_shared_spdif_info	snd_ctl_boolean_mono_info
+#define snd_emu10k1x_shared_spdif_info	snd_ctl_boolean_moanal_info
 
 static int snd_emu10k1x_shared_spdif_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
@@ -1133,19 +1133,19 @@ static int snd_emu10k1x_mixer(struct emu10k1x *emu)
 
 	kctl = snd_ctl_new1(&snd_emu10k1x_spdif_mask_control, emu);
 	if (!kctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_ctl_add(card, kctl);
 	if (err)
 		return err;
 	kctl = snd_ctl_new1(&snd_emu10k1x_shared_spdif, emu);
 	if (!kctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_ctl_add(card, kctl);
 	if (err)
 		return err;
 	kctl = snd_ctl_new1(&snd_emu10k1x_spdif_control, emu);
 	if (!kctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_ctl_add(card, kctl);
 	if (err)
 		return err;
@@ -1405,7 +1405,7 @@ static void snd_emu10k1x_midi_output_trigger(struct snd_rawmidi_substream *subst
 			if (mpu401_output_ready(emu, midi)) {
 				if (!(midi->midi_mode & EMU10K1X_MIDI_MODE_OUTPUT) ||
 				    snd_rawmidi_transmit(substream, &byte, 1) != 1) {
-					/* no more data */
+					/* anal more data */
 					spin_unlock_irqrestore(&midi->output_lock, flags);
 					return;
 				}
@@ -1500,10 +1500,10 @@ static int __snd_emu10k1x_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

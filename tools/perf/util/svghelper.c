@@ -88,7 +88,7 @@ void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end)
 
 	svgfile = fopen(filename, "w");
 	if (!svgfile) {
-		fprintf(stderr, "Cannot open %s for output\n", filename);
+		fprintf(stderr, "Cananalt open %s for output\n", filename);
 		return;
 	}
 	first_time = start;
@@ -105,7 +105,7 @@ void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end)
 		svg_page_width = new_width;
 
 	total_height = (1 + rows + cpu2slot(cpus)) * SLOT_MULT;
-	fprintf(svgfile, "<?xml version=\"1.0\" standalone=\"no\"?> \n");
+	fprintf(svgfile, "<?xml version=\"1.0\" standalone=\"anal\"?> \n");
 	fprintf(svgfile, "<!DOCTYPE svg SYSTEM \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n");
 	fprintf(svgfile, "<svg width=\"%i\" height=\"%" PRIu64 "\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n", svg_page_width, total_height);
 
@@ -138,7 +138,7 @@ void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end)
 	fprintf(svgfile, "    ]]>\n   </style>\n</defs>\n");
 }
 
-static double normalize_height(double height)
+static double analrmalize_height(double height)
 {
 	if (height < 0.25)
 		return 0.25;
@@ -153,7 +153,7 @@ static double normalize_height(double height)
 void svg_ubox(int Yslot, u64 start, u64 end, double height, const char *type, int fd, int err, int merges)
 {
 	double w = time2pixels(end) - time2pixels(start);
-	height = normalize_height(height);
+	height = analrmalize_height(height);
 
 	if (!svgfile)
 		return;
@@ -172,7 +172,7 @@ void svg_ubox(int Yslot, u64 start, u64 end, double height, const char *type, in
 void svg_lbox(int Yslot, u64 start, u64 end, double height, const char *type, int fd, int err, int merges)
 {
 	double w = time2pixels(end) - time2pixels(start);
-	height = normalize_height(height);
+	height = analrmalize_height(height);
 
 	if (!svgfile)
 		return;
@@ -191,7 +191,7 @@ void svg_lbox(int Yslot, u64 start, u64 end, double height, const char *type, in
 void svg_fbox(int Yslot, u64 start, u64 end, double height, const char *type, int fd, int err, int merges)
 {
 	double w = time2pixels(end) - time2pixels(start);
-	height = normalize_height(height);
+	height = analrmalize_height(height);
 
 	if (!svgfile)
 		return;
@@ -767,7 +767,7 @@ int svg_build_topology_map(struct perf_env *env)
 	sib_thr = env->sibling_threads;
 
 	if (!t.sib_core || !t.sib_thr) {
-		fprintf(stderr, "topology: no memory\n");
+		fprintf(stderr, "topology: anal memory\n");
 		goto exit;
 	}
 
@@ -791,7 +791,7 @@ int svg_build_topology_map(struct perf_env *env)
 
 	topology_map = malloc(sizeof(int) * nr_cpus);
 	if (!topology_map) {
-		fprintf(stderr, "topology: no memory\n");
+		fprintf(stderr, "topology: anal memory\n");
 		goto exit;
 	}
 

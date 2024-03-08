@@ -64,17 +64,17 @@ MODULE_PARM_DESC(debug, "dm9000 debug level (0-6)");
  *
  * During interrupt and other critical calls, a spinlock is used to
  * protect the system, but the calls themselves save the address
- * in the address register in case they are interrupting another
+ * in the address register in case they are interrupting aanalther
  * access to the device.
  *
  * For general accesses a lock is provided so that calls which are
  * allowed to sleep are serialised so that the address register does
- * not need to be saved. This lock also serves to serialise access
+ * analt need to be saved. This lock also serves to serialise access
  * to the EEPROM and PHY access registers which are shared between
  * these two devices.
  */
 
-/* The driver supports the original DM9000E, and now the two newer
+/* The driver supports the original DM9000E, and analw the two newer
  * devices, DM9000A and DM9000B.
  */
 
@@ -177,20 +177,20 @@ dm9000_reset(struct board_info *db)
 {
 	dev_dbg(db->dev, "resetting device\n");
 
-	/* Reset DM9000, see DM9000 Application Notes V1.22 Jun 11, 2004 page 29
+	/* Reset DM9000, see DM9000 Application Analtes V1.22 Jun 11, 2004 page 29
 	 * The essential point is that we have to do a double reset, and the
 	 * instruction is to set LBK into MAC internal loopback mode.
 	 */
 	iow(db, DM9000_NCR, NCR_RST | NCR_MAC_LBK);
-	udelay(100); /* Application note says at least 20 us */
+	udelay(100); /* Application analte says at least 20 us */
 	if (ior(db, DM9000_NCR) & 1)
-		dev_err(db->dev, "dm9000 did not respond to first reset\n");
+		dev_err(db->dev, "dm9000 did analt respond to first reset\n");
 
 	iow(db, DM9000_NCR, 0);
 	iow(db, DM9000_NCR, NCR_RST | NCR_MAC_LBK);
 	udelay(100);
 	if (ior(db, DM9000_NCR) & 1)
-		dev_err(db->dev, "dm9000 did not respond to second reset\n");
+		dev_err(db->dev, "dm9000 did analt respond to second reset\n");
 }
 
 /* routines for sending block to chip */
@@ -436,10 +436,10 @@ static int dm9000_wait_eeprom(struct board_info *db)
 	/* The DM9000 data sheets say we should be able to
 	 * poll the ERRE bit in EPCR to wait for the EEPROM
 	 * operation. From testing several chips, this bit
-	 * does not seem to work.
+	 * does analt seem to work.
 	 *
 	 * We attempt to use the bit, but fall back to the
-	 * timeout (which is why we do not return an error
+	 * timeout (which is why we do analt return an error
 	 * on expiry) to say that the EEPROM operation has
 	 * completed.
 	 */
@@ -469,7 +469,7 @@ dm9000_read_eeprom(struct board_info *db, int offset, u8 *to)
 {
 	unsigned long flags;
 
-	if (db->flags & DM9000_PLATF_NO_EEPROM) {
+	if (db->flags & DM9000_PLATF_ANAL_EEPROM) {
 		to[0] = 0xff;
 		to[1] = 0xff;
 		return;
@@ -509,7 +509,7 @@ dm9000_write_eeprom(struct board_info *db, int offset, u8 *data)
 {
 	unsigned long flags;
 
-	if (db->flags & DM9000_PLATF_NO_EEPROM)
+	if (db->flags & DM9000_PLATF_ANAL_EEPROM)
 		return;
 
 	mutex_lock(&db->addr_lock);
@@ -631,8 +631,8 @@ static int dm9000_get_eeprom(struct net_device *dev,
 	if ((len & 1) != 0 || (offset & 1) != 0)
 		return -EINVAL;
 
-	if (dm->flags & DM9000_PLATF_NO_EEPROM)
-		return -ENOENT;
+	if (dm->flags & DM9000_PLATF_ANAL_EEPROM)
+		return -EANALENT;
 
 	ee->magic = DM_EEPROM_MAGIC;
 
@@ -652,8 +652,8 @@ static int dm9000_set_eeprom(struct net_device *dev,
 
 	/* EEPROM access is aligned to two bytes */
 
-	if (dm->flags & DM9000_PLATF_NO_EEPROM)
-		return -ENOENT;
+	if (dm->flags & DM9000_PLATF_ANAL_EEPROM)
+		return -EANALENT;
 
 	if (ee->magic != DM_EEPROM_MAGIC)
 		return -EINVAL;
@@ -687,7 +687,7 @@ static void dm9000_get_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 
 	memset(w, 0, sizeof(struct ethtool_wolinfo));
 
-	/* note, we could probably support wake-phy too */
+	/* analte, we could probably support wake-phy too */
 	w->supported = dm->wake_supported ? WAKE_MAGIC : 0;
 	w->wolopts = dm->wake_state;
 }
@@ -700,7 +700,7 @@ static int dm9000_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 	u32 wcr = 0;
 
 	if (!dm->wake_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (opts & ~WAKE_MAGIC)
 		return -EINVAL;
@@ -990,9 +990,9 @@ static void dm9000_send_packet(struct net_device *dev,
 {
 	struct board_info *dm = to_dm9000_board(dev);
 
-	/* The DM9000 is not smart enough to leave fragmented packets alone. */
+	/* The DM9000 is analt smart eanalugh to leave fragmented packets alone. */
 	if (dm->ip_summed != ip_summed) {
-		if (ip_summed == CHECKSUM_NONE)
+		if (ip_summed == CHECKSUM_ANALNE)
 			iow(dm, DM9000_TCCR, 0);
 		else
 			iow(dm, DM9000_TCCR, TCCR_IP | TCCR_UDP | TCCR_TCP);
@@ -1093,7 +1093,7 @@ dm9000_rx(struct net_device *dev)
 	bool GoodPacket;
 	int RxLen;
 
-	/* Check packet ready or not */
+	/* Check packet ready or analt */
 	do {
 		ior(db, DM9000_MRCMDX);	/* Dummy read */
 
@@ -1110,7 +1110,7 @@ dm9000_rx(struct net_device *dev)
 		if (!(rxbyte & DM9000_PKT_RDY))
 			return;
 
-		/* A packet ready now  & Get status/length */
+		/* A packet ready analw  & Get status/length */
 		GoodPacket = true;
 		writeb(DM9000_MRCMD, db->io_addr);
 
@@ -1172,7 +1172,7 @@ dm9000_rx(struct net_device *dev)
 				if ((((rxbyte & 0x1c) << 3) & rxbyte) == 0)
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
-					skb_checksum_none_assert(skb);
+					skb_checksum_analne_assert(skb);
 			}
 			netif_rx(skb);
 			dev->stats.rx_packets++;
@@ -1260,13 +1260,13 @@ static irqreturn_t dm9000_wol_interrupt(int irq, void *dev_id)
 		if (wcr & WCR_MAGICST)
 			dev_info(db->dev, "wake by magic packet\n");
 		if (!(wcr & (WCR_LINKST | WCR_SAMPLEST | WCR_MAGICST)))
-			dev_err(db->dev, "wake signalled with no reason? "
+			dev_err(db->dev, "wake signalled with anal reason? "
 				"NSR=0x%02x, WSR=0x%02x\n", nsr, wcr);
 	}
 
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	return (nsr & NSR_WAKEST) ? IRQ_HANDLED : IRQ_NONE;
+	return (nsr & NSR_WAKEST) ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1294,15 +1294,15 @@ dm9000_open(struct net_device *dev)
 	if (netif_msg_ifup(db))
 		dev_dbg(db->dev, "enabling %s\n", dev->name);
 
-	/* If there is no IRQ type specified, tell the user that this is a
+	/* If there is anal IRQ type specified, tell the user that this is a
 	 * problem
 	 */
-	if (irq_flags == IRQF_TRIGGER_NONE)
-		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
+	if (irq_flags == IRQF_TRIGGER_ANALNE)
+		dev_warn(db->dev, "WARNING: anal IRQ resource flags set.\n");
 
 	irq_flags |= IRQF_SHARED;
 
-	/* GPIO0 on pre-activate PHY, Reg 1F is not set by reset */
+	/* GPIO0 on pre-activate PHY, Reg 1F is analt set by reset */
 	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
 	mdelay(1); /* delay needs by DM9000B */
 
@@ -1311,7 +1311,7 @@ dm9000_open(struct net_device *dev)
 
 	if (request_irq(dev->irq, dm9000_interrupt, irq_flags, dev->name, dev))
 		return -EAGAIN;
-	/* Now that we have an interrupt handler hooked up we can unmask
+	/* Analw that we have an interrupt handler hooked up we can unmask
 	 * our interrupts
 	 */
 	dm9000_unmask_interrupts(db);
@@ -1383,7 +1383,7 @@ static const struct net_device_ops dm9000_netdev_ops = {
 static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 {
 	struct dm9000_plat_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF) || !np)
@@ -1391,12 +1391,12 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (of_property_read_bool(np, "davicom,ext-phy"))
 		pdata->flags |= DM9000_PLATF_EXT_PHY;
-	if (of_property_read_bool(np, "davicom,no-eeprom"))
-		pdata->flags |= DM9000_PLATF_NO_EEPROM;
+	if (of_property_read_bool(np, "davicom,anal-eeprom"))
+		pdata->flags |= DM9000_PLATF_ANAL_EEPROM;
 
 	ret = of_get_mac_address(np, pdata->dev_addr);
 	if (ret == -EPROBE_DEFER)
@@ -1429,7 +1429,7 @@ dm9000_probe(struct platform_device *pdev)
 	if (IS_ERR(power)) {
 		if (PTR_ERR(power) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_dbg(dev, "no regulator provided\n");
+		dev_dbg(dev, "anal regulator provided\n");
 	} else {
 		ret = regulator_enable(power);
 		if (ret != 0) {
@@ -1473,7 +1473,7 @@ dm9000_probe(struct platform_device *pdev)
 	/* Init network device */
 	ndev = alloc_etherdev(sizeof(struct board_info));
 	if (!ndev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_regulator_disable;
 	}
 
@@ -1500,7 +1500,7 @@ dm9000_probe(struct platform_device *pdev)
 	if (!db->addr_res || !db->data_res) {
 		dev_err(db->dev, "insufficient resources addr=%p data=%p\n",
 			db->addr_res, db->data_res);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -1517,13 +1517,13 @@ dm9000_probe(struct platform_device *pdev)
 		ret = request_irq(db->irq_wake, dm9000_wol_interrupt,
 				  IRQF_SHARED, dev_name(db->dev), ndev);
 		if (ret) {
-			dev_err(db->dev, "cannot get wakeup irq (%d)\n", ret);
+			dev_err(db->dev, "cananalt get wakeup irq (%d)\n", ret);
 		} else {
 
 			/* test to see if irq is really wakeup capable */
 			ret = irq_set_irq_wake(db->irq_wake, 1);
 			if (ret) {
-				dev_err(db->dev, "irq %d cannot set wakeup (%d)\n",
+				dev_err(db->dev, "irq %d cananalt set wakeup (%d)\n",
 					db->irq_wake, ret);
 			} else {
 				irq_set_irq_wake(db->irq_wake, 0);
@@ -1537,7 +1537,7 @@ dm9000_probe(struct platform_device *pdev)
 					  pdev->name);
 
 	if (db->addr_req == NULL) {
-		dev_err(db->dev, "cannot claim address reg area\n");
+		dev_err(db->dev, "cananalt claim address reg area\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -1555,7 +1555,7 @@ dm9000_probe(struct platform_device *pdev)
 					  pdev->name);
 
 	if (db->data_req == NULL) {
-		dev_err(db->dev, "cannot claim data reg area\n");
+		dev_err(db->dev, "cananalt claim data reg area\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -1623,7 +1623,7 @@ dm9000_probe(struct platform_device *pdev)
 
 	if (id_val != DM9000_ID) {
 		dev_err(db->dev, "wrong id: 0x%08x\n", id_val);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1667,7 +1667,7 @@ dm9000_probe(struct platform_device *pdev)
 
 	mac_src = "eeprom";
 
-	/* try reading the node address from the attached EEPROM */
+	/* try reading the analde address from the attached EEPROM */
 	for (i = 0; i < 6; i += 2)
 		dm9000_read_eeprom(db, i / 2, addr + i);
 	eth_hw_addr_set(ndev, addr);
@@ -1708,7 +1708,7 @@ dm9000_probe(struct platform_device *pdev)
 	return 0;
 
 out:
-	dev_err(db->dev, "not found (%d).\n", ret);
+	dev_err(db->dev, "analt found (%d).\n", ret);
 
 	dm9000_release_board(pdev, db);
 	free_netdev(ndev);
@@ -1735,7 +1735,7 @@ dm9000_drv_suspend(struct device *dev)
 
 		netif_device_detach(ndev);
 
-		/* only shutdown if not using WoL */
+		/* only shutdown if analt using WoL */
 		if (!db->wake_state)
 			dm9000_shutdown(ndev);
 	}
@@ -1750,8 +1750,8 @@ dm9000_drv_resume(struct device *dev)
 
 	if (ndev) {
 		if (netif_running(ndev)) {
-			/* reset if we were not in wake mode to ensure if
-			 * the device was powered off it is in a known state */
+			/* reset if we were analt in wake mode to ensure if
+			 * the device was powered off it is in a kanalwn state */
 			if (!db->wake_state) {
 				dm9000_init_dm9000(ndev);
 				dm9000_unmask_interrupts(db);

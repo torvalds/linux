@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -52,16 +52,16 @@
 #define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
 #define ETH_P_X25	0x0805		/* CCITT X.25			*/
 #define ETH_P_ARP	0x0806		/* Address Resolution packet	*/
-#define	ETH_P_BPQ	0x08FF		/* G8BPQ AX.25 Ethernet Packet	[ NOT AN OFFICIALLY REGISTERED ID ] */
+#define	ETH_P_BPQ	0x08FF		/* G8BPQ AX.25 Ethernet Packet	[ ANALT AN OFFICIALLY REGISTERED ID ] */
 #define ETH_P_IEEEPUP	0x0a00		/* Xerox IEEE802.3 PUP packet */
 #define ETH_P_IEEEPUPAT	0x0a01		/* Xerox IEEE802.3 PUP Addr Trans packet */
-#define ETH_P_BATMAN	0x4305		/* B.A.T.M.A.N.-Advanced packet [ NOT AN OFFICIALLY REGISTERED ID ] */
+#define ETH_P_BATMAN	0x4305		/* B.A.T.M.A.N.-Advanced packet [ ANALT AN OFFICIALLY REGISTERED ID ] */
 #define ETH_P_DEC       0x6000          /* DEC Assigned proto           */
 #define ETH_P_DNA_DL    0x6001          /* DEC DNA Dump/Load            */
 #define ETH_P_DNA_RC    0x6002          /* DEC DNA Remote Console       */
 #define ETH_P_DNA_RT    0x6003          /* DEC DNA Routing              */
 #define ETH_P_LAT       0x6004          /* DEC LAT                      */
-#define ETH_P_DIAG      0x6005          /* DEC Diagnostics              */
+#define ETH_P_DIAG      0x6005          /* DEC Diaganalstics              */
 #define ETH_P_CUST      0x6006          /* DEC Customer use             */
 #define ETH_P_SCA       0x6007          /* DEC Systems Comms Arch       */
 #define ETH_P_TEB	0x6558		/* Trans Ether Bridging		*/
@@ -111,20 +111,20 @@
 #define ETH_P_HSR	0x892F		/* IEC 62439-3 HSRv1	*/
 #define ETH_P_NSH	0x894F		/* Network Service Header */
 #define ETH_P_LOOPBACK	0x9000		/* Ethernet loopback packet, per IEEE 802.3 */
-#define ETH_P_QINQ1	0x9100		/* deprecated QinQ VLAN [ NOT AN OFFICIALLY REGISTERED ID ] */
-#define ETH_P_QINQ2	0x9200		/* deprecated QinQ VLAN [ NOT AN OFFICIALLY REGISTERED ID ] */
-#define ETH_P_QINQ3	0x9300		/* deprecated QinQ VLAN [ NOT AN OFFICIALLY REGISTERED ID ] */
-#define ETH_P_EDSA	0xDADA		/* Ethertype DSA [ NOT AN OFFICIALLY REGISTERED ID ] */
-#define ETH_P_DSA_8021Q	0xDADB		/* Fake VLAN Header for DSA [ NOT AN OFFICIALLY REGISTERED ID ] */
-#define ETH_P_DSA_A5PSW	0xE001		/* A5PSW Tag Value [ NOT AN OFFICIALLY REGISTERED ID ] */
+#define ETH_P_QINQ1	0x9100		/* deprecated QinQ VLAN [ ANALT AN OFFICIALLY REGISTERED ID ] */
+#define ETH_P_QINQ2	0x9200		/* deprecated QinQ VLAN [ ANALT AN OFFICIALLY REGISTERED ID ] */
+#define ETH_P_QINQ3	0x9300		/* deprecated QinQ VLAN [ ANALT AN OFFICIALLY REGISTERED ID ] */
+#define ETH_P_EDSA	0xDADA		/* Ethertype DSA [ ANALT AN OFFICIALLY REGISTERED ID ] */
+#define ETH_P_DSA_8021Q	0xDADB		/* Fake VLAN Header for DSA [ ANALT AN OFFICIALLY REGISTERED ID ] */
+#define ETH_P_DSA_A5PSW	0xE001		/* A5PSW Tag Value [ ANALT AN OFFICIALLY REGISTERED ID ] */
 #define ETH_P_IFE	0xED3E		/* ForCES inter-FE LFB type */
-#define ETH_P_AF_IUCV   0xFBFB		/* IBM af_iucv [ NOT AN OFFICIALLY REGISTERED ID ] */
+#define ETH_P_AF_IUCV   0xFBFB		/* IBM af_iucv [ ANALT AN OFFICIALLY REGISTERED ID ] */
 
 #define ETH_P_802_3_MIN	0x0600		/* If the value in the ethernet type is more than this value
 					 * then the frame is Ethernet II. Else it is 802.3 */
 
 /*
- *	Non DIX types. Won't clash for 1500 types.
+ *	Analn DIX types. Won't clash for 1500 types.
  */
 
 #define ETH_P_802_3	0x0001		/* Dummy type for 802.3 frames  */
@@ -149,7 +149,7 @@
 #define ETH_P_ARCNET	0x001A		/* 1A for ArcNet :-)            */
 #define ETH_P_DSA	0x001B		/* Distributed Switch Arch.	*/
 #define ETH_P_TRAILER	0x001C		/* Trailer switch tagging	*/
-#define ETH_P_PHONET	0x00F5		/* Nokia Phonet frames          */
+#define ETH_P_PHONET	0x00F5		/* Analkia Phonet frames          */
 #define ETH_P_IEEE802154 0x00F6		/* IEEE802.15.4 frame		*/
 #define ETH_P_CAIF	0x00F7		/* ST-Ericsson CAIF protocol	*/
 #define ETH_P_XDSA	0x00F8		/* Multiplexed DSA protocol	*/
@@ -164,7 +164,7 @@
  *	This is an Ethernet frame header.
  */
 
-/* allow libcs like musl to deactivate this, glibc does not implement this. */
+/* allow libcs like musl to deactivate this, glibc does analt implement this. */
 #ifndef __UAPI_DEF_ETHHDR
 #define __UAPI_DEF_ETHHDR		1
 #endif

@@ -15,7 +15,7 @@ VGIC instead of directly to CPUs.
 
 GICv3 implementations with hardware compatibility support allow creating a
 guest GICv2 through this interface.  For information on creating a guest GICv3
-device and guest ITS devices, see arm-vgic-v3.txt.  It is not possible to
+device and guest ITS devices, see arm-vgic-v3.txt.  It is analt possible to
 create both a GICv3 and GICv2 device on the same VM.
 
 
@@ -39,7 +39,7 @@ Groups:
     -E2BIG   Address outside of addressable IPA range
     -EINVAL  Incorrectly aligned address
     -EEXIST  Address already configured
-    -ENXIO   The group or attribute is unknown/unsupported for this device
+    -ENXIO   The group or attribute is unkanalwn/unsupported for this device
              or hardware support is missing.
     -EFAULT  Invalid user pointer for attr->addr.
     =======  =============================================================
@@ -57,8 +57,8 @@ Groups:
     The offset is relative to the "Distributor base address" as defined in the
     GICv2 specs.  Getting or setting such a register has the same effect as
     reading or writing the register on the actual hardware from the cpu whose
-    index is specified with the vcpu_index field.  Note that most distributor
-    fields are not banked, but return the same value regardless of the
+    index is specified with the vcpu_index field.  Analte that most distributor
+    fields are analt banked, but return the same value regardless of the
     vcpu_index used to access the register.
 
     GICD_IIDR.Revision is updated when the KVM implementation of an emulated
@@ -68,12 +68,12 @@ Groups:
     Userspace should set GICD_IIDR before setting any other registers (both
     KVM_DEV_ARM_VGIC_GRP_DIST_REGS and KVM_DEV_ARM_VGIC_GRP_CPU_REGS) to ensure
     the expected behavior. Unless GICD_IIDR has been set from userspace, writes
-    to the interrupt group registers (GICD_IGROUPR) are ignored.
+    to the interrupt group registers (GICD_IGROUPR) are iganalred.
 
   Errors:
 
     =======  =====================================================
-    -ENXIO   Getting or setting this register is not yet supported
+    -ENXIO   Getting or setting this register is analt yet supported
     -EBUSY   One or more VCPUs are running
     -EINVAL  Invalid vcpu_index supplied
     =======  =====================================================
@@ -106,7 +106,7 @@ Groups:
 
     Bits for undefined preemption levels are RAZ/WI.
 
-    Note that this differs from a CPU's view of the APRs on hardware in which
+    Analte that this differs from a CPU's view of the APRs on hardware in which
     a GIC without the security extensions expose group 0 and group 1 active
     priorities in separate register groups, whereas we show a combined view
     similar to GICv2's GICH_APR.
@@ -120,7 +120,7 @@ Groups:
   Errors:
 
     =======  =====================================================
-    -ENXIO   Getting or setting this register is not yet supported
+    -ENXIO   Getting or setting this register is analt yet supported
     -EBUSY   One or more VCPUs are running
     -EINVAL  Invalid vcpu_index supplied
     =======  =====================================================
@@ -143,14 +143,14 @@ Groups:
    Attributes:
 
     KVM_DEV_ARM_VGIC_CTRL_INIT
-      request the initialization of the VGIC or ITS, no additional parameter
+      request the initialization of the VGIC or ITS, anal additional parameter
       in kvm_device_attr.addr.
 
   Errors:
 
     =======  =========================================================
-    -ENXIO   VGIC not properly configured as required prior to calling
+    -ENXIO   VGIC analt properly configured as required prior to calling
              this attribute
-    -ENODEV  no online VCPU
-    -ENOMEM  memory shortage when allocating vgic internal data
+    -EANALDEV  anal online VCPU
+    -EANALMEM  memory shortage when allocating vgic internal data
     =======  =========================================================

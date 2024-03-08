@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -201,14 +201,14 @@ bool hubbub32_program_urgent_watermarks(
 			< hubbub2->watermarks.a.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub2->watermarks.a.frac_urg_bw_nom) {
-		hubbub2->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_analm
+			> hubbub2->watermarks.a.frac_urg_bw_analm) {
+		hubbub2->watermarks.a.frac_urg_bw_analm = watermarks->a.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, watermarks->a.frac_urg_bw_nom);
-	} else if (watermarks->a.frac_urg_bw_nom
-			< hubbub2->watermarks.a.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A, watermarks->a.frac_urg_bw_analm);
+	} else if (watermarks->a.frac_urg_bw_analm
+			< hubbub2->watermarks.a.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->a.urgent_latency_ns > hubbub2->watermarks.a.urgent_latency_ns) {
@@ -245,14 +245,14 @@ bool hubbub32_program_urgent_watermarks(
 			< hubbub2->watermarks.b.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->b.frac_urg_bw_nom
-			> hubbub2->watermarks.b.frac_urg_bw_nom) {
-		hubbub2->watermarks.b.frac_urg_bw_nom = watermarks->b.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->b.frac_urg_bw_analm
+			> hubbub2->watermarks.b.frac_urg_bw_analm) {
+		hubbub2->watermarks.b.frac_urg_bw_analm = watermarks->b.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, watermarks->b.frac_urg_bw_nom);
-	} else if (watermarks->b.frac_urg_bw_nom
-			< hubbub2->watermarks.b.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B, watermarks->b.frac_urg_bw_analm);
+	} else if (watermarks->b.frac_urg_bw_analm
+			< hubbub2->watermarks.b.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->b.urgent_latency_ns > hubbub2->watermarks.b.urgent_latency_ns) {
@@ -289,14 +289,14 @@ bool hubbub32_program_urgent_watermarks(
 			< hubbub2->watermarks.c.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->c.frac_urg_bw_nom
-			> hubbub2->watermarks.c.frac_urg_bw_nom) {
-		hubbub2->watermarks.c.frac_urg_bw_nom = watermarks->c.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->c.frac_urg_bw_analm
+			> hubbub2->watermarks.c.frac_urg_bw_analm) {
+		hubbub2->watermarks.c.frac_urg_bw_analm = watermarks->c.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, watermarks->c.frac_urg_bw_nom);
-	} else if (watermarks->c.frac_urg_bw_nom
-			< hubbub2->watermarks.c.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C, watermarks->c.frac_urg_bw_analm);
+	} else if (watermarks->c.frac_urg_bw_analm
+			< hubbub2->watermarks.c.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->c.urgent_latency_ns > hubbub2->watermarks.c.urgent_latency_ns) {
@@ -333,14 +333,14 @@ bool hubbub32_program_urgent_watermarks(
 			< hubbub2->watermarks.d.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->d.frac_urg_bw_nom
-			> hubbub2->watermarks.d.frac_urg_bw_nom) {
-		hubbub2->watermarks.d.frac_urg_bw_nom = watermarks->d.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->d.frac_urg_bw_analm
+			> hubbub2->watermarks.d.frac_urg_bw_analm) {
+		hubbub2->watermarks.d.frac_urg_bw_analm = watermarks->d.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, watermarks->d.frac_urg_bw_nom);
-	} else if (watermarks->d.frac_urg_bw_nom
-			< hubbub2->watermarks.d.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D, watermarks->d.frac_urg_bw_analm);
+	} else if (watermarks->d.frac_urg_bw_analm
+			< hubbub2->watermarks.d.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->d.urgent_latency_ns > hubbub2->watermarks.d.urgent_latency_ns) {
@@ -779,7 +779,7 @@ static bool hubbub32_program_watermarks(
 	 * the slack of the next winner is compared with the ARB_SAT_LEVEL in DLG RefClk cycles.
 	 *
 	 * TODO: Revisit request limit after figure out right number. request limit for RM isn't decided yet, set maximum value (0x1FF)
-	 * to turn off it for now.
+	 * to turn off it for analw.
 	 */
 	/*REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
@@ -809,10 +809,10 @@ static void hubbub32_init_watermarks(struct hubbub *hubbub)
 	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_C, reg);
 	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_D, reg);
 
-	reg = REG_READ(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A);
-	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, reg);
-	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, reg);
-	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, reg);
+	reg = REG_READ(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D, reg);
 
 	reg = REG_READ(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_A);
 	REG_WRITE(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_B, reg);
@@ -970,7 +970,7 @@ void hubbub32_init(struct hubbub *hubbub)
 			DCFCLK_R_DCHUBBUB_GATE_DIS, 1);
 	}
 	/*
-	ignore the "df_pre_cstate_req" from the SDP port control.
+	iganalre the "df_pre_cstate_req" from the SDP port control.
 	only the DCN will determine when to connect the SDP port
 	*/
 	REG_UPDATE(DCHUBBUB_SDPIF_CFG0,

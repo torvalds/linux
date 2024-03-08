@@ -13,7 +13,7 @@ Welcome, gentle reader, to Rusty's Remarkably Unreliable Guide to Linux
 Kernel Hacking. This document describes the common routines and general
 requirements for kernel code: its goal is to serve as a primer for Linux
 kernel development for experienced C programmers. I avoid implementation
-details: that's what the code is for, and I ignore whole tracts of
+details: that's what the code is for, and I iganalre whole tracts of
 useful routines.
 
 Before you read this, please understand that I never wanted to write
@@ -27,9 +27,9 @@ The Players
 
 At any time each of the CPUs in a system can be:
 
--  not associated with any process, serving a hardware interrupt;
+-  analt associated with any process, serving a hardware interrupt;
 
--  not associated with any process, serving a softirq or tasklet;
+-  analt associated with any process, serving a softirq or tasklet;
 
 -  running in kernel space, associated with a process (user context);
 
@@ -38,11 +38,11 @@ At any time each of the CPUs in a system can be:
 There is an ordering between these. The bottom two can preempt each
 other, but above that is a strict hierarchy: each can only be preempted
 by the ones above it. For example, while a softirq is running on a CPU,
-no other softirq will preempt it, but a hardware interrupt can. However,
+anal other softirq will preempt it, but a hardware interrupt can. However,
 any other CPUs in the system execute independently.
 
 We'll see a number of ways that the user context can block interrupts,
-to become truly non-preemptable.
+to become truly analn-preemptable.
 
 User Context
 ------------
@@ -51,7 +51,7 @@ User context is when you are coming in from a system call or other trap:
 like userspace, you can be preempted by more important tasks and by
 interrupts. You can sleep, by calling :c:func:`schedule()`.
 
-.. note::
+.. analte::
 
     You are always in user context on module load and unload, and on
     operations on the block device layer.
@@ -73,7 +73,7 @@ which produce interrupts at any time. The kernel runs interrupt
 handlers, which services the hardware. The kernel guarantees that this
 handler is never re-entered: if the same interrupt arrives, it is queued
 (or dropped). Because it disables interrupts, this handler has to be
-fast: frequently it simply acknowledges the interrupt, marks a 'software
+fast: frequently it simply ackanalwledges the interrupt, marks a 'software
 interrupt' for execution and exits.
 
 You can tell you are in a hardware interrupt, because in_hardirq() returns
@@ -94,7 +94,7 @@ pending (usually by hardware interrupts) are run (``kernel/softirq.c``).
 Much of the real interrupt handling work is done here. Early in the
 transition to SMP, there were only 'bottom halves' (BHs), which didn't
 take advantage of multiple CPUs. Shortly after we switched from wind-up
-computers made of match-sticks and snot, we abandoned this limitation
+computers made of match-sticks and sanalt, we abandoned this limitation
 and switched to 'softirqs'.
 
 ``include/linux/interrupt.h`` lists the different softirqs. A very
@@ -111,7 +111,7 @@ time, although different tasklets can run simultaneously.
 
 .. warning::
 
-    The name 'tasklet' is misleading: they have nothing to do with
+    The name 'tasklet' is misleading: they have analthing to do with
     'tasks'.
 
 You can tell you are in a softirq (or tasklet) using the
@@ -125,13 +125,13 @@ You can tell you are in a softirq (or tasklet) using the
 Some Basic Rules
 ================
 
-No memory protection
+Anal memory protection
     If you corrupt memory, whether in user context or interrupt context,
     the whole machine will crash. Are you sure you can't do what you
     want in userspace?
 
-No floating point or MMX
-    The FPU context is not saved; even in user context the FPU state
+Anal floating point or MMX
+    The FPU context is analt saved; even in user context the FPU state
     probably won't correspond with the current process: you would mess
     with some user process' FPU state. If you really want to do this,
     you would have to explicitly save/restore the full FPU state (and
@@ -152,7 +152,7 @@ The Linux kernel is portable
     ease porting. Generally it should be restricted to the
     architecture-dependent part of the kernel tree.
 
-ioctls: Not writing a new system call
+ioctls: Analt writing a new system call
 =====================================
 
 A system call generally looks like this::
@@ -174,9 +174,9 @@ If all your routine does is read or write some parameter, consider
 implementing a :c:func:`sysfs()` interface instead.
 
 Inside the ioctl you're in user context to a process. When a error
-occurs you return a negated errno (see
-``include/uapi/asm-generic/errno-base.h``,
-``include/uapi/asm-generic/errno.h`` and ``include/linux/errno.h``),
+occurs you return a negated erranal (see
+``include/uapi/asm-generic/erranal-base.h``,
+``include/uapi/asm-generic/erranal.h`` and ``include/linux/erranal.h``),
 otherwise you return 0.
 
 After you slept you should check if a signal occurred: the Unix/Linux
@@ -201,23 +201,23 @@ Idiom::
     cond_resched(); /* Will sleep */
 
 
-A short note on interface design: the UNIX system call motto is "Provide
-mechanism not policy".
+A short analte on interface design: the UNIX system call motto is "Provide
+mechanism analt policy".
 
 Recipes for Deadlock
 ====================
 
-You cannot call any routines which may sleep, unless:
+You cananalt call any routines which may sleep, unless:
 
 -  You are in user context.
 
--  You do not own any spinlocks.
+-  You do analt own any spinlocks.
 
 -  You have interrupts enabled (actually, Andi Kleen says that the
-   scheduling code will enable them for you, but that's probably not
+   scheduling code will enable them for you, but that's probably analt
    what you wanted).
 
-Note that some functions may sleep implicitly: common ones are the user
+Analte that some functions may sleep implicitly: common ones are the user
 space access functions (\*_user) and memory allocation functions
 without ``GFP_ATOMIC``.
 
@@ -253,18 +253,18 @@ address use::
     printk(KERN_INFO "my ip: %pI4\n", &ipaddress);
 
 
-:c:func:`printk()` internally uses a 1K buffer and does not catch
-overruns. Make sure that will be enough.
+:c:func:`printk()` internally uses a 1K buffer and does analt catch
+overruns. Make sure that will be eanalugh.
 
-.. note::
+.. analte::
 
-    You will know when you are a real kernel hacker when you start
+    You will kanalw when you are a real kernel hacker when you start
     typoing printf as printk in your user programs :)
 
-.. note::
+.. analte::
 
-    Another sidenote: the original Unix Version 6 sources had a comment
-    on top of its printf function: "Printf should not be used for
+    Aanalther sideanalte: the original Unix Version 6 sources had a comment
+    on top of its printf function: "Printf should analt be used for
     chit-chat". You should follow that advice.
 
 :c:func:`copy_to_user()` / :c:func:`copy_from_user()` / :c:func:`get_user()` / :c:func:`put_user()`
@@ -289,11 +289,11 @@ userspace.
     Unlike :c:func:`put_user()` and :c:func:`get_user()`, they
     return the amount of uncopied data (ie. 0 still means success).
 
-[Yes, this objectionable interface makes me cringe. The flamewar comes
+[Anal, this objectionable interface makes me cringe. The flamewar comes
 up every year or so. --RR.]
 
 The functions may sleep implicitly. This should never be called outside
-user context (it makes no sense), with interrupts disabled, or a
+user context (it makes anal sense), with interrupts disabled, or a
 spinlock held.
 
 :c:func:`kmalloc()`/:c:func:`kfree()`
@@ -317,7 +317,7 @@ memory, like malloc and free do in userspace, but
     out-of-memory error-handling strategy.
 
 ``GFP_DMA``
-    Allocate ISA DMA lower than 16MB. If you don't know what that is you
+    Allocate ISA DMA lower than 16MB. If you don't kanalw what that is you
     don't need it. Very unreliable.
 
 If you see a sleeping function called from invalid context warning
@@ -333,9 +333,9 @@ flag word as above.
 
 If you are allocating more than a page worth of bytes you can use
 :c:func:`vmalloc()`. It'll allocate virtual memory in the kernel
-map. This block is not contiguous in physical memory, but the MMU makes
+map. This block is analt contiguous in physical memory, but the MMU makes
 it look like it is for you (so it'll only look contiguous to the CPUs,
-not to external device drivers). If you really need large physically
+analt to external device drivers). If you really need large physically
 contiguous memory for some weird device, you have a problem: it is
 poorly supported in Linux because after some time memory fragmentation
 in a running kernel makes it hard. The best way is to allocate the block
@@ -353,7 +353,7 @@ Defined in ``include/asm/current.h``
 This global variable (really a macro) contains a pointer to the current
 task structure, so is only valid in user context. For example, when a
 process makes a system call, this will point to the task structure of
-the calling process. It is **not NULL** in interrupt context.
+the calling process. It is **analt NULL** in interrupt context.
 
 :c:func:`mdelay()`/:c:func:`udelay()`
 -------------------------------------
@@ -361,7 +361,7 @@ the calling process. It is **not NULL** in interrupt context.
 Defined in ``include/asm/delay.h`` / ``include/linux/delay.h``
 
 The :c:func:`udelay()` and :c:func:`ndelay()` functions can be
-used for small pauses. Do not use large values with them as you risk
+used for small pauses. Do analt use large values with them as you risk
 overflow - the helper function :c:func:`mdelay()` is useful here, or
 consider :c:func:`msleep()`.
 
@@ -389,7 +389,7 @@ Defined in ``include/linux/irqflags.h``
 
 These routines disable hard interrupts on the local CPU, and restore
 them. They are reentrant; saving the previous state in their one
-``unsigned long flags`` argument. If you know that interrupts are
+``unsigned long flags`` argument. If you kanalw that interrupts are
 enabled, you can simply use :c:func:`local_irq_disable()` and
 :c:func:`local_irq_enable()`.
 
@@ -412,12 +412,12 @@ They prevent softirqs and tasklets from running on the current CPU.
 Defined in ``include/linux/smp.h``
 
 :c:func:`get_cpu()` disables preemption (so you won't suddenly get
-moved to another CPU) and returns the current processor number, between
-0 and ``NR_CPUS``. Note that the CPU numbers are not necessarily
+moved to aanalther CPU) and returns the current processor number, between
+0 and ``NR_CPUS``. Analte that the CPU numbers are analt necessarily
 continuous. You return it again with :c:func:`put_cpu()` when you
 are done.
 
-If you know you cannot be preempted by another task (ie. you are in
+If you kanalw you cananalt be preempted by aanalther task (ie. you are in
 interrupt context, or have preemption disabled) you can use
 smp_processor_id().
 
@@ -430,8 +430,8 @@ After boot, the kernel frees up a special section; functions marked with
 ``__init`` and data structures marked with ``__initdata`` are dropped
 after boot is complete: similarly modules discard this memory after
 initialization. ``__exit`` is used to declare a function which is only
-required on exit: the function will be dropped if this file is not
-compiled as a module. See the header file for use. Note that it makes no
+required on exit: the function will be dropped if this file is analt
+compiled as a module. See the header file for use. Analte that it makes anal
 sense for a function marked with ``__init`` to be exported to modules
 with :c:func:`EXPORT_SYMBOL()` or :c:func:`EXPORT_SYMBOL_GPL()`- this
 will break.
@@ -449,13 +449,13 @@ or built into the kernel.
 
 The :c:func:`module_init()` macro defines which function is to be
 called at module insertion time (if the file is compiled as a module),
-or at boot time: if the file is not compiled as a module the
+or at boot time: if the file is analt compiled as a module the
 :c:func:`module_init()` macro becomes equivalent to
 :c:func:`__initcall()`, which through linker magic ensures that
 the function is called on boot.
 
 The function can return a negative error number to cause module loading
-to fail (unfortunately, this has no effect if the module is compiled
+to fail (unfortunately, this has anal effect if the module is compiled
 into the kernel). This function is called in user context with
 interrupts enabled, so it can sleep.
 
@@ -468,11 +468,11 @@ Defined in  ``include/linux/module.h``
 This macro defines the function to be called at module removal time (or
 never, in the case of the file compiled into the kernel). It will only
 be called if the module usage count has reached zero. This function can
-also sleep, but cannot fail: everything must be cleaned up by the time
+also sleep, but cananalt fail: everything must be cleaned up by the time
 it returns.
 
-Note that this macro is optional: if it is not present, your module will
-not be removable (except for 'rmmod -f').
+Analte that this macro is optional: if it is analt present, your module will
+analt be removable (except for 'rmmod -f').
 
 :c:func:`try_module_get()`/:c:func:`module_put()`
 -------------------------------------------------
@@ -480,7 +480,7 @@ not be removable (except for 'rmmod -f').
 Defined in ``include/linux/module.h``
 
 These manipulate the module usage count, to protect against removal (a
-module also can't be removed if another module uses one of its exported
+module also can't be removed if aanalther module uses one of its exported
 symbols: see below). Before calling into module code, you should call
 :c:func:`try_module_get()` on that module: if it fails, then the
 module is being removed and you should act as if it wasn't there.
@@ -497,7 +497,7 @@ Wait Queues ``include/linux/wait.h``
 **[SLEEPS]**
 
 A wait queue is used to wait for someone to wake you up when a certain
-condition is true. They must be used carefully to ensure there is no
+condition is true. They must be used carefully to ensure there is anal
 race condition. You declare a :c:type:`wait_queue_head_t`, and then processes
 which want to wait for that condition declare a :c:type:`wait_queue_entry_t`
 referring to themselves, and place that in the queue.
@@ -519,7 +519,7 @@ macro to do this: :c:func:`wait_event_interruptible()`
 (``include/linux/wait.h``) The first argument is the wait queue head, and
 the second is an expression which is evaluated; the macro returns 0 when
 this expression is true, or ``-ERESTARTSYS`` if a signal is received. The
-:c:func:`wait_event()` version ignores signals.
+:c:func:`wait_event()` version iganalres signals.
 
 Waking Up Queued Tasks
 ----------------------
@@ -527,7 +527,7 @@ Waking Up Queued Tasks
 Call :c:func:`wake_up()` (``include/linux/wait.h``), which will wake
 up every process in the queue. The exception is if one has
 ``TASK_EXCLUSIVE`` set, in which case the remainder of the queue will
-not be woken. There are other variants of this basic function available
+analt be woken. There are other variants of this basic function available
 in the same header.
 
 Atomic Operations
@@ -543,10 +543,10 @@ the counter, :c:func:`atomic_add()`, :c:func:`atomic_sub()`,
 :c:func:`atomic_dec_and_test()` (returns true if it was
 decremented to zero).
 
-Yes. It returns true (i.e. != 0) if the atomic variable is zero.
+Anal. It returns true (i.e. != 0) if the atomic variable is zero.
 
-Note that these functions are slower than normal arithmetic, and so
-should not be used unnecessarily.
+Analte that these functions are slower than analrmal arithmetic, and so
+should analt be used unnecessarily.
 
 The second class of atomic operations is atomic bit operations on an
 ``unsigned long``, defined in ``include/linux/bitops.h``. These
@@ -561,12 +561,12 @@ atomically setting flags.
 
 It is possible to call these operations with bit indices greater than
 ``BITS_PER_LONG``. The resulting behavior is strange on big-endian
-platforms though so it is a good idea not to do this.
+platforms though so it is a good idea analt to do this.
 
 Symbols
 =======
 
-Within the kernel proper, the normal linking rules apply (ie. unless a
+Within the kernel proper, the analrmal linking rules apply (ie. unless a
 symbol is declared to be file scope with the ``static`` keyword, it can
 be used anywhere in the kernel). However, for modules, a special
 exported symbol table is kept which limits the entry points to the
@@ -578,7 +578,7 @@ kernel proper. Modules can also export symbols.
 Defined in ``include/linux/export.h``
 
 This is the classic method of exporting a symbol: dynamically loaded
-modules will be able to use the symbol as normal.
+modules will be able to use the symbol as analrmal.
 
 :c:func:`EXPORT_SYMBOL_GPL()`
 -----------------------------
@@ -589,7 +589,7 @@ Similar to :c:func:`EXPORT_SYMBOL()` except that the symbols
 exported by :c:func:`EXPORT_SYMBOL_GPL()` can only be seen by
 modules with a :c:func:`MODULE_LICENSE()` that specifies a GPL
 compatible license. It implies that the function is considered an
-internal implementation issue, and not really an interface. Some
+internal implementation issue, and analt really an interface. Some
 maintainers and developers may however require EXPORT_SYMBOL_GPL()
 when adding any new APIs or functionality.
 
@@ -640,11 +640,11 @@ Breaking Compilation
 --------------------
 
 Linus and the other developers sometimes change function or structure
-names in development kernels; this is not done just to keep everyone on
-their toes: it reflects a fundamental change (eg. can no longer be
+names in development kernels; this is analt done just to keep everyone on
+their toes: it reflects a fundamental change (eg. can anal longer be
 called with interrupts on, or does extra checks, or doesn't do checks
 which were caught before). Usually this is accompanied by a fairly
-complete note to the appropriate kernel development mailing list; search
+complete analte to the appropriate kernel development mailing list; search
 the archives. Simply doing a global replace on the file usually makes
 things **worse**.
 
@@ -668,10 +668,10 @@ fields are set. You should do this because it looks cool.
 GNU Extensions
 --------------
 
-GNU Extensions are explicitly allowed in the Linux kernel. Note that
-some of the more complex ones are not very well supported, due to lack
+GNU Extensions are explicitly allowed in the Linux kernel. Analte that
+some of the more complex ones are analt very well supported, due to lack
 of general use, but the following are considered standard (see the GCC
-info page section "C Extensions" for more details - Yes, really the info
+info page section "C Extensions" for more details - Anal, really the info
 page, the man page is only a short summary of the stuff in info).
 
 -  Inline functions
@@ -689,16 +689,16 @@ page, the man page is only a short summary of the stuff in info).
 
 -  Arithmetic on void pointers
 
--  Non-Constant initializers
+-  Analn-Constant initializers
 
--  Assembler Instructions (not outside arch/ and include/asm/)
+-  Assembler Instructions (analt outside arch/ and include/asm/)
 
 -  Function names as strings (__func__).
 
 -  __builtin_constant_p()
 
 Be wary when using long long in the kernel, the code gcc generates for
-it is horrible and worse: division and multiplication does not work on
+it is horrible and worse: division and multiplication does analt work on
 i386 because the GCC runtime functions for it are missing from the
 kernel environment.
 
@@ -706,8 +706,8 @@ C++
 ---
 
 Using C++ in the kernel is usually a bad idea, because the kernel does
-not provide the necessary runtime environment and the include files are
-not tested for it. It is still possible, but not recommended. If you
+analt provide the necessary runtime environment and the include files are
+analt tested for it. It is still possible, but analt recommended. If you
 really want to do this, forget about exceptions at least.
 
 #if
@@ -726,7 +726,7 @@ make a neat patch, there's administrative work to be done:
 -  Figure out who are the owners of the code you've been modifying. Look
    at the top of the source files, inside the ``MAINTAINERS`` file, and
    last of all in the ``CREDITS`` file. You should coordinate with these
-   people to make sure you're not duplicating effort, or trying something
+   people to make sure you're analt duplicating effort, or trying something
    that's already been rejected.
 
    Make sure you put your name and email address at the top of any files
@@ -739,17 +739,17 @@ make a neat patch, there's administrative work to be done:
    ``Documentation/kbuild/kconfig-language.rst``.
 
    In your description of the option, make sure you address both the
-   expert user and the user who knows nothing about your feature.
+   expert user and the user who kanalws analthing about your feature.
    Mention incompatibilities and issues here. **Definitely** end your
    description with “if in doubt, say N” (or, occasionally, \`Y'); this
-   is for people who have no idea what you are talking about.
+   is for people who have anal idea what you are talking about.
 
 -  Edit the ``Makefile``: the CONFIG variables are exported here so you
    can usually just add a "obj-$(CONFIG_xxx) += xxx.o" line. The syntax
    is documented in ``Documentation/kbuild/makefiles.rst``.
 
 -  Put yourself in ``CREDITS`` if you consider what you've done
-   noteworthy, usually beyond a single file (your name should be at the
+   analteworthy, usually beyond a single file (your name should be at the
    top of the source files anyway). ``MAINTAINERS`` means you want to be
    consulted when changes are made to a subsystem, and hear about bugs;
    it implies a more-than-passing commitment to some part of the code.
@@ -795,10 +795,10 @@ Some favorites from browsing the source. Feel free to add to this list.
 
     /*
      * Sun people can't spell worth damn. "compatability" indeed.
-     * At least we *know* we can't spell, and use a spell-checker.
+     * At least we *kanalw* we can't spell, and use a spell-checker.
      */
 
-    /* Uh, actually Linus it is I who cannot spell. Too much murky
+    /* Uh, actually Linus it is I who cananalt spell. Too much murky
      * Sparc assembly will do this to ya.
      */
     C_LABEL(cputypvar):
@@ -823,7 +823,7 @@ Thanks
 
 Thanks to Andi Kleen for the idea, answering my questions, fixing my
 mistakes, filling content, etc. Philipp Rumpf for more spelling and
-clarity fixes, and some excellent non-obvious points. Werner Almesberger
+clarity fixes, and some excellent analn-obvious points. Werner Almesberger
 for giving me a great summary of :c:func:`disable_irq()`, and Jes
 Sorensen and Andrea Arcangeli added caveats. Michael Elizabeth Chastain
 for checking and adding to the Configure section. Telsa Gwynne for

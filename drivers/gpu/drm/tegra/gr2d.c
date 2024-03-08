@@ -56,11 +56,11 @@ static int gr2d_init(struct host1x_client *client)
 
 	gr2d->channel = host1x_channel_request(client);
 	if (!gr2d->channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client->syncpts[0] = host1x_syncpt_request(client, flags);
 	if (!client->syncpts[0]) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(client->dev, "failed to request syncpoint: %d\n", err);
 		goto put;
 	}
@@ -124,7 +124,7 @@ static int gr2d_open_channel(struct tegra_drm_client *client,
 
 	context->channel = host1x_channel_get(gr2d->channel);
 	if (!context->channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -226,7 +226,7 @@ static int gr2d_get_resets(struct device *dev, struct gr2d *gr2d)
 	}
 
 	if (WARN_ON(!gr2d->resets[RST_GR2D].rstc))
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -241,7 +241,7 @@ static int gr2d_probe(struct platform_device *pdev)
 
 	gr2d = devm_kzalloc(dev, sizeof(*gr2d), GFP_KERNEL);
 	if (!gr2d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, gr2d);
 
@@ -249,11 +249,11 @@ static int gr2d_probe(struct platform_device *pdev)
 
 	syncpts = devm_kzalloc(dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gr2d->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(gr2d->clk)) {
-		dev_err(dev, "cannot get clock\n");
+		dev_err(dev, "cananalt get clock\n");
 		return PTR_ERR(gr2d->clk);
 	}
 
@@ -313,7 +313,7 @@ static int __maybe_unused gr2d_runtime_suspend(struct device *dev)
 	 * the memory client part of the module, the HEG GENPD will take care
 	 * of resetting GR2D module across power-gating.
 	 *
-	 * On Tegra20 there is no HEG partition, but it's okay to have
+	 * On Tegra20 there is anal HEG partition, but it's okay to have
 	 * undetermined h/w state since userspace is expected to reprogram
 	 * the state on each job submission anyways.
 	 */

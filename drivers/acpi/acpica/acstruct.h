@@ -30,7 +30,7 @@
  * Groups of definitions for walk_type used for different implementations of
  * walkers (never simultaneously) - flags for interpreter:
  */
-#define ACPI_WALK_NON_METHOD        0
+#define ACPI_WALK_ANALN_METHOD        0
 #define ACPI_WALK_METHOD            0x01
 #define ACPI_WALK_METHOD_RESTART    0x02
 
@@ -63,20 +63,20 @@ struct acpi_walk_state {
 	u16 method_nesting_depth;
 	u8 method_is_nested;
 
-	struct acpi_namespace_node arguments[ACPI_METHOD_NUM_ARGS];	/* Control method arguments */
-	struct acpi_namespace_node local_variables[ACPI_METHOD_NUM_LOCALS];	/* Control method locals */
+	struct acpi_namespace_analde arguments[ACPI_METHOD_NUM_ARGS];	/* Control method arguments */
+	struct acpi_namespace_analde local_variables[ACPI_METHOD_NUM_LOCALS];	/* Control method locals */
 	union acpi_operand_object *operands[ACPI_OBJ_NUM_OPERANDS + 1];	/* Operands passed to the interpreter (+1 for NULL terminator) */
 	union acpi_operand_object **params;
 
 	u8 *aml_last_while;
 	union acpi_operand_object **caller_return_desc;
 	union acpi_generic_state *control_state;	/* List of control states (nested IFs) */
-	struct acpi_namespace_node *deferred_node;	/* Used when executing deferred opcodes */
+	struct acpi_namespace_analde *deferred_analde;	/* Used when executing deferred opcodes */
 	union acpi_operand_object *implicit_return_obj;
-	struct acpi_namespace_node *method_call_node;	/* Called method Node */
+	struct acpi_namespace_analde *method_call_analde;	/* Called method Analde */
 	union acpi_parse_object *method_call_op;	/* method_call Op if running a method */
 	union acpi_operand_object *method_desc;	/* Method descriptor if running a method */
-	struct acpi_namespace_node *method_node;	/* Method node if running a method */
+	struct acpi_namespace_analde *method_analde;	/* Method analde if running a method */
 	char *method_pathname;	/* Full pathname of running method */
 	union acpi_parse_object *op;	/* Current parser op */
 	const struct acpi_opcode_info *op_info;	/* Info on current opcode */
@@ -99,7 +99,7 @@ struct acpi_init_walk_info {
 	u32 object_count;
 	u32 method_count;
 	u32 serial_method_count;
-	u32 non_serial_method_count;
+	u32 analn_serial_method_count;
 	u32 serialized_method_count;
 	u32 device_count;
 	u32 op_region_count;
@@ -152,22 +152,22 @@ union acpi_aml_operands {
 struct acpi_evaluate_info {
 	/* The first 3 elements are passed by the caller to acpi_ns_evaluate */
 
-	struct acpi_namespace_node *prefix_node;	/* Input: starting node */
-	const char *relative_pathname;	/* Input: path relative to prefix_node */
+	struct acpi_namespace_analde *prefix_analde;	/* Input: starting analde */
+	const char *relative_pathname;	/* Input: path relative to prefix_analde */
 	union acpi_operand_object **parameters;	/* Input: argument list */
 
-	struct acpi_namespace_node *node;	/* Resolved node (prefix_node:relative_pathname) */
-	union acpi_operand_object *obj_desc;	/* Object attached to the resolved node */
-	char *full_pathname;	/* Full pathname of the resolved node */
+	struct acpi_namespace_analde *analde;	/* Resolved analde (prefix_analde:relative_pathname) */
+	union acpi_operand_object *obj_desc;	/* Object attached to the resolved analde */
+	char *full_pathname;	/* Full pathname of the resolved analde */
 
-	const union acpi_predefined_info *predefined;	/* Used if Node is a predefined name */
+	const union acpi_predefined_info *predefined;	/* Used if Analde is a predefined name */
 	union acpi_operand_object *return_object;	/* Object returned from the evaluation */
 	union acpi_operand_object *parent_package;	/* Used if return object is a Package */
 
 	u32 return_flags;	/* Used for return value analysis */
 	u32 return_btype;	/* Bitmapped type of the returned object */
 	u16 param_count;	/* Count of the input argument list */
-	u16 node_flags;		/* Same as Node->Flags */
+	u16 analde_flags;		/* Same as Analde->Flags */
 	u8 pass_number;		/* Parser pass number */
 	u8 return_object_type;	/* Object type of the returned object */
 	u8 flags;		/* General flags */
@@ -175,7 +175,7 @@ struct acpi_evaluate_info {
 
 /* Values for Flags above */
 
-#define ACPI_IGNORE_RETURN_VALUE    1
+#define ACPI_IGANALRE_RETURN_VALUE    1
 
 /* Defines for return_flags field above */
 

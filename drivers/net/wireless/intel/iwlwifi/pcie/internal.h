@@ -44,7 +44,7 @@ struct iwl_host_cmd;
  * @page_dma: bus address of rxb page
  * @page: driver's pointer to the rxb page
  * @list: list entry for the membuffer
- * @invalid: rxb is in driver ownership - not owned by HW
+ * @invalid: rxb is in driver ownership - analt owned by HW
  * @vid: index of this rxb in the global table
  * @offset: indicates which offset of the page (in bytes)
  *	this buffer uses (if multiple RBs fit into one page)
@@ -130,18 +130,18 @@ struct iwl_rx_completion_desc_bz {
  * @used_count: Number of RBDs handled to allocator to use for allocation
  * @write_actual:
  * @rx_free: list of RBDs with allocated RB ready for use
- * @rx_used: list of RBDs with no RB attached
+ * @rx_used: list of RBDs with anal RB attached
  * @need_update: flag to indicate we need to update read/write index
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
  * @lock: per-queue lock
- * @queue: actual rx queue. Not used for multi-rx queue.
+ * @queue: actual rx queue. Analt used for multi-rx queue.
  * @next_rb_is_fragment: indicates that the previous RB that we handled set
- *	the fragmented flag, so the next one is still another fragment
+ *	the fragmented flag, so the next one is still aanalther fragment
  * @napi: NAPI struct for this queue
  * @queue_size: size of this queue
  *
- * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
+ * ANALTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
  */
 struct iwl_rxq {
 	int id;
@@ -167,11 +167,11 @@ struct iwl_rxq {
 
 /**
  * struct iwl_rb_allocator - Rx allocator
- * @req_pending: number of requests the allcator had not processed yet
- * @req_ready: number of requests honored and ready for claiming
+ * @req_pending: number of requests the allcator had analt processed yet
+ * @req_ready: number of requests hoanalred and ready for claiming
  * @rbd_allocated: RBDs with pages allocated and ready to be handled to
  *	the queue. This is a list of &struct iwl_rx_mem_buffer
- * @rbd_empty: RBDs with no page attached for allocator use. This is a list
+ * @rbd_empty: RBDs with anal page attached for allocator use. This is a list
  *	of &struct iwl_rx_mem_buffer
  * @lock: protects the rbd_allocated and rbd_empty lists
  * @alloc_wq: work queue for background calls
@@ -214,7 +214,7 @@ static inline u16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
  * @IWL_FW_MON_DBGFS_STATE_CLOSED: the file is closed.
  * @IWL_FW_MON_DBGFS_STATE_OPEN: the file is open.
  * @IWL_FW_MON_DBGFS_STATE_DISABLED: the file is disabled, once this state is
- *	set the file can no longer be used.
+ *	set the file can anal longer be used.
  */
 enum iwl_fw_mon_dbgfs_state {
 	IWL_FW_MON_DBGFS_STATE_CLOSED,
@@ -225,11 +225,11 @@ enum iwl_fw_mon_dbgfs_state {
 
 /**
  * enum iwl_shared_irq_flags - level of sharing for irq
- * @IWL_SHARED_IRQ_NON_RX: interrupt vector serves non rx causes.
+ * @IWL_SHARED_IRQ_ANALN_RX: interrupt vector serves analn rx causes.
  * @IWL_SHARED_IRQ_FIRST_RSS: interrupt vector serves first RSS queue.
  */
 enum iwl_shared_irq_flags {
-	IWL_SHARED_IRQ_NON_RX		= BIT(0),
+	IWL_SHARED_IRQ_ANALN_RX		= BIT(0),
 	IWL_SHARED_IRQ_FIRST_RSS	= BIT(1),
 };
 
@@ -327,7 +327,7 @@ enum iwl_pcie_imr_status {
  * @shared_vec_mask: the type of causes the shared vector handles
  *	(see iwl_shared_irq_flags).
  * @alloc_vecs: the number of interrupt vectors allocated by the OS
- * @def_irq: default irq for non rx causes
+ * @def_irq: default irq for analn rx causes
  * @fh_init_mask: initial unmasked fh causes
  * @hw_init_mask: initial unmasked hw causes
  * @fh_mask: current unmasked fh causes
@@ -343,7 +343,7 @@ enum iwl_pcie_imr_status {
  * @imr_status: imr dma state machine
  * @imr_waitq: imr wait queue for dma completion
  * @rf_name: name/version of the CRF, if any
- * @use_ict: whether or not ICT (interrupt table) is used
+ * @use_ict: whether or analt ICT (interrupt table) is used
  * @ict_index: current ICT read index
  * @ict_tbl: ICT table pointer
  * @ict_tbl_dma: ICT table DMA address
@@ -355,9 +355,9 @@ enum iwl_pcie_imr_status {
  * @pcie_dbg_dumped_once: indicates PCIe regs were dumped already
  * @opmode_down: indicates opmode went away
  * @num_rx_bufs: number of RX buffers to allocate/use
- * @no_reclaim_cmds: special commands not using reclaim flow
+ * @anal_reclaim_cmds: special commands analt using reclaim flow
  *	(firmware workaround)
- * @n_no_reclaim_cmds: number of special commands not using reclaim flow
+ * @n_anal_reclaim_cmds: number of special commands analt using reclaim flow
  * @affinity_mask: IRQ affinity mask for each RX queue
  * @debug_rfkill: RF-kill debugging state, -1 for unset, 0/1 for radio
  *	enable/disable
@@ -418,8 +418,8 @@ struct iwl_trans_pcie {
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t sx_waitq;
 
-	u8 n_no_reclaim_cmds;
-	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
+	u8 n_anal_reclaim_cmds;
+	u8 anal_reclaim_cmds[MAX_ANAL_RECLAIM_CMDS];
 	u16 num_rx_bufs;
 
 	enum iwl_amsdu_size rx_buf_size;
@@ -506,7 +506,7 @@ void iwl_trans_pcie_free_pnvm_dram_regions(struct iwl_dram_regions *dram_regions
 
 bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans);
 #define _iwl_trans_pcie_grab_nic_access(trans)			\
-	__cond_lock(nic_access_nobh,				\
+	__cond_lock(nic_access_analbh,				\
 		    likely(__iwl_trans_pcie_grab_nic_access(trans)))
 
 /*****************************************************
@@ -574,7 +574,7 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 		/* disable interrupts from uCode/NIC to host */
 		iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
-		/* acknowledge/clear/reset any interrupts still pending
+		/* ackanalwledge/clear/reset any interrupts still pending
 		 * from uCode or flow handler (Rx/Tx DMA) */
 		iwl_write32(trans, CSR_INT, 0xffffffff);
 		iwl_write32(trans, CSR_FH_INT_STATUS, 0xffffffff);
@@ -704,9 +704,9 @@ static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans)
 		/*
 		 * When we'll receive the ALIVE interrupt, the ISR will call
 		 * iwl_enable_fw_load_int_ctx_info again to set the ALIVE
-		 * interrupt (which is not really needed anymore) but also the
+		 * interrupt (which is analt really needed anymore) but also the
 		 * RX interrupt which will allow us to receive the ALIVE
-		 * notification (which is Rx) and continue the flow.
+		 * analtification (which is Rx) and continue the flow.
 		 */
 		trans_pcie->inta_mask =  CSR_INT_BIT_ALIVE | CSR_INT_BIT_FH_RX;
 		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
@@ -715,7 +715,7 @@ static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans)
 					   MSIX_HW_INT_CAUSES_REG_ALIVE);
 		/*
 		 * Leave all the FH causes enabled to get the ALIVE
-		 * notification.
+		 * analtification.
 		 */
 		iwl_enable_fh_int_msk_msix(trans, trans_pcie->fh_init_mask);
 	}

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -59,7 +59,7 @@ static int qxl_alloc_client_monitors_config(struct qxl_device *qdev,
 				struct_size(qdev->client_monitors_config,
 				heads, count), GFP_KERNEL);
 		if (!qdev->client_monitors_config)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	qdev->client_monitors_config->count = count;
 	return 0;
@@ -85,7 +85,7 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 	if (crc != qdev->rom->client_monitors_config_crc)
 		return MONITORS_CONFIG_BAD_CRC;
 	if (!num_monitors) {
-		DRM_DEBUG_KMS("no client monitors configured\n");
+		DRM_DEBUG_KMS("anal client monitors configured\n");
 		return status;
 	}
 	if (num_monitors > qxl_num_crtc) {
@@ -177,15 +177,15 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 		udelay(5);
 	}
 	if (status == MONITORS_CONFIG_ERROR) {
-		DRM_DEBUG_KMS("ignoring client monitors config: error");
+		DRM_DEBUG_KMS("iganalring client monitors config: error");
 		return;
 	}
 	if (status == MONITORS_CONFIG_BAD_CRC) {
-		DRM_DEBUG_KMS("ignoring client monitors config: bad crc");
+		DRM_DEBUG_KMS("iganalring client monitors config: bad crc");
 		return;
 	}
 	if (status == MONITORS_CONFIG_UNCHANGED) {
-		DRM_DEBUG_KMS("ignoring client monitors config: unchanged");
+		DRM_DEBUG_KMS("iganalring client monitors config: unchanged");
 		return;
 	}
 
@@ -193,7 +193,7 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 	qxl_update_offset_props(qdev);
 	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 	if (!drm_helper_hpd_irq_event(dev)) {
-		/* notify that the monitor configuration changed, to
+		/* analtify that the monitor configuration changed, to
 		   adjust at the arbitrary resolution */
 		drm_kms_helper_hotplug_event(dev);
 	}
@@ -211,7 +211,7 @@ static int qxl_check_mode(struct qxl_device *qdev,
 	if (check_mul_overflow(stride, height, &size))
 		return -EINVAL;
 	if (size > qdev->vram_size)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -322,7 +322,7 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 	int oldcount, i = qcrtc->index;
 
 	if (!qdev->primary_bo) {
-		DRM_DEBUG_KMS("no primary surface, skip (%s)\n", reason);
+		DRM_DEBUG_KMS("anal primary surface, skip (%s)\n", reason);
 		return;
 	}
 
@@ -408,7 +408,7 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 {
 	/* TODO: vmwgfx where this was cribbed from had locking. Why? */
 	struct qxl_device *qdev = to_qxl(fb->dev);
-	struct drm_clip_rect norect;
+	struct drm_clip_rect analrect;
 	struct qxl_bo *qobj;
 	struct drm_modeset_acquire_ctx ctx;
 	bool is_primary;
@@ -417,18 +417,18 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 	DRM_MODESET_LOCK_ALL_BEGIN(fb->dev, ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE, ret);
 
 	qobj = gem_to_qxl_bo(fb->obj[0]);
-	/* if we aren't primary surface ignore this */
+	/* if we aren't primary surface iganalre this */
 	is_primary = qobj->shadow ? qobj->shadow->is_primary : qobj->is_primary;
 	if (!is_primary)
 		goto out_lock_end;
 
 	if (!num_clips) {
 		num_clips = 1;
-		clips = &norect;
-		norect.x1 = norect.y1 = 0;
-		norect.x2 = fb->width;
-		norect.y2 = fb->height;
-	} else if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY) {
+		clips = &analrect;
+		analrect.x1 = analrect.y1 = 0;
+		analrect.x2 = fb->width;
+		analrect.y2 = fb->height;
+	} else if (flags & DRM_MODE_FB_DIRTY_ANANALTATE_COPY) {
 		num_clips /= 2;
 		inc = 2; /* skip source rects */
 	}
@@ -641,7 +641,7 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 	struct qxl_device *qdev = to_qxl(plane->dev);
 	struct qxl_bo *bo = gem_to_qxl_bo(new_state->fb->obj[0]);
 	struct qxl_bo *primary;
-	struct drm_clip_rect norect = {
+	struct drm_clip_rect analrect = {
 	    .x1 = 0,
 	    .y1 = 0,
 	    .x2 = new_state->fb->width,
@@ -662,7 +662,7 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 		dumb_shadow_offset =
 			qdev->dumb_heads[new_state->crtc->index].x;
 
-	qxl_draw_dirty_fb(qdev, new_state->fb, bo, 0, 0, &norect, 1, 1,
+	qxl_draw_dirty_fb(qdev, new_state->fb, bo, 0, 0, &analrect, 1, 1,
 			  dumb_shadow_offset);
 }
 
@@ -869,7 +869,7 @@ static void qxl_plane_cleanup_fb(struct drm_plane *plane,
 
 	if (!old_state->fb) {
 		/*
-		 * we never executed prepare_fb, so there's nothing to
+		 * we never executed prepare_fb, so there's analthing to
 		 * unpin.
 		 */
 		return;
@@ -955,7 +955,7 @@ static struct drm_plane *qxl_create_plane(struct qxl_device *qdev,
 
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 	if (!plane)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = drm_universal_plane_init(&qdev->ddev, plane, possible_crtcs,
 				       funcs, formats, num_formats,
@@ -981,17 +981,17 @@ static int qdev_crtc_init(struct drm_device *dev, int crtc_id)
 
 	qxl_crtc = kzalloc(sizeof(struct qxl_crtc), GFP_KERNEL);
 	if (!qxl_crtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	primary = qxl_create_plane(qdev, 1 << crtc_id, DRM_PLANE_TYPE_PRIMARY);
 	if (IS_ERR(primary)) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_mem;
 	}
 
 	cursor = qxl_create_plane(qdev, 1 << crtc_id, DRM_PLANE_TYPE_CURSOR);
 	if (IS_ERR(cursor)) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto clean_primary;
 	}
 
@@ -1033,7 +1033,7 @@ static int qxl_conn_get_modes(struct drm_connector *connector)
 			pheight = head->height;
 	}
 
-	ret += drm_add_modes_noedid(connector, 8192, 8192);
+	ret += drm_add_modes_analedid(connector, 8192, 8192);
 	ret += qxl_add_extra_modes(connector);
 	ret += qxl_add_monitors_config_modes(connector);
 	drm_set_preferred_mode(connector, pwidth, pheight);
@@ -1132,7 +1132,7 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 
 	qxl_output = kzalloc(sizeof(struct qxl_output), GFP_KERNEL);
 	if (!qxl_output)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qxl_output->index = num_output;
 
@@ -1198,7 +1198,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 				    false, false, NULL, &gobj);
 	if (ret) {
 		DRM_ERROR("%s: failed to create gem ret=%d\n", __func__, ret);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	qdev->monitors_config_bo = gem_to_qxl_bo(gobj);
 
@@ -1215,7 +1215,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 				   GFP_KERNEL);
 	if (!qdev->dumb_heads) {
 		qxl_destroy_monitors_object(qdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

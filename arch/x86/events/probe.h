@@ -7,12 +7,12 @@ struct perf_msr {
 	u64			msr;
 	struct attribute_group	*grp;
 	bool			(*test)(int idx, void *data);
-	bool			no_check;
+	bool			anal_check;
 	u64			mask;
 };
 
 unsigned long
-perf_msr_probe(struct perf_msr *msr, int cnt, bool no_zero, void *data);
+perf_msr_probe(struct perf_msr *msr, int cnt, bool anal_zero, void *data);
 
 #define __PMU_EVENT_GROUP(_name)			\
 static struct attribute *attrs_##_name[] = {		\

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include "builtin.h"
 #include "perf.h"
@@ -87,18 +87,18 @@ static bool needs_callstack(void)
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct thread_stat *st;
 
-	node = thread_stats.rb_node;
-	while (node) {
-		st = container_of(node, struct thread_stat, rb);
+	analde = thread_stats.rb_analde;
+	while (analde) {
+		st = container_of(analde, struct thread_stat, rb);
 		if (st->tid == tid)
 			return st;
 		else if (tid < st->tid)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else
-			node = node->rb_right;
+			analde = analde->rb_right;
 	}
 
 	return NULL;
@@ -106,8 +106,8 @@ static struct thread_stat *thread_stat_find(u32 tid)
 
 static void thread_stat_insert(struct thread_stat *new)
 {
-	struct rb_node **rb = &thread_stats.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **rb = &thread_stats.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct thread_stat *p;
 
 	while (*rb) {
@@ -122,7 +122,7 @@ static void thread_stat_insert(struct thread_stat *new)
 			BUG_ON("inserting invalid thread_stat\n");
 	}
 
-	rb_link_node(&new->rb, parent, rb);
+	rb_link_analde(&new->rb, parent, rb);
 	rb_insert_color(&new->rb, &thread_stats);
 }
 
@@ -164,7 +164,7 @@ static struct thread_stat *thread_stat_findnew_first(u32 tid)
 	st->tid = tid;
 	INIT_LIST_HEAD(&st->seq_list);
 
-	rb_link_node(&st->rb, NULL, &thread_stats.rb_node);
+	rb_link_analde(&st->rb, NULL, &thread_stats.rb_analde);
 	rb_insert_color(&st->rb, &thread_stats);
 
 	thread_stat_findnew = thread_stat_findnew_after_first;
@@ -334,7 +334,7 @@ static int select_key(bool contention)
 		}
 	}
 
-	pr_err("Unknown compare key: %s\n", sort_key);
+	pr_err("Unkanalwn compare key: %s\n", sort_key);
 	return -1;
 }
 
@@ -357,7 +357,7 @@ static int add_output_field(bool contention, char *name)
 		return 0;
 	}
 
-	pr_err("Unknown output field: %s\n", name);
+	pr_err("Unkanalwn output field: %s\n", name);
 	return -1;
 }
 
@@ -370,7 +370,7 @@ static int setup_output_field(bool contention, const char *str)
 	if (contention)
 		keys = contention_keys;
 
-	/* no output field given: use all of them */
+	/* anal output field given: use all of them */
 	if (str == NULL) {
 		for (i = 0; keys[i].name; i++)
 			list_add_tail(&keys[i].list, &lock_keys);
@@ -382,7 +382,7 @@ static int setup_output_field(bool contention, const char *str)
 
 	orig = tmp = strdup(str);
 	if (orig == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while ((tok = strsep(&tmp, ",")) != NULL){
 		ret = add_output_field(contention, tok);
@@ -396,8 +396,8 @@ static int setup_output_field(bool contention, const char *str)
 
 static void combine_lock_stats(struct lock_stat *st)
 {
-	struct rb_node **rb = &sorted.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **rb = &sorted.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct lock_stat *p;
 	int ret;
 
@@ -434,15 +434,15 @@ static void combine_lock_stats(struct lock_stat *st)
 			rb = &(*rb)->rb_right;
 	}
 
-	rb_link_node(&st->rb, parent, rb);
+	rb_link_analde(&st->rb, parent, rb);
 	rb_insert_color(&st->rb, &sorted);
 }
 
 static void insert_to_result(struct lock_stat *st,
 			     int (*bigger)(struct lock_stat *, struct lock_stat *))
 {
-	struct rb_node **rb = &result.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **rb = &result.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct lock_stat *p;
 
 	if (combine_locks && st->combined)
@@ -458,23 +458,23 @@ static void insert_to_result(struct lock_stat *st,
 			rb = &(*rb)->rb_right;
 	}
 
-	rb_link_node(&st->rb, parent, rb);
+	rb_link_analde(&st->rb, parent, rb);
 	rb_insert_color(&st->rb, &result);
 }
 
 /* returns left most element of result, and erase it */
 static struct lock_stat *pop_from_result(void)
 {
-	struct rb_node *node = result.rb_node;
+	struct rb_analde *analde = result.rb_analde;
 
-	if (!node)
+	if (!analde)
 		return NULL;
 
-	while (node->rb_left)
-		node = node->rb_left;
+	while (analde->rb_left)
+		analde = analde->rb_left;
 
-	rb_erase(node, &result);
-	return container_of(node, struct lock_stat, rb);
+	rb_erase(analde, &result);
+	return container_of(analde, struct lock_stat, rb);
 }
 
 struct lock_stat *lock_stat_find(u64 addr)
@@ -674,15 +674,15 @@ static int report_lock_acquire_event(struct evsel *evsel,
 
 	ls = lock_stat_findnew(key, name, 0);
 	if (!ls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
@@ -721,7 +721,7 @@ broken:
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkanalwn state of lock sequence found!\n");
 		break;
 	}
 
@@ -749,19 +749,19 @@ static int report_lock_acquired_event(struct evsel *evsel,
 
 	ls = lock_stat_findnew(key, name, 0);
 	if (!ls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
-		/* orphan event, do nothing */
+		/* orphan event, do analthing */
 		return 0;
 	case SEQ_STATE_ACQUIRING:
 		break;
@@ -785,7 +785,7 @@ static int report_lock_acquired_event(struct evsel *evsel,
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkanalwn state of lock sequence found!\n");
 		break;
 	}
 
@@ -814,19 +814,19 @@ static int report_lock_contended_event(struct evsel *evsel,
 
 	ls = lock_stat_findnew(key, name, 0);
 	if (!ls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
-		/* orphan event, do nothing */
+		/* orphan event, do analthing */
 		return 0;
 	case SEQ_STATE_ACQUIRING:
 		break;
@@ -843,7 +843,7 @@ static int report_lock_contended_event(struct evsel *evsel,
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkanalwn state of lock sequence found!\n");
 		break;
 	}
 
@@ -872,15 +872,15 @@ static int report_lock_release_event(struct evsel *evsel,
 
 	ls = lock_stat_findnew(key, name, 0);
 	if (!ls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
@@ -905,7 +905,7 @@ static int report_lock_release_event(struct evsel *evsel,
 		}
 		goto free_seq;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkanalwn state of lock sequence found!\n");
 		break;
 	}
 
@@ -966,19 +966,19 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 	thread__put(thread);
 
 	while (true) {
-		struct callchain_cursor_node *node;
+		struct callchain_cursor_analde *analde;
 
-		node = callchain_cursor_current(cursor);
-		if (node == NULL)
+		analde = callchain_cursor_current(cursor);
+		if (analde == NULL)
 			break;
 
 		/* skip first few entries - for lock functions */
 		if (++skip <= stack_skip)
 			goto next;
 
-		sym = node->ms.sym;
-		if (sym && !machine__is_lock_function(machine, node->ip)) {
-			get_symbol_name_offset(node->ms.map, sym, node->ip,
+		sym = analde->ms.sym;
+		if (sym && !machine__is_lock_function(machine, analde->ip)) {
+			get_symbol_name_offset(analde->ms.map, sym, analde->ip,
 					       buf, size);
 			return 0;
 		}
@@ -1014,20 +1014,20 @@ static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 	callchain_cursor_commit(cursor);
 
 	while (true) {
-		struct callchain_cursor_node *node;
+		struct callchain_cursor_analde *analde;
 
-		node = callchain_cursor_current(cursor);
-		if (node == NULL)
+		analde = callchain_cursor_current(cursor);
+		if (analde == NULL)
 			break;
 
 		/* skip first few entries - for lock functions */
 		if (++skip <= stack_skip)
 			goto next;
 
-		if (node->ms.sym && machine__is_lock_function(machine, node->ip))
+		if (analde->ms.sym && machine__is_lock_function(machine, analde->ip))
 			goto next;
 
-		hash ^= hash_long((unsigned long)node->ip, 64);
+		hash ^= hash_long((unsigned long)analde->ip, 64);
 
 next:
 		callchain_cursor_advance(cursor);
@@ -1088,7 +1088,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 								  filters.syms[i],
 								  &kmap);
 			if (sym == NULL) {
-				pr_warning("ignore unknown symbol: %s\n",
+				pr_warning("iganalre unkanalwn symbol: %s\n",
 					   filters.syms[i]);
 				continue;
 			}
@@ -1097,7 +1097,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 					(filters.nr_addrs + 1) * sizeof(*addrs));
 			if (addrs == NULL) {
 				pr_warning("memory allocation failure\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			addrs[filters.nr_addrs++] = map__unmap_ip(kmap, sym->start);
@@ -1119,7 +1119,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		case LOCK_AGGR_CALLER:
 			name = buf;
 			if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
-				name = "Unknown";
+				name = "Unkanalwn";
 			break;
 		case LOCK_AGGR_CGROUP:
 		case LOCK_AGGR_TASK:
@@ -1129,7 +1129,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 
 		ls = lock_stat_findnew(key, name, flags);
 		if (!ls)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (filters.nr_types) {
@@ -1163,7 +1163,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	if (needs_callstack()) {
 		u64 *callstack = get_callstack(sample, max_stack_depth);
 		if (callstack == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (!match_callstack_filter(machine, callstack)) {
 			free(callstack);
@@ -1178,11 +1178,11 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
@@ -1192,7 +1192,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		/*
 		 * It can have nested contention begin with mutex spinning,
 		 * then we would use the original contention begin event and
-		 * ignore the second one.
+		 * iganalre the second one.
 		 */
 		goto end;
 	case SEQ_STATE_ACQUIRING:
@@ -1207,7 +1207,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkanalwn state of lock sequence found!\n");
 		break;
 	}
 
@@ -1245,7 +1245,7 @@ static int report_lock_contention_end_event(struct evsel *evsel,
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
@@ -1271,7 +1271,7 @@ static int report_lock_contention_end_event(struct evsel *evsel,
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkanalwn state of lock sequence found!\n");
 		break;
 	}
 
@@ -1365,7 +1365,7 @@ static void print_bad_events(int bad, int total)
 		fprintf(lock_output, " %10s: %d\n", name[i], bad_hist[i]);
 }
 
-/* TODO: various way to print, coloring, nano or milli sec */
+/* TODO: various way to print, coloring, naanal or milli sec */
 static void print_result(void)
 {
 	struct lock_stat *st;
@@ -1431,17 +1431,17 @@ static bool info_threads, info_map;
 static void dump_threads(void)
 {
 	struct thread_stat *st;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct thread *t;
 
 	fprintf(lock_output, "%10s: comm\n", "Thread ID");
 
-	node = rb_first(&thread_stats);
-	while (node) {
-		st = container_of(node, struct thread_stat, rb);
+	analde = rb_first(&thread_stats);
+	while (analde) {
+		st = container_of(analde, struct thread_stat, rb);
 		t = perf_session__findnew(session, st->tid);
 		fprintf(lock_output, "%10d: %s\n", st->tid, thread__comm_str(t));
-		node = rb_next(node);
+		analde = rb_next(analde);
 		thread__put(t);
 	}
 }
@@ -1487,7 +1487,7 @@ static int dump_info(void)
 		dump_map();
 	else {
 		rc = -1;
-		pr_err("Unknown type of information\n");
+		pr_err("Unkanalwn type of information\n");
 	}
 
 	return rc;
@@ -1607,7 +1607,7 @@ static const char *get_type_str(unsigned int flags)
 		if (lock_type_table[i].flags == flags)
 			return lock_type_table[i].str;
 	}
-	return "unknown";
+	return "unkanalwn";
 }
 
 static const char *get_type_name(unsigned int flags)
@@ -1618,7 +1618,7 @@ static const char *get_type_name(unsigned int flags)
 		if (lock_type_table[i].flags == flags)
 			return lock_type_table[i].name;
 	}
-	return "unknown";
+	return "unkanalwn";
 }
 
 static unsigned int get_type_flag(const char *str)
@@ -1742,7 +1742,7 @@ static void print_lock_stat_stdio(struct lock_contention *con, struct lock_stat 
 		pid = st->addr;
 		t = perf_session__findnew(session, pid);
 		fprintf(lock_output, "  %10d   %s\n",
-			pid, pid == -1 ? "Unknown" : thread__comm_str(t));
+			pid, pid == -1 ? "Unkanalwn" : thread__comm_str(t));
 		break;
 	case LOCK_AGGR_ADDR:
 		fprintf(lock_output, "  %016llx   %s (%s)\n", (unsigned long long)st->addr,
@@ -1795,7 +1795,7 @@ static void print_lock_stat_csv(struct lock_contention *con, struct lock_stat *s
 		pid = st->addr;
 		t = perf_session__findnew(session, pid);
 		fprintf(lock_output, "%d%s %s\n", pid, sep,
-			pid == -1 ? "Unknown" : thread__comm_str(t));
+			pid == -1 ? "Unkanalwn" : thread__comm_str(t));
 		break;
 	case LOCK_AGGR_ADDR:
 		fprintf(lock_output, "%llx%s %s%s %s\n", (unsigned long long)st->addr, sep,
@@ -2013,7 +2013,7 @@ static int check_lock_contention_options(const struct option *options,
 
 {
 	if (show_thread_stats && show_lock_addrs) {
-		pr_err("Cannot use thread and addr mode together\n");
+		pr_err("Cananalt use thread and addr mode together\n");
 		parse_options_usage(usage, options, "threads", 0);
 		parse_options_usage(NULL, options, "lock-addr", 0);
 		return -1;
@@ -2027,7 +2027,7 @@ static int check_lock_contention_options(const struct option *options,
 	}
 
 	if (show_lock_owner && show_lock_addrs) {
-		pr_err("Cannot use owner and addr mode together\n");
+		pr_err("Cananalt use owner and addr mode together\n");
 		parse_options_usage(usage, options, "lock-owner", 0);
 		parse_options_usage(NULL, options, "lock-addr", 0);
 		return -1;
@@ -2041,14 +2041,14 @@ static int check_lock_contention_options(const struct option *options,
 	}
 
 	if (show_lock_cgroups && show_lock_addrs) {
-		pr_err("Cannot use cgroup and addr mode together\n");
+		pr_err("Cananalt use cgroup and addr mode together\n");
 		parse_options_usage(usage, options, "lock-cgroup", 0);
 		parse_options_usage(NULL, options, "lock-addr", 0);
 		return -1;
 	}
 
 	if (show_lock_cgroups && show_thread_stats) {
-		pr_err("Cannot use cgroup and thread mode together\n");
+		pr_err("Cananalt use cgroup and thread mode together\n");
 		parse_options_usage(usage, options, "lock-cgroup", 0);
 		parse_options_usage(NULL, options, "threads", 0);
 		return -1;
@@ -2058,7 +2058,7 @@ static int check_lock_contention_options(const struct option *options,
 		if (strstr(symbol_conf.field_sep, ":") || /* part of type flags */
 		    strstr(symbol_conf.field_sep, "+") || /* part of caller offset */
 		    strstr(symbol_conf.field_sep, ".")) { /* can be in a symbol name */
-			pr_err("Cannot use the separator that is already used\n");
+			pr_err("Cananalt use the separator that is already used\n");
 			parse_options_usage(usage, options, "x", 1);
 			return -1;
 		}
@@ -2100,7 +2100,7 @@ static int __cmd_contention(int argc, const char **argv)
 
 	lockhash_table = calloc(LOCKHASH_SIZE, sizeof(*lockhash_table));
 	if (!lockhash_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	con.result = &lockhash_table[0];
 
@@ -2140,7 +2140,7 @@ static int __cmd_contention(int argc, const char **argv)
 
 		con.evlist = evlist__new();
 		if (con.evlist == NULL) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_delete;
 		}
 
@@ -2165,7 +2165,7 @@ static int __cmd_contention(int argc, const char **argv)
 
 		if (!evlist__find_evsel_by_str(session->evlist,
 					       "lock:contention_begin")) {
-			pr_err("lock contention evsel not found\n");
+			pr_err("lock contention evsel analt found\n");
 			goto out_delete;
 		}
 
@@ -2186,7 +2186,7 @@ static int __cmd_contention(int argc, const char **argv)
 		int i;
 		struct lock_key *keys = contention_keys;
 
-		/* do not align output in CSV format */
+		/* do analt align output in CSV format */
 		for (i = 0; keys[i].name; i++)
 			keys[i].len = 0;
 	}
@@ -2238,7 +2238,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(lock_tracepoints); i++) {
 		if (!is_valid_tracepoint(lock_tracepoints[i].name)) {
-			pr_debug("tracepoint %s is not enabled. "
+			pr_debug("tracepoint %s is analt enabled. "
 				 "Are CONFIG_LOCKDEP and CONFIG_LOCK_STAT enabled?\n",
 				 lock_tracepoints[i].name);
 			has_lock_stat = false;
@@ -2251,7 +2251,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(contention_tracepoints); i++) {
 		if (!is_valid_tracepoint(contention_tracepoints[i].name)) {
-			pr_err("tracepoint %s is not enabled.\n",
+			pr_err("tracepoint %s is analt enabled.\n",
 			       contention_tracepoints[i].name);
 			return 1;
 		}
@@ -2272,7 +2272,7 @@ setup_args:
 
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (!rec_argv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
@@ -2287,7 +2287,7 @@ setup_args:
 
 		if (!ev_name) {
 			free(rec_argv);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		rec_argv[i++] = "-e";
@@ -2314,9 +2314,9 @@ static int parse_map_entry(const struct option *opt, const char *str,
 	unsigned long val;
 	char *endptr;
 
-	errno = 0;
+	erranal = 0;
 	val = strtoul(str, &endptr, 0);
-	if (*endptr != '\0' || errno != 0) {
+	if (*endptr != '\0' || erranal != 0) {
 		pr_err("invalid BPF map length: %s\n", str);
 		return -1;
 	}
@@ -2332,9 +2332,9 @@ static int parse_max_stack(const struct option *opt, const char *str,
 	long val;
 	char *endptr;
 
-	errno = 0;
+	erranal = 0;
 	val = strtol(str, &endptr, 0);
-	if (*endptr != '\0' || errno != 0) {
+	if (*endptr != '\0' || erranal != 0) {
 		pr_err("invalid max stack depth: %s\n", str);
 		return -1;
 	}
@@ -2375,7 +2375,7 @@ static int parse_lock_type(const struct option *opt __maybe_unused, const char *
 		unsigned int flags = get_type_flag(tok);
 
 		if (flags == -1U) {
-			pr_err("Unknown lock flags: %s\n", tok);
+			pr_err("Unkanalwn lock flags: %s\n", tok);
 			ret = -1;
 			break;
 		}
@@ -2502,7 +2502,7 @@ static int parse_output(const struct option *opt __maybe_unused, const char *str
 
 	lock_output = fopen(str, "w");
 	if (lock_output == NULL) {
-		pr_err("Cannot open %s\n", str);
+		pr_err("Cananalt open %s\n", str);
 		return -1;
 	}
 
@@ -2572,7 +2572,7 @@ int cmd_lock(int argc, const char **argv)
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
-	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any warnings or messages"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do analt show any warnings or messages"),
 	OPT_END()
 	};
 
@@ -2631,7 +2631,7 @@ int cmd_lock(int argc, const char **argv)
 	OPT_CALLBACK('S', "callstack-filter", NULL, "NAMES",
 		     "Filter specific function in the callstack", parse_call_stack),
 	OPT_BOOLEAN('o', "lock-owner", &show_lock_owner, "show lock owners instead of waiters"),
-	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep, "separator",
+	OPT_STRING_ANALEMPTY('x', "field-separator", &symbol_conf.field_sep, "separator",
 		   "print result in CSV format with custom separator"),
 	OPT_BOOLEAN(0, "lock-cgroup", &show_lock_cgroups, "show lock stats by cgroup"),
 	OPT_CALLBACK('G', "cgroup-filter", NULL, "CGROUPS",
@@ -2662,14 +2662,14 @@ int cmd_lock(int argc, const char **argv)
 
 	lockhash_table = calloc(LOCKHASH_SIZE, sizeof(*lockhash_table));
 	if (!lockhash_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < LOCKHASH_SIZE; i++)
 		INIT_HLIST_HEAD(lockhash_table + i);
 
 	lock_output = stderr;
 	argc = parse_options_subcommand(argc, argv, lock_options, lock_subcommands,
-					lock_usage, PARSE_OPT_STOP_AT_NON_OPTION);
+					lock_usage, PARSE_OPT_STOP_AT_ANALN_OPTION);
 	if (!argc)
 		usage_with_options(lock_usage, lock_options);
 
@@ -2703,8 +2703,8 @@ int cmd_lock(int argc, const char **argv)
 		output_fields = "contended,wait_total,wait_max,avg_wait";
 
 #ifndef HAVE_BPF_SKEL
-		set_option_nobuild(contention_options, 'b', "use-bpf",
-				   "no BUILD_BPF_SKEL=1", false);
+		set_option_analbuild(contention_options, 'b', "use-bpf",
+				   "anal BUILD_BPF_SKEL=1", false);
 #endif
 		if (argc) {
 			argc = parse_options(argc, argv, contention_options,

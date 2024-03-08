@@ -47,7 +47,7 @@ static const char *usb_decode_device_feature(u16 wValue)
 	case USB_DEVICE_LTM_ENABLE:
 		return "LTM Enable";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -65,7 +65,7 @@ static const char *usb_decode_test_mode(u16 wIndex)
 	case USB_TEST_FORCE_ENABLE:
 		return ": TEST_FORCE_EN";
 	default:
-		return ": UNKNOWN";
+		return ": UNKANALWN";
 	}
 }
 
@@ -85,12 +85,12 @@ static void usb_decode_set_clear_feature(__u8 bRequestType,
 		snprintf(str, size, "%s Interface Feature(%s)",
 			 bRequest == USB_REQ_CLEAR_FEATURE ? "Clear" : "Set",
 			 wValue == USB_INTRF_FUNC_SUSPEND ?
-			 "Function Suspend" : "UNKNOWN");
+			 "Function Suspend" : "UNKANALWN");
 		break;
 	case USB_RECIP_ENDPOINT:
 		snprintf(str, size, "%s Endpoint Feature(%s ep%d%s)",
 			 bRequest == USB_REQ_CLEAR_FEATURE ? "Clear" : "Set",
-			 wValue == USB_ENDPOINT_HALT ? "Halt" : "UNKNOWN",
+			 wValue == USB_ENDPOINT_HALT ? "Halt" : "UNKANALWN",
 			 wIndex & ~USB_DIR_IN,
 			 wIndex & USB_DIR_IN ? "in" : "out");
 		break;
@@ -155,10 +155,10 @@ static void usb_decode_get_set_descriptor(__u8 bRequestType, __u8 bRequest,
 		s = "SS Endpoint Companion";
 		break;
 	case USB_DT_SSP_ISOC_ENDPOINT_COMP:
-		s = "SSP Isochronous Endpoint Companion";
+		s = "SSP Isochroanalus Endpoint Companion";
 		break;
 	default:
-		s = "UNKNOWN";
+		s = "UNKANALWN";
 		break;
 	}
 
@@ -205,7 +205,7 @@ static void usb_decode_set_sel(__u16 wLength, char *str, size_t size)
 
 static void usb_decode_set_isoch_delay(__u8 wValue, char *str, size_t size)
 {
-	snprintf(str, size, "Set Isochronous Delay(Delay = %d ns)", wValue);
+	snprintf(str, size, "Set Isochroanalus Delay(Delay = %d ns)", wValue);
 }
 
 static void usb_decode_ctrl_generic(char *str, size_t size, __u8 bRequestType,
@@ -219,10 +219,10 @@ static void usb_decode_ctrl_generic(char *str, size_t size, __u8 bRequestType,
 		 "Type=%s Recipient=%s Dir=%s bRequest=%u wValue=%u wIndex=%u wLength=%u",
 		 (type == USB_TYPE_STANDARD)    ? "Standard" :
 		 (type == USB_TYPE_VENDOR)      ? "Vendor" :
-		 (type == USB_TYPE_CLASS)       ? "Class" : "Unknown",
+		 (type == USB_TYPE_CLASS)       ? "Class" : "Unkanalwn",
 		 (recip == USB_RECIP_DEVICE)    ? "Device" :
 		 (recip == USB_RECIP_INTERFACE) ? "Interface" :
-		 (recip == USB_RECIP_ENDPOINT)  ? "Endpoint" : "Unknown",
+		 (recip == USB_RECIP_ENDPOINT)  ? "Endpoint" : "Unkanalwn",
 		 (bRequestType & USB_DIR_IN)    ? "IN" : "OUT",
 		 bRequest, wValue, wIndex, wLength);
 }

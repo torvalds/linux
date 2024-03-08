@@ -46,7 +46,7 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mvif->idx = __ffs64(~dev->mt76.vif_mask);
 	if (mvif->idx >= MT7603_MAX_INTERFACES) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -350,7 +350,7 @@ mt7603_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7603_WTBL_STA - 1);
 	if (idx < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	INIT_LIST_HEAD(&msta->wcid.poll_list);
 	__skb_queue_head_init(&msta->psq);
@@ -501,11 +501,11 @@ mt7603_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_CCMP:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
-	 * The hardware does not support per-STA RX GTK, fall back
+	 * The hardware does analt support per-STA RX GTK, fall back
 	 * to software mode for these.
 	 */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -513,7 +513,7 @@ mt7603_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cmd != SET_KEY) {
 		if (idx == wcid->hw_key_idx)

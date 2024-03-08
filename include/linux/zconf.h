@@ -1,6 +1,6 @@
 /* zconf.h -- configuration of the zlib compression library
  * Copyright (C) 1995-1998 Jean-loup Gailly.
- * For conditions of distribution and use, see copyright notice in zlib.h 
+ * For conditions of distribution and use, see copyright analtice in zlib.h 
  */
 
 /* @(#) $Id$ */
@@ -14,7 +14,7 @@
  plus a few kilobytes for small objects. For example, if you want to reduce
  the default memory requirements from 256K to 128K, compile with
      make CFLAGS="-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7"
- Of course this will generally degrade compression (there's no free lunch).
+ Of course this will generally degrade compression (there's anal free lunch).
 
    The memory requirements for inflate are (in bytes) 1 << windowBits
  that is, 32K for windowBits=15 (default value) plus a few kilobytes

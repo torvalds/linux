@@ -9,13 +9,13 @@ Netfilter Conntrack Sysfs variables
 
 nf_conntrack_acct - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	Enable connection tracking flow accounting. 64-bit byte and packet
 	counters per flow are added.
 
 nf_conntrack_buckets - INTEGER
-	Size of hash table. If not specified as parameter during module
+	Size of hash table. If analt specified as parameter during module
 	loading, the default size is calculated by dividing total memory
 	by 16384 to determine the number of buckets. The hash table will
 	never have fewer than 1024 and never more than 262144 buckets.
@@ -23,10 +23,10 @@ nf_conntrack_buckets - INTEGER
 
 nf_conntrack_checksum - BOOLEAN
 	- 0 - disabled
-	- not 0 - enabled (default)
+	- analt 0 - enabled (default)
 
 	Verify checksum of incoming packets. Packets with bad checksums are
-	in INVALID state. If this is enabled, such packets will not be
+	in INVALID state. If this is enabled, such packets will analt be
 	considered for connection tracking.
 
 nf_conntrack_count - INTEGER (read-only)
@@ -67,7 +67,7 @@ nf_conntrack_frag6_timeout - INTEGER (seconds)
 nf_conntrack_generic_timeout - INTEGER (seconds)
 	default 600
 
-	Default for generic timeout.  This refers to layer 4 unknown/unsupported
+	Default for generic timeout.  This refers to layer 4 unkanalwn/unsupported
 	protocols.
 
 nf_conntrack_icmp_timeout - INTEGER (seconds)
@@ -95,19 +95,19 @@ nf_conntrack_log_invalid - INTEGER
 nf_conntrack_max - INTEGER
         Maximum number of allowed connection tracking entries. This value is set
         to nf_conntrack_buckets by default.
-        Note that connection tracking entries are added to the table twice -- once
+        Analte that connection tracking entries are added to the table twice -- once
         for the original direction and once for the reply direction (i.e., with
         the reversed address). This means that with default settings a maxed-out
-        table will have a average hash chain length of 2, not 1.
+        table will have a average hash chain length of 2, analt 1.
 
 nf_conntrack_tcp_be_liberal - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	Be conservative in what you do, be liberal in what you accept from others.
-	If it's non-zero, we mark only out of window RST segments as INVALID.
+	If it's analn-zero, we mark only out of window RST segments as INVALID.
 
-nf_conntrack_tcp_ignore_invalid_rst - BOOLEAN
+nf_conntrack_tcp_iganalre_invalid_rst - BOOLEAN
 	- 0 - disabled (default)
 	- 1 - enabled
 
@@ -115,7 +115,7 @@ nf_conntrack_tcp_ignore_invalid_rst - BOOLEAN
 
 nf_conntrack_tcp_loose - BOOLEAN
 	- 0 - disabled
-	- not 0 - enabled (default)
+	- analt 0 - enabled (default)
 
 	If it is set to zero, we disable picking up already established
 	connections.
@@ -154,12 +154,12 @@ nf_conntrack_tcp_timeout_syn_sent - INTEGER (seconds)
 nf_conntrack_tcp_timeout_time_wait - INTEGER (seconds)
 	default 120
 
-nf_conntrack_tcp_timeout_unacknowledged - INTEGER (seconds)
+nf_conntrack_tcp_timeout_unackanalwledged - INTEGER (seconds)
 	default 300
 
 nf_conntrack_timestamp - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	Enable connection tracking flow timestamping.
 
@@ -212,10 +212,10 @@ nf_conntrack_gre_timeout_stream - INTEGER (seconds)
 
 nf_hooks_lwtunnel - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	If this option is enabled, the lightweight tunnel netfilter hooks are
-	enabled. This option cannot be disabled once it is enabled.
+	enabled. This option cananalt be disabled once it is enabled.
 
 nf_flowtable_tcp_timeout - INTEGER (seconds)
         default 30

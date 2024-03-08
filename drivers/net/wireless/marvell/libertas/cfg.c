@@ -106,7 +106,7 @@ static const u32 cipher_suites[] = {
  */
 static int lbs_auth_to_authtype(enum nl80211_auth_type auth_type)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	switch (auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
@@ -323,7 +323,7 @@ static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 		if (ext_rates_eid)
 			tlv = add_ie_rates(tlv, ext_rates_eid, &n);
 	} else {
-		lbs_deb_assoc("assoc: bss had no basic rate IE\n");
+		lbs_deb_assoc("assoc: bss had anal basic rate IE\n");
 		/* Fallback: add basic 802.11b rates */
 		*tlv++ = 0x82;
 		*tlv++ = 0x84;
@@ -489,9 +489,9 @@ static int lbs_cfg_set_monitor_channel(struct wiphy *wiphy,
 				       struct cfg80211_chan_def *chandef)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
-	if (cfg80211_get_chandef_type(chandef) != NL80211_CHAN_NO_HT)
+	if (cfg80211_get_chandef_type(chandef) != NL80211_CHAN_ANAL_HT)
 		goto out;
 
 	ret = lbs_set_channel(priv, chandef->chan->hw_value);
@@ -505,7 +505,7 @@ static int lbs_cfg_set_mesh_channel(struct wiphy *wiphy,
 				    struct ieee80211_channel *channel)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (netdev != priv->mesh_dev)
 		goto out;
@@ -524,7 +524,7 @@ static int lbs_cfg_set_mesh_channel(struct wiphy *wiphy,
 
 /*
  * When scanning, the firmware doesn't send a nul packet with the power-safe
- * bit to the AP. So we cannot stay away from our current channel too long,
+ * bit to the AP. So we cananalt stay away from our current channel too long,
  * otherwise we loose data. So take a "nap" while scanning every other
  * while.
  */
@@ -624,7 +624,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 		int rssi;
 		u16 intvl;
 		u16 capa;
-		int chan_no = -1;
+		int chan_anal = -1;
 		const u8 *ssid = NULL;
 		u8 ssid_len = 0;
 
@@ -663,7 +663,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 			}
 
 			if (id == WLAN_EID_DS_PARAMS)
-				chan_no = *pos;
+				chan_anal = *pos;
 			if (id == WLAN_EID_SSID) {
 				ssid = pos;
 				ssid_len = elen;
@@ -672,22 +672,22 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 			pos += elen;
 		}
 
-		/* No channel, no luck */
-		if (chan_no != -1) {
+		/* Anal channel, anal luck */
+		if (chan_anal != -1) {
 			struct wiphy *wiphy = priv->wdev->wiphy;
-			int freq = ieee80211_channel_to_frequency(chan_no,
+			int freq = ieee80211_channel_to_frequency(chan_anal,
 							NL80211_BAND_2GHZ);
 			struct ieee80211_channel *channel =
 				ieee80211_get_channel(wiphy, freq);
 
 			lbs_deb_scan("scan: %pM, capa %04x, chan %2d, %*pE, %d dBm\n",
-				     bssid, capa, chan_no, ssid_len, ssid,
+				     bssid, capa, chan_anal, ssid_len, ssid,
 				     LBS_SCAN_RSSI_TO_MBM(rssi)/100);
 
 			if (channel &&
 			    !(channel->flags & IEEE80211_CHAN_DISABLED)) {
 				bss = cfg80211_inform_bss(wiphy, channel,
-					CFG80211_BSS_FTYPE_UNKNOWN,
+					CFG80211_BSS_FTYPE_UNKANALWN,
 					bssid, get_unaligned_le64(tsfdesc),
 					capa, intvl, ie, ielen,
 					LBS_SCAN_RSSI_TO_MBM(rssi),
@@ -849,7 +849,7 @@ static int lbs_cfg_scan(struct wiphy *wiphy,
 	int ret = 0;
 
 	if (priv->scan_req || delayed_work_pending(&priv->scan_work)) {
-		/* old scan request not yet processed */
+		/* old scan request analt yet processed */
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -870,7 +870,7 @@ static int lbs_cfg_scan(struct wiphy *wiphy,
  * Events
  */
 
-void lbs_send_disconnect_notification(struct lbs_private *priv,
+void lbs_send_disconnect_analtification(struct lbs_private *priv,
 				      bool locally_generated)
 {
 	cfg80211_disconnected(priv->dev, 0, NULL, 0, locally_generated,
@@ -1123,7 +1123,7 @@ static int lbs_associate(struct lbs_private *priv,
 	u8 *tmp;
 
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 	pos = &cmd->iebuf[0];
@@ -1153,14 +1153,14 @@ static int lbs_associate(struct lbs_private *priv,
 	if (ssid_eid)
 		pos += lbs_add_ssid_tlv(pos, ssid_eid + 2, ssid_eid[1]);
 	else
-		lbs_deb_assoc("no SSID\n");
+		lbs_deb_assoc("anal SSID\n");
 	rcu_read_unlock();
 
 	/* add DS param TLV */
 	if (bss->channel)
 		pos += lbs_add_channel_tlv(pos, bss->channel->hw_value);
 	else
-		lbs_deb_assoc("no channel\n");
+		lbs_deb_assoc("anal channel\n");
 
 	/* add (empty) CF param TLV */
 	pos += lbs_add_cf_param_tlv(pos);
@@ -1230,12 +1230,12 @@ static int lbs_associate(struct lbs_private *priv,
 			break;
 		case 4:
 			lbs_deb_assoc("authentication refused by AP\n");
-			status = WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION;
+			status = WLAN_STATUS_UNKANALWN_AUTH_TRANSACTION;
 			break;
 		default:
 			lbs_deb_assoc("association failure %d\n", status);
 			/* v5 OLPC firmware does return the AP status code if
-			 * it's not one of the values above.  Let that through.
+			 * it's analt one of the values above.  Let that through.
 			 */
 			break;
 		}
@@ -1295,7 +1295,7 @@ _new_connect_scan_req(struct wiphy *wiphy, struct cfg80211_connect_params *sme)
 			continue;
 
 		for (j = 0; j < wiphy->bands[band]->n_channels; j++) {
-			/* ignore disabled channels */
+			/* iganalre disabled channels */
 			if (wiphy->bands[band]->channels[j].flags &
 						IEEE80211_CHAN_DISABLED)
 				continue;
@@ -1312,7 +1312,7 @@ _new_connect_scan_req(struct wiphy *wiphy, struct cfg80211_connect_params *sme)
 		memcpy(creq->ssids[0].ssid, sme->ssid, sme->ssid_len);
 		creq->ssids[0].ssid_len = sme->ssid_len;
 	} else {
-		/* No channels found... */
+		/* Anal channels found... */
 		kfree(creq);
 		creq = NULL;
 	}
@@ -1329,7 +1329,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 	u8 preamble = RADIO_PREAMBLE_SHORT;
 
 	if (dev == priv->mesh_dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!sme->bssid) {
 		struct cfg80211_scan_request *creq;
@@ -1364,9 +1364,9 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		sme->ssid, sme->ssid_len, IEEE80211_BSS_TYPE_ESS,
 		IEEE80211_PRIVACY_ANY);
 	if (!bss) {
-		wiphy_err(wiphy, "assoc: bss %pM not in scan results\n",
+		wiphy_err(wiphy, "assoc: bss %pM analt in scan results\n",
 			  sme->bssid);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto done;
 	}
 	lbs_deb_assoc("trying %pM\n", bss->bssid);
@@ -1391,12 +1391,12 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		lbs_set_wep_keys(priv);
 		priv->mac_control |= CMD_ACT_MAC_WEP_ENABLE;
 		lbs_set_mac_control(priv);
-		/* No RSN mode for WEP */
+		/* Anal RSN mode for WEP */
 		lbs_enable_rsn(priv, 0);
 		break;
-	case 0: /* there's no WLAN_CIPHER_SUITE_NONE definition */
+	case 0: /* there's anal WLAN_CIPHER_SUITE_ANALNE definition */
 		/*
-		 * If we don't have no WEP, no WPA and no WPA2,
+		 * If we don't have anal WEP, anal WPA and anal WPA2,
 		 * we remove all keys like in the WPA/WPA2 setup,
 		 * we just don't set RSN.
 		 *
@@ -1424,12 +1424,12 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 	default:
 		wiphy_err(wiphy, "unsupported cipher group 0x%x\n",
 			  sme->crypto.cipher_group);
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto done;
 	}
 
 	ret = lbs_set_authtype(priv, sme);
-	if (ret == -ENOTSUPP) {
+	if (ret == -EANALTSUPP) {
 		wiphy_err(wiphy, "unsupported authtype 0x%x\n", sme->auth_type);
 		goto done;
 	}
@@ -1475,7 +1475,7 @@ static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	struct lbs_private *priv = wiphy_priv(wiphy);
 
 	if (dev == priv->mesh_dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* store for lbs_cfg_ret_disconnect() */
 	priv->disassoc_reason = reason_code;
@@ -1491,7 +1491,7 @@ static int lbs_cfg_set_default_key(struct wiphy *wiphy,
 	struct lbs_private *priv = wiphy_priv(wiphy);
 
 	if (netdev == priv->mesh_dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (key_index != priv->wep_tx_key) {
 		lbs_deb_assoc("set_default_key: to %d\n", key_index);
@@ -1513,7 +1513,7 @@ static int lbs_cfg_add_key(struct wiphy *wiphy, struct net_device *netdev,
 	int ret = 0;
 
 	if (netdev == priv->mesh_dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	lbs_deb_assoc("add_key: cipher 0x%x, mac_addr %pM\n",
 		      params->cipher, mac_addr);
@@ -1556,7 +1556,7 @@ static int lbs_cfg_add_key(struct wiphy *wiphy, struct net_device *netdev,
 		break;
 	default:
 		wiphy_err(wiphy, "unhandled cipher 0x%x\n", params->cipher);
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		break;
 	}
 
@@ -1575,18 +1575,18 @@ static int lbs_cfg_del_key(struct wiphy *wiphy, struct net_device *netdev,
 #ifdef TODO
 	struct lbs_private *priv = wiphy_priv(wiphy);
 	/*
-	 * I think can keep this a NO-OP, because:
+	 * I think can keep this a ANAL-OP, because:
 
 	 * - we clear all keys whenever we do lbs_cfg_connect() anyway
-	 * - neither "iw" nor "wpa_supplicant" won't call this during
+	 * - neither "iw" analr "wpa_supplicant" won't call this during
 	 *   an ongoing connection
 	 * - TODO: but I have to check if this is still true when
 	 *   I set the AP to periodic re-keying
-	 * - we've not kzallec() something when we've added a key at
+	 * - we've analt kzallec() something when we've added a key at
 	 *   lbs_cfg_connect() or lbs_cfg_add_key().
 	 *
 	 * This causes lbs_cfg_del_key() only called at disconnect time,
-	 * where we'd just waste time deleting a key that is not going
+	 * where we'd just waste time deleting a key that is analt going
 	 * to be used anyway.
 	 */
 	if (key_index < 3 && priv->wep_key_len[key_index]) {
@@ -1607,7 +1607,7 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 			       const u8 *mac, struct station_info *sinfo)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
-	s8 signal, noise;
+	s8 signal, analise;
 	int ret;
 	size_t i;
 
@@ -1621,7 +1621,7 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 	sinfo->rx_packets = priv->dev->stats.rx_packets;
 
 	/* Get current RSSI */
-	ret = lbs_get_rssi(priv, &signal, &noise);
+	ret = lbs_get_rssi(priv, &signal, &analise);
 	if (ret == 0) {
 		sinfo->signal = signal;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
@@ -1654,7 +1654,7 @@ static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
 	int ret = 0;
 
 	if (dev == priv->mesh_dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
@@ -1662,7 +1662,7 @@ static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_IFTYPE_ADHOC:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (priv->iface_running)
@@ -1727,7 +1727,7 @@ static void lbs_join_post(struct lbs_private *priv,
 	*fake++ = 0; /* ATIM=0 */
 	*fake++ = 0;
 	/* Fake extended rates IE, TODO: don't add this for 802.11b only,
-	 * but I don't know how this could be checked */
+	 * but I don't kanalw how this could be checked */
 	*fake++ = WLAN_EID_EXT_SUPP_RATES;
 	*fake++ = 8;
 	*fake++ = 0x0c;
@@ -1742,7 +1742,7 @@ static void lbs_join_post(struct lbs_private *priv,
 
 	bss = cfg80211_inform_bss(priv->wdev->wiphy,
 				  params->chandef.chan,
-				  CFG80211_BSS_FTYPE_UNKNOWN,
+				  CFG80211_BSS_FTYPE_UNKANALWN,
 				  bssid,
 				  0,
 				  capability,
@@ -1970,10 +1970,10 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_bss *bss;
 
 	if (dev == priv->mesh_dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!params->chandef.chan) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
@@ -2006,7 +2006,7 @@ static int lbs_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	int ret = 0;
 
 	if (dev == priv->mesh_dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
@@ -2031,8 +2031,8 @@ static int lbs_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		else
 			return -EINVAL;
 	}
-	/* firmware does not work well with too long latency with power saving
-	 * enabled, so do not enable it if there is only polling, no
+	/* firmware does analt work well with too long latency with power saving
+	 * enabled, so do analt enable it if there is only polling, anal
 	 * interrupts (like in some sdio hosts which can only
 	 * poll for sdio irqs)
 	 */
@@ -2092,12 +2092,12 @@ struct wireless_dev *lbs_cfg_alloc(struct device *dev)
 
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!wdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	wdev->wiphy = wiphy_new(&lbs_cfg80211_ops, sizeof(struct lbs_private));
 	if (!wdev->wiphy) {
-		dev_err(dev, "cannot allocate wiphy\n");
-		ret = -ENOMEM;
+		dev_err(dev, "cananalt allocate wiphy\n");
+		ret = -EANALMEM;
 		goto err_wiphy_new;
 	}
 
@@ -2134,7 +2134,7 @@ static void lbs_cfg_set_regulatory_hint(struct lbs_private *priv)
 		}
 }
 
-static void lbs_reg_notifier(struct wiphy *wiphy,
+static void lbs_reg_analtifier(struct wiphy *wiphy,
 			     struct regulatory_request *request)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
@@ -2174,17 +2174,17 @@ int lbs_cfg_register(struct lbs_private *priv)
 	 */
 	wdev->wiphy->cipher_suites = cipher_suites;
 	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
-	wdev->wiphy->reg_notifier = lbs_reg_notifier;
+	wdev->wiphy->reg_analtifier = lbs_reg_analtifier;
 
 	ret = wiphy_register(wdev->wiphy);
 	if (ret < 0)
-		pr_err("cannot register wiphy device\n");
+		pr_err("cananalt register wiphy device\n");
 
 	priv->wiphy_registered = true;
 
 	ret = register_netdev(priv->dev);
 	if (ret)
-		pr_err("cannot register network device\n");
+		pr_err("cananalt register network device\n");
 
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
 

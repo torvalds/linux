@@ -51,7 +51,7 @@ static struct rc_map_list technisat_ts35_map = {
 	.map = {
 		.scan     = technisat_ts35,
 		.size     = ARRAY_SIZE(technisat_ts35),
-		.rc_proto = RC_PROTO_UNKNOWN,
+		.rc_proto = RC_PROTO_UNKANALWN,
 		.name     = RC_MAP_TECHNISAT_TS35,
 	}
 };

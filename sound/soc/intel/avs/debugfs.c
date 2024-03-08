@@ -56,7 +56,7 @@ static ssize_t fw_regs_read(struct file *file, char __user *to, size_t count, lo
 
 	buf = kzalloc(AVS_FW_REGS_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(buf, avs_sram_addr(adev, AVS_FW_REGS_WINDOW), AVS_FW_REGS_SIZE);
 
@@ -68,7 +68,7 @@ static ssize_t fw_regs_read(struct file *file, char __user *to, size_t count, lo
 static const struct file_operations fw_regs_fops = {
 	.open = simple_open,
 	.read = fw_regs_read,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static ssize_t debug_window_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
@@ -81,7 +81,7 @@ static ssize_t debug_window_read(struct file *file, char __user *to, size_t coun
 	size = adev->hw_cfg.dsp_cores * AVS_WINDOW_CHUNK_SIZE;
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(buf, avs_sram_addr(adev, AVS_DEBUG_WINDOW), size);
 
@@ -93,7 +93,7 @@ static ssize_t debug_window_read(struct file *file, char __user *to, size_t coun
 static const struct file_operations debug_window_fops = {
 	.open = simple_open,
 	.read = debug_window_read,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static ssize_t probe_points_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
@@ -110,7 +110,7 @@ static ssize_t probe_points_read(struct file *file, char __user *to, size_t coun
 
 	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = avs_ipc_probe_get_points(adev, &desc, &num_desc);
 	if (ret) {
@@ -120,8 +120,8 @@ static ssize_t probe_points_read(struct file *file, char __user *to, size_t coun
 
 	for (i = 0; i < num_desc; i++) {
 		ret = snprintf(buf + len, PAGE_SIZE - len,
-			       "Id: %#010x  Purpose: %d  Node id: %#x\n",
-			       desc[i].id.value, desc[i].purpose, desc[i].node_id.val);
+			       "Id: %#010x  Purpose: %d  Analde id: %#x\n",
+			       desc[i].id.value, desc[i].purpose, desc[i].analde_id.val);
 		if (ret < 0)
 			goto free_desc;
 		len += ret;
@@ -170,7 +170,7 @@ static const struct file_operations probe_points_fops = {
 	.open = simple_open,
 	.read = probe_points_read,
 	.write = probe_points_write,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static ssize_t probe_points_disconnect_write(struct file *file, const char __user *from,
@@ -231,13 +231,13 @@ static ssize_t strace_read(struct file *file, char __user *to, size_t count, lof
 	return copied;
 }
 
-static int strace_open(struct inode *inode, struct file *file)
+static int strace_open(struct ianalde *ianalde, struct file *file)
 {
-	struct avs_dev *adev = inode->i_private;
+	struct avs_dev *adev = ianalde->i_private;
 	int ret;
 
 	if (!try_module_get(adev->dev->driver->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (kfifo_initialized(&adev->trace_fifo))
 		return -EBUSY;
@@ -250,9 +250,9 @@ static int strace_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int strace_release(struct inode *inode, struct file *file)
+static int strace_release(struct ianalde *ianalde, struct file *file)
 {
-	union avs_notify_msg msg = AVS_NOTIFICATION(LOG_BUFFER_STATUS);
+	union avs_analtify_msg msg = AVS_ANALTIFICATION(LOG_BUFFER_STATUS);
 	struct avs_dev *adev = file->private_data;
 	unsigned long resource_mask;
 	unsigned long flags, i;
@@ -300,7 +300,7 @@ static int enable_logs(struct avs_dev *adev, u32 resource_mask, u32 *priorities)
 	}
 
 	ret = avs_ipc_set_system_time(adev);
-	if (ret && ret != AVS_IPC_NOT_SUPPORTED) {
+	if (ret && ret != AVS_IPC_ANALT_SUPPORTED) {
 		ret = AVS_IPC_RET(ret);
 		goto err_ipc;
 	}
@@ -378,7 +378,7 @@ static ssize_t trace_control_write(struct file *file, const char __user *from, s
 	resource_mask = array[1];
 
 	/*
-	 * Disable if just resource mask is provided - no log priority flags.
+	 * Disable if just resource mask is provided - anal log priority flags.
 	 *
 	 * Enable input format:   mask, prio1, .., prioN
 	 * Where 'N' equals number of bits set in the 'mask'.

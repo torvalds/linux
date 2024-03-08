@@ -85,7 +85,7 @@ static int emac_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return EMAC_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -127,7 +127,7 @@ static int emac_nway_reset(struct net_device *netdev)
 	struct phy_device *phydev = netdev->phydev;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return genphy_restart_aneg(phydev);
 }

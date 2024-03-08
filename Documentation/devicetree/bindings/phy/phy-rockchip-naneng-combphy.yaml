@@ -50,7 +50,7 @@ properties:
     type: boolean
     description:
       Many PCIe connections, especially backplane connections,
-      require a synchronous reference clock between the two link partners.
+      require a synchroanalus reference clock between the two link partners.
       To achieve this a common clock source, referred to as REFCLK in
       the PCI Express Card Electromechanical Specification,
       should be used by both ends of the PCIe link.

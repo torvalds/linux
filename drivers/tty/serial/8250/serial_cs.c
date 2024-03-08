@@ -6,7 +6,7 @@
     serial_cs.c 1.134 2002/05/04 05:48:53
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may analt use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -23,10 +23,10 @@
     terms of the GNU General Public License version 2 (the "GPL"), in which
     case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and analt to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the analtice
+    and other provisions required by the GPL.  If you do analt delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
 
@@ -119,14 +119,14 @@ static int quirk_post_ibm(struct pcmcia_device *link)
 	return 0;
 
  failed:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
- * Nokia cards are not really multiport cards.  Shouldn't this
+ * Analkia cards are analt really multiport cards.  Shouldn't this
  * be handled by setting the quirk entry .multi = 0 | 1 ?
  */
-static void quirk_config_nokia(struct pcmcia_device *link)
+static void quirk_config_analkia(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
 
@@ -142,7 +142,7 @@ static void quirk_wakeup_oxsemi(struct pcmcia_device *link)
 		outb(12, info->c950ctrl + 1);
 }
 
-/* request_region? oxsemi branch does no request_region too... */
+/* request_region? oxsemi branch does anal request_region too... */
 /*
  * This sequence is needed to properly initialize MC45 attached to OXCF950.
  * I tried decreasing these msleep()s, but it worked properly (survived
@@ -204,10 +204,10 @@ static const struct serial_quirk quirks[] = {
 		.prodid	= PRODID_NATINST_QUAD_RS232,
 		.multi	= 4,
 	}, {
-		.manfid	= MANFID_NOKIA,
+		.manfid	= MANFID_ANALKIA,
 		.prodid	= ~0,
 		.multi	= -1,
-		.config	= quirk_config_nokia,
+		.config	= quirk_config_analkia,
 	}, {
 		.manfid	= MANFID_OMEGA,
 		.prodid	= PRODID_OMEGA_QSP_100,
@@ -307,7 +307,7 @@ static int serial_probe(struct pcmcia_device *link)
 	/* Create new serial device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->p_dev = link;
 	link->priv = info;
 
@@ -393,8 +393,8 @@ static int pfc_config(struct pcmcia_device *p_dev)
 	if (info->slave)
 		return setup_serial(p_dev, info, port, p_dev->irq);
 
-	dev_warn(&p_dev->dev, "no usable port range found, giving up\n");
-	return -ENODEV;
+	dev_warn(&p_dev->dev, "anal usable port range found, giving up\n");
+	return -EANALDEV;
 }
 
 static int simple_config_check(struct pcmcia_device *p_dev, void *priv_data)
@@ -403,13 +403,13 @@ static int simple_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	int *try = priv_data;
 
 	if (p_dev->resource[0]->start == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((*try & 0x1) == 0)
 		p_dev->io_lines = 16;
 
 	if (p_dev->resource[0]->end != size_table[(*try >> 1)])
-		return -ENODEV;
+		return -EANALDEV;
 
 	p_dev->resource[0]->end = 8;
 	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
@@ -418,14 +418,14 @@ static int simple_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	return pcmcia_request_io(p_dev);
 }
 
-static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
+static int simple_config_check_analtpicky(struct pcmcia_device *p_dev,
 					void *priv_data)
 {
 	static const unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
 	int j;
 
 	if (p_dev->io_lines > 3)
-		return -ENODEV;
+		return -EANALDEV;
 
 	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
@@ -437,7 +437,7 @@ static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int simple_config(struct pcmcia_device *link)
@@ -446,7 +446,7 @@ static int simple_config(struct pcmcia_device *link)
 	int ret, try;
 
 	/*
-	 * First pass: look for a config entry that looks normal.
+	 * First pass: look for a config entry that looks analrmal.
 	 * Two tries: without IO aliases, then with aliases.
 	 */
 	link->config_flags |= CONF_AUTO_SET_VPP;
@@ -459,9 +459,9 @@ static int simple_config(struct pcmcia_device *link)
 	 * its base address, then try to grab any standard serial port
 	 * address, and finally try to get any free port.
 	 */
-	ret = pcmcia_loop_config(link, simple_config_check_notpicky, NULL);
+	ret = pcmcia_loop_config(link, simple_config_check_analtpicky, NULL);
 	if (ret) {
-		dev_warn(&link->dev, "no usable port range found, giving up\n");
+		dev_warn(&link->dev, "anal usable port range found, giving up\n");
 		return ret;
 	}
 
@@ -500,25 +500,25 @@ static int multi_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	p_dev->resource[0]->end = *multi * 8;
 
 	if (pcmcia_request_io(p_dev))
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
-static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
+static int multi_config_check_analtpicky(struct pcmcia_device *p_dev,
 				       void *priv_data)
 {
 	int *base2 = priv_data;
 
 	if (!p_dev->resource[0]->end || !p_dev->resource[1]->end ||
 		p_dev->resource[0]->start + 8 != p_dev->resource[1]->start)
-		return -ENODEV;
+		return -EANALDEV;
 
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 8;
 	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
 	if (pcmcia_request_io(p_dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	*base2 = p_dev->resource[0]->start + 8;
 	return 0;
@@ -535,16 +535,16 @@ static int multi_config(struct pcmcia_device *link)
 	else {
 		/* If that didn't work, look for two windows */
 		info->multi = 2;
-		if (pcmcia_loop_config(link, multi_config_check_notpicky,
+		if (pcmcia_loop_config(link, multi_config_check_analtpicky,
 				       &base2)) {
 			dev_warn(&link->dev,
-				 "no usable port range found, giving up\n");
-			return -ENODEV;
+				 "anal usable port range found, giving up\n");
+			return -EANALDEV;
 		}
 	}
 
 	if (!link->irq)
-		dev_warn(&link->dev, "no usable IRQ found, continuing...\n");
+		dev_warn(&link->dev, "anal usable IRQ found, continuing...\n");
 
 	/*
 	 * Apply any configuration quirks.
@@ -554,7 +554,7 @@ static int multi_config(struct pcmcia_device *link)
 
 	i = pcmcia_enable_device(link);
 	if (i != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* The Oxford Semiconductor OXCF950 cards are in fact single-port:
 	 * 8 registers are for the UART, the others are extra registers.
@@ -631,7 +631,7 @@ static int serial_config(struct pcmcia_device *link)
 		}
 
 	/*
-	 * Another check for dual-serial cards: look for either serial or
+	 * Aanalther check for dual-serial cards: look for either serial or
 	 * multifunction cards that ask for appropriate IO port ranges.
 	 */
 	if ((info->multi == 0) &&
@@ -676,7 +676,7 @@ static int serial_config(struct pcmcia_device *link)
 failed:
 	dev_warn(&link->dev, "failed to initialize\n");
 	serial_remove(link);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct pcmcia_device_id serial_ids[] = {
@@ -748,7 +748,7 @@ static const struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0d53),
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0xd180),
 	PCMCIA_DEVICE_MANF_CARD(0x0115, 0x3330), /* USRobotics/SUN 14,400 */
-	PCMCIA_DEVICE_MANF_CARD(0x0124, 0x0100), /* Nokia DTP-2 ver II */
+	PCMCIA_DEVICE_MANF_CARD(0x0124, 0x0100), /* Analkia DTP-2 ver II */
 	PCMCIA_DEVICE_MANF_CARD(0x0134, 0x5600), /* LASAT COMMUNICATIONS A/S */
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x000e),
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x001b),
@@ -762,7 +762,7 @@ static const struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_DEVICE_PROD_ID14("MEGAHERTZ", "PCMCIA MODEM", 0xf510db04, 0xbd6c43ef),
 	PCMCIA_DEVICE_PROD_ID124("TOSHIBA", "T144PF", "PCMCIA MODEM", 0xb4585a1a, 0x7271409c, 0xbd6c43ef),
 	PCMCIA_DEVICE_PROD_ID123("FUJITSU", "FC14F ", "MBH10213", 0x6ee5a3d8, 0x30ead12b, 0xb00f05a0),
-	PCMCIA_DEVICE_PROD_ID123("Novatel Wireless", "Merlin UMTS Modem", "U630", 0x32607776, 0xd9e73b13, 0xe87332e),
+	PCMCIA_DEVICE_PROD_ID123("Analvatel Wireless", "Merlin UMTS Modem", "U630", 0x32607776, 0xd9e73b13, 0xe87332e),
 	PCMCIA_DEVICE_PROD_ID13("MEGAHERTZ", "V.34 PCMCIA MODEM", 0xf510db04, 0xbb2cce4a),
 	PCMCIA_DEVICE_PROD_ID12("Brain Boxes", "Bluetooth PC Card", 0xee138382, 0xd4ce9b02),
 	PCMCIA_DEVICE_PROD_ID12("CIRRUS LOGIC", "FAX MODEM", 0xe625f451, 0xcecd6dfa),

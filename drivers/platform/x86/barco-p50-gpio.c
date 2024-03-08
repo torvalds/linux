@@ -287,8 +287,8 @@ static int p50_gpio_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "Cannot get I/O ports\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Cananalt get I/O ports\n");
+		return -EANALDEV;
 	}
 
 	if (!devm_request_region(&pdev->dev, res->start, resource_size(res), pdev->name)) {
@@ -298,7 +298,7 @@ static int p50_gpio_probe(struct platform_device *pdev)
 
 	p50 = devm_kzalloc(&pdev->dev, sizeof(*p50), GFP_KERNEL);
 	if (!p50)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, p50);
 	mutex_init(&p50->lock);
@@ -331,18 +331,18 @@ static int p50_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &p50->gc, p50);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register gpiochip: %d\n", ret);
 		return ret;
 	}
 
 	gpiod_add_lookup_table(&p50_gpio_led_table);
 
 	p50->leds_pdev = platform_device_register_data(&pdev->dev,
-		"leds-gpio", PLATFORM_DEVID_NONE, &leds_pdata, sizeof(leds_pdata));
+		"leds-gpio", PLATFORM_DEVID_ANALNE, &leds_pdata, sizeof(leds_pdata));
 
 	if (IS_ERR(p50->leds_pdev)) {
 		ret = PTR_ERR(p50->leds_pdev);
-		dev_err(&pdev->dev, "Could not register leds-gpio: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register leds-gpio: %d\n", ret);
 		goto err_leds;
 	}
 
@@ -351,12 +351,12 @@ static int p50_gpio_probe(struct platform_device *pdev)
 
 	p50->keys_pdev =
 		platform_device_register_data(&pdev->dev, "gpio-keys-polled",
-					      PLATFORM_DEVID_NONE,
+					      PLATFORM_DEVID_ANALNE,
 					      &keys_pdata, sizeof(keys_pdata));
 
 	if (IS_ERR(p50->keys_pdev)) {
 		ret = PTR_ERR(p50->keys_pdev);
-		dev_err(&pdev->dev, "Could not register gpio-keys-polled: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register gpio-keys-polled: %d\n", ret);
 		goto err_keys;
 	}
 
@@ -406,13 +406,13 @@ static int __init p50_module_init(void)
 	int ret;
 
 	if (!dmi_first_match(dmi_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&p50_gpio_driver);
 	if (ret)
 		return ret;
 
-	gpio_pdev = platform_device_register_simple(DRIVER_NAME, PLATFORM_DEVID_NONE, &res, 1);
+	gpio_pdev = platform_device_register_simple(DRIVER_NAME, PLATFORM_DEVID_ANALNE, &res, 1);
 	if (IS_ERR(gpio_pdev)) {
 		pr_err("failed registering %s: %ld\n", DRIVER_NAME, PTR_ERR(gpio_pdev));
 		platform_driver_unregister(&p50_gpio_driver);

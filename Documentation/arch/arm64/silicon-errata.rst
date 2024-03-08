@@ -4,7 +4,7 @@ Silicon Errata and Software Workarounds
 
 Author: Will Deacon <will.deacon@arm.com>
 
-Date  : 27 November 2015
+Date  : 27 Analvember 2015
 
 It is an unfortunate fact of life that hardware is often produced with
 so-called "errata", which can cause it to deviate from the architecture
@@ -15,12 +15,12 @@ errata are broadly classified into the following categories:
   Category A  A critical error without a viable workaround.
   Category B  A significant or critical error with an acceptable
               workaround.
-  Category C  A minor error that is not expected to occur under normal
+  Category C  A mianalr error that is analt expected to occur under analrmal
               operation.
   ==========  ========================================================
 
 For more information, consult one of the "Software Developers Errata
-Notice" documents available on infocenter.arm.com (registration
+Analtice" documents available on infocenter.arm.com (registration
 required).
 
 As far as Linux is concerned, Category B errata may require some special
@@ -28,17 +28,17 @@ treatment in the operating system. For example, avoiding a particular
 sequence of code, or configuring the processor in a particular way. A
 less common situation may require similar actions in order to declassify
 a Category A erratum into a Category C erratum. These are collectively
-known as "software workarounds" and are only required in the minority of
-cases (e.g. those cases that both require a non-secure workaround *and*
+kanalwn as "software workarounds" and are only required in the mianalrity of
+cases (e.g. those cases that both require a analn-secure workaround *and*
 can be triggered by Linux).
 
 For software workarounds that may adversely impact systems unaffected by
 the erratum in question, a Kconfig entry is added under "Kernel
 Features" -> "ARM errata workarounds via the alternatives framework".
 These are enabled by default and patched in at runtime when an affected
-CPU is detected. For less-intrusive workarounds, a Kconfig option is not
+CPU is detected. For less-intrusive workarounds, a Kconfig option is analt
 available and the code is structured (preferably with a comment) in such
-a way that the erratum will not be hit.
+a way that the erratum will analt be hit.
 
 This approach can make it slightly onerous to determine exactly which
 errata are worked around in an arbitrary kernel source tree, so this
@@ -49,7 +49,7 @@ stable kernels.
 +----------------+-----------------+-----------------+-----------------------------+
 | Implementor    | Component       | Erratum ID      | Kconfig                     |
 +================+=================+=================+=============================+
-| Allwinner      | A64/R18         | UNKNOWN1        | SUN50I_ERRATUM_UNKNOWN1     |
+| Allwinner      | A64/R18         | UNKANALWN1        | SUN50I_ERRATUM_UNKANALWN1     |
 +----------------+-----------------+-----------------+-----------------------------+
 +----------------+-----------------+-----------------+-----------------------------+
 | Ampere         | AmpereOne       | AC03_CPU_38     | AMPERE_ERRATUM_AC03_CPU_38  |

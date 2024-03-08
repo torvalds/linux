@@ -31,22 +31,22 @@ struct sd {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -676,7 +676,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 	} while (--retry);
 	if (retry == 0)
 		gspca_err(gspca_dev, "Damned Errors sending jpeg Table\n");
-	/* send the qtable now */
+	/* send the qtable analw */
 	reg_r(gspca_dev, 0x0001, 1);		/* -> 0x18 */
 	length = 8;
 	for (i = 0; i < 18; i++) {
@@ -906,7 +906,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	sd->sat = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_SATURATION, 0, 7, 1, 3);
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

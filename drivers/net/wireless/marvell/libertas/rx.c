@@ -65,7 +65,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 
 	BUG_ON(!skb);
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR) {
 		ret = process_rxed_802_11_packet(priv, skb);
@@ -237,7 +237,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	radiotap_hdr.hdr.it_len = cpu_to_le16 (sizeof(struct rx_radiotap_hdr));
 	radiotap_hdr.hdr.it_present = cpu_to_le32 (RX_RADIOTAP_PRESENT);
 	radiotap_hdr.rate = convert_mv_rate_to_radiotap(prxpd->rx_rate);
-	/* XXX must check no carryout */
+	/* XXX must check anal carryout */
 	radiotap_hdr.antsignal = prxpd->snr + prxpd->nf;
 
 	/* chop the rxpd */
@@ -247,7 +247,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	if ((skb_headroom(skb) < sizeof(struct rx_radiotap_hdr)) &&
 	    pskb_expand_head(skb, sizeof(struct rx_radiotap_hdr), 0, GFP_ATOMIC)) {
 		netdev_alert(dev, "%s: couldn't pskb_expand_head\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		kfree_skb(skb);
 		goto done;
 	}

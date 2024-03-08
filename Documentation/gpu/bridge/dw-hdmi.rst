@@ -1,11 +1,11 @@
 =======================================================
- drm/bridge/dw-hdmi Synopsys DesignWare HDMI Controller
+ drm/bridge/dw-hdmi Syanalpsys DesignWare HDMI Controller
 =======================================================
 
-Synopsys DesignWare HDMI Controller
+Syanalpsys DesignWare HDMI Controller
 ===================================
 
-This section covers everything related to the Synopsys DesignWare HDMI
+This section covers everything related to the Syanalpsys DesignWare HDMI
 Controller implemented as a DRM bridge.
 
 Supported Input Formats and Encodings

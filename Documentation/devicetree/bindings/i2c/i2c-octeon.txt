@@ -14,7 +14,7 @@
 
 - #address-cells: Must be <1>.
 
-- #size-cells: Must be <0>.  I2C addresses have no size component.
+- #size-cells: Must be <0>.  I2C addresses have anal size component.
 
 - interrupts: A single interrupt specifier.
 

@@ -8,7 +8,7 @@
 
 /**
  * enum si5351_pll_src - Si5351 pll clock source
- * @SI5351_PLL_SRC_DEFAULT: default, do not change eeprom config
+ * @SI5351_PLL_SRC_DEFAULT: default, do analt change eeprom config
  * @SI5351_PLL_SRC_XTAL: pll source clock is XTAL input
  * @SI5351_PLL_SRC_CLKIN: pll source clock is CLKIN input (Si5351C only)
  */
@@ -20,7 +20,7 @@ enum si5351_pll_src {
 
 /**
  * enum si5351_multisynth_src - Si5351 multisynth clock source
- * @SI5351_MULTISYNTH_SRC_DEFAULT: default, do not change eeprom config
+ * @SI5351_MULTISYNTH_SRC_DEFAULT: default, do analt change eeprom config
  * @SI5351_MULTISYNTH_SRC_VCO0: multisynth source clock is VCO0
  * @SI5351_MULTISYNTH_SRC_VCO1: multisynth source clock is VCO1/VXCO
  */
@@ -32,7 +32,7 @@ enum si5351_multisynth_src {
 
 /**
  * enum si5351_clkout_src - Si5351 clock output clock source
- * @SI5351_CLKOUT_SRC_DEFAULT: default, do not change eeprom config
+ * @SI5351_CLKOUT_SRC_DEFAULT: default, do analt change eeprom config
  * @SI5351_CLKOUT_SRC_MSYNTH_N: clkout N source clock is multisynth N
  * @SI5351_CLKOUT_SRC_MSYNTH_0_4: clkout N source clock is multisynth 0 (N<4)
  *                                or 4 (N>=4)
@@ -49,7 +49,7 @@ enum si5351_clkout_src {
 
 /**
  * enum si5351_drive_strength - Si5351 clock output drive strength
- * @SI5351_DRIVE_DEFAULT: default, do not change eeprom config
+ * @SI5351_DRIVE_DEFAULT: default, do analt change eeprom config
  * @SI5351_DRIVE_2MA: 2mA clock output drive strength
  * @SI5351_DRIVE_4MA: 4mA clock output drive strength
  * @SI5351_DRIVE_6MA: 6mA clock output drive strength
@@ -65,7 +65,7 @@ enum si5351_drive_strength {
 
 /**
  * enum si5351_disable_state - Si5351 clock output disable state
- * @SI5351_DISABLE_DEFAULT: default, do not change eeprom config
+ * @SI5351_DISABLE_DEFAULT: default, do analt change eeprom config
  * @SI5351_DISABLE_LOW: CLKx is set to a LOW state when disabled
  * @SI5351_DISABLE_HIGH: CLKx is set to a HIGH state when disabled
  * @SI5351_DISABLE_FLOATING: CLKx is set to a FLOATING state when

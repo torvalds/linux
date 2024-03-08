@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <string.h>
 #include <termios.h>
@@ -16,7 +16,7 @@
 #include <um_malloc.h>
 
 struct pty_chan {
-	void (*announce)(char *dev_name, int dev);
+	void (*ananalunce)(char *dev_name, int dev);
 	int dev;
 	int raw;
 	struct termios tt;
@@ -31,7 +31,7 @@ static void *pty_chan_init(char *str, int device, const struct chan_opts *opts)
 	if (data == NULL)
 		return NULL;
 
-	*data = ((struct pty_chan) { .announce  	= opts->announce,
+	*data = ((struct pty_chan) { .ananalunce  	= opts->ananalunce,
 				     .dev  		= device,
 				     .raw  		= opts->raw });
 	return data;
@@ -46,7 +46,7 @@ static int pts_open(int input, int output, int primary, void *d,
 
 	fd = get_pty();
 	if (fd < 0) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "open_pts : Failed to open pts\n");
 		return err;
 	}
@@ -65,8 +65,8 @@ static int pts_open(int input, int output, int primary, void *d,
 	sprintf(data->dev_name, "%s", dev);
 	*dev_out = data->dev_name;
 
-	if (data->announce)
-		(*data->announce)(dev, data->dev);
+	if (data->ananalunce)
+		(*data->ananalunce)(dev, data->dev);
 
 	return fd;
 
@@ -86,7 +86,7 @@ static int getmaster(char *line)
 		line[strlen("/dev/pty")] = *bank;
 		*pty = '0';
 		/* Did we hit the end ? */
-		if ((stat(line, &buf) < 0) && (errno == ENOENT))
+		if ((stat(line, &buf) < 0) && (erranal == EANALENT))
 			break;
 
 		for (cp = "0123456789abcdef"; *cp; cp++) {
@@ -106,8 +106,8 @@ static int getmaster(char *line)
 		}
 	}
 
-	printk(UM_KERN_ERR "getmaster - no usable host pty devices\n");
-	return -ENOENT;
+	printk(UM_KERN_ERR "getmaster - anal usable host pty devices\n");
+	return -EANALENT;
 }
 
 static int pty_open(int input, int output, int primary, void *d,
@@ -129,8 +129,8 @@ static int pty_open(int input, int output, int primary, void *d,
 		}
 	}
 
-	if (data->announce)
-		(*data->announce)(dev, data->dev);
+	if (data->ananalunce)
+		(*data->ananalunce)(dev, data->dev);
 
 	sprintf(data->dev_name, "%s", dev);
 	*dev_out = data->dev_name;

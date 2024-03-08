@@ -36,7 +36,7 @@ struct qcom_ssc_block_bus_data {
 	struct clk *xo_clk;
 	struct clk *aggre2_clk;
 	struct clk *gcc_im_sleep_clk;
-	struct clk *aggre2_north_clk;
+	struct clk *aggre2_analrth_clk;
 	struct clk *ssc_xo_clk;
 	struct clk *ssc_ahbs_clk;
 	struct reset_control *ssc_bcr;
@@ -84,7 +84,7 @@ static int qcom_ssc_block_bus_init(struct device *dev)
 	}
 
 	/*
-	 * We need to intervene here because the HW logic driving these signals cannot handle
+	 * We need to intervene here because the HW logic driving these signals cananalt handle
 	 * initialization after power collapse by itself.
 	 */
 	reg32_clear_bits(data->reg_mpm_sscaon_config0,
@@ -92,10 +92,10 @@ static int qcom_ssc_block_bus_init(struct device *dev)
 	/* override few_ack/rest_ack */
 	reg32_clear_bits(data->reg_mpm_sscaon_config1, BIT(31));
 
-	ret = clk_prepare_enable(data->aggre2_north_clk);
+	ret = clk_prepare_enable(data->aggre2_analrth_clk);
 	if (ret) {
-		dev_err(dev, "error enabling aggre2_north_clk: %d\n", ret);
-		goto err_aggre2_north_clk;
+		dev_err(dev, "error enabling aggre2_analrth_clk: %d\n", ret);
+		goto err_aggre2_analrth_clk;
 	}
 
 	ret = reset_control_deassert(data->ssc_reset);
@@ -138,9 +138,9 @@ err_ssc_bcr:
 	reset_control_assert(data->ssc_reset);
 
 err_ssc_reset:
-	clk_disable(data->aggre2_north_clk);
+	clk_disable(data->aggre2_analrth_clk);
 
-err_aggre2_north_clk:
+err_aggre2_analrth_clk:
 	reg32_set_bits(data->reg_mpm_sscaon_config0, BIT(4) | BIT(5));
 	reg32_set_bits(data->reg_mpm_sscaon_config1, BIT(31));
 
@@ -180,7 +180,7 @@ static void qcom_ssc_block_bus_deinit(struct device *dev)
 
 	clk_disable(data->gcc_im_sleep_clk);
 
-	clk_disable(data->aggre2_north_clk);
+	clk_disable(data->aggre2_analrth_clk);
 
 	clk_disable(data->aggre2_clk);
 	clk_disable(data->xo_clk);
@@ -195,7 +195,7 @@ static int qcom_ssc_block_bus_pds_attach(struct device *dev, struct device **pds
 	for (i = 0; i < num_pds; i++) {
 		pds[i] = dev_pm_domain_attach_by_name(dev, pd_names[i]);
 		if (IS_ERR_OR_NULL(pds[i])) {
-			ret = PTR_ERR(pds[i]) ? : -ENODATA;
+			ret = PTR_ERR(pds[i]) ? : -EANALDATA;
 			goto unroll_attach;
 		}
 	}
@@ -253,14 +253,14 @@ static void qcom_ssc_block_bus_pds_disable(struct device **pds, size_t num_pds)
 static int qcom_ssc_block_bus_probe(struct platform_device *pdev)
 {
 	struct qcom_ssc_block_bus_data *data;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct of_phandle_args halt_args;
 	struct resource *res;
 	int ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, data);
 
@@ -316,10 +316,10 @@ static int qcom_ssc_block_bus_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(data->gcc_im_sleep_clk),
 				     "Failed to get clock: gcc_im_sleep\n");
 
-	data->aggre2_north_clk = devm_clk_get(&pdev->dev, "aggre2_north");
-	if (IS_ERR(data->aggre2_north_clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(data->aggre2_north_clk),
-				     "Failed to get clock: aggre2_north\n");
+	data->aggre2_analrth_clk = devm_clk_get(&pdev->dev, "aggre2_analrth");
+	if (IS_ERR(data->aggre2_analrth_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->aggre2_analrth_clk),
+				     "Failed to get clock: aggre2_analrth\n");
 
 	data->ssc_xo_clk = devm_clk_get(&pdev->dev, "ssc_xo");
 	if (IS_ERR(data->ssc_xo_clk))
@@ -331,13 +331,13 @@ static int qcom_ssc_block_bus_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(data->ssc_ahbs_clk),
 				     "Failed to get clock: ssc_ahbs\n");
 
-	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node, "qcom,halt-regs", 1, 0,
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_analde, "qcom,halt-regs", 1, 0,
 					       &halt_args);
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret, "Failed to parse qcom,halt-regs\n");
 
-	data->halt_map = syscon_node_to_regmap(halt_args.np);
-	of_node_put(halt_args.np);
+	data->halt_map = syscon_analde_to_regmap(halt_args.np);
+	of_analde_put(halt_args.np);
 	if (IS_ERR(data->halt_map))
 		return PTR_ERR(data->halt_map);
 

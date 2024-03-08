@@ -53,7 +53,7 @@ static void format_ctx(struct seq_file *s, struct hva_ctx *ctx)
 		      ctrls->bitrate,
 		      ctrls->gop_size,
 		      v4l2_ctrl_get_menu(aspect)[ctrls->aspect],
-		      ctrls->time_per_frame.denominator,
+		      ctrls->time_per_frame.deanalminator,
 		      ctrls->time_per_frame.numerator);
 
 	entropy = V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE;
@@ -166,7 +166,7 @@ void hva_dbg_perf_begin(struct hva_ctx *ctx)
 
 	/*
 	 * filter sequences valid for performance:
-	 * - begin/begin (no stream available) is an invalid sequence
+	 * - begin/begin (anal stream available) is an invalid sequence
 	 * - begin/end is a valid sequence
 	 */
 	dbg->is_valid_period = false;
@@ -310,7 +310,7 @@ static int last_show(struct seq_file *s, void *data)
 		hva_dbg_perf_compute(last_ctx);
 		format_ctx(s, last_ctx);
 	} else {
-		seq_puts(s, "[no information recorded about last encoding]\n");
+		seq_puts(s, "[anal information recorded about last encoding]\n");
 	}
 
 	return 0;

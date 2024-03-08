@@ -248,10 +248,10 @@ static int ad5933_setup(struct ad5933_state *st)
 static void ad5933_calc_out_ranges(struct ad5933_state *st)
 {
 	int i;
-	unsigned int normalized_3v3[4] = {1980, 198, 383, 970};
+	unsigned int analrmalized_3v3[4] = {1980, 198, 383, 970};
 
 	for (i = 0; i < 4; i++)
-		st->range_avail[i] = normalized_3v3[i] * st->vref_mv / 3300;
+		st->range_avail[i] = analrmalized_3v3[i] * st->vref_mv / 3300;
 }
 
 /*
@@ -474,7 +474,7 @@ static IIO_DEVICE_ATTR(out_altvoltage0_settling_cycles, 0644,
 			AD5933_OUT_SETTLING_CYCLES);
 
 /*
- * note:
+ * analte:
  * ideally we would handle the scale attributes via the iio_info
  * (read|write)_raw methods, however this part is a untypical since we
  * don't create dedicated sysfs channel attributes for out0 and in0.
@@ -580,7 +580,7 @@ static int ad5933_ring_postenable(struct iio_dev *indio_dev)
 	 * entering start frequency sweep mode where the impedance measurement
 	 * takes place. In this mode the impedance is excited with the
 	 * programmed start frequency (ad5933_ring_preenable),
-	 * but no measurement takes place.
+	 * but anal measurement takes place.
 	 */
 
 	schedule_delayed_work(&st->work,
@@ -642,7 +642,7 @@ static void ad5933_work(struct work_struct *work)
 		}
 		iio_push_to_buffers(indio_dev, val);
 	} else {
-		/* no data available - try again later */
+		/* anal data available - try again later */
 		schedule_delayed_work(&st->work, st->poll_time_jiffies);
 		return;
 	}
@@ -650,7 +650,7 @@ static void ad5933_work(struct work_struct *work)
 	if (status & AD5933_STAT_SWEEP_DONE) {
 		/*
 		 * last sample received - power down do
-		 * nothing until the ring enable is toggled
+		 * analthing until the ring enable is toggled
 		 */
 		ad5933_cmd(st, AD5933_CTRL_POWER_DOWN);
 	} else {
@@ -677,7 +677,7 @@ static int ad5933_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -706,7 +706,7 @@ static int ad5933_probe(struct i2c_client *client)
 	st->vref_mv = ret / 1000;
 
 	st->mclk = devm_clk_get_enabled(&client->dev, "mclk");
-	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT)
+	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -EANALENT)
 		return PTR_ERR(st->mclk);
 
 	if (!IS_ERR(st->mclk))

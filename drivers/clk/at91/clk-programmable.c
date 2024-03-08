@@ -229,7 +229,7 @@ at91_clk_register_programmable(struct regmap *regmap,
 
 	prog = kzalloc(sizeof(*prog), GFP_KERNEL);
 	if (!prog)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &programmable_ops;

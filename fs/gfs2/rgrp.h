@@ -34,25 +34,25 @@ void gfs2_free_clones(struct gfs2_rgrpd *rgd);
 int gfs2_rgrp_go_instantiate(struct gfs2_glock *gl);
 void gfs2_rgrp_brelse(struct gfs2_rgrpd *rgd);
 
-struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip);
+struct gfs2_alloc *gfs2_alloc_get(struct gfs2_ianalde *ip);
 
 #define GFS2_AF_ORLOV 1
-int gfs2_inplace_reserve(struct gfs2_inode *ip,
+int gfs2_inplace_reserve(struct gfs2_ianalde *ip,
 			 struct gfs2_alloc_parms *ap);
-void gfs2_inplace_release(struct gfs2_inode *ip);
+void gfs2_inplace_release(struct gfs2_ianalde *ip);
 
-int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *n,
-		      bool dinode);
+int gfs2_alloc_blocks(struct gfs2_ianalde *ip, u64 *bn, unsigned int *n,
+		      bool dianalde);
 
 void gfs2_rs_deltree(struct gfs2_blkreserv *rs);
-void gfs2_rs_delete(struct gfs2_inode *ip);
-void __gfs2_free_blocks(struct gfs2_inode *ip, struct gfs2_rgrpd *rgd,
+void gfs2_rs_delete(struct gfs2_ianalde *ip);
+void __gfs2_free_blocks(struct gfs2_ianalde *ip, struct gfs2_rgrpd *rgd,
 		        u64 bstart, u32 blen, int meta);
-void gfs2_free_meta(struct gfs2_inode *ip, struct gfs2_rgrpd *rgd,
+void gfs2_free_meta(struct gfs2_ianalde *ip, struct gfs2_rgrpd *rgd,
 		    u64 bstart, u32 blen);
-void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip);
-void gfs2_unlink_di(struct inode *inode);
-int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr,
+void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_ianalde *ip);
+void gfs2_unlink_di(struct ianalde *ianalde);
+int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 anal_addr,
 		        unsigned int type);
 
 struct gfs2_rgrp_list {
@@ -62,7 +62,7 @@ struct gfs2_rgrp_list {
 	struct gfs2_holder *rl_ghs;
 };
 
-void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
+void gfs2_rlist_add(struct gfs2_ianalde *ip, struct gfs2_rgrp_list *rlist,
 		    u64 block);
 void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist,
 		      unsigned int state, u16 flags);
@@ -79,7 +79,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp);
 /* This is how to tell if a reservation is in the rgrp tree: */
 static inline bool gfs2_rs_active(const struct gfs2_blkreserv *rs)
 {
-	return !RB_EMPTY_NODE(&rs->rs_node);
+	return !RB_EMPTY_ANALDE(&rs->rs_analde);
 }
 
 static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
@@ -89,7 +89,7 @@ static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
 	return first <= block && block < last;
 }
 
-void check_and_update_goal(struct gfs2_inode *ip);
+void check_and_update_goal(struct gfs2_ianalde *ip);
 
 void rgrp_lock_local(struct gfs2_rgrpd *rgd);
 void rgrp_unlock_local(struct gfs2_rgrpd *rgd);

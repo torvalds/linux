@@ -17,10 +17,10 @@
 
 /*
  * The struct vmci_datagram_queue_entry is a queue header for the in-kernel VMCI
- * datagram queues. It is allocated in non-paged memory, as the
+ * datagram queues. It is allocated in analn-paged memory, as the
  * content is accessed while holding a spinlock. The pending datagram
  * itself may be allocated from paged memory. We shadow the size of
- * the datagram in the non-paged queue entry as this size is used
+ * the datagram in the analn-paged queue entry as this size is used
  * while holding the same spinlock as above.
  */
 struct vmci_datagram_queue_entry {
@@ -36,7 +36,7 @@ struct vmci_datagram_snd_rcv_info {
 	s32 result;
 };
 
-/* Datagram API for non-public use. */
+/* Datagram API for analn-public use. */
 int vmci_datagram_dispatch(u32 context_id, struct vmci_datagram *dg,
 			   bool from_guest);
 int vmci_datagram_invoke_guest_handler(struct vmci_datagram *dg);

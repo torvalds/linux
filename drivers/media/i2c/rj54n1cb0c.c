@@ -618,7 +618,7 @@ static int rj54n1_get_fmt(struct v4l2_subdev *sd,
 	mf->ycbcr_enc	= V4L2_YCBCR_ENC_601;
 	mf->xfer_func	= V4L2_XFER_FUNC_SRGB;
 	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 	mf->width	= rj54n1->width;
 	mf->height	= rj54n1->height;
 
@@ -628,7 +628,7 @@ static int rj54n1_get_fmt(struct v4l2_subdev *sd,
 /*
  * The actual geometry configuration routine. It scales the input window into
  * the output one, updates the window sizes and returns an error or the resize
- * coefficient on success. Note: we only use the "Fixed Scaling" on this camera.
+ * coefficient on success. Analte: we only use the "Fixed Scaling" on this camera.
  */
 static int rj54n1_sensor_scale(struct v4l2_subdev *sd, s32 *in_w, s32 *in_h,
 			       s32 *out_w, s32 *out_h)
@@ -824,7 +824,7 @@ static int rj54n1_set_clock(struct i2c_client *client)
 
 	/* Enable external clock */
 	ret = reg_write(client, RJ54N1_RESET_STANDBY, E_EXCLK | SOFT_STDBY);
-	/* Leave stand-by. Note: use this when implementing suspend / resume */
+	/* Leave stand-by. Analte: use this when implementing suspend / resume */
 	if (!ret)
 		ret = reg_write(client, RJ54N1_RESET_STANDBY, E_EXCLK);
 
@@ -1002,7 +1002,7 @@ static int rj54n1_set_fmt(struct v4l2_subdev *sd,
 		mf->code = fmt->code;
 	}
 
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 	mf->colorspace	= fmt->colorspace;
 
 	v4l_bound_align_image(&mf->width, 112, RJ54N1_MAX_WIDTH, align,
@@ -1025,7 +1025,7 @@ static int rj54n1_set_fmt(struct v4l2_subdev *sd,
 			return ret;
 	}
 
-	/* RA_SEL_UL is only relevant for raw modes, ignored otherwise. */
+	/* RA_SEL_UL is only relevant for raw modes, iganalred otherwise. */
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 0);
@@ -1117,7 +1117,7 @@ static int rj54n1_set_fmt(struct v4l2_subdev *sd,
 
 	mf->width		= output_w;
 	mf->height		= output_h;
-	mf->field		= V4L2_FIELD_NONE;
+	mf->field		= V4L2_FIELD_ANALNE;
 	mf->colorspace		= fmt->colorspace;
 
 	return 0;
@@ -1274,8 +1274,8 @@ static int rj54n1_video_probe(struct i2c_client *client,
 	data2 = reg_read(client, RJ54N1_DEV_CODE2);
 
 	if (data1 != 0x51 || data2 != 0x10) {
-		ret = -ENODEV;
-		dev_info(&client->dev, "No RJ54N1CB0C found, read 0x%x:0x%x\n",
+		ret = -EANALDEV;
+		dev_info(&client->dev, "Anal RJ54N1CB0C found, read 0x%x:0x%x\n",
 			 data1, data2);
 		goto done;
 	}
@@ -1317,7 +1317,7 @@ static int rj54n1_probe(struct i2c_client *client)
 
 	rj54n1 = devm_kzalloc(&client->dev, sizeof(struct rj54n1), GFP_KERNEL);
 	if (!rj54n1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&rj54n1->subdev, client, &rj54n1_subdev_ops);
 	v4l2_ctrl_handler_init(&rj54n1->hdl, 4);

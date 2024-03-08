@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2002 Integrated Device Technology, Inc.
+ * Copyright 2002 Integrated Device Techanallogy, Inc.
  *	All rights reserved.
  *
  * GPIO register definition.
@@ -33,7 +33,7 @@ struct rb532_gpio_reg {
 			   * istat[x] = (gpiod[x] == level[x])
 			   * cleared in ISR (STICKY bits)
 			   */
-	u32   gpionmien;  /* GPIO Non-maskable Interrupt Enable Register */
+	u32   gpionmien;  /* GPIO Analn-maskable Interrupt Enable Register */
 };
 
 /* UART GPIO signals */

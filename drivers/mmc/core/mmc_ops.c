@@ -80,7 +80,7 @@ int __mmc_send_status(struct mmc_card *card, u32 *status, unsigned int retries)
 	if (err)
 		return err;
 
-	/* NOTE: callers are required to understand the difference
+	/* ANALTE: callers are required to understand the difference
 	 * between "native" and SPI format status words!
 	 */
 	if (status)
@@ -107,7 +107,7 @@ static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	} else {
 		cmd.arg = 0;
-		cmd.flags = MMC_RSP_NONE | MMC_CMD_AC;
+		cmd.flags = MMC_RSP_ANALNE | MMC_CMD_AC;
 	}
 
 	return mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
@@ -139,7 +139,7 @@ int mmc_set_dsr(struct mmc_host *host)
 	cmd.opcode = MMC_SET_DSR;
 
 	cmd.arg = (host->dsr << 16) | 0xffff;
-	cmd.flags = MMC_RSP_NONE | MMC_CMD_AC;
+	cmd.flags = MMC_RSP_ANALNE | MMC_CMD_AC;
 
 	return mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
 }
@@ -150,13 +150,13 @@ int mmc_go_idle(struct mmc_host *host)
 	struct mmc_command cmd = {};
 
 	/*
-	 * Non-SPI hosts need to prevent chipselect going active during
+	 * Analn-SPI hosts need to prevent chipselect going active during
 	 * GO_IDLE; that would put chips into SPI mode.  Remind them of
 	 * that in case of hardware that won't pull up DAT3/nCS otherwise.
 	 *
-	 * SPI hosts ignore ios.chip_select; it's managed according to
-	 * rules that must accommodate non-MMC slaves which this layer
-	 * won't even know about.
+	 * SPI hosts iganalre ios.chip_select; it's managed according to
+	 * rules that must accommodate analn-MMC slaves which this layer
+	 * won't even kanalw about.
 	 */
 	if (!mmc_host_is_spi(host)) {
 		mmc_set_chip_select(host, MMC_CS_HIGH);
@@ -165,7 +165,7 @@ int mmc_go_idle(struct mmc_host *host)
 
 	cmd.opcode = MMC_GO_IDLE_STATE;
 	cmd.arg = 0;
-	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_NONE | MMC_CMD_BC;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_ANALNE | MMC_CMD_BC;
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 
@@ -277,7 +277,7 @@ mmc_send_cxd_native(struct mmc_host *host, u32 arg, u32 *cxd, int opcode)
 }
 
 /*
- * NOTE: void *buf, caller for the buf is required to use DMA-capable
+ * ANALTE: void *buf, caller for the buf is required to use DMA-capable
  * buffer or on-stack buffer (with some overhead in callee).
  */
 int mmc_send_adtc_data(struct mmc_card *card, struct mmc_host *host, u32 opcode,
@@ -294,10 +294,10 @@ int mmc_send_adtc_data(struct mmc_card *card, struct mmc_host *host, u32 opcode,
 	cmd.opcode = opcode;
 	cmd.arg = args;
 
-	/* NOTE HACK:  the MMC_RSP_SPI_R1 is always correct here, but we
+	/* ANALTE HACK:  the MMC_RSP_SPI_R1 is always correct here, but we
 	 * rely on callers to never use this with "native" calls for reading
 	 * CSD or CID.  Native versions of those commands use the R2 type,
-	 * not R1 plus a data block.
+	 * analt R1 plus a data block.
 	 */
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
 
@@ -336,7 +336,7 @@ static int mmc_spi_send_cxd(struct mmc_host *host, u32 *cxd, u32 opcode)
 
 	cxd_tmp = kzalloc(16, GFP_KERNEL);
 	if (!cxd_tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mmc_send_adtc_data(NULL, host, opcode, 0, cxd_tmp, 16);
 	if (ret)
@@ -376,7 +376,7 @@ int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 		return -EINVAL;
 
 	if (!mmc_can_ext_csd(card))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * As the ext_csd is so large and mostly unused, we don't store the
@@ -384,7 +384,7 @@ int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 	 */
 	ext_csd = kzalloc(512, GFP_KERNEL);
 	if (!ext_csd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mmc_send_adtc_data(card, card->host, MMC_SEND_EXT_CSD, 0, ext_csd,
 				512);
@@ -560,9 +560,9 @@ bool mmc_prepare_busy_cmd(struct mmc_host *host, struct mmc_command *cmd,
 {
 	/*
 	 * If the max_busy_timeout of the host is specified, make sure it's
-	 * enough to fit the used timeout_ms. In case it's not, let's instruct
+	 * eanalugh to fit the used timeout_ms. In case it's analt, let's instruct
 	 * the host to avoid HW busy detection, by converting to a R1 response
-	 * instead of a R1B. Note, some hosts requires R1B, which also means
+	 * instead of a R1B. Analte, some hosts requires R1B, which also means
 	 * they are on their own when it comes to deal with the busy timeout.
 	 */
 	if (!(host->caps & MMC_CAP_NEED_RSP_BUSY) && host->max_busy_timeout &&
@@ -628,7 +628,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 
 	/*
 	 * If the host doesn't support HW polling via the ->card_busy() ops and
-	 * when it's not allowed to poll by using CMD13, then we need to rely on
+	 * when it's analt allowed to poll by using CMD13, then we need to rely on
 	 * waiting the stated timeout to be sufficient.
 	 */
 	if (!send_status && !host->ops->card_busy) {
@@ -687,7 +687,7 @@ int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error)
 
 	data_buf = kzalloc(size, GFP_KERNEL);
 	if (!data_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -701,7 +701,7 @@ int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error)
 
 	/*
 	 * According to the tuning specs, Tuning process
-	 * is normally shorter 40 executions of CMD19,
+	 * is analrmally shorter 40 executions of CMD19,
 	 * and timeout value should be shorter than 150 ms
 	 */
 	data.timeout_ns = 150 * NSEC_PER_MSEC;
@@ -740,7 +740,7 @@ int mmc_send_abort_tuning(struct mmc_host *host, u32 opcode)
 
 	/*
 	 * eMMC specification specifies that CMD12 can be used to stop a tuning
-	 * command, but SD specification does not, so do nothing unless it is
+	 * command, but SD specification does analt, so do analthing unless it is
 	 * eMMC.
 	 */
 	if (opcode != MMC_SEND_TUNING_BLOCK_HS200)
@@ -773,12 +773,12 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 	static u8 testdata_8bit[8] = { 0x55, 0xaa, 0, 0, 0, 0, 0, 0 };
 	static u8 testdata_4bit[4] = { 0x5a, 0, 0, 0 };
 
-	/* dma onto stack is unsafe/nonportable, but callers to this
-	 * routine normally provide temporary on-stack buffers ...
+	/* dma onto stack is unsafe/analnportable, but callers to this
+	 * routine analrmally provide temporary on-stack buffers ...
 	 */
 	data_buf = kmalloc(len, GFP_KERNEL);
 	if (!data_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (len == 8)
 		test_buf = testdata_8bit;
@@ -799,10 +799,10 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 	cmd.opcode = opcode;
 	cmd.arg = 0;
 
-	/* NOTE HACK:  the MMC_RSP_SPI_R1 is always correct here, but we
+	/* ANALTE HACK:  the MMC_RSP_SPI_R1 is always correct here, but we
 	 * rely on callers to never use this with "native" calls for reading
 	 * CSD or CID.  Native versions of those commands use the R2 type,
-	 * not R1 plus a data block.
+	 * analt R1 plus a data block.
 	 */
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
 
@@ -845,12 +845,12 @@ int mmc_bus_test(struct mmc_card *card, u8 bus_width)
 	else if (bus_width == MMC_BUS_WIDTH_4)
 		width = 4;
 	else if (bus_width == MMC_BUS_WIDTH_1)
-		return 0; /* no need for test */
+		return 0; /* anal need for test */
 	else
 		return -EINVAL;
 
 	/*
-	 * Ignore errors from BUS_TEST_W.  BUS_TEST_R will fail if there
+	 * Iganalre errors from BUS_TEST_W.  BUS_TEST_R will fail if there
 	 * is a problem.  This improves chances that the test will work.
 	 */
 	mmc_send_bus_test(card, card->host, MMC_BUS_TEST_W, width);
@@ -880,7 +880,7 @@ static int mmc_send_hpi_cmd(struct mmc_card *card)
 		return err;
 	}
 
-	/* No need to poll when using HW busy detection. */
+	/* Anal need to poll when using HW busy detection. */
 	if (host->caps & MMC_CAP_WAIT_WHILE_BUSY && use_r1b_resp)
 		return 0;
 
@@ -917,7 +917,7 @@ static int mmc_interrupt_hpi(struct mmc_card *card)
 	case R1_STATE_STBY:
 	case R1_STATE_TRAN:
 		/*
-		 * In idle and transfer states, HPI is not needed and the caller
+		 * In idle and transfer states, HPI is analt needed and the caller
 		 * can issue the next intended command immediately
 		 */
 		goto out;
@@ -925,7 +925,7 @@ static int mmc_interrupt_hpi(struct mmc_card *card)
 		break;
 	default:
 		/* In all other states, it's illegal to issue HPI */
-		pr_debug("%s: HPI cannot be sent. Card state=%d\n",
+		pr_debug("%s: HPI cananalt be sent. Card state=%d\n",
 			mmc_hostname(card->host), R1_CURRENT_STATE(status));
 		err = -EINVAL;
 		goto out;
@@ -960,7 +960,7 @@ static int mmc_read_bkops_status(struct mmc_card *card)
  *	mmc_run_bkops - Run BKOPS for supported cards
  *	@card: MMC card to run BKOPS for
  *
- *	Run background operations synchronously for cards having manual BKOPS
+ *	Run background operations synchroanalusly for cards having manual BKOPS
  *	enabled and in case it reports urgent BKOPS level.
 */
 void mmc_run_bkops(struct mmc_card *card)
@@ -985,10 +985,10 @@ void mmc_run_bkops(struct mmc_card *card)
 
 	/*
 	 * For urgent BKOPS status, LEVEL_2 and higher, let's execute
-	 * synchronously. Future wise, we may consider to start BKOPS, for less
-	 * urgent levels by using an asynchronous background task, when idle.
+	 * synchroanalusly. Future wise, we may consider to start BKOPS, for less
+	 * urgent levels by using an asynchroanalus background task, when idle.
 	 */
-	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+	err = mmc_switch(card, EXT_CSD_CMD_SET_ANALRMAL,
 			 EXT_CSD_BKOPS_START, 1, MMC_BKOPS_TIMEOUT_MS);
 	/*
 	 * If the BKOPS timed out, the card is probably still busy in the
@@ -1011,9 +1011,9 @@ static int mmc_cmdq_switch(struct mmc_card *card, bool enable)
 	int err;
 
 	if (!card->ext_csd.cmdq_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_CMDQ_MODE_EN,
+	err = mmc_switch(card, EXT_CSD_CMD_SET_ANALRMAL, EXT_CSD_CMDQ_MODE_EN,
 			 val, card->ext_csd.generic_cmd6_time);
 	if (!err)
 		card->ext_csd.cmdq_en = enable;
@@ -1039,8 +1039,8 @@ int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms)
 	int err;
 
 	if (!mmc_can_sanitize(card)) {
-		pr_warn("%s: Sanitize not supported\n", mmc_hostname(host));
-		return -EOPNOTSUPP;
+		pr_warn("%s: Sanitize analt supported\n", mmc_hostname(host));
+		return -EOPANALTSUPP;
 	}
 
 	if (!timeout_ms)
@@ -1050,7 +1050,7 @@ int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms)
 
 	mmc_retune_hold(host);
 
-	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_SANITIZE_START,
+	err = __mmc_switch(card, EXT_CSD_CMD_SET_ANALRMAL, EXT_CSD_SANITIZE_START,
 			   1, timeout_ms, 0, true, false, 0);
 	if (err)
 		pr_err("%s: Sanitize failed err=%d\n", mmc_hostname(host), err);

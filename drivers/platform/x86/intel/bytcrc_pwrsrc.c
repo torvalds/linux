@@ -126,12 +126,12 @@ static int crc_pwrsrc_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = pmic->regmap;
 
 	/*
-	 * Read + clear resetsrc0/1 and wakesrc now, so that they get
+	 * Read + clear resetsrc0/1 and wakesrc analw, so that they get
 	 * cleared even if the debugfs interface is never used.
 	 *
 	 * Properly clearing the wakesrc is important, leaving bit 0 of it

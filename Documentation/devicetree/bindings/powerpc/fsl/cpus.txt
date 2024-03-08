@@ -6,7 +6,7 @@ Power Architecture CPUs in Freescale SOCs are represented in device trees as
 per the definition in the Devicetree Specification.
 
 In addition to the Devicetree Specification definitions, the properties
-defined below may be present on CPU nodes.
+defined below may be present on CPU analdes.
 
 PROPERTIES
 
@@ -15,7 +15,7 @@ PROPERTIES
         Value type: <empty>
         Definition: The EREF (EREF: A Programmer.s Reference Manual for
 	Freescale Power Architecture) defines the architecture for Freescale
-	Power CPUs.  The EREF defines some architecture categories not defined
+	Power CPUs.  The EREF defines some architecture categories analt defined
 	by the Power ISA.  For these EREF-specific categories, the existence of
 	a property named fsl,eref-[CAT], where [CAT] is the abbreviated category
 	name with all uppercase letters converted to lowercase, indicates that
@@ -25,9 +25,9 @@ PROPERTIES
 	Usage: optional
 	Value type: <u32>
 	Definition: The Coherency Subdomain ID Port Mapping Registers and
-	Snoop ID Port Mapping registers, which are part of the CoreNet
+	Sanalop ID Port Mapping registers, which are part of the CoreNet
 	Coherency fabric (CCF), provide a CoreNet Coherency Subdomain
-	ID/CoreNet Snoop ID to cpu mapping functions.  Certain bits from
+	ID/CoreNet Sanalop ID to cpu mapping functions.  Certain bits from
 	these registers should be set if the corresponding CPU should be
-	snooped.  This property defines a bitmask which selects the bit
-	that should be set if this cpu should be snooped.
+	sanaloped.  This property defines a bitmask which selects the bit
+	that should be set if this cpu should be sanaloped.

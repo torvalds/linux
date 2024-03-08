@@ -90,7 +90,7 @@
 #define SP_NEW_AVI_PKT			BIT(1)
 #define SP_NEW_CP_PKT			BIT(0)
 /* Bits for Interrupt Status Register 7 */
-#define SP_NO_VSI			BIT(7)
+#define SP_ANAL_VSI			BIT(7)
 #define SP_NEW_VS			BIT(4)
 
 /* Interrupt Mask 1 Status Registers */

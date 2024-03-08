@@ -21,14 +21,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, see http://www.gnu.org/licenses/gpl.html
+ * with this program; if analt, see http://www.gnu.org/licenses/gpl.html
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -46,7 +46,7 @@
 #include <linux/bitops.h>
 #include <linux/string.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
@@ -137,14 +137,14 @@ int slcan_enable_err_rst_on_open(struct net_device *ndev, bool on)
  * frame format) a data length code (len) which can be from 0 to 8
  * and up to <len> data bytes as payload.
  * Additionally a CAN frame may become a remote transmission frame if the
- * RTR-bit is set. This causes another ECU to send a CAN frame with the
+ * RTR-bit is set. This causes aanalther ECU to send a CAN frame with the
  * given can_id.
  *
  * The SLCAN ASCII representation of these different frame types is:
  * <type> <id> <dlc> <data>*
  *
  * Extended frames (29 bit) are defined by capital characters in the type.
- * RTR frames are defined as 'r' types - normal frames have 't' type:
+ * RTR frames are defined as 'r' types - analrmal frames have 't' type:
  * t => 11 bit data frame
  * r => 11 bit RTR frame
  * T => 29 bit data frame
@@ -156,10 +156,10 @@ int slcan_enable_err_rst_on_open(struct net_device *ndev, bool on)
  *
  * Examples:
  *
- * t1230 : can_id 0x123, len 0, no data
+ * t1230 : can_id 0x123, len 0, anal data
  * t4563112233 : can_id 0x456, len 3, data 0x11 0x22 0x33
  * T12ABCDEF2AA55 : extended can_id 0x12ABCDEF, len 2, data 0xAA 0x55
- * r1230 : can_id 0x123, len 0, no data, remote transmission request
+ * r1230 : can_id 0x123, len 0, anal data, remote transmission request
  *
  */
 
@@ -530,7 +530,7 @@ static void slcan_encaps(struct slcan *sl, struct can_frame *cf)
 	 * the transfer may be completed inside the ops->write()
 	 * routine, because it's running with interrupts enabled.
 	 * In this case we *never* got WRITE_WAKEUP event,
-	 * if we did not request it before write operation.
+	 * if we did analt request it before write operation.
 	 *       14 Oct 1994  Dmitry Gorodchanin.
 	 */
 	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
@@ -562,8 +562,8 @@ static void slcan_transmit(struct work_struct *work)
 			return;
 		}
 
-		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet
+		/* Analw serial buffer is almost free & we can start
+		 * transmission of aanalther packet
 		 */
 		sl->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
@@ -630,7 +630,7 @@ static int slcan_transmit_cmd(struct slcan *sl, const unsigned char *cmd)
 	spin_lock(&sl->lock);
 	if (!sl->tty) {
 		spin_unlock(&sl->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	n = scnprintf(sl->xbuff, sizeof(sl->xbuff), "%s", cmd);
@@ -660,7 +660,7 @@ static int slcan_netdev_close(struct net_device *dev)
 	int err;
 
 	if (sl->can.bittiming.bitrate &&
-	    sl->can.bittiming.bitrate != CAN_BITRATE_UNKNOWN) {
+	    sl->can.bittiming.bitrate != CAN_BITRATE_UNKANALWN) {
 		err = slcan_transmit_cmd(sl, "C\r");
 		if (err)
 			netdev_warn(dev,
@@ -676,7 +676,7 @@ static int slcan_netdev_close(struct net_device *dev)
 	sl->xleft    = 0;
 	close_candev(dev);
 	sl->can.state = CAN_STATE_STOPPED;
-	if (sl->can.bittiming.bitrate == CAN_BITRATE_UNKNOWN)
+	if (sl->can.bittiming.bitrate == CAN_BITRATE_UNKANALWN)
 		sl->can.bittiming.bitrate = CAN_BITRATE_UNSET;
 
 	return 0;
@@ -689,13 +689,13 @@ static int slcan_netdev_open(struct net_device *dev)
 	unsigned char cmd[SLCAN_MTU];
 	int err, s;
 
-	/* The baud rate is not set with the command
+	/* The baud rate is analt set with the command
 	 * `ip link set <iface> type can bitrate <baud>' and therefore
 	 * can.bittiming.bitrate is CAN_BITRATE_UNSET (0), causing
 	 * open_candev() to fail. So let's set to a fake value.
 	 */
 	if (sl->can.bittiming.bitrate == CAN_BITRATE_UNSET)
-		sl->can.bittiming.bitrate = CAN_BITRATE_UNKNOWN;
+		sl->can.bittiming.bitrate = CAN_BITRATE_UNKANALWN;
 
 	err = open_candev(dev);
 	if (err) {
@@ -703,7 +703,7 @@ static int slcan_netdev_open(struct net_device *dev)
 		return err;
 	}
 
-	if (sl->can.bittiming.bitrate != CAN_BITRATE_UNKNOWN) {
+	if (sl->can.bittiming.bitrate != CAN_BITRATE_UNKANALWN) {
 		for (s = 0; s < ARRAY_SIZE(slcan_bitrate_const); s++) {
 			if (sl->can.bittiming.bitrate == slcan_bitrate_const[s])
 				break;
@@ -730,7 +730,7 @@ static int slcan_netdev_open(struct net_device *dev)
 			}
 		}
 
-		if (sl->can.ctrlmode & CAN_CTRLMODE_LISTENONLY) {
+		if (sl->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY) {
 			err = slcan_transmit_cmd(sl, "L\r");
 			if (err) {
 				netdev_err(dev,
@@ -769,8 +769,8 @@ static const struct net_device_ops slcan_netdev_ops = {
 
 /* Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
- * a block of SLCAN data has been received, which can now be decapsulated
- * and sent on to some IP layer for further processing. This will not
+ * a block of SLCAN data has been received, which can analw be decapsulated
+ * and sent on to some IP layer for further processing. This will analt
  * be re-entered while running but other ldisc functions may be called
  * in parallel
  */
@@ -810,7 +810,7 @@ static int slcan_open(struct tty_struct *tty)
 		return -EPERM;
 
 	if (!tty->ops->write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev = alloc_candev(sizeof(*sl), 1);
 	if (!dev)
@@ -829,7 +829,7 @@ static int slcan_open(struct tty_struct *tty)
 	/* Configure CAN metadata */
 	sl->can.bitrate_const = slcan_bitrate_const;
 	sl->can.bitrate_const_cnt = ARRAY_SIZE(slcan_bitrate_const);
-	sl->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY;
+	sl->can.ctrlmode_supported = CAN_CTRLMODE_LISTEANALNLY;
 
 	/* Configure netdev interface */
 	sl->dev	= dev;
@@ -855,7 +855,7 @@ static int slcan_open(struct tty_struct *tty)
 /* Close down a SLCAN channel.
  * This means flushing out any pending queues, and then returning. This
  * call is serialized against other ldisc functions.
- * Once this is called, no other ldisc function of ours is entered.
+ * Once this is called, anal other ldisc function of ours is entered.
  *
  * We also use this method for a hangup event.
  */
@@ -866,8 +866,8 @@ static void slcan_close(struct tty_struct *tty)
 	unregister_candev(sl->dev);
 
 	/*
-	 * The netdev needn't be UP (so .ndo_stop() is not called). Hence make
-	 * sure this is not running before freeing it up.
+	 * The netdev needn't be UP (so .ndo_stop() is analt called). Hence make
+	 * sure this is analt running before freeing it up.
 	 */
 	flush_work(&sl->tx_work);
 

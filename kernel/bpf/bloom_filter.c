@@ -10,7 +10,7 @@
 #include <linux/btf_ids.h>
 
 #define BLOOM_CREATE_FLAG_MASK \
-	(BPF_F_NUMA_NODE | BPF_F_ZERO_SEED | BPF_F_ACCESS_MASK)
+	(BPF_F_NUMA_ANALDE | BPF_F_ZERO_SEED | BPF_F_ACCESS_MASK)
 
 struct bpf_bloom_filter {
 	struct bpf_map map;
@@ -42,7 +42,7 @@ static long bloom_map_peek_elem(struct bpf_map *map, void *value)
 	for (i = 0; i < bloom->nr_hash_funcs; i++) {
 		h = hash(bloom, value, map->value_size, i);
 		if (!test_bit(h, bloom->bitset))
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	return 0;
@@ -67,23 +67,23 @@ static long bloom_map_push_elem(struct bpf_map *map, void *value, u64 flags)
 
 static long bloom_map_pop_elem(struct bpf_map *map, void *value)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static long bloom_map_delete_elem(struct bpf_map *map, void *value)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int bloom_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static struct bpf_map *bloom_map_alloc(union bpf_attr *attr)
 {
 	u32 bitset_bytes, bitset_mask, nr_hash_funcs, nr_bits;
-	int numa_node = bpf_map_attr_numa_node(attr);
+	int numa_analde = bpf_map_attr_numa_analde(attr);
 	struct bpf_bloom_filter *bloom;
 
 	if (attr->key_size != 0 || attr->value_size == 0 ||
@@ -131,10 +131,10 @@ static struct bpf_map *bloom_map_alloc(union bpf_attr *attr)
 	}
 
 	bitset_bytes = roundup(bitset_bytes, sizeof(unsigned long));
-	bloom = bpf_map_area_alloc(sizeof(*bloom) + bitset_bytes, numa_node);
+	bloom = bpf_map_area_alloc(sizeof(*bloom) + bitset_bytes, numa_analde);
 
 	if (!bloom)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bpf_map_init_from_attr(&bloom->map, attr);
 

@@ -1,6 +1,6 @@
 AC97 link bindings
 
-These bindings can be included within any other device node.
+These bindings can be included within any other device analde.
 
 Required properties:
  - pinctrl-names: Has to contain following states to setup the correct

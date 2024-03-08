@@ -24,7 +24,7 @@
 /* Seal indicating CFE's presence, passed to user program. */
 #define CFE_EPTSEAL 0x43464531
 
-#define CFE_MI_RESERVED 0	/* memory is reserved, do not use */
+#define CFE_MI_RESERVED 0	/* memory is reserved, do analt use */
 #define CFE_MI_AVAILABLE 1	/* memory is available */
 
 #define CFE_FLG_WARMSTART     0x00000001
@@ -60,7 +60,7 @@
 #define CFE_FWI_RTLSIM		0x00000040
 
 typedef struct {
-	int64_t fwi_version;		/* major, minor, eco version */
+	int64_t fwi_version;		/* major, mianalr, eco version */
 	int64_t fwi_totalmem;		/* total installed mem */
 	int64_t fwi_flags;		/* various flags */
 	int64_t fwi_boardid;		/* board ID */
@@ -71,7 +71,7 @@ typedef struct {
 
 
 /*
- * Defines and prototypes for functions which take no arguments.
+ * Defines and prototypes for functions which take anal arguments.
  */
 int64_t cfe_getticks(void);
 

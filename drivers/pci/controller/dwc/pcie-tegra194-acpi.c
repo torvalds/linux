@@ -26,7 +26,7 @@ static int tegra194_acpi_init(struct pci_config_window *cfg)
 
 	pcie_ecam = devm_kzalloc(dev, sizeof(*pcie_ecam), GFP_KERNEL);
 	if (!pcie_ecam)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie_ecam->config_base = cfg->win;
 	pcie_ecam->iatu_base = cfg->win + SZ_256K;

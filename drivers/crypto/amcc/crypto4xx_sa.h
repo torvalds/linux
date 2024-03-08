@@ -65,7 +65,7 @@ union dynamic_sa_contents {
 
 #define SA_LOAD_HASH_FROM_SA			0
 #define SA_LOAD_HASH_FROM_STATE			2
-#define SA_NOT_LOAD_HASH			3
+#define SA_ANALT_LOAD_HASH			3
 #define SA_LOAD_IV_FROM_SA			0
 #define SA_LOAD_IV_FROM_INPUT			1
 #define SA_LOAD_IV_FROM_STATE			2
@@ -75,12 +75,12 @@ union dynamic_sa_contents {
 #define SA_PAD_TYPE_ZERO			3
 #define SA_PAD_TYPE_TLS				5
 #define SA_PAD_TYPE_DTLS			5
-#define SA_NOT_SAVE_HASH			0
+#define SA_ANALT_SAVE_HASH			0
 #define SA_SAVE_HASH				1
-#define SA_NOT_SAVE_IV				0
+#define SA_ANALT_SAVE_IV				0
 #define SA_SAVE_IV				1
 #define SA_HEADER_PROC				1
-#define SA_NO_HEADER_PROC			0
+#define SA_ANAL_HEADER_PROC			0
 
 union sa_command_0 {
 	struct {
@@ -111,7 +111,7 @@ union sa_command_0 {
 #define CRYPTO_MODE_CFB				3
 #define CRYPTO_MODE_CTR				4
 
-#define CRYPTO_FEEDBACK_MODE_NO_FB		0
+#define CRYPTO_FEEDBACK_MODE_ANAL_FB		0
 #define CRYPTO_FEEDBACK_MODE_64BIT_OFB		0
 #define CRYPTO_FEEDBACK_MODE_8BIT_CFB		1
 #define CRYPTO_FEEDBACK_MODE_1BIT_CFB		2
@@ -131,11 +131,11 @@ union sa_command_0 {
 #define SA_HASH_MODE_HMAC			1
 #define SA_MC_ENABLE				0
 #define SA_MC_DISABLE				1
-#define SA_NOT_COPY_HDR				0
+#define SA_ANALT_COPY_HDR				0
 #define SA_COPY_HDR				1
-#define SA_NOT_COPY_PAD				0
+#define SA_ANALT_COPY_PAD				0
 #define SA_COPY_PAD				1
-#define SA_NOT_COPY_PAYLOAD			0
+#define SA_ANALT_COPY_PAYLOAD			0
 #define SA_COPY_PAYLOAD				1
 #define SA_EXTENDED_SN_OFF			0
 #define SA_EXTENDED_SN_ON			1

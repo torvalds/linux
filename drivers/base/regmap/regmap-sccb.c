@@ -34,7 +34,7 @@ static bool sccb_is_available(struct i2c_adapter *adap)
  * @val: Pointer to store read value
  *
  * This executes the 2-phase write transmission cycle that is followed by a
- * 2-phase read transmission cycle, returning negative errno else zero on
+ * 2-phase read transmission cycle, returning negative erranal else zero on
  * success.
  */
 static int regmap_sccb_read(void *context, unsigned int reg, unsigned int *val)
@@ -70,7 +70,7 @@ out:
  * @val: Value to be written
  *
  * This executes the SCCB 3-phase write transmission cycle, returning negative
- * errno else zero on success.
+ * erranal else zero on success.
  */
 static int regmap_sccb_write(void *context, unsigned int reg, unsigned int val)
 {
@@ -92,7 +92,7 @@ static const struct regmap_bus *regmap_get_sccb_bus(struct i2c_client *i2c,
 			sccb_is_available(i2c->adapter))
 		return &regmap_sccb_bus;
 
-	return ERR_PTR(-ENOTSUPP);
+	return ERR_PTR(-EANALTSUPP);
 }
 
 struct regmap *__regmap_init_sccb(struct i2c_client *i2c,

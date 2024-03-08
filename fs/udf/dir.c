@@ -17,13 +17,13 @@
  *  11/25/98 blf  Rewrote directory handling (readdir+lookup) to support reading
  *                across blocks.
  *  12/12/98      Split out the lookup code to namei.c. bulk of directory
- *                code now in directory.c:udf_fileident_read.
+ *                code analw in directory.c:udf_fileident_read.
  */
 
 #include "udfdecl.h"
 
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/bio.h>
@@ -34,7 +34,7 @@
 
 static int udf_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *dir = file_inode(file);
+	struct ianalde *dir = file_ianalde(file);
 	loff_t nf_pos, emit_pos = 0;
 	int flen;
 	unsigned char *fname = NULL;
@@ -56,20 +56,20 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 	 * Something changed since last readdir (either lseek was called or dir
 	 * changed)?  We need to verify the position correctly points at the
 	 * beginning of some dir entry so that the directory parsing code does
-	 * not get confused. Since UDF does not have any reliable way of
+	 * analt get confused. Since UDF does analt have any reliable way of
 	 * identifying beginning of dir entry (names are under user control),
 	 * we need to scan the directory from the beginning.
 	 */
-	if (!inode_eq_iversion(dir, file->f_version)) {
+	if (!ianalde_eq_iversion(dir, file->f_version)) {
 		emit_pos = nf_pos;
 		nf_pos = 0;
 	} else {
 		pos_valid = true;
 	}
 
-	fname = kmalloc(UDF_NAME_LEN, GFP_NOFS);
+	fname = kmalloc(UDF_NAME_LEN, GFP_ANALFS);
 	if (!fname) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -79,7 +79,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 		struct kernel_lb_addr tloc;
 		udf_pblk_t iblock;
 
-		/* Still not at offset where user asked us to read from? */
+		/* Still analt at offset where user asked us to read from? */
 		if (iter.pos < emit_pos)
 			continue;
 
@@ -110,7 +110,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 
 		tloc = lelb_to_cpu(iter.fi.icb.extLocation);
 		iblock = udf_get_lb_pblock(sb, &tloc, 0);
-		if (!dir_emit(ctx, fname, flen, iblock, DT_UNKNOWN))
+		if (!dir_emit(ctx, fname, flen, iblock, DT_UNKANALWN))
 			goto out_iter;
 	}
 
@@ -122,7 +122,7 @@ out_iter:
 	udf_fiiter_release(&iter);
 out:
 	if (pos_valid)
-		file->f_version = inode_query_iversion(dir);
+		file->f_version = ianalde_query_iversion(dir);
 	kfree(fname);
 
 	return ret;

@@ -3,7 +3,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_flash.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techanallogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -16,19 +16,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but analt limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
  * DISCLAIMER OF LIABILITY
- * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ * NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -37,7 +37,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -64,7 +64,7 @@ static struct esas2r_sas_nvram default_sas_nvram = {
 	SASNVR2_HEARTBEAT   | SASNVR2_SINGLE_BUS        /* options2           */
 	| SASNVR2_SW_MUX_CTRL,
 	SASNVR_COAL_DIS,                                /* int_coalescing     */
-	SASNVR_CMDTHR_NONE,                             /* cmd_throttle       */
+	SASNVR_CMDTHR_ANALNE,                             /* cmd_throttle       */
 	3,                                              /* dev_wait_time      */
 	1,                                              /* dev_wait_count     */
 	0,                                              /* spin_up_delay      */
@@ -138,7 +138,7 @@ static void esas2r_fmapi_callback(struct esas2r_adapter *a,
 		(struct esas2r_flash_context *)rq->interrupt_cx;
 
 	if (rq->req_stat == RS_SUCCESS) {
-		/* Last request was successful.  See what to do now. */
+		/* Last request was successful.  See what to do analw. */
 		switch (vrq->sub_func) {
 		case VDA_FLASH_BEGINW:
 			if (fc->sgc.cur_offset == NULL)
@@ -202,7 +202,7 @@ static void build_flash_msg(struct esas2r_adapter *a,
 
 	/*
 	 * remember the length we asked for.  we have to keep track of
-	 * the current amount done so we know how much to compare when
+	 * the current amount done so we kanalw how much to compare when
 	 * doing the verification phase.
 	 */
 	fc->curr_len = fc->sgc.length;
@@ -232,7 +232,7 @@ static bool load_image(struct esas2r_adapter *a, struct esas2r_request *rq)
 	 */
 	rq->req_stat = RS_PENDING;
 	if (test_bit(AF_DEGRADED_MODE, &a->flags))
-		/* not supported for now */;
+		/* analt supported for analw */;
 	else
 		build_flash_msg(a, rq);
 
@@ -335,7 +335,7 @@ static void fw_download_proc(struct esas2r_adapter *a,
 		goto error;
 
 	/*
-	 * If an upload just completed and the compare length is non-zero,
+	 * If an upload just completed and the compare length is analn-zero,
 	 * then we just read back part of the image we just wrote.  verify the
 	 * section and continue reading until the entire image is verified.
 	 */
@@ -347,11 +347,11 @@ static void fw_download_proc(struct esas2r_adapter *a,
 		q = (u8 *)fi                    /* start of the whole gob     */
 		    + ch->image_offset          /* start of the current image */
 		    + ch->length                /* end of the current image   */
-		    - fc->cmp_len;              /* where we are now           */
+		    - fc->cmp_len;              /* where we are analw           */
 
 		/*
-		 * NOTE - curr_len is the exact count of bytes for the read
-		 *        even when the end is read and its not a full buffer
+		 * ANALTE - curr_len is the exact count of bytes for the read
+		 *        even when the end is read and its analt a full buffer
 		 */
 		for (len = fc->curr_len; len; len--)
 			if (*p++ != *q++)
@@ -372,7 +372,7 @@ static void fw_download_proc(struct esas2r_adapter *a,
 	/*
 	 * This code uses a 'while' statement since the next component may
 	 * have a length = zero.  This can happen since some components are
-	 * not required.  At the end of this 'while' we set up the length
+	 * analt required.  At the end of this 'while' we set up the length
 	 * for the next request and therefore sgc.length can be = 0.
 	 */
 	while (fc->sgc.length == 0) {
@@ -383,7 +383,7 @@ static void fw_download_proc(struct esas2r_adapter *a,
 			/* the BIOS image is written next */
 			ch = &fi->cmp_hdr[CH_IT_BIOS];
 			if (ch->length == 0)
-				goto no_bios;
+				goto anal_bios;
 
 			fc->task = FMTSK_WRTBIOS;
 			fc->func = VDA_FLASH_BEGINW;
@@ -410,7 +410,7 @@ static void fw_download_proc(struct esas2r_adapter *a,
 			break;
 
 		case FMTSK_READBIOS:
-no_bios:
+anal_bios:
 			/*
 			 * Mark the component header status for the image
 			 * completed
@@ -420,7 +420,7 @@ no_bios:
 			/* The MAC image is written next */
 			ch = &fi->cmp_hdr[CH_IT_MAC];
 			if (ch->length == 0)
-				goto no_mac;
+				goto anal_mac;
 
 			fc->task = FMTSK_WRTMAC;
 			fc->func = VDA_FLASH_BEGINW;
@@ -445,7 +445,7 @@ no_bios:
 			break;
 
 		case FMTSK_READMAC:
-no_mac:
+anal_mac:
 			/*
 			 * Mark the component header status for the image
 			 * completed
@@ -455,7 +455,7 @@ no_mac:
 			/* The EFI image is written next */
 			ch = &fi->cmp_hdr[CH_IT_EFI];
 			if (ch->length == 0)
-				goto no_efi;
+				goto anal_efi;
 
 			fc->task = FMTSK_WRTEFI;
 			fc->func = VDA_FLASH_BEGINW;
@@ -481,7 +481,7 @@ no_mac:
 			break;
 
 		case FMTSK_READEFI:
-no_efi:
+anal_efi:
 			/*
 			 * Mark the component header status for the image
 			 * completed
@@ -492,7 +492,7 @@ no_efi:
 			ch = &fi->cmp_hdr[CH_IT_CFG];
 
 			if (ch->length == 0)
-				goto no_cfg;
+				goto anal_cfg;
 			fc->task = FMTSK_WRTCFG;
 			fc->func = VDA_FLASH_BEGINW;
 			fc->comp_typ = CH_IT_CFG;
@@ -515,7 +515,7 @@ no_efi:
 			break;
 
 		case FMTSK_READCFG:
-no_cfg:
+anal_cfg:
 			/*
 			 * Mark the component header status for the image
 			 * completed
@@ -790,7 +790,7 @@ static bool verify_fi(struct esas2r_adapter *a,
 
 		default:
 
-			fi->status = FI_STAT_UNKNOWN;
+			fi->status = FI_STAT_UNKANALWN;
 			return false;
 		}
 
@@ -943,7 +943,7 @@ static bool esas2r_flash_access(struct esas2r_adapter *a, u32 function)
 	/* Issue the request to the firmware */
 	esas2r_write_register_dword(a, MU_DOORBELL_IN, function);
 
-	/* Now wait for the firmware to process it */
+	/* Analw wait for the firmware to process it */
 	starttime = jiffies_to_msecs(jiffies);
 
 	if (test_bit(AF_CHPRST_PENDING, &a->flags) ||
@@ -970,7 +970,7 @@ static bool esas2r_flash_access(struct esas2r_adapter *a, u32 function)
 		if ((jiffies_to_msecs(jiffies) - starttime) > timeout) {
 			/*
 			 * Iimeout.  If we were requesting flash access,
-			 * indicate we are done so the firmware knows we gave
+			 * indicate we are done so the firmware kanalws we gave
 			 * up.  If this was a REQ, we also need to re-enable
 			 * chip interrupts.
 			 */
@@ -1088,7 +1088,7 @@ bool esas2r_print_flash_rev(struct esas2r_adapter *a)
 	    || month > 12
 	    || year < 2006
 	    || year > 9999) {
-		strcpy(a->flash_rev, "not found");
+		strcpy(a->flash_rev, "analt found");
 		a->flash_ver = 0;
 		return false;
 	}
@@ -1178,7 +1178,7 @@ bool esas2r_read_image_type(struct esas2r_adapter *a)
 	}
 
 invalid_rev:
-	strcpy(a->image_type, "no boot images");
+	strcpy(a->image_type, "anal boot images");
 	return false;
 }
 
@@ -1215,7 +1215,7 @@ static void esas2r_nvram_callback(struct esas2r_adapter *a,
 	struct atto_vda_flash_req *vrq = &rq->vrq->flash;
 
 	if (rq->req_stat == RS_SUCCESS) {
-		/* last request was successful.  see what to do now. */
+		/* last request was successful.  see what to do analw. */
 
 		switch (vrq->sub_func) {
 		case VDA_FLASH_BEGINW:
@@ -1355,7 +1355,7 @@ bool esas2r_nvram_validate(struct esas2r_adapter *a)
 }
 
 /*
- * Set the cached NVRAM to defaults.  note that this function sets the default
+ * Set the cached NVRAM to defaults.  analte that this function sets the default
  * NVRAM when it has been determined that the physical NVRAM is invalid.
  * In this case, the SAS address is fabricated.
  */
@@ -1449,7 +1449,7 @@ bool esas2r_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi,
 		/* Disable the heartbeat */
 		esas2r_disable_heartbeat(a);
 
-		/* Now start up the download sequence */
+		/* Analw start up the download sequence */
 		fc->task = FMTSK_ERASE_BOOT;
 		fc->func = VDA_FLASH_BEGINW;
 		fc->comp_typ = CH_IT_CFG;

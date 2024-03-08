@@ -11,7 +11,7 @@
  *  http://netsrv.csc.ncsu.edu/export/bitcp.pdf
  *
  * Unless BIC is enabled and congestion window is large
- * this behaves the same as the original Reno.
+ * this behaves the same as the original Reanal.
  */
 
 #include <linux/mm.h>
@@ -92,7 +92,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	if (ca->epoch_start == 0) /* record the beginning of an epoch */
 		ca->epoch_start = tcp_jiffies32;
 
-	/* start off normal */
+	/* start off analrmal */
 	if (cwnd <= low_window) {
 		ca->cnt = cwnd;
 		return;
@@ -133,7 +133,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	}
 
 	ca->cnt = (ca->cnt << ACK_RATIO_SHIFT) / ca->delayed_ack;
-	if (ca->cnt == 0)			/* cannot be zero */
+	if (ca->cnt == 0)			/* cananalt be zero */
 		ca->cnt = 1;
 }
 
@@ -155,7 +155,7 @@ static void bictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 }
 
 /*
- *	behave like Reno until low_window is reached,
+ *	behave like Reanal until low_window is reached,
  *	then increase congestion window slowly
  */
 static u32 bictcp_recalc_ssthresh(struct sock *sk)
@@ -184,7 +184,7 @@ static void bictcp_state(struct sock *sk, u8 new_state)
 		bictcp_reset(inet_csk_ca(sk));
 }
 
-/* Track delayed acknowledgment ratio using sliding window
+/* Track delayed ackanalwledgment ratio using sliding window
  * ratio = (15*ratio + sample) / 16
  */
 static void bictcp_acked(struct sock *sk, const struct ack_sample *sample)
@@ -204,7 +204,7 @@ static struct tcp_congestion_ops bictcp __read_mostly = {
 	.ssthresh	= bictcp_recalc_ssthresh,
 	.cong_avoid	= bictcp_cong_avoid,
 	.set_state	= bictcp_state,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.undo_cwnd	= tcp_reanal_undo_cwnd,
 	.pkts_acked     = bictcp_acked,
 	.owner		= THIS_MODULE,
 	.name		= "bic",

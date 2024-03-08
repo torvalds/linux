@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -142,9 +142,9 @@
 		CPL_TX_SEC_PDU_AUTHSTOP_V((a_stop)) | \
 		CPL_TX_SEC_PDU_AUTHINSERT_V((a_inst)))
 
-#define  FILL_SEC_CPL_SCMD0_SEQNO(ctrl, seq, cmode, amode, opad, size)  \
+#define  FILL_SEC_CPL_SCMD0_SEQANAL(ctrl, seq, cmode, amode, opad, size)  \
 		htonl( \
-		SCMD_SEQ_NO_CTRL_V(0) | \
+		SCMD_SEQ_ANAL_CTRL_V(0) | \
 		SCMD_STATUS_PRESENT_V(0) | \
 		SCMD_PROTO_VERSION_V(CHCR_SCMD_PROTO_VERSION_GENERIC) | \
 		SCMD_ENC_DEC_CTRL_V((ctrl)) | \
@@ -199,7 +199,7 @@
 			FW_CRYPTO_LOOKASIDE_WR_RX_CHID_V((cid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_RX_Q_ID_V((qid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_LCB_V((lcb)) | \
-			FW_CRYPTO_LOOKASIDE_WR_IV_V((IV_NOP)) | \
+			FW_CRYPTO_LOOKASIDE_WR_IV_V((IV_ANALP)) | \
 			FW_CRYPTO_LOOKASIDE_WR_FQIDX_V(fid))
 
 #define FILL_ULPTX_CMD_DEST(cid, qid) \

@@ -236,7 +236,7 @@ static int snd_aw2_create(struct snd_card *card,
 
 	if (devm_request_irq(&pci->dev, pci->irq, snd_aw2_saa7146_interrupt,
 			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
-		dev_err(card->dev, "Cannot grab irq %d\n", pci->irq);
+		dev_err(card->dev, "Cananalt grab irq %d\n", pci->irq);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
@@ -257,12 +257,12 @@ static int snd_aw2_probe(struct pci_dev *pci,
 	struct aw2 *chip;
 	int err;
 
-	/* (1) Continue if device is not enabled, else inc dev */
+	/* (1) Continue if device is analt enabled, else inc dev */
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* (2) Create card instance */

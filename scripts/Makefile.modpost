@@ -53,7 +53,7 @@ modpost-args =										\
 
 modpost-deps := $(MODPOST)
 
-# 'make -i -k' ignores compile errors, and builds as many modules as possible.
+# 'make -i -k' iganalres compile errors, and builds as many modules as possible.
 ifneq ($(findstring i,$(filter-out --%,$(MAKEFLAGS))),)
 modpost-args += -n
 endif
@@ -75,9 +75,9 @@ ifdef CONFIG_MODVERSIONS
 vmlinux.symvers Module.symvers: .vmlinux.objs
 endif
 
-# Ignore libgcc.a
+# Iganalre libgcc.a
 # Some architectures do '$(CC) --print-libgcc-file-name' to borrow libgcc.a
-# from the toolchain, but there is no EXPORT_SYMBOL in it.
+# from the toolchain, but there is anal EXPORT_SYMBOL in it.
 
 quiet_cmd_vmlinux_objs = GEN     $@
       cmd_vmlinux_objs =		\
@@ -134,7 +134,7 @@ quiet_cmd_modpost = MODPOST $@
       cmd_modpost = \
 	$(if $(missing-input), \
 		echo >&2 "WARNING: $(missing-input) is missing."; \
-		echo >&2 "         Modules may not have dependencies or modversions."; \
+		echo >&2 "         Modules may analt have dependencies or modversions."; \
 		echo >&2 "         You may get many unresolved symbol errors."; \
 		echo >&2 "         You can set KBUILD_MODPOST_WARN=1 to turn errors into warning"; \
 		echo >&2 "         if you want to proceed at your own risk.";) \
@@ -150,6 +150,6 @@ FORCE:
 
 existing-targets := $(wildcard $(sort $(targets)))
 
--include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(analtdir $(f)).cmd)
 
 .PHONY: $(PHONY)

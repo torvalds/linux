@@ -34,7 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -48,14 +48,14 @@
 
 /* Module parameters */
 
-static int node;
+static int analde;
 static char device[9];		/* use eg. device="arc1" to change name */
 static int timeout = 3;
 static int backplane;
 static int clockp;
 static int clockm;
 
-module_param(node, int, 0);
+module_param(analde, int, 0);
 module_param_string(device, device, sizeof(device), 0);
 module_param(timeout, int, 0);
 module_param(backplane, int, 0);
@@ -136,7 +136,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct com20020_priv),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ci = (struct com20020_pci_card_info *)id->driver_data;
 	if (!ci)
@@ -168,7 +168,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		dev = alloc_arcdev(device);
 		if (!dev) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 		dev->dev_port = i;
@@ -177,7 +177,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		lp = netdev_priv(dev);
 
-		arc_printk(D_NORMAL, dev, "%s Controls\n", ci->name);
+		arc_printk(D_ANALRMAL, dev, "%s Controls\n", ci->name);
 		ioaddr = pci_resource_start(pdev, cm->bar) + cm->offset;
 
 		r = devm_request_region(&pdev->dev, ioaddr, cm->size,
@@ -198,7 +198,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		SET_NETDEV_DEV(dev, &pdev->dev);
 		dev->base_addr = ioaddr;
-		arcnet_set_addr(dev, node);
+		arcnet_set_addr(dev, analde);
 		dev->sysfs_groups[0] = &com20020_state_group;
 		dev->irq = pdev->irq;
 		lp->card_name = "PCI COM20020";
@@ -239,7 +239,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 		card = devm_kzalloc(&pdev->dev, sizeof(struct com20020_dev),
 				    GFP_KERNEL);
 		if (!card) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_arcdev;
 		}
 
@@ -605,7 +605,7 @@ static struct pci_driver com20020pci_driver = {
 
 static int __init com20020pci_init(void)
 {
-	if (BUGLVL(D_NORMAL))
+	if (BUGLVL(D_ANALRMAL))
 		pr_info("%s\n", "COM20020 PCI support");
 	return pci_register_driver(&com20020pci_driver);
 }

@@ -101,7 +101,7 @@ static void *map_paste_region(struct pnv_vas_window *txwin)
 
 free_name:
 	kfree(name);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void *map_mmio_region(char *name, u64 start, int len)
@@ -150,8 +150,8 @@ static void unmap_paste_region(struct pnv_vas_window *window)
 /*
  * Unmap the MMIO regions for a window. Hold the vas_mutex so we don't
  * unmap when the window's debugfs dir is in use. This serializes close
- * of a window even on another VAS instance but since its not a critical
- * path, just minimize the time we hold the mutex for now. We can add
+ * of a window even on aanalther VAS instance but since its analt a critical
+ * path, just minimize the time we hold the mutex for analw. We can add
  * a per-instance mutex later if necessary.
  */
 static void unmap_winctx_mmio_bars(struct pnv_vas_window *window)
@@ -210,9 +210,9 @@ static int map_winctx_mmio_bars(struct pnv_vas_window *window)
  * Reset all valid registers in the HV and OS/User Window Contexts for
  * the window identified by @window.
  *
- * NOTE: We cannot really use a for loop to reset window context. Not all
+ * ANALTE: We cananalt really use a for loop to reset window context. Analt all
  *	 offsets in a window context are valid registers and the valid
- *	 registers are not sequential. And, we can only write to offsets
+ *	 registers are analt sequential. And, we can only write to offsets
  *	 with valid registers.
  */
 static void reset_window_regs(struct pnv_vas_window *window)
@@ -233,7 +233,7 @@ static void reset_window_regs(struct pnv_vas_window *window)
 	write_hvwc_reg(window, VREG(LDMA_CACHE_CTL), 0ULL);
 	write_hvwc_reg(window, VREG(LRFIFO_PUSH), 0ULL);
 	write_hvwc_reg(window, VREG(CURR_MSG_COUNT), 0ULL);
-	write_hvwc_reg(window, VREG(LNOTIFY_AFTER_COUNT), 0ULL);
+	write_hvwc_reg(window, VREG(LANALTIFY_AFTER_COUNT), 0ULL);
 	write_hvwc_reg(window, VREG(LRX_WCRED), 0ULL);
 	write_hvwc_reg(window, VREG(LRX_WCRED_ADDER), 0ULL);
 	write_hvwc_reg(window, VREG(TX_WCRED), 0ULL);
@@ -244,11 +244,11 @@ static void reset_window_regs(struct pnv_vas_window *window)
 	write_hvwc_reg(window, VREG(WIN_CTX_CACHING_CTL), 0ULL);
 	write_hvwc_reg(window, VREG(TX_RSVD_BUF_COUNT), 0ULL);
 	write_hvwc_reg(window, VREG(LRFIFO_WIN_PTR), 0ULL);
-	write_hvwc_reg(window, VREG(LNOTIFY_CTL), 0ULL);
-	write_hvwc_reg(window, VREG(LNOTIFY_PID), 0ULL);
-	write_hvwc_reg(window, VREG(LNOTIFY_LPID), 0ULL);
-	write_hvwc_reg(window, VREG(LNOTIFY_TID), 0ULL);
-	write_hvwc_reg(window, VREG(LNOTIFY_SCOPE), 0ULL);
+	write_hvwc_reg(window, VREG(LANALTIFY_CTL), 0ULL);
+	write_hvwc_reg(window, VREG(LANALTIFY_PID), 0ULL);
+	write_hvwc_reg(window, VREG(LANALTIFY_LPID), 0ULL);
+	write_hvwc_reg(window, VREG(LANALTIFY_TID), 0ULL);
+	write_hvwc_reg(window, VREG(LANALTIFY_SCOPE), 0ULL);
 	write_hvwc_reg(window, VREG(NX_UTIL_ADDER), 0ULL);
 
 	/* Skip read-only registers: NX_UTIL and NX_UTIL_SE */
@@ -291,10 +291,10 @@ static void init_xlate_regs(struct pnv_vas_window *window, bool user_win)
 	lpcr = mfspr(SPRN_LPCR);
 	val = 0ULL;
 	/*
-	 * NOTE: From Section 5.7.8.1 Segment Lookaside Buffer of the
+	 * ANALTE: From Section 5.7.8.1 Segment Lookaside Buffer of the
 	 *	 Power ISA, v3.0B, Page size encoding is 0 = 4KB, 5 = 64KB.
 	 *
-	 * NOTE: From Section 1.3.1, Address Translation Context of the
+	 * ANALTE: From Section 1.3.1, Address Translation Context of the
 	 *	 Nest MMU Workbook, LPCR_SC should be 0 for Power9.
 	 */
 	val = SET_FIELD(VAS_XLATE_LPCR_PAGE_SIZE, val, 5);
@@ -329,12 +329,12 @@ static void init_xlate_regs(struct pnv_vas_window *window, bool user_win)
 /*
  * Initialize Reserved Send Buffer Count for the send window. It involves
  * writing to the register, reading it back to confirm that the hardware
- * has enough buffers to reserve. See section 1.3.1.2.1 of VAS workbook.
+ * has eanalugh buffers to reserve. See section 1.3.1.2.1 of VAS workbook.
  *
  * Since we can only make a best-effort attempt to fulfill the request,
- * we don't return any errors if we cannot.
+ * we don't return any errors if we cananalt.
  *
- * TODO: Reserved (aka dedicated) send buffers are not supported yet.
+ * TODO: Reserved (aka dedicated) send buffers are analt supported yet.
  */
 static void init_rsvd_tx_buf_count(struct pnv_vas_window *txwin,
 				struct vas_winctx *winctx)
@@ -350,13 +350,13 @@ static void init_rsvd_tx_buf_count(struct pnv_vas_window *txwin,
  *	Cache Register Details) of the VAS workbook although they don't need
  *	to be.
  *
- * Design note: For NX receive windows, NX allocates the FIFO buffer in OPAL
+ * Design analte: For NX receive windows, NX allocates the FIFO buffer in OPAL
  *	(so that it can get a large contiguous area) and passes that buffer
- *	to kernel via device tree. We now write that buffer address to the
+ *	to kernel via device tree. We analw write that buffer address to the
  *	FIFO BAR. Would it make sense to do this all in OPAL? i.e have OPAL
  *	write the per-chip RX FIFO addresses to the windows during boot-up
  *	as a one-time task? That could work for NX but what about other
- *	receivers?  Let the receivers tell us the rx-fifo buffers for now.
+ *	receivers?  Let the receivers tell us the rx-fifo buffers for analw.
  */
 static void init_winctx_regs(struct pnv_vas_window *window,
 			     struct vas_winctx *winctx)
@@ -396,13 +396,13 @@ static void init_winctx_regs(struct pnv_vas_window *window,
 	write_hvwc_reg(window, VREG(SPARE3), 0ULL);
 
 	/*
-	 * NOTE: VAS expects the FIFO address to be copied into the LFIFO_BAR
-	 *	 register as is - do NOT shift the address into VAS_LFIFO_BAR
+	 * ANALTE: VAS expects the FIFO address to be copied into the LFIFO_BAR
+	 *	 register as is - do ANALT shift the address into VAS_LFIFO_BAR
 	 *	 bit fields! Ok to set the page migration select fields -
-	 *	 VAS ignores the lower 10+ bits in the address anyway, because
+	 *	 VAS iganalres the lower 10+ bits in the address anyway, because
 	 *	 the minimum FIFO size is 1K?
 	 *
-	 * See also: Design note in function header.
+	 * See also: Design analte in function header.
 	 */
 	val = winctx->rx_fifo;
 	val = SET_FIELD(VAS_PAGE_MIGRATION_SELECT, val, 0);
@@ -419,7 +419,7 @@ static void init_winctx_regs(struct pnv_vas_window *window,
 
 	write_hvwc_reg(window, VREG(LRFIFO_PUSH), 0ULL);
 	write_hvwc_reg(window, VREG(CURR_MSG_COUNT), 0ULL);
-	write_hvwc_reg(window, VREG(LNOTIFY_AFTER_COUNT), 0ULL);
+	write_hvwc_reg(window, VREG(LANALTIFY_AFTER_COUNT), 0ULL);
 
 	val = 0ULL;
 	val = SET_FIELD(VAS_LRX_WCRED, val, winctx->wcreds_max);
@@ -455,28 +455,28 @@ static void init_winctx_regs(struct pnv_vas_window *window,
 	write_hvwc_reg(window, VREG(SPARE4), 0ULL);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_NOTIFY_DISABLE, val, winctx->notify_disable);
+	val = SET_FIELD(VAS_ANALTIFY_DISABLE, val, winctx->analtify_disable);
 	val = SET_FIELD(VAS_INTR_DISABLE, val, winctx->intr_disable);
-	val = SET_FIELD(VAS_NOTIFY_EARLY, val, winctx->notify_early);
-	val = SET_FIELD(VAS_NOTIFY_OSU_INTR, val, winctx->notify_os_intr_reg);
-	write_hvwc_reg(window, VREG(LNOTIFY_CTL), val);
+	val = SET_FIELD(VAS_ANALTIFY_EARLY, val, winctx->analtify_early);
+	val = SET_FIELD(VAS_ANALTIFY_OSU_INTR, val, winctx->analtify_os_intr_reg);
+	write_hvwc_reg(window, VREG(LANALTIFY_CTL), val);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_LNOTIFY_PID, val, winctx->lnotify_pid);
-	write_hvwc_reg(window, VREG(LNOTIFY_PID), val);
+	val = SET_FIELD(VAS_LANALTIFY_PID, val, winctx->lanaltify_pid);
+	write_hvwc_reg(window, VREG(LANALTIFY_PID), val);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_LNOTIFY_LPID, val, winctx->lnotify_lpid);
-	write_hvwc_reg(window, VREG(LNOTIFY_LPID), val);
+	val = SET_FIELD(VAS_LANALTIFY_LPID, val, winctx->lanaltify_lpid);
+	write_hvwc_reg(window, VREG(LANALTIFY_LPID), val);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_LNOTIFY_TID, val, winctx->lnotify_tid);
-	write_hvwc_reg(window, VREG(LNOTIFY_TID), val);
+	val = SET_FIELD(VAS_LANALTIFY_TID, val, winctx->lanaltify_tid);
+	write_hvwc_reg(window, VREG(LANALTIFY_TID), val);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_LNOTIFY_MIN_SCOPE, val, winctx->min_scope);
-	val = SET_FIELD(VAS_LNOTIFY_MAX_SCOPE, val, winctx->max_scope);
-	write_hvwc_reg(window, VREG(LNOTIFY_SCOPE), val);
+	val = SET_FIELD(VAS_LANALTIFY_MIN_SCOPE, val, winctx->min_scope);
+	val = SET_FIELD(VAS_LANALTIFY_MAX_SCOPE, val, winctx->max_scope);
+	write_hvwc_reg(window, VREG(LANALTIFY_SCOPE), val);
 
 	/* Skip read-only registers NX_UTIL and NX_UTIL_SE */
 
@@ -491,7 +491,7 @@ static void init_winctx_regs(struct pnv_vas_window *window,
 
 	/* ... mark the window open for business */
 	val = 0ULL;
-	val = SET_FIELD(VAS_WINCTL_REJ_NO_CREDIT, val, winctx->rej_no_credit);
+	val = SET_FIELD(VAS_WINCTL_REJ_ANAL_CREDIT, val, winctx->rej_anal_credit);
 	val = SET_FIELD(VAS_WINCTL_PIN, val, winctx->pin_win);
 	val = SET_FIELD(VAS_WINCTL_TX_WCRED_MODE, val, winctx->tx_wcred_mode);
 	val = SET_FIELD(VAS_WINCTL_RX_WCRED_MODE, val, winctx->rx_wcred_mode);
@@ -512,7 +512,7 @@ static int vas_assign_window_id(struct ida *ida)
 {
 	int winid = ida_alloc_max(ida, VAS_WINDOWS_PER_CHIP - 1, GFP_KERNEL);
 
-	if (winid == -ENOSPC) {
+	if (winid == -EANALSPC) {
 		pr_err("Too many (%d) open windows\n", VAS_WINDOWS_PER_CHIP);
 		return -EAGAIN;
 	}
@@ -560,12 +560,12 @@ static struct pnv_vas_window *vas_window_alloc(struct vas_instance *vinst)
 out_free:
 	kfree(window);
 	vas_release_window_id(&vinst->ida, winid);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void put_rx_win(struct pnv_vas_window *rxwin)
 {
-	/* Better not be a send window! */
+	/* Better analt be a send window! */
 	WARN_ON_ONCE(rxwin->tx_win);
 
 	atomic_dec(&rxwin->num_txwins);
@@ -577,7 +577,7 @@ static void put_rx_win(struct pnv_vas_window *rxwin)
  *        (so both send and receive windows are on the same VAS instance)
  *      - The window must refer to an OPEN, FTW, RECEIVE window.
  *
- * NOTE: We access ->windows[] table and assume that vinst->mutex is held.
+ * ANALTE: We access ->windows[] table and assume that vinst->mutex is held.
  */
 static struct pnv_vas_window *get_user_rxwin(struct vas_instance *vinst,
 					     u32 pswid)
@@ -688,14 +688,14 @@ static void init_winctx_for_rxwin(struct pnv_vas_window *rxwin,
 			struct vas_winctx *winctx)
 {
 	/*
-	 * We first zero (memset()) all fields and only set non-zero fields.
+	 * We first zero (memset()) all fields and only set analn-zero fields.
 	 * Following fields are 0/false but maybe deserve a comment:
 	 *
-	 *	->notify_os_intr_reg	In powerNV, send intrs to HV
-	 *	->notify_disable	False for NX windows
+	 *	->analtify_os_intr_reg	In powerNV, send intrs to HV
+	 *	->analtify_disable	False for NX windows
 	 *	->intr_disable		False for Fault Windows
 	 *	->xtra_write		False for NX windows
-	 *	->notify_early		NA for NX windows
+	 *	->analtify_early		NA for NX windows
 	 *	->rsvd_txbuf_count	NA for Rx windows
 	 *	->lpid, ->pid, ->tid	NA for Rx windows
 	 */
@@ -710,12 +710,12 @@ static void init_winctx_for_rxwin(struct pnv_vas_window *rxwin,
 	winctx->nx_win = rxattr->nx_win;
 	winctx->fault_win = rxattr->fault_win;
 	winctx->user_win = rxattr->user_win;
-	winctx->rej_no_credit = rxattr->rej_no_credit;
+	winctx->rej_anal_credit = rxattr->rej_anal_credit;
 	winctx->rx_word_mode = rxattr->rx_win_ord_mode;
 	winctx->tx_word_mode = rxattr->tx_win_ord_mode;
 	winctx->rx_wcred_mode = rxattr->rx_wcred_mode;
 	winctx->tx_wcred_mode = rxattr->tx_wcred_mode;
-	winctx->notify_early = rxattr->notify_early;
+	winctx->analtify_early = rxattr->analtify_early;
 
 	if (winctx->nx_win) {
 		winctx->data_stamp = true;
@@ -725,9 +725,9 @@ static void init_winctx_for_rxwin(struct pnv_vas_window *rxwin,
 		WARN_ON_ONCE(winctx->fault_win);
 		WARN_ON_ONCE(!winctx->rx_word_mode);
 		WARN_ON_ONCE(!winctx->tx_word_mode);
-		WARN_ON_ONCE(winctx->notify_after_count);
+		WARN_ON_ONCE(winctx->analtify_after_count);
 	} else if (winctx->fault_win) {
-		winctx->notify_disable = true;
+		winctx->analtify_disable = true;
 	} else if (winctx->user_win) {
 		/*
 		 * Section 1.8.1 Low Latency Core-Core Wake up of
@@ -735,16 +735,16 @@ static void init_winctx_for_rxwin(struct pnv_vas_window *rxwin,
 		 *
 		 *      - disable credit checks ([tr]x_wcred_mode = false)
 		 *      - disable FIFO writes
-		 *      - enable ASB_Notify, disable interrupt
+		 *      - enable ASB_Analtify, disable interrupt
 		 */
 		winctx->fifo_disable = true;
 		winctx->intr_disable = true;
 		winctx->rx_fifo = 0;
 	}
 
-	winctx->lnotify_lpid = rxattr->lnotify_lpid;
-	winctx->lnotify_pid = rxattr->lnotify_pid;
-	winctx->lnotify_tid = rxattr->lnotify_tid;
+	winctx->lanaltify_lpid = rxattr->lanaltify_lpid;
+	winctx->lanaltify_pid = rxattr->lanaltify_pid;
+	winctx->lanaltify_tid = rxattr->lanaltify_tid;
 	winctx->pswid = rxattr->pswid;
 	winctx->dma_type = VAS_DMA_TYPE_INJECT;
 	winctx->tc_mode = rxattr->tc_mode;
@@ -758,9 +758,9 @@ static void init_winctx_for_rxwin(struct pnv_vas_window *rxwin,
 static bool rx_win_args_valid(enum vas_cop_type cop,
 			struct vas_rx_win_attr *attr)
 {
-	pr_debug("Rxattr: fault %d, notify %d, intr %d, early %d, fifo %d\n",
-			attr->fault_win, attr->notify_disable,
-			attr->intr_disable, attr->notify_early,
+	pr_debug("Rxattr: fault %d, analtify %d, intr %d, early %d, fifo %d\n",
+			attr->fault_win, attr->analtify_disable,
+			attr->intr_disable, attr->analtify_early,
 			attr->rx_fifo_size);
 
 	if (cop >= VAS_COP_TYPE_MAX)
@@ -777,26 +777,26 @@ static bool rx_win_args_valid(enum vas_cop_type cop,
 		return false;
 
 	if (attr->nx_win) {
-		/* cannot be fault or user window if it is nx */
+		/* cananalt be fault or user window if it is nx */
 		if (attr->fault_win || attr->user_win)
 			return false;
 		/*
-		 * Section 3.1.4.32: NX Windows must not disable notification,
-		 *	and must not enable interrupts or early notification.
+		 * Section 3.1.4.32: NX Windows must analt disable analtification,
+		 *	and must analt enable interrupts or early analtification.
 		 */
-		if (attr->notify_disable || !attr->intr_disable ||
-				attr->notify_early)
+		if (attr->analtify_disable || !attr->intr_disable ||
+				attr->analtify_early)
 			return false;
 	} else if (attr->fault_win) {
-		/* cannot be both fault and user window */
+		/* cananalt be both fault and user window */
 		if (attr->user_win)
 			return false;
 
 		/*
-		 * Section 3.1.4.32: Fault windows must disable notification
-		 *	but not interrupts.
+		 * Section 3.1.4.32: Fault windows must disable analtification
+		 *	but analt interrupts.
 		 */
-		if (!attr->notify_disable || attr->intr_disable)
+		if (!attr->analtify_disable || attr->intr_disable)
 			return false;
 
 	} else if (attr->user_win) {
@@ -831,17 +831,17 @@ void vas_init_rx_win_attr(struct vas_rx_win_attr *rxattr, enum vas_cop_type cop)
 	} else if (cop == VAS_COP_TYPE_FAULT) {
 		rxattr->pin_win = true;
 		rxattr->fault_win = true;
-		rxattr->notify_disable = true;
+		rxattr->analtify_disable = true;
 		rxattr->rx_wcred_mode = true;
 		rxattr->rx_win_ord_mode = true;
-		rxattr->rej_no_credit = true;
+		rxattr->rej_anal_credit = true;
 		rxattr->tc_mode = VAS_THRESH_DISABLED;
 	} else if (cop == VAS_COP_TYPE_FTW) {
 		rxattr->user_win = true;
 		rxattr->intr_disable = true;
 
 		/*
-		 * As noted in the VAS Workbook we disable credit checks.
+		 * As analted in the VAS Workbook we disable credit checks.
 		 * If we enable credit checks in the future, we must also
 		 * implement a mechanism to return the user credits or new
 		 * paste operations will fail.
@@ -864,7 +864,7 @@ struct vas_window *vas_rx_win_open(int vasid, enum vas_cop_type cop,
 
 	vinst = find_vas_instance(vasid);
 	if (!vinst) {
-		pr_devel("vasid %d not found!\n", vasid);
+		pr_devel("vasid %d analt found!\n", vasid);
 		return ERR_PTR(-EINVAL);
 	}
 	pr_devel("Found instance %d\n", vasid);
@@ -896,7 +896,7 @@ void vas_init_tx_win_attr(struct vas_tx_win_attr *txattr, enum vas_cop_type cop)
 
 	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI ||
 		cop == VAS_COP_TYPE_GZIP || cop == VAS_COP_TYPE_GZIP_HIPRI) {
-		txattr->rej_no_credit = false;
+		txattr->rej_anal_credit = false;
 		txattr->rx_wcred_mode = true;
 		txattr->tx_wcred_mode = true;
 		txattr->rx_win_ord_mode = true;
@@ -912,19 +912,19 @@ static void init_winctx_for_txwin(struct pnv_vas_window *txwin,
 			struct vas_winctx *winctx)
 {
 	/*
-	 * We first zero all fields and only set non-zero ones. Following
+	 * We first zero all fields and only set analn-zero ones. Following
 	 * are some fields set to 0/false for the stated reason:
 	 *
-	 *	->notify_os_intr_reg	In powernv, send intrs to HV
-	 *	->rsvd_txbuf_count	Not supported yet.
-	 *	->notify_disable	False for NX windows
+	 *	->analtify_os_intr_reg	In powernv, send intrs to HV
+	 *	->rsvd_txbuf_count	Analt supported yet.
+	 *	->analtify_disable	False for NX windows
 	 *	->xtra_write		False for NX windows
-	 *	->notify_early		NA for NX windows
-	 *	->lnotify_lpid		NA for Tx windows
-	 *	->lnotify_pid		NA for Tx windows
-	 *	->lnotify_tid		NA for Tx windows
-	 *	->tx_win_cred_mode	Ignore for now for NX windows
-	 *	->rx_win_cred_mode	Ignore for now for NX windows
+	 *	->analtify_early		NA for NX windows
+	 *	->lanaltify_lpid		NA for Tx windows
+	 *	->lanaltify_pid		NA for Tx windows
+	 *	->lanaltify_tid		NA for Tx windows
+	 *	->tx_win_cred_mode	Iganalre for analw for NX windows
+	 *	->rx_win_cred_mode	Iganalre for analw for NX windows
 	 */
 	memset(winctx, 0, sizeof(struct vas_winctx));
 
@@ -933,7 +933,7 @@ static void init_winctx_for_txwin(struct pnv_vas_window *txwin,
 	winctx->user_win = txattr->user_win;
 	winctx->nx_win = txwin->rxwin->nx_win;
 	winctx->pin_win = txattr->pin_win;
-	winctx->rej_no_credit = txattr->rej_no_credit;
+	winctx->rej_anal_credit = txattr->rej_anal_credit;
 	winctx->rsvd_txbuf_enable = txattr->rsvd_txbuf_enable;
 
 	winctx->rx_wcred_mode = txattr->rx_wcred_mode;
@@ -1007,7 +1007,7 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 		return ERR_PTR(-EINVAL);
 
 	/*
-	 * If caller did not specify a vasid but specified the PSWID of a
+	 * If caller did analt specify a vasid but specified the PSWID of a
 	 * receive window (applicable only to FTW windows), use the vasid
 	 * from that receive window.
 	 */
@@ -1016,13 +1016,13 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 
 	vinst = find_vas_instance(vasid);
 	if (!vinst) {
-		pr_devel("vasid %d not found!\n", vasid);
+		pr_devel("vasid %d analt found!\n", vasid);
 		return ERR_PTR(-EINVAL);
 	}
 
 	rxwin = get_vinst_rxwin(vinst, cop, attr->pswid);
 	if (IS_ERR(rxwin)) {
-		pr_devel("No RxWin for vasid %d, cop %d\n", vasid, cop);
+		pr_devel("Anal RxWin for vasid %d, cop %d\n", vasid, cop);
 		return (struct vas_window *)rxwin;
 	}
 
@@ -1048,7 +1048,7 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 	 * kernel's address space. For user windows, user must issue an
 	 * mmap() to map the window into their address space.
 	 *
-	 * NOTE: If kernel ever resubmits a user CRB after handling a page
+	 * ANALTE: If kernel ever resubmits a user CRB after handling a page
 	 *	 fault, we will need to map this into kernel as well.
 	 */
 	if (!txwin->user_win) {
@@ -1060,11 +1060,11 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 	} else {
 		/*
 		 * Interrupt hanlder or fault window setup failed. Means
-		 * NX can not generate fault for page fault. So not
+		 * NX can analt generate fault for page fault. So analt
 		 * opening for user space tx window.
 		 */
 		if (!vinst->virq) {
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto free_window;
 		}
 		rc = get_vas_user_win_ref(&txwin->vas_win.task_ref);
@@ -1106,7 +1106,7 @@ int vas_paste_crb(struct vas_window *vwin, int offset, bool re)
 	trace_vas_paste_crb(current, txwin);
 
 	/*
-	 * Only NX windows are supported for now and hardware assumes
+	 * Only NX windows are supported for analw and hardware assumes
 	 * report-enable flag is set for NX windows. Ensure software
 	 * complies too.
 	 */
@@ -1124,7 +1124,7 @@ int vas_paste_crb(struct vas_window *vwin, int offset, bool re)
 
 	/*
 	 * Map the raw CR value from vas_paste() to an error code (there
-	 * is just pass or fail for now though).
+	 * is just pass or fail for analw though).
 	 */
 	rc = vas_paste(addr, offset);
 	if (rc == 2)
@@ -1143,12 +1143,12 @@ EXPORT_SYMBOL_GPL(vas_paste_crb);
  * If credit checking is enabled for this window, poll for the return
  * of window credits (i.e for NX engines to process any outstanding CRBs).
  * Since NX-842 waits for the CRBs to be processed before closing the
- * window, we should not have to wait for too long.
+ * window, we should analt have to wait for too long.
  *
- * TODO: We retry in 10ms intervals now. We could/should probably peek at
+ * TODO: We retry in 10ms intervals analw. We could/should probably peek at
  *	the VAS_LRFIFO_PUSH_OFFSET register to get an estimate of pending
  *	CRBs on the FIFO and compute the delay dynamically on each retry.
- *	But that is not really needed until we support NX-GZIP access from
+ *	But that is analt really needed until we support NX-GZIP access from
  *	user space. (NX-842 driver waits for CSB and Fast thread-wakeup
  *	doesn't use credit checking).
  */
@@ -1188,7 +1188,7 @@ retry:
 		schedule_timeout(msecs_to_jiffies(10));
 		count++;
 		/*
-		 * Process can not close send window until all credits are
+		 * Process can analt close send window until all credits are
 		 * returned.
 		 */
 		if (!(count % 1000))
@@ -1202,8 +1202,8 @@ retry:
 }
 
 /*
- * Wait for the window to go to "not-busy" state. It should only take a
- * short time to queue a CRB, so window should not be busy for too long.
+ * Wait for the window to go to "analt-busy" state. It should only take a
+ * short time to queue a CRB, so window should analt be busy for too long.
  * Trying 5ms intervals.
  */
 static void poll_window_busy_state(struct pnv_vas_window *window)
@@ -1237,25 +1237,25 @@ retry:
  * Have the hardware cast a window out of cache and wait for it to
  * be completed.
  *
- * NOTE: It can take a relatively long time to cast the window context
- *	out of the cache. It is not strictly necessary to cast out if:
+ * ANALTE: It can take a relatively long time to cast the window context
+ *	out of the cache. It is analt strictly necessary to cast out if:
  *
  *	- we clear the "Pin Window" bit (so hardware is free to evict)
  *
  *	- we re-initialize the window context when it is reassigned.
  *
  *	We do the former in vas_win_close() and latter in vas_win_open().
- *	So, ignoring the cast-out for now. We can add it as needed. If
+ *	So, iganalring the cast-out for analw. We can add it as needed. If
  *	casting out becomes necessary we should consider offloading the
  *	job to a worker thread, so the window close can proceed quickly.
  */
 static void poll_window_castout(struct pnv_vas_window *window)
 {
-	/* stub for now */
+	/* stub for analw */
 }
 
 /*
- * Unpin and close a window so no new requests are accepted and the
+ * Unpin and close a window so anal new requests are accepted and the
  * hardware can evict this window from cache if necessary.
  */
 static void unpin_close_window(struct pnv_vas_window *window)
@@ -1328,8 +1328,8 @@ EXPORT_SYMBOL_GPL(vas_win_close);
  *
  * Send windows:
  * - The default number of credits available for each send window is
- *   1024. It means 1024 requests can be issued asynchronously at the
- *   same time. If the credit is not available, that request will be
+ *   1024. It means 1024 requests can be issued asynchroanalusly at the
+ *   same time. If the credit is analt available, that request will be
  *   returned with RMA_Busy.
  * - One credit is taken when NX request is issued.
  * - This credit is returned after NX processed that request.
@@ -1338,7 +1338,7 @@ EXPORT_SYMBOL_GPL(vas_win_close);
  *
  * Fault window:
  * - The total number credits available is FIFO_SIZE/CRB_SIZE.
- *   Means 4MB/128 in the current implementation. If credit is not
+ *   Means 4MB/128 in the current implementation. If credit is analt
  *   available, RMA_Reject is returned.
  * - A credit is taken when NX pastes CRB in fault FIFO.
  * - The kernel with return credit on fault window after reading entry
@@ -1380,21 +1380,21 @@ struct pnv_vas_window *vas_pswid_to_window(struct vas_instance *vinst,
 	 * for the pending requests. so the window must be active
 	 * and the process alive.
 	 *
-	 * If its a kernel process, we should not get any faults and
-	 * should not get here.
+	 * If its a kernel process, we should analt get any faults and
+	 * should analt get here.
 	 */
 	window = vinst->windows[winid];
 
 	if (!window) {
-		pr_err("PSWID decode: Could not find window for winid %d pswid %d vinst 0x%p\n",
+		pr_err("PSWID decode: Could analt find window for winid %d pswid %d vinst 0x%p\n",
 			winid, pswid, vinst);
 		return NULL;
 	}
 
 	/*
 	 * Do some sanity checks on the decoded window.  Window should be
-	 * NX GZIP user send window. FTW windows should not incur faults
-	 * since their CRBs are ignored (not queued on FIFO or processed
+	 * NX GZIP user send window. FTW windows should analt incur faults
+	 * since their CRBs are iganalred (analt queued on FIFO or processed
 	 * by NX).
 	 */
 	if (!window->tx_win || !window->user_win || !window->nx_win ||
@@ -1453,7 +1453,7 @@ static const struct vas_user_win_ops vops =  {
 };
 
 /*
- * Supporting only nx-gzip coprocessor type now, but this API code
+ * Supporting only nx-gzip coprocessor type analw, but this API code
  * extended to other coprocessor types later.
  */
 int vas_register_api_powernv(struct module *mod, enum vas_cop_type cop_type,

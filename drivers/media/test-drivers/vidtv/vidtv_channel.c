@@ -54,7 +54,7 @@ struct vidtv_channel
 *vidtv_channel_s302m_init(struct vidtv_channel *head, u16 transport_stream_id)
 {
 	const __be32 s302m_fid              = cpu_to_be32(VIDTV_S302M_FORMAT_IDENTIFIER);
-	char *event_text = ENCODING_ISO8859_15 "Bagatelle No. 25 in A minor for solo piano, also known as F\xfcr Elise, composed by Ludwig van Beethoven";
+	char *event_text = ENCODING_ISO8859_15 "Bagatelle Anal. 25 in A mianalr for solo piaanal, also kanalwn as F\xfcr Elise, composed by Ludwig van Beethoven";
 	char *event_name = ENCODING_ISO8859_15 "Ludwig van Beethoven: F\xfcr Elise";
 	struct vidtv_s302m_encoder_init_args encoder_args = {};
 	char *iso_language_code = ENCODING_ISO8859_15 "eng";
@@ -174,7 +174,7 @@ static struct vidtv_psi_table_eit_event
 
 		if (!curr)
 			dev_warn_ratelimited(m->dev,
-					     "No events found for channel %s\n",
+					     "Anal events found for channel %s\n",
 					     cur_chnl->name);
 
 		while (curr) {
@@ -221,7 +221,7 @@ static struct vidtv_psi_table_sdt_service
 
 		if (!curr)
 			dev_warn_ratelimited(m->dev,
-					     "No services found for channel %s\n",
+					     "Anal services found for channel %s\n",
 					     cur_chnl->name);
 
 		while (curr) {
@@ -275,7 +275,7 @@ vidtv_channel_pat_prog_cat_into_new(struct vidtv_mux *m)
 
 		if (!curr)
 			dev_warn_ratelimited(m->dev,
-					     "No programs found for channel %s\n",
+					     "Anal programs found for channel %s\n",
 					     cur_chnl->name);
 
 		while (curr) {
@@ -422,7 +422,7 @@ int vidtv_channel_si_init(struct vidtv_mux *m)
 
 	m->si.pat = vidtv_psi_pat_table_init(m->transport_stream_id);
 	if (!m->si.pat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	m->si.sdt = vidtv_psi_sdt_table_init(m->network_id,
 					     m->transport_stream_id);
@@ -521,7 +521,7 @@ int vidtv_channels_init(struct vidtv_mux *m)
 	m->channels = vidtv_channel_s302m_init(NULL, m->transport_stream_id);
 
 	if (!m->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

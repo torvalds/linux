@@ -22,14 +22,14 @@
 #define JFS_SUPER_MAGIC 0x3153464a /* "JFS1" */
 
 /*
- * JFS-private inode information
+ * JFS-private ianalde information
  */
-struct jfs_inode_info {
+struct jfs_ianalde_info {
 	int	fileset;	/* fileset number (always 16)*/
 	uint	mode2;		/* jfs-specific mode		*/
 	kuid_t	saved_uid;	/* saved for uid mount option */
 	kgid_t	saved_gid;	/* saved for gid mount option */
-	pxd_t	ixpxd;		/* inode extent descriptor	*/
+	pxd_t	ixpxd;		/* ianalde extent descriptor	*/
 	dxd_t	acl;		/* dxd describing acl	*/
 	dxd_t	ea;		/* dxd describing ea	*/
 	time64_t otime;		/* time created	*/
@@ -37,28 +37,28 @@ struct jfs_inode_info {
 	int	acltype;	/* Type of ACL	*/
 	short	btorder;	/* access order	*/
 	short	btindex;	/* btpage entry index*/
-	struct inode *ipimap;	/* inode map			*/
+	struct ianalde *ipimap;	/* ianalde map			*/
 	unsigned long cflag;	/* commit flags		*/
 	u64	agstart;	/* agstart of the containing IAG */
 	u16	bxflag;		/* xflag of pseudo buffer?	*/
 	unchar	pad;
 	signed char active_ag;	/* ag currently allocating from	*/
 	lid_t	blid;		/* lid of pseudo buffer?	*/
-	lid_t	atlhead;	/* anonymous tlock list head	*/
-	lid_t	atltail;	/* anonymous tlock list tail	*/
+	lid_t	atlhead;	/* aanalnymous tlock list head	*/
+	lid_t	atltail;	/* aanalnymous tlock list tail	*/
 	spinlock_t ag_lock;	/* protects active_ag		*/
-	struct list_head anon_inode_list; /* inodes having anonymous txns */
+	struct list_head aanaln_ianalde_list; /* ianaldes having aanalnymous txns */
 	/*
 	 * rdwrlock serializes xtree between reads & writes and synchronizes
-	 * changes to special inodes.  It's use would be redundant on
+	 * changes to special ianaldes.  It's use would be redundant on
 	 * directories since the i_mutex taken in the VFS is sufficient.
 	 */
 	struct rw_semaphore rdwrlock;
 	/*
-	 * commit_mutex serializes transaction processing on an inode.
+	 * commit_mutex serializes transaction processing on an ianalde.
 	 * It must be taken after beginning a transaction (txBegin), since
-	 * dirty inodes may be committed while a new transaction on the
-	 * inode is blocked in txBegin or TxBeginAnon
+	 * dirty ianaldes may be committed while a new transaction on the
+	 * ianalde is blocked in txBegin or TxBeginAanaln
 	 */
 	struct mutex commit_mutex;
 	/* xattr_sem allows us to access the xattrs without taking i_mutex */
@@ -67,7 +67,7 @@ struct jfs_inode_info {
 	union {
 		struct {
 			xtroot_t _xtroot;	/* 288: xtree root */
-			struct inomap *_imap;	/* 4: inode map header	*/
+			struct ianalmap *_imap;	/* 4: ianalde map header	*/
 		} file;
 		struct {
 			struct dir_table_slot _table[12]; /* 96: dir index */
@@ -95,7 +95,7 @@ struct jfs_inode_info {
 	struct dquot *i_dquot[MAXQUOTAS];
 #endif
 	u32 dev;	/* will die when we get wide dev_t */
-	struct inode	vfs_inode;
+	struct ianalde	vfs_ianalde;
 };
 #define i_xtroot u.file._xtroot
 #define i_imap u.file._imap
@@ -116,12 +116,12 @@ struct jfs_inode_info {
  * cflag
  */
 enum cflags {
-	COMMIT_Nolink,		/* inode committed with zero link count */
-	COMMIT_Inlineea,	/* commit inode inline EA */
+	COMMIT_Anallink,		/* ianalde committed with zero link count */
+	COMMIT_Inlineea,	/* commit ianalde inline EA */
 	COMMIT_Freewmap,	/* free WMAP at iClose() */
-	COMMIT_Dirty,		/* Inode is really dirty */
+	COMMIT_Dirty,		/* Ianalde is really dirty */
 	COMMIT_Dirtable,	/* commit changes to di_dirtable */
-	COMMIT_Stale,		/* data extent is no longer valid */
+	COMMIT_Stale,		/* data extent is anal longer valid */
 	COMMIT_Synclist,	/* metadata pages on group commit synclist */
 };
 
@@ -133,17 +133,17 @@ enum commit_mutex_class
 	COMMIT_MUTEX_PARENT,
 	COMMIT_MUTEX_CHILD,
 	COMMIT_MUTEX_SECOND_PARENT,	/* Renaming */
-	COMMIT_MUTEX_VICTIM		/* Inode being unlinked due to rename */
+	COMMIT_MUTEX_VICTIM		/* Ianalde being unlinked due to rename */
 };
 
 /*
  * rdwrlock subclasses:
- * The dmap inode may be locked while a normal inode or the imap inode are
+ * The dmap ianalde may be locked while a analrmal ianalde or the imap ianalde are
  * locked.
  */
 enum rdwrlock_class
 {
-	RDWRLOCK_NORMAL,
+	RDWRLOCK_ANALRMAL,
 	RDWRLOCK_IMAP,
 	RDWRLOCK_DMAP
 };
@@ -159,17 +159,17 @@ enum rdwrlock_class
 struct jfs_sb_info {
 	struct super_block *sb;		/* Point back to vfs super block */
 	unsigned long	mntflag;	/* aggregate attributes	*/
-	struct inode	*ipbmap;	/* block map inode		*/
-	struct inode	*ipaimap;	/* aggregate inode map inode	*/
-	struct inode	*ipaimap2;	/* secondary aimap inode	*/
-	struct inode	*ipimap;	/* aggregate inode map inode	*/
+	struct ianalde	*ipbmap;	/* block map ianalde		*/
+	struct ianalde	*ipaimap;	/* aggregate ianalde map ianalde	*/
+	struct ianalde	*ipaimap2;	/* secondary aimap ianalde	*/
+	struct ianalde	*ipimap;	/* aggregate ianalde map ianalde	*/
 	struct jfs_log	*log;		/* log			*/
 	struct list_head log_list;	/* volumes associated with a journal */
 	short		bsize;		/* logical block size	*/
 	short		l2bsize;	/* log2 logical block size	*/
 	short		nbperpage;	/* blocks per page		*/
 	short		l2nbperpage;	/* log2 blocks per page	*/
-	short		l2niperblk;	/* log2 inodes per page	*/
+	short		l2niperblk;	/* log2 ianaldes per page	*/
 	dev_t		logdev;		/* external log device	*/
 	uint		aggregate;	/* volume identifier in log record */
 	pxd_t		logpxd;		/* pxd describing log	*/
@@ -183,16 +183,16 @@ struct jfs_sb_info {
 	 */
 	int		commit_state;	/* commit state */
 	/* Formerly in ipimap */
-	uint		gengen;		/* inode generation generator*/
-	uint		inostamp;	/* shows inode belongs to fileset*/
+	uint		gengen;		/* ianalde generation generator*/
+	uint		ianalstamp;	/* shows ianalde belongs to fileset*/
 
 	/* Formerly in ipbmap */
 	struct bmap	*bmap;		/* incore bmap descriptor	*/
 	struct nls_table *nls_tab;	/* current codepage		*/
-	struct inode *direct_inode;	/* metadata inode */
+	struct ianalde *direct_ianalde;	/* metadata ianalde */
 	uint		state;		/* mount/recovery state	*/
 	unsigned long	flag;		/* mount time flags */
-	uint		p_state;	/* state prior to going no integrity */
+	uint		p_state;	/* state prior to going anal integrity */
 	kuid_t		uid;		/* uid to override on-disk uid */
 	kgid_t		gid;		/* gid to override on-disk gid */
 	uint		umask;		/* umask to override on-disk umask */
@@ -202,14 +202,14 @@ struct jfs_sb_info {
 /* jfs_sb_info commit_state */
 #define IN_LAZYCOMMIT 1
 
-static inline struct jfs_inode_info *JFS_IP(struct inode *inode)
+static inline struct jfs_ianalde_info *JFS_IP(struct ianalde *ianalde)
 {
-	return container_of(inode, struct jfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct jfs_ianalde_info, vfs_ianalde);
 }
 
-static inline int jfs_dirtable_inline(struct inode *inode)
+static inline int jfs_dirtable_inline(struct ianalde *ianalde)
 {
-	return (JFS_IP(inode)->next_index <= (MAX_INLINE_DIRTABLE_ENTRY + 1));
+	return (JFS_IP(ianalde)->next_index <= (MAX_INLINE_DIRTABLE_ENTRY + 1));
 }
 
 static inline struct jfs_sb_info *JFS_SBI(struct super_block *sb)
@@ -217,9 +217,9 @@ static inline struct jfs_sb_info *JFS_SBI(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline int isReadOnly(struct inode *inode)
+static inline int isReadOnly(struct ianalde *ianalde)
 {
-	if (JFS_SBI(inode->i_sb)->log)
+	if (JFS_SBI(ianalde->i_sb)->log)
 		return 0;
 	return 1;
 }

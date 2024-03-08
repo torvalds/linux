@@ -2,7 +2,7 @@
  /*
     tda9840 - i2c-driver for the tda9840 by SGS Thomson
 
-    Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 1998-2003 Michael Huanalld <michael@mihu.de>
     Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
 
     The tda9840 is a stereo/dual sound processor with digital
@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huanalld <michael@mihu.de>");
 MODULE_DESCRIPTION("tda9840 driver");
 MODULE_LICENSE("GPL");
 
@@ -35,7 +35,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define	TEST		0x04
 
 #define TDA9840_SET_MUTE                0x00
-#define TDA9840_SET_MONO                0x10
+#define TDA9840_SET_MOANAL                0x10
 #define TDA9840_SET_STEREO              0x2a
 #define TDA9840_SET_LANG1               0x12
 #define TDA9840_SET_LANG2               0x1e
@@ -87,11 +87,11 @@ static int tda9840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *t)
 		return -EINVAL;
 
 	stat = stat < 0 ? 0 : stat;
-	if (stat == 0 || stat == 0x60) /* mono input */
-		byte = TDA9840_SET_MONO;
+	if (stat == 0 || stat == 0x60) /* moanal input */
+		byte = TDA9840_SET_MOANAL;
 	else if (stat == 0x40) /* stereo input */
-		byte = (t->audmode == V4L2_TUNER_MODE_MONO) ?
-			TDA9840_SET_MONO : TDA9840_SET_STEREO;
+		byte = (t->audmode == V4L2_TUNER_MODE_MOANAL) ?
+			TDA9840_SET_MOANAL : TDA9840_SET_STEREO;
 	else { /* bilingual */
 		switch (t->audmode) {
 		case V4L2_TUNER_MODE_LANG1_LANG2:
@@ -117,20 +117,20 @@ static int tda9840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
 	if (stat < 0)
 		return stat;
 
-	t->rxsubchans = V4L2_TUNER_SUB_MONO;
+	t->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 
 	switch (stat & 0x60) {
 	case 0x00:
-		t->rxsubchans = V4L2_TUNER_SUB_MONO;
+		t->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 		break;
 	case 0x20:
 		t->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 		break;
 	case 0x40:
-		t->rxsubchans = V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_MONO;
+		t->rxsubchans = V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_MOANAL;
 		break;
 	default: /* Incorrect detect */
-		t->rxsubchans = V4L2_TUNER_MODE_MONO;
+		t->rxsubchans = V4L2_TUNER_MODE_MOANAL;
 		break;
 	}
 	return 0;
@@ -164,7 +164,7 @@ static int tda9840_probe(struct i2c_client *client)
 
 	sd = devm_kzalloc(&client->dev, sizeof(*sd), GFP_KERNEL);
 	if (sd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	v4l2_i2c_subdev_init(sd, client, &tda9840_ops);
 
 	/* set initial values for level & stereo - adjustment, mode */

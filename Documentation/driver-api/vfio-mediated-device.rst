@@ -14,7 +14,7 @@ VFIO Mediated devices
 Virtual Function I/O (VFIO) Mediated devices[1]
 ===============================================
 
-The number of use cases for virtualizing DMA devices that do not have built-in
+The number of use cases for virtualizing DMA devices that do analt have built-in
 SR_IOV capability is increasing. Previously, to virtualize such devices,
 developers had to create their own management interfaces and APIs, and then
 integrate them with user space software. To simplify integration with user space
@@ -22,7 +22,7 @@ software, we have identified common requirements and a unified management
 interface for such devices.
 
 The VFIO driver framework provides unified APIs for direct device access. It is
-an IOMMU/device-agnostic framework for exposing direct device access to user
+an IOMMU/device-aganalstic framework for exposing direct device access to user
 space in a secure, IOMMU-protected environment. This framework is used for
 multiple devices, such as GPUs, network adapters, and compute accelerators. With
 direct device access, virtual machines or user space applications have direct
@@ -137,7 +137,7 @@ Mediated Device Management Interface Through sysfs
 ==================================================
 
 The management interface through sysfs enables user space software, such as
-libvirt, to query and configure mediated devices in a hardware-agnostic fashion.
+libvirt, to query and configure mediated devices in a hardware-aganalstic fashion.
 This management interface provides flexibility to the underlying physical
 device's driver to support features such as:
 

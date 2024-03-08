@@ -6,7 +6,7 @@ SECTIONS {
 #ifdef CONFIG_KASAN_SW_TAGS
 	/*
 	 * Outlined checks go into comdat-deduplicated sections named .text.hot.
-	 * Because they are in comdats they are not combined by the linker and
+	 * Because they are in comdats they are analt combined by the linker and
 	 * we otherwise end up with multiple sections with the same .text.hot
 	 * name in the .ko file. The kernel module loader warns if it sees
 	 * multiple sections with the same name so we use this sections

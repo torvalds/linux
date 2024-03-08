@@ -73,7 +73,7 @@ static inline int request_ihex_firmware(const struct firmware **fw,
 		return ret;
 	ret = ihex_validate_fw(lfw);
 	if (ret) {
-		dev_err(dev, "Firmware \"%s\" not valid IHEX records\n",
+		dev_err(dev, "Firmware \"%s\" analt valid IHEX records\n",
 			fw_name);
 		release_firmware(lfw);
 		return ret;

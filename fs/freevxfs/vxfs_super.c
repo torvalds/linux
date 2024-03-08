@@ -22,14 +22,14 @@
 #include "vxfs.h"
 #include "vxfs_extern.h"
 #include "vxfs_dir.h"
-#include "vxfs_inode.h"
+#include "vxfs_ianalde.h"
 
 
 MODULE_AUTHOR("Christoph Hellwig, Krzysztof Blaszkowski");
 MODULE_DESCRIPTION("Veritas Filesystem (VxFS) driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static struct kmem_cache *vxfs_inode_cachep;
+static struct kmem_cache *vxfs_ianalde_cachep;
 
 /**
  * vxfs_put_super - free superblock resources
@@ -66,9 +66,9 @@ vxfs_put_super(struct super_block *sbp)
  *   Zero.
  *
  * Locking:
- *   No locks held.
+ *   Anal locks held.
  *
- * Notes:
+ * Analtes:
  *   This is everything but complete...
  */
 static int
@@ -98,26 +98,26 @@ static int vxfs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct inode *vxfs_alloc_inode(struct super_block *sb)
+static struct ianalde *vxfs_alloc_ianalde(struct super_block *sb)
 {
-	struct vxfs_inode_info *vi;
+	struct vxfs_ianalde_info *vi;
 
-	vi = alloc_inode_sb(sb, vxfs_inode_cachep, GFP_KERNEL);
+	vi = alloc_ianalde_sb(sb, vxfs_ianalde_cachep, GFP_KERNEL);
 	if (!vi)
 		return NULL;
-	inode_init_once(&vi->vfs_inode);
-	return &vi->vfs_inode;
+	ianalde_init_once(&vi->vfs_ianalde);
+	return &vi->vfs_ianalde;
 }
 
-static void vxfs_free_inode(struct inode *inode)
+static void vxfs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(vxfs_inode_cachep, VXFS_INO(inode));
+	kmem_cache_free(vxfs_ianalde_cachep, VXFS_IANAL(ianalde));
 }
 
 static const struct super_operations vxfs_super_ops = {
-	.alloc_inode		= vxfs_alloc_inode,
-	.free_inode		= vxfs_free_inode,
-	.evict_inode		= vxfs_evict_inode,
+	.alloc_ianalde		= vxfs_alloc_ianalde,
+	.free_ianalde		= vxfs_free_ianalde,
+	.evict_ianalde		= vxfs_evict_ianalde,
 	.put_super		= vxfs_put_super,
 	.statfs			= vxfs_statfs,
 	.remount_fs		= vxfs_remount,
@@ -129,7 +129,7 @@ static int vxfs_try_sb_magic(struct super_block *sbp, int silent,
 	struct buffer_head *bp;
 	struct vxfs_sb *rsbp;
 	struct vxfs_sb_info *infp = VXFS_SBI(sbp);
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	bp = sb_bread(sbp, blk);
 	do {
@@ -146,7 +146,7 @@ static int vxfs_try_sb_magic(struct super_block *sbp, int silent,
 		rsbp = (struct vxfs_sb *)bp->b_data;
 		if (rsbp->vs_magic != magic) {
 			if (!silent)
-				printk(KERN_NOTICE
+				printk(KERN_ANALTICE
 					"vxfs: WRONG superblock magic %08x at %u\n",
 					rsbp->vs_magic, blk);
 			break;
@@ -170,7 +170,7 @@ static int vxfs_try_sb_magic(struct super_block *sbp, int silent,
  * vxfs_fill_super - read superblock into memory and initialize filesystem
  * @sbp:		VFS superblock (to fill)
  * @dp:			fs private mount data
- * @silent:		do not complain loudly when sth is wrong
+ * @silent:		do analt complain loudly when sth is wrong
  *
  * Description:
  *   We are called on the first mount of a filesystem to read the
@@ -187,7 +187,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	struct vxfs_sb_info	*infp;
 	struct vxfs_sb		*rsbp;
 	u_long			bsize;
-	struct inode *root;
+	struct ianalde *root;
 	int ret = -EINVAL;
 	u32 j;
 
@@ -196,7 +196,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	infp = kzalloc(sizeof(*infp), GFP_KERNEL);
 	if (!infp) {
 		printk(KERN_WARNING "vxfs: unable to allocate incore superblock\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bsize = sb_min_blocksize(sbp, BLOCK_SIZE);
@@ -220,18 +220,18 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 		infp->byte_order = VXFS_BO_BE;
 	} else {
 		if (!silent)
-			printk(KERN_NOTICE "vxfs: can't find superblock.\n");
+			printk(KERN_ANALTICE "vxfs: can't find superblock.\n");
 		goto out;
 	}
 
 	rsbp = infp->vsi_raw;
 	j = fs32_to_cpu(infp, rsbp->vs_version);
 	if ((j < 2 || j > 4) && !silent) {
-		printk(KERN_NOTICE "vxfs: unsupported VxFS version (%d)\n", j);
+		printk(KERN_ANALTICE "vxfs: unsupported VxFS version (%d)\n", j);
 		goto out;
 	}
 
-#ifdef DIAGNOSTIC
+#ifdef DIAGANALSTIC
 	printk(KERN_DEBUG "vxfs: supported VxFS version (%d)\n", j);
 	printk(KERN_DEBUG "vxfs: blocksize: %d\n",
 		fs32_to_cpu(infp, rsbp->vs_bsize));
@@ -258,7 +258,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 		goto out;
 	}
 
-	root = vxfs_iget(sbp, VXFS_ROOT_INO);
+	root = vxfs_iget(sbp, VXFS_ROOT_IANAL);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out;
@@ -305,18 +305,18 @@ vxfs_init(void)
 {
 	int rv;
 
-	vxfs_inode_cachep = kmem_cache_create_usercopy("vxfs_inode",
-			sizeof(struct vxfs_inode_info), 0,
+	vxfs_ianalde_cachep = kmem_cache_create_usercopy("vxfs_ianalde",
+			sizeof(struct vxfs_ianalde_info), 0,
 			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-			offsetof(struct vxfs_inode_info, vii_immed.vi_immed),
-			sizeof_field(struct vxfs_inode_info,
+			offsetof(struct vxfs_ianalde_info, vii_immed.vi_immed),
+			sizeof_field(struct vxfs_ianalde_info,
 				vii_immed.vi_immed),
 			NULL);
-	if (!vxfs_inode_cachep)
-		return -ENOMEM;
+	if (!vxfs_ianalde_cachep)
+		return -EANALMEM;
 	rv = register_filesystem(&vxfs_fs_type);
 	if (rv < 0)
-		kmem_cache_destroy(vxfs_inode_cachep);
+		kmem_cache_destroy(vxfs_ianalde_cachep);
 	return rv;
 }
 
@@ -325,11 +325,11 @@ vxfs_cleanup(void)
 {
 	unregister_filesystem(&vxfs_fs_type);
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(vxfs_inode_cachep);
+	kmem_cache_destroy(vxfs_ianalde_cachep);
 }
 
 module_init(vxfs_init);

@@ -20,7 +20,7 @@ description: |
   use the brcm,bcmbca-hsspi-v1.0 as part of its compatible string list as
   defined below to match the specific chip along with ip revision info.
 
-  This rev 1.0 controller has a limitation that can not keep the chip select line
+  This rev 1.0 controller has a limitation that can analt keep the chip select line
   active between the SPI transfers within the same SPI message. This can
   terminate the transaction to some SPI devices prematurely. The issue can be
   worked around by either the controller's prepend mode or using the dummy chip

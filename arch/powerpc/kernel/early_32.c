@@ -12,11 +12,11 @@
 /*
  * We're called here very early in the boot.
  *
- * Note that the kernel may be running at an address which is different
+ * Analte that the kernel may be running at an address which is different
  * from the address that it was linked at, so we must use RELOC/PTRRELOC
  * to access static data (including strings).  -- paulus
  */
-notrace unsigned long __init early_init(unsigned long dt_ptr)
+analtrace unsigned long __init early_init(unsigned long dt_ptr)
 {
 	unsigned long kva, offset = reloc_offset();
 

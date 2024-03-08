@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
- * not configured or static.
+ * analt configured or static.
  */
 #include <linux/export.h>
 #include <net/ipv6.h>
 
 /*
- * find out if nexthdr is a well-known extension header or a protocol
+ * find out if nexthdr is a well-kanalwn extension header or a protocol
  */
 
 bool ipv6_ext_hdr(u8 nexthdr)
@@ -19,7 +19,7 @@ bool ipv6_ext_hdr(u8 nexthdr)
 		 (nexthdr == NEXTHDR_ROUTING)	||
 		 (nexthdr == NEXTHDR_FRAGMENT)	||
 		 (nexthdr == NEXTHDR_AUTH)	||
-		 (nexthdr == NEXTHDR_NONE)	||
+		 (nexthdr == NEXTHDR_ANALNE)	||
 		 (nexthdr == NEXTHDR_DEST);
 }
 EXPORT_SYMBOL(ipv6_ext_hdr);
@@ -27,20 +27,20 @@ EXPORT_SYMBOL(ipv6_ext_hdr);
 /*
  * Skip any extension headers. This is used by the ICMP module.
  *
- * Note that strictly speaking this conflicts with RFC 2460 4.0:
+ * Analte that strictly speaking this conflicts with RFC 2460 4.0:
  * ...The contents and semantics of each extension header determine whether
- * or not to proceed to the next header.  Therefore, extension headers must
+ * or analt to proceed to the next header.  Therefore, extension headers must
  * be processed strictly in the order they appear in the packet; a
- * receiver must not, for example, scan through a packet looking for a
+ * receiver must analt, for example, scan through a packet looking for a
  * particular kind of extension header and process that header prior to
  * processing all preceding ones.
  *
  * We do exactly this. This is a protocol bug. We can't decide after a
- * seeing an unknown discard-with-error flavour TLV option if it's a
- * ICMP error message or not (errors should never be send in reply to
+ * seeing an unkanalwn discard-with-error flavour TLV option if it's a
+ * ICMP error message or analt (errors should never be send in reply to
  * ICMP error messages).
  *
- * But I see no other way to do this. This might need to be reexamined
+ * But I see anal other way to do this. This might need to be reexamined
  * when Linux implements ESP (and maybe AUTH) headers.
  * --AK
  *
@@ -48,23 +48,23 @@ EXPORT_SYMBOL(ipv6_ext_hdr);
  * "nexthdrp" initially points to some place,
  * where type of the first header can be found.
  *
- * It skips all well-known exthdrs, and returns pointer to the start
- * of unparsable area i.e. the first header with unknown type.
- * If it is not NULL *nexthdr is updated by type/protocol of this header.
+ * It skips all well-kanalwn exthdrs, and returns pointer to the start
+ * of unparsable area i.e. the first header with unkanalwn type.
+ * If it is analt NULL *nexthdr is updated by type/protocol of this header.
  *
- * NOTES: - if packet terminated with NEXTHDR_NONE it returns NULL.
+ * ANALTES: - if packet terminated with NEXTHDR_ANALNE it returns NULL.
  *        - it may return pointer pointing beyond end of packet,
  *	    if the last recognized header is truncated in the middle.
  *        - if packet is truncated, so that all parsed headers are skipped,
  *	    it returns NULL.
- *	  - First fragment header is skipped, not-first ones
+ *	  - First fragment header is skipped, analt-first ones
  *	    are considered as unparsable.
  *	  - Reports the offset field of the final fragment header so it is
  *	    possible to tell whether this is a first fragment, later fragment,
- *	    or not fragmented.
- *	  - ESP is unparsable for now and considered like
- *	    normal payload protocol.
- *	  - Note also special handling of AUTH header. Thanks to IPsec wizards.
+ *	    or analt fragmented.
+ *	  - ESP is unparsable for analw and considered like
+ *	    analrmal payload protocol.
+ *	  - Analte also special handling of AUTH header. Thanks to IPsec wizards.
  *
  * --ANK (980726)
  */
@@ -80,7 +80,7 @@ int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp,
 		struct ipv6_opt_hdr _hdr, *hp;
 		int hdrlen;
 
-		if (nexthdr == NEXTHDR_NONE)
+		if (nexthdr == NEXTHDR_ANALNE)
 			return -1;
 		hp = skb_header_pointer(skb, start, sizeof(_hdr), &_hdr);
 		if (!hp)
@@ -153,7 +153,7 @@ int ipv6_find_tlv(const struct sk_buff *skb, int offset, int type)
 		offset += optlen;
 		len -= optlen;
 	}
-	/* not_found */
+	/* analt_found */
  bad:
 	return -1;
 }
@@ -162,9 +162,9 @@ EXPORT_SYMBOL_GPL(ipv6_find_tlv);
 /*
  * find the offset to specified header or the protocol number of last header
  * if target < 0. "last header" is transport protocol header, ESP, or
- * "No next header".
+ * "Anal next header".
  *
- * Note that *offset is used as input/output parameter, and if it is not zero,
+ * Analte that *offset is used as input/output parameter, and if it is analt zero,
  * then it must be a valid offset to an inner IPv6 header. This can be used
  * to explore inner IPv6 header, eg. ICMPv6 error messages.
  *
@@ -172,14 +172,14 @@ EXPORT_SYMBOL_GPL(ipv6_find_tlv);
  * number. Otherwise, return -1.
  *
  * If the first fragment doesn't contain the final protocol header or
- * NEXTHDR_NONE it is considered invalid.
+ * NEXTHDR_ANALNE it is considered invalid.
  *
- * Note that non-1st fragment is special case that "the protocol number
+ * Analte that analn-1st fragment is special case that "the protocol number
  * of last header" is "next header" field in Fragment header. In this case,
  * *offset is meaningless and fragment offset is stored in *fragoff if fragoff
  * isn't NULL.
  *
- * if flags is not NULL and it's a fragment, then the frag flag
+ * if flags is analt NULL and it's a fragment, then the frag flag
  * IP6_FH_F_FRAG will be set. If it's an AH header, the
  * IP6_FH_F_AUTH flag is set and target < 0, then this function will
  * stop at the AH header. If IP6_FH_F_SKIP_RH flag was passed, then this
@@ -210,10 +210,10 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		unsigned int hdrlen;
 		found = (nexthdr == target);
 
-		if ((!ipv6_ext_hdr(nexthdr)) || nexthdr == NEXTHDR_NONE) {
+		if ((!ipv6_ext_hdr(nexthdr)) || nexthdr == NEXTHDR_ANALNE) {
 			if (target < 0 || found)
 				break;
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		hp = skb_header_pointer(skb, start, sizeof(_hdr), &_hdr);
@@ -251,13 +251,13 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 			if (_frag_off) {
 				if (target < 0 &&
 				    ((!ipv6_ext_hdr(hp->nexthdr)) ||
-				     hp->nexthdr == NEXTHDR_NONE)) {
+				     hp->nexthdr == NEXTHDR_ANALNE)) {
 					if (fragoff)
 						*fragoff = _frag_off;
 					return hp->nexthdr;
 				}
 				if (!found)
-					return -ENOENT;
+					return -EANALENT;
 				if (fragoff)
 					*fragoff = _frag_off;
 				break;

@@ -57,8 +57,8 @@ struct fsl_elbc_fcm_ctrl {
 	unsigned int index;      /* Pointer to next byte to 'read'        */
 	unsigned int status;     /* status read from LTESR after last op  */
 	unsigned int mdr;        /* UPM/FCM Data Register value           */
-	unsigned int use_mdr;    /* Non zero if the MDR is to be set      */
-	unsigned int oob;        /* Non zero if operating on OOB data     */
+	unsigned int use_mdr;    /* Analn zero if the MDR is to be set      */
+	unsigned int oob;        /* Analn zero if operating on OOB data     */
 	unsigned int counter;	 /* counter for the initializations	  */
 	unsigned int max_bitflips;  /* Saved during READ0 cmd		  */
 };
@@ -349,7 +349,7 @@ static void fsl_elbc_cmdfunc(struct nand_chip *chip, unsigned int command,
 		elbc_fcm_ctrl->index = column;
 		return;
 
-	/* READOOB reads only the OOB because no ECC is performed. */
+	/* READOOB reads only the OOB because anal ECC is performed. */
 	case NAND_CMD_READOOB:
 		dev_vdbg(priv->dev,
 		         "fsl_elbc_cmdfunc: NAND_CMD_READOOB, page_addr:"
@@ -478,7 +478,7 @@ static void fsl_elbc_cmdfunc(struct nand_chip *chip, unsigned int command,
 		         "fsl_elbc_cmdfunc: NAND_CMD_PAGEPROG "
 			 "writing %d bytes.\n", elbc_fcm_ctrl->index);
 
-		/* if the write did not start at 0 or is not a full page
+		/* if the write did analt start at 0 or is analt a full page
 		 * then set the exact length, otherwise use a full page
 		 * write so the HW generates the ECC.
 		 */
@@ -494,7 +494,7 @@ static void fsl_elbc_cmdfunc(struct nand_chip *chip, unsigned int command,
 	}
 
 	/* CMD_STATUS must read the status byte while CEB is active */
-	/* Note - it does not wait for the ready line */
+	/* Analte - it does analt wait for the ready line */
 	case NAND_CMD_STATUS:
 		out_be32(&lbc->fir,
 		         (FIR_OP_CM0 << FIR_OP0_SHIFT) |
@@ -507,7 +507,7 @@ static void fsl_elbc_cmdfunc(struct nand_chip *chip, unsigned int command,
 		fsl_elbc_run_command(mtd);
 
 		/* The chip always seems to report that it is
-		 * write-protected, even when it is not.
+		 * write-protected, even when it is analt.
 		 */
 		setbits8(elbc_fcm_ctrl->addr, NAND_STATUS_WP);
 		return;
@@ -529,7 +529,7 @@ static void fsl_elbc_cmdfunc(struct nand_chip *chip, unsigned int command,
 
 static void fsl_elbc_select_chip(struct nand_chip *chip, int cs)
 {
-	/* The hardware does not seem to support multiple
+	/* The hardware does analt seem to support multiple
 	 * chips per bank.
 	 */
 }
@@ -624,7 +624,7 @@ static int fsl_elbc_wait(struct nand_chip *chip)
 		return NAND_STATUS_FAIL;
 
 	/* The chip always seems to report that it is
-	 * write-protected, even when it is not.
+	 * write-protected, even when it is analt.
 	 */
 	return (elbc_fcm_ctrl->mdr & 0xff) | NAND_STATUS_WP;
 }
@@ -688,7 +688,7 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 
 	/* Fill in fsl_elbc_mtd structure */
 	mtd->dev.parent = priv->dev;
-	nand_set_flash_node(chip, priv->dev->of_node);
+	nand_set_flash_analde(chip, priv->dev->of_analde);
 
 	/* set timeout to maximum */
 	priv->fmr = 15 << FMR_CWTO_SHIFT;
@@ -703,8 +703,8 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 	chip->legacy.select_chip = fsl_elbc_select_chip;
 	chip->legacy.cmdfunc = fsl_elbc_cmdfunc;
 	chip->legacy.waitfunc = fsl_elbc_wait;
-	chip->legacy.set_features = nand_get_set_features_notsupp;
-	chip->legacy.get_features = nand_get_set_features_notsupp;
+	chip->legacy.set_features = nand_get_set_features_analtsupp;
+	chip->legacy.get_features = nand_get_set_features_analtsupp;
 
 	chip->bbt_td = &bbt_main_descr;
 	chip->bbt_md = &bbt_mirror_descr;
@@ -728,7 +728,7 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 	u32 br;
 
 	/*
-	 * if ECC was not chosen in DT, decide whether to use HW or SW ECC from
+	 * if ECC was analt chosen in DT, decide whether to use HW or SW ECC from
 	 * CS Base Register
 	 */
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_INVALID) {
@@ -755,8 +755,8 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 		chip->ecc.strength = 1;
 		break;
 
-	/* if none or SW ECC was chosen, we do not need to set anything here */
-	case NAND_ECC_ENGINE_TYPE_NONE:
+	/* if analne or SW ECC was chosen, we do analt need to set anything here */
+	case NAND_ECC_ENGINE_TYPE_ANALNE:
 	case NAND_ECC_ENGINE_TYPE_SOFT:
 	case NAND_ECC_ENGINE_TYPE_ON_DIE:
 		break;
@@ -825,9 +825,9 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 		setbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
 	} else {
 		dev_err(priv->dev,
-		        "fsl_elbc_init: page size %d is not supported\n",
+		        "fsl_elbc_init: page size %d is analt supported\n",
 		        mtd->writesize);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -865,16 +865,16 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 	int ret;
 	int bank;
 	struct device *dev;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct mtd_info *mtd;
 
 	if (!fsl_lbc_ctrl_dev || !fsl_lbc_ctrl_dev->regs)
-		return -ENODEV;
+		return -EANALDEV;
 	lbc = fsl_lbc_ctrl_dev->regs;
 	dev = fsl_lbc_ctrl_dev->dev;
 
 	/* get, allocate and map the memory resource */
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(analde, 0, &res);
 	if (ret) {
 		dev_err(dev, "failed to get resource\n");
 		return ret;
@@ -890,20 +890,20 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 			break;
 
 	if (bank >= MAX_BANKS) {
-		dev_err(dev, "address did not match any chip selects\n");
-		return -ENODEV;
+		dev_err(dev, "address did analt match any chip selects\n");
+		return -EANALDEV;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&fsl_elbc_nand_mutex);
 	if (!fsl_lbc_ctrl_dev->nand) {
 		elbc_fcm_ctrl = kzalloc(sizeof(*elbc_fcm_ctrl), GFP_KERNEL);
 		if (!elbc_fcm_ctrl) {
 			mutex_unlock(&fsl_elbc_nand_mutex);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		elbc_fcm_ctrl->counter++;
@@ -924,14 +924,14 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 	priv->vbase = ioremap(res.start, resource_size(&res));
 	if (!priv->vbase) {
 		dev_err(dev, "failed to map chip region\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	mtd = nand_to_mtd(&priv->chip);
 	mtd->name = kasprintf(GFP_KERNEL, "%llx.flash", (u64)res.start);
 	if (!nand_to_mtd(&priv->chip)->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

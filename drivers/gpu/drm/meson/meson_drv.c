@@ -105,20 +105,20 @@ static const struct drm_driver meson_driver = {
 	.desc			= DRIVER_DESC,
 	.date			= "20161109",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static bool meson_vpu_has_available_connectors(struct device *dev)
 {
-	struct device_node *ep, *remote;
+	struct device_analde *ep, *remote;
 
 	/* Parses each endpoint and check if remote exists */
-	for_each_endpoint_of_node(dev->of_node, ep) {
-		/* If the endpoint node exists, consider it enabled */
+	for_each_endpoint_of_analde(dev->of_analde, ep) {
+		/* If the endpoint analde exists, consider it enabled */
 		remote = of_graph_get_remote_port(ep);
 		if (remote) {
-			of_node_put(remote);
-			of_node_put(ep);
+			of_analde_put(remote);
+			of_analde_put(ep);
 			return true;
 		}
 	}
@@ -189,13 +189,13 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	/* Checks if an output connector is available */
 	if (!meson_vpu_has_available_connectors(dev)) {
-		dev_err(dev, "No output connector available\n");
-		return -ENODEV;
+		dev_err(dev, "Anal output connector available\n");
+		return -EANALDEV;
 	}
 
 	match = of_device_get_match_data(dev);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm = drm_dev_alloc(&meson_driver, dev);
 	if (IS_ERR(drm))
@@ -203,7 +203,7 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_drm;
 	}
 	drm->dev_private = priv;
@@ -228,7 +228,7 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	/* Simply ioremap since it may be a shared register zone */
 	regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!regs) {
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		goto free_drm;
 	}
 
@@ -320,7 +320,7 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 		ret = component_bind_all(dev, drm);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't bind all components\n");
-			/* Do not try to unbind */
+			/* Do analt try to unbind */
 			has_components = false;
 			goto exit_afbcd;
 		}
@@ -477,25 +477,25 @@ static const struct of_device_id components_dev_match[] = {
 static int meson_drv_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ep, *remote;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *ep, *remote;
 	int count = 0;
 
-	for_each_endpoint_of_node(np, ep) {
+	for_each_endpoint_of_analde(np, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote || !of_device_is_available(remote)) {
-			of_node_put(remote);
+			of_analde_put(remote);
 			continue;
 		}
 
-		if (of_match_node(components_dev_match, remote)) {
+		if (of_match_analde(components_dev_match, remote)) {
 			component_match_add(&pdev->dev, &match, component_compare_of, remote);
 
 			dev_dbg(&pdev->dev, "parent %pOF remote match add %pOF parent %s\n",
 				np, remote, dev_name(&pdev->dev));
 		}
 
-		of_node_put(remote);
+		of_analde_put(remote);
 
 		++count;
 	}
@@ -503,7 +503,7 @@ static int meson_drv_probe(struct platform_device *pdev)
 	if (count && !match)
 		return meson_drv_bind_master(&pdev->dev, false);
 
-	/* If some endpoints were found, initialize the nodes */
+	/* If some endpoints were found, initialize the analdes */
 	if (count) {
 		dev_info(&pdev->dev, "Queued %d outputs on vpu\n", count);
 
@@ -512,7 +512,7 @@ static int meson_drv_probe(struct platform_device *pdev)
 						       match);
 	}
 
-	/* If no output endpoints were available, simply bail out */
+	/* If anal output endpoints were available, simply bail out */
 	return 0;
 };
 

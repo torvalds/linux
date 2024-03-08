@@ -255,7 +255,7 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 
 static int ahci_qoriq_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct acpi_device_id *acpi_id;
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
@@ -268,14 +268,14 @@ static int ahci_qoriq_probe(struct platform_device *pdev)
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 
-	of_id = of_match_node(ahci_qoriq_of_match, np);
+	of_id = of_match_analde(ahci_qoriq_of_match, np);
 	acpi_id = acpi_match_device(ahci_qoriq_acpi_match, &pdev->dev);
 	if (!(of_id || acpi_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	qoriq_priv = devm_kzalloc(dev, sizeof(*qoriq_priv), GFP_KERNEL);
 	if (!qoriq_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_id)
 		qoriq_priv->type = (unsigned long)of_id->data;

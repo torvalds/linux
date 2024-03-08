@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
 #include <linux/mfd/core.h>
@@ -72,7 +72,7 @@ static const struct pci_device_id lpc_sch_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, lpc_sch_ids);
 
-#define LPC_NO_RESOURCE		1
+#define LPC_ANAL_RESOURCE		1
 #define LPC_SKIP_RESOURCE	2
 
 static int lpc_sch_get_io(struct pci_dev *pdev, int where, const char *name,
@@ -82,7 +82,7 @@ static int lpc_sch_get_io(struct pci_dev *pdev, int where, const char *name,
 	unsigned short base_addr;
 
 	if (size == 0)
-		return LPC_NO_RESOURCE;
+		return LPC_ANAL_RESOURCE;
 
 	pci_read_config_dword(pdev, where, &base_addr_cfg);
 	base_addr = 0;
@@ -113,7 +113,7 @@ static int lpc_sch_populate_cell(struct pci_dev *pdev, int where,
 
 	res = devm_kzalloc(&pdev->dev, sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = lpc_sch_get_io(pdev, where, name, res, size);
 	if (ret)
@@ -124,7 +124,7 @@ static int lpc_sch_populate_cell(struct pci_dev *pdev, int where,
 	cell->name = name;
 	cell->resources = res;
 	cell->num_resources = 1;
-	cell->ignore_resource_conflicts = true;
+	cell->iganalre_resource_conflicts = true;
 	cell->id = id;
 
 	return 0;
@@ -163,7 +163,7 @@ static int lpc_sch_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (cells == 0) {
 		dev_err(&dev->dev, "All decode registers disabled.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return mfd_add_devices(&dev->dev, 0, lpc_sch_cells, cells, NULL, 0, NULL);

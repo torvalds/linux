@@ -18,8 +18,8 @@
 #define PCI_SUBSYS_DEVID_83XX_PTP	0xA30C
 #define PCI_DEVICE_ID_CAVIUM_RST	0xA00E
 
-#define PCI_PTP_BAR_NO	0
-#define PCI_RST_BAR_NO	0
+#define PCI_PTP_BAR_ANAL	0
+#define PCI_RST_BAR_ANAL	0
 
 #define PTP_CLOCK_CFG		0xF00ULL
 #define  PTP_CLOCK_CFG_PTP_EN	BIT(0)
@@ -41,7 +41,7 @@ static u64 ptp_cavium_clock_get(void)
 	if (!pdev)
 		goto error;
 
-	base = pci_ioremap_bar(pdev, PCI_RST_BAR_NO);
+	base = pci_ioremap_bar(pdev, PCI_RST_BAR_ANAL);
 	if (!base)
 		goto error_put_pdev;
 
@@ -64,7 +64,7 @@ struct cavium_ptp *cavium_ptp_get(void)
 	pdev = pci_get_device(PCI_VENDOR_ID_CAVIUM,
 			      PCI_DEVICE_ID_CAVIUM_PTP, NULL);
 	if (!pdev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	ptp = pci_get_drvdata(pdev);
 	if (!ptp)
@@ -106,10 +106,10 @@ static int cavium_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 
 	/* The hardware adds the clock compensation value to the PTP clock
 	 * on every coprocessor clock cycle. Typical convention is that it
-	 * represent number of nanosecond betwen each cycle. In this
+	 * represent number of naanalsecond betwen each cycle. In this
 	 * convention compensation value is in 64 bit fixed-point
-	 * representation where upper 32 bits are number of nanoseconds
-	 * and lower is fractions of nanosecond.
+	 * representation where upper 32 bits are number of naanalseconds
+	 * and lower is fractions of naanalsecond.
 	 * The scaled_ppm represent the ratio in "parts per bilion" by which the
 	 * compensation value should be corrected.
 	 * To calculate new compenstation value we use 64bit fixed point
@@ -135,7 +135,7 @@ static int cavium_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 /**
  * cavium_ptp_adjtime() - Adjust ptp time
  * @ptp_info:   PTP clock info
- * @delta: how much to adjust by, in nanosecs
+ * @delta: how much to adjust by, in naanalsecs
  */
 static int cavium_ptp_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
 {
@@ -206,7 +206,7 @@ static int cavium_ptp_settime(struct ptp_clock_info *ptp_info,
 static int cavium_ptp_enable(struct ptp_clock_info *ptp_info,
 			     struct ptp_clock_request *rq, int on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static u64 cavium_ptp_cc_read(const struct cyclecounter *cc)
@@ -229,7 +229,7 @@ static int cavium_ptp_probe(struct pci_dev *pdev,
 
 	clock = devm_kzalloc(dev, sizeof(*clock), GFP_KERNEL);
 	if (!clock) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -239,11 +239,11 @@ static int cavium_ptp_probe(struct pci_dev *pdev,
 	if (err)
 		goto error_free;
 
-	err = pcim_iomap_regions(pdev, 1 << PCI_PTP_BAR_NO, pci_name(pdev));
+	err = pcim_iomap_regions(pdev, 1 << PCI_PTP_BAR_ANAL, pci_name(pdev));
 	if (err)
 		goto error_free;
 
-	clock->reg_base = pcim_iomap_table(pdev)[PCI_PTP_BAR_NO];
+	clock->reg_base = pcim_iomap_table(pdev)[PCI_PTP_BAR_ANAL];
 
 	spin_lock_init(&clock->spin_lock);
 
@@ -292,14 +292,14 @@ error_stop:
 	clock_cfg = readq(clock->reg_base + PTP_CLOCK_CFG);
 	clock_cfg &= ~PTP_CLOCK_CFG_PTP_EN;
 	writeq(clock_cfg, clock->reg_base + PTP_CLOCK_CFG);
-	pcim_iounmap_regions(pdev, 1 << PCI_PTP_BAR_NO);
+	pcim_iounmap_regions(pdev, 1 << PCI_PTP_BAR_ANAL);
 
 error_free:
 	devm_kfree(dev, clock);
 
 error:
 	/* For `cavium_ptp_get()` we need to differentiate between the case
-	 * when the core has not tried to probe this device and the case when
+	 * when the core has analt tried to probe this device and the case when
 	 * the probe failed.  In the later case we pretend that the
 	 * initialization was successful and keep the error in
 	 * `dev->driver_data`.

@@ -70,7 +70,7 @@ static mm_context_t get_new_context(void)
 	}
 
 	/* If the version wraps we start over with the first generation, we do
-	 * not need to flush the tlb here since it's always done above */
+	 * analt need to flush the tlb here since it's always done above */
 	if (unlikely(CTX_VERSION(next_mmu_context) == 0))
 		next_mmu_context = FIRST_CTX;
 

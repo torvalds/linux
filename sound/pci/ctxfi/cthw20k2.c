@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	cthw20k2.c
  *
@@ -159,7 +159,7 @@ static int src_get_rsc_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -485,7 +485,7 @@ static int src_mgr_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -506,7 +506,7 @@ static int srcimp_mgr_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -695,7 +695,7 @@ static int amixer_rsc_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -884,7 +884,7 @@ static int dai_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -934,7 +934,7 @@ static int dao_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -1009,9 +1009,9 @@ static int daio_mgr_dao_init(void *blk, unsigned int idx, unsigned int conf)
 		}
 		/* CDIF */
 		set_field(&ctl->txctl[idx], ATXCTL_CD, (!(conf & 0x7)));
-		/* Non-audio */
+		/* Analn-audio */
 		set_field(&ctl->txctl[idx], ATXCTL_LIV, (conf >> 4) & 0x1);
-		/* Non-audio */
+		/* Analn-audio */
 		set_field(&ctl->txctl[idx], ATXCTL_RIV, (conf >> 4) & 0x1);
 		set_field(&ctl->txctl[idx], ATXCTL_RAW,
 			  ((conf >> 3) & 0x1) ? 0 : 0);
@@ -1085,7 +1085,7 @@ static int daio_mgr_get_ctrl_blk(struct hw *hw, void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < 8; i++) {
 		blk->txctl[i] = hw_read_20kx(hw, AUDIO_IO_TX_CTL+(0x40*i));
@@ -1210,7 +1210,7 @@ static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 
 			hw_write_20kx(hw, AUDIO_IO_TX_CSTAT_H+(0x40*i), 0x0B);
 		} else {
-			/* Again, loop is over 4 channels not 5. */
+			/* Again, loop is over 4 channels analt 5. */
 			/* Next 5 channels are I2S (SB0960) */
 			data = 0x11;
 			hw_write_20kx(hw, AUDIO_IO_RX_CTL+(0x40*i), data);
@@ -1714,8 +1714,8 @@ static int hw_dac_init(struct hw *hw, const struct dac_conf *info)
 	if (i >= 2)
 		goto End;
 
-	/* Note: Every I2C write must have some delay.
-	 * This is not a requirement but the delay works here... */
+	/* Analte: Every I2C write must have some delay.
+	 * This is analt a requirement but the delay works here... */
 	hw20k2_i2c_write(hw, CS4382_MC1, 0x80);
 	hw20k2_i2c_write(hw, CS4382_MC2, 0x10);
 	if (1 == info->msr) {
@@ -1799,7 +1799,7 @@ static void hw_wm8775_input_select(struct hw *hw, u8 input, s8 gain_in_db)
 
 	hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCL, gain),
 				MAKE_WM8775_DATA(gain));
-	/* ...so there should be no need for the following. */
+	/* ...so there should be anal need for the following. */
 	hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCR, gain),
 				MAKE_WM8775_DATA(gain));
 }
@@ -1861,7 +1861,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 	}
 
 	usleep_range(10000, 11000);
-	/* Return the ADC to normal operation. */
+	/* Return the ADC to analrmal operation. */
 	data |= (0x1 << 15);
 	hw_write_20kx(hw, GPIO_DATA, data);
 	msleep(50);
@@ -2005,7 +2005,7 @@ static irqreturn_t ct_20k2_interrupt(int irq, void *dev_id)
 
 	status = hw_read_20kx(hw, GIP);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (hw->irq_callback)
 		hw->irq_callback(hw->irq_callback_data, status);
@@ -2038,7 +2038,7 @@ static int hw_card_start(struct hw *hw)
 		hw->mem_base = ioremap(hw->io_base,
 				       pci_resource_len(hw->pci, 2));
 		if (!hw->mem_base) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto error2;
 		}
 	}
@@ -2053,7 +2053,7 @@ static int hw_card_start(struct hw *hw)
 				  KBUILD_MODNAME, hw);
 		if (err < 0) {
 			dev_err(hw->card->dev,
-				"XFi: Cannot get irq %d\n", pci->irq);
+				"XFi: Cananalt get irq %d\n", pci->irq);
 			goto error2;
 		}
 		hw->irq = pci->irq;
@@ -2328,7 +2328,7 @@ int create_20k2_hw_obj(struct hw **rhw)
 	*rhw = NULL;
 	hw20k2 = kzalloc(sizeof(*hw20k2), GFP_KERNEL);
 	if (!hw20k2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw20k2->hw = ct20k2_preset;
 	*rhw = &hw20k2->hw;

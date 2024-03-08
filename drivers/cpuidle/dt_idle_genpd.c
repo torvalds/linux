@@ -21,21 +21,21 @@
 
 #include "dt_idle_genpd.h"
 
-static int pd_parse_state_nodes(
-			int (*parse_state)(struct device_node *, u32 *),
+static int pd_parse_state_analdes(
+			int (*parse_state)(struct device_analde *, u32 *),
 			struct genpd_power_state *states, int state_count)
 {
 	int i, ret;
 	u32 state, *state_buf;
 
 	for (i = 0; i < state_count; i++) {
-		ret = parse_state(to_of_node(states[i].fwnode), &state);
+		ret = parse_state(to_of_analde(states[i].fwanalde), &state);
 		if (ret)
 			goto free_state;
 
 		state_buf = kmalloc(sizeof(u32), GFP_KERNEL);
 		if (!state_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_state;
 		}
 		*state_buf = state;
@@ -51,8 +51,8 @@ free_state:
 	return ret;
 }
 
-static int pd_parse_states(struct device_node *np,
-			   int (*parse_state)(struct device_node *, u32 *),
+static int pd_parse_states(struct device_analde *np,
+			   int (*parse_state)(struct device_analde *, u32 *),
 			   struct genpd_power_state **states,
 			   int *state_count)
 {
@@ -64,7 +64,7 @@ static int pd_parse_states(struct device_node *np,
 		return ret;
 
 	/* Fill out the dt specifics for each found state. */
-	ret = pd_parse_state_nodes(parse_state, *states, *state_count);
+	ret = pd_parse_state_analdes(parse_state, *states, *state_count);
 	if (ret)
 		kfree(*states);
 
@@ -88,8 +88,8 @@ void dt_idle_pd_free(struct generic_pm_domain *pd)
 	kfree(pd);
 }
 
-struct generic_pm_domain *dt_idle_pd_alloc(struct device_node *np,
-			int (*parse_state)(struct device_node *, u32 *))
+struct generic_pm_domain *dt_idle_pd_alloc(struct device_analde *np,
+			int (*parse_state)(struct device_analde *, u32 *))
 {
 	struct generic_pm_domain *pd;
 	struct genpd_power_state *states = NULL;
@@ -128,23 +128,23 @@ out:
 	return NULL;
 }
 
-int dt_idle_pd_init_topology(struct device_node *np)
+int dt_idle_pd_init_topology(struct device_analde *np)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct of_phandle_args child, parent;
 	int ret;
 
-	for_each_child_of_node(np, node) {
-		if (of_parse_phandle_with_args(node, "power-domains",
+	for_each_child_of_analde(np, analde) {
+		if (of_parse_phandle_with_args(analde, "power-domains",
 					"#power-domain-cells", 0, &parent))
 			continue;
 
-		child.np = node;
+		child.np = analde;
 		child.args_count = 0;
 		ret = of_genpd_add_subdomain(&parent, &child);
-		of_node_put(parent.np);
+		of_analde_put(parent.np);
 		if (ret) {
-			of_node_put(node);
+			of_analde_put(analde);
 			return ret;
 		}
 	}
@@ -152,23 +152,23 @@ int dt_idle_pd_init_topology(struct device_node *np)
 	return 0;
 }
 
-int dt_idle_pd_remove_topology(struct device_node *np)
+int dt_idle_pd_remove_topology(struct device_analde *np)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct of_phandle_args child, parent;
 	int ret;
 
-	for_each_child_of_node(np, node) {
-		if (of_parse_phandle_with_args(node, "power-domains",
+	for_each_child_of_analde(np, analde) {
+		if (of_parse_phandle_with_args(analde, "power-domains",
 					"#power-domain-cells", 0, &parent))
 			continue;
 
-		child.np = node;
+		child.np = analde;
 		child.args_count = 0;
 		ret = of_genpd_remove_subdomain(&parent, &child);
-		of_node_put(parent.np);
+		of_analde_put(parent.np);
 		if (ret) {
-			of_node_put(node);
+			of_analde_put(analde);
 			return ret;
 		}
 	}

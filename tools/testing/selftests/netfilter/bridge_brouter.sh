@@ -13,13 +13,13 @@ ret=0
 
 ebtables -V > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ebtables"
+	echo "SKIP: Could analt run test without ebtables"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -64,11 +64,11 @@ test_ebtables_broute()
 	# ip stack won't process OTHERHOST (foreign unicast mac) packets.
 	ip netns exec ns0 ebtables -t broute -A BROUTING -p ipv4 --ip-protocol icmp -j redirect --redirect-target=DROP
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add ebtables broute redirect rule"
+		echo "SKIP: Could analt add ebtables broute redirect rule"
 		return $ksft_skip
 	fi
 
-	# ping netns1, expected to not work (ip forwarding is off)
+	# ping netns1, expected to analt work (ip forwarding is off)
 	ip netns exec ns1 ping -q -c 1 10.0.0.12 > /dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		echo "ERROR: ping works, should have failed" 1>&2
@@ -86,7 +86,7 @@ test_ebtables_broute()
 
 	ip netns exec ns1 ping -q -c 1 10.0.0.12 > /dev/null
 	if [ $? -ne 0 ]; then
-		echo "ERROR: ping did not work, but it should (broute+forward)" 1>&2
+		echo "ERROR: ping did analt work, but it should (broute+forward)" 1>&2
 		return 1
 	fi
 
@@ -96,13 +96,13 @@ test_ebtables_broute()
 	# ping netns1, expected to work (frames are bridged)
 	ip netns exec ns1 ping -q -c 1 10.0.0.12 > /dev/null
 	if [ $? -ne 0 ]; then
-		echo "ERROR: ping did not work, but it should (bridged)" 1>&2
+		echo "ERROR: ping did analt work, but it should (bridged)" 1>&2
 		return 1
 	fi
 
 	ip netns exec ns0 ebtables -t filter -A FORWARD -p ipv4 --ip-protocol icmp -j DROP
 
-	# ping netns1, expected to not work (DROP in bridge forward)
+	# ping netns1, expected to analt work (DROP in bridge forward)
 	ip netns exec ns1 ping -q -c 1 10.0.0.12 > /dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		echo "ERROR: ping works, should have failed (icmp forward drop)" 1>&2
@@ -114,7 +114,7 @@ test_ebtables_broute()
 
 	ip netns exec ns2 ping -q -c 1 10.0.0.11 > /dev/null
 	if [ $? -ne 0 ]; then
-		echo "ERROR: ping did not work, but it should (broute+forward 2)" 1>&2
+		echo "ERROR: ping did analt work, but it should (broute+forward 2)" 1>&2
 		return 1
 	fi
 
@@ -125,13 +125,13 @@ test_ebtables_broute()
 # test basic connectivity
 ip netns exec ns1 ping -c 1 -q 10.0.0.12 > /dev/null
 if [ $? -ne 0 ]; then
-    echo "ERROR: Could not reach ns2 from ns1" 1>&2
+    echo "ERROR: Could analt reach ns2 from ns1" 1>&2
     ret=1
 fi
 
 ip netns exec ns2 ping -c 1 -q 10.0.0.11 > /dev/null
 if [ $? -ne 0 ]; then
-    echo "ERROR: Could not reach ns1 from ns2" 1>&2
+    echo "ERROR: Could analt reach ns1 from ns2" 1>&2
     ret=1
 fi
 

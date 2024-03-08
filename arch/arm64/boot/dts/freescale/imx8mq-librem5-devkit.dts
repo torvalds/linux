@@ -945,7 +945,7 @@
 	assigned-clocks = <&clk IMX8MQ_CLK_SAI6>;
 	assigned-clock-parents = <&clk IMX8MQ_AUDIO_PLL1_OUT>;
 	assigned-clock-rates = <24576000>;
-	fsl,sai-synchronous-rx;
+	fsl,sai-synchroanalus-rx;
 	status = "okay";
 };
 
@@ -1014,7 +1014,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

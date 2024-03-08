@@ -127,7 +127,7 @@ int isa_register_driver(struct isa_driver *isa_driver, unsigned int ndev)
 
 		isa_dev = kzalloc(sizeof *isa_dev, GFP_KERNEL);
 		if (!isa_dev) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			break;
 		}
 
@@ -154,7 +154,7 @@ int isa_register_driver(struct isa_driver *isa_driver, unsigned int ndev)
 	}
 
 	if (!error && !isa_driver->devices)
-		error = -ENODEV;
+		error = -EANALDEV;
 
 	if (error)
 		isa_unregister_driver(isa_driver);

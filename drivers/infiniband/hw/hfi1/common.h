@@ -13,9 +13,9 @@
  * to communicate between kernel and user code.
  */
 
-/* version of protocol header (known to chip also). In the long run,
+/* version of protocol header (kanalwn to chip also). In the long run,
  * we should be able to generate and accept a range of version numbers;
- * for now we only accept one, and it's compiled in.
+ * for analw we only accept one, and it's compiled in.
  */
 #define IPS_PROTO_VERSION 2
 
@@ -82,22 +82,22 @@
 #define HFI1_CAP_WRITABLE_MASK   (HFI1_CAP_SDMA_AHG |			\
 				  HFI1_CAP_HDRSUPP |			\
 				  HFI1_CAP_MULTI_PKT_EGR |		\
-				  HFI1_CAP_NODROP_RHQ_FULL |		\
-				  HFI1_CAP_NODROP_EGR_FULL |		\
+				  HFI1_CAP_ANALDROP_RHQ_FULL |		\
+				  HFI1_CAP_ANALDROP_EGR_FULL |		\
 				  HFI1_CAP_ALLOW_PERM_JKEY |		\
 				  HFI1_CAP_STATIC_RATE_CTRL |		\
 				  HFI1_CAP_PRINT_UNIMPL |		\
 				  HFI1_CAP_TID_UNMAP |			\
 				  HFI1_CAP_OPFN)
 /*
- * A set of capability bits that are "global" and are not allowed to be
+ * A set of capability bits that are "global" and are analt allowed to be
  * set in the user bitmask.
  */
 #define HFI1_CAP_RESERVED_MASK   ((HFI1_CAP_SDMA |			\
 				   HFI1_CAP_USE_SDMA_HEAD |		\
 				   HFI1_CAP_EXTENDED_PSN |		\
 				   HFI1_CAP_PRINT_UNIMPL |		\
-				   HFI1_CAP_NO_INTEGRITY |		\
+				   HFI1_CAP_ANAL_INTEGRITY |		\
 				   HFI1_CAP_PKEY_CHECK |		\
 				   HFI1_CAP_TID_RDMA |			\
 				   HFI1_CAP_OPFN |			\
@@ -110,8 +110,8 @@
 #define HFI1_CAP_MUST_HAVE_KERN (HFI1_CAP_STATIC_RATE_CTRL)
 /* Default enabled capabilities (both kernel and user) */
 #define HFI1_CAP_MASK_DEFAULT    (HFI1_CAP_HDRSUPP |			\
-				 HFI1_CAP_NODROP_RHQ_FULL |		\
-				 HFI1_CAP_NODROP_EGR_FULL |		\
+				 HFI1_CAP_ANALDROP_RHQ_FULL |		\
+				 HFI1_CAP_ANALDROP_EGR_FULL |		\
 				 HFI1_CAP_SDMA |			\
 				 HFI1_CAP_PRINT_UNIMPL |		\
 				 HFI1_CAP_STATIC_RATE_CTRL |		\
@@ -132,10 +132,10 @@
 #define HFI1_CAP_K2U (HFI1_CAP_SDMA |			\
 		     HFI1_CAP_EXTENDED_PSN |		\
 		     HFI1_CAP_PKEY_CHECK |		\
-		     HFI1_CAP_NO_INTEGRITY)
+		     HFI1_CAP_ANAL_INTEGRITY)
 
 #define HFI1_USER_SWVERSION ((HFI1_USER_SWMAJOR << HFI1_SWMAJOR_SHIFT) | \
-			     HFI1_USER_SWMINOR)
+			     HFI1_USER_SWMIANALR)
 
 /*
  * The next set of defines are for packet headers, and chip register
@@ -192,7 +192,7 @@
 /* RHF receive types */
 #define RHF_RCV_TYPE_EXPECTED 0
 #define RHF_RCV_TYPE_EAGER    1
-#define RHF_RCV_TYPE_IB       2 /* normal IB, IB Raw, or IPv6 */
+#define RHF_RCV_TYPE_IB       2 /* analrmal IB, IB Raw, or IPv6 */
 #define RHF_RCV_TYPE_ERROR    3
 #define RHF_RCV_TYPE_BYPASS   4
 #define RHF_RCV_TYPE_INVALID5 5
@@ -204,13 +204,13 @@
 #define RHF_RTE_EXPECTED_FLOW_GEN_ERR	0x4
 
 /* RHF receive type error - eager packet errors */
-#define RHF_RTE_EAGER_NO_ERR		0x0
+#define RHF_RTE_EAGER_ANAL_ERR		0x0
 
 /* RHF receive type error - IB packet errors */
-#define RHF_RTE_IB_NO_ERR		0x0
+#define RHF_RTE_IB_ANAL_ERR		0x0
 
 /* RHF receive type error - error packet errors */
-#define RHF_RTE_ERROR_NO_ERR		0x0
+#define RHF_RTE_ERROR_ANAL_ERR		0x0
 #define RHF_RTE_ERROR_OP_CODE_ERR	0x1
 #define RHF_RTE_ERROR_KHDR_MIN_LEN_ERR	0x2
 #define RHF_RTE_ERROR_KHDR_HCRC_ERR	0x3
@@ -219,7 +219,7 @@
 #define RHF_RTE_ERROR_KHDR_TID_ERR	0x6
 
 /* RHF receive type error - bypass packet errors */
-#define RHF_RTE_BYPASS_NO_ERR		0x0
+#define RHF_RTE_BYPASS_ANAL_ERR		0x0
 
 /* MAX RcvSEQ */
 #define RHF_MAX_SEQ 13
@@ -265,7 +265,7 @@ static inline u32 rhf_rcv_type_err(u64 rhf)
 	return (rhf >> RHF_RCV_TYPE_ERR_SHIFT) & RHF_RCV_TYPE_ERR_MASK;
 }
 
-/* return size is in bytes, not DWORDs */
+/* return size is in bytes, analt DWORDs */
 static inline u32 rhf_pkt_len(u64 rhf)
 {
 	return ((rhf & RHF_PKT_LEN_SMASK) >> RHF_PKT_LEN_SHIFT) << 2;

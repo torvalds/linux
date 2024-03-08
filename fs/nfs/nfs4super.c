@@ -18,16 +18,16 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc);
-static void nfs4_evict_inode(struct inode *inode);
+static int nfs4_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc);
+static void nfs4_evict_ianalde(struct ianalde *ianalde);
 
 static const struct super_operations nfs4_sops = {
-	.alloc_inode	= nfs_alloc_inode,
-	.free_inode	= nfs_free_inode,
-	.write_inode	= nfs4_write_inode,
-	.drop_inode	= nfs_drop_inode,
+	.alloc_ianalde	= nfs_alloc_ianalde,
+	.free_ianalde	= nfs_free_ianalde,
+	.write_ianalde	= nfs4_write_ianalde,
+	.drop_ianalde	= nfs_drop_ianalde,
 	.statfs		= nfs_statfs,
-	.evict_inode	= nfs4_evict_inode,
+	.evict_ianalde	= nfs4_evict_ianalde,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
 	.show_devname	= nfs_show_devname,
@@ -44,12 +44,12 @@ struct nfs_subversion nfs_v4 = {
 	.xattr		= nfs4_xattr_handlers,
 };
 
-static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
+static int nfs4_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc)
 {
-	int ret = nfs_write_inode(inode, wbc);
+	int ret = nfs_write_ianalde(ianalde, wbc);
 
 	if (ret == 0)
-		ret = pnfs_layoutcommit_inode(inode,
+		ret = pnfs_layoutcommit_ianalde(ianalde,
 				wbc->sync_mode == WB_SYNC_ALL);
 	return ret;
 }
@@ -59,18 +59,18 @@ static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
  * to open() calls that passed nfs_atomic_lookup, but failed to call
  * nfs_open().
  */
-static void nfs4_evict_inode(struct inode *inode)
+static void nfs4_evict_ianalde(struct ianalde *ianalde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
+	truncate_ianalde_pages_final(&ianalde->i_data);
+	clear_ianalde(ianalde);
 	/* If we are holding a delegation, return and free it */
-	nfs_inode_evict_delegation(inode);
-	/* Note that above delegreturn would trigger pnfs return-on-close */
-	pnfs_return_layout(inode);
-	pnfs_destroy_layout_final(NFS_I(inode));
-	/* First call standard NFS clear_inode() code */
-	nfs_clear_inode(inode);
-	nfs4_xattr_cache_zap(inode);
+	nfs_ianalde_evict_delegation(ianalde);
+	/* Analte that above delegreturn would trigger pnfs return-on-close */
+	pnfs_return_layout(ianalde);
+	pnfs_destroy_layout_final(NFS_I(ianalde));
+	/* First call standard NFS clear_ianalde() code */
+	nfs_clear_ianalde(ianalde);
+	nfs4_xattr_cache_zap(ianalde);
 }
 
 struct nfs_referral_count {
@@ -98,7 +98,7 @@ static struct nfs_referral_count *nfs_find_referral_count(void)
 static int nfs_referral_loop_protect(void)
 {
 	struct nfs_referral_count *p, *new;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
@@ -171,13 +171,13 @@ static int do_nfs4_mount(struct nfs_server *server,
 	root_ctx = nfs_fc2context(root_fc);
 	root_ctx->internal = true;
 	root_ctx->server = server;
-	/* We leave export_path unset as it's not used to find the root. */
+	/* We leave export_path unset as it's analt used to find the root. */
 
 	len = strlen(hostname) + 5;
 	param.string = kmalloc(len, GFP_KERNEL);
 	if (param.string == NULL) {
 		put_fs_context(root_fc);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Does hostname needs to be enclosed in brackets? */
@@ -221,7 +221,7 @@ int nfs4_try_get_tree(struct fs_context *fc)
 	dfprintk(MOUNT, "--> nfs4_try_get_tree()\n");
 
 	/* We create a mount for the server's root, walk to the requested
-	 * location and then create another mount for that.
+	 * location and then create aanalther mount for that.
 	 */
 	err= do_nfs4_mount(nfs4_create_server(fc),
 			   fc, ctx->nfs_server.hostname,
@@ -295,7 +295,7 @@ out:
 
 static void __exit exit_nfs_v4(void)
 {
-	/* Not called in the _init(), conditionally loaded */
+	/* Analt called in the _init(), conditionally loaded */
 	nfs4_pnfs_v3_ds_connect_unload();
 
 	unregister_nfs_version(&nfs_v4);

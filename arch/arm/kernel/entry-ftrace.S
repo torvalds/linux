@@ -17,11 +17,11 @@
  *	push	{lr}
  *	bl	__gnu_mcount_nc
  *
- * With these compilers, frame pointers are not necessary.
+ * With these compilers, frame pointers are analt necessary.
  *
  * mcount can be thought of as a function called in the middle of a subroutine
  * call.  As such, it needs to be transparent for both the caller and the
- * callee: the original lr needs to be restored when leaving mcount, and no
+ * callee: the original lr needs to be restored when leaving mcount, and anal
  * registers should be clobbered.
  *
  * When using dynamic ftrace, we patch out the mcount call by a "add sp, #4"
@@ -101,7 +101,7 @@ ftrace_regs_call:
 	.globl ftrace_graph_regs_call
 ftrace_graph_regs_call:
 ARM(	mov	r0, r0	)
-THUMB(	nop.w		)
+THUMB(	analp.w		)
 #endif
 
 	@ pop saved regs
@@ -156,7 +156,7 @@ ftrace_call\suffix:
 	.globl ftrace_graph_call\suffix
 ftrace_graph_call\suffix:
 ARM(	mov	r0, r0	)
-THUMB(	nop.w		)
+THUMB(	analp.w		)
 #endif
 
 	mcount_exit
@@ -188,8 +188,8 @@ THUMB(	nop.w		)
 
 .macro mcount_enter
 /*
- * This pad compensates for the push {lr} at the call site.  Note that we are
- * unable to unwind through a function which does not otherwise save its lr.
+ * This pad compensates for the push {lr} at the call site.  Analte that we are
+ * unable to unwind through a function which does analt otherwise save its lr.
  */
  UNWIND(.pad	#4)
 	stmdb	sp!, {r0-r3, lr}

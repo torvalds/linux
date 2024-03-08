@@ -106,7 +106,7 @@ struct cx18_av_state {
 	 *
 	 * L = M+(S+D-1) = N-1+(S+D-1) = N + (S+D-2).
 	 *
-	 * L is the line in the field, not frame, from which the VBI data came.
+	 * L is the line in the field, analt frame, from which the VBI data came.
 	 * N is the line reported by the slicer in the ancillary data.
 	 * D is the slicer_line_delay value programmed into register 0x47f.
 	 * S is 6 for 625 line systems or 10 for 525 line systems
@@ -301,9 +301,9 @@ struct cx18_av_state {
 #define CXADEC_QAM_ROTATOR_FREQ    0x948
 
 /* Bit definitions / settings used in Mako Audio */
-#define CXADEC_PREF_MODE_MONO_LANGA        0
-#define CXADEC_PREF_MODE_MONO_LANGB        1
-#define CXADEC_PREF_MODE_MONO_LANGC        2
+#define CXADEC_PREF_MODE_MOANAL_LANGA        0
+#define CXADEC_PREF_MODE_MOANAL_LANGB        1
+#define CXADEC_PREF_MODE_MOANAL_LANGC        2
 #define CXADEC_PREF_MODE_FALLBACK          3
 #define CXADEC_PREF_MODE_STEREO            4
 #define CXADEC_PREF_MODE_DUAL_LANG_AC      5
@@ -315,7 +315,7 @@ struct cx18_av_state {
 #define CXADEC_DETECT_DUAL                 2
 #define CXADEC_DETECT_TRI                  4
 #define CXADEC_DETECT_SAP                  0x10
-#define CXADEC_DETECT_NO_SIGNAL            0xFF
+#define CXADEC_DETECT_ANAL_SIGNAL            0xFF
 
 #define CXADEC_SELECT_AUDIO_STANDARD_BG    0xF0  /* NICAM BG and A2 BG */
 #define CXADEC_SELECT_AUDIO_STANDARD_DK1   0xF1  /* NICAM DK and A2 DK */
@@ -343,7 +343,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 /* cx18_av-core.c							   */
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value);
-int cx18_av_write4_noretry(struct cx18 *cx, u16 addr, u32 value);
+int cx18_av_write4_analretry(struct cx18 *cx, u16 addr, u32 value);
 int cx18_av_write_expect(struct cx18 *cx, u16 addr, u8 value, u8 eval, u8 mask);
 int cx18_av_write4_expect(struct cx18 *cx, u16 addr, u32 value, u32 eval,
 			  u32 mask);

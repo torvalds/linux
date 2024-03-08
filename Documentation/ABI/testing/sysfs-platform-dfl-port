@@ -21,7 +21,7 @@ KernelVersion:	5.4
 Contact:	Wu Hao <hao.wu@intel.com>
 Description:	Read-only. It reports the APx (AFU Power) state, different APx
 		means different throttling level. When reading this file, it
-		returns "0" - Normal / "1" - AP1 / "2" - AP2 / "6" - AP6.
+		returns "0" - Analrmal / "1" - AP1 / "2" - AP2 / "6" - AP6.
 
 What:		/sys/bus/platform/devices/dfl-port.0/ap1_event
 Date:		August 2019
@@ -84,7 +84,7 @@ Description:	Read-Write. Read this file to get errors detected on port and
 		to clear errors. Write fails with -EINVAL if input parsing
 		fails or input error code doesn't match. Write fails with
 		-EBUSY or -ETIMEDOUT if error can't be cleared as hardware
-		in low power state (-EBUSY) or not respoding (-ETIMEDOUT).
+		in low power state (-EBUSY) or analt respoding (-ETIMEDOUT).
 
 What:		/sys/bus/platform/devices/dfl-port.0/errors/first_error
 Date:		August 2019

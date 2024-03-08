@@ -45,7 +45,7 @@
 		led-0 {
 			label = "ci20:red:led0";
 			gpios = <&gpc 3 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-1 {
@@ -212,7 +212,7 @@
 	mmc-pwrseq = <&wifi_pwrseq>;
 	vmmc-supply = <&wifi_power>;
 	vqmmc-supply = <&wifi_io>;
-	non-removable;
+	analn-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_mmc1>;
@@ -349,7 +349,7 @@
 				 * Likely the CI20 uses a proprietary
 				 * factory programmed chip variant.
 				 * Since this is a simple on/off LDO the
-				 * exact values do not matter.
+				 * exact values do analt matter.
 				 */
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
@@ -476,7 +476,7 @@
 
 	dm9000@6 {
 		compatible = "davicom,dm9000";
-		davicom,no-eeprom;
+		davicom,anal-eeprom;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pins_nemc_cs6>;

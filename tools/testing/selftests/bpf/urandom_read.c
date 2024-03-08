@@ -1,7 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -31,7 +31,7 @@ int urandlib_api_sameoffset(void);
 
 unsigned short urand_read_with_sema_semaphore SEC(".probes");
 
-static noinline void urandom_read(int fd, int count)
+static analinline void urandom_read(int fd, int count)
 {
 	char buf[BUF_SIZE];
 	int i;
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 			fprintf(stdout, "%d\n", getpid());
 			fflush(stdout);
 		}
-		/* at this point stdout is closed, parent process knows our
+		/* at this point stdout is closed, parent process kanalws our
 		 * PID and is ready to trace us
 		 */
 	}

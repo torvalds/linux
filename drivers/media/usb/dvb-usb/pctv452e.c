@@ -121,7 +121,7 @@ static int tt3650_ci_msg(struct dvb_usb_device *d, u8 cmd, u8 *data,
 
 	buf = kmalloc(64, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = state->c++;
 
@@ -273,7 +273,7 @@ static int tt3650_ci_set_video_port(struct dvb_ca_en50221 *ca,
 		return ret;
 
 	if (enable != buf[0]) {
-		err("CI not %sabled.", enable ? "en" : "dis");
+		err("CI analt %sabled.", enable ? "en" : "dis");
 		return -EIO;
 	}
 
@@ -368,7 +368,7 @@ static void tt3650_ci_uninit(struct dvb_usb_device *d)
 	if (NULL == state->ca.data)
 		return;
 
-	/* Error ignored. */
+	/* Error iganalred. */
 	tt3650_ci_set_video_port(&state->ca, /* slot */ 0, /* enable */ 0);
 
 	dvb_ca_en50221_release(&state->ca);
@@ -402,7 +402,7 @@ static int tt3650_ci_init(struct dvb_usb_adapter *a)
 				   /* flags */ 0,
 				   /* n_slots */ 1);
 	if (0 != ret) {
-		err("Cannot initialize CI: Error %d.", ret);
+		err("Cananalt initialize CI: Error %d.", ret);
 		memset(&state->ca, 0, sizeof(state->ca));
 		return ret;
 	}
@@ -424,7 +424,7 @@ static int pctv452e_i2c_msg(struct dvb_usb_device *d, u8 addr,
 
 	buf = kmalloc(64, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = state->c++;
 
@@ -530,7 +530,7 @@ static int pctv452e_power_ctrl(struct dvb_usb_device *d, int i)
 
 	b0 = kmalloc(5 + PCTV_ANSWER_LEN, GFP_KERNEL);
 	if (!b0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx = b0 + 5;
 
@@ -540,7 +540,7 @@ static int pctv452e_power_ctrl(struct dvb_usb_device *d, int i)
 		info("%s: Warning set interface returned: %d\n",
 			__func__, ret);
 
-	/* this is a one-time initialization, don't know where to put */
+	/* this is a one-time initialization, don't kanalw where to put */
 	b0[0] = 0xaa;
 	b0[1] = state->c++;
 	b0[2] = PCTV_CMD_RESET;
@@ -574,7 +574,7 @@ static int pctv452e_rc_query(struct dvb_usb_device *d)
 
 	b = kmalloc(CMD_BUFFER_SIZE + PCTV_ANSWER_LEN, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx = b + CMD_BUFFER_SIZE;
 
@@ -875,8 +875,8 @@ static struct stb0899_config stb0899_config = {
 	.data_clk_parity = 0,
 	.fec_mode	= 0,
 
-	.esno_ave	    = STB0899_DVBS2_ESNO_AVE,
-	.esno_quant	  = STB0899_DVBS2_ESNO_QUANT,
+	.esanal_ave	    = STB0899_DVBS2_ESANAL_AVE,
+	.esanal_quant	  = STB0899_DVBS2_ESANAL_QUANT,
 	.avframes_coarse     = STB0899_DVBS2_AVFRAMES_COARSE,
 	.avframes_fine       = STB0899_DVBS2_AVFRAMES_FINE,
 	.miss_threshold      = STB0899_DVBS2_MISS_THRESHOLD,
@@ -918,23 +918,23 @@ static int pctv452e_frontend_attach(struct dvb_usb_adapter *a)
 	a->fe_adap[0].fe = dvb_attach(stb0899_attach, &stb0899_config,
 						&a->dev->i2c_adap);
 	if (!a->fe_adap[0].fe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = a->dev->desc->warm_ids[0];
-	if (id->idVendor == USB_VID_TECHNOTREND &&
-	    id->idProduct == USB_PID_TECHNOTREND_CONNECT_S2_3650_CI) {
+	if (id->idVendor == USB_VID_TECHANALTREND &&
+	    id->idProduct == USB_PID_TECHANALTREND_CONNECT_S2_3650_CI) {
 		if (dvb_attach(lnbp22_attach,
 			       a->fe_adap[0].fe,
 			       &a->dev->i2c_adap) == NULL) {
-			err("Cannot attach lnbp22\n");
+			err("Cananalt attach lnbp22\n");
 		}
-		/* Error ignored. */
+		/* Error iganalred. */
 		tt3650_ci_init(a);
 	} else if (dvb_attach(isl6423_attach,
 			      a->fe_adap[0].fe,
 			      &a->dev->i2c_adap,
 			      &pctv452e_isl6423_config) == NULL) {
-		err("Cannot attach isl6423\n");
+		err("Cananalt attach isl6423\n");
 	}
 
 	return 0;
@@ -943,11 +943,11 @@ static int pctv452e_frontend_attach(struct dvb_usb_adapter *a)
 static int pctv452e_tuner_attach(struct dvb_usb_adapter *a)
 {
 	if (!a->fe_adap[0].fe)
-		return -ENODEV;
+		return -EANALDEV;
 	if (dvb_attach(stb6100_attach, a->fe_adap[0].fe, &stb6100_config,
 					&a->dev->i2c_adap) == NULL) {
 		err("%s failed\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -955,14 +955,14 @@ static int pctv452e_tuner_attach(struct dvb_usb_adapter *a)
 
 enum {
 	PINNACLE_PCTV_452E,
-	TECHNOTREND_CONNECT_S2_3600,
-	TECHNOTREND_CONNECT_S2_3650_CI,
+	TECHANALTREND_CONNECT_S2_3600,
+	TECHANALTREND_CONNECT_S2_3650_CI,
 };
 
 static struct usb_device_id pctv452e_usb_table[] = {
 	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_452E),
-	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2_3600),
-	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2_3650_CI),
+	DVB_USB_DEV(TECHANALTREND, TECHANALTREND_CONNECT_S2_3600),
+	DVB_USB_DEV(TECHANALTREND, TECHANALTREND_CONNECT_S2_3650_CI),
 	{ }
 };
 
@@ -1066,13 +1066,13 @@ static struct dvb_usb_device_properties tt_connect_s2_3600_properties = {
 
 	.num_device_descs = 2,
 	.devices = {
-		{ .name = "Technotrend TT Connect S2-3600",
+		{ .name = "Techanaltrend TT Connect S2-3600",
 		  .cold_ids = { NULL, NULL }, /* this is a warm only device */
-		  .warm_ids = { &pctv452e_usb_table[TECHNOTREND_CONNECT_S2_3600], NULL }
+		  .warm_ids = { &pctv452e_usb_table[TECHANALTREND_CONNECT_S2_3600], NULL }
 		},
-		{ .name = "Technotrend TT Connect S2-3650-CI",
+		{ .name = "Techanaltrend TT Connect S2-3650-CI",
 		  .cold_ids = { NULL, NULL },
-		  .warm_ids = { &pctv452e_usb_table[TECHNOTREND_CONNECT_S2_3650_CI], NULL }
+		  .warm_ids = { &pctv452e_usb_table[TECHANALTREND_CONNECT_S2_3650_CI], NULL }
 		},
 		{ NULL },
 	}
@@ -1095,7 +1095,7 @@ static int pctv452e_usb_probe(struct usb_interface *intf,
 					THIS_MODULE, NULL, adapter_nr))
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct usb_driver pctv452e_usb_driver = {

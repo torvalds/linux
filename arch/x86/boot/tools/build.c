@@ -44,7 +44,7 @@ typedef unsigned int   u32;
 #define SETUP_SECT_MIN 5
 #define SETUP_SECT_MAX 64
 
-/* This must be large enough to hold the entire setup */
+/* This must be large eanalugh to hold the entire setup */
 u8 buf[SETUP_SECT_MAX*512];
 
 static unsigned long _edata;
@@ -136,7 +136,7 @@ static void usage(void)
 /*
  * Parse zoffset.h and find the entry points. We could just #include zoffset.h
  * but that would mean tools/build would have to be rebuilt every time. It's
- * not as if parsing it is hard...
+ * analt as if parsing it is hard...
  */
 #define PARSE_ZOFS(p, sym) do { \
 	if (!strncmp(p, "#define ZO_" #sym " ", 11+sizeof(#sym)))	\

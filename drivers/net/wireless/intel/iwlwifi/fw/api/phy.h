@@ -43,16 +43,16 @@ enum iwl_phy_ops_subcmd_ids {
 	PER_PLATFORM_ANT_GAIN_CMD = 0x07,
 
 	/**
-	 * @CT_KILL_NOTIFICATION: &struct ct_kill_notif
+	 * @CT_KILL_ANALTIFICATION: &struct ct_kill_analtif
 	 */
-	CT_KILL_NOTIFICATION = 0xFE,
+	CT_KILL_ANALTIFICATION = 0xFE,
 
 	/**
-	 * @DTS_MEASUREMENT_NOTIF_WIDE:
-	 * &struct iwl_dts_measurement_notif_v1 or
-	 * &struct iwl_dts_measurement_notif_v2
+	 * @DTS_MEASUREMENT_ANALTIF_WIDE:
+	 * &struct iwl_dts_measurement_analtif_v1 or
+	 * &struct iwl_dts_measurement_analtif_v2
 	 */
-	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
+	DTS_MEASUREMENT_ANALTIF_WIDE = 0xFF,
 };
 
 /* DTS measurements */
@@ -75,7 +75,7 @@ struct iwl_dts_measurement_cmd {
 /**
 * enum iwl_dts_control_measurement_mode - DTS measurement type
 * @DTS_AUTOMATIC: Automatic mode (full SW control). Provide temperature read
-*                 back (latest value. Not waiting for new value). Use automatic
+*                 back (latest value. Analt waiting for new value). Use automatic
 *                 SW DTS configuration.
 * @DTS_REQUEST_READ: Request DTS read. Configure DTS with manual settings,
 *                    trigger DTS reading and provide read back temperature read
@@ -136,24 +136,24 @@ struct iwl_ext_dts_measurement_cmd {
 } __packed; /* XVT_FW_DTS_CONTROL_MEASUREMENT_REQUEST_API_S */
 
 /**
- * struct iwl_dts_measurement_notif_v1 - measurements notification
+ * struct iwl_dts_measurement_analtif_v1 - measurements analtification
  *
  * @temp: the measured temperature
  * @voltage: the measured voltage
  */
-struct iwl_dts_measurement_notif_v1 {
+struct iwl_dts_measurement_analtif_v1 {
 	__le32 temp;
 	__le32 voltage;
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
 
 /**
- * struct iwl_dts_measurement_notif_v2 - measurements notification
+ * struct iwl_dts_measurement_analtif_v2 - measurements analtification
  *
  * @temp: the measured temperature
  * @voltage: the measured voltage
  * @threshold_idx: the trip index that was crossed
  */
-struct iwl_dts_measurement_notif_v2 {
+struct iwl_dts_measurement_analtif_v2 {
 	__le32 temp;
 	__le32 voltage;
 	__le32 threshold_idx;
@@ -169,8 +169,8 @@ struct iwl_dts_measurement_resp {
 } __packed; /* CMD_DTS_MEASUREMENT_RSP_API_S_VER_1 */
 
 /**
- * struct ct_kill_notif - CT-kill entry notification
- * This structure represent both versions of this notification.
+ * struct ct_kill_analtif - CT-kill entry analtification
+ * This structure represent both versions of this analtification.
  *
  * @temperature: the current temperature in celsius
  * @dts: only in v2: DTS that trigger the CT Kill bitmap:
@@ -183,11 +183,11 @@ struct iwl_dts_measurement_resp {
  *			bits 6,7: reserved (set to 0)
  * @scheme: only for v2: scheme that trigger the CT Kill (0-SW, 1-HW)
  */
-struct ct_kill_notif {
+struct ct_kill_analtif {
 	__le16 temperature;
 	u8 dts;
 	u8 scheme;
-} __packed; /* CT_KILL_NOTIFICATION_API_S_VER_1, CT_KILL_NOTIFICATION_API_S_VER_2 */
+} __packed; /* CT_KILL_ANALTIFICATION_API_S_VER_1, CT_KILL_ANALTIFICATION_API_S_VER_2 */
 
 /**
 * enum ctdp_cmd_operation - CTDP command operations
@@ -206,7 +206,7 @@ enum iwl_mvm_ctdp_cmd_operation {
  *
  * @operation: see &enum iwl_mvm_ctdp_cmd_operation
  * @budget: the budget in milliwatt
- * @window_size: defined in API but not used
+ * @window_size: defined in API but analt used
  */
 struct iwl_mvm_ctdp_cmd {
 	__le32 operation;

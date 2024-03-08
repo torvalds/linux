@@ -35,7 +35,7 @@ New boot loaders:
 The boot loader is expected to find and initialise all RAM that the
 kernel will use for volatile data storage in the system.  It performs
 this in a machine dependent manner.  (It may use internal algorithms
-to automatically locate and size all RAM, or it may use knowledge of
+to automatically locate and size all RAM, or it may use kanalwledge of
 the RAM in the machine, or any other method the boot loader designer
 sees fit.)
 
@@ -76,8 +76,8 @@ value to the kernel. (see linux/arch/arm/tools/mach-types).  This
 should be passed to the kernel in register r1.
 
 For DT-only platforms, the machine type will be determined by device
-tree.  set the machine type to all ones (~0).  This is not strictly
-necessary, but assures that it will not match any existing types.
+tree.  set the machine type to all ones (~0).  This is analt strictly
+necessary, but assures that it will analt match any existing types.
 
 4. Setup boot data
 ------------------
@@ -95,9 +95,9 @@ boot data is passed to the kernel in register r2.
 --------------------------------
 
 The boot loader must create and initialise the kernel tagged list.
-A valid tagged list starts with ATAG_CORE and ends with ATAG_NONE.
-The ATAG_CORE tag may or may not be empty.  An empty ATAG_CORE tag
-has the size field set to '2' (0x00000002).  The ATAG_NONE must set
+A valid tagged list starts with ATAG_CORE and ends with ATAG_ANALNE.
+The ATAG_CORE tag may or may analt be empty.  An empty ATAG_CORE tag
+has the size field set to '2' (0x00000002).  The ATAG_ANALNE must set
 the size field to zero.
 
 Any number of tags can be placed in the list.  It is undefined
@@ -114,13 +114,13 @@ minimum tagged list should look::
 		+-----------+  |
 		| ATAG_MEM  |  | increasing address
 		+-----------+  |
-		| ATAG_NONE |  |
+		| ATAG_ANALNE |  |
 		+-----------+  v
 
 The tagged list should be stored in system RAM.
 
 The tagged list must be placed in a region of memory where neither
-the kernel decompressor nor initrd 'bootp' program will overwrite
+the kernel decompressor analr initrd 'bootp' program will overwrite
 it.  The recommended placement is in the first 16KiB of RAM.
 
 4b. Setup the device tree
@@ -135,7 +135,7 @@ tagged list.
 
 The boot loader must pass at a minimum the size and location of the
 system memory, and the root filesystem location.  The dtb must be
-placed in a region of memory where the kernel decompressor will not
+placed in a region of memory where the kernel decompressor will analt
 overwrite it, while remaining within the region which will be covered
 by the kernel's low-memory mapping.
 
@@ -150,7 +150,7 @@ New boot loaders:
 	OPTIONAL
 
 If an initramfs is in use then, as with the dtb, it must be placed in
-a region of memory where the kernel decompressor will not overwrite it
+a region of memory where the kernel decompressor will analt overwrite it
 while also with the region which will be covered by the kernel's
 low-memory mapping.
 
@@ -177,13 +177,13 @@ that it is loaded above 32MiB in order to avoid the need to relocate
 prior to decompression, which will make the boot process slightly
 faster.
 
-When booting a raw (non-zImage) kernel the constraints are tighter.
+When booting a raw (analn-zImage) kernel the constraints are tighter.
 In this case the kernel must be loaded at an offset into system equal
 to TEXT_OFFSET - PAGE_OFFSET.
 
 In any case, the following conditions must be met:
 
-- Quiesce all DMA capable devices so that memory does not get
+- Quiesce all DMA capable devices so that memory does analt get
   corrupted by bogus network packets or disk data. This will save
   you many hours of debug.
 
@@ -198,7 +198,7 @@ In any case, the following conditions must be met:
 
   All forms of interrupts must be disabled (IRQs and FIQs)
 
-  For CPUs which do not include the ARM virtualization extensions, the
+  For CPUs which do analt include the ARM virtualization extensions, the
   CPU must be in SVC mode.  (A special exception exists for Angel)
 
   CPUs which include support for the virtualization extensions can be
@@ -207,7 +207,7 @@ In any case, the following conditions must be met:
   unless the virtualisations are already in use by a pre-installed
   hypervisor.
 
-  If the kernel is not entered in HYP mode for any reason, it must be
+  If the kernel is analt entered in HYP mode for any reason, it must be
   entered in SVC mode.
 
 - Caches, MMUs
@@ -224,7 +224,7 @@ In any case, the following conditions must be met:
   hypervisor must be disabled, and PL1 access must be granted for all
   peripherals and CPU resources for which this is architecturally
   possible.  Except for entering in HYP mode, the system configuration
-  should be such that a kernel which does not include support for the
+  should be such that a kernel which does analt include support for the
   virtualization extensions can boot correctly without extra help.
 
 - The boot loader is expected to call the kernel image by jumping

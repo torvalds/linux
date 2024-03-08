@@ -21,7 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/time.h>
 #include <linux/hrtimer.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/timerfd.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
@@ -57,7 +57,7 @@ static inline bool isalarm(struct timerfd_ctx *ctx)
 
 /*
  * This gets called when the timer event triggers. We set the "expired"
- * flag, but we do not re-arm the timer (in case it's necessary,
+ * flag, but we do analt re-arm the timer (in case it's necessary,
  * tintv != 0) until the timer is accessed.
  */
 static void timerfd_triggered(struct timerfd_ctx *ctx)
@@ -76,27 +76,27 @@ static enum hrtimer_restart timerfd_tmrproc(struct hrtimer *htmr)
 	struct timerfd_ctx *ctx = container_of(htmr, struct timerfd_ctx,
 					       t.tmr);
 	timerfd_triggered(ctx);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static enum alarmtimer_restart timerfd_alarmproc(struct alarm *alarm,
-	ktime_t now)
+	ktime_t analw)
 {
 	struct timerfd_ctx *ctx = container_of(alarm, struct timerfd_ctx,
 					       t.alarm);
 	timerfd_triggered(ctx);
-	return ALARMTIMER_NORESTART;
+	return ALARMTIMER_ANALRESTART;
 }
 
 /*
  * Called when the clock was set to cancel the timers in the cancel
  * list. This will wake up processes waiting on these timers. The
- * wake-up requires ctx->ticks to be non zero, therefore we increment
+ * wake-up requires ctx->ticks to be analn zero, therefore we increment
  * it before calling wake_up_locked().
  */
 void timerfd_clock_was_set(void)
 {
-	ktime_t moffs = ktime_mono_to_real(0);
+	ktime_t moffs = ktime_moanal_to_real(0);
 	struct timerfd_ctx *ctx;
 	unsigned long flags;
 
@@ -152,7 +152,7 @@ static bool timerfd_canceled(struct timerfd_ctx *ctx)
 {
 	if (!ctx->might_cancel || ctx->moffs != KTIME_MAX)
 		return false;
-	ctx->moffs = ktime_mono_to_real(0);
+	ctx->moffs = ktime_moanal_to_real(0);
 	return true;
 }
 
@@ -232,7 +232,7 @@ static int timerfd_setup(struct timerfd_ctx *ctx, int flags,
 	return 0;
 }
 
-static int timerfd_release(struct inode *inode, struct file *file)
+static int timerfd_release(struct ianalde *ianalde, struct file *file)
 {
 	struct timerfd_ctx *ctx = file->private_data;
 
@@ -272,14 +272,14 @@ static ssize_t timerfd_read(struct file *file, char __user *buf, size_t count,
 	if (count < sizeof(ticks))
 		return -EINVAL;
 	spin_lock_irq(&ctx->wqh.lock);
-	if (file->f_flags & O_NONBLOCK)
+	if (file->f_flags & O_ANALNBLOCK)
 		res = -EAGAIN;
 	else
 		res = wait_event_interruptible_locked_irq(ctx->wqh, ctx->ticks);
 
 	/*
-	 * If clock has changed, we do not care about the
-	 * ticks and we do not rearm the timer. Userspace must
+	 * If clock has changed, we do analt care about the
+	 * ticks and we do analt rearm the timer. Userspace must
 	 * reevaluate anyway.
 	 */
 	if (timerfd_canceled(ctx)) {
@@ -299,11 +299,11 @@ static ssize_t timerfd_read(struct file *file, char __user *buf, size_t count,
 			 * short timer period.
 			 */
 			if (isalarm(ctx)) {
-				ticks += alarm_forward_now(
+				ticks += alarm_forward_analw(
 					&ctx->t.alarm, ctx->tintv) - 1;
 				alarm_restart(&ctx->t.alarm);
 			} else {
-				ticks += hrtimer_forward_now(&ctx->t.tmr,
+				ticks += hrtimer_forward_analw(&ctx->t.tmr,
 							     ctx->tintv) - 1;
 				hrtimer_restart(&ctx->t.tmr);
 			}
@@ -371,7 +371,7 @@ static long timerfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		break;
 	}
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 
@@ -385,7 +385,7 @@ static const struct file_operations timerfd_fops = {
 	.release	= timerfd_release,
 	.poll		= timerfd_poll,
 	.read		= timerfd_read,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 	.show_fdinfo	= timerfd_show,
 	.unlocked_ioctl	= timerfd_ioctl,
 };
@@ -410,10 +410,10 @@ SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 
 	/* Check the TFD_* constants for consistency.  */
 	BUILD_BUG_ON(TFD_CLOEXEC != O_CLOEXEC);
-	BUILD_BUG_ON(TFD_NONBLOCK != O_NONBLOCK);
+	BUILD_BUG_ON(TFD_ANALNBLOCK != O_ANALNBLOCK);
 
 	if ((flags & ~TFD_CREATE_FLAGS) ||
-	    (clockid != CLOCK_MONOTONIC &&
+	    (clockid != CLOCK_MOANALTONIC &&
 	     clockid != CLOCK_REALTIME &&
 	     clockid != CLOCK_REALTIME_ALARM &&
 	     clockid != CLOCK_BOOTTIME &&
@@ -427,7 +427,7 @@ SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&ctx->wqh);
 	spin_lock_init(&ctx->cancel_lock);
@@ -441,9 +441,9 @@ SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 	else
 		hrtimer_init(&ctx->t.tmr, clockid, HRTIMER_MODE_ABS);
 
-	ctx->moffs = ktime_mono_to_real(0);
+	ctx->moffs = ktime_moanal_to_real(0);
 
-	ufd = anon_inode_getfd("[timerfd]", &timerfd_fops, ctx,
+	ufd = aanaln_ianalde_getfd("[timerfd]", &timerfd_fops, ctx,
 			       O_RDWR | (flags & TFD_SHARED_FCNTL_FLAGS));
 	if (ufd < 0)
 		kfree(ctx);
@@ -499,15 +499,15 @@ static int do_timerfd_settime(int ufd, int flags,
 
 	/*
 	 * If the timer is expired and it's periodic, we need to advance it
-	 * because the caller may want to know the previous expiration time.
-	 * We do not update "ticks" and "expired" since the timer will be
+	 * because the caller may want to kanalw the previous expiration time.
+	 * We do analt update "ticks" and "expired" since the timer will be
 	 * re-programmed again in the following timerfd_setup() call.
 	 */
 	if (ctx->expired && ctx->tintv) {
 		if (isalarm(ctx))
-			alarm_forward_now(&ctx->t.alarm, ctx->tintv);
+			alarm_forward_analw(&ctx->t.alarm, ctx->tintv);
 		else
-			hrtimer_forward_now(&ctx->t.tmr, ctx->tintv);
+			hrtimer_forward_analw(&ctx->t.tmr, ctx->tintv);
 	}
 
 	old->it_value = ktime_to_timespec64(timerfd_get_remaining(ctx));
@@ -538,12 +538,12 @@ static int do_timerfd_gettime(int ufd, struct itimerspec64 *t)
 
 		if (isalarm(ctx)) {
 			ctx->ticks +=
-				alarm_forward_now(
+				alarm_forward_analw(
 					&ctx->t.alarm, ctx->tintv) - 1;
 			alarm_restart(&ctx->t.alarm);
 		} else {
 			ctx->ticks +=
-				hrtimer_forward_now(&ctx->t.tmr, ctx->tintv)
+				hrtimer_forward_analw(&ctx->t.tmr, ctx->tintv)
 				- 1;
 			hrtimer_restart(&ctx->t.tmr);
 		}

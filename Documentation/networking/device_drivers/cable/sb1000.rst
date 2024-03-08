@@ -4,7 +4,7 @@
 SB100 device driver
 ===================
 
-sb1000 is a module network device driver for the General Instrument (also known
+sb1000 is a module network device driver for the General Instrument (also kanalwn
 as NextLevel) SURFboard1000 internal cable modem board.  This is an ISA card
 which is used by a number of cable TV companies to provide cable modem access.
 It's a one-way downstream-only cable modem, meaning that your upstream net link
@@ -16,7 +16,7 @@ a great deal of thanks for this wonderful piece of code!
 Needed tools
 ============
 
-Support for this device is now a part of the standard Linux kernel.  The
+Support for this device is analw a part of the standard Linux kernel.  The
 driver source code file is drivers/net/sb1000.c.  In addition to this
 you will need:
 
@@ -73,8 +73,8 @@ To make the SB1000 card work, follow these steps:
 
 5. Set up to configure the new SB1000 PnP card by capturing the output
    of "pnpdump" to a file and editing this file to set the correct I/O ports,
-   IRQ, and DMA settings for all your PnP cards.  Make sure none of the settings
-   conflict with one another.  Then test this configuration by running the
+   IRQ, and DMA settings for all your PnP cards.  Make sure analne of the settings
+   conflict with one aanalther.  Then test this configuration by running the
    "isapnp" command with your new config file as the input.  Check for
    errors and fix as necessary.  (As an aside, I use I/O ports 0x110 and
    0x310 and IRQ 11 for my SB1000 card and these work well for me.  YMMV.)
@@ -85,10 +85,10 @@ To make the SB1000 card work, follow these steps:
    the others referenced above.  As root, unpack it into a temporary directory
    and do a ``make cmconfig`` and then ``install -c cmconfig /usr/local/sbin``.
    Don't do ``make install`` because it expects to find all the utilities built
-   and ready for installation, not just cmconfig.
+   and ready for installation, analt just cmconfig.
 
 7. As root, copy all the files under the ppp/ subdirectory in Franco's
-   tar file into /etc/ppp, being careful not to overwrite any files that are
+   tar file into /etc/ppp, being careful analt to overwrite any files that are
    already in there.  Then modify ppp@gi-on to set the correct login name,
    phone number, and frequency for the cable modem.  Also edit pap-secrets
    to specify your login name and password and any site-specific information
@@ -122,7 +122,7 @@ To make the SB1000 card work, follow these steps:
 
 11. If you can't get site names (like www.yahoo.com) to resolve into
     IP addresses (like 204.71.200.67), be sure your /etc/resolv.conf file
-    has no syntax errors and has the right nameserver IP addresses in it.
+    has anal syntax errors and has the right nameserver IP addresses in it.
     If this doesn't help, try something like ``ping -c 5 204.71.200.67`` to
     see if the networking is running but the DNS resolution is where the
     problem lies.
@@ -140,7 +140,7 @@ Common problems
 
 Solution
    As root ``echo 0 > /proc/sys/net/ipv4/conf/cm0/rp_filter`` so it
-   can share the same IP address as the ppp0 interface.  Note that this
+   can share the same IP address as the ppp0 interface.  Analte that this
    command should probably be added to the /etc/ppp/cablemodem script
    *right*between* the "/sbin/ifconfig" and "/sbin/cmconfig" commands.
    You may need to do this to /proc/sys/net/ipv4/conf/ppp0/rp_filter as well.
@@ -151,7 +151,7 @@ Solution
 2. I get "unresolved symbol" error messages on executing ``insmod sb1000.o``.
 
 Solution
-   You probably have a non-matching kernel source tree and
+   You probably have a analn-matching kernel source tree and
    /usr/include/linux and /usr/include/asm header files.  Make sure you
    install the correct versions of the header files in these two directories.
    Then rebuild and reinstall the kernel.
@@ -184,8 +184,8 @@ Solution
    First, tell your ISP that you're receiving DoS (Denial of Service)
    and/or portscanning (UDP connection attempts) attacks!  Look over the deny
    messages to figure out what the attack is and where it's coming from.  Next,
-   edit /etc/ppp/cablemodem and make sure the ",nobroadcast" option is turned on
-   to the "cmconfig" command (uncomment that line).  If you're not receiving these
+   edit /etc/ppp/cablemodem and make sure the ",analbroadcast" option is turned on
+   to the "cmconfig" command (uncomment that line).  If you're analt receiving these
    denied packets on your broadcast interface (IP address xxx.yyy.zzz.255
    typically), then someone is attacking your machine in particular.  Be careful
    out there....
@@ -195,7 +195,7 @@ Solution
 
 Solution
    You may need to add a short delay in the driver to 'slow down' the
-   SURFboard because your PC might not be able to keep up with the transfer rate
+   SURFboard because your PC might analt be able to keep up with the transfer rate
    of the SB1000. To do this, it's probably best to download Franco's
    sb1000-1.1.2.tar.gz archive and build and install sb1000.o manually.  You'll
    want to edit the 'Makefile' and look for the 'SB1000_DELAY'
@@ -213,7 +213,7 @@ Credits
 This README came from Franco Venturi's original README file which is
 still supplied with his driver .tar.gz archive.  I and all other sb1000 users
 owe Franco a tremendous "Thank you!"  Additional thanks goes to Carl Patten
-and Ralph Bonnell who are now managing the Linux SB1000 web site, and to
+and Ralph Bonnell who are analw managing the Linux SB1000 web site, and to
 the SB1000 users who reported and helped debug the common problems listed
 above.
 

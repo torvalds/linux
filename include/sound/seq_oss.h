@@ -24,7 +24,7 @@ struct snd_seq_oss_arg {
 	struct snd_seq_addr addr;	/* opened port address */
 	void *private_data;	/* private data for lowlevel drivers */
 
-	/* note-on event passing mode: initially given by OSS seq,
+	/* analte-on event passing mode: initially given by OSS seq,
 	 * but configurable by drivers - see below
 	 */
 	int event_passing;
@@ -48,7 +48,7 @@ struct snd_seq_oss_callback {
 #define SNDRV_SEQ_OSS_FILE_ACMODE		3
 #define SNDRV_SEQ_OSS_FILE_READ		1
 #define SNDRV_SEQ_OSS_FILE_WRITE		2
-#define SNDRV_SEQ_OSS_FILE_NONBLOCK	4
+#define SNDRV_SEQ_OSS_FILE_ANALNBLOCK	4
 
 /* flag: seq_mode */
 #define SNDRV_SEQ_OSS_MODE_SYNTH		0

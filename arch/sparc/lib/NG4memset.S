@@ -54,7 +54,7 @@ NG4bzero:
 .Laligned64:
 	andn		%o1, 64 - 1, %g1
 	sub		%o1, %g1, %o1
-	brnz,pn		%o4, .Lnon_bzero_loop
+	brnz,pn		%o4, .Lanaln_bzero_loop
 	 mov		0x20, %g2
 1:	stxa		%o4, [%o0 + %g0] ASI_BLK_INIT_QUAD_LDD_P
 	subcc		%g1, 0x40, %g1
@@ -87,7 +87,7 @@ NG4bzero:
 .Lexit:
 	retl
 	 mov		%o3, %o0
-.Lnon_bzero_loop:
+.Lanaln_bzero_loop:
 	mov		0x08, %g3
 	mov		0x28, %o5
 1:	stxa		%o4, [%o0 + %g0] ASI_BLK_INIT_QUAD_LDD_P
@@ -103,5 +103,5 @@ NG4bzero:
 	bne,pt		%icc, 1b
 	 add		%o0, 0x30, %o0
 	ba,a,pt		%icc, .Lpostloop
-	 nop
+	 analp
 	.size		NG4bzero,.-NG4bzero

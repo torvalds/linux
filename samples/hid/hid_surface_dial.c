@@ -2,7 +2,7 @@
 /* Copyright (c) 2022 Benjamin Tissoires
  *
  * This program will morph the Microsoft Surface Dial into a mouse,
- * and depending on the chosen resolution enable or not the haptic feedback:
+ * and depending on the chosen resolution enable or analt the haptic feedback:
  * - a resolution (-r) of 3600 will report 3600 "ticks" in one full rotation
  *   without haptic feedback
  * - any other resolution will report N "ticks" in a full rotation with haptic
@@ -13,7 +13,7 @@
  */
 
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <signal.h>
@@ -25,7 +25,7 @@
 #include <unistd.h>
 
 #include <linux/bpf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -55,7 +55,7 @@ static void usage(const char *prog)
 		__func__, prog);
 	fprintf(stderr,
 		"This program will morph the Microsoft Surface Dial into a mouse,\n"
-		"and depending on the chosen resolution enable or not the haptic feedback:\n"
+		"and depending on the chosen resolution enable or analt the haptic feedback:\n"
 		"- a resolution (-r) of 3600 will report 3600 'ticks' in one full rotation\n"
 		"  without haptic feedback\n"
 		"- any other resolution will report N 'ticks' in a full rotation with haptic\n"
@@ -74,9 +74,9 @@ static int get_hid_id(const char *path)
 	memset(uevent, 0, sizeof(uevent));
 	snprintf(uevent, sizeof(uevent) - 1, "%s/uevent", path);
 
-	fd = open(uevent, O_RDONLY | O_NONBLOCK);
+	fd = open(uevent, O_RDONLY | O_ANALNBLOCK);
 	if (fd < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	close(fd);
 
@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 
 	hid_id = get_hid_id(sysfs_path);
 	if (hid_id < 0) {
-		fprintf(stderr, "can not open HID device: %m\n");
+		fprintf(stderr, "can analt open HID device: %m\n");
 		return 1;
 	}
 
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 	skel->data->physical = (int)(resolution / 72);
 
 	bpf_object__for_each_program(prog, *skel->skeleton->obj) {
-		/* ignore syscalls */
+		/* iganalre syscalls */
 		if (bpf_program__get_type(prog) != BPF_PROG_TYPE_TRACING)
 			continue;
 

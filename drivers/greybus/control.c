@@ -13,7 +13,7 @@
 
 /* Highest control-protocol version supported */
 #define GB_CONTROL_VERSION_MAJOR	0
-#define GB_CONTROL_VERSION_MINOR	1
+#define GB_CONTROL_VERSION_MIANALR	1
 
 static int gb_control_get_version(struct gb_control *control)
 {
@@ -23,7 +23,7 @@ static int gb_control_get_version(struct gb_control *control)
 	int ret;
 
 	request.major = GB_CONTROL_VERSION_MAJOR;
-	request.minor = GB_CONTROL_VERSION_MINOR;
+	request.mianalr = GB_CONTROL_VERSION_MIANALR;
 
 	ret = gb_operation_sync(control->connection,
 				GB_CONTROL_TYPE_VERSION,
@@ -40,14 +40,14 @@ static int gb_control_get_version(struct gb_control *control)
 		dev_err(&intf->dev,
 			"unsupported major control-protocol version (%u > %u)\n",
 			response.major, request.major);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	control->protocol_major = response.major;
-	control->protocol_minor = response.minor;
+	control->protocol_mianalr = response.mianalr;
 
 	dev_dbg(&intf->dev, "%s - %u.%u\n", __func__, response.major,
-		response.minor);
+		response.mianalr);
 
 	return 0;
 }
@@ -74,10 +74,10 @@ static int gb_control_get_bundle_version(struct gb_control *control,
 	}
 
 	bundle->class_major = response.major;
-	bundle->class_minor = response.minor;
+	bundle->class_mianalr = response.mianalr;
 
 	dev_dbg(&intf->dev, "%s - %u: %u.%u\n", __func__, bundle->id,
-		response.major, response.minor);
+		response.major, response.mianalr);
 
 	return 0;
 }
@@ -159,7 +159,7 @@ int gb_control_disconnecting_operation(struct gb_control *control,
 					     sizeof(*request), 0, 0,
 					     GFP_KERNEL);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	request = operation->request->payload;
 	request->cport_id = cpu_to_le16(cport_id);
@@ -186,7 +186,7 @@ int gb_control_mode_switch_operation(struct gb_control *control)
 					     GB_OPERATION_FLAG_UNIDIRECTIONAL,
 					     GFP_KERNEL);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gb_operation_request_send_sync(operation);
 	if (ret)
@@ -205,7 +205,7 @@ static int gb_control_bundle_pm_status_map(u8 status)
 	case GB_CONTROL_BUNDLE_PM_BUSY:
 		return -EBUSY;
 	case GB_CONTROL_BUNDLE_PM_NA:
-		return -ENOMSG;
+		return -EANALMSG;
 	case GB_CONTROL_BUNDLE_PM_FAIL:
 	default:
 		return -EREMOTEIO;
@@ -323,7 +323,7 @@ static int gb_control_interface_pm_status_map(u8 status)
 	case GB_CONTROL_INTF_PM_BUSY:
 		return -EBUSY;
 	case GB_CONTROL_INTF_PM_NA:
-		return -ENOMSG;
+		return -EANALMSG;
 	default:
 		return -EREMOTEIO;
 	}
@@ -448,7 +448,7 @@ struct gb_control *gb_control_create(struct gb_interface *intf)
 
 	control = kzalloc(sizeof(*control), GFP_KERNEL);
 	if (!control)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	control->intf = intf;
 
@@ -494,11 +494,11 @@ int gb_control_enable(struct gb_control *control)
 	if (ret)
 		goto err_disable_connection;
 
-	if (control->protocol_major > 0 || control->protocol_minor > 1)
+	if (control->protocol_major > 0 || control->protocol_mianalr > 1)
 		control->has_bundle_version = true;
 
 	/* FIXME: use protocol version instead */
-	if (!(control->intf->quirks & GB_INTERFACE_QUIRK_NO_BUNDLE_ACTIVATE))
+	if (!(control->intf->quirks & GB_INTERFACE_QUIRK_ANAL_BUNDLE_ACTIVATE))
 		control->has_bundle_activate = true;
 
 	return 0;

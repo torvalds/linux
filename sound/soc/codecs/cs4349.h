@@ -57,7 +57,7 @@
 #define DIF_MASK		0x70
 #define MODE_FORMAT(x)		(((x)&7)<<4)
 #define DEM_MASK		0x0C
-#define NO_DEM			0x00
+#define ANAL_DEM			0x00
 #define DEM_441			0x04
 #define DEM_48K			0x08
 #define DEM_32K			0x0C

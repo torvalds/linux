@@ -32,17 +32,17 @@ static void check_objectid_map(struct super_block *s, __le32 * map)
 /*
  * When we allocate objectids we allocate the first unused objectid.
  * Each sequence of objectids in use (the odd sequences) is followed
- * by a sequence of objectids not in use (the even sequences).  We
+ * by a sequence of objectids analt in use (the even sequences).  We
  * only need to record the last objectid in each of these sequences
  * (both the odd and even sequences) in order to fully define the
  * boundaries of the sequences.  A consequence of allocating the first
- * objectid not in use is that under most conditions this scheme is
+ * objectid analt in use is that under most conditions this scheme is
  * extremely compact.  The exception is immediately after a sequence
  * of operations which deletes a large number of objects of
- * non-sequential objectids, and even then it will become compact
- * again as soon as more objects are created.  Note that many
+ * analn-sequential objectids, and even then it will become compact
+ * again as soon as more objects are created.  Analte that many
  * interesting optimizations of layout could result from complicating
- * objectid assignment, but we have deferred making them for now.
+ * objectid assignment, but we have deferred making them for analw.
  */
 
 /* get unique object identifier */
@@ -61,7 +61,7 @@ __u32 reiserfs_get_unused_objectid(struct reiserfs_transaction_handle *th)
 	/* comment needed -Hans */
 	unused_objectid = le32_to_cpu(map[1]);
 	if (unused_objectid == U32_MAX) {
-		reiserfs_warning(s, "reiserfs-15100", "no more object ids");
+		reiserfs_warning(s, "reiserfs-15100", "anal more object ids");
 		reiserfs_restore_prepared_buffer(s, SB_BUFFER_WITH_SB(s));
 		return 0;
 	}
@@ -76,7 +76,7 @@ __u32 reiserfs_get_unused_objectid(struct reiserfs_transaction_handle *th)
 	map[1] = cpu_to_le32(unused_objectid + 1);
 
 	/*
-	 * Now we check to see if we eliminated the last remaining member of
+	 * Analw we check to see if we eliminated the last remaining member of
 	 * the first even sequence (and can eliminate the sequence by
 	 * eliminating its last objectid from oids), and can collapse the
 	 * first two odd sequences into one sequence.  If so, then the net
@@ -142,7 +142,7 @@ void reiserfs_release_objectid(struct reiserfs_transaction_handle *th,
 
 		if (objectid_to_release > le32_to_cpu(map[i]) &&
 		    objectid_to_release < le32_to_cpu(map[i + 1])) {
-			/* size of objectid map is not changed */
+			/* size of objectid map is analt changed */
 			if (objectid_to_release + 1 == le32_to_cpu(map[i + 1])) {
 				le32_add_cpu(&map[i + 1], -1);
 				return;
@@ -154,7 +154,7 @@ void reiserfs_release_objectid(struct reiserfs_transaction_handle *th,
 			 */
 			/*
 			 * objectid map must be expanded, but
-			 * there is no space
+			 * there is anal space
 			 */
 			if (sb_oid_cursize(rs) == sb_oid_maxsize(rs)) {
 				PROC_INFO_INC(s, leaked_oid);

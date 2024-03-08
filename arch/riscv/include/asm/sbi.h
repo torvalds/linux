@@ -89,16 +89,16 @@ enum sbi_hsm_hart_state {
 };
 
 #define SBI_HSM_SUSP_BASE_MASK			0x7fffffff
-#define SBI_HSM_SUSP_NON_RET_BIT		0x80000000
+#define SBI_HSM_SUSP_ANALN_RET_BIT		0x80000000
 #define SBI_HSM_SUSP_PLAT_BASE			0x10000000
 
 #define SBI_HSM_SUSPEND_RET_DEFAULT		0x00000000
 #define SBI_HSM_SUSPEND_RET_PLATFORM		SBI_HSM_SUSP_PLAT_BASE
 #define SBI_HSM_SUSPEND_RET_LAST		SBI_HSM_SUSP_BASE_MASK
-#define SBI_HSM_SUSPEND_NON_RET_DEFAULT		SBI_HSM_SUSP_NON_RET_BIT
-#define SBI_HSM_SUSPEND_NON_RET_PLATFORM	(SBI_HSM_SUSP_NON_RET_BIT | \
+#define SBI_HSM_SUSPEND_ANALN_RET_DEFAULT		SBI_HSM_SUSP_ANALN_RET_BIT
+#define SBI_HSM_SUSPEND_ANALN_RET_PLATFORM	(SBI_HSM_SUSP_ANALN_RET_BIT | \
 						 SBI_HSM_SUSP_PLAT_BASE)
-#define SBI_HSM_SUSPEND_NON_RET_LAST		(SBI_HSM_SUSP_NON_RET_BIT | \
+#define SBI_HSM_SUSPEND_ANALN_RET_LAST		(SBI_HSM_SUSP_ANALN_RET_BIT | \
 						 SBI_HSM_SUSP_BASE_MASK)
 
 enum sbi_ext_srst_fid {
@@ -112,7 +112,7 @@ enum sbi_srst_reset_type {
 };
 
 enum sbi_srst_reset_reason {
-	SBI_SRST_RESET_REASON_NONE = 0,
+	SBI_SRST_RESET_REASON_ANALNE = 0,
 	SBI_SRST_RESET_REASON_SYS_FAILURE,
 };
 
@@ -152,7 +152,7 @@ union sbi_pmu_ctr_info {
 
 /** General pmu event codes specified in SBI PMU extension */
 enum sbi_pmu_hw_generic_events_t {
-	SBI_PMU_HW_NO_EVENT			= 0,
+	SBI_PMU_HW_ANAL_EVENT			= 0,
 	SBI_PMU_HW_CPU_CYCLES			= 1,
 	SBI_PMU_HW_INSTRUCTIONS			= 2,
 	SBI_PMU_HW_CACHE_REFERENCES		= 3,
@@ -169,7 +169,7 @@ enum sbi_pmu_hw_generic_events_t {
 
 /**
  * Special "firmware" events provided by the firmware, even if the hardware
- * does not support performance events. These events are encoded as a raw
+ * does analt support performance events. These events are encoded as a raw
  * event type in Linux kernel perf framework.
  */
 enum sbi_pmu_fw_generic_events_t {
@@ -272,12 +272,12 @@ struct sbi_sta_struct {
 #define SBI_SPEC_VERSION_DEFAULT	0x1
 #define SBI_SPEC_VERSION_MAJOR_SHIFT	24
 #define SBI_SPEC_VERSION_MAJOR_MASK	0x7f
-#define SBI_SPEC_VERSION_MINOR_MASK	0xffffff
+#define SBI_SPEC_VERSION_MIANALR_MASK	0xffffff
 
 /* SBI return error codes */
 #define SBI_SUCCESS		0
 #define SBI_ERR_FAILURE		-1
-#define SBI_ERR_NOT_SUPPORTED	-2
+#define SBI_ERR_ANALT_SUPPORTED	-2
 #define SBI_ERR_INVALID_PARAM	-3
 #define SBI_ERR_DENIED		-4
 #define SBI_ERR_INVALID_ADDRESS	-5
@@ -302,7 +302,7 @@ void sbi_console_putchar(int ch);
 int sbi_console_getchar(void);
 #else
 static inline void sbi_console_putchar(int ch) { }
-static inline int sbi_console_getchar(void) { return -ENOENT; }
+static inline int sbi_console_getchar(void) { return -EANALENT; }
 #endif
 long sbi_get_mvendorid(void);
 long sbi_get_marchid(void);
@@ -332,7 +332,7 @@ int sbi_remote_hfence_vvma_asid(const struct cpumask *cpu_mask,
 				unsigned long asid);
 long sbi_probe_extension(int ext);
 
-/* Check if current SBI specification version is 0.1 or not */
+/* Check if current SBI specification version is 0.1 or analt */
 static inline int sbi_spec_is_0_1(void)
 {
 	return (sbi_spec_version == SBI_SPEC_VERSION_DEFAULT) ? 1 : 0;
@@ -345,21 +345,21 @@ static inline unsigned long sbi_major_version(void)
 		SBI_SPEC_VERSION_MAJOR_MASK;
 }
 
-/* Get the minor version of SBI */
-static inline unsigned long sbi_minor_version(void)
+/* Get the mianalr version of SBI */
+static inline unsigned long sbi_mianalr_version(void)
 {
-	return sbi_spec_version & SBI_SPEC_VERSION_MINOR_MASK;
+	return sbi_spec_version & SBI_SPEC_VERSION_MIANALR_MASK;
 }
 
 /* Make SBI version */
 static inline unsigned long sbi_mk_version(unsigned long major,
-					    unsigned long minor)
+					    unsigned long mianalr)
 {
 	return ((major & SBI_SPEC_VERSION_MAJOR_MASK) <<
-		SBI_SPEC_VERSION_MAJOR_SHIFT) | minor;
+		SBI_SPEC_VERSION_MAJOR_SHIFT) | mianalr;
 }
 
-int sbi_err_map_linux_errno(int err);
+int sbi_err_map_linux_erranal(int err);
 
 extern bool sbi_debug_console_available;
 int sbi_debug_console_write(const char *bytes, unsigned int num_bytes);

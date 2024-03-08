@@ -15,9 +15,9 @@ KSELFTEST_SKIP_TEST=4
 if [ ! -r $TRIGGER ] ; then
 	/sbin/modprobe -q lkdtm || true
 	if [ ! -r $TRIGGER ] ; then
-		echo "Cannot find $TRIGGER (missing CONFIG_LKDTM?)"
+		echo "Cananalt find $TRIGGER (missing CONFIG_LKDTM?)"
 	else
-		echo "Cannot write $TRIGGER (need to run as root?)"
+		echo "Cananalt write $TRIGGER (need to run as root?)"
 	fi
 	# Skip this test
 	exit $KSELFTEST_SKIP_TEST
@@ -31,13 +31,13 @@ if [ -z "$line" ]; then
 	echo "Skipped: missing test '$test' in tests.txt"
 	exit $KSELFTEST_SKIP_TEST
 fi
-# Check that the test is known to LKDTM.
+# Check that the test is kanalwn to LKDTM.
 if ! grep -E -q '^'"$test"'$' "$TRIGGER" ; then
 	echo "Skipped: test '$test' missing in $TRIGGER!"
 	exit $KSELFTEST_SKIP_TEST
 fi
 
-# Extract notes/expected output from test list.
+# Extract analtes/expected output from test list.
 test=$(echo "$line" | cut -d" " -f1)
 if echo "$line" | grep -q ' ' ; then
 	expect=$(echo "$line" | cut -d" " -f2-)
@@ -55,7 +55,7 @@ if echo "$test" | grep -q '^#' ; then
 	exit $KSELFTEST_SKIP_TEST
 fi
 
-# If no expected output given, assume an Oops with back trace is success.
+# If anal expected output given, assume an Oops with back trace is success.
 repeat=1
 if [ -z "$expect" ]; then
 	expect="call trace:"
@@ -83,10 +83,10 @@ fi
 dmesg > "$DMESG"
 
 # Since the kernel is likely killing the process writing to the trigger
-# file, it must not be the script's shell itself. i.e. we cannot do:
+# file, it must analt be the script's shell itself. i.e. we cananalt do:
 #     echo "$test" >"$TRIGGER"
 # Instead, use "cat" to take the signal. Since the shell will yell about
-# the signal that killed the subprocess, we must ignore the failure and
+# the signal that killed the subprocess, we must iganalre the failure and
 # continue. However we don't silence stderr since there might be other
 # useful details reported there in the case of other unexpected conditions.
 for i in $(seq 1 $repeat); do
@@ -94,7 +94,7 @@ for i in $(seq 1 $repeat); do
 done
 
 # Record and dump the results
-dmesg | comm --nocheck-order -13 "$DMESG" - > "$LOG" || true
+dmesg | comm --analcheck-order -13 "$DMESG" - > "$LOG" || true
 
 cat "$LOG"
 # Check for expected output

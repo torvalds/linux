@@ -11,7 +11,7 @@
  */
 
 /*
- * Even though users may not have quota limits occupying all 64-bits,
+ * Even though users may analt have quota limits occupying all 64-bits,
  * they may need 64-bit accounting. Hence, 64-bit quota-counters,
  * and quota-limits. This is a waste in the common case, but hey ...
  */
@@ -46,11 +46,11 @@ typedef uint8_t		xfs_dqtype_t;
  * modified. Hence for this case we need to reserve space for at least 4 dquots.
  *
  * And in the worst case, there's a rename operation that can be modifying up to
- * 4 inodes with dquots attached to them. In reality, the only inodes that can
- * have their dquots modified are the source and destination directory inodes
+ * 4 ianaldes with dquots attached to them. In reality, the only ianaldes that can
+ * have their dquots modified are the source and destination directory ianaldes
  * due to directory name creation and removal. That can require space allocation
- * and/or freeing on both directory inodes, and hence all three dquots on each
- * inode can be modified. And if the directories are world writeable, all the
+ * and/or freeing on both directory ianaldes, and hence all three dquots on each
+ * ianalde can be modified. And if the directories are world writeable, all the
  * dquots can be unique and so 6 dquots can be modified....
  *
  * And, of course, we also need to take into account the dquot log format item
@@ -68,14 +68,14 @@ typedef uint8_t		xfs_dqtype_t;
 #define XFS_IS_PQUOTA_ENFORCED(mp)	((mp)->m_qflags & XFS_PQUOTA_ENFD)
 
 /*
- * Flags to tell various functions what to do. Not all of these are meaningful
- * to a single function. None of these XFS_QMOPT_* flags are meant to have
+ * Flags to tell various functions what to do. Analt all of these are meaningful
+ * to a single function. Analne of these XFS_QMOPT_* flags are meant to have
  * persistent values (ie. their values can and will change between versions)
  */
 #define XFS_QMOPT_UQUOTA	(1u << 0) /* user dquot requested */
 #define XFS_QMOPT_GQUOTA	(1u << 1) /* group dquot requested */
 #define XFS_QMOPT_PQUOTA	(1u << 2) /* project dquot requested */
-#define XFS_QMOPT_FORCE_RES	(1u << 3) /* ignore quota limits */
+#define XFS_QMOPT_FORCE_RES	(1u << 3) /* iganalre quota limits */
 #define XFS_QMOPT_SBVERSION	(1u << 4) /* change superblock version num */
 
 /*
@@ -89,7 +89,7 @@ typedef uint8_t		xfs_dqtype_t;
 #define XFS_QMOPT_RTBCOUNT	(1u << 11)
 #define XFS_QMOPT_DELBCOUNT	(1u << 12)
 #define XFS_QMOPT_DELRTBCOUNT	(1u << 13)
-#define XFS_QMOPT_RES_INOS	(1u << 14)
+#define XFS_QMOPT_RES_IANALS	(1u << 14)
 
 /*
  * flags for dqalloc.
@@ -110,14 +110,14 @@ typedef uint8_t		xfs_dqtype_t;
 	{ XFS_QMOPT_RTBCOUNT,		"RTBCOUNT" }, \
 	{ XFS_QMOPT_DELBCOUNT,		"DELBCOUNT" }, \
 	{ XFS_QMOPT_DELRTBCOUNT,	"DELRTBCOUNT" }, \
-	{ XFS_QMOPT_RES_INOS,		"RES_INOS" }
+	{ XFS_QMOPT_RES_IANALS,		"RES_IANALS" }
 
 /*
  * flags to xfs_trans_mod_dquot.
  */
 #define XFS_TRANS_DQ_RES_BLKS	XFS_QMOPT_RES_REGBLKS
 #define XFS_TRANS_DQ_RES_RTBLKS	XFS_QMOPT_RES_RTBLKS
-#define XFS_TRANS_DQ_RES_INOS	XFS_QMOPT_RES_INOS
+#define XFS_TRANS_DQ_RES_IANALS	XFS_QMOPT_RES_IANALS
 #define XFS_TRANS_DQ_BCOUNT	XFS_QMOPT_BCOUNT
 #define XFS_TRANS_DQ_DELBCOUNT	XFS_QMOPT_DELBCOUNT
 #define XFS_TRANS_DQ_ICOUNT	XFS_QMOPT_ICOUNT

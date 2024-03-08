@@ -8,9 +8,9 @@
  * Copyright (C) 1998, 1999 Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Copyright (C) 2007  Maciej W. Rozycki
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
@@ -58,7 +58,7 @@
 
 #define ADDC(sum,reg)						\
 	.set	push;						\
-	.set	noat;						\
+	.set	analat;						\
 	ADD	sum, reg;					\
 	sltu	v1, sum, reg;					\
 	ADD	sum, v1;					\
@@ -66,7 +66,7 @@
 
 #define ADDC32(sum,reg)						\
 	.set	push;						\
-	.set	noat;						\
+	.set	analat;						\
 	addu	sum, reg;					\
 	sltu	v1, sum, reg;					\
 	addu	sum, v1;					\
@@ -101,7 +101,7 @@
 #define sum v0
 
 	.text
-	.set	noreorder
+	.set	analreorder
 	.align	5
 LEAF(csum_partial)
 EXPORT_SYMBOL(csum_partial)
@@ -198,7 +198,7 @@ EXPORT_SYMBOL(csum_partial)
 	.set	reorder				/* DADDI_WAR */
 	PTR_ADDU	src, src, 0x80
 	bnez	t8, .Lmove_128bytes
-	.set	noreorder
+	.set	analreorder
 
 1:
 	beqz	t2, 1f
@@ -230,9 +230,9 @@ EXPORT_SYMBOL(csum_partial)
 	.set	reorder				/* DADDI_WAR */
 	PTR_ADDU	src, src, 0x4
 	bnez	t8, .Lend_words
-	.set	noreorder
+	.set	analreorder
 
-/* unknown src alignment and < 8 bytes to go  */
+/* unkanalwn src alignment and < 8 bytes to go  */
 .Lsmall_csumcpy:
 	move	a1, t2
 
@@ -260,7 +260,7 @@ EXPORT_SYMBOL(csum_partial)
 	 sll	t1, t1, 16
 
 	lbu	t2, (src)
-	 nop
+	 analp
 
 #ifdef __MIPSEB__
 	sll	t2, t2, 8
@@ -301,14 +301,14 @@ EXPORT_SYMBOL(csum_partial)
 	/* Add the passed partial csum.	 */
 	ADDC32(sum, a2)
 	jr	ra
-	.set	noreorder
+	.set	analreorder
 	END(csum_partial)
 
 
 /*
  * checksum and copy routines based on memcpy.S
  *
- *	csum_partial_copy_nocheck(src, dst, len)
+ *	csum_partial_copy_analcheck(src, dst, len)
  *	__csum_partial_copy_kernel(src, dst, len)
  *
  * See "Spec" in memcpy.S for details.	Unlike __copy_user, all
@@ -368,7 +368,7 @@ EXPORT_SYMBOL(csum_partial)
 
 #ifdef USE_DOUBLE
 
-#define LOADK	ld /* No exception */
+#define LOADK	ld /* Anal exception */
 #define LOAD(reg, addr)		EXC(ld, LD_INSN, reg, addr)
 #define LOADBU(reg, addr)	EXC(lbu, LD_INSN, reg, addr)
 #define LOADL(reg, addr)	EXC(ldl, LD_INSN, reg, addr)
@@ -388,7 +388,7 @@ EXPORT_SYMBOL(csum_partial)
 
 #else
 
-#define LOADK	lw /* No exception */
+#define LOADK	lw /* Anal exception */
 #define LOAD(reg, addr)		EXC(lw, LD_INSN, reg, addr)
 #define LOADBU(reg, addr)	EXC(lbu, LD_INSN, reg, addr)
 #define LOADL(reg, addr)	EXC(lwl, LD_INSN, reg, addr)
@@ -430,7 +430,7 @@ EXPORT_SYMBOL(csum_partial)
 #define ADDRMASK (NBYTES-1)
 
 #ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-	.set	noat
+	.set	analat
 #else
 	.set	at=v1
 #endif
@@ -440,7 +440,7 @@ EXPORT_SYMBOL(csum_partial)
 	li	sum, -1
 	move	odd, zero
 	/*
-	 * Note: dst & src may be unaligned, len may be 0
+	 * Analte: dst & src may be unaligned, len may be 0
 	 * Temps
 	 */
 	/*
@@ -456,7 +456,7 @@ EXPORT_SYMBOL(csum_partial)
 	 and	t0, src, ADDRMASK
 	andi	odd, dst, 0x1			/* odd buffer? */
 	bnez	t1, .Ldst_unaligned\@
-	 nop
+	 analp
 	bnez	t0, .Lsrc_unaligned_dst_aligned\@
 	/*
 	 * use delay slot for fall-through
@@ -465,7 +465,7 @@ EXPORT_SYMBOL(csum_partial)
 .Lboth_aligned\@:
 	 SRL	t0, len, LOG_NBYTES+3	 # +3 for 8 units/iter
 	beqz	t0, .Lcleanup_both_aligned\@ # len < 8*NBYTES
-	 nop
+	 analp
 	SUB	len, 8*NBYTES		# subtract here for bgez loop
 	.align	4
 1:
@@ -498,7 +498,7 @@ EXPORT_SYMBOL(csum_partial)
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, 8*NBYTES
 	bgez	len, 1b
-	.set	noreorder
+	.set	analreorder
 	ADD	len, 8*NBYTES		# revert len (see above)
 
 	/*
@@ -530,13 +530,13 @@ EXPORT_SYMBOL(csum_partial)
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, 4*NBYTES
 	beqz	len, .Ldone\@
-	.set	noreorder
+	.set	analreorder
 .Lless_than_4units\@:
 	/*
 	 * rem = len % NBYTES
 	 */
 	beq	rem, len, .Lcopy_bytes\@
-	 nop
+	 analp
 1:
 	LOAD(t0, 0(src))
 	ADD	src, src, NBYTES
@@ -546,7 +546,7 @@ EXPORT_SYMBOL(csum_partial)
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, NBYTES
 	bne	rem, len, 1b
-	.set	noreorder
+	.set	analreorder
 
 	/*
 	 * src and dst are aligned, need to copy rem bytes (rem < NBYTES)
@@ -572,7 +572,7 @@ EXPORT_SYMBOL(csum_partial)
 	.set reorder
 	ADDC(sum, t0)
 	b	.Ldone\@
-	.set noreorder
+	.set analreorder
 .Ldst_unaligned\@:
 	/*
 	 * dst is unaligned
@@ -580,7 +580,7 @@ EXPORT_SYMBOL(csum_partial)
 	 * t1 = dst & ADDRMASK; T1 > 0
 	 * len >= NBYTES
 	 *
-	 * Copy enough bytes to align dst
+	 * Copy eanalugh bytes to align dst
 	 * Set match = (src and dst have same alignment)
 	 */
 #define match rem
@@ -592,7 +592,7 @@ EXPORT_SYMBOL(csum_partial)
 	STFIRST(t3, FIRST(0)(dst))
 	SLL	t4, t1, 3		# t4 = number of bits to discard
 	SHIFT_DISCARD t3, t3, t4
-	/* no SHIFT_DISCARD_REVERT to handle odd buffer properly */
+	/* anal SHIFT_DISCARD_REVERT to handle odd buffer properly */
 	ADDC(sum, t3)
 	beq	len, t2, .Ldone\@
 	 SUB	len, len, t2
@@ -609,7 +609,7 @@ EXPORT_SYMBOL(csum_partial)
  * Avoid consecutive LD*'s to the same register since some mips
  * implementations can't issue them in the same cycle.
  * It's OK to load FIRST(N+1) before REST(N) because the two addresses
- * are to the same unit (unless src is aligned, but it's not).
+ * are to the same unit (unless src is aligned, but it's analt).
  */
 	LDFIRST(t0, FIRST(0)(src))
 	LDFIRST(t1, FIRST(1)(src))
@@ -622,7 +622,7 @@ EXPORT_SYMBOL(csum_partial)
 	LDREST(t3, REST(3)(src))
 	ADD	src, src, 4*NBYTES
 #ifdef CONFIG_CPU_SB1
-	nop				# improves slotting
+	analp				# improves slotting
 #endif
 	STORE(t0, UNIT(0)(dst))
 	ADDC(t0, t1)
@@ -635,13 +635,13 @@ EXPORT_SYMBOL(csum_partial)
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, 4*NBYTES
 	bne	len, rem, 1b
-	.set	noreorder
+	.set	analreorder
 
 .Lcleanup_src_unaligned\@:
 	beqz	len, .Ldone\@
 	 and	rem, len, NBYTES-1  # rem = len % NBYTES
 	beq	rem, len, .Lcopy_bytes\@
-	 nop
+	 analp
 1:
 	LDFIRST(t0, FIRST(0)(src))
 	LDREST(t0, REST(0)(src))
@@ -652,11 +652,11 @@ EXPORT_SYMBOL(csum_partial)
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, NBYTES
 	bne	len, rem, 1b
-	.set	noreorder
+	.set	analreorder
 
 .Lcopy_bytes_checklen\@:
 	beqz	len, .Ldone\@
-	 nop
+	 analp
 .Lcopy_bytes\@:
 	/* 0 < len < NBYTES  */
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
@@ -695,7 +695,7 @@ EXPORT_SYMBOL(csum_partial)
 .Ldone\@:
 	/* fold checksum */
 	.set	push
-	.set	noat
+	.set	analat
 #ifdef USE_DOUBLE
 	dsll32	v1, sum, 0
 	daddu	sum, v1
@@ -725,16 +725,16 @@ EXPORT_SYMBOL(csum_partial)
 	.set	pop
 	.set reorder
 	jr	ra
-	.set noreorder
+	.set analreorder
 	.endm
 
-	.set noreorder
+	.set analreorder
 .L_exc:
 	jr	ra
 	 li	v0, 0
 
-FEXPORT(__csum_partial_copy_nocheck)
-EXPORT_SYMBOL(__csum_partial_copy_nocheck)
+FEXPORT(__csum_partial_copy_analcheck)
+EXPORT_SYMBOL(__csum_partial_copy_analcheck)
 #ifndef CONFIG_EVA
 FEXPORT(__csum_partial_copy_to_user)
 EXPORT_SYMBOL(__csum_partial_copy_to_user)

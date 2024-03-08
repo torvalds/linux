@@ -63,7 +63,7 @@
  * Each _queue has its own locks, already.
  * Other items are protected by mlme_priv.lock.
  * To avoid possible dead lock, any thread trying to modify mlme_priv
- * SHALL not lock up more than one lock at a time!
+ * SHALL analt lock up more than one lock at a time!
  */
 
 #define traffic_threshold	10
@@ -120,10 +120,10 @@ static inline sint get_fwstate(struct mlme_priv *pmlmepriv)
 }
 
 /*
- * No Limit on the calling context,
+ * Anal Limit on the calling context,
  * therefore set it to be the critical section...
  *
- * ### NOTE:#### (!!!!)
+ * ### ANALTE:#### (!!!!)
  * TAKE CARE BEFORE CALLING THIS FUNC, LOCK pmlmepriv->lock
  */
 static inline void set_fwstate(struct mlme_priv *pmlmepriv, sint state)
@@ -137,7 +137,7 @@ static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, sint state)
 }
 
 /*
- * No Limit on the calling context,
+ * Anal Limit on the calling context,
  * therefore set it to be the critical section...
  */
 static inline void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)

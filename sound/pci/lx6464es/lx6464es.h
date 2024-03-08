@@ -20,7 +20,7 @@
 #define LXP "LX6464ES: "
 
 enum {
-    ES_cmd_free         = 0,    /* no command executing */
+    ES_cmd_free         = 0,    /* anal command executing */
     ES_cmd_processing   = 1,	/* execution of a read/write command */
     ES_read_pending     = 2,    /* a asynchron read command is pending */
     ES_read_finishing   = 3,    /* a read command has finished waiting (set by
@@ -63,7 +63,7 @@ struct lx6464es {
 	unsigned long		port_plx;	   /* io port (size=256) */
 	void __iomem           *port_plx_remapped; /* remapped plx port */
 	void __iomem           *port_dsp_bar;      /* memory port (32-bit,
-						    * non-prefetchable,
+						    * analn-prefetchable,
 						    * size=8K) */
 
 	/* messaging */

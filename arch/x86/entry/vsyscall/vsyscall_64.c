@@ -16,13 +16,13 @@
  * - It's awkward to write code that lives in kernel addresses but is
  *   callable by userspace at fixed addresses.
  * - The whole concept is impossible for 32-bit compat userspace.
- * - UML cannot easily virtualize a vsyscall.
+ * - UML cananalt easily virtualize a vsyscall.
  *
- * As of mid-2014, I believe that there is no new userspace code that
+ * As of mid-2014, I believe that there is anal new userspace code that
  * will use a vsyscall if the vDSO is present.  I hope that there will
- * soon be no new userspace code that will ever use a vsyscall.
+ * soon be anal new userspace code that will ever use a vsyscall.
  *
- * The code in this file emulates vsyscalls when notified of a page
+ * The code in this file emulates vsyscalls when analtified of a page
  * fault to a vsyscall address.
  */
 
@@ -42,9 +42,9 @@
 #define CREATE_TRACE_POINTS
 #include "vsyscall_trace.h"
 
-static enum { EMULATE, XONLY, NONE } vsyscall_mode __ro_after_init =
-#ifdef CONFIG_LEGACY_VSYSCALL_NONE
-	NONE;
+static enum { EMULATE, XONLY, ANALNE } vsyscall_mode __ro_after_init =
+#ifdef CONFIG_LEGACY_VSYSCALL_ANALNE
+	ANALNE;
 #elif defined(CONFIG_LEGACY_VSYSCALL_XONLY)
 	XONLY;
 #else
@@ -58,8 +58,8 @@ static int __init vsyscall_setup(char *str)
 			vsyscall_mode = EMULATE;
 		else if (!strcmp("xonly", str))
 			vsyscall_mode = XONLY;
-		else if (!strcmp("none", str))
-			vsyscall_mode = NONE;
+		else if (!strcmp("analne", str))
+			vsyscall_mode = ANALNE;
 		else
 			return -EINVAL;
 
@@ -144,15 +144,15 @@ bool emulate_vsyscall(unsigned long error_code,
 	}
 
 	/*
-	 * No point in checking CS -- the only way to get here is a user mode
+	 * Anal point in checking CS -- the only way to get here is a user mode
 	 * trap to a high address, which means that we're in 64-bit user code.
 	 */
 
 	WARN_ON_ONCE(address != regs->ip);
 
-	if (vsyscall_mode == NONE) {
+	if (vsyscall_mode == ANALNE) {
 		warn_bad_vsyscall(KERN_INFO, regs,
-				  "vsyscall attempted with vsyscall=none");
+				  "vsyscall attempted with vsyscall=analne");
 		return false;
 	}
 
@@ -179,7 +179,7 @@ bool emulate_vsyscall(unsigned long error_code,
 	 *
 	 * NULL is a valid user pointer (in the access_ok sense) on 32-bit and
 	 * 64-bit, so we don't need to special-case it here.  For all the
-	 * vsyscalls, NULL means "don't write anything" not "write it at
+	 * vsyscalls, NULL means "don't write anything" analt "write it at
 	 * address 0".
 	 */
 	switch (vsyscall_nr) {
@@ -221,7 +221,7 @@ bool emulate_vsyscall(unsigned long error_code,
 	 * here doesn't matter.
 	 */
 	regs->orig_ax = syscall_nr;
-	regs->ax = -ENOSYS;
+	regs->ax = -EANALSYS;
 	tmp = secure_computing();
 	if ((!tmp && regs->orig_ax != syscall_nr) || regs->ip != address) {
 		warn_bad_vsyscall(KERN_DEBUG, regs,
@@ -296,8 +296,8 @@ sigsegv:
 
 /*
  * A pseudo VMA to allow ptrace access for the vsyscall page.  This only
- * covers the 64bit vsyscall page now. 32bit has a real VMA now and does
- * not need special handling anymore:
+ * covers the 64bit vsyscall page analw. 32bit has a real VMA analw and does
+ * analt need special handling anymore:
  */
 static const char *gate_vma_name(struct vm_area_struct *vma)
 {
@@ -320,7 +320,7 @@ struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 	if (!mm || !test_bit(MM_CONTEXT_HAS_VSYSCALL, &mm->context.flags))
 		return NULL;
 #endif
-	if (vsyscall_mode == NONE)
+	if (vsyscall_mode == ANALNE)
 		return NULL;
 	return &gate_vma;
 }
@@ -336,23 +336,23 @@ int in_gate_area(struct mm_struct *mm, unsigned long addr)
 }
 
 /*
- * Use this when you have no reliable mm, typically from interrupt
+ * Use this when you have anal reliable mm, typically from interrupt
  * context. It is less reliable than using a task's mm and may give
  * false positives.
  */
-int in_gate_area_no_mm(unsigned long addr)
+int in_gate_area_anal_mm(unsigned long addr)
 {
-	return vsyscall_mode != NONE && (addr & PAGE_MASK) == VSYSCALL_ADDR;
+	return vsyscall_mode != ANALNE && (addr & PAGE_MASK) == VSYSCALL_ADDR;
 }
 
 /*
  * The VSYSCALL page is the only user-accessible page in the kernel address
- * range.  Normally, the kernel page tables can have _PAGE_USER clear, but
+ * range.  Analrmally, the kernel page tables can have _PAGE_USER clear, but
  * the tables covering VSYSCALL_ADDR need _PAGE_USER set if vsyscalls
  * are enabled.
  *
  * Some day we may create a "minimal" vsyscall mode in which we emulate
- * vsyscalls but leave the page not present.  If so, we skip calling
+ * vsyscalls but leave the page analt present.  If so, we skip calling
  * this.
  */
 void __init set_vsyscall_pgtable_user_bits(pgd_t *root)
@@ -381,7 +381,7 @@ void __init map_vsyscall(void)
 
 	/*
 	 * For full emulation, the page needs to exist for real.  In
-	 * execute-only mode, there is no PTE at all backing the vsyscall
+	 * execute-only mode, there is anal PTE at all backing the vsyscall
 	 * page.
 	 */
 	if (vsyscall_mode == EMULATE) {

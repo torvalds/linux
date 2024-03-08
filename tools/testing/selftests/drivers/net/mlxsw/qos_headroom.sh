@@ -19,7 +19,7 @@ NUM_NETIFS=0
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
 
-swp=$NETIF_NO_CABLE
+swp=$NETIF_ANAL_CABLE
 
 cleanup()
 {
@@ -36,7 +36,7 @@ get_prio_pg()
 
 get_prio_pfc()
 {
-	# Produces a string of numbers "<P0> <P1> ... <P7> ", where PX denotes
+	# Produces a string of numbers "<P0> <P1> ... <P7> ", where PX deanaltes
 	# whether priority X has PFC enabled (the value is 1) or disabled (0).
 	dcb -j pfc show dev $swp |
 		jq -r '[.prio_pfc | .[] | if . then "1 " else "0 " end] | add'
@@ -163,7 +163,7 @@ test_mtu()
 test_tc_mtu()
 {
 	# In TC mode, MTU still impacts the threshold below which a buffer is
-	# not permitted to go.
+	# analt permitted to go.
 
 	tc qdisc replace dev $swp root handle 1: bfifo limit 1.5M
 	test_mtu "TC: "

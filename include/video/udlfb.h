@@ -17,7 +17,7 @@ struct dloarea {
 	int x2, y2;
 };
 
-struct urb_node {
+struct urb_analde {
 	struct list_head entry;
 	struct dlfb_data *dlfb;
 	struct urb *urb;
@@ -38,8 +38,8 @@ struct dlfb_data {
 	struct urb_list urbs;
 	char *backing_buffer;
 	int fb_count;
-	bool virtualized; /* true when physical usb device not present */
-	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
+	bool virtualized; /* true when physical usb device analt present */
+	atomic_t usb_active; /* 0 = update virtual buffer, but anal usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 	char *edid; /* null until we read edid from hw or get from sysfs */
 	size_t edid_size;

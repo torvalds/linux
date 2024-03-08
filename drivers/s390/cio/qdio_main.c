@@ -73,12 +73,12 @@ static inline int do_siga_input(unsigned long schid, unsigned long mask,
  * do_siga_output - perform SIGA-w/wt function
  * @schid: subchannel id or in case of QEBSM the subchannel token
  * @mask: which output queues to process
- * @bb: busy bit indicator, set only if SIGA-w/wt could not access a buffer
+ * @bb: busy bit indicator, set only if SIGA-w/wt could analt access a buffer
  * @fc: function code to perform
- * @aob: asynchronous operation block
+ * @aob: asynchroanalus operation block
  *
  * Returns condition code.
- * Note: For IQDC unicast queues only the highest priority queue is processed.
+ * Analte: For IQDC unicast queues only the highest priority queue is processed.
  */
 static inline int do_siga_output(unsigned long schid, unsigned long mask,
 				 unsigned int *bb, unsigned long fc,
@@ -108,7 +108,7 @@ static inline int do_siga_output(unsigned long schid, unsigned long mask,
  * @state: state of the extracted buffers
  * @start: buffer number to start at
  * @count: count of buffers to examine
- * @auto_ack: automatically acknowledge buffers
+ * @auto_ack: automatically ackanalwledge buffers
  *
  * Returns the number of successfully extracted equal buffer states.
  * Stops processing if a state is different from the last buffers state.
@@ -133,18 +133,18 @@ again:
 		/* all done, or next buffer state different */
 		return count - tmp_count;
 	case 96:
-		/* not all buffers processed */
+		/* analt all buffers processed */
 		qperf_inc(q, eqbs_partial);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "EQBS part:%02x",
 			tmp_count);
 		return count - tmp_count;
 	case 97:
-		/* no buffer processed */
+		/* anal buffer processed */
 		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS again:%2d", ccq);
 		goto again;
 	default:
-		DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
-		DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
+		DBF_ERROR("%4x ccq:%3d", SCH_ANAL(q), ccq);
+		DBF_ERROR("%4x EQBS ERROR", SCH_ANAL(q));
 		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
 		q->handler(q->irq_ptr->cdev, QDIO_ERROR_GET_BUF_STATE, q->nr,
 			   q->first_to_check, count, q->irq_ptr->int_parm);
@@ -184,13 +184,13 @@ again:
 		WARN_ON_ONCE(tmp_count);
 		return count - tmp_count;
 	case 96:
-		/* not all buffers processed */
+		/* analt all buffers processed */
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "SQBS again:%2d", ccq);
 		qperf_inc(q, sqbs_partial);
 		goto again;
 	default:
-		DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
-		DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
+		DBF_ERROR("%4x ccq:%3d", SCH_ANAL(q), ccq);
+		DBF_ERROR("%4x SQBS ERROR", SCH_ANAL(q));
 		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
 		q->handler(q->irq_ptr->cdev, QDIO_ERROR_SET_BUF_STATE, q->nr,
 			   q->first_to_check, count, q->irq_ptr->int_parm);
@@ -215,7 +215,7 @@ static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 	/* get initial state: */
 	__state = q->slsb.val[bufnr];
 
-	/* Bail out early if there is no work on the queue: */
+	/* Bail out early if there is anal work on the queue: */
 	if (__state & SLSB_OWNER_CU)
 		goto out;
 
@@ -274,10 +274,10 @@ static void qdio_init_buf_states(struct qdio_irq *irq_ptr)
 	int i;
 
 	for_each_input_queue(irq_ptr, q, i)
-		set_buf_states(q, 0, SLSB_P_INPUT_NOT_INIT,
+		set_buf_states(q, 0, SLSB_P_INPUT_ANALT_INIT,
 			       QDIO_MAX_BUFFERS_PER_Q);
 	for_each_output_queue(irq_ptr, q, i)
-		set_buf_states(q, 0, SLSB_P_OUTPUT_NOT_INIT,
+		set_buf_states(q, 0, SLSB_P_OUTPUT_ANALT_INIT,
 			       QDIO_MAX_BUFFERS_PER_Q);
 }
 
@@ -298,7 +298,7 @@ static inline int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 
 	cc = do_siga_sync(schid, output, input, fc);
 	if (unlikely(cc))
-		DBF_ERROR("%4x SIGA-S:%2d", SCH_NO(q), cc);
+		DBF_ERROR("%4x SIGA-S:%2d", SCH_ANAL(q), cc);
 	return (cc) ? -EIO : 0;
 }
 
@@ -355,7 +355,7 @@ again:
 	}
 	if (retries) {
 		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr,
-			      "%4x cc2 BB1:%1d", SCH_NO(q), q->nr);
+			      "%4x cc2 BB1:%1d", SCH_ANAL(q), q->nr);
 		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "count:%u", retries);
 	}
 	return cc;
@@ -377,7 +377,7 @@ static inline int qdio_siga_input(struct qdio_q *q)
 
 	cc = do_siga_input(schid, q->mask, fc);
 	if (unlikely(cc))
-		DBF_ERROR("%4x SIGA-R:%2d", SCH_NO(q), cc);
+		DBF_ERROR("%4x SIGA-R:%2d", SCH_ANAL(q), cc);
 	return (cc) ? -EIO : 0;
 }
 
@@ -396,8 +396,8 @@ static inline void qdio_stop_polling(struct qdio_q *q)
 
 	qperf_inc(q, stop_polling);
 
-	/* show the card that we are not polling anymore */
-	set_buf_states(q, q->u.in.batch_start, SLSB_P_INPUT_NOT_INIT,
+	/* show the card that we are analt polling anymore */
+	set_buf_states(q, q->u.in.batch_start, SLSB_P_INPUT_ANALT_INIT,
 		       q->u.in.batch_count);
 	q->u.in.batch_count = 0;
 }
@@ -411,7 +411,7 @@ static inline void account_sbals(struct qdio_q *q, unsigned int count)
 static void process_buffer_error(struct qdio_q *q, unsigned int start,
 				 int count)
 {
-	/* special handling for no target buffer empty */
+	/* special handling for anal target buffer empty */
 	if (queue_type(q) == QDIO_IQDIO_QFMT && !q->is_input_q &&
 	    q->sbal[start]->element[15].sflags == 0x10) {
 		qperf_inc(q, target_full);
@@ -419,7 +419,7 @@ static void process_buffer_error(struct qdio_q *q, unsigned int start,
 		return;
 	}
 
-	DBF_ERROR("%4x BUF ERROR", SCH_NO(q));
+	DBF_ERROR("%4x BUF ERROR", SCH_ANAL(q));
 	DBF_ERROR((q->is_input_q) ? "IN:%2d" : "OUT:%2d", q->nr);
 	DBF_ERROR("FTC:%3d C:%3d", start, count);
 	DBF_ERROR("F14:%2x F15:%2x",
@@ -483,11 +483,11 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 		return count;
 	case SLSB_CU_INPUT_EMPTY:
 		if (q->irq_ptr->perf_stat_enabled)
-			q->q_stats.nr_sbal_nop++;
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop:%1d %#02x",
+			q->q_stats.nr_sbal_analp++;
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in analp:%1d %#02x",
 			      q->nr, start);
 		return 0;
-	case SLSB_P_INPUT_NOT_INIT:
+	case SLSB_P_INPUT_ANALT_INIT:
 	case SLSB_P_INPUT_ACK:
 		/* We should never see this state, throw a WARN: */
 	default:
@@ -507,7 +507,7 @@ int qdio_inspect_input_queue(struct ccw_device *cdev, unsigned int nr,
 	int count;
 
 	if (!irq)
-		return -ENODEV;
+		return -EANALDEV;
 
 	q = irq->input_qs[nr];
 	start = q->first_to_check;
@@ -584,15 +584,15 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 			account_sbals_error(q, count);
 		return count;
 	case SLSB_CU_OUTPUT_PRIMED:
-		/* the adapter has not fetched the output yet */
+		/* the adapter has analt fetched the output yet */
 		if (q->irq_ptr->perf_stat_enabled)
-			q->q_stats.nr_sbal_nop++;
+			q->q_stats.nr_sbal_analp++;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out primed:%1d",
 			      q->nr);
 		return 0;
 	case SLSB_P_OUTPUT_HALTED:
 		return 0;
-	case SLSB_P_OUTPUT_NOT_INIT:
+	case SLSB_P_OUTPUT_ANALT_INIT:
 		/* We should never see this state, throw a WARN: */
 	default:
 		dev_WARN_ONCE(&q->irq_ptr->cdev->dev, 1,
@@ -611,7 +611,7 @@ int qdio_inspect_output_queue(struct ccw_device *cdev, unsigned int nr,
 	int count;
 
 	if (!irq)
-		return -ENODEV;
+		return -EANALDEV;
 
 	q = irq->output_qs[nr];
 	start = q->first_to_check;
@@ -650,21 +650,21 @@ retry:
 				mdelay(QDIO_BUSY_BIT_RETRY_DELAY);
 				goto retry;
 			}
-			DBF_ERROR("%4x cc2 BBC:%1d", SCH_NO(q), q->nr);
+			DBF_ERROR("%4x cc2 BBC:%1d", SCH_ANAL(q), q->nr);
 			cc = -EBUSY;
 		} else {
 			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w cc2:%1d", q->nr);
-			cc = -ENOBUFS;
+			cc = -EANALBUFS;
 		}
 		break;
 	case 1:
 	case 3:
-		DBF_ERROR("%4x SIGA-W:%1d", SCH_NO(q), cc);
+		DBF_ERROR("%4x SIGA-W:%1d", SCH_ANAL(q), cc);
 		cc = -EIO;
 		break;
 	}
 	if (retries) {
-		DBF_ERROR("%4x cc2 BB2:%1d", SCH_NO(q), q->nr);
+		DBF_ERROR("%4x cc2 BB2:%1d", SCH_ANAL(q), q->nr);
 		DBF_ERROR("count:%u", retries);
 	}
 	return cc;
@@ -682,7 +682,7 @@ static inline void qdio_set_state(struct qdio_irq *irq_ptr,
 static void qdio_irq_check_sense(struct qdio_irq *irq_ptr, struct irb *irb)
 {
 	if (irb->esw.esw0.erw.cons) {
-		DBF_ERROR("%4x sense:", irq_ptr->schid.sch_no);
+		DBF_ERROR("%4x sense:", irq_ptr->schid.sch_anal);
 		DBF_ERROR_HEX(irb, 64);
 		DBF_ERROR_HEX(irb->ecw, 64);
 	}
@@ -704,7 +704,7 @@ static void qdio_handle_activate_check(struct qdio_irq *irq_ptr,
 {
 	unsigned int first_to_check = 0;
 
-	DBF_ERROR("%4x ACT CHECK", irq_ptr->schid.sch_no);
+	DBF_ERROR("%4x ACT CHECK", irq_ptr->schid.sch_anal);
 	DBF_ERROR("intp :%lx", intparm);
 	DBF_ERROR("ds: %2x cs:%2x", dstat, cstat);
 
@@ -737,7 +737,7 @@ static void qdio_establish_handle_irq(struct qdio_irq *irq_ptr, int cstat,
 	return;
 
 error:
-	DBF_ERROR("%4x EQ:error", irq_ptr->schid.sch_no);
+	DBF_ERROR("%4x EQ:error", irq_ptr->schid.sch_anal);
 	DBF_ERROR("ds: %2x cs:%2x", dstat, cstat);
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 }
@@ -752,7 +752,7 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 
 	if (!intparm || !irq_ptr) {
 		ccw_device_get_schid(cdev, &schid);
-		DBF_ERROR("qint:%4x", schid.sch_no);
+		DBF_ERROR("qint:%4x", schid.sch_anal);
 		return;
 	}
 
@@ -760,7 +760,7 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		irq_ptr->perf_stat.qdio_int++;
 
 	if (IS_ERR(irb)) {
-		DBF_ERROR("%4x IO error", irq_ptr->schid.sch_no);
+		DBF_ERROR("%4x IO error", irq_ptr->schid.sch_anal);
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		wake_up(&cdev->private->wait_q);
 		return;
@@ -811,7 +811,7 @@ int qdio_get_ssqd_desc(struct ccw_device *cdev,
 		return -EINVAL;
 
 	ccw_device_get_schid(cdev, &schid);
-	DBF_EVENT("get ssqd:%4x", schid.sch_no);
+	DBF_EVENT("get ssqd:%4x", schid.sch_anal);
 	return qdio_setup_get_ssqd(NULL, &schid, data);
 }
 EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
@@ -831,7 +831,7 @@ static int qdio_cancel_ccw(struct qdio_irq *irq, int how)
 		rc = ccw_device_halt(cdev, QDIO_DOING_CLEANUP);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 	if (rc) {
-		DBF_ERROR("%4x SHUTD ERR", irq->schid.sch_no);
+		DBF_ERROR("%4x SHUTD ERR", irq->schid.sch_anal);
 		DBF_ERROR("rc:%4d", rc);
 		return rc;
 	}
@@ -858,16 +858,16 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	int rc;
 
 	if (!irq_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	WARN_ON_ONCE(irqs_disabled());
 	ccw_device_get_schid(cdev, &schid);
-	DBF_EVENT("qshutdown:%4x", schid.sch_no);
+	DBF_EVENT("qshutdown:%4x", schid.sch_anal);
 
 	mutex_lock(&irq_ptr->setup_mutex);
 	/*
-	 * Subchannel was already shot down. We cannot prevent being called
-	 * twice since cio may trigger a shutdown asynchronously.
+	 * Subchannel was already shot down. We cananalt prevent being called
+	 * twice since cio may trigger a shutdown asynchroanalusly.
 	 */
 	if (irq_ptr->state == QDIO_IRQ_STATE_INACTIVE) {
 		mutex_unlock(&irq_ptr->setup_mutex);
@@ -903,10 +903,10 @@ int qdio_free(struct ccw_device *cdev)
 	struct subchannel_id schid;
 
 	if (!irq_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ccw_device_get_schid(cdev, &schid);
-	DBF_EVENT("qfree:%4x", schid.sch_no);
+	DBF_EVENT("qfree:%4x", schid.sch_anal);
 	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf abandoned");
 	mutex_lock(&irq_ptr->setup_mutex);
 
@@ -926,47 +926,47 @@ EXPORT_SYMBOL_GPL(qdio_free);
 /**
  * qdio_allocate - allocate qdio queues and associated data
  * @cdev: associated ccw device
- * @no_input_qs: allocate this number of Input Queues
- * @no_output_qs: allocate this number of Output Queues
+ * @anal_input_qs: allocate this number of Input Queues
+ * @anal_output_qs: allocate this number of Output Queues
  */
-int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
-		  unsigned int no_output_qs)
+int qdio_allocate(struct ccw_device *cdev, unsigned int anal_input_qs,
+		  unsigned int anal_output_qs)
 {
 	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	ccw_device_get_schid(cdev, &schid);
-	DBF_EVENT("qallocate:%4x", schid.sch_no);
+	DBF_EVENT("qallocate:%4x", schid.sch_anal);
 
-	if (no_input_qs > QDIO_MAX_QUEUES_PER_IRQ ||
-	    no_output_qs > QDIO_MAX_QUEUES_PER_IRQ)
+	if (anal_input_qs > QDIO_MAX_QUEUES_PER_IRQ ||
+	    anal_output_qs > QDIO_MAX_QUEUES_PER_IRQ)
 		return -EINVAL;
 
 	irq_ptr = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!irq_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_ptr->ccw = kmalloc(sizeof(*irq_ptr->ccw), GFP_KERNEL | GFP_DMA);
 	if (!irq_ptr->ccw)
 		goto err_ccw;
 
 	/* kmemleak doesn't scan the page-allocated irq_ptr: */
-	kmemleak_not_leak(irq_ptr->ccw);
+	kmemleak_analt_leak(irq_ptr->ccw);
 
 	irq_ptr->cdev = cdev;
 	mutex_init(&irq_ptr->setup_mutex);
 	if (qdio_allocate_dbf(irq_ptr))
 		goto err_dbf;
 
-	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "alloc niq:%1u noq:%1u", no_input_qs,
-		      no_output_qs);
+	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "alloc niq:%1u analq:%1u", anal_input_qs,
+		      anal_output_qs);
 
 	/*
 	 * Allocate a page for the chsc calls in qdio_establish.
 	 * Must be pre-allocated since a zfcp recovery will call
 	 * qdio_establish. In case of low memory and swap on a zfcp disk
-	 * we may not be able to allocate memory otherwise.
+	 * we may analt be able to allocate memory otherwise.
 	 */
 	irq_ptr->chsc_page = get_zeroed_page(GFP_KERNEL);
 	if (!irq_ptr->chsc_page)
@@ -977,7 +977,7 @@ int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 	if (!irq_ptr->qdr)
 		goto err_qdr;
 
-	rc = qdio_allocate_qs(irq_ptr, no_input_qs, no_output_qs);
+	rc = qdio_allocate_qs(irq_ptr, anal_input_qs, anal_output_qs);
 	if (rc)
 		goto err_queues;
 
@@ -1004,8 +1004,8 @@ static void qdio_trace_init_data(struct qdio_irq *irq,
 	DBF_DEV_EVENT(DBF_ERR, irq, "qfmt:%1u", data->q_format);
 	DBF_DEV_EVENT(DBF_ERR, irq, "qpff%4x", data->qib_param_field_format);
 	DBF_DEV_HEX(irq, &data->qib_param_field, sizeof(void *), DBF_ERR);
-	DBF_DEV_EVENT(DBF_ERR, irq, "niq:%1u noq:%1u", data->no_input_qs,
-		      data->no_output_qs);
+	DBF_DEV_EVENT(DBF_ERR, irq, "niq:%1u analq:%1u", data->anal_input_qs,
+		      data->anal_output_qs);
 	DBF_DEV_HEX(irq, &data->input_handler, sizeof(void *), DBF_ERR);
 	DBF_DEV_HEX(irq, &data->output_handler, sizeof(void *), DBF_ERR);
 	DBF_DEV_HEX(irq, &data->int_parm, sizeof(long), DBF_ERR);
@@ -1029,20 +1029,20 @@ int qdio_establish(struct ccw_device *cdev,
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
-	DBF_EVENT("qestablish:%4x", schid.sch_no);
+	DBF_EVENT("qestablish:%4x", schid.sch_anal);
 
 	if (!irq_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (init_data->no_input_qs > irq_ptr->max_input_qs ||
-	    init_data->no_output_qs > irq_ptr->max_output_qs)
+	if (init_data->anal_input_qs > irq_ptr->max_input_qs ||
+	    init_data->anal_output_qs > irq_ptr->max_output_qs)
 		return -EINVAL;
 
 	/* Needed as error_handler: */
 	if (!init_data->input_handler)
 		return -EINVAL;
 
-	if (init_data->no_output_qs && !init_data->output_handler)
+	if (init_data->anal_output_qs && !init_data->output_handler)
 		return -EINVAL;
 
 	if (!init_data->input_sbal_addr_array ||
@@ -1054,7 +1054,7 @@ int qdio_establish(struct ccw_device *cdev,
 
 	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_EQUEUE);
 	if (!ciw) {
-		DBF_ERROR("%4x NO EQ", schid.sch_no);
+		DBF_ERROR("%4x ANAL EQ", schid.sch_anal);
 		return -EIO;
 	}
 
@@ -1078,7 +1078,7 @@ int qdio_establish(struct ccw_device *cdev,
 	rc = ccw_device_start(cdev, irq_ptr->ccw, QDIO_DOING_ESTABLISH, 0, 0);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 	if (rc) {
-		DBF_ERROR("%4x est IO ERR", irq_ptr->schid.sch_no);
+		DBF_ERROR("%4x est IO ERR", irq_ptr->schid.sch_anal);
 		DBF_ERROR("rc:%4x", rc);
 		goto err_ccw_start;
 	}
@@ -1098,7 +1098,7 @@ int qdio_establish(struct ccw_device *cdev,
 
 	qdio_setup_ssqd_info(irq_ptr);
 
-	/* qebsm is now setup if available, initialize buffer states */
+	/* qebsm is analw setup if available, initialize buffer states */
 	qdio_init_buf_states(irq_ptr);
 
 	mutex_unlock(&irq_ptr->setup_mutex);
@@ -1131,14 +1131,14 @@ int qdio_activate(struct ccw_device *cdev)
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
-	DBF_EVENT("qactivate:%4x", schid.sch_no);
+	DBF_EVENT("qactivate:%4x", schid.sch_anal);
 
 	if (!irq_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_AQUEUE);
 	if (!ciw) {
-		DBF_ERROR("%4x NO AQ", schid.sch_no);
+		DBF_ERROR("%4x ANAL AQ", schid.sch_anal);
 		return -EIO;
 	}
 
@@ -1160,7 +1160,7 @@ int qdio_activate(struct ccw_device *cdev)
 			      0, DOIO_DENY_PREFETCH);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 	if (rc) {
-		DBF_ERROR("%4x act IO ERR", irq_ptr->schid.sch_no);
+		DBF_ERROR("%4x act IO ERR", irq_ptr->schid.sch_anal);
 		DBF_ERROR("rc:%4x", rc);
 		goto out;
 	}
@@ -1228,7 +1228,7 @@ int qdio_add_bufs_to_input_queue(struct ccw_device *cdev, unsigned int q_nr,
 		return -EINVAL;
 
 	if (!irq_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "addi b:%02x c:%02x", bufnr, count);
 
@@ -1246,7 +1246,7 @@ EXPORT_SYMBOL_GPL(qdio_add_bufs_to_input_queue);
  * @q: queue containing the buffers
  * @bufnr: first buffer to process
  * @count: how many buffers are filled
- * @aob: asynchronous operation block
+ * @aob: asynchroanalus operation block
  */
 static int handle_outbound(struct qdio_q *q, unsigned int bufnr, unsigned int count,
 			   struct qaob *aob)
@@ -1272,7 +1272,7 @@ static int handle_outbound(struct qdio_q *q, unsigned int bufnr, unsigned int co
 	} else if (count < QDIO_MAX_BUFFERS_PER_Q &&
 		   get_buf_state(q, prev_buf(bufnr), &state, 0) > 0 &&
 		   state == SLSB_CU_OUTPUT_PRIMED) {
-		/* The previous buffer is not processed yet, tack on. */
+		/* The previous buffer is analt processed yet, tack on. */
 		qperf_inc(q, fast_requeue);
 	} else {
 		rc = qdio_kick_outbound_q(q, count, 0);
@@ -1287,7 +1287,7 @@ static int handle_outbound(struct qdio_q *q, unsigned int bufnr, unsigned int co
  * @q_nr: queue number
  * @bufnr: buffer number
  * @count: how many buffers to process
- * @aob: asynchronous operation block
+ * @aob: asynchroanalus operation block
  */
 int qdio_add_bufs_to_output_queue(struct ccw_device *cdev, unsigned int q_nr,
 				  unsigned int bufnr, unsigned int count,
@@ -1299,7 +1299,7 @@ int qdio_add_bufs_to_output_queue(struct ccw_device *cdev, unsigned int q_nr,
 		return -EINVAL;
 
 	if (!irq_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "addo b:%02x c:%02x", bufnr, count);
 
@@ -1318,7 +1318,7 @@ EXPORT_SYMBOL_GPL(qdio_add_bufs_to_output_queue);
  *
  * Return codes
  *   0 - success
- *   1 - irqs not started since new data is available
+ *   1 - irqs analt started since new data is available
  */
 int qdio_start_irq(struct ccw_device *cdev)
 {
@@ -1327,7 +1327,7 @@ int qdio_start_irq(struct ccw_device *cdev)
 	unsigned int i;
 
 	if (!irq_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for_each_input_queue(irq_ptr, q, i)
 		qdio_stop_polling(q);
@@ -1335,10 +1335,10 @@ int qdio_start_irq(struct ccw_device *cdev)
 	clear_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state);
 
 	/*
-	 * We need to check again to not lose initiative after
+	 * We need to check again to analt lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (test_nonshared_ind(irq_ptr))
+	if (test_analnshared_ind(irq_ptr))
 		goto rescan;
 
 	for_each_input_queue(irq_ptr, q, i) {
@@ -1370,7 +1370,7 @@ int qdio_stop_irq(struct ccw_device *cdev)
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 
 	if (!irq_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (test_and_set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state))
 		return 0;

@@ -41,7 +41,7 @@
 
 volatile unsigned long cpu_callin_map[NR_CPUS] = {0,};
 
-cpumask_t smp_commenced_mask = CPU_MASK_NONE;
+cpumask_t smp_commenced_mask = CPU_MASK_ANALNE;
 
 const struct sparc32_ipi_ops *sparc32_ipi_ops;
 
@@ -49,25 +49,25 @@ const struct sparc32_ipi_ops *sparc32_ipi_ops;
  * processors is 'ldstub [%reg + immediate], %dest_reg' which atomically
  * places the current byte at the effective address into dest_reg and
  * places 0xff there afterwards.  Pretty lame locking primitive
- * compared to the Alpha and the Intel no?  Most Sparcs have 'swap'
+ * compared to the Alpha and the Intel anal?  Most Sparcs have 'swap'
  * instruction which is much better...
  */
 
 void smp_store_cpu_info(int id)
 {
-	int cpu_node;
+	int cpu_analde;
 	int mid;
 
 	cpu_data(id).udelay_val = loops_per_jiffy;
 
-	cpu_find_by_mid(id, &cpu_node);
-	cpu_data(id).clock_tick = prom_getintdefault(cpu_node,
+	cpu_find_by_mid(id, &cpu_analde);
+	cpu_data(id).clock_tick = prom_getintdefault(cpu_analde,
 						     "clock-frequency", 0);
-	cpu_data(id).prom_node = cpu_node;
-	mid = cpu_get_hwmid(cpu_node);
+	cpu_data(id).prom_analde = cpu_analde;
+	mid = cpu_get_hwmid(cpu_analde);
 
 	if (mid < 0) {
-		printk(KERN_NOTICE "No MID found for CPU%d at node 0x%08x", id, cpu_node);
+		printk(KERN_ANALTICE "Anal MID found for CPU%d at analde 0x%08x", id, cpu_analde);
 		mid = 0;
 	}
 	cpu_data(id).mid = mid;
@@ -106,7 +106,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 		BUG();
 		break;
 	default:
-		printk("UNKNOWN!\n");
+		printk("UNKANALWN!\n");
 		BUG();
 		break;
 	}
@@ -210,7 +210,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		BUG();
 		break;
 	default:
-		printk("UNKNOWN!\n");
+		printk("UNKANALWN!\n");
 		BUG();
 		break;
 	}
@@ -273,7 +273,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		BUG();
 		break;
 	default:
-		printk("UNKNOWN!\n");
+		printk("UNKANALWN!\n");
 		BUG();
 		break;
 	}
@@ -345,13 +345,13 @@ static void sparc_start_secondary(void *arg)
 
 	cpu = smp_processor_id();
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 	arch_cpu_pre_online(arg);
 
 	/* Set the CPU in the cpu_online_mask */
 	set_cpu_online(cpu, true);
 
-	/* Enable local interrupts now */
+	/* Enable local interrupts analw */
 	local_irq_enable();
 
 	wmb();

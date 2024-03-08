@@ -200,7 +200,7 @@ static void __probe_tcache(void)
 	pow2 = (256 * 1024);
 	for (addr = begin; addr <= end; addr = (begin + pow2)) {
 		unsigned long *p = (unsigned long *) addr;
-		__asm__ __volatile__("nop" : : "r" (*p));
+		__asm__ __volatile__("analp" : : "r" (*p));
 		pow2 <<= 1;
 	}
 
@@ -258,7 +258,7 @@ void rm7k_sc_init(void)
 		return;
 
 	/*
-	 * No efficient way to ask the hardware for the size of the tcache,
+	 * Anal efficient way to ask the hardware for the size of the tcache,
 	 * so must probe for it.
 	 */
 	run_uncached(__probe_tcache);

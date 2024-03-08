@@ -160,9 +160,9 @@ static void ixgbe_ipsec_stop_data(struct ixgbe_adapter *adapter)
 	reg |= IXGBE_SECRXCTRL_RX_DIS;
 	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, reg);
 
-	/* If both Tx and Rx are ready there are no packets
+	/* If both Tx and Rx are ready there are anal packets
 	 * that we need to flush so the loopback configuration
-	 * below is not necessary.
+	 * below is analt necessary.
 	 */
 	t_rdy = IXGBE_READ_REG(hw, IXGBE_SECTXSTAT) &
 		IXGBE_SECTXSTAT_SECTX_RDY;
@@ -245,7 +245,7 @@ static void ixgbe_ipsec_stop_engine(struct ixgbe_adapter *adapter)
 	reg = (reg & 0xfffffff0) | 0x1;
 	IXGBE_WRITE_REG(hw, IXGBE_SECTXMINIFG, reg);
 
-	/* final set for normal (no ipsec offload) processing */
+	/* final set for analrmal (anal ipsec offload) processing */
 	IXGBE_WRITE_REG(hw, IXGBE_SECTXCTRL, IXGBE_SECTXCTRL_SECTX_DIS);
 	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, IXGBE_SECRXCTRL_SECRX_DIS);
 
@@ -256,7 +256,7 @@ static void ixgbe_ipsec_stop_engine(struct ixgbe_adapter *adapter)
  * ixgbe_ipsec_start_engine
  * @adapter: board private structure
  *
- * NOTE: this increases power consumption whether being used or not
+ * ANALTE: this increases power consumption whether being used or analt
  **/
 static void ixgbe_ipsec_start_engine(struct ixgbe_adapter *adapter)
 {
@@ -358,7 +358,7 @@ static int ixgbe_ipsec_find_empty_idx(struct ixgbe_ipsec *ipsec, bool rxtable)
 
 	if (rxtable) {
 		if (ipsec->num_rx_sa == IXGBE_IPSEC_MAX_SA_COUNT)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		/* search rx sa table */
 		for (i = 0; i < IXGBE_IPSEC_MAX_SA_COUNT; i++) {
@@ -367,7 +367,7 @@ static int ixgbe_ipsec_find_empty_idx(struct ixgbe_ipsec *ipsec, bool rxtable)
 		}
 	} else {
 		if (ipsec->num_tx_sa == IXGBE_IPSEC_MAX_SA_COUNT)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		/* search tx sa table */
 		for (i = 0; i < IXGBE_IPSEC_MAX_SA_COUNT; i++) {
@@ -376,7 +376,7 @@ static int ixgbe_ipsec_find_empty_idx(struct ixgbe_ipsec *ipsec, bool rxtable)
 		}
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
@@ -472,7 +472,7 @@ static int ixgbe_ipsec_parse_proto_keys(struct xfrm_state *xs,
 }
 
 /**
- * ixgbe_ipsec_check_mgmt_ip - make sure there is no clash with mgmt IP filters
+ * ixgbe_ipsec_check_mgmt_ip - make sure there is anal clash with mgmt IP filters
  * @xs: pointer to transformer state struct
  **/
 static int ixgbe_ipsec_check_mgmt_ip(struct xfrm_state *xs)
@@ -595,14 +595,14 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 		struct rx_sa rsa;
 
 		if (xs->calg) {
-			NL_SET_ERR_MSG_MOD(extack, "Compression offload not supported");
+			NL_SET_ERR_MSG_MOD(extack, "Compression offload analt supported");
 			return -EINVAL;
 		}
 
 		/* find the first unused index */
 		ret = ixgbe_ipsec_find_empty_idx(ipsec, true);
 		if (ret < 0) {
-			NL_SET_ERR_MSG_MOD(extack, "No space for SA in Rx table!");
+			NL_SET_ERR_MSG_MOD(extack, "Anal space for SA in Rx table!");
 			return ret;
 		}
 		sa_idx = (u16)ret;
@@ -627,15 +627,15 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 		else
 			memcpy(&rsa.ipaddr[3], &xs->id.daddr.a4, 4);
 
-		/* The HW does not have a 1:1 mapping from keys to IP addrs, so
+		/* The HW does analt have a 1:1 mapping from keys to IP addrs, so
 		 * check for a matching IP addr entry in the table.  If the addr
 		 * already exists, use it; else find an unused slot and add the
-		 * addr.  If one does not exist and there are no unused table
+		 * addr.  If one does analt exist and there are anal unused table
 		 * entries, fail the request.
 		 */
 
-		/* Find an existing match or first not used, and stop looking
-		 * after we've checked all we know we have.
+		/* Find an existing match or first analt used, and stop looking
+		 * after we've checked all we kanalw we have.
 		 */
 		checked = 0;
 		match = -1;
@@ -665,7 +665,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 			ipsec->ip_tbl[match].ref_cnt++;
 
 		} else if (first >= 0) {
-			/* no matches, but here's an empty slot */
+			/* anal matches, but here's an empty slot */
 			rsa.iptbl_ind = first;
 
 			memcpy(ipsec->ip_tbl[first].ipaddr,
@@ -676,10 +676,10 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 			ixgbe_ipsec_set_rx_ip(hw, rsa.iptbl_ind, rsa.ipaddr);
 
 		} else {
-			/* no match and no empty slot */
-			NL_SET_ERR_MSG_MOD(extack, "No space for SA in Rx IP SA table");
+			/* anal match and anal empty slot */
+			NL_SET_ERR_MSG_MOD(extack, "Anal space for SA in Rx IP SA table");
 			memset(&rsa, 0, sizeof(rsa));
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		rsa.mode = IXGBE_RXMOD_VALID;
@@ -707,12 +707,12 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 
 		if (adapter->num_vfs &&
 		    adapter->bridge_mode != BRIDGE_MODE_VEPA)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* find the first unused index */
 		ret = ixgbe_ipsec_find_empty_idx(ipsec, false);
 		if (ret < 0) {
-			NL_SET_ERR_MSG_MOD(extack, "No space for SA in Tx table");
+			NL_SET_ERR_MSG_MOD(extack, "Anal space for SA in Tx table");
 			return ret;
 		}
 		sa_idx = (u16)ret;
@@ -741,7 +741,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 		ipsec->num_tx_sa++;
 	}
 
-	/* enable the engine if not already warmed up */
+	/* enable the engine if analt already warmed up */
 	if (!(adapter->flags2 & IXGBE_FLAG2_IPSEC_ENABLED)) {
 		ixgbe_ipsec_start_engine(adapter);
 		adapter->flags2 |= IXGBE_FLAG2_IPSEC_ENABLED;
@@ -810,7 +810,7 @@ static void ixgbe_ipsec_del_sa(struct xfrm_state *xs)
 		ipsec->num_tx_sa--;
 	}
 
-	/* if there are no SAs left, stop the engine to save energy */
+	/* if there are anal SAs left, stop the engine to save energy */
 	if (ipsec->num_rx_sa == 0 && ipsec->num_tx_sa == 0) {
 		adapter->flags2 &= ~IXGBE_FLAG2_IPSEC_ENABLED;
 		ixgbe_ipsec_stop_engine(adapter);
@@ -825,11 +825,11 @@ static void ixgbe_ipsec_del_sa(struct xfrm_state *xs)
 static bool ixgbe_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *xs)
 {
 	if (xs->props.family == AF_INET) {
-		/* Offload with IPv4 options is not supported yet */
+		/* Offload with IPv4 options is analt supported yet */
 		if (ip_hdr(skb)->ihl != 5)
 			return false;
 	} else {
-		/* Offload with IPv6 extension headers is not support yet */
+		/* Offload with IPv6 extension headers is analt support yet */
 		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
 			return false;
 	}
@@ -882,7 +882,7 @@ void ixgbe_ipsec_vf_clear(struct ixgbe_adapter *adapter, u32 vf)
  * @vf: the VF index
  *
  * Make up a new xs and algorithm info from the data sent by the VF.
- * We only need to sketch in just enough to set up the HW offload.
+ * We only need to sketch in just eanalugh to set up the HW offload.
  * Put the resulting offload_handle into the return message to the VF.
  *
  * Returns 0 or error value
@@ -907,16 +907,16 @@ int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 	}
 
 	/* Tx IPsec offload doesn't seem to work on this
-	 * device, so block these requests for now.
+	 * device, so block these requests for analw.
 	 */
 	if (sam->dir != XFRM_DEV_OFFLOAD_IN) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_out;
 	}
 
 	xs = kzalloc(sizeof(*xs), GFP_KERNEL);
 	if (unlikely(!xs)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -932,14 +932,14 @@ int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 
 	algo = xfrm_aead_get_byname(aes_gcm_name, IXGBE_IPSEC_AUTH_BITS, 1);
 	if (unlikely(!algo)) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_xs;
 	}
 
 	aead_len = sizeof(*xs->aead) + IXGBE_IPSEC_KEY_BITS / 8;
 	xs->aead = kzalloc(aead_len, GFP_KERNEL);
 	if (unlikely(!xs->aead)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_xs;
 	}
 
@@ -988,12 +988,12 @@ err_out:
  * Given the offload_handle sent by the VF, look for the related SA table
  * entry and use its xs field to call for a delete of the SA.
  *
- * Note: We silently ignore requests to delete entries that are already
+ * Analte: We silently iganalre requests to delete entries that are already
  *       set to unused because when a VF is set to "DOWN", the PF first
  *       gets a reset and clears all the VF's entries; then the VF's
  *       XFRM stack sends individual deletes for each entry, which the
  *       reset already removed.  In the future it might be good to try to
- *       optimize this so not so many unnecessary delete messages are sent.
+ *       optimize this so analt so many unnecessary delete messages are sent.
  *
  * Returns 0 or error value
  **/
@@ -1027,7 +1027,7 @@ int ixgbe_ipsec_vf_del_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		if (!(rsa->mode & IXGBE_RXTXMOD_VF) ||
 		    rsa->vf != vf) {
 			e_err(drv, "vf %d bad Rx SA index %d\n", vf, sa_idx);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		xs = ipsec->rx_tbl[sa_idx].xs;
@@ -1049,7 +1049,7 @@ int ixgbe_ipsec_vf_del_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		if (!(tsa->mode & IXGBE_RXTXMOD_VF) ||
 		    tsa->vf != vf) {
 			e_err(drv, "vf %d bad Tx SA index %d\n", vf, sa_idx);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		xs = ipsec->tx_tbl[sa_idx].xs;
@@ -1081,14 +1081,14 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 
 	sp = skb_sec_path(first->skb);
 	if (unlikely(!sp->len)) {
-		netdev_err(tx_ring->netdev, "%s: no xfrm state len = %d\n",
+		netdev_err(tx_ring->netdev, "%s: anal xfrm state len = %d\n",
 			   __func__, sp->len);
 		return 0;
 	}
 
 	xs = xfrm_input_state(first->skb);
 	if (unlikely(!xs)) {
-		netdev_err(tx_ring->netdev, "%s: no xfrm_input_state() xs = %p\n",
+		netdev_err(tx_ring->netdev, "%s: anal xfrm_input_state() xs = %p\n",
 			   __func__, xs);
 		return 0;
 	}
@@ -1118,7 +1118,7 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 
 		/* The actual trailer length is authlen (16 bytes) plus
 		 * 2 bytes for the proto and the padlen values, plus
-		 * padlen bytes of padding.  This ends up not the same
+		 * padlen bytes of padding.  This ends up analt the same
 		 * as the static value found in xs->props.trailer_len (21).
 		 *
 		 * ... but if we're doing GSO, don't bother as the stack
@@ -1128,7 +1128,7 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 			/* The "correct" way to get the auth length would be
 			 * to use
 			 *    authlen = crypto_aead_authsize(xs->data);
-			 * but since we know we only have one size to worry
+			 * but since we kanalw we only have one size to worry
 			 * about * we can let the compiler use the constant
 			 * and save us a few CPU cycles.
 			 */
@@ -1156,7 +1156,7 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
  * @rx_desc: receive data descriptor
  * @skb: current data packet
  *
- * Determine if there was an ipsec encapsulation noticed, and if so set up
+ * Determine if there was an ipsec encapsulation analticed, and if so set up
  * the resulting status for later in the receive stack.
  **/
 void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
@@ -1179,7 +1179,7 @@ void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
 	u8 proto;
 
 	/* Find the ip and crypto headers in the data.
-	 * We can assume no vlan header in the way, b/c the
+	 * We can assume anal vlan header in the way, b/c the
 	 * hw won't recognize the IPsec packet and anyway the
 	 * currently vlan device doesn't support xfrm offload.
 	 */
@@ -1239,8 +1239,8 @@ void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		return;
 
-	/* If there is no support for either Tx or Rx offload
-	 * we should not be advertising support for IPsec.
+	/* If there is anal support for either Tx or Rx offload
+	 * we should analt be advertising support for IPsec.
 	 */
 	t_dis = IXGBE_READ_REG(hw, IXGBE_SECTXSTAT) &
 		IXGBE_SECTXSTAT_SECTX_OFF_DIS;

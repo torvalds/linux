@@ -72,7 +72,7 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-analt-fw-configured;
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>,
@@ -290,7 +290,7 @@
 		dma-names = "rx-tx";
 		fifo-depth = <0x100>;
 		mmc-ddr-1_8v;
-		non-removable;
+		analn-removable;
 		pinctrl-names = "default";
 		pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 		resets = <&cru SRST_EMMC>;
@@ -377,7 +377,7 @@
 		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x1d8>;
-			mode-normal = <BOOT_NORMAL>;
+			mode-analrmal = <BOOT_ANALRMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-bootloader = <BOOT_FASTBOOT>;
 			mode-loader = <BOOT_BL_DOWNLOAD>;
@@ -394,7 +394,7 @@
 	};
 
 	hdmi: hdmi@20034000 {
-		compatible = "rockchip,rk3036-inno-hdmi";
+		compatible = "rockchip,rk3036-inanal-hdmi";
 		reg = <0x20034000 0x4000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru  PCLK_HDMI>;
@@ -572,7 +572,7 @@
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 		#dma-cells = <1>;
-		arm,pl330-broken-no-flushp;
+		arm,pl330-broken-anal-flushp;
 		arm,pl330-periph-burst;
 		clocks = <&cru ACLK_DMAC2>;
 		clock-names = "apb_pclk";
@@ -628,37 +628,37 @@
 			bias-pull-pin-default;
 		};
 
-		pcfg_pull_none: pcfg-pull-none {
+		pcfg_pull_analne: pcfg-pull-analne {
 			bias-disable;
 		};
 
 		pwm0 {
 			pwm0_pin: pwm0-pin {
-				rockchip,pins = <0 RK_PA0 2 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA0 2 &pcfg_pull_analne>;
 			};
 		};
 
 		pwm1 {
 			pwm1_pin: pwm1-pin {
-				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_analne>;
 			};
 		};
 
 		pwm2 {
 			pwm2_pin: pwm2-pin {
-				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_analne>;
 			};
 		};
 
 		pwm3 {
 			pwm3_pin: pwm3-pin {
-				rockchip,pins = <0 RK_PD3 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PD3 1 &pcfg_pull_analne>;
 			};
 		};
 
 		sdmmc {
 			sdmmc_clk: sdmmc-clk {
-				rockchip,pins = <1 RK_PC0 1 &pcfg_pull_none>;
+				rockchip,pins = <1 RK_PC0 1 &pcfg_pull_analne>;
 			};
 
 			sdmmc_cmd: sdmmc-cmd {
@@ -698,7 +698,7 @@
 			};
 
 			sdio_clk: sdio-clk {
-				rockchip,pins = <0 RK_PB1 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PB1 1 &pcfg_pull_analne>;
 			};
 		};
 
@@ -708,7 +708,7 @@
 			 * We also have external pulls, so disable the internal ones.
 			 */
 			emmc_clk: emmc-clk {
-				rockchip,pins = <2 RK_PA4 2 &pcfg_pull_none>;
+				rockchip,pins = <2 RK_PA4 2 &pcfg_pull_analne>;
 			};
 
 			emmc_cmd: emmc-cmd {
@@ -784,22 +784,22 @@
 
 		i2c0 {
 			i2c0_xfer: i2c0-xfer {
-				rockchip,pins = <0 RK_PA0 1 &pcfg_pull_none>,
-						<0 RK_PA1 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA0 1 &pcfg_pull_analne>,
+						<0 RK_PA1 1 &pcfg_pull_analne>;
 			};
 		};
 
 		i2c1 {
 			i2c1_xfer: i2c1-xfer {
-				rockchip,pins = <0 RK_PA2 1 &pcfg_pull_none>,
-						<0 RK_PA3 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA2 1 &pcfg_pull_analne>,
+						<0 RK_PA3 1 &pcfg_pull_analne>;
 			};
 		};
 
 		i2c2 {
 			i2c2_xfer: i2c2-xfer {
-				rockchip,pins = <2 RK_PC4 1 &pcfg_pull_none>,
-						<2 RK_PC5 1 &pcfg_pull_none>;
+				rockchip,pins = <2 RK_PC4 1 &pcfg_pull_analne>,
+						<2 RK_PC5 1 &pcfg_pull_analne>;
 			};
 		};
 
@@ -816,17 +816,17 @@
 
 		hdmi {
 			hdmi_ctl: hdmi-ctl {
-				rockchip,pins = <1 RK_PB0 1 &pcfg_pull_none>,
-						<1 RK_PB1 1 &pcfg_pull_none>,
-						<1 RK_PB2 1 &pcfg_pull_none>,
-						<1 RK_PB3 1 &pcfg_pull_none>;
+				rockchip,pins = <1 RK_PB0 1 &pcfg_pull_analne>,
+						<1 RK_PB1 1 &pcfg_pull_analne>,
+						<1 RK_PB2 1 &pcfg_pull_analne>,
+						<1 RK_PB3 1 &pcfg_pull_analne>;
 			};
 		};
 
 		uart0 {
 			uart0_xfer: uart0-xfer {
 				rockchip,pins = <0 RK_PC0 1 &pcfg_pull_default>,
-						<0 RK_PC1 1 &pcfg_pull_none>;
+						<0 RK_PC1 1 &pcfg_pull_analne>;
 			};
 
 			uart0_cts: uart0-cts {
@@ -834,24 +834,24 @@
 			};
 
 			uart0_rts: uart0-rts {
-				rockchip,pins = <0 RK_PC3 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PC3 1 &pcfg_pull_analne>;
 			};
 		};
 
 		uart1 {
 			uart1_xfer: uart1-xfer {
 				rockchip,pins = <2 RK_PC6 1 &pcfg_pull_default>,
-						<2 RK_PC7 1 &pcfg_pull_none>;
+						<2 RK_PC7 1 &pcfg_pull_analne>;
 			};
-			/* no rts / cts for uart1 */
+			/* anal rts / cts for uart1 */
 		};
 
 		uart2 {
 			uart2_xfer: uart2-xfer {
 				rockchip,pins = <1 RK_PC2 2 &pcfg_pull_default>,
-						<1 RK_PC3 2 &pcfg_pull_none>;
+						<1 RK_PC3 2 &pcfg_pull_analne>;
 			};
-			/* no rts / cts for uart2 */
+			/* anal rts / cts for uart2 */
 		};
 
 		spi-pins {

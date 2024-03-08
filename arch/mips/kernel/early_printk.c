@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2002, 2003, 06, 07 Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2007 MIPS Techanallogies, Inc.
  *   written by Ralf Baechle (ralf@linux-mips.org)
  */
 #include <linux/kernel.h>

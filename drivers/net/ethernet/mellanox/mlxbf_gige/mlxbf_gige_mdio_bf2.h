@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause */
 
-/* MDIO support for Mellanox Gigabit Ethernet driver
+/* MDIO support for Mellaanalx Gigabit Ethernet driver
  *
  * Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES, ALL RIGHTS RESERVED.
  *

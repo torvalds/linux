@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /*
@@ -276,7 +276,7 @@
 				   <&creg_gpio 1 GPIO_ACTIVE_LOW>;
 
 			flash@0 {
-				compatible = "sst26wf016b", "jedec,spi-nor";
+				compatible = "sst26wf016b", "jedec,spi-analr";
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <1>;

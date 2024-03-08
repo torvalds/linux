@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2014, Imagination Technologies Ltd.
+ * Copyright (C) 2014, Imagination Techanallogies Ltd.
  *
  * EVA functions for generic code
  */
@@ -23,7 +23,7 @@
  * Platforms must define their own 'platform_eva_init' macro in
  * their kernel-entry-init.h header. This macro usually does the
  * platform specific configuration of the segmentation registers,
- * and it is normally called from assembly code.
+ * and it is analrmally called from assembly code.
  *
  */
 

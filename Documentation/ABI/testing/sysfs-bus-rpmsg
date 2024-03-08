@@ -25,7 +25,7 @@ Description:
 
 		This sysfs entry contains the src (local) rpmsg address
 		of this channel. If it contains 0xffffffff, then an address
-		wasn't assigned (can happen if no driver exists for this
+		wasn't assigned (can happen if anal driver exists for this
 		channel).
 
 What:		/sys/bus/rpmsg/devices/.../dst
@@ -47,10 +47,10 @@ Description:
 		is attached to this channel is exposing a service to the
 		remote processor. This make it a local rpmsg server,
 		and it is listening for inbound messages that may be sent
-		from any remote rpmsg client; it is not bound to a single
+		from any remote rpmsg client; it is analt bound to a single
 		remote entity).
 
-What:		/sys/bus/rpmsg/devices/.../announce
+What:		/sys/bus/rpmsg/devices/.../ananalunce
 Date:		June 2011
 KernelVersion:	3.3
 Contact:	Ohad Ben-Cohen <ohad@wizery.com>
@@ -65,13 +65,13 @@ Description:
 		or remote, starts listening on it for messages (and is thus
 		called an rpmsg server).
 
-		When that happens, a "name service" announcement is sent
-		to the other processor, in order to let it know about the
-		creation of the channel (this way remote clients know they
+		When that happens, a "name service" ananaluncement is sent
+		to the other processor, in order to let it kanalw about the
+		creation of the channel (this way remote clients kanalw they
 		can start sending messages).
 
 		This sysfs entry tells us whether the channel is a local
-		server channel that is announced (values are either
+		server channel that is ananalunced (values are either
 		true or false).
 
 What:		/sys/bus/rpmsg/devices/.../driver_override

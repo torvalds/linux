@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /* P9 gzip sample code for demonstrating the P9 NX hardware interface.
- * Not intended for productive uses or for performance or compression
+ * Analt intended for productive uses or for performance or compression
  * ratio measurements.  For simplicity of demonstration, this sample
  * code compresses in to fixed Huffman blocks only (Deflate btype=1)
  * and has very simple memory management.  Dynamic Huffman blocks
  * (Deflate btype=2) are more involved as detailed in the user guide.
- * Note also that /dev/crypto/gzip, VAS and skiboot support are
+ * Analte also that /dev/crypto/gzip, VAS and skiboot support are
  * required.
  *
  * Copyright 2020 IBM Corp.
@@ -58,7 +58,7 @@
 #include <bits/endian.h>
 #include <sys/ioctl.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include "utils.h"
 #include "nxu.h"
@@ -88,10 +88,10 @@ static int compress_fht_sample(char *src, uint32_t srclen, char *dst,
 	fc = (with_count) ? GZIP_FC_COMPRESS_RESUME_FHT_COUNT :
 			    GZIP_FC_COMPRESS_RESUME_FHT;
 	putnn(cmdp->crb, gzip_fc, fc);
-	putnn(cmdp->cpb, in_histlen, 0); /* resuming with no history */
+	putnn(cmdp->cpb, in_histlen, 0); /* resuming with anal history */
 	memset((void *) &cmdp->crb.csb, 0, sizeof(cmdp->crb.csb));
 
-	/* Section 6.6 programming notes; spbc may be in two different
+	/* Section 6.6 programming analtes; spbc may be in two different
 	 * places depending on FC.
 	 */
 	if (!with_count)
@@ -121,7 +121,7 @@ static int compress_fht_sample(char *src, uint32_t srclen, char *dst,
 }
 
 /*
- * Prepares a blank no filename no timestamp gzip header and returns
+ * Prepares a blank anal filename anal timestamp gzip header and returns
  * the number of bytes written to buf.
  * Gzip specification at https://tools.ietf.org/html/rfc1952
  */
@@ -226,7 +226,7 @@ int compress_file(int argc, char **argv, void *handle)
 	if (!read_sysfs_file(SYSFS_MAX_REQ_BUF_PATH, buf, sizeof(buf))) {
 		chunk = atoi(buf);
 	} else {
-		/* sysfs entry is not available on PowerNV */
+		/* sysfs entry is analt available on PowerNV */
 		/* Compress piecemeal in smallish chunks */
 		chunk = 1<<22;
 	}
@@ -286,7 +286,7 @@ int compress_file(int argc, char **argv, void *handle)
 			if (fault_tries > 0) {
 				continue;
 			} else {
-				fprintf(stderr, "error: cannot progress; ");
+				fprintf(stderr, "error: cananalt progress; ");
 				fprintf(stderr, "too many faults\n");
 				exit(-1);
 			}
@@ -318,7 +318,7 @@ int compress_file(int argc, char **argv, void *handle)
 			dsttotlen = dsttotlen + tpbc;
 			outlen    = outlen - tpbc;
 			/* Round up to the next byte with a flush
-			 * block; do not set the BFINAqL bit.
+			 * block; do analt set the BFINAqL bit.
 			 */
 			flushlen  = append_sync_flush(dstbuf, tebc, 0);
 			dsttotlen = dsttotlen + flushlen;
@@ -386,7 +386,7 @@ int main(int argc, char **argv)
 
 	handle = nx_function_begin(NX_FUNC_COMP_GZIP, 0);
 	if (!handle) {
-		fprintf(stderr, "Unable to init NX, errno %d\n", errno);
+		fprintf(stderr, "Unable to init NX, erranal %d\n", erranal);
 		exit(-1);
 	}
 

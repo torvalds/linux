@@ -17,7 +17,7 @@ int sockopt_qos_to_cc(struct bpf_sockopt *ctx)
 	void *optval_end = ctx->optval_end;
 	int *optval = ctx->optval;
 	char buf[TCP_CA_NAME_MAX];
-	char cc_reno[TCP_CA_NAME_MAX] = "reno";
+	char cc_reanal[TCP_CA_NAME_MAX] = "reanal";
 	char cc_cubic[TCP_CA_NAME_MAX] = "cubic";
 
 	if (ctx->level != SOL_IPV6 || ctx->optname != IPV6_TCLASS)
@@ -33,8 +33,8 @@ int sockopt_qos_to_cc(struct bpf_sockopt *ctx)
 		return 0;
 
 	if (*optval == 0x2d) {
-		if (bpf_setsockopt(ctx->sk, SOL_TCP, TCP_CONGESTION, &cc_reno,
-				sizeof(cc_reno)))
+		if (bpf_setsockopt(ctx->sk, SOL_TCP, TCP_CONGESTION, &cc_reanal,
+				sizeof(cc_reanal)))
 			return 0;
 	}
 	return 1;

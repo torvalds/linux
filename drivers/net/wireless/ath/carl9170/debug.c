@@ -17,20 +17,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2008-2009 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -74,22 +74,22 @@ static ssize_t carl9170_debugfs_read(struct file *file, char __user *userbuf,
 	ar = file->private_data;
 
 	if (!ar)
-		return -ENODEV;
+		return -EANALDEV;
 	dfops = container_of(debugfs_real_fops(file),
 			     struct carl9170_debugfs_fops, fops);
 
 	if (!dfops->read)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (dfops->read_bufsize) {
 		buf = vmalloc(dfops->read_bufsize);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	mutex_lock(&ar->mutex);
 	if (!CHK_DEV_STATE(ar, dfops->req_dev_state)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		res_buf = buf;
 		goto out_free;
 	}
@@ -127,16 +127,16 @@ static ssize_t carl9170_debugfs_write(struct file *file,
 	ar = file->private_data;
 
 	if (!ar)
-		return -ENODEV;
+		return -EANALDEV;
 	dfops = container_of(debugfs_real_fops(file),
 			     struct carl9170_debugfs_fops, fops);
 
 	if (!dfops->write)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	buf = vmalloc(count);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(buf, userbuf, count)) {
 		err = -EFAULT;
@@ -149,7 +149,7 @@ static ssize_t carl9170_debugfs_write(struct file *file,
 	}
 
 	if (!CHK_DEV_STATE(ar, dfops->req_dev_state)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -239,7 +239,7 @@ DEBUGFS_DECLARE_RO_FILE(mem_usage, 512);
 static char *carl9170_debugfs_qos_stat_read(struct ar9170 *ar, char *buf,
 					    size_t bufsize, ssize_t *len)
 {
-	ADD(buf, *len, bufsize, "%s QoS AC\n", modparam_noht ? "Hardware" :
+	ADD(buf, *len, bufsize, "%s QoS AC\n", modparam_analht ? "Hardware" :
 	    "Software");
 
 	ADD(buf, *len, bufsize, "[     VO            VI       "
@@ -413,25 +413,25 @@ static char *carl9170_debugfs_tx_stuck_read(struct ar9170 *ar, char *buf,
 }
 DEBUGFS_DECLARE_RO_FILE(tx_stuck, 180);
 
-static char *carl9170_debugfs_phy_noise_read(struct ar9170 *ar, char *buf,
+static char *carl9170_debugfs_phy_analise_read(struct ar9170 *ar, char *buf,
 					     size_t bufsize, ssize_t *len)
 {
 	int err;
 
-	err = carl9170_get_noisefloor(ar);
+	err = carl9170_get_analisefloor(ar);
 	if (err) {
 		*len = err;
 		return buf;
 	}
 
 	ADD(buf, *len, bufsize, "Chain 0: %10d dBm, ext. chan.:%10d dBm\n",
-	    ar->noise[0], ar->noise[2]);
+	    ar->analise[0], ar->analise[2]);
 	ADD(buf, *len, bufsize, "Chain 2: %10d dBm, ext. chan.:%10d dBm\n",
-	    ar->noise[1], ar->noise[3]);
+	    ar->analise[1], ar->analise[3]);
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(phy_noise, 180);
+DEBUGFS_DECLARE_RO_FILE(phy_analise, 180);
 
 static char *carl9170_debugfs_vif_dump_read(struct ar9170 *ar, char *buf,
 					    size_t bufsize, ssize_t *len)
@@ -462,7 +462,7 @@ DEBUGFS_DECLARE_RO_FILE(vif_dump, 8000);
 
 #define UPDATE_COUNTER(ar, name)	({				\
 	u32 __tmp[ARRAY_SIZE(name##_regs)];				\
-	unsigned int __i, __err = -ENODEV;				\
+	unsigned int __i, __err = -EANALDEV;				\
 									\
 	for (__i = 0; __i < ARRAY_SIZE(name##_regs); __i++) {		\
 		__tmp[__i] = name##_regs[__i].reg;			\
@@ -568,7 +568,7 @@ static ssize_t carl9170_debugfs_hw_ioread32_write(struct ar9170 *ar,
 	}
 
 	if ((reg >= 0x280000) || ((reg + (n << 2)) >= 0x280000)) {
-		err = -EADDRNOTAVAIL;
+		err = -EADDRANALTAVAIL;
 		goto out;
 	}
 
@@ -737,7 +737,7 @@ static ssize_t carl9170_debugfs_hw_iowrite32_write(struct ar9170 *ar,
 	}
 
 	if (reg <= 0x100000 || reg >= 0x280000) {
-		err = -EADDRNOTAVAIL;
+		err = -EADDRANALTAVAIL;
 		goto out;
 	}
 
@@ -845,7 +845,7 @@ void carl9170_debugfs_register(struct ar9170 *ar)
 	DEBUGFS_ADD(hw_tx_tally);
 	DEBUGFS_ADD(hw_rx_tally);
 	DEBUGFS_ADD(hw_phy_errors);
-	DEBUGFS_ADD(phy_noise);
+	DEBUGFS_ADD(phy_analise);
 
 	DEBUGFS_ADD(hw_wlan_queue);
 	DEBUGFS_ADD(hw_pta_queue);

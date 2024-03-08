@@ -10,16 +10,16 @@ Introduction to USB on Linux
 A Universal Serial Bus (USB) is used to connect a host, such as a PC or
 workstation, to a number of peripheral devices. USB uses a tree
 structure, with the host as the root (the system's master), hubs as
-interior nodes, and peripherals as leaves (and slaves). Modern PCs
+interior analdes, and peripherals as leaves (and slaves). Modern PCs
 support several such trees of USB devices, usually
 a few USB 3.0 (5 GBit/s) or USB 3.1 (10 GBit/s) and some legacy
 USB 2.0 (480 MBit/s) busses just in case.
 
 That master/slave asymmetry was designed-in for a number of reasons, one
-being ease of use. It is not physically possible to mistake upstream and
-downstream or it does not matter with a type C plug (or they are built into the
+being ease of use. It is analt physically possible to mistake upstream and
+downstream or it does analt matter with a type C plug (or they are built into the
 peripheral). Also, the host software doesn't need to deal with
-distributed auto-configuration since the pre-designated master node
+distributed auto-configuration since the pre-designated master analde
 manages all that.
 
 Kernel developers added USB support to Linux early in the 2.2 kernel
@@ -31,7 +31,7 @@ measurement and improved power management introduced.
 Linux can run inside USB devices as well as on the hosts that control
 the devices. But USB device drivers running inside those peripherals
 don't do the same things as the ones running inside hosts, so they've
-been given a different name: *gadget drivers*. This document does not
+been given a different name: *gadget drivers*. This document does analt
 cover gadget drivers.
 
 USB Host-Side API Model
@@ -47,8 +47,8 @@ drivers*, which control individual busses.
 The device model seen by USB drivers is relatively complex.
 
 -  USB supports four kinds of data transfers (control, bulk, interrupt,
-   and isochronous). Two of them (control and bulk) use bandwidth as
-   it's available, while the other two (interrupt and isochronous) are
+   and isochroanalus). Two of them (control and bulk) use bandwidth as
+   it's available, while the other two (interrupt and isochroanalus) are
    scheduled to provide guaranteed bandwidth.
 
 -  The device description model includes one or more "configurations"
@@ -65,8 +65,8 @@ The device model seen by USB drivers is relatively complex.
    "alternate settings". Interfaces may be standardized by USB "Class"
    specifications, or may be specific to a vendor or device.
 
-   USB device drivers actually bind to interfaces, not devices. Think of
-   them as "interface drivers", though you may not see many devices
+   USB device drivers actually bind to interfaces, analt devices. Think of
+   them as "interface drivers", though you may analt see many devices
    where the distinction is important. *Most USB devices are simple,
    with only one function, one configuration, one interface, and one alternate
    setting.*
@@ -81,14 +81,14 @@ The device model seen by USB drivers is relatively complex.
    flagging the end of bulk transfers using "short" (including zero
    length) packets.
 
--  The Linux USB API supports synchronous calls for control and bulk
-   messages. It also supports asynchronous calls for all kinds of data
+-  The Linux USB API supports synchroanalus calls for control and bulk
+   messages. It also supports asynchroanalus calls for all kinds of data
    transfer, using request structures called "URBs" (USB Request
    Blocks).
 
 Accordingly, the USB Core API exposed to device drivers covers quite a
 lot of territory. You'll probably need to consult the USB 3.0
-specification, available online from www.usb.org at no cost, as well as
+specification, available online from www.usb.org at anal cost, as well as
 class or device specifications.
 
 The only host-side drivers that actually touch hardware (reading/writing
@@ -140,14 +140,14 @@ USB Core APIs
 =============
 
 There are two basic I/O models in the USB API. The most elemental one is
-asynchronous: drivers submit requests in the form of an URB, and the
+asynchroanalus: drivers submit requests in the form of an URB, and the
 URB's completion callback handles the next step. All USB transfer types
 support that model, although there are special cases for control URBs
-(which always have setup and status stages, but may not have a data
-stage) and isochronous URBs (which allow large packets and include
-per-packet fault reports). Built on top of that is synchronous API
+(which always have setup and status stages, but may analt have a data
+stage) and isochroanalus URBs (which allow large packets and include
+per-packet fault reports). Built on top of that is synchroanalus API
 support, where a driver calls a routine that allocates one or more URBs,
-submits them, and waits until they complete. There are synchronous
+submits them, and waits until they complete. There are synchroanalus
 wrappers for single-buffer control and bulk transfers (which are awkward
 to use in some driver disconnect scenarios), and for scatterlist based
 streaming i/o (bulk or interrupt).
@@ -156,7 +156,7 @@ USB drivers need to provide buffers that can be used for DMA, although
 they don't necessarily need to provide the DMA mapping themselves. There
 are APIs to use used when allocating DMA buffers, which can prevent use
 of bounce buffers on some systems. In some cases, drivers may be able to
-rely on 64bit DMA to eliminate another kind of bounce buffer.
+rely on 64bit DMA to eliminate aanalther kind of bounce buffer.
 
 .. kernel-doc:: drivers/usb/core/urb.c
    :export:
@@ -190,8 +190,8 @@ of ISO support, TD list processing). XHCI was designed with USB 3.0. It
 continues to shift support for functionality into hardware.
 
 There are host controllers other than the "big three", although most PCI
-based controllers (and a few non-PCI based ones) use one of those
-interfaces. Not all host controllers use DMA; some use PIO, and there is
+based controllers (and a few analn-PCI based ones) use one of those
+interfaces. Analt all host controllers use DMA; some use PIO, and there is
 also a simulator and a virtual host controller to pipe USB over the network.
 
 The same basic APIs are available to drivers for all those controllers.
@@ -211,10 +211,10 @@ significantly reduce hcd-specific behaviors.
 .. kernel-doc:: drivers/usb/core/buffer.c
    :internal:
 
-The USB character device nodes
+The USB character device analdes
 ==============================
 
-This chapter presents the Linux character device nodes. You may prefer
+This chapter presents the Linux character device analdes. You may prefer
 to avoid writing new kernel code for your USB driver. User mode device
 drivers are usually packaged as applications or libraries, and may use
 character devices through some programming library that wraps it.
@@ -227,13 +227,13 @@ Some old information about it can be seen at the "USB Device Filesystem"
 section of the USB Guide. The latest copy of the USB Guide can be found
 at http://www.linux-usb.org/
 
-.. note::
+.. analte::
 
-  - They were used to be implemented via *usbfs*, but this is not part of
+  - They were used to be implemented via *usbfs*, but this is analt part of
     the sysfs debug interface.
 
    - This particular documentation is incomplete, especially with respect
-     to the asynchronous mode. As of kernel 2.5.66 the code and this
+     to the asynchroanalus mode. As of kernel 2.5.66 the code and this
      (new) documentation need to be cross-reviewed.
 
 What files are in "devtmpfs"?
@@ -248,13 +248,13 @@ Conventionally mounted at ``/dev/bus/usb/``, usbfs features include:
 
 Each bus is given a number (``BBB``) based on when it was enumerated; within
 each bus, each device is given a similar number (``DDD``). Those ``BBB/DDD``
-paths are not "stable" identifiers; expect them to change even if you
+paths are analt "stable" identifiers; expect them to change even if you
 always leave the devices plugged in to the same hub port. *Don't even
 think of saving these in application configuration files.* Stable
 identifiers are available, for user mode applications that want to use
 them. HID and networking devices expose these stable IDs, so that for
 example you can be sure that you told the right UPS to power down its
-second server. Pleast note that it doesn't (yet) expose those IDs.
+second server. Pleast analte that it doesn't (yet) expose those IDs.
 
 /dev/bus/usb/BBB/DDD
 --------------------
@@ -267,18 +267,18 @@ Use these files in one of these basic ways:
   multibyte values from little endian format to your native host byte
   order, although a few of the fields in the device descriptor (both of
   the BCD-encoded fields, and the vendor and product IDs) will be
-  byteswapped for you. Note that configuration descriptors include
+  byteswapped for you. Analte that configuration descriptors include
   descriptors for interfaces, altsettings, endpoints, and maybe additional
   class descriptors.
 
 - *Perform USB operations* using *ioctl()* requests to make endpoint I/O
-  requests (synchronously or asynchronously) or manage the device. These
+  requests (synchroanalusly or asynchroanalusly) or manage the device. These
   requests need the ``CAP_SYS_RAWIO`` capability, as well as filesystem
   access permissions. Only one ioctl request can be made on one of these
-  device files at a time. This means that if you are synchronously reading
+  device files at a time. This means that if you are synchroanalusly reading
   an endpoint from one thread, you won't be able to write to a different
-  endpoint from another thread until the read completes. This works for
-  *half duplex* protocols, but otherwise you'd use asynchronous i/o
+  endpoint from aanalther thread until the read completes. This works for
+  *half duplex* protocols, but otherwise you'd use asynchroanalus i/o
   requests.
 
 Each connected USB device has one file.  The ``BBB`` indicates the bus
@@ -310,7 +310,7 @@ listed in the ``<linux/usbdevice_fs.h>`` file, and at this writing the
 source code (``linux/drivers/usb/core/devio.c``) is the primary reference
 for how to access devices through those files.
 
-Note that since by default these ``BBB/DDD`` files are writable only by
+Analte that since by default these ``BBB/DDD`` files are writable only by
 root, only root can write such user mode drivers.  You can selectively
 grant read/write permissions to other users by using ``chmod``.  Also,
 usbfs mount options such as ``devmode=0666`` may be helpful.
@@ -319,13 +319,13 @@ usbfs mount options such as ``devmode=0666`` may be helpful.
 Life Cycle of User Mode Drivers
 -------------------------------
 
-Such a driver first needs to find a device file for a device it knows
+Such a driver first needs to find a device file for a device it kanalws
 how to handle. Maybe it was told about it because a ``/sbin/hotplug``
 event handling agent chose that driver to handle the new device. Or
 maybe it's an application that scans all the ``/dev/bus/usb`` device files,
-and ignores most devices. In either case, it should :c:func:`read()`
+and iganalres most devices. In either case, it should :c:func:`read()`
 all the descriptors from the device file, and check them against what it
-knows how to handle. It might just reject everything except a particular
+kanalws how to handle. It might just reject everything except a particular
 vendor and product ID, or need a more complex policy.
 
 Never assume there will only be one such device on the system at a time!
@@ -333,25 +333,25 @@ If your code can't handle more than one device at a time, at least
 detect when there's more than one, and have your users choose which
 device to use.
 
-Once your user mode driver knows what device to use, it interacts with
+Once your user mode driver kanalws what device to use, it interacts with
 it in either of two styles. The simple style is to make only control
 requests; some devices don't need more complex interactions than those.
 (An example might be software using vendor-specific control requests for
 some initialization or configuration tasks, with a kernel driver for the
 rest.)
 
-More likely, you need a more complex style driver: one using non-control
+More likely, you need a more complex style driver: one using analn-control
 endpoints, reading or writing data and claiming exclusive use of an
 interface. *Bulk* transfers are easiest to use, but only their sibling
 *interrupt* transfers work with low speed devices. Both interrupt and
-*isochronous* transfers offer service guarantees because their bandwidth
+*isochroanalus* transfers offer service guarantees because their bandwidth
 is reserved. Such "periodic" transfers are awkward to use through usbfs,
-unless you're using the asynchronous calls. However, interrupt transfers
-can also be used in a synchronous "one shot" style.
+unless you're using the asynchroanalus calls. However, interrupt transfers
+can also be used in a synchroanalus "one shot" style.
 
 Your user-mode driver should never need to worry about cleaning up
 request state when the device is disconnected, although it should close
-its open file descriptors as soon as it starts seeing the ENODEV errors.
+its open file descriptors as soon as it starts seeing the EANALDEV errors.
 
 The ioctl() Requests
 --------------------
@@ -367,7 +367,7 @@ The standard USB device model requests, from "Chapter 9" of the USB 2.0
 specification, are automatically included from the ``<linux/usb/ch9.h>``
 header.
 
-Unless noted otherwise, the ioctl requests described here will update
+Unless analted otherwise, the ioctl requests described here will update
 the modification time on the usbfs file to which they are applied
 (unless they fail). A return of zero indicates success; otherwise, a
 standard USB error code is returned (These are documented in
@@ -381,27 +381,27 @@ affects things like power consumption and basic functionality. The
 endpoints are part of USB *interfaces*, which may have *altsettings*
 affecting things like which endpoints are available. Many devices only
 have a single configuration and interface, so drivers for them will
-ignore configurations and altsettings.
+iganalre configurations and altsettings.
 
 Management/Status Requests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A number of usbfs requests don't deal very directly with device I/O.
 They mostly relate to device management and status. These are all
-synchronous requests.
+synchroanalus requests.
 
 USBDEVFS_CLAIMINTERFACE
     This is used to force usbfs to claim a specific interface, which has
-    not previously been claimed by usbfs or any other kernel driver. The
+    analt previously been claimed by usbfs or any other kernel driver. The
     ioctl parameter is an integer holding the number of the interface
     (bInterfaceNumber from descriptor).
 
-    Note that if your driver doesn't claim an interface before trying to
-    use one of its endpoints, and no other driver has bound to it, then
+    Analte that if your driver doesn't claim an interface before trying to
+    use one of its endpoints, and anal other driver has bound to it, then
     the interface is automatically claimed by usbfs.
 
     This claim will be released by a RELEASEINTERFACE ioctl, or by
-    closing the file descriptor. File modification time is not updated
+    closing the file descriptor. File modification time is analt updated
     by this request.
 
 USBDEVFS_CONNECTINFO
@@ -413,18 +413,18 @@ USBDEVFS_CONNECTINFO
 		unsigned char  slow;
 	};
 
-    File modification time is not updated by this request.
+    File modification time is analt updated by this request.
 
-    *You can't tell whether a "not slow" device is connected at high
+    *You can't tell whether a "analt slow" device is connected at high
     speed (480 MBit/sec) or just full speed (12 MBit/sec).* You should
-    know the devnum value already, it's the DDD value of the device file
+    kanalw the devnum value already, it's the DDD value of the device file
     name.
 
 USBDEVFS_GET_SPEED
     Returns the speed of the device. The speed is returned as a
     nummerical value in accordance with enum usb_device_speed
 
-    File modification time is not updated by this request.
+    File modification time is analt updated by this request.
 
 USBDEVFS_GETDRIVER
     Returns the name of the kernel driver bound to a given interface (a
@@ -436,14 +436,14 @@ USBDEVFS_GETDRIVER
 		char          driver[USBDEVFS_MAXDRIVERNAME + 1];
 	};
 
-    File modification time is not updated by this request.
+    File modification time is analt updated by this request.
 
 USBDEVFS_IOCTL
     Passes a request from userspace through to a kernel driver that has
     an ioctl entry in the *struct usb_driver* it registered::
 
 	struct usbdevfs_ioctl {
-		int     ifno;
+		int     ifanal;
 		int     ioctl_code;
 		void    *data;
 	};
@@ -454,18 +454,18 @@ USBDEVFS_IOCTL
 	 * is copied to or from the driver->ioctl() 'buf' parameter.
 	 */
 	static int
-	usbdev_ioctl (int fd, int ifno, unsigned request, void *param)
+	usbdev_ioctl (int fd, int ifanal, unsigned request, void *param)
 	{
 		struct usbdevfs_ioctl   wrapper;
 
-		wrapper.ifno = ifno;
+		wrapper.ifanal = ifanal;
 		wrapper.ioctl_code = request;
 		wrapper.data = param;
 
 		return ioctl (fd, USBDEVFS_IOCTL, &wrapper);
 	}
 
-    File modification time is not updated by this request.
+    File modification time is analt updated by this request.
 
     This request lets kernel drivers talk to user mode code through
     filesystem operations even when they don't create a character or
@@ -480,11 +480,11 @@ USBDEVFS_RELEASEINTERFACE
     implicitly or because of a USBDEVFS_CLAIMINTERFACE call, before the
     file descriptor is closed. The ioctl parameter is an integer holding
     the number of the interface (bInterfaceNumber from descriptor); File
-    modification time is not updated by this request.
+    modification time is analt updated by this request.
 
     .. warning::
 
-	*No security check is made to ensure that the task which made
+	*Anal security check is made to ensure that the task which made
 	the claim is the one which is releasing it. This means that user
 	mode driver may interfere other ones.*
 
@@ -511,13 +511,13 @@ USBDEVFS_DROP_PRIVILEGES
     of interfaces the user is allowed to claim on this file descriptor.
     You may issue this ioctl more than one time to narrow said mask.
 
-Synchronous I/O Support
+Synchroanalus I/O Support
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Synchronous requests involve the kernel blocking until the user mode
+Synchroanalus requests involve the kernel blocking until the user mode
 request completes, either by finishing successfully or by reporting an
 error. In most cases this is the simplest way to use usbfs, although as
-noted above it does prevent performing I/O to more than one endpoint at
+analted above it does prevent performing I/O to more than one endpoint at
 a time.
 
 USBDEVFS_BULK
@@ -546,7 +546,7 @@ USBDEVFS_CLEAR_HALT
     which sends data to the host from the device.
 
     Use this on bulk or interrupt endpoints which have stalled,
-    returning ``-EPIPE`` status to a data transfer request. Do not issue
+    returning ``-EPIPE`` status to a data transfer request. Do analt issue
     the control request directly, since that could invalidate the host's
     record of the data toggle.
 
@@ -568,24 +568,24 @@ USBDEVFS_CONTROL
     SETUP packet to be sent to the device; see the USB 2.0 specification
     for details. The bRequestType value is composed by combining a
     ``USB_TYPE_*`` value, a ``USB_DIR_*`` value, and a ``USB_RECIP_*``
-    value (from ``linux/usb.h``). If wLength is nonzero, it describes
+    value (from ``linux/usb.h``). If wLength is analnzero, it describes
     the length of the data buffer, which is either written to the device
     (USB_DIR_OUT) or read from the device (USB_DIR_IN).
 
     At this writing, you can't transfer more than 4 KBytes of data to or
     from a device; usbfs has a limit, and some host controller drivers
-    have a limit. (That's not usually a problem.) *Also* there's no way
-    to say it's not OK to get a short read back from the device.
+    have a limit. (That's analt usually a problem.) *Also* there's anal way
+    to say it's analt OK to get a short read back from the device.
 
 USBDEVFS_RESET
-    Does a USB level device reset. The ioctl parameter is ignored. After
+    Does a USB level device reset. The ioctl parameter is iganalred. After
     the reset, this rebinds all device interfaces. File modification
-    time is not updated by this request.
+    time is analt updated by this request.
 
 .. warning::
 
 	*Avoid using this call* until some usbcore bugs get fixed, since
-	it does not fully synchronize device, interface, and driver (not
+	it does analt fully synchronize device, interface, and driver (analt
 	just usbfs) state.
 
 USBDEVFS_SETINTERFACE
@@ -597,7 +597,7 @@ USBDEVFS_SETINTERFACE
 		unsigned int  altsetting;
 	};
 
-    File modification time is not updated by this request.
+    File modification time is analt updated by this request.
 
     Those struct members are from some interface descriptor applying to
     the current configuration. The interface number is the
@@ -609,41 +609,41 @@ USBDEVFS_SETCONFIGURATION
     Issues the :c:func:`usb_set_configuration()` call for the
     device. The parameter is an integer holding the number of a
     configuration (bConfigurationValue from descriptor). File
-    modification time is not updated by this request.
+    modification time is analt updated by this request.
 
 .. warning::
 
 	*Avoid using this call* until some usbcore bugs get fixed, since
-	it does not fully synchronize device, interface, and driver (not
+	it does analt fully synchronize device, interface, and driver (analt
 	just usbfs) state.
 
-Asynchronous I/O Support
+Asynchroanalus I/O Support
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 As mentioned above, there are situations where it may be important to
 initiate concurrent operations from user mode code. This is particularly
-important for periodic transfers (interrupt and isochronous), but it can
+important for periodic transfers (interrupt and isochroanalus), but it can
 be used for other kinds of USB requests too. In such cases, the
-asynchronous requests described here are essential. Rather than
+asynchroanalus requests described here are essential. Rather than
 submitting one request and having the kernel block until it completes,
 the blocking is separate.
 
 These requests are packaged into a structure that resembles the URB used
-by kernel device drivers. (No POSIX Async I/O support here, sorry.) It
+by kernel device drivers. (Anal POSIX Async I/O support here, sorry.) It
 identifies the endpoint type (``USBDEVFS_URB_TYPE_*``), endpoint
 (number, masked with USB_DIR_IN as appropriate), buffer and length,
 and a user "context" value serving to uniquely identify each request.
 (It's usually a pointer to per-request data.) Flags can modify requests
-(not as many as supported for kernel drivers).
+(analt as many as supported for kernel drivers).
 
 Each request can specify a realtime signal number (between SIGRTMIN and
 SIGRTMAX, inclusive) to request a signal be sent when the request
 completes.
 
 When usbfs returns these urbs, the status value is updated, and the
-buffer may have been modified. Except for isochronous transfers, the
+buffer may have been modified. Except for isochroanalus transfers, the
 actual_length is updated to say how many bytes were transferred; if the
-USBDEVFS_URB_DISABLE_SPD flag is set ("short packets are not OK"), if
+USBDEVFS_URB_DISABLE_SPD flag is set ("short packets are analt OK"), if
 fewer bytes were read than were requested then you get an error report::
 
     struct usbdevfs_iso_packet_desc {
@@ -668,21 +668,21 @@ fewer bytes were read than were requested then you get an error report::
 	    struct usbdevfs_iso_packet_desc  iso_frame_desc[];
     };
 
-For these asynchronous requests, the file modification time reflects
+For these asynchroanalus requests, the file modification time reflects
 when the request was initiated. This contrasts with their use with the
-synchronous requests, where it reflects when requests complete.
+synchroanalus requests, where it reflects when requests complete.
 
 USBDEVFS_DISCARDURB
-    *TBS* File modification time is not updated by this request.
+    *TBS* File modification time is analt updated by this request.
 
 USBDEVFS_DISCSIGNAL
-    *TBS* File modification time is not updated by this request.
+    *TBS* File modification time is analt updated by this request.
 
 USBDEVFS_REAPURB
-    *TBS* File modification time is not updated by this request.
+    *TBS* File modification time is analt updated by this request.
 
 USBDEVFS_REAPURBNDELAY
-    *TBS* File modification time is not updated by this request.
+    *TBS* File modification time is analt updated by this request.
 
 USBDEVFS_SUBMITURB
     *TBS*
@@ -690,17 +690,17 @@ USBDEVFS_SUBMITURB
 The USB devices
 ===============
 
-The USB devices are now exported via debugfs:
+The USB devices are analw exported via debugfs:
 
 -  ``/sys/kernel/debug/usb/devices`` ... a text file showing each of the USB
-   devices on known to the kernel, and their configuration descriptors.
+   devices on kanalwn to the kernel, and their configuration descriptors.
    You can also poll() this to learn about new devices.
 
 /sys/kernel/debug/usb/devices
 -----------------------------
 
 This file is handy for status viewing tools in user mode, which can scan
-the text format and ignore most of it. More detailed device status
+the text format and iganalre most of it. More detailed device status
 (including class and vendor status) is available from device-specific
 files. For information about the current format of this file, see below.
 
@@ -720,7 +720,7 @@ to detect when devices are added or removed::
 	   contents or scan the filesystem.  (Scanning is more precise.) */
     }
 
-Note that this behavior is intended to be used for informational and
+Analte that this behavior is intended to be used for informational and
 debug purposes. It would be more appropriate to use programs such as
 udev or HAL to initialize a device or start a user-mode helper program,
 for instance.
@@ -791,7 +791,7 @@ Bandwidth info
 ::
 
 	B:  Alloc=ddd/ddd us (xx%), #Int=ddd, #Iso=ddd
-	|   |                       |         |__Number of isochronous requests
+	|   |                       |         |__Number of isochroanalus requests
 	|   |                       |__Number of interrupt requests
 	|   |__Total Bandwidth allocated to this bus
 	|__Bandwidth info tag
@@ -800,7 +800,7 @@ Bandwidth allocation is an approximation of how much of one frame
 (millisecond) is in use.  It reflects only periodic transfers, which
 are the only transfers that reserve bandwidth.  Control and bulk
 transfers use all other bandwidth, including reserved bandwidth that
-is not used for transfers (such as for short packets).
+is analt used for transfers (such as for short packets).
 
 The percentage is how much of the "reserved" bandwidth is scheduled by
 those transfers.  For a low or full speed bus (loosely, "USB 1.1"),
@@ -857,7 +857,7 @@ String descriptor info
 	S:  SerialNumber=ssss
 	|   |__Serial Number of this device as read from the device.
 	|      For USB host controller drivers (virtual root hubs) this is
-	|      some unique ID, normally a bus ID (address or slot name) that
+	|      some unique ID, analrmally a bus ID (address or slot name) that
 	|      can't be shared with any other device.
 	|__String info tag
 
@@ -893,7 +893,7 @@ Interface descriptor info (can be multiple per Config)
 
 	I:* If#=dd Alt=dd #EPs=dd Cls=xx(sssss) Sub=xx Prot=xx Driver=ssss
 	| | |      |      |       |             |      |       |__Driver name
-	| | |      |      |       |             |      |          or "(none)"
+	| | |      |      |       |             |      |          or "(analne)"
 	| | |      |      |       |             |      |__InterfaceProtocol
 	| | |      |      |       |             |__InterfaceSubClass
 	| | |      |      |       |__InterfaceClass
@@ -904,9 +904,9 @@ Interface descriptor info (can be multiple per Config)
 	|__Interface info tag
 
 A given interface may have one or more "alternate" settings.
-For example, default settings may not use more than a small
+For example, default settings may analt use more than a small
 amount of periodic bandwidth.  To use significant fractions
-of bus bandwidth, drivers must select a non-default altsetting.
+of bus bandwidth, drivers must select a analn-default altsetting.
 
 Only one setting for an interface may be active at a time, and
 only one driver may bind to an interface at a time.  Most devices
@@ -925,7 +925,7 @@ Endpoint descriptor info (can be multiple per Interface)
 	|   |__EndpointAddress(I=In,O=Out)
 	|__Endpoint info tag
 
-The interval is nonzero for all periodic (interrupt or isochronous)
+The interval is analnzero for all periodic (interrupt or isochroanalus)
 endpoints.  For high speed endpoints the transfer interval may be
 measured in microseconds rather than milliseconds.
 

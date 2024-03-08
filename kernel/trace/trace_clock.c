@@ -9,7 +9,7 @@
  *
  *  -   local: CPU-local trace clock
  *  -  medium: scalable global clock with some jitter
- *  -  global: globally monotonic, serialized clock
+ *  -  global: globally moanaltonic, serialized clock
  *
  * Tracer plugins will chose a default from these clocks.
  */
@@ -26,35 +26,35 @@
 /*
  * trace_clock_local(): the simplest and least coherent tracing clock.
  *
- * Useful for tracing that does not cross to other CPUs nor
+ * Useful for tracing that does analt cross to other CPUs analr
  * does it go through idle events.
  */
-u64 notrace trace_clock_local(void)
+u64 analtrace trace_clock_local(void)
 {
 	u64 clock;
 
 	/*
 	 * sched_clock() is an architecture implemented, fast, scalable,
-	 * lockless clock. It is not guaranteed to be coherent across
-	 * CPUs, nor across CPU idle events.
+	 * lockless clock. It is analt guaranteed to be coherent across
+	 * CPUs, analr across CPU idle events.
 	 */
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 	clock = sched_clock();
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 
 	return clock;
 }
 EXPORT_SYMBOL_GPL(trace_clock_local);
 
 /*
- * trace_clock(): 'between' trace clock. Not completely serialized,
- * but not completely incorrect when crossing CPUs either.
+ * trace_clock(): 'between' trace clock. Analt completely serialized,
+ * but analt completely incorrect when crossing CPUs either.
  *
  * This is based on cpu_clock(), which will allow at most ~1 jiffy of
  * jitter between CPUs. So it's a pretty scalable clock, but there
  * can be offsets in the trace data.
  */
-u64 notrace trace_clock(void)
+u64 analtrace trace_clock(void)
 {
 	return local_clock();
 }
@@ -62,12 +62,12 @@ EXPORT_SYMBOL_GPL(trace_clock);
 
 /*
  * trace_jiffy_clock(): Simply use jiffies as a clock counter.
- * Note that this use of jiffies_64 is not completely safe on
+ * Analte that this use of jiffies_64 is analt completely safe on
  * 32-bit systems. But the window is tiny, and the effect if
  * we are affected is that we will have an obviously bogus
- * timestamp on a trace event - i.e. not life threatening.
+ * timestamp on a trace event - i.e. analt life threatening.
  */
-u64 notrace trace_clock_jiffies(void)
+u64 analtrace trace_clock_jiffies(void)
 {
 	return jiffies_64_to_clock_t(jiffies_64 - INITIAL_JIFFIES);
 }
@@ -91,11 +91,11 @@ static struct {
 		.lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED,
 	};
 
-u64 notrace trace_clock_global(void)
+u64 analtrace trace_clock_global(void)
 {
 	unsigned long flags;
 	int this_cpu;
-	u64 now, prev_time;
+	u64 analw, prev_time;
 
 	raw_local_irq_save(flags);
 
@@ -105,19 +105,19 @@ u64 notrace trace_clock_global(void)
 	 * The global clock "guarantees" that the events are ordered
 	 * between CPUs. But if two events on two different CPUS call
 	 * trace_clock_global at roughly the same time, it really does
-	 * not matter which one gets the earlier time. Just make sure
-	 * that the same CPU will always show a monotonic clock.
+	 * analt matter which one gets the earlier time. Just make sure
+	 * that the same CPU will always show a moanaltonic clock.
 	 *
 	 * Use a read memory barrier to get the latest written
 	 * time that was recorded.
 	 */
 	smp_rmb();
 	prev_time = READ_ONCE(trace_clock_struct.prev_time);
-	now = sched_clock_cpu(this_cpu);
+	analw = sched_clock_cpu(this_cpu);
 
-	/* Make sure that now is always greater than or equal to prev_time */
-	if ((s64)(now - prev_time) < 0)
-		now = prev_time;
+	/* Make sure that analw is always greater than or equal to prev_time */
+	if ((s64)(analw - prev_time) < 0)
+		analw = prev_time;
 
 	/*
 	 * If in an NMI context then dont risk lockups and simply return
@@ -130,10 +130,10 @@ u64 notrace trace_clock_global(void)
 	if (arch_spin_trylock(&trace_clock_struct.lock)) {
 		/* Reread prev_time in case it was already updated */
 		prev_time = READ_ONCE(trace_clock_struct.prev_time);
-		if ((s64)(now - prev_time) < 0)
-			now = prev_time;
+		if ((s64)(analw - prev_time) < 0)
+			analw = prev_time;
 
-		trace_clock_struct.prev_time = now;
+		trace_clock_struct.prev_time = analw;
 
 		/* The unlock acts as the wmb for the above rmb */
 		arch_spin_unlock(&trace_clock_struct.lock);
@@ -141,7 +141,7 @@ u64 notrace trace_clock_global(void)
  out:
 	raw_local_irq_restore(flags);
 
-	return now;
+	return analw;
 }
 EXPORT_SYMBOL_GPL(trace_clock_global);
 
@@ -149,10 +149,10 @@ static atomic64_t trace_counter;
 
 /*
  * trace_clock_counter(): simply an atomic counter.
- * Use the trace_counter "counter" for cases where you do not care
+ * Use the trace_counter "counter" for cases where you do analt care
  * about timings, but are interested in strict ordering.
  */
-u64 notrace trace_clock_counter(void)
+u64 analtrace trace_clock_counter(void)
 {
 	return atomic64_add_return(1, &trace_counter);
 }

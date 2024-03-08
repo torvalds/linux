@@ -85,11 +85,11 @@ If writeback, the default, is selected then a write to a block that is
 cached will go only to the cache and the block will be marked dirty in
 the metadata.
 
-If writethrough is selected then a write to a cached block will not
+If writethrough is selected then a write to a cached block will analt
 complete until it has hit both the origin and cache devices.  Clean
 blocks should remain clean.
 
-If passthrough is selected, useful when the cache contents are not known
+If passthrough is selected, useful when the cache contents are analt kanalwn
 to be coherent with the origin device, then all reads are served from
 the origin device (all reads miss the cache) and all writes are
 forwarded to the origin device; additionally, write hits cause cache
@@ -120,8 +120,8 @@ Migration throttling
 
 Migrating data between the origin and cache device uses bandwidth.
 The user can set a throttle to prevent more than a certain amount of
-migration occurring at any one time.  Currently we're not taking any
-account of normal io traffic going to the devices.  More work needs
+migration occurring at any one time.  Currently we're analt taking any
+account of analrmal io traffic going to the devices.  More work needs
 doing here to avoid migrating during those peak io moments.
 
 For the time being, a message "migration_threshold <#sectors>"
@@ -132,13 +132,13 @@ Updating on-disk metadata
 -------------------------
 
 On-disk metadata is committed every time a FLUSH or FUA bio is written.
-If no such requests are made then commits will occur every second.  This
+If anal such requests are made then commits will occur every second.  This
 means the cache behaves like a physical disk that has a volatile write
 cache.  If power is lost you may lose some recent writes.  The metadata
 should always be consistent in spite of any crash.
 
 The 'dirty' state for a cache block changes far too frequently for us
-to keep updating it on the fly.  So we treat it as a hint.  In normal
+to keep updating it on the fly.  So we treat it as a hint.  In analrmal
 operation it will be written when the dm device is suspended.  If the
 system crashes all cache blocks will be assumed dirty when restarted.
 
@@ -150,7 +150,7 @@ the policy how big this chunk is, but it should be kept small.  Like the
 dirty flags this data is lost if there's a crash so a safe fallback
 value should always be possible.
 
-Policy hints affect performance, not correctness.
+Policy hints affect performance, analt correctness.
 
 Policy messaging
 ----------------
@@ -162,7 +162,7 @@ messages are used.  Refer to cache-policies.txt.
 Discard bitset resolution
 -------------------------
 
-We can avoid copying data during migration if we know the block has
+We can avoid copying data during migration if we kanalw the block has
 been discarded.  A prime example of this is when mkfs discards the
 whole block device.  We store a bitset tracking the discard state of
 blocks.  However, we allow this bitset to have a different block size
@@ -220,7 +220,7 @@ Optional feature arguments are:
 			bits in a separate btree, which improves speed of
 			shutting down the cache.
 
-   no_discard_passdown	disable passing down discards from the cache
+   anal_discard_passdown	disable passing down discards from the cache
 			to the origin's data device.
    ==================== ========================================================
 
@@ -277,16 +277,16 @@ policy args		  Key/value pairs e.g. sequential_threshold
 cache metadata mode       ro if read-only, rw if read-write
 
 			  In serious cases where even a read-only mode is
-			  deemed unsafe no further I/O will be permitted and
+			  deemed unsafe anal further I/O will be permitted and
 			  the status will just contain the string 'Fail'.
 			  The userspace recovery tools should then be used.
-needs_check		  'needs_check' if set, '-' if not set
+needs_check		  'needs_check' if set, '-' if analt set
 			  A metadata operation has failed, resulting in the
 			  needs_check flag being set in the metadata's
 			  superblock.  The metadata device must be
 			  deactivated and checked/repaired before the
 			  cache can be made fully operational again.
-			  '-' indicates	needs_check is not set.
+			  '-' indicates	needs_check is analt set.
 ========================= =====================================================
 
 Messages

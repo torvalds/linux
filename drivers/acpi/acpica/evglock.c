@@ -22,7 +22,7 @@ static u32 acpi_ev_global_lock_handler(void *context);
  *
  * FUNCTION:    acpi_ev_init_global_lock_handler
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -36,7 +36,7 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 
 	ACPI_FUNCTION_TRACE(ev_init_global_lock_handler);
 
-	/* If Hardware Reduced flag is set, there is no global lock */
+	/* If Hardware Reduced flag is set, there is anal global lock */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -49,15 +49,15 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 						  NULL);
 
 	/*
-	 * If the global lock does not exist on this platform, the attempt to
-	 * enable GBL_STATUS will fail (the GBL_ENABLE bit will not stick).
-	 * Map to AE_OK, but mark global lock as not present. Any attempt to
+	 * If the global lock does analt exist on this platform, the attempt to
+	 * enable GBL_STATUS will fail (the GBL_ENABLE bit will analt stick).
+	 * Map to AE_OK, but mark global lock as analt present. Any attempt to
 	 * actually use the global lock will be flagged with an error.
 	 */
 	acpi_gbl_global_lock_present = FALSE;
-	if (status == AE_NO_HARDWARE_RESPONSE) {
+	if (status == AE_ANAL_HARDWARE_RESPONSE) {
 		ACPI_ERROR((AE_INFO,
-			    "No response from Global Lock hardware, disabling lock"));
+			    "Anal response from Global Lock hardware, disabling lock"));
 
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -76,7 +76,7 @@ acpi_status acpi_ev_init_global_lock_handler(void)
  *
  * FUNCTION:    acpi_ev_remove_global_lock_handler
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -102,7 +102,7 @@ acpi_status acpi_ev_remove_global_lock_handler(void)
  *
  * FUNCTION:    acpi_ev_global_lock_handler
  *
- * PARAMETERS:  context         - From thread interface, not used
+ * PARAMETERS:  context         - From thread interface, analt used
  *
  * RETURN:      ACPI_INTERRUPT_HANDLED
  *
@@ -120,7 +120,7 @@ static u32 acpi_ev_global_lock_handler(void *context)
 	flags = acpi_os_acquire_lock(acpi_gbl_global_lock_pending_lock);
 
 	/*
-	 * If a request for the global lock is not actually pending,
+	 * If a request for the global lock is analt actually pending,
 	 * we are done. This handles "spurious" global lock interrupts
 	 * which are possible (and have been seen) with bad BIOSs.
 	 */
@@ -134,7 +134,7 @@ static u32 acpi_ev_global_lock_handler(void *context)
 	 */
 	status = acpi_os_signal_semaphore(acpi_gbl_global_lock_semaphore, 1);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not signal Global Lock semaphore"));
+		ACPI_ERROR((AE_INFO, "Could analt signal Global Lock semaphore"));
 	}
 
 	acpi_gbl_global_lock_pending = FALSE;
@@ -157,7 +157,7 @@ cleanup_and_exit:
  *
  * MUTEX:       Interpreter must be locked
  *
- * Note: The original implementation allowed multiple threads to "acquire" the
+ * Analte: The original implementation allowed multiple threads to "acquire" the
  * Global Lock, and the OS would hold the lock until the last thread had
  * released it. However, this could potentially starve the BIOS out of the
  * lock, especially in the case where there is a tight handshake between the
@@ -200,7 +200,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 	}
 
 	/*
-	 * Make sure that a global lock actually exists. If not, just
+	 * Make sure that a global lock actually exists. If analt, just
 	 * treat the lock as a standard mutex.
 	 */
 	if (!acpi_gbl_global_lock_present) {
@@ -223,8 +223,8 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 		}
 
 		/*
-		 * Did not get the lock. The pending bit was set above, and
-		 * we must now wait until we receive the global lock
+		 * Did analt get the lock. The pending bit was set above, and
+		 * we must analw wait until we receive the global lock
 		 * released interrupt.
 		 */
 		acpi_gbl_global_lock_pending = TRUE;
@@ -255,7 +255,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
  *
  * FUNCTION:    acpi_ev_release_global_lock
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -274,8 +274,8 @@ acpi_status acpi_ev_release_global_lock(void)
 
 	if (!acpi_gbl_global_lock_acquired) {
 		ACPI_WARNING((AE_INFO,
-			      "Cannot release the ACPI Global Lock, it has not been acquired"));
-		return_ACPI_STATUS(AE_NOT_ACQUIRED);
+			      "Cananalt release the ACPI Global Lock, it has analt been acquired"));
+		return_ACPI_STATUS(AE_ANALT_ACQUIRED);
 	}
 
 	if (acpi_gbl_global_lock_present) {

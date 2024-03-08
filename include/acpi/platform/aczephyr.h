@@ -12,7 +12,7 @@
 
 #define ACPI_MACHINE_WIDTH      64
 
-#define ACPI_NO_ERROR_MESSAGES
+#define ACPI_ANAL_ERROR_MESSAGES
 #undef ACPI_DEBUG_OUTPUT
 #define ACPI_USE_SYSTEM_CLIBRARY
 #undef ACPI_DBG_TRACK_ALLOCATIONS
@@ -35,7 +35,7 @@
  *
  * PARAMETERS:  Enable, 	            - Enable/Disable debug print
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Enable/disable debug print
  *

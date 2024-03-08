@@ -45,7 +45,7 @@
 
 	cam_pwr_ld_en: cam-pwr-ld-en-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 		power-source = <0>;
 		drive-push-pull;
@@ -66,7 +66,7 @@
 
 	rgbc_ir_pwr_en: rgbc-ir-pwr-en-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 		power-source = <1>;
 		drive-push-pull;

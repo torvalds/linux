@@ -9,7 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OG01A1B_REG_VALUE_08BIT		1
 #define OG01A1B_REG_VALUE_16BIT		2
@@ -674,7 +674,7 @@ static void og01a1b_update_pad_format(const struct og01a1b_mode *mode,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int og01a1b_start_streaming(struct og01a1b *og01a1b)
@@ -900,19 +900,19 @@ static int og01a1b_identify_module(struct og01a1b *og01a1b)
 
 static int og01a1b_check_hwcfg(struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 mclk;
 	int ret;
 	unsigned int i, j;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
+	ret = fwanalde_property_read_u32(fwanalde, "clock-frequency", &mclk);
 
 	if (ret) {
 		dev_err(dev, "can't get clock frequency");
@@ -920,28 +920,28 @@ static int og01a1b_check_hwcfg(struct device *dev)
 	}
 
 	if (mclk != OG01A1B_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
+		dev_err(dev, "external clock %d is analt supported", mclk);
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OG01A1B_DATA_LANES) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -954,7 +954,7 @@ static int og01a1b_check_hwcfg(struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "anal link frequency %lld supported",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -962,7 +962,7 @@ static int og01a1b_check_hwcfg(struct device *dev)
 	}
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -993,7 +993,7 @@ static int og01a1b_probe(struct i2c_client *client)
 
 	og01a1b = devm_kzalloc(&client->dev, sizeof(*og01a1b), GFP_KERNEL);
 	if (!og01a1b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&og01a1b->sd, client, &og01a1b_subdev_ops);
 	ret = og01a1b_identify_module(og01a1b);
@@ -1011,7 +1011,7 @@ static int og01a1b_probe(struct i2c_client *client)
 	}
 
 	og01a1b->sd.internal_ops = &og01a1b_internal_ops;
-	og01a1b->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	og01a1b->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	og01a1b->sd.entity.ops = &og01a1b_subdev_entity_ops;
 	og01a1b->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	og01a1b->pad.flags = MEDIA_PAD_FL_SOURCE;

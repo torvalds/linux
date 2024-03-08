@@ -115,13 +115,13 @@ static int xtmr_inject_probe(struct platform_device *pdev)
 	xtmr_inject = devm_kzalloc(&pdev->dev, sizeof(*xtmr_inject),
 				   GFP_KERNEL);
 	if (!xtmr_inject)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xtmr_inject->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xtmr_inject->regs))
 		return PTR_ERR(xtmr_inject->regs);
 
-	err = of_property_read_u32(pdev->dev.of_node, "xlnx,magic",
+	err = of_property_read_u32(pdev->dev.of_analde, "xlnx,magic",
 				   &xtmr_inject->magic);
 	if (err < 0) {
 		dev_err(&pdev->dev, "unable to read xlnx,magic property");

@@ -6,7 +6,7 @@
  */
 #include "internal.h"
 
-static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,
+static int erofs_fill_dentries(struct ianalde *dir, struct dir_context *ctx,
 			       void *dentry_blk, struct erofs_dirent *de,
 			       unsigned int nameoff, unsigned int maxsize)
 {
@@ -48,7 +48,7 @@ static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,
 
 static int erofs_readdir(struct file *f, struct dir_context *ctx)
 {
-	struct inode *dir = file_inode(f);
+	struct ianalde *dir = file_ianalde(f);
 	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 	struct super_block *sb = dir->i_sb;
 	unsigned long bsz = sb->s_blocksize;
@@ -58,7 +58,7 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 	int err = 0;
 	bool initial = true;
 
-	buf.inode = dir;
+	buf.ianalde = dir;
 	while (ctx->pos < dirsize) {
 		struct erofs_dirent *de;
 		unsigned int nameoff, maxsize;

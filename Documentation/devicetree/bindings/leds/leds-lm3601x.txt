@@ -15,7 +15,7 @@ Required child properties:
 	- reg : 0 - Indicates a IR mode
 		1 - Indicates a Torch (white LED) mode
 
-Required properties for flash LED child nodes:
+Required properties for flash LED child analdes:
 	See Documentation/devicetree/bindings/leds/common.txt
 	- flash-max-microamp : Range from 11mA - 1.5A
 	- flash-max-timeout-us : Range from 40ms - 1600ms

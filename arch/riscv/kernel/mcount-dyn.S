@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2017 Andes Technology Corporation */
+/* Copyright (C) 2017 Andes Techanallogy Corporation */
 
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -69,7 +69,7 @@
 * After the stack is established,
 *
 * 0(sp) stores the PC of the traced function which can be accessed
-* by &(fregs)->regs->epc in tracing function. Note that the real
+* by &(fregs)->regs->epc in tracing function. Analte that the real
 * function entry address should be computed with -FENTRY_RA_OFFSET.
 *
 * 8(sp) stores the function return address (i.e. parent IP) that

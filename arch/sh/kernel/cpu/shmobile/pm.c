@@ -16,10 +16,10 @@
 #include <asm/bl_bit.h>
 
 /*
- * Notifier lists for pre/post sleep notification
+ * Analtifier lists for pre/post sleep analtification
  */
-ATOMIC_NOTIFIER_HEAD(sh_mobile_pre_sleep_notifier_list);
-ATOMIC_NOTIFIER_HEAD(sh_mobile_post_sleep_notifier_list);
+ATOMIC_ANALTIFIER_HEAD(sh_mobile_pre_sleep_analtifier_list);
+ATOMIC_ANALTIFIER_HEAD(sh_mobile_post_sleep_analtifier_list);
 
 /*
  * Sleep modes available on SuperH Mobile:
@@ -52,7 +52,7 @@ void sh_mobile_call_standby(unsigned long mode)
 	/* code located directly after data structure */
 	standby_onchip_mem = (void *)(sdp + 1);
 
-	atomic_notifier_call_chain(&sh_mobile_pre_sleep_notifier_list,
+	atomic_analtifier_call_chain(&sh_mobile_pre_sleep_analtifier_list,
 				   mode, NULL);
 
 	/* flush the caches if MMU flag is set */
@@ -62,7 +62,7 @@ void sh_mobile_call_standby(unsigned long mode)
 	/* Let assembly snippet in on-chip memory handle the rest */
 	standby_onchip_mem(mode, RAM_BASE);
 
-	atomic_notifier_call_chain(&sh_mobile_post_sleep_notifier_list,
+	atomic_analtifier_call_chain(&sh_mobile_post_sleep_analtifier_list,
 				   mode, NULL);
 }
 

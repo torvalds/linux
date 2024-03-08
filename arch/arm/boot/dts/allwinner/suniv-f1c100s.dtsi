@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR X11)
 /*
- * Copyright 2018 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright 2018 Iceanalwy Zheng <iceanalwy@aosc.io>
  * Copyright 2018 Mesih Kilinc <mesihkilinc@gmail.com>
  */
 
@@ -192,7 +192,7 @@
 				drive-strength = <30>;
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			i2c0_pd_pins: i2c0-pd-pins {
 				pins = "PD0", "PD12";
 				function = "i2c0";
@@ -208,7 +208,7 @@
 				function = "uart0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart1_pa_pins: uart1-pa-pins {
 				pins = "PA2", "PA3";
 				function = "uart1";

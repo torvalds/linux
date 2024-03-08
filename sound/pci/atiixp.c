@@ -61,9 +61,9 @@ module_param(enable, bool, 0444);
 #define  ATI_REG_ISR_SPDF_STATUS	(1U<<5)
 #define  ATI_REG_ISR_PHYS_INTR		(1U<<8)
 #define  ATI_REG_ISR_PHYS_MISMATCH	(1U<<9)
-#define  ATI_REG_ISR_CODEC0_NOT_READY	(1U<<10)
-#define  ATI_REG_ISR_CODEC1_NOT_READY	(1U<<11)
-#define  ATI_REG_ISR_CODEC2_NOT_READY	(1U<<12)
+#define  ATI_REG_ISR_CODEC0_ANALT_READY	(1U<<10)
+#define  ATI_REG_ISR_CODEC1_ANALT_READY	(1U<<11)
+#define  ATI_REG_ISR_CODEC2_ANALT_READY	(1U<<12)
 #define  ATI_REG_ISR_NEW_FRAME		(1U<<13)
 
 #define ATI_REG_IER			0x04	/* interrupt enable */
@@ -236,7 +236,7 @@ struct atiixp_dma {
 	int running;
 	int suspended;
 	int pcm_open_flag;
-	int ac97_pcm_type;	/* index # of ac97_pcm to access, -1 = not used */
+	int ac97_pcm_type;	/* index # of ac97_pcm to access, -1 = analt used */
 	unsigned int saved_curptr;
 };
 
@@ -262,7 +262,7 @@ struct atiixp {
 
 	int max_channels;		/* max. channels for PCM out */
 
-	unsigned int codec_not_ready_bits;	/* for codec detection */
+	unsigned int codec_analt_ready_bits;	/* for codec detection */
 
 	int spdif_over_aclink;		/* passed from the module option */
 	struct mutex open_mutex;	/* playback open mutex */
@@ -348,14 +348,14 @@ static int atiixp_build_dma_packets(struct atiixp *chip, struct atiixp_dma *dma,
 	unsigned long flags;
 
 	if (periods > ATI_MAX_DESCRIPTORS)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dma->desc_buf.area == NULL) {
 		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
 					&chip->pci->dev,
 					ATI_DESC_LIST_SIZE,
 					&dma->desc_buf) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 		dma->period_bytes = dma->periods = 0; /* clear */
 	}
 
@@ -535,16 +535,16 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 /*
  * auto-detection of codecs
  *
- * the IXP chip can generate interrupts for the non-existing codecs.
+ * the IXP chip can generate interrupts for the analn-existing codecs.
  * NEW_FRAME interrupt is used to make sure that the interrupt is generated
  * even if all three codecs are connected.
  */
 
-#define ALL_CODEC_NOT_READY \
-	    (ATI_REG_ISR_CODEC0_NOT_READY |\
-	     ATI_REG_ISR_CODEC1_NOT_READY |\
-	     ATI_REG_ISR_CODEC2_NOT_READY)
-#define CODEC_CHECK_BITS (ALL_CODEC_NOT_READY|ATI_REG_ISR_NEW_FRAME)
+#define ALL_CODEC_ANALT_READY \
+	    (ATI_REG_ISR_CODEC0_ANALT_READY |\
+	     ATI_REG_ISR_CODEC1_ANALT_READY |\
+	     ATI_REG_ISR_CODEC2_ANALT_READY)
+#define CODEC_CHECK_BITS (ALL_CODEC_ANALT_READY|ATI_REG_ISR_NEW_FRAME)
 
 static int ac97_probing_bugs(struct pci_dev *pci)
 {
@@ -564,11 +564,11 @@ static int snd_atiixp_codec_detect(struct atiixp *chip)
 {
 	int timeout;
 
-	chip->codec_not_ready_bits = 0;
+	chip->codec_analt_ready_bits = 0;
 	if (ac97_codec == -1)
 		ac97_codec = ac97_probing_bugs(chip->pci);
 	if (ac97_codec >= 0) {
-		chip->codec_not_ready_bits |= 
+		chip->codec_analt_ready_bits |= 
 			CODEC_CHECK_BITS ^ (1 << (ac97_codec + 10));
 		return 0;
 	}
@@ -578,13 +578,13 @@ static int snd_atiixp_codec_detect(struct atiixp *chip)
 	timeout = 50;
 	while (timeout-- > 0) {
 		mdelay(1);
-		if (chip->codec_not_ready_bits)
+		if (chip->codec_analt_ready_bits)
 			break;
 	}
 	atiixp_write(chip, IER, 0); /* disable irqs */
 
-	if ((chip->codec_not_ready_bits & ALL_CODEC_NOT_READY) == ALL_CODEC_NOT_READY) {
-		dev_err(chip->card->dev, "no codec detected!\n");
+	if ((chip->codec_analt_ready_bits & ALL_CODEC_ANALT_READY) == ALL_CODEC_ANALT_READY) {
+		dev_err(chip->card->dev, "anal codec detected!\n");
 		return -ENXIO;
 	}
 	return 0;
@@ -1287,11 +1287,11 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 	chmap->channel_mask = SND_PCM_CHMAP_MASK_2468;
 	chip->ac97[0]->chmaps[SNDRV_PCM_STREAM_PLAYBACK] = chmap;
 
-	/* no SPDIF support on codec? */
+	/* anal SPDIF support on codec? */
 	if (chip->pcms[ATI_PCM_SPDIF] && ! chip->pcms[ATI_PCM_SPDIF]->rates)
 		return 0;
 		
-	/* FIXME: non-48k sample rate doesn't work on my test machine with AD1888 */
+	/* FIXME: analn-48k sample rate doesn't work on my test machine with AD1888 */
 	if (chip->pcms[ATI_PCM_SPDIF])
 		chip->pcms[ATI_PCM_SPDIF]->rates = SNDRV_PCM_RATE_48000;
 
@@ -1335,7 +1335,7 @@ static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id)
 	status = atiixp_read(chip, ISR);
 
 	if (! status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* process audio DMA */
 	if (status & ATI_REG_ISR_OUT_XRUN)
@@ -1358,7 +1358,7 @@ static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id)
 		unsigned int detected;
 		detected = status & CODEC_CHECK_BITS;
 		spin_lock(&chip->reg_lock);
-		chip->codec_not_ready_bits |= detected;
+		chip->codec_analt_ready_bits |= detected;
 		atiixp_update(chip, IER, detected, 0); /* disable the detected irqs */
 		spin_unlock(&chip->reg_lock);
 	}
@@ -1390,7 +1390,7 @@ static const struct ac97_quirk ac97_quirks[] = {
 	{
 		.subvendor = 0x103c,
 		.subdevice = 0x3091,
-		.name = "unknown HP",
+		.name = "unkanalwn HP",
 		.type = AC97_TUNE_MUTE_LED
 	},
 	{ } /* terminator */
@@ -1408,9 +1408,9 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 		.read = snd_atiixp_ac97_read,
 	};
 	static const unsigned int codec_skip[NUM_ATI_CODECS] = {
-		ATI_REG_ISR_CODEC0_NOT_READY,
-		ATI_REG_ISR_CODEC1_NOT_READY,
-		ATI_REG_ISR_CODEC2_NOT_READY,
+		ATI_REG_ISR_CODEC0_ANALT_READY,
+		ATI_REG_ISR_CODEC1_ANALT_READY,
+		ATI_REG_ISR_CODEC2_ANALT_READY,
 	};
 
 	if (snd_atiixp_codec_detect(chip) < 0)
@@ -1424,7 +1424,7 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 
 	codec_count = 0;
 	for (i = 0; i < NUM_ATI_CODECS; i++) {
-		if (chip->codec_not_ready_bits & codec_skip[i])
+		if (chip->codec_analt_ready_bits & codec_skip[i])
 			continue;
 		memset(&ac97, 0, sizeof(ac97));
 		ac97.private_data = chip;
@@ -1432,20 +1432,20 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 		ac97.num = i;
 		ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 		if (! chip->spdif_over_aclink)
-			ac97.scaps |= AC97_SCAP_NO_SPDIF;
+			ac97.scaps |= AC97_SCAP_ANAL_SPDIF;
 		err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i]);
 		if (err < 0) {
 			chip->ac97[i] = NULL; /* to be sure */
 			dev_dbg(chip->card->dev,
-				"codec %d not available for audio\n", i);
+				"codec %d analt available for audio\n", i);
 			continue;
 		}
 		codec_count++;
 	}
 
 	if (! codec_count) {
-		dev_err(chip->card->dev, "no codec available\n");
-		return -ENODEV;
+		dev_err(chip->card->dev, "anal codec available\n");
+		return -EANALDEV;
 	}
 
 	snd_ac97_tune_hardware(chip->ac97[0], ac97_quirks, quirk_override);

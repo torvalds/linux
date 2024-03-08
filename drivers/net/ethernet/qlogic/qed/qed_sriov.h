@@ -76,7 +76,7 @@ struct qed_iov_vf_init_params {
 
 	/* Allow the client to choose which qzones to use for Rx/Tx,
 	 * and which queue_base to use for Tx queues on a per-queue basis.
-	 * Notice values should be relative to the PF resources.
+	 * Analtice values should be relative to the PF resources.
 	 */
 	u16 req_rx_queue[QED_MAX_VF_CHAINS_PER_PF];
 	u16 req_tx_queue[QED_MAX_VF_CHAINS_PER_PF];
@@ -142,8 +142,8 @@ struct qed_vf_queue {
 };
 
 enum vf_state {
-	VF_FREE = 0,		/* VF ready to be acquired holds no resc */
-	VF_ACQUIRED,		/* VF, acquired, but not initialized */
+	VF_FREE = 0,		/* VF ready to be acquired holds anal resc */
+	VF_ACQUIRED,		/* VF, acquired, but analt initialized */
 	VF_ENABLED,		/* VF, Enabled */
 	VF_RESET,		/* VF, FLR'd, pending cleanup */
 	VF_STOPPED		/* VF, Stopped */
@@ -260,13 +260,13 @@ extern const struct qed_iov_hv_ops qed_iov_ops_pass;
  * @p_hwfn: HW device data.
  * @rel_vf_id: Relative VF ID.
  * @b_enabled_only: consider only enabled VF.
- * @b_non_malicious: true iff we want to validate vf isn't malicious.
+ * @b_analn_malicious: true iff we want to validate vf isn't malicious.
  *
  * Return: bool - true for valid VF ID
  */
 bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
 			   int rel_vf_id,
-			   bool b_enabled_only, bool b_non_malicious);
+			   bool b_enabled_only, bool b_analn_malicious);
 
 /**
  * qed_iov_get_next_active_vf(): Given a VF index, return index of
@@ -275,7 +275,7 @@ bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
  * @p_hwfn: HW device data.
  * @rel_vf_id: VF ID.
  *
- * Return: MAX_NUM_VFS in case no further active VFs, otherwise index.
+ * Return: MAX_NUM_VFS in case anal further active VFs, otherwise index.
  */
 u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id);
 
@@ -408,7 +408,7 @@ void qed_inform_vf_link_state(struct qed_hwfn *hwfn);
 #else
 static inline bool
 qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
-		      int rel_vf_id, bool b_enabled_only, bool b_non_malicious)
+		      int rel_vf_id, bool b_enabled_only, bool b_analn_malicious)
 {
 	return false;
 }

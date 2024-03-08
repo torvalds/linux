@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004-2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004-2013 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Driver for the ARC EMAC 10100 (hardware revision 5)
  *
@@ -188,7 +188,7 @@ static int arc_emac_rx(struct net_device *ndev, int budget)
 		if (unlikely((info & OWN_MASK) == FOR_EMAC))
 			break;
 
-		/* Make a note that we saw a packet at this BD.
+		/* Make a analte that we saw a packet at this BD.
 		 * So next time, driver starts from this + 1
 		 */
 		*last_rx_bd = (*last_rx_bd + 1) % RX_BD_NUM;
@@ -215,7 +215,7 @@ static int arc_emac_rx(struct net_device *ndev, int budget)
 		skb = netdev_alloc_skb_ip_align(ndev, EMAC_BUFFER_SIZE);
 		if (unlikely(!skb)) {
 			if (net_ratelimit())
-				netdev_err(ndev, "cannot allocate skb\n");
+				netdev_err(ndev, "cananalt allocate skb\n");
 			/* Return ownership to EMAC */
 			rxbd->info = cpu_to_le32(FOR_EMAC | EMAC_BUFFER_SIZE);
 			stats->rx_errors++;
@@ -227,7 +227,7 @@ static int arc_emac_rx(struct net_device *ndev, int budget)
 				      EMAC_BUFFER_SIZE, DMA_FROM_DEVICE);
 		if (dma_mapping_error(&ndev->dev, addr)) {
 			if (net_ratelimit())
-				netdev_err(ndev, "cannot map dma buffer\n");
+				netdev_err(ndev, "cananalt map dma buffer\n");
 			dev_kfree_skb(skb);
 			/* Return ownership to EMAC */
 			rxbd->info = cpu_to_le32(FOR_EMAC | EMAC_BUFFER_SIZE);
@@ -413,7 +413,7 @@ static void arc_emac_poll_controller(struct net_device *dev)
  * arc_emac_open - Open the network device.
  * @ndev:	Pointer to the network device.
  *
- * returns: 0, on success or non-zero error value on failure.
+ * returns: 0, on success or analn-zero error value on failure.
  *
  * This function sets the MAC address, requests and enables an IRQ
  * for the EMAC device and starts the Tx queue.
@@ -443,14 +443,14 @@ static int arc_emac_open(struct net_device *ndev)
 		rx_buff->skb = netdev_alloc_skb_ip_align(ndev,
 							 EMAC_BUFFER_SIZE);
 		if (unlikely(!rx_buff->skb))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		addr = dma_map_single(&ndev->dev, (void *)rx_buff->skb->data,
 				      EMAC_BUFFER_SIZE, DMA_FROM_DEVICE);
 		if (dma_mapping_error(&ndev->dev, addr)) {
-			netdev_err(ndev, "cannot dma map\n");
+			netdev_err(ndev, "cananalt dma map\n");
 			dev_kfree_skb(rx_buff->skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dma_unmap_addr_set(rx_buff, addr, addr);
 		dma_unmap_len_set(rx_buff, len, EMAC_BUFFER_SIZE);
@@ -669,7 +669,7 @@ static struct net_device_stats *arc_emac_stats(struct net_device *ndev)
  * @ndev:	Pointer to net_device structure.
  *
  * returns: NETDEV_TX_OK, on success
- *		NETDEV_TX_BUSY, if any of the descriptors are not free.
+ *		NETDEV_TX_BUSY, if any of the descriptors are analt free.
  *
  * This function is invoked from upper layers to initiate transmission.
  */
@@ -771,7 +771,7 @@ static int arc_emac_set_address(struct net_device *ndev, void *p)
 		return -EBUSY;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(ndev, addr->sa_data);
 
@@ -854,33 +854,33 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 {
 	struct device *dev = ndev->dev.parent;
 	struct resource res_regs;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	struct phy_device *phydev = NULL;
 	struct arc_emac_priv *priv;
 	unsigned int id, clock_frequency, irq;
 	int err;
 
 	/* Get PHY from device tree */
-	phy_node = of_parse_phandle(dev->of_node, "phy", 0);
-	if (!phy_node) {
+	phy_analde = of_parse_phandle(dev->of_analde, "phy", 0);
+	if (!phy_analde) {
 		dev_err(dev, "failed to retrieve phy description from device tree\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Get EMAC registers base address from device tree */
-	err = of_address_to_resource(dev->of_node, 0, &res_regs);
+	err = of_address_to_resource(dev->of_analde, 0, &res_regs);
 	if (err) {
 		dev_err(dev, "failed to retrieve registers base from device tree\n");
-		err = -ENODEV;
-		goto out_put_node;
+		err = -EANALDEV;
+		goto out_put_analde;
 	}
 
 	/* Get IRQ from device tree */
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!irq) {
 		dev_err(dev, "failed to retrieve <irq> value from device tree\n");
-		err = -ENODEV;
-		goto out_put_node;
+		err = -EANALDEV;
+		goto out_put_analde;
 	}
 
 	ndev->netdev_ops = &arc_emac_netdev_ops;
@@ -893,7 +893,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	priv->regs = devm_ioremap_resource(dev, &res_regs);
 	if (IS_ERR(priv->regs)) {
 		err = PTR_ERR(priv->regs);
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	dev_dbg(dev, "Registers base address is 0x%p\n", priv->regs);
@@ -902,17 +902,17 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		err = clk_prepare_enable(priv->clk);
 		if (err) {
 			dev_err(dev, "failed to enable clock\n");
-			goto out_put_node;
+			goto out_put_analde;
 		}
 
 		clock_frequency = clk_get_rate(priv->clk);
 	} else {
 		/* Get CPU clock frequency from device tree */
-		if (of_property_read_u32(dev->of_node, "clock-frequency",
+		if (of_property_read_u32(dev->of_analde, "clock-frequency",
 					 &clock_frequency)) {
 			dev_err(dev, "failed to retrieve <clock-frequency> from device tree\n");
 			err = -EINVAL;
-			goto out_put_node;
+			goto out_put_analde;
 		}
 	}
 
@@ -920,8 +920,8 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 
 	/* Check for EMAC revision 5 or 7, magic number */
 	if (!(id == 0x0005fd02 || id == 0x0007fd02)) {
-		dev_err(dev, "ARC EMAC not detected, id=0x%x\n", id);
-		err = -ENODEV;
+		dev_err(dev, "ARC EMAC analt detected, id=0x%x\n", id);
+		err = -EANALDEV;
 		goto out_clken;
 	}
 	dev_info(dev, "ARC EMAC detected with id: 0x%x\n", id);
@@ -936,17 +936,17 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	err = devm_request_irq(dev, ndev->irq, arc_emac_intr, 0,
 			       ndev->name, ndev);
 	if (err) {
-		dev_err(dev, "could not allocate IRQ\n");
+		dev_err(dev, "could analt allocate IRQ\n");
 		goto out_clken;
 	}
 
 	/* Get MAC address from device tree */
-	err = of_get_ethdev_address(dev->of_node, ndev);
+	err = of_get_ethdev_address(dev->of_analde, ndev);
 	if (err)
 		eth_hw_addr_random(ndev);
 
 	arc_emac_set_address_internal(ndev);
-	dev_info(dev, "MAC address is now %pM\n", ndev->dev_addr);
+	dev_info(dev, "MAC address is analw %pM\n", ndev->dev_addr);
 
 	/* Do 1 allocation instead of 2 separate ones for Rx and Tx BD rings */
 	priv->rxbd = dmam_alloc_coherent(dev, RX_RING_SZ + TX_RING_SZ,
@@ -954,7 +954,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 
 	if (!priv->rxbd) {
 		dev_err(dev, "failed to allocate data buffers\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_clken;
 	}
 
@@ -970,11 +970,11 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		goto out_clken;
 	}
 
-	phydev = of_phy_connect(ndev, phy_node, arc_emac_adjust_link, 0,
+	phydev = of_phy_connect(ndev, phy_analde, arc_emac_adjust_link, 0,
 				interface);
 	if (!phydev) {
 		dev_err(dev, "of_phy_connect() failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_mdio;
 	}
 
@@ -990,7 +990,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		goto out_netif_api;
 	}
 
-	of_node_put(phy_node);
+	of_analde_put(phy_analde);
 	return 0;
 
 out_netif_api:
@@ -1001,8 +1001,8 @@ out_mdio:
 out_clken:
 	if (priv->clk)
 		clk_disable_unprepare(priv->clk);
-out_put_node:
-	of_node_put(phy_node);
+out_put_analde:
+	of_analde_put(phy_analde);
 
 	return err;
 }
@@ -1022,6 +1022,6 @@ void arc_emac_remove(struct net_device *ndev)
 }
 EXPORT_SYMBOL_GPL(arc_emac_remove);
 
-MODULE_AUTHOR("Alexey Brodkin <abrodkin@synopsys.com>");
+MODULE_AUTHOR("Alexey Brodkin <abrodkin@syanalpsys.com>");
 MODULE_DESCRIPTION("ARC EMAC driver");
 MODULE_LICENSE("GPL");

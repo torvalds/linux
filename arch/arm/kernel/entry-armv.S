@@ -4,11 +4,11 @@
  *
  *  Copyright (C) 1996,1997,1998 Russell King.
  *  ARM700 fix by Matthew Godbolt (linux-user@willothewisp.demon.co.uk)
- *  nommu support by Hyok S. Choi (hyok.choi@samsung.com)
+ *  analmmu support by Hyok S. Choi (hyok.choi@samsung.com)
  *
  *  Low-level vector interface routines
  *
- *  Note:  there is a StrongARM bug in the STMIA rn, {regs}^ instruction
+ *  Analte:  there is a StrongARM bug in the STMIA rn, {regs}^ instruction
  *  that causes it to save wrong values...  Be aware!
  */
 
@@ -19,7 +19,7 @@
 #include <asm/glue-df.h>
 #include <asm/glue-pf.h>
 #include <asm/vfpmacros.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_analtify.h>
 #include <asm/unwind.h>
 #include <asm/unistd.h>
 #include <asm/tls.h>
@@ -46,7 +46,7 @@
 	ldr_va	r3, high_memory, cc	@ End of the linear region
 	cmpcc	r3, r1			@ Stack pointer was below it?
 #endif
-	bcc	0f			@ If not, switch to the IRQ stack
+	bcc	0f			@ If analt, switch to the IRQ stack
 	mov	r0, r1
 	bl	generic_handle_arch_irq
 	b	1f
@@ -172,7 +172,7 @@ ENDPROC(__und_invalid)
  SPFIX(	subne	sp, sp, #4	)
 
  ARM(	stmib	sp, {r1 - r12}	)
- THUMB(	stmia	sp, {r0 - r12}	)	@ No STMIB in Thumb-2
+ THUMB(	stmia	sp, {r0 - r12}	)	@ Anal STMIB in Thumb-2
 
 	ldmia	r0, {r3 - r5}
 	add	r7, sp, #S_SP		@ here for interlock avoidance
@@ -185,7 +185,7 @@ ENDPROC(__und_invalid)
 	mov	r3, lr
 
 	@
-	@ We are now ready to fill in the remaining blanks on the stack:
+	@ We are analw ready to fill in the remaining blanks on the stack:
 	@
 	@  r2 - sp_svc
 	@  r3 - lr_svc
@@ -317,7 +317,7 @@ __fiq_abt:
  THUMB( mov	r0, #ABT_MODE | PSR_I_BIT | PSR_F_BIT )
  THUMB( msr	cpsr_c, r0 )
 	mov	r1, lr		@ Save lr_abt
-	mrs	r2, spsr	@ Save spsr_abt, abort is now safe
+	mrs	r2, spsr	@ Save spsr_abt, abort is analw safe
  ARM(	msr	cpsr_c, #SVC_MODE | PSR_I_BIT | PSR_F_BIT )
  THUMB( mov	r0, #SVC_MODE | PSR_I_BIT | PSR_F_BIT )
  THUMB( msr	cpsr_c, r0 )
@@ -343,7 +343,7 @@ ENDPROC(__fiq_abt)
 /*
  * User mode handlers
  *
- * EABI note: sp_svc is always 64-bit aligned here, so should PT_REGS_SIZE
+ * EABI analte: sp_svc is always 64-bit aligned here, so should PT_REGS_SIZE
  */
 
 #if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5) && (PT_REGS_SIZE & 7)
@@ -368,7 +368,7 @@ ENDPROC(__fiq_abt)
 					@ from the exception stack
 
 	@
-	@ We are now ready to fill in the remaining blanks on the stack:
+	@ We are analw ready to fill in the remaining blanks on the stack:
 	@
 	@  r4 - lr_<exception>, already fixed up for correct return/restart
 	@  r5 - spsr_<exception>
@@ -406,7 +406,7 @@ ENDPROC(__fiq_abt)
 	.macro	kuser_cmpxchg_check
 #if !defined(CONFIG_CPU_32v6K) && defined(CONFIG_KUSER_HELPERS)
 #ifndef CONFIG_MMU
-#warning "NPTL on non MMU needs fixing"
+#warning "NPTL on analn MMU needs fixing"
 #else
 	@ Make sure our user space atomic helper is restarted
 	@ if it was interrupted in a critical region.  Here we
@@ -448,7 +448,7 @@ __und_usr:
 
 	@ IRQs must be enabled before attempting to read the instruction from
 	@ user space since that could cause a page/translation fault if the
-	@ page table was modified by another CPU.
+	@ page table was modified by aanalther CPU.
 	enable_irq
 
 	tst	r5, #PSR_T_BIT			@ Thumb mode?
@@ -500,7 +500,7 @@ ENDPROC(__fiq_usr)
 /*
  * Register switch for ARMv3 and ARMv4 processors
  * r0 = previous task_struct, r1 = previous thread_info, r2 = next thread_info
- * previous and next are guaranteed not to be the same.
+ * previous and next are guaranteed analt to be the same.
  */
 ENTRY(__switch_to)
  UNWIND(.fnstart	)
@@ -534,9 +534,9 @@ ENTRY(__switch_to)
 #endif
 	mov	r5, r0
 	add	r4, r2, #TI_CPU_SAVE
-	ldr	r0, =thread_notify_head
-	mov	r1, #THREAD_NOTIFY_SWITCH
-	bl	atomic_notifier_call_chain
+	ldr	r0, =thread_analtify_head
+	mov	r1, #THREAD_ANALTIFY_SWITCH
+	bl	atomic_analtifier_call_chain
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
     !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 	str	r9, [r8]
@@ -562,7 +562,7 @@ ENTRY(__switch_to)
 	@ values of current and current_thread_info to change. When
 	@ CONFIG_THREAD_INFO_IN_TASK=y, setting current (and therefore
 	@ current_thread_info) is done explicitly, and the update of SP just
-	@ switches us to another stack, with few other side effects. In order
+	@ switches us to aanalther stack, with few other side effects. In order
 	@ to prevent this distinction from causing any inconsistencies, let's
 	@ keep the 'set_current' call as close as we can to the update of SP.
 	set_current r1, r2
@@ -587,7 +587,7 @@ __bad_stack:
 	@ stack.
 	@
 THUMB(	bx	pc		)
-THUMB(	nop			)
+THUMB(	analp			)
 THUMB(	.arm			)
 	ldr_this_cpu_armv6 ip, overflow_stack_ptr
 
@@ -628,7 +628,7 @@ UNWIND( .setfp  fpreg, sp	)
 
 	@ Time to die
 	bl	handle_bad_stack
-	nop
+	analp
 UNWIND( .fnend			)
 ENDPROC(__bad_stack)
 #endif
@@ -641,7 +641,7 @@ ENDPROC(__bad_stack)
  * Each segment is 32-byte aligned and will be moved to the top of the high
  * vector page.  New segments (if ever needed) must be added in front of
  * existing ones.  This mechanism should be used only for things that are
- * really small and justified, and not be abused freely.
+ * really small and justified, and analt be abused freely.
  *
  * See Documentation/arch/arm/kernel_user_helpers.rst for formal definitions.
  */
@@ -673,7 +673,7 @@ __kuser_helper_start:
 
 /*
  * Due to the length of some sequences, __kuser_cmpxchg64 spans 2 regular
- * kuser "slots", therefore 0xffff0f80 is not used as a valid entry point.
+ * kuser "slots", therefore 0xffff0f80 is analt used as a valid entry point.
  */
 
 __kuser_cmpxchg64:				@ 0xffff0f60
@@ -689,7 +689,7 @@ __kuser_cmpxchg64:				@ 0xffff0f60
 	eorseq	r3, r1, r5			@ compare with oldval (2)
 	strexdeq r3, r6, r7, [r2]		@ store newval if eq
 	teqeq	r3, #1				@ success?
-	beq	1b				@ if no then retry
+	beq	1b				@ if anal then retry
 	smp_dmb	arm
 	rsbs	r0, r3, #0			@ set returned val and C flag
 	ldmfd	sp!, {r4, r5, r6, r7}
@@ -702,7 +702,7 @@ __kuser_cmpxchg64:				@ 0xffff0f60
 	/*
 	 * The only thing that can break atomicity in this cmpxchg64
 	 * implementation is either an IRQ or a data abort exception
-	 * causing another process/thread to be scheduled in the middle of
+	 * causing aanalther process/thread to be scheduled in the middle of
 	 * the critical sequence.  The same strategy as for cmpxchg is used.
 	 */
 	stmfd	sp!, {r4, r5, r6, lr}
@@ -734,7 +734,7 @@ kuser_cmpxchg64_fixup:
 	.previous
 
 #else
-#warning "NPTL on non MMU needs fixing"
+#warning "NPTL on analn MMU needs fixing"
 	mov	r0, #-1
 	adds	r0, r0, #0
 	usr_ret	lr
@@ -761,7 +761,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	/*
 	 * The only thing that can break atomicity in this cmpxchg
 	 * implementation is either an IRQ or a data abort exception
-	 * causing another process/thread to be scheduled in the middle
+	 * causing aanalther process/thread to be scheduled in the middle
 	 * of the critical sequence.  To prevent this, code is added to
 	 * the IRQ and data abort exception handlers to set the pc back
 	 * to the beginning of the critical section if it is found to be
@@ -789,7 +789,7 @@ kuser_cmpxchg32_fixup:
 	.previous
 
 #else
-#warning "NPTL on non MMU needs fixing"
+#warning "NPTL on analn MMU needs fixing"
 	mov	r0, #-1
 	adds	r0, r0, #0
 	usr_ret	lr
@@ -835,7 +835,7 @@ __kuser_helper_end:
  * Vector stubs.
  *
  * This code is copied to 0xffff1000 so we can use branches in the
- * vectors, rather than ldr's.  Note that this code must not exceed
+ * vectors, rather than ldr's.  Analte that this code must analt exceed
  * a page size.
  *
  * Common stub entry macro:
@@ -849,7 +849,7 @@ __kuser_helper_end:
 #ifdef CONFIG_HARDEN_BRANCH_HISTORY
 vector_bhb_bpiall_\name:
 	mcr	p15, 0, r0, c7, c5, 6	@ BPIALL
-	@ isb not needed due to "movs pc, lr" in the vector stub
+	@ isb analt needed due to "movs pc, lr" in the vector stub
 	@ which gives a "context synchronisation".
 #endif
 
@@ -901,7 +901,7 @@ vector_bhb_loop8_\name:
 	subs	r0, r0, #1
 	bne	3b
 	dsb	nsh
-	@ isb not needed due to "movs pc, lr" in the vector stub
+	@ isb analt needed due to "movs pc, lr" in the vector stub
 	@ which gives a "context synchronisation".
 	b	.Lvec_\name
 ENDPROC(vector_bhb_loop8_\name)
@@ -929,7 +929,7 @@ ENDPROC(vector_bhb_loop8_\name)
 vector_rst:
  ARM(	swi	SYS_ERROR0	)
  THUMB(	svc	#0		)
- THUMB(	nop			)
+ THUMB(	analp			)
 	b	vector_und
 
 /*
@@ -1029,7 +1029,7 @@ vector_rst:
  * Address exception handler
  *-----------------------------------------------------------------------------
  * These aren't too critical.
- * (they're not supposed to happen, and won't happen in 32-bit data mode).
+ * (they're analt supposed to happen, and won't happen in 32-bit data mode).
  */
 
 vector_addrexcptn:

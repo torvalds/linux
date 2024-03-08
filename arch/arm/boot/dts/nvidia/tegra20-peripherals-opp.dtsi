@@ -893,7 +893,7 @@
 		};
 	};
 
-	nor_dvfs_opp_table: opp-table-nor {
+	analr_dvfs_opp_table: opp-table-analr {
 		compatible = "operating-points-v2";
 
 		opp-92000000-1000 {

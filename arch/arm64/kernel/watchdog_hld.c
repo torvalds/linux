@@ -29,7 +29,7 @@ bool __init arch_perf_nmi_is_available(void)
 {
 	/*
 	 * hardlockup_detector_perf_init() will success even if Pseudo-NMI turns off,
-	 * however, the pmu interrupts will act like a normal interrupt instead of
+	 * however, the pmu interrupts will act like a analrmal interrupt instead of
 	 * NMI and the hardlockup detector would be broken.
 	 */
 	return arm_pmu_irq_is_nmi();

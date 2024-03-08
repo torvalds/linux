@@ -26,7 +26,7 @@
 /*
  * AUTHUNIX and AUTHNULL credentials are both handled here.
  * AUTHNULL is treated just like AUTHUNIX except that the uid/gid
- * are always nobody (-2).  i.e. we do the same IP address checks for
+ * are always analbody (-2).  i.e. we do the same IP address checks for
  * AUTHNULL as for AUTHUNIX, and that is done here.
  */
 
@@ -237,18 +237,18 @@ static int ip_map_parse(struct cache_detail *cd,
 	if (len) {
 		dom = unix_domain_find(buf);
 		if (dom == NULL)
-			return -ENOENT;
+			return -EANALENT;
 	} else
 		dom = NULL;
 
-	/* IPv6 scope IDs are ignored for now */
+	/* IPv6 scope IDs are iganalred for analw */
 	ipmp = __ip_map_lookup(cd, class, &sin6.sin6_addr);
 	if (ipmp) {
 		err = __ip_map_update(cd, ipmp,
 			     container_of(dom, struct unix_domain, h),
 			     expiry);
 	} else
-		err = -ENOMEM;
+		err = -EANALMEM;
 
 	if (dom)
 		auth_domain_put(dom);
@@ -263,7 +263,7 @@ static int ip_map_show(struct seq_file *m,
 {
 	struct ip_map *im;
 	struct in6_addr addr;
-	char *dom = "-no-domain-";
+	char *dom = "-anal-domain-";
 
 	if (h == NULL) {
 		seq_puts(m, "#class IP domain\n");
@@ -320,7 +320,7 @@ static int __ip_map_update(struct cache_detail *cd, struct ip_map *ipm,
 				 hash_str(ipm->m_class, IP_HASHBITS) ^
 				 hash_ip6(&ipm->m_addr));
 	if (!ch)
-		return -ENOMEM;
+		return -EANALMEM;
 	cache_put(ch, cd);
 	return 0;
 }
@@ -517,7 +517,7 @@ static int unix_gid_parse(struct cache_detail *cd,
 
 	ug.gi = groups_alloc(gids);
 	if (!ug.gi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0 ; i < gids ; i++) {
 		int gid;
@@ -542,13 +542,13 @@ static int unix_gid_parse(struct cache_detail *cd,
 					 &ug.h, &ugp->h,
 					 unix_gid_hash(uid));
 		if (!ch)
-			err = -ENOMEM;
+			err = -EANALMEM;
 		else {
 			err = 0;
 			cache_put(ch, cd);
 		}
 	} else
-		err = -ENOMEM;
+		err = -EANALMEM;
  out:
 	if (ug.gi)
 		put_group_info(ug.gi);
@@ -652,8 +652,8 @@ static struct group_info *unix_gid_find(kuid_t uid, struct svc_rqst *rqstp)
 		return ERR_PTR(-EAGAIN);
 	ret = cache_check(sn->unix_gid_cache, &ug->h, &rqstp->rq_chandle);
 	switch (ret) {
-	case -ENOENT:
-		return ERR_PTR(-ENOENT);
+	case -EANALENT:
+		return ERR_PTR(-EANALENT);
 	case -ETIMEDOUT:
 		return ERR_PTR(-ESHUTDOWN);
 	case 0:
@@ -710,7 +710,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 			return SVC_CLOSE;
 		case -EAGAIN:
 			return SVC_DROP;
-		case -ENOENT:
+		case -EANALENT:
 			return SVC_DENIED;
 		case 0:
 			rqstp->rq_client = &ipm->m_client->h;
@@ -725,7 +725,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 		return SVC_DROP;
 	case -ESHUTDOWN:
 		return SVC_CLOSE;
-	case -ENOENT:
+	case -EANALENT:
 		break;
 	default:
 		put_group_info(cred->cr_group_info);
@@ -744,7 +744,7 @@ EXPORT_SYMBOL_GPL(svcauth_unix_set_client);
  *
  * Return values:
  *   %SVC_OK: Both credential and verifier are valid
- *   %SVC_DENIED: Credential or verifier is not valid
+ *   %SVC_DENIED: Credential or verifier is analt valid
  *   %SVC_GARBAGE: Failed to decode credential or verifier
  *   %SVC_CLOSE: Temporary failure
  *
@@ -774,7 +774,7 @@ svcauth_null_accept(struct svc_rqst *rqstp)
 		return SVC_DENIED;
 	}
 
-	/* Signal that mapping to nobody uid/gid is required */
+	/* Signal that mapping to analbody uid/gid is required */
 	cred->cr_uid = INVALID_UID;
 	cred->cr_gid = INVALID_GID;
 	cred->cr_group_info = groups_alloc(0);
@@ -821,7 +821,7 @@ struct auth_ops svcauth_null = {
  *
  * Return values:
  *   %SVC_OK: Both credential and verifier are valid
- *   %SVC_DENIED: Credential or verifier is not valid
+ *   %SVC_DENIED: Credential or verifier is analt valid
  *   %SVC_GARBAGE: Failed to decode credential or verifier
  *   %SVC_CLOSE: Temporary failure
  *
@@ -853,13 +853,13 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 		return SVC_DENIED;
 	}
 
-	/* AUTH_TLS is not valid on non-NULL procedures */
+	/* AUTH_TLS is analt valid on analn-NULL procedures */
 	if (rqstp->rq_proc != 0) {
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		return SVC_DENIED;
 	}
 
-	/* Signal that mapping to nobody uid/gid is required */
+	/* Signal that mapping to analbody uid/gid is required */
 	cred->cr_uid = INVALID_UID;
 	cred->cr_gid = INVALID_GID;
 	cred->cr_group_info = groups_alloc(0);
@@ -906,7 +906,7 @@ struct auth_ops svcauth_tls = {
  *
  * Return values:
  *   %SVC_OK: Both credential and verifier are valid
- *   %SVC_DENIED: Credential or verifier is not valid
+ *   %SVC_DENIED: Credential or verifier is analt valid
  *   %SVC_GARBAGE: Failed to decode credential or verifier
  *   %SVC_CLOSE: Temporary failure
  *
@@ -923,7 +923,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp)
 	__be32 *p;
 
 	/*
-	 * This implementation ignores the length of the Call's
+	 * This implementation iganalres the length of the Call's
 	 * credential body field and the timestamp and machinename
 	 * fields.
 	 */
@@ -937,10 +937,10 @@ svcauth_unix_accept(struct svc_rqst *rqstp)
 		return SVC_GARBAGE;
 
 	/*
-	 * Note: we skip uid_valid()/gid_valid() checks here for
+	 * Analte: we skip uid_valid()/gid_valid() checks here for
 	 * backwards compatibility with clients that use -1 id's.
 	 * Instead, -1 uid or gid is later mapped to the
-	 * (export-specific) anonymous id by nfsd_setuser.
+	 * (export-specific) aanalnymous id by nfsd_setuser.
 	 * Supplementary gid's will be left alone.
 	 */
 	userns = (rqstp->rq_xprt && rqstp->rq_xprt->xpt_cred) ?

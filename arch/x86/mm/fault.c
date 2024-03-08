@@ -10,7 +10,7 @@
 #include <linux/extable.h>		/* search_exception_tables	*/
 #include <linux/memblock.h>		/* max_low_pfn			*/
 #include <linux/kfence.h>		/* kfence_handle_page_fault	*/
-#include <linux/kprobes.h>		/* NOKPROBE_SYMBOL, ...		*/
+#include <linux/kprobes.h>		/* ANALKPROBE_SYMBOL, ...		*/
 #include <linux/mmiotrace.h>		/* kmmio_handler, ...		*/
 #include <linux/perf_event.h>		/* perf_sw_event		*/
 #include <linux/hugetlb.h>		/* hstate_index_to_shift	*/
@@ -39,10 +39,10 @@
 #include <asm/trace/exceptions.h>
 
 /*
- * Returns 0 if mmiotrace is disabled, or if the fault is not
+ * Returns 0 if mmiotrace is disabled, or if the fault is analt
  * handled by mmiotrace:
  */
-static nokprobe_inline int
+static analkprobe_inline int
 kmmio_fault(struct pt_regs *regs, unsigned long addr)
 {
 	if (unlikely(is_kmmio_active()))
@@ -57,12 +57,12 @@ kmmio_fault(struct pt_regs *regs, unsigned long addr)
  * 32-bit mode:
  *
  *   Sometimes AMD Athlon/Opteron CPUs report invalid exceptions on prefetch.
- *   Check that here and ignore it.  This is AMD erratum #91.
+ *   Check that here and iganalre it.  This is AMD erratum #91.
  *
  * 64-bit mode:
  *
  *   Sometimes the CPU reports invalid exceptions on prefetch.
- *   Check that here and ignore it.
+ *   Check that here and iganalre it.
  *
  * Opcode checker based on code by Richard Brunner.
  */
@@ -98,7 +98,7 @@ check_prefetch_opcode(struct pt_regs *regs, unsigned char *instr,
 		return !instr_lo || (instr_lo>>1) == 1;
 	case 0x00:
 		/* Prefetch instruction is 0x0F0D or 0x0F18 */
-		if (get_kernel_nofault(opcode, instr))
+		if (get_kernel_analfault(opcode, instr))
 			return 0;
 
 		*prefetch = (instr_lo == 0xF) &&
@@ -131,7 +131,7 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 
 	/*
 	 * If it was a exec (instruction fetch) fault on NX page, then
-	 * do not ignore the fault:
+	 * do analt iganalre the fault:
 	 */
 	if (error_code & X86_PF_INSTR)
 		return 0;
@@ -141,7 +141,7 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 
 	/*
 	 * This code has historically always bailed out if IP points to a
-	 * not-present page (e.g. due to a race).  No one has ever
+	 * analt-present page (e.g. due to a race).  Anal one has ever
 	 * complained about this.
 	 */
 	pagefault_disable();
@@ -153,7 +153,7 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 			if (get_user(opcode, (unsigned char __user *) instr))
 				break;
 		} else {
-			if (get_kernel_nofault(opcode, instr))
+			if (get_kernel_analfault(opcode, instr))
 				break;
 		}
 
@@ -187,7 +187,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 
 	/*
 	 * set_pgd(pgd, *pgd_k); here would be useless on PAE
-	 * and redundant with the set_pmd() on non-PAE. As would
+	 * and redundant with the set_pmd() on analn-PAE. As would
 	 * set_p4d/set_pud.
 	 */
 	p4d = p4d_offset(pgd, address);
@@ -222,13 +222,13 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
  *   where it synchronizes this update with the other page-tables in the
  *   system.
  *
- *   In this race window another thread/CPU can map an area on the same
- *   PMD, finds it already present and does not synchronize it with the
+ *   In this race window aanalther thread/CPU can map an area on the same
+ *   PMD, finds it already present and does analt synchronize it with the
  *   rest of the system yet. As a result v[mz]alloc might return areas
- *   which are not mapped in every page-table in the system, causing an
+ *   which are analt mapped in every page-table in the system, causing an
  *   unhandled page-fault when they are accessed.
  */
-static noinline int vmalloc_fault(unsigned long address)
+static analinline int vmalloc_fault(unsigned long address)
 {
 	unsigned long pgd_paddr;
 	pmd_t *pmd_k;
@@ -242,7 +242,7 @@ static noinline int vmalloc_fault(unsigned long address)
 	 * Synchronize this task's top level page-table
 	 * with the 'reference' page table.
 	 *
-	 * Do _not_ use "current" here. We might be inside
+	 * Do _analt_ use "current" here. We might be inside
 	 * an interrupt in the middle of a task switch..
 	 */
 	pgd_paddr = read_cr3_pa();
@@ -259,7 +259,7 @@ static noinline int vmalloc_fault(unsigned long address)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(vmalloc_fault);
+ANALKPROBE_SYMBOL(vmalloc_fault);
 
 void arch_sync_kernel_mappings(unsigned long start, unsigned long end)
 {
@@ -314,9 +314,9 @@ static void dump_pagetable(unsigned long address)
 #undef pr_pde
 
 	/*
-	 * We must not directly access the pte in the highpte
+	 * We must analt directly access the pte in the highpte
 	 * case if the page table is located in highmem.
-	 * And let's rather not kmap-atomic the pte, just in case
+	 * And let's rather analt kmap-atomic the pte, just in case
 	 * it's allocated already:
 	 */
 	if (!low_pfn(pmd_pfn(*pmd)) || !pmd_present(*pmd) || pmd_large(*pmd))
@@ -333,7 +333,7 @@ out:
 #ifdef CONFIG_CPU_SUP_AMD
 static const char errata93_warning[] =
 KERN_ERR 
-"******* Your BIOS seems to not contain a fix for K8 errata #93\n"
+"******* Your BIOS seems to analt contain a fix for K8 errata #93\n"
 "******* Working around it, but it may cause SEGVs or burn power.\n"
 "******* Please consider a BIOS update.\n"
 "******* Disabling USB legacy in the BIOS may also help.\n";
@@ -343,7 +343,7 @@ static int bad_address(void *p)
 {
 	unsigned long dummy;
 
-	return get_kernel_nofault(dummy, (unsigned long *)p);
+	return get_kernel_analfault(dummy, (unsigned long *)p);
 }
 
 static void dump_pagetable(unsigned long address)
@@ -412,8 +412,8 @@ bad:
  * The OS sees this as a page fault with the upper 32bits of RIP cleared.
  * Try to work around it here.
  *
- * Note we only handle faults in kernel here.
- * Does nothing on 32-bit.
+ * Analte we only handle faults in kernel here.
+ * Does analthing on 32-bit.
  */
 static int is_errata93(struct pt_regs *regs, unsigned long address)
 {
@@ -447,7 +447,7 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
  * to illegal addresses >4GB.
  *
  * We catch this in the page fault handler because these addresses
- * are not reachable. Just detect this case and return.  Any code
+ * are analt reachable. Just detect this case and return.  Any code
  * segment in LDT is compatibility mode.
  */
 static int is_errata100(struct pt_regs *regs, unsigned long address)
@@ -489,9 +489,9 @@ static void show_ldttss(const struct desc_ptr *gdt, const char *name, u16 index)
 		return;
 	}
 
-	if (copy_from_kernel_nofault(&desc, (void *)(gdt->address + offset),
+	if (copy_from_kernel_analfault(&desc, (void *)(gdt->address + offset),
 			      sizeof(struct ldttss_desc))) {
-		pr_alert("%s: 0x%hx -- GDT entry is not readable\n",
+		pr_alert("%s: 0x%hx -- GDT entry is analt readable\n",
 			 name, index);
 		return;
 	}
@@ -544,7 +544,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code, unsigned long ad
 					       "read access",
 			     user_mode(regs) ? "user" : "kernel");
 	pr_alert("#PF: error_code(0x%04lx) - %s\n", error_code,
-		 !(error_code & X86_PF_PROT) ? "not-present page" :
+		 !(error_code & X86_PF_PROT) ? "analt-present page" :
 		 (error_code & X86_PF_RSVD)  ? "reserved bit violation" :
 		 (error_code & X86_PF_PK)    ? "protection keys violation" :
 					       "permissions violation");
@@ -581,7 +581,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code, unsigned long ad
 	dump_pagetable(address);
 }
 
-static noinline void
+static analinline void
 pgtable_bad(struct pt_regs *regs, unsigned long error_code,
 	    unsigned long address)
 {
@@ -611,9 +611,9 @@ static void sanitize_error_code(unsigned long address,
 	 * table layout, pretend that user-mode accesses to
 	 * kernel addresses are always protection faults.
 	 *
-	 * NB: This means that failed vsyscalls with vsyscall=none
+	 * NB: This means that failed vsyscalls with vsyscall=analne
 	 * will have the PROT bit.  This doesn't leak any
-	 * information and does not appear to cause any problems.
+	 * information and does analt appear to cause any problems.
 	 */
 	if (address >= TASK_SIZE_MAX)
 		*error_code |= X86_PF_PROT;
@@ -629,7 +629,7 @@ static void set_signal_archinfo(unsigned long address,
 	tsk->thread.cr2 = address;
 }
 
-static noinline void
+static analinline void
 page_fault_oops(struct pt_regs *regs, unsigned long error_code,
 		unsigned long address)
 {
@@ -650,7 +650,7 @@ page_fault_oops(struct pt_regs *regs, unsigned long error_code,
 #ifdef CONFIG_VMAP_STACK
 	/*
 	 * Stack overflow?  During boot, we can fault near the initial
-	 * stack in the direct map, but that's not an overflow -- check
+	 * stack in the direct map, but that's analt an overflow -- check
 	 * that we're in vmalloc space to avoid this.
 	 */
 	if (is_vmalloc_addr((void *)address) &&
@@ -682,7 +682,7 @@ page_fault_oops(struct pt_regs *regs, unsigned long error_code,
 	if (IS_ENABLED(CONFIG_EFI))
 		efi_crash_gracefully_on_page_fault(address);
 
-	/* Only not-present faults should be handled by KFENCE. */
+	/* Only analt-present faults should be handled by KFENCE. */
 	if (!(error_code & X86_PF_PROT) &&
 	    kfence_handle_page_fault(address, error_code & X86_PF_WRITE, regs))
 		return;
@@ -709,7 +709,7 @@ oops:
 	oops_end(flags, regs, sig);
 }
 
-static noinline void
+static analinline void
 kernelmode_fixup_or_oops(struct pt_regs *regs, unsigned long error_code,
 			 unsigned long address, int signal, int si_code,
 			 u32 pkey)
@@ -729,7 +729,7 @@ kernelmode_fixup_or_oops(struct pt_regs *regs, unsigned long error_code,
 		/*
 		 * Per the above we're !in_interrupt(), aka. task context.
 		 *
-		 * In this case we need to make sure we're not recursively
+		 * In this case we need to make sure we're analt recursively
 		 * faulting through the emulate_vsyscall() logic.
 		 */
 		if (current->thread.sig_on_uaccess_err && signal) {
@@ -770,7 +770,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long error_code,
 		unsigned long address, struct task_struct *tsk)
 {
 	const char *loglvl = task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG;
-	/* This is a racy snapshot, but it's better than nothing. */
+	/* This is a racy snapshot, but it's better than analthing. */
 	int cpu = raw_smp_processor_id();
 
 	if (!unhandled_signal(tsk, SIGSEGV))
@@ -799,7 +799,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long error_code,
 }
 
 static void
-__bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+__bad_area_analsemaphore(struct pt_regs *regs, unsigned long error_code,
 		       unsigned long address, u32 pkey, int si_code)
 {
 	struct task_struct *tsk = current;
@@ -823,7 +823,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 	local_irq_enable();
 
 	/*
-	 * Valid to do another page fault here because this one came
+	 * Valid to do aanalther page fault here because this one came
 	 * from user space:
 	 */
 	if (is_prefetch(regs, error_code, address))
@@ -850,11 +850,11 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 	local_irq_disable();
 }
 
-static noinline void
-bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+static analinline void
+bad_area_analsemaphore(struct pt_regs *regs, unsigned long error_code,
 		     unsigned long address)
 {
-	__bad_area_nosemaphore(regs, error_code, address, 0, SEGV_MAPERR);
+	__bad_area_analsemaphore(regs, error_code, address, 0, SEGV_MAPERR);
 }
 
 static void
@@ -868,7 +868,7 @@ __bad_area(struct pt_regs *regs, unsigned long error_code,
 	 */
 	mmap_read_unlock(mm);
 
-	__bad_area_nosemaphore(regs, error_code, address, pkey, si_code);
+	__bad_area_analsemaphore(regs, error_code, address, pkey, si_code);
 }
 
 static inline bool bad_area_access_from_pkeys(unsigned long error_code,
@@ -888,26 +888,26 @@ static inline bool bad_area_access_from_pkeys(unsigned long error_code,
 	return false;
 }
 
-static noinline void
+static analinline void
 bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
 		      unsigned long address, struct vm_area_struct *vma)
 {
 	/*
-	 * This OSPKE check is not strictly necessary at runtime.
+	 * This OSPKE check is analt strictly necessary at runtime.
 	 * But, doing it this way allows compiler optimizations
 	 * if pkeys are compiled out.
 	 */
 	if (bad_area_access_from_pkeys(error_code, vma)) {
 		/*
-		 * A protection key fault means that the PKRU value did not allow
+		 * A protection key fault means that the PKRU value did analt allow
 		 * access to some PTE.  Userspace can figure out what PKRU was
 		 * from the XSAVE state.  This function captures the pkey from
 		 * the vma and passes it to userspace so userspace can discover
 		 * which protection key was set on the PTE.
 		 *
-		 * If we get here, we know that the hardware signaled a X86_PF_PK
+		 * If we get here, we kanalw that the hardware signaled a X86_PF_PK
 		 * fault and that there was a VMA once we got in the fault
-		 * handler.  It does *not* guarantee that the VMA we find here
+		 * handler.  It does *analt* guarantee that the VMA we find here
 		 * was the one that we faulted on.
 		 *
 		 * 1. T1   : mprotect_key(foo, PAGE_SIZE, pkey=4);
@@ -937,7 +937,7 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
 		return;
 	}
 
-	/* User-space => ok to do another page fault: */
+	/* User-space => ok to do aanalther page fault: */
 	if (is_prefetch(regs, error_code, address))
 		return;
 
@@ -984,22 +984,22 @@ static int spurious_kernel_fault_check(unsigned long error_code, pte_t *pte)
  * This allows us to lazily refresh the TLB when increasing the
  * permissions of a kernel page (RO -> RW or NX -> X).  Doing it
  * eagerly is very expensive since that implies doing a full
- * cross-processor TLB flush, even if no stale TLB entries exist
+ * cross-processor TLB flush, even if anal stale TLB entries exist
  * on other processors.
  *
  * Spurious faults may only occur if the TLB contains an entry with
- * fewer permission than the page table entry.  Non-present (P = 0)
+ * fewer permission than the page table entry.  Analn-present (P = 0)
  * and reserved bit (R = 1) faults are never spurious.
  *
- * There are no security implications to leaving a stale TLB when
+ * There are anal security implications to leaving a stale TLB when
  * increasing the permissions on a page.
  *
- * Returns non-zero if a spurious fault was handled, zero otherwise.
+ * Returns analn-zero if a spurious fault was handled, zero otherwise.
  *
  * See Intel Developer's Manual Vol 3 Section 4.10.4.3, bullet 3
  * (Optional Invalidation).
  */
-static noinline int
+static analinline int
 spurious_kernel_fault(unsigned long error_code, unsigned long address)
 {
 	pgd_t *pgd;
@@ -1015,7 +1015,7 @@ spurious_kernel_fault(unsigned long error_code, unsigned long address)
 	 *
 	 * These could be from user or supervisor accesses but the TLB
 	 * is only lazily flushed after a kernel mapping protection
-	 * change, so user accesses are not expected to cause spurious
+	 * change, so user accesses are analt expected to cause spurious
 	 * faults.
 	 */
 	if (error_code != (X86_PF_WRITE | X86_PF_PROT) &&
@@ -1057,14 +1057,14 @@ spurious_kernel_fault(unsigned long error_code, unsigned long address)
 
 	/*
 	 * Make sure we have permissions in PMD.
-	 * If not, then there's a bug in the page tables:
+	 * If analt, then there's a bug in the page tables:
 	 */
 	ret = spurious_kernel_fault_check(error_code, (pte_t *) pmd);
 	WARN_ONCE(!ret, "PMD has incorrect permission bits\n");
 
 	return ret;
 }
-NOKPROBE_SYMBOL(spurious_kernel_fault);
+ANALKPROBE_SYMBOL(spurious_kernel_fault);
 
 int show_unhandled_signals = 1;
 
@@ -1087,7 +1087,7 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 	 * when the enclave memory contents have been destroyed, like
 	 * after a suspend/resume cycle. In any case, the kernel can't
 	 * fix the cause of the fault.  Handle the fault as an access
-	 * error even in cases where no actual access violation
+	 * error even in cases where anal actual access violation
 	 * occurred.  This allows userspace to rebuild the enclave in
 	 * response to the signal.
 	 */
@@ -1095,7 +1095,7 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 		return 1;
 
 	/*
-	 * Make sure to check the VMA so that we do not perform
+	 * Make sure to check the VMA so that we do analt perform
 	 * faults just to hit a X86_PF_PK as soon as we fill in a
 	 * page.
 	 */
@@ -1116,7 +1116,7 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 	}
 
 	if (error_code & X86_PF_WRITE) {
-		/* write, present and write, not present: */
+		/* write, present and write, analt present: */
 		if (unlikely(vma->vm_flags & VM_SHADOW_STACK))
 			return 1;
 		if (unlikely(!(vma->vm_flags & VM_WRITE)))
@@ -1128,7 +1128,7 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 	if (unlikely(error_code & X86_PF_PROT))
 		return 1;
 
-	/* read, not present: */
+	/* read, analt present: */
 	if (unlikely(!vma_is_accessible(vma)))
 		return 1;
 
@@ -1139,7 +1139,7 @@ bool fault_in_kernel_space(unsigned long address)
 {
 	/*
 	 * On 64-bit systems, the vsyscall page is at an address above
-	 * TASK_SIZE_MAX, but is not considered part of the kernel
+	 * TASK_SIZE_MAX, but is analt considered part of the kernel
 	 * address space.
 	 */
 	if (IS_ENABLED(CONFIG_X86_64) && is_vsyscall_vaddr(address))
@@ -1159,8 +1159,8 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 {
 	/*
 	 * Protection keys exceptions only happen on user pages.  We
-	 * have no user pages in the kernel portion of the address
-	 * space, so do not expect them here.
+	 * have anal user pages in the kernel portion of the address
+	 * space, so do analt expect them here.
 	 */
 	WARN_ON_ONCE(hw_error_code & X86_PF_PK);
 
@@ -1169,23 +1169,23 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 	 * We can fault-in kernel-space virtual memory on-demand. The
 	 * 'reference' page table is init_mm.pgd.
 	 *
-	 * NOTE! We MUST NOT take any locks for this case. We may
+	 * ANALTE! We MUST ANALT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * analthing more.
 	 *
 	 * Before doing this on-demand faulting, ensure that the
-	 * fault is not any of the following:
+	 * fault is analt any of the following:
 	 * 1. A fault on a PTE with a reserved bit set.
-	 * 2. A fault caused by a user-mode access.  (Do not demand-
+	 * 2. A fault caused by a user-mode access.  (Do analt demand-
 	 *    fault kernel memory due to user-mode accesses).
 	 * 3. A fault caused by a page-level protection violation.
-	 *    (A demand fault would be on a non-present page which
+	 *    (A demand fault would be on a analn-present page which
 	 *     would have X86_PF_PROT==0).
 	 *
 	 * This is only needed to close a race condition on x86-32 in
 	 * the vmalloc mapping/unmapping code. See the comment above
-	 * vmalloc_fault() for details. On x86-64 the race does not
+	 * vmalloc_fault() for details. On x86-64 the race does analt
 	 * exist as the vmalloc mappings don't need to be synchronized
 	 * there.
 	 */
@@ -1207,21 +1207,21 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 		return;
 
 	/*
-	 * Note, despite being a "bad area", there are quite a few
+	 * Analte, despite being a "bad area", there are quite a few
 	 * acceptable reasons to get here, such as erratum fixups
 	 * and handling kernel code that can fault, like get_user().
 	 *
 	 * Don't take the mm semaphore here. If we fixup a prefetch
 	 * fault we could otherwise deadlock:
 	 */
-	bad_area_nosemaphore(regs, hw_error_code, address);
+	bad_area_analsemaphore(regs, hw_error_code, address);
 }
-NOKPROBE_SYMBOL(do_kern_addr_fault);
+ANALKPROBE_SYMBOL(do_kern_addr_fault);
 
 /*
- * Handle faults in the user portion of the address space.  Nothing in here
+ * Handle faults in the user portion of the address space.  Analthing in here
  * should check X86_PF_USER without a specific justification: for almost
- * all purposes, we should treat a normal kernel access to user memory
+ * all purposes, we should treat a analrmal kernel access to user memory
  * (e.g. get_user(), put_user(), etc.) the same as the WRUSS instruction.
  * The one exception is AC flag handling, which is, per the x86
  * architecture, special for WRUSS.
@@ -1269,7 +1269,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 	/*
 	 * If SMAP is on, check for invalid kernel (supervisor) access to user
 	 * pages in the user address space.  The odd case here is WRUSS,
-	 * which, according to the preliminary documentation, does not respect
+	 * which, according to the preliminary documentation, does analt respect
 	 * SMAP and will have the USER bit set so, in all cases, SMAP
 	 * enforcement appears to be consistent with the USER bit.
 	 */
@@ -1277,19 +1277,19 @@ void do_user_addr_fault(struct pt_regs *regs,
 		     !(error_code & X86_PF_USER) &&
 		     !(regs->flags & X86_EFLAGS_AC))) {
 		/*
-		 * No extable entry here.  This was a kernel access to an
-		 * invalid pointer.  get_kernel_nofault() will not get here.
+		 * Anal extable entry here.  This was a kernel access to an
+		 * invalid pointer.  get_kernel_analfault() will analt get here.
 		 */
 		page_fault_oops(regs, error_code, address);
 		return;
 	}
 
 	/*
-	 * If we're in an interrupt, have no user context or are running
-	 * in a region with pagefaults disabled then we must not take the fault
+	 * If we're in an interrupt, have anal user context or are running
+	 * in a region with pagefaults disabled then we must analt take the fault
 	 */
 	if (unlikely(faulthandler_disabled() || !mm)) {
-		bad_area_nosemaphore(regs, error_code, address);
+		bad_area_analsemaphore(regs, error_code, address);
 		return;
 	}
 
@@ -1311,7 +1311,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
 	/*
-	 * Read-only permissions can not be expressed in shadow stack PTEs.
+	 * Read-only permissions can analt be expressed in shadow stack PTEs.
 	 * Treat all shadow stack accesses as WRITE faults. This ensures
 	 * that the MM will prepare everything (e.g., break COW) such that
 	 * maybe_mkwrite() can create a proper shadow stack PTE.
@@ -1329,7 +1329,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 	 * vsyscall page is at a high address (>PAGE_OFFSET), but is
 	 * considered to be part of the user address space.
 	 *
-	 * The vsyscall page does not have a "real" VMA, so do this
+	 * The vsyscall page does analt have a "real" VMA, so do this
 	 * emulation before we go searching for VMAs.
 	 *
 	 * PKRU never rejects instruction fetches, so we don't need
@@ -1377,7 +1377,7 @@ lock_mmap:
 retry:
 	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (unlikely(!vma)) {
-		bad_area_nosemaphore(regs, error_code, address);
+		bad_area_analsemaphore(regs, error_code, address);
 		return;
 	}
 
@@ -1393,12 +1393,12 @@ retry:
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
-	 * the fault.  Since we never set FAULT_FLAG_RETRY_NOWAIT, if
+	 * the fault.  Since we never set FAULT_FLAG_RETRY_ANALWAIT, if
 	 * we get VM_FAULT_RETRY back, the mmap_lock has been unlocked.
 	 *
-	 * Note that handle_userfault() may also release and reacquire mmap_lock
-	 * (and not return with VM_FAULT_RETRY), when returning to userland to
-	 * repeat the page fault later with a VM_FAULT_NOPAGE retval
+	 * Analte that handle_userfault() may also release and reacquire mmap_lock
+	 * (and analt return with VM_FAULT_RETRY), when returning to userland to
+	 * repeat the page fault later with a VM_FAULT_ANALPAGE retval
 	 * (potentially after handling any pending signal during the return to
 	 * userland). The return to userland is identified whenever
 	 * FAULT_FLAG_USER|FAULT_FLAG_KILLABLE are both set in flags.
@@ -1423,7 +1423,7 @@ retry:
 
 	/*
 	 * If we need to retry the mmap_lock has already been released,
-	 * and if there is a fatal signal pending there is no guarantee
+	 * and if there is a fatal signal pending there is anal guarantee
 	 * that we made any progress. Handle this case first.
 	 */
 	if (unlikely(fault & VM_FAULT_RETRY)) {
@@ -1462,12 +1462,12 @@ done:
 			     VM_FAULT_HWPOISON_LARGE))
 			do_sigbus(regs, error_code, address, fault);
 		else if (fault & VM_FAULT_SIGSEGV)
-			bad_area_nosemaphore(regs, error_code, address);
+			bad_area_analsemaphore(regs, error_code, address);
 		else
 			BUG();
 	}
 }
-NOKPROBE_SYMBOL(do_user_addr_fault);
+ANALKPROBE_SYMBOL(do_user_addr_fault);
 
 static __always_inline void
 trace_page_fault_entries(struct pt_regs *regs, unsigned long error_code,
@@ -1499,7 +1499,7 @@ handle_page_fault(struct pt_regs *regs, unsigned long error_code,
 		/*
 		 * User address page fault handling might have reenabled
 		 * interrupts. Fixing up all potential exit points of
-		 * do_user_addr_fault() and its leaf functions is just not
+		 * do_user_addr_fault() and its leaf functions is just analt
 		 * doable w/o creating an unholy mess or turning the code
 		 * upside down.
 		 */
@@ -1515,17 +1515,17 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 	prefetchw(&current->mm->mmap_lock);
 
 	/*
-	 * KVM uses #PF vector to deliver 'page not present' events to guests
-	 * (asynchronous page fault mechanism). The event happens when a
+	 * KVM uses #PF vector to deliver 'page analt present' events to guests
+	 * (asynchroanalus page fault mechanism). The event happens when a
 	 * userspace task is trying to access some valid (from guest's point of
-	 * view) memory which is not currently mapped by the host (e.g. the
-	 * memory is swapped out). Note, the corresponding "page ready" event
+	 * view) memory which is analt currently mapped by the host (e.g. the
+	 * memory is swapped out). Analte, the corresponding "page ready" event
 	 * which is injected when the memory becomes available, is delivered via
-	 * an interrupt mechanism and not a #PF exception
+	 * an interrupt mechanism and analt a #PF exception
 	 * (see arch/x86/kernel/kvm.c: sysvec_kvm_asyncpf_interrupt()).
 	 *
 	 * We are relying on the interrupted context being sane (valid RSP,
-	 * relevant locks not held, etc.), which is fine as long as the
+	 * relevant locks analt held, etc.), which is fine as long as the
 	 * interrupted context had IF=1.  We are also relying on the KVM
 	 * async pf type field and CR2 being read consistently instead of
 	 * getting values from real and async page faults mixed up.
@@ -1540,7 +1540,7 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 
 	/*
 	 * Entry handling for valid #PF from kernel mode is slightly
-	 * different: RCU is already watching and ct_irq_enter() must not
+	 * different: RCU is already watching and ct_irq_enter() must analt
 	 * be invoked because a kernel fault on a user space address might
 	 * sleep.
 	 *

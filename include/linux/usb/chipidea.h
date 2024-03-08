@@ -18,8 +18,8 @@ struct ci_hdrc;
  * @enabled: set to true if we've enabled the vbus or id interrupt
  * @edev: device which generate events
  * @ci: driver state of the chipidea device
- * @nb: hold event notification callback
- * @conn: used for notification registration
+ * @nb: hold event analtification callback
+ * @conn: used for analtification registration
  */
 struct ci_hdrc_cable {
 	bool				connected;
@@ -27,7 +27,7 @@ struct ci_hdrc_cable {
 	bool				enabled;
 	struct extcon_dev		*edev;
 	struct ci_hdrc			*ci;
-	struct notifier_block		nb;
+	struct analtifier_block		nb;
 };
 
 struct ci_hdrc_platform_data {
@@ -48,13 +48,13 @@ struct ci_hdrc_platform_data {
 		CI_HDRC_DISABLE_HOST_STREAMING)
 	/*
 	 * Only set it when DCCPARAMS.DC==1 and DCCPARAMS.HC==1,
-	 * but otg is not supported (no register otgsc).
+	 * but otg is analt supported (anal register otgsc).
 	 */
-#define CI_HDRC_DUAL_ROLE_NOT_OTG	BIT(4)
+#define CI_HDRC_DUAL_ROLE_ANALT_OTG	BIT(4)
 #define CI_HDRC_IMX28_WRITE_FIX		BIT(5)
 #define CI_HDRC_FORCE_FULLSPEED		BIT(6)
 #define CI_HDRC_TURN_VBUS_EARLY_ON	BIT(7)
-#define CI_HDRC_SET_NON_ZERO_TTHA	BIT(8)
+#define CI_HDRC_SET_ANALN_ZERO_TTHA	BIT(8)
 #define CI_HDRC_OVERRIDE_AHB_BURST	BIT(9)
 #define CI_HDRC_OVERRIDE_TX_BURST	BIT(10)
 #define CI_HDRC_OVERRIDE_RX_BURST	BIT(11)
@@ -71,7 +71,7 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_IMX_HSIC_ACTIVE_EVENT		2
 #define CI_HDRC_IMX_HSIC_SUSPEND_EVENT		3
 #define CI_HDRC_CONTROLLER_VBUS_EVENT		4
-	int	(*notify_event) (struct ci_hdrc *ci, unsigned event);
+	int	(*analtify_event) (struct ci_hdrc *ci, unsigned event);
 	struct regulator	*reg_vbus;
 	struct usb_otg_caps	ci_otg_caps;
 	bool			tpl_support;

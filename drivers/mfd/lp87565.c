@@ -52,7 +52,7 @@ static int lp87565_probe(struct i2c_client *client)
 
 	lp87565 = devm_kzalloc(&client->dev, sizeof(*lp87565), GFP_KERNEL);
 	if (!lp87565)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp87565->dev = &client->dev;
 

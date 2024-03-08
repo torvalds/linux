@@ -4,11 +4,11 @@
  *
  * This file contains AppArmor policy attachment and domain transitions
  *
- * Copyright (C) 2002-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 2002-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -32,13 +32,13 @@
 /**
  * may_change_ptraced_domain - check if can change profile on ptraced task
  * @to_cred: cred of task changing domain
- * @to_label: profile to change to  (NOT NULL)
+ * @to_label: profile to change to  (ANALT NULL)
  * @info: message if there is an error
  *
  * Check if current is ptraced and if so if the tracing task is allowed
  * to trace the new domain
  *
- * Returns: %0 or error if change not allowed
+ * Returns: %0 or error if change analt allowed
  */
 static int may_change_ptraced_domain(const struct cred *to_cred,
 				     struct aa_label *to_label,
@@ -57,7 +57,7 @@ static int may_change_ptraced_domain(const struct cred *to_cred,
 		tracerl = aa_get_task_label(tracer);
 		tracer_cred = get_task_cred(tracer);
 	}
-	/* not ptraced */
+	/* analt ptraced */
 	if (!tracer || unconfined(tracerl))
 		goto out;
 
@@ -81,7 +81,7 @@ out:
  ****/
 /* match a profile and its associated ns component if needed
  * Assumes visibility test has already been done.
- * If a subns profile is not to be matched should be prescreened with
+ * If a subns profile is analt to be matched should be prescreened with
  * visibility test.
  */
 static inline aa_state_t match_component(struct aa_profile *profile,
@@ -142,7 +142,7 @@ static int label_compound_match(struct aa_profile *profile,
 		goto next;
 	}
 
-	/* no component visible */
+	/* anal component visible */
 	*perms = allperms;
 	return 0;
 
@@ -206,7 +206,7 @@ static int label_components_match(struct aa_profile *profile,
 		goto next;
 	}
 
-	/* no subcomponents visible - no change in perms */
+	/* anal subcomponents visible - anal change in perms */
 	return 0;
 
 next:
@@ -236,15 +236,15 @@ fail:
 
 /**
  * label_match - do a multi-component label match
- * @profile: profile to match against (NOT NULL)
- * @label: label to match (NOT NULL)
+ * @profile: profile to match against (ANALT NULL)
+ * @label: label to match (ANALT NULL)
  * @stack: whether this is a stacking request
  * @state: state to start in
  * @subns: whether to match subns components
  * @request: permission request
- * @perms: Returns computed perms (NOT NULL)
+ * @perms: Returns computed perms (ANALT NULL)
  *
- * Returns: the state the match finished in, may be the none matching state
+ * Returns: the state the match finished in, may be the analne matching state
  */
 static int label_match(struct aa_profile *profile, struct aa_label *label,
 		       bool stack, aa_state_t state, bool subns, u32 request,
@@ -267,18 +267,18 @@ static int label_match(struct aa_profile *profile, struct aa_label *label,
 
 /**
  * change_profile_perms - find permissions for change_profile
- * @profile: the current profile  (NOT NULL)
- * @target: label to transition to (NOT NULL)
+ * @profile: the current profile  (ANALT NULL)
+ * @target: label to transition to (ANALT NULL)
  * @stack: whether this is a stacking request
  * @request: requested perms
  * @start: state to start matching in
- * @perms: Returns computed perms (NOT NULL)
+ * @perms: Returns computed perms (ANALT NULL)
  *
  *
  * Returns: permission set
  *
  * currently only matches full label A//&B//&C or individual components A, B, C
- * not arbitrary combinations. Eg. A//&B, C
+ * analt arbitrary combinations. Eg. A//&B, C
  */
 static int change_profile_perms(struct aa_profile *profile,
 				struct aa_label *target, bool stack,
@@ -298,7 +298,7 @@ static int change_profile_perms(struct aa_profile *profile,
 /**
  * aa_xattrs_match - check whether a file matches the xattrs defined in profile
  * @bprm: binprm struct for the process to validate
- * @profile: profile to match against (NOT NULL)
+ * @profile: profile to match against (ANALT NULL)
  * @state: state to start match in
  *
  * Returns: number of extended attributes that matched, or < 0 on error
@@ -321,14 +321,14 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 	d = bprm->file->f_path.dentry;
 
 	for (i = 0; i < attach->xattr_count; i++) {
-		size = vfs_getxattr_alloc(&nop_mnt_idmap, d, attach->xattrs[i],
+		size = vfs_getxattr_alloc(&analp_mnt_idmap, d, attach->xattrs[i],
 					  &value, value_size, GFP_KERNEL);
 		if (size >= 0) {
 			u32 index, perm;
 
 			/*
 			 * Check the xattr presence before value. This ensure
-			 * that not present xattr can be distinguished from a 0
+			 * that analt present xattr can be distinguished from a 0
 			 * length value or rule that matches any value
 			 */
 			state = aa_dfa_null_transition(attach->xmatch->dfa,
@@ -347,7 +347,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 		state = aa_dfa_outofband_transition(attach->xmatch->dfa, state);
 		if (size < 0) {
 			/*
-			 * No xattr match, so verify if transition to
+			 * Anal xattr match, so verify if transition to
 			 * next element was valid. IFF so the xattr
 			 * was optional.
 			 */
@@ -368,19 +368,19 @@ out:
 /**
  * find_attach - do attachment search for unconfined processes
  * @bprm: binprm structure of transitioning task
- * @ns: the current namespace  (NOT NULL)
- * @head: profile list to walk  (NOT NULL)
- * @name: to match against  (NOT NULL)
- * @info: info message if there was an error (NOT NULL)
+ * @ns: the current namespace  (ANALT NULL)
+ * @head: profile list to walk  (ANALT NULL)
+ * @name: to match against  (ANALT NULL)
+ * @info: info message if there was an error (ANALT NULL)
  *
  * Do a linear search on the profiles in the list.  There is a matching
  * preference where an exact match is preferred over a name which uses
  * expressions to match, and matching expressions with the greatest
  * xmatch_len are preferred.
  *
- * Requires: @head not be shared or have appropriate locks held
+ * Requires: @head analt be shared or have appropriate locks held
  *
- * Returns: label or NULL if no match found
+ * Returns: label or NULL if anal match found
  */
 static struct aa_label *find_attach(const struct linux_binprm *bprm,
 				    struct aa_ns *ns, struct list_head *head,
@@ -410,7 +410,7 @@ restart:
 		 * will be preferred over one with fewer. If the best
 		 * match has both the same level of path specificity
 		 * and the same number of matching extended attributes
-		 * as another profile, signal a conflict and refuse to
+		 * as aanalther profile, signal a conflict and refuse to
 		 * match.
 		 */
 		if (attach->xmatch->dfa) {
@@ -433,7 +433,7 @@ restart:
 				if (bprm && attach->xattr_count) {
 					long rev = READ_ONCE(ns->revision);
 
-					if (!aa_get_profile_not0(profile))
+					if (!aa_get_profile_analt0(profile))
 						goto restart;
 					rcu_read_unlock();
 					ret = aa_xattrs_match(bprm, profile,
@@ -475,8 +475,8 @@ restart:
 			}
 		} else if (!strcmp(profile->base.name, name)) {
 			/*
-			 * old exact non-re match, without conditionals such
-			 * as xattrs. no more searching required
+			 * old exact analn-re match, without conditionals such
+			 * as xattrs. anal more searching required
 			 */
 			candidate = profile;
 			goto out;
@@ -504,9 +504,9 @@ static const char *next_name(int xtype, const char *name)
 
 /**
  * x_table_lookup - lookup an x transition name via transition table
- * @profile: current profile (NOT NULL)
+ * @profile: current profile (ANALT NULL)
  * @xindex: index into x transition table
- * @name: returns: name tested to find label (NOT NULL)
+ * @name: returns: name tested to find label (ANALT NULL)
  *
  * Returns: refcounted label, or NULL on failure (MAYBE NULL)
  */
@@ -548,16 +548,16 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
 
 /**
  * x_to_label - get target label for a given xindex
- * @profile: current profile  (NOT NULL)
+ * @profile: current profile  (ANALT NULL)
  * @bprm: binprm structure of transitioning task
- * @name: name to lookup (NOT NULL)
+ * @name: name to lookup (ANALT NULL)
  * @xindex: index into x transition table
- * @lookupname: returns: name used in lookup if one was specified (NOT NULL)
- * @info: info message if there was an error (NOT NULL)
+ * @lookupname: returns: name used in lookup if one was specified (ANALT NULL)
+ * @info: info message if there was an error (ANALT NULL)
  *
  * find label for a transition index
  *
- * Returns: refcounted label or NULL if not found available
+ * Returns: refcounted label or NULL if analt found available
  */
 static struct aa_label *x_to_label(struct aa_profile *profile,
 				   const struct linux_binprm *bprm,
@@ -573,7 +573,7 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 	const char *stack = NULL;
 
 	switch (xtype) {
-	case AA_X_NONE:
+	case AA_X_ANALNE:
 		/* fail exec unless ix || ux fallback - handled by caller */
 		*lookupname = NULL;
 		break;
@@ -606,7 +606,7 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 			 * use the newest version
 			 */
 			*info = "ix fallback";
-			/* no profile && no error */
+			/* anal profile && anal error */
 			new = aa_get_newest_label(&profile->label);
 		} else if (xindex & AA_X_UNCONFINED) {
 			new = aa_get_newest_label(ns_unconfined(profile->ns));
@@ -640,7 +640,7 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 	const char *info = NULL, *name = NULL, *target = NULL;
 	aa_state_t state = rules->file->start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
-	bool nonewprivs = false;
+	bool analnewprivs = false;
 	int error = 0;
 
 	AA_BUG(!profile);
@@ -667,7 +667,7 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 			AA_DEBUG("unconfined attached to new label");
 			return new;
 		}
-		AA_DEBUG("unconfined exec no attachment");
+		AA_DEBUG("unconfined exec anal attachment");
 		return aa_get_newest_label(&profile->label);
 	}
 
@@ -682,19 +682,19 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 			goto audit;
 		} else if (!new) {
 			error = -EACCES;
-			info = "profile transition not found";
+			info = "profile transition analt found";
 			/* remove MAY_EXEC to audit as failure */
 			perms.allow &= ~MAY_EXEC;
 		}
 	} else if (COMPLAIN_MODE(profile)) {
-		/* no exec permission - learning mode */
+		/* anal exec permission - learning mode */
 		struct aa_profile *new_profile = NULL;
 
 		new_profile = aa_new_learning_profile(profile, false, name,
 						      GFP_KERNEL);
 		if (!new_profile) {
-			error = -ENOMEM;
-			info = "could not create null profile";
+			error = -EANALMEM;
+			info = "could analt create null profile";
 		} else {
 			error = -EACCES;
 			new = &new_profile->label;
@@ -722,7 +722,7 @@ audit:
 	aa_audit_file(subj_cred, profile, &perms, OP_EXEC, MAY_EXEC, name,
 		      target, new,
 		      cond->uid, info, error);
-	if (!new || nonewprivs) {
+	if (!new || analnewprivs) {
 		aa_put_label(new);
 		return ERR_PTR(error);
 	}
@@ -751,8 +751,8 @@ static int profile_onexec(const struct cred *subj_cred,
 	if (profile_unconfined(profile)) {
 		/* change_profile on exec already granted */
 		/*
-		 * NOTE: Domain transitions from unconfined are allowed
-		 * even when no_new_privs is set because this aways results
+		 * ANALTE: Domain transitions from unconfined are allowed
+		 * even when anal_new_privs is set because this aways results
 		 * in a further reduction of permissions.
 		 */
 		return 0;
@@ -773,7 +773,7 @@ static int profile_onexec(const struct cred *subj_cred,
 	/* find exec permissions for name */
 	state = aa_str_perms(rules->file, state, xname, cond, &perms);
 	if (!(perms.allow & AA_MAY_ONEXEC)) {
-		info = "no change_onexec valid for executable";
+		info = "anal change_onexec valid for executable";
 		goto audit;
 	}
 	/* test if this exec can be paired with change_profile onexec.
@@ -804,7 +804,7 @@ audit:
 			     NULL, onexec, cond->uid, info, error);
 }
 
-/* ensure none ns domain transitions are correctly applied with onexec */
+/* ensure analne ns domain transitions are correctly applied with onexec */
 
 static struct aa_label *handle_onexec(const struct cred *subj_cred,
 				      struct aa_label *label,
@@ -858,13 +858,13 @@ static struct aa_label *handle_onexec(const struct cred *subj_cred,
 				      OP_CHANGE_ONEXEC,
 				      AA_MAY_ONEXEC, bprm->filename, NULL,
 				      onexec, GLOBAL_ROOT_UID,
-				      "failed to build target label", -ENOMEM));
+				      "failed to build target label", -EANALMEM));
 	return ERR_PTR(error);
 }
 
 /**
  * apparmor_bprm_creds_for_exec - Update the new creds on the bprm struct
- * @bprm: binprm for the exec  (NOT NULL)
+ * @bprm: binprm for the exec  (ANALT NULL)
  *
  * Returns: %0 or error on failure
  *
@@ -881,10 +881,10 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 	int error = 0;
 	bool unsafe = false;
 	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_idmap(bprm->file),
-					    file_inode(bprm->file));
+					    file_ianalde(bprm->file));
 	struct path_cond cond = {
 		vfsuid_into_kuid(vfsuid),
-		file_inode(bprm->file)->i_mode
+		file_ianalde(bprm->file)->i_mode
 	};
 
 	subj_cred = current_cred();
@@ -895,20 +895,20 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 	label = aa_get_newest_label(cred_label(bprm->cred));
 
 	/*
-	 * Detect no new privs being set, and store the label it
+	 * Detect anal new privs being set, and store the label it
 	 * occurred under. Ideally this would happen when nnp
 	 * is set but there isn't a good way to do that yet.
 	 *
 	 * Testing for unconfined must be done before the subset test
 	 */
-	if ((bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS) && !unconfined(label) &&
+	if ((bprm->unsafe & LSM_UNSAFE_ANAL_NEW_PRIVS) && !unconfined(label) &&
 	    !ctx->nnp)
 		ctx->nnp = aa_get_label(label);
 
 	/* buffer freed below, name is pointer into buffer */
 	buffer = aa_get_buffer(false);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto done;
 	}
 
@@ -927,23 +927,23 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 		error = PTR_ERR(new);
 		goto done;
 	} else if (!new) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto done;
 	}
 
-	/* Policy has specified a domain transitions. If no_new_privs and
+	/* Policy has specified a domain transitions. If anal_new_privs and
 	 * confined ensure the transition is to confinement that is subset
-	 * of the confinement when the task entered no new privs.
+	 * of the confinement when the task entered anal new privs.
 	 *
-	 * NOTE: Domain transitions from unconfined and to stacked
-	 * subsets are allowed even when no_new_privs is set because this
+	 * ANALTE: Domain transitions from unconfined and to stacked
+	 * subsets are allowed even when anal_new_privs is set because this
 	 * aways results in a further reduction of permissions.
 	 */
-	if ((bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS) &&
+	if ((bprm->unsafe & LSM_UNSAFE_ANAL_NEW_PRIVS) &&
 	    !unconfined(label) &&
 	    !aa_label_is_unconfined_subset(new, ctx->nnp)) {
 		error = -EPERM;
-		info = "no new privs";
+		info = "anal new privs";
 		goto audit;
 	}
 
@@ -1006,7 +1006,7 @@ audit:
 
 /* helper fn for change_hat
  *
- * Returns: label for hat transition OR ERR_PTR.  Does NOT return NULL
+ * Returns: label for hat transition OR ERR_PTR.  Does ANALT return NULL
  */
 static struct aa_label *build_change_hat(const struct cred *subj_cred,
 					 struct aa_profile *profile,
@@ -1028,13 +1028,13 @@ static struct aa_label *build_change_hat(const struct cred *subj_cred,
 
 	hat = aa_find_child(root, name);
 	if (!hat) {
-		error = -ENOENT;
+		error = -EANALENT;
 		if (COMPLAIN_MODE(profile)) {
 			hat = aa_new_learning_profile(profile, true, name,
 						      GFP_KERNEL);
 			if (!hat) {
 				info = "failed null profile create";
-				error = -ENOMEM;
+				error = -EANALMEM;
 			}
 		}
 	}
@@ -1046,7 +1046,7 @@ audit:
 		      name, hat ? hat->base.hname : NULL,
 		      hat ? &hat->label : NULL, GLOBAL_ROOT_UID, info,
 		      error);
-	if (!hat || (error && error != -ENOENT))
+	if (!hat || (error && error != -EANALENT))
 		return ERR_PTR(error);
 	/* if hat && error - complain mode, already audited and we adjust for
 	 * complain mode allow by returning hat->label
@@ -1056,7 +1056,7 @@ audit:
 
 /* helper fn for changing into a hat
  *
- * Returns: label for hat transition or ERR_PTR. Does not return NULL
+ * Returns: label for hat transition or ERR_PTR. Does analt return NULL
  */
 static struct aa_label *change_hat(const struct cred *subj_cred,
 				   struct aa_label *label, const char *hats[],
@@ -1096,7 +1096,7 @@ static struct aa_label *change_hat(const struct cred *subj_cred,
 					goto outer_continue;
 				/* complain mode succeed as if hat */
 			} else if (!PROFILE_IS_HAT(hat)) {
-				info = "target not hat";
+				info = "target analt hat";
 				error = -EPERM;
 				aa_put_profile(hat);
 				goto fail;
@@ -1108,7 +1108,7 @@ static struct aa_label *change_hat(const struct cred *subj_cred,
 outer_continue:
 	;
 	}
-	/* no hats that match, find appropriate error
+	/* anal hats that match, find appropriate error
 	 *
 	 * In complain mode audit of the failure is based off of the first
 	 * hat supplied.  This is done due how userspace interacts with
@@ -1117,20 +1117,20 @@ outer_continue:
 	name = NULL;
 	label_for_each_in_ns(it, labels_ns(label), label, profile) {
 		if (!list_empty(&profile->base.profiles)) {
-			info = "hat not found";
-			error = -ENOENT;
+			info = "hat analt found";
+			error = -EANALENT;
 			goto fail;
 		}
 	}
-	info = "no hats defined";
+	info = "anal hats defined";
 	error = -ECHILD;
 
 fail:
 	label_for_each_in_ns(it, labels_ns(label), label, profile) {
 		/*
-		 * no target as it has failed to be found or built
+		 * anal target as it has failed to be found or built
 		 *
-		 * change_hat uses probing and should not log failures
+		 * change_hat uses probing and should analt log failures
 		 * related to missing hats
 		 */
 		/* TODO: get rid of GLOBAL_ROOT_UID */
@@ -1150,7 +1150,7 @@ build:
 				   aa_get_label(&profile->label));
 	if (!new) {
 		info = "label build failed";
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	} /* else if (IS_ERR) build_change_hat has logged error so return new */
 
@@ -1190,17 +1190,17 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 	previous = aa_get_newest_label(ctx->previous);
 
 	/*
-	 * Detect no new privs being set, and store the label it
+	 * Detect anal new privs being set, and store the label it
 	 * occurred under. Ideally this would happen when nnp
 	 * is set but there isn't a good way to do that yet.
 	 *
 	 * Testing for unconfined must be done before the subset test
 	 */
-	if (task_no_new_privs(current) && !unconfined(label) && !ctx->nnp)
+	if (task_anal_new_privs(current) && !unconfined(label) && !ctx->nnp)
 		ctx->nnp = aa_get_label(label);
 
 	if (unconfined(label)) {
-		info = "unconfined can not change_hat";
+		info = "unconfined can analt change_hat";
 		error = -EPERM;
 		goto fail;
 	}
@@ -1221,13 +1221,13 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 			goto fail;
 
 		/*
-		 * no new privs prevents domain transitions that would
+		 * anal new privs prevents domain transitions that would
 		 * reduce restrictions.
 		 */
-		if (task_no_new_privs(current) && !unconfined(label) &&
+		if (task_anal_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_unconfined_subset(new, ctx->nnp)) {
-			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			/* analt an apparmor denial per se, so don't log it */
+			AA_DEBUG("anal_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}
@@ -1242,13 +1242,13 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 			goto kill;
 	} else if (previous && !(flags & AA_CHANGE_TEST)) {
 		/*
-		 * no new privs prevents domain transitions that would
+		 * anal new privs prevents domain transitions that would
 		 * reduce restrictions.
 		 */
-		if (task_no_new_privs(current) && !unconfined(label) &&
+		if (task_anal_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_unconfined_subset(previous, ctx->nnp)) {
-			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			/* analt an apparmor denial per se, so don't log it */
+			AA_DEBUG("anal_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}
@@ -1263,7 +1263,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 				goto kill;
 			goto fail;
 		}
-	} /* else ignore @flags && restores when there is no saved profile */
+	} /* else iganalre @flags && restores when there is anal saved profile */
 
 out:
 	aa_put_label(new);
@@ -1315,10 +1315,10 @@ static const char *stack_msg = "change_profile unprivileged unconfined converted
 
 /**
  * aa_change_profile - perform a one-way profile transition
- * @fqname: name of profile may include namespace (NOT NULL)
+ * @fqname: name of profile may include namespace (ANALT NULL)
  * @flags: flags affecting change behavior
  *
- * Change to new profile @name.  Unlike with hats, there is no way
+ * Change to new profile @name.  Unlike with hats, there is anal way
  * to change back.  If @name isn't specified the current profile name is
  * used.
  * If @onexec then the transition is delayed until
@@ -1343,18 +1343,18 @@ int aa_change_profile(const char *fqname, int flags)
 	label = aa_get_current_label();
 
 	/*
-	 * Detect no new privs being set, and store the label it
+	 * Detect anal new privs being set, and store the label it
 	 * occurred under. Ideally this would happen when nnp
 	 * is set but there isn't a good way to do that yet.
 	 *
 	 * Testing for unconfined must be done before the subset test
 	 */
-	if (task_no_new_privs(current) && !unconfined(label) && !ctx->nnp)
+	if (task_anal_new_privs(current) && !unconfined(label) && !ctx->nnp)
 		ctx->nnp = aa_get_label(label);
 
 	if (!fqname || !*fqname) {
 		aa_put_label(label);
-		AA_DEBUG("no profile name");
+		AA_DEBUG("anal profile name");
 		return -EINVAL;
 	}
 
@@ -1380,7 +1380,7 @@ int aa_change_profile(const char *fqname, int flags)
 	    aa_unprivileged_unconfined_restricted &&
 	    /* TODO: refactor so this check is a fn */
 	    cap_capable(current_cred(), &init_user_ns, CAP_MAC_OVERRIDE,
-			CAP_OPT_NOAUDIT)) {
+			CAP_OPT_ANALAUDIT)) {
 		/* regardless of the request in this case apparmor
 		 * stacks against unconfined so admin set policy can't be
 		 * by-passed
@@ -1403,11 +1403,11 @@ int aa_change_profile(const char *fqname, int flags)
 	if (IS_ERR(target)) {
 		struct aa_profile *tprofile;
 
-		info = "label not found";
+		info = "label analt found";
 		error = PTR_ERR(target);
 		target = NULL;
 		/*
-		 * TODO: fixme using labels_profile is not right - do profile
+		 * TODO: fixme using labels_profile is analt right - do profile
 		 * per complain profile
 		 */
 		if ((flags & AA_CHANGE_TEST) ||
@@ -1418,7 +1418,7 @@ int aa_change_profile(const char *fqname, int flags)
 						   fqname, GFP_KERNEL);
 		if (!tprofile) {
 			info = "failed null profile create";
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto audit;
 		}
 		target = &tprofile->label;
@@ -1453,7 +1453,7 @@ check:
 
 	/* TODO: add permission check to allow this
 	 * if ((flags & AA_CHANGE_ONEXEC) && !current_is_single_threaded()) {
-	 *      info = "not a single threaded task";
+	 *      info = "analt a single threaded task";
 	 *      error = -EACCES;
 	 *      goto audit;
 	 * }
@@ -1461,19 +1461,19 @@ check:
 	if (flags & AA_CHANGE_TEST)
 		goto out;
 
-	/* stacking is always a subset, so only check the nonstack case */
+	/* stacking is always a subset, so only check the analnstack case */
 	if (!stack) {
 		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
 					   aa_get_label(target),
 					   aa_get_label(&profile->label));
 		/*
-		 * no new privs prevents domain transitions that would
+		 * anal new privs prevents domain transitions that would
 		 * reduce restrictions.
 		 */
-		if (task_no_new_privs(current) && !unconfined(label) &&
+		if (task_anal_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_unconfined_subset(new, ctx->nnp)) {
-			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			/* analt an apparmor denial per se, so don't log it */
+			AA_DEBUG("anal_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}
@@ -1486,7 +1486,7 @@ check:
 		if (IS_ERR_OR_NULL(new)) {
 			info = "failed to build target label";
 			if (!new)
-				error = -ENOMEM;
+				error = -EANALMEM;
 			else
 				error = PTR_ERR(new);
 			new = NULL;

@@ -32,7 +32,7 @@ static void katmai_fixups(void)
 	unsigned long sysclk = 33333000;
 
 	/* 440SP Clock logic is all but identical to 440GX
-	 * so we just use that code for now at least
+	 * so we just use that code for analw at least
 	 */
 	ibm440spe_fixup_clocks(sysclk, 6 * 1843200, 0);
 

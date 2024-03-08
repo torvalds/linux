@@ -15,7 +15,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with the GNU C Library; see the file COPYING.LIB.  If not,
+ * License along with the GNU C Library; see the file COPYING.LIB.  If analt,
  * write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
@@ -79,8 +79,8 @@ void time64_to_tm(time64_t totalsecs, int offset, struct tm *result)
 	 * and Schneider [1]. In a few words: it works on the computational
 	 * (fictitious) calendar where the year starts in March, month = 2
 	 * (*), and finishes in February, month = 13. This calendar is
-	 * mathematically convenient because the day of the year does not
-	 * depend on whether the year is leap or not. For instance:
+	 * mathematically convenient because the day of the year does analt
+	 * depend on whether the year is leap or analt. For instance:
 	 *
 	 * March 1st		0-th day of the year;
 	 * ...
@@ -122,7 +122,7 @@ void time64_to_tm(time64_t totalsecs, int offset, struct tm *result)
 
 	/*
 	 * Recall that January 1st is the 306-th day of the year in the
-	 * computational (not Gregorian) calendar.
+	 * computational (analt Gregorian) calendar.
 	 */
 	is_Jan_or_Feb	= day_of_year >= 306;
 

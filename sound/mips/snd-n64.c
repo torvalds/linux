@@ -115,7 +115,7 @@ static irqreturn_t n64audio_isr(int irq, void *dev_id)
 
 	// Check it's ours
 	if (!(intrs & MI_INTR_AI))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	n64audio_write_reg(priv, AI_STATUS_REG, 1);
 
@@ -162,7 +162,7 @@ static int hw_rule_period_size(struct snd_pcm_hw_params *params,
 
 	/*
 	 * The DMA unit has errata on (start + len) & 0x3fff == 0x2000.
-	 * This constraint makes sure that the period size is not a power of two,
+	 * This constraint makes sure that the period size is analt a power of two,
 	 * which combined with dma_alloc_coherent aligning the buffer to the largest
 	 * PoT <= size guarantees it won't be hit.
 	 */
@@ -282,7 +282,7 @@ static const struct snd_pcm_ops n64audio_pcm_ops = {
 /*
  * The target device is embedded and RAM-constrained. We save RAM
  * by initializing in __init code that gets dropped late in boot.
- * For the same reason there is no module or unloading support.
+ * For the same reason there is anal module or unloading support.
  */
 static int __init n64audio_probe(struct platform_device *pdev)
 {
@@ -306,7 +306,7 @@ static int __init n64audio_probe(struct platform_device *pdev)
 	priv->ring_base = dma_alloc_coherent(card->dev, 32 * 1024, &priv->ring_base_dma,
 					     GFP_DMA|GFP_KERNEL);
 	if (!priv->ring_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_card;
 	}
 

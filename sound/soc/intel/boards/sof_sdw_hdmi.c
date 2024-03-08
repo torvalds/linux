@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <sound/soc.h>

@@ -21,23 +21,23 @@
 				usart3 {
 					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<AT91_PIOC 22 AT91_PERIPH_B AT91_PINCTRL_NONE
+							<AT91_PIOC 22 AT91_PERIPH_B AT91_PINCTRL_ANALNE
 							 AT91_PIOC 23 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart3_rts: usart3_rts-0 {
 						atmel,pins =
-							<AT91_PIOC 24 AT91_PERIPH_B AT91_PINCTRL_NONE>;		/* PC24 periph B */
+							<AT91_PIOC 24 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;		/* PC24 periph B */
 					};
 
 					pinctrl_usart3_cts: usart3_cts-0 {
 						atmel,pins =
-							<AT91_PIOC 25 AT91_PERIPH_B AT91_PINCTRL_NONE>;		/* PC25 periph B */
+							<AT91_PIOC 25 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;		/* PC25 periph B */
 					};
 
 					pinctrl_usart3_sck: usart3_sck-0 {
 						atmel,pins =
-							<AT91_PIOC 26 AT91_PERIPH_B AT91_PINCTRL_NONE>;		/* PC26 periph B */
+							<AT91_PIOC 26 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;		/* PC26 periph B */
 					};
 				};
 			};

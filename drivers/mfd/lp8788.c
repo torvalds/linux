@@ -52,7 +52,7 @@ static const struct resource chg_irqs[] = {
 	/* Battery Interrupts */
 	{
 		.start = LP8788_INT_BATT_LOW,
-		.end   = LP8788_INT_NO_BATT,
+		.end   = LP8788_INT_ANAL_BATT,
 		.name  = LP8788_BATT_IRQ,
 		.flags = IORESOURCE_IRQ,
 	},
@@ -174,7 +174,7 @@ static int lp8788_probe(struct i2c_client *cl)
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp8788), GFP_KERNEL);
 	if (!lp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp->regmap = devm_regmap_init_i2c(cl, &lp8788_regmap_config);
 	if (IS_ERR(lp->regmap)) {

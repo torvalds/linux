@@ -15,7 +15,7 @@ Module Parameters
 
 * bus_speed (unsigned int)
 
-Allows changing of the bus speed.  Normally, the bus speed is set by the BIOS
+Allows changing of the bus speed.  Analrmally, the bus speed is set by the BIOS
 and never needs to be changed.  However, some SMBus analyzers are too slow for
 monitoring the bus during debug, thus the need for this module parameter.
 Specify the bus speed in kHz.
@@ -23,7 +23,7 @@ Specify the bus speed in kHz.
 Available bus frequency settings:
 
   ====   =========
-  0      no change
+  0      anal change
   80     kHz
   100    kHz
   400    kHz

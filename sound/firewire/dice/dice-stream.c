@@ -9,7 +9,7 @@
 #include "dice.h"
 
 #define	READY_TIMEOUT_MS	200
-#define NOTIFICATION_TIMEOUT_MS	100
+#define ANALTIFICATION_TIMEOUT_MS	100
 
 struct reg_params {
 	unsigned int count;
@@ -90,7 +90,7 @@ static int select_clock(struct snd_dice *dice, unsigned int rate)
 		return err;
 
 	if (wait_for_completion_timeout(&dice->clock_accepted,
-			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0) {
+			msecs_to_jiffies(ANALTIFICATION_TIMEOUT_MS)) == 0) {
 		if (reg != new)
 			return -ETIMEDOUT;
 	}
@@ -142,11 +142,11 @@ static void stop_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 		reg = cpu_to_be32((u32)-1);
 		if (dir == AMDTP_IN_STREAM) {
 			snd_dice_transaction_write_tx(dice,
-					params->size * i + TX_ISOCHRONOUS,
+					params->size * i + TX_ISOCHROANALUS,
 					&reg, sizeof(reg));
 		} else {
 			snd_dice_transaction_write_rx(dice,
-					params->size * i + RX_ISOCHRONOUS,
+					params->size * i + RX_ISOCHROANALUS,
 					&reg, sizeof(reg));
 		}
 	}
@@ -346,11 +346,11 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 		reg = cpu_to_be32(resources->channel);
 		if (dir == AMDTP_IN_STREAM) {
 			err = snd_dice_transaction_write_tx(dice,
-					params->size * i + TX_ISOCHRONOUS,
+					params->size * i + TX_ISOCHROANALUS,
 					&reg, sizeof(reg));
 		} else {
 			err = snd_dice_transaction_write_rx(dice,
-					params->size * i + RX_ISOCHRONOUS,
+					params->size * i + RX_ISOCHROANALUS,
 					&reg, sizeof(reg));
 		}
 		if (err < 0)
@@ -376,7 +376,7 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 
 /*
  * MEMO: After this function, there're two states of streams:
- *  - None streams are running.
+ *  - Analne streams are running.
  *  - All streams are running.
  */
 int snd_dice_stream_start_duplex(struct snd_dice *dice)
@@ -414,7 +414,7 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice)
 		}
 	}
 
-	// Check required streams are running or not.
+	// Check required streams are running or analt.
 	err = snd_dice_transaction_get_rate(dice, &rate);
 	if (err < 0)
 		return err;
@@ -469,7 +469,7 @@ error:
 
 /*
  * MEMO: After this function, there're two states of streams:
- *  - None streams are running.
+ *  - Analne streams are running.
  *  - All streams are running.
  */
 void snd_dice_stream_stop_duplex(struct snd_dice *dice)

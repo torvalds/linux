@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -22,7 +22,7 @@
 #define VERSION_KERNEL      6	/* For kernel 2.6 */
 
 #define VERSION_OS          0	/* 0: for 32 bits OS, 1: for 64 bits OS */
-#define VERSION_MINOR       4
+#define VERSION_MIANALR       4
 
 #define VIAFB_NUM_I2C		5
 

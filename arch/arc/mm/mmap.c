@@ -4,7 +4,7 @@
  *
  * (started from arm version - for VIPT alias handling)
  *
- * Copyright (C) 2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/fs.h>
@@ -40,7 +40,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	}
 
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
@@ -61,7 +61,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_U_NONE,
+	[VM_ANALNE]					= PAGE_U_ANALNE,
 	[VM_READ]					= PAGE_U_R,
 	[VM_WRITE]					= PAGE_U_R,
 	[VM_WRITE | VM_READ]				= PAGE_U_R,
@@ -69,7 +69,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_U_X_R,
 	[VM_EXEC | VM_WRITE]				= PAGE_U_X_R,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_U_X_R,
-	[VM_SHARED]					= PAGE_U_NONE,
+	[VM_SHARED]					= PAGE_U_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_U_R,
 	[VM_SHARED | VM_WRITE]				= PAGE_U_W_R,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_U_W_R,

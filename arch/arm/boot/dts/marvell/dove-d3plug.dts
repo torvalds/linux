@@ -58,14 +58,14 @@
 /* Samsung M8G2F eMMC */
 &sdio0 {
 	status = "okay";
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 };
 
 /* Marvell SD8787 WLAN/BT */
 &sdio1 {
 	status = "okay";
-	non-removable;
+	analn-removable;
 };
 
 &spi0 {

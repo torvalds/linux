@@ -181,7 +181,7 @@ static const struct reg_default wm9713_reg_defaults[] = {
 	{ 0x02, 0x8080 },	/* Speaker Output Volume */
 	{ 0x04, 0x8080 },	/* Headphone Output Volume */
 	{ 0x06, 0x8080 },	/* Out3/OUT4 Volume */
-	{ 0x08, 0xc880 },	/* Mono Volume */
+	{ 0x08, 0xc880 },	/* Moanal Volume */
 	{ 0x0a, 0xe808 },	/* LINEIN Volume */
 	{ 0x0c, 0xe808 },	/* DAC PGA Volume */
 	{ 0x0e, 0x0808 },	/* MIC PGA Volume */
@@ -221,7 +221,7 @@ static const struct reg_default wm9713_reg_defaults[] = {
 	{ 0x5a, 0x0000 },	/* Additional Functions 1 */
 	{ 0x5c, 0x0000 },	/* Additional Functions 2 */
 	{ 0x60, 0xb032 },	/* ALC Control */
-	{ 0x62, 0x3e00 },	/* ALC / Noise Gate Control */
+	{ 0x62, 0x3e00 },	/* ALC / Analise Gate Control */
 	{ 0x64, 0x0000 },	/* AUXDAC input control */
 	{ 0x74, 0x0000 },	/* Digitiser Reg 1 */
 	{ 0x76, 0x0006 },	/* Digitiser Reg 2 */
@@ -254,13 +254,13 @@ static int wm97xx_ac97_probe(struct ac97_codec_device *adev)
 	const struct regmap_config *config;
 	struct wm97xx_platform_data *codec_pdata;
 	struct mfd_cell *cells;
-	int ret = -ENODEV, nb_cells, i;
+	int ret = -EANALDEV, nb_cells, i;
 	struct wm97xx_pdata *pdata = snd_ac97_codec_get_platdata(adev);
 
 	wm97xx = devm_kzalloc(ac97_codec_dev2dev(adev),
 			      sizeof(*wm97xx), GFP_KERNEL);
 	if (!wm97xx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm97xx->dev = ac97_codec_dev2dev(adev);
 	wm97xx->ac97 = snd_ac97_compat_alloc(adev);
@@ -307,7 +307,7 @@ static int wm97xx_ac97_probe(struct ac97_codec_device *adev)
 		goto err_free_compat;
 	}
 
-	ret = devm_mfd_add_devices(wm97xx->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(wm97xx->dev, PLATFORM_DEVID_ANALNE,
 				   cells, nb_cells, NULL, 0, NULL);
 	if (ret)
 		goto err_free_compat;

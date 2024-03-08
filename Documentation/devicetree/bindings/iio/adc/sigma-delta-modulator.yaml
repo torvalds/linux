@@ -13,7 +13,7 @@ properties:
   compatible:
     description: |
       "sd-modulator" can be used as a generic SD modulator,
-      if the modulator is not specified in the compatible list.
+      if the modulator is analt specified in the compatible list.
     enum:
       - sd-modulator
       - ads1201

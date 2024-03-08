@@ -14,7 +14,7 @@
 #include "net_driver.h"
 #include <net/devlink.h>
 
-/* Custom devlink-info version object names for details that do not map to the
+/* Custom devlink-info version object names for details that do analt map to the
  * generic standardized names.
  */
 #define EFX_DEVLINK_INFO_VERSION_FW_MGMT_SUC	"fw.mgmt.suc"

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -193,7 +193,7 @@ static void ar9002_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 powerMeasQ, powerMeasI, iqCorrMeas;
-	u32 qCoffDenom, iCoffDenom;
+	u32 qCoffDeanalm, iCoffDeanalm;
 	int32_t qCoff, iCoff;
 	int iqCorrNeg, i;
 
@@ -223,13 +223,13 @@ static void ar9002_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			i, powerMeasQ);
 		ath_dbg(common, CALIBRATE, "iqCorrNeg is 0x%08x\n", iqCorrNeg);
 
-		iCoffDenom = (powerMeasI / 2 + powerMeasQ / 2) / 128;
-		qCoffDenom = powerMeasQ / 64;
+		iCoffDeanalm = (powerMeasI / 2 + powerMeasQ / 2) / 128;
+		qCoffDeanalm = powerMeasQ / 64;
 
-		if ((powerMeasQ != 0) && (iCoffDenom != 0) &&
-		    (qCoffDenom != 0)) {
-			iCoff = iqCorrMeas / iCoffDenom;
-			qCoff = powerMeasI / qCoffDenom - 64;
+		if ((powerMeasQ != 0) && (iCoffDeanalm != 0) &&
+		    (qCoffDeanalm != 0)) {
+			iCoff = iqCorrMeas / iCoffDeanalm;
+			qCoff = powerMeasI / qCoffDeanalm - 64;
 			ath_dbg(common, CALIBRATE, "Chn %d iCoff = 0x%08x\n",
 				i, iCoff);
 			ath_dbg(common, CALIBRATE, "Chn %d qCoff = 0x%08x\n",
@@ -384,7 +384,7 @@ static void ar9287_hw_olc_temp_compensation(struct ath_hw *ah)
 
 	if (ah->initPDADC == 0 || currPDADC == 0) {
 		/*
-		 * Zero value indicates that no frames have been transmitted
+		 * Zero value indicates that anal frames have been transmitted
 		 * yet, can't do temperature compensation until frames are
 		 * transmitted.
 		 */
@@ -480,7 +480,7 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G8, AR9285_AN_RF2G8_PADRVGN2TAB0, 7);
 	/*
 	 * 7838,b29-31,0, padrvgn1tab_0=0
-	 * does not matter since we turn it off
+	 * does analt matter since we turn it off
 	 */
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G7, AR9285_AN_RF2G7_PADRVGN2TAB0, 0);
 	/* 7828, b0-11, ccom=fff */
@@ -556,7 +556,7 @@ static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 
 	ath_dbg(common, CALIBRATE, "Running PA Calibration\n");
 
-	/* PA CAL is not needed for high power solution */
+	/* PA CAL is analt needed for high power solution */
 	if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) ==
 	    AR5416_EEP_TXGAIN_HIGH_POWER)
 		return;
@@ -675,7 +675,7 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL(ah)) & AR_PHY_AGC_CONTROL_NF);
 	if (ah->caldata) {
 		nfcal_pending = test_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
-		if (longcal)		/* Remember to not miss */
+		if (longcal)		/* Remember to analt miss */
 			set_bit(LONGCAL_PENDING, &ah->caldata->cal_flags);
 		else if (test_bit(LONGCAL_PENDING, &ah->caldata->cal_flags))
 			longcal = true;	/* Respin a previous one */
@@ -704,7 +704,7 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		}
 	}
 
-	/* Do not start a next calibration if the longcal is in action */
+	/* Do analt start a next calibration if the longcal is in action */
 	if (percal_pending && !nfcal && !longcal) {
 		ath9k_hw_reset_calibration(ah, currCal);
 
@@ -759,7 +759,7 @@ static bool ar9285_hw_cl_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL(ah),
 				  AR_PHY_AGC_CONTROL_CAL, 0, AH_WAIT_TIMEOUT)) {
 			ath_dbg(common, CALIBRATE,
-				"offset calibration failed to complete in %d ms; noisy environment?\n",
+				"offset calibration failed to complete in %d ms; analisy environment?\n",
 				AH_WAIT_TIMEOUT / 1000);
 			return false;
 		}
@@ -774,7 +774,7 @@ static bool ar9285_hw_cl_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_CAL,
 			  0, AH_WAIT_TIMEOUT)) {
 		ath_dbg(common, CALIBRATE,
-			"offset calibration failed to complete in %d ms; noisy environment?\n",
+			"offset calibration failed to complete in %d ms; analisy environment?\n",
 			AH_WAIT_TIMEOUT / 1000);
 		return false;
 	}
@@ -871,7 +871,7 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 				   AR_PHY_AGC_CONTROL_CAL,
 				   0, AH_WAIT_TIMEOUT)) {
 			ath_dbg(common, CALIBRATE,
-				"offset calibration failed to complete in %d ms; noisy environment?\n",
+				"offset calibration failed to complete in %d ms; analisy environment?\n",
 				AH_WAIT_TIMEOUT / 1000);
 			return false;
 		}

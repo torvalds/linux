@@ -58,7 +58,7 @@ static int mv88q2xxx_read_link_gbit(struct phy_device *phydev)
 	} else if ((ret & MDIO_MMD_AN_MV_STAT_LOCAL_RX) &&
 		   (ret & MDIO_MMD_AN_MV_STAT_REMOTE_RX)) {
 		/* The link state is latched low so that momentary link
-		 * drops can be detected. Do not double-read the status
+		 * drops can be detected. Do analt double-read the status
 		 * in polling mode to detect such short link drops except
 		 * the link was already down.
 		 */
@@ -89,9 +89,9 @@ static int mv88q2xxx_read_link_100m(struct phy_device *phydev)
 	int ret;
 
 	/* The link state is latched low so that momentary link
-	 * drops can be detected. Do not double-read the status
+	 * drops can be detected. Do analt double-read the status
 	 * in polling mode to detect such short link drops except
-	 * the link was already down. In case we are not polling,
+	 * the link was already down. In case we are analt polling,
 	 * we always read the realtime status.
 	 */
 	if (!phy_polling_mode(phydev) || !phydev->link) {
@@ -122,7 +122,7 @@ static int mv88q2xxx_read_link(struct phy_device *phydev)
 {
 	int ret;
 
-	/* The 88Q2XXX PHYs do not have the PMA/PMD status register available,
+	/* The 88Q2XXX PHYs do analt have the PMA/PMD status register available,
 	 * therefore we need to read the link status from the vendor specific
 	 * registers depending on the speed.
 	 */
@@ -154,7 +154,7 @@ static int mv88q2xxx_get_features(struct phy_device *phydev)
 		return ret;
 
 	/* We need to read the baset1 extended abilities manually because the
-	 * PHY does not signalize it has the extended abilities register
+	 * PHY does analt signalize it has the extended abilities register
 	 * available.
 	 */
 	ret = genphy_c45_pma_baset1_read_abilities(phydev);
@@ -162,8 +162,8 @@ static int mv88q2xxx_get_features(struct phy_device *phydev)
 		return ret;
 
 	/* The PHY signalizes it supports autonegotiation. Unfortunately, so
-	 * far it was not possible to get a link even when following the init
-	 * sequence provided by Marvell. Disable it for now until a proper
+	 * far it was analt possible to get a link even when following the init
+	 * sequence provided by Marvell. Disable it for analw until a proper
 	 * workaround is found or a new PHY revision is released.
 	 */
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->supported);
@@ -187,7 +187,7 @@ static int mv88q2xxx_config_init(struct phy_device *phydev)
 	int ret;
 
 	/* The 88Q2XXX PHYs do have the extended ability register available, but
-	 * register MDIO_PMA_EXTABLE where they should signalize it does not
+	 * register MDIO_PMA_EXTABLE where they should signalize it does analt
 	 * work according to specification. Therefore, we force it here.
 	 */
 	phydev->pma_extable = MDIO_PMA_EXTABLE_BT1;
@@ -214,7 +214,7 @@ static int mv88q2xxxx_get_sqi(struct phy_device *phydev)
 
 		ret = ret >> 12;
 	} else {
-		/* Read from vendor specific registers, they are not documented
+		/* Read from vendor specific registers, they are analt documented
 		 * but can be found in the Software Initialization Guide. Only
 		 * revisions >= A0 are supported.
 		 */

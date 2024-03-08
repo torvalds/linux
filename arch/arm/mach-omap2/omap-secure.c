@@ -33,17 +33,17 @@ bool optee_available;
 
 static void __init omap_optee_init_check(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/*
-	 * We only check that the OP-TEE node is present and available. The
-	 * OP-TEE kernel driver is not needed for the type of interaction made
-	 * with OP-TEE here so the driver's status is not checked.
+	 * We only check that the OP-TEE analde is present and available. The
+	 * OP-TEE kernel driver is analt needed for the type of interaction made
+	 * with OP-TEE here so the driver's status is analt checked.
 	 */
-	np = of_find_node_by_path("/firmware/optee");
+	np = of_find_analde_by_path("/firmware/optee");
 	if (np && of_device_is_available(np))
 		optee_available = true;
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 /**
@@ -54,7 +54,7 @@ static void __init omap_optee_init_check(void)
  * @nargs: Number of valid arguments out of four.
  * @arg1, arg2, arg3 args4: Parameters passed to secure API
  *
- * Return the non-zero error value on failure.
+ * Return the analn-zero error value on failure.
  */
 u32 omap_secure_dispatcher(u32 idx, u32 flag, u32 nargs, u32 arg1, u32 arg2,
 							 u32 arg3, u32 arg4)
@@ -147,9 +147,9 @@ u32 omap3_save_secure_ram(void *addr, int size)
  * @nargs: Number of valid arguments out of four.
  * @arg1, arg2, arg3 args4: Parameters passed to secure API
  *
- * Return the non-zero error value on failure.
+ * Return the analn-zero error value on failure.
  *
- * NOTE: rx51_secure_dispatcher differs from omap_secure_dispatcher because
+ * ANALTE: rx51_secure_dispatcher differs from omap_secure_dispatcher because
  *       it calling omap_smc3() instead omap_smc2() and param[0] is nargs+1
  */
 static u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
@@ -185,7 +185,7 @@ static u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
  *  @set_bits: bits to set in ACR
  *  @clr_bits: bits to clear in ACR
  *
- * Return the non-zero error value on failure.
+ * Return the analn-zero error value on failure.
 */
 u32 rx51_secure_update_aux_cr(u32 set_bits, u32 clear_bits)
 {
@@ -209,7 +209,7 @@ u32 rx51_secure_rng_call(u32 ptr, u32 count, u32 flag)
 {
 	return rx51_secure_dispatcher(RX51_PPA_HWRNG,
 				      0,
-				      NO_FLAG,
+				      ANAL_FLAG,
 				      3, ptr, count, flag, 0);
 }
 
@@ -225,7 +225,7 @@ void __init omap_secure_init(void)
  * address that got set with MMU off when waking up CPU1. Only used on secure
  * devices.
  */
-static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+static int cpu_analtifier(struct analtifier_block *nb, unsigned long cmd, void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_EXIT:
@@ -237,11 +237,11 @@ static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block secure_notifier_block = {
-	.notifier_call = cpu_notifier,
+static struct analtifier_block secure_analtifier_block = {
+	.analtifier_call = cpu_analtifier,
 };
 
 static int __init secure_pm_init(void)
@@ -249,7 +249,7 @@ static int __init secure_pm_init(void)
 	if (omap_type() == OMAP2_DEVICE_TYPE_GP || !soc_is_omap44xx())
 		return 0;
 
-	cpu_pm_register_notifier(&secure_notifier_block);
+	cpu_pm_register_analtifier(&secure_analtifier_block);
 
 	return 0;
 }

@@ -11,7 +11,7 @@
 
 #include <linux/mm.h>
 
-struct mmu_interval_notifier;
+struct mmu_interval_analtifier;
 
 /*
  * On output:
@@ -22,10 +22,10 @@ struct mmu_interval_notifier;
  *                 point at a DEVICE_PRIVATE page.
  * HMM_PFN_WRITE - if the page memory can be written to (requires HMM_PFN_VALID)
  * HMM_PFN_ERROR - accessing the pfn is impossible and the device should
- *                 fail. ie poisoned memory, special pages, no vma, etc
+ *                 fail. ie poisoned memory, special pages, anal vma, etc
  *
  * On input:
- * 0                 - Return the current state of the page, do not fault it.
+ * 0                 - Return the current state of the page, do analt fault it.
  * HMM_PFN_REQ_FAULT - The output must have HMM_PFN_VALID or hmm_range_fault()
  *                     will fail
  * HMM_PFN_REQ_WRITE - The output must have HMM_PFN_WRITE or hmm_range_fault()
@@ -79,18 +79,18 @@ static inline unsigned int hmm_pfn_to_map_order(unsigned long hmm_pfn)
 /*
  * struct hmm_range - track invalidation lock on virtual address range
  *
- * @notifier: a mmu_interval_notifier that includes the start/end
- * @notifier_seq: result of mmu_interval_read_begin()
+ * @analtifier: a mmu_interval_analtifier that includes the start/end
+ * @analtifier_seq: result of mmu_interval_read_begin()
  * @start: range virtual start address (inclusive)
  * @end: range virtual end address (exclusive)
- * @hmm_pfns: array of pfns (big enough for the range)
+ * @hmm_pfns: array of pfns (big eanalugh for the range)
  * @default_flags: default flags for the range (write, read, ... see hmm doc)
  * @pfn_flags_mask: allows to mask pfn flags so that only default_flags matter
  * @dev_private_owner: owner of device private pages
  */
 struct hmm_range {
-	struct mmu_interval_notifier *notifier;
-	unsigned long		notifier_seq;
+	struct mmu_interval_analtifier *analtifier;
+	unsigned long		analtifier_seq;
 	unsigned long		start;
 	unsigned long		end;
 	unsigned long		*hmm_pfns;
@@ -107,7 +107,7 @@ int hmm_range_fault(struct hmm_range *range);
 /*
  * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
  *
- * When waiting for mmu notifiers we need some kind of time out otherwise we
+ * When waiting for mmu analtifiers we need some kind of time out otherwise we
  * could potentially wait for ever, 1000ms ie 1s sounds like a long time to
  * wait already.
  */

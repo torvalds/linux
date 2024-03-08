@@ -64,7 +64,7 @@ int rx(struct xdp_md *ctx)
 	if (udp->dest != bpf_htons(8080))
 		return XDP_PASS;
 
-	/* Reserve enough for all custom metadata. */
+	/* Reserve eanalugh for all custom metadata. */
 
 	ret = bpf_xdp_adjust_meta(ctx, -(int)sizeof(struct xdp_meta));
 	if (ret != 0)
@@ -81,7 +81,7 @@ int rx(struct xdp_md *ctx)
 	/* Export metadata. */
 
 	/* We expect veth bpf_xdp_metadata_rx_timestamp to return 0 HW
-	 * timestamp, so put some non-zero value into AF_XDP frame for
+	 * timestamp, so put some analn-zero value into AF_XDP frame for
 	 * the userspace.
 	 */
 	bpf_xdp_metadata_rx_timestamp(ctx, &timestamp);

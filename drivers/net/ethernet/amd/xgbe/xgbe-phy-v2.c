@@ -19,34 +19,34 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -62,51 +62,51 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -141,10 +141,10 @@
 #define XGBE_GPIO_ADDRESS_PCA9555	0x20
 
 /* SFP sideband signal indicators */
-#define XGBE_GPIO_NO_TX_FAULT		BIT(0)
-#define XGBE_GPIO_NO_RATE_SELECT	BIT(1)
-#define XGBE_GPIO_NO_MOD_ABSENT		BIT(2)
-#define XGBE_GPIO_NO_RX_LOS		BIT(3)
+#define XGBE_GPIO_ANAL_TX_FAULT		BIT(0)
+#define XGBE_GPIO_ANAL_RATE_SELECT	BIT(1)
+#define XGBE_GPIO_ANAL_MOD_ABSENT		BIT(2)
+#define XGBE_GPIO_ANAL_RX_LOS		BIT(3)
 
 /* Rate-change complete wait/retry count */
 #define XGBE_RATECHANGE_COUNT		500
@@ -167,12 +167,12 @@ enum xgbe_port_mode {
 	XGBE_PORT_MODE_10GBASE_T,
 	XGBE_PORT_MODE_10GBASE_R,
 	XGBE_PORT_MODE_SFP,
-	XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG,
+	XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG,
 	XGBE_PORT_MODE_MAX,
 };
 
 enum xgbe_conn_type {
-	XGBE_CONN_TYPE_NONE = 0,
+	XGBE_CONN_TYPE_ANALNE = 0,
 	XGBE_CONN_TYPE_SFP,
 	XGBE_CONN_TYPE_MDIO,
 	XGBE_CONN_TYPE_RSVD1,
@@ -187,14 +187,14 @@ enum xgbe_sfp_comm {
 };
 
 enum xgbe_sfp_cable {
-	XGBE_SFP_CABLE_UNKNOWN = 0,
+	XGBE_SFP_CABLE_UNKANALWN = 0,
 	XGBE_SFP_CABLE_ACTIVE,
 	XGBE_SFP_CABLE_PASSIVE,
 	XGBE_SFP_CABLE_FIBER,
 };
 
 enum xgbe_sfp_base {
-	XGBE_SFP_BASE_UNKNOWN = 0,
+	XGBE_SFP_BASE_UNKANALWN = 0,
 	XGBE_SFP_BASE_1000_T,
 	XGBE_SFP_BASE_1000_SX,
 	XGBE_SFP_BASE_1000_LX,
@@ -207,7 +207,7 @@ enum xgbe_sfp_base {
 };
 
 enum xgbe_sfp_speed {
-	XGBE_SFP_SPEED_UNKNOWN = 0,
+	XGBE_SFP_SPEED_UNKANALWN = 0,
 	XGBE_SFP_SPEED_100_1000,
 	XGBE_SFP_SPEED_1000,
 	XGBE_SFP_SPEED_10000,
@@ -282,22 +282,22 @@ struct xgbe_sfp_eeprom {
 					 XGBE_SFP_EEPROM_DIAG_LEN)
 
 #define XGBE_BEL_FUSE_VENDOR	"BEL-FUSE        "
-#define XGBE_BEL_FUSE_PARTNO	"1GBT-SFP06      "
+#define XGBE_BEL_FUSE_PARTANAL	"1GBT-SFP06      "
 
 #define XGBE_MOLEX_VENDOR	"Molex Inc.      "
 
 struct xgbe_sfp_ascii {
 	union {
 		char vendor[XGBE_SFP_BASE_VENDOR_NAME_LEN + 1];
-		char partno[XGBE_SFP_BASE_VENDOR_PN_LEN + 1];
+		char partanal[XGBE_SFP_BASE_VENDOR_PN_LEN + 1];
 		char rev[XGBE_SFP_BASE_VENDOR_REV_LEN + 1];
-		char serno[XGBE_SFP_BASE_VENDOR_SN_LEN + 1];
+		char seranal[XGBE_SFP_BASE_VENDOR_SN_LEN + 1];
 	} u;
 };
 
 /* MDIO PHY reset types */
 enum xgbe_mdio_reset {
-	XGBE_MDIO_RESET_NONE = 0,
+	XGBE_MDIO_RESET_ANALNE = 0,
 	XGBE_MDIO_RESET_I2C_GPIO,
 	XGBE_MDIO_RESET_INT_GPIO,
 	XGBE_MDIO_RESET_MAX,
@@ -380,7 +380,7 @@ struct xgbe_phy_data {
 	unsigned int redrv_model;
 
 	/* KR AN support */
-	unsigned int phy_cdr_notrack;
+	unsigned int phy_cdr_analtrack;
 	unsigned int phy_cdr_delay;
 };
 
@@ -526,7 +526,7 @@ static int xgbe_phy_sfp_put_mux(struct xgbe_prv_data *pdata)
 	if (phy_data->sfp_comm == XGBE_SFP_COMM_DIRECT)
 		return 0;
 
-	/* Select no mux channels */
+	/* Select anal mux channels */
 	mux_channel = 0;
 	i2c_op.cmd = XGBE_I2C_CMD_WRITE;
 	i2c_op.target = phy_data->sfp_mux_address;
@@ -610,7 +610,7 @@ static int xgbe_phy_mdio_mii_write_c22(struct xgbe_prv_data *pdata, int addr,
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
 	if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL22)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return pdata->hw_if.write_ext_mii_regs_c22(pdata, addr, reg, val);
 }
@@ -621,7 +621,7 @@ static int xgbe_phy_mdio_mii_write_c45(struct xgbe_prv_data *pdata, int addr,
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
 	if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL45)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return pdata->hw_if.write_ext_mii_regs_c45(pdata, addr, devad,
 						   reg, val);
@@ -665,7 +665,7 @@ static int xgbe_phy_mii_write_c22(struct mii_bus *mii, int addr, int reg,
 	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
 		ret = xgbe_phy_mdio_mii_write_c22(pdata, addr, reg, val);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 	xgbe_phy_put_comm_ownership(pdata);
 
@@ -684,11 +684,11 @@ static int xgbe_phy_mii_write_c45(struct mii_bus *mii, int addr, int devad,
 		return ret;
 
 	if (phy_data->conn_type == XGBE_CONN_TYPE_SFP)
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
 		ret = xgbe_phy_mdio_mii_write_c45(pdata, addr, devad, reg, val);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 	xgbe_phy_put_comm_ownership(pdata);
 
@@ -701,7 +701,7 @@ static int xgbe_phy_mdio_mii_read_c22(struct xgbe_prv_data *pdata, int addr,
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
 	if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL22)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return pdata->hw_if.read_ext_mii_regs_c22(pdata, addr, reg);
 }
@@ -712,7 +712,7 @@ static int xgbe_phy_mdio_mii_read_c45(struct xgbe_prv_data *pdata, int addr,
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
 	if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL45)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return pdata->hw_if.read_ext_mii_regs_c45(pdata, addr, devad, reg);
 }
@@ -754,7 +754,7 @@ static int xgbe_phy_mii_read_c22(struct mii_bus *mii, int addr, int reg)
 	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
 		ret = xgbe_phy_mdio_mii_read_c22(pdata, addr, reg);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 	xgbe_phy_put_comm_ownership(pdata);
 
@@ -773,11 +773,11 @@ static int xgbe_phy_mii_read_c45(struct mii_bus *mii, int addr, int devad,
 		return ret;
 
 	if (phy_data->conn_type == XGBE_CONN_TYPE_SFP)
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
 		ret = xgbe_phy_mdio_mii_read_c45(pdata, addr, devad, reg);
 	else
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 
 	xgbe_phy_put_comm_ownership(pdata);
 
@@ -795,8 +795,8 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 	XGBE_ZERO_SUP(lks);
 
 	if (phy_data->sfp_mod_absent) {
-		pdata->phy.speed = SPEED_UNKNOWN;
-		pdata->phy.duplex = DUPLEX_UNKNOWN;
+		pdata->phy.speed = SPEED_UNKANALWN;
+		pdata->phy.duplex = DUPLEX_UNKANALWN;
 		pdata->phy.autoneg = AUTONEG_ENABLE;
 		pdata->phy.pause_autoneg = AUTONEG_ENABLE;
 
@@ -816,8 +816,8 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 	case XGBE_SFP_BASE_1000_SX:
 	case XGBE_SFP_BASE_1000_LX:
 	case XGBE_SFP_BASE_1000_CX:
-		pdata->phy.speed = SPEED_UNKNOWN;
-		pdata->phy.duplex = DUPLEX_UNKNOWN;
+		pdata->phy.speed = SPEED_UNKANALWN;
+		pdata->phy.duplex = DUPLEX_UNKANALWN;
 		pdata->phy.autoneg = AUTONEG_ENABLE;
 		pdata->phy.pause_autoneg = AUTONEG_ENABLE;
 		XGBE_SET_SUP(lks, Autoneg);
@@ -867,8 +867,8 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 		}
 		break;
 	default:
-		pdata->phy.speed = SPEED_UNKNOWN;
-		pdata->phy.duplex = DUPLEX_UNKNOWN;
+		pdata->phy.speed = SPEED_UNKANALWN;
+		pdata->phy.duplex = DUPLEX_UNKANALWN;
 		pdata->phy.autoneg = AUTONEG_DISABLE;
 		pdata->phy.pause_autoneg = AUTONEG_DISABLE;
 		break;
@@ -981,7 +981,7 @@ static bool xgbe_phy_belfuse_phy_quirks(struct xgbe_prv_data *pdata)
 	pdata->an_again = 1;
 
 	if (memcmp(&sfp_eeprom->base[XGBE_SFP_BASE_VENDOR_PN],
-		   XGBE_BEL_FUSE_PARTNO, XGBE_SFP_BASE_VENDOR_PN_LEN))
+		   XGBE_BEL_FUSE_PARTANAL, XGBE_SFP_BASE_VENDOR_PN_LEN))
 		return false;
 
 	if ((phy_id & 0xfffffff0) != 0x03625d10)
@@ -1067,7 +1067,7 @@ static int xgbe_phy_find_phy_device(struct xgbe_prv_data *pdata)
 	pdata->an_again = 0;
 
 	/* Check for the use of an external PHY */
-	if (phy_data->phydev_mode == XGBE_MDIO_MODE_NONE)
+	if (phy_data->phydev_mode == XGBE_MDIO_MODE_ANALNE)
 		return 0;
 
 	/* For SFP, only use an external PHY if available */
@@ -1080,7 +1080,7 @@ static int xgbe_phy_find_phy_device(struct xgbe_prv_data *pdata)
 					    phy_data->phydev_mode);
 	if (ret) {
 		netdev_err(pdata->netdev,
-			   "mdio port/clause not compatible (%u/%u)\n",
+			   "mdio port/clause analt compatible (%u/%u)\n",
 			   phy_data->mdio_addr, phy_data->phydev_mode);
 		return ret;
 	}
@@ -1090,7 +1090,7 @@ static int xgbe_phy_find_phy_device(struct xgbe_prv_data *pdata)
 				(phy_data->phydev_mode == XGBE_MDIO_MODE_CL45));
 	if (IS_ERR(phydev)) {
 		netdev_err(pdata->netdev, "get_phy_device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	netif_dbg(pdata, drv, pdata->netdev, "external PHY id is %#010x\n",
 		  phydev->phy_id);
@@ -1153,7 +1153,7 @@ static bool xgbe_phy_check_sfp_rx_los(struct xgbe_phy_data *phy_data)
 	if (!(sfp_extd[XGBE_SFP_EXTD_OPT1] & XGBE_SFP_EXTD_OPT1_RX_LOS))
 		return false;
 
-	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_RX_LOS)
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_ANAL_RX_LOS)
 		return false;
 
 	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_rx_los))
@@ -1169,7 +1169,7 @@ static bool xgbe_phy_check_sfp_tx_fault(struct xgbe_phy_data *phy_data)
 	if (!(sfp_extd[XGBE_SFP_EXTD_OPT1] & XGBE_SFP_EXTD_OPT1_TX_FAULT))
 		return false;
 
-	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_TX_FAULT)
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_ANAL_TX_FAULT)
 		return false;
 
 	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_tx_fault))
@@ -1180,7 +1180,7 @@ static bool xgbe_phy_check_sfp_tx_fault(struct xgbe_phy_data *phy_data)
 
 static bool xgbe_phy_check_sfp_mod_absent(struct xgbe_phy_data *phy_data)
 {
-	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_MOD_ABSENT)
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_ANAL_MOD_ABSENT)
 		return false;
 
 	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_mod_absent))
@@ -1399,9 +1399,9 @@ static void xgbe_phy_sfp_reset(struct xgbe_phy_data *phy_data)
 	phy_data->sfp_rx_los = 0;
 	phy_data->sfp_tx_fault = 0;
 	phy_data->sfp_mod_absent = 1;
-	phy_data->sfp_base = XGBE_SFP_BASE_UNKNOWN;
-	phy_data->sfp_cable = XGBE_SFP_CABLE_UNKNOWN;
-	phy_data->sfp_speed = XGBE_SFP_SPEED_UNKNOWN;
+	phy_data->sfp_base = XGBE_SFP_BASE_UNKANALWN;
+	phy_data->sfp_cable = XGBE_SFP_CABLE_UNKANALWN;
+	phy_data->sfp_speed = XGBE_SFP_SPEED_UNKANALWN;
 }
 
 static void xgbe_phy_sfp_detect(struct xgbe_prv_data *pdata)
@@ -1505,7 +1505,7 @@ static int xgbe_phy_module_eeprom(struct xgbe_prv_data *pdata,
 	sfp_eeprom = (struct xgbe_sfp_eeprom *)eeprom_data;
 
 	if (XGBE_SFP_DIAGS_SUPPORTED(sfp_eeprom)) {
-		/* Read the SFP diagnostic eeprom */
+		/* Read the SFP diaganalstic eeprom */
 		eeprom_addr = 0;
 		ret = xgbe_phy_i2c_read(pdata, XGBE_SFP_DIAG_INFO_ADDRESS,
 					&eeprom_addr, sizeof(eeprom_addr),
@@ -1614,9 +1614,9 @@ static enum xgbe_mode xgbe_phy_an37_sgmii_outcome(struct xgbe_prv_data *pdata)
 			XGBE_SET_LP_ADV(lks, 10baseT_Full);
 			mode = XGBE_MODE_SGMII_10;
 		} else {
-			/* Half-duplex not supported */
+			/* Half-duplex analt supported */
 			XGBE_SET_LP_ADV(lks, 10baseT_Half);
-			mode = XGBE_MODE_UNKNOWN;
+			mode = XGBE_MODE_UNKANALWN;
 		}
 		break;
 	case XGBE_SGMII_AN_LINK_SPEED_100:
@@ -1624,9 +1624,9 @@ static enum xgbe_mode xgbe_phy_an37_sgmii_outcome(struct xgbe_prv_data *pdata)
 			XGBE_SET_LP_ADV(lks, 100baseT_Full);
 			mode = XGBE_MODE_SGMII_100;
 		} else {
-			/* Half-duplex not supported */
+			/* Half-duplex analt supported */
 			XGBE_SET_LP_ADV(lks, 100baseT_Half);
-			mode = XGBE_MODE_UNKNOWN;
+			mode = XGBE_MODE_UNKANALWN;
 		}
 		break;
 	case XGBE_SGMII_AN_LINK_SPEED_1000:
@@ -1634,13 +1634,13 @@ static enum xgbe_mode xgbe_phy_an37_sgmii_outcome(struct xgbe_prv_data *pdata)
 			XGBE_SET_LP_ADV(lks, 1000baseT_Full);
 			mode = XGBE_MODE_SGMII_1000;
 		} else {
-			/* Half-duplex not supported */
+			/* Half-duplex analt supported */
 			XGBE_SET_LP_ADV(lks, 1000baseT_Half);
-			mode = XGBE_MODE_UNKNOWN;
+			mode = XGBE_MODE_UNKANALWN;
 		}
 		break;
 	default:
-		mode = XGBE_MODE_UNKNOWN;
+		mode = XGBE_MODE_UNKANALWN;
 	}
 
 	return mode;
@@ -1682,9 +1682,9 @@ static enum xgbe_mode xgbe_phy_an37_outcome(struct xgbe_prv_data *pdata)
 	if (lp_reg & 0x20)
 		XGBE_SET_LP_ADV(lks, 1000baseX_Full);
 
-	/* Half duplex is not supported */
+	/* Half duplex is analt supported */
 	ad_reg &= lp_reg;
-	mode = (ad_reg & 0x20) ? XGBE_MODE_X : XGBE_MODE_UNKNOWN;
+	mode = (ad_reg & 0x20) ? XGBE_MODE_X : XGBE_MODE_UNKANALWN;
 
 	return mode;
 }
@@ -1715,7 +1715,7 @@ static enum xgbe_mode xgbe_phy_an73_redrv_outcome(struct xgbe_prv_data *pdata)
 	if (ad_reg & 0x80) {
 		switch (phy_data->port_mode) {
 		case XGBE_PORT_MODE_BACKPLANE:
-		case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+		case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 			mode = XGBE_MODE_KR;
 			break;
 		default:
@@ -1725,7 +1725,7 @@ static enum xgbe_mode xgbe_phy_an73_redrv_outcome(struct xgbe_prv_data *pdata)
 	} else if (ad_reg & 0x20) {
 		switch (phy_data->port_mode) {
 		case XGBE_PORT_MODE_BACKPLANE:
-		case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+		case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 			mode = XGBE_MODE_KX_1000;
 			break;
 		case XGBE_PORT_MODE_1000BASE_X:
@@ -1763,7 +1763,7 @@ static enum xgbe_mode xgbe_phy_an73_redrv_outcome(struct xgbe_prv_data *pdata)
 			break;
 		}
 	} else {
-		mode = XGBE_MODE_UNKNOWN;
+		mode = XGBE_MODE_UNKANALWN;
 	}
 
 	/* Compare Advertisement and Link Partner register 3 */
@@ -1822,7 +1822,7 @@ static enum xgbe_mode xgbe_phy_an73_outcome(struct xgbe_prv_data *pdata)
 	else if (ad_reg & 0x20)
 		mode = XGBE_MODE_KX_1000;
 	else
-		mode = XGBE_MODE_UNKNOWN;
+		mode = XGBE_MODE_UNKANALWN;
 
 	/* Compare Advertisement and Link Partner register 3 */
 	ad_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 2);
@@ -1845,7 +1845,7 @@ static enum xgbe_mode xgbe_phy_an_outcome(struct xgbe_prv_data *pdata)
 	case XGBE_AN_MODE_CL37_SGMII:
 		return xgbe_phy_an37_sgmii_outcome(pdata);
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -1871,7 +1871,7 @@ static void xgbe_phy_an_advertising(struct xgbe_prv_data *pdata,
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 		XGBE_SET_ADV(dlks, 10000baseKR_Full);
 		break;
 	case XGBE_PORT_MODE_BACKPLANE_2500:
@@ -1952,7 +1952,7 @@ static enum xgbe_an_mode xgbe_phy_an_sfp_mode(struct xgbe_phy_data *phy_data)
 	case XGBE_SFP_BASE_1000_CX:
 		return XGBE_AN_MODE_CL37;
 	default:
-		return XGBE_AN_MODE_NONE;
+		return XGBE_AN_MODE_ANALNE;
 	}
 }
 
@@ -1967,9 +1967,9 @@ static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata)
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
 		return XGBE_AN_MODE_CL73;
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 	case XGBE_PORT_MODE_BACKPLANE_2500:
-		return XGBE_AN_MODE_NONE;
+		return XGBE_AN_MODE_ANALNE;
 	case XGBE_PORT_MODE_1000BASE_T:
 		return XGBE_AN_MODE_CL37_SGMII;
 	case XGBE_PORT_MODE_1000BASE_X:
@@ -1979,11 +1979,11 @@ static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata)
 	case XGBE_PORT_MODE_10GBASE_T:
 		return XGBE_AN_MODE_CL73;
 	case XGBE_PORT_MODE_10GBASE_R:
-		return XGBE_AN_MODE_NONE;
+		return XGBE_AN_MODE_ANALNE;
 	case XGBE_PORT_MODE_SFP:
 		return xgbe_phy_an_sfp_mode(phy_data);
 	default:
-		return XGBE_AN_MODE_NONE;
+		return XGBE_AN_MODE_ANALNE;
 	}
 }
 
@@ -2152,7 +2152,7 @@ static void xgbe_phy_rx_reset(struct xgbe_prv_data *pdata)
 
 static void xgbe_phy_pll_ctrl(struct xgbe_prv_data *pdata, bool enable)
 {
-	/* PLL_CTRL feature needs to be enabled for fixed PHY modes (Non-Autoneg) only */
+	/* PLL_CTRL feature needs to be enabled for fixed PHY modes (Analn-Autoneg) only */
 	if (pdata->phy.autoneg != AUTONEG_DISABLE)
 		return;
 
@@ -2174,10 +2174,10 @@ static void xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata,
 	/* Disable PLL re-initialization during FW command processing */
 	xgbe_phy_pll_ctrl(pdata, false);
 
-	/* Log if a previous command did not complete */
+	/* Log if a previous command did analt complete */
 	if (XP_IOREAD_BITS(pdata, XP_DRIVER_INT_RO, STATUS)) {
 		netif_dbg(pdata, link, pdata->netdev,
-			  "firmware mailbox not ready for command\n");
+			  "firmware mailbox analt ready for command\n");
 		xgbe_phy_rx_reset(pdata);
 	}
 
@@ -2200,7 +2200,7 @@ static void xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata,
 	}
 
 	netif_dbg(pdata, link, pdata->netdev,
-		  "firmware mailbox command did not complete\n");
+		  "firmware mailbox command did analt complete\n");
 
 	/* Reset on error */
 	xgbe_phy_rx_reset(pdata);
@@ -2220,7 +2220,7 @@ do_rx_adaptation:
 	}
 
 reenable_pll:
-	/* Enable PLL re-initialization, not needed for PHY Power Off and RRC cmds */
+	/* Enable PLL re-initialization, analt needed for PHY Power Off and RRC cmds */
 	if (cmd != XGBE_MB_CMD_POWER_OFF &&
 	    cmd != XGBE_MB_CMD_RRC)
 		xgbe_phy_pll_ctrl(pdata, true);
@@ -2229,7 +2229,7 @@ reenable_pll:
 static void xgbe_phy_rrc(struct xgbe_prv_data *pdata)
 {
 	/* Receiver Reset Cycle */
-	xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_RRC, XGBE_MB_SUBCMD_NONE);
+	xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_RRC, XGBE_MB_SUBCMD_ANALNE);
 
 	netif_dbg(pdata, link, pdata->netdev, "receiver reset complete\n");
 }
@@ -2239,9 +2239,9 @@ static void xgbe_phy_power_off(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
 	/* Power off */
-	xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_POWER_OFF, XGBE_MB_SUBCMD_NONE);
+	xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_POWER_OFF, XGBE_MB_SUBCMD_ANALNE);
 
-	phy_data->cur_mode = XGBE_MODE_UNKNOWN;
+	phy_data->cur_mode = XGBE_MODE_UNKANALWN;
 
 	netif_dbg(pdata, link, pdata->netdev, "phy powered off\n");
 }
@@ -2251,20 +2251,20 @@ static bool enable_rx_adap(struct xgbe_prv_data *pdata, enum xgbe_mode mode)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int ver;
 
-	/* Rx-Adaptation is not supported on older platforms(< 0x30H) */
+	/* Rx-Adaptation is analt supported on older platforms(< 0x30H) */
 	ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
 	if (ver < 0x30)
 		return false;
 
-	/* Re-driver models 4223 && 4227 do not support Rx-Adaptation */
+	/* Re-driver models 4223 && 4227 do analt support Rx-Adaptation */
 	if (phy_data->redrv &&
 	    (phy_data->redrv_model == XGBE_PHY_REDRV_MODEL_4223 ||
 	     phy_data->redrv_model == XGBE_PHY_REDRV_MODEL_4227))
 		return false;
 
-	/* 10G KR mode with AN does not support Rx-Adaptation */
+	/* 10G KR mode with AN does analt support Rx-Adaptation */
 	if (mode == XGBE_MODE_KR &&
-	    phy_data->port_mode != XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG)
+	    phy_data->port_mode != XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG)
 		return false;
 
 	pdata->en_rx_adap = 1;
@@ -2370,7 +2370,7 @@ static void xgbe_phy_kr_mode(struct xgbe_prv_data *pdata)
 					    XGBE_MB_SUBCMD_RX_ADAP);
 	else
 		xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_SET_10G_KR,
-					    XGBE_MB_SUBCMD_NONE);
+					    XGBE_MB_SUBCMD_ANALNE);
 
 	phy_data->cur_mode = XGBE_MODE_KR;
 
@@ -2384,7 +2384,7 @@ static void xgbe_phy_kx_2500_mode(struct xgbe_prv_data *pdata)
 	xgbe_phy_set_redrv_mode(pdata);
 
 	/* 2.5G/KX */
-	xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_SET_2_5G, XGBE_MB_SUBCMD_NONE);
+	xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_SET_2_5G, XGBE_MB_SUBCMD_ANALNE);
 
 	phy_data->cur_mode = XGBE_MODE_KX_2500;
 
@@ -2416,7 +2416,7 @@ static enum xgbe_mode xgbe_phy_switch_baset_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
-	/* No switching if not 10GBase-T */
+	/* Anal switching if analt 10GBase-T */
 	if (phy_data->port_mode != XGBE_PORT_MODE_10GBASE_T)
 		return xgbe_phy_cur_mode(pdata);
 
@@ -2456,7 +2456,7 @@ static enum xgbe_mode xgbe_phy_switch_mode(struct xgbe_prv_data *pdata)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 		return xgbe_phy_switch_bp_mode(pdata);
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return xgbe_phy_switch_bp_2500_mode(pdata);
@@ -2467,10 +2467,10 @@ static enum xgbe_mode xgbe_phy_switch_mode(struct xgbe_prv_data *pdata)
 	case XGBE_PORT_MODE_1000BASE_X:
 	case XGBE_PORT_MODE_10GBASE_R:
 	case XGBE_PORT_MODE_SFP:
-		/* No switching, so just return current mode */
+		/* Anal switching, so just return current mode */
 		return xgbe_phy_cur_mode(pdata);
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -2483,7 +2483,7 @@ static enum xgbe_mode xgbe_phy_get_basex_mode(struct xgbe_phy_data *phy_data,
 	case SPEED_10000:
 		return XGBE_MODE_KR;
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -2502,7 +2502,7 @@ static enum xgbe_mode xgbe_phy_get_baset_mode(struct xgbe_phy_data *phy_data,
 	case SPEED_10000:
 		return XGBE_MODE_KR;
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -2520,10 +2520,10 @@ static enum xgbe_mode xgbe_phy_get_sfp_mode(struct xgbe_phy_data *phy_data,
 		else
 			return XGBE_MODE_X;
 	case SPEED_10000:
-	case SPEED_UNKNOWN:
+	case SPEED_UNKANALWN:
 		return XGBE_MODE_SFI;
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -2533,7 +2533,7 @@ static enum xgbe_mode xgbe_phy_get_bp_2500_mode(int speed)
 	case SPEED_2500:
 		return XGBE_MODE_KX_2500;
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -2545,7 +2545,7 @@ static enum xgbe_mode xgbe_phy_get_bp_mode(int speed)
 	case SPEED_10000:
 		return XGBE_MODE_KR;
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -2556,7 +2556,7 @@ static enum xgbe_mode xgbe_phy_get_mode(struct xgbe_prv_data *pdata,
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 		return xgbe_phy_get_bp_mode(speed);
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return xgbe_phy_get_bp_2500_mode(speed);
@@ -2570,7 +2570,7 @@ static enum xgbe_mode xgbe_phy_get_mode(struct xgbe_prv_data *pdata,
 	case XGBE_PORT_MODE_SFP:
 		return xgbe_phy_get_sfp_mode(phy_data, speed);
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -2743,7 +2743,7 @@ static bool xgbe_phy_use_mode(struct xgbe_prv_data *pdata, enum xgbe_mode mode)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 		return xgbe_phy_use_bp_mode(pdata, mode);
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return xgbe_phy_use_bp_2500_mode(pdata, mode);
@@ -2849,7 +2849,7 @@ static bool xgbe_phy_valid_speed(struct xgbe_prv_data *pdata, int speed)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 		return xgbe_phy_valid_speed_bp_mode(speed);
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return xgbe_phy_valid_speed_bp_2500_mode(speed);
@@ -2917,8 +2917,8 @@ static int xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 		 */
 		if ((reg & MDIO_STAT1_LSTATUS) && pdata->rx_adapt_done)
 			return 1;
-		/* If either link is not available or adaptation is not done,
-		 * retrigger the adaptation logic. (if the mode is not set,
+		/* If either link is analt available or adaptation is analt done,
+		 * retrigger the adaptation logic. (if the mode is analt set,
 		 * then issue mailbox command first)
 		 */
 		if (pdata->mode_set) {
@@ -2943,7 +2943,7 @@ static int xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 		}
 	}
 
-	/* No link, attempt a receiver reset cycle */
+	/* Anal link, attempt a receiver reset cycle */
 	if (pdata->vdata->enable_rrc && phy_data->rrc_count++ > XGBE_RRC_FREQUENCY) {
 		phy_data->rrc_count = 0;
 		xgbe_phy_rrc(pdata);
@@ -3130,7 +3130,7 @@ static int xgbe_phy_mdio_reset_setup(struct xgbe_prv_data *pdata)
 
 	phy_data->mdio_reset = XP_GET_BITS(pdata->pp3, XP_PROP_3, MDIO_RESET);
 	switch (phy_data->mdio_reset) {
-	case XGBE_MDIO_RESET_NONE:
+	case XGBE_MDIO_RESET_ANALNE:
 	case XGBE_MDIO_RESET_I2C_GPIO:
 	case XGBE_MDIO_RESET_INT_GPIO:
 		break;
@@ -3166,7 +3166,7 @@ static bool xgbe_phy_port_mode_mismatch(struct xgbe_prv_data *pdata)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 		if ((phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000) ||
 		    (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000))
 			return false;
@@ -3224,7 +3224,7 @@ static bool xgbe_phy_conn_type_mismatch(struct xgbe_prv_data *pdata)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		if (phy_data->conn_type == XGBE_CONN_TYPE_BACKPLANE)
 			return false;
@@ -3265,7 +3265,7 @@ static void xgbe_phy_cdr_track(struct xgbe_prv_data *pdata)
 	if (!pdata->debugfs_an_cdr_workaround)
 		return;
 
-	if (!phy_data->phy_cdr_notrack)
+	if (!phy_data->phy_cdr_analtrack)
 		return;
 
 	usleep_range(phy_data->phy_cdr_delay,
@@ -3275,17 +3275,17 @@ static void xgbe_phy_cdr_track(struct xgbe_prv_data *pdata)
 			 XGBE_PMA_CDR_TRACK_EN_MASK,
 			 XGBE_PMA_CDR_TRACK_EN_ON);
 
-	phy_data->phy_cdr_notrack = 0;
+	phy_data->phy_cdr_analtrack = 0;
 }
 
-static void xgbe_phy_cdr_notrack(struct xgbe_prv_data *pdata)
+static void xgbe_phy_cdr_analtrack(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
 	if (!pdata->debugfs_an_cdr_workaround)
 		return;
 
-	if (phy_data->phy_cdr_notrack)
+	if (phy_data->phy_cdr_analtrack)
 		return;
 
 	XMDIO_WRITE_BITS(pdata, MDIO_MMD_PMAPMD, MDIO_VEND2_PMA_CDR_CONTROL,
@@ -3294,7 +3294,7 @@ static void xgbe_phy_cdr_notrack(struct xgbe_prv_data *pdata)
 
 	xgbe_phy_rrc(pdata);
 
-	phy_data->phy_cdr_notrack = 1;
+	phy_data->phy_cdr_analtrack = 1;
 }
 
 static void xgbe_phy_kr_training_post(struct xgbe_prv_data *pdata)
@@ -3348,7 +3348,7 @@ static void xgbe_phy_an_pre(struct xgbe_prv_data *pdata)
 		if (phy_data->cur_mode != XGBE_MODE_KR)
 			break;
 
-		xgbe_phy_cdr_notrack(pdata);
+		xgbe_phy_cdr_analtrack(pdata);
 		break;
 	default:
 		break;
@@ -3392,7 +3392,7 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 						    XGBE_MDIO_MODE_CL22);
 		if (ret) {
 			netdev_err(pdata->netdev,
-				   "redriver mdio port not compatible (%u)\n",
+				   "redriver mdio port analt compatible (%u)\n",
 				   phy_data->redrv_addr);
 			return ret;
 		}
@@ -3465,8 +3465,8 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 
 	/* Check if enabled */
 	if (!xgbe_phy_port_enabled(pdata)) {
-		dev_info(pdata->dev, "device is not enabled\n");
-		return -ENODEV;
+		dev_info(pdata->dev, "device is analt enabled\n");
+		return -EANALDEV;
 	}
 
 	/* Initialize the I2C controller */
@@ -3476,7 +3476,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 
 	phy_data = devm_kzalloc(pdata->dev, sizeof(*phy_data), GFP_KERNEL);
 	if (!phy_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	pdata->phy_data = phy_data;
 
 	phy_data->port_mode = XP_GET_BITS(pdata->pp0, XP_PROP_0, PORT_MODE);
@@ -3531,8 +3531,8 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	}
 	pdata->kr_redrv = phy_data->redrv;
 
-	/* Indicate current mode is unknown */
-	phy_data->cur_mode = XGBE_MODE_UNKNOWN;
+	/* Indicate current mode is unkanalwn */
+	phy_data->cur_mode = XGBE_MODE_UNKANALWN;
 
 	/* Initialize supported features */
 	XGBE_ZERO_SUP(lks);
@@ -3542,7 +3542,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	case XGBE_PORT_MODE_BACKPLANE:
 		XGBE_SET_SUP(lks, Autoneg);
 		fallthrough;
-	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
+	case XGBE_PORT_MODE_BACKPLANE_ANAL_AUTONEG:
 		XGBE_SET_SUP(lks, Pause);
 		XGBE_SET_SUP(lks, Asym_Pause);
 		XGBE_SET_SUP(lks, Backplane);
@@ -3557,7 +3557,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 			phy_data->start_mode = XGBE_MODE_KR;
 		}
 
-		phy_data->phydev_mode = XGBE_MDIO_MODE_NONE;
+		phy_data->phydev_mode = XGBE_MDIO_MODE_ANALNE;
 		break;
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		XGBE_SET_SUP(lks, Pause);
@@ -3566,7 +3566,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		XGBE_SET_SUP(lks, 2500baseX_Full);
 		phy_data->start_mode = XGBE_MODE_KX_2500;
 
-		phy_data->phydev_mode = XGBE_MDIO_MODE_NONE;
+		phy_data->phydev_mode = XGBE_MDIO_MODE_ANALNE;
 		break;
 
 	/* MDIO 1GBase-T support */
@@ -3673,7 +3673,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 			XGBE_SET_SUP(lks, 10000baseR_FEC);
 		phy_data->start_mode = XGBE_MODE_SFI;
 
-		phy_data->phydev_mode = XGBE_MDIO_MODE_NONE;
+		phy_data->phydev_mode = XGBE_MDIO_MODE_ANALNE;
 		break;
 
 	/* SFP support */
@@ -3706,12 +3706,12 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 			lks->link_modes.supported);
 
 	if ((phy_data->conn_type & XGBE_CONN_TYPE_MDIO) &&
-	    (phy_data->phydev_mode != XGBE_MDIO_MODE_NONE)) {
+	    (phy_data->phydev_mode != XGBE_MDIO_MODE_ANALNE)) {
 		ret = pdata->hw_if.set_ext_mii_mode(pdata, phy_data->mdio_addr,
 						    phy_data->phydev_mode);
 		if (ret) {
 			dev_err(pdata->dev,
-				"mdio port/clause not compatible (%d/%u)\n",
+				"mdio port/clause analt compatible (%d/%u)\n",
 				phy_data->mdio_addr, phy_data->phydev_mode);
 			return -EINVAL;
 		}
@@ -3722,7 +3722,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 						    XGBE_MDIO_MODE_CL22);
 		if (ret) {
 			dev_err(pdata->dev,
-				"redriver mdio port not compatible (%u)\n",
+				"redriver mdio port analt compatible (%u)\n",
 				phy_data->redrv_addr);
 			return -EINVAL;
 		}
@@ -3734,7 +3734,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	mii = devm_mdiobus_alloc(pdata->dev);
 	if (!mii) {
 		dev_err(pdata->dev, "mdiobus_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mii->priv = pdata;

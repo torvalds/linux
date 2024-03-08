@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 2021 Aspeed Technology Inc.
+ * Copyright (c) 2021 Aspeed Techanallogy Inc.
  */
 
 #include "aspeed-hace.h"
@@ -41,14 +41,14 @@ static irqreturn_t aspeed_hace_irq(int irq, void *dev)
 		if (hash_engine->flags & CRYPTO_FLAGS_BUSY)
 			tasklet_schedule(&hash_engine->done_task);
 		else
-			dev_warn(hace_dev->dev, "HASH no active requests.\n");
+			dev_warn(hace_dev->dev, "HASH anal active requests.\n");
 	}
 
 	if (sts & HACE_CRYPTO_ISR) {
 		if (crypto_engine->flags & CRYPTO_FLAGS_BUSY)
 			tasklet_schedule(&crypto_engine->done_task);
 		else
-			dev_warn(hace_dev->dev, "CRYPTO no active requests.\n");
+			dev_warn(hace_dev->dev, "CRYPTO anal active requests.\n");
 	}
 
 	return IRQ_HANDLED;
@@ -106,7 +106,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	hace_dev = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_hace_dev),
 				GFP_KERNEL);
 	if (!hace_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hace_dev->version = (uintptr_t)device_get_match_data(&pdev->dev);
 	if (!hace_dev->version) {
@@ -140,7 +140,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	hace_dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(hace_dev->clk)) {
 		dev_err(&pdev->dev, "Failed to get clk\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = clk_prepare_enable(hace_dev->clk);
@@ -153,7 +153,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	hace_dev->crypt_engine_hash = crypto_engine_alloc_init(hace_dev->dev,
 							       true);
 	if (!hace_dev->crypt_engine_hash) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto clk_exit;
 	}
 
@@ -168,7 +168,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	hace_dev->crypt_engine_crypto = crypto_engine_alloc_init(hace_dev->dev,
 								 true);
 	if (!hace_dev->crypt_engine_crypto) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_engine_hash_start;
 	}
 
@@ -187,7 +187,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 				    GFP_KERNEL);
 	if (!hash_engine->ahash_src_addr) {
 		dev_err(&pdev->dev, "Failed to allocate dma buffer\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_engine_crypto_start;
 	}
 
@@ -199,7 +199,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 				    GFP_KERNEL);
 	if (!crypto_engine->cipher_ctx) {
 		dev_err(&pdev->dev, "Failed to allocate cipher ctx dma\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_engine_crypto_start;
 	}
 
@@ -211,7 +211,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 				    GFP_KERNEL);
 	if (!crypto_engine->cipher_addr) {
 		dev_err(&pdev->dev, "Failed to allocate cipher addr dma\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_engine_crypto_start;
 	}
 
@@ -224,7 +224,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 					    GFP_KERNEL);
 		if (!crypto_engine->dst_sg_addr) {
 			dev_err(&pdev->dev, "Failed to allocate dst_sg dma\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_engine_crypto_start;
 		}
 	}

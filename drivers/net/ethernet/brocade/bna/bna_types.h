@@ -50,7 +50,7 @@ enum bna_cb_status {
 	BNA_CB_MCAST_LIST_FULL	= 5,
 	BNA_CB_UCAST_CAM_FULL	= 6,
 	BNA_CB_WAITING		= 7,
-	BNA_CB_NOT_EXEC		= 8
+	BNA_CB_ANALT_EXEC		= 8
 };
 
 enum bna_res_type {
@@ -241,7 +241,7 @@ enum bna_dim_load_types {
 
 enum bna_dim_bias_types {
 	BNA_BIAS_T_SMALL		= 0, /* small pkts > (large pkts * 2) */
-	BNA_BIAS_T_LARGE		= 1, /* Not BNA_BIAS_T_SMALL */
+	BNA_BIAS_T_LARGE		= 1, /* Analt BNA_BIAS_T_SMALL */
 	BNA_BIAS_T_MAX			= 2
 };
 
@@ -268,7 +268,7 @@ struct bna_mem_info {
 	enum bna_mem_type mem_type;
 	u32		len;
 	u32		num;
-	u32		align_sz; /* 0/1 = no alignment */
+	u32		align_sz; /* 0/1 = anal alignment */
 	struct bna_mem_descr *mdl;
 	void			*cookie; /* For bnad to unmap dma later */
 };

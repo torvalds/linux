@@ -15,7 +15,7 @@
 
 #include "kasan.h"
 
-static noinline void __init copy_user_test(void)
+static analinline void __init copy_user_test(void)
 {
 	char *kmem;
 	char __user *usermem;
@@ -28,7 +28,7 @@ static noinline void __init copy_user_test(void)
 
 	usermem = (char __user *)vm_mmap(NULL, 0, PAGE_SIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			    MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (IS_ERR(usermem)) {
 		pr_err("Failed to allocate user memory\n");
 		kfree(kmem);

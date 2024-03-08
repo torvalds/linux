@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,7 +55,7 @@ static void radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_r
  * @ring: radeon_ring structure holding ring information
  *
  * Check if a specific ring supports writing to scratch registers (all asics).
- * Returns true if the ring supports writing to scratch regs, false if not.
+ * Returns true if the ring supports writing to scratch regs, false if analt.
  */
 bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
 				      struct radeon_ring *ring)
@@ -110,7 +110,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 
 	/* make sure we aren't trying to allocate more space than there is on the ring */
 	if (ndw > (ring->ring_size / 4))
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
 	radeon_ring_free_size(rdev, ring);
@@ -159,7 +159,7 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
  *
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
- * @hdp_flush: Whether or not to perform an HDP cache flush
+ * @hdp_flush: Whether or analt to perform an HDP cache flush
  *
  * Update the wptr (write pointer) to tell the GPU to
  * execute new commands on the ring buffer (all asics).
@@ -174,7 +174,7 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring,
 		rdev->asic->ring[ring->idx]->hdp_flush(rdev, ring);
 	/* We pad to match fetch size */
 	while (ring->wptr & ring->align_mask) {
-		radeon_ring_write(ring, ring->nop);
+		radeon_ring_write(ring, ring->analp);
 	}
 	mb();
 	/* If we are emitting the HDP flush via MMIO, we need to do it after
@@ -191,7 +191,7 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring,
  *
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
- * @hdp_flush: Whether or not to perform an HDP cache flush
+ * @hdp_flush: Whether or analt to perform an HDP cache flush
  *
  * Call radeon_ring_commit() then unlock the ring (all asics).
  */
@@ -256,7 +256,7 @@ bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	uint64_t elapsed;
 
 	if (rptr != atomic_read(&ring->last_rptr)) {
-		/* ring is still working, no lockup */
+		/* ring is still working, anal lockup */
 		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
@@ -306,7 +306,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	else if (rdev->wb.enabled)
 		ptr = le32_to_cpu(*ring->next_rptr_cpu_addr);
 	else {
-		/* no way to read back the next rptr */
+		/* anal way to read back the next rptr */
 		mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
@@ -373,19 +373,19 @@ int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
  * @ring: radeon_ring structure holding ring information
  * @ring_size: size of the ring
  * @rptr_offs: offset of the rptr writeback location in the WB buffer
- * @nop: nop packet for this ring
+ * @analp: analp packet for this ring
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
  */
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
-		     unsigned rptr_offs, u32 nop)
+		     unsigned rptr_offs, u32 analp)
 {
 	int r;
 
 	ring->ring_size = ring_size;
 	ring->rptr_offs = rptr_offs;
-	ring->nop = nop;
+	ring->analp = analp;
 	ring->rdev = rdev;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {

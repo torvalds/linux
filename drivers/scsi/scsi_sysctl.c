@@ -3,7 +3,7 @@
  * Copyright (C) 2003 Christoph Hellwig.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sysctl.h>
@@ -26,7 +26,7 @@ int __init scsi_init_sysctl(void)
 {
 	scsi_table_header = register_sysctl("dev/scsi", scsi_table);
 	if (!scsi_table_header)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

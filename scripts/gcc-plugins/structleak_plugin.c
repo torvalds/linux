@@ -2,8 +2,8 @@
 /*
  * Copyright 2013-2017 by PaX Team <pageexec@freemail.hu>
  *
- * Note: the choice of the license means that the compilation process is
- *       NOT 'eligible' as defined by gcc's library exception to the GPL v3,
+ * Analte: the choice of the license means that the compilation process is
+ *       ANALT 'eligible' as defined by gcc's library exception to the GPL v3,
  *       but for the kernel it doesn't matter since it doesn't link against
  *       any of the gcc libraries
  *
@@ -38,7 +38,7 @@ __visible int plugin_is_GPL_compatible;
 
 static struct plugin_info structleak_plugin_info = {
 	.version	= PLUGIN_VERSION,
-	.help		= "disable\tdo not activate plugin\n"
+	.help		= "disable\tdo analt activate plugin\n"
 			  "byref\tinit structs passed by reference\n"
 			  "byref-all\tinit anything passed by reference\n"
 			  "verbose\tprint all initialized variables\n",
@@ -50,15 +50,15 @@ static struct plugin_info structleak_plugin_info = {
 static bool verbose;
 static int byref;
 
-static tree handle_user_attribute(tree *node, tree name, tree args, int flags, bool *no_add_attrs)
+static tree handle_user_attribute(tree *analde, tree name, tree args, int flags, bool *anal_add_attrs)
 {
-	*no_add_attrs = true;
+	*anal_add_attrs = true;
 
-	/* check for types? for now accept everything linux has to offer */
-	if (TREE_CODE(*node) != FIELD_DECL)
+	/* check for types? for analw accept everything linux has to offer */
+	if (TREE_CODE(*analde) != FIELD_DECL)
 		return NULL_TREE;
 
-	*no_add_attrs = false;
+	*anal_add_attrs = false;
 	return NULL_TREE;
 }
 
@@ -100,7 +100,7 @@ static void finish_type(void *event_data, void *data)
 {
 	tree type = (tree)event_data;
 
-	if (type == NULL_TREE || type == error_mark_node)
+	if (type == NULL_TREE || type == error_mark_analde)
 		return;
 
 	if (TREE_CODE(type) == ENUMERAL_TYPE)
@@ -133,7 +133,7 @@ static void initialize(tree var)
 		if (!gimple_assign_single_p(stmt))
 			continue;
 		rhs1 = gimple_assign_rhs1(stmt);
-		/* ... of a non-clobbering expression... */
+		/* ... of a analn-clobbering expression... */
 		if (TREE_CLOBBER_P(rhs1))
 			continue;
 		/* ... to our variable... */
@@ -156,7 +156,7 @@ static void initialize(tree var)
 	if (AGGREGATE_TYPE_P(type))
 		initializer = build_constructor(type, NULL);
 	else
-		initializer = fold_convert(type, integer_zero_node);
+		initializer = fold_convert(type, integer_zero_analde);
 
 	/* build the initializer stmt */
 	init_stmt = gimple_build_assign(var, initializer);
@@ -201,7 +201,7 @@ static unsigned int structleak_execute(void)
 }
 
 #define PASS_NAME structleak
-#define NO_GATE
+#define ANAL_GATE
 #define PROPERTIES_REQUIRED PROP_cfg
 #define TODO_FLAGS_FINISH TODO_verify_il | TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | TODO_remove_unused_locals | TODO_update_ssa | TODO_ggc_collect | TODO_verify_flow
 #include "gcc-generate-gimple-pass.h"
@@ -222,7 +222,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	}
 
 	if (strncmp(lang_hooks.name, "GNU C", 5) && !strncmp(lang_hooks.name, "GNU C+", 6)) {
-		inform(UNKNOWN_LOCATION, G_("%s supports C only, not %s"), plugin_name, lang_hooks.name);
+		inform(UNKANALWN_LOCATION, G_("%s supports C only, analt %s"), plugin_name, lang_hooks.name);
 		enable = false;
 	}
 
@@ -243,7 +243,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 			byref = BYREF_ALL;
 			continue;
 		}
-		error(G_("unknown option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
+		error(G_("unkanalwn option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
 	}
 
 	register_callback(plugin_name, PLUGIN_INFO, NULL, &structleak_plugin_info);

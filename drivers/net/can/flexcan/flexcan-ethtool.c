@@ -85,7 +85,7 @@ static int flexcan_set_priv_flags(struct net_device *ndev, u32 priv_flags)
 	if (!(priv_flags & FLEXCAN_PRIV_FLAGS_RX_RTR) &&
 	    !flexcan_active_rx_rtr(priv))
 		netdev_info(ndev,
-			    "Activating RX mailbox mode, cannot receive RTR frames.\n");
+			    "Activating RX mailbox mode, cananalt receive RTR frames.\n");
 
 	return 0;
 }
@@ -96,7 +96,7 @@ static int flexcan_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(flexcan_priv_flags_strings);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

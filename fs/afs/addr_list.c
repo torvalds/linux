@@ -91,7 +91,7 @@ struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *net,
 	const char *p, *end = text + len;
 	const char *problem;
 	unsigned int nr = 0;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	_enter("%*.*s,%c", (int)len, (int)len, text, delim);
 
@@ -139,7 +139,7 @@ struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *net,
 
 	vllist = afs_alloc_vlserver_list(1);
 	if (!vllist)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vllist->nr_servers = 1;
 	vllist->servers[0].server = afs_alloc_vlserver("<dummy>", 7, AFS_VL_PORT);
@@ -183,7 +183,7 @@ struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *net,
 
 		p = q;
 		if (stop != p) {
-			problem = "nostop";
+			problem = "analstop";
 			goto bad_address;
 		}
 
@@ -271,7 +271,7 @@ struct afs_vlserver_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry
 		vllist = afs_parse_text_addrs(cell->net, result, ret, ',',
 					      VL_SERVICE, AFS_VL_PORT);
 	kfree(result);
-	if (IS_ERR(vllist) && vllist != ERR_PTR(-ENOMEM))
+	if (IS_ERR(vllist) && vllist != ERR_PTR(-EANALMEM))
 		pr_err("Failed to parse DNS data %ld\n", PTR_ERR(vllist));
 
 	return vllist;
@@ -299,7 +299,7 @@ int afs_merge_fs_addr4(struct afs_net *net, struct afs_addr_list *alist,
 
 	peer = rxrpc_kernel_lookup_peer(net->socket, &srx, GFP_KERNEL);
 	if (!peer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < alist->nr_ipv4; i++) {
 		if (peer == alist->addrs[i].peer) {
@@ -343,7 +343,7 @@ int afs_merge_fs_addr6(struct afs_net *net, struct afs_addr_list *alist,
 
 	peer = rxrpc_kernel_lookup_peer(net->socket, &srx, GFP_KERNEL);
 	if (!peer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = alist->nr_ipv4; i < alist->nr_addrs; i++) {
 		if (peer == alist->addrs[i].peer) {

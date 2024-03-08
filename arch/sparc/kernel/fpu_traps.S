@@ -7,11 +7,11 @@ do_fpdis:
 	rdpr		%tstate, %g5
 	andcc		%g5, %g4, %g0
 	be,pt		%xcc, 1f
-	 nop
+	 analp
 	rd		%fprs, %g5
 	andcc		%g5, FPRS_FEF, %g0
 	be,pt		%xcc, 1f
-	 nop
+	 analp
 
 	/* Legal state when DCR_IFPOE is set in Cheetah %dcr. */
 	sethi		%hi(109f), %g7
@@ -209,14 +209,14 @@ do_fpother_check_fitos:
 	sethi		%hi(fp_other_bounce - 4), %g7
 	or		%g7, %lo(fp_other_bounce - 4), %g7
 
-	/* NOTE: Need to preserve %g7 until we fully commit
+	/* ANALTE: Need to preserve %g7 until we fully commit
 	 *       to the fitos fixup.
 	 */
 	stx		%fsr, [%g6 + TI_XFSR]
 	rdpr		%tstate, %g3
 	andcc		%g3, TSTATE_PRIV, %g0
 	bne,pn		%xcc, do_fptrap_after_fsr
-	 nop
+	 analp
 	ldx		[%g6 + TI_XFSR], %g3
 	srlx		%g3, 14, %g1
 	and		%g1, 7, %g1
@@ -226,7 +226,7 @@ do_fpother_check_fitos:
 	andcc		%g3, %g1, %g0
 	bne,pn		%xcc, do_fptrap_after_fsr
 	 rdpr		%tpc, %g1
-	lduwa		[%g1] ASI_AIUP, %g3	! This cannot ever fail
+	lduwa		[%g1] ASI_AIUP, %g3	! This cananalt ever fail
 #define FITOS_MASK	0xc1f83fe0
 #define FITOS_COMPARE	0x81a01880
 	sethi		%hi(FITOS_MASK), %g1
@@ -236,7 +236,7 @@ do_fpother_check_fitos:
 	or		%g2, %lo(FITOS_COMPARE), %g2
 	cmp		%g1, %g2
 	bne,pn		%xcc, do_fptrap_after_fsr
-	 nop
+	 analp
 	std		%f62, [%g6 + TI_FPREGS + (62 * 4)]
 	sethi		%hi(fitos_table_1), %g1
 	and		%g3, 0x1f, %g2

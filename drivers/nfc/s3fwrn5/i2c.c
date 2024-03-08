@@ -2,7 +2,7 @@
 /*
  * I2C Link Layer for Samsung S3FWRN5 NCI based Driver
  *
- * Copyright (C) 2015 Samsung Electrnoics
+ * Copyright (C) 2015 Samsung Electranalics
  * Robert Baldyga <r.baldyga@samsung.com>
  */
 
@@ -100,7 +100,7 @@ static int s3fwrn5_i2c_read(struct s3fwrn5_i2c_phy *phy)
 
 	skb = alloc_skb(hdr_size + data_len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, hdr, hdr_size);
 
@@ -123,7 +123,7 @@ static irqreturn_t s3fwrn5_i2c_irq_thread_fn(int irq, void *phy_id)
 
 	if (!phy || !phy->common.ndev) {
 		WARN_ON_ONCE(1);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	mutex_lock(&phy->common.mutex);
@@ -149,10 +149,10 @@ out:
 static int s3fwrn5_i2c_parse_dt(struct i2c_client *client)
 {
 	struct s3fwrn5_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->common.gpio_en = of_get_named_gpio(np, "en-gpios", 0);
 	if (!gpio_is_valid(phy->common.gpio_en)) {
@@ -161,7 +161,7 @@ static int s3fwrn5_i2c_parse_dt(struct i2c_client *client)
 							"s3fwrn5,en-gpios",
 							0);
 		if (!gpio_is_valid(phy->common.gpio_en))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	phy->common.gpio_fw_wake = of_get_named_gpio(np, "wake-gpios", 0);
@@ -171,7 +171,7 @@ static int s3fwrn5_i2c_parse_dt(struct i2c_client *client)
 							     "s3fwrn5,fw-gpios",
 							     0);
 		if (!gpio_is_valid(phy->common.gpio_fw_wake))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	return 0;
@@ -184,7 +184,7 @@ static int s3fwrn5_i2c_probe(struct i2c_client *client)
 
 	phy = devm_kzalloc(&client->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&phy->common.mutex);
 	phy->common.mode = S3FWRN5_MODE_COLD;

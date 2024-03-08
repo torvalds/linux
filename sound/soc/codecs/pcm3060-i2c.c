@@ -16,7 +16,7 @@ static int pcm3060_i2c_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, priv);
 

@@ -15,7 +15,7 @@
 
 #define IDT77105_MCR		0x0	/* Master Control Register */
 #define IDT77105_ISTAT	        0x1	/* Interrupt Status */
-#define IDT77105_DIAG   	0x2	/* Diagnostic Control */
+#define IDT77105_DIAG   	0x2	/* Diaganalstic Control */
 #define IDT77105_LEDHEC		0x3	/* LED Driver & HEC Status/Control */
 #define IDT77105_CTRLO		0x4	/* Low Byte Counter Register */
 #define IDT77105_CTRHI		0x5	/* High Byte Counter Register */
@@ -53,7 +53,7 @@
 #define IDT77105_DIAG_UMODE	0x02	/* R/W, Utopia (cell/byte) Mode */
 #define IDT77105_DIAG_LCMASK	0x03	/* R/W, Loopback Control */
 
-#define IDT77105_DIAG_LC_NORMAL         0x00	/* Receive from network */
+#define IDT77105_DIAG_LC_ANALRMAL         0x00	/* Receive from network */
 #define IDT77105_DIAG_LC_PHY_LOOPBACK	0x02
 #define IDT77105_DIAG_LC_LINE_LOOPBACK	0x03
 

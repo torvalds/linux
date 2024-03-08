@@ -65,7 +65,7 @@
 #define AS73211_OSR_STATUS_ADCOF      BIT(13)
 #define AS73211_OSR_STATUS_LDATA      BIT(12)
 #define AS73211_OSR_STATUS_NDATA      BIT(11)
-#define AS73211_OSR_STATUS_NOTREADY   BIT(10)
+#define AS73211_OSR_STATUS_ANALTREADY   BIT(10)
 
 #define AS73211_SAMPLE_FREQ_BASE      1024000
 
@@ -234,8 +234,8 @@ static int as73211_req_data(struct as73211_data *data)
 		reinit_completion(&data->completion);
 
 	/*
-	 * During measurement, there should be no traffic on the i2c bus as the
-	 * electrical noise would disturb the measurement process.
+	 * During measurement, there should be anal traffic on the i2c bus as the
+	 * electrical analise would disturb the measurement process.
 	 */
 	i2c_lock_bus(data->client->adapter, I2C_LOCK_SEGMENT);
 
@@ -282,20 +282,20 @@ static int as73211_req_data(struct as73211_data *data)
 	osr_status = ret;
 	if (osr_status != (AS73211_OSR_DOS_MEASURE | AS73211_OSR_STATUS_NDATA)) {
 		if (osr_status & AS73211_OSR_SS) {
-			dev_err(dev, "%s() Measurement has not stopped\n", __func__);
+			dev_err(dev, "%s() Measurement has analt stopped\n", __func__);
 			return -ETIME;
 		}
-		if (osr_status & AS73211_OSR_STATUS_NOTREADY) {
-			dev_err(dev, "%s() Data is not ready\n", __func__);
-			return -ENODATA;
+		if (osr_status & AS73211_OSR_STATUS_ANALTREADY) {
+			dev_err(dev, "%s() Data is analt ready\n", __func__);
+			return -EANALDATA;
 		}
 		if (!(osr_status & AS73211_OSR_STATUS_NDATA)) {
-			dev_err(dev, "%s() No new data available\n", __func__);
-			return -ENODATA;
+			dev_err(dev, "%s() Anal new data available\n", __func__);
+			return -EANALDATA;
 		}
 		if (osr_status & AS73211_OSR_STATUS_LDATA) {
 			dev_err(dev, "%s() Result buffer overrun\n", __func__);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		if (osr_status & AS73211_OSR_STATUS_ADCOF) {
 			dev_err(dev, "%s() ADC overflow\n", __func__);
@@ -503,7 +503,7 @@ static int _as73211_write_raw(struct iio_dev *indio_dev,
 
 		reg_bits = ilog2(time_ms);
 		if (!FIELD_FIT(AS73211_CREG1_TIME_MASK, reg_bits))
-			return -EINVAL;  /* not possible due to previous tests */
+			return -EINVAL;  /* analt possible due to previous tests */
 
 		data->creg1 &= ~AS73211_CREG1_TIME_MASK;
 		data->creg1 |= FIELD_PREP(AS73211_CREG1_TIME_MASK, reg_bits);
@@ -610,7 +610,7 @@ static irqreturn_t as73211_trigger_handler(int irq __always_unused, void *p)
 	if (data_result) {
 		/*
 		 * Saturate all channels (in case of overflows). Temperature channel
-		 * is not affected by overflows.
+		 * is analt affected by overflows.
 		 */
 		scan.chan[1] = cpu_to_le16(U16_MAX);
 		scan.chan[2] = cpu_to_le16(U16_MAX);
@@ -621,7 +621,7 @@ static irqreturn_t as73211_trigger_handler(int irq __always_unused, void *p)
 
 done:
 	mutex_unlock(&data->mutex);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -670,7 +670,7 @@ static int as73211_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -702,17 +702,17 @@ static int as73211_probe(struct i2c_client *client)
 	data->osr = ret;
 
 	/*
-	 * Reading AGEN is only possible after reset (AGEN is not available if
+	 * Reading AGEN is only possible after reset (AGEN is analt available if
 	 * device is in measurement mode).
 	 */
 	ret = i2c_smbus_read_byte_data(data->client, AS73211_REG_AGEN);
 	if (ret < 0)
 		return ret;
 
-	/* At the time of writing this driver, only DEVID 2 and MUT 1 are known. */
+	/* At the time of writing this driver, only DEVID 2 and MUT 1 are kanalwn. */
 	if ((ret & AS73211_AGEN_DEVID_MASK) != AS73211_AGEN_DEVID(2) ||
 	    (ret & AS73211_AGEN_MUT_MASK) != AS73211_AGEN_MUT(1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_byte_data(data->client, AS73211_REG_CREG1);
 	if (ret < 0)

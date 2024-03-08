@@ -18,10 +18,10 @@ Optional Properties :
 			   oversampling to be switched off.
 - ad,adv7343-power-mode-dac: array configuring the power on/off DAC's 1..6,
 			      0 = OFF and 1 = ON, Default value when this
-			      property is not specified is <0 0 0 0 0 0>.
+			      property is analt specified is <0 0 0 0 0 0>.
 - ad,adv7343-sd-config-dac-out: array configure SD DAC Output's 1 and 2, 0 = OFF
 				 and 1 = ON, Default value when this property is
-				 not specified is <0 0>.
+				 analt specified is <0 0>.
 
 Example:
 

@@ -2,15 +2,15 @@
 #include <linux/kernel.h>
 #include <linux/crash_dump.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 
 /*
  * stores the physical address of elf header of crash image
  *
- * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
+ * Analte: elfcorehdr_addr is analt just limited to vmcore. It is also used by
  * is_kdump_kernel() to determine if we are booting after a panic. Hence put
- * it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
+ * it under CONFIG_CRASH_DUMP and analt CONFIG_PROC_VMCORE.
  */
 unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
 EXPORT_SYMBOL_GPL(elfcorehdr_addr);

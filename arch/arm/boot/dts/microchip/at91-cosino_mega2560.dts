@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * at91-cosino_mega2560.dts - Device Tree file for Cosino board with
+ * at91-cosianal_mega2560.dts - Device Tree file for Cosianal board with
  *			      Mega 2560 extension
  *
  * Copyright (C) 2013 - Rodolfo Giometti <giometti@linux.it>
@@ -12,11 +12,11 @@
  */
 
 /dts-v1/;
-#include "at91-cosino.dtsi"
+#include "at91-cosianal.dtsi"
 
 / {
-	model = "HCE Cosino Mega 2560";
-	compatible = "hce,cosino_mega2560", "atmel,at91sam9x5", "atmel,at91sam9";
+	model = "HCE Cosianal Mega 2560";
+	compatible = "hce,cosianal_mega2560", "atmel,at91sam9x5", "atmel,at91sam9";
 };
 
 &adc0 {
@@ -40,7 +40,7 @@
 	slot@0 {
 		reg = <0>;
 		bus-width = <4>;
-		non-removable;
+		analn-removable;
 	};
 };
 

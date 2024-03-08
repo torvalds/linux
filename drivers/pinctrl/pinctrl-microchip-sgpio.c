@@ -4,7 +4,7 @@
  *
  * Author: Lars Povlsen <lars.povlsen@microchip.com>
  *
- * Copyright (c) 2020 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2020 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <linux/bitfield.h>
@@ -144,15 +144,15 @@ static inline int sgpio_addr_to_pin(struct sgpio_priv *priv, int port, int bit)
 	return bit + port * priv->bitcount;
 }
 
-static inline u32 sgpio_get_addr(struct sgpio_priv *priv, u32 rno, u32 off)
+static inline u32 sgpio_get_addr(struct sgpio_priv *priv, u32 ranal, u32 off)
 {
-	return (priv->properties->regoff[rno] + off) *
+	return (priv->properties->regoff[ranal] + off) *
 		regmap_get_reg_stride(priv->regs);
 }
 
-static u32 sgpio_readl(struct sgpio_priv *priv, u32 rno, u32 off)
+static u32 sgpio_readl(struct sgpio_priv *priv, u32 ranal, u32 off)
 {
-	u32 addr = sgpio_get_addr(priv, rno, off);
+	u32 addr = sgpio_get_addr(priv, ranal, off);
 	u32 val = 0;
 	int ret;
 
@@ -163,9 +163,9 @@ static u32 sgpio_readl(struct sgpio_priv *priv, u32 rno, u32 off)
 }
 
 static void sgpio_writel(struct sgpio_priv *priv,
-				u32 val, u32 rno, u32 off)
+				u32 val, u32 ranal, u32 off)
 {
-	u32 addr = sgpio_get_addr(priv, rno, off);
+	u32 addr = sgpio_get_addr(priv, ranal, off);
 	int ret;
 
 	ret = regmap_write(priv->regs, addr, val);
@@ -173,9 +173,9 @@ static void sgpio_writel(struct sgpio_priv *priv,
 }
 
 static inline void sgpio_clrsetbits(struct sgpio_priv *priv,
-				    u32 rno, u32 off, u32 clear, u32 set)
+				    u32 ranal, u32 off, u32 clear, u32 set)
 {
-	u32 addr = sgpio_get_addr(priv, rno, off);
+	u32 addr = sgpio_get_addr(priv, ranal, off);
 	int ret;
 
 	ret = regmap_update_bits(priv->regs, addr, clear | set, set);
@@ -242,7 +242,7 @@ static int sgpio_single_shot(struct sgpio_priv *priv)
 
 	switch (priv->properties->arch) {
 	case SGPIO_ARCH_LUTON:
-		/* not supported for now */
+		/* analt supported for analw */
 		return 0;
 	case SGPIO_ARCH_OCELOT:
 		single_shot = SGPIO_OCELOT_SINGLE_SHOT;
@@ -378,7 +378,7 @@ static int sgpio_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, val);
@@ -409,7 +409,7 @@ static int sgpio_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		default:
-			err = -ENOTSUPP;
+			err = -EANALTSUPP;
 		}
 	}
 
@@ -471,7 +471,7 @@ static int sgpio_gpio_request_enable(struct pinctrl_dev *pctldev,
 	sgpio_pin_to_addr(priv, offset, &addr);
 
 	if ((priv->ports & BIT(addr.port)) == 0) {
-		dev_warn(priv->dev, "Request port %d.%d: Port is not enabled\n",
+		dev_warn(priv->dev, "Request port %d.%d: Port is analt enabled\n",
 			 addr.port, addr.bit);
 		return -EINVAL;
 	}
@@ -520,7 +520,7 @@ static const struct pinctrl_ops sgpio_pctl_ops = {
 	.get_groups_count = sgpio_pctl_get_groups_count,
 	.get_group_name = sgpio_pctl_get_group_name,
 	.get_group_pins = sgpio_pctl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -581,7 +581,7 @@ static int microchip_sgpio_of_xlate(struct gpio_chip *gc,
 	int pin;
 
 	/*
-	 * Note that the SGIO pin is defined by *2* numbers, a port
+	 * Analte that the SGIO pin is defined by *2* numbers, a port
 	 * number between 0 and 31, and a bit index, 0 to 3.
 	 */
 	if (gpiospec->args[0] > SGPIO_BITS_PER_WORD ||
@@ -784,8 +784,8 @@ static void sgpio_irq_handler(struct irq_desc *desc)
 
 static int microchip_sgpio_register_bank(struct device *dev,
 					 struct sgpio_priv *priv,
-					 struct fwnode_handle *fwnode,
-					 int bankno)
+					 struct fwanalde_handle *fwanalde,
+					 int bankanal)
 {
 	struct pinctrl_pin_desc *pins;
 	struct pinctrl_desc *pctl_desc;
@@ -796,12 +796,12 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	int i, ret;
 
 	/* Get overall bank struct */
-	bank = (bankno == 0) ? &priv->in : &priv->out;
+	bank = (bankanal == 0) ? &priv->in : &priv->out;
 	bank->priv = priv;
 
-	if (fwnode_property_read_u32(fwnode, "ngpios", &ngpios)) {
+	if (fwanalde_property_read_u32(fwanalde, "ngpios", &ngpios)) {
 		dev_info(dev, "failed to get number of gpios for bank%d\n",
-			 bankno);
+			 bankanal);
 		ngpios = 64;
 	}
 
@@ -817,7 +817,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 					 dev_name(dev),
 					 bank->is_input ? "in" : "out");
 	if (!pctl_desc->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl_desc->pctlops = &sgpio_pctl_ops;
 	pctl_desc->pmxops = &sgpio_pmx_ops;
@@ -826,7 +826,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 
 	pins = devm_kzalloc(dev, sizeof(*pins)*ngpios, GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl_desc->npins = ngpios;
 	pctl_desc->pins = pins;
@@ -842,7 +842,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 					      bank->is_input ? 'I' : 'O',
 					      addr.port, addr.bit);
 		if (!pins[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pctldev = devm_pinctrl_register(dev, pctl_desc, bank);
@@ -852,7 +852,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	gc			= &bank->gpio;
 	gc->label		= pctl_desc->name;
 	gc->parent		= dev;
-	gc->fwnode		= fwnode;
+	gc->fwanalde		= fwanalde;
 	gc->owner		= THIS_MODULE;
 	gc->get_direction	= microchip_sgpio_get_direction;
 	gc->direction_input	= microchip_sgpio_direction_input;
@@ -870,7 +870,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	if (bank->is_input && priv->properties->flags & SGPIO_FLAGS_HAS_IRQ) {
 		int irq;
 
-		irq = fwnode_irq_get(fwnode, 0);
+		irq = fwanalde_irq_get(fwanalde, 0);
 		if (irq > 0) {
 			struct gpio_irq_chip *girq = &gc->irq;
 
@@ -881,9 +881,9 @@ static int microchip_sgpio_register_bank(struct device *dev,
 						     sizeof(*girq->parents),
 						     GFP_KERNEL);
 			if (!girq->parents)
-				return -ENOMEM;
+				return -EANALMEM;
 			girq->parents[0] = irq;
-			girq->default_type = IRQ_TYPE_NONE;
+			girq->default_type = IRQ_TYPE_ANALNE;
 			girq->handler = handle_bad_irq;
 
 			/* Disable all individual pins */
@@ -905,7 +905,7 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 {
 	int div_clock = 0, ret, port, i, nbanks;
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct reset_control *reset;
 	struct sgpio_priv *priv;
 	struct clk *clk;
@@ -918,7 +918,7 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	spin_lock_init(&priv->lock);
@@ -953,17 +953,17 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	nbanks = device_get_child_node_count(dev);
+	nbanks = device_get_child_analde_count(dev);
 	if (nbanks != 2) {
 		dev_err(dev, "Must have 2 banks (have %d)\n", nbanks);
 		return -EINVAL;
 	}
 
 	i = 0;
-	device_for_each_child_node(dev, fwnode) {
-		ret = microchip_sgpio_register_bank(dev, priv, fwnode, i++);
+	device_for_each_child_analde(dev, fwanalde) {
+		ret = microchip_sgpio_register_bank(dev, priv, fwanalde, i++);
 		if (ret) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return ret;
 		}
 	}

@@ -28,11 +28,11 @@ static void __tlb_switch_to_guest(struct kvm_s2_mmu *mmu,
 	 *
 	 * - complete any speculative page table walk started before
 	 *   we trapped to EL2 so that we can mess with the MM
-	 *   registers out of context, for which dsb(nsh) is enough
+	 *   registers out of context, for which dsb(nsh) is eanalugh
 	 *
 	 * The composition of these two barriers is a dsb(DOMAIN), and
 	 * the 'nsh' parameter tracks the distinction between
-	 * Inner-Shareable and Non-Shareable, as specified by the
+	 * Inner-Shareable and Analn-Shareable, as specified by the
 	 * callers.
 	 */
 	if (nsh)
@@ -59,11 +59,11 @@ static void __tlb_switch_to_guest(struct kvm_s2_mmu *mmu,
 	/*
 	 * __load_stage2() includes an ISB only when the AT
 	 * workaround is applied. Take care of the opposite condition,
-	 * ensuring that we always have an ISB, but not two ISBs back
+	 * ensuring that we always have an ISB, but analt two ISBs back
 	 * to back.
 	 */
 	__load_stage2(mmu, kern_hyp_va(mmu->arch));
-	asm(ALTERNATIVE("isb", "nop", ARM64_WORKAROUND_SPECULATIVE_AT));
+	asm(ALTERNATIVE("isb", "analp", ARM64_WORKAROUND_SPECULATIVE_AT));
 }
 
 static void __tlb_switch_to_host(struct tlb_inv_context *cxt)
@@ -96,7 +96,7 @@ void __kvm_tlb_flush_vmid_ipa(struct kvm_s2_mmu *mmu,
 
 	/*
 	 * We have to ensure completion of the invalidation at Stage-2,
-	 * since a table walk on another CPU could refill a TLB with a
+	 * since a table walk on aanalther CPU could refill a TLB with a
 	 * complete (S1 + S2) walk based on the old Stage-2 mapping if
 	 * the Stage-1 invalidation happened first.
 	 */
@@ -126,7 +126,7 @@ void __kvm_tlb_flush_vmid_ipa_nsh(struct kvm_s2_mmu *mmu,
 
 	/*
 	 * We have to ensure completion of the invalidation at Stage-2,
-	 * since a table walk on another CPU could refill a TLB with a
+	 * since a table walk on aanalther CPU could refill a TLB with a
 	 * complete (S1 + S2) walk based on the old Stage-2 mapping if
 	 * the Stage-1 invalidation happened first.
 	 */
@@ -145,7 +145,7 @@ void __kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
 	unsigned long stride;
 
 	/*
-	 * Since the range of addresses may not be mapped at
+	 * Since the range of addresses may analt be mapped at
 	 * the same level, assume the worst case as PAGE_SIZE
 	 */
 	stride = PAGE_SIZE;

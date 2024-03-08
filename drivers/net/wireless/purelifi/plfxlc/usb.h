@@ -50,7 +50,7 @@
 #define plfxlc_urb_dev(urb) (&(urb)->dev->dev)
 
 #define STATION_FIFO_ALMOST_FULL_MESSAGE     0
-#define STATION_FIFO_ALMOST_FULL_NOT_MESSAGE 1
+#define STATION_FIFO_ALMOST_FULL_ANALT_MESSAGE 1
 #define STATION_CONNECT_MESSAGE              2
 #define STATION_DISCONNECT_MESSAGE           3
 
@@ -121,7 +121,7 @@ struct plfxlc_usb_tx {
 };
 
 /* Contains the usb parts. The structure doesn't require a lock because intf
- * will not be changed after initialization.
+ * will analt be changed after initialization.
  */
 struct plfxlc_usb {
 	struct timer_list sta_queue_cleanup;

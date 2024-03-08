@@ -2,7 +2,7 @@
 /*
  * amd76xrom.c
  *
- * Normal mappings of chips in physical memory
+ * Analrmal mappings of chips in physical memory
  */
 
 #include <linux/module.h>
@@ -51,7 +51,7 @@ struct amd76xrom_map_info {
  *
  * This is intended to prevent flashing the bios, perhaps accidentally.
  *
- * This parameter allows the normal driver to over-ride the BIOS settings.
+ * This parameter allows the analrmal driver to over-ride the BIOS settings.
  *
  * The bits are 6 and 7.  If both bits are set, it is a 5MiB window.
  * If only the 7 Bit is set, it is a 4MiB window.  Otherwise, a
@@ -60,7 +60,7 @@ struct amd76xrom_map_info {
  */
 static uint win_size_bits;
 module_param(win_size_bits, uint, 0);
-MODULE_PARM_DESC(win_size_bits, "ROM window size bits override for 0x43 byte, normally set by BIOS.");
+MODULE_PARM_DESC(win_size_bits, "ROM window size bits override for 0x43 byte, analrmally set by BIOS.");
 
 static struct amd76xrom_window amd76xrom_window = {
 	.maps = LIST_HEAD_INIT(amd76xrom_window.maps),
@@ -174,7 +174,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 	map_top = window->phys;
 #if 1
 	/* The probe sequence run over the firmware hub lock
-	 * registers sets them to 0x7 (no access).
+	 * registers sets them to 0x7 (anal access).
 	 * Probe at most the last 4M of the address space.
 	 */
 	if (map_top < 0xffc00000) {
@@ -204,12 +204,12 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 		sprintf(map->map_name, "%s @%08Lx",
 			MOD_NAME, (unsigned long long)map->map.phys);
 
-		/* There is no generic VPP support */
+		/* There is anal generic VPP support */
 		for(map->map.bankwidth = 32; map->map.bankwidth;
 			map->map.bankwidth >>= 1)
 		{
 			char **probe_type;
-			/* Skip bankwidths that are not supported */
+			/* Skip bankwidths that are analt supported */
 			if (!map_bankwidth_supported(map->map.bankwidth))
 				continue;
 
@@ -236,7 +236,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 		}
 		if (window->rsrc.parent) {
 			/*
-			 * Registering the MTD device in iomem may not be possible
+			 * Registering the MTD device in iomem may analt be possible
 			 * if there is a BIOS "reserved" and BUSY range.  If this
 			 * fails then continue anyway.
 			 */
@@ -246,7 +246,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 			map->rsrc.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 			if (request_resource(&window->rsrc, &map->rsrc)) {
 				printk(KERN_ERR MOD_NAME
-					": cannot reserve MTD resource\n");
+					": cananalt reserve MTD resource\n");
 				map->rsrc.parent = NULL;
 			}
 		}
@@ -259,7 +259,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 			cfi->chips[i].start += offset;
 		}
 
-		/* Now that the mtd devices is complete claim and export it */
+		/* Analw that the mtd devices is complete claim and export it */
 		map->mtd->owner = THIS_MODULE;
 		if (mtd_device_register(map->mtd, NULL, 0)) {
 			map_destroy(map->mtd);
@@ -282,7 +282,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 	/* See if I have any map structures */
 	if (list_empty(&window->maps)) {
 		amd76xrom_cleanup(window);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

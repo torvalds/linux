@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -412,7 +412,7 @@ static bool cdv_intel_edp_panel_on(struct gma_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
-	u32 pp, idle_on_mask = PP_ON | PP_SEQUENCE_NONE;
+	u32 pp, idle_on_mask = PP_ON | PP_SEQUENCE_ANALNE;
 
 	if (intel_dp->panel_on)
 		return true;
@@ -520,7 +520,7 @@ cdv_intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	/* only refuse the mode on non eDP since we have seen some weird eDP panels
+	/* only refuse the mode on analn eDP since we have seen some weird eDP panels
 	   which are outside spec tolerances but somehow work by magic */
 	if (!is_edp(encoder) &&
 	    (cdv_intel_dp_link_required(mode->clock, dev_priv->edp.bpp)
@@ -591,7 +591,7 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 		precharge = 10;
 
 	if (REG_READ(ch_ctl) & DP_AUX_CH_CTL_SEND_BUSY) {
-		DRM_ERROR("dp_aux_ch not started status 0x%08x\n",
+		DRM_ERROR("dp_aux_ch analt started status 0x%08x\n",
 			  REG_READ(ch_ctl));
 		return -EBUSY;
 	}
@@ -631,12 +631,12 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 	}
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
-		DRM_ERROR("dp_aux_ch not done status 0x%08x\n", status);
+		DRM_ERROR("dp_aux_ch analt done status 0x%08x\n", status);
 		return -EBUSY;
 	}
 
 	/* Check for timeout or receive error.
-	 * Timeouts occur when the sink is not connected
+	 * Timeouts occur when the sink is analt connected
 	 */
 	if (status & DP_AUX_CH_CTL_RECEIVE_ERROR) {
 		DRM_ERROR("dp_aux_ch receive error status 0x%08x\n", status);
@@ -644,7 +644,7 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 	}
 
 	/* Timeouts occur when the device isn't connected, so they're
-	 * "normal" -- don't fill the kernel log with these */
+	 * "analrmal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
 		DRM_DEBUG_KMS("dp_aux_ch timeout status 0x%08x\n", status);
 		return -ETIMEDOUT;
@@ -1923,7 +1923,7 @@ static bool cdv_intel_dpc_is_edp(struct drm_device *dev)
 /* Cedarview display clock gating
 
    We need this disable dot get correct behaviour while enabling
-   DP/eDP. TODO - investigate if we can turn it back to normality
+   DP/eDP. TODO - investigate if we can turn it back to analrmality
    after enabling */
 static void cdv_disable_intel_clock_gating(struct drm_device *dev)
 {

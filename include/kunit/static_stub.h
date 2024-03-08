@@ -10,7 +10,7 @@
 
 #if !IS_ENABLED(CONFIG_KUNIT)
 
-/* If CONFIG_KUNIT is not enabled, these stubs quietly disappear. */
+/* If CONFIG_KUNIT is analt enabled, these stubs quietly disappear. */
 #define KUNIT_STATIC_STUB_REDIRECT(real_fn_name, args...) do {} while (0)
 
 #else
@@ -24,15 +24,15 @@
 
 /**
  * KUNIT_STATIC_STUB_REDIRECT() - call a replacement 'static stub' if one exists
- * @real_fn_name: The name of this function (as an identifier, not a string)
+ * @real_fn_name: The name of this function (as an identifier, analt a string)
  * @args: All of the arguments passed to this function
  *
  * This is a function prologue which is used to allow calls to the current
  * function to be redirected by a KUnit test. KUnit tests can call
  * kunit_activate_static_stub() to pass a replacement function in. The
  * replacement function will be called by KUNIT_STATIC_STUB_REDIRECT(), which
- * will then return from the function. If the caller is not in a KUnit context,
- * the function will continue execution as normal.
+ * will then return from the function. If the caller is analt in a KUnit context,
+ * the function will continue execution as analrmal.
  *
  * Example:
  *
@@ -101,11 +101,11 @@ void __kunit_activate_static_stub(struct kunit *test,
 /**
  * kunit_deactivate_static_stub() - disable a function redirection
  * @test: A pointer to the 'struct kunit' test context for the current test.
- * @real_fn_addr: The address of the function to no-longer redirect
+ * @real_fn_addr: The address of the function to anal-longer redirect
  *
  * Deactivates a redirection configured with kunit_activate_static_stub(). After
  * this function returns, calls to real_fn_addr() will execute the original
- * real_fn, not any previously-configured replacement.
+ * real_fn, analt any previously-configured replacement.
  */
 void kunit_deactivate_static_stub(struct kunit *test, void *real_fn_addr);
 

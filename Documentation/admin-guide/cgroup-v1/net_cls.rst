@@ -15,7 +15,7 @@ This net_cls.classid value is initialized to 0.
 
 You can write hexadecimal values to net_cls.classid; the format for these
 values is 0xAAAABBBB; AAAA is the major handle number and BBBB
-is the minor handle number.
+is the mianalr handle number.
 Reading net_cls.classid yields a decimal result.
 
 Example::

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Ltd */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd */
 
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/device.h>
@@ -16,7 +16,7 @@ struct mlx5_sf_dev_table {
 	struct xarray devices;
 	phys_addr_t base_address;
 	u64 sf_bar_length;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct workqueue_struct *active_wq;
 	struct work_struct work;
 	u8 stop_active_wq:1;
@@ -102,7 +102,7 @@ static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u16 fn_id, 
 	sf_dev = kzalloc(sizeof(*sf_dev), GFP_KERNEL);
 	if (!sf_dev) {
 		mlx5_adev_idx_free(id);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto add_err;
 	}
 	pdev = dev->pdev;
@@ -153,7 +153,7 @@ static void mlx5_sf_dev_del(struct mlx5_core_dev *dev, struct mlx5_sf_dev *sf_de
 }
 
 static int
-mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_code, void *data)
+mlx5_sf_dev_state_change_handler(struct analtifier_block *nb, unsigned long event_code, void *data)
 {
 	struct mlx5_sf_dev_table *table = container_of(nb, struct mlx5_sf_dev_table, nb);
 	const struct mlx5_vhca_state_event *event = data;
@@ -207,7 +207,7 @@ static int mlx5_sf_dev_vhca_arm_all(struct mlx5_sf_dev_table *table)
 
 	max_functions = mlx5_sf_max_functions(dev);
 	function_id = mlx5_sf_start_function_id(dev);
-	/* Arm the vhca context as the vhca event notifier */
+	/* Arm the vhca context as the vhca event analtifier */
 	for (i = 0; i < max_functions; i++) {
 		err = mlx5_vhca_event_arm(dev, function_id);
 		if (err)
@@ -233,7 +233,7 @@ static void mlx5_sf_dev_add_active_work(struct work_struct *_work)
 	 * above. e.g.: the query returns that the state of the
 	 * SF is active, and after that the eswitch manager set it to
 	 * inactive.
-	 * This case cannot be managed in SW, since the probing of the
+	 * This case cananalt be managed in SW, since the probing of the
 	 * SF is on one system, and the inactivation is on a different
 	 * system.
 	 * If the inactive is done after the SF perform init_hca(),
@@ -300,7 +300,7 @@ static int mlx5_sf_dev_create_active_works(struct mlx5_sf_dev_table *table)
 	 */
 	table->active_wq = create_singlethread_workqueue("mlx5_active_sf");
 	if (!table->active_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_WORK(&table->work, &mlx5_sf_dev_queue_active_works);
 	queue_work(table->active_wq, &table->work);
 	return 0;
@@ -324,18 +324,18 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto table_err;
 	}
 
-	table->nb.notifier_call = mlx5_sf_dev_state_change_handler;
+	table->nb.analtifier_call = mlx5_sf_dev_state_change_handler;
 	table->dev = dev;
 	table->sf_bar_length = 1 << (MLX5_CAP_GEN(dev, log_min_sf_size) + 12);
 	table->base_address = pci_resource_start(dev->pdev, 2);
 	xa_init(&table->devices);
 	dev->priv.sf_dev_table = table;
 
-	err = mlx5_vhca_event_notifier_register(dev, &table->nb);
+	err = mlx5_vhca_event_analtifier_register(dev, &table->nb);
 	if (err)
 		goto vhca_err;
 
@@ -351,7 +351,7 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 arm_err:
 	mlx5_sf_dev_destroy_active_works(table);
 add_active_err:
-	mlx5_vhca_event_notifier_unregister(dev, &table->nb);
+	mlx5_vhca_event_analtifier_unregister(dev, &table->nb);
 	mlx5_vhca_event_work_queues_flush(dev);
 vhca_err:
 	kfree(table);
@@ -379,10 +379,10 @@ void mlx5_sf_dev_table_destroy(struct mlx5_core_dev *dev)
 		return;
 
 	mlx5_sf_dev_destroy_active_works(table);
-	mlx5_vhca_event_notifier_unregister(dev, &table->nb);
+	mlx5_vhca_event_analtifier_unregister(dev, &table->nb);
 	mlx5_vhca_event_work_queues_flush(dev);
 
-	/* Now that event handler is not running, it is safe to destroy
+	/* Analw that event handler is analt running, it is safe to destroy
 	 * the sf device without race.
 	 */
 	mlx5_sf_dev_destroy_all(table);

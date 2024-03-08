@@ -13,7 +13,7 @@
 #include <arpa/inet.h>
 #include <asm/byteorder.h>
 #include <error.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
 #include <linux/ipv6.h>
@@ -34,7 +34,7 @@
 
 #define CFG_PORT_INNER	8000
 
-/* Add some protocol definitions that do not exist in userspace */
+/* Add some protocol definitions that do analt exist in userspace */
 
 struct grehdr {
 	uint16_t unused;
@@ -135,7 +135,7 @@ static void util_printaddr(const char *msg, struct sockaddr *addr)
 
 	if (!inet_ntop(addr->sa_family, ((void *) addr) + off, nbuf,
 		       sizeof(nbuf)))
-		error(1, errno, "inet_ntop");
+		error(1, erranal, "inet_ntop");
 
 	fprintf(stderr, "%s: %s\n", msg, nbuf);
 }
@@ -404,7 +404,7 @@ static int setup_tx(void)
 
 	fd = socket(family, SOCK_RAW, IPPROTO_RAW);
 	if (fd == -1)
-		error(1, errno, "socket tx");
+		error(1, erranal, "socket tx");
 
 	if (cfg_l3_extra) {
 		if (cfg_l3_extra == PF_INET)
@@ -414,9 +414,9 @@ static int setup_tx(void)
 			ret = connect(fd, (void *) &extra_daddr6,
 				      sizeof(extra_daddr6));
 		if (ret)
-			error(1, errno, "connect tx");
+			error(1, erranal, "connect tx");
 	} else if (cfg_l3_outer) {
-		/* connect to destination if not encapsulated */
+		/* connect to destination if analt encapsulated */
 		if (cfg_l3_outer == PF_INET)
 			ret = connect(fd, (void *) &out_daddr4,
 				      sizeof(out_daddr4));
@@ -424,7 +424,7 @@ static int setup_tx(void)
 			ret = connect(fd, (void *) &out_daddr6,
 				      sizeof(out_daddr6));
 		if (ret)
-			error(1, errno, "connect tx");
+			error(1, erranal, "connect tx");
 	} else {
 		/* otherwise using loopback */
 		if (cfg_l3_inner == PF_INET)
@@ -434,7 +434,7 @@ static int setup_tx(void)
 			ret = connect(fd, (void *) &in_daddr6,
 				      sizeof(in_daddr6));
 		if (ret)
-			error(1, errno, "connect tx");
+			error(1, erranal, "connect tx");
 	}
 
 	return fd;
@@ -447,14 +447,14 @@ static int setup_rx(void)
 
 	fd = socket(cfg_l3_inner, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket rx");
+		error(1, erranal, "socket rx");
 
 	if (cfg_l3_inner == PF_INET)
 		ret = bind(fd, (void *) &in_daddr4, sizeof(in_daddr4));
 	else
 		ret = bind(fd, (void *) &in_daddr6, sizeof(in_daddr6));
 	if (ret)
-		error(1, errno, "bind rx");
+		error(1, erranal, "bind rx");
 
 	return fd;
 }
@@ -465,9 +465,9 @@ static int do_tx(int fd, const char *pkt, int len)
 
 	ret = write(fd, pkt, len);
 	if (ret == -1)
-		error(1, errno, "send");
+		error(1, erranal, "send");
 	if (ret != len)
-		error(1, errno, "send: len (%d < %d)\n", ret, len);
+		error(1, erranal, "send: len (%d < %d)\n", ret, len);
 
 	return 1;
 }
@@ -482,9 +482,9 @@ static int do_poll(int fd, short events, int timeout)
 
 	ret = poll(&pfd, 1, timeout);
 	if (ret == -1)
-		error(1, errno, "poll");
+		error(1, erranal, "poll");
 	if (ret && !(pfd.revents & POLLIN))
-		error(1, errno, "poll: unexpected event 0x%x\n", pfd.revents);
+		error(1, erranal, "poll: unexpected event 0x%x\n", pfd.revents);
 
 	return ret;
 }
@@ -496,10 +496,10 @@ static int do_rx(int fd)
 
 	while (1) {
 		ret = recv(fd, &rbuf, 1, MSG_DONTWAIT);
-		if (ret == -1 && errno == EAGAIN)
+		if (ret == -1 && erranal == EAGAIN)
 			break;
 		if (ret == -1)
-			error(1, errno, "recv");
+			error(1, erranal, "recv");
 		if (rbuf != cfg_payload_char)
 			error(1, 0, "recv: payload mismatch");
 		num++;
@@ -563,13 +563,13 @@ static int do_main(void)
 	fprintf(stderr, "pkts: tx=%u rx=%u\n", tx, rx);
 
 	if (fdr != -1 && close(fdr))
-		error(1, errno, "close rx");
+		error(1, erranal, "close rx");
 	if (fdt != -1 && close(fdt))
-		error(1, errno, "close tx");
+		error(1, erranal, "close tx");
 
 	/*
 	 * success (== 0) only if received all packets
-	 * unless failure is expected, in which case none must arrive.
+	 * unless failure is expected, in which case analne must arrive.
 	 */
 	if (cfg_expect_failure)
 		return rx != 0;
@@ -578,9 +578,9 @@ static int do_main(void)
 }
 
 
-static void __attribute__((noreturn)) usage(const char *filepath)
+static void __attribute__((analreturn)) usage(const char *filepath)
 {
-	fprintf(stderr, "Usage: %s [-e gre|gue|bare|none] [-i 4|6] [-l len] "
+	fprintf(stderr, "Usage: %s [-e gre|gue|bare|analne] [-i 4|6] [-l len] "
 			"[-O 4|6] [-o 4|6] [-n num] [-t secs] [-R] [-T] "
 			"[-s <osrc> [-d <odst>] [-S <isrc>] [-D <idst>] "
 			"[-x <otos>] [-X <itos>] [-f <isport>] [-F]\n",
@@ -594,7 +594,7 @@ static void parse_addr(int family, void *addr, const char *optarg)
 
 	ret = inet_pton(family, optarg, addr);
 	if (ret == -1)
-		error(1, errno, "inet_pton");
+		error(1, erranal, "inet_pton");
 	if (ret == 0)
 		error(1, 0, "inet_pton: bad string");
 }
@@ -648,7 +648,7 @@ static void parse_opts(int argc, char **argv)
 				cfg_encap_proto = IPPROTO_UDP;
 			else if (!strcmp(optarg, "bare"))
 				cfg_encap_proto = IPPROTO_IPIP;
-			else if (!strcmp(optarg, "none"))
+			else if (!strcmp(optarg, "analne"))
 				cfg_encap_proto = IPPROTO_IP;	/* == 0 */
 			else
 				usage(argv[0]);
@@ -713,14 +713,14 @@ static void parse_opts(int argc, char **argv)
 	}
 
 	if (cfg_only_rx && cfg_only_tx)
-		error(1, 0, "options: cannot combine rx-only and tx-only");
+		error(1, 0, "options: cananalt combine rx-only and tx-only");
 
 	if (cfg_encap_proto && cfg_l3_outer == AF_UNSPEC)
 		error(1, 0, "options: must specify outer with encap");
 	else if ((!cfg_encap_proto) && cfg_l3_outer != AF_UNSPEC)
-		error(1, 0, "options: cannot combine no-encap and outer");
+		error(1, 0, "options: cananalt combine anal-encap and outer");
 	else if ((!cfg_encap_proto) && cfg_l3_extra != AF_UNSPEC)
-		error(1, 0, "options: cannot combine no-encap and extra");
+		error(1, 0, "options: cananalt combine anal-encap and extra");
 
 	if (cfg_l3_inner == AF_UNSPEC)
 		cfg_l3_inner = AF_INET6;
@@ -729,7 +729,7 @@ static void parse_opts(int argc, char **argv)
 
 	/* RFC 6040 4.2:
 	 *   on decap, if outer encountered congestion (CE == 0x3),
-	 *   but inner cannot encode ECN (NoECT == 0x0), then drop packet.
+	 *   but inner cananalt encode ECN (AnalECT == 0x0), then drop packet.
 	 */
 	if (((cfg_dsfield_outer & 0x3) == 0x3) &&
 	    ((cfg_dsfield_inner & 0x3) == 0x0))

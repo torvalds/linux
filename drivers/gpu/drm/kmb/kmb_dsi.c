@@ -57,7 +57,7 @@ static const struct mipi_tx_dsi_cfg mipitx_dsi_cfg = {
 	.eotp_en = 0,
 	.lpm_last_vfp_line = 0,
 	.lpm_first_vsa_line = 0,
-	.sync_pulse_eventn = DSI_VIDEO_MODE_NO_BURST_EVENT,
+	.sync_pulse_eventn = DSI_VIDEO_MODE_ANAL_BURST_EVENT,
 	.hfp_blanking = SEND_BLANK_PACKET,
 	.hbp_blanking = SEND_BLANK_PACKET,
 	.hsa_blanking = SEND_BLANK_PACKET,
@@ -216,13 +216,13 @@ static const struct mipi_dsi_host_ops kmb_dsi_host_ops = {
 
 int kmb_dsi_host_bridge_init(struct device *dev)
 {
-	struct device_node *encoder_node, *dsi_out;
+	struct device_analde *encoder_analde, *dsi_out;
 
 	/* Create and register MIPI DSI host */
 	if (!dsi_host) {
 		dsi_host = kzalloc(sizeof(*dsi_host), GFP_KERNEL);
 		if (!dsi_host)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dsi_host->ops = &kmb_dsi_host_ops;
 
@@ -230,7 +230,7 @@ int kmb_dsi_host_bridge_init(struct device *dev)
 			dsi_device = kzalloc(sizeof(*dsi_device), GFP_KERNEL);
 			if (!dsi_device) {
 				kfree(dsi_host);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 
@@ -238,22 +238,22 @@ int kmb_dsi_host_bridge_init(struct device *dev)
 		mipi_dsi_host_register(dsi_host);
 	}
 
-	/* Find ADV7535 node and initialize it */
-	dsi_out = of_graph_get_endpoint_by_regs(dev->of_node, 0, 1);
+	/* Find ADV7535 analde and initialize it */
+	dsi_out = of_graph_get_endpoint_by_regs(dev->of_analde, 0, 1);
 	if (!dsi_out) {
-		DRM_ERROR("Failed to get dsi_out node info from DT\n");
+		DRM_ERROR("Failed to get dsi_out analde info from DT\n");
 		return -EINVAL;
 	}
-	encoder_node = of_graph_get_remote_port_parent(dsi_out);
-	if (!encoder_node) {
-		of_node_put(dsi_out);
+	encoder_analde = of_graph_get_remote_port_parent(dsi_out);
+	if (!encoder_analde) {
+		of_analde_put(dsi_out);
 		DRM_ERROR("Failed to get bridge info from DT\n");
 		return -EINVAL;
 	}
-	/* Locate drm bridge from the hdmi encoder DT node */
-	adv_bridge = of_drm_find_bridge(encoder_node);
-	of_node_put(dsi_out);
-	of_node_put(encoder_node);
+	/* Locate drm bridge from the hdmi encoder DT analde */
+	adv_bridge = of_drm_find_bridge(encoder_analde);
+	of_analde_put(dsi_out);
+	of_analde_put(encoder_analde);
 	if (!adv_bridge) {
 		DRM_DEBUG("Wait for external bridge driver DT\n");
 		return -EPROBE_DEFER;
@@ -272,7 +272,7 @@ static u32 mipi_get_datatype_params(u32 data_type, u32 data_mode,
 		data_type_param.size_constraint_pixels = 2;
 		data_type_param.size_constraint_bytes = 3;
 		switch (data_mode) {
-			/* Case 0 not supported according to MDK */
+			/* Case 0 analt supported according to MDK */
 		case 1:
 		case 2:
 		case 3:
@@ -288,7 +288,7 @@ static u32 mipi_get_datatype_params(u32 data_type, u32 data_mode,
 		data_type_param.size_constraint_pixels = 2;
 		data_type_param.size_constraint_bytes = 4;
 		switch (data_mode) {
-			/* Case 0 and 1 not supported according
+			/* Case 0 and 1 analt supported according
 			 * to MDK
 			 */
 		case 2:
@@ -309,7 +309,7 @@ static u32 mipi_get_datatype_params(u32 data_type, u32 data_mode,
 		data_type_param.size_constraint_pixels = 2;
 		data_type_param.size_constraint_bytes = 6;
 		switch (data_mode) {
-			/* Case 0 not supported according to MDK */
+			/* Case 0 analt supported according to MDK */
 		case 1:
 		case 2:
 		case 3:
@@ -388,7 +388,7 @@ static u32 mipi_tx_fg_section_cfg_regs(struct kmb_dsi *kmb_dsi,
 				       struct mipi_tx_frame_sect_phcfg *ph_cfg)
 {
 	u32 cfg = 0;
-	u32 ctrl_no = MIPI_CTRL6;
+	u32 ctrl_anal = MIPI_CTRL6;
 	u32 reg_adr;
 
 	/* Frame section packet header */
@@ -411,9 +411,9 @@ static u32 mipi_tx_fg_section_cfg_regs(struct kmb_dsi *kmb_dsi,
 
 	dev_dbg(kmb_dsi->dev,
 		"ctrl=%d frame_id=%d section=%d cfg=%x packed=%d\n",
-		  ctrl_no, frame_id, section, cfg, ph_cfg->dma_packed);
+		  ctrl_anal, frame_id, section, cfg, ph_cfg->dma_packed);
 	kmb_write_mipi(kmb_dsi,
-		       (MIPI_TXm_HS_FGn_SECTo_PH(ctrl_no, frame_id, section)),
+		       (MIPI_TXm_HS_FGn_SECTo_PH(ctrl_anal, frame_id, section)),
 		       cfg);
 
 	/* Unpacked bytes */
@@ -425,7 +425,7 @@ static u32 mipi_tx_fg_section_cfg_regs(struct kmb_dsi *kmb_dsi,
 	 * REG_UNPACKED_BYTES1: [15:0]-BYTES2, [31:16]-BYTES3
 	 */
 	reg_adr =
-	    MIPI_TXm_HS_FGn_SECT_UNPACKED_BYTES0(ctrl_no,
+	    MIPI_TXm_HS_FGn_SECT_UNPACKED_BYTES0(ctrl_anal,
 						 frame_id) + (section / 2) * 4;
 	kmb_write_bits_mipi(kmb_dsi, reg_adr, (section % 2) * 16, 16,
 			    unpacked_bytes);
@@ -434,7 +434,7 @@ static u32 mipi_tx_fg_section_cfg_regs(struct kmb_dsi *kmb_dsi,
 		  ph_cfg->wc);
 
 	/* Line config */
-	reg_adr = MIPI_TXm_HS_FGn_SECTo_LINE_CFG(ctrl_no, frame_id, section);
+	reg_adr = MIPI_TXm_HS_FGn_SECTo_LINE_CFG(ctrl_anal, frame_id, section);
 	kmb_write_mipi(kmb_dsi, reg_adr, height_lines);
 	return 0;
 }
@@ -492,7 +492,7 @@ static void mipi_tx_fg_cfg_regs(struct kmb_dsi *kmb_dsi, u8 frame_gen,
 {
 	u32 sysclk;
 	u32 ppl_llp_ratio;
-	u32 ctrl_no = MIPI_CTRL6, reg_adr, val, offset;
+	u32 ctrl_anal = MIPI_CTRL6, reg_adr, val, offset;
 
 	/* 500 Mhz system clock minus 50 to account for the difference in
 	 * MIPI clock speed in RTL tests
@@ -520,7 +520,7 @@ static void mipi_tx_fg_cfg_regs(struct kmb_dsi *kmb_dsi, u8 frame_gen,
 		 fg_cfg->active_lanes);
 
 	/* Frame generator number of lines */
-	reg_adr = MIPI_TXm_HS_FGn_NUM_LINES(ctrl_no, frame_gen);
+	reg_adr = MIPI_TXm_HS_FGn_NUM_LINES(ctrl_anal, frame_gen);
 	kmb_write_mipi(kmb_dsi, reg_adr, fg_cfg->v_active);
 
 	/* vsync width
@@ -530,38 +530,38 @@ static void mipi_tx_fg_cfg_regs(struct kmb_dsi *kmb_dsi, u8 frame_gen,
 	 * REG_VSYNC_WIDTH1: [15:0]-VSA for channel2, [31:16]-VSA for channel3
 	 */
 	offset = (frame_gen % 2) * 16;
-	reg_adr = MIPI_TXm_HS_VSYNC_WIDTHn(ctrl_no, frame_gen / 2);
+	reg_adr = MIPI_TXm_HS_VSYNC_WIDTHn(ctrl_anal, frame_gen / 2);
 	kmb_write_bits_mipi(kmb_dsi, reg_adr, offset, 16, fg_cfg->vsync_width);
 
 	/* vertical backporch (vbp) */
-	reg_adr = MIPI_TXm_HS_V_BACKPORCHESn(ctrl_no, frame_gen / 2);
+	reg_adr = MIPI_TXm_HS_V_BACKPORCHESn(ctrl_anal, frame_gen / 2);
 	kmb_write_bits_mipi(kmb_dsi, reg_adr, offset, 16, fg_cfg->v_backporch);
 
 	/* vertical frontporch (vfp) */
-	reg_adr = MIPI_TXm_HS_V_FRONTPORCHESn(ctrl_no, frame_gen / 2);
+	reg_adr = MIPI_TXm_HS_V_FRONTPORCHESn(ctrl_anal, frame_gen / 2);
 	kmb_write_bits_mipi(kmb_dsi, reg_adr, offset, 16, fg_cfg->v_frontporch);
 
 	/* vertical active (vactive) */
-	reg_adr = MIPI_TXm_HS_V_ACTIVEn(ctrl_no, frame_gen / 2);
+	reg_adr = MIPI_TXm_HS_V_ACTIVEn(ctrl_anal, frame_gen / 2);
 	kmb_write_bits_mipi(kmb_dsi, reg_adr, offset, 16, fg_cfg->v_active);
 
 	/* hsync width */
-	reg_adr = MIPI_TXm_HS_HSYNC_WIDTHn(ctrl_no, frame_gen);
+	reg_adr = MIPI_TXm_HS_HSYNC_WIDTHn(ctrl_anal, frame_gen);
 	kmb_write_mipi(kmb_dsi, reg_adr,
 		       (fg_cfg->hsync_width * ppl_llp_ratio) / 1000);
 
 	/* horizontal backporch (hbp) */
-	reg_adr = MIPI_TXm_HS_H_BACKPORCHn(ctrl_no, frame_gen);
+	reg_adr = MIPI_TXm_HS_H_BACKPORCHn(ctrl_anal, frame_gen);
 	kmb_write_mipi(kmb_dsi, reg_adr,
 		       (fg_cfg->h_backporch * ppl_llp_ratio) / 1000);
 
 	/* horizontal frontporch (hfp) */
-	reg_adr = MIPI_TXm_HS_H_FRONTPORCHn(ctrl_no, frame_gen);
+	reg_adr = MIPI_TXm_HS_H_FRONTPORCHn(ctrl_anal, frame_gen);
 	kmb_write_mipi(kmb_dsi, reg_adr,
 		       (fg_cfg->h_frontporch * ppl_llp_ratio) / 1000);
 
 	/* horizontal active (ha) */
-	reg_adr = MIPI_TXm_HS_H_ACTIVEn(ctrl_no, frame_gen);
+	reg_adr = MIPI_TXm_HS_H_ACTIVEn(ctrl_anal, frame_gen);
 
 	/* convert h_active which is wc in bytes to cycles */
 	val = (fg_cfg->h_active * sysclk * 1000) /
@@ -570,15 +570,15 @@ static void mipi_tx_fg_cfg_regs(struct kmb_dsi *kmb_dsi, u8 frame_gen,
 	kmb_write_mipi(kmb_dsi, reg_adr, val);
 
 	/* llp hsync width */
-	reg_adr = MIPI_TXm_HS_LLP_HSYNC_WIDTHn(ctrl_no, frame_gen);
+	reg_adr = MIPI_TXm_HS_LLP_HSYNC_WIDTHn(ctrl_anal, frame_gen);
 	kmb_write_mipi(kmb_dsi, reg_adr, fg_cfg->hsync_width * (fg_cfg->bpp / 8));
 
 	/* llp h backporch */
-	reg_adr = MIPI_TXm_HS_LLP_H_BACKPORCHn(ctrl_no, frame_gen);
+	reg_adr = MIPI_TXm_HS_LLP_H_BACKPORCHn(ctrl_anal, frame_gen);
 	kmb_write_mipi(kmb_dsi, reg_adr, fg_cfg->h_backporch * (fg_cfg->bpp / 8));
 
 	/* llp h frontporch */
-	reg_adr = MIPI_TXm_HS_LLP_H_FRONTPORCHn(ctrl_no, frame_gen);
+	reg_adr = MIPI_TXm_HS_LLP_H_FRONTPORCHn(ctrl_anal, frame_gen);
 	kmb_write_mipi(kmb_dsi, reg_adr,
 		       fg_cfg->h_frontporch * (fg_cfg->bpp / 8));
 }
@@ -618,7 +618,7 @@ static void mipi_tx_multichannel_fifo_cfg(struct kmb_dsi *kmb_dsi,
 					  u8 active_lanes, u8 vchannel_id)
 {
 	u32 fifo_size, fifo_rthreshold;
-	u32 ctrl_no = MIPI_CTRL6;
+	u32 ctrl_anal = MIPI_CTRL6;
 
 	/* Clear all mc fifo channel sizes and thresholds */
 	kmb_write_mipi(kmb_dsi, MIPI_TX_HS_MC_FIFO_CTRL_EN, 0);
@@ -635,14 +635,14 @@ static void mipi_tx_multichannel_fifo_cfg(struct kmb_dsi *kmb_dsi,
 	 * REG_MC_FIFO_CHAN_ALLOC0: [8:0]-channel0, [24:16]-channel1
 	 * REG_MC_FIFO_CHAN_ALLOC1: [8:0]-2, [24:16]-channel3
 	 */
-	SET_MC_FIFO_CHAN_ALLOC(kmb_dsi, ctrl_no, vchannel_id, fifo_size);
+	SET_MC_FIFO_CHAN_ALLOC(kmb_dsi, ctrl_anal, vchannel_id, fifo_size);
 
 	/* Set threshold to half the fifo size, actual size=size*16 */
 	fifo_rthreshold = ((fifo_size) * 8) & BIT_MASK_16;
-	SET_MC_FIFO_RTHRESHOLD(kmb_dsi, ctrl_no, vchannel_id, fifo_rthreshold);
+	SET_MC_FIFO_RTHRESHOLD(kmb_dsi, ctrl_anal, vchannel_id, fifo_rthreshold);
 
 	/* Enable the MC FIFO channel corresponding to the Virtual Channel */
-	kmb_set_bit_mipi(kmb_dsi, MIPI_TXm_HS_MC_FIFO_CTRL_EN(ctrl_no),
+	kmb_set_bit_mipi(kmb_dsi, MIPI_TXm_HS_MC_FIFO_CTRL_EN(ctrl_anal),
 			 vchannel_id);
 }
 
@@ -650,7 +650,7 @@ static void mipi_tx_ctrl_cfg(struct kmb_dsi *kmb_dsi, u8 fg_id,
 			     struct mipi_ctrl_cfg *ctrl_cfg)
 {
 	u32 sync_cfg = 0, ctrl = 0, fg_en;
-	u32 ctrl_no = MIPI_CTRL6;
+	u32 ctrl_anal = MIPI_CTRL6;
 
 	/* MIPI_TX_HS_SYNC_CFG */
 	if (ctrl_cfg->tx_ctrl_cfg.line_sync_pkt_en)
@@ -699,8 +699,8 @@ static void mipi_tx_ctrl_cfg(struct kmb_dsi *kmb_dsi, u8 fg_id,
 	/*67 ns stop time */
 	ctrl |= HSEXIT_CNT(0x43);
 
-	kmb_write_mipi(kmb_dsi, MIPI_TXm_HS_SYNC_CFG(ctrl_no), sync_cfg);
-	kmb_write_mipi(kmb_dsi, MIPI_TXm_HS_CTRL(ctrl_no), ctrl);
+	kmb_write_mipi(kmb_dsi, MIPI_TXm_HS_SYNC_CFG(ctrl_anal), sync_cfg);
+	kmb_write_mipi(kmb_dsi, MIPI_TXm_HS_CTRL(ctrl_anal), ctrl);
 }
 
 static u32 mipi_tx_init_cntrl(struct kmb_dsi *kmb_dsi,
@@ -768,7 +768,7 @@ static u32 mipi_tx_init_cntrl(struct kmb_dsi *kmb_dsi,
 	return ret;
 }
 
-static void test_mode_send(struct kmb_dsi *kmb_dsi, u32 dphy_no,
+static void test_mode_send(struct kmb_dsi *kmb_dsi, u32 dphy_anal,
 			   u32 test_code, u32 test_data)
 {
 	/* Steps to send test code:
@@ -780,19 +780,19 @@ static void test_mode_send(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 	 */
 
 	/* Set testclk high */
-	SET_DPHY_TEST_CTRL1_CLK(kmb_dsi, dphy_no);
+	SET_DPHY_TEST_CTRL1_CLK(kmb_dsi, dphy_anal);
 
 	/* Set testdin */
-	SET_TEST_DIN0_3(kmb_dsi, dphy_no, test_code);
+	SET_TEST_DIN0_3(kmb_dsi, dphy_anal, test_code);
 
 	/* Set testen high */
-	SET_DPHY_TEST_CTRL1_EN(kmb_dsi, dphy_no);
+	SET_DPHY_TEST_CTRL1_EN(kmb_dsi, dphy_anal);
 
 	/* Set testclk low */
-	CLR_DPHY_TEST_CTRL1_CLK(kmb_dsi, dphy_no);
+	CLR_DPHY_TEST_CTRL1_CLK(kmb_dsi, dphy_anal);
 
 	/* Set testen low */
-	CLR_DPHY_TEST_CTRL1_EN(kmb_dsi, dphy_no);
+	CLR_DPHY_TEST_CTRL1_EN(kmb_dsi, dphy_anal);
 
 	if (test_code) {
 		/*  Steps to send test data:
@@ -803,36 +803,36 @@ static void test_mode_send(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 		 */
 
 		/* Set testen low */
-		CLR_DPHY_TEST_CTRL1_EN(kmb_dsi, dphy_no);
+		CLR_DPHY_TEST_CTRL1_EN(kmb_dsi, dphy_anal);
 
 		/* Set testclk low */
-		CLR_DPHY_TEST_CTRL1_CLK(kmb_dsi, dphy_no);
+		CLR_DPHY_TEST_CTRL1_CLK(kmb_dsi, dphy_anal);
 
 		/* Set data in testdin */
 		kmb_write_mipi(kmb_dsi,
-			       DPHY_TEST_DIN0_3 + ((dphy_no / 0x4) * 0x4),
-			       test_data << ((dphy_no % 4) * 8));
+			       DPHY_TEST_DIN0_3 + ((dphy_anal / 0x4) * 0x4),
+			       test_data << ((dphy_anal % 4) * 8));
 
 		/* Set testclk high */
-		SET_DPHY_TEST_CTRL1_CLK(kmb_dsi, dphy_no);
+		SET_DPHY_TEST_CTRL1_CLK(kmb_dsi, dphy_anal);
 	}
 }
 
 static inline void
 	set_test_mode_src_osc_freq_target_low_bits(struct kmb_dsi *kmb_dsi,
-						   u32 dphy_no,
+						   u32 dphy_anal,
 						   u32 freq)
 {
 	/* Typical rise/fall time=166, refer Table 1207 databook,
 	 * sr_osc_freq_target[7:0]
 	 */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_SLEW_RATE_DDL_CYCLES,
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_SLEW_RATE_DDL_CYCLES,
 		       (freq & 0x7f));
 }
 
 static inline void
 	set_test_mode_src_osc_freq_target_hi_bits(struct kmb_dsi *kmb_dsi,
-						  u32 dphy_no,
+						  u32 dphy_anal,
 						  u32 freq)
 {
 	u32 data;
@@ -843,7 +843,7 @@ static inline void
 	/* Typical rise/fall time=166, refer Table 1207 databook,
 	 * sr_osc_freq_target[11:7]
 	 */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_SLEW_RATE_DDL_CYCLES, data);
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_SLEW_RATE_DDL_CYCLES, data);
 }
 
 static void mipi_tx_get_vco_params(struct vco_params *vco)
@@ -860,7 +860,7 @@ static void mipi_tx_get_vco_params(struct vco_params *vco)
 	WARN_ONCE(1, "Invalid vco freq = %u for PLL setup\n", vco->freq);
 }
 
-static void mipi_tx_pll_setup(struct kmb_dsi *kmb_dsi, u32 dphy_no,
+static void mipi_tx_pll_setup(struct kmb_dsi *kmb_dsi, u32 dphy_anal,
 			      u32 ref_clk_mhz, u32 target_freq_mhz)
 {
 	u32 best_n = 0, best_m = 0;
@@ -892,7 +892,7 @@ static void mipi_tx_pll_setup(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 	for (n = PLL_N_MIN; n <= PLL_N_MAX; n++) {
 		/* Calculate the pll input frequency division ratio
 		 * multiply by 1000 for precision -
-		 * no floating point, add n for rounding
+		 * anal floating point, add n for rounding
 		 */
 		div = ((ref_clk_mhz * 1000) + n) / (n + 1);
 
@@ -929,70 +929,70 @@ static void mipi_tx_pll_setup(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 	 * PLL_VCO_Control[5:0] = pll_vco_cntrl_ovr,
 	 * PLL_VCO_Control[6]   = pll_vco_cntrl_ovr_en
 	 */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_VCO_CTRL, (vco_p.range
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_VCO_CTRL, (vco_p.range
 								| (1 << 6)));
 
 	/* Program m, n pll parameters */
 	dev_dbg(kmb_dsi->dev, "m = %d n = %d\n", best_m, best_n);
 
 	/* PLL_Input_Divider_Ratio[3:0] = pll_n_ovr */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_INPUT_DIVIDER,
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_INPUT_DIVIDER,
 		       (best_n & 0x0f));
 
 	/* m - low nibble PLL_Loop_Divider_Ratio[4:0]
 	 * pll_m_ovr[4:0]
 	 */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_FEEDBACK_DIVIDER,
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_FEEDBACK_DIVIDER,
 		       (best_m & 0x1f));
 
 	/* m - high nibble PLL_Loop_Divider_Ratio[4:0]
 	 * pll_m_ovr[9:5]
 	 */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_FEEDBACK_DIVIDER,
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_FEEDBACK_DIVIDER,
 		       ((best_m >> 5) & 0x1f) | PLL_FEEDBACK_DIVIDER_HIGH);
 
 	/* Enable overwrite of n,m parameters :pll_n_ovr_en, pll_m_ovr_en */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_OUTPUT_CLK_SEL,
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_OUTPUT_CLK_SEL,
 		       (PLL_N_OVR_EN | PLL_M_OVR_EN));
 
 	/* Program Charge-Pump parameters */
 
 	/* pll_prop_cntrl-fixed values for prop_cntrl from DPHY doc */
 	t_freq = target_freq_mhz * vco_p.divider;
-	test_mode_send(kmb_dsi, dphy_no,
+	test_mode_send(kmb_dsi, dphy_anal,
 		       TEST_CODE_PLL_PROPORTIONAL_CHARGE_PUMP_CTRL,
 		       ((t_freq > 1150) ? 0x0C : 0x0B));
 
 	/* pll_int_cntrl-fixed value for int_cntrl from DPHY doc */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_INTEGRAL_CHARGE_PUMP_CTRL,
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_INTEGRAL_CHARGE_PUMP_CTRL,
 		       0x00);
 
 	/* pll_gmp_cntrl-fixed value for gmp_cntrl from DPHY doci */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_GMP_CTRL, 0x10);
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_GMP_CTRL, 0x10);
 
 	/* pll_cpbias_cntrl-fixed value for cpbias_cntrl from DPHY doc */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_CHARGE_PUMP_BIAS, 0x10);
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_CHARGE_PUMP_BIAS, 0x10);
 
 	/* pll_th1 -Lock Detector Phase error threshold,
 	 * document gives fixed value
 	 */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_PHASE_ERR_CTRL, 0x02);
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_PHASE_ERR_CTRL, 0x02);
 
 	/* PLL Lock Configuration */
 
 	/* pll_th2 - Lock Filter length, document gives fixed value */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_LOCK_FILTER, 0x60);
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_LOCK_FILTER, 0x60);
 
 	/* pll_th3- PLL Unlocking filter, document gives fixed value */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_UNLOCK_FILTER, 0x03);
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_UNLOCK_FILTER, 0x03);
 
 	/* pll_lock_sel-PLL Lock Detector Selection,
 	 * document gives fixed value
 	 */
-	test_mode_send(kmb_dsi, dphy_no, TEST_CODE_PLL_LOCK_DETECTOR, 0x02);
+	test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_PLL_LOCK_DETECTOR, 0x02);
 }
 
-static void set_slewrate_gt_1500(struct kmb_dsi *kmb_dsi, u32 dphy_no)
+static void set_slewrate_gt_1500(struct kmb_dsi *kmb_dsi, u32 dphy_anal)
 {
 	u32 test_code = 0, test_data = 0;
 	/* Bypass slew rate calibration algorithm
@@ -1000,15 +1000,15 @@ static void set_slewrate_gt_1500(struct kmb_dsi *kmb_dsi, u32 dphy_no)
 	 */
 	test_code = TEST_CODE_SLEW_RATE_OVERRIDE_CTRL;
 	test_data = 0x02;
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Disable slew rate calibration */
 	test_code = TEST_CODE_SLEW_RATE_DDL_LOOP_CTRL;
 	test_data = 0x00;
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 }
 
-static void set_slewrate_gt_1000(struct kmb_dsi *kmb_dsi, u32 dphy_no)
+static void set_slewrate_gt_1000(struct kmb_dsi *kmb_dsi, u32 dphy_anal)
 {
 	u32 test_code = 0, test_data = 0;
 
@@ -1016,34 +1016,34 @@ static void set_slewrate_gt_1000(struct kmb_dsi *kmb_dsi, u32 dphy_no)
 	 * typical rise/fall times: 166 ps
 	 */
 
-	/* Do not bypass slew rate calibration algorithm
+	/* Do analt bypass slew rate calibration algorithm
 	 * bits[1:0}=srcal_en_ovr_en, srcal_en_ovr, bit[6]=sr_range
 	 */
 	test_code = TEST_CODE_SLEW_RATE_OVERRIDE_CTRL;
 	test_data = (0x03 | (1 << 6));
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Enable slew rate calibration */
 	test_code = TEST_CODE_SLEW_RATE_DDL_LOOP_CTRL;
 	test_data = 0x01;
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Set sr_osc_freq_target[6:0] low nibble
 	 * typical rise/fall time=166, refer Table 1207 databook
 	 */
 	test_code = TEST_CODE_SLEW_RATE_DDL_CYCLES;
 	test_data = (0x72f & 0x7f);
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Set sr_osc_freq_target[11:7] high nibble
 	 * Typical rise/fall time=166, refer Table 1207 databook
 	 */
 	test_code = TEST_CODE_SLEW_RATE_DDL_CYCLES;
 	test_data = ((0x72f >> 6) & 0x1f) | (1 << 7);
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 }
 
-static void set_slewrate_lt_1000(struct kmb_dsi *kmb_dsi, u32 dphy_no)
+static void set_slewrate_lt_1000(struct kmb_dsi *kmb_dsi, u32 dphy_anal)
 {
 	u32 test_code = 0, test_data = 0;
 
@@ -1053,28 +1053,28 @@ static void set_slewrate_lt_1000(struct kmb_dsi *kmb_dsi, u32 dphy_no)
 	 * - typical rise/fall times: 225 ps
 	 */
 
-	/* Do not bypass slew rate calibration algorithm */
+	/* Do analt bypass slew rate calibration algorithm */
 	test_code = TEST_CODE_SLEW_RATE_OVERRIDE_CTRL;
 	test_data = (0x03 | (1 << 6));
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Enable slew rate calibration */
 	test_code = TEST_CODE_SLEW_RATE_DDL_LOOP_CTRL;
 	test_data = 0x01;
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Typical rise/fall time=255, refer Table 1207 databook */
 	test_code = TEST_CODE_SLEW_RATE_DDL_CYCLES;
 	test_data = (0x523 & 0x7f);
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Set sr_osc_freq_target[11:7] high nibble */
 	test_code = TEST_CODE_SLEW_RATE_DDL_CYCLES;
 	test_data = ((0x523 >> 6) & 0x1f) | (1 << 7);
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 }
 
-static void setup_pll(struct kmb_dsi *kmb_dsi, u32 dphy_no,
+static void setup_pll(struct kmb_dsi *kmb_dsi, u32 dphy_anal,
 		      struct mipi_ctrl_cfg *cfg)
 {
 	u32 test_code = 0, test_data = 0;
@@ -1082,10 +1082,10 @@ static void setup_pll(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 	/* Set PLL regulator in bypass */
 	test_code = TEST_CODE_PLL_ANALOG_PROG;
 	test_data = 0x01;
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* PLL Parameters Setup */
-	mipi_tx_pll_setup(kmb_dsi, dphy_no, cfg->ref_clk_khz / 1000,
+	mipi_tx_pll_setup(kmb_dsi, dphy_anal, cfg->ref_clk_khz / 1000,
 			  cfg->lane_rate_mbps / 2);
 
 	/* Set clksel */
@@ -1095,7 +1095,7 @@ static void setup_pll(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 	kmb_set_bit_mipi(kmb_dsi, DPHY_INIT_CTRL1, PLL_SHADOW_CTRL);
 }
 
-static void set_lane_data_rate(struct kmb_dsi *kmb_dsi, u32 dphy_no,
+static void set_lane_data_rate(struct kmb_dsi *kmb_dsi, u32 dphy_anal,
 			       struct mipi_ctrl_cfg *cfg)
 {
 	u32 i, test_code = 0, test_data = 0;
@@ -1110,34 +1110,34 @@ static void set_lane_data_rate(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 		test_code = TEST_CODE_HS_FREQ_RANGE_CFG;
 		test_data = (mipi_hs_freq_range[i].hsfreqrange_code & 0x7f) |
 		    (1 << 7);
-		test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+		test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 		break;
 	}
 }
 
 static void dphy_init_sequence(struct kmb_dsi *kmb_dsi,
-			       struct mipi_ctrl_cfg *cfg, u32 dphy_no,
+			       struct mipi_ctrl_cfg *cfg, u32 dphy_anal,
 			       int active_lanes, enum dphy_mode mode)
 {
 	u32 test_code = 0, test_data = 0, val;
 
 	/* Set D-PHY in shutdown mode */
 	/* Assert RSTZ signal */
-	CLR_DPHY_INIT_CTRL0(kmb_dsi, dphy_no, RESETZ);
+	CLR_DPHY_INIT_CTRL0(kmb_dsi, dphy_anal, RESETZ);
 
 	/* Assert SHUTDOWNZ signal */
-	CLR_DPHY_INIT_CTRL0(kmb_dsi, dphy_no, SHUTDOWNZ);
+	CLR_DPHY_INIT_CTRL0(kmb_dsi, dphy_anal, SHUTDOWNZ);
 	val = kmb_read_mipi(kmb_dsi, DPHY_INIT_CTRL0);
 
 	/* Init D-PHY_n
 	 * Pulse testclear signal to make sure the d-phy configuration
 	 * starts from a clean base
 	 */
-	CLR_DPHY_TEST_CTRL0(kmb_dsi, dphy_no);
+	CLR_DPHY_TEST_CTRL0(kmb_dsi, dphy_anal);
 	ndelay(15);
-	SET_DPHY_TEST_CTRL0(kmb_dsi, dphy_no);
+	SET_DPHY_TEST_CTRL0(kmb_dsi, dphy_anal);
 	ndelay(15);
-	CLR_DPHY_TEST_CTRL0(kmb_dsi, dphy_no);
+	CLR_DPHY_TEST_CTRL0(kmb_dsi, dphy_anal);
 	ndelay(15);
 
 	/* Set mastermacro bit - Master or slave mode */
@@ -1150,39 +1150,39 @@ static void dphy_init_sequence(struct kmb_dsi *kmb_dsi,
 		test_data = 0x00;
 
 	/* Send the test code and data */
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Set the lane data rate */
-	set_lane_data_rate(kmb_dsi, dphy_no, cfg);
+	set_lane_data_rate(kmb_dsi, dphy_anal, cfg);
 
 	/* High-Speed Tx Slew Rate Calibration
 	 * BitRate: > 1.5 Gbps && <= 2.5 Gbps: slew rate control OFF
 	 */
 	if (cfg->lane_rate_mbps > 1500)
-		set_slewrate_gt_1500(kmb_dsi, dphy_no);
+		set_slewrate_gt_1500(kmb_dsi, dphy_anal);
 	else if (cfg->lane_rate_mbps > 1000)
-		set_slewrate_gt_1000(kmb_dsi, dphy_no);
+		set_slewrate_gt_1000(kmb_dsi, dphy_anal);
 	else
-		set_slewrate_lt_1000(kmb_dsi, dphy_no);
+		set_slewrate_lt_1000(kmb_dsi, dphy_anal);
 
 	/* Set cfgclkfreqrange */
 	val = (((cfg->cfg_clk_khz / 1000) - 17) * 4) & 0x3f;
-	SET_DPHY_FREQ_CTRL0_3(kmb_dsi, dphy_no, val);
+	SET_DPHY_FREQ_CTRL0_3(kmb_dsi, dphy_anal, val);
 
 	/* Enable config clk for the corresponding d-phy */
-	kmb_set_bit_mipi(kmb_dsi, DPHY_CFG_CLK_EN, dphy_no);
+	kmb_set_bit_mipi(kmb_dsi, DPHY_CFG_CLK_EN, dphy_anal);
 
 	/* PLL setup */
 	if (mode == MIPI_DPHY_MASTER)
-		setup_pll(kmb_dsi, dphy_no, cfg);
+		setup_pll(kmb_dsi, dphy_anal, cfg);
 
-	/* Send NORMAL OPERATION test code */
+	/* Send ANALRMAL OPERATION test code */
 	test_code = 0x0;
 	test_data = 0x0;
-	test_mode_send(kmb_dsi, dphy_no, test_code, test_data);
+	test_mode_send(kmb_dsi, dphy_anal, test_code, test_data);
 
 	/* Configure BASEDIR for data lanes
-	 * NOTE: basedir only applies to LANE_0 of each D-PHY.
+	 * ANALTE: basedir only applies to LANE_0 of each D-PHY.
 	 * The other lanes keep their direction based on the D-PHY type,
 	 * either Rx or Tx.
 	 * bits[5:0]  - BaseDir: 1 = Rx
@@ -1195,24 +1195,24 @@ static void dphy_init_sequence(struct kmb_dsi *kmb_dsi,
 	 * Clock lane should be enabled regardless of the direction
 	 * set for the D-PHY (Rx/Tx)
 	 */
-	kmb_set_bit_mipi(kmb_dsi, DPHY_INIT_CTRL2, 12 + dphy_no);
+	kmb_set_bit_mipi(kmb_dsi, DPHY_INIT_CTRL2, 12 + dphy_anal);
 
 	/* Enable DATA LANES */
-	kmb_write_bits_mipi(kmb_dsi, DPHY_ENABLE, dphy_no * 2, 2,
+	kmb_write_bits_mipi(kmb_dsi, DPHY_ENABLE, dphy_anal * 2, 2,
 			    ((1 << active_lanes) - 1));
 
 	ndelay(15);
 
 	/* Take D-PHY out of shutdown mode */
 	/* Deassert SHUTDOWNZ signal */
-	SET_DPHY_INIT_CTRL0(kmb_dsi, dphy_no, SHUTDOWNZ);
+	SET_DPHY_INIT_CTRL0(kmb_dsi, dphy_anal, SHUTDOWNZ);
 	ndelay(15);
 
 	/* Deassert RSTZ signal */
-	SET_DPHY_INIT_CTRL0(kmb_dsi, dphy_no, RESETZ);
+	SET_DPHY_INIT_CTRL0(kmb_dsi, dphy_anal, RESETZ);
 }
 
-static void dphy_wait_fsm(struct kmb_dsi *kmb_dsi, u32 dphy_no,
+static void dphy_wait_fsm(struct kmb_dsi *kmb_dsi, u32 dphy_anal,
 			  enum dphy_tx_fsm fsm_state)
 {
 	enum dphy_tx_fsm val = DPHY_TX_POWERDWN;
@@ -1220,9 +1220,9 @@ static void dphy_wait_fsm(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 	int status = 1;
 
 	do {
-		test_mode_send(kmb_dsi, dphy_no, TEST_CODE_FSM_CONTROL, 0x80);
+		test_mode_send(kmb_dsi, dphy_anal, TEST_CODE_FSM_CONTROL, 0x80);
 
-		val = GET_TEST_DOUT4_7(kmb_dsi, dphy_no);
+		val = GET_TEST_DOUT4_7(kmb_dsi, dphy_anal);
 		i++;
 		if (i > TIMEOUT) {
 			status = 0;
@@ -1230,12 +1230,12 @@ static void dphy_wait_fsm(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 		}
 	} while (val != fsm_state);
 
-	dev_dbg(kmb_dsi->dev, "%s: dphy %d val = %x", __func__, dphy_no, val);
+	dev_dbg(kmb_dsi->dev, "%s: dphy %d val = %x", __func__, dphy_anal, val);
 	dev_dbg(kmb_dsi->dev, "* DPHY %d WAIT_FSM %s *",
-		dphy_no, status ? "SUCCESS" : "FAILED");
+		dphy_anal, status ? "SUCCESS" : "FAILED");
 }
 
-static void wait_init_done(struct kmb_dsi *kmb_dsi, u32 dphy_no,
+static void wait_init_done(struct kmb_dsi *kmb_dsi, u32 dphy_anal,
 			   u32 active_lanes)
 {
 	u32 stopstatedata = 0;
@@ -1244,7 +1244,7 @@ static void wait_init_done(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 	int status = 1;
 
 	do {
-		stopstatedata = GET_STOPSTATE_DATA(kmb_dsi, dphy_no)
+		stopstatedata = GET_STOPSTATE_DATA(kmb_dsi, dphy_anal)
 				& data_lanes;
 
 		/* TODO-need to add a time out and return failure */
@@ -1260,10 +1260,10 @@ static void wait_init_done(struct kmb_dsi *kmb_dsi, u32 dphy_no,
 	} while (stopstatedata != data_lanes);
 
 	dev_dbg(kmb_dsi->dev, "* DPHY %d INIT - %s *",
-		dphy_no, status ? "SUCCESS" : "FAILED");
+		dphy_anal, status ? "SUCCESS" : "FAILED");
 }
 
-static void wait_pll_lock(struct kmb_dsi *kmb_dsi, u32 dphy_no)
+static void wait_pll_lock(struct kmb_dsi *kmb_dsi, u32 dphy_anal)
 {
 	int i = 0;
 	int status = 1;
@@ -1276,16 +1276,16 @@ static void wait_pll_lock(struct kmb_dsi *kmb_dsi, u32 dphy_no)
 			dev_dbg(kmb_dsi->dev, "%s: timing out", __func__);
 			break;
 		}
-	} while (!GET_PLL_LOCK(kmb_dsi, dphy_no));
+	} while (!GET_PLL_LOCK(kmb_dsi, dphy_anal));
 
 	dev_dbg(kmb_dsi->dev, "* PLL Locked for DPHY %d - %s *",
-		dphy_no, status ? "SUCCESS" : "FAILED");
+		dphy_anal, status ? "SUCCESS" : "FAILED");
 }
 
 static u32 mipi_tx_init_dphy(struct kmb_dsi *kmb_dsi,
 			     struct mipi_ctrl_cfg *cfg)
 {
-	u32 dphy_no = MIPI_DPHY6;
+	u32 dphy_anal = MIPI_DPHY6;
 
 	/* Multiple D-PHYs needed */
 	if (cfg->active_lanes > MIPI_DPHY_D_LANES) {
@@ -1305,28 +1305,28 @@ static u32 mipi_tx_init_dphy(struct kmb_dsi *kmb_dsi,
 		 */
 		/* PHY #N+1 ('slave') */
 
-		dphy_init_sequence(kmb_dsi, cfg, dphy_no + 1,
+		dphy_init_sequence(kmb_dsi, cfg, dphy_anal + 1,
 				   (cfg->active_lanes - MIPI_DPHY_D_LANES),
 				   MIPI_DPHY_SLAVE);
-		dphy_wait_fsm(kmb_dsi, dphy_no + 1, DPHY_TX_LOCK);
+		dphy_wait_fsm(kmb_dsi, dphy_anal + 1, DPHY_TX_LOCK);
 
 		/* PHY #N master */
-		dphy_init_sequence(kmb_dsi, cfg, dphy_no, MIPI_DPHY_D_LANES,
+		dphy_init_sequence(kmb_dsi, cfg, dphy_anal, MIPI_DPHY_D_LANES,
 				   MIPI_DPHY_MASTER);
 
 		/* Wait for DPHY init to complete */
-		wait_init_done(kmb_dsi, dphy_no, MIPI_DPHY_D_LANES);
-		wait_init_done(kmb_dsi, dphy_no + 1,
+		wait_init_done(kmb_dsi, dphy_anal, MIPI_DPHY_D_LANES);
+		wait_init_done(kmb_dsi, dphy_anal + 1,
 			       cfg->active_lanes - MIPI_DPHY_D_LANES);
-		wait_pll_lock(kmb_dsi, dphy_no);
-		wait_pll_lock(kmb_dsi, dphy_no + 1);
-		dphy_wait_fsm(kmb_dsi, dphy_no, DPHY_TX_IDLE);
+		wait_pll_lock(kmb_dsi, dphy_anal);
+		wait_pll_lock(kmb_dsi, dphy_anal + 1);
+		dphy_wait_fsm(kmb_dsi, dphy_anal, DPHY_TX_IDLE);
 	} else {		/* Single DPHY */
-		dphy_init_sequence(kmb_dsi, cfg, dphy_no, cfg->active_lanes,
+		dphy_init_sequence(kmb_dsi, cfg, dphy_anal, cfg->active_lanes,
 				   MIPI_DPHY_MASTER);
-		dphy_wait_fsm(kmb_dsi, dphy_no, DPHY_TX_IDLE);
-		wait_init_done(kmb_dsi, dphy_no, cfg->active_lanes);
-		wait_pll_lock(kmb_dsi, dphy_no);
+		dphy_wait_fsm(kmb_dsi, dphy_anal, DPHY_TX_IDLE);
+		wait_init_done(kmb_dsi, dphy_anal, cfg->active_lanes);
+		wait_pll_lock(kmb_dsi, dphy_anal);
 	}
 
 	return 0;
@@ -1415,7 +1415,7 @@ struct kmb_dsi *kmb_dsi_init(struct platform_device *pdev)
 	kmb_dsi = devm_kzalloc(dev, sizeof(*kmb_dsi), GFP_KERNEL);
 	if (!kmb_dsi) {
 		dev_err(dev, "failed to allocate kmb_dsi\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	kmb_dsi->host = dsi_host;
@@ -1445,7 +1445,7 @@ int kmb_dsi_encoder_init(struct drm_device *dev, struct kmb_dsi *kmb_dsi)
 
 	/* Link drm_bridge to encoder */
 	ret = drm_bridge_attach(encoder, adv_bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret) {
 		drm_encoder_cleanup(encoder);
 		return ret;
@@ -1470,7 +1470,7 @@ int kmb_dsi_map_mmio(struct kmb_dsi *kmb_dsi)
 					   "mipi");
 	if (!res) {
 		dev_err(dev, "failed to get resource for mipi");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	kmb_dsi->mipi_mmio = devm_ioremap_resource(dev, res);
 	if (IS_ERR(kmb_dsi->mipi_mmio)) {

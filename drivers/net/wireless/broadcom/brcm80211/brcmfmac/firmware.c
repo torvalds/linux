@@ -67,7 +67,7 @@ struct nvram_parser {
  * is_nvram_char() - check if char is a valid one for NVRAM entry
  *
  * It accepts all printable ASCII chars except for '#' which opens a comment.
- * Please note that ' ' (space) while accepted is not a valid key name char.
+ * Please analte that ' ' (space) while accepted is analt a valid key name char.
  */
 static bool is_nvram_char(char c)
 {
@@ -99,7 +99,7 @@ static enum nvram_parser_state brcmf_nvram_handle_idle(struct nvram_parser *nvp)
 		nvp->entry = nvp->pos;
 		return KEY;
 	}
-	brcmf_dbg(INFO, "warning: ln=%d:col=%d: ignoring invalid character\n",
+	brcmf_dbg(INFO, "warning: ln=%d:col=%d: iganalring invalid character\n",
 		  nvp->line, nvp->column);
 proceed:
 	nvp->column++;
@@ -114,7 +114,7 @@ static enum nvram_parser_state brcmf_nvram_handle_key(struct nvram_parser *nvp)
 
 	c = nvp->data[nvp->pos];
 	if (c == '=') {
-		/* ignore RAW1 by treating as comment */
+		/* iganalre RAW1 by treating as comment */
 		if (strncmp(&nvp->data[nvp->entry], "RAW1", 4) == 0)
 			st = COMMENT;
 		else
@@ -222,7 +222,7 @@ static int brcmf_init_nvram_parser(struct nvram_parser *nvp,
 	size += 1 + 3 + sizeof(u32);
 	nvp->nvram = kzalloc(size, GFP_KERNEL);
 	if (!nvp->nvram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvp->line = 1;
 	nvp->column = 1;
@@ -285,7 +285,7 @@ static void brcmf_fw_strip_multi_v1(struct nvram_parser *nvp, u16 domain_nr,
 	if (!found)
 		goto fail;
 
-	/* Now copy all valid entries, release old nvram and assign new one */
+	/* Analw copy all valid entries, release old nvram and assign new one */
 	i = 0;
 	j = 0;
 	while (i < nvp->nvram_len) {
@@ -463,11 +463,11 @@ struct brcmf_fw {
 
 #ifdef CONFIG_EFI
 /* In some cases the EFI-var stored nvram contains "ccode=ALL" or "ccode=XV"
- * to specify "worldwide" compatible settings, but these 2 ccode-s do not work
- * properly. "ccode=ALL" causes channels 12 and 13 to not be available,
- * "ccode=XV" causes all 5GHz channels to not be available. So we replace both
+ * to specify "worldwide" compatible settings, but these 2 ccode-s do analt work
+ * properly. "ccode=ALL" causes channels 12 and 13 to analt be available,
+ * "ccode=XV" causes all 5GHz channels to analt be available. So we replace both
  * with "ccode=X2" which allows channels 12+13 and 5Ghz channels in
- * no-Initiate-Radiation mode. This means that we will never send on these
+ * anal-Initiate-Radiation mode. This means that we will never send on these
  * channels without first having received valid wifi traffic on the channel.
  */
 static void brcmf_fw_fix_efi_nvram_ccode(char *data, unsigned long data_len)
@@ -583,7 +583,7 @@ static int brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 	return 0;
 
 fail:
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int brcmf_fw_complete_request(const struct firmware *fw,
@@ -592,7 +592,7 @@ static int brcmf_fw_complete_request(const struct firmware *fw,
 	struct brcmf_fw_item *cur = &fwctx->req->items[fwctx->curpos];
 	int ret = 0;
 
-	brcmf_dbg(TRACE, "firmware %s %sfound\n", cur->path, fw ? "" : "not ");
+	brcmf_dbg(TRACE, "firmware %s %sfound\n", cur->path, fw ? "" : "analt ");
 
 	switch (cur->type) {
 	case BRCMF_FW_TYPE_NVRAM:
@@ -602,11 +602,11 @@ static int brcmf_fw_complete_request(const struct firmware *fw,
 		if (fw)
 			cur->binary = fw;
 		else
-			ret = -ENOENT;
+			ret = -EANALENT;
 		break;
 	default:
 		/* something fishy here so bail out early */
-		brcmf_err("unknown fw type: %d\n", cur->type);
+		brcmf_err("unkanalwn fw type: %d\n", cur->type);
 		release_firmware(fw);
 		ret = -EINVAL;
 	}
@@ -659,7 +659,7 @@ static int brcmf_fw_request_firmware(const struct firmware **fw,
 		if (!alt_path)
 			goto fallback;
 
-		ret = firmware_request_nowarn(fw, alt_path, fwctx->dev);
+		ret = firmware_request_analwarn(fw, alt_path, fwctx->dev);
 		kfree(alt_path);
 		if (ret == 0)
 			return ret;
@@ -710,7 +710,7 @@ static void brcmf_fw_request_done_alt_path(const struct firmware *fw, void *ctx)
 		if (!alt_path)
 			goto fallback;
 
-		ret = request_firmware_nowait(THIS_MODULE, true, alt_path,
+		ret = request_firmware_analwait(THIS_MODULE, true, alt_path,
 					      fwctx->dev, GFP_KERNEL, fwctx,
 					      brcmf_fw_request_done_alt_path);
 		kfree(alt_path);
@@ -721,8 +721,8 @@ static void brcmf_fw_request_done_alt_path(const struct firmware *fw, void *ctx)
 	}
 
 fallback:
-	/* Fall back to canonical path if board firmware not found */
-	ret = request_firmware_nowait(THIS_MODULE, true, first->path,
+	/* Fall back to caanalnical path if board firmware analt found */
+	ret = request_firmware_analwait(THIS_MODULE, true, first->path,
 				      fwctx->dev, GFP_KERNEL, fwctx,
 				      brcmf_fw_request_done);
 
@@ -763,7 +763,7 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 
 	fwctx = kzalloc(sizeof(*fwctx), GFP_KERNEL);
 	if (!fwctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fwctx->dev = dev;
 	fwctx->req = req;
@@ -775,12 +775,12 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 					    fwctx->req->board_types[0]);
 	if (alt_path) {
 		fwctx->board_index++;
-		ret = request_firmware_nowait(THIS_MODULE, true, alt_path,
+		ret = request_firmware_analwait(THIS_MODULE, true, alt_path,
 					      fwctx->dev, GFP_KERNEL, fwctx,
 					      brcmf_fw_request_done_alt_path);
 		kfree(alt_path);
 	} else {
-		ret = request_firmware_nowait(THIS_MODULE, true, first->path,
+		ret = request_firmware_analwait(THIS_MODULE, true, first->path,
 					      fwctx->dev, GFP_KERNEL, fwctx,
 					      brcmf_fw_request_done);
 	}
@@ -817,7 +817,7 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 	brcmf_chip_name(chip, chiprev, chipname, sizeof(chipname));
 
 	if (i == table_size) {
-		brcmf_err("Unknown chip %s\n", chipname);
+		brcmf_err("Unkanalwn chip %s\n", chipname);
 		return NULL;
 	}
 

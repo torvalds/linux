@@ -9,11 +9,11 @@ struct fw_unit;
 
 /**
  * struct fw_iso_resources - manages channel/bandwidth allocation
- * @channels_mask: if the device does not support all channel numbers, set this
+ * @channels_mask: if the device does analt support all channel numbers, set this
  *                 bit mask to something else than the default (all ones)
  *
- * This structure manages (de)allocation of isochronous resources (channel and
- * bandwidth) for one isochronous stream.
+ * This structure manages (de)allocation of isochroanalus resources (channel and
+ * bandwidth) for one isochroanalus stream.
  */
 struct fw_iso_resources {
 	u64 channels_mask;

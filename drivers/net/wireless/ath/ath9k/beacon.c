@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -67,7 +67,7 @@ static void ath9k_beaconq_config(struct ath_softc *sc)
 /*
  *  Associates the beacon frame buffer with a transmit descriptor.  Will set
  *  up rate codes, and channel flags. Beacons are always sent out at the
- *  lowest rate, and are not retried.
+ *  lowest rate, and are analt retried.
 */
 static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 			     struct ath_buf *bf, int rateidx)
@@ -92,7 +92,7 @@ static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 		info.txpower[i] = MAX_RATE_POWER;
 	info.keyix = ATH9K_TXKEYIX_INVALID;
 	info.keytype = ATH9K_KEY_TYPE_CLEAR;
-	info.flags = ATH9K_TXDESC_NOACK | ATH9K_TXDESC_CLRDMASK;
+	info.flags = ATH9K_TXDESC_ANALACK | ATH9K_TXDESC_CLRDMASK;
 
 	info.buf_addr[0] = bf->bf_buf_addr;
 	info.buf_len[0] = roundup(skb->len, 4);
@@ -148,9 +148,9 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 
 	ath_assign_seq(common, skb);
 
-	/* Always assign NOA attr when MCC enabled */
+	/* Always assign ANALA attr when MCC enabled */
 	if (ath9k_is_chanctx_enabled())
-		ath9k_beacon_add_noa(sc, avp, skb);
+		ath9k_beacon_add_anala(sc, avp, skb);
 
 	bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
 					 skb->len, DMA_TO_DEVICE);
@@ -381,7 +381,7 @@ static void ath9k_csa_update_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
 void ath9k_csa_update(struct ath_softc *sc)
 {
 	ieee80211_iterate_active_interfaces_atomic(sc->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   ath9k_csa_update_vif, sc);
 }
 
@@ -397,15 +397,15 @@ void ath9k_beacon_tasklet(struct tasklet_struct *t)
 
 	if (test_bit(ATH_OP_HW_RESET, &common->op_flags)) {
 		ath_dbg(common, RESET,
-			"reset work is pending, skip beaconing now\n");
+			"reset work is pending, skip beaconing analw\n");
 		return;
 	}
 
 	/*
 	 * Check if the previous beacon has gone out.  If
-	 * not don't try to post another, skip this period
+	 * analt don't try to post aanalther, skip this period
 	 * and wait for the next.  Missed beacons indicate
-	 * a problem and should not occur.  If we miss too
+	 * a problem and should analt occur.  If we miss too
 	 * many consecutive beacons reset the device.
 	 */
 	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0) {
@@ -414,7 +414,7 @@ void ath9k_beacon_tasklet(struct tasklet_struct *t)
 		ath9k_hw_check_nav(ah);
 
 		/*
-		 * If the previous beacon has not been transmitted
+		 * If the previous beacon has analt been transmitted
 		 * and a MAC/BB hang has been identified, return
 		 * here because a chip reset would have been
 		 * initiated.
@@ -468,11 +468,11 @@ void ath9k_beacon_tasklet(struct tasklet_struct *t)
 	}
 
 	/*
-	 * Handle slot time change when a non-ERP station joins/leaves
-	 * an 11g network.  The 802.11 layer notifies us via callback,
+	 * Handle slot time change when a analn-ERP station joins/leaves
+	 * an 11g network.  The 802.11 layer analtifies us via callback,
 	 * we mark updateslot, then wait one beacon before effecting
 	 * the change.  This gives associated stations at least one
-	 * beacon interval to note the state change.
+	 * beacon interval to analte the state change.
 	 *
 	 * NB: The slot time change state machine is clocked according
 	 *     to whether we are bursting or staggering beacons.  We
@@ -481,7 +481,7 @@ void ath9k_beacon_tasklet(struct tasklet_struct *t)
 	 *     again.  If we miss a beacon for that slot then we'll be
 	 *     slow to transition but we'll be sure at least one beacon
 	 *     interval has passed.  When bursting slot is always left
-	 *     set to ATH_BCBUF so this check is a noop.
+	 *     set to ATH_BCBUF so this check is a analop.
 	 */
 	if (sc->beacon.updateslot == UPDATE) {
 		sc->beacon.updateslot = COMMIT;
@@ -536,7 +536,7 @@ static void ath9k_beacon_stop(struct ath_softc *sc)
 /*
  * For multi-bss ap support beacons are either staggered evenly over N slots or
  * burst together.  For the former arrange for the SWBA to be delivered for each
- * slot. Slots that are not occupied will generate nothing.
+ * slot. Slots that are analt occupied will generate analthing.
  */
 static void ath9k_beacon_config_ap(struct ath_softc *sc,
 				   struct ath_beacon_config *conf)
@@ -666,8 +666,8 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 	 */
 	if (cur_conf->beacon_interval) {
 		/* Special case to sync the TSF when joining an existing IBSS.
-		 * This is only done if no AP interface is active.
-		 * Note that mac80211 always resets the TSF when creating a new
+		 * This is only done if anal AP interface is active.
+		 * Analte that mac80211 always resets the TSF when creating a new
 		 * IBSS interface.
 		 */
 		if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC &&
@@ -679,7 +679,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 		}
 
 		/*
-		 * Do not set the ATH_OP_BEACONS flag for IBSS joiner mode
+		 * Do analt set the ATH_OP_BEACONS flag for IBSS joiner mode
 		 * here, it is done in ath9k_beacon_config_adhoc().
 		 */
 		if (beacons && !skip_beacon) {

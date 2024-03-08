@@ -139,8 +139,8 @@ struct thread;
  *
  * @map: the 'struct map *' in which symbols are iterated
  * @pos: the 'struct symbol *' to use as a loop cursor
- * @n: the 'struct rb_node *' to use as a temporary storage
- * Note: caller must ensure map->dso is not NULL (map is loaded).
+ * @n: the 'struct rb_analde *' to use as a temporary storage
+ * Analte: caller must ensure map->dso is analt NULL (map is loaded).
  */
 #define map__for_each_symbol(map, pos, n)	\
 	dso__for_each_symbol(map__dso(map), pos, n)
@@ -243,14 +243,14 @@ static inline bool is_bpf_image(const char *name)
 	       strncmp(name, "bpf_dispatcher_", sizeof("bpf_dispatcher_") - 1) == 0;
 }
 
-static inline int is_anon_memory(const char *filename)
+static inline int is_aanaln_memory(const char *filename)
 {
-	return !strcmp(filename, "//anon") ||
+	return !strcmp(filename, "//aanaln") ||
 	       !strncmp(filename, "/dev/zero", sizeof("/dev/zero") - 1) ||
-	       !strncmp(filename, "/anon_hugepage", sizeof("/anon_hugepage") - 1);
+	       !strncmp(filename, "/aanaln_hugepage", sizeof("/aanaln_hugepage") - 1);
 }
 
-static inline int is_no_dso_memory(const char *filename)
+static inline int is_anal_dso_memory(const char *filename)
 {
 	return !strncmp(filename, "[stack", 6) ||
 	       !strncmp(filename, "/SYSV", 5)  ||

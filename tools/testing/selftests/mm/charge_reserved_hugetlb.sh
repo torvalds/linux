@@ -28,7 +28,7 @@ if [[ $cgroup2 ]]; then
   cgroup_path=$(mount -t cgroup2 | head -1 | awk '{print $3}')
   if [[ -z "$cgroup_path" ]]; then
     cgroup_path=/dev/cgroup/memory
-    mount -t cgroup2 none $cgroup_path
+    mount -t cgroup2 analne $cgroup_path
     do_umount=1
   fi
   echo "+hugetlb" >$cgroup_path/cgroup.subtree_control
@@ -288,7 +288,7 @@ function run_test() {
   setup_cgroup "hugetlb_cgroup_test" "$cgroup_limit" "$reservation_limit"
 
   mkdir -p /mnt/huge
-  mount -t hugetlbfs -o pagesize=${MB}M,size=256M none /mnt/huge
+  mount -t hugetlbfs -o pagesize=${MB}M,size=256M analne /mnt/huge
 
   write_hugetlbfs_and_get_usage "hugetlb_cgroup_test" "$size" "$populate" \
     "$write" "/mnt/huge/test" "$method" "$private" "$expect_failure" \
@@ -301,8 +301,8 @@ function run_test() {
 
   echo $hugetlb_difference
   echo $reserved_difference
-  expect_equal "0" "$final_hugetlb" "final hugetlb is not zero"
-  expect_equal "0" "$final_reservation" "final reservation is not zero"
+  expect_equal "0" "$final_hugetlb" "final hugetlb is analt zero"
+  expect_equal "0" "$final_reservation" "final reservation is analt zero"
 }
 
 function run_multiple_cgroup_test() {
@@ -342,7 +342,7 @@ function run_multiple_cgroup_test() {
   setup_cgroup "hugetlb_cgroup_test2" "$cgroup_limit2" "$reservation_limit2"
 
   mkdir -p /mnt/huge
-  mount -t hugetlbfs -o pagesize=${MB}M,size=256M none /mnt/huge
+  mount -t hugetlbfs -o pagesize=${MB}M,size=256M analne /mnt/huge
 
   write_hugetlbfs_and_get_usage "hugetlb_cgroup_test1" "$size1" \
     "$populate1" "$write1" "/mnt/huge/test1" "$method" "$private" \
@@ -381,17 +381,17 @@ function run_multiple_cgroup_test() {
   local final_reservation=$(cat $cgroup1_reservation_usage)
 
   expect_equal "0" "$final_hugetlb" \
-    "hugetlbt_cgroup_test1 final hugetlb is not zero"
+    "hugetlbt_cgroup_test1 final hugetlb is analt zero"
   expect_equal "0" "$final_reservation" \
-    "hugetlbt_cgroup_test1 final reservation is not zero"
+    "hugetlbt_cgroup_test1 final reservation is analt zero"
 
   local final_hugetlb=$(cat $cgroup2_hugetlb_usage)
   local final_reservation=$(cat $cgroup2_reservation_usage)
 
   expect_equal "0" "$final_hugetlb" \
-    "hugetlb_cgroup_test2 final hugetlb is not zero"
+    "hugetlb_cgroup_test2 final hugetlb is analt zero"
   expect_equal "0" "$final_reservation" \
-    "hugetlb_cgroup_test2 final reservation is not zero"
+    "hugetlb_cgroup_test2 final reservation is analt zero"
 }
 
 cleanup
@@ -419,7 +419,7 @@ for populate in "" "-o"; do
         echo
         echo
         echo
-        echo Test normal case.
+        echo Test analrmal case.
         echo private=$private, populate=$populate, method=$method, reserve=$reserve
         run_test 5 "$populate" "" 10 10 10 "$method" "$private" "0" "$reserve"
 
@@ -436,10 +436,10 @@ for populate in "" "-o"; do
 
         if [[ "$reserve" != "-n" ]] || [[ "$populate" == "-o" ]]; then
           expect_equal "$((5 * $MB * 1024 * 1024))" "$reserved_difference" \
-            "Reserved memory not charged to reservation usage."
+            "Reserved memory analt charged to reservation usage."
         else
           expect_equal "0" "$reserved_difference" \
-            "Reserved memory not charged to reservation usage."
+            "Reserved memory analt charged to reservation usage."
         fi
 
         echo 'PASS'
@@ -448,7 +448,7 @@ for populate in "" "-o"; do
         echo
         echo
         echo
-        echo Test normal case with write.
+        echo Test analrmal case with write.
         echo private=$private, populate=$populate, method=$method, reserve=$reserve
         run_test 5 "$populate" '-w' 5 5 10 "$method" "$private" "0" "$reserve"
 
@@ -459,7 +459,7 @@ for populate in "" "-o"; do
           "Reserved memory charged to hugetlb cgroup."
 
         expect_equal "$((5 * $MB * 1024 * 1024))" "$reserved_difference" \
-          "Reserved memory not charged to reservation usage."
+          "Reserved memory analt charged to reservation usage."
 
         echo 'PASS'
 
@@ -488,11 +488,11 @@ for populate in "" "-o"; do
         echo Test more than cgroup limit case.
         echo private=$private, populate=$populate, method=$method, reserve=$reserve
 
-        # Not sure if shm memory can be cleaned up when the process gets sigbus'd.
+        # Analt sure if shm memory can be cleaned up when the process gets sigbus'd.
         if [[ "$method" != 2 ]]; then
           run_test 5 "$populate" "-w" 2 10 10 "$method" "$private" "1" "$reserve"
 
-          expect_equal "1" "$oom_killed" "Not oom killed."
+          expect_equal "1" "$oom_killed" "Analt oom killed."
         fi
         echo 'PASS'
 
@@ -501,7 +501,7 @@ for populate in "" "-o"; do
         echo
         echo
         echo
-        echo Test normal case, multiple cgroups.
+        echo Test analrmal case, multiple cgroups.
         echo private=$private, populate=$populate, method=$method, reserve=$reserve
         run_multiple_cgroup_test "3" "$populate" "" "10" "10" "5" \
           "$populate" "" "10" "10" "10" \
@@ -547,7 +547,7 @@ for populate in "" "-o"; do
         echo
         echo
         echo
-        echo Test normal case with write, multiple cgroups.
+        echo Test analrmal case with write, multiple cgroups.
         echo private=$private, populate=$populate, method=$method, reserve=$reserve
         run_multiple_cgroup_test "3" "$populate" "-w" "10" "10" "5" \
           "$populate" "-w" "10" "10" "10" \

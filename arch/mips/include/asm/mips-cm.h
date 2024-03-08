@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2013 Imagination Technologies
+ * Copyright (C) 2013 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -13,7 +13,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 /* The base address of the CM GCR block */
 extern void __iomem *mips_gcr_base;
@@ -25,7 +25,7 @@ extern void __iomem *mips_cm_l2sync_base;
  * __mips_cm_phys_base - retrieve the physical base address of the CM
  *
  * This function returns the physical base address of the Coherence Manager
- * global control block, or 0 if no Coherence Manager is present. It provides
+ * global control block, or 0 if anal Coherence Manager is present. It provides
  * a default implementation which reads the CMGCRBase register where available,
  * and may be overridden by platforms which determine this address in a
  * different way by defining a function with the same prototype except for the
@@ -60,14 +60,14 @@ static inline void mips_cm_error_report(void) {}
  * mips_cm_probe - probe for a Coherence Manager
  *
  * Attempt to detect the presence of a Coherence Manager. Returns 0 if a CM
- * is successfully detected, else -errno.
+ * is successfully detected, else -erranal.
  */
 #ifdef CONFIG_MIPS_CM
 extern int mips_cm_probe(void);
 #else
 static inline int mips_cm_probe(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -151,11 +151,11 @@ GCR_ACCESSOR_RW(32, 0x020, access)
 /* GCR_REV - Indicates the Coherence Manager revision */
 GCR_ACCESSOR_RO(32, 0x030, rev)
 #define CM_GCR_REV_MAJOR			GENMASK(15, 8)
-#define CM_GCR_REV_MINOR			GENMASK(7, 0)
+#define CM_GCR_REV_MIANALR			GENMASK(7, 0)
 
-#define CM_ENCODE_REV(major, minor) \
+#define CM_ENCODE_REV(major, mianalr) \
 		(FIELD_PREP(CM_GCR_REV_MAJOR, major) | \
-		 FIELD_PREP(CM_GCR_REV_MINOR, minor))
+		 FIELD_PREP(CM_GCR_REV_MIANALR, mianalr))
 
 #define CM_REV_CM2				CM_ENCODE_REV(6, 0)
 #define CM_REV_CM2_5				CM_ENCODE_REV(7, 0)
@@ -329,12 +329,12 @@ GCR_CX_ACCESSOR_RW(32, 0x030, reset_ext_base)
  * mips_cm_l2sync - perform an L2-only sync operation
  *
  * If an L2-only sync region is present in the system then this function
- * performs and L2-only sync and returns zero. Otherwise it returns -ENODEV.
+ * performs and L2-only sync and returns zero. Otherwise it returns -EANALDEV.
  */
 static inline int mips_cm_l2sync(void)
 {
 	if (!mips_cm_has_l2sync())
-		return -ENODEV;
+		return -EANALDEV;
 
 	writel(0, mips_cm_l2sync_base);
 	return 0;
@@ -343,7 +343,7 @@ static inline int mips_cm_l2sync(void)
 /**
  * mips_cm_revision() - return CM revision
  *
- * Return: The revision of the CM, from GCR_REV, or 0 if no CM is present. The
+ * Return: The revision of the CM, from GCR_REV, or 0 if anal CM is present. The
  * return value should be checked against the CM_REV_* macros.
  */
 static inline int mips_cm_revision(void)
@@ -387,7 +387,7 @@ static inline unsigned int mips_cm_max_vp_width(void)
  * mips_cm_vp_id() - calculate the hardware VP ID for a CPU
  * @cpu: the CPU whose VP ID to calculate
  *
- * Hardware such as the GIC uses identifiers for VPs which may not match the
+ * Hardware such as the GIC uses identifiers for VPs which may analt match the
  * CPU numbers used by Linux. This function calculates the hardware VP
  * identifier corresponding to a given CPU.
  *
@@ -417,9 +417,9 @@ static inline unsigned int mips_cm_vp_id(unsigned int cpu)
  * is complete.
  *
  * This function acquires a spinlock such that code between it &
- * mips_cm_unlock_other() calls cannot be pre-empted by anything which may
- * reconfigure the redirect/other region, and cannot be interfered with by
- * another VP in the core. As such calls to this function should not be nested.
+ * mips_cm_unlock_other() calls cananalt be pre-empted by anything which may
+ * reconfigure the redirect/other region, and cananalt be interfered with by
+ * aanalther VP in the core. As such calls to this function should analt be nested.
  */
 extern void mips_cm_lock_other(unsigned int cluster, unsigned int core,
 			       unsigned int vp, unsigned int block);

@@ -13,9 +13,9 @@
 struct fail_sunrpc_attr {
 	struct fault_attr	attr;
 
-	bool			ignore_client_disconnect;
-	bool			ignore_server_disconnect;
-	bool			ignore_cache_wait;
+	bool			iganalre_client_disconnect;
+	bool			iganalre_server_disconnect;
+	bool			iganalre_cache_wait;
 };
 
 extern struct fail_sunrpc_attr fail_sunrpc;

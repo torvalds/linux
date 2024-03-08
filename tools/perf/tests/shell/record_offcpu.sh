@@ -47,7 +47,7 @@ test_offcpu_basic() {
   fi
   if ! perf evlist -i ${perfdata} | grep -q "offcpu-time"
   then
-    echo "Basic off-cpu test [Failed no event]"
+    echo "Basic off-cpu test [Failed anal event]"
     err=1
     return
   fi
@@ -73,7 +73,7 @@ test_offcpu_child() {
   fi
   if ! perf evlist -i ${perfdata} | grep -q "offcpu-time"
   then
-    echo "Child task off-cpu test [Failed no event]"
+    echo "Child task off-cpu test [Failed anal event]"
     err=1
     return
   fi

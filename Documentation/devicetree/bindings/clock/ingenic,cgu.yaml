@@ -33,7 +33,7 @@ select:
     - compatible
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^clock-controller@[0-9a-f]+$"
 
   "#address-cells":

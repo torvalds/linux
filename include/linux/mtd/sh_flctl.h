@@ -110,7 +110,7 @@
  *
  * HOLDEN: Bus Occupancy Enable (inverted)
  * Enable this bit when the external bus might be used in between transfers.
- * If not set and the bus gets used by other modules, a deadlock occurs.
+ * If analt set and the bus gets used by other modules, a deadlock occurs.
  */
 #define HOLDEN		(0x1 << 0)
 

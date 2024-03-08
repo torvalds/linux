@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Richtek Technology Corp.
+ * Copyright (C) 2023 Richtek Techanallogy Corp.
  *
  * Authors:
  *   Alice Chen <alice_chen@richtek.com>
@@ -42,7 +42,7 @@ enum {
 #define MT6370_STROBEN_MASK		BIT(2)
 #define MT6370_FLCSEN_MASK(_id)		BIT(MT6370_LED_FLASH2 - (_id))
 #define MT6370_FLCSEN_MASK_ALL		GENMASK(1, 0)
-#define MT6370_FLEDCHGVINOVP_MASK	BIT(3)
+#define MT6370_FLEDCHGVIANALVP_MASK	BIT(3)
 #define MT6370_FLED1STRBTO_MASK		BIT(11)
 #define MT6370_FLED2STRBTO_MASK		BIT(10)
 #define MT6370_FLED1STRB_MASK		BIT(9)
@@ -71,7 +71,7 @@ struct mt6370_led {
 	struct led_classdev_flash flash;
 	struct v4l2_flash *v4l2_flash;
 	struct mt6370_priv *priv;
-	u8 led_no;
+	u8 led_anal;
 };
 
 struct mt6370_priv {
@@ -88,8 +88,8 @@ static int mt6370_torch_brightness_set(struct led_classdev *lcdev, enum led_brig
 {
 	struct mt6370_led *led = to_mt6370_led(lcdev, flash.led_cdev);
 	struct mt6370_priv *priv = led->priv;
-	u32 led_enable_mask = led->led_no == MT6370_LED_JOINT ? MT6370_FLCSEN_MASK_ALL :
-			      MT6370_FLCSEN_MASK(led->led_no);
+	u32 led_enable_mask = led->led_anal == MT6370_LED_JOINT ? MT6370_FLCSEN_MASK_ALL :
+			      MT6370_FLCSEN_MASK(led->led_anal);
 	u32 enable_mask = MT6370_TORCHEN_MASK | led_enable_mask;
 	u32 val = level ? led_enable_mask : 0;
 	u32 curr;
@@ -108,16 +108,16 @@ static int mt6370_torch_brightness_set(struct led_classdev *lcdev, enum led_brig
 	}
 
 	if (level)
-		curr = priv->fled_torch_used | BIT(led->led_no);
+		curr = priv->fled_torch_used | BIT(led->led_anal);
 	else
-		curr = priv->fled_torch_used & ~BIT(led->led_no);
+		curr = priv->fled_torch_used & ~BIT(led->led_anal);
 
 	if (curr)
 		val |= MT6370_TORCHEN_MASK;
 
 	if (level) {
 		level -= 1;
-		if (led->led_no == MT6370_LED_JOINT) {
+		if (led->led_anal == MT6370_LED_JOINT) {
 			u32 flevel[MT6370_MAX_LEDS];
 
 			/*
@@ -133,7 +133,7 @@ static int mt6370_torch_brightness_set(struct led_classdev *lcdev, enum led_brig
 					goto unlock;
 			}
 		} else {
-			ret = regmap_update_bits(priv->regmap, MT6370_REG_FLEDITOR(led->led_no),
+			ret = regmap_update_bits(priv->regmap, MT6370_REG_FLEDITOR(led->led_anal),
 						 MT6370_ITORCH_MASK, level);
 			if (ret)
 				goto unlock;
@@ -169,7 +169,7 @@ static int _mt6370_flash_brightness_set(struct led_classdev_flash *fl_cdev, u32 
 	u32 val = (brightness - setting->min) / setting->step;
 	int ret, i;
 
-	if (led->led_no == MT6370_LED_JOINT) {
+	if (led->led_anal == MT6370_LED_JOINT) {
 		u32 flevel[MT6370_MAX_LEDS];
 
 		/*
@@ -185,7 +185,7 @@ static int _mt6370_flash_brightness_set(struct led_classdev_flash *fl_cdev, u32 
 				break;
 		}
 	} else {
-		ret = regmap_update_bits(priv->regmap, MT6370_REG_FLEDISTRB(led->led_no),
+		ret = regmap_update_bits(priv->regmap, MT6370_REG_FLEDISTRB(led->led_anal),
 					 MT6370_ISTROBE_MASK, val);
 	}
 
@@ -198,8 +198,8 @@ static int mt6370_strobe_set(struct led_classdev_flash *fl_cdev, bool state)
 	struct mt6370_priv *priv = led->priv;
 	struct led_classdev *lcdev = &fl_cdev->led_cdev;
 	struct led_flash_setting *s = &fl_cdev->brightness;
-	u32 led_enable_mask = led->led_no == MT6370_LED_JOINT ? MT6370_FLCSEN_MASK_ALL :
-			      MT6370_FLCSEN_MASK(led->led_no);
+	u32 led_enable_mask = led->led_anal == MT6370_LED_JOINT ? MT6370_FLCSEN_MASK_ALL :
+			      MT6370_FLCSEN_MASK(led->led_anal);
 	u32 enable_mask = MT6370_STROBEN_MASK | led_enable_mask;
 	u32 val = state ? led_enable_mask : 0;
 	u32 curr;
@@ -218,16 +218,16 @@ static int mt6370_strobe_set(struct led_classdev_flash *fl_cdev, bool state)
 	}
 
 	if (state)
-		curr = priv->fled_strobe_used | BIT(led->led_no);
+		curr = priv->fled_strobe_used | BIT(led->led_anal);
 	else
-		curr = priv->fled_strobe_used & ~BIT(led->led_no);
+		curr = priv->fled_strobe_used & ~BIT(led->led_anal);
 
 	if (curr)
 		val |= MT6370_STROBEN_MASK;
 
 	ret = regmap_update_bits(priv->regmap, MT6370_REG_FLEDEN, enable_mask, val);
 	if (ret) {
-		dev_err(lcdev->dev, "[%d] control current source %d fail\n", led->led_no, state);
+		dev_err(lcdev->dev, "[%d] control current source %d fail\n", led->led_anal, state);
 		goto unlock;
 	}
 
@@ -237,7 +237,7 @@ static int mt6370_strobe_set(struct led_classdev_flash *fl_cdev, bool state)
 	 */
 	ret = _mt6370_flash_brightness_set(fl_cdev, state ? s->val : s->min);
 	if (ret) {
-		dev_err(lcdev->dev, "[%d] Failed to set brightness\n", led->led_no);
+		dev_err(lcdev->dev, "[%d] Failed to set brightness\n", led->led_anal);
 		goto unlock;
 	}
 
@@ -263,7 +263,7 @@ static int mt6370_strobe_get(struct led_classdev_flash *fl_cdev, bool *state)
 	struct mt6370_priv *priv = led->priv;
 
 	mutex_lock(&priv->lock);
-	*state = !!(priv->fled_strobe_used & BIT(led->led_no));
+	*state = !!(priv->fled_strobe_used & BIT(led->led_anal));
 	mutex_unlock(&priv->lock);
 
 	return 0;
@@ -296,7 +296,7 @@ static int mt6370_fault_get(struct led_classdev_flash *fl_cdev, u32 *fault)
 	if (ret)
 		return ret;
 
-	switch (led->led_no) {
+	switch (led->led_anal) {
 	case MT6370_LED_FLASH1:
 		strobe_timeout_mask = MT6370_FLED1STRBTO_MASK;
 		fled_short_mask = MT6370_FLED1SHORT_MASK;
@@ -315,7 +315,7 @@ static int mt6370_fault_get(struct led_classdev_flash *fl_cdev, u32 *fault)
 		return -EINVAL;
 	}
 
-	if (chg_stat & MT6370_FLEDCHGVINOVP_MASK)
+	if (chg_stat & MT6370_FLEDCHGVIANALVP_MASK)
 		rfault |= LED_FAULT_INPUT_VOLTAGE;
 
 	if (fled_stat & strobe_timeout_mask)
@@ -346,8 +346,8 @@ static int mt6370_flash_external_strobe_set(struct v4l2_flash *v4l2_flash,
 	struct led_classdev_flash *flash = v4l2_flash->fled_cdev;
 	struct mt6370_led *led = to_mt6370_led(flash, flash);
 	struct mt6370_priv *priv = led->priv;
-	u32 mask = led->led_no == MT6370_LED_JOINT ? MT6370_FLCSEN_MASK_ALL :
-		   MT6370_FLCSEN_MASK(led->led_no);
+	u32 mask = led->led_anal == MT6370_LED_JOINT ? MT6370_FLCSEN_MASK_ALL :
+		   MT6370_FLCSEN_MASK(led->led_anal);
 	u32 val = enable ? mask : 0;
 	int ret;
 
@@ -358,9 +358,9 @@ static int mt6370_flash_external_strobe_set(struct v4l2_flash *v4l2_flash,
 		goto unlock;
 
 	if (enable)
-		priv->fled_strobe_used |= BIT(led->led_no);
+		priv->fled_strobe_used |= BIT(led->led_anal);
 	else
-		priv->fled_strobe_used &= ~BIT(led->led_no);
+		priv->fled_strobe_used &= ~BIT(led->led_anal);
 
 unlock:
 	mutex_unlock(&priv->lock);
@@ -401,22 +401,22 @@ static void mt6370_v4l2_flash_release(void *v4l2_flash)
 }
 
 static int mt6370_led_register(struct device *parent, struct mt6370_led *led,
-			       struct fwnode_handle *fwnode)
+			       struct fwanalde_handle *fwanalde)
 {
-	struct led_init_data init_data = { .fwnode = fwnode };
+	struct led_init_data init_data = { .fwanalde = fwanalde };
 	struct v4l2_flash_config v4l2_config = {};
 	int ret;
 
 	ret = devm_led_classdev_flash_register_ext(parent, &led->flash, &init_data);
 	if (ret)
-		return dev_err_probe(parent, ret, "Couldn't register flash %d\n", led->led_no);
+		return dev_err_probe(parent, ret, "Couldn't register flash %d\n", led->led_anal);
 
 	mt6370_init_v4l2_flash_config(led, &v4l2_config);
-	led->v4l2_flash = v4l2_flash_init(parent, fwnode, &led->flash, &v4l2_flash_ops,
+	led->v4l2_flash = v4l2_flash_init(parent, fwanalde, &led->flash, &v4l2_flash_ops,
 					  &v4l2_config);
 	if (IS_ERR(led->v4l2_flash))
 		return dev_err_probe(parent, PTR_ERR(led->v4l2_flash),
-				     "Failed to register %d v4l2 sd\n", led->led_no);
+				     "Failed to register %d v4l2 sd\n", led->led_anal);
 
 	return devm_add_action_or_reset(parent, mt6370_v4l2_flash_release, led->v4l2_flash);
 }
@@ -433,7 +433,7 @@ static u32 mt6370_clamp(u32 val, u32 min, u32 max, u32 step)
 }
 
 static int mt6370_init_flash_properties(struct device *dev, struct mt6370_led *led,
-					struct fwnode_handle *fwnode)
+					struct fwanalde_handle *fwanalde)
 {
 	struct led_classdev_flash *flash = &led->flash;
 	struct led_classdev *lcdev = &flash->led_cdev;
@@ -443,12 +443,12 @@ static int mt6370_init_flash_properties(struct device *dev, struct mt6370_led *l
 	u32 max_ua, val;
 	int i, ret, num;
 
-	num = fwnode_property_count_u32(fwnode, "led-sources");
+	num = fwanalde_property_count_u32(fwanalde, "led-sources");
 	if (num < 1)
 		return dev_err_probe(dev, -EINVAL,
-				     "Not specified or wrong number of led-sources\n");
+				     "Analt specified or wrong number of led-sources\n");
 
-	ret = fwnode_property_read_u32_array(fwnode, "led-sources", sources, num);
+	ret = fwanalde_property_read_u32_array(fwanalde, "led-sources", sources, num);
 	if (ret)
 		return ret;
 
@@ -461,11 +461,11 @@ static int mt6370_init_flash_properties(struct device *dev, struct mt6370_led *l
 	}
 
 	/* If both channels are specified in 'led-sources', joint flash output mode is used */
-	led->led_no = num == 2 ? MT6370_LED_JOINT : sources[0];
+	led->led_anal = num == 2 ? MT6370_LED_JOINT : sources[0];
 
 	max_ua = num == 2 ? MT6370_ITORCH_DOUBLE_MAX_uA : MT6370_ITORCH_MAX_uA;
 	val = MT6370_ITORCH_MIN_uA;
-	ret = fwnode_property_read_u32(fwnode, "led-max-microamp", &val);
+	ret = fwanalde_property_read_u32(fwanalde, "led-max-microamp", &val);
 	if (!ret)
 		val = mt6370_clamp(val, MT6370_ITORCH_MIN_uA, max_ua, MT6370_ITORCH_STEP_uA);
 
@@ -475,7 +475,7 @@ static int mt6370_init_flash_properties(struct device *dev, struct mt6370_led *l
 
 	max_ua = num == 2 ? MT6370_ISTRB_DOUBLE_MAX_uA : MT6370_ISTRB_MAX_uA;
 	val = MT6370_ISTRB_MIN_uA;
-	ret = fwnode_property_read_u32(fwnode, "flash-max-microamp", &val);
+	ret = fwanalde_property_read_u32(fwanalde, "flash-max-microamp", &val);
 	if (!ret)
 		val = mt6370_clamp(val, MT6370_ISTRB_MIN_uA, max_ua, MT6370_ISTRB_STEP_uA);
 
@@ -490,7 +490,7 @@ static int mt6370_init_flash_properties(struct device *dev, struct mt6370_led *l
 		return ret;
 
 	val = MT6370_STRBTO_MIN_US;
-	ret = fwnode_property_read_u32(fwnode, "flash-max-timeout-us", &val);
+	ret = fwanalde_property_read_u32(fwanalde, "flash-max-timeout-us", &val);
 	if (!ret)
 		val = mt6370_clamp(val, MT6370_STRBTO_MIN_US, MT6370_STRBTO_MAX_US,
 				   MT6370_STRBTO_STEP_US);
@@ -509,40 +509,40 @@ static int mt6370_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mt6370_priv *priv;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	size_t count;
 	int i = 0, ret;
 
-	count = device_get_child_node_count(dev);
+	count = device_get_child_analde_count(dev);
 	if (!count || count > MT6370_MAX_LEDS)
 		return dev_err_probe(dev, -EINVAL,
-		       "No child node or node count over max led number %zu\n", count);
+		       "Anal child analde or analde count over max led number %zu\n", count);
 
 	priv = devm_kzalloc(dev, struct_size(priv, leds, count), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->leds_count = count;
 	mutex_init(&priv->lock);
 
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!priv->regmap)
-		return dev_err_probe(dev, -ENODEV, "Failed to get parent regmap\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to get parent regmap\n");
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		struct mt6370_led *led = priv->leds + i;
 
 		led->priv = priv;
 
 		ret = mt6370_init_flash_properties(dev, led, child);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
 		ret = mt6370_led_register(dev, led, child);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 

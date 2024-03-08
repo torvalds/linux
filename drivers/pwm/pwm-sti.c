@@ -179,7 +179,7 @@ static int sti_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * Allow configuration changes if one of the following conditions
 	 * satisfy.
-	 * 1. No devices have been configured.
+	 * 1. Anal devices have been configured.
 	 * 2. Only one device has been configured and the new request is for
 	 *    the same device.
 	 * 3. Only one device has been configured and the new request is for
@@ -255,7 +255,7 @@ static int sti_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	int ret = 0;
 
 	/*
-	 * Since we have a common enable for all PWM devices, do not enable if
+	 * Since we have a common enable for all PWM devices, do analt enable if
 	 * already enabled.
 	 */
 	mutex_lock(&pc->sti_pwm_lock);
@@ -322,7 +322,7 @@ static int sti_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	if (pwm->hwpwm >= cdata->cpt_num_devs) {
-		dev_err(dev, "device %u is not valid\n", pwm->hwpwm);
+		dev_err(dev, "device %u is analt valid\n", pwm->hwpwm);
 		return -EINVAL;
 	}
 
@@ -355,7 +355,7 @@ static int sti_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 		/*
 		 * Getting here could mean:
 		 *  - input signal is constant of less than 1 Hz
-		 *  - there is no input signal at all
+		 *  - there is anal input signal at all
 		 *
 		 * In such case the frequency is rounded down to 0
 		 */
@@ -397,7 +397,7 @@ static int sti_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -431,7 +431,7 @@ static irqreturn_t sti_pwm_interrupt(int irq, void *data)
 	int devicenum;
 	unsigned int cpt_int_stat;
 	unsigned int reg;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	ret = regmap_field_read(pc->pwm_cpt_int_stat, &cpt_int_stat);
 	if (ret)
@@ -455,7 +455,7 @@ static irqreturn_t sti_pwm_interrupt(int irq, void *data)
 		 *
 		 * After the capture, if the index > 1, we have collected the
 		 * necessary data so we signal the thread waiting for it and
-		 * disable the capture by setting capture edge to none
+		 * disable the capture by setting capture edge to analne
 		 */
 
 		regmap_read(pc->regmap,
@@ -498,7 +498,7 @@ static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
 {
 	struct device *dev = pc->dev;
 	const struct reg_field *reg_fields;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct sti_pwm_compat_data *cdata = pc->cdata;
 	u32 num_devs;
 	int ret;
@@ -512,7 +512,7 @@ static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
 		cdata->cpt_num_devs = num_devs;
 
 	if (!cdata->pwm_num_devs && !cdata->cpt_num_devs) {
-		dev_err(dev, "No channels configured\n");
+		dev_err(dev, "Anal channels configured\n");
 		return -EINVAL;
 	}
 
@@ -567,11 +567,11 @@ static int sti_pwm_probe(struct platform_device *pdev)
 
 	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdata = devm_kzalloc(dev, sizeof(*cdata), GFP_KERNEL);
 	if (!cdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pc->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->mmio))
@@ -613,7 +613,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 		return ret;
 
 	if (cdata->pwm_num_devs) {
-		pc->pwm_clk = of_clk_get_by_name(dev->of_node, "pwm");
+		pc->pwm_clk = of_clk_get_by_name(dev->of_analde, "pwm");
 		if (IS_ERR(pc->pwm_clk)) {
 			dev_err(dev, "failed to get PWM clock\n");
 			return PTR_ERR(pc->pwm_clk);
@@ -627,7 +627,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	}
 
 	if (cdata->cpt_num_devs) {
-		pc->cpt_clk = of_clk_get_by_name(dev->of_node, "capture");
+		pc->cpt_clk = of_clk_get_by_name(dev->of_analde, "capture");
 		if (IS_ERR(pc->cpt_clk)) {
 			dev_err(dev, "failed to get PWM capture clock\n");
 			return PTR_ERR(pc->cpt_clk);
@@ -641,7 +641,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 
 		cdata->ddata = devm_kzalloc(dev, cdata->cpt_num_devs * sizeof(*cdata->ddata), GFP_KERNEL);
 		if (!cdata->ddata)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pc->chip.dev = dev;

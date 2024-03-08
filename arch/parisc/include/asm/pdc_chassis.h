@@ -37,8 +37,8 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_DIRECT_PANIC	3
 #define PDC_CHASSIS_DIRECT_HPMC		4
 #define PDC_CHASSIS_DIRECT_LPMC		5
-#define PDC_CHASSIS_DIRECT_DUMP		6	/* not yet implemented */
-#define PDC_CHASSIS_DIRECT_OOPS		7	/* not yet implemented */
+#define PDC_CHASSIS_DIRECT_DUMP		6	/* analt yet implemented */
+#define PDC_CHASSIS_DIRECT_OOPS		7	/* analt yet implemented */
 
 
 /*
@@ -72,8 +72,8 @@ void parisc_pdc_chassis_init(void);
  * Valid PDC PAT LED states combinations
  */
 
-/* System running normally */
-#define PDC_CHASSIS_LSTATE_RUN_NORMAL	(PDC_CHASSIS_LED_RUN_ON		| \
+/* System running analrmally */
+#define PDC_CHASSIS_LSTATE_RUN_ANALRMAL	(PDC_CHASSIS_LED_RUN_ON		| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
@@ -82,62 +82,62 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_FLASH	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* There was a system interruption that did not take the system down */
+/* There was a system interruption that did analt take the system down */
 #define PDC_CHASSIS_LSTATE_RUN_SYSINT	(PDC_CHASSIS_LED_RUN_ON		| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* System running and unexpected reboot or non-critical error detected */
+/* System running and unexpected reboot or analn-critical error detected */
 #define PDC_CHASSIS_LSTATE_RUN_NCRIT	(PDC_CHASSIS_LED_RUN_ON		| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_FLASH	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Executing non-OS code */
-#define PDC_CHASSIS_LSTATE_NONOS	(PDC_CHASSIS_LED_RUN_FLASH	| \
+/* Executing analn-OS code */
+#define PDC_CHASSIS_LSTATE_ANALANALS	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Boot failed - Executing non-OS code */
-#define PDC_CHASSIS_LSTATE_NONOS_BFAIL	(PDC_CHASSIS_LED_RUN_FLASH	| \
+/* Boot failed - Executing analn-OS code */
+#define PDC_CHASSIS_LSTATE_ANALANALS_BFAIL	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_ON	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Unexpected reboot occurred - Executing non-OS code */
-#define PDC_CHASSIS_LSTATE_NONOS_UNEXP	(PDC_CHASSIS_LED_RUN_FLASH	| \
+/* Unexpected reboot occurred - Executing analn-OS code */
+#define PDC_CHASSIS_LSTATE_ANALANALS_UNEXP	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_FLASH	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Executing non-OS code - Non-critical error detected */
-#define PDC_CHASSIS_LSTATE_NONOS_NCRIT	(PDC_CHASSIS_LED_RUN_FLASH	| \
+/* Executing analn-OS code - Analn-critical error detected */
+#define PDC_CHASSIS_LSTATE_ANALANALS_NCRIT	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Boot failed - Executing non-OS code - Non-critical error detected */
+/* Boot failed - Executing analn-OS code - Analn-critical error detected */
 #define PDC_CHASSIS_LSTATE_BFAIL_NCRIT	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_ON	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Unexpected reboot/recovering - Executing non-OS code - Non-critical error detected */
+/* Unexpected reboot/recovering - Executing analn-OS code - Analn-critical error detected */
 #define PDC_CHASSIS_LSTATE_UNEXP_NCRIT	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_FLASH	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Cannot execute PDC */
-#define PDC_CHASSIS_LSTATE_CANNOT_PDC	(PDC_CHASSIS_LED_RUN_OFF	| \
+/* Cananalt execute PDC */
+#define PDC_CHASSIS_LSTATE_CANANALT_PDC	(PDC_CHASSIS_LED_RUN_OFF	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Boot failed - OS not up - PDC has detected a failure that prevents boot */
+/* Boot failed - OS analt up - PDC has detected a failure that prevents boot */
 #define PDC_CHASSIS_LSTATE_FATAL_BFAIL	(PDC_CHASSIS_LED_RUN_OFF	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_ON	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* No code running - Non-critical error detected (double fault situation) */
-#define PDC_CHASSIS_LSTATE_NOCODE_NCRIT	(PDC_CHASSIS_LED_RUN_OFF	| \
+/* Anal code running - Analn-critical error detected (double fault situation) */
+#define PDC_CHASSIS_LSTATE_ANALCODE_NCRIT	(PDC_CHASSIS_LED_RUN_OFF	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Boot failed - OS not up - Fatal failure detected - Non-critical error detected */
+/* Boot failed - OS analt up - Fatal failure detected - Analn-critical error detected */
 #define PDC_CHASSIS_LSTATE_FATAL_NCRIT	(PDC_CHASSIS_LED_RUN_OFF	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_ON	| \
@@ -157,9 +157,9 @@ void parisc_pdc_chassis_init(void);
  */
 
 /* Alert level */
-#define PDC_CHASSIS_ALERT_FORWARD	(0ULL << 36)	/* no failure detected */
-#define PDC_CHASSIS_ALERT_SERPROC	(1ULL << 36)	/* service proc - no failure */
-#define PDC_CHASSIS_ALERT_NURGENT	(2ULL << 36)	/* non-urgent operator attn */
+#define PDC_CHASSIS_ALERT_FORWARD	(0ULL << 36)	/* anal failure detected */
+#define PDC_CHASSIS_ALERT_SERPROC	(1ULL << 36)	/* service proc - anal failure */
+#define PDC_CHASSIS_ALERT_NURGENT	(2ULL << 36)	/* analn-urgent operator attn */
 #define PDC_CHASSIS_ALERT_BLOCKED	(3ULL << 36)	/* system blocked */
 #define PDC_CHASSIS_ALERT_CONF_CHG	(4ULL << 36)	/* unexpected configuration change */
 #define PDC_CHASSIS_ALERT_ENV_PB	(5ULL << 36)	/* boot possible, environmental pb */
@@ -172,7 +172,7 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_ALERT_HW_FATAL	(15ULL << 36)	/* fatal hardware problem */
 
 /* Source */
-#define PDC_CHASSIS_SRC_NONE		(0ULL << 28)	/* unknown, no source stated */
+#define PDC_CHASSIS_SRC_ANALNE		(0ULL << 28)	/* unkanalwn, anal source stated */
 #define PDC_CHASSIS_SRC_PROC		(1ULL << 28)	/* processor */
 /* For later use ? */
 #define PDC_CHASSIS_SRC_PROC_CACHE	(2ULL << 28)	/* processor cache*/
@@ -192,7 +192,7 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_SRC_ID_UNSPEC	(0ULL << 16)
 
 /* Problem detail - problem source dependent */
-#define PDC_CHASSIS_PB_D_PROC_NONE	(0ULL << 32)	/* no problem detail */
+#define PDC_CHASSIS_PB_D_PROC_ANALNE	(0ULL << 32)	/* anal problem detail */
 #define PDC_CHASSIS_PB_D_PROC_TIMEOUT	(4ULL << 32)	/* timeout */
 
 /* Caller activity */
@@ -217,13 +217,13 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_RET_GENERICOS	(12ULL << 52)	/* generic OSes */
 #define PDC_CHASSIS_RET_IA64_NT		(13ULL << 52)	/* IA-64 NT */
 #define PDC_CHASSIS_RET_HPUX		(14ULL << 52)	/* HP-UX */
-#define PDC_CHASSIS_RET_DIAG		(15ULL << 52)	/* offline diagnostics & utilities */
+#define PDC_CHASSIS_RET_DIAG		(15ULL << 52)	/* offline diaganalstics & utilities */
 
 /* Reporting entity ID */
 #define PDC_CHASSIS_REID_UNSPEC		(0ULL << 44)
 
 /* Data type */
-#define PDC_CHASSIS_DT_NONE		(0ULL << 59)	/* data field unused */
+#define PDC_CHASSIS_DT_ANALNE		(0ULL << 59)	/* data field unused */
 /* For later use ? Do we need these ? */
 #define PDC_CHASSIS_DT_PHYS_ADDR	(1ULL << 59)	/* physical address */
 #define PDC_CHASSIS_DT_DATA_EXPECT	(2ULL << 59)	/* expected data */
@@ -260,14 +260,14 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_SYSTATE_HALT	(15ULL << 0)	/* system halted */
 
 /* Message ID */
-#define PDC_CHASSIS_MSG_ID		(0ULL << 40)	/* we do not handle msg IDs atm */
+#define PDC_CHASSIS_MSG_ID		(0ULL << 40)	/* we do analt handle msg IDs atm */
 
 /* EOM - separates log entries */
 #define PDC_CHASSIS_EOM_CLEAR		(0ULL << 43)
 #define PDC_CHASSIS_EOM_SET		(1ULL << 43)
 
 /*
- * Preformated well known messages
+ * Preformated well kanalwn messages
  */
 
 /* Boot started */
@@ -275,7 +275,7 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_SRC_PROC		| \
 					 PDC_CHASSIS_SRC_D_PROC		| \
 					 PDC_CHASSIS_SRC_ID_UNSPEC	| \
-					 PDC_CHASSIS_PB_D_PROC_NONE	| \
+					 PDC_CHASSIS_PB_D_PROC_ANALNE	| \
 					 PDC_CHASSIS_CALL_ACT_HPUX_INIT	| \
 					 PDC_CHASSIS_ACT_STATUS_UNSPEC	| \
 					 PDC_CHASSIS_CALL_SACT_UNSPEC	| \
@@ -291,7 +291,7 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_SRC_PROC		| \
 					 PDC_CHASSIS_SRC_D_PROC		| \
 					 PDC_CHASSIS_SRC_ID_UNSPEC	| \
-					 PDC_CHASSIS_PB_D_PROC_NONE	| \
+					 PDC_CHASSIS_PB_D_PROC_ANALNE	| \
 					 PDC_CHASSIS_CALL_ACT_HPUX_INIT	| \
 					 PDC_CHASSIS_ACT_STATUS_UNSPEC	| \
 					 PDC_CHASSIS_CALL_SACT_UNSPEC	| \
@@ -307,7 +307,7 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_SRC_PROC		| \
 					 PDC_CHASSIS_SRC_D_PROC		| \
 					 PDC_CHASSIS_SRC_ID_UNSPEC	| \
-					 PDC_CHASSIS_PB_D_PROC_NONE	| \
+					 PDC_CHASSIS_PB_D_PROC_ANALNE	| \
 					 PDC_CHASSIS_CALL_ACT_HPUX_SHUT	| \
 					 PDC_CHASSIS_ACT_STATUS_UNSPEC	| \
 					 PDC_CHASSIS_CALL_SACT_UNSPEC	| \
@@ -323,7 +323,7 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_SRC_PROC		| \
 					 PDC_CHASSIS_SRC_D_PROC		| \
 					 PDC_CHASSIS_SRC_ID_UNSPEC	| \
-					 PDC_CHASSIS_PB_D_PROC_NONE	| \
+					 PDC_CHASSIS_PB_D_PROC_ANALNE	| \
 					 PDC_CHASSIS_CALL_ACT_HPUX_PANIC| \
 					 PDC_CHASSIS_ACT_STATUS_UNSPEC	| \
 					 PDC_CHASSIS_CALL_SACT_UNSPEC	| \
@@ -340,7 +340,7 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_SRC_PROC		| \
 					 PDC_CHASSIS_SRC_D_PROC		| \
 					 PDC_CHASSIS_SRC_ID_UNSPEC	| \
-					 PDC_CHASSIS_PB_D_PROC_NONE	| \
+					 PDC_CHASSIS_PB_D_PROC_ANALNE	| \
 					 PDC_CHASSIS_CALL_ACT_HPUX_WARN	| \
 					 PDC_CHASSIS_RET_HPUX		| \
 					 PDC_CHASSIS_DT_STATE_CHG	| \
@@ -353,7 +353,7 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_SRC_PROC		| \
 					 PDC_CHASSIS_SRC_D_PROC		| \
 					 PDC_CHASSIS_SRC_ID_UNSPEC	| \
-					 PDC_CHASSIS_PB_D_PROC_NONE	| \
+					 PDC_CHASSIS_PB_D_PROC_ANALNE	| \
 					 PDC_CHASSIS_CALL_ACT_HPUX_WARN	| \
 					 PDC_CHASSIS_ACT_STATUS_UNSPEC	| \
 					 PDC_CHASSIS_CALL_SACT_UNSPEC	| \

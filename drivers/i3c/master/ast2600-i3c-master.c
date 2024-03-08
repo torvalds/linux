@@ -106,7 +106,7 @@ static void ast2600_i3c_set_dat_ibi(struct dw_i3c_master *i3c,
 {
 	/*
 	 * The ast2600 i3c controller will lock up on receiving 4n+1-byte IBIs
-	 * if the PEC is disabled. We have no way to restrict the length of
+	 * if the PEC is disabled. We have anal way to restrict the length of
 	 * IBIs sent to the controller, so we need to unconditionally enable
 	 * PEC checking, which means we drop a byte of payload data
 	 */
@@ -124,22 +124,22 @@ static const struct dw_i3c_platform_ops ast2600_i3c_ops = {
 
 static int ast2600_i3c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct of_phandle_args gspec;
 	struct ast2600_i3c *i3c;
 	int rc;
 
 	i3c = devm_kzalloc(&pdev->dev, sizeof(*i3c), GFP_KERNEL);
 	if (!i3c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = of_parse_phandle_with_fixed_args(np, "aspeed,global-regs", 1, 0,
 					      &gspec);
 	if (rc)
-		return -ENODEV;
+		return -EANALDEV;
 
-	i3c->global_regs = syscon_node_to_regmap(gspec.np);
-	of_node_put(gspec.np);
+	i3c->global_regs = syscon_analde_to_regmap(gspec.np);
+	of_analde_put(gspec.np);
 
 	if (IS_ERR(i3c->global_regs))
 		return PTR_ERR(i3c->global_regs);

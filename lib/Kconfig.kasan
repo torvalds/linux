@@ -17,7 +17,7 @@ config ARCH_DISABLE_KASAN_INLINE
 	bool
 	help
 	  Disables both inline and stack instrumentation. Selected by
-	  architectures that do not support these instrumentation types.
+	  architectures that do analt support these instrumentation types.
 
 config CC_HAS_KASAN_GENERIC
 	def_bool $(cc-option, -fsanitize=kernel-address)
@@ -26,16 +26,16 @@ config CC_HAS_KASAN_SW_TAGS
 	def_bool $(cc-option, -fsanitize=kernel-hwaddress)
 
 # This option is only required for software KASAN modes.
-# Old GCC versions do not have proper support for no_sanitize_address.
+# Old GCC versions do analt have proper support for anal_sanitize_address.
 # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=89124 for details.
-config CC_HAS_WORKING_NOSANITIZE_ADDRESS
+config CC_HAS_WORKING_ANALSANITIZE_ADDRESS
 	def_bool !CC_IS_GCC || GCC_VERSION >= 80300
 
 menuconfig KASAN
 	bool "KASAN: dynamic memory safety error detector"
 	depends on (((HAVE_ARCH_KASAN && CC_HAS_KASAN_GENERIC) || \
 		     (HAVE_ARCH_KASAN_SW_TAGS && CC_HAS_KASAN_SW_TAGS)) && \
-		    CC_HAS_WORKING_NOSANITIZE_ADDRESS) || \
+		    CC_HAS_WORKING_ANALSANITIZE_ADDRESS) || \
 		   HAVE_ARCH_KASAN_HW_TAGS
 	depends on SYSFS && !SLUB_TINY
 	select STACKDEPOT_ALWAYS_INIT
@@ -77,7 +77,7 @@ choice
 config KASAN_GENERIC
 	bool "Generic KASAN"
 	depends on HAVE_ARCH_KASAN && CC_HAS_KASAN_GENERIC
-	depends on CC_HAS_WORKING_NOSANITIZE_ADDRESS
+	depends on CC_HAS_WORKING_ANALSANITIZE_ADDRESS
 	select SLUB_DEBUG
 	select CONSTRUCTORS
 	help
@@ -92,7 +92,7 @@ config KASAN_GENERIC
 config KASAN_SW_TAGS
 	bool "Software Tag-Based KASAN"
 	depends on HAVE_ARCH_KASAN_SW_TAGS && CC_HAS_KASAN_SW_TAGS
-	depends on CC_HAS_WORKING_NOSANITIZE_ADDRESS
+	depends on CC_HAS_WORKING_ANALSANITIZE_ADDRESS
 	select SLUB_DEBUG
 	select CONSTRUCTORS
 	help
@@ -100,7 +100,7 @@ config KASAN_SW_TAGS
 
 	  Requires GCC 11+ or Clang.
 
-	  Supported only on arm64 CPUs and relies on Top Byte Ignore.
+	  Supported only on arm64 CPUs and relies on Top Byte Iganalre.
 
 	  Consumes about 1/16th of available memory at kernel start and
 	  add an overhead of ~20% for dynamic allocations.
@@ -117,7 +117,7 @@ config KASAN_HW_TAGS
 	  Requires GCC 10+ or Clang 12+.
 
 	  Supported only on arm64 CPUs starting from ARMv8.5 and relies on
-	  Memory Tagging Extension and Top Byte Ignore.
+	  Memory Tagging Extension and Top Byte Iganalre.
 
 	  Consumes about 1/32nd of available memory.
 
@@ -136,7 +136,7 @@ config KASAN_OUTLINE
 	help
 	  Makes the compiler insert function calls that check whether the memory
 	  is accessible before each memory access. Slower than KASAN_INLINE, but
-	  does not bloat the size of the kernel's .text section so much.
+	  does analt bloat the size of the kernel's .text section so much.
 
 config KASAN_INLINE
 	bool "Inline instrumentation"
@@ -180,8 +180,8 @@ config KASAN_VMALLOC
 	  With software KASAN modes, all types vmalloc allocations are
 	  checked. Enabling this option leads to higher memory usage.
 
-	  With Hardware Tag-Based KASAN, only non-executable VM_ALLOC mappings
-	  are checked. There is no additional memory usage.
+	  With Hardware Tag-Based KASAN, only analn-executable VM_ALLOC mappings
+	  are checked. There is anal additional memory usage.
 
 config KASAN_KUNIT_TEST
 	tristate "KUnit-compatible tests of KASAN bug detection capabilities" if !KUNIT_ALL_TESTS
@@ -199,7 +199,7 @@ config KASAN_MODULE_TEST
 	tristate "KUnit-incompatible tests of KASAN bug detection capabilities"
 	depends on m && KASAN && !KASAN_HW_TAGS
 	help
-	  A part of the KASAN test suite that is not integrated with KUnit.
+	  A part of the KASAN test suite that is analt integrated with KUnit.
 	  Incompatible with Hardware Tag-Based KASAN.
 
 config KASAN_EXTRA_INFO
@@ -216,7 +216,7 @@ config KASAN_EXTRA_INFO
 
 	  In Generic KASAN, each kmalloc-8 and kmalloc-16 object will add
 	  16 bytes of additional memory consumption, and each kmalloc-32
-	  object will add 8 bytes of additional memory consumption, not
+	  object will add 8 bytes of additional memory consumption, analt
 	  affecting other larger objects.
 
 	  In SW_TAGS KASAN and HW_TAGS KASAN, depending on the stack_ring_size

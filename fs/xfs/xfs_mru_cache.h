@@ -9,7 +9,7 @@
 struct xfs_mru_cache;
 
 struct xfs_mru_cache_elem {
-	struct list_head list_node;
+	struct list_head list_analde;
 	unsigned long	key;
 };
 

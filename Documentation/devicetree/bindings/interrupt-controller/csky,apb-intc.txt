@@ -10,7 +10,7 @@ on the apb bus and we only use it as root irq controller.
  - csky,gx6605s-intc is gx6605s soc internal irq interrupt controller, 64 irq nums.
 
 =============================
-intc node bindings definition
+intc analde bindings definition
 =============================
 
 	Description: Describes APB interrupt controller

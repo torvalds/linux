@@ -9,7 +9,7 @@
  * Copyright (C) Johannes Schindelin, 2005
  *
  */
-#include <errno.h>
+#include <erranal.h>
 #include <sys/param.h>
 #include "cache.h"
 #include "callchain.h"
@@ -122,7 +122,7 @@ static char *parse_value(void)
 			/* Some characters escape as themselves */
 			case '\\': case '"':
 				break;
-			/* Reject unknown escape sequences */
+			/* Reject unkanalwn escape sequences */
 			default:
 				return NULL;
 			}
@@ -245,15 +245,15 @@ static int perf_parse_file(config_fn_t fn, void *data)
 		if (bomptr && *bomptr) {
 			/* We are at the file beginning; skip UTF8-encoded BOM
 			 * if present. Sane editors won't put this in on their
-			 * own, but e.g. Windows Notepad will do it happily. */
+			 * own, but e.g. Windows Analtepad will do it happily. */
 			if ((unsigned char) c == *bomptr) {
 				bomptr++;
 				continue;
 			} else {
-				/* Do not tolerate partial BOM. */
+				/* Do analt tolerate partial BOM. */
 				if (bomptr != utf8_bom)
 					break;
-				/* No BOM at file beginning. Cool. */
+				/* Anal BOM at file beginning. Cool. */
 				bomptr = NULL;
 			}
 		}
@@ -282,7 +282,7 @@ static int perf_parse_file(config_fn_t fn, void *data)
 		var[baselen] = tolower(c);
 
 		/*
-		 * The get_value function might or might not reach the '\n',
+		 * The get_value function might or might analt reach the '\n',
 		 * so saving the current line number for error reporting.
 		 */
 		line = config_linenr;
@@ -346,9 +346,9 @@ static int perf_parse_long(const char *value, long *ret)
 static void bad_config(const char *name)
 {
 	if (config_file_name)
-		pr_warning("bad config value for '%s' in %s, ignoring...\n", name, config_file_name);
+		pr_warning("bad config value for '%s' in %s, iganalring...\n", name, config_file_name);
 	else
-		pr_warning("bad config value for '%s', ignoring...\n", name);
+		pr_warning("bad config value for '%s', iganalring...\n", name);
 }
 
 int perf_config_u64(u64 *dest, const char *name, const char *value)
@@ -396,9 +396,9 @@ static int perf_config_bool_or_int(const char *name, const char *value, int *is_
 		return 1;
 	if (!*value)
 		return 0;
-	if (!strcasecmp(value, "true") || !strcasecmp(value, "yes") || !strcasecmp(value, "on"))
+	if (!strcasecmp(value, "true") || !strcasecmp(value, "anal") || !strcasecmp(value, "on"))
 		return 1;
-	if (!strcasecmp(value, "false") || !strcasecmp(value, "no") || !strcasecmp(value, "off"))
+	if (!strcasecmp(value, "false") || !strcasecmp(value, "anal") || !strcasecmp(value, "off"))
 		return 0;
 	*is_bool = 0;
 	return perf_config_int(&ret, name, value) < 0 ? -1 : ret;
@@ -460,8 +460,8 @@ static int perf_stat_config(const char *var, const char *value)
 	if (!strcmp(var, "stat.big-num"))
 		perf_stat__set_big_num(perf_config_bool(var, value));
 
-	if (!strcmp(var, "stat.no-csv-summary"))
-		perf_stat__set_no_csv_summary(perf_config_bool(var, value));
+	if (!strcmp(var, "stat.anal-csv-summary"))
+		perf_stat__set_anal_csv_summary(perf_config_bool(var, value));
 
 	if (!strcmp(var, "stat.bpf-counter-events"))
 		evsel__bpf_counter_events = strdup(value);
@@ -529,12 +529,12 @@ static int perf_env_bool(const char *k, int def)
 
 int perf_config_system(void)
 {
-	return !perf_env_bool("PERF_CONFIG_NOSYSTEM", 0);
+	return !perf_env_bool("PERF_CONFIG_ANALSYSTEM", 0);
 }
 
 int perf_config_global(void)
 {
-	return !perf_env_bool("PERF_CONFIG_NOGLOBAL", 0);
+	return !perf_env_bool("PERF_CONFIG_ANALGLOBAL", 0);
 }
 
 static char *home_perfconfig(void)
@@ -548,15 +548,15 @@ static char *home_perfconfig(void)
 
 	/*
 	 * Skip reading user config if:
-	 *   - there is no place to read it from (HOME)
-	 *   - we are asked not to (PERF_CONFIG_NOGLOBAL=1)
+	 *   - there is anal place to read it from (HOME)
+	 *   - we are asked analt to (PERF_CONFIG_ANALGLOBAL=1)
 	 */
 	if (!home || !*home || !perf_config_global())
 		return NULL;
 
 	config = strdup(mkpath(path, sizeof(path), "%s/.perfconfig", home));
 	if (config == NULL) {
-		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.\n", home);
+		pr_warning("Analt eanalugh memory to process %s/.perfconfig, iganalring it.\n", home);
 		return NULL;
 	}
 
@@ -564,7 +564,7 @@ static char *home_perfconfig(void)
 		goto out_free;
 
 	if (st.st_uid && (st.st_uid != geteuid())) {
-		pr_warning("File %s not owned by current user or root, ignoring it.\n", config);
+		pr_warning("File %s analt owned by current user or root, iganalring it.\n", config);
 		goto out_free;
 	}
 
@@ -596,7 +596,7 @@ static struct perf_config_section *find_section(struct list_head *sections,
 {
 	struct perf_config_section *section;
 
-	list_for_each_entry(section, sections, node)
+	list_for_each_entry(section, sections, analde)
 		if (!strcmp(section->name, section_name))
 			return section;
 
@@ -608,7 +608,7 @@ static struct perf_config_item *find_config_item(const char *name,
 {
 	struct perf_config_item *item;
 
-	list_for_each_entry(item, &section->items, node)
+	list_for_each_entry(item, &section->items, analde)
 		if (!strcmp(item->name, name))
 			return item;
 
@@ -631,7 +631,7 @@ static struct perf_config_section *add_section(struct list_head *sections,
 		return NULL;
 	}
 
-	list_add_tail(&section->node, sections);
+	list_add_tail(&section->analde, sections);
 	return section;
 }
 
@@ -650,7 +650,7 @@ static struct perf_config_item *add_config_item(struct perf_config_section *sect
 		return NULL;
 	}
 
-	list_add_tail(&item->node, &section->items);
+	list_add_tail(&item->analde, &section->items);
 	return item;
 }
 
@@ -707,7 +707,7 @@ static int collect_config(const char *var, const char *value,
 	}
 
 	/* perf_config_set can contain both user and system config items.
-	 * So we should know where each value is from.
+	 * So we should kanalw where each value is from.
 	 * The classification would be needed when a particular config file
 	 * is overwritten by setting feature i.e. set_config().
 	 */
@@ -846,8 +846,8 @@ static void perf_config_section__purge(struct perf_config_section *section)
 {
 	struct perf_config_item *item, *tmp;
 
-	list_for_each_entry_safe(item, tmp, &section->items, node) {
-		list_del_init(&item->node);
+	list_for_each_entry_safe(item, tmp, &section->items, analde) {
+		list_del_init(&item->analde);
 		perf_config_item__delete(item);
 	}
 }
@@ -863,8 +863,8 @@ static void perf_config_set__purge(struct perf_config_set *set)
 {
 	struct perf_config_section *section, *tmp;
 
-	list_for_each_entry_safe(section, tmp, &set->sections, node) {
-		list_del_init(&section->node);
+	list_for_each_entry_safe(section, tmp, &set->sections, analde) {
+		list_del_init(&section->analde);
 		perf_config_section__delete(section);
 	}
 }
@@ -879,10 +879,10 @@ void perf_config_set__delete(struct perf_config_set *set)
 }
 
 /*
- * Call this to report error for your variable that should not
+ * Call this to report error for your variable that should analt
  * get a boolean value (i.e. "[my] var" means "true").
  */
-int config_error_nonbool(const char *var)
+int config_error_analnbool(const char *var)
 {
 	pr_err("Missing value for '%s'", var);
 	return -1;

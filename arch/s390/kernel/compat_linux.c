@@ -101,8 +101,8 @@ COMPAT_SYSCALL_DEFINE4(s390_readahead, int, fd, u32, high, u32, low, s32, count)
 struct stat64_emu31 {
 	unsigned long long  st_dev;
 	unsigned int    __pad1;
-#define STAT64_HAS_BROKEN_ST_INO        1
-	u32             __st_ino;
+#define STAT64_HAS_BROKEN_ST_IANAL        1
+	u32             __st_ianal;
 	unsigned int    st_mode;
 	unsigned int    st_nlink;
 	u32             st_uid;
@@ -120,7 +120,7 @@ struct stat64_emu31 {
 	u32             __pad7;
 	u32             st_ctime;
 	u32             __pad8;     /* will be high 32 bits of ctime someday */
-	unsigned long   st_ino;
+	unsigned long   st_ianal;
 };	
 
 static int cp_stat64(struct stat64_emu31 __user *ubuf, struct kstat *stat)
@@ -130,8 +130,8 @@ static int cp_stat64(struct stat64_emu31 __user *ubuf, struct kstat *stat)
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.st_dev = huge_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	tmp.__st_ino = (u32)stat->ino;
+	tmp.st_ianal = stat->ianal;
+	tmp.__st_ianal = (u32)stat->ianal;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = (unsigned int)stat->nlink;
 	tmp.st_uid = from_kuid_munged(current_user_ns(), stat->uid);
@@ -240,7 +240,7 @@ COMPAT_SYSCALL_DEFINE3(s390_write, unsigned int, fd, const char __user *, buf, c
 
 /*
  * 31 bit emulation wrapper functions for sys_fadvise64/fadvise64_64.
- * These need to rewrite the advise values for POSIX_FADV_{DONTNEED,NOREUSE}
+ * These need to rewrite the advise values for POSIX_FADV_{DONTNEED,ANALREUSE}
  * because the 31 bit values differ from the 64 bit values.
  */
 
@@ -249,7 +249,7 @@ COMPAT_SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, high, u32, low, compat_size
 	if (advise == 4)
 		advise = POSIX_FADV_DONTNEED;
 	else if (advise == 5)
-		advise = POSIX_FADV_NOREUSE;
+		advise = POSIX_FADV_ANALREUSE;
 	return ksys_fadvise64_64(fd, (unsigned long)high << 32 | low, len,
 				 advise);
 }
@@ -270,7 +270,7 @@ COMPAT_SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, arg
 	if (a.advice == 4)
 		a.advice = POSIX_FADV_DONTNEED;
 	else if (a.advice == 5)
-		a.advice = POSIX_FADV_NOREUSE;
+		a.advice = POSIX_FADV_ANALREUSE;
 	return ksys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
 }
 

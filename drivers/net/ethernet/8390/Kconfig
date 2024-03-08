@@ -10,7 +10,7 @@ config NET_VENDOR_8390
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about National Semiconductor 8390 cards. If you say Y,
 	  you will be asked for your specific card in the following questions.
@@ -120,7 +120,7 @@ config NE2K_PCI
 	depends on PCI
 	select CRC32
 	help
-	  This driver is for NE2000 compatible PCI cards. It will not work
+	  This driver is for NE2000 compatible PCI cards. It will analt work
 	  with ISA NE2000 cards (they have their own driver, "NE2000/NE1000
 	  support" below). If you have a PCI NE2000 network (Ethernet) card,
 	  say Y here.

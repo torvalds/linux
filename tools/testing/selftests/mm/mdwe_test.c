@@ -22,26 +22,26 @@
 
 TEST(prctl_flags)
 {
-	EXPECT_LT(prctl(PR_SET_MDWE, PR_MDWE_NO_INHERIT, 0L, 0L, 7L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_LT(prctl(PR_SET_MDWE, PR_MDWE_ANAL_INHERIT, 0L, 0L, 7L), 0);
+	EXPECT_EQ(erranal, EINVAL);
 
 	EXPECT_LT(prctl(PR_SET_MDWE, 7L, 0L, 0L, 0L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 	EXPECT_LT(prctl(PR_SET_MDWE, 0L, 7L, 0L, 0L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 	EXPECT_LT(prctl(PR_SET_MDWE, 0L, 0L, 7L, 0L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 	EXPECT_LT(prctl(PR_SET_MDWE, 0L, 0L, 0L, 7L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 
 	EXPECT_LT(prctl(PR_GET_MDWE, 7L, 0L, 0L, 0L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 	EXPECT_LT(prctl(PR_GET_MDWE, 0L, 7L, 0L, 0L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 	EXPECT_LT(prctl(PR_GET_MDWE, 0L, 0L, 7L, 0L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 	EXPECT_LT(prctl(PR_GET_MDWE, 0L, 0L, 0L, 7L), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 }
 
 FIXTURE(consecutive_prctl_flags) {};
@@ -55,7 +55,7 @@ FIXTURE_VARIANT(consecutive_prctl_flags)
 	bool should_work;
 };
 
-FIXTURE_VARIANT_ADD(consecutive_prctl_flags, can_keep_no_flags)
+FIXTURE_VARIANT_ADD(consecutive_prctl_flags, can_keep_anal_flags)
 {
 	.first_flags = 0,
 	.second_flags = 0,
@@ -71,8 +71,8 @@ FIXTURE_VARIANT_ADD(consecutive_prctl_flags, can_keep_exec_gain)
 
 FIXTURE_VARIANT_ADD(consecutive_prctl_flags, can_keep_both_flags)
 {
-	.first_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_NO_INHERIT,
-	.second_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_NO_INHERIT,
+	.first_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_ANAL_INHERIT,
+	.second_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_ANAL_INHERIT,
 	.should_work = true,
 };
 
@@ -83,24 +83,24 @@ FIXTURE_VARIANT_ADD(consecutive_prctl_flags, cant_disable_mdwe)
 	.should_work = false,
 };
 
-FIXTURE_VARIANT_ADD(consecutive_prctl_flags, cant_disable_mdwe_no_inherit)
+FIXTURE_VARIANT_ADD(consecutive_prctl_flags, cant_disable_mdwe_anal_inherit)
 {
-	.first_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_NO_INHERIT,
+	.first_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_ANAL_INHERIT,
 	.second_flags = 0,
 	.should_work = false,
 };
 
-FIXTURE_VARIANT_ADD(consecutive_prctl_flags, cant_disable_no_inherit)
+FIXTURE_VARIANT_ADD(consecutive_prctl_flags, cant_disable_anal_inherit)
 {
-	.first_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_NO_INHERIT,
+	.first_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_ANAL_INHERIT,
 	.second_flags = PR_MDWE_REFUSE_EXEC_GAIN,
 	.should_work = false,
 };
 
-FIXTURE_VARIANT_ADD(consecutive_prctl_flags, cant_enable_no_inherit)
+FIXTURE_VARIANT_ADD(consecutive_prctl_flags, cant_enable_anal_inherit)
 {
 	.first_flags = PR_MDWE_REFUSE_EXEC_GAIN,
-	.second_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_NO_INHERIT,
+	.second_flags = PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_ANAL_INHERIT,
 	.should_work = false,
 };
 
@@ -118,7 +118,7 @@ TEST_F(consecutive_prctl_flags, two_prctls)
 		ASSERT_EQ(ret, variant->second_flags);
 	} else {
 		EXPECT_NE(ret, 0);
-		ASSERT_EQ(errno, EPERM);
+		ASSERT_EQ(erranal, EPERM);
 	}
 }
 
@@ -158,7 +158,7 @@ FIXTURE_VARIANT_ADD(mdwe, inherited)
 	.inherit = true,
 };
 
-FIXTURE_VARIANT_ADD(mdwe, not_inherited)
+FIXTURE_VARIANT_ADD(mdwe, analt_inherited)
 {
 	.enabled = true,
 	.forked = true,
@@ -176,7 +176,7 @@ FIXTURE_SETUP(mdwe)
 	int ret, status;
 
 	self->p = NULL;
-	self->flags = MAP_SHARED | MAP_ANONYMOUS;
+	self->flags = MAP_SHARED | MAP_AANALNYMOUS;
 	self->size = getpagesize();
 
 	if (!variant->enabled)
@@ -184,7 +184,7 @@ FIXTURE_SETUP(mdwe)
 
 	mdwe_flags = PR_MDWE_REFUSE_EXEC_GAIN;
 	if (!variant->inherit)
-		mdwe_flags |= PR_MDWE_NO_INHERIT;
+		mdwe_flags |= PR_MDWE_ANAL_INHERIT;
 
 	ret = prctl(PR_SET_MDWE, mdwe_flags, 0L, 0L, 0L);
 	ASSERT_EQ(ret, 0) {
@@ -291,7 +291,7 @@ TEST_F(mdwe, arm64_BTI)
 #ifdef __aarch64__
 	if (!(getauxval(AT_HWCAP2) & HWCAP2_BTI))
 #endif
-		SKIP(return, "HWCAP2_BTI not supported");
+		SKIP(return, "HWCAP2_BTI analt supported");
 
 	self->p = mmap(NULL, self->size, PROT_EXEC, self->flags, 0, 0);
 	ASSERT_NE(self->p, MAP_FAILED);

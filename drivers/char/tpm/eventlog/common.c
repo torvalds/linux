@@ -22,7 +22,7 @@
 #include "../tpm.h"
 #include "common.h"
 
-static int tpm_bios_measurements_open(struct inode *inode,
+static int tpm_bios_measurements_open(struct ianalde *ianalde,
 					    struct file *file)
 {
 	int err;
@@ -31,18 +31,18 @@ static int tpm_bios_measurements_open(struct inode *inode,
 	const struct seq_operations *seqops;
 	struct tpm_chip *chip;
 
-	inode_lock(inode);
-	if (!inode->i_private) {
-		inode_unlock(inode);
-		return -ENODEV;
+	ianalde_lock(ianalde);
+	if (!ianalde->i_private) {
+		ianalde_unlock(ianalde);
+		return -EANALDEV;
 	}
-	chip_seqops = inode->i_private;
+	chip_seqops = ianalde->i_private;
 	seqops = chip_seqops->seqops;
 	chip = chip_seqops->chip;
 	get_device(&chip->dev);
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
-	/* now register seq file */
+	/* analw register seq file */
 	err = seq_open(file, seqops);
 	if (!err) {
 		seq = file->private_data;
@@ -52,7 +52,7 @@ static int tpm_bios_measurements_open(struct inode *inode,
 	return err;
 }
 
-static int tpm_bios_measurements_release(struct inode *inode,
+static int tpm_bios_measurements_release(struct ianalde *ianalde,
 					 struct file *file)
 {
 	struct seq_file *seq = file->private_data;
@@ -60,7 +60,7 @@ static int tpm_bios_measurements_release(struct inode *inode,
 
 	put_device(&chip->dev);
 
-	return seq_release(inode, file);
+	return seq_release(ianalde, file);
 }
 
 static const struct file_operations tpm_bios_measurements_ops = {
@@ -83,11 +83,11 @@ static int tpm_read_log(struct tpm_chip *chip)
 	}
 
 	rc = tpm_read_log_acpi(chip);
-	if (rc != -ENODEV)
+	if (rc != -EANALDEV)
 		return rc;
 
 	rc = tpm_read_log_efi(chip);
-	if (rc != -ENODEV)
+	if (rc != -EANALDEV)
 		return rc;
 
 	return tpm_read_log_of(chip);
@@ -98,7 +98,7 @@ static int tpm_read_log(struct tpm_chip *chip)
  * @chip: TPM chip to use.
  *
  * If an event log is found then the securityfs files are setup to
- * export it to userspace, otherwise nothing is done.
+ * export it to userspace, otherwise analthing is done.
  */
 void tpm_bios_log_setup(struct tpm_chip *chip)
 {
@@ -117,8 +117,8 @@ void tpm_bios_log_setup(struct tpm_chip *chip)
 
 	cnt = 0;
 	chip->bios_dir[cnt] = securityfs_create_dir(name, NULL);
-	/* NOTE: securityfs_create_dir can return ENODEV if securityfs is
-	 * compiled out. The caller should ignore the ENODEV return code.
+	/* ANALTE: securityfs_create_dir can return EANALDEV if securityfs is
+	 * compiled out. The caller should iganalre the EANALDEV return code.
 	 */
 	if (IS_ERR(chip->bios_dir[cnt]))
 		goto err;
@@ -169,20 +169,20 @@ err:
 void tpm_bios_log_teardown(struct tpm_chip *chip)
 {
 	int i;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	/* securityfs_remove currently doesn't take care of handling sync
 	 * between removal and opening of pseudo files. To handle this, a
 	 * workaround is added by making i_private = NULL here during removal
-	 * and to check it during open(), both within inode_lock()/unlock().
+	 * and to check it during open(), both within ianalde_lock()/unlock().
 	 * This design ensures that open() either safely gets kref or fails.
 	 */
 	for (i = (TPM_NUM_EVENT_LOG_FILES - 1); i >= 0; i--) {
 		if (chip->bios_dir[i]) {
-			inode = d_inode(chip->bios_dir[i]);
-			inode_lock(inode);
-			inode->i_private = NULL;
-			inode_unlock(inode);
+			ianalde = d_ianalde(chip->bios_dir[i]);
+			ianalde_lock(ianalde);
+			ianalde->i_private = NULL;
+			ianalde_unlock(ianalde);
 			securityfs_remove(chip->bios_dir[i]);
 		}
 	}

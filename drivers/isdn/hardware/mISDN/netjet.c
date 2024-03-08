@@ -23,7 +23,7 @@
 enum nj_types {
 	NETJET_S_TJ300,
 	NETJET_S_TJ320,
-	ENTERNOW__TJ320,
+	ENTERANALW__TJ320,
 };
 
 struct tiger_dma {
@@ -202,14 +202,14 @@ mode_tiger(struct tiger_ch *bc, u32 protocol)
 	pr_debug("%s: B%1d protocol %x-->%x\n", card->name,
 		 bc->bch.nr, bc->bch.state, protocol);
 	switch (protocol) {
-	case ISDN_P_NONE:
-		if (bc->bch.state == ISDN_P_NONE)
+	case ISDN_P_ANALNE:
+		if (bc->bch.state == ISDN_P_ANALNE)
 			break;
 		fill_mem(bc, 0, card->send.size, 0xff);
 		bc->bch.state = protocol;
 		/* only stop dma and interrupts if both channels NULL */
-		if ((card->bc[0].bch.state == ISDN_P_NONE) &&
-		    (card->bc[1].bch.state == ISDN_P_NONE)) {
+		if ((card->bc[0].bch.state == ISDN_P_ANALNE) &&
+		    (card->bc[1].bch.state == ISDN_P_ANALNE)) {
 			card->dmactrl = 0;
 			outb(card->dmactrl, card->base + NJ_DMACTRL);
 			outb(0, card->base + NJ_IRQMASK0);
@@ -251,9 +251,9 @@ mode_tiger(struct tiger_ch *bc, u32 protocol)
 		}
 		break;
 	default:
-		pr_info("%s: %s protocol %x not handled\n", card->name,
+		pr_info("%s: %s protocol %x analt handled\n", card->name,
 			__func__, protocol);
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 	card->send.dmacur = inl(card->base + NJ_DMA_READ_ADR);
 	card->recv.dmacur = inl(card->base + NJ_DMA_WRITE_ADR);
@@ -275,7 +275,7 @@ nj_reset(struct tiger_hw *card)
 	outb(0xff, card->base + NJ_CTRL); /* Reset On */
 	mdelay(1);
 
-	/* now edge triggered for TJ320 GE 13/07/00 */
+	/* analw edge triggered for TJ320 GE 13/07/00 */
 	/* see comment in IRQ function */
 	if (card->typ == NETJET_S_TJ320) /* TJ320 */
 		card->ctrlreg = 0x40;  /* Reset Off and status read clear */
@@ -300,23 +300,23 @@ inittiger(struct tiger_hw *card)
 	card->dma_p = dma_alloc_coherent(&card->pdev->dev, NJ_DMA_SIZE,
 					 &card->dma, GFP_ATOMIC);
 	if (!card->dma_p) {
-		pr_info("%s: No DMA memory\n", card->name);
-		return -ENOMEM;
+		pr_info("%s: Anal DMA memory\n", card->name);
+		return -EANALMEM;
 	}
 	if ((u64)card->dma > 0xffffffff) {
 		pr_info("%s: DMA outside 32 bit\n", card->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (i = 0; i < 2; i++) {
 		card->bc[i].hsbuf = kmalloc(NJ_DMA_TXSIZE, GFP_ATOMIC);
 		if (!card->bc[i].hsbuf) {
-			pr_info("%s: no B%d send buffer\n", card->name, i + 1);
-			return -ENOMEM;
+			pr_info("%s: anal B%d send buffer\n", card->name, i + 1);
+			return -EANALMEM;
 		}
 		card->bc[i].hrbuf = kmalloc(NJ_DMA_RXSIZE, GFP_ATOMIC);
 		if (!card->bc[i].hrbuf) {
-			pr_info("%s: no B%d recv buffer\n", card->name, i + 1);
-			return -ENOMEM;
+			pr_info("%s: anal B%d recv buffer\n", card->name, i + 1);
+			return -EANALMEM;
 		}
 	}
 	memset(card->dma_p, 0xff, NJ_DMA_SIZE);
@@ -330,7 +330,7 @@ inittiger(struct tiger_hw *card)
 	card->send.size = NJ_DMA_TXSIZE;
 
 	if (debug & DEBUG_HW)
-		pr_notice("%s: send buffer phy %#x - %#x - %#x  virt %p"
+		pr_analtice("%s: send buffer phy %#x - %#x - %#x  virt %p"
 			  " size %zu u32\n", card->name,
 			  card->send.dmastart, card->send.dmairq,
 			  card->send.dmaend, card->send.start, card->send.size);
@@ -348,7 +348,7 @@ inittiger(struct tiger_hw *card)
 	card->recv.size = NJ_DMA_RXSIZE;
 
 	if (debug & DEBUG_HW)
-		pr_notice("%s: recv buffer phy %#x - %#x - %#x  virt %p"
+		pr_analtice("%s: recv buffer phy %#x - %#x - %#x  virt %p"
 			  " size %zu u32\n", card->name,
 			  card->recv.dmastart, card->recv.dmairq,
 			  card->recv.dmaend, card->recv.start, card->recv.size);
@@ -379,8 +379,8 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 	}
 	stat = bchannel_get_rxbuf(&bc->bch, cnt);
 	/* only transparent use the count here, HDLC overun is detected later */
-	if (stat == -ENOMEM) {
-		pr_warn("%s.B%d: No memory for %d bytes\n",
+	if (stat == -EANALMEM) {
+		pr_warn("%s.B%d: Anal memory for %d bytes\n",
 			card->name, bc->bch.nr, cnt);
 		return;
 	}
@@ -420,7 +420,7 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 			recv_Bchannel(&bc->bch, 0, false);
 			stat = bchannel_get_rxbuf(&bc->bch, bc->bch.maxlen);
 			if (stat < 0) {
-				pr_warn("%s.B%d: No memory for %d bytes\n",
+				pr_warn("%s.B%d: Anal memory for %d bytes\n",
 					card->name, bc->bch.nr, cnt);
 				return;
 			}
@@ -445,7 +445,7 @@ recv_tiger(struct tiger_hw *card, u8 irq_stat)
 	u32 idx;
 	int cnt = card->recv.size / 2;
 
-	/* Note receive is via the WRITE DMA channel */
+	/* Analte receive is via the WRITE DMA channel */
 	card->last_is0 &= ~NJ_IRQM0_WR_MASK;
 	card->last_is0 |= (irq_stat & NJ_IRQM0_WR_MASK);
 
@@ -641,7 +641,7 @@ send_tiger_bc(struct tiger_hw *card, struct tiger_ch *bc)
 			fill_hdlc_flag(bc);
 			return;
 		}
-		pr_debug("%s: B%1d TX no data free %d idx %d/%d\n", card->name,
+		pr_debug("%s: B%1d TX anal data free %d idx %d/%d\n", card->name,
 			 bc->bch.nr, bc->free, bc->idx, card->send.idx);
 		if (!(bc->txstate & (TX_IDLE | TX_INIT))) {
 			fill_mem(bc, bc->idx, bc->free, 0xff);
@@ -656,7 +656,7 @@ send_tiger(struct tiger_hw *card, u8 irq_stat)
 {
 	int i;
 
-	/* Note send is via the READ DMA channel */
+	/* Analte send is via the READ DMA channel */
 	if ((irq_stat & card->last_is0) & NJ_IRQM0_RD_MASK) {
 		pr_info("%s: tiger warn write double dma %x/%x\n",
 			card->name, irq_stat, card->last_is0);
@@ -672,7 +672,7 @@ send_tiger(struct tiger_hw *card, u8 irq_stat)
 }
 
 static irqreturn_t
-nj_irq(int intno, void *dev_id)
+nj_irq(int intanal, void *dev_id)
 {
 	struct tiger_hw *card = dev_id;
 	u8 val, s1val, s0val;
@@ -683,7 +683,7 @@ nj_irq(int intno, void *dev_id)
 	if ((s1val & NJ_ISACIRQ) && (s0val == 0)) {
 		/* shared IRQ */
 		spin_unlock(&card->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	pr_debug("%s: IRQSTAT0 %02x IRQSTAT1 %02x\n", card->name, s0val, s1val);
 	card->irqcnt++;
@@ -767,7 +767,7 @@ nj_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 	case PH_DEACTIVATE_REQ:
 		spin_lock_irqsave(&card->lock, flags);
 		mISDN_clear_bchannel(bch);
-		mode_tiger(bc, ISDN_P_NONE);
+		mode_tiger(bc, ISDN_P_ANALNE);
 		spin_unlock_irqrestore(&card->lock, flags);
 		_queue_data(ch, PH_DEACTIVATE_IND, MISDN_ID_ANY, 0,
 			    NULL, GFP_KERNEL);
@@ -801,9 +801,9 @@ nj_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(&card->lock, flags);
 		mISDN_clear_bchannel(bch);
-		mode_tiger(bc, ISDN_P_NONE);
+		mode_tiger(bc, ISDN_P_ANALNE);
 		spin_unlock_irqrestore(&card->lock, flags);
-		ch->protocol = ISDN_P_NONE;
+		ch->protocol = ISDN_P_ANALNE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
 		ret = 0;
@@ -812,7 +812,7 @@ nj_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		ret = channel_bctrl(bc, arg);
 		break;
 	default:
-		pr_info("%s: %s unknown prim(%x)\n", card->name, __func__, cmd);
+		pr_info("%s: %s unkanalwn prim(%x)\n", card->name, __func__, cmd);
 	}
 	return ret;
 }
@@ -838,7 +838,7 @@ channel_ctrl(struct tiger_hw *card, struct mISDN_ctrl_req *cq)
 		ret = card->isac.ctrl(&card->isac, HW_TIMER3_VALUE, cq->p1);
 		break;
 	default:
-		pr_info("%s: %s unknown Op %x\n", card->name, __func__, cq->op);
+		pr_info("%s: %s unkanalwn Op %x\n", card->name, __func__, cq->op);
 		ret = -EINVAL;
 		break;
 	}
@@ -852,7 +852,7 @@ open_bchannel(struct tiger_hw *card, struct channel_req *rq)
 
 	if (rq->adr.channel == 0 || rq->adr.channel > 2)
 		return -EINVAL;
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
 	bch = &card->bc[rq->adr.channel - 1].bch;
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
@@ -886,7 +886,7 @@ nj_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		if (err)
 			break;
 		if (!try_module_get(THIS_MODULE))
-			pr_info("%s: cannot get module\n", card->name);
+			pr_info("%s: cananalt get module\n", card->name);
 		break;
 	case CLOSE_CHANNEL:
 		pr_debug("%s: dev(%d) close from %p\n", card->name, dch->dev.id,
@@ -897,7 +897,7 @@ nj_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(card, arg);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n",
+		pr_debug("%s: %s unkanalwn command %x\n",
 			 card->name, __func__, cmd);
 		return -EINVAL;
 	}
@@ -930,8 +930,8 @@ nj_init_card(struct tiger_hw *card)
 	ret = inittiger(card);
 	if (ret)
 		goto error;
-	mode_tiger(&card->bc[0], ISDN_P_NONE);
-	mode_tiger(&card->bc[1], ISDN_P_NONE);
+	mode_tiger(&card->bc[0], ISDN_P_ANALNE);
+	mode_tiger(&card->bc[1], ISDN_P_ANALNE);
 error:
 	spin_unlock_irqrestore(&card->lock, flags);
 	return ret;
@@ -947,8 +947,8 @@ nj_release(struct tiger_hw *card)
 	if (card->base_s) {
 		spin_lock_irqsave(&card->lock, flags);
 		nj_disable_hwirq(card);
-		mode_tiger(&card->bc[0], ISDN_P_NONE);
-		mode_tiger(&card->bc[1], ISDN_P_NONE);
+		mode_tiger(&card->bc[0], ISDN_P_ANALNE);
+		mode_tiger(&card->bc[1], ISDN_P_ANALNE);
 		spin_unlock_irqrestore(&card->lock, flags);
 		card->isac.release(&card->isac);
 		release_region(card->base, card->base_s);
@@ -1036,7 +1036,7 @@ setup_instance(struct tiger_hw *card)
 	err = nj_init_card(card);
 	if (!err)  {
 		nj_cnt++;
-		pr_notice("Netjet %d cards installed\n", nj_cnt);
+		pr_analtice("Netjet %d cards installed\n", nj_cnt);
 		return 0;
 	}
 error:
@@ -1047,31 +1047,31 @@ error:
 static int
 nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int cfg;
 	struct tiger_hw *card;
 
 	if (pdev->subsystem_vendor == 0x8086 &&
 	    pdev->subsystem_device == 0x0003) {
-		pr_notice("Netjet: Digium X100P/X101P not handled\n");
-		return -ENODEV;
+		pr_analtice("Netjet: Digium X100P/X101P analt handled\n");
+		return -EANALDEV;
 	}
 
 	if (pdev->subsystem_vendor == 0x55 &&
 	    pdev->subsystem_device == 0x02) {
-		pr_notice("Netjet: Enter!Now not handled yet\n");
-		return -ENODEV;
+		pr_analtice("Netjet: Enter!Analw analt handled yet\n");
+		return -EANALDEV;
 	}
 
 	if (pdev->subsystem_vendor == 0xb100 &&
 	    pdev->subsystem_device == 0x0003) {
-		pr_notice("Netjet: Digium TDM400P not handled yet\n");
-		return -ENODEV;
+		pr_analtice("Netjet: Digium TDM400P analt handled yet\n");
+		return -EANALDEV;
 	}
 
 	card = kzalloc(sizeof(struct tiger_hw), GFP_KERNEL);
 	if (!card) {
-		pr_info("No kmem for Netjet\n");
+		pr_info("Anal kmem for Netjet\n");
 		return err;
 	}
 
@@ -1118,9 +1118,9 @@ static void nj_remove(struct pci_dev *pdev)
 		pr_info("%s drvdata already removed\n", __func__);
 }
 
-/* We cannot select cards with PCI_SUB... IDs, since here are cards with
+/* We cananalt select cards with PCI_SUB... IDs, since here are cards with
  * SUB IDs set to PCI_ANY_ID, so we need to match all and reject
- * known other cards which not work with this driver - see probe function */
+ * kanalwn other cards which analt work with this driver - see probe function */
 static const struct pci_device_id nj_pci_ids[] = {
 	{ PCI_VENDOR_ID_TIGERJET, PCI_DEVICE_ID_TIGERJET_300,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -1139,7 +1139,7 @@ static int __init nj_init(void)
 {
 	int err;
 
-	pr_notice("Netjet PCI driver Rev. %s\n", NETJET_REV);
+	pr_analtice("Netjet PCI driver Rev. %s\n", NETJET_REV);
 	err = pci_register_driver(&nj_driver);
 	return err;
 }

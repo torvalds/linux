@@ -19,9 +19,9 @@
  * mind when they created this document.  The commands are all very
  * similar to commands in the SCSI-II and ATAPI specifications.
  *
- * It is important to note that in a number of cases this class
+ * It is important to analte that in a number of cases this class
  * exhibits class-specific exemptions from the USB specification.
- * Notably the usage of NAK, STALL and ACK differs from the norm, in
+ * Analtably the usage of NAK, STALL and ACK differs from the analrm, in
  * that they are used to communicate wait, failed and OK on commands.
  *
  * Also, for certain devices, the interrupt endpoint is used to convey
@@ -50,7 +50,7 @@
  * Vendor IDs for companies that seem to include the READ CAPACITY bug
  * in all their devices
  */
-#define VENDOR_ID_NOKIA		0x0421
+#define VENDOR_ID_ANALKIA		0x0421
 #define VENDOR_ID_NIKON		0x04b0
 #define VENDOR_ID_PENTAX	0x0a17
 #define VENDOR_ID_MOTOROLA	0x22b8
@@ -82,7 +82,7 @@ static int slave_alloc (struct scsi_device *sdev)
 	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
 
-	/* Tell the SCSI layer if we know there is more than one LUN */
+	/* Tell the SCSI layer if we kanalw there is more than one LUN */
 	if (us->protocol == USB_PR_BULK && us->max_lun > 0)
 		sdev->sdev_bflags |= BLIST_FORCELUN;
 
@@ -141,7 +141,7 @@ static int slave_configure(struct scsi_device *sdev)
 
 	/*
 	 * We can't put these settings in slave_alloc() because that gets
-	 * called before the device type is known.  Consequently these
+	 * called before the device type is kanalwn.  Consequently these
 	 * settings can't be overridden via the scsi devinfo mechanism.
 	 */
 	if (sdev->type == TYPE_DISK) {
@@ -155,7 +155,7 @@ static int slave_configure(struct scsi_device *sdev)
 		 * flag unless told otherwise.
 		 */
 		switch (le16_to_cpu(us->pusb_dev->descriptor.idVendor)) {
-		case VENDOR_ID_NOKIA:
+		case VENDOR_ID_ANALKIA:
 		case VENDOR_ID_NIKON:
 		case VENDOR_ID_PENTAX:
 		case VENDOR_ID_MOTOROLA:
@@ -189,13 +189,13 @@ static int slave_configure(struct scsi_device *sdev)
 		/*
 		 * Some devices don't like MODE SENSE with page=0x3f,
 		 * which is the command used for checking if a device
-		 * is write-protected.  Now that we tell the sd driver
+		 * is write-protected.  Analw that we tell the sd driver
 		 * to do a 192-byte transfer with this command the
 		 * majority of devices work fine, but a few still can't
 		 * handle it.  The sd driver will simply assume those
 		 * devices are write-enabled.
 		 */
-		if (us->fflags & US_FL_NO_WP_DETECT)
+		if (us->fflags & US_FL_ANAL_WP_DETECT)
 			sdev->skip_ms_page_3f = 1;
 
 		/*
@@ -206,15 +206,15 @@ static int slave_configure(struct scsi_device *sdev)
 
 		/*
 		 * Some devices don't handle VPD pages correctly, so skip vpd
-		 * pages if not forced by SCSI layer.
+		 * pages if analt forced by SCSI layer.
 		 */
 		sdev->skip_vpd_pages = !sdev->try_vpd_pages;
 
-		/* Do not attempt to use REPORT SUPPORTED OPERATION CODES */
-		sdev->no_report_opcodes = 1;
+		/* Do analt attempt to use REPORT SUPPORTED OPERATION CODES */
+		sdev->anal_report_opcodes = 1;
 
-		/* Do not attempt to use WRITE SAME */
-		sdev->no_write_same = 1;
+		/* Do analt attempt to use WRITE SAME */
+		sdev->anal_write_same = 1;
 
 		/*
 		 * Some disks return the total number of blocks in response
@@ -226,18 +226,18 @@ static int slave_configure(struct scsi_device *sdev)
 
 		/*
 		 * A few disks have two indistinguishable version, one of
-		 * which reports the correct capacity and the other does not.
+		 * which reports the correct capacity and the other does analt.
 		 * The sd driver has to guess which is the case.
 		 */
 		if (us->fflags & US_FL_CAPACITY_HEURISTICS)
 			sdev->guess_capacity = 1;
 
-		/* Some devices cannot handle READ_CAPACITY_16 */
-		if (us->fflags & US_FL_NO_READ_CAPACITY_16)
-			sdev->no_read_capacity_16 = 1;
+		/* Some devices cananalt handle READ_CAPACITY_16 */
+		if (us->fflags & US_FL_ANAL_READ_CAPACITY_16)
+			sdev->anal_read_capacity_16 = 1;
 
 		/*
-		 * Many devices do not respond properly to READ_CAPACITY_16.
+		 * Many devices do analt respond properly to READ_CAPACITY_16.
 		 * Tell the SCSI layer to try READ_CAPACITY_10 first.
 		 * However some USB 3.0 drive enclosures return capacity
 		 * modulo 2TB. Those must use READ_CAPACITY_16
@@ -254,9 +254,9 @@ static int slave_configure(struct scsi_device *sdev)
 			us->fflags |= US_FL_SANE_SENSE;
 
 		/*
-		 * USB-IDE bridges tend to report SK = 0x04 (Non-recoverable
+		 * USB-IDE bridges tend to report SK = 0x04 (Analn-recoverable
 		 * Hardware Error) when any low-level error occurs,
-		 * recoverable or not.  Setting this flag tells the SCSI
+		 * recoverable or analt.  Setting this flag tells the SCSI
 		 * midlayer to retry such commands, which frequently will
 		 * succeed and fix the error.  The worst this can lead to
 		 * is an occasional series of retries that will all fail.
@@ -278,7 +278,7 @@ static int slave_configure(struct scsi_device *sdev)
 
 		/*
 		 * Enable last-sector hacks for single-target devices using
-		 * the Bulk-only transport, unless we already know the
+		 * the Bulk-only transport, unless we already kanalw the
 		 * capacity will be decremented or is correct.
 		 */
 		if (!(us->fflags & (US_FL_FIX_CAPACITY | US_FL_CAPACITY_OK |
@@ -286,7 +286,7 @@ static int slave_configure(struct scsi_device *sdev)
 				us->protocol == USB_PR_BULK)
 			us->use_last_sector_hacks = 1;
 
-		/* Check if write cache default on flag is set or not */
+		/* Check if write cache default on flag is set or analt */
 		if (us->fflags & US_FL_WRITE_CACHE)
 			sdev->wce_default_on = 1;
 
@@ -305,33 +305,33 @@ static int slave_configure(struct scsi_device *sdev)
 	} else {
 
 		/*
-		 * Non-disk-type devices don't need to ignore any pages
+		 * Analn-disk-type devices don't need to iganalre any pages
 		 * or to force 192-byte transfer lengths for MODE SENSE.
 		 * But they do need to use MODE SENSE(10).
 		 */
 		sdev->use_10_for_ms = 1;
 
 		/* Some (fake) usb cdrom devices don't like READ_DISC_INFO */
-		if (us->fflags & US_FL_NO_READ_DISC_INFO)
-			sdev->no_read_disc_info = 1;
+		if (us->fflags & US_FL_ANAL_READ_DISC_INFO)
+			sdev->anal_read_disc_info = 1;
 	}
 
 	/*
-	 * The CB and CBI transports have no way to pass LUN values
+	 * The CB and CBI transports have anal way to pass LUN values
 	 * other than the bits in the second byte of a CDB.  But those
 	 * bits don't get set to the LUN value if the device reports
-	 * scsi_level == 0 (UNKNOWN).  Hence such devices must necessarily
+	 * scsi_level == 0 (UNKANALWN).  Hence such devices must necessarily
 	 * be single-LUN.
 	 */
 	if ((us->protocol == USB_PR_CB || us->protocol == USB_PR_CBI) &&
-			sdev->scsi_level == SCSI_UNKNOWN)
+			sdev->scsi_level == SCSI_UNKANALWN)
 		us->max_lun = 0;
 
 	/*
 	 * Some devices choke when they receive a PREVENT-ALLOW MEDIUM
 	 * REMOVAL command, so suppress those commands.
 	 */
-	if (us->fflags & US_FL_NOT_LOCKABLE)
+	if (us->fflags & US_FL_ANALT_LOCKABLE)
 		sdev->lockable = 0;
 
 	/*
@@ -348,22 +348,22 @@ static int target_alloc(struct scsi_target *starget)
 	/*
 	 * Some USB drives don't support REPORT LUNS, even though they
 	 * report a SCSI revision level above 2.  Tell the SCSI layer
-	 * not to issue that command; it will perform a normal sequential
+	 * analt to issue that command; it will perform a analrmal sequential
 	 * scan instead.
 	 */
-	starget->no_report_luns = 1;
+	starget->anal_report_luns = 1;
 
 	/*
 	 * The UFI spec treats the Peripheral Qualifier bits in an
 	 * INQUIRY result as reserved and requires devices to set them
 	 * to 0.  However the SCSI spec requires these bits to be set
-	 * to 3 to indicate when a LUN is not present.
+	 * to 3 to indicate when a LUN is analt present.
 	 *
-	 * Let the scanning code know if this target merely sets
-	 * Peripheral Device Type to 0x1f to indicate no LUN.
+	 * Let the scanning code kanalw if this target merely sets
+	 * Peripheral Device Type to 0x1f to indicate anal LUN.
 	 */
 	if (us->subclass == USB_SC_UFI)
-		starget->pdt_1f_for_no_lun = 1;
+		starget->pdt_1f_for_anal_lun = 1;
 
 	return 0;
 }
@@ -385,12 +385,12 @@ static int queuecommand_lck(struct scsi_cmnd *srb)
 	/* fail the command if we are disconnecting */
 	if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 		usb_stor_dbg(us, "Fail command during disconnect\n");
-		srb->result = DID_NO_CONNECT << 16;
+		srb->result = DID_ANAL_CONNECT << 16;
 		done(srb);
 		return 0;
 	}
 
-	if ((us->fflags & US_FL_NO_ATA_1X) &&
+	if ((us->fflags & US_FL_ANAL_ATA_1X) &&
 			(srb->cmnd[0] == ATA_12 || srb->cmnd[0] == ATA_16)) {
 		memcpy(srb->sense_buffer, usb_stor_sense_invalidCDB,
 		       sizeof(usb_stor_sense_invalidCDB));
@@ -424,7 +424,7 @@ static int command_abort_matching(struct us_data *us, struct scsi_cmnd *srb_matc
 	/* is there any active pending command to abort ? */
 	if (!us->srb) {
 		scsi_unlock(us_to_host(us));
-		usb_stor_dbg(us, "-- nothing to abort\n");
+		usb_stor_dbg(us, "-- analthing to abort\n");
 		return SUCCESS;
 	}
 
@@ -438,7 +438,7 @@ static int command_abort_matching(struct us_data *us, struct scsi_cmnd *srb_matc
 	/*
 	 * Set the TIMED_OUT bit.  Also set the ABORTING bit, but only if
 	 * a device reset isn't already in progress (to avoid interfering
-	 * with the reset).  Note that we must retain the host lock while
+	 * with the reset).  Analte that we must retain the host lock while
 	 * calling usb_stor_stop_transport(); otherwise it might interfere
 	 * with an auto-reset that begins as soon as we release the lock.
 	 */
@@ -450,7 +450,7 @@ static int command_abort_matching(struct us_data *us, struct scsi_cmnd *srb_matc
 	scsi_unlock(us_to_host(us));
 
 	/* Wait for the aborted command to finish */
-	wait_for_completion(&us->notify);
+	wait_for_completion(&us->analtify);
 	return SUCCESS;
 }
 
@@ -516,7 +516,7 @@ void usb_stor_report_device_reset(struct us_data *us)
 /*
  * Report a driver-initiated bus reset to the SCSI layer.
  * Calling this for a SCSI-initiated reset is unnecessary but harmless.
- * The caller must not own the SCSI host lock.
+ * The caller must analt own the SCSI host lock.
  */
 void usb_stor_report_bus_reset(struct us_data *us)
 {
@@ -543,7 +543,7 @@ static int show_info (struct seq_file *m, struct Scsi_Host *host)
 	const char *string;
 
 	/* print the controller name */
-	seq_printf(m, "   Host scsi%d: usb-storage\n", host->host_no);
+	seq_printf(m, "   Host scsi%d: usb-storage\n", host->host_anal);
 
 	/* print product, vendor, and serial number strings */
 	if (us->pusb_dev->manufacturer)
@@ -551,19 +551,19 @@ static int show_info (struct seq_file *m, struct Scsi_Host *host)
 	else if (us->unusual_dev->vendorName)
 		string = us->unusual_dev->vendorName;
 	else
-		string = "Unknown";
+		string = "Unkanalwn";
 	seq_printf(m, "       Vendor: %s\n", string);
 	if (us->pusb_dev->product)
 		string = us->pusb_dev->product;
 	else if (us->unusual_dev->productName)
 		string = us->unusual_dev->productName;
 	else
-		string = "Unknown";
+		string = "Unkanalwn";
 	seq_printf(m, "      Product: %s\n", string);
 	if (us->pusb_dev->serial)
 		string = us->pusb_dev->serial;
 	else
-		string = "None";
+		string = "Analne";
 	seq_printf(m, "Serial Number: %s\n", string);
 
 	/* show the protocol and transport */
@@ -638,7 +638,7 @@ static const struct scsi_host_template usb_stor_host_template = {
 	/* queue commands only, only one command per LUN */
 	.can_queue =			1,
 
-	/* unknown initiator id */
+	/* unkanalwn initiator id */
 	.this_id =			-1,
 
 	.slave_alloc =			slave_alloc,
@@ -652,7 +652,7 @@ static const struct scsi_host_template usb_stor_host_template = {
 	/*
 	 * Limit the total size of a transfer to 120 KB.
 	 *
-	 * Some devices are known to choke with anything larger. It seems like
+	 * Some devices are kanalwn to choke with anything larger. It seems like
 	 * the problem stems from the fact that original IDE controllers had
 	 * only an 8-bit register to hold the number of sectors in one transfer
 	 * and even those couldn't handle a full 256 sectors.

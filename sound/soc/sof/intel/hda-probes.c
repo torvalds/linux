@@ -79,7 +79,7 @@ static int hda_probes_compr_set_params(struct sof_client_dev *cdev,
 	int bps, ret;
 
 	dmab = cstream->runtime->dma_buffer_p;
-	/* compr params do not store bit depth, default to S32_LE */
+	/* compr params do analt store bit depth, default to S32_LE */
 	bps = snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S32_LE);
 	if (bps < 0)
 		return bps;
@@ -89,7 +89,7 @@ static int hda_probes_compr_set_params(struct sof_client_dev *cdev,
 	hstream->format_val = rate | bits | (params->codec.ch_out - 1);
 	hstream->bufsize = cstream->runtime->buffer_size;
 	hstream->period_bytes = cstream->runtime->fragment_size;
-	hstream->no_period_wakeup = 0;
+	hstream->anal_period_wakeup = 0;
 
 	ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, NULL);
 	if (ret < 0) {

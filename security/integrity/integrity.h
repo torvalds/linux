@@ -24,7 +24,7 @@
 #define IMA_MEASURED		0x00000002
 #define IMA_APPRAISE		0x00000004
 #define IMA_APPRAISED		0x00000008
-/*#define IMA_COLLECT		0x00000010  do not use this flag */
+/*#define IMA_COLLECT		0x00000010  do analt use this flag */
 #define IMA_COLLECTED		0x00000020
 #define IMA_AUDIT		0x00000040
 #define IMA_AUDITED		0x00000080
@@ -32,7 +32,7 @@
 #define IMA_HASHED		0x00000200
 
 /* iint policy rule cache flags */
-#define IMA_NONACTION_FLAGS	0xff000000
+#define IMA_ANALNACTION_FLAGS	0xff000000
 #define IMA_DIGSIG_REQUIRED	0x01000000
 #define IMA_PERMIT_DIRECTIO	0x02000000
 #define IMA_NEW_FILE		0x04000000
@@ -136,7 +136,7 @@ struct signature_v2_hdr {
 	uint8_t type;		/* xattr type */
 	uint8_t version;	/* signature format version */
 	uint8_t	hash_algo;	/* Digest algorithm [enum hash_algo] */
-	__be32 keyid;		/* IMA key identifier - not X509/PGP specific */
+	__be32 keyid;		/* IMA key identifier - analt X509/PGP specific */
 	__be16 sig_size;	/* signature size */
 	uint8_t sig[];		/* signature payload */
 } __packed;
@@ -155,16 +155,16 @@ struct ima_file_id {
 	__u8 hash[HASH_MAX_DIGESTSIZE];
 } __packed;
 
-/* integrity data associated with an inode */
+/* integrity data associated with an ianalde */
 struct integrity_iint_cache {
-	struct rb_node rb_node;	/* rooted in integrity_iint_tree */
+	struct rb_analde rb_analde;	/* rooted in integrity_iint_tree */
 	struct mutex mutex;	/* protects: version, flags, digest */
-	struct inode *inode;	/* back pointer to inode in question */
-	u64 version;		/* track inode changes */
+	struct ianalde *ianalde;	/* back pointer to ianalde in question */
+	u64 version;		/* track ianalde changes */
 	unsigned long flags;
 	unsigned long measured_pcrs;
 	unsigned long atomic_flags;
-	unsigned long real_ino;
+	unsigned long real_ianal;
 	dev_t real_dev;
 	enum integrity_status ima_file_status:4;
 	enum integrity_status ima_mmap_status:4;
@@ -176,9 +176,9 @@ struct integrity_iint_cache {
 };
 
 /* rbtree tree calls to lookup, insert, delete
- * integrity data associated with an inode.
+ * integrity data associated with an ianalde.
  */
-struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
+struct integrity_iint_cache *integrity_iint_find(struct ianalde *ianalde);
 
 int integrity_kernel_read(struct file *file, loff_t offset,
 			  void *addr, unsigned long count);
@@ -209,13 +209,13 @@ static inline int integrity_digsig_verify(const unsigned int id,
 					  const char *sig, int siglen,
 					  const char *digest, int digestlen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int integrity_modsig_verify(unsigned int id,
 					  const struct modsig *modsig)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int integrity_init_keyring(const unsigned int id)
@@ -239,7 +239,7 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 static inline int asymmetric_verify(struct key *keyring, const char *sig,
 				    int siglen, const char *data, int datalen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -249,7 +249,7 @@ int ima_modsig_verify(struct key *keyring, const struct modsig *modsig);
 static inline int ima_modsig_verify(struct key *keyring,
 				    const struct modsig *modsig)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -271,14 +271,14 @@ static inline void evm_load_x509(void)
 
 #ifdef CONFIG_INTEGRITY_AUDIT
 /* declarations */
-void integrity_audit_msg(int audit_msgno, struct inode *inode,
+void integrity_audit_msg(int audit_msganal, struct ianalde *ianalde,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int info);
 
-void integrity_audit_message(int audit_msgno, struct inode *inode,
+void integrity_audit_message(int audit_msganal, struct ianalde *ianalde,
 			     const unsigned char *fname, const char *op,
 			     const char *cause, int result, int info,
-			     int errno);
+			     int erranal);
 
 static inline struct audit_buffer *
 integrity_audit_log_start(struct audit_context *ctx, gfp_t gfp_mask, int type)
@@ -287,18 +287,18 @@ integrity_audit_log_start(struct audit_context *ctx, gfp_t gfp_mask, int type)
 }
 
 #else
-static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
+static inline void integrity_audit_msg(int audit_msganal, struct ianalde *ianalde,
 				       const unsigned char *fname,
 				       const char *op, const char *cause,
 				       int result, int info)
 {
 }
 
-static inline void integrity_audit_message(int audit_msgno,
-					   struct inode *inode,
+static inline void integrity_audit_message(int audit_msganal,
+					   struct ianalde *ianalde,
 					   const unsigned char *fname,
 					   const char *op, const char *cause,
-					   int result, int info, int errno)
+					   int result, int info, int erranal)
 {
 }
 

@@ -23,26 +23,26 @@ static DEFINE_MUTEX(damon_dbgfs_lock);
 static void damon_dbgfs_warn_deprecation(void)
 {
 	pr_warn_once("DAMON debugfs interface is deprecated, "
-		     "so users should move to DAMON_SYSFS. If you cannot, "
+		     "so users should move to DAMON_SYSFS. If you cananalt, "
 		     "please report your usecase to damon@lists.linux.dev and "
 		     "linux-mm@kvack.org.\n");
 }
 
 /*
- * Returns non-empty string on success, negative error code otherwise.
+ * Returns analn-empty string on success, negative error code otherwise.
  */
 static char *user_input_str(const char __user *buf, size_t count, loff_t *ppos)
 {
 	char *kbuf;
 	ssize_t ret;
 
-	/* We do not accept continuous write */
+	/* We do analt accept continuous write */
 	if (*ppos)
 		return ERR_PTR(-EINVAL);
 
-	kbuf = kmalloc(count + 1, GFP_KERNEL | __GFP_NOWARN);
+	kbuf = kmalloc(count + 1, GFP_KERNEL | __GFP_ANALWARN);
 	if (!kbuf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = simple_write_to_buffer(kbuf, count + 1, ppos, buf, count);
 	if (ret != count) {
@@ -124,7 +124,7 @@ static int damos_action_to_dbgfs_scheme_action(enum damos_action action)
 		return 2;
 	case DAMOS_HUGEPAGE:
 		return 3;
-	case DAMOS_NOHUGEPAGE:
+	case DAMOS_ANALHUGEPAGE:
 		return 4;
 	case DAMOS_STAT:
 		return 5;
@@ -160,7 +160,7 @@ static ssize_t sprint_schemes(struct damon_ctx *c, char *buf, ssize_t len)
 				s->stat.nr_applied, s->stat.sz_applied,
 				s->stat.qt_exceeds);
 		if (!rc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		written += rc;
 	}
@@ -174,9 +174,9 @@ static ssize_t dbgfs_schemes_read(struct file *file, char __user *buf,
 	char *kbuf;
 	ssize_t len;
 
-	kbuf = kmalloc(count, GFP_KERNEL | __GFP_NOWARN);
+	kbuf = kmalloc(count, GFP_KERNEL | __GFP_ANALWARN);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ctx->kdamond_lock);
 	len = sprint_schemes(ctx, kbuf, count);
@@ -215,7 +215,7 @@ static enum damos_action dbgfs_scheme_action_to_damos_action(int dbgfs_action)
 	case 3:
 		return DAMOS_HUGEPAGE;
 	case 4:
-		return DAMOS_NOHUGEPAGE;
+		return DAMOS_ANALHUGEPAGE;
 	case 5:
 		return DAMOS_STAT;
 	default:
@@ -345,7 +345,7 @@ static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
 
 		rc = scnprintf(&buf[written], len - written, "%d ", id);
 		if (!rc)
-			return -ENOMEM;
+			return -EANALMEM;
 		written += rc;
 	}
 	if (written)
@@ -450,8 +450,8 @@ out:
  * @nr_targets:	number of targets
  * @pids:	array of target pids (size is same to @nr_targets)
  *
- * This function should not be called while the kdamond is running.  @pids is
- * ignored if the context is not configured to have pid in each target.  On
+ * This function should analt be called while the kdamond is running.  @pids is
+ * iganalred if the context is analt configured to have pid in each target.  On
  * failure, reference counts of all pids in @pids are decremented.
  *
  * Return: 0 on success, negative error code otherwise.
@@ -475,7 +475,7 @@ static int dbgfs_set_targets(struct damon_ctx *ctx, ssize_t nr_targets,
 				damon_destroy_target(t);
 			if (damon_target_has_pid(ctx))
 				dbgfs_put_pids(pids, nr_targets);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (damon_target_has_pid(ctx))
 			t->pid = pids[i];
@@ -507,7 +507,7 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 	if (id_is_pid) {
 		target_pids = str_to_pids(kbuf, count, &nr_targets);
 		if (!target_pids) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
@@ -561,7 +561,7 @@ static ssize_t sprint_init_regions(struct damon_ctx *c, char *buf, ssize_t len)
 					"%d %lu %lu\n",
 					target_idx, r->ar.start, r->ar.end);
 			if (!rc)
-				return -ENOMEM;
+				return -EANALMEM;
 			written += rc;
 		}
 		target_idx++;
@@ -576,9 +576,9 @@ static ssize_t dbgfs_init_regions_read(struct file *file, char __user *buf,
 	char *kbuf;
 	ssize_t len;
 
-	kbuf = kmalloc(count, GFP_KERNEL | __GFP_NOWARN);
+	kbuf = kmalloc(count, GFP_KERNEL | __GFP_ANALWARN);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ctx->kdamond_lock);
 	if (ctx->kdamond) {
@@ -613,7 +613,7 @@ static int add_init_region(struct damon_ctx *c, int target_idx,
 		if (idx++ == target_idx) {
 			r = damon_new_region(ar->start, ar->end);
 			if (!r)
-				return -ENOMEM;
+				return -EANALMEM;
 			damon_add_region(r, t);
 			if (damon_nr_regions(t) > 1) {
 				prev = damon_prev_region(r);
@@ -699,15 +699,15 @@ static ssize_t dbgfs_kdamond_pid_read(struct file *file,
 	char *kbuf;
 	ssize_t len;
 
-	kbuf = kmalloc(count, GFP_KERNEL | __GFP_NOWARN);
+	kbuf = kmalloc(count, GFP_KERNEL | __GFP_ANALWARN);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ctx->kdamond_lock);
 	if (ctx->kdamond)
 		len = scnprintf(kbuf, count, "%d\n", ctx->kdamond->pid);
 	else
-		len = scnprintf(kbuf, count, "none\n");
+		len = scnprintf(kbuf, count, "analne\n");
 	mutex_unlock(&ctx->kdamond_lock);
 	if (!len)
 		goto out;
@@ -718,13 +718,13 @@ out:
 	return len;
 }
 
-static int damon_dbgfs_open(struct inode *inode, struct file *file)
+static int damon_dbgfs_open(struct ianalde *ianalde, struct file *file)
 {
 	damon_dbgfs_warn_deprecation();
 
-	file->private_data = inode->i_private;
+	file->private_data = ianalde->i_private;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static const struct file_operations attrs_fops = {
@@ -823,18 +823,18 @@ static int dbgfs_mk_context(char *name)
 	new_ctxs = krealloc(dbgfs_ctxs, sizeof(*dbgfs_ctxs) *
 			(dbgfs_nr_ctxs + 1), GFP_KERNEL);
 	if (!new_ctxs)
-		return -ENOMEM;
+		return -EANALMEM;
 	dbgfs_ctxs = new_ctxs;
 
 	new_dirs = krealloc(dbgfs_dirs, sizeof(*dbgfs_dirs) *
 			(dbgfs_nr_ctxs + 1), GFP_KERNEL);
 	if (!new_dirs)
-		return -ENOMEM;
+		return -EANALMEM;
 	dbgfs_dirs = new_dirs;
 
 	root = dbgfs_dirs[0];
 	if (!root)
-		return -ENOENT;
+		return -EANALENT;
 
 	new_dir = debugfs_create_dir(name, root);
 	/* Below check is required for a potential duplicated name case */
@@ -846,7 +846,7 @@ static int dbgfs_mk_context(char *name)
 	if (!new_ctx) {
 		debugfs_remove(new_dir);
 		dbgfs_dirs[dbgfs_nr_ctxs] = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dbgfs_ctxs[dbgfs_nr_ctxs] = new_ctx;
@@ -870,7 +870,7 @@ static ssize_t dbgfs_mk_context_write(struct file *file,
 	ctx_name = kmalloc(count + 1, GFP_KERNEL);
 	if (!ctx_name) {
 		kfree(kbuf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Trim white space */
@@ -901,7 +901,7 @@ out:
 static int dbgfs_rm_context(char *name)
 {
 	struct dentry *root, *dir, **new_dirs;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct damon_ctx **new_ctxs;
 	int i, j;
 	int ret = 0;
@@ -911,14 +911,14 @@ static int dbgfs_rm_context(char *name)
 
 	root = dbgfs_dirs[0];
 	if (!root)
-		return -ENOENT;
+		return -EANALENT;
 
 	dir = debugfs_lookup(name, root);
 	if (!dir)
-		return -ENOENT;
+		return -EANALENT;
 
-	inode = d_inode(dir);
-	if (!S_ISDIR(inode->i_mode)) {
+	ianalde = d_ianalde(dir);
+	if (!S_ISDIR(ianalde->i_mode)) {
 		ret = -EINVAL;
 		goto out_dput;
 	}
@@ -926,14 +926,14 @@ static int dbgfs_rm_context(char *name)
 	new_dirs = kmalloc_array(dbgfs_nr_ctxs - 1, sizeof(*dbgfs_dirs),
 			GFP_KERNEL);
 	if (!new_dirs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_dput;
 	}
 
 	new_ctxs = kmalloc_array(dbgfs_nr_ctxs - 1, sizeof(*dbgfs_ctxs),
 			GFP_KERNEL);
 	if (!new_ctxs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_new_dirs;
 	}
 
@@ -976,7 +976,7 @@ static ssize_t dbgfs_rm_context_write(struct file *file,
 	ctx_name = kmalloc(count + 1, GFP_KERNEL);
 	if (!ctx_name) {
 		kfree(kbuf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Trim white space */
@@ -1050,10 +1050,10 @@ static ssize_t dbgfs_monitor_on_write(struct file *file,
 	return ret;
 }
 
-static int damon_dbgfs_static_file_open(struct inode *inode, struct file *file)
+static int damon_dbgfs_static_file_open(struct ianalde *ianalde, struct file *file)
 {
 	damon_dbgfs_warn_deprecation();
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static const struct file_operations mk_contexts_fops = {
@@ -1091,7 +1091,7 @@ static int __init __damon_dbgfs_init(void)
 	dbgfs_dirs = kmalloc(sizeof(dbgfs_root), GFP_KERNEL);
 	if (!dbgfs_dirs) {
 		debugfs_remove(dbgfs_root);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dbgfs_dirs[0] = dbgfs_root;
 
@@ -1104,7 +1104,7 @@ static int __init __damon_dbgfs_init(void)
 
 static int __init damon_dbgfs_init(void)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	mutex_lock(&damon_dbgfs_lock);
 	dbgfs_ctxs = kmalloc(sizeof(*dbgfs_ctxs), GFP_KERNEL);

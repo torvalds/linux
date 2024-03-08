@@ -26,7 +26,7 @@ struct m88rs2000_state {
 	struct i2c_adapter *i2c;
 	const struct m88rs2000_config *config;
 	struct dvb_frontend frontend;
-	u8 no_lock_count;
+	u8 anal_lock_count;
 	u32 tuner_frequency;
 	u32 symbol_rate;
 	enum fe_code_rate fec_inner;
@@ -103,7 +103,7 @@ static u32 m88rs2000_get_mclk(struct dvb_frontend *fe)
 	struct m88rs2000_state *state = fe->demodulator_priv;
 	u32 mclk;
 	u8 reg;
-	/* Must not be 0x00 or 0xff */
+	/* Must analt be 0x00 or 0xff */
 	reg = m88rs2000_readreg(state, 0x86);
 	if (!reg || reg == 0xff)
 		return 0;
@@ -397,7 +397,7 @@ static int m88rs2000_tab_set(struct m88rs2000_state *state,
 			return -EINVAL;
 		}
 		if (ret < 0)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 	return 0;
 }
@@ -604,12 +604,12 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	s16 offset = 0;
 	u8 reg;
 
-	state->no_lock_count = 0;
+	state->anal_lock_count = 0;
 
 	if (c->delivery_system != SYS_DVBS) {
 		deb_info("%s: unsupported delivery system selected (%d)\n",
 			 __func__, c->delivery_system);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Set Tuner */
@@ -617,13 +617,13 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 		ret = fe->ops.tuner_ops.set_params(fe);
 
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fe->ops.tuner_ops.get_frequency) {
 		ret = fe->ops.tuner_ops.get_frequency(fe, &tuner_freq);
 
 		if (ret < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		offset = (s16)((s32)tuner_freq - c->frequency);
 	} else {
@@ -639,7 +639,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 
 	ret |= m88rs2000_set_carrieroffset(fe, offset);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Reset demod by symbol rate */
 	if (c->symbol_rate > 27500000)
@@ -649,7 +649,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 
 	ret |= m88rs2000_tab_set(state, fe_reset);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Set FEC */
 	ret = m88rs2000_set_fec(state, c->fec_inner);
@@ -660,17 +660,17 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	ret |= m88rs2000_writereg(state, 0x91, 0x08);
 
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Set Symbol Rate */
 	ret = m88rs2000_set_symbolrate(fe, c->symbol_rate);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Set up Demod */
 	ret = m88rs2000_tab_set(state, fe_trigger);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < 25; i++) {
 		reg = m88rs2000_readreg(state, 0x8c);
@@ -678,19 +678,19 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 			status = FE_HAS_LOCK;
 			break;
 		}
-		state->no_lock_count++;
-		if (state->no_lock_count == 15) {
+		state->anal_lock_count++;
+		if (state->anal_lock_count == 15) {
 			reg = m88rs2000_readreg(state, 0x70);
 			reg ^= 0x4;
 			m88rs2000_writereg(state, 0x70, reg);
-			state->no_lock_count = 0;
+			state->anal_lock_count = 0;
 		}
 		msleep(20);
 	}
 
 	if (status & FE_HAS_LOCK) {
 		state->fec_inner = m88rs2000_get_fec(state);
-		/* Unknown suspect SNR level */
+		/* Unkanalwn suspect SNR level */
 		reg = m88rs2000_readreg(state, 0x65);
 	}
 

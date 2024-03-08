@@ -3,7 +3,7 @@
  * OMAP4 Clock Management (CM) definitions
  *
  * Copyright (C) 2007-2011 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2009 Analkia Corporation
  *
  * Written by Paul Walmsley
  *

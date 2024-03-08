@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-ifndef NO_DWARF
+ifndef ANAL_DWARF
 PERF_HAVE_DWARF_REGS := 1
 endif
 PERF_HAVE_ARCH_REGS_QUERY_REGISTER_OFFSET := 1
@@ -16,7 +16,7 @@ sysdef := $(srctree)/tools/arch/loongarch/include/uapi/asm/unistd.h
 sysprf := $(srctree)/tools/perf/arch/loongarch/entry/syscalls/
 systbl := $(sysprf)/mksyscalltbl
 
-# Create output directory if not already present
+# Create output directory if analt already present
 _dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)')
 
 $(header): $(sysdef) $(systbl)

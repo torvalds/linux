@@ -14,9 +14,9 @@
  *
  * In software, there is a distinction between contexts created by the user,
  * and the default HW context. The default HW context is used by GPU clients
- * that do not request setup of their own hardware context. The default
+ * that do analt request setup of their own hardware context. The default
  * context's state is never restored to help prevent programming errors. This
- * would happen if a client ran and piggy-backed off another clients GPU state.
+ * would happen if a client ran and piggy-backed off aanalther clients GPU state.
  * The default context only exists to give the GPU some offset to load as the
  * current to invoke a save of the context we actually care about. In fact, the
  * code could likely be constructed, albeit in a more complicated fashion, to
@@ -24,7 +24,7 @@
  * swap out, and/or destroy other contexts.
  *
  * All other contexts are created as a request by the GPU client. These contexts
- * store GPU state, and thus allow GPU clients to not re-emit state (and
+ * store GPU state, and thus allow GPU clients to analt re-emit state (and
  * potentially query certain state) at any time. The kernel driver makes
  * certain that the appropriate commands are inserted.
  *
@@ -36,16 +36,16 @@
  * S0: initial state                          0            0           0
  * S1: context created                        1            0           0
  * S2: context is currently running           2            1           X
- * S3: GPU referenced, but not current        2            0           1
+ * S3: GPU referenced, but analt current        2            0           1
  * S4: context is current, but destroyed      1            1           0
  * S5: like S3, but destroyed                 1            0           1
  *
- * The most common (but not all) transitions:
+ * The most common (but analt all) transitions:
  * S0->S1: client creates a context
  * S1->S2: client submits execbuf with context
  * S2->S3: other clients submits execbuf with context
  * S3->S1: context object was retired
- * S3->S2: clients submits another execbuf
+ * S3->S2: clients submits aanalther execbuf
  * S2->S4: context destroy called with current context
  * S3->S5->S0: destroy path
  * S4->S5->S0: destroy path on current context
@@ -53,7 +53,7 @@
  * There are two confusing terms used above:
  *  The "current context" means the context which is currently running on the
  *  GPU. The GPU has loaded its state already and has stored away the gtt
- *  offset of the BO. The GPU is not actively referencing the data at this
+ *  offset of the BO. The GPU is analt actively referencing the data at this
  *  offset, but it will on the next context switch. The only way to avoid this
  *  is to do a GPU reset.
  *
@@ -66,7 +66,7 @@
 
 #include <linux/highmem.h>
 #include <linux/log2.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <drm/drm_cache.h>
 #include <drm/drm_syncobj.h>
@@ -178,7 +178,7 @@ static int validate_priority(struct drm_i915_private *i915,
 		return -EINVAL;
 
 	if (!(i915->caps.scheduler & I915_SCHEDULER_CAP_PRIORITY))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priority > I915_CONTEXT_MAX_USER_PRIORITY ||
 	    priority < I915_CONTEXT_MIN_USER_PRIORITY)
@@ -225,23 +225,23 @@ static int proto_context_set_persistence(struct drm_i915_private *i915,
 	} else {
 		/* To cancel a context we use "preempt-to-idle" */
 		if (!(i915->caps.scheduler & I915_SCHEDULER_CAP_PREEMPTION))
-			return -ENODEV;
+			return -EANALDEV;
 
 		/*
 		 * If the cancel fails, we then need to reset, cleanly!
 		 *
 		 * If the per-engine reset fails, all hope is lost! We resort
 		 * to a full GPU reset in that unlikely case, but realistically
-		 * if the engine could not reset, the full reset does not fare
+		 * if the engine could analt reset, the full reset does analt fare
 		 * much better. The damage has been done.
 		 *
-		 * However, if we cannot reset an engine by itself, we cannot
+		 * However, if we cananalt reset an engine by itself, we cananalt
 		 * cleanup a hanging persistent context without causing
-		 * colateral damage, and we should not pretend we can by
+		 * colateral damage, and we should analt pretend we can by
 		 * exposing the interface.
 		 */
 		if (!intel_has_reset_engine(to_gt(i915)))
-			return -ENODEV;
+			return -EANALDEV;
 
 		pc->user_flags &= ~BIT(UCONTEXT_PERSISTENCE);
 	}
@@ -258,7 +258,7 @@ static int proto_context_set_protected(struct drm_i915_private *i915,
 	if (!protected) {
 		pc->uses_protected_content = false;
 	} else if (!intel_pxp_is_enabled(i915->pxp)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	} else if ((pc->user_flags & BIT(UCONTEXT_RECOVERABLE)) ||
 		   !(pc->user_flags & BIT(UCONTEXT_BANNABLE))) {
 		ret = -EPERM;
@@ -286,7 +286,7 @@ proto_context_create(struct drm_i915_file_private *fpriv,
 
 	pc = kzalloc(sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pc->fpriv = fpriv;
 	pc->num_user_engines = -1;
@@ -295,7 +295,7 @@ proto_context_create(struct drm_i915_file_private *fpriv,
 			 BIT(UCONTEXT_RECOVERABLE);
 	if (i915->params.enable_hangcheck)
 		pc->user_flags |= BIT(UCONTEXT_PERSISTENCE);
-	pc->sched.priority = I915_PRIORITY_NORMAL;
+	pc->sched.priority = I915_PRIORITY_ANALRMAL;
 
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE) {
 		if (!HAS_EXECLISTS(i915)) {
@@ -373,14 +373,14 @@ static int set_proto_ctx_vm(struct drm_i915_file_private *fpriv,
 		return -EINVAL;
 
 	if (!HAS_FULL_PPGTT(i915))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (upper_32_bits(args->value))
-		return -ENOENT;
+		return -EANALENT;
 
 	vm = i915_gem_vm_lookup(fpriv, args->value);
 	if (!vm)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (pc->vm)
 		i915_vm_put(pc->vm);
@@ -409,7 +409,7 @@ set_proto_ctx_engines_balance(struct i915_user_extension __user *base,
 	int err;
 
 	if (!HAS_EXECLISTS(i915))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (get_user(idx, &ext->engine_index))
 		return -EFAULT;
@@ -420,7 +420,7 @@ set_proto_ctx_engines_balance(struct i915_user_extension __user *base,
 		return -EINVAL;
 	}
 
-	idx = array_index_nospec(idx, set->num_engines);
+	idx = array_index_analspec(idx, set->num_engines);
 	if (set->engines[idx].type != I915_GEM_ENGINE_TYPE_INVALID) {
 		drm_dbg(&i915->drm,
 			"Invalid placement[%d], already occupied\n", idx);
@@ -443,7 +443,7 @@ set_proto_ctx_engines_balance(struct i915_user_extension __user *base,
 
 	siblings = kmalloc_array(num_siblings, sizeof(*siblings), GFP_KERNEL);
 	if (!siblings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < num_siblings; n++) {
 		struct i915_engine_class_instance ci;
@@ -498,8 +498,8 @@ set_proto_ctx_engines_bond(struct i915_user_extension __user *base, void *data)
 	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915) &&
 	    !IS_ROCKETLAKE(i915) && !IS_ALDERLAKE_S(i915)) {
 		drm_dbg(&i915->drm,
-			"Bonding not supported on this platform\n");
-		return -ENODEV;
+			"Bonding analt supported on this platform\n");
+		return -EANALDEV;
 	}
 
 	if (get_user(idx, &ext->virtual_index))
@@ -512,7 +512,7 @@ set_proto_ctx_engines_bond(struct i915_user_extension __user *base, void *data)
 		return -EINVAL;
 	}
 
-	idx = array_index_nospec(idx, set->num_engines);
+	idx = array_index_analspec(idx, set->num_engines);
 	if (set->engines[idx].type == I915_GEM_ENGINE_TYPE_INVALID) {
 		drm_dbg(&i915->drm, "Invalid engine at %d\n", idx);
 		return -EINVAL;
@@ -520,7 +520,7 @@ set_proto_ctx_engines_bond(struct i915_user_extension __user *base, void *data)
 
 	if (set->engines[idx].type != I915_GEM_ENGINE_TYPE_PHYSICAL) {
 		drm_dbg(&i915->drm,
-			"Bonding with virtual engines not allowed\n");
+			"Bonding with virtual engines analt allowed\n");
 		return -EINVAL;
 	}
 
@@ -548,8 +548,8 @@ set_proto_ctx_engines_bond(struct i915_user_extension __user *base, void *data)
 	}
 
 	if (intel_engine_uses_guc(master)) {
-		drm_dbg(&i915->drm, "bonding extension not supported with GuC submission");
-		return -ENODEV;
+		drm_dbg(&i915->drm, "bonding extension analt supported with GuC submission");
+		return -EANALDEV;
 	}
 
 	if (get_user(num_bonds, &ext->num_bonds))
@@ -601,7 +601,7 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 
 	if (!intel_uc_uses_guc_submission(&to_gt(i915)->uc) &&
 	    num_siblings != 1) {
-		drm_dbg(&i915->drm, "Only 1 sibling (%d) supported in non-GuC mode\n",
+		drm_dbg(&i915->drm, "Only 1 sibling (%d) supported in analn-GuC mode\n",
 			num_siblings);
 		return -EINVAL;
 	}
@@ -622,7 +622,7 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 		return -EFAULT;
 
 	if (flags) {
-		drm_dbg(&i915->drm, "Unknown flags 0x%02llx", flags);
+		drm_dbg(&i915->drm, "Unkanalwn flags 0x%02llx", flags);
 		return -EINVAL;
 	}
 
@@ -647,7 +647,7 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 				 sizeof(*siblings),
 				 GFP_KERNEL);
 	if (!siblings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create contexts / engines */
 	for (i = 0; i < width; ++i) {
@@ -702,7 +702,7 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 		if (i > 0) {
 			if (current_mask != prev_mask << 1) {
 				drm_dbg(&i915->drm,
-					"Non contiguous logical mask 0x%x, 0x%x\n",
+					"Analn contiguous logical mask 0x%x, 0x%x\n",
 					prev_mask, current_mask);
 				err = -EINVAL;
 				goto out_err;
@@ -744,7 +744,7 @@ static int set_proto_ctx_engines(struct drm_i915_file_private *fpriv,
 	int err;
 
 	if (pc->num_user_engines >= 0) {
-		drm_dbg(&i915->drm, "Cannot set engines twice");
+		drm_dbg(&i915->drm, "Cananalt set engines twice");
 		return -EINVAL;
 	}
 
@@ -756,13 +756,13 @@ static int set_proto_ctx_engines(struct drm_i915_file_private *fpriv,
 	}
 
 	set.num_engines = (args->size - sizeof(*user)) / sizeof(*user->engines);
-	/* RING_MASK has no shift so we can use it directly here */
+	/* RING_MASK has anal shift so we can use it directly here */
 	if (set.num_engines > I915_EXEC_RING_MASK + 1)
 		return -EINVAL;
 
 	set.engines = kmalloc_array(set.num_engines, sizeof(*set.engines), GFP_KERNEL);
 	if (!set.engines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < set.num_engines; n++) {
 		struct i915_engine_class_instance ci;
@@ -776,7 +776,7 @@ static int set_proto_ctx_engines(struct drm_i915_file_private *fpriv,
 		memset(&set.engines[n], 0, sizeof(set.engines[n]));
 
 		if (ci.engine_class == (u16)I915_ENGINE_CLASS_INVALID &&
-		    ci.engine_instance == (u16)I915_ENGINE_CLASS_INVALID_NONE)
+		    ci.engine_instance == (u16)I915_ENGINE_CLASS_INVALID_ANALNE)
 			continue;
 
 		engine = intel_engine_lookup_user(i915,
@@ -787,7 +787,7 @@ static int set_proto_ctx_engines(struct drm_i915_file_private *fpriv,
 				"Invalid engine[%d]: { class:%d, instance:%d }\n",
 				n, ci.engine_class, ci.engine_instance);
 			kfree(set.engines);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		set.engines[n].type = I915_GEM_ENGINE_TYPE_PHYSICAL;
@@ -824,7 +824,7 @@ static int set_proto_ctx_sseu(struct drm_i915_file_private *fpriv,
 		return -EINVAL;
 
 	if (GRAPHICS_VER(i915) != 11)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (copy_from_user(&user_sseu, u64_to_user_ptr(args->value),
 			   sizeof(user_sseu)))
@@ -846,7 +846,7 @@ static int set_proto_ctx_sseu(struct drm_i915_file_private *fpriv,
 		if (idx >= pc->num_user_engines)
 			return -EINVAL;
 
-		idx = array_index_nospec(idx, pc->num_user_engines);
+		idx = array_index_analspec(idx, pc->num_user_engines);
 		pe = &pc->user_engines[idx];
 
 		/* Only render engine supports RPCS configuration. */
@@ -882,13 +882,13 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 	int ret = 0;
 
 	switch (args->param) {
-	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
+	case I915_CONTEXT_PARAM_ANAL_ERROR_CAPTURE:
 		if (args->size)
 			ret = -EINVAL;
 		else if (args->value)
-			pc->user_flags |= BIT(UCONTEXT_NO_ERROR_CAPTURE);
+			pc->user_flags |= BIT(UCONTEXT_ANAL_ERROR_CAPTURE);
 		else
-			pc->user_flags &= ~BIT(UCONTEXT_NO_ERROR_CAPTURE);
+			pc->user_flags &= ~BIT(UCONTEXT_ANAL_ERROR_CAPTURE);
 		break;
 
 	case I915_CONTEXT_PARAM_BANNABLE:
@@ -946,7 +946,7 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 						  args->value);
 		break;
 
-	case I915_CONTEXT_PARAM_NO_ZEROMAP:
+	case I915_CONTEXT_PARAM_ANAL_ZEROMAP:
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	case I915_CONTEXT_PARAM_RINGSIZE:
 	default:
@@ -976,7 +976,7 @@ static int intel_context_set_gem(struct intel_context *ce,
 	i915_vm_put(ce->vm);
 	ce->vm = i915_gem_context_get_eb_vm(ctx);
 
-	if (ctx->sched.priority >= I915_PRIORITY_NORMAL &&
+	if (ctx->sched.priority >= I915_PRIORITY_ANALRMAL &&
 	    intel_engine_has_timeslices(ce->engine) &&
 	    intel_engine_has_semaphores(ce->engine))
 		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
@@ -988,7 +988,7 @@ static int intel_context_set_gem(struct intel_context *ce,
 		intel_context_set_watchdog_us(ce, (u64)timeout_ms * 1000);
 	}
 
-	/* A valid SSEU has no zero fields */
+	/* A valid SSEU has anal zero fields */
 	if (sseu.slice_mask && !WARN_ON(ce->engine->class != RENDER_CLASS))
 		ret = intel_context_reconfigure_sseu(ce, sseu);
 
@@ -1059,7 +1059,7 @@ static void accumulate_runtime(struct i915_drm_client *client,
 }
 
 static int
-engines_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+engines_analtify(struct i915_sw_fence *fence, enum i915_sw_fence_analtify state)
 {
 	struct i915_gem_engines *engines =
 		container_of(fence, typeof(*engines), fence);
@@ -1085,7 +1085,7 @@ engines_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static struct i915_gem_engines *alloc_engines(unsigned int count)
@@ -1096,7 +1096,7 @@ static struct i915_gem_engines *alloc_engines(unsigned int count)
 	if (!e)
 		return NULL;
 
-	i915_sw_fence_init(&e->fence, engines_notify);
+	i915_sw_fence_init(&e->fence, engines_analtify);
 	return e;
 }
 
@@ -1109,7 +1109,7 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx,
 
 	e = alloc_engines(max);
 	if (!e)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for_each_uabi_engine(engine, ctx->i915) {
 		struct intel_context *ce;
@@ -1192,7 +1192,7 @@ static struct i915_gem_engines *user_engines(struct i915_gem_context *ctx,
 
 	e = alloc_engines(num_engines);
 	if (!e)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	e->num_engines = num_engines;
 
 	for (n = 0; n < num_engines; n++) {
@@ -1330,8 +1330,8 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	 * as banned, any incomplete request, including any running, will
 	 * be skipped following the preemption.
 	 *
-	 * If there is no hangchecking (one of the reasons why we try to
-	 * cancel the context) and no forced preemption, there may be no
+	 * If there is anal hangchecking (one of the reasons why we try to
+	 * cancel the context) and anal forced preemption, there may be anal
 	 * means by which we reset the GPU and evict the persistent hog.
 	 * Ergo if we are unable to inject a preemptive pulse that can
 	 * kill the banned context, we fallback to doing a local reset
@@ -1402,7 +1402,7 @@ kill_engines(struct i915_gem_engines *engines, bool exit, bool persistent)
 		 * are currently executing on the GPU we need to evict
 		 * ourselves. On the other hand, if we haven't yet been
 		 * submitted to the GPU or if everything is complete,
-		 * we have nothing to do.
+		 * we have analthing to do.
 		 */
 		engine = active_engine(ce);
 
@@ -1535,7 +1535,7 @@ static void context_close(struct i915_gem_context *ctx)
 	mutex_unlock(&ctx->mutex);
 
 	/*
-	 * If the user has disabled hangchecking, we can not be sure that
+	 * If the user has disabled hangchecking, we can analt be sure that
 	 * the batches will ever complete after the context is closed,
 	 * keeping the context and all resources pinned forever. So in this
 	 * case we opt to forcibly kill off all remaining requests on
@@ -1564,23 +1564,23 @@ static int __context_set_persistence(struct i915_gem_context *ctx, bool state)
 	} else {
 		/* To cancel a context we use "preempt-to-idle" */
 		if (!(ctx->i915->caps.scheduler & I915_SCHEDULER_CAP_PREEMPTION))
-			return -ENODEV;
+			return -EANALDEV;
 
 		/*
 		 * If the cancel fails, we then need to reset, cleanly!
 		 *
 		 * If the per-engine reset fails, all hope is lost! We resort
 		 * to a full GPU reset in that unlikely case, but realistically
-		 * if the engine could not reset, the full reset does not fare
+		 * if the engine could analt reset, the full reset does analt fare
 		 * much better. The damage has been done.
 		 *
-		 * However, if we cannot reset an engine by itself, we cannot
+		 * However, if we cananalt reset an engine by itself, we cananalt
 		 * cleanup a hanging persistent context without causing
-		 * colateral damage, and we should not pretend we can by
+		 * colateral damage, and we should analt pretend we can by
 		 * exposing the interface.
 		 */
 		if (!intel_has_reset_engine(to_gt(ctx->i915)))
-			return -ENODEV;
+			return -EANALDEV;
 
 		i915_gem_context_clear_persistence(ctx);
 	}
@@ -1600,7 +1600,7 @@ i915_gem_create_context(struct drm_i915_private *i915,
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&ctx->ref);
 	ctx->i915 = i915;
@@ -1649,7 +1649,7 @@ i915_gem_create_context(struct drm_i915_private *i915,
 
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
-	 * is no remap info, it will be a NOP. */
+	 * is anal remap info, it will be a ANALP. */
 	ctx->remap_slice = ALL_L3_SLICES(i915);
 
 	ctx->user_flags = pc->user_flags;
@@ -1696,7 +1696,7 @@ void i915_gem_init__contexts(struct drm_i915_private *i915)
 }
 
 /*
- * Note that this implicitly consumes the ctx reference, by placing
+ * Analte that this implicitly consumes the ctx reference, by placing
  * the ctx in the context_xa.
  */
 static void gem_context_register(struct i915_gem_context *ctx,
@@ -1802,7 +1802,7 @@ int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 	int err;
 
 	if (!HAS_FULL_PPGTT(i915))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (args->flags)
 		return -EINVAL;
@@ -1849,7 +1849,7 @@ int i915_gem_vm_destroy_ioctl(struct drm_device *dev, void *data,
 
 	vm = xa_erase(&file_priv->vm_xa, args->vm_id);
 	if (!vm)
-		return -ENOENT;
+		return -EANALENT;
 
 	i915_vm_put(vm);
 	return 0;
@@ -1864,7 +1864,7 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 	u32 id;
 
 	if (!i915_gem_context_has_full_ppgtt(ctx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vm = ctx->vm;
 	GEM_BUG_ON(!vm);
@@ -1899,7 +1899,7 @@ i915_gem_user_to_context_sseu(struct intel_gt *gt,
 	struct drm_i915_private *i915 = gt->i915;
 	unsigned int dev_subslice_mask = intel_sseu_get_hsw_subslices(device, 0);
 
-	/* No zeros in any field. */
+	/* Anal zeros in any field. */
 	if (!user->slice_mask || !user->subslice_mask ||
 	    !user->min_eus_per_subslice || !user->max_eus_per_subslice)
 		return -EINVAL;
@@ -1979,7 +1979,7 @@ i915_gem_user_to_context_sseu(struct intel_gt *gt,
 		    (req_ss != hw_ss_per_s && req_ss != (hw_ss_per_s / 2)))
 			return -EINVAL;
 
-		/* No EU configuration changes. */
+		/* Anal EU configuration changes. */
 		if ((user->min_eus_per_subslice !=
 		     device->max_eus_per_subslice) ||
 		    (user->max_eus_per_subslice !=
@@ -2004,7 +2004,7 @@ static int set_sseu(struct i915_gem_context *ctx,
 		return -EINVAL;
 
 	if (GRAPHICS_VER(i915) != 11)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (copy_from_user(&user_sseu, u64_to_user_ptr(args->value),
 			   sizeof(user_sseu)))
@@ -2026,7 +2026,7 @@ static int set_sseu(struct i915_gem_context *ctx,
 
 	/* Only render engine supports RPCS configuration. */
 	if (ce->engine->class != RENDER_CLASS) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_ce;
 	}
 
@@ -2072,7 +2072,7 @@ static int set_priority(struct i915_gem_context *ctx,
 		if (!intel_engine_has_timeslices(ce->engine))
 			continue;
 
-		if (ctx->sched.priority >= I915_PRIORITY_NORMAL &&
+		if (ctx->sched.priority >= I915_PRIORITY_ANALRMAL &&
 		    intel_engine_has_semaphores(ce->engine))
 			intel_context_set_use_semaphores(ce);
 		else
@@ -2099,13 +2099,13 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 	int ret = 0;
 
 	switch (args->param) {
-	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
+	case I915_CONTEXT_PARAM_ANAL_ERROR_CAPTURE:
 		if (args->size)
 			ret = -EINVAL;
 		else if (args->value)
-			i915_gem_context_set_no_error_capture(ctx);
+			i915_gem_context_set_anal_error_capture(ctx);
 		else
-			i915_gem_context_clear_no_error_capture(ctx);
+			i915_gem_context_clear_anal_error_capture(ctx);
 		break;
 
 	case I915_CONTEXT_PARAM_BANNABLE:
@@ -2145,7 +2145,7 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 		break;
 
 	case I915_CONTEXT_PARAM_PROTECTED_CONTENT:
-	case I915_CONTEXT_PARAM_NO_ZEROMAP:
+	case I915_CONTEXT_PARAM_ANAL_ZEROMAP:
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	case I915_CONTEXT_PARAM_RINGSIZE:
 	case I915_CONTEXT_PARAM_VM:
@@ -2223,7 +2223,7 @@ finalize_create_context_locked(struct drm_i915_file_private *file_priv,
 	 * One for the xarray and one for the caller.  We need to grab
 	 * the reference *prior* to making the ctx visble to userspace
 	 * in gem_context_register(), as at any point after that
-	 * userspace can try to race us with another thread destroying
+	 * userspace can try to race us with aanalther thread destroying
 	 * the context under our feet.
 	 */
 	i915_gem_context_get(ctx);
@@ -2253,7 +2253,7 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 	if (!ctx) {
 		pc = xa_load(&file_priv->proto_context_xa, id);
 		if (!pc)
-			ctx = ERR_PTR(-ENOENT);
+			ctx = ERR_PTR(-EANALENT);
 		else
 			ctx = finalize_create_context_locked(file_priv, pc, id);
 	}
@@ -2272,9 +2272,9 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	u32 id;
 
 	if (!DRIVER_CAPS(i915)->has_logical_contexts)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (args->flags & I915_CONTEXT_CREATE_FLAGS_UNKNOWN)
+	if (args->flags & I915_CONTEXT_CREATE_FLAGS_UNKANALWN)
 		return -EINVAL;
 
 	ret = intel_gt_terminally_wedged(to_gt(i915));
@@ -2347,7 +2347,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (!args->ctx_id)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* We need to hold the proto-context lock here to prevent races
 	 * with finalize_create_context_locked().
@@ -2358,7 +2358,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&file_priv->proto_context_lock);
 
 	if (!ctx && !pc)
-		return -ENOENT;
+		return -EANALENT;
 	GEM_WARN_ON(ctx && pc);
 
 	if (pc)
@@ -2447,9 +2447,9 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 
 		break;
 
-	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
+	case I915_CONTEXT_PARAM_ANAL_ERROR_CAPTURE:
 		args->size = 0;
-		args->value = i915_gem_context_no_error_capture(ctx);
+		args->value = i915_gem_context_anal_error_capture(ctx);
 		break;
 
 	case I915_CONTEXT_PARAM_BANNABLE:
@@ -2484,7 +2484,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		ret = get_protected(ctx, args);
 		break;
 
-	case I915_CONTEXT_PARAM_NO_ZEROMAP:
+	case I915_CONTEXT_PARAM_ANAL_ZEROMAP:
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	case I915_CONTEXT_PARAM_ENGINES:
 	case I915_CONTEXT_PARAM_RINGSIZE:
@@ -2518,7 +2518,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 			WARN_ON(GRAPHICS_VER(file_priv->i915) > 12);
 			ret = set_proto_ctx_param(file_priv, pc, args);
 		} else {
-			ret = -ENOENT;
+			ret = -EANALENT;
 		}
 	}
 	mutex_unlock(&file_priv->proto_context_lock);
@@ -2598,7 +2598,7 @@ int __init i915_gem_context_module_init(void)
 {
 	slab_luts = KMEM_CACHE(i915_lut_handle, 0);
 	if (!slab_luts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

@@ -36,7 +36,7 @@ static const struct acpi_gpio_mapping arizona_acpi_gpios[] = {
 
 /*
  * The ACPI resources for the device only describe external GPIO-s. They do
- * not provide mappings for the GPIO-s coming from the Arizona codec itself.
+ * analt provide mappings for the GPIO-s coming from the Arizona codec itself.
  */
 static const struct gpiod_lookup arizona_soc_gpios[] = {
 	{ "arizona", 2, "wlf,spkvdd-ena", 0, GPIO_ACTIVE_HIGH },
@@ -63,7 +63,7 @@ static int arizona_spi_acpi_windows_probe(struct arizona *arizona)
 			      struct_size(lookup, table, ARRAY_SIZE(arizona_soc_gpios) + 1),
 			      GFP_KERNEL);
 	if (!lookup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lookup->dev_id = dev_name(arizona->dev);
 	memcpy(lookup->table, arizona_soc_gpios, sizeof(arizona_soc_gpios));
@@ -87,14 +87,14 @@ static int arizona_spi_acpi_android_probe(struct arizona *arizona)
 	int ret;
 
 	/*
-	 * Get the reset GPIO, treating -ENOENT as -EPROBE_DEFER to wait for
+	 * Get the reset GPIO, treating -EANALENT as -EPROBE_DEFER to wait for
 	 * the x86-android-tablets module to register the board specific GPIO
 	 * lookup table.
 	 */
 	arizona->pdata.reset = devm_gpiod_get(arizona->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(arizona->pdata.reset)) {
 		ret = PTR_ERR(arizona->pdata.reset);
-		if (ret == -ENOENT) {
+		if (ret == -EANALENT) {
 			dev_info_once(arizona->dev,
 				      "Deferring probe till GPIO lookup is registered\n");
 			ret = -EPROBE_DEFER;
@@ -113,7 +113,7 @@ static int arizona_spi_acpi_android_probe(struct arizona *arizona)
  * Function C Volume Down         470 ohm
  * Minimum Mic DC resistance     1000 ohm
  * Minimum Ear speaker impedance   16 ohm
- * Note the first max value below must be less then the min. speaker impedance,
+ * Analte the first max value below must be less then the min. speaker impedance,
  * to allow CTIA/OMTP detection to work. The other max values are the closest
  * value from extcon-arizona.c:arizona_micd_levels halfway 2 button resistances.
  */
@@ -140,14 +140,14 @@ static int arizona_spi_acpi_probe(struct arizona *arizona)
 	/*
 	 * Some DSDTs wrongly declare the IRQ trigger-type as IRQF_TRIGGER_FALLING
 	 * The IRQ line will stay low when a new IRQ event happens between reading
-	 * the IRQ status flags and acknowledging them. When the IRQ line stays
+	 * the IRQ status flags and ackanalwledging them. When the IRQ line stays
 	 * low like this the IRQ will never trigger again when its type is set
 	 * to IRQF_TRIGGER_FALLING. Correct the IRQ trigger-type to fix this.
 	 *
-	 * Note theoretically it is possible that some boards are not capable
+	 * Analte theoretically it is possible that some boards are analt capable
 	 * of handling active low level interrupts. In that case setting the
-	 * flag to IRQF_TRIGGER_FALLING would not be a bug (and we would need
-	 * to work around this) but so far all known usages of IRQF_TRIGGER_FALLING
+	 * flag to IRQF_TRIGGER_FALLING would analt be a bug (and we would need
+	 * to work around this) but so far all kanalwn usages of IRQF_TRIGGER_FALLING
 	 * are a bug in the board's DSDT.
 	 */
 	arizona->pdata.irq_flags = IRQF_TRIGGER_LOW;
@@ -184,7 +184,7 @@ MODULE_DEVICE_TABLE(acpi, arizona_acpi_match);
 #else
 static int arizona_spi_acpi_probe(struct arizona *arizona)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -219,19 +219,19 @@ static int arizona_spi_probe(struct spi_device *spi)
 			regmap_config = &cs47l24_spi_regmap;
 		break;
 	default:
-		dev_err(&spi->dev, "Unknown device type %ld\n", type);
+		dev_err(&spi->dev, "Unkanalwn device type %ld\n", type);
 		return -EINVAL;
 	}
 
 	if (!regmap_config) {
 		dev_err(&spi->dev,
-			"No kernel support for device type %ld\n", type);
+			"Anal kernel support for device type %ld\n", type);
 		return -EINVAL;
 	}
 
 	arizona = devm_kzalloc(&spi->dev, sizeof(*arizona), GFP_KERNEL);
 	if (arizona == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arizona->regmap = devm_regmap_init_spi(spi, regmap_config);
 	if (IS_ERR(arizona->regmap)) {

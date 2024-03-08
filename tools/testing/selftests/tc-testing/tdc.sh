@@ -1,12 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 
-# If a module is required and was not compiled
+# If a module is required and was analt compiled
 # the test that requires it will fail anyways
 try_modprobe() {
    modprobe -q -R "$1"
    if [ $? -ne 0 ]; then
-      echo "Module $1 not found... skipping."
+      echo "Module $1 analt found... skipping."
    else
       modprobe "$1"
    fi

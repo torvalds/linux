@@ -33,7 +33,7 @@ static int call_biosattributes_interface(struct wmi_device *wdev, char *in_args,
 
 	if (wmi_priv.pending_changes == 0) {
 		wmi_priv.pending_changes = 1;
-		/* let userland know it may need to check reboot pending again */
+		/* let userland kanalw it may need to check reboot pending again */
 		kobject_uevent(&wmi_priv.class_dev->kobj, KOBJ_CHANGE);
 	}
 	kfree(output.pointer);
@@ -56,7 +56,7 @@ int set_attribute(const char *a_name, const char *a_value)
 
 	mutex_lock(&wmi_priv.mutex);
 	if (!wmi_priv.bios_attr_wdev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -67,7 +67,7 @@ int set_attribute(const char *a_name, const char *a_value)
 	buffer_size = security_area_size + a_name_size + a_value_size;
 	buffer = kzalloc(buffer_size, GFP_KERNEL);
 	if (!buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -84,11 +84,11 @@ int set_attribute(const char *a_name, const char *a_value)
 	if (ret < 0)
 		goto out;
 
-	print_hex_dump_bytes("set attribute data: ", DUMP_PREFIX_NONE, buffer, buffer_size);
+	print_hex_dump_bytes("set attribute data: ", DUMP_PREFIX_ANALNE, buffer, buffer_size);
 	ret = call_biosattributes_interface(wmi_priv.bios_attr_wdev,
 					    buffer, buffer_size,
 					    SETATTRIBUTE_METHOD_ID);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		dev_err(&wmi_priv.bios_attr_wdev->dev, "admin password must be configured\n");
 	else if (ret == -EACCES)
 		dev_err(&wmi_priv.bios_attr_wdev->dev, "invalid password\n");
@@ -115,7 +115,7 @@ int set_bios_defaults(u8 deftype)
 
 	mutex_lock(&wmi_priv.mutex);
 	if (!wmi_priv.bios_attr_wdev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -123,7 +123,7 @@ int set_bios_defaults(u8 deftype)
 	buffer_size = security_area_size + integer_area_size;
 	buffer = kzalloc(buffer_size, GFP_KERNEL);
 	if (!buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -60,7 +60,7 @@ static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 
 	id = kmalloc(sizeof(*id), GFP_KERNEL);
 	parm_list = kmalloc(sizeof(*parm_list), GFP_KERNEL);
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	if (!id || !parm_list)
 		goto out;
 	memcpy(id->prod_nr, "LNXAPPL", 7);
@@ -125,15 +125,15 @@ static int monwrite_new_hdr(struct mon_private *monpriv)
 		}
 	} else if (monhdr->mon_function != MONWRITE_STOP_INTERVAL) {
 		if (mon_buf_count >= mon_max_bufs)
-			return -ENOSPC;
+			return -EANALSPC;
 		monbuf = kzalloc(sizeof(struct mon_buf), GFP_KERNEL);
 		if (!monbuf)
-			return -ENOMEM;
+			return -EANALMEM;
 		monbuf->data = kzalloc(monhdr->datalen,
 				       GFP_KERNEL | GFP_DMA);
 		if (!monbuf->data) {
 			kfree(monbuf);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		monbuf->hdr = *monhdr;
 		list_add_tail(&monbuf->list, &monpriv->list);
@@ -184,21 +184,21 @@ static int monwrite_new_data(struct mon_private *monpriv)
  * file operations
  */
 
-static int monwrite_open(struct inode *inode, struct file *filp)
+static int monwrite_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct mon_private *monpriv;
 
 	monpriv = kzalloc(sizeof(struct mon_private), GFP_KERNEL);
 	if (!monpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&monpriv->list);
 	monpriv->hdr_to_read = sizeof(monpriv->hdr);
 	mutex_init(&monpriv->thread_mutex);
 	filp->private_data = monpriv;
-	return nonseekable_open(inode, filp);
+	return analnseekable_open(ianalde, filp);
 }
 
-static int monwrite_close(struct inode *inode, struct file *filp)
+static int monwrite_close(struct ianalde *ianalde, struct file *filp)
 {
 	struct mon_private *monpriv = filp->private_data;
 	struct mon_buf *entry, *next;
@@ -278,13 +278,13 @@ static const struct file_operations monwrite_fops = {
 	.open	 = &monwrite_open,
 	.release = &monwrite_close,
 	.write	 = &monwrite_write,
-	.llseek  = noop_llseek,
+	.llseek  = analop_llseek,
 };
 
 static struct miscdevice mon_dev = {
 	.name	= "monwriter",
 	.fops	= &monwrite_fops,
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 };
 
 /*
@@ -294,7 +294,7 @@ static struct miscdevice mon_dev = {
 static int __init mon_init(void)
 {
 	if (!MACHINE_IS_VM)
-		return -ENODEV;
+		return -EANALDEV;
 	/*
 	 * misc_register() has to be the last action in module_init(), because
 	 * file operations will be available right after this.

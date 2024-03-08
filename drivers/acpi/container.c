@@ -23,7 +23,7 @@ static const struct acpi_device_id container_device_ids[] = {
 
 #ifdef CONFIG_ACPI_CONTAINER
 
-static int check_offline(struct acpi_device *adev, void *not_used)
+static int check_offline(struct acpi_device *adev, void *analt_used)
 {
 	if (acpi_scan_is_offline(adev, false))
 		return 0;
@@ -43,7 +43,7 @@ static void acpi_container_release(struct device *dev)
 }
 
 static int container_device_attach(struct acpi_device *adev,
-				   const struct acpi_device_id *not_used)
+				   const struct acpi_device_id *analt_used)
 {
 	struct container_dev *cdev;
 	struct device *dev;
@@ -54,7 +54,7 @@ static int container_device_attach(struct acpi_device *adev,
 
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->offline = acpi_container_offline;
 	dev = &cdev->dev;
@@ -94,7 +94,7 @@ static struct acpi_scan_handler container_handler = {
 	.hotplug = {
 		.enabled = true,
 		.demand_offline = true,
-		.notify_online = container_device_online,
+		.analtify_online = container_device_online,
 	},
 };
 

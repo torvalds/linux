@@ -27,7 +27,7 @@ struct rdma_cgroup {
 };
 
 struct rdmacg_device {
-	struct list_head	dev_node;
+	struct list_head	dev_analde;
 	struct list_head	rpools;
 	char			*name;
 };

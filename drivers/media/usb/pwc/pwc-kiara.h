@@ -2,8 +2,8 @@
 /* Linux driver for Philips webcam
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   ANALTE: this version of pwc is an uanalfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are analt present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
@@ -22,7 +22,7 @@
 struct Kiara_table_entry
 {
 	char alternate;			/* USB alternate interface */
-	unsigned short packetsize;	/* Normal packet size */
+	unsigned short packetsize;	/* Analrmal packet size */
 	unsigned short bandlength;	/* Bandlength when decompressing */
 	unsigned char mode[12];		/* precomputed mode settings for cam */
 };

@@ -69,7 +69,7 @@ struct wm8996_priv {
 	u16 hpout_pending;
 
 	struct regulator_bulk_data supplies[WM8996_NUM_SUPPLIES];
-	struct notifier_block disable_nb[WM8996_NUM_SUPPLIES];
+	struct analtifier_block disable_nb[WM8996_NUM_SUPPLIES];
 	int bg_ena;
 
 	struct wm8996_pdata pdata;
@@ -94,12 +94,12 @@ struct wm8996_priv {
 #endif
 };
 
-/* We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+/* We can't use the same analtifier block for more than one supply and
+ * there's anal way I can see to get from a callback to the caller
  * except container_of().
  */
 #define WM8996_REGULATOR_EVENT(n) \
-static int wm8996_regulator_event_##n(struct notifier_block *nb, \
+static int wm8996_regulator_event_##n(struct analtifier_block *nb, \
 				    unsigned long event, void *data)	\
 { \
 	struct wm8996_priv *wm8996 = container_of(nb, struct wm8996_priv, \
@@ -191,7 +191,7 @@ static const struct reg_default wm8996_reg[] = {
 	{ WM8996_AIF1RX_CHANNEL_3_CONFIGURATION, 0x0 },
 	{ WM8996_AIF1RX_CHANNEL_4_CONFIGURATION, 0x0 },
 	{ WM8996_AIF1RX_CHANNEL_5_CONFIGURATION, 0x0 },
-	{ WM8996_AIF1RX_MONO_CONFIGURATION, 0x0 },
+	{ WM8996_AIF1RX_MOANAL_CONFIGURATION, 0x0 },
 	{ WM8996_AIF1TX_TEST, 0x7 },
 	{ WM8996_AIF2_CONTROL, 0x0 },
 	{ WM8996_AIF2_BCLK, 0x0 },
@@ -206,7 +206,7 @@ static const struct reg_default wm8996_reg[] = {
 	{ WM8996_AIF2TX_CHANNEL_1_CONFIGURATION, 0x0 },
 	{ WM8996_AIF2RX_CHANNEL_0_CONFIGURATION, 0x0 },
 	{ WM8996_AIF2RX_CHANNEL_1_CONFIGURATION, 0x0 },
-	{ WM8996_AIF2RX_MONO_CONFIGURATION, 0x0 },
+	{ WM8996_AIF2RX_MOANAL_CONFIGURATION, 0x0 },
 	{ WM8996_AIF2TX_TEST, 0x1 },
 	{ WM8996_DSP1_TX_LEFT_VOLUME, 0xc0 },
 	{ WM8996_DSP1_TX_RIGHT_VOLUME, 0xc0 },
@@ -461,13 +461,13 @@ SOC_DOUBLE_R_TLV("DSP1 Capture Volume", WM8996_DSP1_TX_LEFT_VOLUME,
 SOC_DOUBLE_R_TLV("DSP2 Capture Volume", WM8996_DSP2_TX_LEFT_VOLUME,
 		 WM8996_DSP2_TX_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
 
-SOC_SINGLE("DSP1 Capture Notch Filter Switch", WM8996_DSP1_TX_FILTERS,
+SOC_SINGLE("DSP1 Capture Analtch Filter Switch", WM8996_DSP1_TX_FILTERS,
 	   13, 1, 0),
 SOC_DOUBLE("DSP1 Capture HPF Switch", WM8996_DSP1_TX_FILTERS, 12, 11, 1, 0),
 SOC_ENUM("DSP1 Capture HPF Mode", dsp1tx_hpf_mode),
 SOC_ENUM("DSP1 Capture HPF Cutoff", dsp1tx_hpf_cutoff),
 
-SOC_SINGLE("DSP2 Capture Notch Filter Switch", WM8996_DSP2_TX_FILTERS,
+SOC_SINGLE("DSP2 Capture Analtch Filter Switch", WM8996_DSP2_TX_FILTERS,
 	   13, 1, 0),
 SOC_DOUBLE("DSP2 Capture HPF Switch", WM8996_DSP2_TX_FILTERS, 12, 11, 1, 0),
 SOC_ENUM("DSP2 Capture HPF Mode", dsp2tx_hpf_mode),
@@ -682,7 +682,7 @@ static void wait_for_dc_servo(struct snd_soc_component *component, u16 mask)
 		dev_dbg(component->dev, "DC servo complete for %x\n", mask);
 }
 
-static void wm8996_seq_notifier(struct snd_soc_component *component,
+static void wm8996_seq_analtifier(struct snd_soc_component *component,
 				enum snd_soc_dapm_type event, int subseq)
 {
 	struct wm8996_priv *wm8996 = snd_soc_component_get_drvdata(component);
@@ -933,7 +933,7 @@ SND_SOC_DAPM_SUPPLY_S("SYSDSPCLK", 2, WM8996_CLOCKING_1, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("AIFCLK", 2, WM8996_CLOCKING_1, 2, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("Charge Pump", 2, WM8996_CHARGE_PUMP_1, 15, 0, cp_event,
 		      SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_SUPPLY("Bandgap", SND_SOC_NOPM, 0, 0, bg_event,
+SND_SOC_DAPM_SUPPLY("Bandgap", SND_SOC_ANALPM, 0, 0, bg_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("LDO2", WM8996_POWER_MANAGEMENT_2, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICB1 Audio", WM8996_MICBIAS_1, 4, 1, NULL, 0),
@@ -960,8 +960,8 @@ SND_SOC_DAPM_ADC("DMIC1R", NULL, WM8996_POWER_MANAGEMENT_3, 2, 0),
 SND_SOC_DAPM_ADC("ADCL", NULL, WM8996_POWER_MANAGEMENT_3, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", NULL, WM8996_POWER_MANAGEMENT_3, 0, 0),
 
-SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_NOPM, 0, 0, &left_sidetone),
-SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_NOPM, 0, 0, &right_sidetone),
+SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_ANALPM, 0, 0, &left_sidetone),
+SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_ANALPM, 0, 0, &right_sidetone),
 
 SND_SOC_DAPM_AIF_IN("DSP2RXL", NULL, 0, WM8996_POWER_MANAGEMENT_3, 11, 0),
 SND_SOC_DAPM_AIF_IN("DSP2RXR", NULL, 1, WM8996_POWER_MANAGEMENT_3, 10, 0),
@@ -977,13 +977,13 @@ SND_SOC_DAPM_MIXER("DSP1TXL", WM8996_POWER_MANAGEMENT_5, 9, 0,
 SND_SOC_DAPM_MIXER("DSP1TXR", WM8996_POWER_MANAGEMENT_5, 8, 0,
 		   dsp1txr, ARRAY_SIZE(dsp1txr)),
 
-SND_SOC_DAPM_MIXER("DAC2L Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("DAC2L Mixer", SND_SOC_ANALPM, 0, 0,
 		   dac2l_mix, ARRAY_SIZE(dac2l_mix)),
-SND_SOC_DAPM_MIXER("DAC2R Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("DAC2R Mixer", SND_SOC_ANALPM, 0, 0,
 		   dac2r_mix, ARRAY_SIZE(dac2r_mix)),
-SND_SOC_DAPM_MIXER("DAC1L Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("DAC1L Mixer", SND_SOC_ANALPM, 0, 0,
 		   dac1l_mix, ARRAY_SIZE(dac1l_mix)),
-SND_SOC_DAPM_MIXER("DAC1R Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("DAC1R Mixer", SND_SOC_ANALPM, 0, 0,
 		   dac1r_mix, ARRAY_SIZE(dac1r_mix)),
 
 SND_SOC_DAPM_DAC("DAC2L", NULL, WM8996_POWER_MANAGEMENT_5, 3, 0),
@@ -1012,19 +1012,19 @@ SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 1, WM8996_POWER_MANAGEMENT_6, 1, 0),
 SND_SOC_DAPM_AIF_OUT("AIF1TX0", NULL, 0, WM8996_POWER_MANAGEMENT_6, 0, 0),
 
 /* We route as stereo pairs so define some dummy widgets to squash
- * things down for now.  RXA = 0,1, RXB = 2,3 and so on */
-SND_SOC_DAPM_PGA("AIF1RXA", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_PGA("AIF1RXB", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_PGA("AIF1RXC", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_PGA("AIF2RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_PGA("DSP2TX", SND_SOC_NOPM, 0, 0, NULL, 0),
+ * things down for analw.  RXA = 0,1, RXB = 2,3 and so on */
+SND_SOC_DAPM_PGA("AIF1RXA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("AIF1RXB", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("AIF1RXC", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("AIF2RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("DSP2TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("DSP1RX", SND_SOC_NOPM, 0, 0, &dsp1rx),
-SND_SOC_DAPM_MUX("DSP2RX", SND_SOC_NOPM, 0, 0, &dsp2rx),
-SND_SOC_DAPM_MUX("AIF2TX", SND_SOC_NOPM, 0, 0, &aif2tx),
+SND_SOC_DAPM_MUX("DSP1RX", SND_SOC_ANALPM, 0, 0, &dsp1rx),
+SND_SOC_DAPM_MUX("DSP2RX", SND_SOC_ANALPM, 0, 0, &dsp2rx),
+SND_SOC_DAPM_MUX("AIF2TX", SND_SOC_ANALPM, 0, 0, &aif2tx),
 
-SND_SOC_DAPM_MUX("SPKL", SND_SOC_NOPM, 0, 0, &spkl_mux),
-SND_SOC_DAPM_MUX("SPKR", SND_SOC_NOPM, 0, 0, &spkr_mux),
+SND_SOC_DAPM_MUX("SPKL", SND_SOC_ANALPM, 0, 0, &spkl_mux),
+SND_SOC_DAPM_MUX("SPKR", SND_SOC_ANALPM, 0, 0, &spkr_mux),
 SND_SOC_DAPM_PGA("SPKL PGA", WM8996_LEFT_PDM_SPEAKER, 4, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SPKR PGA", WM8996_RIGHT_PDM_SPEAKER, 4, 0, NULL, 0),
 
@@ -1032,7 +1032,7 @@ SND_SOC_DAPM_PGA_S("HPOUT2L PGA", 0, WM8996_POWER_MANAGEMENT_1, 7, 0, NULL, 0),
 SND_SOC_DAPM_PGA_S("HPOUT2L_DLY", 1, WM8996_ANALOGUE_HP_2, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA_S("HPOUT2L_DCS", 2, WM8996_DC_SERVO_1, 2, 0, dcs_start,
 		   SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_S("HPOUT2L_RMV_SHORT", 3, SND_SOC_NOPM, HPOUT2L, 0,
+SND_SOC_DAPM_PGA_S("HPOUT2L_RMV_SHORT", 3, SND_SOC_ANALPM, HPOUT2L, 0,
 		   rmv_short_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 
@@ -1040,7 +1040,7 @@ SND_SOC_DAPM_PGA_S("HPOUT2R PGA", 0, WM8996_POWER_MANAGEMENT_1, 6, 0,NULL, 0),
 SND_SOC_DAPM_PGA_S("HPOUT2R_DLY", 1, WM8996_ANALOGUE_HP_2, 1, 0, NULL, 0),
 SND_SOC_DAPM_PGA_S("HPOUT2R_DCS", 2, WM8996_DC_SERVO_1, 3, 0, dcs_start,
 		   SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_S("HPOUT2R_RMV_SHORT", 3, SND_SOC_NOPM, HPOUT2R, 0,
+SND_SOC_DAPM_PGA_S("HPOUT2R_RMV_SHORT", 3, SND_SOC_ANALPM, HPOUT2R, 0,
 		   rmv_short_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 
@@ -1048,7 +1048,7 @@ SND_SOC_DAPM_PGA_S("HPOUT1L PGA", 0, WM8996_POWER_MANAGEMENT_1, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA_S("HPOUT1L_DLY", 1, WM8996_ANALOGUE_HP_1, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA_S("HPOUT1L_DCS", 2, WM8996_DC_SERVO_1, 0, 0, dcs_start,
 		   SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_S("HPOUT1L_RMV_SHORT", 3, SND_SOC_NOPM, HPOUT1L, 0,
+SND_SOC_DAPM_PGA_S("HPOUT1L_RMV_SHORT", 3, SND_SOC_ANALPM, HPOUT1L, 0,
 		   rmv_short_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 
@@ -1056,7 +1056,7 @@ SND_SOC_DAPM_PGA_S("HPOUT1R PGA", 0, WM8996_POWER_MANAGEMENT_1, 4, 0, NULL, 0),
 SND_SOC_DAPM_PGA_S("HPOUT1R_DLY", 1, WM8996_ANALOGUE_HP_1, 1, 0, NULL, 0),
 SND_SOC_DAPM_PGA_S("HPOUT1R_DCS", 2, WM8996_DC_SERVO_1, 1, 0, dcs_start,
 		   SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_S("HPOUT1R_RMV_SHORT", 3, SND_SOC_NOPM, HPOUT1R, 0,
+SND_SOC_DAPM_PGA_S("HPOUT1R_RMV_SHORT", 3, SND_SOC_ANALPM, HPOUT1R, 0,
 		   rmv_short_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 
@@ -1382,7 +1382,7 @@ static bool wm8996_readable_register(struct device *dev, unsigned int reg)
 	case WM8996_AIF1RX_CHANNEL_3_CONFIGURATION:
 	case WM8996_AIF1RX_CHANNEL_4_CONFIGURATION:
 	case WM8996_AIF1RX_CHANNEL_5_CONFIGURATION:
-	case WM8996_AIF1RX_MONO_CONFIGURATION:
+	case WM8996_AIF1RX_MOANAL_CONFIGURATION:
 	case WM8996_AIF1TX_TEST:
 	case WM8996_AIF2_CONTROL:
 	case WM8996_AIF2_BCLK:
@@ -1397,7 +1397,7 @@ static bool wm8996_readable_register(struct device *dev, unsigned int reg)
 	case WM8996_AIF2TX_CHANNEL_1_CONFIGURATION:
 	case WM8996_AIF2RX_CHANNEL_0_CONFIGURATION:
 	case WM8996_AIF2RX_CHANNEL_1_CONFIGURATION:
-	case WM8996_AIF2RX_MONO_CONFIGURATION:
+	case WM8996_AIF2RX_MOANAL_CONFIGURATION:
 	case WM8996_AIF2TX_TEST:
 	case WM8996_DSP1_TX_LEFT_VOLUME:
 	case WM8996_DSP1_TX_RIGHT_VOLUME:
@@ -2044,7 +2044,7 @@ static int wm8996_set_fll(struct snd_soc_component *component, int fll_id, int s
 		reg = 3;
 		break;
 	default:
-		dev_err(component->dev, "Unknown FLL source %d\n", ret);
+		dev_err(component->dev, "Unkanalwn FLL source %d\n", ret);
 		return -EINVAL;
 	}
 
@@ -2077,7 +2077,7 @@ static int wm8996_set_fll(struct snd_soc_component *component, int fll_id, int s
 
 	snd_soc_component_write(component, WM8996_FLL_EFS_1, fll_div.lambda);
 
-	/* Enable the bandgap if it's not already enabled */
+	/* Enable the bandgap if it's analt already enabled */
 	ret = snd_soc_component_read(component, WM8996_FLL_CONTROL_1);
 	if (!(ret & WM8996_FLL_ENA))
 		wm8996_bg_enable(component);
@@ -2246,7 +2246,7 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 	if (wm8996->polarity_cb)
 		wm8996->polarity_cb(component, 0);
 
-	/* Clear discarge to avoid noise during detection */
+	/* Clear discarge to avoid analise during detection */
 	snd_soc_component_update_bits(component, WM8996_MICBIAS_1,
 			    WM8996_MICB1_DISCH, 0);
 	snd_soc_component_update_bits(component, WM8996_MICBIAS_2,
@@ -2305,7 +2305,7 @@ static void wm8996_hpdet_irq(struct snd_soc_component *component)
 
 	dev_dbg(component->dev, "HPDET measured %d ohms\n", val);
 
-	/* If we've got high enough impedence then report as line,
+	/* If we've got high eanalugh impedence then report as line,
 	 * otherwise assume headphone.
 	 */
 	if (val >= 126)
@@ -2391,7 +2391,7 @@ static void wm8996_micd(struct snd_soc_component *component)
 		return;
 	}
 
-	/* No accessory, reset everything and report removal */
+	/* Anal accessory, reset everything and report removal */
 	if (!(val & WM8996_MICD_STS)) {
 		dev_dbg(component->dev, "Jack removal detected\n");
 		wm8996->jack_mic = false;
@@ -2489,12 +2489,12 @@ static irqreturn_t wm8996_irq(int irq, void *data)
 	if (irq_val < 0) {
 		dev_err(component->dev, "Failed to read IRQ status: %d\n",
 			irq_val);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	irq_val &= ~snd_soc_component_read(component, WM8996_INTERRUPT_STATUS_2_MASK);
 
 	if (!irq_val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	snd_soc_component_write(component, WM8996_INTERRUPT_STATUS_2, irq_val);
 
@@ -2522,14 +2522,14 @@ static irqreturn_t wm8996_irq(int irq, void *data)
 
 static irqreturn_t wm8996_edge_irq(int irq, void *data)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	irqreturn_t val;
 
 	do {
 		val = wm8996_irq(irq, data);
-		if (val != IRQ_NONE)
+		if (val != IRQ_ANALNE)
 			ret = val;
-	} while (val != IRQ_NONE);
+	} while (val != IRQ_ANALNE);
 
 	return ret;
 }
@@ -2681,7 +2681,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8996 = {
 	.probe			= wm8996_probe,
 	.remove			= wm8996_remove,
 	.set_bias_level		= wm8996_set_bias_level,
-	.seq_notifier		= wm8996_seq_notifier,
+	.seq_analtifier		= wm8996_seq_analtifier,
 	.controls		= wm8996_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm8996_snd_controls),
 	.dapm_widgets		= wm8996_dapm_widgets,
@@ -2758,7 +2758,7 @@ static int wm8996_i2c_probe(struct i2c_client *i2c)
 	wm8996 = devm_kzalloc(&i2c->dev, sizeof(struct wm8996_priv),
 			      GFP_KERNEL);
 	if (wm8996 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, wm8996);
 	wm8996->dev = &i2c->dev;
@@ -2787,18 +2787,18 @@ static int wm8996_i2c_probe(struct i2c_client *i2c)
 		goto err_gpio;
 	}
 
-	wm8996->disable_nb[0].notifier_call = wm8996_regulator_event_0;
-	wm8996->disable_nb[1].notifier_call = wm8996_regulator_event_1;
-	wm8996->disable_nb[2].notifier_call = wm8996_regulator_event_2;
+	wm8996->disable_nb[0].analtifier_call = wm8996_regulator_event_0;
+	wm8996->disable_nb[1].analtifier_call = wm8996_regulator_event_1;
+	wm8996->disable_nb[2].analtifier_call = wm8996_regulator_event_2;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++) {
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_analtifier(
 						wm8996->supplies[i].consumer,
 						&wm8996->disable_nb[i]);
 		if (ret != 0) {
 			dev_err(&i2c->dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator analtifier: %d\n",
 				ret);
 		}
 	}
@@ -2828,7 +2828,7 @@ static int wm8996_i2c_probe(struct i2c_client *i2c)
 		goto err_regmap;
 	}
 	if (reg != 0x8915) {
-		dev_err(&i2c->dev, "Device is not a WM8996, ID %x\n", reg);
+		dev_err(&i2c->dev, "Device is analt a WM8996, ID %x\n", reg);
 		ret = -EINVAL;
 		goto err_regmap;
 	}
@@ -2924,7 +2924,7 @@ static int wm8996_i2c_probe(struct i2c_client *i2c)
 	regmap_update_bits(wm8996->regmap, WM8996_DSP2_RX_RIGHT_VOLUME,
 			   WM8996_DSP2RX_VU, WM8996_DSP2RX_VU);
 
-	/* No support currently for the underclocked TDM modes and
+	/* Anal support currently for the underclocked TDM modes and
 	 * pick a default TDM layout with each channel pair working with
 	 * slots 0 and 1. */
 	regmap_update_bits(wm8996->regmap,
@@ -3011,7 +3011,7 @@ static int wm8996_i2c_probe(struct i2c_client *i2c)
 			   WM8996_AIF2TX_CHAN1_START_SLOT_MASK,
 			   1 << WM8996_AIF1TX_CHAN1_SLOTS_SHIFT | 1);
 
-	/* If the TX LRCLK pins are not in LRCLK mode configure the
+	/* If the TX LRCLK pins are analt in LRCLK mode configure the
 	 * AIFs to source their clocks from the RX LRCLKs.
 	 */
 	ret = regmap_read(wm8996->regmap, WM8996_GPIO_1, &reg);

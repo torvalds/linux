@@ -129,13 +129,13 @@ static int phy_axg_pcie_probe(struct platform_device *pdev)
 	struct phy_provider *pphy;
 	struct device *dev = &pdev->dev;
 	struct phy_axg_pcie_priv *priv;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	void __iomem *base;
 	int ret;
 
 	priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->phy = devm_phy_create(dev, np, &phy_axg_pcie_ops);
 	if (IS_ERR(priv->phy)) {

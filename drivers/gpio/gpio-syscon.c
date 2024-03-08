@@ -206,18 +206,18 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct syscon_gpio_priv *priv;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data = of_device_get_match_data(dev);
 
 	priv->syscon = syscon_regmap_lookup_by_phandle(np, "gpio,syscon-dev");
 	if (IS_ERR(priv->syscon) && np->parent)
-		priv->syscon = syscon_node_to_regmap(np->parent);
+		priv->syscon = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(priv->syscon))
 		return PTR_ERR(priv->syscon);
 

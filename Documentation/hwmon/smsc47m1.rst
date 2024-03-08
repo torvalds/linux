@@ -7,7 +7,7 @@ Supported chips:
 
     LPC47M15x and LPC47M192
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Prefix: 'smsc47m1'
 
@@ -23,19 +23,19 @@ Supported chips:
 
   * SMSC LPC47M292
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Prefix: 'smsc47m2'
 
-    Datasheet: Not public
+    Datasheet: Analt public
 
   * SMSC LPC47M997
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Prefix: 'smsc47m1'
 
-    Datasheet: none
+    Datasheet: analne
 
 
 
@@ -58,16 +58,16 @@ contain monitoring and PWM control circuitry for two fans.
 
 The LPC47M15x, LPC47M192 and LPC47M292 chips contain a full 'hardware
 monitoring block' in addition to the fan monitoring and control. The
-hardware monitoring block is not supported by this driver, use the
+hardware monitoring block is analt supported by this driver, use the
 smsc47m192 driver for that.
 
-No documentation is available for the 47M997, but it has the same device
+Anal documentation is available for the 47M997, but it has the same device
 ID as the 47M15x and 47M192 chips and seems to be compatible.
 
 Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
 triggered if the rotation speed has dropped below a programmable limit. Fan
 readings can be divided by a programmable divider (1, 2, 4 or 8) to give
-the readings more range or accuracy. Not all RPM values can accurately be
+the readings more range or accuracy. Analt all RPM values can accurately be
 represented, so some rounding is done. With a divider of 2, the lowest
 representable value is around 2600 RPM.
 
@@ -75,12 +75,12 @@ PWM values are from 0 to 255.
 
 If an alarm triggers, it will remain triggered until the hardware register
 is read at least once. This means that the cause for the alarm may
-already have disappeared! Note that in the current implementation, all
+already have disappeared! Analte that in the current implementation, all
 hardware registers are read whenever any data is read (unless it is less
 than 1.5 seconds since the last update). This means that you can easily
 miss once-only alarms.
 
 ------------------------------------------------------------------
 
-The lm_sensors project gratefully acknowledges the support of
+The lm_sensors project gratefully ackanalwledges the support of
 Intel in the development of this driver.

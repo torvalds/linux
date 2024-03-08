@@ -5,7 +5,7 @@
 			data = /incbin/("boot/dts/img/pistachio_marduk.dtb");
 			type = "flat_dt";
 			arch = "mips";
-			compression = "none";
+			compression = "analne";
 			hash {
 				algo = "sha1";
 			};

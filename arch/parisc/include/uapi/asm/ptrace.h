@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* written by Philipp Rumpf, Copyright (C) 1999 SuSE GmbH Nuernberg
 ** Copyright (C) 2000 Grant Grundler, Hewlett-Packard
 */
@@ -15,7 +15,7 @@
  * structure. If you change things, you may break object compatibility
  * for those applications.
  *
- * Please do NOT use this structure for future programs, but use
+ * Please do ANALT use this structure for future programs, but use
  * user_regs_struct (see below) instead.
  *
  * It can be accessed through PTRACE_PEEKUSR/PTRACE_POKEUSR only.
@@ -80,7 +80,7 @@ struct user_fp_struct {
 
 /*
  * The numbers chosen here are somewhat arbitrary but absolutely MUST
- * not overlap with any of the number assigned in <linux/ptrace.h>.
+ * analt overlap with any of the number assigned in <linux/ptrace.h>.
  *
  * These ones are taken from IA-64 on the assumption that theirs are
  * the most correct (and we also want to support PTRACE_SINGLEBLOCK

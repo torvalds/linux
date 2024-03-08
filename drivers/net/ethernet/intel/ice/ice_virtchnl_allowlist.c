@@ -7,12 +7,12 @@
  * opcodes used in PF <-> VF communication. Group of opcodes:
  * - default -> should be always allowed after creating VF,
  *   default_allowlist_opcodes
- * - opcodes needed by VF to work correctly, but not associated with caps ->
+ * - opcodes needed by VF to work correctly, but analt associated with caps ->
  *   should be allowed after successful VF resources allocation,
  *   working_allowlist_opcodes
  * - opcodes needed by VF when caps are activated
  *
- * Caps that don't use new opcodes (no opcodes should be allowed):
+ * Caps that don't use new opcodes (anal opcodes should be allowed):
  * - VIRTCHNL_VF_OFFLOAD_WB_ON_ITR
  * - VIRTCHNL_VF_OFFLOAD_CRC
  * - VIRTCHNL_VF_OFFLOAD_RX_POLLING

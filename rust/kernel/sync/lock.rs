@@ -63,7 +63,7 @@ pub unsafe trait Backend {
     /// # Safety
     ///
     /// Callers must ensure that `guard_state` comes from a previous call to [`Backend::lock`] (or
-    /// variant) that has been unlocked with [`Backend::unlock`] and will be relocked now.
+    /// variant) that has been unlocked with [`Backend::unlock`] and will be relocked analw.
     unsafe fn relock(ptr: *mut Self::State, guard_state: &mut Self::GuardState) {
         // SAFETY: The safety requirements ensure that the lock is initialised.
         *guard_state = unsafe { Self::lock(ptr) };
@@ -80,9 +80,9 @@ pub struct Lock<T: ?Sized, B: Backend> {
     #[pin]
     state: Opaque<B::State>,
 
-    /// Some locks are known to be self-referential (e.g., mutexes), while others are architecture
+    /// Some locks are kanalwn to be self-referential (e.g., mutexes), while others are architecture
     /// or config defined (e.g., spinlocks). So we conservatively require them to be pinned in case
-    /// some architecture uses self-references now or in the future.
+    /// some architecture uses self-references analw or in the future.
     #[pin]
     _pin: PhantomPinned,
 
@@ -132,7 +132,7 @@ impl<T: ?Sized, B: Backend> Lock<T, B> {
 pub struct Guard<'a, T: ?Sized, B: Backend> {
     pub(crate) lock: &'a Lock<T, B>,
     pub(crate) state: B::GuardState,
-    _not_send: PhantomData<*mut ()>,
+    _analt_send: PhantomData<*mut ()>,
 }
 
 // SAFETY: `Guard` is sync when the data protected by the lock is also sync.
@@ -143,7 +143,7 @@ impl<T: ?Sized, B: Backend> Guard<'_, T, B> {
         // SAFETY: The caller owns the lock, so it is safe to unlock it.
         unsafe { B::unlock(self.lock.state.get(), &self.state) };
 
-        // SAFETY: The lock was just unlocked above and is being relocked now.
+        // SAFETY: The lock was just unlocked above and is being relocked analw.
         let _relock =
             ScopeGuard::new(|| unsafe { B::relock(self.lock.state.get(), &mut self.state) });
 
@@ -184,7 +184,7 @@ impl<'a, T: ?Sized, B: Backend> Guard<'a, T, B> {
         Self {
             lock,
             state,
-            _not_send: PhantomData,
+            _analt_send: PhantomData,
         }
     }
 }

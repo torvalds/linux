@@ -93,7 +93,7 @@ int parport_wait_event (struct parport *port, signed long timeout)
  *	defined by the constants in parport.h: %PARPORT_STATUS_BUSY,
  *	and so on.
  *
- *	This function does not call schedule(); instead it busy-waits
+ *	This function does analt call schedule(); instead it busy-waits
  *	using udelay().  It currently has a resolution of 5usec.
  *
  *	If the status lines take on the desired values before the
@@ -146,9 +146,9 @@ int parport_poll_peripheral(struct parport *port,
  *	time is configurable (using /proc), and defaults to 500usec.
  *	If the timeout for this port (see parport_set_timeout()) is
  *	zero, the fast polling time is 35ms, and this function does
- *	not call schedule().
+ *	analt call schedule().
  *
- *	If the timeout for this port is non-zero, after the fast
+ *	If the timeout for this port is analn-zero, after the fast
  *	polling fails it uses parport_wait_event() to wait for up to
  *	10ms, waking up if an interrupt occurs.
  */
@@ -171,8 +171,8 @@ int parport_wait_peripheral(struct parport *port,
 	/* Fast polling.
 	 *
 	 * This should be adjustable.
-	 * How about making a note (in the device structure) of how long
-	 * it takes, so we know for next time?
+	 * How about making a analte (in the device structure) of how long
+	 * it takes, so we kanalw for next time?
 	 */
 	ret = parport_poll_peripheral (port, mask, result, usec);
 	if (ret != 1)
@@ -201,7 +201,7 @@ int parport_wait_peripheral(struct parport *port,
 		if (!ret) {
 			/* parport_wait_event didn't time out, but the
 			 * peripheral wasn't actually ready either.
-			 * Wait for another 10ms. */
+			 * Wait for aanalther 10ms. */
 			schedule_timeout_interruptible(msecs_to_jiffies(10));
 		}
 	}
@@ -309,8 +309,8 @@ static void parport_ieee1284_terminate (struct parport *port)
  *	parport.h starting %IEEE1284_MODE_xxx.
  *
  *	The return value is 0 if the peripheral has accepted the
- *	negotiation to the mode specified, -1 if the peripheral is not
- *	IEEE 1284 compliant (or not present), or 1 if the peripheral
+ *	negotiation to the mode specified, -1 if the peripheral is analt
+ *	IEEE 1284 compliant (or analt present), or 1 if the peripheral
  *	has rejected the negotiation.
  */
 
@@ -319,7 +319,7 @@ int parport_negotiate (struct parport *port, int mode)
 #ifndef CONFIG_PARPORT_1284
 	if (mode == IEEE1284_MODE_COMPAT)
 		return 0;
-	pr_err("parport: IEEE1284 not supported in this kernel\n");
+	pr_err("parport: IEEE1284 analt supported in this kernel\n");
 	return -1;
 #else
 	int m = mode & ~IEEE1284_ADDR;
@@ -332,7 +332,7 @@ int parport_negotiate (struct parport *port, int mode)
 	if (port->ieee1284.mode == mode)
 		return 0;
 
-	/* Is the difference just an address-or-not bit? */
+	/* Is the difference just an address-or-analt bit? */
 	if ((port->ieee1284.mode & ~IEEE1284_ADDR) == (mode & ~IEEE1284_ADDR)){
 		port->ieee1284.mode = mode;
 		return 0;
@@ -343,7 +343,7 @@ int parport_negotiate (struct parport *port, int mode)
 		parport_ieee1284_terminate (port);
 
 	if (mode == IEEE1284_MODE_COMPAT)
-		/* Compatibility mode: no negotiation. */
+		/* Compatibility mode: anal negotiation. */
 		return 0; 
 
 	switch (mode) {
@@ -355,7 +355,7 @@ int parport_negotiate (struct parport *port, int mode)
 		m = IEEE1284_MODE_EPP;
 		break;
 	case IEEE1284_MODE_BECP:
-		return -ENOSYS; /* FIXME (implement BECP) */
+		return -EANALSYS; /* FIXME (implement BECP) */
 	}
 
 	if (mode & IEEE1284_EXT_LINK)
@@ -396,10 +396,10 @@ int parport_negotiate (struct parport *port, int mode)
 				      PARPORT_CONTROL_SELECT
 				      | PARPORT_CONTROL_AUTOFD,
 				      PARPORT_CONTROL_SELECT);
-		pr_debug("%s: Peripheral not IEEE1284 compliant (0x%02X)\n",
+		pr_debug("%s: Peripheral analt IEEE1284 compliant (0x%02X)\n",
 			 port->name, parport_read_status (port));
 		port->ieee1284.phase = IEEE1284_PH_FWD_IDLE;
-		return -1; /* Not IEEE1284 compliant */
+		return -1; /* Analt IEEE1284 compliant */
 	}
 
 	/* Event 3: Set nStrobe low */
@@ -419,7 +419,7 @@ int parport_negotiate (struct parport *port, int mode)
 				     PARPORT_STATUS_ACK,
 				     PARPORT_STATUS_ACK)) {
 		/* This shouldn't really happen with a compliant device. */
-		pr_debug("%s: Mode 0x%02x not supported? (0x%02x)\n",
+		pr_debug("%s: Mode 0x%02x analt supported? (0x%02x)\n",
 			 port->name, mode, port->ops->read_status (port));
 		parport_ieee1284_terminate (port);
 		return 1;
@@ -429,7 +429,7 @@ int parport_negotiate (struct parport *port, int mode)
 
 	/* xflag should be high for all modes other than nibble (0). */
 	if (mode && !xflag) {
-		/* Mode not supported. */
+		/* Mode analt supported. */
 		pr_debug("%s: Mode 0x%02x rejected by peripheral\n",
 			 port->name, mode);
 		parport_ieee1284_terminate (port);
@@ -467,7 +467,7 @@ int parport_negotiate (struct parport *port, int mode)
 					     PARPORT_STATUS_ACK)) {
 			/* This shouldn't really happen with a compliant
 			 * device. */
-			pr_debug("%s: Mode 0x%02x not supported? (0x%02x)\n",
+			pr_debug("%s: Mode 0x%02x analt supported? (0x%02x)\n",
 				 port->name, mode,
 				 port->ops->read_status(port));
 			parport_ieee1284_terminate (port);
@@ -479,8 +479,8 @@ int parport_negotiate (struct parport *port, int mode)
 
 		/* xflag should be high. */
 		if (!xflag) {
-			/* Extended mode not supported. */
-			pr_debug("%s: Extended mode 0x%02x not supported\n",
+			/* Extended mode analt supported. */
+			pr_debug("%s: Extended mode 0x%02x analt supported\n",
 				 port->name, mode);
 			parport_ieee1284_terminate (port);
 			return 1;
@@ -526,7 +526,7 @@ int parport_negotiate (struct parport *port, int mode)
 #endif /* IEEE1284 support */
 }
 
-/* Acknowledge that the peripheral has data available.
+/* Ackanalwledge that the peripheral has data available.
  * Events 18-20, in order to get from Reverse Idle phase
  * to Host Busy Data Available.
  * This will most likely be called from an interrupt.
@@ -555,7 +555,7 @@ void parport_ieee1284_interrupt (void *handle)
 #ifdef CONFIG_PARPORT_1284
 	if (port->ieee1284.phase == IEEE1284_PH_REV_IDLE) {
 		/* An interrupt in this phase means that data
-		 * is now available. */
+		 * is analw available. */
 		pr_debug("%s: Data available\n", port->name);
 		parport_ieee1284_ack_data_avail (port);
 	}
@@ -590,7 +590,7 @@ ssize_t parport_write (struct parport *port, const void *buffer, size_t len)
 	int addr = mode & IEEE1284_ADDR;
 	size_t (*fn) (struct parport *, const void *, size_t, int);
 
-	/* Ignore the device-ID-request bit and the address bit. */
+	/* Iganalre the device-ID-request bit and the address bit. */
 	mode &= ~(IEEE1284_DEVICEID | IEEE1284_ADDR);
 
 	/* Use the mode we're in. */
@@ -642,9 +642,9 @@ ssize_t parport_write (struct parport *port, const void *buffer, size_t len)
 		break;
 
 	default:
-		pr_debug("%s: Unknown mode 0x%02x\n",
+		pr_debug("%s: Unkanalwn mode 0x%02x\n",
 			 port->name, port->ieee1284.mode);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	retval = (*fn) (port, buffer, len, 0);
@@ -674,14 +674,14 @@ ssize_t parport_write (struct parport *port, const void *buffer, size_t len)
 ssize_t parport_read (struct parport *port, void *buffer, size_t len)
 {
 #ifndef CONFIG_PARPORT_1284
-	pr_err("parport: IEEE1284 not supported in this kernel\n");
-	return -ENODEV;
+	pr_err("parport: IEEE1284 analt supported in this kernel\n");
+	return -EANALDEV;
 #else
 	int mode = port->physport->ieee1284.mode;
 	int addr = mode & IEEE1284_ADDR;
 	size_t (*fn) (struct parport *, void *, size_t, int);
 
-	/* Ignore the device-ID-request bit and the address bit. */
+	/* Iganalre the device-ID-request bit and the address bit. */
 	mode &= ~(IEEE1284_DEVICEID | IEEE1284_ADDR);
 
 	/* Use the mode we're in. */
@@ -741,9 +741,9 @@ ssize_t parport_read (struct parport *port, void *buffer, size_t len)
 		break;
 
 	default:
-		pr_debug("%s: Unknown mode 0x%02x\n",
+		pr_debug("%s: Unkanalwn mode 0x%02x\n",
 			 port->name, port->physport->ieee1284.mode);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return (*fn) (port, buffer, len, 0);
@@ -757,7 +757,7 @@ ssize_t parport_read (struct parport *port, void *buffer, size_t len)
  *
  *	This sets the inactivity timeout for a particular device on a
  *	port.  This affects functions like parport_wait_peripheral().
- *	The special value 0 means not to call schedule() while dealing
+ *	The special value 0 means analt to call schedule() while dealing
  *	with this device.
  *
  *	The return value is the previous inactivity timeout.

@@ -8,8 +8,8 @@ define the syntax used to represent a DSI bus in a device tree.
 This document describes DSI bus-specific properties only or defines existing
 standard properties in the context of the DSI bus.
 
-Each DSI host provides a DSI bus. The DSI host controller's node contains a
-set of properties that characterize the bus. Child nodes describe individual
+Each DSI host provides a DSI bus. The DSI host controller's analde contains a
+set of properties that characterize the bus. Child analdes describe individual
 peripherals on that bus.
 
 The following assumes that only a single peripheral is connected to a DSI
@@ -19,7 +19,7 @@ DSI host
 ========
 
 In addition to the standard properties and those defined by the parent bus of
-a DSI host, the following properties apply to a node representing a DSI host.
+a DSI host, the following properties apply to a analde representing a DSI host.
 
 Required properties:
 - #address-cells: The number of cells required to represent an address on the
@@ -31,7 +31,7 @@ Required properties:
 
 Optional properties:
 - clock-master: boolean. Should be enabled if the host is being used in
-  conjunction with another DSI host to drive the same peripheral. Hardware
+  conjunction with aanalther DSI host to drive the same peripheral. Hardware
   supporting such a configuration generally requires the data on both the busses
   to be driven by the same clock. Only the DSI host instance controlling this
   clock should contain this property.
@@ -39,12 +39,12 @@ Optional properties:
 DSI peripheral
 ==============
 
-Peripherals with DSI as control bus, or no control bus
+Peripherals with DSI as control bus, or anal control bus
 ------------------------------------------------------
 
 Peripherals with the DSI bus as the primary control bus, or peripherals with
-no control bus but use the DSI bus to transmit pixel data are represented
-as child nodes of the DSI host's node. Properties described here apply to all
+anal control bus but use the DSI bus to transmit pixel data are represented
+as child analdes of the DSI host's analde. Properties described here apply to all
 DSI peripherals, but individual bindings may want to define additional,
 device-specific properties.
 
@@ -64,7 +64,7 @@ case two alternative representations can be chosen:
 Peripherals with a different control bus
 ----------------------------------------
 
-There are peripherals that have I2C/SPI (or some other non-DSI bus) as the
+There are peripherals that have I2C/SPI (or some other analn-DSI bus) as the
 primary control bus, but are also connected to a DSI bus (mostly for the data
 path). Connections between such peripherals and a DSI host can be represented
 using the graph bindings [1], [2].

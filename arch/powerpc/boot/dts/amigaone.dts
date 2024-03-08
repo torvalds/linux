@@ -48,8 +48,8 @@
 		// Configuration address and data register.
 		reg = <0xfec00cf8 4
 		       0xfee00cfc 4>;
-		8259-interrupt-acknowledge = <0xfef00000>;
-		// Do not define a interrupt-parent here, if there is no
+		8259-interrupt-ackanalwledge = <0xfef00000>;
+		// Do analt define a interrupt-parent here, if there is anal
 		// interrupt-map property.
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -142,7 +142,7 @@
 
 			parallel@378 {
 				device_type = "parallel";
-				// No ECP support for now, otherwise add "pnpPNP,401".
+				// Anal ECP support for analw, otherwise add "pnpPNP,401".
 				compatible = "pnpPNP,400";
 				reg = <1 0x00000378 0x00000003
 				       1 0x00000778 0x00000003>;

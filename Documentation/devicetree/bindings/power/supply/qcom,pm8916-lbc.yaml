@@ -11,7 +11,7 @@ maintainers:
 
 description:
   Linear Battery Charger hardware block, found in some Qualcomm PMICs
-  such as pm8916. Implements a simple, autonomous CC/CV charger.
+  such as pm8916. Implements a simple, autoanalmous CC/CV charger.
 
 allOf:
   - $ref: power-supply.yaml#

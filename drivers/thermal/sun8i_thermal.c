@@ -3,7 +3,7 @@
  * Thermal sensor driver for Allwinner SOC
  * Copyright (C) 2019 Yangtao Li
  *
- * Based on the work of Icenowy Zheng <icenowy@aosc.io>
+ * Based on the work of Iceanalwy Zheng <iceanalwy@aosc.io>
  * Based on the work of Ondrej Jirman <megous@megous.com>
  * Based on the work of Josef Gajdusek <atx@atx.name>
  */
@@ -115,7 +115,7 @@ static int sun8i_ths_get_temp(struct thermal_zone_device *tz, int *temp)
 	regmap_read(tmdev->regmap, tmdev->chip->temp_data_base +
 		    0x4 * s->id, &val);
 
-	/* ths have no data yet */
+	/* ths have anal data yet */
 	if (!val)
 		return -EAGAIN;
 
@@ -126,7 +126,7 @@ static int sun8i_ths_get_temp(struct thermal_zone_device *tz, int *temp)
 	 * value. We can't simply put it on the formula for calculating the
 	 * temperature above, because the formula for calculating the
 	 * temperature above is also used when the sensor is calibrated. If
-	 * do this, the correct calibration formula is hard to know.
+	 * do this, the correct calibration formula is hard to kanalw.
 	 */
 	*temp += tmdev->chip->ft_deviation;
 
@@ -262,7 +262,7 @@ static int sun50i_h6_ths_calibrate(struct ths_device *tmdev,
 			 * still work without calibration, although the data
 			 * won't be so accurate.
 			 */
-			dev_warn(dev, "sensor%d is not calibrated.\n", i);
+			dev_warn(dev, "sensor%d is analt calibrated.\n", i);
 			continue;
 		}
 
@@ -290,7 +290,7 @@ static int sun8i_ths_calibrate(struct ths_device *tmdev)
 			return -EPROBE_DEFER;
 		/*
 		 * Even if the external calibration data stored in sid is
-		 * not accessible, the THS hardware can still work, although
+		 * analt accessible, the THS hardware can still work, although
 		 * the data won't be so accurate.
 		 *
 		 * The default value of calibration register is 0x800 for
@@ -298,8 +298,8 @@ static int sun8i_ths_calibrate(struct ths_device *tmdev)
 		 * or 0x8xx, so they won't be away from the default value
 		 * for a lot.
 		 *
-		 * So here we do not return error if the calibration data is
-		 * not available, except the probe needs deferring.
+		 * So here we do analt return error if the calibration data is
+		 * analt available, except the probe needs deferring.
 		 */
 		goto out;
 	}
@@ -482,7 +482,7 @@ static int sun8i_ths_probe(struct platform_device *pdev)
 
 	tmdev = devm_kzalloc(dev, sizeof(*tmdev), GFP_KERNEL);
 	if (!tmdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmdev->dev = dev;
 	tmdev->chip = of_device_get_match_data(&pdev->dev);
@@ -506,7 +506,7 @@ static int sun8i_ths_probe(struct platform_device *pdev)
 		return ret;
 
 	/*
-	 * Avoid entering the interrupt handler, the thermal device is not
+	 * Avoid entering the interrupt handler, the thermal device is analt
 	 * registered yet, we deffer the registration of the interrupt to
 	 * the end.
 	 */

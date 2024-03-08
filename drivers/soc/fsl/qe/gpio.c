@@ -149,7 +149,7 @@ struct qe_pin {
  * qe_pin_request - Request a QE pin
  * @dev:	device to get the pin from
  * @index:	index of the pin in the device tree
- * Context:	non-atomic
+ * Context:	analn-atomic
  *
  * This function return qe_pin so that you could use it with the rest of
  * the QE Pin Multiplexing API.
@@ -165,27 +165,27 @@ struct qe_pin *qe_pin_request(struct device *dev, int index)
 	qe_pin = kzalloc(sizeof(*qe_pin), GFP_KERNEL);
 	if (!qe_pin) {
 		dev_dbg(dev, "%s: can't allocate memory\n", __func__);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/*
-	 * Request gpio as nonexclusive as it was likely reserved by the
-	 * caller, and we are not planning on controlling it, we only need
+	 * Request gpio as analnexclusive as it was likely reserved by the
+	 * caller, and we are analt planning on controlling it, we only need
 	 * the descriptor to the to the gpio chip structure.
 	 */
 	gpiod = gpiod_get_index(dev, NULL, index,
-			        GPIOD_ASIS | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+			        GPIOD_ASIS | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	err = PTR_ERR_OR_ZERO(gpiod);
 	if (err)
 		goto err0;
 
 	gc = gpiod_to_chip(gpiod);
 	gpio_num = desc_to_gpio(gpiod);
-	/* We no longer need this descriptor */
+	/* We anal longer need this descriptor */
 	gpiod_put(gpiod);
 
 	if (WARN_ON(!gc)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err0;
 	}
 
@@ -197,8 +197,8 @@ struct qe_pin *qe_pin_request(struct device *dev, int index)
 	 */
 	qe_pin->num = gpio_num - gc->base;
 
-	if (!fwnode_device_is_compatible(gc->fwnode, "fsl,mpc8323-qe-pario-bank")) {
-		dev_dbg(dev, "%s: tried to get a non-qe pin\n", __func__);
+	if (!fwanalde_device_is_compatible(gc->fwanalde, "fsl,mpc8323-qe-pario-bank")) {
+		dev_dbg(dev, "%s: tried to get a analn-qe pin\n", __func__);
 		err = -EINVAL;
 		goto err0;
 	}
@@ -293,9 +293,9 @@ EXPORT_SYMBOL(qe_pin_set_gpio);
 
 static int __init qe_add_gpiochips(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_compatible_node(np, NULL, "fsl,mpc8323-qe-pario-bank") {
+	for_each_compatible_analde(np, NULL, "fsl,mpc8323-qe-pario-bank") {
 		int ret;
 		struct qe_gpio_chip *qe_gc;
 		struct of_mm_gpio_chip *mm_gc;
@@ -303,7 +303,7 @@ static int __init qe_add_gpiochips(void)
 
 		qe_gc = kzalloc(sizeof(*qe_gc), GFP_KERNEL);
 		if (!qe_gc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 

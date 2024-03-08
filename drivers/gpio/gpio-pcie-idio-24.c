@@ -95,16 +95,16 @@ static const struct regmap_range idio_24_volatile_ranges[] = {
 	regmap_reg_range(0x4, 0xB), regmap_reg_range(0xF, 0xF),
 };
 static const struct regmap_access_table idio_24_wr_table = {
-	.yes_ranges = idio_24_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_24_wr_ranges),
+	.anal_ranges = idio_24_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_24_wr_ranges),
 };
 static const struct regmap_access_table idio_24_rd_table = {
-	.yes_ranges = idio_24_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_24_rd_ranges),
+	.anal_ranges = idio_24_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_24_rd_ranges),
 };
 static const struct regmap_access_table idio_24_volatile_table = {
-	.yes_ranges = idio_24_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_24_volatile_ranges),
+	.anal_ranges = idio_24_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_24_volatile_ranges),
 };
 
 static const struct regmap_config idio_24_regmap_config = {
@@ -267,7 +267,7 @@ static int idio_24_reg_mask_xlate(struct gpio_regmap *const gpio, const unsigned
 	case IDIO_24_CONTROL_REG:
 		/* We can only set direction for TTL/CMOS lines */
 		if (offset < 48)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		*reg = IDIO_24_CONTROL_REG;
 		*mask = CONTROL_REG_OUT_MODE;
@@ -326,7 +326,7 @@ static int idio_24_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	idio24gpio = devm_kzalloc(dev, sizeof(*idio24gpio), GFP_KERNEL);
 	if (!idio24gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idio24gpio->map = devm_regmap_init_mmio(dev, idio_24_regs, &idio_24_regmap_config);
 	if (IS_ERR(idio24gpio->map))
@@ -340,7 +340,7 @@ static int idio_24_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->name = name;
 	chip->status_base = IDIO_24_COS_STATUS_BASE;

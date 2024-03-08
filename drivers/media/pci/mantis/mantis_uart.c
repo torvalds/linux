@@ -44,7 +44,7 @@ static struct {
 static struct {
 	char string[5];
 } parity[3] = {
-	{ "NONE" },
+	{ "ANALNE" },
 	{ "ODD" },
 	{ "EVEN" }
 };
@@ -92,7 +92,7 @@ static void mantis_uart_work(struct work_struct *work)
 	 * config->bytes + 1 bytes are in the FIFO.
 	 */
 
-	/* FIXME: is 10ms good enough ? */
+	/* FIXME: is 10ms good eanalugh ? */
 	timeout = jiffies +  msecs_to_jiffies(10);
 	while (stat & MANTIS_UART_RXFIFO_DATA) {
 		mantis_uart_read(mantis);

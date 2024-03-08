@@ -26,7 +26,7 @@ static struct {
 	{"test_dynptr_is_null", SETUP_SYSCALL_SLEEP},
 	{"test_dynptr_is_rdonly", SETUP_SKB_PROG},
 	{"test_dynptr_clone", SETUP_SKB_PROG},
-	{"test_dynptr_skb_no_buff", SETUP_SKB_PROG},
+	{"test_dynptr_skb_anal_buff", SETUP_SKB_PROG},
 	{"test_dynptr_skb_strcmp", SETUP_SKB_PROG},
 };
 

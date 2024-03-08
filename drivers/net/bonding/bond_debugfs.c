@@ -80,7 +80,7 @@ void __init bond_create_debugfs(void)
 	bonding_debug_root = debugfs_create_dir("bonding", NULL);
 
 	if (IS_ERR(bonding_debug_root))
-		pr_warn("Warning: Cannot create bonding directory in debugfs\n");
+		pr_warn("Warning: Cananalt create bonding directory in debugfs\n");
 }
 
 void bond_destroy_debugfs(void)

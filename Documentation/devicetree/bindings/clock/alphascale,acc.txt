@@ -3,7 +3,7 @@ Alphascale Clock Controller
 The ACC (Alphascale Clock Controller) is responsible for choosing proper
 clock source, setting dividers and clock gates.
 
-Required properties for the ACC node:
+Required properties for the ACC analde:
  - compatible: must be "alphascale,asm9260-clock-controller"
  - reg: must contain the ACC register base and size
  - #clock-cells : shall be set to 1.
@@ -17,7 +17,7 @@ Alphascale ASM9260:
 
 This binding contains two types of clock providers:
  _AHB_ - AHB gate;
- _SYS_ - adjustable clock source. Not all peripheral have _SYS_ clock provider.
+ _SYS_ - adjustable clock source. Analt all peripheral have _SYS_ clock provider.
 All clock specific details can be found in the SoC documentation.
 CLKID_AHB_ROM		0
 CLKID_AHB_RAM		1

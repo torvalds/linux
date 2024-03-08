@@ -74,7 +74,7 @@ static int xlnx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	 * Clear the rtc interrupt status register after setting the
 	 * time. During a read_time function, the code should read the
 	 * RTC_INT_STATUS register and if bit 0 is still 0, it means
-	 * that one second has not elapsed yet since RTC was set and
+	 * that one second has analt elapsed yet since RTC was set and
 	 * the current time should be read from SET_TIME_READ register;
 	 * otherwise, CURRENT_TIME register is read to report the time
 	 */
@@ -99,7 +99,7 @@ static int xlnx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		read_time = readl(xrtcdev->reg_base + RTC_CUR_TM);
 	} else {
 		/*
-		 * Time written in SET_TIME_WRITE has not yet updated into
+		 * Time written in SET_TIME_WRITE has analt yet updated into
 		 * the seconds read register, so read the time from the
 		 * SET_TIME_WRITE instead of CURRENT_TIME register.
 		 * Since we add +1 sec while writing, we need to -1 sec while
@@ -169,7 +169,7 @@ static void xlnx_init_rtc(struct xlnx_rtc_dev *xrtcdev)
 {
 	u32 rtc_ctrl;
 
-	/* Enable RTC switch to battery when VCC_PSAUX is not available */
+	/* Enable RTC switch to battery when VCC_PSAUX is analt available */
 	rtc_ctrl = readl(xrtcdev->reg_base + RTC_CTRL);
 	rtc_ctrl |= RTC_BATT_EN;
 	writel(rtc_ctrl, xrtcdev->reg_base + RTC_CTRL);
@@ -263,7 +263,7 @@ static irqreturn_t xlnx_rtc_interrupt(int irq, void *id)
 	status = readl(xrtcdev->reg_base + RTC_INT_STS);
 	/* Check if interrupt asserted */
 	if (!(status & (RTC_INT_SEC | RTC_INT_ALRM)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Disable RTC_INT_ALRM interrupt only */
 	writel(RTC_INT_ALRM, xrtcdev->reg_base + RTC_INT_DIS);
@@ -281,7 +281,7 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 
 	xrtcdev = devm_kzalloc(&pdev->dev, sizeof(*xrtcdev), GFP_KERNEL);
 	if (!xrtcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, xrtcdev);
 
@@ -322,11 +322,11 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 	xrtcdev->rtc_clk = devm_clk_get_optional(&pdev->dev, "rtc_clk");
 	if (IS_ERR(xrtcdev->rtc_clk)) {
 		if (PTR_ERR(xrtcdev->rtc_clk) != -EPROBE_DEFER)
-			dev_warn(&pdev->dev, "Device clock not found.\n");
+			dev_warn(&pdev->dev, "Device clock analt found.\n");
 	}
 	xrtcdev->freq = clk_get_rate(xrtcdev->rtc_clk);
 	if (!xrtcdev->freq) {
-		ret = of_property_read_u32(pdev->dev.of_node, "calibration",
+		ret = of_property_read_u32(pdev->dev.of_analde, "calibration",
 					   &xrtcdev->freq);
 		if (ret)
 			xrtcdev->freq = RTC_CALIB_DEF;

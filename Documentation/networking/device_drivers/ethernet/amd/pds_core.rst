@@ -96,7 +96,7 @@ Firmware Management
 ===================
 
 The ``flash`` command can update a the DSC firmware.  The downloaded firmware
-will be saved into either of firmware bank 1 or bank 2, whichever is not
+will be saved into either of firmware bank 1 or bank 2, whichever is analt
 currently in use, and that bank will used for the next boot::
 
   # devlink dev flash pci/0000:b5:00.0 \
@@ -111,7 +111,7 @@ The driver supports a devlink health reporter for FW status::
   pci/0000:2b:00.0:
     reporter fw
       state healthy error 0 recover 0
-  # devlink health diagnose pci/0000:2b:00.0 reporter fw
+  # devlink health diaganalse pci/0000:2b:00.0 reporter fw
    Status: healthy State: 1 Generation: 0 Recoveries: 0
 
 Enabling the driver

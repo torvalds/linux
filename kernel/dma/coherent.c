@@ -71,7 +71,7 @@ out_unmap_membase:
 	memunmap(mem_base);
 	pr_err("Reserved memory: failed to init DMA memory pool at %pa, size %zd MiB\n",
 		&phys_addr, size / SZ_1M);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void _dma_release_coherent_memory(struct dma_coherent_mem *mem)
@@ -88,7 +88,7 @@ static int dma_assign_coherent_memory(struct device *dev,
 				      struct dma_coherent_mem *mem)
 {
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->dma_mem)
 		return -EBUSY;
@@ -144,7 +144,7 @@ static void *__dma_alloc_from_coherent(struct device *dev,
 {
 	int order = get_order(size);
 	unsigned long flags;
-	int pageno;
+	int pageanal;
 	void *ret;
 
 	spin_lock_irqsave(&mem->spinlock, flags);
@@ -152,16 +152,16 @@ static void *__dma_alloc_from_coherent(struct device *dev,
 	if (unlikely(size > ((dma_addr_t)mem->size << PAGE_SHIFT)))
 		goto err;
 
-	pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
-	if (unlikely(pageno < 0))
+	pageanal = bitmap_find_free_region(mem->bitmap, mem->size, order);
+	if (unlikely(pageanal < 0))
 		goto err;
 
 	/*
 	 * Memory was found in the coherent area.
 	 */
 	*dma_handle = dma_get_device_base(dev, mem) +
-			((dma_addr_t)pageno << PAGE_SHIFT);
-	ret = mem->virt_base + ((dma_addr_t)pageno << PAGE_SHIFT);
+			((dma_addr_t)pageanal << PAGE_SHIFT);
+	ret = mem->virt_base + ((dma_addr_t)pageanal << PAGE_SHIFT);
 	spin_unlock_irqrestore(&mem->spinlock, flags);
 	memset(ret, 0, size);
 	return ret;
@@ -362,20 +362,20 @@ static const struct reserved_mem_ops rmem_dma_ops = {
 
 static int __init rmem_dma_setup(struct reserved_mem *rmem)
 {
-	unsigned long node = rmem->fdt_node;
+	unsigned long analde = rmem->fdt_analde;
 
-	if (of_get_flat_dt_prop(node, "reusable", NULL))
+	if (of_get_flat_dt_prop(analde, "reusable", NULL))
 		return -EINVAL;
 
 #ifdef CONFIG_ARM
-	if (!of_get_flat_dt_prop(node, "no-map", NULL)) {
-		pr_err("Reserved memory: regions without no-map are not yet supported\n");
+	if (!of_get_flat_dt_prop(analde, "anal-map", NULL)) {
+		pr_err("Reserved memory: regions without anal-map are analt yet supported\n");
 		return -EINVAL;
 	}
 #endif
 
 #ifdef CONFIG_DMA_GLOBAL_POOL
-	if (of_get_flat_dt_prop(node, "linux,dma-default", NULL)) {
+	if (of_get_flat_dt_prop(analde, "linux,dma-default", NULL)) {
 		WARN(dma_reserved_default_memory,
 		     "Reserved memory: region for default DMA coherent area is redefined\n");
 		dma_reserved_default_memory = rmem;
@@ -392,7 +392,7 @@ static int __init rmem_dma_setup(struct reserved_mem *rmem)
 static int __init dma_init_reserved_memory(void)
 {
 	if (!dma_reserved_default_memory)
-		return -ENOMEM;
+		return -EANALMEM;
 	return dma_init_global_coherent(dma_reserved_default_memory->base,
 					dma_reserved_default_memory->size);
 }

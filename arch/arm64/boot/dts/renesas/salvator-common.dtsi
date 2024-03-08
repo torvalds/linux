@@ -50,7 +50,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -977,9 +977,9 @@
 	bus-width = <8>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	fixed-emmc-driver-type = <1>;
 	full-pwr-cycle-in-suspend;
 	status = "okay";

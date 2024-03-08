@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -23,7 +23,7 @@
 /*
  * dc_debug.c
  *
- *  Created on: Nov 3, 2016
+ *  Created on: Analv 3, 2016
  *      Author: yonsun
  */
 
@@ -320,7 +320,7 @@ void context_timing_trace(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 		/* get_position() returns CRTC vertical/horizontal counter
-		 * hence not applicable for underlay pipe
+		 * hence analt applicable for underlay pipe
 		 */
 		if (pipe_ctx->stream == NULL || pipe_ctx->pipe_idx == underlay_idx)
 			continue;
@@ -378,12 +378,12 @@ char *dc_status_to_str(enum dc_status status)
 	switch (status) {
 	case DC_OK:
 		return "DC OK";
-	case DC_NO_CONTROLLER_RESOURCE:
-		return "No controller resource";
-	case DC_NO_STREAM_ENC_RESOURCE:
-		return "No stream encoder";
-	case DC_NO_CLOCK_SOURCE_RESOURCE:
-		return "No clock source";
+	case DC_ANAL_CONTROLLER_RESOURCE:
+		return "Anal controller resource";
+	case DC_ANAL_STREAM_ENC_RESOURCE:
+		return "Anal stream encoder";
+	case DC_ANAL_CLOCK_SOURCE_RESOURCE:
+		return "Anal clock source";
 	case DC_FAIL_CONTROLLER_VALIDATE:
 		return "Controller validation failure";
 	case DC_FAIL_ENC_VALIDATE:
@@ -394,8 +394,8 @@ char *dc_status_to_str(enum dc_status status)
 		return "Surfaces detachment failure";
 	case DC_FAIL_SURFACE_VALIDATE:
 		return "Surface validation failure";
-	case DC_NO_DP_LINK_BANDWIDTH:
-		return "No DP link bandwidth";
+	case DC_ANAL_DP_LINK_BANDWIDTH:
+		return "Anal DP link bandwidth";
 	case DC_EXCEED_DONGLE_CAP:
 		return "Exceed dongle capability";
 	case DC_SURFACE_PIXEL_FORMAT_UNSUPPORTED:
@@ -408,8 +408,8 @@ char *dc_status_to_str(enum dc_status status)
 		return "DP link training failure";
 	case DC_FAIL_DSC_VALIDATE:
 		return "DSC validation failure";
-	case DC_NO_DSC_RESOURCE:
-		return "No DSC resource";
+	case DC_ANAL_DSC_RESOURCE:
+		return "Anal DSC resource";
 	case DC_FAIL_UNSUPPORTED_1:
 		return "Unsupported";
 	case DC_FAIL_CLK_EXCEED_MAX:
@@ -418,12 +418,12 @@ char *dc_status_to_str(enum dc_status status)
 		return "Fail clk below minimum";
 	case DC_FAIL_CLK_BELOW_CFG_REQUIRED:
 		return "Fail clk below required CFG (hard_min in PPLIB)";
-	case DC_NOT_SUPPORTED:
-		return "The operation is not supported.";
+	case DC_ANALT_SUPPORTED:
+		return "The operation is analt supported.";
 	case DC_UNSUPPORTED_VALUE:
-		return "The value specified is not supported.";
-	case DC_NO_LINK_ENC_RESOURCE:
-		return "No link encoder resource";
+		return "The value specified is analt supported.";
+	case DC_ANAL_LINK_ENC_RESOURCE:
+		return "Anal link encoder resource";
 	case DC_FAIL_DP_PAYLOAD_ALLOCATION:
 		return "Fail dp payload allocation";
 	case DC_FAIL_DP_LINK_BANDWIDTH:

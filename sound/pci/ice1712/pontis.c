@@ -46,7 +46,7 @@
 #define WM_ALC_CTRL1		0x10
 #define WM_ALC_CTRL2		0x11
 #define WM_ALC_CTRL3		0x12
-#define WM_NOISE_GATE		0x13
+#define WM_ANALISE_GATE		0x13
 #define WM_LIMITER		0x14
 #define WM_ADC_MUX		0x15
 #define WM_OUT_MUX		0x16
@@ -74,7 +74,7 @@ static unsigned short wm_get(struct snd_ice1712 *ice, int reg)
 /*
  * set the register value of WM codec and remember it
  */
-static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
+static void wm_put_analcache(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
 	unsigned short cval;
 	cval = (reg << 9) | val;
@@ -83,7 +83,7 @@ static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
 
 static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
-	wm_put_nocache(ice, reg, val);
+	wm_put_analcache(ice, reg, val);
 	reg <<= 1;
 	ice->akm[0].images[reg] = val >> 8;
 	ice->akm[0].images[reg + 1] = val;
@@ -136,7 +136,7 @@ static int wm_dac_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 		oval = wm_get(ice, idx) & 0xff;
 		if (oval != nval) {
 			wm_put(ice, idx, nval);
-			wm_put_nocache(ice, idx, nval | 0x100);
+			wm_put_analcache(ice, idx, nval | 0x100);
 			change = 1;
 		}
 	}
@@ -201,7 +201,7 @@ static int wm_adc_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 /*
  * ADC input mux mixer control
  */
-#define wm_adc_mux_info		snd_ctl_boolean_mono_info
+#define wm_adc_mux_info		snd_ctl_boolean_moanal_info
 
 static int wm_adc_mux_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -238,7 +238,7 @@ static int wm_adc_mux_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 /*
  * Analog bypass (In -> Out)
  */
-#define wm_bypass_info		snd_ctl_boolean_mono_info
+#define wm_bypass_info		snd_ctl_boolean_moanal_info
 
 static int wm_bypass_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -273,7 +273,7 @@ static int wm_bypass_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_valu
 /*
  * Left/Right swap
  */
-#define wm_chswap_info		snd_ctl_boolean_mono_info
+#define wm_chswap_info		snd_ctl_boolean_moanal_info
 
 static int wm_chswap_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -300,7 +300,7 @@ static int wm_chswap_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_valu
 		val |= 0x90;
 	if (val != oval) {
 		wm_put(ice, WM_DAC_CTRL1, val);
-		wm_put_nocache(ice, WM_DAC_CTRL1, val);
+		wm_put_analcache(ice, WM_DAC_CTRL1, val);
 		change = 1;
 	}
 	mutex_unlock(&ice->gpio_mutex);
@@ -694,7 +694,7 @@ static int pontis_add_controls(struct snd_ice1712 *ice)
 static int pontis_init(struct snd_ice1712 *ice)
 {
 	static const unsigned short wm_inits[] = {
-		/* These come first to reduce init pop noise */
+		/* These come first to reduce init pop analise */
 		WM_ADC_MUX,	0x00c0,	/* ADC mute */
 		WM_DAC_MUTE,	0x0001,	/* DAC softmute */
 		WM_DAC_CTRL1,	0x0000,	/* DAC mute */
@@ -704,8 +704,8 @@ static int pontis_init(struct snd_ice1712 *ice)
 	};
 	static const unsigned short wm_inits2[] = {
 		WM_MASTER_CTRL,	0x0022,	/* 256fs, slave mode */
-		WM_DAC_INT,	0x0022,	/* I2S, normal polarity, 24bit */
-		WM_ADC_INT,	0x0022,	/* I2S, normal polarity, 24bit */
+		WM_DAC_INT,	0x0022,	/* I2S, analrmal polarity, 24bit */
+		WM_ADC_INT,	0x0022,	/* I2S, analrmal polarity, 24bit */
 		WM_DAC_CTRL1,	0x0090,	/* DAC L/R */
 		WM_OUT_MUX,	0x0001,	/* OUT DAC */
 		WM_HP_ATTEN_L,	0x0179,	/* HP 0dB */
@@ -715,15 +715,15 @@ static int pontis_init(struct snd_ice1712 *ice)
 		WM_DAC_ATTEN_R,	0x0000,	/* DAC 0dB */
 		WM_DAC_ATTEN_R,	0x0100,	/* DAC 0dB */
 		/* WM_DAC_MASTER,	0x0100, */	/* DAC master muted */
-		WM_PHASE_SWAP,	0x0000,	/* phase normal */
-		WM_DAC_CTRL2,	0x0000,	/* no deemphasis, no ZFLG */
+		WM_PHASE_SWAP,	0x0000,	/* phase analrmal */
+		WM_DAC_CTRL2,	0x0000,	/* anal deemphasis, anal ZFLG */
 		WM_ADC_ATTEN_L,	0x0000,	/* ADC muted */
 		WM_ADC_ATTEN_R,	0x0000,	/* ADC muted */
 #if 0
 		WM_ALC_CTRL1,	0x007b,	/* */
 		WM_ALC_CTRL2,	0x0000,	/* */
 		WM_ALC_CTRL3,	0x0000,	/* */
-		WM_NOISE_GATE,	0x0000,	/* */
+		WM_ANALISE_GATE,	0x0000,	/* */
 #endif
 		WM_DAC_MUTE,	0x0000,	/* DAC unmute */
 		WM_ADC_MUX,	0x0003,	/* ADC unmute, both CD/Line On */
@@ -744,7 +744,7 @@ static int pontis_init(struct snd_ice1712 *ice)
 	/* to remember the register values */
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ice->akm)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->akm_codecs = 1;
 
 	/* HACK - use this as the SPDIF source.
@@ -785,13 +785,13 @@ static const unsigned char pontis_eeprom[] = {
 	[ICE_EEP2_SPDIF]       = 0xc3,	/* out-en, out-int, spdif-in */
 	[ICE_EEP2_GPIO_DIR]    = 0x07,
 	[ICE_EEP2_GPIO_DIR1]   = 0x00,
-	[ICE_EEP2_GPIO_DIR2]   = 0x00,	/* ignored */
+	[ICE_EEP2_GPIO_DIR2]   = 0x00,	/* iganalred */
 	[ICE_EEP2_GPIO_MASK]   = 0x0f,	/* 4-7 reserved for CS8416 */
 	[ICE_EEP2_GPIO_MASK1]  = 0xff,
-	[ICE_EEP2_GPIO_MASK2]  = 0x00,	/* ignored */
+	[ICE_EEP2_GPIO_MASK2]  = 0x00,	/* iganalred */
 	[ICE_EEP2_GPIO_STATE]  = 0x06,	/* 0-low, 1-high, 2-high */
 	[ICE_EEP2_GPIO_STATE1] = 0x00,
-	[ICE_EEP2_GPIO_STATE2] = 0x00,	/* ignored */
+	[ICE_EEP2_GPIO_STATE2] = 0x00,	/* iganalred */
 };
 
 /* entry point */

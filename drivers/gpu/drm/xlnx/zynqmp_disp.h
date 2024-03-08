@@ -44,11 +44,11 @@ enum zynqmp_dpsub_layer_id {
 
 /**
  * enum zynqmp_dpsub_layer_mode - Layer mode
- * @ZYNQMP_DPSUB_LAYER_NONLIVE: non-live (memory) mode
+ * @ZYNQMP_DPSUB_LAYER_ANALNLIVE: analn-live (memory) mode
  * @ZYNQMP_DPSUB_LAYER_LIVE: live (stream) mode
  */
 enum zynqmp_dpsub_layer_mode {
-	ZYNQMP_DPSUB_LAYER_NONLIVE,
+	ZYNQMP_DPSUB_LAYER_ANALNLIVE,
 	ZYNQMP_DPSUB_LAYER_LIVE,
 };
 

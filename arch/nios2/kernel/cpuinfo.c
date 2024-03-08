@@ -19,7 +19,7 @@ struct cpuinfo cpuinfo;
 #define err_cpu(x) \
 	pr_err("ERROR: Nios II " x " different for kernel and DTS\n")
 
-static inline u32 fcpu(struct device_node *cpu, const char *n)
+static inline u32 fcpu(struct device_analde *cpu, const char *n)
 {
 	u32 val = 0;
 
@@ -30,13 +30,13 @@ static inline u32 fcpu(struct device_node *cpu, const char *n)
 
 void __init setup_cpuinfo(void)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	const char *str;
 	int len;
 
-	cpu = of_get_cpu_node(0, NULL);
+	cpu = of_get_cpu_analde(0, NULL);
 	if (!cpu)
-		panic("%s: No CPU found in devicetree!\n", __func__);
+		panic("%s: Anal CPU found in devicetree!\n", __func__);
 
 	if (!of_property_read_bool(cpu, "altr,has-initda"))
 		panic("initda instruction is unimplemented. Please update your "
@@ -49,7 +49,7 @@ void __init setup_cpuinfo(void)
 	if (str)
 		strscpy(cpuinfo.cpu_impl, str, sizeof(cpuinfo.cpu_impl));
 	else
-		strcpy(cpuinfo.cpu_impl, "<unknown>");
+		strcpy(cpuinfo.cpu_impl, "<unkanalwn>");
 
 	cpuinfo.has_div = of_property_read_bool(cpu, "altr,has-div");
 	cpuinfo.has_mul = of_property_read_bool(cpu, "altr,has-mul");
@@ -108,7 +108,7 @@ void __init setup_cpuinfo(void)
 	cpuinfo.exception_addr = fcpu(cpu, "altr,exception-addr");
 	cpuinfo.fast_tlb_miss_exc_addr = fcpu(cpu, "altr,fast-tlb-miss-addr");
 
-	of_node_put(cpu);
+	of_analde_put(cpu);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -124,13 +124,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   "CPU:\t\tNios II/%s\n"
 		   "REV:\t\t%i\n"
 		   "MMU:\t\t%s\n"
-		   "FPU:\t\tnone\n"
+		   "FPU:\t\tanalne\n"
 		   "Clocking:\t%u.%02u MHz\n"
 		   "BogoMips:\t%lu.%02lu\n"
 		   "Calibration:\t%lu loops\n",
 		   cpuinfo.cpu_impl,
 		   CONFIG_NIOS2_ARCH_REVISION,
-		   cpuinfo.mmu ? "present" : "none",
+		   cpuinfo.mmu ? "present" : "analne",
 		   clockfreq / 1000000, (clockfreq / 100000) % 10,
 		   (loops_per_jiffy * HZ) / 500000,
 		   ((loops_per_jiffy * HZ) / 5000) % 100,
@@ -143,11 +143,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   " DIV:\t\t%s\n"
 		   " BMX:\t\t%s\n"
 		   " CDX:\t\t%s\n",
-		   cpuinfo.has_mul ? "yes" : "no",
-		   cpuinfo.has_mulx ? "yes" : "no",
-		   cpuinfo.has_div ? "yes" : "no",
-		   cpuinfo.has_bmx ? "yes" : "no",
-		   cpuinfo.has_cdx ? "yes" : "no");
+		   cpuinfo.has_mul ? "anal" : "anal",
+		   cpuinfo.has_mulx ? "anal" : "anal",
+		   cpuinfo.has_div ? "anal" : "anal",
+		   cpuinfo.has_bmx ? "anal" : "anal",
+		   cpuinfo.has_cdx ? "anal" : "anal");
 
 	seq_printf(m,
 		   "Icache:\t\t%ukB, line length: %u\n",

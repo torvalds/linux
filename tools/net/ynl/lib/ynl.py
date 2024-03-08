@@ -106,7 +106,7 @@ class NlAttr:
         self.raw = raw[offset + 4 : offset + self.payload_len]
 
     @classmethod
-    def get_format(cls, attr_type, byte_order=None):
+    def get_format(cls, attr_type, byte_order=Analne):
         format = cls.type_formats[attr_type]
         if byte_order:
             return format.big if byte_order == "big-endian" \
@@ -127,11 +127,11 @@ class NlAttr:
             formatted = raw
         return formatted
 
-    def as_scalar(self, attr_type, byte_order=None):
+    def as_scalar(self, attr_type, byte_order=Analne):
         format = self.get_format(attr_type, byte_order)
         return format.unpack(self.raw)[0]
 
-    def as_auto_scalar(self, attr_type, byte_order=None):
+    def as_auto_scalar(self, attr_type, byte_order=Analne):
         if len(self.raw) != 4 and len(self.raw) != 8:
             raise Exception(f"Auto-scalar len payload be 4 or 8 bytes, got {len(self.raw)}")
         real_type = attr_type[0] + str(len(self.raw) * 8)
@@ -152,7 +152,7 @@ class NlAttr:
         value = dict()
         offset = 0
         for m in members:
-            # TODO: handle non-scalar members
+            # TODO: handle analn-scalar members
             if m.type == 'binary':
                 decoded = self.raw[offset : offset + m['len']]
                 offset += m['len']
@@ -191,7 +191,7 @@ class NlAttrs:
 
 
 class NlMsg:
-    def __init__(self, msg, offset, attr_space=None):
+    def __init__(self, msg, offset, attr_space=Analne):
         self.hdr = msg[offset : offset + 16]
 
         self.nl_len, self.nl_type, self.nl_flags, self.nl_seq, self.nl_portid = \
@@ -202,7 +202,7 @@ class NlMsg:
         self.error = 0
         self.done = 0
 
-        extack_off = None
+        extack_off = Analne
         if self.nl_type == Netlink.NLMSG_ERROR:
             self.error = struct.unpack("i", self.raw[0:4])[0]
             self.done = 1
@@ -211,7 +211,7 @@ class NlMsg:
             self.done = 1
             extack_off = 4
 
-        self.extack = None
+        self.extack = Analne
         if self.nl_flags & Netlink.NLM_F_ACK_TLVS and extack_off:
             self.extack = dict()
             extack_attrs = NlAttrs(self.raw[extack_off:])
@@ -225,13 +225,13 @@ class NlMsg:
                 elif extack.type == Netlink.NLMSGERR_ATTR_OFFS:
                     self.extack['bad-attr-offs'] = extack.as_scalar('u32')
                 else:
-                    if 'unknown' not in self.extack:
-                        self.extack['unknown'] = []
-                    self.extack['unknown'].append(extack)
+                    if 'unkanalwn' analt in self.extack:
+                        self.extack['unkanalwn'] = []
+                    self.extack['unkanalwn'].append(extack)
 
             if attr_space:
                 # We don't have the ability to parse nests yet, so only do global
-                if 'miss-type' in self.extack and 'miss-nest' not in self.extack:
+                if 'miss-type' in self.extack and 'miss-nest' analt in self.extack:
                     miss_type = self.extack['miss-type']
                     if miss_type in attr_space.attrs_by_val:
                         spec = attr_space.attrs_by_val[miss_type]
@@ -253,7 +253,7 @@ class NlMsg:
 
 
 class NlMsgs:
-    def __init__(self, data, attr_space=None):
+    def __init__(self, data, attr_space=Analne):
         self.msgs = []
 
         offset = 0
@@ -266,12 +266,12 @@ class NlMsgs:
         yield from self.msgs
 
 
-genl_family_name_to_id = None
+genl_family_name_to_id = Analne
 
 
-def _genl_msg(nl_type, nl_flags, genl_cmd, genl_version, seq=None):
+def _genl_msg(nl_type, nl_flags, genl_cmd, genl_version, seq=Analne):
     # we prepend length in _genl_msg_finalize()
-    if seq is None:
+    if seq is Analne:
         seq = random.randint(1, 1024)
     nlmsg = struct.pack("HHII", nl_type, nl_flags, seq, 0)
     genlmsg = struct.pack("BBH", genl_cmd, genl_version, 0)
@@ -318,14 +318,14 @@ def _genl_load_families():
                     elif attr.type == Netlink.CTRL_ATTR_MCAST_GROUPS:
                         fam['mcast'] = dict()
                         for entry in NlAttrs(attr.raw):
-                            mcast_name = None
-                            mcast_id = None
+                            mcast_name = Analne
+                            mcast_id = Analne
                             for entry_attr in NlAttrs(entry.raw):
                                 if entry_attr.type == Netlink.CTRL_ATTR_MCAST_GRP_NAME:
                                     mcast_name = entry_attr.as_strz()
                                 elif entry_attr.type == Netlink.CTRL_ATTR_MCAST_GRP_ID:
                                     mcast_id = entry_attr.as_scalar('u32')
-                            if mcast_name and mcast_id is not None:
+                            if mcast_name and mcast_id is analt Analne:
                                 fam['mcast'][mcast_name] = mcast_id
                 if 'name' in fam and 'id' in fam:
                     genl_family_name_to_id[fam['name']] = fam
@@ -353,13 +353,13 @@ class NetlinkProtocol:
         self.family_name = family_name
         self.proto_num = proto_num
 
-    def _message(self, nl_type, nl_flags, seq=None):
-        if seq is None:
+    def _message(self, nl_type, nl_flags, seq=Analne):
+        if seq is Analne:
             seq = random.randint(1, 1024)
         nlmsg = struct.pack("HHII", nl_type, nl_flags, seq, 0)
         return nlmsg
 
-    def message(self, flags, command, version, seq=None):
+    def message(self, flags, command, version, seq=Analne):
         return self._message(command, flags, seq)
 
     def _decode(self, nl_msg):
@@ -375,8 +375,8 @@ class NetlinkProtocol:
         return msg
 
     def get_mcast_id(self, mcast_name, mcast_groups):
-        if mcast_name not in mcast_groups:
-            raise Exception(f'Multicast group "{mcast_name}" not present in the spec')
+        if mcast_name analt in mcast_groups:
+            raise Exception(f'Multicast group "{mcast_name}" analt present in the spec')
         return mcast_groups[mcast_name].value
 
 
@@ -385,13 +385,13 @@ class GenlProtocol(NetlinkProtocol):
         super().__init__(family_name, Netlink.NETLINK_GENERIC)
 
         global genl_family_name_to_id
-        if genl_family_name_to_id is None:
+        if genl_family_name_to_id is Analne:
             _genl_load_families()
 
         self.genl_family = genl_family_name_to_id[family_name]
         self.family_id = genl_family_name_to_id[family_name]['id']
 
-    def message(self, flags, command, version, seq=None):
+    def message(self, flags, command, version, seq=Analne):
         nlmsg = self._message(self.family_id, flags, seq)
         genlmsg = struct.pack("BBH", command, version, 0)
         return nlmsg + genlmsg
@@ -400,8 +400,8 @@ class GenlProtocol(NetlinkProtocol):
         return GenlMsg(nl_msg)
 
     def get_mcast_id(self, mcast_name, mcast_groups):
-        if mcast_name not in self.genl_family['mcast']:
-            raise Exception(f'Multicast group "{mcast_name}" not present in the family')
+        if mcast_name analt in self.genl_family['mcast']:
+            raise Exception(f'Multicast group "{mcast_name}" analt present in the family')
         return self.genl_family['mcast'][mcast_name]
 
 
@@ -411,11 +411,11 @@ class GenlProtocol(NetlinkProtocol):
 
 
 class YnlFamily(SpecFamily):
-    def __init__(self, def_path, schema=None, process_unknown=False):
+    def __init__(self, def_path, schema=Analne, process_unkanalwn=False):
         super().__init__(def_path, schema)
 
         self.include_raw = False
-        self.process_unknown = process_unknown
+        self.process_unkanalwn = process_unkanalwn
 
         try:
             if self.proto == "netlink-raw":
@@ -424,7 +424,7 @@ class YnlFamily(SpecFamily):
             else:
                 self.nlproto = GenlProtocol(self.yaml['name'])
         except KeyError:
-            raise Exception(f"Family '{self.yaml['name']}' not supported by the kernel")
+            raise Exception(f"Family '{self.yaml['name']}' analt supported by the kernel")
 
         self.sock = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, self.nlproto.proto_num)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_CAP_ACK, 1)
@@ -453,7 +453,7 @@ class YnlFamily(SpecFamily):
         try:
             attr = self.attr_sets[space][name]
         except KeyError:
-            raise Exception(f"Space '{space}' has no attribute '{name}'")
+            raise Exception(f"Space '{space}' has anal attribute '{name}'")
         nl_type = attr.value
         if attr["type"] == 'nest':
             nl_type |= Netlink.NLA_F_NESTED
@@ -470,7 +470,7 @@ class YnlFamily(SpecFamily):
             elif isinstance(value, str):
                 attr_payload = bytes.fromhex(value)
             else:
-                raise Exception(f'Unknown type for binary attribute, value: {value}')
+                raise Exception(f'Unkanalwn type for binary attribute, value: {value}')
         elif attr.is_auto_scalar:
             scalar = int(value)
             real_type = attr["type"][0] + ('32' if scalar.bit_length() <= 32 else '64')
@@ -482,7 +482,7 @@ class YnlFamily(SpecFamily):
         elif attr['type'] in "bitfield32":
             attr_payload = struct.pack("II", int(value["value"]), int(value["selector"]))
         else:
-            raise Exception(f'Unknown type at {space} {name} {value} {attr["type"]}')
+            raise Exception(f'Unkanalwn type at {space} {name} {value} {attr["type"]}')
 
         pad = b'\x00' * ((4 - len(attr_payload) % 4) % 4)
         return struct.pack('HH', len(attr_payload) + 4, nl_type) + attr_payload + pad
@@ -527,21 +527,21 @@ class YnlFamily(SpecFamily):
             decoded.append({ item.type: subattrs })
         return decoded
 
-    def _decode_unknown(self, attr):
+    def _decode_unkanalwn(self, attr):
         if attr.is_nest:
-            return self._decode(NlAttrs(attr.raw), None)
+            return self._decode(NlAttrs(attr.raw), Analne)
         else:
             return attr.as_bin()
 
     def _rsp_add(self, rsp, name, is_multi, decoded):
-        if is_multi == None:
-            if name in rsp and type(rsp[name]) is not list:
+        if is_multi == Analne:
+            if name in rsp and type(rsp[name]) is analt list:
                 rsp[name] = [rsp[name]]
                 is_multi = True
             else:
                 is_multi = False
 
-        if not is_multi:
+        if analt is_multi:
             rsp[name] = decoded
         elif name in rsp:
             rsp[name].append(decoded)
@@ -550,16 +550,16 @@ class YnlFamily(SpecFamily):
 
     def _resolve_selector(self, attr_spec, vals):
         sub_msg = attr_spec.sub_message
-        if sub_msg not in self.sub_msgs:
-            raise Exception(f"No sub-message spec named {sub_msg} for {attr_spec.name}")
+        if sub_msg analt in self.sub_msgs:
+            raise Exception(f"Anal sub-message spec named {sub_msg} for {attr_spec.name}")
         sub_msg_spec = self.sub_msgs[sub_msg]
 
         selector = attr_spec.selector
-        if selector not in vals:
-            raise Exception(f"There is no value for {selector} to resolve '{attr_spec.name}'")
+        if selector analt in vals:
+            raise Exception(f"There is anal value for {selector} to resolve '{attr_spec.name}'")
         value = vals[selector]
-        if value not in sub_msg_spec.formats:
-            raise Exception(f"No message format for '{value}' in sub-message spec '{sub_msg}'")
+        if value analt in sub_msg_spec.formats:
+            raise Exception(f"Anal message format for '{value}' in sub-message spec '{sub_msg}'")
 
         spec = sub_msg_spec.formats[value]
         return spec
@@ -576,7 +576,7 @@ class YnlFamily(SpecFamily):
                 subdict = self._decode(NlAttrs(attr.raw, offset), msg_format.attr_set)
                 decoded.update(subdict)
             else:
-                raise Exception(f"Unknown attribute-set '{attr_space}' when decoding '{attr_spec.name}'")
+                raise Exception(f"Unkanalwn attribute-set '{attr_space}' when decoding '{attr_spec.name}'")
         return decoded
 
     def _decode(self, attrs, space):
@@ -587,10 +587,10 @@ class YnlFamily(SpecFamily):
             try:
                 attr_spec = attr_space.attrs_by_val[attr.type]
             except (KeyError, UnboundLocalError):
-                if not self.process_unknown:
-                    raise Exception(f"Space '{space}' has no attribute with value '{attr.type}'")
-                attr_name = f"UnknownAttr({attr.type})"
-                self._rsp_add(rsp, attr_name, None, self._decode_unknown(attr))
+                if analt self.process_unkanalwn:
+                    raise Exception(f"Space '{space}' has anal attribute with value '{attr.type}'")
+                attr_name = f"UnkanalwnAttr({attr.type})"
+                self._rsp_add(rsp, attr_name, Analne, self._decode_unkanalwn(attr))
                 continue
 
             if attr_spec["type"] == 'nest':
@@ -619,9 +619,9 @@ class YnlFamily(SpecFamily):
             elif attr_spec["type"] == 'sub-message':
                 decoded = self._decode_sub_msg(attr, attr_spec, rsp)
             else:
-                if not self.process_unknown:
-                    raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
-                decoded = self._decode_unknown(attr)
+                if analt self.process_unkanalwn:
+                    raise Exception(f'Unkanalwn {attr_spec["type"]} with name {attr_spec["name"]}')
+                decoded = self._decode_unkanalwn(attr)
 
             self._rsp_add(rsp, attr_spec["name"], attr_spec.is_multi, decoded)
 
@@ -632,7 +632,7 @@ class YnlFamily(SpecFamily):
             try:
                 attr_spec = attr_set.attrs_by_val[attr.type]
             except KeyError:
-                raise Exception(f"Space '{attr_set.name}' has no attribute with value '{attr.type}'")
+                raise Exception(f"Space '{attr_set.name}' has anal attribute with value '{attr.type}'")
             if offset > target:
                 break
             if offset == target:
@@ -647,14 +647,14 @@ class YnlFamily(SpecFamily):
             subpath = self._decode_extack_path(NlAttrs(attr.raw),
                                                self.attr_sets[attr_spec['nested-attributes']],
                                                offset, target)
-            if subpath is None:
-                return None
+            if subpath is Analne:
+                return Analne
             return '.' + attr_spec.name + subpath
 
-        return None
+        return Analne
 
     def _decode_extack(self, request, op, extack):
-        if 'bad-attr-offs' not in extack:
+        if 'bad-attr-offs' analt in extack:
             return
 
         msg = self.nlproto.decode(self, NlMsg(request, 0, op.attr_set))
@@ -684,7 +684,7 @@ class YnlFamily(SpecFamily):
         fixed_header_attrs = dict()
         offset = 0
         for m in fixed_header_members:
-            value = None
+            value = Analne
             if m.type == 'pad':
                 offset += m.len
             elif m.type == 'binary':
@@ -694,7 +694,7 @@ class YnlFamily(SpecFamily):
                 format = NlAttr.get_format(m.type, m.byte_order)
                 [ value ] = format.unpack_from(msg.raw, offset)
                 offset += format.size
-            if value is not None:
+            if value is analt Analne:
                 if m.enum:
                     value = self._decode_enum(value, m)
                 fixed_header_attrs[m.name] = value
@@ -731,7 +731,7 @@ class YnlFamily(SpecFamily):
                     continue
 
                 decoded = self.nlproto.decode(self, nl_msg)
-                if decoded.cmd() not in self.async_msg_ids:
+                if decoded.cmd() analt in self.async_msg_ids:
                     print("Unexpected msg id done while checking for ntf", decoded)
                     continue
 
@@ -743,12 +743,12 @@ class YnlFamily(SpecFamily):
       set of attributes (as a dict).
       """
       op = self.find_operation(name)
-      if not op:
-        return None
+      if analt op:
+        return Analne
 
       return op['do']['request']['attributes'].copy()
 
-    def _op(self, method, vals, flags=None, dump=False):
+    def _op(self, method, vals, flags=Analne, dump=False):
         op = self.ops[method]
 
         nl_flags = Netlink.NLM_F_REQUEST | Netlink.NLM_F_ACK
@@ -779,7 +779,7 @@ class YnlFamily(SpecFamily):
 
         done = False
         rsp = []
-        while not done:
+        while analt done:
             reply = self.sock.recv(128 * 1024)
             nms = NlMsgs(reply, attr_space=op.attr_set)
             for nl_msg in nms:
@@ -811,13 +811,13 @@ class YnlFamily(SpecFamily):
                     rsp_msg.update(self._decode_fixed_header(decoded, op.fixed_header))
                 rsp.append(rsp_msg)
 
-        if not rsp:
-            return None
-        if not dump and len(rsp) == 1:
+        if analt rsp:
+            return Analne
+        if analt dump and len(rsp) == 1:
             return rsp[0]
         return rsp
 
-    def do(self, method, vals, flags=None):
+    def do(self, method, vals, flags=Analne):
         return self._op(method, vals, flags)
 
     def dump(self, method, vals):

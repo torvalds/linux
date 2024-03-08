@@ -450,7 +450,7 @@ int spi_set_parameter(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 	struct spi_info *spi = &chip->spi;
 
-	spi_set_err_code(chip, SPI_NO_ERR);
+	spi_set_err_code(chip, SPI_ANAL_ERR);
 
 	if (chip->asic_code)
 		spi->spi_clock = ((u16)(srb->cmnd[8]) << 8) | srb->cmnd[9];
@@ -472,7 +472,7 @@ int spi_read_flash_id(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	u16 len;
 	u8 *buf;
 
-	spi_set_err_code(chip, SPI_NO_ERR);
+	spi_set_err_code(chip, SPI_ANAL_ERR);
 
 	len = ((u16)(srb->cmnd[7]) << 8) | srb->cmnd[8];
 	if (len > 512) {
@@ -558,7 +558,7 @@ int spi_read_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	u16 len;
 	u8 *buf;
 
-	spi_set_err_code(chip, SPI_NO_ERR);
+	spi_set_err_code(chip, SPI_ANAL_ERR);
 
 	ins = srb->cmnd[3];
 	addr = ((u32)(srb->cmnd[4]) << 16) | ((u32)(srb->cmnd[5])
@@ -618,7 +618,7 @@ int spi_read_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		rtsx_add_cmd(chip, CHECK_REG_CMD, SPI_TRANSFER0,
 			     SPI_TRANSFER0_END, SPI_TRANSFER0_END);
 
-		rtsx_send_cmd_no_wait(chip);
+		rtsx_send_cmd_anal_wait(chip);
 
 		retval = rtsx_transfer_data(chip, 0, buf, pagelen, 0,
 					    DMA_FROM_DEVICE, 10000);
@@ -651,7 +651,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	u8 *buf;
 	unsigned int index = 0, offset = 0;
 
-	spi_set_err_code(chip, SPI_NO_ERR);
+	spi_set_err_code(chip, SPI_ANAL_ERR);
 
 	ins = srb->cmnd[3];
 	addr = ((u32)(srb->cmnd[4]) << 16) | ((u32)(srb->cmnd[5])
@@ -765,7 +765,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	} else if (program_mode == PAGE_PROGRAM) {
 		buf = kmalloc(SF_PAGE_LEN, GFP_KERNEL);
 		if (!buf)
-			return STATUS_NOMEM;
+			return STATUS_ANALMEM;
 
 		while (len) {
 			u16 pagelen = SF_PAGE_LEN - (u8)addr;
@@ -784,7 +784,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 			trans_dma_enable(DMA_TO_DEVICE, chip, 256, DMA_256);
 			sf_program(chip, ins, 1, addr, pagelen);
 
-			rtsx_send_cmd_no_wait(chip);
+			rtsx_send_cmd_anal_wait(chip);
 
 			rtsx_stor_access_xfer_buf(buf, pagelen, srb, &index,
 						  &offset, FROM_XFER_BUF);
@@ -823,7 +823,7 @@ int spi_erase_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	u8 ins, erase_mode;
 	u32 addr;
 
-	spi_set_err_code(chip, SPI_NO_ERR);
+	spi_set_err_code(chip, SPI_ANAL_ERR);
 
 	ins = srb->cmnd[3];
 	addr = ((u32)(srb->cmnd[4]) << 16) | ((u32)(srb->cmnd[5])

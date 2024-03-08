@@ -1,4 +1,4 @@
-Explaining the "No working init found." boot hang message
+Explaining the "Anal working init found." boot hang message
 =========================================================
 :Authors: Andreas Mohr <andi at lisas period de>
           Cristian Souza <cristianmsbr at gmail period com>
@@ -20,18 +20,18 @@ This document provides some high-level reasons for failure
    due to serial IRQ issues (e.g. missing interrupt-based configuration).
    Try using a different ``console= device`` or e.g. ``netconsole=``.
 
-4) **Binary exists but dependencies not available**: E.g. required library
+4) **Binary exists but dependencies analt available**: E.g. required library
    dependencies of the init binary such as ``/lib/ld-linux.so.2`` missing or
    broken. Use ``readelf -d <INIT>|grep NEEDED`` to find out which libraries
    are required.
 
-5) **Binary cannot be loaded**: Make sure the binary's architecture matches
+5) **Binary cananalt be loaded**: Make sure the binary's architecture matches
    your hardware. E.g. i386 vs. x86_64 mismatch, or trying to load x86 on ARM
-   hardware. In case you tried loading a non-binary file here (shell script?),
+   hardware. In case you tried loading a analn-binary file here (shell script?),
    you should make sure that the script specifies an interpreter in its
    shebang header line (``#!/...``) that is fully working (including its
    library dependencies). And before tackling scripts, better first test a
-   simple non-script binary such as ``/bin/sh`` and confirm its successful
+   simple analn-script binary such as ``/bin/sh`` and confirm its successful
    execution. To find out more, add code ``to init/main.c`` to display
    kernel_execve()s return values.
 

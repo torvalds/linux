@@ -1,5 +1,5 @@
 ifdef CONFIG_RELOCATABLE
-KBUILD_CFLAGS += -fno-pie
+KBUILD_CFLAGS += -fanal-pie
 endif
 
 obj-$(CONFIG_ERRATA_ANDES) += andes/

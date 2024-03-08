@@ -23,7 +23,7 @@ static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type)
 }
 
 #else
-/* if exit timing is not configured there is no need to build the c file */
+/* if exit timing is analt configured there is anal need to build the c file */
 static inline void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu) {}
 static inline void kvmppc_update_timing_stats(struct kvm_vcpu *vcpu) {}
 static inline int kvmppc_create_vcpu_debugfs_e500(struct kvm_vcpu *vcpu,
@@ -37,10 +37,10 @@ static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type) {}
 /* account the exit in kvm_stats */
 static inline void kvmppc_account_exit_stat(struct kvm_vcpu *vcpu, int type)
 {
-	/* type has to be known at build time for optimization */
+	/* type has to be kanalwn at build time for optimization */
 
 	/* The BUILD_BUG_ON below breaks in funny ways, commented out
-	 * for now ... -BenH
+	 * for analw ... -BenH
 	BUILD_BUG_ON(!__builtin_constant_p(type));
 	*/
 	switch (type) {

@@ -6,7 +6,7 @@ config PROC_FS
 	  This is a virtual file system providing information about the status
 	  of the system. "Virtual" means that it doesn't take up any space on
 	  your hard disk: the files are created on the fly by the kernel when
-	  you try to access them. Also, you cannot read the files with older
+	  you try to access them. Also, you cananalt read the files with older
 	  version of the program less: you need to use more or cat.
 
 	  It's totally cool; for example, "cat /proc/interrupts" gives
@@ -35,7 +35,7 @@ config PROC_KCORE
 	select CRASH_CORE
 	help
 	  Provides a virtual ELF core file of the live kernel.  This can
-	  be read with gdb and other ELF tools.  No modifications can be
+	  be read with gdb and other ELF tools.  Anal modifications can be
 	  made using this mechanism.
 
 config PROC_VMCORE
@@ -53,13 +53,13 @@ config PROC_VMCORE_DEVICE_DUMP
 	  After kernel panic, device drivers can collect the device
 	  specific snapshot of their hardware or firmware before the
 	  underlying devices are initialized in crash recovery kernel.
-	  Note that the device driver must be present in the crash
+	  Analte that the device driver must be present in the crash
 	  recovery kernel's initramfs to collect its underlying device
 	  snapshot.
 
 	  If you say Y here, the collected device dumps will be added
-	  as ELF notes to /proc/vmcore. You can still disable device
-	  dump using the kernel command line option 'novmcoredd'.
+	  as ELF analtes to /proc/vmcore. You can still disable device
+	  dump using the kernel command line option 'analvmcoredd'.
 
 config PROC_SYSCTL
 	bool "Sysctl support (/proc/sys)" if EXPERT
@@ -73,7 +73,7 @@ config PROC_SYSCTL
 	  interface is through /proc/sys.  If you say Y here a tree of
 	  modifiable sysctl entries will be generated beneath the
 	  /proc/sys directory. They are explained in the files
-	  in <file:Documentation/admin-guide/sysctl/>.  Note that enabling this
+	  in <file:Documentation/admin-guide/sysctl/>.  Analte that enabling this
 	  option will enlarge the kernel by at least 8 KB.
 
 	  As it is generally a good thing, you should say Y here unless

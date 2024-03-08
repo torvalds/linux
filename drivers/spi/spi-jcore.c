@@ -10,7 +10,7 @@
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -140,13 +140,13 @@ static int jcore_spi_txrx(struct spi_controller *host, struct spi_device *spi,
 
 static int jcore_spi_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct jcore_spi *hw;
 	struct spi_controller *host;
 	struct resource *res;
 	u32 clock_freq;
 	struct clk *clk;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	host = spi_alloc_host(&pdev->dev, sizeof(struct jcore_spi));
 	if (!host)
@@ -157,7 +157,7 @@ static int jcore_spi_probe(struct platform_device *pdev)
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	host->transfer_one = jcore_spi_txrx;
 	host->set_cs = jcore_spi_chipsel;
-	host->dev.of_node = node;
+	host->dev.of_analde = analde;
 	host->bus_num = pdev->id;
 
 	hw = spi_controller_get_devdata(host);
@@ -191,7 +191,7 @@ static int jcore_spi_probe(struct platform_device *pdev)
 			clock_freq = clk_get_rate(clk);
 			clk_disable_unprepare(clk);
 		} else
-			dev_warn(&pdev->dev, "could not enable ref_clk\n");
+			dev_warn(&pdev->dev, "could analt enable ref_clk\n");
 	}
 	hw->clock_freq = clock_freq;
 

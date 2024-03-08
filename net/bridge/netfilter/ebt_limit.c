@@ -36,15 +36,15 @@ static bool
 ebt_limit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct ebt_limit_info *info = (void *)par->matchinfo;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
 	spin_lock_bh(&limit_lock);
-	info->credit += (now - xchg(&info->prev, now)) * CREDITS_PER_JIFFY;
+	info->credit += (analw - xchg(&info->prev, analw)) * CREDITS_PER_JIFFY;
 	if (info->credit > info->credit_cap)
 		info->credit = info->credit_cap;
 
 	if (info->credit >= info->cost) {
-		/* We're not limited. */
+		/* We're analt limited. */
 		info->credit -= info->cost;
 		spin_unlock_bh(&limit_lock);
 		return true;
@@ -89,7 +89,7 @@ static int ebt_limit_mt_check(const struct xt_mtchk_param *par)
 
 #ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 /*
- * no conversion function needed --
+ * anal conversion function needed --
  * only avg/burst have meaningful values in userspace.
  */
 struct ebt_compat_limit_info {

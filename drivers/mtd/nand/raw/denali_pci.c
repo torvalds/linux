@@ -4,7 +4,7 @@
  * Copyright © 2009-2010, Intel Corporation and its suppliers.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -37,7 +37,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	denali = devm_kzalloc(&dev->dev, sizeof(*denali), GFP_KERNEL);
 	if (!denali)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pcim_enable_device(dev);
 	if (ret) {
@@ -77,13 +77,13 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	denali->reg = devm_ioremap(denali->dev, csr_base, csr_len);
 	if (!denali->reg) {
 		dev_err(&dev->dev, "Spectra: Unable to remap memory region\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	denali->host = devm_ioremap(denali->dev, mem_base, mem_len);
 	if (!denali->host) {
 		dev_err(&dev->dev, "Spectra: ioremap failed!");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = denali_init(denali);
@@ -95,7 +95,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	dchip = devm_kzalloc(denali->dev, struct_size(dchip, sels, nsels),
 			     GFP_KERNEL);
 	if (!dchip) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_remove_denali;
 	}
 

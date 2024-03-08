@@ -7,7 +7,7 @@
  * Based on arm/arm-smmu/arm-ssmu.c and arm/arm-smmu-v3/arm-smmu-v3.c
  *  Copyright (C) 2013 ARM Limited
  *  Copyright (C) 2015 ARM Limited
- * and on exynos-iommu.c
+ * and on exyanals-iommu.c
  *  Copyright (c) 2011,2016 Samsung Electronics Co., Ltd.
  */
 
@@ -61,9 +61,9 @@
 
 #define DART_T8020_ERROR_READ_FAULT BIT(4)
 #define DART_T8020_ERROR_WRITE_FAULT BIT(3)
-#define DART_T8020_ERROR_NO_PTE BIT(2)
-#define DART_T8020_ERROR_NO_PMD BIT(1)
-#define DART_T8020_ERROR_NO_TTBR BIT(0)
+#define DART_T8020_ERROR_ANAL_PTE BIT(2)
+#define DART_T8020_ERROR_ANAL_PMD BIT(1)
+#define DART_T8020_ERROR_ANAL_TTBR BIT(0)
 
 #define DART_T8020_CONFIG 0x60
 #define DART_T8020_CONFIG_LOCK BIT(15)
@@ -114,10 +114,10 @@
 
 #define DART_T8110_ERROR_READ_FAULT BIT(5)
 #define DART_T8110_ERROR_WRITE_FAULT BIT(4)
-#define DART_T8110_ERROR_NO_PTE BIT(3)
-#define DART_T8110_ERROR_NO_PMD BIT(2)
-#define DART_T8110_ERROR_NO_PGD BIT(1)
-#define DART_T8110_ERROR_NO_TTBR BIT(0)
+#define DART_T8110_ERROR_ANAL_PTE BIT(3)
+#define DART_T8110_ERROR_ANAL_PMD BIT(2)
+#define DART_T8110_ERROR_ANAL_PGD BIT(1)
+#define DART_T8110_ERROR_ANAL_TTBR BIT(0)
 
 #define DART_T8110_ERROR_ADDR_LO 0x170
 #define DART_T8110_ERROR_ADDR_HI 0x174
@@ -228,14 +228,14 @@ struct apple_dart {
 /*
  * Convenience struct to identify streams.
  *
- * The normal variant is used inside apple_dart_master_cfg which isn't written
+ * The analrmal variant is used inside apple_dart_master_cfg which isn't written
  * to concurrently.
  * The atomic variant is used inside apple_dart_domain where we have to guard
  * against races from potential parallel calls to attach/detach_device.
- * Note that even inside the atomic variant the apple_dart pointer is not
+ * Analte that even inside the atomic variant the apple_dart pointer is analt
  * protected: This pointer is initialized once under the domain init mutex
  * and never changed again afterwards. Devices with different dart pointers
- * cannot be attached to the same domain.
+ * cananalt be attached to the same domain.
  *
  * @dart dart pointer
  * @sid stream id bitmap
@@ -272,7 +272,7 @@ struct apple_dart_domain {
  * This structure is attached to devices with dev_iommu_priv_set() on of_xlate
  * and contains a list of streams bound to this device.
  * So far the worst case seen is a single device with two streams
- * from different darts, such that this simple static array is enough.
+ * from different darts, such that this simple static array is eanalugh.
  *
  * @streams: streams for this device
  */
@@ -388,7 +388,7 @@ apple_dart_t8020_hw_stream_command(struct apple_dart_stream_map *stream_map,
 
 	if (ret) {
 		dev_err(stream_map->dart->dev,
-			"busy bit did not clear after command %x for streams %lx\n",
+			"busy bit did analt clear after command %x for streams %lx\n",
 			command, stream_map->sidmap[0]);
 		return ret;
 	}
@@ -426,7 +426,7 @@ apple_dart_t8110_hw_tlb_command(struct apple_dart_stream_map *stream_map,
 
 	if (ret) {
 		dev_err(stream_map->dart->dev,
-			"busy bit did not clear after command %x for stream %d\n",
+			"busy bit did analt clear after command %x for stream %d\n",
 			command, sid);
 		return ret;
 	}
@@ -535,7 +535,7 @@ static int apple_dart_map_pages(struct iommu_domain *domain, unsigned long iova,
 	struct io_pgtable_ops *ops = dart_domain->pgtbl_ops;
 
 	if (!ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ops->map_pages(ops, iova, paddr, pgsize, pgcount, prot, gfp,
 			      mapped);
@@ -604,7 +604,7 @@ static int apple_dart_finalize_domain(struct apple_dart_domain *dart_domain,
 	dart_domain->pgtbl_ops = alloc_io_pgtable_ops(dart->hw->fmt, &pgtbl_cfg,
 						      &dart_domain->domain);
 	if (!dart_domain->pgtbl_ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -729,7 +729,7 @@ static struct iommu_device *apple_dart_probe_device(struct device *dev)
 	int i;
 
 	if (!cfg)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	for_each_stream_map(i, cfg, stream_map)
 		device_link_add(
@@ -782,7 +782,7 @@ static void apple_dart_domain_free(struct iommu_domain *domain)
 static int apple_dart_of_xlate(struct device *dev, struct of_phandle_args *args)
 {
 	struct apple_dart_master_cfg *cfg = dev_iommu_priv_get(dev);
-	struct platform_device *iommu_pdev = of_find_device_by_node(args->np);
+	struct platform_device *iommu_pdev = of_find_device_by_analde(args->np);
 	struct apple_dart *dart = platform_get_drvdata(iommu_pdev);
 	struct apple_dart *cfg_dart;
 	int i, sid;
@@ -794,7 +794,7 @@ static int apple_dart_of_xlate(struct device *dev, struct of_phandle_args *args)
 	if (!cfg)
 		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_iommu_priv_set(dev, cfg);
 
 	cfg_dart = cfg->stream_maps[0].dart;
@@ -844,7 +844,7 @@ static int apple_dart_merge_master_cfg(struct apple_dart_master_cfg *dst,
 				       struct apple_dart_master_cfg *src)
 {
 	/*
-	 * We know that this function is only called for groups returned from
+	 * We kanalw that this function is only called for groups returned from
 	 * pci_device_group and that all Apple Silicon platforms never spread
 	 * PCIe devices from the same bus across multiple DARTs such that we can
 	 * just assume that both src and dst only have the same single DART.
@@ -900,7 +900,7 @@ static struct iommu_group *apple_dart_device_group(struct device *dev)
 #endif
 		group = generic_device_group(dev);
 
-	res = ERR_PTR(-ENOMEM);
+	res = ERR_PTR(-EANALMEM);
 	if (!group)
 		goto out;
 
@@ -961,7 +961,7 @@ static void apple_dart_get_resv_regions(struct device *dev,
 {
 	if (IS_ENABLED(CONFIG_PCIE_APPLE) && dev_is_pci(dev)) {
 		struct iommu_resv_region *region;
-		int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
+		int prot = IOMMU_WRITE | IOMMU_ANALEXEC | IOMMU_MMIO;
 
 		region = iommu_alloc_resv_region(DOORBELL_ADDR,
 						 PAGE_SIZE, prot,
@@ -1011,21 +1011,21 @@ static irqreturn_t apple_dart_t8020_irq(int irq, void *dev)
 	u8 stream_idx = FIELD_GET(DART_T8020_ERROR_STREAM, error);
 
 	if (!(error & DART_T8020_ERROR_FLAG))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* there should only be a single bit set but let's use == to be sure */
 	if (error_code == DART_T8020_ERROR_READ_FAULT)
 		fault_name = "READ FAULT";
 	else if (error_code == DART_T8020_ERROR_WRITE_FAULT)
 		fault_name = "WRITE FAULT";
-	else if (error_code == DART_T8020_ERROR_NO_PTE)
-		fault_name = "NO PTE FOR IOVA";
-	else if (error_code == DART_T8020_ERROR_NO_PMD)
-		fault_name = "NO PMD FOR IOVA";
-	else if (error_code == DART_T8020_ERROR_NO_TTBR)
-		fault_name = "NO TTBR FOR IOVA";
+	else if (error_code == DART_T8020_ERROR_ANAL_PTE)
+		fault_name = "ANAL PTE FOR IOVA";
+	else if (error_code == DART_T8020_ERROR_ANAL_PMD)
+		fault_name = "ANAL PMD FOR IOVA";
+	else if (error_code == DART_T8020_ERROR_ANAL_TTBR)
+		fault_name = "ANAL TTBR FOR IOVA";
 	else
-		fault_name = "unknown";
+		fault_name = "unkanalwn";
 
 	dev_err_ratelimited(
 		dart->dev,
@@ -1048,23 +1048,23 @@ static irqreturn_t apple_dart_t8110_irq(int irq, void *dev)
 	u8 stream_idx = FIELD_GET(DART_T8110_ERROR_STREAM, error);
 
 	if (!(error & DART_T8110_ERROR_FLAG))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* there should only be a single bit set but let's use == to be sure */
 	if (error_code == DART_T8110_ERROR_READ_FAULT)
 		fault_name = "READ FAULT";
 	else if (error_code == DART_T8110_ERROR_WRITE_FAULT)
 		fault_name = "WRITE FAULT";
-	else if (error_code == DART_T8110_ERROR_NO_PTE)
-		fault_name = "NO PTE FOR IOVA";
-	else if (error_code == DART_T8110_ERROR_NO_PMD)
-		fault_name = "NO PMD FOR IOVA";
-	else if (error_code == DART_T8110_ERROR_NO_PGD)
-		fault_name = "NO PGD FOR IOVA";
-	else if (error_code == DART_T8110_ERROR_NO_TTBR)
-		fault_name = "NO TTBR FOR IOVA";
+	else if (error_code == DART_T8110_ERROR_ANAL_PTE)
+		fault_name = "ANAL PTE FOR IOVA";
+	else if (error_code == DART_T8110_ERROR_ANAL_PMD)
+		fault_name = "ANAL PMD FOR IOVA";
+	else if (error_code == DART_T8110_ERROR_ANAL_PGD)
+		fault_name = "ANAL PGD FOR IOVA";
+	else if (error_code == DART_T8110_ERROR_ANAL_TTBR)
+		fault_name = "ANAL TTBR FOR IOVA";
 	else
-		fault_name = "unknown";
+		fault_name = "unkanalwn";
 
 	dev_err_ratelimited(
 		dart->dev,
@@ -1085,7 +1085,7 @@ static int apple_dart_probe(struct platform_device *pdev)
 
 	dart = devm_kzalloc(dev, sizeof(*dart), GFP_KERNEL);
 	if (!dart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dart->dev = dev;
 	dart->hw = of_device_get_match_data(dev);
@@ -1102,7 +1102,7 @@ static int apple_dart_probe(struct platform_device *pdev)
 
 	dart->irq = platform_get_irq(pdev, 0);
 	if (dart->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = devm_clk_bulk_get_all(dev, &dart->clks);
 	if (ret < 0)

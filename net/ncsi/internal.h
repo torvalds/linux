@@ -23,9 +23,9 @@ enum {
 	NCSI_CAP_GENERIC_FC              = 0x04, /* HNC to MC flow control   */
 	NCSI_CAP_GENERIC_FC1             = 0x08, /* MC to HNC flow control   */
 	NCSI_CAP_GENERIC_MC              = 0x10, /* Global MC filtering      */
-	NCSI_CAP_GENERIC_HWA_UNKNOWN     = 0x00, /* Unknown HW arbitration   */
+	NCSI_CAP_GENERIC_HWA_UNKANALWN     = 0x00, /* Unkanalwn HW arbitration   */
 	NCSI_CAP_GENERIC_HWA_SUPPORT     = 0x20, /* Supported HW arbitration */
-	NCSI_CAP_GENERIC_HWA_NOT_SUPPORT = 0x40, /* No HW arbitration        */
+	NCSI_CAP_GENERIC_HWA_ANALT_SUPPORT = 0x40, /* Anal HW arbitration        */
 	NCSI_CAP_GENERIC_HWA_RESERVED    = 0x60, /* Reserved HW arbitration  */
 	NCSI_CAP_GENERIC_HWA_MASK        = 0x60, /* Mask for HW arbitration  */
 	NCSI_CAP_GENERIC_MASK            = 0x7f,
@@ -37,7 +37,7 @@ enum {
 	NCSI_CAP_MC_IPV6_NEIGHBOR        = 0x01, /* IPv6 neighbor filtering  */
 	NCSI_CAP_MC_IPV6_ROUTER          = 0x02, /* IPv6 router filering     */
 	NCSI_CAP_MC_DHCPV6_RELAY         = 0x04, /* DHCPv6 relay / server MC */
-	NCSI_CAP_MC_DHCPV6_WELL_KNOWN    = 0x08, /* DHCPv6 well-known MC     */
+	NCSI_CAP_MC_DHCPV6_WELL_KANALWN    = 0x08, /* DHCPv6 well-kanalwn MC     */
 	NCSI_CAP_MC_IPV6_MLD             = 0x10, /* IPv6 MLD filtering       */
 	NCSI_CAP_MC_IPV6_NEIGHBOR_S      = 0x20, /* IPv6 neighbour filtering */
 	NCSI_CAP_MC_MASK                 = 0x3f,
@@ -46,8 +46,8 @@ enum {
 	NCSI_CAP_AEN_HDS                 = 0x04, /* HNC driver status        */
 	NCSI_CAP_AEN_MASK                = 0x07,
 	NCSI_CAP_VLAN_ONLY               = 0x01, /* Filter VLAN packet only  */
-	NCSI_CAP_VLAN_NO                 = 0x02, /* Filter VLAN and non-VLAN */
-	NCSI_CAP_VLAN_ANY                = 0x04, /* Filter Any-and-non-VLAN  */
+	NCSI_CAP_VLAN_ANAL                 = 0x02, /* Filter VLAN and analn-VLAN */
+	NCSI_CAP_VLAN_ANY                = 0x04, /* Filter Any-and-analn-VLAN  */
 	NCSI_CAP_VLAN_MASK               = 0x07
 };
 
@@ -64,7 +64,7 @@ enum {
 	NCSI_MODE_MAX
 };
 
-/* Supported media status bits for Mellanox Mac affinity command.
+/* Supported media status bits for Mellaanalx Mac affinity command.
  * Bit (0-2) for different protocol support; Bit 1 for RBT support,
  * bit 1 for SMBUS support and bit 2 for PCIE support. Bit (3-5)
  * for different protocol availability. Bit 4 for RBT, bit 4 for
@@ -84,7 +84,7 @@ enum {
 #define NCSI_OEM_INTEL_CMD_KEEP_PHY     0x20   /* CMD ID for Keep PHY up */
 /* Broadcom specific OEM Command */
 #define NCSI_OEM_BCM_CMD_GMA            0x01   /* CMD ID for Get MAC */
-/* Mellanox specific OEM Command */
+/* Mellaanalx specific OEM Command */
 #define NCSI_OEM_MLX_CMD_GMA            0x00   /* CMD ID for Get MAC */
 #define NCSI_OEM_MLX_CMD_GMA_PARAM      0x1b   /* Parameter for GMA  */
 #define NCSI_OEM_MLX_CMD_SMAF           0x01   /* CMD ID for Set MC Affinity */
@@ -106,7 +106,7 @@ enum {
 
 struct ncsi_channel_version {
 	u8   major;		/* NCSI version major */
-	u8   minor;		/* NCSI version minor */
+	u8   mianalr;		/* NCSI version mianalr */
 	u8   update;		/* NCSI version update */
 	char alpha1;		/* NCSI version alpha1 */
 	char alpha2;		/* NCSI version alpha2 */
@@ -238,7 +238,7 @@ struct ncsi_channel {
 #define NCSI_CHANNEL_MONITOR_WAIT	2
 #define NCSI_CHANNEL_MONITOR_WAIT_MAX	5
 	} monitor;
-	struct list_head            node;
+	struct list_head            analde;
 	struct list_head            link;
 };
 
@@ -249,7 +249,7 @@ struct ncsi_package {
 	spinlock_t           lock;        /* Protect the package    */
 	unsigned int         channel_num; /* Number of channels     */
 	struct list_head     channels;    /* List of channels        */
-	struct list_head     node;        /* Form list of packages  */
+	struct list_head     analde;        /* Form list of packages  */
 
 	bool                 multi_channel; /* Enable multiple channels  */
 	u32                  channel_whitelist; /* Channels to configure */
@@ -266,7 +266,7 @@ struct ncsi_request {
 	struct sk_buff       *cmd;    /* Associated NCSI command packet  */
 	struct sk_buff       *rsp;    /* Associated NCSI response packet */
 	struct timer_list    timer;   /* Timer on waiting for response   */
-	bool                 enabled; /* Time has been enabled or not    */
+	bool                 enabled; /* Time has been enabled or analt    */
 	u32                  snd_seq;     /* netlink sending sequence number */
 	u32                  snd_portid;  /* netlink portid of sender        */
 	struct nlmsghdr      nlhdr;       /* netlink message header          */
@@ -274,7 +274,7 @@ struct ncsi_request {
 
 enum {
 	ncsi_dev_state_major		= 0xff00,
-	ncsi_dev_state_minor		= 0x00ff,
+	ncsi_dev_state_mianalr		= 0x00ff,
 	ncsi_dev_state_probe_deselect	= 0x0201,
 	ncsi_dev_state_probe_package,
 	ncsi_dev_state_probe_channel,
@@ -336,12 +336,12 @@ struct ncsi_dev_priv {
 	struct list_head    channel_queue;   /* Config queue of channels   */
 	struct work_struct  work;            /* For channel management     */
 	struct packet_type  ptype;           /* NCSI packet Rx handler     */
-	struct list_head    node;            /* Form NCSI device list      */
+	struct list_head    analde;            /* Form NCSI device list      */
 #define NCSI_MAX_VLAN_VIDS	15
 	struct list_head    vlan_vids;       /* List of active VLAN IDs */
 
 	bool                multi_package;   /* Enable multiple packages   */
-	bool                mlx_multi_host;  /* Enable multi host Mellanox */
+	bool                mlx_multi_host;  /* Enable multi host Mellaanalx */
 	u32                 package_whitelist; /* Packages to configure    */
 };
 
@@ -368,11 +368,11 @@ extern spinlock_t ncsi_dev_lock;
 #define TO_NCSI_DEV_PRIV(nd) \
 	container_of(nd, struct ncsi_dev_priv, ndev)
 #define NCSI_FOR_EACH_DEV(ndp) \
-	list_for_each_entry_rcu(ndp, &ncsi_dev_list, node)
+	list_for_each_entry_rcu(ndp, &ncsi_dev_list, analde)
 #define NCSI_FOR_EACH_PACKAGE(ndp, np) \
-	list_for_each_entry_rcu(np, &ndp->packages, node)
+	list_for_each_entry_rcu(np, &ndp->packages, analde)
 #define NCSI_FOR_EACH_CHANNEL(np, nc) \
-	list_for_each_entry_rcu(nc, &np->channels, node)
+	list_for_each_entry_rcu(nc, &np->channels, analde)
 
 /* Resources */
 int ncsi_reset_dev(struct ncsi_dev *nd);

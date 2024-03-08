@@ -26,7 +26,7 @@
  * @recv_req_id: reception message counter
  * @powered: the device is in powered state
  * @hard_fault: < 0 if hardware error occurred
- *    and prevents normal operation.
+ *    and prevents analrmal operation.
  */
 struct nfc_mei_phy {
 	struct mei_cl_device *cldev;

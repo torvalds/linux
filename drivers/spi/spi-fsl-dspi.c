@@ -395,7 +395,7 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 					DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!dma->tx_desc) {
-		dev_err(dev, "Not able to get desc for DMA xfer\n");
+		dev_err(dev, "Analt able to get desc for DMA xfer\n");
 		return -EIO;
 	}
 
@@ -413,7 +413,7 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 					DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!dma->rx_desc) {
-		dev_err(dev, "Not able to get desc for DMA xfer\n");
+		dev_err(dev, "Analt able to get desc for DMA xfer\n");
 		return -EIO;
 	}
 
@@ -499,18 +499,18 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 
 	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
 	if (!dma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma->chan_rx = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->chan_rx)) {
 		return dev_err_probe(dev, PTR_ERR(dma->chan_rx),
-			"rx dma channel not available\n");
+			"rx dma channel analt available\n");
 	}
 
 	dma->chan_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan_tx)) {
 		ret = PTR_ERR(dma->chan_tx);
-		dev_err_probe(dev, ret, "tx dma channel not available\n");
+		dev_err_probe(dev, ret, "tx dma channel analt available\n");
 		goto err_tx_channel;
 	}
 
@@ -518,7 +518,7 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 					     dma_bufsize, &dma->tx_dma_phys,
 					     GFP_KERNEL);
 	if (!dma->tx_dma_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_tx_dma_buf;
 	}
 
@@ -526,7 +526,7 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 					     dma_bufsize, &dma->rx_dma_phys,
 					     GFP_KERNEL);
 	if (!dma->rx_dma_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_rx_dma_buf;
 	}
 
@@ -628,7 +628,7 @@ static void hz_to_spi_baud(char *pbr, char *br, int speed_hz,
 		}
 
 	if (minscale == INT_MAX) {
-		pr_warn("Can not find valid baud rate,speed_hz is %d,clkrate is %ld, we use the max prescaler value.\n",
+		pr_warn("Can analt find valid baud rate,speed_hz is %d,clkrate is %ld, we use the max prescaler value.\n",
 			speed_hz, clkrate);
 		*pbr = ARRAY_SIZE(pbr_tbl) - 1;
 		*br =  ARRAY_SIZE(brs) - 1;
@@ -662,7 +662,7 @@ static void ns_delay_scale(char *psc, char *sc, int delay_ns,
 		}
 
 	if (minscale == INT_MAX) {
-		pr_warn("Cannot find correct scale values for %dns delay at clkrate %ld, using max prescaler value",
+		pr_warn("Cananalt find correct scale values for %dns delay at clkrate %ld, using max prescaler value",
 			delay_ns, clkrate);
 		*psc = ARRAY_SIZE(pscale_tbl) - 1;
 		*sc = SPI_CTAR_SCALE_BITS;
@@ -676,10 +676,10 @@ static void dspi_pushr_cmd_write(struct fsl_dspi *dspi, u16 cmd)
 	 * is when it's last. We need to look ahead, because we actually call
 	 * dspi_pop_tx (the function that decrements dspi->len) _after_
 	 * dspi_pushr_cmd_write with XSPI mode. As for how much in advance? One
-	 * word is enough. If there's more to transmit than that,
-	 * dspi_xspi_write will know to split the FIFO writes in 2, and
+	 * word is eanalugh. If there's more to transmit than that,
+	 * dspi_xspi_write will kanalw to split the FIFO writes in 2, and
 	 * generate a new PUSHR command with the final word that will have PCS
-	 * deasserted (not continued) here.
+	 * deasserted (analt continued) here.
 	 */
 	if (dspi->len > dspi->oper_word_size)
 		cmd |= SPI_PUSHR_CMD_CONT;
@@ -698,7 +698,7 @@ static void dspi_xspi_fifo_write(struct fsl_dspi *dspi, int num_words)
 
 	/*
 	 * If the PCS needs to de-assert (i.e. we're at the end of the buffer
-	 * and cs_change does not want the PCS to stay on), then we need a new
+	 * and cs_change does analt want the PCS to stay on), then we need a new
 	 * PUSHR command, since this one (for the body of the buffer)
 	 * necessarily has the CONT bit set.
 	 * So send one word less during this go, to force a split and a command
@@ -750,9 +750,9 @@ static void dspi_setup_accel(struct fsl_dspi *dspi)
 	struct spi_transfer *xfer = dspi->cur_transfer;
 	bool odd = !!(dspi->len & 1);
 
-	/* No accel for frames not multiple of 8 bits at the moment */
+	/* Anal accel for frames analt multiple of 8 bits at the moment */
 	if (xfer->bits_per_word % 8)
-		goto no_accel;
+		goto anal_accel;
 
 	if (!odd && dspi->len <= dspi->devtype_data->fifo_size * 2) {
 		dspi->oper_bits_per_word = 16;
@@ -787,7 +787,7 @@ static void dspi_setup_accel(struct fsl_dspi *dspi)
 		dspi->dev_to_host = dspi_16on32_dev_to_host;
 		dspi->host_to_dev = dspi_16on32_host_to_dev;
 	} else {
-no_accel:
+anal_accel:
 		dspi->dev_to_host = dspi_native_dev_to_host;
 		dspi->host_to_dev = dspi_native_host_to_dev;
 		dspi->oper_bits_per_word = xfer->bits_per_word;
@@ -798,7 +798,7 @@ no_accel:
 	/*
 	 * Update CTAR here (code is common for XSPI and DMA modes).
 	 * We will update CTARE in the portion specific to XSPI, when we
-	 * also know the preload value (DTCP).
+	 * also kanalw the preload value (DTCP).
 	 */
 	regmap_write(dspi->regmap, SPI_CTAR(0),
 		     dspi->cur_chip->ctar_val |
@@ -819,7 +819,7 @@ static void dspi_fifo_write(struct fsl_dspi *dspi)
 		num_fifo_entries /= 2;
 
 	/*
-	 * Integer division intentionally trims off odd (or non-multiple of 4)
+	 * Integer division intentionally trims off odd (or analn-multiple of 4)
 	 * numbers of bytes at the end of the buffer, which will be sent next
 	 * time using a smaller oper_word_size.
 	 */
@@ -892,7 +892,7 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	regmap_write(dspi->regmap, SPI_SR, spi_sr);
 
 	if (!(spi_sr & SPI_SR_CMDTCF))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (dspi_rxtx(dspi) == 0)
 		complete(&dspi->xfer_done);
@@ -950,7 +950,7 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 				dspi->tx_cmd |= SPI_PUSHR_CMD_CONT;
 		} else {
 			/* Keep PCS active between transfers in same message
-			 * when cs_change is not set, and de-activate PCS
+			 * when cs_change is analt set, and de-activate PCS
 			 * between transfers in the same message when
 			 * cs_change is set.
 			 */
@@ -1017,16 +1017,16 @@ static int dspi_setup(struct spi_device *spi)
 	if (chip == NULL) {
 		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
 		if (!chip)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pdata = dev_get_platdata(&dspi->pdev->dev);
 
 	if (!pdata) {
-		of_property_read_u32(spi->dev.of_node, "fsl,spi-cs-sck-delay",
+		of_property_read_u32(spi->dev.of_analde, "fsl,spi-cs-sck-delay",
 				     &cs_sck_delay);
 
-		of_property_read_u32(spi->dev.of_node, "fsl,spi-sck-cs-delay",
+		of_property_read_u32(spi->dev.of_analde, "fsl,spi-sck-cs-delay",
 				     &sck_cs_delay);
 	} else {
 		cs_sck_delay = pdata->cs_sck_delay;
@@ -1166,8 +1166,8 @@ static const struct regmap_range dspi_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table dspi_volatile_table = {
-	.yes_ranges	= dspi_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(dspi_volatile_ranges),
+	.anal_ranges	= dspi_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(dspi_volatile_ranges),
 };
 
 static const struct regmap_config dspi_regmap_config = {
@@ -1186,8 +1186,8 @@ static const struct regmap_range dspi_xspi_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table dspi_xspi_volatile_table = {
-	.yes_ranges	= dspi_xspi_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(dspi_xspi_volatile_ranges),
+	.anal_ranges	= dspi_xspi_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(dspi_xspi_volatile_ranges),
 };
 
 static const struct regmap_config dspi_xspi_regmap_config[] = {
@@ -1263,7 +1263,7 @@ static int dspi_target_abort(struct spi_controller *host)
 
 static int dspi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct regmap_config *regmap_config;
 	struct fsl_dspi_platform_data *pdata;
 	struct spi_controller *ctlr;
@@ -1275,11 +1275,11 @@ static int dspi_probe(struct platform_device *pdev)
 
 	dspi = devm_kzalloc(&pdev->dev, sizeof(*dspi), GFP_KERNEL);
 	if (!dspi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr = spi_alloc_host(&pdev->dev, 0);
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_controller_set_devdata(ctlr, dspi);
 	platform_set_drvdata(pdev, dspi);
@@ -1289,7 +1289,7 @@ static int dspi_probe(struct platform_device *pdev)
 
 	ctlr->setup = dspi_setup;
 	ctlr->transfer_one_message = dspi_transfer_one_message;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 
 	ctlr->cleanup = dspi_cleanup;
 	ctlr->target_abort = dspi_target_abort;

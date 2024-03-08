@@ -11,6 +11,6 @@
 
 #define MT6360_OPMODE_LP		2
 #define MT6360_OPMODE_ULP		3
-#define MT6360_OPMODE_NORMAL		0
+#define MT6360_OPMODE_ANALRMAL		0
 
 #endif

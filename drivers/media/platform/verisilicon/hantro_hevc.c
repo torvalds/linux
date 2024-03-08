@@ -2,7 +2,7 @@
 /*
  * Hantro VPU HEVC codec driver
  *
- * Copyright (C) 2020 Safran Passenger Innovations LLC
+ * Copyright (C) 2020 Safran Passenger Inanalvations LLC
  */
 
 #include <linux/types.h>
@@ -38,7 +38,7 @@ dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx,
 	struct hantro_hevc_dec_hw_ctx *hevc_dec = &ctx->hevc_dec;
 	int i;
 
-	/* Find the reference buffer in already known ones */
+	/* Find the reference buffer in already kanalwn ones */
 	for (i = 0;  i < NUM_REF_PICTURES; i++) {
 		if (hevc_dec->ref_bufs_poc[i] == poc) {
 			hevc_dec->ref_bufs_used |= 1 << i;
@@ -109,7 +109,7 @@ static int tile_buffer_reallocate(struct hantro_ctx *ctx)
 						       &hevc_dec->tile_filter.dma,
 						       GFP_KERNEL);
 	if (!hevc_dec->tile_filter.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	hevc_dec->tile_filter.size = size;
 
 	size = (VERT_SAO_RAM_SIZE * height64 * (num_tile_cols - 1) * ctx->bit_depth) / 8;
@@ -146,7 +146,7 @@ err_free_tile_buffers:
 				  hevc_dec->tile_filter.dma);
 	hevc_dec->tile_filter.cpu = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int hantro_hevc_validate_sps(struct hantro_ctx *ctx, const struct v4l2_ctrl_hevc_sps *sps)
@@ -261,7 +261,7 @@ int hantro_hevc_dec_init(struct hantro_ctx *ctx)
 						      &hevc_dec->tile_sizes.dma,
 						      GFP_KERNEL);
 	if (!hevc_dec->tile_sizes.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hevc_dec->tile_sizes.size = size;
 
@@ -269,7 +269,7 @@ int hantro_hevc_dec_init(struct hantro_ctx *ctx)
 							 &hevc_dec->scaling_lists.dma,
 							 GFP_KERNEL);
 	if (!hevc_dec->scaling_lists.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hevc_dec->scaling_lists.size = SCALING_LIST_SIZE;
 

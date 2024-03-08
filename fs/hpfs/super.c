@@ -130,13 +130,13 @@ static void hpfs_put_super(struct super_block *s)
 	call_rcu(&hpfs_sb(s)->rcu, lazy_free_sbi);
 }
 
-static unsigned hpfs_count_one_bitmap(struct super_block *s, secno secno)
+static unsigned hpfs_count_one_bitmap(struct super_block *s, secanal secanal)
 {
 	struct quad_buffer_head qbh;
 	unsigned long *bits;
 	unsigned count;
 
-	bits = hpfs_map_4sectors(s, secno, &qbh, 0);
+	bits = hpfs_map_4sectors(s, secanal, &qbh, 0);
 	if (!bits)
 		return (unsigned)-1;
 	count = bitmap_weight(bits, 2048 * BITS_PER_BYTE);
@@ -162,16 +162,16 @@ static unsigned count_bitmaps(struct super_block *s)
 	return count;
 }
 
-unsigned hpfs_get_free_dnodes(struct super_block *s)
+unsigned hpfs_get_free_danaldes(struct super_block *s)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
-	if (sbi->sb_n_free_dnodes == (unsigned)-1) {
+	if (sbi->sb_n_free_danaldes == (unsigned)-1) {
 		unsigned c = hpfs_count_one_bitmap(s, sbi->sb_dmap);
 		if (c == (unsigned)-1)
 			return 0;
-		sbi->sb_n_free_dnodes = c;
+		sbi->sb_n_free_danaldes = c;
 	}
-	return sbi->sb_n_free_dnodes;
+	return sbi->sb_n_free_danaldes;
 }
 
 static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -191,7 +191,7 @@ static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = sbi->sb_n_free;
 	buf->f_bavail = sbi->sb_n_free;
 	buf->f_files = sbi->sb_dirband_size / 4;
-	buf->f_ffree = hpfs_get_free_dnodes(s);
+	buf->f_ffree = hpfs_get_free_danaldes(s);
 	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = 254;
 
@@ -206,13 +206,13 @@ long hpfs_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	switch (cmd) {
 		case FITRIM: {
 			struct fstrim_range range;
-			secno n_trimmed;
+			secanal n_trimmed;
 			int r;
 			if (!capable(CAP_SYS_ADMIN))
 				return -EPERM;
 			if (copy_from_user(&range, (struct fstrim_range __user *)arg, sizeof(range)))
 				return -EFAULT;
-			r = hpfs_trim_fs(file_inode(file)->i_sb, range.start >> 9, (range.start + range.len) >> 9, (range.minlen + 511) >> 9, &n_trimmed);
+			r = hpfs_trim_fs(file_ianalde(file)->i_sb, range.start >> 9, (range.start + range.len) >> 9, (range.minlen + 511) >> 9, &n_trimmed);
 			if (r)
 				return r;
 			range.len = (u64)n_trimmed << 9;
@@ -221,55 +221,55 @@ long hpfs_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			return 0;
 		}
 		default: {
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 		}
 	}
 }
 
 
-static struct kmem_cache * hpfs_inode_cachep;
+static struct kmem_cache * hpfs_ianalde_cachep;
 
-static struct inode *hpfs_alloc_inode(struct super_block *sb)
+static struct ianalde *hpfs_alloc_ianalde(struct super_block *sb)
 {
-	struct hpfs_inode_info *ei;
-	ei = alloc_inode_sb(sb, hpfs_inode_cachep, GFP_NOFS);
+	struct hpfs_ianalde_info *ei;
+	ei = alloc_ianalde_sb(sb, hpfs_ianalde_cachep, GFP_ANALFS);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_ianalde;
 }
 
-static void hpfs_free_inode(struct inode *inode)
+static void hpfs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(hpfs_inode_cachep, hpfs_i(inode));
+	kmem_cache_free(hpfs_ianalde_cachep, hpfs_i(ianalde));
 }
 
 static void init_once(void *foo)
 {
-	struct hpfs_inode_info *ei = (struct hpfs_inode_info *) foo;
+	struct hpfs_ianalde_info *ei = (struct hpfs_ianalde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	ianalde_init_once(&ei->vfs_ianalde);
 }
 
-static int init_inodecache(void)
+static int init_ianaldecache(void)
 {
-	hpfs_inode_cachep = kmem_cache_create("hpfs_inode_cache",
-					     sizeof(struct hpfs_inode_info),
+	hpfs_ianalde_cachep = kmem_cache_create("hpfs_ianalde_cache",
+					     sizeof(struct hpfs_ianalde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (hpfs_inode_cachep == NULL)
-		return -ENOMEM;
+	if (hpfs_ianalde_cachep == NULL)
+		return -EANALMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_ianaldecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(hpfs_inode_cachep);
+	kmem_cache_destroy(hpfs_ianalde_cachep);
 }
 
 /*
@@ -280,10 +280,10 @@ static void destroy_inodecache(void)
 
 enum {
 	Opt_help, Opt_uid, Opt_gid, Opt_umask, Opt_case_lower, Opt_case_asis,
-	Opt_check_none, Opt_check_normal, Opt_check_strict,
+	Opt_check_analne, Opt_check_analrmal, Opt_check_strict,
 	Opt_err_cont, Opt_err_ro, Opt_err_panic,
-	Opt_eas_no, Opt_eas_ro, Opt_eas_rw,
-	Opt_chkdsk_no, Opt_chkdsk_errors, Opt_chkdsk_always,
+	Opt_eas_anal, Opt_eas_ro, Opt_eas_rw,
+	Opt_chkdsk_anal, Opt_chkdsk_errors, Opt_chkdsk_always,
 	Opt_timeshift, Opt_err,
 };
 
@@ -294,16 +294,16 @@ static const match_table_t tokens = {
 	{Opt_umask, "umask=%o"},
 	{Opt_case_lower, "case=lower"},
 	{Opt_case_asis, "case=asis"},
-	{Opt_check_none, "check=none"},
-	{Opt_check_normal, "check=normal"},
+	{Opt_check_analne, "check=analne"},
+	{Opt_check_analrmal, "check=analrmal"},
 	{Opt_check_strict, "check=strict"},
 	{Opt_err_cont, "errors=continue"},
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_err_panic, "errors=panic"},
-	{Opt_eas_no, "eas=no"},
+	{Opt_eas_anal, "eas=anal"},
 	{Opt_eas_ro, "eas=ro"},
 	{Opt_eas_rw, "eas=rw"},
-	{Opt_chkdsk_no, "chkdsk=no"},
+	{Opt_chkdsk_anal, "chkdsk=anal"},
 	{Opt_chkdsk_errors, "chkdsk=errors"},
 	{Opt_chkdsk_always, "chkdsk=always"},
 	{Opt_timeshift, "timeshift=%d"},
@@ -357,10 +357,10 @@ static int parse_opts(char *opts, kuid_t *uid, kgid_t *gid, umode_t *umask,
 		case Opt_case_asis:
 			*lowercase = 0;
 			break;
-		case Opt_check_none:
+		case Opt_check_analne:
 			*chk = 0;
 			break;
-		case Opt_check_normal:
+		case Opt_check_analrmal:
 			*chk = 1;
 			break;
 		case Opt_check_strict:
@@ -375,7 +375,7 @@ static int parse_opts(char *opts, kuid_t *uid, kgid_t *gid, umode_t *umask,
 		case Opt_err_panic:
 			*errs = 2;
 			break;
-		case Opt_eas_no:
+		case Opt_eas_anal:
 			*eas = 0;
 			break;
 		case Opt_eas_ro:
@@ -384,7 +384,7 @@ static int parse_opts(char *opts, kuid_t *uid, kgid_t *gid, umode_t *umask,
 		case Opt_eas_rw:
 			*eas = 2;
 			break;
-		case Opt_chkdsk_no:
+		case Opt_chkdsk_anal:
 			*chkdsk = 0;
 			break;
 		case Opt_chkdsk_errors:
@@ -417,24 +417,24 @@ static inline void hpfs_help(void)
 {
 	pr_info("\n\
 HPFS filesystem options:\n\
-      help              do not mount and display this text\n\
+      help              do analt mount and display this text\n\
       uid=xxx           set uid of files that don't have uid specified in eas\n\
       gid=xxx           set gid of files that don't have gid specified in eas\n\
       umask=xxx         set mode of files that don't have mode specified in eas\n\
       case=lower        lowercase all files\n\
-      case=asis         do not lowercase files (default)\n\
-      check=none        no fs checks - kernel may crash on corrupted filesystem\n\
-      check=normal      do some checks - it should not crash (default)\n\
+      case=asis         do analt lowercase files (default)\n\
+      check=analne        anal fs checks - kernel may crash on corrupted filesystem\n\
+      check=analrmal      do some checks - it should analt crash (default)\n\
       check=strict      do extra time-consuming checks, used for debugging\n\
       errors=continue   continue on errors\n\
       errors=remount-ro remount read-only if errors found (default)\n\
       errors=panic      panic on errors\n\
-      chkdsk=no         do not mark fs for chkdsking even if there were errors\n\
+      chkdsk=anal         do analt mark fs for chkdsking even if there were errors\n\
       chkdsk=errors     mark fs dirty if errors found (default)\n\
       chkdsk=always     always mark fs dirty - used for debugging\n\
-      eas=no            ignore extended attributes\n\
-      eas=ro            read but do not write extended attributes\n\
-      eas=rw            r/w eas => enables chmod, chown, mknod, ln -s (default)\n\
+      eas=anal            iganalre extended attributes\n\
+      eas=ro            read but do analt write extended attributes\n\
+      eas=rw            r/w eas => enables chmod, chown, mkanald, ln -s (default)\n\
       timeshift=nnn	add nnn seconds to file times\n\
 \n");
 }
@@ -450,7 +450,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	sync_filesystem(s);
 
-	*flags |= SB_NOATIME;
+	*flags |= SB_ANALATIME;
 
 	hpfs_lock(s);
 	uid = sbi->sb_uid; gid = sbi->sb_gid;
@@ -501,7 +501,7 @@ static int hpfs_show_options(struct seq_file *seq, struct dentry *root)
 	if (sbi->sb_lowercase)
 		seq_printf(seq, ",case=lower");
 	if (!sbi->sb_chk)
-		seq_printf(seq, ",check=none");
+		seq_printf(seq, ",check=analne");
 	if (sbi->sb_chk == 2)
 		seq_printf(seq, ",check=strict");
 	if (!sbi->sb_err)
@@ -509,11 +509,11 @@ static int hpfs_show_options(struct seq_file *seq, struct dentry *root)
 	if (sbi->sb_err == 2)
 		seq_printf(seq, ",errors=panic");
 	if (!sbi->sb_chkdsk)
-		seq_printf(seq, ",chkdsk=no");
+		seq_printf(seq, ",chkdsk=anal");
 	if (sbi->sb_chkdsk == 2)
 		seq_printf(seq, ",chkdsk=always");
 	if (!sbi->sb_eas)
-		seq_printf(seq, ",eas=no");
+		seq_printf(seq, ",eas=anal");
 	if (sbi->sb_eas == 1)
 		seq_printf(seq, ",eas=ro");
 	if (sbi->sb_timeshift)
@@ -525,9 +525,9 @@ static int hpfs_show_options(struct seq_file *seq, struct dentry *root)
 
 static const struct super_operations hpfs_sops =
 {
-	.alloc_inode	= hpfs_alloc_inode,
-	.free_inode	= hpfs_free_inode,
-	.evict_inode	= hpfs_evict_inode,
+	.alloc_ianalde	= hpfs_alloc_ianalde,
+	.free_ianalde	= hpfs_free_ianalde,
+	.evict_ianalde	= hpfs_evict_ianalde,
 	.put_super	= hpfs_put_super,
 	.statfs		= hpfs_statfs,
 	.remount_fs	= hpfs_remount_fs,
@@ -541,14 +541,14 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	struct hpfs_super_block *superblock;
 	struct hpfs_spare_block *spareblock;
 	struct hpfs_sb_info *sbi;
-	struct inode *root;
+	struct ianalde *root;
 
 	kuid_t uid;
 	kgid_t gid;
 	umode_t umask;
 	int lowercase, eas, chk, errs, chkdsk, timeshift;
 
-	dnode_secno root_dno;
+	danalde_secanal root_danal;
 	struct hpfs_dirent *de = NULL;
 	struct quad_buffer_head qbh;
 
@@ -556,7 +556,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	s->s_fs_info = sbi;
 
@@ -595,7 +595,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	    ||*/ le32_to_cpu(superblock->magic) != SB_MAGIC
 	    || le32_to_cpu(spareblock->magic) != SP_MAGIC) {
 		if (!silent)
-			pr_err("Bad magic ... probably not HPFS\n");
+			pr_err("Bad magic ... probably analt HPFS\n");
 		goto bail4;
 	}
 
@@ -607,7 +607,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		goto bail4;
 	}
 
-	s->s_flags |= SB_NOATIME;
+	s->s_flags |= SB_ANALATIME;
 
 	/* Fill superblock stuff */
 	s->s_magic = HPFS_SUPER_MAGIC;
@@ -626,7 +626,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	sbi->sb_gid = gid;
 	sbi->sb_mode = 0777 & ~umask;
 	sbi->sb_n_free = -1;
-	sbi->sb_n_free_dnodes = -1;
+	sbi->sb_n_free_danaldes = -1;
 	sbi->sb_lowercase = lowercase;
 	sbi->sb_eas = eas;
 	sbi->sb_chk = chk;
@@ -654,7 +654,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	/* Check for general fs errors*/
 	if (spareblock->dirty && !spareblock->old_wrote) {
 		if (errs == 2) {
-			pr_err("Improperly stopped, not mounted\n");
+			pr_err("Improperly stopped, analt mounted\n");
 			goto bail4;
 		}
 		hpfs_error(s, "improperly stopped");
@@ -666,13 +666,13 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		mark_buffer_dirty(bh2);
 	}
 
-	if (le32_to_cpu(spareblock->n_dnode_spares) != le32_to_cpu(spareblock->n_dnode_spares_free)) {
+	if (le32_to_cpu(spareblock->n_danalde_spares) != le32_to_cpu(spareblock->n_danalde_spares_free)) {
 		if (errs >= 2) {
-			pr_err("Spare dnodes used, try chkdsk\n");
+			pr_err("Spare danaldes used, try chkdsk\n");
 			mark_dirty(s, 0);
 			goto bail4;
 		}
-		hpfs_error(s, "warning: spare dnodes used, try chkdsk");
+		hpfs_error(s, "warning: spare danaldes used, try chkdsk");
 		if (errs == 0)
 			pr_err("Proceeding, but your filesystem could be corrupted if you delete files or directories\n");
 	}
@@ -708,34 +708,34 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	root = iget_locked(s, sbi->sb_root);
 	if (!root)
 		goto bail0;
-	hpfs_init_inode(root);
-	hpfs_read_inode(root);
-	unlock_new_inode(root);
+	hpfs_init_ianalde(root);
+	hpfs_read_ianalde(root);
+	unlock_new_ianalde(root);
 	s->s_root = d_make_root(root);
 	if (!s->s_root)
 		goto bail0;
 
 	/*
-	 * find the root directory's . pointer & finish filling in the inode
+	 * find the root directory's . pointer & finish filling in the ianalde
 	 */
 
-	root_dno = hpfs_fnode_dno(s, sbi->sb_root);
-	if (root_dno)
-		de = map_dirent(root, root_dno, "\001\001", 2, NULL, &qbh);
+	root_danal = hpfs_fanalde_danal(s, sbi->sb_root);
+	if (root_danal)
+		de = map_dirent(root, root_danal, "\001\001", 2, NULL, &qbh);
 	if (!de)
 		hpfs_error(s, "unable to find root dir");
 	else {
-		inode_set_atime(root,
+		ianalde_set_atime(root,
 				local_to_gmt(s, le32_to_cpu(de->read_date)),
 				0);
-		inode_set_mtime(root,
+		ianalde_set_mtime(root,
 				local_to_gmt(s, le32_to_cpu(de->write_date)),
 				0);
-		inode_set_ctime(root,
+		ianalde_set_ctime(root,
 				local_to_gmt(s, le32_to_cpu(de->creation_date)),
 				0);
 		hpfs_i(root)->i_ea_size = le32_to_cpu(de->ea_size);
-		hpfs_i(root)->i_parent_dir = root->i_ino;
+		hpfs_i(root)->i_parent_dir = root->i_ianal;
 		if (root->i_size == -1)
 			root->i_size = 2048;
 		if (root->i_blocks == -1)
@@ -772,7 +772,7 @@ MODULE_ALIAS_FS("hpfs");
 
 static int __init init_hpfs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_ianaldecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&hpfs_fs_type);
@@ -780,7 +780,7 @@ static int __init init_hpfs_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_ianaldecache();
 out1:
 	return err;
 }
@@ -788,7 +788,7 @@ out1:
 static void __exit exit_hpfs_fs(void)
 {
 	unregister_filesystem(&hpfs_fs_type);
-	destroy_inodecache();
+	destroy_ianaldecache();
 }
 
 module_init(init_hpfs_fs)

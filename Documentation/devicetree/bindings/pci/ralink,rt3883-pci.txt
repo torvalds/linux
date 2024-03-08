@@ -1,6 +1,6 @@
 * Mediatek/Ralink RT3883 PCI controller
 
-1) Main node
+1) Main analde
 
    Required properties:
 
@@ -23,19 +23,19 @@
    - status: indicates the operational status of the device.
      Value must be either "disabled" or "okay".
 
-2) Child nodes
+2) Child analdes
 
-   The main node must have two child nodes which describes the built-in
+   The main analde must have two child analdes which describes the built-in
    interrupt controller and the PCI host bridge.
 
    a) Interrupt controller:
 
    Required properties:
 
-   - interrupt-controller: identifies the node as an interrupt controller
+   - interrupt-controller: identifies the analde as an interrupt controller
 
    - #address-cells: specifies the number of cells needed to encode an
-     address. The value must be 0. As such, 'interrupt-map' nodes do not
+     address. The value must be 0. As such, 'interrupt-map' analdes do analt
      have to specify a parent unit address.
 
    - #interrupt-cells: specifies the number of cells needed to encode an
@@ -68,8 +68,8 @@
    - interrupt-map: standard PCI properties to define the mapping of the
      PCI interface to interrupt numbers.
 
-   The PCI host bridge node might have additional sub-nodes representing
-   the onboard PCI devices/PCI slots. Each such sub-node must have the
+   The PCI host bridge analde might have additional sub-analdes representing
+   the onboard PCI devices/PCI slots. Each such sub-analde must have the
    following mandatory properties:
 
      - reg: used only for interrupt mapping, so only the first four bytes
@@ -77,7 +77,7 @@
 
      - device_type: must be "pci"
 
-   If a given sub-node represents a PCI bridge it must have following
+   If a given sub-analde represents a PCI bridge it must have following
    mandatory properties as well:
 
      - #address-cells: must be set to <3>
@@ -90,10 +90,10 @@
      - interrupt-map: standard PCI properties to define the mapping of the
        PCI interface to interrupt numbers.
 
-   Besides the required properties the sub-nodes may have these optional
+   Besides the required properties the sub-analdes may have these optional
    properties:
 
-     - status: indicates the operational status of the sub-node.
+     - status: indicates the operational status of the sub-analde.
        Value must be either "disabled" or "okay".
 
 3) Example:

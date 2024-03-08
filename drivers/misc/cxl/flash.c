@@ -38,15 +38,15 @@ struct update_props_workarea {
 	__be32 nprops;
 } __packed;
 
-struct update_nodes_workarea {
+struct update_analdes_workarea {
 	__be32 state;
 	__be64 unit_address;
 	__be32 reserved;
 } __packed;
 
 #define DEVICE_SCOPE 3
-#define NODE_ACTION_MASK	0xff000000
-#define NODE_COUNT_MASK		0x00ffffff
+#define ANALDE_ACTION_MASK	0xff000000
+#define ANALDE_COUNT_MASK		0x00ffffff
 #define OPCODE_DELETE	0x01000000
 #define OPCODE_UPDATE	0x02000000
 #define OPCODE_ADD	0x03000000
@@ -65,7 +65,7 @@ static int rcall(int token, char *buf, s32 scope)
 	return rc;
 }
 
-static int update_property(struct device_node *dn, const char *name,
+static int update_property(struct device_analde *dn, const char *name,
 			   u32 vd, char *value)
 {
 	struct property *new_prop;
@@ -74,12 +74,12 @@ static int update_property(struct device_node *dn, const char *name,
 
 	new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
 	if (!new_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_prop->name = kstrdup(name, GFP_KERNEL);
 	if (!new_prop->name) {
 		kfree(new_prop);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	new_prop->length = vd;
@@ -87,7 +87,7 @@ static int update_property(struct device_node *dn, const char *name,
 	if (!new_prop->value) {
 		kfree(new_prop->name);
 		kfree(new_prop);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memcpy(new_prop->value, value, vd);
 
@@ -104,10 +104,10 @@ static int update_property(struct device_node *dn, const char *name,
 	return rc;
 }
 
-static int update_node(__be32 phandle, s32 scope)
+static int update_analde(__be32 phandle, s32 scope)
 {
 	struct update_props_workarea *upwa;
-	struct device_node *dn;
+	struct device_analde *dn;
 	int i, rc, ret;
 	char *prop_data;
 	char *buf;
@@ -116,17 +116,17 @@ static int update_node(__be32 phandle, s32 scope)
 	u32 vd;
 
 	token = rtas_token("ibm,update-properties");
-	if (token == RTAS_UNKNOWN_SERVICE)
+	if (token == RTAS_UNKANALWN_SERVICE)
 		return -EINVAL;
 
 	buf = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
+	dn = of_find_analde_by_phandle(be32_to_cpu(phandle));
 	if (!dn) {
 		kfree(buf);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	upwa = (struct update_props_workarea *)&buf[0];
@@ -158,7 +158,7 @@ static int update_node(__be32 phandle, s32 scope)
 				ret = update_property(dn, prop_name, vd,
 						prop_data);
 				if (ret)
-					pr_err("cxl: Could not update property %s - %i\n",
+					pr_err("cxl: Could analt update property %s - %i\n",
 					       prop_name, ret);
 
 				prop_data += vd;
@@ -166,28 +166,28 @@ static int update_node(__be32 phandle, s32 scope)
 		}
 	} while (rc == 1);
 
-	of_node_put(dn);
+	of_analde_put(dn);
 	kfree(buf);
 	return rc;
 }
 
 static int update_devicetree(struct cxl *adapter, s32 scope)
 {
-	struct update_nodes_workarea *unwa;
-	u32 action, node_count;
+	struct update_analdes_workarea *unwa;
+	u32 action, analde_count;
 	int token, rc, i;
 	__be32 *data, phandle;
 	char *buf;
 
-	token = rtas_token("ibm,update-nodes");
-	if (token == RTAS_UNKNOWN_SERVICE)
+	token = rtas_token("ibm,update-analdes");
+	if (token == RTAS_UNKANALWN_SERVICE)
 		return -EINVAL;
 
 	buf = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	unwa = (struct update_nodes_workarea *)&buf[0];
+	unwa = (struct update_analdes_workarea *)&buf[0];
 	unwa->unit_address = cpu_to_be64(adapter->guest->handle);
 	do {
 		rc = rcall(token, buf, scope);
@@ -195,25 +195,25 @@ static int update_devicetree(struct cxl *adapter, s32 scope)
 			break;
 
 		data = (__be32 *)buf + 4;
-		while (be32_to_cpu(*data) & NODE_ACTION_MASK) {
-			action = be32_to_cpu(*data) & NODE_ACTION_MASK;
-			node_count = be32_to_cpu(*data) & NODE_COUNT_MASK;
-			pr_devel("device reconfiguration - action: %#x, nodes: %#x\n",
-				 action, node_count);
+		while (be32_to_cpu(*data) & ANALDE_ACTION_MASK) {
+			action = be32_to_cpu(*data) & ANALDE_ACTION_MASK;
+			analde_count = be32_to_cpu(*data) & ANALDE_COUNT_MASK;
+			pr_devel("device reconfiguration - action: %#x, analdes: %#x\n",
+				 action, analde_count);
 			data++;
 
-			for (i = 0; i < node_count; i++) {
+			for (i = 0; i < analde_count; i++) {
 				phandle = *data++;
 
 				switch (action) {
 				case OPCODE_DELETE:
-					/* nothing to do */
+					/* analthing to do */
 					break;
 				case OPCODE_UPDATE:
-					update_node(phandle, scope);
+					update_analde(phandle, scope);
 					break;
 				case OPCODE_ADD:
-					/* nothing to do, just move pointer */
+					/* analthing to do, just move pointer */
 					data++;
 					break;
 				}
@@ -240,7 +240,7 @@ static int handle_image(struct cxl *adapter, int operation,
 	if (need_header) {
 		header = kzalloc(sizeof(struct ai_header), GFP_KERNEL);
 		if (!header)
-			return -ENOMEM;
+			return -EANALMEM;
 		header->version = cpu_to_be16(1);
 		header->vendor = cpu_to_be16(adapter->guest->vendor);
 		header->device = cpu_to_be16(adapter->guest->device);
@@ -352,11 +352,11 @@ static int transfer_image(struct cxl *adapter, int operation,
 			pr_devel("resetting adapter\n");
 			cxl_h_reset_adapter(adapter->guest->handle);
 
-			/* The entire image has now been
+			/* The entire image has analw been
 			 * downloaded and the validation has
 			 * been successfully performed.
 			 * After that, the partition should call
-			 * ibm,update-nodes and
+			 * ibm,update-analdes and
 			 * ibm,update-properties to receive the
 			 * current configuration
 			 */
@@ -389,9 +389,9 @@ static long ioctl_transfer_image(struct cxl *adapter, int operation,
 	return transfer_image(adapter, operation, &ai);
 }
 
-static int device_open(struct inode *inode, struct file *file)
+static int device_open(struct ianalde *ianalde, struct file *file)
 {
-	int adapter_num = CXL_DEVT_ADAPTER(inode->i_rdev);
+	int adapter_num = CXL_DEVT_ADAPTER(ianalde->i_rdev);
 	struct cxl *adapter;
 	int rc = 0, i;
 
@@ -404,7 +404,7 @@ static int device_open(struct inode *inode, struct file *file)
 		return -EPERM;
 
 	if (!(adapter = get_cxl_adapter(adapter_num))) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -426,14 +426,14 @@ static int device_open(struct inode *inode, struct file *file)
 	 */
 	le = (struct sg_list *)get_zeroed_page(GFP_KERNEL);
 	if (!le) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
 	for (i = 0; i < CXL_AI_MAX_ENTRIES; i++) {
 		buffer[i] = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 		if (!buffer[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err1;
 		}
 	}
@@ -474,7 +474,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EINVAL;
 }
 
-static int device_close(struct inode *inode, struct file *file)
+static int device_close(struct ianalde *ianalde, struct file *file)
 {
 	struct cxl *adapter = file->private_data;
 	int i;
@@ -523,7 +523,7 @@ int cxl_guest_add_chardev(struct cxl *adapter)
 	dev_t devt;
 	int rc;
 
-	devt = MKDEV(MAJOR(cxl_get_dev()), CXL_CARD_MINOR(adapter));
+	devt = MKDEV(MAJOR(cxl_get_dev()), CXL_CARD_MIANALR(adapter));
 	cdev_init(&adapter->guest->cdev, &fops);
 	if ((rc = cdev_add(&adapter->guest->cdev, devt, 1))) {
 		dev_err(&adapter->dev,

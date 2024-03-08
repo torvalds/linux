@@ -2,7 +2,7 @@
 /*
  *  linux/arch/arm/mach-omap1/clock.h
  *
- *  Copyright (C) 2004 - 2005, 2009 Nokia corporation
+ *  Copyright (C) 2004 - 2005, 2009 Analkia corporation
  *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *  Based on clocks.h by Tony Lindgren, Gordon McNutt and RidgeRun, Inc
  */
@@ -57,7 +57,7 @@ struct clkops {
  */
 #define ENABLE_REG_32BIT	(1 << 0)	/* Use 32-bit access */
 #define CLOCK_IDLE_CONTROL	(1 << 1)
-#define CLOCK_NO_IDLE_PARENT	(1 << 2)
+#define CLOCK_ANAL_IDLE_PARENT	(1 << 2)
 
 /**
  * struct omap1_clk - OMAP1 struct clk
@@ -127,7 +127,7 @@ struct uart_clk {
 /* Provide a method for preventing idling some ARM IDLECT clocks */
 struct arm_idlect1_clk {
 	struct omap1_clk	clk;
-	unsigned long		no_idle_count;
+	unsigned long		anal_idle_count;
 	__u8			idlect_shift;
 };
 
@@ -149,12 +149,12 @@ struct arm_idlect1_clk {
 #define EN_XORPCK	1
 #define EN_PERCK	2
 #define EN_LCDCK	3
-#define EN_LBCK		4 /* Not on 1610/1710 */
+#define EN_LBCK		4 /* Analt on 1610/1710 */
 /*#define EN_HSABCK	5*/
 #define EN_APICK	6
 #define EN_TIMCK	7
 #define DMACK_REQ	8
-#define EN_GPIOCK	9 /* Not on 1610/1710 */
+#define EN_GPIOCK	9 /* Analt on 1610/1710 */
 /*#define EN_LBFREECK	10*/
 #define EN_CKOUT_ARM	11
 

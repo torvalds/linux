@@ -16,13 +16,13 @@ bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
 void i915_unaligned_memcpy_from_wc(void *dst, const void *src, unsigned long len);
 
 /* The movntdqa instructions used for memcpy-from-wc require 16-byte alignment,
- * as well as SSE4.1 support. i915_memcpy_from_wc() will report if it cannot
+ * as well as SSE4.1 support. i915_memcpy_from_wc() will report if it cananalt
  * perform the operation. To check beforehand, pass in the parameters to
  * to i915_can_memcpy_from_wc() - since we only care about the low 4 bits,
- * you only need to pass in the minor offsets, page-aligned pointers are
+ * you only need to pass in the mianalr offsets, page-aligned pointers are
  * always valid.
  *
- * For just checking for SSE4.1, in the foreknowledge that the future use
+ * For just checking for SSE4.1, in the forekanalwledge that the future use
  * will be correctly aligned, just use i915_has_memcpy_from_wc().
  */
 #define i915_can_memcpy_from_wc(dst, src, len) \

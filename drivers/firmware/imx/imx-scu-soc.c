@@ -109,7 +109,7 @@ int imx_scu_soc_init(struct device *dev)
 	soc_dev_attr = devm_kzalloc(dev, sizeof(*soc_dev_attr),
 				    GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev_attr->family = "Freescale i.MX";
 
@@ -137,12 +137,12 @@ int imx_scu_soc_init(struct device *dev)
 	soc_dev_attr->revision = devm_kasprintf(dev, GFP_KERNEL, "%d.%d",
 						(val >> 4) & 0xf, val & 0xf);
 	if (!soc_dev_attr->revision)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev_attr->serial_number = devm_kasprintf(dev, GFP_KERNEL,
 						     "%016llX", uid);
 	if (!soc_dev_attr->serial_number)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev))

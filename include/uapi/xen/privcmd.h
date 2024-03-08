@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR MIT) */
 /******************************************************************************
  * privcmd.h
  *
@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -46,7 +46,7 @@ struct privcmd_hypercall {
 struct privcmd_mmap_entry {
 	__u64 va;
 	/*
-	 * This should be a GFN. It's not possible to change the name because
+	 * This should be a GFN. It's analt possible to change the name because
 	 * it's exposed to the user-space.
 	 */
 	__u64 mfn;
@@ -135,24 +135,24 @@ struct privcmd_ioeventfd {
  * @arg: &struct privcmd_mmapbatch_v2
  * Return: 0 on success (i.e., arg->err contains valid error codes for
  * each frame).  On an error other than a failed frame remap, -1 is
- * returned and errno is set to EINVAL, EFAULT etc.  As an exception,
+ * returned and erranal is set to EINVAL, EFAULT etc.  As an exception,
  * if the operation was otherwise successful but any frame failed with
- * -ENOENT, then -1 is returned and errno is set to ENOENT.
+ * -EANALENT, then -1 is returned and erranal is set to EANALENT.
  */
 #define IOCTL_PRIVCMD_HYPERCALL					\
-	_IOC(_IOC_NONE, 'P', 0, sizeof(struct privcmd_hypercall))
+	_IOC(_IOC_ANALNE, 'P', 0, sizeof(struct privcmd_hypercall))
 #define IOCTL_PRIVCMD_MMAP					\
-	_IOC(_IOC_NONE, 'P', 2, sizeof(struct privcmd_mmap))
+	_IOC(_IOC_ANALNE, 'P', 2, sizeof(struct privcmd_mmap))
 #define IOCTL_PRIVCMD_MMAPBATCH					\
-	_IOC(_IOC_NONE, 'P', 3, sizeof(struct privcmd_mmapbatch))
+	_IOC(_IOC_ANALNE, 'P', 3, sizeof(struct privcmd_mmapbatch))
 #define IOCTL_PRIVCMD_MMAPBATCH_V2				\
-	_IOC(_IOC_NONE, 'P', 4, sizeof(struct privcmd_mmapbatch_v2))
+	_IOC(_IOC_ANALNE, 'P', 4, sizeof(struct privcmd_mmapbatch_v2))
 #define IOCTL_PRIVCMD_DM_OP					\
-	_IOC(_IOC_NONE, 'P', 5, sizeof(struct privcmd_dm_op))
+	_IOC(_IOC_ANALNE, 'P', 5, sizeof(struct privcmd_dm_op))
 #define IOCTL_PRIVCMD_RESTRICT					\
-	_IOC(_IOC_NONE, 'P', 6, sizeof(domid_t))
+	_IOC(_IOC_ANALNE, 'P', 6, sizeof(domid_t))
 #define IOCTL_PRIVCMD_MMAP_RESOURCE				\
-	_IOC(_IOC_NONE, 'P', 7, sizeof(struct privcmd_mmap_resource))
+	_IOC(_IOC_ANALNE, 'P', 7, sizeof(struct privcmd_mmap_resource))
 #define IOCTL_PRIVCMD_IRQFD					\
 	_IOW('P', 8, struct privcmd_irqfd)
 #define IOCTL_PRIVCMD_IOEVENTFD					\

@@ -87,8 +87,8 @@ static int apple_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	off_cycles = readl(fpwm->base + APPLE_PWM_OFF_CYCLES);
 
 	state->enabled = (ctrl & APPLE_PWM_CTRL_ENABLE) && (ctrl & APPLE_PWM_CTRL_OUTPUT_ENABLE);
-	state->polarity = PWM_POLARITY_NORMAL;
-	// on_cycles + off_cycles is 33 bits, NSEC_PER_SEC is 30, there is no overflow
+	state->polarity = PWM_POLARITY_ANALRMAL;
+	// on_cycles + off_cycles is 33 bits, NSEC_PER_SEC is 30, there is anal overflow
 	state->duty_cycle = DIV64_U64_ROUND_UP((u64)on_cycles * NSEC_PER_SEC, fpwm->clkrate);
 	state->period = DIV64_U64_ROUND_UP(((u64)off_cycles + (u64)on_cycles) *
 					    NSEC_PER_SEC, fpwm->clkrate);
@@ -109,7 +109,7 @@ static int apple_pwm_probe(struct platform_device *pdev)
 
 	fpwm = devm_kzalloc(&pdev->dev, sizeof(*fpwm), GFP_KERNEL);
 	if (!fpwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fpwm->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(fpwm->base))

@@ -139,7 +139,7 @@ static irqreturn_t msg2138_ts_irq_handler(int irq, void *msg2638_handler)
 	p0 = &touch_event.pkt[0];
 	p1 = &touch_event.pkt[1];
 
-	/* Ignore non-pressed finger data, but check for key code */
+	/* Iganalre analn-pressed finger data, but check for key code */
 	if (p0->xy_hi == 0xFF && p0->x_low == 0xFF && p0->y_low == 0xFF) {
 		if (p1->xy_hi == 0xFF && p1->y_low == 0xFF)
 			msg2138_report_keys(msg2638, p1->x_low);
@@ -153,7 +153,7 @@ static irqreturn_t msg2138_ts_irq_handler(int irq, void *msg2638_handler)
 	input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
 	touchscreen_report_pos(input, &msg2638->prop, x, y, true);
 
-	/* Ignore non-pressed finger data */
+	/* Iganalre analn-pressed finger data */
 	if (p1->xy_hi == 0xFF && p1->x_low == 0xFF && p1->y_low == 0xFF)
 		goto report;
 
@@ -161,7 +161,7 @@ static irqreturn_t msg2138_ts_irq_handler(int irq, void *msg2638_handler)
 	delta_x = ((p1->xy_hi & 0xF0) << 4) | p1->x_low;
 	delta_y = ((p1->xy_hi & 0x0F) << 8) | p1->y_low;
 
-	/* Ignore second finger if both deltas equal 0 */
+	/* Iganalre second finger if both deltas equal 0 */
 	if (delta_x == 0 && delta_y == 0)
 		goto report;
 
@@ -220,7 +220,7 @@ static irqreturn_t msg2638_ts_irq_handler(int irq, void *msg2638_handler)
 	for (i = 0; i < msg2638->max_fingers; i++) {
 		p = &touch_event.pkt[i];
 
-		/* Ignore non-pressed finger data */
+		/* Iganalre analn-pressed finger data */
 		if (p->xy_hi == 0xFF && p->x_low == 0xFF && p->y_low == 0xFF)
 			continue;
 
@@ -309,7 +309,7 @@ static int msg2638_init_input_dev(struct msg2638_ts_data *msg2638)
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev) {
 		dev_err(dev, "Failed to allocate input device.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_drvdata(input_dev, msg2638);
@@ -335,7 +335,7 @@ static int msg2638_init_input_dev(struct msg2638_ts_data *msg2638)
 
 	touchscreen_parse_properties(input_dev, true, &msg2638->prop);
 	if (!msg2638->prop.max_x || !msg2638->prop.max_y) {
-		dev_err(dev, "touchscreen-size-x and/or touchscreen-size-y not set in properties\n");
+		dev_err(dev, "touchscreen-size-x and/or touchscreen-size-y analt set in properties\n");
 		return -EINVAL;
 	}
 
@@ -369,7 +369,7 @@ static int msg2638_ts_probe(struct i2c_client *client)
 
 	msg2638 = devm_kzalloc(dev, sizeof(*msg2638), GFP_KERNEL);
 	if (!msg2638)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg2638->client = client;
 	i2c_set_clientdata(client, msg2638);
@@ -407,7 +407,7 @@ static int msg2638_ts_probe(struct i2c_client *client)
 			msg2638->num_keycodes);
 		return msg2638->num_keycodes;
 	} else if (msg2638->num_keycodes > ARRAY_SIZE(msg2638->keycodes)) {
-		dev_warn(dev, "Found %d linux,keycodes but max is %zd, ignoring the rest\n",
+		dev_warn(dev, "Found %d linux,keycodes but max is %zd, iganalring the rest\n",
 			 msg2638->num_keycodes, ARRAY_SIZE(msg2638->keycodes));
 		msg2638->num_keycodes = ARRAY_SIZE(msg2638->keycodes);
 	}
@@ -425,7 +425,7 @@ static int msg2638_ts_probe(struct i2c_client *client)
 
 	error = devm_request_threaded_irq(dev, client->irq,
 					  NULL, chip_data->irq_handler,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					  client->name, msg2638);
 	if (error) {
 		dev_err(dev, "Failed to request IRQ: %d\n", error);

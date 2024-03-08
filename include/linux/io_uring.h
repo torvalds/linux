@@ -48,7 +48,7 @@ static inline const char *io_uring_get_opcode(u8 opcode)
 static inline int io_uring_cmd_sock(struct io_uring_cmd *cmd,
 				    unsigned int issue_flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline bool io_is_uring_fops(struct file *file)
 {

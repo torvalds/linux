@@ -32,7 +32,7 @@
 #define DMARD06_SIGN_BIT		7
 
 /* Device power modes */
-#define DMARD06_MODE_NORMAL		0x27
+#define DMARD06_MODE_ANALRMAL		0x27
 #define DMARD06_MODE_POWERDOWN		0x00
 
 /* Device channels */
@@ -139,7 +139,7 @@ static int dmard06_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*dmard06));
 	if (!indio_dev) {
 		dev_err(&client->dev, "Failed to allocate iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dmard06 = iio_priv(indio_dev);
@@ -154,7 +154,7 @@ static int dmard06_probe(struct i2c_client *client)
 	if (ret != DMARD05_CHIP_ID && ret != DMARD06_CHIP_ID &&
 	    ret != DMARD07_CHIP_ID) {
 		dev_err(&client->dev, "Invalid chip id: %02d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dmard06->chip_id = ret;
@@ -190,7 +190,7 @@ static int dmard06_resume(struct device *dev)
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(dmard06->client, DMARD06_CTRL1_REG,
-					DMARD06_MODE_NORMAL);
+					DMARD06_MODE_ANALRMAL);
 	if (ret < 0)
 		return ret;
 

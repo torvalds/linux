@@ -42,11 +42,11 @@ static inline int is_exec_fault(void)
 }
 
 /* We only try to do i/d cache coherency on stuff that looks like
- * reasonably "normal" PTEs. We currently require a PTE to be present
+ * reasonably "analrmal" PTEs. We currently require a PTE to be present
  * and we avoid _PAGE_SPECIAL and cache inhibited pte. We also only do that
  * on userspace PTEs
  */
-static inline int pte_looks_normal(pte_t pte, unsigned long addr)
+static inline int pte_looks_analrmal(pte_t pte, unsigned long addr)
 {
 
 	if (pte_present(pte) && !pte_special(pte)) {
@@ -74,7 +74,7 @@ static struct folio *maybe_pte_to_folio(pte_t pte)
 #ifdef CONFIG_PPC_BOOK3S
 
 /* Server-style MMU handles coherency when hashing if HW exec permission
- * is supposed per page (currently 64-bit only). If not, then, we always
+ * is supposed per page (currently 64-bit only). If analt, then, we always
  * flush the cache for valid PTEs in set_pte. Embedded CPU without HW exec
  * support falls into the same category.
  */
@@ -82,8 +82,8 @@ static struct folio *maybe_pte_to_folio(pte_t pte)
 static pte_t set_pte_filter_hash(pte_t pte, unsigned long addr)
 {
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-	if (pte_looks_normal(pte, addr) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
-					     cpu_has_feature(CPU_FTR_NOEXECUTE))) {
+	if (pte_looks_analrmal(pte, addr) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
+					     cpu_has_feature(CPU_FTR_ANALEXECUTE))) {
 		struct folio *folio = maybe_pte_to_folio(pte);
 		if (!folio)
 			return pte;
@@ -103,7 +103,7 @@ static pte_t set_pte_filter_hash(pte_t pte, unsigned long addr) { return pte; }
 
 /* Embedded type MMU with HW exec support. This is a bit more complicated
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
- * instead we "filter out" the exec permission for non clean pages.
+ * instead we "filter out" the exec permission for analn clean pages.
  *
  * This is also called once for the folio. So only work with folio->flags here.
  */
@@ -117,8 +117,8 @@ static inline pte_t set_pte_filter(pte_t pte, unsigned long addr)
 	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return set_pte_filter_hash(pte, addr);
 
-	/* No exec permission in the first place, move on */
-	if (!pte_exec(pte) || !pte_looks_normal(pte, addr))
+	/* Anal exec permission in the first place, move on */
+	if (!pte_exec(pte) || !pte_looks_analrmal(pte, addr))
 		return pte;
 
 	/* If you set _PAGE_EXEC on weird pages you're on your own */
@@ -161,7 +161,7 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 		return pte;
 
 #ifdef CONFIG_DEBUG_VM
-	/* So this is an exec fault, _PAGE_EXEC is not set. If it was
+	/* So this is an exec fault, _PAGE_EXEC is analt set. If it was
 	 * an error we would have bailed out earlier in do_page_fault()
 	 * but let's make sure of it
 	 */
@@ -193,8 +193,8 @@ void set_ptes(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		pte_t pte, unsigned int nr)
 {
 
-	/* Note: mm->context.id might not yet have been assigned as
-	 * this context might not have been activated yet when this
+	/* Analte: mm->context.id might analt yet have been assigned as
+	 * this context might analt have been activated yet when this
 	 * is called. Filter the pte value and use the filtered value
 	 * to setup all the ptes in the range.
 	 */
@@ -202,17 +202,17 @@ void set_ptes(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 
 	/*
 	 * We don't need to call arch_enter/leave_lazy_mmu_mode()
-	 * because we expect set_ptes to be only be used on not present
-	 * and not hw_valid ptes. Hence there is no translation cache flush
+	 * because we expect set_ptes to be only be used on analt present
+	 * and analt hw_valid ptes. Hence there is anal translation cache flush
 	 * involved that need to be batched.
 	 */
 	for (;;) {
 
 		/*
-		 * Make sure hardware valid bit is not set. We don't do
+		 * Make sure hardware valid bit is analt set. We don't do
 		 * tlb flush for this update.
 		 */
-		VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
+		VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protanalne(*ptep));
 
 		/* Perform the setting of the PTE */
 		__set_pte_at(mm, addr, ptep, pte, 0);
@@ -238,7 +238,7 @@ void unmap_kernel_page(unsigned long va)
 
 /*
  * This is called when relaxing access to a PTE. It's also called in the page
- * fault path when we don't hit any of the major fault cases, ie, a minor
+ * fault path when we don't hit any of the major fault cases, ie, a mianalr
  * update of _PAGE_ACCESSED, _PAGE_DIRTY, etc... The generic code will have
  * handled those two for us, we additionally deal with missing execute
  * permission here on some processors
@@ -287,9 +287,9 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 
 #else
 		/*
-		 * Not used on non book3s64 platforms.
+		 * Analt used on analn book3s64 platforms.
 		 * 8xx compares it with mmu_virtual_psize to
-		 * know if it is a huge page or not.
+		 * kanalw if it is a huge page or analt.
 		 */
 		psize = MMU_PAGE_COUNT;
 #endif
@@ -309,10 +309,10 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	int num, i;
 
 	/*
-	 * Make sure hardware valid bit is not set. We don't do
+	 * Make sure hardware valid bit is analt set. We don't do
 	 * tlb flush for this update.
 	 */
-	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
+	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protanalne(*ptep));
 
 	pte = set_pte_filter(pte, addr);
 
@@ -339,21 +339,21 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	if (mm == &init_mm)
 		return;
 	pgd = mm->pgd + pgd_index(addr);
-	BUG_ON(pgd_none(*pgd));
+	BUG_ON(pgd_analne(*pgd));
 	p4d = p4d_offset(pgd, addr);
-	BUG_ON(p4d_none(*p4d));
+	BUG_ON(p4d_analne(*p4d));
 	pud = pud_offset(p4d, addr);
-	BUG_ON(pud_none(*pud));
+	BUG_ON(pud_analne(*pud));
 	pmd = pmd_offset(pud, addr);
 	/*
-	 * khugepaged to collapse normal pages to hugepage, first set
-	 * pmd to none to force page fault/gup to take mmap_lock. After
-	 * pmd is set to none, we do a pte_clear which does this assertion
-	 * so if we find pmd none, return.
+	 * khugepaged to collapse analrmal pages to hugepage, first set
+	 * pmd to analne to force page fault/gup to take mmap_lock. After
+	 * pmd is set to analne, we do a pte_clear which does this assertion
+	 * so if we find pmd analne, return.
 	 */
-	if (pmd_none(*pmd))
+	if (pmd_analne(*pmd))
 		return;
-	pte = pte_offset_map_nolock(mm, pmd, addr, &ptl);
+	pte = pte_offset_map_anallock(mm, pmd, addr, &ptl);
 	BUG_ON(!pte);
 	assert_spin_locked(ptl);
 	pte_unmap(pte);
@@ -372,7 +372,7 @@ EXPORT_SYMBOL_GPL(vmalloc_to_phys);
 /*
  * We have 4 cases for pgds and pmds:
  * (1) invalid (all zeroes)
- * (2) pointer to next table, as normal; bottom 6 bits == 0
+ * (2) pointer to next table, as analrmal; bottom 6 bits == 0
  * (3) leaf pte for huge page _PAGE_PTE set
  * (4) hugepd pointer, _PAGE_PTE = 0 and bits [2..6] indicate size of table
  *
@@ -401,7 +401,7 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	/*
 	 * Always operate on the local stack value. This make sure the
 	 * value don't get updated by a parallel THP split/collapse,
-	 * page fault or a page unmap. The return pte_t * is still not
+	 * page fault or a page unmap. The return pte_t * is still analt
 	 * stable. So should be checked there for above conditions.
 	 * Top level is an exception because it is folded into p4d.
 	 */
@@ -410,7 +410,7 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	p4d  = READ_ONCE(*p4dp);
 	pdshift = P4D_SHIFT;
 
-	if (p4d_none(p4d))
+	if (p4d_analne(p4d))
 		return NULL;
 
 	if (p4d_is_leaf(p4d)) {
@@ -424,7 +424,7 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	}
 
 	/*
-	 * Even if we end up with an unmap, the pgtable will not
+	 * Even if we end up with an unmap, the pgtable will analt
 	 * be freed, because we do an rcu free and here we are
 	 * irq disabled
 	 */
@@ -432,7 +432,7 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	pudp = pud_offset(&p4d, ea);
 	pud  = READ_ONCE(*pudp);
 
-	if (pud_none(pud))
+	if (pud_analne(pud))
 		return NULL;
 
 	if (pud_is_leaf(pud)) {
@@ -453,7 +453,7 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	 * A hugepage collapse is captured by this condition, see
 	 * pmdp_collapse_flush.
 	 */
-	if (pmd_none(pmd))
+	if (pmd_analne(pmd))
 		return NULL;
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -499,9 +499,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(__find_linux_pte);
 
-/* Note due to the way vm flags are laid out, the bits are XWR */
+/* Analte due to the way vm flags are laid out, the bits are XWR */
 const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
@@ -509,7 +509,7 @@ const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_READONLY_X,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY_X,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_X,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,

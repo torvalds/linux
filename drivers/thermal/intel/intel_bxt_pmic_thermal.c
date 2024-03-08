@@ -220,14 +220,14 @@ static int pmic_thermal_probe(struct platform_device *pdev)
 	pmic = dev_get_drvdata(pdev->dev.parent);
 	if (!pmic) {
 		dev_err(dev, "Failed to get struct intel_soc_pmic pointer\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	thermal_data = (struct pmic_thermal_data *)
 				platform_get_device_id(pdev)->driver_data;
 	if (!thermal_data) {
-		dev_err(dev, "No thermal data initialized!!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal thermal data initialized!!\n");
+		return -EANALDEV;
 	}
 
 	regmap = pmic->regmap;

@@ -16,7 +16,7 @@ struct drm_i915_private;
 struct intel_gt;
 
 /*
- * Non-engine events that we need to track enabled-disabled transition and
+ * Analn-engine events that we need to track enabled-disabled transition and
  * current state.
  */
 enum i915_pmu_tracked_events {
@@ -27,7 +27,7 @@ enum i915_pmu_tracked_events {
 };
 
 /*
- * Slots used from the sampling timer (non-engine events) with some extras for
+ * Slots used from the sampling timer (analn-engine events) with some extras for
  * convenience.
  */
 enum {
@@ -43,7 +43,7 @@ enum {
 /*
  * How many different events we track in the global PMU mask.
  *
- * It is also used to know to needed number of event reference counters.
+ * It is also used to kanalw to needed number of event reference counters.
  */
 #define I915_PMU_MASK_BITS \
 	(I915_ENGINE_SAMPLE_COUNT + \
@@ -60,7 +60,7 @@ struct i915_pmu {
 	 * @cpuhp: Struct used for CPU hotplug handling.
 	 */
 	struct {
-		struct hlist_node node;
+		struct hlist_analde analde;
 		unsigned int cpu;
 	} cpuhp;
 	/**

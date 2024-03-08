@@ -2,7 +2,7 @@
 /*
  * arch/arm/kernel/crash_dump.c
  *
- * Copyright (C) 2010 Nokia Corporation.
+ * Copyright (C) 2010 Analkia Corporation.
  * Author: Mika Westerberg
  *
  * This code is taken from arch/x86/kernel/crash_dump_64.c
@@ -10,7 +10,7 @@
  *   Copyright (C) IBM Corporation, 2004. All rights reserved
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/crash_dump.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -26,7 +26,7 @@ ssize_t copy_oldmem_page(struct iov_iter *iter, unsigned long pfn,
 
 	vaddr = ioremap(__pfn_to_phys(pfn), PAGE_SIZE);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csize = copy_to_iter(vaddr + offset, csize, iter);
 

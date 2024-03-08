@@ -3,8 +3,8 @@
  * twl4030_usb - TWL4030 USB transceiver, talking to OMAP OTG controller
  *
  * Copyright (C) 2004-2007 Texas Instruments
- * Copyright (C) 2008 Nokia Corporation
- * Contact: Felipe Balbi <felipe.balbi@nokia.com>
+ * Copyright (C) 2008 Analkia Corporation
+ * Contact: Felipe Balbi <felipe.balbi@analkia.com>
  *
  * Current status:
  *	- HS USB ULPI mode works.
@@ -68,11 +68,11 @@
 #define OTHER_INT_STS			0x8C
 #define OTHER_INT_LATCH			0x8D
 #define OTHER_INT_VB_SESS_VLD		(1 << 7)
-#define OTHER_INT_DM_HI			(1 << 6) /* not valid for "latch" reg */
-#define OTHER_INT_DP_HI			(1 << 5) /* not valid for "latch" reg */
-#define OTHER_INT_BDIS_ACON		(1 << 3) /* not valid for "fall" regs */
+#define OTHER_INT_DM_HI			(1 << 6) /* analt valid for "latch" reg */
+#define OTHER_INT_DP_HI			(1 << 5) /* analt valid for "latch" reg */
+#define OTHER_INT_BDIS_ACON		(1 << 3) /* analt valid for "fall" regs */
 #define OTHER_INT_MANU			(1 << 1)
-#define OTHER_INT_ABNORMAL_STRESS	(1 << 0)
+#define OTHER_INT_ABANALRMAL_STRESS	(1 << 0)
 
 #define ID_STATUS			0x96
 #define ID_RES_FLOAT			(1 << 4)
@@ -99,7 +99,7 @@
 #define OTHER_FUNC_CTRL2		0xB8
 #define OTHER_FUNC_CTRL2_VBAT_TIMER_EN	(1 << 0)
 
-/* following registers do not have separate _clr and _set registers */
+/* following registers do analt have separate _clr and _set registers */
 #define VBUS_DEBOUNCE			0xC0
 #define ID_DEBOUNCE			0xC1
 #define VBAT_TIMER			0xD3
@@ -134,7 +134,7 @@
 
 static irqreturn_t twl4030_usb_irq(int irq, void *_twl);
 /*
- * If VBUS is valid or ID is ground, then we know a
+ * If VBUS is valid or ID is ground, then we kanalw a
  * cable is present and we need to be runtime-enabled
  */
 static inline bool cable_present(enum musb_vbus_id_status stat)
@@ -257,7 +257,7 @@ static bool twl4030_is_driving_vbus(struct twl4030_usb *twl)
 	ret = twl4030_usb_read(twl, PHY_CLK_CTRL_STS);
 	if (ret < 0 || !(ret & PHY_DPLL_CLK))
 		/*
-		 * if clocks are off, registers are not updated,
+		 * if clocks are off, registers are analt updated,
 		 * but we can assume we don't drive VBUS in this case
 		 */
 		return false;
@@ -273,7 +273,7 @@ static enum musb_vbus_id_status
 	twl4030_usb_linkstat(struct twl4030_usb *twl)
 {
 	int	status;
-	enum musb_vbus_id_status linkstat = MUSB_UNKNOWN;
+	enum musb_vbus_id_status linkstat = MUSB_UNKANALWN;
 
 	twl->vbus_supplied = false;
 
@@ -305,7 +305,7 @@ static enum musb_vbus_id_status
 		else
 			linkstat = MUSB_VBUS_OFF;
 	} else {
-		if (twl->linkstat != MUSB_UNKNOWN)
+		if (twl->linkstat != MUSB_UNKANALWN)
 			linkstat = MUSB_VBUS_OFF;
 	}
 
@@ -396,8 +396,8 @@ static int __maybe_unused twl4030_usb_suspend(struct device *dev)
 
 	/*
 	 * we need enabled runtime on resume,
-	 * so turn irq off here, so we do not get it early
-	 * note: wakeup on usb plug works independently of this
+	 * so turn irq off here, so we do analt get it early
+	 * analte: wakeup on usb plug works independently of this
 	 */
 	dev_dbg(twl->dev, "%s\n", __func__);
 	disable_irq(twl->irq);
@@ -523,7 +523,7 @@ static int twl4030_usb_ldo_init(struct twl4030_usb *twl)
 	/* Keep VUSB3V1 LDO in sleep state until VBUS/ID change detected*/
 	/*twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, 0, VUSB_DEDICATED2);*/
 
-	/* input to VUSB3V1 LDO is from VBAT, not VBUS */
+	/* input to VUSB3V1 LDO is from VBAT, analt VBUS */
 	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, 0x14, VUSB_DEDICATED1);
 
 	/* Initialize 3.1V regulator */
@@ -531,7 +531,7 @@ static int twl4030_usb_ldo_init(struct twl4030_usb *twl)
 
 	twl->usb3v1 = devm_regulator_get(twl->dev, "usb3v1");
 	if (IS_ERR(twl->usb3v1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, 0, VUSB3V1_TYPE);
 
@@ -540,7 +540,7 @@ static int twl4030_usb_ldo_init(struct twl4030_usb *twl)
 
 	twl->usb1v5 = devm_regulator_get(twl->dev, "usb1v5");
 	if (IS_ERR(twl->usb1v5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, 0, VUSB1V5_TYPE);
 
@@ -549,7 +549,7 @@ static int twl4030_usb_ldo_init(struct twl4030_usb *twl)
 
 	twl->usb1v8 = devm_regulator_get(twl->dev, "usb1v8");
 	if (IS_ERR(twl->usb1v8))
-		return -ENODEV;
+		return -EANALDEV;
 
 	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, 0, VUSB1V8_TYPE);
 
@@ -616,7 +616,7 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 	}
 
 	if (irq)
-		sysfs_notify(&twl->dev->kobj, NULL, "vbus");
+		sysfs_analtify(&twl->dev->kobj, NULL, "vbus");
 
 	return IRQ_HANDLED;
 }
@@ -634,7 +634,7 @@ static int twl4030_phy_init(struct phy *phy)
 	struct twl4030_usb *twl = phy_get_drvdata(phy);
 
 	pm_runtime_get_sync(twl->dev);
-	twl->linkstat = MUSB_UNKNOWN;
+	twl->linkstat = MUSB_UNKANALWN;
 	schedule_delayed_work(&twl->id_workaround_work, HZ);
 	pm_runtime_mark_last_busy(twl->dev);
 	pm_runtime_put_autosuspend(twl->dev);
@@ -646,7 +646,7 @@ static int twl4030_set_peripheral(struct usb_otg *otg,
 					struct usb_gadget *gadget)
 {
 	if (!otg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	otg->gadget = gadget;
 	if (!gadget)
@@ -658,7 +658,7 @@ static int twl4030_set_peripheral(struct usb_otg *otg,
 static int twl4030_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
 	if (!otg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	otg->host = host;
 	if (!host)
@@ -687,12 +687,12 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	struct phy		*phy;
 	int			status, err;
 	struct usb_otg		*otg;
-	struct device_node	*np = pdev->dev.of_node;
+	struct device_analde	*np = pdev->dev.of_analde;
 	struct phy_provider	*phy_provider;
 
 	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (np)
 		of_property_read_u32(np, "usb_mode",
@@ -706,12 +706,12 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	twl->dev		= &pdev->dev;
 	twl->irq		= platform_get_irq(pdev, 0);
 	twl->vbus_supplied	= false;
-	twl->linkstat		= MUSB_UNKNOWN;
+	twl->linkstat		= MUSB_UNKANALWN;
 	twl->musb_mailbox_pending = false;
 
 	twl->phy.dev		= twl->dev;
@@ -750,9 +750,9 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, twl);
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))
-		dev_warn(&pdev->dev, "could not create sysfs file\n");
+		dev_warn(&pdev->dev, "could analt create sysfs file\n");
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&twl->phy.notifier);
+	ATOMIC_INIT_ANALTIFIER_HEAD(&twl->phy.analtifier);
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
@@ -760,7 +760,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	/* Our job is to use irqs and status from the power module
-	 * to keep the transceiver disabled when nothing's connected.
+	 * to keep the transceiver disabled when analthing's connected.
 	 *
 	 * FIXME we actually shouldn't start enabling it until the
 	 * USB controller drivers have said they're ready, by calling
@@ -803,7 +803,7 @@ static void twl4030_usb_remove(struct platform_device *pdev)
 
 	/* idle ulpi before powering off */
 	if (cable_present(twl->linkstat))
-		pm_runtime_put_noidle(twl->dev);
+		pm_runtime_put_analidle(twl->dev);
 	pm_runtime_mark_last_busy(twl->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(twl->dev);
@@ -855,6 +855,6 @@ static void __exit twl4030_usb_exit(void)
 module_exit(twl4030_usb_exit);
 
 MODULE_ALIAS("platform:twl4030_usb");
-MODULE_AUTHOR("Texas Instruments, Inc, Nokia Corporation");
+MODULE_AUTHOR("Texas Instruments, Inc, Analkia Corporation");
 MODULE_DESCRIPTION("TWL4030 USB transceiver driver");
 MODULE_LICENSE("GPL");

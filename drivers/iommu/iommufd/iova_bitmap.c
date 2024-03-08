@@ -21,7 +21,7 @@
  * subset of said IOVA space that is pinned by its parent structure (struct
  * iova_bitmap).
  *
- * The user does not need to exact location of the bits in the bitmap.
+ * The user does analt need to exact location of the bits in the bitmap.
  * From user perspective the only API available is iova_bitmap_set() which
  * records the IOVA *range* in the bitmap by setting the corresponding
  * bits.
@@ -170,7 +170,7 @@ static int iova_bitmap_get(struct iova_bitmap *bitmap)
 
 	/*
 	 * @mapped_base_index is the index of the currently mapped u64 words
-	 * that we have access. Anything before @mapped_base_index is not
+	 * that we have access. Anything before @mapped_base_index is analt
 	 * mapped. The range @mapped_base_index .. @mapped_total_index-1 is
 	 * mapped but capped at a maximum number of pages.
 	 */
@@ -202,7 +202,7 @@ static int iova_bitmap_get(struct iova_bitmap *bitmap)
 
 	/*
 	 * offset of the page where pinned pages bit 0 is located.
-	 * This handles the case where the bitmap is not PAGE_SIZE
+	 * This handles the case where the bitmap is analt PAGE_SIZE
 	 * aligned.
 	 */
 	mapped->pgoff = offset_in_page(addr);
@@ -247,7 +247,7 @@ struct iova_bitmap *iova_bitmap_alloc(unsigned long iova, size_t length,
 
 	bitmap = kzalloc(sizeof(*bitmap), GFP_KERNEL);
 	if (!bitmap)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mapped = &bitmap->mapped;
 	mapped->pgshift = __ffs(page_size);
@@ -259,7 +259,7 @@ struct iova_bitmap *iova_bitmap_alloc(unsigned long iova, size_t length,
 	mapped->iova = iova;
 	mapped->pages = (struct page **)__get_free_page(GFP_KERNEL);
 	if (!mapped->pages) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -338,7 +338,7 @@ static unsigned long iova_bitmap_mapped_length(struct iova_bitmap *bitmap)
 }
 
 /*
- * Returns true if there's not more data to iterate.
+ * Returns true if there's analt more data to iterate.
  */
 static bool iova_bitmap_done(struct iova_bitmap *bitmap)
 {
@@ -374,7 +374,7 @@ static int iova_bitmap_set_ahead(struct iova_bitmap *bitmap,
 /*
  * Advances to the next range, releases the current pinned
  * pages and pins the next set of bitmap pages.
- * Returns 0 on success or otherwise errno.
+ * Returns 0 on success or otherwise erranal.
  */
 static int iova_bitmap_advance(struct iova_bitmap *bitmap)
 {

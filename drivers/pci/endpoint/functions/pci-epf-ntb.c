@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Endpoint Function Driver to implement Non-Transparent Bridge functionality
+ * Endpoint Function Driver to implement Analn-Transparent Bridge functionality
  *
  * Copyright (C) 2020 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
@@ -86,8 +86,8 @@ struct epf_ntb {
 #define to_epf_ntb(epf_group) container_of((epf_group), struct epf_ntb, group)
 
 struct epf_ntb_epc {
-	u8 func_no;
-	u8 vfunc_no;
+	u8 func_anal;
+	u8 vfunc_anal;
 	bool linkup;
 	bool is_msix;
 	int msix_bar;
@@ -98,7 +98,7 @@ struct epf_ntb_epc {
 	size_t msix_table_offset;
 	struct epf_ntb_ctrl *reg;
 	struct pci_epf_bar *epf_bar;
-	enum pci_barno epf_ntb_bar[6];
+	enum pci_baranal epf_ntb_bar[6];
 	struct delayed_work cmd_handler;
 	enum pci_epc_interface_type type;
 	const struct pci_epc_features *epc_features;
@@ -144,15 +144,15 @@ static int epf_ntb_link_up(struct epf_ntb *ntb, bool link_up)
 	struct epf_ntb_ctrl *ctrl;
 	unsigned int irq_type;
 	struct pci_epc *epc;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	bool is_msix;
 	int ret;
 
 	for (type = PRIMARY_INTERFACE; type <= SECONDARY_INTERFACE; type++) {
 		ntb_epc = ntb->epc[type];
 		epc = ntb_epc->epc;
-		func_no = ntb_epc->func_no;
-		vfunc_no = ntb_epc->vfunc_no;
+		func_anal = ntb_epc->func_anal;
+		vfunc_anal = ntb_epc->vfunc_anal;
 		is_msix = ntb_epc->is_msix;
 		ctrl = ntb_epc->reg;
 		if (link_up)
@@ -160,7 +160,7 @@ static int epf_ntb_link_up(struct epf_ntb *ntb, bool link_up)
 		else
 			ctrl->link_status &= ~LINK_STATUS_UP;
 		irq_type = is_msix ? PCI_IRQ_MSIX : PCI_IRQ_MSI;
-		ret = pci_epc_raise_irq(epc, func_no, vfunc_no, irq_type, 1);
+		ret = pci_epc_raise_irq(epc, func_anal, vfunc_anal, irq_type, 1);
 		if (ret) {
 			dev_err(&epc->dev,
 				"%s intf: Failed to raise Link Up IRQ\n",
@@ -227,7 +227,7 @@ static int epf_ntb_link_up(struct epf_ntb *ntb, bool link_up)
  * be provided by HOST2 in ctrl->addr and ctrl->size of epf_ntb_epc that is
  * connected to HOST2.
  *
- * Please note Memory window1 (MW1) and Doorbell registers together will be
+ * Please analte Memory window1 (MW1) and Doorbell registers together will be
  * mapped to a single BAR (BAR2) above for 32-bit BARs. The exact BAR that's
  * used for Memory window (MW) can be obtained from epf_ntb_bar[BAR_DB_MW1],
  * epf_ntb_bar[BAR_MW2], epf_ntb_bar[BAR_MW2], epf_ntb_bar[BAR_MW2].
@@ -237,10 +237,10 @@ static int epf_ntb_configure_mw(struct epf_ntb *ntb,
 {
 	struct epf_ntb_epc *peer_ntb_epc, *ntb_epc;
 	struct pci_epf_bar *peer_epf_bar;
-	enum pci_barno peer_barno;
+	enum pci_baranal peer_baranal;
 	struct epf_ntb_ctrl *ctrl;
 	phys_addr_t phys_addr;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 	u64 addr, size;
 	int ret = 0;
@@ -249,8 +249,8 @@ static int epf_ntb_configure_mw(struct epf_ntb *ntb,
 	epc = ntb_epc->epc;
 
 	peer_ntb_epc = ntb->epc[!type];
-	peer_barno = peer_ntb_epc->epf_ntb_bar[mw + NTB_MW_OFFSET];
-	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_barno];
+	peer_baranal = peer_ntb_epc->epf_ntb_bar[mw + NTB_MW_OFFSET];
+	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_baranal];
 
 	phys_addr = peer_epf_bar->phys_addr;
 	ctrl = ntb_epc->reg;
@@ -268,10 +268,10 @@ static int epf_ntb_configure_mw(struct epf_ntb *ntb,
 		goto err_invalid_size;
 	}
 
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 
-	ret = pci_epc_map_addr(epc, func_no, vfunc_no, phys_addr, addr, size);
+	ret = pci_epc_map_addr(epc, func_anal, vfunc_anal, phys_addr, addr, size);
 	if (ret)
 		dev_err(&epc->dev,
 			"%s intf: Failed to map memory window %d address\n",
@@ -296,27 +296,27 @@ static void epf_ntb_teardown_mw(struct epf_ntb *ntb,
 {
 	struct epf_ntb_epc *peer_ntb_epc, *ntb_epc;
 	struct pci_epf_bar *peer_epf_bar;
-	enum pci_barno peer_barno;
+	enum pci_baranal peer_baranal;
 	struct epf_ntb_ctrl *ctrl;
 	phys_addr_t phys_addr;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 
 	ntb_epc = ntb->epc[type];
 	epc = ntb_epc->epc;
 
 	peer_ntb_epc = ntb->epc[!type];
-	peer_barno = peer_ntb_epc->epf_ntb_bar[mw + NTB_MW_OFFSET];
-	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_barno];
+	peer_baranal = peer_ntb_epc->epf_ntb_bar[mw + NTB_MW_OFFSET];
+	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_baranal];
 
 	phys_addr = peer_epf_bar->phys_addr;
 	ctrl = ntb_epc->reg;
 	if (mw + NTB_MW_OFFSET == BAR_DB_MW1)
 		phys_addr += ctrl->mw1_offset;
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 
-	pci_epc_unmap_addr(epc, func_no, vfunc_no, phys_addr);
+	pci_epc_unmap_addr(epc, func_anal, vfunc_anal, phys_addr);
 }
 
 /**
@@ -387,9 +387,9 @@ static int epf_ntb_configure_msi(struct epf_ntb *ntb,
 	u32 db_entry_size, db_data, db_offset;
 	struct pci_epf_bar *peer_epf_bar;
 	struct epf_ntb_ctrl *peer_ctrl;
-	enum pci_barno peer_barno;
+	enum pci_baranal peer_baranal;
 	phys_addr_t phys_addr;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 	int ret, i;
 
@@ -397,16 +397,16 @@ static int epf_ntb_configure_msi(struct epf_ntb *ntb,
 	epc = ntb_epc->epc;
 
 	peer_ntb_epc = ntb->epc[!type];
-	peer_barno = peer_ntb_epc->epf_ntb_bar[BAR_DB_MW1];
-	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_barno];
+	peer_baranal = peer_ntb_epc->epf_ntb_bar[BAR_DB_MW1];
+	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_baranal];
 	peer_ctrl = peer_ntb_epc->reg;
 	db_entry_size = peer_ctrl->db_entry_size;
 
 	phys_addr = peer_epf_bar->phys_addr;
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 
-	ret = pci_epc_map_msi_irq(epc, func_no, vfunc_no, phys_addr, db_count,
+	ret = pci_epc_map_msi_irq(epc, func_anal, vfunc_anal, phys_addr, db_count,
 				  db_entry_size, &db_data, &db_offset);
 	if (ret) {
 		dev_err(&epc->dev, "%s intf: Failed to map MSI IRQ\n",
@@ -494,9 +494,9 @@ static int epf_ntb_configure_msix(struct epf_ntb *ntb,
 	struct pci_epf_msix_tbl *msix_tbl;
 	struct epf_ntb_ctrl *peer_ctrl;
 	u32 db_entry_size, msg_data;
-	enum pci_barno peer_barno;
+	enum pci_baranal peer_baranal;
 	phys_addr_t phys_addr;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 	size_t align;
 	u64 msg_addr;
@@ -509,21 +509,21 @@ static int epf_ntb_configure_msix(struct epf_ntb *ntb,
 	msix_tbl = epf_bar->addr + ntb_epc->msix_table_offset;
 
 	peer_ntb_epc = ntb->epc[!type];
-	peer_barno = peer_ntb_epc->epf_ntb_bar[BAR_DB_MW1];
-	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_barno];
+	peer_baranal = peer_ntb_epc->epf_ntb_bar[BAR_DB_MW1];
+	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_baranal];
 	phys_addr = peer_epf_bar->phys_addr;
 	peer_ctrl = peer_ntb_epc->reg;
 	epc_features = ntb_epc->epc_features;
 	align = epc_features->align;
 
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 	db_entry_size = peer_ctrl->db_entry_size;
 
 	for (i = 0; i < db_count; i++) {
 		msg_addr = ALIGN_DOWN(msix_tbl[i].msg_addr, align);
 		msg_data = msix_tbl[i].msg_data;
-		ret = pci_epc_map_addr(epc, func_no, vfunc_no, phys_addr, msg_addr,
+		ret = pci_epc_map_addr(epc, func_anal, vfunc_anal, phys_addr, msg_addr,
 				       db_entry_size);
 		if (ret) {
 			dev_err(&epc->dev,
@@ -590,22 +590,22 @@ epf_ntb_teardown_db(struct epf_ntb *ntb, enum pci_epc_interface_type type)
 {
 	struct epf_ntb_epc *peer_ntb_epc, *ntb_epc;
 	struct pci_epf_bar *peer_epf_bar;
-	enum pci_barno peer_barno;
+	enum pci_baranal peer_baranal;
 	phys_addr_t phys_addr;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 
 	ntb_epc = ntb->epc[type];
 	epc = ntb_epc->epc;
 
 	peer_ntb_epc = ntb->epc[!type];
-	peer_barno = peer_ntb_epc->epf_ntb_bar[BAR_DB_MW1];
-	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_barno];
+	peer_baranal = peer_ntb_epc->epf_ntb_bar[BAR_DB_MW1];
+	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_baranal];
 	phys_addr = peer_epf_bar->phys_addr;
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 
-	pci_epc_unmap_addr(epc, func_no, vfunc_no, phys_addr);
+	pci_epc_unmap_addr(epc, func_anal, vfunc_anal, phys_addr);
 }
 
 /**
@@ -691,7 +691,7 @@ static void epf_ntb_cmd_handler(struct work_struct *work)
 			ctrl->command_status = COMMAND_STATUS_OK;
 		break;
 	default:
-		dev_err(dev, "%s intf UNKNOWN command: %d\n",
+		dev_err(dev, "%s intf UNKANALWN command: %d\n",
 			pci_epc_interface_string(type), command);
 		break;
 	}
@@ -734,16 +734,16 @@ reset_handler:
 static void epf_ntb_peer_spad_bar_clear(struct epf_ntb_epc *ntb_epc)
 {
 	struct pci_epf_bar *epf_bar;
-	enum pci_barno barno;
-	u8 func_no, vfunc_no;
+	enum pci_baranal baranal;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 
 	epc = ntb_epc->epc;
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
-	barno = ntb_epc->epf_ntb_bar[BAR_PEER_SPAD];
-	epf_bar = &ntb_epc->epf_bar[barno];
-	pci_epc_clear_bar(epc, func_no, vfunc_no, epf_bar);
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
+	baranal = ntb_epc->epf_ntb_bar[BAR_PEER_SPAD];
+	epf_bar = &ntb_epc->epf_bar[baranal];
+	pci_epc_clear_bar(epc, func_anal, vfunc_anal, epf_bar);
 }
 
 /**
@@ -781,9 +781,9 @@ static int epf_ntb_peer_spad_bar_set(struct epf_ntb *ntb,
 {
 	struct epf_ntb_epc *peer_ntb_epc, *ntb_epc;
 	struct pci_epf_bar *peer_epf_bar, *epf_bar;
-	enum pci_barno peer_barno, barno;
+	enum pci_baranal peer_baranal, baranal;
 	u32 peer_spad_offset;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 	struct device *dev;
 	int ret;
@@ -791,23 +791,23 @@ static int epf_ntb_peer_spad_bar_set(struct epf_ntb *ntb,
 	dev = &ntb->epf->dev;
 
 	peer_ntb_epc = ntb->epc[!type];
-	peer_barno = peer_ntb_epc->epf_ntb_bar[BAR_CONFIG];
-	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_barno];
+	peer_baranal = peer_ntb_epc->epf_ntb_bar[BAR_CONFIG];
+	peer_epf_bar = &peer_ntb_epc->epf_bar[peer_baranal];
 
 	ntb_epc = ntb->epc[type];
-	barno = ntb_epc->epf_ntb_bar[BAR_PEER_SPAD];
-	epf_bar = &ntb_epc->epf_bar[barno];
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	baranal = ntb_epc->epf_ntb_bar[BAR_PEER_SPAD];
+	epf_bar = &ntb_epc->epf_bar[baranal];
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 	epc = ntb_epc->epc;
 
 	peer_spad_offset = peer_ntb_epc->reg->spad_offset;
 	epf_bar->phys_addr = peer_epf_bar->phys_addr + peer_spad_offset;
 	epf_bar->size = peer_ntb_epc->spad_size;
-	epf_bar->barno = barno;
+	epf_bar->baranal = baranal;
 	epf_bar->flags = PCI_BASE_ADDRESS_MEM_TYPE_32;
 
-	ret = pci_epc_set_bar(epc, func_no, vfunc_no, epf_bar);
+	ret = pci_epc_set_bar(epc, func_anal, vfunc_anal, epf_bar);
 	if (ret) {
 		dev_err(dev, "%s intf: peer SPAD BAR set failed\n",
 			pci_epc_interface_string(type));
@@ -843,23 +843,23 @@ static int epf_ntb_peer_spad_bar_set(struct epf_ntb *ntb,
  * scratchpad (because of reserved BARs). This function can get the exact BAR
  * used for self scratchpad from epf_ntb_bar[BAR_CONFIG].
  *
- * Please note the self scratchpad region and config region is combined to
- * a single region and mapped using the same BAR. Also note HOST2's peer
+ * Please analte the self scratchpad region and config region is combined to
+ * a single region and mapped using the same BAR. Also analte HOST2's peer
  * scratchpad is HOST1's self scratchpad.
  */
 static void epf_ntb_config_sspad_bar_clear(struct epf_ntb_epc *ntb_epc)
 {
 	struct pci_epf_bar *epf_bar;
-	enum pci_barno barno;
-	u8 func_no, vfunc_no;
+	enum pci_baranal baranal;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 
 	epc = ntb_epc->epc;
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
-	barno = ntb_epc->epf_ntb_bar[BAR_CONFIG];
-	epf_bar = &ntb_epc->epf_bar[barno];
-	pci_epc_clear_bar(epc, func_no, vfunc_no, epf_bar);
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
+	baranal = ntb_epc->epf_ntb_bar[BAR_CONFIG];
+	epf_bar = &ntb_epc->epf_bar[baranal];
+	pci_epc_clear_bar(epc, func_anal, vfunc_anal, epf_bar);
 }
 
 /**
@@ -888,15 +888,15 @@ static void epf_ntb_config_sspad_bar_clear(struct epf_ntb_epc *ntb_epc)
  * This function can get the exact BAR used for self scratchpad from
  * epf_ntb_bar[BAR_CONFIG].
  *
- * Please note the self scratchpad region and config region is combined to
- * a single region and mapped using the same BAR. Also note HOST2's peer
+ * Please analte the self scratchpad region and config region is combined to
+ * a single region and mapped using the same BAR. Also analte HOST2's peer
  * scratchpad is HOST1's self scratchpad.
  */
 static int epf_ntb_config_sspad_bar_set(struct epf_ntb_epc *ntb_epc)
 {
 	struct pci_epf_bar *epf_bar;
-	enum pci_barno barno;
-	u8 func_no, vfunc_no;
+	enum pci_baranal baranal;
+	u8 func_anal, vfunc_anal;
 	struct epf_ntb *ntb;
 	struct pci_epc *epc;
 	struct device *dev;
@@ -906,12 +906,12 @@ static int epf_ntb_config_sspad_bar_set(struct epf_ntb_epc *ntb_epc)
 	dev = &ntb->epf->dev;
 
 	epc = ntb_epc->epc;
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
-	barno = ntb_epc->epf_ntb_bar[BAR_CONFIG];
-	epf_bar = &ntb_epc->epf_bar[barno];
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
+	baranal = ntb_epc->epf_ntb_bar[BAR_CONFIG];
+	epf_bar = &ntb_epc->epf_bar[baranal];
 
-	ret = pci_epc_set_bar(epc, func_no, vfunc_no, epf_bar);
+	ret = pci_epc_set_bar(epc, func_anal, vfunc_anal, epf_bar);
 	if (ret) {
 		dev_err(dev, "%s inft: Config/Status/SPAD BAR set failed\n",
 			pci_epc_interface_string(ntb_epc->type));
@@ -943,21 +943,21 @@ static int epf_ntb_config_sspad_bar_set(struct epf_ntb_epc *ntb_epc)
  *
  * Free the Local Memory mentioned in the above diagram. After invoking this
  * function, any of config + self scratchpad region of HOST1 or peer scratchpad
- * region of HOST2 should not be accessed.
+ * region of HOST2 should analt be accessed.
  */
 static void epf_ntb_config_spad_bar_free(struct epf_ntb *ntb)
 {
 	enum pci_epc_interface_type type;
 	struct epf_ntb_epc *ntb_epc;
-	enum pci_barno barno;
+	enum pci_baranal baranal;
 	struct pci_epf *epf;
 
 	epf = ntb->epf;
 	for (type = PRIMARY_INTERFACE; type <= SECONDARY_INTERFACE; type++) {
 		ntb_epc = ntb->epc[type];
-		barno = ntb_epc->epf_ntb_bar[BAR_CONFIG];
+		baranal = ntb_epc->epf_ntb_bar[BAR_CONFIG];
 		if (ntb_epc->reg)
-			pci_epf_free_space(epf, ntb_epc->reg, barno, type);
+			pci_epf_free_space(epf, ntb_epc->reg, baranal, type);
 	}
 }
 
@@ -996,7 +996,7 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb,
 	const struct pci_epc_features *peer_epc_features, *epc_features;
 	struct epf_ntb_epc *peer_ntb_epc, *ntb_epc;
 	size_t msix_table_size, pba_size, align;
-	enum pci_barno peer_barno, barno;
+	enum pci_baranal peer_baranal, baranal;
 	struct epf_ntb_ctrl *ctrl;
 	u32 spad_size, ctrl_size;
 	u64 size, peer_size;
@@ -1011,14 +1011,14 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb,
 	ntb_epc = ntb->epc[type];
 
 	epc_features = ntb_epc->epc_features;
-	barno = ntb_epc->epf_ntb_bar[BAR_CONFIG];
-	size = epc_features->bar_fixed_size[barno];
+	baranal = ntb_epc->epf_ntb_bar[BAR_CONFIG];
+	size = epc_features->bar_fixed_size[baranal];
 	align = epc_features->align;
 
 	peer_ntb_epc = ntb->epc[!type];
 	peer_epc_features = peer_ntb_epc->epc_features;
-	peer_barno = ntb_epc->epf_ntb_bar[BAR_PEER_SPAD];
-	peer_size = peer_epc_features->bar_fixed_size[peer_barno];
+	peer_baranal = ntb_epc->epf_ntb_bar[BAR_PEER_SPAD];
+	peer_size = peer_epc_features->bar_fixed_size[peer_baranal];
 
 	/* Check if epc_features is populated incorrectly */
 	if ((!IS_ALIGNED(size, align)))
@@ -1034,7 +1034,7 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb,
 		msix_table_size = PCI_MSIX_ENTRY_SIZE * ntb->db_count;
 		ctrl_size = ALIGN(ctrl_size, 8);
 		ntb_epc->msix_table_offset = ctrl_size;
-		ntb_epc->msix_bar = barno;
+		ntb_epc->msix_bar = baranal;
 		/* Align to QWORD or 8 Bytes */
 		pba_size = ALIGN(DIV_ROUND_UP(ntb->db_count, 8), 8);
 		ctrl_size = ctrl_size + msix_table_size + pba_size;
@@ -1067,11 +1067,11 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb,
 	else if (size < ctrl_size + spad_size)
 		return -EINVAL;
 
-	base = pci_epf_alloc_space(epf, size, barno, align, type);
+	base = pci_epf_alloc_space(epf, size, baranal, align, type);
 	if (!base) {
 		dev_err(dev, "%s intf: Config/Status/SPAD alloc region fail\n",
 			pci_epc_interface_string(type));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ntb_epc->reg = base;
@@ -1161,21 +1161,21 @@ static void epf_ntb_free_peer_mem(struct epf_ntb_epc *ntb_epc)
 	void __iomem *mw_addr;
 	phys_addr_t phys_addr;
 	enum epf_ntb_bar bar;
-	enum pci_barno barno;
+	enum pci_baranal baranal;
 	struct pci_epc *epc;
 	size_t size;
 
 	epc = ntb_epc->epc;
 
 	for (bar = BAR_DB_MW1; bar < BAR_MW4; bar++) {
-		barno = ntb_epc->epf_ntb_bar[bar];
-		mw_addr = ntb_epc->mw_addr[barno];
-		epf_bar = &ntb_epc->epf_bar[barno];
+		baranal = ntb_epc->epf_ntb_bar[bar];
+		mw_addr = ntb_epc->mw_addr[baranal];
+		epf_bar = &ntb_epc->epf_bar[baranal];
 		phys_addr = epf_bar->phys_addr;
 		size = epf_bar->size;
 		if (mw_addr) {
 			pci_epc_mem_free_addr(epc, phys_addr, mw_addr, size);
-			ntb_epc->mw_addr[barno] = NULL;
+			ntb_epc->mw_addr[baranal] = NULL;
 		}
 	}
 }
@@ -1224,19 +1224,19 @@ static void epf_ntb_db_mw_bar_clear(struct epf_ntb_epc *ntb_epc)
 {
 	struct pci_epf_bar *epf_bar;
 	enum epf_ntb_bar bar;
-	enum pci_barno barno;
-	u8 func_no, vfunc_no;
+	enum pci_baranal baranal;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 
 	epc = ntb_epc->epc;
 
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 
 	for (bar = BAR_DB_MW1; bar < BAR_MW4; bar++) {
-		barno = ntb_epc->epf_ntb_bar[bar];
-		epf_bar = &ntb_epc->epf_bar[barno];
-		pci_epc_clear_bar(epc, func_no, vfunc_no, epf_bar);
+		baranal = ntb_epc->epf_ntb_bar[bar];
+		epf_bar = &ntb_epc->epf_bar[baranal];
+		pci_epc_clear_bar(epc, func_anal, vfunc_anal, epf_bar);
 	}
 }
 
@@ -1275,7 +1275,7 @@ static int epf_ntb_configure_interrupt(struct epf_ntb *ntb,
 	const struct pci_epc_features *epc_features;
 	bool msix_capable, msi_capable;
 	struct epf_ntb_epc *ntb_epc;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 	struct device *dev;
 	u32 db_count;
@@ -1293,12 +1293,12 @@ static int epf_ntb_configure_interrupt(struct epf_ntb *ntb,
 		return -EINVAL;
 	}
 
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 
 	db_count = ntb->db_count;
 	if (db_count > MAX_DB_COUNT) {
-		dev_err(dev, "DB count cannot be more than %d\n", MAX_DB_COUNT);
+		dev_err(dev, "DB count cananalt be more than %d\n", MAX_DB_COUNT);
 		return -EINVAL;
 	}
 
@@ -1306,7 +1306,7 @@ static int epf_ntb_configure_interrupt(struct epf_ntb *ntb,
 	epc = ntb_epc->epc;
 
 	if (msi_capable) {
-		ret = pci_epc_set_msi(epc, func_no, vfunc_no, db_count);
+		ret = pci_epc_set_msi(epc, func_anal, vfunc_anal, db_count);
 		if (ret) {
 			dev_err(dev, "%s intf: MSI configuration failed\n",
 				pci_epc_interface_string(type));
@@ -1315,7 +1315,7 @@ static int epf_ntb_configure_interrupt(struct epf_ntb *ntb,
 	}
 
 	if (msix_capable) {
-		ret = pci_epc_set_msix(epc, func_no, vfunc_no, db_count,
+		ret = pci_epc_set_msix(epc, func_anal, vfunc_anal, db_count,
 				       ntb_epc->msix_bar,
 				       ntb_epc->msix_table_offset);
 		if (ret) {
@@ -1384,7 +1384,7 @@ static int epf_ntb_alloc_peer_mem(struct device *dev,
 	struct pci_epc *peer_epc;
 	phys_addr_t phys_addr;
 	void __iomem *mw_addr;
-	enum pci_barno barno;
+	enum pci_baranal baranal;
 	size_t align;
 
 	epc_features = ntb_epc->epc_features;
@@ -1403,16 +1403,16 @@ static int epf_ntb_alloc_peer_mem(struct device *dev,
 	if (!mw_addr) {
 		dev_err(dev, "%s intf: Failed to allocate OB address\n",
 			pci_epc_interface_string(peer_ntb_epc->type));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	barno = ntb_epc->epf_ntb_bar[bar];
-	epf_bar = &ntb_epc->epf_bar[barno];
-	ntb_epc->mw_addr[barno] = mw_addr;
+	baranal = ntb_epc->epf_ntb_bar[bar];
+	epf_bar = &ntb_epc->epf_bar[baranal];
+	ntb_epc->mw_addr[baranal] = mw_addr;
 
 	epf_bar->phys_addr = phys_addr;
 	epf_bar->size = size;
-	epf_bar->barno = barno;
+	epf_bar->baranal = baranal;
 	epf_bar->flags = PCI_BASE_ADDRESS_MEM_TYPE_32;
 
 	return 0;
@@ -1435,8 +1435,8 @@ static int epf_ntb_db_mw_bar_init(struct epf_ntb *ntb,
 	struct epf_ntb_ctrl *ctrl;
 	u32 num_mws, db_count;
 	enum epf_ntb_bar bar;
-	enum pci_barno barno;
-	u8 func_no, vfunc_no;
+	enum pci_baranal baranal;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 	struct device *dev;
 	size_t align;
@@ -1449,8 +1449,8 @@ static int epf_ntb_db_mw_bar_init(struct epf_ntb *ntb,
 	dev = &ntb->epf->dev;
 	epc_features = ntb_epc->epc_features;
 	align = epc_features->align;
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 	epc = ntb_epc->epc;
 	num_mws = ntb->num_mws;
 	db_count = ntb->db_count;
@@ -1475,10 +1475,10 @@ static int epf_ntb_db_mw_bar_init(struct epf_ntb *ntb,
 			goto err_alloc_peer_mem;
 		}
 
-		barno = ntb_epc->epf_ntb_bar[bar];
-		epf_bar = &ntb_epc->epf_bar[barno];
+		baranal = ntb_epc->epf_ntb_bar[bar];
+		epf_bar = &ntb_epc->epf_bar[baranal];
 
-		ret = pci_epc_set_bar(epc, func_no, vfunc_no, epf_bar);
+		ret = pci_epc_set_bar(epc, func_anal, vfunc_anal, epf_bar);
 		if (ret) {
 			dev_err(dev, "%s intf: DoorBell BAR set failed\n",
 				pci_epc_interface_string(type));
@@ -1550,7 +1550,7 @@ static int epf_ntb_epc_create_interface(struct epf_ntb *ntb,
 	const struct pci_epc_features *epc_features;
 	struct pci_epf_bar *epf_bar;
 	struct epf_ntb_epc *ntb_epc;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epf *epf;
 	struct device *dev;
 
@@ -1558,27 +1558,27 @@ static int epf_ntb_epc_create_interface(struct epf_ntb *ntb,
 
 	ntb_epc = devm_kzalloc(dev, sizeof(*ntb_epc), GFP_KERNEL);
 	if (!ntb_epc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epf = ntb->epf;
-	vfunc_no = epf->vfunc_no;
+	vfunc_anal = epf->vfunc_anal;
 	if (type == PRIMARY_INTERFACE) {
-		func_no = epf->func_no;
+		func_anal = epf->func_anal;
 		epf_bar = epf->bar;
 	} else {
-		func_no = epf->sec_epc_func_no;
+		func_anal = epf->sec_epc_func_anal;
 		epf_bar = epf->sec_epc_bar;
 	}
 
 	ntb_epc->linkup = false;
 	ntb_epc->epc = epc;
-	ntb_epc->func_no = func_no;
-	ntb_epc->vfunc_no = vfunc_no;
+	ntb_epc->func_anal = func_anal;
+	ntb_epc->vfunc_anal = vfunc_anal;
 	ntb_epc->type = type;
 	ntb_epc->epf_bar = epf_bar;
 	ntb_epc->epf_ntb = ntb;
 
-	epc_features = pci_epc_get_features(epc, func_no, vfunc_no);
+	epc_features = pci_epc_get_features(epc, func_anal, vfunc_anal);
 	if (!epc_features)
 		return -EINVAL;
 	ntb_epc->epc_features = epc_features;
@@ -1641,37 +1641,37 @@ static int epf_ntb_init_epc_bar_interface(struct epf_ntb *ntb,
 {
 	const struct pci_epc_features *epc_features;
 	struct epf_ntb_epc *ntb_epc;
-	enum pci_barno barno;
+	enum pci_baranal baranal;
 	enum epf_ntb_bar bar;
 	struct device *dev;
 	u32 num_mws;
 	int i;
 
-	barno = BAR_0;
+	baranal = BAR_0;
 	ntb_epc = ntb->epc[type];
 	num_mws = ntb->num_mws;
 	dev = &ntb->epf->dev;
 	epc_features = ntb_epc->epc_features;
 
 	/* These are required BARs which are mandatory for NTB functionality */
-	for (bar = BAR_CONFIG; bar <= BAR_DB_MW1; bar++, barno++) {
-		barno = pci_epc_get_next_free_bar(epc_features, barno);
-		if (barno < 0) {
+	for (bar = BAR_CONFIG; bar <= BAR_DB_MW1; bar++, baranal++) {
+		baranal = pci_epc_get_next_free_bar(epc_features, baranal);
+		if (baranal < 0) {
 			dev_err(dev, "%s intf: Fail to get NTB function BAR\n",
 				pci_epc_interface_string(type));
-			return barno;
+			return baranal;
 		}
-		ntb_epc->epf_ntb_bar[bar] = barno;
+		ntb_epc->epf_ntb_bar[bar] = baranal;
 	}
 
 	/* These are optional BARs which don't impact NTB functionality */
-	for (bar = BAR_MW2, i = 1; i < num_mws; bar++, barno++, i++) {
-		barno = pci_epc_get_next_free_bar(epc_features, barno);
-		if (barno < 0) {
+	for (bar = BAR_MW2, i = 1; i < num_mws; bar++, baranal++, i++) {
+		baranal = pci_epc_get_next_free_bar(epc_features, baranal);
+		if (baranal < 0) {
 			ntb->num_mws = i;
-			dev_dbg(dev, "BAR not available for > MW%d\n", i + 1);
+			dev_dbg(dev, "BAR analt available for > MW%d\n", i + 1);
 		}
-		ntb_epc->epf_ntb_bar[bar] = barno;
+		ntb_epc->epf_ntb_bar[bar] = baranal;
 	}
 
 	return 0;
@@ -1718,7 +1718,7 @@ static int epf_ntb_epc_init_interface(struct epf_ntb *ntb,
 				      enum pci_epc_interface_type type)
 {
 	struct epf_ntb_epc *ntb_epc;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 	struct pci_epf *epf;
 	struct device *dev;
@@ -1728,8 +1728,8 @@ static int epf_ntb_epc_init_interface(struct epf_ntb *ntb,
 	epf = ntb->epf;
 	dev = &epf->dev;
 	epc = ntb_epc->epc;
-	func_no = ntb_epc->func_no;
-	vfunc_no = ntb_epc->vfunc_no;
+	func_anal = ntb_epc->func_anal;
+	vfunc_anal = ntb_epc->vfunc_anal;
 
 	ret = epf_ntb_config_sspad_bar_set(ntb->epc[type]);
 	if (ret) {
@@ -1759,8 +1759,8 @@ static int epf_ntb_epc_init_interface(struct epf_ntb *ntb,
 		goto err_db_mw_bar_init;
 	}
 
-	if (vfunc_no <= 1) {
-		ret = pci_epc_write_header(epc, func_no, vfunc_no, epf->header);
+	if (vfunc_anal <= 1) {
+		ret = pci_epc_write_header(epc, func_anal, vfunc_anal, epf->header);
 		if (ret) {
 			dev_err(dev, "%s intf: Configuration header write failed\n",
 				pci_epc_interface_string(type));
@@ -1869,12 +1869,12 @@ static int epf_ntb_bind(struct pci_epf *epf)
 	int ret;
 
 	if (!epf->epc) {
-		dev_dbg(dev, "PRIMARY EPC interface not yet bound\n");
+		dev_dbg(dev, "PRIMARY EPC interface analt yet bound\n");
 		return 0;
 	}
 
 	if (!epf->sec_epc) {
-		dev_dbg(dev, "SECONDARY EPC interface not yet bound\n");
+		dev_dbg(dev, "SECONDARY EPC interface analt yet bound\n");
 		return 0;
 	}
 
@@ -1962,11 +1962,11 @@ static ssize_t epf_ntb_##_name##_show(struct config_item *item,		\
 {									\
 	struct config_group *group = to_config_group(item);		\
 	struct epf_ntb *ntb = to_epf_ntb(group);			\
-	int win_no;							\
+	int win_anal;							\
 									\
-	sscanf(#_name, "mw%d", &win_no);				\
+	sscanf(#_name, "mw%d", &win_anal);				\
 									\
-	return sysfs_emit(page, "%lld\n", ntb->mws_size[win_no - 1]);	\
+	return sysfs_emit(page, "%lld\n", ntb->mws_size[win_anal - 1]);	\
 }
 
 #define EPF_NTB_MW_W(_name)						\
@@ -1976,21 +1976,21 @@ static ssize_t epf_ntb_##_name##_store(struct config_item *item,	\
 	struct config_group *group = to_config_group(item);		\
 	struct epf_ntb *ntb = to_epf_ntb(group);			\
 	struct device *dev = &ntb->epf->dev;				\
-	int win_no;							\
+	int win_anal;							\
 	u64 val;							\
 									\
 	if (kstrtou64(page, 0, &val) < 0)				\
 		return -EINVAL;						\
 									\
-	if (sscanf(#_name, "mw%d", &win_no) != 1)			\
+	if (sscanf(#_name, "mw%d", &win_anal) != 1)			\
 		return -EINVAL;						\
 									\
-	if (ntb->num_mws < win_no) {					\
+	if (ntb->num_mws < win_anal) {					\
 		dev_err(dev, "Invalid num_nws: %d value\n", ntb->num_mws); \
 		return -EINVAL;						\
 	}								\
 									\
-	ntb->mws_size[win_no - 1] = val;				\
+	ntb->mws_size[win_anal - 1] = val;				\
 									\
 	return len;							\
 }
@@ -2090,7 +2090,7 @@ static int epf_ntb_probe(struct pci_epf *epf,
 
 	ntb = devm_kzalloc(dev, sizeof(*ntb), GFP_KERNEL);
 	if (!ntb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epf->header = &epf_ntb_header;
 	ntb->epf = epf;

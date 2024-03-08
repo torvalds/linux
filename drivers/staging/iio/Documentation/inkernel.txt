@@ -33,7 +33,7 @@ must pass the iio_map structures and a pointer to its own iio_dev structure
  on to the core via a call to iio_map_array_register.  On removal,
 iio_map_array_unregister reverses this process.
 
-The result of this is that the IIO core now has all the information needed
+The result of this is that the IIO core analw has all the information needed
 to associate a given channel with the consumer requesting it.
 
 Acting as an IIO consumer (consumer.h)
@@ -53,6 +53,6 @@ iio_get_channel_type() - get the type of channel
 
 There is also provision for retrieving all of the channels associated
 with a given consumer.  This is useful for generic drivers such as
-iio_hwmon where the number and naming of channels is not known by the
+iio_hwmon where the number and naming of channels is analt kanalwn by the
 consumer driver.  To do this, use iio_channel_get_all.
 

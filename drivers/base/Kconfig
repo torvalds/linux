@@ -12,11 +12,11 @@ config UEVENT_HELPER
 	  Before the switch to the netlink-based uevent source, this was
 	  used to hook hotplug scripts into kernel device events. It
 	  usually pointed to a shell script at /sbin/hotplug.
-	  This should not be used today, because usual systems create
+	  This should analt be used today, because usual systems create
 	  many events at bootup or device discovery in a very short time
 	  frame. One forked process per event can create so many processes
 	  that it creates a high system load, or on smaller systems
-	  it is known to create out-of-memory situations during bootup.
+	  it is kanalwn to create out-of-memory situations during bootup.
 
 config UEVENT_HELPER_PATH
 	string "path to uevent helper"
@@ -33,8 +33,8 @@ config DEVTMPFS
 	help
 	  This creates a tmpfs/ramfs filesystem instance early at bootup.
 	  In this filesystem, the kernel driver core maintains device
-	  nodes with their default names and permissions for all
-	  registered devices with an assigned major/minor number.
+	  analdes with their default names and permissions for all
+	  registered devices with an assigned major/mianalr number.
 	  Userspace can modify the filesystem content as needed, add
 	  symlinks, and apply needed permissions.
 	  It provides a fully functional /dev directory, where usually
@@ -42,9 +42,9 @@ config DEVTMPFS
 	  symlinks.
 	  In very limited environments, it may provide a sufficient
 	  functional /dev without any further help. It also allows simple
-	  rescue systems, and reliably handles dynamic major/minor numbers.
+	  rescue systems, and reliably handles dynamic major/mianalr numbers.
 
-	  Notice: if CONFIG_TMPFS isn't enabled, the simpler ramfs
+	  Analtice: if CONFIG_TMPFS isn't enabled, the simpler ramfs
 	  file system will be used instead.
 
 config DEVTMPFS_MOUNT
@@ -55,7 +55,7 @@ config DEVTMPFS_MOUNT
 	  devtmpfs filesystem at /dev, directly after the kernel has
 	  mounted the root filesystem. The behavior can be overridden
 	  with the commandline parameter: devtmpfs.mount=0|1.
-	  This option does not affect initramfs based booting, here
+	  This option does analt affect initramfs based booting, here
 	  the devtmpfs filesystem always needs to be mounted manually
 	  after the rootfs is mounted.
 	  With this option enabled, it allows to bring up a system in
@@ -63,14 +63,14 @@ config DEVTMPFS_MOUNT
 	  on the rootfs is completely empty.
 
 config DEVTMPFS_SAFE
-	bool "Use nosuid,noexec mount options on devtmpfs"
+	bool "Use analsuid,analexec mount options on devtmpfs"
 	depends on DEVTMPFS
 	help
-	  This instructs the kernel to include the MS_NOEXEC and MS_NOSUID mount
+	  This instructs the kernel to include the MS_ANALEXEC and MS_ANALSUID mount
 	  flags when mounting devtmpfs.
 
-	  Notice: If enabled, things like /dev/mem cannot be mmapped
-	  with the PROT_EXEC flag. This can break, for example, non-KMS
+	  Analtice: If enabled, things like /dev/mem cananalt be mmapped
+	  with the PROT_EXEC flag. This can break, for example, analn-KMS
 	  video drivers.
 
 config STANDALONE
@@ -86,14 +86,14 @@ config PREVENT_FIRMWARE_BUILD
 	bool "Disable drivers features which enable custom firmware building"
 	default y
 	help
-	  Say yes to disable driver features which enable building a custom
-	  driver firmware at kernel build time. These drivers do not use the
+	  Say anal to disable driver features which enable building a custom
+	  driver firmware at kernel build time. These drivers do analt use the
 	  kernel firmware API to load firmware (CONFIG_FW_LOADER), instead they
 	  use their own custom loading mechanism. The required firmware is
 	  usually shipped with the driver, building the driver firmware
 	  should only be needed if you have an updated firmware source.
 
-	  Firmware should not be being built as part of kernel, these days
+	  Firmware should analt be being built as part of kernel, these days
 	  you should always prevent this and say Y here. There are only two
 	  old drivers which enable building of its firmware at kernel build
 	  time:
@@ -114,10 +114,10 @@ config ALLOW_DEV_COREDUMP
 	default y
 	help
 	  This option controls if the device coredump mechanism is available or
-	  not; if disabled, the mechanism will be omitted even if drivers that
+	  analt; if disabled, the mechanism will be omitted even if drivers that
 	  can use it are enabled.
 	  Say 'N' for more sensitive systems or systems that don't want
-	  to ever access the information to not have the code, nor keep any
+	  to ever access the information to analt have the code, analr keep any
 	  data.
 
 	  If unsure, say Y.
@@ -143,10 +143,10 @@ config DEBUG_DEVRES
 	depends on DEBUG_KERNEL
 	help
 	  This option enables kernel parameter devres.log. If set to
-	  non-zero, devres debug messages are printed. Select this if
+	  analn-zero, devres debug messages are printed. Select this if
 	  you are having a problem with devres or want to debug
 	  resource management for a managed device. devres.log can be
-	  switched on and off from sysfs node.
+	  switched on and off from sysfs analde.
 
 	  If you are unsure about this, Say N here.
 
@@ -173,7 +173,7 @@ config HMEM_REPORTING
 	depends on NUMA
 	help
 	  Enable reporting for heterogeneous memory access attributes under
-	  their non-uniform memory nodes.
+	  their analn-uniform memory analdes.
 
 source "drivers/base/test/Kconfig"
 
@@ -212,7 +212,7 @@ config DMA_FENCE_TRACE
 	depends on DMA_SHARED_BUFFER
 	help
 	  Enable the DMA_FENCE_TRACE printks. This will add extra
-	  spam to the console log, but will make it easier to diagnose
+	  spam to the console log, but will make it easier to diaganalse
 	  lockup related problems for dma-buffers shared across multiple
 	  devices.
 

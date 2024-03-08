@@ -59,7 +59,7 @@
 # +---------------------------------------------------------------------+
 
 NUM_NETIFS=4
-CHECK_TC=yes
+CHECK_TC=anal
 source $lib_dir/lib.sh
 source $lib_dir/sch_ets_tests.sh
 

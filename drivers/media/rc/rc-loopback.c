@@ -94,7 +94,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 
 	if (lodev->txcarrier < lodev->rxcarriermin ||
 	    lodev->txcarrier > lodev->rxcarriermax) {
-		dev_dbg(&dev->dev, "ignoring tx, carrier out of range\n");
+		dev_dbg(&dev->dev, "iganalring tx, carrier out of range\n");
 		goto out;
 	}
 
@@ -104,7 +104,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		rxmask = RXMASK_NARROWBAND;
 
 	if (!(rxmask & lodev->txmask)) {
-		dev_dbg(&dev->dev, "ignoring tx, rx mask mismatch\n");
+		dev_dbg(&dev->dev, "iganalring tx, rx mask mismatch\n");
 		goto out;
 	}
 
@@ -127,7 +127,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		ir_raw_event_store(dev, &rawir);
 	}
 
-	/* Fake a silence long enough to cause us to go idle */
+	/* Fake a silence long eanalugh to cause us to go idle */
 	rawir.pulse = false;
 	rawir.duration = dev->timeout;
 	ir_raw_event_store_with_filter(dev, &rawir);
@@ -187,11 +187,11 @@ static int loop_set_wakeup_filter(struct rc_dev *dev,
 	/* encode the specified filter and loop it back */
 	raw = kmalloc_array(max, sizeof(*raw), GFP_KERNEL);
 	if (!raw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ir_raw_encode_scancode(dev->wakeup_protocol, sc->data, raw, max);
 	/* still loop back the partial raw IR even if it's incomplete */
-	if (ret == -ENOBUFS)
+	if (ret == -EANALBUFS)
 		ret = max;
 	if (ret >= 0) {
 		/* do the loopback */
@@ -214,7 +214,7 @@ static int __init loop_init(void)
 
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc->device_name		= "rc-core loopback device";
 	rc->input_phys		= "rc-core/virtual";

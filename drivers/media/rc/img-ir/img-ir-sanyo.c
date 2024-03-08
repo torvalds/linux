@@ -2,17 +2,17 @@
 /*
  * ImgTec IR Decoder setup for Sanyo protocol.
  *
- * Copyright 2012-2014 Imagination Technologies Ltd.
+ * Copyright 2012-2014 Imagination Techanallogies Ltd.
  *
  * From ir-sanyo-decoder.c:
  *
  * This protocol uses the NEC protocol timings. However, data is formatted as:
  *	13 bits Custom Code
- *	13 bits NOT(Custom Code)
+ *	13 bits ANALT(Custom Code)
  *	8 bits Key data
- *	8 bits NOT(Key data)
+ *	8 bits ANALT(Key data)
  *
- * According with LIRC, this protocol is used on Sanyo, Aiwa and Chinon
+ * According with LIRC, this protocol is used on Sanyo, Aiwa and Chianaln
  * Information for this protocol is available at the Sanyo LC7461 datasheet.
  */
 
@@ -23,7 +23,7 @@ static int img_ir_sanyo_scancode(int len, u64 raw, u64 enabled_protocols,
 				 struct img_ir_scancode_req *request)
 {
 	unsigned int addr, addr_inv, data, data_inv;
-	/* a repeat code has no data */
+	/* a repeat code has anal data */
 	if (!len)
 		return IMG_IR_REPEATCODE;
 	if (len != 42)
@@ -39,7 +39,7 @@ static int img_ir_sanyo_scancode(int len, u64 raw, u64 enabled_protocols,
 	if ((addr_inv ^ addr) != 0x1fff)
 		return -EINVAL;
 
-	/* Normal Sanyo */
+	/* Analrmal Sanyo */
 	request->protocol = RC_PROTO_SANYO;
 	request->scancode = addr << 8 | data;
 	return IMG_IR_SCANCODE;
@@ -115,7 +115,7 @@ struct img_ir_decoder img_ir_sanyo = {
 		},
 		/* free time */
 		.ft = {
-			.minlen = 0,	/* repeat code has no data */
+			.minlen = 0,	/* repeat code has anal data */
 			.maxlen = 0,
 		},
 	},

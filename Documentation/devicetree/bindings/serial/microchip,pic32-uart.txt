@@ -1,4 +1,4 @@
-* Microchip Universal Asynchronous Receiver Transmitter (UART)
+* Microchip Universal Asynchroanalus Receiver Transmitter (UART)
 
 Required properties:
 - compatible: Should be "microchip,pic32mzda-uart"

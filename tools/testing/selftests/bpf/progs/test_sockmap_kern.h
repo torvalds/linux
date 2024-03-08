@@ -204,10 +204,10 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 			ret = 1;
 #ifdef SOCKMAP
 			bpf_sock_map_update(skops, &sock_map, &ret,
-						  BPF_NOEXIST);
+						  BPF_ANALEXIST);
 #else
 			bpf_sock_hash_update(skops, &sock_map, &ret,
-						   BPF_NOEXIST);
+						   BPF_ANALEXIST);
 #endif
 		}
 		break;
@@ -219,10 +219,10 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 			ret = 10;
 #ifdef SOCKMAP
 			bpf_sock_map_update(skops, &sock_map, &ret,
-						  BPF_NOEXIST);
+						  BPF_ANALEXIST);
 #else
 			bpf_sock_hash_update(skops, &sock_map, &ret,
-						   BPF_NOEXIST);
+						   BPF_ANALEXIST);
 #endif
 		}
 		break;

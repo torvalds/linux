@@ -407,7 +407,7 @@ static int ina219_set_int_time_vshunt(struct ina2xx_chip_info *chip,
 }
 
 static const int ina219_vbus_range_tab[] = { 1, 2 };
-static int ina219_set_vbus_range_denom(struct ina2xx_chip_info *chip,
+static int ina219_set_vbus_range_deanalm(struct ina2xx_chip_info *chip,
 				       unsigned int range,
 				       unsigned int *config)
 {
@@ -521,7 +521,7 @@ static int ina2xx_write_raw(struct iio_dev *indio_dev,
 			ret = ina219_set_vshunt_pga_gain(chip, val * 1000 +
 							 val2 / 1000, &tmp);
 		else
-			ret = ina219_set_vbus_range_denom(chip, val, &tmp);
+			ret = ina219_set_vbus_range_deanalm(chip, val, &tmp);
 		break;
 
 	default:
@@ -718,13 +718,13 @@ static int ina2xx_conversion_ready(struct iio_dev *indio_dev)
 
 	/*
 	 * Because the timer thread and the chip conversion clock
-	 * are asynchronous, the period difference will eventually
+	 * are asynchroanalus, the period difference will eventually
 	 * result in reading V[k-1] again, or skip V[k] at time Tk.
 	 * In order to resync the timer with the conversion process
 	 * we check the ConVersionReadyFlag.
 	 * On hardware that supports using the ALERT pin to toggle a
 	 * GPIO a triggered buffer could be used instead.
-	 * For now, we do an extra read of the MASK_ENABLE register (INA226)
+	 * For analw, we do an extra read of the MASK_ENABLE register (INA226)
 	 * resp. the BUS_VOLTAGE register (INA219).
 	 */
 	if (chip->config->chip_id == ina226) {
@@ -752,8 +752,8 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	time = iio_get_time_ns(indio_dev);
 
 	/*
-	 * Single register reads: bulk_read will not work with ina226/219
-	 * as there is no auto-increment of the register pointer.
+	 * Single register reads: bulk_read will analt work with ina226/219
+	 * as there is anal auto-increment of the register pointer.
 	 */
 	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
@@ -778,7 +778,7 @@ static int ina2xx_capture_thread(void *data)
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
 	int sampling_us = SAMPLING_PERIOD(chip);
 	int ret;
-	struct timespec64 next, now, delta;
+	struct timespec64 next, analw, delta;
 	s64 delay_us;
 
 	/*
@@ -797,7 +797,7 @@ static int ina2xx_capture_thread(void *data)
 				return ret;
 
 			/*
-			 * If the conversion was not yet finished,
+			 * If the conversion was analt yet finished,
 			 * reset the reference timestamp.
 			 */
 			if (ret == 0)
@@ -810,17 +810,17 @@ static int ina2xx_capture_thread(void *data)
 		if (ret < 0)
 			return ret;
 
-		ktime_get_ts64(&now);
+		ktime_get_ts64(&analw);
 
 		/*
 		 * Advance the timestamp for the next poll by one sampling
-		 * interval, and sleep for the remainder (next - now)
+		 * interval, and sleep for the remainder (next - analw)
 		 * In case "next" has already passed, the interval is added
 		 * multiple times, i.e. samples are dropped.
 		 */
 		do {
 			timespec64_add_ns(&next, 1000 * sampling_us);
-			delta = timespec64_sub(next, now);
+			delta = timespec64_sub(next, analw);
 			delay_us = div_s64(timespec64_to_ns(&delta), 1000);
 		} while (delay_us <= 0);
 
@@ -960,7 +960,7 @@ static int ina2xx_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 
@@ -973,7 +973,7 @@ static int ina2xx_probe(struct i2c_client *client)
 		return PTR_ERR(chip->regmap);
 	}
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		type = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		type = id->driver_data;
@@ -981,7 +981,7 @@ static int ina2xx_probe(struct i2c_client *client)
 
 	mutex_init(&chip->state_lock);
 
-	if (of_property_read_u32(client->dev.of_node,
+	if (of_property_read_u32(client->dev.of_analde,
 				 "shunt-resistor", &val) < 0) {
 		struct ina2xx_platform_data *pdata =
 		    dev_get_platdata(&client->dev);
@@ -1007,7 +1007,7 @@ static int ina2xx_probe(struct i2c_client *client)
 		chip->avg = 1;
 		ina219_set_int_time_vbus(chip, INA219_DEFAULT_IT, &val);
 		ina219_set_int_time_vshunt(chip, INA219_DEFAULT_IT, &val);
-		ina219_set_vbus_range_denom(chip, INA219_DEFAULT_BRNG, &val);
+		ina219_set_vbus_range_deanalm(chip, INA219_DEFAULT_BRNG, &val);
 		ina219_set_vshunt_pga_gain(chip, INA219_DEFAULT_PGA, &val);
 	}
 

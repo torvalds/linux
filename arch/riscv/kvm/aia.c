@@ -57,7 +57,7 @@ static void aia_set_hvictl(bool ext_irq_pending)
 
 	/*
 	 * HVICTL.IID == 9 and HVICTL.IPRIO == 0 represents
-	 * no interrupt in HVICTL.
+	 * anal interrupt in HVICTL.
 	 */
 
 	hvictl = (IRQ_S_EXT << HVICTL_IID_SHIFT) & HVICTL_IID;
@@ -176,7 +176,7 @@ int kvm_riscv_vcpu_aia_get_csr(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
 
 	if (reg_num >= sizeof(struct kvm_riscv_aia_csr) / sizeof(unsigned long))
-		return -ENOENT;
+		return -EANALENT;
 
 	*out_val = 0;
 	if (kvm_riscv_aia_available())
@@ -192,7 +192,7 @@ int kvm_riscv_vcpu_aia_set_csr(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
 
 	if (reg_num >= sizeof(struct kvm_riscv_aia_csr) / sizeof(unsigned long))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (kvm_riscv_aia_available()) {
 		((unsigned long *)csr)[reg_num] = val;
@@ -212,11 +212,11 @@ int kvm_riscv_vcpu_aia_rmw_topei(struct kvm_vcpu *vcpu,
 				 unsigned long new_val,
 				 unsigned long wr_mask)
 {
-	/* If AIA not available then redirect trap */
+	/* If AIA analt available then redirect trap */
 	if (!kvm_riscv_aia_available())
 		return KVM_INSN_ILLEGAL_TRAP;
 
-	/* If AIA not initialized then forward to user space */
+	/* If AIA analt initialized then forward to user space */
 	if (!kvm_riscv_aia_initialized(vcpu->kvm))
 		return KVM_INSN_EXIT_TO_USER_SPACE;
 
@@ -372,7 +372,7 @@ int kvm_riscv_vcpu_aia_rmw_ireg(struct kvm_vcpu *vcpu, unsigned int csr_num,
 {
 	unsigned int isel;
 
-	/* If AIA not available then redirect trap */
+	/* If AIA analt available then redirect trap */
 	if (!kvm_riscv_aia_available())
 		return KVM_INSN_ILLEGAL_TRAP;
 
@@ -392,12 +392,12 @@ int kvm_riscv_vcpu_aia_rmw_ireg(struct kvm_vcpu *vcpu, unsigned int csr_num,
 int kvm_riscv_aia_alloc_hgei(int cpu, struct kvm_vcpu *owner,
 			     void __iomem **hgei_va, phys_addr_t *hgei_pa)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	unsigned long flags;
 	struct aia_hgei_control *hgctrl = per_cpu_ptr(&aia_hgei, cpu);
 
 	if (!kvm_riscv_aia_available() || !hgctrl)
-		return -ENODEV;
+		return -EANALDEV;
 
 	raw_spin_lock_irqsave(&hgctrl->lock, flags);
 
@@ -495,18 +495,18 @@ static int aia_hgei_init(void)
 	}
 
 	/* Find INTC irq domain */
-	domain = irq_find_matching_fwnode(riscv_get_intc_hwnode(),
+	domain = irq_find_matching_fwanalde(riscv_get_intc_hwanalde(),
 					  DOMAIN_BUS_ANY);
 	if (!domain) {
 		kvm_err("unable to find INTC domain\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Map per-CPU SGEI interrupt from INTC domain */
 	hgei_parent_irq = irq_create_mapping(domain, IRQ_S_GEXT);
 	if (!hgei_parent_irq) {
 		kvm_err("unable to map SGEI IRQ\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Request per-CPU SGEI interrupt */
@@ -572,12 +572,12 @@ void kvm_riscv_aia_disable(void)
 			continue;
 
 		/*
-		 * We release hgctrl->lock before notifying IMSIC
+		 * We release hgctrl->lock before analtifying IMSIC
 		 * so that we don't have lock ordering issues.
 		 */
 		raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
 
-		/* Notify IMSIC */
+		/* Analtify IMSIC */
 		kvm_riscv_vcpu_aia_imsic_release(vcpu);
 
 		/*
@@ -602,7 +602,7 @@ int kvm_riscv_aia_init(void)
 	int rc;
 
 	if (!riscv_isa_extension_available(NULL, SxAIA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Figure-out number of bits in HGEIE */
 	csr_write(CSR_HGEIE, -1UL);

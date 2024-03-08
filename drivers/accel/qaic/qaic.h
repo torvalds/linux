@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  *
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _QAIC_H_
@@ -22,19 +22,19 @@
 #define QAIC_DBC_BASE		SZ_128K
 #define QAIC_DBC_SIZE		SZ_4K
 
-#define QAIC_NO_PARTITION	-1
+#define QAIC_ANAL_PARTITION	-1
 
 #define QAIC_DBC_OFF(i)		((i) * QAIC_DBC_SIZE + QAIC_DBC_BASE)
 
 #define to_qaic_bo(obj) container_of(obj, struct qaic_bo, base)
 #define to_qaic_drm_device(dev) container_of(dev, struct qaic_drm_device, drm)
 #define to_drm(qddev) (&(qddev)->drm)
-#define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return Linux device of accel node */
+#define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return Linux device of accel analde */
 
 enum __packed dev_states {
 	/* Device is offline or will be very soon */
 	QAIC_OFFLINE,
-	/* Device is booting, not clear if it's in a usable state */
+	/* Device is booting, analt clear if it's in a usable state */
 	QAIC_BOOT,
 	/* Device is fully operational */
 	QAIC_ONLINE,
@@ -48,8 +48,8 @@ struct qaic_user {
 	struct kref		ref_count;
 	/* Char device opened by this user */
 	struct qaic_drm_device	*qddev;
-	/* Node in list of users that opened this drm device */
-	struct list_head	node;
+	/* Analde in list of users that opened this drm device */
+	struct list_head	analde;
 	/* SRCU used to synchronize this user during cleanup */
 	struct srcu_struct	qddev_lock;
 	atomic_t		chunk_id;
@@ -83,14 +83,14 @@ struct dma_bridge_chan {
 	 * this requests that belong to same memory handle have same request ID
 	 */
 	u16			next_req_id;
-	/* true: DBC is in use; false: DBC not in use */
+	/* true: DBC is in use; false: DBC analt in use */
 	bool			in_use;
 	/*
 	 * Base address of device registers. Used to read/write request and
 	 * response queue's head and tail pointer of this DBC.
 	 */
 	void __iomem		*dbc_base;
-	/* Head of list where each node is a memory handle queued in request queue */
+	/* Head of list where each analde is a memory handle queued in request queue */
 	struct list_head	xfer_list;
 	/* Synchronizes DBC readers during cleanup */
 	struct srcu_struct	ch_lock;
@@ -99,7 +99,7 @@ struct dma_bridge_chan {
 	 * woken up
 	 */
 	wait_queue_head_t	dbc_release;
-	/* Head of list where each node is a bo associated with this DBC */
+	/* Head of list where each analde is a bo associated with this DBC */
 	struct list_head	bo_lists;
 	/* The irq line for this DBC. Used for polling */
 	unsigned int		irq;
@@ -137,7 +137,7 @@ struct qaic_device {
 	/*
 	 * true: A tx MHI transaction has failed and a rx buffer is still queued
 	 * in control device. Such a buffer is considered lost rx buffer
-	 * false: No rx buffer is lost in control device
+	 * false: Anal rx buffer is lost in control device
 	 */
 	bool			cntl_lost_buf;
 	/* Maximum number of DBC supported by this device */
@@ -162,7 +162,7 @@ struct qaic_drm_device {
 	/*
 	 * The physical device can be partition in number of logical devices.
 	 * And each logical device is given a partition id. This member stores
-	 * that id. QAIC_NO_PARTITION is a sentinel used to mark that this drm
+	 * that id. QAIC_ANAL_PARTITION is a sentinel used to mark that this drm
 	 * device is the actual physical device
 	 */
 	s32			partition_id;
@@ -191,7 +191,7 @@ struct qaic_bo {
 	u32			nr_slice;
 	/* Number of slice that have been transferred by DMA engine */
 	u32			nr_slice_xfer_done;
-	/* true = BO is queued for execution, true = BO is not queued */
+	/* true = BO is queued for execution, true = BO is analt queued */
 	bool			queued;
 	/*
 	 * If true then user has attached slicing information to this BO by
@@ -205,12 +205,12 @@ struct qaic_bo {
 	/* Wait on this for completion of DMA transfer of this BO */
 	struct completion	xfer_done;
 	/*
-	 * Node in linked list where head is dbc->xfer_list.
+	 * Analde in linked list where head is dbc->xfer_list.
 	 * This link list contain BO's that are queued for DMA transfer.
 	 */
 	struct list_head	xfer_list;
 	/*
-	 * Node in linked list where head is dbc->bo_lists.
+	 * Analde in linked list where head is dbc->bo_lists.
 	 * This link list contain BO's that are associated with the DBC it is
 	 * linked to.
 	 */
@@ -251,11 +251,11 @@ struct bo_slice {
 	/* Actual requests that will be copied in DMA queue */
 	struct dbc_req		*reqs;
 	struct kref		ref_count;
-	/* true: No DMA transfer required */
-	bool			no_xfer;
+	/* true: Anal DMA transfer required */
+	bool			anal_xfer;
 	/* Pointer to the parent BO handle */
 	struct qaic_bo		*bo;
-	/* Node in list of slices maintained by parent BO */
+	/* Analde in list of slices maintained by parent BO */
 	struct list_head	slice;
 	/* Size of this slice in bytes */
 	u64			size;
@@ -265,7 +265,7 @@ struct bo_slice {
 
 int get_dbc_req_elem_size(void);
 int get_dbc_rsp_elem_size(void);
-int get_cntl_version(struct qaic_device *qdev, struct qaic_user *usr, u16 *major, u16 *minor);
+int get_cntl_version(struct qaic_device *qdev, struct qaic_user *usr, u16 *major, u16 *mianalr);
 int qaic_manage_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 void qaic_mhi_ul_xfer_cb(struct mhi_device *mhi_dev, struct mhi_result *mhi_result);
 

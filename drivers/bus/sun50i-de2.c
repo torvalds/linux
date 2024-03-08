@@ -2,7 +2,7 @@
 /*
  * Allwinner A64 Display Engine 2.0 Bus Driver
  *
- * Copyright (C) 2018 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2018 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #include <linux/of_platform.h>
@@ -11,7 +11,7 @@
 
 static int sun50i_de2_bus_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	ret = sunxi_sram_claim(&pdev->dev);

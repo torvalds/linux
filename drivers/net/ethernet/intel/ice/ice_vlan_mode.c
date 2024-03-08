@@ -16,14 +16,14 @@ ice_pkg_get_supported_vlan_mode(struct ice_hw *hw, bool *dvm)
 	struct ice_buf_build *bld;
 	int status;
 
-	/* if anything fails, we assume there is no DVM support */
+	/* if anything fails, we assume there is anal DVM support */
 	*dvm = false;
 
 	bld = ice_pkg_buf_alloc_single_section(hw,
 					       ICE_SID_RXPARSER_METADATA_INIT,
 					       meta_init_size, (void **)&sect);
 	if (!bld)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* only need to read a single section */
 	sect->count = cpu_to_le16(1);
@@ -106,8 +106,8 @@ static bool ice_aq_is_dvm_ena(struct ice_hw *hw)
  * @hw: pointer to the HW structure
  *
  * The device is configured in single or double VLAN mode on initialization and
- * this cannot be dynamically changed during runtime. Based on this there is no
- * need to make an AQ call every time the driver needs to know the VLAN mode.
+ * this cananalt be dynamically changed during runtime. Based on this there is anal
+ * need to make an AQ call every time the driver needs to kanalw the VLAN mode.
  * Instead, use the cached VLAN mode.
  */
 bool ice_is_dvm_ena(struct ice_hw *hw)
@@ -206,7 +206,7 @@ static struct ice_update_recipe_lkup_idx_params ice_dvm_dflt_recipes[] = {
 		 */
 		.rid = ICE_SW_LKUP_VLAN,
 		.fv_idx = ICE_EXTERNAL_VLAN_ID_FV_IDX,
-		.ignore_valid = true,
+		.iganalre_valid = true,
 		.mask = 0,
 		.mask_valid = false, /* use pre-existing mask */
 		.lkup_idx = ICE_SW_LKUP_VLAN_LOC_LKUP_IDX,
@@ -218,7 +218,7 @@ static struct ice_update_recipe_lkup_idx_params ice_dvm_dflt_recipes[] = {
 		 */
 		.rid = ICE_SW_LKUP_VLAN,
 		.fv_idx = ICE_PKT_FLAGS_0_TO_15_FV_IDX,
-		.ignore_valid = false,
+		.iganalre_valid = false,
 		.mask = ICE_PKT_VLAN_MASK,
 		.mask_valid = true,
 		.lkup_idx = ICE_SW_LKUP_VLAN_PKT_FLAGS_LKUP_IDX,
@@ -229,7 +229,7 @@ static struct ice_update_recipe_lkup_idx_params ice_dvm_dflt_recipes[] = {
 		 */
 		.rid = ICE_SW_LKUP_PROMISC_VLAN,
 		.fv_idx = ICE_EXTERNAL_VLAN_ID_FV_IDX,
-		.ignore_valid = true,
+		.iganalre_valid = true,
 		.mask = 0,
 		.mask_valid = false,  /* use pre-existing mask */
 		.lkup_idx = ICE_SW_LKUP_PROMISC_VLAN_LOC_LKUP_IDX,
@@ -363,7 +363,7 @@ static int ice_set_svm(struct ice_hw *hw)
 	set_params = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*set_params),
 				  GFP_KERNEL);
 	if (!set_params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* default configuration for SVM configurations */
 	set_params->l2tag_prio_tagging = ICE_AQ_VLAN_PRIO_TAG_INNER_CTAG;
@@ -394,24 +394,24 @@ int ice_set_vlan_mode(struct ice_hw *hw)
 }
 
 /**
- * ice_print_dvm_not_supported - print if DDP and/or FW doesn't support DVM
+ * ice_print_dvm_analt_supported - print if DDP and/or FW doesn't support DVM
  * @hw: pointer to the HW structure
  *
- * The purpose of this function is to print that  QinQ is not supported due to
+ * The purpose of this function is to print that  QinQ is analt supported due to
  * incompatibilty from the DDP and/or FW. This will give a hint to the user to
  * update one and/or both components if they expect QinQ functionality.
  */
-static void ice_print_dvm_not_supported(struct ice_hw *hw)
+static void ice_print_dvm_analt_supported(struct ice_hw *hw)
 {
 	bool pkg_supports_dvm = ice_pkg_supports_dvm(hw);
 	bool fw_supports_dvm = ice_fw_supports_dvm(hw);
 
 	if (!fw_supports_dvm && !pkg_supports_dvm)
-		dev_info(ice_hw_to_dev(hw), "QinQ functionality cannot be enabled on this device. Update your DDP package and NVM to versions that support QinQ.\n");
+		dev_info(ice_hw_to_dev(hw), "QinQ functionality cananalt be enabled on this device. Update your DDP package and NVM to versions that support QinQ.\n");
 	else if (!pkg_supports_dvm)
-		dev_info(ice_hw_to_dev(hw), "QinQ functionality cannot be enabled on this device. Update your DDP package to a version that supports QinQ.\n");
+		dev_info(ice_hw_to_dev(hw), "QinQ functionality cananalt be enabled on this device. Update your DDP package to a version that supports QinQ.\n");
 	else if (!fw_supports_dvm)
-		dev_info(ice_hw_to_dev(hw), "QinQ functionality cannot be enabled on this device. Update your NVM to a version that supports QinQ.\n");
+		dev_info(ice_hw_to_dev(hw), "QinQ functionality cananalt be enabled on this device. Update your NVM to a version that supports QinQ.\n");
 }
 
 /**
@@ -434,5 +434,5 @@ void ice_post_pkg_dwnld_vlan_mode_cfg(struct ice_hw *hw)
 	if (ice_is_dvm_ena(hw))
 		ice_change_proto_id_to_dvm();
 	else
-		ice_print_dvm_not_supported(hw);
+		ice_print_dvm_analt_supported(hw);
 }

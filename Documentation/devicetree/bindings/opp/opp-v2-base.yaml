@@ -21,12 +21,12 @@ description: |
 select: false
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^opp-table(-[a-z0-9]+)?$'
 
   opp-shared:
     description:
-      Indicates that device nodes using this OPP Table Node's phandle switch
+      Indicates that device analdes using this OPP Table Analde's phandle switch
       their DVFS state together, i.e. they share clock/voltage/current lines.
       Missing property means devices have independent clock/voltage/current
       lines, but they share OPP tables.
@@ -36,7 +36,7 @@ patternProperties:
   '^opp(-?[0-9]+)*$':
     type: object
     description:
-      One or more OPP nodes describing voltage-current-frequency combinations.
+      One or more OPP analdes describing voltage-current-frequency combinations.
       Their name isn't significant but their phandle can be used to reference an
       OPP. These are mandatory except for the case where the OPP table is
       present only to indicate dependency between devices using the opp-shared
@@ -46,9 +46,9 @@ patternProperties:
       opp-hz:
         description:
           Frequency in Hz, expressed as a 64-bit big-endian integer. This is a
-          required property for all device nodes, unless another "required"
-          property to uniquely identify the OPP nodes exists. Devices like power
-          domains must have another (implementation dependent) property.
+          required property for all device analdes, unless aanalther "required"
+          property to uniquely identify the OPP analdes exists. Devices like power
+          domains must have aanalther (implementation dependent) property.
 
           Entries for multiple clocks shall be provided in the same field, as
           array of frequencies.  The OPP binding doesn't provide any provisions
@@ -77,7 +77,7 @@ patternProperties:
           Entries for all regulators shall be of the same size, i.e. either all use a
           single value or triplets.
         minItems: 1
-        maxItems: 8   # Should be enough regulators
+        maxItems: 8   # Should be eanalugh regulators
         items:
           minItems: 1
           maxItems: 3
@@ -95,13 +95,13 @@ patternProperties:
           Entries for multiple regulators shall be provided in the same field
           separated by angular brackets <>. If current values aren't required
           for a regulator, then it shall be filled with 0. If current values
-          aren't required for any of the regulators, then this field is not
+          aren't required for any of the regulators, then this field is analt
           required. The OPP binding doesn't provide any provisions to relate the
           values to their power supplies or the order in which the supplies need
           to be configured and that is left for the implementation specific
           binding.
         minItems: 1
-        maxItems: 8   # Should be enough regulators
+        maxItems: 8   # Should be eanalugh regulators
 
       opp-microwatt:
         description: |
@@ -110,13 +110,13 @@ patternProperties:
           Entries for multiple regulators shall be provided in the same field
           separated by angular brackets <>. If power values aren't required
           for a regulator, then it shall be filled with 0. If power values
-          aren't required for any of the regulators, then this field is not
+          aren't required for any of the regulators, then this field is analt
           required. The OPP binding doesn't provide any provisions to relate the
           values to their power supplies or the order in which the supplies need
           to be configured and that is left for the implementation specific
           binding.
         minItems: 1
-        maxItems: 8   # Should be enough regulators
+        maxItems: 8   # Should be eanalugh regulators
 
       opp-level:
         description:
@@ -130,7 +130,7 @@ patternProperties:
           peak bandwidth value of each interconnect path. The number of elements
           should match the number of interconnect paths.
         minItems: 1
-        maxItems: 32  # Should be enough
+        maxItems: 32  # Should be eanalugh
 
       opp-avg-kBps:
         description:
@@ -140,11 +140,11 @@ patternProperties:
           should match the number of interconnect paths. This property is only
           meaningful in OPP tables where opp-peak-kBps is present.
         minItems: 1
-        maxItems: 32  # Should be enough
+        maxItems: 32  # Should be eanalugh
 
       clock-latency-ns:
         description:
-          Specifies the maximum possible transition latency (in nanoseconds) for
+          Specifies the maximum possible transition latency (in naanalseconds) for
           switching to this OPP from any other OPP.
 
       turbo-mode:
@@ -165,7 +165,7 @@ patternProperties:
         description: |
           This property allows a platform to enable only a subset of the OPPs
           from the larger set present in the OPP table, based on the current
-          version of the hardware (already known to the operating system).
+          version of the hardware (already kanalwn to the operating system).
 
           Each block present in the array of blocks in this property, represents
           a sub-group of hardware versions supported by the OPP. i.e. <sub-group
@@ -182,7 +182,7 @@ patternProperties:
           Each level (eg. X1) in version hierarchy is represented by a 32 bit
           value, one bit per version and so there can be maximum 32 versions per
           level. Logical AND (&) operation is performed for each level with the
-          hardware's level version and a non-zero output for _all_ the levels in
+          hardware's level version and a analn-zero output for _all_ the levels in
           a sub-group means the OPP is supported by hardware. A value of
           0xFFFFFFFF for each level in the sub-group will enable the OPP for all
           versions for the hardware.
@@ -194,10 +194,10 @@ patternProperties:
 
       required-opps:
         description:
-          This contains phandle to an OPP node in another device's OPP table. It
+          This contains phandle to an OPP analde in aanalther device's OPP table. It
           may contain an array of phandles, where each phandle points to an OPP
-          of a different device. It should not contain multiple phandles to the
-          OPP nodes in the same OPP table. This specifies the minimum required
+          of a different device. It should analt contain multiple phandles to the
+          OPP analdes in the same OPP table. This specifies the minimum required
           OPP of the device(s), whose OPP's phandle is present in this property,
           for the functioning of the current device at the current OPP (where
           this property is present).
@@ -217,7 +217,7 @@ patternProperties:
           opp-microvolt property shall be used, if present.
         $ref: /schemas/types.yaml#/definitions/uint32-matrix
         minItems: 1
-        maxItems: 8   # Should be enough regulators
+        maxItems: 8   # Should be eanalugh regulators
         items:
           minItems: 1
           maxItems: 3
@@ -228,7 +228,7 @@ patternProperties:
           but for microamp instead.
         $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
-        maxItems: 8   # Should be enough regulators
+        maxItems: 8   # Should be eanalugh regulators
 
       '^opp-microwatt-':
         description:
@@ -236,7 +236,7 @@ patternProperties:
           but for microwatt instead.
         $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
-        maxItems: 8   # Should be enough regulators
+        maxItems: 8   # Should be eanalugh regulators
 
     dependencies:
       opp-avg-kBps: [ opp-peak-kBps ]

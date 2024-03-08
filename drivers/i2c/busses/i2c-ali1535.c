@@ -32,11 +32,11 @@
 
     This driver controls the SMB Host only.
 
-    This driver does not use interrupts.
+    This driver does analt use interrupts.
 */
 
 
-/* Note: we assume there can only be one ALI1535, with one SMBus interface */
+/* Analte: we assume there can only be one ALI1535, with one SMBus interface */
 
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -122,7 +122,7 @@ static unsigned long ali1535_smba;
 static unsigned short ali1535_offset;
 
 /* Detect whether a ALI1535 can be found, and initialize it, where necessary.
-   Note the differences between kernels with the old PCI BIOS interface and
+   Analte the differences between kernels with the old PCI BIOS interface and
    newer kernels with the real PCI interface. In compat.h some things are
    defined to make the transition easier. */
 static int ali1535_setup(struct pci_dev *dev)
@@ -149,7 +149,7 @@ static int ali1535_setup(struct pci_dev *dev)
 	if (ali1535_offset == 0) {
 		dev_warn(&dev->dev,
 			"ALI1535_smb region uninitialized - upgrade BIOS?\n");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 
@@ -174,16 +174,16 @@ static int ali1535_setup(struct pci_dev *dev)
 	/* check if whole device is enabled */
 	pci_read_config_byte(dev, SMBCFG, &temp);
 	if ((temp & ALI1535_SMBIO_EN) == 0) {
-		dev_err(&dev->dev, "SMB device not enabled - upgrade BIOS?\n");
-		retval = -ENODEV;
+		dev_err(&dev->dev, "SMB device analt enabled - upgrade BIOS?\n");
+		retval = -EANALDEV;
 		goto exit_free;
 	}
 
 	/* Is SMB Host controller enabled? */
 	pci_read_config_byte(dev, SMBHSTCFG, &temp);
 	if ((temp & 1) == 0) {
-		dev_err(&dev->dev, "SMBus controller not enabled - upgrade BIOS?\n");
-		retval = -ENODEV;
+		dev_err(&dev->dev, "SMBus controller analt enabled - upgrade BIOS?\n");
+		retval = -EANALDEV;
 		goto exit_free;
 	}
 
@@ -192,7 +192,7 @@ static int ali1535_setup(struct pci_dev *dev)
 
 	/*
 	  The interrupt routing for SMB is set up in register 0x77 in the
-	  1533 ISA Bridge device, NOT in the 7101 device.
+	  1533 ISA Bridge device, ANALT in the 7101 device.
 	  Don't bother with finding the 1533 device and reading the register.
 	if ((....... & 0x0F) == 1)
 		dev_dbg(&dev->dev, "ALI1535 using Interrupt 9 for SMBus.\n");
@@ -237,11 +237,11 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 		 *      external device is hung, but it comes back upon a new
 		 *      access to a device)
 		 *   3. Disable and reenable the controller in SMBHSTCFG. Worst
-		 *      case, nothing seems to work except power reset.
+		 *      case, analthing seems to work except power reset.
 		 */
 
 		/* Try resetting entire SMB bus, including other devices - This
-		 * may not work either - it clears the BUSY bit but then the
+		 * may analt work either - it clears the BUSY bit but then the
 		 * BUSY bit may come back on when you try and use the chip
 		 * again.  If that's the case you are stuck.
 		 */
@@ -252,14 +252,14 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 		temp = inb_p(SMBHSTSTS);
 	}
 
-	/* now check the error bits and the busy bit */
+	/* analw check the error bits and the busy bit */
 	if (temp & (ALI1535_STS_ERR | ALI1535_STS_BUSY)) {
 		/* do a clear-on-write */
 		outb_p(0xFF, SMBHSTSTS);
 		temp = inb_p(SMBHSTSTS);
 		if (temp & (ALI1535_STS_ERR | ALI1535_STS_BUSY)) {
 			/* This is probably going to be correctable only by a
-			 * power reset as one of the bits now appears to be
+			 * power reset as one of the bits analw appears to be
 			 * stuck */
 			/* This may be a bus or device with electrical problems. */
 			dev_err(&adap->dev,
@@ -295,14 +295,14 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 		dev_dbg(&adap->dev, "Error: Failed bus transaction\n");
 	}
 
-	/* Unfortunately the ALI SMB controller maps "no response" and "bus
-	 * collision" into a single bit. No response is the usual case so don't
+	/* Unfortunately the ALI SMB controller maps "anal response" and "bus
+	 * collision" into a single bit. Anal response is the usual case so don't
 	 * do a printk.  This means that bus collisions go unreported.
 	 */
 	if (temp & ALI1535_STS_BUSERR) {
 		result = -ENXIO;
 		dev_dbg(&adap->dev,
-			"Error: no response or bus collision ADD=%02x\n",
+			"Error: anal response or bus collision ADD=%02x\n",
 			inb_p(SMBHSTADD));
 	}
 
@@ -337,7 +337,7 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 ali1535_access(struct i2c_adapter *adap, u16 addr,
 			  unsigned short flags, char read_write, u8 command,
 			  int size, union i2c_smbus_data *data)
@@ -421,7 +421,7 @@ static s32 ali1535_access(struct i2c_adapter *adap, u16 addr,
 		break;
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		result = -EOPNOTSUPP;
+		result = -EOPANALTSUPP;
 		goto EXIT;
 	}
 
@@ -492,8 +492,8 @@ static int ali1535_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	if (ali1535_setup(dev)) {
 		dev_warn(&dev->dev,
-			"ALI1535 not detected, module not inserted.\n");
-		return -ENODEV;
+			"ALI1535 analt detected, module analt inserted.\n");
+		return -EANALDEV;
 	}
 
 	/* set up the sysfs linkage to our parent device */
@@ -510,7 +510,7 @@ static void ali1535_remove(struct pci_dev *dev)
 	release_region(ali1535_smba, ALI1535_SMB_IOSIZE);
 
 	/*
-	 * do not call pci_disable_device(dev) since it can cause hard hangs on
+	 * do analt call pci_disable_device(dev) since it can cause hard hangs on
 	 * some systems during power-off
 	 */
 }

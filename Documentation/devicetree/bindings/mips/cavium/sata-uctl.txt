@@ -21,7 +21,7 @@ Properties:
 - reg: The base address of the UCTL register bank.
 
 - #address-cells, #size-cells, ranges and dma-ranges must be present and hold
-	suitable values to map all child nodes.
+	suitable values to map all child analdes.
 
 Example:
 

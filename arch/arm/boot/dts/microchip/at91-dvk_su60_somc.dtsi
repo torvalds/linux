@@ -45,7 +45,7 @@
 
 	/* spi0.0: 4M Flash Macronix MX25R4035FM1IL0 */
 	flash@0 {
-		compatible = "mxicy,mx25u4035", "jedec,spi-nor";
+		compatible = "mxicy,mx25u4035", "jedec,spi-analr";
 		spi-max-frequency = <33000000>;
 		reg = <0>;
 	};

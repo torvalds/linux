@@ -65,7 +65,7 @@ int BPF_PROG(task_kfunc_acquire_fp, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("kretprobe/free_task")
-__failure __msg("calling kernel function bpf_task_acquire is not allowed")
+__failure __msg("calling kernel function bpf_task_acquire is analt allowed")
 int BPF_PROG(task_kfunc_acquire_unsafe_kretprobe, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -80,7 +80,7 @@ int BPF_PROG(task_kfunc_acquire_unsafe_kretprobe, struct task_struct *task, u64 
 }
 
 SEC("kretprobe/free_task")
-__failure __msg("calling kernel function bpf_task_acquire is not allowed")
+__failure __msg("calling kernel function bpf_task_acquire is analt allowed")
 int BPF_PROG(task_kfunc_acquire_unsafe_kretprobe_rcu, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -150,7 +150,7 @@ int BPF_PROG(task_kfunc_xchg_unreleased, struct task_struct *task, u64 clone_fla
 
 SEC("tp_btf/task_newtask")
 __failure __msg("Possibly NULL pointer passed to trusted arg0")
-int BPF_PROG(task_kfunc_acquire_release_no_null_check, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(task_kfunc_acquire_release_anal_null_check, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
 
@@ -183,7 +183,7 @@ int BPF_PROG(task_kfunc_release_fp, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired = (struct task_struct *)&clone_flags;
 
-	/* Cannot release random frame pointer. */
+	/* Cananalt release random frame pointer. */
 	bpf_task_release(acquired);
 
 	return 0;
@@ -203,13 +203,13 @@ int BPF_PROG(task_kfunc_release_null, struct task_struct *task, u64 clone_flags)
 		return 0;
 
 	local.task = NULL;
-	status = bpf_map_update_elem(&__tasks_kfunc_map, &pid, &local, BPF_NOEXIST);
+	status = bpf_map_update_elem(&__tasks_kfunc_map, &pid, &local, BPF_ANALEXIST);
 	if (status)
 		return status;
 
 	v = bpf_map_lookup_elem(&__tasks_kfunc_map, &pid);
 	if (!v)
-		return -ENOENT;
+		return -EANALENT;
 
 	acquired = bpf_task_acquire(task);
 	if (!acquired)
@@ -217,7 +217,7 @@ int BPF_PROG(task_kfunc_release_null, struct task_struct *task, u64 clone_flags)
 
 	old = bpf_kptr_xchg(&v->task, acquired);
 
-	/* old cannot be passed to bpf_task_release() without a NULL check. */
+	/* old cananalt be passed to bpf_task_release() without a NULL check. */
 	bpf_task_release(old);
 
 	return 0;
@@ -227,7 +227,7 @@ SEC("tp_btf/task_newtask")
 __failure __msg("release kernel function bpf_task_release expects")
 int BPF_PROG(task_kfunc_release_unacquired, struct task_struct *task, u64 clone_flags)
 {
-	/* Cannot release trusted task pointer which was not acquired. */
+	/* Cananalt release trusted task pointer which was analt acquired. */
 	bpf_task_release(task);
 
 	return 0;
@@ -235,7 +235,7 @@ int BPF_PROG(task_kfunc_release_unacquired, struct task_struct *task, u64 clone_
 
 SEC("tp_btf/task_newtask")
 __failure __msg("Possibly NULL pointer passed to trusted arg0")
-int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(task_kfunc_from_pid_anal_null_check, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
 
@@ -291,8 +291,8 @@ __failure __msg("R1 type=ptr_ expected")
 int BPF_PROG(task_access_comm4, struct task_struct *task, const char *buf, bool exec)
 {
 	/*
-	 * task->comm is a legacy ptr_to_btf_id. The verifier cannot guarantee
-	 * its safety. Hence it cannot be accessed with normal load insns.
+	 * task->comm is a legacy ptr_to_btf_id. The verifier cananalt guarantee
+	 * its safety. Hence it cananalt be accessed with analrmal load insns.
 	 */
 	bpf_strncmp(task->comm, 16, "foo");
 	return 0;

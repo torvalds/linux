@@ -40,7 +40,7 @@
 #include <linux/zalloc.h>
 #include <linux/hash.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <inttypes.h>
 
@@ -51,16 +51,16 @@ struct guest_event {
 };
 
 struct guest_id {
-	/* hlist_node must be first, see free_hlist() */
-	struct hlist_node		node;
+	/* hlist_analde must be first, see free_hlist() */
+	struct hlist_analde		analde;
 	u64				id;
 	u64				host_id;
 	u32				vcpu;
 };
 
 struct guest_tid {
-	/* hlist_node must be first, see free_hlist() */
-	struct hlist_node		node;
+	/* hlist_analde must be first, see free_hlist() */
+	struct hlist_analde		analde;
 	/* Thread ID of QEMU thread */
 	u32				tid;
 	u32				vcpu;
@@ -125,11 +125,11 @@ struct perf_inject {
 	char			*event_copy;
 	struct perf_file_section secs[HEADER_FEAT_BITS];
 	struct guest_session	guest_session;
-	struct strlist		*known_build_ids;
+	struct strlist		*kanalwn_build_ids;
 };
 
 struct event_entry {
-	struct list_head node;
+	struct list_head analde;
 	u32		 tid;
 	union perf_event event[];
 };
@@ -143,7 +143,7 @@ static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 
 	size = perf_data__write(&inject->output, buf, sz);
 	if (size < 0)
-		return -errno;
+		return -erranal;
 
 	inject->bytes_written += size;
 	return 0;
@@ -224,7 +224,7 @@ static int copy_bytes(struct perf_inject *inject, struct perf_data *data, off_t 
 	while (size > 0) {
 		ssz = perf_data__read(data, buf, min(size, (off_t)sizeof(buf)));
 		if (ssz < 0)
-			return -errno;
+			return -erranal;
 		ret = output_bytes(inject, buf, ssz);
 		if (ret)
 			return ret;
@@ -249,7 +249,7 @@ static s64 perf_event__repipe_auxtrace(struct perf_session *session,
 
 		offset = lseek(inject->output.file.fd, 0, SEEK_CUR);
 		if (offset == -1)
-			return -errno;
+			return -erranal;
 		ret = auxtrace_index__auxtrace_event(&session->auxtrace_index,
 						     event, offset);
 		if (ret < 0)
@@ -278,7 +278,7 @@ static s64
 perf_event__repipe_auxtrace(struct perf_session *session __maybe_unused,
 			    union perf_event *event __maybe_unused)
 {
-	pr_err("AUX area tracing not supported\n");
+	pr_err("AUX area tracing analt supported\n");
 	return -EINVAL;
 }
 
@@ -325,7 +325,7 @@ perf_inject__cut_auxtrace_sample(struct perf_inject *inject,
 	if (inject->event_copy == NULL) {
 		inject->event_copy = malloc(PERF_SAMPLE_MAX_SIZE);
 		if (!inject->event_copy)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 	ev = (union perf_event *)inject->event_copy;
 	if (sz1 > event->header.size || sz2 > event->header.size ||
@@ -421,7 +421,7 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
 
 	thread = machine__findnew_thread(machine, pid, tid);
 	if (thread == NULL) {
-		pr_err("cannot find or create a task %d/%d.\n", tid, pid);
+		pr_err("cananalt find or create a task %d/%d.\n", tid, pid);
 		return NULL;
 	}
 
@@ -429,7 +429,7 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
 	nsi = nsinfo__get(thread__nsinfo(thread));
 
 	if (vdso) {
-		/* The vdso maps are always on the host and not the
+		/* The vdso maps are always on the host and analt the
 		 * container.  Ensure that we don't use setns to look
 		 * them up.
 		 */
@@ -491,7 +491,7 @@ static int perf_event__repipe_mmap2(struct perf_tool *tool,
 		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
 				  event->mmap2.filename, NULL, machine);
 		if (dso) {
-			/* mark it not to inject build-id */
+			/* mark it analt to inject build-id */
 			dso->hit = 1;
 		}
 		dso__put(dso);
@@ -533,17 +533,17 @@ static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
 	struct dso_id dso_id = {
 		.maj = event->mmap2.maj,
 		.min = event->mmap2.min,
-		.ino = event->mmap2.ino,
-		.ino_generation = event->mmap2.ino_generation,
+		.ianal = event->mmap2.ianal,
+		.ianal_generation = event->mmap2.ianal_generation,
 	};
 	struct dso *dso;
 
 	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
-		/* cannot use dso_id since it'd have invalid info */
+		/* cananalt use dso_id since it'd have invalid info */
 		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
 				  event->mmap2.filename, NULL, machine);
 		if (dso) {
-			/* mark it not to inject build-id */
+			/* mark it analt to inject build-id */
 			dso->hit = 1;
 		}
 		dso__put(dso);
@@ -651,49 +651,49 @@ static int dso__read_build_id(struct dso *dso)
 	return dso->has_build_id ? 0 : -1;
 }
 
-static struct strlist *perf_inject__parse_known_build_ids(
-	const char *known_build_ids_string)
+static struct strlist *perf_inject__parse_kanalwn_build_ids(
+	const char *kanalwn_build_ids_string)
 {
-	struct str_node *pos, *tmp;
-	struct strlist *known_build_ids;
+	struct str_analde *pos, *tmp;
+	struct strlist *kanalwn_build_ids;
 	int bid_len;
 
-	known_build_ids = strlist__new(known_build_ids_string, NULL);
-	if (known_build_ids == NULL)
+	kanalwn_build_ids = strlist__new(kanalwn_build_ids_string, NULL);
+	if (kanalwn_build_ids == NULL)
 		return NULL;
-	strlist__for_each_entry_safe(pos, tmp, known_build_ids) {
+	strlist__for_each_entry_safe(pos, tmp, kanalwn_build_ids) {
 		const char *build_id, *dso_name;
 
 		build_id = skip_spaces(pos->s);
 		dso_name = strchr(build_id, ' ');
 		if (dso_name == NULL) {
-			strlist__remove(known_build_ids, pos);
+			strlist__remove(kanalwn_build_ids, pos);
 			continue;
 		}
 		bid_len = dso_name - pos->s;
 		dso_name = skip_spaces(dso_name);
 		if (bid_len % 2 != 0 || bid_len >= SBUILD_ID_SIZE) {
-			strlist__remove(known_build_ids, pos);
+			strlist__remove(kanalwn_build_ids, pos);
 			continue;
 		}
 		for (int ix = 0; 2 * ix + 1 < bid_len; ++ix) {
 			if (!isxdigit(build_id[2 * ix]) ||
 			    !isxdigit(build_id[2 * ix + 1])) {
-				strlist__remove(known_build_ids, pos);
+				strlist__remove(kanalwn_build_ids, pos);
 				break;
 			}
 		}
 	}
-	return known_build_ids;
+	return kanalwn_build_ids;
 }
 
-static bool perf_inject__lookup_known_build_id(struct perf_inject *inject,
+static bool perf_inject__lookup_kanalwn_build_id(struct perf_inject *inject,
 					       struct dso *dso)
 {
-	struct str_node *pos;
+	struct str_analde *pos;
 	int bid_len;
 
-	strlist__for_each_entry(pos, inject->known_build_ids) {
+	strlist__for_each_entry(pos, inject->kanalwn_build_ids) {
 		const char *build_id, *dso_name;
 
 		build_id = skip_spaces(pos->s);
@@ -720,17 +720,17 @@ static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 						  tool);
 	int err;
 
-	if (is_anon_memory(dso->long_name) || flags & MAP_HUGETLB)
+	if (is_aanaln_memory(dso->long_name) || flags & MAP_HUGETLB)
 		return 0;
-	if (is_no_dso_memory(dso->long_name))
+	if (is_anal_dso_memory(dso->long_name))
 		return 0;
 
-	if (inject->known_build_ids != NULL &&
-	    perf_inject__lookup_known_build_id(inject, dso))
+	if (inject->kanalwn_build_ids != NULL &&
+	    perf_inject__lookup_kanalwn_build_id(inject, dso))
 		return 1;
 
 	if (dso__read_build_id(dso) < 0) {
-		pr_debug("no build_id found for %s\n", dso->long_name);
+		pr_debug("anal build_id found for %s\n", dso->long_name);
 		return -1;
 	}
 
@@ -786,9 +786,9 @@ static int perf_inject__sched_process_exit(struct perf_tool *tool,
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	struct event_entry *ent;
 
-	list_for_each_entry(ent, &inject->samples, node) {
+	list_for_each_entry(ent, &inject->samples, analde) {
 		if (sample->tid == ent->tid) {
-			list_del_init(&ent->node);
+			list_del_init(&ent->analde);
 			free(ent);
 			break;
 		}
@@ -811,13 +811,13 @@ static int perf_inject__sched_switch(struct perf_tool *tool,
 	ent = malloc(event->header.size + sizeof(struct event_entry));
 	if (ent == NULL) {
 		color_fprintf(stderr, PERF_COLOR_RED,
-			     "Not enough memory to process sched switch event!");
+			     "Analt eanalugh memory to process sched switch event!");
 		return -1;
 	}
 
 	ent->tid = sample->tid;
 	memcpy(&ent->event, event, event->header.size);
-	list_add(&ent->node, &inject->samples);
+	list_add(&ent->analde, &inject->samples);
 	return 0;
 }
 
@@ -834,7 +834,7 @@ static int perf_inject__sched_stat(struct perf_tool *tool,
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	u32 pid = evsel__intval(evsel, sample, "pid");
 
-	list_for_each_entry(ent, &inject->samples, node) {
+	list_for_each_entry(ent, &inject->samples, analde) {
 		if (pid == ent->tid)
 			goto found;
 	}
@@ -883,12 +883,12 @@ static int guest_session__map_tid(struct guest_session *gs, u32 tid, u32 vcpu)
 	int hash;
 
 	if (!guest_tid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	guest_tid->tid = tid;
 	guest_tid->vcpu = vcpu;
 	hash = hash_32(guest_tid->tid, PERF_EVLIST__HLIST_BITS);
-	hlist_add_head(&guest_tid->node, &gs->tids[hash]);
+	hlist_add_head(&guest_tid->analde, &gs->tids[hash]);
 
 	return 0;
 }
@@ -908,7 +908,7 @@ static int host_peek_vm_comms_cb(struct perf_session *session __maybe_unused,
 
 	/*
 	 * QEMU option -name debug-threads=on, causes thread names formatted as
-	 * below, although it is not an ABI. Also libvirt seems to use this by
+	 * below, although it is analt an ABI. Also libvirt seems to use this by
 	 * default. Here we rely on it to tell us which thread is which VCPU.
 	 */
 	ret = sscanf(event->comm.comm, "CPU %u/KVM", &vcpu);
@@ -922,7 +922,7 @@ static int host_peek_vm_comms_cb(struct perf_session *session __maybe_unused,
 	}
 	guest_vcpu = guest_session__vcpu(gs, vcpu);
 	if (!guest_vcpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (guest_vcpu->tid && guest_vcpu->tid != event->comm.tid) {
 		pr_err("Fatal error: Two threads found with the same VCPU\n");
 		return -EINVAL;
@@ -959,13 +959,13 @@ static int guest_session__map_id(struct guest_session *gs, u64 id, u64 host_id, 
 	int hash;
 
 	if (!guest_id)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	guest_id->id = id;
 	guest_id->host_id = host_id;
 	guest_id->vcpu = vcpu;
 	hash = hash_64(guest_id->id, PERF_EVLIST__HLIST_BITS);
-	hlist_add_head(&guest_id->node, &gs->heads[hash]);
+	hlist_add_head(&guest_id->analde, &gs->heads[hash]);
 
 	return 0;
 }
@@ -1026,7 +1026,7 @@ static struct guest_id *guest_session__lookup_id(struct guest_session *gs, u64 i
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &gs->heads[hash];
 
-	hlist_for_each_entry(guest_id, head, node)
+	hlist_for_each_entry(guest_id, head, analde)
 		if (guest_id->id == id)
 			return guest_id;
 
@@ -1048,12 +1048,12 @@ static int guest_session__add_attr(struct guest_session *gs, struct evsel *evsel
 	struct perf_event_attr attr = evsel->core.attr;
 	u64 *id_array;
 	u32 *vcpu_array;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	u32 i;
 
 	id_array = calloc(evsel->core.ids, sizeof(*id_array));
 	if (!id_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vcpu_array = calloc(evsel->core.ids, sizeof(*vcpu_array));
 	if (!vcpu_array)
@@ -1133,7 +1133,7 @@ static struct guest_tid *guest_session__lookup_tid(struct guest_session *gs, u32
 	hash = hash_32(tid, PERF_EVLIST__HLIST_BITS);
 	head = &gs->tids[hash];
 
-	hlist_for_each_entry(guest_tid, head, node)
+	hlist_for_each_entry(guest_tid, head, analde)
 		if (guest_tid->tid == tid)
 			return guest_tid;
 
@@ -1147,7 +1147,7 @@ static bool dso__is_in_kernel_space(struct dso *dso)
 
 	return dso__is_kcore(dso) ||
 	       dso->kernel ||
-	       is_kernel_module(dso->long_name, PERF_RECORD_MISC_CPUMODE_UNKNOWN);
+	       is_kernel_module(dso->long_name, PERF_RECORD_MISC_CPUMODE_UNKANALWN);
 }
 
 static u64 evlist__first_id(struct evlist *evlist)
@@ -1179,7 +1179,7 @@ static int synthesize_build_id(struct perf_inject *inject, struct dso *dso, pid_
 			PERF_RECORD_MISC_GUEST_USER;
 
 	if (!machine)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dso->hit = 1;
 
@@ -1213,7 +1213,7 @@ static int guest_session__ksymbol_event(struct perf_tool *tool,
 {
 	struct guest_session *gs = container_of(tool, struct guest_session, tool);
 
-	/* Only support out-of-line i.e. no BPF support */
+	/* Only support out-of-line i.e. anal BPF support */
 	if (event->ksymbol.ksym_type != PERF_RECORD_KSYMBOL_TYPE_OOL)
 		return 0;
 
@@ -1243,7 +1243,7 @@ static int guest_session__start(struct guest_session *gs, const char *name, bool
 	 * when the perf.data file header is written.
 	 */
 	gs->tool.build_id	= perf_event__process_build_id;
-	/* Process the id index to know what VCPU an ID belongs to */
+	/* Process the id index to kanalw what VCPU an ID belongs to */
 	gs->tool.id_index	= perf_event__process_id_index;
 
 	gs->tool.ordered_events	= true;
@@ -1266,23 +1266,23 @@ static int guest_session__start(struct guest_session *gs, const char *name, bool
 	/* And default ID for adding back a host-compatible ID sample */
 	gs->dflt_id = evlist__first_id(session->evlist);
 	if (!gs->dflt_id) {
-		pr_err("Guest data has no sample IDs");
+		pr_err("Guest data has anal sample IDs");
 		return -EINVAL;
 	}
 
 	/* Temporary file for guest events */
 	gs->tmp_file_name = strdup(tmp_file_name);
 	if (!gs->tmp_file_name)
-		return -ENOMEM;
+		return -EANALMEM;
 	gs->tmp_fd = mkstemp(gs->tmp_file_name);
 	if (gs->tmp_fd < 0)
-		return -errno;
+		return -erranal;
 
 	if (zstd_init(&gs->session->zstd_data, 0) < 0)
 		pr_warning("Guest session decompression initialization failed.\n");
 
 	/*
-	 * perf does not support processing 2 sessions simultaneously, so output
+	 * perf does analt support processing 2 sessions simultaneously, so output
 	 * guest events to a temporary file.
 	 */
 	ret = perf_session__process_events(gs->session);
@@ -1290,15 +1290,15 @@ static int guest_session__start(struct guest_session *gs, const char *name, bool
 		return ret;
 
 	if (lseek(gs->tmp_fd, 0, SEEK_SET))
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
 
-/* Free hlist nodes assuming hlist_node is the first member of hlist entries */
+/* Free hlist analdes assuming hlist_analde is the first member of hlist entries */
 static void free_hlist(struct hlist_head *heads, size_t hlist_sz)
 {
-	struct hlist_node *pos, *n;
+	struct hlist_analde *pos, *n;
 	size_t i;
 
 	for (i = 0; i < hlist_sz; ++i) {
@@ -1383,7 +1383,7 @@ static int guest_session__fetch(struct guest_session *gs)
 	if (!buf) {
 		buf = malloc(PERF_SAMPLE_MAX_SIZE);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		gs->ev.event_buf = buf;
 	}
 	hdr = buf;
@@ -1438,7 +1438,7 @@ static int evlist__append_id_sample(struct evlist *evlist, union perf_event *ev,
 	array = ev;
 
 	if (!evsel) {
-		pr_err("No evsel for id %"PRIu64"\n", sample->id);
+		pr_err("Anal evsel for id %"PRIu64"\n", sample->id);
 		return -EINVAL;
 	}
 
@@ -1528,7 +1528,7 @@ static int guest_session__inject_events(struct guest_session *gs, u64 timestamp)
 
 		guest_id = guest_session__lookup_id(gs, id);
 		if (!guest_id) {
-			pr_err("Guest event with unknown id %llu\n",
+			pr_err("Guest event with unkanalwn id %llu\n",
 			       (unsigned long long)id);
 			return -EINVAL;
 		}
@@ -1539,7 +1539,7 @@ static int guest_session__inject_events(struct guest_session *gs, u64 timestamp)
 
 		if (sample->cpu != (u32)-1) {
 			if (sample->cpu >= gs->vcpu_cnt) {
-				pr_err("Guest event with unknown VCPU %u\n",
+				pr_err("Guest event with unkanalwn VCPU %u\n",
 				       sample->cpu);
 				return -EINVAL;
 			}
@@ -1600,7 +1600,7 @@ static int host__finished_init(struct perf_session *session, union perf_event *e
 		return ret;
 
 	if (!gs->vcpu_cnt) {
-		pr_err("No VCPU threads found for pid %u\n", gs->machine_pid);
+		pr_err("Anal VCPU threads found for pid %u\n", gs->machine_pid);
 		return -EINVAL;
 	}
 
@@ -1682,7 +1682,7 @@ static int host__context_switch(struct perf_tool *tool,
 		goto out;
 
 	if (sample->cpu == (u32)-1) {
-		pr_err("Switch event does not have CPU\n");
+		pr_err("Switch event does analt have CPU\n");
 		return -EINVAL;
 	}
 
@@ -1690,7 +1690,7 @@ static int host__context_switch(struct perf_tool *tool,
 	if (vcpu >= gs->vcpu_cnt)
 		return -EINVAL;
 
-	/* Guest is switching in, record which CPU the VCPU is now running on */
+	/* Guest is switching in, record which CPU the VCPU is analw running on */
 	gs->vcpu[vcpu].cpu = sample->cpu;
 out:
 	return host__repipe(tool, event, sample, machine);
@@ -1707,7 +1707,7 @@ static int evsel__check_stype(struct evsel *evsel, u64 sample_type, const char *
 	const char *name = evsel__name(evsel);
 
 	if (!(attr->sample_type & sample_type)) {
-		pr_err("Samples for %s event do not have %s attribute set.",
+		pr_err("Samples for %s event do analt have %s attribute set.",
 			name, sample_msg);
 		return -EINVAL;
 	}
@@ -1762,7 +1762,7 @@ static int parse_vm_time_correlation(const struct option *opt, const char *str, 
 
 	inject->itrace_synth_opts.vm_tm_corr_args = strdup(args);
 
-	return inject->itrace_synth_opts.vm_tm_corr_args ? 0 : -ENOMEM;
+	return inject->itrace_synth_opts.vm_tm_corr_args ? 0 : -EANALMEM;
 }
 
 static int parse_guest_data(const struct option *opt, const char *str, int unset)
@@ -1780,7 +1780,7 @@ static int parse_guest_data(const struct option *opt, const char *str, int unset
 
 	s = strdup(str);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gs->perf_data_file = strsep(&s, ",");
 	if (!gs->perf_data_file)
@@ -1885,7 +1885,7 @@ static int read_file(int fd, u64 offs, void *buf, size_t sz)
 	ssize_t ret = preadn(fd, buf, sz, offs);
 
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 	if ((size_t)ret != sz)
 		return -EINVAL;
 	return 0;
@@ -1900,7 +1900,7 @@ static int feat_copy(struct perf_inject *inject, int feat, struct feat_writer *f
 	int ret;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = read_file(fd, offs, buf, sz);
 	if (ret)
@@ -2046,7 +2046,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		char *name = gs->perf_data_file;
 
 		/*
-		 * Not strictly necessary, but keep these events in order wrt
+		 * Analt strictly necessary, but keep these events in order wrt
 		 * guest events.
 		 */
 		inject->tool.mmap		= host__repipe;
@@ -2118,7 +2118,7 @@ static int __cmd_inject(struct perf_inject *inject)
 					      HEADER_BUILD_ID);
 		/*
 		 * Keep all buildids when there is unprocessed AUX data because
-		 * it is not known which ones the AUX trace hits.
+		 * it is analt kanalwn which ones the AUX trace hits.
 		 */
 		if (perf_header__has_feat(&session->header, HEADER_BUILD_ID) &&
 		    inject->have_auxtrace && !inject->itrace_synth_opts.set)
@@ -2215,14 +2215,14 @@ int cmd_inject(int argc, const char **argv)
 	};
 	int ret;
 	bool repipe = true;
-	const char *known_build_ids = NULL;
+	const char *kanalwn_build_ids = NULL;
 
 	struct option options[] = {
 		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
 			    "Inject build-ids into the output stream"),
 		OPT_BOOLEAN(0, "buildid-all", &inject.build_id_all,
 			    "Inject build-ids of all DSOs into the output stream"),
-		OPT_STRING(0, "known-build-ids", &known_build_ids,
+		OPT_STRING(0, "kanalwn-build-ids", &kanalwn_build_ids,
 			   "buildid path [,buildid path...]",
 			   "build-ids to use for given paths"),
 		OPT_STRING('i', "input", &inject.input_name, "file",
@@ -2239,7 +2239,7 @@ int cmd_inject(int argc, const char **argv)
 			 "be more verbose (show build ids, etc)"),
 		OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 			   "file", "vmlinux pathname"),
-		OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
+		OPT_BOOLEAN(0, "iganalre-vmlinux", &symbol_conf.iganalre_vmlinux,
 			    "don't load vmlinux even if found"),
 		OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name, "file",
 			   "kallsyms pathname"),
@@ -2249,7 +2249,7 @@ int cmd_inject(int argc, const char **argv)
 				    ITRACE_HELP,
 				    itrace_parse_synth_opts),
 		OPT_BOOLEAN(0, "strip", &inject.strip,
-			    "strip non-synthesized events (use with --itrace)"),
+			    "strip analn-synthesized events (use with --itrace)"),
 		OPT_CALLBACK_OPTARG(0, "vm-time-correlation", &inject, NULL, "opts",
 				    "correlate time between VM guests and the host",
 				    parse_vm_time_correlation),
@@ -2272,7 +2272,7 @@ int cmd_inject(int argc, const char **argv)
 	}
 
 #ifndef HAVE_JITDUMP
-	set_option_nobuild(options, 'j', "jit", "NO_LIBELF=1", true);
+	set_option_analbuild(options, 'j', "jit", "ANAL_LIBELF=1", true);
 #endif
 	argc = parse_options(argc, argv, options, inject_usage, 0);
 
@@ -2296,7 +2296,7 @@ int cmd_inject(int argc, const char **argv)
 			return -1;
 		}
 		if (strcmp(inject.output.path, "-")) {
-			pr_err("Output file name must not be specified for in-place updating\n");
+			pr_err("Output file name must analt be specified for in-place updating\n");
 			return -1;
 		}
 		if (!data.force && !inject.in_place_update_dry_run) {
@@ -2322,7 +2322,7 @@ int cmd_inject(int argc, const char **argv)
 	if (!strcmp(inject.input_name, "-") || inject.output.is_pipe) {
 		inject.is_pipe = true;
 		/*
-		 * Do not repipe header when input is a regular file
+		 * Do analt repipe header when input is a regular file
 		 * since either it can rewrite the header at the end
 		 * or write a new pipe header.
 		 */
@@ -2365,17 +2365,17 @@ int cmd_inject(int argc, const char **argv)
 		/*
 		 * to make sure the mmap records are ordered correctly
 		 * and so that the correct especially due to jitted code
-		 * mmaps. We cannot generate the buildid hit list and
-		 * inject the jit mmaps at the same time for now.
+		 * mmaps. We cananalt generate the buildid hit list and
+		 * inject the jit mmaps at the same time for analw.
 		 */
 		inject.tool.ordered_events = true;
 		inject.tool.ordering_requires_timestamps = true;
-		if (known_build_ids != NULL) {
-			inject.known_build_ids =
-				perf_inject__parse_known_build_ids(known_build_ids);
+		if (kanalwn_build_ids != NULL) {
+			inject.kanalwn_build_ids =
+				perf_inject__parse_kanalwn_build_ids(kanalwn_build_ids);
 
-			if (inject.known_build_ids == NULL) {
-				pr_err("Couldn't parse known build ids.\n");
+			if (inject.kanalwn_build_ids == NULL) {
+				pr_err("Couldn't parse kanalwn build ids.\n");
 				goto out_delete;
 			}
 		}
@@ -2393,7 +2393,7 @@ int cmd_inject(int argc, const char **argv)
 		inject.tool.ordering_requires_timestamps = true;
 		/*
 		 * JIT MMAP injection injects all MMAP events in one go, so it
-		 * does not obey finished_round semantics.
+		 * does analt obey finished_round semantics.
 		 */
 		inject.tool.finished_round = perf_event__drop_oe;
 	}
@@ -2407,7 +2407,7 @@ int cmd_inject(int argc, const char **argv)
 	guest_session__exit(&inject.guest_session);
 
 out_delete:
-	strlist__delete(inject.known_build_ids);
+	strlist__delete(inject.kanalwn_build_ids);
 	zstd_fini(&(inject.session->zstd_data));
 	perf_session__delete(inject.session);
 out_close_output:

@@ -3437,14 +3437,14 @@ static struct clk_branch gcc_oxili_timer_clk = {
 	}
 };
 
-static struct clk_branch gcc_pcnoc_usb3_axi_clk = {
+static struct clk_branch gcc_pcanalc_usb3_axi_clk = {
 	.halt_reg = 0x3f038,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x3f038,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data) {
-			.name = "gcc_pcnoc_usb3_axi_clk",
+			.name = "gcc_pcanalc_usb3_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&usb30_master_clk_src.clkr.hw,
 			},
@@ -3850,7 +3850,7 @@ static struct gdsc usb30_gdsc = {
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	/*
-	 * FIXME: dwc3 usb gadget cannot resume after GDSC power off
+	 * FIXME: dwc3 usb gadget cananalt resume after GDSC power off
 	 * dwc3 7000000.dwc3: failed to enable ep0out
 	 */
 	.flags = ALWAYS_ON,
@@ -4116,7 +4116,7 @@ static struct clk_regmap *gcc_msm8953_clocks[] = {
 	[GCC_GP3_CLK] = &gcc_gp3_clk.clkr,
 	[GCC_MSS_CFG_AHB_CLK] = &gcc_mss_cfg_ahb_clk.clkr,
 	[GCC_MSS_Q6_BIMC_AXI_CLK] = &gcc_mss_q6_bimc_axi_clk.clkr,
-	[GCC_PCNOC_USB3_AXI_CLK] = &gcc_pcnoc_usb3_axi_clk.clkr,
+	[GCC_PCANALC_USB3_AXI_CLK] = &gcc_pcanalc_usb3_axi_clk.clkr,
 	[GCC_PDM2_CLK] = &gcc_pdm2_clk.clkr,
 	[GCC_PDM_AHB_CLK] = &gcc_pdm_ahb_clk.clkr,
 	[GCC_RBCPR_GFX_CLK] = &gcc_rbcpr_gfx_clk.clkr,

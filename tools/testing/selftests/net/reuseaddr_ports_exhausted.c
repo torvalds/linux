@@ -11,7 +11,7 @@
  *   4. if SO_REUSEADDR is enabled and SO_REUSEPORT is disabled,
  *        succeed to bind.
  *   5. if SO_REUSEADDR and SO_REUSEPORT are enabled and
- *        there is no socket having the both options and the same EUID,
+ *        there is anal socket having the both options and the same EUID,
  *        succeed to bind.
  *   6. fail to bind.
  *

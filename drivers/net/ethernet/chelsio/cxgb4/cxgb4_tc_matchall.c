@@ -14,35 +14,35 @@ static int cxgb4_policer_validate(const struct flow_action *action,
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+	if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (act->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.rate_pkt_ps) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "QoS offload not support packets per second");
-		return -EOPNOTSUPP;
+				   "QoS offload analt support packets per second");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -71,7 +71,7 @@ static int cxgb4_matchall_egress_validate(struct net_device *dev,
 		return -EINVAL;
 	} else if (pi->tc_block_shared) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Egress MATCHALL offload not supported with shared blocks");
+				   "Egress MATCHALL offload analt supported with shared blocks");
 		return -EINVAL;
 	}
 
@@ -102,7 +102,7 @@ static int cxgb4_matchall_egress_validate(struct net_device *dev,
 		default:
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Only policing action supported with Egress MATCHALL offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -141,7 +141,7 @@ static int cxgb4_matchall_tc_bind_queues(struct net_device *dev, u32 tc)
 out_free:
 	while (i--) {
 		qe.queue = i;
-		qe.class = SCHED_CLS_NONE;
+		qe.class = SCHED_CLS_ANALNE;
 		cxgb4_sched_class_unbind(dev, &qe, SCHED_QUEUE);
 	}
 
@@ -156,7 +156,7 @@ static void cxgb4_matchall_tc_unbind_queues(struct net_device *dev)
 
 	for (i = 0; i < pi->nqsets; i++) {
 		qe.queue = i;
-		qe.class = SCHED_CLS_NONE;
+		qe.class = SCHED_CLS_ANALNE;
 		cxgb4_sched_class_unbind(dev, &qe, SCHED_QUEUE);
 	}
 }
@@ -170,7 +170,7 @@ static int cxgb4_matchall_alloc_tc(struct net_device *dev,
 		.u.params.mode = SCHED_CLASS_MODE_CLASS,
 		.u.params.rateunit = SCHED_CLASS_RATEUNIT_BITS,
 		.u.params.ratemode = SCHED_CLASS_RATEMODE_ABS,
-		.u.params.class = SCHED_CLS_NONE,
+		.u.params.class = SCHED_CLS_ANALNE,
 		.u.params.minrate = 0,
 		.u.params.weight = 0,
 		.u.params.pktsize = dev->mtu,
@@ -200,14 +200,14 @@ static int cxgb4_matchall_alloc_tc(struct net_device *dev,
 	e = cxgb4_sched_class_alloc(dev, &p);
 	if (!e) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "No free traffic class available for policing action");
-		return -ENOMEM;
+				   "Anal free traffic class available for policing action");
+		return -EANALMEM;
 	}
 
 	ret = cxgb4_matchall_tc_bind_queues(dev, e->idx);
 	if (ret) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Could not bind queues to traffic class");
+				   "Could analt bind queues to traffic class");
 		goto out_free;
 	}
 
@@ -231,7 +231,7 @@ static void cxgb4_matchall_free_tc(struct net_device *dev)
 	cxgb4_matchall_tc_unbind_queues(dev);
 	cxgb4_sched_class_free(dev, tc_port_matchall->egress.hwtc);
 
-	tc_port_matchall->egress.hwtc = SCHED_CLS_NONE;
+	tc_port_matchall->egress.hwtc = SCHED_CLS_ANALNE;
 	tc_port_matchall->egress.cookie = 0;
 	tc_port_matchall->egress.state = CXGB4_MATCHALL_STATE_DISABLED;
 }
@@ -315,8 +315,8 @@ static int cxgb4_matchall_add_filter(struct net_device *dev,
 				   false, cls->common.prio);
 	if (fidx < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "No free LETCAM index available");
-		return -ENOMEM;
+				   "Anal free LETCAM index available");
+		return -EANALMEM;
 	}
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
@@ -416,7 +416,7 @@ int cxgb4_tc_matchall_replace(struct net_device *dev,
 		    CXGB4_MATCHALL_STATE_ENABLED) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Only 1 Ingress MATCHALL can be offloaded");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ret = cxgb4_validate_flow_actions(dev,
@@ -431,7 +431,7 @@ int cxgb4_tc_matchall_replace(struct net_device *dev,
 	if (tc_port_matchall->egress.state == CXGB4_MATCHALL_STATE_ENABLED) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Only 1 Egress MATCHALL can be offloaded");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = cxgb4_matchall_egress_validate(dev, cls_matchall);
@@ -453,17 +453,17 @@ int cxgb4_tc_matchall_destroy(struct net_device *dev,
 	if (ingress) {
 		/* All the filter types of this matchall rule save the
 		 * same cookie. So, checking for the first one is
-		 * enough.
+		 * eanalugh.
 		 */
 		if (cls_matchall->cookie !=
 		    tc_port_matchall->ingress.fs[0].tc_cookie)
-			return -ENOENT;
+			return -EANALENT;
 
 		return cxgb4_matchall_free_filter(dev);
 	}
 
 	if (cls_matchall->cookie != tc_port_matchall->egress.cookie)
-		return -ENOENT;
+		return -EANALENT;
 
 	cxgb4_matchall_free_tc(dev);
 	return 0;
@@ -482,7 +482,7 @@ int cxgb4_tc_matchall_stats(struct net_device *dev,
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
 	if (tc_port_matchall->ingress.state == CXGB4_MATCHALL_STATE_DISABLED)
-		return -ENOENT;
+		return -EANALENT;
 
 	ingress = &tc_port_matchall->ingress;
 	for (i = 0; i < CXGB4_FILTER_TYPE_MAX; i++) {
@@ -533,13 +533,13 @@ int cxgb4_init_tc_matchall(struct adapter *adap)
 
 	tc_matchall = kzalloc(sizeof(*tc_matchall), GFP_KERNEL);
 	if (!tc_matchall)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc_port_matchall = kcalloc(adap->params.nports,
 				   sizeof(*tc_port_matchall),
 				   GFP_KERNEL);
 	if (!tc_port_matchall) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_matchall;
 	}
 

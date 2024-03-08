@@ -12,7 +12,7 @@ enum {
 	NETLINK_F_KERNEL_SOCKET,
 	NETLINK_F_RECV_PKTINFO,
 	NETLINK_F_BROADCAST_SEND_ERROR,
-	NETLINK_F_RECV_NO_ENOBUFS,
+	NETLINK_F_RECV_ANAL_EANALBUFS,
 	NETLINK_F_LISTEN_ALL_NSID,
 	NETLINK_F_CAP_ACK,
 	NETLINK_F_EXT_ACK,
@@ -37,7 +37,7 @@ struct netlink_sock {
 	wait_queue_head_t	wait;
 	bool			bound;
 	bool			cb_running;
-	int			dump_done_errno;
+	int			dump_done_erranal;
 	struct netlink_callback	cb;
 	struct mutex		*cb_mutex;
 	struct mutex		cb_def_mutex;
@@ -48,7 +48,7 @@ struct netlink_sock {
 						   unsigned long *groups);
 	struct module		*module;
 
-	struct rhash_head	node;
+	struct rhash_head	analde;
 	struct rcu_head		rcu;
 	struct work_struct	work;
 };

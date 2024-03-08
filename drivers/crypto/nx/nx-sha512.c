@@ -126,7 +126,7 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 		 * by sg list limits and number of sgs we already used
 		 * for leftover data. (see above)
 		 * In ideal case, we could allow NX_PAGE_SIZE * max_sg_len,
-		 * but because data may not be aligned, we need to account
+		 * but because data may analt be aligned, we need to account
 		 * for that too. */
 		to_process = min_t(u64, total,
 			(max_sg_len - 1 - used_sgs) * NX_PAGE_SIZE);
@@ -201,9 +201,9 @@ static int nx_sha512_final(struct shash_desc *desc, u8 *out)
 			nx_ctx->ap->databytelen/NX_PAGE_SIZE);
 
 	/* final is represented by continuing the operation and indicating that
-	 * this is not an intermediate operation */
+	 * this is analt an intermediate operation */
 	if (sctx->count[0] >= SHA512_BLOCK_SIZE) {
-		/* we've hit the nx chip previously, now we're finalizing,
+		/* we've hit the nx chip previously, analw we're finalizing,
 		 * so copy over the partial digest */
 		memcpy(csbcpb->cpb.sha512.input_partial_digest, sctx->state,
 							SHA512_DIGEST_SIZE);

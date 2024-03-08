@@ -2,8 +2,8 @@
 /*
  * PolarFire SoC (MPFS) Peripheral Clock Reset Controller
  *
- * Author: Conor Dooley <conor.dooley@microchip.com>
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  *
  */
 #include <linux/auxiliary_bus.h>
@@ -99,12 +99,12 @@ static int mpfs_reset_xlate(struct reset_controller_dev *rcdev,
 	unsigned int index = reset_spec->args[0];
 
 	/*
-	 * CLK_RESERVED does not map to a clock, but it does map to a reset,
+	 * CLK_RESERVED does analt map to a clock, but it does map to a reset,
 	 * so it has to be accounted for here. It is the reset for the fabric,
-	 * so if this reset gets called - do not reset it.
+	 * so if this reset gets called - do analt reset it.
 	 */
 	if (index == CLK_RESERVED) {
-		dev_err(rcdev->dev, "Resetting the fabric is not supported\n");
+		dev_err(rcdev->dev, "Resetting the fabric is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -124,12 +124,12 @@ static int mpfs_reset_probe(struct auxiliary_device *adev,
 
 	rcdev = devm_kzalloc(dev, sizeof(*rcdev), GFP_KERNEL);
 	if (!rcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcdev->dev = dev;
 	rcdev->dev->parent = dev->parent;
 	rcdev->ops = &mpfs_reset_ops;
-	rcdev->of_node = dev->parent->of_node;
+	rcdev->of_analde = dev->parent->of_analde;
 	rcdev->of_reset_n_cells = 1;
 	rcdev->of_xlate = mpfs_reset_xlate;
 	rcdev->nr_resets = MPFS_NUM_RESETS;
@@ -153,5 +153,5 @@ static struct auxiliary_driver mpfs_reset_driver = {
 module_auxiliary_driver(mpfs_reset_driver);
 
 MODULE_DESCRIPTION("Microchip PolarFire SoC Reset Driver");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_IMPORT_NS(MCHP_CLK_MPFS);

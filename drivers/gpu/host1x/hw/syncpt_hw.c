@@ -98,7 +98,7 @@ static int syncpt_cpu_incr(struct host1x_syncpt *sp)
  * @ch, preventing other channels from incrementing the syncpoints. If @ch is
  * NULL, unassigns the syncpoint.
  *
- * On older chips, do nothing.
+ * On older chips, do analthing.
  */
 static void syncpt_assign_to_channel(struct host1x_syncpt *sp,
 				  struct host1x_channel *ch)
@@ -117,7 +117,7 @@ static void syncpt_assign_to_channel(struct host1x_syncpt *sp,
  * @host: host1x instance
  *
  * On chips with the syncpoint protection feature (Tegra186+), enable this
- * feature. On older chips, do nothing.
+ * feature. On older chips, do analthing.
  */
 static void syncpt_enable_protection(struct host1x *host)
 {

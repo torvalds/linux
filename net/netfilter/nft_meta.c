@@ -57,7 +57,7 @@ static u32 nft_meta_hour(time64_t secs)
 		+ tm.tm_sec;
 }
 
-static noinline_for_stack void
+static analinline_for_stack void
 nft_meta_get_eval_time(enum nft_meta_keys key,
 		       u32 *dest)
 {
@@ -76,7 +76,7 @@ nft_meta_get_eval_time(enum nft_meta_keys key,
 	}
 }
 
-static noinline bool
+static analinline bool
 nft_meta_get_eval_pkttype_lo(const struct nft_pktinfo *pkt,
 			     u32 *dest)
 {
@@ -95,10 +95,10 @@ nft_meta_get_eval_pkttype_lo(const struct nft_pktinfo *pkt,
 	case NFPROTO_NETDEV:
 		switch (skb->protocol) {
 		case htons(ETH_P_IP): {
-			int noff = skb_network_offset(skb);
+			int analff = skb_network_offset(skb);
 			struct iphdr *iph, _iph;
 
-			iph = skb_header_pointer(skb, noff,
+			iph = skb_header_pointer(skb, analff,
 						 sizeof(_iph), &_iph);
 			if (!iph)
 				return false;
@@ -126,7 +126,7 @@ nft_meta_get_eval_pkttype_lo(const struct nft_pktinfo *pkt,
 	return true;
 }
 
-static noinline bool
+static analinline bool
 nft_meta_get_eval_skugid(enum nft_meta_keys key,
 			 u32 *dest,
 			 const struct nft_pktinfo *pkt)
@@ -162,7 +162,7 @@ nft_meta_get_eval_skugid(enum nft_meta_keys key,
 }
 
 #ifdef CONFIG_CGROUP_NET_CLASSID
-static noinline bool
+static analinline bool
 nft_meta_get_eval_cgroup(u32 *dest, const struct nft_pktinfo *pkt)
 {
 	struct sock *sk = skb_to_full_sk(pkt->skb);
@@ -175,7 +175,7 @@ nft_meta_get_eval_cgroup(u32 *dest, const struct nft_pktinfo *pkt)
 }
 #endif
 
-static noinline bool nft_meta_get_eval_kind(enum nft_meta_keys key,
+static analinline bool nft_meta_get_eval_kind(enum nft_meta_keys key,
 					    u32 *dest,
 					    const struct nft_pktinfo *pkt)
 {
@@ -271,7 +271,7 @@ static bool nft_meta_get_eval_ifname(enum nft_meta_keys key, u32 *dest,
 }
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
-static noinline bool
+static analinline bool
 nft_meta_get_eval_rtclassid(const struct sk_buff *skb, u32 *dest)
 {
 	const struct dst_entry *dst = skb_dst(skb);
@@ -284,7 +284,7 @@ nft_meta_get_eval_rtclassid(const struct sk_buff *skb, u32 *dest)
 }
 #endif
 
-static noinline u32 nft_meta_get_eval_sdif(const struct nft_pktinfo *pkt)
+static analinline u32 nft_meta_get_eval_sdif(const struct nft_pktinfo *pkt)
 {
 	switch (nft_pf(pkt)) {
 	case NFPROTO_IPV4:
@@ -296,7 +296,7 @@ static noinline u32 nft_meta_get_eval_sdif(const struct nft_pktinfo *pkt)
 	return 0;
 }
 
-static noinline void
+static analinline void
 nft_meta_get_eval_sdifname(u32 *dest, const struct nft_pktinfo *pkt)
 {
 	u32 sdif = nft_meta_get_eval_sdif(pkt);
@@ -527,7 +527,7 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 		len = sizeof(u32);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->len = len;
@@ -548,7 +548,7 @@ static int nft_meta_get_validate_sdif(const struct nft_ctx *ctx)
 			(1 << NF_INET_FORWARD);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return nft_chain_validate_hooks(ctx->chain, hooks);
@@ -571,7 +571,7 @@ static int nft_meta_get_validate_xfrm(const struct nft_ctx *ctx)
 			(1 << NF_INET_FORWARD);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return nft_chain_validate_hooks(ctx->chain, hooks);
@@ -622,7 +622,7 @@ int nft_meta_set_validate(const struct nft_ctx *ctx,
 		hooks = 1 << NF_INET_PRE_ROUTING;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return nft_chain_validate_hooks(ctx->chain, hooks);
@@ -653,7 +653,7 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 		len = sizeof(u8);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->len = len;
@@ -738,7 +738,7 @@ static int nft_meta_get_offload(struct nft_offload_ctx *ctx,
 					ingress_iftype, sizeof(__u16), reg);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -848,7 +848,7 @@ static int nft_meta_inner_init(const struct nft_ctx *ctx,
 		len = sizeof(u32);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	priv->len = len;
 
@@ -922,7 +922,7 @@ static int nft_secmark_compute_secid(struct nft_secmark *priv)
 		return err;
 
 	if (!tmp_secid)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = security_secmark_relabel_packet(tmp_secid);
 	if (err)
@@ -953,7 +953,7 @@ static int nft_secmark_obj_init(const struct nft_ctx *ctx,
 
 	priv->ctx = nla_strdup(tb[NFTA_SECMARK_CTX], GFP_KERNEL);
 	if (!priv->ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = nft_secmark_compute_secid(priv);
 	if (err) {

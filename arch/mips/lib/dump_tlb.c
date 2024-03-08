@@ -124,7 +124,7 @@ static void dump_tlb(int first, int last)
 		/*
 		 * ASID takes effect in absence of G (global) bit.
 		 * We check both G bits, even though architecturally they should
-		 * match one another, because some revisions of the SB1 core may
+		 * match one aanalther, because some revisions of the SB1 core may
 		 * leave only a single G bit set after a machine check exception
 		 * due to duplicate TLB entry.
 		 */

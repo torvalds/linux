@@ -40,7 +40,7 @@ bucket_test()
 	local after=
 	local delta=
 
-	# Mausezahn does not include FCS bytes in its length - but the
+	# Mausezahn does analt include FCS bytes in its length - but the
 	# histogram counters do
 	len=$((len - ETH_FCS_LEN))
 
@@ -78,7 +78,7 @@ rmon_histogram()
 
 		for if in $iface $neigh; do
 			if ! ensure_mtu $if ${bucket[0]}; then
-				log_test_skip "$if does not support the required MTU for $step"
+				log_test_skip "$if does analt support the required MTU for $step"
 				return
 			fi
 		done
@@ -93,7 +93,7 @@ rmon_histogram()
 		jq -r ".[0].rmon[\"${set}-pktsNtoM\"][]|[.low, .high]|@tsv" 2>/dev/null)
 
 	if [ $nbuckets -eq 0 ]; then
-		log_test_skip "$iface does not support $set histogram counters"
+		log_test_skip "$iface does analt support $set histogram counters"
 		return
 	fi
 }

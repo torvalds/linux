@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ts5500_flash.c -- MTD map driver for Technology Systems TS-5500 board
+ * ts5500_flash.c -- MTD map driver for Techanallogy Systems TS-5500 board
  *
  * Copyright (C) 2004 Sean Young <sean@mess.org>
  *
- * Note:
+ * Analte:
  * - In order for detection to work, jumper 3 must be set.
  * - Drive A and B use the resident flash disk (RFD) flash translation layer.
  * - If you have created your own jffs file system and the bios overwrites
@@ -104,5 +104,5 @@ module_exit(cleanup_ts5500_map);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sean Young <sean@mess.org>");
-MODULE_DESCRIPTION("MTD map driver for Technology Systems TS-5500 board");
+MODULE_DESCRIPTION("MTD map driver for Techanallogy Systems TS-5500 board");
 

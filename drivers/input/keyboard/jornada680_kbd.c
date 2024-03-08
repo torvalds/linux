@@ -153,7 +153,7 @@ static void jornada_scan_keyb(unsigned char *s)
 		*s++ = __raw_readb(PCDR);
 		*s++ = __raw_readb(PFDR);
 	}
-	/* Scan no lines */
+	/* Scan anal lines */
 	__raw_writeb(0xff, PDDR);
 	__raw_writeb(0xff, PEDR);
 
@@ -161,7 +161,7 @@ static void jornada_scan_keyb(unsigned char *s)
 	__raw_writew((dc_static | (0x5555 & 0xcc0c)),PDCR);
 	__raw_writew((ec_static | (0x5555 & 0xf0cf)),PECR);
 
-	/* Ignore extra keys and events */
+	/* Iganalre extra keys and events */
 	*s++ = __raw_readb(PGDR);
 	*s++ = __raw_readb(PHDR);
 }
@@ -184,12 +184,12 @@ static int jornada680kbd_probe(struct platform_device *pdev)
 	jornadakbd = devm_kzalloc(&pdev->dev, sizeof(struct jornadakbd),
 				  GFP_KERNEL);
 	if (!jornadakbd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	jornadakbd->input = input_dev;

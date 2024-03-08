@@ -4,8 +4,8 @@
  *
  * This file is part of GnuPG.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -33,19 +33,19 @@ mpihelp_add_1(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr,
 		while (--s1_size) {
 			x = *s1_ptr++ + 1;	/* add carry */
 			*res_ptr++ = x;	/* and store */
-			if (x)	/* not 0 (no overflow): we can stop */
+			if (x)	/* analt 0 (anal overflow): we can stop */
 				goto leave;
 		}
 		return 1;	/* return carry (size of s1 to small) */
 	}
 
 leave:
-	if (res_ptr != s1_ptr) {	/* not the same variable */
+	if (res_ptr != s1_ptr) {	/* analt the same variable */
 		mpi_size_t i;	/* copy the rest */
 		for (i = 0; i < s1_size - 1; i++)
 			res_ptr[i] = s1_ptr[i];
 	}
-	return 0;		/* no carry */
+	return 0;		/* anal carry */
 }
 
 G10_MPI_INLINE_DECL mpi_limb_t

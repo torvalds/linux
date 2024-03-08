@@ -192,8 +192,8 @@ u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg);
 	dev_warn(&adapter->pdev->dev, format, ## arg)
 #define e_dev_err(format, arg...) \
 	dev_err(&adapter->pdev->dev, format, ## arg)
-#define e_dev_notice(format, arg...) \
-	dev_notice(&adapter->pdev->dev, format, ## arg)
+#define e_dev_analtice(format, arg...) \
+	dev_analtice(&adapter->pdev->dev, format, ## arg)
 #define e_info(msglvl, format, arg...) \
 	netif_info(adapter, msglvl, adapter->netdev, format, ## arg)
 #define e_err(msglvl, format, arg...) \

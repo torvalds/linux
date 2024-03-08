@@ -6,7 +6,7 @@
 #ifndef _SIW_VERBS_H
 #define _SIW_VERBS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <rdma/iw_cm.h>
 #include <rdma/ib_verbs.h>
@@ -63,7 +63,7 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 		     const struct ib_recv_wr **bad_wr);
 int siw_destroy_cq(struct ib_cq *base_cq, struct ib_udata *udata);
 int siw_poll_cq(struct ib_cq *base_cq, int num_entries, struct ib_wc *wc);
-int siw_req_notify_cq(struct ib_cq *base_cq, enum ib_cq_notify_flags flags);
+int siw_req_analtify_cq(struct ib_cq *base_cq, enum ib_cq_analtify_flags flags);
 struct ib_mr *siw_reg_user_mr(struct ib_pd *base_pd, u64 start, u64 len,
 			      u64 rnic_va, int rights, struct ib_udata *udata);
 struct ib_mr *siw_alloc_mr(struct ib_pd *base_pd, enum ib_mr_type mr_type,

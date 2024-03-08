@@ -66,12 +66,12 @@
 		#size-cells = <2>;
 		debug_mem: memory@ffb00000 {
 			reg = <0x0 0xffb00000 0x0 0xc0000>;
-			no-map;
+			anal-map;
 		};
 
 		last_log_mem: memory@ffbc0000 {
 			reg = <0x0 0xffbc0000 0x0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		pstore_mem: ramoops@ffc00000 {
@@ -84,7 +84,7 @@
 
 		cmdline_mem: memory@ffd00000 {
 			reg = <0x0 0xffd40000 0x0 0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -296,19 +296,19 @@
 &pm6125_gpios {
 	camera_flash_therm: camera-flash-therm-state {
 		pins = "gpio3";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-high-impedance;
 	};
 
 	emmc_ufs_therm: emmc-ufs-therm-state {
 		pins = "gpio6";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-high-impedance;
 	};
 
 	rf_pa1_therm: rf-pa1-therm-state {
 		pins = "gpio7";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-high-impedance;
 	};
 };
@@ -497,8 +497,8 @@
 	cd-gpios = <&tlmm 98 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&pm6125_l22>;
 	vqmmc-supply = <&pm6125_l5>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 

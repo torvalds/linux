@@ -12,7 +12,7 @@ SECTIONS
 	/*
 	 * User/kernel shared data is before the vDSO.  This may be a little
 	 * uglier than putting it after the vDSO, but it avoids issues with
-	 * non-allocatable things that dangle past the end of the PT_LOAD
+	 * analn-allocatable things that dangle past the end of the PT_LOAD
 	 * segment.
 	 */
 
@@ -58,13 +58,13 @@ SECTIONS
 	}						:text
 
 	/*
-	 * Discard .note.gnu.property sections which are unused and have
-	 * different alignment requirement from vDSO note sections.
+	 * Discard .analte.gnu.property sections which are unused and have
+	 * different alignment requirement from vDSO analte sections.
 	 */
 	/DISCARD/ : {
-		*(.note.gnu.property)
+		*(.analte.gnu.property)
 	}
-	.note		: { *(.note.*) }		:text	:note
+	.analte		: { *(.analte.*) }		:text	:analte
 
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
@@ -94,7 +94,7 @@ SECTIONS
 }
 
 /*
- * Very old versions of ld do not recognize this name token; use the constant.
+ * Very old versions of ld do analt recognize this name token; use the constant.
  */
 #define PT_GNU_EH_FRAME	0x6474e550
 
@@ -106,6 +106,6 @@ PHDRS
 {
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
-	note		PT_NOTE		FLAGS(4);		/* PF_R */
+	analte		PT_ANALTE		FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
 }

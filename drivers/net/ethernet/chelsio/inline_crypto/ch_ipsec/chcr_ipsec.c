@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -105,7 +105,7 @@ static void *ch_ipsec_uld_add(const struct cxgb4_lld_info *infop)
 		     CHIPSEC_DRV_VERSION);
 	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
 	if (!u_ctx) {
-		u_ctx = ERR_PTR(-ENOMEM);
+		u_ctx = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 	u_ctx->lldi = *infop;
@@ -154,7 +154,7 @@ static int ch_ipsec_setauthsize(struct xfrm_state *x,
 		hmac_ctrl = CHCR_SCMD_HMAC_CTRL_IPSEC_96BIT;
 		break;
 	case ICV_16:
-		hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NO_TRUNC;
+		hmac_ctrl = CHCR_SCMD_HMAC_CTRL_ANAL_TRUNC;
 		break;
 	default:
 		return -EINVAL;
@@ -173,7 +173,7 @@ static int ch_ipsec_setkey(struct xfrm_state *x,
 	int ret = 0;
 
 	if (keylen > 3) {
-		keylen -= 4;  /* nonce/salt is present in the last 4 bytes */
+		keylen -= 4;  /* analnce/salt is present in the last 4 bytes */
 		memcpy(sa_entry->salt, key + keylen, 4);
 	}
 
@@ -231,12 +231,12 @@ static int ch_ipsec_xfrm_add_state(struct xfrm_state *x,
 	struct ipsec_sa_entry *sa_entry;
 	int res = 0;
 
-	if (x->props.aalgo != SADB_AALG_NONE) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload authenticated xfrm states");
+	if (x->props.aalgo != SADB_AALG_ANALNE) {
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload authenticated xfrm states");
 		return -EINVAL;
 	}
-	if (x->props.calgo != SADB_X_CALG_NONE) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload compressed xfrm states");
+	if (x->props.calgo != SADB_X_CALG_ANALNE) {
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload compressed xfrm states");
 		return -EINVAL;
 	}
 	if (x->props.family != AF_INET &&
@@ -254,33 +254,33 @@ static int ch_ipsec_xfrm_add_state(struct xfrm_state *x,
 		return -EINVAL;
 	}
 	if (x->encap) {
-		NL_SET_ERR_MSG_MOD(extack, "Encapsulated xfrm state not offloaded");
+		NL_SET_ERR_MSG_MOD(extack, "Encapsulated xfrm state analt offloaded");
 		return -EINVAL;
 	}
 	if (!x->aead) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states without aead");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states without aead");
 		return -EINVAL;
 	}
 	if (x->aead->alg_icv_len != 128 &&
 	    x->aead->alg_icv_len != 96) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states with AEAD ICV length other than 96b & 128b");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states with AEAD ICV length other than 96b & 128b");
 		return -EINVAL;
 	}
 	if ((x->aead->alg_key_len != 128 + 32) &&
 	    (x->aead->alg_key_len != 256 + 32)) {
-		NL_SET_ERR_MSG_MOD(extack, "cannot offload xfrm states with AEAD key length other than 128/256 bit");
+		NL_SET_ERR_MSG_MOD(extack, "cananalt offload xfrm states with AEAD key length other than 128/256 bit");
 		return -EINVAL;
 	}
 	if (x->tfcpad) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states with tfc padding");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states with tfc padding");
 		return -EINVAL;
 	}
 	if (!x->geniv) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states without geniv");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states without geniv");
 		return -EINVAL;
 	}
 	if (strcmp(x->geniv, "seqiv")) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states with geniv other than seqiv");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states with geniv other than seqiv");
 		return -EINVAL;
 	}
 	if (x->xso.type != XFRM_DEV_OFFLOAD_CRYPTO) {
@@ -290,7 +290,7 @@ static int ch_ipsec_xfrm_add_state(struct xfrm_state *x,
 
 	sa_entry = kzalloc(sizeof(*sa_entry), GFP_KERNEL);
 	if (!sa_entry) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto out;
 	}
 
@@ -306,7 +306,7 @@ out:
 
 static void ch_ipsec_xfrm_del_state(struct xfrm_state *x)
 {
-	/* do nothing */
+	/* do analthing */
 	if (!x->xso.offload_handle)
 		return;
 }
@@ -326,11 +326,11 @@ static void ch_ipsec_xfrm_free_state(struct xfrm_state *x)
 static bool ch_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 {
 	if (x->props.family == AF_INET) {
-		/* Offload with IP options is not supported yet */
+		/* Offload with IP options is analt supported yet */
 		if (ip_hdr(skb)->ihl > 5)
 			return false;
 	} else {
-		/* Offload with IPv6 extension headers is not support yet */
+		/* Offload with IPv6 extension headers is analt support yet */
 		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
 			return false;
 	}
@@ -339,7 +339,7 @@ static bool ch_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 
 static void ch_ipsec_advance_esn_state(struct xfrm_state *x)
 {
-	/* do nothing */
+	/* do analthing */
 	if (!x->xso.offload_handle)
 		return;
 }
@@ -378,7 +378,7 @@ static unsigned int calc_tx_sec_flits(const struct sk_buff *skb,
 						16) : 0;
 	aadivlen <<= 4;
 
-	/* If the skb is small enough, we can pump it out as a work request
+	/* If the skb is small eanalugh, we can pump it out as a work request
 	 * with only immediate data.  In that case we just have to have the
 	 * TX Packet header plus the skb data in the Work Request.
 	 */
@@ -418,7 +418,7 @@ static void *copy_esn_pktxt(struct sk_buff *skb,
 	struct sge_eth_txq *q;
 	struct adapter *adap;
 	struct port_info *pi;
-	__be64 seqno;
+	__be64 seqanal;
 	u32 qidx;
 	u32 seqlo;
 	u8 *iv;
@@ -443,13 +443,13 @@ static void *copy_esn_pktxt(struct sk_buff *skb,
 	xo = xfrm_offload(skb);
 
 	aadiv->spi = (esphdr->spi);
-	seqlo = ntohl(esphdr->seq_no);
-	seqno = cpu_to_be64(seqlo + ((u64)xo->seq.hi << 32));
-	memcpy(aadiv->seq_no, &seqno, 8);
+	seqlo = ntohl(esphdr->seq_anal);
+	seqanal = cpu_to_be64(seqlo + ((u64)xo->seq.hi << 32));
+	memcpy(aadiv->seq_anal, &seqanal, 8);
 	iv = skb_transport_header(skb) + sizeof(struct ip_esp_hdr);
 	memcpy(aadiv->iv, iv, 8);
 
-	if (is_eth_imm(skb, sa_entry) && !skb_is_nonlinear(skb)) {
+	if (is_eth_imm(skb, sa_entry) && !skb_is_analnlinear(skb)) {
 		sc_imm = (struct ulptx_idata *)(pos +
 			  (DIV_ROUND_UP(sizeof(struct chcr_ipsec_aadiv),
 					sizeof(__be64)) << 3));
@@ -565,7 +565,7 @@ static void *ch_ipsec_crypto_wreq(struct sk_buff *skb,
 	bool immediate = false;
 	u16 immdatalen = 0;
 	unsigned int flits;
-	u32 ivinoffset;
+	u32 ivianalffset;
 	u32 aadstart;
 	u32 aadstop;
 	u32 ciphstart;
@@ -591,7 +591,7 @@ static void *ch_ipsec_crypto_wreq(struct sk_buff *skb,
 
 	if (sa_entry->esn) {
 		esnlen = sizeof(struct chcr_ipsec_aadiv);
-		if (!skb_is_nonlinear(skb))
+		if (!skb_is_analnlinear(skb))
 			sc_more  = 1;
 	}
 
@@ -623,7 +623,7 @@ static void *ch_ipsec_crypto_wreq(struct sk_buff *skb,
 					 (esnlen ? 0 : immdatalen));
 
 	/* CPL_SEC_PDU */
-	ivinoffset = sa_entry->esn ? (ESN_IV_INSERT_OFFSET + 1) :
+	ivianalffset = sa_entry->esn ? (ESN_IV_INSERT_OFFSET + 1) :
 				     (skb_transport_offset(skb) +
 				      sizeof(struct ip_esp_hdr) + 1);
 	wr->req.sec_cpl.op_ivinsrtofst = htonl(
@@ -631,7 +631,7 @@ static void *ch_ipsec_crypto_wreq(struct sk_buff *skb,
 				CPL_TX_SEC_PDU_CPLLEN_V(2) |
 				CPL_TX_SEC_PDU_PLACEHOLDER_V(1) |
 				CPL_TX_SEC_PDU_IVINSRTOFST_V(
-							     ivinoffset));
+							     ivianalffset));
 
 	wr->req.sec_cpl.pldlen = htonl(skb->len + esnlen);
 	aadstart = sa_entry->esn ? 1 : (skb_transport_offset(skb) + 1);
@@ -651,8 +651,8 @@ static void *ch_ipsec_crypto_wreq(struct sk_buff *skb,
 		FILL_SEC_CPL_AUTHINSERT(0, ciphstart,
 					sa_entry->authsize,
 					 sa_entry->authsize);
-	wr->req.sec_cpl.seqno_numivs =
-		FILL_SEC_CPL_SCMD0_SEQNO(CHCR_ENCRYPT_OP, 1,
+	wr->req.sec_cpl.seqanal_numivs =
+		FILL_SEC_CPL_SCMD0_SEQANAL(CHCR_ENCRYPT_OP, 1,
 					 CHCR_SCMD_CIPHER_MODE_AES_GCM,
 					 CHCR_SCMD_AUTH_MODE_GHASH,
 					 sa_entry->hmac_ctrl,

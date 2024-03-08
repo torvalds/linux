@@ -102,11 +102,11 @@ static int ltc3676_set_suspend_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_STANDBY:
 		val = 0; /* select DVBxA */
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = LTC3676_DVBxA_REF_SELECT; /* select DVBxB */
 		break;
 	default:
-		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x not supported\n",
+		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x analt supported\n",
 			 rdev->desc->name, mode);
 		return -EINVAL;
 	}
@@ -142,7 +142,7 @@ static inline unsigned int ltc3676_scale(unsigned int uV, u32 r1, u32 r2)
 	return uV + (unsigned int)tmp;
 }
 
-static int ltc3676_of_parse_cb(struct device_node *np,
+static int ltc3676_of_parse_cb(struct device_analde *np,
 			       const struct regulator_desc *desc,
 			       struct regulator_config *config)
 {
@@ -196,7 +196,7 @@ static const struct regulator_ops ltc3676_fixed_regulator_ops = {
 	[LTC3676_ ## _id] = {                                        \
 		.name = #_name,                                \
 		.of_match = of_match_ptr(#_name),              \
-		.regulators_node = of_match_ptr("regulators"), \
+		.regulators_analde = of_match_ptr("regulators"), \
 		.of_parse_cb = ltc3676_of_parse_cb,            \
 		.n_voltages = (dvb_mask) + 1,                  \
 		.min_uV = (dvba_reg) ? 412500 : 0,             \
@@ -277,7 +277,7 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 		dev_warn(dev, "Over-temperature Warning\n");
 		event = REGULATOR_EVENT_OVER_TEMP;
 		for (i = 0; i < LTC3676_NUM_REGULATORS; i++)
-			regulator_notifier_call_chain(ltc3676->regulators[i],
+			regulator_analtifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
 	}
 
@@ -285,7 +285,7 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 		dev_info(dev, "Undervoltage Warning\n");
 		event = REGULATOR_EVENT_UNDER_VOLTAGE;
 		for (i = 0; i < LTC3676_NUM_REGULATORS; i++)
-			regulator_notifier_call_chain(ltc3676->regulators[i],
+			regulator_analtifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
 	}
 
@@ -305,7 +305,7 @@ static int ltc3676_regulator_probe(struct i2c_client *client)
 
 	ltc3676 = devm_kzalloc(dev, sizeof(*ltc3676), GFP_KERNEL);
 	if (!ltc3676)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, ltc3676);
 	ltc3676->dev = dev;
@@ -371,7 +371,7 @@ MODULE_DEVICE_TABLE(of, ltc3676_of_match);
 static struct i2c_driver ltc3676_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(ltc3676_of_match),
 	},
 	.probe = ltc3676_regulator_probe,
@@ -380,5 +380,5 @@ static struct i2c_driver ltc3676_driver = {
 module_i2c_driver(ltc3676_driver);
 
 MODULE_AUTHOR("Tim Harvey <tharvey@gateworks.com>");
-MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC3676");
+MODULE_DESCRIPTION("Regulator driver for Linear Techanallogy LTC3676");
 MODULE_LICENSE("GPL v2");

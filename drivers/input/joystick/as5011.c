@@ -73,7 +73,7 @@ static int as5011_i2c_write(struct i2c_client *client,
 	uint8_t data[2] = { aregaddr, avalue };
 	struct i2c_msg msg = {
 		.addr = client->addr,
-		.flags = I2C_M_IGNORE_NAK,
+		.flags = I2C_M_IGANALRE_NAK,
 		.len = 2,
 		.buf = (uint8_t *)data
 	};
@@ -96,7 +96,7 @@ static int as5011_i2c_read(struct i2c_client *client,
 		},
 		{
 			.addr = client->addr,
-			.flags = I2C_M_RD | I2C_M_NOSTART,
+			.flags = I2C_M_RD | I2C_M_ANALSTART,
 			.len = 1,
 			.buf = (uint8_t *)data
 		}
@@ -225,16 +225,16 @@ static int as5011_probe(struct i2c_client *client)
 		return -EINVAL;
 
 	if (!plat_data->axis_irq) {
-		dev_err(&client->dev, "No axis IRQ?\n");
+		dev_err(&client->dev, "Anal axis IRQ?\n");
 		return -EINVAL;
 	}
 
 	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_NOSTART |
+				     I2C_FUNC_ANALSTART |
 				     I2C_FUNC_PROTOCOL_MANGLING)) {
 		dev_err(&client->dev,
 			"need i2c bus that supports protocol mangling\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	as5011 = kmalloc(sizeof(struct as5011_device), GFP_KERNEL);
@@ -242,7 +242,7 @@ static int as5011_probe(struct i2c_client *client)
 	if (!as5011 || !input_dev) {
 		dev_err(&client->dev,
 			"Can't allocate memory for device structure\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  fair_share.c - A simple weight based Thermal governor
+ *  fair_share.c - A simple weight based Thermal goveranalr
  *
  *  Copyright (C) 2012 Intel Corp
  *  Copyright (C) 2012 Durgadoss R <durgadoss.r@intel.com>
@@ -27,7 +27,7 @@ static int get_trip_level(struct thermal_zone_device *tz)
 		level_trip = trip;
 	}
 
-	/*  Bail out if the temperature is not greater than any trips. */
+	/*  Bail out if the temperature is analt greater than any trips. */
 	if (!level_trip)
 		return 0;
 
@@ -56,9 +56,9 @@ static long get_target_state(struct thermal_zone_device *tz,
  * P1. max_state: Maximum throttle state exposed by the cooling device.
  * P2. percentage[i]/100:
  *	How 'effective' the 'i'th device is, in cooling the given zone.
- * P3. cur_trip_level/max_no_of_trips:
+ * P3. cur_trip_level/max_anal_of_trips:
  *	This describes the extent to which the devices should be throttled.
- *	We do not want to throttle too much when we trip a lower temperature,
+ *	We do analt want to throttle too much when we trip a lower temperature,
  *	whereas the throttling is at full swing if we trip critical levels.
  *	(Heavily assumes the trip points are in ascending order)
  * new_state of cooling device = P3 * P2 * P1
@@ -73,7 +73,7 @@ static int fair_share_throttle(struct thermal_zone_device *tz,
 
 	lockdep_assert_held(&tz->lock);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		if (instance->trip != trip)
 			continue;
 
@@ -81,7 +81,7 @@ static int fair_share_throttle(struct thermal_zone_device *tz,
 		total_instance++;
 	}
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		int percentage;
 		struct thermal_cooling_device *cdev = instance->cdev;
 
@@ -104,8 +104,8 @@ static int fair_share_throttle(struct thermal_zone_device *tz,
 	return 0;
 }
 
-static struct thermal_governor thermal_gov_fair_share = {
+static struct thermal_goveranalr thermal_gov_fair_share = {
 	.name		= "fair_share",
 	.throttle	= fair_share_throttle,
 };
-THERMAL_GOVERNOR_DECLARE(thermal_gov_fair_share);
+THERMAL_GOVERANALR_DECLARE(thermal_gov_fair_share);

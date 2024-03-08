@@ -35,7 +35,7 @@
  *     NLBL_CIPSOV4_A_MLSLVLLST
  *     NLBL_CIPSOV4_A_MLSCATLST
  *
- *   If using CIPSO_V4_MAP_PASS or CIPSO_V4_MAP_LOCAL no additional attributes
+ *   If using CIPSO_V4_MAP_PASS or CIPSO_V4_MAP_LOCAL anal additional attributes
  *   are required.
  *
  * o REMOVE:
@@ -67,12 +67,12 @@
  *     NLBL_CIPSOV4_A_MLSLVLLST
  *     NLBL_CIPSOV4_A_MLSCATLST
  *
- *   If using CIPSO_V4_MAP_PASS or CIPSO_V4_MAP_LOCAL no additional attributes
+ *   If using CIPSO_V4_MAP_PASS or CIPSO_V4_MAP_LOCAL anal additional attributes
  *   are required.
  *
  * o LISTALL:
  *   This message is sent by an application to list the valid DOIs on the
- *   system.  When sent by an application there is no payload and the
+ *   system.  When sent by an application there is anal payload and the
  *   NLM_F_DUMP flag should be set.  The kernel should respond with a series of
  *   the following messages.
  *

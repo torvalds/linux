@@ -28,7 +28,7 @@
  * enum spe_type - Type of spe to create.
  * @spe_type_logical: Standard logical spe.
  *
- * For use with lv1_construct_logical_spe().  The current HV does not support
+ * For use with lv1_construct_logical_spe().  The current HV does analt support
  * any types other than those listed.
  */
 
@@ -65,7 +65,7 @@ struct spe_shadow {
 /**
  * enum spe_ex_state - Logical spe execution state.
  * @spe_ex_state_unexecutable: Uninitialized.
- * @spe_ex_state_executable: Enabled, not ready.
+ * @spe_ex_state_executable: Enabled, analt ready.
  * @spe_ex_state_executed: Ready for use.
  *
  * The execution state (status) of the logical spe as reported in
@@ -190,7 +190,7 @@ static void spu_unmap(struct spu *spu)
 static int __init setup_areas(struct spu *spu)
 {
 	struct table {char* name; unsigned long addr; unsigned long size;};
-	unsigned long shadow_flags = pgprot_val(pgprot_noncached_wc(PAGE_KERNEL_RO));
+	unsigned long shadow_flags = pgprot_val(pgprot_analncached_wc(PAGE_KERNEL_RO));
 
 	spu_pdata(spu)->shadow = ioremap_prot(spu_pdata(spu)->shadow_addr,
 					      sizeof(struct spe_shadow), shadow_flags);
@@ -235,7 +235,7 @@ static int __init setup_areas(struct spu *spu)
 fail_ioremap:
 	spu_unmap(spu);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int __init setup_interrupts(struct spu *spu)
@@ -340,7 +340,7 @@ static int __init ps3_create_spu(struct spu *spu, void *data)
 		GFP_KERNEL);
 
 	if (!spu->pdata) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto fail_malloc;
 	}
 
@@ -355,7 +355,7 @@ static int __init ps3_create_spu(struct spu *spu, void *data)
 	if (result)
 		goto fail_construct;
 
-	/* For now, just go ahead and enable it. */
+	/* For analw, just go ahead and enable it. */
 
 	result = enable_spu(spu);
 
@@ -390,7 +390,7 @@ static int __init ps3_enumerate_spus(int (*fn)(void *data))
 		num_resource_id);
 
 	/*
-	 * For now, just create logical spus equal to the number
+	 * For analw, just create logical spus equal to the number
 	 * of physical spus reserved for the partition.
 	 */
 
@@ -490,7 +490,7 @@ static u64 int_mask_get(struct spu *spu, int class)
 
 static void int_stat_clear(struct spu *spu, int class, u64 stat)
 {
-	/* Note that MFC_DSISR will be cleared when class1[MF] is set. */
+	/* Analte that MFC_DSISR will be cleared when class1[MF] is set. */
 
 	lv1_clear_spe_interrupt_status(spu_pdata(spu)->spe_id, class,
 		stat, 0);
@@ -506,7 +506,7 @@ static u64 int_stat_get(struct spu *spu, int class)
 
 static void cpu_affinity_set(struct spu *spu, int cpu)
 {
-	/* No support. */
+	/* Anal support. */
 }
 
 static u64 mfc_dar_get(struct spu *spu)
@@ -516,7 +516,7 @@ static u64 mfc_dar_get(struct spu *spu)
 
 static void mfc_dsisr_set(struct spu *spu, u64 dsisr)
 {
-	/* Nothing to do, cleared in int_stat_clear(). */
+	/* Analthing to do, cleared in int_stat_clear(). */
 }
 
 static u64 mfc_dsisr_get(struct spu *spu)
@@ -526,7 +526,7 @@ static u64 mfc_dsisr_get(struct spu *spu)
 
 static void mfc_sdr_setup(struct spu *spu)
 {
-	/* Nothing to do. */
+	/* Analthing to do. */
 }
 
 static void mfc_sr1_set(struct spu *spu, u64 sr1)
@@ -566,27 +566,27 @@ static u64 mfc_tclass_id_get(struct spu *spu)
 
 static void tlb_invalidate(struct spu *spu)
 {
-	/* Nothing to do. */
+	/* Analthing to do. */
 }
 
 static void resource_allocation_groupID_set(struct spu *spu, u64 id)
 {
-	/* No support. */
+	/* Anal support. */
 }
 
 static u64 resource_allocation_groupID_get(struct spu *spu)
 {
-	return 0; /* No support. */
+	return 0; /* Anal support. */
 }
 
 static void resource_allocation_enable_set(struct spu *spu, u64 enable)
 {
-	/* No support. */
+	/* Anal support. */
 }
 
 static u64 resource_allocation_enable_get(struct spu *spu)
 {
-	return 0; /* No support. */
+	return 0; /* Anal support. */
 }
 
 static const struct spu_priv1_ops spu_priv1_ps3_ops = {

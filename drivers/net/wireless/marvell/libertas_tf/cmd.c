@@ -26,7 +26,7 @@ static u16 lbtf_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
 	LBTF_REGDOMAIN_SP, LBTF_REGDOMAIN_FR, LBTF_REGDOMAIN_JP,
 };
 
-static struct cmd_ctrl_node *lbtf_get_cmd_ctrl_node(struct lbtf_private *priv);
+static struct cmd_ctrl_analde *lbtf_get_cmd_ctrl_analde(struct lbtf_private *priv);
 
 
 /**
@@ -111,7 +111,7 @@ int lbtf_update_hw_spec(struct lbtf_private *priv)
 
 	/* Clamp region code to 8-bit since FW spec indicates that it should
 	 * only ever be 8-bit, even though the field size is 16-bit.  Some
-	 * firmware returns non-zero high 8 bits here.
+	 * firmware returns analn-zero high 8 bits here.
 	 */
 	priv->regioncode = le16_to_cpu(cmd.regioncode) & 0xFF;
 
@@ -202,35 +202,35 @@ int lbtf_beacon_ctrl(struct lbtf_private *priv, bool beacon_enable,
 }
 
 static void lbtf_queue_cmd(struct lbtf_private *priv,
-			  struct cmd_ctrl_node *cmdnode)
+			  struct cmd_ctrl_analde *cmdanalde)
 {
 	unsigned long flags;
 	lbtf_deb_enter(LBTF_DEB_HOST);
 
-	if (!cmdnode) {
-		lbtf_deb_host("QUEUE_CMD: cmdnode is NULL\n");
+	if (!cmdanalde) {
+		lbtf_deb_host("QUEUE_CMD: cmdanalde is NULL\n");
 		goto qcmd_done;
 	}
 
-	if (!cmdnode->cmdbuf->size) {
+	if (!cmdanalde->cmdbuf->size) {
 		lbtf_deb_host("DNLD_CMD: cmd size is zero\n");
 		goto qcmd_done;
 	}
 
-	cmdnode->result = 0;
+	cmdanalde->result = 0;
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	list_add_tail(&cmdnode->list, &priv->cmdpendingq);
+	list_add_tail(&cmdanalde->list, &priv->cmdpendingq);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbtf_deb_host("QUEUE_CMD: inserted command 0x%04x into cmdpendingq\n",
-		     le16_to_cpu(cmdnode->cmdbuf->command));
+		     le16_to_cpu(cmdanalde->cmdbuf->command));
 
 qcmd_done:
 	lbtf_deb_leave(LBTF_DEB_HOST);
 }
 
 static void lbtf_submit_command(struct lbtf_private *priv,
-			       struct cmd_ctrl_node *cmdnode)
+			       struct cmd_ctrl_analde *cmdanalde)
 {
 	unsigned long flags;
 	struct cmd_header *cmd;
@@ -241,16 +241,16 @@ static void lbtf_submit_command(struct lbtf_private *priv,
 
 	lbtf_deb_enter(LBTF_DEB_HOST);
 
-	cmd = cmdnode->cmdbuf;
+	cmd = cmdanalde->cmdbuf;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	priv->cur_cmd = cmdnode;
+	priv->cur_cmd = cmdanalde;
 	cmdsize = le16_to_cpu(cmd->size);
 	command = le16_to_cpu(cmd->command);
 
 	lbtf_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
 		     command, le16_to_cpu(cmd->seqnum), cmdsize);
-	lbtf_deb_hex(LBTF_DEB_CMD, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
+	lbtf_deb_hex(LBTF_DEB_CMD, "DNLD_CMD", (void *) cmdanalde->cmdbuf, cmdsize);
 
 	ret = priv->ops->hw_host_to_card(priv, MVMS_CMD, (u8 *)cmd, cmdsize);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -269,30 +269,30 @@ static void lbtf_submit_command(struct lbtf_private *priv,
 }
 
 /*
- *  This function inserts command node to cmdfreeq
+ *  This function inserts command analde to cmdfreeq
  *  after cleans it. Requires priv->driver_lock held.
  */
 static void __lbtf_cleanup_and_insert_cmd(struct lbtf_private *priv,
-					 struct cmd_ctrl_node *cmdnode)
+					 struct cmd_ctrl_analde *cmdanalde)
 {
 	lbtf_deb_enter(LBTF_DEB_HOST);
 
-	if (!cmdnode)
+	if (!cmdanalde)
 		goto cl_ins_out;
 
-	cmdnode->callback = NULL;
-	cmdnode->callback_arg = 0;
+	cmdanalde->callback = NULL;
+	cmdanalde->callback_arg = 0;
 
-	memset(cmdnode->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
+	memset(cmdanalde->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
 
-	list_add_tail(&cmdnode->list, &priv->cmdfreeq);
+	list_add_tail(&cmdanalde->list, &priv->cmdfreeq);
 
 cl_ins_out:
 	lbtf_deb_leave(LBTF_DEB_HOST);
 }
 
 static void lbtf_cleanup_and_insert_cmd(struct lbtf_private *priv,
-	struct cmd_ctrl_node *ptempcmd)
+	struct cmd_ctrl_analde *ptempcmd)
 {
 	unsigned long flags;
 
@@ -301,7 +301,7 @@ static void lbtf_cleanup_and_insert_cmd(struct lbtf_private *priv,
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
-void lbtf_complete_command(struct lbtf_private *priv, struct cmd_ctrl_node *cmd,
+void lbtf_complete_command(struct lbtf_private *priv, struct cmd_ctrl_analde *cmd,
 			  int result)
 {
 	cmd->result = result;
@@ -443,12 +443,12 @@ int lbtf_allocate_cmd_buffer(struct lbtf_private *priv)
 	int ret = 0;
 	u32 bufsize;
 	u32 i;
-	struct cmd_ctrl_node *cmdarray;
+	struct cmd_ctrl_analde *cmdarray;
 
 	lbtf_deb_enter(LBTF_DEB_HOST);
 
 	/* Allocate and initialize the command array */
-	bufsize = sizeof(struct cmd_ctrl_node) * LBS_NUM_CMD_BUFFERS;
+	bufsize = sizeof(struct cmd_ctrl_analde) * LBS_NUM_CMD_BUFFERS;
 	cmdarray = kzalloc(bufsize, GFP_KERNEL);
 	if (!cmdarray) {
 		lbtf_deb_host("ALLOC_CMD_BUF: tempcmd_array is NULL\n");
@@ -488,12 +488,12 @@ done:
  */
 int lbtf_free_cmd_buffer(struct lbtf_private *priv)
 {
-	struct cmd_ctrl_node *cmdarray;
+	struct cmd_ctrl_analde *cmdarray;
 	unsigned int i;
 
 	lbtf_deb_enter(LBTF_DEB_HOST);
 
-	/* need to check if cmd array is allocated or not */
+	/* need to check if cmd array is allocated or analt */
 	if (priv->cmd_array == NULL) {
 		lbtf_deb_host("FREE_CMD_BUF: cmd_array is NULL\n");
 		goto done;
@@ -507,7 +507,7 @@ int lbtf_free_cmd_buffer(struct lbtf_private *priv)
 		cmdarray[i].cmdbuf = NULL;
 	}
 
-	/* Release cmd_ctrl_node */
+	/* Release cmd_ctrl_analde */
 	kfree(priv->cmd_array);
 	priv->cmd_array = NULL;
 
@@ -517,15 +517,15 @@ done:
 }
 
 /**
- *  lbtf_get_cmd_ctrl_node - Gets free cmd node from free cmd queue.
+ *  lbtf_get_cmd_ctrl_analde - Gets free cmd analde from free cmd queue.
  *
  *  @priv:		A pointer to struct lbtf_private structure
  *
- *  Returns: pointer to a struct cmd_ctrl_node or NULL if none available.
+ *  Returns: pointer to a struct cmd_ctrl_analde or NULL if analne available.
  */
-static struct cmd_ctrl_node *lbtf_get_cmd_ctrl_node(struct lbtf_private *priv)
+static struct cmd_ctrl_analde *lbtf_get_cmd_ctrl_analde(struct lbtf_private *priv)
 {
-	struct cmd_ctrl_node *tempnode;
+	struct cmd_ctrl_analde *tempanalde;
 	unsigned long flags;
 
 	lbtf_deb_enter(LBTF_DEB_HOST);
@@ -536,18 +536,18 @@ static struct cmd_ctrl_node *lbtf_get_cmd_ctrl_node(struct lbtf_private *priv)
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (!list_empty(&priv->cmdfreeq)) {
-		tempnode = list_first_entry(&priv->cmdfreeq,
-					    struct cmd_ctrl_node, list);
-		list_del(&tempnode->list);
+		tempanalde = list_first_entry(&priv->cmdfreeq,
+					    struct cmd_ctrl_analde, list);
+		list_del(&tempanalde->list);
 	} else {
-		lbtf_deb_host("GET_CMD_NODE: cmd_ctrl_node is not available\n");
-		tempnode = NULL;
+		lbtf_deb_host("GET_CMD_ANALDE: cmd_ctrl_analde is analt available\n");
+		tempanalde = NULL;
 	}
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbtf_deb_leave(LBTF_DEB_HOST);
-	return tempnode;
+	return tempanalde;
 }
 
 /**
@@ -559,12 +559,12 @@ static struct cmd_ctrl_node *lbtf_get_cmd_ctrl_node(struct lbtf_private *priv)
  */
 int lbtf_execute_next_command(struct lbtf_private *priv)
 {
-	struct cmd_ctrl_node *cmdnode = NULL;
+	struct cmd_ctrl_analde *cmdanalde = NULL;
 	struct cmd_header *cmd;
 	unsigned long flags;
 	int ret = 0;
 
-	/* Debug group is lbtf_deb_THREAD and not lbtf_deb_HOST, because the
+	/* Debug group is lbtf_deb_THREAD and analt lbtf_deb_HOST, because the
 	 * only caller to us is lbtf_thread() and we get even when a
 	 * data packet is received */
 	lbtf_deb_enter(LBTF_DEB_THREAD);
@@ -579,18 +579,18 @@ int lbtf_execute_next_command(struct lbtf_private *priv)
 	}
 
 	if (!list_empty(&priv->cmdpendingq)) {
-		cmdnode = list_first_entry(&priv->cmdpendingq,
-					   struct cmd_ctrl_node, list);
+		cmdanalde = list_first_entry(&priv->cmdpendingq,
+					   struct cmd_ctrl_analde, list);
 	}
 
-	if (cmdnode) {
-		cmd = cmdnode->cmdbuf;
+	if (cmdanalde) {
+		cmd = cmdanalde->cmdbuf;
 
-		list_del(&cmdnode->list);
+		list_del(&cmdanalde->list);
 		lbtf_deb_host("EXEC_NEXT_CMD: sending command 0x%04x\n",
 			    le16_to_cpu(cmd->command));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		lbtf_submit_command(priv, cmdnode);
+		lbtf_submit_command(priv, cmdanalde);
 	} else
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
@@ -600,54 +600,54 @@ done:
 	return ret;
 }
 
-static struct cmd_ctrl_node *__lbtf_cmd_async(struct lbtf_private *priv,
+static struct cmd_ctrl_analde *__lbtf_cmd_async(struct lbtf_private *priv,
 	uint16_t command, struct cmd_header *in_cmd, int in_cmd_size,
 	int (*callback)(struct lbtf_private *, unsigned long,
 			struct cmd_header *),
 	unsigned long callback_arg)
 {
-	struct cmd_ctrl_node *cmdnode;
+	struct cmd_ctrl_analde *cmdanalde;
 
 	lbtf_deb_enter(LBTF_DEB_HOST);
 
 	if (priv->surpriseremoved) {
 		lbtf_deb_host("PREP_CMD: card removed\n");
-		cmdnode = ERR_PTR(-ENOENT);
+		cmdanalde = ERR_PTR(-EANALENT);
 		goto done;
 	}
 
-	cmdnode = lbtf_get_cmd_ctrl_node(priv);
-	if (cmdnode == NULL) {
-		lbtf_deb_host("PREP_CMD: cmdnode is NULL\n");
+	cmdanalde = lbtf_get_cmd_ctrl_analde(priv);
+	if (cmdanalde == NULL) {
+		lbtf_deb_host("PREP_CMD: cmdanalde is NULL\n");
 
 		/* Wake up main thread to execute next command */
 		queue_work(lbtf_wq, &priv->cmd_work);
-		cmdnode = ERR_PTR(-ENOBUFS);
+		cmdanalde = ERR_PTR(-EANALBUFS);
 		goto done;
 	}
 
-	cmdnode->callback = callback;
-	cmdnode->callback_arg = callback_arg;
+	cmdanalde->callback = callback;
+	cmdanalde->callback_arg = callback_arg;
 
 	/* Copy the incoming command to the buffer */
-	memcpy(cmdnode->cmdbuf, in_cmd, in_cmd_size);
+	memcpy(cmdanalde->cmdbuf, in_cmd, in_cmd_size);
 
 	/* Set sequence number, clean result, move to buffer */
 	priv->seqnum++;
-	cmdnode->cmdbuf->command = cpu_to_le16(command);
-	cmdnode->cmdbuf->size    = cpu_to_le16(in_cmd_size);
-	cmdnode->cmdbuf->seqnum  = cpu_to_le16(priv->seqnum);
-	cmdnode->cmdbuf->result  = 0;
+	cmdanalde->cmdbuf->command = cpu_to_le16(command);
+	cmdanalde->cmdbuf->size    = cpu_to_le16(in_cmd_size);
+	cmdanalde->cmdbuf->seqnum  = cpu_to_le16(priv->seqnum);
+	cmdanalde->cmdbuf->result  = 0;
 
 	lbtf_deb_host("PREP_CMD: command 0x%04x\n", command);
 
-	cmdnode->cmdwaitqwoken = 0;
-	lbtf_queue_cmd(priv, cmdnode);
+	cmdanalde->cmdwaitqwoken = 0;
+	lbtf_queue_cmd(priv, cmdanalde);
 	queue_work(lbtf_wq, &priv->cmd_work);
 
  done:
-	lbtf_deb_leave_args(LBTF_DEB_HOST, "ret %p", cmdnode);
-	return cmdnode;
+	lbtf_deb_leave_args(LBTF_DEB_HOST, "ret %p", cmdanalde);
+	return cmdanalde;
 }
 
 void lbtf_cmd_async(struct lbtf_private *priv, uint16_t command,
@@ -664,22 +664,22 @@ int __lbtf_cmd(struct lbtf_private *priv, uint16_t command,
 			      unsigned long, struct cmd_header *),
 	      unsigned long callback_arg)
 {
-	struct cmd_ctrl_node *cmdnode;
+	struct cmd_ctrl_analde *cmdanalde;
 	unsigned long flags;
 	int ret = 0;
 
 	lbtf_deb_enter(LBTF_DEB_HOST);
 
-	cmdnode = __lbtf_cmd_async(priv, command, in_cmd, in_cmd_size,
+	cmdanalde = __lbtf_cmd_async(priv, command, in_cmd, in_cmd_size,
 				  callback, callback_arg);
-	if (IS_ERR(cmdnode)) {
-		ret = PTR_ERR(cmdnode);
+	if (IS_ERR(cmdanalde)) {
+		ret = PTR_ERR(cmdanalde);
 		goto done;
 	}
 
 	might_sleep();
-	ret = wait_event_interruptible(cmdnode->cmdwait_q,
-				       cmdnode->cmdwaitqwoken);
+	ret = wait_event_interruptible(cmdanalde->cmdwait_q,
+				       cmdanalde->cmdwaitqwoken);
 	if (ret) {
 		pr_info("PREP_CMD: command 0x%04x interrupted by signal: %d\n",
 			    command, ret);
@@ -687,12 +687,12 @@ int __lbtf_cmd(struct lbtf_private *priv, uint16_t command,
 	}
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	ret = cmdnode->result;
+	ret = cmdanalde->result;
 	if (ret)
 		pr_info("PREP_CMD: command 0x%04x failed: %d\n",
 			    command, ret);
 
-	__lbtf_cleanup_and_insert_cmd(priv, cmdnode);
+	__lbtf_cleanup_and_insert_cmd(priv, cmdanalde);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 done:
@@ -756,13 +756,13 @@ int lbtf_process_rx_command(struct lbtf_private *priv)
 		goto done;
 	}
 
-	/* Now we got response from FW, cancel the command timer */
+	/* Analw we got response from FW, cancel the command timer */
 	del_timer(&priv->command_timer);
 	priv->cmd_timed_out = 0;
 	if (priv->nr_retries)
 		priv->nr_retries = 0;
 
-	/* If the command is not successful, cleanup and return failure */
+	/* If the command is analt successful, cleanup and return failure */
 	if ((result != 0 || !(respcmd & 0x8000))) {
 		/*
 		 * Handling errors here

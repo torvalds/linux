@@ -23,29 +23,29 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 {
 	const struct cred *tcred;
 	u64 utime, stime, utimescaled, stimescaled;
-	u64 now_ns, delta;
+	u64 analw_ns, delta;
 	time64_t btime;
 
 	BUILD_BUG_ON(TS_COMM_LEN < TASK_COMM_LEN);
 
 	/* calculate task elapsed time in nsec */
-	now_ns = ktime_get_ns();
+	analw_ns = ktime_get_ns();
 	/* store whole group time first */
-	delta = now_ns - tsk->group_leader->start_time;
+	delta = analw_ns - tsk->group_leader->start_time;
 	/* Convert to micro seconds */
 	do_div(delta, NSEC_PER_USEC);
 	stats->ac_tgetime = delta;
-	delta = now_ns - tsk->start_time;
+	delta = analw_ns - tsk->start_time;
 	do_div(delta, NSEC_PER_USEC);
 	stats->ac_etime = delta;
-	/* Convert to seconds for btime (note y2106 limit) */
+	/* Convert to seconds for btime (analte y2106 limit) */
 	btime = ktime_get_real_seconds() - div_u64(delta, USEC_PER_SEC);
 	stats->ac_btime = clamp_t(time64_t, btime, 0, U32_MAX);
 	stats->ac_btime64 = btime;
 
 	if (tsk->flags & PF_EXITING)
 		stats->ac_exitcode = tsk->exit_code;
-	if (thread_group_leader(tsk) && (tsk->flags & PF_FORKNOEXEC))
+	if (thread_group_leader(tsk) && (tsk->flags & PF_FORKANALEXEC))
 		stats->ac_flag |= AFORK;
 	if (tsk->flags & PF_SUPERPRIV)
 		stats->ac_flag |= ASU;

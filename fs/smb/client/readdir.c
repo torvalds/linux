@@ -56,19 +56,19 @@ static inline void dump_cifs_file_struct(struct file *file, char *label)
 #endif /* DEBUG2 */
 
 /*
- * Match a reparse point inode if reparse tag and ctime haven't changed.
+ * Match a reparse point ianalde if reparse tag and ctime haven't changed.
  *
  * Windows Server updates ctime of reparse points when their data have changed.
  * The server doesn't allow changing reparse tags from existing reparse points,
  * though it's worth checking.
  */
-static inline bool reparse_inode_match(struct inode *inode,
+static inline bool reparse_ianalde_match(struct ianalde *ianalde,
 				       struct cifs_fattr *fattr)
 {
-	struct timespec64 ctime = inode_get_ctime(inode);
+	struct timespec64 ctime = ianalde_get_ctime(ianalde);
 
-	return (CIFS_I(inode)->cifsAttrs & ATTR_REPARSE) &&
-		CIFS_I(inode)->reparse_tag == fattr->cf_cifstag &&
+	return (CIFS_I(ianalde)->cifsAttrs & ATTR_REPARSE) &&
+		CIFS_I(ianalde)->reparse_tag == fattr->cf_cifstag &&
 		timespec64_equal(&ctime, &fattr->cf_ctime);
 }
 
@@ -84,7 +84,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		    struct cifs_fattr *fattr)
 {
 	struct dentry *dentry, *alias;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct super_block *sb = parent->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
@@ -95,7 +95,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	dentry = d_hash_and_lookup(parent, name);
 	if (!dentry) {
 		/*
-		 * If we know that the inode will need to be revalidated
+		 * If we kanalw that the ianalde will need to be revalidated
 		 * immediately, then don't create a new dentry for it.
 		 * We'll end up doing an on the wire call either way and
 		 * this spares us an invalidation.
@@ -110,45 +110,45 @@ retry:
 	if (IS_ERR(dentry))
 		return;
 	if (!d_in_lookup(dentry)) {
-		inode = d_inode(dentry);
-		if (inode) {
+		ianalde = d_ianalde(dentry);
+		if (ianalde) {
 			if (d_mountpoint(dentry)) {
 				dput(dentry);
 				return;
 			}
 			/*
-			 * If we're generating inode numbers, then we don't
+			 * If we're generating ianalde numbers, then we don't
 			 * want to clobber the existing one with the one that
 			 * the readdir code created.
 			 */
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM))
-				fattr->cf_uniqueid = CIFS_I(inode)->uniqueid;
+				fattr->cf_uniqueid = CIFS_I(ianalde)->uniqueid;
 
 			/*
-			 * Update inode in place if both i_ino and i_mode didn't
+			 * Update ianalde in place if both i_ianal and i_mode didn't
 			 * change.
 			 */
-			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid) {
+			if (CIFS_I(ianalde)->uniqueid == fattr->cf_uniqueid) {
 				/*
-				 * Query dir responses don't provide enough
+				 * Query dir responses don't provide eanalugh
 				 * information about reparse points other than
 				 * their reparse tags.  Save an invalidation by
-				 * not clobbering some existing attributes when
+				 * analt clobbering some existing attributes when
 				 * reparse tag and ctime haven't changed.
 				 */
 				rc = 0;
 				if (fattr->cf_cifsattrs & ATTR_REPARSE) {
-					if (likely(reparse_inode_match(inode, fattr))) {
-						fattr->cf_mode = inode->i_mode;
-						fattr->cf_rdev = inode->i_rdev;
-						fattr->cf_eof = CIFS_I(inode)->netfs.remote_i_size;
+					if (likely(reparse_ianalde_match(ianalde, fattr))) {
+						fattr->cf_mode = ianalde->i_mode;
+						fattr->cf_rdev = ianalde->i_rdev;
+						fattr->cf_eof = CIFS_I(ianalde)->netfs.remote_i_size;
 						fattr->cf_symlink_target = NULL;
 					} else {
-						CIFS_I(inode)->time = 0;
+						CIFS_I(ianalde)->time = 0;
 						rc = -ESTALE;
 					}
 				}
-				if (!rc && !cifs_fattr_to_inode(inode, fattr)) {
+				if (!rc && !cifs_fattr_to_ianalde(ianalde, fattr)) {
 					dput(dentry);
 					return;
 				}
@@ -158,10 +158,10 @@ retry:
 		dput(dentry);
 		goto retry;
 	} else {
-		inode = cifs_iget(sb, fattr);
-		if (!inode)
-			inode = ERR_PTR(-ENOMEM);
-		alias = d_splice_alias(inode, dentry);
+		ianalde = cifs_iget(sb, fattr);
+		if (!ianalde)
+			ianalde = ERR_PTR(-EANALMEM);
+		alias = d_splice_alias(ianalde, dentry);
 		d_lookup_done(dentry);
 		if (alias && !IS_ERR(alias))
 			dput(alias);
@@ -200,8 +200,8 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	}
 
 out_reparse:
-	/* non-unix readdir doesn't provide nlink */
-	fattr->cf_flags |= CIFS_FATTR_UNKNOWN_NLINK;
+	/* analn-unix readdir doesn't provide nlink */
+	fattr->cf_flags |= CIFS_FATTR_UNKANALWN_NLINK;
 
 	if (fattr->cf_cifsattrs & ATTR_READONLY)
 		fattr->cf_mode &= ~S_IWUGO;
@@ -210,7 +210,7 @@ out_reparse:
 	 * We of course don't get ACL info in FIND_FIRST/NEXT results, so
 	 * mark it for revalidation so that "ls -l" will look right. It might
 	 * be super-slow, but if we don't do this then the ownership of files
-	 * may look wrong since the inodes may not have timed out by the time
+	 * may look wrong since the ianaldes may analt have timed out by the time
 	 * "ls" does a stat() call on them.
 	 */
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) ||
@@ -226,7 +226,7 @@ out_reparse:
 		} else {
 			/*
 			 * trying to get the type and mode via SFU can be slow,
-			 * so just call those regular files for now, and mark
+			 * so just call those regular files for analw, and mark
 			 * for reval
 			 */
 			fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
@@ -244,7 +244,7 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 	posix_info_parse(info, NULL, &parsed);
 
 	memset(fattr, 0, sizeof(*fattr));
-	fattr->cf_uniqueid = le64_to_cpu(info->Inode);
+	fattr->cf_uniqueid = le64_to_cpu(info->Ianalde);
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
 	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
 
@@ -256,9 +256,9 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 	fattr->cf_cifsattrs = le32_to_cpu(info->DosAttributes);
 
 	/*
-	 * Since we set the inode type below we need to mask off
+	 * Since we set the ianalde type below we need to mask off
 	 * to avoid strange results if bits set above.
-	 * XXX: why not make server&client use the type bits?
+	 * XXX: why analt make server&client use the type bits?
 	 */
 	fattr->cf_mode = le32_to_cpu(info->Mode) & ~S_IFMT;
 
@@ -272,7 +272,7 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 		fattr->cf_dtype = DT_DIR;
 	} else {
 		/*
-		 * mark anything that is not a dir as regular
+		 * mark anything that is analt a dir as regular
 		 * file. special files should have the REPARSE
 		 * attribute and will be marked as needing revaluation
 		 */
@@ -360,7 +360,7 @@ _initiate_cifs_search(const unsigned int xid, struct file *file,
 
 		cifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 		if (cifsFile == NULL) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto error_exit;
 		}
 		spin_lock_init(&cifsFile->file_info_lock);
@@ -375,7 +375,7 @@ _initiate_cifs_search(const unsigned int xid, struct file *file,
 	server = tcon->ses->server;
 
 	if (!server->ops->query_dir_first) {
-		rc = -ENOSYS;
+		rc = -EANALSYS;
 		goto error_exit;
 	}
 
@@ -386,7 +386,7 @@ _initiate_cifs_search(const unsigned int xid, struct file *file,
 
 ffirst_retry:
 	/* test for Unix extensions */
-	/* but now check for them on the share/mount not on the SMB session */
+	/* but analw check for them on the share/mount analt on the SMB session */
 	/* if (cap_unix(tcon->ses) { */
 	if (tcon->unix_ext)
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_UNIX;
@@ -397,7 +397,7 @@ ffirst_retry:
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_INFO_STANDARD;
 	} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_ID_FULL_DIR_INFO;
-	} else /* not srvinos - BB fixme add check for backlevel? */ {
+	} else /* analt srvianals - BB fixme add check for backlevel? */ {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_FULL_DIRECTORY_INFO;
 	}
 
@@ -411,7 +411,7 @@ ffirst_retry:
 
 	if (rc == 0) {
 		cifsFile->invalidHandle = false;
-	} else if ((rc == -EOPNOTSUPP) &&
+	} else if ((rc == -EOPANALTSUPP) &&
 		   (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		goto ffirst_retry;
@@ -430,7 +430,7 @@ initiate_cifs_search(const unsigned int xid, struct file *file,
 	do {
 		rc = _initiate_cifs_search(xid, file, full_path);
 		/*
-		 * If we don't have enough credits to start reading the
+		 * If we don't have eanalugh credits to start reading the
 		 * directory just try again after short wait.
 		 */
 		if (rc != -EDEADLK)
@@ -477,7 +477,7 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb, int level)
 		new_entry = old_entry + next_offset;
 	}
 	cifs_dbg(FYI, "new entry %p old entry %p\n", new_entry, old_entry);
-	/* validate that new_entry is not past end of SMB */
+	/* validate that new_entry is analt past end of SMB */
 	if (new_entry >= end_of_smb) {
 		cifs_dbg(VFS, "search entry %p began after end of SMB %p old entry %p\n",
 			 new_entry, end_of_smb, old_entry);
@@ -498,7 +498,7 @@ struct cifs_dirent {
 	const char	*name;
 	size_t		namelen;
 	u32		resume_key;
-	u64		ino;
+	u64		ianal;
 };
 
 static void cifs_fill_dirent_posix(struct cifs_dirent *de,
@@ -514,8 +514,8 @@ static void cifs_fill_dirent_posix(struct cifs_dirent *de,
 
 	de->name = parsed.name;
 	de->namelen = parsed.name_len;
-	de->resume_key = info->Ignored;
-	de->ino = le64_to_cpu(info->Inode);
+	de->resume_key = info->Iganalred;
+	de->ianal = le64_to_cpu(info->Ianalde);
 }
 
 static void cifs_fill_dirent_unix(struct cifs_dirent *de,
@@ -527,7 +527,7 @@ static void cifs_fill_dirent_unix(struct cifs_dirent *de,
 	else
 		de->namelen = strnlen(de->name, PATH_MAX);
 	de->resume_key = info->ResumeKey;
-	de->ino = le64_to_cpu(info->basic.UniqueId);
+	de->ianal = le64_to_cpu(info->basic.UniqueId);
 }
 
 static void cifs_fill_dirent_dir(struct cifs_dirent *de,
@@ -552,7 +552,7 @@ static void cifs_fill_dirent_search(struct cifs_dirent *de,
 	de->name = &info->FileName[0];
 	de->namelen = le32_to_cpu(info->FileNameLength);
 	de->resume_key = info->FileIndex;
-	de->ino = le64_to_cpu(info->UniqueId);
+	de->ianal = le64_to_cpu(info->UniqueId);
 }
 
 static void cifs_fill_dirent_both(struct cifs_dirent *de,
@@ -567,7 +567,7 @@ static void cifs_fill_dirent_std(struct cifs_dirent *de,
 		const FIND_FILE_STANDARD_INFO *info)
 {
 	de->name = &info->FileName[0];
-	/* one byte length, no endianess conversion */
+	/* one byte length, anal endianess conversion */
 	de->namelen = info->FileNameLength;
 	de->resume_key = info->ResumeKey;
 }
@@ -600,7 +600,7 @@ static int cifs_fill_dirent(struct cifs_dirent *de, const void *info,
 		cifs_fill_dirent_std(de, info);
 		break;
 	default:
-		cifs_dbg(FYI, "Unknown findfirst level %d\n", level);
+		cifs_dbg(FYI, "Unkanalwn findfirst level %d\n", level);
 		return -EINVAL;
 	}
 
@@ -609,7 +609,7 @@ static int cifs_fill_dirent(struct cifs_dirent *de, const void *info,
 
 #define UNICODE_DOT cpu_to_le16(0x2e)
 
-/* return 0 if no match and 1 for . (current directory) and 2 for .. (parent) */
+/* return 0 if anal match and 1 for . (current directory) and 2 for .. (parent) */
 static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
 {
 	int rc = 0;
@@ -646,10 +646,10 @@ static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
    whether we can use the cached search results from the previous search */
 static int is_dir_changed(struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	struct cifsInodeInfo *cifs_inode_info = CIFS_I(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct cifsIanaldeInfo *cifs_ianalde_info = CIFS_I(ianalde);
 
-	if (cifs_inode_info->time == 0)
+	if (cifs_ianalde_info->time == 0)
 		return 1; /* directory was changed, e.g. unlink or new file */
 	else
 		return 0;
@@ -673,11 +673,11 @@ static int cifs_save_resume_key(const char *current_entry,
 }
 
 /*
- * Find the corresponding entry in the search. Note that the SMB server returns
+ * Find the corresponding entry in the search. Analte that the SMB server returns
  * search entries for . and .. which complicates logic here if we choose to
- * parse for them and we do not assume that they are located in the findfirst
+ * parse for them and we do analt assume that they are located in the findfirst
  * return buffer. We start counting in the buffer with entry 2 and increment for
- * every entry (do not increment for . or .. entry).
+ * every entry (do analt increment for . or .. entry).
  */
 static int
 find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
@@ -695,10 +695,10 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 	/* check if index in the buffer */
 
 	if (!server->ops->query_dir_first || !server->ops->query_dir_next)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if ((cfile == NULL) || (current_entry == NULL) || (num_to_ret == NULL))
-		return -ENOENT;
+		return -EANALENT;
 
 	*current_entry = NULL;
 	first_entry_in_buffer = cfile->srch_inf.index_of_last_entry -
@@ -707,7 +707,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 	/*
 	 * If first entry in buf is zero then is first buffer
 	 * in search response data which means it is likely . and ..
-	 * will be in this buffer, although some servers do not return
+	 * will be in this buffer, although some servers do analt return
 	 * . and .. for the root of a drive and for those we need
 	 * to start two entries earlier.
 	 */
@@ -760,7 +760,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 		if (cfile->srch_inf.last_entry)
 			cifs_save_resume_key(cfile->srch_inf.last_entry, cfile);
 		if (rc)
-			return -ENOENT;
+			return -EANALENT;
 	}
 	if (index_to_find < cfile->srch_inf.index_of_last_entry) {
 		/* we found the buffer that contains the entry */
@@ -797,12 +797,12 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 		rc = 0;
 		*current_entry = cur_ent;
 	} else {
-		cifs_dbg(FYI, "index not in buffer - could not findnext into it\n");
+		cifs_dbg(FYI, "index analt in buffer - could analt findnext into it\n");
 		return 0;
 	}
 
 	if (pos_in_buf >= cfile->srch_inf.entries_in_buffer) {
-		cifs_dbg(FYI, "can not return entries pos_in_buf beyond last\n");
+		cifs_dbg(FYI, "can analt return entries pos_in_buf beyond last\n");
 		*num_to_ret = 0;
 	} else
 		*num_to_ret = cfile->srch_inf.entries_in_buffer - pos_in_buf;
@@ -832,7 +832,7 @@ static bool emit_cached_dirents(struct cached_dirents *cde,
 		 * Handle this bu forcing ctx->pos to be the same as the
 		 * ->pos of the current dirent we emit from the cache.
 		 * This means that when we emit these entries from the cache
-		 * we now emit them with the same ->pos value as in the
+		 * we analw emit them with the same ->pos value as in the
 		 * initial scan.
 		 */
 		ctx->pos = dirent->pos;
@@ -910,9 +910,9 @@ static bool cifs_dir_emit(struct dir_context *ctx,
 			  struct cached_fid *cfid)
 {
 	bool rc;
-	ino_t ino = cifs_uniqueid_to_ino_t(fattr->cf_uniqueid);
+	ianal_t ianal = cifs_uniqueid_to_ianal_t(fattr->cf_uniqueid);
 
-	rc = dir_emit(ctx, name, namelen, ino, fattr->cf_dtype);
+	rc = dir_emit(ctx, name, namelen, ianal, fattr->cf_dtype);
 	if (!rc)
 		return rc;
 
@@ -932,7 +932,7 @@ static int cifs_filldir(char *find_entry, struct file *file,
 			struct cached_fid *cfid)
 {
 	struct cifsFileInfo *file_info = file->private_data;
-	struct super_block *sb = file_inode(file)->i_sb;
+	struct super_block *sb = file_ianalde(file)->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_dirent de = { NULL, };
 	struct cifs_fattr fattr;
@@ -1000,18 +1000,18 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		break;
 	}
 
-	if (de.ino && (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
-		fattr.cf_uniqueid = de.ino;
+	if (de.ianal && (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
+		fattr.cf_uniqueid = de.ianal;
 	} else {
 		fattr.cf_uniqueid = iunique(sb, ROOT_I);
-		cifs_autodisable_serverino(cifs_sb);
+		cifs_autodisable_serverianal(cifs_sb);
 	}
 
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
 	    couldbe_mf_symlink(&fattr))
 		/*
 		 * trying to get the type and mode can be slow,
-		 * so just call those regular files for now, and mark
+		 * so just call those regular files for analw, and mark
 		 * for reval
 		 */
 		fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
@@ -1052,7 +1052,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	if (file->private_data == NULL) {
 		tlink = cifs_sb_tlink(cifs_sb);
 		if (IS_ERR(tlink))
-			goto cache_not_found;
+			goto cache_analt_found;
 		tcon = tlink_tcon(tlink);
 	} else {
 		cifsFile = file->private_data;
@@ -1062,7 +1062,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	rc = open_cached_dir(xid, tcon, full_path, cifs_sb, false, &cfid);
 	cifs_put_tlink(tlink);
 	if (rc)
-		goto cache_not_found;
+		goto cache_analt_found;
 
 	mutex_lock(&cfid->dirents.de_mutex);
 	/*
@@ -1096,10 +1096,10 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	close_cached_dir(cfid);
 	cfid = NULL;
 
- cache_not_found:
+ cache_analt_found:
 	/*
 	 * Ensure FindFirst doesn't fail before doing filldir() for '.' and
-	 * '..'. Otherwise we won't be able to notify VFS in case of failure.
+	 * '..'. Otherwise we won't be able to analtify VFS in case of failure.
 	 */
 	if (file->private_data == NULL) {
 		rc = initiate_cifs_search(xid, file, full_path);
@@ -1142,7 +1142,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 			finished_cached_dirents_count(&cfid->dirents, ctx);
 			mutex_unlock(&cfid->dirents.de_mutex);
 		}
-		cifs_dbg(FYI, "Could not find entry\n");
+		cifs_dbg(FYI, "Could analt find entry\n");
 		goto rddir2_exit;
 	}
 	cifs_dbg(FYI, "loop through %d times filling dir for net buf %p\n",
@@ -1153,7 +1153,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 
 	tmp_buf = kmalloc(UNICODE_NAME_MAX, GFP_KERNEL);
 	if (tmp_buf == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto rddir2_exit;
 	}
 

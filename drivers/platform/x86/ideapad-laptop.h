@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  ideapad-laptop.h - Lenovo IdeaPad ACPI Extras
+ *  ideapad-laptop.h - Leanalvo IdeaPad ACPI Extras
  *
  *  Copyright © 2010 Intel Corporation
  *  Copyright © 2010 David Woodhouse <dwmw2@infradead.org>
@@ -11,7 +11,7 @@
 
 #include <linux/acpi.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 enum {
 	VPCCMD_R_VPC1 = 0x10,
@@ -23,7 +23,7 @@ enum {
 	VPCCMD_R_BT,
 	VPCCMD_W_BT,
 	VPCCMD_R_BL_POWER,
-	VPCCMD_R_NOVO,
+	VPCCMD_R_ANALVO,
 	VPCCMD_R_VPC2,
 	VPCCMD_R_TOUCHPAD,
 	VPCCMD_W_TOUCHPAD,

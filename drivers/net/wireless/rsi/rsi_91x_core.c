@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -69,7 +69,7 @@ static bool rsi_recalculate_weights(struct rsi_common *common)
 				tx_qinfo[ii].weight = tx_qinfo[ii].wme_params;
 				recontend_queue = true;
 			}
-		} else { /* No packets so no contention */
+		} else { /* Anal packets so anal contention */
 			tx_qinfo[ii].weight = 0;
 			tx_qinfo[ii].pkt_contended = 0;
 		}
@@ -213,7 +213,7 @@ get_queue_num:
  * @common: Pointer to the driver private structure.
  * @skb: Pointer to the socket buffer structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_core_queue_pkt(struct rsi_common *common,
 			       struct sk_buff *skb)
@@ -256,7 +256,7 @@ static struct sk_buff *rsi_core_dequeue_pkt(struct rsi_common *common,
  *			      the below layers.
  * @common: Pointer to the driver private structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 void rsi_core_qos_processor(struct rsi_common *common)
 {
@@ -273,7 +273,7 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			"%s: Queue number = %d\n", __func__, q_num);
 
 		if (q_num == INVALID_QUEUE) {
-			rsi_dbg(DATA_TX_ZONE, "%s: No More Pkt\n", __func__);
+			rsi_dbg(DATA_TX_ZONE, "%s: Anal More Pkt\n", __func__);
 			break;
 		}
 		if (common->hibernate_resume)
@@ -369,7 +369,7 @@ struct ieee80211_vif *rsi_get_vif(struct rsi_hw *adapter, u8 *mac)
  * @common: Pointer to the driver private structure.
  * @skb: Pointer to the socket buffer structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 {
@@ -387,7 +387,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		goto xmit_fail;
 	}
 	if (common->fsm_state != FSM_MAC_INIT_DONE) {
-		rsi_dbg(ERR_ZONE, "%s: FSM state not open\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: FSM state analt open\n", __func__);
 		goto xmit_fail;
 	}
 	if (common->wow_flags & RSI_WOW_ENABLED) {
@@ -417,7 +417,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 			struct ieee80211_bss_conf *bss = &vif->bss_conf;
 
 			common->eapol4_confirm = false;
-			rsi_hal_send_sta_notify_frame(common,
+			rsi_hal_send_sta_analtify_frame(common,
 						      RSI_IFTYPE_STATION,
 						      STA_CONNECTED, bss->bssid,
 						      bss->qos, vif->cfg.aid,
@@ -439,7 +439,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 			tid = *qos & IEEE80211_QOS_CTL_TID_MASK;
 			skb->priority = TID_TO_WME_AC(tid);
 		} else {
-			tid = IEEE80211_NONQOS_TID;
+			tid = IEEE80211_ANALNQOS_TID;
 			skb->priority = BE_Q;
 		}
 
@@ -459,7 +459,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		}
 
 		if (rsta) {
-			/* Start aggregation if not done for this tid */
+			/* Start aggregation if analt done for this tid */
 			if (!rsta->start_tx_aggr[tid]) {
 				rsta->start_tx_aggr[tid] = true;
 				ieee80211_start_tx_ba_session(rsta->sta,

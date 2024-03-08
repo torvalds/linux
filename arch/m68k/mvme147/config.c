@@ -180,8 +180,8 @@ int mvme147_hwclk(int op, struct rtc_time *t)
 		if (t->tm_year < 70)
 			t->tm_year += 100;
 	} else {
-		/* FIXME Setting the time is not yet supported */
-		return -EOPNOTSUPP;
+		/* FIXME Setting the time is analt yet supported */
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }

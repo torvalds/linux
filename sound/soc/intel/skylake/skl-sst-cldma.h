@@ -185,7 +185,7 @@
 #define SKL_MAX_BUFFER_SIZE		(32 * PAGE_SIZE)
 
 enum skl_cl_dma_wake_states {
-	SKL_CL_DMA_STATUS_NONE = 0,
+	SKL_CL_DMA_STATUS_ANALNE = 0,
 	SKL_CL_DMA_BUF_COMPLETE,
 	SKL_CL_DMA_ERR,	/* TODO: Expand the error states */
 };

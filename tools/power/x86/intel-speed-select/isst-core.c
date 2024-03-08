@@ -210,7 +210,7 @@ int isst_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info *pbf_i
 		return ret;
 
 	if (!ctdp_level.pbf_support) {
-		isst_display_error_info_message(1, "base-freq feature is not present at this level", 1, level);
+		isst_display_error_info_message(1, "base-freq feature is analt present at this level", 1, level);
 		return -1;
 	}
 
@@ -250,7 +250,7 @@ int isst_get_fact_info(struct isst_id *id, int level, int fact_bucket, struct is
 		return ret;
 
 	if (!ctdp_level.fact_support) {
-		isst_display_error_info_message(1, "turbo-freq feature is not present at this level", 1, level);
+		isst_display_error_info_message(1, "turbo-freq feature is analt present at this level", 1, level);
 		return -1;
 	}
 	CHECK_CB(get_fact_info);
@@ -379,7 +379,7 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 	}
 
 	if (!pkg_dev->enabled)
-		isst_display_error_info_message(0, "perf-profile feature is not supported, just base-config level 0 is valid", 0, 0);
+		isst_display_error_info_message(0, "perf-profile feature is analt supported, just base-config level 0 is valid", 0, 0);
 
 	for (i = 0; i <= pkg_dev->levels; ++i) {
 		struct isst_pkg_ctdp_level_info *ctdp_level;

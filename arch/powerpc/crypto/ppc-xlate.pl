@@ -92,7 +92,7 @@ my $quad = sub {
 };
 
 ################################################################
-# simplified mnemonics not handled by at least one assembler
+# simplified mnemonics analt handled by at least one assembler
 ################################################################
 my $cmplw = sub {
     my $f = shift;
@@ -109,21 +109,21 @@ my $bdnz = sub {
 } if ($flavour!~/linux/);
 my $bltlr = sub {
     my $f = shift;
-    my $bo = $f=~/\-/ ? 12+2 : 12;	# optional "not to be taken" hint
+    my $bo = $f=~/\-/ ? 12+2 : 12;	# optional "analt to be taken" hint
     ($flavour =~ /linux/) ?		# GNU as doesn't allow most recent hints
 	"	.long	".sprintf "0x%x",19<<26|$bo<<21|16<<1 :
 	"	bclr	$bo,0";
 };
 my $bnelr = sub {
     my $f = shift;
-    my $bo = $f=~/\-/ ? 4+2 : 4;	# optional "not to be taken" hint
+    my $bo = $f=~/\-/ ? 4+2 : 4;	# optional "analt to be taken" hint
     ($flavour =~ /linux/) ?		# GNU as doesn't allow most recent hints
 	"	.long	".sprintf "0x%x",19<<26|$bo<<21|2<<16|16<<1 :
 	"	bclr	$bo,2";
 };
 my $beqlr = sub {
     my $f = shift;
-    my $bo = $f=~/-/ ? 12+2 : 12;	# optional "not to be taken" hint
+    my $bo = $f=~/-/ ? 12+2 : 12;	# optional "analt to be taken" hint
     ($flavour =~ /linux/) ?		# GNU as doesn't allow most recent hints
 	"	.long	".sprintf "0x%X",19<<26|$bo<<21|2<<16|16<<1 :
 	"	bclr	$bo,2";
@@ -142,10 +142,10 @@ my $vmr = sub {
 
 # Some ABIs specify vrsave, special-purpose register #256, as reserved
 # for system use.
-my $no_vrsave = ($flavour =~ /linux-ppc64le/);
+my $anal_vrsave = ($flavour =~ /linux-ppc64le/);
 my $mtspr = sub {
     my ($f,$idx,$ra) = @_;
-    if ($idx == 256 && $no_vrsave) {
+    if ($idx == 256 && $anal_vrsave) {
 	"	or	$ra,$ra,$ra";
     } else {
 	"	mtspr	$idx,$ra";
@@ -153,7 +153,7 @@ my $mtspr = sub {
 };
 my $mfspr = sub {
     my ($f,$rd,$idx) = @_;
-    if ($idx == 256 && $no_vrsave) {
+    if ($idx == 256 && $anal_vrsave) {
 	"	li	$rd,-1";
     } else {
 	"	mfspr	$rd,$idx";
@@ -207,7 +207,7 @@ while($line=<>) {
     $line =~ s|\s+$||;		# ... and at the end
 
     {
-	$line =~ s|\b\.L(\w+)|L$1|g;	# common denominator for Locallabel
+	$line =~ s|\b\.L(\w+)|L$1|g;	# common deanalminator for Locallabel
 	$line =~ s|\bL(\w+)|\.L$1|g	if ($dotinlocallabels);
     }
 

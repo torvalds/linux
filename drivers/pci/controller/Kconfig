@@ -115,7 +115,7 @@ config PCI_HOST_THUNDER_ECAM
 	  Say Y here if you want ECAM support for CN88XX-Pass-1.x Cavium Thunder SoCs.
 
 config PCI_FTPCI100
-	bool "Faraday Technology FTPCI100 PCI controller"
+	bool "Faraday Techanallogy FTPCI100 PCI controller"
 	depends on OF
 	default ARCH_GEMINI
 
@@ -157,8 +157,8 @@ config VMD
 	  and devices attached to them, to be removed from the default
 	  PCI domain and placed within the VMD domain. This provides
 	  more bus resources than are otherwise possible with a
-	  single domain. If you know your system provides one of these and
-	  has devices attached to it, say Y; if you are not sure, say N.
+	  single domain. If you kanalw your system provides one of these and
+	  has devices attached to it, say Y; if you are analt sure, say N.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmd.
@@ -333,7 +333,7 @@ config PCIE_XILINX_DMA_PL
 	  Say 'Y' here if you want kernel support for the Xilinx PL DMA
 	  PCIe host bridge. The controller is a Soft IP which can act as
 	  Root Port. If your system provides Xilinx PCIe host controller
-	  bridge DMA as Soft IP say 'Y'; if you are not sure, say 'N'.
+	  bridge DMA as Soft IP say 'Y'; if you are analt sure, say 'N'.
 
 config PCIE_XILINX_NWL
 	bool "Xilinx NWL PCIe controller"

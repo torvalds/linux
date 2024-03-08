@@ -109,14 +109,14 @@ static int da9052_wdt_ping(struct watchdog_device *wdt_dev)
 {
 	struct da9052_wdt_data *driver_data = watchdog_get_drvdata(wdt_dev);
 	struct da9052 *da9052 = driver_data->da9052;
-	unsigned long msec, jnow = jiffies;
+	unsigned long msec, janalw = jiffies;
 	int ret;
 
 	/*
 	 * We have a minimum time for watchdog window called TWDMIN. A write
 	 * to the watchdog before this elapsed time should cause an error.
 	 */
-	msec = (jnow - driver_data->jpast) * 1000/HZ;
+	msec = (janalw - driver_data->jpast) * 1000/HZ;
 	if (msec < DA9052_TWDMIN)
 		mdelay(msec);
 
@@ -158,7 +158,7 @@ static int da9052_wdt_probe(struct platform_device *pdev)
 
 	driver_data = devm_kzalloc(dev, sizeof(*driver_data), GFP_KERNEL);
 	if (!driver_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	driver_data->da9052 = da9052;
 
 	da9052_wdt = &driver_data->wdt;

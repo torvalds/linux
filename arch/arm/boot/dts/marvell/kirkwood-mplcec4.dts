@@ -101,7 +101,7 @@
 			pinctrl-names = "default";
 			status = "okay";
 			cd-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
-			/* No WP GPIO */
+			/* Anal WP GPIO */
 		};
 	};
 

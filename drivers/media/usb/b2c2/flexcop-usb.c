@@ -27,9 +27,9 @@
 
 #define DEBSTATUS ""
 #else
-#define dprintk(level, args...) no_printk(args)
+#define dprintk(level, args...) anal_printk(args)
 #define debug_dump(b, l, method) do { } while (0)
-#define DEBSTATUS " (debugging is not enabled)"
+#define DEBSTATUS " (debugging is analt enabled)"
 #endif
 
 static int debug;
@@ -60,11 +60,11 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,ts=2,ctrl=4,i2c=8,v8mem=16 
 /*
  * DKT 020228
  * - forget about this VENDOR_BUFFER_SIZE, read and write register
- *   deal with DWORD or 4 bytes, that should be should from now on
- * - from now on, we don't support anything older than firm 1.00
+ *   deal with DWORD or 4 bytes, that should be should from analw on
+ * - from analw on, we don't support anything older than firm 1.00
  *   I eliminated the write register as a 2 trip of writing hi word and lo word
  *   and force this to write only 4 bytes at a time.
- *   NOTE: this should work with all the firmware from 1.00 and newer
+ *   ANALTE: this should work with all the firmware from 1.00 and newer
  */
 static int flexcop_usb_readwrite_dw(struct flexcop_device *fc, u16 wRegOffsPCI, u32 *val, u8 read)
 {
@@ -353,7 +353,7 @@ static void flexcop_usb_process_frame(struct flexcop_usb *fc_usb,
 					flexcop_pass_dmx_packets(
 							fc_usb->fc_dev, b+2, 1);
 				else
-					deb_ts("not ts packet %*ph\n", 4, b+2);
+					deb_ts("analt ts packet %*ph\n", 4, b+2);
 				b += 190;
 				l -= 190;
 				break;
@@ -402,7 +402,7 @@ static void flexcop_usb_urb_complete(struct urb *urb)
 	usb_submit_urb(urb, GFP_ATOMIC);
 }
 
-static int flexcop_usb_stream_control(struct flexcop_device *fc, int onoff)
+static int flexcop_usb_stream_control(struct flexcop_device *fc, int oanalff)
 {
 	/* submit/kill iso packets */
 	return 0;
@@ -413,7 +413,7 @@ static void flexcop_usb_transfer_exit(struct flexcop_usb *fc_usb)
 	int i;
 	for (i = 0; i < B2C2_USB_NUM_ISO_URB; i++)
 		if (fc_usb->iso_urb[i] != NULL) {
-			deb_ts("unlinking/killing urb no. %d\n", i);
+			deb_ts("unlinking/killing urb anal. %d\n", i);
 			usb_kill_urb(fc_usb->iso_urb[i]);
 			usb_free_urb(fc_usb->iso_urb[i]);
 		}
@@ -440,7 +440,7 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 	fc_usb->iso_buffer = usb_alloc_coherent(fc_usb->udev,
 			bufsize, GFP_KERNEL, &fc_usb->dma_addr);
 	if (fc_usb->iso_buffer == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(fc_usb->iso_buffer, 0, bufsize);
 	fc_usb->buffer_size = bufsize;
@@ -450,7 +450,7 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 		fc_usb->iso_urb[i] = usb_alloc_urb(B2C2_USB_FRAMES_PER_ISO,
 			GFP_ATOMIC);
 		if (fc_usb->iso_urb[i] == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto urb_error;
 		}
 	}
@@ -459,7 +459,7 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 	for (i = 0; i < B2C2_USB_NUM_ISO_URB; i++) {
 		int frame_offset = 0;
 		struct urb *urb = fc_usb->iso_urb[i];
-		deb_ts("initializing and submitting urb no. %d (buf_offset: %d).\n",
+		deb_ts("initializing and submitting urb anal. %d (buf_offset: %d).\n",
 		       i, buffer_offset);
 
 		urb->dev = fc_usb->udev;
@@ -474,7 +474,7 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 
 		buffer_offset += frame_size * B2C2_USB_FRAMES_PER_ISO;
 		for (j = 0; j < B2C2_USB_FRAMES_PER_ISO; j++) {
-			deb_ts("urb no: %d, frame: %d, frame_offset: %d\n",
+			deb_ts("urb anal: %d, frame: %d, frame_offset: %d\n",
 					i, j, frame_offset);
 			urb->iso_frame_desc[j].offset = frame_offset;
 			urb->iso_frame_desc[j].length = frame_size;
@@ -485,7 +485,7 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 			err("submitting urb %d failed with %d.", i, ret);
 			goto urb_error;
 		}
-		deb_ts("submitted urb no. %d.\n", i);
+		deb_ts("submitted urb anal. %d.\n", i);
 	}
 
 	/* SRAM */
@@ -516,14 +516,14 @@ static int flexcop_usb_init(struct flexcop_usb *fc_usb)
 	alt = fc_usb->uintf->cur_altsetting;
 
 	if (alt->desc.bNumEndpoints < 1)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!usb_endpoint_is_isoc_in(&alt->endpoint[0].desc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (fc_usb->udev->speed) {
 	case USB_SPEED_LOW:
-		err("cannot handle USB speed because it is too slow.");
-		return -ENODEV;
+		err("cananalt handle USB speed because it is too slow.");
+		return -EANALDEV;
 		break;
 	case USB_SPEED_FULL:
 		info("running at FULL speed.");
@@ -531,10 +531,10 @@ static int flexcop_usb_init(struct flexcop_usb *fc_usb)
 	case USB_SPEED_HIGH:
 		info("running at HIGH speed.");
 		break;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 	default:
-		err("cannot handle USB speed because it is unknown.");
-		return -ENODEV;
+		err("cananalt handle USB speed because it is unkanalwn.");
+		return -EANALDEV;
 	}
 	usb_set_intfdata(fc_usb->uintf, fc_usb);
 	return 0;
@@ -555,7 +555,7 @@ static int flexcop_usb_probe(struct usb_interface *intf,
 
 	if ((fc = flexcop_device_kmalloc(sizeof(struct flexcop_usb))) == NULL) {
 		err("out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* general flexcop init */

@@ -52,8 +52,8 @@
 #define PLX9052_CNTRL_PCIBAR1		PLX9052_CNTRL_PCIBAR(2)	/* IO only */
 #define PLX9052_CNTRL_PCI2_1_FEATURES	BIT(14)	/* PCI v2.1 features enabled */
 #define PLX9052_CNTRL_PCI_R_W_FLUSH	BIT(15)	/* read w/write flush mode */
-#define PLX9052_CNTRL_PCI_R_NO_FLUSH	BIT(16)	/* read no flush mode */
-#define PLX9052_CNTRL_PCI_R_NO_WRITE	BIT(17)	/* read no write mode */
+#define PLX9052_CNTRL_PCI_R_ANAL_FLUSH	BIT(16)	/* read anal flush mode */
+#define PLX9052_CNTRL_PCI_R_ANAL_WRITE	BIT(17)	/* read anal write mode */
 #define PLX9052_CNTRL_PCI_W_RELEASE	BIT(18)	/* write release bus mode */
 #define PLX9052_CNTRL_RETRY_CLKS(x)	(((x) & 0xf) << 19) /* retry clks */
 #define PLX9052_CNTRL_LOCK_ENAB		BIT(23)	/* slave LOCK# enable */

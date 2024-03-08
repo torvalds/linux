@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Support for async notification of waitid
+ * Support for async analtification of waitid
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/compat.h>
@@ -43,7 +43,7 @@ static void io_waitid_free(struct io_kiocb *req)
 }
 
 #ifdef CONFIG_COMPAT
-static bool io_waitid_compat_copy_si(struct io_waitid *iw, int signo)
+static bool io_waitid_compat_copy_si(struct io_waitid *iw, int siganal)
 {
 	struct compat_siginfo __user *infop;
 	bool ret;
@@ -53,8 +53,8 @@ static bool io_waitid_compat_copy_si(struct io_waitid *iw, int signo)
 	if (!user_write_access_begin(infop, sizeof(*infop)))
 		return false;
 
-	unsafe_put_user(signo, &infop->si_signo, Efault);
-	unsafe_put_user(0, &infop->si_errno, Efault);
+	unsafe_put_user(siganal, &infop->si_siganal, Efault);
+	unsafe_put_user(0, &infop->si_erranal, Efault);
 	unsafe_put_user(iw->info.cause, &infop->si_code, Efault);
 	unsafe_put_user(iw->info.pid, &infop->si_pid, Efault);
 	unsafe_put_user(iw->info.uid, &infop->si_uid, Efault);
@@ -69,7 +69,7 @@ Efault:
 }
 #endif
 
-static bool io_waitid_copy_si(struct io_kiocb *req, int signo)
+static bool io_waitid_copy_si(struct io_kiocb *req, int siganal)
 {
 	struct io_waitid *iw = io_kiocb_to_cmd(req, struct io_waitid);
 	bool ret;
@@ -79,14 +79,14 @@ static bool io_waitid_copy_si(struct io_kiocb *req, int signo)
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
-		return io_waitid_compat_copy_si(iw, signo);
+		return io_waitid_compat_copy_si(iw, siganal);
 #endif
 
 	if (!user_write_access_begin(iw->infop, sizeof(*iw->infop)))
 		return false;
 
-	unsafe_put_user(signo, &iw->infop->si_signo, Efault);
-	unsafe_put_user(0, &iw->infop->si_errno, Efault);
+	unsafe_put_user(siganal, &iw->infop->si_siganal, Efault);
+	unsafe_put_user(0, &iw->infop->si_erranal, Efault);
 	unsafe_put_user(iw->info.cause, &iw->infop->si_code, Efault);
 	unsafe_put_user(iw->info.pid, &iw->infop->si_pid, Efault);
 	unsafe_put_user(iw->info.uid, &iw->infop->si_uid, Efault);
@@ -102,14 +102,14 @@ Efault:
 
 static int io_waitid_finish(struct io_kiocb *req, int ret)
 {
-	int signo = 0;
+	int siganal = 0;
 
 	if (ret > 0) {
-		signo = SIGCHLD;
+		siganal = SIGCHLD;
 		ret = 0;
 	}
 
-	if (!io_waitid_copy_si(req, signo))
+	if (!io_waitid_copy_si(req, siganal))
 		ret = -EFAULT;
 	io_waitid_free(req);
 	return ret;
@@ -128,10 +128,10 @@ static void io_waitid_complete(struct io_kiocb *req, int ret)
 	/*
 	 * Did cancel find it meanwhile?
 	 */
-	if (hlist_unhashed(&req->hash_node))
+	if (hlist_unhashed(&req->hash_analde))
 		return;
 
-	hlist_del_init(&req->hash_node);
+	hlist_del_init(&req->hash_analde);
 
 	ret = io_waitid_finish(req, ret);
 	if (ret < 0)
@@ -165,15 +165,15 @@ static bool __io_waitid_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
 int io_waitid_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		     unsigned int issue_flags)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct io_kiocb *req;
 	int nr = 0;
 
 	if (cd->flags & (IORING_ASYNC_CANCEL_FD|IORING_ASYNC_CANCEL_FD_FIXED))
-		return -ENOENT;
+		return -EANALENT;
 
 	io_ring_submit_lock(ctx, issue_flags);
-	hlist_for_each_entry_safe(req, tmp, &ctx->waitid_list, hash_node) {
+	hlist_for_each_entry_safe(req, tmp, &ctx->waitid_list, hash_analde) {
 		if (req->cqe.user_data != cd->data &&
 		    !(cd->flags & IORING_ASYNC_CANCEL_ANY))
 			continue;
@@ -187,19 +187,19 @@ int io_waitid_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 	if (nr)
 		return nr;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 bool io_waitid_remove_all(struct io_ring_ctx *ctx, struct task_struct *task,
 			  bool cancel_all)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct io_kiocb *req;
 	bool found = false;
 
 	lockdep_assert_held(&ctx->uring_lock);
 
-	hlist_for_each_entry_safe(req, tmp, &ctx->waitid_list, hash_node) {
+	hlist_for_each_entry_safe(req, tmp, &ctx->waitid_list, hash_analde) {
 		if (!io_match_task_safe(req, task, cancel_all))
 			continue;
 		__io_waitid_cancel(ctx, req);
@@ -239,7 +239,7 @@ static void io_waitid_cb(struct io_kiocb *req, struct io_tw_state *ts)
 
 	/*
 	 * If we get -ERESTARTSYS here, we need to re-arm and check again
-	 * to ensure we get another callback. If the retry works, then we can
+	 * to ensure we get aanalther callback. If the retry works, then we can
 	 * just remove ourselves from the waitqueue again and finish the
 	 * request.
 	 */
@@ -309,7 +309,7 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 
 	if (io_alloc_async_data(req))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iwa = req->async_data;
 	iwa->req = req;
@@ -321,19 +321,19 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 
 	/*
 	 * Mark the request as busy upfront, in case we're racing with the
-	 * wakeup. If we are, then we'll notice when we drop this initial
+	 * wakeup. If we are, then we'll analtice when we drop this initial
 	 * reference again after arming.
 	 */
 	atomic_set(&iw->refs, 1);
 
 	/*
-	 * Cancel must hold the ctx lock, so there's no risk of cancelation
+	 * Cancel must hold the ctx lock, so there's anal risk of cancelation
 	 * finding us until a) we remain on the list, and b) the lock is
 	 * dropped. We only need to worry about racing with the wakeup
 	 * callback.
 	 */
 	io_ring_submit_lock(ctx, issue_flags);
-	hlist_add_head(&req->hash_node, &ctx->waitid_list);
+	hlist_add_head(&req->hash_analde, &ctx->waitid_list);
 
 	init_waitqueue_func_entry(&iwa->wo.child_wait, io_waitid_wait);
 	iwa->wo.child_wait.private = req->task;
@@ -343,7 +343,7 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 	ret = __do_wait(&iwa->wo);
 	if (ret == -ERESTARTSYS) {
 		/*
-		 * Nobody else grabbed a reference, it'll complete when we get
+		 * Analbody else grabbed a reference, it'll complete when we get
 		 * a waitqueue callback, or if someone cancels it.
 		 */
 		if (!io_waitid_drop_issue_ref(req)) {
@@ -359,7 +359,7 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 		return IOU_ISSUE_SKIP_COMPLETE;
 	}
 
-	hlist_del_init(&req->hash_node);
+	hlist_del_init(&req->hash_analde);
 	remove_wait_queue(iw->head, &iwa->wo.child_wait);
 	ret = io_waitid_finish(req, ret);
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #ifndef _UVERBS_TYPES_
@@ -16,7 +16,7 @@ enum rdma_lookup_mode {
 	UVERBS_LOOKUP_READ,
 	UVERBS_LOOKUP_WRITE,
 	/*
-	 * Destroy is like LOOKUP_WRITE, except that the uobject is not
+	 * Destroy is like LOOKUP_WRITE, except that the uobject is analt
 	 * locked.  uobj_destroy is used to convert a LOOKUP_DESTROY lock into
 	 * a LOOKUP_WRITE lock.
 	 */
@@ -59,14 +59,14 @@ struct uverbs_obj_type_class {
 					  struct uverbs_attr_bundle *attrs);
 	/* This consumes the kref on uobj */
 	void (*alloc_commit)(struct ib_uobject *uobj);
-	/* This does not consume the kref on uobj */
+	/* This does analt consume the kref on uobj */
 	void (*alloc_abort)(struct ib_uobject *uobj);
 
 	struct ib_uobject *(*lookup_get)(const struct uverbs_api_object *obj,
 					 struct ib_uverbs_file *ufile, s64 id,
 					 enum rdma_lookup_mode mode);
 	void (*lookup_put)(struct ib_uobject *uobj, enum rdma_lookup_mode mode);
-	/* This does not consume the kref on uobj */
+	/* This does analt consume the kref on uobj */
 	int __must_check (*destroy_hw)(struct ib_uobject *uobj,
 				       enum rdma_remove_reason why,
 				       struct uverbs_attr_bundle *attrs);
@@ -82,8 +82,8 @@ struct uverbs_obj_type {
 
 /*
  * Objects type classes which support a detach state (object is still alive but
- * it's not attached to any context need to make sure:
- * (a) no call through to a driver after a detach is called
+ * it's analt attached to any context need to make sure:
+ * (a) anal call through to a driver after a detach is called
  * (b) detach isn't called concurrently with context_cleanup
  */
 
@@ -152,7 +152,7 @@ struct uverbs_obj_fd_type {
 
 extern const struct uverbs_obj_type_class uverbs_idr_class;
 extern const struct uverbs_obj_type_class uverbs_fd_class;
-int uverbs_uobject_fd_release(struct inode *inode, struct file *filp);
+int uverbs_uobject_fd_release(struct ianalde *ianalde, struct file *filp);
 
 #define UVERBS_BUILD_BUG_ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\
 				   sizeof(char))

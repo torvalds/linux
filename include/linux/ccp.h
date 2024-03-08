@@ -26,7 +26,7 @@ struct ccp_cmd;
 /**
  * ccp_present - check if a CCP device is present
  *
- * Returns zero if a CCP device is present, -ENODEV otherwise.
+ * Returns zero if a CCP device is present, -EANALDEV otherwise.
  */
 int ccp_present(void);
 
@@ -38,7 +38,7 @@ int ccp_present(void);
 /**
  * ccp_version - get the version of the CCP
  *
- * Returns a positive version number, or zero if no CCP
+ * Returns a positive version number, or zero if anal CCP
  */
 unsigned int ccp_version(void);
 
@@ -55,7 +55,7 @@ unsigned int ccp_version(void);
  * result in a return code of -EBUSY.
  *
  * The callback routine specified in the ccp_cmd struct will be
- * called to notify the caller of completion (if the cmd was not
+ * called to analtify the caller of completion (if the cmd was analt
  * backlogged) or advancement out of the backlog. If the cmd has
  * advanced out of the backlog the "err" value of the callback
  * will be -EINPROGRESS. Any other "err" value during callback is
@@ -67,11 +67,11 @@ unsigned int ccp_version(void);
  */
 int ccp_enqueue_cmd(struct ccp_cmd *cmd);
 
-#else /* CONFIG_CRYPTO_DEV_CCP_SP_DEV is not enabled */
+#else /* CONFIG_CRYPTO_DEV_CCP_SP_DEV is analt enabled */
 
 static inline int ccp_present(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline unsigned int ccp_version(void)
@@ -81,7 +81,7 @@ static inline unsigned int ccp_version(void)
 
 static inline int ccp_enqueue_cmd(struct ccp_cmd *cmd)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif /* CONFIG_CRYPTO_DEV_SP_CCP */
@@ -161,7 +161,7 @@ enum ccp_aes_action {
  *   - type, mode, action, key, key_len, src, dst, src_len
  *   - iv, iv_len for any mode other than ECB
  *   - cmac_final for CMAC mode
- *   - cmac_key, cmac_key_len for CMAC mode if cmac_final is non-zero
+ *   - cmac_key, cmac_key_len for CMAC mode if cmac_final is analn-zero
  *
  * The iv variable is used as both input and output. On completion of the
  * AES operation the new IV overwrites the old IV.
@@ -277,7 +277,7 @@ enum ccp_sha_type {
  *
  * Variables required to be set when calling ccp_enqueue_cmd():
  *   - type, ctx, ctx_len, src, src_len, final
- *   - msg_bits if final is non-zero
+ *   - msg_bits if final is analn-zero
  *
  * The ctx variable is used as both input and output. On completion of the
  * SHA operation the new hash value overwrites the old hash value.
@@ -386,14 +386,14 @@ struct ccp_rsa_engine {
 /**
  * ccp_passthru_bitwise - type of bitwise passthru operation
  *
- * @CCP_PASSTHRU_BITWISE_NOOP: no bitwise operation performed
+ * @CCP_PASSTHRU_BITWISE_ANALOP: anal bitwise operation performed
  * @CCP_PASSTHRU_BITWISE_AND: perform bitwise AND of src with mask
  * @CCP_PASSTHRU_BITWISE_OR: perform bitwise OR of src with mask
  * @CCP_PASSTHRU_BITWISE_XOR: perform bitwise XOR of src with mask
  * @CCP_PASSTHRU_BITWISE_MASK: overwrite with mask
  */
 enum ccp_passthru_bitwise {
-	CCP_PASSTHRU_BITWISE_NOOP = 0,
+	CCP_PASSTHRU_BITWISE_ANALOP = 0,
 	CCP_PASSTHRU_BITWISE_AND,
 	CCP_PASSTHRU_BITWISE_OR,
 	CCP_PASSTHRU_BITWISE_XOR,
@@ -404,12 +404,12 @@ enum ccp_passthru_bitwise {
 /**
  * ccp_passthru_byteswap - type of byteswap passthru operation
  *
- * @CCP_PASSTHRU_BYTESWAP_NOOP: no byte swapping performed
+ * @CCP_PASSTHRU_BYTESWAP_ANALOP: anal byte swapping performed
  * @CCP_PASSTHRU_BYTESWAP_32BIT: swap bytes within 32-bit words
  * @CCP_PASSTHRU_BYTESWAP_256BIT: swap bytes within 256-bit words
  */
 enum ccp_passthru_byteswap {
-	CCP_PASSTHRU_BYTESWAP_NOOP = 0,
+	CCP_PASSTHRU_BYTESWAP_ANALOP = 0,
 	CCP_PASSTHRU_BYTESWAP_32BIT,
 	CCP_PASSTHRU_BYTESWAP_256BIT,
 	CCP_PASSTHRU_BYTESWAP__LAST,
@@ -428,7 +428,7 @@ enum ccp_passthru_byteswap {
  *
  * Variables required to be set when calling ccp_enqueue_cmd():
  *   - bit_mod, byte_swap, src, dst, src_len
- *   - mask, mask_len if bit_mod is not CCP_PASSTHRU_BITWISE_NOOP
+ *   - mask, mask_len if bit_mod is analt CCP_PASSTHRU_BITWISE_ANALOP
  */
 struct ccp_passthru_engine {
 	enum ccp_passthru_bitwise bit_mod;
@@ -444,7 +444,7 @@ struct ccp_passthru_engine {
 };
 
 /**
- * struct ccp_passthru_nomap_engine - CCP pass-through operation
+ * struct ccp_passthru_analmap_engine - CCP pass-through operation
  *   without performing DMA mapping
  * @bit_mod: bitwise operation to perform
  * @byte_swap: byteswap operation to perform
@@ -457,9 +457,9 @@ struct ccp_passthru_engine {
  *
  * Variables required to be set when calling ccp_enqueue_cmd():
  *   - bit_mod, byte_swap, src, dst, src_len
- *   - mask, mask_len if bit_mod is not CCP_PASSTHRU_BITWISE_NOOP
+ *   - mask, mask_len if bit_mod is analt CCP_PASSTHRU_BITWISE_ANALOP
  */
-struct ccp_passthru_nomap_engine {
+struct ccp_passthru_analmap_engine {
 	enum ccp_passthru_bitwise bit_mod;
 	enum ccp_passthru_byteswap byte_swap;
 
@@ -501,9 +501,9 @@ enum ccp_ecc_function {
  * @operand_1: first operand for the modular math operation
  * @operand_1_len: length of the first operand
  * @operand_2: second operand for the modular math operation
- *	       (not used for CCP_ECC_FUNCTION_MINV_384BIT)
+ *	       (analt used for CCP_ECC_FUNCTION_MINV_384BIT)
  * @operand_2_len: length of the second operand
- *	       (not used for CCP_ECC_FUNCTION_MINV_384BIT)
+ *	       (analt used for CCP_ECC_FUNCTION_MINV_384BIT)
  * @result: result of the modular math operation
  * @result_len: length of the supplied result buffer
  */
@@ -614,7 +614,7 @@ enum ccp_engine {
 
 /* Flag values for flags member of ccp_cmd */
 #define CCP_CMD_MAY_BACKLOG		0x00000001
-#define CCP_CMD_PASSTHRU_NO_DMA_MAP	0x00000002
+#define CCP_CMD_PASSTHRU_ANAL_DMA_MAP	0x00000002
 
 /**
  * struct ccp_cmd - CCP operation request
@@ -655,7 +655,7 @@ struct ccp_cmd {
 		struct ccp_sha_engine sha;
 		struct ccp_rsa_engine rsa;
 		struct ccp_passthru_engine passthru;
-		struct ccp_passthru_nomap_engine passthru_nomap;
+		struct ccp_passthru_analmap_engine passthru_analmap;
 		struct ccp_ecc_engine ecc;
 	} u;
 

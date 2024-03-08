@@ -24,7 +24,7 @@ static int wfx_read32(struct wfx_dev *wdev, int reg, u32 *val)
 
 	*val = ~0; /* Never return undefined value */
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, reg, tmp, sizeof(u32));
 	if (ret >= 0)
 		*val = le32_to_cpu(*tmp);
@@ -40,7 +40,7 @@ static int wfx_write32(struct wfx_dev *wdev, int reg, u32 val)
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
 
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 	*tmp = cpu_to_le32(val);
 	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, reg, tmp, sizeof(u32));
 	kfree(tmp);
@@ -108,7 +108,7 @@ static int wfx_indirect_read(struct wfx_dev *wdev, int reg, u32 addr, void *buf,
 	else if (reg == WFX_REG_SRAM_DPORT)
 		prefetch = CFG_PREFETCH_SRAM;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = wfx_write32(wdev, WFX_REG_BASE_ADDR, addr);
 	if (ret < 0)
@@ -187,7 +187,7 @@ static int wfx_indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr, u
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
 
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = wfx_indirect_read(wdev, reg, addr, tmp, sizeof(u32));
 	*val = le32_to_cpu(*tmp);
@@ -203,7 +203,7 @@ static int wfx_indirect_write32_locked(struct wfx_dev *wdev, int reg, u32 addr, 
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
 
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 	*tmp = cpu_to_le32(val);
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = wfx_indirect_write(wdev, reg, addr, tmp, sizeof(u32));

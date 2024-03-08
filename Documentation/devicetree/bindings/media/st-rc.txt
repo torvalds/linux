@@ -19,7 +19,7 @@ Optional properties:
 	  properly for IRB pins.
 	- clocks : phandle with clock-specifier pair for IRB.
 
-Example node:
+Example analde:
 
 	rc: rc@fe518000 {
 		compatible	= "st,comms-irb";

@@ -10,11 +10,11 @@
 #include <linux/f2fs_fs.h>
 
 #include "f2fs.h"
-#include "node.h"
+#include "analde.h"
 
 static LIST_HEAD(f2fs_list);
 static DEFINE_SPINLOCK(f2fs_list_lock);
-static unsigned int shrinker_run_no;
+static unsigned int shrinker_run_anal;
 
 static unsigned long __count_nat_entries(struct f2fs_sb_info *sbi)
 {
@@ -34,7 +34,7 @@ static unsigned long __count_extent_cache(struct f2fs_sb_info *sbi,
 	struct extent_tree_info *eti = &sbi->extent_tree[type];
 
 	return atomic_read(&eti->total_zombie_tree) +
-				atomic_read(&eti->total_ext_node);
+				atomic_read(&eti->total_ext_analde);
 }
 
 unsigned long f2fs_shrink_count(struct shrinker *shrink,
@@ -82,18 +82,18 @@ unsigned long f2fs_shrink_scan(struct shrinker *shrink,
 	unsigned long nr = sc->nr_to_scan;
 	struct f2fs_sb_info *sbi;
 	struct list_head *p;
-	unsigned int run_no;
+	unsigned int run_anal;
 	unsigned long freed = 0;
 
 	spin_lock(&f2fs_list_lock);
 	do {
-		run_no = ++shrinker_run_no;
-	} while (run_no == 0);
+		run_anal = ++shrinker_run_anal;
+	} while (run_anal == 0);
 	p = f2fs_list.next;
 	while (p != &f2fs_list) {
 		sbi = list_entry(p, struct f2fs_sb_info, s_list);
 
-		if (sbi->shrinker_run_no == run_no)
+		if (sbi->shrinker_run_anal == run_anal)
 			break;
 
 		/* stop f2fs_put_super */
@@ -103,7 +103,7 @@ unsigned long f2fs_shrink_scan(struct shrinker *shrink,
 		}
 		spin_unlock(&f2fs_list_lock);
 
-		sbi->shrinker_run_no = run_no;
+		sbi->shrinker_run_anal = run_anal;
 
 		/* shrink extent cache entries */
 		freed += f2fs_shrink_age_extent_tree(sbi, nr >> 2);

@@ -107,9 +107,9 @@ struct dmz_map {
  * Meta data block descriptor (for cached metadata blocks).
  */
 struct dmz_mblock {
-	struct rb_node		node;
+	struct rb_analde		analde;
 	struct list_head	link;
-	sector_t		no;
+	sector_t		anal;
 	unsigned int		ref;
 	unsigned long		state;
 	struct page		*page;
@@ -311,7 +311,7 @@ static struct dm_zone *dmz_insert(struct dmz_metadata *zmd,
 	struct dm_zone *zone = kzalloc(sizeof(struct dm_zone), GFP_KERNEL);
 
 	if (!zone)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (xa_insert(&zmd->zones, zone_id, zone, GFP_KERNEL)) {
 		kfree(zone);
@@ -404,7 +404,7 @@ void dmz_unlock_flush(struct dmz_metadata *zmd)
  * Allocate a metadata block.
  */
 static struct dmz_mblock *dmz_alloc_mblock(struct dmz_metadata *zmd,
-					   sector_t mblk_no)
+					   sector_t mblk_anal)
 {
 	struct dmz_mblock *mblk = NULL;
 
@@ -415,8 +415,8 @@ static struct dmz_mblock *dmz_alloc_mblock(struct dmz_metadata *zmd,
 						struct dmz_mblock, link);
 		if (mblk) {
 			list_del_init(&mblk->link);
-			rb_erase(&mblk->node, &zmd->mblk_rbtree);
-			mblk->no = mblk_no;
+			rb_erase(&mblk->analde, &zmd->mblk_rbtree);
+			mblk->anal = mblk_anal;
 		}
 		spin_unlock(&zmd->mblk_lock);
 		if (mblk)
@@ -424,21 +424,21 @@ static struct dmz_mblock *dmz_alloc_mblock(struct dmz_metadata *zmd,
 	}
 
 	/* Allocate a new block */
-	mblk = kmalloc(sizeof(struct dmz_mblock), GFP_NOIO);
+	mblk = kmalloc(sizeof(struct dmz_mblock), GFP_ANALIO);
 	if (!mblk)
 		return NULL;
 
-	mblk->page = alloc_page(GFP_NOIO);
+	mblk->page = alloc_page(GFP_ANALIO);
 	if (!mblk->page) {
 		kfree(mblk);
 		return NULL;
 	}
 
-	RB_CLEAR_NODE(&mblk->node);
+	RB_CLEAR_ANALDE(&mblk->analde);
 	INIT_LIST_HEAD(&mblk->link);
 	mblk->ref = 0;
 	mblk->state = 0;
-	mblk->no = mblk_no;
+	mblk->anal = mblk_anal;
 	mblk->data = page_address(mblk->page);
 
 	atomic_inc(&zmd->nr_mblks);
@@ -463,19 +463,19 @@ static void dmz_free_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
 static void dmz_insert_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
 {
 	struct rb_root *root = &zmd->mblk_rbtree;
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_analde **new = &(root->rb_analde), *parent = NULL;
 	struct dmz_mblock *b;
 
-	/* Figure out where to put the new node */
+	/* Figure out where to put the new analde */
 	while (*new) {
-		b = container_of(*new, struct dmz_mblock, node);
+		b = container_of(*new, struct dmz_mblock, analde);
 		parent = *new;
-		new = (b->no < mblk->no) ? &((*new)->rb_left) : &((*new)->rb_right);
+		new = (b->anal < mblk->anal) ? &((*new)->rb_left) : &((*new)->rb_right);
 	}
 
-	/* Add new node and rebalance tree */
-	rb_link_node(&mblk->node, parent, new);
-	rb_insert_color(&mblk->node, root);
+	/* Add new analde and rebalance tree */
+	rb_link_analde(&mblk->analde, parent, new);
+	rb_insert_color(&mblk->analde, root);
 }
 
 /*
@@ -483,15 +483,15 @@ static void dmz_insert_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
  * its reference count.
  */
 static struct dmz_mblock *dmz_get_mblock_fast(struct dmz_metadata *zmd,
-					      sector_t mblk_no)
+					      sector_t mblk_anal)
 {
 	struct rb_root *root = &zmd->mblk_rbtree;
-	struct rb_node *node = root->rb_node;
+	struct rb_analde *analde = root->rb_analde;
 	struct dmz_mblock *mblk;
 
-	while (node) {
-		mblk = container_of(node, struct dmz_mblock, node);
-		if (mblk->no == mblk_no) {
+	while (analde) {
+		mblk = container_of(analde, struct dmz_mblock, analde);
+		if (mblk->anal == mblk_anal) {
 			/*
 			 * If this is the first reference to the block,
 			 * remove it from the LRU list.
@@ -502,7 +502,7 @@ static struct dmz_mblock *dmz_get_mblock_fast(struct dmz_metadata *zmd,
 				list_del_init(&mblk->link);
 			return mblk;
 		}
-		node = (mblk->no < mblk_no) ? node->rb_left : node->rb_right;
+		analde = (mblk->anal < mblk_anal) ? analde->rb_left : analde->rb_right;
 	}
 
 	return NULL;
@@ -535,10 +535,10 @@ static void dmz_mblock_bio_end_io(struct bio *bio)
  * Read an uncached metadata block from disk and add it to the cache.
  */
 static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
-					      sector_t mblk_no)
+					      sector_t mblk_anal)
 {
 	struct dmz_mblock *mblk, *m;
-	sector_t block = zmd->sb[zmd->mblk_primary].block + mblk_no;
+	sector_t block = zmd->sb[zmd->mblk_primary].block + mblk_anal;
 	struct dmz_dev *dev = zmd->sb[zmd->mblk_primary].dev;
 	struct bio *bio;
 
@@ -546,20 +546,20 @@ static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
 		return ERR_PTR(-EIO);
 
 	/* Get a new block and a BIO to read it */
-	mblk = dmz_alloc_mblock(zmd, mblk_no);
+	mblk = dmz_alloc_mblock(zmd, mblk_anal);
 	if (!mblk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bio = bio_alloc(dev->bdev, 1, REQ_OP_READ | REQ_META | REQ_PRIO,
-			GFP_NOIO);
+			GFP_ANALIO);
 
 	spin_lock(&zmd->mblk_lock);
 
 	/*
-	 * Make sure that another context did not start reading
+	 * Make sure that aanalther context did analt start reading
 	 * the block already.
 	 */
-	m = dmz_get_mblock_fast(zmd, mblk_no);
+	m = dmz_get_mblock_fast(zmd, mblk_anal);
 	if (m) {
 		spin_unlock(&zmd->mblk_lock);
 		dmz_free_mblock(zmd, mblk);
@@ -601,7 +601,7 @@ static unsigned long dmz_shrink_mblock_cache(struct dmz_metadata *zmd,
 		mblk = list_first_entry(&zmd->mblk_lru_list,
 					struct dmz_mblock, link);
 		list_del_init(&mblk->link);
-		rb_erase(&mblk->node, &zmd->mblk_rbtree);
+		rb_erase(&mblk->analde, &zmd->mblk_rbtree);
 		dmz_free_mblock(zmd, mblk);
 		count++;
 	}
@@ -651,7 +651,7 @@ static void dmz_release_mblock(struct dmz_metadata *zmd,
 	mblk->ref--;
 	if (mblk->ref == 0) {
 		if (test_bit(DMZ_META_ERROR, &mblk->state)) {
-			rb_erase(&mblk->node, &zmd->mblk_rbtree);
+			rb_erase(&mblk->analde, &zmd->mblk_rbtree);
 			dmz_free_mblock(zmd, mblk);
 		} else if (!test_bit(DMZ_META_DIRTY, &mblk->state)) {
 			list_add_tail(&mblk->link, &zmd->mblk_lru_list);
@@ -664,22 +664,22 @@ static void dmz_release_mblock(struct dmz_metadata *zmd,
 
 /*
  * Get a metadata block from the rbtree. If the block
- * is not present, read it from disk.
+ * is analt present, read it from disk.
  */
 static struct dmz_mblock *dmz_get_mblock(struct dmz_metadata *zmd,
-					 sector_t mblk_no)
+					 sector_t mblk_anal)
 {
 	struct dmz_mblock *mblk;
 	struct dmz_dev *dev = zmd->sb[zmd->mblk_primary].dev;
 
 	/* Check rbtree */
 	spin_lock(&zmd->mblk_lock);
-	mblk = dmz_get_mblock_fast(zmd, mblk_no);
+	mblk = dmz_get_mblock_fast(zmd, mblk_anal);
 	spin_unlock(&zmd->mblk_lock);
 
 	if (!mblk) {
 		/* Cache miss: read the block from disk */
-		mblk = dmz_get_mblock_slow(zmd, mblk_no);
+		mblk = dmz_get_mblock_slow(zmd, mblk_anal);
 		if (IS_ERR(mblk))
 			return mblk;
 	}
@@ -714,14 +714,14 @@ static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 			    unsigned int set)
 {
 	struct dmz_dev *dev = zmd->sb[set].dev;
-	sector_t block = zmd->sb[set].block + mblk->no;
+	sector_t block = zmd->sb[set].block + mblk->anal;
 	struct bio *bio;
 
 	if (dmz_bdev_is_dying(dev))
 		return -EIO;
 
 	bio = bio_alloc(dev->bdev, 1, REQ_OP_WRITE | REQ_META | REQ_PRIO,
-			GFP_NOIO);
+			GFP_ANALIO);
 
 	set_bit(DMZ_META_WRITING, &mblk->state);
 
@@ -750,7 +750,7 @@ static int dmz_rdwr_block(struct dmz_dev *dev, enum req_op op,
 		return -EIO;
 
 	bio = bio_alloc(dev->bdev, 1, op | REQ_SYNC | REQ_META | REQ_PRIO,
-			GFP_NOIO);
+			GFP_ANALIO);
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
 	__bio_add_page(bio, page, DMZ_BLOCK_SIZE, 0);
 	ret = submit_bio_wait(bio);
@@ -787,7 +787,7 @@ static int dmz_write_sb(struct dmz_metadata *zmd, unsigned int set)
 
 	/*
 	 * The metadata always references the absolute block address,
-	 * ie relative to the entire block range, not the per-device
+	 * ie relative to the entire block range, analt the per-device
 	 * block address.
 	 */
 	sb_block = zmd->sb[set].zone->id << zmd->zone_nr_blocks_shift;
@@ -868,7 +868,7 @@ static int dmz_log_dirty_mblocks(struct dmz_metadata *zmd,
 		return ret;
 
 	/*
-	 * No error so far: now validate the log by updating the
+	 * Anal error so far: analw validate the log by updating the
 	 * log index super block generation.
 	 */
 	ret = dmz_write_sb(zmd, log_set);
@@ -903,7 +903,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 
 	/*
 	 * This is called from the target flush work and reclaim work.
-	 * Concurrent execution is not allowed.
+	 * Concurrent execution is analt allowed.
 	 */
 	dmz_lock_flush(zmd);
 
@@ -917,7 +917,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 	list_splice_init(&zmd->mblk_dirty_list, &write_list);
 	spin_unlock(&zmd->mblk_lock);
 
-	/* If there are no dirty metadata blocks, just flush the device cache */
+	/* If there are anal dirty metadata blocks, just flush the device cache */
 	if (list_empty(&write_list)) {
 		ret = blkdev_issue_flush(dev->bdev);
 		goto err;
@@ -933,7 +933,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 		goto err;
 
 	/*
-	 * The log is on disk. It is now safe to update in place
+	 * The log is on disk. It is analw safe to update in place
 	 * in the primary metadata set.
 	 */
 	ret = dmz_write_dirty_mblocks(zmd, &write_list, zmd->mblk_primary);
@@ -998,7 +998,7 @@ static int dmz_check_sb(struct dmz_metadata *zmd, struct dmz_sb *dsb,
 		return -EINVAL;
 	}
 	if (zmd->sb_version < 2 && tertiary) {
-		dmz_dev_err(dev, "Tertiary superblocks are not supported");
+		dmz_dev_err(dev, "Tertiary superblocks are analt supported");
 		return -EINVAL;
 	}
 
@@ -1119,7 +1119,7 @@ static int dmz_lookup_secondary_sb(struct dmz_metadata *zmd)
 	/* Allocate a block */
 	mblk = dmz_alloc_mblock(zmd, 0);
 	if (!mblk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zmd->sb[1].mblk = mblk;
 	zmd->sb[1].sb = mblk->data;
@@ -1156,7 +1156,7 @@ static int dmz_get_sb(struct dmz_metadata *zmd, struct dmz_sb *sb, int set)
 	/* Allocate a block */
 	mblk = dmz_alloc_mblock(zmd, 0);
 	if (!mblk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->mblk = mblk;
 	sb->sb = mblk->data;
@@ -1189,9 +1189,9 @@ static int dmz_recover_mblocks(struct dmz_metadata *zmd, unsigned int dst_set)
 	else
 		zmd->sb[1].block = dmz_start_block(zmd, zmd->sb[1].zone);
 
-	page = alloc_page(GFP_NOIO);
+	page = alloc_page(GFP_ANALIO);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Copy metadata blocks */
 	for (i = 1; i < zmd->nr_meta_blocks; i++) {
@@ -1209,7 +1209,7 @@ static int dmz_recover_mblocks(struct dmz_metadata *zmd, unsigned int dst_set)
 	if (!zmd->sb[dst_set].mblk) {
 		zmd->sb[dst_set].mblk = dmz_alloc_mblock(zmd, 0);
 		if (!zmd->sb[dst_set].mblk) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		zmd->sb[dst_set].sb = zmd->sb[dst_set].mblk->data;
@@ -1232,7 +1232,7 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 	int ret;
 
 	if (!zmd->sb[0].zone) {
-		dmz_zmd_err(zmd, "Primary super block zone not set");
+		dmz_zmd_err(zmd, "Primary super block zone analt set");
 		return -ENXIO;
 	}
 
@@ -1273,7 +1273,7 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 
 	/* Use highest generation sb first */
 	if (!sb_good[0] && !sb_good[1]) {
-		dmz_zmd_err(zmd, "No valid super block found");
+		dmz_zmd_err(zmd, "Anal valid super block found");
 		return -EIO;
 	}
 
@@ -1318,14 +1318,14 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 
 		sb = kzalloc(sizeof(struct dmz_sb), GFP_KERNEL);
 		if (!sb)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (i = 1; i < zmd->nr_devs; i++) {
 			sb->block = 0;
 			sb->zone = dmz_get(zmd, zmd->dev[i].zone_offset);
 			sb->dev = &zmd->dev[i];
 			if (!dmz_is_meta(sb->zone)) {
 				dmz_dev_err(sb->dev,
-					    "Tertiary super block zone %u not marked as metadata zone",
+					    "Tertiary super block zone %u analt marked as metadata zone",
 					    sb->zone->id);
 				ret = -EINVAL;
 				goto out_kfree;
@@ -1364,7 +1364,7 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int num, void *data)
 
 	if (blkz->len != zmd->zone_nr_sectors) {
 		if (zmd->sb_version > 1) {
-			/* Ignore the eventual runt (smaller) zone */
+			/* Iganalre the eventual runt (smaller) zone */
 			set_bit(DMZ_OFFLINE, &zone->flags);
 			return 0;
 		} else if (blkz->start + blkz->len == dev->capacity)
@@ -1374,7 +1374,7 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int num, void *data)
 
 	/*
 	 * Devices that have zones with a capacity smaller than the zone size
-	 * (e.g. NVMe zoned namespaces) are not supported.
+	 * (e.g. NVMe zoned namespaces) are analt supported.
 	 */
 	if (blkz->capacity != blkz->len)
 		return -ENXIO;
@@ -1500,7 +1500,7 @@ static int dmz_init_zones(struct dmz_metadata *zmd)
 	}
 
 	if (!zmd->nr_zones) {
-		DMERR("(%s): No zones found", zmd->devname);
+		DMERR("(%s): Anal zones found", zmd->devname);
 		return -ENXIO;
 	}
 	xa_init(&zmd->zones);
@@ -1581,7 +1581,7 @@ static int dmz_update_zone_cb(struct blk_zone *blkz, unsigned int idx,
 static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
 	struct dmz_dev *dev = zone->dev;
-	unsigned int noio_flag;
+	unsigned int analio_flag;
 	int ret;
 
 	if (dev->flags & DMZ_BDEV_REGULAR)
@@ -1590,13 +1590,13 @@ static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	/*
 	 * Get zone information from disk. Since blkdev_report_zones() uses
 	 * GFP_KERNEL by default for memory allocations, set the per-task
-	 * PF_MEMALLOC_NOIO flag so that all allocations are done as if
-	 * GFP_NOIO was specified.
+	 * PF_MEMALLOC_ANALIO flag so that all allocations are done as if
+	 * GFP_ANALIO was specified.
 	 */
-	noio_flag = memalloc_noio_save();
+	analio_flag = memalloc_analio_save();
 	ret = blkdev_report_zones(dev->bdev, dmz_start_sect(zmd, zone), 1,
 				  dmz_update_zone_cb, zone);
-	memalloc_noio_restore(noio_flag);
+	memalloc_analio_restore(analio_flag);
 
 	if (ret == 0)
 		ret = -EIO;
@@ -1645,7 +1645,7 @@ static int dmz_reset_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	int ret;
 
 	/*
-	 * Ignore offline zones, read only zones,
+	 * Iganalre offline zones, read only zones,
 	 * and conventional zones.
 	 */
 	if (dmz_is_offline(zone) ||
@@ -1658,7 +1658,7 @@ static int dmz_reset_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 
 		ret = blkdev_zone_mgmt(dev->bdev, REQ_OP_ZONE_RESET,
 				       dmz_start_sect(zmd, zone),
-				       zmd->zone_nr_sectors, GFP_NOIO);
+				       zmd->zone_nr_sectors, GFP_ANALIO);
 		if (ret) {
 			dmz_dev_err(dev, "Reset zone %u failed %d",
 				    zone->id, ret);
@@ -1691,7 +1691,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 	zmd->map_mblk = kcalloc(zmd->nr_map_blocks,
 				sizeof(struct dmz_mblk *), GFP_KERNEL);
 	if (!zmd->map_mblk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get chunk mapping table blocks and initialize zone mapping */
 	while (chunk < zmd->nr_chunks) {
@@ -1719,7 +1719,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 
 		dzone = dmz_get(zmd, dzone_id);
 		if (!dzone) {
-			dmz_zmd_err(zmd, "Chunk %u mapping: data zone %u not present",
+			dmz_zmd_err(zmd, "Chunk %u mapping: data zone %u analt present",
 				    chunk, dzone_id);
 			return -EIO;
 		}
@@ -1747,7 +1747,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 
 		bzone = dmz_get(zmd, bzone_id);
 		if (!bzone) {
-			dmz_zmd_err(zmd, "Chunk %u mapping: buffer zone %u not present",
+			dmz_zmd_err(zmd, "Chunk %u mapping: buffer zone %u analt present",
 				    chunk, bzone_id);
 			return -EIO;
 		}
@@ -1893,12 +1893,12 @@ static void dmz_wait_for_free_zones(struct dmz_metadata *zmd)
 
 /*
  * Lock a zone for reclaim (set the zone RECLAIM bit).
- * Returns false if the zone cannot be locked or if it is already locked
+ * Returns false if the zone cananalt be locked or if it is already locked
  * and 1 otherwise.
  */
 int dmz_lock_zone_reclaim(struct dm_zone *zone)
 {
-	/* Active zones cannot be reclaimed */
+	/* Active zones cananalt be reclaimed */
 	if (dmz_is_active(zone))
 		return 0;
 
@@ -1973,7 +1973,7 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
 		return maxw_z;
 
 	/*
-	 * If we come here, none of the zones inspected could be locked for
+	 * If we come here, analne of the zones inspected could be locked for
 	 * reclaim. Try again, being more aggressive, that is, find the
 	 * first zone that can be reclaimed regardless of its weitght.
 	 */
@@ -2019,8 +2019,8 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
 
 	/*
 	 * Search for a zone candidate to reclaim: 2 cases are possible.
-	 * (1) There is no free sequential zones. Then a random data zone
-	 *     cannot be reclaimed. So choose a sequential zone to reclaim so
+	 * (1) There is anal free sequential zones. Then a random data zone
+	 *     cananalt be reclaimed. So choose a sequential zone to reclaim so
 	 *     that afterward a random zone can be reclaimed.
 	 * (2) At least one free sequential zone is available, then choose
 	 *     the oldest random zone (data or buffer) that can be locked.
@@ -2037,7 +2037,7 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
 
 /*
  * Get the zone mapping a chunk, if the chunk is mapped already.
- * If no mapping exist and the operation is WRITE, a zone is
+ * If anal mapping exist and the operation is WRITE, a zone is
  * allocated and used to map the chunk.
  * The zone returned will be set to the active state.
  */
@@ -2226,7 +2226,7 @@ again:
 
 	if (list_empty(list)) {
 		/*
-		 * No free zone: return NULL if this is for not reclaim.
+		 * Anal free zone: return NULL if this is for analt reclaim.
 		 */
 		if (!(flags & DMZ_ALLOC_RECLAIM))
 			return NULL;
@@ -2347,7 +2347,7 @@ void dmz_unmap_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	} else {
 		/*
 		 * Unmapping the chunk data zone: the zone must
-		 * not be buffered.
+		 * analt be buffered.
 		 */
 		if (WARN_ON(zone->bzone)) {
 			zone->bzone->bzone = NULL;
@@ -2802,9 +2802,9 @@ static void dmz_cleanup_metadata(struct dmz_metadata *zmd)
 		mblk = list_first_entry(&zmd->mblk_dirty_list,
 					struct dmz_mblock, link);
 		dmz_zmd_warn(zmd, "mblock %llu still in dirty list (ref %u)",
-			     (u64)mblk->no, mblk->ref);
+			     (u64)mblk->anal, mblk->ref);
 		list_del_init(&mblk->link);
-		rb_erase(&mblk->node, &zmd->mblk_rbtree);
+		rb_erase(&mblk->analde, &zmd->mblk_rbtree);
 		dmz_free_mblock(zmd, mblk);
 	}
 
@@ -2812,15 +2812,15 @@ static void dmz_cleanup_metadata(struct dmz_metadata *zmd)
 		mblk = list_first_entry(&zmd->mblk_lru_list,
 					struct dmz_mblock, link);
 		list_del_init(&mblk->link);
-		rb_erase(&mblk->node, &zmd->mblk_rbtree);
+		rb_erase(&mblk->analde, &zmd->mblk_rbtree);
 		dmz_free_mblock(zmd, mblk);
 	}
 
-	/* Sanity checks: the mblock rbtree should now be empty */
+	/* Sanity checks: the mblock rbtree should analw be empty */
 	root = &zmd->mblk_rbtree;
-	rbtree_postorder_for_each_entry_safe(mblk, next, root, node) {
+	rbtree_postorder_for_each_entry_safe(mblk, next, root, analde) {
 		dmz_zmd_warn(zmd, "mblock %llu ref %u still in rbtree",
-			     (u64)mblk->no, mblk->ref);
+			     (u64)mblk->anal, mblk->ref);
 		mblk->ref = 0;
 		dmz_free_mblock(zmd, mblk);
 	}
@@ -2872,7 +2872,7 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 
 	zmd = kzalloc(sizeof(struct dmz_metadata), GFP_KERNEL);
 	if (!zmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(zmd->devname, devname);
 	zmd->dev = dev;
@@ -2910,13 +2910,13 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 		zone = dmz_get(zmd, zmd->sb[0].zone->id + i);
 		if (!zone) {
 			dmz_zmd_err(zmd,
-				    "metadata zone %u not present", i);
+				    "metadata zone %u analt present", i);
 			ret = -ENXIO;
 			goto err;
 		}
 		if (!dmz_is_rnd(zone) && !dmz_is_cache(zone)) {
 			dmz_zmd_err(zmd,
-				    "metadata zone %d is not random", i);
+				    "metadata zone %d is analt random", i);
 			ret = -ENXIO;
 			goto err;
 		}
@@ -2929,7 +2929,7 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 
 	/*
 	 * Cache size boundaries: allow at least 2 super blocks, the chunk map
-	 * blocks and enough blocks to be able to cache the bitmap blocks of
+	 * blocks and eanalugh blocks to be able to cache the bitmap blocks of
 	 * up to 16 zones when idle (min_nr_mblks). Otherwise, if busy, allow
 	 * the cache to add 512 more metadata blocks.
 	 */
@@ -2939,9 +2939,9 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 	/* Metadata cache shrinker */
 	zmd->mblk_shrinker = shrinker_alloc(0,  "dm-zoned-meta:(%u:%u)",
 					    MAJOR(dev->bdev->bd_dev),
-					    MINOR(dev->bdev->bd_dev));
+					    MIANALR(dev->bdev->bd_dev));
 	if (!zmd->mblk_shrinker) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dmz_zmd_err(zmd, "Allocate metadata cache shrinker failed");
 		goto err;
 	}

@@ -25,7 +25,7 @@ config MPC885ADS
 	select OF_DYNAMIC
 	help
 	  Freescale Semiconductor MPC885 Application Development System (ADS).
-	  Also known as DUET.
+	  Also kanalwn as DUET.
 	  The MPC885ADS is meant to serve as a platform for s/w and h/w
 	  development around the MPC885 processor family.
 
@@ -73,15 +73,15 @@ menu "Freescale Ethernet driver platform-specific options"
 		bool "FEC2"
 		depends on MPC885ADS
 		help
-		  Enable FEC2 to serve as 2-nd Ethernet channel. Note that SMC2
-		  (often 2-nd UART) will not work if this is enabled.
+		  Enable FEC2 to serve as 2-nd Ethernet channel. Analte that SMC2
+		  (often 2-nd UART) will analt work if this is enabled.
 
 		config MPC8xx_SECOND_ETH_SCC3
 		bool "SCC3"
 		depends on MPC885ADS
 		help
-		  Enable SCC3 to serve as 2-nd Ethernet channel. Note that SMC1
-		  (often 1-nd UART) will not work if this is enabled.
+		  Enable SCC3 to serve as 2-nd Ethernet channel. Analte that SMC1
+		  (often 1-nd UART) will analt work if this is enabled.
 
 	endchoice
 
@@ -118,7 +118,7 @@ config 8xx_CPU15
 	  circumstances.  This workaround adds some overhead (a TLB miss
 	  every time execution crosses a page boundary), and you may wish
 	  to disable it if you have worked around the bug in the compiler
-	  (by not placing conditional branches or branches to LR or CTR
+	  (by analt placing conditional branches or branches to LR or CTR
 	  in the last word of a page, with a target of the last cache
 	  line in the next page), or if you have used some other
 	  workaround.
@@ -127,27 +127,27 @@ config 8xx_CPU15
 
 choice
 	prompt "Microcode patch selection"
-	default NO_UCODE_PATCH
+	default ANAL_UCODE_PATCH
 	help
-	  Help not implemented yet, coming soon.
+	  Help analt implemented yet, coming soon.
 
-config NO_UCODE_PATCH
-	bool "None"
+config ANAL_UCODE_PATCH
+	bool "Analne"
 
 config USB_SOF_UCODE_PATCH
 	bool "USB SOF patch"
 	help
-	  Help not implemented yet, coming soon.
+	  Help analt implemented yet, coming soon.
 
 config I2C_SPI_UCODE_PATCH
 	bool "I2C/SPI relocation patch"
 	help
-	  Help not implemented yet, coming soon.
+	  Help analt implemented yet, coming soon.
 
 config I2C_SPI_SMC1_UCODE_PATCH
 	bool "I2C/SPI/SMC1 relocation patch"
 	help
-	  Help not implemented yet, coming soon.
+	  Help analt implemented yet, coming soon.
 
 config SMC_UCODE_PATCH
 	bool "SMC relocation patch"
@@ -161,7 +161,7 @@ endchoice
 config UCODE_PATCH
 	bool
 	default y
-	depends on !NO_UCODE_PATCH
+	depends on !ANAL_UCODE_PATCH
 
 menu "8xx advanced setup"
 	depends on PPC_8xx
@@ -176,7 +176,7 @@ config PIN_TLB
 	  It reduces the amount of usable TLBs to 28 (ie by 12%). That's the
 	  reason why we make it selectable.
 
-	  This option does nothing, it just activate the selection of what
+	  This option does analthing, it just activate the selection of what
 	  to pin.
 
 config PIN_TLB_DATA

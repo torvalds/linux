@@ -3,11 +3,11 @@
  * Freescale MXS Low Resolution Analog-to-Digital Converter driver
  *
  * Copyright (c) 2012 DENX Software Engineering, GmbH.
- * Copyright (c) 2017 Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+ * Copyright (c) 2017 Ksenija Staanaljevic <ksenija.staanaljevic@gmail.com>
  *
  * Authors:
  *  Marek Vasut <marex@denx.de>
- *  Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+ *  Ksenija Staanaljevic <ksenija.staanaljevic@gmail.com>
  */
 
 #include <linux/clk.h>
@@ -126,7 +126,7 @@ MODULE_DEVICE_TABLE(of, mxs_lradc_dt_ids);
 static int mxs_lradc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct mxs_lradc *lradc;
 	struct mfd_cell *cells = NULL;
 	struct resource *res;
@@ -135,7 +135,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 
 	lradc = devm_kzalloc(&pdev->dev, sizeof(*lradc), GFP_KERNEL);
 	if (!lradc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lradc->soc = (enum mxs_lradc_id)device_get_match_data(&pdev->dev);
 
@@ -151,7 +151,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_property_read_u32(node, "fsl,lradc-touchscreen-wires",
+	ret = of_property_read_u32(analde, "fsl,lradc-touchscreen-wires",
 					 &ts_wires);
 
 	if (!ret) {
@@ -183,7 +183,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk;
 	}
 
@@ -200,11 +200,11 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(dev, "Unsupported SoC\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_clk;
 	}
 
-	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_ANALNE,
 				   &cells[ADC_CELL], 1, NULL, 0, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add the ADC subdevice\n");
@@ -214,7 +214,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	if (!lradc->touchscreen_wire)
 		return 0;
 
-	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_ANALNE,
 				   &cells[TSC_CELL], 1, NULL, 0, NULL);
 	if (ret) {
 		dev_err(&pdev->dev,
@@ -247,7 +247,7 @@ static struct platform_driver mxs_lradc_driver = {
 };
 module_platform_driver(mxs_lradc_driver);
 
-MODULE_AUTHOR("Ksenija Stanojevic <ksenija.stanojevic@gmail.com>");
+MODULE_AUTHOR("Ksenija Staanaljevic <ksenija.staanaljevic@gmail.com>");
 MODULE_DESCRIPTION("Freescale i.MX23/i.MX28 LRADC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:mxs-lradc");

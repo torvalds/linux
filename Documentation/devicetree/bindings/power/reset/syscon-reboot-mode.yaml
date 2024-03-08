@@ -14,8 +14,8 @@ description: |
   and stores it in a SYSCON mapped register. Then the bootloader
   can read it and take different action according to the magic
   value stored. The SYSCON mapped register is retrieved from the
-  parental dt-node plus the offset. So the SYSCON reboot-mode node
-  should be represented as a sub-node of a "syscon", "simple-mfd" node.
+  parental dt-analde plus the offset. So the SYSCON reboot-mode analde
+  should be represented as a sub-analde of a "syscon", "simple-mfd" analde.
 
 properties:
   compatible:
@@ -45,7 +45,7 @@ examples:
     reboot-mode {
       compatible = "syscon-reboot-mode";
       offset = <0x40>;
-      mode-normal = <BOOT_NORMAL>;
+      mode-analrmal = <BOOT_ANALRMAL>;
       mode-recovery = <BOOT_RECOVERY>;
       mode-bootloader = <BOOT_FASTBOOT>;
       mode-loader = <BOOT_BL_DOWNLOAD>;

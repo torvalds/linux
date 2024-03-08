@@ -13,7 +13,7 @@
  */
 
 /*
- * Copyright 1995 by the Massachusetts Institute of Technology.
+ * Copyright 1995 by the Massachusetts Institute of Techanallogy.
  * All Rights Reserved.
  *
  * Export of this software from the United States of America may
@@ -24,14 +24,14 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of M.I.T. not be used in advertising or publicity pertaining
+ * analtice appear in all copies and that both that copyright analtice and
+ * this permission analtice appear in supporting documentation, and that
+ * the name of M.I.T. analt be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
  * permission.  Furthermore if you modify this software you must label
- * your software as modified software and not distribute it in such a
+ * your software as modified software and analt distribute it in such a
  * fashion that it might be confused with the original M.I.T. software.
- * M.I.T. makes no representations about the suitability of
+ * M.I.T. makes anal representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -45,14 +45,14 @@
 /* from gssapi_err_generic.h */
 #define G_BAD_SERVICE_NAME                       (-2045022976L)
 #define G_BAD_STRING_UID                         (-2045022975L)
-#define G_NOUSER                                 (-2045022974L)
+#define G_ANALUSER                                 (-2045022974L)
 #define G_VALIDATE_FAILED                        (-2045022973L)
 #define G_BUFFER_ALLOC                           (-2045022972L)
 #define G_BAD_MSG_CTX                            (-2045022971L)
 #define G_WRONG_SIZE                             (-2045022970L)
 #define G_BAD_USAGE                              (-2045022969L)
-#define G_UNKNOWN_QOP                            (-2045022968L)
-#define G_NO_HOSTNAME                            (-2045022967L)
+#define G_UNKANALWN_QOP                            (-2045022968L)
+#define G_ANAL_HOSTNAME                            (-2045022967L)
 #define G_BAD_HOSTNAME                           (-2045022966L)
 #define G_WRONG_MECH                             (-2045022965L)
 #define G_BAD_TOK_HEADER                         (-2045022964L)

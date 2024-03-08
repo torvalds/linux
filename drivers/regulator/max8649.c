@@ -88,7 +88,7 @@ static int max8649_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		regmap_update_bits(info->regmap, rdev->desc->vsel_reg,
 				   MAX8649_FORCE_PWM, MAX8649_FORCE_PWM);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		regmap_update_bits(info->regmap, rdev->desc->vsel_reg,
 				   MAX8649_FORCE_PWM, 0);
 		break;
@@ -109,7 +109,7 @@ static unsigned int max8649_get_mode(struct regulator_dev *rdev)
 		return ret;
 	if (val & MAX8649_FORCE_PWM)
 		return REGULATOR_MODE_FAST;
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops max8649_dcdc_ops = {
@@ -158,7 +158,7 @@ static int max8649_regulator_probe(struct i2c_client *client)
 	info = devm_kzalloc(&client->dev, sizeof(struct max8649_regulator_info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->regmap = devm_regmap_init_i2c(client, &max8649_regmap_config);
 	if (IS_ERR(info->regmap)) {
@@ -249,7 +249,7 @@ static struct i2c_driver max8649_driver = {
 	.probe		= max8649_regulator_probe,
 	.driver		= {
 		.name	= "max8649",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table	= max8649_id,
 };

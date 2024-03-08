@@ -26,7 +26,7 @@
 };
 
 &mipi_panel {
-	compatible = "innolux,p097pfg";
+	compatible = "inanallux,p097pfg";
 	avdd-supply = <&ppvarp_lcd>;
 	avee-supply = <&ppvarn_lcd>;
 };

@@ -7,7 +7,7 @@
  * Jonas Jensen <jonas.jensen@gmail.com>
  *
  * Based on code from
- * Moxa Technology Co., Ltd. <www.moxa.com>
+ * Moxa Techanallogy Co., Ltd. <www.moxa.com>
  */
 
 #include <linux/err.h>
@@ -248,7 +248,7 @@ static int moxart_rtc_probe(struct platform_device *pdev)
 
 	moxart_rtc = devm_kzalloc(&pdev->dev, sizeof(*moxart_rtc), GFP_KERNEL);
 	if (!moxart_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	moxart_rtc->gpio_data = devm_gpiod_get(&pdev->dev, "rtc-data",
 					       GPIOD_IN);

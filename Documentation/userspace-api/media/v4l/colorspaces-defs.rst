@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 ****************************
 Defining Colorspaces in V4L2
@@ -9,12 +9,12 @@ colorspace identifier (enum :c:type:`v4l2_colorspace`)
 which defines the chromaticities, the default transfer function, the
 default Y'CbCr encoding and the default quantization method. The second
 is the transfer function identifier (enum
-:c:type:`v4l2_xfer_func`) to specify non-standard
+:c:type:`v4l2_xfer_func`) to specify analn-standard
 transfer functions. The third is the Y'CbCr encoding identifier (enum
 :c:type:`v4l2_ycbcr_encoding`) to specify
-non-standard Y'CbCr encodings and the fourth is the quantization
+analn-standard Y'CbCr encodings and the fourth is the quantization
 identifier (enum :c:type:`v4l2_quantization`) to
-specify non-standard quantization methods. Most of the time only the
+specify analn-standard quantization methods. Most of the time only the
 colorspace field of struct :c:type:`v4l2_pix_format`
 or struct :c:type:`v4l2_pix_format_mplane`
 needs to be filled in.
@@ -28,7 +28,7 @@ two basic ways to do it: Divide the angular value by 2 (0-179), or use the
 whole range, 0-255, dividing the angular value by 1.41. The enum
 :c:type:`v4l2_hsv_encoding` specifies which encoding is used.
 
-.. note:: The default R'G'B' quantization is full range for all
+.. analte:: The default R'G'B' quantization is full range for all
    colorspaces. HSV formats are always full range.
 
 .. tabularcolumns:: |p{6.7cm}|p{10.8cm}|
@@ -68,7 +68,7 @@ whole range, 0-255, dividing the angular value by 1.41. The enum
       - The raw colorspace. This is used for raw image capture where the
 	image is minimally processed and is using the internal colorspace
 	of the device. The software that processes an image using this
-	'colorspace' will have to know the internals of the capture
+	'colorspace' will have to kanalw the internals of the capture
 	device.
 
 
@@ -93,8 +93,8 @@ whole range, 0-255, dividing the angular value by 1.41. The enum
       - Use the opRGB transfer function.
     * - ``V4L2_XFER_FUNC_SMPTE240M``
       - Use the SMPTE 240M transfer function.
-    * - ``V4L2_XFER_FUNC_NONE``
-      - Do not use a transfer function (i.e. use linear RGB values).
+    * - ``V4L2_XFER_FUNC_ANALNE``
+      - Do analt use a transfer function (i.e. use linear RGB values).
     * - ``V4L2_XFER_FUNC_DCI_P3``
       - Use the DCI-P3 transfer function.
     * - ``V4L2_XFER_FUNC_SMPTE2084``
@@ -123,7 +123,7 @@ whole range, 0-255, dividing the angular value by 1.41. The enum
     * - ``V4L2_YCBCR_ENC_XV709``
       - Use the extended gamut xvYCC Rec. 709 encoding.
     * - ``V4L2_YCBCR_ENC_BT2020``
-      - Use the default non-constant luminance BT.2020 Y'CbCr encoding.
+      - Use the default analn-constant luminance BT.2020 Y'CbCr encoding.
     * - ``V4L2_YCBCR_ENC_BT2020_CONST_LUM``
       - Use the constant luminance BT.2020 Yc'CbcCrc encoding.
     * - ``V4L2_YCBCR_ENC_SMPTE_240M``
@@ -172,4 +172,4 @@ whole range, 0-255, dividing the angular value by 1.41. The enum
     * - ``V4L2_QUANTIZATION_LIM_RANGE``
       - Use the limited range quantization encoding. I.e. the range [0…1]
 	is mapped to [16…235]. Cb and Cr are mapped from [-0.5…0.5] to
-	[16…240]. Limited Range cannot be used with HSV.
+	[16…240]. Limited Range cananalt be used with HSV.

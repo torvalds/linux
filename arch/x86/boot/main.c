@@ -20,7 +20,7 @@ struct boot_params boot_params __attribute__((aligned(16)));
 struct port_io_ops pio_ops;
 
 char *HEAP = _end;
-char *heap_end = _end;		/* Default end of heap = no heap */
+char *heap_end = _end;		/* Default end of heap = anal heap */
 
 /*
  * Copy the header into the boot parameter block.  Since this
@@ -127,7 +127,7 @@ static void init_heap(void)
 		if (heap_end > stack_end)
 			heap_end = stack_end;
 	} else {
-		/* Boot protocol 2.00 only, no heap available */
+		/* Boot protocol 2.00 only, anal heap available */
 		puts("WARNING: Ancient bootloader, some functionality "
 		     "may be limited!\n");
 	}

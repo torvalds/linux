@@ -33,7 +33,7 @@ static int init_worker_threads(struct otx_cptvf *cptvf)
 
 	cwqe_info = kzalloc(sizeof(*cwqe_info), GFP_KERNEL);
 	if (!cwqe_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (cptvf->num_queues) {
 		dev_dbg(&pdev->dev, "Creating VQ worker threads (%d)\n",
@@ -102,7 +102,7 @@ static int alloc_pending_queues(struct otx_cpt_pending_qinfo *pqinfo, u32 qlen,
 	for_each_pending_queue(pqinfo, queue, i) {
 		queue->head = kcalloc(qlen, sizeof(*queue->head), GFP_KERNEL);
 		if (!queue->head) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto pending_qfail;
 		}
 
@@ -256,7 +256,7 @@ free_curr:
 	kfree(curr);
 cmd_qfail:
 	free_command_queues(cptvf, cqinfo);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int init_command_queues(struct otx_cptvf *cptvf, u32 qlen)
@@ -534,15 +534,15 @@ static irqreturn_t cptvf_misc_intr_handler(int __always_unused irq,
 }
 
 static inline struct otx_cptvf_wqe *get_cptvf_vq_wqe(struct otx_cptvf *cptvf,
-						     int qno)
+						     int qanal)
 {
 	struct otx_cptvf_wqe_info *nwqe_info;
 
-	if (unlikely(qno >= cptvf->num_queues))
+	if (unlikely(qanal >= cptvf->num_queues))
 		return NULL;
 	nwqe_info = (struct otx_cptvf_wqe_info *)cptvf->wqe_info;
 
-	return &nwqe_info->vq_wqe[qno];
+	return &nwqe_info->vq_wqe[qanal];
 }
 
 static inline u32 cptvf_read_vq_done_count(struct otx_cptvf *cptvf)
@@ -575,15 +575,15 @@ static irqreturn_t cptvf_done_intr_handler(int __always_unused irq,
 		struct otx_cptvf_wqe *wqe;
 
 		/*
-		 * Acknowledge the number of scheduled completions for
+		 * Ackanalwledge the number of scheduled completions for
 		 * processing
 		 */
 		cptvf_write_vq_done_ack(cptvf, intr);
 		wqe = get_cptvf_vq_wqe(cptvf, 0);
 		if (unlikely(!wqe)) {
-			dev_err(&pdev->dev, "No work to schedule for VF (%d)\n",
+			dev_err(&pdev->dev, "Anal work to schedule for VF (%d)\n",
 				cptvf->vfid);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 		tasklet_hi_schedule(&wqe->twork);
 	}
@@ -605,7 +605,7 @@ static void cptvf_set_irq_affinity(struct otx_cptvf *cptvf, int vec)
 	}
 
 	cpu = cptvf->vfid % num_online_cpus();
-	cpumask_set_cpu(cpumask_local_spread(cpu, cptvf->node),
+	cpumask_set_cpu(cpumask_local_spread(cpu, cptvf->analde),
 			cptvf->affinity_mask[vec]);
 	irq_set_affinity_hint(pci_irq_vector(pdev, vec),
 			      cptvf->affinity_mask[vec]);
@@ -786,7 +786,7 @@ static int otx_cptvf_probe(struct pci_dev *pdev,
 
 	cptvf = devm_kzalloc(dev, sizeof(*cptvf), GFP_KERNEL);
 	if (!cptvf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, cptvf);
 	cptvf->pdev = pdev;
@@ -810,12 +810,12 @@ static int otx_cptvf_probe(struct pci_dev *pdev,
 	/* MAP PF's configuration registers */
 	cptvf->reg_base = pci_iomap(pdev, OTX_CPT_VF_PCI_CFG_BAR, 0);
 	if (!cptvf->reg_base) {
-		dev_err(dev, "Cannot map config register space, aborting\n");
-		err = -ENOMEM;
+		dev_err(dev, "Cananalt map config register space, aborting\n");
+		err = -EANALMEM;
 		goto release_regions;
 	}
 
-	cptvf->node = dev_to_node(&pdev->dev);
+	cptvf->analde = dev_to_analde(&pdev->dev);
 	err = pci_alloc_irq_vectors(pdev, OTX_CPT_VF_MSIX_VECTORS,
 				    OTX_CPT_VF_MSIX_VECTORS, PCI_IRQ_MSIX);
 	if (err < 0) {
@@ -937,7 +937,7 @@ static void otx_cptvf_remove(struct pci_dev *pdev)
 
 	/* Convey DOWN to PF */
 	if (otx_cptvf_send_vf_down(cptvf)) {
-		dev_err(&pdev->dev, "PF not responding to DOWN msg\n");
+		dev_err(&pdev->dev, "PF analt responding to DOWN msg\n");
 	} else {
 		sysfs_remove_group(&pdev->dev.kobj, &otx_cptvf_sysfs_group);
 		otx_cpt_crypto_exit(pdev, THIS_MODULE, cptvf->vftype);

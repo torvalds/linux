@@ -74,7 +74,7 @@ static const struct pck at91rm9200_periphck[] = {
 	{ .n = "macb0_clk",  .id = 24 },
 };
 
-static void __init at91rm9200_pmc_setup(struct device_node *np)
+static void __init at91rm9200_pmc_setup(struct device_analde *np)
 {
 	const char *slowxtal_name, *mainxtal_name;
 	struct pmc_data *at91rm9200_pmc;
@@ -96,7 +96,7 @@ static void __init at91rm9200_pmc_setup(struct device_node *np)
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = device_node_to_regmap(np);
+	regmap = device_analde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 

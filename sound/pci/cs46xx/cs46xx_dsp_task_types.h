@@ -3,7 +3,7 @@
  *  The driver for the Cirrus Logic's Sound Fusion CS46XX based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- * NOTE: comments are copy/paste from cwcemb80.lst 
+ * ANALTE: comments are copy/paste from cwcemb80.lst 
  * provided by Tom Woller at Cirrus (my only
  * documentation about the SP OS running inside
  * the DSP) 
@@ -48,7 +48,7 @@ Ptr____Call (c)
 
 #define SLEEP_ACTIVE_INCREMENT		0		/* Enable task tree thread to go to sleep
 											   This should only ever be used on the Background thread */
-#define STANDARD_ACTIVE_INCREMENT	1		/* Task tree thread normal operation */
+#define STANDARD_ACTIVE_INCREMENT	1		/* Task tree thread analrmal operation */
 #define SUSPEND_ACTIVE_INCREMENT	2		/* Cause execution to suspend in the task tree thread
                                                This should only ever be used on the Background thread */
 
@@ -129,7 +129,7 @@ struct dsp_task_tree_data {
 	   currently unused */
 	___DSP_DUAL_16BIT_ALLOC(
 	    mem_upd_ptr,
-	/* Data structure for controlling synchronous link update */
+	/* Data structure for controlling synchroanalus link update */
 	    link_upd_ptr
 	)
   

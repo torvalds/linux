@@ -21,8 +21,8 @@ static void __nvmet_disc_changed(struct nvmet_port *port,
 	if (nvmet_aen_bit_disabled(ctrl, NVME_AEN_BIT_DISC_CHANGE))
 		return;
 
-	nvmet_add_async_event(ctrl, NVME_AER_NOTICE,
-			      NVME_AER_NOTICE_DISC_CHANGED, NVME_LOG_DISC);
+	nvmet_add_async_event(ctrl, NVME_AER_ANALTICE,
+			      NVME_AER_ANALTICE_DISC_CHANGED, NVME_LOG_DISC);
 }
 
 void nvmet_port_disc_changed(struct nvmet_port *port,
@@ -42,7 +42,7 @@ void nvmet_port_disc_changed(struct nvmet_port *port,
 	}
 	mutex_unlock(&nvmet_disc_subsys->lock);
 
-	/* If transport can signal change, notify transport */
+	/* If transport can signal change, analtify transport */
 	if (port->tr_ops && port->tr_ops->discovery_chg)
 		port->tr_ops->discovery_chg(port);
 }
@@ -127,7 +127,7 @@ static void nvmet_format_discovery_entry(struct nvmf_disc_rsp_page_hdr *hdr,
  *
  * IP based transports (e.g RDMA) can listen on "any" ipv4/ipv6 addresses
  * (INADDR_ANY or IN6ADDR_ANY_INIT). The discovery log page traddr reply
- * must not contain that "any" IP address. If the transport implements
+ * must analt contain that "any" IP address. If the transport implements
  * .disc_traddr, use it. this callback will set the discovery traddr
  * from the req->port address in case the port in question listens
  * "any" IP address.
@@ -275,13 +275,13 @@ static void nvmet_execute_disc_identify(struct nvmet_req *req)
 
 	id->cntrltype = NVME_CTRL_DISC;
 
-	/* no limit on data transfer sizes for now */
+	/* anal limit on data transfer sizes for analw */
 	id->mdts = 0;
 	id->cntlid = cpu_to_le16(ctrl->cntlid);
 	id->ver = cpu_to_le32(ctrl->subsys->ver);
 	id->lpa = (1 << 2);
 
-	/* no enforcement soft-limit for maxcmd - pick arbitrary high value */
+	/* anal enforcement soft-limit for maxcmd - pick arbitrary high value */
 	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD);
 
 	id->sgls = cpu_to_le32(1 << 0);	/* we always support SGLs */
@@ -357,7 +357,7 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 	struct nvme_command *cmd = req->cmd;
 
 	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
-		pr_err("got cmd %d while not ready\n",
+		pr_err("got cmd %d while analt ready\n",
 		       cmd->common.opcode);
 		req->error_loc =
 			offsetof(struct nvme_common_command, opcode);

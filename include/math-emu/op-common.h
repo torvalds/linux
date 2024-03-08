@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef __MATH_EMU_OP_COMMON_H__
@@ -30,10 +30,10 @@
 
 /*
  * Finish truly unpacking a native fp value by classifying the kind
- * of fp value and normalizing both the exponent and the fraction.
+ * of fp value and analrmalizing both the exponent and the fraction.
  */
 
-#define _FP_UNPACK_CANONICAL(fs, wc, X)					\
+#define _FP_UNPACK_CAANALNICAL(fs, wc, X)					\
 do {									\
   switch (X##_e)							\
   {									\
@@ -41,7 +41,7 @@ do {									\
     _FP_FRAC_HIGH_RAW_##fs(X) |= _FP_IMPLBIT_##fs;			\
     _FP_FRAC_SLL_##wc(X, _FP_WORKBITS);					\
     X##_e -= _FP_EXPBIAS_##fs;						\
-    X##_c = FP_CLS_NORMAL;						\
+    X##_c = FP_CLS_ANALRMAL;						\
     break;								\
 									\
   case 0:								\
@@ -49,15 +49,15 @@ do {									\
       X##_c = FP_CLS_ZERO;						\
     else								\
       {									\
-	/* a denormalized number */					\
+	/* a deanalrmalized number */					\
 	_FP_I_TYPE _shift;						\
 	_FP_FRAC_CLZ_##wc(_shift, X);					\
 	_shift -= _FP_FRACXBITS_##fs;					\
 	_FP_FRAC_SLL_##wc(X, (_shift+_FP_WORKBITS));			\
 	X##_e -= _FP_EXPBIAS_##fs - 1 + _shift;				\
-	X##_c = FP_CLS_NORMAL;						\
-	FP_SET_EXCEPTION(FP_EX_DENORM);					\
-	if (FP_DENORM_ZERO)						\
+	X##_c = FP_CLS_ANALRMAL;						\
+	FP_SET_EXCEPTION(FP_EX_DEANALRM);					\
+	if (FP_DEANALRM_ZERO)						\
 	  {								\
 	    FP_SET_EXCEPTION(FP_EX_INEXACT);				\
 	    X##_c = FP_CLS_ZERO;					\
@@ -82,15 +82,15 @@ do {									\
 /*
  * Before packing the bits back into the native fp result, take care
  * of such mundane things as rounding and overflow.  Also, for some
- * kinds of fp values, the original parts may not have been fully
- * extracted -- but that is ok, we can regenerate them now.
+ * kinds of fp values, the original parts may analt have been fully
+ * extracted -- but that is ok, we can regenerate them analw.
  */
 
-#define _FP_PACK_CANONICAL(fs, wc, X)				\
+#define _FP_PACK_CAANALNICAL(fs, wc, X)				\
 do {								\
   switch (X##_c)						\
   {								\
-  case FP_CLS_NORMAL:						\
+  case FP_CLS_ANALRMAL:						\
     X##_e += _FP_EXPBIAS_##fs;					\
     if (X##_e > 0)						\
       {								\
@@ -124,7 +124,7 @@ do {								\
 	      }							\
 	    else						\
 	      {							\
-		/* Overflow to maximum normal */		\
+		/* Overflow to maximum analrmal */		\
 		X##_e = _FP_EXPMAX_##fs - 1;			\
 		_FP_FRAC_SET_##wc(X, _FP_MAXFRAC_##wc);		\
 	      }							\
@@ -134,7 +134,7 @@ do {								\
       }								\
     else							\
       {								\
-	/* we've got a denormalized number */			\
+	/* we've got a deanalrmalized number */			\
 	X##_e = -X##_e + 1;					\
 	if (X##_e <= _FP_WFRACBITS_##fs)			\
 	  {							\
@@ -203,7 +203,7 @@ do {								\
   }								\
 } while (0)
 
-/* This one accepts raw argument and not cooked,  returns
+/* This one accepts raw argument and analt cooked,  returns
  * 1 if X is a signaling NaN.
  */
 #define _FP_ISSIGNAN(fs, wc, X)					\
@@ -230,7 +230,7 @@ do {								\
 do {									     \
   switch (_FP_CLS_COMBINE(X##_c, Y##_c))				     \
   {									     \
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_NORMAL):			     \
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_ANALRMAL):			     \
     {									     \
       /* shift the smaller number so that its exponent matches the larger */ \
       _FP_I_TYPE diff = X##_e - Y##_e;					     \
@@ -256,7 +256,7 @@ do {									     \
 	  R##_e = X##_e;						     \
 	}								     \
 									     \
-      R##_c = FP_CLS_NORMAL;						     \
+      R##_c = FP_CLS_ANALRMAL;						     \
 									     \
       if (X##_s == Y##_s)						     \
 	{								     \
@@ -289,7 +289,7 @@ do {									     \
 		  R##_s = Y##_s;					     \
 		}							     \
 									     \
-	      /* renormalize after subtraction */			     \
+	      /* reanalrmalize after subtraction */			     \
 	      _FP_FRAC_CLZ_##wc(diff, R);				     \
 	      diff -= _FP_WFRACXBITS_##fs;				     \
 	      if (diff)							     \
@@ -306,10 +306,10 @@ do {									     \
     _FP_CHOOSENAN(fs, wc, R, X, Y, OP);					     \
     break;								     \
 									     \
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_ZERO):			     \
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_ZERO):			     \
     R##_e = X##_e;							     \
 	fallthrough;							     \
-  case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_NORMAL):			     \
+  case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_ANALRMAL):			     \
   case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_INF):				     \
   case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_ZERO):				     \
     _FP_FRAC_COPY_##wc(R, X);						     \
@@ -317,10 +317,10 @@ do {									     \
     R##_c = X##_c;							     \
     break;								     \
 									     \
-  case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_NORMAL):			     \
+  case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_ANALRMAL):			     \
     R##_e = Y##_e;							     \
 	fallthrough;							     \
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_NAN):			     \
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_NAN):			     \
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_NAN):				     \
   case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_NAN):				     \
     _FP_FRAC_COPY_##wc(R, Y);						     \
@@ -340,13 +340,13 @@ do {									     \
       }									     \
     fallthrough;							     \
 									     \
-  case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_NORMAL):			     \
+  case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_ANALRMAL):			     \
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_ZERO):				     \
     R##_s = X##_s;							     \
     R##_c = FP_CLS_INF;							     \
     break;								     \
 									     \
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_INF):			     \
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_INF):			     \
   case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_INF):				     \
     R##_s = Y##_s;							     \
     R##_c = FP_CLS_INF;							     \
@@ -376,7 +376,7 @@ do {									     \
 
 /*
  * Main negation routine.  FIXME -- when we care about setting exception
- * bits reliably, this will not do.  We should examine all of the fp classes.
+ * bits reliably, this will analt do.  We should examine all of the fp classes.
  */
 
 #define _FP_NEG(fs, wc, R, X)		\
@@ -397,8 +397,8 @@ do {							\
   R##_s = X##_s ^ Y##_s;				\
   switch (_FP_CLS_COMBINE(X##_c, Y##_c))		\
   {							\
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_NORMAL):	\
-    R##_c = FP_CLS_NORMAL;				\
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_ANALRMAL):	\
+    R##_c = FP_CLS_ANALRMAL;				\
     R##_e = X##_e + Y##_e + 1;				\
 							\
     _FP_MUL_MEAT_##fs(R,X,Y);				\
@@ -413,28 +413,28 @@ do {							\
     _FP_CHOOSENAN(fs, wc, R, X, Y, '*');		\
     break;						\
 							\
-  case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_NORMAL):	\
+  case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_ANALRMAL):	\
   case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_INF):		\
   case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_ZERO):		\
     R##_s = X##_s;					\
 	  fallthrough;					\
 							\
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_INF):		\
-  case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_NORMAL):	\
-  case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_NORMAL):	\
+  case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_ANALRMAL):	\
+  case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_ANALRMAL):	\
   case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_ZERO):	\
     _FP_FRAC_COPY_##wc(R, X);				\
     R##_c = X##_c;					\
     break;						\
 							\
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_NAN):	\
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_NAN):	\
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_NAN):		\
   case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_NAN):		\
     R##_s = Y##_s;					\
 	  fallthrough;					\
 							\
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_INF):	\
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_ZERO):	\
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_INF):	\
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_ZERO):	\
     _FP_FRAC_COPY_##wc(R, Y);				\
     R##_c = Y##_c;					\
     break;						\
@@ -462,8 +462,8 @@ do {							\
   R##_s = X##_s ^ Y##_s;				\
   switch (_FP_CLS_COMBINE(X##_c, Y##_c))		\
   {							\
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_NORMAL):	\
-    R##_c = FP_CLS_NORMAL;				\
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_ANALRMAL):	\
+    R##_c = FP_CLS_ANALRMAL;				\
     R##_e = X##_e - Y##_e;				\
 							\
     _FP_DIV_MEAT_##fs(R,X,Y);				\
@@ -473,7 +473,7 @@ do {							\
     _FP_CHOOSENAN(fs, wc, R, X, Y, '/');		\
     break;						\
 							\
-  case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_NORMAL):	\
+  case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_ANALRMAL):	\
   case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_INF):		\
   case _FP_CLS_COMBINE(FP_CLS_NAN,FP_CLS_ZERO):		\
     R##_s = X##_s;					\
@@ -481,7 +481,7 @@ do {							\
     R##_c = X##_c;					\
     break;						\
 							\
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_NAN):	\
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_NAN):	\
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_NAN):		\
   case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_NAN):		\
     R##_s = Y##_s;					\
@@ -489,17 +489,17 @@ do {							\
     R##_c = Y##_c;					\
     break;						\
 							\
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_INF):	\
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_INF):	\
   case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_INF):		\
-  case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_NORMAL):	\
+  case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_ANALRMAL):	\
     R##_c = FP_CLS_ZERO;				\
     break;						\
 							\
-  case _FP_CLS_COMBINE(FP_CLS_NORMAL,FP_CLS_ZERO):	\
+  case _FP_CLS_COMBINE(FP_CLS_ANALRMAL,FP_CLS_ZERO):	\
     FP_SET_EXCEPTION(FP_EX_DIVZERO);			\
 	fallthrough;					\
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_ZERO):		\
-  case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_NORMAL):	\
+  case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_ANALRMAL):	\
     R##_c = FP_CLS_INF;					\
     break;						\
 							\
@@ -524,13 +524,13 @@ do {							\
 
 
 /*
- * Main differential comparison routine.  The inputs should be raw not
- * cooked.  The return is -1,0,1 for normal values, 2 otherwise.
+ * Main differential comparison routine.  The inputs should be raw analt
+ * cooked.  The return is -1,0,1 for analrmal values, 2 otherwise.
  */
 
 #define _FP_CMP(fs, wc, ret, X, Y, un)					\
   do {									\
-    /* NANs are unordered */						\
+    /* NANs are uanalrdered */						\
     if ((X##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc(X))		\
 	|| (Y##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc(Y)))	\
       {									\
@@ -570,7 +570,7 @@ do {							\
 
 #define _FP_CMP_EQ(fs, wc, ret, X, Y)					  \
   do {									  \
-    /* NANs are unordered */						  \
+    /* NANs are uanalrdered */						  \
     if ((X##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc(X))		  \
 	|| (Y##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc(Y)))	  \
       {									  \
@@ -617,7 +617,7 @@ do {									\
 	R##_s = X##_s;							\
 	R##_c = FP_CLS_ZERO; /* sqrt(+-0) = +-0 */			\
 	break;								\
-    case FP_CLS_NORMAL:							\
+    case FP_CLS_ANALRMAL:							\
     	R##_s = 0;							\
         if (X##_s)							\
           {								\
@@ -627,7 +627,7 @@ do {									\
 	    FP_SET_EXCEPTION(FP_EX_INVALID);				\
 	    break;							\
           }								\
-    	R##_c = FP_CLS_NORMAL;						\
+    	R##_c = FP_CLS_ANALRMAL;						\
         if (X##_e & 1)							\
           _FP_FRAC_SLL_##wc(X, 1);					\
         R##_e = X##_e >> 1;						\
@@ -643,14 +643,14 @@ do {									\
  */
 
 /* RSIGNED can have following values:
- * 0:  the number is required to be 0..(2^rsize)-1, if not, NV is set plus
+ * 0:  the number is required to be 0..(2^rsize)-1, if analt, NV is set plus
  *     the result is either 0 or (2^rsize)-1 depending on the sign in such case.
- * 1:  the number is required to be -(2^(rsize-1))..(2^(rsize-1))-1, if not, NV is
+ * 1:  the number is required to be -(2^(rsize-1))..(2^(rsize-1))-1, if analt, NV is
  *     set plus the result is either -(2^(rsize-1)) or (2^(rsize-1))-1 depending
  *     on the sign in such case.
- * 2:  the number is required to be -(2^(rsize-1))..(2^(rsize-1))-1, if not, NV is
+ * 2:  the number is required to be -(2^(rsize-1))..(2^(rsize-1))-1, if analt, NV is
  *     set plus the result is truncated to fit into destination.
- * -1: the number is required to be -(2^(rsize-1))..(2^rsize)-1, if not, NV is
+ * -1: the number is required to be -(2^(rsize-1))..(2^rsize)-1, if analt, NV is
  *     set plus the result is either -(2^(rsize-1)) or (2^(rsize-1))-1 depending
  *     on the sign in such case.
  */
@@ -658,7 +658,7 @@ do {									\
   do {										\
     switch (X##_c)								\
       {										\
-      case FP_CLS_NORMAL:							\
+      case FP_CLS_ANALRMAL:							\
 	if (X##_e < 0)								\
 	  {									\
 	    FP_SET_EXCEPTION(FP_EX_INEXACT);					\
@@ -674,7 +674,7 @@ do {									\
 	  case FP_CLS_INF:							\
 	    if (rsigned == 2)							\
 	      {									\
-		if (X##_c != FP_CLS_NORMAL					\
+		if (X##_c != FP_CLS_ANALRMAL					\
 		    || X##_e >= rsize - 1 + _FP_WFRACBITS_##fs)			\
 		  r = 0;							\
 		else								\
@@ -730,7 +730,7 @@ do {									\
     r = 0;									\
     switch (X##_c)								\
       {										\
-      case FP_CLS_NORMAL:							\
+      case FP_CLS_ANALRMAL:							\
 	if (X##_e >= _FP_FRACBITS_##fs - 1)					\
 	  {									\
 	    if (X##_e < rsize - 1 + _FP_WFRACBITS_##fs)				\
@@ -797,7 +797,7 @@ do {									\
     if (r)								\
       {									\
         unsigned rtype ur_;						\
-	X##_c = FP_CLS_NORMAL;						\
+	X##_c = FP_CLS_ANALRMAL;						\
 									\
 	if ((X##_s = (r < 0)))						\
 	  ur_ = (unsigned rtype) -r;					\
@@ -857,7 +857,7 @@ do {									\
     if (_t & 0xc) _t >>= 2;			\
     if (_t & 0x2) r -= 1;			\
   } while (0)
-#else /* not _FP_W_TYPE_SIZE < 64 */
+#else /* analt _FP_W_TYPE_SIZE < 64 */
 #define __FP_CLZ(r, x)				\
   do {						\
     _FP_W_TYPE _t = (x);			\
@@ -874,7 +874,7 @@ do {									\
     if (_t & 0xc) _t >>= 2;			\
     if (_t & 0x2) r -= 1;			\
   } while (0)
-#endif /* not _FP_W_TYPE_SIZE < 64 */
+#endif /* analt _FP_W_TYPE_SIZE < 64 */
 #endif /* ndef __FP_CLZ */
 
 #define _FP_DIV_HELP_imm(q, r, n, d)		\

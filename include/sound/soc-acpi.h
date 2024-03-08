@@ -67,7 +67,7 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * @links: array of SoundWire link _ADR descriptors, null terminated
  * @i2s_link_mask: I2S/TDM links enabled on the board
  * @num_dai_drivers: number of elements in @dai_drivers
- * @dai_drivers: pointer to dai_drivers, used e.g. in nocodec mode
+ * @dai_drivers: pointer to dai_drivers, used e.g. in analcodec mode
  * @subsystem_vendor: optional PCI SSID vendor value
  * @subsystem_device: optional PCI SSID device value
  * @subsystem_id_set: true if a value has been written to
@@ -164,15 +164,15 @@ struct snd_soc_acpi_link_adr {
  * @link_mask: describes required board layout, e.g. for SoundWire.
  * @links: array of link _ADR descriptors, null terminated.
  * @drv_name: machine driver name
- * @fw_filename: firmware file name. Used when SOF is not enabled.
- * @tplg_filename: topology file name. Used when SOF is not enabled.
+ * @fw_filename: firmware file name. Used when SOF is analt enabled.
+ * @tplg_filename: topology file name. Used when SOF is analt enabled.
  * @board: board name
  * @machine_quirk: pointer to quirk, usually based on DMI information when
- * ACPI ID alone is not sufficient, wrong or misleading
+ * ACPI ID alone is analt sufficient, wrong or misleading
  * @quirk_data: data used to uniquely identify a machine, usually a list of
  * audio codecs whose presence if checked with ACPI
  * @pdata: intended for platform data or machine specific-ops. This structure
- *  is not constant since this field may be updated at run-time
+ *  is analt constant since this field may be updated at run-time
  * @sof_tplg_filename: Sound Open Firmware topology file name, if enabled
  * @tplg_quirk_mask: quirks to select different topology files dynamically
  */

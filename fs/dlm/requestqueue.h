@@ -11,7 +11,7 @@
 #ifndef __REQUESTQUEUE_DOT_H__
 #define __REQUESTQUEUE_DOT_H__
 
-void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid,
+void dlm_add_requestqueue(struct dlm_ls *ls, int analdeid,
 			  const struct dlm_message *ms);
 int dlm_process_requestqueue(struct dlm_ls *ls);
 void dlm_wait_requestqueue(struct dlm_ls *ls);

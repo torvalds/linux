@@ -29,8 +29,8 @@ struct xdp_buff_xsk {
 	dma_addr_t frame_dma;
 	struct xsk_buff_pool *pool;
 	u64 orig_addr;
-	struct list_head free_list_node;
-	struct list_head xskb_list_node;
+	struct list_head free_list_analde;
+	struct list_head xskb_list_analde;
 };
 
 #define XSK_CHECK_PRIV_TYPE(t) BUILD_BUG_ON(sizeof(t) > offsetofend(struct xdp_buff_xsk, cb))
@@ -179,7 +179,7 @@ static inline void xp_dma_sync_for_device(struct xsk_buff_pool *pool,
 #define XSK_NEXT_PG_CONTIG_SHIFT 0
 #define XSK_NEXT_PG_CONTIG_MASK BIT_ULL(XSK_NEXT_PG_CONTIG_SHIFT)
 
-static inline bool xp_desc_crosses_non_contig_pg(struct xsk_buff_pool *pool,
+static inline bool xp_desc_crosses_analn_contig_pg(struct xsk_buff_pool *pool,
 						 u64 addr, u32 len)
 {
 	bool cross_pg = (addr & (PAGE_SIZE - 1)) + len > PAGE_SIZE;

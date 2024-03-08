@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -94,12 +94,12 @@ bool hubbub2_dcc_support_swizzle(
 			return true;
 		}
 		if (bytes_per_element == 2) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__analn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
 		if (bytes_per_element == 4) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__analn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
@@ -116,19 +116,19 @@ bool hubbub2_dcc_support_swizzle(
 			return true;
 		}
 		if (bytes_per_element == 4) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__analn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
 		if (bytes_per_element == 8) {
 			*segment_order_horz = segment_order__contiguous;
-			*segment_order_vert = segment_order__non_contiguous;
+			*segment_order_vert = segment_order__analn_contiguous;
 			return true;
 		}
 	}
 	if (display_swizzle && bytes_per_element == 8) {
 		*segment_order_horz = segment_order__contiguous;
-		*segment_order_vert = segment_order__non_contiguous;
+		*segment_order_vert = segment_order__analn_contiguous;
 		return true;
 	}
 
@@ -260,10 +260,10 @@ bool hubbub2_get_dcc_compression_cap(struct hubbub *hubbub,
 			dcc_control = dcc_control__256_64_64;
 	} else {
 		if ((req128_horz_wc &&
-			segment_order_horz == segment_order__non_contiguous) ||
+			segment_order_horz == segment_order__analn_contiguous) ||
 			(req128_vert_wc &&
-			segment_order_vert == segment_order__non_contiguous))
-			/* access_dir not known, must use most constraining */
+			segment_order_vert == segment_order__analn_contiguous))
+			/* access_dir analt kanalwn, must use most constraining */
 			dcc_control = dcc_control__256_64_64;
 		else
 			/* reg128 is true for either horz and vert
@@ -440,7 +440,7 @@ void hubbub2_update_dchub(struct hubbub *hubbub,
 						dh_data->zfb_size_in_byte - 1) >> 24);
 		break;
 	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		/*Should analt touch FB LOCATION (done by VBIOS on AsicInit table)*/
 
 		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
 		REG_UPDATE(DCN_VM_AGP_BASE,
@@ -458,7 +458,7 @@ void hubbub2_update_dchub(struct hubbub *hubbub,
 						dh_data->zfb_size_in_byte - 1) >> 24);
 		break;
 	case FRAME_BUFFER_MODE_LOCAL_ONLY:
-		/*Should not touch FB LOCATION (should be done by VBIOS)*/
+		/*Should analt touch FB LOCATION (should be done by VBIOS)*/
 
 		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
 		REG_UPDATE(DCN_VM_AGP_BASE,
@@ -577,7 +577,7 @@ static bool hubbub2_program_watermarks(
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
 	bool wm_pending = false;
 	/*
-	 * Need to clamp to max of the register values (i.e. no wrap)
+	 * Need to clamp to max of the register values (i.e. anal wrap)
 	 * for dcn1, all wm registers are 21-bit wide
 	 */
 	if (hubbub1_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower))
@@ -589,7 +589,7 @@ static bool hubbub2_program_watermarks(
 	/*
 	 * There's a special case when going from p-state support to p-state unsupported
 	 * here we are going to LOWER watermarks to go to dummy p-state only, but this has
-	 * to be done prepare_bandwidth, not optimize
+	 * to be done prepare_bandwidth, analt optimize
 	 */
 	if (hubbub1->base.ctx->dc->clk_mgr->clks.prev_p_state_change_support == true &&
 		hubbub1->base.ctx->dc->clk_mgr->clks.p_state_change_support == false)

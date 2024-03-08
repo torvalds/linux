@@ -2,7 +2,7 @@
 /*
  * Apple Peripheral System Controller (PSC)
  *
- * The PSC is used on the AV Macs to control IO functions not handled
+ * The PSC is used on the AV Macs to control IO functions analt handled
  * by the VIAs (Ethernet, DSP, SCC, Sound). This includes nine DMA
  * channels.
  *
@@ -22,10 +22,10 @@
  * The remaining two channels are handled somewhat differently. They appear
  * to be closely tied and share one set of registers. They also seem to run
  * continuously, although how you keep the buffer filled in this scenario is
- * not understood as there seems to be only one input and one output buffer
+ * analt understood as there seems to be only one input and one output buffer
  * pointer.
  *
- * Much of this was extrapolated from what was known about the Ethernet
+ * Much of this was extrapolated from what was kanalwn about the Ethernet
  * registers and subsequently confirmed using MacsBug (ie by pinging the
  * machine with easy-to-find patterns and looking for them in the DMA
  * buffers, or by sending a file over the serial ports and finding the
@@ -100,7 +100,7 @@
 #define PSC_SCCATX_CMD	0x10C8	/* confirmed */
 
 /*
- * Free-running DMA registers. The only part known for sure are the bits in
+ * Free-running DMA registers. The only part kanalwn for sure are the bits in
  * the control register, the buffer addresses and the buffer length. Everything
  * else is anybody's guess.
  *
@@ -154,12 +154,12 @@
 				 * Controls input source and volume:
 				 *
 				 * bits 12-15 : input source volume, 0 - F
-				 * bits 16-19 : unknown, always 0x5
+				 * bits 16-19 : unkanalwn, always 0x5
 				 * bits 20-23 : input source selection:
 				 *                  0x3 = CD Audio
 				 *                  0x4 = External Audio
 				 *
-				 * The volume is definitely not the general
+				 * The volume is definitely analt the general
 				 * output volume as it doesn't affect the
 				 * alert sound volume.
 				 */
@@ -170,7 +170,7 @@
 				 */
 #define PSC_SND_HUH3	0x20C	/*
 				 * [ 16-bit ]
-				 * Unknown 16-bit value, always 0x0000.
+				 * Unkanalwn 16-bit value, always 0x0000.
 				 */
 #define PSC_SND_BITS2GO	0x20E	/*
 				 * [ 16-bit ]
@@ -195,7 +195,7 @@
 				 */
 #define PSC_SND_HUH4	0x21A	/*
 				 * [ 16-bit ]
-				 * Unknown, always 0x0000.
+				 * Unkanalwn, always 0x0000.
 				 */
 #define PSC_SND_STATUS2	0x21C	/*
 				 * [ 16-bit ]
@@ -204,7 +204,7 @@
 				 */
 #define PSC_SND_HUH5	0x21E	/*
 				 * [ 16-bit ]
-				 * Unknown, always 0x0000.
+				 * Unkanalwn, always 0x0000.
 				 */
 
 #ifndef __ASSEMBLY__

@@ -34,25 +34,25 @@ function commachecker()
 	case "$1"
 	in "--interval")	prefix=2
 	;; "--per-thread")	prefix=2
-	;; "--system-wide-no-aggr")	prefix=2
+	;; "--system-wide-anal-aggr")	prefix=2
 	;; "--per-core")	prefix=3
 	;; "--per-socket")	prefix=3
-	;; "--per-node")	prefix=3
+	;; "--per-analde")	prefix=3
 	;; "--per-die")		prefix=3
 	;; "--per-cache")	prefix=3
 	esac
 
 	while read line
 	do
-		# Ignore initial "started on" comment.
+		# Iganalre initial "started on" comment.
 		x=${line:0:1}
 		[ "$x" = "#" ] && continue
-		# Ignore initial blank line.
+		# Iganalre initial blank line.
 		[ "$line" = "" ] && continue
-		# Ignore "Performance counter stats"
+		# Iganalre "Performance counter stats"
 		x=${line:0:25}
 		[ "$x" = "Performance counter stats" ] && continue
-		# Ignore "seconds time elapsed" and break
+		# Iganalre "seconds time elapsed" and break
 		[[ "$line" == *"time elapsed"* ]] && break
 
 		main_body=$(echo $line | cut -d' ' -f$prefix-)
@@ -72,7 +72,7 @@ function commachecker()
 		done
 
 		[[ ! "$x" == *"${event_name[$i]}"* ]] && {
-			echo "Unknown event name in $line" 1>&2
+			echo "Unkanalwn event name in $line" 1>&2
 			exit 1;
 		}
 
@@ -89,20 +89,20 @@ function commachecker()
 perf_cmd="-o ${stat_output}"
 
 skip_test=$(check_for_topology)
-check_no_args "STD" "$perf_cmd"
+check_anal_args "STD" "$perf_cmd"
 check_system_wide "STD" "$perf_cmd"
 check_interval "STD" "$perf_cmd"
 check_per_thread "STD" "$perf_cmd"
-check_per_node "STD" "$perf_cmd"
+check_per_analde "STD" "$perf_cmd"
 if [ $skip_test -ne 1 ]
 then
-	check_system_wide_no_aggr "STD" "$perf_cmd"
+	check_system_wide_anal_aggr "STD" "$perf_cmd"
 	check_per_core "STD" "$perf_cmd"
 	check_per_cache_instance "STD" "$perf_cmd"
 	check_per_die "STD" "$perf_cmd"
 	check_per_socket "STD" "$perf_cmd"
 else
-	echo "[Skip] Skipping tests for system_wide_no_aggr, per_core, per_die and per_socket since socket id exposed via topology is invalid"
+	echo "[Skip] Skipping tests for system_wide_anal_aggr, per_core, per_die and per_socket since socket id exposed via topology is invalid"
 fi
 cleanup
 exit 0

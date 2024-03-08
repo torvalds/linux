@@ -118,13 +118,13 @@ static int tps65911_comparator_probe(struct platform_device *pdev)
 
 	ret = comp_threshold_set(tps65910, COMP1,  pdata->vmbch_threshold);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot set COMP1 threshold\n");
+		dev_err(&pdev->dev, "cananalt set COMP1 threshold\n");
 		return ret;
 	}
 
 	ret = comp_threshold_set(tps65910, COMP2, pdata->vmbch2_threshold);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot set COMP2 threshold\n");
+		dev_err(&pdev->dev, "cananalt set COMP2 threshold\n");
 		return ret;
 	}
 

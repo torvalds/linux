@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Card-specific functions for the Siano SMS1xxx USB dongle
+ *  Card-specific functions for the Siaanal SMS1xxx USB dongle
  *
  *  Copyright (c) 2008 Michael Krufky <mkrufky@linuxtv.org>
  */
@@ -10,28 +10,28 @@
 #include <linux/module.h>
 
 static struct sms_board sms_boards[] = {
-	[SMS_BOARD_UNKNOWN] = {
-		.name	= "Unknown board",
-		.type = SMS_UNKNOWN_TYPE,
-		.default_mode = DEVICE_MODE_NONE,
+	[SMS_BOARD_UNKANALWN] = {
+		.name	= "Unkanalwn board",
+		.type = SMS_UNKANALWN_TYPE,
+		.default_mode = DEVICE_MODE_ANALNE,
 	},
-	[SMS1XXX_BOARD_SIANO_STELLAR] = {
-		.name	= "Siano Stellar Digital Receiver",
+	[SMS1XXX_BOARD_SIAANAL_STELLAR] = {
+		.name	= "Siaanal Stellar Digital Receiver",
 		.type	= SMS_STELLAR,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
-	[SMS1XXX_BOARD_SIANO_NOVA_A] = {
-		.name	= "Siano Nova A Digital Receiver",
-		.type	= SMS_NOVA_A0,
+	[SMS1XXX_BOARD_SIAANAL_ANALVA_A] = {
+		.name	= "Siaanal Analva A Digital Receiver",
+		.type	= SMS_ANALVA_A0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
-	[SMS1XXX_BOARD_SIANO_NOVA_B] = {
-		.name	= "Siano Nova B Digital Receiver",
-		.type	= SMS_NOVA_B0,
+	[SMS1XXX_BOARD_SIAANAL_ANALVA_B] = {
+		.name	= "Siaanal Analva B Digital Receiver",
+		.type	= SMS_ANALVA_B0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
-	[SMS1XXX_BOARD_SIANO_VEGA] = {
-		.name	= "Siano Vega Digital Receiver",
+	[SMS1XXX_BOARD_SIAANAL_VEGA] = {
+		.name	= "Siaanal Vega Digital Receiver",
 		.type	= SMS_VEGA,
 		.default_mode = DEVICE_MODE_CMMB,
 	},
@@ -43,19 +43,19 @@ static struct sms_board sms_boards[] = {
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A] = {
 		.name	= "Hauppauge Okemo-A",
-		.type	= SMS_NOVA_A0,
-		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_NOVA_A,
+		.type	= SMS_ANALVA_A0,
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_ANALVA_A,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B] = {
 		.name	= "Hauppauge Okemo-B",
-		.type	= SMS_NOVA_B0,
-		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_NOVA_B,
+		.type	= SMS_ANALVA_B0,
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_ANALVA_B,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_WINDHAM] = {
 		.name	= "Hauppauge WinTV MiniStick",
-		.type	= SMS_NOVA_B0,
+		.type	= SMS_ANALVA_B0,
 		.fw[DEVICE_MODE_ISDBT_BDA] = SMS_FW_ISDBT_HCW_55XXX,
 		.fw[DEVICE_MODE_DVBT_BDA]  = SMS_FW_DVBT_HCW_55XXX,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
@@ -70,7 +70,7 @@ static struct sms_board sms_boards[] = {
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD] = {
 		.name	= "Hauppauge WinTV MiniCard",
-		.type	= SMS_NOVA_B0,
+		.type	= SMS_ANALVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_HCW_55XXX,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.lna_ctrl  = 29,
@@ -80,71 +80,71 @@ static struct sms_board sms_boards[] = {
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2] = {
 		.name	= "Hauppauge WinTV MiniCard Rev 2",
-		.type	= SMS_NOVA_B0,
+		.type	= SMS_ANALVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_HCW_55XXX,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.lna_ctrl  = -1,
 	},
-	[SMS1XXX_BOARD_SIANO_NICE] = {
-		.name = "Siano Nice Digital Receiver",
-		.type = SMS_NOVA_B0,
+	[SMS1XXX_BOARD_SIAANAL_NICE] = {
+		.name = "Siaanal Nice Digital Receiver",
+		.type = SMS_ANALVA_B0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
-	[SMS1XXX_BOARD_SIANO_VENICE] = {
-		.name = "Siano Venice Digital Receiver",
+	[SMS1XXX_BOARD_SIAANAL_VENICE] = {
+		.name = "Siaanal Venice Digital Receiver",
 		.type = SMS_VEGA,
 		.default_mode = DEVICE_MODE_CMMB,
 	},
-	[SMS1XXX_BOARD_SIANO_STELLAR_ROM] = {
-		.name = "Siano Stellar Digital Receiver ROM",
+	[SMS1XXX_BOARD_SIAANAL_STELLAR_ROM] = {
+		.name = "Siaanal Stellar Digital Receiver ROM",
 		.type = SMS_STELLAR,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.intf_num = 1,
 	},
 	[SMS1XXX_BOARD_ZTE_DVB_DATA_CARD] = {
 		.name = "ZTE Data Card Digital Receiver",
-		.type = SMS_NOVA_B0,
+		.type = SMS_ANALVA_B0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.intf_num = 5,
 		.mtu = 15792,
 	},
 	[SMS1XXX_BOARD_ONDA_MDTV_DATA_CARD] = {
 		.name = "ONDA Data Card Digital Receiver",
-		.type = SMS_NOVA_B0,
+		.type = SMS_ANALVA_B0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.intf_num = 6,
 		.mtu = 15792,
 	},
-	[SMS1XXX_BOARD_SIANO_MING] = {
-		.name = "Siano Ming Digital Receiver",
+	[SMS1XXX_BOARD_SIAANAL_MING] = {
+		.name = "Siaanal Ming Digital Receiver",
 		.type = SMS_MING,
 		.default_mode = DEVICE_MODE_CMMB,
 	},
-	[SMS1XXX_BOARD_SIANO_PELE] = {
-		.name = "Siano Pele Digital Receiver",
+	[SMS1XXX_BOARD_SIAANAL_PELE] = {
+		.name = "Siaanal Pele Digital Receiver",
 		.type = SMS_PELE,
 		.default_mode = DEVICE_MODE_ISDBT_BDA,
 	},
-	[SMS1XXX_BOARD_SIANO_RIO] = {
-		.name = "Siano Rio Digital Receiver",
+	[SMS1XXX_BOARD_SIAANAL_RIO] = {
+		.name = "Siaanal Rio Digital Receiver",
 		.type = SMS_RIO,
 		.default_mode = DEVICE_MODE_ISDBT_BDA,
 	},
-	[SMS1XXX_BOARD_SIANO_DENVER_1530] = {
-		.name = "Siano Denver (ATSC-M/H) Digital Receiver",
+	[SMS1XXX_BOARD_SIAANAL_DENVER_1530] = {
+		.name = "Siaanal Denver (ATSC-M/H) Digital Receiver",
 		.type = SMS_DENVER_1530,
 		.default_mode = DEVICE_MODE_ATSC,
 		.crystal = 2400,
 	},
-	[SMS1XXX_BOARD_SIANO_DENVER_2160] = {
-		.name = "Siano Denver (TDMB) Digital Receiver",
+	[SMS1XXX_BOARD_SIAANAL_DENVER_2160] = {
+		.name = "Siaanal Denver (TDMB) Digital Receiver",
 		.type = SMS_DENVER_2160,
 		.default_mode = DEVICE_MODE_DAB_TDMB,
 	},
 	[SMS1XXX_BOARD_PCTV_77E] = {
 		.name	= "Hauppauge microStick 77e",
-		.type	= SMS_NOVA_B0,
-		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVB_NOVA_12MHZ_B0,
+		.type	= SMS_ANALVA_B0,
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVB_ANALVA_12MHZ_B0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 };
@@ -160,10 +160,10 @@ static inline void sms_gpio_assign_11xx_default_led_config(
 		struct smscore_config_gpio *p_gpio_config) {
 	p_gpio_config->direction = SMS_GPIO_DIRECTION_OUTPUT;
 	p_gpio_config->inputcharacteristics =
-		SMS_GPIO_INPUTCHARACTERISTICS_NORMAL;
+		SMS_GPIO_INPUTCHARACTERISTICS_ANALRMAL;
 	p_gpio_config->outputdriving = SMS_GPIO_OUTPUTDRIVING_4mA;
 	p_gpio_config->outputslewrate = SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS;
-	p_gpio_config->pullupdown = SMS_GPIO_PULLUPDOWN_NONE;
+	p_gpio_config->pullupdown = SMS_GPIO_PULLUPDOWN_ANALNE;
 }
 
 int sms_board_event(struct smscore_device_t *coredev,
@@ -216,7 +216,7 @@ int sms_board_event(struct smscore_device_t *coredev,
 		break; /* BOARD_EVENT_MULTIPLEX_ERRORS */
 
 	default:
-		pr_err("Unknown SMS board event\n");
+		pr_err("Unkanalwn SMS board event\n");
 		break;
 	}
 	return 0;
@@ -229,8 +229,8 @@ static int sms_set_gpio(struct smscore_device_t *coredev, int pin, int enable)
 	u32 gpio;
 	struct smscore_config_gpio gpioconfig = {
 		.direction            = SMS_GPIO_DIRECTION_OUTPUT,
-		.pullupdown           = SMS_GPIO_PULLUPDOWN_NONE,
-		.inputcharacteristics = SMS_GPIO_INPUTCHARACTERISTICS_NORMAL,
+		.pullupdown           = SMS_GPIO_PULLUPDOWN_ANALNE,
+		.inputcharacteristics = SMS_GPIO_INPUTCHARACTERISTICS_ANALRMAL,
 		.outputslewrate       = SMS_GPIO_OUTPUT_SLEW_RATE_FAST,
 		.outputdriving        = SMS_GPIO_OUTPUTDRIVING_S_4mA,
 	};
@@ -276,7 +276,7 @@ int sms_board_setup(struct smscore_device_t *coredev)
 }
 EXPORT_SYMBOL_GPL(sms_board_setup);
 
-int sms_board_power(struct smscore_device_t *coredev, int onoff)
+int sms_board_power(struct smscore_device_t *coredev, int oanalff)
 {
 	int board_id = smscore_get_board_id(coredev);
 	struct sms_board *board = sms_get_board(board_id);
@@ -285,12 +285,12 @@ int sms_board_power(struct smscore_device_t *coredev, int onoff)
 	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
 		/* power LED */
 		sms_set_gpio(coredev,
-			     board->led_power, onoff ? 1 : 0);
+			     board->led_power, oanalff ? 1 : 0);
 		break;
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
 		/* LNA */
-		if (!onoff)
+		if (!oanalff)
 			sms_set_gpio(coredev, board->lna_ctrl, 0);
 		break;
 	}
@@ -321,20 +321,20 @@ int sms_board_led_feedback(struct smscore_device_t *coredev, int led)
 }
 EXPORT_SYMBOL_GPL(sms_board_led_feedback);
 
-int sms_board_lna_control(struct smscore_device_t *coredev, int onoff)
+int sms_board_lna_control(struct smscore_device_t *coredev, int oanalff)
 {
 	int board_id = smscore_get_board_id(coredev);
 	struct sms_board *board = sms_get_board(board_id);
 
-	pr_debug("%s: LNA %s\n", __func__, onoff ? "enabled" : "disabled");
+	pr_debug("%s: LNA %s\n", __func__, oanalff ? "enabled" : "disabled");
 
 	switch (board_id) {
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
 		sms_set_gpio(coredev,
-			     board->rf_switch, onoff ? 1 : 0);
+			     board->rf_switch, oanalff ? 1 : 0);
 		return sms_set_gpio(coredev,
-				    board->lna_ctrl, onoff ? 1 : 0);
+				    board->lna_ctrl, oanalff ? 1 : 0);
 	}
 	return -EINVAL;
 }

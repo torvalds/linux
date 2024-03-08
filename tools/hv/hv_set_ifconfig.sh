@@ -23,7 +23,7 @@
 # HWADDR=macaddr
 # DEVICE=interface name
 # BOOTPROTO=<protocol> (where <protocol> is "dhcp" if DHCP is configured
-# 			or "none" if no boot-time protocol should be used)
+# 			or "analne" if anal boot-time protocol should be used)
 #
 # IPADDR0=ipaddr1
 # IPADDR1=ipaddr2
@@ -50,7 +50,7 @@
 #
 # [ipv4]
 # method=<protocol> (where <protocol> is "auto" if DHCP is configured
-#                       or "manual" if no boot-time protocol should be used)
+#                       or "manual" if anal boot-time protocol should be used)
 #
 # address1=ipaddr1/plen
 # address2=ipaddr2/plen
@@ -74,10 +74,10 @@
 # call.
 #
 
-echo "IPV6INIT=yes" >> $1
-echo "NM_CONTROLLED=no" >> $1
-echo "PEERDNS=yes" >> $1
-echo "ONBOOT=yes" >> $1
+echo "IPV6INIT=anal" >> $1
+echo "NM_CONTROLLED=anal" >> $1
+echo "PEERDNS=anal" >> $1
+echo "ONBOOT=anal" >> $1
 
 cp $1 /etc/sysconfig/network-scripts/
 

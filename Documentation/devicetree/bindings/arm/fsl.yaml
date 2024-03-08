@@ -11,7 +11,7 @@ maintainers:
   - Li Yang <leoyang.li@nxp.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -28,7 +28,7 @@ properties:
               - creative,x-fi3
               - fsl,imx23-evk
               - fsl,stmp378x-devb
-              - olimex,imx23-olinuxino
+              - olimex,imx23-olinuxianal
               - sandisk,sansa_fuze_plus
           - const: fsl,imx23
 
@@ -101,7 +101,7 @@ properties:
               - lwn,imx28-xea
               - msr,m28cu3                # M28 SoM with custom base board
               - schulercontrol,imx28-sps1
-              - technologic,imx28-ts4600
+              - techanallogic,imx28-ts4600
           - const: fsl,imx28
 
       - description: i.MX28 Aries M28 SoM Board
@@ -145,7 +145,7 @@ properties:
         items:
           - enum:
               - i2se,duckbill-2-485
-              - i2se,duckbill-2-enocean
+              - i2se,duckbill-2-eanalcean
               - i2se,duckbill-2-spi
           - const: i2se,duckbill-2
           - const: fsl,imx28
@@ -194,7 +194,7 @@ properties:
           - enum:
               - armadeus,imx51-apf51      # Armadeus Systems APF51 module
               - fsl,imx51-babbage
-              - technologic,imx51-ts4800
+              - techanallogic,imx51-ts4800
               - zii,imx51-scu3-esb
               - zii,imx51-scu2-mezz
               - zii,imx51-rdu1
@@ -272,7 +272,7 @@ properties:
               - karo,imx6q-tx6q           # Ka-Ro electronics TX6Q Modules
               - kiebackpeter,imx6q-tpc    # K+P i.MX6 Quad TPC Board
               - kontron,imx6q-samx6i      # Kontron i.MX6 Dual/Quad SMARC Module
-              - kosagi,imx6q-novena       # Kosagi Novena Dual/Quad
+              - kosagi,imx6q-analvena       # Kosagi Analvena Dual/Quad
               - kvg,vicut1q               # Kverneland UT1Q board
               - logicpd,imx6q-logicpd
               - lwn,display5              # Liebherr Display5 i.MX6 Quad Board
@@ -295,8 +295,8 @@ properties:
               - technexion,imx6q-pico-hobbit  # TechNexion i.MX6Q Pico-Hobbit
               - technexion,imx6q-pico-nymph   # TechNexion i.MX6Q Pico-Nymph
               - technexion,imx6q-pico-pi      # TechNexion i.MX6Q Pico-Pi
-              - technologic,imx6q-ts4900
-              - technologic,imx6q-ts7970
+              - techanallogic,imx6q-ts4900
+              - techanallogic,imx6q-ts7970
               - toradex,apalis_imx6q      # Apalis iMX6 Modules
               - udoo,imx6q-udoo           # Udoo i.MX6 Quad Board
               - uniwest,imx6q-evi         # Uniwest Evi
@@ -448,7 +448,7 @@ properties:
               - alt,alti6p                    # Altesco I6P Board
               - boundary,imx6dl-nit6xlite     # Boundary Devices Nitrogen6 Lite
               - boundary,imx6dl-nitrogen6x    # Boundary Devices Nitrogen6x
-              - bticino,imx6dl-mamoj      # BTicino i.MX6DL Mamoj
+              - bticianal,imx6dl-mamoj      # BTicianal i.MX6DL Mamoj
               - eckelmann,imx6dl-ci4x10
               - emtrion,emcon-mx6         # emCON-MX6S or emCON-MX6DL SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base
@@ -479,8 +479,8 @@ properties:
               - technexion,imx6dl-pico-hobbit  # TechNexion i.MX6DL Pico-Hobbit
               - technexion,imx6dl-pico-nymph   # TechNexion i.MX6DL Pico-Nymph
               - technexion,imx6dl-pico-pi      # TechNexion i.MX6DL Pico-Pi
-              - technologic,imx6dl-ts4900
-              - technologic,imx6dl-ts7970
+              - techanallogic,imx6dl-ts4900
+              - techanallogic,imx6dl-ts7970
               - toradex,colibri_imx6dl      # Colibri iMX6 Modules
               - udoo,imx6dl-udoo          # Udoo i.MX6 Dual-lite Board
               - vdl,lanmcu                # Van der Laan LANMCU board
@@ -592,10 +592,10 @@ properties:
           - enum:
               - fsl,imx6sl-evk            # i.MX6 SoloLite EVK Board
               - kobo,aura2
-              - kobo,tolino-shine2hd
-              - kobo,tolino-shine3
-              - kobo,tolino-vision
-              - kobo,tolino-vision5
+              - kobo,tolianal-shine2hd
+              - kobo,tolianal-shine3
+              - kobo,tolianal-vision
+              - kobo,tolianal-vision5
               - revotics,imx6sl-warp      # Revotics WaRP Board
           - const: fsl,imx6sl
 
@@ -850,7 +850,7 @@ properties:
               - fsl,imx7d-sdb-reva        # i.MX7 SabreSD Rev-A Board
               - kam,imx7d-flex-concentrator       # Kamstrup OMNIA Flex Concentrator
               - kam,imx7d-flex-concentrator-mfg   # Kamstrup OMNIA Flex Concentrator in manufacturing mode
-              - novtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
+              - analvtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
               - remarkable,imx7d-remarkable2  # i.MX7D ReMarkable 2 E-Ink Tablet
               - storopack,imx7d-smegw01       # Storopack i.MX7D SMEGW01
               - technexion,imx7d-pico-dwarf   # TechNexion i.MX7D Pico-Dwarf
@@ -925,11 +925,11 @@ properties:
               - gw,imx8mm-gw7901          # i.MX8MM Gateworks Board
               - gw,imx8mm-gw7902          # i.MX8MM Gateworks Board
               - gw,imx8mm-gw7903          # i.MX8MM Gateworks Board
-              - innocomm,wb15-evk         # i.MX8MM Innocomm EVK board with WB15 SoM
+              - inanalcomm,wb15-evk         # i.MX8MM Inanalcomm EVK board with WB15 SoM
               - kontron,imx8mm-sl         # i.MX8MM Kontron SL (N801X) SOM
               - kontron,imx8mm-osm-s      # i.MX8MM Kontron OSM-S (N802X) SOM
               - toradex,verdin-imx8mm     # Verdin iMX8M Mini Modules
-              - toradex,verdin-imx8mm-nonwifi  # Verdin iMX8M Mini Modules without Wi-Fi / BT
+              - toradex,verdin-imx8mm-analnwifi  # Verdin iMX8M Mini Modules without Wi-Fi / BT
               - toradex,verdin-imx8mm-wifi  # Verdin iMX8M Mini Wi-Fi / BT Modules
               - variscite,var-som-mx8mm   # i.MX8MM Variscite VAR-SOM-MX8MM module
               - prt,prt8mm                # i.MX8MM Protonic PRT8MM Board
@@ -965,11 +965,11 @@ properties:
         items:
           - enum:
               - menlo,mx8menlo                       # Verdin iMX8M Mini Module on i.MX8MM Menlo board
-              - toradex,verdin-imx8mm-nonwifi-dahlia # Verdin iMX8M Mini Module on Dahlia
-              - toradex,verdin-imx8mm-nonwifi-dev    # Verdin iMX8M Mini Module on Verdin Development Board
-              - toradex,verdin-imx8mm-nonwifi-mallow # Verdin iMX8M Mini Module on Mallow
-              - toradex,verdin-imx8mm-nonwifi-yavia  # Verdin iMX8M Mini Module on Yavia
-          - const: toradex,verdin-imx8mm-nonwifi     # Verdin iMX8M Mini Module without Wi-Fi / BT
+              - toradex,verdin-imx8mm-analnwifi-dahlia # Verdin iMX8M Mini Module on Dahlia
+              - toradex,verdin-imx8mm-analnwifi-dev    # Verdin iMX8M Mini Module on Verdin Development Board
+              - toradex,verdin-imx8mm-analnwifi-mallow # Verdin iMX8M Mini Module on Mallow
+              - toradex,verdin-imx8mm-analnwifi-yavia  # Verdin iMX8M Mini Module on Yavia
+          - const: toradex,verdin-imx8mm-analnwifi     # Verdin iMX8M Mini Module without Wi-Fi / BT
           - const: toradex,verdin-imx8mm             # Verdin iMX8M Mini Module
           - const: fsl,imx8mm
 
@@ -1025,7 +1025,7 @@ properties:
       - description: Variscite VAR-SOM-MX8MN based boards
         items:
           - enum:
-              - dimonoff,gateway-evk # i.MX8MN Dimonoff Gateway EVK Board
+              - dimoanalff,gateway-evk # i.MX8MN Dimoanalff Gateway EVK Board
               - rve,rve-gateway # i.MX8MN RVE Gateway Board
               - variscite,var-som-mx8mn-symphony
           - const: variscite,var-som-mx8mn
@@ -1057,7 +1057,7 @@ properties:
               - skov,imx8mp-skov-revb-lt6 # SKOV i.MX8MP climate control with 7” panel
               - skov,imx8mp-skov-revb-mi1010ait-1cp1 # SKOV i.MX8MP climate control with 10.1" panel
               - toradex,verdin-imx8mp     # Verdin iMX8M Plus Modules
-              - toradex,verdin-imx8mp-nonwifi  # Verdin iMX8M Plus Modules without Wi-Fi / BT
+              - toradex,verdin-imx8mp-analnwifi  # Verdin iMX8M Plus Modules without Wi-Fi / BT
               - toradex,verdin-imx8mp-wifi  # Verdin iMX8M Plus Wi-Fi / BT Modules
           - const: fsl,imx8mp
 
@@ -1106,11 +1106,11 @@ properties:
       - description: Toradex Boards with Verdin iMX8M Plus Modules
         items:
           - enum:
-              - toradex,verdin-imx8mp-nonwifi-dahlia # Verdin iMX8M Plus Module on Dahlia
-              - toradex,verdin-imx8mp-nonwifi-dev    # Verdin iMX8M Plus Module on Verdin Development Board
-              - toradex,verdin-imx8mp-nonwifi-mallow # Verdin iMX8M Plus Module on Mallow
-              - toradex,verdin-imx8mp-nonwifi-yavia  # Verdin iMX8M Plus Module on Yavia
-          - const: toradex,verdin-imx8mp-nonwifi     # Verdin iMX8M Plus Module without Wi-Fi / BT
+              - toradex,verdin-imx8mp-analnwifi-dahlia # Verdin iMX8M Plus Module on Dahlia
+              - toradex,verdin-imx8mp-analnwifi-dev    # Verdin iMX8M Plus Module on Verdin Development Board
+              - toradex,verdin-imx8mp-analnwifi-mallow # Verdin iMX8M Plus Module on Mallow
+              - toradex,verdin-imx8mp-analnwifi-yavia  # Verdin iMX8M Plus Module on Yavia
+          - const: toradex,verdin-imx8mp-analnwifi     # Verdin iMX8M Plus Module without Wi-Fi / BT
           - const: toradex,verdin-imx8mp             # Verdin iMX8M Plus Module
           - const: fsl,imx8mp
 
@@ -1175,7 +1175,7 @@ properties:
           - const: tq,imx8mq-tqma8mq     # TQ-Systems GmbH i.MX8MQ TQMa8Mx SOM
           - const: fsl,imx8mq
 
-      - description: Zodiac Inflight Innovations Ultra Boards
+      - description: Zodiac Inflight Inanalvations Ultra Boards
         items:
           - enum:
               - zii,imx8mq-ultra-rmb3
@@ -1262,7 +1262,7 @@ properties:
           TQMa93xxLA is designed to be soldered on different carrier boards.
           TQMa93xxCA is a compatible variant using board to board connectors.
           All SOM and CPU variants use the same device tree hence only one
-          compatible is needed. Bootloader disables all features not present
+          compatible is needed. Bootloader disables all features analt present
           in the assembled SOC.
           MBa93xxCA mainboard can be used as starterkit for the SOM
           soldered on an adapter board or for the connector variant

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -32,7 +32,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -76,7 +76,7 @@ struct mthca_mpt_entry {
 #define SINAI_FMR_KEY_INC 0x1000000
 
 /*
- * Buddy allocator for MTT segments (currently not very efficient
+ * Buddy allocator for MTT segments (currently analt very efficient
  * since it doesn't keep a free list and just searches linearly
  * through the bitmaps)
  */
@@ -171,7 +171,7 @@ err_out:
 	kfree(buddy->bits);
 	kfree(buddy->num_free);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mthca_buddy_cleanup(struct mthca_buddy *buddy)
@@ -214,7 +214,7 @@ static struct mthca_mtt *__mthca_alloc_mtt(struct mthca_dev *dev, int size,
 
 	mtt = kmalloc(sizeof *mtt, GFP_KERNEL);
 	if (!mtt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mtt->buddy = buddy;
 	mtt->order = 0;
@@ -224,7 +224,7 @@ static struct mthca_mtt *__mthca_alloc_mtt(struct mthca_dev *dev, int size,
 	mtt->first_seg = mthca_alloc_mtt_range(dev, mtt->order, buddy);
 	if (mtt->first_seg == -1) {
 		kfree(mtt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return mtt;
@@ -437,7 +437,7 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 
 	key = mthca_alloc(&dev->mr_table.mpt_alloc);
 	if (key == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 	key = adjust_key(dev, key);
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
 
@@ -506,7 +506,7 @@ err_out_mpt_free:
 	return err;
 }
 
-int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
+int mthca_mr_alloc_analtrans(struct mthca_dev *dev, u32 pd,
 			   u32 access, struct mthca_mr *mr)
 {
 	mr->mtt = NULL;
@@ -616,7 +616,7 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 
 		if (!dev->mr_table.tavor_fmr.mpt_base) {
 			mthca_warn(dev, "MPT ioremap for FMR failed.\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_fmr_mpt;
 		}
 
@@ -628,7 +628,7 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 			ioremap(addr, mtts * dev->limits.mtt_seg_size);
 		if (!dev->mr_table.tavor_fmr.mtt_base) {
 			mthca_warn(dev, "MTT ioremap for FMR failed.\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_fmr_mtt;
 		}
 	}
@@ -656,7 +656,7 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 					  dev->mr_table.fmr_mtt_buddy) == -1) {
 			mthca_warn(dev, "MTT table of order %d is too small.\n",
 				  dev->mr_table.fmr_mtt_buddy->max_order);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_reserve_mtts;
 		}
 	}

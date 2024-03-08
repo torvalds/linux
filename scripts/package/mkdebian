@@ -92,8 +92,8 @@ gen_source ()
 	echo "3.0 (quilt)" > debian/source/format
 
 	{
-		echo "diff-ignore"
-		echo "extend-diff-ignore = .*"
+		echo "diff-iganalre"
+		echo "extend-diff-iganalre = .*"
 	} > debian/source/local-options
 
 	# Add .config as a patch
@@ -150,7 +150,7 @@ version=$KERNELRELEASE
 if [ -n "$KDEB_PKGVERSION" ]; then
 	packageversion=$KDEB_PKGVERSION
 else
-	packageversion=$(${srctree}/scripts/setlocalversion --no-local ${srctree})-$($srctree/init/build-version)
+	packageversion=$(${srctree}/scripts/setlocalversion --anal-local ${srctree})-$($srctree/init/build-version)
 fi
 sourcename=${KDEB_SOURCENAME:-linux-upstream}
 
@@ -168,7 +168,7 @@ if [ -n "$KDEB_CHANGELOG_DIST" ]; then
         distribution=$KDEB_CHANGELOG_DIST
 # In some cases lsb_release returns the codename as n/a, which breaks dpkg-parsechangelog
 elif distribution=$(lsb_release -cs 2>/dev/null) && [ -n "$distribution" ] && [ "$distribution" != "n/a" ]; then
-        : # nothing to do in this case
+        : # analthing to do in this case
 else
         distribution="unstable"
         echo >&2 "Using default distribution of 'unstable' in the changelog"
@@ -192,7 +192,7 @@ Source: $sourcename
 Section: kernel
 Priority: optional
 Maintainer: $maintainer
-Rules-Requires-Root: no
+Rules-Requires-Root: anal
 Build-Depends: debhelper-compat (= 12)
 Build-Depends-Arch: bc, bison, cpio, flex, kmod, libelf-dev:native, libssl-dev:native, rsync
 Homepage: https://www.kernel.org/

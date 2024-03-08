@@ -35,16 +35,16 @@ mlx5e_tc_post_act_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 	struct mlx5e_post_act *post_act;
 	int err;
 
-	if (!MLX5_CAP_FLOWTABLE_TYPE(priv->mdev, ignore_flow_level, table_type)) {
+	if (!MLX5_CAP_FLOWTABLE_TYPE(priv->mdev, iganalre_flow_level, table_type)) {
 		if (priv->mdev->coredev_type == MLX5_COREDEV_PF)
 			mlx5_core_dbg(priv->mdev, "firmware flow level support is missing\n");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_check;
 	}
 
 	post_act = kzalloc(sizeof(*post_act), GFP_KERNEL);
 	if (!post_act) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_check;
 	}
 	post_act->ft = mlx5_chains_create_global_table(chains);
@@ -88,7 +88,7 @@ mlx5e_tc_post_act_offload(struct mlx5e_post_act *post_act,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Post action rule matches on fte_id and executes original rule's tc rule action */
 	mlx5e_tc_match_to_reg_match(spec, FTEID_TO_REG, handle->id, MLX5_POST_ACTION_MASK);
@@ -119,15 +119,15 @@ mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *po
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	post_attr->chain = 0;
 	post_attr->prio = 0;
 	post_attr->ft = post_act->ft;
-	post_attr->inner_match_level = MLX5_MATCH_NONE;
-	post_attr->outer_match_level = MLX5_MATCH_NONE;
+	post_attr->inner_match_level = MLX5_MATCH_ANALNE;
+	post_attr->outer_match_level = MLX5_MATCH_ANALNE;
 	post_attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_DECAP;
-	post_attr->flags |= MLX5_ATTR_FLAG_NO_IN_PORT;
+	post_attr->flags |= MLX5_ATTR_FLAG_ANAL_IN_PORT;
 
 	handle->ns_type = post_act->ns_type;
 	/* Splits were handled before post action */
@@ -149,10 +149,10 @@ err_xarray:
 }
 
 void
-mlx5e_tc_post_act_unoffload(struct mlx5e_post_act *post_act,
+mlx5e_tc_post_act_uanalffload(struct mlx5e_post_act *post_act,
 			    struct mlx5e_post_act_handle *handle)
 {
-	mlx5e_tc_rule_unoffload(post_act->priv, handle->rule, handle->attr);
+	mlx5e_tc_rule_uanalffload(post_act->priv, handle->rule, handle->attr);
 	handle->rule = NULL;
 }
 
@@ -160,7 +160,7 @@ void
 mlx5e_tc_post_act_del(struct mlx5e_post_act *post_act, struct mlx5e_post_act_handle *handle)
 {
 	if (!IS_ERR_OR_NULL(handle->rule))
-		mlx5e_tc_post_act_unoffload(post_act, handle);
+		mlx5e_tc_post_act_uanalffload(post_act, handle);
 	xa_erase(&post_act->ids, handle->id);
 	kfree(handle);
 }

@@ -69,8 +69,8 @@ struct nv_pmu_acr_init_wpr_region_msg {
 
 struct nv_pmu_acr_bootstrap_falcon_cmd {
 	struct nv_pmu_acr_cmd cmd;
-#define NV_PMU_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_YES                  0x00000000
-#define NV_PMU_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_NO                   0x00000001
+#define NV_PMU_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL                  0x00000000
+#define NV_PMU_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL                   0x00000001
 	u32 flags;
 	u32 falcon_id;
 };
@@ -82,8 +82,8 @@ struct nv_pmu_acr_bootstrap_falcon_msg {
 
 struct nv_pmu_acr_bootstrap_multiple_falcons_cmd {
 	struct nv_pmu_acr_cmd cmd;
-#define NV_PMU_ACR_BOOTSTRAP_MULTIPLE_FALCONS_FLAGS_RESET_YES        0x00000000
-#define NV_PMU_ACR_BOOTSTRAP_MULTIPLE_FALCONS_FLAGS_RESET_NO         0x00000001
+#define NV_PMU_ACR_BOOTSTRAP_MULTIPLE_FALCONS_FLAGS_RESET_ANAL        0x00000000
+#define NV_PMU_ACR_BOOTSTRAP_MULTIPLE_FALCONS_FLAGS_RESET_ANAL         0x00000001
 	u32 flags;
 	u32 falcon_mask;
 	u32 use_va_mask;

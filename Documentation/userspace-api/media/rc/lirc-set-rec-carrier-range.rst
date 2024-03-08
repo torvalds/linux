@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc_set_rec_carrier_range:
@@ -13,7 +13,7 @@ Name
 LIRC_SET_REC_CARRIER_RANGE - Set lower bound of the carrier used to modulate
 IR receive.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: LIRC_SET_REC_CARRIER_RANGE
@@ -35,7 +35,7 @@ Description
 This ioctl sets the upper range of carrier frequency that will be recognized
 by the IR receiver.
 
-.. note::
+.. analte::
 
    To set a range use :ref:`LIRC_SET_REC_CARRIER_RANGE
    <LIRC_SET_REC_CARRIER_RANGE>` with the lower bound first and later call
@@ -44,6 +44,6 @@ by the IR receiver.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

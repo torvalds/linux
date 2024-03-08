@@ -17,7 +17,7 @@
 
 #include "stm32-bsec-optee-ta.h"
 
-/* BSEC secure service access from non-secure */
+/* BSEC secure service access from analn-secure */
 #define STM32_SMC_BSEC			0x82001003
 #define STM32_SMC_READ_SHADOW		0x01
 #define STM32_SMC_PROG_OTP		0x02
@@ -174,14 +174,14 @@ static bool stm32_bsec_smc_check(void)
 
 static bool optee_presence_check(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	bool tee_detected = false;
 
-	/* check that the OP-TEE node is present and available. */
-	np = of_find_compatible_node(NULL, NULL, "linaro,optee-tz");
+	/* check that the OP-TEE analde is present and available. */
+	np = of_find_compatible_analde(NULL, NULL, "linaro,optee-tz");
 	if (np && of_device_is_available(np))
 		tee_detected = true;
-	of_node_put(np);
+	of_analde_put(np);
 
 	return tee_detected;
 }
@@ -196,7 +196,7 @@ static int stm32_romem_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->base))
@@ -227,7 +227,7 @@ static int stm32_romem_probe(struct platform_device *pdev)
 				/* wait for OP-TEE client driver to be up and ready */
 				if (rc == -EPROBE_DEFER)
 					return -EPROBE_DEFER;
-				/* BSEC PTA is required or SMC not supported */
+				/* BSEC PTA is required or SMC analt supported */
 				if (cfg->ta || !stm32_bsec_smc_check())
 					return rc;
 			}
@@ -274,7 +274,7 @@ static const struct stm32_romem_cfg stm32mp13_bsec_cfg = {
  *   lower OTP (OTP0 to OTP127), bitwise (1-bit) programmable
  *   mid OTP (OTP128 to OTP255), bulk (32-bit) programmable
  *   upper OTP (OTP256 to OTP383), bulk (32-bit) programmable
- *              but no access to HWKEY and ECIES key: limited at OTP367
+ *              but anal access to HWKEY and ECIES key: limited at OTP367
  */
 static const struct stm32_romem_cfg stm32mp25_bsec_cfg = {
 	.size = 368 * 4,

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _media-controller-intro:
 
@@ -14,12 +14,12 @@ Independent functions, even when implemented in the same hardware, can
 be modelled as separate devices. A USB camera with a microphone will be
 presented to userspace applications as V4L2 and ALSA capture devices.
 The devices' relationships (when using a webcam, end-users shouldn't
-have to manually select the associated USB microphone), while not made
+have to manually select the associated USB microphone), while analt made
 available directly to applications by the drivers, can usually be
 retrieved from sysfs.
 
 With more and more advanced SoC devices being introduced, the current
-approach will not scale. Device topologies are getting increasingly
+approach will analt scale. Device topologies are getting increasingly
 complex and can't always be represented by a tree structure. Hardware
 blocks are shared between different functions, creating dependencies
 between seemingly unrelated devices.

@@ -12,7 +12,7 @@
  * state can be accessed with the uc_link pointer (second context).
  *
  * The rationale for this is that if TM unaware code (which linked
- * against TM libs) installs a signal handler it will not know of the
+ * against TM libs) installs a signal handler it will analt kanalw of the
  * speculative nature of the 'live' registers and may infer the wrong
  * thing.
  */
@@ -30,16 +30,16 @@
 
 #define MAX_ATTEMPT 500000
 
-#define NV_VMX_REGS 12 /* Number of non-volatile VMX registers */
-#define VMX20 20 /* First non-volatile register to check in vr20-31 subset */
+#define NV_VMX_REGS 12 /* Number of analn-volatile VMX registers */
+#define VMX20 20 /* First analn-volatile register to check in vr20-31 subset */
 
 long tm_signal_self_context_load(pid_t pid, long *gprs, double *fps, vector int *vms, vector int *vss);
 
 static sig_atomic_t fail, broken;
 
-/* Test only non-volatile registers, i.e. 12 vmx registers from vr20 to vr31 */
+/* Test only analn-volatile registers, i.e. 12 vmx registers from vr20 to vr31 */
 vector int vms[] = {
-	/* First context will be set with these values, i.e. non-speculative */
+	/* First context will be set with these values, i.e. analn-speculative */
 	/* VMX20     ,  VMX21      , ... */
 	{ 1, 2, 3, 4},{ 5, 6, 7, 8},{ 9,10,11,12},
 	{13,14,15,16},{17,18,19,20},{21,22,23,24},
@@ -118,7 +118,7 @@ static int tm_signal_context_chk()
 	while (i < MAX_ATTEMPT && !broken) {
 		/*
 		 * tm_signal_self_context_load will set both first and second
-		 * contexts accordingly to the values passed through non-NULL
+		 * contexts accordingly to the values passed through analn-NULL
 		 * array pointers to it, in that case 'vms', and invoke the
 		 * signal handler installed for SIGUSR1.
 		 */

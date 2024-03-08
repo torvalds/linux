@@ -19,7 +19,7 @@
  *
  * This is the PCI-specific support split off from the das08 driver.
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  */
 
 #include <linux/module.h>
@@ -49,7 +49,7 @@ static int das08_pci_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The das08 driver needs the board_ptr */
 	dev->board_ptr = &das08_pci_boards[0];

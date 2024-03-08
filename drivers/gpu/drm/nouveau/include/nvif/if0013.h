@@ -15,10 +15,10 @@ union nvif_head_event_args {
 	} vn;
 };
 
-#define NVIF_HEAD_V0_SCANOUTPOS 0x00
+#define NVIF_HEAD_V0_SCAANALUTPOS 0x00
 
-union nvif_head_scanoutpos_args {
-	struct nvif_head_scanoutpos_v0 {
+union nvif_head_scaanalutpos_args {
+	struct nvif_head_scaanalutpos_v0 {
 		__u8  version;
 		__u8  pad01[7];
 		__s64 time[2];

@@ -16,10 +16,10 @@
 
 #include "sockmap_helpers.h"
 
-#define TCP_REPAIR		19	/* TCP sock is under repair right now */
+#define TCP_REPAIR		19	/* TCP sock is under repair right analw */
 
 #define TCP_REPAIR_ON		1
-#define TCP_REPAIR_OFF_NO_WP	-1	/* Turn off without window probes */
+#define TCP_REPAIR_OFF_ANAL_WP	-1	/* Turn off without window probes */
 
 static int connected_socket_v4(void)
 {
@@ -44,7 +44,7 @@ static int connected_socket_v4(void)
 	if (!ASSERT_OK(err, "connect"))
 		goto error;
 
-	repair = TCP_REPAIR_OFF_NO_WP;
+	repair = TCP_REPAIR_OFF_ANAL_WP;
 	err = setsockopt(s, SOL_TCP, TCP_REPAIR, &repair, sizeof(repair));
 	if (!ASSERT_OK(err, "setsockopt(TCP_REPAIR)"))
 		goto error;
@@ -68,10 +68,10 @@ static void compare_cookies(struct bpf_map *src, struct bpf_map *dst)
 		__u64 src_cookie, dst_cookie;
 
 		err = bpf_map_lookup_elem(src_fd, &i, &src_cookie);
-		if (err && errno == ENOENT) {
+		if (err && erranal == EANALENT) {
 			err = bpf_map_lookup_elem(dst_fd, &i, &dst_cookie);
 			ASSERT_ERR(err, "map_lookup_elem(dst)");
-			ASSERT_EQ(errno, ENOENT, "map_lookup_elem(dst)");
+			ASSERT_EQ(erranal, EANALENT, "map_lookup_elem(dst)");
 			continue;
 		}
 		if (!ASSERT_OK(err, "lookup_elem(src)"))
@@ -99,7 +99,7 @@ static void test_sockmap_create_update_free(enum bpf_map_type map_type)
 	if (!ASSERT_GE(map, 0, "bpf_map_create"))
 		goto out;
 
-	err = bpf_map_update_elem(map, &zero, &s, BPF_NOEXIST);
+	err = bpf_map_update_elem(map, &zero, &s, BPF_ANALEXIST);
 	if (!ASSERT_OK(err, "bpf_map_update"))
 		goto out;
 
@@ -160,7 +160,7 @@ static void test_sockmap_update(enum bpf_map_type map_type)
 	else
 		dst_map = skel->maps.dst_sock_hash;
 
-	err = bpf_map_update_elem(src, &zero, &sk, BPF_NOEXIST);
+	err = bpf_map_update_elem(src, &zero, &sk, BPF_ANALEXIST);
 	if (!ASSERT_OK(err, "update_elem(src)"))
 		goto out;
 
@@ -227,7 +227,7 @@ static void test_sockmap_copy(enum bpf_map_type map_type)
 		if (!ASSERT_NEQ(sock_fd[i], -1, "connected_socket_v4"))
 			goto out;
 
-		err = bpf_map_update_elem(src_fd, &i, &sock_fd[i], BPF_NOEXIST);
+		err = bpf_map_update_elem(src_fd, &i, &sock_fd[i], BPF_ANALEXIST);
 		if (!ASSERT_OK(err, "map_update"))
 			goto out;
 	}
@@ -383,7 +383,7 @@ static void test_sockmap_skb_verdict_shutdown(void)
 	if (err < 0)
 		goto out;
 
-	err = bpf_map_update_elem(map, &zero, &c1, BPF_NOEXIST);
+	err = bpf_map_update_elem(map, &zero, &c1, BPF_ANALEXIST);
 	if (err < 0)
 		goto out_close;
 
@@ -402,7 +402,7 @@ static void test_sockmap_skb_verdict_shutdown(void)
 	if (!ASSERT_EQ(err, 1, "epoll_wait(fd)"))
 		goto out_close;
 
-	n = recv(c1, &b, 1, SOCK_NONBLOCK);
+	n = recv(c1, &b, 1, SOCK_ANALNBLOCK);
 	ASSERT_EQ(n, 0, "recv_timeout(fin)");
 out_close:
 	close(c1);
@@ -448,7 +448,7 @@ static void test_sockmap_skb_verdict_fionread(bool pass_prog)
 	if (!ASSERT_OK(err, "create_socket_pairs(s)"))
 		goto out;
 
-	err = bpf_map_update_elem(map, &zero, &c1, BPF_NOEXIST);
+	err = bpf_map_update_elem(map, &zero, &c1, BPF_ANALEXIST);
 	if (!ASSERT_OK(err, "bpf_map_update_elem(c1)"))
 		goto out_close;
 
@@ -457,9 +457,9 @@ static void test_sockmap_skb_verdict_fionread(bool pass_prog)
 	err = ioctl(c1, FIONREAD, &avail);
 	ASSERT_OK(err, "ioctl(FIONREAD) error");
 	ASSERT_EQ(avail, expected, "ioctl(FIONREAD)");
-	/* On DROP test there will be no data to read */
+	/* On DROP test there will be anal data to read */
 	if (pass_prog) {
-		recvd = recv_timeout(c1, &buf, sizeof(buf), SOCK_NONBLOCK, IO_TIMEOUT_SEC);
+		recvd = recv_timeout(c1, &buf, sizeof(buf), SOCK_ANALNBLOCK, IO_TIMEOUT_SEC);
 		ASSERT_EQ(recvd, sizeof(buf), "recv_timeout(c0)");
 	}
 
@@ -500,7 +500,7 @@ static void test_sockmap_skb_verdict_peek(void)
 	if (!ASSERT_OK(err, "create_pairs(s)"))
 		goto out;
 
-	err = bpf_map_update_elem(map, &zero, &c1, BPF_NOEXIST);
+	err = bpf_map_update_elem(map, &zero, &c1, BPF_ANALEXIST);
 	if (!ASSERT_OK(err, "bpf_map_update_elem(c1)"))
 		goto out_close;
 
@@ -580,7 +580,7 @@ static void test_sockmap_many_socket(void)
 		return;
 	}
 
-	udp = xsocket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	udp = xsocket(AF_INET, SOCK_DGRAM | SOCK_ANALNBLOCK, 0);
 	if (udp < 0) {
 		close(dgram);
 		close(tcp);
@@ -649,7 +649,7 @@ static void test_sockmap_many_maps(void)
 		return;
 	}
 
-	udp = xsocket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	udp = xsocket(AF_INET, SOCK_DGRAM | SOCK_ANALNBLOCK, 0);
 	if (udp < 0) {
 		close(dgram);
 		close(tcp);
@@ -720,7 +720,7 @@ static void test_sockmap_same_sock(void)
 		return;
 	}
 
-	udp = xsocket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	udp = xsocket(AF_INET, SOCK_DGRAM | SOCK_ANALNBLOCK, 0);
 	if (udp < 0) {
 		close(dgram);
 		close(tcp);

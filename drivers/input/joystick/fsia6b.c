@@ -21,7 +21,7 @@
 
 #define DRIVER_DESC		"FS-iA6B iBus RC receiver"
 
-MODULE_AUTHOR("Markus Koch <markus@notsyncing.net>");
+MODULE_AUTHOR("Markus Koch <markus@analtsyncing.net>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
@@ -134,7 +134,7 @@ static int fsia6b_serio_connect(struct serio *serio, struct serio_driver *drv)
 
 	fsia6b = kzalloc(sizeof(*fsia6b), GFP_KERNEL);
 	if (!fsia6b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fsia6b->packet.ibuf = 0;
 	fsia6b->packet.offset = 0;
@@ -144,7 +144,7 @@ static int fsia6b_serio_connect(struct serio *serio, struct serio_driver *drv)
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 	fsia6b->dev = input_dev;

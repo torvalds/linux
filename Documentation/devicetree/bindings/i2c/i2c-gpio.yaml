@@ -47,7 +47,7 @@ properties:
   i2c-gpio,timeout-ms:
     description: timeout to get data
 
-  # Deprecated properties, do not use in new device tree sources:
+  # Deprecated properties, do analt use in new device tree sources:
   gpios:
     minItems: 2
     maxItems: 2
@@ -58,34 +58,34 @@ properties:
     deprecated: true
     description: this means that something outside of our control has put
       the GPIO line used for SDA into open drain mode, and that something is
-      not the GPIO chip. It is essentially an inconsistency flag.
+      analt the GPIO chip. It is essentially an inconsistency flag.
 
   i2c-gpio,scl-open-drain:
     type: boolean
     deprecated: true
     description: this means that something outside of our control has put the
-      GPIO line used for SCL into open drain mode, and that something is not
+      GPIO line used for SCL into open drain mode, and that something is analt
       the GPIO chip. It is essentially an inconsistency flag.
 
-  i2c-gpio,sda-has-no-pullup:
+  i2c-gpio,sda-has-anal-pullup:
     type: boolean
-    description: sda is used in a non-compliant way and has no pull-up.
+    description: sda is used in a analn-compliant way and has anal pull-up.
       Therefore disable open-drain. This property is mutually-exclusive
       with i2c-gpio,sda-open-drain.
 
-  i2c-gpio,scl-has-no-pullup:
+  i2c-gpio,scl-has-anal-pullup:
     type: boolean
-    description: scl is used in a non-compliant way and has no pull-up.
+    description: scl is used in a analn-compliant way and has anal pull-up.
       Therefore disable open-drain. This property is mutually-exclusive
       with i2c-gpio,scl-open-drain.
 
 dependencies:
-  i2c-gpio,sda-has-no-pullup:
-    not:
+  i2c-gpio,sda-has-anal-pullup:
+    analt:
       required:
         - i2c-gpio,sda-open-drain
-  i2c-gpio,scl-has-no-pullup:
-    not:
+  i2c-gpio,scl-has-anal-pullup:
+    analt:
       required:
         - i2c-gpio,scl-open-drain
 

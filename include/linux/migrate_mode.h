@@ -4,10 +4,10 @@
 /*
  * MIGRATE_ASYNC means never block
  * MIGRATE_SYNC_LIGHT in the current implementation means to allow blocking
- *	on most operations but not ->writepage as the potential stall time
+ *	on most operations but analt ->writepage as the potential stall time
  *	is too significant
  * MIGRATE_SYNC will block when migrating pages
- * MIGRATE_SYNC_NO_COPY will block when migrating pages but will not copy pages
+ * MIGRATE_SYNC_ANAL_COPY will block when migrating pages but will analt copy pages
  *	with the CPU. Instead, page copy happens outside the migratepage()
  *	callback and is likely using a DMA engine. See migrate_vma() and HMM
  *	(mm/hmm.c) for users of this mode.
@@ -16,7 +16,7 @@ enum migrate_mode {
 	MIGRATE_ASYNC,
 	MIGRATE_SYNC_LIGHT,
 	MIGRATE_SYNC,
-	MIGRATE_SYNC_NO_COPY,
+	MIGRATE_SYNC_ANAL_COPY,
 };
 
 enum migrate_reason {

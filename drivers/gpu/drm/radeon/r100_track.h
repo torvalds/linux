@@ -31,13 +31,13 @@ struct r100_cs_cube_info {
 	unsigned		height;
 };
 
-#define R100_TRACK_COMP_NONE   0
+#define R100_TRACK_COMP_ANALNE   0
 #define R100_TRACK_COMP_DXT1   1
 #define R100_TRACK_COMP_DXT35  2
 
 struct r100_cs_track_texture {
 	struct radeon_bo	*robj;
-	struct r100_cs_cube_info cube_info[5]; /* info for 5 non-primary faces */
+	struct r100_cs_cube_info cube_info[5]; /* info for 5 analn-primary faces */
 	unsigned		pitch;
 	unsigned		width;
 	unsigned		height;

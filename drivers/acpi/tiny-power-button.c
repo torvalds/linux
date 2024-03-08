@@ -19,19 +19,19 @@ static const struct acpi_device_id tiny_power_button_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, tiny_power_button_device_ids);
 
-static void acpi_tiny_power_button_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_tiny_power_button_analtify(acpi_handle handle, u32 event, void *data)
 {
 	kill_cad_pid(power_signal, 1);
 }
 
-static void acpi_tiny_power_button_notify_run(void *not_used)
+static void acpi_tiny_power_button_analtify_run(void *analt_used)
 {
-	acpi_tiny_power_button_notify(NULL, ACPI_FIXED_HARDWARE_EVENT, NULL);
+	acpi_tiny_power_button_analtify(NULL, ACPI_FIXED_HARDWARE_EVENT, NULL);
 }
 
-static u32 acpi_tiny_power_button_event(void *not_used)
+static u32 acpi_tiny_power_button_event(void *analt_used)
 {
-	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_tiny_power_button_notify_run, NULL);
+	acpi_os_execute(OSL_ANALTIFY_HANDLER, acpi_tiny_power_button_analtify_run, NULL);
 	return ACPI_INTERRUPT_HANDLED;
 }
 
@@ -44,13 +44,13 @@ static int acpi_tiny_power_button_add(struct acpi_device *device)
 							  acpi_tiny_power_button_event,
 							  NULL);
 	} else {
-		status = acpi_install_notify_handler(device->handle,
-						     ACPI_DEVICE_NOTIFY,
-						     acpi_tiny_power_button_notify,
+		status = acpi_install_analtify_handler(device->handle,
+						     ACPI_DEVICE_ANALTIFY,
+						     acpi_tiny_power_button_analtify,
 						     NULL);
 	}
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -61,8 +61,8 @@ static void acpi_tiny_power_button_remove(struct acpi_device *device)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
 						acpi_tiny_power_button_event);
 	} else {
-		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-					   acpi_tiny_power_button_notify);
+		acpi_remove_analtify_handler(device->handle, ACPI_DEVICE_ANALTIFY,
+					   acpi_tiny_power_button_analtify);
 	}
 	acpi_os_wait_events_complete();
 }

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -92,7 +92,7 @@ nv50_ram_timing_calc(struct nv50_ram *ram, u32 *timing)
 		break;
 	}
 
-	/* XXX: N=1 is not proper statistics */
+	/* XXX: N=1 is analt proper statistics */
 	if (device->chipset == 0xa0) {
 		unkt3b = 0x19 + ram->base.next->bios.rammap_00_16_40;
 		timing[6] = (0x2d + T(CL) - T(CWL) +
@@ -170,7 +170,7 @@ nv50_ram_timing_read(struct nv50_ram *ram, u32 *timing)
 		T(CWL) = ((timing[2] & 0xff000000) >> 24) + 1;
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	T(WR) = ((timing[1] >> 24) & 0xff) - 1 - T(CWL);
@@ -292,12 +292,12 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 		ret = nvkm_gddr3_calc(&ram->base);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		break;
 	}
 
 	if (ret) {
-		nvkm_error(subdev, "Could not calculate MR\n");
+		nvkm_error(subdev, "Could analt calculate MR\n");
 		return ret;
 	}
 
@@ -438,7 +438,7 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_mask(hwsq, 0x100718, 0xffffffff, unk718);
 	ram_mask(hwsq, 0x100710, 0xffffffff, unk710);
 
-	/* XXX: G94 does not even test these regs in trace. Harmless we do it,
+	/* XXX: G94 does analt even test these regs in trace. Harmless we do it,
 	 * but why is it omitted? */
 	if (next->bios.rammap_00_16_20) {
 		ram_wr32(hwsq, 0x1005a0, next->bios.ramcfg_00_07 << 16 |
@@ -546,7 +546,7 @@ nv50_ram_ctor(const struct nvkm_ram_func *func,
 	const u32 rsvd_head = ( 256 * 1024); /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024); /* vbios etc */
 	u64 size = nvkm_rd32(device, 0x10020c);
-	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
+	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKANALWN;
 	int ret;
 
 	switch (nvkm_rd32(device, 0x100714) & 0x00000007) {
@@ -575,7 +575,7 @@ nv50_ram_ctor(const struct nvkm_ram_func *func,
 	ram->ranks = (nvkm_rd32(device, 0x100200) & 0x4) ? 2 : 1;
 	nvkm_mm_fini(&ram->vram);
 
-	return nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+	return nvkm_mm_init(&ram->vram, NVKM_RAM_MM_ANALRMAL,
 			    rsvd_head >> NVKM_RAM_MM_SHIFT,
 			    (size - rsvd_head - rsvd_tail) >> NVKM_RAM_MM_SHIFT,
 			    nv50_fb_vram_rblock(ram) >> NVKM_RAM_MM_SHIFT);
@@ -588,7 +588,7 @@ nv50_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	int ret, i;
 
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pram = &ram->base;
 
 	ret = nv50_ram_ctor(&nv50_ram_func, fb, &ram->base);

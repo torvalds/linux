@@ -18,7 +18,7 @@ struct dma_heap;
  * struct dma_heap_ops - ops to operate on a given heap
  * @allocate:		allocate dmabuf and return struct dma_buf ptr
  *
- * allocate returns dmabuf on success, ERR_PTR(-errno) on error.
+ * allocate returns dmabuf on success, ERR_PTR(-erranal) on error.
  */
 struct dma_heap_ops {
 	struct dma_buf *(*allocate)(struct dma_heap *heap,
@@ -29,7 +29,7 @@ struct dma_heap_ops {
 
 /**
  * struct dma_heap_export_info - information needed to export a new dmabuf heap
- * @name:	used for debugging/device-node name
+ * @name:	used for debugging/device-analde name
  * @ops:	ops struct for this heap
  * @priv:	heap exporter private data
  *

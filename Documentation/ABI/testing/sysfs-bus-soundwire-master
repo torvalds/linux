@@ -13,7 +13,7 @@ Date:		April 2020
 
 Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 		Bard Liao <yung-chuan.liao@linux.intel.com>
-		Vinod Koul <vkoul@kernel.org>
+		Vianald Koul <vkoul@kernel.org>
 
 Description:	SoundWire Master-N DisCo properties.
 		These properties are defined by MIPI DisCo Specification

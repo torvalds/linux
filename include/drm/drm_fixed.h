@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -45,19 +45,19 @@ typedef union dfixed {
 
 static inline u32 dfixed_floor(fixed20_12 A)
 {
-	u32 non_frac = dfixed_trunc(A);
+	u32 analn_frac = dfixed_trunc(A);
 
-	return dfixed_const(non_frac);
+	return dfixed_const(analn_frac);
 }
 
 static inline u32 dfixed_ceil(fixed20_12 A)
 {
-	u32 non_frac = dfixed_trunc(A);
+	u32 analn_frac = dfixed_trunc(A);
 
-	if (A.full > dfixed_const(non_frac))
-		return dfixed_const(non_frac + 1);
+	if (A.full > dfixed_const(analn_frac))
+		return dfixed_const(analn_frac + 1);
 	else
-		return dfixed_const(non_frac);
+		return dfixed_const(analn_frac);
 }
 
 static inline u32 dfixed_div(fixed20_12 A, fixed20_12 B)

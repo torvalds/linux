@@ -17,7 +17,7 @@ Required properties:
 - marvell,crypto-srams: phandle to crypto SRAM definitions
 
 Optional properties:
-- marvell,crypto-sram-size: SRAM size reserved for crypto operations, if not
+- marvell,crypto-sram-size: SRAM size reserved for crypto operations, if analt
 			    specified the whole SRAM is used (2KB)
 
 Examples:

@@ -2,7 +2,7 @@
 //
 // Device driver for regulators in Hi6421 IC
 //
-// Copyright (c) <2011-2014> HiSilicon Technologies Co., Ltd.
+// Copyright (c) <2011-2014> HiSilicon Techanallogies Co., Ltd.
 //              http://www.hisilicon.com
 // Copyright (c) <2013-2014> Linaro Ltd.
 //              https://www.linaro.org
@@ -132,7 +132,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = #_match,			\
-			.regulators_node = "regulators",		\
+			.regulators_analde = "regulators",		\
 			.ops		= &hi6421_ldo_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -171,7 +171,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = #_match,			\
-			.regulators_node = "regulators",		\
+			.regulators_analde = "regulators",		\
 			.ops		= &hi6421_ldo_linear_ops,	\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -211,7 +211,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = #_match,			\
-			.regulators_node = "regulators",		\
+			.regulators_analde = "regulators",		\
 			.ops		= &hi6421_ldo_linear_range_ops,	\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -248,7 +248,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = #_match,			\
-			.regulators_node = "regulators",		\
+			.regulators_analde = "regulators",		\
 			.ops		= &hi6421_buck012_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -285,7 +285,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = #_match,			\
-			.regulators_node = "regulators",		\
+			.regulators_analde = "regulators",		\
 			.ops		= &hi6421_buck345_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -370,7 +370,7 @@ static int hi6421_regulator_enable(struct regulator_dev *rdev)
 
 	/* hi6421 spec requires regulator enablement must be serialized:
 	 *  - Because when BUCK, LDO switching from off to on, it will have
-	 *    a huge instantaneous current; so you can not turn on two or
+	 *    a huge instantaneous current; so you can analt turn on two or
 	 *    more LDO or BUCKs simultaneously, or it may burn the chip.
 	 */
 	mutex_lock(&pdata->lock);
@@ -392,7 +392,7 @@ static unsigned int hi6421_regulator_ldo_get_mode(struct regulator_dev *rdev)
 	if (reg_val & info->mode_mask)
 		return REGULATOR_MODE_IDLE;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static unsigned int hi6421_regulator_buck_get_mode(struct regulator_dev *rdev)
@@ -405,7 +405,7 @@ static unsigned int hi6421_regulator_buck_get_mode(struct regulator_dev *rdev)
 	if (reg_val & info->mode_mask)
 		return REGULATOR_MODE_STANDBY;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int hi6421_regulator_ldo_set_mode(struct regulator_dev *rdev,
@@ -416,7 +416,7 @@ static int hi6421_regulator_ldo_set_mode(struct regulator_dev *rdev,
 
 	info = container_of(rdev->desc, struct hi6421_regulator_info, desc);
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		new_mode = 0;
 		break;
 	case REGULATOR_MODE_IDLE:
@@ -441,7 +441,7 @@ static int hi6421_regulator_buck_set_mode(struct regulator_dev *rdev,
 
 	info = container_of(rdev->desc, struct hi6421_regulator_info, desc);
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		new_mode = 0;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -467,7 +467,7 @@ hi6421_regulator_ldo_get_optimum_mode(struct regulator_dev *rdev,
 	info = container_of(rdev->desc, struct hi6421_regulator_info, desc);
 
 	if (load_uA > info->eco_microamp)
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 
 	return REGULATOR_MODE_IDLE;
 }
@@ -546,7 +546,7 @@ static int hi6421_regulator_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&pdata->lock);
 
 	for (i = 0; i < ARRAY_SIZE(hi6421_regulator_info); i++) {
@@ -579,7 +579,7 @@ static struct platform_driver hi6421_regulator_driver = {
 	.id_table = hi6421_regulator_table,
 	.driver = {
 		.name	= "hi6421-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe	= hi6421_regulator_probe,
 };

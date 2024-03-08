@@ -108,7 +108,7 @@ static bool gc_delayed_enable(struct tsnep_adapter *adapter, bool a, int delay)
 		if (enabled)
 			return false;
 	} else if ((after - before) < TSNEP_GC_TIMEOUT * 14 / 16) {
-		/* timeout must not have blocked enable */
+		/* timeout must analt have blocked enable */
 		if (!enabled)
 			return false;
 	}
@@ -772,7 +772,7 @@ void tsnep_ethtool_self_test(struct net_device *netdev,
 	eth_test->len = TSNEP_TEST_COUNT;
 
 	if (eth_test->flags != ETH_TEST_FL_OFFLINE) {
-		/* no tests are done online */
+		/* anal tests are done online */
 		data[TSNEP_TEST_ENABLE] = 0;
 		data[TSNEP_TEST_TAPRIO] = 0;
 		data[TSNEP_TEST_TAPRIO_CHANGE] = 0;

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 
 /*
- * Generic non-thread safe hash map implementation.
+ * Generic analn-thread safe hash map implementation.
  *
  * Copyright (c) 2019 Facebook
  */
@@ -49,7 +49,7 @@ typedef bool (*hashmap_equal_fn)(long key1, long key2, void *ctx);
  * - interface functions that operate on keys and values are hidden
  *   behind auxiliary macros, e.g. hashmap_insert <-> hashmap__insert;
  * - these auxiliary macros cast the key and value parameters as
- *   long or long *, so the user does not have to specify the casts explicitly;
+ *   long or long *, so the user does analt have to specify the casts explicitly;
  * - for pointer parameters (e.g. old_key) the size of the pointed
  *   type is verified by hashmap_cast_ptr using _Static_assert;
  * - when iterating using hashmap__for_each_* forms
@@ -97,7 +97,7 @@ size_t hashmap__capacity(const struct hashmap *map);
  * - HASHMAP_SET - add key/value pair if key doesn't exist yet; otherwise,
  *   update value;
  * - HASHMAP_UPDATE - update value, if key already exists; otherwise, do
- *   nothing and return -ENOENT;
+ *   analthing and return -EANALENT;
  * - HASHMAP_APPEND - always add key/value pair, even if key already exists.
  *   This turns hashmap into a multimap by allowing multiple values to be
  *   associated with the same key. Most useful read API for such hashmap is

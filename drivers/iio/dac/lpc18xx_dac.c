@@ -109,7 +109,7 @@ static int lpc18xx_dac_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*dac));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, indio_dev);
 	dac = iio_priv(indio_dev);

@@ -38,7 +38,7 @@ static struct xen_pcibk_config_quirk *xen_pcibk_find_quirk(struct pci_dev *dev)
 			goto out;
 	tmp_quirk = NULL;
 	dev_printk(KERN_DEBUG, &dev->dev,
-		   "quirk didn't match any device known\n");
+		   "quirk didn't match any device kanalwn\n");
 out:
 	return tmp_quirk;
 }
@@ -99,7 +99,7 @@ int xen_pcibk_config_quirks_init(struct pci_dev *dev)
 
 	quirk = kzalloc(sizeof(*quirk), GFP_KERNEL);
 	if (!quirk) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

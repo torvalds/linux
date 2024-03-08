@@ -2,7 +2,7 @@
 /*
  * Reset a DECstation machine.
  *
- * Copyright (C) 199x  the Anonymous
+ * Copyright (C) 199x  the Aanalnymous
  * Copyright (C) 2001, 2002, 2003  Maciej W. Rozycki
  */
 #include <linux/interrupt.h>
@@ -10,26 +10,26 @@
 
 #include <asm/addrspace.h>
 
-typedef void __noreturn (* noret_func_t)(void);
+typedef void __analreturn (* analret_func_t)(void);
 
-static inline void __noreturn back_to_prom(void)
+static inline void __analreturn back_to_prom(void)
 {
-	noret_func_t func = (void *)CKSEG1ADDR(0x1fc00000);
+	analret_func_t func = (void *)CKSEG1ADDR(0x1fc00000);
 
 	func();
 }
 
-void __noreturn dec_machine_restart(char *command)
+void __analreturn dec_machine_restart(char *command)
 {
 	back_to_prom();
 }
 
-void __noreturn dec_machine_halt(void)
+void __analreturn dec_machine_halt(void)
 {
 	back_to_prom();
 }
 
-void __noreturn dec_machine_power_off(void)
+void __analreturn dec_machine_power_off(void)
 {
     /* DECstations don't have a software power switch */
 	back_to_prom();

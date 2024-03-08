@@ -128,7 +128,7 @@ patternProperties:
   "^lpddr2-timings":
     $ref: jedec,lpddr2-timings.yaml
     description: |
-      The lpddr2 node may have one or more child nodes of type "lpddr2-timings".
+      The lpddr2 analde may have one or more child analdes of type "lpddr2-timings".
       "lpddr2-timings" provides AC timing parameters of the device for
       a given speed-bin. The user may provide the timings for as many
       speed-bins as is required.

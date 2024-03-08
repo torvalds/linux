@@ -1,7 +1,7 @@
 Kernel driver NCT6775
 =====================
 
-.. note::
+.. analte::
 
     This driver supersedes the NCT6775F and NCT6776F support in the W83627EHF
     driver.
@@ -120,17 +120,17 @@ Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
 triggered if the rotation speed has dropped below a programmable limit. On
 NCT6775F, fan readings can be divided by a programmable divider (1, 2, 4, 8,
 16, 32, 64 or 128) to give the readings more range or accuracy; the other chips
-do not have a fan speed divider. The driver sets the most suitable fan divisor
+do analt have a fan speed divider. The driver sets the most suitable fan divisor
 itself; specifically, it increases the divider value each time a fan speed
 reading returns an invalid value, and it reduces it if the fan speed reading
-is lower than optimal. Some fans might not be present because they share pins
+is lower than optimal. Some fans might analt be present because they share pins
 with other functions.
 
-Voltage sensors (also known as IN sensors) report their values in millivolts.
+Voltage sensors (also kanalwn as IN sensors) report their values in millivolts.
 An alarm is triggered if the voltage has crossed a programmable minimum
 or maximum limit.
 
-The driver supports automatic fan control mode known as Thermal Cruise.
+The driver supports automatic fan control mode kanalwn as Thermal Cruise.
 In this mode, the chip attempts to keep the measured temperature in a
 predefined temperature range. If the temperature goes out of range, fan
 is driven slower/faster to reach the predefined range again.
@@ -203,7 +203,7 @@ pwm[1-7]_target_temp
 pwm[1-7]_temp_tolerance
 			Target temperature tolerance, unit millidegree Celsius
 
-There are no changes to fan speed. Once the temperature leaves the interval, fan
+There are anal changes to fan speed. Once the temperature leaves the interval, fan
 speed increases (if temperature is higher that desired) or decreases (if
 temperature is lower than desired), using the following limits and time
 intervals.
@@ -273,16 +273,16 @@ pwm[1-7]_step_up_time
 pwm[1-7]_step_down_time
 			milliseconds before fan speed is decreased
 
-Usage Notes
+Usage Analtes
 -----------
 
-On various ASUS boards with NCT6776F, it appears that CPUTIN is not really
-connected to anything and floats, or that it is connected to some non-standard
+On various ASUS boards with NCT6776F, it appears that CPUTIN is analt really
+connected to anything and floats, or that it is connected to some analn-standard
 temperature measurement device. As a result, the temperature reported on CPUTIN
-will not reflect a usable value. It often reports unreasonably high
+will analt reflect a usable value. It often reports unreasonably high
 temperatures, and in some cases the reported temperature declines if the actual
 temperature increases (similar to the raw PECI temperature value - see PECI
-specification for details). CPUTIN should therefore be ignored on ASUS
+specification for details). CPUTIN should therefore be iganalred on ASUS
 boards. The CPU temperature on ASUS boards is reported from PECI 0 or TSI 0.
 
 NCT6796D-S and NCT6799D-R chips are very similar and their chip_id indicates

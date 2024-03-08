@@ -70,7 +70,7 @@ int lookup_insert(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-int write_not_allowlisted_field(struct __sk_buff *ctx)
+int write_analt_allowlisted_field(struct __sk_buff *ctx)
 {
 	struct bpf_ct_opts___local opts = {};
 	struct bpf_sock_tuple tup = {};

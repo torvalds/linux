@@ -38,11 +38,11 @@ static void cache_requested_key(struct key *key)
 #ifdef CONFIG_KEYS_REQUEST_CACHE
 	struct task_struct *t = current;
 
-	/* Do not cache key if it is a kernel thread */
+	/* Do analt cache key if it is a kernel thread */
 	if (!(t->flags & PF_KTHREAD)) {
 		key_put(t->cached_requested_key);
 		t->cached_requested_key = key_get(key);
-		set_tsk_thread_flag(t, TIF_NOTIFY_RESUME);
+		set_tsk_thread_flag(t, TIF_ANALTIFY_RESUME);
 	}
 #endif
 }
@@ -105,7 +105,7 @@ static int call_usermodehelper_keys(const char *path, char **argv, char **envp,
 					  umh_keys_init, umh_keys_cleanup,
 					  session_keyring);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	key_get(session_keyring);
 	return call_usermodehelper_exec(info, wait);
@@ -200,9 +200,9 @@ static int call_sbin_request_key(struct key *authkey, void *aux)
 		/* ret is the exit/wait code */
 		if (test_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags) ||
 		    key_validate(key) < 0)
-			ret = -ENOKEY;
+			ret = -EANALKEY;
 		else
-			/* ignore any errors from userspace if the key was
+			/* iganalre any errors from userspace if the key was
 			 * instantiated */
 			ret = 0;
 	}
@@ -221,7 +221,7 @@ error_us:
 /*
  * Call out to userspace for key construction.
  *
- * Program failure is ignored in favour of key status.
+ * Program failure is iganalred in favour of key status.
  */
 static int construct_key(struct key *key, const void *callout_info,
 			 size_t callout_len, void *aux,
@@ -408,11 +408,11 @@ static int construct_alloc_key(struct keyring_search_context *ctx,
 
 	/*
 	 * Attach the key to the destination keyring under lock, but we do need
-	 * to do another check just in case someone beat us to it whilst we
+	 * to do aanalther check just in case someone beat us to it whilst we
 	 * waited for locks.
 	 *
 	 * The caller might specify a comparison function which looks for keys
-	 * that do not exactly match but are still equivalent from the caller's
+	 * that do analt exactly match but are still equivalent from the caller's
 	 * perspective. The __key_link_begin() operation must be done only after
 	 * an actual key is determined.
 	 */
@@ -439,7 +439,7 @@ static int construct_alloc_key(struct keyring_search_context *ctx,
 	kleave(" = 0 [%d]", key_serial(key));
 	return 0;
 
-	/* the key is now present - we tell the caller that we found it by
+	/* the key is analw present - we tell the caller that we found it by
 	 * returning -EINPROGRESS  */
 key_already_present:
 	key_put(key);
@@ -508,7 +508,7 @@ static struct key *construct_key_and_link(struct keyring_search_context *ctx,
 
 	user = key_user_lookup(current_fsuid());
 	if (!user) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_put_dest_keyring;
 	}
 
@@ -555,17 +555,17 @@ error:
  *
  * A key matching the specified criteria (type, description, domain_tag) is
  * searched for in the process's keyrings and returned with its usage count
- * incremented if found.  Otherwise, if callout_info is not NULL, a key will be
+ * incremented if found.  Otherwise, if callout_info is analt NULL, a key will be
  * allocated and some service (probably in userspace) will be asked to
  * instantiate it.
  *
  * If successfully found or created, the key will be linked to the destination
  * keyring if one is provided.
  *
- * Returns a pointer to the key if successful; -EACCES, -ENOKEY, -EKEYREVOKED
+ * Returns a pointer to the key if successful; -EACCES, -EANALKEY, -EKEYREVOKED
  * or -EKEYEXPIRED if an inaccessible, negative, revoked or expired key was
- * found; -ENOKEY if no key was found and no @callout_info was given; -EDQUOT
- * if insufficient key quota was available to create a new key; or -ENOMEM if
+ * found; -EANALKEY if anal key was found and anal @callout_info was given; -EDQUOT
+ * if insufficient key quota was available to create a new key; or -EANALMEM if
  * insufficient memory was available.
  *
  * If the returned key was created, then it may still be under construction,
@@ -646,7 +646,7 @@ struct key *request_key_and_link(struct key_type *type,
 	} else  {
 		/* the search failed, but the keyrings were searchable, so we
 		 * should consult userspace if we can */
-		key = ERR_PTR(-ENOKEY);
+		key = ERR_PTR(-EANALKEY);
 		if (!callout_info)
 			goto error_free;
 
@@ -669,7 +669,7 @@ error:
  *
  * Wait for a key to finish being constructed.
  *
- * Returns 0 if successful; -ERESTARTSYS if the wait was interrupted; -ENOKEY
+ * Returns 0 if successful; -ERESTARTSYS if the wait was interrupted; -EANALKEY
  * if the key was negated; or -EKEYREVOKED or -EKEYEXPIRED if the key was
  * revoked or expired.
  */
@@ -695,13 +695,13 @@ EXPORT_SYMBOL(wait_for_key_construction);
  * @domain_tag: The domain in which the key operates.
  * @callout_info: The data to pass to the instantiation upcall (or NULL).
  *
- * As for request_key_and_link() except that it does not add the returned key
+ * As for request_key_and_link() except that it does analt add the returned key
  * to a keyring if found, new keys are always allocated in the user's quota,
- * the callout_info must be a NUL-terminated string and no auxiliary data can
+ * the callout_info must be a NUL-terminated string and anal auxiliary data can
  * be passed.
  *
  * Furthermore, it then works as wait_for_key_construction() to wait for the
- * completion of keys undergoing construction with a non-interruptible wait.
+ * completion of keys undergoing construction with a analn-interruptible wait.
  */
 struct key *request_key_tag(struct key_type *type,
 			    const char *description,
@@ -737,11 +737,11 @@ EXPORT_SYMBOL(request_key_tag);
  * @callout_len: The length of callout_info.
  * @aux: Auxiliary data for the upcall.
  *
- * As for request_key_and_link() except that it does not add the returned key
+ * As for request_key_and_link() except that it does analt add the returned key
  * to a keyring if found and new keys are always allocated in the user's quota.
  *
  * Furthermore, it then works as wait_for_key_construction() to wait for the
- * completion of keys undergoing construction with a non-interruptible wait.
+ * completion of keys undergoing construction with a analn-interruptible wait.
  */
 struct key *request_key_with_auxdata(struct key_type *type,
 				     const char *description,
@@ -773,10 +773,10 @@ EXPORT_SYMBOL(request_key_with_auxdata);
  * @description: The name of the key we want.
  * @domain_tag: The domain in which the key operates.
  *
- * Request a key from a context that we may not sleep in (such as RCU-mode
- * pathwalk).  Keys under construction are ignored.
+ * Request a key from a context that we may analt sleep in (such as RCU-mode
+ * pathwalk).  Keys under construction are iganalred.
  *
- * Return a pointer to the found key if successful, -ENOKEY if we couldn't find
+ * Return a pointer to the found key if successful, -EANALKEY if we couldn't find
  * a key or some other error if the key found was unsuitable or inaccessible.
  */
 struct key *request_key_rcu(struct key_type *type,
@@ -809,7 +809,7 @@ struct key *request_key_rcu(struct key_type *type,
 	if (IS_ERR(key_ref)) {
 		key = ERR_CAST(key_ref);
 		if (PTR_ERR(key_ref) == -EAGAIN)
-			key = ERR_PTR(-ENOKEY);
+			key = ERR_PTR(-EANALKEY);
 	} else {
 		key = key_ref_to_ptr(key_ref);
 		cache_requested_key(key);

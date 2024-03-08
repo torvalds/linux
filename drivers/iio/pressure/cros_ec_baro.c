@@ -57,7 +57,7 @@ static int cros_ec_baro_read(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_RANGE;
-		st->core.param.sensor_range.data = EC_MOTION_SENSE_NO_VALUE;
+		st->core.param.sensor_range.data = EC_MOTION_SENSE_ANAL_VALUE;
 
 		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
 		if (ret)
@@ -130,13 +130,13 @@ static int cros_ec_baro_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!ec_dev || !ec_dev->ec_dev) {
-		dev_warn(dev, "No CROS EC device found.\n");
+		dev_warn(dev, "Anal CROS EC device found.\n");
 		return -EINVAL;
 	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cros_ec_sensors_core_init(pdev, indio_dev, true,
 					cros_ec_sensors_capture);
@@ -166,7 +166,7 @@ static int cros_ec_baro_probe(struct platform_device *pdev)
 		channel->type = IIO_PRESSURE;
 		break;
 	default:
-		dev_warn(dev, "Unknown motion sensor\n");
+		dev_warn(dev, "Unkanalwn motion sensor\n");
 		return -EINVAL;
 	}
 

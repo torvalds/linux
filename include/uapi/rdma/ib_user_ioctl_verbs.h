@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR Linux-OpenIB) */
 /*
- * Copyright (c) 2017-2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017-2018, Mellaanalx Techanallogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -103,7 +103,7 @@ enum ib_uverbs_qp_create_flags {
 
 enum ib_uverbs_query_port_cap_flags {
 	IB_UVERBS_PCF_SM = 1 << 1,
-	IB_UVERBS_PCF_NOTICE_SUP = 1 << 2,
+	IB_UVERBS_PCF_ANALTICE_SUP = 1 << 2,
 	IB_UVERBS_PCF_TRAP_SUP = 1 << 3,
 	IB_UVERBS_PCF_OPT_IPD_SUP = 1 << 4,
 	IB_UVERBS_PCF_AUTO_MIGR_SUP = 1 << 5,
@@ -120,13 +120,13 @@ enum ib_uverbs_query_port_cap_flags {
 	IB_UVERBS_PCF_REINIT_SUP = 1 << 18,
 	IB_UVERBS_PCF_DEVICE_MGMT_SUP = 1 << 19,
 	IB_UVERBS_PCF_VENDOR_CLASS_SUP = 1 << 20,
-	IB_UVERBS_PCF_DR_NOTICE_SUP = 1 << 21,
-	IB_UVERBS_PCF_CAP_MASK_NOTICE_SUP = 1 << 22,
+	IB_UVERBS_PCF_DR_ANALTICE_SUP = 1 << 21,
+	IB_UVERBS_PCF_CAP_MASK_ANALTICE_SUP = 1 << 22,
 	IB_UVERBS_PCF_BOOT_MGMT_SUP = 1 << 23,
 	IB_UVERBS_PCF_LINK_LATENCY_SUP = 1 << 24,
 	IB_UVERBS_PCF_CLIENT_REG_SUP = 1 << 25,
 	/*
-	 * IsOtherLocalChangesNoticeSupported is aliased by IP_BASED_GIDS and
+	 * IsOtherLocalChangesAnalticeSupported is aliased by IP_BASED_GIDS and
 	 * is inaccessible
 	 */
 	IB_UVERBS_PCF_LINK_SPEED_WIDTH_TABLE_SUP = 1 << 27,
@@ -135,7 +135,7 @@ enum ib_uverbs_query_port_cap_flags {
 	IB_UVERBS_PCF_MCAST_FDB_TOP_SUP = 1 << 30,
 	IB_UVERBS_PCF_HIERARCHY_INFO_SUP = 1ULL << 31,
 
-	/* NOTE this is an internal flag, not an IBA flag */
+	/* ANALTE this is an internal flag, analt an IBA flag */
 	IB_UVERBS_PCF_IP_BASED_GIDS = 1 << 26,
 };
 
@@ -163,7 +163,7 @@ struct ib_uverbs_flow_action_esp_keymat_aes_gcm {
 };
 
 enum ib_uverbs_flow_action_esp_replay {
-	IB_UVERBS_FLOW_ACTION_ESP_REPLAY_NONE,
+	IB_UVERBS_FLOW_ACTION_ESP_REPLAY_ANALNE,
 	IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP,
 };
 
@@ -210,7 +210,7 @@ enum ib_uverbs_read_counters_flags {
 enum ib_uverbs_advise_mr_advice {
 	IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH,
 	IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE,
-	IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_NO_FAULT,
+	IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_ANAL_FAULT,
 };
 
 enum ib_uverbs_advise_mr_flag {
@@ -233,7 +233,7 @@ struct ib_uverbs_qp_cap {
 };
 
 enum rdma_driver_id {
-	RDMA_DRIVER_UNKNOWN,
+	RDMA_DRIVER_UNKANALWN,
 	RDMA_DRIVER_MLX5,
 	RDMA_DRIVER_MLX4,
 	RDMA_DRIVER_CXGB3,
@@ -268,7 +268,7 @@ struct ib_uverbs_gid_entry {
 	__u32 gid_index;
 	__u32 port_num;
 	__u32 gid_type;
-	__u32 netdev_ifindex; /* It is 0 if there is no netdev associated with it */
+	__u32 netdev_ifindex; /* It is 0 if there is anal netdev associated with it */
 };
 
 #endif

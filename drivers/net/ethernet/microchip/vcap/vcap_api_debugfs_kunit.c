@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries.
+/* Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  * Microchip VCAP API kunit test suite
  */
 
@@ -50,10 +50,10 @@ static enum vcap_keyfield_set test_val_keyset(struct net_device *ndev,
 				    VCAP_KFS_PURE_5TUPLE_IP4)
 					return kslist->keysets[idx];
 				if (kslist->keysets[idx] ==
-				    VCAP_KFS_NORMAL_5TUPLE_IP4)
+				    VCAP_KFS_ANALRMAL_5TUPLE_IP4)
 					return kslist->keysets[idx];
 				if (kslist->keysets[idx] ==
-				    VCAP_KFS_NORMAL_7TUPLE)
+				    VCAP_KFS_ANALRMAL_7TUPLE)
 					return kslist->keysets[idx];
 			}
 			break;
@@ -68,7 +68,7 @@ static enum vcap_keyfield_set test_val_keyset(struct net_device *ndev,
 			}
 			break;
 		default:
-			pr_info("%s:%d: no validation for VCAP %d\n",
+			pr_info("%s:%d: anal validation for VCAP %d\n",
 				__func__, __LINE__, admin->vtype);
 			break;
 		}
@@ -186,7 +186,7 @@ static void test_cache_write(struct net_device *ndev, struct vcap_admin *admin,
 		test_hw_cache.sticky = admin->cache.sticky;
 		break;
 	case VCAP_SEL_ALL:
-		pr_err("%s:%d: cannot write all streams at once\n",
+		pr_err("%s:%d: cananalt write all streams at once\n",
 		       __func__, __LINE__);
 		break;
 	}

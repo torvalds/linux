@@ -23,7 +23,7 @@
 #include <linux/sched/mm.h>
 #include <linux/jump_label.h>
 #include <linux/dma-mapping.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/memory_hotplug.h>
 
 #include "internal.h"
@@ -57,8 +57,8 @@ static int hmm_pfns_fill(unsigned long addr, unsigned long end,
  * @walk: mm_walk structure
  * Return: -EBUSY after page fault, or page fault error
  *
- * This function will be called whenever pmd_none() or pte_none() returns true,
- * or whenever there is no page directory covering the virtual address range.
+ * This function will be called whenever pmd_analne() or pte_analne() returns true,
+ * or whenever there is anal page directory covering the virtual address range.
  */
 static int hmm_vma_fault(unsigned long addr, unsigned long end,
 			 unsigned int required_fault, struct mm_walk *walk)
@@ -90,7 +90,7 @@ static unsigned int hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 	struct hmm_range *range = hmm_vma_walk->range;
 
 	/*
-	 * So we not only consider the individual per page request we also
+	 * So we analt only consider the individual per page request we also
 	 * consider the default flags requested for the range. The API can
 	 * be used 2 ways. The first one where the HMM user coalesces
 	 * multiple page faults into one request and sets flags per pfn for
@@ -111,7 +111,7 @@ static unsigned int hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 	    !(cpu_flags & HMM_PFN_WRITE))
 		return HMM_NEED_FAULT | HMM_NEED_WRITE_FAULT;
 
-	/* If CPU page table is not valid then we need to fault */
+	/* If CPU page table is analt valid then we need to fault */
 	if (!(cpu_flags & HMM_PFN_VALID))
 		return HMM_NEED_FAULT;
 	return 0;
@@ -127,8 +127,8 @@ hmm_range_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 	unsigned long i;
 
 	/*
-	 * If the default flags do not request to fault pages, and the mask does
-	 * not allow for individual pages to be faulted, then
+	 * If the default flags do analt request to fault pages, and the mask does
+	 * analt allow for individual pages to be faulted, then
 	 * hmm_pte_need_fault() will always return 0.
 	 */
 	if (!((range->default_flags | range->pfn_flags_mask) &
@@ -176,7 +176,7 @@ static inline unsigned long hmm_pfn_flags_order(unsigned long order)
 static inline unsigned long pmd_to_hmm_pfn_flags(struct hmm_range *range,
 						 pmd_t pmd)
 {
-	if (pmd_protnone(pmd))
+	if (pmd_protanalne(pmd))
 		return 0;
 	return (pmd_write(pmd) ? (HMM_PFN_VALID | HMM_PFN_WRITE) :
 				 HMM_PFN_VALID) |
@@ -215,7 +215,7 @@ int hmm_vma_handle_pmd(struct mm_walk *walk, unsigned long addr,
 static inline unsigned long pte_to_hmm_pfn_flags(struct hmm_range *range,
 						 pte_t pte)
 {
-	if (pte_none(pte) || !pte_present(pte) || pte_protnone(pte))
+	if (pte_analne(pte) || !pte_present(pte) || pte_protanalne(pte))
 		return 0;
 	return pte_write(pte) ? (HMM_PFN_VALID | HMM_PFN_WRITE) : HMM_PFN_VALID;
 }
@@ -231,7 +231,7 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 	pte_t pte = ptep_get(ptep);
 	uint64_t pfn_req_flags = *hmm_pfn;
 
-	if (pte_none_mostly(pte)) {
+	if (pte_analne_mostly(pte)) {
 		required_fault =
 			hmm_pte_need_fault(hmm_vma_walk, pfn_req_flags, 0);
 		if (required_fault)
@@ -264,7 +264,7 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 			return 0;
 		}
 
-		if (!non_swap_entry(entry))
+		if (!analn_swap_entry(entry))
 			goto fault;
 
 		if (is_device_private_entry(entry))
@@ -295,9 +295,9 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 	 * Bypass devmap pte such as DAX page when all pfn requested
 	 * flags(pfn_req_flags) are fulfilled.
 	 * Since each architecture defines a struct page for the zero page, just
-	 * fall through and treat it like a normal page.
+	 * fall through and treat it like a analrmal page.
 	 */
-	if (!vm_normal_page(walk->vma, addr, pte) &&
+	if (!vm_analrmal_page(walk->vma, addr, pte) &&
 	    !pte_devmap(pte) &&
 	    !is_zero_pfn(pte_pfn(pte))) {
 		if (hmm_pte_need_fault(hmm_vma_walk, pfn_req_flags, 0)) {
@@ -333,7 +333,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
 
 again:
 	pmd = pmdp_get_lockless(pmdp);
-	if (pmd_none(pmd))
+	if (pmd_analne(pmd))
 		return hmm_vma_walk_hole(start, end, -1, walk);
 
 	if (thp_migration_supported() && is_pmd_migration_entry(pmd)) {
@@ -353,9 +353,9 @@ again:
 
 	if (pmd_devmap(pmd) || pmd_trans_huge(pmd)) {
 		/*
-		 * No need to take pmd_lock here, even if some other thread
+		 * Anal need to take pmd_lock here, even if some other thread
 		 * is splitting the huge pmd we will get that event through
-		 * mmu_notifier callback.
+		 * mmu_analtifier callback.
 		 *
 		 * So just read pmd value and check again it's a transparent
 		 * huge or device mapping one and compute corresponding pfn
@@ -369,9 +369,9 @@ again:
 	}
 
 	/*
-	 * We have handled all the valid cases above ie either none, migration,
+	 * We have handled all the valid cases above ie either analne, migration,
 	 * huge or transparent huge. At this point either it is a valid pmd
-	 * entry pointing to pte directory or it is a bad pmd that will not
+	 * entry pointing to pte directory or it is a bad pmd that will analt
 	 * recover.
 	 */
 	if (pmd_bad(pmd)) {
@@ -420,11 +420,11 @@ static int hmm_vma_walk_pud(pud_t *pudp, unsigned long start, unsigned long end,
 	if (!ptl)
 		return 0;
 
-	/* Normally we don't want to split the huge page */
+	/* Analrmally we don't want to split the huge page */
 	walk->action = ACTION_CONTINUE;
 
 	pud = READ_ONCE(*pudp);
-	if (pud_none(pud)) {
+	if (pud_analne(pud)) {
 		spin_unlock(ptl);
 		return hmm_vma_walk_hole(start, end, -1, walk);
 	}
@@ -502,7 +502,7 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
 		 * Avoid deadlock: drop the vma lock before calling
 		 * hmm_vma_fault(), which will itself potentially take and
 		 * drop the vma lock. This is also correct from a
-		 * protection point of view, because there is no further
+		 * protection point of view, because there is anal further
 		 * use here of either pte or ptl after dropping the vma
 		 * lock.
 		 */
@@ -535,10 +535,10 @@ static int hmm_vma_walk_test(unsigned long start, unsigned long end,
 
 	/*
 	 * vma ranges that don't have struct page backing them or map I/O
-	 * devices directly cannot be handled by hmm_range_fault().
+	 * devices directly cananalt be handled by hmm_range_fault().
 	 *
-	 * If the vma does not allow read access, then assume that it does not
-	 * allow write access either. HMM does not support architectures that
+	 * If the vma does analt allow read access, then assume that it does analt
+	 * allow write access either. HMM does analt support architectures that
 	 * allow write without read.
 	 *
 	 * If a fault is requested for an unsupported range then it is a hard
@@ -573,13 +573,13 @@ static const struct mm_walk_ops hmm_walk_ops = {
  *
  * -EINVAL:	Invalid arguments or mm or virtual address is in an invalid vma
  *		(e.g., device file vma).
- * -ENOMEM:	Out of memory.
+ * -EANALMEM:	Out of memory.
  * -EPERM:	Invalid permission (e.g., asking for write and range is read
  *		only).
  * -EBUSY:	The range has been invalidated and the caller needs to wait for
  *		the invalidation to finish.
- * -EFAULT:     A page was requested to be valid and could not be made valid
- *              ie it has no backing VMA or it is illegal to access
+ * -EFAULT:     A page was requested to be valid and could analt be made valid
+ *              ie it has anal backing VMA or it is illegal to access
  *
  * This is similar to get_user_pages(), except that it can read the page tables
  * without mutating them (ie causing faults).
@@ -590,21 +590,21 @@ int hmm_range_fault(struct hmm_range *range)
 		.range = range,
 		.last = range->start,
 	};
-	struct mm_struct *mm = range->notifier->mm;
+	struct mm_struct *mm = range->analtifier->mm;
 	int ret;
 
 	mmap_assert_locked(mm);
 
 	do {
-		/* If range is no longer valid force retry. */
-		if (mmu_interval_check_retry(range->notifier,
-					     range->notifier_seq))
+		/* If range is anal longer valid force retry. */
+		if (mmu_interval_check_retry(range->analtifier,
+					     range->analtifier_seq))
 			return -EBUSY;
 		ret = walk_page_range(mm, hmm_vma_walk.last, range->end,
 				      &hmm_walk_ops, &hmm_vma_walk);
 		/*
 		 * When -EBUSY is returned the loop restarts with
-		 * hmm_vma_walk.last set to an address that has not been stored
+		 * hmm_vma_walk.last set to an address that has analt been stored
 		 * in pfns. All entries < last in the pfn array are set to their
 		 * output, and all >= are still at their input values.
 		 */

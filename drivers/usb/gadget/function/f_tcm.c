@@ -176,7 +176,7 @@ static int bot_send_status(struct usbg_cmd *cmd, bool moved_data)
 }
 
 /*
- * Called after command (no data transfer) or after the write (to device)
+ * Called after command (anal data transfer) or after the write (to device)
  * operation is completed
  */
 static int bot_send_status_response(struct usbg_cmd *cmd)
@@ -188,7 +188,7 @@ static int bot_send_status_response(struct usbg_cmd *cmd)
 	return bot_send_status(cmd, moved_data);
 }
 
-/* Read request completed, now we have to send the CSW */
+/* Read request completed, analw we have to send the CSW */
 static void bot_read_compl(struct usb_ep *ep, struct usb_request *req)
 {
 	struct usbg_cmd *cmd = req->context;
@@ -215,7 +215,7 @@ static int bot_send_read_response(struct usbg_cmd *cmd)
 	if (!gadget->sg_supported) {
 		cmd->data_buf = kmalloc(se_cmd->data_length, GFP_ATOMIC);
 		if (!cmd->data_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sg_copy_to_buffer(se_cmd->t_data_sg,
 				se_cmd->t_data_nents,
@@ -259,7 +259,7 @@ static int bot_send_write_request(struct usbg_cmd *cmd)
 	if (!gadget->sg_supported) {
 		cmd->data_buf = kmalloc(se_cmd->data_length, GFP_KERNEL);
 		if (!cmd->data_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		fu->bot_req_out->buf = cmd->data_buf;
 	} else {
@@ -356,7 +356,7 @@ err_out:
 	fu->bot_req_in = NULL;
 err:
 	pr_err("BOT: endpoint setup failed\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void bot_cleanup_old_alt(struct f_uas *fu)
@@ -430,7 +430,7 @@ static int usbg_bot_setup(struct usb_function *f,
 	case US_BULK_GET_MAX_LUN:
 		if (ctrl->bRequestType != (USB_DIR_IN | USB_TYPE_CLASS |
 					USB_RECIP_INTERFACE))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		if (w_length < 1)
 			return -EINVAL;
@@ -438,7 +438,7 @@ static int usbg_bot_setup(struct usb_function *f,
 			return -EINVAL;
 		luns = atomic_read(&fu->tpg->tpg_port_count);
 		if (!luns) {
-			pr_err("No LUNs configured?\n");
+			pr_err("Anal LUNs configured?\n");
 			return -EINVAL;
 		}
 		/*
@@ -460,14 +460,14 @@ static int usbg_bot_setup(struct usb_function *f,
 		bot_enqueue_cmd_cbw(fu);
 		return 0;
 	}
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 /* Start uas.c code */
 
 static void uasp_cleanup_one_stream(struct f_uas *fu, struct uas_stream *stream)
 {
-	/* We have either all three allocated or none */
+	/* We have either all three allocated or analne */
 	if (!stream->req_in)
 		return;
 
@@ -517,7 +517,7 @@ static int uasp_prepare_r_request(struct usbg_cmd *cmd)
 	if (!gadget->sg_supported) {
 		cmd->data_buf = kmalloc(se_cmd->data_length, GFP_ATOMIC);
 		if (!cmd->data_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sg_copy_to_buffer(se_cmd->t_data_sg,
 				se_cmd->t_data_nents,
@@ -761,7 +761,7 @@ err_out:
 	usb_ep_free_request(fu->ep_in, stream->req_in);
 	stream->req_in = NULL;
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int uasp_alloc_cmd(struct f_uas *fu)
@@ -783,7 +783,7 @@ static int uasp_alloc_cmd(struct f_uas *fu)
 err_buf:
 	usb_ep_free_request(fu->ep_cmd, fu->cmd.req);
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void uasp_setup_stream_res(struct f_uas *fu, int max_streams)
@@ -941,10 +941,10 @@ static int get_cmd_dir(const unsigned char *cdb)
 	case SPACE:
 	case VERIFY:
 	case WRITE_FILEMARKS:
-		ret = DMA_NONE;
+		ret = DMA_ANALNE;
 		break;
 	default:
-#define CMD_DIR_MSG "target: Unknown data direction for SCSI Opcode 0x%02x\n"
+#define CMD_DIR_MSG "target: Unkanalwn data direction for SCSI Opcode 0x%02x\n"
 		pr_warn(CMD_DIR_MSG, cdb[0]);
 #undef CMD_DIR_MSG
 		ret = -EINVAL;
@@ -985,7 +985,7 @@ static int usbg_prepare_w_request(struct usbg_cmd *cmd, struct usb_request *req)
 	if (!gadget->sg_supported) {
 		cmd->data_buf = kmalloc(se_cmd->data_length, GFP_ATOMIC);
 		if (!cmd->data_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		req->buf = cmd->data_buf;
 	} else {
@@ -1043,7 +1043,7 @@ static void usbg_cmd_work(struct work_struct *work)
 	struct se_cmd *se_cmd;
 	struct tcm_usbg_nexus *tv_nexus;
 	struct usbg_tpg *tpg;
-	int dir, flags = (TARGET_SCF_UNKNOWN_SIZE | TARGET_SCF_ACK_KREF);
+	int dir, flags = (TARGET_SCF_UNKANALWN_SIZE | TARGET_SCF_ACK_KREF);
 
 	se_cmd = &cmd->se_cmd;
 	tpg = cmd->fu->tpg;
@@ -1052,7 +1052,7 @@ static void usbg_cmd_work(struct work_struct *work)
 	if (dir < 0) {
 		__target_init_cmd(se_cmd,
 				  tv_nexus->tvn_se_sess->se_tpg->se_tpg_tfo,
-				  tv_nexus->tvn_se_sess, cmd->data_len, DMA_NONE,
+				  tv_nexus->tvn_se_sess, cmd->data_len, DMA_ANALNE,
 				  cmd->prio_attr, cmd->sense_iu.sense,
 				  cmd->unpacked_lun, NULL);
 		goto out;
@@ -1078,7 +1078,7 @@ static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
 
 	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cmd = &((struct usbg_cmd *)se_sess->sess_cmd_map)[tag];
 	memset(cmd, 0, sizeof(*cmd));
@@ -1109,7 +1109,7 @@ static int usbg_submit_command(struct f_uas *fu,
 
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
-		pr_err("Missing nexus, ignoring command\n");
+		pr_err("Missing nexus, iganalring command\n");
 		return -EINVAL;
 	}
 
@@ -1121,7 +1121,7 @@ static int usbg_submit_command(struct f_uas *fu,
 	cmd = usbg_get_cmd(fu, tv_nexus, scsi_tag);
 	if (IS_ERR(cmd)) {
 		pr_err("usbg_get_cmd failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
 
@@ -1181,7 +1181,7 @@ static void bot_cmd_work(struct work_struct *work)
 	if (dir < 0) {
 		__target_init_cmd(se_cmd,
 				  tv_nexus->tvn_se_sess->se_tpg->se_tpg_tfo,
-				  tv_nexus->tvn_se_sess, cmd->data_len, DMA_NONE,
+				  tv_nexus->tvn_se_sess, cmd->data_len, DMA_ANALNE,
 				  cmd->prio_attr, cmd->sense_iu.sense,
 				  cmd->unpacked_lun, NULL);
 		goto out;
@@ -1222,14 +1222,14 @@ static int bot_submit_command(struct f_uas *fu,
 
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
-		pr_err("Missing nexus, ignoring command\n");
-		return -ENODEV;
+		pr_err("Missing nexus, iganalring command\n");
+		return -EANALDEV;
 	}
 
 	cmd = usbg_get_cmd(fu, tv_nexus, cbw->Tag);
 	if (IS_ERR(cmd)) {
 		pr_err("usbg_get_cmd failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memcpy(cmd->cmd_buf, cbw->CDB, cmd_len);
 
@@ -1302,7 +1302,7 @@ static const char *usbg_check_wwn(const char *name)
 	return n;
 }
 
-static int usbg_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
+static int usbg_init_analdeacl(struct se_analde_acl *se_nacl, const char *name)
 {
 	if (!usbg_check_wwn(name))
 		return -EINVAL;
@@ -1324,7 +1324,7 @@ static struct se_portal_group *usbg_make_tpg(struct se_wwn *wwn,
 		return ERR_PTR(-EINVAL);
 	if (kstrtoul(name + 5, 0, &tpgt) || tpgt > UINT_MAX)
 		return ERR_PTR(-EINVAL);
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	mutex_lock(&tpg_instances_lock);
 	for (i = 0; i < TPG_INSTANCES; ++i)
 		if (tpg_instances[i].func_inst && !tpg_instances[i].tpg)
@@ -1350,7 +1350,7 @@ static struct se_portal_group *usbg_make_tpg(struct se_wwn *wwn,
 	}
 
 	tpg = kzalloc(sizeof(struct usbg_tpg), GFP_KERNEL);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (!tpg)
 		goto unref_dep;
 	mutex_init(&tpg->tpg_mutex);
@@ -1442,7 +1442,7 @@ static struct se_wwn *usbg_make_tport(
 
 	tport = kzalloc(sizeof(struct usbg_tport), GFP_KERNEL);
 	if (!(tport))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tport->tport_wwpn = wwpn;
 	snprintf(tport->tport_name, sizeof(tport->tport_name), "%s", wnn_name);
@@ -1501,11 +1501,11 @@ static ssize_t tcm_usbg_tpg_nexus_show(struct config_item *item, char *page)
 	mutex_lock(&tpg->tpg_mutex);
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	ret = sysfs_emit(page, "%s\n",
-			 tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+			 tv_nexus->tvn_se_sess->se_analde_acl->initiatorname);
 out:
 	mutex_unlock(&tpg->tpg_mutex);
 	return ret;
@@ -1535,17 +1535,17 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 
 	tv_nexus = kzalloc(sizeof(*tv_nexus), GFP_KERNEL);
 	if (!tv_nexus) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
 	tv_nexus->tvn_se_sess = target_setup_session(&tpg->se_tpg,
 						     USB_G_DEFAULT_SESSION_TAGS,
 						     sizeof(struct usbg_cmd),
-						     TARGET_PROT_NORMAL, name,
+						     TARGET_PROT_ANALRMAL, name,
 						     tv_nexus, usbg_alloc_sess_cb);
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
-#define MAKE_NEXUS_MSG "core_tpg_check_initiator_node_acl() failed for %s\n"
+#define MAKE_NEXUS_MSG "core_tpg_check_initiator_analde_acl() failed for %s\n"
 		pr_debug(MAKE_NEXUS_MSG, name);
 #undef MAKE_NEXUS_MSG
 		ret = PTR_ERR(tv_nexus->tvn_se_sess);
@@ -1561,7 +1561,7 @@ static int tcm_usbg_drop_nexus(struct usbg_tpg *tpg)
 {
 	struct se_session *se_sess;
 	struct tcm_usbg_nexus *tv_nexus;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	mutex_lock(&tpg->tpg_mutex);
 	tv_nexus = tpg->tpg_nexus;
@@ -1581,7 +1581,7 @@ static int tcm_usbg_drop_nexus(struct usbg_tpg *tpg)
 	}
 
 	pr_debug("Removing I_T Nexus to Initiator Port: %s\n",
-			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+			tv_nexus->tvn_se_sess->se_analde_acl->initiatorname);
 	/*
 	 * Release the SCSI I_T Nexus to the emulated vHost Target Port
 	 */
@@ -1683,7 +1683,7 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.fabric_drop_tpg		= usbg_drop_tpg,
 	.fabric_post_link		= usbg_port_link,
 	.fabric_pre_unlink		= usbg_port_unlink,
-	.fabric_init_nodeacl		= usbg_init_nodeacl,
+	.fabric_init_analdeacl		= usbg_init_analdeacl,
 
 	.tfc_wwn_attrs			= usbg_wwn_attrs,
 	.tfc_tpg_base_attrs		= usbg_base_attrs,
@@ -1954,7 +1954,7 @@ static int tcm_bind(struct usb_configuration *c, struct usb_function *f)
 	mutex_lock(&opts->dep_lock);
 	if (!opts->can_attach) {
 		mutex_unlock(&opts->dep_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	mutex_unlock(&opts->dep_lock);
 	us = usb_gstrings_attach(c->cdev, tcm_strings,
@@ -2019,7 +2019,7 @@ static int tcm_bind(struct usb_configuration *c, struct usb_function *f)
 ep_fail:
 	pr_err("Can't claim all required eps\n");
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 struct guas_setup_wq {
@@ -2056,7 +2056,7 @@ static int tcm_get_alt(struct usb_function *f, unsigned intf)
 	if (intf == uasp_intf_desc.bInterfaceNumber)
 		return USB_G_ALT_INT_UAS;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int tcm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
@@ -2068,14 +2068,14 @@ static int tcm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 		work = kmalloc(sizeof(*work), GFP_ATOMIC);
 		if (!work)
-			return -ENOMEM;
+			return -EANALMEM;
 		INIT_WORK(&work->work, tcm_delayed_set_alt);
 		work->fu = fu;
 		work->alt = alt;
 		schedule_work(&work->work);
 		return USB_GADGET_DELAYED_STATUS;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void tcm_disable(struct usb_function *f)
@@ -2095,7 +2095,7 @@ static int tcm_setup(struct usb_function *f,
 	struct f_uas *fu = to_f_uas(f);
 
 	if (!(fu->flags & USBG_IS_BOT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return usbg_bot_setup(f, ctrl);
 }
@@ -2203,7 +2203,7 @@ static struct usb_function_instance *tcm_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&tpg_instances_lock);
 	for (i = 0; i < TPG_INSTANCES; ++i)
@@ -2253,13 +2253,13 @@ static struct usb_function *tcm_alloc(struct usb_function_instance *fi)
 			break;
 	if (i == TPG_INSTANCES) {
 		mutex_unlock(&tpg_instances_lock);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	fu = kzalloc(sizeof(*fu), GFP_KERNEL);
 	if (!fu) {
 		mutex_unlock(&tpg_instances_lock);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	fu->function.name = "Target Function";

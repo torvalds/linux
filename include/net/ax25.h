@@ -43,7 +43,7 @@
 #define AX25_P_ARP			0xcd	/* ARPA Address Resolution    */
 #define AX25_P_FLEXNET			0xce	/* FlexNet                    */
 #define AX25_P_NETROM 			0xcf	/* NET/ROM                    */
-#define AX25_P_TEXT 			0xF0	/* No layer 3 protocol impl.  */
+#define AX25_P_TEXT 			0xF0	/* Anal layer 3 protocol impl.  */
 
 /* AX.25 Segment control values */
 #define	AX25_SEG_REM			0x7F
@@ -55,7 +55,7 @@
 
 #define AX25_SSSID_SPARE		0x60	/* Unused bits in SSID for standard AX.25 */
 #define AX25_ESSID_SPARE		0x20	/* Unused bits in SSID for extended AX.25 */
-#define AX25_DAMA_FLAG			0x20	/* Well, it is *NOT* unused! (dl1bke 951121 */
+#define AX25_DAMA_FLAG			0x20	/* Well, it is *ANALT* unused! (dl1bke 951121 */
 
 #define	AX25_COND_ACK_PENDING		0x01
 #define	AX25_COND_REJECT		0x02
@@ -73,14 +73,14 @@
 #define	AX25_I			0x00	/* Information frames */
 #define	AX25_S			0x01	/* Supervisory frames */
 #define	AX25_RR			0x01	/* Receiver ready */
-#define	AX25_RNR		0x05	/* Receiver not ready */
+#define	AX25_RNR		0x05	/* Receiver analt ready */
 #define	AX25_REJ		0x09	/* Reject */
 #define	AX25_U			0x03	/* Unnumbered frames */
-#define	AX25_SABM		0x2f	/* Set Asynchronous Balanced Mode */
-#define	AX25_SABME		0x6f	/* Set Asynchronous Balanced Mode Extended */
+#define	AX25_SABM		0x2f	/* Set Asynchroanalus Balanced Mode */
+#define	AX25_SABME		0x6f	/* Set Asynchroanalus Balanced Mode Extended */
 #define	AX25_DISC		0x43	/* Disconnect */
 #define	AX25_DM			0x0f	/* Disconnected mode */
-#define	AX25_UA			0x63	/* Unnumbered acknowledge */
+#define	AX25_UA			0x63	/* Unnumbered ackanalwledge */
 #define	AX25_FRMR		0x87	/* Frame reject */
 #define	AX25_UI			0x03	/* Unnumbered information */
 #define	AX25_XID		0xaf	/* Exchange information */
@@ -127,9 +127,9 @@ enum {
 
 enum {
 	AX25_VALUES_IPDEFMODE,	/* 0=DG 1=VC */
-	AX25_VALUES_AXDEFMODE,	/* 0=Normal 1=Extended Seq Nos */
-	AX25_VALUES_BACKOFF,	/* 0=None 1=Linear 2=Exponential */
-	AX25_VALUES_CONMODE,	/* Allow connected modes - 0=No 1=no "PID text" 2=all PIDs */
+	AX25_VALUES_AXDEFMODE,	/* 0=Analrmal 1=Extended Seq Anals */
+	AX25_VALUES_BACKOFF,	/* 0=Analne 1=Linear 2=Exponential */
+	AX25_VALUES_CONMODE,	/* Allow connected modes - 0=Anal 1=anal "PID text" 2=all PIDs */
 	AX25_VALUES_WINDOW,	/* Default window size for standard AX.25 */
 	AX25_VALUES_EWINDOW,	/* Default window size for extended AX.25 */
 	AX25_VALUES_T1,		/* Default T1 timeout value */
@@ -144,7 +144,7 @@ enum {
 };
 
 #define	AX25_DEF_IPDEFMODE	0			/* Datagram */
-#define	AX25_DEF_AXDEFMODE	0			/* Normal */
+#define	AX25_DEF_AXDEFMODE	0			/* Analrmal */
 #define	AX25_DEF_BACKOFF	1			/* Linear backoff */
 #define	AX25_DEF_CONMODE	2			/* Connected mode allowed */
 #define	AX25_DEF_WINDOW		2			/* Window=2 */
@@ -153,20 +153,20 @@ enum {
 #define	AX25_DEF_T2		3000			/* T2=3s  */
 #define	AX25_DEF_T3		300000			/* T3=300s */
 #define	AX25_DEF_N2		10			/* N2=10 */
-#define AX25_DEF_IDLE		0			/* Idle=None */
+#define AX25_DEF_IDLE		0			/* Idle=Analne */
 #define AX25_DEF_PACLEN		256			/* Paclen=256 */
 #define	AX25_DEF_PROTOCOL	AX25_PROTO_STD_SIMPLEX	/* Standard AX.25 */
 #define AX25_DEF_DS_TIMEOUT	180000			/* DAMA timeout 3 minutes */
 
 typedef struct ax25_uid_assoc {
-	struct hlist_node	uid_node;
+	struct hlist_analde	uid_analde;
 	refcount_t		refcount;
 	kuid_t			uid;
 	ax25_address		call;
 } ax25_uid_assoc;
 
 #define ax25_uid_for_each(__ax25, list) \
-	hlist_for_each_entry(__ax25, list, uid_node)
+	hlist_for_each_entry(__ax25, list, uid_analde)
 
 #define ax25_uid_hold(ax25) \
 	refcount_inc(&((ax25)->refcount))
@@ -232,7 +232,7 @@ typedef struct ax25_dev {
 } ax25_dev;
 
 typedef struct ax25_cb {
-	struct hlist_node	ax25_node;
+	struct hlist_analde	ax25_analde;
 	ax25_address		source_addr, dest_addr;
 	ax25_digi		*digipeat;
 	ax25_dev		*ax25_dev;
@@ -244,7 +244,7 @@ typedef struct ax25_cb {
 	unsigned char		n2, n2count;
 	struct timer_list	t1timer, t2timer, t3timer, idletimer;
 	unsigned long		t1, t2, t3, idle, rtt;
-	unsigned short		paclen, fragno, fraglen;
+	unsigned short		paclen, fraganal, fraglen;
 	struct sk_buff_head	write_queue;
 	struct sk_buff_head	reseq_queue;
 	struct sk_buff_head	ack_queue;
@@ -268,7 +268,7 @@ static inline struct ax25_cb *sk_to_ax25(const struct sock *sk)
 }
 
 #define ax25_for_each(__ax25, list) \
-	hlist_for_each_entry(__ax25, list, ax25_node)
+	hlist_for_each_entry(__ax25, list, ax25_analde)
 
 #define ax25_cb_hold(__ax25) \
 	refcount_inc(&((__ax25)->refcount))
@@ -380,7 +380,7 @@ void ax25_register_pid(struct ax25_protocol *ap);
 void ax25_protocol_release(unsigned int);
 
 struct ax25_linkfail {
-	struct hlist_node lf_node;
+	struct hlist_analde lf_analde;
 	void (*func)(ax25_cb *, int);
 };
 

@@ -25,15 +25,15 @@ static int xge_get_resources(struct xge_pdata *pdata)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "Resource enet_csr not defined\n");
-		return -ENODEV;
+		dev_err(dev, "Resource enet_csr analt defined\n");
+		return -EANALDEV;
 	}
 
 	pdata->resources.base_addr = devm_ioremap(dev, res->start,
 						  resource_size(res));
 	if (!pdata->resources.base_addr) {
 		dev_err(dev, "Unable to retrieve ENET Port CSR region\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (device_get_ethdev_address(dev, ndev))
@@ -50,7 +50,7 @@ static int xge_get_resources(struct xge_pdata *pdata)
 
 	if (pdata->resources.phy_mode != PHY_INTERFACE_MODE_RGMII) {
 		dev_err(dev, "Incorrect phy-connection-type specified\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = platform_get_irq(pdev, 0);
@@ -81,7 +81,7 @@ static int xge_refill_buffers(struct net_device *ndev, u32 nbuf)
 		len = XGENE_ENET_STD_MTU;
 		skb = netdev_alloc_skb(ndev, len);
 		if (unlikely(!skb))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dma_addr = dma_map_single(dev, skb->data, len, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, dma_addr)) {
@@ -464,7 +464,7 @@ static int xge_create_desc_rings(struct net_device *ndev)
 err:
 	xge_delete_desc_rings(ndev);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int xge_open(struct net_device *ndev)
@@ -638,7 +638,7 @@ static int xge_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(*pdata));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = netdev_priv(ndev);
 
@@ -660,7 +660,7 @@ static int xge_probe(struct platform_device *pdev)
 
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret) {
-		netdev_err(ndev, "No usable DMA configuration\n");
+		netdev_err(ndev, "Anal usable DMA configuration\n");
 		goto err;
 	}
 

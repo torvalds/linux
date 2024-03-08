@@ -12,7 +12,7 @@
 #define __PSP_TEE_H_
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 /* This file defines the Trusted Execution Environment (TEE) interface commands
  * and the API exported by AMD Secure Processor driver to communicate with
@@ -54,10 +54,10 @@ enum tee_cmd_id {
  *
  * Returns:
  * 0 if TEE successfully processed the command
- * -%ENODEV    if PSP device not available
+ * -%EANALDEV    if PSP device analt available
  * -%EINVAL    if invalid input
  * -%ETIMEDOUT if TEE command timed out
- * -%EBUSY     if PSP device is not responsive
+ * -%EBUSY     if PSP device is analt responsive
  */
 int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf, size_t len,
 			u32 *status);
@@ -71,7 +71,7 @@ int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf, size_t len,
  *
  * Returns:
  * 0          if the device has TEE
- * -%ENODEV   if there is no TEE available
+ * -%EANALDEV   if there is anal TEE available
  */
 int psp_check_tee_status(void);
 
@@ -80,12 +80,12 @@ int psp_check_tee_status(void);
 static inline int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf,
 				      size_t len, u32 *status)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int psp_check_tee_status(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_CRYPTO_DEV_SP_PSP */
 #endif /* __PSP_TEE_H_ */

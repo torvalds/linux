@@ -28,7 +28,7 @@ static ssize_t debugfs_dim_read(struct file *filep,
 	if (*ppos)
 		return 0;
 	if (!dim)
-		return -ENODEV;
+		return -EANALDEV;
 	buf = kasprintf(GFP_KERNEL,
 			"state = %d\n" \
 			"profile_ix = %d\n" \
@@ -45,10 +45,10 @@ static ssize_t debugfs_dim_read(struct file *filep,
 			dim->steps_left,
 			dim->tired);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (count < strlen(buf)) {
 		kfree(buf);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	len = simple_read_from_buffer(buffer, count, ppos, buf, strlen(buf));
 	kfree(buf);

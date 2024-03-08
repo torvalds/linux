@@ -69,7 +69,7 @@ struct p80211msg_dot11req_scan_results {
 	struct p80211item_uint32 bssindex;
 	struct p80211item_uint32 resultcode;
 	struct p80211item_uint32 signal;
-	struct p80211item_uint32 noise;
+	struct p80211item_uint32 analise;
 	struct p80211item_pstr6 bssid;
 	u8 pad_3C[1];
 	struct p80211item_pstr32 ssid;
@@ -174,7 +174,7 @@ struct p80211msg_lnxreq_commsquality {
 	struct p80211item_uint32 dbm;
 	struct p80211item_uint32 link;
 	struct p80211item_uint32 level;
-	struct p80211item_uint32 noise;
+	struct p80211item_uint32 analise;
 	struct p80211item_uint32 txrate;
 } __packed;
 

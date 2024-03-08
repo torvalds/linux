@@ -29,7 +29,7 @@ static int empty_8042(void)
 		if (status == 0xff) {
 			/* FF is a plausible, but very unlikely status */
 			if (!--ffs)
-				return -1; /* Assume no KBC present */
+				return -1; /* Assume anal KBC present */
 		}
 		if (status & 1) {
 			/* Read and discard input data */
@@ -44,7 +44,7 @@ static int empty_8042(void)
 	return -1;
 }
 
-/* Returns nonzero if the A20 line is enabled.  The memory address
+/* Returns analnzero if the A20 line is enabled.  The memory address
    used as a test is the int $0x80 vector, which should be safe. */
 
 #define A20_TEST_ADDR	(4*0x80)
@@ -115,7 +115,7 @@ static void enable_a20_fast(void)
 
 	port_a = inb(0x92);	/* Configuration port A */
 	port_a |=  0x02;	/* Enable A20 */
-	port_a &= ~0x01;	/* Do not reset machine */
+	port_a &= ~0x01;	/* Do analt reset machine */
 	outb(port_a, 0x92);
 }
 

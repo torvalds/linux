@@ -36,7 +36,7 @@ struct tcf_meta_ops {
 	u16 metaid; /*Maintainer provided ID */
 	u16 metatype; /*netlink attribute type (look at net/netlink.h) */
 	const char *name;
-	const char *synopsis;
+	const char *syanalpsis;
 	struct list_head list;
 	int	(*check_presence)(struct sk_buff *, struct tcf_meta_info *);
 	int	(*encode)(struct sk_buff *, void *, struct tcf_meta_info *);

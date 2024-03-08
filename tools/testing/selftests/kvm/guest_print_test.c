@@ -22,7 +22,7 @@ struct guest_vals {
 
 static struct guest_vals vals;
 
-/* GUEST_PRINTF()/GUEST_ASSERT_FMT() does not support float or double. */
+/* GUEST_PRINTF()/GUEST_ASSERT_FMT() does analt support float or double. */
 #define TYPE_LIST					\
 TYPE(test_type_i64,  I64,  "%ld",   int64_t)		\
 TYPE(test_type_u64,  U64u, "%lu",   uint64_t)		\
@@ -121,7 +121,7 @@ static void run_test(struct kvm_vcpu *vcpu, const char *expected_printf,
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_SYNC:
-			TEST_FAIL("Unknown 'args_type' = %lu", uc.args[1]);
+			TEST_FAIL("Unkanalwn 'args_type' = %lu", uc.args[1]);
 			break;
 		case UCALL_PRINTF:
 			TEST_ASSERT(strcmp(uc.buffer, expected_printf) == 0,
@@ -134,7 +134,7 @@ static void run_test(struct kvm_vcpu *vcpu, const char *expected_printf,
 		case UCALL_DONE:
 			return;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 }

@@ -4,49 +4,49 @@
  * (c) 2009 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <linux/compiler.h>
 
 #include "intlist.h"
 
-static struct rb_node *intlist__node_new(struct rblist *rblist __maybe_unused,
+static struct rb_analde *intlist__analde_new(struct rblist *rblist __maybe_unused,
 					 const void *entry)
 {
 	unsigned long i = (unsigned long)entry;
-	struct rb_node *rc = NULL;
-	struct int_node *node = malloc(sizeof(*node));
+	struct rb_analde *rc = NULL;
+	struct int_analde *analde = malloc(sizeof(*analde));
 
-	if (node != NULL) {
-		node->i = i;
-		node->priv = NULL;
-		rc = &node->rb_node;
+	if (analde != NULL) {
+		analde->i = i;
+		analde->priv = NULL;
+		rc = &analde->rb_analde;
 	}
 
 	return rc;
 }
 
-static void int_node__delete(struct int_node *ilist)
+static void int_analde__delete(struct int_analde *ilist)
 {
 	free(ilist);
 }
 
-static void intlist__node_delete(struct rblist *rblist __maybe_unused,
-				 struct rb_node *rb_node)
+static void intlist__analde_delete(struct rblist *rblist __maybe_unused,
+				 struct rb_analde *rb_analde)
 {
-	struct int_node *node = container_of(rb_node, struct int_node, rb_node);
+	struct int_analde *analde = container_of(rb_analde, struct int_analde, rb_analde);
 
-	int_node__delete(node);
+	int_analde__delete(analde);
 }
 
-static int intlist__node_cmp(struct rb_node *rb_node, const void *entry)
+static int intlist__analde_cmp(struct rb_analde *rb_analde, const void *entry)
 {
 	unsigned long i = (unsigned long)entry;
-	struct int_node *node = container_of(rb_node, struct int_node, rb_node);
+	struct int_analde *analde = container_of(rb_analde, struct int_analde, rb_analde);
 
-	if (node->i > i)
+	if (analde->i > i)
 		return 1;
-	else if (node->i < i)
+	else if (analde->i < i)
 		return -1;
 
 	return 0;
@@ -54,40 +54,40 @@ static int intlist__node_cmp(struct rb_node *rb_node, const void *entry)
 
 int intlist__add(struct intlist *ilist, unsigned long i)
 {
-	return rblist__add_node(&ilist->rblist, (void *)i);
+	return rblist__add_analde(&ilist->rblist, (void *)i);
 }
 
-void intlist__remove(struct intlist *ilist, struct int_node *node)
+void intlist__remove(struct intlist *ilist, struct int_analde *analde)
 {
-	rblist__remove_node(&ilist->rblist, &node->rb_node);
+	rblist__remove_analde(&ilist->rblist, &analde->rb_analde);
 }
 
-static struct int_node *__intlist__findnew(struct intlist *ilist,
+static struct int_analde *__intlist__findnew(struct intlist *ilist,
 					   unsigned long i, bool create)
 {
-	struct int_node *node = NULL;
-	struct rb_node *rb_node;
+	struct int_analde *analde = NULL;
+	struct rb_analde *rb_analde;
 
 	if (ilist == NULL)
 		return NULL;
 
 	if (create)
-		rb_node = rblist__findnew(&ilist->rblist, (void *)i);
+		rb_analde = rblist__findnew(&ilist->rblist, (void *)i);
 	else
-		rb_node = rblist__find(&ilist->rblist, (void *)i);
+		rb_analde = rblist__find(&ilist->rblist, (void *)i);
 
-	if (rb_node)
-		node = container_of(rb_node, struct int_node, rb_node);
+	if (rb_analde)
+		analde = container_of(rb_analde, struct int_analde, rb_analde);
 
-	return node;
+	return analde;
 }
 
-struct int_node *intlist__find(struct intlist *ilist, unsigned long i)
+struct int_analde *intlist__find(struct intlist *ilist, unsigned long i)
 {
 	return __intlist__findnew(ilist, i, false);
 }
 
-struct int_node *intlist__findnew(struct intlist *ilist, unsigned long i)
+struct int_analde *intlist__findnew(struct intlist *ilist, unsigned long i)
 {
 	return __intlist__findnew(ilist, i, true);
 }
@@ -117,9 +117,9 @@ struct intlist *intlist__new(const char *slist)
 
 	if (ilist != NULL) {
 		rblist__init(&ilist->rblist);
-		ilist->rblist.node_cmp    = intlist__node_cmp;
-		ilist->rblist.node_new    = intlist__node_new;
-		ilist->rblist.node_delete = intlist__node_delete;
+		ilist->rblist.analde_cmp    = intlist__analde_cmp;
+		ilist->rblist.analde_new    = intlist__analde_new;
+		ilist->rblist.analde_delete = intlist__analde_delete;
 
 		if (slist && intlist__parse_list(ilist, slist))
 			goto out_delete;
@@ -137,14 +137,14 @@ void intlist__delete(struct intlist *ilist)
 		rblist__delete(&ilist->rblist);
 }
 
-struct int_node *intlist__entry(const struct intlist *ilist, unsigned int idx)
+struct int_analde *intlist__entry(const struct intlist *ilist, unsigned int idx)
 {
-	struct int_node *node = NULL;
-	struct rb_node *rb_node;
+	struct int_analde *analde = NULL;
+	struct rb_analde *rb_analde;
 
-	rb_node = rblist__entry(&ilist->rblist, idx);
-	if (rb_node)
-		node = container_of(rb_node, struct int_node, rb_node);
+	rb_analde = rblist__entry(&ilist->rblist, idx);
+	if (rb_analde)
+		analde = container_of(rb_analde, struct int_analde, rb_analde);
 
-	return node;
+	return analde;
 }

@@ -65,7 +65,7 @@ static const unsigned int pcm186x_adc_input_channel_sel_value[] = {
 };
 
 static const char * const pcm186x_adcl_input_channel_sel_text[] = {
-	"No Select",
+	"Anal Select",
 	"VINL1[SE]",					/* Default for ADC1L */
 	"VINL2[SE]",					/* Default for ADC2L */
 	"VINL2[SE] + VINL1[SE]",
@@ -87,7 +87,7 @@ static const char * const pcm186x_adcl_input_channel_sel_text[] = {
 };
 
 static const char * const pcm186x_adcr_input_channel_sel_text[] = {
-	"No Select",
+	"Anal Select",
 	"VINR1[SE]",					/* Default for ADC1R */
 	"VINR2[SE]",					/* Default for ADC2R */
 	"VINR2[SE] + VINR1[SE]",
@@ -148,13 +148,13 @@ static const struct snd_soc_dapm_widget pcm1863_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("VINL4"),
 	SND_SOC_DAPM_INPUT("VINR4"),
 
-	SND_SOC_DAPM_MUX("ADC Left Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC Left Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &pcm186x_adc_mux_controls[0]),
-	SND_SOC_DAPM_MUX("ADC Right Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC Right Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &pcm186x_adc_mux_controls[1]),
 
 	/*
-	 * Put the codec into SLEEP mode when not in use, allowing the
+	 * Put the codec into SLEEP mode when analt in use, allowing the
 	 * Energysense mechanism to operate.
 	 */
 	SND_SOC_DAPM_ADC("ADC", "HiFi Capture", PCM186X_POWER_CTRL, 1,  1),
@@ -170,17 +170,17 @@ static const struct snd_soc_dapm_widget pcm1865_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("VINL4"),
 	SND_SOC_DAPM_INPUT("VINR4"),
 
-	SND_SOC_DAPM_MUX("ADC1 Left Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC1 Left Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &pcm186x_adc_mux_controls[0]),
-	SND_SOC_DAPM_MUX("ADC1 Right Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC1 Right Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &pcm186x_adc_mux_controls[1]),
-	SND_SOC_DAPM_MUX("ADC2 Left Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC2 Left Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &pcm186x_adc_mux_controls[2]),
-	SND_SOC_DAPM_MUX("ADC2 Right Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC2 Right Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &pcm186x_adc_mux_controls[3]),
 
 	/*
-	 * Put the codec into SLEEP mode when not in use, allowing the
+	 * Put the codec into SLEEP mode when analt in use, allowing the
 	 * Energysense mechanism to operate.
 	 */
 	SND_SOC_DAPM_ADC("ADC1", "HiFi Capture 1", PCM186X_POWER_CTRL, 1,  1),
@@ -385,7 +385,7 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 	case SND_SOC_DAIFMT_NB_NF:
 		break;
 	default:
-		dev_err(component->dev, "Inverted DAI clocks not supported\n");
+		dev_err(component->dev, "Inverted DAI clocks analt supported\n");
 		return -EINVAL;
 	}
 
@@ -435,7 +435,7 @@ static int pcm186x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		__func__, tx_mask, rx_mask, slots, slot_width);
 
 	if (!tx_mask) {
-		dev_err(component->dev, "tdm tx mask must not be 0\n");
+		dev_err(component->dev, "tdm tx mask must analt be 0\n");
 		return -EINVAL;
 	}
 
@@ -641,7 +641,7 @@ int pcm186x_probe(struct device *dev, enum pcm186x_type type, int irq,
 
 	priv = devm_kzalloc(dev, sizeof(struct pcm186x_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, priv);
 	priv->regmap = regmap;

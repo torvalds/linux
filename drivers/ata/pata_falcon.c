@@ -54,7 +54,7 @@ static unsigned int pata_falcon_data_xfer(struct ata_queued_cmd *qc,
 
 	if (dev->class == ATA_DEV_ATA && cmd &&
 	    !blk_rq_is_passthrough(scsi_cmd_to_rq(cmd)))
-		swap = (uintptr_t)ap->private_data & BIT(dev->devno);
+		swap = (uintptr_t)ap->private_data & BIT(dev->devanal);
 
 	/* Transfer multiple of 2 bytes */
 	if (rw == READ) {
@@ -117,7 +117,7 @@ static int pata_falcon_set_mode(struct ata_link *link,
 static struct ata_port_operations pata_falcon_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.sff_data_xfer	= pata_falcon_data_xfer,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_mode	= pata_falcon_set_mode,
 };
 
@@ -149,7 +149,7 @@ static int pata_falcon_init_one(struct platform_device *pdev)
 
 	base_mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!base_mem_res)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!devm_request_mem_region(&pdev->dev, base_mem_res->start,
 				     resource_size(base_mem_res), DRV_NAME)) {
 		dev_err(&pdev->dev, "resources busy\n");
@@ -158,17 +158,17 @@ static int pata_falcon_init_one(struct platform_device *pdev)
 
 	ctl_mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!ctl_mem_res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap = host->ports[0];
 
 	ap->ops = &pata_falcon_ops;
 	ap->pio_mask = ATA_PIO4;
-	ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_IORDY;
+	ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_ANAL_IORDY;
 
 	/* N.B. this assumes data_addr will be used for word-sized I/O only */
 	ap->ioaddr.data_addr = (void __iomem *)base_mem_res->start;
@@ -208,7 +208,7 @@ static int pata_falcon_init_one(struct platform_device *pdev)
 		irq = irq_res->start;
 	} else {
 		ap->flags |= ATA_FLAG_PIO_POLLING;
-		ata_port_desc(ap, "no IRQ, using PIO polling");
+		ata_port_desc(ap, "anal IRQ, using PIO polling");
 	}
 
 	/* activate */

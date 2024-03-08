@@ -6,7 +6,7 @@
  * to CP.
  *
  * The command can be altered using the module parameter "cmd". This is
- * not recommended because it's only supported on z/VM but not whith LPAR.
+ * analt recommended because it's only supported on z/VM but analt whith LPAR.
  *
  * On LPAR, the watchdog will always trigger a system restart. the module
  * paramter cmd is meaningless here.
@@ -35,7 +35,7 @@
 #define DEFAULT_CMD "SYSTEM RESTART"
 
 #define MIN_INTERVAL 15     /* Minimal time supported by diag88 */
-#define MAX_INTERVAL 3600   /* One hour should be enough - pure estimation */
+#define MAX_INTERVAL 3600   /* One hour should be eanalugh - pure estimation */
 
 #define WDT_DEFAULT_TIMEOUT 30
 
@@ -50,7 +50,7 @@
 
 static char wdt_cmd[MAX_CMDLEN] = DEFAULT_CMD;
 static bool conceal_on;
-static bool nowayout_info = WATCHDOG_NOWAYOUT;
+static bool analwayout_info = WATCHDOG_ANALWAYOUT;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
@@ -64,8 +64,8 @@ MODULE_PARM_DESC(cmd, "CP command that is run when the watchdog triggers (z/VM o
 module_param_named(conceal, conceal_on, bool, 0644);
 MODULE_PARM_DESC(conceal, "Enable the CONCEAL CP option while the watchdog is active (z/VM only)");
 
-module_param_named(nowayout, nowayout_info, bool, 0444);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default = CONFIG_WATCHDOG_NOWAYOUT)");
+module_param_named(analwayout, analwayout_info, bool, 0444);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default = CONFIG_WATCHDOG_ANALWAYOUT)");
 
 MODULE_ALIAS("vmwatchdog");
 
@@ -120,7 +120,7 @@ static int wdt_start(struct watchdog_device *dev)
 	}
 
 	if (ret) {
-		pr_err("The watchdog cannot be activated\n");
+		pr_err("The watchdog cananalt be activated\n");
 		return ret;
 	}
 	return 0;
@@ -152,7 +152,7 @@ static int wdt_ping(struct watchdog_device *dev)
 	}
 
 	if (ret)
-		pr_err("The watchdog timer cannot be started or reset\n");
+		pr_err("The watchdog timer cananalt be started or reset\n");
 	return ret;
 }
 
@@ -190,31 +190,31 @@ static int __init diag288_init(void)
 {
 	int ret;
 
-	watchdog_set_nowayout(&wdt_dev, nowayout_info);
+	watchdog_set_analwayout(&wdt_dev, analwayout_info);
 
 	if (MACHINE_IS_VM) {
 		cmd_buf = kmalloc(MAX_CMDLEN, GFP_KERNEL);
 		if (!cmd_buf) {
-			pr_err("The watchdog cannot be initialized\n");
-			return -ENOMEM;
+			pr_err("The watchdog cananalt be initialized\n");
+			return -EANALMEM;
 		}
 
 		ret = diag288_str(WDT_FUNC_INIT, MIN_INTERVAL, "BEGIN");
 		if (ret != 0) {
-			pr_err("The watchdog cannot be initialized\n");
+			pr_err("The watchdog cananalt be initialized\n");
 			kfree(cmd_buf);
 			return -EINVAL;
 		}
 	} else {
 		if (diag288(WDT_FUNC_INIT, WDT_DEFAULT_TIMEOUT,
 			    LPARWDT_RESTART, 0)) {
-			pr_err("The watchdog cannot be initialized\n");
+			pr_err("The watchdog cananalt be initialized\n");
 			return -EINVAL;
 		}
 	}
 
 	if (diag288(WDT_FUNC_CANCEL, 0, 0, 0)) {
-		pr_err("The watchdog cannot be deactivated\n");
+		pr_err("The watchdog cananalt be deactivated\n");
 		return -EINVAL;
 	}
 

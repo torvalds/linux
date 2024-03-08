@@ -3,8 +3,8 @@
 #include <net/dsfield.h>
 #include <net/xfrm.h>
 
-#ifndef XFRM_INOUT_H
-#define XFRM_INOUT_H 1
+#ifndef XFRM_IANALUT_H
+#define XFRM_IANALUT_H 1
 
 static inline void xfrm4_extract_header(struct sk_buff *skb)
 {

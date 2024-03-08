@@ -87,7 +87,7 @@ int create_user_ns(struct cred *new)
 	struct ucounts *ucounts;
 	int ret, i;
 
-	ret = -ENOSPC;
+	ret = -EANALSPC;
 	if (parent_ns->level > 32)
 		goto fail;
 
@@ -96,7 +96,7 @@ int create_user_ns(struct cred *new)
 		goto fail;
 
 	/*
-	 * Verify that we can not violate the policy of which files
+	 * Verify that we can analt violate the policy of which files
 	 * may be accessed that is specified by the root directory,
 	 * by verifying that the root directory is at the root of the
 	 * mount namespace which allows all files to be accessed.
@@ -118,7 +118,7 @@ int create_user_ns(struct cred *new)
 	if (ret < 0)
 		goto fail_dec;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ns = kmem_cache_zalloc(user_ns_cachep, GFP_KERNEL);
 	if (!ns)
 		goto fail_dec;
@@ -154,7 +154,7 @@ int create_user_ns(struct cred *new)
 	INIT_LIST_HEAD(&ns->keyring_name_list);
 	init_rwsem(&ns->keyring_sem);
 #endif
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (!setup_userns_sysctls(ns))
 		goto fail_keyring;
 
@@ -176,7 +176,7 @@ fail:
 int unshare_userns(unsigned long unshare_flags, struct cred **new_cred)
 {
 	struct cred *cred;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!(unshare_flags & CLONE_NEWUSER))
 		return 0;
@@ -323,7 +323,7 @@ static u32 map_id_range_down(struct uid_gid_map *map, u32 id, u32 count)
 	else
 		extent = map_id_range_down_max(extents, map, id, count);
 
-	/* Map the id or note failure */
+	/* Map the id or analte failure */
 	if (extent)
 		id = (id - extent->first) + extent->lower_first;
 	else
@@ -386,7 +386,7 @@ u32 map_id_up(struct uid_gid_map *map, u32 id)
 	else
 		extent = map_id_up_max(extents, map, id);
 
-	/* Map the id or note failure */
+	/* Map the id or analte failure */
 	if (extent)
 		id = (id - extent->lower_first) + extent->first;
 	else
@@ -403,7 +403,7 @@ u32 map_id_up(struct uid_gid_map *map, u32 id)
  *	Maps a user-namespace uid pair into a kernel internal kuid,
  *	and returns that kuid.
  *
- *	When there is no mapping defined for the user-namespace uid
+ *	When there is anal mapping defined for the user-namespace uid
  *	pair INVALID_UID is returned.  Callers are expected to test
  *	for and handle INVALID_UID being returned.  INVALID_UID
  *	may be tested for using uid_valid().
@@ -425,7 +425,7 @@ EXPORT_SYMBOL(make_kuid);
  *
  *	There is always a mapping into the initial user_namespace.
  *
- *	If @kuid has no mapping in @targ (uid_t)-1 is returned.
+ *	If @kuid has anal mapping in @targ (uid_t)-1 is returned.
  */
 uid_t from_kuid(struct user_namespace *targ, kuid_t kuid)
 {
@@ -447,10 +447,10 @@ EXPORT_SYMBOL(from_kuid);
  *	Unlike from_kuid from_kuid_munged never fails and always
  *	returns a valid uid.  This makes from_kuid_munged appropriate
  *	for use in syscalls like stat and getuid where failing the
- *	system call and failing to provide a valid uid are not an
+ *	system call and failing to provide a valid uid are analt an
  *	options.
  *
- *	If @kuid has no mapping in @targ overflowuid is returned.
+ *	If @kuid has anal mapping in @targ overflowuid is returned.
  */
 uid_t from_kuid_munged(struct user_namespace *targ, kuid_t kuid)
 {
@@ -471,7 +471,7 @@ EXPORT_SYMBOL(from_kuid_munged);
  *	Maps a user-namespace gid pair into a kernel internal kgid,
  *	and returns that kgid.
  *
- *	When there is no mapping defined for the user-namespace gid
+ *	When there is anal mapping defined for the user-namespace gid
  *	pair INVALID_GID is returned.  Callers are expected to test
  *	for and handle INVALID_GID being returned.  INVALID_GID may be
  *	tested for using gid_valid().
@@ -493,7 +493,7 @@ EXPORT_SYMBOL(make_kgid);
  *
  *	There is always a mapping into the initial user_namespace.
  *
- *	If @kgid has no mapping in @targ (gid_t)-1 is returned.
+ *	If @kgid has anal mapping in @targ (gid_t)-1 is returned.
  */
 gid_t from_kgid(struct user_namespace *targ, kgid_t kgid)
 {
@@ -515,9 +515,9 @@ EXPORT_SYMBOL(from_kgid);
  *	Unlike from_kgid from_kgid_munged never fails and always
  *	returns a valid gid.  This makes from_kgid_munged appropriate
  *	for use in syscalls like stat and getgid where failing the
- *	system call and failing to provide a valid gid are not options.
+ *	system call and failing to provide a valid gid are analt options.
  *
- *	If @kgid has no mapping in @targ overflowgid is returned.
+ *	If @kgid has anal mapping in @targ overflowgid is returned.
  */
 gid_t from_kgid_munged(struct user_namespace *targ, kgid_t kgid)
 {
@@ -538,7 +538,7 @@ EXPORT_SYMBOL(from_kgid_munged);
  *	Maps a user-namespace uid pair into a kernel internal kuid,
  *	and returns that kuid.
  *
- *	When there is no mapping defined for the user-namespace projid
+ *	When there is anal mapping defined for the user-namespace projid
  *	pair INVALID_PROJID is returned.  Callers are expected to test
  *	for and handle INVALID_PROJID being returned.  INVALID_PROJID
  *	may be tested for using projid_valid().
@@ -560,7 +560,7 @@ EXPORT_SYMBOL(make_kprojid);
  *
  *	There is always a mapping into the initial user_namespace.
  *
- *	If @kprojid has no mapping in @targ (projid_t)-1 is returned.
+ *	If @kprojid has anal mapping in @targ (projid_t)-1 is returned.
  */
 projid_t from_kprojid(struct user_namespace *targ, kprojid_t kprojid)
 {
@@ -583,9 +583,9 @@ EXPORT_SYMBOL(from_kprojid);
  *	returns a valid projid.  This makes from_kprojid_munged
  *	appropriate for use in syscalls like stat and where
  *	failing the system call and failing to provide a valid projid are
- *	not an options.
+ *	analt an options.
  *
- *	If @kprojid has no mapping in @targ OVERFLOW_PROJID is returned.
+ *	If @kprojid has anal mapping in @targ OVERFLOW_PROJID is returned.
  */
 projid_t from_kprojid_munged(struct user_namespace *targ, kprojid_t kprojid)
 {
@@ -787,7 +787,7 @@ static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
 					sizeof(struct uid_gid_extent),
 					GFP_KERNEL);
 		if (!forward)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Copy over memory. Only set up memory for the forward pointer.
 		 * Defer the memory setup for the reverse pointer.
@@ -857,7 +857,7 @@ static int sort_idmaps(struct uid_gid_map *map)
 			       map->nr_extents * sizeof(struct uid_gid_extent),
 			       GFP_KERNEL);
 	if (!map->reverse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Sort reverse array. */
 	sort(map->reverse, map->nr_extents, sizeof(struct uid_gid_extent),
@@ -876,7 +876,7 @@ static int sort_idmaps(struct uid_gid_map *map)
  * process writing the map had the CAP_SETFCAP capability as the target process
  * will be able to write fscaps that are valid in ancestor user namespaces.
  *
- * Return: true if the mapping is allowed, false if not.
+ * Return: true if the mapping is allowed, false if analt.
  */
 static bool verify_root_map(const struct file *file,
 			    struct user_namespace *map_ns,
@@ -950,7 +950,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	 *
 	 * An id map fits within 1 cache line on most architectures.
 	 *
-	 * On read nothing needs to be done unless you are on an
+	 * On read analthing needs to be done unless you are on an
 	 * architecture with a crazy cache coherency model like alpha.
 	 *
 	 * There is a one time data dependency between reading the
@@ -1006,7 +1006,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 		if (*pos && !isspace(*pos))
 			goto out;
 
-		/* Verify there is not trailing junk on the line */
+		/* Verify there is analt trailing junk on the line */
 		pos = skip_spaces(pos);
 		if (*pos != '\0')
 			goto out;
@@ -1016,7 +1016,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 		    (extent.lower_first == (u32) -1))
 			goto out;
 
-		/* Verify count is not zero and does not cause the
+		/* Verify count is analt zero and does analt cause the
 		 * extent to wrap
 		 */
 		if ((extent.first + extent.count) <= extent.first)
@@ -1064,7 +1064,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 						e->lower_first,
 						e->count);
 
-		/* Fail if we can not map the specified extent to
+		/* Fail if we can analt map the specified extent to
 		 * the kernel global id space.
 		 */
 		if (lower_first == (u32) -1)
@@ -1155,7 +1155,7 @@ ssize_t proc_projid_map_write(struct file *file, const char __user *buf,
 	if ((seq_ns != ns) && (seq_ns != ns->parent))
 		return -EPERM;
 
-	/* Anyone can set any valid project id no capability needed */
+	/* Anyone can set any valid project id anal capability needed */
 	return map_write(file, buf, size, ppos, -1,
 			 &ns->projid_map, &ns->parent->projid_map);
 }
@@ -1247,7 +1247,7 @@ ssize_t proc_setgroups_write(struct file *file, const char __user *buf,
 	else
 		goto out;
 
-	/* Verify there is not trailing junk on the line */
+	/* Verify there is analt trailing junk on the line */
 	pos = skip_spaces(pos);
 	if (*pos != '\0')
 		goto out;
@@ -1256,13 +1256,13 @@ ssize_t proc_setgroups_write(struct file *file, const char __user *buf,
 	mutex_lock(&userns_state_mutex);
 	if (setgroups_allowed) {
 		/* Enabling setgroups after setgroups has been disabled
-		 * is not allowed.
+		 * is analt allowed.
 		 */
 		if (!(ns->flags & USERNS_SETGROUPS_ALLOWED))
 			goto out_unlock;
 	} else {
 		/* Permanently disabling setgroups after setgroups has
-		 * been enabled by writing the gid_map is not allowed.
+		 * been enabled by writing the gid_map is analt allowed.
 		 */
 		if (ns->gid_map.nr_extents != 0)
 			goto out_unlock;
@@ -1285,7 +1285,7 @@ bool userns_may_setgroups(const struct user_namespace *ns)
 	bool allowed;
 
 	mutex_lock(&userns_state_mutex);
-	/* It is not safe to use setgroups until a gid mapping in
+	/* It is analt safe to use setgroups until a gid mapping in
 	 * the user namespace has been established.
 	 */
 	allowed = ns->gid_map.nr_extents != 0;

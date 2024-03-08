@@ -14,8 +14,8 @@
 #undef GENL_mc_group
 #define GENL_mc_group(group)
 
-#undef GENL_notification
-#define GENL_notification(op_name, op_num, mcast_group, tla_list)
+#undef GENL_analtification
+#define GENL_analtification(op_name, op_num, mcast_group, tla_list)
 
 #undef GENL_op
 #define GENL_op(op_name, op_num, handler, tla_list)
@@ -96,7 +96,7 @@ static void dprint_array(const char *dir, int nla_type,
 #define DPRINT_TLA(a, op, b) pr_info("%s %s %s\n", a, op, b);
 
 /* Name is a member field name of the struct s.
- * If s is NULL (only parsing, no copy requested in *_from_attrs()),
+ * If s is NULL (only parsing, anal copy requested in *_from_attrs()),
  * nla is supposed to point to the attribute containing the information
  * corresponding to that struct member. */
 #define DPRINT_FIELD(dir, nla_type, name, s, nla)			\
@@ -147,7 +147,7 @@ static int __ ## s_name ## _from_attrs(struct s_name *s,		\
 	int err;							\
 	BUILD_BUG_ON(ARRAY_SIZE(s_name ## _nl_policy) > ARRAY_SIZE(nested_attr_tb));	\
 	if (!tla)							\
-		return -ENOMSG;						\
+		return -EANALMSG;						\
 	DPRINT_TLA(#s_name, "<=-", #tag_name);				\
 	err = drbd_nla_parse_nested(ntb, maxtype, tla, s_name ## _nl_policy);	\
 	if (err)							\
@@ -171,7 +171,7 @@ static int s_name ## _from_attrs_for_change(struct s_name *s,		\
 		nla = ntb[attr_nr];						\
 		if (nla) {						\
 			if (exclude_invariants && !!((attr_flag) & DRBD_F_INVARIANT)) {		\
-				pr_info("<< must not change invariant attr: %s\n", #name);	\
+				pr_info("<< must analt change invariant attr: %s\n", #name);	\
 				return -EEXIST;				\
 			}						\
 			assignment;					\
@@ -180,7 +180,7 @@ static int s_name ## _from_attrs_for_change(struct s_name *s,		\
 			/* which was expected */			\
 		} else if ((attr_flag) & DRBD_F_REQUIRED) {		\
 			pr_info("<< missing attr: %s\n", #name);	\
-			return -ENOMSG;					\
+			return -EANALMSG;					\
 		}
 
 #undef __field
@@ -218,7 +218,7 @@ static const char *CONCATENATE(GENL_MAGIC_FAMILY, _genl_cmd_to_str)(__u8 cmd)
 	case op_num: return #op_name;
 #include GENL_MAGIC_INCLUDE_FILE
 	default:
-		     return "unknown";
+		     return "unkanalwn";
 	}
 }
 

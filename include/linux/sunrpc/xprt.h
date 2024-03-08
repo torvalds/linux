@@ -66,7 +66,7 @@ struct rpc_rqst {
 	struct rpc_cred *	rq_cred;	/* Bound cred */
 	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
-	u32			rq_seqno;	/* gss seq no. used on req. */
+	u32			rq_seqanal;	/* gss seq anal. used on req. */
 	int			rq_enc_pages_num;
 	struct page		**rq_enc_pages;	/* scratch pages for use by
 						   gss privacy code */
@@ -74,7 +74,7 @@ struct rpc_rqst {
 
 	union {
 		struct list_head	rq_list;	/* Slot allocation list */
-		struct rb_node		rq_recv;	/* Receive queue */
+		struct rb_analde		rq_recv;	/* Receive queue */
 	};
 
 	struct list_head	rq_xmit;	/* Send queue */
@@ -92,7 +92,7 @@ struct rpc_rqst {
 							 * used in the softirq.
 							 */
 	unsigned long		rq_majortimeo;	/* major timeout alarm */
-	unsigned long		rq_minortimeo;	/* minor timeout alarm */
+	unsigned long		rq_mianalrtimeo;	/* mianalr timeout alarm */
 	unsigned long		rq_timeout;	/* Current timeout value */
 	ktime_t			rq_rtt;		/* round-trip time */
 	unsigned int		rq_retries;	/* # of retries */
@@ -111,7 +111,7 @@ struct rpc_rqst {
 	int			rq_ntrans;
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	struct lwq_node		rq_bc_list;	/* Callback service list */
+	struct lwq_analde		rq_bc_list;	/* Callback service list */
 	unsigned long		rq_bc_pa_state;	/* Backchannel prealloc state */
 	struct list_head	rq_bc_pa_list;	/* Backchannel prealloc list */
 #endif /* CONFIG_SUNRPC_BACKCHANEL */
@@ -121,8 +121,8 @@ struct rpc_rqst {
 
 /* RPC transport layer security policies */
 enum xprtsec_policies {
-	RPC_XPRTSEC_NONE = 0,
-	RPC_XPRTSEC_TLS_ANON,
+	RPC_XPRTSEC_ANALNE = 0,
+	RPC_XPRTSEC_TLS_AANALN,
 	RPC_XPRTSEC_TLS_X509,
 };
 
@@ -178,8 +178,8 @@ struct rpc_xprt_ops {
  *
  * To preserve compatibility with the historical use of raw IP protocol
  * id's for transport selection, UDP and TCP identifiers are specified
- * with the previous values. No such restriction exists for new transports,
- * except that they may not collide with these values (17 and 6,
+ * with the previous values. Anal such restriction exists for new transports,
+ * except that they may analt collide with these values (17 and 6,
  * respectively).
  */
 #define XPRT_TRANSPORT_BC       (1 << 31)
@@ -328,7 +328,7 @@ static inline int bc_prealloc(struct rpc_rqst *req)
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 #define XPRT_CREATE_INFINITE_SLOTS	(1U)
-#define XPRT_CREATE_NO_IDLE_TIMEOUT	(1U << 1)
+#define XPRT_CREATE_ANAL_IDLE_TIMEOUT	(1U << 1)
 
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */

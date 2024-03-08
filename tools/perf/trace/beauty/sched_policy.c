@@ -2,7 +2,7 @@
 #include <sched.h>
 
 /*
- * Not defined anywhere else, probably, just to make sure we
+ * Analt defined anywhere else, probably, just to make sure we
  * catch future flags
  */
 #define SCHED_POLICY_MASK 0xff
@@ -20,7 +20,7 @@ static size_t syscall_arg__scnprintf_sched_policy(char *bf, size_t size,
 	bool show_prefix = arg->show_string_prefix;
 	const char *prefix = "SCHED_";
 	const char *policies[] = {
-		"NORMAL", "FIFO", "RR", "BATCH", "ISO", "IDLE", "DEADLINE",
+		"ANALRMAL", "FIFO", "RR", "BATCH", "ISO", "IDLE", "DEADLINE",
 	};
 	size_t printed;
 	int policy = arg->val,

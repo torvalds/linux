@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #ifndef NFP_CRYPTO_FW_H
 #define NFP_CRYPTO_FW_H 1
@@ -39,7 +39,7 @@ struct nfp_crypto_req_add_front {
 	u8 key_len;
 	__be16 ipver_vlan __packed;
 	u8 l4_proto;
-#define NFP_NET_TLS_NON_ADDR_KEY_LEN	8
+#define NFP_NET_TLS_ANALN_ADDR_KEY_LEN	8
 	u8 l3_addrs[];
 };
 
@@ -50,7 +50,7 @@ struct nfp_crypto_req_add_back {
 	__be32 salt;
 	__be32 iv[2];
 	__be32 counter;
-	__be32 rec_no[2];
+	__be32 rec_anal[2];
 	__be32 tcp_seq;
 };
 
@@ -86,7 +86,7 @@ struct nfp_crypto_req_update {
 	u8 resv[3];
 	u8 opcode;
 	__be32 handle[2];
-	__be32 rec_no[2];
+	__be32 rec_anal[2];
 	__be32 tcp_seq;
 };
 #endif

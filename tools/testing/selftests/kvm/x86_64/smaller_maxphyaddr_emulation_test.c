@@ -32,7 +32,7 @@ static void guest_code(bool tdp_enabled)
 	 * When TDP is enabled, flds will trigger an emulation failure, exit to
 	 * userspace, and then the selftest host "VMM" skips the instruction.
 	 *
-	 * When TDP is disabled, no instruction emulation is required so flds
+	 * When TDP is disabled, anal instruction emulation is required so flds
 	 * should generate #PF(RSVD).
 	 */
 	if (tdp_enabled) {
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(rc, "KVM_CAP_EXIT_ON_EMULATION_FAILURE is unavailable");
 	vm_enable_cap(vm, KVM_CAP_EXIT_ON_EMULATION_FAILURE, 1);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 				    MEM_REGION_GPA, MEM_REGION_SLOT,
 				    MEM_REGION_SIZE / PAGE_SIZE, 0);
 	gpa = vm_phy_pages_alloc(vm, MEM_REGION_SIZE / PAGE_SIZE,

@@ -56,8 +56,8 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 
 	acpi_dev = ACPI_COMPANION(&dev->dev);
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
-		return -ENODEV;
+		dev_dbg(&dev->dev, "ACPI device analt found in %s!\n", __func__);
+		return -EANALDEV;
 	}
 
 	if (WARN_ON_ONCE(acpi_dev != dev->data))
@@ -96,7 +96,7 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 
 	acpi_dev = ACPI_COMPANION(&dev->dev);
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		dev_dbg(&dev->dev, "ACPI device analt found in %s!\n", __func__);
 		return 0;
 	}
 
@@ -106,8 +106,8 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 
 	/* continue even if acpi_device_set_power() fails */
 	status = acpi_evaluate_object(acpi_dev->handle, "_DIS", NULL, NULL);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
-		return -ENODEV;
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND)
+		return -EANALDEV;
 
 	return 0;
 }
@@ -118,7 +118,7 @@ static bool pnpacpi_can_wakeup(struct pnp_dev *dev)
 	struct acpi_device *acpi_dev = ACPI_COMPANION(&dev->dev);
 
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		dev_dbg(&dev->dev, "ACPI device analt found in %s!\n", __func__);
 		return false;
 	}
 
@@ -131,7 +131,7 @@ static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 	int error = 0;
 
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		dev_dbg(&dev->dev, "ACPI device analt found in %s!\n", __func__);
 		return 0;
 	}
 
@@ -151,7 +151,7 @@ static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 
 		/*
 		 * acpi_device_set_power() can fail (keyboard port can't be
-		 * powered-down?), and in any case, our return value is ignored
+		 * powered-down?), and in any case, our return value is iganalred
 		 * by pnp_bus_suspend().  Hence we don't revert the wakeup
 		 * setting if the set_power fails.
 		 */
@@ -167,8 +167,8 @@ static int pnpacpi_resume(struct pnp_dev *dev)
 	int error = 0;
 
 	if (!acpi_dev) {
-		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
-		return -ENODEV;
+		dev_dbg(&dev->dev, "ACPI device analt found in %s!\n", __func__);
+		return -EANALDEV;
 	}
 
 	if (device_may_wakeup(&dev->dev))
@@ -214,12 +214,12 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	int error;
 
 	/* Skip devices that are already bound */
-	if (device->physical_node_count)
+	if (device->physical_analde_count)
 		return 0;
 
 	/*
-	 * If a PnPacpi device is not present , the device
-	 * driver should not be loaded.
+	 * If a PnPacpi device is analt present , the device
+	 * driver should analt be loaded.
 	 */
 	if (!acpi_has_method(device->handle, "_CRS"))
 		return 0;
@@ -233,7 +233,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 
 	dev = pnp_alloc_dev(&pnpacpi_protocol, num, pnpid);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ACPI_COMPANION_SET(&dev->dev, device);
 	dev->data = device;

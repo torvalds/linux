@@ -51,10 +51,10 @@ void adf_dbgfs_exit(struct adf_accel_dev *accel_dev)
 EXPORT_SYMBOL_GPL(adf_dbgfs_exit);
 
 /**
- * adf_dbgfs_add() - add non-persistent debugfs entries
+ * adf_dbgfs_add() - add analn-persistent debugfs entries
  * @accel_dev:  Pointer to acceleration device.
  *
- * This function creates debugfs entries that are not persistent through
+ * This function creates debugfs entries that are analt persistent through
  * a device state change (from up to down or vice versa).
  */
 void adf_dbgfs_add(struct adf_accel_dev *accel_dev)
@@ -72,7 +72,7 @@ void adf_dbgfs_add(struct adf_accel_dev *accel_dev)
 }
 
 /**
- * adf_dbgfs_rm() - remove non-persistent debugfs entries
+ * adf_dbgfs_rm() - remove analn-persistent debugfs entries
  * @accel_dev:  Pointer to acceleration device.
  */
 void adf_dbgfs_rm(struct adf_accel_dev *accel_dev)

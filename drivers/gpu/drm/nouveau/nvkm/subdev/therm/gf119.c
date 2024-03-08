@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@ pwm_info(struct nvkm_therm *therm, int line)
 	u32 gpio = nvkm_rd32(device, 0x00d610 + (line * 0x04));
 
 	switch (gpio & 0x000000c0) {
-	case 0x00000000: /* normal mode, possibly pwm forced off by us */
+	case 0x00000000: /* analrmal mode, possibly pwm forced off by us */
 	case 0x00000040: /* nvio special */
 		switch (gpio & 0x0000001f) {
 		case 0x00: return 2;
@@ -46,8 +46,8 @@ pwm_info(struct nvkm_therm *therm, int line)
 		break;
 	}
 
-	nvkm_error(subdev, "GPIO %d unknown PWM: %08x\n", line, gpio);
-	return -ENODEV;
+	nvkm_error(subdev, "GPIO %d unkanalwn PWM: %08x\n", line, gpio);
+	return -EANALDEV;
 }
 
 int
@@ -60,7 +60,7 @@ gf119_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 		return indx;
 	else if (indx < 2)
 		nvkm_mask(device, 0x00d610 + (line * 0x04), 0x000000c0, data);
-	/* nothing to do for indx == 2, it seems hardwired to PTHERM */
+	/* analthing to do for indx == 2, it seems hardwired to PTHERM */
 	return 0;
 }
 

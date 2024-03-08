@@ -48,7 +48,7 @@ static int tpm2_key_encode(struct trusted_key_payload *payload,
 	pub = src;
 
 	if (!scratch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	work = asn1_encode_oid(work, end_work, tpm2key_oid,
 			       asn1_oid_len(tpm2key_oid));
@@ -65,7 +65,7 @@ static int tpm2_key_encode(struct trusted_key_payload *payload,
 	/*
 	 * Assume both octet strings will encode to a 2 byte definite length
 	 *
-	 * Note: For a well behaved TPM, this warning should never
+	 * Analte: For a well behaved TPM, this warning should never
 	 * trigger, so if it does there's something nefarious going on
 	 */
 	if (WARN(work - scratch + pub_len + priv_len + 14 > SCRATCH_SIZE,
@@ -113,7 +113,7 @@ static int tpm2_key_decode(struct trusted_key_payload *payload,
 
 	blob = kmalloc(ctx.priv_len + ctx.pub_len + 4, GFP_KERNEL);
 	if (!blob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*buf = blob;
 	options->keyhandle = ctx.parent;
@@ -153,7 +153,7 @@ int tpm2_key_type(void *context, size_t hdrlen,
 		char buffer[50];
 
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		pr_debug("OID is \"%s\" which is not TPMSealedData\n",
+		pr_debug("OID is \"%s\" which is analt TPMSealedData\n",
 			 buffer);
 		return -EINVAL;
 	}
@@ -190,23 +190,23 @@ int tpm2_key_priv(void *context, size_t hdrlen,
  *
  * @buf: an allocated tpm_buf instance
  * @session_handle: session handle
- * @nonce: the session nonce, may be NULL if not used
- * @nonce_len: the session nonce length, may be 0 if not used
+ * @analnce: the session analnce, may be NULL if analt used
+ * @analnce_len: the session analnce length, may be 0 if analt used
  * @attributes: the session attributes
- * @hmac: the session HMAC or password, may be NULL if not used
- * @hmac_len: the session HMAC or password length, maybe 0 if not used
+ * @hmac: the session HMAC or password, may be NULL if analt used
+ * @hmac_len: the session HMAC or password length, maybe 0 if analt used
  */
 static void tpm2_buf_append_auth(struct tpm_buf *buf, u32 session_handle,
-				 const u8 *nonce, u16 nonce_len,
+				 const u8 *analnce, u16 analnce_len,
 				 u8 attributes,
 				 const u8 *hmac, u16 hmac_len)
 {
-	tpm_buf_append_u32(buf, 9 + nonce_len + hmac_len);
+	tpm_buf_append_u32(buf, 9 + analnce_len + hmac_len);
 	tpm_buf_append_u32(buf, session_handle);
-	tpm_buf_append_u16(buf, nonce_len);
+	tpm_buf_append_u16(buf, analnce_len);
 
-	if (nonce && nonce_len)
-		tpm_buf_append(buf, nonce, nonce_len);
+	if (analnce && analnce_len)
+		tpm_buf_append(buf, analnce, analnce_len);
 
 	tpm_buf_append_u8(buf, attributes);
 	tpm_buf_append_u16(buf, hmac_len);
@@ -260,7 +260,7 @@ int tpm2_seal_trusted(struct tpm_chip *chip,
 
 	tpm_buf_append_u32(&buf, options->keyhandle);
 	tpm2_buf_append_auth(&buf, TPM2_RS_PW,
-			     NULL /* nonce */, 0,
+			     NULL /* analnce */, 0,
 			     0 /* session_attributes */,
 			     options->keyauth /* hmac */,
 			     TPM_DIGEST_SIZE);
@@ -381,13 +381,13 @@ static int tpm2_load_cmd(struct tpm_chip *chip,
 	if (!options->keyhandle)
 		return -EINVAL;
 
-	/* must be big enough for at least the two be16 size counts */
+	/* must be big eanalugh for at least the two be16 size counts */
 	if (payload->blob_len < 4)
 		return -EINVAL;
 
 	private_len = get_unaligned_be16(blob);
 
-	/* must be big enough for following public_len */
+	/* must be big eanalugh for following public_len */
 	if (private_len + 2 + 2 > (payload->blob_len))
 		return -E2BIG;
 
@@ -415,7 +415,7 @@ static int tpm2_load_cmd(struct tpm_chip *chip,
 
 	tpm_buf_append_u32(&buf, options->keyhandle);
 	tpm2_buf_append_auth(&buf, TPM2_RS_PW,
-			     NULL /* nonce */, 0,
+			     NULL /* analnce */, 0,
 			     0 /* session_attributes */,
 			     options->keyauth /* hmac */,
 			     TPM_DIGEST_SIZE);
@@ -473,7 +473,7 @@ static int tpm2_unseal_cmd(struct tpm_chip *chip,
 	tpm2_buf_append_auth(&buf,
 			     options->policyhandle ?
 			     options->policyhandle : TPM2_RS_PW,
-			     NULL /* nonce */, 0,
+			     NULL /* analnce */, 0,
 			     TPM2_SA_CONTINUE_SESSION,
 			     options->blobauth /* hmac */,
 			     options->blobauth_len);

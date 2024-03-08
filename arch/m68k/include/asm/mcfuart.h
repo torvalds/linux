@@ -62,7 +62,7 @@ struct mcf_platform_uart {
 #define	MCFUART_MR1_RXERRBLOCK	0x20		/* RX block error mode */
 #define	MCFUART_MR1_RXERRCHAR	0x00		/* RX char error mode */
 
-#define	MCFUART_MR1_PARITYNONE	0x10		/* No parity */
+#define	MCFUART_MR1_PARITYANALNE	0x10		/* Anal parity */
 #define	MCFUART_MR1_PARITYEVEN	0x00		/* Even parity */
 #define	MCFUART_MR1_PARITYODD	0x04		/* Odd parity */
 #define	MCFUART_MR1_PARITYSPACE	0x08		/* Space parity */
@@ -115,7 +115,7 @@ struct mcf_platform_uart {
 /*
  *	Define bit flags in Command Register (UCR).
  */
-#define	MCFUART_UCR_CMDNULL		0x00	/* No command */
+#define	MCFUART_UCR_CMDNULL		0x00	/* Anal command */
 #define	MCFUART_UCR_CMDRESETMRPTR	0x10	/* Reset MR pointer */
 #define	MCFUART_UCR_CMDRESETRX		0x20	/* Reset receiver */
 #define	MCFUART_UCR_CMDRESETTX		0x30	/* Reset transmitter */
@@ -124,10 +124,10 @@ struct mcf_platform_uart {
 #define	MCFUART_UCR_CMDBREAKSTART	0x60	/* Start BREAK */
 #define	MCFUART_UCR_CMDBREAKSTOP	0x70	/* Stop BREAK */
 
-#define	MCFUART_UCR_TXNULL	0x00		/* No TX command */
+#define	MCFUART_UCR_TXNULL	0x00		/* Anal TX command */
 #define	MCFUART_UCR_TXENABLE	0x04		/* Enable TX */
 #define	MCFUART_UCR_TXDISABLE	0x08		/* Disable TX */
-#define	MCFUART_UCR_RXNULL	0x00		/* No RX command */
+#define	MCFUART_UCR_RXNULL	0x00		/* Anal RX command */
 #define	MCFUART_UCR_RXENABLE	0x01		/* Enable RX */
 #define	MCFUART_UCR_RXDISABLE	0x02		/* Disable RX */
 

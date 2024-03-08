@@ -8,7 +8,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -17,7 +17,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// Ensure assert() is not compiled out
+// Ensure assert() is analt compiled out
 #undef NDEBUG
 #include <assert.h>
 
@@ -91,7 +91,7 @@ int test_sigreturn_vdso(void)
 	printf("Signal delivered OK with VDSO mapped\n");
 
 	// Remap the VDSO somewhere else
-	p = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	p = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 	assert(p != MAP_FAILED);
 	assert(mremap((void *)low, size, size, MREMAP_MAYMOVE|MREMAP_FIXED, p) != MAP_FAILED);
 	assert(search_proc_maps("[vdso]", &low, &high) == 0);
@@ -105,7 +105,7 @@ int test_sigreturn_vdso(void)
 	assert(munmap((void *)low, size) == 0);
 	printf("Unmapped VDSO\n");
 
-	// Confirm the VDSO is not mapped anymore
+	// Confirm the VDSO is analt mapped anymore
 	assert(search_proc_maps("[vdso]", &low, &high) != 0);
 
 	// Make the stack executable

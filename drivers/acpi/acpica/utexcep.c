@@ -24,7 +24,7 @@ ACPI_MODULE_NAME("utexcep")
  *              always returned.
  *
  * DESCRIPTION: This function translates an ACPI exception into an ASCII
- *              string. Returns "unknown status" string for invalid codes.
+ *              string. Returns "unkanalwn status" string for invalid codes.
  *
  ******************************************************************************/
 const char *acpi_format_exception(acpi_status status)
@@ -36,12 +36,12 @@ const char *acpi_format_exception(acpi_status status)
 	exception = acpi_ut_validate_exception(status);
 	if (!exception) {
 
-		/* Exception code was not recognized */
+		/* Exception code was analt recognized */
 
 		ACPI_ERROR((AE_INFO,
-			    "Unknown exception code: 0x%8.8X", status));
+			    "Unkanalwn exception code: 0x%8.8X", status));
 
-		return ("UNKNOWN_STATUS_CODE");
+		return ("UNKANALWN_STATUS_CODE");
 	}
 
 	return (exception->name);
@@ -56,7 +56,7 @@ ACPI_EXPORT_SYMBOL(acpi_format_exception)
  * PARAMETERS:  status              - The acpi_status code to be formatted
  *
  * RETURN:      A string containing the exception text. NULL if exception is
- *              not valid.
+ *              analt valid.
  *
  * DESCRIPTION: This function validates and translates an ACPI exception into
  *              an ASCII string.

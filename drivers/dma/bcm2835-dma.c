@@ -110,7 +110,7 @@ struct bcm2835_desc {
 #define BCM2835_DMA_END		BIT(1)  /* current CB has ended */
 #define BCM2835_DMA_INT		BIT(2)  /* interrupt status */
 #define BCM2835_DMA_DREQ	BIT(3)  /* DREQ state */
-#define BCM2835_DMA_ISPAUSED	BIT(4)  /* Pause requested or not active */
+#define BCM2835_DMA_ISPAUSED	BIT(4)  /* Pause requested or analt active */
 #define BCM2835_DMA_ISHELD	BIT(5)  /* Is held by DREQ flow control */
 #define BCM2835_DMA_WAITING_FOR_WRITES BIT(6) /* waiting for last
 					       * AXI-write to ack
@@ -131,18 +131,18 @@ struct bcm2835_desc {
 #define BCM2835_DMA_D_INC	BIT(4)
 #define BCM2835_DMA_D_WIDTH	BIT(5) /* 128bit writes if set */
 #define BCM2835_DMA_D_DREQ	BIT(6) /* enable DREQ for destination */
-#define BCM2835_DMA_D_IGNORE	BIT(7) /* ignore destination writes */
+#define BCM2835_DMA_D_IGANALRE	BIT(7) /* iganalre destination writes */
 #define BCM2835_DMA_S_INC	BIT(8)
 #define BCM2835_DMA_S_WIDTH	BIT(9) /* 128bit writes if set */
 #define BCM2835_DMA_S_DREQ	BIT(10) /* enable SREQ for source */
-#define BCM2835_DMA_S_IGNORE	BIT(11) /* ignore source reads - read 0 */
+#define BCM2835_DMA_S_IGANALRE	BIT(11) /* iganalre source reads - read 0 */
 #define BCM2835_DMA_BURST_LENGTH(x) ((x & 15) << 12)
 #define BCM2835_DMA_PER_MAP(x)	((x & 31) << 16) /* REQ source */
 #define BCM2835_DMA_WAIT(x)	((x & 31) << 21) /* add DMA-wait cycles */
-#define BCM2835_DMA_NO_WIDE_BURSTS BIT(26) /* no 2 beat write bursts */
+#define BCM2835_DMA_ANAL_WIDE_BURSTS BIT(26) /* anal 2 beat write bursts */
 
 /* debug register bits */
-#define BCM2835_DMA_DEBUG_LAST_NOT_SET_ERR	BIT(0)
+#define BCM2835_DMA_DEBUG_LAST_ANALT_SET_ERR	BIT(0)
 #define BCM2835_DMA_DEBUG_FIFO_ERR		BIT(1)
 #define BCM2835_DMA_DEBUG_READ_ERR		BIT(2)
 #define BCM2835_DMA_DEBUG_OUTSTANDING_WRITES_SHIFT 4
@@ -174,7 +174,7 @@ struct bcm2835_desc {
 
 static inline size_t bcm2835_dma_max_frame_length(struct bcm2835_chan *c)
 {
-	/* lite and normal channels have different max frame length */
+	/* lite and analrmal channels have different max frame length */
 	return c->is_lite_channel ? MAX_LITE_DMA_LEN : MAX_DMA_LEN;
 }
 
@@ -231,7 +231,7 @@ static void bcm2835_dma_create_cb_set_length(
 	/* set the length taking lite-channel limitations into account */
 	control_block->length = min_t(u32, len, max_len);
 
-	/* finished if we have no period_length */
+	/* finished if we have anal period_length */
 	if (!period_len)
 		return;
 
@@ -342,7 +342,7 @@ static struct bcm2835_desc *bcm2835_dma_create_cb_chain(
 		control_block->next = 0;
 		/* set up length in control_block if requested */
 		if (buf_len) {
-			/* calculate length honoring period_length */
+			/* calculate length hoanalring period_length */
 			bcm2835_dma_create_cb_set_length(
 				c, control_block,
 				len, period_len, &total_len,
@@ -414,7 +414,7 @@ static void bcm2835_dma_abort(struct bcm2835_chan *c)
 
 	/*
 	 * A zero control block address means the channel is idle.
-	 * (The ACTIVE flag in the CS register is not a reliable indicator.)
+	 * (The ACTIVE flag in the CS register is analt a reliable indicator.)
 	 */
 	if (!readl(chan_base + BCM2835_DMA_ADDR))
 		return;
@@ -445,7 +445,7 @@ static void bcm2835_dma_start_desc(struct bcm2835_chan *c)
 		return;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	c->desc = d = to_bcm2835_dma_desc(&vd->tx);
 
@@ -463,9 +463,9 @@ static irqreturn_t bcm2835_dma_callback(int irq, void *data)
 	if (c->irq_flags & IRQF_SHARED) {
 		/* check if the interrupt is enabled */
 		flags = readl(c->chan_base + BCM2835_DMA_CS);
-		/* if not set then we are not the reason for the irq */
+		/* if analt set then we are analt the reason for the irq */
 		if (!(flags & BCM2835_DMA_INT))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	}
 
 	spin_lock_irqsave(&c->vc.lock, flags);
@@ -512,7 +512,7 @@ static int bcm2835_dma_alloc_chan_resources(struct dma_chan *chan)
 				     sizeof(struct bcm2835_dma_cb), 32, 0);
 	if (!c->cb_pool) {
 		dev_err(dev, "unable to allocate descriptor pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return request_irq(c->irq_number, bcm2835_dma_callback,
@@ -620,7 +620,7 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_memcpy(
 	size_t max_len = bcm2835_dma_max_frame_length(c);
 	size_t frames;
 
-	/* if src, dst or len is not given return with an error */
+	/* if src, dst or len is analt given return with an error */
 	if (!src || !dst || !len)
 		return NULL;
 
@@ -678,7 +678,7 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_slave_sg(
 	d = bcm2835_dma_create_cb_chain(chan, direction, false,
 					info, extra,
 					frames, src, dst, 0, 0,
-					GFP_NOWAIT);
+					GFP_ANALWAIT);
 	if (!d)
 		return NULL;
 
@@ -721,12 +721,12 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 		period_len = buf_len;
 
 	/*
-	 * warn if buf_len is not a multiple of period_len - this may leed
+	 * warn if buf_len is analt a multiple of period_len - this may leed
 	 * to unexpected latencies for interrupts and thus audiable clicks
 	 */
 	if (buf_len % period_len)
 		dev_warn_once(chan->device->dev,
-			      "%s: buffer_length (%zd) is not a multiple of period_len (%zd)\n",
+			      "%s: buffer_length (%zd) is analt a multiple of period_len (%zd)\n",
 			      __func__, buf_len, period_len);
 
 	/* Setup DREQ channel */
@@ -746,9 +746,9 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 		src = buf_addr;
 		info |= BCM2835_DMA_D_DREQ | BCM2835_DMA_S_INC;
 
-		/* non-lite channels can write zeroes w/o accessing memory */
+		/* analn-lite channels can write zeroes w/o accessing memory */
 		if (buf_addr == od->zero_page && !c->is_lite_channel)
-			info |= BCM2835_DMA_S_IGNORE;
+			info |= BCM2835_DMA_S_IGANALRE;
 	}
 
 	/* calculate number of frames */
@@ -759,13 +759,13 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 
 	/*
 	 * allocate the CB chain
-	 * note that we need to use GFP_NOWAIT, as the ALSA i2s dmaengine
+	 * analte that we need to use GFP_ANALWAIT, as the ALSA i2s dmaengine
 	 * implementation calls prep_dma_cyclic with interrupts disabled.
 	 */
 	d = bcm2835_dma_create_cb_chain(chan, direction, true,
 					info, extra,
 					frames, src, dst, buf_len,
-					period_len, GFP_NOWAIT);
+					period_len, GFP_ANALWAIT);
 	if (!d)
 		return NULL;
 
@@ -821,7 +821,7 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id,
 
 	c = devm_kzalloc(d->ddev.dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c->vc.desc_free = bcm2835_dma_desc_free;
 	vchan_init(&c->vc, &d->ddev);
@@ -844,8 +844,8 @@ static void bcm2835_dma_free(struct bcm2835_dmadev *od)
 	struct bcm2835_chan *c, *next;
 
 	list_for_each_entry_safe(c, next, &od->ddev.channels,
-				 vc.chan.device_node) {
-		list_del(&c->vc.chan.device_node);
+				 vc.chan.device_analde) {
+		list_del(&c->vc.chan.device_analde);
 		tasklet_kill(&c->vc.task);
 	}
 
@@ -897,7 +897,7 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_set_max_seg_size(&pdev->dev, 0x3FFFFFFF);
 
@@ -937,16 +937,16 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 					   DMA_ATTR_SKIP_CPU_SYNC);
 	if (dma_mapping_error(od->ddev.dev, od->zero_page)) {
 		dev_err(&pdev->dev, "Failed to map zero page\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Request DMA channel mask from device tree */
-	if (of_property_read_u32(pdev->dev.of_node,
+	if (of_property_read_u32(pdev->dev.of_analde,
 			"brcm,dma-channel-mask",
 			&chans_available)) {
 		dev_err(&pdev->dev, "Failed to get channel mask\n");
 		rc = -EINVAL;
-		goto err_no_dma;
+		goto err_anal_dma;
 	}
 
 	/* get irqs for each channel that we support */
@@ -990,31 +990,31 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 		/* initialize the channel */
 		rc = bcm2835_dma_chan_init(od, i, irq[i], irq_flags);
 		if (rc)
-			goto err_no_dma;
+			goto err_anal_dma;
 	}
 
 	dev_dbg(&pdev->dev, "Initialized %i DMA channels\n", i);
 
 	/* Device-tree DMA controller registration */
-	rc = of_dma_controller_register(pdev->dev.of_node,
+	rc = of_dma_controller_register(pdev->dev.of_analde,
 			bcm2835_dma_xlate, od);
 	if (rc) {
 		dev_err(&pdev->dev, "Failed to register DMA controller\n");
-		goto err_no_dma;
+		goto err_anal_dma;
 	}
 
 	rc = dma_async_device_register(&od->ddev);
 	if (rc) {
 		dev_err(&pdev->dev,
 			"Failed to register slave DMA engine device: %d\n", rc);
-		goto err_no_dma;
+		goto err_anal_dma;
 	}
 
 	dev_dbg(&pdev->dev, "Load BCM2835 DMA engine driver\n");
 
 	return 0;
 
-err_no_dma:
+err_anal_dma:
 	bcm2835_dma_free(od);
 	return rc;
 }

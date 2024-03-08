@@ -33,11 +33,11 @@
 /* #define BNX2X_STOP_ON_ERROR */
 
 /* FIXME: Delete the DRV_MODULE_VERSION below, but please be warned
- * that it is not an easy task because such change has all chances
+ * that it is analt an easy task because such change has all chances
  * to break this driver due to amount of abuse of in-kernel interfaces
  * between modules and FW.
  *
- * DO NOT UPDATE DRV_MODULE_VERSION below.
+ * DO ANALT UPDATE DRV_MODULE_VERSION below.
  */
 #define DRV_MODULE_VERSION      "1.713.36-0"
 #define BNX2X_BC_VER            0x040200
@@ -89,7 +89,7 @@ enum bnx2x_int_mode {
 
 /* regular debug print */
 #define DP_INNER(fmt, ...)					\
-	pr_notice("[%s:%d(%s)]" fmt,				\
+	pr_analtice("[%s:%d(%s)]" fmt,				\
 		  __func__, __LINE__,				\
 		  bp->dev ? (bp->dev->name) : "?",		\
 		  ##__VA_ARGS__);
@@ -274,7 +274,7 @@ enum {
 	BNX2X_MAX_CNIC_ETH_CL_ID_IDX,
 };
 
-/* use a value high enough to be above all the PFs, which has least significant
+/* use a value high eanalugh to be above all the PFs, which has least significant
  * nibble as 8, so when cnic needs to come up with a CID for UIO to use to
  * calculate doorbell address according to old doorbell configuration scheme
  * (db_msg_sz 1 << 7 * cid + 0x40 DPM offset) it can come up with a valid number
@@ -284,12 +284,12 @@ enum {
  * has least signigifcant nibble 8 and if it is 8 we will move forward to 0x18.
  */
 
-#define BNX2X_1st_NON_L2_ETH_CID(bp)	(BNX2X_NUM_NON_CNIC_QUEUES(bp) * \
+#define BNX2X_1st_ANALN_L2_ETH_CID(bp)	(BNX2X_NUM_ANALN_CNIC_QUEUES(bp) * \
 					 (bp)->max_cos)
 /* amount of cids traversed by UIO's DPM addition to doorbell */
 #define UIO_DPM				8
 /* roundup to DPM offset */
-#define UIO_ROUNDUP(bp)			(roundup(BNX2X_1st_NON_L2_ETH_CID(bp), \
+#define UIO_ROUNDUP(bp)			(roundup(BNX2X_1st_ANALN_L2_ETH_CID(bp), \
 					 UIO_DPM))
 /* offset to nearest value which has lsb nibble matching DPM */
 #define UIO_CID_OFFSET(bp)		((UIO_ROUNDUP(bp) + UIO_DPM) % \
@@ -304,7 +304,7 @@ enum {
 					 (UIO_DPM_CID0_OFFSET(bp)))
 /* how many cids were wasted  - need this value for cid allocation */
 #define UIO_CID_PAD(bp)			(BNX2X_CNIC_START_ETH_CID(bp) - \
-					 BNX2X_1st_NON_L2_ETH_CID(bp))
+					 BNX2X_1st_ANALN_L2_ETH_CID(bp))
 	/* iSCSI L2 */
 #define	BNX2X_ISCSI_ETH_CID(bp)		(BNX2X_CNIC_START_ETH_CID(bp))
 	/* FCoE L2 */
@@ -326,13 +326,13 @@ enum {
 #define FIRST_TX_COS_INDEX		0
 
 /* rules for calculating the cids of tx-only connections */
-#define CID_TO_FP(cid, bp)		((cid) % BNX2X_NUM_NON_CNIC_QUEUES(bp))
+#define CID_TO_FP(cid, bp)		((cid) % BNX2X_NUM_ANALN_CNIC_QUEUES(bp))
 #define CID_COS_TO_TX_ONLY_CID(cid, cos, bp) \
-				(cid + cos * BNX2X_NUM_NON_CNIC_QUEUES(bp))
+				(cid + cos * BNX2X_NUM_ANALN_CNIC_QUEUES(bp))
 
 /* fp index inside class of service range */
 #define FP_COS_TO_TXQ(fp, cos, bp) \
-			((fp)->index + cos * BNX2X_NUM_NON_CNIC_QUEUES(bp))
+			((fp)->index + cos * BNX2X_NUM_ANALN_CNIC_QUEUES(bp))
 
 /* Indexes for transmission queues array:
  * txdata for RSS i CoS j is at location i + (j * num of RSS)
@@ -345,7 +345,7 @@ enum {
 	FWD_TXQ_IDX_OFFSET,
 	OOO_TXQ_IDX_OFFSET,
 };
-#define MAX_ETH_TXQ_IDX(bp)	(BNX2X_NUM_NON_CNIC_QUEUES(bp) * (bp)->max_cos)
+#define MAX_ETH_TXQ_IDX(bp)	(BNX2X_NUM_ANALN_CNIC_QUEUES(bp) * (bp)->max_cos)
 #define FCOE_TXQ_IDX(bp)	(MAX_ETH_TXQ_IDX(bp) + FCOE_TXQ_IDX_OFFSET)
 
 /* fast path */
@@ -628,7 +628,7 @@ struct bnx2x_fastpath {
 
 #define	FCOE_IDX_OFFSET		0
 
-#define FCOE_IDX(bp)		(BNX2X_NUM_NON_CNIC_QUEUES(bp) + \
+#define FCOE_IDX(bp)		(BNX2X_NUM_ANALN_CNIC_QUEUES(bp) + \
 				 FCOE_IDX_OFFSET)
 #define bnx2x_fcoe_fp(bp)	(&bp->fp[FCOE_IDX(bp)])
 #define bnx2x_fcoe(bp, var)	(bnx2x_fcoe_fp(bp)->var)
@@ -706,9 +706,9 @@ struct bnx2x_fastpath {
 #define MIN_RX_SIZE_TPA_HW	(CHIP_IS_E1(bp) ? \
 					ETH_MIN_RX_CQES_WITH_TPA_E1 : \
 					ETH_MIN_RX_CQES_WITH_TPA_E1H_E2)
-#define MIN_RX_SIZE_NONTPA_HW   ETH_MIN_RX_CQES_WITHOUT_TPA
+#define MIN_RX_SIZE_ANALNTPA_HW   ETH_MIN_RX_CQES_WITHOUT_TPA
 #define MIN_RX_SIZE_TPA		(max_t(u32, MIN_RX_SIZE_TPA_HW, MIN_RX_AVAIL))
-#define MIN_RX_SIZE_NONTPA	(max_t(u32, MIN_RX_SIZE_NONTPA_HW,\
+#define MIN_RX_SIZE_ANALNTPA	(max_t(u32, MIN_RX_SIZE_ANALNTPA_HW,\
 								MIN_RX_AVAIL))
 
 #define NEXT_RX_IDX(x)		((((x) & RX_DESC_MASK) == \
@@ -948,11 +948,11 @@ struct bnx2x_common {
 #define CHIP_IS_E3A0(bp)		(CHIP_IS_E3(bp) && \
 					 (CHIP_REV(bp) == CHIP_REV_Ax))
 /* This define is used in two main places:
- * 1. In the early stages of nic_load, to know if to configure Parser / Searcher
+ * 1. In the early stages of nic_load, to kanalw if to configure Parser / Searcher
  * to nic-only mode or to offload mode. Offload mode is configured if either the
- * chip is E1x (where MIC_MODE register is not applicable), or if cnic already
+ * chip is E1x (where MIC_MODE register is analt applicable), or if cnic already
  * registered for this port (which means that the user wants storage services).
- * 2. During cnic-related load, to know if offload mode is already configured in
+ * 2. During cnic-related load, to kanalw if offload mode is already configured in
  * the HW or needs to be configured.
  * Since the transition from nic-mode to offload-mode in HW causes traffic
  * corruption, nic-mode is configured only in ports on which storage services
@@ -977,7 +977,7 @@ struct bnx2x_common {
 	u8			int_block;
 #define INT_BLOCK_HC			0
 #define INT_BLOCK_IGU			1
-#define INT_BLOCK_MODE_NORMAL		0
+#define INT_BLOCK_MODE_ANALRMAL		0
 #define INT_BLOCK_MODE_BW_COMP		2
 #define CHIP_INT_MODE_IS_NBC(bp)		\
 			(!CHIP_IS_E1x(bp) &&	\
@@ -987,7 +987,7 @@ struct bnx2x_common {
 	u8			chip_port_mode;
 #define CHIP_4_PORT_MODE			0x0
 #define CHIP_2_PORT_MODE			0x1
-#define CHIP_PORT_MODE_NONE			0x2
+#define CHIP_PORT_MODE_ANALNE			0x2
 #define CHIP_MODE(bp)			(bp->common.chip_port_mode)
 #define CHIP_MODE_IS_4_PORT(bp) (CHIP_MODE(bp) == CHIP_4_PORT_MODE)
 
@@ -1043,7 +1043,7 @@ struct bnx2x_port {
 #define BNX2X_VF_ID_INVALID	0xFF
 
 /* the number of VF CIDS multiplied by the amount of bytes reserved for each
- * cid must not exceed the size of the VF doorbell
+ * cid must analt exceed the size of the VF doorbell
  */
 #define BNX2X_VF_BAR_SIZE	512
 #if (BNX2X_VF_BAR_SIZE < BNX2X_CIDS_PER_VF * (1 << BNX2X_DB_SHIFT))
@@ -1053,10 +1053,10 @@ struct bnx2x_port {
 /*
  * The total number of L2 queues, MSIX vectors and HW contexts (CIDs) is
  * control by the number of fast-path status blocks supported by the
- * device (HW/FW). Each fast-path status block (FP-SB) aka non-default
+ * device (HW/FW). Each fast-path status block (FP-SB) aka analn-default
  * status block represents an independent interrupts context that can
  * serve a regular L2 networking queue. However special L2 queues such
- * as the FCoE queue do not require a FP-SB and other components like
+ * as the FCoE queue do analt require a FP-SB and other components like
  * the CNIC may consume FP-SB reducing the number of possible L2 queues
  *
  * If the maximum number of FP-SB available is X then:
@@ -1116,7 +1116,7 @@ union cdu_context {
 
 #define MAX_DMAE_C		8
 
-/* DMA memory not used in fastpath */
+/* DMA memory analt used in fastpath */
 struct bnx2x_slowpath {
 	union {
 		struct mac_configuration_cmd		e1x;
@@ -1152,7 +1152,7 @@ struct bnx2x_slowpath {
 		struct flow_control_configuration pfc_config;
 	} func_rdata;
 
-	/* afex ramrod can not be a part of func_rdata union because these
+	/* afex ramrod can analt be a part of func_rdata union because these
 	 * events might arrive in parallel to other events from func_rdata.
 	 * Therefore, if they would have been defined in the same union,
 	 * data can get corrupted.
@@ -1324,7 +1324,7 @@ struct bnx2x_fp_stats {
 };
 
 enum {
-	SUB_MF_MODE_UNKNOWN = 0,
+	SUB_MF_MODE_UNKANALWN = 0,
 	SUB_MF_MODE_UFP,
 	SUB_MF_MODE_NPAR1_DOT_5,
 	SUB_MF_MODE_BD,
@@ -1468,28 +1468,28 @@ struct bnx2x {
 #define PCIX_FLAG			(1 << 0)
 #define PCI_32BIT_FLAG			(1 << 1)
 #define ONE_PORT_FLAG			(1 << 2)
-#define NO_WOL_FLAG			(1 << 3)
+#define ANAL_WOL_FLAG			(1 << 3)
 #define USING_MSIX_FLAG			(1 << 5)
 #define USING_MSI_FLAG			(1 << 6)
 #define DISABLE_MSI_FLAG		(1 << 7)
-#define NO_MCP_FLAG			(1 << 9)
+#define ANAL_MCP_FLAG			(1 << 9)
 #define MF_FUNC_DIS			(1 << 11)
 #define OWN_CNIC_IRQ			(1 << 12)
-#define NO_ISCSI_OOO_FLAG		(1 << 13)
-#define NO_ISCSI_FLAG			(1 << 14)
-#define NO_FCOE_FLAG			(1 << 15)
+#define ANAL_ISCSI_OOO_FLAG		(1 << 13)
+#define ANAL_ISCSI_FLAG			(1 << 14)
+#define ANAL_FCOE_FLAG			(1 << 15)
 #define BC_SUPPORTS_PFC_STATS		(1 << 17)
 #define TX_SWITCHING			(1 << 18)
 #define BC_SUPPORTS_FCOE_FEATURES	(1 << 19)
 #define USING_SINGLE_MSIX_FLAG		(1 << 20)
-#define BC_SUPPORTS_DCBX_MSG_NON_PMF	(1 << 21)
+#define BC_SUPPORTS_DCBX_MSG_ANALN_PMF	(1 << 21)
 #define IS_VF_FLAG			(1 << 22)
 #define BC_SUPPORTS_RMMOD_CMD		(1 << 23)
 #define HAS_PHYS_PORT_ID		(1 << 24)
 #define PTP_SUPPORTED			(1 << 26)
 #define TX_TIMESTAMPING_EN		(1 << 27)
 
-#define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
+#define BP_ANALMCP(bp)			((bp)->flags & ANAL_MCP_FLAG)
 
 #ifdef CONFIG_BNX2X_SRIOV
 #define IS_VF(bp)			((bp)->flags & IS_VF_FLAG)
@@ -1499,9 +1499,9 @@ struct bnx2x {
 #define IS_PF(bp)			true
 #endif
 
-#define NO_ISCSI(bp)		((bp)->flags & NO_ISCSI_FLAG)
-#define NO_ISCSI_OOO(bp)	((bp)->flags & NO_ISCSI_OOO_FLAG)
-#define NO_FCOE(bp)		((bp)->flags & NO_FCOE_FLAG)
+#define ANAL_ISCSI(bp)		((bp)->flags & ANAL_ISCSI_FLAG)
+#define ANAL_ISCSI_OOO(bp)	((bp)->flags & ANAL_ISCSI_OOO_FLAG)
+#define ANAL_FCOE(bp)		((bp)->flags & ANAL_FCOE_FLAG)
 
 	u8			cnic_support;
 	bool			cnic_enabled;
@@ -1595,8 +1595,8 @@ struct bnx2x {
 	int			disable_tpa;
 
 	u32			rx_mode;
-#define BNX2X_RX_MODE_NONE		0
-#define BNX2X_RX_MODE_NORMAL		1
+#define BNX2X_RX_MODE_ANALNE		0
+#define BNX2X_RX_MODE_ANALRMAL		1
 #define BNX2X_RX_MODE_ALLMULTI		2
 #define BNX2X_RX_MODE_PROMISC		3
 #define BNX2X_MAX_MULTICAST		64
@@ -1856,7 +1856,7 @@ struct bnx2x {
 	u32 fw_cap;
 
 	u32 fw_major;
-	u32 fw_minor;
+	u32 fw_mianalr;
 	u32 fw_rev;
 	u32 fw_eng;
 };
@@ -1865,7 +1865,7 @@ struct bnx2x {
 extern int num_queues;
 #define BNX2X_NUM_QUEUES(bp)	(bp->num_queues)
 #define BNX2X_NUM_ETH_QUEUES(bp) ((bp)->num_ethernet_queues)
-#define BNX2X_NUM_NON_CNIC_QUEUES(bp)	(BNX2X_NUM_QUEUES(bp) - \
+#define BNX2X_NUM_ANALN_CNIC_QUEUES(bp)	(BNX2X_NUM_QUEUES(bp) - \
 					 (bp)->num_cnic_queues)
 #define BNX2X_NUM_RX_QUEUES(bp)	BNX2X_NUM_QUEUES(bp)
 
@@ -1906,7 +1906,7 @@ struct bnx2x_func_init_params {
 #define for_each_eth_queue(bp, var) \
 	for ((var) = 0; (var) < BNX2X_NUM_ETH_QUEUES(bp); (var)++)
 
-#define for_each_nondefault_eth_queue(bp, var) \
+#define for_each_analndefault_eth_queue(bp, var) \
 	for ((var) = 1; (var) < BNX2X_NUM_ETH_QUEUES(bp); (var)++)
 
 #define for_each_queue(bp, var) \
@@ -1961,7 +1961,7 @@ struct bnx2x_func_init_params {
 			continue;		\
 		else
 
-#define for_each_nondefault_queue(bp, var) \
+#define for_each_analndefault_queue(bp, var) \
 	for ((var) = 1; (var) < BNX2X_NUM_QUEUES(bp); (var)++) \
 		if (skip_queue(bp, var))	\
 			continue;		\
@@ -1973,14 +1973,14 @@ struct bnx2x_func_init_params {
 /* skip rx queue
  * if FCOE l2 support is disabled and this is the fcoe L2 queue
  */
-#define skip_rx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
+#define skip_rx_queue(bp, idx)	(ANAL_FCOE(bp) && IS_FCOE_IDX(idx))
 
 /* skip tx queue
  * if FCOE l2 support is disabled and this is the fcoe L2 queue
  */
-#define skip_tx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
+#define skip_tx_queue(bp, idx)	(ANAL_FCOE(bp) && IS_FCOE_IDX(idx))
 
-#define skip_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
+#define skip_queue(bp, idx)	(ANAL_FCOE(bp) && IS_FCOE_IDX(idx))
 
 /*self test*/
 int bnx2x_idle_chk(struct bnx2x *bp);
@@ -2124,24 +2124,24 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define ONCHIP_ADDR2(x)		((u32)((1 << 20) | ((u64)x >> 44)))
 
 /* load/unload mode */
-#define LOAD_NORMAL			0
+#define LOAD_ANALRMAL			0
 #define LOAD_OPEN			1
 #define LOAD_DIAG			2
 #define LOAD_LOOPBACK_EXT		3
-#define UNLOAD_NORMAL			0
+#define UNLOAD_ANALRMAL			0
 #define UNLOAD_CLOSE			1
 #define UNLOAD_RECOVERY			2
 
 /* DMAE command defines */
 #define DMAE_TIMEOUT			-1
 #define DMAE_PCI_ERROR			-2	/* E2 and onward */
-#define DMAE_NOT_RDY			-3
+#define DMAE_ANALT_RDY			-3
 #define DMAE_PCI_ERR_FLAG		0x80000000
 
 #define DMAE_SRC_PCI			0
 #define DMAE_SRC_GRC			1
 
-#define DMAE_DST_NONE			0
+#define DMAE_DST_ANALNE			0
 #define DMAE_DST_PCI			1
 #define DMAE_DST_GRC			2
 
@@ -2170,7 +2170,7 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 
 #define DMAE_CMD_C_ENABLE		DMAE_COMMAND_C_TYPE_ENABLE
 
-#define DMAE_CMD_ENDIANITY_NO_SWAP	(0 << DMAE_COMMAND_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_ANAL_SWAP	(0 << DMAE_COMMAND_ENDIANITY_SHIFT)
 #define DMAE_CMD_ENDIANITY_B_SWAP	(1 << DMAE_COMMAND_ENDIANITY_SHIFT)
 #define DMAE_CMD_ENDIANITY_DW_SWAP	(2 << DMAE_COMMAND_ENDIANITY_SHIFT)
 #define DMAE_CMD_ENDIANITY_B_DW_SWAP	(3 << DMAE_COMMAND_ENDIANITY_SHIFT)
@@ -2428,15 +2428,15 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 int bnx2x_compare_fw_ver(struct bnx2x *bp, u32 load_code, bool print_err);
 
 /* Congestion management fairness mode */
-#define CMNG_FNS_NONE			0
+#define CMNG_FNS_ANALNE			0
 #define CMNG_FNS_MINMAX			1
 
 #define HC_SEG_ACCESS_DEF		0   /*Driver decision 0-3*/
 #define HC_SEG_ACCESS_ATTN		4
-#define HC_SEG_ACCESS_NORM		0   /*Driver decision 0-1*/
+#define HC_SEG_ACCESS_ANALRM		0   /*Driver decision 0-1*/
 
 void bnx2x_set_ethtool_ops(struct bnx2x *bp, struct net_device *netdev);
-void bnx2x_notify_link_changed(struct bnx2x *bp);
+void bnx2x_analtify_link_changed(struct bnx2x *bp);
 
 #define BNX2X_MF_SD_PROTOCOL(bp) \
 	((bp)->mf_config[BP_VN(bp)] & FUNC_MF_CFG_PROTOCOL_MASK)

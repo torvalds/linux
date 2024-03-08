@@ -80,7 +80,7 @@ void caam_debugfs_init(struct caam_drv_private *ctrlpriv,
 	if (ctrlpriv->optee_en)
 		return;
 
-	/* Internal covering keys (useful in non-secure mode only) */
+	/* Internal covering keys (useful in analn-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];
 	ctrlpriv->ctl_kek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
 	debugfs_create_blob("kek", 0444, ctrlpriv->ctl,

@@ -2,7 +2,7 @@
 /*
  * drivers/leds/leds-as3645a.c - AS3645A and LM3555 flash controllers driver
  *
- * Copyright (C) 2008-2011 Nokia Corporation
+ * Copyright (C) 2008-2011 Analkia Corporation
  * Copyright (c) 2011, 2017 Intel Corporation.
  *
  * Based on drivers/media/i2c/as3645a.c.
@@ -135,8 +135,8 @@ struct as3645a {
 	struct v4l2_flash *vf;
 	struct v4l2_flash *vfind;
 
-	struct fwnode_handle *flash_node;
-	struct fwnode_handle *indicator_node;
+	struct fwanalde_handle *flash_analde;
+	struct fwanalde_handle *indicator_analde;
 
 	struct as3645a_config cfg;
 
@@ -152,7 +152,7 @@ struct as3645a {
 #define iled_cdev_to_as3645a(__iled_cdev) \
 	container_of(__iled_cdev, struct as3645a, iled_cdev)
 
-/* Return negative errno else zero on success */
+/* Return negative erranal else zero on success */
 static int as3645a_write(struct as3645a *flash, u8 addr, u8 val)
 {
 	struct i2c_client *client = flash->client;
@@ -166,7 +166,7 @@ static int as3645a_write(struct as3645a *flash, u8 addr, u8 val)
 	return rval;
 }
 
-/* Return negative errno else a data byte received from the device. */
+/* Return negative erranal else a data byte received from the device. */
 static int as3645a_read(struct as3645a *flash, u8 addr)
 {
 	struct i2c_client *client = flash->client;
@@ -253,7 +253,7 @@ static int as3645a_get_fault(struct led_classdev_flash *fled, u32 *fault)
 	struct as3645a *flash = fled_to_as3645a(fled);
 	int rval;
 
-	/* NOTE: reading register clears fault status */
+	/* ANALTE: reading register clears fault status */
 	rval = as3645a_read(flash, AS_FAULT_INFO_REG);
 	if (rval < 0)
 		return rval;
@@ -443,9 +443,9 @@ static int as3645a_detect(struct as3645a *flash)
 
 	/* Verify the chip model and version. */
 	if (model != 0x01 || rfu != 0x00) {
-		dev_err(dev, "AS3645A not detected (model %d rfu %d)\n",
+		dev_err(dev, "AS3645A analt detected (model %d rfu %d)\n",
 			model, rfu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (man) {
@@ -465,7 +465,7 @@ static int as3645a_detect(struct as3645a *flash)
 		vendor = "TI, Texas Instrument";
 		break;
 	default:
-		vendor = "Unknown";
+		vendor = "Unkanalwn";
 	}
 
 	dev_info(dev, "Chip vendor: %s (%d) Version: %d\n", vendor,
@@ -478,40 +478,40 @@ static int as3645a_detect(struct as3645a *flash)
 	return as3645a_write(flash, AS_BOOST_REG, AS_BOOST_CURRENT_DISABLE);
 }
 
-static int as3645a_parse_node(struct as3645a *flash,
-			      struct fwnode_handle *fwnode)
+static int as3645a_parse_analde(struct as3645a *flash,
+			      struct fwanalde_handle *fwanalde)
 {
 	struct as3645a_config *cfg = &flash->cfg;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int rval;
 
-	fwnode_for_each_child_node(fwnode, child) {
+	fwanalde_for_each_child_analde(fwanalde, child) {
 		u32 id = 0;
 
-		fwnode_property_read_u32(child, "reg", &id);
+		fwanalde_property_read_u32(child, "reg", &id);
 
 		switch (id) {
 		case AS_LED_FLASH:
-			flash->flash_node = child;
-			fwnode_handle_get(child);
+			flash->flash_analde = child;
+			fwanalde_handle_get(child);
 			break;
 		case AS_LED_INDICATOR:
-			flash->indicator_node = child;
-			fwnode_handle_get(child);
+			flash->indicator_analde = child;
+			fwanalde_handle_get(child);
 			break;
 		default:
 			dev_warn(&flash->client->dev,
-				 "unknown LED %u encountered, ignoring\n", id);
+				 "unkanalwn LED %u encountered, iganalring\n", id);
 			break;
 		}
 	}
 
-	if (!flash->flash_node) {
-		dev_err(&flash->client->dev, "can't find flash node\n");
-		return -ENODEV;
+	if (!flash->flash_analde) {
+		dev_err(&flash->client->dev, "can't find flash analde\n");
+		return -EANALDEV;
 	}
 
-	rval = fwnode_property_read_u32(flash->flash_node, "flash-timeout-us",
+	rval = fwanalde_property_read_u32(flash->flash_analde, "flash-timeout-us",
 					&cfg->flash_timeout_us);
 	if (rval < 0) {
 		dev_err(&flash->client->dev,
@@ -519,7 +519,7 @@ static int as3645a_parse_node(struct as3645a *flash,
 		goto out_err;
 	}
 
-	rval = fwnode_property_read_u32(flash->flash_node, "flash-max-microamp",
+	rval = fwanalde_property_read_u32(flash->flash_analde, "flash-max-microamp",
 					&cfg->flash_max_ua);
 	if (rval < 0) {
 		dev_err(&flash->client->dev,
@@ -527,7 +527,7 @@ static int as3645a_parse_node(struct as3645a *flash,
 		goto out_err;
 	}
 
-	rval = fwnode_property_read_u32(flash->flash_node, "led-max-microamp",
+	rval = fwanalde_property_read_u32(flash->flash_analde, "led-max-microamp",
 					&cfg->assist_max_ua);
 	if (rval < 0) {
 		dev_err(&flash->client->dev,
@@ -535,22 +535,22 @@ static int as3645a_parse_node(struct as3645a *flash,
 		goto out_err;
 	}
 
-	fwnode_property_read_u32(flash->flash_node, "voltage-reference",
+	fwanalde_property_read_u32(flash->flash_analde, "voltage-reference",
 				 &cfg->voltage_reference);
 
-	fwnode_property_read_u32(flash->flash_node, "ams,input-max-microamp",
+	fwanalde_property_read_u32(flash->flash_analde, "ams,input-max-microamp",
 				 &cfg->peak);
 	cfg->peak = AS_PEAK_mA_TO_REG(cfg->peak);
 
-	if (!flash->indicator_node) {
+	if (!flash->indicator_analde) {
 		dev_warn(&flash->client->dev,
-			 "can't find indicator node\n");
-		rval = -ENODEV;
+			 "can't find indicator analde\n");
+		rval = -EANALDEV;
 		goto out_err;
 	}
 
 
-	rval = fwnode_property_read_u32(flash->indicator_node,
+	rval = fwanalde_property_read_u32(flash->indicator_analde,
 					"led-max-microamp",
 					&cfg->indicator_max_ua);
 	if (rval < 0) {
@@ -562,8 +562,8 @@ static int as3645a_parse_node(struct as3645a *flash,
 	return 0;
 
 out_err:
-	fwnode_handle_put(flash->flash_node);
-	fwnode_handle_put(flash->indicator_node);
+	fwanalde_handle_put(flash->flash_analde);
+	fwanalde_handle_put(flash->indicator_analde);
 
 	return rval;
 }
@@ -581,7 +581,7 @@ static int as3645a_led_class_setup(struct as3645a *flash)
 		flash->cfg.indicator_max_ua / AS_INDICATOR_INTENSITY_STEP;
 	iled_cdev->flags = LED_CORE_SUSPENDRESUME;
 
-	init_data.fwnode = flash->indicator_node;
+	init_data.fwanalde = flash->indicator_analde;
 	init_data.devicename = AS_NAME;
 	init_data.default_label = "indicator";
 
@@ -611,7 +611,7 @@ static int as3645a_led_class_setup(struct as3645a *flash)
 				       flash->cfg.assist_max_ua) + 1;
 	fled_cdev->flags = LED_DEV_CAP_FLASH | LED_CORE_SUSPENDRESUME;
 
-	init_data.fwnode = flash->flash_node;
+	init_data.fwanalde = flash->flash_analde;
 	init_data.devicename = AS_NAME;
 	init_data.default_label = "flash";
 
@@ -656,13 +656,13 @@ static int as3645a_v4l2_setup(struct as3645a *flash)
 		sizeof(cfgind.dev_name));
 
 	flash->vf = v4l2_flash_init(
-		&flash->client->dev, flash->flash_node, &flash->fled, NULL,
+		&flash->client->dev, flash->flash_analde, &flash->fled, NULL,
 		&cfg);
 	if (IS_ERR(flash->vf))
 		return PTR_ERR(flash->vf);
 
 	flash->vfind = v4l2_flash_indicator_init(
-		&flash->client->dev, flash->indicator_node, &flash->iled_cdev,
+		&flash->client->dev, flash->indicator_analde, &flash->iled_cdev,
 		&cfgind);
 	if (IS_ERR(flash->vfind)) {
 		v4l2_flash_release(flash->vf);
@@ -677,22 +677,22 @@ static int as3645a_probe(struct i2c_client *client)
 	struct as3645a *flash;
 	int rval;
 
-	if (!dev_fwnode(&client->dev))
-		return -ENODEV;
+	if (!dev_fwanalde(&client->dev))
+		return -EANALDEV;
 
 	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
 	if (flash == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flash->client = client;
 
-	rval = as3645a_parse_node(flash, dev_fwnode(&client->dev));
+	rval = as3645a_parse_analde(flash, dev_fwanalde(&client->dev));
 	if (rval < 0)
 		return rval;
 
 	rval = as3645a_detect(flash);
 	if (rval < 0)
-		goto out_put_nodes;
+		goto out_put_analdes;
 
 	mutex_init(&flash->mutex);
 	i2c_set_clientdata(client, flash);
@@ -717,9 +717,9 @@ out_led_classdev_flash_unregister:
 out_mutex_destroy:
 	mutex_destroy(&flash->mutex);
 
-out_put_nodes:
-	fwnode_handle_put(flash->flash_node);
-	fwnode_handle_put(flash->indicator_node);
+out_put_analdes:
+	fwanalde_handle_put(flash->flash_analde);
+	fwanalde_handle_put(flash->indicator_analde);
 
 	return rval;
 }
@@ -738,8 +738,8 @@ static void as3645a_remove(struct i2c_client *client)
 
 	mutex_destroy(&flash->mutex);
 
-	fwnode_handle_put(flash->flash_node);
-	fwnode_handle_put(flash->indicator_node);
+	fwanalde_handle_put(flash->flash_analde);
+	fwanalde_handle_put(flash->indicator_analde);
 }
 
 static const struct i2c_device_id as3645a_id_table[] = {

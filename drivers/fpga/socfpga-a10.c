@@ -107,12 +107,12 @@ static const struct regmap_config socfpga_a10_fpga_regmap_config = {
 	.writeable_reg = socfpga_a10_fpga_writeable_reg,
 	.readable_reg = socfpga_a10_fpga_readable_reg,
 	.max_register = A10_FPGAMGR_IMGCFG_STAT_OFST,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 /*
  * from the register map description of cdratio in imgcfg_ctrl_02:
- *  Normal Configuration    : 32bit Passive Parallel
+ *  Analrmal Configuration    : 32bit Passive Parallel
  *  Partial Reconfiguration : 16bit Passive Parallel
  */
 static void socfpga_a10_fpga_set_cfg_width(struct a10_fpga_priv *priv,
@@ -292,7 +292,7 @@ static int socfpga_a10_fpga_write_init(struct fpga_manager *mgr,
 		return -EINVAL;
 	}
 
-	/* Make sure no external devices are interfering */
+	/* Make sure anal external devices are interfering */
 	stat = socfpga_a10_fpga_read_stat(priv);
 	mask = A10_FPGAMGR_IMGCFG_STAT_F2S_NCONFIG_PIN |
 	       A10_FPGAMGR_IMGCFG_STAT_F2S_NSTATUS_PIN;
@@ -320,7 +320,7 @@ static int socfpga_a10_fpga_write_init(struct fpga_manager *mgr,
 			   A10_FPGAMGR_IMGCFG_CTL_02_EN_CFG_CTRL);
 
 	/*
-	 * Disable overrides not needed for pr.
+	 * Disable overrides analt needed for pr.
 	 * s2f_config==1 leaves reset deasseted.
 	 */
 	regmap_write(priv->regmap, A10_FPGAMGR_IMGCFG_CTL_00_OFST,
@@ -367,7 +367,7 @@ static int socfpga_a10_fpga_write(struct fpga_manager *mgr, const char *buf,
 		count -= sizeof(u32);
 	}
 
-	/* Write out remaining non 32-bit chunks */
+	/* Write out remaining analn 32-bit chunks */
 	switch (count) {
 	case 3:
 		writel(buffer_32[i++] & 0x00ffffff, priv->fpga_data_addr);
@@ -454,7 +454,7 @@ static enum fpga_mgr_states socfpga_a10_fpga_state(struct fpga_manager *mgr)
 	if ((reg & A10_FPGAMGR_IMGCFG_STAT_F2S_NSTATUS_PIN) == 0)
 		return FPGA_MGR_STATE_RESET;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static const struct fpga_manager_ops socfpga_a10_fpga_mgr_ops = {
@@ -475,7 +475,7 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* First mmio base is for register access */
 	reg_base = devm_platform_ioremap_resource(pdev, 0);
@@ -491,17 +491,17 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 	priv->regmap = devm_regmap_init_mmio(dev, reg_base,
 					     &socfpga_a10_fpga_regmap_config);
 	if (IS_ERR(priv->regmap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "no clock specified\n");
+		dev_err(dev, "anal clock specified\n");
 		return PTR_ERR(priv->clk);
 	}
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
-		dev_err(dev, "could not enable clock\n");
+		dev_err(dev, "could analt enable clock\n");
 		return -EBUSY;
 	}
 

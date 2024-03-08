@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,7 +36,7 @@ nvkm_uoutp_mthd_dp_mst_vcpi(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_dp_mst_vcpi_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!ior->func->dp || !ior->func->dp->vcpi || !nvkm_head_find(outp->disp, args->v0.head))
 		return -EINVAL;
 
@@ -51,7 +51,7 @@ nvkm_uoutp_mthd_dp_mst_id_put(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_dp_mst_id_put_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-	        return -ENOSYS;
+	        return -EANALSYS;
 	if (!outp->func->dp.mst_id_put)
 	        return -EINVAL;
 
@@ -64,7 +64,7 @@ nvkm_uoutp_mthd_dp_mst_id_get(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_dp_mst_id_get_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-	        return -ENOSYS;
+	        return -EANALSYS;
 	if (!outp->func->dp.mst_id_get)
 	        return -EINVAL;
 
@@ -79,7 +79,7 @@ nvkm_uoutp_mthd_dp_sst(struct nvkm_outp *outp, void *argv, u32 argc)
 	struct nvkm_ior *ior = outp->ior;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (!ior->func->dp || !nvkm_head_find(disp, args->v0.head))
 		return -EINVAL;
@@ -97,7 +97,7 @@ nvkm_uoutp_mthd_dp_drive(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_dp_drive_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!outp->func->dp.drive)
 		return -EINVAL;
 
@@ -110,7 +110,7 @@ nvkm_uoutp_mthd_dp_train(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_dp_train_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!outp->func->dp.train)
 		return -EINVAL;
 
@@ -132,7 +132,7 @@ nvkm_uoutp_mthd_dp_rates(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_dp_rates_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (args->v0.rates > ARRAY_SIZE(outp->dp.rate))
 		return -EINVAL;
 
@@ -155,7 +155,7 @@ nvkm_uoutp_mthd_dp_aux_xfer(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_dp_aux_xfer_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!outp->func->dp.aux_xfer)
 		return -EINVAL;
 
@@ -169,7 +169,7 @@ nvkm_uoutp_mthd_dp_aux_pwr(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_dp_aux_pwr_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!outp->func->dp.aux_pwr)
 		return -EINVAL;
 
@@ -183,7 +183,7 @@ nvkm_uoutp_mthd_hda_eld(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_hda_eld_args *args = argv;
 
 	if (argc < sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	argc -= sizeof(args->v0);
 
 	if (!ior->hda || !nvkm_head_find(outp->disp, args->v0.head))
@@ -221,7 +221,7 @@ nvkm_uoutp_mthd_infoframe(struct nvkm_outp *outp, void *argv, u32 argc)
 	ssize_t size = argc - sizeof(*args);
 
 	if (argc < sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!nvkm_head_find(outp->disp, args->v0.head))
 		return -EINVAL;
 
@@ -246,7 +246,7 @@ nvkm_uoutp_mthd_hdmi(struct nvkm_outp *outp, void *argv, u32 argc)
 	struct nvkm_ior *ior = outp->ior;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (!(outp->asy.head = nvkm_head_find(outp->disp, args->v0.head)))
 		return -EINVAL;
@@ -279,7 +279,7 @@ nvkm_uoutp_mthd_lvds(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_lvds_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (outp->info.type != DCB_OUTPUT_LVDS)
 		return -EINVAL;
 
@@ -295,7 +295,7 @@ nvkm_uoutp_mthd_bl_set(struct nvkm_outp *outp, void *argv, u32 argc)
 	int ret;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (outp->func->bl.set)
 		ret = outp->func->bl.set(outp, args->v0.level);
@@ -312,7 +312,7 @@ nvkm_uoutp_mthd_bl_get(struct nvkm_outp *outp, void *argv, u32 argc)
 	int ret;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (outp->func->bl.get) {
 		ret = outp->func->bl.get(outp);
@@ -333,7 +333,7 @@ nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_release_args *args = argv;
 
 	if (argc != sizeof(args->vn))
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!outp->ior)
 		return -EINVAL;
 
@@ -348,7 +348,7 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 	int ret;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (outp->ior && args->v0.type <= NVIF_OUTP_ACQUIRE_V0_PIOR)
 		return -EBUSY;
 
@@ -381,12 +381,12 @@ nvkm_uoutp_mthd_inherit(struct nvkm_outp *outp, void *argv, u32 argc)
 	int ret = 0;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	/* Ensure an ior is hooked up to this outp already */
 	ior = outp->func->inherit(outp);
 	if (!ior || !ior->arm.head)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* With iors, there will be a separate output path for each type of connector - and all of
 	 * them will appear to be hooked up. Figure out which one is actually the one we're using
@@ -395,23 +395,23 @@ nvkm_uoutp_mthd_inherit(struct nvkm_outp *outp, void *argv, u32 argc)
 	switch (args->v0.proto) {
 	case NVIF_OUTP_INHERIT_V0_TMDS:
 		if (ior->arm.proto != TMDS)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case NVIF_OUTP_INHERIT_V0_DP:
 		if (ior->arm.proto != DP)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case NVIF_OUTP_INHERIT_V0_LVDS:
 		if (ior->arm.proto != LVDS)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case NVIF_OUTP_INHERIT_V0_TV:
 		if (ior->arm.proto != TV)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case NVIF_OUTP_INHERIT_V0_RGB_CRT:
 		if (ior->arm.proto != CRT)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	default:
 		ret = -EINVAL;
@@ -420,11 +420,11 @@ nvkm_uoutp_mthd_inherit(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	/* Make sure that userspace hasn't already acquired this */
 	if (outp->acquired) {
-		OUTP_ERR(outp, "cannot inherit an already acquired (%02x) outp", outp->acquired);
+		OUTP_ERR(outp, "cananalt inherit an already acquired (%02x) outp", outp->acquired);
 		return -EBUSY;
 	}
 
-	/* Mark the outp acquired by userspace now that we've confirmed it's already active */
+	/* Mark the outp acquired by userspace analw that we've confirmed it's already active */
 	OUTP_TRACE(outp, "inherit %02x |= %02x %p", outp->acquired, NVKM_OUTP_USER, ior);
 	nvkm_outp_acquire_ior(outp, NVKM_OUTP_USER, ior);
 
@@ -443,7 +443,7 @@ nvkm_uoutp_mthd_load_detect(struct nvkm_outp *outp, void *argv, u32 argc)
 	int ret;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_PRIV, false);
 	if (ret == 0) {
@@ -465,7 +465,7 @@ nvkm_uoutp_mthd_edid_get(struct nvkm_outp *outp, void *argv, u32 argc)
 	union nvif_outp_edid_get_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!outp->func->edid_get)
 		return -EINVAL;
 
@@ -480,16 +480,16 @@ nvkm_uoutp_mthd_detect(struct nvkm_outp *outp, void *argv, u32 argc)
 	int ret;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!outp->func->detect)
 		return -EINVAL;
 
 	ret = outp->func->detect(outp);
 	switch (ret) {
-	case 0: args->v0.status = NVIF_OUTP_DETECT_V0_NOT_PRESENT; break;
+	case 0: args->v0.status = NVIF_OUTP_DETECT_V0_ANALT_PRESENT; break;
 	case 1: args->v0.status = NVIF_OUTP_DETECT_V0_PRESENT; break;
 	default:
-		args->v0.status = NVIF_OUTP_DETECT_V0_UNKNOWN;
+		args->v0.status = NVIF_OUTP_DETECT_V0_UNKANALWN;
 		break;
 	}
 
@@ -519,7 +519,7 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
+nvkm_uoutp_mthd_analacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
 	case NVIF_OUTP_V0_DETECT     : return nvkm_uoutp_mthd_detect     (outp, argv, argc);
@@ -550,7 +550,7 @@ nvkm_uoutp_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 
 	mutex_lock(&disp->super.mutex);
 
-	ret = nvkm_uoutp_mthd_noacquire(outp, mthd, argv, argc, &invalid);
+	ret = nvkm_uoutp_mthd_analacquire(outp, mthd, argv, argc, &invalid);
 	if (!invalid)
 		goto done;
 
@@ -591,7 +591,7 @@ nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	int ret;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	list_for_each_entry(outt, &disp->outps, head) {
 		if (outt->index == args->v0.id) {

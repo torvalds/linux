@@ -61,7 +61,7 @@ MODULE_PARM_DESC(fcmode, "Mode of firmware signalled flow control");
 
 static int brcmf_roamoff;
 module_param_named(roamoff, brcmf_roamoff, int, 0400);
-MODULE_PARM_DESC(roamoff, "Do not use internal roaming engine");
+MODULE_PARM_DESC(roamoff, "Do analt use internal roaming engine");
 
 static int brcmf_iapp_enable;
 module_param_named(iapp, brcmf_iapp_enable, int, 0);
@@ -69,9 +69,9 @@ MODULE_PARM_DESC(iapp, "Enable partial support for the obsoleted Inter-Access Po
 
 #ifdef DEBUG
 /* always succeed brcmf_bus_started() */
-static int brcmf_ignore_probe_fail;
-module_param_named(ignore_probe_fail, brcmf_ignore_probe_fail, int, 0);
-MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for debugging");
+static int brcmf_iganalre_probe_fail;
+module_param_named(iganalre_probe_fail, brcmf_iganalre_probe_fail, int, 0);
+MODULE_PARM_DESC(iganalre_probe_fail, "always succeed probe for debugging");
 #endif
 
 static struct brcmfmac_platform_data *brcmfmac_pdata;
@@ -135,8 +135,8 @@ static int brcmf_c_download_blob(struct brcmf_if *ifp,
 	chunk_buf = kzalloc(struct_size(chunk_buf, data, MAX_CHUNK_LEN),
 			    GFP_KERNEL);
 	if (!chunk_buf) {
-		err = -ENOMEM;
-		return -ENOMEM;
+		err = -EANALMEM;
+		return -EANALMEM;
 	}
 
 	datalen = size;
@@ -186,7 +186,7 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 
 	err = brcmf_bus_get_blob(bus, &fw, BRCMF_BLOB_CLM);
 	if (err || !fw) {
-		brcmf_info("no clm_blob available (err=%d), device may have limited channels available\n",
+		brcmf_info("anal clm_blob available (err=%d), device may have limited channels available\n",
 			   err);
 		return 0;
 	}
@@ -209,7 +209,7 @@ static int brcmf_c_process_txcap_blob(struct brcmf_if *ifp)
 
 	err = brcmf_bus_get_blob(bus, &fw, BRCMF_BLOB_TXCAP);
 	if (err || !fw) {
-		brcmf_info("no txcap_blob available (err=%d)\n", err);
+		brcmf_info("anal txcap_blob available (err=%d)\n", err);
 		return 0;
 	}
 
@@ -232,14 +232,14 @@ int brcmf_c_set_cur_etheraddr(struct brcmf_if *ifp, const u8 *addr)
 	return err;
 }
 
-/* On some boards there is no eeprom to hold the nvram, in this case instead
+/* On some boards there is anal eeprom to hold the nvram, in this case instead
  * a board specific nvram is loaded from /lib/firmware. On most boards the
- * macaddr setting in the /lib/firmware nvram file is ignored because the
+ * macaddr setting in the /lib/firmware nvram file is iganalred because the
  * wifibt chip has a unique MAC programmed into the chip itself.
  * But in some cases the actual MAC from the /lib/firmware nvram file gets
  * used, leading to MAC conflicts.
  * The MAC addresses in the troublesome nvram files seem to all come from
- * the same nvram file template, so we only need to check for 1 known
+ * the same nvram file template, so we only need to check for 1 kanalwn
  * address to detect this.
  */
 static const u8 brcmf_default_mac_address[ETH_ALEN] = {
@@ -309,7 +309,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 				     &revinfo, sizeof(revinfo));
 	if (err < 0) {
 		bphy_err(drvr, "retrieving revision info failed, %d\n", err);
-		strscpy(ri->chipname, "UNKNOWN", sizeof(ri->chipname));
+		strscpy(ri->chipname, "UNKANALWN", sizeof(ri->chipname));
 	} else {
 		ri->vendorid = le32_to_cpu(revinfo.vendorid);
 		ri->deviceid = le32_to_cpu(revinfo.deviceid);
@@ -327,7 +327,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		ri->chippkg = le32_to_cpu(revinfo.chippkg);
 		ri->nvramrev = le32_to_cpu(revinfo.nvramrev);
 
-		/* use revinfo if not known yet */
+		/* use revinfo if analt kanalwn yet */
 		if (!bus->chip) {
 			bus->chip = le32_to_cpu(revinfo.chipnum);
 			bus->chiprev = le32_to_cpu(revinfo.chiprev);
@@ -445,7 +445,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		goto done;
 	}
 
-	/* Enable tx beamforming, errors can be ignored (not supported) */
+	/* Enable tx beamforming, errors can be iganalred (analt supported) */
 	(void)brcmf_fil_iovar_int_set(ifp, "txbf", 1);
 done:
 	return err;
@@ -490,7 +490,7 @@ void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 static void brcmf_mp_attach(void)
 {
 	/* If module param firmware path is set then this will always be used,
-	 * if not set then if available use the platform data version. To make
+	 * if analt set then if available use the platform data version. To make
 	 * sure it gets initialized at all, always copy the module param version
 	 */
 	strscpy(brcmf_mp_global.firmware_path, brcmf_firmware_path,
@@ -525,7 +525,7 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 	settings->roamoff = !!brcmf_roamoff;
 	settings->iapp = !!brcmf_iapp_enable;
 #ifdef DEBUG
-	settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
+	settings->iganalre_probe_fail = !!brcmf_iganalre_probe_fail;
 #endif
 
 	if (bus_type == BRCMF_BUSTYPE_SDIO)
@@ -553,7 +553,7 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 		}
 	}
 	if (!found) {
-		/* No platform data for this device, try OF and DMI data */
+		/* Anal platform data for this device, try OF and DMI data */
 		brcmf_dmi_probe(settings, chip, chiprev);
 		brcmf_of_probe(dev, bus_type, settings);
 		brcmf_acpi_probe(dev, bus_type, settings);
@@ -599,8 +599,8 @@ static int __init brcmfmac_module_init(void)
 
 	/* Get the platform data (if available) for our devices */
 	err = platform_driver_probe(&brcmf_pd, brcmf_common_pd_probe);
-	if (err == -ENODEV)
-		brcmf_dbg(INFO, "No platform data available.\n");
+	if (err == -EANALDEV)
+		brcmf_dbg(INFO, "Anal platform data available.\n");
 
 	/* Initialize global module paramaters */
 	brcmf_mp_attach();

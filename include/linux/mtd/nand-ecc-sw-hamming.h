@@ -49,7 +49,7 @@ int nand_ecc_sw_hamming_correct(struct nand_device *nand, unsigned char *buf,
 
 static inline int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void nand_ecc_sw_hamming_cleanup_ctx(struct nand_device *nand) {}
@@ -58,14 +58,14 @@ static inline int ecc_sw_hamming_calculate(const unsigned char *buf,
 					   unsigned int step_size,
 					   unsigned char *code, bool sm_order)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int nand_ecc_sw_hamming_calculate(struct nand_device *nand,
 						const unsigned char *buf,
 						unsigned char *code)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int ecc_sw_hamming_correct(unsigned char *buf,
@@ -73,7 +73,7 @@ static inline int ecc_sw_hamming_correct(unsigned char *buf,
 					 unsigned char *calc_ecc,
 					 unsigned int step_size, bool sm_order)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int nand_ecc_sw_hamming_correct(struct nand_device *nand,
@@ -81,7 +81,7 @@ static inline int nand_ecc_sw_hamming_correct(struct nand_device *nand,
 					      unsigned char *read_ecc,
 					      unsigned char *calc_ecc)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 #endif /* CONFIG_MTD_NAND_ECC_SW_HAMMING */

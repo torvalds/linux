@@ -27,7 +27,7 @@ properties:
 
   clock-controller:
     description:
-      Clock controller node that provides the clocks controlled by the SCU
+      Clock controller analde that provides the clocks controlled by the SCU
     $ref: /schemas/clock/fsl,scu-clk.yaml
 
   gpio:
@@ -37,7 +37,7 @@ properties:
 
   ocotp:
     description:
-      OCOTP controller node provided by the SCU
+      OCOTP controller analde provided by the SCU
     $ref: /schemas/nvmem/fsl,scu-ocotp.yaml
 
   keys:
@@ -52,9 +52,9 @@ properties:
       channel for general interrupt. The number of expected tx and rx
       channels is 1 TX and 1 RX channels if MU instance is "fsl,imx8-mu-scu"
       compatible, 4 TX and 4 RX channels otherwise. All MU channels must be
-      within the same MU instance. Cross instances are not allowed. The MU
+      within the same MU instance. Cross instances are analt allowed. The MU
       instance can only be one of LSIO MU0~M4 for imx8qxp and imx8qm. Users
-      need to ensure that one is used that does not conflict with other
+      need to ensure that one is used that does analt conflict with other
       execution environments such as ATF.
     oneOf:
       - items:
@@ -120,7 +120,7 @@ properties:
 
   power-controller:
     description:
-      Power domains controller node that provides the power domains
+      Power domains controller analde that provides the power domains
       controlled by the SCU
     $ref: /schemas/power/fsl,scu-pd.yaml
 

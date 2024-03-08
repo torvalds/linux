@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -94,12 +94,12 @@ static u64 get_async_ev_mask(struct mlx4_dev *dev)
 	return async_ev_mask;
 }
 
-static void eq_set_ci(struct mlx4_eq *eq, int req_not)
+static void eq_set_ci(struct mlx4_eq *eq, int req_analt)
 {
 	__raw_writel((__force u32) cpu_to_be32((eq->cons_index & 0xffffff) |
-					       req_not << 31),
+					       req_analt << 31),
 		     eq->doorbell);
-	/* We still want ordering, just not swabbing, so add a barrier */
+	/* We still want ordering, just analt swabbing, so add a barrier */
 	wmb();
 }
 
@@ -202,7 +202,7 @@ static void slave_event(struct mlx4_dev *dev, u8 slave, struct mlx4_eqe *eqe)
 	s_eqe = &slave_eq->event_eqe[slave_eq->prod & (SLAVE_EVENT_EQ_SIZE - 1)];
 	if ((!!(s_eqe->owner & 0x80)) ^
 	    (!!(slave_eq->prod & SLAVE_EVENT_EQ_SIZE))) {
-		mlx4_warn(dev, "Master failed to generate an EQE for slave: %d. No free EQE on slave events queue\n",
+		mlx4_warn(dev, "Master failed to generate an EQE for slave: %d. Anal free EQE on slave events queue\n",
 			  slave);
 		spin_unlock_irqrestore(&slave_eq->event_lock, flags);
 		return;
@@ -375,7 +375,7 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave,
 	enum slave_port_state cur_state =
 		mlx4_get_slave_port_state(dev, slave, port);
 
-	*gen_event = SLAVE_PORT_GEN_EVENT_NONE;
+	*gen_event = SLAVE_PORT_GEN_EVENT_ANALNE;
 
 	if (slave >= dev->num_slaves || port > dev->caps.num_ports ||
 	    port <= 0 || !test_bit(port - 1, actv_ports.ports)) {
@@ -416,7 +416,7 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave,
 		}
 		break;
 	default:
-		pr_err("%s: BUG!!! UNKNOWN state: slave:%d, port:%d\n",
+		pr_err("%s: BUG!!! UNKANALWN state: slave:%d, port:%d\n",
 		       __func__, slave, port);
 		goto out;
 	}
@@ -481,11 +481,11 @@ void mlx4_master_handle_slave_flr(struct work_struct *work)
 			slave_state[i].last_cmd = MLX4_COMM_CMD_RESET;
 			slave_state[i].is_slave_going_down = 0;
 			spin_unlock_irqrestore(&priv->mfunc.master.slave_state_lock, flags);
-			/*notify the FW:*/
+			/*analtify the FW:*/
 			err = mlx4_cmd(dev, 0, i, 0, MLX4_CMD_INFORM_FLR_DONE,
 				       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 			if (err)
-				mlx4_warn(dev, "Failed to notify FW on FLR done (slave:%d)\n",
+				mlx4_warn(dev, "Failed to analtify FW on FLR done (slave:%d)\n",
 					  i);
 		}
 	}
@@ -537,8 +537,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 						RES_QP,
 						be32_to_cpu(eqe->event.qp.qpn)
 						& 0xffffff, &slave);
-				if (ret && ret != -ENOENT) {
-					mlx4_dbg(dev, "QP event %02x(%02x) on EQ %d at index %u: could not get slave id (%d)\n",
+				if (ret && ret != -EANALENT) {
+					mlx4_dbg(dev, "QP event %02x(%02x) on EQ %d at index %u: could analt get slave id (%d)\n",
 						 eqe->type, eqe->subtype,
 						 eq->eqn, eq->cons_index, ret);
 					break;
@@ -555,7 +555,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			break;
 
 		case MLX4_EVENT_TYPE_SRQ_LIMIT:
-			mlx4_dbg(dev, "%s: MLX4_EVENT_TYPE_SRQ_LIMIT. srq_no=0x%x, eq 0x%x\n",
+			mlx4_dbg(dev, "%s: MLX4_EVENT_TYPE_SRQ_LIMIT. srq_anal=0x%x, eq 0x%x\n",
 				 __func__, be32_to_cpu(eqe->event.srq.srqn),
 				 eq->eqn);
 			fallthrough;
@@ -567,15 +567,15 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 						be32_to_cpu(eqe->event.srq.srqn)
 						& 0xffffff,
 						&slave);
-				if (ret && ret != -ENOENT) {
-					mlx4_warn(dev, "SRQ event %02x(%02x) on EQ %d at index %u: could not get slave id (%d)\n",
+				if (ret && ret != -EANALENT) {
+					mlx4_warn(dev, "SRQ event %02x(%02x) on EQ %d at index %u: could analt get slave id (%d)\n",
 						  eqe->type, eqe->subtype,
 						  eq->eqn, eq->cons_index, ret);
 					break;
 				}
 				if (eqe->type ==
 				    MLX4_EVENT_TYPE_SRQ_CATAS_ERROR)
-					mlx4_warn(dev, "%s: slave:%d, srq_no:0x%x, event: %02x(%02x)\n",
+					mlx4_warn(dev, "%s: slave:%d, srq_anal:0x%x, event: %02x(%02x)\n",
 						  __func__, slave,
 						  be32_to_cpu(eqe->event.srq.srqn),
 						  eqe->type, eqe->subtype);
@@ -634,7 +634,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 						set_and_calc_slave_port_state(dev, i, port,
 									      MLX4_PORT_STATE_DEV_EVENT_PORT_DOWN,
 									      &gen_event);
-						/*we can be in pending state, then do not send port_down event*/
+						/*we can be in pending state, then do analt send port_down event*/
 						if (SLAVE_PORT_GEN_EVENT_DOWN ==  gen_event) {
 							if (i == mlx4_master_func_num(dev))
 								continue;
@@ -692,8 +692,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					RES_CQ,
 					be32_to_cpu(eqe->event.cq_err.cqn)
 					& 0xffffff, &slave);
-				if (ret && ret != -ENOENT) {
-					mlx4_dbg(dev, "CQ event %02x(%02x) on EQ %d at index %u: could not get slave id (%d)\n",
+				if (ret && ret != -EANALENT) {
+					mlx4_dbg(dev, "CQ event %02x(%02x) on EQ %d at index %u: could analt get slave id (%d)\n",
 						 eqe->type, eqe->subtype,
 						 eq->eqn, eq->cons_index, ret);
 					break;
@@ -724,7 +724,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 
 		case MLX4_EVENT_TYPE_COMM_CHANNEL:
 			if (!mlx4_is_master(dev)) {
-				mlx4_warn(dev, "Received comm channel event for non master device\n");
+				mlx4_warn(dev, "Received comm channel event for analn master device\n");
 				break;
 			}
 			memcpy(&priv->mfunc.master.comm_arm_bit_vector,
@@ -737,7 +737,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 		case MLX4_EVENT_TYPE_FLR_EVENT:
 			flr_slave = be32_to_cpu(eqe->event.flr_event.slave_id);
 			if (!mlx4_is_master(dev)) {
-				mlx4_warn(dev, "Non-master function received FLR event\n");
+				mlx4_warn(dev, "Analn-master function received FLR event\n");
 				break;
 			}
 
@@ -745,7 +745,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 
 			if (flr_slave >= dev->num_slaves) {
 				mlx4_warn(dev,
-					  "Got FLR for unknown function: %d\n",
+					  "Got FLR for unkanalwn function: %d\n",
 					  flr_slave);
 				update_slave_state = 0;
 			} else
@@ -977,7 +977,7 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 	u64 *dma_list = NULL;
 	dma_addr_t t;
 	u64 mtt_addr;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	eq->dev   = dev;
@@ -1022,7 +1022,7 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 
 	eq->doorbell = mlx4_get_eq_uar(dev, eq);
 	if (!eq->doorbell) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_eq;
 	}
 
@@ -1141,7 +1141,7 @@ static int mlx4_map_clr_int(struct mlx4_dev *dev)
 				 priv->fw.clr_int_base, MLX4_CLR_INT_SIZE);
 	if (!priv->clr_base) {
 		mlx4_err(dev, "Couldn't map interrupt clear register, aborting\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1161,7 +1161,7 @@ int mlx4_alloc_eq_table(struct mlx4_dev *dev)
 	priv->eq_table.eq = kcalloc(dev->caps.num_eqs - dev->caps.reserved_eqs,
 				    sizeof(*priv->eq_table.eq), GFP_KERNEL);
 	if (!priv->eq_table.eq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1181,7 +1181,7 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 					 sizeof(*priv->eq_table.uar_map),
 					 GFP_KERNEL);
 	if (!priv->eq_table.uar_map) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free;
 	}
 
@@ -1213,7 +1213,7 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 			      (dev->caps.num_comp_vectors + 1),
 			      GFP_KERNEL);
 	if (!priv->eq_table.irq_names) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_clr_int;
 	}
 
@@ -1237,7 +1237,7 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 						mlx4_get_eqs_per_port(dev, port));
 					if (!info->rmap) {
 						mlx4_warn(dev, "Failed to allocate cpu rmap\n");
-						err = -ENOMEM;
+						err = -EANALMEM;
 						goto err_out_unmap;
 					}
 				}
@@ -1358,17 +1358,17 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 }
 
 /* A test that verifies that we can accept interrupts
- * on the vector allocated for asynchronous events
+ * on the vector allocated for asynchroanalus events
  */
 int mlx4_test_async(struct mlx4_dev *dev)
 {
-	return mlx4_NOP(dev);
+	return mlx4_ANALP(dev);
 }
 EXPORT_SYMBOL(mlx4_test_async);
 
 /* A test that verifies that we can accept interrupts
  * on the given irq vector of the tested port.
- * Interrupts are checked using the NOP command.
+ * Interrupts are checked using the ANALP command.
  */
 int mlx4_test_interrupt(struct mlx4_dev *dev, int vector)
 {
@@ -1378,7 +1378,7 @@ int mlx4_test_interrupt(struct mlx4_dev *dev, int vector)
 	/* Temporary use polling for command completions */
 	mlx4_cmd_use_polling(dev);
 
-	/* Map the new eq to handle all asynchronous events */
+	/* Map the new eq to handle all asynchroanalus events */
 	err = mlx4_MAP_EQ(dev, get_async_ev_mask(dev), 0,
 			  priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(vector)].eqn);
 	if (err) {
@@ -1388,7 +1388,7 @@ int mlx4_test_interrupt(struct mlx4_dev *dev, int vector)
 
 	/* Go back to using events */
 	mlx4_cmd_use_events(dev);
-	err = mlx4_NOP(dev);
+	err = mlx4_ANALP(dev);
 
 	/* Return to default */
 	mlx4_cmd_use_polling(dev);
@@ -1492,7 +1492,7 @@ int mlx4_assign_eq(struct mlx4_dev *dev, u8 port, int *vector)
 		}
 
 		if (requested_vector < 0) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto err_unlock;
 		}
 

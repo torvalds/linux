@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_cpplib.c
  * Library of functions to access the NFP's CPP bus
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroanalme.com>
  */
 
 #include <asm/unaligned.h>
@@ -36,7 +36,7 @@
  * @address:	Address for operation
  * @value:	Pointer to read buffer
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_cpp_readl(struct nfp_cpp *cpp, u32 cpp_id,
 		  unsigned long long address, u32 *value)
@@ -59,7 +59,7 @@ int nfp_cpp_readl(struct nfp_cpp *cpp, u32 cpp_id,
  * @address:	Address for operation
  * @value:	Value to write
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_cpp_writel(struct nfp_cpp *cpp, u32 cpp_id,
 		   unsigned long long address, u32 value)
@@ -80,7 +80,7 @@ int nfp_cpp_writel(struct nfp_cpp *cpp, u32 cpp_id,
  * @address:	Address for operation
  * @value:	Pointer to read buffer
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_cpp_readq(struct nfp_cpp *cpp, u32 cpp_id,
 		  unsigned long long address, u64 *value)
@@ -103,7 +103,7 @@ int nfp_cpp_readq(struct nfp_cpp *cpp, u32 cpp_id,
  * @address:	Address for operation
  * @value:	Value to write
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_cpp_writeq(struct nfp_cpp *cpp, u32 cpp_id,
 		   unsigned long long address, u64 value)
@@ -117,7 +117,7 @@ int nfp_cpp_writeq(struct nfp_cpp *cpp, u32 cpp_id,
 	return n == sizeof(tmp) ? 0 : n < 0 ? n : -EIO;
 }
 
-/* NOTE: This code should not use nfp_xpb_* functions,
+/* ANALTE: This code should analt use nfp_xpb_* functions,
  * as those are model-specific
  */
 int nfp_cpp_model_autodetect(struct nfp_cpp *cpp, u32 *model)
@@ -183,7 +183,7 @@ int nfp_cpp_explicit_read(struct nfp_cpp *cpp, u32 cpp_id,
 	nfp_cpp_explicit_set_target(expl, cpp_id,
 				    incr / width_read - 1, byte_mask);
 	nfp_cpp_explicit_set_posted(expl, 1, 0, NFP_SIGNAL_PUSH,
-				    0, NFP_SIGNAL_NONE);
+				    0, NFP_SIGNAL_ANALNE);
 
 	for (i = 0; i < len; i += incr, addr += incr, tmp += incr) {
 		if (i + incr > len) {
@@ -236,7 +236,7 @@ int nfp_cpp_explicit_write(struct nfp_cpp *cpp, u32 cpp_id, u64 addr,
 	nfp_cpp_explicit_set_target(expl, cpp_id,
 				    incr / width_write - 1, byte_mask);
 	nfp_cpp_explicit_set_posted(expl, 1, 0, NFP_SIGNAL_PULL,
-				    0, NFP_SIGNAL_NONE);
+				    0, NFP_SIGNAL_ANALNE);
 
 	for (i = 0; i < len; i += incr, addr += incr, tmp += incr) {
 		if (i + incr > len) {

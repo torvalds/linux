@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -661,7 +661,7 @@
 #define ixPCIEP_STRAP_LC                                                        0x100100c0
 #define ixPCIEP_STRAP_MISC                                                      0x100100c1
 #define ixPCIEP_BCH_ECC_CNTL                                                    0x100100d0
-#define mmBIF_RFE_SNOOP_REG                                                     0x27
+#define mmBIF_RFE_SANALOP_REG                                                     0x27
 #define mmBIF_RFE_WARMRST_CNTL                                                  0x1459
 #define mmBIF_RFE_SOFTRST_CNTL                                                  0x1441
 #define mmBIF_RFE_CLIENT_SOFTRST_TRIGGER                                        0x1442
@@ -2667,12 +2667,12 @@
 #define mmC_PCIE_DATA                                                           0x29
 #define mmPCIE_WRAPPER0_C_PCIE_DATA                                             0x29
 #define mmPCIE_WRAPPER1_C_PCIE_DATA                                             0x39
-#define mmRFE_SNOOP_RST                                                         0x3c
+#define mmRFE_SANALOP_RST                                                         0x3c
 #define ixPSX80_WRP_BIF_STRAP_FEATURE_EN_1                                      0x1500000
 #define ixPSX80_WRP_BIF_STRAP_PI_CNTL                                           0x1500001
 #define ixPSX80_WRP_BIF_STRAP_LINK_SPEED_CORE                                   0x1500002
 #define ixPSX80_WRP_BIF_STRAP_LC_MISC_CORE                                      0x1500003
-#define ixPSX80_WRP_BIF_STRAP_ERROR_IGNORE                                      0x1500004
+#define ixPSX80_WRP_BIF_STRAP_ERROR_IGANALRE                                      0x1500004
 #define ixPSX80_WRP_BIF_STRAP_TEST_DFT                                          0x1500005
 #define ixPSX80_WRP_BIF_STRAP_ID                                                0x1500006
 #define ixPSX80_WRP_BIF_STRAP_REV_ID                                            0x1500007
@@ -2764,7 +2764,7 @@
 #define ixPSX81_WRP_BIF_STRAP_PI_CNTL                                           0x1510001
 #define ixPSX81_WRP_BIF_STRAP_LINK_SPEED_CORE                                   0x1510002
 #define ixPSX81_WRP_BIF_STRAP_LC_MISC_CORE                                      0x1510003
-#define ixPSX81_WRP_BIF_STRAP_ERROR_IGNORE                                      0x1510004
+#define ixPSX81_WRP_BIF_STRAP_ERROR_IGANALRE                                      0x1510004
 #define ixPSX81_WRP_BIF_STRAP_TEST_DFT                                          0x1510005
 #define ixPSX81_WRP_BIF_STRAP_ID                                                0x1510006
 #define ixPSX81_WRP_BIF_STRAP_REV_ID                                            0x1510007
@@ -3110,7 +3110,7 @@
 #define ixPSX80_PHY0_COM_COMMON_FUSE3                                           0x1206202
 #define ixPSX80_PHY0_COM_COMMON_ELECIDLE                                        0x1206204
 #define ixPSX80_PHY0_COM_COMMON_DFX                                             0x1206205
-#define ixPSX80_PHY0_COM_COMMON_MAR_DEEMPH_NOM                                  0x1206206
+#define ixPSX80_PHY0_COM_COMMON_MAR_DEEMPH_ANALM                                  0x1206206
 #define ixPSX80_PHY0_COM_COMMON_SELDEEMPH35                                     0x1206207
 #define ixPSX80_PHY0_COM_COMMON_SELDEEMPH60                                     0x1206208
 #define ixPSX80_PHY0_COM_COMMON_LANE_PWRMGMT                                    0x1206209
@@ -3315,7 +3315,7 @@
 #define ixPSX81_PHY0_COM_COMMON_FUSE3                                           0x1216202
 #define ixPSX81_PHY0_COM_COMMON_ELECIDLE                                        0x1216204
 #define ixPSX81_PHY0_COM_COMMON_DFX                                             0x1216205
-#define ixPSX81_PHY0_COM_COMMON_MAR_DEEMPH_NOM                                  0x1216206
+#define ixPSX81_PHY0_COM_COMMON_MAR_DEEMPH_ANALM                                  0x1216206
 #define ixPSX81_PHY0_COM_COMMON_SELDEEMPH35                                     0x1216207
 #define ixPSX81_PHY0_COM_COMMON_SELDEEMPH60                                     0x1216208
 #define ixPSX81_PHY0_COM_COMMON_LANE_PWRMGMT                                    0x1216209

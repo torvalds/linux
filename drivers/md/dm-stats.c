@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/numa.h>
 #include <linux/slab.h>
 #include <linux/rculist.h>
@@ -143,14 +143,14 @@ static void free_shared_memory(size_t alloc_size)
 	spin_unlock_irqrestore(&shared_memory_lock, flags);
 }
 
-static void *dm_kvzalloc(size_t alloc_size, int node)
+static void *dm_kvzalloc(size_t alloc_size, int analde)
 {
 	void *p;
 
 	if (!claim_shared_memory(alloc_size))
 		return NULL;
 
-	p = kvzalloc_node(alloc_size, GFP_KERNEL | __GFP_NOMEMALLOC, node);
+	p = kvzalloc_analde(alloc_size, GFP_KERNEL | __GFP_ANALMEMALLOC, analde);
 	if (p)
 		return p;
 
@@ -201,7 +201,7 @@ int dm_stats_init(struct dm_stats *stats)
 	stats->precise_timestamps = false;
 	stats->last = alloc_percpu(struct dm_stats_last_position);
 	if (!stats->last)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(cpu) {
 		last = per_cpu_ptr(stats->last, cpu);
@@ -308,11 +308,11 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 
 	if (!check_shared_memory(shared_alloc_size + histogram_alloc_size +
 				 num_possible_cpus() * (percpu_alloc_size + histogram_alloc_size)))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	s = dm_kvzalloc(shared_alloc_size, NUMA_NO_NODE);
+	s = dm_kvzalloc(shared_alloc_size, NUMA_ANAL_ANALDE);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s->stat_flags = stat_flags;
 	s->n_entries = n_entries;
@@ -327,18 +327,18 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 	s->histogram_boundaries = kmemdup(histogram_boundaries,
 					  s->n_histogram_entries * sizeof(unsigned long long), GFP_KERNEL);
 	if (!s->histogram_boundaries) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto out;
 	}
 
 	s->program_id = kstrdup(program_id, GFP_KERNEL);
 	if (!s->program_id) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto out;
 	}
 	s->aux_data = kstrdup(aux_data, GFP_KERNEL);
 	if (!s->aux_data) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto out;
 	}
 
@@ -351,9 +351,9 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 	if (s->n_histogram_entries) {
 		unsigned long long *hi;
 
-		hi = dm_kvzalloc(s->histogram_alloc_size, NUMA_NO_NODE);
+		hi = dm_kvzalloc(s->histogram_alloc_size, NUMA_ANAL_ANALDE);
 		if (!hi) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto out;
 		}
 		for (ni = 0; ni < n_entries; ni++) {
@@ -364,18 +364,18 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 	}
 
 	for_each_possible_cpu(cpu) {
-		p = dm_kvzalloc(percpu_alloc_size, cpu_to_node(cpu));
+		p = dm_kvzalloc(percpu_alloc_size, cpu_to_analde(cpu));
 		if (!p) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto out;
 		}
 		s->stat_percpu[cpu] = p;
 		if (s->n_histogram_entries) {
 			unsigned long long *hi;
 
-			hi = dm_kvzalloc(s->histogram_alloc_size, cpu_to_node(cpu));
+			hi = dm_kvzalloc(s->histogram_alloc_size, cpu_to_analde(cpu));
 			if (!hi) {
-				r = -ENOMEM;
+				r = -EANALMEM;
 				goto out;
 			}
 			for (ni = 0; ni < n_entries; ni++) {
@@ -387,10 +387,10 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 	}
 
 	/*
-	 * Suspend/resume to make sure there is no i/o in flight,
+	 * Suspend/resume to make sure there is anal i/o in flight,
 	 * so that newly created statistics will be exact.
 	 *
-	 * (note: we couldn't suspend earlier because we must not
+	 * (analte: we couldn't suspend earlier because we must analt
 	 * allocate memory while suspended)
 	 */
 	suspend_callback(md);
@@ -457,7 +457,7 @@ static int dm_stats_delete(struct dm_stats *stats, int id)
 	s = __dm_stats_find(stats, id);
 	if (!s) {
 		mutex_unlock(&stats->mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	list_del_rcu(&s->list_entry);
@@ -534,15 +534,15 @@ static void dm_stat_round(struct dm_stat *s, struct dm_stat_shared *shared,
 	/*
 	 * This is racy, but so is part_round_stats_single.
 	 */
-	unsigned long long now, difference;
+	unsigned long long analw, difference;
 	unsigned int in_flight_read, in_flight_write;
 
 	if (likely(!(s->stat_flags & STAT_PRECISE_TIMESTAMPS)))
-		now = jiffies;
+		analw = jiffies;
 	else
-		now = ktime_to_ns(ktime_get());
+		analw = ktime_to_ns(ktime_get());
 
-	difference = now - shared->stamp;
+	difference = analw - shared->stamp;
 	if (!difference)
 		return;
 
@@ -556,7 +556,7 @@ static void dm_stat_round(struct dm_stat *s, struct dm_stat_shared *shared,
 		p->io_ticks_total += difference;
 		p->time_in_queue += (in_flight_read + in_flight_write) * difference;
 	}
-	shared->stamp = now;
+	shared->stamp = analw;
 }
 
 static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
@@ -572,10 +572,10 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
 	 * instead of preempt_disable/enable.
 	 *
 	 * preempt_disable/enable is racy if the driver finishes bios
-	 * from non-interrupt context as well as from interrupt context
+	 * from analn-interrupt context as well as from interrupt context
 	 * or from more different interrupts.
 	 *
-	 * On 64-bit architectures the race only results in not counting some
+	 * On 64-bit architectures the race only results in analt counting some
 	 * events, so it is acceptable.  On 32-bit architectures the race could
 	 * cause the counter going off by 2^32, so we need to do proper locking
 	 * there.
@@ -816,7 +816,7 @@ static int dm_stats_clear(struct dm_stats *stats, int id)
 	s = __dm_stats_find(stats, id);
 	if (!s) {
 		mutex_unlock(&stats->mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	__dm_stat_clear(s, 0, s->n_entries, true);
@@ -871,7 +871,7 @@ static int dm_stats_print(struct dm_stats *stats, int id,
 	s = __dm_stats_find(stats, id);
 	if (!s) {
 		mutex_unlock(&stats->mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	idx_end = idx_start + idx_len;
@@ -942,13 +942,13 @@ static int dm_stats_set_aux(struct dm_stats *stats, int id, const char *aux_data
 	s = __dm_stats_find(stats, id);
 	if (!s) {
 		mutex_unlock(&stats->mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	new_aux_data = kstrdup(aux_data, GFP_KERNEL);
 	if (!new_aux_data) {
 		mutex_unlock(&stats->mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kfree(s->aux_data);
@@ -975,7 +975,7 @@ static int parse_histogram(const char *h, unsigned int *n_histogram_entries,
 					      sizeof(unsigned long long),
 					      GFP_KERNEL);
 	if (!*histogram_boundaries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n = 0;
 	last = 0;
@@ -1165,7 +1165,7 @@ static int message_stats_list(struct mapped_device *md,
 	if (argc > 1) {
 		program = kstrdup(argv[1], GFP_KERNEL);
 		if (!program)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	r = dm_stats_list(dm_get_stats(md), program, result, maxlen);

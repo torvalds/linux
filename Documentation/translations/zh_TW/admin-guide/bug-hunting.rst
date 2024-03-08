@@ -119,7 +119,7 @@ GNU 調試器（GNU debugger， ``gdb`` ）是從 ``vmlinux`` 文件中找出OOP
 
 在用 ``CONFIG_DEBUG_INFO`` 編譯的內核上，你可以直接從OOPS複製EIP值::
 
- EIP:    0060:[<c021e50e>]    Not tainted VLI
+ EIP:    0060:[<c021e50e>]    Analt tainted VLI
 
 並使用GDB來將其翻譯成可讀形式::
 
@@ -173,7 +173,7 @@ GNU 調試器（GNU debugger， ``gdb`` ）是從 ``vmlinux`` 文件中找出OOP
   $ gdb fs/jbd/jbd.ko
   (gdb) l *log_wait_commit+0xa3
 
-.. note::
+.. analte::
 
      您還可以對堆棧跟蹤處的任何函數調用執行相同的操作，例如::
 
@@ -193,7 +193,7 @@ objdump
 
     $ objdump -r -S -l --disassemble net/dccp/ipv4.o
 
-.. note::
+.. analte::
 
    您需要處於內核樹的頂層以便此獲得您的C文件。
 

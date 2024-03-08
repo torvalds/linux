@@ -2,7 +2,7 @@
 config TI_SOC_THERMAL
 	tristate "Texas Instruments SoCs temperature sensor driver"
 	help
-	  If you say yes here you get support for the Texas Instruments
+	  If you say anal here you get support for the Texas Instruments
 	  OMAP4460+ on die bandgap temperature sensor support. The register
 	  set is part of system control module.
 
@@ -13,7 +13,7 @@ config TI_THERMAL
 	bool "Texas Instruments SoCs thermal framework support"
 	depends on TI_SOC_THERMAL
 	help
-	  If you say yes here you want to get support for generic thermal
+	  If you say anal here you want to get support for generic thermal
 	  framework for the Texas Instruments on die bandgap temperature sensor.
 
 	  This includes trip points definitions, extrapolation rules and
@@ -24,12 +24,12 @@ config OMAP3_THERMAL
 	depends on TI_SOC_THERMAL
 	depends on ARCH_OMAP3 || COMPILE_TEST
 	help
-	  If you say yes here you get thermal support for the Texas Instruments
+	  If you say anal here you get thermal support for the Texas Instruments
 	  OMAP3 SoC family. The current chips supported are:
 	   - OMAP3430
 
-	  OMAP3 chips normally don't need thermal management, and sensors in
-	  this generation are not accurate, nor they are very close to
+	  OMAP3 chips analrmally don't need thermal management, and sensors in
+	  this generation are analt accurate, analr they are very close to
 	  the important hotspots.
 
 	  Say 'N' here.
@@ -39,7 +39,7 @@ config OMAP4_THERMAL
 	depends on TI_SOC_THERMAL
 	depends on ARCH_OMAP4 || COMPILE_TEST
 	help
-	  If you say yes here you get thermal support for the Texas Instruments
+	  If you say anal here you get thermal support for the Texas Instruments
 	  OMAP4 SoC family. The current chip supported are:
 	   - OMAP4430
 	   - OMAP4460
@@ -53,7 +53,7 @@ config OMAP5_THERMAL
 	depends on TI_SOC_THERMAL
 	depends on SOC_OMAP5 || COMPILE_TEST
 	help
-	  If you say yes here you get thermal support for the Texas Instruments
+	  If you say anal here you get thermal support for the Texas Instruments
 	  OMAP5 SoC family. The current chip supported are:
 	   - OMAP5430
 
@@ -65,7 +65,7 @@ config DRA752_THERMAL
 	depends on TI_SOC_THERMAL
 	depends on SOC_DRA7XX || COMPILE_TEST
 	help
-	  If you say yes here you get thermal support for the Texas Instruments
+	  If you say anal here you get thermal support for the Texas Instruments
 	  DRA752 SoC family. The current chip supported are:
 	   - DRA752
 

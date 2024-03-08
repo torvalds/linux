@@ -13,7 +13,7 @@ void tegra_hda_parse_format(unsigned int format, struct tegra_hda_format *fmt)
 {
 	unsigned int mul, div, bits, channels;
 
-	if (format & AC_FMT_TYPE_NON_PCM)
+	if (format & AC_FMT_TYPE_ANALN_PCM)
 		fmt->pcm = false;
 	else
 		fmt->pcm = true;

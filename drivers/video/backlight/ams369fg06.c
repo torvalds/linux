@@ -300,7 +300,7 @@ static int ams369fg06_ldi_disable(struct ams369fg06 *lcd)
 
 static int ams369fg06_power_is_on(int power)
 {
-	return power <= FB_BLANK_NORMAL;
+	return power <= FB_BLANK_ANALRMAL;
 }
 
 static int ams369fg06_power_on(struct ams369fg06 *lcd)
@@ -397,7 +397,7 @@ static int ams369fg06_set_power(struct lcd_device *ld, int power)
 	struct ams369fg06 *lcd = lcd_get_data(ld);
 
 	if (power != FB_BLANK_UNBLANK && power != FB_BLANK_POWERDOWN &&
-		power != FB_BLANK_NORMAL) {
+		power != FB_BLANK_ANALRMAL) {
 		dev_err(lcd->dev, "power value should be 0, 1 or 4.\n");
 		return -EINVAL;
 	}
@@ -446,7 +446,7 @@ static int ams369fg06_probe(struct spi_device *spi)
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(struct ams369fg06), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ams369fg06 lcd panel uses 3-wire 16bits SPI Mode. */
 	spi->bits_per_word = 16;

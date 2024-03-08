@@ -11,8 +11,8 @@ Description:
 		at 'Documentation/arch/powerpc/papr_hcalls.rst' . Below are
 		the flags reported in this sysfs file:
 
-		* "not_armed"
-				  Indicates that NVDIMM contents will not
+		* "analt_armed"
+				  Indicates that NVDIMM contents will analt
 				  survive a power cycle.
 		* "flush_fail"
 				  Indicates that NVDIMM contents
@@ -24,7 +24,7 @@ Description:
 				  initialization.
 		* "encrypted"
 				  NVDIMM contents are encrypted.
-		* "smart_notify"
+		* "smart_analtify"
 				  There is health event for the NVDIMM.
 		* "scrubbed"
 				  Indicating that contents of the
@@ -42,7 +42,7 @@ Description:
 		device. This attribute is only available for NVDIMM devices
 		that support reporting NVDIMM performance stats. Each stat is
 		reported on a new line with each line composed of a
-		stat-identifier followed by it value. Below are currently known
+		stat-identifier followed by it value. Below are currently kanalwn
 		dimm performance stats which are reported:
 
 		* "CtlResCt" : Controller Reset Count

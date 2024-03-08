@@ -103,7 +103,7 @@ struct vdec_ap_ipi_dec_start {
  * @vpu_inst_addr	: VPU decoder instance address
  * @vdec_abi_version:	ABI version of the firmware. Kernel can use it to
  *			ensure that it is compatible with the firmware.
- *			This field is not valid for MT8173 and must not be
+ *			This field is analt valid for MT8173 and must analt be
  *			accessed for this chip.
  * @inst_id     : instance ID. Valid only if the ABI version >= 2.
  */

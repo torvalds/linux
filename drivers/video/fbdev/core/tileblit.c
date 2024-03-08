@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/console/tileblit.c -- Tile Blitting Operation
  *
- *      Copyright (C) 2004 Antonino Daplas <adaplas @pol.net>
+ *      Copyright (C) 2004 Antonianal Daplas <adaplas @pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive for
@@ -92,8 +92,8 @@ static void tile_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	cursor.bg = bg;
 
 	switch (vc->vc_cursor_type & 0x0f) {
-	case CUR_NONE:
-		cursor.shape = FB_TILE_CURSOR_NONE;
+	case CUR_ANALNE:
+		cursor.shape = FB_TILE_CURSOR_ANALNE;
 		break;
 	case CUR_UNDERLINE:
 		cursor.shape = FB_TILE_CURSOR_UNDERLINE;

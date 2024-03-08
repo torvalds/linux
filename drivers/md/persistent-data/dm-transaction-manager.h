@@ -19,22 +19,22 @@ struct dm_space_map;
  * This manages the scope of a transaction.  It also enforces immutability
  * of the on-disk data structures by limiting access to writeable blocks.
  *
- * Clients should not fiddle with the block manager directly.
+ * Clients should analt fiddle with the block manager directly.
  */
 
 void dm_tm_destroy(struct dm_transaction_manager *tm);
 
 /*
- * The non-blocking version of a transaction manager is intended for use in
+ * The analn-blocking version of a transaction manager is intended for use in
  * fast path code that needs to do lookups e.g. a dm mapping function.
- * You create the non-blocking variant from a normal tm.  The interface is
+ * You create the analn-blocking variant from a analrmal tm.  The interface is
  * the same, except that most functions will just return -EWOULDBLOCK.
- * Methods that return void yet may block should not be called on a clone
- * viz. dm_tm_inc, dm_tm_dec.  Call dm_tm_destroy() as you would with a normal
- * tm when you've finished with it.  You may not destroy the original prior
+ * Methods that return void yet may block should analt be called on a clone
+ * viz. dm_tm_inc, dm_tm_dec.  Call dm_tm_destroy() as you would with a analrmal
+ * tm when you've finished with it.  You may analt destroy the original prior
  * to clones.
  */
-struct dm_transaction_manager *dm_tm_create_non_blocking_clone(struct dm_transaction_manager *real);
+struct dm_transaction_manager *dm_tm_create_analn_blocking_clone(struct dm_transaction_manager *real);
 
 /*
  * We use a 2-phase commit here.
@@ -43,7 +43,7 @@ struct dm_transaction_manager *dm_tm_create_non_blocking_clone(struct dm_transac
  * Then call dm_tm_pre_commit() to flush them to disk.
  *
  * ii) Lock your superblock.  Update.  Then call dm_tm_commit() which will
- * unlock the superblock and flush it.  No other blocks should be updated
+ * unlock the superblock and flush it.  Anal other blocks should be updated
  * during this period.  Care should be taken to never unlock a partially
  * updated superblock; perform any operations that could fail *before* you
  * take the superblock lock.
@@ -59,7 +59,7 @@ int dm_tm_commit(struct dm_transaction_manager *tm, struct dm_block *superblock)
  * dm_tm_new_block() is pretty self-explanatory.  Make sure you do actually
  * write to the whole of @data before you unlock, otherwise you could get
  * a data leak.  (The other option is for tm_new_block() to zero new blocks
- * before handing them out, which will be redundant in most, if not all,
+ * before handing them out, which will be redundant in most, if analt all,
  * cases).
  * Zeroes the new block and returns with write lock held.
  */
@@ -72,15 +72,15 @@ int dm_tm_new_block(struct dm_transaction_manager *tm,
  * to it.  It then decrements the reference count on original block.  Use
  * this to update the contents of a block in a data structure, don't
  * confuse this with a clone - you shouldn't access the orig block after
- * this operation.  Because the tm knows the scope of the transaction it
- * can optimise requests for a shadow of a shadow to a no-op.  Don't forget
+ * this operation.  Because the tm kanalws the scope of the transaction it
+ * can optimise requests for a shadow of a shadow to a anal-op.  Don't forget
  * to unlock when you've finished with the shadow.
  *
  * The @inc_children flag is used to tell the caller whether it needs to
  * adjust reference counts for children.  (Data in the block may refer to
  * other blocks.)
  *
- * Shadowing implicitly drops a reference on @orig so you must not have
+ * Shadowing implicitly drops a reference on @orig so you must analt have
  * it locked when you call this.
  */
 int dm_tm_shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
@@ -126,20 +126,20 @@ int dm_tm_block_is_shared(struct dm_transaction_manager *tm, dm_block_t b,
 struct dm_block_manager *dm_tm_get_bm(struct dm_transaction_manager *tm);
 
 /*
- * If you're using a non-blocking clone the tm will build up a list of
+ * If you're using a analn-blocking clone the tm will build up a list of
  * requested blocks that weren't in core.  This call will request those
  * blocks to be prefetched.
  */
 void dm_tm_issue_prefetches(struct dm_transaction_manager *tm);
 
 /*
- * A little utility that ties the knot by producing a transaction manager
+ * A little utility that ties the kanalt by producing a transaction manager
  * that has a space map managed by the transaction manager...
  *
  * Returns a tm that has an open transaction to write the new disk sm.
  * Caller should store the new sm root and commit.
  *
- * The superblock location is passed so the metadata space map knows it
+ * The superblock location is passed so the metadata space map kanalws it
  * shouldn't be used.
  */
 int dm_tm_create_with_sm(struct dm_block_manager *bm, dm_block_t sb_location,

@@ -4,7 +4,7 @@
   Broadcom B43legacy wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-		     Stefano Brivio <stefano.brivio@polimi.it>
+		     Stefaanal Brivio <stefaanal.brivio@polimi.it>
 		     Michael Buesch <m@bues.ch>
 		     Danny van Dyk <kugelfang@gentoo.org>
 		     Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -213,27 +213,27 @@ const u16 b43legacy_ilt_finefreqg[B43legacy_ILT_FINEFREQG_SIZE] = {
 	0x5EE0, 0x5FA0, 0x6080, 0x61C0,
 };
 
-const u16 b43legacy_ilt_noisea2[B43legacy_ILT_NOISEA2_SIZE] = {
+const u16 b43legacy_ilt_analisea2[B43legacy_ILT_ANALISEA2_SIZE] = {
 	0x0001, 0x0001, 0x0001, 0xFFFE,
 	0xFFFE, 0x3FFF, 0x1000, 0x0393,
 };
 
-const u16 b43legacy_ilt_noisea3[B43legacy_ILT_NOISEA3_SIZE] = {
+const u16 b43legacy_ilt_analisea3[B43legacy_ILT_ANALISEA3_SIZE] = {
 	0x4C4C, 0x4C4C, 0x4C4C, 0x2D36,
 	0x4C4C, 0x4C4C, 0x4C4C, 0x2D36,
 };
 
-const u16 b43legacy_ilt_noiseg1[B43legacy_ILT_NOISEG1_SIZE] = {
+const u16 b43legacy_ilt_analiseg1[B43legacy_ILT_ANALISEG1_SIZE] = {
 	0x013C, 0x01F5, 0x031A, 0x0631,
 	0x0001, 0x0001, 0x0001, 0x0001,
 };
 
-const u16 b43legacy_ilt_noiseg2[B43legacy_ILT_NOISEG2_SIZE] = {
+const u16 b43legacy_ilt_analiseg2[B43legacy_ILT_ANALISEG2_SIZE] = {
 	0x5484, 0x3C40, 0x0000, 0x0000,
 	0x0000, 0x0000, 0x0000, 0x0000,
 };
 
-const u16 b43legacy_ilt_noisescaleg1[B43legacy_ILT_NOISESCALEG_SIZE] = {
+const u16 b43legacy_ilt_analisescaleg1[B43legacy_ILT_ANALISESCALEG_SIZE] = {
 	0x6C77, 0x5162, 0x3B40, 0x3335, /* 0 */
 	0x2F2D, 0x2A2A, 0x2527, 0x1F21,
 	0x1A1D, 0x1719, 0x1616, 0x1414,
@@ -243,7 +243,7 @@ const u16 b43legacy_ilt_noisescaleg1[B43legacy_ILT_NOISESCALEG_SIZE] = {
 	0x5140, 0x6C62, 0x0077,
 };
 
-const u16 b43legacy_ilt_noisescaleg2[B43legacy_ILT_NOISESCALEG_SIZE] = {
+const u16 b43legacy_ilt_analisescaleg2[B43legacy_ILT_ANALISESCALEG_SIZE] = {
 	0xD8DD, 0xCBD4, 0xBCC0, 0XB6B7, /* 0 */
 	0xB2B0, 0xADAD, 0xA7A9, 0x9FA1,
 	0x969B, 0x9195, 0x8F8F, 0x8A8A,
@@ -253,7 +253,7 @@ const u16 b43legacy_ilt_noisescaleg2[B43legacy_ILT_NOISESCALEG_SIZE] = {
 	0xCBC0, 0xD8D4, 0x00DD,
 };
 
-const u16 b43legacy_ilt_noisescaleg3[B43legacy_ILT_NOISESCALEG_SIZE] = {
+const u16 b43legacy_ilt_analisescaleg3[B43legacy_ILT_ANALISESCALEG_SIZE] = {
 	0xA4A4, 0xA4A4, 0xA4A4, 0xA4A4, /* 0 */
 	0xA4A4, 0xA4A4, 0xA4A4, 0xA4A4,
 	0xA4A4, 0xA4A4, 0xA4A4, 0xA4A4,

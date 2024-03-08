@@ -88,11 +88,11 @@ static int slave_configure(struct scsi_device *sdev)
 	 * commands (ala ATAPI devices behind certain bridges, or devices
 	 * which simply have broken INQUIRY data).
 	 *
-	 * NOTE: This means /dev/sg programs (ala cdrecord) will get the
+	 * ANALTE: This means /dev/sg programs (ala cdrecord) will get the
 	 * actual information.  This seems to be the preference for
 	 * programs like that.
 	 *
-	 * NOTE: This also means that /proc/scsi/scsi and sysfs may report
+	 * ANALTE: This also means that /proc/scsi/scsi and sysfs may report
 	 * the actual value or the modified one, depending on where the
 	 * data comes from.
 	 */
@@ -134,7 +134,7 @@ static int queuecommand_lck(struct scsi_cmnd *srb)
 	/* fail the command if we are disconnecting */
 	if (rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT)) {
 		dev_info(&dev->pci->dev, "Fail command during disconnect\n");
-		srb->result = DID_NO_CONNECT << 16;
+		srb->result = DID_ANAL_CONNECT << 16;
 		done(srb);
 		return 0;
 	}
@@ -164,7 +164,7 @@ static int command_abort(struct scsi_cmnd *srb)
 	/* Is this command still active? */
 	if (chip->srb != srb) {
 		spin_unlock_irq(host->host_lock);
-		dev_info(&dev->pci->dev, "-- nothing to abort\n");
+		dev_info(&dev->pci->dev, "-- analthing to abort\n");
 		return FAILED;
 	}
 
@@ -173,7 +173,7 @@ static int command_abort(struct scsi_cmnd *srb)
 	spin_unlock_irq(host->host_lock);
 
 	/* Wait for the aborted command to finish */
-	wait_for_completion(&dev->notify);
+	wait_for_completion(&dev->analtify);
 
 	return SUCCESS;
 }
@@ -207,7 +207,7 @@ static const struct scsi_host_template rtsx_host_template = {
 	/* queue commands only, only one command per LUN */
 	.can_queue =			1,
 
-	/* unknown initiator id */
+	/* unkanalwn initiator id */
 	.this_id =			-1,
 
 	.slave_alloc =			slave_alloc,
@@ -377,14 +377,14 @@ static int rtsx_control_thread(void *__dev)
 		spin_unlock_irq(host->host_lock);
 
 		/* reject the command if the direction indicator
-		 * is UNKNOWN
+		 * is UNKANALWN
 		 */
 		if (chip->srb->sc_data_direction == DMA_BIDIRECTIONAL) {
-			dev_err(&dev->pci->dev, "UNKNOWN data direction\n");
+			dev_err(&dev->pci->dev, "UNKANALWN data direction\n");
 			chip->srb->result = DID_ERROR << 16;
 		} else if (chip->srb->device->id) {
 			/* reject if target != 0 or if LUN is higher than
-			 * the maximum known LUN
+			 * the maximum kanalwn LUN
 			 */
 			dev_err(&dev->pci->dev, "Bad target number (%d:%d)\n",
 				chip->srb->device->id,
@@ -406,7 +406,7 @@ static int rtsx_control_thread(void *__dev)
 
 		/* did the command already complete because of a disconnect? */
 		if (!chip->srb)
-			;		/* nothing to do */
+			;		/* analthing to do */
 
 		/* indicate that the command is done */
 		else if (chip->srb->result != DID_ABORT << 16) {
@@ -417,7 +417,7 @@ skip_for_abort:
 		}
 
 		if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
-			complete(&dev->notify);
+			complete(&dev->analtify);
 
 			rtsx_set_stat(chip, RTSX_STAT_IDLE);
 		}
@@ -430,7 +430,7 @@ skip_for_abort:
 		mutex_unlock(&dev->dev_mutex);
 	} /* for (;;) */
 
-	/* notify the exit routine that we're actually exiting now
+	/* analtify the exit routine that we're actually exiting analw
 	 *
 	 * complete()/wait_for_completion() is similar to up()/down(),
 	 * except that complete() is safe in the case where the structure
@@ -440,7 +440,7 @@ skip_for_abort:
 	 *
 	 * kthread_complete_and_exit() goes even further than this --
 	 * it is safe in the case that the thread of the caller is going away
-	 * (not just the structure) -- this is necessary for the module-remove
+	 * (analt just the structure) -- this is necessary for the module-remove
 	 * case.  This is important in preemption kernels, which transfer the
 	 * flow of execution immediately upon a complete().
 	 */
@@ -505,10 +505,10 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 	if (dev)
 		chip = dev->chip;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!chip)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&dev->reg_lock);
 
@@ -517,14 +517,14 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 		spin_unlock(&dev->reg_lock);
 		if (chip->int_reg == 0xFFFFFFFF)
 			return IRQ_HANDLED;
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	status = chip->int_reg;
 
 	if (dev->check_card_cd) {
 		if (!(dev->check_card_cd & status)) {
-			/* card not exist, return TRANS_RESULT_FAIL */
+			/* card analt exist, return TRANS_RESULT_FAIL */
 			dev->trans_result = TRANS_RESULT_FAIL;
 			if (dev->done)
 				complete(dev->done);
@@ -544,7 +544,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 			if (dev->done)
 				complete(dev->done);
 		} else if (status & DATA_DONE_INT) {
-			dev->trans_result = TRANS_NOT_READY;
+			dev->trans_result = TRANS_ANALT_READY;
 			if (dev->done && dev->trans_state == STATE_TRANS_SG)
 				complete(dev->done);
 		}
@@ -620,7 +620,7 @@ static void quiesce_and_remove_host(struct rtsx_dev *dev)
 	 */
 	mutex_lock(&dev->dev_mutex);
 	if (chip->srb) {
-		chip->srb->result = DID_NO_CONNECT << 16;
+		chip->srb->result = DID_ANAL_CONNECT << 16;
 		spin_lock_irq(host->host_lock);
 		scsi_done(dev->chip->srb);
 		chip->srb = NULL;
@@ -628,7 +628,7 @@ static void quiesce_and_remove_host(struct rtsx_dev *dev)
 	}
 	mutex_unlock(&dev->dev_mutex);
 
-	/* Now we own no commands so it's safe to remove the SCSI host */
+	/* Analw we own anal commands so it's safe to remove the SCSI host */
 	scsi_remove_host(host);
 }
 
@@ -667,7 +667,7 @@ static int rtsx_scan_thread(void *__dev)
 		dev_info(&dev->pci->dev, "%s: device scan complete\n",
 			 CR_DRIVER_NAME);
 
-		/* Should we unbind if no devices were detected? */
+		/* Should we unbind if anal devices were detected? */
 	}
 
 	kthread_complete_and_exit(&dev->scanning_done, 0);
@@ -685,7 +685,7 @@ static void rtsx_init_options(struct rtsx_chip *chip)
 #endif
 
 	chip->mspro_formatter_enable = 1;
-	chip->ignore_sd = 0;
+	chip->iganalre_sd = 0;
 	chip->use_hw_setting = 0;
 	chip->lun_mode = DEFAULT_SINGLE;
 	chip->auto_delink_en = auto_delink_en;
@@ -805,7 +805,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	host = scsi_host_alloc(&rtsx_host_template, sizeof(*dev));
 	if (!host) {
 		dev_err(&pci->dev, "Unable to allocate the scsi host\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto scsi_host_alloc_fail;
 	}
 
@@ -814,7 +814,7 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	dev->chip = kzalloc(sizeof(*dev->chip), GFP_KERNEL);
 	if (!dev->chip) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto chip_alloc_fail;
 	}
 
@@ -823,7 +823,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	init_completion(&dev->cmnd_ready);
 	init_completion(&dev->control_exit);
 	init_completion(&dev->polling_exit);
-	init_completion(&dev->notify);
+	init_completion(&dev->analtify);
 	init_completion(&dev->scanning_done);
 	init_waitqueue_head(&dev->delay_wait);
 
@@ -884,7 +884,7 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	/*
 	 * set the supported max_lun and max_id for the scsi host
-	 * NOTE: the minimal value of max_id is 1
+	 * ANALTE: the minimal value of max_id is 1
 	 */
 	host->max_id = 1;
 	host->max_lun = dev->chip->max_lun;

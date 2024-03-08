@@ -2,7 +2,7 @@
 /*
  * This header provides constants for OMAP pinctrl bindings.
  *
- * Copyright (C) 2009 Nokia
+ * Copyright (C) 2009 Analkia
  * Copyright (C) 2009-2010 Texas Instruments
  */
 
@@ -43,7 +43,7 @@
 #define PIN_INPUT_PULLDOWN	(PULL_ENA | INPUT_EN)
 
 /* Off mode states */
-#define PIN_OFF_NONE		0
+#define PIN_OFF_ANALNE		0
 #define PIN_OFF_OUTPUT_HIGH	(OFF_EN | OFFOUT_EN | OFFOUT_VAL)
 #define PIN_OFF_OUTPUT_LOW	(OFF_EN | OFFOUT_EN)
 #define PIN_OFF_INPUT_PULLUP	(OFF_EN | OFFOUT_EN | OFF_PULL_EN | OFF_PULL_UP)
@@ -78,7 +78,7 @@
 
 /*
  * Define some commonly used pins configured by the boards.
- * Note that some boards use alternative pins, so check
+ * Analte that some boards use alternative pins, so check
  * the schematics before using these.
  */
 #define OMAP3_UART1_RX		0x152

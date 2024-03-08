@@ -14,23 +14,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include "kselftest.h"
 
-static inline int _no_printf(const char *format, ...) { return 0; }
+static inline int _anal_printf(const char *format, ...) { return 0; }
 
 #ifdef DEBUG
 #define pr_debug(...) printf(__VA_ARGS__)
 #else
-#define pr_debug(...) _no_printf(__VA_ARGS__)
+#define pr_debug(...) _anal_printf(__VA_ARGS__)
 #endif
 #ifndef QUIET
 #define pr_info(...) printf(__VA_ARGS__)
 #else
-#define pr_info(...) _no_printf(__VA_ARGS__)
+#define pr_info(...) _anal_printf(__VA_ARGS__)
 #endif
 
 void __printf(1, 2) print_skip(const char *fmt, ...);
@@ -40,7 +40,7 @@ do {								\
 		ksft_exit_skip("- " fmt "\n", ##__VA_ARGS__);	\
 } while (0)
 
-#define TEST_REQUIRE(f) __TEST_REQUIRE(f, "Requirement not met: %s", #f)
+#define TEST_REQUIRE(f) __TEST_REQUIRE(f, "Requirement analt met: %s", #f)
 
 ssize_t test_write(int fd, const void *buf, size_t count);
 ssize_t test_read(int fd, void *buf, size_t count);
@@ -93,28 +93,28 @@ struct guest_random_state new_guest_random_state(uint32_t seed);
 uint32_t guest_random_u32(struct guest_random_state *state);
 
 enum vm_mem_backing_src_type {
-	VM_MEM_SRC_ANONYMOUS,
-	VM_MEM_SRC_ANONYMOUS_THP,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_16KB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_64KB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_512KB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_1MB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_2MB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_8MB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_16MB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_32MB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_256MB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_512MB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_1GB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_2GB,
-	VM_MEM_SRC_ANONYMOUS_HUGETLB_16GB,
+	VM_MEM_SRC_AANALNYMOUS,
+	VM_MEM_SRC_AANALNYMOUS_THP,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_16KB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_64KB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_512KB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_1MB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_2MB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_8MB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_16MB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_32MB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_256MB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_512MB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_1GB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_2GB,
+	VM_MEM_SRC_AANALNYMOUS_HUGETLB_16GB,
 	VM_MEM_SRC_SHMEM,
 	VM_MEM_SRC_SHARED_HUGETLB,
 	NUM_SRC_TYPES,
 };
 
-#define DEFAULT_VM_MEM_SRC VM_MEM_SRC_ANONYMOUS
+#define DEFAULT_VM_MEM_SRC VM_MEM_SRC_AANALNYMOUS
 
 struct vm_mem_backing_src_alias {
 	const char *name;
@@ -134,8 +134,8 @@ enum vm_mem_backing_src_type parse_backing_src_type(const char *type_name);
 long get_run_delay(void);
 
 /*
- * Whether or not the given source type is shared memory (as opposed to
- * anonymous).
+ * Whether or analt the given source type is shared memory (as opposed to
+ * aanalnymous).
  */
 static inline bool backing_src_is_shared(enum vm_mem_backing_src_type t)
 {
@@ -144,7 +144,7 @@ static inline bool backing_src_is_shared(enum vm_mem_backing_src_type t)
 
 static inline bool backing_src_can_be_huge(enum vm_mem_backing_src_type t)
 {
-	return t != VM_MEM_SRC_ANONYMOUS && t != VM_MEM_SRC_SHMEM;
+	return t != VM_MEM_SRC_AANALNYMOUS && t != VM_MEM_SRC_SHMEM;
 }
 
 /* Aligns x up to the next multiple of size. Size must be a power of 2. */
@@ -153,7 +153,7 @@ static inline uint64_t align_up(uint64_t x, uint64_t size)
 	uint64_t mask = size - 1;
 
 	TEST_ASSERT(size != 0 && !(size & (size - 1)),
-		    "size not a power of 2: %lu", size);
+		    "size analt a power of 2: %lu", size);
 	return ((x + mask) & ~mask);
 }
 
@@ -172,28 +172,28 @@ static inline void *align_ptr_up(void *x, size_t size)
 	return (void *)align_up((unsigned long)x, size);
 }
 
-int atoi_paranoid(const char *num_str);
+int atoi_paraanalid(const char *num_str);
 
 static inline uint32_t atoi_positive(const char *name, const char *num_str)
 {
-	int num = atoi_paranoid(num_str);
+	int num = atoi_paraanalid(num_str);
 
 	TEST_ASSERT(num > 0, "%s must be greater than 0, got '%s'", name, num_str);
 	return num;
 }
 
-static inline uint32_t atoi_non_negative(const char *name, const char *num_str)
+static inline uint32_t atoi_analn_negative(const char *name, const char *num_str)
 {
-	int num = atoi_paranoid(num_str);
+	int num = atoi_paraanalid(num_str);
 
-	TEST_ASSERT(num >= 0, "%s must be non-negative, got '%s'", name, num_str);
+	TEST_ASSERT(num >= 0, "%s must be analn-negative, got '%s'", name, num_str);
 	return num;
 }
 
 int guest_vsnprintf(char *buf, int n, const char *fmt, va_list args);
 __printf(3, 4) int guest_snprintf(char *buf, int n, const char *fmt, ...);
 
-char *strdup_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2), nonnull(1)));
+char *strdup_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2), analnnull(1)));
 
 char *sys_get_cur_clocksource(void);
 

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #ifndef __NFP_FLOWER_H__
 #define __NFP_FLOWER_H__ 1
@@ -93,7 +93,7 @@ struct nfp_fl_stats_id {
  * @ipv4_off_lock:	Lock for the IPv4 address list
  * @ipv6_off_lock:	Lock for the IPv6 address list
  * @mac_off_ids:	IDA to manage id assignment for offloaded MACs
- * @neigh_nb:		Notifier to monitor neighbour state
+ * @neigh_nb:		Analtifier to monitor neighbour state
  */
 struct nfp_fl_tunnel_offloads {
 	struct rhashtable offloaded_macs;
@@ -102,7 +102,7 @@ struct nfp_fl_tunnel_offloads {
 	struct mutex ipv4_off_lock;
 	struct mutex ipv6_off_lock;
 	struct ida mac_off_ids;
-	struct notifier_block neigh_nb;
+	struct analtifier_block neigh_nb;
 };
 
 /**
@@ -174,7 +174,7 @@ struct nfp_tun_neigh_v6 {
 /**
  * struct nfp_neigh_entry
  * @neigh_cookie:	Cookie for hashtable lookup
- * @ht_node:		rhash_head entry for hashtable
+ * @ht_analde:		rhash_head entry for hashtable
  * @list_head:		Needed as member of linked_nn_entries list
  * @payload:		The neighbour info payload
  * @flow:		Linked flow rule
@@ -182,7 +182,7 @@ struct nfp_tun_neigh_v6 {
  */
 struct nfp_neigh_entry {
 	unsigned long neigh_cookie;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct list_head list_head;
 	char *payload;
 	struct nfp_predt_entry *flow;
@@ -206,7 +206,7 @@ struct nfp_predt_entry {
  * @portnum:		NFP port number of repr with requested MTU change
  * @requested_val:	MTU value requested for repr
  * @ack:		Received ack that MTU has been correctly set
- * @wait_q:		Wait queue for MTU acknowledgements
+ * @wait_q:		Wait queue for MTU ackanalwledgements
  * @lock:		Lock for setting/reading MTU variables
  */
 struct nfp_mtu_conf {
@@ -227,7 +227,7 @@ struct nfp_mtu_conf {
  * @batch_ver:		Incremented for each batch of config packets
  * @global_inst:	Instance allocator for groups
  * @rst_cfg:		Marker to reset HW LAG config
- * @retrans_skbs:	Cmsgs that could not be processed by HW and require
+ * @retrans_skbs:	Cmsgs that could analt be processed by HW and require
  *			retransmission
  */
 struct nfp_fl_lag {
@@ -280,7 +280,7 @@ struct nfp_fl_internal_ports {
  * @mtu_conf:		Configuration of repr MTU value
  * @nfp_lag:		Link aggregation data block
  * @indr_block_cb_priv:	List of priv data passed to indirect block cbs
- * @non_repr_priv:	List of offloaded non-repr ports and their priv data
+ * @analn_repr_priv:	List of offloaded analn-repr ports and their priv data
  * @active_mem_unit:	Current active memory unit for flower rules
  * @total_mem_units:	Total number of available memory units for flower rules
  * @internal_ports:	Internal port ids used in offloaded rules
@@ -323,7 +323,7 @@ struct nfp_flower_priv {
 	struct nfp_mtu_conf mtu_conf;
 	struct nfp_fl_lag nfp_lag;
 	struct list_head indr_block_cb_priv;
-	struct list_head non_repr_priv;
+	struct list_head analn_repr_priv;
 	unsigned int active_mem_unit;
 	unsigned int total_mem_units;
 	struct nfp_fl_internal_ports internal_ports;
@@ -380,14 +380,14 @@ struct nfp_flower_repr_priv {
 };
 
 /**
- * struct nfp_flower_non_repr_priv - Priv data for non-repr offloaded ports
+ * struct nfp_flower_analn_repr_priv - Priv data for analn-repr offloaded ports
  * @list:		List entry of offloaded reprs
- * @netdev:		Pointer to non-repr net_device
+ * @netdev:		Pointer to analn-repr net_device
  * @ref_count:		Number of references held for this priv data
  * @mac_offloaded:	Flag indicating a MAC address is offloaded for device
  * @offloaded_mac_addr:	MAC address that has been offloaded for dev
  */
-struct nfp_flower_non_repr_priv {
+struct nfp_flower_analn_repr_priv {
 	struct list_head list;
 	struct net_device *netdev;
 	int ref_count;
@@ -433,7 +433,7 @@ struct nfp_ipv6_addr_entry {
 struct nfp_fl_payload {
 	struct nfp_fl_rule_metadata meta;
 	unsigned long tc_flower_cookie;
-	struct rhash_head fl_node;
+	struct rhash_head fl_analde;
 	struct rcu_head rcu;
 	__be32 nfp_tun_ipv4_addr;
 	struct nfp_ipv6_addr_entry *nfp_tun_ipv6;
@@ -478,7 +478,7 @@ extern const struct rhashtable_params neigh_table_params;
 
 struct nfp_merge_info {
 	u64 parent_ctx;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 };
 
 struct nfp_fl_stats_frame {
@@ -495,7 +495,7 @@ struct nfp_meter_stats_entry {
 };
 
 struct nfp_meter_entry {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	u32 meter_id;
 	bool bps;
 	u32 rate;
@@ -531,7 +531,7 @@ nfp_flower_internal_port_can_offload(struct nfp_app *app,
 
 /* The address of the merged flow acts as its cookie.
  * Cookies supplied to us by TC flower are also addresses to allocated
- * memory and thus this scheme should not generate any collisions.
+ * memory and thus this scheme should analt generate any collisions.
  */
 static inline bool nfp_flower_is_merge_flow(struct nfp_fl_payload *flow_pay)
 {
@@ -680,13 +680,13 @@ int nfp_flower_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch, vo
 void nfp_flower_setup_indr_tc_release(void *cb_priv);
 
 void
-__nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv);
-struct nfp_flower_non_repr_priv *
-nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev);
+__nfp_flower_analn_repr_priv_get(struct nfp_flower_analn_repr_priv *analn_repr_priv);
+struct nfp_flower_analn_repr_priv *
+nfp_flower_analn_repr_priv_get(struct nfp_app *app, struct net_device *netdev);
 void
-__nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv);
+__nfp_flower_analn_repr_priv_put(struct nfp_flower_analn_repr_priv *analn_repr_priv);
 void
-nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
+nfp_flower_analn_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
 u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
 				       struct net_device *netdev);
 void nfp_tun_link_and_update_nn_entries(struct nfp_app *app,

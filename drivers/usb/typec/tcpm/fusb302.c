@@ -7,7 +7,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/extcon.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -239,7 +239,7 @@ static int fusb302_i2c_write(struct fusb302_chip *chip,
 
 	ret = i2c_smbus_write_byte_data(chip->i2c_client, address, data);
 	if (ret < 0)
-		fusb302_log(chip, "cannot write 0x%02x to 0x%02x, ret=%d",
+		fusb302_log(chip, "cananalt write 0x%02x to 0x%02x, ret=%d",
 			    data, address, ret);
 
 	return ret;
@@ -256,7 +256,7 @@ static int fusb302_i2c_block_write(struct fusb302_chip *chip, u8 address,
 	ret = i2c_smbus_write_i2c_block_data(chip->i2c_client, address,
 					     length, data);
 	if (ret < 0)
-		fusb302_log(chip, "cannot block write 0x%02x, len=%d, ret=%d",
+		fusb302_log(chip, "cananalt block write 0x%02x, len=%d, ret=%d",
 			    address, length, ret);
 
 	return ret;
@@ -270,7 +270,7 @@ static int fusb302_i2c_read(struct fusb302_chip *chip,
 	ret = i2c_smbus_read_byte_data(chip->i2c_client, address);
 	*data = (u8)ret;
 	if (ret < 0)
-		fusb302_log(chip, "cannot read %02x, ret=%d", address, ret);
+		fusb302_log(chip, "cananalt read %02x, ret=%d", address, ret);
 
 	return ret;
 }
@@ -286,7 +286,7 @@ static int fusb302_i2c_block_read(struct fusb302_chip *chip, u8 address,
 	ret = i2c_smbus_read_i2c_block_data(chip->i2c_client, address,
 					    length, data);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot block read 0x%02x, len=%d, ret=%d",
+		fusb302_log(chip, "cananalt block read 0x%02x, len=%d, ret=%d",
 			    address, length, ret);
 		goto done;
 	}
@@ -337,7 +337,7 @@ static int fusb302_sw_reset(struct fusb302_chip *chip)
 	ret = fusb302_i2c_write(chip, FUSB_REG_RESET,
 				FUSB_REG_RESET_SW_RESET);
 	if (ret < 0)
-		fusb302_log(chip, "cannot sw reset the chip, ret=%d", ret);
+		fusb302_log(chip, "cananalt sw reset the chip, ret=%d", ret);
 	else
 		fusb302_log(chip, "sw reset");
 
@@ -512,12 +512,12 @@ static int fusb302_set_toggling(struct fusb302_chip *chip,
 		return ret;
 	chip->intr_bc_lvl = false;
 	chip->intr_comp_chng = false;
-	/* configure toggling mode: none/snk/src/drp */
+	/* configure toggling mode: analne/snk/src/drp */
 	switch (mode) {
 	case TOGGLING_MODE_OFF:
 		ret = fusb302_i2c_mask_write(chip, FUSB_REG_CONTROL2,
 					     FUSB_REG_CONTROL2_MODE_MASK,
-					     FUSB_REG_CONTROL2_MODE_NONE);
+					     FUSB_REG_CONTROL2_MODE_ANALNE);
 		if (ret < 0)
 			return ret;
 		break;
@@ -631,14 +631,14 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 
 	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot set toggling mode, ret=%d", ret);
+		fusb302_log(chip, "cananalt set toggling mode, ret=%d", ret);
 		goto done;
 	}
 
 	ret = fusb302_i2c_mask_write(chip, FUSB_REG_SWITCHES0,
 				     switches0_mask, switches0_data);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot set pull-up/-down, ret = %d", ret);
+		fusb302_log(chip, "cananalt set pull-up/-down, ret = %d", ret);
 		goto done;
 	}
 	/* reset the cc status */
@@ -648,7 +648,7 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 	/* adjust current for SRC */
 	ret = fusb302_set_src_current(chip, cc_src_current[cc]);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot set src current %s, ret=%d",
+		fusb302_log(chip, "cananalt set src current %s, ret=%d",
 			    typec_cc_status_name[cc], ret);
 		goto done;
 	}
@@ -662,7 +662,7 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 		ret = fusb302_i2c_write(chip, FUSB_REG_MEASURE, rd_mda);
 		if (ret < 0) {
 			fusb302_log(chip,
-				    "cannot set SRC measure value, ret=%d",
+				    "cananalt set SRC measure value, ret=%d",
 				    ret);
 			goto done;
 		}
@@ -671,7 +671,7 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 					     FUSB_REG_MASK_COMP_CHNG,
 					     FUSB_REG_MASK_BC_LVL);
 		if (ret < 0) {
-			fusb302_log(chip, "cannot set SRC interrupt, ret=%d",
+			fusb302_log(chip, "cananalt set SRC interrupt, ret=%d",
 				    ret);
 			goto done;
 		}
@@ -684,7 +684,7 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 					     FUSB_REG_MASK_COMP_CHNG,
 					     FUSB_REG_MASK_COMP_CHNG);
 		if (ret < 0) {
-			fusb302_log(chip, "cannot set SRC interrupt, ret=%d",
+			fusb302_log(chip, "cananalt set SRC interrupt, ret=%d",
 				    ret);
 			goto done;
 		}
@@ -768,7 +768,7 @@ static int tcpm_set_vbus(struct tcpc_dev *dev, bool on, bool charge)
 		else
 			ret = regulator_disable(chip->vbus);
 		if (ret < 0) {
-			fusb302_log(chip, "cannot %s vbus regulator, ret=%d",
+			fusb302_log(chip, "cananalt %s vbus regulator, ret=%d",
 				    on ? "enable" : "disable", ret);
 			goto done;
 		}
@@ -843,23 +843,23 @@ static int tcpm_set_pd_rx(struct tcpc_dev *dev, bool on)
 	mutex_lock(&chip->lock);
 	ret = fusb302_pd_rx_flush(chip);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot flush pd rx buffer, ret=%d", ret);
+		fusb302_log(chip, "cananalt flush pd rx buffer, ret=%d", ret);
 		goto done;
 	}
 	ret = fusb302_pd_tx_flush(chip);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot flush pd tx buffer, ret=%d", ret);
+		fusb302_log(chip, "cananalt flush pd tx buffer, ret=%d", ret);
 		goto done;
 	}
 	ret = fusb302_pd_set_auto_goodcrc(chip, on);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot turn %s auto GCRC, ret=%d",
+		fusb302_log(chip, "cananalt turn %s auto GCRC, ret=%d",
 			    on ? "on" : "off", ret);
 		goto done;
 	}
 	ret = fusb302_pd_set_interrupts(chip, on);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot turn %s pd interrupts, ret=%d",
+		fusb302_log(chip, "cananalt turn %s pd interrupts, ret=%d",
 			    on ? "on" : "off", ret);
 		goto done;
 	}
@@ -1033,21 +1033,21 @@ static int tcpm_pd_transmit(struct tcpc_dev *dev, enum tcpm_transmit_type type,
 						     FUSB_REG_CONTROL3_N_RETRIES_2 :
 						     FUSB_REG_CONTROL3_N_RETRIES_3);
 		if (ret < 0)
-			fusb302_log(chip, "Cannot update retry count ret=%d", ret);
+			fusb302_log(chip, "Cananalt update retry count ret=%d", ret);
 
 		ret = fusb302_pd_send_message(chip, msg);
 		if (ret < 0)
 			fusb302_log(chip,
-				    "cannot send PD message, ret=%d", ret);
+				    "cananalt send PD message, ret=%d", ret);
 		break;
 	case TCPC_TX_HARD_RESET:
 		ret = fusb302_pd_send_hardreset(chip);
 		if (ret < 0)
 			fusb302_log(chip,
-				    "cannot send hardreset, ret=%d", ret);
+				    "cananalt send hardreset, ret=%d", ret);
 		break;
 	default:
-		fusb302_log(chip, "type %s not supported",
+		fusb302_log(chip, "type %s analt supported",
 			    transmit_type_name[type]);
 		ret = -EINVAL;
 	}
@@ -1191,7 +1191,7 @@ static int fusb302_handle_togdone_snk(struct fusb302_chip *chip,
 		      TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2;
 	ret = fusb302_set_cc_polarity_and_pull(chip, cc_polarity, false, true);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot set cc polarity %s, ret=%d",
+		fusb302_log(chip, "cananalt set cc polarity %s, ret=%d",
 			    cc_polarity_name[cc_polarity], ret);
 		return ret;
 	}
@@ -1221,14 +1221,14 @@ static int fusb302_handle_togdone_snk(struct fusb302_chip *chip,
 	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
 		fusb302_log(chip,
-			    "cannot set toggling mode off, ret=%d", ret);
+			    "cananalt set toggling mode off, ret=%d", ret);
 		return ret;
 	}
 	/* unmask bc_lvl interrupt */
 	ret = fusb302_i2c_clear_bits(chip, FUSB_REG_MASK, FUSB_REG_MASK_BC_LVL);
 	if (ret < 0) {
 		fusb302_log(chip,
-			    "cannot unmask bc_lcl interrupt, ret=%d", ret);
+			    "cananalt unmask bc_lcl interrupt, ret=%d", ret);
 		return ret;
 	}
 	chip->intr_bc_lvl = true;
@@ -1313,7 +1313,7 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 	/*
 	 * The toggle-engine will stop in a src state if it sees either Ra or
 	 * Rd. Determine the status for both CC pins, starting with the one
-	 * where toggling stopped, as that is where the switches point now.
+	 * where toggling stopped, as that is where the switches point analw.
 	 */
 	if (togdone_result == FUSB_REG_STATUS1A_TOGSS_SRC1)
 		ret = fusb302_get_src_cc_status(chip, TYPEC_POLARITY_CC1, &cc1);
@@ -1324,7 +1324,7 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 	/* we must turn off toggling before we can measure the other pin */
 	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot set toggling mode off, ret=%d", ret);
+		fusb302_log(chip, "cananalt set toggling mode off, ret=%d", ret);
 		return ret;
 	}
 	/* get the status of the other pin */
@@ -1351,7 +1351,7 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 	/* set polarity and pull_up, pull_down */
 	ret = fusb302_set_cc_polarity_and_pull(chip, cc_polarity, true, false);
 	if (ret < 0) {
-		fusb302_log(chip, "cannot set cc polarity %s, ret=%d",
+		fusb302_log(chip, "cananalt set cc polarity %s, ret=%d",
 			    cc_polarity_name[cc_polarity], ret);
 		return ret;
 	}
@@ -1370,7 +1370,7 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 				     FUSB_REG_MASK_COMP_CHNG);
 	if (ret < 0) {
 		fusb302_log(chip,
-			    "cannot unmask comp_chng interrupt, ret=%d", ret);
+			    "cananalt unmask comp_chng interrupt, ret=%d", ret);
 		return ret;
 	}
 	chip->intr_comp_chng = true;
@@ -1401,7 +1401,7 @@ static int fusb302_handle_togdone(struct fusb302_chip *chip)
 		return fusb302_handle_togdone_src(chip, togdone_result);
 	case FUSB_REG_STATUS1A_TOGSS_AA:
 		/* doesn't support */
-		fusb302_log(chip, "AudioAccessory not supported");
+		fusb302_log(chip, "AudioAccessory analt supported");
 		fusb302_set_toggling(chip, chip->toggling_mode);
 		break;
 	default:
@@ -1447,7 +1447,7 @@ static int fusb302_pd_read_message(struct fusb302_chip *chip,
 		if (ret < 0)
 			return ret;
 	}
-	/* another 4 bytes to read CRC out */
+	/* aanalther 4 bytes to read CRC out */
 	ret = fusb302_i2c_block_read(chip, FUSB_REG_FIFOS, 4, crc);
 	if (ret < 0)
 		return ret;
@@ -1478,7 +1478,7 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 	unsigned long flags;
 
 	/* Disable our level triggered IRQ until our irq_work has cleared it */
-	disable_irq_nosync(chip->gpio_int_n_irq);
+	disable_irq_analsync(chip->gpio_int_n_irq);
 
 	spin_lock_irqsave(&chip->irq_lock, flags);
 	if (chip->irq_suspended)
@@ -1585,7 +1585,7 @@ static void fusb302_irq_work(struct work_struct *work)
 		fusb302_log(chip, "IRQ: PD hardreset sent");
 		ret = fusb302_pd_reset(chip);
 		if (ret < 0) {
-			fusb302_log(chip, "cannot PD reset, ret=%d", ret);
+			fusb302_log(chip, "cananalt PD reset, ret=%d", ret);
 			goto done;
 		}
 		tcpm_pd_transmit_complete(chip->tcpm_port, TCPC_TX_SUCCESS);
@@ -1596,7 +1596,7 @@ static void fusb302_irq_work(struct work_struct *work)
 		ret = fusb302_pd_read_message(chip, &pd_msg);
 		if (ret < 0) {
 			fusb302_log(chip,
-				    "cannot read in PD message, ret=%d", ret);
+				    "cananalt read in PD message, ret=%d", ret);
 			goto done;
 		}
 	}
@@ -1605,7 +1605,7 @@ static void fusb302_irq_work(struct work_struct *work)
 		fusb302_log(chip, "IRQ: PD received hardreset");
 		ret = fusb302_pd_reset(chip);
 		if (ret < 0) {
-			fusb302_log(chip, "cannot PD reset, ret=%d", ret);
+			fusb302_log(chip, "cananalt PD reset, ret=%d", ret);
 			goto done;
 		}
 		tcpm_pd_hard_reset(chip->tcpm_port);
@@ -1616,7 +1616,7 @@ static void fusb302_irq_work(struct work_struct *work)
 		ret = fusb302_pd_read_message(chip, &pd_msg);
 		if (ret < 0) {
 			fusb302_log(chip,
-				    "cannot read in PD message, ret=%d", ret);
+				    "cananalt read in PD message, ret=%d", ret);
 			goto done;
 		}
 	}
@@ -1638,7 +1638,7 @@ static int init_gpio(struct fusb302_chip *chip)
 	ret = gpiod_to_irq(chip->gpio_int_n);
 	if (ret < 0) {
 		dev_err(dev,
-			"cannot request IRQ for GPIO Int_N, ret=%d", ret);
+			"cananalt request IRQ for GPIO Int_N, ret=%d", ret);
 		return ret;
 	}
 	chip->gpio_int_n_irq = ret;
@@ -1666,15 +1666,15 @@ static const struct property_entry port_props[] = {
 	{ }
 };
 
-static struct fwnode_handle *fusb302_fwnode_get(struct device *dev)
+static struct fwanalde_handle *fusb302_fwanalde_get(struct device *dev)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 
-	fwnode = device_get_named_child_node(dev, "connector");
-	if (!fwnode)
-		fwnode = fwnode_create_software_node(port_props, NULL);
+	fwanalde = device_get_named_child_analde(dev, "connector");
+	if (!fwanalde)
+		fwanalde = fwanalde_create_software_analde(port_props, NULL);
 
-	return fwnode;
+	return fwanalde;
 }
 
 static int fusb302_probe(struct i2c_client *client)
@@ -1687,19 +1687,19 @@ static int fusb302_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		dev_err(&client->dev,
-			"I2C/SMBus block functionality not supported!\n");
-		return -ENODEV;
+			"I2C/SMBus block functionality analt supported!\n");
+		return -EANALDEV;
 	}
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->i2c_client = client;
 	chip->dev = &client->dev;
 	mutex_init(&chip->lock);
 
 	/*
-	 * Devicetree platforms should get extcon via phandle (not yet
+	 * Devicetree platforms should get extcon via phandle (analt yet
 	 * supported). On ACPI platforms, we get the name from a device prop.
 	 * This device prop is for kernel internal use only and is expected
 	 * to be set by the platform code which also registers the i2c client
@@ -1717,7 +1717,7 @@ static int fusb302_probe(struct i2c_client *client)
 
 	chip->wq = create_singlethread_workqueue(dev_name(chip->dev));
 	if (!chip->wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&chip->irq_lock);
 	INIT_WORK(&chip->irq_work, fusb302_irq_work);
@@ -1733,17 +1733,17 @@ static int fusb302_probe(struct i2c_client *client)
 			goto destroy_workqueue;
 	}
 
-	chip->tcpc_dev.fwnode = fusb302_fwnode_get(dev);
-	if (IS_ERR(chip->tcpc_dev.fwnode)) {
-		ret = PTR_ERR(chip->tcpc_dev.fwnode);
+	chip->tcpc_dev.fwanalde = fusb302_fwanalde_get(dev);
+	if (IS_ERR(chip->tcpc_dev.fwanalde)) {
+		ret = PTR_ERR(chip->tcpc_dev.fwanalde);
 		goto destroy_workqueue;
 	}
 
 	chip->tcpm_port = tcpm_register_port(&client->dev, &chip->tcpc_dev);
 	if (IS_ERR(chip->tcpm_port)) {
-		fwnode_handle_put(chip->tcpc_dev.fwnode);
+		fwanalde_handle_put(chip->tcpc_dev.fwanalde);
 		ret = dev_err_probe(dev, PTR_ERR(chip->tcpm_port),
-				    "cannot register tcpm port\n");
+				    "cananalt register tcpm port\n");
 		goto destroy_workqueue;
 	}
 
@@ -1751,7 +1751,7 @@ static int fusb302_probe(struct i2c_client *client)
 			  IRQF_ONESHOT | IRQF_TRIGGER_LOW,
 			  "fsc_interrupt_int_n", chip);
 	if (ret < 0) {
-		dev_err(dev, "cannot request IRQ for GPIO Int_N, ret=%d", ret);
+		dev_err(dev, "cananalt request IRQ for GPIO Int_N, ret=%d", ret);
 		goto tcpm_unregister_port;
 	}
 	enable_irq_wake(chip->gpio_int_n_irq);
@@ -1761,7 +1761,7 @@ static int fusb302_probe(struct i2c_client *client)
 
 tcpm_unregister_port:
 	tcpm_unregister_port(chip->tcpm_port);
-	fwnode_handle_put(chip->tcpc_dev.fwnode);
+	fwanalde_handle_put(chip->tcpc_dev.fwanalde);
 destroy_workqueue:
 	fusb302_debugfs_exit(chip);
 	destroy_workqueue(chip->wq);
@@ -1778,7 +1778,7 @@ static void fusb302_remove(struct i2c_client *client)
 	cancel_work_sync(&chip->irq_work);
 	cancel_delayed_work_sync(&chip->bc_lvl_handler);
 	tcpm_unregister_port(chip->tcpm_port);
-	fwnode_handle_put(chip->tcpc_dev.fwnode);
+	fwanalde_handle_put(chip->tcpc_dev.fwanalde);
 	destroy_workqueue(chip->wq);
 	fusb302_debugfs_exit(chip);
 }

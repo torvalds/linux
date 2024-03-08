@@ -2,7 +2,7 @@
 
 #include "dm814x-clocks.dtsi"
 
-/* Compared to dm814x, dra62x does not have hdic, l3 or dss PLLs */
+/* Compared to dm814x, dra62x does analt have hdic, l3 or dss PLLs */
 &adpll_hdvic_ck {
 	status = "disabled";
 };

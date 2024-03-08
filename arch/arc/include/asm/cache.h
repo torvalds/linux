@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ARC_ASM_CACHE_H
 #define __ARC_ASM_CACHE_H
 
-/* In case $$ not config, setup a dummy number for rest of kernel */
+/* In case $$ analt config, setup a dummy number for rest of kernel */
 #ifndef CONFIG_ARC_CACHE_LINE_SHIFT
 #define L1_CACHE_SHIFT		6
 #else
@@ -55,8 +55,8 @@
  * Make sure slab-allocated buffers are 64-bit aligned when atomic64_t uses
  * ARCv2 64-bit atomics (LLOCKD/SCONDD). This guarantess runtime 64-bit
  * alignment for any atomic64_t embedded in buffer.
- * Default ARCH_SLAB_MINALIGN is __alignof__(long long) which has a relaxed
- * value of 4 (and not 8) in ARC ABI.
+ * Default ARCH_SLAB_MINALIGN is __aliganalf__(long long) which has a relaxed
+ * value of 4 (and analt 8) in ARC ABI.
  */
 #if defined(CONFIG_ARC_HAS_LL64) && defined(CONFIG_ARC_HAS_LLSC)
 #define ARCH_SLAB_MINALIGN	8

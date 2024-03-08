@@ -18,7 +18,7 @@
  * called "L3 bridge" and there are register descriptions
  * for something in the same area called "AXI".
  *
- * It's not exactly known what this is but the vendor code
+ * It's analt exactly kanalwn what this is but the vendor code
  * for both u-boot and linux share calls to "flush the miu pipe".
  * This seems to be to force pending CPU writes to memory so that
  * the state is right before DMA capable devices try to read
@@ -73,22 +73,22 @@ static void mstarv7_mb(void)
 #ifdef CONFIG_SMP
 static int mstarv7_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 bootaddr = (u32) __pa_symbol(secondary_startup_arm);
 	void __iomem *smpctrl;
 
 	/*
-	 * right now we don't know how to boot anything except
+	 * right analw we don't kanalw how to boot anything except
 	 * cpu 1.
 	 */
 	if (cpu != 1)
 		return -EINVAL;
 
-	np = of_find_compatible_node(NULL, NULL, "mstar,smpctrl");
+	np = of_find_compatible_analde(NULL, NULL, "mstar,smpctrl");
 	smpctrl = of_iomap(np, 0);
 
 	if (!smpctrl)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* set the boot address for the second cpu */
 	writew(bootaddr & 0xffff, smpctrl + MSTARV7_CPU1_BOOT_ADDR_LOW);
@@ -112,9 +112,9 @@ static const struct smp_operations __initdata mstarv7_smp_ops = {
 
 static void __init mstarv7_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "mstar,l3bridge");
+	np = of_find_compatible_analde(NULL, NULL, "mstar,l3bridge");
 	l3bridge = of_iomap(np, 0);
 	if (l3bridge)
 		soc_mb = mstarv7_mb;

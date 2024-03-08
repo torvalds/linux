@@ -2,10 +2,10 @@
 /*
  * omap_device headers
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Paul Walmsley
  *
- * Developed in collaboration with (alphabetical order): Benoit
+ * Developed in collaboration with (alphabetical order): Beanalit
  * Cousson, Kevin Hilman, Tony Lindgren, Rajendra Nayak, Vikram
  * Pandita, Sakari Poussa, Anand Sawant, Santosh Shilimkar, Richard
  * Woodruff
@@ -26,7 +26,7 @@
 #include "omap_hwmod.h"
 
 /* omap_device._state values */
-#define OMAP_DEVICE_STATE_UNKNOWN	0
+#define OMAP_DEVICE_STATE_UNKANALWN	0
 #define OMAP_DEVICE_STATE_ENABLED	1
 #define OMAP_DEVICE_STATE_IDLE		2
 #define OMAP_DEVICE_STATE_SHUTDOWN	3
@@ -41,7 +41,7 @@
  * @hwmods_cnt: ARRAY_SIZE() of @hwmods
  * @_state: one of OMAP_DEVICE_STATE_* (see above)
  * @flags: device flags
- * @_driver_status: one of BUS_NOTIFY_*_DRIVER from <linux/device.h>
+ * @_driver_status: one of BUS_ANALTIFY_*_DRIVER from <linux/device.h>
  *
  * Integrates omap_hwmod data into Linux platform_device.
  *

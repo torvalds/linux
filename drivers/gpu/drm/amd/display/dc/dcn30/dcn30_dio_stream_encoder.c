@@ -8,12 +8,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -335,8 +335,8 @@ void enc3_dp_set_dsc_pps_info_packet(struct stream_encoder *enc,
 
 		/* We need turn on clock before programming AFMT block
 		 *
-		 * TODO: We may not need this here anymore since update_generic_info_packet
-		 * no longer touches AFMT
+		 * TODO: We may analt need this here anymore since update_generic_info_packet
+		 * anal longer touches AFMT
 		 */
 		REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
 
@@ -437,10 +437,10 @@ void enc3_stream_encoder_update_dp_info_packets(
 				true);
 	}
 	/* TODO: VSC SDP at packetIndex 1 should be retricted only if PSR-SU on.
-	 * There should have another Infopacket type (e.g. vsc_psrsu) for PSR_SU.
+	 * There should have aanalther Infopacket type (e.g. vsc_psrsu) for PSR_SU.
 	 * In addition, currently the driver check the valid bit then update and
 	 * send the corresponding Infopacket. For PSR-SU, the SDP only be sent
-	 * while entering PSR-SU mode. So we need another parameter(e.g. send)
+	 * while entering PSR-SU mode. So we need aanalther parameter(e.g. send)
 	 * in dc_info_packet to indicate which infopacket should be enabled by
 	 * default here.
 	 */
@@ -452,10 +452,10 @@ void enc3_stream_encoder_update_dp_info_packets(
 				true);
 	}
 	/* TODO: VSC SDP at packetIndex 1 should be restricted only if PSR-SU on.
-	 * There should have another Infopacket type (e.g. vsc_psrsu) for PSR_SU.
+	 * There should have aanalther Infopacket type (e.g. vsc_psrsu) for PSR_SU.
 	 * In addition, currently the driver check the valid bit then update and
 	 * send the corresponding Infopacket. For PSR-SU, the SDP only be sent
-	 * while entering PSR-SU mode. So we need another parameter(e.g. send)
+	 * while entering PSR-SU mode. So we need aanalther parameter(e.g. send)
 	 * in dc_info_packet to indicate which infopacket should be enabled by
 	 * default here.
 	 */
@@ -504,7 +504,7 @@ void enc3_stream_encoder_update_dp_info_packets(
 	 * this master bit must also be set.
 	 * This register shared with audio info frame.
 	 * Therefore we need to enable master bit
-	 * if at least on of the fields is not 0
+	 * if at least on of the fields is analt 0
 	 */
 	value = REG_READ(DP_SEC_CNTL);
 	if (value)
@@ -552,7 +552,7 @@ static void enc3_stream_encoder_dvi_set_stream_attribute(
 
 	} else {
 
-		//Set pattern for clock channel, default vlue 0x63 does not work
+		//Set pattern for clock channel, default vlue 0x63 does analt work
 		REG_UPDATE(DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, 0x1F);
 
 		//DIG_BE_TMDS_DVI_MODE : TMDS-DVI mode is already set in link_encoder_setup
@@ -598,7 +598,7 @@ static void enc3_stream_encoder_hdmi_set_stream_attribute(
 
 	} else {
 
-		//Set pattern for clock channel, default vlue 0x63 does not work
+		//Set pattern for clock channel, default vlue 0x63 does analt work
 		REG_UPDATE(DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, 0x1F);
 
 		//DIG_BE_TMDS_HDMI_MODE : TMDS-HDMI mode is already set in link_encoder_setup
@@ -623,7 +623,7 @@ static void enc3_stream_encoder_hdmi_set_stream_attribute(
 		HDMI_KEEPOUT_MODE, 1,
 		HDMI_DEEP_COLOR_ENABLE, 0,
 		HDMI_DATA_SCRAMBLE_EN, 0,
-		HDMI_NO_EXTRA_NULL_PACKET_FILLED, 1,
+		HDMI_ANAL_EXTRA_NULL_PACKET_FILLED, 1,
 		HDMI_CLOCK_CHANNEL_RATE, 0);
 
 	/* Configure color depth */
@@ -808,7 +808,7 @@ static void enc3_se_setup_hdmi_audio(
 	/* HDMI_ACR_48_1__HDMI_ACR_N_48_MASK */
 	REG_UPDATE(HDMI_ACR_48_1, HDMI_ACR_N_48, audio_clock_info.n_48khz);
 
-	/* Video driver cannot know in advance which sample rate will
+	/* Video driver cananalt kanalw in advance which sample rate will
 	 * be used by HD Audio driver
 	 * HDMI_ACR_PACKET_CONTROL__HDMI_ACR_N_MULTIPLE field is
 	 * programmed below in interruppt callback

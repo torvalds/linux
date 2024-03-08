@@ -87,7 +87,7 @@ struct k3_udma_glue_rx_flow_cfg {
  * @remote		indication that RX channel is remote - some remote CPU
  *			core owns and control the RX channel. Linux Host only
  *			allowed to attach and configure RX Flow within RX
- *			channel. if set - not RX channel operation will be
+ *			channel. if set - analt RX channel operation will be
  *			performed by K3 NAVSS DMA glue interface.
  * @def_flow_cfg	default RX flow configuration,
  *			used only if @flow_id_num = 1

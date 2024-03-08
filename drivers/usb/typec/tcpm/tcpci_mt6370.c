@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
@@ -114,8 +114,8 @@ static int mt6370_check_vendor_info(struct mt6370_priv *priv)
 		return ret;
 
 	if (vid != MT6370_VENDOR_ID)
-		return dev_err_probe(priv->dev, -ENODEV,
-				     "Vendor ID not correct 0x%02x\n", vid);
+		return dev_err_probe(priv->dev, -EANALDEV,
+				     "Vendor ID analt correct 0x%02x\n", vid);
 
 	return 0;
 }
@@ -133,13 +133,13 @@ static int mt6370_tcpc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 
 	priv->tcpci_data.regmap = dev_get_regmap(dev->parent, NULL);
 	if (!priv->tcpci_data.regmap)
-		return dev_err_probe(dev, -ENODEV, "Failed to init regmap\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to init regmap\n");
 
 	ret = mt6370_check_vendor_info(priv);
 	if (ret)

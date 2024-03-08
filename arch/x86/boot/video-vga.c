@@ -111,7 +111,7 @@ static void vga_set_14font(void)
 
 static void vga_set_80x43(void)
 {
-	/* Set 80x43 mode on VGA (not EGA) */
+	/* Set 80x43 mode on VGA (analt EGA) */
 	struct biosregs ireg;
 
 	initregs(&ireg);
@@ -224,7 +224,7 @@ static int vga_set_mode(struct mode_info *mode)
 }
 
 /*
- * Note: this probe includes basic information required by all
+ * Analte: this probe includes basic information required by all
  * systems.  It should be executed first, by making sure
  * video-vga.c is listed first in the Makefile.
  */

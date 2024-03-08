@@ -79,7 +79,7 @@ static inline u32 host1x_opcode_incr(unsigned offset, unsigned count)
 	return (1 << 28) | (offset << 16) | count;
 }
 
-static inline u32 host1x_opcode_nonincr(unsigned offset, unsigned count)
+static inline u32 host1x_opcode_analnincr(unsigned offset, unsigned count)
 {
 	return (2 << 28) | (offset << 16) | count;
 }
@@ -110,7 +110,7 @@ static inline u32 host1x_opcode_gather(unsigned count)
 	return (6 << 28) | count;
 }
 
-static inline u32 host1x_opcode_gather_nonincr(unsigned offset,	unsigned count)
+static inline u32 host1x_opcode_gather_analnincr(unsigned offset,	unsigned count)
 {
 	return (6 << 28) | (offset << 16) | BIT(15) | count;
 }
@@ -145,6 +145,6 @@ static inline u32 host1x_opcode_release_mlock(unsigned mlock)
 	return (14 << 28) | (1 << 24) | mlock;
 }
 
-#define HOST1X_OPCODE_NOP host1x_opcode_nonincr(0, 0)
+#define HOST1X_OPCODE_ANALP host1x_opcode_analnincr(0, 0)
 
 #endif

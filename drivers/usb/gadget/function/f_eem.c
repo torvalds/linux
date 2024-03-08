@@ -3,8 +3,8 @@
  * f_eem.c -- USB CDC Ethernet (EEM) link function driver
  *
  * Copyright (C) 2003-2005,2008 David Brownell
- * Copyright (C) 2008 Nokia Corporation
- * Copyright (C) 2009 EF Johnson Technologies
+ * Copyright (C) 2008 Analkia Corporation
+ * Copyright (C) 2009 EF Johnson Techanallogies
  */
 
 #include <linux/kernel.h>
@@ -180,7 +180,7 @@ static int eem_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 		w_value, w_index, w_length);
 
 	/* device either stalls (value < 0) or reports success */
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 
@@ -190,7 +190,7 @@ static int eem_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct net_device	*net;
 
-	/* we know alt == 0, so this is an activation or a reset */
+	/* we kanalw alt == 0, so this is an activation or a reset */
 	if (alt != 0)
 		goto fail;
 
@@ -210,7 +210,7 @@ static int eem_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			}
 		}
 
-		/* zlps should not occur because zero-length EEM packets
+		/* zlps should analt occur because zero-length EEM packets
 		 * will be inserted in those cases where they would occur
 		 */
 		eem->port.is_zlp_ok = 1;
@@ -257,7 +257,7 @@ static int eem_bind(struct usb_configuration *c, struct usb_function *f)
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
 	 * in each configuration its functions are bound in sequence
-	 * with list_for_each_entry, so we assume no race condition
+	 * with list_for_each_entry, so we assume anal race condition
 	 * with regard to eem_opts->bound access
 	 */
 	if (!eem_opts->bound) {
@@ -283,7 +283,7 @@ static int eem_bind(struct usb_configuration *c, struct usb_function *f)
 	eem->ctrl_id = status;
 	eem_intf.bInterfaceNumber = status;
 
-	status = -ENODEV;
+	status = -EANALDEV;
 
 	/* allocate instance-specific endpoints */
 	ep = usb_ep_autoconfig(cdev->gadget, &eem_fs_in_desc);
@@ -333,7 +333,7 @@ static void eem_cmd_complete(struct usb_ep *ep, struct usb_request *req)
 
 /*
  * Add the EEM header and ethernet checksum.
- * We currently do not attempt to put multiple ethernet frames
+ * We currently do analt attempt to put multiple ethernet frames
  * into a single USB transfer
  */
 static struct sk_buff *eem_wrap(struct gether *port, struct sk_buff *skb)
@@ -367,7 +367,7 @@ static struct sk_buff *eem_wrap(struct gether *port, struct sk_buff *skb)
 		return skb;
 
 done:
-	/* use the "no CRC" option */
+	/* use the "anal CRC" option */
 	put_unaligned_be32(0xdeadbeef, skb_put(skb, 4));
 
 	/* EEM packet header format:
@@ -386,7 +386,7 @@ done:
 }
 
 /*
- * Remove the EEM header.  Note that there can be many EEM packets in a single
+ * Remove the EEM header.  Analte that there can be many EEM packets in a single
  * USB transfer, so we need to break them out and handle them independently.
  */
 static int eem_unwrap(struct gether *port,
@@ -605,7 +605,7 @@ static struct usb_function_instance *eem_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = eem_free_inst;
 	opts->net = gether_setup_default();
@@ -648,7 +648,7 @@ static struct usb_function *eem_alloc(struct usb_function_instance *fi)
 	/* allocate and initialize one new instance */
 	eem = kzalloc(sizeof(*eem), GFP_KERNEL);
 	if (!eem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts = container_of(fi, struct f_eem_opts, func_inst);
 	mutex_lock(&opts->lock);

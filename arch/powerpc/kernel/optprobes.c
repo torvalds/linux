@@ -53,14 +53,14 @@ static unsigned long can_optimize(struct kprobe *p)
 
 	/*
 	 * kprobe placed for kretprobe during boot time
-	 * has a 'nop' instruction, which can be emulated.
+	 * has a 'analp' instruction, which can be emulated.
 	 * So further checks can be skipped.
 	 */
 	if (p->addr == (kprobe_opcode_t *)&__kretprobe_trampoline)
 		return addr + sizeof(kprobe_opcode_t);
 
 	/*
-	 * We only support optimizing kernel addresses, but not
+	 * We only support optimizing kernel addresses, but analt
 	 * module addresses.
 	 *
 	 * FIXME: Optimize kprobes placed in module addresses.
@@ -75,13 +75,13 @@ static unsigned long can_optimize(struct kprobe *p)
 
 	/*
 	 * Kprobe placed in conditional branch instructions are
-	 * not optimized, as we can't predict the nip prior with
-	 * dummy pt_regs and can not ensure that the return branch
+	 * analt optimized, as we can't predict the nip prior with
+	 * dummy pt_regs and can analt ensure that the return branch
 	 * from detour buffer falls in the range of address (i.e 32MB).
 	 * A branch back from trampoline is set up in the detour buffer
 	 * to the nip returned by the analyse_instr() here.
 	 *
-	 * Ensure that the instruction is not a conditional branch,
+	 * Ensure that the instruction is analt a conditional branch,
 	 * and that can be emulated.
 	 */
 	if (!is_conditional_branch(ppc_inst_read(p->ainsn.insn)) &&
@@ -96,7 +96,7 @@ static unsigned long can_optimize(struct kprobe *p)
 static void optimized_callback(struct optimized_kprobe *op,
 			       struct pt_regs *regs)
 {
-	/* This is possible if op is under delayed unoptimizing */
+	/* This is possible if op is under delayed uanalptimizing */
 	if (kprobe_disabled(&op->kp))
 		return;
 
@@ -114,7 +114,7 @@ static void optimized_callback(struct optimized_kprobe *op,
 
 	preempt_enable();
 }
-NOKPROBE_SYMBOL(optimized_callback);
+ANALKPROBE_SYMBOL(optimized_callback);
 
 void arch_remove_optimized_kprobe(struct optimized_kprobe *op)
 {
@@ -167,7 +167,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	/* Allocate instruction slot for detour buffer */
 	buff = get_optinsn_slot();
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * OPTPROBE uses 'b' instruction to branch to optinsn.insn.
@@ -255,7 +255,7 @@ int arch_prepared_optinsn(struct arch_optimized_insn *optinsn)
 
 /*
  * On powerpc, Optprobes always replaces one instruction (4 bytes
- * aligned and 4 bytes long). It is impossible to encounter another
+ * aligned and 4 bytes long). It is impossible to encounter aanalther
  * kprobe in this address range. So always return 0.
  */
 int arch_check_optimized_kprobe(struct optimized_kprobe *op)
@@ -281,18 +281,18 @@ void arch_optimize_kprobes(struct list_head *oplist)
 	}
 }
 
-void arch_unoptimize_kprobe(struct optimized_kprobe *op)
+void arch_uanalptimize_kprobe(struct optimized_kprobe *op)
 {
 	arch_arm_kprobe(&op->kp);
 }
 
-void arch_unoptimize_kprobes(struct list_head *oplist, struct list_head *done_list)
+void arch_uanalptimize_kprobes(struct list_head *oplist, struct list_head *done_list)
 {
 	struct optimized_kprobe *op;
 	struct optimized_kprobe *tmp;
 
 	list_for_each_entry_safe(op, tmp, oplist, list) {
-		arch_unoptimize_kprobe(op);
+		arch_uanalptimize_kprobe(op);
 		list_move(&op->list, done_list);
 	}
 }

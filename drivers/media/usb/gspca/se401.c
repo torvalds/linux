@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * GSPCA Endpoints (formerly known as AOX) se401 USB Camera sub Driver
+ * GSPCA Endpoints (formerly kanalwn as AOX) se401 USB Camera sub Driver
  *
  * Copyright (C) 2011 Hans de Goede <hdegoede@redhat.com>
  *
@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 enum {
 	EXPO_CHANGED,
 	EXPO_DROP_FRAME,
-	EXPO_NO_CHANGE,
+	EXPO_ANAL_CHANGE,
 };
 
 /* specific webcam descriptor */
@@ -88,7 +88,7 @@ static void se401_read_req(struct gspca_dev *gspca_dev, u16 req, int silent)
 
 	if (USB_BUF_SZ < READ_REQ_SIZE) {
 		pr_err("USB_BUF_SZ too small!!\n");
-		gspca_dev->usb_err = -ENOBUFS;
+		gspca_dev->usb_err = -EANALBUFS;
 		return;
 	}
 
@@ -138,7 +138,7 @@ static int se401_get_feature(struct gspca_dev *gspca_dev, u16 selector)
 
 	if (USB_BUF_SZ < 2) {
 		pr_err("USB_BUF_SZ too small!!\n");
-		gspca_dev->usb_err = -ENOBUFS;
+		gspca_dev->usb_err = -EANALBUFS;
 		return gspca_dev->usb_err;
 	}
 
@@ -158,7 +158,7 @@ static int se401_get_feature(struct gspca_dev *gspca_dev, u16 selector)
 
 static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
-	/* HDG: this does not seem to do anything on my cam */
+	/* HDG: this does analt seem to do anything on my cam */
 	se401_write_req(gspca_dev, SE401_REQ_SET_BRT, val, 0);
 }
 
@@ -181,8 +181,8 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val, s32 freq)
 	u8 expose_h, expose_m, expose_l;
 
 	/* Do this before the set_feature calls, for proper timing wrt
-	   the interrupt driven pkt_scan. Note we may still race but that
-	   is not a big issue, the expo change state machine is merely for
+	   the interrupt driven pkt_scan. Analte we may still race but that
+	   is analt a big issue, the expo change state machine is merely for
 	   avoiding underexposed frames getting send out, if one sneaks
 	   through so be it */
 	sd->expo_change_state = EXPO_CHANGED;
@@ -230,12 +230,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (cd[1] != 0x41) {
 		pr_err("Wrong descriptor type\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!(cd[2] & SE401_FORMAT_BAYER)) {
-		pr_err("Bayer format not supported!\n");
-		return -ENODEV;
+		pr_err("Bayer format analt supported!\n");
+		return -EANALDEV;
 	}
 
 	if (cd[3])
@@ -244,7 +244,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	n = cd[4] | (cd[5] << 8);
 	if (n > MAX_MODES) {
 		pr_err("Too many frame sizes\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < n ; i++) {
@@ -255,7 +255,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	for (i = 0; i < n ; i++) {
 		sd->fmts[i].width = widths[i];
 		sd->fmts[i].height = heights[i];
-		sd->fmts[i].field = V4L2_FIELD_NONE;
+		sd->fmts[i].field = V4L2_FIELD_ANALNE;
 		sd->fmts[i].colorspace = V4L2_COLORSPACE_SRGB;
 		sd->fmts[i].priv = 1;
 
@@ -278,7 +278,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		}
 
 		if (sd->fmts[i].priv == 1) {
-			/* Not a 1/4th or 1/16th res, use bayer */
+			/* Analt a 1/4th or 1/16th res, use bayer */
 			sd->fmts[i].pixelformat = V4L2_PIX_FMT_SBGGR8;
 			sd->fmts[i].bytesperline = widths[i];
 			sd->fmts[i].sizeimage = widths[i] * heights[i];
@@ -319,7 +319,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 /* function called at start time before URB creation */
 static int sd_isoc_init(struct gspca_dev *gspca_dev)
 {
-	gspca_dev->alt = 1;	/* Ignore the bogus isoc alt settings */
+	gspca_dev->alt = 1;	/* Iganalre the bogus isoc alt settings */
 
 	return gspca_dev->usb_err;
 }
@@ -349,7 +349,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	se401_write_req(gspca_dev, SE401_REQ_SET_HEIGHT,
 			gspca_dev->pixfmt.height * mult, 0);
 	/*
-	 * HDG: disabled this as it does not seem to do anything
+	 * HDG: disabled this as it does analt seem to do anything
 	 * se401_write_req(gspca_dev, SE401_REQ_SET_OUTPUT_MODE,
 	 *		   SE401_FORMAT_BAYER, 0);
 	 */
@@ -371,7 +371,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->restart_stream = 0;
 	sd->resetlevel_frame_count = 0;
 	sd->resetlevel_adjust_dir = 0;
-	sd->expo_change_state = EXPO_NO_CHANGE;
+	sd->expo_change_state = EXPO_ANAL_CHANGE;
 
 	se401_write_req(gspca_dev, SE401_REQ_START_CONTINUOUS_CAPTURE, 0, 0);
 
@@ -405,18 +405,18 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 	if (sd->resetlevel_frame_count < 20)
 		return;
 
-	/* For some reason this normally read-only register doesn't get reset
+	/* For some reason this analrmally read-only register doesn't get reset
 	   to zero after reading them just once... */
-	se401_get_feature(gspca_dev, HV7131_REG_HIREFNOH);
-	se401_get_feature(gspca_dev, HV7131_REG_HIREFNOL);
-	se401_get_feature(gspca_dev, HV7131_REG_LOREFNOH);
-	se401_get_feature(gspca_dev, HV7131_REG_LOREFNOL);
-	ahrc = 256*se401_get_feature(gspca_dev, HV7131_REG_HIREFNOH) +
-	    se401_get_feature(gspca_dev, HV7131_REG_HIREFNOL);
-	alrc = 256*se401_get_feature(gspca_dev, HV7131_REG_LOREFNOH) +
-	    se401_get_feature(gspca_dev, HV7131_REG_LOREFNOL);
+	se401_get_feature(gspca_dev, HV7131_REG_HIREFANALH);
+	se401_get_feature(gspca_dev, HV7131_REG_HIREFANALL);
+	se401_get_feature(gspca_dev, HV7131_REG_LOREFANALH);
+	se401_get_feature(gspca_dev, HV7131_REG_LOREFANALL);
+	ahrc = 256*se401_get_feature(gspca_dev, HV7131_REG_HIREFANALH) +
+	    se401_get_feature(gspca_dev, HV7131_REG_HIREFANALL);
+	alrc = 256*se401_get_feature(gspca_dev, HV7131_REG_LOREFANALH) +
+	    se401_get_feature(gspca_dev, HV7131_REG_LOREFANALL);
 
-	/* Not an exact science, but it seems to work pretty well... */
+	/* Analt an exact science, but it seems to work pretty well... */
 	oldreset = sd->resetlevel;
 	if (alrc > 10) {
 		while (alrc >= 10 && sd->resetlevel < 63) {
@@ -460,9 +460,9 @@ static void sd_complete_frame(struct gspca_dev *gspca_dev, u8 *data, int len)
 		/* The exposure was changed while this frame
 		   was being captured, drop it! */
 		gspca_dev->last_packet_type = DISCARD_PACKET;
-		sd->expo_change_state = EXPO_NO_CHANGE;
+		sd->expo_change_state = EXPO_ANAL_CHANGE;
 		break;
-	case EXPO_NO_CHANGE:
+	case EXPO_ANAL_CHANGE:
 		break;
 	}
 	gspca_frame_add(gspca_dev, LAST_PACKET, data, len);
@@ -485,7 +485,7 @@ static void sd_pkt_scan_janggu(struct gspca_dev *gspca_dev, u8 *data, int len)
 
 	i = 0;
 	while (i < len) {
-		/* Read header if not already be present from prev bulk pkt */
+		/* Read header if analt already be present from prev bulk pkt */
 		if (sd->packet_read < 4) {
 			count = 4 - sd->packet_read;
 			if (count > len - i)
@@ -507,7 +507,7 @@ static void sd_pkt_scan_janggu(struct gspca_dev *gspca_dev, u8 *data, int len)
 			goto error;
 		}
 		if (info == 3) {
-			pr_err("unknown frame info value restarting stream\n");
+			pr_err("unkanalwn frame info value restarting stream\n");
 			goto error;
 		}
 
@@ -651,7 +651,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	if (sd->has_brightness)
 		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 15);
-	/* max is really 63 but > 50 is not pretty */
+	/* max is really 63 but > 50 is analt pretty */
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_GAIN, 0, 50, 1, 25);
 	sd->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
@@ -661,7 +661,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 0, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(2, &sd->exposure);

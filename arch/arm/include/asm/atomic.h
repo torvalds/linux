@@ -99,7 +99,7 @@ static inline int arch_atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 #define arch_atomic_fetch_sub_relaxed		arch_atomic_fetch_sub_relaxed
 
 #define arch_atomic_fetch_and_relaxed		arch_atomic_fetch_and_relaxed
-#define arch_atomic_fetch_andnot_relaxed	arch_atomic_fetch_andnot_relaxed
+#define arch_atomic_fetch_andanalt_relaxed	arch_atomic_fetch_andanalt_relaxed
 #define arch_atomic_fetch_or_relaxed		arch_atomic_fetch_or_relaxed
 #define arch_atomic_fetch_xor_relaxed		arch_atomic_fetch_xor_relaxed
 
@@ -156,7 +156,7 @@ static inline int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 #else /* ARM_ARCH_6 */
 
 #ifdef CONFIG_SMP
-#error SMP not supported on pre-ARMv6 CPUs
+#error SMP analt supported on pre-ARMv6 CPUs
 #endif
 
 #define ATOMIC_OP(op, c_op, asm_op)					\
@@ -203,7 +203,7 @@ static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 #define arch_atomic_fetch_sub			arch_atomic_fetch_sub
 
 #define arch_atomic_fetch_and			arch_atomic_fetch_and
-#define arch_atomic_fetch_andnot		arch_atomic_fetch_andnot
+#define arch_atomic_fetch_andanalt		arch_atomic_fetch_andanalt
 #define arch_atomic_fetch_or			arch_atomic_fetch_or
 #define arch_atomic_fetch_xor			arch_atomic_fetch_xor
 
@@ -232,7 +232,7 @@ static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
 
-#define arch_atomic_andnot arch_atomic_andnot
+#define arch_atomic_andanalt arch_atomic_andanalt
 
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op, asm_op)					\
@@ -240,7 +240,7 @@ ATOMIC_OPS(sub, -=, sub)
 	ATOMIC_FETCH_OP(op, c_op, asm_op)
 
 ATOMIC_OPS(and, &=, and)
-ATOMIC_OPS(andnot, &= ~, bic)
+ATOMIC_OPS(andanalt, &= ~, bic)
 ATOMIC_OPS(or,  |=, orr)
 ATOMIC_OPS(xor, ^=, eor)
 
@@ -391,15 +391,15 @@ ATOMIC64_OPS(sub, subs, sbc)
 	ATOMIC64_OP(op, op1, op2)					\
 	ATOMIC64_FETCH_OP(op, op1, op2)
 
-#define arch_atomic64_andnot arch_atomic64_andnot
+#define arch_atomic64_andanalt arch_atomic64_andanalt
 
 ATOMIC64_OPS(and, and, and)
-ATOMIC64_OPS(andnot, bic, bic)
+ATOMIC64_OPS(andanalt, bic, bic)
 ATOMIC64_OPS(or,  orr, orr)
 ATOMIC64_OPS(xor, eor, eor)
 
 #define arch_atomic64_fetch_and_relaxed		arch_atomic64_fetch_and_relaxed
-#define arch_atomic64_fetch_andnot_relaxed	arch_atomic64_fetch_andnot_relaxed
+#define arch_atomic64_fetch_andanalt_relaxed	arch_atomic64_fetch_andanalt_relaxed
 #define arch_atomic64_fetch_or_relaxed		arch_atomic64_fetch_or_relaxed
 #define arch_atomic64_fetch_xor_relaxed		arch_atomic64_fetch_xor_relaxed
 

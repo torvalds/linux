@@ -19,34 +19,34 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -62,51 +62,51 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -185,26 +185,26 @@ static void xgbe_free_ring_resources(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_free_ring_resources\n");
 }
 
-static void *xgbe_alloc_node(size_t size, int node)
+static void *xgbe_alloc_analde(size_t size, int analde)
 {
 	void *mem;
 
-	mem = kzalloc_node(size, GFP_KERNEL, node);
+	mem = kzalloc_analde(size, GFP_KERNEL, analde);
 	if (!mem)
 		mem = kzalloc(size, GFP_KERNEL);
 
 	return mem;
 }
 
-static void *xgbe_dma_alloc_node(struct device *dev, size_t size,
-				 dma_addr_t *dma, int node)
+static void *xgbe_dma_alloc_analde(struct device *dev, size_t size,
+				 dma_addr_t *dma, int analde)
 {
 	void *mem;
-	int cur_node = dev_to_node(dev);
+	int cur_analde = dev_to_analde(dev);
 
-	set_dev_node(dev, node);
+	set_dev_analde(dev, analde);
 	mem = dma_alloc_coherent(dev, size, dma, GFP_KERNEL);
-	set_dev_node(dev, cur_node);
+	set_dev_analde(dev, cur_analde);
 
 	if (!mem)
 		mem = dma_alloc_coherent(dev, size, dma, GFP_KERNEL);
@@ -224,21 +224,21 @@ static int xgbe_init_ring(struct xgbe_prv_data *pdata,
 	size = rdesc_count * sizeof(struct xgbe_ring_desc);
 
 	ring->rdesc_count = rdesc_count;
-	ring->rdesc = xgbe_dma_alloc_node(pdata->dev, size, &ring->rdesc_dma,
-					  ring->node);
+	ring->rdesc = xgbe_dma_alloc_analde(pdata->dev, size, &ring->rdesc_dma,
+					  ring->analde);
 	if (!ring->rdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Descriptor information */
 	size = rdesc_count * sizeof(struct xgbe_ring_data);
 
-	ring->rdata = xgbe_alloc_node(size, ring->node);
+	ring->rdata = xgbe_alloc_analde(size, ring->analde);
 	if (!ring->rdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	netif_dbg(pdata, drv, pdata->netdev,
-		  "rdesc=%p, rdesc_dma=%pad, rdata=%p, node=%d\n",
-		  ring->rdesc, &ring->rdesc_dma, ring->rdata, ring->node);
+		  "rdesc=%p, rdesc_dma=%pad, rdata=%p, analde=%d\n",
+		  ring->rdesc, &ring->rdesc_dma, ring->rdata, ring->analde);
 
 	return 0;
 }
@@ -284,7 +284,7 @@ err_ring:
 
 static int xgbe_alloc_pages(struct xgbe_prv_data *pdata,
 			    struct xgbe_page_alloc *pa, int alloc_order,
-			    int node)
+			    int analde)
 {
 	struct page *pages = NULL;
 	dma_addr_t pages_dma;
@@ -295,9 +295,9 @@ again:
 	order = alloc_order;
 
 	/* Try to obtain pages, decreasing order if necessary */
-	gfp = GFP_ATOMIC | __GFP_COMP | __GFP_NOWARN;
+	gfp = GFP_ATOMIC | __GFP_COMP | __GFP_ANALWARN;
 	while (order >= 0) {
-		pages = alloc_pages_node(node, gfp, order);
+		pages = alloc_pages_analde(analde, gfp, order);
 		if (pages)
 			break;
 
@@ -305,20 +305,20 @@ again:
 	}
 
 	/* If we couldn't get local pages, try getting from anywhere */
-	if (!pages && (node != NUMA_NO_NODE)) {
-		node = NUMA_NO_NODE;
+	if (!pages && (analde != NUMA_ANAL_ANALDE)) {
+		analde = NUMA_ANAL_ANALDE;
 		goto again;
 	}
 
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map the pages */
 	pages_dma = dma_map_page(pdata->dev, pages, 0,
 				 PAGE_SIZE << order, DMA_FROM_DEVICE);
 	if (dma_mapping_error(pdata->dev, pages_dma)) {
 		put_page(pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pa->pages = pages;
@@ -360,14 +360,14 @@ static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
 	int ret;
 
 	if (!ring->rx_hdr_pa.pages) {
-		ret = xgbe_alloc_pages(pdata, &ring->rx_hdr_pa, 0, ring->node);
+		ret = xgbe_alloc_pages(pdata, &ring->rx_hdr_pa, 0, ring->analde);
 		if (ret)
 			return ret;
 	}
 
 	if (!ring->rx_buf_pa.pages) {
 		ret = xgbe_alloc_pages(pdata, &ring->rx_buf_pa,
-				       PAGE_ALLOC_COSTLY_ORDER, ring->node);
+				       PAGE_ALLOC_COSTLY_ORDER, ring->analde);
 		if (ret)
 			return ret;
 	}

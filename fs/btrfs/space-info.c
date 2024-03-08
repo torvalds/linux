@@ -17,7 +17,7 @@
 /*
  * HOW DOES SPACE RESERVATION WORK
  *
- * If you want to know about delalloc specifically, there is a separate comment
+ * If you want to kanalw about delalloc specifically, there is a separate comment
  * for that with the delalloc code.  This comment is about how the whole system
  * works generally.
  *
@@ -41,7 +41,7 @@
  *   determine the size of the block reserves, and then use the actual bytes
  *   values to adjust the space_info counters.
  *
- * MAKING RESERVATIONS, THE NORMAL CASE
+ * MAKING RESERVATIONS, THE ANALRMAL CASE
  *
  *   We call into either btrfs_reserve_data_bytes() or
  *   btrfs_reserve_metadata_bytes(), depending on which we're looking for, with
@@ -60,10 +60,10 @@
  *     space_info->bytes_reserved -= extent_bytes
  *     space_info->bytes_used += extent_bytes
  *
- * MAKING RESERVATIONS, FLUSHING NORMALLY (non-priority)
+ * MAKING RESERVATIONS, FLUSHING ANALRMALLY (analn-priority)
  *
- *   Assume we are unable to simply make the reservation because we do not have
- *   enough space
+ *   Assume we are unable to simply make the reservation because we do analt have
+ *   eanalugh space
  *
  *   -> __reserve_bytes
  *     create a reserve_ticket with ->bytes set to our reservation, add it to
@@ -86,13 +86,13 @@
  *
  *   -> ticket wakeup
  *     Check if ->bytes == 0, if it does we got our reservation and we can carry
- *     on, if not return the appropriate error (ENOSPC, but can be EINTR if we
+ *     on, if analt return the appropriate error (EANALSPC, but can be EINTR if we
  *     were interrupted.)
  *
  * MAKING RESERVATIONS, FLUSHING HIGH PRIORITY
  *
  *   Same as the above, except we add ourselves to the
- *   space_info->priority_tickets, and we do not use ticket->wait, we simply
+ *   space_info->priority_tickets, and we do analt use ticket->wait, we simply
  *   call flush_space() ourselves for the states that are safe for us to call
  *   without deadlocking and hope for the best.
  *
@@ -106,8 +106,8 @@
  *   reclaim space so we can make new reservations.
  *
  *   FLUSH_DELAYED_ITEMS
- *     Every inode has a delayed item to update the inode.  Take a simple write
- *     for example, we would update the inode item at write time to update the
+ *     Every ianalde has a delayed item to update the ianalde.  Take a simple write
+ *     for example, we would update the ianalde item at write time to update the
  *     mtime, and then again at finish_ordered_io() time in order to update the
  *     isize or bytes.  We keep these delayed items to coalesce these operations
  *     into a single operation done on demand.  These are an easy way to reclaim
@@ -132,16 +132,16 @@
  *     our worst case reservations will likely never come true.
  *
  *   RUN_DELAYED_IPUTS
- *     If we're freeing inodes we're likely freeing checksums, file extent
+ *     If we're freeing ianaldes we're likely freeing checksums, file extent
  *     items, and extent tree items.  Loads of space could be freed up by these
  *     operations, however they won't be usable until the transaction commits.
  *
  *   COMMIT_TRANS
  *     This will commit the transaction.  Historically we had a lot of logic
- *     surrounding whether or not we'd commit the transaction, but this waits born
+ *     surrounding whether or analt we'd commit the transaction, but this waits born
  *     out of a pre-tickets era where we could end up committing the transaction
- *     thousands of times in a row without making progress.  Now thanks to our
- *     ticketing system we know if we're not making progress and can error
+ *     thousands of times in a row without making progress.  Analw thanks to our
+ *     ticketing system we kanalw if we're analt making progress and can error
  *     everybody out after a few commits rather than burning the disk hoping for
  *     a different answer.
  *
@@ -149,12 +149,12 @@
  *
  *   Because we hold so many reservations for metadata we will allow you to
  *   reserve more space than is currently free in the currently allocate
- *   metadata space.  This only happens with metadata, data does not allow
+ *   metadata space.  This only happens with metadata, data does analt allow
  *   overcommitting.
  *
  *   You can see the current logic for when we allow overcommit in
  *   btrfs_can_overcommit(), but it only applies to unallocated space.  If there
- *   is no unallocated space to be had, all reservations are kept within the
+ *   is anal unallocated space to be had, all reservations are kept within the
  *   free space in the allocated metadata chunks.
  *
  *   Because of overcommitting, you generally want to use the
@@ -229,16 +229,16 @@ static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 	int i;
 	int ret;
 
-	space_info = kzalloc(sizeof(*space_info), GFP_NOFS);
+	space_info = kzalloc(sizeof(*space_info), GFP_ANALFS);
 	if (!space_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++)
 		INIT_LIST_HEAD(&space_info->block_groups[i]);
 	init_rwsem(&space_info->groups_sem);
 	spin_lock_init(&space_info->lock);
 	space_info->flags = flags & BTRFS_BLOCK_GROUP_TYPE_MASK;
-	space_info->force_alloc = CHUNK_ALLOC_NO_FORCE;
+	space_info->force_alloc = CHUNK_ALLOC_ANAL_FORCE;
 	INIT_LIST_HEAD(&space_info->ro_bgs);
 	INIT_LIST_HEAD(&space_info->tickets);
 	INIT_LIST_HEAD(&space_info->priority_tickets);
@@ -372,7 +372,7 @@ static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
 	/*
 	 * Calculate the data_chunk_size, space_info->chunk_size is the
 	 * "optimal" chunk size based on the fs size.  However when we actually
-	 * allocate the chunk we will strip this down further, making it no more
+	 * allocate the chunk we will strip this down further, making it anal more
 	 * than 10% of the disk or 1G, whichever is smaller.
 	 */
 	data_sinfo = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA);
@@ -446,7 +446,7 @@ void btrfs_try_granting_tickets(struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info)
 {
 	struct list_head *head;
-	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_NO_FLUSH;
+	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_ANAL_FLUSH;
 
 	lockdep_assert_held(&space_info->lock);
 
@@ -458,7 +458,7 @@ again:
 
 		ticket = list_first_entry(head, struct reserve_ticket, list);
 
-		/* Check and see if our ticket can be satisfied now. */
+		/* Check and see if our ticket can be satisfied analw. */
 		if ((used + ticket->bytes <= space_info->total_bytes) ||
 		    btrfs_can_overcommit(fs_info, space_info, ticket->bytes,
 					 flush)) {
@@ -502,7 +502,7 @@ static const char *space_info_flag_to_str(const struct btrfs_space_info *space_i
 	case BTRFS_BLOCK_GROUP_METADATA:
 		return "METADATA";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -525,7 +525,7 @@ static void __btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 	btrfs_info(fs_info, "space_info %s has %lld free, is %sfull",
 		   flag_str,
 		   (s64)(info->total_bytes - btrfs_space_info_used(info, true)),
-		   info->full ? "" : "not ");
+		   info->full ? "" : "analt ");
 	btrfs_info(fs_info,
 "space_info total=%llu, used=%llu, pinned=%llu, reserved=%llu, may_use=%llu, readonly=%llu zone_unusable=%llu",
 		info->total_bytes, info->bytes_used, info->bytes_pinned,
@@ -617,13 +617,13 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 		/*
 		 * to_reclaim is set to however much metadata we need to
 		 * reclaim, but reclaiming that much data doesn't really track
-		 * exactly.  What we really want to do is reclaim full inode's
-		 * worth of reservations, however that's not available to us
+		 * exactly.  What we really want to do is reclaim full ianalde's
+		 * worth of reservations, however that's analt available to us
 		 * here.  We will take a fraction of the delalloc bytes for our
 		 * flushing loops and hope for the best.  Delalloc will expand
 		 * the amount we write to cover an entire dirty extent, which
 		 * will reclaim the metadata reservation for that range.  If
-		 * it's not enough subsequent flush stages will be more
+		 * it's analt eanalugh subsequent flush stages will be more
 		 * aggressive.
 		 */
 		to_reclaim = max(to_reclaim, delalloc_bytes >> 3);
@@ -649,21 +649,21 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 		btrfs_start_delalloc_roots(fs_info, nr_pages, true);
 
 		/*
-		 * We need to make sure any outstanding async pages are now
+		 * We need to make sure any outstanding async pages are analw
 		 * processed before we continue.  This is because things like
-		 * sync_inode() try to be smart and skip writing if the inode is
+		 * sync_ianalde() try to be smart and skip writing if the ianalde is
 		 * marked clean.  We don't use filemap_fwrite for flushing
 		 * because we want to control how many pages we write out at a
 		 * time, thus this is the only safe way to make sure we've
 		 * waited for outstanding compressed workers to have started
 		 * their jobs and thus have ordered extents set up properly.
 		 *
-		 * This exists because we do not want to wait for each
-		 * individual inode to finish its async work, we simply want to
+		 * This exists because we do analt want to wait for each
+		 * individual ianalde to finish its async work, we simply want to
 		 * start the IO on everybody, and then come back here and wait
 		 * for all of the async work to catch up.  Once we're done with
-		 * that we know we'll have ordered extents for everything and we
-		 * can decide if we wait for that or not.
+		 * that we kanalw we'll have ordered extents for everything and we
+		 * can decide if we wait for that or analt.
 		 *
 		 * If we choose to replace this in the future, make absolutely
 		 * sure that the proper waiting is being done in the async case,
@@ -741,10 +741,10 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		else
 			nr = -1;
 
-		trans = btrfs_join_transaction_nostart(root);
+		trans = btrfs_join_transaction_analstart(root);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
-			if (ret == -ENOENT)
+			if (ret == -EANALENT)
 				ret = 0;
 			break;
 		}
@@ -761,10 +761,10 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		break;
 	case FLUSH_DELAYED_REFS_NR:
 	case FLUSH_DELAYED_REFS:
-		trans = btrfs_join_transaction_nostart(root);
+		trans = btrfs_join_transaction_analstart(root);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
-			if (ret == -ENOENT)
+			if (ret == -EANALENT)
 				ret = 0;
 			break;
 		}
@@ -783,11 +783,11 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		}
 		ret = btrfs_chunk_alloc(trans,
 				btrfs_get_alloc_profile(fs_info, space_info->flags),
-				(state == ALLOC_CHUNK) ? CHUNK_ALLOC_NO_FORCE :
+				(state == ALLOC_CHUNK) ? CHUNK_ALLOC_ANAL_FORCE :
 					CHUNK_ALLOC_FORCE);
 		btrfs_end_transaction(trans);
 
-		if (ret > 0 || ret == -ENOSPC)
+		if (ret > 0 || ret == -EANALSPC)
 			ret = 0;
 		break;
 	case RUN_DELAYED_IPUTS:
@@ -804,21 +804,21 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		/*
 		 * We don't want to start a new transaction, just attach to the
 		 * current one or wait it fully commits in case its commit is
-		 * happening at the moment. Note: we don't use a nostart join
-		 * because that does not wait for a transaction to fully commit
+		 * happening at the moment. Analte: we don't use a analstart join
+		 * because that does analt wait for a transaction to fully commit
 		 * (only for it to be unblocked, state TRANS_STATE_UNBLOCKED).
 		 */
 		trans = btrfs_attach_transaction_barrier(root);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
-			if (ret == -ENOENT)
+			if (ret == -EANALENT)
 				ret = 0;
 			break;
 		}
 		ret = btrfs_commit_transaction(trans);
 		break;
 	default:
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		break;
 	}
 
@@ -843,7 +843,7 @@ btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * We may be flushing because suddenly we have less space than we had
-	 * before, and now we're well over-committed based on our current free
+	 * before, and analw we're well over-committed based on our current free
 	 * space.  If that's the case add in our overage so we make sure to put
 	 * appropriate pressure on the flushing state machine.
 	 */
@@ -878,7 +878,7 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * 128MiB is 1/4 of the maximum global rsv size.  If we have less than
-	 * that devoted to other reservations then there's no sense in flushing,
+	 * that devoted to other reservations then there's anal sense in flushing,
 	 * we don't have a lot of things that need flushing.
 	 */
 	if (used - global_rsv_size <= SZ_128M)
@@ -895,7 +895,7 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	 * If we have over half of the free space occupied by reservations or
 	 * pinned then we want to start flushing.
 	 *
-	 * We do not do the traditional thing here, which is to say
+	 * We do analt do the traditional thing here, which is to say
 	 *
 	 *   if (used >= ((total_bytes + avail) / 2))
 	 *     return 1;
@@ -936,21 +936,21 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	 * around.  Preemptive flushing is only useful in that it can free up
 	 * space before tickets need to wait for things to finish.  In the case
 	 * of ordered extents, preemptively waiting on ordered extents gets us
-	 * nothing, if our reservations are tied up in ordered extents we'll
+	 * analthing, if our reservations are tied up in ordered extents we'll
 	 * simply have to slow down writers by forcing them to wait on ordered
 	 * extents.
 	 *
 	 * In the case that ordered is larger than delalloc, only include the
 	 * block reserves that we would actually be able to directly reclaim
 	 * from.  In this case if we're heavy on metadata operations this will
-	 * clearly be heavy enough to warrant preemptive flushing.  In the case
+	 * clearly be heavy eanalugh to warrant preemptive flushing.  In the case
 	 * of heavy DIO or ordered reservations, preemptive flushing will just
 	 * waste time and cause us to slow down.
 	 *
 	 * We want to make sure we truly are maxed out on ordered however, so
 	 * cut ordered in half, and if it's still higher than delalloc then we
 	 * can keep flushing.  This is to avoid the case where we start
-	 * flushing, and now delalloc == ordered and we stop preemptively
+	 * flushing, and analw delalloc == ordered and we stop preemptively
 	 * flushing when we could still have several gigs of delalloc to flush.
 	 */
 	ordered = percpu_counter_read_positive(&fs_info->ordered_bytes) >> 1;
@@ -1021,8 +1021,8 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 
 	trace_btrfs_fail_all_tickets(fs_info, space_info);
 
-	if (btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
-		btrfs_info(fs_info, "cannot satisfy tickets, dumping space info");
+	if (btrfs_test_opt(fs_info, EANALSPC_DEBUG)) {
+		btrfs_info(fs_info, "cananalt satisfy tickets, dumping space info");
 		__btrfs_dump_space_info(fs_info, space_info);
 	}
 
@@ -1034,7 +1034,7 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 		if (!aborted && steal_from_global_rsv(fs_info, space_info, ticket))
 			return true;
 
-		if (!aborted && btrfs_test_opt(fs_info, ENOSPC_DEBUG))
+		if (!aborted && btrfs_test_opt(fs_info, EANALSPC_DEBUG))
 			btrfs_info(fs_info, "failing ticket with %llu bytes",
 				   ticket->bytes);
 
@@ -1042,11 +1042,11 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 		if (aborted)
 			ticket->error = -EIO;
 		else
-			ticket->error = -ENOSPC;
+			ticket->error = -EANALSPC;
 		wake_up(&ticket->wait);
 
 		/*
-		 * We're just throwing tickets away, so more flushing may not
+		 * We're just throwing tickets away, so more flushing may analt
 		 * trip over btrfs_try_granting_tickets, so we need to call it
 		 * here to see if we can make progress with the next ticket in
 		 * the list.
@@ -1058,7 +1058,7 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * This is for normal flushers, we can wait all goddamned day if we want to.  We
+ * This is for analrmal flushers, we can wait all goddamned day if we want to.  We
  * will loop and continuously try to flush as long as we are making progress.
  * We count progress as clearing off tickets each time we have to loop.
  */
@@ -1105,7 +1105,7 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 		}
 
 		/*
-		 * We do not want to empty the system of delalloc unless we're
+		 * We do analt want to empty the system of delalloc unless we're
 		 * under heavy pressure, so allow one trip through the flushing
 		 * logic before we start doing a FLUSH_DELALLOC_FULL.
 		 */
@@ -1119,7 +1119,7 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 		 * to reclaim.  We would rather use that than possibly create a
 		 * underutilized metadata chunk.  So if this is our first run
 		 * through the flushing state machine skip ALLOC_CHUNK_FORCE and
-		 * commit the transaction.  If nothing has changed the next go
+		 * commit the transaction.  If analthing has changed the next go
 		 * around then we can force a chunk allocation.
 		 */
 		if (flush_state == ALLOC_CHUNK_FORCE && !commit_cycles)
@@ -1256,13 +1256,13 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
  *
  *   For #2 this is trickier.  Once the ordered extent runs we will drop the
  *   extent in the range we are overwriting, which creates a delayed ref for
- *   that freed extent.  This however is not reclaimed until the transaction
+ *   that freed extent.  This however is analt reclaimed until the transaction
  *   commits, thus the next stages.
  *
  * RUN_DELAYED_IPUTS
- *   If we are freeing inodes, we want to make sure all delayed iputs have
- *   completed, because they could have been on an inode with i_nlink == 0, and
- *   thus have been truncated and freed up space.  But again this space is not
+ *   If we are freeing ianaldes, we want to make sure all delayed iputs have
+ *   completed, because they could have been on an ianalde with i_nlink == 0, and
+ *   thus have been truncated and freed up space.  But again this space is analt
  *   immediately re-usable, it comes in the form of a delayed ref, which must be
  *   run and then the transaction must be committed.
  *
@@ -1273,7 +1273,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
  * ALLOC_CHUNK_FORCE
  *   For data we start with alloc chunk force, however we could have been full
  *   before, and then the transaction commit could have freed new block groups,
- *   so if we now have space to allocate do the force chunk allocation.
+ *   so if we analw have space to allocate do the force chunk allocation.
  */
 static const enum btrfs_flush_state data_flush_states[] = {
 	FLUSH_DELALLOC_FULL,
@@ -1399,7 +1399,7 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	/*
 	 * This is the priority reclaim path, so to_reclaim could be >0 still
 	 * because we may have only satisfied the priority tickets and still
-	 * left non priority tickets on the list.  We would then have
+	 * left analn priority tickets on the list.  We would then have
 	 * to_reclaim but ->bytes == 0.
 	 */
 	if (ticket->bytes == 0) {
@@ -1425,19 +1425,19 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	 * above, in that case fail with the abort error instead of returning
 	 * success to the caller if we can steal from the global rsv - this is
 	 * just to have caller fail immeditelly instead of later when trying to
-	 * modify the fs, making it easier to debug -ENOSPC problems.
+	 * modify the fs, making it easier to debug -EANALSPC problems.
 	 */
 	if (BTRFS_FS_ERROR(fs_info)) {
 		ticket->error = BTRFS_FS_ERROR(fs_info);
 		remove_ticket(space_info, ticket);
 	} else if (!steal_from_global_rsv(fs_info, space_info, ticket)) {
-		ticket->error = -ENOSPC;
+		ticket->error = -EANALSPC;
 		remove_ticket(space_info, ticket);
 	}
 
 	/*
 	 * We must run try_granting_tickets here because we could be a large
-	 * ticket in front of a smaller ticket that can now be satisfied with
+	 * ticket in front of a smaller ticket that can analw be satisfied with
 	 * the available space.
 	 */
 	btrfs_try_granting_tickets(fs_info, space_info);
@@ -1466,7 +1466,7 @@ static void priority_reclaim_data_space(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	ticket->error = -ENOSPC;
+	ticket->error = -EANALSPC;
 	remove_ticket(space_info, ticket);
 	btrfs_try_granting_tickets(fs_info, space_info);
 	spin_unlock(&space_info->lock);
@@ -1488,7 +1488,7 @@ static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
 			 * Delete us from the list. After we unlock the space
 			 * info, we don't want the async reclaim job to reserve
 			 * space for this ticket. If that would happen, then the
-			 * ticket's task would not known that space was reserved
+			 * ticket's task would analt kanalwn that space was reserved
 			 * despite getting an error, resulting in a space leak
 			 * (bytes_may_use counter of our space_info).
 			 */
@@ -1543,7 +1543,7 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 						evict_flush_states,
 						ARRAY_SIZE(evict_flush_states));
 		break;
-	case BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE:
+	case BTRFS_RESERVE_FLUSH_FREE_SPACE_IANALDE:
 		priority_reclaim_data_space(fs_info, space_info, ticket);
 		break;
 	default:
@@ -1569,7 +1569,7 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
  * This returns true if this flush state will go through the ordinary flushing
  * code.
  */
-static inline bool is_normal_flushing(enum btrfs_reserve_flush_enum flush)
+static inline bool is_analrmal_flushing(enum btrfs_reserve_flush_enum flush)
 {
 	return	(flush == BTRFS_RESERVE_FLUSH_ALL) ||
 		(flush == BTRFS_RESERVE_FLUSH_ALL_STEAL);
@@ -1584,9 +1584,9 @@ static inline void maybe_clamp_preempt(struct btrfs_fs_info *fs_info,
 	/*
 	 * If we're heavy on ordered operations then clamping won't help us.  We
 	 * need to clamp specifically to keep up with dirty'ing buffered
-	 * writers, because there's not a 1:1 correlation of writing delalloc
+	 * writers, because there's analt a 1:1 correlation of writing delalloc
 	 * and freeing space, like there is with flushing delayed refs or
-	 * delayed nodes.  If we're already more ordered than delalloc then
+	 * delayed analdes.  If we're already more ordered than delalloc then
 	 * we're keeping up, otherwise we aren't and should probably clamp.
 	 */
 	if (ordered < delalloc)
@@ -1600,12 +1600,12 @@ static inline bool can_steal(enum btrfs_reserve_flush_enum flush)
 }
 
 /*
- * NO_FLUSH and FLUSH_EMERGENCY don't want to create a ticket, they just want to
+ * ANAL_FLUSH and FLUSH_EMERGENCY don't want to create a ticket, they just want to
  * fail as quickly as possible.
  */
 static inline bool can_ticket(enum btrfs_reserve_flush_enum flush)
 {
-	return (flush != BTRFS_RESERVE_NO_FLUSH &&
+	return (flush != BTRFS_RESERVE_ANAL_FLUSH &&
 		flush != BTRFS_RESERVE_FLUSH_EMERGENCY);
 }
 
@@ -1615,13 +1615,13 @@ static inline bool can_ticket(enum btrfs_reserve_flush_enum flush)
  * @fs_info:    the filesystem
  * @space_info: space info we want to allocate from
  * @orig_bytes: number of bytes we want
- * @flush:      whether or not we can flush to make our reservation
+ * @flush:      whether or analt we can flush to make our reservation
  *
  * This will reserve orig_bytes number of bytes from the space info associated
- * with the block_rsv.  If there is not enough space it will make an attempt to
+ * with the block_rsv.  If there is analt eanalugh space it will make an attempt to
  * flush out space to make room.  It will do this by flushing delalloc if
- * possible or committing the transaction.  If flush is 0 then no attempts to
- * regain reservations will be made and this will fail if there is not enough
+ * possible or committing the transaction.  If flush is 0 then anal attempts to
+ * regain reservations will be made and this will fail if there is analt eanalugh
  * space already.
  */
 static int __reserve_bytes(struct btrfs_fs_info *fs_info,
@@ -1632,13 +1632,13 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	struct reserve_ticket ticket;
 	u64 start_ns = 0;
 	u64 used;
-	int ret = -ENOSPC;
+	int ret = -EANALSPC;
 	bool pending_tickets;
 
 	ASSERT(orig_bytes);
 	/*
 	 * If have a transaction handle (current->journal_info != NULL), then
-	 * the flush method can not be neither BTRFS_RESERVE_FLUSH_ALL* nor
+	 * the flush method can analt be neither BTRFS_RESERVE_FLUSH_ALL* analr
 	 * BTRFS_RESERVE_FLUSH_EVICT, as we could deadlock because those
 	 * flushing methods can trigger transaction commits.
 	 */
@@ -1658,18 +1658,18 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	used = btrfs_space_info_used(space_info, true);
 
 	/*
-	 * We don't want NO_FLUSH allocations to jump everybody, they can
-	 * generally handle ENOSPC in a different way, so treat them the same as
-	 * normal flushers when it comes to skipping pending tickets.
+	 * We don't want ANAL_FLUSH allocations to jump everybody, they can
+	 * generally handle EANALSPC in a different way, so treat them the same as
+	 * analrmal flushers when it comes to skipping pending tickets.
 	 */
-	if (is_normal_flushing(flush) || (flush == BTRFS_RESERVE_NO_FLUSH))
+	if (is_analrmal_flushing(flush) || (flush == BTRFS_RESERVE_ANAL_FLUSH))
 		pending_tickets = !list_empty(&space_info->tickets) ||
 			!list_empty(&space_info->priority_tickets);
 	else
 		pending_tickets = !list_empty(&space_info->priority_tickets);
 
 	/*
-	 * Carry on if we have enough space (short-circuit) OR call
+	 * Carry on if we have eanalugh space (short-circuit) OR call
 	 * can_overcommit() to ensure we can overcommit to continue.
 	 */
 	if (!pending_tickets &&
@@ -1696,7 +1696,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * If we couldn't make a reservation then setup our reservation ticket
-	 * and kick the async worker if it's not already running.
+	 * and kick the async worker if it's analt already running.
 	 *
 	 * If we are a priority flusher then we just need to add our ticket to
 	 * the list and we will do our own flushing further down.
@@ -1728,7 +1728,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 				trace_btrfs_trigger_flush(fs_info,
 							  space_info->flags,
 							  orig_bytes, flush,
-							  "enospc");
+							  "eanalspc");
 				queue_work(system_unbound_wq, async_work);
 			}
 		} else {
@@ -1764,13 +1764,13 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
  * @fs_info:    the filesystem
  * @space_info: the space_info we're allocating for
  * @orig_bytes: number of bytes we want
- * @flush:      whether or not we can flush to make our reservation
+ * @flush:      whether or analt we can flush to make our reservation
  *
  * This will reserve orig_bytes number of bytes from the space info associated
- * with the block_rsv.  If there is not enough space it will make an attempt to
+ * with the block_rsv.  If there is analt eanalugh space it will make an attempt to
  * flush out space to make room.  It will do this by flushing delalloc if
- * possible or committing the transaction.  If flush is 0 then no attempts to
- * regain reservations will be made and this will fail if there is not enough
+ * possible or committing the transaction.  If flush is 0 then anal attempts to
+ * regain reservations will be made and this will fail if there is analt eanalugh
  * space already.
  */
 int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
@@ -1781,11 +1781,11 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	ret = __reserve_bytes(fs_info, space_info, orig_bytes, flush);
-	if (ret == -ENOSPC) {
-		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
+	if (ret == -EANALSPC) {
+		trace_btrfs_space_reservation(fs_info, "space_info:eanalspc",
 					      space_info->flags, orig_bytes, 1);
 
-		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
+		if (btrfs_test_opt(fs_info, EANALSPC_DEBUG))
 			btrfs_dump_space_info(fs_info, space_info, orig_bytes, 0);
 	}
 	return ret;
@@ -1798,7 +1798,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
  * @bytes:   number of bytes we need
  * @flush:   how we are allowed to flush
  *
- * This will reserve bytes from the data space info.  If there is not enough
+ * This will reserve bytes from the data space info.  If there is analt eanalugh
  * space then we will attempt to flush space as specified by flush.
  */
 int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
@@ -1808,21 +1808,21 @@ int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 	int ret;
 
 	ASSERT(flush == BTRFS_RESERVE_FLUSH_DATA ||
-	       flush == BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE ||
-	       flush == BTRFS_RESERVE_NO_FLUSH);
+	       flush == BTRFS_RESERVE_FLUSH_FREE_SPACE_IANALDE ||
+	       flush == BTRFS_RESERVE_ANAL_FLUSH);
 	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_DATA);
 
 	ret = __reserve_bytes(fs_info, data_sinfo, bytes, flush);
-	if (ret == -ENOSPC) {
-		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
+	if (ret == -EANALSPC) {
+		trace_btrfs_space_reservation(fs_info, "space_info:eanalspc",
 					      data_sinfo->flags, bytes, 1);
-		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
+		if (btrfs_test_opt(fs_info, EANALSPC_DEBUG))
 			btrfs_dump_space_info(fs_info, data_sinfo, bytes, 0);
 	}
 	return ret;
 }
 
-/* Dump all the space infos when we abort a transaction due to ENOSPC. */
+/* Dump all the space infos when we abort a transaction due to EANALSPC. */
 __cold void btrfs_dump_space_info_for_trans_abort(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_space_info *space_info;

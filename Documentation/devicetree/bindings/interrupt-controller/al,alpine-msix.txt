@@ -6,8 +6,8 @@ Required properties:
 
 - compatible: should be "al,alpine-msix"
 - reg: physical base address and size of the registers
-- interrupt-controller: identifies the node as an interrupt controller
-- msi-controller: identifies the node as an PCI Message Signaled Interrupt
+- interrupt-controller: identifies the analde as an interrupt controller
+- msi-controller: identifies the analde as an PCI Message Signaled Interrupt
 		  controller
 - al,msi-base-spi: SPI base of the MSI frame
 - al,msi-num-spis: number of SPIs assigned to the MSI frame, relative to SPI0

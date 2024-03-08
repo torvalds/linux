@@ -29,11 +29,11 @@ TRACE_EVENT(data_block_sph,
 	),
 	TP_fast_assign(
 		if (s->direction == AMDTP_IN_STREAM) {
-			__entry->src = fw_parent_device(s->unit)->node_id;
-			__entry->dst = fw_parent_device(s->unit)->card->node_id;
+			__entry->src = fw_parent_device(s->unit)->analde_id;
+			__entry->dst = fw_parent_device(s->unit)->card->analde_id;
 		} else {
-			__entry->src = fw_parent_device(s->unit)->card->node_id;
-			__entry->dst = fw_parent_device(s->unit)->node_id;
+			__entry->src = fw_parent_device(s->unit)->card->analde_id;
+			__entry->dst = fw_parent_device(s->unit)->analde_id;
 		}
 		__entry->data_blocks = data_blocks;
 		copy_sph(__get_dynamic_array(tstamps), buffer, data_blocks, s->data_block_quadlets);
@@ -58,11 +58,11 @@ TRACE_EVENT(data_block_message,
 	),
 	TP_fast_assign(
 		if (s->direction == AMDTP_IN_STREAM) {
-			__entry->src = fw_parent_device(s->unit)->node_id;
-			__entry->dst = fw_parent_device(s->unit)->card->node_id;
+			__entry->src = fw_parent_device(s->unit)->analde_id;
+			__entry->dst = fw_parent_device(s->unit)->card->analde_id;
 		} else {
-			__entry->src = fw_parent_device(s->unit)->card->node_id;
-			__entry->dst = fw_parent_device(s->unit)->node_id;
+			__entry->src = fw_parent_device(s->unit)->card->analde_id;
+			__entry->dst = fw_parent_device(s->unit)->analde_id;
 		}
 		__entry->data_blocks = data_blocks;
 		copy_message(__get_dynamic_array(messages), buffer, data_blocks, s->data_block_quadlets);

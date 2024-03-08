@@ -18,7 +18,7 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
@@ -29,11 +29,11 @@ static DEFINE_SPINLOCK(indydog_lock);
 
 #define WATCHDOG_TIMEOUT 30		/* 30 sec default timeout */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static void indydog_start(void)
 {
@@ -59,12 +59,12 @@ static void indydog_ping(void)
 /*
  *	Allow only one person to hold it open
  */
-static int indydog_open(struct inode *inode, struct file *file)
+static int indydog_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &indydog_alive))
 		return -EBUSY;
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
 	/* Activate timer */
@@ -73,14 +73,14 @@ static int indydog_open(struct inode *inode, struct file *file)
 
 	pr_info("Started watchdog timer\n");
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int indydog_release(struct inode *inode, struct file *file)
+static int indydog_release(struct ianalde *ianalde, struct file *file)
 {
 	/* Shut off the timer.
-	 * Lock it in if it's a module and we defined ...NOWAYOUT */
-	if (!nowayout)
+	 * Lock it in if it's a module and we defined ...ANALWAYOUT */
+	if (!analwayout)
 		indydog_stop();		/* Turn the WDT off */
 	clear_bit(0, &indydog_alive);
 	return 0;
@@ -134,22 +134,22 @@ static long indydog_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETTIMEOUT:
 		return put_user(WATCHDOG_TIMEOUT, (int *)arg);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-static int indydog_notify_sys(struct notifier_block *this,
+static int indydog_analtify_sys(struct analtifier_block *this,
 					unsigned long code, void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		indydog_stop();		/* Turn the WDT off */
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct file_operations indydog_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= indydog_write,
 	.unlocked_ioctl	= indydog_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -158,30 +158,30 @@ static const struct file_operations indydog_fops = {
 };
 
 static struct miscdevice indydog_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &indydog_fops,
 };
 
-static struct notifier_block indydog_notifier = {
-	.notifier_call = indydog_notify_sys,
+static struct analtifier_block indydog_analtifier = {
+	.analtifier_call = indydog_analtify_sys,
 };
 
 static int __init watchdog_init(void)
 {
 	int ret;
 
-	ret = register_reboot_notifier(&indydog_notifier);
+	ret = register_reboot_analtifier(&indydog_analtifier);
 	if (ret) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", ret);
 		return ret;
 	}
 
 	ret = misc_register(&indydog_miscdev);
 	if (ret) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&indydog_notifier);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, ret);
+		unregister_reboot_analtifier(&indydog_analtifier);
 		return ret;
 	}
 
@@ -193,7 +193,7 @@ static int __init watchdog_init(void)
 static void __exit watchdog_exit(void)
 {
 	misc_deregister(&indydog_miscdev);
-	unregister_reboot_notifier(&indydog_notifier);
+	unregister_reboot_analtifier(&indydog_analtifier);
 }
 
 module_init(watchdog_init);

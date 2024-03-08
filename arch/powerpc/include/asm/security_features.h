@@ -14,7 +14,7 @@ extern bool rfi_flush;
 
 /* These are bit flags */
 enum stf_barrier_type {
-	STF_BARRIER_NONE	= 0x1,
+	STF_BARRIER_ANALNE	= 0x1,
 	STF_BARRIER_FALLBACK	= 0x2,
 	STF_BARRIER_EIEIO	= 0x4,
 	STF_BARRIER_SYNC_ORI	= 0x8,
@@ -42,7 +42,7 @@ static inline bool security_ftr_enabled(u64 feature)
 #ifdef CONFIG_PPC_BOOK3S_64
 enum stf_barrier_type stf_barrier_type_get(void);
 #else
-static inline enum stf_barrier_type stf_barrier_type_get(void) { return STF_BARRIER_NONE; }
+static inline enum stf_barrier_type stf_barrier_type_get(void) { return STF_BARRIER_ANALNE; }
 #endif
 
 // Features indicating support for Spectre/Meltdown mitigations

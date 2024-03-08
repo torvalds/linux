@@ -2,7 +2,7 @@
   {
     "EventCode": "0x20036",
     "EventName": "PM_BR_2PATH",
-    "BriefDescription": "Branches that are not strongly biased"
+    "BriefDescription": "Branches that are analt strongly biased"
   },
   {
     "EventCode": "0x40056",
@@ -17,7 +17,7 @@
   {
     "EventCode": "0x4F148",
     "EventName": "PM_MRK_DPTEG_FROM_DL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x301E8",

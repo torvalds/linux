@@ -12,19 +12,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -66,7 +66,7 @@
 #define VIRTIO_MMIO_DRIVER_FEATURES_SEL	0x024
 
 
-#ifndef VIRTIO_MMIO_NO_LEGACY /* LEGACY DEVICES ONLY! */
+#ifndef VIRTIO_MMIO_ANAL_LEGACY /* LEGACY DEVICES ONLY! */
 
 /* Guest's memory page size in bytes - Write Only */
 #define VIRTIO_MMIO_GUEST_PAGE_SIZE	0x028
@@ -84,7 +84,7 @@
 #define VIRTIO_MMIO_QUEUE_NUM		0x038
 
 
-#ifndef VIRTIO_MMIO_NO_LEGACY /* LEGACY DEVICES ONLY! */
+#ifndef VIRTIO_MMIO_ANAL_LEGACY /* LEGACY DEVICES ONLY! */
 
 /* Used Ring alignment for the currently selected queue - Write Only */
 #define VIRTIO_MMIO_QUEUE_ALIGN		0x03c
@@ -98,13 +98,13 @@
 /* Ready bit for the currently selected queue - Read Write */
 #define VIRTIO_MMIO_QUEUE_READY		0x044
 
-/* Queue notifier - Write Only */
-#define VIRTIO_MMIO_QUEUE_NOTIFY	0x050
+/* Queue analtifier - Write Only */
+#define VIRTIO_MMIO_QUEUE_ANALTIFY	0x050
 
 /* Interrupt status - Read Only */
 #define VIRTIO_MMIO_INTERRUPT_STATUS	0x060
 
-/* Interrupt acknowledge - Write Only */
+/* Interrupt ackanalwledge - Write Only */
 #define VIRTIO_MMIO_INTERRUPT_ACK	0x064
 
 /* Device status register - Read Write */
@@ -143,7 +143,7 @@
 
 
 /*
- * Interrupt flags (re: interrupt status & acknowledge registers)
+ * Interrupt flags (re: interrupt status & ackanalwledge registers)
  */
 
 #define VIRTIO_MMIO_INT_VRING		(1 << 0)

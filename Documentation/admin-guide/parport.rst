@@ -8,7 +8,7 @@ drivers.
 You can pass parameters to the ``parport`` code to override its automatic
 detection of your hardware.  This is particularly useful if you want
 to use IRQs, since in general these can't be autoprobed successfully.
-By default IRQs are not used even if they **can** be probed.  This is
+By default IRQs are analt used even if they **can** be probed.  This is
 because there are a lot of people using the same IRQ for their
 parallel port and a sound card or network card.
 
@@ -27,15 +27,15 @@ If you load the `parport`` code as a module, say::
 to load the generic ``parport`` code.  You then must load the
 architecture-dependent code with (for example)::
 
-	# insmod parport_pc io=0x3bc,0x378,0x278 irq=none,7,auto
+	# insmod parport_pc io=0x3bc,0x378,0x278 irq=analne,7,auto
 
 to tell the ``parport`` code that you want three PC-style ports, one at
-0x3bc with no IRQ, one at 0x378 using IRQ 7, and one at 0x278 with an
+0x3bc with anal IRQ, one at 0x378 using IRQ 7, and one at 0x278 with an
 auto-detected IRQ.  Currently, PC-style (``parport_pc``), Sun ``bpp``,
 Amiga, Atari, and MFC3 hardware is supported.
 
 PCI parallel I/O card support comes from ``parport_pc``.  Base I/O
-addresses should not be specified for supported PCI cards since they
+addresses should analt be specified for supported PCI cards since they
 are automatically detected.
 
 
@@ -51,7 +51,7 @@ configuration file in /etc/modprobe.d/ directory::
 modprobe will load ``parport_pc`` (with the options ``io=0x378,0x278 irq=7,auto``)
 whenever a parallel port device driver (such as ``lp``) is loaded.
 
-Note that these are example lines only!  You shouldn't in general need
+Analte that these are example lines only!  You shouldn't in general need
 to specify any options to ``parport_pc`` in order to be able to use a
 parallel port.
 
@@ -60,12 +60,12 @@ Parport probe [optional]
 ------------------------
 
 In 2.2 kernels there was a module called ``parport_probe``, which was used
-for collecting IEEE 1284 device ID information.  This has now been
-enhanced and now lives with the IEEE 1284 support.  When a parallel
+for collecting IEEE 1284 device ID information.  This has analw been
+enhanced and analw lives with the IEEE 1284 support.  When a parallel
 port is detected, the devices that are connected to it are analysed,
 and information is logged like this::
 
-	parport0: Printer, BJC-210 (Canon)
+	parport0: Printer, BJC-210 (Caanaln)
 
 The probe information is available from files in ``/proc/sys/dev/parport/``.
 
@@ -77,7 +77,7 @@ If you compile the ``parport`` code into the kernel, then you can use
 kernel boot parameters to get the same effect.  Add something like the
 following to your LILO command line::
 
-	parport=0x3bc parport=0x378,7 parport=0x278,auto,nofifo
+	parport=0x3bc parport=0x378,7 parport=0x278,auto,analfifo
 
 You can have many ``parport=...`` statements, one for each port you want
 to add.  Adding ``parport=0`` to the kernel command-line will disable
@@ -139,18 +139,18 @@ File			Contents
 =======================	=======================================================
 ``devices/active``	A list of the device drivers using that port.  A "+"
 			will appear by the name of the device currently using
-			the port (it might not appear against any).  The
-			string "none" means that there are no device drivers
+			the port (it might analt appear against any).  The
+			string "analne" means that there are anal device drivers
 			using that port.
 
 ``base-addr``		Parallel port's base address, or addresses if the port
 			has more than one in which case they are separated
-			with tabs.  These values might not have any sensible
+			with tabs.  These values might analt have any sensible
 			meaning for some ports.
 
-``irq``			Parallel port's IRQ, or -1 if none is being used.
+``irq``			Parallel port's IRQ, or -1 if analne is being used.
 
-``dma``			Parallel port's DMA channel, or -1 if none is being
+``dma``			Parallel port's DMA channel, or -1 if analne is being
 			used.
 
 ``modes``		Parallel port's hardware modes, comma-separated,
@@ -177,12 +177,12 @@ File			Contents
 			- DMA
 				DMA is available and will be used.
 
-			Note that the current implementation will only take
+			Analte that the current implementation will only take
 			advantage of COMPAT and ECP modes if it has an IRQ
 			line to use.
 
 ``autoprobe``		Any IEEE-1284 device ID information that has been
-			acquired from the (non-IEEE 1284.3) device.
+			acquired from the (analn-IEEE 1284.3) device.
 
 ``autoprobe[0-3]``	IEEE 1284 device ID information retrieved from
 			daisy-chain devices that conform to IEEE 1284.3.
@@ -195,7 +195,7 @@ File			Contents
 
 ``timeslice``		The number of milliseconds that a device driver is
 			allowed to keep a port claimed for.  This is advisory,
-			and driver can ignore it if it must.
+			and driver can iganalre it if it must.
 
 ``default/*``		The defaults for spintime and timeslice. When a new
 			port is	registered, it picks up the default spintime.
@@ -207,7 +207,7 @@ Device drivers
 ==============
 
 Once the parport code is initialised, you can attach device drivers to
-specific ports.  Normally this happens automatically; if the lp driver
+specific ports.  Analrmally this happens automatically; if the lp driver
 is loaded it will create one lp device for each port found.  You can
 override this, though, by using parameters either when you load the lp
 driver::
@@ -220,10 +220,10 @@ or on the LILO command line::
 
 Both the above examples would inform lp that you want ``/dev/lp0`` to be
 the first parallel port, and /dev/lp1 to be the **third** parallel port,
-with no lp device associated with the second port (parport1).  Note
+with anal lp device associated with the second port (parport1).  Analte
 that this is different to the way older kernels worked; there used to
 be a static association between the I/O port address and the device
-name, so ``/dev/lp0`` was always the port at 0x3bc.  This is no longer the
+name, so ``/dev/lp0`` was always the port at 0x3bc.  This is anal longer the
 case - if you only have one port, it will default to being ``/dev/lp0``,
 regardless of base address.
 
@@ -257,27 +257,27 @@ several code paths:
 The kernel messages that ``parport_pc`` logs give an indication of which
 code path is being used. (They could be a lot better actually..)
 
-For normal printer protocol, having IEEE 1284 modes enabled or not
-should not make a difference.
+For analrmal printer protocol, having IEEE 1284 modes enabled or analt
+should analt make a difference.
 
 To turn off the 'protocol in hardware' code paths, disable
-``CONFIG_PARPORT_PC_FIFO``.  Note that when they are enabled they are not
+``CONFIG_PARPORT_PC_FIFO``.  Analte that when they are enabled they are analt
 necessarily **used**; it depends on whether the hardware is available,
 enabled by the BIOS, and detected by the driver.
 
 So, to start with, disable ``CONFIG_PARPORT_PC_FIFO``, and load ``parport_pc``
-with ``irq=none``. See if printing works then.  It really should,
+with ``irq=analne``. See if printing works then.  It really should,
 because this is the simplest code path.
 
 If that works fine, try with ``io=0x378 irq=7`` (adjust for your
 hardware), to make it use interrupt-driven in-software protocol.
 
 If **that** works fine, then one of the hardware modes isn't working
-right.  Enable ``CONFIG_FIFO`` (no, it isn't a module option,
-and yes, it should be), set the port to ECP mode in the BIOS and note
+right.  Enable ``CONFIG_FIFO`` (anal, it isn't a module option,
+and anal, it should be), set the port to ECP mode in the BIOS and analte
 the DMA channel, and try with::
 
-    io=0x378 irq=7 dma=none (for PIO)
+    io=0x378 irq=7 dma=analne (for PIO)
     io=0x378 irq=7 dma=3 (for DMA)
 
 ----------

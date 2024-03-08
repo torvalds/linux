@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -202,7 +202,7 @@ static const struct dmi_system_id acp_quirk_table[] = {
 	{
 		.callback = acp_quirk_cb,
 		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "IP3 Technology CO.,Ltd."),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "IP3 Techanallogy CO.,Ltd."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "ASN1D"),
 		},
 	},
@@ -239,9 +239,9 @@ static int acp_hw_init(void *handle)
 		return -EINVAL;
 
 	r = amd_acp_hw_init(adev->acp.cgs_device,
-			    ip_block->version->major, ip_block->version->minor);
-	/* -ENODEV means board uses AZ rather than ACP */
-	if (r == -ENODEV) {
+			    ip_block->version->major, ip_block->version->mianalr);
+	/* -EANALDEV means board uses AZ rather than ACP */
+	if (r == -EANALDEV) {
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, true);
 		return 0;
 	} else if (r) {
@@ -254,7 +254,7 @@ static int acp_hw_init(void *handle)
 	acp_base = adev->rmmio_base;
 	adev->acp.acp_genpd = kzalloc(sizeof(struct acp_pm_domain), GFP_KERNEL);
 	if (!adev->acp.acp_genpd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->acp.acp_genpd->gpd.name = "ACP_AUDIO";
 	adev->acp.acp_genpd->gpd.power_off = acp_poweroff;
@@ -269,19 +269,19 @@ static int acp_hw_init(void *handle)
 		adev->acp.acp_cell = kcalloc(2, sizeof(struct mfd_cell),
 					     GFP_KERNEL);
 		if (!adev->acp.acp_cell) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto failure;
 		}
 
 		adev->acp.acp_res = kcalloc(3, sizeof(struct resource), GFP_KERNEL);
 		if (!adev->acp.acp_res) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto failure;
 		}
 
 		i2s_pdata = kcalloc(1, sizeof(struct i2s_platform_data), GFP_KERNEL);
 		if (!i2s_pdata) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto failure;
 		}
 
@@ -332,19 +332,19 @@ static int acp_hw_init(void *handle)
 					     GFP_KERNEL);
 
 		if (!adev->acp.acp_cell) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto failure;
 		}
 
 		adev->acp.acp_res = kcalloc(5, sizeof(struct resource), GFP_KERNEL);
 		if (!adev->acp.acp_res) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto failure;
 		}
 
 		i2s_pdata = kcalloc(3, sizeof(struct i2s_platform_data), GFP_KERNEL);
 		if (!i2s_pdata) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto failure;
 		}
 
@@ -512,7 +512,7 @@ static int acp_hw_fini(void *handle)
 	u32 count = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	/* return early if no ACP */
+	/* return early if anal ACP */
 	if (!adev->acp.acp_genpd) {
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, false);
 		return 0;
@@ -642,7 +642,7 @@ static const struct amd_ip_funcs acp_ip_funcs = {
 const struct amdgpu_ip_block_version acp_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_ACP,
 	.major = 2,
-	.minor = 2,
+	.mianalr = 2,
 	.rev = 0,
 	.funcs = &acp_ip_funcs,
 };

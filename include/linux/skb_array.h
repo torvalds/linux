@@ -8,7 +8,7 @@
  *	Copyright (C) 2016 Red Hat, Inc.
  *
  *	Limited-size FIFO of skbs. Can be used more or less whenever
- *	sk_buff_head can be used, except you need to know the queue size in
+ *	sk_buff_head can be used, except you need to kanalw the queue size in
  *	advance.
  *	Implemented as a type-safe wrapper around ptr_ring.
  */

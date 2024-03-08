@@ -9,7 +9,7 @@
 /* Broadcom Secure Service API service IDs, return codes, and exit codes */
 #define SSAPI_ENABLE_L2_CACHE		0x01000002
 #define SEC_ROM_RET_OK			0x00000001
-#define SEC_EXIT_NORMAL			0x1
+#define SEC_EXIT_ANALRMAL			0x1
 
 extern int __init bcm_kona_smc_init(void);
 

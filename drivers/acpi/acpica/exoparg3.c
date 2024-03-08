@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("exoparg3")
  *
  * The routines that begin execution of AML opcodes are named with a common
  * convention based upon the number of arguments, the number of target operands,
- * and whether or not a value is returned:
+ * and whether or analt a value is returned:
  *
  *      AcpiExOpcode_xA_yT_zR
  *
@@ -85,7 +85,7 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 
 	case AML_EXTERNAL_OP:
 		/*
-		 * If the interpreter sees this opcode, just ignore it. The External
+		 * If the interpreter sees this opcode, just iganalre it. The External
 		 * op is intended for use by disassemblers in order to properly
 		 * disassemble control method invocations. The opcode or group of
 		 * opcodes should be surrounded by an "if (0)" clause to ensure that
@@ -98,7 +98,7 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;
@@ -143,7 +143,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 		return_desc = acpi_ut_create_internal_object((operand[0])->
 							     common.type);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -168,7 +168,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 			    (acpi_size)index;
 		}
 
-		/* Strings always have a sub-pointer, not so for buffers */
+		/* Strings always have a sub-pointer, analt so for buffers */
 
 		switch ((operand[0])->common.type) {
 		case ACPI_TYPE_STRING:
@@ -177,7 +177,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 			buffer = ACPI_ALLOCATE_ZEROED((acpi_size)length + 1);
 			if (!buffer) {
-				status = AE_NO_MEMORY;
+				status = AE_ANAL_MEMORY;
 				goto cleanup;
 			}
 			break;
@@ -192,13 +192,13 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 				buffer = ACPI_ALLOCATE_ZEROED(length);
 				if (!buffer) {
-					status = AE_NO_MEMORY;
+					status = AE_ANAL_MEMORY;
 					goto cleanup;
 				}
 			}
 			break;
 
-		default:	/* Should not happen */
+		default:	/* Should analt happen */
 
 			status = AE_AML_OPERAND_TYPE;
 			goto cleanup;
@@ -224,7 +224,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;

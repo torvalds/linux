@@ -6,7 +6,7 @@
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Sergey Lapin <slapin@ossfans.org>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #include <linux/netdevice.h>
@@ -52,7 +52,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct sockaddr_ieee802154 *sa =
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
-	int err = -ENOIOCTLCMD;
+	int err = -EANALIOCTLCMD;
 
 	if (cmd != SIOCGIFADDR && cmd != SIOCSIFADDR)
 		return err;
@@ -68,7 +68,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		short_addr = le16_to_cpu(wpan_dev->short_addr);
 		if (pan_id == IEEE802154_PANID_BROADCAST ||
 		    short_addr == IEEE802154_ADDR_BROADCAST) {
-			err = -EADDRNOTAVAIL;
+			err = -EADDRANALTAVAIL;
 			break;
 		}
 
@@ -261,10 +261,10 @@ ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
 		if (nsdata != sdata && ieee802154_sdata_running(nsdata)) {
 			int ret;
 
-			/* TODO currently we don't support multiple node/coord
+			/* TODO currently we don't support multiple analde/coord
 			 * types we need to run skb_clone at rx path. Check if
 			 * there exist really an use case if we need to support
-			 * multiple node/coord types at the same time.
+			 * multiple analde/coord types at the same time.
 			 */
 			if (sdata->wpan_dev.iftype != NL802154_IFTYPE_MONITOR &&
 			    nsdata->wpan_dev.iftype != NL802154_IFTYPE_MONITOR)
@@ -518,8 +518,8 @@ static void ieee802154_if_setup(struct net_device *dev)
 	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
 	/* Let hard_header_len set to IEEE802154_MIN_HEADER_LEN. AF_PACKET
-	 * will not send frames without any payload, but ack frames
-	 * has no payload, so substract one that we can send a 3 bytes
+	 * will analt send frames without any payload, but ack frames
+	 * has anal payload, so substract one that we can send a 3 bytes
 	 * frame. The xmit callback assumes at least a hard header where two
 	 * bytes fc and sequence field are set.
 	 */
@@ -541,7 +541,7 @@ static void ieee802154_if_setup(struct net_device *dev)
 	dev->mtu		= IEEE802154_MTU - IEEE802154_FCS_LEN -
 				  dev->hard_header_len;
 	dev->tx_queue_len	= 300;
-	dev->flags		= IFF_NOARP | IFF_BROADCAST;
+	dev->flags		= IFF_ANALARP | IFF_BROADCAST;
 }
 
 static int
@@ -571,7 +571,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 	switch (type) {
 	case NL802154_IFTYPE_COORD:
-	case NL802154_IFTYPE_NODE:
+	case NL802154_IFTYPE_ANALDE:
 		ieee802154_be64_to_le64(&wpan_dev->extended_addr,
 					sdata->dev->dev_addr);
 
@@ -594,7 +594,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	case NL802154_IFTYPE_MONITOR:
 		sdata->dev->needs_free_netdev = true;
 		sdata->dev->netdev_ops = &mac802154_monitor_ops;
-		sdata->iface_default_filtering = IEEE802154_FILTERING_NONE;
+		sdata->iface_default_filtering = IEEE802154_FILTERING_ANALNE;
 		break;
 	default:
 		BUG();
@@ -618,7 +618,7 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	ndev = alloc_netdev(sizeof(*sdata), name,
 			    name_assign_type, ieee802154_if_setup);
 	if (!ndev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ndev->needed_headroom = local->hw.extra_tx_headroom +
 				IEEE802154_MAX_HEADER_LEN;
@@ -631,7 +631,7 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 				&local->hw.phy->perm_extended_addr);
 	switch (type) {
 	case NL802154_IFTYPE_COORD:
-	case NL802154_IFTYPE_NODE:
+	case NL802154_IFTYPE_ANALDE:
 		ndev->type = ARPHRD_IEEE802154;
 		if (ieee802154_is_valid_extended_unicast_addr(extended_addr)) {
 			ieee802154_le64_to_be64(addr, &extended_addr);
@@ -704,37 +704,37 @@ void ieee802154_remove_interfaces(struct ieee802154_local *local)
 	mutex_unlock(&local->iflist_mtx);
 }
 
-static int netdev_notify(struct notifier_block *nb,
+static int netdev_analtify(struct analtifier_block *nb,
 			 unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct ieee802154_sub_if_data *sdata;
 
 	if (state != NETDEV_CHANGENAME)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!dev->ieee802154_ptr || !dev->ieee802154_ptr->wpan_phy)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (dev->ieee802154_ptr->wpan_phy->privid != mac802154_wpan_phy_privid)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	memcpy(sdata->name, dev->name, IFNAMSIZ);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block mac802154_netdev_notifier = {
-	.notifier_call = netdev_notify,
+static struct analtifier_block mac802154_netdev_analtifier = {
+	.analtifier_call = netdev_analtify,
 };
 
 int ieee802154_iface_init(void)
 {
-	return register_netdevice_notifier(&mac802154_netdev_notifier);
+	return register_netdevice_analtifier(&mac802154_netdev_analtifier);
 }
 
 void ieee802154_iface_exit(void)
 {
-	unregister_netdevice_notifier(&mac802154_netdev_notifier);
+	unregister_netdevice_analtifier(&mac802154_netdev_analtifier);
 }

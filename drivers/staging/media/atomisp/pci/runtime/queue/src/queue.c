@@ -92,8 +92,8 @@ int ia_css_queue_enqueue(ia_css_queue_t *qhandle, uint32_t item)
 		 * operate on the queue
 		 */
 		if (ia_css_circbuf_is_full(&qhandle->desc.cb_local)) {
-			/* Cannot push the element. Return*/
-			return -ENOBUFS;
+			/* Cananalt push the element. Return*/
+			return -EANALBUFS;
 		}
 
 		/* Push the element*/
@@ -101,17 +101,17 @@ int ia_css_queue_enqueue(ia_css_queue_t *qhandle, uint32_t item)
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		ia_css_circbuf_desc_t cb_desc;
 		ia_css_circbuf_elem_t cb_elem;
-		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 iganalre_desc_flags = QUEUE_IGANALRE_STEP_FLAG;
 
 		/* a. Load the queue cb_desc from remote */
 		QUEUE_CB_DESC_INIT(&cb_desc);
-		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
+		error = ia_css_queue_load(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 
 		/* b. Operate on the queue */
 		if (ia_css_circbuf_desc_is_full(&cb_desc))
-			return -ENOBUFS;
+			return -EANALBUFS;
 
 		cb_elem.val = item;
 
@@ -126,9 +126,9 @@ int ia_css_queue_enqueue(ia_css_queue_t *qhandle, uint32_t item)
 		 * valid value. Avoids uncessary calls
 		 * to load/store functions
 		 */
-		ignore_desc_flags = QUEUE_IGNORE_SIZE_START_STEP_FLAGS;
+		iganalre_desc_flags = QUEUE_IGANALRE_SIZE_START_STEP_FLAGS;
 
-		error = ia_css_queue_store(qhandle, &cb_desc, ignore_desc_flags);
+		error = ia_css_queue_store(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 	}
@@ -149,8 +149,8 @@ int ia_css_queue_dequeue(ia_css_queue_t *qhandle, uint32_t *item)
 		 * operate on the queue
 		 */
 		if (ia_css_circbuf_is_empty(&qhandle->desc.cb_local)) {
-			/* Nothing to pop. Return empty queue*/
-			return -ENODATA;
+			/* Analthing to pop. Return empty queue*/
+			return -EANALDATA;
 		}
 
 		*item = ia_css_circbuf_pop(&qhandle->desc.cb_local);
@@ -158,17 +158,17 @@ int ia_css_queue_dequeue(ia_css_queue_t *qhandle, uint32_t *item)
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
 		ia_css_circbuf_elem_t cb_elem;
-		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 iganalre_desc_flags = QUEUE_IGANALRE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
 
-		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
+		error = ia_css_queue_load(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 
 		/* b. Operate on the queue */
 		if (ia_css_circbuf_desc_is_empty(&cb_desc))
-			return -ENODATA;
+			return -EANALDATA;
 
 		error = ia_css_queue_item_load(qhandle, cb_desc.start, &cb_elem);
 		if (error != 0)
@@ -183,8 +183,8 @@ int ia_css_queue_dequeue(ia_css_queue_t *qhandle, uint32_t *item)
 		 * valid value. Avoids uncessary calls
 		 * to load/store functions
 		 */
-		ignore_desc_flags = QUEUE_IGNORE_SIZE_END_STEP_FLAGS;
-		error = ia_css_queue_store(qhandle, &cb_desc, ignore_desc_flags);
+		iganalre_desc_flags = QUEUE_IGANALRE_SIZE_END_STEP_FLAGS;
+		error = ia_css_queue_store(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 	}
@@ -208,10 +208,10 @@ int ia_css_queue_is_full(ia_css_queue_t *qhandle, bool *is_full)
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 iganalre_desc_flags = QUEUE_IGANALRE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
-		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
+		error = ia_css_queue_load(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 
@@ -240,10 +240,10 @@ int ia_css_queue_get_free_space(ia_css_queue_t *qhandle, uint32_t *size)
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 iganalre_desc_flags = QUEUE_IGANALRE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
-		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
+		error = ia_css_queue_load(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 
@@ -272,10 +272,10 @@ int ia_css_queue_get_used_space(ia_css_queue_t *qhandle, uint32_t *size)
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 iganalre_desc_flags = QUEUE_IGANALRE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
-		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
+		error = ia_css_queue_load(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 
@@ -311,11 +311,11 @@ int ia_css_queue_peek(ia_css_queue_t *qhandle, u32 offset, uint32_t *element)
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
 		ia_css_circbuf_elem_t cb_elem;
-		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 iganalre_desc_flags = QUEUE_IGANALRE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
 
-		error =  ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
+		error =  ia_css_queue_load(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 
@@ -353,10 +353,10 @@ int ia_css_queue_is_empty(ia_css_queue_t *qhandle, bool *is_empty)
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 iganalre_desc_flags = QUEUE_IGANALRE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
-		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
+		error = ia_css_queue_load(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 
@@ -385,11 +385,11 @@ int ia_css_queue_get_size(ia_css_queue_t *qhandle, uint32_t *size)
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		u32 ignore_desc_flags = QUEUE_IGNORE_START_END_STEP_FLAGS;
+		u32 iganalre_desc_flags = QUEUE_IGANALRE_START_END_STEP_FLAGS;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
 
-		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
+		error = ia_css_queue_load(qhandle, &cb_desc, iganalre_desc_flags);
 		if (error != 0)
 			return error;
 

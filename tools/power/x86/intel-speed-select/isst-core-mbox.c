@@ -99,7 +99,7 @@ static int _send_mmio_command(unsigned int cpu, unsigned int reg, int write,
 	}
 
 	if (ioctl(fd, cmd, &io_regs) == -1) {
-		if (errno == ENOTTY) {
+		if (erranal == EANALTTY) {
 			perror("ISST_IF_IO_COMMAND\n");
 			fprintf(stderr, "Check presence of kernel modules: isst_if_mmio\n");
 			exit(0);
@@ -187,14 +187,14 @@ int _send_mbox_command(unsigned int cpu, unsigned char command,
 	retry = mbox_retries;
 	do {
 		if (ioctl(fd, ISST_IF_MBOX_COMMAND, &mbox_cmds) == -1) {
-			if (errno == ENOTTY) {
+			if (erranal == EANALTTY) {
 				perror("ISST_IF_MBOX_COMMAND\n");
 				fprintf(stderr, "Check presence of kernel modules: isst_if_mbox_pci or isst_if_mbox_msr\n");
 				exit(0);
 			}
 			debug_printf(
-				"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x errorno:%d\n",
-				cpu, command, sub_command, parameter, req_data, errno);
+				"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x erroranal:%d\n",
+				cpu, command, sub_command, parameter, req_data, erranal);
 			--retry;
 		} else {
 			*resp = mbox_cmds.mbox_cmd[0].resp_data;
@@ -281,7 +281,7 @@ static int mbox_get_ctdp_control(struct isst_id *id, int config_index,
 
 	ret = isst_read_pm_config(id, &cp_state, &cp_cap);
 	if (ret) {
-		debug_printf("cpu:%d pm_config is not supported\n", id->cpu);
+		debug_printf("cpu:%d pm_config is analt supported\n", id->cpu);
 	} else {
 		debug_printf("cpu:%d pm_config SST-CP state:%d cap:%d\n", id->cpu, cp_state, cp_cap);
 		ctdp_level->sst_cp_support = cp_cap;
@@ -702,7 +702,7 @@ static int mbox_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
 
 	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret)
-		debug_printf("cpu:%d No support for dynamic ISST\n", id->cpu);
+		debug_printf("cpu:%d Anal support for dynamic ISST\n", id->cpu);
 
 	current_level = pkg_dev.current_level;
 
@@ -900,16 +900,16 @@ static int mbox_pm_qos_config(struct isst_id *id, int enable_clos, int priority_
 			return ret;
 
 		if (ctdp_level.fact_enabled) {
-			isst_display_error_info_message(1, "Ignoring request, turbo-freq feature is still enabled", 0, 0);
+			isst_display_error_info_message(1, "Iganalring request, turbo-freq feature is still enabled", 0, 0);
 			return -EINVAL;
 		}
 		ret = _write_pm_config(id, 0);
 		if (ret)
-			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
+			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, iganalring error", 0, 0);
 	} else {
 		ret = _write_pm_config(id, 1);
 		if (ret)
-			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
+			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, iganalring error", 0, 0);
 	}
 
 	ret = _send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,

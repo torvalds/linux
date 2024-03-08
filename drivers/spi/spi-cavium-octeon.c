@@ -21,11 +21,11 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	void __iomem *reg_base;
 	struct spi_controller *host;
 	struct octeon_spi *p;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	host = spi_alloc_host(&pdev->dev, sizeof(struct octeon_spi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = spi_controller_get_devdata(host);
 	platform_set_drvdata(pdev, host);
 
@@ -54,7 +54,7 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->max_speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	err = devm_spi_register_controller(&pdev->dev, host);
 	if (err) {
 		dev_err(&pdev->dev, "register host failed: %d\n", err);
@@ -74,7 +74,7 @@ static void octeon_spi_remove(struct platform_device *pdev)
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct octeon_spi *p = spi_controller_get_devdata(host);
 
-	/* Clear the CSENA* and put everything in a known state. */
+	/* Clear the CSENA* and put everything in a kanalwn state. */
 	writeq(0, p->register_base + OCTEON_SPI_CFG(p));
 }
 

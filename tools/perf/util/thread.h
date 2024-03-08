@@ -27,18 +27,18 @@ struct lbr_stitch {
 	struct list_head		lists;
 	struct list_head		free_lists;
 	struct perf_sample		prev_sample;
-	struct callchain_cursor_node	*prev_lbr_cursor;
+	struct callchain_cursor_analde	*prev_lbr_cursor;
 };
 
-struct thread_rb_node {
-	struct rb_node rb_node;
+struct thread_rb_analde {
+	struct rb_analde rb_analde;
 	struct thread *thread;
 };
 
 DECLARE_RC_STRUCT(thread) {
 	/** @maps: mmaps associated with this thread. */
 	struct maps		*maps;
-	pid_t			pid_; /* Not all tools update this */
+	pid_t			pid_; /* Analt all tools update this */
 	/** @tid: thread ID number unique to a machine. */
 	pid_t			tid;
 	/** @ppid: parent process of the process this thread belongs to. */

@@ -133,7 +133,7 @@ static netdev_tx_t t7xx_ccmni_start_xmit(struct sk_buff *skb, struct net_device 
 	struct t7xx_ccmni *ccmni = wwan_netdev_drvpriv(dev);
 	int skb_len = skb->len;
 
-	/* If MTU is changed or there is no headroom, drop the packet */
+	/* If MTU is changed or there is anal headroom, drop the packet */
 	if (skb->len > dev->mtu || skb_headroom(skb) < sizeof(struct ccci_header)) {
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
@@ -230,7 +230,7 @@ static void t7xx_ccmni_wwan_setup(struct net_device *dev)
 	dev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
 	dev->watchdog_timeo = CCMNI_NETDEV_WDT_TO;
 
-	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 
 	dev->features = NETIF_F_VLAN_CHALLENGED;
 
@@ -248,7 +248,7 @@ static void t7xx_ccmni_wwan_setup(struct net_device *dev)
 
 	dev->needs_free_netdev = true;
 
-	dev->type = ARPHRD_NONE;
+	dev->type = ARPHRD_ANALNE;
 
 	dev->netdev_ops = &ccmni_netdev_ops;
 }
@@ -389,17 +389,17 @@ static int t7xx_ccmni_md_state_callback(enum md_state state, void *para)
 	return ret;
 }
 
-static void init_md_status_notifier(struct t7xx_pci_dev *t7xx_dev)
+static void init_md_status_analtifier(struct t7xx_pci_dev *t7xx_dev)
 {
 	struct t7xx_ccmni_ctrl	*ctlb = t7xx_dev->ccmni_ctlb;
-	struct t7xx_fsm_notifier *md_status_notifier;
+	struct t7xx_fsm_analtifier *md_status_analtifier;
 
-	md_status_notifier = &ctlb->md_status_notify;
-	INIT_LIST_HEAD(&md_status_notifier->entry);
-	md_status_notifier->notifier_fn = t7xx_ccmni_md_state_callback;
-	md_status_notifier->data = ctlb;
+	md_status_analtifier = &ctlb->md_status_analtify;
+	INIT_LIST_HEAD(&md_status_analtifier->entry);
+	md_status_analtifier->analtifier_fn = t7xx_ccmni_md_state_callback;
+	md_status_analtifier->data = ctlb;
 
-	t7xx_fsm_notifier_register(t7xx_dev->md, md_status_notifier);
+	t7xx_fsm_analtifier_register(t7xx_dev->md, md_status_analtifier);
 }
 
 static void t7xx_ccmni_recv_skb(struct t7xx_ccmni_ctrl *ccmni_ctlb, struct sk_buff *skb,
@@ -433,32 +433,32 @@ static void t7xx_ccmni_recv_skb(struct t7xx_ccmni_ctrl *ccmni_ctlb, struct sk_bu
 	net_dev->stats.rx_bytes += skb_len;
 }
 
-static void t7xx_ccmni_queue_tx_irq_notify(struct t7xx_ccmni_ctrl *ctlb, int qno)
+static void t7xx_ccmni_queue_tx_irq_analtify(struct t7xx_ccmni_ctrl *ctlb, int qanal)
 {
 	struct t7xx_ccmni *ccmni = ctlb->ccmni_inst[0];
 	struct netdev_queue *net_queue;
 
 	if (netif_running(ccmni->dev) && atomic_read(&ccmni->usage) > 0) {
-		net_queue = netdev_get_tx_queue(ccmni->dev, qno);
+		net_queue = netdev_get_tx_queue(ccmni->dev, qanal);
 		if (netif_tx_queue_stopped(net_queue))
 			netif_tx_wake_queue(net_queue);
 	}
 }
 
-static void t7xx_ccmni_queue_tx_full_notify(struct t7xx_ccmni_ctrl *ctlb, int qno)
+static void t7xx_ccmni_queue_tx_full_analtify(struct t7xx_ccmni_ctrl *ctlb, int qanal)
 {
 	struct t7xx_ccmni *ccmni = ctlb->ccmni_inst[0];
 	struct netdev_queue *net_queue;
 
 	if (atomic_read(&ccmni->usage) > 0) {
-		netdev_err(ccmni->dev, "TX queue %d is full\n", qno);
-		net_queue = netdev_get_tx_queue(ccmni->dev, qno);
+		netdev_err(ccmni->dev, "TX queue %d is full\n", qanal);
+		net_queue = netdev_get_tx_queue(ccmni->dev, qanal);
 		netif_tx_stop_queue(net_queue);
 	}
 }
 
-static void t7xx_ccmni_queue_state_notify(struct t7xx_pci_dev *t7xx_dev,
-					  enum dpmaif_txq_state state, int qno)
+static void t7xx_ccmni_queue_state_analtify(struct t7xx_pci_dev *t7xx_dev,
+					  enum dpmaif_txq_state state, int qanal)
 {
 	struct t7xx_ccmni_ctrl *ctlb = t7xx_dev->ccmni_ctlb;
 
@@ -466,14 +466,14 @@ static void t7xx_ccmni_queue_state_notify(struct t7xx_pci_dev *t7xx_dev,
 		return;
 
 	if (!ctlb->ccmni_inst[0]) {
-		dev_warn(&t7xx_dev->pdev->dev, "No netdev registered yet\n");
+		dev_warn(&t7xx_dev->pdev->dev, "Anal netdev registered yet\n");
 		return;
 	}
 
 	if (state == DMPAIF_TXQ_STATE_IRQ)
-		t7xx_ccmni_queue_tx_irq_notify(ctlb, qno);
+		t7xx_ccmni_queue_tx_irq_analtify(ctlb, qanal);
 	else if (state == DMPAIF_TXQ_STATE_FULL)
-		t7xx_ccmni_queue_tx_full_notify(ctlb, qno);
+		t7xx_ccmni_queue_tx_full_analtify(ctlb, qanal);
 }
 
 int t7xx_ccmni_init(struct t7xx_pci_dev *t7xx_dev)
@@ -483,20 +483,20 @@ int t7xx_ccmni_init(struct t7xx_pci_dev *t7xx_dev)
 
 	ctlb = devm_kzalloc(dev, sizeof(*ctlb), GFP_KERNEL);
 	if (!ctlb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t7xx_dev->ccmni_ctlb = ctlb;
 	ctlb->t7xx_dev = t7xx_dev;
-	ctlb->callbacks.state_notify = t7xx_ccmni_queue_state_notify;
+	ctlb->callbacks.state_analtify = t7xx_ccmni_queue_state_analtify;
 	ctlb->callbacks.recv_skb = t7xx_ccmni_recv_skb;
 	ctlb->nic_dev_num = NIC_DEV_DEFAULT;
 
 	ctlb->hif_ctrl = t7xx_dpmaif_hif_init(t7xx_dev, &ctlb->callbacks);
 	if (!ctlb->hif_ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t7xx_init_netdev_napi(ctlb);
-	init_md_status_notifier(t7xx_dev);
+	init_md_status_analtifier(t7xx_dev);
 	return 0;
 }
 
@@ -504,7 +504,7 @@ void t7xx_ccmni_exit(struct t7xx_pci_dev *t7xx_dev)
 {
 	struct t7xx_ccmni_ctrl *ctlb = t7xx_dev->ccmni_ctlb;
 
-	t7xx_fsm_notifier_unregister(t7xx_dev->md, &ctlb->md_status_notify);
+	t7xx_fsm_analtifier_unregister(t7xx_dev->md, &ctlb->md_status_analtify);
 
 	if (ctlb->wwan_is_registered) {
 		wwan_unregister_ops(&t7xx_dev->pdev->dev);

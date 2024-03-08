@@ -1,7 +1,7 @@
 IBM POWERNV platform sensors
 ----------------------------
 
-Required node properties:
+Required analde properties:
 - compatible: must be one of
 		"ibm,opal-sensor-cooling-fan"
 		"ibm,opal-sensor-amb-temp"
@@ -10,7 +10,7 @@ Required node properties:
 - sensor-id: an opaque id provided by the firmware to the kernel, identifies a
 	     given sensor and its attribute data
 
-Example sensors node:
+Example sensors analde:
 
 cooling-fan#8-data {
 	sensor-id = <0x7052107>;

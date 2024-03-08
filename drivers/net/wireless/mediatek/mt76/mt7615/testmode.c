@@ -73,7 +73,7 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 	len = MT7615_EE_MAX - MT_EE_NIC_CONF_0;
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(req_hdr) + len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &req_hdr, sizeof(req_hdr));
 	data = skb_put_data(skb, eep + MT_EE_NIC_CONF_0, len);
@@ -329,38 +329,38 @@ mt7615_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 
 	rx = nla_nest_start(msg, MT76_TM_STATS_ATTR_LAST_RX);
 	if (!rx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (nla_put_s32(msg, MT76_TM_RX_ATTR_FREQ_OFFSET, phy->test.last_freq_offset))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_RCPI);
 	if (!rssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(phy->test.last_rcpi); i++)
 		if (nla_put_u8(msg, i, phy->test.last_rcpi[i]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	nla_nest_end(msg, rssi);
 
 	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_IB_RSSI);
 	if (!rssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(phy->test.last_ib_rssi); i++)
 		if (nla_put_s8(msg, i, phy->test.last_ib_rssi[i]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	nla_nest_end(msg, rssi);
 
 	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_WB_RSSI);
 	if (!rssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(phy->test.last_wb_rssi); i++)
 		if (nla_put_s8(msg, i, phy->test.last_wb_rssi[i]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	nla_nest_end(msg, rssi);
 

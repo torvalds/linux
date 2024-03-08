@@ -56,7 +56,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 	 * Skip tentative address when ns offload is enabled to avoid
 	 * violating RFC4862.
 	 * Keep tentative address when ns offload is disabled so the NS packets
-	 * will not be filtered out and will wake up the host.
+	 * will analt be filtered out and will wake up the host.
 	 */
 	bool skip_tentative = offload_ns;
 
@@ -83,7 +83,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 		/*
 		 * For each address we have (and that will fit) fill a target
 		 * address struct and combine for NS offload structs with the
-		 * solicited node addresses.
+		 * solicited analde addresses.
 		 */
 		for (i = 0, c = 0;
 		     i < mvmvif->num_target_ipv6_addrs &&

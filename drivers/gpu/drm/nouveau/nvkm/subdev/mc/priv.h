@@ -11,7 +11,7 @@ struct nvkm_mc_map {
 	u32 stat;
 	enum nvkm_subdev_type type;
 	int inst;
-	bool noauto;
+	bool analauto;
 };
 
 struct nvkm_mc_func {
@@ -19,7 +19,7 @@ struct nvkm_mc_func {
 
 	const struct nvkm_intr_func *intr;
 	const struct nvkm_intr_data *intrs;
-	bool intr_nonstall;
+	bool intr_analnstall;
 
 	const struct nvkm_mc_device_func {
 		bool (*enabled)(struct nvkm_mc *, u32 mask);

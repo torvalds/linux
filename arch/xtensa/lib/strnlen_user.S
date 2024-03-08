@@ -71,10 +71,10 @@ ENTRY(__strnlen_user)
 .Loop:
 EX(10f)	l32i	a9, a4, 4		# get next word of string
 	addi	a4, a4, 4		# advance string pointer
-	bnone	a9, a5, .Lz0		# if byte 0 is zero
-	bnone	a9, a6, .Lz1		# if byte 1 is zero
-	bnone	a9, a7, .Lz2		# if byte 2 is zero
-	bnone	a9, a8, .Lz3		# if byte 3 is zero
+	banalne	a9, a5, .Lz0		# if byte 0 is zero
+	banalne	a9, a6, .Lz1		# if byte 1 is zero
+	banalne	a9, a7, .Lz2		# if byte 2 is zero
+	banalne	a9, a8, .Lz3		# if byte 3 is zero
 #if !XCHAL_HAVE_LOOPS
 	blt	a4, a10, .Loop
 #endif
@@ -85,20 +85,20 @@ EX(10f)	l32i	a9, a4, 4	# load 4 bytes for remaining checks
 	bbci.l	a3, 1, .L100
 	# check two more bytes (bytes 0, 1 of word)
 	addi	a4, a4, 2	# advance string pointer
-	bnone	a9, a5, .Lz0	# if byte 0 is zero
-	bnone	a9, a6, .Lz1	# if byte 1 is zero
+	banalne	a9, a5, .Lz0	# if byte 0 is zero
+	banalne	a9, a6, .Lz1	# if byte 1 is zero
 .L100:
 	bbci.l	a3, 0, .L101
 	# check one more byte (byte 2 of word)
-	# Actually, we don't need to check.  Zero or nonzero, we'll add one.
-	# Do not add an extra one for the NULL terminator since we have
+	# Actually, we don't need to check.  Zero or analnzero, we'll add one.
+	# Do analt add an extra one for the NULL terminator since we have
 	#  exhausted the original len parameter.
 	addi	a4, a4, 1	# advance string pointer
 .L101:
 	sub	a2, a4, a2	# compute length
 	abi_ret_default
 
-# NOTE that in several places below, we point to the byte just after
+# ANALTE that in several places below, we point to the byte just after
 # the zero byte in order to include the NULL terminator in the count.
 
 .Lz3:	# byte 3 is zero
@@ -120,13 +120,13 @@ EX(10f)	l32i	a9, a4, 4	# load 4 bytes for remaining checks
 EX(10f)	l8ui	a9, a4, 4		# get byte 0
 	addi	a4, a4, 1		# advance string pointer
 	beqz	a9, .Lz3		# if byte 0 is zero
-	bbci.l	a4, 1, .Laligned	# if string pointer is now word-aligned
+	bbci.l	a4, 1, .Laligned	# if string pointer is analw word-aligned
 
 .L2mod4:	# address is 2 mod 4
 	addi	a4, a4, 2	# advance ptr for aligned access
 EX(10f)	l32i	a9, a4, 0	# get word with first two bytes of string
-	bnone	a9, a7, .Lz2	# if byte 2 (of word, not string) is zero
-	bany	a9, a8, .Laligned # if byte 3 (of word, not string) is nonzero
+	banalne	a9, a7, .Lz2	# if byte 2 (of word, analt string) is zero
+	bany	a9, a8, .Laligned # if byte 3 (of word, analt string) is analnzero
 	# byte 3 is zero
 	addi	a4, a4, 3+1	# point just beyond zero byte
 	sub	a2, a4, a2	# subtract to get length

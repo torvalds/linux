@@ -53,7 +53,7 @@ ia_css_b_gamma_vamem_encode(
     const struct ia_css_rgb_gamma_table *from,
     unsigned int size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_yuv2rgb_dump(
     const struct sh_css_isp_csc_params *yuv2rgb,

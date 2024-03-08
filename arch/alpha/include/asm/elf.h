@@ -7,13 +7,13 @@
 
 /* Special values for the st_other field in the symbol table.  */
 
-#define STO_ALPHA_NOPV		0x80
+#define STO_ALPHA_ANALPV		0x80
 #define STO_ALPHA_STD_GPLOAD	0x88
 
 /*
  * Alpha ELF relocation types
  */
-#define R_ALPHA_NONE            0       /* No reloc */
+#define R_ALPHA_ANALNE            0       /* Anal reloc */
 #define R_ALPHA_REFLONG         1       /* Direct 32 bit */
 #define R_ALPHA_REFQUAD         2       /* Direct 64 bit */
 #define R_ALPHA_GPREL32         3       /* GP relative 32 bit */
@@ -59,7 +59,7 @@
 
 /*
  * The OSF/1 version of <sys/procfs.h> makes gregset_t 46 entries long.
- * I have no idea why that is so.  For now, we just leave it at 33
+ * I have anal idea why that is so.  For analw, we just leave it at 33
  * (32 general regs + processor status word). 
  */
 #define ELF_NGREG	33
@@ -98,7 +98,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
    been loaded before the code runs.
 
    So that we can use the same startup file with static executables,
-   we start programs with a value of 0 to indicate that there is no
+   we start programs with a value of 0 to indicate that there is anal
    such function.  */
 
 #define ELF_PLAT_INIT(_r, load_addr)	_r->r0 = 0
@@ -122,7 +122,7 @@ extern int dump_elf_task(elf_greg_t *dest, struct task_struct *task);
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This is trivial on Alpha, 
-   but not so on other machines. */
+   but analt so on other machines. */
 
 #define ELF_HWCAP  (~amask(-1))
 

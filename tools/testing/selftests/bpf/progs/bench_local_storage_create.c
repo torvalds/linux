@@ -17,14 +17,14 @@ struct storage {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct storage);
 } sk_storage_map SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct storage);
 } task_storage_map SEC(".maps");
@@ -32,7 +32,7 @@ struct {
 SEC("raw_tp/kmalloc")
 int BPF_PROG(kmalloc, unsigned long call_site, const void *ptr,
 	     size_t bytes_req, size_t bytes_alloc, gfp_t gfp_flags,
-	     int node)
+	     int analde)
 {
 	__sync_fetch_and_add(&kmalloc_cnts, 1);
 

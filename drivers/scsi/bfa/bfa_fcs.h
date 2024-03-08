@@ -112,7 +112,7 @@ struct bfa_fcs_lport_fab_s {
 
 struct bfa_fcs_lport_loop_s {
 	u8	num_alpa;	/*  Num of ALPA entries in the map */
-	u8	alpabm_valid;	/* alpa bitmap valid or not (1 or 0) */
+	u8	alpabm_valid;	/* alpa bitmap valid or analt (1 or 0) */
 	u8	alpa_pos_map[MAX_ALPA_COUNT]; /*  ALPA Positional Map */
 	struct bfa_fcs_lport_s *port;	/*  parent port */
 };
@@ -165,7 +165,7 @@ struct bfa_fcs_lport_s {
 struct bfad_vf_s;
 
 enum bfa_fcs_fabric_type {
-	BFA_FCS_FABRIC_UNKNOWN = 0,
+	BFA_FCS_FABRIC_UNKANALWN = 0,
 	BFA_FCS_FABRIC_SWITCHED = 1,
 	BFA_FCS_FABRIC_N2N = 2,
 	BFA_FCS_FABRIC_LOOP = 3,
@@ -255,7 +255,7 @@ struct bfa_vf_event_s {
 #define bfa_fcs_lport_get_pwwn(_lport)	((_lport)->port_cfg.pwwn)
 #define bfa_fcs_lport_get_nwwn(_lport)	((_lport)->port_cfg.nwwn)
 #define bfa_fcs_lport_get_psym_name(_lport)	((_lport)->port_cfg.sym_name)
-#define bfa_fcs_lport_get_nsym_name(_lport) ((_lport)->port_cfg.node_sym_name)
+#define bfa_fcs_lport_get_nsym_name(_lport) ((_lport)->port_cfg.analde_sym_name)
 #define bfa_fcs_lport_is_initiator(_lport)			\
 	((_lport)->port_cfg.roles & BFA_LPORT_ROLE_FCP_IM)
 #define bfa_fcs_lport_get_nrports(_lport)	\
@@ -410,7 +410,7 @@ struct bfa_fcs_rpf_s {
 	enum bfa_port_speed	assigned_speed;
 	/*
 	 * Speed assigned by the user.  will be used if RPSC is
-	 * not supported by the rport.
+	 * analt supported by the rport.
 	 */
 };
 
@@ -428,7 +428,7 @@ struct bfa_fcs_rport_s {
 	bfa_boolean_t	prlo;	/*  processing prlo or LOGO */
 	bfa_boolean_t	plogi_pending;	/* Rx Plogi Pending */
 	wwn_t	pwwn;	/*  port wwn of rport */
-	wwn_t	nwwn;	/*  node wwn of rport */
+	wwn_t	nwwn;	/*  analde wwn of rport */
 	struct bfa_rport_symname_s psym_name; /*  port symbolic name  */
 	bfa_sm_t	sm;		/*  state machine */
 	struct bfa_timer_s timer;	/*  general purpose timer */
@@ -622,12 +622,12 @@ void bfa_fcs_fcpim_uf_recv(struct bfa_fcs_itnim_s *itnim,
 #define BFA_FCS_FDMI_FC4_TYPE_LEN       32
 
 /*
- * HBA Attribute Block : BFA internal representation. Note : Some variable
+ * HBA Attribute Block : BFA internal representation. Analte : Some variable
  * sizes have been trimmed to suit BFA For Ex : Model will be "QLogic ". Based
  * on this the size has been reduced to 16 bytes from the standard's 64 bytes.
  */
 struct bfa_fcs_fdmi_hba_attr_s {
-	wwn_t           node_name;
+	wwn_t           analde_name;
 	u8         manufacturer[64];
 	u8         serial_num[64];
 	u8         model[16];
@@ -638,7 +638,7 @@ struct bfa_fcs_fdmi_hba_attr_s {
 	u8         fw_version[BFA_VERSION_LEN];
 	u8         os_name[256];
 	__be32        max_ct_pyld;
-	struct      bfa_lport_symname_s node_sym_name;
+	struct      bfa_lport_symname_s analde_sym_name;
 	u8     vendor_info[BFA_FCS_FDMI_VENDOR_INFO_LEN];
 	__be32    num_ports;
 	wwn_t       fabric_name;
@@ -656,7 +656,7 @@ struct bfa_fcs_fdmi_port_attr_s {
 	u8         os_device_name[256];	/* OS device Name */
 	u8         host_name[256];	/* host name */
 	wwn_t       port_name;
-	wwn_t       node_name;
+	wwn_t       analde_name;
 	struct      bfa_lport_symname_s port_sym_name;
 	__be32    port_type;
 	enum fc_cos    scos;
@@ -670,7 +670,7 @@ struct bfa_fcs_stats_s {
 	struct {
 		u32	untagged; /*  untagged receive frames */
 		u32	tagged;	/*  tagged receive frames */
-		u32	vfid_unknown;	/*  VF id is unknown */
+		u32	vfid_unkanalwn;	/*  VF id is unkanalwn */
 	} uf;
 };
 
@@ -712,10 +712,10 @@ enum bfa_fcs_fabric_event {
 	BFA_FCS_FABRIC_SM_LINK_UP       = 4,    /*  link up from port         */
 	BFA_FCS_FABRIC_SM_CONT_OP       = 5,    /*  flogi/auth continue op   */
 	BFA_FCS_FABRIC_SM_RETRY_OP      = 6,    /*  flogi/auth retry op      */
-	BFA_FCS_FABRIC_SM_NO_FABRIC     = 7,    /*  from flogi/auth           */
+	BFA_FCS_FABRIC_SM_ANAL_FABRIC     = 7,    /*  from flogi/auth           */
 	BFA_FCS_FABRIC_SM_PERF_EVFP     = 8,    /*  from flogi/auth           */
 	BFA_FCS_FABRIC_SM_ISOLATE       = 9,    /*  from EVFP processing     */
-	BFA_FCS_FABRIC_SM_NO_TAGGING    = 10,   /*  no VFT tagging from EVFP */
+	BFA_FCS_FABRIC_SM_ANAL_TAGGING    = 10,   /*  anal VFT tagging from EVFP */
 	BFA_FCS_FABRIC_SM_DELAYED       = 11,   /*  timeout delay event      */
 	BFA_FCS_FABRIC_SM_AUTH_FAILED   = 12,   /*  auth failed       */
 	BFA_FCS_FABRIC_SM_AUTH_SUCCESS  = 13,   /*  auth successful           */
@@ -739,7 +739,7 @@ enum rport_event {
 	RPSM_EVENT_LOGO_IMP     = 5,    /*  implicit logo for SLER      */
 	RPSM_EVENT_FCXP_SENT    = 6,    /*  Frame from has been sent    */
 	RPSM_EVENT_DELETE       = 7,    /*  RPORT delete request        */
-	RPSM_EVENT_FAB_SCN	= 8,    /*  state change notification   */
+	RPSM_EVENT_FAB_SCN	= 8,    /*  state change analtification   */
 	RPSM_EVENT_ACCEPTED     = 9,    /*  Good response from remote device */
 	RPSM_EVENT_FAILED       = 10,   /*  Request to rport failed.    */
 	RPSM_EVENT_TIMEOUT      = 11,   /*  Rport SM timeout event      */
@@ -770,7 +770,7 @@ enum bfa_fcs_itnim_event {
 	BFA_FCS_ITNIM_SM_INITIATOR = 9, /*  rport is initiator */
 	BFA_FCS_ITNIM_SM_DELETE = 10,   /*  delete event from rport */
 	BFA_FCS_ITNIM_SM_PRLO = 11,     /*  delete event from rport */
-	BFA_FCS_ITNIM_SM_RSP_NOT_SUPP = 12, /* cmd not supported rsp */
+	BFA_FCS_ITNIM_SM_RSP_ANALT_SUPP = 12, /* cmd analt supported rsp */
 	BFA_FCS_ITNIM_SM_HAL_ONLINE = 13, /* bfa rport online event */
 };
 

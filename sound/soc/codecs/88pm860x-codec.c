@@ -118,7 +118,7 @@
  * before DAC & PGA in DAPM power-off sequence.
  */
 #define PM860X_DAPM_OUTPUT(wname, wevent)	\
-	SND_SOC_DAPM_PGA_E(wname, SND_SOC_NOPM, 0, 0, NULL, 0, wevent, \
+	SND_SOC_DAPM_PGA_E(wname, SND_SOC_ANALPM, 0, 0, NULL, 0, wevent, \
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD)
 
 struct pm860x_det {
@@ -612,7 +612,7 @@ static const struct snd_kcontrol_new ec_mux =
 	SOC_DAPM_ENUM("EC Mux", ec_enum);
 
 static const char *dac_text[] = {
-	"No input", "Right", "Left", "No input",
+	"Anal input", "Right", "Left", "Anal input",
 };
 
 /* DAC Headset 1 Mux / Mux10 */
@@ -712,20 +712,20 @@ static const struct snd_soc_dapm_widget pm860x_dapm_widgets[] = {
 
 
 	SND_SOC_DAPM_AIF_IN("I2S DIN", "I2S Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("I2S DIN1", "I2S Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("I2S DOUT", "I2S Capture", 0,
 			     PM860X_I2S_IFACE_3, 5, 1),
 	SND_SOC_DAPM_SUPPLY("I2S CLK", PM860X_DAC_EN_2, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("I2S Mic Mux", SND_SOC_NOPM, 0, 0, &i2s_mic_mux),
-	SND_SOC_DAPM_MUX("ADC Left Mux", SND_SOC_NOPM, 0, 0, &adcl_mux),
-	SND_SOC_DAPM_MUX("ADC Right Mux", SND_SOC_NOPM, 0, 0, &adcr_mux),
-	SND_SOC_DAPM_MUX("EC Mux", SND_SOC_NOPM, 0, 0, &ec_mux),
-	SND_SOC_DAPM_MUX("ADCR EC Mux", SND_SOC_NOPM, 0, 0, &adcr_ec_mux),
-	SND_SOC_DAPM_SWITCH("Left EPA", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("I2S Mic Mux", SND_SOC_ANALPM, 0, 0, &i2s_mic_mux),
+	SND_SOC_DAPM_MUX("ADC Left Mux", SND_SOC_ANALPM, 0, 0, &adcl_mux),
+	SND_SOC_DAPM_MUX("ADC Right Mux", SND_SOC_ANALPM, 0, 0, &adcr_mux),
+	SND_SOC_DAPM_MUX("EC Mux", SND_SOC_ANALPM, 0, 0, &ec_mux),
+	SND_SOC_DAPM_MUX("ADCR EC Mux", SND_SOC_ANALPM, 0, 0, &adcr_ec_mux),
+	SND_SOC_DAPM_SWITCH("Left EPA", SND_SOC_ANALPM, 0, 0,
 			    &lepa_switch_controls),
-	SND_SOC_DAPM_SWITCH("Right EPA", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Right EPA", SND_SOC_ANALPM, 0, 0,
 			    &repa_switch_controls),
 
 	SND_SOC_DAPM_REG(snd_soc_dapm_supply, "Left ADC MOD", PM860X_ADC_EN_1,
@@ -735,12 +735,12 @@ static const struct snd_soc_dapm_widget pm860x_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("Left ADC", NULL, PM860X_ADC_EN_2, 5, 0),
 	SND_SOC_DAPM_ADC("Right ADC", NULL, PM860X_ADC_EN_2, 4, 0),
 
-	SND_SOC_DAPM_SWITCH("AUX1 Switch", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("AUX1 Switch", SND_SOC_ANALPM, 0, 0,
 			    &aux1_switch_controls),
-	SND_SOC_DAPM_SWITCH("AUX2 Switch", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("AUX2 Switch", SND_SOC_ANALPM, 0, 0,
 			    &aux2_switch_controls),
 
-	SND_SOC_DAPM_MUX("MIC Mux", SND_SOC_NOPM, 0, 0, &mic_mux),
+	SND_SOC_DAPM_MUX("MIC Mux", SND_SOC_ANALPM, 0, 0, &mic_mux),
 	SND_SOC_DAPM_MICBIAS("Mic1 Bias", PM860X_ADC_ANA_1, 2, 0),
 	SND_SOC_DAPM_MICBIAS("Mic3 Bias", PM860X_ADC_ANA_1, 7, 0),
 	SND_SOC_DAPM_PGA("MIC1 Volume", PM860X_ADC_EN_1, 2, 0, NULL, 0),
@@ -759,24 +759,24 @@ static const struct snd_soc_dapm_widget pm860x_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC3P"),
 	SND_SOC_DAPM_INPUT("MIC3N"),
 
-	SND_SOC_DAPM_DAC_E("Left DAC", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("Left DAC", NULL, SND_SOC_ANALPM, 0, 0,
 			   pm860x_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_DAC_E("Right DAC", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("Right DAC", NULL, SND_SOC_ANALPM, 0, 0,
 			   pm860x_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_MUX("I2S DIN Mux", SND_SOC_NOPM, 0, 0, &i2s_din_mux),
-	SND_SOC_DAPM_MUX("DAC HS1 Mux", SND_SOC_NOPM, 0, 0, &dac_hs1_mux),
-	SND_SOC_DAPM_MUX("DAC HS2 Mux", SND_SOC_NOPM, 0, 0, &dac_hs2_mux),
-	SND_SOC_DAPM_MUX("DAC LO1 Mux", SND_SOC_NOPM, 0, 0, &dac_lo1_mux),
-	SND_SOC_DAPM_MUX("DAC LO2 Mux", SND_SOC_NOPM, 0, 0, &dac_lo2_mux),
-	SND_SOC_DAPM_MUX("DAC SP Mux", SND_SOC_NOPM, 0, 0, &dac_spk_ear_mux),
-	SND_SOC_DAPM_MUX("Headset1 Mux", SND_SOC_NOPM, 0, 0, &hs1_mux),
-	SND_SOC_DAPM_MUX("Headset2 Mux", SND_SOC_NOPM, 0, 0, &hs2_mux),
-	SND_SOC_DAPM_MUX("Lineout1 Mux", SND_SOC_NOPM, 0, 0, &lo1_mux),
-	SND_SOC_DAPM_MUX("Lineout2 Mux", SND_SOC_NOPM, 0, 0, &lo2_mux),
-	SND_SOC_DAPM_MUX("Speaker Earpiece Demux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("I2S DIN Mux", SND_SOC_ANALPM, 0, 0, &i2s_din_mux),
+	SND_SOC_DAPM_MUX("DAC HS1 Mux", SND_SOC_ANALPM, 0, 0, &dac_hs1_mux),
+	SND_SOC_DAPM_MUX("DAC HS2 Mux", SND_SOC_ANALPM, 0, 0, &dac_hs2_mux),
+	SND_SOC_DAPM_MUX("DAC LO1 Mux", SND_SOC_ANALPM, 0, 0, &dac_lo1_mux),
+	SND_SOC_DAPM_MUX("DAC LO2 Mux", SND_SOC_ANALPM, 0, 0, &dac_lo2_mux),
+	SND_SOC_DAPM_MUX("DAC SP Mux", SND_SOC_ANALPM, 0, 0, &dac_spk_ear_mux),
+	SND_SOC_DAPM_MUX("Headset1 Mux", SND_SOC_ANALPM, 0, 0, &hs1_mux),
+	SND_SOC_DAPM_MUX("Headset2 Mux", SND_SOC_ANALPM, 0, 0, &hs2_mux),
+	SND_SOC_DAPM_MUX("Lineout1 Mux", SND_SOC_ANALPM, 0, 0, &lo1_mux),
+	SND_SOC_DAPM_MUX("Lineout2 Mux", SND_SOC_ANALPM, 0, 0, &lo2_mux),
+	SND_SOC_DAPM_MUX("Speaker Earpiece Demux", SND_SOC_ANALPM, 0, 0,
 			 &spk_demux),
 
 
@@ -1006,7 +1006,7 @@ static int pm860x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 	if (dir == PM860X_CLK_DIR_OUT)
 		pm860x->dir = PM860X_CLK_DIR_OUT;
-	else	/* Slave mode is not supported */
+	else	/* Slave mode is analt supported */
 		return -EINVAL;
 
 	return 0;
@@ -1140,7 +1140,7 @@ static const struct snd_soc_dai_ops pm860x_pcm_dai_ops = {
 	.hw_params	= pm860x_pcm_hw_params,
 	.set_fmt	= pm860x_pcm_set_dai_fmt,
 	.set_sysclk	= pm860x_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops pm860x_i2s_dai_ops = {
@@ -1148,7 +1148,7 @@ static const struct snd_soc_dai_ops pm860x_i2s_dai_ops = {
 	.hw_params	= pm860x_i2s_hw_params,
 	.set_fmt	= pm860x_i2s_set_dai_fmt,
 	.set_sysclk	= pm860x_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define PM860X_RATES	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |	\
@@ -1357,7 +1357,7 @@ static int pm860x_codec_probe(struct platform_device *pdev)
 	pm860x = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_priv),
 			      GFP_KERNEL);
 	if (pm860x == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm860x->chip = chip;
 	pm860x->i2c = (chip->id == CHIP_PM8607) ? chip->client

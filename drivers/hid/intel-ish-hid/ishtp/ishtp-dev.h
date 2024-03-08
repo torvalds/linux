@@ -119,7 +119,7 @@ struct ishtp_hw_ops {
 			unsigned long buffer_length);
 	uint32_t	(*get_fw_status)(struct ishtp_device *dev);
 	void	(*sync_fw_clock)(struct ishtp_device *dev);
-	bool	(*dma_no_cache_snooping)(struct ishtp_device *dev);
+	bool	(*dma_anal_cache_sanaloping)(struct ishtp_device *dev);
 };
 
 /**
@@ -179,7 +179,7 @@ struct ishtp_device {
 	/* For both processing list  and free list */
 	spinlock_t wr_processing_spinlock;
 
-	struct ishtp_fw_client *fw_clients; /*Note:memory has to be allocated*/
+	struct ishtp_fw_client *fw_clients; /*Analte:memory has to be allocated*/
 	DECLARE_BITMAP(fw_clients_map, ISHTP_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, ISHTP_CLIENTS_MAX);
 	uint8_t fw_clients_num;

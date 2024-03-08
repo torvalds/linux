@@ -65,29 +65,29 @@ struct getbmapx {
 
 /*	bmv_iflags values - set by XFS_IOC_GETBMAPX caller.	*/
 #define BMV_IF_ATTRFORK		0x1	/* return attr fork rather than data */
-#define BMV_IF_NO_DMAPI_READ	0x2	/* Deprecated */
+#define BMV_IF_ANAL_DMAPI_READ	0x2	/* Deprecated */
 #define BMV_IF_PREALLOC		0x4	/* rtn status BMV_OF_PREALLOC if req */
 #define BMV_IF_DELALLOC		0x8	/* rtn status BMV_OF_DELALLOC if req */
-#define BMV_IF_NO_HOLES		0x10	/* Do not return holes */
+#define BMV_IF_ANAL_HOLES		0x10	/* Do analt return holes */
 #define BMV_IF_COWFORK		0x20	/* return CoW fork rather than data */
 #define BMV_IF_VALID	\
-	(BMV_IF_ATTRFORK|BMV_IF_NO_DMAPI_READ|BMV_IF_PREALLOC|	\
-	 BMV_IF_DELALLOC|BMV_IF_NO_HOLES|BMV_IF_COWFORK)
+	(BMV_IF_ATTRFORK|BMV_IF_ANAL_DMAPI_READ|BMV_IF_PREALLOC|	\
+	 BMV_IF_DELALLOC|BMV_IF_ANAL_HOLES|BMV_IF_COWFORK)
 
-/*	bmv_oflags values - returned for each non-header segment */
+/*	bmv_oflags values - returned for each analn-header segment */
 #define BMV_OF_PREALLOC		0x1	/* segment = unwritten pre-allocation */
 #define BMV_OF_DELALLOC		0x2	/* segment = delayed allocation */
 #define BMV_OF_LAST		0x4	/* segment is the last in the file */
-#define BMV_OF_SHARED		0x8	/* segment shared with another file */
+#define BMV_OF_SHARED		0x8	/* segment shared with aanalther file */
 
 /*	fmr_owner special values for FS_IOC_GETFSMAP */
 #define XFS_FMR_OWN_FREE	FMR_OWN_FREE      /* free space */
-#define XFS_FMR_OWN_UNKNOWN	FMR_OWN_UNKNOWN   /* unknown owner */
+#define XFS_FMR_OWN_UNKANALWN	FMR_OWN_UNKANALWN   /* unkanalwn owner */
 #define XFS_FMR_OWN_FS		FMR_OWNER('X', 1) /* static fs metadata */
 #define XFS_FMR_OWN_LOG		FMR_OWNER('X', 2) /* journalling log */
 #define XFS_FMR_OWN_AG		FMR_OWNER('X', 3) /* per-AG metadata */
-#define XFS_FMR_OWN_INOBT	FMR_OWNER('X', 4) /* inode btree blocks */
-#define XFS_FMR_OWN_INODES	FMR_OWNER('X', 5) /* inodes */
+#define XFS_FMR_OWN_IANALBT	FMR_OWNER('X', 4) /* ianalde btree blocks */
+#define XFS_FMR_OWN_IANALDES	FMR_OWNER('X', 5) /* ianaldes */
 #define XFS_FMR_OWN_REFC	FMR_OWNER('X', 6) /* refcount tree */
 #define XFS_FMR_OWN_COW		FMR_OWNER('X', 7) /* cow staging */
 #define XFS_FMR_OWN_DEFECTIVE	FMR_OWNER('X', 8) /* bad blocks */
@@ -116,8 +116,8 @@ struct xfs_fsop_geom_v1 {
 	__u32		agcount;	/* number of allocation groups	*/
 	__u32		logblocks;	/* fsblocks in the log		*/
 	__u32		sectsize;	/* (data) sector size, bytes	*/
-	__u32		inodesize;	/* inode size in bytes		*/
-	__u32		imaxpct;	/* max allowed inode space(%)	*/
+	__u32		ianaldesize;	/* ianalde size in bytes		*/
+	__u32		imaxpct;	/* max allowed ianalde space(%)	*/
 	__u64		datablocks;	/* fsblocks in data subvolume	*/
 	__u64		rtblocks;	/* fsblocks in realtime subvol	*/
 	__u64		rtextents;	/* rt extents in realtime subvol*/
@@ -142,8 +142,8 @@ struct xfs_fsop_geom_v4 {
 	__u32		agcount;	/* number of allocation groups	*/
 	__u32		logblocks;	/* fsblocks in the log		*/
 	__u32		sectsize;	/* (data) sector size, bytes	*/
-	__u32		inodesize;	/* inode size in bytes		*/
-	__u32		imaxpct;	/* max allowed inode space(%)	*/
+	__u32		ianaldesize;	/* ianalde size in bytes		*/
+	__u32		imaxpct;	/* max allowed ianalde space(%)	*/
 	__u64		datablocks;	/* fsblocks in data subvolume	*/
 	__u64		rtblocks;	/* fsblocks in realtime subvol	*/
 	__u64		rtextents;	/* rt extents in realtime subvol*/
@@ -169,8 +169,8 @@ struct xfs_fsop_geom {
 	__u32		agcount;	/* number of allocation groups	*/
 	__u32		logblocks;	/* fsblocks in the log		*/
 	__u32		sectsize;	/* (data) sector size, bytes	*/
-	__u32		inodesize;	/* inode size in bytes		*/
-	__u32		imaxpct;	/* max allowed inode space(%)	*/
+	__u32		ianaldesize;	/* ianalde size in bytes		*/
+	__u32		imaxpct;	/* max allowed ianalde space(%)	*/
 	__u64		datablocks;	/* fsblocks in data subvolume	*/
 	__u64		rtblocks;	/* fsblocks in realtime subvol	*/
 	__u64		rtextents;	/* rt extents in realtime subvol*/
@@ -200,8 +200,8 @@ struct xfs_fsop_geom {
 typedef struct xfs_fsop_counts {
 	__u64	freedata;	/* free data section blocks */
 	__u64	freertx;	/* free rt extents */
-	__u64	freeino;	/* free inodes */
-	__u64	allocino;	/* total allocated inodes */
+	__u64	freeianal;	/* free ianaldes */
+	__u64	allocianal;	/* total allocated ianaldes */
 } xfs_fsop_counts_t;
 
 /* Input/Output for XFS_GET_RESBLKS and XFS_SET_RESBLKS */
@@ -216,7 +216,7 @@ typedef struct xfs_fsop_resblks {
 #define XFS_FSOP_GEOM_FLAGS_ATTR	(1 << 0)  /* attributes in use	   */
 #define XFS_FSOP_GEOM_FLAGS_NLINK	(1 << 1)  /* 32-bit nlink values   */
 #define XFS_FSOP_GEOM_FLAGS_QUOTA	(1 << 2)  /* quotas enabled	   */
-#define XFS_FSOP_GEOM_FLAGS_IALIGN	(1 << 3)  /* inode alignment	   */
+#define XFS_FSOP_GEOM_FLAGS_IALIGN	(1 << 3)  /* ianalde alignment	   */
 #define XFS_FSOP_GEOM_FLAGS_DALIGN	(1 << 4)  /* large data alignment  */
 #define XFS_FSOP_GEOM_FLAGS_SHARED	(1 << 5)  /* read-only shared	   */
 #define XFS_FSOP_GEOM_FLAGS_EXTFLG	(1 << 6)  /* special extent flag   */
@@ -226,22 +226,22 @@ typedef struct xfs_fsop_resblks {
 #define XFS_FSOP_GEOM_FLAGS_ATTR2	(1 << 10) /* inline attributes rework */
 #define XFS_FSOP_GEOM_FLAGS_PROJID32	(1 << 11) /* 32-bit project IDs	   */
 #define XFS_FSOP_GEOM_FLAGS_DIRV2CI	(1 << 12) /* ASCII only CI names   */
-	/*  -- Do not use --		(1 << 13)    SGI parent pointers   */
+	/*  -- Do analt use --		(1 << 13)    SGI parent pointers   */
 #define XFS_FSOP_GEOM_FLAGS_LAZYSB	(1 << 14) /* lazy superblock counters */
 #define XFS_FSOP_GEOM_FLAGS_V5SB	(1 << 15) /* version 5 superblock  */
-#define XFS_FSOP_GEOM_FLAGS_FTYPE	(1 << 16) /* inode directory types */
-#define XFS_FSOP_GEOM_FLAGS_FINOBT	(1 << 17) /* free inode btree	   */
-#define XFS_FSOP_GEOM_FLAGS_SPINODES	(1 << 18) /* sparse inode chunks   */
+#define XFS_FSOP_GEOM_FLAGS_FTYPE	(1 << 16) /* ianalde directory types */
+#define XFS_FSOP_GEOM_FLAGS_FIANALBT	(1 << 17) /* free ianalde btree	   */
+#define XFS_FSOP_GEOM_FLAGS_SPIANALDES	(1 << 18) /* sparse ianalde chunks   */
 #define XFS_FSOP_GEOM_FLAGS_RMAPBT	(1 << 19) /* reverse mapping btree */
 #define XFS_FSOP_GEOM_FLAGS_REFLINK	(1 << 20) /* files can share blocks */
 #define XFS_FSOP_GEOM_FLAGS_BIGTIME	(1 << 21) /* 64-bit nsec timestamps */
-#define XFS_FSOP_GEOM_FLAGS_INOBTCNT	(1 << 22) /* inobt btree counter */
+#define XFS_FSOP_GEOM_FLAGS_IANALBTCNT	(1 << 22) /* ianalbt btree counter */
 #define XFS_FSOP_GEOM_FLAGS_NREXT64	(1 << 23) /* large extent counters */
 
 /*
  * Minimum and maximum sizes need for growth checks.
  *
- * Block counts are in units of filesystem blocks, not basic blocks.
+ * Block counts are in units of filesystem blocks, analt basic blocks.
  */
 #define XFS_MIN_AG_BLOCKS	64
 #define XFS_MIN_LOG_BLOCKS	512ULL
@@ -275,8 +275,8 @@ struct xfs_ag_geometry {
 	uint32_t	ag_number;	/* i/o: AG number */
 	uint32_t	ag_length;	/* o: length in blocks */
 	uint32_t	ag_freeblks;	/* o: free space */
-	uint32_t	ag_icount;	/* o: inodes allocated */
-	uint32_t	ag_ifree;	/* o: inodes free */
+	uint32_t	ag_icount;	/* o: ianaldes allocated */
+	uint32_t	ag_ifree;	/* o: ianaldes free */
 	uint32_t	ag_sick;	/* o: sick things in ag */
 	uint32_t	ag_checked;	/* o: checked metadata in ag */
 	uint32_t	ag_flags;	/* i/o: flags for this ag */
@@ -286,10 +286,10 @@ struct xfs_ag_geometry {
 #define XFS_AG_GEOM_SICK_AGF	(1 << 1)  /* AGF header */
 #define XFS_AG_GEOM_SICK_AGFL	(1 << 2)  /* AGFL header */
 #define XFS_AG_GEOM_SICK_AGI	(1 << 3)  /* AGI header */
-#define XFS_AG_GEOM_SICK_BNOBT	(1 << 4)  /* free space by block */
+#define XFS_AG_GEOM_SICK_BANALBT	(1 << 4)  /* free space by block */
 #define XFS_AG_GEOM_SICK_CNTBT	(1 << 5)  /* free space by length */
-#define XFS_AG_GEOM_SICK_INOBT	(1 << 6)  /* inode index */
-#define XFS_AG_GEOM_SICK_FINOBT	(1 << 7)  /* free inode index */
+#define XFS_AG_GEOM_SICK_IANALBT	(1 << 6)  /* ianalde index */
+#define XFS_AG_GEOM_SICK_FIANALBT	(1 << 7)  /* free ianalde index */
 #define XFS_AG_GEOM_SICK_RMAPBT	(1 << 8)  /* reverse mappings */
 #define XFS_AG_GEOM_SICK_REFCNTBT (1 << 9)  /* reference counts */
 
@@ -298,7 +298,7 @@ struct xfs_ag_geometry {
  */
 typedef struct xfs_growfs_data {
 	__u64		newblocks;	/* new data subvol size, fsblocks */
-	__u32		imaxpct;	/* new inode space percentage limit */
+	__u32		imaxpct;	/* new ianalde space percentage limit */
 } xfs_growfs_data_t;
 
 typedef struct xfs_growfs_log {
@@ -317,11 +317,11 @@ typedef struct xfs_growfs_rt {
  */
 typedef struct xfs_bstime {
 	__kernel_long_t tv_sec;		/* seconds		*/
-	__s32		tv_nsec;	/* and nanoseconds	*/
+	__s32		tv_nsec;	/* and naanalseconds	*/
 } xfs_bstime_t;
 
 struct xfs_bstat {
-	__u64		bs_ino;		/* inode number			*/
+	__u64		bs_ianal;		/* ianalde number			*/
 	__u16		bs_mode;	/* type and mode		*/
 	__u16		bs_nlink;	/* number of links		*/
 	__u32		bs_uid;		/* user id			*/
@@ -331,7 +331,7 @@ struct xfs_bstat {
 	__s64		bs_size;	/* file size			*/
 	xfs_bstime_t	bs_atime;	/* access time			*/
 	xfs_bstime_t	bs_mtime;	/* modify time			*/
-	xfs_bstime_t	bs_ctime;	/* inode change time		*/
+	xfs_bstime_t	bs_ctime;	/* ianalde change time		*/
 	int64_t		bs_blocks;	/* number of blocks		*/
 	__u32		bs_xflags;	/* extended flags		*/
 	__s32		bs_extsize;	/* extent size			*/
@@ -339,10 +339,10 @@ struct xfs_bstat {
 	__u32		bs_gen;		/* generation count		*/
 	__u16		bs_projid_lo;	/* lower part of project id	*/
 #define	bs_projid	bs_projid_lo	/* (previously just bs_projid)	*/
-	__u16		bs_forkoff;	/* inode fork offset in bytes	*/
+	__u16		bs_forkoff;	/* ianalde fork offset in bytes	*/
 	__u16		bs_projid_hi;	/* higher part of project id	*/
-	uint16_t	bs_sick;	/* sick inode metadata		*/
-	uint16_t	bs_checked;	/* checked inode metadata	*/
+	uint16_t	bs_sick;	/* sick ianalde metadata		*/
+	uint16_t	bs_checked;	/* checked ianalde metadata	*/
 	unsigned char	bs_pad[2];	/* pad space, unused		*/
 	__u32		bs_cowextsize;	/* cow extent size		*/
 	__u32		bs_dmevmask;	/* DMIG event mask		*/
@@ -352,7 +352,7 @@ struct xfs_bstat {
 
 /* New bulkstat structure that reports v5 features and fixes padding issues */
 struct xfs_bulkstat {
-	uint64_t	bs_ino;		/* inode number			*/
+	uint64_t	bs_ianal;		/* ianalde number			*/
 	uint64_t	bs_size;	/* file size			*/
 
 	uint64_t	bs_blocks;	/* number of blocks		*/
@@ -361,7 +361,7 @@ struct xfs_bulkstat {
 	int64_t		bs_atime;	/* access time, seconds		*/
 	int64_t		bs_mtime;	/* modify time, seconds		*/
 
-	int64_t		bs_ctime;	/* inode change time, seconds	*/
+	int64_t		bs_ctime;	/* ianalde change time, seconds	*/
 	int64_t		bs_btime;	/* creation time, seconds	*/
 
 	uint32_t	bs_gen;		/* generation count		*/
@@ -369,10 +369,10 @@ struct xfs_bulkstat {
 	uint32_t	bs_gid;		/* group id			*/
 	uint32_t	bs_projectid;	/* project id			*/
 
-	uint32_t	bs_atime_nsec;	/* access time, nanoseconds	*/
-	uint32_t	bs_mtime_nsec;	/* modify time, nanoseconds	*/
-	uint32_t	bs_ctime_nsec;	/* inode change time, nanoseconds */
-	uint32_t	bs_btime_nsec;	/* creation time, nanoseconds	*/
+	uint32_t	bs_atime_nsec;	/* access time, naanalseconds	*/
+	uint32_t	bs_mtime_nsec;	/* modify time, naanalseconds	*/
+	uint32_t	bs_ctime_nsec;	/* ianalde change time, naanalseconds */
+	uint32_t	bs_btime_nsec;	/* creation time, naanalseconds	*/
 
 	uint32_t	bs_blksize;	/* block size			*/
 	uint32_t	bs_rdev;	/* device value			*/
@@ -383,10 +383,10 @@ struct xfs_bulkstat {
 	uint32_t	bs_extents;	/* 32-bit data fork extent counter */
 	uint32_t	bs_aextents;	/* attribute number of extents	*/
 	uint16_t	bs_version;	/* structure version		*/
-	uint16_t	bs_forkoff;	/* inode fork offset in bytes	*/
+	uint16_t	bs_forkoff;	/* ianalde fork offset in bytes	*/
 
-	uint16_t	bs_sick;	/* sick inode metadata		*/
-	uint16_t	bs_checked;	/* checked inode metadata	*/
+	uint16_t	bs_sick;	/* sick ianalde metadata		*/
+	uint16_t	bs_checked;	/* checked ianalde metadata	*/
 	uint16_t	bs_mode;	/* type and mode		*/
 	uint16_t	bs_pad2;	/* zeroed			*/
 	uint64_t	bs_extents64;	/* 64-bit data fork extent counter */
@@ -398,7 +398,7 @@ struct xfs_bulkstat {
 #define XFS_BULKSTAT_VERSION_V5	(5)
 
 /* bs_sick flags */
-#define XFS_BS_SICK_INODE	(1 << 0)  /* inode core */
+#define XFS_BS_SICK_IANALDE	(1 << 0)  /* ianalde core */
 #define XFS_BS_SICK_BMBTD	(1 << 1)  /* data fork */
 #define XFS_BS_SICK_BMBTA	(1 << 2)  /* attr fork */
 #define XFS_BS_SICK_BMBTC	(1 << 3)  /* cow fork */
@@ -422,25 +422,25 @@ bstat_get_projid(const struct xfs_bstat *bs)
  * The user-level BulkStat Request interface structure.
  */
 struct xfs_fsop_bulkreq {
-	__u64		__user *lastip;	/* last inode # pointer		*/
+	__u64		__user *lastip;	/* last ianalde # pointer		*/
 	__s32		icount;		/* count of entries in buffer	*/
-	void		__user *ubuffer;/* user buffer for inode desc.	*/
+	void		__user *ubuffer;/* user buffer for ianalde desc.	*/
 	__s32		__user *ocount;	/* output count pointer		*/
 };
 
 /*
  * Structures returned from xfs_inumbers routine (XFS_IOC_FSINUMBERS).
  */
-struct xfs_inogrp {
-	__u64		xi_startino;	/* starting inode number	*/
+struct xfs_ianalgrp {
+	__u64		xi_startianal;	/* starting ianalde number	*/
 	__s32		xi_alloccount;	/* # bits set in allocmask	*/
-	__u64		xi_allocmask;	/* mask of allocated inodes	*/
+	__u64		xi_allocmask;	/* mask of allocated ianaldes	*/
 };
 
 /* New inumbers structure that reports v5 features and fixes padding issues */
 struct xfs_inumbers {
-	uint64_t	xi_startino;	/* starting inode number	*/
-	uint64_t	xi_allocmask;	/* mask of allocated inodes	*/
+	uint64_t	xi_startianal;	/* starting ianalde number	*/
+	uint64_t	xi_allocmask;	/* mask of allocated ianaldes	*/
 	uint8_t		xi_alloccount;	/* # bits set in allocmask	*/
 	uint8_t		xi_version;	/* version			*/
 	uint8_t		xi_padding[6];	/* zero				*/
@@ -449,26 +449,26 @@ struct xfs_inumbers {
 #define XFS_INUMBERS_VERSION_V1	(1)
 #define XFS_INUMBERS_VERSION_V5	(5)
 
-/* Header for bulk inode requests. */
+/* Header for bulk ianalde requests. */
 struct xfs_bulk_ireq {
-	uint64_t	ino;		/* I/O: start with this inode	*/
+	uint64_t	ianal;		/* I/O: start with this ianalde	*/
 	uint32_t	flags;		/* I/O: operation flags		*/
 	uint32_t	icount;		/* I: count of entries in buffer */
 	uint32_t	ocount;		/* O: count of entries filled out */
-	uint32_t	agno;		/* I: see comment for IREQ_AGNO	*/
+	uint32_t	aganal;		/* I: see comment for IREQ_AGANAL	*/
 	uint64_t	reserved[5];	/* must be zero			*/
 };
 
 /*
- * Only return results from the specified @agno.  If @ino is zero, start
- * with the first inode of @agno.
+ * Only return results from the specified @aganal.  If @ianal is zero, start
+ * with the first ianalde of @aganal.
  */
-#define XFS_BULK_IREQ_AGNO	(1U << 0)
+#define XFS_BULK_IREQ_AGANAL	(1U << 0)
 
 /*
- * Return bulkstat information for a single inode, where @ino value is a
- * special value, not a literal inode number.  See the XFS_BULK_IREQ_SPECIAL_*
- * values below.  Not compatible with XFS_BULK_IREQ_AGNO.
+ * Return bulkstat information for a single ianalde, where @ianal value is a
+ * special value, analt a literal ianalde number.  See the XFS_BULK_IREQ_SPECIAL_*
+ * values below.  Analt compatible with XFS_BULK_IREQ_AGANAL.
  */
 #define XFS_BULK_IREQ_SPECIAL	(1U << 1)
 
@@ -482,11 +482,11 @@ struct xfs_bulk_ireq {
  */
 #define XFS_BULK_IREQ_NREXT64	(1U << 2)
 
-#define XFS_BULK_IREQ_FLAGS_ALL	(XFS_BULK_IREQ_AGNO |	 \
+#define XFS_BULK_IREQ_FLAGS_ALL	(XFS_BULK_IREQ_AGANAL |	 \
 				 XFS_BULK_IREQ_SPECIAL | \
 				 XFS_BULK_IREQ_NREXT64)
 
-/* Operate on the root directory inode. */
+/* Operate on the root directory ianalde. */
 #define XFS_BULK_IREQ_SPECIAL_ROOT	(1)
 
 /*
@@ -537,7 +537,7 @@ struct xfs_fs_eofblocks {
 #define XFS_EOF_FLAGS_PRID		(1 << 3) /* filter by project id */
 #define XFS_EOF_FLAGS_MINFILESIZE	(1 << 4) /* filter by min file size */
 #define XFS_EOF_FLAGS_UNION		(1 << 5) /* union filter algorithm;
-						  * kernel only, not included in
+						  * kernel only, analt included in
 						  * valid mask */
 #define XFS_EOF_FLAGS_VALID	\
 	(XFS_EOF_FLAGS_SYNC |	\
@@ -569,12 +569,12 @@ typedef struct xfs_fsop_handlereq {
 /*
  * Flags passed in xfs_attr_multiop.am_flags for the attr ioctl interface.
  *
- * NOTE: Must match the values declared in libattr without the XFS_IOC_ prefix.
+ * ANALTE: Must match the values declared in libattr without the XFS_IOC_ prefix.
  */
 #define XFS_IOC_ATTR_ROOT	0x0002	/* use attrs in root namespace */
 #define XFS_IOC_ATTR_SECURE	0x0008	/* use attrs in security namespace */
 #define XFS_IOC_ATTR_CREATE	0x0010	/* fail if attr already exists */
-#define XFS_IOC_ATTR_REPLACE	0x0020	/* fail if attr does not exist */
+#define XFS_IOC_ATTR_REPLACE	0x0020	/* fail if attr does analt exist */
 
 typedef struct xfs_attrlist_cursor {
 	__u32		opaque[4];
@@ -586,7 +586,7 @@ typedef struct xfs_attrlist_cursor {
  * beginning of the returned buffer, and a each entry in al_offset contains the
  * relative offset of an xfs_attrlist_ent containing the actual entry.
  *
- * NOTE: struct xfs_attrlist must match struct attrlist defined in libattr, and
+ * ANALTE: struct xfs_attrlist must match struct attrlist defined in libattr, and
  * struct xfs_attrlist_ent must match struct attrlist_ent defined in libattr.
  */
 struct xfs_attrlist {
@@ -635,7 +635,7 @@ typedef struct xfs_fid {
 	__u16	fid_len;		/* length of remainder	*/
 	__u16	fid_pad;
 	__u32	fid_gen;		/* generation number	*/
-	__u64	fid_ino;		/* 64 bits inode number */
+	__u64	fid_ianal;		/* 64 bits ianalde number */
 } xfs_fid_t;
 
 typedef struct xfs_handle {
@@ -666,16 +666,16 @@ typedef struct xfs_swapext
  * Flags for going down operation
  */
 #define XFS_FSOP_GOING_FLAGS_DEFAULT		0x0	/* going down */
-#define XFS_FSOP_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but not data */
-#define XFS_FSOP_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
+#define XFS_FSOP_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but analt data */
+#define XFS_FSOP_GOING_FLAGS_ANALLOGFLUSH		0x2	/* don't flush log analr data */
 
 /* metadata scrubbing */
 struct xfs_scrub_metadata {
 	__u32 sm_type;		/* What to check? */
 	__u32 sm_flags;		/* flags; see below. */
-	__u64 sm_ino;		/* inode number. */
-	__u32 sm_gen;		/* inode generation. */
-	__u32 sm_agno;		/* ag number. */
+	__u64 sm_ianal;		/* ianalde number. */
+	__u32 sm_gen;		/* ianalde generation. */
+	__u32 sm_aganal;		/* ag number. */
 	__u64 sm_reserved[5];	/* pad to 64 bytes */
 };
 
@@ -688,14 +688,14 @@ struct xfs_scrub_metadata {
 #define XFS_SCRUB_TYPE_SB	1	/* superblock */
 #define XFS_SCRUB_TYPE_AGF	2	/* AG free header */
 #define XFS_SCRUB_TYPE_AGFL	3	/* AG free list */
-#define XFS_SCRUB_TYPE_AGI	4	/* AG inode header */
-#define XFS_SCRUB_TYPE_BNOBT	5	/* freesp by block btree */
+#define XFS_SCRUB_TYPE_AGI	4	/* AG ianalde header */
+#define XFS_SCRUB_TYPE_BANALBT	5	/* freesp by block btree */
 #define XFS_SCRUB_TYPE_CNTBT	6	/* freesp by length btree */
-#define XFS_SCRUB_TYPE_INOBT	7	/* inode btree */
-#define XFS_SCRUB_TYPE_FINOBT	8	/* free inode btree */
+#define XFS_SCRUB_TYPE_IANALBT	7	/* ianalde btree */
+#define XFS_SCRUB_TYPE_FIANALBT	8	/* free ianalde btree */
 #define XFS_SCRUB_TYPE_RMAPBT	9	/* reverse mapping btree */
 #define XFS_SCRUB_TYPE_REFCNTBT	10	/* reference count btree */
-#define XFS_SCRUB_TYPE_INODE	11	/* inode record */
+#define XFS_SCRUB_TYPE_IANALDE	11	/* ianalde record */
 #define XFS_SCRUB_TYPE_BMBTD	12	/* data fork block mapping */
 #define XFS_SCRUB_TYPE_BMBTA	13	/* attr fork block mapping */
 #define XFS_SCRUB_TYPE_BMBTC	14	/* CoW fork block mapping */
@@ -720,7 +720,7 @@ struct xfs_scrub_metadata {
 #define XFS_SCRUB_OFLAG_CORRUPT		(1u << 1)
 
 /*
- * o: Metadata object could be optimized.  It's not corrupt, but
+ * o: Metadata object could be optimized.  It's analt corrupt, but
  *    we could improve on it somehow.
  */
 #define XFS_SCRUB_OFLAG_PREEN		(1u << 2)
@@ -731,17 +731,17 @@ struct xfs_scrub_metadata {
 /* o: Metadata object disagrees with cross-referenced metadata. */
 #define XFS_SCRUB_OFLAG_XCORRUPT	(1u << 4)
 
-/* o: Scan was not complete. */
+/* o: Scan was analt complete. */
 #define XFS_SCRUB_OFLAG_INCOMPLETE	(1u << 5)
 
 /* o: Metadata object looked funny but isn't corrupt. */
 #define XFS_SCRUB_OFLAG_WARNING		(1u << 6)
 
 /*
- * o: IFLAG_REPAIR was set but metadata object did not need fixing or
- *    optimization and has therefore not been altered.
+ * o: IFLAG_REPAIR was set but metadata object did analt need fixing or
+ *    optimization and has therefore analt been altered.
  */
-#define XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED (1u << 7)
+#define XFS_SCRUB_OFLAG_ANAL_REPAIR_NEEDED (1u << 7)
 
 /* i: Rebuild the data structure. */
 #define XFS_SCRUB_IFLAG_FORCE_REBUILD	(1u << 8)
@@ -754,7 +754,7 @@ struct xfs_scrub_metadata {
 				 XFS_SCRUB_OFLAG_XCORRUPT | \
 				 XFS_SCRUB_OFLAG_INCOMPLETE | \
 				 XFS_SCRUB_OFLAG_WARNING | \
-				 XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED)
+				 XFS_SCRUB_OFLAG_ANAL_REPAIR_NEEDED)
 #define XFS_SCRUB_FLAGS_ALL	(XFS_SCRUB_FLAGS_IN | XFS_SCRUB_FLAGS_OUT)
 
 /*

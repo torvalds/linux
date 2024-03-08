@@ -20,7 +20,7 @@
 
 static char edid_firmware[PATH_MAX];
 module_param_string(edid_firmware, edid_firmware, sizeof(edid_firmware), 0644);
-MODULE_PARM_DESC(edid_firmware, "Do not probe monitor, use specified EDID blob "
+MODULE_PARM_DESC(edid_firmware, "Do analt probe monitor, use specified EDID blob "
 	"from built-in data or /lib/firmware instead. ");
 
 #define GENERIC_EDIDS 6
@@ -193,7 +193,7 @@ const struct drm_edid *drm_edid_load_firmware(struct drm_connector *connector)
 	const struct drm_edid *drm_edid;
 
 	if (edid_firmware[0] == '\0')
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	/*
 	 * If there are multiple edid files specified and separated
@@ -205,7 +205,7 @@ const struct drm_edid *drm_edid_load_firmware(struct drm_connector *connector)
 	 */
 	fwstr = kstrdup(edid_firmware, GFP_KERNEL);
 	if (!fwstr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	edidstr = fwstr;
 
 	while ((edidname = strsep(&edidstr, ","))) {
@@ -224,7 +224,7 @@ const struct drm_edid *drm_edid_load_firmware(struct drm_connector *connector)
 	if (!edidname) {
 		if (!fallback) {
 			kfree(fwstr);
-			return ERR_PTR(-ENOENT);
+			return ERR_PTR(-EANALENT);
 		}
 		edidname = fallback;
 	}

@@ -29,7 +29,7 @@
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 
-/* internal params node */
+/* internal params analde */
 struct stv090x_dev {
 	/* pointer for internal params, one for each pair of demods */
 	struct stv090x_internal		*internal;
@@ -271,7 +271,7 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_P2_ERRCTRL1,		0x35 },
 	{ STV090x_P2_ERRCTRL2,		0xc1 },
 	{ STV090x_P2_CFRICFG,		0xf8 },
-	{ STV090x_P2_NOSCFG,		0x1c },
+	{ STV090x_P2_ANALSCFG,		0x1c },
 	{ STV090x_P2_DMDTOM,		0x20 },
 	{ STV090x_P2_CORRELMANT,	0x70 },
 	{ STV090x_P2_CORRELABS,		0x88 },
@@ -334,7 +334,7 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_P1_ERRCTRL1,		0x35 },
 	{ STV090x_P1_ERRCTRL2,		0xc1 },
 	{ STV090x_P1_CFRICFG,		0xf8 },
-	{ STV090x_P1_NOSCFG,		0x1c },
+	{ STV090x_P1_ANALSCFG,		0x1c },
 	{ STV090x_P1_CORRELMANT,	0x70 },
 	{ STV090x_P1_CORRELABS,		0x88 },
 	{ STV090x_P1_AGC2O,		0x5b },
@@ -384,7 +384,7 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_NBITER_NF15,		0x2f },
 	{ STV090x_NBITER_NF16,		0x39 },
 	{ STV090x_NBITER_NF17,		0x3a },
-	{ STV090x_NBITERNOERR,		0x04 },
+	{ STV090x_NBITERANALERR,		0x04 },
 	{ STV090x_GAINLLR_NF4,		0x0C },
 	{ STV090x_GAINLLR_NF5,		0x0F },
 	{ STV090x_GAINLLR_NF6,		0x11 },
@@ -437,7 +437,7 @@ static struct stv090x_reg stv0903_initval[] = {
 	{ STV090x_P1_ERRCTRL1,		0x35 },
 	{ STV090x_P1_ERRCTRL2,		0xc1 },
 	{ STV090x_P1_CFRICFG,		0xf8 },
-	{ STV090x_P1_NOSCFG,		0x1c },
+	{ STV090x_P1_ANALSCFG,		0x1c },
 	{ STV090x_P1_DMDTOM,		0x20 },
 	{ STV090x_P1_CORRELMANT,	0x70 },
 	{ STV090x_P1_CORRELABS,		0x88 },
@@ -488,7 +488,7 @@ static struct stv090x_reg stv0903_initval[] = {
 	{ STV090x_NBITER_NF15,		0x2f },
 	{ STV090x_NBITER_NF16,		0x39 },
 	{ STV090x_NBITER_NF17,		0x3a },
-	{ STV090x_NBITERNOERR,		0x04 },
+	{ STV090x_NBITERANALERR,		0x04 },
 	{ STV090x_GAINLLR_NF4,		0x0C },
 	{ STV090x_GAINLLR_NF5,		0x0F },
 	{ STV090x_GAINLLR_NF6,		0x11 },
@@ -518,7 +518,7 @@ static struct stv090x_reg stv0900_cut20_val[] = {
 	{ STV090x_P2_SMAPCOEF7,		0x06 },
 	{ STV090x_P2_SMAPCOEF6,		0x00 },
 	{ STV090x_P2_SMAPCOEF5,		0x04 },
-	{ STV090x_P2_NOSCFG,		0x0c },
+	{ STV090x_P2_ANALSCFG,		0x0c },
 	{ STV090x_P1_DMDCFG3,		0xe8 },
 	{ STV090x_P1_DMDCFG4,		0x10 },
 	{ STV090x_P1_CARFREQ,		0x38 },
@@ -527,7 +527,7 @@ static struct stv090x_reg stv0900_cut20_val[] = {
 	{ STV090x_P1_SMAPCOEF7,		0x06 },
 	{ STV090x_P1_SMAPCOEF6,		0x00 },
 	{ STV090x_P1_SMAPCOEF5,		0x04 },
-	{ STV090x_P1_NOSCFG,		0x0c },
+	{ STV090x_P1_ANALSCFG,		0x0c },
 	{ STV090x_GAINLLR_NF4,		0x21 },
 	{ STV090x_GAINLLR_NF5,		0x21 },
 	{ STV090x_GAINLLR_NF6,		0x20 },
@@ -553,7 +553,7 @@ static struct stv090x_reg stv0903_cut20_val[] = {
 	{ STV090x_P1_SMAPCOEF7,		0x06 },
 	{ STV090x_P1_SMAPCOEF6,		0x00 },
 	{ STV090x_P1_SMAPCOEF5,		0x04 },
-	{ STV090x_P1_NOSCFG,		0x0c },
+	{ STV090x_P1_ANALSCFG,		0x0c },
 	{ STV090x_GAINLLR_NF4,		0x21 },
 	{ STV090x_GAINLLR_NF5,		0x21 },
 	{ STV090x_GAINLLR_NF6,		0x20 },
@@ -753,9 +753,9 @@ static int stv090x_i2c_gate_ctrl(struct stv090x_state *state, int enable)
 	u32 reg;
 
 	/*
-	 * NOTE! A lock is used as a FSM to control the state in which
+	 * ANALTE! A lock is used as a FSM to control the state in which
 	 * access is serialized between two tuners on the same demod.
-	 * This has nothing to do with a lock to protect a critical section
+	 * This has analthing to do with a lock to protect a critical section
 	 * which may in some other cases be confused with protecting I/O
 	 * access to the demodulator gate.
 	 * In case of any error, the lock is unlocked and exit within the
@@ -819,7 +819,7 @@ static void stv090x_get_lock_tmg(struct stv090x_state *state)
 	case STV090x_COLD_SEARCH:
 	case STV090x_WARM_SEARCH:
 	default:
-		dprintk(FE_DEBUG, 1, "Normal Search");
+		dprintk(FE_DEBUG, 1, "Analrmal Search");
 		if (state->srate <= 1000000) {  /*SR <=1Msps*/
 			state->DemodTimeout = 4500;
 			state->FecTimeout = 1700;
@@ -1276,7 +1276,7 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 			goto err;
 
 		/* Activate Viterbi decoder in legacy search,
-		 * do not use FRESVIT1, might impact VITERBI2
+		 * do analt use FRESVIT1, might impact VITERBI2
 		 */
 		if (stv090x_vitclk_ctl(state, 0) < 0)
 			goto err;
@@ -1557,7 +1557,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 	switch (state->algo) {
 	case STV090x_WARM_SEARCH:
 		/* The symbol rate and the exact
-		 * carrier Frequency are known
+		 * carrier Frequency are kanalwn
 		 */
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0)
 			goto err;
@@ -1566,7 +1566,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 		break;
 
 	case STV090x_COLD_SEARCH:
-		/* The symbol rate is known */
+		/* The symbol rate is kanalwn */
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0)
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x15) < 0)
@@ -2301,7 +2301,7 @@ static int stv090x_get_loop_params(struct stv090x_state *state, s32 *freq_inc, s
 static int stv090x_chk_signal(struct stv090x_state *state)
 {
 	s32 offst_car, agc2, car_max;
-	int no_signal;
+	int anal_signal;
 
 	offst_car  = STV090x_READ_DEMOD(state, CFR2) << 8;
 	offst_car |= STV090x_READ_DEMOD(state, CFR1);
@@ -2319,19 +2319,19 @@ static int stv090x_chk_signal(struct stv090x_state *state)
 		car_max = 0x4000;
 
 	if ((agc2 > 0x2000) || (offst_car > 2 * car_max) || (offst_car < -2 * car_max)) {
-		no_signal = 1;
-		dprintk(FE_DEBUG, 1, "No Signal");
+		anal_signal = 1;
+		dprintk(FE_DEBUG, 1, "Anal Signal");
 	} else {
-		no_signal = 0;
+		anal_signal = 0;
 		dprintk(FE_DEBUG, 1, "Found Signal");
 	}
 
-	return no_signal;
+	return anal_signal;
 }
 
 static int stv090x_search_car_loop(struct stv090x_state *state, s32 inc, s32 timeout, int zigzag, s32 steps_max)
 {
-	int no_signal, lock = 0;
+	int anal_signal, lock = 0;
 	s32 cpt_step = 0, offst_freq, car_max;
 	u32 reg;
 
@@ -2374,10 +2374,10 @@ static int stv090x_search_car_loop(struct stv090x_state *state, s32 inc, s32 tim
 		cpt_step++;
 
 		lock = stv090x_get_dmdlock(state, timeout);
-		no_signal = stv090x_chk_signal(state);
+		anal_signal = stv090x_chk_signal(state);
 
 	} while ((!lock) &&
-		 (!no_signal) &&
+		 (!anal_signal) &&
 		  ((offst_freq - inc) < car_max) &&
 		  ((offst_freq + inc) > -car_max) &&
 		  (cpt_step < steps_max));
@@ -2395,7 +2395,7 @@ err:
 
 static int stv090x_sw_algo(struct stv090x_state *state)
 {
-	int no_signal, zigzag, lock = 0;
+	int anal_signal, zigzag, lock = 0;
 	u32 reg;
 
 	s32 dvbs2_fly_wheel;
@@ -2448,12 +2448,12 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 	trials = 0;
 	do {
 		lock = stv090x_search_car_loop(state, inc, timeout_step, zigzag, steps_max);
-		no_signal = stv090x_chk_signal(state);
+		anal_signal = stv090x_chk_signal(state);
 		trials++;
 
 		/*run the SW search 2 times maximum*/
-		if (lock || no_signal || (trials == 2)) {
-			/*Check if the demod is not losing lock in DVBS2*/
+		if (lock || anal_signal || (trials == 2)) {
+			/*Check if the demod is analt losing lock in DVBS2*/
 			if (state->internal->dev_ver >= 0x20) {
 				if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x49) < 0)
 					goto err;
@@ -2463,7 +2463,7 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 
 			reg = STV090x_READ_DEMOD(state, DMDSTATE);
 			if ((lock) && (STV090x_GETFIELD_Px(reg, HEADER_MODE_FIELD) == STV090x_DVBS2)) {
-				/*Check if the demod is not losing lock in DVBS2*/
+				/*Check if the demod is analt losing lock in DVBS2*/
 				msleep(timeout_step);
 				reg = STV090x_READ_DEMOD(state, DMDFLYW);
 				dvbs2_fly_wheel = STV090x_GETFIELD_Px(reg, FLYWHEEL_CPT_FIELD);
@@ -2487,7 +2487,7 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 				}
 			}
 		}
-	} while ((!lock) && (trials < 2) && (!no_signal));
+	} while ((!lock) && (trials < 2) && (!anal_signal));
 
 	return lock;
 err:
@@ -3162,7 +3162,7 @@ err:
 static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 {
 	struct dvb_frontend *fe = &state->frontend;
-	enum stv090x_signal_state signal_state = STV090x_NOCARRIER;
+	enum stv090x_signal_state signal_state = STV090x_ANALCARRIER;
 	u32 reg;
 	s32 agc1_power, power_iq = 0, i;
 	int lock = 0, low_sr = 0;
@@ -3188,7 +3188,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	stv090x_get_lock_tmg(state);
 
 	if (state->algo == STV090x_BLIND_SEARCH) {
-		state->tuner_bw = 2 * 36000000; /* wide bw for unknown srate */
+		state->tuner_bw = 2 * 36000000; /* wide bw for unkanalwn srate */
 		if (STV090x_WRITE_DEMOD(state, TMGCFG2, 0xc0) < 0) /* wider srate scan */
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, CORRELMANT, 0x70) < 0)
@@ -3196,7 +3196,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		if (stv090x_set_srate(state, 1000000) < 0) /* initial srate = 1Msps */
 			goto err;
 	} else {
-		/* known srate */
+		/* kanalwn srate */
 		if (STV090x_WRITE_DEMOD(state, DMDTOM, 0x20) < 0)
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, TMGCFG, 0xd2) < 0)
@@ -3224,7 +3224,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 				state->tuner_bw = stv090x_car_width(state->srate, state->rolloff) + 10000000;
 		}
 
-		/* if cold start or warm  (Symbolrate is known)
+		/* if cold start or warm  (Symbolrate is kanalwn)
 		 * use a Narrow symbol rate scan range
 		 */
 		if (STV090x_WRITE_DEMOD(state, TMGCFG2, 0xc1) < 0) /* narrow srate scan */
@@ -3285,7 +3285,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 			dprintk(FE_DEBUG, 1, "Tuner phase locked");
 		else {
 			dprintk(FE_DEBUG, 1, "Tuner unlocked");
-			return STV090x_NOCARRIER;
+			return STV090x_ANALCARRIER;
 		}
 	}
 
@@ -3305,9 +3305,9 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	}
 
 	if ((agc1_power == 0) && (power_iq < STV090x_IQPOWER_THRESHOLD)) {
-		dprintk(FE_ERROR, 1, "No Signal: POWER_IQ=0x%02x", power_iq);
+		dprintk(FE_ERROR, 1, "Anal Signal: POWER_IQ=0x%02x", power_iq);
 		lock = 0;
-		signal_state = STV090x_NOAGC1;
+		signal_state = STV090x_ANALAGC1;
 	} else {
 		reg = STV090x_READ_DEMOD(state, DEMOD);
 		STV090x_SETFIELD_Px(reg, SPECINV_CONTROL_FIELD, state->inversion);
@@ -3331,7 +3331,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		}
 	}
 
-	if (signal_state == STV090x_NOAGC1)
+	if (signal_state == STV090x_ANALAGC1)
 		return signal_state;
 
 	if (state->algo == STV090x_BLIND_SEARCH)
@@ -3405,7 +3405,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 			if (STV090x_WRITE_DEMOD(state, ERRCTRL2, 0xc1) < 0)
 				goto err;
 		} else {
-			signal_state = STV090x_NODATA;
+			signal_state = STV090x_ANALDATA;
 			stv090x_chk_signal(state);
 		}
 	}
@@ -3688,10 +3688,10 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 		if (lock_f) {
 			msleep(5);
 			for (i = 0; i < 16; i++) {
-				reg_1 = STV090x_READ_DEMOD(state, NNOSPLHT1);
-				val_1 = STV090x_GETFIELD_Px(reg_1, NOSPLHT_NORMED_FIELD);
-				reg_0 = STV090x_READ_DEMOD(state, NNOSPLHT0);
-				val_0 = STV090x_GETFIELD_Px(reg_0, NOSPLHT_NORMED_FIELD);
+				reg_1 = STV090x_READ_DEMOD(state, NANALSPLHT1);
+				val_1 = STV090x_GETFIELD_Px(reg_1, ANALSPLHT_ANALRMED_FIELD);
+				reg_0 = STV090x_READ_DEMOD(state, NANALSPLHT0);
+				val_0 = STV090x_GETFIELD_Px(reg_0, ANALSPLHT_ANALRMED_FIELD);
 				val  += MAKEWORD16(val_1, val_0);
 				msleep(1);
 			}
@@ -3713,10 +3713,10 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 		if (lock_f) {
 			msleep(5);
 			for (i = 0; i < 16; i++) {
-				reg_1 = STV090x_READ_DEMOD(state, NOSDATAT1);
-				val_1 = STV090x_GETFIELD_Px(reg_1, NOSDATAT_UNNORMED_FIELD);
-				reg_0 = STV090x_READ_DEMOD(state, NOSDATAT0);
-				val_0 = STV090x_GETFIELD_Px(reg_0, NOSDATAT_UNNORMED_FIELD);
+				reg_1 = STV090x_READ_DEMOD(state, ANALSDATAT1);
+				val_1 = STV090x_GETFIELD_Px(reg_1, ANALSDATAT_UNANALRMED_FIELD);
+				reg_0 = STV090x_READ_DEMOD(state, ANALSDATAT0);
+				val_0 = STV090x_GETFIELD_Px(reg_0, ANALSDATAT_UNANALRMED_FIELD);
 				val  += MAKEWORD16(val_1, val_0);
 				msleep(1);
 			}
@@ -4797,7 +4797,7 @@ static int stv090x_setup(struct dvb_frontend *fe)
 
 	msleep(5);
 
-	/* Set No Tuner Mode */
+	/* Set Anal Tuner Mode */
 	if (stv090x_write_reg(state, STV090x_P1_TNRCFG, 0x6c) < 0)
 		goto err;
 	if (state->device == STV0900)
@@ -4942,11 +4942,11 @@ static int stv090x_setup_compound(struct stv090x_state *state)
 	return 0;
 
 error:
-	return -ENOMEM;
+	return -EANALMEM;
 err_remove:
 	remove_dev(state->internal);
 	kfree(state->internal);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct dvb_frontend_ops stv090x_ops = {
@@ -4999,7 +4999,7 @@ static int stv090x_probe(struct i2c_client *client)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 

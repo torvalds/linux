@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2023 Nuvoton Technology corporation.
+// Copyright (c) 2023 Nuvoton Techanallogy corporation.
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -18,7 +18,7 @@ struct npcm_udc_data {
 	struct ci_hdrc_platform_data pdata;
 };
 
-static int npcm_udc_notify_event(struct ci_hdrc *ci, unsigned event)
+static int npcm_udc_analtify_event(struct ci_hdrc *ci, unsigned event)
 {
 	struct device *dev = ci->dev->parent;
 
@@ -28,7 +28,7 @@ static int npcm_udc_notify_event(struct ci_hdrc *ci, unsigned event)
 		hw_write(ci, OP_USBMODE, 0xffffffff, 0x0);
 		break;
 	default:
-		dev_dbg(dev, "unknown ci_hdrc event (%d)\n",event);
+		dev_dbg(dev, "unkanalwn ci_hdrc event (%d)\n",event);
 		break;
 	}
 
@@ -44,7 +44,7 @@ static int npcm_udc_probe(struct platform_device *pdev)
 
 	ci = devm_kzalloc(&pdev->dev, sizeof(*ci), GFP_KERNEL);
 	if (!ci)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, ci);
 
 	ci->core_clk = devm_clk_get_optional(dev, NULL);
@@ -60,7 +60,7 @@ static int npcm_udc_probe(struct platform_device *pdev)
 	ci->pdata.flags	= CI_HDRC_REQUIRES_ALIGNED_DMA |
 		CI_HDRC_FORCE_VBUS_ACTIVE_ALWAYS;
 	ci->pdata.phy_mode = USBPHY_INTERFACE_MODE_UTMI;
-	ci->pdata.notify_event = npcm_udc_notify_event;
+	ci->pdata.analtify_event = npcm_udc_analtify_event;
 
 	plat_ci = ci_hdrc_add_device(dev, pdev->resource, pdev->num_resources,
 				     &ci->pdata);
@@ -70,7 +70,7 @@ static int npcm_udc_probe(struct platform_device *pdev)
 		goto clk_err;
 	}
 
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_anal_callbacks(dev);
 	pm_runtime_enable(dev);
 
 	return 0;

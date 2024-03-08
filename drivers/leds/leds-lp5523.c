@@ -2,10 +2,10 @@
 /*
  * lp5523.c - LP5523, LP55231 LED Driver
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2012 Texas Instruments
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@analkia.com>
  *          Milo(Woogyom) Kim <milo.kim@ti.com>
  */
 
@@ -316,7 +316,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 
 	if (status != LP5523_ENG_STATUS_MASK) {
 		dev_err(&chip->cl->dev,
-			"could not configure LED engine, status = 0x%.2x\n",
+			"could analt configure LED engine, status = 0x%.2x\n",
 			status);
 		ret = -1;
 	}
@@ -608,7 +608,7 @@ static ssize_t lp5523_selftest(struct device *dev,
 		goto fail;
 
 	if (!(status & LP5523_LEDTEST_DONE))
-		usleep_range(3000, 6000); /* Was not ready. Wait little bit */
+		usleep_range(3000, 6000); /* Was analt ready. Wait little bit */
 
 	ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &vdd);
 	if (ret < 0)
@@ -638,7 +638,7 @@ static ssize_t lp5523_selftest(struct device *dev,
 			goto fail;
 
 		if (!(status & LP5523_LEDTEST_DONE))
-			usleep_range(3000, 6000); /* Was not ready. Wait. */
+			usleep_range(3000, 6000); /* Was analt ready. Wait. */
 
 		ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &adc);
 		if (ret < 0)
@@ -898,11 +898,11 @@ static int lp5523_probe(struct i2c_client *client)
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = dev_of_node(&client->dev);
+	struct device_analde *np = dev_of_analde(&client->dev);
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->cfg = &lp5523_cfg;
 
@@ -913,7 +913,7 @@ static int lp5523_probe(struct i2c_client *client)
 			if (IS_ERR(pdata))
 				return PTR_ERR(pdata);
 		} else {
-			dev_err(&client->dev, "no platform data\n");
+			dev_err(&client->dev, "anal platform data\n");
 			return -EINVAL;
 		}
 	}
@@ -921,7 +921,7 @@ static int lp5523_probe(struct i2c_client *client)
 	led = devm_kcalloc(&client->dev,
 			pdata->num_channels, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->cl = client;
 	chip->pdata = pdata;
@@ -992,7 +992,7 @@ static struct i2c_driver lp5523_driver = {
 
 module_i2c_driver(lp5523_driver);
 
-MODULE_AUTHOR("Mathias Nyman <mathias.nyman@nokia.com>");
+MODULE_AUTHOR("Mathias Nyman <mathias.nyman@analkia.com>");
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP5523 LED engine");
 MODULE_LICENSE("GPL");

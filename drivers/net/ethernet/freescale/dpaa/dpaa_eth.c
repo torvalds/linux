@@ -46,7 +46,7 @@
 
 static int debug = -1;
 module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "Module/Driver verbosity level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Module/Driver verbosity level (0=analne,...,16=all)");
 
 static u16 tx_timeout = 1000;
 module_param(tx_timeout, ushort, 0444);
@@ -55,7 +55,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 #define FM_FD_STAT_RX_ERRORS						\
 	(FM_FD_ERR_DMA | FM_FD_ERR_PHYSICAL	| \
 	 FM_FD_ERR_SIZE | FM_FD_ERR_CLS_DISCARD | \
-	 FM_FD_ERR_EXTRACTION | FM_FD_ERR_NO_SCHEME	| \
+	 FM_FD_ERR_EXTRACTION | FM_FD_ERR_ANAL_SCHEME	| \
 	 FM_FD_ERR_PRS_TIMEOUT | FM_FD_ERR_PRS_ILL_INSTRUCT | \
 	 FM_FD_ERR_PRS_HDR_ERR)
 
@@ -79,7 +79,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 
 #define DPAA_CS_THRESHOLD_1G 0x06000000
 /* Egress congestion threshold on 1G ports, range 0x1000 .. 0x10000000
- * The size in bytes of the egress Congestion State notification threshold on
+ * The size in bytes of the egress Congestion State analtification threshold on
  * 1G ports. The 1G dTSECs can quite easily be flooded by cores doing Tx in a
  * tight loop (e.g. by sending UDP datagrams at "while(1) speed"),
  * and the larger the frame size, the more acute the problem.
@@ -87,14 +87,14 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
  * - avoiding the device staying congested for a prolonged time (risking
  *   the netdev watchdog to fire - see also the tx_timeout module param);
  * - affecting performance of protocols such as TCP, which otherwise
- *   behave well under the congestion notification mechanism;
+ *   behave well under the congestion analtification mechanism;
  * - preventing the Tx cores from tightly-looping (as if the congestion
  *   threshold was too low to be effective);
  * - running out of memory if the CS threshold is set too high.
  */
 
 #define DPAA_CS_THRESHOLD_10G 0x10000000
-/* The size in bytes of the egress Congestion State notification threshold on
+/* The size in bytes of the egress Congestion State analtification threshold on
  * 10G ports, range 0x1000 .. 0x10000000
  */
 
@@ -136,7 +136,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 
 /* FD status field indicating whether the FM Parser has attempted to validate
  * the L4 csum of the frame.
- * Note that having this bit set doesn't necessarily imply that the checksum
+ * Analte that having this bit set doesn't necessarily imply that the checksum
  * is valid. One would have to check the parse results to find that out.
  */
 #define FM_FD_STAT_L4CV         0x00000004
@@ -211,7 +211,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	const u8 *mac_addr;
 	int i, err;
 
-	/* Although we access another CPU's private data here
+	/* Although we access aanalther CPU's private data here
 	 * we do it at initialization so it is safe
 	 */
 	for_each_possible_cpu(i) {
@@ -239,7 +239,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->features |= NETIF_F_RXCSUM;
 
 	net_dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-	/* we do not want shared skbs on TX */
+	/* we do analt want shared skbs on TX */
 	net_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 
 	net_dev->features |= net_dev->hw_features;
@@ -274,12 +274,12 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	mac_dev->phylink_config.type = PHYLINK_NETDEV;
 	mac_dev->update_speed = dpaa_eth_cgr_set_speed;
 	mac_dev->phylink = phylink_create(&mac_dev->phylink_config,
-					  dev_fwnode(mac_dev->dev),
+					  dev_fwanalde(mac_dev->dev),
 					  mac_dev->phy_if,
 					  mac_dev->phylink_ops);
 	if (IS_ERR(mac_dev->phylink)) {
 		err = PTR_ERR(mac_dev->phylink);
-		dev_err_probe(dev, err, "Could not create phylink\n");
+		dev_err_probe(dev, err, "Could analt create phylink\n");
 		return err;
 	}
 
@@ -376,7 +376,7 @@ static int dpaa_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	int i;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	num_tc = mqprio->num_tc;
@@ -417,7 +417,7 @@ static struct mac_device *dpaa_mac_dev_get(struct platform_device *pdev)
 	eth_data = dpaa_dev->platform_data;
 	if (!eth_data) {
 		dev_err(dpaa_dev, "eth_data missing\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 	mac_dev = eth_data->mac_dev;
 	if (!mac_dev) {
@@ -525,7 +525,7 @@ static int dpaa_bp_alloc_pool(struct dpaa_bp *dpaa_bp)
 	int err;
 
 	if (dpaa_bp->size == 0 || dpaa_bp->config_count == 0) {
-		pr_err("%s: Buffer pool is not properly initialized! Missing size or initial number of buffers\n",
+		pr_err("%s: Buffer pool is analt properly initialized! Missing size or initial number of buffers\n",
 		       __func__);
 		return -EINVAL;
 	}
@@ -540,7 +540,7 @@ static int dpaa_bp_alloc_pool(struct dpaa_bp *dpaa_bp)
 		if (!dpaa_bp->pool) {
 			pr_err("%s: bman_new_pool() failed\n",
 			       __func__);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		dpaa_bp->bpid = (u8)bman_get_bpid(dpaa_bp->pool);
@@ -600,7 +600,7 @@ static void dpaa_bp_free(struct dpaa_bp *dpaa_bp)
 
 	/* the mapping between bpid and dpaa_bp is done very late in the
 	 * allocation procedure; if something failed before the mapping, the bp
-	 * was not configured, therefore we don't need the below instructions
+	 * was analt configured, therefore we don't need the below instructions
 	 */
 	if (!bp)
 		return;
@@ -762,7 +762,7 @@ static int dpaa_alloc_all_fqs(struct device *dev, struct list_head *list,
 
 fq_alloc_failed:
 	dev_err(dev, "dpaa_fq_alloc() failed\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static u32 rx_pool_channel;
@@ -782,7 +782,7 @@ static int dpaa_get_channel(void)
 	}
 	spin_unlock(&rx_pool_channel_init);
 	if (!rx_pool_channel)
-		return -ENOMEM;
+		return -EANALMEM;
 	return rx_pool_channel;
 }
 
@@ -805,7 +805,7 @@ static void dpaa_eth_add_channel(u16 channel, struct device *dev)
 	}
 }
 
-/* Congestion group state change notification callback.
+/* Congestion group state change analtification callback.
  * Stops the device's egress queues while they are congested and
  * wakes them upon exiting congested state.
  * Also updates some CGR-related stats.
@@ -842,13 +842,13 @@ static int dpaa_eth_cgr_init(struct dpaa_priv *priv)
 	}
 	priv->cgr_data.cgr.cb = dpaa_eth_cgscn;
 
-	/* Enable Congestion State Change Notifications and CS taildrop */
+	/* Enable Congestion State Change Analtifications and CS taildrop */
 	memset(&initcgr, 0, sizeof(initcgr));
 	initcgr.we_mask = cpu_to_be16(QM_CGR_WE_CSCN_EN | QM_CGR_WE_CS_THRES);
 	initcgr.cgr.cscn_en = QM_CGR_EN;
 
 	/* Set different thresholds based on the configured MAC speed.
-	 * This may turn suboptimal if the MAC is reconfigured at another
+	 * This may turn suboptimal if the MAC is reconfigured at aanalther
 	 * speed, so MACs must call dpaa_eth_cgr_set_speed in their link_up
 	 * callback.
 	 */
@@ -901,7 +901,7 @@ static void dpaa_eth_cgr_set_speed(struct mac_device *mac_dev, int speed)
 
 	err = qman_update_cgr_safe(&priv->cgr_data.cgr, &opts);
 	if (err)
-		netdev_err(net_dev, "could not update speed: %d\n", err);
+		netdev_err(net_dev, "could analt update speed: %d\n", err);
 }
 
 static inline void dpaa_setup_ingress(const struct dpaa_priv *priv,
@@ -911,7 +911,7 @@ static inline void dpaa_setup_ingress(const struct dpaa_priv *priv,
 	fq->fq_base = *template;
 	fq->net_dev = priv->net_dev;
 
-	fq->flags = QMAN_FQ_FLAG_NO_ENQUEUE;
+	fq->flags = QMAN_FQ_FLAG_ANAL_ENQUEUE;
 	fq->channel = priv->channel;
 }
 
@@ -927,7 +927,7 @@ static inline void dpaa_setup_egress(const struct dpaa_priv *priv,
 		fq->flags = QMAN_FQ_FLAG_TO_DCPORTAL;
 		fq->channel = (u16)fman_port_get_qman_channel_id(port);
 	} else {
-		fq->flags = QMAN_FQ_FLAG_NO_MODIFY;
+		fq->flags = QMAN_FQ_FLAG_ANAL_MODIFY;
 	}
 }
 
@@ -945,7 +945,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 
 	if (num_portals == 0)
 		dev_err(priv->net_dev->dev.parent,
-			"No Qman software (affine) channels found\n");
+			"Anal Qman software (affine) channels found\n");
 
 	/* Initialize each FQ in the list */
 	list_for_each_entry(fq, &priv->dpaa_fq_list, list) {
@@ -966,7 +966,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			dpaa_setup_egress(priv, fq, tx_port,
 					  &fq_cbs->egress_ern);
 			/* If we have more Tx queues than the number of cores,
-			 * just ignore the extra ones.
+			 * just iganalre the extra ones.
 			 */
 			if (egress_cnt < DPAA_ETH_TXQ_NUM)
 				priv->egress_fqs[egress_cnt++] = &fq->fq_base;
@@ -982,7 +982,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			break;
 		default:
 			dev_warn(priv->net_dev->dev.parent,
-				 "Unknown FQ type detected!\n");
+				 "Unkanalwn FQ type detected!\n");
 			break;
 		}
 	}
@@ -1027,7 +1027,7 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 	if (dpaa_fq->fqid == 0)
 		dpaa_fq->flags |= QMAN_FQ_FLAG_DYNAMIC_FQID;
 
-	dpaa_fq->init = !(dpaa_fq->flags & QMAN_FQ_FLAG_NO_MODIFY);
+	dpaa_fq->init = !(dpaa_fq->flags & QMAN_FQ_FLAG_ANAL_MODIFY);
 
 	err = qman_create_fq(dpaa_fq->fqid, dpaa_fq->flags, &dpaa_fq->fq_base);
 	if (err) {
@@ -1040,7 +1040,7 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 		memset(&initfq, 0, sizeof(initfq));
 
 		initfq.we_mask = cpu_to_be16(QM_INITFQ_WE_FQCTRL);
-		/* Note: we may get to keep an empty FQ in cache */
+		/* Analte: we may get to keep an empty FQ in cache */
 		initfq.fqd.fq_ctrl = cpu_to_be16(QM_FQCTRL_PREFERINCACHE);
 
 		/* Try to reduce the number of portal interrupts for
@@ -1056,7 +1056,7 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 
 		/* Put all egress queues in a congestion group of their own.
 		 * Sensu stricto, the Tx confirmation queues are Rx FQs,
-		 * rather than Tx - but they nonetheless account for the
+		 * rather than Tx - but they analnetheless account for the
 		 * memory footprint on behalf of egress traffic. We therefore
 		 * place them in the netdev's CGR, along with the Tx FQs.
 		 */
@@ -1073,7 +1073,7 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 			 * composed of small datagrams.
 			 * Unfortunately, QMan's OAL value is capped to an
 			 * insufficient value, but even that is better than
-			 * no overhead accounting at all.
+			 * anal overhead accounting at all.
 			 */
 			initfq.we_mask |= cpu_to_be16(QM_INITFQ_WE_OAC);
 			qm_fqd_set_oac(&initfq.fqd, QM_OAC_CG);
@@ -1128,13 +1128,13 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 		}
 
 		/* Initialization common to all ingress queues */
-		if (dpaa_fq->flags & QMAN_FQ_FLAG_NO_ENQUEUE) {
+		if (dpaa_fq->flags & QMAN_FQ_FLAG_ANAL_ENQUEUE) {
 			initfq.we_mask |= cpu_to_be16(QM_INITFQ_WE_CONTEXTA);
 			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_HOLDACTIVE |
 						QM_FQCTRL_CTXASTASHING);
 			initfq.fqd.context_a.stashing.exclusive =
 				QM_STASHING_EXCL_DATA | QM_STASHING_EXCL_CTX |
-				QM_STASHING_EXCL_ANNOTATION;
+				QM_STASHING_EXCL_ANANALTATION;
 			qm_fqd_set_stashing(&initfq.fqd, 1, 2,
 					    DIV_ROUND_UP(sizeof(struct qman_fq),
 							 64));
@@ -1242,8 +1242,8 @@ static int dpaa_eth_init_tx_port(struct fman_port *port, struct dpaa_fq *errq,
 	buf_prefix_content.pass_time_stamp = true;
 	buf_prefix_content.data_align = DPAA_FD_DATA_ALIGNMENT;
 
-	params.specific_params.non_rx_params.err_fqid = errq->fqid;
-	params.specific_params.non_rx_params.dflt_fqid = defq->fqid;
+	params.specific_params.analn_rx_params.err_fqid = errq->fqid;
+	params.specific_params.analn_rx_params.dflt_fqid = defq->fqid;
 
 	err = fman_port_config(port, &params);
 	if (err) {
@@ -1450,13 +1450,13 @@ static void count_ern(struct dpaa_percpu_priv *percpu_priv,
 }
 
 /* Turn on HW checksum computation for this outgoing frame.
- * If the current protocol is not something we support in this regard
- * (or if the stack has already computed the SW checksum), we do nothing.
+ * If the current protocol is analt something we support in this regard
+ * (or if the stack has already computed the SW checksum), we do analthing.
  *
  * Returns 0 if all goes well (or HW csum doesn't apply), and a negative value
  * otherwise.
  *
- * Note that this function may modify the fd->cmd field and the skb data buffer
+ * Analte that this function may modify the fd->cmd field and the skb data buffer
  * (the Parse Results area).
  */
 static int dpaa_enable_tx_csum(struct dpaa_priv *priv,
@@ -1474,7 +1474,7 @@ static int dpaa_enable_tx_csum(struct dpaa_priv *priv,
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
-	/* Note: L3 csum seems to be already computed in sw, but we can't choose
+	/* Analte: L3 csum seems to be already computed in sw, but we can't choose
 	 * L4 alone from the FM configuration anyway.
 	 */
 
@@ -1539,7 +1539,7 @@ static int dpaa_enable_tx_csum(struct dpaa_priv *priv,
 
 	/* On P1023 and similar platforms fd->cmd interpretation could
 	 * be disabled by setting CONTEXT_A bit ICMD; currently this bit
-	 * is not set so we do not need to check; in the future, if/when
+	 * is analt set so we do analt need to check; in the future, if/when
 	 * using context_a we need to check this bit
 	 */
 
@@ -1599,7 +1599,7 @@ static int dpaa_bp_seed(struct dpaa_bp *dpaa_bp)
 		int *count_ptr = per_cpu_ptr(dpaa_bp->percpu_count, i);
 		int j;
 
-		/* Although we access another CPU's counters here
+		/* Although we access aanalther CPU's counters here
 		 * we do it at boot time so it is safe
 		 */
 		for (j = 0; j < dpaa_bp->config_count; j += 8)
@@ -1631,7 +1631,7 @@ static int dpaa_eth_refill_bpool(struct dpaa_bp *dpaa_bp, int *countptr)
 
 		*countptr = count;
 		if (unlikely(count < FSL_DPAA_ETH_MAX_BUF_COUNT))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1652,17 +1652,17 @@ static int dpaa_eth_refill_bpools(struct dpaa_priv *priv)
 
 /* Cleanup function for outgoing frame descriptors that were built on Tx path,
  * either contiguous frames or scatter/gather ones.
- * Skb freeing is not handled here.
+ * Skb freeing is analt handled here.
  *
  * This function may be called on error paths in the Tx function, so guard
- * against cases when not all fd relevant fields were filled in. To avoid
+ * against cases when analt all fd relevant fields were filled in. To avoid
  * reading the invalid transmission timestamp for the error paths set ts to
  * false.
  *
  * Return the skb backpointer, since for S/G frames the buffer containing it
  * gets freed here.
  *
- * No skb backpointer is set when transmitting XDP frames. Cleanup the buffer
+ * Anal skb backpointer is set when transmitting XDP frames. Cleanup the buffer
  * and return NULL in this case.
  */
 static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
@@ -1710,7 +1710,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 	swbp = (struct dpaa_eth_swbp *)vaddr;
 	skb = swbp->skb;
 
-	/* No skb backpointer is set when running XDP. An xdp_frame
+	/* Anal skb backpointer is set when running XDP. An xdp_frame
 	 * backpointer is saved instead.
 	 */
 	if (!skb) {
@@ -1742,7 +1742,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 static u8 rx_csum_offload(const struct dpaa_priv *priv, const struct qm_fd *fd)
 {
 	/* The parser has run and performed L4 checksum validation.
-	 * We know there were no parser errors (and implicitly no
+	 * We kanalw there were anal parser errors (and implicitly anal
 	 * L4 csum error), otherwise we wouldn't be here.
 	 */
 	if ((priv->net_dev->features & NETIF_F_RXCSUM) &&
@@ -1750,16 +1750,16 @@ static u8 rx_csum_offload(const struct dpaa_priv *priv, const struct qm_fd *fd)
 		return CHECKSUM_UNNECESSARY;
 
 	/* We're here because either the parser didn't run or the L4 checksum
-	 * was not verified. This may include the case of a UDP frame with
+	 * was analt verified. This may include the case of a UDP frame with
 	 * checksum zero or an L4 proto other than TCP/UDP
 	 */
-	return CHECKSUM_NONE;
+	return CHECKSUM_ANALNE;
 }
 
 #define PTR_IS_ALIGNED(x, a) (IS_ALIGNED((unsigned long)(x), (a)))
 
 /* Build a linear skb around the received buffer.
- * We are guaranteed there is enough room at the end of the data buffer to
+ * We are guaranteed there is eanalugh room at the end of the data buffer to
  * accommodate the shared info area of the skb.
  */
 static struct sk_buff *contig_fd_to_skb(const struct dpaa_priv *priv,
@@ -1823,7 +1823,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 	sgt = vaddr + fd_off;
 	skb = NULL;
 	for (i = 0; i < DPAA_SGT_MAX_ENTRIES; i++) {
-		/* Extension bit is not supported */
+		/* Extension bit is analt supported */
 		WARN_ON(qm_sg_entry_is_ext(&sgt[i]));
 
 		sg_addr = qm_sg_addr(&sgt[i]);
@@ -1847,14 +1847,14 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 
 			skb->ip_summed = rx_csum_offload(priv, fd);
 
-			/* Make sure forwarded skbs will have enough space
+			/* Make sure forwarded skbs will have eanalugh space
 			 * on Tx, if extra headers are added.
 			 */
 			WARN_ON(fd_off != priv->rx_headroom);
 			skb_reserve(skb, fd_off);
 			skb_put(skb, qm_sg_entry_get_len(&sgt[i]));
 		} else {
-			/* Not the first S/G entry; all data from buffer will
+			/* Analt the first S/G entry; all data from buffer will
 			 * be added in an skb fragment; fragment index is offset
 			 * by one since first S/G entry was incorporated in the
 			 * linear part of the skb.
@@ -1873,7 +1873,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 			 */
 			frag_off = qm_sg_entry_get_off(&sgt[i]) + page_offset;
 			frag_len = qm_sg_entry_get_len(&sgt[i]);
-			/* skb_add_rx_frag() does no checking on the page; if
+			/* skb_add_rx_frag() does anal checking on the page; if
 			 * we pass it a tail page, we'll end up with
 			 * bad page accounting and eventually with segafults.
 			 */
@@ -1888,7 +1888,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 		if (qm_sg_entry_is_final(&sgt[i]))
 			break;
 	}
-	WARN_ONCE(i == DPAA_SGT_MAX_ENTRIES, "No final bit on SGT\n");
+	WARN_ONCE(i == DPAA_SGT_MAX_ENTRIES, "Anal final bit on SGT\n");
 
 	/* free the SG table buffer */
 	free_pages((unsigned long)vaddr, 0);
@@ -1962,7 +1962,7 @@ static int skb_to_contig_fd(struct dpaa_priv *priv,
 	qm_fd_set_contig(fd, priv->tx_headroom, skb->len);
 	fd->cmd |= cpu_to_be32(FM_FD_CMD_FCO);
 
-	/* Map the entire buffer size that may be seen by FMan, but no more */
+	/* Map the entire buffer size that may be seen by FMan, but anal more */
 	addr = dma_map_single(priv->tx_dma_dev, buff_start,
 			      priv->tx_headroom + skb->len, dma_dir);
 	if (unlikely(dma_mapping_error(priv->tx_dma_dev, addr))) {
@@ -1994,7 +1994,7 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	p = dev_alloc_pages(0);
 	if (unlikely(!p)) {
 		netdev_err(net_dev, "dev_alloc_pages() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	buff_start = page_address(p);
 
@@ -2128,10 +2128,10 @@ static int dpaa_a050385_wa_skb(struct net_device *net_dev, struct sk_buff **s)
 		goto workaround;
 
 	/* linear buffers just need to have an aligned start */
-	if (!skb_is_nonlinear(skb))
+	if (!skb_is_analnlinear(skb))
 		return 0;
 
-	/* linear data size for nonlinear skbs needs to be aligned */
+	/* linear data size for analnlinear skbs needs to be aligned */
 	if (!IS_ALIGNED(skb_headlen(skb), DPAA_A050385_ALIGN))
 		goto workaround;
 
@@ -2155,7 +2155,7 @@ workaround:
 	new_skb = netdev_alloc_skb(net_dev, skb->len + DPAA_A050385_ALIGN - 1 +
 						priv->tx_headroom);
 	if (!new_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* NET_SKB_PAD bytes already reserved, adding up to tx_headroom */
 	skb_reserve(new_skb, priv->tx_headroom - NET_SKB_PAD);
@@ -2202,7 +2202,7 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 	int headroom;
 
 	/* Check the data alignment and make sure the headroom is large
-	 * enough to store the xdpf backpointer. Use an aligned headroom
+	 * eanalugh to store the xdpf backpointer. Use an aligned headroom
 	 * value.
 	 *
 	 * Due to alignment constraints, we give XDP access to the full 256
@@ -2215,14 +2215,14 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 		return 0;
 	}
 
-	/* Try to move the data inside the buffer just enough to align it and
+	/* Try to move the data inside the buffer just eanalugh to align it and
 	 * store the xdpf backpointer. If the available headroom isn't large
-	 * enough, resort to allocating a new buffer and copying the data.
+	 * eanalugh, resort to allocating a new buffer and copying the data.
 	 */
 	aligned_data = PTR_ALIGN_DOWN(xdpf->data, DPAA_FD_DATA_ALIGNMENT);
 	data_shift = xdpf->data - aligned_data;
 
-	/* The XDP frame's headroom needs to be large enough to accommodate
+	/* The XDP frame's headroom needs to be large eanalugh to accommodate
 	 * shifting the data as well as storing the xdpf backpointer.
 	 */
 	if (xdpf->headroom  >= data_shift + priv->tx_headroom) {
@@ -2232,7 +2232,7 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 		return 0;
 	}
 
-	/* The new xdp_frame is stored in the new buffer. Reserve enough space
+	/* The new xdp_frame is stored in the new buffer. Reserve eanalugh space
 	 * in the headroom for storing it along with the driver's private
 	 * info. The headroom needs to be aligned to DPAA_FD_DATA_ALIGNMENT to
 	 * guarantee the data's alignment in the buffer.
@@ -2245,11 +2245,11 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 	 */
 	if (headroom + xdpf->len > DPAA_BP_RAW_SIZE -
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = dev_alloc_pages(0);
 	if (unlikely(!p))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Copy the data to the new buffer at a properly aligned offset */
 	new_buff = page_address(p);
@@ -2277,7 +2277,7 @@ static netdev_tx_t
 dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 {
 	const int queue_mapping = skb_get_queue_mapping(skb);
-	bool nonlinear = skb_is_nonlinear(skb);
+	bool analnlinear = skb_is_analnlinear(skb);
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa_percpu_priv *percpu_priv;
 	struct netdev_queue *txq;
@@ -2292,42 +2292,42 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 
 	qm_fd_clear_fd(&fd);
 
-	if (!nonlinear) {
+	if (!analnlinear) {
 		/* We're going to store the skb backpointer at the beginning
 		 * of the data buffer, so we need a privately owned skb
 		 *
-		 * We've made sure skb is not shared in dev->priv_flags,
-		 * we need to verify the skb head is not cloned
+		 * We've made sure skb is analt shared in dev->priv_flags,
+		 * we need to verify the skb head is analt cloned
 		 */
 		if (skb_cow_head(skb, priv->tx_headroom))
-			goto enomem;
+			goto eanalmem;
 
-		WARN_ON(skb_is_nonlinear(skb));
+		WARN_ON(skb_is_analnlinear(skb));
 	}
 
 	/* MAX_SKB_FRAGS is equal or larger than our dpaa_SGT_MAX_ENTRIES;
 	 * make sure we don't feed FMan with more fragments than it supports.
 	 */
-	if (unlikely(nonlinear &&
+	if (unlikely(analnlinear &&
 		     (skb_shinfo(skb)->nr_frags >= DPAA_SGT_MAX_ENTRIES))) {
 		/* If the egress skb contains more fragments than we support
-		 * we have no choice but to linearize it ourselves.
+		 * we have anal choice but to linearize it ourselves.
 		 */
 		if (__skb_linearize(skb))
-			goto enomem;
+			goto eanalmem;
 
-		nonlinear = skb_is_nonlinear(skb);
+		analnlinear = skb_is_analnlinear(skb);
 	}
 
 #ifdef CONFIG_DPAA_ERRATUM_A050385
 	if (unlikely(fman_has_errata_a050385())) {
 		if (dpaa_a050385_wa_skb(net_dev, &skb))
-			goto enomem;
-		nonlinear = skb_is_nonlinear(skb);
+			goto eanalmem;
+		analnlinear = skb_is_analnlinear(skb);
 	}
 #endif
 
-	if (nonlinear) {
+	if (analnlinear) {
 		/* Just create a S/G fd based on the skb */
 		err = skb_to_sg_fd(priv, skb, &fd);
 		percpu_priv->tx_frag_skbuffs++;
@@ -2353,7 +2353,7 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 
 	dpaa_cleanup_tx_fd(priv, &fd, false);
 skb_to_fd_failed:
-enomem:
+eanalmem:
 	percpu_stats->tx_errors++;
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
@@ -2510,7 +2510,7 @@ static int dpaa_xdp_xmit_frame(struct net_device *net_dev,
 #ifdef CONFIG_DPAA_ERRATUM_A050385
 	if (unlikely(fman_has_errata_a050385())) {
 		if (dpaa_a050385_wa_xdpf(priv, &xdpf)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_error;
 		}
 	}
@@ -2584,7 +2584,7 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 			 XDP_PACKET_HEADROOM, qm_fd_get_length(fd), true);
 
 	/* We reserve a fixed headroom of 256 bytes under the erratum and we
-	 * offer it all to XDP programs to use. If no room is left for the
+	 * offer it all to XDP programs to use. If anal room is left for the
 	 * xdpf backpointer on TX, we will need to copy the data.
 	 * Disable metadata support since data realignments might be required
 	 * and the information can be lost.
@@ -2766,7 +2766,7 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 		 * buffer pool and release the SGT.
 		 */
 		if (READ_ONCE(priv->xdp_prog)) {
-			WARN_ONCE(1, "S/G frames not supported under XDP\n");
+			WARN_ONCE(1, "S/G frames analt supported under XDP\n");
 			sgt = vaddr + qm_fd_get_offset(fd);
 			dpaa_release_sgt_members(sgt);
 			free_pages((unsigned long)vaddr, 0);
@@ -2926,7 +2926,7 @@ static int dpaa_open(struct net_device *net_dev)
 	dpaa_eth_napi_enable(priv);
 
 	err = phylink_of_phy_connect(mac_dev->phylink,
-				     mac_dev->dev->of_node, 0);
+				     mac_dev->dev->of_analde, 0);
 	if (err)
 		goto phy_init_failed;
 
@@ -2975,7 +2975,7 @@ static bool xdp_validate_mtu(struct dpaa_priv *priv, int mtu)
 {
 	int max_contig_data = priv->dpaa_bp->size - priv->rx_headroom;
 
-	/* We do not support S/G fragments when XDP is enabled.
+	/* We do analt support S/G fragments when XDP is enabled.
 	 * Limit the MTU in relation to the buffer size.
 	 */
 	if (mtu + VLAN_ETH_HLEN + ETH_FCS_LEN > max_contig_data) {
@@ -3006,7 +3006,7 @@ static int dpaa_setup_xdp(struct net_device *net_dev, struct netdev_bpf *bpf)
 	int err;
 	bool up;
 
-	/* S/G fragments are not supported in XDP-mode */
+	/* S/G fragments are analt supported in XDP-mode */
 	if (bpf->prog && !xdp_validate_mtu(priv, net_dev->mtu)) {
 		NL_SET_ERR_MSG_MOD(bpf->extack, "MTU too large for XDP");
 		return -EINVAL;
@@ -3075,7 +3075,7 @@ static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
 		/* Couldn't disable rx/tx timestamping separately.
-		 * Do nothing here.
+		 * Do analthing here.
 		 */
 		priv->tx_tstamp = false;
 		break;
@@ -3087,15 +3087,15 @@ static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -ERANGE;
 	}
 
-	if (config.rx_filter == HWTSTAMP_FILTER_NONE) {
+	if (config.rx_filter == HWTSTAMP_FILTER_ANALNE) {
 		/* Couldn't disable rx/tx timestamping separately.
-		 * Do nothing here.
+		 * Do analthing here.
 		 */
 		priv->rx_tstamp = false;
 	} else {
 		priv->mac_dev->set_tstamp(priv->mac_dev->fman_mac, true);
 		priv->rx_tstamp = true;
-		/* TS is set for all frame types, not only those requested */
+		/* TS is set for all frame types, analt only those requested */
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
@@ -3183,12 +3183,12 @@ static struct dpaa_bp *dpaa_bp_alloc(struct device *dev)
 
 	dpaa_bp = devm_kzalloc(dev, sizeof(*dpaa_bp), GFP_KERNEL);
 	if (!dpaa_bp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dpaa_bp->bpid = FSL_DPAA_BPID_INV;
 	dpaa_bp->percpu_count = devm_alloc_percpu(dev, *dpaa_bp->percpu_count);
 	if (!dpaa_bp->percpu_count)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dpaa_bp->config_count = FSL_DPAA_ETH_MAX_BUF_COUNT;
 
@@ -3199,7 +3199,7 @@ static struct dpaa_bp *dpaa_bp_alloc(struct device *dev)
 }
 
 /* Place all ingress FQs (Rx Default, Rx Error) in a dedicated CGR.
- * We won't be sending congestion notifications to FMan; for now, we just use
+ * We won't be sending congestion analtifications to FMan; for analw, we just use
  * this CGR to generate enqueue rejections to FMan in order to drop the frames
  * before they reach our ingress queues and eat up memory.
  */
@@ -3216,7 +3216,7 @@ static int dpaa_ingress_cgr_init(struct dpaa_priv *priv)
 		goto out_error;
 	}
 
-	/* Enable CS TD, but disable Congestion State Change Notifications. */
+	/* Enable CS TD, but disable Congestion State Change Analtifications. */
 	memset(&initcgr, 0, sizeof(initcgr));
 	initcgr.we_mask = cpu_to_be16(QM_CGR_WE_CS_THRES);
 	initcgr.cgr.cscn_en = QM_CGR_EN;
@@ -3295,14 +3295,14 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	if (err < 0) {
 		dev_err(dev, "failing probe due to bman probe error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	err = qman_is_probed();
 	if (!err)
 		return -EPROBE_DEFER;
 	if (err < 0) {
 		dev_err(dev, "failing probe due to qman probe error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	err = bman_portals_probed();
 	if (!err)
@@ -3310,7 +3310,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(dev,
 			"failing probe due to bman portals probe error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	err = qman_portals_probed();
 	if (!err)
@@ -3318,7 +3318,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(dev,
 			"failing probe due to qman portals probe error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Allocate this early, so we can store relevant information in
@@ -3327,7 +3327,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	net_dev = alloc_etherdev_mq(sizeof(*priv), DPAA_ETH_TXQ_NUM);
 	if (!net_dev) {
 		dev_err(dev, "alloc_etherdev_mq() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Do this here, so we can be verbose early */
@@ -3457,7 +3457,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	priv->percpu_priv = devm_alloc_percpu(dev, *priv->percpu_priv);
 	if (!priv->percpu_priv) {
 		dev_err(dev, "devm_alloc_percpu() failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_dpaa_fqs;
 	}
 

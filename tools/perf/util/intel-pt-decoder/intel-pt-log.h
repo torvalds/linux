@@ -25,7 +25,7 @@ void __intel_pt_log_packet(const struct intel_pt_pkt *packet, int pkt_len,
 struct intel_pt_insn;
 
 void __intel_pt_log_insn(struct intel_pt_insn *intel_pt_insn, uint64_t ip);
-void __intel_pt_log_insn_no_data(struct intel_pt_insn *intel_pt_insn,
+void __intel_pt_log_insn_anal_data(struct intel_pt_insn *intel_pt_insn,
 				 uint64_t ip);
 
 void __intel_pt_log(const char *fmt, ...) __printf(1, 2);
@@ -48,10 +48,10 @@ void __intel_pt_log(const char *fmt, ...) __printf(1, 2);
 			__intel_pt_log_insn(arg, ##__VA_ARGS__); \
 	} while (0)
 
-#define intel_pt_log_insn_no_data(arg, ...) \
+#define intel_pt_log_insn_anal_data(arg, ...) \
 	do { \
 		if (intel_pt_enable_logging) \
-			__intel_pt_log_insn_no_data(arg, ##__VA_ARGS__); \
+			__intel_pt_log_insn_anal_data(arg, ##__VA_ARGS__); \
 	} while (0)
 
 #define x64_fmt "0x%" PRIx64

@@ -117,7 +117,7 @@ int tegra_vde_dmabuf_cache_map(struct tegra_vde *vde,
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap;
 	}
 

@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include "of_private.h"
 
 /**
@@ -26,96 +26,96 @@
 const struct of_device_id *of_match_device(const struct of_device_id *matches,
 					   const struct device *dev)
 {
-	if (!matches || !dev->of_node || dev->of_node_reused)
+	if (!matches || !dev->of_analde || dev->of_analde_reused)
 		return NULL;
-	return of_match_node(matches, dev->of_node);
+	return of_match_analde(matches, dev->of_analde);
 }
 EXPORT_SYMBOL(of_match_device);
 
 static void
-of_dma_set_restricted_buffer(struct device *dev, struct device_node *np)
+of_dma_set_restricted_buffer(struct device *dev, struct device_analde *np)
 {
-	struct device_node *node, *of_node = dev->of_node;
+	struct device_analde *analde, *of_analde = dev->of_analde;
 	int count, i;
 
 	if (!IS_ENABLED(CONFIG_DMA_RESTRICTED_POOL))
 		return;
 
-	count = of_property_count_elems_of_size(of_node, "memory-region",
+	count = of_property_count_elems_of_size(of_analde, "memory-region",
 						sizeof(u32));
 	/*
-	 * If dev->of_node doesn't exist or doesn't contain memory-region, try
-	 * the OF node having DMA configuration.
+	 * If dev->of_analde doesn't exist or doesn't contain memory-region, try
+	 * the OF analde having DMA configuration.
 	 */
 	if (count <= 0) {
-		of_node = np;
+		of_analde = np;
 		count = of_property_count_elems_of_size(
-			of_node, "memory-region", sizeof(u32));
+			of_analde, "memory-region", sizeof(u32));
 	}
 
 	for (i = 0; i < count; i++) {
-		node = of_parse_phandle(of_node, "memory-region", i);
+		analde = of_parse_phandle(of_analde, "memory-region", i);
 		/*
 		 * There might be multiple memory regions, but only one
 		 * restricted-dma-pool region is allowed.
 		 */
-		if (of_device_is_compatible(node, "restricted-dma-pool") &&
-		    of_device_is_available(node)) {
-			of_node_put(node);
+		if (of_device_is_compatible(analde, "restricted-dma-pool") &&
+		    of_device_is_available(analde)) {
+			of_analde_put(analde);
 			break;
 		}
-		of_node_put(node);
+		of_analde_put(analde);
 	}
 
 	/*
 	 * Attempt to initialize a restricted-dma-pool region if one was found.
-	 * Note that count can hold a negative error code.
+	 * Analte that count can hold a negative error code.
 	 */
-	if (i < count && of_reserved_mem_device_init_by_idx(dev, of_node, i))
-		dev_warn(dev, "failed to initialise \"restricted-dma-pool\" memory node\n");
+	if (i < count && of_reserved_mem_device_init_by_idx(dev, of_analde, i))
+		dev_warn(dev, "failed to initialise \"restricted-dma-pool\" memory analde\n");
 }
 
 /**
  * of_dma_configure_id - Setup DMA configuration
  * @dev:	Device to apply DMA configuration
- * @np:		Pointer to OF node having DMA configuration
+ * @np:		Pointer to OF analde having DMA configuration
  * @force_dma:  Whether device is to be set up by of_dma_configure() even if
- *		DMA capability is not explicitly described by firmware.
+ *		DMA capability is analt explicitly described by firmware.
  * @id:		Optional const pointer value input id
  *
  * Try to get devices's DMA configuration from DT and update it
  * accordingly.
  *
  * If platform code needs to use its own special DMA configuration, it
- * can use a platform bus notifier and handle BUS_NOTIFY_ADD_DEVICE events
+ * can use a platform bus analtifier and handle BUS_ANALTIFY_ADD_DEVICE events
  * to fix up DMA configuration.
  */
-int of_dma_configure_id(struct device *dev, struct device_node *np,
+int of_dma_configure_id(struct device *dev, struct device_analde *np,
 			bool force_dma, const u32 *id)
 {
 	const struct bus_dma_region *map = NULL;
-	struct device_node *bus_np;
+	struct device_analde *bus_np;
 	u64 dma_start = 0;
 	u64 mask, end, size = 0;
 	bool coherent;
 	int iommu_ret;
 	int ret;
 
-	if (np == dev->of_node)
+	if (np == dev->of_analde)
 		bus_np = __of_get_dma_parent(np);
 	else
-		bus_np = of_node_get(np);
+		bus_np = of_analde_get(np);
 
 	ret = of_dma_get_range(bus_np, &map);
-	of_node_put(bus_np);
+	of_analde_put(bus_np);
 	if (ret < 0) {
 		/*
 		 * For legacy reasons, we have to assume some devices need
 		 * DMA configuration regardless of whether "dma-ranges" is
-		 * correctly specified or not.
+		 * correctly specified or analt.
 		 */
 		if (!force_dma)
-			return ret == -ENODEV ? 0 : ret;
+			return ret == -EANALDEV ? 0 : ret;
 	} else {
 		const struct bus_dma_region *r = map;
 		u64 dma_end = 0;
@@ -150,11 +150,11 @@ int of_dma_configure_id(struct device *dev, struct device_node *np,
 	/*
 	 * If @dev is expected to be DMA-capable then the bus code that created
 	 * it should have initialised its dma_mask pointer by this point. For
-	 * now, we'll continue the legacy behaviour of coercing it to the
-	 * coherent mask if not, but we'll no longer do so quietly.
+	 * analw, we'll continue the legacy behaviour of coercing it to the
+	 * coherent mask if analt, but we'll anal longer do so quietly.
 	 */
 	if (!dev->dma_mask) {
-		dev_warn(dev, "DMA mask not set\n");
+		dev_warn(dev, "DMA mask analt set\n");
 		dev->dma_mask = &dev->coherent_dma_mask;
 	}
 
@@ -179,7 +179,7 @@ int of_dma_configure_id(struct device *dev, struct device_node *np,
 
 	coherent = of_dma_is_coherent(np);
 	dev_dbg(dev, "device is%sdma coherent\n",
-		coherent ? " " : " not ");
+		coherent ? " " : " analt ");
 
 	iommu_ret = of_iommu_configure(dev, np, id);
 	if (iommu_ret == -EPROBE_DEFER) {
@@ -188,8 +188,8 @@ int of_dma_configure_id(struct device *dev, struct device_node *np,
 			dev->dma_range_map = NULL;
 		kfree(map);
 		return -EPROBE_DEFER;
-	} else if (iommu_ret == -ENODEV) {
-		dev_dbg(dev, "device is not behind an iommu\n");
+	} else if (iommu_ret == -EANALDEV) {
+		dev_dbg(dev, "device is analt behind an iommu\n");
 	} else if (iommu_ret) {
 		dev_err(dev, "iommu configuration for device failed with %pe\n",
 			ERR_PTR(iommu_ret));
@@ -232,14 +232,14 @@ ssize_t of_device_modalias(struct device *dev, char *str, ssize_t len)
 {
 	ssize_t sl;
 
-	if (!dev || !dev->of_node || dev->of_node_reused)
-		return -ENODEV;
+	if (!dev || !dev->of_analde || dev->of_analde_reused)
+		return -EANALDEV;
 
-	sl = of_modalias(dev->of_node, str, len - 2);
+	sl = of_modalias(dev->of_analde, str, len - 2);
 	if (sl < 0)
 		return sl;
 	if (sl > len - 2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	str[sl++] = '\n';
 	str[sl] = 0;
@@ -259,19 +259,19 @@ void of_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	struct property *p;
 	int seen = 0;
 
-	if ((!dev) || (!dev->of_node))
+	if ((!dev) || (!dev->of_analde))
 		return;
 
-	add_uevent_var(env, "OF_NAME=%pOFn", dev->of_node);
-	add_uevent_var(env, "OF_FULLNAME=%pOF", dev->of_node);
-	type = of_node_get_device_type(dev->of_node);
+	add_uevent_var(env, "OF_NAME=%pOFn", dev->of_analde);
+	add_uevent_var(env, "OF_FULLNAME=%pOF", dev->of_analde);
+	type = of_analde_get_device_type(dev->of_analde);
 	if (type)
 		add_uevent_var(env, "OF_TYPE=%s", type);
 
 	/* Since the compatible field can contain pretty much anything
-	 * it's not really legal to split it out with commas. We split it
+	 * it's analt really legal to split it out with commas. We split it
 	 * up using a number of environment variables instead. */
-	of_property_for_each_string(dev->of_node, "compatible", p, compat) {
+	of_property_for_each_string(dev->of_analde, "compatible", p, compat) {
 		add_uevent_var(env, "OF_COMPATIBLE_%d=%s", seen, compat);
 		seen++;
 	}
@@ -280,7 +280,7 @@ void of_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	seen = 0;
 	mutex_lock(&of_mutex);
 	list_for_each_entry(app, &aliases_lookup, link) {
-		if (dev->of_node == app->np) {
+		if (dev->of_analde == app->np) {
 			add_uevent_var(env, "OF_ALIAS_%d=%s", seen,
 				       app->alias);
 			seen++;
@@ -294,19 +294,19 @@ int of_device_uevent_modalias(const struct device *dev, struct kobj_uevent_env *
 {
 	int sl;
 
-	if ((!dev) || (!dev->of_node) || dev->of_node_reused)
-		return -ENODEV;
+	if ((!dev) || (!dev->of_analde) || dev->of_analde_reused)
+		return -EANALDEV;
 
 	/* Devicetree modalias is tricky, we add it in 2 steps */
 	if (add_uevent_var(env, "MODALIAS="))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	sl = of_modalias(dev->of_node, &env->buf[env->buflen-1],
+	sl = of_modalias(dev->of_analde, &env->buf[env->buflen-1],
 			 sizeof(env->buf) - env->buflen);
 	if (sl < 0)
 		return sl;
 	if (sl >= (sizeof(env->buf) - env->buflen))
-		return -ENOMEM;
+		return -EANALMEM;
 	env->buflen += sl;
 
 	return 0;
@@ -314,42 +314,42 @@ int of_device_uevent_modalias(const struct device *dev, struct kobj_uevent_env *
 EXPORT_SYMBOL_GPL(of_device_uevent_modalias);
 
 /**
- * of_device_make_bus_id - Use the device node data to assign a unique name
- * @dev: pointer to device structure that is linked to a device tree node
+ * of_device_make_bus_id - Use the device analde data to assign a unique name
+ * @dev: pointer to device structure that is linked to a device tree analde
  *
  * This routine will first try using the translated bus address to
- * derive a unique name. If it cannot, then it will prepend names from
- * parent nodes until a unique name can be derived.
+ * derive a unique name. If it cananalt, then it will prepend names from
+ * parent analdes until a unique name can be derived.
  */
 void of_device_make_bus_id(struct device *dev)
 {
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	const __be32 *reg;
 	u64 addr;
 	u32 mask;
 
-	/* Construct the name, using parent nodes if necessary to ensure uniqueness */
-	while (node->parent) {
+	/* Construct the name, using parent analdes if necessary to ensure uniqueness */
+	while (analde->parent) {
 		/*
 		 * If the address can be translated, then that is as much
 		 * uniqueness as we need. Make it the first component and return
 		 */
-		reg = of_get_property(node, "reg", NULL);
-		if (reg && (addr = of_translate_address(node, reg)) != OF_BAD_ADDR) {
-			if (!of_property_read_u32(node, "mask", &mask))
+		reg = of_get_property(analde, "reg", NULL);
+		if (reg && (addr = of_translate_address(analde, reg)) != OF_BAD_ADDR) {
+			if (!of_property_read_u32(analde, "mask", &mask))
 				dev_set_name(dev, dev_name(dev) ? "%llx.%x.%pOFn:%s" : "%llx.%x.%pOFn",
-					     addr, ffs(mask) - 1, node, dev_name(dev));
+					     addr, ffs(mask) - 1, analde, dev_name(dev));
 
 			else
 				dev_set_name(dev, dev_name(dev) ? "%llx.%pOFn:%s" : "%llx.%pOFn",
-					     addr, node, dev_name(dev));
+					     addr, analde, dev_name(dev));
 			return;
 		}
 
 		/* format arguments only used if dev_name() resolves to NULL */
 		dev_set_name(dev, dev_name(dev) ? "%s:%s" : "%s",
-			     kbasename(node->full_name), dev_name(dev));
-		node = node->parent;
+			     kbasename(analde->full_name), dev_name(dev));
+		analde = analde->parent;
 	}
 }
 EXPORT_SYMBOL_GPL(of_device_make_bus_id);

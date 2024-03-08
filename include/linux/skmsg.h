@@ -20,7 +20,7 @@ enum __sk_action {
 	__SK_DROP = 0,
 	__SK_PASS,
 	__SK_REDIRECT,
-	__SK_NONE,
+	__SK_ANALNE,
 };
 
 struct sk_msg_sg {
@@ -121,9 +121,9 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 		 u32 off, u32 len);
 void sk_msg_trim(struct sock *sk, struct sk_msg *msg, int len);
 int sk_msg_free(struct sock *sk, struct sk_msg *msg);
-int sk_msg_free_nocharge(struct sock *sk, struct sk_msg *msg);
+int sk_msg_free_analcharge(struct sock *sk, struct sk_msg *msg);
 void sk_msg_free_partial(struct sock *sk, struct sk_msg *msg, u32 bytes);
-void sk_msg_free_partial_nocharge(struct sock *sk, struct sk_msg *msg,
+void sk_msg_free_partial_analcharge(struct sock *sk, struct sk_msg *msg,
 				  u32 bytes);
 
 void sk_msg_return(struct sock *sk, struct sk_msg *msg, int bytes);
@@ -382,7 +382,7 @@ static inline void sk_psock_report_error(struct sk_psock *psock, int err)
 	sk_error_report(sk);
 }
 
-struct sk_psock *sk_psock_init(struct sock *sk, int node);
+struct sk_psock *sk_psock_init(struct sock *sk, int analde);
 void sk_psock_stop(struct sk_psock *psock);
 
 #if IS_ENABLED(CONFIG_BPF_STREAM_PARSER)
@@ -392,7 +392,7 @@ void sk_psock_stop_strp(struct sock *sk, struct sk_psock *psock);
 #else
 static inline int sk_psock_init_strp(struct sock *sk, struct sk_psock *psock)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void sk_psock_start_strp(struct sock *sk, struct sk_psock *psock)
@@ -413,7 +413,7 @@ int sk_psock_msg_verdict(struct sock *sk, struct sk_psock *psock,
 static inline struct sk_psock_link *sk_psock_init_link(void)
 {
 	return kzalloc(sizeof(struct sk_psock_link),
-		       GFP_ATOMIC | __GFP_NOWARN);
+		       GFP_ATOMIC | __GFP_ANALWARN);
 }
 
 static inline void sk_psock_free_link(struct sk_psock_link *link)
@@ -445,7 +445,7 @@ static inline struct sk_psock *sk_psock_get(struct sock *sk)
 
 	rcu_read_lock();
 	psock = sk_psock(sk);
-	if (psock && !refcount_inc_not_zero(&psock->refcnt))
+	if (psock && !refcount_inc_analt_zero(&psock->refcnt))
 		psock = NULL;
 	rcu_read_unlock();
 	return psock;
@@ -480,7 +480,7 @@ static inline int psock_replace_prog(struct bpf_prog **pprog,
 				     struct bpf_prog *old)
 {
 	if (cmpxchg(pprog, old, prog) != old)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (old)
 		bpf_prog_put(old);

@@ -30,7 +30,7 @@
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "sst,sst25vf040b", "jedec,spi-nor";
+		compatible = "sst,sst25vf040b", "jedec,spi-analr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -141,7 +141,7 @@
 				MX6QDL_PAD_DISP0_DAT2__ECSPI3_MISO	0x100b1
 				MX6QDL_PAD_DISP0_DAT1__ECSPI3_MOSI	0x100b1
 				MX6QDL_PAD_DISP0_DAT0__ECSPI3_SCLK	0x100b1
-				MX6QDL_PAD_DISP0_DAT3__GPIO4_IO24 0x80000000 /* SPI NOR chipselect */
+				MX6QDL_PAD_DISP0_DAT3__GPIO4_IO24 0x80000000 /* SPI ANALR chipselect */
 			>;
 		};
 	};
@@ -188,6 +188,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };

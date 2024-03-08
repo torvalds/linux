@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Richtek Technology Corp.
+ * Copyright (C) 2023 Richtek Techanallogy Corp.
  *
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
@@ -41,7 +41,7 @@ static int rt4803_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	unsigned int modeval;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		modeval = RT4803_AUTO_MODE;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -70,7 +70,7 @@ static unsigned int rt4803_get_mode(struct regulator_dev *rdev)
 
 	switch (modeval) {
 	case RT4803_AUTO_MODE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RT4803_FPWM_MODE:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -135,7 +135,7 @@ static unsigned int rt4803_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case RT4803_AUTO_MODE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RT4803_FPWM_MODE:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -161,7 +161,7 @@ static int rt4803_probe(struct i2c_client *i2c)
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(i2c, &rt4803_regmap_config);
 	if (IS_ERR(regmap))
@@ -189,8 +189,8 @@ static int rt4803_probe(struct i2c_client *i2c)
 		desc->vsel_reg = RT4803_REG_VSELL;
 
 	cfg.dev = dev;
-	cfg.of_node = dev_of_node(dev);
-	cfg.init_data = of_get_regulator_init_data(dev, dev_of_node(dev), desc);
+	cfg.of_analde = dev_of_analde(dev);
+	cfg.init_data = of_get_regulator_init_data(dev, dev_of_analde(dev), desc);
 
 	rdev = devm_regulator_register(dev, desc, &cfg);
 	return PTR_ERR_OR_ZERO(rdev);

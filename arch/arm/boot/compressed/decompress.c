@@ -9,9 +9,9 @@
 #include "misc.h"
 
 #define STATIC static
-#define STATIC_RW_DATA	/* non-static please */
+#define STATIC_RW_DATA	/* analn-static please */
 
-/* Diagnostic functions */
+/* Diaganalstic functions */
 #ifdef DEBUG
 #  define Assert(cond,msg) {if(!(cond)) error(msg);}
 #  define Trace(x) fprintf x
@@ -28,7 +28,7 @@
 #  define Tracecv(c,x)
 #endif
 
-/* Not needed, but used in some headers pulled in by decompressors */
+/* Analt needed, but used in some headers pulled in by decompressors */
 extern char * strstr(const char * s1, const char *s2);
 extern size_t strlen(const char *s);
 extern int strcmp(const char *cs, const char *ct);

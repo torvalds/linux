@@ -30,7 +30,7 @@ Required properties:
 		  - DSI1 DDR clock
 
 		  Only external oscillator is required.  The DSI clocks may
-		  not be present, in which case their children will be
+		  analt be present, in which case their children will be
 		  unusable.
 
 Example:

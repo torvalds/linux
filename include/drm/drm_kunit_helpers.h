@@ -54,7 +54,7 @@ __drm_kunit_helper_alloc_drm_device(struct kunit *test,
 	struct drm_driver *driver;
 
 	driver = devm_kzalloc(dev, sizeof(*driver), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, driver);
+	KUNIT_ASSERT_ANALT_NULL(test, driver);
 
 	driver->driver_features = features;
 

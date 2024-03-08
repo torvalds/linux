@@ -199,8 +199,8 @@ static int ipu_csc_scaler_try_fmt(struct file *file, void *priv,
 
 	field = f->fmt.pix.field;
 	if (field == V4L2_FIELD_ANY)
-		field = V4L2_FIELD_NONE;
-	else if (field != V4L2_FIELD_NONE)
+		field = V4L2_FIELD_ANALNE;
+	else if (field != V4L2_FIELD_ANALNE)
 		return -EINVAL;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
@@ -286,7 +286,7 @@ static int ipu_csc_scaler_s_fmt(struct file *file, void *priv,
 	}
 
 	/*
-	 * TODO: Setting colorimetry on the capture queue is currently not
+	 * TODO: Setting colorimetry on the capture queue is currently analt
 	 * supported by the V4L2 API
 	 */
 
@@ -455,8 +455,8 @@ static int ipu_csc_scaler_buf_prepare(struct vb2_buffer *vb)
 
 	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
 		if (vbuf->field == V4L2_FIELD_ANY)
-			vbuf->field = V4L2_FIELD_NONE;
-		if (vbuf->field != V4L2_FIELD_NONE) {
+			vbuf->field = V4L2_FIELD_ANALNE;
+		if (vbuf->field != V4L2_FIELD_ANALNE) {
 			dev_dbg(ctx->priv->dev, "%s: field isn't supported\n",
 				__func__);
 			return -EINVAL;
@@ -468,7 +468,7 @@ static int ipu_csc_scaler_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < size) {
 		dev_dbg(ctx->priv->dev,
-			"%s: data will not fit into plane (%lu < %lu)\n",
+			"%s: data will analt fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -735,7 +735,7 @@ static const struct ipu_csc_scaler_q_data ipu_csc_scaler_q_data_default = {
 		.width = DEFAULT_WIDTH,
 		.height = DEFAULT_HEIGHT,
 		.pixelformat = V4L2_PIX_FMT_YUV420,
-		.field = V4L2_FIELD_NONE,
+		.field = V4L2_FIELD_ANALNE,
 		.bytesperline = DEFAULT_WIDTH,
 		.sizeimage = DEFAULT_WIDTH * DEFAULT_HEIGHT * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -757,9 +757,9 @@ static int ipu_csc_scaler_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ctx->rot_mode = IPU_ROTATE_NONE;
+	ctx->rot_mode = IPU_ROTATE_ANALNE;
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	file->private_data = &ctx->fh;
@@ -838,7 +838,7 @@ static const struct video_device ipu_csc_scaler_videodev_template = {
 	.name		= "ipu_ic_pp csc/scaler",
 	.fops		= &ipu_csc_scaler_fops,
 	.ioctl_ops	= &ipu_csc_scaler_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= ipu_csc_scaler_video_device_release,
 	.vfl_dir	= VFL_DIR_M2M,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
@@ -859,7 +859,7 @@ int imx_media_csc_scaler_device_register(struct imx_media_video_dev *vdev)
 	}
 
 	v4l2_info(vfd->v4l2_dev, "Registered %s as /dev/%s\n", vfd->name,
-		  video_device_node_name(vfd));
+		  video_device_analde_name(vfd));
 
 	return 0;
 }
@@ -881,7 +881,7 @@ imx_media_csc_scaler_device_init(struct imx_media_dev *md)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->md = md;
 	priv->dev = md->md.dev;
@@ -890,7 +890,7 @@ imx_media_csc_scaler_device_init(struct imx_media_dev *md)
 
 	vfd = video_device_alloc();
 	if (!vfd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_vfd;
 	}
 

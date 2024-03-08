@@ -1,6 +1,6 @@
 Some socs have a large number of interrupts requests to service
 the needs of its many peripherals and subsystems. All of the
-interrupt lines from the subsystems are not needed at the same
+interrupt lines from the subsystems are analt needed at the same
 time, so they have to be muxed to the irq-controller appropriately.
 In such places a interrupt controllers are preceded by an CROSSBAR
 that provides flexibility in muxing the device requests to the controller
@@ -14,18 +14,18 @@ Required properties:
 - ti,max-crossbar-sources: Maximum number of crossbar sources that can be routed.
 - ti,reg-size: Size of a individual register in bytes. Every individual
 	    register is assumed to be of same size. Valid sizes are 1, 2, 4.
-- ti,irqs-reserved: List of the reserved irq lines that are not muxed using
+- ti,irqs-reserved: List of the reserved irq lines that are analt muxed using
 		 crossbar. These interrupt lines are reserved in the soc,
-		 so crossbar bar driver should not consider them as free
+		 so crossbar bar driver should analt consider them as free
 		 lines.
 
 Optional properties:
 - ti,irqs-skip: This is similar to "ti,irqs-reserved", but these are for
   SOC-specific hard-wiring of those irqs which unexpectedly bypasses the
-  crossbar. These irqs have a crossbar register, but still cannot be used.
+  crossbar. These irqs have a crossbar register, but still cananalt be used.
 
 - ti,irqs-safe-map: integer which maps to a safe configuration to use
-  when the interrupt controller irq is unused (when not provided, default is 0)
+  when the interrupt controller irq is unused (when analt provided, default is 0)
 
 Examples:
 		crossbar_mpu: crossbar@4a002a48 {

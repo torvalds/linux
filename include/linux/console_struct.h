@@ -24,7 +24,7 @@ struct uni_pagedict;
 
 enum vc_intensity {
 	VCI_HALF_BRIGHT,
-	VCI_NORMAL,
+	VCI_ANALRMAL,
 	VCI_BOLD,
 	VCI_MASK = 0x3,
 };
@@ -74,7 +74,7 @@ struct vc_state {
  *           vc_rows --->< | login: root          |   |  visible on console
  *                        || password:            |    > (vc_screenbuf_size is
  * vc_origin -----------> ||                      |   |   vc_size_row * vc_rows)
- * (start when no scroll) || Last login: 12:28    |  /
+ * (start when anal scroll) || Last login: 12:28    |  /
  *                        v+----------------------+-:
  *                         | Have a lot of fun... |  \
  * vc_pos -----------------|--------v             |   > scroll-front area
@@ -86,8 +86,8 @@ struct vc_state {
  *                         <---- 2 * vc_cols ----->
  *                         <---- vc_size_row ----->
  *
- * Note that every character in the console buffer is accompanied with an
- * attribute in the buffer right after the character. This is not depicted
+ * Analte that every character in the console buffer is accompanied with an
+ * attribute in the buffer right after the character. This is analt depicted
  * in the figure.
  */
 struct vc_data {
@@ -121,7 +121,7 @@ struct vc_data {
 	unsigned short	vc_s_complement_mask;	/* Saved mouse pointer mask */
 	unsigned long	vc_pos;			/* Cursor address */
 	/* fonts */	
-	unsigned short	vc_hi_font_mask;	/* [#] Attribute set for upper 256 chars of font or 0 if not supported */
+	unsigned short	vc_hi_font_mask;	/* [#] Attribute set for upper 256 chars of font or 0 if analt supported */
 	struct console_font vc_font;		/* Current VC font set */
 	unsigned short	vc_video_erase_char;	/* Background erase character */
 	/* VT terminal data */
@@ -177,7 +177,7 @@ extern void vc_SAK(struct work_struct *work);
 		((set) << 16))
 #define CUR_SIZE(c)		 ((c) & 0x00000f)
 # define CUR_DEF			       0
-# define CUR_NONE			       1
+# define CUR_ANALNE			       1
 # define CUR_UNDERLINE			       2
 # define CUR_LOWER_THIRD		       3
 # define CUR_LOWER_HALF			       4

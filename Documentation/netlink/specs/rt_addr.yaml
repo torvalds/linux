@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: rt-addr
 protocol: netlink-raw
@@ -53,7 +53,7 @@ definitions:
       -
         name: secondary
       -
-        name: nodad
+        name: analdad
       -
         name: optimistic
       -
@@ -69,7 +69,7 @@ definitions:
       -
         name: managetempaddr
       -
-        name: noprefixroute
+        name: analprefixroute
       -
         name: mcautojoin
       -

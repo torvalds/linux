@@ -11,9 +11,9 @@ Required properties:
 - clock-names: should contain "delay" and "reg"
 - #reset-cells: should be 1
 
-See table below for valid peripheral reset numbers. Numbers not
-in the table below are either reserved or not applicable for
-normal operation.
+See table below for valid peripheral reset numbers. Numbers analt
+in the table below are either reserved or analt applicable for
+analrmal operation.
 
 Reset	Peripheral
   9	System control unit (SCU)

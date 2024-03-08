@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <string.h>
 
@@ -26,7 +26,7 @@
 #define MAX_EVENTS 1
 
 volatile static int interrupted;
-static int nl_sock, ret_errno, tcount;
+static int nl_sock, ret_erranal, tcount;
 static struct epoll_event evn;
 
 static int filter;
@@ -72,7 +72,7 @@ int send_message(void *pinp)
 	}
 
 	if (send(nl_sock, hdr, hdr->nlmsg_len, 0) == -1) {
-		ret_errno = errno;
+		ret_erranal = erranal;
 		perror("send failed");
 		return -3;
 	}
@@ -87,7 +87,7 @@ int register_proc_netlink(int *efd, void *input)
 	nl_sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
 
 	if (nl_sock == -1) {
-		ret_errno = errno;
+		ret_erranal = erranal;
 		perror("socket failed");
 		return -1;
 	}
@@ -98,14 +98,14 @@ int register_proc_netlink(int *efd, void *input)
 	sa_nl.nl_pid    = getpid();
 
 	if (bind(nl_sock, (struct sockaddr *)&sa_nl, sizeof(sa_nl)) == -1) {
-		ret_errno = errno;
+		ret_erranal = erranal;
 		perror("bind failed");
 		return -2;
 	}
 
 	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 	if (epoll_fd < 0) {
-		ret_errno = errno;
+		ret_erranal = erranal;
 		perror("epoll_create1 failed");
 		return -2;
 	}
@@ -118,7 +118,7 @@ int register_proc_netlink(int *efd, void *input)
 	evn.events = EPOLLIN;
 	evn.data.fd = nl_sock;
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, nl_sock, &evn) < 0) {
-		ret_errno = errno;
+		ret_erranal = erranal;
 		perror("epoll_ctl failed");
 		return -3;
 	}
@@ -218,8 +218,8 @@ int handle_events(int epoll_fd, struct proc_event *pev)
 
 	event_count = epoll_wait(epoll_fd, ev, MAX_EVENTS, -1);
 	if (event_count < 0) {
-		ret_errno = errno;
-		if (ret_errno != EINTR)
+		ret_erranal = erranal;
+		if (ret_erranal != EINTR)
 			perror("epoll_wait failed");
 		return -3;
 	}
@@ -227,7 +227,7 @@ int handle_events(int epoll_fd, struct proc_event *pev)
 		if (!(ev[i].events & EPOLLIN))
 			continue;
 		if (recv(ev[i].data.fd, buff, sizeof(buff), 0) == -1) {
-			ret_errno = errno;
+			ret_erranal = erranal;
 			perror("recv failed");
 			return -3;
 		}
@@ -247,7 +247,7 @@ int main(int argc, char *argv[])
 	signal(SIGINT, sigint);
 
 	if (argc > 2) {
-		printf("Expected 0(assume no-filter) or 1 argument(-f)\n");
+		printf("Expected 0(assume anal-filter) or 1 argument(-f)\n");
 		exit(KSFT_SKIP);
 	}
 
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (filter) {
-		input.event_type = PROC_EVENT_NONZERO_EXIT;
+		input.event_type = PROC_EVENT_ANALNZERO_EXIT;
 		input.mcast_op = PROC_CN_MCAST_LISTEN;
 		err = register_proc_netlink(&epoll_fd, (void*)&input);
 	} else {
@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
 	while (!interrupted) {
 		err = handle_events(epoll_fd, &proc_ev);
 		if (err < 0) {
-			if (ret_errno == EINTR)
+			if (ret_erranal == EINTR)
 				continue;
 			if (err == -2)
 				close(nl_sock);
@@ -295,10 +295,10 @@ int main(int argc, char *argv[])
 	}
 
 	if (filter) {
-		input.mcast_op = PROC_CN_MCAST_IGNORE;
+		input.mcast_op = PROC_CN_MCAST_IGANALRE;
 		send_message((void*)&input);
 	} else {
-		enum proc_cn_mcast_op op = PROC_CN_MCAST_IGNORE;
+		enum proc_cn_mcast_op op = PROC_CN_MCAST_IGANALRE;
 		send_message((void*)&op);
 	}
 

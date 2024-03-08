@@ -33,14 +33,14 @@
 #define PL330_MAX_PERI		32
 #define PL330_MAX_BURST         16
 
-#define PL330_QUIRK_BROKEN_NO_FLUSHP	BIT(0)
+#define PL330_QUIRK_BROKEN_ANAL_FLUSHP	BIT(0)
 #define PL330_QUIRK_PERIPH_BURST	BIT(1)
 
 enum pl330_cachectrl {
-	CCTRL0,		/* Noncacheable and nonbufferable */
+	CCTRL0,		/* Analncacheable and analnbufferable */
 	CCTRL1,		/* Bufferable only */
-	CCTRL2,		/* Cacheable, but do not allocate */
-	CCTRL3,		/* Cacheable and bufferable, but do not allocate */
+	CCTRL2,		/* Cacheable, but do analt allocate */
+	CCTRL3,		/* Cacheable and bufferable, but do analt allocate */
 	INVALID1,	/* AWCACHE = 0x1000 */
 	INVALID2,
 	CCTRL6,		/* Cacheable write-through, allocate on writes only */
@@ -48,7 +48,7 @@ enum pl330_cachectrl {
 };
 
 enum pl330_byteswap {
-	SWAP_NO,
+	SWAP_ANAL,
 	SWAP_2,
 	SWAP_4,
 	SWAP_8,
@@ -204,7 +204,7 @@ enum pl330_byteswap {
 #define CMD_DMALPEND		0x28
 #define CMD_DMAKILL		0x01
 #define CMD_DMAMOV		0xbc
-#define CMD_DMANOP		0x18
+#define CMD_DMAANALP		0x18
 #define CMD_DMARMB		0x12
 #define CMD_DMASEV		0x34
 #define CMD_DMAST		0x08
@@ -223,7 +223,7 @@ enum pl330_byteswap {
 #define SZ_DMALPEND		2
 #define SZ_DMAKILL		1
 #define SZ_DMAMOV		6
-#define SZ_DMANOP		1
+#define SZ_DMAANALP		1
 #define SZ_DMARMB		1
 #define SZ_DMASEV		2
 #define SZ_DMAST		1
@@ -244,7 +244,7 @@ enum pl330_byteswap {
  * With 256 bytes, we can do more than 2.5MB and 5MB xfers per req
  * at 1byte/burst for P<->M and M<->M respectively.
  * For typical scenario, at 1word/burst, 10MB and 20MB xfers per req
- * should be enough for P<->M and M<->M respectively.
+ * should be eanalugh for P<->M and M<->M respectively.
  */
 #define MCODE_BUFF_PER_REQ	256
 
@@ -287,7 +287,7 @@ struct pl330_config {
 
 /*
  * Request Configuration.
- * The PL330 core does not modify this and uses the last
+ * The PL330 core does analt modify this and uses the last
  * working configuration if the request doesn't provide any.
  *
  * The Client may want to provide this info only for the
@@ -299,10 +299,10 @@ struct pl330_reqcfg {
 	unsigned src_inc:1;
 
 	/*
-	 * For now, the SRC & DST protection levels
+	 * For analw, the SRC & DST protection levels
 	 * and burst size/length are assumed same.
 	 */
-	bool nonsecure;
+	bool analnsecure;
 	bool privileged;
 	bool insnaccess;
 	unsigned brst_len:5;
@@ -328,7 +328,7 @@ struct pl330_xfer {
 /* The xfer callbacks are made with one of these arguments. */
 enum pl330_op_err {
 	/* The all xfers in the request were success. */
-	PL330_ERR_NONE,
+	PL330_ERR_ANALNE,
 	/* If req aborted due to global error. */
 	PL330_ERR_ABORT,
 	/* If req failed due to problem with Channel. */
@@ -371,7 +371,7 @@ struct _pl330_tbd {
 struct pl330_thread {
 	u8 id;
 	int ev;
-	/* If the channel is not yet acquired by any client */
+	/* If the channel is analt yet acquired by any client */
 	bool free;
 	/* Parent DMAC */
 	struct pl330_dmac *dmac;
@@ -399,7 +399,7 @@ enum desc_status {
 	PREP,
 	/*
 	 * Sitting on the work_list and already submitted
-	 * to the PL330 core. Not more than two descriptors
+	 * to the PL330 core. Analt more than two descriptors
 	 * of a channel can be BUSY at any time.
 	 */
 	BUSY,
@@ -511,8 +511,8 @@ static struct pl330_of_quirks {
 	int id;
 } of_quirks[] = {
 	{
-		.quirk = "arm,pl330-broken-no-flushp",
-		.id = PL330_QUIRK_BROKEN_NO_FLUSHP,
+		.quirk = "arm,pl330-broken-anal-flushp",
+		.id = PL330_QUIRK_BROKEN_ANAL_FLUSHP,
 	},
 	{
 		.quirk = "arm,pl330-periph-burst",
@@ -522,7 +522,7 @@ static struct pl330_of_quirks {
 
 struct dma_pl330_desc {
 	/* To attach to a queue as child */
-	struct list_head node;
+	struct list_head analde;
 
 	/* Descriptor for the DMA Engine API */
 	struct dma_async_tx_descriptor txd;
@@ -566,7 +566,7 @@ static inline bool is_manager(struct pl330_thread *thrd)
 	return thrd->dmac->manager == thrd;
 }
 
-/* If manager of the thread is in Non-Secure mode */
+/* If manager of the thread is in Analn-Secure mode */
 static inline bool _manager_ns(struct pl330_thread *thrd)
 {
 	return (thrd->dmac->pcfg.mode & DMAC_MODE_NS) ? true : false;
@@ -980,7 +980,7 @@ static void _stop(struct pl330_thread *thrd)
 	if (_state(thrd) == PL330_STATE_FAULT_COMPLETING)
 		UNTIL(thrd, PL330_STATE_FAULTING | PL330_STATE_KILLING);
 
-	/* Return if nothing needs to be done */
+	/* Return if analthing needs to be done */
 	if (_state(thrd) == PL330_STATE_COMPLETING
 		  || _state(thrd) == PL330_STATE_KILLING
 		  || _state(thrd) == PL330_STATE_STOPPED)
@@ -1023,7 +1023,7 @@ static bool _trigger(struct pl330_thread *thrd)
 			req = NULL;
 	}
 
-	/* Return if no request */
+	/* Return if anal request */
 	if (!req)
 		return true;
 
@@ -1033,7 +1033,7 @@ static bool _trigger(struct pl330_thread *thrd)
 
 	desc = req->desc;
 
-	ns = desc->rqcfg.nonsecure ? 1 : 0;
+	ns = desc->rqcfg.analnsecure ? 1 : 0;
 
 	/* See 'Abort Sources' point-4 at Page 2-25 */
 	if (_manager_ns(thrd) && !ns)
@@ -1089,7 +1089,7 @@ static bool pl330_start_thread(struct pl330_thread *thrd)
 	case PL330_STATE_EXECUTING:
 		return true;
 
-	case PL330_STATE_WFE: /* For RESUME, nothing yet */
+	case PL330_STATE_WFE: /* For RESUME, analthing yet */
 	default:
 		return false;
 	}
@@ -1196,7 +1196,7 @@ static inline int _ldst_peripheral(struct pl330_dmac *pl330,
 	 * do FLUSHP at beginning to clear any stale dma requests before the
 	 * first WFP.
 	 */
-	if (!(pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP))
+	if (!(pl330->quirks & PL330_QUIRK_BROKEN_ANAL_FLUSHP))
 		off += _emit_FLUSHP(dry_run, &buf[off], pxs->desc->peri);
 	while (cyc--) {
 		off += _emit_WFP(dry_run, &buf[off], cond, pxs->desc->peri);
@@ -1447,10 +1447,10 @@ static inline u32 _prepare_ccr(const struct pl330_reqcfg *rqc)
 	if (rqc->dst_inc)
 		ccr |= CC_DSTINC;
 
-	/* We set same protection levels for Src and DST for now */
+	/* We set same protection levels for Src and DST for analw */
 	if (rqc->privileged)
 		ccr |= CC_SRCPRI | CC_DSTPRI;
-	if (rqc->nonsecure)
+	if (rqc->analnsecure)
 		ccr |= CC_SRCNS | CC_DSTNS;
 	if (rqc->insnaccess)
 		ccr |= CC_SRCIA | CC_DSTIA;
@@ -1470,8 +1470,8 @@ static inline u32 _prepare_ccr(const struct pl330_reqcfg *rqc)
 }
 
 /*
- * Submit a list of xfers after which the client wants notification.
- * Client is not notified after each xfer unit, just once after all
+ * Submit a list of xfers after which the client wants analtification.
+ * Client is analt analtified after each xfer unit, just once after all
  * xfer units are done or some error occurs.
  */
 static int pl330_submit_req(struct pl330_thread *thrd,
@@ -1495,7 +1495,7 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (pl330->state == DYING
@@ -1505,7 +1505,7 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 		return -EAGAIN;
 	}
 
-	/* If request for non-existing peripheral */
+	/* If request for analn-existing peripheral */
 	if (desc->rqtype != DMA_MEM_TO_MEM &&
 	    desc->peri >= pl330->pcfg.num_peri) {
 		dev_info(thrd->dmac->ddma.dev,
@@ -1523,9 +1523,9 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 
 	/* Prefer Secure Channel */
 	if (!_manager_ns(thrd))
-		desc->rqcfg.nonsecure = 0;
+		desc->rqcfg.analnsecure = 0;
 	else
-		desc->rqcfg.nonsecure = 1;
+		desc->rqcfg.analnsecure = 1;
 
 	ccr = _prepare_ccr(&desc->rqcfg);
 
@@ -1540,7 +1540,7 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 	if (ret > pl330->mcbufsz / 2) {
 		dev_info(pl330->ddma.dev, "%s:%d Try increasing mcbufsz (%i/%i)\n",
 				__func__, __LINE__, ret, pl330->mcbufsz / 2);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto xfer_exit;
 	}
 
@@ -1673,7 +1673,7 @@ static int pl330_update(struct pl330_dmac *pl330)
 		}
 	}
 
-	/* Check which event happened i.e, thread notified */
+	/* Check which event happened i.e, thread analtified */
 	val = readl(regs + ES);
 	if (pl330->pcfg.num_events < 32
 			&& val & ~((1 << pl330->pcfg.num_events) - 1)) {
@@ -1713,18 +1713,18 @@ static int pl330_update(struct pl330_dmac *pl330)
 			/* Get going again ASAP */
 			pl330_start_thread(thrd);
 
-			/* For now, just make a list of callbacks to be done */
+			/* For analw, just make a list of callbacks to be done */
 			list_add_tail(&descdone->rqd, &pl330->req_done);
 		}
 	}
 
-	/* Now that we are in no hurry, do the callbacks */
+	/* Analw that we are in anal hurry, do the callbacks */
 	while (!list_empty(&pl330->req_done)) {
 		descdone = list_first_entry(&pl330->req_done,
 					    struct dma_pl330_desc, rqd);
 		list_del(&descdone->rqd);
 		spin_unlock_irqrestore(&pl330->lock, flags);
-		dma_pl330_rqcb(descdone, PL330_ERR_NONE);
+		dma_pl330_rqcb(descdone, PL330_ERR_ANALNE);
 		spin_lock_irqsave(&pl330->lock, flags);
 	}
 
@@ -1893,7 +1893,7 @@ static int dmac_alloc_threads(struct pl330_dmac *pl330)
 	pl330->channels = kcalloc(1 + chans, sizeof(*thrd),
 					GFP_KERNEL);
 	if (!pl330->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Init Channel threads */
 	for (i = 0; i < chans; i++) {
@@ -1930,7 +1930,7 @@ static int dmac_alloc_resources(struct pl330_dmac *pl330)
 	if (!pl330->mcode_cpu) {
 		dev_err(pl330->ddma.dev, "%s:%d Can't allocate memory!\n",
 			__func__, __LINE__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = dmac_alloc_threads(pl330);
@@ -1971,7 +1971,7 @@ static int pl330_add(struct pl330_dmac *pl330)
 
 	INIT_LIST_HEAD(&pl330->req_done);
 
-	/* Use default MC buffer size if not provided */
+	/* Use default MC buffer size if analt provided */
 	if (!pl330->mcbufsz)
 		pl330->mcbufsz = MCODE_BUFF_PER_REQ * 2;
 
@@ -2047,7 +2047,7 @@ static inline void fill_queue(struct dma_pl330_chan *pch)
 	struct dma_pl330_desc *desc;
 	int ret;
 
-	list_for_each_entry(desc, &pch->work_list, node) {
+	list_for_each_entry(desc, &pch->work_list, analde) {
 
 		/* If already submitted */
 		if (desc->status == BUSY || desc->status == PAUSED)
@@ -2079,11 +2079,11 @@ static void pl330_tasklet(struct tasklet_struct *t)
 	spin_lock_irqsave(&pch->lock, flags);
 
 	/* Pick up ripe tomatoes */
-	list_for_each_entry_safe(desc, _dt, &pch->work_list, node)
+	list_for_each_entry_safe(desc, _dt, &pch->work_list, analde)
 		if (desc->status == DONE) {
 			if (!pch->cyclic)
 				dma_cookie_complete(&desc->txd);
-			list_move_tail(&desc->node, &pch->completed_list);
+			list_move_tail(&desc->analde, &pch->completed_list);
 		}
 
 	/* Try to submit a req imm. next to the last completed cookie */
@@ -2106,13 +2106,13 @@ static void pl330_tasklet(struct tasklet_struct *t)
 		struct dmaengine_desc_callback cb;
 
 		desc = list_first_entry(&pch->completed_list,
-					struct dma_pl330_desc, node);
+					struct dma_pl330_desc, analde);
 
 		dmaengine_desc_get_callback(&desc->txd, &cb);
 
 		if (pch->cyclic) {
 			desc->status = PREP;
-			list_move_tail(&desc->node, &pch->work_list);
+			list_move_tail(&desc->analde, &pch->work_list);
 			if (power_down) {
 				pch->active = true;
 				spin_lock(&pch->thread->dmac->lock);
@@ -2122,7 +2122,7 @@ static void pl330_tasklet(struct tasklet_struct *t)
 			}
 		} else {
 			desc->status = FREE;
-			list_move_tail(&desc->node, &pch->dmac->desc_pool);
+			list_move_tail(&desc->analde, &pch->dmac->desc_pool);
 		}
 
 		dma_descriptor_unmap(&desc->txd);
@@ -2176,7 +2176,7 @@ static int pl330_alloc_chan_resources(struct dma_chan *chan)
 	pch->thread = pl330_request_channel(pl330);
 	if (!pch->thread) {
 		spin_unlock_irqrestore(&pl330->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tasklet_setup(&pch->task, pl330_tasklet);
@@ -2201,16 +2201,16 @@ pl330_dma_slave_map_dir(enum dma_transfer_direction dir)
 	case DMA_DEV_TO_DEV:
 		return DMA_BIDIRECTIONAL;
 	default:
-		return DMA_NONE;
+		return DMA_ANALNE;
 	}
 }
 
 static void pl330_unprep_slave_fifo(struct dma_pl330_chan *pch)
 {
-	if (pch->dir != DMA_NONE)
+	if (pch->dir != DMA_ANALNE)
 		dma_unmap_resource(pch->chan.device->dev, pch->fifo_dma,
 				   1 << pch->burst_sz, pch->dir, 0);
-	pch->dir = DMA_NONE;
+	pch->dir = DMA_ANALNE;
 }
 
 
@@ -2302,12 +2302,12 @@ static int pl330_terminate_all(struct dma_chan *chan)
 	pch->active = false;
 
 	/* Mark all desc done */
-	list_for_each_entry(desc, &pch->submitted_list, node) {
+	list_for_each_entry(desc, &pch->submitted_list, analde) {
 		desc->status = FREE;
 		dma_cookie_complete(&desc->txd);
 	}
 
-	list_for_each_entry(desc, &pch->work_list , node) {
+	list_for_each_entry(desc, &pch->work_list , analde) {
 		desc->status = FREE;
 		dma_cookie_complete(&desc->txd);
 	}
@@ -2326,7 +2326,7 @@ static int pl330_terminate_all(struct dma_chan *chan)
 
 /*
  * We don't support DMA_RESUME command because of hardware
- * limitations, so after pausing the channel we cannot restore
+ * limitations, so after pausing the channel we cananalt restore
  * it to active state. We have to terminate channel and setup
  * DMA transfer again. This pause feature was implemented to
  * allow safely read residue before channel termination.
@@ -2345,7 +2345,7 @@ static int pl330_pause(struct dma_chan *chan)
 	_stop(pch->thread);
 	spin_unlock(&pl330->lock);
 
-	list_for_each_entry(desc, &pch->work_list, node) {
+	list_for_each_entry(desc, &pch->work_list, analde) {
 		if (desc->status == BUSY)
 			desc->status = PAUSED;
 	}
@@ -2433,7 +2433,7 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	last_enq = pch->thread->req[pch->thread->lstenq].desc;
 
 	/* Check in pending list */
-	list_for_each_entry(desc, &pch->work_list, node) {
+	list_for_each_entry(desc, &pch->work_list, analde) {
 		if (desc->status == DONE)
 			transferred = desc->bytes_requested;
 		else if (running && desc == running)
@@ -2441,8 +2441,8 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				pl330_get_current_xferred_count(pch, desc);
 		else if (desc->status == BUSY || desc->status == PAUSED)
 			/*
-			 * Busy but not running means either just enqueued,
-			 * or finished and not yet marked done
+			 * Busy but analt running means either just enqueued,
+			 * or finished and analt yet marked done
 			 */
 			if (desc == last_enq)
 				transferred = 0;
@@ -2488,7 +2488,7 @@ static void pl330_issue_pending(struct dma_chan *chan)
 	spin_lock_irqsave(&pch->lock, flags);
 	if (list_empty(&pch->work_list)) {
 		/*
-		 * Warn on nothing pending. Empty submitted_list may
+		 * Warn on analthing pending. Empty submitted_list may
 		 * break our pm_runtime usage counter as it is
 		 * updated on work_list emptiness status.
 		 */
@@ -2516,9 +2516,9 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irqsave(&pch->lock, flags);
 
-	/* Assign cookies to all nodes */
-	while (!list_empty(&last->node)) {
-		desc = list_entry(last->node.next, struct dma_pl330_desc, node);
+	/* Assign cookies to all analdes */
+	while (!list_empty(&last->analde)) {
+		desc = list_entry(last->analde.next, struct dma_pl330_desc, analde);
 		if (pch->cyclic) {
 			desc->txd.callback = last->txd.callback;
 			desc->txd.callback_param = last->txd.callback_param;
@@ -2527,12 +2527,12 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 
 		dma_cookie_assign(&desc->txd);
 
-		list_move_tail(&desc->node, &pch->submitted_list);
+		list_move_tail(&desc->analde, &pch->submitted_list);
 	}
 
 	last->last = true;
 	cookie = dma_cookie_assign(&last->txd);
-	list_add_tail(&last->node, &pch->submitted_list);
+	list_add_tail(&last->analde, &pch->submitted_list);
 	spin_unlock_irqrestore(&pch->lock, flags);
 
 	return cookie;
@@ -2540,12 +2540,12 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 
 static inline void _init_desc(struct dma_pl330_desc *desc)
 {
-	desc->rqcfg.swap = SWAP_NO;
+	desc->rqcfg.swap = SWAP_ANAL;
 	desc->rqcfg.scctl = CCTRL0;
 	desc->rqcfg.dcctl = CCTRL0;
 	desc->txd.tx_submit = pl330_tx_submit;
 
-	INIT_LIST_HEAD(&desc->node);
+	INIT_LIST_HEAD(&desc->analde);
 }
 
 /* Returns the number of descriptors added to the DMAC pool */
@@ -2564,7 +2564,7 @@ static int add_desc(struct list_head *pool, spinlock_t *lock,
 
 	for (i = 0; i < count; i++) {
 		_init_desc(&desc[i]);
-		list_add_tail(&desc[i].node, pool);
+		list_add_tail(&desc[i].analde, pool);
 	}
 
 	spin_unlock_irqrestore(lock, flags);
@@ -2582,9 +2582,9 @@ static struct dma_pl330_desc *pluck_desc(struct list_head *pool,
 
 	if (!list_empty(pool)) {
 		desc = list_entry(pool->next,
-				struct dma_pl330_desc, node);
+				struct dma_pl330_desc, analde);
 
-		list_del_init(&desc->node);
+		list_del_init(&desc->analde);
 
 		desc->status = PREP;
 		desc->txd.callback = NULL;
@@ -2721,13 +2721,13 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 
 			spin_lock_irqsave(&pl330->pool_lock, iflags);
 
-			while (!list_empty(&first->node)) {
-				desc = list_entry(first->node.next,
-						struct dma_pl330_desc, node);
-				list_move_tail(&desc->node, &pl330->desc_pool);
+			while (!list_empty(&first->analde)) {
+				desc = list_entry(first->analde.next,
+						struct dma_pl330_desc, analde);
+				list_move_tail(&desc->analde, &pl330->desc_pool);
 			}
 
-			list_move_tail(&first->node, &pl330->desc_pool);
+			list_move_tail(&first->analde, &pl330->desc_pool);
 
 			spin_unlock_irqrestore(&pl330->pool_lock, iflags);
 
@@ -2760,7 +2760,7 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		if (!first)
 			first = desc;
 		else
-			list_add_tail(&desc->node, &first->node);
+			list_add_tail(&desc->analde, &first->analde);
 
 		dma_addr += period_len;
 	}
@@ -2834,13 +2834,13 @@ static void __pl330_giveback_desc(struct pl330_dmac *pl330,
 
 	spin_lock_irqsave(&pl330->pool_lock, flags);
 
-	while (!list_empty(&first->node)) {
-		desc = list_entry(first->node.next,
-				struct dma_pl330_desc, node);
-		list_move_tail(&desc->node, &pl330->desc_pool);
+	while (!list_empty(&first->analde)) {
+		desc = list_entry(first->analde.next,
+				struct dma_pl330_desc, analde);
+		list_move_tail(&desc->analde, &pl330->desc_pool);
 	}
 
-	list_move_tail(&first->node, &pl330->desc_pool);
+	list_move_tail(&first->analde, &pl330->desc_pool);
 
 	spin_unlock_irqrestore(&pl330->pool_lock, flags);
 }
@@ -2882,7 +2882,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		if (!first)
 			first = desc;
 		else
-			list_add_tail(&desc->node, &first->node);
+			list_add_tail(&desc->analde, &first->analde);
 
 		if (direction == DMA_MEM_TO_DEV) {
 			desc->rqcfg.src_inc = 1;
@@ -2911,7 +2911,7 @@ static irqreturn_t pl330_irq_handler(int irq, void *data)
 	if (pl330_update(data))
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 #define PL330_DMA_BUSWIDTHS \
@@ -3014,7 +3014,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	struct resource *res;
 	int i, ret, irq;
 	int num_chan;
-	struct device_node *np = adev->dev.of_node;
+	struct device_analde *np = adev->dev.of_analde;
 
 	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(32));
 	if (ret)
@@ -3023,7 +3023,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	/* Allocate a new DMAC and its Channels */
 	pl330 = devm_kzalloc(&adev->dev, sizeof(*pl330), GFP_KERNEL);
 	if (!pl330)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd = &pl330->ddma;
 	pd->dev = &adev->dev;
@@ -3102,14 +3102,14 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pl330->peripherals = kcalloc(num_chan, sizeof(*pch), GFP_KERNEL);
 	if (!pl330->peripherals) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto probe_err2;
 	}
 
 	for (i = 0; i < num_chan; i++) {
 		pch = &pl330->peripherals[i];
 
-		pch->chan.private = adev->dev.of_node;
+		pch->chan.private = adev->dev.of_analde;
 		INIT_LIST_HEAD(&pch->submitted_list);
 		INIT_LIST_HEAD(&pch->work_list);
 		INIT_LIST_HEAD(&pch->completed_list);
@@ -3117,10 +3117,10 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		pch->thread = NULL;
 		pch->chan.device = pd;
 		pch->dmac = pl330;
-		pch->dir = DMA_NONE;
+		pch->dir = DMA_ANALNE;
 
 		/* Add the channel to the DMAC list */
-		list_add_tail(&pch->chan.device_node, &pd->channels);
+		list_add_tail(&pch->chan.device_analde, &pd->channels);
 	}
 
 	dma_cap_set(DMA_MEMCPY, pd->cap_mask);
@@ -3152,8 +3152,8 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		goto probe_err3;
 	}
 
-	if (adev->dev.of_node) {
-		ret = of_dma_controller_register(adev->dev.of_node,
+	if (adev->dev.of_analde) {
+		ret = of_dma_controller_register(adev->dev.of_analde,
 					 of_dma_pl330_xlate, pl330);
 		if (ret) {
 			dev_err(&adev->dev,
@@ -3188,10 +3188,10 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 probe_err3:
 	/* Idle the DMAC */
 	list_for_each_entry_safe(pch, _p, &pl330->ddma.channels,
-			chan.device_node) {
+			chan.device_analde) {
 
 		/* Remove the channel */
-		list_del(&pch->chan.device_node);
+		list_del(&pch->chan.device_analde);
 
 		/* Flush the channel */
 		if (pch->thread) {
@@ -3216,10 +3216,10 @@ static void pl330_remove(struct amba_device *adev)
 	struct dma_pl330_chan *pch, *_p;
 	int i, irq;
 
-	pm_runtime_get_noresume(pl330->ddma.dev);
+	pm_runtime_get_analresume(pl330->ddma.dev);
 
-	if (adev->dev.of_node)
-		of_dma_controller_free(adev->dev.of_node);
+	if (adev->dev.of_analde)
+		of_dma_controller_free(adev->dev.of_analde);
 
 	for (i = 0; i < AMBA_NR_IRQS; i++) {
 		irq = adev->irq[i];
@@ -3231,10 +3231,10 @@ static void pl330_remove(struct amba_device *adev)
 
 	/* Idle the DMAC */
 	list_for_each_entry_safe(pch, _p, &pl330->ddma.channels,
-			chan.device_node) {
+			chan.device_analde) {
 
 		/* Remove the channel */
-		list_del(&pch->chan.device_node);
+		list_del(&pch->chan.device_analde);
 
 		/* Flush the channel */
 		if (pch->thread) {

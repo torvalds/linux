@@ -8,7 +8,7 @@
 struct adf_accel_dev;
 
 enum qat_pm_host_msg {
-	PM_NO_CHANGE = 0,
+	PM_ANAL_CHANGE = 0,
 	PM_SET_MIN,
 };
 

@@ -24,7 +24,7 @@ description: |
   FIFO(ETF) and Embedded Trace Router(ETR) configurations. The configuration
   mode (ETB, ETF, ETR) is discovered at boot time when the device is probed.
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:

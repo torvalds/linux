@@ -96,7 +96,7 @@ extern struct device_attribute dev_attr_usbip_debug;
  * USB/IP request headers
  *
  * Each request is transferred across the network to its counterpart, which
- * facilitates the normal USB communication. The values contained in the headers
+ * facilitates the analrmal USB communication. The values contained in the headers
  * are basically the same as in a URB. Currently, four request types are
  * defined:
  *
@@ -123,8 +123,8 @@ extern struct device_attribute dev_attr_usbip_debug;
 #define USBIP_DIR_IN	0x01
 
 /*
- * Arbitrary limit for the maximum number of isochronous packets in an URB,
- * compare for example the uhci_submit_isochronous function in
+ * Arbitrary limit for the maximum number of isochroanalus packets in an URB,
+ * compare for example the uhci_submit_isochroanalus function in
  * drivers/usb/host/uhci-q.c
  */
 #define USBIP_MAX_ISO_PACKETS 1024
@@ -151,8 +151,8 @@ struct usbip_header_basic {
  * struct usbip_header_cmd_submit - USBIP_CMD_SUBMIT packet header
  * @transfer_flags: URB flags
  * @transfer_buffer_length: the data size for (in) or (out) transfer
- * @start_frame: initial frame for isochronous or interrupt transfers
- * @number_of_packets: number of isochronous packets
+ * @start_frame: initial frame for isochroanalus or interrupt transfers
+ * @number_of_packets: number of isochroanalus packets
  * @interval: maximum time for the request on the server-side host controller
  * @setup: setup data for a control request
  */
@@ -170,11 +170,11 @@ struct usbip_header_cmd_submit {
 
 /**
  * struct usbip_header_ret_submit - USBIP_RET_SUBMIT packet header
- * @status: return status of a non-iso request
+ * @status: return status of a analn-iso request
  * @actual_length: number of bytes transferred
- * @start_frame: initial frame for isochronous or interrupt transfers
- * @number_of_packets: number of isochronous packets
- * @error_count: number of errors for isochronous transfers
+ * @start_frame: initial frame for isochroanalus or interrupt transfers
+ * @number_of_packets: number of isochroanalus packets
+ * @error_count: number of errors for isochroanalus transfers
  */
 struct usbip_header_ret_submit {
 	__s32 status;

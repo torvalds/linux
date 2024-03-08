@@ -35,11 +35,11 @@ config GCC_PLUGIN_LATENT_ENTROPY
 	  By saying Y here the kernel will instrument some kernel code to
 	  extract some entropy from both original and artificially created
 	  program state.  This will help especially embedded systems where
-	  there is little 'natural' source of entropy normally.  The cost
+	  there is little 'natural' source of entropy analrmally.  The cost
 	  is some slowdown of the boot process (about 0.5%) and fork and
 	  irq processing.
 
-	  Note that entropy extracted this way is not cryptographically
+	  Analte that entropy extracted this way is analt cryptographically
 	  secure!
 
 	  This plugin was ported from grsecurity/PaX. More information at:

@@ -27,8 +27,8 @@ description: |
   by the sensor. pmin-pascal and pmax-pascal corespond to the minimum and
   maximum pressure that can be measured.
 
-  Please note that in case of an SPI-based sensor, the clock signal should not
-  exceed 800kHz and the MOSI signal is not required.
+  Please analte that in case of an SPI-based sensor, the clock signal should analt
+  exceed 800kHz and the MOSI signal is analt required.
 
   Specifications about the devices can be found at:
   https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/board-mount-pressure-sensors/trustability-hsc-series/documents/sps-siot-trustability-hsc-series-high-accuracy-board-mount-pressure-sensors-50099148-a-en-ciid-151133.pdf
@@ -58,7 +58,7 @@ properties:
   honeywell,pressure-triplet:
     description: |
       Case-sensitive five character string that defines pressure range, unit
-      and type as part of the device nomenclature. In the unlikely case of a
+      and type as part of the device analmenclature. In the unlikely case of a
       custom chip, set to "NA" and provide pmin-pascal and pmax-pascal.
     enum: [001BA, 1.6BA, 2.5BA, 004BA, 006BA, 010BA, 1.6MD, 2.5MD, 004MD,
            006MD, 010MD, 016MD, 025MD, 040MD, 060MD, 100MD, 160MD, 250MD,

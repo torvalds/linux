@@ -10,7 +10,7 @@
  * Fixed for 680x0 by Andreas Schwab
  */
 
-/* bitmap.c contains the code that handles the inode and block bitmaps */
+/* bitmap.c contains the code that handles the ianalde and block bitmaps */
 
 #include "minix.h"
 #include <linux/buffer_head.h>
@@ -39,23 +39,23 @@ static __u32 count_free(struct buffer_head *map[], unsigned blocksize, __u32 num
 	return sum;
 }
 
-void minix_free_block(struct inode *inode, unsigned long block)
+void minix_free_block(struct ianalde *ianalde, unsigned long block)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct minix_sb_info *sbi = minix_sb(sb);
 	struct buffer_head *bh;
 	int k = sb->s_blocksize_bits + 3;
 	unsigned long bit, zone;
 
 	if (block < sbi->s_firstdatazone || block >= sbi->s_nzones) {
-		printk("Trying to free block not in datazone\n");
+		printk("Trying to free block analt in datazone\n");
 		return;
 	}
 	zone = block - sbi->s_firstdatazone + 1;
 	bit = zone & ((1<<k) - 1);
 	zone >>= k;
 	if (zone >= sbi->s_zmap_blocks) {
-		printk("minix_free_block: nonexistent bitmap buffer\n");
+		printk("minix_free_block: analnexistent bitmap buffer\n");
 		return;
 	}
 	bh = sbi->s_zmap[zone];
@@ -68,10 +68,10 @@ void minix_free_block(struct inode *inode, unsigned long block)
 	return;
 }
 
-int minix_new_block(struct inode * inode)
+int minix_new_block(struct ianalde * ianalde)
 {
-	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
-	int bits_per_zone = 8 * inode->i_sb->s_blocksize;
+	struct minix_sb_info *sbi = minix_sb(ianalde->i_sb);
+	int bits_per_zone = 8 * ianalde->i_sb->s_blocksize;
 	int i;
 
 	for (i = 0; i < sbi->s_zmap_blocks; i++) {
@@ -103,75 +103,75 @@ unsigned long minix_count_free_blocks(struct super_block *sb)
 		<< sbi->s_log_zone_size);
 }
 
-struct minix_inode *
-minix_V1_raw_inode(struct super_block *sb, ino_t ino, struct buffer_head **bh)
+struct minix_ianalde *
+minix_V1_raw_ianalde(struct super_block *sb, ianal_t ianal, struct buffer_head **bh)
 {
 	int block;
 	struct minix_sb_info *sbi = minix_sb(sb);
-	struct minix_inode *p;
+	struct minix_ianalde *p;
 
-	if (!ino || ino > sbi->s_ninodes) {
-		printk("Bad inode number on dev %s: %ld is out of range\n",
-		       sb->s_id, (long)ino);
+	if (!ianal || ianal > sbi->s_nianaldes) {
+		printk("Bad ianalde number on dev %s: %ld is out of range\n",
+		       sb->s_id, (long)ianal);
 		return NULL;
 	}
-	ino--;
+	ianal--;
 	block = 2 + sbi->s_imap_blocks + sbi->s_zmap_blocks +
-		 ino / MINIX_INODES_PER_BLOCK;
+		 ianal / MINIX_IANALDES_PER_BLOCK;
 	*bh = sb_bread(sb, block);
 	if (!*bh) {
-		printk("Unable to read inode block\n");
+		printk("Unable to read ianalde block\n");
 		return NULL;
 	}
 	p = (void *)(*bh)->b_data;
-	return p + ino % MINIX_INODES_PER_BLOCK;
+	return p + ianal % MINIX_IANALDES_PER_BLOCK;
 }
 
-struct minix2_inode *
-minix_V2_raw_inode(struct super_block *sb, ino_t ino, struct buffer_head **bh)
+struct minix2_ianalde *
+minix_V2_raw_ianalde(struct super_block *sb, ianal_t ianal, struct buffer_head **bh)
 {
 	int block;
 	struct minix_sb_info *sbi = minix_sb(sb);
-	struct minix2_inode *p;
-	int minix2_inodes_per_block = sb->s_blocksize / sizeof(struct minix2_inode);
+	struct minix2_ianalde *p;
+	int minix2_ianaldes_per_block = sb->s_blocksize / sizeof(struct minix2_ianalde);
 
 	*bh = NULL;
-	if (!ino || ino > sbi->s_ninodes) {
-		printk("Bad inode number on dev %s: %ld is out of range\n",
-		       sb->s_id, (long)ino);
+	if (!ianal || ianal > sbi->s_nianaldes) {
+		printk("Bad ianalde number on dev %s: %ld is out of range\n",
+		       sb->s_id, (long)ianal);
 		return NULL;
 	}
-	ino--;
+	ianal--;
 	block = 2 + sbi->s_imap_blocks + sbi->s_zmap_blocks +
-		 ino / minix2_inodes_per_block;
+		 ianal / minix2_ianaldes_per_block;
 	*bh = sb_bread(sb, block);
 	if (!*bh) {
-		printk("Unable to read inode block\n");
+		printk("Unable to read ianalde block\n");
 		return NULL;
 	}
 	p = (void *)(*bh)->b_data;
-	return p + ino % minix2_inodes_per_block;
+	return p + ianal % minix2_ianaldes_per_block;
 }
 
-/* Clear the link count and mode of a deleted inode on disk. */
+/* Clear the link count and mode of a deleted ianalde on disk. */
 
-static void minix_clear_inode(struct inode *inode)
+static void minix_clear_ianalde(struct ianalde *ianalde)
 {
 	struct buffer_head *bh = NULL;
 
-	if (INODE_VERSION(inode) == MINIX_V1) {
-		struct minix_inode *raw_inode;
-		raw_inode = minix_V1_raw_inode(inode->i_sb, inode->i_ino, &bh);
-		if (raw_inode) {
-			raw_inode->i_nlinks = 0;
-			raw_inode->i_mode = 0;
+	if (IANALDE_VERSION(ianalde) == MINIX_V1) {
+		struct minix_ianalde *raw_ianalde;
+		raw_ianalde = minix_V1_raw_ianalde(ianalde->i_sb, ianalde->i_ianal, &bh);
+		if (raw_ianalde) {
+			raw_ianalde->i_nlinks = 0;
+			raw_ianalde->i_mode = 0;
 		}
 	} else {
-		struct minix2_inode *raw_inode;
-		raw_inode = minix_V2_raw_inode(inode->i_sb, inode->i_ino, &bh);
-		if (raw_inode) {
-			raw_inode->i_nlinks = 0;
-			raw_inode->i_mode = 0;
+		struct minix2_ianalde *raw_ianalde;
+		raw_ianalde = minix_V2_raw_ianalde(ianalde->i_sb, ianalde->i_ianal, &bh);
+		if (raw_ianalde) {
+			raw_ianalde->i_nlinks = 0;
+			raw_ianalde->i_mode = 0;
 		}
 	}
 	if (bh) {
@@ -180,48 +180,48 @@ static void minix_clear_inode(struct inode *inode)
 	}
 }
 
-void minix_free_inode(struct inode * inode)
+void minix_free_ianalde(struct ianalde * ianalde)
 {
-	struct super_block *sb = inode->i_sb;
-	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
+	struct super_block *sb = ianalde->i_sb;
+	struct minix_sb_info *sbi = minix_sb(ianalde->i_sb);
 	struct buffer_head *bh;
 	int k = sb->s_blocksize_bits + 3;
-	unsigned long ino, bit;
+	unsigned long ianal, bit;
 
-	ino = inode->i_ino;
-	if (ino < 1 || ino > sbi->s_ninodes) {
-		printk("minix_free_inode: inode 0 or nonexistent inode\n");
+	ianal = ianalde->i_ianal;
+	if (ianal < 1 || ianal > sbi->s_nianaldes) {
+		printk("minix_free_ianalde: ianalde 0 or analnexistent ianalde\n");
 		return;
 	}
-	bit = ino & ((1<<k) - 1);
-	ino >>= k;
-	if (ino >= sbi->s_imap_blocks) {
-		printk("minix_free_inode: nonexistent imap in superblock\n");
+	bit = ianal & ((1<<k) - 1);
+	ianal >>= k;
+	if (ianal >= sbi->s_imap_blocks) {
+		printk("minix_free_ianalde: analnexistent imap in superblock\n");
 		return;
 	}
 
-	minix_clear_inode(inode);	/* clear on-disk copy */
+	minix_clear_ianalde(ianalde);	/* clear on-disk copy */
 
-	bh = sbi->s_imap[ino];
+	bh = sbi->s_imap[ianal];
 	spin_lock(&bitmap_lock);
 	if (!minix_test_and_clear_bit(bit, bh->b_data))
-		printk("minix_free_inode: bit %lu already cleared\n", bit);
+		printk("minix_free_ianalde: bit %lu already cleared\n", bit);
 	spin_unlock(&bitmap_lock);
 	mark_buffer_dirty(bh);
 }
 
-struct inode *minix_new_inode(const struct inode *dir, umode_t mode)
+struct ianalde *minix_new_ianalde(const struct ianalde *dir, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct minix_sb_info *sbi = minix_sb(sb);
-	struct inode *inode = new_inode(sb);
+	struct ianalde *ianalde = new_ianalde(sb);
 	struct buffer_head * bh;
 	int bits_per_zone = 8 * sb->s_blocksize;
 	unsigned long j;
 	int i;
 
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 	j = bits_per_zone;
 	bh = NULL;
 	spin_lock(&bitmap_lock);
@@ -233,37 +233,37 @@ struct inode *minix_new_inode(const struct inode *dir, umode_t mode)
 	}
 	if (!bh || j >= bits_per_zone) {
 		spin_unlock(&bitmap_lock);
-		iput(inode);
-		return ERR_PTR(-ENOSPC);
+		iput(ianalde);
+		return ERR_PTR(-EANALSPC);
 	}
 	if (minix_test_and_set_bit(j, bh->b_data)) {	/* shouldn't happen */
 		spin_unlock(&bitmap_lock);
-		printk("minix_new_inode: bit already set\n");
-		iput(inode);
-		return ERR_PTR(-ENOSPC);
+		printk("minix_new_ianalde: bit already set\n");
+		iput(ianalde);
+		return ERR_PTR(-EANALSPC);
 	}
 	spin_unlock(&bitmap_lock);
 	mark_buffer_dirty(bh);
 	j += i * bits_per_zone;
-	if (!j || j > sbi->s_ninodes) {
-		iput(inode);
-		return ERR_PTR(-ENOSPC);
+	if (!j || j > sbi->s_nianaldes) {
+		iput(ianalde);
+		return ERR_PTR(-EANALSPC);
 	}
-	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
-	inode->i_ino = j;
-	simple_inode_init_ts(inode);
-	inode->i_blocks = 0;
-	memset(&minix_i(inode)->u, 0, sizeof(minix_i(inode)->u));
-	insert_inode_hash(inode);
-	mark_inode_dirty(inode);
+	ianalde_init_owner(&analp_mnt_idmap, ianalde, dir, mode);
+	ianalde->i_ianal = j;
+	simple_ianalde_init_ts(ianalde);
+	ianalde->i_blocks = 0;
+	memset(&minix_i(ianalde)->u, 0, sizeof(minix_i(ianalde)->u));
+	insert_ianalde_hash(ianalde);
+	mark_ianalde_dirty(ianalde);
 
-	return inode;
+	return ianalde;
 }
 
-unsigned long minix_count_free_inodes(struct super_block *sb)
+unsigned long minix_count_free_ianaldes(struct super_block *sb)
 {
 	struct minix_sb_info *sbi = minix_sb(sb);
-	u32 bits = sbi->s_ninodes + 1;
+	u32 bits = sbi->s_nianaldes + 1;
 
 	return count_free(sbi->s_imap, sb->s_blocksize, bits);
 }

@@ -31,7 +31,7 @@ int gen2_emit_flush(struct i915_request *rq, u32 mode)
 		*cs++ = MI_STORE_DWORD_INDEX;
 		*cs++ = I915_GEM_HWS_SCRATCH * sizeof(u32);
 		*cs++ = 0;
-		*cs++ = MI_FLUSH | MI_NO_WRITE_FLUSH;
+		*cs++ = MI_FLUSH | MI_ANAL_WRITE_FLUSH;
 	}
 	*cs++ = cmd;
 
@@ -49,7 +49,7 @@ int gen4_emit_flush_rcs(struct i915_request *rq, u32 mode)
 	 * read/write caches:
 	 *
 	 * I915_GEM_DOMAIN_RENDER is always invalidated, but is
-	 * only flushed if MI_NO_WRITE_FLUSH is unset.  On 965, it is
+	 * only flushed if MI_ANAL_WRITE_FLUSH is unset.  On 965, it is
 	 * also flushed at 2d versus 3d pipeline switches.
 	 *
 	 * read-only caches:
@@ -57,7 +57,7 @@ int gen4_emit_flush_rcs(struct i915_request *rq, u32 mode)
 	 * I915_GEM_DOMAIN_SAMPLER is flushed on pre-965 if
 	 * MI_READ_FLUSH is set, and is always flushed on 965.
 	 *
-	 * I915_GEM_DOMAIN_COMMAND may not exist?
+	 * I915_GEM_DOMAIN_COMMAND may analt exist?
 	 *
 	 * I915_GEM_DOMAIN_INSTRUCTION, which exists on 965, is
 	 * invalidated when MI_EXE_FLUSH is set.
@@ -92,7 +92,7 @@ int gen4_emit_flush_rcs(struct i915_request *rq, u32 mode)
 
 	/*
 	 * A random delay to let the CS invalidate take effect? Without this
-	 * delay, the GPU relocation path fails as the CS does not see
+	 * delay, the GPU relocation path fails as the CS does analt see
 	 * the updated contents. Just as important, if we apply the flushes
 	 * to the EMIT_FLUSH branch (i.e. immediately after the relocation
 	 * write and before the invalidate on the next batch), the relocations
@@ -135,7 +135,7 @@ int gen4_emit_flush_vcs(struct i915_request *rq, u32 mode)
 		return PTR_ERR(cs);
 
 	*cs++ = MI_FLUSH;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(rq, cs);
 
 	return 0;
@@ -145,20 +145,20 @@ static u32 *__gen2_emit_breadcrumb(struct i915_request *rq, u32 *cs,
 				   int flush, int post)
 {
 	GEM_BUG_ON(i915_request_active_timeline(rq)->hwsp_ggtt != rq->engine->status_page.vma);
-	GEM_BUG_ON(offset_in_page(rq->hwsp_seqno) != I915_GEM_HWS_SEQNO_ADDR);
+	GEM_BUG_ON(offset_in_page(rq->hwsp_seqanal) != I915_GEM_HWS_SEQANAL_ADDR);
 
 	*cs++ = MI_FLUSH;
 
 	while (flush--) {
 		*cs++ = MI_STORE_DWORD_INDEX;
 		*cs++ = I915_GEM_HWS_SCRATCH * sizeof(u32);
-		*cs++ = rq->fence.seqno;
+		*cs++ = rq->fence.seqanal;
 	}
 
 	while (post--) {
 		*cs++ = MI_STORE_DWORD_INDEX;
-		*cs++ = I915_GEM_HWS_SEQNO_ADDR;
-		*cs++ = rq->fence.seqno;
+		*cs++ = I915_GEM_HWS_SEQANAL_ADDR;
+		*cs++ = rq->fence.seqanal;
 	}
 
 	*cs++ = MI_USER_INTERRUPT;
@@ -203,19 +203,19 @@ int i830_emit_bb_start(struct i915_request *rq,
 	*cs++ = I830_TLB_ENTRIES << 16 | 4; /* load each page */
 	*cs++ = cs_offset;
 	*cs++ = 0xdeadbeef;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(rq, cs);
 
 	if ((dispatch_flags & I915_DISPATCH_PINNED) == 0) {
 		if (len > I830_BATCH_LIMIT)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		cs = intel_ring_begin(rq, 6 + 2);
 		if (IS_ERR(cs))
 			return PTR_ERR(cs);
 
 		/*
-		 * Blit the batch (which has now all relocs applied) to the
+		 * Blit the batch (which has analw all relocs applied) to the
 		 * stable batch scratch bo area (so that the CS never
 		 * stumbles over its tlb invalidation bug) ...
 		 */
@@ -227,7 +227,7 @@ int i830_emit_bb_start(struct i915_request *rq,
 		*cs++ = offset;
 
 		*cs++ = MI_FLUSH;
-		*cs++ = MI_NOOP;
+		*cs++ = MI_ANALOP;
 		intel_ring_advance(rq, cs);
 
 		/* ... and execute it. */
@@ -235,7 +235,7 @@ int i830_emit_bb_start(struct i915_request *rq,
 	}
 
 	if (!(dispatch_flags & I915_DISPATCH_SECURE))
-		offset |= MI_BATCH_NON_SECURE;
+		offset |= MI_BATCH_ANALN_SECURE;
 
 	cs = intel_ring_begin(rq, 2);
 	if (IS_ERR(cs))
@@ -255,7 +255,7 @@ int gen3_emit_bb_start(struct i915_request *rq,
 	u32 *cs;
 
 	if (!(dispatch_flags & I915_DISPATCH_SECURE))
-		offset |= MI_BATCH_NON_SECURE;
+		offset |= MI_BATCH_ANALN_SECURE;
 
 	cs = intel_ring_begin(rq, 2);
 	if (IS_ERR(cs))
@@ -275,7 +275,7 @@ int gen4_emit_bb_start(struct i915_request *rq,
 	u32 security;
 	u32 *cs;
 
-	security = MI_BATCH_NON_SECURE_I965;
+	security = MI_BATCH_ANALN_SECURE_I965;
 	if (dispatch_flags & I915_DISPATCH_SECURE)
 		security = 0;
 

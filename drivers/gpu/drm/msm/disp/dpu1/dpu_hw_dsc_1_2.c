@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved
  */
 
 #include <drm/drm_managed.h>
@@ -126,8 +126,8 @@ static void dpu_hw_dsc_config_1_2(struct dpu_hw_dsc *hw_dsc,
 
 	DPU_REG_WRITE(hw, sblk->enc.base + ENC_DF_CTRL, data);
 
-	data = (dsc->dsc_version_minor & 0xf) << 28;
-	if (dsc->dsc_version_minor == 0x2) {
+	data = (dsc->dsc_version_mianalr & 0xf) << 28;
+	if (dsc->dsc_version_mianalr == 0x2) {
 		if (dsc->native_422)
 			data |= BIT(22);
 		if (dsc->native_420)
@@ -377,7 +377,7 @@ struct dpu_hw_dsc *dpu_hw_dsc_init_1_2(struct drm_device *dev,
 
 	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->hw.blk_addr = addr + cfg->base;
 	c->hw.log_mask = DPU_DBG_MASK_DSC;

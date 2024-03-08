@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _dvb_ca:
 
@@ -11,7 +11,7 @@ can be accessed through ``/dev/dvb/adapter?/ca?``. Data types and ioctl
 definitions can be accessed by including ``linux/dvb/ca.h`` in your
 application.
 
-.. note::
+.. analte::
 
    There are three ioctls at this API that aren't documented:
    :ref:`CA_GET_MSG`, :ref:`CA_SEND_MSG` and :ref:`CA_SET_DESCR`.

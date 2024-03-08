@@ -1,9 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Invoke a text editor on all console.log files for all runs with diagnostics,
+# Invoke a text editor on all console.log files for all runs with diaganalstics,
 # that is, on all such files having a console.log.diags counterpart.
-# Note that both console.log.diags and console.log are passed to the
+# Analte that both console.log.diags and console.log are passed to the
 # editor (currently defaulting to "vi"), allowing the user to get an
 # idea of what to search for in the console.log file.
 #
@@ -11,7 +11,7 @@
 #
 # The "directory" above should end with the date/time directory, for example,
 # "tools/testing/selftests/rcutorture/res/2018.02.25-14:27:27".
-# Returns error status reflecting the success (or not) of the specified run.
+# Returns error status reflecting the success (or analt) of the specified run.
 #
 # Copyright (C) IBM Corporation, 2018
 #
@@ -20,7 +20,7 @@
 rundir="${1}"
 if test -z "$rundir" -o ! -d "$rundir"
 then
-	echo Directory "$rundir" not found.
+	echo Directory "$rundir" analt found.
 	echo Usage: $0 directory
 	exit 1
 fi
@@ -38,7 +38,7 @@ do
 		files="$files $i.diags $i"
 	elif ! test -f ${scenariobasedir}/vmlinux && ! test -f ${scenariobasedir}/vmlinux.xz && ! test -f "${rundir}/re-run"
 	then
-		echo No ${scenariobasedir}/vmlinux file > $i.diags
+		echo Anal ${scenariobasedir}/vmlinux file > $i.diags
 		files="$files $i.diags $i"
 	fi
 done
@@ -47,11 +47,11 @@ then
 	$editor $files
 	editorret=1
 else
-	echo No build errors.
+	echo Anal build errors.
 fi
 if grep -q -e "--build-\?only" < ${rundir}/log && ! test -f "${rundir}/remote-log"
 then
-	echo Build-only run, no console logs to check.
+	echo Build-only run, anal console logs to check.
 	exit $editorret
 fi
 
@@ -69,7 +69,7 @@ then
 	$editor $files
 	exit 1
 else
-	echo No errors in console logs.
+	echo Anal errors in console logs.
 	if test -n "$editorret"
 	then
 		exit $editorret

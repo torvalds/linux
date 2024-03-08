@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/atomic.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/topology.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
@@ -36,14 +36,14 @@ static int of_pci_phb_probe(struct platform_device *dev)
 
 	/* Check if we can do that ... */
 	if (ppc_md.pci_setup_phb == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
-	pr_info("Setting up PCI bus %pOF\n", dev->dev.of_node);
+	pr_info("Setting up PCI bus %pOF\n", dev->dev.of_analde);
 
 	/* Alloc and setup PHB data structure */
-	phb = pcibios_alloc_controller(dev->dev.of_node);
+	phb = pcibios_alloc_controller(dev->dev.of_analde);
 	if (!phb)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Setup parent in sysfs */
 	phb->parent = &dev->dev;
@@ -51,11 +51,11 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	/* Setup the PHB using arch provided callback */
 	if (ppc_md.pci_setup_phb(phb)) {
 		pcibios_free_controller(phb);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Process "ranges" property */
-	pci_process_bridge_OF_ranges(phb, dev->dev.of_node, 0);
+	pci_process_bridge_OF_ranges(phb, dev->dev.of_analde, 0);
 
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
@@ -69,7 +69,7 @@ static int of_pci_phb_probe(struct platform_device *dev)
 		return -ENXIO;
 
 	/* Claim resources. This might need some rework as well depending
-	 * whether we are doing probe-only or not, like assigning unassigned
+	 * whether we are doing probe-only or analt, like assigning unassigned
 	 * resources etc...
 	 */
 	pcibios_claim_one_bus(phb->bus);

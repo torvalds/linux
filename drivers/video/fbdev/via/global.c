@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -27,7 +27,7 @@ int viafb_hotplug_Xres = 640;
 int viafb_hotplug_Yres = 480;
 int viafb_hotplug_bpp = 32;
 int viafb_hotplug_refresh = 60;
-int viafb_primary_dev = None_Device;
+int viafb_primary_dev = Analne_Device;
 int viafb_lcd_panel_id = LCD_PANEL_ID_MAXIMUM + 1;
 struct fb_info *viafbinfo;
 struct fb_info *viafbinfo1;

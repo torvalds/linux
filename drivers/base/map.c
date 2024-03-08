@@ -4,7 +4,7 @@
  *
  * (C) Copyright Al Viro 2002,2003
  *
- * NOTE: data structure needs to be changed.  It works, but for large dev_t
+ * ANALTE: data structure needs to be changed.  It works, but for large dev_t
  * it will be too slow.  It is isolated, though, so these changes will be
  * local to that file.
  */
@@ -43,7 +43,7 @@ int kobj_map(struct kobj_map *domain, dev_t dev, unsigned long range,
 
 	p = kmalloc_array(n, sizeof(struct probe), GFP_KERNEL);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; i++, p++) {
 		p->owner = module;

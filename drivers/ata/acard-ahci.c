@@ -13,8 +13,8 @@
  * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
- * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
- * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
+ * http://www.intel.com/techanallogy/serialata/pdf/rev1_0.pdf
+ * http://www.intel.com/techanallogy/serialata/pdf/rev1_1.pdf
  */
 
 #include <linux/kernel.h>
@@ -82,7 +82,7 @@ static struct ata_port_operations acard_ops = {
 static const struct ata_port_info acard_ahci_port_info[] = {
 	[board_acard_ahci] =
 	{
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_NCQ),
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_NCQ),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -117,7 +117,7 @@ static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg
 	u32 ctl;
 
 	if (mesg.event & PM_EVENT_SUSPEND &&
-	    hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
+	    hpriv->flags & AHCI_HFLAG_ANAL_SUSPEND) {
 		dev_err(&pdev->dev,
 			"BIOS update required for suspend/resume\n");
 		return -EIO;
@@ -174,7 +174,7 @@ static void acard_ahci_pci_print_info(struct ata_host *host)
 	else if (cc == PCI_CLASS_STORAGE_RAID)
 		scc_s = "RAID";
 	else
-		scc_s = "unknown";
+		scc_s = "unkanalwn";
 
 	ahci_print_info(host, scc_s);
 }
@@ -193,9 +193,9 @@ static unsigned int acard_ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)
 		u32 sg_len = sg_dma_len(sg);
 
 		/*
-		 * ACard note:
+		 * ACard analte:
 		 * We must set an end-of-table (EOT) bit,
-		 * and the segment cannot exceed 64k (0x10000)
+		 * and the segment cananalt exceed 64k (0x10000)
 		 */
 		acard_sg[si].addr = cpu_to_le32(addr & 0xffffffff);
 		acard_sg[si].addr_hi = cpu_to_le32((addr >> 16) >> 16);
@@ -235,7 +235,7 @@ static enum ata_completion_errors acard_ahci_qc_prep(struct ata_queued_cmd *qc)
 	/*
 	 * Fill in command slot information.
 	 *
-	 * ACard note: prd table length not filled in
+	 * ACard analte: prd table length analt filled in
 	 */
 	opts = cmd_fis_len | (qc->dev->link->pmp << 12);
 	if (qc->tf.flags & ATA_TFLAG_WRITE)
@@ -281,7 +281,7 @@ static int acard_ahci_port_start(struct ata_port *ap)
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* check FBS capability */
 	if ((hpriv->cap & HOST_CAP_FBS) && sata_pmp_supported(ap)) {
@@ -289,13 +289,13 @@ static int acard_ahci_port_start(struct ata_port *ap)
 		u32 cmd = readl(port_mmio + PORT_CMD);
 		if (cmd & PORT_CMD_FBSCP)
 			pp->fbs_supported = true;
-		else if (hpriv->flags & AHCI_HFLAG_YES_FBS) {
+		else if (hpriv->flags & AHCI_HFLAG_ANAL_FBS) {
 			dev_info(dev, "port %d can do FBS, forcing FBSCP\n",
-				 ap->port_no);
+				 ap->port_anal);
 			pp->fbs_supported = true;
 		} else
-			dev_warn(dev, "port %d is not capable of FBS\n",
-				 ap->port_no);
+			dev_warn(dev, "port %d is analt capable of FBS\n",
+				 ap->port_anal);
 	}
 
 	if (pp->fbs_supported) {
@@ -308,7 +308,7 @@ static int acard_ahci_port_start(struct ata_port *ap)
 
 	mem = dmam_alloc_coherent(dev, dma_sz, &mem_dma, GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * First item in chunk of DMA memory: 32-slot command table,
@@ -378,12 +378,12 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hpriv->irq = pdev->irq;
 	hpriv->flags |= (unsigned long)pi.private_data;
 
-	if (!(hpriv->flags & AHCI_HFLAG_NO_MSI))
+	if (!(hpriv->flags & AHCI_HFLAG_ANAL_MSI))
 		pci_enable_msi(pdev);
 
 	hpriv->mmio = pcim_iomap_table(pdev)[AHCI_PCI_BAR];
@@ -409,10 +409,10 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	host->private_data = hpriv;
 
-	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
+	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_iganalre_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;
 	else
 		printk(KERN_INFO "ahci: SSS flag set, parallel bus scan disabled\n");
@@ -422,13 +422,13 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 
 		ata_port_pbar_desc(ap, AHCI_PCI_BAR, -1, "abar");
 		ata_port_pbar_desc(ap, AHCI_PCI_BAR,
-				   0x100 + ap->port_no * 0x80, "port");
+				   0x100 + ap->port_anal * 0x80, "port");
 
 		/* set initial link pm policy */
 		/*
-		ap->pm_policy = NOT_AVAILABLE;
+		ap->pm_policy = ANALT_AVAILABLE;
 		*/
-		/* disabled/not-implemented port */
+		/* disabled/analt-implemented port */
 		if (!(hpriv->port_map & (1 << i)))
 			ap->ops = &ata_dummy_port_ops;
 	}

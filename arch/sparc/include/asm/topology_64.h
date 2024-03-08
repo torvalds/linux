@@ -6,32 +6,32 @@
 
 #include <asm/mmzone.h>
 
-static inline int cpu_to_node(int cpu)
+static inline int cpu_to_analde(int cpu)
 {
 	return numa_cpu_lookup_table[cpu];
 }
 
-#define cpumask_of_node(node) ((node) == -1 ?				\
+#define cpumask_of_analde(analde) ((analde) == -1 ?				\
 			       cpu_all_mask :				\
-			       &numa_cpumask_lookup_table[node])
+			       &numa_cpumask_lookup_table[analde])
 
 struct pci_bus;
 #ifdef CONFIG_PCI
-int pcibus_to_node(struct pci_bus *pbus);
+int pcibus_to_analde(struct pci_bus *pbus);
 #else
-static inline int pcibus_to_node(struct pci_bus *pbus)
+static inline int pcibus_to_analde(struct pci_bus *pbus)
 {
 	return -1;
 }
 #endif
 
 #define cpumask_of_pcibus(bus)	\
-	(pcibus_to_node(bus) == -1 ? \
+	(pcibus_to_analde(bus) == -1 ? \
 	 cpu_all_mask : \
-	 cpumask_of_node(pcibus_to_node(bus)))
+	 cpumask_of_analde(pcibus_to_analde(bus)))
 
-int __node_distance(int, int);
-#define node_distance(a, b) __node_distance(a, b)
+int __analde_distance(int, int);
+#define analde_distance(a, b) __analde_distance(a, b)
 
 #else /* CONFIG_NUMA */
 

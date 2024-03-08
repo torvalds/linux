@@ -12,8 +12,8 @@ maintainers:
 description: |
   Canaan Kendryte K210 reset controller driver which supports the SoC
   system controller supplied reset registers for the various peripherals
-  of the SoC. The K210 reset controller node must be defined as a child
-  node of the K210 system controller node.
+  of the SoC. The K210 reset controller analde must be defined as a child
+  analde of the K210 system controller analde.
 
   See also:
   - dt-bindings/reset/k210-rst.h

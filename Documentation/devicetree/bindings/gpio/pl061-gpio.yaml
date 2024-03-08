@@ -10,7 +10,7 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
   - Rob Herring <robh@kernel.org>
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -20,7 +20,7 @@ select:
     - compatible
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^gpio@[0-9a-f]+$"
 
   compatible:

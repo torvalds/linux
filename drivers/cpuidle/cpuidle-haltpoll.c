@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * cpuidle driver for haltpoll governor.
+ * cpuidle driver for haltpoll goveranalr.
  *
  * Copyright 2019 Red Hat, Inc. and/or its affiliates.
  *
@@ -37,7 +37,7 @@ static __cpuidle int default_enter_idle(struct cpuidle_device *dev,
 
 static struct cpuidle_driver haltpoll_driver = {
 	.name = "haltpoll",
-	.governor = "haltpoll",
+	.goveranalr = "haltpoll",
 	.states = {
 		{ /* entry 0 is for polling */ },
 		{
@@ -61,7 +61,7 @@ static int haltpoll_cpu_online(unsigned int cpu)
 	if (!dev->registered) {
 		dev->cpu = cpu;
 		if (cpuidle_register_device(dev)) {
-			pr_notice("cpuidle_register_device %d failed!\n", cpu);
+			pr_analtice("cpuidle_register_device %d failed!\n", cpu);
 			return -EIO;
 		}
 		arch_haltpoll_enable(cpu);
@@ -103,12 +103,12 @@ static int __init haltpoll_init(void)
 	int ret;
 	struct cpuidle_driver *drv = &haltpoll_driver;
 
-	/* Do not load haltpoll if idle= is passed */
-	if (boot_option_idle_override != IDLE_NO_OVERRIDE)
-		return -ENODEV;
+	/* Do analt load haltpoll if idle= is passed */
+	if (boot_option_idle_override != IDLE_ANAL_OVERRIDE)
+		return -EANALDEV;
 
 	if (!kvm_para_available() || !haltpoll_want())
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpuidle_poll_state_init(drv);
 
@@ -119,7 +119,7 @@ static int __init haltpoll_init(void)
 	haltpoll_cpuidle_devices = alloc_percpu(struct cpuidle_device);
 	if (haltpoll_cpuidle_devices == NULL) {
 		cpuidle_unregister_driver(drv);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "cpuidle/haltpoll:online",

@@ -103,7 +103,7 @@ FUNC_END(check_all_fprs)
 FUNC_START(test_fpu)
 	# r3 holds pointer to where to put the result of fork
 	# r4 holds pointer to the pid
-	# f14-f31 are non volatiles
+	# f14-f31 are analn volatiles
 	PUSH_BASIC_STACK(256)
 	PUSH_FPU(256)
 	std	r3,STACK_FRAME_PARAM(0)(sp) # Address of darray
@@ -121,7 +121,7 @@ FUNC_START(test_fpu)
 
 	ld r3,STACK_FRAME_PARAM(0)(sp)
 	bl check_all_fprs
-	nop
+	analp
 
 	POP_FPU(256)
 	POP_BASIC_STACK(256)
@@ -129,9 +129,9 @@ FUNC_START(test_fpu)
 FUNC_END(test_fpu)
 
 # int preempt_fpu(double *darray, int *threads_running, int *running)
-# On starting will (atomically) decrement not_ready as a signal that the FPU
+# On starting will (atomically) decrement analt_ready as a signal that the FPU
 # has been loaded with darray. Will proceed to check the validity of the FPU
-# registers while running is not zero.
+# registers while running is analt zero.
 FUNC_START(preempt_fpu)
 	PUSH_BASIC_STACK(256)
 	PUSH_FPU(256)

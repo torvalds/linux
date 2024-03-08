@@ -137,7 +137,7 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < NUM_LEDS_PER_BOARD; i++) {
 		struct led_classdev *lp = &p->leds[i].led_cdev;
@@ -150,7 +150,7 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 
 		err = led_classdev_register(&pdev->dev, lp);
 		if (err) {
-			dev_err(&pdev->dev, "Could not register %s LED\n",
+			dev_err(&pdev->dev, "Could analt register %s LED\n",
 			       lp->name);
 			for (i--; i >= 0; i--)
 				led_classdev_unregister(&p->leds[i].led_cdev);

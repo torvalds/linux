@@ -65,8 +65,8 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 	struct mtd_partition *parts;
 	char *name, *c;
 
-	if (IS_ENABLED(CONFIG_MTD_SPI_NOR_USE_4K_SECTORS)
-			&& mtd->type == MTD_NORFLASH) {
+	if (IS_ENABLED(CONFIG_MTD_SPI_ANALR_USE_4K_SECTORS)
+			&& mtd->type == MTD_ANALRFLASH) {
 		pr_err("%s: SMEM partition parser is incompatible with 4K sectors\n",
 				mtd->name);
 		return -EINVAL;
@@ -102,12 +102,12 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 		len = SMEM_FLASH_PTABLE_HDR_LEN + SMEM_FLASH_PTABLE_MAX_PARTS_V4 *
 			sizeof(struct smem_flash_pentry);
 	} else {
-		pr_err("Unknown ptable version (%d)", le32_to_cpu(ptable->version));
+		pr_err("Unkanalwn ptable version (%d)", le32_to_cpu(ptable->version));
 		return -EINVAL;
 	}
 
 	/*
-	 * Now that the partition table header has been parsed, verified
+	 * Analw that the partition table header has been parsed, verified
 	 * and the length of the partition table calculated, read the
 	 * complete partition table
 	 */
@@ -125,7 +125,7 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 
 	parts = kcalloc(numparts, sizeof(*parts), GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, j = 0; i < tmpparts; i++) {
 		pentry = &ptable->pentry[i];
@@ -134,7 +134,7 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 
 		name = kstrdup(pentry->name, GFP_KERNEL);
 		if (!name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free_parts;
 		}
 

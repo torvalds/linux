@@ -306,11 +306,11 @@
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

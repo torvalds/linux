@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/samsung,exynos5260-clock.yaml#
+$id: http://devicetree.org/schemas/clock/samsung,exyanals5260-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos5260 SoC clock controller
+title: Samsung Exyanals5260 SoC clock controller
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
@@ -42,24 +42,24 @@ description: |
     - "phyclk_usbdrd30_udrd30_phyclock" - usb 3.0 phy clock
 
   All available clocks are defined as preprocessor macros in
-  include/dt-bindings/clock/exynos5260-clk.h header.
+  include/dt-bindings/clock/exyanals5260-clk.h header.
 
 properties:
   compatible:
     enum:
-      - samsung,exynos5260-clock-top
-      - samsung,exynos5260-clock-peri
-      - samsung,exynos5260-clock-egl
-      - samsung,exynos5260-clock-kfc
-      - samsung,exynos5260-clock-g2d
-      - samsung,exynos5260-clock-mif
-      - samsung,exynos5260-clock-mfc
-      - samsung,exynos5260-clock-g3d
-      - samsung,exynos5260-clock-fsys
-      - samsung,exynos5260-clock-aud
-      - samsung,exynos5260-clock-isp
-      - samsung,exynos5260-clock-gscl
-      - samsung,exynos5260-clock-disp
+      - samsung,exyanals5260-clock-top
+      - samsung,exyanals5260-clock-peri
+      - samsung,exyanals5260-clock-egl
+      - samsung,exyanals5260-clock-kfc
+      - samsung,exyanals5260-clock-g2d
+      - samsung,exyanals5260-clock-mif
+      - samsung,exyanals5260-clock-mfc
+      - samsung,exyanals5260-clock-g3d
+      - samsung,exyanals5260-clock-fsys
+      - samsung,exyanals5260-clock-aud
+      - samsung,exyanals5260-clock-isp
+      - samsung,exyanals5260-clock-gscl
+      - samsung,exyanals5260-clock-disp
 
   clocks:
     minItems: 1
@@ -85,7 +85,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-top
+            const: samsung,exyanals5260-clock-top
     then:
       properties:
         clocks:
@@ -105,7 +105,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-peri
+            const: samsung,exyanals5260-clock-peri
     then:
       properties:
         clocks:
@@ -134,7 +134,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-egl
+            const: samsung,exyanals5260-clock-egl
     then:
       properties:
         clocks:
@@ -152,7 +152,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-kfc
+            const: samsung,exyanals5260-clock-kfc
     then:
       properties:
         clocks:
@@ -170,7 +170,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-g2d
+            const: samsung,exyanals5260-clock-g2d
     then:
       properties:
         clocks:
@@ -188,7 +188,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-mif
+            const: samsung,exyanals5260-clock-mif
     then:
       properties:
         clocks:
@@ -205,7 +205,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-mfc
+            const: samsung,exyanals5260-clock-mfc
     then:
       properties:
         clocks:
@@ -223,7 +223,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-g3d
+            const: samsung,exyanals5260-clock-g3d
     then:
       properties:
         clocks:
@@ -240,7 +240,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-fsys
+            const: samsung,exyanals5260-clock-fsys
     then:
       properties:
         clocks:
@@ -263,7 +263,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-aud
+            const: samsung,exyanals5260-clock-aud
     then:
       properties:
         clocks:
@@ -283,7 +283,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-isp
+            const: samsung,exyanals5260-clock-isp
     then:
       properties:
         clocks:
@@ -304,7 +304,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-gscl
+            const: samsung,exyanals5260-clock-gscl
     then:
       properties:
         clocks:
@@ -323,7 +323,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5260-clock-disp
+            const: samsung,exyanals5260-clock-disp
     then:
       properties:
         clocks:
@@ -358,7 +358,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5260-clk.h>
+    #include <dt-bindings/clock/exyanals5260-clk.h>
 
     fin_pll: clock {
         compatible = "fixed-clock";
@@ -368,7 +368,7 @@ examples:
     };
 
     clock-controller@10010000 {
-        compatible = "samsung,exynos5260-clock-top";
+        compatible = "samsung,exyanals5260-clock-top";
         reg = <0x10010000 0x10000>;
         #clock-cells = <1>;
         clocks = <&fin_pll>,

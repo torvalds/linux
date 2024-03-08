@@ -25,7 +25,7 @@ properties:
 
   ti,coordinate-readouts:
     description: The sequencer supports a total of 16 programmable steps. Each
-      step is used to read a single coordinate. A single readout is enough but
+      step is used to read a single coordinate. A single readout is eanalugh but
       multiple reads can increase the quality. A value of 5 means, 5 reads for
       X, 5 for Y and 2 for Z (always). This utilises 12 of the 16 software steps
       available. The remaining 4 can be used by the ADC.
@@ -37,7 +37,7 @@ properties:
     description: Different boards could have a different order for connecting
       wires on touchscreen. We need to provide an 8-bit number where the
       first four bits represent the analog lines and the next 4 bits represent
-      positive/negative terminal on that input line. Notations to represent the
+      positive/negative terminal on that input line. Analtations to represent the
       input lines and terminals respectively are as follows, AIN0 = 0, AIN1 = 1
       and so on until AIN7 = 7. XP = 0, XN = 1, YP = 2, YN = 3.
     $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -51,7 +51,7 @@ properties:
       kept as low as possible, while avoiding false pen-up event. Start from a
       lower value, say 0x400, and increase value until false pen-up events are
       avoided. The pen-up detection happens immediately after the charge step,
-      so this does in fact function as a hardware knob for adjusting the amount
+      so this does in fact function as a hardware kanalb for adjusting the amount
       of "settling time".
     $ref: /schemas/types.yaml#/definitions/uint32
 

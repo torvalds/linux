@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (C) 2022 Red Hat, Inc.
-# Author: Vladis Dronov <vdronoff@gmail.com>
+# Author: Vladis Droanalv <vdroanalff@gmail.com>
 
 obj-m += test_cipher.o
 test_cipher-y := test-cipher.o

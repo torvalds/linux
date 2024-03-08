@@ -13,7 +13,7 @@
 #define KVM_APIC_SIPI		1
 
 #define APIC_SHORT_MASK			0xc0000
-#define APIC_DEST_NOSHORT		0x0
+#define APIC_DEST_ANALSHORT		0x0
 #define APIC_DEST_MASK			0x800
 
 #define APIC_BUS_CYCLE_NS       1
@@ -73,7 +73,7 @@ struct kvm_lapic {
 	/**
 	 * APIC register page.  The layout matches the register layout seen by
 	 * the guest 1:1, because it is accessed by the vmx microcode.
-	 * Note: Only one register, the TPR, is used by the microcode.
+	 * Analte: Only one register, the TPR, is used by the microcode.
 	 */
 	void *regs;
 	gpa_t vapic_addr;
@@ -129,7 +129,7 @@ int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
 u64 kvm_get_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu);
 void kvm_set_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu, u64 data);
 
-void kvm_apic_write_nodecode(struct kvm_vcpu *vcpu, u32 offset);
+void kvm_apic_write_analdecode(struct kvm_vcpu *vcpu, u32 offset);
 void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector);
 
 int kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);
@@ -181,11 +181,11 @@ static inline u32 kvm_lapic_get_reg(struct kvm_lapic *apic, int reg_off)
 	return __kvm_lapic_get_reg(apic->regs, reg_off);
 }
 
-DECLARE_STATIC_KEY_FALSE(kvm_has_noapic_vcpu);
+DECLARE_STATIC_KEY_FALSE(kvm_has_analapic_vcpu);
 
 static inline bool lapic_in_kernel(struct kvm_vcpu *vcpu)
 {
-	if (static_branch_unlikely(&kvm_has_noapic_vcpu))
+	if (static_branch_unlikely(&kvm_has_analapic_vcpu))
 		return vcpu->arch.apic;
 	return true;
 }

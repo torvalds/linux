@@ -9,7 +9,7 @@
  */
 
 #include <linux/kvm_host.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pagemap.h>
 
 #include <asm/asm-offsets.h>
@@ -58,7 +58,7 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_stop_request++;
 
-	/* delay the stop if any non-stop irq is pending */
+	/* delay the stop if any analn-stop irq is pending */
 	if (kvm_s390_vcpu_has_irq(vcpu, 1))
 		return 0;
 
@@ -74,18 +74,18 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 	if (flags & KVM_S390_STOP_FLAG_STORE_STATUS) {
 		rc = kvm_s390_vcpu_store_status(vcpu,
-						KVM_S390_STORE_STATUS_NOADDR);
+						KVM_S390_STORE_STATUS_ANALADDR);
 		if (rc)
 			return rc;
 	}
 
 	/*
-	 * no need to check the return value of vcpu_stop as it can only have
+	 * anal need to check the return value of vcpu_stop as it can only have
 	 * an error for protvirt, but protvirt means user cpu state
 	 */
 	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm))
 		kvm_s390_vcpu_stop(vcpu);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int handle_validity(struct kvm_vcpu *vcpu)
@@ -97,7 +97,7 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 	KVM_EVENT(3, "validity intercept 0x%x for pid %u (kvm 0x%pK)", viwhy,
 		  current->pid, vcpu->kvm);
 
-	/* do not warn on invalid runtime instrumentation mode */
+	/* do analt warn on invalid runtime instrumentation mode */
 	WARN_ONCE(viwhy != 0x44, "kvm: unhandled validity intercept 0x%x\n",
 		  viwhy);
 	return -EINVAL;
@@ -136,7 +136,7 @@ static int handle_instruction(struct kvm_vcpu *vcpu)
 	case 0xeb:
 		return kvm_s390_handle_eb(vcpu);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -145,7 +145,7 @@ static int inject_prog_on_prog_intercept(struct kvm_vcpu *vcpu)
 	struct kvm_s390_pgm_info pgm_info = {
 		.code = vcpu->arch.sie_block->iprcc,
 		/* the PSW has already been rewound */
-		.flags = KVM_S390_PGM_FLAGS_NO_REWIND,
+		.flags = KVM_S390_PGM_FLAGS_ANAL_REWIND,
 	};
 
 	switch (vcpu->arch.sie_block->iprcc & ~PGM_PER) {
@@ -215,7 +215,7 @@ static int handle_itdb(struct kvm_vcpu *vcpu)
 
 	if (!IS_TE_ENABLED(vcpu) || !IS_ITDB_VALID(vcpu))
 		return 0;
-	if (current->thread.per_flags & PER_FLAG_NO_TE)
+	if (current->thread.per_flags & PER_FLAG_ANAL_TE)
 		return 0;
 	itdb = phys_to_virt(vcpu->arch.sie_block->itdba);
 	rc = write_guest_lc(vcpu, __LC_PGM_TDB, itdb, sizeof(*itdb));
@@ -255,7 +255,7 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	 * for protected guests.
 	 */
 	if (kvm_s390_pv_cpu_is_protected(vcpu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (should_handle_per_event(vcpu)) {
 		rc = kvm_s390_handle_per_event(vcpu);
@@ -273,7 +273,7 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 			return rc;
 		/* Avoid endless loops of specification exceptions */
 		if (!is_valid_psw(&psw))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 	rc = handle_itdb(vcpu);
 	if (rc)
@@ -322,7 +322,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 	 */
 	if ((eic == EXT_IRQ_CLK_COMP || eic == EXT_IRQ_CPU_TIMER) &&
 	    (newpsw.mask & PSW_MASK_EXT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (eic) {
 	case EXT_IRQ_CLK_COMP:
@@ -335,12 +335,12 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 		irq.type = KVM_S390_INT_EXTERNAL_CALL;
 		irq.u.extcall.code = vcpu->arch.sie_block->extcpuaddr;
 		rc = kvm_s390_inject_vcpu(vcpu, &irq);
-		/* ignore if another external call is already pending */
+		/* iganalre if aanalther external call is already pending */
 		if (rc == -EBUSY)
 			return 0;
 		return rc;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return kvm_s390_inject_vcpu(vcpu, &irq);
@@ -351,7 +351,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
  * @vcpu: virtual cpu
  *
  * This interception can only happen for guests with DAT disabled and
- * addresses that are currently not mapped in the host. Thus we try to
+ * addresses that are currently analt mapped in the host. Thus we try to
  * set up the mappings for the corresponding user pages here (or throw
  * addressing exceptions in case of illegal guest addresses).
  */
@@ -362,7 +362,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
-	/* Ensure that the source is paged-in, no actual access -> no key checking */
+	/* Ensure that the source is paged-in, anal actual access -> anal key checking */
 	rc = guest_translate_address_with_key(vcpu, vcpu->run->s.regs.gprs[reg2],
 					      reg2, &srcaddr, GACC_FETCH, 0);
 	if (rc)
@@ -371,7 +371,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 	if (rc != 0)
 		return rc;
 
-	/* Ensure that the source is paged-in, no actual access -> no key checking */
+	/* Ensure that the source is paged-in, anal actual access -> anal key checking */
 	rc = guest_translate_address_with_key(vcpu, vcpu->run->s.regs.gprs[reg1],
 					      reg1, &dstaddr, GACC_STORE, 0);
 	if (rc)
@@ -394,7 +394,7 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->ipa >> 8 == 0xae)	/* SIGP */
 		return kvm_s390_handle_sigp_pei(vcpu);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /*
@@ -433,7 +433,7 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 
 	sctns = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!sctns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cc = sthyi_fill(sctns, &rc);
 	if (cc < 0) {
@@ -472,7 +472,7 @@ static int handle_operexc(struct kvm_vcpu *vcpu)
 		return handle_sthyi(vcpu);
 
 	if (vcpu->arch.sie_block->ipa == 0 && vcpu->kvm->arch.user_instr0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	rc = read_guest_lc(vcpu, __LC_PGM_NEW_PSW, &newpsw, sizeof(psw_t));
 	if (rc)
 		return rc;
@@ -481,7 +481,7 @@ static int handle_operexc(struct kvm_vcpu *vcpu)
 	 * PSW will cause a new operation exception.
 	 * The heuristic checks if the pgm new psw is within 6 bytes before
 	 * the faulting psw address (with same DAT, AS settings) and the
-	 * new psw is not a wait psw and the fault was not triggered by
+	 * new psw is analt a wait psw and the fault was analt triggered by
 	 * problem state.
 	 */
 	oldpsw = vcpu->arch.sie_block->gpsw;
@@ -490,7 +490,7 @@ static int handle_operexc(struct kvm_vcpu *vcpu)
 	    !(oldpsw.mask & PSW_MASK_PSTATE) &&
 	    (newpsw.mask & PSW_MASK_ASC) == (oldpsw.mask & PSW_MASK_ASC) &&
 	    (newpsw.mask & PSW_MASK_DAT) == (oldpsw.mask & PSW_MASK_DAT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
 }
@@ -512,14 +512,14 @@ static int handle_pv_sclp(struct kvm_vcpu *vcpu)
 	/*
 	 * 2 cases:
 	 * a: an sccb answering interrupt was already pending or in flight.
-	 *    As the sccb value is not known we can simply set some value to
+	 *    As the sccb value is analt kanalwn we can simply set some value to
 	 *    trigger delivery of a saved SCCB. UV will then use its saved
 	 *    copy of the SCCB value.
 	 * b: an error SCCB interrupt needs to be injected so we also inject
 	 *    a fake SCCB address. Firmware will use the proper one.
 	 * This makes sure, that both errors and real sccb returns will only
-	 * be delivered after a notification intercept (instruction has
-	 * finished) but not after others.
+	 * be delivered after a analtification intercept (instruction has
+	 * finished) but analt after others.
 	 */
 	fi->srv_signal.ext_params |= 0x43000;
 	set_bit(IRQ_PEND_EXT_SERVICE, &fi->pending_irqs);
@@ -540,13 +540,13 @@ static int handle_pv_uvc(struct kvm_vcpu *vcpu)
 	int rc;
 
 	if (guest_uvcb->header.cmd != UVC_CMD_REMOVE_SHARED_ACCESS) {
-		WARN_ONCE(1, "Unexpected notification intercept for UVC 0x%x\n",
+		WARN_ONCE(1, "Unexpected analtification intercept for UVC 0x%x\n",
 			  guest_uvcb->header.cmd);
 		return 0;
 	}
 	rc = gmap_make_secure(vcpu->arch.gmap, uvcb.gaddr, &uvcb);
 	/*
-	 * If the unpin did not succeed, the guest will exit again for the UVC
+	 * If the unpin did analt succeed, the guest will exit again for the UVC
 	 * and we will retry the unpin.
 	 */
 	if (rc == -EINVAL)
@@ -559,7 +559,7 @@ static int handle_pv_uvc(struct kvm_vcpu *vcpu)
 	return rc;
 }
 
-static int handle_pv_notification(struct kvm_vcpu *vcpu)
+static int handle_pv_analtification(struct kvm_vcpu *vcpu)
 {
 	int ret;
 
@@ -572,7 +572,7 @@ static int handle_pv_notification(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->ipa >> 8 == 0xae) {
 		/*
 		 * Besides external call, other SIGP orders also cause a
-		 * 108 (pv notify) intercept. In contrast to external call,
+		 * 108 (pv analtify) intercept. In contrast to external call,
 		 * these orders need to be emulated and hence the appropriate
 		 * place to handle them is in handle_instruction().
 		 * So first try kvm_s390_handle_sigp_pei() and if that isn't
@@ -591,7 +591,7 @@ static bool should_handle_per_ifetch(const struct kvm_vcpu *vcpu, int rc)
 	/* Process PER, also if the instruction is processed in user space. */
 	if (!(vcpu->arch.sie_block->icptstatus & 0x02))
 		return false;
-	if (rc != 0 && rc != -EOPNOTSUPP)
+	if (rc != 0 && rc != -EOPANALTSUPP)
 		return false;
 	if (guestdbg_sstep_enabled(vcpu) && vcpu->arch.local_int.pending_irqs)
 		/* __vcpu_run() will exit after delivering the interrupt. */
@@ -604,7 +604,7 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 	int rc, per_rc = 0;
 
 	if (kvm_is_ucontrol(vcpu->kvm))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (vcpu->arch.sie_block->icptcode) {
 	case ICPT_EXTREQ:
@@ -639,7 +639,7 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 	case ICPT_INT_ENABLE:
 		/*
 		 * PSW bit 13 or a CR (0, 6, 14) changed and we might
-		 * now be able to deliver interrupts. The pre-run code
+		 * analw be able to deliver interrupts. The pre-run code
 		 * will take care of this.
 		 */
 		rc = 0;
@@ -647,8 +647,8 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 	case ICPT_PV_INSTR:
 		rc = handle_instruction(vcpu);
 		break;
-	case ICPT_PV_NOTIFY:
-		rc = handle_pv_notification(vcpu);
+	case ICPT_PV_ANALTIFY:
+		rc = handle_pv_analtification(vcpu);
 		break;
 	case ICPT_PV_PREF:
 		rc = 0;
@@ -658,7 +658,7 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 				       kvm_s390_get_prefix(vcpu) + PAGE_SIZE);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (should_handle_per_ifetch(vcpu, rc))

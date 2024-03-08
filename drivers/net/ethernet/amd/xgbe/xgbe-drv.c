@@ -19,34 +19,34 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -62,51 +62,51 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -158,11 +158,11 @@ static int xgbe_one_poll(struct napi_struct *, int);
 static int xgbe_all_poll(struct napi_struct *, int);
 static void xgbe_stop(struct xgbe_prv_data *);
 
-static void *xgbe_alloc_node(size_t size, int node)
+static void *xgbe_alloc_analde(size_t size, int analde)
 {
 	void *mem;
 
-	mem = kzalloc_node(size, GFP_KERNEL, node);
+	mem = kzalloc_analde(size, GFP_KERNEL, analde);
 	if (!mem)
 		mem = kzalloc(size, GFP_KERNEL);
 
@@ -193,17 +193,17 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 	struct xgbe_ring *ring;
 	unsigned int count, i;
 	unsigned int cpu;
-	int node;
+	int analde;
 
 	count = max_t(unsigned int, pdata->tx_ring_count, pdata->rx_ring_count);
 	for (i = 0; i < count; i++) {
-		/* Attempt to use a CPU on the node the device is on */
-		cpu = cpumask_local_spread(i, dev_to_node(pdata->dev));
+		/* Attempt to use a CPU on the analde the device is on */
+		cpu = cpumask_local_spread(i, dev_to_analde(pdata->dev));
 
-		/* Set the allocation node based on the returned CPU */
-		node = cpu_to_node(cpu);
+		/* Set the allocation analde based on the returned CPU */
+		analde = cpu_to_analde(cpu);
 
-		channel = xgbe_alloc_node(sizeof(*channel), node);
+		channel = xgbe_alloc_analde(sizeof(*channel), analde);
 		if (!channel)
 			goto err_mem;
 		pdata->channel[i] = channel;
@@ -213,36 +213,36 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 		channel->queue_index = i;
 		channel->dma_regs = pdata->xgmac_regs + DMA_CH_BASE +
 				    (DMA_CH_INC * i);
-		channel->node = node;
+		channel->analde = analde;
 		cpumask_set_cpu(cpu, &channel->affinity_mask);
 
 		if (pdata->per_channel_irq)
 			channel->dma_irq = pdata->channel_irq[i];
 
 		if (i < pdata->tx_ring_count) {
-			ring = xgbe_alloc_node(sizeof(*ring), node);
+			ring = xgbe_alloc_analde(sizeof(*ring), analde);
 			if (!ring)
 				goto err_mem;
 
 			spin_lock_init(&ring->lock);
-			ring->node = node;
+			ring->analde = analde;
 
 			channel->tx_ring = ring;
 		}
 
 		if (i < pdata->rx_ring_count) {
-			ring = xgbe_alloc_node(sizeof(*ring), node);
+			ring = xgbe_alloc_analde(sizeof(*ring), analde);
 			if (!ring)
 				goto err_mem;
 
 			spin_lock_init(&ring->lock);
-			ring->node = node;
+			ring->analde = analde;
 
 			channel->rx_ring = ring;
 		}
 
 		netif_dbg(pdata, drv, pdata->netdev,
-			  "%s: cpu=%u, node=%d\n", channel->name, cpu, node);
+			  "%s: cpu=%u, analde=%d\n", channel->name, cpu, analde);
 
 		netif_dbg(pdata, drv, pdata->netdev,
 			  "%s: dma_regs=%p, dma_irq=%d, tx=%p, rx=%p\n",
@@ -257,7 +257,7 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 err_mem:
 	xgbe_free_channels(pdata);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline unsigned int xgbe_tx_avail_desc(struct xgbe_ring *ring)
@@ -277,12 +277,12 @@ static int xgbe_maybe_stop_tx_queue(struct xgbe_channel *channel,
 
 	if (count > xgbe_tx_avail_desc(ring)) {
 		netif_info(pdata, drv, pdata->netdev,
-			   "Tx queue stopped, not enough descriptors available\n");
+			   "Tx queue stopped, analt eanalugh descriptors available\n");
 		netif_stop_subqueue(pdata->netdev, channel->queue_index);
 		ring->tx.queue_stopped = 1;
 
-		/* If we haven't notified the hardware because of xmit_more
-		 * support, tell it now
+		/* If we haven't analtified the hardware because of xmit_more
+		 * support, tell it analw
 		 */
 		if (ring->tx.xmit_more)
 			pdata->hw_if.tx_start_xmit(channel, ring);
@@ -456,7 +456,7 @@ out:
 	/* Clear all ECC interrupts */
 	XP_IOWRITE(pdata, XP_ECC_ISR, ecc_isr);
 
-	/* Reissue interrupt if status is not clear */
+	/* Reissue interrupt if status is analt clear */
 	if (pdata->vdata->irq_reissue_support)
 		XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 1);
 }
@@ -484,7 +484,7 @@ static void xgbe_isr_task(struct tasklet_struct *t)
 
 	/* The DMA interrupt status register also reports MAC and MTL
 	 * interrupts. So for polling mode, we just need to check for
-	 * this register to be non-zero
+	 * this register to be analn-zero
 	 */
 	dma_isr = XGMAC_IOREAD(pdata, DMA_ISR);
 	if (!dma_isr)
@@ -503,7 +503,7 @@ static void xgbe_isr_task(struct tasklet_struct *t)
 			  i, dma_ch_isr);
 
 		/* The TI or RI interrupt bits may still be set even if using
-		 * per channel DMA interrupts. Check to be sure those are not
+		 * per channel DMA interrupts. Check to be sure those are analt
 		 * enabled before using the private data napi structure.
 		 */
 		if (!pdata->per_channel_irq &&
@@ -576,19 +576,19 @@ static void xgbe_isr_task(struct tasklet_struct *t)
 	}
 
 isr_done:
-	/* If there is not a separate AN irq, handle it here */
+	/* If there is analt a separate AN irq, handle it here */
 	if (pdata->dev_irq == pdata->an_irq)
 		pdata->phy_if.an_isr(pdata);
 
-	/* If there is not a separate ECC irq, handle it here */
+	/* If there is analt a separate ECC irq, handle it here */
 	if (pdata->vdata->ecc_support && (pdata->dev_irq == pdata->ecc_irq))
 		xgbe_ecc_isr_task(&pdata->tasklet_ecc);
 
-	/* If there is not a separate I2C irq, handle it here */
+	/* If there is analt a separate I2C irq, handle it here */
 	if (pdata->vdata->i2c_support && (pdata->dev_irq == pdata->i2c_irq))
 		pdata->i2c_if.i2c_isr(pdata);
 
-	/* Reissue interrupt if status is not clear */
+	/* Reissue interrupt if status is analt clear */
 	if (pdata->vdata->irq_reissue_support) {
 		unsigned int reissue_mask;
 
@@ -619,14 +619,14 @@ static irqreturn_t xgbe_dma_isr(int irq, void *data)
 	unsigned int dma_status;
 
 	/* Per channel DMA interrupts are enabled, so we use the per
-	 * channel napi structure and not the private data napi structure
+	 * channel napi structure and analt the private data napi structure
 	 */
 	if (napi_schedule_prep(&channel->napi)) {
 		/* Disable Tx and Rx interrupts */
 		if (pdata->channel_irq_mode)
 			xgbe_disable_rx_tx_int(pdata, channel);
 		else
-			disable_irq_nosync(channel->dma_irq);
+			disable_irq_analsync(channel->dma_irq);
 
 		/* Turn on polling */
 		__napi_schedule_irqoff(&channel->napi);
@@ -657,7 +657,7 @@ static void xgbe_tx_timer(struct timer_list *t)
 			if (pdata->channel_irq_mode)
 				xgbe_disable_rx_tx_int(pdata, channel);
 			else
-				disable_irq_nosync(channel->dma_irq);
+				disable_irq_analsync(channel->dma_irq);
 		else
 			xgbe_disable_rx_tx_ints(pdata);
 
@@ -846,27 +846,27 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 
 		/* Hardware feature register 0 */
 		dev_dbg(pdata->dev, "  1GbE support              : %s\n",
-			hw_feat->gmii ? "yes" : "no");
+			hw_feat->gmii ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  VLAN hash filter          : %s\n",
-			hw_feat->vlhash ? "yes" : "no");
+			hw_feat->vlhash ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  MDIO interface            : %s\n",
-			hw_feat->sma ? "yes" : "no");
+			hw_feat->sma ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Wake-up packet support    : %s\n",
-			hw_feat->rwk ? "yes" : "no");
+			hw_feat->rwk ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Magic packet support      : %s\n",
-			hw_feat->mgk ? "yes" : "no");
+			hw_feat->mgk ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Management counters       : %s\n",
-			hw_feat->mmc ? "yes" : "no");
+			hw_feat->mmc ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  ARP offload               : %s\n",
-			hw_feat->aoe ? "yes" : "no");
+			hw_feat->aoe ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  IEEE 1588-2008 Timestamp  : %s\n",
-			hw_feat->ts ? "yes" : "no");
+			hw_feat->ts ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Energy Efficient Ethernet : %s\n",
-			hw_feat->eee ? "yes" : "no");
+			hw_feat->eee ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  TX checksum offload       : %s\n",
-			hw_feat->tx_coe ? "yes" : "no");
+			hw_feat->tx_coe ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  RX checksum offload       : %s\n",
-			hw_feat->rx_coe ? "yes" : "no");
+			hw_feat->rx_coe ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Additional MAC addresses  : %u\n",
 			hw_feat->addn_mac);
 		dev_dbg(pdata->dev, "  Timestamp source          : %s\n",
@@ -874,9 +874,9 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 			(hw_feat->ts_src == 2) ? "external" :
 			(hw_feat->ts_src == 3) ? "internal/external" : "n/a");
 		dev_dbg(pdata->dev, "  SA/VLAN insertion         : %s\n",
-			hw_feat->sa_vlan_ins ? "yes" : "no");
+			hw_feat->sa_vlan_ins ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  VXLAN/NVGRE support       : %s\n",
-			hw_feat->vxn ? "yes" : "no");
+			hw_feat->vxn ? "anal" : "anal");
 
 		/* Hardware feature register 1 */
 		dev_dbg(pdata->dev, "  RX fifo size              : %u\n",
@@ -884,19 +884,19 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 		dev_dbg(pdata->dev, "  TX fifo size              : %u\n",
 			hw_feat->tx_fifo_size);
 		dev_dbg(pdata->dev, "  IEEE 1588 high word       : %s\n",
-			hw_feat->adv_ts_hi ? "yes" : "no");
+			hw_feat->adv_ts_hi ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  DMA width                 : %u\n",
 			hw_feat->dma_width);
 		dev_dbg(pdata->dev, "  Data Center Bridging      : %s\n",
-			hw_feat->dcb ? "yes" : "no");
+			hw_feat->dcb ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Split header              : %s\n",
-			hw_feat->sph ? "yes" : "no");
+			hw_feat->sph ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  TCP Segmentation Offload  : %s\n",
-			hw_feat->tso ? "yes" : "no");
+			hw_feat->tso ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Debug memory interface    : %s\n",
-			hw_feat->dma_debug ? "yes" : "no");
+			hw_feat->dma_debug ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Receive Side Scaling      : %s\n",
-			hw_feat->rss ? "yes" : "no");
+			hw_feat->rss ? "anal" : "anal");
 		dev_dbg(pdata->dev, "  Traffic Class count       : %u\n",
 			hw_feat->tc_cnt);
 		dev_dbg(pdata->dev, "  Hash table size           : %u\n",
@@ -1173,7 +1173,7 @@ static void xgbe_free_rx_data(struct xgbe_prv_data *pdata)
 static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 {
 	pdata->phy_link = -1;
-	pdata->phy_speed = SPEED_UNKNOWN;
+	pdata->phy_speed = SPEED_UNKANALWN;
 
 	return pdata->phy_if.phy_reset(pdata);
 }
@@ -1439,7 +1439,7 @@ static void xgbe_stopdev(struct work_struct *work)
 
 void xgbe_full_restart_dev(struct xgbe_prv_data *pdata)
 {
-	/* If not running, "restart" will happen on open */
+	/* If analt running, "restart" will happen on open */
 	if (!netif_running(pdata->netdev))
 		return;
 
@@ -1453,7 +1453,7 @@ void xgbe_full_restart_dev(struct xgbe_prv_data *pdata)
 
 void xgbe_restart_dev(struct xgbe_prv_data *pdata)
 {
-	/* If not running, "restart" will happen on open */
+	/* If analt running, "restart" will happen on open */
 	if (!netif_running(pdata->netdev))
 		return;
 
@@ -1542,7 +1542,7 @@ static int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
 	}
 
 	switch (config.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		break;
 
 	case HWTSTAMP_FILTER_NTP_ALL:
@@ -1658,7 +1658,7 @@ static void xgbe_prep_tx_tstamp(struct xgbe_prv_data *pdata,
 	if (XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES, PTP)) {
 		spin_lock_irqsave(&pdata->tstamp_lock, flags);
 		if (pdata->tx_tstamp_skb) {
-			/* Another timestamp in progress, ignore this one */
+			/* Aanalther timestamp in progress, iganalre this one */
 			XGMAC_SET_BITS(packet->attributes,
 				       TX_PACKET_ATTRIBUTES, PTP, 0);
 		} else {
@@ -1849,14 +1849,14 @@ static int xgbe_open(struct net_device *netdev)
 		create_singlethread_workqueue(netdev_name(netdev));
 	if (!pdata->dev_workqueue) {
 		netdev_err(netdev, "device workqueue creation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pdata->an_workqueue =
 		create_singlethread_workqueue(pdata->an_name);
 	if (!pdata->an_workqueue) {
 		netdev_err(netdev, "phy workqueue creation failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dev_wq;
 	}
 
@@ -1966,7 +1966,7 @@ static netdev_tx_t xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	memset(packet, 0, sizeof(*packet));
 	xgbe_packet_info(pdata, ring, skb, packet);
 
-	/* Check that there are enough descriptors available */
+	/* Check that there are eanalugh descriptors available */
 	ret = xgbe_maybe_stop_tx_queue(channel, ring, packet->rdesc_count);
 	if (ret)
 		goto tx_netdev_return;
@@ -1996,7 +1996,7 @@ static netdev_tx_t xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (netif_msg_pktdata(pdata))
 		xgbe_print_pkt(netdev, skb, true);
 
-	/* Stop the queue in advance if there may not be enough descriptors */
+	/* Stop the queue in advance if there may analt be eanalugh descriptors */
 	xgbe_maybe_stop_tx_queue(channel, ring, XGBE_TX_MAX_DESCS);
 
 	ret = NETDEV_TX_OK;
@@ -2026,7 +2026,7 @@ static int xgbe_set_mac_address(struct net_device *netdev, void *addr)
 	DBGPR("-->xgbe_set_mac_address\n");
 
 	if (!is_valid_ether_addr(saddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(netdev, saddr->sa_data);
 
@@ -2052,7 +2052,7 @@ static int xgbe_ioctl(struct net_device *netdev, struct ifreq *ifreq, int cmd)
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -2180,7 +2180,7 @@ static int xgbe_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 	u8 tc;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	tc = mqprio->num_tc;
@@ -2208,27 +2208,27 @@ static netdev_features_t xgbe_fix_features(struct net_device *netdev,
 	/* VXLAN CSUM requires VXLAN base */
 	if ((features & NETIF_F_GSO_UDP_TUNNEL_CSUM) &&
 	    !(features & NETIF_F_GSO_UDP_TUNNEL)) {
-		netdev_notice(netdev,
+		netdev_analtice(netdev,
 			      "forcing tx udp tunnel support\n");
 		features |= NETIF_F_GSO_UDP_TUNNEL;
 	}
 
 	/* Can't do one without doing the other */
 	if ((features & vxlan_base) != vxlan_base) {
-		netdev_notice(netdev,
+		netdev_analtice(netdev,
 			      "forcing both tx and rx udp tunnel support\n");
 		features |= vxlan_base;
 	}
 
 	if (features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)) {
 		if (!(features & NETIF_F_GSO_UDP_TUNNEL_CSUM)) {
-			netdev_notice(netdev,
+			netdev_analtice(netdev,
 				      "forcing tx udp tunnel checksumming on\n");
 			features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		}
 	} else {
 		if (features & NETIF_F_GSO_UDP_TUNNEL_CSUM) {
-			netdev_notice(netdev,
+			netdev_analtice(netdev,
 				      "forcing tx udp tunnel checksumming off\n");
 			features &= ~NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		}
@@ -2378,7 +2378,7 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 static unsigned int xgbe_rx_buf1_len(struct xgbe_ring_data *rdata,
 				     struct xgbe_packet_data *packet)
 {
-	/* Always zero if not the first descriptor */
+	/* Always zero if analt the first descriptor */
 	if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, FIRST))
 		return 0;
 
@@ -2386,13 +2386,13 @@ static unsigned int xgbe_rx_buf1_len(struct xgbe_ring_data *rdata,
 	if (rdata->rx.hdr_len)
 		return rdata->rx.hdr_len;
 
-	/* First descriptor but not the last descriptor and no split header,
+	/* First descriptor but analt the last descriptor and anal split header,
 	 * so the full buffer was used
 	 */
 	if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, LAST))
 		return rdata->rx.hdr.dma_len;
 
-	/* First descriptor and last descriptor and no split header, so
+	/* First descriptor and last descriptor and anal split header, so
 	 * calculate how much of the buffer was used
 	 */
 	return min_t(unsigned int, rdata->rx.hdr.dma_len, rdata->rx.len);
@@ -2402,7 +2402,7 @@ static unsigned int xgbe_rx_buf2_len(struct xgbe_ring_data *rdata,
 				     struct xgbe_packet_data *packet,
 				     unsigned int len)
 {
-	/* Always the full buffer if not the last descriptor */
+	/* Always the full buffer if analt the last descriptor */
 	if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, LAST))
 		return rdata->rx.buf.dma_len;
 
@@ -2428,7 +2428,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 
 	DBGPR("-->xgbe_tx_poll\n");
 
-	/* Nothing to do if there isn't a Tx ring for this channel */
+	/* Analthing to do if there isn't a Tx ring for this channel */
 	if (!ring)
 		return 0;
 
@@ -2501,7 +2501,7 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 
 	DBGPR("-->xgbe_rx_poll: budget=%d\n", budget);
 
-	/* Nothing to do if there isn't a Rx ring for this channel */
+	/* Analthing to do if there isn't a Rx ring for this channel */
 	if (!ring)
 		return 0;
 
@@ -2625,7 +2625,7 @@ skip_data:
 		if (netif_msg_pktdata(pdata))
 			xgbe_print_pkt(netdev, skb, false);
 
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 		if (XGMAC_GET_BITS(packet->attributes,
 				   RX_PACKET_ATTRIBUTES, CSUM_DONE))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -2762,7 +2762,7 @@ void xgbe_dump_tx_desc(struct xgbe_prv_data *pdata, struct xgbe_ring *ring,
 		rdata = XGBE_GET_DESC_DATA(ring, idx);
 		rdesc = rdata->rdesc;
 		netdev_dbg(pdata->netdev,
-			   "TX_NORMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
+			   "TX_ANALRMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
 			   (flag == 1) ? "QUEUED FOR TX" : "TX BY DEVICE",
 			   le32_to_cpu(rdesc->desc0),
 			   le32_to_cpu(rdesc->desc1),
@@ -2781,7 +2781,7 @@ void xgbe_dump_rx_desc(struct xgbe_prv_data *pdata, struct xgbe_ring *ring,
 	rdata = XGBE_GET_DESC_DATA(ring, idx);
 	rdesc = rdata->rdesc;
 	netdev_dbg(pdata->netdev,
-		   "RX_NORMAL_DESC[%d RX BY DEVICE] = %08x:%08x:%08x:%08x\n",
+		   "RX_ANALRMAL_DESC[%d RX BY DEVICE] = %08x:%08x:%08x:%08x\n",
 		   idx, le32_to_cpu(rdesc->desc0), le32_to_cpu(rdesc->desc1),
 		   le32_to_cpu(rdesc->desc2), le32_to_cpu(rdesc->desc3));
 }

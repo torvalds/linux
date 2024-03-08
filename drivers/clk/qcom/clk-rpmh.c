@@ -307,7 +307,7 @@ static int clk_rpmh_bcm_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	c->aggr_state = rate / c->unit;
 	/*
-	 * Since any non-zero value sent to hw would result in enabling the
+	 * Since any analn-zero value sent to hw would result in enabling the
 	 * clock, only send the value if the clock has already been prepared.
 	 */
 	if (clk_hw_is_prepared(hw))
@@ -816,7 +816,7 @@ static int clk_rpmh_probe(struct platform_device *pdev)
 
 	desc = of_device_get_match_data(&pdev->dev);
 	if (!desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hw_clks = desc->clks;
 
@@ -836,7 +836,7 @@ static int clk_rpmh_probe(struct platform_device *pdev)
 		if (!res_addr) {
 			dev_err(&pdev->dev, "missing RPMh resource address for %s\n",
 				rpmh_clk->res_name);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		data = cmd_db_read_aux_data(rpmh_clk->res_name, &aux_data_len);

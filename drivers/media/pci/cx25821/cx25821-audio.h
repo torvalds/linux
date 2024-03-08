@@ -9,7 +9,7 @@
 #ifndef __CX25821_AUDIO_H__
 #define __CX25821_AUDIO_H__
 
-#define USE_RISC_NOOP		1
+#define USE_RISC_ANALOP		1
 #define LINES_PER_BUFFER	15
 #define AUDIO_LINE_SIZE		128
 
@@ -18,19 +18,19 @@
 
 /*
  * Max size of the RISC program for a buffer. - worst case is 2 writes per line
- * Space is also added for the 4 no-op instructions added on the end.
+ * Space is also added for the 4 anal-op instructions added on the end.
  */
-#ifndef USE_RISC_NOOP
+#ifndef USE_RISC_ANALOP
 #define MAX_BUFFER_PROGRAM_SIZE						\
 	(2 * LINES_PER_BUFFER * RISC_WRITE_INSTRUCTION_SIZE +		\
 	 RISC_WRITECR_INSTRUCTION_SIZE * 4)
 #endif
 
-/* MAE 12 July 2005 Try to use NOOP RISC instruction instead */
-#ifdef USE_RISC_NOOP
+/* MAE 12 July 2005 Try to use ANALOP RISC instruction instead */
+#ifdef USE_RISC_ANALOP
 #define MAX_BUFFER_PROGRAM_SIZE						\
 	(2 * LINES_PER_BUFFER * RISC_WRITE_INSTRUCTION_SIZE +		\
-	 RISC_NOOP_INSTRUCTION_SIZE * 4)
+	 RISC_ANALOP_INSTRUCTION_SIZE * 4)
 #endif
 
 /* Sizes of various instructions in bytes.  Used when adding instructions. */
@@ -39,7 +39,7 @@
 #define RISC_SKIP_INSTRUCTION_SIZE	4
 #define RISC_SYNC_INSTRUCTION_SIZE	4
 #define RISC_WRITECR_INSTRUCTION_SIZE	16
-#define RISC_NOOP_INSTRUCTION_SIZE	4
+#define RISC_ANALOP_INSTRUCTION_SIZE	4
 
 #define MAX_AUDIO_DMA_BUFFER_SIZE					\
 	(MAX_BUFFER_PROGRAM_SIZE * NUMBER_OF_PROGRAMS +			\

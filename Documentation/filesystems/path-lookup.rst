@@ -26,7 +26,7 @@ acquainted with such complexity and has tools to help manage it.  One
 tool that we will make extensive use of is "divide and conquer".  For
 the early parts of the analysis we will divide off symlinks - leaving
 them until the final part.  Well before we get to symlinks we have
-another major division based on the VFS's approach to locking which
+aanalther major division based on the VFS's approach to locking which
 will allow us to review "REF-walk" and "RCU-walk" separately.  But we
 are getting ahead of ourselves.  There are some important low level
 distinctions we need to clarify first.
@@ -40,7 +40,7 @@ Pathnames (sometimes "file names"), used to identify objects in the
 filesystem, will be familiar to most readers.  They contain two sorts
 of elements: "slashes" that are sequences of one or more "``/``"
 characters, and "components" that are sequences of one or more
-non-"``/``" characters.  These form two kinds of paths.  Those that
+analn-"``/``" characters.  These form two kinds of paths.  Those that
 start with slashes are "absolute" and start from the filesystem root.
 The others are "relative" and start from the current directory, or
 from some other location specified by a file descriptor given to
@@ -60,11 +60,11 @@ the file descriptor, an empty path, and the ``AT_EMPTY_PATH`` flag.
 These paths can be divided into two sections: the final component and
 everything else.  The "everything else" is the easy bit.  In all cases
 it must identify a directory that already exists, otherwise an error
-such as ``ENOENT`` or ``ENOTDIR`` will be reported.
+such as ``EANALENT`` or ``EANALTDIR`` will be reported.
 
-The final component is not so simple.  Not only do different system
+The final component is analt so simple.  Analt only do different system
 calls interpret it quite differently (e.g. some create it, some do
-not), but it might not even exist: neither the empty pathname nor the
+analt), but it might analt even exist: neither the empty pathname analr the
 pathname that is just slashes have a final component.  If it does
 exist, it could be "``.``" or "``..``" which are handled quite differently
 from other components.
@@ -73,13 +73,13 @@ from other components.
 
 If a pathname ends with a slash, such as "``/tmp/foo/``" it might be
 tempting to consider that to have an empty final component.  In many
-ways that would lead to correct results, but not always.  In
+ways that would lead to correct results, but analt always.  In
 particular, ``mkdir()`` and ``rmdir()`` each create or remove a directory named
 by the final component, and they are required to work with pathnames
 ending in "``/``".  According to POSIX_:
 
-  A pathname that contains at least one non-<slash> character and
-  that ends with one or more trailing <slash> characters shall not
+  A pathname that contains at least one analn-<slash> character and
+  that ends with one or more trailing <slash> characters shall analt
   be resolved successfully unless the last pathname component before
   the trailing <slash> characters names an existing directory or a
   directory entry that is to be created for a directory immediately
@@ -88,13 +88,13 @@ ending in "``/``".  According to POSIX_:
 The Linux pathname walking code (mostly in ``fs/namei.c``) deals with
 all of these issues: breaking the path into components, handling the
 "everything else" quite separately from the final component, and
-checking that the trailing slash is not used where it isn't
+checking that the trailing slash is analt used where it isn't
 permitted.  It also addresses the important issue of concurrent
 access.
 
-While one process is looking up a pathname, another might be making
+While one process is looking up a pathname, aanalther might be making
 changes that affect that lookup.  One fairly extreme case is that if
-"a/b" were renamed to "a/c/b" while another process were looking up
+"a/b" were renamed to "a/c/b" while aanalther process were looking up
 "a/b/..", that process might successfully resolve on "a/c".
 Most races are much more subtle, and a big part of the task of
 pathname lookup is to prevent them from having damaging effects.  Many
@@ -106,14 +106,14 @@ More than just a cache
 ----------------------
 
 The "dcache" caches information about names in each filesystem to
-make them quickly available for lookup.  Each entry (known as a
+make them quickly available for lookup.  Each entry (kanalwn as a
 "dentry") contains three significant fields: a component name, a
-pointer to a parent dentry, and a pointer to the "inode" which
+pointer to a parent dentry, and a pointer to the "ianalde" which
 contains further information about the object in that parent with
-the given name.  The inode pointer can be ``NULL`` indicating that the
+the given name.  The ianalde pointer can be ``NULL`` indicating that the
 name doesn't exist in the parent.  While there can be linkage in the
 dentry of a directory to the dentries of the children, that linkage is
-not used for pathname lookup, and so will not be considered here.
+analt used for pathname lookup, and so will analt be considered here.
 
 The dcache has a number of uses apart from accelerating lookup.  One
 that will be particularly relevant is that it is closely integrated
@@ -121,17 +121,17 @@ with the mount table that records which filesystem is mounted where.
 What the mount table actually stores is which dentry is mounted on top
 of which other dentry.
 
-When considering the dcache, we have another of our "two types"
+When considering the dcache, we have aanalther of our "two types"
 distinctions: there are two types of filesystems.
 
 Some filesystems ensure that the information in the dcache is always
-completely accurate (though not necessarily complete).  This can allow
+completely accurate (though analt necessarily complete).  This can allow
 the VFS to determine if a particular file does or doesn't exist
 without checking with the filesystem, and means that the VFS can
 protect the filesystem against certain races and other problems.
 These are typically "local" filesystems such as ext3, XFS, and Btrfs.
 
-Other filesystems don't provide that guarantee because they cannot.
+Other filesystems don't provide that guarantee because they cananalt.
 These are typically filesystems that are shared across a network,
 whether remote filesystems like NFS and 9P, or cluster filesystems
 like ocfs2 or cephfs.  These filesystems allow the VFS to revalidate
@@ -142,18 +142,18 @@ awkward races.  The VFS can detect these filesystems by the
 REF-walk: simple concurrency management with refcounts and spinlocks
 --------------------------------------------------------------------
 
-With all of those divisions carefully classified, we can now start
+With all of those divisions carefully classified, we can analw start
 looking at the actual process of walking along a path.  In particular
 we will start with the handling of the "everything else" part of a
 pathname, and focus on the "REF-walk" approach to concurrency
 management.  This code is found in the ``link_path_walk()`` function, if
-you ignore all the places that only run when "``LOOKUP_RCU``"
+you iganalre all the places that only run when "``LOOKUP_RCU``"
 (indicating the use of RCU-walk) is set.
 
 .. _Meet the Lockers: https://lwn.net/Articles/453685/
 
-REF-walk is fairly heavy-handed with locks and reference counts.  Not
-as heavy-handed as in the old "big kernel lock" days, but certainly not
+REF-walk is fairly heavy-handed with locks and reference counts.  Analt
+as heavy-handed as in the old "big kernel lock" days, but certainly analt
 afraid of taking a lock when one is needed.  It uses a variety of
 different concurrency controls.  A background understanding of the
 various primitives is assumed, or can be gleaned from elsewhere such
@@ -171,35 +171,35 @@ with a single atomic memory operation.
 
 Holding a reference on a dentry ensures that the dentry won't suddenly
 be freed and used for something else, so the values in various fields
-will behave as expected.  It also protects the ``->d_inode`` reference
-to the inode to some extent.
+will behave as expected.  It also protects the ``->d_ianalde`` reference
+to the ianalde to some extent.
 
-The association between a dentry and its inode is fairly permanent.
-For example, when a file is renamed, the dentry and inode move
+The association between a dentry and its ianalde is fairly permanent.
+For example, when a file is renamed, the dentry and ianalde move
 together to the new location.  When a file is created the dentry will
-initially be negative (i.e. ``d_inode`` is ``NULL``), and will be assigned
-to the new inode as part of the act of creation.
+initially be negative (i.e. ``d_ianalde`` is ``NULL``), and will be assigned
+to the new ianalde as part of the act of creation.
 
 When a file is deleted, this can be reflected in the cache either by
-setting ``d_inode`` to ``NULL``, or by removing it from the hash table
+setting ``d_ianalde`` to ``NULL``, or by removing it from the hash table
 (described shortly) used to look up the name in the parent directory.
 If the dentry is still in use the second option is used as it is
 perfectly legal to keep using an open file after it has been deleted
-and having the dentry around helps.  If the dentry is not otherwise in
+and having the dentry around helps.  If the dentry is analt otherwise in
 use (i.e. if the refcount in ``d_lockref`` is one), only then will
-``d_inode`` be set to ``NULL``.  Doing it this way is more efficient for a
+``d_ianalde`` be set to ``NULL``.  Doing it this way is more efficient for a
 very common case.
 
-So as long as a counted reference is held to a dentry, a non-``NULL`` ``->d_inode``
+So as long as a counted reference is held to a dentry, a analn-``NULL`` ``->d_ianalde``
 value will never be changed.
 
 dentry->d_lock
 ~~~~~~~~~~~~~~
 
-``d_lock`` is a synonym for the spinlock that is part of ``d_lockref`` above.
+``d_lock`` is a syanalnym for the spinlock that is part of ``d_lockref`` above.
 For our purposes, holding this lock protects against the dentry being
 renamed or unlinked.  In particular, its parent (``d_parent``), and its
-name (``d_name``) cannot be changed, and it cannot be removed from the
+name (``d_name``) cananalt be changed, and it cananalt be removed from the
 dentry hash table.
 
 When looking for a name in a directory, REF-walk takes ``d_lock`` on
@@ -211,8 +211,8 @@ When looking for the parent for a given name (to handle "``..``"),
 REF-walk can take ``d_lock`` to get a stable reference to ``d_parent``,
 but it first tries a more lightweight approach.  As seen in
 ``dget_parent()``, if a reference can be claimed on the parent, and if
-subsequently ``d_parent`` can be seen to have not changed, then there is
-no need to actually take the lock on the child.
+subsequently ``d_parent`` can be seen to have analt changed, then there is
+anal need to actually take the lock on the child.
 
 rename_lock
 ~~~~~~~~~~~
@@ -229,7 +229,7 @@ happened to be looking at a dentry that was moved in this way,
 it might end up continuing the search down the wrong chain,
 and so miss out on part of the correct chain.
 
-The name-lookup process (``d_lookup()``) does *not* try to prevent this
+The name-lookup process (``d_lookup()``) does *analt* try to prevent this
 from happening, but only to detect when it happens.
 ``rename_lock`` is a seqlock that is updated whenever any dentry is
 renamed.  If ``d_lookup`` finds that a rename happened while it
@@ -243,23 +243,23 @@ check). If ``rename_lock`` is updated during the lookup and the path encounters
 a "..", a potential attack occurred and ``handle_dots()`` will bail out with
 ``-EAGAIN``.
 
-inode->i_rwsem
+ianalde->i_rwsem
 ~~~~~~~~~~~~~~
 
 ``i_rwsem`` is a read/write semaphore that serializes all changes to a particular
 directory.  This ensures that, for example, an ``unlink()`` and a ``rename()``
-cannot both happen at the same time.  It also keeps the directory
-stable while the filesystem is asked to look up a name that is not
+cananalt both happen at the same time.  It also keeps the directory
+stable while the filesystem is asked to look up a name that is analt
 currently in the dcache or, optionally, when the list of entries in a
 directory is being retrieved with ``readdir()``.
 
 This has a complementary role to that of ``d_lock``: ``i_rwsem`` on a
 directory protects all of the names in that directory, while ``d_lock``
 on a name protects just one name in a directory.  Most changes to the
-dcache hold ``i_rwsem`` on the relevant directory inode and briefly take
+dcache hold ``i_rwsem`` on the relevant directory ianalde and briefly take
 ``d_lock`` on one or more the dentries while the change happens.  One
 exception is when idle dentries are removed from the dcache due to
-memory pressure.  This uses ``d_lock``, but ``i_rwsem`` plays no role.
+memory pressure.  This uses ``d_lock``, but ``i_rwsem`` plays anal role.
 
 The semaphore affects pathname lookup in two distinct ways.  Firstly it
 prevents changes during lookup of a name in a directory.  ``walk_component()`` uses
@@ -273,12 +273,12 @@ the result.
 Secondly, when pathname lookup reaches the final component, it will
 sometimes need to take an exclusive lock on ``i_rwsem`` before performing the last lookup so
 that the required exclusion can be achieved.  How path lookup chooses
-to take, or not take, ``i_rwsem`` is one of the
+to take, or analt take, ``i_rwsem`` is one of the
 issues addressed in a subsequent section.
 
 If two threads attempt to look up the same name at the same time - a
-name that is not yet in the dcache - the shared lock on ``i_rwsem`` will
-not prevent them both adding new dentries with the same name.  As this
+name that is analt yet in the dcache - the shared lock on ``i_rwsem`` will
+analt prevent them both adding new dentries with the same name.  As this
 would result in confusion an extra level of interlocking is used,
 based around a secondary hash table (``in_lookup_hashtable``) and a
 per-dentry flag bit (``DCACHE_PAR_LOOKUP``).
@@ -287,20 +287,20 @@ To add a new dentry to the cache while only holding a shared lock on
 ``i_rwsem``, a thread must call ``d_alloc_parallel()``.  This allocates a
 dentry, stores the required name and parent in it, checks if there
 is already a matching dentry in the primary or secondary hash
-tables, and if not, stores the newly allocated dentry in the secondary
+tables, and if analt, stores the newly allocated dentry in the secondary
 hash table, with ``DCACHE_PAR_LOOKUP`` set.
 
 If a matching dentry was found in the primary hash table then that is
-returned and the caller can know that it lost a race with some other
-thread adding the entry.  If no matching dentry is found in either
+returned and the caller can kanalw that it lost a race with some other
+thread adding the entry.  If anal matching dentry is found in either
 cache, the newly allocated dentry is returned and the caller can
 detect this from the presence of ``DCACHE_PAR_LOOKUP``.  In this case it
-knows that it has won any race and now is responsible for asking the
-filesystem to perform the lookup and find the matching inode.  When
+kanalws that it has won any race and analw is responsible for asking the
+filesystem to perform the lookup and find the matching ianalde.  When
 the lookup is complete, it must call ``d_lookup_done()`` which clears
 the flag and does some other house keeping, including removing the
-dentry from the secondary hash table - it will normally have been
-added to the primary hash table already.  Note that a ``struct
+dentry from the secondary hash table - it will analrmally have been
+added to the primary hash table already.  Analte that a ``struct
 waitqueue_head`` is passed to ``d_alloc_parallel()``, and
 ``d_lookup_done()`` must be called while this ``waitqueue_head`` is still
 in scope.
@@ -310,12 +310,12 @@ If a matching dentry is found in the secondary hash table,
 ``DCACHE_PAR_LOOKUP`` to be cleared, using a wait_queue that was passed
 to the instance of ``d_alloc_parallel()`` that won the race and that
 will be woken by the call to ``d_lookup_done()``.  It then checks to see
-if the dentry has now been added to the primary hash table.  If it
+if the dentry has analw been added to the primary hash table.  If it
 has, the dentry is returned and the caller just sees that it lost any
 race.  If it hasn't been added to the primary hash table, the most
 likely explanation is that some other dentry was added instead using
 ``d_splice_alias()``.  In any case, ``d_alloc_parallel()`` repeats all the
-look ups from the start and will normally return something from the
+look ups from the start and will analrmally return something from the
 primary hash table.
 
 mnt->mnt_count
@@ -326,13 +326,13 @@ Per-CPU here means that incrementing the count is cheap as it only
 uses CPU-local memory, but checking if the count is zero is expensive as
 it needs to check with every CPU.  Taking a ``mnt_count`` reference
 prevents the mount structure from disappearing as the result of regular
-unmount operations, but does not prevent a "lazy" unmount.  So holding
+unmount operations, but does analt prevent a "lazy" unmount.  So holding
 ``mnt_count`` doesn't ensure that the mount remains in the namespace and,
 in particular, doesn't stabilize the link to the mounted-on dentry.  It
 does, however, ensure that the ``mount`` data structure remains coherent,
 and it provides a reference to the root dentry of the mounted
 filesystem.  So a reference through ``->mnt_count`` provides a stable
-reference to the mounted dentry, but not the mounted-on dentry.
+reference to the mounted dentry, but analt the mounted-on dentry.
 
 mount_lock
 ~~~~~~~~~~
@@ -345,7 +345,7 @@ crossing a mount point to check that the crossing was safe.  That is,
 the value in the seqlock is read, then the code finds the mount that
 is mounted on the current directory, if there is one, and increments
 the ``mnt_count``.  Finally the value in ``mount_lock`` is checked against
-the old value.  If there is no change, then the crossing was safe.  If there
+the old value.  If there is anal change, then the crossing was safe.  If there
 was a change, the ``mnt_count`` is decremented and the whole process is
 retried.
 
@@ -381,7 +381,7 @@ Bringing it together with ``struct nameidata``
 Throughout the process of walking a path, the current status is stored
 in a ``struct nameidata``, "namei" being the traditional name - dating
 all the way back to `First Edition Unix`_ - of the function that
-converts a "name" to an "inode".  ``struct nameidata`` contains (among
+converts a "name" to an "ianalde".  ``struct nameidata`` contains (among
 other fields):
 
 ``struct path path``
@@ -398,26 +398,26 @@ held.
 ``struct qstr last``
 ~~~~~~~~~~~~~~~~~~~~
 
-This is a string together with a length (i.e. *not* ``nul`` terminated)
+This is a string together with a length (i.e. *analt* ``nul`` terminated)
 that is the "next" component in the pathname.
 
 ``int last_type``
 ~~~~~~~~~~~~~~~~~
 
-This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT`` or ``LAST_DOTDOT``.
-The ``last`` field is only valid if the type is ``LAST_NORM``.
+This is one of ``LAST_ANALRM``, ``LAST_ROOT``, ``LAST_DOT`` or ``LAST_DOTDOT``.
+The ``last`` field is only valid if the type is ``LAST_ANALRM``.
 
 ``struct path root``
 ~~~~~~~~~~~~~~~~~~~~
 
 This is used to hold a reference to the effective root of the
 filesystem.  Often that reference won't be needed, so this field is
-only assigned the first time it is used, or when a non-standard root
+only assigned the first time it is used, or when a analn-standard root
 is requested.  Keeping a reference in the ``nameidata`` ensures that
 only one root is in effect for the entire path walk, even if it races
 with a ``chroot()`` system call.
 
-It should be noted that in the case of ``LOOKUP_IN_ROOT`` or
+It should be analted that in the case of ``LOOKUP_IN_ROOT`` or
 ``LOOKUP_BENEATH``, the effective root becomes the directory file descriptor
 passed to ``openat2()`` (which exposes these ``LOOKUP_`` flags).
 
@@ -428,10 +428,10 @@ at the root.  The value used is usually the current root directory of
 the calling process.  An alternate root can be provided as when
 ``sysctl()`` calls ``file_open_root()``, and when NFSv4 or Btrfs call
 ``mount_subtree()``.  In each case a pathname is being looked up in a very
-specific part of the filesystem, and the lookup must not be allowed to
+specific part of the filesystem, and the lookup must analt be allowed to
 escape that subtree.  It works a bit like a local ``chroot()``.
 
-Ignoring the handling of symbolic links, we can now describe the
+Iganalring the handling of symbolic links, we can analw describe the
 "``link_path_walk()``" function, which handles the lookup of everything
 except the final component as:
 
@@ -443,7 +443,7 @@ except the final component as:
 
 ``walk_component()`` is even easier.  If the component is ``LAST_DOTS``,
 it calls ``handle_dots()`` which does the necessary locking as already
-described.  If it finds a ``LAST_NORM`` component it first calls
+described.  If it finds a ``LAST_ANALRM`` component it first calls
 "``lookup_fast()``" which only looks in the dcache, but will ask the
 filesystem to revalidate the result if it is that sort of filesystem.
 If that doesn't get a good result, it calls "``lookup_slow()``" which
@@ -470,7 +470,7 @@ Handling the final component
 
 ``link_path_walk()`` only walks as far as setting ``nd->last`` and
 ``nd->last_type`` to refer to the final component of the path.  It does
-not call ``walk_component()`` that last time.  Handling that final
+analt call ``walk_component()`` that last time.  Handling that final
 component remains for the caller to sort out. Those callers are
 path_lookupat(), path_parentat() and
 path_openat() each of which handles the differing requirements of
@@ -488,7 +488,7 @@ perform their operation.
 object is wanted such as by ``stat()`` or ``chmod()``.  It essentially just
 calls ``walk_component()`` on the final component through a call to
 ``lookup_last()``.  ``path_lookupat()`` returns just the final dentry.
-It is worth noting that when flag ``LOOKUP_MOUNTPOINT`` is set,
+It is worth analting that when flag ``LOOKUP_MOUNTPOINT`` is set,
 path_lookupat() will unset LOOKUP_JUMPED in nameidata so that in the
 subsequent path traversal d_weak_revalidate() won't be called.
 This is important when unmounting a filesystem that is inaccessible, such as
@@ -500,12 +500,12 @@ complexity needed to handle the different subtleties of O_CREAT (with
 or without O_EXCL), final "``/``" characters, and trailing symbolic
 links.  We will revisit this in the final part of this series, which
 focuses on those symbolic links.  "open_last_lookups()" will sometimes, but
-not always, take ``i_rwsem``, depending on what it finds.
+analt always, take ``i_rwsem``, depending on what it finds.
 
 Each of these, or the functions which call them, need to be alert to
-the possibility that the final component is not ``LAST_NORM``.  If the
+the possibility that the final component is analt ``LAST_ANALRM``.  If the
 goal of the lookup is to create something, then any value for
-``last_type`` other than ``LAST_NORM`` will result in an error.  For
+``last_type`` other than ``LAST_ANALRM`` will result in an error.  For
 example if ``path_parentat()`` reports ``LAST_DOTDOT``, then the caller
 won't try to create that name.  They also check for trailing slashes
 by testing ``last.name[last.len]``.  If there is any character beyond
@@ -515,7 +515,7 @@ Revalidation and automounts
 ---------------------------
 
 Apart from symbolic links, there are only two parts of the "REF-walk"
-process not yet covered.  One is the handling of stale cache entries
+process analt yet covered.  One is the handling of stale cache entries
 and the other is automounts.
 
 On filesystems that require it, the lookup routines will call the
@@ -532,7 +532,7 @@ Automount points are locations in the filesystem where an attempt to
 lookup a name can trigger changes to how that lookup should be
 handled, in particular by mounting a filesystem there.  These are
 covered in greater detail in autofs.txt in the Linux documentation
-tree, but a few notes specifically related to path lookup are in order
+tree, but a few analtes specifically related to path lookup are in order
 here.
 
 The Linux VFS has a concept of "managed" dentries.  There are three
@@ -553,7 +553,7 @@ trigger a new automount.
 
 It can selectively allow only some processes to transit through a
 mount point.  When a server process is managing automounts, it may
-need to access a directory without triggering normal automount
+need to access a directory without triggering analrmal automount
 processing.  That server process can identify itself to the ``autofs``
 filesystem, which will then give it a special pass through
 ``d_manage()`` by returning ``-EISDIR``.
@@ -563,11 +563,11 @@ filesystem, which will then give it a special pass through
 
 This flag is set on every dentry that is mounted on.  As Linux
 supports multiple filesystem namespaces, it is possible that the
-dentry may not be mounted on in *this* namespace, just in some
-other.  So this flag is seen as a hint, not a promise.
+dentry may analt be mounted on in *this* namespace, just in some
+other.  So this flag is seen as a hint, analt a promise.
 
 If this flag is set, and ``d_manage()`` didn't return ``-EISDIR``,
-``lookup_mnt()`` is called to examine the mount hash table (honoring the
+``lookup_mnt()`` is called to examine the mount hash table (hoanalring the
 ``mount_lock`` described earlier) and possibly return a new ``vfsmount``
 and a new ``dentry`` (both with counted references).
 
@@ -580,13 +580,13 @@ operation to be called.
 
 The ``d_automount()`` operation can be arbitrarily complex and may
 communicate with server processes etc. but it should ultimately either
-report that there was an error, that there was nothing to mount, or
+report that there was an error, that there was analthing to mount, or
 should provide an updated ``struct path`` with new ``dentry`` and ``vfsmount``.
 
 In the latter case, ``finish_automount()`` will be called to safely
 install the new mount point into the mount table.
 
-There is no new locking of import here and it is important that no
+There is anal new locking of import here and it is important that anal
 locks (only counted references) are held over this processing due to
 the very real possibility of extended delays.
 This will become more important next time when we examine RCU-walk
@@ -595,12 +595,12 @@ which is particularly sensitive to delays.
 RCU-walk - faster pathname lookup in Linux
 ==========================================
 
-RCU-walk is another algorithm for performing pathname lookup in Linux.
+RCU-walk is aanalther algorithm for performing pathname lookup in Linux.
 It is in many ways similar to REF-walk and the two share quite a bit
 of code.  The significant difference in RCU-walk is how it allows for
 the possibility of concurrent access.
 
-We noted that REF-walk is complex because there are numerous details
+We analted that REF-walk is complex because there are numerous details
 and special cases.  RCU-walk reduces this complexity by simply
 refusing to handle a number of cases -- it instead falls back to
 REF-walk.  The difficulty with RCU-walk comes from a different
@@ -613,29 +613,29 @@ Clear demarcation of roles
 
 The easiest way to manage concurrency is to forcibly stop any other
 thread from changing the data structures that a given thread is
-looking at.  In cases where no other thread would even think of
+looking at.  In cases where anal other thread would even think of
 changing the data and lots of different threads want to read at the
 same time, this can be very costly.  Even when using locks that permit
 multiple concurrent readers, the simple act of updating the count of
 the number of current readers can impose an unwanted cost.  So the
-goal when reading a shared data structure that no other process is
-changing is to avoid writing anything to memory at all.  Take no
-locks, increment no counts, leave no footprints.
+goal when reading a shared data structure that anal other process is
+changing is to avoid writing anything to memory at all.  Take anal
+locks, increment anal counts, leave anal footprints.
 
 The REF-walk mechanism already described certainly doesn't follow this
 principle, but then it is really designed to work when there may well
 be other threads modifying the data.  RCU-walk, in contrast, is
 designed for the common situation where there are lots of frequent
-readers and only occasional writers.  This may not be common in all
+readers and only occasional writers.  This may analt be common in all
 parts of the filesystem tree, but in many parts it will be.  For the
 other parts it is important that RCU-walk can quickly fall back to
 using REF-walk.
 
 Pathname lookup always starts in RCU-walk mode but only remains there
 as long as what it is looking for is in the cache and is stable.  It
-dances lightly down the cached filesystem image, leaving no footprints
+dances lightly down the cached filesystem image, leaving anal footprints
 and carefully watching where it is, to be sure it doesn't trip.  If it
-notices that something has changed or is changing, or if something
+analtices that something has changed or is changing, or if something
 isn't in the cache, then it tries to stop gracefully and switch to
 REF-walk.
 
@@ -647,7 +647,7 @@ decisions, such as selecting the next step, that are decisions which
 REF-walk could also have made if it were walking down the tree at the
 same time.  If the graceful stop succeeds, the rest of the path is
 processed with the reliable, if slightly sluggish, REF-walk.  If
-RCU-walk finds it cannot stop gracefully, it simply gives up and
+RCU-walk finds it cananalt stop gracefully, it simply gives up and
 restarts from the top with REF-walk.
 
 This pattern of "try RCU-walk, if that fails try REF-walk" can be
@@ -658,11 +658,11 @@ correspond roughly to the three ``path_*()`` functions we met earlier,
 each of which calls ``link_path_walk()``.  The ``path_*()`` functions are
 called using different mode flags until a mode is found which works.
 They are first called with ``LOOKUP_RCU`` set to request "RCU-walk".  If
-that fails with the error ``ECHILD`` they are called again with no
+that fails with the error ``ECHILD`` they are called again with anal
 special flag to request "REF-walk".  If either of those report the
-error ``ESTALE`` a final attempt is made with ``LOOKUP_REVAL`` set (and no
+error ``ESTALE`` a final attempt is made with ``LOOKUP_REVAL`` set (and anal
 ``LOOKUP_RCU``) to ensure that entries found in the cache are forcibly
-revalidated - normally entries are only revalidated if the filesystem
+revalidated - analrmally entries are only revalidated if the filesystem
 determines that they are too old to trust.
 
 The ``LOOKUP_RCU`` attempt may drop that flag internally and switch to
@@ -677,19 +677,19 @@ RCU and seqlocks: fast and light
 RCU is, unsurprisingly, critical to RCU-walk mode.  The
 ``rcu_read_lock()`` is held for the entire time that RCU-walk is walking
 down a path.  The particular guarantee it provides is that the key
-data structures - dentries, inodes, super_blocks, and mounts - will
-not be freed while the lock is held.  They might be unlinked or
-invalidated in one way or another, but the memory will not be
+data structures - dentries, ianaldes, super_blocks, and mounts - will
+analt be freed while the lock is held.  They might be unlinked or
+invalidated in one way or aanalther, but the memory will analt be
 repurposed so values in various fields will still be meaningful.  This
 is the only guarantee that RCU provides; everything else is done using
 seqlocks.
 
 As we saw above, REF-walk holds a counted reference to the current
-dentry and the current vfsmount, and does not release those references
+dentry and the current vfsmount, and does analt release those references
 before taking references to the "next" dentry or vfsmount.  It also
 sometimes takes the ``d_lock`` spinlock.  These references and locks are
-taken to prevent certain changes from happening.  RCU-walk must not
-take those references or locks and so cannot prevent such changes.
+taken to prevent certain changes from happening.  RCU-walk must analt
+take those references or locks and so cananalt prevent such changes.
 Instead, it checks to see if a change has been made, and aborts or
 retries if it has.
 
@@ -704,22 +704,22 @@ lock, RCU-walk checks if the sampled status is still valid using
 
 However, there is a little bit more to seqlocks than that.  If
 RCU-walk accesses two different fields in a seqlock-protected
-structure, or accesses the same field twice, there is no a priori
+structure, or accesses the same field twice, there is anal a priori
 guarantee of any consistency between those accesses.  When consistency
 is needed - which it usually is - RCU-walk must take a copy and then
 use ``read_seqcount_retry()`` to validate that copy.
 
-``read_seqcount_retry()`` not only checks the sequence number, but also
-imposes a memory barrier so that no memory-read instruction from
+``read_seqcount_retry()`` analt only checks the sequence number, but also
+imposes a memory barrier so that anal memory-read instruction from
 *before* the call can be delayed until *after* the call, either by the
 CPU or by the compiler.  A simple example of this can be seen in
-``slow_dentry_cmp()`` which, for filesystems which do not use simple
+``slow_dentry_cmp()`` which, for filesystems which do analt use simple
 byte-wise name equality, calls into the filesystem to compare a name
 against a dentry.  The length and name pointer are copied into local
 variables, then ``read_seqcount_retry()`` is called to confirm the two
 are consistent, and only then is ``->d_compare()`` called.  When
 standard filename comparison is used, ``dentry_cmp()`` is called
-instead.  Notably it does *not* use ``read_seqcount_retry()``, but
+instead.  Analtably it does *analt* use ``read_seqcount_retry()``, but
 instead has a large comment explaining why the consistency guarantee
 isn't necessary.  A subsequent ``read_seqcount_retry()`` will be
 sufficient to catch any problem that could occur at this point.
@@ -764,13 +764,13 @@ the per-dentry ``d_seq`` seqlock, and stores the sequence number in the
 ``seq`` field of the nameidata structure, so ``nd->seq`` should always be
 the current sequence number of ``nd->dentry``.  This number needs to be
 revalidated after copying, and before using, the name, parent, or
-inode of the dentry.
+ianalde of the dentry.
 
 The handling of the name we have already looked at, and the parent is
 only accessed in ``follow_dotdot_rcu()`` which fairly trivially follows
 the required pattern, though it does so for three different cases.
 
-When not at a mount point, ``d_parent`` is followed and its ``d_seq`` is
+When analt at a mount point, ``d_parent`` is followed and its ``d_seq`` is
 collected.  When we are at a mount point, we instead follow the
 ``mnt->mnt_mountpoint`` link to get a new dentry and collect its
 ``d_seq``.  Then, after finally finding a ``d_parent`` to follow, we must
@@ -778,14 +778,14 @@ check if we have landed on a mount point and, if so, must find that
 mount point and follow the ``mnt->mnt_root`` link.  This would imply a
 somewhat unusual, but certainly possible, circumstance where the
 starting point of the path lookup was in part of the filesystem that
-was mounted on, and so not visible from the root.
+was mounted on, and so analt visible from the root.
 
-The inode pointer, stored in ``->d_inode``, is a little more
-interesting.  The inode will always need to be accessed at least
+The ianalde pointer, stored in ``->d_ianalde``, is a little more
+interesting.  The ianalde will always need to be accessed at least
 twice, once to determine if it is NULL and once to verify access
-permissions.  Symlink handling requires a validated inode pointer too.
+permissions.  Symlink handling requires a validated ianalde pointer too.
 Rather than revalidating on each access, a copy is made on the first
-access and it is stored in the ``inode`` field of ``nameidata`` from where
+access and it is stored in the ``ianalde`` field of ``nameidata`` from where
 it can be safely accessed without further validation.
 
 ``lookup_fast()`` is the only lookup routine that is used in RCU-mode,
@@ -795,7 +795,7 @@ of the current dentry.
 
 The current ``dentry`` and current ``seq`` number are passed to
 ``__d_lookup_rcu()`` which, on success, returns a new ``dentry`` and a
-new ``seq`` number.  ``lookup_fast()`` then copies the inode pointer and
+new ``seq`` number.  ``lookup_fast()`` then copies the ianalde pointer and
 revalidates the new ``seq`` number.  It then validates the old ``dentry``
 with the old ``seq`` number one last time and only then continues.  This
 process of getting the ``seq`` number of the new dentry and then
@@ -803,14 +803,14 @@ checking the ``seq`` number of the old exactly mirrors the process of
 getting a counted reference to the new dentry before dropping that for
 the old dentry which we saw in REF-walk.
 
-No ``inode->i_rwsem`` or even ``rename_lock``
+Anal ``ianalde->i_rwsem`` or even ``rename_lock``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A semaphore is a fairly heavyweight lock that can only be taken when it is
 permissible to sleep.  As ``rcu_read_lock()`` forbids sleeping,
-``inode->i_rwsem`` plays no role in RCU-walk.  If some other thread does
+``ianalde->i_rwsem`` plays anal role in RCU-walk.  If some other thread does
 take ``i_rwsem`` and modifies the directory in a way that RCU-walk needs
-to notice, the result will be either that RCU-walk fails to find the
+to analtice, the result will be either that RCU-walk fails to find the
 dentry that it is looking for, or it will find a dentry which
 ``read_seqretry()`` won't validate.  In either case it will drop down to
 REF-walk mode which can take whatever locks are needed.
@@ -820,10 +820,10 @@ any sleeping, RCU-walk doesn't bother.  REF-walk uses ``rename_lock`` to
 protect against the possibility of hash chains in the dcache changing
 while they are being searched.  This can result in failing to find
 something that actually is there.  When RCU-walk fails to find
-something in the dentry cache, whether it is really there or not, it
+something in the dentry cache, whether it is really there or analt, it
 already drops down to REF-walk and tries again with appropriate
 locking.  This neatly handles all cases, so adding extra checks on
-rename_lock would bring no significant value.
+rename_lock would bring anal significant value.
 
 ``unlazy walk()`` and ``complete_walk()``
 -----------------------------------------
@@ -833,7 +833,7 @@ That "dropping down to REF-walk" typically involves a call to
 referred to as "lazy walk".  ``unlazy_walk()`` is called when
 following the path down to the current vfsmount/dentry pair seems to
 have proceeded successfully, but the next step is problematic.  This
-can happen if the next name cannot be found in the dcache, if
+can happen if the next name cananalt be found in the dcache, if
 permission checking or name revalidation couldn't be achieved while
 the ``rcu_read_lock()`` is held (which forbids sleeping), if an
 automount point is found, or in a couple of cases involving symlinks.
@@ -841,8 +841,8 @@ It is also called from ``complete_walk()`` when the lookup has reached
 the final component, or the very end of the path, depending on which
 particular flavor of lookup is used.
 
-Other reasons for dropping out of RCU-walk that do not trigger a call
-to ``unlazy_walk()`` are when some inconsistency is found that cannot be
+Other reasons for dropping out of RCU-walk that do analt trigger a call
+to ``unlazy_walk()`` are when some inconsistency is found that cananalt be
 handled immediately, such as ``mount_lock`` or one of the ``d_seq``
 seqlocks reporting a change.  In these cases the relevant function
 will return ``-ECHILD`` which will percolate up until it triggers a new
@@ -851,44 +851,44 @@ attempt from the top using REF-walk.
 For those cases where ``unlazy_walk()`` is an option, it essentially
 takes a reference on each of the pointers that it holds (vfsmount,
 dentry, and possibly some symbolic links) and then verifies that the
-relevant seqlocks have not been changed.  If there have been changes,
+relevant seqlocks have analt been changed.  If there have been changes,
 it, too, aborts with ``-ECHILD``, otherwise the transition to REF-walk
 has been a success and the lookup process continues.
 
-Taking a reference on those pointers is not quite as simple as just
+Taking a reference on those pointers is analt quite as simple as just
 incrementing a counter.  That works to take a second reference if you
-already have one (often indirectly through another object), but it
+already have one (often indirectly through aanalther object), but it
 isn't sufficient if you don't actually have a counted reference at
 all.  For ``dentry->d_lockref``, it is safe to increment the reference
 counter to get a reference unless it has been explicitly marked as
 "dead" which involves setting the counter to ``-128``.
-``lockref_get_not_dead()`` achieves this.
+``lockref_get_analt_dead()`` achieves this.
 
 For ``mnt->mnt_count`` it is safe to take a reference as long as
 ``mount_lock`` is then used to validate the reference.  If that
-validation fails, it may *not* be safe to just drop that reference in
+validation fails, it may *analt* be safe to just drop that reference in
 the standard way of calling ``mnt_put()`` - an unmount may have
 progressed too far.  So the code in ``legitimize_mnt()``, when it
-finds that the reference it got might not be safe, checks the
+finds that the reference it got might analt be safe, checks the
 ``MNT_SYNC_UMOUNT`` flag to determine if a simple ``mnt_put()`` is
-correct, or if it should just decrement the count and pretend none of
+correct, or if it should just decrement the count and pretend analne of
 this ever happened.
 
 Taking care in filesystems
 --------------------------
 
 RCU-walk depends almost entirely on cached information and often will
-not call into the filesystem at all.  However there are two places,
+analt call into the filesystem at all.  However there are two places,
 besides the already-mentioned component-name comparison, where the
-file system might be included in RCU-walk, and it must know to be
+file system might be included in RCU-walk, and it must kanalw to be
 careful.
 
-If the filesystem has non-standard permission-checking requirements -
+If the filesystem has analn-standard permission-checking requirements -
 such as a networked filesystem which may need to check with the server
 - the ``i_op->permission`` interface might be called during RCU-walk.
-In this case an extra "``MAY_NOT_BLOCK``" flag is passed so that it
-knows not to sleep, but to return ``-ECHILD`` if it cannot complete
-promptly.  ``i_op->permission`` is given the inode pointer, not the
+In this case an extra "``MAY_ANALT_BLOCK``" flag is passed so that it
+kanalws analt to sleep, but to return ``-ECHILD`` if it cananalt complete
+promptly.  ``i_op->permission`` is given the ianalde pointer, analt the
 dentry, so it doesn't need to worry about further consistency checks.
 However if it accesses any other filesystem data structures, it must
 ensure they are safe to be accessed with only the ``rcu_read_lock()``
@@ -899,11 +899,11 @@ similar.
 
 If the filesystem may need to revalidate dcache entries, then
 ``d_op->d_revalidate`` may be called in RCU-walk too.  This interface
-*is* passed the dentry but does not have access to the ``inode`` or the
+*is* passed the dentry but does analt have access to the ``ianalde`` or the
 ``seq`` number from the ``nameidata``, so it needs to be extra careful
 when accessing fields in the dentry.  This "extra care" typically
 involves using  `READ_ONCE() <READ_ONCE_>`_ to access fields, and verifying the
-result is not NULL before using it.  This pattern can be seen in
+result is analt NULL before using it.  This pattern can be seen in
 ``nfs_lookup_revalidate()``.
 
 A pair of patterns
@@ -961,11 +961,11 @@ then all preceding parts of the path are discarded.  This is what the
 "``readlink -f``" command does, though it also edits out "``.``" and
 "``..``" components.
 
-Directly editing the path string is not really necessary when looking
+Directly editing the path string is analt really necessary when looking
 up a path, and discarding early components is pointless as they aren't
 looked at anyway.  Keeping track of all remaining components is
-important, but they can of course be kept separately; there is no need
-to concatenate them.  As one symlink may easily refer to another,
+important, but they can of course be kept separately; there is anal need
+to concatenate them.  As one symlink may easily refer to aanalther,
 which in turn can refer to a third, we may need to keep the remaining
 components of several paths, each to be processed when the preceding
 ones are completed.  These path remnants are kept on a stack of
@@ -984,17 +984,17 @@ and, given the second reason for restriction, quite sufficient.
 The second reason was `outlined recently`_ by Linus:
 
    Because it's a latency and DoS issue too. We need to react well to
-   true loops, but also to "very deep" non-loops. It's not about memory
+   true loops, but also to "very deep" analn-loops. It's analt about memory
    use, it's about users triggering unreasonable CPU resources.
 
 Linux imposes a limit on the length of any pathname: ``PATH_MAX``, which
-is 4096.  There are a number of reasons for this limit; not letting the
+is 4096.  There are a number of reasons for this limit; analt letting the
 kernel spend too much time on just one path is one of them.  With
 symbolic links you can effectively generate much longer paths so some
 sort of limit is needed for the same reason.  Linux imposes a limit of
 at most 40 (MAXSYMLINKS) symlinks in any one path lookup.  It previously imposed
 a further limit of eight on the maximum depth of recursion, but that was
-raised to 40 when a separate stack was implemented, so there is now
+raised to 40 when a separate stack was implemented, so there is analw
 just the one limit.
 
 The ``nameidata`` structure that we met in an earlier article contains a
@@ -1011,7 +1011,7 @@ cache lifetimes.
 Storage and lifetime of cached symlinks
 ---------------------------------------
 
-Like other filesystem resources, such as inodes and directory
+Like other filesystem resources, such as ianaldes and directory
 entries, symlinks are cached by Linux to avoid repeated costly access
 to external storage.  It is particularly important for RCU-walk to be
 able to find and temporarily hold onto these cached entries, so that
@@ -1021,11 +1021,11 @@ it doesn't need to drop down into REF-walk.
 
 While each filesystem is free to make its own choice, symlinks are
 typically stored in one of two places.  Short symlinks are often
-stored directly in the inode.  When a filesystem allocates a ``struct
-inode`` it typically allocates extra space to store private data (a
+stored directly in the ianalde.  When a filesystem allocates a ``struct
+ianalde`` it typically allocates extra space to store private data (a
 common `object-oriented design pattern`_ in the kernel).  This will
 sometimes include space for a symlink.  The other common location is
-in the page cache, which normally stores the content of files.  The
+in the page cache, which analrmally stores the content of files.  The
 pathname in a symlink can be seen as the content of that symlink and
 can easily be stored in the page cache just like file content.
 
@@ -1033,19 +1033,19 @@ When neither of these is suitable, the next most likely scenario is
 that the filesystem will allocate some temporary memory and copy or
 construct the symlink content into that memory whenever it is needed.
 
-When the symlink is stored in the inode, it has the same lifetime as
-the inode which, itself, is protected by RCU or by a counted reference
+When the symlink is stored in the ianalde, it has the same lifetime as
+the ianalde which, itself, is protected by RCU or by a counted reference
 on the dentry.  This means that the mechanisms that pathname lookup
-uses to access the dcache and icache (inode cache) safely are quite
+uses to access the dcache and icache (ianalde cache) safely are quite
 sufficient for accessing some cached symlinks safely.  In these cases,
-the ``i_link`` pointer in the inode is set to point to wherever the
+the ``i_link`` pointer in the ianalde is set to point to wherever the
 symlink is stored and it can be accessed directly whenever needed.
 
 When the symlink is stored in the page cache or elsewhere, the
-situation is not so straightforward.  A reference on a dentry or even
-on an inode does not imply any reference on cached pages of that
-inode, and even an ``rcu_read_lock()`` is not sufficient to ensure that
-a page will not disappear.  So for these symlinks the pathname lookup
+situation is analt so straightforward.  A reference on a dentry or even
+on an ianalde does analt imply any reference on cached pages of that
+ianalde, and even an ``rcu_read_lock()`` is analt sufficient to ensure that
+a page will analt disappear.  So for these symlinks the pathname lookup
 code needs to ask the filesystem to provide a stable reference and,
 significantly, needs to release that reference when it is finished
 with it.
@@ -1056,17 +1056,17 @@ but that isn't necessarily a big cost and it is better than dropping
 out of RCU-walk mode completely.  Even filesystems that allocate
 space to copy the symlink into can use ``GFP_ATOMIC`` to often successfully
 allocate memory without the need to drop out of RCU-walk.  If a
-filesystem cannot successfully get a reference in RCU-walk mode, it
+filesystem cananalt successfully get a reference in RCU-walk mode, it
 must return ``-ECHILD`` and ``unlazy_walk()`` will be called to return to
 REF-walk mode in which the filesystem is allowed to sleep.
 
-The place for all this to happen is the ``i_op->get_link()`` inode
+The place for all this to happen is the ``i_op->get_link()`` ianalde
 method. This is called both in RCU-walk and REF-walk. In RCU-walk the
 ``dentry*`` argument is NULL, ``->get_link()`` can return -ECHILD to drop out of
 RCU-walk.  Much like the ``i_op->permission()`` method we
 looked at previously, ``->get_link()`` would need to be careful that
 all the data structures it references are safe to be accessed while
-holding no counted reference, only the RCU lock. A callback
+holding anal counted reference, only the RCU lock. A callback
 ``struct delayed_called`` will be passed to ``->get_link()``:
 file systems can set their own put_link function and argument through
 set_delayed_call(). Later on, when VFS wants to put link, it will call
@@ -1085,10 +1085,10 @@ This means that each entry in the symlink stack needs to hold five
 pointers and an integer instead of just one pointer (the path
 remnant).  On a 64-bit system, this is about 40 bytes per entry;
 with 40 entries it adds up to 1600 bytes total, which is less than
-half a page.  So it might seem like a lot, but is by no means
+half a page.  So it might seem like a lot, but is by anal means
 excessive.
 
-Note that, in a given stack frame, the path remnant (``name``) is not
+Analte that, in a given stack frame, the path remnant (``name``) is analt
 part of the symlink that the other fields refer to.  It is the remnant
 to be followed once that symlink has been fully parsed.
 
@@ -1096,10 +1096,10 @@ Following the symlink
 ---------------------
 
 The main loop in ``link_path_walk()`` iterates seamlessly over all
-components in the path and all of the non-final symlinks.  As symlinks
+components in the path and all of the analn-final symlinks.  As symlinks
 are processed, the ``name`` pointer is adjusted to point to a new
 symlink, or is restored from the stack, so that much of the loop
-doesn't need to notice.  Getting this ``name`` variable on and off the
+doesn't need to analtice.  Getting this ``name`` variable on and off the
 stack is very straightforward; pushing and popping the references is
 a little more complex.
 
@@ -1110,7 +1110,7 @@ stack, and the new value is used as the ``name`` for a while.  When the end of
 the path is found (i.e. ``*name`` is ``'\0'``) the old ``name`` is restored
 off the stack and path walking continues.
 
-Pushing and popping the reference pointers (inode, cookie, etc.) is more
+Pushing and popping the reference pointers (ianalde, cookie, etc.) is more
 complex in part because of the desire to handle tail recursion.  When
 the last component of a symlink itself points to a symlink, we
 want to pop the symlink-just-completed off the stack before pushing
@@ -1123,7 +1123,7 @@ stack in ``walk_component()`` immediately when the symlink is found;
 old symlink as it walks that last component.  So it is quite
 convenient for ``walk_component()`` to release the old symlink and pop
 the references just before pushing the reference information for the
-new symlink.  It is guided in this by three flags: ``WALK_NOFOLLOW`` which
+new symlink.  It is guided in this by three flags: ``WALK_ANALFOLLOW`` which
 forbids it from following a symlink if it finds one, ``WALK_MORE``
 which indicates that it is yet too early to release the
 current symlink, and ``WALK_TRAILING`` which indicates that it is on the final
@@ -1131,7 +1131,7 @@ component of the lookup, so we will check userspace flag ``LOOKUP_FOLLOW`` to
 decide whether follow it when it is a symlink and call ``may_follow_link()`` to
 check if we have privilege to follow it.
 
-Symlinks with no final component
+Symlinks with anal final component
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A pair of special-case symlinks deserve a little further explanation.
@@ -1141,7 +1141,7 @@ up in the ``nameidata``, and result in pick_link() returning ``NULL``.
 The more obvious case is a symlink to "``/``".  All symlinks starting
 with "``/``" are detected in pick_link() which resets the ``nameidata``
 to point to the effective filesystem root.  If the symlink only
-contains "``/``" then there is nothing more to do, no components at all,
+contains "``/``" then there is analthing more to do, anal components at all,
 so ``NULL`` is returned to indicate that the symlink can be released and
 the stack frame discarded.
 
@@ -1153,13 +1153,13 @@ aren't really (and are therefore commonly referred to as "magic-links")::
 
 Every open file descriptor in any process is represented in ``/proc`` by
 something that looks like a symlink.  It is really a reference to the
-target file, not just the name of it.  When you ``readlink`` these
+target file, analt just the name of it.  When you ``readlink`` these
 objects you get a name that might refer to the same file - unless it
 has been unlinked or mounted over.  When ``walk_component()`` follows
 one of these, the ``->get_link()`` method in "procfs" doesn't return
 a string name, but instead calls nd_jump_link() which updates the
 ``nameidata`` in place to point to that target.  ``->get_link()`` then
-returns ``NULL``.  Again there is no final component and pick_link()
+returns ``NULL``.  Again there is anal final component and pick_link()
 returns ``NULL``.
 
 Following the symlink in the final component
@@ -1174,7 +1174,7 @@ callers will want to follow a symlink if one is found, and possibly
 apply special handling to the last component of that symlink, rather
 than just the last component of the original file name.  These callers
 potentially need to call ``link_path_walk()`` again and again on
-successive symlinks until one is found that doesn't point to another
+successive symlinks until one is found that doesn't point to aanalther
 symlink.
 
 This case is handled by relevant callers of link_path_walk(), such as
@@ -1184,7 +1184,7 @@ lookup_last(). If it is a symlink that needs to be followed,
 open_last_lookups() or lookup_last() will set things up properly and
 return the path so that the loop repeats, calling
 link_path_walk() again.  This could loop as many as 40 times if the last
-component of each symlink is another symlink.
+component of each symlink is aanalther symlink.
 
 Of the various functions that examine the final component, 
 open_last_lookups() is the most interesting as it works in tandem
@@ -1198,7 +1198,7 @@ the code.
 1. Rather than just finding the target file, do_open() is used after
    open_last_lookup() to open
    it.  If the file was found in the dcache, then ``vfs_open()`` is used for
-   this.  If not, then ``lookup_open()`` will either call ``atomic_open()`` (if
+   this.  If analt, then ``lookup_open()`` will either call ``atomic_open()`` (if
    the filesystem provides it) to combine the final lookup with the open, or
    will perform the separate ``i_op->lookup()`` and ``i_op->create()`` steps
    directly.  In the later case the actual "open" of this newly found or
@@ -1206,7 +1206,7 @@ the code.
    were found in the dcache.
 
 2. vfs_open() can fail with ``-EOPENSTALE`` if the cached information
-   wasn't quite current enough.  If it's in RCU-walk ``-ECHILD`` will be returned
+   wasn't quite current eanalugh.  If it's in RCU-walk ``-ECHILD`` will be returned
    otherwise ``-ESTALE`` is returned.  When ``-ESTALE`` is returned, the caller may
    retry with ``LOOKUP_REVAL`` flag set.
 
@@ -1216,17 +1216,17 @@ the code.
           ln -s bar /tmp/foo
           echo hello > /tmp/foo
 
-   will create a file called ``/tmp/bar``.  This is not permitted if
+   will create a file called ``/tmp/bar``.  This is analt permitted if
    ``O_EXCL`` is set but otherwise is handled for an O_CREAT open much
-   like for a non-creating open: lookup_last() or open_last_lookup()
-   returns a non ``NULL`` value, and link_path_walk() gets called and the
+   like for a analn-creating open: lookup_last() or open_last_lookup()
+   returns a analn ``NULL`` value, and link_path_walk() gets called and the
    open process continues on the symlink that was found.
 
 Updating the access time
 ------------------------
 
-We previously said of RCU-walk that it would "take no locks, increment
-no counts, leave no footprints."  We have since seen that some
+We previously said of RCU-walk that it would "take anal locks, increment
+anal counts, leave anal footprints."  We have since seen that some
 "footprints" can be needed when handling symlinks as a counted
 reference (or even a memory allocation) may be needed.  But these
 footprints are best kept to a minimum.
@@ -1235,7 +1235,7 @@ One other place where walking down a symlink can involve leaving
 footprints in a way that doesn't affect directories is in updating access times.
 In Unix (and Linux) every filesystem object has a "last accessed
 time", or "``atime``".  Passing through a directory to access a file
-within is not considered to be an access for the purposes of
+within is analt considered to be an access for the purposes of
 ``atime``; only listing the contents of a directory can update its ``atime``.
 Symlinks are different it seems.  Both reading a symlink (with ``readlink()``)
 and looking up a symlink on the way to some other destination can
@@ -1243,20 +1243,20 @@ update the atime on that symlink.
 
 .. _clearest statement: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_08
 
-It is not clear why this is the case; POSIX has little to say on the
+It is analt clear why this is the case; POSIX has little to say on the
 subject.  The `clearest statement`_ is that, if a particular implementation
-updates a timestamp in a place not specified by POSIX, this must be
+updates a timestamp in a place analt specified by POSIX, this must be
 documented "except that any changes caused by pathname resolution need
-not be documented".  This seems to imply that POSIX doesn't really
+analt be documented".  This seems to imply that POSIX doesn't really
 care about access-time updates during pathname lookup.
 
 .. _Linux 1.3.87: https://git.kernel.org/cgit/linux/kernel/git/history/history.git/diff/fs/ext2/symlink.c?id=f806c6db77b8eaa6e00dcfb6b567706feae8dbb8
 
 An examination of history shows that prior to `Linux 1.3.87`_, the ext2
 filesystem, at least, didn't update atime when following a link.
-Unfortunately we have no record of why that behavior was changed.
+Unfortunately we have anal record of why that behavior was changed.
 
-In any case, access time must now be updated and that operation can be
+In any case, access time must analw be updated and that operation can be
 quite complex.  Trying to stay in RCU-walk while doing it is best
 avoided.  Fortunately it is often permitted to skip the ``atime``
 update.  Because ``atime`` updates cause performance problems in various
@@ -1282,8 +1282,8 @@ component, others reflect the current state of the pathname lookup, and some
 apply restrictions to all path components encountered in the path lookup.
 
 And then there is ``LOOKUP_EMPTY``, which doesn't fit conceptually with
-the others.  If this is not set, an empty pathname causes an error
-very early on.  If it is set, empty pathnames are not considered to be
+the others.  If this is analt set, an empty pathname causes an error
+very early on.  If it is set, empty pathnames are analt considered to be
 an error.
 
 Global state flags
@@ -1298,15 +1298,15 @@ yet.  This is primarily used to tell the audit subsystem the full
 context of a particular access being audited.
 
 ``ND_ROOT_PRESET`` indicates that the ``root`` field in the ``nameidata`` was
-provided by the caller, so it shouldn't be released when it is no
+provided by the caller, so it shouldn't be released when it is anal
 longer needed.
 
-``ND_JUMPED`` means that the current dentry was chosen not because
+``ND_JUMPED`` means that the current dentry was chosen analt because
 it had the right name but for some other reason.  This happens when
 following "``..``", following a symlink to ``/``, crossing a mount point
-or accessing a "``/proc/$PID/fd/$FD``" symlink (also known as a "magic
-link"). In this case the filesystem has not been asked to revalidate the
-name (with ``d_revalidate()``).  In such cases the inode may still need
+or accessing a "``/proc/$PID/fd/$FD``" symlink (also kanalwn as a "magic
+link"). In this case the filesystem has analt been asked to revalidate the
+name (with ``d_revalidate()``).  In such cases the ianalde may still need
 to be revalidated, so ``d_op->d_weak_revalidate()`` is called if
 ``ND_JUMPED`` is set when the look completes - which may be at the
 final component or, when creating, unlinking, or renaming, at the penultimate component.
@@ -1319,16 +1319,16 @@ and attack scenarios involving changing path components, a series of flags are
 available which apply restrictions to all path components encountered during
 path lookup. These flags are exposed through ``openat2()``'s ``resolve`` field.
 
-``LOOKUP_NO_SYMLINKS`` blocks all symlink traversals (including magic-links).
+``LOOKUP_ANAL_SYMLINKS`` blocks all symlink traversals (including magic-links).
 This is distinctly different from ``LOOKUP_FOLLOW``, because the latter only
 relates to restricting the following of trailing symlinks.
 
-``LOOKUP_NO_MAGICLINKS`` blocks all magic-link traversals. Filesystems must
+``LOOKUP_ANAL_MAGICLINKS`` blocks all magic-link traversals. Filesystems must
 ensure that they return errors from ``nd_jump_link()``, because that is how
-``LOOKUP_NO_MAGICLINKS`` and other magic-link restrictions are implemented.
+``LOOKUP_ANAL_MAGICLINKS`` and other magic-link restrictions are implemented.
 
-``LOOKUP_NO_XDEV`` blocks all ``vfsmount`` traversals (this includes both
-bind-mounts and ordinary mounts). Note that the ``vfsmount`` which contains the
+``LOOKUP_ANAL_XDEV`` blocks all ``vfsmount`` traversals (this includes both
+bind-mounts and ordinary mounts). Analte that the ``vfsmount`` which contains the
 lookup is determined by the first mountpoint the path lookup reaches --
 absolute paths start with the ``vfsmount`` of ``/``, and relative paths start
 with the ``dfd``'s ``vfsmount``. Magic-links are only permitted if the
@@ -1342,7 +1342,7 @@ resolution of "..". Magic-links are also blocked.
 
 ``LOOKUP_IN_ROOT`` resolves all path components as though the starting point
 were the filesystem root. ``nd_jump_root()`` brings the resolution back to
-the starting point, and ".." at the starting point will act as a no-op. As with
+the starting point, and ".." at the starting point will act as a anal-op. As with
 ``LOOKUP_BENEATH``, ``rename_lock`` and ``mount_lock`` are used to detect
 attacks against ".." resolution. Magic-links are also blocked.
 
@@ -1363,7 +1363,7 @@ it sets ``LOOKUP_AUTOMOUNT``, as does "``quotactl()``" and the handling of
 ``LOOKUP_FOLLOW`` has a similar function to ``LOOKUP_AUTOMOUNT`` but for
 symlinks.  Some system calls set or clear it implicitly, while
 others have API flags such as ``AT_SYMLINK_FOLLOW`` and
-``UMOUNT_NOFOLLOW`` to control it.  Its effect is similar to
+``UMOUNT_ANALFOLLOW`` to control it.  Its effect is similar to
 ``WALK_GET`` that we already met, but it is used in a different way.
 
 ``LOOKUP_DIRECTORY`` insists that the final component is a directory.
@@ -1371,10 +1371,10 @@ Various callers set this and it is also set when the final component
 is found to be followed by a slash.
 
 Finally ``LOOKUP_OPEN``, ``LOOKUP_CREATE``, ``LOOKUP_EXCL``, and
-``LOOKUP_RENAME_TARGET`` are not used directly by the VFS but are made
+``LOOKUP_RENAME_TARGET`` are analt used directly by the VFS but are made
 available to the filesystem and particularly the ``->d_revalidate()``
-method.  A filesystem can choose not to bother revalidating too hard
-if it knows that it will be asked to open or create the file soon.
+method.  A filesystem can choose analt to bother revalidating too hard
+if it kanalws that it will be asked to open or create the file soon.
 These flags were previously useful for ``->lookup()`` too but with the
 introduction of ``->atomic_open()`` they are less relevant there.
 
@@ -1382,9 +1382,9 @@ End of the road
 ---------------
 
 Despite its complexity, all this pathname lookup code appears to be
-in good shape - various parts are certainly easier to understand now
+in good shape - various parts are certainly easier to understand analw
 than even a couple of releases ago.  But that doesn't mean it is
 "finished".   As already mentioned, RCU-walk currently only follows
-symlinks that are stored in the inode so, while it handles many ext4
+symlinks that are stored in the ianalde so, while it handles many ext4
 symlinks, it doesn't help with NFS, XFS, or Btrfs.  That support
-is not likely to be long delayed.
+is analt likely to be long delayed.

@@ -1,10 +1,10 @@
 /*
- * This module provides common API to set Diagnostic trigger for MPT
- * (Message Passing Technology) based controllers
+ * This module provides common API to set Diaganalstic trigger for MPT
+ * (Message Passing Techanallogy) based controllers
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_trigger_diag.c
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2014 Avago Technologies
+ * Copyright (C) 2013-2014 Avago Techanallogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -17,19 +17,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but analt limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
  * DISCLAIMER OF LIABILITY
- * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ * NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -38,14 +38,14 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -60,7 +60,7 @@
 #include "mpt3sas_base.h"
 
 /**
- * _mpt3sas_raise_sigio - notifiy app
+ * _mpt3sas_raise_sigio - analtifiy app
  * @ioc: per adapter object
  * @event_data: ?
  */
@@ -68,18 +68,18 @@ static void
 _mpt3sas_raise_sigio(struct MPT3SAS_ADAPTER *ioc,
 	struct SL_WH_TRIGGERS_EVENT_DATA_T *event_data)
 {
-	Mpi2EventNotificationReply_t *mpi_reply;
+	Mpi2EventAnaltificationReply_t *mpi_reply;
 	u16 sz, event_data_sz;
 	unsigned long flags;
 
 	dTriggerDiagPrintk(ioc, ioc_info(ioc, "%s: enter\n", __func__));
 
-	sz = offsetof(Mpi2EventNotificationReply_t, EventData) +
+	sz = offsetof(Mpi2EventAnaltificationReply_t, EventData) +
 	    sizeof(struct SL_WH_TRIGGERS_EVENT_DATA_T) + 4;
 	mpi_reply = kzalloc(sz, GFP_KERNEL);
 	if (!mpi_reply)
 		goto out;
-	mpi_reply->Event = cpu_to_le16(MPI3_EVENT_DIAGNOSTIC_TRIGGER_FIRED);
+	mpi_reply->Event = cpu_to_le16(MPI3_EVENT_DIAGANALSTIC_TRIGGER_FIRED);
 	event_data_sz = (sizeof(struct SL_WH_TRIGGERS_EVENT_DATA_T) + 4) / 4;
 	mpi_reply->EventDataLength = cpu_to_le16(event_data_sz);
 	memcpy(&mpi_reply->EventData, event_data,
@@ -121,7 +121,7 @@ mpt3sas_process_trigger_data(struct MPT3SAS_ADAPTER *ioc,
 	if ((ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 	    MPT3_DIAG_BUFFER_IS_RELEASED) == 0) {
 		/*
-		 * add a log message so that user knows which event caused
+		 * add a log message so that user kanalws which event caused
 		 * the release
 		 */
 		ioc_info(ioc,
@@ -156,7 +156,7 @@ mpt3sas_process_trigger_data(struct MPT3SAS_ADAPTER *ioc,
 			    sizeof(struct SL_WH_EVENT_TRIGGER_T));
 			break;
 		default:
-			ioc_err(ioc, "%d - Is not a valid Trigger type\n",
+			ioc_err(ioc, "%d - Is analt a valid Trigger type\n",
 			    event_data->trigger_type);
 			break;
 		}

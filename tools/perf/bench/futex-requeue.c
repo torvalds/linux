@@ -6,7 +6,7 @@
  *                on futex2, N at a time.
  *
  * This program is particularly useful to measure the latency of nthread
- * requeues without waking up any tasks (in the non-pi case) -- thus
+ * requeues without waking up any tasks (in the analn-pi case) -- thus
  * mimicking a regular futex_wait.
  */
 
@@ -21,7 +21,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
-#include <errno.h>
+#include <erranal.h>
 #include <perf/cpumap.h>
 #include "bench.h"
 #include "futex.h"
@@ -52,7 +52,7 @@ static struct bench_futex_parameters params = {
 static const struct option options[] = {
 	OPT_UINTEGER('t', "threads",  &params.nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('q', "nrequeue", &params.nrequeue, "Specify amount of threads to requeue at once"),
-	OPT_BOOLEAN( 's', "silent",   &params.silent, "Silent mode: do not display data/details"),
+	OPT_BOOLEAN( 's', "silent",   &params.silent, "Silent mode: do analt display data/details"),
 	OPT_BOOLEAN( 'S', "shared",   &params.fshared, "Use shared futexes instead of private ones"),
 	OPT_BOOLEAN( 'm', "mlockall", &params.mlockall, "Lock all current and future memory"),
 	OPT_BOOLEAN( 'B', "broadcast", &params.broadcast, "Requeue all threads at once"),
@@ -96,7 +96,7 @@ static void *workerfn(void *arg __maybe_unused)
 			if (!ret)
 				break;
 
-			if (ret && errno != EAGAIN) {
+			if (ret && erranal != EAGAIN) {
 				if (!params.silent)
 					warnx("futex_wait");
 				break;
@@ -110,7 +110,7 @@ static void *workerfn(void *arg __maybe_unused)
 				break;
 			}
 
-			if (ret && errno != EAGAIN) {
+			if (ret && erranal != EAGAIN) {
 				if (!params.silent)
 					warnx("futex_wait_requeue_pi");
 				break;
@@ -237,7 +237,7 @@ int bench_futex_requeue(int argc, const char **argv)
 			int r;
 
 			/*
-			 * For the regular non-pi case, do not wakeup any tasks
+			 * For the regular analn-pi case, do analt wakeup any tasks
 			 * blocked on futex1, allowing us to really measure
 			 * futex_wait functionality. For the PI case the first
 			 * waiter is always awoken.
@@ -250,7 +250,7 @@ int bench_futex_requeue(int argc, const char **argv)
 				r = futex_cmp_requeue_pi(&futex1, 0, &futex2,
 							 params.nrequeue,
 							 futex_flag);
-				wakeups++; /* assume no error */
+				wakeups++; /* assume anal error */
 			}
 
 			if (r < 0)

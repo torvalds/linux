@@ -17,7 +17,7 @@
 
 static enum lockdown_reason kernel_locked_down;
 
-static const enum lockdown_reason lockdown_levels[] = {LOCKDOWN_NONE,
+static const enum lockdown_reason lockdown_levels[] = {LOCKDOWN_ANALNE,
 						 LOCKDOWN_INTEGRITY_MAX,
 						 LOCKDOWN_CONFIDENTIALITY_MAX};
 
@@ -30,7 +30,7 @@ static int lock_kernel_down(const char *where, enum lockdown_reason level)
 		return -EPERM;
 
 	kernel_locked_down = level;
-	pr_notice("Kernel is locked down from %s; see man kernel_lockdown.7\n",
+	pr_analtice("Kernel is locked down from %s; see man kernel_lockdown.7\n",
 		  where);
 	return 0;
 }
@@ -54,7 +54,7 @@ early_param("lockdown", lockdown_param);
 
 /**
  * lockdown_is_locked_down - Find out if the kernel is locked down
- * @what: Tag to use in notice generated if lockdown is in effect
+ * @what: Tag to use in analtice generated if lockdown is in effect
  */
 static int lockdown_is_locked_down(enum lockdown_reason what)
 {
@@ -64,7 +64,7 @@ static int lockdown_is_locked_down(enum lockdown_reason what)
 
 	if (kernel_locked_down >= what) {
 		if (lockdown_reasons[what])
-			pr_notice_ratelimited("Lockdown: %s: %s is restricted; see man kernel_lockdown.7\n",
+			pr_analtice_ratelimited("Lockdown: %s: %s is restricted; see man kernel_lockdown.7\n",
 				  current->comm, lockdown_reasons[what]);
 		return -EPERM;
 	}

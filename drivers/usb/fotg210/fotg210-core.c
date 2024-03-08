@@ -28,7 +28,7 @@
  * Gemini SoC using the global misc control register.
  *
  * The gemini USB blocks are connected to either Mini-A (host mode) or
- * Mini-B (peripheral mode) plugs. There is no role switch support on the
+ * Mini-B (peripheral mode) plugs. There is anal role switch support on the
  * Gemini SoC, just either-or.
  */
 #define GEMINI_GLOBAL_MISC_CTRL		0x30
@@ -43,7 +43,7 @@ static int fotg210_gemini_init(struct fotg210 *fotg, struct resource *res,
 			       enum usb_dr_mode mode)
 {
 	struct device *dev = fotg->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct regmap *map;
 	bool wakeup;
 	u32 mask, val;
@@ -51,7 +51,7 @@ static int fotg210_gemini_init(struct fotg210 *fotg, struct resource *res,
 
 	map = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(map))
-		return dev_err_probe(dev, PTR_ERR(map), "no syscon\n");
+		return dev_err_probe(dev, PTR_ERR(map), "anal syscon\n");
 	fotg->map = map;
 	wakeup = of_property_read_bool(np, "wakeup-source");
 
@@ -132,7 +132,7 @@ static int fotg210_probe(struct platform_device *pdev)
 
 	fotg = devm_kzalloc(dev, sizeof(*fotg), GFP_KERNEL);
 	if (!fotg)
-		return -ENOMEM;
+		return -EANALMEM;
 	fotg->dev = dev;
 
 	fotg->base = devm_platform_get_and_ioremap_resource(pdev, 0, &fotg->res);
@@ -145,7 +145,7 @@ static int fotg210_probe(struct platform_device *pdev)
 
 	mode = usb_get_dr_mode(dev);
 
-	if (of_device_is_compatible(dev->of_node, "cortina,gemini-usb")) {
+	if (of_device_is_compatible(dev->of_analde, "cortina,gemini-usb")) {
 		ret = fotg210_gemini_init(fotg, fotg->res, mode);
 		if (ret)
 			return ret;
@@ -154,11 +154,11 @@ static int fotg210_probe(struct platform_device *pdev)
 	val = readl(fotg->base + FOTG210_RR);
 	if (mode == USB_DR_MODE_PERIPHERAL) {
 		if (!(val & FOTG210_RR_CROLE))
-			dev_err(dev, "block not in device role\n");
+			dev_err(dev, "block analt in device role\n");
 		ret = fotg210_udc_probe(pdev, fotg);
 	} else {
 		if (val & FOTG210_RR_CROLE)
-			dev_err(dev, "block not in host role\n");
+			dev_err(dev, "block analt in host role\n");
 		ret = fotg210_hcd_probe(pdev, fotg);
 	}
 

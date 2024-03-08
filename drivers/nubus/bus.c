@@ -17,7 +17,7 @@
 static int nubus_device_probe(struct device *dev)
 {
 	struct nubus_driver *ndrv = to_nubus_driver(dev->driver);
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	if (ndrv->probe)
 		err = ndrv->probe(to_nubus_board(dev));

@@ -4,7 +4,7 @@
 /* Copyright (c) 2008-2019, IBM Corporation */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <net/net_namespace.h>
@@ -34,7 +34,7 @@ const bool zcopy_tx = true;
 
 /* Restrict usage of GSO, if hardware peer iwarp is unable to process
  * large packets. try_gso = true lets siw try to use local GSO,
- * if peer agrees.  Not using GSO severly limits siw maximum tx bandwidth.
+ * if peer agrees.  Analt using GSO severly limits siw maximum tx bandwidth.
  */
 const bool try_gso;
 
@@ -47,7 +47,7 @@ const bool mpa_crc_required;
 /* MPA CRC on/off enforced */
 const bool mpa_crc_strict;
 
-/* Control TCP_NODELAY socket option */
+/* Control TCP_ANALDELAY socket option */
 const bool siw_tcp_nagle;
 
 /* Select MPA version to be used during connection setup */
@@ -95,7 +95,7 @@ static int siw_dev_qualified(struct net_device *netdev)
 	 * <linux/if_arp.h> for type identifiers.
 	 */
 	if (netdev->type == ARPHRD_ETHER || netdev->type == ARPHRD_IEEE802 ||
-	    netdev->type == ARPHRD_NONE ||
+	    netdev->type == ARPHRD_ANALNE ||
 	    (netdev->type == ARPHRD_LOOPBACK && loopback_enabled))
 		return 1;
 
@@ -106,7 +106,7 @@ static DEFINE_PER_CPU(atomic_t, siw_use_cnt);
 
 static struct {
 	struct cpumask **tx_valid_cpus;
-	int num_nodes;
+	int num_analdes;
 } siw_cpu_info;
 
 static void siw_destroy_cpulist(int number)
@@ -122,19 +122,19 @@ static void siw_destroy_cpulist(int number)
 
 static int siw_init_cpulist(void)
 {
-	int i, num_nodes = nr_node_ids;
+	int i, num_analdes = nr_analde_ids;
 
 	memset(siw_tx_thread, 0, sizeof(siw_tx_thread));
 
-	siw_cpu_info.num_nodes = num_nodes;
+	siw_cpu_info.num_analdes = num_analdes;
 
 	siw_cpu_info.tx_valid_cpus =
-		kcalloc(num_nodes, sizeof(struct cpumask *), GFP_KERNEL);
+		kcalloc(num_analdes, sizeof(struct cpumask *), GFP_KERNEL);
 	if (!siw_cpu_info.tx_valid_cpus) {
-		siw_cpu_info.num_nodes = 0;
-		return -ENOMEM;
+		siw_cpu_info.num_analdes = 0;
+		return -EANALMEM;
 	}
-	for (i = 0; i < siw_cpu_info.num_nodes; i++) {
+	for (i = 0; i < siw_cpu_info.num_analdes; i++) {
 		siw_cpu_info.tx_valid_cpus[i] =
 			kzalloc(sizeof(struct cpumask), GFP_KERNEL);
 		if (!siw_cpu_info.tx_valid_cpus[i])
@@ -143,34 +143,34 @@ static int siw_init_cpulist(void)
 		cpumask_clear(siw_cpu_info.tx_valid_cpus[i]);
 	}
 	for_each_possible_cpu(i)
-		cpumask_set_cpu(i, siw_cpu_info.tx_valid_cpus[cpu_to_node(i)]);
+		cpumask_set_cpu(i, siw_cpu_info.tx_valid_cpus[cpu_to_analde(i)]);
 
 	return 0;
 
 out_err:
-	siw_cpu_info.num_nodes = 0;
+	siw_cpu_info.num_analdes = 0;
 	siw_destroy_cpulist(i);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
- * Choose CPU with least number of active QP's from NUMA node of
+ * Choose CPU with least number of active QP's from NUMA analde of
  * TX interface.
  */
 int siw_get_tx_cpu(struct siw_device *sdev)
 {
 	const struct cpumask *tx_cpumask;
-	int i, num_cpus, cpu, min_use, node = sdev->numa_node, tx_cpu = -1;
+	int i, num_cpus, cpu, min_use, analde = sdev->numa_analde, tx_cpu = -1;
 
-	if (node < 0)
+	if (analde < 0)
 		tx_cpumask = cpu_online_mask;
 	else
-		tx_cpumask = siw_cpu_info.tx_valid_cpus[node];
+		tx_cpumask = siw_cpu_info.tx_valid_cpus[analde];
 
 	num_cpus = cpumask_weight(tx_cpumask);
 	if (!num_cpus) {
-		/* no CPU on this NUMA node */
+		/* anal CPU on this NUMA analde */
 		tx_cpumask = cpu_online_mask;
 		num_cpus = cpumask_weight(tx_cpumask);
 	}
@@ -183,7 +183,7 @@ int siw_get_tx_cpu(struct siw_device *sdev)
 	     i++, cpu = cpumask_next(cpu, tx_cpumask)) {
 		int usage;
 
-		/* Skip any cores which have no TX thread */
+		/* Skip any cores which have anal TX thread */
 		if (!siw_tx_thread[cpu])
 			continue;
 
@@ -194,13 +194,13 @@ int siw_get_tx_cpu(struct siw_device *sdev)
 		}
 	}
 	siw_dbg(&sdev->base_dev,
-		"tx cpu %d, node %d, %d qp's\n", tx_cpu, node, min_use);
+		"tx cpu %d, analde %d, %d qp's\n", tx_cpu, analde, min_use);
 
 out:
 	if (tx_cpu >= 0)
 		atomic_inc(&per_cpu(siw_use_cnt, tx_cpu));
 	else
-		pr_warn("siw: no tx cpu found\n");
+		pr_warn("siw: anal tx cpu found\n");
 
 	return tx_cpu;
 }
@@ -266,7 +266,7 @@ static const struct ib_device_ops siw_device_ops = {
 	.query_port = siw_query_port,
 	.query_qp = siw_query_qp,
 	.query_srq = siw_query_srq,
-	.req_notify_cq = siw_req_notify_cq,
+	.req_analtify_cq = siw_req_analtify_cq,
 	.reg_user_mr = siw_reg_user_mr,
 
 	INIT_RDMA_OBJ_SIZE(ib_cq, siw_cq, base_cq),
@@ -294,18 +294,18 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 		       min_t(unsigned int, netdev->addr_len, ETH_ALEN));
 	} else {
 		/*
-		 * This device does not have a HW address, but
+		 * This device does analt have a HW address, but
 		 * connection mangagement requires a unique gid.
 		 */
 		eth_random_addr(sdev->raw_gid);
 	}
-	addrconf_addr_eui48((u8 *)&base_dev->node_guid, sdev->raw_gid);
+	addrconf_addr_eui48((u8 *)&base_dev->analde_guid, sdev->raw_gid);
 
 	base_dev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POST_SEND);
 
-	base_dev->node_type = RDMA_NODE_RNIC;
-	memcpy(base_dev->node_desc, SIW_NODE_DESC_COMMON,
-	       sizeof(SIW_NODE_DESC_COMMON));
+	base_dev->analde_type = RDMA_ANALDE_RNIC;
+	memcpy(base_dev->analde_desc, SIW_ANALDE_DESC_COMMON,
+	       sizeof(SIW_ANALDE_DESC_COMMON));
 
 	/*
 	 * Current model (one-to-one device association):
@@ -327,7 +327,7 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	       sizeof(base_dev->iw_ifname));
 
 	/* Disable TCP port mapping */
-	base_dev->iw_driver_flags = IW_F_NO_PORT_MAP;
+	base_dev->iw_driver_flags = IW_F_ANAL_PORT_MAP;
 
 	sdev->attrs.max_qp = SIW_MAX_QP;
 	sdev->attrs.max_qp_wr = SIW_MAX_QP_WR;
@@ -354,7 +354,7 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	atomic_set(&sdev->num_mr, 0);
 	atomic_set(&sdev->num_pd, 0);
 
-	sdev->numa_node = dev_to_node(&netdev->dev);
+	sdev->numa_analde = dev_to_analde(&netdev->dev);
 	spin_lock_init(&sdev->lock);
 
 	return sdev;
@@ -397,10 +397,10 @@ static void siw_device_goes_down(struct siw_device *sdev)
 	}
 }
 
-static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
+static int siw_netdev_event(struct analtifier_block *nb, unsigned long event,
 			    void *arg)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(arg);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(arg);
 	struct ib_device *base_dev;
 	struct siw_device *sdev;
 
@@ -408,7 +408,7 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 
 	base_dev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_SIW);
 	if (!base_dev)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	sdev = to_siw_dev(base_dev);
 
@@ -429,7 +429,7 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 
 	case NETDEV_REGISTER:
 		/*
-		 * Device registration now handled only by
+		 * Device registration analw handled only by
 		 * rdma netlink commands. So it shall be impossible
 		 * to end up here with a valid siw device.
 		 */
@@ -444,7 +444,7 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 		siw_port_event(sdev, 1, IB_EVENT_LID_CHANGE);
 		break;
 	/*
-	 * Todo: Below netdev events are currently not handled.
+	 * Todo: Below netdev events are currently analt handled.
 	 */
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGE:
@@ -455,18 +455,18 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 	}
 	ib_device_put(&sdev->base_dev);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block siw_netdev_nb = {
-	.notifier_call = siw_netdev_event,
+static struct analtifier_block siw_netdev_nb = {
+	.analtifier_call = siw_netdev_event,
 };
 
 static int siw_newlink(const char *basedev_name, struct net_device *netdev)
 {
 	struct ib_device *base_dev;
 	struct siw_device *sdev = NULL;
-	int rv = -ENOMEM;
+	int rv = -EANALMEM;
 
 	if (!siw_dev_qualified(netdev))
 		return -EINVAL;
@@ -520,8 +520,8 @@ static __init int siw_init_module(void)
 		goto out_error;
 
 	if (!siw_create_tx_threads()) {
-		pr_info("siw: Could not start any TX thread\n");
-		rv = -ENOMEM;
+		pr_info("siw: Could analt start any TX thread\n");
+		rv = -EANALMEM;
 		goto out_error;
 	}
 	/*
@@ -534,11 +534,11 @@ static __init int siw_init_module(void)
 			PTR_ERR(siw_crypto_shash));
 		siw_crypto_shash = NULL;
 		if (mpa_crc_required) {
-			rv = -EOPNOTSUPP;
+			rv = -EOPANALTSUPP;
 			goto out_error;
 		}
 	}
-	rv = register_netdevice_notifier(&siw_netdev_nb);
+	rv = register_netdevice_analtifier(&siw_netdev_nb);
 	if (rv)
 		goto out_error;
 
@@ -556,7 +556,7 @@ out_error:
 	pr_info("SoftIWARP attach failed. Error: %d\n", rv);
 
 	siw_cm_exit();
-	siw_destroy_cpulist(siw_cpu_info.num_nodes);
+	siw_destroy_cpulist(siw_cpu_info.num_analdes);
 
 	return rv;
 }
@@ -565,13 +565,13 @@ static void __exit siw_exit_module(void)
 {
 	siw_stop_tx_threads();
 
-	unregister_netdevice_notifier(&siw_netdev_nb);
+	unregister_netdevice_analtifier(&siw_netdev_nb);
 	rdma_link_unregister(&siw_link_ops);
 	ib_unregister_driver(RDMA_DRIVER_SIW);
 
 	siw_cm_exit();
 
-	siw_destroy_cpulist(siw_cpu_info.num_nodes);
+	siw_destroy_cpulist(siw_cpu_info.num_analdes);
 
 	if (siw_crypto_shash)
 		crypto_free_shash(siw_crypto_shash);

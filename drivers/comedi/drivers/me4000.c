@@ -22,10 +22,10 @@
  *	- Digital I/O
  *	- Counter
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  *
  * The firmware required by these boards is available in the
- * comedi_nonfree_firmware tarball available from
+ * comedi_analnfree_firmware tarball available from
  * https://www.comedi.org.
  */
 
@@ -290,7 +290,7 @@ static const struct me4000_board me4000_boards[] = {
 };
 
 /*
- * NOTE: the ranges here are inverted compared to the values
+ * ANALTE: the ranges here are inverted compared to the values
  * written to the ME4000_AI_CHANNEL_LIST_REG,
  *
  * The ME4000_AI_LIST_RANGE() macro handles the inversion.
@@ -316,7 +316,7 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 	unsigned int i;
 
 	if (!xilinx_iobase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Set PLX local interrupt 2 polarity to high.
@@ -368,8 +368,8 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 	/* If done flag is high download was successful */
 	val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 	if (!(val & PLX9052_CNTRL_UIO0_DATA)) {
-		dev_err(dev->class_dev, "DONE flag is not set\n");
-		dev_err(dev->class_dev, "Download not successful\n");
+		dev_err(dev->class_dev, "DONE flag is analt set\n");
+		dev_err(dev->class_dev, "Download analt successful\n");
 		return -EIO;
 	}
 
@@ -472,7 +472,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	if (aref == AREF_DIFF) {
 		if (!(s->subdev_flags & SDF_DIFF)) {
 			dev_err(dev->class_dev,
-				"Differential inputs are not available\n");
+				"Differential inputs are analt available\n");
 			return -EINVAL;
 		}
 
@@ -484,7 +484,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 
 		if (chan >= (s->n_chan / 2)) {
 			dev_err(dev->class_dev,
-				"Analog input is not available\n");
+				"Analog input is analt available\n");
 			return -EINVAL;
 		}
 		entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
@@ -544,14 +544,14 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 
 		if (aref != aref0) {
 			dev_dbg(dev->class_dev,
-				"Mode is not equal for all entries\n");
+				"Mode is analt equal for all entries\n");
 			return -EINVAL;
 		}
 
 		if (aref == AREF_DIFF) {
 			if (!(s->subdev_flags & SDF_DIFF)) {
 				dev_err(dev->class_dev,
-					"Differential inputs are not available\n");
+					"Differential inputs are analt available\n");
 				return -EINVAL;
 			}
 
@@ -563,7 +563,7 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 
 			if (!comedi_range_is_bipolar(s, range)) {
 				dev_dbg(dev->class_dev,
-					"Bipolar is not selected in differential mode\n");
+					"Bipolar is analt selected in differential mode\n");
 				return -EINVAL;
 			}
 		}
@@ -680,7 +680,7 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 		outl(cmd->chanlist_len * cmd->stop_arg,
 		     dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
 		ctrl |= ME4000_AI_CTRL_SC_IRQ;
-	} else if (cmd->stop_src == TRIG_NONE &&
+	} else if (cmd->stop_src == TRIG_ANALNE &&
 		   cmd->scan_end_src == TRIG_COUNT) {
 		outl(cmd->scan_end_arg,
 		     dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
@@ -709,14 +709,14 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src,
-					TRIG_NONE | TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE | TRIG_COUNT);
+					TRIG_ANALNE | TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE | TRIG_COUNT);
 
 	if (err)
 		return 1;
@@ -731,11 +731,11 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
-	if (cmd->start_src == TRIG_NOW &&
+	if (cmd->start_src == TRIG_ANALW &&
 	    cmd->scan_begin_src == TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
 		devpriv->ai_ctrl_mode = ME4000_AI_CTRL_MODE_0;
-	} else if (cmd->start_src == TRIG_NOW &&
+	} else if (cmd->start_src == TRIG_ANALW &&
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
 		devpriv->ai_ctrl_mode = ME4000_AI_CTRL_MODE_0;
@@ -790,7 +790,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -799,7 +799,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	/*
 	 * Stage 4. Check for argument conflicts.
 	 */
-	if (cmd->start_src == TRIG_NOW &&
+	if (cmd->start_src == TRIG_ANALW &&
 	    cmd->scan_begin_src == TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
 		/* Check timer arguments */
@@ -821,7 +821,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 			cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31;
 			err++;
 		}
-	} else if (cmd->start_src == TRIG_NOW &&
+	} else if (cmd->start_src == TRIG_ANALW &&
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
 		/* Check timer arguments */
@@ -926,7 +926,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	unsigned short lval;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_AI_HF) {
@@ -1103,13 +1103,13 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(me4000_boards))
 		board = &me4000_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = comedi_pci_enable(dev);
 	if (result)
@@ -1118,7 +1118,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	devpriv->plx_regbase = pci_resource_start(pcidev, 1);
 	dev->iobase = pci_resource_start(pcidev, 2);
 	if (!devpriv->plx_regbase || !dev->iobase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	result = comedi_load_firmware(dev, &pcidev->dev, ME4000_FIRMWARE,
 				      me4000_xilinx_download, 0);
@@ -1207,7 +1207,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 		unsigned long timer_base = pci_resource_start(pcidev, 3);
 
 		if (!timer_base)
-			return -ENODEV;
+			return -EANALDEV;
 
 		dev->pacer = comedi_8254_io_alloc(timer_base, 0, I8254_IO8, 0);
 		if (IS_ERR(dev->pacer))

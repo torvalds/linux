@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -606,7 +606,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	}
 
 	if ((radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
-	    (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE)) {
+	    (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_ANALNE)) {
 		if (connector) {
 			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 			struct radeon_connector_atom_dig *dig_connector =
@@ -640,7 +640,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			radeon_crtc->pll_flags |= RADEON_PLL_IS_LCD;
 	} else {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
-			radeon_crtc->pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
+			radeon_crtc->pll_flags |= RADEON_PLL_ANAL_ODD_POST_DIV;
 		if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS)
 			radeon_crtc->pll_flags |= RADEON_PLL_USE_REF_DIV;
 	}
@@ -718,7 +718,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 							DISPPLL_CONFIG_DUAL_LINK;
 				}
 				if (radeon_encoder_get_dp_bridge_encoder_id(encoder) !=
-				    ENCODER_OBJECT_ID_NONE)
+				    ENCODER_OBJECT_ID_ANALNE)
 					args.v3.sInput.ucExtTransmitterID =
 						radeon_encoder_get_dp_bridge_encoder_id(encoder);
 				else
@@ -739,12 +739,12 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				}
 				break;
 			default:
-				DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+				DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 				return adjusted_clock;
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 			return adjusted_clock;
 		}
 	}
@@ -760,7 +760,7 @@ union set_pixel_clock {
 	PIXEL_CLOCK_PARAMETERS_V6 v6;
 };
 
-/* on DCE5, make sure the voltage is high enough to support the
+/* on DCE5, make sure the voltage is high eanalugh to support the
  * required disp clk.
  */
 static void atombios_crtc_set_disp_eng_pll(struct radeon_device *rdev,
@@ -801,12 +801,12 @@ static void atombios_crtc_set_disp_eng_pll(struct radeon_device *rdev,
 				args.v6.ucPpll = ATOM_DCPLL;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 			return;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 		return;
 	}
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -896,11 +896,11 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_24BPP;
 					break;
 				case 10:
-					/* yes this is correct, the atom define is wrong */
+					/* anal this is correct, the atom define is wrong */
 					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_32BPP;
 					break;
 				case 12:
-					/* yes this is correct, the atom define is wrong */
+					/* anal this is correct, the atom define is wrong */
 					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_30BPP;
 					break;
 				}
@@ -940,12 +940,12 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v6.ucPpll = pll_id;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 			return;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 		return;
 	}
 
@@ -965,7 +965,7 @@ static bool atombios_crtc_prepare_pll(struct drm_crtc *crtc, struct drm_display_
 	radeon_crtc->ss_enabled = false;
 
 	if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
-	    (radeon_encoder_get_dp_bridge_encoder_id(radeon_crtc->encoder) != ENCODER_OBJECT_ID_NONE)) {
+	    (radeon_encoder_get_dp_bridge_encoder_id(radeon_crtc->encoder) != ENCODER_OBJECT_ID_ANALNE)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 		struct drm_connector *connector =
 			radeon_get_connector_for_encoder(radeon_crtc->encoder);
@@ -1144,14 +1144,14 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	unsigned bankw, bankh, mtaspect, tile_split;
-	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
+	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_ANALNE);
 	u32 tmp, viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
 
-	/* no fb bound */
+	/* anal fb bound */
 	if (!atomic && !crtc->primary->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
+		DRM_DEBUG_KMS("Anal FB bound\n");
 		return 0;
 	}
 
@@ -1294,11 +1294,11 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 					index = 10;
 					break;
 				case 16:
-					index = SI_TILE_MODE_COLOR_2D_SCANOUT_16BPP;
+					index = SI_TILE_MODE_COLOR_2D_SCAANALUT_16BPP;
 					break;
 				default:
 				case 32:
-					index = SI_TILE_MODE_COLOR_2D_SCANOUT_32BPP;
+					index = SI_TILE_MODE_COLOR_2D_SCAANALUT_32BPP;
 					break;
 				}
 
@@ -1333,15 +1333,15 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= EVERGREEN_GRPH_BANK_HEIGHT(bankh);
 		fb_format |= EVERGREEN_GRPH_MACRO_TILE_ASPECT(mtaspect);
 		if (rdev->family >= CHIP_BONAIRE) {
-			/* XXX need to know more about the surface tiling mode */
+			/* XXX need to kanalw more about the surface tiling mode */
 			fb_format |= CIK_GRPH_MICRO_TILE_MODE(CIK_DISPLAY_MICRO_TILING);
 		}
 	} else if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
 
 	if (rdev->family >= CHIP_BONAIRE) {
-		/* Read the pipe config from the 2D TILED SCANOUT mode.
-		 * It should be the same for the other modes too, but not all
+		/* Read the pipe config from the 2D TILED SCAANALUT mode.
+		 * It should be the same for the other modes too, but analt all
 		 * modes set the pipe config field. */
 		u32 pipe_config = (rdev->config.cik.tile_mode_array[10] >> 6) & 0x1f;
 
@@ -1351,7 +1351,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P8_32x32_8x16);
 	else if ((rdev->family == CHIP_VERDE) ||
 		 (rdev->family == CHIP_OLAND) ||
-		 (rdev->family == CHIP_HAINAN)) /* for completeness.  HAINAN has no display hw */
+		 (rdev->family == CHIP_HAINAN)) /* for completeness.  HAINAN has anal display hw */
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P4_8x16);
 
 	switch (radeon_crtc->crtc_id) {
@@ -1395,7 +1395,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 
 	/*
 	 * The LUT only has 256 slots for indexing by a 8 bpc fb. Bypass the LUT
-	 * for > 8 bpc scanout to avoid truncation of fb indices to 8 msb's, to
+	 * for > 8 bpc scaanalut to avoid truncation of fb indices to 8 msb's, to
 	 * retain the full precision throughout the pipeline.
 	 */
 	WREG32_P(EVERGREEN_GRPH_LUT_10BIT_BYPASS_CONTROL + radeon_crtc->crtc_offset,
@@ -1403,7 +1403,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		 ~EVERGREEN_LUT_10BIT_BYPASS_EN);
 
 	if (bypass_lut)
-		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scaanalut.\n");
 
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
@@ -1464,14 +1464,14 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	struct drm_framebuffer *target_fb;
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
-	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
+	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_ANALNE;
 	u32 viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
 
-	/* no fb bound */
+	/* anal fb bound */
 	if (!atomic && !crtc->primary->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
+		DRM_DEBUG_KMS("Anal FB bound\n");
 		return 0;
 	}
 
@@ -1613,12 +1613,12 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	if (rdev->family >= CHIP_R600)
 		WREG32(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
-	/* LUT only has 256 slots for 8 bpc fb. Bypass for > 8 bpc scanout for precision */
+	/* LUT only has 256 slots for 8 bpc fb. Bypass for > 8 bpc scaanalut for precision */
 	WREG32_P(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset,
 		 (bypass_lut ? AVIVO_LUT_10BIT_BYPASS_EN : 0), ~AVIVO_LUT_10BIT_BYPASS_EN);
 
 	if (bypass_lut)
-		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scaanalut.\n");
 
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
@@ -1739,11 +1739,11 @@ static u32 radeon_get_pll_use_mask(struct drm_crtc *crtc)
 }
 
 /**
- * radeon_get_shared_dp_ppll - return the PPLL used by another crtc for DP
+ * radeon_get_shared_dp_ppll - return the PPLL used by aanalther crtc for DP
  *
  * @crtc: drm crtc
  *
- * Returns the PPLL (Pixel PLL) used by another crtc/encoder which is
+ * Returns the PPLL (Pixel PLL) used by aanalther crtc/encoder which is
  * also in DP mode.  For DP, a single PPLL can be used for all DP
  * crtcs/encoders.
  */
@@ -1773,14 +1773,14 @@ static int radeon_get_shared_dp_ppll(struct drm_crtc *crtc)
 }
 
 /**
- * radeon_get_shared_nondp_ppll - return the PPLL used by another non-DP crtc
+ * radeon_get_shared_analndp_ppll - return the PPLL used by aanalther analn-DP crtc
  *
  * @crtc: drm crtc
  *
- * Returns the PPLL (Pixel PLL) used by another non-DP crtc/encoder which can
+ * Returns the PPLL (Pixel PLL) used by aanalther analn-DP crtc/encoder which can
  * be shared (i.e., same clock).
  */
-static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
+static int radeon_get_shared_analndp_ppll(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -1804,13 +1804,13 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 			if (ASIC_IS_DCE61(rdev) && !ASIC_IS_DCE8(rdev) &&
 			    test_radeon_crtc->pll_id == ATOM_PPLL2)
 				continue;
-			/* check if we are already driving this connector with another crtc */
+			/* check if we are already driving this connector with aanalther crtc */
 			if (test_radeon_crtc->connector == radeon_crtc->connector) {
 				/* if we are, return that pll */
 				if (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID)
 					return test_radeon_crtc->pll_id;
 			}
-			/* for non-DP check the clock */
+			/* for analn-DP check the clock */
 			test_adjusted_clock = test_radeon_crtc->adjusted_clock;
 			if ((crtc->mode.clock == test_crtc->mode.clock) &&
 			    (adjusted_clock == test_adjusted_clock) &&
@@ -1828,10 +1828,10 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
  * @crtc: drm crtc
  *
  * Returns the PPLL (Pixel PLL) to be used by the crtc.  For DP monitors
- * a single PPLL can be used for all DP crtcs/encoders.  For non-DP
+ * a single PPLL can be used for all DP crtcs/encoders.  For analn-DP
  * monitors a dedicated PPLL must be used.  If a particular board has
  * an external DP PLL, return ATOM_PPLL_INVALID to skip PLL programming
- * as there is no need to program the PLL itself.  If we are not able to
+ * as there is anal need to program the PLL itself.  If we are analt able to
  * allocate a PLL, return ATOM_PPLL_INVALID to skip PLL programming to
  * avoid messing up an existing monitor.
  *
@@ -1839,24 +1839,24 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
  *
  * DCE 8.x
  * KB/KV
- * - PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP)
+ * - PPLL1, PPLL2 are available for all UNIPHY (both DP and analn-DP)
  * CI
- * - PPLL0, PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP) and DAC
+ * - PPLL0, PPLL1, PPLL2 are available for all UNIPHY (both DP and analn-DP) and DAC
  *
  * DCE 6.1
- * - PPLL2 is only available to UNIPHYA (both DP and non-DP)
- * - PPLL0, PPLL1 are available for UNIPHYB/C/D/E/F (both DP and non-DP)
+ * - PPLL2 is only available to UNIPHYA (both DP and analn-DP)
+ * - PPLL0, PPLL1 are available for UNIPHYB/C/D/E/F (both DP and analn-DP)
  *
  * DCE 6.0
  * - PPLL0 is available to all UNIPHY (DP only)
- * - PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP) and DAC
+ * - PPLL1, PPLL2 are available for all UNIPHY (both DP and analn-DP) and DAC
  *
  * DCE 5.0
  * - DCPLL is available to all UNIPHY (DP only)
- * - PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP) and DAC
+ * - PPLL1, PPLL2 are available for all UNIPHY (both DP and analn-DP) and DAC
  *
  * DCE 3.0/4.0/4.1
- * - PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP) and DAC
+ * - PPLL1, PPLL2 are available for all UNIPHY (both DP and analn-DP) and DAC
  *
  */
 static int radeon_atom_pick_pll(struct drm_crtc *crtc)
@@ -1882,7 +1882,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			}
 		} else {
 			/* use the same PPLL for all monitors with the same clock */
-			pll = radeon_get_shared_nondp_ppll(crtc);
+			pll = radeon_get_shared_analndp_ppll(crtc);
 			if (pll != ATOM_PPLL_INVALID)
 				return pll;
 		}
@@ -1930,7 +1930,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			}
 		} else {
 			/* use the same PPLL for all monitors with the same clock */
-			pll = radeon_get_shared_nondp_ppll(crtc);
+			pll = radeon_get_shared_analndp_ppll(crtc);
 			if (pll != ATOM_PPLL_INVALID)
 				return pll;
 		}
@@ -1985,7 +1985,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			}
 		} else {
 			/* use the same PPLL for all monitors with the same clock */
-			pll = radeon_get_shared_nondp_ppll(crtc);
+			pll = radeon_get_shared_analndp_ppll(crtc);
 			if (pll != ATOM_PPLL_INVALID)
 				return pll;
 		}
@@ -2029,7 +2029,7 @@ void radeon_atom_disp_eng_pll_init(struct radeon_device *rdev)
 								   rdev->clock.default_dispclk);
 		if (ss_enabled)
 			atombios_crtc_program_ss(rdev, ATOM_DISABLE, ATOM_DCPLL, -1, &ss);
-		/* XXX: DCE5, make sure voltage, dispclk is high enough */
+		/* XXX: DCE5, make sure voltage, dispclk is high eanalugh */
 		atombios_crtc_set_disp_eng_pll(rdev, rdev->clock.default_dispclk);
 		if (ss_enabled)
 			atombios_crtc_program_ss(rdev, ATOM_ENABLE, ATOM_DCPLL, -1, &ss);
@@ -2114,7 +2114,7 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 		return false;
 	/* pick pll */
 	radeon_crtc->pll_id = radeon_atom_pick_pll(crtc);
-	/* if we can't get a PPLL for a non-DP encoder, fail */
+	/* if we can't get a PPLL for a analn-DP encoder, fail */
 	if ((radeon_crtc->pll_id == ATOM_PPLL_INVALID) &&
 	    !ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder)))
 		return false;
@@ -2219,7 +2219,7 @@ static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
 	.prepare = atombios_crtc_prepare,
 	.commit = atombios_crtc_commit,
 	.disable = atombios_crtc_disable,
-	.get_scanout_position = radeon_get_crtc_scanout_position,
+	.get_scaanalut_position = radeon_get_crtc_scaanalut_position,
 };
 
 void radeon_atombios_init_crtc(struct drm_device *dev,

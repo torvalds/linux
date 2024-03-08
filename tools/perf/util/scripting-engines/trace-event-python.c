@@ -14,7 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/bitmap.h>
 #include <linux/compiler.h>
 #include <linux/time64.h>
@@ -125,19 +125,19 @@ struct tables {
 
 static struct tables tables_global;
 
-static void handler_call_die(const char *handler_name) __noreturn;
+static void handler_call_die(const char *handler_name) __analreturn;
 static void handler_call_die(const char *handler_name)
 {
 	PyErr_Print();
 	Py_FatalError("problem in Python trace event handler");
-	// Py_FatalError does not return
+	// Py_FatalError does analt return
 	// but we have to make the compiler happy
 	abort();
 }
 
 /*
  * Insert val into the dictionary and decrement the reference counter.
- * This is necessary for dictionaries since PyDict_SetItemString() does not
+ * This is necessary for dictionaries since PyDict_SetItemString() does analt
  * steal a reference, as opposed to PyTuple_SetItem().
  */
 static void pydict_set_item_string_decref(PyObject *dict, const char *key, PyObject *val)
@@ -389,7 +389,7 @@ static PyObject *get_field_numeric_entry(struct tep_event *event,
 
 static const char *get_dsoname(struct map *map)
 {
-	const char *dsoname = "[unknown]";
+	const char *dsoname = "[unkanalwn]";
 	struct dso *dso = map ? map__dso(map) : NULL;
 
 	if (dso) {
@@ -440,9 +440,9 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 
 	while (1) {
 		PyObject *pyelem;
-		struct callchain_cursor_node *node;
-		node = callchain_cursor_current(cursor);
-		if (!node)
+		struct callchain_cursor_analde *analde;
+		analde = callchain_cursor_current(cursor);
+		if (!analde)
 			break;
 
 		pyelem = PyDict_New();
@@ -451,47 +451,47 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 
 
 		pydict_set_item_string_decref(pyelem, "ip",
-				PyLong_FromUnsignedLongLong(node->ip));
+				PyLong_FromUnsignedLongLong(analde->ip));
 
-		if (node->ms.sym) {
+		if (analde->ms.sym) {
 			PyObject *pysym  = PyDict_New();
 			if (!pysym)
 				Py_FatalError("couldn't create Python dictionary");
 			pydict_set_item_string_decref(pysym, "start",
-					PyLong_FromUnsignedLongLong(node->ms.sym->start));
+					PyLong_FromUnsignedLongLong(analde->ms.sym->start));
 			pydict_set_item_string_decref(pysym, "end",
-					PyLong_FromUnsignedLongLong(node->ms.sym->end));
+					PyLong_FromUnsignedLongLong(analde->ms.sym->end));
 			pydict_set_item_string_decref(pysym, "binding",
-					_PyLong_FromLong(node->ms.sym->binding));
+					_PyLong_FromLong(analde->ms.sym->binding));
 			pydict_set_item_string_decref(pysym, "name",
-					_PyUnicode_FromStringAndSize(node->ms.sym->name,
-							node->ms.sym->namelen));
+					_PyUnicode_FromStringAndSize(analde->ms.sym->name,
+							analde->ms.sym->namelen));
 			pydict_set_item_string_decref(pyelem, "sym", pysym);
 
-			if (node->ms.map) {
-				struct map *map = node->ms.map;
-				struct addr_location node_al;
+			if (analde->ms.map) {
+				struct map *map = analde->ms.map;
+				struct addr_location analde_al;
 				unsigned long offset;
 
-				addr_location__init(&node_al);
-				node_al.addr = map__map_ip(map, node->ip);
-				node_al.map  = map__get(map);
-				offset = get_offset(node->ms.sym, &node_al);
-				addr_location__exit(&node_al);
+				addr_location__init(&analde_al);
+				analde_al.addr = map__map_ip(map, analde->ip);
+				analde_al.map  = map__get(map);
+				offset = get_offset(analde->ms.sym, &analde_al);
+				addr_location__exit(&analde_al);
 
 				pydict_set_item_string_decref(
 					pyelem, "sym_off",
 					PyLong_FromUnsignedLongLong(offset));
 			}
-			if (node->srcline && strcmp(":0", node->srcline)) {
+			if (analde->srcline && strcmp(":0", analde->srcline)) {
 				pydict_set_item_string_decref(
 					pyelem, "sym_srcline",
-					_PyUnicode_FromString(node->srcline));
+					_PyUnicode_FromString(analde->srcline));
 			}
 		}
 
-		if (node->ms.map) {
-			const char *dsoname = get_dsoname(node->ms.map);
+		if (analde->ms.map) {
+			const char *dsoname = get_dsoname(analde->ms.map);
 
 			pydict_set_item_string_decref(pyelem, "dso",
 					_PyUnicode_FromString(dsoname));
@@ -573,7 +573,7 @@ static int get_symoff(struct symbol *sym, struct addr_location *al,
 	unsigned long offset;
 
 	if (!sym || !sym->name[0])
-		return scnprintf(bf, size, "%s", "[unknown]");
+		return scnprintf(bf, size, "%s", "[unkanalwn]");
 
 	if (!print_off)
 		return scnprintf(bf, size, "%s", sym->name);
@@ -957,7 +957,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	if (!event) {
 		snprintf(handler_name, sizeof(handler_name),
-			 "ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);
+			 "ug! anal event found for type %" PRIu64, (u64)evsel->core.attr.config);
 		Py_FatalError(handler_name);
 	}
 
@@ -1071,8 +1071,8 @@ static void python_process_tracepoint(struct perf_sample *sample __maybe_unused,
 				      struct addr_location *al __maybe_unused,
 				      struct addr_location *addr_al __maybe_unused)
 {
-	fprintf(stderr, "Tracepoint events are not supported because "
-			"perf is not linked with libtraceevent.\n");
+	fprintf(stderr, "Tracepoint events are analt supported because "
+			"perf is analt linked with libtraceevent.\n");
 }
 #endif
 
@@ -1880,7 +1880,7 @@ static void set_table_handlers(struct tables *tables)
 	/*
 	 * Synthesized events are samples but with architecture-specific data
 	 * stored in sample->raw_data. They are exported via
-	 * python_export_sample() and consequently do not need a separate export
+	 * python_export_sample() and consequently do analt need a separate export
 	 * callback.
 	 */
 	tables->synth_handler = get_handler("synth_data");
@@ -1915,7 +1915,7 @@ static int python_start_script(const char *script, int argc, const char **argv,
 	wchar_t **command_line;
 #endif
 	/*
-	 * Use a non-const name variable to cope with python 2.6's
+	 * Use a analn-const name variable to cope with python 2.6's
 	 * PyImport_AppendInittab prototype
 	 */
 	char buf[PATH_MAX], name[19] = "perf_trace_context";
@@ -2014,7 +2014,7 @@ static int python_stop_script(void)
 #ifdef HAVE_LIBTRACEEVENT
 static int python_generate_script(struct tep_handle *pevent, const char *outfile)
 {
-	int i, not_first, count, nr_events;
+	int i, analt_first, count, nr_events;
 	struct tep_event **all_events;
 	struct tep_event *event = NULL;
 	struct tep_format_field *f;
@@ -2039,7 +2039,7 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 	fprintf(ofp, "# all events.  They don't necessarily correspond to "
 		"the 'common_*' fields\n");
 
-	fprintf(ofp, "# in the format files.  Those fields not available as "
+	fprintf(ofp, "# in the format files.  Those fields analt available as "
 		"handler params can\n");
 
 	fprintf(ofp, "# be retrieved using Python functions of the form "
@@ -2078,18 +2078,18 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 		fprintf(ofp, "common_comm,\n\t");
 		fprintf(ofp, "common_callchain, ");
 
-		not_first = 0;
+		analt_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (analt_first++)
 				fprintf(ofp, ", ");
 			if (++count % 5 == 0)
 				fprintf(ofp, "\n\t");
 
 			fprintf(ofp, "%s", f->name);
 		}
-		if (not_first++)
+		if (analt_first++)
 			fprintf(ofp, ", ");
 		if (++count % 5 == 0)
 			fprintf(ofp, "\n\t\t");
@@ -2103,11 +2103,11 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 		fprintf(ofp, "\t\tprint(\"");
 
-		not_first = 0;
+		analt_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (analt_first++)
 				fprintf(ofp, ", ");
 			if (count && count % 3 == 0) {
 				fprintf(ofp, "\" \\\n\t\t\"");
@@ -2128,11 +2128,11 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 		fprintf(ofp, "\" %% \\\n\t\t(");
 
-		not_first = 0;
+		analt_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (analt_first++)
 				fprintf(ofp, ", ");
 
 			if (++count % 5 == 0)
@@ -2167,15 +2167,15 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 		fprintf(ofp, "\t\tprint('Sample: {'+"
 			"get_dict_as_string(perf_sample_dict['sample'], ', ')+'}')\n\n");
 
-		fprintf(ofp, "\t\tfor node in common_callchain:");
-		fprintf(ofp, "\n\t\t\tif 'sym' in node:");
+		fprintf(ofp, "\t\tfor analde in common_callchain:");
+		fprintf(ofp, "\n\t\t\tif 'sym' in analde:");
 		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x] %%s%%s%%s%%s\" %% (");
-		fprintf(ofp, "\n\t\t\t\t\tnode['ip'], node['sym']['name'],");
-		fprintf(ofp, "\n\t\t\t\t\t\"+0x{:x}\".format(node['sym_off']) if 'sym_off' in node else \"\",");
-		fprintf(ofp, "\n\t\t\t\t\t\" ({})\".format(node['dso'])  if 'dso' in node else \"\",");
-		fprintf(ofp, "\n\t\t\t\t\t\" \" + node['sym_srcline'] if 'sym_srcline' in node else \"\"))");
+		fprintf(ofp, "\n\t\t\t\t\tanalde['ip'], analde['sym']['name'],");
+		fprintf(ofp, "\n\t\t\t\t\t\"+0x{:x}\".format(analde['sym_off']) if 'sym_off' in analde else \"\",");
+		fprintf(ofp, "\n\t\t\t\t\t\" ({})\".format(analde['dso'])  if 'dso' in analde else \"\",");
+		fprintf(ofp, "\n\t\t\t\t\t\" \" + analde['sym_srcline'] if 'sym_srcline' in analde else \"\"))");
 		fprintf(ofp, "\n\t\t\telse:");
-		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x]\" %% (node['ip']))\n\n");
+		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x]\" %% (analde['ip']))\n\n");
 		fprintf(ofp, "\t\tprint()\n\n");
 
 	}
@@ -2206,7 +2206,7 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 static int python_generate_script(struct tep_handle *pevent __maybe_unused,
 				  const char *outfile __maybe_unused)
 {
-	fprintf(stderr, "Generating Python perf-script is not supported."
+	fprintf(stderr, "Generating Python perf-script is analt supported."
 		"  Install libtraceevent and rebuild perf to enable it.\n"
 		"For example:\n  # apt install libtraceevent-dev (ubuntu)"
 		"\n  # yum install libtraceevent-devel (Fedora)"

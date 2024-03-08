@@ -52,7 +52,7 @@ struct rmi_2d_axis_alignment {
 /** This is used to override any hints an F11 2D sensor might have provided
  * as to what type of sensor it is.
  *
- * @rmi_f11_sensor_default - do not override, determine from F11_2D_QUERY14 if
+ * @rmi_f11_sensor_default - do analt override, determine from F11_2D_QUERY14 if
  * available.
  * @rmi_f11_sensor_touchscreen - treat the sensor as a touchscreen (direct
  * pointing).
@@ -72,11 +72,11 @@ enum rmi_sensor_type {
  * @axis_align - provides axis alignment overrides (see above).
  * @sensor_type - Forces the driver to treat the sensor as an indirect
  * pointing device (touchpad) rather than a direct pointing device
- * (touchscreen).  This is useful when F11_2D_QUERY14 register is not
+ * (touchscreen).  This is useful when F11_2D_QUERY14 register is analt
  * available.
- * @disable_report_mask - Force data to not be reported even if it is supported
+ * @disable_report_mask - Force data to analt be reported even if it is supported
  * by the firware.
- * @topbuttonpad - Used with the "5 buttons touchpads" found on the Lenovo 40
+ * @topbuttonpad - Used with the "5 buttons touchpads" found on the Leanalvo 40
  * series
  * @kernel_tracking - most moderns RMI f11 firmwares implement Multifinger
  * Type B protocol. However, there are some corner cases where the user
@@ -108,7 +108,7 @@ struct rmi_2d_sensor_platform_data {
  * button that is found.
  * @trackstick_buttons - Set when the function 30 or 3a is handling the physical
  * buttons of the trackstick (as a PS/2 passthrough device).
- * @disable - the touchpad incorrectly reports F30/F3A and it should be ignored.
+ * @disable - the touchpad incorrectly reports F30/F3A and it should be iganalred.
  * This is a special case which is due to misconfigured firmware.
  */
 struct rmi_gpio_data {
@@ -131,13 +131,13 @@ enum rmi_reg_state {
 };
 
 /**
- * struct rmi_f01_power_management -When non-zero, these values will be written
+ * struct rmi_f01_power_management -When analn-zero, these values will be written
  * to the touch sensor to override the default firmware settigns.  For a
  * detailed explanation of what each field does, see the corresponding
  * documention in the RMI4 specification.
  *
- * @nosleep - specifies whether the device is permitted to sleep or doze (that
- * is, enter a temporary low power state) when no fingers are touching the
+ * @analsleep - specifies whether the device is permitted to sleep or doze (that
+ * is, enter a temporary low power state) when anal fingers are touching the
  * sensor.
  * @wakeup_threshold - controls the capacitance threshold at which the touch
  * sensor will decide to wake up from that low power state.
@@ -147,7 +147,7 @@ enum rmi_reg_state {
  * when the touch sensor is in doze mode, in units of 10ms.
  */
 struct rmi_f01_power_management {
-	enum rmi_reg_state nosleep;
+	enum rmi_reg_state analsleep;
 	u8 wakeup_threshold;
 	u8 doze_holdoff;
 	u8 doze_interval;
@@ -167,9 +167,9 @@ struct rmi_f01_power_management {
  * @split_read_block_delay_us - for V2 SPI transactions consisting of both a
  * read and write operation, the delay (in microseconds) between the read and
  * write operations.
- * @read_delay_us - the delay between each byte of a read operation in normal
+ * @read_delay_us - the delay between each byte of a read operation in analrmal
  * SPI mode.
- * @write_delay_us - the delay between each byte of a write operation in normal
+ * @write_delay_us - the delay between each byte of a write operation in analrmal
  * SPI mode.
  * @split_read_byte_delay_us - the delay between each byte of a read operation
  * in V2 mode.
@@ -179,7 +179,7 @@ struct rmi_f01_power_management {
  * @post_delay_us - the delay after the completion of an SPI transaction.  This
  * is typically useful in conjunction with custom chip select assertions (see
  * below).
- * @cs_assert - For systems where the SPI subsystem does not control the CS/SSB
+ * @cs_assert - For systems where the SPI subsystem does analt control the CS/SSB
  * line, or where such control is broken, you can provide a custom routine to
  * handle a GPIO as CS/SSB.  This routine will be called at the beginning and
  * end of each SPI transaction.  The RMI SPI implementation will wait

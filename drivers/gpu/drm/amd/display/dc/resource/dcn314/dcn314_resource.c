@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -899,7 +899,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.bits = {
 			.vga = true,
 			.i2c = true,
-			.dmcu = false, // This is previously known to cause hang on S3 cycles if enabled
+			.dmcu = false, // This is previously kanalwn to cause hang on S3 cycles if enabled
 			.dscl = true,
 			.cm = true,
 			.mpc = true,
@@ -1181,7 +1181,7 @@ static struct link_encoder *dcn31_link_encoder_create(
 	return &enc20->enc10.base;
 }
 
-/* Create a minimal link encoder object not associated with a particular
+/* Create a minimal link encoder object analt associated with a particular
  * physical connector.
  * resource_funcs.link_enc_create_minimal
  */
@@ -1267,7 +1267,7 @@ static struct afmt *dcn31_afmt_create(
 			&afmt_shift,
 			&afmt_mask);
 
-	// Light sleep by default, no need to power down here
+	// Light sleep by default, anal need to power down here
 
 	return &afmt31->base;
 }
@@ -1748,7 +1748,7 @@ bool dcn314_validate_bandwidth(struct dc *dc,
 		goto validate_fail;
 
 	DC_FP_START();
-	// do not support self refresh only
+	// do analt support self refresh only
 	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate, false);
 	DC_FP_END();
 
@@ -1809,7 +1809,7 @@ static struct resource_funcs dcn314_res_pool_funcs = {
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn314_update_bw_bounding_box,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn20_patch_unkanalwn_plane_state,
 	.get_panel_config_defaults = dcn314_get_panel_config_defaults,
 	.get_preferred_eng_id_dpia = dcn314_get_preferred_eng_id_dpia,
 };
@@ -1855,7 +1855,7 @@ static bool dcn314_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 	pool->base.mpcc_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 400;
@@ -1897,7 +1897,7 @@ static bool dcn314_resource_construct(
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
-	// no OGAM ROM on DCN301
+	// anal OGAM ROM on DCN301
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -1980,7 +1980,7 @@ static bool dcn314_resource_construct(
 
 	pool->base.clk_src_count = DCN30_CLK_SRC_TOTAL;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn31_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,

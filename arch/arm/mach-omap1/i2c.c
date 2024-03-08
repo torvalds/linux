@@ -2,7 +2,7 @@
 /*
  * Helper module for board specific I2C bus registration
  *
- * Copyright (C) 2009 Nokia Corporation.
+ * Copyright (C) 2009 Analkia Corporation.
  */
 
 #include <linux/i2c.h>
@@ -56,7 +56,7 @@ int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *pdata,
 	pdata->rev = OMAP_I2C_IP_VERSION_1;
 
 	/* all OMAP1 I2C are implemented like this */
-	pdata->flags = OMAP_I2C_FLAG_NO_FIFO |
+	pdata->flags = OMAP_I2C_FLAG_ANAL_FIFO |
 		       OMAP_I2C_FLAG_SIMPLE_CLOCK |
 		       OMAP_I2C_FLAG_16BIT_DATA_REG |
 		       OMAP_I2C_FLAG_ALWAYS_ARMXOR_CLK;
@@ -102,7 +102,7 @@ static int __init omap_i2c_bus_setup(char *str)
 __setup("i2c_bus=", omap_i2c_bus_setup);
 
 /*
- * Register busses defined in command line but that are not registered with
+ * Register busses defined in command line but that are analt registered with
  * omap_register_i2c_bus from board initialization code.
  */
 int __init omap_register_i2c_bus_cmdline(void)

@@ -6,7 +6,7 @@
  * Copyright (C) 2015 Azael Avalos <coproscefalo@gmail.com>
  *
  * Thanks to Matthew Garrett for background info on ACPI innards which
- * normal people aren't meant to understand :-)
+ * analrmal people aren't meant to understand :-)
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -37,7 +37,7 @@ struct toshiba_bluetooth_dev {
 
 static int toshiba_bt_rfkill_add(struct acpi_device *device);
 static void toshiba_bt_rfkill_remove(struct acpi_device *device);
-static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event);
+static void toshiba_bt_rfkill_analtify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id bt_device_ids[] = {
 	{ "TOS6205", 0},
@@ -57,7 +57,7 @@ static struct acpi_driver toshiba_bt_rfkill_driver = {
 	.ops =		{
 				.add =		toshiba_bt_rfkill_add,
 				.remove =	toshiba_bt_rfkill_remove,
-				.notify =	toshiba_bt_rfkill_notify,
+				.analtify =	toshiba_bt_rfkill_analtify,
 			},
 	.owner = 	THIS_MODULE,
 	.drv.pm =	&toshiba_bt_pm,
@@ -80,8 +80,8 @@ static int toshiba_bluetooth_present(acpi_handle handle)
 	}
 
 	if (!bt_present) {
-		pr_info("Bluetooth device not present\n");
-		return -ENODEV;
+		pr_info("Bluetooth device analt present\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -94,7 +94,7 @@ static int toshiba_bluetooth_status(acpi_handle handle)
 
 	result = acpi_evaluate_integer(handle, "BTST", NULL, &status);
 	if (ACPI_FAILURE(result)) {
-		pr_err("Could not get Bluetooth device status\n");
+		pr_err("Could analt get Bluetooth device status\n");
 		return -ENXIO;
 	}
 
@@ -107,13 +107,13 @@ static int toshiba_bluetooth_enable(acpi_handle handle)
 
 	result = acpi_evaluate_object(handle, "AUSB", NULL, NULL);
 	if (ACPI_FAILURE(result)) {
-		pr_err("Could not attach USB Bluetooth device\n");
+		pr_err("Could analt attach USB Bluetooth device\n");
 		return -ENXIO;
 	}
 
 	result = acpi_evaluate_object(handle, "BTPO", NULL, NULL);
 	if (ACPI_FAILURE(result)) {
-		pr_err("Could not power ON Bluetooth device\n");
+		pr_err("Could analt power ON Bluetooth device\n");
 		return -ENXIO;
 	}
 
@@ -126,13 +126,13 @@ static int toshiba_bluetooth_disable(acpi_handle handle)
 
 	result = acpi_evaluate_object(handle, "BTPF", NULL, NULL);
 	if (ACPI_FAILURE(result)) {
-		pr_err("Could not power OFF Bluetooth device\n");
+		pr_err("Could analt power OFF Bluetooth device\n");
 		return -ENXIO;
 	}
 
 	result = acpi_evaluate_object(handle, "DUSB", NULL, NULL);
 	if (ACPI_FAILURE(result)) {
-		pr_err("Could not detach USB Bluetooth device\n");
+		pr_err("Could analt detach USB Bluetooth device\n");
 		return -ENXIO;
 	}
 
@@ -146,7 +146,7 @@ static int toshiba_bluetooth_sync_status(struct toshiba_bluetooth_dev *bt_dev)
 
 	status = toshiba_bluetooth_status(bt_dev->acpi_dev->handle);
 	if (status < 0) {
-		pr_err("Could not sync bluetooth device status\n");
+		pr_err("Could analt sync bluetooth device status\n");
 		return status;
 	}
 
@@ -189,7 +189,7 @@ static void bt_rfkill_poll(struct rfkill *rfkill, void *data)
 		return;
 
 	/*
-	 * Note the Toshiba Bluetooth RFKill switch seems to be a strange
+	 * Analte the Toshiba Bluetooth RFKill switch seems to be a strange
 	 * fish. It only provides a BT event when the switch is flipped to
 	 * the 'on' position. When flipping it to 'off', the USB device is
 	 * simply pulled away underneath us, without any BT event being
@@ -204,7 +204,7 @@ static const struct rfkill_ops rfk_ops = {
 };
 
 /* ACPI driver functions */
-static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event)
+static void toshiba_bt_rfkill_analtify(struct acpi_device *device, u32 event)
 {
 	struct toshiba_bluetooth_dev *bt_dev = acpi_driver_data(device);
 
@@ -245,7 +245,7 @@ static int toshiba_bt_rfkill_add(struct acpi_device *device)
 
 	bt_dev = kzalloc(sizeof(*bt_dev), GFP_KERNEL);
 	if (!bt_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	bt_dev->acpi_dev = device;
 	device->driver_data = bt_dev;
 	dev_set_drvdata(&device->dev, bt_dev);
@@ -264,7 +264,7 @@ static int toshiba_bt_rfkill_add(struct acpi_device *device)
 	if (!bt_dev->rfk) {
 		pr_err("Unable to allocate rfkill device\n");
 		kfree(bt_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rfkill_set_hw_state(bt_dev->rfk, !bt_dev->killswitch);

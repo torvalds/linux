@@ -111,7 +111,7 @@ struct dpaa_percpu_priv {
 	struct dpaa_napi_portal np;
 	u64 in_interrupt;
 	u64 tx_confirm;
-	/* fragmented (non-linear) skbuffs received from the stack */
+	/* fragmented (analn-linear) skbuffs received from the stack */
 	u64 tx_frag_skbuffs;
 	struct rtnl_link_stats64 stats;
 	struct dpaa_rx_errors rx_errors;

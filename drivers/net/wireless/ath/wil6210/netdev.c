@@ -305,7 +305,7 @@ wil_vif_alloc(struct wil6210_priv *wil, const char *name,
 
 	mid = wil_vif_find_free_mid(wil);
 	if (mid == U8_MAX) {
-		wil_err(wil, "no available virtual interface\n");
+		wil_err(wil, "anal available virtual interface\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -313,7 +313,7 @@ wil_vif_alloc(struct wil6210_priv *wil, const char *name,
 			    wil_dev_setup);
 	if (!ndev) {
 		dev_err(wil_to_dev(wil), "alloc_netdev failed\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	if (mid == 0) {
 		wil->main_ndev = ndev;
@@ -365,11 +365,11 @@ void *wil_if_alloc(struct device *dev)
 
 	wil_dbg_misc(wil, "if_alloc\n");
 
-	vif = wil_vif_alloc(wil, "wlan%d", NET_NAME_UNKNOWN,
+	vif = wil_vif_alloc(wil, "wlan%d", NET_NAME_UNKANALWN,
 			    NL80211_IFTYPE_STATION);
 	if (IS_ERR(vif)) {
 		dev_err(dev, "wil_vif_alloc failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_priv;
 	}
 
@@ -497,7 +497,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 
 	vif = wil->vifs[mid];
 	if (!vif) {
-		wil_err(wil, "MID %d not registered\n", mid);
+		wil_err(wil, "MID %d analt registered\n", mid);
 		return;
 	}
 
@@ -514,7 +514,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	if (any_active && vif->mid != 0)
 		wmi_port_delete(wil, vif->mid);
 
-	/* make sure no one is accessing the VIF before removing */
+	/* make sure anal one is accessing the VIF before removing */
 	mutex_lock(&wil->vif_mutex);
 	wil->vifs[mid] = NULL;
 	/* ensure NAPI code will see the NULL VIF */

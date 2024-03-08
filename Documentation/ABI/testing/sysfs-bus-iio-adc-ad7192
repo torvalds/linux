@@ -16,7 +16,7 @@ Description:
 		In bridge applications, such as strain gauges and load cells,
 		the bridge itself consumes the majority of the current in the
 		system. To minimize the current consumption of the system,
-		the bridge can be disconnected (when it is not being used
+		the bridge can be disconnected (when it is analt being used
 		using the bridge_switch_en attribute.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltagex_sys_calibration

@@ -13,7 +13,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -101,7 +101,7 @@ static int i2c_lpc2k_clear_arb(struct lpc2k_i2c *i2c)
 	/* Wait for status change */
 	while (readl(i2c->base + LPC24XX_I2STAT) != M_I2C_IDLE) {
 		if (time_after(jiffies, timeout)) {
-			/* Bus was not idle, try to reset adapter */
+			/* Bus was analt idle, try to reset adapter */
 			i2c_lpc2k_reset(i2c);
 			return -EBUSY;
 		}
@@ -137,7 +137,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 	case MX_DATA_W_ACK:
 		/*
 		 * Address or data was sent out with an ACK. If there is more
-		 * data to send, send it now
+		 * data to send, send it analw
 		 */
 		if (i2c->msg_idx < i2c->msg->len) {
 			writel(i2c->msg->buf[i2c->msg_idx],
@@ -147,10 +147,10 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 			writel(LPC24XX_STO_AA, i2c->base + LPC24XX_I2CONSET);
 			writel(LPC24XX_SI, i2c->base + LPC24XX_I2CONCLR);
 			i2c->msg_status = 0;
-			disable_irq_nosync(i2c->irq);
+			disable_irq_analsync(i2c->irq);
 		} else {
 			i2c->msg_status = 0;
-			disable_irq_nosync(i2c->irq);
+			disable_irq_analsync(i2c->irq);
 		}
 
 		i2c->msg_idx++;
@@ -162,7 +162,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 			/* Last byte, return NACK */
 			writel(LPC24XX_AA, i2c->base + LPC24XX_I2CONCLR);
 		} else {
-			/* Not last byte, return ACK */
+			/* Analt last byte, return ACK */
 			writel(LPC24XX_AA, i2c->base + LPC24XX_I2CONSET);
 		}
 
@@ -192,7 +192,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		/* Message is done */
 		if (i2c->msg_idx >= i2c->msg->len - 1) {
 			i2c->msg_status = 0;
-			disable_irq_nosync(i2c->irq);
+			disable_irq_analsync(i2c->irq);
 		}
 
 		/*
@@ -217,7 +217,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		/* NACK processing is done */
 		writel(LPC24XX_STO_AA, i2c->base + LPC24XX_I2CONSET);
 		i2c->msg_status = -ENXIO;
-		disable_irq_nosync(i2c->irq);
+		disable_irq_analsync(i2c->irq);
 		break;
 
 	case M_DATA_ARB_LOST:
@@ -226,13 +226,13 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 
 		/* Release the I2C bus */
 		writel(LPC24XX_STA | LPC24XX_STO, i2c->base + LPC24XX_I2CONCLR);
-		disable_irq_nosync(i2c->irq);
+		disable_irq_analsync(i2c->irq);
 		break;
 
 	default:
 		/* Unexpected statuses */
 		i2c->msg_status = -EIO;
-		disable_irq_nosync(i2c->irq);
+		disable_irq_analsync(i2c->irq);
 		break;
 	}
 
@@ -259,7 +259,7 @@ static int lpc2k_process_msg(struct lpc2k_i2c *i2c, int msgidx)
 		 * previous I2C transfer left off and uses the
 		 * current condition of the I2C adapter.
 		 */
-		if (unlikely(i2c->msg->flags & I2C_M_NOSTART)) {
+		if (unlikely(i2c->msg->flags & I2C_M_ANALSTART)) {
 			WARN_ON(i2c->msg->len == 0);
 
 			if (!(i2c->msg->flags & I2C_M_RD)) {
@@ -281,7 +281,7 @@ static int lpc2k_process_msg(struct lpc2k_i2c *i2c, int msgidx)
 	/* Wait for transfer completion */
 	if (wait_event_timeout(i2c->wait, i2c->msg_status != -EBUSY,
 			       msecs_to_jiffies(1000)) == 0) {
-		disable_irq_nosync(i2c->irq);
+		disable_irq_analsync(i2c->irq);
 
 		return -ETIMEDOUT;
 	}
@@ -328,12 +328,12 @@ static irqreturn_t i2c_lpc2k_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static u32 i2c_lpc2k_functionality(struct i2c_adapter *adap)
 {
-	/* Only emulated SMBus for now */
+	/* Only emulated SMBus for analw */
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
@@ -352,7 +352,7 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c->base))
@@ -377,12 +377,12 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	disable_irq_nosync(i2c->irq);
+	disable_irq_analsync(i2c->irq);
 
-	/* Place controller is a known state */
+	/* Place controller is a kanalwn state */
 	i2c_lpc2k_reset(i2c);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	ret = of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 				   &bus_clk_rate);
 	if (ret)
 		bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;
@@ -412,7 +412,7 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 	strscpy(i2c->adap.name, "LPC2K I2C adapter", sizeof(i2c->adap.name));
 	i2c->adap.algo = &i2c_lpc2k_algorithm;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.of_analde = pdev->dev.of_analde;
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0)
@@ -450,8 +450,8 @@ static int i2c_lpc2k_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops i2c_lpc2k_dev_pm_ops = {
-	.suspend_noirq = i2c_lpc2k_suspend,
-	.resume_noirq = i2c_lpc2k_resume,
+	.suspend_analirq = i2c_lpc2k_suspend,
+	.resume_analirq = i2c_lpc2k_resume,
 };
 
 static const struct of_device_id lpc2k_i2c_match[] = {

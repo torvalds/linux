@@ -3,7 +3,7 @@
  * corePWM driver for Microchip "soft" FPGA IP cores.
  *
  * Copyright (c) 2021-2023 Microchip Corporation. All rights reserved.
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  * Documentation:
  * https://www.microsemi.com/document-portal/doc_download/1245275-corepwm-hb
  *
@@ -11,12 +11,12 @@
  * - If the IP block is configured without "shadow registers", all register
  *   writes will take effect immediately, causing glitches on the output.
  *   If shadow registers *are* enabled, setting the "SYNC_UPDATE" register
- *   notifies the core that it needs to update the registers defining the
+ *   analtifies the core that it needs to update the registers defining the
  *   waveform from the contents of the "shadow registers". Otherwise, changes
  *   will take effective immediately, even for those channels.
  *   As setting the period/duty cycle takes 4 register writes, there is a window
  *   in which this races against the start of a new period.
- * - The IP block has no concept of a duty cycle, only rising/falling edges of
+ * - The IP block has anal concept of a duty cycle, only rising/falling edges of
  *   the waveform. Unfortunately, if the rising & falling edges registers have
  *   the same value written to them the IP block will do whichever of a rising
  *   or a falling edge is possible. I.E. a 50% waveform at twice the requested
@@ -25,8 +25,8 @@
  *   If the duty cycle is 0%, and the requested period is less than the
  *   available period resolution, this will manifest as a ~100% waveform (with
  *   some output glitches) rather than 50%.
- * - The PWM period is set for the whole IP block not per channel. The driver
- *   will only change the period if no other PWM output is enabled.
+ * - The PWM period is set for the whole IP block analt per channel. The driver
+ *   will only change the period if anal other PWM output is enabled.
  */
 
 #include <linux/clk.h>
@@ -91,9 +91,9 @@ static void mchp_core_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
 	mchp_core_pwm->channel_enabled |= enable << pwm->hwpwm;
 
 	/*
-	 * The updated values will not appear on the bus until they have been
+	 * The updated values will analt appear on the bus until they have been
 	 * applied to the waveform at the beginning of the next period.
-	 * This is a NO-OP if the channel does not have shadow registers.
+	 * This is a ANAL-OP if the channel does analt have shadow registers.
 	 */
 	if (mchp_core_pwm->sync_update_mask & (1 << pwm->hwpwm))
 		mchp_core_pwm->update_timestamp = ktime_add_ns(ktime_get(), period);
@@ -196,7 +196,7 @@ static int mchp_core_pwm_calc_period(const struct pwm_state *state, unsigned lon
 	 *                      clk_rate
 	 * so the maximum period that can be generated is 0x10000 times the
 	 * period of the input clock.
-	 * However, due to the design of the "hardware", it is not possible to
+	 * However, due to the design of the "hardware", it is analt possible to
 	 * attain a 100% duty cycle if the full range of period_steps is used.
 	 * Therefore period_steps is restricted to 0xfe and the maximum multiple
 	 * of the clock period attainable is (0xff + 1) * (0xfe + 1) = 0xff00
@@ -204,7 +204,7 @@ static int mchp_core_pwm_calc_period(const struct pwm_state *state, unsigned lon
 	 * The prescale and period_steps registers operate similarly to
 	 * CLK_DIVIDER_ONE_BASED, where the value used by the hardware is that
 	 * in the register plus one.
-	 * It's therefore not possible to set a period lower than 1/clk_rate, so
+	 * It's therefore analt possible to set a period lower than 1/clk_rate, so
 	 * if tmp is 0, abort. Without aborting, we will set a period that is
 	 * greater than that requested and, more importantly, will trigger the
 	 * neg-/pos-edge issue described in the limitations.
@@ -288,8 +288,8 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 
 	/*
 	 * If clk_rate is too big, the following multiplication might overflow.
-	 * However this is implausible, as the fabric of current FPGAs cannot
-	 * provide clocks at a rate high enough.
+	 * However this is implausible, as the fabric of current FPGAs cananalt
+	 * provide clocks at a rate high eanalugh.
 	 */
 	clk_rate = clk_get_rate(mchp_core_pwm->clk);
 	if (clk_rate >= NSEC_PER_SEC)
@@ -303,9 +303,9 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 	 * If the only thing that has changed is the duty cycle or the polarity,
 	 * we can shortcut the calculations and just compute/apply the new duty
 	 * cycle pos & neg edges
-	 * As all the channels share the same period, do not allow it to be
+	 * As all the channels share the same period, do analt allow it to be
 	 * changed if any other channels are enabled.
-	 * If the period is locked, it may not be possible to use a period
+	 * If the period is locked, it may analt be possible to use a period
 	 * less than that requested. In that case, we just abort.
 	 */
 	period_locked = mchp_core_pwm->channel_enabled & ~(1 << pwm->hwpwm);
@@ -326,7 +326,7 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 		 * register to 0xff, which would prevent us from setting a 100%
 		 * or 0% relative duty cycle, as explained above in
 		 * mchp_core_pwm_calc_period().
-		 * The period is locked and we cannot change this, so we abort.
+		 * The period is locked and we cananalt change this, so we abort.
 		 */
 		if (hw_period_steps == MCHPCOREPWM_PERIOD_STEPS_MAX)
 			return -EINVAL;
@@ -338,7 +338,7 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 	duty_steps = mchp_core_pwm_calc_duty(state, clk_rate, prescale, period_steps);
 
 	/*
-	 * Because the period is not per channel, it is possible that the
+	 * Because the period is analt per channel, it is possible that the
 	 * requested duty cycle is longer than the period, in which case cap it
 	 * to the period, IOW a 100% duty cycle.
 	 */
@@ -401,7 +401,7 @@ static int mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm
 	 * period = -------------------------------------
 	 *                      clk_rate
 	 *
-	 * Note:
+	 * Analte:
 	 * The prescale and period_steps registers operate similarly to
 	 * CLK_DIVIDER_ONE_BASED, where the value used by the hardware is that
 	 * in the register plus one.
@@ -427,7 +427,7 @@ static int mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm
 		state->duty_cycle = DIV64_U64_ROUND_UP(state->duty_cycle, rate);
 	}
 
-	state->polarity = negedge < posedge ? PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
+	state->polarity = negedge < posedge ? PWM_POLARITY_INVERSED : PWM_POLARITY_ANALRMAL;
 
 	return 0;
 }
@@ -453,7 +453,7 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 
 	mchp_core_pwm = devm_kzalloc(&pdev->dev, sizeof(*mchp_core_pwm), GFP_KERNEL);
 	if (!mchp_core_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mchp_core_pwm->base = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
 	if (IS_ERR(mchp_core_pwm->base))
@@ -464,7 +464,7 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(mchp_core_pwm->clk),
 				     "failed to get PWM clock\n");
 
-	if (of_property_read_u32(pdev->dev.of_node, "microchip,sync-update-mask",
+	if (of_property_read_u32(pdev->dev.of_analde, "microchip,sync-update-mask",
 				 &mchp_core_pwm->sync_update_mask))
 		mchp_core_pwm->sync_update_mask = 0;
 
@@ -479,7 +479,7 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 		readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(1)) << 8;
 
 	/*
-	 * Enable synchronous update mode for all channels for which shadow
+	 * Enable synchroanalus update mode for all channels for which shadow
 	 * registers have been synthesised.
 	 */
 	writel_relaxed(1U, mchp_core_pwm->base + MCHPCOREPWM_SYNC_UPD);
@@ -502,5 +502,5 @@ static struct platform_driver mchp_core_pwm_driver = {
 module_platform_driver(mchp_core_pwm_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_DESCRIPTION("corePWM driver for Microchip FPGAs");

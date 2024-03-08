@@ -460,7 +460,7 @@ static const char * const rtc_parents[] = {
 	"univpll3_d8"
 };
 
-static const char * const spinor_parents[] = {
+static const char * const spianalr_parents[] = {
 	"clk26m",
 	"clk26m_d2",
 	"syspll4_d4",
@@ -707,7 +707,7 @@ static struct mtk_composite top_muxes[] = {
 	MUX_GATE_FLAGS(CLK_TOP_RTC_SEL, "rtc_sel", rtc_parents,
 		       0x0d0, 24, 2, 31, CLK_IS_CRITICAL),
 	/* CLK_CFG_10 */
-	MUX_GATE(CLK_TOP_SPINOR_SEL, "spinor_sel", spinor_parents, 0x500, 0, 4, 7),
+	MUX_GATE(CLK_TOP_SPIANALR_SEL, "spianalr_sel", spianalr_parents, 0x500, 0, 4, 7),
 	MUX_GATE(CLK_TOP_APLL_SEL, "apll_sel", apll_parents, 0x500, 8, 4, 15),
 	MUX_GATE(CLK_TOP_APLL2_SEL, "apll2_sel", apll_parents, 0x500, 16, 4, 23),
 	MUX_GATE(CLK_TOP_A1SYS_HP_SEL, "a1sys_hp_sel", a1sys_hp_parents,
@@ -813,10 +813,10 @@ static const struct mtk_gate_regs top1_cg_regs = {
 };
 
 #define GATE_TOP0(_id, _name, _parent, _shift)				\
-	GATE_MTK(_id, _name, _parent, &top0_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &top0_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_TOP1(_id, _name, _parent, _shift)				\
-	GATE_MTK(_id, _name, _parent, &top1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &top1_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate top_clks[] = {
 	/* TOP0 */
@@ -878,7 +878,7 @@ static const struct mtk_gate_regs peri2_cg_regs = {
 	GATE_MTK(_id, _name, _parent, &peri1_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 #define GATE_PERI2(_id, _name, _parent, _shift)				\
-	GATE_MTK(_id, _name, _parent, &peri2_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &peri2_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate peri_clks[] = {
 	/* PERI0 */
@@ -910,7 +910,7 @@ static const struct mtk_gate peri_clks[] = {
 	GATE_PERI0(CLK_PERI_AUXADC, "per_auxadc", "ltepll_fs26m", 29),
 	GATE_PERI0(CLK_PERI_SPI0, "per_spi0", "spi_sel", 30),
 	/* PERI1 */
-	GATE_PERI1(CLK_PERI_SPI, "per_spi", "spinor_sel", 1),
+	GATE_PERI1(CLK_PERI_SPI, "per_spi", "spianalr_sel", 1),
 	GATE_PERI1(CLK_PERI_I2C5, "per_i2c5", "axi_sel", 3),
 	GATE_PERI1(CLK_PERI_SPI2, "per_spi2", "spi_sel", 5),
 	GATE_PERI1(CLK_PERI_SPI3, "per_spi3", "spi_sel", 6),

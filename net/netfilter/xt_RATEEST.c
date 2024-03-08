@@ -138,7 +138,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 		return 0;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	est = kzalloc(sizeof(*est), GFP_KERNEL);
 	if (!est)
 		goto err1;

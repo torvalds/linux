@@ -2,7 +2,7 @@
 #ifndef _PSMOUSE_H
 #define _PSMOUSE_H
 
-#define PSMOUSE_OOB_NONE	0x00
+#define PSMOUSE_OOB_ANALNE	0x00
 #define PSMOUSE_OOB_EXTRA_BTNS	0x01
 
 #define PSMOUSE_CMD_SETSCALE11	0x00e6
@@ -26,7 +26,7 @@
 #define PSMOUSE_RET_NAK		0xfe
 
 enum psmouse_state {
-	PSMOUSE_IGNORE,
+	PSMOUSE_IGANALRE,
 	PSMOUSE_INITIALIZING,
 	PSMOUSE_RESYNCING,
 	PSMOUSE_CMD_MODE,
@@ -46,7 +46,7 @@ enum psmouse_scale {
 };
 
 enum psmouse_type {
-	PSMOUSE_NONE,
+	PSMOUSE_ANALNE,
 	PSMOUSE_PS2,
 	PSMOUSE_PS2PP,
 	PSMOUSE_THINKPS,
@@ -77,7 +77,7 @@ struct psmouse;
 struct psmouse_protocol {
 	enum psmouse_type type;
 	bool maxproto;
-	bool ignore_parity; /* Protocol should ignore parity errors from KBC */
+	bool iganalre_parity; /* Protocol should iganalre parity errors from KBC */
 	bool try_passthru; /* Try protocol also on passthrough ports */
 	bool smbus_companion; /* "Protocol" is a stub, device is on SMBus */
 	const char *name;
@@ -209,8 +209,8 @@ static struct psmouse_attribute psmouse_attr_##_name = {			\
 #define psmouse_err(psmouse, format, ...)		\
 	dev_err(&(psmouse)->ps2dev.serio->dev,		\
 		psmouse_fmt(format), ##__VA_ARGS__)
-#define psmouse_notice(psmouse, format, ...)		\
-	dev_notice(&(psmouse)->ps2dev.serio->dev,	\
+#define psmouse_analtice(psmouse, format, ...)		\
+	dev_analtice(&(psmouse)->ps2dev.serio->dev,	\
 		   psmouse_fmt(format), ##__VA_ARGS__)
 #define psmouse_printk(level, psmouse, format, ...)	\
 	dev_printk(level,				\

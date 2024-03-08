@@ -38,10 +38,10 @@ static struct rc_map_table rc_map_d680_dmb_table[] = {
 	{ 0x000b, KEY_STOP },
 	{ 0x0827, KEY_FASTFORWARD },
 	{ 0x0026, KEY_REWIND },
-	{ 0x081e, KEY_UNKNOWN },    /* Time Shift */
-	{ 0x000e, KEY_UNKNOWN },    /* Snapshot */
-	{ 0x082d, KEY_UNKNOWN },    /* Mouse Cursor */
-	{ 0x000f, KEY_UNKNOWN },    /* Minimize/Maximize */
+	{ 0x081e, KEY_UNKANALWN },    /* Time Shift */
+	{ 0x000e, KEY_UNKANALWN },    /* Snapshot */
+	{ 0x082d, KEY_UNKANALWN },    /* Mouse Cursor */
+	{ 0x000f, KEY_UNKANALWN },    /* Minimize/Maximize */
 	{ 0x0814, KEY_SHUFFLE },    /* Shuffle */
 	{ 0x0025, KEY_POWER },
 };
@@ -50,7 +50,7 @@ static struct rc_map_list d680_dmb_map = {
 	.map = {
 		.scan     = rc_map_d680_dmb_table,
 		.size     = ARRAY_SIZE(rc_map_d680_dmb_table),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_D680_DMB,
 	}
 };

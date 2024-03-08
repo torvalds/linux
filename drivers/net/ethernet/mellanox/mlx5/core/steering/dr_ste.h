@@ -82,13 +82,13 @@
 	(_misc)->outer_first_mpls_over_udp_ttl)
 
 enum dr_ste_action_modify_type_l3 {
-	DR_STE_ACTION_MDFY_TYPE_L3_NONE	= 0x0,
+	DR_STE_ACTION_MDFY_TYPE_L3_ANALNE	= 0x0,
 	DR_STE_ACTION_MDFY_TYPE_L3_IPV4	= 0x1,
 	DR_STE_ACTION_MDFY_TYPE_L3_IPV6	= 0x2,
 };
 
 enum dr_ste_action_modify_type_l4 {
-	DR_STE_ACTION_MDFY_TYPE_L4_NONE	= 0x0,
+	DR_STE_ACTION_MDFY_TYPE_L4_ANALNE	= 0x0,
 	DR_STE_ACTION_MDFY_TYPE_L4_TCP	= 0x1,
 	DR_STE_ACTION_MDFY_TYPE_L4_UDP	= 0x2,
 };

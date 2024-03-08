@@ -34,7 +34,7 @@ static const char *pps_name(struct drm_i915_private *i915,
 			 * FIXME would be nice if we can guarantee
 			 * to always have a valid PPS when calling this.
 			 */
-			return "PPS <none>";
+			return "PPS <analne>";
 		case PIPE_A:
 			return "PPS A";
 		case PIPE_B:
@@ -123,7 +123,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 
 	/*
 	 * The DPLL for the pipe must be enabled for this to work.
-	 * So enable temporarily it if it's not already enabled.
+	 * So enable temporarily it if it's analt already enabled.
 	 */
 	if (!pll_enabled) {
 		release_cl_override = IS_CHERRYVIEW(dev_priv) &&
@@ -167,7 +167,7 @@ static enum pipe vlv_find_free_pps(struct drm_i915_private *dev_priv)
 
 	/*
 	 * We don't have power sequencer currently.
-	 * Pick one that's not used by other ports.
+	 * Pick one that's analt used by other ports.
 	 */
 	for_each_intel_dp(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -216,7 +216,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	pipe = vlv_find_free_pps(dev_priv);
 
 	/*
-	 * Didn't find one. This should not happen since there
+	 * Didn't find one. This should analt happen since there
 	 * are two power sequencers and up to two eDP ports.
 	 */
 	if (drm_WARN_ON(&dev_priv->drm, pipe == INVALID_PIPE))
@@ -332,7 +332,7 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 	/* didn't find one? just let vlv_power_sequencer_pipe() pick one when needed */
 	if (intel_dp->pps.pps_pipe == INVALID_PIPE) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "[ENCODER:%d:%s] no initial power sequencer\n",
+			    "[ENCODER:%d:%s] anal initial power sequencer\n",
 			    dig_port->base.base.base.id, dig_port->base.base.name);
 		return;
 	}
@@ -419,7 +419,7 @@ pps_initial_setup(struct intel_dp *intel_dp)
 		intel_dp->pps.pps_idx = bxt_initial_pps_idx(i915, pps_any);
 
 		drm_dbg_kms(&i915->drm,
-			    "[ENCODER:%d:%s] no initial power sequencer, assuming %s\n",
+			    "[ENCODER:%d:%s] anal initial power sequencer, assuming %s\n",
 			    encoder->base.base.id, encoder->base.name,
 			    pps_name(i915, &intel_dp->pps));
 	} else {
@@ -447,7 +447,7 @@ void intel_pps_reset_all(struct drm_i915_private *dev_priv)
 	 * mutex when power_domain functions are called while holding pps_mutex.
 	 * That also means that in order to use pps_pipe the code needs to
 	 * hold both a power domain reference and pps_mutex, and the power domain
-	 * reference get/put must be done while _not_ holding pps_mutex.
+	 * reference get/put must be done while _analt_ holding pps_mutex.
 	 * pps_{lock,unlock}() do these steps in the correct order, so one
 	 * should use them always.
 	 */
@@ -573,13 +573,13 @@ void intel_pps_check_power_unlocked(struct intel_dp *intel_dp)
 }
 
 #define IDLE_ON_MASK		(PP_ON | PP_SEQUENCE_MASK | 0                     | PP_SEQUENCE_STATE_MASK)
-#define IDLE_ON_VALUE		(PP_ON | PP_SEQUENCE_NONE | 0                     | PP_SEQUENCE_STATE_ON_IDLE)
+#define IDLE_ON_VALUE		(PP_ON | PP_SEQUENCE_ANALNE | 0                     | PP_SEQUENCE_STATE_ON_IDLE)
 
 #define IDLE_OFF_MASK		(PP_ON | PP_SEQUENCE_MASK | 0                     | 0)
-#define IDLE_OFF_VALUE		(0     | PP_SEQUENCE_NONE | 0                     | 0)
+#define IDLE_OFF_VALUE		(0     | PP_SEQUENCE_ANALNE | 0                     | 0)
 
 #define IDLE_CYCLE_MASK		(PP_ON | PP_SEQUENCE_MASK | PP_CYCLE_DELAY_ACTIVE | PP_SEQUENCE_STATE_MASK)
-#define IDLE_CYCLE_VALUE	(0     | PP_SEQUENCE_NONE | 0                     | PP_SEQUENCE_STATE_OFF_IDLE)
+#define IDLE_CYCLE_VALUE	(0     | PP_SEQUENCE_ANALNE | 0                     | PP_SEQUENCE_STATE_OFF_IDLE)
 
 static void intel_pps_verify_state(struct intel_dp *intel_dp);
 
@@ -771,7 +771,7 @@ bool intel_pps_vdd_on_unlocked(struct intel_dp *intel_dp)
 
 /*
  * Must be paired with intel_pps_off().
- * Nested calls to these functions are not allowed since
+ * Nested calls to these functions are analt allowed since
  * we drop the lock. Caller must use some higher level
  * locking to prevent nested calls from other threads.
  */
@@ -871,19 +871,19 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 	unsigned long delay;
 
 	/*
-	 * We may not yet know the real power sequencing delays,
+	 * We may analt yet kanalw the real power sequencing delays,
 	 * so keep VDD enabled until we're done with init.
 	 */
 	if (intel_dp->pps.initializing)
 		return;
 
 	/*
-	 * Queue the timer to fire a long time from now (relative to the power
+	 * Queue the timer to fire a long time from analw (relative to the power
 	 * down delay) to keep the panel power up across a sequence of
 	 * operations.
 	 */
 	delay = msecs_to_jiffies(intel_dp->pps.panel_power_cycle_delay * 5);
-	queue_delayed_work(i915->unordered_wq,
+	queue_delayed_work(i915->uanalrdered_wq,
 			   &intel_dp->pps.panel_vdd_work, delay);
 }
 
@@ -902,7 +902,7 @@ void intel_pps_vdd_off_unlocked(struct intel_dp *intel_dp, bool sync)
 		return;
 
 	I915_STATE_WARN(dev_priv, !intel_dp->pps.want_panel_vdd,
-			"[ENCODER:%d:%s] %s VDD not forced on",
+			"[ENCODER:%d:%s] %s VDD analt forced on",
 			dp_to_dig_port(intel_dp)->base.base.base.id,
 			dp_to_dig_port(intel_dp)->base.base.name,
 			pps_name(dev_priv, &intel_dp->pps));
@@ -1182,7 +1182,7 @@ void vlv_pps_init(struct intel_encoder *encoder,
 	if (intel_dp->pps.pps_pipe != INVALID_PIPE &&
 	    intel_dp->pps.pps_pipe != crtc->pipe) {
 		/*
-		 * If another power sequencer was being used on this
+		 * If aanalther power sequencer was being used on this
 		 * port previously make sure to turn off vdd there while
 		 * we still have control of it.
 		 */
@@ -1191,7 +1191,7 @@ void vlv_pps_init(struct intel_encoder *encoder,
 
 	/*
 	 * We may be stealing the power
-	 * sequencer from another port.
+	 * sequencer from aanalther port.
 	 */
 	vlv_steal_power_sequencer(dev_priv, crtc->pipe);
 
@@ -1200,7 +1200,7 @@ void vlv_pps_init(struct intel_encoder *encoder,
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	/* now it's all ours */
+	/* analw it's all ours */
 	intel_dp->pps.pps_pipe = crtc->pipe;
 
 	drm_dbg_kms(&dev_priv->drm,
@@ -1255,7 +1255,7 @@ static void pps_init_timestamps(struct intel_dp *intel_dp)
 {
 	/*
 	 * Initialize panel power off time to 0, assuming panel power could have
-	 * been toggled between kernel boot and now only by a previously loaded
+	 * been toggled between kernel boot and analw only by a previously loaded
 	 * and removed i915, which has already ensured sufficient power off
 	 * delay at module remove.
 	 */
@@ -1387,11 +1387,11 @@ static void pps_init_delays_spec(struct intel_dp *intel_dp,
 
 	lockdep_assert_held(&dev_priv->display.pps.mutex);
 
-	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
+	/* Upper limits from eDP 1.3 spec. Analte that we use the clunky units of
 	 * our hw here, which are all in 100usec. */
 	spec->t1_t3 = 210 * 10;
-	spec->t8 = 50 * 10; /* no limit for t8, use t7 instead */
-	spec->t9 = 50 * 10; /* no limit for t9, make it symmetric with t8 */
+	spec->t8 = 50 * 10; /* anal limit for t8, use t7 instead */
+	spec->t9 = 50 * 10; /* anal limit for t9, make it symmetric with t8 */
 	spec->t10 = 500 * 10;
 	/* This one is special and actually in units of 100ms, but zero
 	 * based in the hw (so we need to add 100 ms). But the sw vbt
@@ -1484,7 +1484,7 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 	 * hooked up to any port. This would mess up the
 	 * power domain tracking the first time we pick
 	 * one of these power sequencers for use since
-	 * intel_pps_vdd_on_unlocked() would notice that the VDD was
+	 * intel_pps_vdd_on_unlocked() would analtice that the VDD was
 	 * already on and therefore wouldn't grab the power
 	 * domain reference. Disable VDD first to avoid this.
 	 * This also avoids spuriously turning the VDD on as
@@ -1705,7 +1705,7 @@ void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 			break;
 		}
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		/* presumably write lock depends on pipe, not port select */
+		/* presumably write lock depends on pipe, analt port select */
 		pp_reg = PP_CONTROL(pipe);
 		panel_pipe = pipe;
 	} else {

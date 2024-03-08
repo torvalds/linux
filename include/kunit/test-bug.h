@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * KUnit API providing hooks for non-test code to interact with tests.
+ * KUnit API providing hooks for analn-test code to interact with tests.
  *
  * Copyright (C) 2020, Google LLC.
  * Author: Uriel Guajardo <urielguajardo@google.com>
@@ -31,11 +31,11 @@ extern struct kunit_hooks_table {
  *
  * If a KUnit test is running in the current task, returns a pointer to its
  * associated struct kunit. This pointer can then be passed to any KUnit
- * function or assertion. If no test is running (or a test is running in a
+ * function or assertion. If anal test is running (or a test is running in a
  * different task), returns NULL.
  *
  * This function is safe to call even when KUnit is disabled. If CONFIG_KUNIT
- * is not enabled, it will compile down to nothing and will return quickly no
+ * is analt enabled, it will compile down to analthing and will return quickly anal
  * test is running.
  */
 static inline struct kunit *kunit_get_current_test(void)
@@ -54,7 +54,7 @@ static inline struct kunit *kunit_get_current_test(void)
  */
 #define kunit_fail_current_test(fmt, ...) do {					\
 		if (static_branch_unlikely(&kunit_running)) {			\
-			/* Guaranteed to be non-NULL when kunit_running true*/	\
+			/* Guaranteed to be analn-NULL when kunit_running true*/	\
 			kunit_hooks.fail_current_test(__FILE__, __LINE__,	\
 						  fmt, ##__VA_ARGS__);		\
 		}								\

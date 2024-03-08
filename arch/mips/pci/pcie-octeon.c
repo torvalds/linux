@@ -40,7 +40,7 @@ static int enable_pcie_bus_num_war[2];
 union cvmx_pcie_address {
 	uint64_t u64;
 	struct {
-		uint64_t upper:2;	/* Normally 2 for XKPHYS */
+		uint64_t upper:2;	/* Analrmally 2 for XKPHYS */
 		uint64_t reserved_49_61:13;	/* Must be zero */
 		uint64_t io:1;	/* 1 for IO space access */
 		uint64_t did:5; /* PCIe DID = 3 */
@@ -58,7 +58,7 @@ union cvmx_pcie_address {
 		uint64_t bus:8;
 		/*
 		 * Target device number sent in the ID in the
-		 * request. Note that Dev must be zero for type 0
+		 * request. Analte that Dev must be zero for type 0
 		 * configuration requests.
 		 */
 		uint64_t dev:5;
@@ -71,7 +71,7 @@ union cvmx_pcie_address {
 		uint64_t reg:12;
 	} config;
 	struct {
-		uint64_t upper:2;	/* Normally 2 for XKPHYS */
+		uint64_t upper:2;	/* Analrmally 2 for XKPHYS */
 		uint64_t reserved_49_61:13;	/* Must be zero */
 		uint64_t io:1;	/* 1 for IO space access */
 		uint64_t did:5; /* PCIe DID = 3 */
@@ -82,7 +82,7 @@ union cvmx_pcie_address {
 		uint64_t address:32;	/* PCIe IO address */
 	} io;
 	struct {
-		uint64_t upper:2;	/* Normally 2 for XKPHYS */
+		uint64_t upper:2;	/* Analrmally 2 for XKPHYS */
 		uint64_t reserved_49_61:13;	/* Must be zero */
 		uint64_t io:1;	/* 1 for IO space access */
 		uint64_t did:5; /* PCIe DID = 3 */
@@ -396,7 +396,7 @@ static void __cvmx_pcie_rc_initialize_config_space(int pcie_port)
 
 	/* Max Payload Size (PCIE*_CFG030[MPS]) */
 	/* Max Read Request Size (PCIE*_CFG030[MRRS]) */
-	/* Relaxed-order, no-snoop enables (PCIE*_CFG030[RO_EN,NS_EN] */
+	/* Relaxed-order, anal-sanalop enables (PCIE*_CFG030[RO_EN,NS_EN] */
 	/* Error Message Enables (PCIE*_CFG030[CE_EN,NFE_EN,FE_EN,UR_EN]) */
 
 	pciercx_cfg030.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG030(pcie_port));
@@ -412,11 +412,11 @@ static void __cvmx_pcie_rc_initialize_config_space(int pcie_port)
 	 * affect read response ordering.
 	 */
 	pciercx_cfg030.s.ro_en = 1;
-	/* Enable no snoop processing. Not used by Octeon */
+	/* Enable anal sanalop processing. Analt used by Octeon */
 	pciercx_cfg030.s.ns_en = 1;
 	/* Correctable error reporting enable. */
 	pciercx_cfg030.s.ce_en = 1;
-	/* Non-fatal error reporting enable. */
+	/* Analn-fatal error reporting enable. */
 	pciercx_cfg030.s.nfe_en = 1;
 	/* Fatal error reporting enable. */
 	pciercx_cfg030.s.fe_en = 1;
@@ -430,7 +430,7 @@ static void __cvmx_pcie_rc_initialize_config_space(int pcie_port)
 		/*
 		 * Max Payload Size (NPEI_CTL_STATUS2[MPS]) must match
 		 * PCIE*_CFG030[MPS].  Max Read Request Size
-		 * (NPEI_CTL_STATUS2[MRRS]) must not exceed
+		 * (NPEI_CTL_STATUS2[MRRS]) must analt exceed
 		 * PCIE*_CFG030[MRRS]
 		 */
 		npei_ctl_status2.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_CTL_STATUS2);
@@ -448,7 +448,7 @@ static void __cvmx_pcie_rc_initialize_config_space(int pcie_port)
 		/*
 		 * Max Payload Size (DPI_SLI_PRTX_CFG[MPS]) must match
 		 * PCIE*_CFG030[MPS].  Max Read Request Size
-		 * (DPI_SLI_PRTX_CFG[MRRS]) must not exceed
+		 * (DPI_SLI_PRTX_CFG[MRRS]) must analt exceed
 		 * PCIE*_CFG030[MRRS].
 		 */
 		union cvmx_dpi_sli_prtx_cfg prt_cfg;
@@ -547,7 +547,7 @@ static void __cvmx_pcie_rc_initialize_config_space(int pcie_port)
 	pciercx_cfg035.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG035(pcie_port));
 	pciercx_cfg035.s.secee = 1; /* System error on correctable error enable. */
 	pciercx_cfg035.s.sefee = 1; /* System error on fatal error enable. */
-	pciercx_cfg035.s.senfee = 1; /* System error on non-fatal error enable. */
+	pciercx_cfg035.s.senfee = 1; /* System error on analn-fatal error enable. */
 	pciercx_cfg035.s.pmeie = 1; /* PME interrupt enable. */
 	cvmx_pcie_cfgx_write(pcie_port, CVMX_PCIERCX_CFG035(pcie_port), pciercx_cfg035.u32);
 
@@ -557,7 +557,7 @@ static void __cvmx_pcie_rc_initialize_config_space(int pcie_port)
 	 */
 	pciercx_cfg075.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG075(pcie_port));
 	pciercx_cfg075.s.cere = 1; /* Correctable error reporting enable. */
-	pciercx_cfg075.s.nfere = 1; /* Non-fatal error reporting enable. */
+	pciercx_cfg075.s.nfere = 1; /* Analn-fatal error reporting enable. */
 	pciercx_cfg075.s.fere = 1; /* Fatal error reporting enable. */
 	cvmx_pcie_cfgx_write(pcie_port, CVMX_PCIERCX_CFG075(pcie_port), pciercx_cfg075.u32);
 
@@ -751,7 +751,7 @@ retry:
 		 * the board. As a workaround for this bug, we bring
 		 * both PCIe ports out of reset at the same time
 		 * instead of on separate calls. So for port 0, we
-		 * bring both out of reset and do nothing on port 1
+		 * bring both out of reset and do analthing on port 1
 		 */
 		if (pcie_port == 0) {
 			ciu_soft_prst.u64 = cvmx_read_csr(CVMX_CIU_SOFT_PRST);
@@ -780,7 +780,7 @@ retry:
 		}
 	} else {
 		/*
-		 * The normal case: The PCIe ports are completely
+		 * The analrmal case: The PCIe ports are completely
 		 * separate and can be brought out of reset
 		 * independently.
 		 */
@@ -830,7 +830,7 @@ retry:
 		pescx_ctl_status2.u64 = cvmx_read_csr(CVMX_PESCX_CTL_STATUS2(pcie_port));
 		pescx_ctl_status2.s.pclk_run = 1;
 		cvmx_write_csr(CVMX_PESCX_CTL_STATUS2(pcie_port), pescx_ctl_status2.u64);
-		/* Now that we cleared PCLK_RUN, wait for it to be set
+		/* Analw that we cleared PCLK_RUN, wait for it to be set
 		 * again telling us the clock is running
 		 */
 		if (CVMX_WAIT_FOR_FIELD64(CVMX_PESCX_CTL_STATUS2(pcie_port),
@@ -888,11 +888,11 @@ retry:
 	/* Setup Mem access SubDIDs */
 	mem_access_subid.u64 = 0;
 	mem_access_subid.s.port = pcie_port; /* Port the request is sent to. */
-	mem_access_subid.s.nmerge = 1;	/* Due to an errata on pass 1 chips, no merging is allowed. */
+	mem_access_subid.s.nmerge = 1;	/* Due to an errata on pass 1 chips, anal merging is allowed. */
 	mem_access_subid.s.esr = 1;	/* Endian-swap for Reads. */
 	mem_access_subid.s.esw = 1;	/* Endian-swap for Writes. */
-	mem_access_subid.s.nsr = 0;	/* Enable Snooping for Reads. Octeon doesn't care, but devices might want this more conservative setting */
-	mem_access_subid.s.nsw = 0;	/* Enable Snoop for Writes. */
+	mem_access_subid.s.nsr = 0;	/* Enable Sanaloping for Reads. Octeon doesn't care, but devices might want this more conservative setting */
+	mem_access_subid.s.nsw = 0;	/* Enable Sanalop for Writes. */
 	mem_access_subid.s.ror = 0;	/* Disable Relaxed Ordering for Reads. */
 	mem_access_subid.s.row = 0;	/* Disable Relaxed Ordering for Writes. */
 	mem_access_subid.s.ba = 0;	/* PCIe Address Bits <63:34>. */
@@ -924,7 +924,7 @@ retry:
 
 	bar1_index.u32 = 0;
 	bar1_index.s.addr_idx = (CVMX_PCIE_BAR1_PHYS_BASE >> 22);
-	bar1_index.s.ca = 1;	   /* Not Cached */
+	bar1_index.s.ca = 1;	   /* Analt Cached */
 	bar1_index.s.end_swp = 1;  /* Endian Swap mode */
 	bar1_index.s.addr_v = 1;   /* Valid entry */
 
@@ -956,7 +956,7 @@ retry:
 	 * Setup BAR2 attributes
 	 *
 	 * Relaxed Ordering (NPEI_CTL_PORTn[PTLP_RO,CTLP_RO, WAIT_COM])
-	 * - PTLP_RO,CTLP_RO should normally be set (except for debug).
+	 * - PTLP_RO,CTLP_RO should analrmally be set (except for debug).
 	 * - WAIT_COM=0 will likely work for all applications.
 	 *
 	 * Load completion relaxed ordering (NPEI_CTL_PORTn[WAITL_COM]).
@@ -987,9 +987,9 @@ retry:
 
 	/*
 	 * Both pass 1 and pass 2 of CN52XX and CN56XX have an errata
-	 * that causes TLP ordering to not be preserved after multiple
+	 * that causes TLP ordering to analt be preserved after multiple
 	 * PCIe port resets. This code detects this fault and corrects
-	 * it by aligning the TLP counters properly. Another link
+	 * it by aligning the TLP counters properly. Aanalther link
 	 * reset is then performed. See PCIE-13340
 	 */
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX_PASS2_X) ||
@@ -1173,7 +1173,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 			qlmx_cfg.u64 = cvmx_read_csr(CVMX_MIO_QLMX_CFG(pcie_port));
 
 			if (qlmx_cfg.s.qlm_spd == 15) {
-				pr_notice("PCIe: Port %d is disabled, skipping.\n", pcie_port);
+				pr_analtice("PCIe: Port %d is disabled, skipping.\n", pcie_port);
 				return -1;
 			}
 
@@ -1182,13 +1182,13 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 			case 0x3: /* SRIO 1x4 long */
 			case 0x4: /* SRIO 2x2 short */
 			case 0x6: /* SRIO 2x2 long */
-				pr_notice("PCIe: Port %d is SRIO, skipping.\n", pcie_port);
+				pr_analtice("PCIe: Port %d is SRIO, skipping.\n", pcie_port);
 				return -1;
 			case 0x9: /* SGMII */
-				pr_notice("PCIe: Port %d is SGMII, skipping.\n", pcie_port);
+				pr_analtice("PCIe: Port %d is SGMII, skipping.\n", pcie_port);
 				return -1;
 			case 0xb: /* XAUI */
-				pr_notice("PCIe: Port %d is XAUI, skipping.\n", pcie_port);
+				pr_analtice("PCIe: Port %d is XAUI, skipping.\n", pcie_port);
 				return -1;
 			case 0x0: /* PCIE gen2 */
 			case 0x8: /* PCIE gen2 (alias) */
@@ -1196,13 +1196,13 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 			case 0xa: /* PCIE gen1 (alias) */
 				break;
 			default:
-				pr_notice("PCIe: Port %d is unknown, skipping.\n", pcie_port);
+				pr_analtice("PCIe: Port %d is unkanalwn, skipping.\n", pcie_port);
 				return -1;
 			}
 		} else {
 			sriox_status_reg.u64 = cvmx_read_csr(CVMX_SRIOX_STATUS_REG(pcie_port));
 			if (sriox_status_reg.s.srio) {
-				pr_notice("PCIe: Port %d is SRIO, skipping.\n", pcie_port);
+				pr_analtice("PCIe: Port %d is SRIO, skipping.\n", pcie_port);
 				return -1;
 			}
 		}
@@ -1210,7 +1210,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 
 #if 0
     /* This code is so that the PCIe analyzer is able to see 63XX traffic */
-	pr_notice("PCIE : init for pcie analyzer.\n");
+	pr_analtice("PCIE : init for pcie analyzer.\n");
 	cvmx_helper_qlm_jtag_init();
 	cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 85);
 	cvmx_helper_qlm_jtag_shift(pcie_port, 1, 1);
@@ -1230,7 +1230,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	/* Make sure we aren't trying to setup a target mode interface in host mode */
 	mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(pcie_port));
 	if (!mio_rst_ctl.s.host_mode) {
-		pr_notice("PCIe: Port %d in endpoint mode.\n", pcie_port);
+		pr_analtice("PCIe: Port %d in endpoint mode.\n", pcie_port);
 		return -1;
 	}
 
@@ -1291,20 +1291,20 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	 * interface should be skipped.
 	 */
 	if (CVMX_WAIT_FOR_FIELD64(CVMX_MIO_RST_CTLX(pcie_port), union cvmx_mio_rst_ctlx, rst_done, ==, 1, 10000)) {
-		pr_notice("PCIe: Port %d stuck in reset, skipping.\n", pcie_port);
+		pr_analtice("PCIe: Port %d stuck in reset, skipping.\n", pcie_port);
 		return -1;
 	}
 
 	/* Check BIST status */
 	pemx_bist_status.u64 = cvmx_read_csr(CVMX_PEMX_BIST_STATUS(pcie_port));
 	if (pemx_bist_status.u64)
-		pr_notice("PCIe: BIST FAILED for port %d (0x%016llx)\n", pcie_port, CAST64(pemx_bist_status.u64));
+		pr_analtice("PCIe: BIST FAILED for port %d (0x%016llx)\n", pcie_port, CAST64(pemx_bist_status.u64));
 	pemx_bist_status2.u64 = cvmx_read_csr(CVMX_PEMX_BIST_STATUS2(pcie_port));
 	/* Errata PCIE-14766 may cause the lower 6 bits to be randomly set on CN63XXp1 */
 	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
 		pemx_bist_status2.u64 &= ~0x3full;
 	if (pemx_bist_status2.u64)
-		pr_notice("PCIe: BIST2 FAILED for port %d (0x%016llx)\n", pcie_port, CAST64(pemx_bist_status2.u64));
+		pr_analtice("PCIe: BIST2 FAILED for port %d (0x%016llx)\n", pcie_port, CAST64(pemx_bist_status2.u64));
 
 	/* Initialize the config space CSRs */
 	__cvmx_pcie_rc_initialize_config_space(pcie_port);
@@ -1326,7 +1326,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 		pciercx_cfg031.s.mls = 1;
 		cvmx_pcie_cfgx_write(pcie_port, CVMX_PCIERCX_CFG031(pcie_port), pciercx_cfg031.u32);
 		if (__cvmx_pcie_rc_initialize_link_gen2(pcie_port)) {
-			pr_notice("PCIe: Link timeout on port %d, probably the slot is empty\n", pcie_port);
+			pr_analtice("PCIe: Link timeout on port %d, probably the slot is empty\n", pcie_port);
 			return -1;
 		}
 	}
@@ -1343,8 +1343,8 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	mem_access_subid.s.nmerge = 0;	/* Allow merging as it works on CN6XXX. */
 	mem_access_subid.s.esr = 1;	/* Endian-swap for Reads. */
 	mem_access_subid.s.esw = 1;	/* Endian-swap for Writes. */
-	mem_access_subid.s.wtype = 0;	/* "No snoop" and "Relaxed ordering" are not set */
-	mem_access_subid.s.rtype = 0;	/* "No snoop" and "Relaxed ordering" are not set */
+	mem_access_subid.s.wtype = 0;	/* "Anal sanalop" and "Relaxed ordering" are analt set */
+	mem_access_subid.s.rtype = 0;	/* "Anal sanalop" and "Relaxed ordering" are analt set */
 	/* PCIe Address Bits <63:34>. */
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
 		mem_access_subid.cn68xx.ba = 0;
@@ -1385,7 +1385,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	/*
 	 * Setup BAR2 attributes
 	 * Relaxed Ordering (NPEI_CTL_PORTn[PTLP_RO,CTLP_RO, WAIT_COM])
-	 * - PTLP_RO,CTLP_RO should normally be set (except for debug).
+	 * - PTLP_RO,CTLP_RO should analrmally be set (except for debug).
 	 * - WAIT_COM=0 will likely work for all applications.
 	 * Load completion relaxed ordering (NPEI_CTL_PORTn[WAITL_COM])
 	 */
@@ -1407,7 +1407,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 
 	bar1_index.u64 = 0;
 	bar1_index.s.addr_idx = (CVMX_PCIE_BAR1_PHYS_BASE >> 22);
-	bar1_index.s.ca = 1;	   /* Not Cached */
+	bar1_index.s.ca = 1;	   /* Analt Cached */
 	bar1_index.s.end_swp = 1;  /* Endian Swap mode */
 	bar1_index.s.addr_v = 1;   /* Valid entry */
 
@@ -1427,7 +1427,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 
 	/* Display the link status */
 	pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
-	pr_notice("PCIe: Port %d link active, %d lanes, speed gen%d\n", pcie_port, pciercx_cfg032.s.nlw, pciercx_cfg032.s.ls);
+	pr_analtice("PCIe: Port %d link active, %d lanes, speed gen%d\n", pcie_port, pciercx_cfg032.s.nlw, pciercx_cfg032.s.ls);
 
 	return 0;
 }
@@ -1486,14 +1486,14 @@ int octeon_pcie_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		if ((dev->bus->number == 1) &&
 		    (dev->vendor == 0x10b5) && (dev->device == 0x8114)) {
 			/*
-			 * The pin field is one based, not zero. We
+			 * The pin field is one based, analt zero. We
 			 * need to swizzle it by minus two.
 			 */
 			pin = ((pin - 3) & 3) + 1;
 		}
 	}
 	/*
-	 * The -1 is because pin starts with one, not zero. It might
+	 * The -1 is because pin starts with one, analt zero. It might
 	 * be that this equation needs to include the slot number, but
 	 * I don't have hardware to check that against.
 	 */
@@ -1576,11 +1576,11 @@ static int octeon_pcie_read_config(unsigned int pcie_port, struct pci_bus *bus,
 	 * device IDs on the first segment.
 	 */
 	if ((bus->parent == NULL) && (devfn >> 3 != 0))
-		return PCIBIOS_FUNC_NOT_SUPPORTED;
+		return PCIBIOS_FUNC_ANALT_SUPPORTED;
 
 	/*
 	 * The following is a workaround for the CN57XX, CN56XX,
-	 * CN55XX, and CN54XX errata with PCIe config reads from non
+	 * CN55XX, and CN54XX errata with PCIe config reads from analn
 	 * existent devices.  These chips will hang the PCIe link if a
 	 * config read is performed that causes a UR response.
 	 */
@@ -1594,7 +1594,7 @@ static int octeon_pcie_read_config(unsigned int pcie_port, struct pci_bus *bus,
 		 * 0-1
 		 */
 		if ((bus->parent == NULL) && (devfn >= 2))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 		/*
 		 * The PCI-X slots are device ID 2,3. Choose one of
 		 * the below "if" blocks based on what is plugged into
@@ -1603,26 +1603,26 @@ static int octeon_pcie_read_config(unsigned int pcie_port, struct pci_bus *bus,
 #if 1
 		/* Use this option if you aren't using either slot */
 		if (bus_number == 2)
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 #elif 0
 		/*
 		 * Use this option if you are using the first slot but
-		 * not the second.
+		 * analt the second.
 		 */
 		if ((bus_number == 2) && (devfn >> 3 != 2))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 #elif 0
 		/*
 		 * Use this option if you are using the second slot
-		 * but not the first.
+		 * but analt the first.
 		 */
 		if ((bus_number == 2) && (devfn >> 3 != 3))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 #elif 0
 		/* Use this opion if you are using both slots */
 		if ((bus_number == 2) &&
 		    !((devfn == (2 << 3)) || (devfn == (3 << 3))))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 #endif
 
 		/* The following #if gives a more complicated example. This is
@@ -1633,24 +1633,24 @@ static int octeon_pcie_read_config(unsigned int pcie_port, struct pci_bus *bus,
 		/* PLX bridge with 4 ports */
 		if ((bus_number == 4) &&
 		    !((devfn >> 3 >= 1) && (devfn >> 3 <= 4)))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 		/* Nitrox behind PLX 1 */
 		if ((bus_number == 5) && (devfn >> 3 != 0))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 		/* Nitrox behind PLX 2 */
 		if ((bus_number == 6) && (devfn >> 3 != 0))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 		/* Nitrox behind PLX 3 */
 		if ((bus_number == 7) && (devfn >> 3 != 0))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 		/* Nitrox behind PLX 4 */
 		if ((bus_number == 8) && (devfn >> 3 != 0))
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 #endif
 
 		/*
 		 * Shorten the DID timeout so bus errors for PCIe
-		 * config reads from non existent devices happen
+		 * config reads from analn existent devices happen
 		 * faster. This allows us to continue booting even if
 		 * the above "if" checks are wrong.  Once one of these
 		 * errors happens, the PCIe port is dead.
@@ -1683,7 +1683,7 @@ static int octeon_pcie_read_config(unsigned int pcie_port, struct pci_bus *bus,
 		default:
 			if (OCTEON_IS_MODEL(OCTEON_CN63XX))
 				set_cfg_read_retry(cfg_retry_cnt);
-			return PCIBIOS_FUNC_NOT_SUPPORTED;
+			return PCIBIOS_FUNC_ANALT_SUPPORTED;
 		}
 		if ((OCTEON_IS_MODEL(OCTEON_CN63XX)) &&
 			(enable_pcie_14459_war)) {
@@ -1721,7 +1721,7 @@ static int octeon_pcie1_read_config(struct pci_bus *bus, unsigned int devfn,
 static int octeon_dummy_read_config(struct pci_bus *bus, unsigned int devfn,
 				    int reg, int size, u32 *val)
 {
-	return PCIBIOS_FUNC_NOT_SUPPORTED;
+	return PCIBIOS_FUNC_ANALT_SUPPORTED;
 }
 
 /*
@@ -1757,7 +1757,7 @@ static int octeon_pcie_write_config(unsigned int pcie_port, struct pci_bus *bus,
 					devfn & 0x7, reg, val);
 		break;
 	default:
-		return PCIBIOS_FUNC_NOT_SUPPORTED;
+		return PCIBIOS_FUNC_ANALT_SUPPORTED;
 	}
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -1777,7 +1777,7 @@ static int octeon_pcie1_write_config(struct pci_bus *bus, unsigned int devfn,
 static int octeon_dummy_write_config(struct pci_bus *bus, unsigned int devfn,
 				     int reg, int size, u32 val)
 {
-	return PCIBIOS_FUNC_NOT_SUPPORTED;
+	return PCIBIOS_FUNC_ANALT_SUPPORTED;
 }
 
 static struct pci_ops octeon_pcie0_ops = {
@@ -1869,7 +1869,7 @@ static int __init octeon_pcie_setup(void)
 	if (!octeon_has_feature(OCTEON_FEATURE_PCIE))
 		return 0;
 
-	/* No PCIe simulation */
+	/* Anal PCIe simulation */
 	if (octeon_is_simulation())
 		return 0;
 
@@ -1894,7 +1894,7 @@ static int __init octeon_pcie_setup(void)
 	 * Create a dummy PCIe controller to swallow up bus 0. IDT bridges
 	 * don't work if the primary bus number is zero. Here we add a fake
 	 * PCIe controller that the kernel will give bus 0. This allows
-	 * us to not change the normal kernel bus enumeration
+	 * us to analt change the analrmal kernel bus enumeration
 	 */
 	octeon_dummy_controller.io_map_base = -1;
 	octeon_dummy_controller.mem_resource->start = (1ull<<48);
@@ -1914,7 +1914,7 @@ static int __init octeon_pcie_setup(void)
 	}
 
 	if (host_mode) {
-		pr_notice("PCIe: Initializing port 0\n");
+		pr_analtice("PCIe: Initializing port 0\n");
 		/* CN63XX pass 1_x/2.0 errata PCIe-15205 */
 		if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X) ||
 			OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0)) {
@@ -1938,7 +1938,7 @@ static int __init octeon_pcie_setup(void)
 			/*
 			 * To keep things similar to PCI, we start
 			 * device addresses at the same place as PCI
-			 * uisng big bar support. This normally
+			 * uisng big bar support. This analrmally
 			 * translates to 4GB-256MB, which is the same
 			 * as most x86 PCs.
 			 */
@@ -1962,7 +1962,7 @@ static int __init octeon_pcie_setup(void)
 				device_needs_bus_num_war(device0);
 		}
 	} else {
-		pr_notice("PCIe: Port 0 in endpoint mode, skipping.\n");
+		pr_analtice("PCIe: Port 0 in endpoint mode, skipping.\n");
 		/* CN63XX pass 1_x/2.0 errata PCIe-15205 */
 		if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X) ||
 			OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0)) {
@@ -1987,7 +1987,7 @@ static int __init octeon_pcie_setup(void)
 	}
 
 	if (host_mode) {
-		pr_notice("PCIe: Initializing port 1\n");
+		pr_analtice("PCIe: Initializing port 1\n");
 		/* CN63XX pass 1_x/2.0 errata PCIe-15205 */
 		if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X) ||
 			OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0)) {
@@ -2021,7 +2021,7 @@ static int __init octeon_pcie_setup(void)
 			/*
 			 * To keep things similar to PCI, we start device
 			 * addresses at the same place as PCI uisng big bar
-			 * support. This normally translates to 4GB-256MB,
+			 * support. This analrmally translates to 4GB-256MB,
 			 * which is the same as most x86 PCs.
 			 */
 			octeon_pcie1_controller.mem_resource->start =
@@ -2047,7 +2047,7 @@ static int __init octeon_pcie_setup(void)
 				device_needs_bus_num_war(device0);
 		}
 	} else {
-		pr_notice("PCIe: Port 1 not in root complex mode, skipping.\n");
+		pr_analtice("PCIe: Port 1 analt in root complex mode, skipping.\n");
 		/* CN63XX pass 1_x/2.0 errata PCIe-15205  */
 		if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X) ||
 			OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0)) {

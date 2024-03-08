@@ -332,7 +332,7 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 		int sync_scale;
 
 		/*
-		 * If lcm is bigger than the IMU maximum sampling rate there's no perfect
+		 * If lcm is bigger than the IMU maximum sampling rate there's anal perfect
 		 * solution. In this case, we get the highest multiple of the input clock
 		 * lower than the IMU max sample rate.
 		 */
@@ -342,7 +342,7 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 			scaled_rate = 2100000 / scaled_rate * scaled_rate;
 
 		/*
-		 * This is not an hard requirement but it's not advised to run the IMU
+		 * This is analt an hard requirement but it's analt advised to run the IMU
 		 * with a sample rate lower than 1900Hz due to possible undersampling
 		 * issues. However, there are users that might really want to take the risk.
 		 * Hence, we provide a module parameter for them. If set, we allow sample
@@ -604,11 +604,11 @@ static int adis16475_write_raw(struct iio_dev *indio_dev,
 	ADIS16475_MOD_CHAN_DELTA(IIO_DELTA_VELOCITY, IIO_MOD_ ## _mod, \
 			   ADIS16475_REG_ ## _mod ## _DELTVEL_L, ADIS16475_SCAN_DELTVEL_ ## _mod, 32, 32)
 
-#define ADIS16475_DELTANG_CHAN_NO_SCAN(_mod) \
+#define ADIS16475_DELTANG_CHAN_ANAL_SCAN(_mod) \
 	ADIS16475_MOD_CHAN_DELTA(IIO_DELTA_ANGL, IIO_MOD_ ## _mod, \
 			   ADIS16475_REG_ ## _mod ## _DELTANG_L, -1, 32, 32)
 
-#define ADIS16475_DELTVEL_CHAN_NO_SCAN(_mod) \
+#define ADIS16475_DELTVEL_CHAN_ANAL_SCAN(_mod) \
 	ADIS16475_MOD_CHAN_DELTA(IIO_DELTA_VELOCITY, IIO_MOD_ ## _mod, \
 			   ADIS16475_REG_ ## _mod ## _DELTVEL_L, -1, 32, 32)
 
@@ -637,12 +637,12 @@ static const struct iio_chan_spec adis16475_channels[] = {
 	ADIS16475_ACCEL_CHANNEL(Y),
 	ADIS16475_ACCEL_CHANNEL(Z),
 	ADIS16475_TEMP_CHANNEL(),
-	ADIS16475_DELTANG_CHAN_NO_SCAN(X),
-	ADIS16475_DELTANG_CHAN_NO_SCAN(Y),
-	ADIS16475_DELTANG_CHAN_NO_SCAN(Z),
-	ADIS16475_DELTVEL_CHAN_NO_SCAN(X),
-	ADIS16475_DELTVEL_CHAN_NO_SCAN(Y),
-	ADIS16475_DELTVEL_CHAN_NO_SCAN(Z),
+	ADIS16475_DELTANG_CHAN_ANAL_SCAN(X),
+	ADIS16475_DELTANG_CHAN_ANAL_SCAN(Y),
+	ADIS16475_DELTANG_CHAN_ANAL_SCAN(Z),
+	ADIS16475_DELTVEL_CHAN_ANAL_SCAN(X),
+	ADIS16475_DELTVEL_CHAN_ANAL_SCAN(Y),
+	ADIS16475_DELTVEL_CHAN_ANAL_SCAN(Z),
 	IIO_CHAN_SOFT_TIMESTAMP(7)
 };
 
@@ -975,7 +975,7 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.int_clk = 2000,
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
-		/* pulse sync not supported */
+		/* pulse sync analt supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
 		.adis_data = ADIS16475_DATA(16500, &adis1650x_timeouts),
@@ -994,7 +994,7 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.int_clk = 2000,
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
-		/* pulse sync not supported */
+		/* pulse sync analt supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
 		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts),
@@ -1013,7 +1013,7 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.int_clk = 2000,
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
-		/* pulse sync not supported */
+		/* pulse sync analt supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
 		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts),
@@ -1032,7 +1032,7 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.int_clk = 2000,
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
-		/* pulse sync not supported */
+		/* pulse sync analt supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
 		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts),
@@ -1051,7 +1051,7 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.int_clk = 2000,
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
-		/* pulse sync not supported */
+		/* pulse sync analt supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
 		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts),
@@ -1070,7 +1070,7 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.int_clk = 2000,
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
-		/* pulse sync not supported */
+		/* pulse sync analt supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
 		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts),
@@ -1089,7 +1089,7 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.int_clk = 2000,
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
-		/* pulse sync not supported */
+		/* pulse sync analt supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
 		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts),
@@ -1262,7 +1262,7 @@ static irqreturn_t adis16475_trigger_handler(int irq, void *p)
 					adis_read_reg_16(adis, reg, &val);
 					st->data[i++] = cpu_to_be16(val);
 				} else {
-					/* lower not used */
+					/* lower analt used */
 					st->data[i++] = 0;
 				}
 			}
@@ -1278,7 +1278,7 @@ check_burst32:
 	 * array.
 	 */
 	adis16475_burst32_check(st);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1317,7 +1317,7 @@ static int adis16475_config_sync_mode(struct adis16475 *st)
 		if (st->clk_freq < sync->min_rate ||
 		    st->clk_freq > sync->max_rate) {
 			dev_err(dev,
-				"Clk rate:%u not in a valid range:[%u %u]\n",
+				"Clk rate:%u analt in a valid range:[%u %u]\n",
 				st->clk_freq, sync->min_rate, sync->max_rate);
 			return -EINVAL;
 		}
@@ -1345,7 +1345,7 @@ static int adis16475_config_sync_mode(struct adis16475 *st)
 	/*
 	 * Keep in mind that the mask for the clk modes in adis1650*
 	 * chips is different (1100 instead of 11100). However, we
-	 * are not configuring BIT(4) in these chips and the default
+	 * are analt configuring BIT(4) in these chips and the default
 	 * value is 0, so we are fine in doing the below operations.
 	 * I'm keeping this for simplicity and avoiding extra variables
 	 * in chip_info.
@@ -1371,7 +1371,7 @@ static int adis16475_config_irq_pin(struct adis16475 *st)
 
 	desc = irq_get_irq_data(spi->irq);
 	if (!desc) {
-		dev_err(&spi->dev, "Could not find IRQ %d\n", spi->irq);
+		dev_err(&spi->dev, "Could analt find IRQ %d\n", spi->irq);
 		return -EINVAL;
 	}
 	/*
@@ -1398,8 +1398,8 @@ static int adis16475_config_irq_pin(struct adis16475 *st)
 		return ret;
 	/*
 	 * There is a delay writing to any bits written to the MSC_CTRL
-	 * register. It should not be bigger than 200us, so 250 should be more
-	 * than enough!
+	 * register. It should analt be bigger than 200us, so 250 should be more
+	 * than eanalugh!
 	 */
 	usleep_range(250, 260);
 
@@ -1415,7 +1415,7 @@ static int adis16475_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -1539,7 +1539,7 @@ static struct spi_driver adis16475_driver = {
 };
 module_spi_driver(adis16475_driver);
 
-MODULE_AUTHOR("Nuno Sa <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuanal Sa <nuanal.sa@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16475 IMU driver");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(IIO_ADISLIB);

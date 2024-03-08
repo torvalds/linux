@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008 Magnus Damm
  *
- * Based on lcd_powertip.c from Kenati Technologies Pvt Ltd.
+ * Based on lcd_powertip.c from Kenati Techanallogies Pvt Ltd.
  * Copyright (c) 2007 Ujjwal Pande <ujjwal@kenati.com>,
  */
 
@@ -74,11 +74,11 @@ static unsigned long read_reg16(void *sys_ops_handle,
 
 static void migor_lcd_qvga_seq(void *sys_ops_handle,
 			       struct sh_mobile_lcdc_sys_bus_ops *sys_ops,
-			       unsigned short const *data, int no_data)
+			       unsigned short const *data, int anal_data)
 {
 	int i;
 
-	for (i = 0; i < no_data; i += 2)
+	for (i = 0; i < anal_data; i += 2)
 		write_reg16(sys_ops_handle, sys_ops, data[i], data[i + 1]);
 }
 
@@ -120,7 +120,7 @@ int migor_lcd_qvga_setup(void *sohandle, struct sh_mobile_lcdc_sys_bus_ops *so)
 	migor_lcd_qvga_seq(sohandle, so, sync_data, ARRAY_SIZE(sync_data));
 
 	if (read_reg16(sohandle, so, 0) != 0x1505)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Migo-R QVGA LCD Module detected.\n");
 
@@ -148,7 +148,7 @@ int migor_lcd_qvga_setup(void *sohandle, struct sh_mobile_lcdc_sys_bus_ops *so)
 	write_reg16(sohandle, so, 0x0020, 0x0000); /* horiz addr */
 	write_reg16(sohandle, so, 0x0021, 0x0000); /* vert addr */
 
-	for (k = 0; k < (xres * 256); k++) /* yes, 256 words per line */
+	for (k = 0; k < (xres * 256); k++) /* anal, 256 words per line */
 		write_reg16(sohandle, so, 0x0022, 0x0000);
 
 	write_reg16(sohandle, so, 0x0020, 0x0000); /* reset horiz addr */

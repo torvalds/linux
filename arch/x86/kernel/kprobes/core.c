@@ -69,8 +69,8 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 	 << (row % 32))
 	/*
 	 * Undefined/reserved opcodes, conditional jump, Opcode Extension
-	 * Groups, and some special opcodes can not boost.
-	 * This is non-const and volatile to keep gcc from statically
+	 * Groups, and some special opcodes can analt boost.
+	 * This is analn-const and volatile to keep gcc from statically
 	 * optimizing it out, as variable_test_bit makes gcc think only
 	 * *(unsigned long*) is used.
 	 */
@@ -106,7 +106,7 @@ struct kretprobe_blackpoint kretprobe_blacklist[] = {
 
 const int kretprobe_blacklist_size = ARRAY_SIZE(kretprobe_blacklist);
 
-static nokprobe_inline void
+static analkprobe_inline void
 __synthesize_relative_insn(void *dest, void *from, void *to, u8 op)
 {
 	struct __arch_relative_insn {
@@ -124,17 +124,17 @@ void synthesize_reljump(void *dest, void *from, void *to)
 {
 	__synthesize_relative_insn(dest, from, to, JMP32_INSN_OPCODE);
 }
-NOKPROBE_SYMBOL(synthesize_reljump);
+ANALKPROBE_SYMBOL(synthesize_reljump);
 
 /* Insert a call instruction at address 'from', which calls address 'to'.*/
 void synthesize_relcall(void *dest, void *from, void *to)
 {
 	__synthesize_relative_insn(dest, from, to, CALL_INSN_OPCODE);
 }
-NOKPROBE_SYMBOL(synthesize_relcall);
+ANALKPROBE_SYMBOL(synthesize_relcall);
 
 /*
- * Returns non-zero if INSN is boostable.
+ * Returns analn-zero if INSN is boostable.
  * RIP relative instructions are adjusted at copying time in 64 bits mode
  */
 int can_boost(struct insn *insn, void *addr)
@@ -180,7 +180,7 @@ int can_boost(struct insn *insn, void *addr)
 	case 0xf0 ... 0xf4:	/* LOCK/REP, HLT */
 	case 0xf6 ... 0xf7:	/* Grp3 */
 	case 0xfe:		/* Grp4 */
-		/* ... are not boostable */
+		/* ... are analt boostable */
 		return 0;
 	case 0xff:		/* Grp5 */
 		/* Only indirect jmp is boostable */
@@ -199,37 +199,37 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
 	kp = get_kprobe((void *)addr);
 	faddr = ftrace_location(addr) == addr;
 	/*
-	 * Use the current code if it is not modified by Kprobe
-	 * and it cannot be modified by ftrace.
+	 * Use the current code if it is analt modified by Kprobe
+	 * and it cananalt be modified by ftrace.
 	 */
 	if (!kp && !faddr)
 		return addr;
 
 	/*
 	 * Basically, kp->ainsn.insn has an original instruction.
-	 * However, RIP-relative instruction can not do single-stepping
+	 * However, RIP-relative instruction can analt do single-stepping
 	 * at different place, __copy_instruction() tweaks the displacement of
 	 * that instruction. In that case, we can't recover the instruction
 	 * from the kp->ainsn.insn.
 	 *
-	 * On the other hand, in case on normal Kprobe, kp->opcode has a copy
+	 * On the other hand, in case on analrmal Kprobe, kp->opcode has a copy
 	 * of the first byte of the probed instruction, which is overwritten
-	 * by int3. And the instruction at kp->addr is not modified by kprobes
+	 * by int3. And the instruction at kp->addr is analt modified by kprobes
 	 * except for the first byte, we can recover the original instruction
 	 * from it and kp->opcode.
 	 *
-	 * In case of Kprobes using ftrace, we do not have a copy of
+	 * In case of Kprobes using ftrace, we do analt have a copy of
 	 * the original instruction. In fact, the ftrace location might
 	 * be modified at anytime and even could be in an inconsistent state.
-	 * Fortunately, we know that the original code is the ideal 5-byte
-	 * long NOP.
+	 * Fortunately, we kanalw that the original code is the ideal 5-byte
+	 * long ANALP.
 	 */
-	if (copy_from_kernel_nofault(buf, (void *)addr,
+	if (copy_from_kernel_analfault(buf, (void *)addr,
 		MAX_INSN_SIZE * sizeof(kprobe_opcode_t)))
 		return 0UL;
 
 	if (faddr)
-		memcpy(buf, x86_nops[5], 5);
+		memcpy(buf, x86_analps[5], 5);
 	else
 		buf[0] = kp->opcode;
 	return (unsigned long)buf;
@@ -239,7 +239,7 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
  * Recover the probed instruction at addr for further analysis.
  * Caller must lock kprobes by kprobe_mutex, or disable preemption
  * for preventing to release referencing kprobes.
- * Returns zero if the instruction can not get recovered (or access failed).
+ * Returns zero if the instruction can analt get recovered (or access failed).
  */
 unsigned long recover_probed_instruction(kprobe_opcode_t *buf, unsigned long addr)
 {
@@ -268,12 +268,12 @@ static int can_probe(unsigned long paddr)
 		int ret;
 
 		/*
-		 * Check if the instruction has been modified by another
+		 * Check if the instruction has been modified by aanalther
 		 * kprobe, in which case we replace the breakpoint by the
 		 * original instruction in our buffer.
 		 * Also, jump optimization will change the breakpoint to
 		 * relative-jump. Since the relative-jump itself is
-		 * normally used, we just go through if there is no kprobe.
+		 * analrmally used, we just go through if there is anal kprobe.
 		 */
 		__addr = recover_probed_instruction(buf, addr);
 		if (!__addr)
@@ -286,7 +286,7 @@ static int can_probe(unsigned long paddr)
 #ifdef CONFIG_KGDB
 		/*
 		 * If there is a dynamically installed kgdb sw breakpoint,
-		 * this function should not be probed.
+		 * this function should analt be probed.
 		 */
 		if (insn.opcode.bytes[0] == INT3_INSN_OPCODE &&
 		    kgdb_has_hit_break(addr))
@@ -306,7 +306,7 @@ static int can_probe(unsigned long paddr)
 		 *   .Ltmp1:
 		 *
 		 * Also, these movl and addl are used for showing expected
-		 * type. So those must not be touched.
+		 * type. So those must analt be touched.
 		 */
 		__addr = recover_probed_instruction(buf, addr);
 		if (!__addr)
@@ -350,8 +350,8 @@ kprobe_opcode_t *arch_adjust_kprobe_addr(unsigned long addr, unsigned long offse
 /*
  * Copy an instruction with recovering modified instruction by kprobes
  * and adjust the displacement if the instruction uses the %rip-relative
- * addressing mode. Note that since @real will be the final place of copied
- * instruction, displacement must be adjust by @real, not @dest.
+ * addressing mode. Analte that since @real will be the final place of copied
+ * instruction, displacement must be adjust by @real, analt @dest.
  * This returns the length of copied instruction, or 0 if it has an error.
  */
 int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
@@ -363,8 +363,8 @@ int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
 	if (!recovered_insn || !insn)
 		return 0;
 
-	/* This can access kernel text if given address is not recovered */
-	if (copy_from_kernel_nofault(dest, (void *)recovered_insn,
+	/* This can access kernel text if given address is analt recovered */
+	if (copy_from_kernel_analfault(dest, (void *)recovered_insn,
 			MAX_INSN_SIZE))
 		return 0;
 
@@ -372,15 +372,15 @@ int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
 	if (ret < 0)
 		return 0;
 
-	/* We can not probe force emulate prefixed instruction */
+	/* We can analt probe force emulate prefixed instruction */
 	if (insn_has_emulate_prefix(insn))
 		return 0;
 
-	/* Another subsystem puts a breakpoint, failed to recover */
+	/* Aanalther subsystem puts a breakpoint, failed to recover */
 	if (insn->opcode.bytes[0] == INT3_INSN_OPCODE)
 		return 0;
 
-	/* We should not singlestep on the exception masking instructions */
+	/* We should analt singlestep on the exception masking instructions */
 	if (insn_masking_exception(insn))
 		return 0;
 
@@ -404,7 +404,7 @@ int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
 		newdisp = (u8 *) src + (s64) insn->displacement.value
 			  - (u8 *) real;
 		if ((s64) (s32) newdisp != newdisp) {
-			pr_err("Kprobes error: new displacement does not fit into s32 (%llx)\n", newdisp);
+			pr_err("Kprobes error: new displacement does analt fit into s32 (%llx)\n", newdisp);
 			return 0;
 		}
 		disp = (u8 *) dest + insn_offset_displacement(insn);
@@ -434,7 +434,7 @@ static int prepare_singlestep(kprobe_opcode_t *buf, struct kprobe *p,
 	} else {
 		/* Otherwise, put an int3 for trapping singlestep */
 		if (MAX_INSN_SIZE - len < INT3_INSN_SIZE)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		buf[len] = INT3_INSN_OPCODE;
 		len += INT3_INSN_SIZE;
@@ -454,7 +454,7 @@ void *alloc_insn_page(void)
 
 	/*
 	 * TODO: Once additional kernel code protection mechanisms are set, ensure
-	 * that the page was not maliciously altered and it is still zeroed.
+	 * that the page was analt maliciously altered and it is still zeroed.
 	 */
 	set_memory_rox((unsigned long)page, 1);
 
@@ -481,13 +481,13 @@ static void kprobe_emulate_ifmodifiers(struct kprobe *p, struct pt_regs *regs)
 	}
 	regs->ip = regs->ip - INT3_INSN_SIZE + p->ainsn.size;
 }
-NOKPROBE_SYMBOL(kprobe_emulate_ifmodifiers);
+ANALKPROBE_SYMBOL(kprobe_emulate_ifmodifiers);
 
 static void kprobe_emulate_ret(struct kprobe *p, struct pt_regs *regs)
 {
 	int3_emulate_ret(regs);
 }
-NOKPROBE_SYMBOL(kprobe_emulate_ret);
+ANALKPROBE_SYMBOL(kprobe_emulate_ret);
 
 static void kprobe_emulate_call(struct kprobe *p, struct pt_regs *regs)
 {
@@ -496,7 +496,7 @@ static void kprobe_emulate_call(struct kprobe *p, struct pt_regs *regs)
 	func += p->ainsn.rel32;
 	int3_emulate_call(regs, func);
 }
-NOKPROBE_SYMBOL(kprobe_emulate_call);
+ANALKPROBE_SYMBOL(kprobe_emulate_call);
 
 static void kprobe_emulate_jmp(struct kprobe *p, struct pt_regs *regs)
 {
@@ -505,7 +505,7 @@ static void kprobe_emulate_jmp(struct kprobe *p, struct pt_regs *regs)
 	ip += p->ainsn.rel32;
 	int3_emulate_jmp(regs, ip);
 }
-NOKPROBE_SYMBOL(kprobe_emulate_jmp);
+ANALKPROBE_SYMBOL(kprobe_emulate_jmp);
 
 static void kprobe_emulate_jcc(struct kprobe *p, struct pt_regs *regs)
 {
@@ -513,7 +513,7 @@ static void kprobe_emulate_jcc(struct kprobe *p, struct pt_regs *regs)
 
 	int3_emulate_jcc(regs, p->ainsn.jcc.type, ip, p->ainsn.rel32);
 }
-NOKPROBE_SYMBOL(kprobe_emulate_jcc);
+ANALKPROBE_SYMBOL(kprobe_emulate_jcc);
 
 static void kprobe_emulate_loop(struct kprobe *p, struct pt_regs *regs)
 {
@@ -549,7 +549,7 @@ static void kprobe_emulate_loop(struct kprobe *p, struct pt_regs *regs)
 		ip += p->ainsn.rel32;
 	int3_emulate_jmp(regs, ip);
 }
-NOKPROBE_SYMBOL(kprobe_emulate_loop);
+ANALKPROBE_SYMBOL(kprobe_emulate_loop);
 
 static const int addrmode_regoffs[] = {
 	offsetof(struct pt_regs, ax),
@@ -579,7 +579,7 @@ static void kprobe_emulate_call_indirect(struct kprobe *p, struct pt_regs *regs)
 	int3_emulate_push(regs, regs->ip - INT3_INSN_SIZE + p->ainsn.size);
 	int3_emulate_jmp(regs, regs_get_register(regs, offs));
 }
-NOKPROBE_SYMBOL(kprobe_emulate_call_indirect);
+ANALKPROBE_SYMBOL(kprobe_emulate_call_indirect);
 
 static void kprobe_emulate_jmp_indirect(struct kprobe *p, struct pt_regs *regs)
 {
@@ -587,7 +587,7 @@ static void kprobe_emulate_jmp_indirect(struct kprobe *p, struct pt_regs *regs)
 
 	int3_emulate_jmp(regs, regs_get_register(regs, offs));
 }
-NOKPROBE_SYMBOL(kprobe_emulate_jmp_indirect);
+ANALKPROBE_SYMBOL(kprobe_emulate_jmp_indirect);
 
 static int prepare_emulation(struct kprobe *p, struct insn *insn)
 {
@@ -611,11 +611,11 @@ static int prepare_emulation(struct kprobe *p, struct insn *insn)
 	case 0xcb:
 		p->ainsn.emulate_op = kprobe_emulate_ret;
 		break;
-	case 0x9a:	/* far call absolute -- segment is not supported */
-	case 0xea:	/* far jmp absolute -- segment is not supported */
+	case 0x9a:	/* far call absolute -- segment is analt supported */
+	case 0xea:	/* far jmp absolute -- segment is analt supported */
 	case 0xcc:	/* int3 */
-	case 0xcf:	/* iret -- in-kernel IRET is not supported */
-		return -EOPNOTSUPP;
+	case 0xcf:	/* iret -- in-kernel IRET is analt supported */
+		return -EOPANALTSUPP;
 		break;
 	case 0xe8:	/* near call relative */
 		p->ainsn.emulate_op = kprobe_emulate_call;
@@ -653,8 +653,8 @@ static int prepare_emulation(struct kprobe *p, struct insn *insn)
 		} else if (opcode == 0x01 &&
 			   X86_MODRM_REG(insn->modrm.bytes[0]) == 0 &&
 			   X86_MODRM_MOD(insn->modrm.bytes[0]) == 3) {
-			/* VM extensions - not supported */
-			return -EOPNOTSUPP;
+			/* VM extensions - analt supported */
+			return -EOPANALTSUPP;
 		}
 		break;
 	case 0xe0:	/* Loop NZ */
@@ -681,16 +681,16 @@ static int prepare_emulation(struct kprobe *p, struct insn *insn)
 			break;
 		case 0b011:	/* FF /3, call far, absolute indirect */
 		case 0b101:	/* FF /5, jmp far, absolute indirect */
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		if (!p->ainsn.emulate_op)
 			break;
 
 		if (insn->addr_bytes != sizeof(unsigned long))
-			return -EOPNOTSUPP;	/* Don't support different size */
+			return -EOPANALTSUPP;	/* Don't support different size */
 		if (X86_MODRM_MOD(opcode) != 3)
-			return -EOPNOTSUPP;	/* TODO: support memory addressing */
+			return -EOPANALTSUPP;	/* TODO: support memory addressing */
 
 		p->ainsn.indirect.reg = X86_MODRM_RM(opcode);
 #ifdef CONFIG_X86_64
@@ -754,7 +754,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 	/* insn: must be on special executable page on x86. */
 	p->ainsn.insn = get_insn_slot();
 	if (!p->ainsn.insn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = arch_copy_kprobe(p);
 	if (ret) {
@@ -794,7 +794,7 @@ void arch_remove_kprobe(struct kprobe *p)
 	}
 }
 
-static nokprobe_inline void
+static analkprobe_inline void
 save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();
@@ -803,7 +803,7 @@ save_previous_kprobe(struct kprobe_ctlblk *kcb)
 	kcb->prev_kprobe.saved_flags = kcb->kprobe_saved_flags;
 }
 
-static nokprobe_inline void
+static analkprobe_inline void
 restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__this_cpu_write(current_kprobe, kcb->prev_kprobe.kp);
@@ -812,7 +812,7 @@ restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 	kcb->kprobe_saved_flags = kcb->prev_kprobe.saved_flags;
 }
 
-static nokprobe_inline void
+static analkprobe_inline void
 set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 		   struct kprobe_ctlblk *kcb)
 {
@@ -839,7 +839,7 @@ static void kprobe_post_process(struct kprobe *cur, struct pt_regs *regs,
 		reset_current_kprobe();
 	}
 }
-NOKPROBE_SYMBOL(kprobe_post_process);
+ANALKPROBE_SYMBOL(kprobe_post_process);
 
 static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 			     struct kprobe_ctlblk *kcb, int reenter)
@@ -854,7 +854,7 @@ static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 			reset_current_kprobe();
 		/*
 		 * Reentering boosted probe doesn't reset current_kprobe,
-		 * nor set current_kprobe, because it doesn't use single
+		 * analr set current_kprobe, because it doesn't use single
 		 * stepping.
 		 */
 		regs->ip = (unsigned long)p->ainsn.insn;
@@ -878,7 +878,7 @@ static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 	regs->flags &= ~X86_EFLAGS_IF;
 	regs->ip = (unsigned long)p->ainsn.insn;
 }
-NOKPROBE_SYMBOL(setup_singlestep);
+ANALKPROBE_SYMBOL(setup_singlestep);
 
 /*
  * Called after single-stepping.  p->addr is the address of the
@@ -888,7 +888,7 @@ NOKPROBE_SYMBOL(setup_singlestep);
  * single-stepped a copy of the instruction.  The address of this
  * copy is p->ainsn.insn. We also doesn't use trap, but "int3" again
  * right after the copied instruction.
- * Different from the trap single-step, "int3" single-step can not
+ * Different from the trap single-step, "int3" single-step can analt
  * handle the instruction which changes the ip register, e.g. jmp,
  * call, conditional jmp, and the instructions which changes the IF
  * flags because interrupt must be disabled around the single-stepping.
@@ -906,13 +906,13 @@ static void resume_singlestep(struct kprobe *p, struct pt_regs *regs,
 
 	/* Restore saved interrupt flag and ip register */
 	regs->flags |= kcb->kprobe_saved_flags;
-	/* Note that regs->ip is executed int3 so must be a step back */
+	/* Analte that regs->ip is executed int3 so must be a step back */
 	regs->ip += (orig_ip - copy_ip) - INT3_INSN_SIZE;
 }
-NOKPROBE_SYMBOL(resume_singlestep);
+ANALKPROBE_SYMBOL(resume_singlestep);
 
 /*
- * We have reentered the kprobe_handler(), since another probe was hit while
+ * We have reentered the kprobe_handler(), since aanalther probe was hit while
  * within the handler. We save the original kprobes variables and just single
  * step on the instruction of the new probe without calling any user handlers.
  */
@@ -944,9 +944,9 @@ static int reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 
 	return 1;
 }
-NOKPROBE_SYMBOL(reenter_kprobe);
+ANALKPROBE_SYMBOL(reenter_kprobe);
 
-static nokprobe_inline int kprobe_is_ss(struct kprobe_ctlblk *kcb)
+static analkprobe_inline int kprobe_is_ss(struct kprobe_ctlblk *kcb)
 {
 	return (kcb->kprobe_status == KPROBE_HIT_SS ||
 		kcb->kprobe_status == KPROBE_REENTER);
@@ -969,7 +969,7 @@ int kprobe_int3_handler(struct pt_regs *regs)
 	/*
 	 * We don't want to be preempted for the entire duration of kprobe
 	 * processing. Since int3 and debug trap disables irqs and we clear
-	 * IF while singlestepping, it must be no preemptible.
+	 * IF while singlestepping, it must be anal preemptible.
 	 */
 
 	kcb = get_kprobe_ctlblk();
@@ -984,10 +984,10 @@ int kprobe_int3_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 			/*
-			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, that means
-			 * user handler setup registers to exit to another
+			 * If we have anal pre-handler or it returned 0, we
+			 * continue with analrmal processing.  If we have a
+			 * pre-handler and it returned analn-zero, that means
+			 * user handler setup registers to exit to aanalther
 			 * instruction, we must skip the single stepping.
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs))
@@ -1005,11 +1005,11 @@ int kprobe_int3_handler(struct pt_regs *regs)
 			kprobe_post_process(p, regs, kcb);
 			return 1;
 		}
-	} /* else: not a kprobe fault; let the kernel handle it */
+	} /* else: analt a kprobe fault; let the kernel handle it */
 
 	return 0;
 }
-NOKPROBE_SYMBOL(kprobe_int3_handler);
+ANALKPROBE_SYMBOL(kprobe_int3_handler);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
@@ -1025,7 +1025,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the ip points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * analrmal page fault.
 		 */
 		regs->ip = (unsigned long)cur->addr;
 
@@ -1043,7 +1043,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(kprobe_fault_handler);
+ANALKPROBE_SYMBOL(kprobe_fault_handler);
 
 int __init arch_populate_kprobe_blacklist(void)
 {

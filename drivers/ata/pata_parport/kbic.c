@@ -120,7 +120,7 @@ static void k971_disconnect(struct pi_adapter *pi)
 }
 
 /*
- * count must be congruent to 0 MOD 4, but all known applications
+ * count must be congruent to 0 MOD 4, but all kanalwn applications
  *have this property.
  */
 static void kbic_read_block(struct pi_adapter *pi, char *buf, int count)

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Network node table
+ * Network analde table
  *
- * SELinux must keep a mapping of network nodes to labels/SIDs.  This
- * mapping is maintained as part of the normal policy but a fast cache is
+ * SELinux must keep a mapping of network analdes to labels/SIDs.  This
+ * mapping is maintained as part of the analrmal policy but a fast cache is
  * needed to reduce the lookup overhead since most of these queries happen on
  * a per-packet basis.
  *
@@ -30,104 +30,104 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 
-#include "netnode.h"
+#include "netanalde.h"
 #include "objsec.h"
 
-#define SEL_NETNODE_HASH_SIZE       256
-#define SEL_NETNODE_HASH_BKT_LIMIT   16
+#define SEL_NETANALDE_HASH_SIZE       256
+#define SEL_NETANALDE_HASH_BKT_LIMIT   16
 
-struct sel_netnode_bkt {
+struct sel_netanalde_bkt {
 	unsigned int size;
 	struct list_head list;
 };
 
-struct sel_netnode {
-	struct netnode_security_struct nsec;
+struct sel_netanalde {
+	struct netanalde_security_struct nsec;
 
 	struct list_head list;
 	struct rcu_head rcu;
 };
 
-/* NOTE: we are using a combined hash table for both IPv4 and IPv6, the reason
- * for this is that I suspect most users will not make heavy use of both
+/* ANALTE: we are using a combined hash table for both IPv4 and IPv6, the reason
+ * for this is that I suspect most users will analt make heavy use of both
  * address families at the same time so one table will usually end up wasted,
  * if this becomes a problem we can always add a hash table for each address
  * family later */
 
-static DEFINE_SPINLOCK(sel_netnode_lock);
-static struct sel_netnode_bkt sel_netnode_hash[SEL_NETNODE_HASH_SIZE];
+static DEFINE_SPINLOCK(sel_netanalde_lock);
+static struct sel_netanalde_bkt sel_netanalde_hash[SEL_NETANALDE_HASH_SIZE];
 
 /**
- * sel_netnode_hashfn_ipv4 - IPv4 hashing function for the node table
+ * sel_netanalde_hashfn_ipv4 - IPv4 hashing function for the analde table
  * @addr: IPv4 address
  *
  * Description:
- * This is the IPv4 hashing function for the node interface table, it returns
+ * This is the IPv4 hashing function for the analde interface table, it returns
  * the bucket number for the given IP address.
  *
  */
-static unsigned int sel_netnode_hashfn_ipv4(__be32 addr)
+static unsigned int sel_netanalde_hashfn_ipv4(__be32 addr)
 {
 	/* at some point we should determine if the mismatch in byte order
 	 * affects the hash function dramatically */
-	return (addr & (SEL_NETNODE_HASH_SIZE - 1));
+	return (addr & (SEL_NETANALDE_HASH_SIZE - 1));
 }
 
 /**
- * sel_netnode_hashfn_ipv6 - IPv6 hashing function for the node table
+ * sel_netanalde_hashfn_ipv6 - IPv6 hashing function for the analde table
  * @addr: IPv6 address
  *
  * Description:
- * This is the IPv6 hashing function for the node interface table, it returns
+ * This is the IPv6 hashing function for the analde interface table, it returns
  * the bucket number for the given IP address.
  *
  */
-static unsigned int sel_netnode_hashfn_ipv6(const struct in6_addr *addr)
+static unsigned int sel_netanalde_hashfn_ipv6(const struct in6_addr *addr)
 {
 	/* just hash the least significant 32 bits to keep things fast (they
 	 * are the most likely to be different anyway), we can revisit this
 	 * later if needed */
-	return (addr->s6_addr32[3] & (SEL_NETNODE_HASH_SIZE - 1));
+	return (addr->s6_addr32[3] & (SEL_NETANALDE_HASH_SIZE - 1));
 }
 
 /**
- * sel_netnode_find - Search for a node record
+ * sel_netanalde_find - Search for a analde record
  * @addr: IP address
  * @family: address family
  *
  * Description:
- * Search the network node table and return the record matching @addr.  If an
- * entry can not be found in the table return NULL.
+ * Search the network analde table and return the record matching @addr.  If an
+ * entry can analt be found in the table return NULL.
  *
  */
-static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
+static struct sel_netanalde *sel_netanalde_find(const void *addr, u16 family)
 {
 	unsigned int idx;
-	struct sel_netnode *node;
+	struct sel_netanalde *analde;
 
 	switch (family) {
 	case PF_INET:
-		idx = sel_netnode_hashfn_ipv4(*(const __be32 *)addr);
+		idx = sel_netanalde_hashfn_ipv4(*(const __be32 *)addr);
 		break;
 	case PF_INET6:
-		idx = sel_netnode_hashfn_ipv6(addr);
+		idx = sel_netanalde_hashfn_ipv6(addr);
 		break;
 	default:
 		BUG();
 		return NULL;
 	}
 
-	list_for_each_entry_rcu(node, &sel_netnode_hash[idx].list, list)
-		if (node->nsec.family == family)
+	list_for_each_entry_rcu(analde, &sel_netanalde_hash[idx].list, list)
+		if (analde->nsec.family == family)
 			switch (family) {
 			case PF_INET:
-				if (node->nsec.addr.ipv4 == *(const __be32 *)addr)
-					return node;
+				if (analde->nsec.addr.ipv4 == *(const __be32 *)addr)
+					return analde;
 				break;
 			case PF_INET6:
-				if (ipv6_addr_equal(&node->nsec.addr.ipv6,
+				if (ipv6_addr_equal(&analde->nsec.addr.ipv6,
 						    addr))
-					return node;
+					return analde;
 				break;
 			}
 
@@ -135,23 +135,23 @@ static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
 }
 
 /**
- * sel_netnode_insert - Insert a new node into the table
- * @node: the new node record
+ * sel_netanalde_insert - Insert a new analde into the table
+ * @analde: the new analde record
  *
  * Description:
- * Add a new node record to the network address hash table.
+ * Add a new analde record to the network address hash table.
  *
  */
-static void sel_netnode_insert(struct sel_netnode *node)
+static void sel_netanalde_insert(struct sel_netanalde *analde)
 {
 	unsigned int idx;
 
-	switch (node->nsec.family) {
+	switch (analde->nsec.family) {
 	case PF_INET:
-		idx = sel_netnode_hashfn_ipv4(node->nsec.addr.ipv4);
+		idx = sel_netanalde_hashfn_ipv4(analde->nsec.addr.ipv4);
 		break;
 	case PF_INET6:
-		idx = sel_netnode_hashfn_ipv6(&node->nsec.addr.ipv6);
+		idx = sel_netanalde_hashfn_ipv6(&analde->nsec.addr.ipv6);
 		break;
 	default:
 		BUG();
@@ -160,25 +160,25 @@ static void sel_netnode_insert(struct sel_netnode *node)
 
 	/* we need to impose a limit on the growth of the hash table so check
 	 * this bucket to make sure it is within the specified bounds */
-	list_add_rcu(&node->list, &sel_netnode_hash[idx].list);
-	if (sel_netnode_hash[idx].size == SEL_NETNODE_HASH_BKT_LIMIT) {
-		struct sel_netnode *tail;
+	list_add_rcu(&analde->list, &sel_netanalde_hash[idx].list);
+	if (sel_netanalde_hash[idx].size == SEL_NETANALDE_HASH_BKT_LIMIT) {
+		struct sel_netanalde *tail;
 		tail = list_entry(
 			rcu_dereference_protected(
-				list_tail_rcu(&sel_netnode_hash[idx].list),
-				lockdep_is_held(&sel_netnode_lock)),
-			struct sel_netnode, list);
+				list_tail_rcu(&sel_netanalde_hash[idx].list),
+				lockdep_is_held(&sel_netanalde_lock)),
+			struct sel_netanalde, list);
 		list_del_rcu(&tail->list);
 		kfree_rcu(tail, rcu);
 	} else
-		sel_netnode_hash[idx].size++;
+		sel_netanalde_hash[idx].size++;
 }
 
 /**
- * sel_netnode_sid_slow - Lookup the SID of a network address using the policy
+ * sel_netanalde_sid_slow - Lookup the SID of a network address using the policy
  * @addr: the IP address
  * @family: the address family
- * @sid: node SID
+ * @sid: analde SID
  *
  * Description:
  * This function determines the SID of a network address by querying the
@@ -187,30 +187,30 @@ static void sel_netnode_insert(struct sel_netnode *node)
  * failure.
  *
  */
-static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
+static int sel_netanalde_sid_slow(void *addr, u16 family, u32 *sid)
 {
 	int ret;
-	struct sel_netnode *node;
-	struct sel_netnode *new;
+	struct sel_netanalde *analde;
+	struct sel_netanalde *new;
 
-	spin_lock_bh(&sel_netnode_lock);
-	node = sel_netnode_find(addr, family);
-	if (node != NULL) {
-		*sid = node->nsec.sid;
-		spin_unlock_bh(&sel_netnode_lock);
+	spin_lock_bh(&sel_netanalde_lock);
+	analde = sel_netanalde_find(addr, family);
+	if (analde != NULL) {
+		*sid = analde->nsec.sid;
+		spin_unlock_bh(&sel_netanalde_lock);
 		return 0;
 	}
 
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
 	switch (family) {
 	case PF_INET:
-		ret = security_node_sid(PF_INET,
+		ret = security_analde_sid(PF_INET,
 					addr, sizeof(struct in_addr), sid);
 		if (new)
 			new->nsec.addr.ipv4 = *(__be32 *)addr;
 		break;
 	case PF_INET6:
-		ret = security_node_sid(PF_INET6,
+		ret = security_analde_sid(PF_INET6,
 					addr, sizeof(struct in6_addr), sid);
 		if (new)
 			new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
@@ -222,22 +222,22 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 	if (ret == 0 && new) {
 		new->nsec.family = family;
 		new->nsec.sid = *sid;
-		sel_netnode_insert(new);
+		sel_netanalde_insert(new);
 	} else
 		kfree(new);
 
-	spin_unlock_bh(&sel_netnode_lock);
+	spin_unlock_bh(&sel_netanalde_lock);
 	if (unlikely(ret))
-		pr_warn("SELinux: failure in %s(), unable to determine network node label\n",
+		pr_warn("SELinux: failure in %s(), unable to determine network analde label\n",
 			__func__);
 	return ret;
 }
 
 /**
- * sel_netnode_sid - Lookup the SID of a network address
+ * sel_netanalde_sid - Lookup the SID of a network address
  * @addr: the IP address
  * @family: the address family
- * @sid: node SID
+ * @sid: analde SID
  *
  * Description:
  * This function determines the SID of a network address using the fastest
@@ -247,59 +247,59 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
  * on failure.
  *
  */
-int sel_netnode_sid(void *addr, u16 family, u32 *sid)
+int sel_netanalde_sid(void *addr, u16 family, u32 *sid)
 {
-	struct sel_netnode *node;
+	struct sel_netanalde *analde;
 
 	rcu_read_lock();
-	node = sel_netnode_find(addr, family);
-	if (node != NULL) {
-		*sid = node->nsec.sid;
+	analde = sel_netanalde_find(addr, family);
+	if (analde != NULL) {
+		*sid = analde->nsec.sid;
 		rcu_read_unlock();
 		return 0;
 	}
 	rcu_read_unlock();
 
-	return sel_netnode_sid_slow(addr, family, sid);
+	return sel_netanalde_sid_slow(addr, family, sid);
 }
 
 /**
- * sel_netnode_flush - Flush the entire network address table
+ * sel_netanalde_flush - Flush the entire network address table
  *
  * Description:
  * Remove all entries from the network address table.
  *
  */
-void sel_netnode_flush(void)
+void sel_netanalde_flush(void)
 {
 	unsigned int idx;
-	struct sel_netnode *node, *node_tmp;
+	struct sel_netanalde *analde, *analde_tmp;
 
-	spin_lock_bh(&sel_netnode_lock);
-	for (idx = 0; idx < SEL_NETNODE_HASH_SIZE; idx++) {
-		list_for_each_entry_safe(node, node_tmp,
-					 &sel_netnode_hash[idx].list, list) {
-				list_del_rcu(&node->list);
-				kfree_rcu(node, rcu);
+	spin_lock_bh(&sel_netanalde_lock);
+	for (idx = 0; idx < SEL_NETANALDE_HASH_SIZE; idx++) {
+		list_for_each_entry_safe(analde, analde_tmp,
+					 &sel_netanalde_hash[idx].list, list) {
+				list_del_rcu(&analde->list);
+				kfree_rcu(analde, rcu);
 		}
-		sel_netnode_hash[idx].size = 0;
+		sel_netanalde_hash[idx].size = 0;
 	}
-	spin_unlock_bh(&sel_netnode_lock);
+	spin_unlock_bh(&sel_netanalde_lock);
 }
 
-static __init int sel_netnode_init(void)
+static __init int sel_netanalde_init(void)
 {
 	int iter;
 
 	if (!selinux_enabled_boot)
 		return 0;
 
-	for (iter = 0; iter < SEL_NETNODE_HASH_SIZE; iter++) {
-		INIT_LIST_HEAD(&sel_netnode_hash[iter].list);
-		sel_netnode_hash[iter].size = 0;
+	for (iter = 0; iter < SEL_NETANALDE_HASH_SIZE; iter++) {
+		INIT_LIST_HEAD(&sel_netanalde_hash[iter].list);
+		sel_netanalde_hash[iter].size = 0;
 	}
 
 	return 0;
 }
 
-__initcall(sel_netnode_init);
+__initcall(sel_netanalde_init);

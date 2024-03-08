@@ -6,7 +6,7 @@
  * Copyright history from vga16fb.c:
  *	Copyright 1999 Ben Pfaff and Petr Vandrovec
  *	Based on VGA info at http://www.osdever.net/FreeVGA/home.htm
- *	Based on VESA framebuffer (c) 1998 Gerd Knorr
+ *	Based on VESA framebuffer (c) 1998 Gerd Kanalrr
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -26,7 +26,7 @@
 #define VGA_FB_PHYS_SIZE	65536	/* VGA framebuffer I/O size */
 
 /* Some of the code below is taken from SVGAlib.  The original,
-   unmodified copyright notice for that code is below. */
+   unmodified copyright analtice for that code is below. */
 /* VGAlib version 1.2 - (c) 1993 Tommy Frandsen                    */
 /*                                                                 */
 /* This library is free software; you can redistribute it and/or   */
@@ -38,7 +38,7 @@
 
 /* VGA data register ports */
 #define VGA_CRT_DC  	0x3D5	/* CRT Controller Data Register - color emulation */
-#define VGA_CRT_DM  	0x3B5	/* CRT Controller Data Register - mono emulation */
+#define VGA_CRT_DM  	0x3B5	/* CRT Controller Data Register - moanal emulation */
 #define VGA_ATT_R   	0x3C1	/* Attribute Controller Data Read Register */
 #define VGA_ATT_W   	0x3C0	/* Attribute Controller Data Write Register */
 #define VGA_GFX_D   	0x3CF	/* Graphics Controller Data Register */
@@ -47,7 +47,7 @@
 #define VGA_MIS_W   	0x3C2	/* Misc Output Write Register */
 #define VGA_FTC_R	0x3CA	/* Feature Control Read Register */
 #define VGA_IS1_RC  	0x3DA	/* Input Status Register 1 - color emulation */
-#define VGA_IS1_RM  	0x3BA	/* Input Status Register 1 - mono emulation */
+#define VGA_IS1_RM  	0x3BA	/* Input Status Register 1 - moanal emulation */
 #define VGA_PEL_D   	0x3C9	/* PEL Data Register */
 #define VGA_PEL_MSK 	0x3C6	/* PEL mask register */
 
@@ -57,7 +57,7 @@
 
 /* VGA index register ports */
 #define VGA_CRT_IC  	0x3D4	/* CRT Controller Index - color emulation */
-#define VGA_CRT_IM  	0x3B4	/* CRT Controller Index - mono emulation */
+#define VGA_CRT_IM  	0x3B4	/* CRT Controller Index - moanal emulation */
 #define VGA_ATT_IW  	0x3C0	/* Attribute Controller Index & Data Write Register */
 #define VGA_GFX_I   	0x3CE	/* Graphics Controller Index */
 #define VGA_SEQ_I   	0x3C4	/* Sequencer Index */
@@ -186,7 +186,7 @@ struct vgastate {
 	unsigned long membase;	/* VGA window base, 0 for default - 0xA000 */
 	__u32 memsize;		/* VGA window size, 0 for default 64K	   */
 	__u32 flags;		/* what state[s] to save (see VGA_SAVE_*)  */
-	__u32 depth;		/* current fb depth, not important	   */
+	__u32 depth;		/* current fb depth, analt important	   */
 	__u32 num_attr;		/* number of att registers, 0 for default  */
 	__u32 num_crtc;		/* number of crt registers, 0 for default  */
 	__u32 num_gfx;		/* number of gfx registers, 0 for default  */

@@ -43,7 +43,7 @@ struct b43_txpower_lo_control {
 	struct b43_bbatt_list bbatt_list;
 
 	/* The DC Lookup Table is cached in memory here.
-	 * Note that this is only used for Hardware Power Control. */
+	 * Analte that this is only used for Hardware Power Control. */
 	u16 dc_lt[B43_DC_LT_SIZE];
 
 	/* List of calibrated control values (struct b43_lo_calib). */

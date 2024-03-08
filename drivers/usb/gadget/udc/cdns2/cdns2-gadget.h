@@ -89,7 +89,7 @@ struct cdns2_epx_base {
 #define EPX_CON_BUF		GENMASK(1, 0)
 /* Endpoint type. */
 #define EPX_CON_TYPE		GENMASK(3, 2)
-/* Endpoint type: isochronous. */
+/* Endpoint type: isochroanalus. */
 #define EPX_CON_TYPE_ISOC	0x4
 /* Endpoint type: bulk. */
 #define EPX_CON_TYPE_BULK	0x8
@@ -110,7 +110,7 @@ struct cdns2_epx_base {
 /**
  * struct cdns2_epx_regs - endpoint 1..15 related registers.
  * @reserved: reserved.
- * @ep: none control endpoints array.
+ * @ep: analne control endpoints array.
  * @reserved2: reserved.
  * @endprst: endpoint reset register.
  * @reserved3: reserved.
@@ -439,7 +439,7 @@ struct cdns2_trb {
 
 #define TRB_SIZE		(sizeof(struct cdns2_trb))
 /*
- * These two extra TRBs are reserved for isochronous transfer
+ * These two extra TRBs are reserved for isochroanalus transfer
  * to inject 0 length packet and extra LINK TRB to synchronize the ISO transfer.
  */
 #define TRB_ISO_RESERVED	2
@@ -452,7 +452,7 @@ struct cdns2_trb {
 
 /* TRB type IDs. */
 /* Used for Bulk, Interrupt, ISOC, and control data stage. */
-#define TRB_NORMAL		1
+#define TRB_ANALRMAL		1
 /* TRB for linking ring segments. */
 #define TRB_LINK		6
 
@@ -529,8 +529,8 @@ struct cdns2_ring {
  * @interval: interval between packets used for ISOC and Interrupt endpoint.
  * @buffering: on-chip buffers assigned to endpoint.
  * @trb_burst_size: number of burst used in TRB.
- * @skip: Sometimes the controller cannot process isochronous endpoint ring
- *        quickly enough and it will miss some isoc tds on the ring and
+ * @skip: Sometimes the controller cananalt process isochroanalus endpoint ring
+ *        quickly eanalugh and it will miss some isoc tds on the ring and
  *        generate ISO transmition error.
  *        Driver sets skip flag when receive a ISO transmition error and
  *        process the missed TDs on the endpoint ring.
@@ -614,7 +614,7 @@ struct cdns2_request {
  * @regs: base address for registers
  * @usb_regs: base address for common USB registers.
  * @ep0_regs: base address for endpoint 0 related registers.
- * @epx_regs: base address for all none control endpoint registers.
+ * @epx_regs: base address for all analne control endpoint registers.
  * @interrupt_regs: base address for interrupt handling related registers.
  * @adma_regs: base address for ADMA registers.
  * @eps_dma_pool: endpoint Transfer Ring pool.
@@ -628,7 +628,7 @@ struct cdns2_request {
  *      performance by limiting access to dma_ep_sel register.
  * @is_selfpowered: device is self powered.
  * @may_wakeup: allows device to remote wakeup the host.
- * @status_completion_no_call: indicate that driver is waiting for status
+ * @status_completion_anal_call: indicate that driver is waiting for status
  *      stage completion. It's used in deferred SET_CONFIGURATION request.
  * @in_lpm: indicate the controller is in low power mode.
  * @pending_status_wq: workqueue handling status stage for deferred requests.
@@ -663,7 +663,7 @@ struct cdns2_device {
 	u32 selected_ep;
 	bool is_selfpowered;
 	bool may_wakeup;
-	bool status_completion_no_call;
+	bool status_completion_anal_call;
 	bool in_lpm;
 	struct work_struct pending_status_wq;
 	struct usb_request *pending_status_request;

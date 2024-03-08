@@ -17,7 +17,7 @@
 
 /* VF resource constraints */
 #define ICE_MIN_QS_PER_VF		1
-#define ICE_NONQ_VECS_VF		1
+#define ICE_ANALNQ_VECS_VF		1
 #define ICE_NUM_VF_MSIX_MED		17
 #define ICE_NUM_VF_MSIX_SMALL		5
 #define ICE_NUM_VF_MSIX_MULTIQ_MIN	3
@@ -75,14 +75,14 @@ static inline int
 ice_sriov_configure(struct pci_dev __always_unused *pdev,
 		    int __always_unused num_vfs)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 ice_set_vf_mac(struct net_device __always_unused *netdev,
 	       int __always_unused vf_id, u8 __always_unused *mac)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
@@ -90,14 +90,14 @@ ice_get_vf_cfg(struct net_device __always_unused *netdev,
 	       int __always_unused vf_id,
 	       struct ifla_vf_info __always_unused *ivi)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 ice_set_vf_trust(struct net_device __always_unused *netdev,
 		 int __always_unused vf_id, bool __always_unused trusted)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
@@ -105,21 +105,21 @@ ice_set_vf_port_vlan(struct net_device __always_unused *netdev,
 		     int __always_unused vf_id, u16 __always_unused vid,
 		     u8 __always_unused qos, __be16 __always_unused v_proto)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 ice_set_vf_spoofchk(struct net_device __always_unused *netdev,
 		    int __always_unused vf_id, bool __always_unused ena)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 ice_set_vf_link_state(struct net_device __always_unused *netdev,
 		      int __always_unused vf_id, int __always_unused link_state)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
@@ -127,7 +127,7 @@ ice_set_vf_bw(struct net_device __always_unused *netdev,
 	      int __always_unused vf_id, int __always_unused min_tx_rate,
 	      int __always_unused max_tx_rate)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
@@ -142,7 +142,7 @@ ice_get_vf_stats(struct net_device __always_unused *netdev,
 		 int __always_unused vf_id,
 		 struct ifla_vf_stats __always_unused *vf_stats)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline u32 ice_sriov_get_vf_total_msix(struct pci_dev *pdev)
@@ -153,7 +153,7 @@ static inline u32 ice_sriov_get_vf_total_msix(struct pci_dev *pdev)
 static inline int
 ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_SRIOV_H_ */

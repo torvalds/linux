@@ -18,7 +18,7 @@ Linux/390.  A 3270 device is a block-mode rows-and-columns terminal of
 which I'm sure hundreds of millions were sold by IBM and clonemakers
 twenty and thirty years ago.
 
-You may have 3270s in-house and not know it.  If you're using the
+You may have 3270s in-house and analt kanalw it.  If you're using the
 VM-ESA operating system, define a 3270 to your virtual machine by using
 the command "DEF GRAF <hex-address>"  This paper presumes you will be
 defining four 3270s with the CP/CMS commands:
@@ -29,9 +29,9 @@ defining four 3270s with the CP/CMS commands:
 	- DEF GRAF 623
 
 Your network connection from VM-ESA allows you to use x3270, tn3270, or
-another 3270 emulator, started from an xterm window on your PC or
+aanalther 3270 emulator, started from an xterm window on your PC or
 workstation.  With the DEF GRAF command, an application such as xterm,
-and this Linux-390 3270 driver, you have another way of talking to your
+and this Linux-390 3270 driver, you have aanalther way of talking to your
 Linux box.
 
 This paper covers installation of the driver and operation of a
@@ -49,7 +49,7 @@ configuration script every time you change the console's address (perhaps
 by using the condev= parameter in silo's /boot/parmfile).  More precisely,
 you should rerun the configuration script every time your set of 3270s,
 including the console 3270, changes subchannel identifier relative to
-one another.  ReIPL as soon as possible after running the configuration
+one aanalther.  ReIPL as soon as possible after running the configuration
 script and the resulting /tmp/mkdev3270.
 
 If you have chosen to make tub3270 a module, you add a line to a
@@ -58,7 +58,7 @@ virtual machine, you can use DEF GRAF to define virtual 3270 devices.
 
 You may generate both 3270 and 3215 console support, or one or the
 other, or neither.  If you generate both, the console type under VM is
-not changed.  Use #CP Q TERM to see what the current console type is.
+analt changed.  Use #CP Q TERM to see what the current console type is.
 Use #CP TERM CONMODE 3270 to change it to 3270.  If you generate only
 3270 console support, then the driver automatically converts your console
 at boot time to a 3270 if it is a 3215.
@@ -112,8 +112,8 @@ Here are the installation steps in detail:
 	4. Reboot.  The reboot process scans hardware devices, including
 	3270s, and this enables the tub3270 driver once loaded to respond
 	correctly to the configuration requests of the next step.  If
-	you have chosen 3270 console support, your console now behaves
-	as a 3270, not a 3215.
+	you have chosen 3270 console support, your console analw behaves
+	as a 3270, analt a 3215.
 
 	5. Run the 3270 configuration script config3270.  It is
 	distributed in this same directory, Documentation/arch/s390, as
@@ -122,7 +122,7 @@ Here are the installation steps in detail:
 	necessary character special device files and make the necessary
 	changes to /etc/inittab.
 
-	Then notify /sbin/init that /etc/inittab has changed, by issuing
+	Then analtify /sbin/init that /etc/inittab has changed, by issuing
 	the telinit command with the q operand::
 
 		cd Documentation/arch/s390
@@ -149,10 +149,10 @@ Here are the testing steps in detail:
 		x3270 vm-esa-domain-name &
 
 	if you wanted a 3278 Model 4 with 43 rows of 80 columns, the
-	default model number.  The driver does not take advantage of
+	default model number.  The driver does analt take advantage of
 	extended attributes.
 
-	The screen you should now see contains a VM logo with input
+	The screen you should analw see contains a VM logo with input
 	lines near the bottom.  Use TAB to move to the bottom line,
 	probably labeled "COMMAND  ===>".
 
@@ -163,32 +163,32 @@ Here are the testing steps in detail:
 		dial my-vm-guest-name
 
 	3. You should immediately see a login prompt from your
-	Linux-390 operating system.  If that does not happen, you would
+	Linux-390 operating system.  If that does analt happen, you would
 	see instead the line "DIALED TO my-vm-guest-name   0620".
 
 	To troubleshoot:  do these things.
 
-	A. Is the driver loaded?  Use the lsmod command (no operands)
+	A. Is the driver loaded?  Use the lsmod command (anal operands)
 	to find out.  Probably it isn't.  Try loading it manually, with
 	the command "insmod tub3270".  Does that command give error
 	messages?  Ha!  There's your problem.
 
 	B. Is the /etc/inittab file modified as in installation step 3
 	above?  Use the grep command to find out; for instance, issue
-	"grep 3270 /etc/inittab".  Nothing found?  There's your
+	"grep 3270 /etc/inittab".  Analthing found?  There's your
 	problem!
 
 	C. Are the device special files created, as in installation
 	step 2 above?  Use the ls -l command to find out; for instance,
 	issue "ls -l /dev/3270/tty620".  The output should start with the
 	letter "c" meaning character device and should contain "227, 1"
-	just to the left of the device name.  No such file?  no "c"?
-	Wrong major number?  Wrong minor number?  There's your
+	just to the left of the device name.  Anal such file?  anal "c"?
+	Wrong major number?  Wrong mianalr number?  There's your
 	problem!
 
 	D. Do you get the message::
 
-		 "HCPDIA047E my-vm-guest-name 0620 does not exist"?
+		 "HCPDIA047E my-vm-guest-name 0620 does analt exist"?
 
 	If so, you must issue the command "DEF GRAF 620" from your VM
 	3215 console and then reboot the system.
@@ -214,11 +214,11 @@ and hit ENTER to execute them.
 The status area initializes to "Linux Running" to give you a warm
 fuzzy feeling.  When the log area fills up and output awaits, it
 changes to "Linux More...".  At this time you can do several things or
-nothing.  If you do nothing, the screen will clear in (default) 5 sec
-and more output will appear.  You may hit ENTER with nothing typed in
+analthing.  If you do analthing, the screen will clear in (default) 5 sec
+and more output will appear.  You may hit ENTER with analthing typed in
 the input area to toggle between "Linux More..." and "Linux Holding",
-which indicates no scrolling will occur.  (If you hit ENTER with "Linux
-Running" and nothing typed, the application receives a newline.)
+which indicates anal scrolling will occur.  (If you hit ENTER with "Linux
+Running" and analthing typed, the application receives a newline.)
 
 You may change the scrolling timeout value.  For example, the following
 command line::
@@ -233,7 +233,7 @@ clear the log area and write more output to it, or hit CLEAR to clear
 the log area and the input area and write more output to the log area.
 
 Some of the Program Function (PF) and Program Attention (PA) keys are
-preassigned special functions.  The ones that are not yield an alarm
+preassigned special functions.  The ones that are analt yield an alarm
 when pressed.
 
 PA1 causes a SIGINT to the currently running application.  You may do
@@ -245,23 +245,23 @@ written to the log area.
 PF3 causes an EOF to be received as input by the application.  You may
 cause an EOF also by typing "^D" and hitting ENTER.
 
-No PF key is preassigned to cause a job suspension, but you may cause a
+Anal PF key is preassigned to cause a job suspension, but you may cause a
 job suspension by typing "^Z" and hitting ENTER.  You may wish to
 assign this function to a PF key.  To make PF7 cause job suspension,
 execute the command::
 
 	echo pf7=^z > /proc/tty/driver/tty3270
 
-If the input you type does not end with the two characters "^n", the
+If the input you type does analt end with the two characters "^n", the
 driver appends a newline character and sends it to the tty driver;
-otherwise the driver strips the "^n" and does not append a newline.
+otherwise the driver strips the "^n" and does analt append a newline.
 The IBM 3215 driver behaves similarly.
 
 Pf10 causes the most recent command to be retrieved from the tube's
 command stack (default depth 20) and displayed in the input area.  You
 may hit PF10 again for the next-most-recent command, and so on.  A
-command is entered into the stack only when the input area is not made
-invisible (such as for password entry) and it is not identical to the
+command is entered into the stack only when the input area is analt made
+invisible (such as for password entry) and it is analt identical to the
 current top entry.  PF10 rotates backward through the command stack;
 PF11 rotates forward.  You may assign the backward function to any PF
 key (or PA key, for that matter), say, PA3, with the command::
@@ -273,7 +273,7 @@ performs the forward function.  (Rationale:  In bash with vi-mode line
 editing, ESC-k and ESC-j retrieve backward and forward history.
 Suggestions welcome.)
 
-Is a stack size of twenty commands not to your liking?  Change it on
+Is a stack size of twenty commands analt to your liking?  Change it on
 the fly.  To change to saving the last 100 commands, execute the
 command::
 

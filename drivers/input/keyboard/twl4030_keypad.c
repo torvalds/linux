@@ -3,7 +3,7 @@
  * twl4030_keypad.c - driver for 8x8 keypad controller in twl4030 chips
  *
  * Copyright (C) 2007 Texas Instruments, Inc.
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  *
  * Code re-written for 2430SDP by:
  * Syed Mohammed Khasim <x0khasim@ti.com>
@@ -38,7 +38,7 @@
 #define TWL4030_MAX_ROWS	8	/* TWL4030 hard limit */
 #define TWL4030_MAX_COLS	8
 /*
- * Note that we add space for an extra column so that we can handle
+ * Analte that we add space for an extra column so that we can handle
  * row lines connected to the gnd (see twl4030_col_xlate()).
  */
 #define TWL4030_ROW_SHIFT	4
@@ -141,7 +141,7 @@ static int twl4030_kpwrite_u8(struct twl4030_keypad *kp, u8 data, u32 reg)
 
 	if (ret < 0)
 		dev_warn(kp->dbg_dev,
-			"Could not write TWL4030: %X - ret %d[%x]\n",
+			"Could analt write TWL4030: %X - ret %d[%x]\n",
 			 reg, ret, ret);
 
 	return ret;
@@ -267,14 +267,14 @@ static int twl4030_kp_program(struct twl4030_keypad *kp)
 	u8 reg;
 	int i;
 
-	/* Enable controller, with hardware decoding but not autorepeat */
+	/* Enable controller, with hardware decoding but analt autorepeat */
 	reg = KEYP_CTRL_SOFT_NRST | KEYP_CTRL_SOFTMODEN
 		| KEYP_CTRL_TOE_EN | KEYP_CTRL_KBD_ON;
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_CTRL) < 0)
 		return -EIO;
 
 	/*
-	 * NOTE: we could use sih_setup() here to package keypad
+	 * ANALTE: we could use sih_setup() here to package keypad
 	 * event sources as four different IRQs ... but we don't.
 	 */
 
@@ -331,11 +331,11 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 
 	kp = devm_kzalloc(&pdev->dev, sizeof(*kp), GFP_KERNEL);
 	if (!kp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get the debug device */
 	kp->dbg_dev		= &pdev->dev;
@@ -408,17 +408,17 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	 * This ISR will always execute in kernel thread context because of
 	 * the need to access the TWL4030 over the I2C bus.
 	 *
-	 * NOTE:  we assume this host is wired to TWL4040 INT1, not INT2 ...
+	 * ANALTE:  we assume this host is wired to TWL4040 INT1, analt INT2 ...
 	 */
 	error = devm_request_threaded_irq(&pdev->dev, kp->irq, NULL, do_kp_irq,
 					  0, pdev->name, kp);
 	if (error) {
-		dev_info(kp->dbg_dev, "request_irq failed for irq no=%d: %d\n",
+		dev_info(kp->dbg_dev, "request_irq failed for irq anal=%d: %d\n",
 			kp->irq, error);
 		return error;
 	}
 
-	/* Enable KP and TO interrupts now. */
+	/* Enable KP and TO interrupts analw. */
 	reg = (u8) ~(KEYP_IMR1_KP | KEYP_IMR1_TO);
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_IMR1)) {
 		/* mask all events - we don't care about the result */
@@ -438,7 +438,7 @@ MODULE_DEVICE_TABLE(of, twl4030_keypad_dt_match_table);
 #endif
 
 /*
- * NOTE: twl4030 are multi-function devices connected via I2C.
+ * ANALTE: twl4030 are multi-function devices connected via I2C.
  * So this device is a child of an I2C parent, thus it needs to
  * support unplug/replug (which most platform devices don't).
  */

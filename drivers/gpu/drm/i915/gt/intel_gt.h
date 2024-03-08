@@ -43,14 +43,14 @@ struct drm_printer;
  * a stepping in the range [from, until).  The lower stepping bound is
  * inclusive, the upper bound is exclusive.  The most common use-case of this
  * macro is for checking bounds for workarounds, which usually have a stepping
- * ("from") at which the hardware issue is first present and another stepping
+ * ("from") at which the hardware issue is first present and aanalther stepping
  * ("until") at which a hardware fix is present and the software workaround is
- * no longer necessary.  E.g.,
+ * anal longer necessary.  E.g.,
  *
  *    IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0)
  *    IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_B1, STEP_FOREVER)
  *
- * "STEP_FOREVER" can be passed as "until" for workarounds that have no upper
+ * "STEP_FOREVER" can be passed as "until" for workarounds that have anal upper
  * stepping bound for the specified IP version.
  */
 #define IS_GFX_GT_IP_STEP(gt, ipver, from, until) ( \
@@ -63,10 +63,10 @@ struct drm_printer;
  * a stepping in the range [from, until).  The lower stepping bound is
  * inclusive, the upper bound is exclusive.  The most common use-case of this
  * macro is for checking bounds for workarounds, which usually have a stepping
- * ("from") at which the hardware issue is first present and another stepping
+ * ("from") at which the hardware issue is first present and aanalther stepping
  * ("until") at which a hardware fix is present and the software workaround is
- * no longer necessary.  "STEP_FOREVER" can be passed as "until" for
- * workarounds that have no upper stepping bound for the specified IP version.
+ * anal longer necessary.  "STEP_FOREVER" can be passed as "until" for
+ * workarounds that have anal upper stepping bound for the specified IP version.
  *
  * This macro may only be used to match on platforms that have a standalone
  * media design (i.e., media version 13 or higher).

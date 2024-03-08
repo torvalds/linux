@@ -17,7 +17,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <trace/events/jbd2.h>
@@ -59,12 +59,12 @@ __releases(&journal->j_state_lock)
 		mutex_lock_io(&journal->j_checkpoint_mutex);
 
 		/*
-		 * Test again, another process may have checkpointed while we
-		 * were waiting for the checkpoint lock. If there are no
+		 * Test again, aanalther process may have checkpointed while we
+		 * were waiting for the checkpoint lock. If there are anal
 		 * transactions ready to be checkpointed, try to recover
 		 * journal space by calling cleanup_journal_tail(), and if
 		 * that doesn't work, by waiting for the currently committing
-		 * transaction to complete.  If there is absolutely no way
+		 * transaction to complete.  If there is absolutely anal way
 		 * to make progress, this is either a BUG or corrupted
 		 * filesystem, so abort the journal and leave a stack
 		 * trace for forensic evidence.
@@ -103,7 +103,7 @@ __releases(&journal->j_state_lock)
 				printk(KERN_ERR "%s: needed %d blocks and "
 				       "only had %d space available\n",
 				       __func__, nblocks, space_left);
-				printk(KERN_ERR "%s: no way to get more "
+				printk(KERN_ERR "%s: anal way to get more "
 				       "journal space in %s\n", __func__,
 				       journal->j_devname);
 				WARN_ON(1);
@@ -236,7 +236,7 @@ restart:
 			get_bh(bh);
 			spin_unlock(&journal->j_list_lock);
 			wait_on_buffer(bh);
-			/* the journal_head may have gone by now */
+			/* the journal_head may have gone by analw */
 			BUFFER_TRACE(bh, "brelse");
 			__brelse(bh);
 			goto retry;
@@ -296,14 +296,14 @@ out:
  * in the journal superblock.  If so, we can instantly roll the
  * superblock forward to remove those transactions from the log.
  *
- * Return <0 on error, 0 on success, 1 if there was nothing to clean up.
+ * Return <0 on error, 0 on success, 1 if there was analthing to clean up.
  *
  * Called with the journal lock held.
  *
  * This is the only part of the journaling code which really needs to be
  * aware of transaction aborts.  Checkpointing involves writing to the
  * main filesystem area rather than to the journal, so it can proceed
- * even in abort state, but we must not update the super block if
+ * even in abort state, but we must analt update the super block if
  * checkpointing may have failed.  Otherwise, we would lose some metadata
  * buffers which should be written-back to the filesystem.
  */
@@ -420,7 +420,7 @@ again:
 	/*
 	 * Get next shrink transaction, resume previous scan or start
 	 * over again. If some others do checkpoint and drop transaction
-	 * from the checkpoint list, we ignore saved j_shrink_transaction
+	 * from the checkpoint list, we iganalre saved j_shrink_transaction
 	 * and start over unconditionally.
 	 */
 	if (journal->j_shrink_transaction)
@@ -538,7 +538,7 @@ void jbd2_journal_destroy_checkpoint(journal_t *journal)
  * to disk (either by being write-back flushed to disk, or being
  * committed to the log).
  *
- * We cannot safely clean a transaction out of the log until all of the
+ * We cananalt safely clean a transaction out of the log until all of the
  * buffer updates committed in that transaction have safely been stored
  * elsewhere on disk.  To achieve this, all of the buffers in a
  * transaction need to be maintained on the transaction's checkpoint
@@ -561,7 +561,7 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 
 	transaction = jh->b_cp_transaction;
 	if (!transaction) {
-		JBUFFER_TRACE(jh, "not on transaction");
+		JBUFFER_TRACE(jh, "analt on transaction");
 		return 0;
 	}
 	journal = transaction->t_journal;
@@ -581,7 +581,7 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 	 * There is one special case to worry about: if we have just pulled the
 	 * buffer off a running or committing transaction's checkpoing list,
 	 * then even if the checkpoint list is empty, the transaction obviously
-	 * cannot be dropped!
+	 * cananalt be dropped!
 	 *
 	 * The locking here around t_state is a bit sleazy.
 	 * See the comment at the end of jbd2_journal_commit_transaction().
@@ -590,7 +590,7 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 		return 0;
 
 	/*
-	 * OK, that was the last buffer for the transaction, we can now
+	 * OK, that was the last buffer for the transaction, we can analw
 	 * safely remove this transaction from the log.
 	 */
 	stats = &transaction->t_chp_stats;
@@ -607,7 +607,7 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 
 /*
  * Check the checkpoint buffer and try to remove it from the checkpoint
- * list if it's clean. Returns -EBUSY if it is not clean, returns 1 if
+ * list if it's clean. Returns -EBUSY if it is analt clean, returns 1 if
  * it frees the transaction, 0 otherwise.
  *
  * This function is called with j_list_lock held.
@@ -637,7 +637,7 @@ int jbd2_journal_try_remove_checkpoint(struct journal_head *jh)
 
 /*
  * journal_insert_checkpoint: put a committed buffer onto a checkpoint
- * list so that we know when it is safe to clean the transaction out of
+ * list so that we kanalw when it is safe to clean the transaction out of
  * the log.
  *
  * Called with the journal locked.
@@ -669,7 +669,7 @@ void __jbd2_journal_insert_checkpoint(struct journal_head *jh,
 /*
  * We've finished with this transaction structure: adios...
  *
- * The transaction must have no links except for the checkpoint by this
+ * The transaction must have anal links except for the checkpoint by this
  * point.
  *
  * Called with the journal locked.

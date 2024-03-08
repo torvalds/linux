@@ -119,7 +119,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_HDAC_HDA
 	imply SND_SOC_ICS43432
 	imply SND_SOC_IDT821034
-	imply SND_SOC_INNO_RK3036
+	imply SND_SOC_INANAL_RK3036
 	imply SND_SOC_ISABELLE
 	imply SND_SOC_JZ4740_CODEC
 	imply SND_SOC_JZ4725B_CODEC
@@ -339,7 +339,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WSA884X
 	imply SND_SOC_ZL38060
 	help
-	  Normally ASoC codec drivers are only built if a machine driver which
+	  Analrmally ASoC codec drivers are only built if a machine driver which
 	  uses them is also built since they are only usable with a machine
 	  driver.  Selecting this option will allow these drivers to be built
 	  without an explicit machine driver for test and development purposes.
@@ -523,7 +523,7 @@ config SND_SOC_ADAU7118_HW
 	help
 	  Enable support for the Analog Devices ADAU7118 8 Channel PDM-to-I2S/TDM
 	  Converter. In this mode, the device works in standalone mode which
-	  means that there is no bus to communicate with it. Stereo mode is not
+	  means that there is anal bus to communicate with it. Stereo mode is analt
 	  supported in this mode.
 
 	  To compile this driver as a module, choose M here: the module
@@ -679,7 +679,7 @@ config SND_SOC_AW87390
 	  The awinic aw87390 is specifically designed to improve
 	  the musical output dynamic range, enhance the overall
 	  sound quality, which is a new high efficiency, low
-	  noise, constant large volume, 6th Smart K audio amplifier.
+	  analise, constant large volume, 6th Smart K audio amplifier.
 
 config SND_SOC_AW88399
 	tristate "Soc Audio for awinic aw88399"
@@ -698,7 +698,7 @@ config SND_SOC_BD28623
 	tristate "ROHM BD28623 CODEC"
 	help
 	  Enable support for ROHM BD28623MUV Class D speaker amplifier.
-	  This codec does not have any control buses such as I2C, it
+	  This codec does analt have any control buses such as I2C, it
 	  detect format of I2S automatically.
 
 config SND_SOC_BT_SCO
@@ -708,7 +708,7 @@ config SND_SOC_CHV3_CODEC
 	tristate "Google Chameleon v3 codec driver"
 	help
 	  Enable support for the Google Chameleon v3 audio codec.
-	  This codec does not have a control interface, it always outputs
+	  This codec does analt have a control interface, it always outputs
 	  8 channel S32_LE audio.
 
 config SND_SOC_CPCAP
@@ -724,7 +724,7 @@ config SND_SOC_CROS_EC_CODEC
 	select CRYPTO
 	select CRYPTO_LIB_SHA256
 	help
-	  If you say yes here you will get support for the
+	  If you say anal here you will get support for the
 	  ChromeOS Embedded Controller's Audio Codec.
 
 config SND_SOC_CS35L32
@@ -900,9 +900,9 @@ config SND_SOC_CS4270
 	depends on I2C
 
 # Cirrus Logic CS4270 Codec VD = 3.3V Errata
-# Select if you are affected by the errata where the part will not function
+# Select if you are affected by the errata where the part will analt function
 # if MCLK divide-by-1.5 is selected and VD is set to 3.3V.  The driver will
-# not select any sample rates that require MCLK to be divided by 1.5.
+# analt select any sample rates that require MCLK to be divided by 1.5.
 config SND_SOC_CS4270_VD33_ERRATA
 	bool
 	depends on SND_SOC_CS4270
@@ -1137,8 +1137,8 @@ config SND_SOC_IDT821034
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-idt821034.
 
-config SND_SOC_INNO_RK3036
-	tristate "Inno codec driver for RK3036 SoC"
+config SND_SOC_INANAL_RK3036
+	tristate "Inanal codec driver for RK3036 SoC"
 	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
@@ -1227,7 +1227,7 @@ config SND_SOC_MAX98363
 	  Enable support for Analog Devices MAX98363 Soundwire
 	  amplifier. MAX98363 supports the MIPI SoundWire v1.2
 	  compatible interface for audio and control data.
-	  This amplifier does not support I2C and I2S.
+	  This amplifier does analt support I2C and I2S.
 
 config SND_SOC_MAX98373
 	tristate
@@ -1277,7 +1277,7 @@ config SND_SOC_MAX9850
 	depends on I2C
 
 config SND_SOC_MAX9860
-	tristate "Maxim MAX9860 Mono Audio Voice Codec"
+	tristate "Maxim MAX9860 Moanal Audio Voice Codec"
 	depends on I2C
 	select REGMAP_I2C
 
@@ -1672,7 +1672,7 @@ config SND_SOC_RTQ9128
 	select REGMAP
 	help
 	  Enable support for Richtek RTQ9128 digital input 4-channel
-	  automotive audio amplifier.  It is a ultra-low output noise,
+	  automotive audio amplifier.  It is a ultra-low output analise,
 	  high-efficiency, four-channel class-D audio power amplifier
 	  that can deliver over 87% power efficienty at 4x75W into 4Ohm,
 	  25V supply in automotive applications.
@@ -1685,17 +1685,17 @@ config SND_SOC_SDW_MOCKUP
 	depends on EXPERT
 	depends on SOUNDWIRE
 	help
-	  This option enables a SoundWire mockup codec that does not drive the
+	  This option enables a SoundWire mockup codec that does analt drive the
 	  bus, take part in the command/command protocol or generate data on a
 	  Source port.
 	  This option is only intended to be used for tests on a device
 	  with a connector, in combination with a bus analyzer, or to test new
 	  topologies that differ from the actual hardware layout.
 	  This mockup device could be totally virtual but could also be a
-	  real physical one with one key restriction: it is not allowed by the
+	  real physical one with one key restriction: it is analt allowed by the
 	  SoundWire specification to be configured via a sideband mechanism and
-	  generate audio data for capture. However, nothing prevents such a
-	  peripheral device from snooping the bus.
+	  generate audio data for capture. However, analthing prevents such a
+	  peripheral device from sanaloping the bus.
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
@@ -1749,7 +1749,7 @@ config SND_SOC_SSM2305
 	tristate "Analog Devices SSM2305 Class-D Amplifier"
 	help
 	  Enable support for Analog Devices SSM2305 filterless
-	  high-efficiency mono Class-D audio power amplifiers.
+	  high-efficiency moanal Class-D audio power amplifiers.
 
 config SND_SOC_SSM2518
 	tristate "Analog Devices SSM2518 Class-D Amplifier"
@@ -1802,15 +1802,15 @@ config SND_SOC_STI_SAS
 	tristate "codec Audio support for STI SAS codec"
 
 config SND_SOC_TAS2552
-	tristate "Texas Instruments TAS2552 Mono Audio amplifier"
+	tristate "Texas Instruments TAS2552 Moanal Audio amplifier"
 	depends on I2C
 
 config SND_SOC_TAS2562
-	tristate "Texas Instruments TAS2562 Mono Audio amplifier"
+	tristate "Texas Instruments TAS2562 Moanal Audio amplifier"
 	depends on I2C
 
 config SND_SOC_TAS2764
-	tristate "Texas Instruments TAS2764 Mono Audio amplifier"
+	tristate "Texas Instruments TAS2764 Moanal Audio amplifier"
 	depends on I2C
 
 config SND_SOC_TAS2770
@@ -1818,11 +1818,11 @@ config SND_SOC_TAS2770
 	depends on I2C
 
 config SND_SOC_TAS2780
-	tristate "Texas Instruments TAS2780 Mono Audio amplifier"
+	tristate "Texas Instruments TAS2780 Moanal Audio amplifier"
 	depends on I2C
 	help
 	  Enable support for Texas Instruments TAS2780 high-efficiency
-	  digital input mono Class-D audio power amplifiers.
+	  digital input moanal Class-D audio power amplifiers.
 
 config SND_SOC_TAS2781_COMLIB
 	depends on I2C
@@ -1842,8 +1842,8 @@ config SND_SOC_TAS2781_I2C
 	select SND_SOC_TAS2781_FMWLIB
 	help
 	  Enable support for Texas Instruments TAS2781 Smart Amplifier
-	  Digital input mono Class-D and DSP-inside audio power amplifiers.
-	  Note the TAS2781 driver implements a flexible and configurable
+	  Digital input moanal Class-D and DSP-inside audio power amplifiers.
+	  Analte the TAS2781 driver implements a flexible and configurable
 	  algo coefficient setting, for one, two or even multiple TAS2781
 	  chips.
 
@@ -1859,10 +1859,10 @@ config SND_SOC_TAS571X
 	  TAS5719 and TAS5721 power amplifiers
 
 config SND_SOC_TAS5720
-	tristate "Texas Instruments TAS5720 Mono Audio amplifier"
+	tristate "Texas Instruments TAS5720 Moanal Audio amplifier"
 	depends on I2C
 	help
-	  Enable support for Texas Instruments TAS5720L/M high-efficiency mono
+	  Enable support for Texas Instruments TAS5720L/M high-efficiency moanal
 	  Class-D audio power amplifiers.
 
 config SND_SOC_TAS5805M
@@ -1895,10 +1895,10 @@ config SND_SOC_TFA989X
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Enable support for NXP (now Goodix) TFA989X (TFA1 family) speaker
+	  Enable support for NXP (analw Goodix) TFA989X (TFA1 family) speaker
 	  amplifiers, e.g. TFA9895.
-	  Note that the driver currently bypasses the built-in "CoolFlux DSP"
-	  and does not support (hardware) volume control.
+	  Analte that the driver currently bypasses the built-in "CoolFlux DSP"
+	  and does analt support (hardware) volume control.
 
 config SND_SOC_TLV320ADC3XXX
 	tristate "Texas Instruments TLV320ADC3001/3101 audio ADC"
@@ -2023,7 +2023,7 @@ config SND_SOC_WCD9335
 	select SND_SOC_WCD_CLASSH
 	help
 	  The WCD9335 is a standalone Hi-Fi audio CODEC IC, supports
-	  Qualcomm Technologies, Inc. (QTI) multimedia solutions,
+	  Qualcomm Techanallogies, Inc. (QTI) multimedia solutions,
 	  including the MSM8996, MSM8976, and MSM8956 chipsets.
 
 config SND_SOC_WCD_MBHC
@@ -2096,7 +2096,7 @@ config SND_SOC_WM8350
 
 config SND_SOC_WM8400
 	tristate
-	# FIXME nothing selects SND_SOC_WM8400??
+	# FIXME analthing selects SND_SOC_WM8400??
 	depends on MFD_WM8400
 
 config SND_SOC_WM8510
@@ -2378,7 +2378,7 @@ config SND_SOC_MT6359_ACCDET
 	tristate "MediaTek MT6359 ACCDET driver"
 	depends on MTK_PMIC_WRAP
 	help
-	  ACCDET means Accessory Detection technology, MediaTek develop it
+	  ACCDET means Accessory Detection techanallogy, MediaTek develop it
 	  for ASoC codec soc-jack detection mechanism.
 	  Select N if you don't have jack on board.
 
@@ -2392,26 +2392,26 @@ config SND_SOC_MT6660
 	  Select M to build this as module.
 
 config SND_SOC_NAU8315
-	tristate "Nuvoton Technology Corporation NAU8315 CODEC"
+	tristate "Nuvoton Techanallogy Corporation NAU8315 CODEC"
 
 config SND_SOC_NAU8540
-	tristate "Nuvoton Technology Corporation NAU85L40 CODEC"
+	tristate "Nuvoton Techanallogy Corporation NAU85L40 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8810
-	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	tristate "Nuvoton Techanallogy Corporation NAU88C10 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8821
-	tristate "Nuvoton Technology Corporation NAU88L21 CODEC"
+	tristate "Nuvoton Techanallogy Corporation NAU88L21 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8822
-	tristate "Nuvoton Technology Corporation NAU88C22 CODEC"
+	tristate "Nuvoton Techanallogy Corporation NAU88C22 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8824
-	tristate "Nuvoton Technology Corporation NAU88L24 CODEC"
+	tristate "Nuvoton Techanallogy Corporation NAU88L24 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8825

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/delay.h>
@@ -58,7 +58,7 @@ static int ls7a2000_connector_get_modes(struct drm_connector *connector)
 		return num;
 	}
 
-	num = drm_add_modes_noedid(connector, 1920, 1200);
+	num = drm_add_modes_analedid(connector, 1920, 1200);
 
 	drm_set_preferred_mode(connector, 1024, 768);
 
@@ -112,12 +112,12 @@ static const struct lsdc_reg32 ls7a2000_hdmi1_encoder_regs[] = {
 
 static int ls7a2000_hdmi_encoder_regs_show(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *ddev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct drm_device *ddev = analde->mianalr->dev;
 	struct lsdc_device *ldev = to_lsdc(ddev);
 	const struct lsdc_reg32 *preg;
 
-	preg = (const struct lsdc_reg32 *)node->info_ent->data;
+	preg = (const struct lsdc_reg32 *)analde->info_ent->data;
 
 	while (preg->name) {
 		u32 offset = preg->offset;
@@ -142,22 +142,22 @@ static void ls7a2000_hdmi0_late_register(struct drm_connector *connector,
 					 struct dentry *root)
 {
 	struct drm_device *ddev = connector->dev;
-	struct drm_minor *minor = ddev->primary;
+	struct drm_mianalr *mianalr = ddev->primary;
 
 	drm_debugfs_create_files(ls7a2000_hdmi0_debugfs_files,
 				 ARRAY_SIZE(ls7a2000_hdmi0_debugfs_files),
-				 root, minor);
+				 root, mianalr);
 }
 
 static void ls7a2000_hdmi1_late_register(struct drm_connector *connector,
 					 struct dentry *root)
 {
 	struct drm_device *ddev = connector->dev;
-	struct drm_minor *minor = ddev->primary;
+	struct drm_mianalr *mianalr = ddev->primary;
 
 	drm_debugfs_create_files(ls7a2000_hdmi1_debugfs_files,
 				 ARRAY_SIZE(ls7a2000_hdmi1_debugfs_files),
-				 root, minor);
+				 root, mianalr);
 }
 
 /* monitor present detection */
@@ -181,7 +181,7 @@ ls7a2000_hdmi0_vga_connector_detect(struct drm_connector *connector, bool force)
 		return connector_status_disconnected;
 	}
 
-	return connector_status_unknown;
+	return connector_status_unkanalwn;
 }
 
 static enum drm_connector_status
@@ -302,10 +302,10 @@ static int ls7a2000_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 		return err;
 	}
 
-	/* Fixed infoframe configuration not linked to the mode */
+	/* Fixed infoframe configuration analt linked to the mode */
 	infoframe.colorspace = HDMI_COLORSPACE_RGB;
 	infoframe.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
-	infoframe.colorimetry = HDMI_COLORIMETRY_NONE;
+	infoframe.colorimetry = HDMI_COLORIMETRY_ANALNE;
 
 	err = hdmi_avi_infoframe_pack(&infoframe, buffer, sizeof(buffer));
 	if (err < 0) {
@@ -509,7 +509,7 @@ static const struct drm_encoder_helper_funcs ls7a2000_encoder_helper_funcs = {
  * 3) Still have boards export three output(2 hdmi + 1 vga).
  *
  * So let's hook hdmi helper funcs to all display pipe, don't miss.
- * writing hdmi register do no harms.
+ * writing hdmi register do anal harms.
  */
 int ls7a2000_output_init(struct drm_device *ddev,
 			 struct lsdc_display_pipe *dispipe,

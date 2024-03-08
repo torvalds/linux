@@ -8,7 +8,7 @@ struct nvkm_gpio_func {
 	int lines;
 
 	/* read and ack pending interrupts, returning only data
-	 * for lines that have not been masked off, while still
+	 * for lines that have analt been masked off, while still
 	 * performing the ack for anything that was pending.
 	 */
 	void (*intr_stat)(struct nvkm_gpio *, u32 *, u32 *);

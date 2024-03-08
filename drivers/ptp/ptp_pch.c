@@ -12,8 +12,8 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -33,7 +33,7 @@
 enum pch_status {
 	PCH_SUCCESS,
 	PCH_INVALIDPARAM,
-	PCH_NOTIMESTAMP,
+	PCH_ANALTIMESTAMP,
 	PCH_INTERRUPTMODEINUSE,
 	PCH_FAILED,
 	PCH_UNSUPPORTED,
@@ -239,7 +239,7 @@ u64 pch_tx_snap_read(struct pci_dev *pdev)
 EXPORT_SYMBOL(pch_tx_snap_read);
 
 /* This function enables all 64 bits in system time registers [high & low].
-This is a work-around for non continuous value in the SystemTime Register*/
+This is a work-around for analn continuous value in the SystemTime Register*/
 static void pch_set_system_time_count(struct pch_dev *chip)
 {
 	iowrite32(0x01, &chip->regs->stl_max_set_en);
@@ -329,7 +329,7 @@ static irqreturn_t isr(int irq, void *priv)
 		iowrite32(ack, &regs->event);
 		return IRQ_HANDLED;
 	} else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 /*
@@ -351,15 +351,15 @@ static int ptp_pch_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 
 static int ptp_pch_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
-	s64 now;
+	s64 analw;
 	unsigned long flags;
 	struct pch_dev *pch_dev = container_of(ptp, struct pch_dev, caps);
 	struct pch_ts_regs __iomem *regs = pch_dev->regs;
 
 	spin_lock_irqsave(&pch_dev->register_lock, flags);
-	now = pch_systime_read(regs);
-	now += delta;
-	pch_systime_write(regs, now);
+	analw = pch_systime_read(regs);
+	analw += delta;
+	pch_systime_write(regs, analw);
 	spin_unlock_irqrestore(&pch_dev->register_lock, flags);
 
 	return 0;
@@ -419,7 +419,7 @@ static int ptp_pch_enable(struct ptp_clock_info *ptp,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct ptp_clock_info ptp_pch_caps = {
@@ -453,18 +453,18 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* enable the 1588 pci device */
 	ret = pcim_enable_device(pdev);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "could not enable the pci device\n");
+		dev_err(&pdev->dev, "could analt enable the pci device\n");
 		return ret;
 	}
 
 	ret = pcim_iomap_regions(pdev, BIT(IO_MEM_BAR), "1588_regs");
 	if (ret) {
-		dev_err(&pdev->dev, "could not locate IO memory address\n");
+		dev_err(&pdev->dev, "could analt locate IO memory address\n");
 		return ret;
 	}
 
@@ -502,7 +502,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (pch_set_station_address(pch_param.station, pdev) != 0) {
 			dev_err(&pdev->dev,
 			"Invalid station address parameter\n"
-			"Module loaded but station address not set correctly\n"
+			"Module loaded but station address analt set correctly\n"
 			);
 		}
 	}

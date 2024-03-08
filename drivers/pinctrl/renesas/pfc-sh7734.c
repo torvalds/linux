@@ -3,7 +3,7 @@
  * SH7734 processor support - PFC hardware block
  *
  * Copyright (C) 2012  Renesas Solutions Corp.
- * Copyright (C) 2012  Nobuhiro Iwamatsu <nobuhiro.iwamatsu.yj@renesas.com>
+ * Copyright (C) 2012  Analbuhiro Iwamatsu <analbuhiro.iwamatsu.yj@renesas.com>
  */
 #include <linux/kernel.h>
 #include <cpu/sh7734.h>
@@ -22,9 +22,9 @@
 #define _GP_DATA(bank, pin, name, sfx, cfg)				\
 	PINMUX_DATA(name##_DATA, name##_FN, name##_IN, name##_OUT)
 
-#define _GP_INOUTSEL(bank, pin, name, sfx, cfg)	name##_IN, name##_OUT
+#define _GP_IANALUTSEL(bank, pin, name, sfx, cfg)	name##_IN, name##_OUT
 #define _GP_INDT(bank, pin, name, sfx, cfg)	name##_DATA
-#define GP_INOUTSEL(bank)	PORT_GP_32_REV(bank, _GP_INOUTSEL, unused)
+#define GP_IANALUTSEL(bank)	PORT_GP_32_REV(bank, _GP_IANALUTSEL, unused)
 #define GP_INDT(bank)		PORT_GP_32_REV(bank, _GP_INDT, unused)
 
 enum {
@@ -2339,17 +2339,17 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SEL_SCIF_CLK_0, FN_SEL_SCIF_CLK_1, FN_SEL_SCIF_CLK_2, 0  ))
 	},
 	/* GPIO 0 - 5*/
-	{ PINMUX_CFG_REG("INOUTSEL0", 0xFFC40004, 32, 1, GROUP(GP_INOUTSEL(0)))
+	{ PINMUX_CFG_REG("IANALUTSEL0", 0xFFC40004, 32, 1, GROUP(GP_IANALUTSEL(0)))
 	},
-	{ PINMUX_CFG_REG("INOUTSEL1", 0xFFC41004, 32, 1, GROUP(GP_INOUTSEL(1)))
+	{ PINMUX_CFG_REG("IANALUTSEL1", 0xFFC41004, 32, 1, GROUP(GP_IANALUTSEL(1)))
 	},
-	{ PINMUX_CFG_REG("INOUTSEL2", 0xFFC42004, 32, 1, GROUP(GP_INOUTSEL(2)))
+	{ PINMUX_CFG_REG("IANALUTSEL2", 0xFFC42004, 32, 1, GROUP(GP_IANALUTSEL(2)))
 	},
-	{ PINMUX_CFG_REG("INOUTSEL3", 0xFFC43004, 32, 1, GROUP(GP_INOUTSEL(3)))
+	{ PINMUX_CFG_REG("IANALUTSEL3", 0xFFC43004, 32, 1, GROUP(GP_IANALUTSEL(3)))
 	},
-	{ PINMUX_CFG_REG("INOUTSEL4", 0xFFC44004, 32, 1, GROUP(GP_INOUTSEL(4)))
+	{ PINMUX_CFG_REG("IANALUTSEL4", 0xFFC44004, 32, 1, GROUP(GP_IANALUTSEL(4)))
 	},
-	{ PINMUX_CFG_REG_VAR("INOUTSEL5", 0xffc45004, 32,
+	{ PINMUX_CFG_REG_VAR("IANALUTSEL5", 0xffc45004, 32,
 			     GROUP(-20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 			     GROUP(
 		/* GP5_31_12 RESERVED */

@@ -33,8 +33,8 @@
 #include "../cmp.h"
 
 enum snd_oxfw_quirk {
-	// Postpone transferring packets during handling asynchronous transaction. As a result,
-	// next isochronous packet includes more events than one packet can include.
+	// Postpone transferring packets during handling asynchroanalus transaction. As a result,
+	// next isochroanalus packet includes more events than one packet can include.
 	SND_OXFW_QUIRK_JUMBO_PAYLOAD = 0x01,
 	// The dbs field of CIP header in tx packet is wrong.
 	SND_OXFW_QUIRK_WRONG_DBS = 0x02,
@@ -42,15 +42,15 @@ enum snd_oxfw_quirk {
 	SND_OXFW_QUIRK_BLOCKING_TRANSMISSION = 0x04,
 	// Stanton SCS1.d and SCS1.m support unique transaction.
 	SND_OXFW_QUIRK_SCS_TRANSACTION = 0x08,
-	// Apogee Duet FireWire ignores data blocks in packet with NO_INFO for audio data
+	// Apogee Duet FireWire iganalres data blocks in packet with ANAL_INFO for audio data
 	// processing, while output level meter moves. Any value in syt field of packet takes
 	// the device to process audio data even if the value is invalid in a point of
 	// IEC 61883-1/6.
-	SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET = 0x10,
-	// Loud Technologies Mackie Onyx 1640i seems to configure OXFW971 ASIC so that it decides
-	// event frequency according to events in received isochronous packets. The device looks to
-	// performs media clock recovery voluntarily. In the recovery, the packets with NO_INFO
-	// are ignored, thus driver should transfer packets with timestamp.
+	SND_OXFW_QUIRK_IGANALRE_ANAL_INFO_PACKET = 0x10,
+	// Loud Techanallogies Mackie Onyx 1640i seems to configure OXFW971 ASIC so that it decides
+	// event frequency according to events in received isochroanalus packets. The device looks to
+	// performs media clock recovery voluntarily. In the recovery, the packets with ANAL_INFO
+	// are iganalred, thus driver should transfer packets with timestamp.
 	SND_OXFW_QUIRK_VOLUNTARY_RECOVERY = 0x20,
 };
 

@@ -60,7 +60,7 @@ properties:
       Should be the following names, which correspond to each nvmem-cells.
       All of the 3 parameters associated with the above names are
       required for each port, if any one is omitted, the trimming data
-      of the port will not be set at all.
+      of the port will analt be set at all.
 
 allOf:
   - if:

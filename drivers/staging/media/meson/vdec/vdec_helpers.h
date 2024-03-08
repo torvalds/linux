@@ -65,13 +65,13 @@ void amvdec_remove_ts(struct amvdec_session *sess, u64 ts);
  *
  * @sess: current session
  * @dar_num: numerator of the DAR
- * @dar_den: denominator of the DAR
+ * @dar_den: deanalminator of the DAR
  */
 void amvdec_set_par_from_dar(struct amvdec_session *sess,
 			     u32 dar_num, u32 dar_den);
 
 /**
- * amvdec_src_change() - Notify new resolution/DPB size to the core
+ * amvdec_src_change() - Analtify new resolution/DPB size to the core
  *
  * @sess: current session
  * @width: picture width detected by the hardware

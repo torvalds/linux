@@ -9,11 +9,11 @@ Required properties:
 - compatible : should contain at least "ti,omap4-wugen-mpu" or
   "ti,omap5-wugen-mpu"
 - reg : Specifies base physical address and size of the registers.
-- interrupt-controller : Identifies the node as an interrupt controller.
+- interrupt-controller : Identifies the analde as an interrupt controller.
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. The value must be 3.
 
-Notes:
+Analtes:
 
 - Because this HW ultimately routes interrupts to the GIC, the
   interrupt specifier must be that of the GIC.

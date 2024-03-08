@@ -64,7 +64,7 @@
 #include <asm/processor.h>
 #include "intel_ips.h"
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #define PCI_DEVICE_ID_INTEL_THERMAL_SENSOR 0x3b32
 
@@ -135,8 +135,8 @@
 #define THM_TEN		0x21
 #define   TEN_UPDATE_EN	1
 #define THM_PSC		0x24
-#define   PSC_NTG	(1<<0) /* No GFX turbo support */
-#define   PSC_NTPC	(1<<1) /* No CPU turbo support */
+#define   PSC_NTG	(1<<0) /* Anal GFX turbo support */
+#define   PSC_NTPC	(1<<1) /* Anal CPU turbo support */
 #define   PSC_PP_DEF	(0<<2) /* Perf policy up to driver */
 #define   PSP_PP_PC	(1<<2) /* BIOS prefers CPU perf */
 #define   PSP_PP_BAL	(2<<2) /* BIOS wants balanced perf */
@@ -219,8 +219,8 @@
 #define THM_TC2		0xac
 #define THM_DTV		0xb0
 #define THM_ITV		0xd8
-#define   ITV_ME_SEQNO_MASK 0x00ff0000 /* ME should update every ~200ms */
-#define   ITV_ME_SEQNO_SHIFT (16)
+#define   ITV_ME_SEQANAL_MASK 0x00ff0000 /* ME should update every ~200ms */
+#define   ITV_ME_SEQANAL_SHIFT (16)
 #define   ITV_MCH_TEMP_MASK 0x0000ff00
 #define   ITV_MCH_TEMP_SHIFT (8)
 #define   ITV_PCH_TEMP_MASK 0x000000ff
@@ -452,7 +452,7 @@ static void do_enable_cpu_turbo(void *data)
  */
 static void ips_enable_cpu_turbo(struct ips_driver *ips)
 {
-	/* Already on, no need to mess with MSRs */
+	/* Already on, anal need to mess with MSRs */
 	if (ips->__cpu_turbo_on)
 		return;
 
@@ -554,7 +554,7 @@ static void ips_gpu_lower(struct ips_driver *ips)
 }
 
 /**
- * ips_enable_gpu_turbo - notify the gfx driver turbo is available
+ * ips_enable_gpu_turbo - analtify the gfx driver turbo is available
  * @ips: IPS driver struct
  *
  * Call into the graphics driver indicating that it can safely use
@@ -568,7 +568,7 @@ static void ips_enable_gpu_turbo(struct ips_driver *ips)
 }
 
 /**
- * ips_disable_gpu_turbo - notify the gfx driver to disable turbo mode
+ * ips_disable_gpu_turbo - analtify the gfx driver to disable turbo mode
  * @ips: IPS driver struct
  *
  * Request that the graphics driver disable turbo mode.
@@ -671,8 +671,8 @@ static bool mch_exceeded(struct ips_driver *ips)
  * verify_limits - verify BIOS provided limits
  * @ips: IPS structure
  *
- * BIOS can optionally provide non-default limits for power and temp.  Check
- * them here and use the defaults if the BIOS values are not provided or
+ * BIOS can optionally provide analn-default limits for power and temp.  Check
+ * them here and use the defaults if the BIOS values are analt provided or
  * are otherwise unusable.
  */
 static void verify_limits(struct ips_driver *ips)
@@ -707,7 +707,7 @@ static void update_turbo_limits(struct ips_driver *ips)
 
 	ips->cpu_turbo_enabled = !(hts & HTS_PCTD_DIS);
 	/* 
-	 * Disable turbo for now, until we can figure out why the power figures
+	 * Disable turbo for analw, until we can figure out why the power figures
 	 * are wrong
 	 */
 	ips->cpu_turbo_enabled = false;
@@ -721,7 +721,7 @@ static void update_turbo_limits(struct ips_driver *ips)
 	ips->mcp_power_limit = thm_readw(THM_MPPC);
 
 	verify_limits(ips);
-	/* Ignore BIOS CPU vs GPU pref */
+	/* Iganalre BIOS CPU vs GPU pref */
 }
 
 /**
@@ -740,16 +740,16 @@ static void update_turbo_limits(struct ips_driver *ips)
  *
  * So, given the above, we do the following:
  *   - up (TDP available)
- *     - CPU not busy, GPU not busy - nothing
- *     - CPU busy, GPU not busy - adjust CPU up
- *     - CPU not busy, GPU busy - adjust GPU up
+ *     - CPU analt busy, GPU analt busy - analthing
+ *     - CPU busy, GPU analt busy - adjust CPU up
+ *     - CPU analt busy, GPU busy - adjust GPU up
  *     - CPU busy, GPU busy - adjust preferred unit up, taking headroom from
- *       non-preferred unit if necessary
+ *       analn-preferred unit if necessary
  *   - down (at TDP limit)
  *     - adjust both CPU and GPU down if possible
  *
  *              |cpu+ gpu+      cpu+gpu-        cpu-gpu+        cpu-gpu-
- * cpu < gpu <  |cpu+gpu+       cpu+            gpu+            nothing
+ * cpu < gpu <  |cpu+gpu+       cpu+            gpu+            analthing
  * cpu < gpu >= |cpu+gpu-(mcp<) cpu+gpu-(mcp<)  gpu-            gpu-
  * cpu >= gpu < |cpu-gpu+(mcp<) cpu-            cpu-gpu+(mcp<)  cpu-
  * cpu >= gpu >=|cpu-gpu-       cpu-gpu-        cpu-gpu-        cpu-gpu-
@@ -948,16 +948,16 @@ static void monitor_timeout(struct timer_list *t)
  * that data, along with CPU vs GPU preference, we adjust the power clamps
  * up or down.
  *
- * Returns: %0 on success or -errno on error
+ * Returns: %0 on success or -erranal on error
  */
 static int ips_monitor(void *data)
 {
 	struct ips_driver *ips = data;
-	unsigned long seqno_timestamp, expire, last_msecs, last_sample_period;
+	unsigned long seqanal_timestamp, expire, last_msecs, last_sample_period;
 	int i;
 	u32 *cpu_samples, *mchp_samples, old_cpu_power;
 	u16 *mcp_samples, *ctv1_samples, *ctv2_samples, *mch_samples;
-	u8 cur_seqno, last_seqno;
+	u8 cur_seqanal, last_seqanal;
 
 	mcp_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u16), GFP_KERNEL);
 	ctv1_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u16), GFP_KERNEL);
@@ -975,12 +975,12 @@ static int ips_monitor(void *data)
 		kfree(mch_samples);
 		kfree(cpu_samples);
 		kfree(mchp_samples);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	last_seqno = (thm_readl(THM_ITV) & ITV_ME_SEQNO_MASK) >>
-		ITV_ME_SEQNO_SHIFT;
-	seqno_timestamp = get_jiffies_64();
+	last_seqanal = (thm_readl(THM_ITV) & ITV_ME_SEQANAL_MASK) >>
+		ITV_ME_SEQANAL_SHIFT;
+	seqanal_timestamp = get_jiffies_64();
 
 	old_cpu_power = thm_readl(THM_CEC);
 	schedule_timeout_interruptible(msecs_to_jiffies(IPS_SAMPLE_PERIOD));
@@ -1028,11 +1028,11 @@ static int ips_monitor(void *data)
 	kfree(cpu_samples);
 	kfree(mchp_samples);
 
-	/* Start the adjustment thread now that we have data */
+	/* Start the adjustment thread analw that we have data */
 	wake_up_process(ips->adjust);
 
 	/*
-	 * Ok, now we have an initial avg.  From here on out, we track the
+	 * Ok, analw we have an initial avg.  From here on out, we track the
 	 * running avg using a decaying average calculation.  This allows
 	 * us to reduce the sample frequency if the CPU and GPU are idle.
 	 */
@@ -1079,19 +1079,19 @@ static int ips_monitor(void *data)
 
 		/*
 		 * Make sure ME is updating thermal regs.
-		 * Note:
+		 * Analte:
 		 * If it's been more than a second since the last update,
 		 * the ME is probably hung.
 		 */
-		cur_seqno = (thm_readl(THM_ITV) & ITV_ME_SEQNO_MASK) >>
-			ITV_ME_SEQNO_SHIFT;
-		if (cur_seqno == last_seqno &&
-		    time_after(jiffies, seqno_timestamp + HZ)) {
+		cur_seqanal = (thm_readl(THM_ITV) & ITV_ME_SEQANAL_MASK) >>
+			ITV_ME_SEQANAL_SHIFT;
+		if (cur_seqanal == last_seqanal &&
+		    time_after(jiffies, seqanal_timestamp + HZ)) {
 			dev_warn(ips->dev,
 				 "ME failed to update for more than 1s, likely hung\n");
 		} else {
-			seqno_timestamp = get_jiffies_64();
-			last_seqno = cur_seqno;
+			seqanal_timestamp = get_jiffies_64();
+			last_seqanal = cur_seqanal;
 		}
 
 		last_msecs = jiffies_to_msecs(jiffies);
@@ -1123,7 +1123,7 @@ static int ips_monitor(void *data)
  * If we're at a critical limit, we clamp back to the lowest possible value
  * to prevent emergency shutdown.
  *
- * Returns: IRQ_NONE or IRQ_HANDLED
+ * Returns: IRQ_ANALNE or IRQ_HANDLED
  */
 static irqreturn_t ips_irq_handler(int irq, void *arg)
 {
@@ -1132,7 +1132,7 @@ static irqreturn_t ips_irq_handler(int irq, void *arg)
 	u8 tes = thm_readb(THM_TES);
 
 	if (!tses && !tes)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev_info(ips->dev, "TSES: 0x%02x\n", tses);
 	dev_info(ips->dev, "TES: 0x%02x\n", tes);
@@ -1150,10 +1150,10 @@ static irqreturn_t ips_irq_handler(int irq, void *arg)
 				STS_PCPL_SHIFT;
 			ips->mch_power_limit = (sts & STS_GPL_MASK) >>
 				STS_GPL_SHIFT;
-			/* ignore EC CPU vs GPU pref */
+			/* iganalre EC CPU vs GPU pref */
 			ips->cpu_turbo_enabled = !(sts & STS_PCTD_DIS);
 			/* 
-			 * Disable turbo for now, until we can figure
+			 * Disable turbo for analw, until we can figure
 			 * out why the power figures are wrong
 			 */
 			ips->cpu_turbo_enabled = false;
@@ -1285,7 +1285,7 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 	u16 tdp;
 
 	if (!(boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 37)) {
-		dev_info(ips->dev, "Non-IPS CPU detected.\n");
+		dev_info(ips->dev, "Analn-IPS CPU detected.\n");
 		return NULL;
 	}
 
@@ -1307,7 +1307,7 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 	else if (strstr(boot_cpu_data.x86_model_id, "CPU       U"))
 		limits = &ips_ulv_limits;
 	else {
-		dev_info(ips->dev, "No CPUID match found.\n");
+		dev_info(ips->dev, "Anal CPUID match found.\n");
 		return NULL;
 	}
 
@@ -1428,18 +1428,18 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	u8 tse;
 
 	if (dmi_check_system(ips_blacklist))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ips = devm_kzalloc(&dev->dev, sizeof(*ips), GFP_KERNEL);
 	if (!ips)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ips->turbo_status_lock);
 	ips->dev = &dev->dev;
 
 	ips->limits = ips_detect_cpu(ips);
 	if (!ips->limits) {
-		dev_info(&dev->dev, "IPS not supported on this CPU\n");
+		dev_info(&dev->dev, "IPS analt supported on this CPU\n");
 		return -ENXIO;
 	}
 
@@ -1460,14 +1460,14 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	tse = thm_readb(THM_TSE);
 	if (tse != TSE_EN) {
-		dev_err(&dev->dev, "thermal device not enabled (0x%02x), aborting\n", tse);
+		dev_err(&dev->dev, "thermal device analt enabled (0x%02x), aborting\n", tse);
 		return -ENXIO;
 	}
 
 	trc = thm_readw(THM_TRC);
 	trc_required_mask = TRC_CORE1_EN | TRC_CORE_PWR | TRC_MCH_EN;
 	if ((trc & trc_required_mask) != trc_required_mask) {
-		dev_err(&dev->dev, "thermal reporting for required devices not enabled, aborting\n");
+		dev_err(&dev->dev, "thermal reporting for required devices analt enabled, aborting\n");
 		return -ENXIO;
 	}
 
@@ -1498,12 +1498,12 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	rdmsrl(PLATFORM_INFO, platform_info);
 	if (!(platform_info & PLATFORM_TDP)) {
 		dev_err(&dev->dev, "platform indicates TDP override unavailable, aborting\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * IRQ handler for ME interaction
-	 * Note: don't use MSI here as the PCH has bugs.
+	 * Analte: don't use MSI here as the PCH has bugs.
 	 */
 	ret = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_LEGACY);
 	if (ret < 0)
@@ -1538,7 +1538,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (IS_ERR(ips->adjust)) {
 		dev_err(&dev->dev,
 			"failed to create thermal adjust thread, aborting\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_irq;
 
 	}
@@ -1551,7 +1551,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (IS_ERR(ips->monitor)) {
 		dev_err(&dev->dev,
 			"failed to create thermal monitor thread, aborting\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_thread_cleanup;
 	}
 

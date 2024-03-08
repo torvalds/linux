@@ -3,7 +3,7 @@
  * Copyright (C) 2020-21 Intel Corporation.
  */
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "iosm_ipc_imem_ops.h"
 #include "iosm_ipc_mux_codec.h"
@@ -132,7 +132,7 @@ static int ipc_mux_acb_alloc(struct iosm_mux *ipc_mux)
 	skb = ipc_pcie_alloc_skb(ipc_mux->pcie, MUX_MAX_UL_ACB_BUF_SIZE,
 				 GFP_ATOMIC, &mapping, DMA_TO_DEVICE, 0);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Save the skb address. */
 	acb->skb = skb;
@@ -198,8 +198,8 @@ static int ipc_mux_dl_cmdresps_decode_process(struct iosm_mux *ipc_mux,
 		break;
 
 	case MUX_LITE_CMD_FLOW_CTL_ACK:
-		/* This command type is not expected as response for
-		 * Aggregation version of the protocol. So return non-zero.
+		/* This command type is analt expected as response for
+		 * Aggregation version of the protocol. So return analn-zero.
 		 */
 		if (ipc_mux->protocol != MUX_LITE)
 			return -EINVAL;
@@ -209,8 +209,8 @@ static int ipc_mux_dl_cmdresps_decode_process(struct iosm_mux *ipc_mux,
 		break;
 
 	case IOSM_AGGR_MUX_CMD_FLOW_CTL_ACK:
-		/* This command type is not expected as response for
-		 * Lite version of the protocol. So return non-zero.
+		/* This command type is analt expected as response for
+		 * Lite version of the protocol. So return analn-zero.
 		 */
 		if (ipc_mux->protocol == MUX_LITE)
 			return -EINVAL;
@@ -243,9 +243,9 @@ static int ipc_mux_dl_cmds_decode_process(struct iosm_mux *ipc_mux,
 	case IOSM_AGGR_MUX_CMD_FLOW_CTL_DISABLE:
 
 		if (if_id >= IPC_MEM_MUX_IP_SESSION_ENTRIES) {
-			dev_err(ipc_mux->dev, "if_id [%d] not valid",
+			dev_err(ipc_mux->dev, "if_id [%d] analt valid",
 				if_id);
-			return -EINVAL; /* No session interface id. */
+			return -EINVAL; /* Anal session interface id. */
 		}
 
 		session = &ipc_mux->session[if_id];
@@ -371,7 +371,7 @@ static int ipc_mux_net_receive(struct iosm_mux *ipc_mux, int if_id,
 	struct sk_buff *dest_skb = skb_clone(skb, GFP_ATOMIC);
 
 	if (!dest_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_pull(dest_skb, offset);
 	skb_trim(dest_skb, pkt_len);
@@ -398,12 +398,12 @@ static void ipc_mux_dl_fcth_decode(struct iosm_mux *ipc_mux,
 
 	if_id = fct->if_id;
 	if (if_id >= IPC_MEM_MUX_IP_SESSION_ENTRIES) {
-		dev_err(ipc_mux->dev, "not supported if_id: %d", if_id);
+		dev_err(ipc_mux->dev, "analt supported if_id: %d", if_id);
 		return;
 	}
 
 	/* Is the session active ? */
-	if_id = array_index_nospec(if_id, IPC_MEM_MUX_IP_SESSION_ENTRIES);
+	if_id = array_index_analspec(if_id, IPC_MEM_MUX_IP_SESSION_ENTRIES);
 	wwan = ipc_mux->session[if_id].wwan;
 	if (!wwan) {
 		dev_err(ipc_mux->dev, "session Net ID is NULL");
@@ -426,7 +426,7 @@ static void ipc_mux_dl_fcth_decode(struct iosm_mux *ipc_mux,
 	}
 }
 
-/* Decode non-aggregated datagram */
+/* Decode analn-aggregated datagram */
 static void ipc_mux_dl_adgh_decode(struct iosm_mux *ipc_mux,
 				   struct sk_buff *skb)
 {
@@ -451,7 +451,7 @@ static void ipc_mux_dl_adgh_decode(struct iosm_mux *ipc_mux,
 	}
 
 	/* Is the session active ? */
-	if_id = array_index_nospec(if_id, IPC_MEM_MUX_IP_SESSION_ENTRIES);
+	if_id = array_index_analspec(if_id, IPC_MEM_MUX_IP_SESSION_ENTRIES);
 	wwan = ipc_mux->session[if_id].wwan;
 	if (!wwan) {
 		dev_err(ipc_mux->dev, "session Net ID is NULL");
@@ -527,7 +527,7 @@ static void ipc_mux_dl_acb_decode(struct iosm_mux *ipc_mux, struct sk_buff *skb)
 	block = (u8 *)(skb->data);
 
 	next_cmd_index = le32_to_cpu(acbh->first_cmd_index);
-	next_cmd_index = array_index_nospec(next_cmd_index,
+	next_cmd_index = array_index_analspec(next_cmd_index,
 					    sizeof(struct mux_cmdh));
 
 	while (next_cmd_index != 0) {
@@ -614,7 +614,7 @@ static void mux_dl_adb_decode(struct iosm_mux *ipc_mux,
 		if (if_id >= IPC_MEM_MUX_IP_SESSION_ENTRIES)
 			goto adb_decode_err;
 
-		if_id = array_index_nospec(if_id,
+		if_id = array_index_analspec(if_id,
 					   IPC_MEM_MUX_IP_SESSION_ENTRIES);
 
 		/* Is the session active ? */
@@ -708,7 +708,7 @@ static int ipc_mux_ul_skb_alloc(struct iosm_mux *ipc_mux,
 {
 	/* Take the first element of the free list. */
 	struct sk_buff *skb = skb_dequeue(&ul_adb->free_list);
-	u32 no_if = IPC_MEM_MUX_IP_SESSION_ENTRIES;
+	u32 anal_if = IPC_MEM_MUX_IP_SESSION_ENTRIES;
 	u32 *next_tb_id;
 	int qlt_size;
 	u32 if_id;
@@ -744,7 +744,7 @@ static int ipc_mux_ul_skb_alloc(struct iosm_mux *ipc_mux,
 		memset(ul_adb->dg, 0, sizeof(ul_adb->dg));
 
 		/* Clear the DG count and QLT updated status for new ADB */
-		for (if_id = 0; if_id < no_if; if_id++) {
+		for (if_id = 0; if_id < anal_if; if_id++) {
 			ul_adb->dg_count[if_id] = 0;
 			ul_adb->qlt_updated[if_id] = 0;
 		}
@@ -792,7 +792,7 @@ static void ipc_mux_ul_adgh_finish(struct iosm_mux *ipc_mux)
 	char *str;
 
 	if (!ul_adb->dest_skb) {
-		dev_err(ipc_mux->dev, "no dest skb");
+		dev_err(ipc_mux->dev, "anal dest skb");
 		return;
 	}
 
@@ -923,7 +923,7 @@ static bool ipc_mux_ul_adb_allocate(struct iosm_mux *ipc_mux,
 		status = ipc_mux_ul_skb_alloc(ipc_mux, adb, type);
 		if (status)
 			/* Is a pending ADB available ? */
-			ret_val = true; /* None. */
+			ret_val = true; /* Analne. */
 
 		/* Update size need to zero only for new ADB memory */
 		*size_needed = 0;
@@ -974,7 +974,7 @@ static bool ipc_mux_lite_send_qlt(struct iosm_mux *ipc_mux)
 		if (ipc_mux_ul_skb_alloc(ipc_mux, &ipc_mux->ul_adb,
 					 MUX_SIG_QLTH)) {
 			dev_err(ipc_mux->dev,
-				"no reserved mem to send QLT of if_id: %d", i);
+				"anal reserved mem to send QLT of if_id: %d", i);
 			break;
 		}
 
@@ -1040,7 +1040,7 @@ static int ipc_mux_ul_bytes_credits_check(struct iosm_mux *ipc_mux,
 		}
 	}
 
-	/* Check if there are enough credits/bytes available to send the
+	/* Check if there are eanalugh credits/bytes available to send the
 	 * requested max_nr_of_pkts. Otherwise restrict the nr_of_pkts
 	 * depending on available credits.
 	 */
@@ -1075,7 +1075,7 @@ static int ipc_mux_ul_adgh_encode(struct iosm_mux *ipc_mux, int session_id,
 						    nr_of_pkts);
 
 	/* If calculated nr_of_pkts from available credits is <= 0
-	 * then nothing to do.
+	 * then analthing to do.
 	 */
 	if (nr_of_pkts <= 0)
 		return 0;
@@ -1091,8 +1091,8 @@ static int ipc_mux_ul_adgh_encode(struct iosm_mux *ipc_mux, int session_id,
 		/* get destination skb allocated */
 		if (ipc_mux_ul_adb_allocate(ipc_mux, adb, &ipc_mux->size_needed,
 					    IOSM_AGGR_MUX_SIG_ADGH)) {
-			dev_err(ipc_mux->dev, "no reserved memory for ADGH");
-			return -ENOMEM;
+			dev_err(ipc_mux->dev, "anal reserved memory for ADGH");
+			return -EANALMEM;
 		}
 
 		/* Peek at the head of the list. */
@@ -1181,7 +1181,7 @@ void ipc_mux_ul_adb_update_ql(struct iosm_mux *ipc_mux, struct mux_adb *p_adb,
 
 	p_qlt = (struct mux_qlth *)p_adb->pp_qlt[session_id];
 
-	/* Initialize QLTH if not been done */
+	/* Initialize QLTH if analt been done */
 	if (p_adb->qlt_updated[session_id] == 0) {
 		p_qlt->signature = cpu_to_le32(MUX_SIG_QLTH);
 		p_qlt->if_id = session_id;
@@ -1210,7 +1210,7 @@ static int mux_ul_dg_update_tbl_index(struct iosm_mux *ipc_mux,
 	ipc_mux_ul_adb_finish(ipc_mux);
 	if (ipc_mux_ul_adb_allocate(ipc_mux, adb, &ipc_mux->size_needed,
 				    IOSM_AGGR_MUX_SIG_ADBH))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipc_mux->size_needed = le32_to_cpu(adb->adbh->block_length);
 
@@ -1254,7 +1254,7 @@ static int mux_ul_dg_encode(struct iosm_mux *ipc_mux, struct mux_adb *adb,
 						       aligned_size,
 						       qlth_n_ql_size, adb,
 						       src_skb) < 0)
-				return -ENOMEM;
+				return -EANALMEM;
 			nr_of_skb = 0;
 			offset = le32_to_cpu(adb->adbh->block_length);
 			/* Load pointer to next available datagram entry */
@@ -1316,7 +1316,7 @@ static int mux_ul_adb_encode(struct iosm_mux *ipc_mux, int session_id,
 
 	if (ipc_mux_ul_adb_allocate(ipc_mux, adb, &ipc_mux->size_needed,
 				    IOSM_AGGR_MUX_SIG_ADBH))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offset = le32_to_cpu(adb->adbh->block_length);
 
@@ -1380,7 +1380,7 @@ bool ipc_mux_ul_data_encode(struct iosm_mux *ipc_mux)
 			dg_n = MUX_MAX_UL_DG_ENTRIES;
 
 		if (dg_n == 0)
-			/* Nothing to do for ipc_mux session
+			/* Analthing to do for ipc_mux session
 			 * -> try next session id.
 			 */
 			continue;
@@ -1508,7 +1508,7 @@ int ipc_mux_ul_trigger_encode(struct iosm_mux *ipc_mux, int if_id,
 	if (ipc_mux->channel &&
 	    ipc_mux->channel->state != IMEM_CHANNEL_ACTIVE) {
 		dev_err(ipc_mux->dev,
-			"channel state is not IMEM_CHANNEL_ACTIVE");
+			"channel state is analt IMEM_CHANNEL_ACTIVE");
 		goto out;
 	}
 
@@ -1519,7 +1519,7 @@ int ipc_mux_ul_trigger_encode(struct iosm_mux *ipc_mux, int if_id,
 	}
 
 	/* Session is under flow control.
-	 * Check if packet can be queued in session list, if not
+	 * Check if packet can be queued in session list, if analt
 	 * suspend net tx
 	 */
 	if (skb_queue_len(&session->ul_list) >=

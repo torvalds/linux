@@ -7,9 +7,9 @@
  * the Free Software Foundation; version 2 of the License.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -58,7 +58,7 @@
 #include "enic_pp.h"
 #include "enic_clsf.h"
 
-#define ENIC_NOTIFY_TIMER_PERIOD	(2 * HZ)
+#define ENIC_ANALTIFY_TIMER_PERIOD	(2 * HZ)
 #define WQ_ENET_MAX_DESC_LEN		(1 << WQ_ENET_LEN_BITS)
 #define MAX_TSO				(1 << 16)
 #define ENIC_DESC_MAX_SPLITS		(MAX_TSO / WQ_ENET_MAX_DESC_LEN + 1)
@@ -113,17 +113,17 @@ static struct enic_intr_mod_range mod_range[ENIC_MAX_LINK_SPEEDS] = {
 
 static void enic_init_affinity_hint(struct enic *enic)
 {
-	int numa_node = dev_to_node(&enic->pdev->dev);
+	int numa_analde = dev_to_analde(&enic->pdev->dev);
 	int i;
 
 	for (i = 0; i < enic->intr_count; i++) {
-		if (enic_is_err_intr(enic, i) || enic_is_notify_intr(enic, i) ||
+		if (enic_is_err_intr(enic, i) || enic_is_analtify_intr(enic, i) ||
 		    (cpumask_available(enic->msix[i].affinity_mask) &&
 		     !cpumask_empty(enic->msix[i].affinity_mask)))
 			continue;
 		if (zalloc_cpumask_var(&enic->msix[i].affinity_mask,
 				       GFP_KERNEL))
-			cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+			cpumask_set_cpu(cpumask_local_spread(i, numa_analde),
 					enic->msix[i].affinity_mask);
 	}
 }
@@ -133,7 +133,7 @@ static void enic_free_affinity_hint(struct enic *enic)
 	int i;
 
 	for (i = 0; i < enic->intr_count; i++) {
-		if (enic_is_err_intr(enic, i) || enic_is_notify_intr(enic, i))
+		if (enic_is_err_intr(enic, i) || enic_is_analtify_intr(enic, i))
 			continue;
 		free_cpumask_var(enic->msix[i].affinity_mask);
 	}
@@ -146,7 +146,7 @@ static void enic_set_affinity_hint(struct enic *enic)
 
 	for (i = 0; i < enic->intr_count; i++) {
 		if (enic_is_err_intr(enic, i)		||
-		    enic_is_notify_intr(enic, i)	||
+		    enic_is_analtify_intr(enic, i)	||
 		    !cpumask_available(enic->msix[i].affinity_mask) ||
 		    cpumask_empty(enic->msix[i].affinity_mask))
 			continue;
@@ -435,7 +435,7 @@ static void enic_link_check(struct enic *enic)
 	}
 }
 
-static void enic_notify_check(struct enic *enic)
+static void enic_analtify_check(struct enic *enic)
 {
 	enic_msglvl_check(enic);
 	enic_mtu_check(enic);
@@ -450,7 +450,7 @@ static irqreturn_t enic_isr_legacy(int irq, void *data)
 	struct enic *enic = netdev_priv(netdev);
 	unsigned int io_intr = ENIC_LEGACY_IO_INTR;
 	unsigned int err_intr = ENIC_LEGACY_ERR_INTR;
-	unsigned int notify_intr = ENIC_LEGACY_NOTIFY_INTR;
+	unsigned int analtify_intr = ENIC_LEGACY_ANALTIFY_INTR;
 	u32 pba;
 
 	vnic_intr_mask(&enic->intr[io_intr]);
@@ -458,12 +458,12 @@ static irqreturn_t enic_isr_legacy(int irq, void *data)
 	pba = vnic_intr_legacy_pba(enic->legacy_pba);
 	if (!pba) {
 		vnic_intr_unmask(&enic->intr[io_intr]);
-		return IRQ_NONE;	/* not our interrupt */
+		return IRQ_ANALNE;	/* analt our interrupt */
 	}
 
-	if (ENIC_TEST_INTR(pba, notify_intr)) {
-		enic_notify_check(enic);
-		vnic_intr_return_all_credits(&enic->intr[notify_intr]);
+	if (ENIC_TEST_INTR(pba, analtify_intr)) {
+		enic_analtify_check(enic);
+		vnic_intr_return_all_credits(&enic->intr[analtify_intr]);
 	}
 
 	if (ENIC_TEST_INTR(pba, err_intr)) {
@@ -486,9 +486,9 @@ static irqreturn_t enic_isr_msi(int irq, void *data)
 {
 	struct enic *enic = data;
 
-	/* With MSI, there is no sharing of interrupts, so this is
-	 * our interrupt and there is no need to ack it.  The device
-	 * is not providing per-vector masking, so the OS will not
+	/* With MSI, there is anal sharing of interrupts, so this is
+	 * our interrupt and there is anal need to ack it.  The device
+	 * is analt providing per-vector masking, so the OS will analt
 	 * write to PCI config space to mask/unmask the interrupt.
 	 * We're using mask_on_assertion for MSI, so the device
 	 * automatically masks the interrupt when the interrupt is
@@ -496,7 +496,7 @@ static irqreturn_t enic_isr_msi(int irq, void *data)
 	 * will be unmasked (see enic_poll).
 	 *
 	 * Also, the device uses the same PCIe Traffic Class (TC)
-	 * for Memory Write data and MSI, so there are no ordering
+	 * for Memory Write data and MSI, so there are anal ordering
 	 * issues; the MSI will always arrive at the Root Complex
 	 * _after_ corresponding Memory Writes (i.e. descriptor
 	 * writes).
@@ -530,12 +530,12 @@ static irqreturn_t enic_isr_msix_err(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t enic_isr_msix_notify(int irq, void *data)
+static irqreturn_t enic_isr_msix_analtify(int irq, void *data)
 {
 	struct enic *enic = data;
-	unsigned int intr = enic_msix_notify_intr(enic);
+	unsigned int intr = enic_msix_analtify_intr(enic);
 
-	enic_notify_check(enic);
+	enic_analtify_check(enic);
 	vnic_intr_return_all_credits(&enic->intr[intr]);
 
 	return IRQ_HANDLED;
@@ -555,7 +555,7 @@ static int enic_queue_wq_skb_cont(struct enic *enic, struct vnic_wq *wq,
 					    skb_frag_size(frag),
 					    DMA_TO_DEVICE);
 		if (unlikely(enic_dma_map_check(enic, dma_addr)))
-			return -ENOMEM;
+			return -EANALMEM;
 		enic_queue_wq_desc_cont(wq, skb, dma_addr, skb_frag_size(frag),
 					(len_left == 0),	/* EOP? */
 					loopback);
@@ -577,9 +577,9 @@ static int enic_queue_wq_skb_vlan(struct enic *enic, struct vnic_wq *wq,
 	dma_addr = dma_map_single(&enic->pdev->dev, skb->data, head_len,
 				  DMA_TO_DEVICE);
 	if (unlikely(enic_dma_map_check(enic, dma_addr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Queue the main skb fragment. The fragments are no larger
+	/* Queue the main skb fragment. The fragments are anal larger
 	 * than max MTU(9000)+ETH_HDR_LEN(14) bytes, which is less
 	 * than WQ_ENET_MAX_DESC_LEN length. So only one descriptor
 	 * per fragment is queued.
@@ -608,9 +608,9 @@ static int enic_queue_wq_skb_csum_l4(struct enic *enic, struct vnic_wq *wq,
 	dma_addr = dma_map_single(&enic->pdev->dev, skb->data, head_len,
 				  DMA_TO_DEVICE);
 	if (unlikely(enic_dma_map_check(enic, dma_addr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Queue the main skb fragment. The fragments are no larger
+	/* Queue the main skb fragment. The fragments are anal larger
 	 * than max MTU(9000)+ETH_HDR_LEN(14) bytes, which is less
 	 * than WQ_ENET_MAX_DESC_LEN length. So only one descriptor
 	 * per fragment is queued.
@@ -644,7 +644,7 @@ static void enic_preload_tcp_csum_encap(struct sk_buff *skb)
 					 IPPROTO_TCP, 0);
 		break;
 	default:
-		WARN_ONCE(1, "Non ipv4/ipv6 inner pkt for encap offload");
+		WARN_ONCE(1, "Analn ipv4/ipv6 inner pkt for encap offload");
 		break;
 	}
 }
@@ -696,7 +696,7 @@ static int enic_queue_wq_skb_tso(struct enic *enic, struct vnic_wq *wq,
 					  skb->data + offset, len,
 					  DMA_TO_DEVICE);
 		if (unlikely(enic_dma_map_check(enic, dma_addr)))
-			return -ENOMEM;
+			return -EANALMEM;
 		enic_queue_wq_desc_tso(wq, skb, dma_addr, len, mss, hdr_len,
 				       vlan_tag_insert, vlan_tag,
 				       eop && (len == frag_len_left), loopback);
@@ -722,7 +722,7 @@ static int enic_queue_wq_skb_tso(struct enic *enic, struct vnic_wq *wq,
 						    offset, len,
 						    DMA_TO_DEVICE);
 			if (unlikely(enic_dma_map_check(enic, dma_addr)))
-				return -ENOMEM;
+				return -EANALMEM;
 			enic_queue_wq_desc_cont(wq, skb, dma_addr, len,
 						(len_left == 0) &&
 						 (len == frag_len_left),/*EOP*/
@@ -743,7 +743,7 @@ static inline int enic_queue_wq_skb_encap(struct enic *enic, struct vnic_wq *wq,
 	unsigned int head_len = skb_headlen(skb);
 	unsigned int len_left = skb->len - head_len;
 	/* Hardware will overwrite the checksum fields, calculating from
-	 * scratch and ignoring the value placed by software.
+	 * scratch and iganalring the value placed by software.
 	 * Offload mode = 00
 	 * mss[2], mss[1], mss[0] bits are set
 	 */
@@ -755,7 +755,7 @@ static inline int enic_queue_wq_skb_encap(struct enic *enic, struct vnic_wq *wq,
 	dma_addr = dma_map_single(&enic->pdev->dev, skb->data, head_len,
 				  DMA_TO_DEVICE);
 	if (unlikely(enic_dma_map_check(enic, dma_addr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	enic_queue_wq_desc_ex(wq, skb, dma_addr, head_len, mss_or_csum, 0,
 			      vlan_tag_insert, vlan_tag,
@@ -802,8 +802,8 @@ static inline int enic_queue_wq_skb(struct enic *enic,
 		struct vnic_wq_buf *buf;
 
 		buf = wq->to_use->prev;
-		/* while not EOP of previous pkt && queue not empty.
-		 * For all non EOP bufs, os_buf is NULL.
+		/* while analt EOP of previous pkt && queue analt empty.
+		 * For all analn EOP bufs, os_buf is NULL.
 		 */
 		while (!buf->os_buf && (buf->next != wq->to_clean)) {
 			enic_free_wq_buf(wq, buf);
@@ -834,13 +834,13 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 	wq = &enic->wq[txq_map];
 	txq = netdev_get_tx_queue(netdev, txq_map);
 
-	/* Non-TSO sends must fit within ENIC_NON_TSO_MAX_DESC descs,
+	/* Analn-TSO sends must fit within ENIC_ANALN_TSO_MAX_DESC descs,
 	 * which is very likely.  In the off chance it's going to take
-	 * more than * ENIC_NON_TSO_MAX_DESC, linearize the skb.
+	 * more than * ENIC_ANALN_TSO_MAX_DESC, linearize the skb.
 	 */
 
 	if (skb_shinfo(skb)->gso_size == 0 &&
-	    skb_shinfo(skb)->nr_frags + 1 > ENIC_NON_TSO_MAX_DESC &&
+	    skb_shinfo(skb)->nr_frags + 1 > ENIC_ANALN_TSO_MAX_DESC &&
 	    skb_linearize(skb)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -872,7 +872,7 @@ error:
 	return NETDEV_TX_OK;
 }
 
-/* dev_base_lock rwlock held, nominally process context */
+/* dev_base_lock rwlock held, analminally process context */
 static void enic_get_stats(struct net_device *netdev,
 			   struct rtnl_link_stats64 *net_stats)
 {
@@ -885,7 +885,7 @@ static void enic_get_stats(struct net_device *netdev,
 	 * For other failures, like devcmd failure, we return previously
 	 * recorded stats.
 	 */
-	if (err == -ENOMEM)
+	if (err == -EANALMEM)
 		return;
 
 	net_stats->tx_packets = stats->tx.tx_frames_ok;
@@ -899,7 +899,7 @@ static void enic_get_stats(struct net_device *netdev,
 	net_stats->multicast = stats->rx.rx_multicast_frames_ok;
 	net_stats->rx_over_errors = enic->rq_truncated_pkts;
 	net_stats->rx_crc_errors = enic->rq_bad_fcs;
-	net_stats->rx_dropped = stats->rx.rx_no_bufs + stats->rx.rx_drop;
+	net_stats->rx_dropped = stats->rx.rx_anal_bufs + stats->rx.rx_drop;
 }
 
 static int enic_mc_sync(struct net_device *netdev, const u8 *mc_addr)
@@ -912,7 +912,7 @@ static int enic_mc_sync(struct net_device *netdev, const u8 *mc_addr)
 		netdev_warn(netdev, "Registering only %d out of %d multicast addresses\n",
 			    ENIC_MULTICAST_PERFECT_FILTERS, mc_count);
 
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	enic_dev_add_addr(enic, mc_addr);
@@ -941,7 +941,7 @@ static int enic_uc_sync(struct net_device *netdev, const u8 *uc_addr)
 		netdev_warn(netdev, "Registering only %d out of %d unicast addresses\n",
 			    ENIC_UNICAST_PERFECT_FILTERS, uc_count);
 
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	enic_dev_add_addr(enic, uc_addr);
@@ -978,10 +978,10 @@ static int enic_set_mac_addr(struct net_device *netdev, char *addr)
 
 	if (enic_is_dynamic(enic) || enic_is_sriov_vf(enic)) {
 		if (!is_valid_ether_addr(addr) && !is_zero_ether_addr(addr))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	} else {
 		if (!is_valid_ether_addr(addr))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 
 	eth_hw_addr_set(netdev, addr);
@@ -1088,7 +1088,7 @@ static int enic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 			 */
 			ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic,
 				vnic_dev_set_mac_addr, mac);
-			return enic_dev_status_to_errno(err);
+			return enic_dev_status_to_erranal(err);
 		}
 	} else
 		return -EINVAL;
@@ -1108,7 +1108,7 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 		return err;
 
 	if (!port[IFLA_PORT_REQUEST])
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memcpy(&prev_pp, pp, sizeof(*enic->pp));
 	memset(pp, 0, sizeof(*enic->pp));
@@ -1148,7 +1148,7 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 		if (err) {
 			netdev_err(netdev, "Error getting mac for vf %d\n", vf);
 			memcpy(pp, &prev_pp, sizeof(*pp));
-			return enic_dev_status_to_errno(err);
+			return enic_dev_status_to_erranal(err);
 		}
 	}
 
@@ -1197,7 +1197,7 @@ static int enic_get_vf_port(struct net_device *netdev, int vf,
 		return err;
 
 	if (!(pp->set & ENIC_PORT_REQUEST_APPLIED))
-		return -ENODATA;
+		return -EANALDATA;
 
 	err = enic_process_get_pp_request(enic, vf, pp->request, &response);
 	if (err)
@@ -1250,13 +1250,13 @@ static int enic_rq_alloc_buf(struct vnic_rq *rq)
 	}
 	skb = netdev_alloc_skb_ip_align(netdev, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_addr = dma_map_single(&enic->pdev->dev, skb->data, len,
 				  DMA_FROM_DEVICE);
 	if (unlikely(enic_dma_map_check(enic, dma_addr))) {
 		dev_kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	enic_queue_rq_desc(rq, skb, os_buf_index,
@@ -1305,7 +1305,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 	u8 type, color, eop, sop, ingress_port, vlan_stripped;
 	u8 fcoe, fcoe_sof, fcoe_fc_crc_ok, fcoe_enc_error, fcoe_eof;
 	u8 tcp_udp_csum_ok, udp, tcp, ipv4_csum_ok;
-	u8 ipv6, ipv4, ipv4_fragment, fcs_ok, rss_type, csum_not_calc;
+	u8 ipv6, ipv4, ipv4_fragment, fcs_ok, rss_type, csum_analt_calc;
 	u8 packet_error;
 	u16 q_number, completed_index, bytes_written, vlan_tci, checksum;
 	u32 rss_hash;
@@ -1319,7 +1319,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 	cq_enet_rq_desc_dec((struct cq_enet_rq_desc *)cq_desc,
 		&type, &color, &q_number, &completed_index,
 		&ingress_port, &fcoe, &eop, &sop, &rss_type,
-		&csum_not_calc, &rss_hash, &bytes_written,
+		&csum_analt_calc, &rss_hash, &bytes_written,
 		&packet_error, &vlan_stripped, &vlan_tci, &checksum,
 		&fcoe_sof, &fcoe_fc_crc_ok, &fcoe_enc_error,
 		&fcoe_eof, &tcp_udp_csum_ok, &udp, &tcp,
@@ -1392,16 +1392,16 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 			}
 		}
 
-		/* Hardware does not provide whole packet checksum. It only
+		/* Hardware does analt provide whole packet checksum. It only
 		 * provides pseudo checksum. Since hw validates the packet
-		 * checksum but not provide us the checksum value. use
+		 * checksum but analt provide us the checksum value. use
 		 * CHECSUM_UNNECESSARY.
 		 *
 		 * In case of encap pkt tcp_udp_csum_ok/tcp_udp_csum_ok is
 		 * inner csum_ok. outer_csum_ok is set by hw when outer udp
 		 * csum is correct or is zero.
 		 */
-		if ((netdev->features & NETIF_F_RXCSUM) && !csum_not_calc &&
+		if ((netdev->features & NETIF_F_RXCSUM) && !csum_analt_calc &&
 		    tcp_udp_csum_ok && outer_csum_ok &&
 		    (ipv4_csum_ok || ipv6)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1465,12 +1465,12 @@ static void enic_calc_int_moderation(struct enic *enic, struct vnic_rq *rq)
 	u32 range_start;
 	u32 traffic;
 	u64 delta;
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 
-	delta = ktime_us_delta(now, cq->prev_ts);
+	delta = ktime_us_delta(analw, cq->prev_ts);
 	if (delta < ENIC_AIC_TS_BREAK)
 		return;
-	cq->prev_ts = now;
+	cq->prev_ts = analw;
 
 	traffic = pkt_size_counter->large_pkt_bytes_cnt +
 		  pkt_size_counter->small_pkt_bytes_cnt;
@@ -1549,7 +1549,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 
 	if ((rq_work_done < budget) && napi_complete_done(napi, rq_work_done)) {
 
-		/* Some work done, but not enough to stay in polling,
+		/* Some work done, but analt eanalugh to stay in polling,
 		 * exit polling
 		 */
 
@@ -1674,7 +1674,7 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 
 	if ((work_done < budget) && napi_complete_done(napi, work_done)) {
 
-		/* Some work done, but not enough to stay in polling,
+		/* Some work done, but analt eanalugh to stay in polling,
 		 * exit polling
 		 */
 
@@ -1686,14 +1686,14 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void enic_notify_timer(struct timer_list *t)
+static void enic_analtify_timer(struct timer_list *t)
 {
-	struct enic *enic = from_timer(enic, t, notify_timer);
+	struct enic *enic = from_timer(enic, t, analtify_timer);
 
-	enic_notify_check(enic);
+	enic_analtify_check(enic);
 
-	mod_timer(&enic->notify_timer,
-		round_jiffies(jiffies + ENIC_NOTIFY_TIMER_PERIOD));
+	mod_timer(&enic->analtify_timer,
+		round_jiffies(jiffies + ENIC_ANALTIFY_TIMER_PERIOD));
 }
 
 static void enic_free_intr(struct enic *enic)
@@ -1770,11 +1770,11 @@ static int enic_request_intr(struct enic *enic)
 		enic->msix[intr].isr = enic_isr_msix_err;
 		enic->msix[intr].devid = enic;
 
-		intr = enic_msix_notify_intr(enic);
+		intr = enic_msix_analtify_intr(enic);
 		snprintf(enic->msix[intr].devname,
 			sizeof(enic->msix[intr].devname),
-			"%s-notify", netdev->name);
-		enic->msix[intr].isr = enic_isr_msix_notify;
+			"%s-analtify", netdev->name);
+		enic->msix[intr].isr = enic_isr_msix_analtify;
 		enic->msix[intr].devid = enic;
 
 		for (i = 0; i < ARRAY_SIZE(enic->msix); i++)
@@ -1849,21 +1849,21 @@ static void enic_set_rx_coal_setting(struct enic *enic)
 	rx_coal->use_adaptive_rx_coalesce = 1;
 }
 
-static int enic_dev_notify_set(struct enic *enic)
+static int enic_dev_analtify_set(struct enic *enic)
 {
 	int err;
 
 	spin_lock_bh(&enic->devcmd_lock);
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
-		err = vnic_dev_notify_set(enic->vdev, ENIC_LEGACY_NOTIFY_INTR);
+		err = vnic_dev_analtify_set(enic->vdev, ENIC_LEGACY_ANALTIFY_INTR);
 		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
-		err = vnic_dev_notify_set(enic->vdev,
-			enic_msix_notify_intr(enic));
+		err = vnic_dev_analtify_set(enic->vdev,
+			enic_msix_analtify_intr(enic));
 		break;
 	default:
-		err = vnic_dev_notify_set(enic->vdev, -1 /* no intr */);
+		err = vnic_dev_analtify_set(enic->vdev, -1 /* anal intr */);
 		break;
 	}
 	spin_unlock_bh(&enic->devcmd_lock);
@@ -1871,14 +1871,14 @@ static int enic_dev_notify_set(struct enic *enic)
 	return err;
 }
 
-static void enic_notify_timer_start(struct enic *enic)
+static void enic_analtify_timer_start(struct enic *enic)
 {
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_MSI:
-		mod_timer(&enic->notify_timer, jiffies);
+		mod_timer(&enic->analtify_timer, jiffies);
 		break;
 	default:
-		/* Using intr for notification for INTx/MSI-X */
+		/* Using intr for analtification for INTx/MSI-X */
 		break;
 	}
 }
@@ -1898,10 +1898,10 @@ static int enic_open(struct net_device *netdev)
 	enic_init_affinity_hint(enic);
 	enic_set_affinity_hint(enic);
 
-	err = enic_dev_notify_set(enic);
+	err = enic_dev_analtify_set(enic);
 	if (err) {
 		netdev_err(netdev,
-			"Failed to alloc notify buffer, aborting.\n");
+			"Failed to alloc analtify buffer, aborting.\n");
 		goto err_out_free_intr;
 	}
 
@@ -1912,7 +1912,7 @@ static int enic_open(struct net_device *netdev)
 		/* Need at least one buffer on ring to get going */
 		if (vnic_rq_desc_used(&enic->rq[i]) == 0) {
 			netdev_err(netdev, "Unable to alloc receive buffers\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out_free_rq;
 		}
 	}
@@ -1938,7 +1938,7 @@ static int enic_open(struct net_device *netdev)
 	for (i = 0; i < enic->intr_count; i++)
 		vnic_intr_unmask(&enic->intr[i]);
 
-	enic_notify_timer_start(enic);
+	enic_analtify_timer_start(enic);
 	enic_rfs_timer_start(enic);
 
 	return 0;
@@ -1949,7 +1949,7 @@ err_out_free_rq:
 		if (!ret)
 			vnic_rq_clean(&enic->rq[i], enic_free_rq_buf);
 	}
-	enic_dev_notify_unset(enic);
+	enic_dev_analtify_unset(enic);
 err_out_free_intr:
 	enic_unset_affinity_hint(enic);
 	enic_free_intr(enic);
@@ -1971,7 +1971,7 @@ static int enic_stop(struct net_device *netdev)
 
 	enic_synchronize_irqs(enic);
 
-	del_timer_sync(&enic->notify_timer);
+	del_timer_sync(&enic->analtify_timer);
 	enic_rfs_flw_tbl_free(enic);
 
 	enic_dev_disable(enic);
@@ -1999,7 +1999,7 @@ static int enic_stop(struct net_device *netdev)
 			return err;
 	}
 
-	enic_dev_notify_unset(enic);
+	enic_dev_analtify_unset(enic);
 	enic_unset_affinity_hint(enic);
 	enic_free_intr(enic);
 
@@ -2043,7 +2043,7 @@ static int enic_change_mtu(struct net_device *netdev, int new_mtu)
 	struct enic *enic = netdev_priv(netdev);
 
 	if (enic_is_dynamic(enic) || enic_is_sriov_vf(enic))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (netdev->mtu > enic->port_mtu)
 		netdev_warn(netdev,
@@ -2183,7 +2183,7 @@ int __enic_set_rsskey(struct enic *enic)
 					    sizeof(union vnic_rss_key),
 					    &rss_key_buf_pa, GFP_ATOMIC);
 	if (!rss_key_buf_va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ENIC_RSS_LEN; i++) {
 		kidx = i / ENIC_RSS_BYTES_PER_KEY;
@@ -2220,7 +2220,7 @@ static int enic_set_rsscpu(struct enic *enic, u8 rss_hash_bits)
 					    sizeof(union vnic_rss_cpu),
 					    &rss_cpu_buf_pa, GFP_ATOMIC);
 	if (!rss_cpu_buf_va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < (1 << rss_hash_bits); i++)
 		(*rss_cpu_buf_va).cpu[i/4].b[i%4] = i % enic->rq_count;
@@ -2327,7 +2327,7 @@ static void enic_reset(struct work_struct *work)
 	/* Allow infiniband to fiddle with the device again */
 	enic_set_api_busy(enic, false);
 
-	call_netdevice_notifiers(NETDEV_REBOOT, enic->netdev);
+	call_netdevice_analtifiers(NETDEV_REBOOT, enic->netdev);
 
 	rtnl_unlock();
 }
@@ -2341,7 +2341,7 @@ static void enic_tx_hang_reset(struct work_struct *work)
 	/* Stop any activity from infiniband */
 	enic_set_api_busy(enic, true);
 
-	enic_dev_hang_notify(enic);
+	enic_dev_hang_analtify(enic);
 	enic_stop(enic->netdev);
 	enic_dev_hang_reset(enic);
 	enic_reset_addr_lists(enic);
@@ -2353,7 +2353,7 @@ static void enic_tx_hang_reset(struct work_struct *work)
 	/* Allow infiniband to fiddle with the device again */
 	enic_set_api_busy(enic, false);
 
-	call_netdevice_notifiers(NETDEV_REBOOT, enic->netdev);
+	call_netdevice_analtifiers(NETDEV_REBOOT, enic->netdev);
 
 	rtnl_unlock();
 }
@@ -2371,7 +2371,7 @@ static int enic_set_intr_mode(struct enic *enic)
 	 *
 	 * We need n RQs, m WQs, n+m CQs, and n+m+2 INTRs
 	 * (the second to last INTR is used for WQ/RQ errors)
-	 * (the last INTR is used for notifications)
+	 * (the last INTR is used for analtifications)
 	 */
 
 	BUG_ON(ARRAY_SIZE(enic->msix_entry) < n + m + 2);
@@ -2450,7 +2450,7 @@ static int enic_set_intr_mode(struct enic *enic)
 	 * We need 1 RQ, 1 WQ, 2 CQs, and 3 INTRs
 	 * (the first INTR is used for WQ/RQ)
 	 * (the second INTR is used for WQ/RQ errors)
-	 * (the last INTR is used for notifications)
+	 * (the last INTR is used for analtifications)
 	 */
 
 	if (enic->config.intr_mode < 3 &&
@@ -2469,7 +2469,7 @@ static int enic_set_intr_mode(struct enic *enic)
 		return 0;
 	}
 
-	vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_UNKNOWN);
+	vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_UNKANALWN);
 
 	return -EINVAL;
 }
@@ -2487,7 +2487,7 @@ static void enic_clear_intr_mode(struct enic *enic)
 		break;
 	}
 
-	vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_UNKNOWN);
+	vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_UNKANALWN);
 }
 
 static const struct net_device_ops enic_netdev_dynamic_ops = {
@@ -2685,7 +2685,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev = alloc_etherdev_mqs(sizeof(struct enic),
 				    ENIC_RQ_MAX, ENIC_WQ_MAX);
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, netdev);
 
@@ -2700,13 +2700,13 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(dev, "Cannot enable PCI device, aborting\n");
+		dev_err(dev, "Cananalt enable PCI device, aborting\n");
 		goto err_out_free_netdev;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		dev_err(dev, "Cannot request PCI regions, aborting\n");
+		dev_err(dev, "Cananalt request PCI regions, aborting\n");
 		goto err_out_disable_device;
 	}
 
@@ -2721,7 +2721,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_err(dev, "No usable DMA configuration, aborting\n");
+			dev_err(dev, "Anal usable DMA configuration, aborting\n");
 			goto err_out_release_regions;
 		}
 	} else {
@@ -2737,8 +2737,8 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		enic->bar[i].len = pci_resource_len(pdev, i);
 		enic->bar[i].vaddr = pci_iomap(pdev, i, enic->bar[i].len);
 		if (!enic->bar[i].vaddr) {
-			dev_err(dev, "Cannot memory-map BAR %d, aborting\n", i);
-			err = -ENODEV;
+			dev_err(dev, "Cananalt memory-map BAR %d, aborting\n", i);
+			err = -EANALDEV;
 			goto err_out_iounmap;
 		}
 		enic->bar[i].bus_addr = pci_resource_start(pdev, i);
@@ -2751,7 +2751,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ARRAY_SIZE(enic->bar));
 	if (!enic->vdev) {
 		dev_err(dev, "vNIC registration failed, aborting\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_iounmap;
 	}
 
@@ -2783,11 +2783,11 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Allocate structure for port profiles */
 	enic->pp = kcalloc(num_pps, sizeof(*enic->pp), GFP_KERNEL);
 	if (!enic->pp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_disable_sriov_pp;
 	}
 
-	/* Issue device open to get device in known state
+	/* Issue device open to get device in kanalwn state
 	 */
 
 	err = enic_dev_open(enic);
@@ -2815,15 +2815,15 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Issue device init to initialize the vnic-to-switch link.
 	 * We'll start with carrier off and wait for link UP
-	 * notification later to turn on carrier.  We don't need
+	 * analtification later to turn on carrier.  We don't need
 	 * to wait here for the vnic-to-switch link initialization
-	 * to complete; link UP notification is the indication that
+	 * to complete; link UP analtification is the indication that
 	 * the process is complete.
 	 */
 
 	netif_carrier_off(netdev);
 
-	/* Do not call dev_init for a dynamic vnic.
+	/* Do analt call dev_init for a dynamic vnic.
 	 * For a dynamic vnic, init_prov_info will be
 	 * called later by an upper layer.
 	 */
@@ -2845,10 +2845,10 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netif_set_real_num_tx_queues(netdev, enic->wq_count);
 	netif_set_real_num_rx_queues(netdev, enic->rq_count);
 
-	/* Setup notification timer, HW reset task, and wq locks
+	/* Setup analtification timer, HW reset task, and wq locks
 	 */
 
-	timer_setup(&enic->notify_timer, enic_notify_timer, 0);
+	timer_setup(&enic->analtify_timer, enic_analtify_timer, 0);
 
 	enic_rfs_flw_tbl_init(enic);
 	enic_set_rx_coal_setting(enic);
@@ -2963,7 +2963,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = register_netdev(netdev);
 	if (err) {
-		dev_err(dev, "Cannot register net device, aborting\n");
+		dev_err(dev, "Cananalt register net device, aborting\n");
 		goto err_out_dev_deinit;
 	}
 	enic->rx_copybreak = RX_COPYBREAK_DEFAULT;

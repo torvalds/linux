@@ -73,7 +73,7 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 	if (has_vhe() || has_hvhe())
 		vcpu->arch.hcr_el2 |= HCR_E2H;
 	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN)) {
-		/* route synchronous external abort exceptions to EL2 */
+		/* route synchroanalus external abort exceptions to EL2 */
 		vcpu->arch.hcr_el2 |= HCR_TEA;
 		/* trap error record accesses */
 		vcpu->arch.hcr_el2 |= HCR_TERR;
@@ -83,7 +83,7 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 		vcpu->arch.hcr_el2 |= HCR_FWB;
 	} else {
 		/*
-		 * For non-FWB CPUs, we trap VM ops (HCR_EL2.TVM) until M+C
+		 * For analn-FWB CPUs, we trap VM ops (HCR_EL2.TVM) until M+C
 		 * get set in SCTLR_EL1 such that we can detect when the guest
 		 * MMU gets turned on and do the necessary cache maintenance
 		 * then.
@@ -234,7 +234,7 @@ static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
 	 * E2H and TGE bits are set. The latter means we are in the user space
 	 * of the VHE kernel. ARMv8.1 ARM describes this as 'InHost'
 	 *
-	 * Note that the HCR_EL2.{E2H,TGE}={0,1} isn't really handled in the
+	 * Analte that the HCR_EL2.{E2H,TGE}={0,1} isn't really handled in the
 	 * rest of the KVM code, and will result in a misbehaving guest.
 	 */
 	return vcpu_is_el2_ctxt(ctxt) ||
@@ -260,7 +260,7 @@ static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
  *
  * Which show the following differences:
  *
- * | Bit | AA64 | AA32 | Notes                       |
+ * | Bit | AA64 | AA32 | Analtes                       |
  * +-----+------+------+-----------------------------|
  * | 24  | DIT  | J    | J is RES0 in ARMv8          |
  * | 21  | SS   | DIT  | SS doesn't exist in AArch32 |
@@ -374,7 +374,7 @@ static __always_inline unsigned int kvm_vcpu_dabt_get_as(const struct kvm_vcpu *
 	return 1 << ((kvm_vcpu_get_esr(vcpu) & ESR_ELx_SAS) >> ESR_ELx_SAS_SHIFT);
 }
 
-/* This one is not specific to Data Abort */
+/* This one is analt specific to Data Abort */
 static __always_inline bool kvm_vcpu_trap_il_is32bit(const struct kvm_vcpu *vcpu)
 {
 	return !!(kvm_vcpu_get_esr(vcpu) & ESR_ELx_IL);

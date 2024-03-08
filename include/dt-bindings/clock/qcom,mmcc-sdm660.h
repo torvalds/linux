@@ -125,8 +125,8 @@
 #define MDSS_VSYNC_CLK						116
 #define MISC_AHB_CLK						117
 #define MISC_CXO_CLK						118
-#define MNOC_AHB_CLK						119
-#define SNOC_DVM_AXI_CLK					120
+#define MANALC_AHB_CLK						119
+#define SANALC_DVM_AXI_CLK					120
 #define THROTTLE_CAMSS_AHB_CLK				121
 #define THROTTLE_CAMSS_AXI_CLK				122
 #define THROTTLE_MDSS_AHB_CLK				123

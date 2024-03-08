@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
  * Copyright (C) 1995, 1996, 2001 Ralf Baechle
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 #ifndef __ASM_IOCTLS_H
 #define __ASM_IOCTLS_H
@@ -40,12 +40,12 @@
 #define	 TIOCPKT_FLUSHWRITE	0x02	/* flush packet */
 #define	 TIOCPKT_STOP		0x04	/* stop output */
 #define	 TIOCPKT_START		0x08	/* start output */
-#define	 TIOCPKT_NOSTOP		0x10	/* no more ^S, ^Q */
-#define	 TIOCPKT_DOSTOP		0x20	/* now do ^S ^Q */
+#define	 TIOCPKT_ANALSTOP		0x10	/* anal more ^S, ^Q */
+#define	 TIOCPKT_DOSTOP		0x20	/* analw do ^S ^Q */
 #define	 TIOCPKT_IOCTL		0x40	/* state change of pty driver */
 #define TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
 #define TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
-#define TIOCNOTTY	0x5471		/* void tty association */
+#define TIOCANALTTY	0x5471		/* void tty association */
 #define TIOCSETD	0x7401
 #define TIOCGETD	0x7400
 
@@ -86,7 +86,7 @@
 #define TIOCSRS485	_IOWR('T', 0x2F, struct serial_rs485)
 #define TIOCGPTN	_IOR('T', 0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T', 0x31, int)  /* Lock/unlock Pty */
-#define TIOCGDEV	_IOR('T', 0x32, unsigned int) /* Get primary device node of /dev/console */
+#define TIOCGDEV	_IOR('T', 0x32, unsigned int) /* Get primary device analde of /dev/console */
 #define TIOCSIG		_IOW('T', 0x36, int)  /* Generate signal on Pty slave */
 #define TIOCVHANGUP	0x5437
 #define TIOCGPKT	_IOR('T', 0x38, int) /* Get packet mode state */

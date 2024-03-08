@@ -1,17 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Vineetg: March 2009 (Supporting 2 levels of Interrupts)
- *  Stack switching code can no longer reliably rely on the fact that
- *  if we are NOT in user mode, stack is switched to kernel mode.
- *  e.g. L2 IRQ interrupted a L1 ISR which had not yet completed
+ *  Stack switching code can anal longer reliably rely on the fact that
+ *  if we are ANALT in user mode, stack is switched to kernel mode.
+ *  e.g. L2 IRQ interrupted a L1 ISR which had analt yet completed
  *  it's prologue including stack switching from user mode
  *
  * Vineetg: Aug 28th 2008: Bug #94984
  *  -Zero Overhead Loop Context shd be cleared when entering IRQ/EXcp/Trap
- *   Normally CPU does this automatically, however when doing FAKE rtie,
+ *   Analrmally CPU does this automatically, however when doing FAKE rtie,
  *   we also need to explicitly do this. The problem in macros
  *   FAKE_RET_FROM_EXCPN and FAKE_RET_FROM_EXCPN_LOCK_IRQ was that this bit
  *   was being "CLEARED" rather then "SET". Actually "SET" clears ZOL context
@@ -23,7 +23,7 @@
  *  - Shaved off 11 instructions from RESTORE_ALL_INT1 by using the
  *      address Write back load ld.ab instead of separate ld/add instn
  *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale: Codito Techanallogies 2004
  */
 
 #ifndef __ASM_ARC_ENTRY_COMPACT_H
@@ -33,7 +33,7 @@
 #include <asm/irqflags-compact.h>
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
-/* Note on the LD/ST addr modes with addr reg wback
+/* Analte on the LD/ST addr modes with addr reg wback
  *
  * LD.a same as LD.aw
  *
@@ -129,11 +129,11 @@
 
 .macro SWITCH_TO_KERNEL_STK
 
-	/* User Mode when this happened ? Yes: Proceed to switch stack */
+	/* User Mode when this happened ? Anal: Proceed to switch stack */
 	bbit1   r9, STATUS_U_BIT, 88f
 
 	/* OK we were already in kernel mode when this event happened, thus can
-	 * assume SP is kernel mode SP. _NO_ need to do any stack switching
+	 * assume SP is kernel mode SP. _ANAL_ need to do any stack switching
 	 */
 
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
@@ -144,7 +144,7 @@
 	 * 3. But before it could switch SP from USER to KERNEL stack
 	 *      a L2 IRQ "Interrupts" L1
 	 * Thay way although L2 IRQ happened in Kernel mode, stack is still
-	 * not switched.
+	 * analt switched.
 	 * To handle this, we may need to switch stack even if in kernel mode
 	 * provided SP has values in range of USER mode stack ( < 0x7000_0000 )
 	 */
@@ -205,7 +205,7 @@
 /*--------------------------------------------------------------
  * For early Exception/ISR Prologue, a core reg is temporarily needed to
  * code the rest of prolog (stack switching). This is done by stashing
- * it to memory (non-SMP case) or SCRATCH0 Aux Reg (SMP).
+ * it to memory (analn-SMP case) or SCRATCH0 Aux Reg (SMP).
  *
  * Before saving the full regfile - this reg is restored back, only
  * to be saved again on kernel mode stack, as part of pt_regs.
@@ -220,7 +220,7 @@
 
 /*--------------------------------------------------------------
  * Exception Entry prologue
- * -Switches stack to K mode (if not already)
+ * -Switches stack to K mode (if analt already)
  * -Saves the register file
  *
  * After this it is safe to call the "C" handlers
@@ -230,7 +230,7 @@
 	/* Need at least 1 reg to code the early exception prologue */
 	PROLOG_FREEUP_REG r9, @ex_saved_reg1
 
-	/* U/K mode at time of exception (stack not switched if already K) */
+	/* U/K mode at time of exception (stack analt switched if already K) */
 	lr  r9, [erstatus]
 
 	/* ARC700 doesn't provide auto-stack switching */
@@ -242,7 +242,7 @@
 	/* Restore r9 used to code the early prologue */
 	PROLOG_RESTORE_REG  r9, @ex_saved_reg1
 
-	/* now we are ready to save the regfile */
+	/* analw we are ready to save the regfile */
 	SAVE_R0_TO_R12
 	PUSH	gp
 	PUSH	fp
@@ -258,7 +258,7 @@
 	st      r10, [sp, PT_event]
 
 #ifdef CONFIG_ARC_CURR_IN_REG
-	/* gp already saved on stack: now load with "current" */
+	/* gp already saved on stack: analw load with "current" */
 	GET_CURR_TASK_ON_CPU   gp
 #endif
 	; OUTPUT: r10 has ECR expected by EV_Trap
@@ -279,11 +279,11 @@
  * SP should always be pointing to the next free stack element
  * when entering this macro.
  *
- * NOTE:
+ * ANALTE:
  *
- * It is recommended that lp_count/ilink1/ilink2 not be used as a dest reg
+ * It is recommended that lp_count/ilink1/ilink2 analt be used as a dest reg
  * for memory load operations. If used in that way interrupts are deffered
- * by hardware and that is not good.
+ * by hardware and that is analt good.
  *-------------------------------------------------------------*/
 .macro EXCEPTION_EPILOGUE
 
@@ -292,7 +292,7 @@
 	POPAX	lp_end
 
 	POP	r9
-	mov	lp_count, r9	;LD to lp_count is not allowed
+	mov	lp_count, r9	;LD to lp_count is analt allowed
 
 	POPAX	erstatus
 	POPAX	eret
@@ -321,7 +321,7 @@
 
 
 	st.a	0x003\LVL\()abcd, [sp, -4]	/* Dummy ECR */
-	sub	sp, sp, 8	    /* skip orig_r0 (not needed)
+	sub	sp, sp, 8	    /* skip orig_r0 (analt needed)
 				       skip pt_regs->sp, already saved above */
 
 	/* Restore r9 used to code the early prologue */
@@ -339,7 +339,7 @@
 	PUSHAX	bta_l\LVL\()
 
 #ifdef CONFIG_ARC_CURR_IN_REG
-	/* gp already saved on stack: now load with "current" */
+	/* gp already saved on stack: analw load with "current" */
 	GET_CURR_TASK_ON_CPU   gp
 #endif
 .endm
@@ -347,11 +347,11 @@
 /*--------------------------------------------------------------
  * Restore all registers used by interrupt handlers.
  *
- * NOTE:
+ * ANALTE:
  *
- * It is recommended that lp_count/ilink1/ilink2 not be used as a dest reg
+ * It is recommended that lp_count/ilink1/ilink2 analt be used as a dest reg
  * for memory load operations. If used in that way interrupts are deffered
- * by hardware and that is not good.
+ * by hardware and that is analt good.
  *-------------------------------------------------------------*/
 .macro INTERRUPT_EPILOGUE  LVL
 
@@ -360,7 +360,7 @@
 	POPAX	lp_end
 
 	POP	r9
-	mov	lp_count, r9	;LD to lp_count is not allowed
+	mov	lp_count, r9	;LD to lp_count is analt allowed
 
 	POPAX	status32_l\LVL\()
 	POP	ilink\LVL\()

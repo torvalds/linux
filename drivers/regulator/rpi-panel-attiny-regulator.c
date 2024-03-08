@@ -294,7 +294,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 
 	state = devm_kzalloc(&i2c->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&state->lock);
 	i2c_set_clientdata(i2c, state);
@@ -318,8 +318,8 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 	case 0xc3: /* ver 2 */
 		break;
 	default:
-		dev_err(&i2c->dev, "Unknown Atmel firmware revision: 0x%02x\n", data);
-		ret = -ENODEV;
+		dev_err(&i2c->dev, "Unkanalwn Atmel firmware revision: 0x%02x\n", data);
+		ret = -EANALDEV;
 		goto error;
 	}
 
@@ -329,7 +329,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 
 	config.dev = &i2c->dev;
 	config.regmap = regmap;
-	config.of_node = i2c->dev.of_node;
+	config.of_analde = i2c->dev.of_analde;
 	config.init_data = &attiny_regulator_default;
 	config.driver_data = state;
 
@@ -395,7 +395,7 @@ MODULE_DEVICE_TABLE(of, attiny_dt_ids);
 static struct i2c_driver attiny_regulator_driver = {
 	.driver = {
 		.name = "rpi_touchscreen_attiny",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = attiny_dt_ids,
 	},
 	.probe = attiny_i2c_probe,

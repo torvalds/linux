@@ -16,7 +16,7 @@
 
 /* iova structure */
 struct iova {
-	struct rb_node	node;
+	struct rb_analde	analde;
 	unsigned long	pfn_hi; /* Highest allocated pfn */
 	unsigned long	pfn_lo; /* Lowest allocated pfn */
 };
@@ -28,8 +28,8 @@ struct iova_rcache;
 struct iova_domain {
 	spinlock_t	iova_rbtree_lock; /* Lock to protect update of rbtree */
 	struct rb_root	rbroot;		/* iova domain rbtree root */
-	struct rb_node	*cached_node;	/* Save last alloced node */
-	struct rb_node	*cached32_node; /* Save last 32-bit alloced node */
+	struct rb_analde	*cached_analde;	/* Save last alloced analde */
+	struct rb_analde	*cached32_analde; /* Save last 32-bit alloced analde */
 	unsigned long	granule;	/* pfn granularity for this domain */
 	unsigned long	start_pfn;	/* Lower limit for this domain */
 	unsigned long	dma_32bit_pfn;
@@ -37,7 +37,7 @@ struct iova_domain {
 	struct iova	anchor;		/* rbtree lookup anchor */
 
 	struct iova_rcache	*rcaches;
-	struct hlist_node	cpuhp_dead;
+	struct hlist_analde	cpuhp_dead;
 };
 
 static inline unsigned long iova_size(struct iova *iova)
@@ -100,7 +100,7 @@ void put_iova_domain(struct iova_domain *iovad);
 #else
 static inline int iova_cache_get(void)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void iova_cache_put(void)

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -44,11 +44,11 @@ enum {
 	MTHCA_CMD_STAT_OK 	      = 0x00,
 	/* Internal error (such as a bus error) occurred while processing command: */
 	MTHCA_CMD_STAT_INTERNAL_ERR   = 0x01,
-	/* Operation/command not supported or opcode modifier not supported: */
+	/* Operation/command analt supported or opcode modifier analt supported: */
 	MTHCA_CMD_STAT_BAD_OP 	      = 0x02,
-	/* Parameter not supported or parameter out of range: */
+	/* Parameter analt supported or parameter out of range: */
 	MTHCA_CMD_STAT_BAD_PARAM      = 0x03,
-	/* System not enabled or bad system state: */
+	/* System analt enabled or bad system state: */
 	MTHCA_CMD_STAT_BAD_SYS_STATE  = 0x04,
 	/* Attempt to access reserved or unallocaterd resource: */
 	MTHCA_CMD_STAT_BAD_RESOURCE   = 0x05,
@@ -58,20 +58,20 @@ enum {
 	MTHCA_CMD_STAT_DDR_MEM_ERR    = 0x07,
 	/* Required capability exceeds device limits: */
 	MTHCA_CMD_STAT_EXCEED_LIM     = 0x08,
-	/* Resource is not in the appropriate state or ownership: */
+	/* Resource is analt in the appropriate state or ownership: */
 	MTHCA_CMD_STAT_BAD_RES_STATE  = 0x09,
 	/* Index out of range: */
 	MTHCA_CMD_STAT_BAD_INDEX      = 0x0a,
 	/* FW image corrupted: */
 	MTHCA_CMD_STAT_BAD_NVMEM      = 0x0b,
-	/* Attempt to modify a QP/EE which is not in the presumed state: */
+	/* Attempt to modify a QP/EE which is analt in the presumed state: */
 	MTHCA_CMD_STAT_BAD_QPEE_STATE = 0x10,
 	/* Bad segment parameters (Address/Size): */
 	MTHCA_CMD_STAT_BAD_SEG_PARAM  = 0x20,
 	/* Memory Region has Memory Windows bound to: */
 	MTHCA_CMD_STAT_REG_BOUND      = 0x21,
-	/* HCA local attached memory not present: */
-	MTHCA_CMD_STAT_LAM_NOT_PRE    = 0x22,
+	/* HCA local attached memory analt present: */
+	MTHCA_CMD_STAT_LAM_ANALT_PRE    = 0x22,
 	/* Bad management packet (silently discarded): */
 	MTHCA_CMD_STAT_BAD_PKT 	      = 0x30,
 	/* More outstanding CQEs in CQ than new CQ size: */
@@ -228,8 +228,8 @@ struct mthca_init_ib_param {
 	u16 pkey_cap;
 	int set_guid0;
 	u64 guid0;
-	int set_node_guid;
-	u64 node_guid;
+	int set_analde_guid;
+	u64 analde_guid;
 	int set_si_guid;
 	u64 si_guid;
 };
@@ -311,7 +311,7 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, enum ib_qp_state cur,
 int mthca_QUERY_QP(struct mthca_dev *dev, u32 num, int is_ee,
 		   struct mthca_mailbox *mailbox);
 int mthca_CONF_SPECIAL_QP(struct mthca_dev *dev, int type, u32 qpn);
-int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
+int mthca_MAD_IFC(struct mthca_dev *dev, int iganalre_mkey, int iganalre_bkey,
 		  int port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		  const void *in_mad, void *response_mad);
 int mthca_READ_MGM(struct mthca_dev *dev, int index,
@@ -320,6 +320,6 @@ int mthca_WRITE_MGM(struct mthca_dev *dev, int index,
 		    struct mthca_mailbox *mailbox);
 int mthca_MGID_HASH(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    u16 *hash);
-int mthca_NOP(struct mthca_dev *dev);
+int mthca_ANALP(struct mthca_dev *dev);
 
 #endif /* MTHCA_CMD_H */

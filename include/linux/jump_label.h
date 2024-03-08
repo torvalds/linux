@@ -10,8 +10,8 @@
  *
  * DEPRECATED API:
  *
- * The use of 'struct static_key' directly, is now DEPRECATED. In addition
- * static_key_{true,false}() is also DEPRECATED. IE DO NOT use the following:
+ * The use of 'struct static_key' directly, is analw DEPRECATED. In addition
+ * static_key_{true,false}() is also DEPRECATED. IE DO ANALT use the following:
  *
  * struct static_key false = STATIC_KEY_INIT_FALSE;
  * struct static_key true = STATIC_KEY_INIT_TRUE;
@@ -43,7 +43,7 @@
  * to true via a call to static_branch_enable(), or false using
  * static_branch_disable(). If the direction of the branch is switched by
  * these calls then we run-time modify the branch target via a
- * no-op -> jump or jump -> no-op conversion. For example, for an
+ * anal-op -> jump or jump -> anal-op conversion. For example, for an
  * initially false key that is used in an "if (static_branch_unlikely(&key))"
  * statement, setting the key to true requires us to patch in a jump
  * to the out-of-line of true branch.
@@ -57,7 +57,7 @@
  * must be considered absolute slow paths (machine wide synchronization etc.).
  * OTOH, since the affected branches are unconditional, their runtime overhead
  * will be absolutely minimal, esp. in the default (off) case where the total
- * effect is a single NOP of appropriate size. The on case will patch in a jump
+ * effect is a single ANALP of appropriate size. The on case will patch in a jump
  * to the out-of-line block.
  *
  * When the control is directly exposed to userspace, it is prudent to delay the
@@ -86,8 +86,8 @@ struct static_key {
 	atomic_t enabled;
 #ifdef CONFIG_JUMP_LABEL
 /*
- * Note:
- *   To make anonymous unions work with old compilers, the static
+ * Analte:
+ *   To make aanalnymous unions work with old compilers, the static
  *   initialization of them requires brackets. This creates a dependency
  *   on the order of the struct with the initializers. If any fields
  *   are added, STATIC_KEY_INIT_TRUE and STATIC_KEY_INIT_FALSE may need
@@ -176,8 +176,8 @@ static inline void jump_entry_set_init(struct jump_entry *entry, bool set)
 
 static inline int jump_entry_size(struct jump_entry *entry)
 {
-#ifdef JUMP_LABEL_NOP_SIZE
-	return JUMP_LABEL_NOP_SIZE;
+#ifdef JUMP_LABEL_ANALP_SIZE
+	return JUMP_LABEL_ANALP_SIZE;
 #else
 	return arch_jump_entry_size(entry);
 #endif
@@ -189,7 +189,7 @@ static inline int jump_entry_size(struct jump_entry *entry)
 #ifndef __ASSEMBLY__
 
 enum jump_label_type {
-	JUMP_LABEL_NOP = 0,
+	JUMP_LABEL_ANALP = 0,
 	JUMP_LABEL_JMP,
 };
 
@@ -225,7 +225,7 @@ extern bool arch_jump_label_transform_queue(struct jump_entry *entry,
 extern void arch_jump_label_transform_apply(void);
 extern int jump_label_text_reserved(void *start, void *end);
 extern bool static_key_slow_inc(struct static_key *key);
-extern bool static_key_fast_inc_not_disabled(struct static_key *key);
+extern bool static_key_fast_inc_analt_disabled(struct static_key *key);
 extern void static_key_slow_dec(struct static_key *key);
 extern bool static_key_slow_inc_cpuslocked(struct static_key *key);
 extern void static_key_slow_dec_cpuslocked(struct static_key *key);
@@ -267,19 +267,19 @@ static __always_inline void jump_label_init(void)
 
 static __always_inline bool static_key_false(struct static_key *key)
 {
-	if (unlikely_notrace(static_key_count(key) > 0))
+	if (unlikely_analtrace(static_key_count(key) > 0))
 		return true;
 	return false;
 }
 
 static __always_inline bool static_key_true(struct static_key *key)
 {
-	if (likely_notrace(static_key_count(key) > 0))
+	if (likely_analtrace(static_key_count(key) > 0))
 		return true;
 	return false;
 }
 
-static inline bool static_key_fast_inc_not_disabled(struct static_key *key)
+static inline bool static_key_fast_inc_analt_disabled(struct static_key *key)
 {
 	int v;
 
@@ -295,7 +295,7 @@ static inline bool static_key_fast_inc_not_disabled(struct static_key *key)
 	} while (!likely(atomic_try_cmpxchg(&key->enabled, &v, v + 1)));
 	return true;
 }
-#define static_key_slow_inc(key)	static_key_fast_inc_not_disabled(key)
+#define static_key_slow_inc(key)	static_key_fast_inc_analt_disabled(key)
 
 static inline void static_key_slow_dec(struct static_key *key)
 {
@@ -432,7 +432,7 @@ extern bool ____wrong_branch_error(void);
  * -----------+-----------------------+------------------
  *            |                       |
  *  true (1)  |	   ...		      |	   ...
- *            |    NOP		      |	   JMP L
+ *            |    ANALP		      |	   JMP L
  *            |    <br-stmts>	      |	1: ...
  *            |	L: ...		      |
  *            |			      |
@@ -442,7 +442,7 @@ extern bool ____wrong_branch_error(void);
  * -----------+-----------------------+------------------
  *            |                       |
  *  false (0) |	   ...		      |	   ...
- *            |    JMP L	      |	   NOP
+ *            |    JMP L	      |	   ANALP
  *            |    <br-stmts>	      |	1: ...
  *            |	L: ...		      |
  *            |			      |
@@ -461,15 +461,15 @@ extern bool ____wrong_branch_error(void);
  *
  *	enabled	type	branch	  instuction
  * -----------------------------+-----------
- *	0	0	0	| NOP
+ *	0	0	0	| ANALP
  *	0	0	1	| JMP
- *	0	1	0	| NOP
+ *	0	1	0	| ANALP
  *	0	1	1	| JMP
  *
  *	1	0	0	| JMP
- *	1	0	1	| NOP
+ *	1	0	1	| ANALP
  *	1	1	0	| JMP
- *	1	1	1	| NOP
+ *	1	1	1	| ANALP
  *
  * Which gives the following functions:
  *
@@ -488,7 +488,7 @@ extern bool ____wrong_branch_error(void);
 		branch = !arch_static_branch_jump(&(x)->key, true);		\
 	else									\
 		branch = ____wrong_branch_error();				\
-	likely_notrace(branch);								\
+	likely_analtrace(branch);								\
 })
 
 #define static_branch_unlikely(x)						\
@@ -500,13 +500,13 @@ extern bool ____wrong_branch_error(void);
 		branch = arch_static_branch(&(x)->key, false);			\
 	else									\
 		branch = ____wrong_branch_error();				\
-	unlikely_notrace(branch);							\
+	unlikely_analtrace(branch);							\
 })
 
 #else /* !CONFIG_JUMP_LABEL */
 
-#define static_branch_likely(x)		likely_notrace(static_key_enabled(&(x)->key))
-#define static_branch_unlikely(x)	unlikely_notrace(static_key_enabled(&(x)->key))
+#define static_branch_likely(x)		likely_analtrace(static_key_enabled(&(x)->key))
+#define static_branch_unlikely(x)	unlikely_analtrace(static_key_enabled(&(x)->key))
 
 #endif /* CONFIG_JUMP_LABEL */
 
@@ -524,7 +524,7 @@ extern bool ____wrong_branch_error(void);
 #define static_branch_dec_cpuslocked(x)	static_key_slow_dec_cpuslocked(&(x)->key)
 
 /*
- * Normal usage; boolean enable/disable.
+ * Analrmal usage; boolean enable/disable.
  */
 
 #define static_branch_enable(x)			static_key_enable(&(x)->key)

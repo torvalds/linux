@@ -10,12 +10,12 @@
 #include "clk-zynqmp.h"
 
 /*
- * DOC: basic adjustable multiplexer clock that cannot gate
+ * DOC: basic adjustable multiplexer clock that cananalt gate
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
  * enable - clk_enable only ensures that parents are enabled
- * rate - rate is only affected by parent switching.  No clk_set_rate support
+ * rate - rate is only affected by parent switching.  Anal clk_set_rate support
  * parent - parent is adjustable through clk_set_parent
  */
 
@@ -124,14 +124,14 @@ static inline unsigned long zynqmp_clk_map_mux_ccf_flags(
  * @clk_id:		Id of this clock
  * @parents:		Name of this clock's parents
  * @num_parents:	Number of parents
- * @nodes:		Clock topology node
+ * @analdes:		Clock topology analde
  *
  * Return: clock hardware of the registered clock mux
  */
 struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 				       const char * const *parents,
 				       u8 num_parents,
-				       const struct clock_topology *nodes)
+				       const struct clock_topology *analdes)
 {
 	struct zynqmp_clk_mux *mux;
 	struct clk_hw *hw;
@@ -140,19 +140,19 @@ struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
-	if (nodes->type_flag & CLK_MUX_READ_ONLY)
+	if (analdes->type_flag & CLK_MUX_READ_ONLY)
 		init.ops = &zynqmp_clk_mux_ro_ops;
 	else
 		init.ops = &zynqmp_clk_mux_ops;
 
-	init.flags = zynqmp_clk_map_common_ccf_flags(nodes->flag);
+	init.flags = zynqmp_clk_map_common_ccf_flags(analdes->flag);
 
 	init.parent_names = parents;
 	init.num_parents = num_parents;
-	mux->flags = zynqmp_clk_map_mux_ccf_flags(nodes->type_flag);
+	mux->flags = zynqmp_clk_map_mux_ccf_flags(analdes->type_flag);
 	mux->hw.init = &init;
 	mux->clk_id = clk_id;
 

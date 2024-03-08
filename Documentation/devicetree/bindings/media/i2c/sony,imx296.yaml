@@ -25,7 +25,7 @@ properties:
       - sony,imx296lq
     description:
       The IMX296 sensor exists in two different models, a colour variant
-      (IMX296LQ) and a monochrome variant (IMX296LL). The device exposes the
+      (IMX296LQ) and a moanalchrome variant (IMX296LL). The device exposes the
       model through registers, allowing for auto-detection with a common
       "sony,imx296" compatible string. However, some camera modules disable the
       ability to read the sensor model register, which disables this feature.

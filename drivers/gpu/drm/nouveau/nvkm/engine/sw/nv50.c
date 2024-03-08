@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,10 +36,10 @@
  ******************************************************************************/
 
 static int
-nv50_sw_chan_vblsem_release(struct nvkm_event_ntfy *notify, u32 bits)
+nv50_sw_chan_vblsem_release(struct nvkm_event_ntfy *analtify, u32 bits)
 {
 	struct nv50_sw_chan *chan =
-		container_of(notify, typeof(*chan), vblank.notify[notify->id]);
+		container_of(analtify, typeof(*chan), vblank.analtify[analtify->id]);
 	struct nvkm_sw *sw = chan->base.sw;
 	struct nvkm_device *device = sw->engine.subdev.device;
 
@@ -70,7 +70,7 @@ nv50_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
 	case 0x0404: chan->vblank.value  = data; return true;
 	case 0x0408:
 		if (data < device->disp->vblank.index_nr) {
-			nvkm_event_ntfy_allow(&chan->vblank.notify[data]);
+			nvkm_event_ntfy_allow(&chan->vblank.analtify[data]);
 			return true;
 		}
 		break;
@@ -86,8 +86,8 @@ nv50_sw_chan_dtor(struct nvkm_sw_chan *base)
 	struct nv50_sw_chan *chan = nv50_sw_chan(base);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(chan->vblank.notify); i++)
-		nvkm_event_ntfy_del(&chan->vblank.notify[i]);
+	for (i = 0; i < ARRAY_SIZE(chan->vblank.analtify); i++)
+		nvkm_event_ntfy_del(&chan->vblank.analtify[i]);
 
 	return chan;
 }
@@ -107,7 +107,7 @@ nv50_sw_chan_new(struct nvkm_sw *sw, struct nvkm_chan *fifoch,
 	int ret, i;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pobject = &chan->base.object;
 
 	ret = nvkm_sw_chan_ctor(&nv50_sw_chan, sw, fifoch, oclass, &chan->base);
@@ -116,7 +116,7 @@ nv50_sw_chan_new(struct nvkm_sw *sw, struct nvkm_chan *fifoch,
 
 	for (i = 0; disp && i < disp->vblank.index_nr; i++) {
 		nvkm_event_ntfy_add(&disp->vblank, i, NVKM_DISP_HEAD_EVENT_VBLANK, true,
-				    nv50_sw_chan_vblsem_release, &chan->vblank.notify[i]);
+				    nv50_sw_chan_vblsem_release, &chan->vblank.analtify[i]);
 	}
 
 	return 0;

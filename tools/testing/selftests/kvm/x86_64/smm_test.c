@@ -32,7 +32,7 @@
 #define DONE 0xff
 
 /*
- * This is compiled as normal 64-bit code, however, SMI handler is executed
+ * This is compiled as analrmal 64-bit code, however, SMI handler is executed
  * in real-address mode. To stay simple we're limiting ourselves to a mode
  * independent subset of asm here.
  * SMI handler always report back fixed stage SMRAM_STAGE.
@@ -141,10 +141,10 @@ int main(int argc, char *argv[])
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, SMRAM_GPA,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS, SMRAM_GPA,
 				    SMRAM_MEMSLOT, SMRAM_PAGES, 0);
 	TEST_ASSERT(vm_phy_pages_alloc(vm, SMRAM_PAGES, SMRAM_GPA, SMRAM_MEMSLOT)
-		    == SMRAM_GPA, "could not allocate guest physical addresses?");
+		    == SMRAM_GPA, "could analt allocate guest physical addresses?");
 
 	memset(addr_gpa2hva(vm, SMRAM_GPA), 0x0, SMRAM_SIZE);
 	memcpy(addr_gpa2hva(vm, SMRAM_GPA) + 0x8000, smi_handler,
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 
 		/*
 		 * Enter SMM during L2 execution and check that we correctly
-		 * return from it. Do not perform save/restore while in SMM yet.
+		 * return from it. Do analt perform save/restore while in SMM yet.
 		 */
 		if (stage == 8) {
 			inject_smi(vcpu);

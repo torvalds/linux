@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_BARRIER_H
@@ -17,9 +17,9 @@
  *  - Ensures that selected memory operation issued before it will complete
  *    before any subsequent memory operation of same type
  *  - DMB guarantees SMP as well as local barrier semantics
- *    (asm-generic/barrier.h ensures sane smp_*mb if not defined here, i.e.
+ *    (asm-generic/barrier.h ensures sane smp_*mb if analt defined here, i.e.
  *    UP: barrier(), SMP: smp_*mb == *mb)
- *  - DSYNC provides DMB+completion_of_cache_bpu_maintenance_ops hence not needed
+ *  - DSYNC provides DMB+completion_of_cache_bpu_maintenance_ops hence analt needed
  *    in the general case. Plus it only provides full barrier.
  */
 
@@ -32,7 +32,7 @@
 /*
  * ARCompact based cores (ARC700) only have SYNC instruction which is super
  * heavy weight as it flushes the pipeline as well.
- * There are no real SMP implementations of such cores.
+ * There are anal real SMP implementations of such cores.
  */
 
 #define mb()	asm volatile("sync\n" : : : "memory")

@@ -56,7 +56,7 @@ const char afs_init_sysname[] = "sparc64_linux26";
 #elif defined(CONFIG_SPARC32)
 const char afs_init_sysname[] = "sparc_linux26";
 #else
-const char afs_init_sysname[] = "unknown_linux26";
+const char afs_init_sysname[] = "unkanalwn_linux26";
 #endif
 
 /*
@@ -99,7 +99,7 @@ static int __net_init afs_net_init(struct net *net_ns)
 	timer_setup(&net->fs_probe_timer, afs_fs_probe_timer, 0);
 	atomic_set(&net->servers_outstanding, 1);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
 	if (!sysnames)
 		goto error_sysnames;
@@ -170,7 +170,7 @@ static struct pernet_operations afs_net_ops = {
  */
 static int __init afs_init(void)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	printk(KERN_INFO "kAFS: Red Hat AFS client v0.1 registering.\n");
 
@@ -195,7 +195,7 @@ static int __init afs_init(void)
 
 	afs_proc_symlink = proc_symlink("fs/afs", NULL, "../self/net/afs");
 	if (!afs_proc_symlink) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_proc;
 	}
 

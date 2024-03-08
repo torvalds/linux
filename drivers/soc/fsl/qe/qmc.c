@@ -91,7 +91,7 @@
 #define   QMC_SPE_CHAMR_POL		(1 << 8)
 #define   QMC_SPE_CHAMR_HDLC_IDLM	(1 << 13)
 #define   QMC_SPE_CHAMR_HDLC_CRC	(1 << 7)
-#define   QMC_SPE_CHAMR_HDLC_NOF	(0x0f << 0)
+#define   QMC_SPE_CHAMR_HDLC_ANALF	(0x0f << 0)
 #define   QMC_SPE_CHAMR_TRANSP_RD	(1 << 14)
 #define   QMC_SPE_CHAMR_TRANSP_SYNC	(1 << 10)
 
@@ -145,7 +145,7 @@
 #define QMC_BD_RX_CM	(1 << 9)
 #define QMC_BD_RX_UB	(1 << 7)
 #define QMC_BD_RX_LG	(1 << 5)
-#define QMC_BD_RX_NO	(1 << 4)
+#define QMC_BD_RX_ANAL	(1 << 4)
 #define QMC_BD_RX_AB	(1 << 3)
 #define QMC_BD_RX_CR	(1 << 2)
 
@@ -328,7 +328,7 @@ int qmc_chan_set_ts_info(struct qmc_chan *chan, const struct qmc_chan_ts_info *t
 
 	if ((chan->tx_ts_mask != ts_info->tx_ts_mask && !chan->is_tx_stopped) ||
 	    (chan->rx_ts_mask != ts_info->rx_ts_mask && !chan->is_rx_stopped)) {
-		dev_err(chan->qmc->dev, "Channel rx and/or tx not stopped\n");
+		dev_err(chan->qmc->dev, "Channel rx and/or tx analt stopped\n");
 		ret = -EBUSY;
 	} else {
 		chan->tx_ts_mask = ts_info->tx_ts_mask;
@@ -392,7 +392,7 @@ int qmc_chan_write_submit(struct qmc_chan *chan, dma_addr_t addr, size_t length,
 	 *   0       0  : The BD is free
 	 *   1       1  : The BD is in used, waiting for transfer
 	 *   0       1  : The BD is in used, waiting for completion
-	 *   1       0  : Should not append
+	 *   1       0  : Should analt append
 	 */
 
 	spin_lock_irqsave(&chan->tx_lock, flags);
@@ -447,7 +447,7 @@ static void qmc_chan_write_done(struct qmc_chan *chan)
 	 *   0       0  : The BD is free
 	 *   1       1  : The BD is in used, waiting for transfer
 	 *   0       1  : The BD is in used, waiting for completion
-	 *   1       0  : Should not append
+	 *   1       0  : Should analt append
 	 */
 
 	spin_lock_irqsave(&chan->tx_lock, flags);
@@ -500,7 +500,7 @@ int qmc_chan_read_submit(struct qmc_chan *chan, dma_addr_t addr, size_t length,
 	 *   0       0  : The BD is free
 	 *   1       1  : The BD is in used, waiting for transfer
 	 *   0       1  : The BD is in used, waiting for completion
-	 *   1       0  : Should not append
+	 *   1       0  : Should analt append
 	 */
 
 	spin_lock_irqsave(&chan->rx_lock, flags);
@@ -521,7 +521,7 @@ int qmc_chan_read_submit(struct qmc_chan *chan, dma_addr_t addr, size_t length,
 	xfer_desc->context = context;
 
 	/* Clear previous status flags */
-	ctrl &= ~(QMC_BD_RX_L | QMC_BD_RX_F | QMC_BD_RX_LG | QMC_BD_RX_NO |
+	ctrl &= ~(QMC_BD_RX_L | QMC_BD_RX_F | QMC_BD_RX_LG | QMC_BD_RX_ANAL |
 		  QMC_BD_RX_AB | QMC_BD_RX_CR);
 
 	/* Activate the descriptor */
@@ -568,7 +568,7 @@ static void qmc_chan_read_done(struct qmc_chan *chan)
 	 *   0       0  : The BD is free
 	 *   1       1  : The BD is in used, waiting for transfer
 	 *   0       1  : The BD is in used, waiting for completion
-	 *   1       0  : Should not append
+	 *   1       0  : Should analt append
 	 */
 
 	spin_lock_irqsave(&chan->rx_lock, flags);
@@ -607,13 +607,13 @@ static void qmc_chan_read_done(struct qmc_chan *chan)
 			BUILD_BUG_ON(QMC_RX_FLAG_HDLC_LAST  != QMC_BD_RX_L);
 			BUILD_BUG_ON(QMC_RX_FLAG_HDLC_FIRST != QMC_BD_RX_F);
 			BUILD_BUG_ON(QMC_RX_FLAG_HDLC_OVF   != QMC_BD_RX_LG);
-			BUILD_BUG_ON(QMC_RX_FLAG_HDLC_UNA   != QMC_BD_RX_NO);
+			BUILD_BUG_ON(QMC_RX_FLAG_HDLC_UNA   != QMC_BD_RX_ANAL);
 			BUILD_BUG_ON(QMC_RX_FLAG_HDLC_ABORT != QMC_BD_RX_AB);
 			BUILD_BUG_ON(QMC_RX_FLAG_HDLC_CRC   != QMC_BD_RX_CR);
 
 			complete(context, datalen,
 				 ctrl & (QMC_BD_RX_L | QMC_BD_RX_F | QMC_BD_RX_LG |
-					 QMC_BD_RX_NO | QMC_BD_RX_AB | QMC_BD_RX_CR));
+					 QMC_BD_RX_ANAL | QMC_BD_RX_AB | QMC_BD_RX_CR));
 			spin_lock_irqsave(&chan->rx_lock, flags);
 		}
 
@@ -1128,7 +1128,7 @@ static int qmc_check_chans(struct qmc *qmc)
 		return ret;
 
 	if ((info.nb_tx_ts > 64) || (info.nb_rx_ts > 64)) {
-		dev_err(qmc->dev, "Number of TSA Tx/Rx TS assigned not supported\n");
+		dev_err(qmc->dev, "Number of TSA Tx/Rx TS assigned analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1138,7 +1138,7 @@ static int qmc_check_chans(struct qmc *qmc)
 	 */
 	if ((info.nb_tx_ts > 32) || (info.nb_rx_ts > 32)) {
 		if (info.nb_tx_ts != info.nb_rx_ts) {
-			dev_err(qmc->dev, "Number of TSA Tx/Rx TS assigned are not equal\n");
+			dev_err(qmc->dev, "Number of TSA Tx/Rx TS assigned are analt equal\n");
 			return -EINVAL;
 		}
 	}
@@ -1172,32 +1172,32 @@ static unsigned int qmc_nb_chans(struct qmc *qmc)
 	return count;
 }
 
-static int qmc_of_parse_chans(struct qmc *qmc, struct device_node *np)
+static int qmc_of_parse_chans(struct qmc *qmc, struct device_analde *np)
 {
-	struct device_node *chan_np;
+	struct device_analde *chan_np;
 	struct qmc_chan *chan;
 	const char *mode;
 	u32 chan_id;
 	u64 ts_mask;
 	int ret;
 
-	for_each_available_child_of_node(np, chan_np) {
+	for_each_available_child_of_analde(np, chan_np) {
 		ret = of_property_read_u32(chan_np, "reg", &chan_id);
 		if (ret) {
 			dev_err(qmc->dev, "%pOF: failed to read reg\n", chan_np);
-			of_node_put(chan_np);
+			of_analde_put(chan_np);
 			return ret;
 		}
 		if (chan_id > 63) {
 			dev_err(qmc->dev, "%pOF: Invalid chan_id\n", chan_np);
-			of_node_put(chan_np);
+			of_analde_put(chan_np);
 			return -EINVAL;
 		}
 
 		chan = devm_kzalloc(qmc->dev, sizeof(*chan), GFP_KERNEL);
 		if (!chan) {
-			of_node_put(chan_np);
-			return -ENOMEM;
+			of_analde_put(chan_np);
+			return -EANALMEM;
 		}
 
 		chan->id = chan_id;
@@ -1209,7 +1209,7 @@ static int qmc_of_parse_chans(struct qmc *qmc, struct device_node *np)
 		if (ret) {
 			dev_err(qmc->dev, "%pOF: failed to read fsl,tx-ts-mask\n",
 				chan_np);
-			of_node_put(chan_np);
+			of_analde_put(chan_np);
 			return ret;
 		}
 		chan->tx_ts_mask_avail = ts_mask;
@@ -1219,7 +1219,7 @@ static int qmc_of_parse_chans(struct qmc *qmc, struct device_node *np)
 		if (ret) {
 			dev_err(qmc->dev, "%pOF: failed to read fsl,rx-ts-mask\n",
 				chan_np);
-			of_node_put(chan_np);
+			of_analde_put(chan_np);
 			return ret;
 		}
 		chan->rx_ts_mask_avail = ts_mask;
@@ -1230,7 +1230,7 @@ static int qmc_of_parse_chans(struct qmc *qmc, struct device_node *np)
 		if (ret && ret != -EINVAL) {
 			dev_err(qmc->dev, "%pOF: failed to read fsl,operational-mode\n",
 				chan_np);
-			of_node_put(chan_np);
+			of_analde_put(chan_np);
 			return ret;
 		}
 		if (!strcmp(mode, "transparent")) {
@@ -1240,7 +1240,7 @@ static int qmc_of_parse_chans(struct qmc *qmc, struct device_node *np)
 		} else {
 			dev_err(qmc->dev, "%pOF: Invalid fsl,operational-mode (%s)\n",
 				chan_np, mode);
-			of_node_put(chan_np);
+			of_analde_put(chan_np);
 			return -EINVAL;
 		}
 
@@ -1388,7 +1388,7 @@ static int qmc_setup_chan(struct qmc *qmc, struct qmc_chan *chan)
 			QMC_SPE_CHAMR_MODE_HDLC | QMC_SPE_CHAMR_HDLC_IDLM);
 	}
 
-	/* Do not enable interrupts now. They will be enabled later */
+	/* Do analt enable interrupts analw. They will be enabled later */
 	qmc_write16(chan->s_param + QMC_SPE_INTMSK, 0x0000);
 
 	/* Init Rx BDs and set Wrap bit on last descriptor */
@@ -1551,7 +1551,7 @@ static irqreturn_t qmc_irq_handler(int irq, void *priv)
 	if (unlikely(scce & SCC_SCCE_GOV))
 		dev_err(qmc->dev, "Global receiver overrun\n");
 
-	/* normal interrupt */
+	/* analrmal interrupt */
 	if (likely(scce & SCC_SCCE_GINT))
 		qmc_irq_gint(qmc);
 
@@ -1560,7 +1560,7 @@ static irqreturn_t qmc_irq_handler(int irq, void *priv)
 
 static int qmc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	unsigned int nb_chans;
 	struct resource *res;
 	struct qmc *qmc;
@@ -1569,7 +1569,7 @@ static int qmc_probe(struct platform_device *pdev)
 
 	qmc = devm_kzalloc(&pdev->dev, sizeof(*qmc), GFP_KERNEL);
 	if (!qmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmc->dev = &pdev->dev;
 	INIT_LIST_HEAD(&qmc->chan_head);
@@ -1627,7 +1627,7 @@ static int qmc_probe(struct platform_device *pdev)
 		&qmc->bd_dma_addr, GFP_KERNEL);
 	if (!qmc->bd_table) {
 		dev_err(qmc->dev, "Failed to allocate bd table\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_tsa_serial_disconnect;
 	}
 	memset(qmc->bd_table, 0, qmc->bd_size);
@@ -1640,7 +1640,7 @@ static int qmc_probe(struct platform_device *pdev)
 		&qmc->int_dma_addr, GFP_KERNEL);
 	if (!qmc->int_table) {
 		dev_err(qmc->dev, "Failed to allocate interrupt table\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_tsa_serial_disconnect;
 	}
 	memset(qmc->int_table, 0, qmc->int_size);
@@ -1744,18 +1744,18 @@ static struct platform_driver qmc_driver = {
 };
 module_platform_driver(qmc_driver);
 
-static struct qmc_chan *qmc_chan_get_from_qmc(struct device_node *qmc_np, unsigned int chan_index)
+static struct qmc_chan *qmc_chan_get_from_qmc(struct device_analde *qmc_np, unsigned int chan_index)
 {
 	struct platform_device *pdev;
 	struct qmc_chan *qmc_chan;
 	struct qmc *qmc;
 
-	if (!of_match_node(qmc_driver.driver.of_match_table, qmc_np))
+	if (!of_match_analde(qmc_driver.driver.of_match_table, qmc_np))
 		return ERR_PTR(-EINVAL);
 
-	pdev = of_find_device_by_node(qmc_np);
+	pdev = of_find_device_by_analde(qmc_np);
 	if (!pdev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	qmc = platform_get_drvdata(pdev);
 	if (!qmc) {
@@ -1771,13 +1771,13 @@ static struct qmc_chan *qmc_chan_get_from_qmc(struct device_node *qmc_np, unsign
 	qmc_chan = qmc->chans[chan_index];
 	if (!qmc_chan) {
 		platform_device_put(pdev);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	return qmc_chan;
 }
 
-struct qmc_chan *qmc_chan_get_byphandle(struct device_node *np, const char *phandle_name)
+struct qmc_chan *qmc_chan_get_byphandle(struct device_analde *np, const char *phandle_name)
 {
 	struct of_phandle_args out_args;
 	struct qmc_chan *qmc_chan;
@@ -1789,19 +1789,19 @@ struct qmc_chan *qmc_chan_get_byphandle(struct device_node *np, const char *phan
 		return ERR_PTR(ret);
 
 	if (out_args.args_count != 1) {
-		of_node_put(out_args.np);
+		of_analde_put(out_args.np);
 		return ERR_PTR(-EINVAL);
 	}
 
 	qmc_chan = qmc_chan_get_from_qmc(out_args.np, out_args.args[0]);
-	of_node_put(out_args.np);
+	of_analde_put(out_args.np);
 	return qmc_chan;
 }
 EXPORT_SYMBOL(qmc_chan_get_byphandle);
 
-struct qmc_chan *qmc_chan_get_bychild(struct device_node *np)
+struct qmc_chan *qmc_chan_get_bychild(struct device_analde *np)
 {
-	struct device_node *qmc_np;
+	struct device_analde *qmc_np;
 	u32 chan_index;
 	int ret;
 
@@ -1828,7 +1828,7 @@ static void devm_qmc_chan_release(struct device *dev, void *res)
 }
 
 struct qmc_chan *devm_qmc_chan_get_byphandle(struct device *dev,
-					     struct device_node *np,
+					     struct device_analde *np,
 					     const char *phandle_name)
 {
 	struct qmc_chan *qmc_chan;
@@ -1836,7 +1836,7 @@ struct qmc_chan *devm_qmc_chan_get_byphandle(struct device *dev,
 
 	dr = devres_alloc(devm_qmc_chan_release, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qmc_chan = qmc_chan_get_byphandle(np, phandle_name);
 	if (!IS_ERR(qmc_chan)) {
@@ -1851,14 +1851,14 @@ struct qmc_chan *devm_qmc_chan_get_byphandle(struct device *dev,
 EXPORT_SYMBOL(devm_qmc_chan_get_byphandle);
 
 struct qmc_chan *devm_qmc_chan_get_bychild(struct device *dev,
-					   struct device_node *np)
+					   struct device_analde *np)
 {
 	struct qmc_chan *qmc_chan;
 	struct qmc_chan **dr;
 
 	dr = devres_alloc(devm_qmc_chan_release, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qmc_chan = qmc_chan_get_bychild(np);
 	if (!IS_ERR(qmc_chan)) {

@@ -36,7 +36,7 @@
 #define MX3_PWMCR_HCTR			BIT(20)
 
 #define MX3_PWMCR_POUTC			GENMASK(19, 18)
-#define MX3_PWMCR_POUTC_NORMAL		0
+#define MX3_PWMCR_POUTC_ANALRMAL		0
 #define MX3_PWMCR_POUTC_INVERTED	1
 #define MX3_PWMCR_POUTC_OFF		2
 
@@ -86,7 +86,7 @@ struct pwm_imx27_chip {
 	struct pwm_chip	chip;
 
 	/*
-	 * The driver cannot read the current duty cycle from the hardware if
+	 * The driver cananalt read the current duty cycle from the hardware if
 	 * the hardware is disabled. Cache the last programmed duty cycle
 	 * value to return in that case.
 	 */
@@ -138,8 +138,8 @@ static int pwm_imx27_get_state(struct pwm_chip *chip,
 		state->enabled = false;
 
 	switch (FIELD_GET(MX3_PWMCR_POUTC, val)) {
-	case MX3_PWMCR_POUTC_NORMAL:
-		state->polarity = PWM_POLARITY_NORMAL;
+	case MX3_PWMCR_POUTC_ANALRMAL:
+		state->polarity = PWM_POLARITY_ANALRMAL;
 		break;
 	case MX3_PWMCR_POUTC_INVERTED:
 		state->polarity = PWM_POLARITY_INVERSED;
@@ -210,7 +210,7 @@ static void pwm_imx27_wait_fifo_slot(struct pwm_chip *chip,
 
 		sr = readl(imx->mmio_base + MX3_PWMSR);
 		if (fifoav == FIELD_GET(MX3_PWMSR_FIFOAV, sr))
-			dev_warn(dev, "there is no free FIFO slot\n");
+			dev_warn(dev, "there is anal free FIFO slot\n");
 	}
 }
 
@@ -312,7 +312,7 @@ static int pwm_imx27_probe(struct platform_device *pdev)
 
 	imx = devm_kzalloc(&pdev->dev, sizeof(*imx), GFP_KERNEL);
 	if (imx == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(imx->clk_ipg))

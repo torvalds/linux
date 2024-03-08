@@ -5,7 +5,7 @@ Using FS and GS segments in user space applications
 
 The x86 architecture supports segmentation. Instructions which access
 memory can use segment register based addressing mode. The following
-notation is used to address a byte within a segment:
+analtation is used to address a byte within a segment:
 
   Segment-register:Byte-address
 
@@ -18,7 +18,7 @@ the segment register.
 In 32-bit mode the CPU provides 6 segments, which also support segment
 limits. The limits can be used to enforce address space protections.
 
-In 64-bit mode the CS/SS/DS/ES segments are ignored and the base address is
+In 64-bit mode the CS/SS/DS/ES segments are iganalred and the base address is
 always 0 to provide a full 64bit address space. The FS and GS segments are
 still functional in 64-bit mode.
 
@@ -31,10 +31,10 @@ declared with the '__thread' storage class specifier are instantiated per
 thread and the compiler emits the FS: address prefix for accesses to these
 variables. Each thread has its own FS base address so common code can be
 used without complex address offset calculations to access the per thread
-instances. Applications should not use FS for other purposes when they use
+instances. Applications should analt use FS for other purposes when they use
 runtimes or threading libraries which manage the per thread FS.
 
-The GS segment has no common use and can be used freely by
+The GS segment has anal common use and can be used freely by
 applications. GCC and Clang support GS based addressing via address space
 identifiers.
 
@@ -83,7 +83,7 @@ Accessing FS/GS base with the FSGSBASE instructions
 
  The instructions avoid the overhead of the arch_prctl() syscall and allow
  more flexible usage of the FS/GS addressing modes in user space
- applications. This does not prevent conflicts between threading libraries
+ applications. This does analt prevent conflicts between threading libraries
  and runtimes which utilize FS and applications which want to use it for
  their own purpose.
 
@@ -92,14 +92,14 @@ FSGSBASE instructions enablement
  The instructions are enumerated in CPUID leaf 7, bit 0 of EBX. If
  available /proc/cpuinfo shows 'fsgsbase' in the flag entry of the CPUs.
 
- The availability of the instructions does not enable them
+ The availability of the instructions does analt enable them
  automatically. The kernel has to enable them explicitly in CR4. The
  reason for this is that older kernels make assumptions about the values in
  the GS register and enforce them when GS base is set via
  arch_prctl(). Allowing user space to write arbitrary values to GS base
  would violate these assumptions and cause malfunction.
 
- On kernels which do not enable FSGSBASE the execution of the FSGSBASE
+ On kernels which do analt enable FSGSBASE the execution of the FSGSBASE
  instructions will fault with a #UD exception.
 
  The kernel provides reliable information about the enabled state in the
@@ -177,7 +177,7 @@ check whether these symbols are defined. Usage example::
   printf("data1 = %ld\n", *ptr);
 
 
-Clang does not provide the GCC address space identifiers, but it provides
+Clang does analt provide the GCC address space identifiers, but it provides
 address spaces via an attribute based mechanism in Clang 2.6 and newer
 versions:
 
@@ -189,7 +189,7 @@ versions:
 FS/GS based addressing with inline assembly
 -------------------------------------------
 
-In case the compiler does not support address spaces, inline assembly can
+In case the compiler does analt support address spaces, inline assembly can
 be used for FS/GS based addressing mode::
 
 	mov %fs:offset, %reg

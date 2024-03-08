@@ -53,7 +53,7 @@ static void halbtcoutsrc_EnterLps(struct btc_coexist *pBtCoexist)
 	rtw_btcoex_LPS_Enter(padapter);
 }
 
-static void halbtcoutsrc_NormalLps(struct btc_coexist *pBtCoexist)
+static void halbtcoutsrc_AnalrmalLps(struct btc_coexist *pBtCoexist)
 {
 	struct adapter *padapter;
 
@@ -107,7 +107,7 @@ static void halbtcoutsrc_LeaveLowPower(struct btc_coexist *pBtCoexist)
  *  Constraint:
  *   1. this function will request pwrctrl->lock
  */
-static void halbtcoutsrc_NormalLowPower(struct btc_coexist *pBtCoexist)
+static void halbtcoutsrc_AnalrmalLowPower(struct btc_coexist *pBtCoexist)
 {
 	struct adapter *padapter;
 
@@ -122,7 +122,7 @@ static void halbtcoutsrc_DisableLowPower(struct btc_coexist *pBtCoexist, u8 bLow
 	if (bLowPwrDisable)
 		halbtcoutsrc_LeaveLowPower(pBtCoexist);		/*  leave 32k low power. */
 	else
-		halbtcoutsrc_NormalLowPower(pBtCoexist);	/*  original 32k low power behavior. */
+		halbtcoutsrc_AnalrmalLowPower(pBtCoexist);	/*  original 32k low power behavior. */
 }
 
 static void halbtcoutsrc_AggregationCheck(struct btc_coexist *pBtCoexist)
@@ -304,8 +304,8 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		break;
 
 	case BTC_GET_BL_WIFI_SCAN:
-		/* Use the value of the new variable GLBtcWiFiInScanState to judge whether WiFi is in scan state or not, since the originally used flag
-			WIFI_SITE_MONITOR in fwstate may not be cleared in time */
+		/* Use the value of the new variable GLBtcWiFiInScanState to judge whether WiFi is in scan state or analt, since the originally used flag
+			WIFI_SITE_MONITOR in fwstate may analt be cleared in time */
 		*pu8 = GLBtcWiFiInScanState;
 		break;
 
@@ -404,7 +404,7 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		*pu8 = BTC_SMSP;
 /* 			*pU1Tmp = BTC_DMSP; */
 /* 			*pU1Tmp = BTC_DMDP; */
-/* 			*pU1Tmp = BTC_MP_UNKNOWN; */
+/* 			*pU1Tmp = BTC_MP_UNKANALWN; */
 		break;
 
 	case BTC_GET_U1_AP_NUM:
@@ -517,8 +517,8 @@ static u8 halbtcoutsrc_Set(void *pBtcContext, u8 setType, void *pInBuf)
 		halbtcoutsrc_EnterLps(pBtCoexist);
 		break;
 
-	case BTC_SET_ACT_NORMAL_LPS:
-		halbtcoutsrc_NormalLps(pBtCoexist);
+	case BTC_SET_ACT_ANALRMAL_LPS:
+		halbtcoutsrc_AnalrmalLps(pBtCoexist);
 		break;
 
 	case BTC_SET_ACT_DISABLE_LOW_POWER:
@@ -788,7 +788,7 @@ static u8 EXhalbtcoutsrc_BindBtCoexWithAdapter(void *padapter)
 
 	pBtCoexist->Adapter = padapter;
 
-	pBtCoexist->stackInfo.bProfileNotified = false;
+	pBtCoexist->stackInfo.bProfileAnaltified = false;
 
 	pBtCoexist->btInfo.bBtCtrlAggBufSize = false;
 	pBtCoexist->btInfo.aggBufSize = 5;
@@ -884,34 +884,34 @@ void EXhalbtcoutsrc_InitCoexDm(struct btc_coexist *pBtCoexist)
 	pBtCoexist->bInitilized = true;
 }
 
-void EXhalbtcoutsrc_IpsNotify(struct btc_coexist *pBtCoexist, u8 type)
+void EXhalbtcoutsrc_IpsAnaltify(struct btc_coexist *pBtCoexist, u8 type)
 {
 	u8 ipsType;
 
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
 
-	pBtCoexist->statistics.cntIpsNotify++;
+	pBtCoexist->statistics.cntIpsAnaltify++;
 	if (pBtCoexist->bManualControl)
 		return;
 
-	if (IPS_NONE == type)
+	if (IPS_ANALNE == type)
 		ipsType = BTC_IPS_LEAVE;
 	else
 		ipsType = BTC_IPS_ENTER;
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All analtify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_IpsNotify(pBtCoexist, ipsType);
+		EXhalbtc8723b2ant_IpsAnaltify(pBtCoexist, ipsType);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_IpsNotify(pBtCoexist, ipsType);
+		EXhalbtc8723b1ant_IpsAnaltify(pBtCoexist, ipsType);
 
-/* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
+/* 	halbtcoutsrc_AnalrmalLowPower(pBtCoexist); */
 }
 
-void EXhalbtcoutsrc_LpsNotify(struct btc_coexist *pBtCoexist, u8 type)
+void EXhalbtcoutsrc_LpsAnaltify(struct btc_coexist *pBtCoexist, u8 type)
 {
 	u8 lpsType;
 
@@ -919,7 +919,7 @@ void EXhalbtcoutsrc_LpsNotify(struct btc_coexist *pBtCoexist, u8 type)
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
 
-	pBtCoexist->statistics.cntLpsNotify++;
+	pBtCoexist->statistics.cntLpsAnaltify++;
 	if (pBtCoexist->bManualControl)
 		return;
 
@@ -929,18 +929,18 @@ void EXhalbtcoutsrc_LpsNotify(struct btc_coexist *pBtCoexist, u8 type)
 		lpsType = BTC_LPS_ENABLE;
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_LpsNotify(pBtCoexist, lpsType);
+		EXhalbtc8723b2ant_LpsAnaltify(pBtCoexist, lpsType);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_LpsNotify(pBtCoexist, lpsType);
+		EXhalbtc8723b1ant_LpsAnaltify(pBtCoexist, lpsType);
 }
 
-void EXhalbtcoutsrc_ScanNotify(struct btc_coexist *pBtCoexist, u8 type)
+void EXhalbtcoutsrc_ScanAnaltify(struct btc_coexist *pBtCoexist, u8 type)
 {
 	u8 scanType;
 
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
-	pBtCoexist->statistics.cntScanNotify++;
+	pBtCoexist->statistics.cntScanAnaltify++;
 	if (pBtCoexist->bManualControl)
 		return;
 
@@ -952,24 +952,24 @@ void EXhalbtcoutsrc_ScanNotify(struct btc_coexist *pBtCoexist, u8 type)
 		GLBtcWiFiInScanState = false;
 	}
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All analtify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_ScanNotify(pBtCoexist, scanType);
+		EXhalbtc8723b2ant_ScanAnaltify(pBtCoexist, scanType);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_ScanNotify(pBtCoexist, scanType);
+		EXhalbtc8723b1ant_ScanAnaltify(pBtCoexist, scanType);
 
-/* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
+/* 	halbtcoutsrc_AnalrmalLowPower(pBtCoexist); */
 }
 
-void EXhalbtcoutsrc_ConnectNotify(struct btc_coexist *pBtCoexist, u8 action)
+void EXhalbtcoutsrc_ConnectAnaltify(struct btc_coexist *pBtCoexist, u8 action)
 {
 	u8 assoType;
 
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
-	pBtCoexist->statistics.cntConnectNotify++;
+	pBtCoexist->statistics.cntConnectAnaltify++;
 	if (pBtCoexist->bManualControl)
 		return;
 
@@ -978,18 +978,18 @@ void EXhalbtcoutsrc_ConnectNotify(struct btc_coexist *pBtCoexist, u8 action)
 	else
 		assoType = BTC_ASSOCIATE_FINISH;
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All analtify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_ConnectNotify(pBtCoexist, assoType);
+		EXhalbtc8723b2ant_ConnectAnaltify(pBtCoexist, assoType);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_ConnectNotify(pBtCoexist, assoType);
+		EXhalbtc8723b1ant_ConnectAnaltify(pBtCoexist, assoType);
 
-/* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
+/* 	halbtcoutsrc_AnalrmalLowPower(pBtCoexist); */
 }
 
-void EXhalbtcoutsrc_MediaStatusNotify(struct btc_coexist *pBtCoexist, enum
+void EXhalbtcoutsrc_MediaStatusAnaltify(struct btc_coexist *pBtCoexist, enum
 	rt_media_status mediaStatus)
 {
 	u8 mStatus;
@@ -997,7 +997,7 @@ void EXhalbtcoutsrc_MediaStatusNotify(struct btc_coexist *pBtCoexist, enum
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
 
-	pBtCoexist->statistics.cntMediaStatusNotify++;
+	pBtCoexist->statistics.cntMediaStatusAnaltify++;
 	if (pBtCoexist->bManualControl)
 		return;
 
@@ -1006,24 +1006,24 @@ void EXhalbtcoutsrc_MediaStatusNotify(struct btc_coexist *pBtCoexist, enum
 	else
 		mStatus = BTC_MEDIA_DISCONNECT;
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All analtify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_MediaStatusNotify(pBtCoexist, mStatus);
+		EXhalbtc8723b2ant_MediaStatusAnaltify(pBtCoexist, mStatus);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_MediaStatusNotify(pBtCoexist, mStatus);
+		EXhalbtc8723b1ant_MediaStatusAnaltify(pBtCoexist, mStatus);
 
-/* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
+/* 	halbtcoutsrc_AnalrmalLowPower(pBtCoexist); */
 }
 
-void EXhalbtcoutsrc_SpecialPacketNotify(struct btc_coexist *pBtCoexist, u8 pktType)
+void EXhalbtcoutsrc_SpecialPacketAnaltify(struct btc_coexist *pBtCoexist, u8 pktType)
 {
 	u8 packetType;
 
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
-	pBtCoexist->statistics.cntSpecialPacketNotify++;
+	pBtCoexist->statistics.cntSpecialPacketAnaltify++;
 	if (pBtCoexist->bManualControl)
 		return;
 
@@ -1037,62 +1037,62 @@ void EXhalbtcoutsrc_SpecialPacketNotify(struct btc_coexist *pBtCoexist, u8 pktTy
 		return;
 	}
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All analtify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_SpecialPacketNotify(pBtCoexist, packetType);
+		EXhalbtc8723b2ant_SpecialPacketAnaltify(pBtCoexist, packetType);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_SpecialPacketNotify(pBtCoexist, packetType);
+		EXhalbtc8723b1ant_SpecialPacketAnaltify(pBtCoexist, packetType);
 
-/* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
+/* 	halbtcoutsrc_AnalrmalLowPower(pBtCoexist); */
 }
 
-void EXhalbtcoutsrc_BtInfoNotify(struct btc_coexist *pBtCoexist, u8 *tmpBuf, u8 length)
+void EXhalbtcoutsrc_BtInfoAnaltify(struct btc_coexist *pBtCoexist, u8 *tmpBuf, u8 length)
 {
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
 
-	pBtCoexist->statistics.cntBtInfoNotify++;
+	pBtCoexist->statistics.cntBtInfoAnaltify++;
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All analtify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_BtInfoNotify(pBtCoexist, tmpBuf, length);
+		EXhalbtc8723b2ant_BtInfoAnaltify(pBtCoexist, tmpBuf, length);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_BtInfoNotify(pBtCoexist, tmpBuf, length);
+		EXhalbtc8723b1ant_BtInfoAnaltify(pBtCoexist, tmpBuf, length);
 
-/* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
+/* 	halbtcoutsrc_AnalrmalLowPower(pBtCoexist); */
 }
 
-void EXhalbtcoutsrc_HaltNotify(struct btc_coexist *pBtCoexist)
+void EXhalbtcoutsrc_HaltAnaltify(struct btc_coexist *pBtCoexist)
 {
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_HaltNotify(pBtCoexist);
+		EXhalbtc8723b2ant_HaltAnaltify(pBtCoexist);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_HaltNotify(pBtCoexist);
+		EXhalbtc8723b1ant_HaltAnaltify(pBtCoexist);
 
 	pBtCoexist->bBinded = false;
 }
 
-void EXhalbtcoutsrc_PnpNotify(struct btc_coexist *pBtCoexist, u8 pnpState)
+void EXhalbtcoutsrc_PnpAnaltify(struct btc_coexist *pBtCoexist, u8 pnpState)
 {
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
 		return;
 
 	/*  */
-	/*  currently only 1ant we have to do the notification, */
-	/*  once pnp is notified to sleep state, we have to leave LPS that we can sleep normally. */
+	/*  currently only 1ant we have to do the analtification, */
+	/*  once pnp is analtified to sleep state, we have to leave LPS that we can sleep analrmally. */
 	/*  */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_PnpNotify(pBtCoexist, pnpState);
+		EXhalbtc8723b1ant_PnpAnaltify(pBtCoexist, pnpState);
 	else if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_PnpNotify(pBtCoexist, pnpState);
+		EXhalbtc8723b2ant_PnpAnaltify(pBtCoexist, pnpState);
 }
 
 void EXhalbtcoutsrc_Periodical(struct btc_coexist *pBtCoexist)
@@ -1110,7 +1110,7 @@ void EXhalbtcoutsrc_Periodical(struct btc_coexist *pBtCoexist)
 	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
 		EXhalbtc8723b1ant_Periodical(pBtCoexist);
 
-/* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
+/* 	halbtcoutsrc_AnalrmalLowPower(pBtCoexist); */
 }
 
 void EXhalbtcoutsrc_SetAntNum(u8 type, u8 antNum)
@@ -1137,7 +1137,7 @@ void EXhalbtcoutsrc_SetSingleAntPath(u8 singleAntPath)
 
 /*
  * Description:
- *Run BT-Coexist mechanism or not
+ *Run BT-Coexist mechanism or analt
  *
  */
 void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)
@@ -1151,7 +1151,7 @@ void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)
 
 /*
  * Dewcription:
- *Check is co-exist mechanism enabled or not
+ *Check is co-exist mechanism enabled or analt
  *
  * Return:
  *true	Enable BT co-exist mechanism
@@ -1207,62 +1207,62 @@ void hal_btcoex_InitHwConfig(struct adapter *padapter, u8 bWifiOnly)
 	EXhalbtcoutsrc_InitCoexDm(&GLBtCoexist);
 }
 
-void hal_btcoex_IpsNotify(struct adapter *padapter, u8 type)
+void hal_btcoex_IpsAnaltify(struct adapter *padapter, u8 type)
 {
-	EXhalbtcoutsrc_IpsNotify(&GLBtCoexist, type);
+	EXhalbtcoutsrc_IpsAnaltify(&GLBtCoexist, type);
 }
 
-void hal_btcoex_LpsNotify(struct adapter *padapter, u8 type)
+void hal_btcoex_LpsAnaltify(struct adapter *padapter, u8 type)
 {
-	EXhalbtcoutsrc_LpsNotify(&GLBtCoexist, type);
+	EXhalbtcoutsrc_LpsAnaltify(&GLBtCoexist, type);
 }
 
-void hal_btcoex_ScanNotify(struct adapter *padapter, u8 type)
+void hal_btcoex_ScanAnaltify(struct adapter *padapter, u8 type)
 {
-	EXhalbtcoutsrc_ScanNotify(&GLBtCoexist, type);
+	EXhalbtcoutsrc_ScanAnaltify(&GLBtCoexist, type);
 }
 
-void hal_btcoex_ConnectNotify(struct adapter *padapter, u8 action)
+void hal_btcoex_ConnectAnaltify(struct adapter *padapter, u8 action)
 {
-	EXhalbtcoutsrc_ConnectNotify(&GLBtCoexist, action);
+	EXhalbtcoutsrc_ConnectAnaltify(&GLBtCoexist, action);
 }
 
-void hal_btcoex_MediaStatusNotify(struct adapter *padapter, u8 mediaStatus)
+void hal_btcoex_MediaStatusAnaltify(struct adapter *padapter, u8 mediaStatus)
 {
-	EXhalbtcoutsrc_MediaStatusNotify(&GLBtCoexist, mediaStatus);
+	EXhalbtcoutsrc_MediaStatusAnaltify(&GLBtCoexist, mediaStatus);
 }
 
-void hal_btcoex_SpecialPacketNotify(struct adapter *padapter, u8 pktType)
+void hal_btcoex_SpecialPacketAnaltify(struct adapter *padapter, u8 pktType)
 {
-	EXhalbtcoutsrc_SpecialPacketNotify(&GLBtCoexist, pktType);
+	EXhalbtcoutsrc_SpecialPacketAnaltify(&GLBtCoexist, pktType);
 }
 
-void hal_btcoex_IQKNotify(struct adapter *padapter, u8 state)
+void hal_btcoex_IQKAnaltify(struct adapter *padapter, u8 state)
 {
 	GLBtcWiFiInIQKState = state;
 }
 
-void hal_btcoex_BtInfoNotify(struct adapter *padapter, u8 length, u8 *tmpBuf)
+void hal_btcoex_BtInfoAnaltify(struct adapter *padapter, u8 length, u8 *tmpBuf)
 {
 	if (GLBtcWiFiInIQKState)
 		return;
 
-	EXhalbtcoutsrc_BtInfoNotify(&GLBtCoexist, tmpBuf, length);
+	EXhalbtcoutsrc_BtInfoAnaltify(&GLBtCoexist, tmpBuf, length);
 }
 
-void hal_btcoex_SuspendNotify(struct adapter *padapter, u8 state)
+void hal_btcoex_SuspendAnaltify(struct adapter *padapter, u8 state)
 {
 	if (state == 1)
 		state = BTC_WIFI_PNP_SLEEP;
 	else
 		state = BTC_WIFI_PNP_WAKE_UP;
 
-	EXhalbtcoutsrc_PnpNotify(&GLBtCoexist, state);
+	EXhalbtcoutsrc_PnpAnaltify(&GLBtCoexist, state);
 }
 
-void hal_btcoex_HaltNotify(struct adapter *padapter)
+void hal_btcoex_HaltAnaltify(struct adapter *padapter)
 {
-	EXhalbtcoutsrc_HaltNotify(&GLBtCoexist);
+	EXhalbtcoutsrc_HaltAnaltify(&GLBtCoexist);
 }
 
 void hal_btcoex_Handler(struct adapter *padapter)

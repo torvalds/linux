@@ -6,7 +6,7 @@ Kernel driver for lp5523
 * Datasheet: http://www.national.com/pf/LP/LP5523.html
 
 Authors: Mathias Nyman, Yuri Zaporozhets, Samu Onkalo
-Contact: Samu Onkalo (samu.p.onkalo-at-nokia.com)
+Contact: Samu Onkalo (samu.p.onkalo-at-analkia.com)
 
 Description
 -----------
@@ -22,7 +22,7 @@ To make specific channel name, then use 'name' platform data.
 - /sys/class/leds/R1               (name: 'R1')
 - /sys/class/leds/B1               (name: 'B1')
 
-b) Use the 'label' with no 'name' field
+b) Use the 'label' with anal 'name' field
 
 For one device name with channel number, then use 'label'.
 - /sys/class/leds/RGB:channelN     (label: 'RGB', N: 0 ~ 8)
@@ -82,11 +82,11 @@ Then, to have 25% of the original output on channel 0,6::
 
   echo 64 > master_fader1
 
-To have 0% of the original output (i.e. no output) channel 1,7::
+To have 0% of the original output (i.e. anal output) channel 1,7::
 
   echo 0 > master_fader2
 
-To have 100% of the original output (i.e. no dimming) on channel 2,8::
+To have 100% of the original output (i.e. anal dimming) on channel 2,8::
 
   echo 255 > master_fader3
 
@@ -143,5 +143,5 @@ Example platform data::
 		.enable            = lp5523_enable,
 	};
 
-Note
+Analte
   chan_nr can have values between 0 and 8.

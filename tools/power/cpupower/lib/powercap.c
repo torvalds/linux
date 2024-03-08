@@ -39,7 +39,7 @@ static unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen)
 static int sysfs_get_enabled(char *path, int *mode)
 {
 	int fd;
-	char yes_no;
+	char anal_anal;
 	int ret = 0;
 
 	*mode = 0;
@@ -50,15 +50,15 @@ static int sysfs_get_enabled(char *path, int *mode)
 		goto out;
 	}
 
-	if (read(fd, &yes_no, 1) != 1) {
+	if (read(fd, &anal_anal, 1) != 1) {
 		ret = -1;
 		goto out_close;
 	}
 
-	if (yes_no == '1') {
+	if (anal_anal == '1') {
 		*mode = 1;
 		goto out_close;
-	} else if (yes_no == '0') {
+	} else if (anal_anal == '0') {
 		goto out_close;
 	} else {
 		ret = -1;

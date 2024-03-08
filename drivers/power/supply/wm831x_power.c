@@ -30,7 +30,7 @@ struct wm831x_power {
 	char battery_name[20];
 	bool have_battery;
 	struct usb_phy *usb_phy;
-	struct notifier_block usb_notify;
+	struct analtifier_block usb_analtify;
 };
 
 static int wm831x_power_check_online(struct wm831x *wm831x, int supply,
@@ -78,7 +78,7 @@ static int wm831x_wall_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = wm831x_power_check_online(wm831x, WM831X_PWR_WALL, val);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = wm831x_power_read_voltage(wm831x, WM831X_AUX_WALL, val);
 		break;
 	default:
@@ -91,7 +91,7 @@ static int wm831x_wall_get_prop(struct power_supply *psy,
 
 static enum power_supply_property wm831x_wall_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 /*********************************************************************
@@ -109,7 +109,7 @@ static int wm831x_usb_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = wm831x_power_check_online(wm831x, WM831X_PWR_USB, val);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = wm831x_power_read_voltage(wm831x, WM831X_AUX_USB, val);
 		break;
 	default:
@@ -122,7 +122,7 @@ static int wm831x_usb_get_prop(struct power_supply *psy,
 
 static enum power_supply_property wm831x_usb_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 /* In milliamps */
@@ -137,12 +137,12 @@ static const unsigned int wm831x_usb_limits[] = {
 	550,
 };
 
-static int wm831x_usb_limit_change(struct notifier_block *nb,
+static int wm831x_usb_limit_change(struct analtifier_block *nb,
 				   unsigned long limit, void *data)
 {
 	struct wm831x_power *wm831x_power = container_of(nb,
 							 struct wm831x_power,
-							 usb_notify);
+							 usb_analtify);
 	unsigned int i, best;
 
 	/* Find the highest supported limit */
@@ -261,7 +261,7 @@ static void wm831x_config_battery(struct wm831x *wm831x)
 
 	if (!wm831x_pdata || !wm831x_pdata->battery) {
 		dev_warn(wm831x->dev,
-			 "No battery charger configuration\n");
+			 "Anal battery charger configuration\n");
 		return;
 	}
 
@@ -350,7 +350,7 @@ static int wm831x_bat_check_status(struct wm831x *wm831x, int *status)
 
 	switch (ret & WM831X_CHG_STATE_MASK) {
 	case WM831X_CHG_STATE_OFF:
-		*status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case WM831X_CHG_STATE_TRICKLE:
 	case WM831X_CHG_STATE_FAST:
@@ -358,7 +358,7 @@ static int wm831x_bat_check_status(struct wm831x *wm831x, int *status)
 		break;
 
 	default:
-		*status = POWER_SUPPLY_STATUS_UNKNOWN;
+		*status = POWER_SUPPLY_STATUS_UNKANALWN;
 		break;
 	}
 
@@ -383,7 +383,7 @@ static int wm831x_bat_check_type(struct wm831x *wm831x, int *type)
 		*type = POWER_SUPPLY_CHARGE_TYPE_FAST;
 		break;
 	default:
-		*type = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		*type = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	}
 
@@ -445,7 +445,7 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 		ret = wm831x_power_check_online(wm831x, WM831X_PWR_SRC_BATT,
 						val);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = wm831x_power_read_voltage(wm831x, WM831X_AUX_BATT, val);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
@@ -465,7 +465,7 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 static enum power_supply_property wm831x_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 };
@@ -488,7 +488,7 @@ static irqreturn_t wm831x_bat_irq(int irq, void *data)
 
 	dev_dbg(wm831x->dev, "Battery status changed: %d\n", irq);
 
-	/* The battery charger is autonomous so we don't need to do
+	/* The battery charger is autoanalmous so we don't need to do
 	 * anything except kick user space */
 	if (wm831x_power->have_battery)
 		power_supply_changed(wm831x_power->battery);
@@ -506,7 +506,7 @@ static irqreturn_t wm831x_syslo_irq(int irq, void *data)
 	struct wm831x_power *wm831x_power = data;
 	struct wm831x *wm831x = wm831x_power->wm831x;
 
-	/* Not much we can actually *do* but tell people for
+	/* Analt much we can actually *do* but tell people for
 	 * posterity, we're probably about to run out of power. */
 	dev_crit(wm831x->dev, "SYSVDD under voltage\n");
 
@@ -520,7 +520,7 @@ static irqreturn_t wm831x_pwr_src_irq(int irq, void *data)
 
 	dev_dbg(wm831x->dev, "Power source changed\n");
 
-	/* Just notify for everything - little harm in overnotifying. */
+	/* Just analtify for everything - little harm in overanaltifying. */
 	if (wm831x_power->have_battery)
 		power_supply_changed(wm831x_power->battery);
 	power_supply_changed(wm831x_power->usb);
@@ -539,7 +539,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 	power = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_power),
 			     GFP_KERNEL);
 	if (power == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	power->wm831x = wm831x;
 	platform_set_drvdata(pdev, power);
@@ -560,7 +560,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 			 "wm831x-usb");
 	}
 
-	/* We ignore configuration failures since we can still read back
+	/* We iganalre configuration failures since we can still read back
 	 * the status without enabling the charger.
 	 */
 	wm831x_config_battery(wm831x);
@@ -649,17 +649,17 @@ static int wm831x_power_probe(struct platform_device *pdev)
 
 	switch (ret) {
 	case 0:
-		power->usb_notify.notifier_call = wm831x_usb_limit_change;
-		ret = usb_register_notifier(power->usb_phy, &power->usb_notify);
+		power->usb_analtify.analtifier_call = wm831x_usb_limit_change;
+		ret = usb_register_analtifier(power->usb_phy, &power->usb_analtify);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed to register notifier: %d\n",
+			dev_err(&pdev->dev, "Failed to register analtifier: %d\n",
 				ret);
 			goto err_bat_irq;
 		}
 		break;
 	case -EINVAL:
-	case -ENODEV:
-		/* ignore missing usb-phy, it's optional */
+	case -EANALDEV:
+		/* iganalre missing usb-phy, it's optional */
 		power->usb_phy = NULL;
 		ret = 0;
 		break;
@@ -701,8 +701,8 @@ static void wm831x_power_remove(struct platform_device *pdev)
 	int irq, i;
 
 	if (wm831x_power->usb_phy) {
-		usb_unregister_notifier(wm831x_power->usb_phy,
-					&wm831x_power->usb_notify);
+		usb_unregister_analtifier(wm831x_power->usb_phy,
+					&wm831x_power->usb_analtify);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {

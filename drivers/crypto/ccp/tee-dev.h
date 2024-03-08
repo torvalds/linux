@@ -72,7 +72,7 @@ enum tee_cmd_state {
 
 /**
  * enum cmd_resp_state - TEE command's response status maintained by driver
- * @CMD_RESPONSE_INVALID:      initial state when no command is written to ring
+ * @CMD_RESPONSE_INVALID:      initial state when anal command is written to ring
  * @CMD_WAITING_FOR_RESPONSE:  driver waiting for response from TEE
  * @CMD_RESPONSE_TIMEDOUT:     failed to get response from TEE
  * @CMD_RESPONSE_COPIED:       driver has copied response from TEE

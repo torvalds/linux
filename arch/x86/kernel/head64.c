@@ -7,7 +7,7 @@
 
 #define DISABLE_BRANCH_PROFILING
 
-/* cpu_feature_enabled() cannot be used this early */
+/* cpu_feature_enabled() cananalt be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/init.h>
@@ -137,7 +137,7 @@ static unsigned long __head sme_postprocess_startup(struct boot_params *bp, pmdv
 	/*
 	 * Clear the memory encryption mask from the .bss..decrypted section.
 	 * The bss section will be memset to zero later in the initialization so
-	 * there is no need to zero it after changing the memory encryption
+	 * there is anal need to zero it after changing the memory encryption
 	 * attribute.
 	 */
 	if (sme_get_me_mask()) {
@@ -171,7 +171,7 @@ static unsigned long __head sme_postprocess_startup(struct boot_params *bp, pmdv
 
 /* Code in __startup_64() can be relocated during execution, but the compiler
  * doesn't have to generate PC-relative relocations when accessing globals from
- * that function. Clang actually does not generate them, which leads to
+ * that function. Clang actually does analt generate them, which leads to
  * boot-time crashes. To work around this problem, every global pointer must
  * be adjusted using fixup_pointer().
  */
@@ -201,7 +201,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	 */
 	load_delta = physaddr - (unsigned long)(_text - __START_KERNEL_map);
 
-	/* Is the address not 2M aligned? */
+	/* Is the address analt 2M aligned? */
 	if (load_delta & ~PMD_MASK)
 		for (;;);
 
@@ -216,7 +216,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
 		*p = (unsigned long)level4_kernel_pgt;
 	else
 		*p = (unsigned long)level3_kernel_pgt;
-	*p += _PAGE_TABLE_NOENC - __START_KERNEL_map + load_delta;
+	*p += _PAGE_TABLE_ANALENC - __START_KERNEL_map + load_delta;
 
 	if (la57) {
 		p4d = fixup_pointer(level4_kernel_pgt, physaddr);
@@ -233,8 +233,8 @@ unsigned long __head __startup_64(unsigned long physaddr,
 
 	/*
 	 * Set up the identity mapping for the switchover.  These
-	 * entries should *NOT* have the global bit set!  This also
-	 * creates a bunch of nonsense entries but that is fine --
+	 * entries should *ANALT* have the global bit set!  This also
+	 * creates a bunch of analnsense entries but that is fine --
 	 * it avoids problems around wraparound.
 	 */
 
@@ -242,7 +242,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	pud = fixup_pointer(early_dynamic_pgts[(*next_pgt_ptr)++], physaddr);
 	pmd = fixup_pointer(early_dynamic_pgts[(*next_pgt_ptr)++], physaddr);
 
-	pgtable_flags = _KERNPG_TABLE_NOENC + sme_get_me_mask();
+	pgtable_flags = _KERNPG_TABLE_ANALENC + sme_get_me_mask();
 
 	if (la57) {
 		p4d = fixup_pointer(early_dynamic_pgts[(*next_pgt_ptr)++],
@@ -279,7 +279,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	}
 
 	/*
-	 * Fixup the kernel text+data virtual addresses. Note that
+	 * Fixup the kernel text+data virtual addresses. Analte that
 	 * we might write invalid pmds, when the kernel is relocated
 	 * cleanup_highmap() fixes this up along with the mappings
 	 * beyond _end.
@@ -323,7 +323,7 @@ static void __init reset_early_page_tables(void)
 {
 	memset(early_top_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
 	next_early_pgt = 0;
-	write_cr3(__sme_pa_nodebug(early_top_pgt));
+	write_cr3(__sme_pa_analdebug(early_top_pgt));
 }
 
 /* Create a new PMD entry */
@@ -336,7 +336,7 @@ bool __init __early_make_pgtable(unsigned long address, pmdval_t pmd)
 	pmdval_t *pmd_p;
 
 	/* Invalid address or early pgt is done ?  */
-	if (physaddr >= MAXMEM || read_cr3_pa() != __pa_nodebug(early_top_pgt))
+	if (physaddr >= MAXMEM || read_cr3_pa() != __pa_analdebug(early_top_pgt))
 		return false;
 
 again:
@@ -423,7 +423,7 @@ void __init do_early_exception(struct pt_regs *regs, int trapnr)
 	early_fixup_exception(regs, trapnr);
 }
 
-/* Don't add a printk in there. printk relies on the PDA which is not initialized 
+/* Don't add a printk in there. printk relies on the PDA which is analt initialized 
    yet. */
 void __init clear_bss(void)
 {
@@ -462,7 +462,7 @@ static void __init copy_bootdata(char *real_mode_data)
 	}
 
 	/*
-	 * The old boot data is no longer needed and won't be reserved,
+	 * The old boot data is anal longer needed and won't be reserved,
 	 * freeing up that memory for use by the system. If SME is active,
 	 * we need to remove the mappings that were created so that the
 	 * memory doesn't remain mapped as decrypted.
@@ -470,11 +470,11 @@ static void __init copy_bootdata(char *real_mode_data)
 	sme_unmap_bootdata(real_mode_data);
 }
 
-asmlinkage __visible void __init __noreturn x86_64_start_kernel(char * real_mode_data)
+asmlinkage __visible void __init __analreturn x86_64_start_kernel(char * real_mode_data)
 {
 	/*
 	 * Build-time sanity checks on the kernel image and module
-	 * area mappings. (these are purely build-time and produce no code)
+	 * area mappings. (these are purely build-time and produce anal code)
 	 */
 	BUILD_BUG_ON(MODULES_VADDR < __START_KERNEL_map);
 	BUILD_BUG_ON(MODULES_VADDR - __START_KERNEL_map < KERNEL_IMAGE_SIZE);
@@ -536,9 +536,9 @@ asmlinkage __visible void __init __noreturn x86_64_start_kernel(char * real_mode
 	x86_64_start_reservations(real_mode_data);
 }
 
-void __init __noreturn x86_64_start_reservations(char *real_mode_data)
+void __init __analreturn x86_64_start_reservations(char *real_mode_data)
 {
-	/* version is always not zero if it is copied */
+	/* version is always analt zero if it is copied */
 	if (!boot_params.hdr.version)
 		copy_bootdata(__va(real_mode_data));
 
@@ -597,7 +597,7 @@ static void __head startup_64_load_idt(unsigned long physbase)
 		void *handler;
 
 		/* VMM Communication Exception */
-		handler = fixup_pointer(vc_no_ghcb, physbase);
+		handler = fixup_pointer(vc_anal_ghcb, physbase);
 		set_bringup_idt_handler(idt, X86_TRAP_VC, handler);
 	}
 

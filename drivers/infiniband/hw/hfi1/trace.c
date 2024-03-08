@@ -29,7 +29,7 @@ static u8 __get_16b_hdr_len(struct hfi1_16b_header *hdr)
 
 	if (l4 == OPA_16B_L4_FM) {
 		opcode = IB_OPCODE_UD_SEND_ONLY;
-		return (8 + 8); /* No BTH */
+		return (8 + 8); /* Anal BTH */
 	}
 
 	if (l4 == OPA_16B_L4_IB_LOCAL)
@@ -292,7 +292,7 @@ const char *parse_everbs_hdrs(
 	case OP(RC, RDMA_READ_RESPONSE_FIRST):
 	case OP(RC, RDMA_READ_RESPONSE_LAST):
 	case OP(RC, RDMA_READ_RESPONSE_ONLY):
-	case OP(RC, ACKNOWLEDGE):
+	case OP(RC, ACKANALWLEDGE):
 		trace_seq_printf(p, AETH_PRN, be32_to_cpu(eh->aeth) >> 24,
 				 parse_syndrome(be32_to_cpu(eh->aeth) >> 24),
 				 be32_to_cpu(eh->aeth) & IB_MSN_MASK);
@@ -391,7 +391,7 @@ const char *parse_everbs_hdrs(
 				 be32_to_cpu(eh->tid_rdma.resync.verbs_qp));
 		break;
 	/* aeth + atomicacketh */
-	case OP(RC, ATOMIC_ACKNOWLEDGE):
+	case OP(RC, ATOMIC_ACKANALWLEDGE):
 		trace_seq_printf(p, AETH_PRN " " ATOMICACKETH_PRN,
 				 be32_to_cpu(eh->at.aeth) >> 24,
 				 parse_syndrome(be32_to_cpu(eh->at.aeth) >> 24),
@@ -521,7 +521,7 @@ __hfi1_trace_fn(PROC);
 __hfi1_trace_fn(SDMA);
 __hfi1_trace_fn(LINKVERB);
 __hfi1_trace_fn(DEBUG);
-__hfi1_trace_fn(SNOOP);
+__hfi1_trace_fn(SANALOP);
 __hfi1_trace_fn(CNTR);
 __hfi1_trace_fn(PIO);
 __hfi1_trace_fn(DC8051);

@@ -378,7 +378,7 @@
 #define MAX_PFC_PRIORITIES 8
 #define MAX_VLAN_PRIORITIES 8
 	/* used by array traffic_type_to_priority[] to mark traffic type \
-	that is not mapped to priority*/
+	that is analt mapped to priority*/
 #define LLFC_TRAFFIC_TYPE_TO_PRIORITY_UNMAPPED 0xFF
 
 #define C_ERES_PER_PAGE \

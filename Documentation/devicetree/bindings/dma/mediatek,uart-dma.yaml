@@ -68,7 +68,7 @@ required:
 additionalProperties: false
 
 if:
-  not:
+  analt:
     required:
       - dma-requests
 then:

@@ -21,7 +21,7 @@ config ARM_SCMI_POWER_DOMAIN
 	  enabled or disabled via the SCP firmware
 
 	  This driver can also be built as a module. If so, the module
-	  will be called scmi_pm_domain. Note this may needed early in boot
+	  will be called scmi_pm_domain. Analte this may needed early in boot
 	  before rootfs may be available.
 
 config ARM_SCPI_POWER_DOMAIN

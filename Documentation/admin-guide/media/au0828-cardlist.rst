@@ -15,7 +15,7 @@ AU0828 cards list
      - USB IDs
 
    * - 0
-     - Unknown board
+     - Unkanalwn board
      -
 
    * - 1

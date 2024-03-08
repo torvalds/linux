@@ -132,7 +132,7 @@ int qed_selftest_nvram(struct qed_dev *cdev)
 		/* Allocate a buffer for holding the nvram image */
 		buf = kzalloc(image_att.len, GFP_KERNEL);
 		if (!buf) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err0;
 		}
 
@@ -153,7 +153,7 @@ int qed_selftest_nvram(struct qed_dev *cdev)
 			*(u32 *)&buf[j] = (__force u32)val;
 		}
 
-		/* Calc CRC for the "actual" image buffer, i.e. not including
+		/* Calc CRC for the "actual" image buffer, i.e. analt including
 		 * the last 4 CRC bytes.
 		 */
 		nvm_crc = *(u32 *)(buf + image_att.len - 4);

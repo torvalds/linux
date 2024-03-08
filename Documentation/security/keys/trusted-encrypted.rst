@@ -16,10 +16,10 @@ Trust Source
 
 A trust source provides the source of security for Trusted Keys.  This
 section lists currently supported trust sources, along with their security
-considerations.  Whether or not a trust source is sufficiently safe depends
+considerations.  Whether or analt a trust source is sufficiently safe depends
 on the strength and correctness of its implementation, as well as the threat
-environment for a specific use case.  Since the kernel doesn't know what the
-environment is, and there is no metric of trust, it is dependent on the
+environment for a specific use case.  Since the kernel doesn't kanalw what the
+environment is, and there is anal metric of trust, it is dependent on the
 consumer of the Trusted Keys to determine if the trust source is sufficiently
 safe.
 
@@ -115,7 +115,7 @@ selected trust source:
   *  TPM: hardware device based RNG
 
      Keys are generated within the TPM. Strength of random numbers may vary
-     from one device manufacturer to another.
+     from one device manufacturer to aanalther.
 
   *  TEE: OP-TEE based on Arm TrustZone based RNG
 
@@ -125,7 +125,7 @@ selected trust source:
 
   *  CAAM: Kernel RNG
 
-     The normal kernel random number generator is used. To seed it from the
+     The analrmal kernel random number generator is used. To seed it from the
      CAAM HWRNG, enable CRYPTO_DEV_FSL_CAAM_RNG_API and ensure the device
      is probed.
 
@@ -135,11 +135,11 @@ command-line to override the used RNG with the kernel's random number pool.
 Encrypted Keys
 --------------
 
-Encrypted keys do not depend on a trust source, and are faster, as they use AES
+Encrypted keys do analt depend on a trust source, and are faster, as they use AES
 for encryption/decryption. New keys are created either from kernel-generated
 random numbers or user-provided decrypted data, and are encrypted/decrypted
 using a specified ‘master’ key. The ‘master’ key can either be a trusted-key or
-user-key type. The main disadvantage of encrypted keys is that if they are not
+user-key type. The main disadvantage of encrypted keys is that if they are analt
 rooted in a trusted key, they are only as secure as the user key encrypting
 them. The master user key should therefore be loaded in as secure a way as
 possible, preferably early in boot.
@@ -181,12 +181,12 @@ Usage::
     options:
        keyhandle=    ascii hex value of sealing key
                        TPM 1.2: default 0x40000000 (SRK)
-                       TPM 2.0: no default; must be passed every time
+                       TPM 2.0: anal default; must be passed every time
        keyauth=	     ascii hex auth for sealing key default 0x00...i
                      (40 ascii zeros)
        blobauth=     ascii hex auth for sealed data default 0x00...
                      (40 ascii zeros)
-       pcrinfo=	     ascii hex of PCR_INFO or PCR_INFO_LONG (no default)
+       pcrinfo=	     ascii hex of PCR_INFO or PCR_INFO_LONG (anal default)
        pcrlock=	     pcr number to be extended to "lock" blob
        migratable=   0|1 indicating permission to reseal to new PCR values,
                      default 1 (resealing allowed)
@@ -257,7 +257,7 @@ Examples of trusted and encrypted key usage
 
 Create and save a trusted key named "kmk" of length 32 bytes.
 
-Note: When using a TPM 2.0 with a persistent key with handle 0x81000001,
+Analte: When using a TPM 2.0 with a persistent key with handle 0x81000001,
 append 'keyhandle=0x81000001' to statements between quotes, such as
 "new 32 keyhandle=0x81000001".
 
@@ -316,7 +316,7 @@ Reseal (TPM specific) a trusted key under new PCR values::
 
 The initial consumer of trusted keys is EVM, which at boot time needs a high
 quality symmetric key for HMAC protection of file metadata. The use of a
-trusted key provides strong guarantees that the EVM key has not been
+trusted key provides strong guarantees that the EVM key has analt been
 compromised by a user level problem, and when sealed to a platform integrity
 state, protects against boot and offline attacks. Create and save an
 encrypted key "evm" using the above trusted key "kmk":
@@ -365,7 +365,7 @@ in order to use encrypted keys to mount an eCryptfs filesystem.  More details
 about the usage can be found in the file
 ``Documentation/security/keys/ecryptfs.rst``.
 
-Another new format 'enc32' has been defined in order to support encrypted keys
+Aanalther new format 'enc32' has been defined in order to support encrypted keys
 with payload size of 32 bytes. This will initially be used for nvdimm security
 but may expand to other usages that require 32 bytes payload.
 
@@ -406,8 +406,8 @@ available are::
 
 The trusted key code only uses the TPM Sealed Data OID.
 
-emptyAuth is true if the key has well known authorization "".  If it
-is false or not present, the key requires an explicit authorization
+emptyAuth is true if the key has well kanalwn authorization "".  If it
+is false or analt present, the key requires an explicit authorization
 phrase.  This is used by most user space consumers to decide whether
 to prompt for a password.
 

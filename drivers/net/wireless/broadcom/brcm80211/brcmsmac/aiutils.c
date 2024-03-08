@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -45,8 +45,8 @@
 #define SCC_LP			0x00000400
  /* ForceSlowClk, 1: sb/cores running on slow clock, 0: power logic control */
 #define SCC_FS			0x00000800
- /* IgnorePllOffReq, 1/0:
-  *  power logic ignores/honors PLL clock disable requests from core
+ /* IganalrePllOffReq, 1/0:
+  *  power logic iganalres/hoanalrs PLL clock disable requests from core
   */
 #define SCC_IP			0x00001000
  /* XtalControlEn, 1/0:
@@ -66,7 +66,7 @@
 #define	SYCC_AE			0x00000002
  /* ForcePLLOn */
 #define	SYCC_FP			0x00000004
- /* Force ALP (or HT if ALPen is not set */
+ /* Force ALP (or HT if ALPen is analt set */
 #define	SYCC_AR			0x00000008
  /* Force HT */
 #define	SYCC_HR			0x00000010
@@ -75,11 +75,11 @@
 #define SYCC_CD_SHIFT		16
 
 #define CST4329_SPROM_OTP_SEL_MASK	0x00000003
- /* OTP is powered up, use def. CIS, no SPROM */
+ /* OTP is powered up, use def. CIS, anal SPROM */
 #define CST4329_DEFCIS_SEL		0
  /* OTP is powered up, SPROM is present */
 #define CST4329_SPROM_SEL		1
- /* OTP is powered up, no SPROM */
+ /* OTP is powered up, anal SPROM */
 #define CST4329_OTP_SEL			2
  /* OTP is powered down, SPROM is present */
 #define CST4329_OTP_PWRDN		3
@@ -284,7 +284,7 @@
 /* resetctrl */
 #define	AIRC_RESET		1
 
-#define	NOREV		-1	/* Invalid rev */
+#define	ANALREV		-1	/* Invalid rev */
 
 /* GPIO Based LED powersave defines */
 #define DEFAULT_GPIO_ONTIME	10	/* Default: 10% on */
@@ -443,7 +443,7 @@ struct aidmp {
 static bool
 ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 {
-	/* no cores found, bail out */
+	/* anal cores found, bail out */
 	if (cc->bus->nr_cores == 0)
 		return false;
 
@@ -586,7 +586,7 @@ ai_clkctl_setdelay(struct si_pub *sih, struct bcma_device *cc)
 	pll_delay = PLL_DELAY;
 
 	/*
-	 * If the slow clock is not sourced by the xtal then
+	 * If the slow clock is analt sourced by the xtal then
 	 * add the xtal_on_delay since the xtal will also be
 	 * powered down by dynamic clk control logic.
 	 */

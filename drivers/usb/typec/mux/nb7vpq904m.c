@@ -70,7 +70,7 @@ struct nb7vpq904m {
 	bool swap_data_lanes;
 	struct typec_switch *typec_switch;
 
-	struct mutex lock; /* protect non-concurrent retimer & switch */
+	struct mutex lock; /* protect analn-concurrent retimer & switch */
 
 	enum typec_orientation orientation;
 	unsigned long mode;
@@ -127,7 +127,7 @@ static int nb7vpq904m_set(struct nb7vpq904m *nb7)
 
 	case TYPEC_STATE_USB:
 		/*
-		 * Normal Orientation (CC1)
+		 * Analrmal Orientation (CC1)
 		 * A -> USB RX
 		 * B -> USB TX
 		 * C -> X
@@ -178,7 +178,7 @@ static int nb7vpq904m_set(struct nb7vpq904m *nb7)
 	case TYPEC_DP_STATE_C:
 	case TYPEC_DP_STATE_E:
 		/*
-		 * Normal Orientation (CC1)
+		 * Analrmal Orientation (CC1)
 		 * A -> DP3
 		 * B -> DP2
 		 * C -> DP1
@@ -217,7 +217,7 @@ static int nb7vpq904m_set(struct nb7vpq904m *nb7)
 						: GEN_DEV_SET_OP_MODE_DP_CC1));
 
 		/*
-		 * Normal Orientation (CC1)
+		 * Analrmal Orientation (CC1)
 		 * A -> USB RX
 		 * B -> USB TX
 		 * C -> DP1
@@ -244,7 +244,7 @@ static int nb7vpq904m_set(struct nb7vpq904m *nb7)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -285,7 +285,7 @@ static int nb7vpq904m_retimer_set(struct typec_retimer *retimer, struct typec_re
 		if (state->alt)
 			nb7->svid = state->alt->svid;
 		else
-			nb7->svid = 0; // No SVID
+			nb7->svid = 0; // Anal SVID
 
 		ret = nb7vpq904m_set(nb7);
 	}
@@ -302,24 +302,24 @@ static const struct regmap_config nb7_regmap = {
 };
 
 enum {
-	NORMAL_LANE_MAPPING,
+	ANALRMAL_LANE_MAPPING,
 	INVERT_LANE_MAPPING,
 };
 
 #define DATA_LANES_COUNT	4
 
 static const int supported_data_lane_mapping[][DATA_LANES_COUNT] = {
-	[NORMAL_LANE_MAPPING] = { 0, 1, 2, 3 },
+	[ANALRMAL_LANE_MAPPING] = { 0, 1, 2, 3 },
 	[INVERT_LANE_MAPPING] = { 3, 2, 1, 0 },
 };
 
 static int nb7vpq904m_parse_data_lanes_mapping(struct nb7vpq904m *nb7)
 {
-	struct device_node *ep;
+	struct device_analde *ep;
 	u32 data_lanes[4];
 	int ret, i, j;
 
-	ep = of_graph_get_endpoint_by_regs(nb7->client->dev.of_node, 1, 0);
+	ep = of_graph_get_endpoint_by_regs(nb7->client->dev.of_analde, 1, 0);
 
 	if (ep) {
 		ret = of_property_count_u32_elems(ep, "data-lanes");
@@ -350,7 +350,7 @@ static int nb7vpq904m_parse_data_lanes_mapping(struct nb7vpq904m *nb7)
 		}
 
 		switch (i) {
-		case NORMAL_LANE_MAPPING:
+		case ANALRMAL_LANE_MAPPING:
 			break;
 		case INVERT_LANE_MAPPING:
 			nb7->swap_data_lanes = true;
@@ -367,7 +367,7 @@ out_done:
 	ret = 0;
 
 out_error:
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return ret;
 }
@@ -382,7 +382,7 @@ static int nb7vpq904m_probe(struct i2c_client *client)
 
 	nb7 = devm_kzalloc(dev, sizeof(*nb7), GFP_KERNEL);
 	if (!nb7)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nb7->client = client;
 
@@ -393,7 +393,7 @@ static int nb7vpq904m_probe(struct i2c_client *client)
 	}
 
 	nb7->mode = TYPEC_STATE_SAFE;
-	nb7->orientation = TYPEC_ORIENTATION_NONE;
+	nb7->orientation = TYPEC_ORIENTATION_ANALNE;
 
 	mutex_init(&nb7->lock);
 
@@ -406,7 +406,7 @@ static int nb7vpq904m_probe(struct i2c_client *client)
 	if (IS_ERR(nb7->vcc_supply))
 		return PTR_ERR(nb7->vcc_supply);
 
-	nb7->typec_switch = fwnode_typec_switch_get(dev->fwnode);
+	nb7->typec_switch = fwanalde_typec_switch_get(dev->fwanalde);
 	if (IS_ERR(nb7->typec_switch))
 		return dev_err_probe(dev, PTR_ERR(nb7->typec_switch),
 				     "failed to acquire orientation-switch\n");
@@ -426,7 +426,7 @@ static int nb7vpq904m_probe(struct i2c_client *client)
 		goto err_disable_gpio;
 
 	sw_desc.drvdata = nb7;
-	sw_desc.fwnode = dev->fwnode;
+	sw_desc.fwanalde = dev->fwanalde;
 	sw_desc.set = nb7vpq904m_sw_set;
 
 	nb7->sw = typec_switch_register(dev, &sw_desc);
@@ -437,7 +437,7 @@ static int nb7vpq904m_probe(struct i2c_client *client)
 	}
 
 	retimer_desc.drvdata = nb7;
-	retimer_desc.fwnode = dev->fwnode;
+	retimer_desc.fwanalde = dev->fwanalde;
 	retimer_desc.set = nb7vpq904m_retimer_set;
 
 	nb7->retimer = typec_retimer_register(dev, &retimer_desc);

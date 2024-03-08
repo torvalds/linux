@@ -20,7 +20,7 @@ EXPORT_SYMBOL(shm_align_mask);
 
 #ifdef CONFIG_MMU
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
@@ -28,7 +28,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_EXECREAD,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY,
 	[VM_SHARED | VM_WRITE]				= PAGE_WRITEONLY,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,
@@ -60,7 +60,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_unmapped_area_info info;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do analt accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -70,7 +70,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	}
 
 	if (unlikely(len > TASK_SIZE))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do_colour_align = 0;
 	if (filp || (flags & MAP_SHARED))
@@ -109,7 +109,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct vm_unmapped_area_info info;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do analt accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -119,7 +119,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	}
 
 	if (unlikely(len > TASK_SIZE))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do_colour_align = 0;
 	if (filp || (flags & MAP_SHARED))
@@ -153,7 +153,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = TASK_SIZE;

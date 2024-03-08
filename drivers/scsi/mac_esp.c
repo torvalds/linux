@@ -72,17 +72,17 @@ static inline u8 mac_esp_read8(struct esp *esp, unsigned long reg)
 
 static void mac_esp_reset_dma(struct esp *esp)
 {
-	/* Nothing to do. */
+	/* Analthing to do. */
 }
 
 static void mac_esp_dma_drain(struct esp *esp)
 {
-	/* Nothing to do. */
+	/* Analthing to do. */
 }
 
 static void mac_esp_dma_invalidate(struct esp *esp)
 {
-	/* Nothing to do. */
+	/* Analthing to do. */
 }
 
 static int mac_esp_dma_error(struct esp *esp)
@@ -104,7 +104,7 @@ static inline int mac_esp_wait_for_empty_fifo(struct esp *esp)
 		udelay(2);
 	} while (--i);
 
-	printk(KERN_ERR PFX "FIFO is not empty (sreg %02x)\n",
+	printk(KERN_ERR PFX "FIFO is analt empty (sreg %02x)\n",
 	       esp_read8(ESP_STATUS));
 	esp->send_cmd_error = 1;
 	return 1;
@@ -166,7 +166,7 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 	     "30:    tstw %3                   \n" \
 	     "       jbeq 40f                  \n" \
 	     "31:    moveb " operands "        \n" \
-	     "32:    nop                       \n" \
+	     "32:    analp                       \n" \
 	     "40:                              \n" \
 	     "                                 \n" \
 	     "       .section __ex_table,\"a\" \n" \
@@ -296,14 +296,14 @@ static int esp_mac_probe(struct platform_device *dev)
 	struct mac_esp_priv *mep;
 
 	if (!MACH_IS_MAC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->id > 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	host = scsi_host_alloc(tpnt, sizeof(struct esp));
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!host)
 		goto fail;
 
@@ -347,7 +347,7 @@ static int esp_mac_probe(struct platform_device *dev)
 		break;
 	case MAC_SCSI_QUADRA3:
 		/* These quadras have a real DMA controller (the PSC) but we
-		 * don't know how to drive it so we must use PIO instead.
+		 * don't kanalw how to drive it so we must use PIO instead.
 		 */
 		esp->cfreq     = 25000000;
 		esp->regs      = (void __iomem *)MAC_ESP_REGS_QUADRA3;
@@ -358,7 +358,7 @@ static int esp_mac_probe(struct platform_device *dev)
 	esp->fifo_reg = esp->regs + ESP_FDATA * 16;
 
 	esp->ops = &mac_esp_ops;
-	esp->flags = ESP_FLAG_NO_DMA_MAP;
+	esp->flags = ESP_FLAG_ANAL_DMA_MAP;
 	if (mep->pdma_io == NULL) {
 		printk(KERN_INFO PFX "using PIO for controller %d\n", dev->id);
 		esp_write8(0, ESP_TCLOW);

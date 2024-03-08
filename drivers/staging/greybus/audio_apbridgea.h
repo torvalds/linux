@@ -6,7 +6,7 @@
  * This is a special protocol for configuring communication over the
  * I2S bus between the DSP on the MSM8994 and APBridgeA.  Therefore,
  * we can predefine several low-level attributes of the communication
- * because we know that they are supported.  In particular, the following
+ * because we kanalw that they are supported.  In particular, the following
  * assumptions are made:
  *	- there are two channels (i.e., stereo)
  *	- the low-level protocol is I2S as defined by Philips/NXP

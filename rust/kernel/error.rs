@@ -2,7 +2,7 @@
 
 //! Kernel errors.
 //!
-//! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
+//! C header: [`include/uapi/asm-generic/erranal-base.h`](srctree/include/uapi/asm-generic/erranal-base.h)
 
 use crate::str::CStr;
 
@@ -28,59 +28,59 @@ pub mod code {
         };
     }
 
-    declare_err!(EPERM, "Operation not permitted.");
-    declare_err!(ENOENT, "No such file or directory.");
-    declare_err!(ESRCH, "No such process.");
+    declare_err!(EPERM, "Operation analt permitted.");
+    declare_err!(EANALENT, "Anal such file or directory.");
+    declare_err!(ESRCH, "Anal such process.");
     declare_err!(EINTR, "Interrupted system call.");
     declare_err!(EIO, "I/O error.");
-    declare_err!(ENXIO, "No such device or address.");
+    declare_err!(ENXIO, "Anal such device or address.");
     declare_err!(E2BIG, "Argument list too long.");
-    declare_err!(ENOEXEC, "Exec format error.");
+    declare_err!(EANALEXEC, "Exec format error.");
     declare_err!(EBADF, "Bad file number.");
-    declare_err!(ECHILD, "No child processes.");
+    declare_err!(ECHILD, "Anal child processes.");
     declare_err!(EAGAIN, "Try again.");
-    declare_err!(ENOMEM, "Out of memory.");
+    declare_err!(EANALMEM, "Out of memory.");
     declare_err!(EACCES, "Permission denied.");
     declare_err!(EFAULT, "Bad address.");
-    declare_err!(ENOTBLK, "Block device required.");
+    declare_err!(EANALTBLK, "Block device required.");
     declare_err!(EBUSY, "Device or resource busy.");
     declare_err!(EEXIST, "File exists.");
     declare_err!(EXDEV, "Cross-device link.");
-    declare_err!(ENODEV, "No such device.");
-    declare_err!(ENOTDIR, "Not a directory.");
+    declare_err!(EANALDEV, "Anal such device.");
+    declare_err!(EANALTDIR, "Analt a directory.");
     declare_err!(EISDIR, "Is a directory.");
     declare_err!(EINVAL, "Invalid argument.");
     declare_err!(ENFILE, "File table overflow.");
     declare_err!(EMFILE, "Too many open files.");
-    declare_err!(ENOTTY, "Not a typewriter.");
+    declare_err!(EANALTTY, "Analt a typewriter.");
     declare_err!(ETXTBSY, "Text file busy.");
     declare_err!(EFBIG, "File too large.");
-    declare_err!(ENOSPC, "No space left on device.");
+    declare_err!(EANALSPC, "Anal space left on device.");
     declare_err!(ESPIPE, "Illegal seek.");
     declare_err!(EROFS, "Read-only file system.");
     declare_err!(EMLINK, "Too many links.");
     declare_err!(EPIPE, "Broken pipe.");
     declare_err!(EDOM, "Math argument out of domain of func.");
-    declare_err!(ERANGE, "Math result not representable.");
+    declare_err!(ERANGE, "Math result analt representable.");
     declare_err!(ERESTARTSYS, "Restart the system call.");
-    declare_err!(ERESTARTNOINTR, "System call was interrupted by a signal and will be restarted.");
-    declare_err!(ERESTARTNOHAND, "Restart if no handler.");
-    declare_err!(ENOIOCTLCMD, "No ioctl command.");
+    declare_err!(ERESTARTANALINTR, "System call was interrupted by a signal and will be restarted.");
+    declare_err!(ERESTARTANALHAND, "Restart if anal handler.");
+    declare_err!(EANALIOCTLCMD, "Anal ioctl command.");
     declare_err!(ERESTART_RESTARTBLOCK, "Restart by calling sys_restart_syscall.");
     declare_err!(EPROBE_DEFER, "Driver requests probe retry.");
     declare_err!(EOPENSTALE, "Open found a stale dentry.");
-    declare_err!(ENOPARAM, "Parameter not supported.");
+    declare_err!(EANALPARAM, "Parameter analt supported.");
     declare_err!(EBADHANDLE, "Illegal NFS file handle.");
-    declare_err!(ENOTSYNC, "Update synchronization mismatch.");
+    declare_err!(EANALTSYNC, "Update synchronization mismatch.");
     declare_err!(EBADCOOKIE, "Cookie is stale.");
-    declare_err!(ENOTSUPP, "Operation is not supported.");
+    declare_err!(EANALTSUPP, "Operation is analt supported.");
     declare_err!(ETOOSMALL, "Buffer or request is too small.");
     declare_err!(ESERVERFAULT, "An untranslatable error occurred.");
-    declare_err!(EBADTYPE, "Type not supported by server.");
-    declare_err!(EJUKEBOX, "Request initiated, but will not complete before timeout.");
+    declare_err!(EBADTYPE, "Type analt supported by server.");
+    declare_err!(EJUKEBOX, "Request initiated, but will analt complete before timeout.");
     declare_err!(EIOCBQUEUED, "iocb queued, will get completion event.");
     declare_err!(ERECALLCONFLICT, "Conflict with recalled state.");
-    declare_err!(ENOGRACE, "NFS file lock reclaim refused.");
+    declare_err!(EANALGRACE, "NFS file lock reclaim refused.");
 }
 
 /// Generic integer kernel error.
@@ -90,43 +90,43 @@ pub mod code {
 ///
 /// # Invariants
 ///
-/// The value is a valid `errno` (i.e. `>= -MAX_ERRNO && < 0`).
+/// The value is a valid `erranal` (i.e. `>= -MAX_ERRANAL && < 0`).
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Error(core::ffi::c_int);
 
 impl Error {
     /// Creates an [`Error`] from a kernel error code.
     ///
-    /// It is a bug to pass an out-of-range `errno`. `EINVAL` would
+    /// It is a bug to pass an out-of-range `erranal`. `EINVAL` would
     /// be returned in such a case.
-    pub(crate) fn from_errno(errno: core::ffi::c_int) -> Error {
-        if errno < -(bindings::MAX_ERRNO as i32) || errno >= 0 {
+    pub(crate) fn from_erranal(erranal: core::ffi::c_int) -> Error {
+        if erranal < -(bindings::MAX_ERRANAL as i32) || erranal >= 0 {
             // TODO: Make it a `WARN_ONCE` once available.
             crate::pr_warn!(
-                "attempted to create `Error` with out of range `errno`: {}",
-                errno
+                "attempted to create `Error` with out of range `erranal`: {}",
+                erranal
             );
             return code::EINVAL;
         }
 
         // INVARIANT: The check above ensures the type invariant
         // will hold.
-        Error(errno)
+        Error(erranal)
     }
 
     /// Creates an [`Error`] from a kernel error code.
     ///
     /// # Safety
     ///
-    /// `errno` must be within error code range (i.e. `>= -MAX_ERRNO && < 0`).
-    unsafe fn from_errno_unchecked(errno: core::ffi::c_int) -> Error {
+    /// `erranal` must be within error code range (i.e. `>= -MAX_ERRANAL && < 0`).
+    unsafe fn from_erranal_unchecked(erranal: core::ffi::c_int) -> Error {
         // INVARIANT: The contract ensures the type invariant
         // will hold.
-        Error(errno)
+        Error(erranal)
     }
 
     /// Returns the kernel error code.
-    pub fn to_errno(self) -> core::ffi::c_int {
+    pub fn to_erranal(self) -> core::ffi::c_int {
         self.0
     }
 
@@ -138,12 +138,12 @@ impl Error {
     }
 
     /// Returns a string representing the error, if one exists.
-    #[cfg(not(testlib))]
+    #[cfg(analt(testlib))]
     pub fn name(&self) -> Option<&'static CStr> {
-        // SAFETY: Just an FFI call, there are no extra safety requirements.
+        // SAFETY: Just an FFI call, there are anal extra safety requirements.
         let ptr = unsafe { bindings::errname(-self.0) };
         if ptr.is_null() {
-            None
+            Analne
         } else {
             // SAFETY: The string returned by `errname` is static and `NUL`-terminated.
             Some(unsafe { CStr::from_char_ptr(ptr) })
@@ -152,20 +152,20 @@ impl Error {
 
     /// Returns a string representing the error, if one exists.
     ///
-    /// When `testlib` is configured, this always returns `None` to avoid the dependency on a
+    /// When `testlib` is configured, this always returns `Analne` to avoid the dependency on a
     /// kernel function so that tests that use this (e.g., by calling [`Result::unwrap`]) can still
     /// run in userspace.
     #[cfg(testlib)]
     pub fn name(&self) -> Option<&'static CStr> {
-        None
+        Analne
     }
 }
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.name() {
-            // Print out number if no name can be found.
-            None => f.debug_tuple("Error").field(&-self.0).finish(),
+            // Print out number if anal name can be found.
+            Analne => f.debug_tuple("Error").field(&-self.0).finish(),
             // SAFETY: These strings are ASCII-only.
             Some(name) => f
                 .debug_tuple(unsafe { core::str::from_utf8_unchecked(name) })
@@ -176,7 +176,7 @@ impl fmt::Debug for Error {
 
 impl From<AllocError> for Error {
     fn from(_: AllocError) -> Error {
-        code::ENOMEM
+        code::EANALMEM
     }
 }
 
@@ -194,13 +194,13 @@ impl From<Utf8Error> for Error {
 
 impl From<TryReserveError> for Error {
     fn from(_: TryReserveError) -> Error {
-        code::ENOMEM
+        code::EANALMEM
     }
 }
 
 impl From<LayoutError> for Error {
     fn from(_: LayoutError) -> Error {
-        code::ENOMEM
+        code::EANALMEM
     }
 }
 
@@ -223,7 +223,7 @@ impl From<core::convert::Infallible> for Error {
 /// # Error codes in C and Rust
 ///
 /// In C, it is common that functions indicate success or failure through
-/// their return value; modifying or returning extra data through non-`const`
+/// their return value; modifying or returning extra data through analn-`const`
 /// pointer parameters. In particular, in the kernel, functions that may fail
 /// typically return an `int` that represents a generic error code. We model
 /// those as [`Error`].
@@ -233,7 +233,7 @@ impl From<core::convert::Infallible> for Error {
 /// [`Result`] is a type alias for a [`core::result::Result`] that uses
 /// [`Error`] as its error type.
 ///
-/// Note that even if a function does not return anything when it succeeds,
+/// Analte that even if a function does analt return anything when it succeeds,
 /// it should still be modeled as returning a `Result` rather than
 /// just an [`Error`].
 pub type Result<T = (), E = Error> = core::result::Result<T, E>;
@@ -242,22 +242,22 @@ pub type Result<T = (), E = Error> = core::result::Result<T, E>;
 /// `Ok(())` otherwise.
 pub fn to_result(err: core::ffi::c_int) -> Result {
     if err < 0 {
-        Err(Error::from_errno(err))
+        Err(Error::from_erranal(err))
     } else {
         Ok(())
     }
 }
 
-/// Transform a kernel "error pointer" to a normal pointer.
+/// Transform a kernel "error pointer" to a analrmal pointer.
 ///
 /// Some kernel C API functions return an "error pointer" which optionally
-/// embeds an `errno`. Callers are supposed to check the returned pointer
+/// embeds an `erranal`. Callers are supposed to check the returned pointer
 /// for errors. This function performs the check and converts the "error pointer"
-/// to a normal pointer in an idiomatic fashion.
+/// to a analrmal pointer in an idiomatic fashion.
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```iganalre
 /// # use kernel::from_err_ptr;
 /// # use kernel::bindings;
 /// fn devm_platform_ioremap_resource(
@@ -278,21 +278,21 @@ pub fn to_result(err: core::ffi::c_int) -> Result {
 pub(crate) fn from_err_ptr<T>(ptr: *mut T) -> Result<*mut T> {
     // CAST: Casting a pointer to `*const core::ffi::c_void` is always valid.
     let const_ptr: *const core::ffi::c_void = ptr.cast();
-    // SAFETY: The FFI function does not deref the pointer.
+    // SAFETY: The FFI function does analt deref the pointer.
     if unsafe { bindings::IS_ERR(const_ptr) } {
-        // SAFETY: The FFI function does not deref the pointer.
+        // SAFETY: The FFI function does analt deref the pointer.
         let err = unsafe { bindings::PTR_ERR(const_ptr) };
         // CAST: If `IS_ERR()` returns `true`,
         // then `PTR_ERR()` is guaranteed to return a
-        // negative value greater-or-equal to `-bindings::MAX_ERRNO`,
+        // negative value greater-or-equal to `-bindings::MAX_ERRANAL`,
         // which always fits in an `i16`, as per the invariant above.
         // And an `i16` always fits in an `i32`. So casting `err` to
         // an `i32` can never overflow, and is always valid.
         //
         // SAFETY: `IS_ERR()` ensures `err` is a
-        // negative value greater-or-equal to `-bindings::MAX_ERRNO`.
+        // negative value greater-or-equal to `-bindings::MAX_ERRANAL`.
         #[allow(clippy::unnecessary_cast)]
-        return Err(unsafe { Error::from_errno_unchecked(err as core::ffi::c_int) });
+        return Err(unsafe { Error::from_erranal_unchecked(err as core::ffi::c_int) });
     }
     Ok(ptr)
 }
@@ -307,7 +307,7 @@ pub(crate) fn from_err_ptr<T>(ptr: *mut T) -> Result<*mut T> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```iganalre
 /// # use kernel::from_result;
 /// # use kernel::bindings;
 /// unsafe extern "C" fn probe_callback(
@@ -329,13 +329,13 @@ where
 {
     match f() {
         Ok(v) => v,
-        // NO-OVERFLOW: negative `errno`s are no smaller than `-bindings::MAX_ERRNO`,
-        // `-bindings::MAX_ERRNO` fits in an `i16` as per invariant above,
-        // therefore a negative `errno` always fits in an `i16` and will not overflow.
-        Err(e) => T::from(e.to_errno() as i16),
+        // ANAL-OVERFLOW: negative `erranal`s are anal smaller than `-bindings::MAX_ERRANAL`,
+        // `-bindings::MAX_ERRANAL` fits in an `i16` as per invariant above,
+        // therefore a negative `erranal` always fits in an `i16` and will analt overflow.
+        Err(e) => T::from(e.to_erranal() as i16),
     }
 }
 
 /// Error message for calling a default function of a [`#[vtable]`](macros::vtable) trait.
 pub const VTABLE_DEFAULT_ERROR: &str =
-    "This function must not be called, see the #[vtable] documentation.";
+    "This function must analt be called, see the #[vtable] documentation.";

@@ -18,12 +18,12 @@
  *
  * The IPA incorporates a microcontroller that is able to do some additional
  * handling/offloading of network activity.  The current code makes
- * essentially no use of the microcontroller, but it still requires some
- * initialization.  It needs to be notified in the event the AP crashes.
+ * essentially anal use of the microcontroller, but it still requires some
+ * initialization.  It needs to be analtified in the event the AP crashes.
  *
  * The microcontroller can generate two interrupts to the AP.  One interrupt
  * is used to indicate that a response to a request from the AP is available.
- * The other is used to notify the AP of the occurrence of an event.  In
+ * The other is used to analtify the AP of the occurrence of an event.  In
  * addition, the AP can interrupt the microcontroller by writing a register.
  *
  * A 128 byte block of structured memory within the IPA SRAM is used together
@@ -31,7 +31,7 @@
  * AP and the IPA microcontroller.  Each side writes data to the shared area
  * before interrupting its peer, which will read the written data in response
  * to the interrupt.  Some information found in the shared area is currently
- * unused.  All remaining space in the shared area is reserved, and must not
+ * unused.  All remaining space in the shared area is reserved, and must analt
  * be read or written by the AP.
  */
 /* Supports hardware interface version 0x2000 */
@@ -54,9 +54,9 @@
  * @reserved2:		reserved bytes; avoid reading or writing
  * @event_param:	event parameter (microcontroller->AP)
  *
- * @first_error_address: address of first error-source on SNOC
+ * @first_error_address: address of first error-source on SANALC
  * @hw_state:		state of hardware (including error type information)
- * @warning_counter:	counter of non-fatal hardware errors
+ * @warning_counter:	counter of analn-fatal hardware errors
  * @reserved3:		reserved bytes; avoid reading or writing
  * @interface_version:	hardware-reported interface version
  * @reserved4:		reserved bytes; avoid reading or writing
@@ -87,7 +87,7 @@ struct ipa_uc_mem_area {
 
 /** enum ipa_uc_command - commands from the AP to the microcontroller */
 enum ipa_uc_command {
-	IPA_UC_COMMAND_NO_OP		= 0x0,
+	IPA_UC_COMMAND_ANAL_OP		= 0x0,
 	IPA_UC_COMMAND_UPDATE_FLAGS	= 0x1,
 	IPA_UC_COMMAND_DEBUG_RUN_TEST	= 0x2,
 	IPA_UC_COMMAND_DEBUG_GET_INFO	= 0x3,
@@ -102,7 +102,7 @@ enum ipa_uc_command {
 
 /** enum ipa_uc_response - microcontroller response codes */
 enum ipa_uc_response {
-	IPA_UC_RESPONSE_NO_OP		= 0x0,
+	IPA_UC_RESPONSE_ANAL_OP		= 0x0,
 	IPA_UC_RESPONSE_INIT_COMPLETED	= 0x1,
 	IPA_UC_RESPONSE_CMD_COMPLETED	= 0x2,
 	IPA_UC_RESPONSE_DEBUG_GET_INFO	= 0x3,
@@ -110,7 +110,7 @@ enum ipa_uc_response {
 
 /** enum ipa_uc_event - common cpu events reported by the microcontroller */
 enum ipa_uc_event {
-	IPA_UC_EVENT_NO_OP		= 0x0,
+	IPA_UC_EVENT_ANAL_OP		= 0x0,
 	IPA_UC_EVENT_ERROR		= 0x1,
 	IPA_UC_EVENT_LOG_INFO		= 0x2,
 };
@@ -134,7 +134,7 @@ static void ipa_uc_event_handler(struct ipa *ipa)
 	else if (shared->event != IPA_UC_EVENT_LOG_INFO)
 		dev_err(dev, "unsupported microcontroller event %u\n",
 			shared->event);
-	/* The LOG_INFO event can be safely ignored */
+	/* The LOG_INFO event can be safely iganalred */
 }
 
 /* Microcontroller response IPA interrupt handler */
@@ -149,7 +149,7 @@ static void ipa_uc_response_hdlr(struct ipa *ipa)
 	 * sent it a request message.
 	 *
 	 * We can drop the power reference taken in ipa_uc_power() once we
-	 * know the microcontroller has finished its initialization.
+	 * kanalw the microcontroller has finished its initialization.
 	 */
 	switch (shared->response) {
 	case IPA_UC_RESPONSE_INIT_COMPLETED:
@@ -172,7 +172,7 @@ static void ipa_uc_response_hdlr(struct ipa *ipa)
 
 void ipa_uc_interrupt_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 {
-	/* Silently ignore anything unrecognized */
+	/* Silently iganalre anything unrecognized */
 	if (irq_id == IPA_IRQ_UC_0)
 		ipa_uc_event_handler(ipa);
 	else if (irq_id == IPA_IRQ_UC_1)
@@ -220,7 +220,7 @@ void ipa_uc_power(struct ipa *ipa)
 	dev = &ipa->pdev->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		dev_err(dev, "error %d getting proxy power\n", ret);
 	} else {
 		ipa->uc_powered = true;
@@ -249,13 +249,13 @@ static void send_uc_command(struct ipa *ipa, u32 command, u32 command_param)
 }
 
 /* Tell the microcontroller the AP is shutting down */
-void ipa_uc_panic_notifier(struct ipa *ipa)
+void ipa_uc_panic_analtifier(struct ipa *ipa)
 {
 	if (!ipa->uc_loaded)
 		return;
 
 	send_uc_command(ipa, IPA_UC_COMMAND_ERR_FATAL, 0);
 
-	/* give uc enough time to save state */
+	/* give uc eanalugh time to save state */
 	udelay(IPA_SEND_DELAY);
 }

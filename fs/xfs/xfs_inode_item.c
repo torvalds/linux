@@ -10,9 +10,9 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
+#include "xfs_ianalde_item.h"
 #include "xfs_trace.h"
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
@@ -23,58 +23,58 @@
 
 #include <linux/iversion.h>
 
-struct kmem_cache	*xfs_ili_cache;		/* inode log item */
+struct kmem_cache	*xfs_ili_cache;		/* ianalde log item */
 
-static inline struct xfs_inode_log_item *INODE_ITEM(struct xfs_log_item *lip)
+static inline struct xfs_ianalde_log_item *IANALDE_ITEM(struct xfs_log_item *lip)
 {
-	return container_of(lip, struct xfs_inode_log_item, ili_item);
+	return container_of(lip, struct xfs_ianalde_log_item, ili_item);
 }
 
 static uint64_t
-xfs_inode_item_sort(
+xfs_ianalde_item_sort(
 	struct xfs_log_item	*lip)
 {
-	return INODE_ITEM(lip)->ili_inode->i_ino;
+	return IANALDE_ITEM(lip)->ili_ianalde->i_ianal;
 }
 
 /*
- * Prior to finally logging the inode, we have to ensure that all the
- * per-modification inode state changes are applied. This includes VFS inode
+ * Prior to finally logging the ianalde, we have to ensure that all the
+ * per-modification ianalde state changes are applied. This includes VFS ianalde
  * state updates, format conversions, verifier state synchronisation and
- * ensuring the inode buffer remains in memory whilst the inode is dirty.
+ * ensuring the ianalde buffer remains in memory whilst the ianalde is dirty.
  *
- * We have to be careful when we grab the inode cluster buffer due to lock
- * ordering constraints. The unlinked inode modifications (xfs_iunlink_item)
- * require AGI -> inode cluster buffer lock order. The inode cluster buffer is
- * not locked until ->precommit, so it happens after everything else has been
+ * We have to be careful when we grab the ianalde cluster buffer due to lock
+ * ordering constraints. The unlinked ianalde modifications (xfs_iunlink_item)
+ * require AGI -> ianalde cluster buffer lock order. The ianalde cluster buffer is
+ * analt locked until ->precommit, so it happens after everything else has been
  * modified.
  *
  * Further, we have AGI -> AGF lock ordering, and with O_TMPFILE handling we
- * have AGI -> AGF -> iunlink item -> inode cluster buffer lock order. Hence we
- * cannot safely lock the inode cluster buffer in xfs_trans_log_inode() because
- * it can be called on a inode (e.g. via bumplink/droplink) before we take the
+ * have AGI -> AGF -> iunlink item -> ianalde cluster buffer lock order. Hence we
+ * cananalt safely lock the ianalde cluster buffer in xfs_trans_log_ianalde() because
+ * it can be called on a ianalde (e.g. via bumplink/droplink) before we take the
  * AGF lock modifying directory blocks.
  *
  * Rather than force a complete rework of all the transactions to call
- * xfs_trans_log_inode() once and once only at the end of every transaction, we
- * move the pinning of the inode cluster buffer to a ->precommit operation. This
- * matches how the xfs_iunlink_item locks the inode cluster buffer, and it
- * ensures that the inode cluster buffer locking is always done last in a
- * transaction. i.e. we ensure the lock order is always AGI -> AGF -> inode
+ * xfs_trans_log_ianalde() once and once only at the end of every transaction, we
+ * move the pinning of the ianalde cluster buffer to a ->precommit operation. This
+ * matches how the xfs_iunlink_item locks the ianalde cluster buffer, and it
+ * ensures that the ianalde cluster buffer locking is always done last in a
+ * transaction. i.e. we ensure the lock order is always AGI -> AGF -> ianalde
  * cluster buffer.
  *
- * If we return the inode number as the precommit sort key then we'll also
- * guarantee that the order all inode cluster buffer locking is the same all the
- * inodes and unlink items in the transaction.
+ * If we return the ianalde number as the precommit sort key then we'll also
+ * guarantee that the order all ianalde cluster buffer locking is the same all the
+ * ianaldes and unlink items in the transaction.
  */
 static int
-xfs_inode_item_precommit(
+xfs_ianalde_item_precommit(
 	struct xfs_trans	*tp,
 	struct xfs_log_item	*lip)
 {
-	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
-	struct xfs_inode	*ip = iip->ili_inode;
-	struct inode		*inode = VFS_I(ip);
+	struct xfs_ianalde_log_item *iip = IANALDE_ITEM(lip);
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
+	struct ianalde		*ianalde = VFS_I(ip);
 	unsigned int		flags = iip->ili_dirty_flags;
 
 	/*
@@ -83,25 +83,25 @@ xfs_inode_item_precommit(
 	 * to log the timestamps, or will clear already cleared fields in the
 	 * worst case.
 	 */
-	if (inode->i_state & I_DIRTY_TIME) {
-		spin_lock(&inode->i_lock);
-		inode->i_state &= ~I_DIRTY_TIME;
-		spin_unlock(&inode->i_lock);
+	if (ianalde->i_state & I_DIRTY_TIME) {
+		spin_lock(&ianalde->i_lock);
+		ianalde->i_state &= ~I_DIRTY_TIME;
+		spin_unlock(&ianalde->i_lock);
 	}
 
 	/*
-	 * If we're updating the inode core or the timestamps and it's possible
-	 * to upgrade this inode to bigtime format, do so now.
+	 * If we're updating the ianalde core or the timestamps and it's possible
+	 * to upgrade this ianalde to bigtime format, do so analw.
 	 */
 	if ((flags & (XFS_ILOG_CORE | XFS_ILOG_TIMESTAMP)) &&
 	    xfs_has_bigtime(ip->i_mount) &&
-	    !xfs_inode_has_bigtime(ip)) {
+	    !xfs_ianalde_has_bigtime(ip)) {
 		ip->i_diflags2 |= XFS_DIFLAG2_BIGTIME;
 		flags |= XFS_ILOG_CORE;
 	}
 
 	/*
-	 * Inode verifiers do not check that the extent size hint is an integer
+	 * Ianalde verifiers do analt check that the extent size hint is an integer
 	 * multiple of the rt extent size on a directory with both rtinherit
 	 * and extszinherit flags set.  If we're logging a directory that is
 	 * misconfigured in this way, clear the hint.
@@ -117,7 +117,7 @@ xfs_inode_item_precommit(
 
 	/*
 	 * Record the specific change for fdatasync optimisation. This allows
-	 * fdatasync to skip log forces for inodes that are only timestamp
+	 * fdatasync to skip log forces for ianaldes that are only timestamp
 	 * dirty. Once we've processed the XFS_ILOG_IVERSION flag, convert it
 	 * to XFS_ILOG_CORE so that the actual on-disk dirty tracking
 	 * (ili_fields) correctly tracks that the version has changed.
@@ -132,12 +132,12 @@ xfs_inode_item_precommit(
 		int		error;
 
 		/*
-		 * We hold the ILOCK here, so this inode is not going to be
-		 * flushed while we are here. Further, because there is no
-		 * buffer attached to the item, we know that there is no IO in
-		 * progress, so nothing will clear the ili_fields while we read
+		 * We hold the ILOCK here, so this ianalde is analt going to be
+		 * flushed while we are here. Further, because there is anal
+		 * buffer attached to the item, we kanalw that there is anal IO in
+		 * progress, so analthing will clear the ili_fields while we read
 		 * in the buffer. Hence we can safely drop the spin lock and
-		 * read the buffer knowing that the state will not change from
+		 * read the buffer kanalwing that the state will analt change from
 		 * here.
 		 */
 		spin_unlock(&iip->ili_lock);
@@ -149,20 +149,20 @@ xfs_inode_item_precommit(
 		 * We need an explicit buffer reference for the log item but
 		 * don't want the buffer to remain attached to the transaction.
 		 * Hold the buffer but release the transaction reference once
-		 * we've attached the inode log item to the buffer log item
+		 * we've attached the ianalde log item to the buffer log item
 		 * list.
 		 */
 		xfs_buf_hold(bp);
 		spin_lock(&iip->ili_lock);
 		iip->ili_item.li_buf = bp;
-		bp->b_flags |= _XBF_INODES;
+		bp->b_flags |= _XBF_IANALDES;
 		list_add_tail(&iip->ili_item.li_bio_list, &bp->b_li_list);
 		xfs_trans_brelse(tp, bp);
 	}
 
 	/*
 	 * Always OR in the bits from the ili_last_fields field.  This is to
-	 * coordinate with the xfs_iflush() and xfs_buf_inode_iodone() routines
+	 * coordinate with the xfs_iflush() and xfs_buf_ianalde_iodone() routines
 	 * in the eventual clearing of the ili_fields bits.  See the big comment
 	 * in xfs_iflush() for an explanation of this coordination mechanism.
 	 */
@@ -178,45 +178,45 @@ xfs_inode_item_precommit(
 }
 
 /*
- * The logged size of an inode fork is always the current size of the inode
- * fork. This means that when an inode fork is relogged, the size of the logged
- * region is determined by the current state, not the combination of the
+ * The logged size of an ianalde fork is always the current size of the ianalde
+ * fork. This means that when an ianalde fork is relogged, the size of the logged
+ * region is determined by the current state, analt the combination of the
  * previously logged state + the current state. This is different relogging
  * behaviour to most other log items which will retain the size of the
  * previously logged changes when smaller regions are relogged.
  *
- * Hence operations that remove data from the inode fork (e.g. shortform
+ * Hence operations that remove data from the ianalde fork (e.g. shortform
  * dir/attr remove, extent form extent removal, etc), the size of the relogged
- * inode gets -smaller- rather than stays the same size as the previously logged
+ * ianalde gets -smaller- rather than stays the same size as the previously logged
  * size and this can result in the committing transaction reducing the amount of
  * space being consumed by the CIL.
  */
 STATIC void
-xfs_inode_item_data_fork_size(
-	struct xfs_inode_log_item *iip,
+xfs_ianalde_item_data_fork_size(
+	struct xfs_ianalde_log_item *iip,
 	int			*nvecs,
 	int			*nbytes)
 {
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 
 	switch (ip->i_df.if_format) {
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		if ((iip->ili_fields & XFS_ILOG_DEXT) &&
 		    ip->i_df.if_nextents > 0 &&
 		    ip->i_df.if_bytes > 0) {
 			/* worst case, doesn't subtract delalloc extents */
-			*nbytes += xfs_inode_data_fork_size(ip);
+			*nbytes += xfs_ianalde_data_fork_size(ip);
 			*nvecs += 1;
 		}
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		if ((iip->ili_fields & XFS_ILOG_DBROOT) &&
 		    ip->i_df.if_broot_bytes > 0) {
 			*nbytes += ip->i_df.if_broot_bytes;
 			*nvecs += 1;
 		}
 		break;
-	case XFS_DINODE_FMT_LOCAL:
+	case XFS_DIANALDE_FMT_LOCAL:
 		if ((iip->ili_fields & XFS_ILOG_DDATA) &&
 		    ip->i_df.if_bytes > 0) {
 			*nbytes += xlog_calc_iovec_len(ip->i_df.if_bytes);
@@ -224,7 +224,7 @@ xfs_inode_item_data_fork_size(
 		}
 		break;
 
-	case XFS_DINODE_FMT_DEV:
+	case XFS_DIANALDE_FMT_DEV:
 		break;
 	default:
 		ASSERT(0);
@@ -233,31 +233,31 @@ xfs_inode_item_data_fork_size(
 }
 
 STATIC void
-xfs_inode_item_attr_fork_size(
-	struct xfs_inode_log_item *iip,
+xfs_ianalde_item_attr_fork_size(
+	struct xfs_ianalde_log_item *iip,
 	int			*nvecs,
 	int			*nbytes)
 {
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 
 	switch (ip->i_af.if_format) {
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		if ((iip->ili_fields & XFS_ILOG_AEXT) &&
 		    ip->i_af.if_nextents > 0 &&
 		    ip->i_af.if_bytes > 0) {
 			/* worst case, doesn't subtract unused space */
-			*nbytes += xfs_inode_attr_fork_size(ip);
+			*nbytes += xfs_ianalde_attr_fork_size(ip);
 			*nvecs += 1;
 		}
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		if ((iip->ili_fields & XFS_ILOG_ABROOT) &&
 		    ip->i_af.if_broot_bytes > 0) {
 			*nbytes += ip->i_af.if_broot_bytes;
 			*nvecs += 1;
 		}
 		break;
-	case XFS_DINODE_FMT_LOCAL:
+	case XFS_DIANALDE_FMT_LOCAL:
 		if ((iip->ili_fields & XFS_ILOG_ADATA) &&
 		    ip->i_af.if_bytes > 0) {
 			*nbytes += xlog_calc_iovec_len(ip->i_af.if_bytes);
@@ -271,42 +271,42 @@ xfs_inode_item_attr_fork_size(
 }
 
 /*
- * This returns the number of iovecs needed to log the given inode item.
+ * This returns the number of iovecs needed to log the given ianalde item.
  *
- * We need one iovec for the inode log format structure, one for the
- * inode core, and possibly one for the inode data/extents/b-tree root
- * and one for the inode attribute data/extents/b-tree root.
+ * We need one iovec for the ianalde log format structure, one for the
+ * ianalde core, and possibly one for the ianalde data/extents/b-tree root
+ * and one for the ianalde attribute data/extents/b-tree root.
  */
 STATIC void
-xfs_inode_item_size(
+xfs_ianalde_item_size(
 	struct xfs_log_item	*lip,
 	int			*nvecs,
 	int			*nbytes)
 {
-	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde_log_item *iip = IANALDE_ITEM(lip);
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 
 	*nvecs += 2;
-	*nbytes += sizeof(struct xfs_inode_log_format) +
-		   xfs_log_dinode_size(ip->i_mount);
+	*nbytes += sizeof(struct xfs_ianalde_log_format) +
+		   xfs_log_dianalde_size(ip->i_mount);
 
-	xfs_inode_item_data_fork_size(iip, nvecs, nbytes);
-	if (xfs_inode_has_attr_fork(ip))
-		xfs_inode_item_attr_fork_size(iip, nvecs, nbytes);
+	xfs_ianalde_item_data_fork_size(iip, nvecs, nbytes);
+	if (xfs_ianalde_has_attr_fork(ip))
+		xfs_ianalde_item_attr_fork_size(iip, nvecs, nbytes);
 }
 
 STATIC void
-xfs_inode_item_format_data_fork(
-	struct xfs_inode_log_item *iip,
-	struct xfs_inode_log_format *ilf,
+xfs_ianalde_item_format_data_fork(
+	struct xfs_ianalde_log_item *iip,
+	struct xfs_ianalde_log_format *ilf,
 	struct xfs_log_vec	*lv,
 	struct xfs_log_iovec	**vecp)
 {
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 	size_t			data_bytes;
 
 	switch (ip->i_df.if_format) {
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		iip->ili_fields &=
 			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT | XFS_ILOG_DEV);
 
@@ -329,7 +329,7 @@ xfs_inode_item_format_data_fork(
 			iip->ili_fields &= ~XFS_ILOG_DEXT;
 		}
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		iip->ili_fields &=
 			~(XFS_ILOG_DDATA | XFS_ILOG_DEXT | XFS_ILOG_DEV);
 
@@ -347,7 +347,7 @@ xfs_inode_item_format_data_fork(
 			iip->ili_fields &= ~XFS_ILOG_DBROOT;
 		}
 		break;
-	case XFS_DINODE_FMT_LOCAL:
+	case XFS_DIANALDE_FMT_LOCAL:
 		iip->ili_fields &=
 			~(XFS_ILOG_DEXT | XFS_ILOG_DBROOT | XFS_ILOG_DEV);
 		if ((iip->ili_fields & XFS_ILOG_DDATA) &&
@@ -362,7 +362,7 @@ xfs_inode_item_format_data_fork(
 			iip->ili_fields &= ~XFS_ILOG_DDATA;
 		}
 		break;
-	case XFS_DINODE_FMT_DEV:
+	case XFS_DIANALDE_FMT_DEV:
 		iip->ili_fields &=
 			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT | XFS_ILOG_DEXT);
 		if (iip->ili_fields & XFS_ILOG_DEV)
@@ -375,17 +375,17 @@ xfs_inode_item_format_data_fork(
 }
 
 STATIC void
-xfs_inode_item_format_attr_fork(
-	struct xfs_inode_log_item *iip,
-	struct xfs_inode_log_format *ilf,
+xfs_ianalde_item_format_attr_fork(
+	struct xfs_ianalde_log_item *iip,
+	struct xfs_ianalde_log_format *ilf,
 	struct xfs_log_vec	*lv,
 	struct xfs_log_iovec	**vecp)
 {
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 	size_t			data_bytes;
 
 	switch (ip->i_af.if_format) {
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		iip->ili_fields &=
 			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT);
 
@@ -407,7 +407,7 @@ xfs_inode_item_format_attr_fork(
 			iip->ili_fields &= ~XFS_ILOG_AEXT;
 		}
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		iip->ili_fields &=
 			~(XFS_ILOG_ADATA | XFS_ILOG_AEXT);
 
@@ -424,7 +424,7 @@ xfs_inode_item_format_attr_fork(
 			iip->ili_fields &= ~XFS_ILOG_ABROOT;
 		}
 		break;
-	case XFS_DINODE_FMT_LOCAL:
+	case XFS_DIANALDE_FMT_LOCAL:
 		iip->ili_fields &=
 			~(XFS_ILOG_AEXT | XFS_ILOG_ABROOT);
 
@@ -446,19 +446,19 @@ xfs_inode_item_format_attr_fork(
 }
 
 /*
- * Convert an incore timestamp to a log timestamp.  Note that the log format
+ * Convert an incore timestamp to a log timestamp.  Analte that the log format
  * specifies host endian format!
  */
 static inline xfs_log_timestamp_t
-xfs_inode_to_log_dinode_ts(
-	struct xfs_inode		*ip,
+xfs_ianalde_to_log_dianalde_ts(
+	struct xfs_ianalde		*ip,
 	const struct timespec64		tv)
 {
 	struct xfs_log_legacy_timestamp	*lits;
 	xfs_log_timestamp_t		its;
 
-	if (xfs_inode_has_bigtime(ip))
-		return xfs_inode_encode_bigtime(tv);
+	if (xfs_ianalde_has_bigtime(ip))
+		return xfs_ianalde_encode_bigtime(tv);
 
 	lits = (struct xfs_log_legacy_timestamp *)&its;
 	lits->t_sec = tv.tv_sec;
@@ -468,19 +468,19 @@ xfs_inode_to_log_dinode_ts(
 }
 
 /*
- * The legacy DMAPI fields are only present in the on-disk and in-log inodes,
- * but not in the in-memory one.  But we are guaranteed to have an inode buffer
- * in memory when logging an inode, so we can just copy it from the on-disk
- * inode to the in-log inode here so that recovery of file system with these
- * fields set to non-zero values doesn't lose them.  For all other cases we zero
+ * The legacy DMAPI fields are only present in the on-disk and in-log ianaldes,
+ * but analt in the in-memory one.  But we are guaranteed to have an ianalde buffer
+ * in memory when logging an ianalde, so we can just copy it from the on-disk
+ * ianalde to the in-log ianalde here so that recovery of file system with these
+ * fields set to analn-zero values doesn't lose them.  For all other cases we zero
  * the fields.
  */
 static void
-xfs_copy_dm_fields_to_log_dinode(
-	struct xfs_inode	*ip,
-	struct xfs_log_dinode	*to)
+xfs_copy_dm_fields_to_log_dianalde(
+	struct xfs_ianalde	*ip,
+	struct xfs_log_dianalde	*to)
 {
-	struct xfs_dinode	*dip;
+	struct xfs_dianalde	*dip;
 
 	dip = xfs_buf_offset(ip->i_itemp->ili_item.li_buf,
 			     ip->i_imap.im_boffset);
@@ -495,11 +495,11 @@ xfs_copy_dm_fields_to_log_dinode(
 }
 
 static inline void
-xfs_inode_to_log_dinode_iext_counters(
-	struct xfs_inode	*ip,
-	struct xfs_log_dinode	*to)
+xfs_ianalde_to_log_dianalde_iext_counters(
+	struct xfs_ianalde	*ip,
+	struct xfs_log_dianalde	*to)
 {
-	if (xfs_inode_has_large_extent_counts(ip)) {
+	if (xfs_ianalde_has_large_extent_counts(ip)) {
 		to->di_big_nextents = xfs_ifork_nextents(&ip->i_df);
 		to->di_big_anextents = xfs_ifork_nextents(&ip->i_af);
 		to->di_nrext64_pad = 0;
@@ -510,27 +510,27 @@ xfs_inode_to_log_dinode_iext_counters(
 }
 
 static void
-xfs_inode_to_log_dinode(
-	struct xfs_inode	*ip,
-	struct xfs_log_dinode	*to,
+xfs_ianalde_to_log_dianalde(
+	struct xfs_ianalde	*ip,
+	struct xfs_log_dianalde	*to,
 	xfs_lsn_t		lsn)
 {
-	struct inode		*inode = VFS_I(ip);
+	struct ianalde		*ianalde = VFS_I(ip);
 
-	to->di_magic = XFS_DINODE_MAGIC;
+	to->di_magic = XFS_DIANALDE_MAGIC;
 	to->di_format = xfs_ifork_format(&ip->i_df);
-	to->di_uid = i_uid_read(inode);
-	to->di_gid = i_gid_read(inode);
+	to->di_uid = i_uid_read(ianalde);
+	to->di_gid = i_gid_read(ianalde);
 	to->di_projid_lo = ip->i_projid & 0xffff;
 	to->di_projid_hi = ip->i_projid >> 16;
 
 	memset(to->di_pad3, 0, sizeof(to->di_pad3));
-	to->di_atime = xfs_inode_to_log_dinode_ts(ip, inode_get_atime(inode));
-	to->di_mtime = xfs_inode_to_log_dinode_ts(ip, inode_get_mtime(inode));
-	to->di_ctime = xfs_inode_to_log_dinode_ts(ip, inode_get_ctime(inode));
-	to->di_nlink = inode->i_nlink;
-	to->di_gen = inode->i_generation;
-	to->di_mode = inode->i_mode;
+	to->di_atime = xfs_ianalde_to_log_dianalde_ts(ip, ianalde_get_atime(ianalde));
+	to->di_mtime = xfs_ianalde_to_log_dianalde_ts(ip, ianalde_get_mtime(ianalde));
+	to->di_ctime = xfs_ianalde_to_log_dianalde_ts(ip, ianalde_get_ctime(ianalde));
+	to->di_nlink = ianalde->i_nlink;
+	to->di_gen = ianalde->i_generation;
+	to->di_mode = ianalde->i_mode;
 
 	to->di_size = ip->i_disk_size;
 	to->di_nblocks = ip->i_nblocks;
@@ -539,18 +539,18 @@ xfs_inode_to_log_dinode(
 	to->di_aformat = xfs_ifork_format(&ip->i_af);
 	to->di_flags = ip->i_diflags;
 
-	xfs_copy_dm_fields_to_log_dinode(ip, to);
+	xfs_copy_dm_fields_to_log_dianalde(ip, to);
 
 	/* log a dummy value to ensure log structure is fully initialised */
-	to->di_next_unlinked = NULLAGINO;
+	to->di_next_unlinked = NULLAGIANAL;
 
-	if (xfs_has_v3inodes(ip->i_mount)) {
+	if (xfs_has_v3ianaldes(ip->i_mount)) {
 		to->di_version = 3;
-		to->di_changecount = inode_peek_iversion(inode);
-		to->di_crtime = xfs_inode_to_log_dinode_ts(ip, ip->i_crtime);
+		to->di_changecount = ianalde_peek_iversion(ianalde);
+		to->di_crtime = xfs_ianalde_to_log_dianalde_ts(ip, ip->i_crtime);
 		to->di_flags2 = ip->i_diflags2;
 		to->di_cowextsize = ip->i_cowextsize;
-		to->di_ino = ip->i_ino;
+		to->di_ianal = ip->i_ianal;
 		to->di_lsn = lsn;
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &ip->i_mount->m_sb.sb_meta_uuid);
@@ -564,53 +564,53 @@ xfs_inode_to_log_dinode(
 		memset(to->di_v2_pad, 0, sizeof(to->di_v2_pad));
 	}
 
-	xfs_inode_to_log_dinode_iext_counters(ip, to);
+	xfs_ianalde_to_log_dianalde_iext_counters(ip, to);
 }
 
 /*
- * Format the inode core. Current timestamp data is only in the VFS inode
+ * Format the ianalde core. Current timestamp data is only in the VFS ianalde
  * fields, so we need to grab them from there. Hence rather than just copying
- * the XFS inode core structure, format the fields directly into the iovec.
+ * the XFS ianalde core structure, format the fields directly into the iovec.
  */
 static void
-xfs_inode_item_format_core(
-	struct xfs_inode	*ip,
+xfs_ianalde_item_format_core(
+	struct xfs_ianalde	*ip,
 	struct xfs_log_vec	*lv,
 	struct xfs_log_iovec	**vecp)
 {
-	struct xfs_log_dinode	*dic;
+	struct xfs_log_dianalde	*dic;
 
 	dic = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_ICORE);
-	xfs_inode_to_log_dinode(ip, dic, ip->i_itemp->ili_item.li_lsn);
-	xlog_finish_iovec(lv, *vecp, xfs_log_dinode_size(ip->i_mount));
+	xfs_ianalde_to_log_dianalde(ip, dic, ip->i_itemp->ili_item.li_lsn);
+	xlog_finish_iovec(lv, *vecp, xfs_log_dianalde_size(ip->i_mount));
 }
 
 /*
- * This is called to fill in the vector of log iovecs for the given inode
- * log item.  It fills the first item with an inode log format structure,
- * the second with the on-disk inode structure, and a possible third and/or
- * fourth with the inode data/extents/b-tree root and inode attributes
+ * This is called to fill in the vector of log iovecs for the given ianalde
+ * log item.  It fills the first item with an ianalde log format structure,
+ * the second with the on-disk ianalde structure, and a possible third and/or
+ * fourth with the ianalde data/extents/b-tree root and ianalde attributes
  * data/extents/b-tree root.
  *
- * Note: Always use the 64 bit inode log format structure so we don't
+ * Analte: Always use the 64 bit ianalde log format structure so we don't
  * leave an uninitialised hole in the format item on 64 bit systems. Log
- * recovery on 32 bit systems handles this just fine, so there's no reason
- * for not using an initialising the properly padded structure all the time.
+ * recovery on 32 bit systems handles this just fine, so there's anal reason
+ * for analt using an initialising the properly padded structure all the time.
  */
 STATIC void
-xfs_inode_item_format(
+xfs_ianalde_item_format(
 	struct xfs_log_item	*lip,
 	struct xfs_log_vec	*lv)
 {
-	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde_log_item *iip = IANALDE_ITEM(lip);
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 	struct xfs_log_iovec	*vecp = NULL;
-	struct xfs_inode_log_format *ilf;
+	struct xfs_ianalde_log_format *ilf;
 
 	ilf = xlog_prepare_iovec(lv, &vecp, XLOG_REG_TYPE_IFORMAT);
-	ilf->ilf_type = XFS_LI_INODE;
-	ilf->ilf_ino = ip->i_ino;
-	ilf->ilf_blkno = ip->i_imap.im_blkno;
+	ilf->ilf_type = XFS_LI_IANALDE;
+	ilf->ilf_ianal = ip->i_ianal;
+	ilf->ilf_blkanal = ip->i_imap.im_blkanal;
 	ilf->ilf_len = ip->i_imap.im_len;
 	ilf->ilf_boffset = ip->i_imap.im_boffset;
 	ilf->ilf_fields = XFS_ILOG_CORE;
@@ -618,7 +618,7 @@ xfs_inode_item_format(
 
 	/*
 	 * make sure we don't leak uninitialised data into the log in the case
-	 * when we don't log every field in the inode.
+	 * when we don't log every field in the ianalde.
 	 */
 	ilf->ilf_dsize = 0;
 	ilf->ilf_asize = 0;
@@ -627,10 +627,10 @@ xfs_inode_item_format(
 
 	xlog_finish_iovec(lv, vecp, sizeof(*ilf));
 
-	xfs_inode_item_format_core(ip, lv, &vecp);
-	xfs_inode_item_format_data_fork(iip, ilf, lv, &vecp);
-	if (xfs_inode_has_attr_fork(ip)) {
-		xfs_inode_item_format_attr_fork(iip, ilf, lv, &vecp);
+	xfs_ianalde_item_format_core(ip, lv, &vecp);
+	xfs_ianalde_item_format_data_fork(iip, ilf, lv, &vecp);
+	if (xfs_ianalde_has_attr_fork(ip)) {
+		xfs_ianalde_item_format_attr_fork(iip, ilf, lv, &vecp);
 	} else {
 		iip->ili_fields &=
 			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT | XFS_ILOG_AEXT);
@@ -641,43 +641,43 @@ xfs_inode_item_format(
 }
 
 /*
- * This is called to pin the inode associated with the inode log
- * item in memory so it cannot be written out.
+ * This is called to pin the ianalde associated with the ianalde log
+ * item in memory so it cananalt be written out.
  */
 STATIC void
-xfs_inode_item_pin(
+xfs_ianalde_item_pin(
 	struct xfs_log_item	*lip)
 {
-	struct xfs_inode	*ip = INODE_ITEM(lip)->ili_inode;
+	struct xfs_ianalde	*ip = IANALDE_ITEM(lip)->ili_ianalde;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(lip->li_buf);
 
-	trace_xfs_inode_pin(ip, _RET_IP_);
+	trace_xfs_ianalde_pin(ip, _RET_IP_);
 	atomic_inc(&ip->i_pincount);
 }
 
 
 /*
- * This is called to unpin the inode associated with the inode log
- * item which was previously pinned with a call to xfs_inode_item_pin().
+ * This is called to unpin the ianalde associated with the ianalde log
+ * item which was previously pinned with a call to xfs_ianalde_item_pin().
  *
  * Also wake up anyone in xfs_iunpin_wait() if the count goes to 0.
  *
- * Note that unpin can race with inode cluster buffer freeing marking the buffer
+ * Analte that unpin can race with ianalde cluster buffer freeing marking the buffer
  * stale. In that case, flush completions are run from the buffer unpin call,
- * which may happen before the inode is unpinned. If we lose the race, there
- * will be no buffer attached to the log item, but the inode will be marked
+ * which may happen before the ianalde is unpinned. If we lose the race, there
+ * will be anal buffer attached to the log item, but the ianalde will be marked
  * XFS_ISTALE.
  */
 STATIC void
-xfs_inode_item_unpin(
+xfs_ianalde_item_unpin(
 	struct xfs_log_item	*lip,
 	int			remove)
 {
-	struct xfs_inode	*ip = INODE_ITEM(lip)->ili_inode;
+	struct xfs_ianalde	*ip = IANALDE_ITEM(lip)->ili_ianalde;
 
-	trace_xfs_inode_unpin(ip, _RET_IP_);
+	trace_xfs_ianalde_unpin(ip, _RET_IP_);
 	ASSERT(lip->li_buf || xfs_iflags_test(ip, XFS_ISTALE));
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
 	if (atomic_dec_and_test(&ip->i_pincount))
@@ -685,21 +685,21 @@ xfs_inode_item_unpin(
 }
 
 STATIC uint
-xfs_inode_item_push(
+xfs_ianalde_item_push(
 	struct xfs_log_item	*lip,
 	struct list_head	*buffer_list)
 		__releases(&lip->li_ailp->ail_lock)
 		__acquires(&lip->li_ailp->ail_lock)
 {
-	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde_log_item *iip = IANALDE_ITEM(lip);
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 	struct xfs_buf		*bp = lip->li_buf;
 	uint			rval = XFS_ITEM_SUCCESS;
 	int			error;
 
 	if (!bp || (ip->i_flags & XFS_ISTALE)) {
 		/*
-		 * Inode item/buffer is being aborted due to cluster
+		 * Ianalde item/buffer is being aborted due to cluster
 		 * buffer deletion. Trigger a log force to have that operation
 		 * completed and items removed from the AIL before the next push
 		 * attempt.
@@ -745,14 +745,14 @@ xfs_inode_item_push(
 }
 
 /*
- * Unlock the inode associated with the inode log item.
+ * Unlock the ianalde associated with the ianalde log item.
  */
 STATIC void
-xfs_inode_item_release(
+xfs_ianalde_item_release(
 	struct xfs_log_item	*lip)
 {
-	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde_log_item *iip = IANALDE_ITEM(lip);
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 	unsigned short		lock_flags;
 
 	ASSERT(ip->i_itemp != NULL);
@@ -765,93 +765,93 @@ xfs_inode_item_release(
 }
 
 /*
- * This is called to find out where the oldest active copy of the inode log
- * item in the on disk log resides now that the last log write of it completed
- * at the given lsn.  Since we always re-log all dirty data in an inode, the
+ * This is called to find out where the oldest active copy of the ianalde log
+ * item in the on disk log resides analw that the last log write of it completed
+ * at the given lsn.  Since we always re-log all dirty data in an ianalde, the
  * latest copy in the on disk log is the only one that matters.  Therefore,
  * simply return the given lsn.
  *
- * If the inode has been marked stale because the cluster is being freed, we
- * don't want to (re-)insert this inode into the AIL. There is a race condition
- * where the cluster buffer may be unpinned before the inode is inserted into
+ * If the ianalde has been marked stale because the cluster is being freed, we
+ * don't want to (re-)insert this ianalde into the AIL. There is a race condition
+ * where the cluster buffer may be unpinned before the ianalde is inserted into
  * the AIL during transaction committed processing. If the buffer is unpinned
- * before the inode item has been committed and inserted, then it is possible
- * for the buffer to be written and IO completes before the inode is inserted
- * into the AIL. In that case, we'd be inserting a clean, stale inode into the
+ * before the ianalde item has been committed and inserted, then it is possible
+ * for the buffer to be written and IO completes before the ianalde is inserted
+ * into the AIL. In that case, we'd be inserting a clean, stale ianalde into the
  * AIL which will never get removed. It will, however, get reclaimed which
- * triggers an assert in xfs_inode_free() complaining about freein an inode
+ * triggers an assert in xfs_ianalde_free() complaining about freein an ianalde
  * still in the AIL.
  *
- * To avoid this, just unpin the inode directly and return a LSN of -1 so the
- * transaction committed code knows that it does not need to do any further
+ * To avoid this, just unpin the ianalde directly and return a LSN of -1 so the
+ * transaction committed code kanalws that it does analt need to do any further
  * processing on the item.
  */
 STATIC xfs_lsn_t
-xfs_inode_item_committed(
+xfs_ianalde_item_committed(
 	struct xfs_log_item	*lip,
 	xfs_lsn_t		lsn)
 {
-	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
-	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_ianalde_log_item *iip = IANALDE_ITEM(lip);
+	struct xfs_ianalde	*ip = iip->ili_ianalde;
 
 	if (xfs_iflags_test(ip, XFS_ISTALE)) {
-		xfs_inode_item_unpin(lip, 0);
+		xfs_ianalde_item_unpin(lip, 0);
 		return -1;
 	}
 	return lsn;
 }
 
 STATIC void
-xfs_inode_item_committing(
+xfs_ianalde_item_committing(
 	struct xfs_log_item	*lip,
 	xfs_csn_t		seq)
 {
-	INODE_ITEM(lip)->ili_commit_seq = seq;
-	return xfs_inode_item_release(lip);
+	IANALDE_ITEM(lip)->ili_commit_seq = seq;
+	return xfs_ianalde_item_release(lip);
 }
 
-static const struct xfs_item_ops xfs_inode_item_ops = {
-	.iop_sort	= xfs_inode_item_sort,
-	.iop_precommit	= xfs_inode_item_precommit,
-	.iop_size	= xfs_inode_item_size,
-	.iop_format	= xfs_inode_item_format,
-	.iop_pin	= xfs_inode_item_pin,
-	.iop_unpin	= xfs_inode_item_unpin,
-	.iop_release	= xfs_inode_item_release,
-	.iop_committed	= xfs_inode_item_committed,
-	.iop_push	= xfs_inode_item_push,
-	.iop_committing	= xfs_inode_item_committing,
+static const struct xfs_item_ops xfs_ianalde_item_ops = {
+	.iop_sort	= xfs_ianalde_item_sort,
+	.iop_precommit	= xfs_ianalde_item_precommit,
+	.iop_size	= xfs_ianalde_item_size,
+	.iop_format	= xfs_ianalde_item_format,
+	.iop_pin	= xfs_ianalde_item_pin,
+	.iop_unpin	= xfs_ianalde_item_unpin,
+	.iop_release	= xfs_ianalde_item_release,
+	.iop_committed	= xfs_ianalde_item_committed,
+	.iop_push	= xfs_ianalde_item_push,
+	.iop_committing	= xfs_ianalde_item_committing,
 };
 
 
 /*
- * Initialize the inode log item for a newly allocated (in-core) inode.
+ * Initialize the ianalde log item for a newly allocated (in-core) ianalde.
  */
 void
-xfs_inode_item_init(
-	struct xfs_inode	*ip,
+xfs_ianalde_item_init(
+	struct xfs_ianalde	*ip,
 	struct xfs_mount	*mp)
 {
-	struct xfs_inode_log_item *iip;
+	struct xfs_ianalde_log_item *iip;
 
 	ASSERT(ip->i_itemp == NULL);
 	iip = ip->i_itemp = kmem_cache_zalloc(xfs_ili_cache,
-					      GFP_KERNEL | __GFP_NOFAIL);
+					      GFP_KERNEL | __GFP_ANALFAIL);
 
-	iip->ili_inode = ip;
+	iip->ili_ianalde = ip;
 	spin_lock_init(&iip->ili_lock);
-	xfs_log_item_init(mp, &iip->ili_item, XFS_LI_INODE,
-						&xfs_inode_item_ops);
+	xfs_log_item_init(mp, &iip->ili_item, XFS_LI_IANALDE,
+						&xfs_ianalde_item_ops);
 }
 
 /*
- * Free the inode log item and any memory hanging off of it.
+ * Free the ianalde log item and any memory hanging off of it.
  */
 void
-xfs_inode_item_destroy(
-	struct xfs_inode	*ip)
+xfs_ianalde_item_destroy(
+	struct xfs_ianalde	*ip)
 {
-	struct xfs_inode_log_item *iip = ip->i_itemp;
+	struct xfs_ianalde_log_item *iip = ip->i_itemp;
 
 	ASSERT(iip->ili_item.li_buf == NULL);
 
@@ -863,8 +863,8 @@ xfs_inode_item_destroy(
 
 /*
  * We only want to pull the item from the AIL if it is actually there
- * and its location in the log has not changed since we started the
- * flush.  Thus, we only bother if the inode's lsn has not changed.
+ * and its location in the log has analt changed since we started the
+ * flush.  Thus, we only bother if the ianalde's lsn has analt changed.
  */
 static void
 xfs_iflush_ail_updates(
@@ -880,13 +880,13 @@ xfs_iflush_ail_updates(
 		xfs_lsn_t	lsn;
 
 		clear_bit(XFS_LI_FAILED, &lip->li_flags);
-		if (INODE_ITEM(lip)->ili_flush_lsn != lip->li_lsn)
+		if (IANALDE_ITEM(lip)->ili_flush_lsn != lip->li_lsn)
 			continue;
 
 		/*
-		 * dgc: Not sure how this happens, but it happens very
+		 * dgc: Analt sure how this happens, but it happens very
 		 * occassionaly via generic/388.  xfs_iflush_abort() also
-		 * silently handles this same "under writeback but not in AIL at
+		 * silently handles this same "under writeback but analt in AIL at
 		 * shutdown" condition via xfs_trans_ail_delete().
 		 */
 		if (!test_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
@@ -902,7 +902,7 @@ xfs_iflush_ail_updates(
 }
 
 /*
- * Walk the list of inodes that have completed their IOs. If they are clean
+ * Walk the list of ianaldes that have completed their IOs. If they are clean
  * remove them from the list and dissociate them from the buffer. Buffers that
  * are still dirty remain linked to the buffer and on the list. Caller must
  * handle them appropriately.
@@ -915,13 +915,13 @@ xfs_iflush_finish(
 	struct xfs_log_item	*lip, *n;
 
 	list_for_each_entry_safe(lip, n, list, li_bio_list) {
-		struct xfs_inode_log_item *iip = INODE_ITEM(lip);
+		struct xfs_ianalde_log_item *iip = IANALDE_ITEM(lip);
 		bool	drop_buffer = false;
 
 		spin_lock(&iip->ili_lock);
 
 		/*
-		 * Remove the reference to the cluster buffer if the inode is
+		 * Remove the reference to the cluster buffer if the ianalde is
 		 * clean in memory and drop the buffer reference once we've
 		 * dropped the locks we hold.
 		 */
@@ -934,34 +934,34 @@ xfs_iflush_finish(
 		iip->ili_last_fields = 0;
 		iip->ili_flush_lsn = 0;
 		spin_unlock(&iip->ili_lock);
-		xfs_iflags_clear(iip->ili_inode, XFS_IFLUSHING);
+		xfs_iflags_clear(iip->ili_ianalde, XFS_IFLUSHING);
 		if (drop_buffer)
 			xfs_buf_rele(bp);
 	}
 }
 
 /*
- * Inode buffer IO completion routine.  It is responsible for removing inodes
- * attached to the buffer from the AIL if they have not been re-logged and
- * completing the inode flush.
+ * Ianalde buffer IO completion routine.  It is responsible for removing ianaldes
+ * attached to the buffer from the AIL if they have analt been re-logged and
+ * completing the ianalde flush.
  */
 void
-xfs_buf_inode_iodone(
+xfs_buf_ianalde_iodone(
 	struct xfs_buf		*bp)
 {
 	struct xfs_log_item	*lip, *n;
-	LIST_HEAD(flushed_inodes);
+	LIST_HEAD(flushed_ianaldes);
 	LIST_HEAD(ail_updates);
 
 	/*
-	 * Pull the attached inodes from the buffer one at a time and take the
+	 * Pull the attached ianaldes from the buffer one at a time and take the
 	 * appropriate action on them.
 	 */
 	list_for_each_entry_safe(lip, n, &bp->b_li_list, li_bio_list) {
-		struct xfs_inode_log_item *iip = INODE_ITEM(lip);
+		struct xfs_ianalde_log_item *iip = IANALDE_ITEM(lip);
 
-		if (xfs_iflags_test(iip->ili_inode, XFS_ISTALE)) {
-			xfs_iflush_abort(iip->ili_inode);
+		if (xfs_iflags_test(iip->ili_ianalde, XFS_ISTALE)) {
+			xfs_iflush_abort(iip->ili_ianalde);
 			continue;
 		}
 		if (!iip->ili_last_fields)
@@ -972,21 +972,21 @@ xfs_buf_inode_iodone(
 		    test_bit(XFS_LI_FAILED, &lip->li_flags))
 			list_move_tail(&lip->li_bio_list, &ail_updates);
 		else
-			list_move_tail(&lip->li_bio_list, &flushed_inodes);
+			list_move_tail(&lip->li_bio_list, &flushed_ianaldes);
 	}
 
 	if (!list_empty(&ail_updates)) {
 		xfs_iflush_ail_updates(bp->b_mount->m_ail, &ail_updates);
-		list_splice_tail(&ail_updates, &flushed_inodes);
+		list_splice_tail(&ail_updates, &flushed_ianaldes);
 	}
 
-	xfs_iflush_finish(bp, &flushed_inodes);
-	if (!list_empty(&flushed_inodes))
-		list_splice_tail(&flushed_inodes, &bp->b_li_list);
+	xfs_iflush_finish(bp, &flushed_ianaldes);
+	if (!list_empty(&flushed_ianaldes))
+		list_splice_tail(&flushed_ianaldes, &bp->b_li_list);
 }
 
 void
-xfs_buf_inode_io_fail(
+xfs_buf_ianalde_io_fail(
 	struct xfs_buf		*bp)
 {
 	struct xfs_log_item	*lip;
@@ -996,14 +996,14 @@ xfs_buf_inode_io_fail(
 }
 
 /*
- * Clear the inode logging fields so no more flushes are attempted.  If we are
- * on a buffer list, it is now safe to remove it because the buffer is
+ * Clear the ianalde logging fields so anal more flushes are attempted.  If we are
+ * on a buffer list, it is analw safe to remove it because the buffer is
  * guaranteed to be locked. The caller will drop the reference to the buffer
  * the log item held.
  */
 static void
 xfs_iflush_abort_clean(
-	struct xfs_inode_log_item *iip)
+	struct xfs_ianalde_log_item *iip)
 {
 	iip->ili_last_fields = 0;
 	iip->ili_fields = 0;
@@ -1014,46 +1014,46 @@ xfs_iflush_abort_clean(
 }
 
 /*
- * Abort flushing the inode from a context holding the cluster buffer locked.
+ * Abort flushing the ianalde from a context holding the cluster buffer locked.
  *
- * This is the normal runtime method of aborting writeback of an inode that is
- * attached to a cluster buffer. It occurs when the inode and the backing
- * cluster buffer have been freed (i.e. inode is XFS_ISTALE), or when cluster
+ * This is the analrmal runtime method of aborting writeback of an ianalde that is
+ * attached to a cluster buffer. It occurs when the ianalde and the backing
+ * cluster buffer have been freed (i.e. ianalde is XFS_ISTALE), or when cluster
  * flushing or buffer IO completion encounters a log shutdown situation.
  *
- * If we need to abort inode writeback and we don't already hold the buffer
+ * If we need to abort ianalde writeback and we don't already hold the buffer
  * locked, call xfs_iflush_shutdown_abort() instead as this should only ever be
  * necessary in a shutdown situation.
  */
 void
 xfs_iflush_abort(
-	struct xfs_inode	*ip)
+	struct xfs_ianalde	*ip)
 {
-	struct xfs_inode_log_item *iip = ip->i_itemp;
+	struct xfs_ianalde_log_item *iip = ip->i_itemp;
 	struct xfs_buf		*bp;
 
 	if (!iip) {
-		/* clean inode, nothing to do */
+		/* clean ianalde, analthing to do */
 		xfs_iflags_clear(ip, XFS_IFLUSHING);
 		return;
 	}
 
 	/*
-	 * Remove the inode item from the AIL before we clear its internal
-	 * state. Whilst the inode is in the AIL, it should have a valid buffer
+	 * Remove the ianalde item from the AIL before we clear its internal
+	 * state. Whilst the ianalde is in the AIL, it should have a valid buffer
 	 * pointer for push operations to access - it is only safe to remove the
-	 * inode from the buffer once it has been removed from the AIL.
+	 * ianalde from the buffer once it has been removed from the AIL.
 	 *
 	 * We also clear the failed bit before removing the item from the AIL
 	 * as xfs_trans_ail_delete()->xfs_clear_li_failed() will release buffer
-	 * references the inode item owns and needs to hold until we've fully
-	 * aborted the inode log item and detached it from the buffer.
+	 * references the ianalde item owns and needs to hold until we've fully
+	 * aborted the ianalde log item and detached it from the buffer.
 	 */
 	clear_bit(XFS_LI_FAILED, &iip->ili_item.li_flags);
 	xfs_trans_ail_delete(&iip->ili_item, 0);
 
 	/*
-	 * Grab the inode buffer so can we release the reference the inode log
+	 * Grab the ianalde buffer so can we release the reference the ianalde log
 	 * item holds on it.
 	 */
 	spin_lock(&iip->ili_lock);
@@ -1067,20 +1067,20 @@ xfs_iflush_abort(
 }
 
 /*
- * Abort an inode flush in the case of a shutdown filesystem. This can be called
- * from anywhere with just an inode reference and does not require holding the
- * inode cluster buffer locked. If the inode is attached to a cluster buffer,
- * it will grab and lock it safely, then abort the inode flush.
+ * Abort an ianalde flush in the case of a shutdown filesystem. This can be called
+ * from anywhere with just an ianalde reference and does analt require holding the
+ * ianalde cluster buffer locked. If the ianalde is attached to a cluster buffer,
+ * it will grab and lock it safely, then abort the ianalde flush.
  */
 void
 xfs_iflush_shutdown_abort(
-	struct xfs_inode	*ip)
+	struct xfs_ianalde	*ip)
 {
-	struct xfs_inode_log_item *iip = ip->i_itemp;
+	struct xfs_ianalde_log_item *iip = ip->i_itemp;
 	struct xfs_buf		*bp;
 
 	if (!iip) {
-		/* clean inode, nothing to do */
+		/* clean ianalde, analthing to do */
 		xfs_iflags_clear(ip, XFS_IFLUSHING);
 		return;
 	}
@@ -1106,8 +1106,8 @@ xfs_iflush_shutdown_abort(
 	spin_lock(&iip->ili_lock);
 	if (!iip->ili_item.li_buf) {
 		/*
-		 * Raced with another removal, hold the only reference
-		 * to bp now. Inode should not be in the AIL now, so just clean
+		 * Raced with aanalther removal, hold the only reference
+		 * to bp analw. Ianalde should analt be in the AIL analw, so just clean
 		 * up and return;
 		 */
 		ASSERT(list_empty(&iip->ili_item.li_bio_list));
@@ -1134,15 +1134,15 @@ xfs_iflush_shutdown_abort(
 
 
 /*
- * convert an xfs_inode_log_format struct from the old 32 bit version
+ * convert an xfs_ianalde_log_format struct from the old 32 bit version
  * (which can have different field alignments) to the native 64 bit version
  */
 int
-xfs_inode_item_format_convert(
+xfs_ianalde_item_format_convert(
 	struct xfs_log_iovec		*buf,
-	struct xfs_inode_log_format	*in_f)
+	struct xfs_ianalde_log_format	*in_f)
 {
-	struct xfs_inode_log_format_32	*in_f32 = buf->i_addr;
+	struct xfs_ianalde_log_format_32	*in_f32 = buf->i_addr;
 
 	if (buf->i_len != sizeof(*in_f32)) {
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, NULL);
@@ -1154,9 +1154,9 @@ xfs_inode_item_format_convert(
 	in_f->ilf_fields = in_f32->ilf_fields;
 	in_f->ilf_asize = in_f32->ilf_asize;
 	in_f->ilf_dsize = in_f32->ilf_dsize;
-	in_f->ilf_ino = in_f32->ilf_ino;
+	in_f->ilf_ianal = in_f32->ilf_ianal;
 	memcpy(&in_f->ilf_u, &in_f32->ilf_u, sizeof(in_f->ilf_u));
-	in_f->ilf_blkno = in_f32->ilf_blkno;
+	in_f->ilf_blkanal = in_f32->ilf_blkanal;
 	in_f->ilf_len = in_f32->ilf_len;
 	in_f->ilf_boffset = in_f32->ilf_boffset;
 	return 0;

@@ -4,10 +4,10 @@
 
 #ifdef CONFIG_MMU
 
-/* Values for nocacheflag and cmode */
+/* Values for analcacheflag and cmode */
 #define IOMAP_FULL_CACHING		0
-#define IOMAP_NOCACHE_SER		1
-#define IOMAP_NOCACHE_NONSER		2
+#define IOMAP_ANALCACHE_SER		1
+#define IOMAP_ANALCACHE_ANALNSER		2
 #define IOMAP_WRITETHROUGH		3
 
 /*
@@ -22,7 +22,7 @@ extern void iounmap(void __iomem *addr);
 #define ioremap ioremap
 static inline void __iomem *ioremap(unsigned long physaddr, unsigned long size)
 {
-	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
+	return __ioremap(physaddr, size, IOMAP_ANALCACHE_SER);
 }
 
 #define ioremap_wt ioremap_wt

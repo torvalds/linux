@@ -10,13 +10,13 @@
  */
 
 /*
- * Some notes on the implementation:
+ * Some analtes on the implementation:
  *
  * The spinlock controls access to the other members of the semaphore.
  * down_trylock() and up() can be called from interrupt context, so we
  * have to disable interrupts when taking the lock.  It turns out various
  * parts of the kernel expect to be able to use down() on a semaphore in
- * interrupt context when they know it will succeed, so we have to use
+ * interrupt context when they kanalw it will succeed, so we have to use
  * irqsave variants for down(), down_interruptible() and down_killable()
  * too.
  *
@@ -34,17 +34,17 @@
 #include <linux/ftrace.h>
 #include <trace/events/lock.h>
 
-static noinline void __down(struct semaphore *sem);
-static noinline int __down_interruptible(struct semaphore *sem);
-static noinline int __down_killable(struct semaphore *sem);
-static noinline int __down_timeout(struct semaphore *sem, long timeout);
-static noinline void __up(struct semaphore *sem);
+static analinline void __down(struct semaphore *sem);
+static analinline int __down_interruptible(struct semaphore *sem);
+static analinline int __down_killable(struct semaphore *sem);
+static analinline int __down_timeout(struct semaphore *sem, long timeout);
+static analinline void __up(struct semaphore *sem);
 
 /**
  * down - acquire the semaphore
  * @sem: the semaphore to be acquired
  *
- * Acquires the semaphore.  If no more tasks are allowed to acquire the
+ * Acquires the semaphore.  If anal more tasks are allowed to acquire the
  * semaphore, calling this function will put the task to sleep until the
  * semaphore is released.
  *
@@ -69,7 +69,7 @@ EXPORT_SYMBOL(down);
  * down_interruptible - acquire the semaphore unless interrupted
  * @sem: the semaphore to be acquired
  *
- * Attempts to acquire the semaphore.  If no more tasks are allowed to
+ * Attempts to acquire the semaphore.  If anal more tasks are allowed to
  * acquire the semaphore, calling this function will put the task to sleep.
  * If the sleep is interrupted by a signal, this function will return -EINTR.
  * If the semaphore is successfully acquired, this function returns 0.
@@ -95,7 +95,7 @@ EXPORT_SYMBOL(down_interruptible);
  * down_killable - acquire the semaphore unless killed
  * @sem: the semaphore to be acquired
  *
- * Attempts to acquire the semaphore.  If no more tasks are allowed to
+ * Attempts to acquire the semaphore.  If anal more tasks are allowed to
  * acquire the semaphore, calling this function will put the task to sleep.
  * If the sleep is interrupted by a fatal signal, this function will return
  * -EINTR.  If the semaphore is successfully acquired, this function returns
@@ -123,9 +123,9 @@ EXPORT_SYMBOL(down_killable);
  * @sem: the semaphore to be acquired
  *
  * Try to acquire the semaphore atomically.  Returns 0 if the semaphore has
- * been acquired successfully or 1 if it cannot be acquired.
+ * been acquired successfully or 1 if it cananalt be acquired.
  *
- * NOTE: This return value is inverted from both spin_trylock and
+ * ANALTE: This return value is inverted from both spin_trylock and
  * mutex_trylock!  Be careful about this when converting code.
  *
  * Unlike mutex_trylock, this function can be used from interrupt context,
@@ -151,9 +151,9 @@ EXPORT_SYMBOL(down_trylock);
  * @sem: the semaphore to be acquired
  * @timeout: how long to wait before failing
  *
- * Attempts to acquire the semaphore.  If no more tasks are allowed to
+ * Attempts to acquire the semaphore.  If anal more tasks are allowed to
  * acquire the semaphore, calling this function will put the task to sleep.
- * If the semaphore is not released within the specified number of jiffies,
+ * If the semaphore is analt released within the specified number of jiffies,
  * this function returns -ETIME.  It returns 0 if the semaphore was acquired.
  */
 int __sched down_timeout(struct semaphore *sem, long timeout)
@@ -249,27 +249,27 @@ static inline int __sched __down_common(struct semaphore *sem, long state,
 	return ret;
 }
 
-static noinline void __sched __down(struct semaphore *sem)
+static analinline void __sched __down(struct semaphore *sem)
 {
 	__down_common(sem, TASK_UNINTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 }
 
-static noinline int __sched __down_interruptible(struct semaphore *sem)
+static analinline int __sched __down_interruptible(struct semaphore *sem)
 {
 	return __down_common(sem, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 }
 
-static noinline int __sched __down_killable(struct semaphore *sem)
+static analinline int __sched __down_killable(struct semaphore *sem)
 {
 	return __down_common(sem, TASK_KILLABLE, MAX_SCHEDULE_TIMEOUT);
 }
 
-static noinline int __sched __down_timeout(struct semaphore *sem, long timeout)
+static analinline int __sched __down_timeout(struct semaphore *sem, long timeout)
 {
 	return __down_common(sem, TASK_UNINTERRUPTIBLE, timeout);
 }
 
-static noinline void __sched __up(struct semaphore *sem)
+static analinline void __sched __up(struct semaphore *sem)
 {
 	struct semaphore_waiter *waiter = list_first_entry(&sem->wait_list,
 						struct semaphore_waiter, list);

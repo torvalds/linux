@@ -15,7 +15,7 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -30,7 +30,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
@@ -85,7 +85,7 @@
 #define MIPI_CSIS_INT_MSK_ERR_WRONG_CFG		BIT(3)
 #define MIPI_CSIS_INT_MSK_ERR_ECC		BIT(2)
 #define MIPI_CSIS_INT_MSK_ERR_CRC		BIT(1)
-#define MIPI_CSIS_INT_MSK_ERR_UNKNOWN		BIT(0)
+#define MIPI_CSIS_INT_MSK_ERR_UNKANALWN		BIT(0)
 
 /* CSIS Interrupt source */
 #define MIPI_CSIS_INT_SRC			0x14
@@ -95,7 +95,7 @@
 #define MIPI_CSIS_INT_SRC_ODD_BEFORE		BIT(29)
 #define MIPI_CSIS_INT_SRC_ODD_AFTER		BIT(28)
 #define MIPI_CSIS_INT_SRC_ODD			(0x3 << 28)
-#define MIPI_CSIS_INT_SRC_NON_IMAGE_DATA	(0xf << 28)
+#define MIPI_CSIS_INT_SRC_ANALN_IMAGE_DATA	(0xf << 28)
 #define MIPI_CSIS_INT_SRC_FRAME_START		BIT(24)
 #define MIPI_CSIS_INT_SRC_FRAME_END		BIT(20)
 #define MIPI_CSIS_INT_SRC_ERR_SOT_HS		BIT(16)
@@ -105,7 +105,7 @@
 #define MIPI_CSIS_INT_SRC_ERR_WRONG_CFG		BIT(3)
 #define MIPI_CSIS_INT_SRC_ERR_ECC		BIT(2)
 #define MIPI_CSIS_INT_SRC_ERR_CRC		BIT(1)
-#define MIPI_CSIS_INT_SRC_ERR_UNKNOWN		BIT(0)
+#define MIPI_CSIS_INT_SRC_ERR_UNKANALWN		BIT(0)
 #define MIPI_CSIS_INT_SRC_ERRORS		0xfffff
 
 /* D-PHY status control */
@@ -201,8 +201,8 @@
 /* Debug control register */
 #define MIPI_CSIS_DBG_CTRL			0xc0
 #define MIPI_CSIS_DBG_INTR_MSK			0xc4
-#define MIPI_CSIS_DBG_INTR_MSK_DT_NOT_SUPPORT	BIT(25)
-#define MIPI_CSIS_DBG_INTR_MSK_DT_IGNORE	BIT(24)
+#define MIPI_CSIS_DBG_INTR_MSK_DT_ANALT_SUPPORT	BIT(25)
+#define MIPI_CSIS_DBG_INTR_MSK_DT_IGANALRE	BIT(24)
 #define MIPI_CSIS_DBG_INTR_MSK_ERR_FRAME_SIZE	BIT(20)
 #define MIPI_CSIS_DBG_INTR_MSK_TRUNCATED_FRAME	BIT(16)
 #define MIPI_CSIS_DBG_INTR_MSK_EARLY_FE		BIT(12)
@@ -210,8 +210,8 @@
 #define MIPI_CSIS_DBG_INTR_MSK_CAM_VSYNC_FALL	BIT(4)
 #define MIPI_CSIS_DBG_INTR_MSK_CAM_VSYNC_RISE	BIT(0)
 #define MIPI_CSIS_DBG_INTR_SRC			0xc8
-#define MIPI_CSIS_DBG_INTR_SRC_DT_NOT_SUPPORT	BIT(25)
-#define MIPI_CSIS_DBG_INTR_SRC_DT_IGNORE	BIT(24)
+#define MIPI_CSIS_DBG_INTR_SRC_DT_ANALT_SUPPORT	BIT(25)
+#define MIPI_CSIS_DBG_INTR_SRC_DT_IGANALRE	BIT(24)
 #define MIPI_CSIS_DBG_INTR_SRC_ERR_FRAME_SIZE	BIT(20)
 #define MIPI_CSIS_DBG_INTR_SRC_TRUNCATED_FRAME	BIT(16)
 #define MIPI_CSIS_DBG_INTR_SRC_EARLY_FE		BIT(12)
@@ -221,7 +221,7 @@
 
 #define MIPI_CSIS_FRAME_COUNTER_CH(n)		(0x0100 + (n) * 4)
 
-/* Non-image packet data buffers */
+/* Analn-image packet data buffers */
 #define MIPI_CSIS_PKTDATA_ODD			0x2000
 #define MIPI_CSIS_PKTDATA_EVEN			0x3000
 #define MIPI_CSIS_PKTDATA_SIZE			SZ_4K
@@ -263,18 +263,18 @@ static const struct mipi_csis_event mipi_csis_events[] = {
 	{ false, MIPI_CSIS_INT_SRC_ERR_WRONG_CFG,	"Wrong Configuration Error" },
 	{ false, MIPI_CSIS_INT_SRC_ERR_ECC,		"ECC Error" },
 	{ false, MIPI_CSIS_INT_SRC_ERR_CRC,		"CRC Error" },
-	{ false, MIPI_CSIS_INT_SRC_ERR_UNKNOWN,		"Unknown Error" },
-	{ true, MIPI_CSIS_DBG_INTR_SRC_DT_NOT_SUPPORT,	"Data Type Not Supported" },
-	{ true, MIPI_CSIS_DBG_INTR_SRC_DT_IGNORE,	"Data Type Ignored" },
+	{ false, MIPI_CSIS_INT_SRC_ERR_UNKANALWN,		"Unkanalwn Error" },
+	{ true, MIPI_CSIS_DBG_INTR_SRC_DT_ANALT_SUPPORT,	"Data Type Analt Supported" },
+	{ true, MIPI_CSIS_DBG_INTR_SRC_DT_IGANALRE,	"Data Type Iganalred" },
 	{ true, MIPI_CSIS_DBG_INTR_SRC_ERR_FRAME_SIZE,	"Frame Size Error" },
 	{ true, MIPI_CSIS_DBG_INTR_SRC_TRUNCATED_FRAME,	"Truncated Frame" },
 	{ true, MIPI_CSIS_DBG_INTR_SRC_EARLY_FE,	"Early Frame End" },
 	{ true, MIPI_CSIS_DBG_INTR_SRC_EARLY_FS,	"Early Frame Start" },
-	/* Non-image data receive events */
-	{ false, MIPI_CSIS_INT_SRC_EVEN_BEFORE,		"Non-image data before even frame" },
-	{ false, MIPI_CSIS_INT_SRC_EVEN_AFTER,		"Non-image data after even frame" },
-	{ false, MIPI_CSIS_INT_SRC_ODD_BEFORE,		"Non-image data before odd frame" },
-	{ false, MIPI_CSIS_INT_SRC_ODD_AFTER,		"Non-image data after odd frame" },
+	/* Analn-image data receive events */
+	{ false, MIPI_CSIS_INT_SRC_EVEN_BEFORE,		"Analn-image data before even frame" },
+	{ false, MIPI_CSIS_INT_SRC_EVEN_AFTER,		"Analn-image data after even frame" },
+	{ false, MIPI_CSIS_INT_SRC_ODD_BEFORE,		"Analn-image data before odd frame" },
+	{ false, MIPI_CSIS_INT_SRC_ODD_AFTER,		"Analn-image data after odd frame" },
 	/* Frame start/end */
 	{ false, MIPI_CSIS_INT_SRC_FRAME_START,		"Frame Start" },
 	{ false, MIPI_CSIS_INT_SRC_FRAME_END,		"Frame End" },
@@ -318,7 +318,7 @@ struct mipi_csis_device {
 
 	struct v4l2_subdev sd;
 	struct media_pad pads[CSIS_PADS_NUM];
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *src_sd;
 
 	struct v4l2_mbus_config_mipi_csi2 bus;
@@ -573,7 +573,7 @@ static void __mipi_csis_set_format(struct mipi_csis_device *csis,
 	 * when the CSIS is connected to a receiver that supports either option,
 	 * single pixel mode requires clock rates twice as high. As all SoCs
 	 * that integrate the CSIS can operate in 16-bit bit mode, and some do
-	 * not support 8-bit mode (this is the case of the i.MX8MP), use dual
+	 * analt support 8-bit mode (this is the case of the i.MX8MP), use dual
 	 * pixel mode unconditionally.
 	 *
 	 * TODO: Verify which other formats require DUAL (or QUAD) modes.
@@ -614,7 +614,7 @@ static int mipi_csis_calculate_params(struct mipi_csis_device *csis,
 
 	/*
 	 * The HSSETTLE counter value is document in a table, but can also
-	 * easily be calculated. Hardcode the CLKSETTLE value to 0 for now
+	 * easily be calculated. Hardcode the CLKSETTLE value to 0 for analw
 	 * (which is documented as corresponding to CSI-2 v0.87 to v1.00) until
 	 * we figure out how to compute it correctly.
 	 */
@@ -706,7 +706,7 @@ static int mipi_csis_clk_get(struct mipi_csis_device *csis)
 				  sizeof(*csis->clks), GFP_KERNEL);
 
 	if (!csis->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < csis->info->num_clocks; i++)
 		csis->clks[i].id = mipi_csis_clk_id[i];
@@ -836,9 +836,9 @@ static void mipi_csis_clear_counters(struct mipi_csis_device *csis)
 	spin_unlock_irqrestore(&csis->slock, flags);
 }
 
-static void mipi_csis_log_counters(struct mipi_csis_device *csis, bool non_errors)
+static void mipi_csis_log_counters(struct mipi_csis_device *csis, bool analn_errors)
 {
-	unsigned int num_events = non_errors ? MIPI_CSIS_NUM_EVENTS
+	unsigned int num_events = analn_errors ? MIPI_CSIS_NUM_EVENTS
 				: MIPI_CSIS_NUM_EVENTS - 8;
 	unsigned long flags;
 	unsigned int i;
@@ -1040,7 +1040,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 	 * Validate the media bus code and clamp and align the size.
 	 *
 	 * The total number of bits per line must be a multiple of 8. We thus
-	 * need to align the width for formats that are not multiples of 8
+	 * need to align the width for formats that are analt multiples of 8
 	 * bits.
 	 */
 	csis_fmt = find_csis_format(sdformat->format.code);
@@ -1074,7 +1074,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 	fmt->code = csis_fmt->code;
 	fmt->width = sdformat->format.width;
 	fmt->height = sdformat->format.height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = sdformat->format.colorspace;
 	fmt->quantization = sdformat->format.quantization;
 	fmt->xfer_func = sdformat->format.xfer_func;
@@ -1215,58 +1215,58 @@ static int mipi_csis_link_setup(struct media_entity *entity,
 static const struct media_entity_operations mipi_csis_entity_ops = {
 	.link_setup	= mipi_csis_link_setup,
 	.link_validate	= v4l2_subdev_link_validate,
-	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.get_fwanalde_pad = v4l2_subdev_get_fwanalde_pad_1_to_1,
 };
 
 /* -----------------------------------------------------------------------------
- * Async subdev notifier
+ * Async subdev analtifier
  */
 
 static struct mipi_csis_device *
-mipi_notifier_to_csis_state(struct v4l2_async_notifier *n)
+mipi_analtifier_to_csis_state(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct mipi_csis_device, notifier);
+	return container_of(n, struct mipi_csis_device, analtifier);
 }
 
-static int mipi_csis_notify_bound(struct v4l2_async_notifier *notifier,
+static int mipi_csis_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				  struct v4l2_subdev *sd,
 				  struct v4l2_async_connection *asd)
 {
-	struct mipi_csis_device *csis = mipi_notifier_to_csis_state(notifier);
+	struct mipi_csis_device *csis = mipi_analtifier_to_csis_state(analtifier);
 	struct media_pad *sink = &csis->sd.entity.pads[CSIS_PAD_SINK];
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
+	return v4l2_create_fwanalde_links_to_pad(sd, sink, 0);
 }
 
-static const struct v4l2_async_notifier_operations mipi_csis_notify_ops = {
-	.bound = mipi_csis_notify_bound,
+static const struct v4l2_async_analtifier_operations mipi_csis_analtify_ops = {
+	.bound = mipi_csis_analtify_bound,
 };
 
 static int mipi_csis_async_register(struct mipi_csis_device *csis)
 {
-	struct v4l2_fwnode_endpoint vep = {
+	struct v4l2_fwanalde_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned int i;
 	int ret;
 
-	v4l2_async_subdev_nf_init(&csis->notifier, &csis->sd);
+	v4l2_async_subdev_nf_init(&csis->analtifier, &csis->sd);
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csis->dev), 0, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(csis->dev), 0, 0,
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
 	if (ret)
 		goto err_parse;
 
 	for (i = 0; i < vep.bus.mipi_csi2.num_data_lanes; ++i) {
 		if (vep.bus.mipi_csi2.data_lanes[i] != i + 1) {
 			dev_err(csis->dev,
-				"data lanes reordering is not supported");
+				"data lanes reordering is analt supported");
 			ret = -EINVAL;
 			goto err_parse;
 		}
@@ -1277,25 +1277,25 @@ static int mipi_csis_async_register(struct mipi_csis_device *csis)
 	dev_dbg(csis->dev, "data lanes: %d\n", csis->bus.num_data_lanes);
 	dev_dbg(csis->dev, "flags: 0x%08x\n", csis->bus.flags);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csis->notifier, ep,
+	asd = v4l2_async_nf_add_fwanalde_remote(&csis->analtifier, ep,
 					      struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto err_parse;
 	}
 
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
-	csis->notifier.ops = &mipi_csis_notify_ops;
+	csis->analtifier.ops = &mipi_csis_analtify_ops;
 
-	ret = v4l2_async_nf_register(&csis->notifier);
+	ret = v4l2_async_nf_register(&csis->analtifier);
 	if (ret)
 		return ret;
 
 	return v4l2_async_register_subdev(&csis->sd);
 
 err_parse:
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	return ret;
 }
@@ -1358,7 +1358,7 @@ static int mipi_csis_subdev_init(struct mipi_csis_device *csis)
 	snprintf(sd->name, sizeof(sd->name), "csis-%s",
 		 dev_name(csis->dev));
 
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sd->ctrl_handler = NULL;
 
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
@@ -1385,9 +1385,9 @@ static int mipi_csis_subdev_init(struct mipi_csis_device *csis)
 
 static int mipi_csis_parse_dt(struct mipi_csis_device *csis)
 {
-	struct device_node *node = csis->dev->of_node;
+	struct device_analde *analde = csis->dev->of_analde;
 
-	if (of_property_read_u32(node, "clock-frequency",
+	if (of_property_read_u32(analde, "clock-frequency",
 				 &csis->clk_frequency))
 		csis->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
 
@@ -1403,7 +1403,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 
 	csis = devm_kzalloc(dev, sizeof(*csis), GFP_KERNEL);
 	if (!csis)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&csis->slock);
 
@@ -1439,7 +1439,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	/* Reset PHY and enable the clocks. */
 	mipi_csis_phy_reset(csis);
 
-	/* Now that the hardware is initialized, request the interrupt. */
+	/* Analw that the hardware is initialized, request the interrupt. */
 	ret = devm_request_irq(dev, irq, mipi_csis_irq_handler, 0,
 			       dev_name(dev), csis);
 	if (ret) {
@@ -1481,8 +1481,8 @@ err_unregister_all:
 err_cleanup:
 	v4l2_subdev_cleanup(&csis->sd);
 	media_entity_cleanup(&csis->sd.entity);
-	v4l2_async_nf_unregister(&csis->notifier);
-	v4l2_async_nf_cleanup(&csis->notifier);
+	v4l2_async_nf_unregister(&csis->analtifier);
+	v4l2_async_nf_cleanup(&csis->analtifier);
 	v4l2_async_unregister_subdev(&csis->sd);
 
 	return ret;
@@ -1494,8 +1494,8 @@ static void mipi_csis_remove(struct platform_device *pdev)
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 
 	mipi_csis_debugfs_exit(csis);
-	v4l2_async_nf_unregister(&csis->notifier);
-	v4l2_async_nf_cleanup(&csis->notifier);
+	v4l2_async_nf_unregister(&csis->analtifier);
+	v4l2_async_nf_cleanup(&csis->analtifier);
 	v4l2_async_unregister_subdev(&csis->sd);
 
 	if (!pm_runtime_enabled(&pdev->dev))

@@ -77,7 +77,7 @@ void __init config_BSP(char *commandp, int size)
 #ifdef CONFIG_BDM_DISABLE
 	/*
 	 * Disable the BDM clocking.  This also turns off most of the rest of
-	 * the BDM device.  This is good for EMC reasons. This option is not
+	 * the BDM device.  This is good for EMC reasons. This option is analt
 	 * incompatible with the memory protection option.
 	 */
 	wdebug(MCFDEBUG_CSR, MCFDEBUG_CSR_PSTCLK);

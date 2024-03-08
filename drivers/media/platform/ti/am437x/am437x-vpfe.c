@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013 - 2014 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beanalit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  */
 
@@ -25,7 +25,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-rect.h>
 
 #include "am437x-vpfe.h"
@@ -320,7 +320,7 @@ static void vpfe_ccdc_restore_defaults(struct vpfe_ccdc *ccdc)
 	for (i = 4; i <= 0x94; i += 4)
 		vpfe_reg_write(ccdc, 0,  i);
 
-	vpfe_reg_write(ccdc, VPFE_NO_CULLING, VPFE_CULLING);
+	vpfe_reg_write(ccdc, VPFE_ANAL_CULLING, VPFE_CULLING);
 	vpfe_reg_write(ccdc, VPFE_CCDC_GAMMA_BITS_11_2, VPFE_ALAW);
 }
 
@@ -469,8 +469,8 @@ vpfe_ccdc_config_black_clamp(struct vpfe_ccdc *ccdc,
 		return;
 	}
 	/*
-	 * Configure gain,  Start pixel, No of line to be avg,
-	 * No of pixel/line to be avg, & Enable the Black clamping
+	 * Configure gain,  Start pixel, Anal of line to be avg,
+	 * Anal of pixel/line to be avg, & Enable the Black clamping
 	 */
 	val = ((bclamp->sgain & VPFE_BLK_SGAIN_MASK) |
 	       ((bclamp->start_pixel & VPFE_BLK_ST_PXL_MASK) <<
@@ -575,12 +575,12 @@ static void vpfe_ccdc_config_raw(struct vpfe_ccdc *ccdc)
 			vpfe_reg_write(ccdc, VPFE_INTERLACED_IMAGE_INVERT,
 				   VPFE_SDOFST);
 		} else {
-			/* For interlace non inverse mode */
-			vpfe_reg_write(ccdc, VPFE_INTERLACED_NO_IMAGE_INVERT,
+			/* For interlace analn inverse mode */
+			vpfe_reg_write(ccdc, VPFE_INTERLACED_ANAL_IMAGE_INVERT,
 				   VPFE_SDOFST);
 		}
 	} else if (params->frm_fmt == CCDC_FRMFMT_PROGRESSIVE) {
-		vpfe_reg_write(ccdc, VPFE_PROGRESSIVE_NO_IMAGE_INVERT,
+		vpfe_reg_write(ccdc, VPFE_PROGRESSIVE_ANAL_IMAGE_INVERT,
 			   VPFE_SDOFST);
 	}
 
@@ -818,7 +818,7 @@ static void vpfe_clear_intr(struct vpfe_ccdc *ccdc, int vdint)
 
 	vpfe_int_status = vpfe_reg_read(ccdc, VPFE_IRQ_STS);
 
-	/* Acknowledge that we are done with all interrupts */
+	/* Ackanalwledge that we are done with all interrupts */
 	vpfe_reg_write(ccdc, 1, VPFE_IRQ_EOI);
 }
 
@@ -878,7 +878,7 @@ static int vpfe_get_ccdc_image_format(struct vpfe_device *vpfe,
 	frm_fmt = vpfe_ccdc_get_frame_format(&vpfe->ccdc);
 
 	if (frm_fmt == CCDC_FRMFMT_PROGRESSIVE) {
-		f->fmt.pix.field = V4L2_FIELD_NONE;
+		f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	} else if (frm_fmt == CCDC_FRMFMT_INTERLACED) {
 		if (buf_type == CCDC_BUFTYPE_FLD_INTERLEAVED) {
 			f->fmt.pix.field = V4L2_FIELD_INTERLACED;
@@ -916,13 +916,13 @@ static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe)
 
 	switch (vpfe->fmt.fmt.pix.field) {
 	case V4L2_FIELD_INTERLACED:
-		/* do nothing, since it is default */
+		/* do analthing, since it is default */
 		ret = vpfe_ccdc_set_buftype(
 				&vpfe->ccdc,
 				CCDC_BUFTYPE_FLD_INTERLEAVED);
 		break;
 
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 		frm_fmt = CCDC_FRMFMT_PROGRESSIVE;
 		/* buffer type only applicable for interlaced scan */
 		break;
@@ -975,7 +975,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe,
 	}
 
 	if (i ==  ARRAY_SIZE(vpfe_standards)) {
-		vpfe_err(vpfe, "standard not supported\n");
+		vpfe_err(vpfe, "standard analt supported\n");
 		return -EINVAL;
 	}
 
@@ -985,7 +985,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe,
 
 	fmt = find_format_by_code(vpfe, mbus_fmt.code);
 	if (!fmt) {
-		vpfe_dbg(3, vpfe, "mbus code format (0x%08x) not found.\n",
+		vpfe_dbg(3, vpfe, "mbus code format (0x%08x) analt found.\n",
 			 mbus_fmt.code);
 		return -EINVAL;
 	}
@@ -1090,7 +1090,7 @@ static int vpfe_open(struct file *file)
 
 	if (vpfe_initialize_device(vpfe)) {
 		v4l2_fh_release(file);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 unlock:
@@ -1189,7 +1189,7 @@ static void vpfe_handle_interlaced_irq(struct vpfe_device *vpfe,
 			/*
 			 * if one field is just being captured configure
 			 * the next frame get the next frame from the empty
-			 * queue if no frame is available hold on to the
+			 * queue if anal frame is available hold on to the
 			 * current buffer
 			 */
 			if (vpfe->cur_frm == vpfe->next_frm)
@@ -1221,7 +1221,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev)
 	intr_status = vpfe_reg_read(&vpfe->ccdc, VPFE_IRQ_STS);
 
 	if (intr_status & VPFE_VDINT0) {
-		if (field == V4L2_FIELD_NONE) {
+		if (field == V4L2_FIELD_ANALNE) {
 			if (vpfe->cur_frm != vpfe->next_frm)
 				vpfe_process_buffer_complete(vpfe);
 		} else {
@@ -1234,7 +1234,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev)
 	}
 
 	if (intr_status & VPFE_VDINT1 && !stopping) {
-		if (field == V4L2_FIELD_NONE &&
+		if (field == V4L2_FIELD_ANALNE &&
 		    vpfe->cur_frm == vpfe->next_frm)
 			vpfe_schedule_next_buffer(vpfe);
 	}
@@ -1331,7 +1331,7 @@ static int vpfe_calc_format_size(struct vpfe_device *vpfe,
 	u32 bpp;
 
 	if (!fmt) {
-		vpfe_dbg(3, vpfe, "No vpfe_fmt provided!\n");
+		vpfe_dbg(3, vpfe, "Anal vpfe_fmt provided!\n");
 		return -EINVAL;
 	}
 
@@ -1437,7 +1437,7 @@ static int vpfe_try_fmt(struct file *file, void *priv,
 	}
 
 	/*
-	 * Use current colorspace for now, it will get
+	 * Use current colorspace for analw, it will get
 	 * updated properly during s_fmt
 	 */
 	f->fmt.pix.colorspace = vpfe->fmt.fmt.pix.colorspace;
@@ -1470,10 +1470,10 @@ static int vpfe_s_fmt(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	/* Just double check nothing has gone wrong */
+	/* Just double check analthing has gone wrong */
 	if (mbus_fmt.code != f->code) {
 		vpfe_dbg(3, vpfe,
-			 "%s subdev changed format on us, this should not happen\n",
+			 "%s subdev changed format on us, this should analt happen\n",
 			 __func__);
 		return -EINVAL;
 	}
@@ -1599,7 +1599,7 @@ static int vpfe_enum_input(struct file *file, void *priv,
 	if (vpfe_get_subdev_input_index(vpfe, &subdev, &index,
 					inp->index) < 0) {
 		vpfe_dbg(1, vpfe,
-			"input information not found for the subdev\n");
+			"input information analt found for the subdev\n");
 		return -EINVAL;
 	}
 	sdinfo = &vpfe->cfg->sub_devs[subdev];
@@ -1689,7 +1689,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 
 	sdinfo = vpfe->current_subdev;
 	if (!(sdinfo->inputs[0].capabilities & V4L2_IN_CAP_STD))
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Call querystd function of decoder device */
 	return v4l2_device_call_until_err(&vpfe->v4l2_dev, sdinfo->grp_id,
@@ -1704,9 +1704,9 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 
 	sdinfo = vpfe->current_subdev;
 	if (!(sdinfo->inputs[0].capabilities & V4L2_IN_CAP_STD))
-		return -ENODATA;
+		return -EANALDATA;
 
-	/* if trying to set the same std then nothing to do */
+	/* if trying to set the same std then analthing to do */
 	if (vpfe_standards[vpfe->std_index].std_id == std_id)
 		return 0;
 
@@ -1735,7 +1735,7 @@ static int vpfe_g_std(struct file *file, void *priv, v4l2_std_id *std_id)
 
 	sdinfo = vpfe->current_subdev;
 	if (sdinfo->inputs[0].capabilities != V4L2_IN_CAP_STD)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*std_id = vpfe_standards[vpfe->std_index].std_id;
 
@@ -1837,11 +1837,11 @@ static void vpfe_buffer_queue(struct vb2_buffer *vb)
 static void vpfe_return_all_buffers(struct vpfe_device *vpfe,
 				    enum vb2_buffer_state state)
 {
-	struct vpfe_cap_buffer *buf, *node;
+	struct vpfe_cap_buffer *buf, *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vpfe->dma_queue_lock, flags);
-	list_for_each_entry_safe(buf, node, &vpfe->dma_queue, list) {
+	list_for_each_entry_safe(buf, analde, &vpfe->dma_queue, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -1939,7 +1939,7 @@ static void vpfe_stop_streaming(struct vb2_queue *vq)
 
 	sdinfo = vpfe->current_subdev;
 	ret = v4l2_subdev_call(sdinfo->sd, video, s_stream, 0);
-	if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV)
+	if (ret && ret != -EANALIOCTLCMD && ret != -EANALDEV)
 		vpfe_dbg(1, vpfe, "stream off failed in subdev\n");
 
 	/* release all active buffers */
@@ -2071,7 +2071,7 @@ static long vpfe_ioctl_default(struct file *file, void *priv,
 		break;
 
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 
@@ -2139,11 +2139,11 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 };
 
 static int
-vpfe_async_bound(struct v4l2_async_notifier *notifier,
+vpfe_async_bound(struct v4l2_async_analtifier *analtifier,
 		 struct v4l2_subdev *subdev,
 		 struct v4l2_async_connection *asd)
 {
-	struct vpfe_device *vpfe = container_of(notifier->v4l2_dev,
+	struct vpfe_device *vpfe = container_of(analtifier->v4l2_dev,
 					       struct vpfe_device, v4l2_dev);
 	struct vpfe_subdev_info *sdinfo;
 	struct vpfe_fmt *fmt;
@@ -2152,8 +2152,8 @@ vpfe_async_bound(struct v4l2_async_notifier *notifier,
 	int i, j, k;
 
 	for (i = 0; i < ARRAY_SIZE(vpfe->cfg->asd); i++) {
-		if (vpfe->cfg->asd[i]->match.fwnode ==
-		    asd[i].match.fwnode) {
+		if (vpfe->cfg->asd[i]->match.fwanalde ==
+		    asd[i].match.fwanalde) {
 			sdinfo = &vpfe->cfg->sub_devs[i];
 			vpfe->sd[i] = subdev;
 			vpfe->sd[i]->grp_id = sdinfo->grp_id;
@@ -2163,11 +2163,11 @@ vpfe_async_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	if (!found) {
-		vpfe_info(vpfe, "sub device (%s) not matched\n", subdev->name);
+		vpfe_info(vpfe, "sub device (%s) analt matched\n", subdev->name);
 		return -EINVAL;
 	}
 
-	vpfe->video_dev.tvnorms |= sdinfo->inputs[0].std;
+	vpfe->video_dev.tvanalrms |= sdinfo->inputs[0].std;
 
 	vpfe->num_active_fmt = 0;
 	for (j = 0, i = 0; (ret != -EINVAL); ++j) {
@@ -2198,7 +2198,7 @@ vpfe_async_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	if (!i) {
-		vpfe_err(vpfe, "No suitable format reported by subdev %s\n",
+		vpfe_err(vpfe, "Anal suitable format reported by subdev %s\n",
 			 subdev->name);
 		return -EINVAL;
 	}
@@ -2232,7 +2232,7 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 	q->ops = &vpfe_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpfe_cap_buffer);
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->lock = &vpfe->lock;
 	q->min_queued_buffers = 1;
 	q->dev = vpfe->pdev;
@@ -2271,15 +2271,15 @@ probe_out:
 	return err;
 }
 
-static int vpfe_async_complete(struct v4l2_async_notifier *notifier)
+static int vpfe_async_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct vpfe_device *vpfe = container_of(notifier->v4l2_dev,
+	struct vpfe_device *vpfe = container_of(analtifier->v4l2_dev,
 					struct vpfe_device, v4l2_dev);
 
 	return vpfe_probe_complete(vpfe);
 }
 
-static const struct v4l2_async_notifier_operations vpfe_async_ops = {
+static const struct v4l2_async_analtifier_operations vpfe_async_ops = {
 	.bound = vpfe_async_bound,
 	.complete = vpfe_async_complete,
 };
@@ -2287,7 +2287,7 @@ static const struct v4l2_async_notifier_operations vpfe_async_ops = {
 static struct vpfe_config *
 vpfe_get_pdata(struct vpfe_device *vpfe)
 {
-	struct device_node *endpoint = NULL;
+	struct device_analde *endpoint = NULL;
 	struct device *dev = vpfe->pdev;
 	struct vpfe_subdev_info *sdinfo;
 	struct vpfe_config *pdata;
@@ -2297,9 +2297,9 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 
 	dev_dbg(dev, "vpfe_get_pdata\n");
 
-	v4l2_async_nf_init(&vpfe->notifier, &vpfe->v4l2_dev);
+	v4l2_async_nf_init(&vpfe->analtifier, &vpfe->v4l2_dev);
 
-	if (!IS_ENABLED(CONFIG_OF) || !dev->of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !dev->of_analde)
 		return dev->platform_data;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -2307,10 +2307,10 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 		return NULL;
 
 	for (i = 0; ; i++) {
-		struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-		struct device_node *rem;
+		struct v4l2_fwanalde_endpoint bus_cfg = { .bus_type = 0 };
+		struct device_analde *rem;
 
-		endpoint = of_graph_get_next_endpoint(dev->of_node, endpoint);
+		endpoint = of_graph_get_next_endpoint(dev->of_analde, endpoint);
 		if (!endpoint)
 			break;
 
@@ -2335,10 +2335,10 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 			sdinfo->vpfe_param.if_type = VPFE_RAW_BAYER;
 		}
 
-		err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+		err = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(endpoint),
 						 &bus_cfg);
 		if (err) {
-			dev_err(dev, "Could not parse the endpoint\n");
+			dev_err(dev, "Could analt parse the endpoint\n");
 			goto cleanup;
 		}
 
@@ -2360,25 +2360,25 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 
 		rem = of_graph_get_remote_port_parent(endpoint);
 		if (!rem) {
-			dev_err(dev, "Remote device at %pOF not found\n",
+			dev_err(dev, "Remote device at %pOF analt found\n",
 				endpoint);
 			goto cleanup;
 		}
 
-		pdata->asd[i] = v4l2_async_nf_add_fwnode(&vpfe->notifier,
-							 of_fwnode_handle(rem),
+		pdata->asd[i] = v4l2_async_nf_add_fwanalde(&vpfe->analtifier,
+							 of_fwanalde_handle(rem),
 							 struct v4l2_async_connection);
-		of_node_put(rem);
+		of_analde_put(rem);
 		if (IS_ERR(pdata->asd[i]))
 			goto cleanup;
 	}
 
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 	return pdata;
 
 cleanup:
-	v4l2_async_nf_cleanup(&vpfe->notifier);
-	of_node_put(endpoint);
+	v4l2_async_nf_cleanup(&vpfe->analtifier);
+	of_analde_put(endpoint);
 	return NULL;
 }
 
@@ -2396,7 +2396,7 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	vpfe = devm_kzalloc(&pdev->dev, sizeof(*vpfe), GFP_KERNEL);
 	if (!vpfe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vpfe->pdev = &pdev->dev;
 
@@ -2408,7 +2408,7 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	vpfe_cfg = vpfe_get_pdata(vpfe);
 	if (!vpfe_cfg) {
-		dev_err(&pdev->dev, "No platform data\n");
+		dev_err(&pdev->dev, "Anal platform data\n");
 		ret = -EINVAL;
 		goto probe_out_cleanup;
 	}
@@ -2440,7 +2440,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	/* Enabling module functional clock */
 	pm_runtime_enable(&pdev->dev);
 
-	/* for now just enable it here instead of waiting for the open */
+	/* for analw just enable it here instead of waiting for the open */
 	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0) {
 		vpfe_err(vpfe, "Unable to resume device.\n");
@@ -2456,14 +2456,14 @@ static int vpfe_probe(struct platform_device *pdev)
 				sizeof(struct v4l2_subdev *),
 				GFP_KERNEL);
 	if (!vpfe->sd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto probe_out_cleanup;
 	}
 
-	vpfe->notifier.ops = &vpfe_async_ops;
-	ret = v4l2_async_nf_register(&vpfe->notifier);
+	vpfe->analtifier.ops = &vpfe_async_ops;
+	ret = v4l2_async_nf_register(&vpfe->analtifier);
 	if (ret) {
-		vpfe_err(vpfe, "Error registering async notifier\n");
+		vpfe_err(vpfe, "Error registering async analtifier\n");
 		ret = -EINVAL;
 		goto probe_out_cleanup;
 	}
@@ -2471,7 +2471,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	return 0;
 
 probe_out_cleanup:
-	v4l2_async_nf_cleanup(&vpfe->notifier);
+	v4l2_async_nf_cleanup(&vpfe->analtifier);
 	v4l2_device_unregister(&vpfe->v4l2_dev);
 	return ret;
 }
@@ -2485,8 +2485,8 @@ static void vpfe_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	v4l2_async_nf_unregister(&vpfe->notifier);
-	v4l2_async_nf_cleanup(&vpfe->notifier);
+	v4l2_async_nf_unregister(&vpfe->analtifier);
+	v4l2_async_nf_cleanup(&vpfe->analtifier);
 	video_unregister_device(&vpfe->video_dev);
 	v4l2_device_unregister(&vpfe->v4l2_dev);
 }
@@ -2530,7 +2530,7 @@ static int vpfe_suspend(struct device *dev)
 	/* only do full suspend if streaming has started */
 	if (vb2_start_streaming_called(&vpfe->buffer_queue)) {
 		/*
-		 * ignore RPM resume errors here, as it is already too late.
+		 * iganalre RPM resume errors here, as it is already too late.
 		 * A check like that should happen earlier, either at
 		 * open() or just before start streaming.
 		 */

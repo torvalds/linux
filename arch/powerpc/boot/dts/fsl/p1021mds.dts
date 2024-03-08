@@ -36,7 +36,7 @@
 			reg = <0x0 0x0 0x40000>;
 
 			partition@0 {
-				/* This location must not be altered  */
+				/* This location must analt be altered  */
 				/* 1MB for u-boot Bootloader Image */
 				reg = <0x0 0x00100000>;
 				label = "NAND (RO) U-Boot Image";
@@ -119,7 +119,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "spansion,s25sl12801", "jedec,spi-nor";
+				compatible = "spansion,s25sl12801", "jedec,spi-analr";
 				reg = <0>;
 				spi-max-frequency = <40000000>; /* input clock */
 
@@ -273,7 +273,7 @@
 		reg = <0 0xffe80000 0 0x480>;
 		brg-frequency = <0>;
 		bus-frequency = <0>;
-		status = "disabled"; /* no firmware loaded */
+		status = "disabled"; /* anal firmware loaded */
 
 		enet3: ucc@2000 {
 			device_type = "network";
@@ -307,7 +307,7 @@
 			device_type = "network";
 			compatible = "ucc_geth";
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "analne";
 			tx-clock-name = "clk13";
 			pio-handle = <&pio2>;
 			phy-handle = <&qe_phy1>;

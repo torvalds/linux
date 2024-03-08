@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys AXS10X SDP Generic PLL clock driver
+ * Syanalpsys AXS10X SDP Generic PLL clock driver
  *
- * Copyright (C) 2017 Synopsys
+ * Copyright (C) 2017 Syanalpsys
  */
 
 #include <linux/platform_device.h>
@@ -25,7 +25,7 @@
  * Bit fields of the PLL IDIV/FBDIV/ODIV registers:
  *  ________________________________________________________________________
  * |31                15|    14    |   13   |  12  |11         6|5         0|
- * |-------RESRVED------|-NOUPDATE-|-BYPASS-|-EDGE-|--HIGHTIME--|--LOWTIME--|
+ * |-------RESRVED------|-ANALUPDATE-|-BYPASS-|-EDGE-|--HIGHTIME--|--LOWTIME--|
  * |____________________|__________|________|______|____________|___________|
  *
  * Following macros determine the way of access to these registers
@@ -41,7 +41,7 @@
 	(((reg) & (BIT(12))) ? 1 : 0)
 #define PLL_REG_GET_BYPASS(reg)			\
 	(((reg) & (BIT(13))) ? 1 : 0)
-#define PLL_REG_GET_NOUPD(reg)			\
+#define PLL_REG_GET_ANALUPD(reg)			\
 	(((reg) & (BIT(14))) ? 1 : 0)
 #define PLL_REG_GET_PAD(reg)			\
 	(((reg) & (0x1FFFF << 15)) >> 15)
@@ -54,7 +54,7 @@
 	{ reg |= (((value) & 0x01) << 12); }
 #define PLL_REG_SET_BYPASS(reg, value)		\
 	{ reg |= (((value) & 0x01) << 13); }
-#define PLL_REG_SET_NOUPD(reg, value)		\
+#define PLL_REG_SET_ANALUPD(reg, value)		\
 	{ reg |= (((value) & 0x01) << 14); }
 #define PLL_REG_SET_PAD(reg, value)		\
 	{ reg |= (((value) & 0x1FFFF) << 15); }
@@ -127,7 +127,7 @@ static inline u32 axs10x_encode_div(unsigned int id, int upd)
 	PLL_REG_SET_HIGH(div, id >> 1);
 	PLL_REG_SET_EDGE(div, id % 2);
 	PLL_REG_SET_BYPASS(div, id == 1 ? 1 : 0);
-	PLL_REG_SET_NOUPD(div, upd == 0 ? 1 : 0);
+	PLL_REG_SET_ANALUPD(div, upd == 0 ? 1 : 0);
 
 	return div;
 }
@@ -222,7 +222,7 @@ static int axs10x_pll_clk_probe(struct platform_device *pdev)
 
 	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);
 	if (!pll_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pll_clk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pll_clk->base))
@@ -232,9 +232,9 @@ static int axs10x_pll_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(pll_clk->lock))
 		return PTR_ERR(pll_clk->lock);
 
-	init.name = dev->of_node->name;
+	init.name = dev->of_analde->name;
 	init.ops = &axs10x_pll_ops;
-	parent_name = of_clk_get_parent_name(dev->of_node, 0);
+	parent_name = of_clk_get_parent_name(dev->of_analde, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	pll_clk->hw.init = &init;
@@ -242,7 +242,7 @@ static int axs10x_pll_clk_probe(struct platform_device *pdev)
 	pll_clk->pll_cfg = of_device_get_match_data(dev);
 
 	if (!pll_clk->pll_cfg) {
-		dev_err(dev, "No OF match data provided\n");
+		dev_err(dev, "Anal OF match data provided\n");
 		return -EINVAL;
 	}
 
@@ -256,7 +256,7 @@ static int axs10x_pll_clk_probe(struct platform_device *pdev)
 					   &pll_clk->hw);
 }
 
-static void __init of_axs10x_pll_clk_setup(struct device_node *node)
+static void __init of_axs10x_pll_clk_setup(struct device_analde *analde)
 {
 	const char *parent_name;
 	struct axs10x_pll_clk *pll_clk;
@@ -267,21 +267,21 @@ static void __init of_axs10x_pll_clk_setup(struct device_node *node)
 	if (!pll_clk)
 		return;
 
-	pll_clk->base = of_iomap(node, 0);
+	pll_clk->base = of_iomap(analde, 0);
 	if (!pll_clk->base) {
 		pr_err("failed to map pll div registers\n");
 		goto err_free_pll_clk;
 	}
 
-	pll_clk->lock = of_iomap(node, 1);
+	pll_clk->lock = of_iomap(analde, 1);
 	if (!pll_clk->lock) {
 		pr_err("failed to map pll lock register\n");
 		goto err_unmap_base;
 	}
 
-	init.name = node->name;
+	init.name = analde->name;
 	init.ops = &axs10x_pll_ops;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(analde, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = parent_name ? 1 : 0;
 	pll_clk->hw.init = &init;
@@ -289,13 +289,13 @@ static void __init of_axs10x_pll_clk_setup(struct device_node *node)
 
 	ret = clk_hw_register(NULL, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to register %pOFn clock\n", node);
+		pr_err("failed to register %pOFn clock\n", analde);
 		goto err_unmap_lock;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &pll_clk->hw);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to add hw provider for %pOFn clock\n", node);
+		pr_err("failed to add hw provider for %pOFn clock\n", analde);
 		goto err_unregister_clk;
 	}
 
@@ -328,6 +328,6 @@ static struct platform_driver axs10x_pll_clk_driver = {
 };
 builtin_platform_driver(axs10x_pll_clk_driver);
 
-MODULE_AUTHOR("Vlad Zakharov <vzakhar@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys AXS10X SDP Generic PLL Clock Driver");
+MODULE_AUTHOR("Vlad Zakharov <vzakhar@syanalpsys.com>");
+MODULE_DESCRIPTION("Syanalpsys AXS10X SDP Generic PLL Clock Driver");
 MODULE_LICENSE("GPL v2");

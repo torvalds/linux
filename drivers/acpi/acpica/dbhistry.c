@@ -14,7 +14,7 @@
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbhistry")
 
-#define HI_NO_HISTORY       0
+#define HI_ANAL_HISTORY       0
 #define HI_RECORD_HISTORY   1
 #define HISTORY_SIZE        40
 typedef struct history_info {
@@ -34,7 +34,7 @@ static u16 acpi_gbl_next_history_index = 0;
  *
  * PARAMETERS:  command_line    - Command to add
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Add a command line to the history buffer.
  *
@@ -101,9 +101,9 @@ void acpi_db_add_to_history(char *command_line)
  *
  * FUNCTION:    acpi_db_display_history
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display the contents of the history buffer
  *

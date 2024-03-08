@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/mtd/mtd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MTD (Memory Technology Device)
+title: MTD (Memory Techanallogy Device)
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
-  - Richard Weinberger <richard@nod.at>
+  - Richard Weinberger <richard@anald.at>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^(flash|.*sram|nand)(@.*)?$"
 
   label:
@@ -76,7 +76,7 @@ examples:
 
         flash@0 {
             reg = <0>;
-            compatible = "jedec,spi-nor";
+            compatible = "jedec,spi-analr";
             label = "System-firmware";
         };
     };
@@ -88,7 +88,7 @@ examples:
 
         flash@0 {
             reg = <0>;
-            compatible = "jedec,spi-nor";
+            compatible = "jedec,spi-analr";
 
             otp-1 {
                 compatible = "factory-otp";

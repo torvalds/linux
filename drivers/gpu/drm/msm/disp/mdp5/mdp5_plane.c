@@ -61,7 +61,7 @@ static void mdp5_plane_install_properties(struct drm_plane *plane,
 					   DRM_MODE_REFLECT_Y);
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_blend_mode_property(plane,
-			BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+			BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 			BIT(DRM_MODE_BLEND_PREMULTI) |
 			BIT(DRM_MODE_BLEND_COVERAGE));
 
@@ -87,7 +87,7 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 					      "(null)");
 	drm_printf(p, "\tblend_mode=%u\n", pstate->base.pixel_blend_mode);
 	drm_printf(p, "\tzpos=%u\n", pstate->base.zpos);
-	drm_printf(p, "\tnormalized_zpos=%u\n", pstate->base.normalized_zpos);
+	drm_printf(p, "\tanalrmalized_zpos=%u\n", pstate->base.analrmalized_zpos);
 	drm_printf(p, "\talpha=%u\n", pstate->base.alpha);
 	drm_printf(p, "\tstage=%s\n", stage2name(pstate->stage));
 }
@@ -202,7 +202,7 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 
 	if (state->src_w > max_width) {
 		/* If source split is supported, we can go up to 2x
-		 * the max LM width, but we'd need to stage another
+		 * the max LM width, but we'd need to stage aanalther
 		 * hwpipe to the right LM. So, the drm_plane would
 		 * consist of 2 hwpipes.
 		 */
@@ -284,7 +284,7 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 		/* (re)assign hwpipe if needed, otherwise keep old one: */
 		if (new_hwpipe) {
 			/* TODO maybe we want to re-assign hwpipe sometimes
-			 * in cases when we no-longer need some caps to make
+			 * in cases when we anal-longer need some caps to make
 			 * it available for other planes?
 			 */
 			struct mdp5_hw_pipe *old_hwpipe = mdp5_state->hwpipe;
@@ -308,7 +308,7 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 				mdp5_state->r_hwpipe = new_right_hwpipe;
 			else
 				/*
-				 * set it to NULL so that the driver knows we
+				 * set it to NULL so that the driver kanalws we
 				 * don't have a right hwpipe when committing a
 				 * new state
 				 */
@@ -476,7 +476,7 @@ static const struct drm_plane_helper_funcs mdp5_plane_helper_funcs = {
 		.atomic_async_update = mdp5_plane_atomic_async_update,
 };
 
-static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
+static void set_scaanalut_locked(struct mdp5_kms *mdp5_kms,
 			       enum mdp5_pipe pipe,
 			       struct drm_framebuffer *fb)
 {
@@ -500,7 +500,7 @@ static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 			msm_framebuffer_iova(fb, kms->aspace, 3));
 }
 
-/* Note: mdp5_plane->pipe_lock must be locked */
+/* Analte: mdp5_plane->pipe_lock must be locked */
 static void csc_disable(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe)
 {
 	uint32_t value = mdp5_read(mdp5_kms, REG_MDP5_PIPE_OP_MODE(pipe)) &
@@ -509,11 +509,11 @@ static void csc_disable(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe)
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_OP_MODE(pipe), value);
 }
 
-/* Note: mdp5_plane->pipe_lock must be locked */
+/* Analte: mdp5_plane->pipe_lock must be locked */
 static void csc_enable(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe,
 		struct csc_cfg *csc)
 {
-	uint32_t  i, mode = 0; /* RGB, no CSC */
+	uint32_t  i, mode = 0; /* RGB, anal CSC */
 	uint32_t *matrix;
 
 	if (unlikely(!csc))
@@ -673,7 +673,7 @@ static void calc_pixel_ext(const struct mdp_format *format,
 	int i;
 
 	/*
-	 * Note:
+	 * Analte:
 	 * We assume here that:
 	 *     1. PCMN filter is used for downscale
 	 *     2. bilinear filter is used for upscale
@@ -820,7 +820,7 @@ static void mdp5_hwpipe_mode_set(struct mdp5_kms *mdp5_kms,
 			COND(has_pe, MDP5_PIPE_SRC_OP_MODE_SW_PIX_EXT_OVERRIDE) |
 			MDP5_PIPE_SRC_OP_MODE_BWC(BWC_LOSSLESS));
 
-	/* not using secure mode: */
+	/* analt using secure mode: */
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_ADDR_SW_STATUS(pipe), 0);
 
 	if (hwpipe->caps & MDP_PIPE_CAP_SW_PIX_EXT)
@@ -852,7 +852,7 @@ static void mdp5_hwpipe_mode_set(struct mdp5_kms *mdp5_kms,
 			csc_disable(mdp5_kms, pipe);
 	}
 
-	set_scanout_locked(mdp5_kms, pipe, fb);
+	set_scaanalut_locked(mdp5_kms, pipe, fb);
 }
 
 static int mdp5_plane_mode_set(struct drm_plane *plane,
@@ -976,7 +976,7 @@ enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
 
 	if (WARN_ON(!pstate->hwpipe))
-		return SSPP_NONE;
+		return SSPP_ANALNE;
 
 	return pstate->hwpipe->pipe;
 }
@@ -986,7 +986,7 @@ enum mdp5_pipe mdp5_plane_right_pipe(struct drm_plane *plane)
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
 
 	if (!pstate->r_hwpipe)
-		return SSPP_NONE;
+		return SSPP_ANALNE;
 
 	return pstate->r_hwpipe->pipe;
 }
@@ -1017,7 +1017,7 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 
 	mdp5_plane = kzalloc(sizeof(*mdp5_plane), GFP_KERNEL);
 	if (!mdp5_plane) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 

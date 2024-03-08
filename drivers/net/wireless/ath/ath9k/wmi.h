@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -27,12 +27,12 @@ struct wmi_event_txrate {
 
 struct wmi_cmd_hdr {
 	__be16 command_id;
-	__be16 seq_no;
+	__be16 seq_anal;
 } __packed;
 
 struct wmi_fw_version {
 	__be16 major;
-	__be16 minor;
+	__be16 mianalr;
 
 } __packed;
 
@@ -96,8 +96,8 @@ enum wmi_cmd_id {
 	WMI_STOP_RECV_CMDID,
 	WMI_FLUSH_RECV_CMDID,
 	WMI_SET_MODE_CMDID,
-	WMI_NODE_CREATE_CMDID,
-	WMI_NODE_REMOVE_CMDID,
+	WMI_ANALDE_CREATE_CMDID,
+	WMI_ANALDE_REMOVE_CMDID,
 	WMI_VAP_REMOVE_CMDID,
 	WMI_VAP_CREATE_CMDID,
 	WMI_REG_READ_CMDID,
@@ -107,7 +107,7 @@ enum wmi_cmd_id {
 	WMI_TARGET_IC_UPDATE_CMDID,
 	WMI_TX_AGGR_ENABLE_CMDID,
 	WMI_TGT_DETACH_CMDID,
-	WMI_NODE_UPDATE_CMDID,
+	WMI_ANALDE_UPDATE_CMDID,
 	WMI_INT_STATS_CMDID,
 	WMI_TX_STATS_CMDID,
 	WMI_RX_STATS_CMDID,

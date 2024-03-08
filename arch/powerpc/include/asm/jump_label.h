@@ -13,41 +13,41 @@
 #include <asm/asm-const.h>
 
 #define JUMP_ENTRY_TYPE		stringify_in_c(FTR_ENTRY_LONG)
-#define JUMP_LABEL_NOP_SIZE	4
+#define JUMP_LABEL_ANALP_SIZE	4
 
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
 	asm goto("1:\n\t"
-		 "nop # arch_static_branch\n\t"
+		 "analp # arch_static_branch\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
-		 ".long 1b - ., %l[l_yes] - .\n\t"
+		 ".long 1b - ., %l[l_anal] - .\n\t"
 		 JUMP_ENTRY_TYPE "%c0 - .\n\t"
 		 ".popsection \n\t"
-		 : :  "i" (&((char *)key)[branch]) : : l_yes);
+		 : :  "i" (&((char *)key)[branch]) : : l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 
 static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
 {
 	asm goto("1:\n\t"
-		 "b %l[l_yes] # arch_static_branch_jump\n\t"
+		 "b %l[l_anal] # arch_static_branch_jump\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
-		 ".long 1b - ., %l[l_yes] - .\n\t"
+		 ".long 1b - ., %l[l_anal] - .\n\t"
 		 JUMP_ENTRY_TYPE "%c0 - .\n\t"
 		 ".popsection \n\t"
-		 : :  "i" (&((char *)key)[branch]) : : l_yes);
+		 : :  "i" (&((char *)key)[branch]) : : l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 
 #else
 #define ARCH_STATIC_BRANCH(LABEL, KEY)		\
-1098:	nop;					\
+1098:	analp;					\
 	.pushsection __jump_table, "aw";	\
 	.long 1098b - ., LABEL - .;		\
 	FTR_ENTRY_LONG KEY - .;			\

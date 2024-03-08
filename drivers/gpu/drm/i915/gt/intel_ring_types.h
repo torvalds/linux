@@ -33,7 +33,7 @@ struct intel_ring {
 	 * atomic updates to the pin_count. However, the actual pinning
 	 * of the context is either done during initialisation for
 	 * ringbuffer submission or serialised as part of the context
-	 * pinning for execlists, and so we do not need a mutex ourselves
+	 * pinning for execlists, and so we do analt need a mutex ourselves
 	 * to serialise intel_ring_pin/intel_ring_unpin.
 	 */
 	atomic_t pin_count;

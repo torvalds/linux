@@ -3,7 +3,7 @@
  * dwarf-aux.c : libdw auxiliary interfaces
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -48,7 +48,7 @@ const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname)
  * @cu_die: a CU DIE
  *
  * Get the path of compilation directory of given @cu_die.
- * Since this depends on DW_AT_comp_dir, older gcc will not
+ * Since this depends on DW_AT_comp_dir, older gcc will analt
  * embedded it. In that case, this returns NULL.
  */
 const char *cu_get_comp_dir(Dwarf_Die *cu_die)
@@ -109,12 +109,12 @@ static Dwarf_Line *cu_getsrc_die(Dwarf_Die *cu_die, Dwarf_Addr addr)
  * @cu_die: a CU DIE
  * @addr: An address
  * @fname: a pointer which returns the file name string
- * @lineno: a pointer which returns the line number
+ * @lineanal: a pointer which returns the line number
  *
  * Find a line number and file name for @addr in @cu_die.
  */
 int cu_find_lineinfo(Dwarf_Die *cu_die, Dwarf_Addr addr,
-		     const char **fname, int *lineno)
+		     const char **fname, int *lineanal)
 {
 	Dwarf_Line *line;
 	Dwarf_Die die_mem;
@@ -124,20 +124,20 @@ int cu_find_lineinfo(Dwarf_Die *cu_die, Dwarf_Addr addr,
 	    && die_entrypc(&die_mem, &faddr) == 0 &&
 	    faddr == addr) {
 		*fname = die_get_decl_file(&die_mem);
-		dwarf_decl_line(&die_mem, lineno);
+		dwarf_decl_line(&die_mem, lineanal);
 		goto out;
 	}
 
 	line = cu_getsrc_die(cu_die, addr);
-	if (line && dwarf_lineno(line, lineno) == 0) {
+	if (line && dwarf_lineanal(line, lineanal) == 0) {
 		*fname = dwarf_linesrc(line, NULL, NULL);
 		if (!*fname)
 			/* line number is useless without filename */
-			*lineno = 0;
+			*lineanal = 0;
 	}
 
 out:
-	return (*lineno && *fname) ? *lineno : -ENOENT;
+	return (*lineanal && *fname) ? *lineanal : -EANALENT;
 }
 
 static int __die_find_inline_cb(Dwarf_Die *die_mem, void *data);
@@ -157,7 +157,7 @@ int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 {
 	Dwarf_Die die_mem;
 	Dwarf_Die *sc_die;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	/* Inlined function could be recursive. Trace it until fail */
 	for (sc_die = die_find_realfunc(cu_die, addr, &die_mem);
@@ -194,7 +194,7 @@ const char *die_get_linkage_name(Dwarf_Die *dw_die)
  * @dw_die: a DIE
  * @tname: a string of target name
  *
- * Compare the name of @dw_die and @tname. Return false if @dw_die has no name.
+ * Compare the name of @dw_die and @tname. Return false if @dw_die has anal name.
  */
 bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 {
@@ -228,19 +228,19 @@ bool die_match_name(Dwarf_Die *dw_die, const char *glob)
 }
 
 /**
- * die_get_call_lineno - Get callsite line number of inline-function instance
+ * die_get_call_lineanal - Get callsite line number of inline-function instance
  * @in_die: a DIE of an inlined function instance
  *
  * Get call-site line number of @in_die. This means from where the inline
  * function is called.
  */
-int die_get_call_lineno(Dwarf_Die *in_die)
+int die_get_call_lineanal(Dwarf_Die *in_die)
 {
 	Dwarf_Attribute attr;
 	Dwarf_Word ret;
 
 	if (!dwarf_attr(in_die, DW_AT_call_line, &attr))
-		return -ENOENT;
+		return -EANALENT;
 
 	dwarf_formudata(&attr, &ret);
 	return (int)ret;
@@ -310,13 +310,13 @@ static int die_get_attr_udata(Dwarf_Die *tp_die, unsigned int attr_name,
 
 	if (dwarf_attr_integrate(tp_die, attr_name, &attr) == NULL ||
 	    dwarf_formudata(&attr, result) != 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
 
 /**
- * die_is_signed_type - Check whether a type DIE is signed or not
+ * die_is_signed_type - Check whether a type DIE is signed or analt
  * @tp_die: a DIE of a type
  *
  * Get the encoding of @tp_die and return true if the encoding
@@ -337,7 +337,7 @@ bool die_is_signed_type(Dwarf_Die *tp_die)
  * die_is_func_def - Ensure that this DIE is a subprogram and definition
  * @dw_die: a DIE
  *
- * Ensure that this DIE is a subprogram and NOT a declaration. This
+ * Ensure that this DIE is a subprogram and ANALT a declaration. This
  * returns true if @dw_die is a function definition.
  **/
 bool die_is_func_def(Dwarf_Die *dw_die)
@@ -369,7 +369,7 @@ bool die_is_func_def(Dwarf_Die *dw_die)
  * @dw_die: a DIE
  * @addr: where to store entry PC
  *
- * Since dwarf_entrypc() does not return entry PC if the DIE has only address
+ * Since dwarf_entrypc() does analt return entry PC if the DIE has only address
  * range, we have to use this to retrieve the lowest address from the address
  * range attribute.
  */
@@ -385,13 +385,13 @@ int die_entrypc(Dwarf_Die *dw_die, Dwarf_Addr *addr)
 		return 0;
 
 	/*
-	 *  Since the dwarf_ranges() will return 0 if there is no
+	 *  Since the dwarf_ranges() will return 0 if there is anal
 	 * DW_AT_ranges attribute, we should check it first.
 	 */
 	if (!dwarf_attr(dw_die, DW_AT_ranges, &attr))
-		return -ENOENT;
+		return -EANALENT;
 
-	return dwarf_ranges(dw_die, 0, &base, addr, &end) < 0 ? -ENOENT : 0;
+	return dwarf_ranges(dw_die, 0, &base, addr, &end) < 0 ? -EANALENT : 0;
 }
 
 /**
@@ -399,7 +399,7 @@ int die_entrypc(Dwarf_Die *dw_die, Dwarf_Addr *addr)
  * @dw_die: a DIE
  *
  * Ensure that this DIE is an instance (which has an entry address).
- * This returns true if @dw_die is a function instance. If not, the @dw_die
+ * This returns true if @dw_die is a function instance. If analt, the @dw_die
  * must be a prototype. You can use die_walk_instances() to find actual
  * instances.
  **/
@@ -423,7 +423,7 @@ bool die_is_func_instance(Dwarf_Die *dw_die)
  * @offs: The offset of the member in the data structure
  *
  * Get the offset of @mb_die in the data structure including @mb_die, and
- * stores result offset to @offs. If any error occurs this returns errno.
+ * stores result offset to @offs. If any error occurs this returns erranal.
  */
 int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
 {
@@ -433,18 +433,18 @@ int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
 	int ret;
 
 	if (dwarf_attr(mb_die, DW_AT_data_member_location, &attr) == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (dwarf_formudata(&attr, offs) != 0) {
 		/* DW_AT_data_member_location should be DW_OP_plus_uconst */
 		ret = dwarf_getlocation(&attr, &expr, &nexpr);
 		if (ret < 0 || nexpr == 0)
-			return -ENOENT;
+			return -EANALENT;
 
 		if (expr[0].atom != DW_OP_plus_uconst || nexpr != 1) {
 			pr_debug("Unable to get offset:Unexpected OP %x (%zd)\n",
 				 expr[0].atom, nexpr);
-			return -ENOTSUP;
+			return -EANALTSUP;
 		}
 		*offs = (Dwarf_Word)expr[0].number;
 	}
@@ -452,25 +452,25 @@ int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
 }
 
 /* Get the call file index number in CU DIE */
-static int die_get_call_fileno(Dwarf_Die *in_die)
+static int die_get_call_fileanal(Dwarf_Die *in_die)
 {
 	Dwarf_Word idx;
 
 	if (die_get_attr_udata(in_die, DW_AT_call_file, &idx) == 0)
 		return (int)idx;
 	else
-		return -ENOENT;
+		return -EANALENT;
 }
 
 /* Get the declared file index number in CU DIE */
-static int die_get_decl_fileno(Dwarf_Die *pdie)
+static int die_get_decl_fileanal(Dwarf_Die *pdie)
 {
 	Dwarf_Word idx;
 
 	if (die_get_attr_udata(pdie, DW_AT_decl_file, &idx) == 0)
 		return (int)idx;
 	else
-		return -ENOENT;
+		return -EANALENT;
 }
 
 /* Return the file name by index */
@@ -497,7 +497,7 @@ static const char *die_get_file_name(Dwarf_Die *dw_die, int idx)
  */
 const char *die_get_call_file(Dwarf_Die *in_die)
 {
-	return die_get_file_name(in_die, die_get_call_fileno(in_die));
+	return die_get_file_name(in_die, die_get_call_fileanal(in_die));
 }
 
 /**
@@ -505,13 +505,13 @@ const char *die_get_call_file(Dwarf_Die *in_die)
  * @dw_die: a DIE for something declared.
  *
  * Get declared file name of @dw_die.
- * NOTE: Since some version of clang DWARF5 implementation incorrectly uses
+ * ANALTE: Since some version of clang DWARF5 implementation incorrectly uses
  * file index 0 for DW_AT_decl_file, die_get_decl_file() will return NULL for
  * such cases. Use this function instead.
  */
 const char *die_get_decl_file(Dwarf_Die *dw_die)
 {
-	return die_get_file_name(dw_die, die_get_decl_fileno(dw_die));
+	return die_get_file_name(dw_die, die_get_decl_fileanal(dw_die));
 }
 
 /**
@@ -576,13 +576,13 @@ static int __die_search_func_tail_cb(Dwarf_Die *fn_die, void *data)
 }
 
 /**
- * die_find_tailfunc - Search for a non-inlined function with tail call at
+ * die_find_tailfunc - Search for a analn-inlined function with tail call at
  * given address
  * @cu_die: a CU DIE which including @addr
  * @addr: target address
  * @die_mem: a buffer for result DIE
  *
- * Search for a non-inlined function DIE with tail call at @addr. Stores the
+ * Search for a analn-inlined function DIE with tail call at @addr. Stores the
  * DIE to @die_mem and returns it if found. Returns NULL if failed.
  */
 Dwarf_Die *die_find_tailfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
@@ -598,7 +598,7 @@ Dwarf_Die *die_find_tailfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
 		return die_mem;
 }
 
-/* die_find callback for non-inlined function search */
+/* die_find callback for analn-inlined function search */
 static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
 {
 	struct __addr_die_search_param *ad = data;
@@ -616,12 +616,12 @@ static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
 }
 
 /**
- * die_find_realfunc - Search a non-inlined function at given address
+ * die_find_realfunc - Search a analn-inlined function at given address
  * @cu_die: a CU DIE which including @addr
  * @addr: target address
  * @die_mem: a buffer for result DIE
  *
- * Search a non-inlined function DIE which includes @addr. Stores the
+ * Search a analn-inlined function DIE which includes @addr. Stores the
  * DIE to @die_mem and returns it if found. Returns NULL if failed.
  */
 Dwarf_Die *die_find_realfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
@@ -723,12 +723,12 @@ static int __die_walk_instances_cb(Dwarf_Die *inst, void *data)
 	if (origin == NULL || origin->addr != iwp->addr)
 		return DIE_FIND_CB_CONTINUE;
 
-	/* Ignore redundant instances */
+	/* Iganalre redundant instances */
 	if (dwarf_tag(inst) == DW_TAG_inlined_subroutine) {
 		dwarf_decl_line(origin, &tmp);
-		if (die_get_call_lineno(inst) == tmp) {
-			tmp = die_get_decl_fileno(origin);
-			if (die_get_call_fileno(inst) == tmp)
+		if (die_get_call_lineanal(inst) == tmp) {
+			tmp = die_get_decl_fileanal(origin);
+			if (die_get_call_fileanal(inst) == tmp)
 				return DIE_FIND_CB_CONTINUE;
 		}
 	}
@@ -746,7 +746,7 @@ static int __die_walk_instances_cb(Dwarf_Die *inst, void *data)
  *
  * Walk on the instances of give @in_die. @in_die must be an inlined function
  * declaration. This returns the return value of @callback if it returns
- * non-zero value, or -ENOENT if there is no instance.
+ * analn-zero value, or -EANALENT if there is anal instance.
  */
 int die_walk_instances(Dwarf_Die *or_die, int (*callback)(Dwarf_Die *, void *),
 		       void *data)
@@ -757,11 +757,11 @@ int die_walk_instances(Dwarf_Die *or_die, int (*callback)(Dwarf_Die *, void *),
 		.addr = or_die->addr,
 		.callback = callback,
 		.data = data,
-		.retval = -ENOENT,
+		.retval = -EANALENT,
 	};
 
 	if (dwarf_diecu(or_die, &cu_die, NULL, NULL) == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	die_find_child(&cu_die, __die_walk_instances_cb, &iwp, &die_mem);
 
@@ -781,13 +781,13 @@ static int __die_walk_funclines_cb(Dwarf_Die *in_die, void *data)
 	struct __line_walk_param *lw = data;
 	Dwarf_Addr addr = 0;
 	const char *fname;
-	int lineno;
+	int lineanal;
 
 	if (dwarf_tag(in_die) == DW_TAG_inlined_subroutine) {
 		fname = die_get_call_file(in_die);
-		lineno = die_get_call_lineno(in_die);
-		if (fname && lineno > 0 && die_entrypc(in_die, &addr) == 0) {
-			lw->retval = lw->callback(fname, lineno, addr, lw->data);
+		lineanal = die_get_call_lineanal(in_die);
+		if (fname && lineanal > 0 && die_entrypc(in_die, &addr) == 0) {
+			lw->retval = lw->callback(fname, lineanal, addr, lw->data);
 			if (lw->retval != 0)
 				return DIE_FIND_CB_END;
 		}
@@ -797,8 +797,8 @@ static int __die_walk_funclines_cb(Dwarf_Die *in_die, void *data)
 
 	if (addr) {
 		fname = die_get_decl_file(in_die);
-		if (fname && dwarf_decl_line(in_die, &lineno) == 0) {
-			lw->retval = lw->callback(fname, lineno, addr, lw->data);
+		if (fname && dwarf_decl_line(in_die, &lineanal) == 0) {
+			lw->retval = lw->callback(fname, lineanal, addr, lw->data);
 			if (lw->retval != 0)
 				return DIE_FIND_CB_END;
 		}
@@ -821,13 +821,13 @@ static int __die_walk_funclines(Dwarf_Die *sp_die, bool recursive,
 	Dwarf_Die die_mem;
 	Dwarf_Addr addr;
 	const char *fname;
-	int lineno;
+	int lineanal;
 
 	/* Handle function declaration line */
 	fname = die_get_decl_file(sp_die);
-	if (fname && dwarf_decl_line(sp_die, &lineno) == 0 &&
+	if (fname && dwarf_decl_line(sp_die, &lineanal) == 0 &&
 	    die_entrypc(sp_die, &addr) == 0) {
-		lw.retval = callback(fname, lineno, addr, data);
+		lw.retval = callback(fname, lineanal, addr, data);
 		if (lw.retval != 0)
 			goto done;
 	}
@@ -841,7 +841,7 @@ static int __die_walk_culines_cb(Dwarf_Die *sp_die, void *data)
 	struct __line_walk_param *lw = data;
 
 	/*
-	 * Since inlined function can include another inlined function in
+	 * Since inlined function can include aanalther inlined function in
 	 * the same file, we need to walk in it recursively.
 	 */
 	lw->retval = __die_walk_funclines(sp_die, true, lw->callback, lw->data);
@@ -860,7 +860,7 @@ static int __die_walk_culines_cb(Dwarf_Die *sp_die, void *data)
  * Walk on all lines inside given @rt_die and call @callback on each line.
  * If the @rt_die is a function, walk only on the lines inside the function,
  * otherwise @rt_die must be a CU DIE.
- * Note that this walks not only dwarf line list, but also function entries
+ * Analte that this walks analt only dwarf line list, but also function entries
  * and inline call-site.
  */
 int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
@@ -869,7 +869,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	Dwarf_Line *line;
 	Dwarf_Addr addr;
 	const char *fname, *decf = NULL, *inf = NULL;
-	int lineno, ret = 0;
+	int lineanal, ret = 0;
 	int decl = 0, inl;
 	Dwarf_Die die_mem, *cu_die;
 	size_t nlines, i;
@@ -895,7 +895,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	/* Get lines list in the CU */
 	if (dwarf_getsrclines(cu_die, &lines, &nlines) != 0) {
 		pr_debug2("Failed to get source lines on this CU.\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	pr_debug2("Get %zd lines from this CU\n", nlines);
 
@@ -903,7 +903,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	for (i = 0; i < nlines; i++) {
 		line = dwarf_onesrcline(lines, i);
 		if (line == NULL ||
-		    dwarf_lineno(line, &lineno) != 0 ||
+		    dwarf_lineanal(line, &lineanal) != 0 ||
 		    dwarf_lineaddr(line, &addr) != 0) {
 			pr_debug2("Failed to get line info. "
 				  "Possible error in debuginfo.\n");
@@ -912,7 +912,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 		/* Skip end-of-sequence */
 		if (dwarf_lineendsequence(line, &flag) != 0 || flag)
 			continue;
-		/* Skip Non statement line-info */
+		/* Skip Analn statement line-info */
 		if (dwarf_linebeginstatement(line, &flag) != 0 || !flag)
 			continue;
 		/* Filter lines based on address */
@@ -920,7 +920,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 			/*
 			 * Address filtering
 			 * The line is included in given function, and
-			 * no inline block includes it.
+			 * anal inline block includes it.
 			 */
 			if (!dwarf_haspc(rt_die, addr))
 				continue;
@@ -929,7 +929,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 				/* Call-site check */
 				inf = die_get_call_file(&die_mem);
 				if ((inf && !strcmp(inf, decf)) &&
-				    die_get_call_lineno(&die_mem) == lineno)
+				    die_get_call_lineanal(&die_mem) == lineanal)
 					goto found;
 
 				dwarf_decl_line(&die_mem, &inl);
@@ -942,7 +942,7 @@ found:
 		/* Get source line */
 		fname = dwarf_linesrc(line, NULL, NULL);
 
-		ret = callback(fname, lineno, addr, data);
+		ret = callback(fname, lineanal, addr, data);
 		if (ret != 0)
 			return ret;
 	}
@@ -1056,8 +1056,8 @@ Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
  * @buf: a strbuf for result type name
  *
  * Get the name of @type_die and stores it to @buf. Return 0 if succeeded.
- * and Return -ENOENT if failed to find type name.
- * Note that the result will stores typedef name if possible, and stores
+ * and Return -EANALENT if failed to find type name.
+ * Analte that the result will stores typedef name if possible, and stores
  * "*(function_type)" if the type is a function pointer.
  */
 int die_get_typename_from_type(Dwarf_Die *type_die, struct strbuf *buf)
@@ -1081,14 +1081,14 @@ int die_get_typename_from_type(Dwarf_Die *type_die, struct strbuf *buf)
 		else if (tag == DW_TAG_enumeration_type)
 			tmp = "enum ";
 		else if (name == NULL)
-			return -ENOENT;
+			return -EANALENT;
 		/* Write a base name */
 		return strbuf_addf(buf, "%s%s", tmp, name ?: "");
 	}
 	ret = die_get_typename(type_die, buf);
 	if (ret < 0) {
-		/* void pointer has no type attribute */
-		if (tag == DW_TAG_pointer_type && ret == -ENOENT)
+		/* void pointer has anal type attribute */
+		if (tag == DW_TAG_pointer_type && ret == -EANALENT)
 			return strbuf_addf(buf, "void*");
 
 		return ret;
@@ -1102,8 +1102,8 @@ int die_get_typename_from_type(Dwarf_Die *type_die, struct strbuf *buf)
  * @buf: a strbuf for result type name
  *
  * Get the name of @vr_die and stores it to @buf. Return 0 if succeeded.
- * and Return -ENOENT if failed to find type name.
- * Note that the result will stores typedef name if possible, and stores
+ * and Return -EANALENT if failed to find type name.
+ * Analte that the result will stores typedef name if possible, and stores
  * "*(function_type)" if the type is a function pointer.
  */
 int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
@@ -1111,7 +1111,7 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 	Dwarf_Die type;
 
 	if (__die_get_real_type(vr_die, &type) == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	return die_get_typename_from_type(&type, buf);
 }
@@ -1129,8 +1129,8 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 
 	ret = die_get_typename(vr_die, buf);
 	if (ret < 0) {
-		pr_debug("Failed to get type, make it unknown.\n");
-		ret = strbuf_add(buf, "(unknown_type)", 14);
+		pr_debug("Failed to get type, make it unkanalwn.\n");
+		ret = strbuf_add(buf, "(unkanalwn_type)", 14);
 	}
 
 	return ret < 0 ? ret : strbuf_addf(buf, "\t%s", dwarf_diename(vr_die));
@@ -1165,7 +1165,7 @@ static int die_get_var_innermost_scope(Dwarf_Die *sp_die, Dwarf_Die *vr_die,
 
 	name = dwarf_diename(sp_die);
 	if (!name)
-		return -ENOENT;
+		return -EANALENT;
 
 	count = dwarf_getscopes_die(vr_die, &scopes);
 
@@ -1216,7 +1216,7 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 	Dwarf_Addr start, end;
 	Dwarf_Addr entry;
 	Dwarf_Op *op;
-	size_t nops;
+	size_t analps;
 	size_t offset = 0;
 	Dwarf_Attribute attr;
 	bool first = true;
@@ -1228,13 +1228,13 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 
 	name = dwarf_diename(sp_die);
 	if (!name)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (dwarf_attr(vr_die, DW_AT_location, &attr) == NULL)
 		return -EINVAL;
 
 	while ((offset = dwarf_getlocations(&attr, offset, &base,
-					&start, &end, &op, &nops)) > 0) {
+					&start, &end, &op, &analps)) > 0) {
 		if (start == 0) {
 			/* Single Location Descriptions */
 			ret = die_get_var_innermost_scope(sp_die, vr_die, buf);
@@ -1286,7 +1286,7 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 	Dwarf_Attribute attr;
 	Dwarf_Addr base, start, end;
 	Dwarf_Op *ops;
-	size_t nops;
+	size_t analps;
 
 	if (tag != DW_TAG_variable && tag != DW_TAG_formal_parameter)
 		return DIE_FIND_CB_SIBLING;
@@ -1294,7 +1294,7 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 	if (dwarf_attr(die_mem, DW_AT_location, &attr) == NULL)
 		return DIE_FIND_CB_SIBLING;
 
-	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &nops)) > 0) {
+	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &analps)) > 0) {
 		/* Assuming the location list is sorted by address */
 		if (end < data->pc)
 			continue;
@@ -1303,11 +1303,11 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 
 		/* Only match with a simple case */
 		if (data->reg < DWARF_OP_DIRECT_REGS) {
-			if (ops->atom == (DW_OP_reg0 + data->reg) && nops == 1)
+			if (ops->atom == (DW_OP_reg0 + data->reg) && analps == 1)
 				return DIE_FIND_CB_END;
 		} else {
 			if (ops->atom == DW_OP_regx && ops->number == data->reg &&
-			    nops == 1)
+			    analps == 1)
 				return DIE_FIND_CB_END;
 		}
 	}
@@ -1344,7 +1344,7 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
 	Dwarf_Word size;
 	Dwarf_Die type_die;
 	Dwarf_Op *ops;
-	size_t nops;
+	size_t analps;
 
 	if (tag != DW_TAG_variable)
 		return DIE_FIND_CB_SIBLING;
@@ -1352,7 +1352,7 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
 	if (dwarf_attr(die_mem, DW_AT_location, &attr) == NULL)
 		return DIE_FIND_CB_SIBLING;
 
-	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &nops)) > 0) {
+	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &analps)) > 0) {
 		if (ops->atom != DW_OP_addr)
 			continue;
 
@@ -1461,7 +1461,7 @@ bool die_is_optimized_target(Dwarf_Die *cu_die)
  * @idx: index to be set by this function (return value)
  *
  * Search for @addr by looping over every lines of CU. If address
- * matches, set index of that line in @idx. Note that single source
+ * matches, set index of that line in @idx. Analte that single source
  * line can have multiple line records. i.e. single source line can
  * have multiple index.
  */
@@ -1491,7 +1491,7 @@ static bool die_search_idx(Dwarf_Lines *lines, unsigned long nr_lines,
  * @hignpc: high PC address of function
  * @postprologue_addr: Next address after function prologue (return value)
  *
- * Look for prologue-end marker. If there is no explicit marker, return
+ * Look for prologue-end marker. If there is anal explicit marker, return
  * address of next line record or next source line.
  */
 static bool die_get_postprologue_addr(unsigned long entrypc_idx,
@@ -1501,21 +1501,21 @@ static bool die_get_postprologue_addr(unsigned long entrypc_idx,
 				      Dwarf_Addr *postprologue_addr)
 {
 	unsigned long i;
-	int entrypc_lno, lno;
+	int entrypc_lanal, lanal;
 	Dwarf_Line *line;
 	Dwarf_Addr addr;
 	bool p_end;
 
-	/* entrypc_lno is actual source line number */
+	/* entrypc_lanal is actual source line number */
 	line = dwarf_onesrcline(lines, entrypc_idx);
-	if (dwarf_lineno(line, &entrypc_lno))
+	if (dwarf_lineanal(line, &entrypc_lanal))
 		return false;
 
 	for (i = entrypc_idx; i < nr_lines; i++) {
 		line = dwarf_onesrcline(lines, i);
 
 		if (dwarf_lineaddr(line, &addr) ||
-		    dwarf_lineno(line, &lno)    ||
+		    dwarf_lineanal(line, &lanal)    ||
 		    dwarf_lineprologueend(line, &p_end))
 			return false;
 
@@ -1528,7 +1528,7 @@ static bool die_get_postprologue_addr(unsigned long entrypc_idx,
 			break;
 
 		/* Actual next line in source */
-		if (lno != entrypc_lno)
+		if (lanal != entrypc_lanal)
 			break;
 
 		/*
@@ -1536,7 +1536,7 @@ static bool die_get_postprologue_addr(unsigned long entrypc_idx,
 		 * For Example,
 		 *     void foo() { printf("hello\n"); }
 		 * contains two line records. One points to declaration and
-		 * other points to printf() line. Variable 'lno' won't get
+		 * other points to printf() line. Variable 'lanal' won't get
 		 * incremented in this case but 'i' will.
 		 */
 		if (i != entrypc_idx)

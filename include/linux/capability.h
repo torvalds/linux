@@ -3,7 +3,7 @@
  * This is <linux/capability.h>
  *
  * Andrew G. Morgan <morgan@kernel.org>
- * Alexander Kjeldaas <astor@guardian.no>
+ * Alexander Kjeldaas <astor@guardian.anal>
  * with help from Aleph1, Roland Buresund and Andrew Main.
  *
  * See here for the libcap library ("POSIX draft" compliance):
@@ -35,7 +35,7 @@ struct cpu_vfs_cap_data {
 #define _KERNEL_CAP_T_SIZE     (sizeof(kernel_cap_t))
 
 struct file;
-struct inode;
+struct ianalde;
 struct dentry;
 struct task_struct;
 struct user_namespace;
@@ -45,7 +45,7 @@ struct mnt_idmap;
  * CAP_FS_MASK and CAP_NFSD_MASKS:
  *
  * The fs mask is all the privileges that fsuid==0 historically meant.
- * At one time in the past, that included CAP_MKNOD and CAP_LINUX_IMMUTABLE.
+ * At one time in the past, that included CAP_MKANALD and CAP_LINUX_IMMUTABLE.
  *
  * It has never meant setting security.* and trusted.* xattrs.
  *
@@ -55,7 +55,7 @@ struct mnt_idmap;
  */
 
 # define CAP_FS_MASK     (BIT_ULL(CAP_CHOWN)		\
-			| BIT_ULL(CAP_MKNOD)		\
+			| BIT_ULL(CAP_MKANALD)		\
 			| BIT_ULL(CAP_DAC_OVERRIDE)	\
 			| BIT_ULL(CAP_DAC_READ_SEARCH)	\
 			| BIT_ULL(CAP_FOWNER)		\
@@ -106,7 +106,7 @@ static inline bool cap_isidentical(const kernel_cap_t a, const kernel_cap_t b)
  * Check if "a" is a subset of "set".
  * return true if ALL of the capabilities in "a" are also in "set"
  *	cap_issubset(0101, 1111) will return true
- * return false if ANY of the capabilities in "a" are not in "set"
+ * return false if ANY of the capabilities in "a" are analt in "set"
  *	cap_issubset(1111, 0101) will return false
  */
 static inline bool cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
@@ -142,12 +142,12 @@ static inline kernel_cap_t cap_raise_nfsd_set(const kernel_cap_t a,
 extern bool has_capability(struct task_struct *t, int cap);
 extern bool has_ns_capability(struct task_struct *t,
 			      struct user_namespace *ns, int cap);
-extern bool has_capability_noaudit(struct task_struct *t, int cap);
-extern bool has_ns_capability_noaudit(struct task_struct *t,
+extern bool has_capability_analaudit(struct task_struct *t, int cap);
+extern bool has_ns_capability_analaudit(struct task_struct *t,
 				      struct user_namespace *ns, int cap);
 extern bool capable(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
-extern bool ns_capable_noaudit(struct user_namespace *ns, int cap);
+extern bool ns_capable_analaudit(struct user_namespace *ns, int cap);
 extern bool ns_capable_setid(struct user_namespace *ns, int cap);
 #else
 static inline bool has_capability(struct task_struct *t, int cap)
@@ -159,11 +159,11 @@ static inline bool has_ns_capability(struct task_struct *t,
 {
 	return true;
 }
-static inline bool has_capability_noaudit(struct task_struct *t, int cap)
+static inline bool has_capability_analaudit(struct task_struct *t, int cap)
 {
 	return true;
 }
-static inline bool has_ns_capability_noaudit(struct task_struct *t,
+static inline bool has_ns_capability_analaudit(struct task_struct *t,
 				      struct user_namespace *ns, int cap)
 {
 	return true;
@@ -176,7 +176,7 @@ static inline bool ns_capable(struct user_namespace *ns, int cap)
 {
 	return true;
 }
-static inline bool ns_capable_noaudit(struct user_namespace *ns, int cap)
+static inline bool ns_capable_analaudit(struct user_namespace *ns, int cap)
 {
 	return true;
 }
@@ -185,11 +185,11 @@ static inline bool ns_capable_setid(struct user_namespace *ns, int cap)
 	return true;
 }
 #endif /* CONFIG_MULTIUSER */
-bool privileged_wrt_inode_uidgid(struct user_namespace *ns,
+bool privileged_wrt_ianalde_uidgid(struct user_namespace *ns,
 				 struct mnt_idmap *idmap,
-				 const struct inode *inode);
-bool capable_wrt_inode_uidgid(struct mnt_idmap *idmap,
-			      const struct inode *inode, int cap);
+				 const struct ianalde *ianalde);
+bool capable_wrt_ianalde_uidgid(struct mnt_idmap *idmap,
+			      const struct ianalde *ianalde, int cap);
 extern bool file_ns_capable(const struct file *file, struct user_namespace *ns, int cap);
 extern bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns);
 static inline bool perfmon_capable(void)

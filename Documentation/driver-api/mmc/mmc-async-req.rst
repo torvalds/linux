@@ -1,5 +1,5 @@
 ========================
-MMC Asynchronous Request
+MMC Asynchroanalus Request
 ========================
 
 Rationale
@@ -10,20 +10,20 @@ How significant is the cache maintenance overhead?
 It depends. Fast eMMC and multiple cache levels with speculative cache
 pre-fetch makes the cache overhead relatively significant. If the DMA
 preparations for the next request are done in parallel with the current
-transfer, the DMA preparation overhead would not affect the MMC performance.
+transfer, the DMA preparation overhead would analt affect the MMC performance.
 
-The intention of non-blocking (asynchronous) MMC requests is to minimize the
-time between when an MMC request ends and another MMC request begins.
+The intention of analn-blocking (asynchroanalus) MMC requests is to minimize the
+time between when an MMC request ends and aanalther MMC request begins.
 
 Using mmc_wait_for_req(), the MMC controller is idle while dma_map_sg and
-dma_unmap_sg are processing. Using non-blocking MMC requests makes it
+dma_unmap_sg are processing. Using analn-blocking MMC requests makes it
 possible to prepare the caches for next job in parallel with an active
 MMC request.
 
 MMC block driver
 ================
 
-The mmc_blk_issue_rw_rq() in the MMC block driver is made non-blocking.
+The mmc_blk_issue_rw_rq() in the MMC block driver is made analn-blocking.
 
 The increase in throughput is proportional to the time it takes to
 prepare (major part of preparations are dma_map_sg() and dma_unmap_sg())
@@ -45,9 +45,9 @@ MMC core API extension
 There is one new public function mmc_start_req().
 
 It starts a new MMC command request for a host. The function isn't
-truly non-blocking. If there is an ongoing async request it waits
+truly analn-blocking. If there is an ongoing async request it waits
 for completion of that request and starts the new one and returns. It
-doesn't wait for the new request to complete. If there is no ongoing
+doesn't wait for the new request to complete. If there is anal ongoing
 request it starts the new request and returns immediately.
 
 MMC host extensions
@@ -64,9 +64,9 @@ Optimize for the first request
 ==============================
 
 The first request in a series of requests can't be prepared in parallel
-with the previous transfer, since there is no previous request.
+with the previous transfer, since there is anal previous request.
 
-The argument is_first_req in pre_req() indicates that there is no previous
+The argument is_first_req in pre_req() indicates that there is anal previous
 request. The host driver may optimize for this scenario to minimize
 the performance loss. A way to optimize for this is to split the current
 request in two chunks, prepare the first chunk and start the request,

@@ -10,7 +10,7 @@ maintainers:
   - Daniel Tang <dt.tangr@gmail.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

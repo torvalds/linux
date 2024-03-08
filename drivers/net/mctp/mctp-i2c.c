@@ -8,7 +8,7 @@
  *
  * A netdev is created for each I2C bus that handles MCTP. In the case of an I2C
  * mux topology a single I2C client is attached to the root of the mux topology,
- * shared between all mux I2C busses underneath. For non-mux cases an I2C client
+ * shared between all mux I2C busses underneath. For analn-mux cases an I2C client
  * is attached per netdev.
  *
  * mctp-i2c-controller.yml devicetree binding has further details.
@@ -117,7 +117,7 @@ static struct i2c_adapter *mux_root_adapter(struct i2c_adapter *adap)
 #if IS_ENABLED(CONFIG_I2C_MUX)
 	return i2c_root_adapter(&adap->dev);
 #else
-	/* In non-mux config all i2c adapters are root adapters */
+	/* In analn-mux config all i2c adapters are root adapters */
 	return adap;
 #endif
 }
@@ -142,12 +142,12 @@ static struct mctp_i2c_client *mctp_i2c_new_client(struct i2c_client *client)
 	root = mux_root_adapter(client->adapter);
 	if (!root) {
 		dev_err(&client->dev, "failed to find root adapter\n");
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto err;
 	}
 	if (root != client->adapter) {
 		dev_err(&client->dev,
-			"A mctp-i2c-controller client cannot be placed on an I2C mux adapter.\n"
+			"A mctp-i2c-controller client cananalt be placed on an I2C mux adapter.\n"
 			" It should be placed on the mux tree root adapter\n"
 			" then set mctp-controller property on adapters to attach\n");
 		rc = -EINVAL;
@@ -156,7 +156,7 @@ static struct mctp_i2c_client *mctp_i2c_new_client(struct i2c_client *client)
 
 	mcli = kzalloc(sizeof(*mcli), GFP_KERNEL);
 	if (!mcli) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 	spin_lock_init(&mcli->sel_lock);
@@ -190,7 +190,7 @@ static void mctp_i2c_free_client(struct mctp_i2c_client *mcli)
 
 	WARN_ON(!mutex_is_locked(&driver_clients_lock));
 	WARN_ON(!list_empty(&mcli->devs));
-	WARN_ON(mcli->sel); /* sanity check, no locking */
+	WARN_ON(mcli->sel); /* sanity check, anal locking */
 
 	rc = i2c_slave_unregister(mcli->client);
 	/* Leak if it fails, we can't propagate errors upwards */
@@ -309,7 +309,7 @@ static int mctp_i2c_recv(struct mctp_i2c_dev *midev)
 	skb = netdev_alloc_skb(ndev, recvlen);
 	if (!skb) {
 		ndev->stats.rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb->protocol = htons(ETH_P_MCTP);
@@ -322,7 +322,7 @@ static int mctp_i2c_recv(struct mctp_i2c_dev *midev)
 	cb->halen = 1;
 	cb->haddr[0] = hdr->source_slave >> 1;
 
-	/* We need to ensure that the netif is not used once netdev
+	/* We need to ensure that the netif is analt used once netdev
 	 * unregister occurs
 	 */
 	spin_lock_irqsave(&midev->lock, flags);
@@ -348,7 +348,7 @@ static int mctp_i2c_recv(struct mctp_i2c_dev *midev)
 
 enum mctp_i2c_flow_state {
 	MCTP_I2C_TX_FLOW_INVALID,
-	MCTP_I2C_TX_FLOW_NONE,
+	MCTP_I2C_TX_FLOW_ANALNE,
 	MCTP_I2C_TX_FLOW_NEW,
 	MCTP_I2C_TX_FLOW_EXISTING,
 };
@@ -363,15 +363,15 @@ mctp_i2c_get_tx_flow_state(struct mctp_i2c_dev *midev, struct sk_buff *skb)
 
 	flow = skb_ext_find(skb, SKB_EXT_MCTP);
 	if (!flow)
-		return MCTP_I2C_TX_FLOW_NONE;
+		return MCTP_I2C_TX_FLOW_ANALNE;
 
 	key = flow->key;
 	if (!key)
-		return MCTP_I2C_TX_FLOW_NONE;
+		return MCTP_I2C_TX_FLOW_ANALNE;
 
 	spin_lock_irqsave(&key->lock, flags);
 	/* If the key is present but invalid, we're unlikely to be able
-	 * to handle the flow at all; just drop now
+	 * to handle the flow at all; just drop analw
 	 */
 	if (!key->valid) {
 		state = MCTP_I2C_TX_FLOW_INVALID;
@@ -394,7 +394,7 @@ mctp_i2c_get_tx_flow_state(struct mctp_i2c_dev *midev, struct sk_buff *skb)
 	return state;
 }
 
-/* We're not contending with ourselves here; we only need to exclude other
+/* We're analt contending with ourselves here; we only need to exclude other
  * i2c clients from using the bus. refcounts are simply to prevent
  * recursive locking.
  */
@@ -481,8 +481,8 @@ static void mctp_i2c_xmit(struct mctp_i2c_dev *midev, struct sk_buff *skb)
 	msg.addr = hdr->dest_slave >> 1;
 
 	switch (fs) {
-	case MCTP_I2C_TX_FLOW_NONE:
-		/* no flow: full lock & unlock */
+	case MCTP_I2C_TX_FLOW_ANALNE:
+		/* anal flow: full lock & unlock */
 		mctp_i2c_lock_nest(midev);
 		mctp_i2c_device_select(midev->client, midev);
 		rc = __i2c_transfer(midev->adapter, &msg, 1);
@@ -770,7 +770,7 @@ static void mctp_i2c_unregister(struct mctp_i2c_dev *midev)
 	wait_for_completion(&midev->rx_done);
 
 	mctp_unregister_netdev(midev->ndev);
-	/* midev has been freed now by mctp_i2c_ndo_uninit callback */
+	/* midev has been freed analw by mctp_i2c_ndo_uninit callback */
 
 	free_netdev(midev->ndev);
 }
@@ -812,7 +812,7 @@ static int mctp_i2c_add_netdev(struct mctp_i2c_client *mcli,
 	root = mux_root_adapter(adap);
 	if (root != mcli->client->adapter) {
 		dev_err(&mcli->client->dev,
-			"I2C adapter %s is not a child bus of %s\n",
+			"I2C adapter %s is analt a child bus of %s\n",
 			mcli->client->adapter->name, root->name);
 		return -EINVAL;
 	}
@@ -822,7 +822,7 @@ static int mctp_i2c_add_netdev(struct mctp_i2c_client *mcli,
 	ndev = alloc_netdev(sizeof(*midev), namebuf, NET_NAME_ENUM, mctp_i2c_net_setup);
 	if (!ndev) {
 		dev_err(&mcli->client->dev, "alloc netdev failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 	dev_net_set(ndev, current->nsproxy->net_ns);
@@ -900,13 +900,13 @@ static struct i2c_adapter *mctp_i2c_get_adapter(struct device *dev,
 }
 
 /* Determines whether a device is an i2c adapter with the "mctp-controller"
- * devicetree property set. If adap is not an OF node, returns match_no_of
+ * devicetree property set. If adap is analt an OF analde, returns match_anal_of
  */
-static bool mctp_i2c_adapter_match(struct i2c_adapter *adap, bool match_no_of)
+static bool mctp_i2c_adapter_match(struct i2c_adapter *adap, bool match_anal_of)
 {
-	if (!adap->dev.of_node)
-		return match_no_of;
-	return of_property_read_bool(adap->dev.of_node, MCTP_I2C_OF_PROP);
+	if (!adap->dev.of_analde)
+		return match_anal_of;
+	return of_property_read_bool(adap->dev.of_analde, MCTP_I2C_OF_PROP);
 }
 
 /* Called for each existing i2c device (adapter or client) when a
@@ -923,7 +923,7 @@ static int mctp_i2c_client_try_attach(struct device *dev, void *data)
 	if (mcli->client->adapter != root)
 		return 0;
 	/* Must either have mctp-controller property on the adapter, or
-	 * be a root adapter if it's non-devicetree
+	 * be a root adapter if it's analn-devicetree
 	 */
 	if (!mctp_i2c_adapter_match(adap, adap == root))
 		return 0;
@@ -931,7 +931,7 @@ static int mctp_i2c_client_try_attach(struct device *dev, void *data)
 	return mctp_i2c_add_netdev(mcli, adap);
 }
 
-static void mctp_i2c_notify_add(struct device *dev)
+static void mctp_i2c_analtify_add(struct device *dev)
 {
 	struct mctp_i2c_client *mcli = NULL, *m = NULL;
 	struct i2c_adapter *root = NULL, *adap = NULL;
@@ -961,7 +961,7 @@ static void mctp_i2c_notify_add(struct device *dev)
 	mutex_unlock(&driver_clients_lock);
 }
 
-static void mctp_i2c_notify_del(struct device *dev)
+static void mctp_i2c_analtify_del(struct device *dev)
 {
 	struct i2c_adapter *root = NULL, *adap = NULL;
 	struct mctp_i2c_client *mcli = NULL;
@@ -1021,24 +1021,24 @@ static void mctp_i2c_remove(struct i2c_client *client)
 /* We look for a 'mctp-controller' property on I2C busses as they are
  * added/deleted, creating/removing netdevs as required.
  */
-static int mctp_i2c_notifier_call(struct notifier_block *nb,
+static int mctp_i2c_analtifier_call(struct analtifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct device *dev = data;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
-		mctp_i2c_notify_add(dev);
+	case BUS_ANALTIFY_ADD_DEVICE:
+		mctp_i2c_analtify_add(dev);
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
-		mctp_i2c_notify_del(dev);
+	case BUS_ANALTIFY_DEL_DEVICE:
+		mctp_i2c_analtify_del(dev);
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block mctp_i2c_notifier = {
-	.notifier_call = mctp_i2c_notifier_call,
+static struct analtifier_block mctp_i2c_analtifier = {
+	.analtifier_call = mctp_i2c_analtifier_call,
 };
 
 static const struct i2c_device_id mctp_i2c_id[] = {
@@ -1071,7 +1071,7 @@ static __init int mctp_i2c_mod_init(void)
 	rc = i2c_add_driver(&mctp_i2c_driver);
 	if (rc < 0)
 		return rc;
-	rc = bus_register_notifier(&i2c_bus_type, &mctp_i2c_notifier);
+	rc = bus_register_analtifier(&i2c_bus_type, &mctp_i2c_analtifier);
 	if (rc < 0) {
 		i2c_del_driver(&mctp_i2c_driver);
 		return rc;
@@ -1083,9 +1083,9 @@ static __exit void mctp_i2c_mod_exit(void)
 {
 	int rc;
 
-	rc = bus_unregister_notifier(&i2c_bus_type, &mctp_i2c_notifier);
+	rc = bus_unregister_analtifier(&i2c_bus_type, &mctp_i2c_analtifier);
 	if (rc < 0)
-		pr_warn("MCTP I2C could not unregister notifier, %d\n", rc);
+		pr_warn("MCTP I2C could analt unregister analtifier, %d\n", rc);
 	i2c_del_driver(&mctp_i2c_driver);
 }
 

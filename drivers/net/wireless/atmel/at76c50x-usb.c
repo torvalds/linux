@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -199,7 +199,7 @@ static const struct usb_device_id dev_table[] = {
 	{ USB_DEVICE(0x0681, 0x001b), USB_DEVICE_DATA(BOARD_503) },
 	/* Belkin F5D6050, version 2 */
 	{ USB_DEVICE(0x050d, 0x0050), USB_DEVICE_DATA(BOARD_503) },
-	/* iBlitzz, BWU613 (not *B or *SB) */
+	/* iBlitzz, BWU613 (analt *B or *SB) */
 	{ USB_DEVICE(0x07b8, 0xb000), USB_DEVICE_DATA(BOARD_503) },
 	/* Gigabyte GN-WLBM101 */
 	{ USB_DEVICE(0x1044, 0x8003), USB_DEVICE_DATA(BOARD_503) },
@@ -316,12 +316,12 @@ static inline int at76_is_505a(enum board_type board)
 }
 
 /* Load a block of the first (internal) part of the firmware */
-static int at76_load_int_fw_block(struct usb_device *udev, int blockno,
+static int at76_load_int_fw_block(struct usb_device *udev, int blockanal,
 				  void *block, int size)
 {
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), DFU_DNLOAD,
 			       USB_TYPE_CLASS | USB_DIR_OUT |
-			       USB_RECIP_INTERFACE, blockno, 0, block, size,
+			       USB_RECIP_INTERFACE, blockanal, 0, block, size,
 			       USB_CTRL_GET_TIMEOUT);
 }
 
@@ -365,7 +365,7 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 	int is_done = 0;
 	u32 dfu_timeout = 0;
 	int bsize = 0;
-	int blockno = 0;
+	int blockanal = 0;
 	struct dfu_status *dfu_stat_buf = NULL;
 	u8 *dfu_state = NULL;
 	u8 *block = NULL;
@@ -380,19 +380,19 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 
 	dfu_stat_buf = kmalloc(sizeof(struct dfu_status), GFP_KERNEL);
 	if (!dfu_stat_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
 	block = kmalloc(FW_BLOCK_SIZE, GFP_KERNEL);
 	if (!block) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
 	dfu_state = kmalloc(sizeof(u8), GFP_KERNEL);
 	if (!dfu_state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 	*dfu_state = 0;
@@ -402,7 +402,7 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 			ret = at76_dfu_get_state(udev, dfu_state);
 			if (ret < 0) {
 				dev_err(&udev->dev,
-					"cannot get DFU state: %d\n", ret);
+					"cananalt get DFU state: %d\n", ret);
 				goto exit;
 			}
 			need_dfu_state = 0;
@@ -439,13 +439,13 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 			bsize = min_t(int, size, FW_BLOCK_SIZE);
 			memcpy(block, buf, bsize);
 			at76_dbg(DBG_DFU, "int fw, size left = %5d, "
-				 "bsize = %4d, blockno = %2d", size, bsize,
-				 blockno);
+				 "bsize = %4d, blockanal = %2d", size, bsize,
+				 blockanal);
 			ret =
-			    at76_load_int_fw_block(udev, blockno, block, bsize);
+			    at76_load_int_fw_block(udev, blockanal, block, bsize);
 			buf += bsize;
 			size -= bsize;
-			blockno++;
+			blockanal++;
 
 			if (ret != bsize)
 				dev_err(&udev->dev,
@@ -494,7 +494,7 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 			break;
 
 		default:
-			at76_dbg(DBG_DFU, "DFU UNKNOWN STATE (%d)", *dfu_state);
+			at76_dbg(DBG_DFU, "DFU UNKANALWN STATE (%d)", *dfu_state);
 			ret = -EINVAL;
 			break;
 		}
@@ -554,9 +554,9 @@ static int at76_get_op_mode(struct usb_device *udev)
 	u8 saved;
 	u8 *op_mode;
 
-	op_mode = kmalloc(1, GFP_NOIO);
+	op_mode = kmalloc(1, GFP_ANALIO);
 	if (!op_mode)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x33,
 			      USB_TYPE_VENDOR | USB_DIR_IN |
 			      USB_RECIP_INTERFACE, 0x01, 0, op_mode, 1,
@@ -573,12 +573,12 @@ static int at76_get_op_mode(struct usb_device *udev)
 }
 
 /* Load a block of the second ("external") part of the firmware */
-static inline int at76_load_ext_fw_block(struct usb_device *udev, int blockno,
+static inline int at76_load_ext_fw_block(struct usb_device *udev, int blockanal,
 					 void *block, int size)
 {
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x0e,
 			       USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
-			       0x0802, blockno, block, size,
+			       0x0802, blockanal, block, size,
 			       USB_CTRL_GET_TIMEOUT);
 }
 
@@ -610,7 +610,7 @@ static int at76_get_hw_config(struct at76_priv *priv)
 	union at76_hwcfg *hwcfg = kmalloc(sizeof(*hwcfg), GFP_KERNEL);
 
 	if (!hwcfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (at76_is_intersil(priv->board_type)) {
 		ret = at76_get_hw_cfg_intersil(priv->udev, hwcfg,
@@ -636,7 +636,7 @@ static int at76_get_hw_config(struct at76_priv *priv)
 exit:
 	kfree(hwcfg);
 	if (ret < 0)
-		wiphy_err(priv->hw->wiphy, "cannot get HW Config (error %d)\n",
+		wiphy_err(priv->hw->wiphy, "cananalt get HW Config (error %d)\n",
 			  ret);
 
 	return ret;
@@ -654,10 +654,10 @@ static struct reg_domain const *at76_get_reg_domain(u16 code)
 		{ 0x40, "MKK (Japan)", 0x2000 },	/* ch 14 */
 		{ 0x41, "MKK1 (Japan)", 0x3fff },	/* ch 1-14 */
 		{ 0x50, "Israel", 0x3fc },	/* ch 3-9 */
-		{ 0x00, "<unknown>", 0xffffffff }	/* ch 1-32 */
+		{ 0x00, "<unkanalwn>", 0xffffffff }	/* ch 1-32 */
 	};
 
-	/* Last entry is fallback for unknown domain code */
+	/* Last entry is fallback for unkanalwn domain code */
 	for (i = 0; i < ARRAY_SIZE(fd_tab) - 1; i++)
 		if (code == fd_tab[i].code)
 			break;
@@ -685,9 +685,9 @@ static inline int at76_get_cmd_status(struct usb_device *udev, u8 cmd)
 	u8 *stat_buf;
 	int ret;
 
-	stat_buf = kmalloc(40, GFP_NOIO);
+	stat_buf = kmalloc(40, GFP_ANALIO);
 	if (!stat_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x22,
 			USB_TYPE_VENDOR | USB_DIR_IN |
@@ -714,7 +714,7 @@ static const char *at76_get_cmd_string(u8 cmd_status)
 		MAKE_CMD_CASE(CMD_STARTUP);
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 static int at76_set_card_command(struct usb_device *udev, u8 cmd, void *buf,
@@ -725,7 +725,7 @@ static int at76_set_card_command(struct usb_device *udev, u8 cmd, void *buf,
 					       buf_size, GFP_KERNEL);
 
 	if (!cmd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd_buf->cmd = cmd;
 	cmd_buf->reserved = 0;
@@ -751,16 +751,16 @@ static const char *at76_get_cmd_status_string(u8 cmd_status)
 	switch (cmd_status) {
 		MAKE_CMD_STATUS_CASE(CMD_STATUS_IDLE);
 		MAKE_CMD_STATUS_CASE(CMD_STATUS_COMPLETE);
-		MAKE_CMD_STATUS_CASE(CMD_STATUS_UNKNOWN);
+		MAKE_CMD_STATUS_CASE(CMD_STATUS_UNKANALWN);
 		MAKE_CMD_STATUS_CASE(CMD_STATUS_INVALID_PARAMETER);
-		MAKE_CMD_STATUS_CASE(CMD_STATUS_FUNCTION_NOT_SUPPORTED);
+		MAKE_CMD_STATUS_CASE(CMD_STATUS_FUNCTION_ANALT_SUPPORTED);
 		MAKE_CMD_STATUS_CASE(CMD_STATUS_TIME_OUT);
 		MAKE_CMD_STATUS_CASE(CMD_STATUS_IN_PROGRESS);
 		MAKE_CMD_STATUS_CASE(CMD_STATUS_HOST_FAILURE);
 		MAKE_CMD_STATUS_CASE(CMD_STATUS_SCAN_FAILED);
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 /* Wait until the command is completed */
@@ -820,7 +820,7 @@ static int at76_set_mib(struct at76_priv *priv, struct set_mib_buffer *buf)
 	return ret;
 }
 
-/* Return < 0 on error, == 0 if no command sent, == 1 if cmd sent */
+/* Return < 0 on error, == 0 if anal command sent, == 1 if cmd sent */
 static int at76_set_radio(struct at76_priv *priv, int enable)
 {
 	int ret;
@@ -910,14 +910,14 @@ static int at76_set_rts(struct at76_priv *priv, u16 size)
 	return ret;
 }
 
-static int at76_set_autorate_fallback(struct at76_priv *priv, int onoff)
+static int at76_set_autorate_fallback(struct at76_priv *priv, int oanalff)
 {
 	int ret = 0;
 
 	priv->mib_buf.type = MIB_LOCAL;
 	priv->mib_buf.size = 1;
 	priv->mib_buf.index = offsetof(struct mib_local, txautorate_fallback);
-	priv->mib_buf.data.byte = onoff;
+	priv->mib_buf.data.byte = oanalff;
 
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
@@ -1218,8 +1218,8 @@ static int at76_submit_rx_urb(struct at76_priv *priv)
 		skb = dev_alloc_skb(sizeof(struct at76_rx_buffer));
 		if (!skb) {
 			wiphy_err(priv->hw->wiphy,
-				  "cannot allocate rx skbuff\n");
-			ret = -ENOMEM;
+				  "cananalt allocate rx skbuff\n");
+			ret = -EANALMEM;
 			goto exit;
 		}
 		priv->rx_skb = skb;
@@ -1233,18 +1233,18 @@ static int at76_submit_rx_urb(struct at76_priv *priv)
 			  skb_put(skb, size), size, at76_rx_callback, priv);
 	ret = usb_submit_urb(priv->rx_urb, GFP_ATOMIC);
 	if (ret < 0) {
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			at76_dbg(DBG_DEVSTART,
-				 "usb_submit_urb returned -ENODEV");
+				 "usb_submit_urb returned -EANALDEV");
 		else
 			wiphy_err(priv->hw->wiphy,
 				  "rx, usb_submit_urb failed: %d\n", ret);
 	}
 
 exit:
-	if (ret < 0 && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALDEV)
 		wiphy_err(priv->hw->wiphy,
-			  "cannot submit rx urb - please unload the driver and/or power cycle the device\n");
+			  "cananalt submit rx urb - please unload the driver and/or power cycle the device\n");
 
 	return ret;
 }
@@ -1254,26 +1254,26 @@ static int at76_load_external_fw(struct usb_device *udev, struct fwentry *fwe)
 {
 	int ret;
 	int op_mode;
-	int blockno = 0;
+	int blockanal = 0;
 	int bsize;
 	u8 *block;
 	u8 *buf = fwe->extfw;
 	int size = fwe->extfw_size;
 
 	if (!buf || !size)
-		return -ENOENT;
+		return -EANALENT;
 
 	op_mode = at76_get_op_mode(udev);
 	at76_dbg(DBG_DEVSTART, "opmode %d", op_mode);
 
-	if (op_mode != OPMODE_NORMAL_NIC_WITHOUT_FLASH) {
+	if (op_mode != OPMODE_ANALRMAL_NIC_WITHOUT_FLASH) {
 		dev_err(&udev->dev, "unexpected opmode %d\n", op_mode);
 		return -EINVAL;
 	}
 
 	block = kmalloc(FW_BLOCK_SIZE, GFP_KERNEL);
 	if (!block)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	at76_dbg(DBG_DEVSTART, "downloading external firmware");
 
@@ -1282,19 +1282,19 @@ static int at76_load_external_fw(struct usb_device *udev, struct fwentry *fwe)
 		bsize = min_t(int, size, FW_BLOCK_SIZE);
 		memcpy(block, buf, bsize);
 		at76_dbg(DBG_DEVSTART,
-			 "ext fw, size left = %5d, bsize = %4d, blockno = %2d",
-			 size, bsize, blockno);
-		ret = at76_load_ext_fw_block(udev, blockno, block, bsize);
+			 "ext fw, size left = %5d, bsize = %4d, blockanal = %2d",
+			 size, bsize, blockanal);
+		ret = at76_load_ext_fw_block(udev, blockanal, block, bsize);
 		if (ret != bsize) {
 			dev_err(&udev->dev,
 				"loading %dth firmware block failed: %d\n",
-				blockno, ret);
+				blockanal, ret);
 			ret = -EIO;
 			goto exit;
 		}
 		buf += bsize;
 		size -= bsize;
-		blockno++;
+		blockanal++;
 	} while (bsize > 0);
 
 	if (at76_is_505a(fwe->board_type)) {
@@ -1327,7 +1327,7 @@ static int at76_load_internal_fw(struct usb_device *udev, struct fwentry *fwe)
 
 	at76_dbg(DBG_DEVSTART, "sending REMAP");
 
-	/* no REMAP for 505A (see SF driver) */
+	/* anal REMAP for 505A (see SF driver) */
 	if (need_remap) {
 		ret = at76_remap(udev);
 		if (ret < 0) {
@@ -1499,17 +1499,17 @@ static void at76_work_submit_rx(struct work_struct *work)
 }
 
 /* This is a workaround to make scan working:
- * currently mac80211 does not process frames with no frequency
+ * currently mac80211 does analt process frames with anal frequency
  * information.
  * However during scan the HW performs a sweep by itself, and we
- * are unable to know where the radio is actually tuned.
+ * are unable to kanalw where the radio is actually tuned.
  * This function tries to do its best to guess this information..
  * During scan, If the current frame is a beacon or a probe response,
  * the channel information is extracted from it.
- * When not scanning, for other frames, or if it happens that for
+ * When analt scanning, for other frames, or if it happens that for
  * whatever reason we fail to parse beacons and probe responses, this
  * function returns the priv->channel information, that should be correct
- * at least when we are not scanning.
+ * at least when we are analt scanning.
  */
 static inline int at76_guess_freq(struct at76_priv *priv)
 {
@@ -1563,18 +1563,18 @@ static void at76_rx_tasklet(struct tasklet_struct *t)
 	buf = (struct at76_rx_buffer *)priv->rx_skb->data;
 
 	if (urb->status != 0) {
-		if (urb->status != -ENOENT && urb->status != -ECONNRESET)
+		if (urb->status != -EANALENT && urb->status != -ECONNRESET)
 			at76_dbg(DBG_URB,
-				 "%s %s: - nonzero Rx bulk status received: %d",
+				 "%s %s: - analnzero Rx bulk status received: %d",
 				 __func__, wiphy_name(priv->hw->wiphy),
 				 urb->status);
 		return;
 	}
 
 	at76_dbg(DBG_RX_ATMEL_HDR,
-		 "%s: rx frame: rate %d rssi %d noise %d link %d",
+		 "%s: rx frame: rate %d rssi %d analise %d link %d",
 		 wiphy_name(priv->hw->wiphy), buf->rx_rate, buf->rssi,
-		 buf->noise_level, buf->link_quality);
+		 buf->analise_level, buf->link_quality);
 
 	skb_pull(priv->rx_skb, AT76_RX_HDRLEN);
 	skb_trim(priv->rx_skb, le16_to_cpu(buf->wlength));
@@ -1617,7 +1617,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 	at76_dbg(DBG_FW, "downloading firmware %s", fwe->fwname);
 	ret = request_firmware(&fwe->fw, fwe->fwname, &udev->dev);
 	if (ret < 0) {
-		dev_err(&udev->dev, "firmware %s not found!\n",
+		dev_err(&udev->dev, "firmware %s analt found!\n",
 			fwe->fwname);
 		dev_err(&udev->dev,
 			"you may need to download the firmware from http://developer.berlios.de/projects/at76c503a/\n");
@@ -1633,7 +1633,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 		goto exit;
 	}
 
-	/* CRC currently not checked */
+	/* CRC currently analt checked */
 	fwe->board_type = le32_to_cpu(fwh->board_type);
 	if (fwe->board_type != board_type) {
 		dev_err(&udev->dev,
@@ -1643,7 +1643,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 	}
 
 	fwe->fw_version.major = fwh->major;
-	fwe->fw_version.minor = fwh->minor;
+	fwe->fw_version.mianalr = fwh->mianalr;
 	fwe->fw_version.patch = fwh->patch;
 	fwe->fw_version.build = fwh->build;
 
@@ -1657,7 +1657,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 
 	dev_printk(KERN_DEBUG, &udev->dev,
 		   "using firmware %s (version %d.%d.%d-%d)\n",
-		   fwe->fwname, fwh->major, fwh->minor, fwh->patch, fwh->build);
+		   fwe->fwname, fwh->major, fwh->mianalr, fwh->patch, fwh->build);
 
 	at76_dbg(DBG_DEVSTART, "board %u, int %d:%d, ext %d:%d", board_type,
 		 le32_to_cpu(fwh->int_fw_offset), le32_to_cpu(fwh->int_fw_len),
@@ -1737,13 +1737,13 @@ static void at76_mac80211_tx_callback(struct urb *urb)
 		/* success */
 		info->flags |= IEEE80211_TX_STAT_ACK;
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 		/* fail, urb has been unlinked */
 		/* FIXME: add error message */
 		break;
 	default:
-		at76_dbg(DBG_URB, "%s - nonzero tx status received: %d",
+		at76_dbg(DBG_URB, "%s - analnzero tx status received: %d",
 			 __func__, urb->status);
 		break;
 	}
@@ -1779,7 +1779,7 @@ static void at76_mac80211_tx(struct ieee80211_hw *hw,
 	/* The following code lines are important when the device is going to
 	 * authenticate with a new bssid. The driver must send CMD_JOIN before
 	 * an authentication frame is transmitted. For this to succeed, the
-	 * correct bssid of the AP must be known. As mac80211 does not inform
+	 * correct bssid of the AP must be kanalwn. As mac80211 does analt inform
 	 * drivers about the bssid prior to the authentication process the
 	 * following workaround is necessary. If the TX frame is an
 	 * authentication frame extract the bssid and send the CMD_JOIN. */
@@ -1869,8 +1869,8 @@ static void at76_mac80211_stop(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mtx);
 
 	if (!priv->device_unplugged) {
-		/* We are called by "ifconfig ethX down", not because the
-		 * device is not available anymore. */
+		/* We are called by "ifconfig ethX down", analt because the
+		 * device is analt available anymore. */
 		at76_set_radio(priv, 0);
 
 		/* We unlink rx_urb because at76_open() re-submits it.
@@ -1896,7 +1896,7 @@ static int at76_add_interface(struct ieee80211_hw *hw,
 		priv->iw_mode = IW_MODE_INFRA;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto exit;
 	}
 
@@ -2142,7 +2142,7 @@ static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if ((key->cipher != WLAN_CIPHER_SUITE_WEP40) &&
 	    (key->cipher != WLAN_CIPHER_SUITE_WEP104))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	key->hw_key_idx = key->keyidx;
 
@@ -2199,7 +2199,7 @@ static struct at76_priv *at76_alloc_new_device(struct usb_device *udev)
 
 	hw = ieee80211_alloc_hw(sizeof(struct at76_priv), &at76_ops);
 	if (!hw) {
-		printk(KERN_ERR DRIVER_NAME ": could not register"
+		printk(KERN_ERR DRIVER_NAME ": could analt register"
 		       " ieee80211_hw\n");
 		return NULL;
 	}
@@ -2266,14 +2266,14 @@ static int at76_alloc_urbs(struct at76_priv *priv,
 	priv->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	priv->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->rx_urb || !priv->tx_urb) {
-		dev_err(&interface->dev, "cannot allocate URB\n");
-		return -ENOMEM;
+		dev_err(&interface->dev, "cananalt allocate URB\n");
+		return -EANALMEM;
 	}
 
 	buffer_size = sizeof(struct at76_tx_buffer) + MAX_PADDING_SIZE;
 	priv->bulk_out_buffer = kmalloc(buffer_size, GFP_KERNEL);
 	if (!priv->bulk_out_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	at76_dbg(DBG_PROC_ENTRY, "%s: EXIT", __func__);
 
@@ -2332,7 +2332,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 	/* MAC address */
 	ret = at76_get_hw_config(priv);
 	if (ret < 0) {
-		dev_err(&interface->dev, "cannot get MAC address\n");
+		dev_err(&interface->dev, "cananalt get MAC address\n");
 		goto exit;
 	}
 
@@ -2367,7 +2367,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	len = sizeof(wiphy->fw_version);
 	snprintf(wiphy->fw_version, len, "%d.%d.%d-%d",
-		 priv->fw_version.major, priv->fw_version.minor,
+		 priv->fw_version.major, priv->fw_version.mianalr,
 		 priv->fw_version.patch, priv->fw_version.build);
 
 	wiphy->hw_version = priv->board_type;
@@ -2376,7 +2376,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
-		printk(KERN_ERR "cannot register mac80211 hw (status %d)!\n",
+		printk(KERN_ERR "cananalt register mac80211 hw (status %d)!\n",
 		       ret);
 		goto exit;
 	}
@@ -2385,7 +2385,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	wiphy_info(priv->hw->wiphy, "USB %s, MAC %pM, firmware %d.%d.%d-%d\n",
 		   dev_name(&interface->dev), priv->mac_addr,
-		   priv->fw_version.major, priv->fw_version.minor,
+		   priv->fw_version.major, priv->fw_version.mianalr,
 		   priv->fw_version.patch, priv->fw_version.build);
 	wiphy_info(priv->hw->wiphy, "regulatory domain 0x%02x: %s\n",
 		   priv->regulatory_domain, priv->domain->name);
@@ -2446,14 +2446,14 @@ static int at76_probe(struct usb_interface *interface,
 
 	fwv = kmalloc(sizeof(*fwv), GFP_KERNEL);
 	if (!fwv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
 	/* Load firmware into kernel memory */
 	fwe = at76_load_firmware(udev, board_type);
 	if (!fwe) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto exit;
 	}
 
@@ -2461,18 +2461,18 @@ static int at76_probe(struct usb_interface *interface,
 
 	at76_dbg(DBG_DEVSTART, "opmode %d", op_mode);
 
-	/* we get OPMODE_NONE with 2.4.23, SMC2662W-AR ???
+	/* we get OPMODE_ANALNE with 2.4.23, SMC2662W-AR ???
 	   we get 204 with 2.4.23, Fiberline FL-WL240u (505A+RFMD2958) ??? */
 
 	if (op_mode == OPMODE_HW_CONFIG_MODE) {
 		dev_err(&interface->dev,
-			"cannot handle a device in HW_CONFIG_MODE\n");
+			"cananalt handle a device in HW_CONFIG_MODE\n");
 		ret = -EBUSY;
 		goto exit;
 	}
 
-	if (op_mode != OPMODE_NORMAL_NIC_WITH_FLASH
-	    && op_mode != OPMODE_NORMAL_NIC_WITHOUT_FLASH) {
+	if (op_mode != OPMODE_ANALRMAL_NIC_WITH_FLASH
+	    && op_mode != OPMODE_ANALRMAL_NIC_WITHOUT_FLASH) {
 		/* download internal firmware part */
 		dev_printk(KERN_DEBUG, &interface->dev,
 			   "downloading internal firmware\n");
@@ -2493,13 +2493,13 @@ static int at76_probe(struct usb_interface *interface,
 
 	/* if version >= 0.100.x.y or device with built-in flash we can
 	 * query the device for the fw version */
-	if ((fwe->fw_version.major > 0 || fwe->fw_version.minor >= 100)
-	    || (op_mode == OPMODE_NORMAL_NIC_WITH_FLASH)) {
+	if ((fwe->fw_version.major > 0 || fwe->fw_version.mianalr >= 100)
+	    || (op_mode == OPMODE_ANALRMAL_NIC_WITH_FLASH)) {
 		ret = at76_get_mib(udev, MIB_FW_VERSION, fwv, sizeof(*fwv));
-		if (ret < 0 || (fwv->major | fwv->minor) == 0)
+		if (ret < 0 || (fwv->major | fwv->mianalr) == 0)
 			need_ext_fw = 1;
 	} else
-		/* No way to check firmware version, reload to be sure */
+		/* Anal way to check firmware version, reload to be sure */
 		need_ext_fw = 1;
 
 	if (need_ext_fw) {
@@ -2521,7 +2521,7 @@ static int at76_probe(struct usb_interface *interface,
 
 	priv = at76_alloc_new_device(udev);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 

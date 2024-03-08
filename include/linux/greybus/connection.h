@@ -16,7 +16,7 @@
 #include <linux/workqueue.h>
 
 #define GB_CONNECTION_FLAG_CSD		BIT(0)
-#define GB_CONNECTION_FLAG_NO_FLOWCTRL	BIT(1)
+#define GB_CONNECTION_FLAG_ANAL_FLOWCTRL	BIT(1)
 #define GB_CONNECTION_FLAG_OFFLOADED	BIT(2)
 #define GB_CONNECTION_FLAG_CDSI1	BIT(3)
 #define GB_CONNECTION_FLAG_CONTROL	BIT(4)
@@ -104,7 +104,7 @@ static inline bool gb_connection_e2efc_enabled(struct gb_connection *connection)
 static inline bool
 gb_connection_flow_control_disabled(struct gb_connection *connection)
 {
-	return connection->flags & GB_CONNECTION_FLAG_NO_FLOWCTRL;
+	return connection->flags & GB_CONNECTION_FLAG_ANAL_FLOWCTRL;
 }
 
 static inline bool gb_connection_is_offloaded(struct gb_connection *connection)

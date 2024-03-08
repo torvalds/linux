@@ -277,8 +277,8 @@ struct qla2xxx_fw_dump {
 	__be32	version;
 
 	__be32 fw_major_version;
-	__be32 fw_minor_version;
-	__be32 fw_subminor_version;
+	__be32 fw_mianalr_version;
+	__be32 fw_submianalr_version;
 	__be32 fw_attributes;
 
 	__be32 vendor;
@@ -314,7 +314,7 @@ struct qla2xxx_fw_dump {
 #define ql_log_warn		1 /* display critical errors */
 #define ql_log_info		2 /* display all recovered errors */
 #define ql_log_all		3 /* This value is only used by ql_errlev.
-				   * No messages will use this value.
+				   * Anal messages will use this value.
 				   * This should be always highest value
 				   * as compared to other log levels.
 				   */
@@ -355,12 +355,12 @@ ql_log_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);
 #define ql_dbg_p3p	0x00080000 /* P3P specific Debug */
 #define ql_dbg_vport	0x00040000 /* Virtual Port Debug */
 #define ql_dbg_buffer	0x00020000 /* For dumping the buffer/regs */
-#define ql_dbg_misc	0x00010000 /* For dumping everything that is not
-				    * not covered by upper categories
+#define ql_dbg_misc	0x00010000 /* For dumping everything that is analt
+				    * analt covered by upper categories
 				    */
 #define ql_dbg_verbose	0x00008000 /* More verbosity for each level
 				    * This is to be used with other levels where
-				    * more verbosity is required. It might not
+				    * more verbosity is required. It might analt
 				    * be applicable to all the levels.
 				    */
 #define ql_dbg_tgt	0x00004000 /* Target mode */

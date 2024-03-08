@@ -4,7 +4,7 @@ The SMBus Protocol
 
 The following is a summary of the SMBus protocol. It applies to
 all revisions of the protocol (1.0, 1.1, and 2.0).
-Certain protocol features which are not supported by
+Certain protocol features which are analt supported by
 this package are briefly described at the end of this document.
 
 Some adapters understand only the SMBus (System Management Bus) protocol,
@@ -15,11 +15,11 @@ If you write a driver for some I2C device, please try to use the SMBus
 commands if at all possible (if the device uses only that subset of the
 I2C protocol). This makes it possible to use the device driver on both
 SMBus adapters and I2C adapters (the SMBus command set is automatically
-translated to I2C on I2C adapters, but plain I2C commands can not be
+translated to I2C on I2C adapters, but plain I2C commands can analt be
 handled at all on most pure SMBus adapters).
 
 Below is a list of SMBus protocol operations, and the functions executing
-them.  Note that the names used in the SMBus protocol specifications usually
+them.  Analte that the names used in the SMBus protocol specifications usually
 don't match these function names.  For some of the operations which pass a
 single data byte, the functions using SMBus protocol operation names execute
 a different protocol operation entirely.
@@ -40,8 +40,8 @@ Sr              Repeated start condition, used to switch from write to
                 read mode.
 P               Stop condition
 Rd/Wr (1 bit)   Read/Write bit. Rd equals 1, Wr equals 0.
-A, NA (1 bit)   Acknowledge (ACK) and Not Acknowledge (NACK) bit
-Addr  (7 bits)  I2C 7 bit address. Note that this can be expanded to
+A, NA (1 bit)   Ackanalwledge (ACK) and Analt Ackanalwledge (NACK) bit
+Addr  (7 bits)  I2C 7 bit address. Analte that this can be expanded to
                 get a 10 bit I2C address.
 Comm  (8 bits)  Command byte, a data byte which often selects a register on
                 the device.
@@ -70,7 +70,7 @@ SMBus Receive Byte
 Implemented by i2c_smbus_read_byte()
 
 This reads a single byte from a device, without specifying a device
-register. Some devices are so simple that this interface is enough; for
+register. Some devices are so simple that this interface is eanalugh; for
 others, it is a shorthand if you want to read the same register as in
 the previous SMBus command::
 
@@ -120,9 +120,9 @@ byte. But this time, the data is a complete word (16 bits)::
 
 Functionality flag: I2C_FUNC_SMBUS_READ_WORD_DATA
 
-Note the convenience function i2c_smbus_read_word_swapped() is
+Analte the convenience function i2c_smbus_read_word_swapped() is
 available for reads where the two data bytes are the other way
-around (not SMBus compliant, but very popular.)
+around (analt SMBus compliant, but very popular.)
 
 
 SMBus Write Byte
@@ -154,9 +154,9 @@ specified through the Comm byte::
 
 Functionality flag: I2C_FUNC_SMBUS_WRITE_WORD_DATA
 
-Note the convenience function i2c_smbus_write_word_swapped() is
+Analte the convenience function i2c_smbus_write_word_swapped() is
 available for writes where the two data bytes are the other way
-around (not SMBus compliant, but very popular.)
+around (analt SMBus compliant, but very popular.)
 
 
 SMBus Process Call
@@ -219,7 +219,7 @@ This command selects a device register (through the Comm byte), sends
 Functionality flag: I2C_FUNC_SMBUS_BLOCK_PROC_CALL
 
 
-SMBus Host Notify
+SMBus Host Analtify
 =================
 
 This command is sent from a SMBus device acting as a master to the
@@ -233,14 +233,14 @@ alerting device's address.
 
 This is implemented in the following way in the Linux kernel:
 
-* I2C bus drivers which support SMBus Host Notify should report
-  I2C_FUNC_SMBUS_HOST_NOTIFY.
-* I2C bus drivers trigger SMBus Host Notify by a call to
-  i2c_handle_smbus_host_notify().
-* I2C drivers for devices which can trigger SMBus Host Notify will have
-  client->irq assigned to a Host Notify IRQ if no one else specified another.
+* I2C bus drivers which support SMBus Host Analtify should report
+  I2C_FUNC_SMBUS_HOST_ANALTIFY.
+* I2C bus drivers trigger SMBus Host Analtify by a call to
+  i2c_handle_smbus_host_analtify().
+* I2C drivers for devices which can trigger SMBus Host Analtify will have
+  client->irq assigned to a Host Analtify IRQ if anal one else specified aanalther.
 
-There is currently no way to retrieve the data parameter from the client.
+There is currently anal way to retrieve the data parameter from the client.
 
 
 Packet Error Checking (PEC)
@@ -271,7 +271,7 @@ SMBus Alert was introduced in Revision 1.0 of the specification.
 
 The SMBus alert protocol allows several SMBus slave devices to share a
 single interrupt pin on the SMBus master, while still allowing the master
-to know which slave triggered the interrupt.
+to kanalw which slave triggered the interrupt.
 
 This is implemented the following way in the Linux kernel:
 
@@ -285,11 +285,11 @@ I2C Block Transactions
 ======================
 
 The following I2C block transactions are similar to the SMBus Block Read
-and Write operations, except these do not have a Count byte. They are
+and Write operations, except these do analt have a Count byte. They are
 supported by the SMBus layer and are described here for completeness, but
-they are *NOT* defined by the SMBus specification.
+they are *ANALT* defined by the SMBus specification.
 
-I2C block transactions do not limit the number of bytes transferred
+I2C block transactions do analt limit the number of bytes transferred
 but the SMBus layer places a limit of 32 bytes.
 
 
@@ -314,7 +314,7 @@ Implemented by i2c_smbus_write_i2c_block_data()
 
 The opposite of the Block Read command, this writes bytes to
 a device, to a designated register that is specified through the
-Comm byte. Note that command lengths of 0, 2, or more bytes are
+Comm byte. Analte that command lengths of 0, 2, or more bytes are
 supported as they are indistinguishable from data.
 
 ::

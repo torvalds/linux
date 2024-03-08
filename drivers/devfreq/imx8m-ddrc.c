@@ -137,7 +137,7 @@ static int imx8m_ddrc_set_freq(struct device *dev, struct imx8m_ddrc_freq *freq)
 	 * Fetch new parents
 	 *
 	 * new_dram_alt_parent and new_dram_apb_parent are optional but
-	 * new_dram_core_parent is not.
+	 * new_dram_core_parent is analt.
 	 */
 	new_dram_core_parent = clk_get_parent_by_index(
 			priv->dram_core, freq->dram_core_parent_index - 1);
@@ -209,14 +209,14 @@ static int imx8m_ddrc_set_freq(struct device *dev, struct imx8m_ddrc_freq *freq)
 	/*
 	 * Explicitly refresh dram PLL rate.
 	 *
-	 * Even if it's marked with CLK_GET_RATE_NOCACHE the rate will not be
+	 * Even if it's marked with CLK_GET_RATE_ANALCACHE the rate will analt be
 	 * automatically refreshed when clk_get_rate is called on children.
 	 */
 	clk_get_rate(priv->dram_pll);
 
 	/*
 	 * clk_set_parent transfer the reference count from old parent.
-	 * now we drop extra reference counts used during the switch
+	 * analw we drop extra reference counts used during the switch
 	 */
 	clk_disable_unprepare(new_dram_apb_parent);
 out_disable_alt_parent:
@@ -259,10 +259,10 @@ static int imx8m_ddrc_target(struct device *dev, unsigned long *freq, u32 flags)
 
 	new_freq = clk_get_rate(priv->dram_core);
 	if (ret)
-		dev_err(dev, "ddrc failed freq switch to %lu from %lu: error %d. now at %lu\n",
+		dev_err(dev, "ddrc failed freq switch to %lu from %lu: error %d. analw at %lu\n",
 			*freq, old_freq, ret, new_freq);
 	else if (*freq != new_freq)
-		dev_err(dev, "ddrc failed freq update to %lu from %lu, now at %lu\n",
+		dev_err(dev, "ddrc failed freq update to %lu from %lu, analw at %lu\n",
 			*freq, old_freq, new_freq);
 	else
 		dev_dbg(dev, "ddrc freq set to %lu (was %lu)\n",
@@ -286,13 +286,13 @@ static int imx8m_ddrc_init_freq_info(struct device *dev)
 	struct arm_smccc_res res;
 	int index;
 
-	/* An error here means DDR DVFS API not supported by firmware */
+	/* An error here means DDR DVFS API analt supported by firmware */
 	arm_smccc_smc(IMX_SIP_DDR_DVFS, IMX_SIP_DDR_DVFS_GET_FREQ_COUNT,
 			0, 0, 0, 0, 0, 0, &res);
 	priv->freq_count = res.a0;
 	if (priv->freq_count <= 0 ||
 			priv->freq_count > IMX8M_DDRC_MAX_FREQ_COUNT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (index = 0; index < priv->freq_count; ++index) {
 		struct imx8m_ddrc_freq *freq = &priv->freq_table[index];
@@ -301,7 +301,7 @@ static int imx8m_ddrc_init_freq_info(struct device *dev)
 			      index, 0, 0, 0, 0, 0, &res);
 		/* Result should be strictly positive */
 		if ((long)res.a0 <= 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		freq->rate = res.a0;
 		freq->smcarg = index;
@@ -312,15 +312,15 @@ static int imx8m_ddrc_init_freq_info(struct device *dev)
 		/* dram_core has 2 options: dram_pll or dram_alt_root */
 		if (freq->dram_core_parent_index != 1 &&
 				freq->dram_core_parent_index != 2)
-			return -ENODEV;
+			return -EANALDEV;
 		/* dram_apb and dram_alt have exactly 8 possible parents */
 		if (freq->dram_alt_parent_index > 8 ||
 				freq->dram_apb_parent_index > 8)
-			return -ENODEV;
+			return -EANALDEV;
 		/* dram_core from alt requires explicit dram_alt parent */
 		if (freq->dram_core_parent_index == 2 &&
 				freq->dram_alt_parent_index == 0)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	return 0;
@@ -334,7 +334,7 @@ static int imx8m_ddrc_check_opps(struct device *dev)
 	unsigned long freq;
 	int i, opp_count;
 
-	/* Enumerate DT OPPs and disable those not supported by firmware */
+	/* Enumerate DT OPPs and disable those analt supported by firmware */
 	opp_count = dev_pm_opp_get_opp_count(dev);
 	if (opp_count < 0)
 		return opp_count;
@@ -372,7 +372,7 @@ static int imx8m_ddrc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 

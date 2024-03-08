@@ -26,17 +26,17 @@
  * sequence number.
  *
  * These are followed by log records organized in pages headed by a log record
- * header going up to log file size.  Not all pages contain log records when a
+ * header going up to log file size.  Analt all pages contain log records when a
  * volume is first formatted, but as the volume ages, all records will be used.
  * When the log file fills up, the records at the beginning are purged (by
  * modifying the oldest_lsn to a higher value presumably) and writing begins
  * at the beginning of the file.  Effectively, the log file is viewed as a
  * circular entity.
  *
- * NOTE: Windows NT, 2000, and XP all use log file version 1.1 but they accept
- * versions <= 1.x, including 0.-1.  (Yes, that is a minus one in there!)  We
+ * ANALTE: Windows NT, 2000, and XP all use log file version 1.1 but they accept
+ * versions <= 1.x, including 0.-1.  (Anal, that is a minus one in there!)  We
  * probably only want to support 1.1 as this seems to be the current version
- * and we don't know how that differs from the older versions.  The only
+ * and we don't kanalw how that differs from the older versions.  The only
  * exception is if the journal is clean as marked by the two restart pages
  * then it doesn't matter whether we are on an earlier version.  We can just
  * reinitialize the logfile and start again with version 1.1.
@@ -78,7 +78,7 @@ typedef struct {
 				   the RESTART_AREA.  Value has to be aligned
 				   to 8-byte boundary.  When creating, set this
 				   to be after the usa. */
-/* 26*/	sle16 minor_ver;	/* Log file minor version.  Only check if major
+/* 26*/	sle16 mianalr_ver;	/* Log file mianalr version.  Only check if major
 				   version is 1. */
 /* 28*/	sle16 major_ver;	/* Log file major version.  We only support
 				   version 1.1. */
@@ -86,15 +86,15 @@ typedef struct {
 } __attribute__ ((__packed__)) RESTART_PAGE_HEADER;
 
 /*
- * Constant for the log client indices meaning that there are no client records
+ * Constant for the log client indices meaning that there are anal client records
  * in this particular client array.  Also inside the client records themselves,
- * this means that there are no client records preceding or following this one.
+ * this means that there are anal client records preceding or following this one.
  */
-#define LOGFILE_NO_CLIENT	cpu_to_le16(0xffff)
-#define LOGFILE_NO_CLIENT_CPU	0xffff
+#define LOGFILE_ANAL_CLIENT	cpu_to_le16(0xffff)
+#define LOGFILE_ANAL_CLIENT_CPU	0xffff
 
 /*
- * These are the so far known RESTART_AREA_* flags (16-bit) which contain
+ * These are the so far kanalwn RESTART_AREA_* flags (16-bit) which contain
  * information about the log file in which they are present.
  */
 enum {
@@ -107,7 +107,7 @@ typedef le16 RESTART_AREA_FLAGS;
 /*
  * Log file restart area record.  The offset of this record is found by adding
  * the offset of the RESTART_PAGE_HEADER to the restart_area_offset value found
- * in it.  See notes at restart_area_offset above.
+ * in it.  See analtes at restart_area_offset above.
  */
 typedef struct {
 /*Ofs*/
@@ -122,32 +122,32 @@ typedef struct {
 				   restart area.  Must be 1.  */
 /* 10*/	le16 client_free_list;	/* The index of the first free log client record
 				   in the array of log client records.
-				   LOGFILE_NO_CLIENT means that there are no
+				   LOGFILE_ANAL_CLIENT means that there are anal
 				   free log client records in the array.
-				   If != LOGFILE_NO_CLIENT, check that
+				   If != LOGFILE_ANAL_CLIENT, check that
 				   log_clients > client_free_list.  On Win2k
 				   and presumably earlier, on a clean volume
-				   this is != LOGFILE_NO_CLIENT, and it should
+				   this is != LOGFILE_ANAL_CLIENT, and it should
 				   be 0, i.e. the first (and only) client
 				   record is free and thus the logfile is
 				   closed and hence clean.  A dirty volume
 				   would have left the logfile open and hence
-				   this would be LOGFILE_NO_CLIENT.  On WinXP
+				   this would be LOGFILE_ANAL_CLIENT.  On WinXP
 				   and presumably later, the logfile is always
 				   open, even on clean shutdown so this should
-				   always be LOGFILE_NO_CLIENT. */
+				   always be LOGFILE_ANAL_CLIENT. */
 /* 12*/	le16 client_in_use_list;/* The index of the first in-use log client
 				   record in the array of log client records.
-				   LOGFILE_NO_CLIENT means that there are no
+				   LOGFILE_ANAL_CLIENT means that there are anal
 				   in-use log client records in the array.  If
-				   != LOGFILE_NO_CLIENT check that log_clients
+				   != LOGFILE_ANAL_CLIENT check that log_clients
 				   > client_in_use_list.  On Win2k and
 				   presumably earlier, on a clean volume this
-				   is LOGFILE_NO_CLIENT, i.e. there are no
+				   is LOGFILE_ANAL_CLIENT, i.e. there are anal
 				   client records in use and thus the logfile
 				   is closed and hence clean.  A dirty volume
 				   would have left the logfile open and hence
-				   this would be != LOGFILE_NO_CLIENT, and it
+				   this would be != LOGFILE_ANAL_CLIENT, and it
 				   should be 0, i.e. the first (and only)
 				   client record is in use.  On WinXP and
 				   presumably later, the logfile is always
@@ -164,8 +164,8 @@ typedef struct {
 				   clear.  Thus we don't need to check the
 				   Windows version to determine if the logfile
 				   is clean.  Instead if the logfile is closed,
-				   we know it must be clean.  If it is open and
-				   this bit is set, we also know it must be
+				   we kanalw it must be clean.  If it is open and
+				   this bit is set, we also kanalw it must be
 				   clean.  If on the other hand the logfile is
 				   open and this bit is clear, we can be almost
 				   certain that the logfile is dirty. */
@@ -187,8 +187,8 @@ typedef struct {
 				   the first log client record if versions are
 				   matched.  When creating, set this to be
 				   after this restart area structure, aligned
-				   to 8-bytes boundary.  If the versions do not
-				   match, this is ignored and the offset is
+				   to 8-bytes boundary.  If the versions do analt
+				   match, this is iganalred and the offset is
 				   assumed to be (sizeof(RESTART_AREA) + 7) &
 				   ~7, i.e. rounded up to first 8-byte
 				   boundary.  Either way, client_array_offset
@@ -215,10 +215,10 @@ typedef struct {
 				   transfer protection.  The file_size has to
 				   be rounded down to be a multiple of the
 				   log_page_size in the RESTART_PAGE_HEADER and
-				   then it has to be at least big enough to
+				   then it has to be at least big eanalugh to
 				   store the two restart pages and 48 (0x30)
 				   log record pages. */
-/* 32*/	le32 last_lsn_data_length;/* Length of data of last LSN, not including
+/* 32*/	le32 last_lsn_data_length;/* Length of data of last LSN, analt including
 				   the log record header.  On create set to
 				   0. */
 /* 36*/	le16 log_record_header_length;/* Byte size of the log record header.
@@ -259,14 +259,14 @@ typedef struct {
 				   of the time.  At create set to 0. */
 /* 16*/	le16 prev_client;	/* The offset to the previous log client record
 				   in the array of log client records.
-				   LOGFILE_NO_CLIENT means there is no previous
+				   LOGFILE_ANAL_CLIENT means there is anal previous
 				   client record, i.e. this is the first one.
-				   This is always LOGFILE_NO_CLIENT. */
+				   This is always LOGFILE_ANAL_CLIENT. */
 /* 18*/	le16 next_client;	/* The offset to the next log client record in
 				   the array of log client records.
-				   LOGFILE_NO_CLIENT means there are no next
+				   LOGFILE_ANAL_CLIENT means there are anal next
 				   client records, i.e. this is the last one.
-				   This is always LOGFILE_NO_CLIENT. */
+				   This is always LOGFILE_ANAL_CLIENT. */
 /* 20*/	le16 seq_number;	/* On Win2k and presumably earlier, this is set
 				   to zero every time the logfile is restarted
 				   and it is incremented when the logfile is
@@ -282,13 +282,13 @@ typedef struct {
 /* sizeof() = 160 (0xa0) bytes */
 } __attribute__ ((__packed__)) LOG_CLIENT_RECORD;
 
-extern bool ntfs_check_logfile(struct inode *log_vi,
+extern bool ntfs_check_logfile(struct ianalde *log_vi,
 		RESTART_PAGE_HEADER **rp);
 
-extern bool ntfs_is_logfile_clean(struct inode *log_vi,
+extern bool ntfs_is_logfile_clean(struct ianalde *log_vi,
 		const RESTART_PAGE_HEADER *rp);
 
-extern bool ntfs_empty_logfile(struct inode *log_vi);
+extern bool ntfs_empty_logfile(struct ianalde *log_vi);
 
 #endif /* NTFS_RW */
 

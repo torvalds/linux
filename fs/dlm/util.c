@@ -12,54 +12,54 @@
 #include "rcom.h"
 #include "util.h"
 
-#define DLM_ERRNO_EDEADLK		35
-#define DLM_ERRNO_EBADR			53
-#define DLM_ERRNO_EBADSLT		57
-#define DLM_ERRNO_EPROTO		71
-#define DLM_ERRNO_EOPNOTSUPP		95
-#define DLM_ERRNO_ETIMEDOUT	       110
-#define DLM_ERRNO_EINPROGRESS	       115
+#define DLM_ERRANAL_EDEADLK		35
+#define DLM_ERRANAL_EBADR			53
+#define DLM_ERRANAL_EBADSLT		57
+#define DLM_ERRANAL_EPROTO		71
+#define DLM_ERRANAL_EOPANALTSUPP		95
+#define DLM_ERRANAL_ETIMEDOUT	       110
+#define DLM_ERRANAL_EINPROGRESS	       115
 
-/* higher errno values are inconsistent across architectures, so select
+/* higher erranal values are inconsistent across architectures, so select
    one set of values for on the wire */
 
-int to_dlm_errno(int err)
+int to_dlm_erranal(int err)
 {
 	switch (err) {
 	case -EDEADLK:
-		return -DLM_ERRNO_EDEADLK;
+		return -DLM_ERRANAL_EDEADLK;
 	case -EBADR:
-		return -DLM_ERRNO_EBADR;
+		return -DLM_ERRANAL_EBADR;
 	case -EBADSLT:
-		return -DLM_ERRNO_EBADSLT;
+		return -DLM_ERRANAL_EBADSLT;
 	case -EPROTO:
-		return -DLM_ERRNO_EPROTO;
-	case -EOPNOTSUPP:
-		return -DLM_ERRNO_EOPNOTSUPP;
+		return -DLM_ERRANAL_EPROTO;
+	case -EOPANALTSUPP:
+		return -DLM_ERRANAL_EOPANALTSUPP;
 	case -ETIMEDOUT:
-		return -DLM_ERRNO_ETIMEDOUT;
+		return -DLM_ERRANAL_ETIMEDOUT;
 	case -EINPROGRESS:
-		return -DLM_ERRNO_EINPROGRESS;
+		return -DLM_ERRANAL_EINPROGRESS;
 	}
 	return err;
 }
 
-int from_dlm_errno(int err)
+int from_dlm_erranal(int err)
 {
 	switch (err) {
-	case -DLM_ERRNO_EDEADLK:
+	case -DLM_ERRANAL_EDEADLK:
 		return -EDEADLK;
-	case -DLM_ERRNO_EBADR:
+	case -DLM_ERRANAL_EBADR:
 		return -EBADR;
-	case -DLM_ERRNO_EBADSLT:
+	case -DLM_ERRANAL_EBADSLT:
 		return -EBADSLT;
-	case -DLM_ERRNO_EPROTO:
+	case -DLM_ERRANAL_EPROTO:
 		return -EPROTO;
-	case -DLM_ERRNO_EOPNOTSUPP:
-		return -EOPNOTSUPP;
-	case -DLM_ERRNO_ETIMEDOUT:
+	case -DLM_ERRANAL_EOPANALTSUPP:
+		return -EOPANALTSUPP;
+	case -DLM_ERRANAL_ETIMEDOUT:
 		return -ETIMEDOUT;
-	case -DLM_ERRNO_EINPROGRESS:
+	case -DLM_ERRANAL_EINPROGRESS:
 		return -EINPROGRESS;
 	}
 	return err;

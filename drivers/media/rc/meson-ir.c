@@ -2,7 +2,7 @@
 /*
  * Driver for Amlogic Meson IR remote receiver
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/device.h>
@@ -78,7 +78,7 @@
 #define DEC_MODE_RAW				0x2
 #define DEC_MODE_RC6				0x9
 #define DEC_MODE_XMP				0xE
-#define DEC_MODE_UNKNOW				0xFF
+#define DEC_MODE_UNKANALW				0xFF
 
 #define DEC_STATUS_VALID			BIT(3)
 #define DEC_STATUS_DATA_CODE_ERR		BIT(2)
@@ -107,7 +107,7 @@
  * @bit_order: bit order, LSB or MSB
  * @bit1_match_enable: enable to check bit 1
  * @hold_code_enable: hold frame code in register IR_DEC_FRAME1, the new one
- *                    frame code will not be store in IR_DEC_FRAME1.
+ *                    frame code will analt be store in IR_DEC_FRAME1.
  *                    until IR_DEC_FRAME1 has been read
  * @count_tick_mode: increasing time unit of frame-to-frame time counter.
  *                   0 = 100us, 1 = 10us
@@ -123,10 +123,10 @@
  * @bit0_min: min time for NEC Logic '0', half of RC6 trailer bit, XMP Logic '00'
  * @bit1_max: max time for NEC Logic '1', whole of RC6 trailer bit, XMP Logic '01'
  * @bit1_min: min time for NEC Logic '1', whole of RC6 trailer bit, XMP Logic '01'
- * @duration2_max: max time for half of RC6 normal bit, XMP Logic '10'
- * @duration2_min: min time for half of RC6 normal bit, XMP Logic '10'
- * @duration3_max: max time for whole of RC6 normal bit, XMP Logic '11'
- * @duration3_min: min time for whole of RC6 normal bit, XMP Logic '11'
+ * @duration2_max: max time for half of RC6 analrmal bit, XMP Logic '10'
+ * @duration2_min: min time for half of RC6 analrmal bit, XMP Logic '10'
+ * @duration3_max: max time for whole of RC6 analrmal bit, XMP Logic '11'
+ * @duration3_min: min time for whole of RC6 analrmal bit, XMP Logic '11'
  */
 
 struct meson_ir_protocol {
@@ -210,7 +210,7 @@ static void meson_ir_hw_handler(struct meson_ir *ir)
 		meson_ir_nec_handler(ir);
 }
 
-static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
+static irqreturn_t meson_ir_irq(int irqanal, void *dev_id)
 {
 	struct meson_ir *ir = dev_id;
 	u32 duration, status;
@@ -416,7 +416,7 @@ static void meson_ir_sw_decoder_init(struct rc_dev *dev)
 	regmap_update_bits(ir->reg, IR_DEC_REG1, IR_DEC_REG1_RESET, 0);
 
 	/* Set general operation mode (= raw/software decoding) */
-	if (of_device_is_compatible(dev->dev.of_node, "amlogic,meson6-ir"))
+	if (of_device_is_compatible(dev->dev.of_analde, "amlogic,meson6-ir"))
 		regmap_update_bits(ir->reg, IR_DEC_REG1, IR_DEC_REG1_MODE,
 				   FIELD_PREP(IR_DEC_REG1_MODE,
 					      DEC_MODE_RAW));
@@ -445,7 +445,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 {
 	const struct meson_ir_param *match_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	void __iomem *res_start;
 	const char *map_name;
 	struct meson_ir *ir;
@@ -453,11 +453,11 @@ static int meson_ir_probe(struct platform_device *pdev)
 
 	ir = devm_kzalloc(dev, sizeof(struct meson_ir), GFP_KERNEL);
 	if (!ir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match_data = of_device_get_match_data(dev);
 	if (!match_data)
-		return dev_err_probe(dev, -ENODEV, "failed to get match data\n");
+		return dev_err_probe(dev, -EANALDEV, "failed to get match data\n");
 
 	ir->param = match_data;
 
@@ -483,7 +483,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate rc device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (ir->rc->driver_type == RC_DRIVER_IR_RAW) {
@@ -501,7 +501,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	ir->rc->device_name = DRIVER_NAME;
 	ir->rc->input_phys = DRIVER_NAME "/input0";
 	ir->rc->input_id.bustype = BUS_HOST;
-	map_name = of_get_property(node, "linux,rc-map-name", NULL);
+	map_name = of_get_property(analde, "linux,rc-map-name", NULL);
 	ir->rc->map_name = map_name ? map_name : RC_MAP_EMPTY;
 	ir->rc->driver_name = DRIVER_NAME;
 
@@ -542,7 +542,7 @@ static void meson_ir_remove(struct platform_device *pdev)
 static void meson_ir_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct meson_ir *ir = platform_get_drvdata(pdev);
 	unsigned long flags;
 
@@ -552,7 +552,7 @@ static void meson_ir_shutdown(struct platform_device *pdev)
 	 * Set operation mode to NEC/hardware decoding to give
 	 * bootloader a chance to power the system back on
 	 */
-	if (of_device_is_compatible(node, "amlogic,meson6-ir"))
+	if (of_device_is_compatible(analde, "amlogic,meson6-ir"))
 		regmap_update_bits(ir->reg, IR_DEC_REG1, IR_DEC_REG1_MODE,
 				   FIELD_PREP(IR_DEC_REG1_MODE, DEC_MODE_NEC));
 	else
@@ -613,5 +613,5 @@ static struct platform_driver meson_ir_driver = {
 module_platform_driver(meson_ir_driver);
 
 MODULE_DESCRIPTION("Amlogic Meson IR remote receiver driver");
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamianal Galvani <b.galvani@gmail.com>");
 MODULE_LICENSE("GPL v2");

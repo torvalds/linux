@@ -57,7 +57,7 @@ enum {
     WIFI_AUTH           = (BIT(7) | BIT(5) | BIT(4) | WIFI_MGT_TYPE),
     WIFI_DEAUTH         = (BIT(7) | BIT(6) | WIFI_MGT_TYPE),
     WIFI_ACTION         = (BIT(7) | BIT(6) | BIT(4) | WIFI_MGT_TYPE),
-    WIFI_ACTION_NOACK = (BIT(7) | BIT(6) | BIT(5) | WIFI_MGT_TYPE),
+    WIFI_ACTION_ANALACK = (BIT(7) | BIT(6) | BIT(5) | WIFI_MGT_TYPE),
 
     /*  below is for control frame */
     WIFI_NDPA         = (BIT(6) | BIT(4) | WIFI_CTRL_TYPE),
@@ -504,7 +504,7 @@ struct ADDBA_request {
 #define WPS_RESPONSE_TYPE_AP			0x03
 
 /* 	Value of WPS WiFi Simple Configuration State Attribute */
-#define WPS_WSC_STATE_NOT_CONFIG	0x01
+#define WPS_WSC_STATE_ANALT_CONFIG	0x01
 #define WPS_WSC_STATE_CONFIG			0x02
 
 /* 	Value of WPS Version Attribute */
@@ -547,7 +547,7 @@ struct ADDBA_request {
 #define WPS_RF_BANDS_5_GHZ		0x02
 
 /* 	Value of WPS Association State Attribute */
-#define WPS_ASSOC_STATE_NOT_ASSOCIATED			0x00
+#define WPS_ASSOC_STATE_ANALT_ASSOCIATED			0x00
 #define WPS_ASSOC_STATE_CONNECTION_SUCCESS		0x01
 #define WPS_ASSOC_STATE_CONFIGURATION_FAILURE	0x02
 #define WPS_ASSOC_STATE_ASSOCIATION_FAILURE		0x03
@@ -559,7 +559,7 @@ struct ADDBA_request {
 
 /* 	P2P Attribute ID */
 #define	P2P_ATTR_STATUS					0x00
-#define	P2P_ATTR_MINOR_REASON_CODE		0x01
+#define	P2P_ATTR_MIANALR_REASON_CODE		0x01
 #define	P2P_ATTR_CAPABILITY				0x02
 #define	P2P_ATTR_DEVICE_ID				0x03
 #define	P2P_ATTR_GO_INTENT				0x04
@@ -570,7 +570,7 @@ struct ADDBA_request {
 #define	P2P_ATTR_INTENTED_IF_ADDR		0x09
 #define	P2P_ATTR_MANAGEABILITY			0x0A
 #define	P2P_ATTR_CH_LIST					0x0B
-#define	P2P_ATTR_NOA						0x0C
+#define	P2P_ATTR_ANALA						0x0C
 #define	P2P_ATTR_DEVICE_INFO				0x0D
 #define	P2P_ATTR_GROUP_INFO				0x0E
 #define	P2P_ATTR_GROUP_ID					0x0F
@@ -586,8 +586,8 @@ struct ADDBA_request {
 #define	P2P_STATUS_FAIL_INVALID_PARAM			0x04
 #define	P2P_STATUS_FAIL_REQUEST_UNABLE			0x05
 #define	P2P_STATUS_FAIL_PREVOUS_PROTO_ERR		0x06
-#define	P2P_STATUS_FAIL_NO_COMMON_CH			0x07
-#define	P2P_STATUS_FAIL_UNKNOWN_P2PGROUP		0x08
+#define	P2P_STATUS_FAIL_ANAL_COMMON_CH			0x07
+#define	P2P_STATUS_FAIL_UNKANALWN_P2PGROUP		0x08
 #define	P2P_STATUS_FAIL_BOTH_GOINTENT_15		0x09
 #define	P2P_STATUS_FAIL_INCOMPATIBLE_PROVSION	0x0A
 #define	P2P_STATUS_FAIL_USER_REJECT				0x0B
@@ -634,7 +634,7 @@ struct ADDBA_request {
 #define	P2P_PROVISION_DISC_RESP				8
 
 /* 	P2P Action Frame Type */
-#define	P2P_NOTICE_OF_ABSENCE	0
+#define	P2P_ANALTICE_OF_ABSENCE	0
 #define	P2P_PRESENCE_REQUEST		1
 #define	P2P_PRESENCE_RESPONSE	2
 #define	P2P_GO_DISC_REQUEST		3
@@ -646,7 +646,7 @@ struct ADDBA_request {
 
 #define	P2P_WILDCARD_SSID_LEN				7
 
-#define	P2P_FINDPHASE_EX_NONE				0	/*  default value, used when: (1)p2p disabled or (2)p2p enabled but only do 1 scan phase */
+#define	P2P_FINDPHASE_EX_ANALNE				0	/*  default value, used when: (1)p2p disabled or (2)p2p enabled but only do 1 scan phase */
 #define	P2P_FINDPHASE_EX_FULL				1	/*  used when p2p enabled and want to do 1 scan phase and P2P_FINDPHASE_EX_MAX-1 find phase */
 #define	P2P_FINDPHASE_EX_SOCIAL_FIRST		(P2P_FINDPHASE_EX_FULL+1)
 #define	P2P_FINDPHASE_EX_MAX					4
@@ -662,10 +662,10 @@ struct ADDBA_request {
 #define	P2P_RESET_SCAN_CH						25000	/* 	25 seconds timeout to reset the scan channel (based on channel plan) */
 #define	P2P_MAX_INTENT						15
 
-#define	P2P_MAX_NOA_NUM						2
+#define	P2P_MAX_ANALA_NUM						2
 
 /* 	WPS Configuration Method */
-#define	WPS_CM_NONE							0x0000
+#define	WPS_CM_ANALNE							0x0000
 #define	WPS_CM_LABEL							0x0004
 #define	WPS_CM_DISPLYA						0x0008
 #define	WPS_CM_EXTERNAL_NFC_TOKEN			0x0010
@@ -686,8 +686,8 @@ enum p2p_role {
 };
 
 enum p2p_state {
-	P2P_STATE_NONE = 0,							/* 	P2P disable */
-	P2P_STATE_IDLE = 1,								/* 	P2P had enabled and do nothing */
+	P2P_STATE_ANALNE = 0,							/* 	P2P disable */
+	P2P_STATE_IDLE = 1,								/* 	P2P had enabled and do analthing */
 	P2P_STATE_LISTEN = 2,							/* 	In pure listen state */
 	P2P_STATE_SCAN = 3,							/* 	In scan phase */
 	P2P_STATE_FIND_PHASE_LISTEN = 4,				/* 	In the listen state of find phase */
@@ -707,12 +707,12 @@ enum p2p_state {
 	P2P_STATE_RECV_INVITE_REQ_GO = 18,			/* 	receiving the P2P Invitation request and this wifi is GO. */
 	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,			/* 	receiving the P2P Invitation request to join an existing P2P Group. */
 	P2P_STATE_RX_INVITE_RESP_FAIL = 20,			/* 	recveing the P2P Invitation response with failure */
-	P2P_STATE_RX_INFOR_NOREADY = 21,			/*  receiving p2p negotiation response with information is not available */
-	P2P_STATE_TX_INFOR_NOREADY = 22,			/*  sending p2p negotiation response with information is not available */
+	P2P_STATE_RX_INFOR_ANALREADY = 21,			/*  receiving p2p negotiation response with information is analt available */
+	P2P_STATE_TX_INFOR_ANALREADY = 22,			/*  sending p2p negotiation response with information is analt available */
 };
 
 enum p2p_wpsinfo {
-	P2P_NO_WPSINFO						= 0,
+	P2P_ANAL_WPSINFO						= 0,
 	P2P_GOT_WPSINFO_PEER_DISPLAY_PIN	= 1,
 	P2P_GOT_WPSINFO_SELF_DISPLAY_PIN	= 2,
 	P2P_GOT_WPSINFO_PBC					= 3,

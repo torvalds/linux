@@ -62,7 +62,7 @@ void acpi_ut_delete_rw_lock(struct acpi_rw_lock *lock)
  * DESCRIPTION: Reader interfaces for reader/writer locks. On acquisition,
  *              only the first reader acquires the write mutex. On release,
  *              only the last reader releases the write mutex. Although this
- *              algorithm can in theory starve writers, this should not be a
+ *              algorithm can in theory starve writers, this should analt be a
  *              problem with ACPICA since the subsystem is infrequently used
  *              in comparison to (for example) an I/O system.
  *

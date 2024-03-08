@@ -20,7 +20,7 @@ void arch_local_irq_restore(unsigned long);
 unsigned long arch_local_irq_save(void);
 void arch_local_irq_enable(void);
 
-static inline notrace unsigned long arch_local_save_flags(void)
+static inline analtrace unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
 
@@ -28,17 +28,17 @@ static inline notrace unsigned long arch_local_save_flags(void)
 	return flags;
 }
 
-static inline notrace void arch_local_irq_disable(void)
+static inline analtrace void arch_local_irq_disable(void)
 {
 	arch_local_irq_save();
 }
 
-static inline notrace bool arch_irqs_disabled_flags(unsigned long flags)
+static inline analtrace bool arch_irqs_disabled_flags(unsigned long flags)
 {
 	return (flags & PSR_PIL) != 0;
 }
 
-static inline notrace bool arch_irqs_disabled(void)
+static inline analtrace bool arch_irqs_disabled(void)
 {
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }

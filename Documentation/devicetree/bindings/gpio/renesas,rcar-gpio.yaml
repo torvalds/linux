@@ -117,7 +117,7 @@ required:
   - '#interrupt-cells'
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         contains:

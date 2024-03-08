@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_cccb.h"
 #include "pvr_context.h"
@@ -17,7 +17,7 @@
 
 #include <drm/drm_auth.h>
 #include <drm/drm_managed.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -33,7 +33,7 @@ remap_priority(struct pvr_file *pvr_file, s32 uapi_priority,
 	case DRM_PVR_CTX_PRIORITY_LOW:
 		*priority_out = PVR_CTX_PRIORITY_LOW;
 		break;
-	case DRM_PVR_CTX_PRIORITY_NORMAL:
+	case DRM_PVR_CTX_PRIORITY_ANALRMAL:
 		*priority_out = PVR_CTX_PRIORITY_MEDIUM;
 		break;
 	case DRM_PVR_CTX_PRIORITY_HIGH:
@@ -71,7 +71,7 @@ process_static_context_state(struct pvr_device *pvr_dev, const struct pvr_stream
 
 	stream = kzalloc(stream_size, GFP_KERNEL);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(stream, u64_to_user_ptr(stream_user_ptr), stream_size)) {
 		err = -EFAULT;
@@ -302,7 +302,7 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->data_size = ctx_size;
 	ctx->type = args->type;
@@ -322,7 +322,7 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 
 	ctx->data = kzalloc(ctx_size, GFP_KERNEL);
 	if (!ctx->data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_put_vm;
 	}
 
@@ -346,7 +346,7 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 	err = xa_alloc(&pvr_file->ctx_handles, &args->handle, ctx, xa_limit_32b, GFP_KERNEL);
 	if (err) {
 		/*
-		 * It's possible that another thread could have taken a reference on the context at
+		 * It's possible that aanalther thread could have taken a reference on the context at
 		 * this point as it is in the ctx_ids xarray. Therefore instead of directly
 		 * destroying the context, drop a reference instead.
 		 */
@@ -409,7 +409,7 @@ pvr_context_put(struct pvr_context *ctx)
  *
  * Return:
  *  * 0 on success, or
- *  * -%EINVAL if context not in context list.
+ *  * -%EINVAL if context analt in context list.
  */
 int
 pvr_context_destroy(struct pvr_file *pvr_file, u32 handle)
@@ -419,7 +419,7 @@ pvr_context_destroy(struct pvr_file *pvr_file, u32 handle)
 	if (!ctx)
 		return -EINVAL;
 
-	/* Make sure nothing can be queued to the queues after that point. */
+	/* Make sure analthing can be queued to the queues after that point. */
 	pvr_context_kill_queues(ctx);
 
 	/* Release the reference held by the handle set. */

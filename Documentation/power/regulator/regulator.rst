@@ -28,5 +28,5 @@ Regulator Events
 Regulators can send events (e.g. overtemperature, undervoltage, etc) to
 consumer drivers by calling::
 
-  int regulator_notifier_call_chain(struct regulator_dev *rdev,
+  int regulator_analtifier_call_chain(struct regulator_dev *rdev,
 				    unsigned long event, void *data);

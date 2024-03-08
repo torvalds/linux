@@ -49,8 +49,8 @@ struct xe_guc {
 			spinlock_t lock;
 			/** @context: suspend fences context */
 			u64 context;
-			/** @seqno: suspend fences seqno */
-			u32 seqno;
+			/** @seqanal: suspend fences seqanal */
+			u32 seqanal;
 		} suspend;
 #ifdef CONFIG_PROVE_LOCKING
 #define NUM_SUBMIT_WQ	256
@@ -71,9 +71,9 @@ struct xe_guc {
 	} hwconfig;
 
 	/**
-	 * @notify_reg: Register which is written to notify GuC of H2G messages
+	 * @analtify_reg: Register which is written to analtify GuC of H2G messages
 	 */
-	struct xe_reg notify_reg;
+	struct xe_reg analtify_reg;
 	/** @params: Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];
 };

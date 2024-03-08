@@ -5,7 +5,7 @@
  * Copyright (C) 1995,2001 Compaq Computer Corporation
  * Copyright (C) 2001 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2001 IBM Corp.
- * Copyright (C) 2002 Hiroshi Aono (h-aono@ap.jp.nec.com)
+ * Copyright (C) 2002 Hiroshi Aoanal (h-aoanal@ap.jp.nec.com)
  * Copyright (C) 2002,2003 Takayoshi Kochi (t-kochi@bq.jp.nec.com)
  * Copyright (C) 2002,2003 NEC Corporation
  * Copyright (C) 2003-2005 Matthew Wilcox (willy@infradead.org)
@@ -153,7 +153,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
  */
 static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 {
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 
 	pr_debug("%s - physical_slot = %s\n", __func__,
 		hotplug_slot_name(hotplug_slot));
@@ -172,8 +172,8 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
  * @hotplug_slot: slot to get status
  * @value: pointer to store status
  *
- * Some platforms may not implement _STA method properly.
- * In that case, the value returned may not be reliable.
+ * Some platforms may analt implement _STA method properly.
+ * In that case, the value returned may analt be reliable.
  */
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
@@ -192,7 +192,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
  * @hotplug_slot: slot to get status from
  * @value: returns with value of attention LED
  *
- * ACPI doesn't have known method to determine the state
+ * ACPI doesn't have kanalwn method to determine the state
  * of the attention status LED, so we use a callback that
  * was registered with us.  This allows hardware specific
  * ACPI implementations to determine its state.
@@ -257,7 +257,7 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 				  unsigned int sun)
 {
 	struct slot *slot;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	char name[SLOT_NAME_SIZE];
 
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);

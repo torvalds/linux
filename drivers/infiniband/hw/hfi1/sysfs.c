@@ -448,7 +448,7 @@ static ssize_t nctxts_show(struct device *device,
 
 	/*
 	 * Return the smaller of send and receive contexts.
-	 * Normally, user level applications would require both a send
+	 * Analrmally, user level applications would require both a send
 	 * and a receive context, so returning the smaller of the two counts
 	 * give a more accurate picture of total contexts available.
 	 */

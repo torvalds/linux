@@ -176,7 +176,7 @@ lqasc_rx_chars(struct uart_port *port)
 	fifocnt = __raw_readl(port->membase + LTQ_ASC_FSTAT) &
 		  ASCFSTAT_RXFFLMASK;
 	while (fifocnt--) {
-		u8 flag = TTY_NORMAL;
+		u8 flag = TTY_ANALRMAL;
 		ch = readb(port->membase + LTQ_ASC_RBUF);
 		rsr = (__raw_readl(port->membase + LTQ_ASC_STATE)
 			& ASCSTATE_ANY) | UART_DUMMY_UER_RX;
@@ -184,7 +184,7 @@ lqasc_rx_chars(struct uart_port *port)
 		port->icount.rx++;
 
 		/*
-		 * Note that the error handling code is
+		 * Analte that the error handling code is
 		 * out of the main execution path
 		 */
 		if (rsr & ASCSTATE_ANY) {
@@ -211,7 +211,7 @@ lqasc_rx_chars(struct uart_port *port)
 				flag = TTY_FRAME;
 		}
 
-		if ((rsr & port->ignore_status_mask) == 0)
+		if ((rsr & port->iganalre_status_mask) == 0)
 			tty_insert_flip_char(tport, ch, flag);
 
 		if (rsr & ASCSTATE_ROE)
@@ -284,7 +284,7 @@ static irqreturn_t lqasc_irq(int irq, void *p)
 	stat = readl(port->membase + LTQ_ASC_IRNCR);
 	spin_unlock_irqrestore(&ltq_port->lock, flags);
 	if (!(stat & ASC_IRNCR_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (stat & ASC_IRNCR_TIR)
 		lqasc_tx_int(irq, p);
@@ -413,7 +413,7 @@ lqasc_set_termios(struct uart_port *port, struct ktermios *new,
 		break;
 	}
 
-	cflag &= ~CMSPAR; /* Mark/Space parity is not supported */
+	cflag &= ~CMSPAR; /* Mark/Space parity is analt supported */
 
 	if (cflag & CSTOPB)
 		con |= ASCCON_STP;
@@ -429,21 +429,21 @@ lqasc_set_termios(struct uart_port *port, struct ktermios *new,
 	if (iflag & INPCK)
 		port->read_status_mask |= ASCSTATE_FE | ASCSTATE_PE;
 
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (iflag & IGNPAR)
-		port->ignore_status_mask |= ASCSTATE_FE | ASCSTATE_PE;
+		port->iganalre_status_mask |= ASCSTATE_FE | ASCSTATE_PE;
 
 	if (iflag & IGNBRK) {
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (iflag & IGNPAR)
-			port->ignore_status_mask |= ASCSTATE_ROE;
+			port->iganalre_status_mask |= ASCSTATE_ROE;
 	}
 
 	if ((cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_DUMMY_UER_RX;
+		port->iganalre_status_mask |= UART_DUMMY_UER_RX;
 
 	/* set error signals  - framing, parity  and overrun, enable receiver */
 	con |= ASCCON_FEN | ASCCON_TOEN | ASCCON_ROEN;
@@ -467,7 +467,7 @@ lqasc_set_termios(struct uart_port *port, struct ktermios *new,
 	/* set up to use divisor of 2 */
 	asc_update_bits(ASCCON_BRS, 0, port->membase + LTQ_ASC_CON);
 
-	/* now we can write the new baudrate into the register */
+	/* analw we can write the new baudrate into the register */
 	__raw_writel(divisor, port->membase + LTQ_ASC_BG);
 
 	/* turn the baudrate generator back on */
@@ -514,15 +514,15 @@ lqasc_request_port(struct uart_port *port)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain I/O memory region");
-		return -ENODEV;
+		dev_err(&pdev->dev, "cananalt obtain I/O memory region");
+		return -EANALDEV;
 	}
 	size = resource_size(res);
 
 	res = devm_request_mem_region(&pdev->dev, res->start,
 		size, dev_name(&pdev->dev));
 	if (!res) {
-		dev_err(&pdev->dev, "cannot request I/O memory region");
+		dev_err(&pdev->dev, "cananalt request I/O memory region");
 		return -EBUSY;
 	}
 
@@ -530,7 +530,7 @@ lqasc_request_port(struct uart_port *port)
 		port->membase = devm_ioremap(&pdev->dev,
 			port->mapbase, size);
 		if (port->membase == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -549,7 +549,7 @@ lqasc_verify_port(struct uart_port *port,
 	struct serial_struct *ser)
 {
 	int ret = 0;
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_LTQ_ASC)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_LTQ_ASC)
 		ret = -EINVAL;
 	if (ser->irq < 0 || ser->irq >= NR_IRQS)
 		ret = -EINVAL;
@@ -624,11 +624,11 @@ lqasc_console_setup(struct console *co, char *options)
 	int flow = 'n';
 
 	if (co->index >= MAXPORTS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ltq_port = lqasc_port[co->index];
 	if (!ltq_port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = &ltq_port->port;
 
@@ -674,7 +674,7 @@ lqasc_serial_early_console_setup(struct earlycon_device *device,
 				 const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = lqasc_serial_early_console_write;
 	return 0;
@@ -695,7 +695,7 @@ static struct uart_driver lqasc_reg = {
 	.driver_name =	DRVNAME,
 	.dev_name =	"ttyLTQ",
 	.major =	0,
-	.minor =	0,
+	.mianalr =	0,
 	.nr =		MAXPORTS,
 	.cons =		LANTIQ_SERIAL_CONSOLE,
 };
@@ -805,7 +805,7 @@ static void free_irq_intel(struct uart_port *port)
 
 static int lqasc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct ltq_uart_port *ltq_port;
 	struct uart_port *port;
 	struct resource *mmres;
@@ -816,13 +816,13 @@ static int lqasc_probe(struct platform_device *pdev)
 	if (!mmres) {
 		dev_err(&pdev->dev,
 			"failed to get memory for serial port\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ltq_port = devm_kzalloc(&pdev->dev, sizeof(struct ltq_uart_port),
 				GFP_KERNEL);
 	if (!ltq_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port = &ltq_port->port;
 
@@ -832,7 +832,7 @@ static int lqasc_probe(struct platform_device *pdev)
 		return ret;
 
 	/* get serial id */
-	line = of_alias_get_id(node, "serial");
+	line = of_alias_get_id(analde, "serial");
 	if (line < 0) {
 		if (IS_ENABLED(CONFIG_LANTIQ)) {
 			if (mmres->start == CPHYSADDR(LTQ_EARLY_ASC))
@@ -840,7 +840,7 @@ static int lqasc_probe(struct platform_device *pdev)
 			else
 				line = 1;
 		} else {
-			dev_err(&pdev->dev, "failed to get alias id, errno %d\n",
+			dev_err(&pdev->dev, "failed to get alias id, erranal %d\n",
 				line);
 			return line;
 		}
@@ -869,10 +869,10 @@ static int lqasc_probe(struct platform_device *pdev)
 
 	if (IS_ERR(ltq_port->freqclk)) {
 		pr_err("failed to get fpi clk\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	/* not all asc ports have clock gates, lets ignore the return code */
+	/* analt all asc ports have clock gates, lets iganalre the return code */
 	if (IS_ENABLED(CONFIG_LANTIQ) && !IS_ENABLED(CONFIG_COMMON_CLK))
 		ltq_port->clk = clk_get(&pdev->dev, NULL);
 	else

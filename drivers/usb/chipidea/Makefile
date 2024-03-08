@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# define_trace.h needs to know how to find our header
+# define_trace.h needs to kanalw how to find our header
 CFLAGS_trace.o			:= -I$(src)
 obj-$(CONFIG_USB_CHIPIDEA)		+= ci_hdrc.o
 

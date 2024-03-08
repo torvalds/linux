@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * ppp_defs.h - PPP definitions.
  *
@@ -30,8 +30,8 @@
 #define	PPP_ALLSTATIONS	0xff	/* All-Stations broadcast address */
 #define	PPP_UI		0x03	/* Unnumbered Information */
 #define	PPP_FLAG	0x7e	/* Flag Sequence */
-#define	PPP_ESCAPE	0x7d	/* Asynchronous Control Escape */
-#define	PPP_TRANS	0x20	/* Asynchronous transparency modifier */
+#define	PPP_ESCAPE	0x7d	/* Asynchroanalus Control Escape */
+#define	PPP_TRANS	0x20	/* Asynchroanalus transparency modifier */
 
 /*
  * Protocol field values.
@@ -91,7 +91,7 @@ struct pppstat	{
     __u32	ppp_discards;	/* # frames discarded */
 
     __u32	ppp_ibytes;	/* bytes received */
-    __u32	ppp_ioctects;	/* bytes received not in error */
+    __u32	ppp_ioctects;	/* bytes received analt in error */
     __u32	ppp_ipackets;	/* packets received */
     __u32	ppp_ierrors;	/* receive errors */
     __u32	ppp_ilqrs;	/* # LQR frames received */
@@ -110,7 +110,7 @@ struct vjstat {
     __u32	vjs_misses;	/* times couldn't find conn. state */
     __u32	vjs_uncompressedin; /* inbound uncompressed packets */
     __u32	vjs_compressedin;   /* inbound compressed packets */
-    __u32	vjs_errorin;	/* inbound unknown type packets */
+    __u32	vjs_errorin;	/* inbound unkanalwn type packets */
     __u32	vjs_tossed;	/* inbound packets tossed because of error */
 };
 
@@ -126,7 +126,7 @@ struct compstat {
     __u32       in_count;	/* Bytes received */
     __u32       bytes_out;	/* Bytes transmitted */
 
-    double	ratio;		/* not computed in kernel. */
+    double	ratio;		/* analt computed in kernel. */
 };
 
 struct ppp_stats {

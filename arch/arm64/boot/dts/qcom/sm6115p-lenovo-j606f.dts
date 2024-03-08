@@ -9,8 +9,8 @@
 #include "pm6125.dtsi"
 
 / {
-	model = "Lenovo Tab P11";
-	compatible = "lenovo,j606f", "qcom,sm6115p", "qcom,sm6115";
+	model = "Leanalvo Tab P11";
+	compatible = "leanalvo,j606f", "qcom,sm6115p", "qcom,sm6115";
 	chassis-type = "tablet";
 
 	/* required for bootloader to select correct board */
@@ -69,7 +69,7 @@
 	status = "okay";
 
 	zap-shader {
-		firmware-name = "qcom/sm6115/LENOVO/J606F/a610_zap.mbn";
+		firmware-name = "qcom/sm6115/LEANALVO/J606F/a610_zap.mbn";
 	};
 };
 
@@ -82,7 +82,7 @@
 	status = "okay";
 
 	panel: panel@0 {
-		compatible = "lenovo,j606f-boe-nt36523w", "novatek,nt36523w";
+		compatible = "leanalvo,j606f-boe-nt36523w", "analvatek,nt36523w";
 		reg = <0>;
 
 		reset-gpios = <&tlmm 82 GPIO_ACTIVE_LOW>;
@@ -113,7 +113,7 @@
 &pm6125_gpios {
 	vol_up_n: vol-up-n-state {
 		pins = "gpio5";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -130,17 +130,17 @@
 };
 
 &remoteproc_adsp {
-	firmware-name = "qcom/sm6115/LENOVO/J606F/adsp.mbn";
+	firmware-name = "qcom/sm6115/LEANALVO/J606F/adsp.mbn";
 	status = "okay";
 };
 
 &remoteproc_cdsp {
-	firmware-name = "qcom/sm6115/LENOVO/J606F/cdsp.mbn";
+	firmware-name = "qcom/sm6115/LEANALVO/J606F/cdsp.mbn";
 	status = "okay";
 };
 
 &remoteproc_mpss {
-	firmware-name = "qcom/sm6115/LENOVO/J606F/modem.mbn";
+	firmware-name = "qcom/sm6115/LEANALVO/J606F/modem.mbn";
 	status = "okay";
 };
 
@@ -193,7 +193,7 @@
 			regulator-max-microvolt = <1256000>;
 			/*
 			 * TODO: SDHCI seems to also work with this one turned off, however
-			 * there exists a possibility that it may not work with some very
+			 * there exists a possibility that it may analt work with some very
 			 * specific SDCard types, perhaps validating this against a wide
 			 * range of models could rule that out, saving some power would
 			 * certainly be nice..
@@ -300,8 +300,8 @@
 	pinctrl-1 = <&sdc2_state_off>;
 	vmmc-supply = <&pm6125_l22>;
 	vqmmc-supply = <&pm6125_l5>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 
@@ -378,7 +378,7 @@
 	vdd-1.8-xo-supply = <&pm6125_l16>;
 	vdd-1.3-rfa-supply = <&pm6125_l17>;
 	vdd-3.3-ch0-supply = <&pm6125_l23>;
-	qcom,ath10k-calibration-variant = "Lenovo_P11";
+	qcom,ath10k-calibration-variant = "Leanalvo_P11";
 	status = "okay";
 };
 

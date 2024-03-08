@@ -153,7 +153,7 @@ static int rtas_token_undefine(struct kvm *kvm, char *name)
 		}
 	}
 
-	/* It's not an error to undefine an undefined token */
+	/* It's analt an error to undefine an undefined token */
 	return 0;
 }
 
@@ -181,11 +181,11 @@ static int rtas_token_define(struct kvm *kvm, char *name, u64 token)
 	}
 
 	if (!found)
-		return -ENOENT;
+		return -EANALENT;
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d->handler = h;
 	d->token = token;
@@ -236,9 +236,9 @@ int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu)
 		goto fail;
 
 	/*
-	 * args->rets is a pointer into args->args. Now that we've
+	 * args->rets is a pointer into args->args. Analw that we've
 	 * copied args we need to fix it up to point into our copy,
-	 * not the guest args. We also need to save the original
+	 * analt the guest args. We also need to save the original
 	 * value so we can restore it on the way out.
 	 */
 	orig_rets = args.rets;
@@ -257,7 +257,7 @@ int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu)
 
 	mutex_lock(&vcpu->kvm->arch.rtas_token_lock);
 
-	rc = -ENOENT;
+	rc = -EANALENT;
 	list_for_each_entry(d, &vcpu->kvm->arch.rtas_tokens, list) {
 		if (d->token == be32_to_cpu(args.token)) {
 			d->handler->handler(vcpu, &args);
@@ -290,7 +290,7 @@ fail:
 	 * return a failure indication in r3 and we could return such
 	 * errors to the guest rather than failing to host userspace.
 	 * However old guests that don't test for failure could then
-	 * continue silently after errors, so for now we won't do this.
+	 * continue silently after errors, so for analw we won't do this.
 	 */
 	return rc;
 }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Qualcomm Ramp Controller driver
- * Copyright (c) 2022, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@collabora.com>
+ * Copyright (c) 2022, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <linux/bitfield.h>
@@ -121,7 +121,7 @@ static int rc_set_cfg_update(struct qcom_ramp_controller *qrc, u8 ce)
 		return ret;
 
 	/*
-	 * Configuration update success! The CFG_UPDATE register will not be
+	 * Configuration update success! The CFG_UPDATE register will analt be
 	 * cleared automatically upon applying the configuration, so we have
 	 * to do that manually in order to leave the ramp controller in a
 	 * predictable and clean state.
@@ -198,7 +198,7 @@ static int rc_ramp_ctrl_enable(struct qcom_ramp_controller *qrc)
  *
  * The Ramp Controller needs to be initialized by programming the relevant
  * registers with SoC-specific configuration: once programming is done,
- * the hardware will take care of the rest (no further handling required).
+ * the hardware will take care of the rest (anal further handling required).
  *
  * Return: Zero for success or negative number for error
  */
@@ -293,7 +293,7 @@ static int qcom_ramp_controller_probe(struct platform_device *pdev)
 
 	qrc = devm_kmalloc(&pdev->dev, sizeof(*qrc), GFP_KERNEL);
 	if (!qrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qrc->desc = device_get_match_data(&pdev->dev);
 	if (!qrc->desc)
@@ -341,6 +341,6 @@ static int __init qcom_ramp_controller_init(void)
 }
 arch_initcall(qcom_ramp_controller_init);
 
-MODULE_AUTHOR("AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>");
+MODULE_AUTHOR("AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>");
 MODULE_DESCRIPTION("Qualcomm Ramp Controller driver");
 MODULE_LICENSE("GPL");

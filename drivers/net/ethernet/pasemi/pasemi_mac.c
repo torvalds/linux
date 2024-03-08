@@ -170,15 +170,15 @@ static void pasemi_mac_intf_enable(struct pasemi_mac *mac)
 static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 {
 	struct pci_dev *pdev = mac->pdev;
-	struct device_node *dn = pci_device_to_OF_node(pdev);
+	struct device_analde *dn = pci_device_to_OF_analde(pdev);
 	int len;
 	const u8 *maddr;
 	u8 addr[ETH_ALEN];
 
 	if (!dn) {
 		dev_dbg(&pdev->dev,
-			  "No device node for mac, not configuring\n");
-		return -ENOENT;
+			  "Anal device analde for mac, analt configuring\n");
+		return -EANALENT;
 	}
 
 	maddr = of_get_property(dn, "local-mac-address", &len);
@@ -197,13 +197,13 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 
 	if (maddr == NULL) {
 		dev_warn(&pdev->dev,
-			 "no mac address in device tree, not configuring\n");
-		return -ENOENT;
+			 "anal mac address in device tree, analt configuring\n");
+		return -EANALENT;
 	}
 
 	if (!mac_pton(maddr, addr)) {
 		dev_warn(&pdev->dev,
-			 "can't parse mac address, not configuring\n");
+			 "can't parse mac address, analt configuring\n");
 		return -EINVAL;
 	}
 
@@ -219,7 +219,7 @@ static int pasemi_mac_set_mac_addr(struct net_device *dev, void *p)
 	unsigned int adr0, adr1;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, addr->sa_data);
 
@@ -268,7 +268,7 @@ static struct pasemi_mac_csring *pasemi_mac_setup_csring(struct pasemi_mac *mac)
 	struct pasemi_mac_csring *ring;
 	u32 val;
 	unsigned int cfg;
-	int chno;
+	int chanal;
 
 	ring = pasemi_dma_alloc_chan(TXCHAN, sizeof(struct pasemi_mac_csring),
 				       offsetof(struct pasemi_mac_csring, chan));
@@ -278,7 +278,7 @@ static struct pasemi_mac_csring *pasemi_mac_setup_csring(struct pasemi_mac *mac)
 		goto out_chan;
 	}
 
-	chno = ring->chan.chno;
+	chanal = ring->chan.chanal;
 
 	ring->size = CS_RING_SIZE;
 	ring->next_to_fill = 0;
@@ -287,12 +287,12 @@ static struct pasemi_mac_csring *pasemi_mac_setup_csring(struct pasemi_mac *mac)
 	if (pasemi_dma_alloc_ring(&ring->chan, CS_RING_SIZE))
 		goto out_ring_desc;
 
-	write_dma_reg(PAS_DMA_TXCHAN_BASEL(chno),
+	write_dma_reg(PAS_DMA_TXCHAN_BASEL(chanal),
 		      PAS_DMA_TXCHAN_BASEL_BRBL(ring->chan.ring_dma));
 	val = PAS_DMA_TXCHAN_BASEU_BRBH(ring->chan.ring_dma >> 32);
 	val |= PAS_DMA_TXCHAN_BASEU_SIZ(CS_RING_SIZE >> 3);
 
-	write_dma_reg(PAS_DMA_TXCHAN_BASEU(chno), val);
+	write_dma_reg(PAS_DMA_TXCHAN_BASEU(chanal), val);
 
 	ring->events[0] = pasemi_dma_alloc_flag();
 	ring->events[1] = pasemi_dma_alloc_flag();
@@ -313,7 +313,7 @@ static struct pasemi_mac_csring *pasemi_mac_setup_csring(struct pasemi_mac *mac)
 	if (translation_enabled())
 		cfg |= PAS_DMA_TXCHAN_CFG_TRD | PAS_DMA_TXCHAN_CFG_TRR;
 
-	write_dma_reg(PAS_DMA_TXCHAN_CFG(chno), cfg);
+	write_dma_reg(PAS_DMA_TXCHAN_CFG(chanal), cfg);
 
 	/* enable channel */
 	pasemi_dma_start_chan(&ring->chan, PAS_DMA_TXCHAN_TCMDSTA_SZ |
@@ -365,7 +365,7 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 {
 	struct pasemi_mac_rxring *ring;
 	struct pasemi_mac *mac = netdev_priv(dev);
-	int chno;
+	int chanal;
 	unsigned int cfg;
 
 	ring = pasemi_dma_alloc_chan(RXCHAN, sizeof(struct pasemi_mac_rxring),
@@ -375,7 +375,7 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 		dev_err(&mac->pdev->dev, "Can't allocate RX channel\n");
 		goto out_chan;
 	}
-	chno = ring->chan.chno;
+	chanal = ring->chan.chanal;
 
 	spin_lock_init(&ring->lock);
 
@@ -397,10 +397,10 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 	if (!ring->buffers)
 		goto out_ring_desc;
 
-	write_dma_reg(PAS_DMA_RXCHAN_BASEL(chno),
+	write_dma_reg(PAS_DMA_RXCHAN_BASEL(chanal),
 		      PAS_DMA_RXCHAN_BASEL_BRBL(ring->chan.ring_dma));
 
-	write_dma_reg(PAS_DMA_RXCHAN_BASEU(chno),
+	write_dma_reg(PAS_DMA_RXCHAN_BASEU(chanal),
 		      PAS_DMA_RXCHAN_BASEU_BRBH(ring->chan.ring_dma >> 32) |
 		      PAS_DMA_RXCHAN_BASEU_SIZ(RX_RING_SIZE >> 3));
 
@@ -409,7 +409,7 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 	if (translation_enabled())
 		cfg |= PAS_DMA_RXCHAN_CFG_CTR;
 
-	write_dma_reg(PAS_DMA_RXCHAN_CFG(chno), cfg);
+	write_dma_reg(PAS_DMA_RXCHAN_CFG(chanal), cfg);
 
 	write_dma_reg(PAS_DMA_RXINT_BASEL(mac->dma_if),
 		      PAS_DMA_RXINT_BASEL_BRBL(ring->buf_dma));
@@ -439,7 +439,7 @@ out_ring_desc:
 out_ring_info:
 	pasemi_dma_free_chan(&ring->chan);
 out_chan:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct pasemi_mac_txring *
@@ -449,7 +449,7 @@ pasemi_mac_setup_tx_resources(const struct net_device *dev)
 	u32 val;
 	struct pasemi_mac_txring *ring;
 	unsigned int cfg;
-	int chno;
+	int chanal;
 
 	ring = pasemi_dma_alloc_chan(TXCHAN, sizeof(struct pasemi_mac_txring),
 				     offsetof(struct pasemi_mac_txring, chan));
@@ -459,7 +459,7 @@ pasemi_mac_setup_tx_resources(const struct net_device *dev)
 		goto out_chan;
 	}
 
-	chno = ring->chan.chno;
+	chanal = ring->chan.chanal;
 
 	spin_lock_init(&ring->lock);
 
@@ -474,12 +474,12 @@ pasemi_mac_setup_tx_resources(const struct net_device *dev)
 	if (pasemi_dma_alloc_ring(&ring->chan, TX_RING_SIZE))
 		goto out_ring_desc;
 
-	write_dma_reg(PAS_DMA_TXCHAN_BASEL(chno),
+	write_dma_reg(PAS_DMA_TXCHAN_BASEL(chanal),
 		      PAS_DMA_TXCHAN_BASEL_BRBL(ring->chan.ring_dma));
 	val = PAS_DMA_TXCHAN_BASEU_BRBH(ring->chan.ring_dma >> 32);
 	val |= PAS_DMA_TXCHAN_BASEU_SIZ(TX_RING_SIZE >> 3);
 
-	write_dma_reg(PAS_DMA_TXCHAN_BASEU(chno), val);
+	write_dma_reg(PAS_DMA_TXCHAN_BASEU(chanal), val);
 
 	cfg = PAS_DMA_TXCHAN_CFG_TY_IFACE |
 	      PAS_DMA_TXCHAN_CFG_TATTR(mac->dma_if) |
@@ -489,7 +489,7 @@ pasemi_mac_setup_tx_resources(const struct net_device *dev)
 	if (translation_enabled())
 		cfg |= PAS_DMA_TXCHAN_CFG_TRD | PAS_DMA_TXCHAN_CFG_TRR;
 
-	write_dma_reg(PAS_DMA_TXCHAN_CFG(chno), cfg);
+	write_dma_reg(PAS_DMA_TXCHAN_CFG(chanal), cfg);
 
 	ring->next_to_fill = 0;
 	ring->next_to_clean = 0;
@@ -517,7 +517,7 @@ static void pasemi_mac_free_tx_resources(struct pasemi_mac *mac)
 	start = txring->next_to_clean;
 	limit = txring->next_to_fill;
 
-	/* Compensate for when fill has wrapped and clean has not */
+	/* Compensate for when fill has wrapped and clean has analt */
 	if (start > limit)
 		limit += TX_RING_SIZE;
 
@@ -637,7 +637,7 @@ static void pasemi_mac_restart_rx_intr(const struct pasemi_mac *mac)
 	if (*rx->chan.status & PAS_STATUS_TIMER)
 		reg |= PAS_IOB_DMA_RXCH_RESET_TINTC;
 
-	write_iob_reg(PAS_IOB_DMA_RXCH_RESET(mac->rx->chan.chno), reg);
+	write_iob_reg(PAS_IOB_DMA_RXCH_RESET(mac->rx->chan.chanal), reg);
 }
 
 static void pasemi_mac_restart_tx_intr(const struct pasemi_mac *mac)
@@ -649,7 +649,7 @@ static void pasemi_mac_restart_tx_intr(const struct pasemi_mac *mac)
 
 	reg = PAS_IOB_DMA_TXCH_RESET_PCNT(pcnt) | PAS_IOB_DMA_TXCH_RESET_PINTC;
 
-	write_iob_reg(PAS_IOB_DMA_TXCH_RESET(tx_ring(mac)->chan.chno), reg);
+	write_iob_reg(PAS_IOB_DMA_TXCH_RESET(tx_ring(mac)->chan.chanal), reg);
 }
 
 
@@ -663,7 +663,7 @@ static inline void pasemi_mac_rx_error(const struct pasemi_mac *mac,
 		return;
 
 	rcmdsta = read_dma_reg(PAS_DMA_RXINT_RCMDSTA(mac->dma_if));
-	ccmdsta = read_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(chan->chno));
+	ccmdsta = read_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(chan->chanal));
 
 	printk(KERN_ERR "pasemi_mac: rx error. macrx %016llx, rx status %llx\n",
 		macrx, *chan->status);
@@ -681,7 +681,7 @@ static inline void pasemi_mac_tx_error(const struct pasemi_mac *mac,
 	if (!netif_msg_tx_err(mac))
 		return;
 
-	cmdsta = read_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(chan->chno));
+	cmdsta = read_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(chan->chanal));
 
 	printk(KERN_ERR "pasemi_mac: tx error. mactx 0x%016llx, "\
 		"tx status 0x%016llx\n", mactx, *chan->status);
@@ -748,7 +748,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac_rxring *rx,
 			/* CRC error flagged */
 			mac->netdev->stats.rx_errors++;
 			mac->netdev->stats.rx_crc_errors++;
-			/* No need to free skb, it'll be reused */
+			/* Anal need to free skb, it'll be reused */
 			goto next;
 		}
 
@@ -760,7 +760,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac_rxring *rx,
 			skb->csum = (macrx & XCT_MACRX_CSUM_M) >>
 					   XCT_MACRX_CSUM_S;
 		} else {
-			skb_checksum_none_assert(skb);
+			skb_checksum_analne_assert(skb);
 		}
 
 		packets++;
@@ -796,7 +796,7 @@ next:
 	 * with an 8BRES takes up 3x8 bytes (padded to 4x8), increase with
 	 * count*2.
 	 */
-	write_dma_reg(PAS_DMA_RXCHAN_INCR(mac->rx->chan.chno), count << 1);
+	write_dma_reg(PAS_DMA_RXCHAN_INCR(mac->rx->chan.chanal), count << 1);
 
 	pasemi_mac_replenish_rx_ring(mac->netdev, count);
 
@@ -835,7 +835,7 @@ restart:
 
 	prefetch(&TX_DESC_INFO(txring, start+1).skb);
 
-	/* Compensate for when fill has wrapped but clean has not */
+	/* Compensate for when fill has wrapped but clean has analt */
 	if (start > ring_limit)
 		ring_limit += TX_RING_SIZE;
 
@@ -864,7 +864,7 @@ restart:
 		nr_frags = TX_DESC_INFO(txring, i).dma;
 
 		if (unlikely(mactx & XCT_MACTX_O))
-			/* Not yet transmitted */
+			/* Analt yet transmitted */
 			break;
 
 		buf_count = 2 + nr_frags;
@@ -911,7 +911,7 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 	unsigned int reg;
 
 	if (!(*chan->status & PAS_STATUS_CAUSE_M))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Don't reset packet count so it won't fire again but clear
 	 * all others.
@@ -925,7 +925,7 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 
 	napi_schedule(&mac->napi);
 
-	write_iob_reg(PAS_IOB_DMA_RXCH_RESET(chan->chno), reg);
+	write_iob_reg(PAS_IOB_DMA_RXCH_RESET(chan->chanal), reg);
 
 	return IRQ_HANDLED;
 }
@@ -952,7 +952,7 @@ static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 	unsigned int reg;
 
 	if (!(*chan->status & PAS_STATUS_CAUSE_M))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	reg = 0;
 
@@ -966,7 +966,7 @@ static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 	napi_schedule(&mac->napi);
 
 	if (reg)
-		write_iob_reg(PAS_IOB_DMA_TXCH_RESET(chan->chno), reg);
+		write_iob_reg(PAS_IOB_DMA_TXCH_RESET(chan->chanal), reg);
 
 	return IRQ_HANDLED;
 }
@@ -979,7 +979,7 @@ static void pasemi_adjust_link(struct net_device *dev)
 	unsigned int new_flags;
 
 	if (!dev->phydev->link) {
-		/* If no link, MAC speed settings don't matter. Just report
+		/* If anal link, MAC speed settings don't matter. Just report
 		 * link down and return.
 		 */
 		if (mac->link && netif_msg_link(mac))
@@ -1037,10 +1037,10 @@ static void pasemi_adjust_link(struct net_device *dev)
 static int pasemi_mac_phy_init(struct net_device *dev)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
-	struct device_node *dn, *phy_dn;
+	struct device_analde *dn, *phy_dn;
 	struct phy_device *phydev;
 
-	dn = pci_device_to_OF_node(mac->pdev);
+	dn = pci_device_to_OF_analde(mac->pdev);
 	phy_dn = of_parse_phandle(dn, "phy-handle", 0);
 
 	mac->link = 0;
@@ -1050,10 +1050,10 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 	phydev = of_phy_connect(dev, phy_dn, &pasemi_adjust_link, 0,
 				PHY_INTERFACE_MODE_SGMII);
 
-	of_node_put(phy_dn);
+	of_analde_put(phy_dn);
 	if (!phydev) {
-		printk(KERN_ERR "%s: Could not attach to phy\n", dev->name);
-		return -ENODEV;
+		printk(KERN_ERR "%s: Could analt attach to phy\n", dev->name);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1079,7 +1079,7 @@ static int pasemi_mac_open(struct net_device *dev)
 	mac->tx = pasemi_mac_setup_tx_resources(dev);
 
 	if (!mac->tx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_tx_ring;
 	}
 
@@ -1089,7 +1089,7 @@ static int pasemi_mac_open(struct net_device *dev)
 	if (dev->mtu > 1500 && !mac->num_cs) {
 		pasemi_mac_setup_csrings(mac);
 		if (!mac->num_cs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_tx_ring;
 		}
 	}
@@ -1102,15 +1102,15 @@ static int pasemi_mac_open(struct net_device *dev)
 	write_iob_reg(PAS_IOB_DMA_COM_TIMEOUTCFG,
 		      PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(0x3ff));
 
-	write_iob_reg(PAS_IOB_DMA_RXCH_CFG(mac->rx->chan.chno),
+	write_iob_reg(PAS_IOB_DMA_RXCH_CFG(mac->rx->chan.chanal),
 		      PAS_IOB_DMA_RXCH_CFG_CNTTH(256));
 
-	write_iob_reg(PAS_IOB_DMA_TXCH_CFG(mac->tx->chan.chno),
+	write_iob_reg(PAS_IOB_DMA_TXCH_CFG(mac->tx->chan.chanal),
 		      PAS_IOB_DMA_TXCH_CFG_CNTTH(32));
 
 	write_mac_reg(mac, PAS_MAC_IPC_CHNL,
-		      PAS_MAC_IPC_CHNL_DCHNO(mac->rx->chan.chno) |
-		      PAS_MAC_IPC_CHNL_BCH(mac->rx->chan.chno));
+		      PAS_MAC_IPC_CHNL_DCHANAL(mac->rx->chan.chanal) |
+		      PAS_MAC_IPC_CHNL_BCH(mac->rx->chan.chanal));
 
 	/* enable rx if */
 	write_dma_reg(PAS_DMA_RXINT_RCMDSTA(mac->dma_if),
@@ -1134,7 +1134,7 @@ static int pasemi_mac_open(struct net_device *dev)
 
 	pasemi_mac_replenish_rx_ring(dev, RX_RING_SIZE);
 
-	write_dma_reg(PAS_DMA_RXCHAN_INCR(rx_ring(mac)->chan.chno),
+	write_dma_reg(PAS_DMA_RXCHAN_INCR(rx_ring(mac)->chan.chanal),
 		      RX_RING_SIZE>>1);
 
 	/* Clear out any residual packet count state from firmware */
@@ -1153,7 +1153,7 @@ static int pasemi_mac_open(struct net_device *dev)
 
 	ret = pasemi_mac_phy_init(dev);
 	if (ret) {
-		/* Since we won't get link notification, just enable RX */
+		/* Since we won't get link analtification, just enable RX */
 		pasemi_mac_intf_enable(mac);
 		if (mac->type == MAC_TYPE_GMAC) {
 			/* Warn for missing PHY on SGMII (1Gig) ports */
@@ -1216,7 +1216,7 @@ out_rx_resources:
 static void pasemi_mac_pause_txchan(struct pasemi_mac *mac)
 {
 	unsigned int sta, retries;
-	int txch = tx_ring(mac)->chan.chno;
+	int txch = tx_ring(mac)->chan.chanal;
 
 	write_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(txch),
 		      PAS_DMA_TXCHAN_TCMDSTA_ST);
@@ -1238,7 +1238,7 @@ static void pasemi_mac_pause_txchan(struct pasemi_mac *mac)
 static void pasemi_mac_pause_rxchan(struct pasemi_mac *mac)
 {
 	unsigned int sta, retries;
-	int rxch = rx_ring(mac)->chan.chno;
+	int rxch = rx_ring(mac)->chan.chanal;
 
 	write_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(rxch),
 		      PAS_DMA_RXCHAN_CCMDSTA_ST);
@@ -1280,8 +1280,8 @@ static int pasemi_mac_close(struct net_device *dev)
 	unsigned int sta;
 	int rxch, txch, i;
 
-	rxch = rx_ring(mac)->chan.chno;
-	txch = tx_ring(mac)->chan.chno;
+	rxch = rx_ring(mac)->chan.chanal;
+	txch = tx_ring(mac)->chan.chanal;
 
 	if (dev->phydev) {
 		phy_stop(dev->phydev);
@@ -1408,7 +1408,7 @@ static void pasemi_mac_queue_csdesc(const struct sk_buff *skb,
 	csring->next_to_fill = fill & (CS_RING_SIZE-1);
 
 	cs_size = fill - hdr;
-	write_dma_reg(PAS_DMA_TXCHAN_INCR(csring->chan.chno), (cs_size) >> 1);
+	write_dma_reg(PAS_DMA_TXCHAN_INCR(csring->chan.chanal), (cs_size) >> 1);
 
 	/* TX-side event handshaking */
 	fill = txring->next_to_fill;
@@ -1420,7 +1420,7 @@ static void pasemi_mac_queue_csdesc(const struct sk_buff *skb,
 	TX_DESC(txring, fill++) = 0;
 	txring->next_to_fill = fill;
 
-	write_dma_reg(PAS_DMA_TXCHAN_INCR(txring->chan.chno), 2);
+	write_dma_reg(PAS_DMA_TXCHAN_INCR(txring->chan.chanal), 2);
 }
 
 static netdev_tx_t pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
@@ -1448,7 +1448,7 @@ static netdev_tx_t pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *d
 				skb_headlen(skb), DMA_TO_DEVICE);
 	map_size[0] = skb_headlen(skb);
 	if (dma_mapping_error(&mac->dma_pdev->dev, map[0]))
-		goto out_err_nolock;
+		goto out_err_anallock;
 
 	for (i = 0; i < nfrags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -1458,7 +1458,7 @@ static netdev_tx_t pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *d
 		map_size[i+1] = skb_frag_size(frag);
 		if (dma_mapping_error(&mac->dma_pdev->dev, map[i + 1])) {
 			nfrags = i;
-			goto out_err_nolock;
+			goto out_err_anallock;
 		}
 	}
 
@@ -1488,7 +1488,7 @@ static netdev_tx_t pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *d
 	 * Total free space needed is mactx + fragments + 8
 	 */
 	if (RING_AVAIL(txring) < nfrags + 14) {
-		/* no room -- stop the queue and wait for tx intr */
+		/* anal room -- stop the queue and wait for tx intr */
 		netif_stop_queue(dev);
 		goto out_err;
 	}
@@ -1526,13 +1526,13 @@ static netdev_tx_t pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *d
 
 	spin_unlock_irqrestore(&txring->lock, flags);
 
-	write_dma_reg(PAS_DMA_TXCHAN_INCR(txring->chan.chno), (nfrags+2) >> 1);
+	write_dma_reg(PAS_DMA_TXCHAN_INCR(txring->chan.chanal), (nfrags+2) >> 1);
 
 	return NETDEV_TX_OK;
 
 out_err:
 	spin_unlock_irqrestore(&txring->lock, flags);
-out_err_nolock:
+out_err_anallock:
 	while (nfrags--)
 		dma_unmap_single(&mac->dma_pdev->dev, map[nfrags],
 				 map_size[nfrags], DMA_TO_DEVICE);
@@ -1565,7 +1565,7 @@ static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 	pasemi_mac_clean_tx(tx_ring(mac));
 	pkts = pasemi_mac_clean_rx(rx_ring(mac), budget);
 	if (pkts < budget) {
-		/* all done, no more packets present */
+		/* all done, anal more packets present */
 		napi_complete_done(napi, pkts);
 
 		pasemi_mac_restart_rx_intr(mac);
@@ -1577,7 +1577,7 @@ static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's analt called while
  * the interrupt routine is executing.
  */
 static void pasemi_mac_netpoll(struct net_device *dev)
@@ -1622,11 +1622,11 @@ static int pasemi_mac_change_mtu(struct net_device *dev, int new_mtu)
 
 	}
 
-	/* Setup checksum channels if large MTU and none already allocated */
+	/* Setup checksum channels if large MTU and analne already allocated */
 	if (new_mtu > PE_DEF_MTU && !mac->num_cs) {
 		pasemi_mac_setup_csrings(mac);
 		if (!mac->num_cs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
@@ -1685,7 +1685,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev = alloc_etherdev(sizeof(struct pasemi_mac));
 	if (dev == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_disable_device;
 	}
 
@@ -1705,7 +1705,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mac->dma_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa007, NULL);
 	if (!mac->dma_pdev) {
 		dev_err(&mac->pdev->dev, "Can't find DMA Controller\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 	dma_set_mask(&mac->dma_pdev->dev, DMA_BIT_MASK(64));
@@ -1713,13 +1713,13 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mac->iob_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa001, NULL);
 	if (!mac->iob_pdev) {
 		dev_err(&mac->pdev->dev, "Can't find I/O Bridge\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	/* get mac addr from device tree */
 	if (pasemi_get_mac_addr(mac) || !is_valid_ether_addr(mac->mac_addr)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 	eth_hw_addr_set(dev, mac->mac_addr);
@@ -1727,7 +1727,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = mac_to_intf(mac);
 	if (ret < 0) {
 		dev_err(&mac->pdev->dev, "Can't map DMA interface\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 	mac->dma_if = ret;
@@ -1740,7 +1740,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		mac->type = MAC_TYPE_XAUI;
 		break;
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 

@@ -120,7 +120,7 @@ static unsigned int get_symbol_offset(unsigned long pos)
 
 	/*
 	 * Use the closest marker we have. We have markers every 256 positions,
-	 * so that should be close enough.
+	 * so that should be close eanalugh.
 	 */
 	name = &kallsyms_names[kallsyms_markers[pos >> 8]];
 
@@ -151,7 +151,7 @@ unsigned long kallsyms_sym_address(int idx)
 	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
 		return kallsyms_addresses[idx];
 
-	/* values are unsigned offsets if --absolute-percpu is not in effect */
+	/* values are unsigned offsets if --absolute-percpu is analt in effect */
 	if (!IS_ENABLED(CONFIG_KALLSYMS_ABSOLUTE_PERCPU))
 		return kallsyms_relative_base + (u32)kallsyms_offsets[idx];
 
@@ -173,7 +173,7 @@ static void cleanup_symbol_name(char *s)
 	/*
 	 * LLVM appends various suffixes for local functions and variables that
 	 * must be promoted to global scope as part of LTO.  This can break
-	 * hooking of static functions with kprobes. '.' is not a valid
+	 * hooking of static functions with kprobes. '.' is analt a valid
 	 * character in an identifier in C. Suffixes only in LLVM LTO observed:
 	 * - foo.llvm.[0-9a-f]+
 	 */
@@ -261,7 +261,7 @@ static int kallsyms_lookup_names(const char *name,
 	return 0;
 }
 
-/* Lookup the address for this symbol. Returns 0 if not found. */
+/* Lookup the address for this symbol. Returns 0 if analt found. */
 unsigned long kallsyms_lookup_name(const char *name)
 {
 	int ret;
@@ -352,7 +352,7 @@ static unsigned long get_symbol_pos(unsigned long addr,
 
 	symbol_start = kallsyms_sym_address(low);
 
-	/* Search for next non-aliased symbol. */
+	/* Search for next analn-aliased symbol. */
 	for (i = low + 1; i < kallsyms_num_syms; i++) {
 		if (kallsyms_sym_address(i) > symbol_start) {
 			symbol_end = kallsyms_sym_address(i);
@@ -360,7 +360,7 @@ static unsigned long get_symbol_pos(unsigned long addr,
 		}
 	}
 
-	/* If we found no next symbol, we use the end of the section. */
+	/* If we found anal next symbol, we use the end of the section. */
 	if (!symbol_end) {
 		if (is_kernel_inittext(addr))
 			symbol_end = (unsigned long)_einittext;
@@ -525,7 +525,7 @@ static int __sprint_symbol(char *buffer, unsigned long address,
  * @address: address to lookup
  *
  * This function looks up a kernel symbol with @address and stores its name,
- * offset, size and module name to @buffer if possible. If no symbol was found,
+ * offset, size and module name to @buffer if possible. If anal symbol was found,
  * just saves its @address as is.
  *
  * This function returns the number of bytes stored in @buffer.
@@ -542,7 +542,7 @@ EXPORT_SYMBOL_GPL(sprint_symbol);
  * @address: address to lookup
  *
  * This function looks up a kernel symbol with @address and stores its name,
- * offset, size, module name and module build ID to @buffer if possible. If no
+ * offset, size, module name and module build ID to @buffer if possible. If anal
  * symbol was found, just saves its @address as is.
  *
  * This function returns the number of bytes stored in @buffer.
@@ -554,21 +554,21 @@ int sprint_symbol_build_id(char *buffer, unsigned long address)
 EXPORT_SYMBOL_GPL(sprint_symbol_build_id);
 
 /**
- * sprint_symbol_no_offset - Look up a kernel symbol and return it in a text buffer
+ * sprint_symbol_anal_offset - Look up a kernel symbol and return it in a text buffer
  * @buffer: buffer to be stored
  * @address: address to lookup
  *
  * This function looks up a kernel symbol with @address and stores its name
- * and module name to @buffer if possible. If no symbol was found, just saves
+ * and module name to @buffer if possible. If anal symbol was found, just saves
  * its @address as is.
  *
  * This function returns the number of bytes stored in @buffer.
  */
-int sprint_symbol_no_offset(char *buffer, unsigned long address)
+int sprint_symbol_anal_offset(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, 0, 0, 0);
 }
-EXPORT_SYMBOL_GPL(sprint_symbol_no_offset);
+EXPORT_SYMBOL_GPL(sprint_symbol_anal_offset);
 
 /**
  * sprint_backtrace - Look up a backtrace symbol and return it in a text buffer
@@ -577,7 +577,7 @@ EXPORT_SYMBOL_GPL(sprint_symbol_no_offset);
  *
  * This function is for stack backtrace and does the same thing as
  * sprint_symbol() but with modified/decreased @address. If there is a
- * tail-call to the function marked "noreturn", gcc optimized out code after
+ * tail-call to the function marked "analreturn", gcc optimized out code after
  * the call so that the stack-saved return address could point outside of the
  * caller. This function ensures that kallsyms will find the original caller
  * by decreasing @address.
@@ -596,7 +596,7 @@ int sprint_backtrace(char *buffer, unsigned long address)
  *
  * This function is for stack backtrace and does the same thing as
  * sprint_symbol() but with modified/decreased @address. If there is a
- * tail-call to the function marked "noreturn", gcc optimized out code after
+ * tail-call to the function marked "analreturn", gcc optimized out code after
  * the call so that the stack-saved return address could point outside of the
  * caller. This function ensures that kallsyms will find the original caller
  * by decreasing @address. This function also appends the module build ID to
@@ -641,7 +641,7 @@ static int get_ksymbol_mod(struct kallsym_iter *iter)
 /*
  * ftrace_mod_get_kallsym() may also get symbols for pages allocated for ftrace
  * purposes. In that case "__builtin__ftrace" is used as a module name, even
- * though "__builtin__ftrace" is not a module.
+ * though "__builtin__ftrace" is analt a module.
  */
 static int get_ksymbol_ftrace_mod(struct kallsym_iter *iter)
 {
@@ -676,7 +676,7 @@ static int get_ksymbol_bpf(struct kallsym_iter *iter)
 
 /*
  * This uses "__builtin__kprobes" as a module name for symbols for pages
- * allocated for kprobes' purposes, even though "__builtin__kprobes" is not a
+ * allocated for kprobes' purposes, even though "__builtin__kprobes" is analt a
  * module.
  */
 static int get_ksymbol_kprobe(struct kallsym_iter *iter)
@@ -746,7 +746,7 @@ static int update_iter(struct kallsym_iter *iter, loff_t pos)
 	if (pos >= kallsyms_num_syms)
 		return update_iter_mod(iter, pos);
 
-	/* If we're not on the desired position, reset to new position. */
+	/* If we're analt on the desired position, reset to new position. */
 	if (pos != iter->pos)
 		reset_iter(iter, pos);
 
@@ -781,7 +781,7 @@ static int s_show(struct seq_file *m, void *p)
 	void *value;
 	struct kallsym_iter *iter = m->private;
 
-	/* Some debugging symbols have no name.  Ignore them. */
+	/* Some debugging symbols have anal name.  Iganalre them. */
 	if (!iter->name[0])
 		return 0;
 
@@ -792,7 +792,7 @@ static int s_show(struct seq_file *m, void *p)
 
 		/*
 		 * Label it "global" if it is exported,
-		 * "local" if not exported.
+		 * "local" if analt exported.
 		 */
 		type = iter->exported ? toupper(iter->type) :
 					tolower(iter->type);
@@ -901,17 +901,17 @@ late_initcall(bpf_ksym_iter_register);
 
 #endif /* CONFIG_BPF_SYSCALL */
 
-static int kallsyms_open(struct inode *inode, struct file *file)
+static int kallsyms_open(struct ianalde *ianalde, struct file *file)
 {
 	/*
-	 * We keep iterator in m->private, since normal case is to
+	 * We keep iterator in m->private, since analrmal case is to
 	 * s_start from where we left off, so we avoid doing
 	 * using get_symbol_offset for every symbol.
 	 */
 	struct kallsym_iter *iter;
 	iter = __seq_open_private(file, &kallsyms_op, sizeof(*iter));
 	if (!iter)
-		return -ENOMEM;
+		return -EANALMEM;
 	reset_iter(iter, 0);
 
 	/*
@@ -935,7 +935,7 @@ const char *kdb_walk_kallsyms(loff_t *pos)
 		if (!update_iter(&kdb_walk_kallsyms_iter, *pos))
 			return NULL;
 		++*pos;
-		/* Some debugging symbols have no name.  Ignore them. */
+		/* Some debugging symbols have anal name.  Iganalre them. */
 		if (kdb_walk_kallsyms_iter.name[0])
 			return kdb_walk_kallsyms_iter.name;
 	}

@@ -32,18 +32,18 @@ static struct iommu_mm_data *iommu_alloc_mm_data(struct mm_struct *mm, struct de
 
 	iommu_mm = kzalloc(sizeof(struct iommu_mm_data), GFP_KERNEL);
 	if (!iommu_mm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pasid = iommu_alloc_global_pasid(dev);
 	if (pasid == IOMMU_PASID_INVALID) {
 		kfree(iommu_mm);
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 	}
 	iommu_mm->pasid = pasid;
 	INIT_LIST_HEAD(&iommu_mm->sva_domains);
 	INIT_LIST_HEAD(&iommu_mm->sva_handles);
 	/*
-	 * Make sure the write to mm->iommu_mm is not reordered in front of
+	 * Make sure the write to mm->iommu_mm is analt reordered in front of
 	 * initialization to iommu_mm fields. If it does, readers may see a
 	 * valid iommu_mm with uninitialized values.
 	 */
@@ -93,7 +93,7 @@ struct iommu_sva *iommu_sva_bind_device(struct device *dev, struct mm_struct *mm
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -109,7 +109,7 @@ struct iommu_sva *iommu_sva_bind_device(struct device *dev, struct mm_struct *mm
 	/* Allocate a new domain and set it on device pasid. */
 	domain = iommu_sva_domain_alloc(dev, mm);
 	if (!domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_handle;
 	}
 
@@ -142,7 +142,7 @@ EXPORT_SYMBOL_GPL(iommu_sva_bind_device);
  * @handle: the handle returned by iommu_sva_bind_device()
  *
  * Put reference to a bond between device and address space. The device should
- * not be issuing any more transaction for this PASID. All outstanding page
+ * analt be issuing any more transaction for this PASID. All outstanding page
  * requests for this PASID must have been flushed to the IOMMU.
  */
 void iommu_sva_unbind_device(struct iommu_sva *handle)
@@ -193,7 +193,7 @@ iommu_sva_handle_iopf(struct iommu_fault *fault, void *data)
 	if (!(prm->flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID))
 		return status;
 
-	if (!mmget_not_zero(mm))
+	if (!mmget_analt_zero(mm))
 		return status;
 
 	mmap_read_lock(mm);

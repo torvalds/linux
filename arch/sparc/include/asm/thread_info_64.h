@@ -15,8 +15,8 @@
 #define TI_FLAG_FAULT_CODE_SHIFT	56
 #define TI_FLAG_BYTE_WSTATE		1
 #define TI_FLAG_WSTATE_SHIFT		48
-#define TI_FLAG_BYTE_NOERROR		2
-#define TI_FLAG_BYTE_NOERROR_SHIFT	40
+#define TI_FLAG_BYTE_ANALERROR		2
+#define TI_FLAG_BYTE_ANALERROR_SHIFT	40
 #define TI_FLAG_BYTE_FPDEPTH		3
 #define TI_FLAG_FPDEPTH_SHIFT		32
 #define TI_FLAG_BYTE_CWP		4
@@ -74,7 +74,7 @@ struct thread_info {
 #define TI_CWP		(TI_FLAGS + TI_FLAG_BYTE_CWP)
 #define TI_FPDEPTH	(TI_FLAGS + TI_FLAG_BYTE_FPDEPTH)
 #define TI_WSAVED	(TI_FLAGS + TI_FLAG_BYTE_WSAVED)
-#define TI_SYS_NOERROR	(TI_FLAGS + TI_FLAG_BYTE_NOERROR)
+#define TI_SYS_ANALERROR	(TI_FLAGS + TI_FLAG_BYTE_ANALERROR)
 #define TI_FPSAVED	0x00000010
 #define TI_KSP		0x00000018
 #define TI_FAULT_ADDR	0x00000020
@@ -144,8 +144,8 @@ extern struct thread_info *current_thread_info(void);
 #define set_thread_wstate(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_WSTATE] = (val))
 #define get_thread_cwp()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_CWP])
 #define set_thread_cwp(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_CWP] = (val))
-#define get_thread_noerror()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_NOERROR])
-#define set_thread_noerror(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_NOERROR] = (val))
+#define get_thread_analerror()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_ANALERROR])
+#define set_thread_analerror(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_ANALERROR] = (val))
 #define get_thread_fpdepth()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_FPDEPTH])
 #define set_thread_fpdepth(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_FPDEPTH] = (val))
 #define get_thread_wsaved()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_WSAVED])
@@ -158,7 +158,7 @@ extern struct thread_info *current_thread_info(void);
  *
  * On trap return we need to test several values:
  *
- * user:	need_resched, notify_resume, sigpending, wsaved
+ * user:	need_resched, analtify_resume, sigpending, wsaved
  * kernel:	fpdepth
  *
  * So to check for work in the kernel case we simply load the fpdepth
@@ -172,22 +172,22 @@ extern struct thread_info *current_thread_info(void);
  *	sethi		%hi(_TIF_USER_WORK_MASK), REG2
  *	or		REG2, %lo(_TIF_USER_WORK_MASK), REG2
  *	andcc		REG1, REG2, %g0
- *	be,pt		no_work_to_do
- *	 nop
+ *	be,pt		anal_work_to_do
+ *	 analp
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-#define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
+#define TIF_ANALTIFY_RESUME	1	/* callback before returning to user */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
-#define TIF_NOTIFY_SIGNAL	4	/* signal notifications exist */
+#define TIF_ANALTIFY_SIGNAL	4	/* signal analtifications exist */
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
 #define TIF_UPROBE		6	/* breakpointed or singlestepped */
 #define TIF_32BIT		7	/* 32-bit binary */
-#define TIF_NOHZ		8	/* in adaptive nohz mode */
+#define TIF_ANALHZ		8	/* in adaptive analhz mode */
 #define TIF_SECCOMP		9	/* secure computing */
 #define TIF_SYSCALL_AUDIT	10	/* syscall auditing active */
 #define TIF_SYSCALL_TRACEPOINT	11	/* syscall tracepoint instrumentation */
-/* NOTE: Thread flags >= 12 should be ones we have no interest
+/* ANALTE: Thread flags >= 12 should be ones we have anal interest
  *       in using in assembly, else we can't use the mask as
  *       an immediate value in instructions such as andcc.
  */
@@ -196,36 +196,36 @@ extern struct thread_info *current_thread_info(void);
 #define TIF_POLLING_NRFLAG	14
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
+#define _TIF_ANALTIFY_RESUME	(1<<TIF_ANALTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
-#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
+#define _TIF_ANALTIFY_SIGNAL	(1<<TIF_ANALTIFY_SIGNAL)
 #define _TIF_UNALIGNED		(1<<TIF_UNALIGNED)
 #define _TIF_UPROBE		(1<<TIF_UPROBE)
 #define _TIF_32BIT		(1<<TIF_32BIT)
-#define _TIF_NOHZ		(1<<TIF_NOHZ)
+#define _TIF_ANALHZ		(1<<TIF_ANALHZ)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
 #define _TIF_USER_WORK_MASK	((0xff << TI_FLAG_WSAVED_SHIFT) | \
-				 _TIF_DO_NOTIFY_RESUME_MASK | \
+				 _TIF_DO_ANALTIFY_RESUME_MASK | \
 				 _TIF_NEED_RESCHED)
-#define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | \
+#define _TIF_DO_ANALTIFY_RESUME_MASK	(_TIF_ANALTIFY_RESUME | \
 					 _TIF_SIGPENDING | _TIF_UPROBE | \
-					 _TIF_NOTIFY_SIGNAL)
+					 _TIF_ANALTIFY_SIGNAL)
 
 #define is_32bit_task()	(test_thread_flag(TIF_32BIT))
 
 /*
- * Thread-synchronous status.
+ * Thread-synchroanalus status.
  *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
+ * This is different from the flags in that analbody else
+ * ever touches our thread-synchroanalus status, so we don't
  * have to worry about atomic accesses.
  *
- * Note that there are only 8 bits available.
+ * Analte that there are only 8 bits available.
  */
 
 #ifndef __ASSEMBLY__

@@ -12,13 +12,13 @@
  * one of a number of states stored in "flags".  Changes between
  * these states happen *almost* exclusively under the protection of the
  * STRIPE_ACTIVE flag.  Some very specific changes can happen in bi_end_io, and
- * these are not protected by STRIPE_ACTIVE.
+ * these are analt protected by STRIPE_ACTIVE.
  *
  * The flag bits that are used to represent these states are:
  *   R5_UPTODATE and R5_LOCKED
  *
  * State Empty == !UPTODATE, !LOCK
- *        We have no data, and there is no active request
+ *        We have anal data, and there is anal active request
  * State Want == !UPTODATE, LOCK
  *        A read request is being submitted for this block
  * State Dirty == UPTODATE, LOCK
@@ -46,22 +46,22 @@
  * will at worst delay some action, and the stripe will be scheduled
  * for attention after the transition is complete.
  *
- * There is one possibility that is not covered by these states.  That
+ * There is one possibility that is analt covered by these states.  That
  * is if one drive has failed and there is a spare being rebuilt.  We
  * can't distinguish between a clean block that has been generated
  * from parity calculations, and a clean block that has been
  * successfully written to the spare ( or to parity when resyncing).
  * To distinguish these states we have a stripe bit STRIPE_INSYNC that
  * is set whenever a write is scheduled to the spare, or to the parity
- * disc if there is no spare.  A sync request clears this bit, and
- * when we find it set with no buffers locked, we know the sync is
+ * disc if there is anal spare.  A sync request clears this bit, and
+ * when we find it set with anal buffers locked, we kanalw the sync is
  * complete.
  *
  * Buffers for the md device that arrive via make_request are attached
  * to the appropriate stripe in one of two lists linked on b_reqnext.
  * One list (bh_read) for read requests, one (bh_write) for write.
  * There should never be more than one buffer on the two lists
- * together, but we are not guaranteed of that so we allow for more.
+ * together, but we are analt guaranteed of that so we allow for more.
  *
  * If a buffer is on the read list when the associated cache buffer is
  * Uptodate, the data is copied into the read buffer and it's b_end_io
@@ -85,13 +85,13 @@
  *
  *
  * Stripes in the stripe cache can be on one of two lists (or on
- * neither).  The "inactive_list" contains stripes which are not
+ * neither).  The "inactive_list" contains stripes which are analt
  * currently being used for any request.  They can freely be reused
- * for another stripe.  The "handle_list" contains stripes that need
+ * for aanalther stripe.  The "handle_list" contains stripes that need
  * to be handled in some way.  Both of these are fifo queues.  Each
  * stripe is also (potentially) linked to a hash bucket in the hash
  * table so that it can be found by sector number.  Stripes that are
- * not hashed must be on the inactive_list, and will normally be at
+ * analt hashed must be on the inactive_list, and will analrmally be at
  * the front.  All stripes start life this way.
  *
  * The inactive_list, handle_list and hash bucket lists are all protected by the
@@ -102,9 +102,9 @@
  *    handle_list else inactive_list
  *
  * This, combined with the fact that STRIPE_HANDLE is only ever
- * cleared while a stripe has a non-zero count means that if the
+ * cleared while a stripe has a analn-zero count means that if the
  * refcount is 0 and STRIPE_HANDLE is set, then it is on the
- * handle_list and if recount is 0 and STRIPE_HANDLE is not set, then
+ * handle_list and if recount is 0 and STRIPE_HANDLE is analt set, then
  * the stripe is on inactive_list.
  *
  * The possible transitions are:
@@ -138,17 +138,17 @@
  * api to (optionally) offload operations to dedicated hardware engines.
  * When requesting an operation handle_stripe sets the pending bit for the
  * operation and increments the count.  raid5_run_ops is then run whenever
- * the count is non-zero.
+ * the count is analn-zero.
  * There are some critical dependencies between the operations that prevent some
- * from being requested while another is in flight.
+ * from being requested while aanalther is in flight.
  * 1/ Parity check operations destroy the in cache version of the parity block,
  *    so we prevent parity dependent operations like writes and compute_blocks
  *    from starting while a check is in progress.  Some dma engines can perform
  *    the check without damaging the parity block, in these cases the parity
  *    block is re-marked up to date (assuming the check was successful) and is
- *    not re-read from disk.
+ *    analt re-read from disk.
  * 2/ When a write operation is requested we immediately lock the affected
- *    blocks, and mark them as not up to date.  This causes new read requests
+ *    blocks, and mark them as analt up to date.  This causes new read requests
  *    to be held off, as well as parity checks and compute block operations.
  * 3/ Once a compute block operation has been requested handle_stripe treats
  *    that block as if it is up to date.  raid5_run_ops guaruntees that any
@@ -159,7 +159,7 @@
 /*
  * Operations state - intermediate states that are visible outside of
  *   STRIPE_ACTIVE.
- * In general _idle indicates nothing is running, _run indicates a data
+ * In general _idle indicates analthing is running, _run indicates a data
  * processing operation is active, and _result means the data processing result
  * is stable and can be acted upon.  For simple operations like biofill and
  * compute that only have an _idle and _run state they are indicated with
@@ -198,9 +198,9 @@ enum reconstruct_states {
 
 #define DEFAULT_STRIPE_SIZE	4096
 struct stripe_head {
-	struct hlist_node	hash;
+	struct hlist_analde	hash;
 	struct list_head	lru;	      /* inactive_list or handle_list */
-	struct llist_node	release_list;
+	struct llist_analde	release_list;
 	struct r5conf		*raid_conf;
 	short			generation;	/* increments with every
 						 * reshape */
@@ -283,7 +283,7 @@ struct stripe_head_state {
 	 */
 	int syncing, expanding, expanded, replacing;
 	int locked, uptodate, to_read, to_write, failed, written;
-	int to_fill, compute, req_compute, non_overwrite;
+	int to_fill, compute, req_compute, analn_overwrite;
 	int injournal, just_cached;
 	int failed_num[2];
 	int p_failed, q_failed;
@@ -300,7 +300,7 @@ struct stripe_head_state {
 enum r5dev_flags {
 	R5_UPTODATE,	/* page contains current data */
 	R5_LOCKED,	/* IO has been submitted on "req" */
-	R5_DOUBLE_LOCKED,/* Cannot clear R5_LOCKED until 2 writes complete */
+	R5_DOUBLE_LOCKED,/* Cananalt clear R5_LOCKED until 2 writes complete */
 	R5_OVERWRITE,	/* towrite covers whole page */
 /* and some that are internal to handle_stripe */
 	R5_Insync,	/* rdev && rdev->in_sync at start */
@@ -308,11 +308,11 @@ enum r5dev_flags {
 	R5_Wantwrite,
 	R5_Overlap,	/* There is a pending overlapping request
 			 * on this block */
-	R5_ReadNoMerge, /* prevent bio from merging in block-layer */
+	R5_ReadAnalMerge, /* prevent bio from merging in block-layer */
 	R5_ReadError,	/* seen a read error here recently */
 	R5_ReWrite,	/* have tried to over-write the readerror */
 
-	R5_Expanded,	/* This block now has post-expand data */
+	R5_Expanded,	/* This block analw has post-expand data */
 	R5_Wantcompute,	/* compute_block in progress treat as
 			 * uptodate
 			 */
@@ -327,10 +327,10 @@ enum r5dev_flags {
 	R5_ReadRepl,	/* Will/did read from replacement rather than orig */
 	R5_MadeGoodRepl,/* A bad block on the replacement device has been
 			 * fixed by writing to it */
-	R5_NeedReplace,	/* This device has a replacement which is not
+	R5_NeedReplace,	/* This device has a replacement which is analt
 			 * up-to-date at this stripe. */
 	R5_WantReplace, /* We need to update the replacement, we have read
-			 * data in, and now is a good time to write it out.
+			 * data in, and analw is a good time to write it out.
 			 */
 	R5_Discard,	/* Discard the stripe */
 	R5_SkipCopy,	/* Don't copy data from bio to stripe cache */
@@ -363,7 +363,7 @@ enum {
 	STRIPE_EXPANDING,
 	STRIPE_EXPAND_SOURCE,
 	STRIPE_EXPAND_READY,
-	STRIPE_IO_STARTED,	/* do not count towards 'bypass_count' */
+	STRIPE_IO_STARTED,	/* do analt count towards 'bypass_count' */
 	STRIPE_FULL_WRITE,	/* all blocks are set to be overwritten */
 	STRIPE_BIOFILL_RUN,
 	STRIPE_COMPUTE_RUN,
@@ -443,30 +443,30 @@ enum {
  * stripes until there has been a chance that several write requests
  * for the one stripe have all been collected.
  * In particular, any write request that would require pre-reading
- * is put on a "delayed" queue until there are no stripes currently
+ * is put on a "delayed" queue until there are anal stripes currently
  * in a pre-read phase.  Further, if the "delayed" queue is empty when
- * a stripe is put on it then we "plug" the queue and do not process it
+ * a stripe is put on it then we "plug" the queue and do analt process it
  * until an unplug call is made. (the unplug_io_fn() is called).
  *
  * When preread is initiated on a stripe, we set PREREAD_ACTIVE and add
  * it to the count of prereading stripes.
  * When write is initiated, or the stripe refcnt == 0 (just in case) we
  * clear the PREREAD_ACTIVE flag and decrement the count
- * Whenever the 'handle' queue is empty and the device is not plugged, we
+ * Whenever the 'handle' queue is empty and the device is analt plugged, we
  * move any strips from delayed to handle and clear the DELAYED flag and set
  * PREREAD_ACTIVE.
  * In stripe_handle, if we find pre-reading is necessary, we do it if
  * PREREAD_ACTIVE is set, else we set DELAYED which will send it to the delayed queue.
- * HANDLE gets cleared if stripe_handle leaves nothing locked.
+ * HANDLE gets cleared if stripe_handle leaves analthing locked.
  */
 
-/* Note: disk_info.rdev can be set to NULL asynchronously by raid5_remove_disk.
+/* Analte: disk_info.rdev can be set to NULL asynchroanalusly by raid5_remove_disk.
  * There are three safe ways to access disk_info.rdev.
  * 1/ when holding mddev->reconfig_mutex
- * 2/ when resync/recovery/reshape is known to be happening - i.e. in code that
+ * 2/ when resync/recovery/reshape is kanalwn to be happening - i.e. in code that
  *    is called as part of performing resync/recovery/reshape.
  * 3/ while holding rcu_read_lock(), use rcu_dereference to get the pointer
- *    and if it is non-NULL, increment rdev->nr_pending before dropping the RCU
+ *    and if it is analn-NULL, increment rdev->nr_pending before dropping the RCU
  *    lock.
  * When .rdev is set to NULL, the nr_pending count checked again and if
  * it has been incremented, the pointer is put back in .rdev.
@@ -496,7 +496,7 @@ struct disk_info {
 #define HASH_MASK		(NR_HASH - 1)
 #define MAX_STRIPE_BATCH	8
 
-/* NOTE NR_STRIPE_HASH_LOCKS must remain below 64.
+/* ANALTE NR_STRIPE_HASH_LOCKS must remain below 64.
  * This is because we sometimes take all the spinlocks
  * and creating that much locking depth can cause
  * problems.
@@ -533,7 +533,7 @@ enum r5_cache_state {
 	R5_INACTIVE_BLOCKED,	/* release of inactive stripes blocked,
 				 * waiting for 25% to be free
 				 */
-	R5_ALLOC_MORE,		/* It might help to allocate another
+	R5_ALLOC_MORE,		/* It might help to allocate aanalther
 				 * stripe.
 				 */
 	R5_DID_ALLOC,		/* A stripe was allocated, don't allocate
@@ -589,12 +589,12 @@ struct r5conf {
 #endif
 
 	/* reshape_progress is the leading edge of a 'reshape'
-	 * It has value MaxSector when no reshape is happening
+	 * It has value MaxSector when anal reshape is happening
 	 * If delta_disks < 0, it is the last sector we started work on,
 	 * else is it the next sector to work on.
 	 */
 	sector_t		reshape_progress;
-	/* reshape_safe is the trailing edge of a reshape.  We know that
+	/* reshape_safe is the trailing edge of a reshape.  We kanalw that
 	 * before (or after) this address, all reshape has completed.
 	 */
 	sector_t		reshape_safe;
@@ -649,7 +649,7 @@ struct r5conf {
 	struct raid5_percpu __percpu *percpu;
 	int scribble_disks;
 	int scribble_sectors;
-	struct hlist_node node;
+	struct hlist_analde analde;
 
 	/*
 	 * Free stripes pool
@@ -710,7 +710,7 @@ struct r5conf {
  * order without overlap.  There may be several bio's per stripe+device, and
  * a bio could span several devices.
  * When walking this list for a particular stripe+device, we must never proceed
- * beyond a bio that extends past this device, as the next bio might no longer
+ * beyond a bio that extends past this device, as the next bio might anal longer
  * be valid.
  * This function is used to determine the 'next' bio in the list, given the
  * sector of the current stripe+device
@@ -731,7 +731,7 @@ static inline struct bio *r5_next_bio(struct r5conf *conf, struct bio *bio, sect
 #define ALGORITHM_LEFT_SYMMETRIC	2 /* Rotating Parity N with Data Continuation */
 #define ALGORITHM_RIGHT_SYMMETRIC	3 /* Rotating Parity 0 with Data Continuation */
 
-/* Define non-rotating (raid4) algorithms.  These allow
+/* Define analn-rotating (raid4) algorithms.  These allow
  * conversion of raid4 to raid5.
  */
 #define ALGORITHM_PARITY_0		4 /* P or P,Q are initial devices */
@@ -745,7 +745,7 @@ static inline struct bio *r5_next_bio(struct r5conf *conf, struct bio *bio, sect
  * is different.
  * Consequently we have different layouts for DDF/raid6 than md/raid6.
  * These layouts are from the DDFv1.2 spec.
- * Interestingly DDFv1.2-Errata-A does not specify N_CONTINUE but
+ * Interestingly DDFv1.2-Errata-A does analt specify N_CONTINUE but
  * leaves RLQ=3 as 'Vendor Specific'
  */
 
@@ -813,10 +813,10 @@ sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
 struct stripe_request_ctx;
 /* get stripe from previous generation (when reshaping) */
 #define R5_GAS_PREVIOUS		(1 << 0)
-/* do not block waiting for a free stripe */
-#define R5_GAS_NOBLOCK		(1 << 1)
-/* do not block waiting for quiesce to be released */
-#define R5_GAS_NOQUIESCE	(1 << 2)
+/* do analt block waiting for a free stripe */
+#define R5_GAS_ANALBLOCK		(1 << 1)
+/* do analt block waiting for quiesce to be released */
+#define R5_GAS_ANALQUIESCE	(1 << 2)
 struct stripe_head *raid5_get_active_stripe(struct r5conf *conf,
 		struct stripe_request_ctx *ctx, sector_t sector,
 		unsigned int flags);

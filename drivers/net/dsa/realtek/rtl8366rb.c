@@ -26,7 +26,7 @@
 
 #define RTL8366RB_PORT_NUM_CPU		5
 #define RTL8366RB_NUM_PORTS		6
-#define RTL8366RB_PHY_NO_MAX		4
+#define RTL8366RB_PHY_ANAL_MAX		4
 #define RTL8366RB_PHY_ADDR_MAX		31
 
 /* Switch Global Configuration register */
@@ -51,7 +51,7 @@
 #define RTL8366RB_SECURITY_CTRL			0x0003
 
 #define RTL8366RB_SSCR2				0x0004
-#define RTL8366RB_SSCR2_DROP_UNKNOWN_DA		BIT(0)
+#define RTL8366RB_SSCR2_DROP_UNKANALWN_DA		BIT(0)
 
 /* Port Mode Control registers */
 #define RTL8366RB_PMC0				0x0005
@@ -121,7 +121,7 @@
 #define RTL8366RB_CPU_CTRL_REG		0x0061
 #define RTL8366RB_CPU_PORTS_MSK		0x00FF
 /* Disables inserting custom tag length/type 0x8899 */
-#define RTL8366RB_CPU_NO_TAG		BIT(15)
+#define RTL8366RB_CPU_ANAL_TAG		BIT(15)
 #define RTL8366RB_CPU_TAG_SIZE		4
 
 #define RTL8366RB_SMAR0			0x0070 /* bits 0..15 */
@@ -152,8 +152,8 @@
 #define RTL8366RB_PHY_REG_MASK			0x1f
 #define RTL8366RB_PHY_PAGE_OFFSET		5
 #define RTL8366RB_PHY_PAGE_MASK			(0xf << 5)
-#define RTL8366RB_PHY_NO_OFFSET			9
-#define RTL8366RB_PHY_NO_MASK			(0x1f << 9)
+#define RTL8366RB_PHY_ANAL_OFFSET			9
+#define RTL8366RB_PHY_ANAL_MASK			(0x1f << 9)
 
 /* VLAN Ingress Control Register 1, one bit per port.
  * bit 0 .. 5 will make the switch drop ingress frames without
@@ -167,7 +167,7 @@
 
 /* VLAN Ingress Control Register 2, one bit per port.
  * bit0 .. bit5 will make the switch drop all ingress frames with
- * a VLAN classification that does not include the port is in its
+ * a VLAN classification that does analt include the port is in its
  * member set.
  */
 #define RTL8366RB_VLAN_INGRESS_CTRL2_REG	0x037f
@@ -376,7 +376,7 @@ static struct rtl8366_mib_counter rtl8366rb_mib_counters[] = {
 	{ 0, 36, 2, "Dot3StatsFCSErrors"			},
 	{ 0, 38, 2, "Dot3StatsSymbolErrors"			},
 	{ 0, 40, 2, "Dot3InPauseFrames"				},
-	{ 0, 42, 2, "Dot3ControlInUnknownOpcodes"		},
+	{ 0, 42, 2, "Dot3ControlInUnkanalwnOpcodes"		},
 	{ 0, 44, 4, "IfOutOctets"				},
 	{ 0, 48, 2, "Dot3StatsSingleCollisionFrames"		},
 	{ 0, 50, 2, "Dot3StatMultipleCollisionFrames"		},
@@ -457,7 +457,7 @@ static void rtl8366rb_mask_irq(struct irq_data *d)
 	ret = regmap_update_bits(priv->map, RTL8366RB_INTERRUPT_MASK_REG,
 				 rtl8366rb_get_irqmask(d), 0);
 	if (ret)
-		dev_err(priv->dev, "could not mask IRQ\n");
+		dev_err(priv->dev, "could analt mask IRQ\n");
 }
 
 static void rtl8366rb_unmask_irq(struct irq_data *d)
@@ -469,7 +469,7 @@ static void rtl8366rb_unmask_irq(struct irq_data *d)
 				 rtl8366rb_get_irqmask(d),
 				 rtl8366rb_get_irqmask(d));
 	if (ret)
-		dev_err(priv->dev, "could not unmask IRQ\n");
+		dev_err(priv->dev, "could analt unmask IRQ\n");
 }
 
 static irqreturn_t rtl8366rb_irq(int irq, void *data)
@@ -483,11 +483,11 @@ static irqreturn_t rtl8366rb_irq(int irq, void *data)
 			  &stat);
 	if (ret) {
 		dev_err(priv->dev, "can't read interrupt status\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	stat &= RTL8366RB_INTERRUPT_VALID;
 	if (!stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	while (stat) {
 		int line = __ffs(stat);
 		int child_irq;
@@ -516,7 +516,7 @@ static int rtl8366rb_irq_map(struct irq_domain *domain, unsigned int irq,
 	irq_set_chip_data(irq, domain->host_data);
 	irq_set_chip_and_handler(irq, &rtl8366rb_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -536,16 +536,16 @@ static const struct irq_domain_ops rtl8366rb_irqdomain_ops = {
 
 static int rtl8366rb_setup_cascaded_irq(struct realtek_priv *priv)
 {
-	struct device_node *intc;
+	struct device_analde *intc;
 	unsigned long irq_trig;
 	int irq;
 	int ret;
 	u32 val;
 	int i;
 
-	intc = of_get_child_by_name(priv->dev->of_node, "interrupt-controller");
+	intc = of_get_child_by_name(priv->dev->of_analde, "interrupt-controller");
 	if (!intc) {
-		dev_err(priv->dev, "missing child interrupt-controller node\n");
+		dev_err(priv->dev, "missing child interrupt-controller analde\n");
 		return -EINVAL;
 	}
 	/* RB8366RB IRQs cascade off this one */
@@ -553,7 +553,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_priv *priv)
 	if (irq <= 0) {
 		dev_err(priv->dev, "failed to get parent IRQ\n");
 		ret = irq ? irq : -EINVAL;
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	/* This clears the IRQ status register */
@@ -561,7 +561,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_priv *priv)
 			  &val);
 	if (ret) {
 		dev_err(priv->dev, "can't read interrupt status\n");
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	/* Fetch IRQ edge information from the descriptor */
@@ -582,8 +582,8 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_priv *priv)
 				 RTL8366RB_INTERRUPT_POLARITY,
 				 val);
 	if (ret) {
-		dev_err(priv->dev, "could not configure IRQ polarity\n");
-		goto out_put_node;
+		dev_err(priv->dev, "could analt configure IRQ polarity\n");
+		goto out_put_analde;
 	}
 
 	ret = devm_request_threaded_irq(priv->dev, irq, NULL,
@@ -591,7 +591,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_priv *priv)
 					"RTL8366RB", priv);
 	if (ret) {
 		dev_err(priv->dev, "unable to request irq: %d\n", ret);
-		goto out_put_node;
+		goto out_put_analde;
 	}
 	priv->irqdomain = irq_domain_add_linear(intc,
 						RTL8366RB_NUM_INTERRUPT,
@@ -600,13 +600,13 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_priv *priv)
 	if (!priv->irqdomain) {
 		dev_err(priv->dev, "failed to create IRQ domain\n");
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_analde;
 	}
 	for (i = 0; i < priv->num_ports; i++)
 		irq_set_parent(irq_create_mapping(priv->irqdomain, i), irq);
 
-out_put_node:
-	of_node_put(intc);
+out_put_analde:
+	of_analde_put(intc);
 	return ret;
 }
 
@@ -749,7 +749,7 @@ static const struct rtl8366rb_jam_tbl_entry rtl8366rb_init_jam_dgn3500[] = {
 };
 
 /* This jam table activates "green ethernet", which means low power mode
- * and is claimed to detect the cable length and not use more power than
+ * and is claimed to detect the cable length and analt use more power than
  * necessary, and the ports should enter power saving mode 10 seconds after
  * a cable is disconnected. Seems to always be the same.
  */
@@ -820,8 +820,8 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	case RTL8366RB_CHIP_ID_8366:
 		break;
 	default:
-		dev_err(priv->dev, "unknown chip id (%04x)\n", chip_id);
-		return -ENODEV;
+		dev_err(priv->dev, "unkanalwn chip id (%04x)\n", chip_id);
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(priv->map, RTL8366RB_CHIP_VERSION_CTRL_REG,
@@ -914,7 +914,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	/* Enable CPU port with custom DSA tag 8899.
 	 *
-	 * If you set RTL8366RB_CPU_NO_TAG (bit 15) in this register
+	 * If you set RTL8366RB_CPU_ANAL_TAG (bit 15) in this register
 	 * the custom tag is turned off.
 	 */
 	ret = regmap_update_bits(priv->map, RTL8366RB_CPU_CTRL_REG,
@@ -956,8 +956,8 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		return ret;
 
 	/* Port 4 setup: this enables Port 4, usually the WAN port,
-	 * common PHY IO mode is apparently mode 0, and this is not what
-	 * the port is initialized to. There is no explanation of the
+	 * common PHY IO mode is apparently mode 0, and this is analt what
+	 * the port is initialized to. There is anal explanation of the
 	 * IO modes in the Realtek source code, if your WAN port is
 	 * connected to something exotic such as fiber, then this might
 	 * be worth experimenting with.
@@ -978,9 +978,9 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Don't drop packets whose DA has not been learned */
+	/* Don't drop packets whose DA has analt been learned */
 	ret = regmap_update_bits(priv->map, RTL8366RB_SSCR2,
-				 RTL8366RB_SSCR2_DROP_UNKNOWN_DA, 0);
+				 RTL8366RB_SSCR2_DROP_UNKANALWN_DA, 0);
 	if (ret)
 		return ret;
 
@@ -993,7 +993,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	/* Set up LED activity:
 	 * Each port has 4 LEDs, we configure all ports to the same
-	 * behaviour (no individual config) but we can set up each
+	 * behaviour (anal individual config) but we can set up each
 	 * LED separately.
 	 */
 	if (priv->leds_disabled) {
@@ -1028,13 +1028,13 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	ret = rtl8366rb_setup_cascaded_irq(priv);
 	if (ret)
-		dev_info(priv->dev, "no interrupt support\n");
+		dev_info(priv->dev, "anal interrupt support\n");
 
 	if (priv->setup_interface) {
 		ret = priv->setup_interface(ds);
 		if (ret) {
-			dev_err(priv->dev, "could not set up MDIO bus\n");
-			return -ENODEV;
+			dev_err(priv->dev, "could analt set up MDIO bus\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -1084,7 +1084,7 @@ rtl8366rb_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 	unsigned int val;
 	int ret;
 
-	/* Allow forcing the mode on the fixed CPU port, no autonegotiation.
+	/* Allow forcing the mode on the fixed CPU port, anal autonegotiation.
 	 * We assume autonegotiation works on the PHY-facing ports.
 	 */
 	if (port != priv->cpu_port)
@@ -1205,7 +1205,7 @@ static void rb8366rb_set_port_led(struct realtek_priv *priv,
 					 enable ? RTL8366RB_P4_RGMII_LED : 0);
 		break;
 	default:
-		dev_err(priv->dev, "no LED for port %d\n", port);
+		dev_err(priv->dev, "anal LED for port %d\n", port);
 		return;
 	}
 	if (ret)
@@ -1259,7 +1259,7 @@ rtl8366rb_port_bridge_join(struct dsa_switch *ds, int port,
 		/* Current port handled last */
 		if (i == port)
 			continue;
-		/* Not on this bridge */
+		/* Analt on this bridge */
 		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
 			continue;
 		/* Join this port to each other port on the bridge */
@@ -1291,7 +1291,7 @@ rtl8366rb_port_bridge_leave(struct dsa_switch *ds, int port,
 		/* Current port handled last */
 		if (i == port)
 			continue;
-		/* Not on this bridge */
+		/* Analt on this bridge */
 		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
 			continue;
 		/* Remove this port from any other port on the bridge */
@@ -1303,7 +1303,7 @@ rtl8366rb_port_bridge_leave(struct dsa_switch *ds, int port,
 		port_bitmap |= BIT(i);
 	}
 
-	/* Clear the bits for the ports we can not access, leave ourselves */
+	/* Clear the bits for the ports we can analt access, leave ourselves */
 	regmap_update_bits(priv->map, RTL8366RB_PORT_ISO(port),
 			   RTL8366RB_PORT_ISO_PORTS(port_bitmap), 0);
 }
@@ -1336,14 +1336,14 @@ static int rtl8366rb_vlan_filtering(struct dsa_switch *ds, int port,
 	dev_dbg(priv->dev, "port %d: %s VLAN filtering\n", port,
 		vlan_filtering ? "enable" : "disable");
 
-	/* If the port is not in the member set, the frame will be dropped */
+	/* If the port is analt in the member set, the frame will be dropped */
 	ret = regmap_update_bits(priv->map, RTL8366RB_VLAN_INGRESS_CTRL2_REG,
 				 BIT(port), vlan_filtering ? BIT(port) : 0);
 	if (ret)
 		return ret;
 
 	/* If VLAN filtering is enabled and PVID is also enabled, we must
-	 * not drop any untagged or C-tagged frames. If we turn off VLAN
+	 * analt drop any untagged or C-tagged frames. If we turn off VLAN
 	 * filtering on a port, we need to accept any frames.
 	 */
 	if (vlan_filtering)
@@ -1407,7 +1407,7 @@ rtl8366rb_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 		val = RTL8366RB_STP_STATE_FORWARDING;
 		break;
 	default:
-		dev_err(priv->dev, "unknown bridge state requested\n");
+		dev_err(priv->dev, "unkanalwn bridge state requested\n");
 		return;
 	}
 
@@ -1427,7 +1427,7 @@ rtl8366rb_port_fast_age(struct dsa_switch *ds, int port)
 	/* This will age out any learned L2 entries */
 	regmap_update_bits(priv->map, RTL8366RB_SECURITY_CTRL,
 			   BIT(port), BIT(port));
-	/* Restore the normal state of things */
+	/* Restore the analrmal state of things */
 	regmap_update_bits(priv->map, RTL8366RB_SECURITY_CTRL,
 			   BIT(port), 0);
 }
@@ -1445,7 +1445,7 @@ static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	rb->max_mtu[port] = new_mtu;
 
 	/* Roof out the MTU for the entire switch to the greatest
-	 * common denominator: the biggest set for any one port will
+	 * common deanalminator: the biggest set for any one port will
 	 * be the biggest MTU for the switch.
 	 */
 	max_mtu = ETH_DATA_LEN;
@@ -1483,7 +1483,7 @@ static int rtl8366rb_max_mtu(struct dsa_switch *ds, int port)
 {
 	/* The max MTU is 16000 bytes, so we subtract the ethernet
 	 * headers with VLAN and checksum and arrive at
-	 * 16000 - 18 - 4 = 15978. This does not include the CPU tag
+	 * 16000 - 18 - 4 = 15978. This does analt include the CPU tag
 	 * since that is added to the requested MTU by the DSA framework.
 	 */
 	return 16000 - VLAN_ETH_HLEN - ETH_FCS_LEN;
@@ -1671,7 +1671,7 @@ static int rtl8366rb_set_mc_index(struct realtek_priv *priv, int port, int index
 	rb->pvid_enabled[port] = pvid_enabled;
 
 	/* If VLAN filtering is enabled and PVID is also enabled, we must
-	 * not drop any untagged or C-tagged frames. Make sure to update the
+	 * analt drop any untagged or C-tagged frames. Make sure to update the
 	 * filtering setting.
 	 */
 	if (dsa_port_is_vlan_filtering(dsa_to_port(priv->ds, port)))
@@ -1715,19 +1715,19 @@ static int rtl8366rb_phy_read(struct realtek_priv *priv, int phy, int regnum)
 	u32 reg;
 	int ret;
 
-	if (phy > RTL8366RB_PHY_NO_MAX)
+	if (phy > RTL8366RB_PHY_ANAL_MAX)
 		return -EINVAL;
 
 	mutex_lock(&priv->map_lock);
 
-	ret = regmap_write(priv->map_nolock, RTL8366RB_PHY_ACCESS_CTRL_REG,
+	ret = regmap_write(priv->map_anallock, RTL8366RB_PHY_ACCESS_CTRL_REG,
 			   RTL8366RB_PHY_CTRL_READ);
 	if (ret)
 		goto out;
 
-	reg = 0x8000 | (1 << (phy + RTL8366RB_PHY_NO_OFFSET)) | regnum;
+	reg = 0x8000 | (1 << (phy + RTL8366RB_PHY_ANAL_OFFSET)) | regnum;
 
-	ret = regmap_write(priv->map_nolock, reg, 0);
+	ret = regmap_write(priv->map_anallock, reg, 0);
 	if (ret) {
 		dev_err(priv->dev,
 			"failed to write PHY%d reg %04x @ %04x, ret %d\n",
@@ -1735,7 +1735,7 @@ static int rtl8366rb_phy_read(struct realtek_priv *priv, int phy, int regnum)
 		goto out;
 	}
 
-	ret = regmap_read(priv->map_nolock, RTL8366RB_PHY_ACCESS_DATA_REG,
+	ret = regmap_read(priv->map_anallock, RTL8366RB_PHY_ACCESS_DATA_REG,
 			  &val);
 	if (ret)
 		goto out;
@@ -1757,22 +1757,22 @@ static int rtl8366rb_phy_write(struct realtek_priv *priv, int phy, int regnum,
 	u32 reg;
 	int ret;
 
-	if (phy > RTL8366RB_PHY_NO_MAX)
+	if (phy > RTL8366RB_PHY_ANAL_MAX)
 		return -EINVAL;
 
 	mutex_lock(&priv->map_lock);
 
-	ret = regmap_write(priv->map_nolock, RTL8366RB_PHY_ACCESS_CTRL_REG,
+	ret = regmap_write(priv->map_anallock, RTL8366RB_PHY_ACCESS_CTRL_REG,
 			   RTL8366RB_PHY_CTRL_WRITE);
 	if (ret)
 		goto out;
 
-	reg = 0x8000 | (1 << (phy + RTL8366RB_PHY_NO_OFFSET)) | regnum;
+	reg = 0x8000 | (1 << (phy + RTL8366RB_PHY_ANAL_OFFSET)) | regnum;
 
 	dev_dbg(priv->dev, "write PHY%d register 0x%04x @ %04x, val -> %04x\n",
 		phy, regnum, reg, val);
 
-	ret = regmap_write(priv->map_nolock, reg, val);
+	ret = regmap_write(priv->map_anallock, reg, val);
 	if (ret)
 		goto out;
 
@@ -1799,7 +1799,7 @@ static int rtl8366rb_reset_chip(struct realtek_priv *priv)
 	u32 val;
 	int ret;
 
-	priv->write_reg_noack(priv, RTL8366RB_RESET_CTRL_REG,
+	priv->write_reg_analack(priv, RTL8366RB_RESET_CTRL_REG,
 			      RTL8366RB_CHIP_CTRL_RESET_HW);
 	do {
 		usleep_range(20000, 25000);
@@ -1835,8 +1835,8 @@ static int rtl8366rb_detect(struct realtek_priv *priv)
 	switch (val) {
 	case 0x6027:
 		dev_info(dev, "found an RTL8366S switch\n");
-		dev_err(dev, "this switch is not yet supported, submit patches!\n");
-		return -ENODEV;
+		dev_err(dev, "this switch is analt yet supported, submit patches!\n");
+		return -EANALDEV;
 	case 0x5937:
 		dev_info(dev, "found an RTL8366RB switch\n");
 		priv->cpu_port = RTL8366RB_PORT_NUM_CPU;
@@ -1846,7 +1846,7 @@ static int rtl8366rb_detect(struct realtek_priv *priv)
 		priv->num_mib_counters = ARRAY_SIZE(rtl8366rb_mib_counters);
 		break;
 	default:
-		dev_info(dev, "found an Unknown Realtek switch (id=0x%04x)\n",
+		dev_info(dev, "found an Unkanalwn Realtek switch (id=0x%04x)\n",
 			 val);
 		break;
 	}

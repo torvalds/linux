@@ -52,8 +52,8 @@ static const struct qeth_stats card_stats[] = {
 	QETH_CARD_STAT("rx0 SG skbs", rx_sg_skbs),
 	QETH_CARD_STAT("rx0 SG page frags", rx_sg_frags),
 	QETH_CARD_STAT("rx0 SG page allocs", rx_sg_alloc_page),
-	QETH_CARD_STAT("rx0 dropped, no memory", rx_dropped_nomem),
-	QETH_CARD_STAT("rx0 dropped, bad format", rx_dropped_notsupp),
+	QETH_CARD_STAT("rx0 dropped, anal memory", rx_dropped_analmem),
+	QETH_CARD_STAT("rx0 dropped, bad format", rx_dropped_analtsupp),
 	QETH_CARD_STAT("rx0 dropped, runt", rx_dropped_runt),
 };
 
@@ -91,7 +91,7 @@ static int qeth_get_sset_count(struct net_device *dev, int stringset)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		return CARD_STATS_LEN +
-		       card->qdio.no_out_queues * TXQ_STATS_LEN;
+		       card->qdio.anal_out_queues * TXQ_STATS_LEN;
 	default:
 		return -EINVAL;
 	}
@@ -104,7 +104,7 @@ static void qeth_get_ethtool_stats(struct net_device *dev,
 	unsigned int i;
 
 	qeth_add_stat_data(&data, &card->stats, card_stats, CARD_STATS_LEN);
-	for (i = 0; i < card->qdio.no_out_queues; i++)
+	for (i = 0; i < card->qdio.anal_out_queues; i++)
 		qeth_add_stat_data(&data, &card->qdio.out_qs[i]->stats,
 				   txq_stats, TXQ_STATS_LEN);
 }
@@ -132,7 +132,7 @@ static int qeth_set_coalesce(struct net_device *dev,
 	unsigned int i;
 
 	if (!IS_IQD(card))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!coal->tx_coalesce_usecs && !coal->tx_max_coalesced_frames)
 		return -EINVAL;
@@ -171,7 +171,7 @@ static void qeth_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	case ETH_SS_STATS:
 		qeth_add_stat_strings(&data, prefix, card_stats,
 				      CARD_STATS_LEN);
-		for (i = 0; i < card->qdio.no_out_queues; i++) {
+		for (i = 0; i < card->qdio.anal_out_queues; i++) {
 			scnprintf(prefix, ETH_GSTRING_LEN, "tx%u ", i);
 			qeth_add_stat_strings(&data, prefix, txq_stats,
 					      TXQ_STATS_LEN);
@@ -202,7 +202,7 @@ static void qeth_get_channels(struct net_device *dev,
 	struct qeth_card *card = dev->ml_priv;
 
 	channels->max_rx = dev->num_rx_queues;
-	channels->max_tx = card->qdio.no_out_queues;
+	channels->max_tx = card->qdio.anal_out_queues;
 	channels->max_other = 0;
 	channels->max_combined = 0;
 	channels->rx_count = dev->real_num_rx_queues;
@@ -220,7 +220,7 @@ static int qeth_set_channels(struct net_device *dev,
 
 	if (channels->rx_count == 0 || channels->tx_count == 0)
 		return -EINVAL;
-	if (channels->tx_count > card->qdio.no_out_queues)
+	if (channels->tx_count > card->qdio.anal_out_queues)
 		return -EINVAL;
 
 	/* Prio-queueing needs all TX queues: */
@@ -252,7 +252,7 @@ static int qeth_get_ts_info(struct net_device *dev,
 	struct qeth_card *card = dev->ml_priv;
 
 	if (!IS_IQD(card))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ethtool_op_get_ts_info(dev, info);
 }
@@ -267,7 +267,7 @@ static int qeth_get_tunable(struct net_device *dev,
 		*(u32 *)data = priv->rx_copybreak;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -282,7 +282,7 @@ static int qeth_set_tunable(struct net_device *dev,
 		WRITE_ONCE(priv->rx_copybreak, *(u32 *)data);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -293,9 +293,9 @@ static int qeth_get_per_queue_coalesce(struct net_device *dev, u32 __queue,
 	struct qeth_qdio_out_q *queue;
 
 	if (!IS_IQD(card))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (__queue >= card->qdio.no_out_queues)
+	if (__queue >= card->qdio.anal_out_queues)
 		return -EINVAL;
 
 	queue = card->qdio.out_qs[__queue];
@@ -311,9 +311,9 @@ static int qeth_set_per_queue_coalesce(struct net_device *dev, u32 queue,
 	struct qeth_card *card = dev->ml_priv;
 
 	if (!IS_IQD(card))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (queue >= card->qdio.no_out_queues)
+	if (queue >= card->qdio.anal_out_queues)
 		return -EINVAL;
 
 	if (!coal->tx_coalesce_usecs && !coal->tx_max_coalesced_frames)

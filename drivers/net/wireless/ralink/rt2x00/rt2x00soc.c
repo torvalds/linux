@@ -38,11 +38,11 @@ static int rt2x00soc_alloc_reg(struct rt2x00_dev *rt2x00dev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rt2x00dev->csr.base = ioremap(res->start, resource_size(res));
 	if (!rt2x00dev->csr.base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt2x00dev->eeprom = kzalloc(rt2x00dev->ops->eeprom_size, GFP_KERNEL);
 	if (!rt2x00dev->eeprom)
@@ -58,7 +58,7 @@ exit:
 	rt2x00_probe_err("Failed to allocate registers\n");
 	rt2x00soc_free_reg(rt2x00dev);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int rt2x00soc_probe(struct platform_device *pdev, const struct rt2x00_ops *ops)
@@ -70,7 +70,7 @@ int rt2x00soc_probe(struct platform_device *pdev, const struct rt2x00_ops *ops)
 	hw = ieee80211_alloc_hw(sizeof(struct rt2x00_dev), ops->hw);
 	if (!hw) {
 		rt2x00_probe_err("Failed to allocate hardware\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, hw);

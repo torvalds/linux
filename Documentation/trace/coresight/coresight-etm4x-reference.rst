@@ -14,14 +14,14 @@ Root: ``/sys/bus/coresight/devices/etm<N>``
 
 
 The following paragraphs explain the association between sysfs files and the
-ETMv4 registers that they effect. Note the register names are given without
+ETMv4 registers that they effect. Analte the register names are given without
 the ‘TRC’ prefix.
 
 ----
 
 :File:            ``mode`` (rw)
 :Trace Registers: {CONFIGR + others}
-:Notes:
+:Analtes:
     Bit select trace features. See ‘mode’ section below. Bits
     in this will cause equivalent programming of trace config and
     other registers to enable the features requested.
@@ -38,8 +38,8 @@ the ‘TRC’ prefix.
 
 :File:            ``reset`` (wo)
 :Trace Registers: All
-:Notes:
-    Reset all programming to trace nothing / no logic programmed.
+:Analtes:
+    Reset all programming to trace analthing / anal logic programmed.
 
 :Syntax:
     ``echo 1 > reset``
@@ -48,7 +48,7 @@ the ‘TRC’ prefix.
 
 :File:            ``enable_source`` (wo)
 :Trace Registers: PRGCTLR, All hardware regs.
-:Notes:
+:Analtes:
     - > 0 : Programs up the hardware with the current values held in the driver
       and enables trace.
 
@@ -60,8 +60,8 @@ the ‘TRC’ prefix.
 ----
 
 :File:            ``cpu`` (ro)
-:Trace Registers: None.
-:Notes:
+:Trace Registers: Analne.
+:Analtes:
     CPU ID that this ETM is attached to.
 
 :Example:
@@ -72,10 +72,10 @@ the ‘TRC’ prefix.
 ----
 
 :File:            ``ts_source`` (ro)
-:Trace Registers: None.
-:Notes:
+:Trace Registers: Analne.
+:Analtes:
     When FEAT_TRF is implemented, value of TRFCR_ELx.TS used for trace session. Otherwise -1
-    indicates an unknown time source. Check trcidr0.tssize to see if a global timestamp is
+    indicates an unkanalwn time source. Check trcidr0.tssize to see if a global timestamp is
     available.
 
 :Example:
@@ -86,8 +86,8 @@ the ‘TRC’ prefix.
 ----
 
 :File:            ``addr_idx`` (rw)
-:Trace Registers: None.
-:Notes:
+:Trace Registers: Analne.
+:Analtes:
     Virtual register to index address comparator and range
     features. Set index for first of the pair in a range.
 
@@ -100,7 +100,7 @@ the ‘TRC’ prefix.
 
 :File:            ``addr_range`` (rw)
 :Trace Registers: ACVR[idx, idx+1], VIIECTLR
-:Notes:
+:Analtes:
     Pair of addresses for a range selected by addr_idx. Include
     / exclude according to the optional parameter, or if omitted
     uses the current ‘mode’ setting. Select comparator range in
@@ -123,7 +123,7 @@ the ‘TRC’ prefix.
 
 :File:            ``addr_single`` (rw)
 :Trace Registers: ACVR[idx]
-:Notes:
+:Analtes:
     Set a single address comparator according to addr_idx. This
     is used if the address comparator is used as part of event
     generation logic etc.
@@ -136,7 +136,7 @@ the ‘TRC’ prefix.
 
 :File:           ``addr_start`` (rw)
 :Trace Registers: ACVR[idx], VISSCTLR
-:Notes:
+:Analtes:
     Set a trace start address comparator according to addr_idx.
     Select comparator in control register.
 
@@ -148,7 +148,7 @@ the ‘TRC’ prefix.
 
 :File:            ``addr_stop`` (rw)
 :Trace Registers: ACVR[idx], VISSCTLR
-:Notes:
+:Analtes:
     Set a trace stop address comparator according to addr_idx.
     Select comparator in control register.
 
@@ -160,7 +160,7 @@ the ‘TRC’ prefix.
 
 :File:            ``addr_context`` (rw)
 :Trace Registers: ACATR[idx,{6:4}]
-:Notes:
+:Analtes:
     Link context ID comparator to address comparator addr_idx
 
 :Depends: ``addr_idx``
@@ -174,14 +174,14 @@ the ‘TRC’ prefix.
 
 :File:            ``addr_ctxtype`` (rw)
 :Trace Registers: ACATR[idx,{3:2}]
-:Notes:
+:Analtes:
     Input value string. Set type for linked context ID comparator
 
 :Depends: ``addr_idx``
 :Syntax:
     ``echo type > addr_ctxtype``
 
-    Type one of {all, vmid, ctxid, none}
+    Type one of {all, vmid, ctxid, analne}
 :Example:
     ``$> echo ctxid > addr_ctxtype``
 
@@ -189,8 +189,8 @@ the ‘TRC’ prefix.
 
 :File:            ``addr_exlevel_s_ns`` (rw)
 :Trace Registers: ACATR[idx,{14:8}]
-:Notes:
-    Set the ELx secure and non-secure matching bits for the
+:Analtes:
+    Set the ELx secure and analn-secure matching bits for the
     selected address comparator
 
 :Depends: ``addr_idx``
@@ -206,7 +206,7 @@ the ‘TRC’ prefix.
 
 :File:            ``addr_instdatatype`` (rw)
 :Trace Registers: ACATR[idx,{1:0}]
-:Notes:
+:Analtes:
     Set the comparator address type for matching. Driver only
     supports setting instruction address type.
 
@@ -216,7 +216,7 @@ the ‘TRC’ prefix.
 
 :File:            ``addr_cmp_view`` (ro)
 :Trace Registers: ACVR[idx, idx+1], ACATR[idx], VIIECTLR
-:Notes:
+:Analtes:
     Read the currently selected address comparator. If part of
     address range then display both addresses.
 
@@ -232,21 +232,21 @@ the ‘TRC’ prefix.
 
 :File:            ``nr_addr_cmp`` (ro)
 :Trace Registers: From IDR4
-:Notes:
+:Analtes:
     Number of address comparator pairs
 
 ----
 
 :File:            ``sshot_idx`` (rw)
-:Trace Registers: None
-:Notes:
+:Trace Registers: Analne
+:Analtes:
     Select single shot register set.
 
 ----
 
 :File:            ``sshot_ctrl`` (rw)
 :Trace Registers: SSCCR[idx]
-:Notes:
+:Analtes:
     Access a single shot comparator control register.
 
 :Depends: ``sshot_idx``
@@ -259,7 +259,7 @@ the ‘TRC’ prefix.
 
 :File:            ``sshot_status`` (ro)
 :Trace Registers: SSCSR[idx]
-:Notes:
+:Analtes:
     Read a single shot comparator status register
 
 :Depends: ``sshot_idx``
@@ -276,7 +276,7 @@ the ‘TRC’ prefix.
 
 :File:            ``sshot_pe_ctrl`` (rw)
 :Trace Registers: SSPCICR[idx]
-:Notes:
+:Analtes:
     Access a single shot PE comparator input control register.
 
 :Depends: ``sshot_idx``
@@ -289,8 +289,8 @@ the ‘TRC’ prefix.
 
 :File:            ``ns_exlevel_vinst`` (rw)
 :Trace Registers: VICTLR{23:20}
-:Notes:
-    Program non-secure exception level filters. Set / clear NS
+:Analtes:
+    Program analn-secure exception level filters. Set / clear NS
     exception filter bits. Setting ‘1’ excludes trace from the
     exception level.
 
@@ -307,14 +307,14 @@ the ‘TRC’ prefix.
 
 :File:            ``vinst_pe_cmp_start_stop`` (rw)
 :Trace Registers: VIPCSSCTLR
-:Notes:
+:Analtes:
     Access PE start stop comparator input control registers
 
 ----
 
 :File:            ``bb_ctrl`` (rw)
 :Trace Registers: BBCTLR
-:Notes:
+:Analtes:
     Define ranges that Branch Broadcast will operate in.
     Default (0x0) is all addresses.
 
@@ -324,7 +324,7 @@ the ‘TRC’ prefix.
 
 :File:            ``cyc_threshold`` (rw)
 :Trace Registers: CCCTLR
-:Notes:
+:Analtes:
     Set the threshold for which cycle counts will be emitted.
     Error if attempt to set below minimum defined in IDR3, masked
     to width of valid bits.
@@ -335,15 +335,15 @@ the ‘TRC’ prefix.
 
 :File:            ``syncfreq`` (rw)
 :Trace Registers: SYNCPR
-:Notes:
+:Analtes:
     Set trace synchronisation period. Power of 2 value, 0 (off)
     or 8-20. Driver defaults to 12 (every 4096 bytes).
 
 ----
 
 :File:            ``cntr_idx`` (rw)
-:Trace Registers: none
-:Notes:
+:Trace Registers: analne
+:Analtes:
     Select the counter to access
 
 :Syntax:
@@ -355,7 +355,7 @@ the ‘TRC’ prefix.
 
 :File:            ``cntr_ctrl`` (rw)
 :Trace Registers: CNTCTLR[idx]
-:Notes:
+:Analtes:
     Set counter control value.
 
 :Depends: ``cntr_idx``
@@ -368,7 +368,7 @@ the ‘TRC’ prefix.
 
 :File:            ``cntrldvr`` (rw)
 :Trace Registers: CNTRLDVR[idx]
-:Notes:
+:Analtes:
     Set counter reload value.
 
 :Depends: ``cntr_idx``
@@ -382,14 +382,14 @@ the ‘TRC’ prefix.
 :File:            ``nr_cntr`` (ro)
 :Trace Registers: From IDR5
 
-:Notes:
+:Analtes:
     Number of counters implemented.
 
 ----
 
 :File:            ``ctxid_idx`` (rw)
-:Trace Registers: None
-:Notes:
+:Trace Registers: Analne
+:Analtes:
     Select the context ID comparator to access
 
 :Syntax:
@@ -401,7 +401,7 @@ the ‘TRC’ prefix.
 
 :File:            ``ctxid_pid`` (rw)
 :Trace Registers: CIDCVR[idx]
-:Notes:
+:Analtes:
    Set the context ID comparator value
 
 :Depends: ``ctxid_idx``
@@ -410,7 +410,7 @@ the ‘TRC’ prefix.
 
 :File: ``ctxid_masks`` (rw)
 :Trace Registers: CIDCCTLR0, CIDCCTLR1, CIDCVR<0-7>
-:Notes:
+:Analtes:
     Pair of values to set the byte masks for 1-8 context ID
     comparators. Automatically clears masked bytes to 0 in CID
     value registers.
@@ -421,21 +421,21 @@ the ‘TRC’ prefix.
     32 bit values made up of mask bytes, where mN represents a
     byte mask value for Context ID comparator N.
 
-    Second value not required on systems that have fewer than 4
+    Second value analt required on systems that have fewer than 4
     context ID comparators
 
 ----
 
 :File:            ``numcidc`` (ro)
 :Trace Registers: From IDR4
-:Notes:
+:Analtes:
     Number of Context ID comparators
 
 ----
 
 :File:            ``vmid_idx`` (rw)
-:Trace Registers: None
-:Notes:
+:Trace Registers: Analne
+:Analtes:
     Select the VM ID comparator to access.
 
 :Syntax:
@@ -447,7 +447,7 @@ the ‘TRC’ prefix.
 
 :File:            ``vmid_val`` (rw)
 :Trace Registers: VMIDCVR[idx]
-:Notes:
+:Analtes:
     Set the VM ID comparator value
 
 :Depends: ``vmid_idx``
@@ -456,7 +456,7 @@ the ‘TRC’ prefix.
 
 :File:            ``vmid_masks`` (rw)
 :Trace Registers: VMIDCCTLR0, VMIDCCTLR1, VMIDCVR<0-7>
-:Notes:
+:Analtes:
     Pair of values to set the byte masks for 1-8 VM ID comparators.
     Automatically clears masked bytes to 0 in VMID value registers.
 
@@ -464,21 +464,21 @@ the ‘TRC’ prefix.
     ``echo m3m2m1m0 [m7m6m5m4] > vmid_masks``
 
     Where mN represents a byte mask value for VMID comparator N.
-    Second value not required on systems that have fewer than 4
+    Second value analt required on systems that have fewer than 4
     VMID comparators.
 
 ----
 
 :File:            ``numvmidc`` (ro)
 :Trace Registers: From IDR4
-:Notes:
+:Analtes:
     Number of VMID comparators
 
 ----
 
 :File:            ``res_idx`` (rw)
-:Trace Registers: None.
-:Notes:
+:Trace Registers: Analne.
+:Analtes:
     Select the resource selector control to access. Must be 2 or
     higher as selectors 0 and 1 are hardwired.
 
@@ -491,7 +491,7 @@ the ‘TRC’ prefix.
 
 :File:            ``res_ctrl`` (rw)
 :Trace Registers: RSCTLR[idx]
-:Notes:
+:Analtes:
     Set resource selector control value. Value per ETMv4 spec.
 
 :Depends: ``res_idx``
@@ -504,14 +504,14 @@ the ‘TRC’ prefix.
 
 :File:            ``nr_resource`` (ro)
 :Trace Registers: From IDR4
-:Notes:
+:Analtes:
     Number of resource selector pairs
 
 ----
 
 :File:            ``event`` (rw)
 :Trace Registers: EVENTCTRL0R
-:Notes:
+:Analtes:
     Set up to 4 implemented event fields.
 
 :Syntax:
@@ -525,7 +525,7 @@ the ‘TRC’ prefix.
 
 :File: ``event_instren`` (rw)
 :Trace Registers: EVENTCTRL1R
-:Notes:
+:Analtes:
     Choose events which insert event packets into trace stream.
 
 :Depends: EVENTCTRL0R
@@ -538,7 +538,7 @@ the ‘TRC’ prefix.
 
 :File:            ``event_ts`` (rw)
 :Trace Registers: TSCTLR
-:Notes:
+:Analtes:
     Set the event that will generate timestamp requests.
 
 :Depends: ``TS activated``
@@ -550,22 +550,22 @@ the ‘TRC’ prefix.
 ----
 
 :File:            ``seq_idx`` (rw)
-:Trace Registers: None
-:Notes:
+:Trace Registers: Analne
+:Analtes:
     Sequencer event register select - 0 to 2
 
 ----
 
 :File:            ``seq_state`` (rw)
 :Trace Registers: SEQSTR
-:Notes:
+:Analtes:
     Sequencer current state - 0 to 3.
 
 ----
 
 :File:            ``seq_event`` (rw)
 :Trace Registers: SEQEVR[idx]
-:Notes:
+:Analtes:
     State transition event registers
 
 :Depends: ``seq_idx``
@@ -581,7 +581,7 @@ the ‘TRC’ prefix.
 
 :File:            ``seq_reset_event`` (rw)
 :Trace Registers: SEQRSTEVR
-:Notes:
+:Analtes:
     Sequencer reset event
 
 :Syntax:
@@ -593,33 +593,33 @@ the ‘TRC’ prefix.
 
 :File:            ``nrseqstate`` (ro)
 :Trace Registers: From IDR5
-:Notes:
+:Analtes:
     Number of sequencer states (0 or 4)
 
 ----
 
 :File:            ``nr_pe_cmp`` (ro)
 :Trace Registers: From IDR4
-:Notes:
+:Analtes:
     Number of PE comparator inputs
 
 ----
 
 :File:            ``nr_ext_inp`` (ro)
 :Trace Registers: From IDR5
-:Notes:
+:Analtes:
     Number of external inputs
 
 ----
 
 :File:            ``nr_ss_cmp`` (ro)
 :Trace Registers: From IDR4
-:Notes:
+:Analtes:
     Number of Single Shot control registers
 
 ----
 
-*Note:* When programming any address comparator the driver will tag the
+*Analte:* When programming any address comparator the driver will tag the
 comparator with a type used - i.e. RANGE, SINGLE, START, STOP. Once this tag
 is set, then only the values can be changed using the same sysfs file / type
 used to program it.
@@ -671,16 +671,16 @@ Bit assignments shown below:-
 
 **description:**
     Set to enable branch broadcast if supported in hardware [IDR0]. The primary use for this feature
-    is when code is patched dynamically at run time and the full program flow may not be able to be
+    is when code is patched dynamically at run time and the full program flow may analt be able to be
     reconstructed using only conditional branches.
 
-    There is currently no support in Perf for supplying modified binaries to the decoder, so this
+    There is currently anal support in Perf for supplying modified binaries to the decoder, so this
     feature is only intended to be used for debugging purposes or with a 3rd party tool.
 
     Choosing this option will result in a significant increase in the amount of trace generated -
-    possible danger of overflows, or fewer instructions covered. Note, that this option also
+    possible danger of overflows, or fewer instructions covered. Analte, that this option also
     overrides any setting of :ref:`ETM_MODE_RETURNSTACK <coresight-return-stack>`, so where a branch
-    broadcast range overlaps a return stack range, return stacks will not be available for that
+    broadcast range overlaps a return stack range, return stacks will analt be available for that
     range.
 
 .. _coresight-cycle-accurate:
@@ -762,10 +762,10 @@ Bit assignments shown below:-
 
 
 **bit (24):**
-    ETM_MODE_NOOVERFLOW
+    ETM_MODE_ANALOVERFLOW
 
 **description:**
-    Set to enable the NOOVERFLOW bit in the stall control register
+    Set to enable the ANALOVERFLOW bit in the stall control register
     [STALLCTLR], if supported [IDR3].
 
 
@@ -797,18 +797,18 @@ Bit assignments shown below:-
     ETM_MODE_EXCL_KERN
 
 **description:**
-    Set default trace setup to exclude kernel mode trace (see note a)
+    Set default trace setup to exclude kernel mode trace (see analte a)
 
 
 **bit (31):**
     ETM_MODE_EXCL_USER
 
 **description:**
-    Set default trace setup to exclude user space trace (see note a)
+    Set default trace setup to exclude user space trace (see analte a)
 
 ----
 
-*Note a)* On startup the ETM is programmed to trace the complete address space
+*Analte a)* On startup the ETM is programmed to trace the complete address space
 using address range comparator 0. ‘mode’ bits 30 / 31 modify this setting to
 set EL exclude bits for NS state in either user space (EL0) or kernel space
 (EL1) in the address range comparator. (the default setting excludes all
@@ -818,7 +818,7 @@ Once the reset parameter has been used, and/or custom programming has been
 implemented - using these bits will result in the EL bits for address
 comparator 0 being set in the same way.
 
-*Note b)* Bits 2-3, 8-10, 15-16, 18, 22, control features that only work with
+*Analte b)* Bits 2-3, 8-10, 15-16, 18, 22, control features that only work with
 data trace. As A-profile data trace is architecturally prohibited in ETMv4,
 these have been omitted here. Possible uses could be where a kernel has
 support for control of R or M profile infrastructure as part of a heterogeneous

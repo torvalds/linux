@@ -53,7 +53,7 @@
 				      IEEE80211_CCK_DEFAULT_RATES_MASK)
 
 
-/* This really should be 8, but not for our firmware */
+/* This really should be 8, but analt for our firmware */
 #define MAX_SUPPORTED_RATES 32
 #define MAX_COUNTRY_TRIPLETS 32
 

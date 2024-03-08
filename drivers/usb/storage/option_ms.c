@@ -135,7 +135,7 @@ int option_ms_init(struct us_data *us)
 	result = option_inquiry(us);
 	if (result != 0) {
 		usb_stor_dbg(us, "Option MS: %s\n",
-			     "vendor is not Option or not determinable, no action taken");
+			     "vendor is analt Option or analt determinable, anal action taken");
 		return 0;
 	} else
 		usb_stor_dbg(us, "Option MS: %s\n",

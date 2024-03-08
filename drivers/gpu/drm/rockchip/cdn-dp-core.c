@@ -78,7 +78,7 @@ static int cdn_dp_grf_write(struct cdn_dp_device *dp,
 
 	ret = regmap_write(dp->grf, reg, val);
 	if (ret) {
-		DRM_DEV_ERROR(dp->dev, "Could not write to GRF: %d\n", ret);
+		DRM_DEV_ERROR(dp->dev, "Could analt write to GRF: %d\n", ret);
 		clk_disable_unprepare(dp->grf_clk);
 		return ret;
 	}
@@ -95,19 +95,19 @@ static int cdn_dp_clk_enable(struct cdn_dp_device *dp)
 
 	ret = clk_prepare_enable(dp->pclk);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dp->dev, "cannot enable dp pclk %d\n", ret);
+		DRM_DEV_ERROR(dp->dev, "cananalt enable dp pclk %d\n", ret);
 		goto err_pclk;
 	}
 
 	ret = clk_prepare_enable(dp->core_clk);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dp->dev, "cannot enable core_clk %d\n", ret);
+		DRM_DEV_ERROR(dp->dev, "cananalt enable core_clk %d\n", ret);
 		goto err_core_clk;
 	}
 
 	ret = pm_runtime_get_sync(dp->dev);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dp->dev, "cannot get pm runtime %d\n", ret);
+		DRM_DEV_ERROR(dp->dev, "cananalt get pm runtime %d\n", ret);
 		goto err_pm_runtime_get;
 	}
 
@@ -211,7 +211,7 @@ static bool cdn_dp_check_sink_connection(struct cdn_dp_device *dp)
 	port = dp->port[dp->active_port];
 
 	/*
-	 * Attempt to read sink count, retry in case the sink may not be ready.
+	 * Attempt to read sink count, retry in case the sink may analt be ready.
 	 *
 	 * Sinks are *supposed* to come up within 1ms from an off state, but
 	 * some docks need more time to power up.
@@ -371,7 +371,7 @@ static int cdn_dp_get_sink_capability(struct cdn_dp_device *dp)
 	int ret;
 
 	if (!cdn_dp_check_sink_connection(dp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = cdn_dp_dpcd_read(dp, DP_DPCD_REV, dp->dpcd,
 			       DP_RECEIVER_CAP_SIZE);
@@ -411,7 +411,7 @@ static int cdn_dp_enable_phy(struct cdn_dp_device *dp, struct cdn_dp_port *port)
 	ret = cdn_dp_get_hpd_status(dp);
 	if (ret <= 0) {
 		if (!ret)
-			DRM_DEV_ERROR(dp->dev, "hpd does not exist\n");
+			DRM_DEV_ERROR(dp->dev, "hpd does analt exist\n");
 		goto err_power_on;
 	}
 
@@ -504,7 +504,7 @@ static int cdn_dp_enable(struct cdn_dp_device *dp)
 	if (!port) {
 		DRM_DEV_ERROR(dp->dev,
 			      "Can't enable without connection\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dp->active)
@@ -603,9 +603,9 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 	struct cdn_dp_device *dp = encoder_to_dp(encoder);
 	int ret, val;
 
-	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
+	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_analde, encoder);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dp->dev, "Could not get vop id, %d", ret);
+		DRM_DEV_ERROR(dp->dev, "Could analt get vop id, %d", ret);
 		return;
 	}
 
@@ -680,7 +680,7 @@ static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
 	/*
 	 * In the following 2 cases, we need to run the event_work to re-enable
 	 * the DP:
-	 * 1. If there is not just one port device is connected, and remove one
+	 * 1. If there is analt just one port device is connected, and remove one
 	 *    device from a port, the DP will be disabled here, at this case,
 	 *    run the event_work to re-open DP for the other port.
 	 * 2. If re-training or re-config failed, the DP will be disabled here.
@@ -712,7 +712,7 @@ static const struct drm_encoder_helper_funcs cdn_dp_encoder_helper_funcs = {
 static int cdn_dp_parse_dt(struct cdn_dp_device *dp)
 {
 	struct device *dev = dp->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct platform_device *pdev = to_platform_device(dev);
 
 	dp->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
@@ -729,49 +729,49 @@ static int cdn_dp_parse_dt(struct cdn_dp_device *dp)
 
 	dp->core_clk = devm_clk_get(dev, "core-clk");
 	if (IS_ERR(dp->core_clk)) {
-		DRM_DEV_ERROR(dev, "cannot get core_clk_dp\n");
+		DRM_DEV_ERROR(dev, "cananalt get core_clk_dp\n");
 		return PTR_ERR(dp->core_clk);
 	}
 
 	dp->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(dp->pclk)) {
-		DRM_DEV_ERROR(dev, "cannot get pclk\n");
+		DRM_DEV_ERROR(dev, "cananalt get pclk\n");
 		return PTR_ERR(dp->pclk);
 	}
 
 	dp->spdif_clk = devm_clk_get(dev, "spdif");
 	if (IS_ERR(dp->spdif_clk)) {
-		DRM_DEV_ERROR(dev, "cannot get spdif_clk\n");
+		DRM_DEV_ERROR(dev, "cananalt get spdif_clk\n");
 		return PTR_ERR(dp->spdif_clk);
 	}
 
 	dp->grf_clk = devm_clk_get(dev, "grf");
 	if (IS_ERR(dp->grf_clk)) {
-		DRM_DEV_ERROR(dev, "cannot get grf clk\n");
+		DRM_DEV_ERROR(dev, "cananalt get grf clk\n");
 		return PTR_ERR(dp->grf_clk);
 	}
 
 	dp->spdif_rst = devm_reset_control_get(dev, "spdif");
 	if (IS_ERR(dp->spdif_rst)) {
-		DRM_DEV_ERROR(dev, "no spdif reset control found\n");
+		DRM_DEV_ERROR(dev, "anal spdif reset control found\n");
 		return PTR_ERR(dp->spdif_rst);
 	}
 
 	dp->dptx_rst = devm_reset_control_get(dev, "dptx");
 	if (IS_ERR(dp->dptx_rst)) {
-		DRM_DEV_ERROR(dev, "no uphy reset control found\n");
+		DRM_DEV_ERROR(dev, "anal uphy reset control found\n");
 		return PTR_ERR(dp->dptx_rst);
 	}
 
 	dp->core_rst = devm_reset_control_get(dev, "core");
 	if (IS_ERR(dp->core_rst)) {
-		DRM_DEV_ERROR(dev, "no core reset control found\n");
+		DRM_DEV_ERROR(dev, "anal core reset control found\n");
 		return PTR_ERR(dp->core_rst);
 	}
 
 	dp->apb_rst = devm_reset_control_get(dev, "apb");
 	if (IS_ERR(dp->apb_rst)) {
-		DRM_DEV_ERROR(dev, "no apb reset control found\n");
+		DRM_DEV_ERROR(dev, "anal apb reset control found\n");
 		return PTR_ERR(dp->apb_rst);
 	}
 
@@ -792,7 +792,7 @@ static int cdn_dp_audio_hw_params(struct device *dev,  void *data,
 
 	mutex_lock(&dp->lock);
 	if (!dp->active) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -842,7 +842,7 @@ static int cdn_dp_audio_mute_stream(struct device *dev, void *data,
 
 	mutex_lock(&dp->lock);
 	if (!dp->active) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -884,7 +884,7 @@ static const struct hdmi_codec_ops audio_codec_ops = {
 	.mute_stream = cdn_dp_audio_mute_stream,
 	.get_eld = cdn_dp_audio_get_eld,
 	.hook_plugged_cb = cdn_dp_audio_hook_plugged_cb,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static int cdn_dp_audio_codec_init(struct cdn_dp_device *dp,
@@ -920,7 +920,7 @@ static int cdn_dp_request_firmware(struct cdn_dp_device *dp)
 
 	while (time_before(jiffies, timeout)) {
 		ret = request_firmware(&dp->fw, CDN_DP_FIRMWARE, dp->dev);
-		if (ret == -ENOENT) {
+		if (ret == -EANALENT) {
 			msleep(sleep);
 			sleep *= 2;
 			continue;
@@ -962,21 +962,21 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 
 	dp->connected = true;
 
-	/* Not connected, notify userspace to disable the block */
+	/* Analt connected, analtify userspace to disable the block */
 	if (!cdn_dp_connected_port(dp)) {
-		DRM_DEV_INFO(dp->dev, "Not connected. Disabling cdn\n");
+		DRM_DEV_INFO(dp->dev, "Analt connected. Disabling cdn\n");
 		dp->connected = false;
 
-	/* Connected but not enabled, enable the block */
+	/* Connected but analt enabled, enable the block */
 	} else if (!dp->active) {
-		DRM_DEV_INFO(dp->dev, "Connected, not enabled. Enabling cdn\n");
+		DRM_DEV_INFO(dp->dev, "Connected, analt enabled. Enabling cdn\n");
 		ret = cdn_dp_enable(dp);
 		if (ret) {
 			DRM_DEV_ERROR(dp->dev, "Enable dp failed %d\n", ret);
 			dp->connected = false;
 		}
 
-	/* Enabled and connected to a dongle without a sink, notify userspace */
+	/* Enabled and connected to a dongle without a sink, analtify userspace */
 	} else if (!cdn_dp_check_sink_connection(dp)) {
 		DRM_DEV_INFO(dp->dev, "Connected without sink. Assert hpd\n");
 		dp->connected = false;
@@ -1017,7 +1017,7 @@ out:
 		drm_kms_helper_hotplug_event(dp->drm_dev);
 }
 
-static int cdn_dp_pd_event(struct notifier_block *nb,
+static int cdn_dp_pd_event(struct analtifier_block *nb,
 			   unsigned long event, void *priv)
 {
 	struct cdn_dp_port *port = container_of(nb, struct cdn_dp_port,
@@ -1031,7 +1031,7 @@ static int cdn_dp_pd_event(struct notifier_block *nb,
 	 */
 	schedule_work(&dp->event_work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
@@ -1058,7 +1058,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	encoder = &dp->encoder.encoder;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
-							     dev->of_node);
+							     dev->of_analde);
 	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
 	ret = drm_simple_encoder_init(drm_dev, encoder,
@@ -1093,13 +1093,13 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	for (i = 0; i < dp->ports; i++) {
 		port = dp->port[i];
 
-		port->event_nb.notifier_call = cdn_dp_pd_event;
-		ret = devm_extcon_register_notifier(dp->dev, port->extcon,
+		port->event_nb.analtifier_call = cdn_dp_pd_event;
+		ret = devm_extcon_register_analtifier(dp->dev, port->extcon,
 						    EXTCON_DISP_DP,
 						    &port->event_nb);
 		if (ret) {
 			DRM_DEV_ERROR(dev,
-				      "register EXTCON_DISP_DP notifier err\n");
+				      "register EXTCON_DISP_DP analtifier err\n");
 			goto err_free_connector;
 		}
 	}
@@ -1181,15 +1181,15 @@ static int cdn_dp_probe(struct platform_device *pdev)
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
-		return -ENOMEM;
+		return -EANALMEM;
 	dp->dev = dev;
 
-	match = of_match_node(cdn_dp_dt_ids, pdev->dev.of_node);
+	match = of_match_analde(cdn_dp_dt_ids, pdev->dev.of_analde);
 	dp_data = (struct cdn_dp_data *)match->data;
 
 	for (i = 0; i < dp_data->max_phy; i++) {
 		extcon = extcon_get_edev_by_phandle(dev, i);
-		phy = devm_of_phy_get_by_index(dev, dev->of_node, i);
+		phy = devm_of_phy_get_by_index(dev, dev->of_analde, i);
 
 		if (PTR_ERR(extcon) == -EPROBE_DEFER ||
 		    PTR_ERR(phy) == -EPROBE_DEFER)
@@ -1200,7 +1200,7 @@ static int cdn_dp_probe(struct platform_device *pdev)
 
 		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 		if (!port)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		port->extcon = extcon;
 		port->phy = phy;

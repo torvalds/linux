@@ -16,7 +16,7 @@
 /*
  * For some clocks, we don't care what their actual rates are. And these
  * clocks may change their rate on different products or different scenarios.
- * So we model these clocks' rate as 0, to denote it's not an actual rate.
+ * So we model these clocks' rate as 0, to deanalte it's analt an actual rate.
  */
 
 static DEFINE_SPINLOCK(mt6797_clk_lock);
@@ -383,7 +383,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
 	void __iomem *base;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -391,7 +391,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_TOP_NR);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk_clk_register_factors(top_fixed_divs, ARRAY_SIZE(top_fixed_divs),
 				 clk_data);
@@ -400,7 +400,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 				    ARRAY_SIZE(top_muxes), base,
 				    &mt6797_clk_lock, clk_data);
 
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	return of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 }
 
 static const struct mtk_gate_regs infra0_cg_regs = {
@@ -541,7 +541,7 @@ static const struct mtk_fixed_factor infra_fixed_divs[] = {
 
 static struct clk_hw_onecell_data *infra_clk_data;
 
-static void mtk_infrasys_init_early(struct device_node *node)
+static void mtk_infrasys_init_early(struct device_analde *analde)
 {
 	int r, i;
 
@@ -557,10 +557,10 @@ static void mtk_infrasys_init_early(struct device_node *node)
 	mtk_clk_register_factors(infra_fixed_divs, ARRAY_SIZE(infra_fixed_divs),
 				 infra_clk_data);
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get,
 				   infra_clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could analt register clock provider: %d\n",
 		       __func__, r);
 }
 
@@ -570,25 +570,25 @@ CLK_OF_DECLARE_DRIVER(mtk_infra, "mediatek,mt6797-infracfg",
 static int mtk_infrasys_init(struct platform_device *pdev)
 {
 	int i;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
 	if (!infra_clk_data) {
 		infra_clk_data = mtk_alloc_clk_data(CLK_INFRA_NR);
 		if (!infra_clk_data)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		for (i = 0; i < CLK_INFRA_NR; i++) {
 			if (infra_clk_data->hws[i] == ERR_PTR(-EPROBE_DEFER))
-				infra_clk_data->hws[i] = ERR_PTR(-ENOENT);
+				infra_clk_data->hws[i] = ERR_PTR(-EANALENT);
 		}
 	}
 
-	mtk_clk_register_gates(&pdev->dev, node, infra_clks,
+	mtk_clk_register_gates(&pdev->dev, analde, infra_clks,
 			       ARRAY_SIZE(infra_clks), infra_clk_data);
 	mtk_clk_register_factors(infra_fixed_divs, ARRAY_SIZE(infra_fixed_divs),
 				 infra_clk_data);
 
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+	return of_clk_add_hw_provider(analde, of_clk_hw_onecell_get,
 				      infra_clk_data);
 }
 
@@ -649,15 +649,15 @@ static const struct mtk_pll_data plls[] = {
 static int mtk_apmixedsys_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	mtk_clk_register_plls(analde, plls, ARRAY_SIZE(plls), clk_data);
 
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	return of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 }
 
 static const struct of_device_id of_match_clk_mt6797[] = {
@@ -688,7 +688,7 @@ static int clk_mt6797_probe(struct platform_device *pdev)
 	r = clk_init(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could analt register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

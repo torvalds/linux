@@ -406,14 +406,14 @@ u8 r8712_efuse_pg_packet_write(struct _adapter *adapter, const u8 offset,
 		/* write header fail */
 		bResult = false;
 		if (efuse_data == 0xFF)
-			return bResult; /* nothing damaged. */
+			return bResult; /* analthing damaged. */
 		/* call rescue procedure */
 		if (!fix_header(adapter, efuse_data, efuse_addr))
 			return false; /* rescue fail */
 
 		if (++repeat_times > _REPEAT_THRESHOLD_) /* fail */
 			break;
-		/* otherwise, take another risk... */
+		/* otherwise, take aanalther risk... */
 	}
 	return bResult;
 }

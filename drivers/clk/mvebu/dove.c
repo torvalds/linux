@@ -179,23 +179,23 @@ static const struct clk_gating_soc_desc dove_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init dove_clk_init(struct device_node *np)
+static void __init dove_clk_init(struct device_analde *np)
 {
-	struct device_node *cgnp =
-		of_find_compatible_node(NULL, NULL, "marvell,dove-gating-clock");
-	struct device_node *ddnp =
-		of_find_compatible_node(NULL, NULL, "marvell,dove-divider-clock");
+	struct device_analde *cgnp =
+		of_find_compatible_analde(NULL, NULL, "marvell,dove-gating-clock");
+	struct device_analde *ddnp =
+		of_find_compatible_analde(NULL, NULL, "marvell,dove-divider-clock");
 
 	mvebu_coreclk_setup(np, &dove_coreclks);
 
 	if (ddnp) {
 		dove_divider_clk_init(ddnp);
-		of_node_put(ddnp);
+		of_analde_put(ddnp);
 	}
 
 	if (cgnp) {
 		mvebu_clk_gating_setup(cgnp, dove_gating_desc);
-		of_node_put(cgnp);
+		of_analde_put(cgnp);
 	}
 }
 CLK_OF_DECLARE(dove_clk, "marvell,dove-core-clock", dove_clk_init);

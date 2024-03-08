@@ -24,7 +24,7 @@ ACPI_MODULE_NAME("nsrepair")
  * specification. The need for this code is dictated by the many machines that
  * return incorrect types for the standard predefined methods. Performing these
  * conversions here, in one place, eliminates the need for individual ACPI
- * device drivers to do the same. Note: Most of these conversions are different
+ * device drivers to do the same. Analte: Most of these conversions are different
  * than the internal object conversion routines used for implicit object
  * conversion.
  *
@@ -51,8 +51,8 @@ ACPI_MODULE_NAME("nsrepair")
  ******************************************************************************/
 /* Local prototypes */
 static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
-									 acpi_namespace_node
-									 *node,
+									 acpi_namespace_analde
+									 *analde,
 									 u32
 									 return_btype,
 									 u32
@@ -68,18 +68,18 @@ static const struct acpi_simple_repair_info acpi_object_repair_info[] = {
 
 	{"_CRS",
 	 ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER |
-	 ACPI_RTYPE_NONE,
-	 ACPI_NOT_PACKAGE_ELEMENT,
+	 ACPI_RTYPE_ANALNE,
+	 ACPI_ANALT_PACKAGE_ELEMENT,
 	 acpi_ns_convert_to_resource},
 	{"_DMA",
 	 ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER |
-	 ACPI_RTYPE_NONE,
-	 ACPI_NOT_PACKAGE_ELEMENT,
+	 ACPI_RTYPE_ANALNE,
+	 ACPI_ANALT_PACKAGE_ELEMENT,
 	 acpi_ns_convert_to_resource},
 	{"_PRS",
 	 ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER |
-	 ACPI_RTYPE_NONE,
-	 ACPI_NOT_PACKAGE_ELEMENT,
+	 ACPI_RTYPE_ANALNE,
+	 ACPI_ANALT_PACKAGE_ELEMENT,
 	 acpi_ns_convert_to_resource},
 
 	/* Object reference conversions */
@@ -92,7 +92,7 @@ static const struct acpi_simple_repair_info acpi_object_repair_info[] = {
 	{"_MLS", ACPI_RTYPE_STRING, 1,
 	 acpi_ns_convert_to_unicode},
 	{"_STR", ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER,
-	 ACPI_NOT_PACKAGE_ELEMENT,
+	 ACPI_ANALT_PACKAGE_ELEMENT,
 	 acpi_ns_convert_to_unicode},
 	{{0, 0, 0, 0}, 0, 0, NULL}	/* Table terminator */
 };
@@ -104,7 +104,7 @@ static const struct acpi_simple_repair_info acpi_object_repair_info[] = {
  * PARAMETERS:  info                - Method execution information block
  *              expected_btypes     - Object types expected
  *              package_index       - Index of object within parent package (if
- *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                    applicable - ACPI_ANALT_PACKAGE_ELEMENT
  *                                    otherwise)
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
@@ -112,7 +112,7 @@ static const struct acpi_simple_repair_info acpi_object_repair_info[] = {
  * RETURN:      Status. AE_OK if repair was successful.
  *
  * DESCRIPTION: Attempt to repair/convert a return object of a type that was
- *              not expected.
+ *              analt expected.
  *
  ******************************************************************************/
 
@@ -133,7 +133,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 	 * Special repairs for certain names that are in the repair table.
 	 * Check if this name is in the list of repairable names.
 	 */
-	predefined = acpi_ns_match_simple_repair(info->node,
+	predefined = acpi_ns_match_simple_repair(info->analde,
 						 info->return_btype,
 						 package_index);
 	if (predefined) {
@@ -143,7 +143,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 					      "Missing expected return value"));
 		}
 
-		status = predefined->object_converter(info->node, return_object,
+		status = predefined->object_converter(info->analde, return_object,
 						      &new_object);
 		if (ACPI_FAILURE(status)) {
 
@@ -159,7 +159,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * Do not perform simple object repair unless the return type is not
+	 * Do analt perform simple object repair unless the return type is analt
 	 * expected.
 	 */
 	if (info->return_btype & expected_btypes) {
@@ -167,23 +167,23 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * At this point, we know that the type of the returned object was not
+	 * At this point, we kanalw that the type of the returned object was analt
 	 * one of the expected types for this predefined name. Attempt to
 	 * repair the object by converting it to one of the expected object
 	 * types for this predefined name.
 	 */
 
 	/*
-	 * If there is no return value, check if we require a return value for
-	 * this predefined name. Either one return value is expected, or none,
+	 * If there is anal return value, check if we require a return value for
+	 * this predefined name. Either one return value is expected, or analne,
 	 * for both methods and other objects.
 	 *
-	 * Try to fix if there was no return object. Warning if failed to fix.
+	 * Try to fix if there was anal return object. Warning if failed to fix.
 	 */
 	if (!return_object) {
 		if (expected_btypes) {
-			if (!(expected_btypes & ACPI_RTYPE_NONE) &&
-			    package_index != ACPI_NOT_PACKAGE_ELEMENT) {
+			if (!(expected_btypes & ACPI_RTYPE_ANALNE) &&
+			    package_index != ACPI_ANALT_PACKAGE_ELEMENT) {
 				ACPI_WARN_PREDEFINED((AE_INFO,
 						      info->full_pathname,
 						      ACPI_WARN_ALWAYS,
@@ -199,12 +199,12 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 				}
 			}
 
-			if (expected_btypes != ACPI_RTYPE_NONE) {
+			if (expected_btypes != ACPI_RTYPE_ANALNE) {
 				ACPI_WARN_PREDEFINED((AE_INFO,
 						      info->full_pathname,
 						      ACPI_WARN_ALWAYS,
 						      "Missing expected return value"));
-				return (AE_AML_NO_RETURN_VALUE);
+				return (AE_AML_ANAL_RETURN_VALUE);
 			}
 		}
 	}
@@ -233,7 +233,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 		 * new package object. It is often the case that if a variable-length
 		 * package is required, but there is only a single object needed, the
 		 * BIOS will return that object instead of wrapping it with a Package
-		 * object. Note: after the wrapping, the package will be validated
+		 * object. Analte: after the wrapping, the package will be validated
 		 * for correct contents (expected object type or types).
 		 */
 		status =
@@ -249,7 +249,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 		}
 	}
 
-	/* We cannot repair this object */
+	/* We cananalt repair this object */
 
 	return (AE_AML_OPERAND_TYPE);
 
@@ -257,7 +257,7 @@ object_repaired:
 
 	/* Object was successfully repaired */
 
-	if (package_index != ACPI_NOT_PACKAGE_ELEMENT) {
+	if (package_index != ACPI_ANALT_PACKAGE_ELEMENT) {
 
 		/* Update reference count of new object */
 
@@ -292,21 +292,21 @@ object_repaired:
  *
  * FUNCTION:    acpi_ns_match_simple_repair
  *
- * PARAMETERS:  node                - Namespace node for the method/object
+ * PARAMETERS:  analde                - Namespace analde for the method/object
  *              return_btype        - Object type that was returned
  *              package_index       - Index of object within parent package (if
- *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                    applicable - ACPI_ANALT_PACKAGE_ELEMENT
  *                                    otherwise)
  *
- * RETURN:      Pointer to entry in repair table. NULL indicates not found.
+ * RETURN:      Pointer to entry in repair table. NULL indicates analt found.
  *
  * DESCRIPTION: Check an object name against the repairable object list.
  *
  *****************************************************************************/
 
 static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
-									 acpi_namespace_node
-									 *node,
+									 acpi_namespace_analde
+									 *analde,
 									 u32
 									 return_btype,
 									 u32
@@ -318,7 +318,7 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
 
 	this_name = acpi_object_repair_info;
 	while (this_name->object_converter) {
-		if (ACPI_COMPARE_NAMESEG(node->name.ascii, this_name->name)) {
+		if (ACPI_COMPARE_NAMESEG(analde->name.ascii, this_name->name)) {
 
 			/* Check if we can actually repair this name/type combination */
 
@@ -335,7 +335,7 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
 		this_name++;
 	}
 
-	return (NULL);		/* Name was not found in the repair table */
+	return (NULL);		/* Name was analt found in the repair table */
 }
 
 /*******************************************************************************
@@ -345,7 +345,7 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
  * PARAMETERS:  info                - Method execution information block
  *              expected_btypes     - Object types expected
  *              package_index       - Index of object within parent package (if
- *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                    applicable - ACPI_ANALT_PACKAGE_ELEMENT
  *                                    otherwise)
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
@@ -367,7 +367,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info *info,
 
 	ACPI_FUNCTION_NAME(ns_repair_null_element);
 
-	/* No repair needed if return object is non-NULL */
+	/* Anal repair needed if return object is analn-NULL */
 
 	if (return_object) {
 		return (AE_OK);
@@ -376,7 +376,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info *info,
 	/*
 	 * Attempt to repair a NULL element of a Package object. This applies to
 	 * predefined names that return a fixed-length package and each element
-	 * is required. It does not apply to variable-length packages where NULL
+	 * is required. It does analt apply to variable-length packages where NULL
 	 * elements are allowed, especially at the end of the package.
 	 */
 	if (expected_btypes & ACPI_RTYPE_INTEGER) {
@@ -401,7 +401,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info *info,
 	}
 
 	if (!new_object) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Set the reference count according to the parent Package object */
@@ -428,7 +428,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info *info,
  *              package_type        - An acpi_return_package_types value
  *              obj_desc            - A Package object
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Remove all NULL package elements from packages that contain
  *              a variable number of subpackages. For these types of
@@ -544,7 +544,7 @@ acpi_ns_wrap_with_package(struct acpi_evaluate_info *info,
 	 */
 	pkg_obj_desc = acpi_ut_create_package_object(1);
 	if (!pkg_obj_desc) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	pkg_obj_desc->package.elements[0] = original_object;

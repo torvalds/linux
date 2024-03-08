@@ -54,7 +54,7 @@ int __init platform_resource_setup_memory(struct platform_device *pdev,
 	buf = dma_alloc_coherent(&pdev->dev, memsize, &dma_handle, GFP_KERNEL);
 	if (!buf) {
 		pr_warn("%s: unable to allocate memory\n", name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r->flags = IORESOURCE_MEM;

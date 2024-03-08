@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -23,7 +23,7 @@
  * enum dpu_crtc_client_type: crtc client type
  * @RT_CLIENT:	RealTime client like video/cmd mode display
  *              voting through apps rsc
- * @NRT_CLIENT:	Non-RealTime client like WB display
+ * @NRT_CLIENT:	Analn-RealTime client like WB display
  *              voting through apps rsc
  */
 enum dpu_crtc_client_type {
@@ -47,12 +47,12 @@ enum dpu_crtc_smmu_state {
 
 /**
  * enum dpu_crtc_smmu_state_transition_type: state transition type
- * @NONE: no pending state transitions
+ * @ANALNE: anal pending state transitions
  * @PRE_COMMIT: state transitions should be done before processing the commit
  * @POST_COMMIT: state transitions to be done after processing the commit.
  */
 enum dpu_crtc_smmu_state_transition_type {
-	NONE,
+	ANALNE,
 	PRE_COMMIT,
 	POST_COMMIT
 };
@@ -71,13 +71,13 @@ struct dpu_crtc_smmu_state_data {
 
 /**
  * enum dpu_crtc_crc_source: CRC source
- * @DPU_CRTC_CRC_SOURCE_NONE: no source set
+ * @DPU_CRTC_CRC_SOURCE_ANALNE: anal source set
  * @DPU_CRTC_CRC_SOURCE_LAYER_MIXER: CRC in layer mixer
  * @DPU_CRTC_CRC_SOURCE_ENCODER: CRC in encoder
  * @DPU_CRTC_CRC_SOURCE_INVALID: Invalid source
  */
 enum dpu_crtc_crc_source {
-	DPU_CRTC_CRC_SOURCE_NONE = 0,
+	DPU_CRTC_CRC_SOURCE_ANALNE = 0,
 	DPU_CRTC_CRC_SOURCE_LAYER_MIXER,
 	DPU_CRTC_CRC_SOURCE_ENCODER,
 	DPU_CRTC_CRC_SOURCE_MAX,
@@ -125,7 +125,7 @@ struct dpu_crtc_frame_event {
  * @base          : Base drm crtc structure
  * @name          : ASCII description of this crtc
  * @event         : Pointer to last received drm vblank event. If there is a
- *                  pending vblank event, this will be non-null.
+ *                  pending vblank event, this will be analn-null.
  * @vsync_count   : Running count of received vsync events
  * @drm_requested_vblank : Whether vblanks have been enabled in the encoder
  * @property_info : Opaque structure for generic property support
@@ -134,14 +134,14 @@ struct dpu_crtc_frame_event {
  * @play_count    : frame count between crtc enable and disable
  * @vblank_cb_time  : ktime at vblank count reset
  * @enabled       : whether the DPU CRTC is currently enabled. updated in the
- *                  commit-thread, not state-swap time which is earlier, so
+ *                  commit-thread, analt state-swap time which is earlier, so
  *                  safe to make decisions on during VBLANK on/off work
  * @feature_list  : list of color processing features supported on a crtc
  * @active_list   : list of color processing features are active
  * @dirty_list    : list of color processing features are dirty
  * @ad_dirty: list containing ad properties that are dirty
  * @ad_active: list containing ad properties that are active
- * @frame_pending : Whether or not an update is pending
+ * @frame_pending : Whether or analt an update is pending
  * @frame_events  : static allocation of in-flight frame events
  * @frame_event_list : available frame event list
  * @spin_lock     : spin lock for frame event, transaction status, etc...
@@ -192,7 +192,7 @@ struct dpu_crtc {
  * @base: Base drm crtc state structure
  * @bw_control    : true if bw/clk controlled by core bw/clk properties
  * @bw_split_vote : true if bw controlled by llcc/dram bw properties
- * @lm_bounds     : LM boundaries based on current mode full resolution, no ROI.
+ * @lm_bounds     : LM boundaries based on current mode full resolution, anal ROI.
  *                  Origin top left of CRTC.
  * @property_state: Local storage for msm_prop properties
  * @property_values: Current crtc property values

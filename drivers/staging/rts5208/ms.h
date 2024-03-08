@@ -21,16 +21,16 @@
 #define	WRT_PRTCT		0x01
 
 /* Error Code */
-#define	MS_NO_ERROR				0x00
+#define	MS_ANAL_ERROR				0x00
 #define	MS_CRC16_ERROR				0x80
 #define	MS_TO_ERROR				0x40
-#define	MS_NO_CARD				0x20
-#define	MS_NO_MEMORY				0x10
+#define	MS_ANAL_CARD				0x20
+#define	MS_ANAL_MEMORY				0x10
 #define	MS_CMD_NK				0x08
 #define	MS_FLASH_READ_ERROR			0x04
 #define	MS_FLASH_WRITE_ERROR			0x02
 #define	MS_BREQ_ERROR				0x01
-#define	MS_NOT_FOUND				0x03
+#define	MS_ANALT_FOUND				0x03
 
 /* Transfer Protocol Command */
 #define READ_PAGE_DATA				0x02
@@ -134,8 +134,8 @@
 #define	PAGE_OK			0x60
 #define	DATA_COMPL		0x10
 
-#define	NOT_BOOT_BLOCK		0x4
-#define	NOT_TRANSLATION_TABLE	0x8
+#define	ANALT_BOOT_BLOCK		0x4
+#define	ANALT_TRANSLATION_TABLE	0x8
 
 #define	HEADER_ID0		PPBUF_BASE2
 #define	HEADER_ID1		(PPBUF_BASE2 + 1)

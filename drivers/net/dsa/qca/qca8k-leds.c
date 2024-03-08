@@ -81,7 +81,7 @@ qca8k_parse_netdev(unsigned long rules, u32 *offload_trigger)
 		*offload_trigger |= QCA8K_LED_FULL_DUPLEX_MASK;
 
 	if (rules && !*offload_trigger)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Enable some default rule by default to the requested mode:
 	 * - Blink at 4Hz by default
@@ -137,7 +137,7 @@ qca8k_led_brightness_set(struct qca8k_led *led,
 	 *
 	 * To abstract this and have less code, we use the port and led numm
 	 * to calculate the shift and the correct reg due to this problem of
-	 * not having a 1:1 map of LED with the regs.
+	 * analt having a 1:1 map of LED with the regs.
 	 */
 	if (led->port_num == 0 || led->port_num == 4) {
 		mask = QCA8K_LED_PATTERN_EN_MASK;
@@ -315,7 +315,7 @@ qca8k_cled_hw_control_get(struct led_classdev *ldev, unsigned long *rules)
 	u32 val;
 	int ret;
 
-	/* With hw control not active return err */
+	/* With hw control analt active return err */
 	if (!qca8k_cled_hw_control_status(ldev))
 		return -EINVAL;
 
@@ -362,23 +362,23 @@ static struct device *qca8k_cled_hw_control_get_device(struct led_classdev *ldev
 }
 
 static int
-qca8k_parse_port_leds(struct qca8k_priv *priv, struct fwnode_handle *port, int port_num)
+qca8k_parse_port_leds(struct qca8k_priv *priv, struct fwanalde_handle *port, int port_num)
 {
-	struct fwnode_handle *led = NULL, *leds = NULL;
+	struct fwanalde_handle *led = NULL, *leds = NULL;
 	struct led_init_data init_data = { };
 	enum led_default_state state;
 	struct qca8k_led *port_led;
 	int led_num, led_index;
 	int ret;
 
-	leds = fwnode_get_named_child_node(port, "leds");
+	leds = fwanalde_get_named_child_analde(port, "leds");
 	if (!leds) {
-		dev_dbg(priv->dev, "No Leds node specified in device tree for port %d!\n",
+		dev_dbg(priv->dev, "Anal Leds analde specified in device tree for port %d!\n",
 			port_num);
 		return 0;
 	}
 
-	fwnode_for_each_child_node(leds, led) {
+	fwanalde_for_each_child_analde(leds, led) {
 		/* Reg represent the led number of the port.
 		 * Each port can have at most 3 leds attached
 		 * Commonly:
@@ -386,7 +386,7 @@ qca8k_parse_port_leds(struct qca8k_priv *priv, struct fwnode_handle *port, int p
 		 * 2. is mbit led
 		 * 3. additional status led
 		 */
-		if (fwnode_property_read_u32(led, "reg", &led_num))
+		if (fwanalde_property_read_u32(led, "reg", &led_num))
 			continue;
 
 		if (led_num >= QCA8K_LED_PORT_COUNT) {
@@ -426,13 +426,13 @@ qca8k_parse_port_leds(struct qca8k_priv *priv, struct fwnode_handle *port, int p
 		port_led->cdev.hw_control_get_device = qca8k_cled_hw_control_get_device;
 		port_led->cdev.hw_control_trigger = "netdev";
 		init_data.default_label = ":port";
-		init_data.fwnode = led;
+		init_data.fwanalde = led;
 		init_data.devname_mandatory = true;
 		init_data.devicename = kasprintf(GFP_KERNEL, "%s:0%d",
 						 priv->internal_mdio_bus->id,
 						 port_num);
 		if (!init_data.devicename)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = devm_led_classdev_register_ext(priv->dev, &port_led->cdev, &init_data);
 		if (ret)
@@ -447,21 +447,21 @@ qca8k_parse_port_leds(struct qca8k_priv *priv, struct fwnode_handle *port, int p
 int
 qca8k_setup_led_ctrl(struct qca8k_priv *priv)
 {
-	struct fwnode_handle *ports, *port;
+	struct fwanalde_handle *ports, *port;
 	int port_num;
 	int ret;
 
-	ports = device_get_named_child_node(priv->dev, "ports");
+	ports = device_get_named_child_analde(priv->dev, "ports");
 	if (!ports) {
-		dev_info(priv->dev, "No ports node specified in device tree!");
+		dev_info(priv->dev, "Anal ports analde specified in device tree!");
 		return 0;
 	}
 
-	fwnode_for_each_child_node(ports, port) {
-		if (fwnode_property_read_u32(port, "reg", &port_num))
+	fwanalde_for_each_child_analde(ports, port) {
+		if (fwanalde_property_read_u32(port, "reg", &port_num))
 			continue;
 
-		/* Skip checking for CPU port 0 and CPU port 6 as not supported */
+		/* Skip checking for CPU port 0 and CPU port 6 as analt supported */
 		if (port_num == 0 || port_num == 6)
 			continue;
 

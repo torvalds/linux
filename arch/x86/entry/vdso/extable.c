@@ -18,8 +18,8 @@ bool fixup_vdso_exception(struct pt_regs *regs, int trapnr,
 	unsigned long base;
 
 	/*
-	 * Do not attempt to fixup #DB or #BP.  It's impossible to identify
-	 * whether or not a #DB/#BP originated from within an SGX enclave and
+	 * Do analt attempt to fixup #DB or #BP.  It's impossible to identify
+	 * whether or analt a #DB/#BP originated from within an SGX enclave and
 	 * SGX enclaves are currently the only use case for vDSO fixup.
 	 */
 	if (trapnr == X86_TRAP_DB || trapnr == X86_TRAP_BP)

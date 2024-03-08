@@ -6,7 +6,7 @@
 /* To silence -Wmissing-prototypes. */
 unsigned long long __bswapdi2(unsigned long long u);
 
-unsigned long long notrace __bswapdi2(unsigned long long u)
+unsigned long long analtrace __bswapdi2(unsigned long long u)
 {
 	return ___constant_swab64(u);
 }

@@ -21,11 +21,11 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of FundsXpress. not be used in advertising or publicity pertaining
+ * analtice appear in all copies and that both that copyright analtice and
+ * this permission analtice appear in supporting documentation, and that
+ * the name of FundsXpress. analt be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
- * permission.  FundsXpress makes no representations about the suitability of
+ * permission.  FundsXpress makes anal representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -67,7 +67,7 @@
  *
  * However, in situations like the GSS Kerberos 5 mechanism, where the
  * encryption IV is always all zeroes, the confounder also effectively
- * functions like an IV. Thus, not only must it be unique from message
+ * functions like an IV. Thus, analt only must it be unique from message
  * to message, but it must also be difficult to predict. Otherwise an
  * attacker can correlate the confounder to previous or future values,
  * making the encryption easier to break.
@@ -97,7 +97,7 @@ void krb5_make_confounder(u8 *p, int conflen)
  *
  * Return values:
  *   %0: @in successfully encrypted into @out
- *   negative errno: @in not encrypted
+ *   negative erranal: @in analt encrypted
  */
 u32
 krb5_encrypt(
@@ -152,7 +152,7 @@ out:
  *
  * Return values:
  *   %0: @in successfully decrypted into @out
- *   negative errno: @in not decrypted
+ *   negative erranal: @in analt decrypted
  */
 u32
 krb5_decrypt(
@@ -316,7 +316,7 @@ gss_krb5_checksum(struct crypto_ahash *tfm, char *header, int hdrlen,
 		  struct xdr_netobj *cksumout)
 {
 	struct ahash_request *req;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u8 *checksumdata;
 
 	checksumdata = kmalloc(crypto_ahash_digestsize(tfm), GFP_KERNEL);
@@ -373,7 +373,7 @@ struct encryptor_desc {
 	struct page **pages;
 	struct scatterlist infrags[4];
 	struct scatterlist outfrags[4];
-	int fragno;
+	int fraganal;
 	int fraglen;
 };
 
@@ -391,21 +391,21 @@ encryptor(struct scatterlist *sg, void *data)
 
 	/* Worst case is 4 fragments: head, end of page 1, start
 	 * of page 2, tail.  Anything more is a bug. */
-	BUG_ON(desc->fragno > 3);
+	BUG_ON(desc->fraganal > 3);
 
 	page_pos = desc->pos - outbuf->head[0].iov_len;
 	if (page_pos >= 0 && page_pos < outbuf->page_len) {
-		/* pages are not in place: */
+		/* pages are analt in place: */
 		int i = (page_pos + outbuf->page_base) >> PAGE_SHIFT;
 		in_page = desc->pages[i];
 	} else {
 		in_page = sg_page(sg);
 	}
-	sg_set_page(&desc->infrags[desc->fragno], in_page, sg->length,
+	sg_set_page(&desc->infrags[desc->fraganal], in_page, sg->length,
 		    sg->offset);
-	sg_set_page(&desc->outfrags[desc->fragno], sg_page(sg), sg->length,
+	sg_set_page(&desc->outfrags[desc->fraganal], sg_page(sg), sg->length,
 		    sg->offset);
-	desc->fragno++;
+	desc->fraganal++;
 	desc->fraglen += sg->length;
 	desc->pos += sg->length;
 
@@ -415,8 +415,8 @@ encryptor(struct scatterlist *sg, void *data)
 	if (thislen == 0)
 		return 0;
 
-	sg_mark_end(&desc->infrags[desc->fragno - 1]);
-	sg_mark_end(&desc->outfrags[desc->fragno - 1]);
+	sg_mark_end(&desc->infrags[desc->fraganal - 1]);
+	sg_mark_end(&desc->outfrags[desc->fraganal - 1]);
 
 	skcipher_request_set_crypt(desc->req, desc->infrags, desc->outfrags,
 				   thislen, desc->iv);
@@ -433,10 +433,10 @@ encryptor(struct scatterlist *sg, void *data)
 				sg->offset + sg->length - fraglen);
 		desc->infrags[0] = desc->outfrags[0];
 		sg_assign_page(&desc->infrags[0], in_page);
-		desc->fragno = 1;
+		desc->fraganal = 1;
 		desc->fraglen = fraglen;
 	} else {
-		desc->fragno = 0;
+		desc->fraganal = 0;
 		desc->fraglen = 0;
 	}
 	return 0;
@@ -460,7 +460,7 @@ gss_encrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *buf,
 	desc.pos = offset;
 	desc.outbuf = buf;
 	desc.pages = pages;
-	desc.fragno = 0;
+	desc.fraganal = 0;
 	desc.fraglen = 0;
 
 	sg_init_table(desc.infrags, 4);
@@ -475,7 +475,7 @@ struct decryptor_desc {
 	u8 iv[GSS_KRB5_MAX_BLOCKSIZE];
 	struct skcipher_request *req;
 	struct scatterlist frags[4];
-	int fragno;
+	int fraganal;
 	int fraglen;
 };
 
@@ -490,10 +490,10 @@ decryptor(struct scatterlist *sg, void *data)
 
 	/* Worst case is 4 fragments: head, end of page 1, start
 	 * of page 2, tail.  Anything more is a bug. */
-	BUG_ON(desc->fragno > 3);
-	sg_set_page(&desc->frags[desc->fragno], sg_page(sg), sg->length,
+	BUG_ON(desc->fraganal > 3);
+	sg_set_page(&desc->frags[desc->fraganal], sg_page(sg), sg->length,
 		    sg->offset);
-	desc->fragno++;
+	desc->fraganal++;
 	desc->fraglen += sg->length;
 
 	fraglen = thislen & (crypto_sync_skcipher_blocksize(tfm) - 1);
@@ -502,7 +502,7 @@ decryptor(struct scatterlist *sg, void *data)
 	if (thislen == 0)
 		return 0;
 
-	sg_mark_end(&desc->frags[desc->fragno - 1]);
+	sg_mark_end(&desc->frags[desc->fraganal - 1]);
 
 	skcipher_request_set_crypt(desc->req, desc->frags, desc->frags,
 				   thislen, desc->iv);
@@ -516,10 +516,10 @@ decryptor(struct scatterlist *sg, void *data)
 	if (fraglen) {
 		sg_set_page(&desc->frags[0], sg_page(sg), fraglen,
 				sg->offset + sg->length - fraglen);
-		desc->fragno = 1;
+		desc->fraganal = 1;
 		desc->fraglen = fraglen;
 	} else {
-		desc->fragno = 0;
+		desc->fraganal = 0;
 		desc->fraglen = 0;
 	}
 	return 0;
@@ -541,7 +541,7 @@ gss_decrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *buf,
 
 	memset(desc.iv, 0, sizeof(desc.iv));
 	desc.req = req;
-	desc.fragno = 0;
+	desc.fraganal = 0;
 	desc.fraglen = 0;
 
 	sg_init_table(desc.frags, 4);
@@ -601,11 +601,11 @@ gss_krb5_cts_crypt(struct crypto_sync_skcipher *cipher, struct xdr_buf *buf,
 
 	if (len > GSS_KRB5_MAX_BLOCKSIZE * 2) {
 		WARN_ON(0);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	data = kmalloc(GSS_KRB5_MAX_BLOCKSIZE * 2, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * For encryption, we want to read from the cleartext
@@ -641,7 +641,7 @@ gss_krb5_cts_crypt(struct crypto_sync_skcipher *cipher, struct xdr_buf *buf,
 
 #if IS_ENABLED(CONFIG_KUNIT)
 	/*
-	 * CBC-CTS does not define an output IV but RFC 3962 defines it as the
+	 * CBC-CTS does analt define an output IV but RFC 3962 defines it as the
 	 * penultimate block of ciphertext, so copy that into the IV buffer
 	 * before returning.
 	 */
@@ -669,7 +669,7 @@ out:
  *
  * Return values:
  *   %0: encryption successful
- *   negative errno: encryption could not be completed
+ *   negative erranal: encryption could analt be completed
  */
 VISIBLE_IF_KUNIT
 int krb5_cbc_cts_encrypt(struct crypto_sync_skcipher *cts_tfm,
@@ -695,7 +695,7 @@ int krb5_cbc_cts_encrypt(struct crypto_sync_skcipher *cts_tfm,
 		SYNC_SKCIPHER_REQUEST_ON_STACK(req, cbc_tfm);
 
 		desc.pos = offset;
-		desc.fragno = 0;
+		desc.fraganal = 0;
 		desc.fraglen = 0;
 		desc.pages = pages;
 		desc.outbuf = buf;
@@ -734,7 +734,7 @@ EXPORT_SYMBOL_IF_KUNIT(krb5_cbc_cts_encrypt);
  *
  * Return values:
  *   %0: decryption successful
- *   negative errno: decryption could not be completed
+ *   negative erranal: decryption could analt be completed
  */
 VISIBLE_IF_KUNIT
 int krb5_cbc_cts_decrypt(struct crypto_sync_skcipher *cts_tfm,
@@ -757,7 +757,7 @@ int krb5_cbc_cts_decrypt(struct crypto_sync_skcipher *cts_tfm,
 	if (cbcbytes) {
 		SYNC_SKCIPHER_REQUEST_ON_STACK(req, cbc_tfm);
 
-		desc.fragno = 0;
+		desc.fraganal = 0;
 		desc.fraglen = 0;
 		desc.req = req;
 
@@ -846,7 +846,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	if (err)
 		return GSS_S_FAILURE;
 
-	/* Now update buf to account for HMAC */
+	/* Analw update buf to account for HMAC */
 	buf->tail[0].iov_len += kctx->gk5e->cksumlength;
 	buf->len += kctx->gk5e->cksumlength;
 
@@ -934,7 +934,7 @@ u32 krb5_etm_checksum(struct crypto_sync_skcipher *cipher,
 	struct ahash_request *req;
 	struct scatterlist sg[1];
 	u8 *iv, *checksumdata;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	checksumdata = kmalloc(crypto_ahash_digestsize(tfm), GFP_KERNEL);
 	if (!checksumdata)
@@ -1085,7 +1085,7 @@ out_err:
  * CBC-CS3 mode, and h is the size of truncated HMAC.
  *
  *    (C, H) = ciphertext
- *        (Note: H is the last h bits of the ciphertext.)
+ *        (Analte: H is the last h bits of the ciphertext.)
  *    IV = cipher state
  *    if H != HMAC(Ki, IV | C)[1..h]
  *        stop, report error

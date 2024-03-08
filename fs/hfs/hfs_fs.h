@@ -2,7 +2,7 @@
  *  linux/fs/hfs/hfs_fs.h
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  */
 
@@ -27,17 +27,17 @@
 
 #include "hfs.h"
 
-#define DBG_BNODE_REFS	0x00000001
-#define DBG_BNODE_MOD	0x00000002
+#define DBG_BANALDE_REFS	0x00000001
+#define DBG_BANALDE_MOD	0x00000002
 #define DBG_CAT_MOD	0x00000004
-#define DBG_INODE	0x00000008
+#define DBG_IANALDE	0x00000008
 #define DBG_SUPER	0x00000010
 #define DBG_EXTENT	0x00000020
 #define DBG_BITMAP	0x00000040
 
-//#define DBG_MASK	(DBG_EXTENT|DBG_INODE|DBG_BNODE_MOD|DBG_CAT_MOD|DBG_BITMAP)
-//#define DBG_MASK	(DBG_BNODE_MOD|DBG_CAT_MOD|DBG_INODE)
-//#define DBG_MASK	(DBG_CAT_MOD|DBG_BNODE_REFS|DBG_INODE|DBG_EXTENT)
+//#define DBG_MASK	(DBG_EXTENT|DBG_IANALDE|DBG_BANALDE_MOD|DBG_CAT_MOD|DBG_BITMAP)
+//#define DBG_MASK	(DBG_BANALDE_MOD|DBG_CAT_MOD|DBG_IANALDE)
+//#define DBG_MASK	(DBG_CAT_MOD|DBG_BANALDE_REFS|DBG_IANALDE|DBG_EXTENT)
 #define DBG_MASK	(0)
 
 #define hfs_dbg(flg, fmt, ...)					\
@@ -54,11 +54,11 @@ do {								\
 
 
 /*
- * struct hfs_inode_info
+ * struct hfs_ianalde_info
  *
- * The HFS-specific part of a Linux (struct inode)
+ * The HFS-specific part of a Linux (struct ianalde)
  */
-struct hfs_inode_info {
+struct hfs_ianalde_info {
 	atomic_t opencnt;
 
 	unsigned int flags;
@@ -70,7 +70,7 @@ struct hfs_inode_info {
 
 	struct list_head open_dir_list;
 	spinlock_t open_dir_lock;
-	struct inode *rsrc_inode;
+	struct ianalde *rsrc_ianalde;
 
 	struct mutex extents_lock;
 
@@ -83,14 +83,14 @@ struct hfs_inode_info {
 	u16 cached_start, cached_blocks;
 
 	loff_t phys_size;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
 #define HFS_FLG_RSRC		0x0001
 #define HFS_FLG_EXT_DIRTY	0x0002
 #define HFS_FLG_EXT_NEW		0x0004
 
-#define HFS_IS_RSRC(inode)	(HFS_I(inode)->flags & HFS_FLG_RSRC)
+#define HFS_IS_RSRC(ianalde)	(HFS_I(ianalde)->flags & HFS_FLG_RSRC)
 
 /*
  * struct hfs_sb_info
@@ -129,7 +129,7 @@ struct hfs_sb_info {
 	u32 part_start;
 	u16 root_files;				/* The number of
 						   regular
-						   (non-directory)
+						   (analn-directory)
 						   files in the root
 						   directory */
 	u16 root_dirs;				/* The number of
@@ -161,7 +161,7 @@ struct hfs_sb_info {
 	u16 blockoffset;
 	int fs_div;
 	struct super_block *sb;
-	int work_queued;		/* non-zero delayed work is queued */
+	int work_queued;		/* analn-zero delayed work is queued */
 	struct delayed_work mdb_work;	/* MDB flush delayed work */
 	spinlock_t work_lock;		/* protects mdb_work and work_queued */
 };
@@ -178,41 +178,41 @@ extern int hfs_clear_vbm_bits(struct super_block *, u16, u16);
 extern int hfs_cat_keycmp(const btree_key *, const btree_key *);
 struct hfs_find_data;
 extern int hfs_cat_find_brec(struct super_block *, u32, struct hfs_find_data *);
-extern int hfs_cat_create(u32, struct inode *, const struct qstr *, struct inode *);
-extern int hfs_cat_delete(u32, struct inode *, const struct qstr *);
-extern int hfs_cat_move(u32, struct inode *, const struct qstr *,
-			struct inode *, const struct qstr *);
+extern int hfs_cat_create(u32, struct ianalde *, const struct qstr *, struct ianalde *);
+extern int hfs_cat_delete(u32, struct ianalde *, const struct qstr *);
+extern int hfs_cat_move(u32, struct ianalde *, const struct qstr *,
+			struct ianalde *, const struct qstr *);
 extern void hfs_cat_build_key(struct super_block *, btree_key *, u32, const struct qstr *);
 
 /* dir.c */
 extern const struct file_operations hfs_dir_operations;
-extern const struct inode_operations hfs_dir_inode_operations;
+extern const struct ianalde_operations hfs_dir_ianalde_operations;
 
 /* extent.c */
 extern int hfs_ext_keycmp(const btree_key *, const btree_key *);
 extern int hfs_free_fork(struct super_block *, struct hfs_cat_file *, int);
-extern int hfs_ext_write_extent(struct inode *);
-extern int hfs_extend_file(struct inode *);
-extern void hfs_file_truncate(struct inode *);
+extern int hfs_ext_write_extent(struct ianalde *);
+extern int hfs_extend_file(struct ianalde *);
+extern void hfs_file_truncate(struct ianalde *);
 
-extern int hfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
+extern int hfs_get_block(struct ianalde *, sector_t, struct buffer_head *, int);
 
-/* inode.c */
+/* ianalde.c */
 extern const struct address_space_operations hfs_aops;
 extern const struct address_space_operations hfs_btree_aops;
 
 int hfs_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, struct page **pagep, void **fsdata);
-extern struct inode *hfs_new_inode(struct inode *, const struct qstr *, umode_t);
-extern void hfs_inode_write_fork(struct inode *, struct hfs_extent *, __be32 *, __be32 *);
-extern int hfs_write_inode(struct inode *, struct writeback_control *);
-extern int hfs_inode_setattr(struct mnt_idmap *, struct dentry *,
+extern struct ianalde *hfs_new_ianalde(struct ianalde *, const struct qstr *, umode_t);
+extern void hfs_ianalde_write_fork(struct ianalde *, struct hfs_extent *, __be32 *, __be32 *);
+extern int hfs_write_ianalde(struct ianalde *, struct writeback_control *);
+extern int hfs_ianalde_setattr(struct mnt_idmap *, struct dentry *,
 			     struct iattr *);
-extern void hfs_inode_read_fork(struct inode *inode, struct hfs_extent *ext,
+extern void hfs_ianalde_read_fork(struct ianalde *ianalde, struct hfs_extent *ext,
 			__be32 log_size, __be32 phys_size, u32 clump_size);
-extern struct inode *hfs_iget(struct super_block *, struct hfs_cat_key *, hfs_cat_rec *);
-extern void hfs_evict_inode(struct inode *);
-extern void hfs_delete_inode(struct inode *);
+extern struct ianalde *hfs_iget(struct super_block *, struct hfs_cat_key *, hfs_cat_rec *);
+extern void hfs_evict_ianalde(struct ianalde *);
+extern void hfs_delete_ianalde(struct ianalde *);
 
 /* attr.c */
 extern const struct xattr_handler * const hfs_xattr_handlers[];
@@ -268,7 +268,7 @@ static inline __be32 __hfs_u_to_mtime(time64_t ut)
 
 	return cpu_to_be32(lower_32_bits(ut) + HFS_UTC_OFFSET);
 }
-#define HFS_I(inode)	(container_of(inode, struct hfs_inode_info, vfs_inode))
+#define HFS_I(ianalde)	(container_of(ianalde, struct hfs_ianalde_info, vfs_ianalde))
 #define HFS_SB(sb)	((struct hfs_sb_info *)(sb)->s_fs_info)
 
 #define hfs_m_to_utime(time)   (struct timespec64){ .tv_sec = __hfs_m_to_utime(time) }

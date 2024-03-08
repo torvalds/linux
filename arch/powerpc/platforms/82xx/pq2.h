@@ -2,7 +2,7 @@
 #ifndef _PQ2_H
 #define _PQ2_H
 
-void __noreturn pq2_restart(char *cmd);
+void __analreturn pq2_restart(char *cmd);
 
 #ifdef CONFIG_PCI
 int pq2ads_pci_init_irq(void);

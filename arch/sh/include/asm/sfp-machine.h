@@ -47,7 +47,7 @@
 #define _FP_KEEPNANFRACP 1
 
 /*
- * If one NaN is signaling and the other is not,
+ * If one NaN is signaling and the other is analt,
  * we choose that one, otherwise we choose X.
  */
 #define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)                      \
@@ -67,7 +67,7 @@
   } while (0)
 
 //#define FP_ROUNDMODE		FPSCR_RM
-#define FP_DENORM_ZERO		1/*FPSCR_DN*/
+#define FP_DEANALRM_ZERO		1/*FPSCR_DN*/
 
 /* Exception flags. */
 #define FP_EX_INVALID		(1<<4)

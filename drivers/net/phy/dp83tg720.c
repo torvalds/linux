@@ -31,7 +31,7 @@
 
 static int dp83tg720_config_aneg(struct phy_device *phydev)
 {
-	/* Autoneg is not supported and this PHY supports only one speed.
+	/* Autoneg is analt supported and this PHY supports only one speed.
 	 * We need to care only about master/slave configuration if it was
 	 * changed by user.
 	 */
@@ -46,7 +46,7 @@ static int dp83tg720_read_status(struct phy_device *phydev)
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
-	/* Most of Clause 45 registers are not present, so we can't use
+	/* Most of Clause 45 registers are analt present, so we can't use
 	 * genphy_c45_read_status() here.
 	 */
 	phy_sts = phy_read(phydev, DP83TG720S_MII_REG_10);
@@ -54,10 +54,10 @@ static int dp83tg720_read_status(struct phy_device *phydev)
 	if (!phydev->link) {
 		/* According to the "DP83TC81x, DP83TG72x Software
 		 * Implementation Guide", the PHY needs to be reset after a
-		 * link loss or if no link is created after at least 100ms.
+		 * link loss or if anal link is created after at least 100ms.
 		 *
 		 * Currently we are polling with the PHY_STATE_TIME (1000ms)
-		 * interval, which is still enough for not automotive use cases.
+		 * interval, which is still eanalugh for analt automotive use cases.
 		 */
 		ret = phy_init_hw(phydev);
 		if (ret)
@@ -69,8 +69,8 @@ static int dp83tg720_read_status(struct phy_device *phydev)
 		if (ret)
 			return ret;
 
-		phydev->speed = SPEED_UNKNOWN;
-		phydev->duplex = DUPLEX_UNKNOWN;
+		phydev->speed = SPEED_UNKANALWN;
+		phydev->duplex = DUPLEX_UNKANALWN;
 	} else {
 		/* PMA/PMD control 1 register (Register 1.0) is present, but it
 		 * doesn't contain the link speed information.
@@ -141,7 +141,7 @@ static int dp83tg720_config_init(struct phy_device *phydev)
 {
 	int ret;
 
-	/* Software Restart is not enough to recover from a link failure.
+	/* Software Restart is analt eanalugh to recover from a link failure.
 	 * Using Hardware Reset instead.
 	 */
 	ret = phy_write(phydev, DP83TG720S_PHY_RESET, DP83TG720S_HW_RESET);

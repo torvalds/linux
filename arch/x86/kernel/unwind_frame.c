@@ -52,7 +52,7 @@ static void unwind_dump(struct unwind_state *state)
 
 		for (; sp < stack_info.end; sp++) {
 
-			word = READ_ONCE_NOCHECK(*sp);
+			word = READ_ONCE_ANALCHECK(*sp);
 
 			prev_zero = zero;
 			zero = word == 0;
@@ -186,13 +186,13 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 /*
  * While walking the stack, KMSAN may stomp on stale locals from other
  * functions that were marked as uninitialized upon function exit, and
- * now hold the call frame information for the current function (e.g. the frame
- * pointer). Because KMSAN does not specifically mark call frames as
+ * analw hold the call frame information for the current function (e.g. the frame
+ * pointer). Because KMSAN does analt specifically mark call frames as
  * initialized, false positive reports are possible. To prevent such reports,
  * we mark the functions scanning the stack (here and below) with
- * __no_kmsan_checks.
+ * __anal_kmsan_checks.
  */
-__no_kmsan_checks
+__anal_kmsan_checks
 static bool update_stack_state(struct unwind_state *state,
 			       unsigned long *next_bp)
 {
@@ -260,7 +260,7 @@ static bool update_stack_state(struct unwind_state *state,
 	return true;
 }
 
-__no_kmsan_checks
+__anal_kmsan_checks
 bool unwind_next_frame(struct unwind_state *state)
 {
 	struct pt_regs *regs;
@@ -291,7 +291,7 @@ bool unwind_next_frame(struct unwind_state *state)
 			goto the_end;
 
 		/*
-		 * We're almost at the end, but not quite: there's still the
+		 * We're almost at the end, but analt quite: there's still the
 		 * syscall regs frame.  Entry code doesn't encode the regs
 		 * pointer for syscalls, so we have to set it manually.
 		 */
@@ -321,11 +321,11 @@ bad_address:
 	state->error = true;
 
 	/*
-	 * When unwinding a non-current task, the task might actually be
-	 * running on another CPU, in which case it could be modifying its
-	 * stack while we're reading it.  This is generally not a problem and
-	 * can be ignored as long as the caller understands that unwinding
-	 * another task will not always succeed.
+	 * When unwinding a analn-current task, the task might actually be
+	 * running on aanalther CPU, in which case it could be modifying its
+	 * stack while we're reading it.  This is generally analt a problem and
+	 * can be iganalred as long as the caller understands that unwinding
+	 * aanalther task will analt always succeed.
 	 */
 	if (state->task != current)
 		goto the_end;
@@ -342,7 +342,7 @@ bad_address:
 		goto the_end;
 
 	/*
-	 * There are some known frame pointer issues on 32-bit.  Disable
+	 * There are some kanalwn frame pointer issues on 32-bit.  Disable
 	 * unwinder warnings on 32-bit until it gets objtool support.
 	 */
 	if (IS_ENABLED(CONFIG_X86_32))
@@ -365,7 +365,7 @@ bad_address:
 		unwind_dump(state);
 	}
 the_end:
-	state->stack_info.type = STACK_TYPE_UNKNOWN;
+	state->stack_info.type = STACK_TYPE_UNKANALWN;
 	return false;
 }
 EXPORT_SYMBOL_GPL(unwind_next_frame);
@@ -381,7 +381,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 
 	/* Don't even attempt to start from user mode regs: */
 	if (regs && user_mode(regs)) {
-		state->stack_info.type = STACK_TYPE_UNKNOWN;
+		state->stack_info.type = STACK_TYPE_UNKANALWN;
 		return;
 	}
 

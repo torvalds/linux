@@ -22,7 +22,7 @@ int samsung_asoc_dma_platform_register(struct device *dev, dma_filter_fn filter,
 
 	pcm_conf = devm_kzalloc(dev, sizeof(*pcm_conf), GFP_KERNEL);
 	if (!pcm_conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcm_conf->prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config;
 	pcm_conf->compat_filter_fn = filter;

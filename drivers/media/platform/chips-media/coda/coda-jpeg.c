@@ -331,7 +331,7 @@ int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb)
 		if (!ctx->params.jpeg_qmat_tab[i]) {
 			ctx->params.jpeg_qmat_tab[i] = kmalloc(64, GFP_KERNEL);
 			if (!ctx->params.jpeg_qmat_tab[i])
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		memcpy(ctx->params.jpeg_qmat_tab[i],
 		       quantization_tables[i].start, 64);
@@ -357,7 +357,7 @@ int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb)
 	if (!huff_tab) {
 		huff_tab = kzalloc(sizeof(struct coda_huff_tab), GFP_KERNEL);
 		if (!huff_tab)
-			return -ENOMEM;
+			return -EANALMEM;
 		ctx->params.jpeg_huff_tab = huff_tab;
 	}
 
@@ -399,7 +399,7 @@ int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb)
 		ctx->params.jpeg_chroma_subsampling = header.frame.subsampling;
 		break;
 	default:
-		v4l2_err(&dev->v4l2_dev, "chroma subsampling not supported: %d",
+		v4l2_err(&dev->v4l2_dev, "chroma subsampling analt supported: %d",
 			 header.frame.subsampling);
 		return -EINVAL;
 	}
@@ -595,7 +595,7 @@ static int coda9_jpeg_gen_enc_huff_tab(struct coda_ctx *ctx, int tab_num,
 
 	huff = kzalloc(sizeof(*huff), GFP_KERNEL);
 	if (!huff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bits = huff_tabs[tab_num];
 	huffval = huff_tabs[tab_num] + 16;
@@ -725,7 +725,7 @@ static int coda9_jpeg_load_huff_tab(struct coda_ctx *ctx)
 
 	huff = kzalloc(sizeof(*huff), GFP_KERNEL);
 	if (!huff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Generate all four (luma/chroma DC/AC) code/size lookup tables */
 	for (i = 0; i < 4; i++) {
@@ -740,7 +740,7 @@ static int coda9_jpeg_load_huff_tab(struct coda_ctx *ctx)
 			kzalloc(sizeof(u32) * CODA9_JPEG_ENC_HUFF_DATA_SIZE,
 				GFP_KERNEL);
 		if (!ctx->params.jpeg_huff_data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
@@ -989,7 +989,7 @@ static int coda9_jpeg_encode_header(struct coda_ctx *ctx, int len, u8 *buf)
 }
 
 /*
- * Scale quantization table using nonlinear scaling factor
+ * Scale quantization table using analnlinear scaling factor
  * u8 qtab[64], scale [50,190]
  */
 static void coda_scale_quant_table(u8 *q_tab, int scale)
@@ -1020,7 +1020,7 @@ void coda_set_jpeg_compression_quality(struct coda_ctx *ctx, int quality)
 		quality = 5;
 
 	/*
-	 * Non-linear scaling factor:
+	 * Analn-linear scaling factor:
 	 * [5,50] -> [1000..100], [51,100] -> [98..0]
 	 */
 	if (quality < 50)
@@ -1055,12 +1055,12 @@ static int coda9_jpeg_start_encoding(struct coda_ctx *ctx)
 	if (!ctx->params.jpeg_qmat_tab[0]) {
 		ctx->params.jpeg_qmat_tab[0] = kmalloc(64, GFP_KERNEL);
 		if (!ctx->params.jpeg_qmat_tab[0])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (!ctx->params.jpeg_qmat_tab[1]) {
 		ctx->params.jpeg_qmat_tab[1] = kmalloc(64, GFP_KERNEL);
 		if (!ctx->params.jpeg_qmat_tab[1])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	coda_set_jpeg_compression_quality(ctx, ctx->params.jpeg_quality);
 
@@ -1315,7 +1315,7 @@ static int coda9_jpeg_start_decoding(struct coda_ctx *ctx)
 	ctx->params.jpeg_qmat_index[2] = 1;
 	ctx->params.jpeg_qmat_tab[0] = luma_q;
 	ctx->params.jpeg_qmat_tab[1] = chroma_q;
-	/* nothing more to do here */
+	/* analthing more to do here */
 
 	/* TODO: we could already scan the first header to get the chroma
 	 * format.
@@ -1496,7 +1496,7 @@ static void coda9_jpeg_finish_decode(struct coda_ctx *ctx)
 }
 
 const struct coda_context_ops coda9_jpeg_decode_ops = {
-	.queue_init = coda_encoder_queue_init, /* non-bitstream operation */
+	.queue_init = coda_encoder_queue_init, /* analn-bitstream operation */
 	.start_streaming = coda9_jpeg_start_decoding,
 	.prepare_run = coda9_jpeg_prepare_decode,
 	.finish_run = coda9_jpeg_finish_decode,

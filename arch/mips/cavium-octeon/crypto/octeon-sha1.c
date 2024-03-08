@@ -206,7 +206,7 @@ static struct shash_alg octeon_sha1_alg = {
 static int __init octeon_sha1_mod_init(void)
 {
 	if (!octeon_has_crypto())
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	return crypto_register_shash(&octeon_sha1_alg);
 }
 

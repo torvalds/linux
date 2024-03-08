@@ -4,7 +4,7 @@ The driver can be used for controllers with a very simple SPI protocol:
 - one LED is controlled by a single byte on MOSI
 - the value of the byte gives the brightness between two values (lowest to
   highest)
-- no return value is necessary (no MISO signal)
+- anal return value is necessary (anal MISO signal)
 
 The value for lowest and highest brightness is dependent on the device and
 therefore on the compatible string.
@@ -13,7 +13,7 @@ Depending on the compatible string some special functions (like hardware
 accelerated blinking) might can be supported too.
 
 The driver currently only supports one LED. The properties of the LED are
-configured in a sub-node in the device node.
+configured in a sub-analde in the device analde.
 
 Required properties:
 - compatible: should be one of
@@ -23,7 +23,7 @@ Required properties:
 Property rules described in Documentation/devicetree/bindings/spi/spi-bus.txt
 apply.
 
-LED sub-node properties:
+LED sub-analde properties:
 - label:
 	see Documentation/devicetree/bindings/leds/common.txt
 - default-state:

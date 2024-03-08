@@ -70,8 +70,8 @@ TRACE_EVENT(i915_vma_bind,
 	    TP_fast_assign(
 			   __entry->obj = vma->obj;
 			   __entry->vm = vma->vm;
-			   __entry->offset = vma->node.start;
-			   __entry->size = vma->node.size;
+			   __entry->offset = vma->analde.start;
+			   __entry->size = vma->analde.size;
 			   __entry->flags = flags;
 			   ),
 
@@ -95,8 +95,8 @@ TRACE_EVENT(i915_vma_unbind,
 	    TP_fast_assign(
 			   __entry->obj = vma->obj;
 			   __entry->vm = vma->vm;
-			   __entry->offset = vma->node.start;
-			   __entry->size = vma->node.size;
+			   __entry->offset = vma->analde.start;
+			   __entry->size = vma->analde.size;
 			   ),
 
 	    TP_printk("obj=%p, offset=0x%016llx size=0x%llx vm=%p",
@@ -218,9 +218,9 @@ TRACE_EVENT(i915_gem_evict,
 		      __entry->flags & PIN_MAPPABLE ? ", mappable" : "")
 );
 
-TRACE_EVENT(i915_gem_evict_node,
-	    TP_PROTO(struct i915_address_space *vm, struct drm_mm_node *node, unsigned int flags),
-	    TP_ARGS(vm, node, flags),
+TRACE_EVENT(i915_gem_evict_analde,
+	    TP_PROTO(struct i915_address_space *vm, struct drm_mm_analde *analde, unsigned int flags),
+	    TP_ARGS(vm, analde, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
@@ -234,9 +234,9 @@ TRACE_EVENT(i915_gem_evict_node,
 	    TP_fast_assign(
 			   __entry->dev = vm->i915->drm.primary->index;
 			   __entry->vm = vm;
-			   __entry->start = node->start;
-			   __entry->size = node->size;
-			   __entry->color = node->color;
+			   __entry->start = analde->start;
+			   __entry->size = analde->size;
+			   __entry->color = analde->color;
 			   __entry->flags = flags;
 			  ),
 
@@ -272,7 +272,7 @@ TRACE_EVENT(i915_request_queue,
 			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, seqno)
+			     __field(u32, seqanal)
 			     __field(u32, flags)
 			     ),
 
@@ -281,13 +281,13 @@ TRACE_EVENT(i915_request_queue,
 			   __entry->class = rq->engine->uabi_class;
 			   __entry->instance = rq->engine->uabi_instance;
 			   __entry->ctx = rq->fence.context;
-			   __entry->seqno = rq->fence.seqno;
+			   __entry->seqanal = rq->fence.seqanal;
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqno=%u, flags=0x%x",
+	    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqanal=%u, flags=0x%x",
 		      __entry->dev, __entry->class, __entry->instance,
-		      __entry->ctx, __entry->seqno, __entry->flags)
+		      __entry->ctx, __entry->seqanal, __entry->flags)
 );
 
 DECLARE_EVENT_CLASS(i915_request,
@@ -299,7 +299,7 @@ DECLARE_EVENT_CLASS(i915_request,
 			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, seqno)
+			     __field(u32, seqanal)
 			     __field(u32, tail)
 			     ),
 
@@ -308,13 +308,13 @@ DECLARE_EVENT_CLASS(i915_request,
 			   __entry->class = rq->engine->uabi_class;
 			   __entry->instance = rq->engine->uabi_instance;
 			   __entry->ctx = rq->fence.context;
-			   __entry->seqno = rq->fence.seqno;
+			   __entry->seqanal = rq->fence.seqanal;
 			   __entry->tail = rq->tail;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqno=%u, tail=%u",
+	    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqanal=%u, tail=%u",
 		      __entry->dev, __entry->class, __entry->instance,
-		      __entry->ctx, __entry->seqno, __entry->tail)
+		      __entry->ctx, __entry->seqanal, __entry->tail)
 );
 
 DEFINE_EVENT(i915_request, i915_request_add,
@@ -347,7 +347,7 @@ TRACE_EVENT(i915_request_in,
 			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, seqno)
+			     __field(u32, seqanal)
 			     __field(u32, port)
 			     __field(s32, prio)
 			    ),
@@ -357,14 +357,14 @@ TRACE_EVENT(i915_request_in,
 			   __entry->class = rq->engine->uabi_class;
 			   __entry->instance = rq->engine->uabi_instance;
 			   __entry->ctx = rq->fence.context;
-			   __entry->seqno = rq->fence.seqno;
+			   __entry->seqanal = rq->fence.seqanal;
 			   __entry->prio = rq->sched.attr.priority;
 			   __entry->port = port;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqno=%u, prio=%d, port=%u",
+	    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqanal=%u, prio=%d, port=%u",
 		      __entry->dev, __entry->class, __entry->instance,
-		      __entry->ctx, __entry->seqno,
+		      __entry->ctx, __entry->seqanal,
 		      __entry->prio, __entry->port)
 );
 
@@ -377,7 +377,7 @@ TRACE_EVENT(i915_request_out,
 			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, seqno)
+			     __field(u32, seqanal)
 			     __field(u32, completed)
 			    ),
 
@@ -386,13 +386,13 @@ TRACE_EVENT(i915_request_out,
 			   __entry->class = rq->engine->uabi_class;
 			   __entry->instance = rq->engine->uabi_instance;
 			   __entry->ctx = rq->fence.context;
-			   __entry->seqno = rq->fence.seqno;
+			   __entry->seqanal = rq->fence.seqanal;
 			   __entry->completed = i915_request_completed(rq);
 			   ),
 
-		    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqno=%u, completed?=%u",
+		    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqanal=%u, completed?=%u",
 			      __entry->dev, __entry->class, __entry->instance,
-			      __entry->ctx, __entry->seqno, __entry->completed)
+			      __entry->ctx, __entry->seqanal, __entry->completed)
 );
 
 DECLARE_EVENT_CLASS(intel_context,
@@ -612,14 +612,14 @@ TRACE_EVENT(i915_request_wait_begin,
 			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, seqno)
+			     __field(u32, seqanal)
 			     __field(unsigned int, flags)
 			     ),
 
 	    /* NB: the blocking information is racy since mutex_is_locked
 	     * doesn't check that the current thread holds the lock. The only
 	     * other option would be to pass the boolean information of whether
-	     * or not the class was blocking down through the stack which is
+	     * or analt the class was blocking down through the stack which is
 	     * less desirable.
 	     */
 	    TP_fast_assign(
@@ -627,13 +627,13 @@ TRACE_EVENT(i915_request_wait_begin,
 			   __entry->class = rq->engine->uabi_class;
 			   __entry->instance = rq->engine->uabi_instance;
 			   __entry->ctx = rq->fence.context;
-			   __entry->seqno = rq->fence.seqno;
+			   __entry->seqanal = rq->fence.seqanal;
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqno=%u, flags=0x%x",
+	    TP_printk("dev=%u, engine=%u:%u, ctx=%llu, seqanal=%u, flags=0x%x",
 		      __entry->dev, __entry->class, __entry->instance,
-		      __entry->ctx, __entry->seqno,
+		      __entry->ctx, __entry->seqanal,
 		      __entry->flags)
 );
 
@@ -676,7 +676,7 @@ TRACE_EVENT_CONDITION(i915_reg_rw,
  * With full ppgtt enabled each process using drm will allocate at least one
  * translation table. With these traces it is possible to keep track of the
  * allocation and of the lifetime of the tables; this can be used during
- * testing/debug to verify that we are not leaking ppgtts.
+ * testing/debug to verify that we are analt leaking ppgtts.
  * These traces identify the ppgtt through the vm pointer, which is also printed
  * by the i915_vma_bind and i915_vma_unbind tracepoints.
  */

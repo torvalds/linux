@@ -47,8 +47,8 @@
  * The command names are the same as those found in the datasheet to ease
  * looking up their semantics and usage.
  *
- * Note that the ST7789V display controller offers quite a few more commands
- * which have been omitted from this list as they are not used at the moment.
+ * Analte that the ST7789V display controller offers quite a few more commands
+ * which have been omitted from this list as they are analt used at the moment.
  * Furthermore, commands that are compliant with the MIPI DCS have been left
  * out as well to avoid duplicate entries.
  */
@@ -98,7 +98,7 @@ static int init_tearing_effect_line(struct fbtft_par *par)
 	if (IS_ERR(te))
 		return dev_err_probe(dev, PTR_ERR(te), "Failed to request te GPIO\n");
 
-	/* if te is NULL, indicating no configuration, directly return success */
+	/* if te is NULL, indicating anal configuration, directly return success */
 	if (!te) {
 		irq_te = 0;
 		return 0;
@@ -115,13 +115,13 @@ static int init_tearing_effect_line(struct fbtft_par *par)
 	irq_te = irq;
 	init_completion(&panel_te);
 
-	/* The effective state is high and lasts no more than 1000 microseconds */
+	/* The effective state is high and lasts anal more than 1000 microseconds */
 	rc = devm_request_irq(dev, irq_te, panel_te_handler,
 			      IRQF_TRIGGER_RISING, "TE_GPIO", par);
 	if (rc)
 		return dev_err_probe(dev, rc, "TE IRQ request failed.\n");
 
-	disable_irq_nosync(irq_te);
+	disable_irq_analsync(irq_te);
 
 	return 0;
 }
@@ -135,7 +135,7 @@ static int init_tearing_effect_line(struct fbtft_par *par)
  * same default values which are already in place after the display has been
  * powered up. (The main exception to this rule is the pixel format which
  * would default to 18 instead of 16 bit per pixel.)
- * Nonetheless, this sequence can be used as a template for concrete
+ * Analnetheless, this sequence can be used as a template for concrete
  * displays which usually need some adjustments.
  *
  * Return: 0 on success, < 0 if error occurred.
@@ -302,7 +302,7 @@ static int set_var(struct fbtft_par *par)
  * Before the gamma curves are applied, they are preprocessed with a bitmask
  * to ensure syntactically correct input for the display controller.
  * This implies that the curves input parameter might be changed by this
- * function and that illegal gamma values are auto-corrected and not
+ * function and that illegal gamma values are auto-corrected and analt
  * reported as errors.
  *
  * Return: 0 on success, < 0 if error occurred.

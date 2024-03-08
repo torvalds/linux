@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #ifndef RENESAS_USB_DRIVER_H
 #define RENESAS_USB_DRIVER_H
@@ -141,7 +141,7 @@ struct usbhs_priv;
 #define DVSE	(1 << 12)	/* Enable IRQ Device State Transition */
 #define CTRE	(1 << 11)	/* Enable IRQ Control Stage Transition */
 #define BEMPE	(1 << 10)	/* Enable IRQ Buffer Empty */
-#define NRDYE	(1 << 9)	/* Enable IRQ Buffer Not Ready Response */
+#define NRDYE	(1 << 9)	/* Enable IRQ Buffer Analt Ready Response */
 #define BRDYE	(1 << 8)	/* Enable IRQ Buffer Ready */
 
 /* INTENB1 */
@@ -174,7 +174,7 @@ struct usbhs_priv;
 #define  READ_STATUS_STAGE	2	/* Control read status stage */
 #define  WRITE_DATA_STAGE	3	/* Control write data stage */
 #define  WRITE_STATUS_STAGE	4	/* Control write status stage */
-#define  NODATA_STATUS_STAGE	5	/* Control write NoData status stage */
+#define  ANALDATA_STATUS_STAGE	5	/* Control write AnalData status stage */
 #define  SEQUENCE_ERROR		6	/* Control transfer sequence error */
 
 /* INTSTS1 */
@@ -188,7 +188,7 @@ struct usbhs_priv;
 
 /* PIPECFG */
 /* DCPCFG */
-#define TYPE_NONE	(0 << 14)	/* Transfer Type */
+#define TYPE_ANALNE	(0 << 14)	/* Transfer Type */
 #define TYPE_BULK	(1 << 14)
 #define TYPE_INT	(2 << 14)
 #define TYPE_ISO	(3 << 14)
@@ -256,7 +256,7 @@ struct usbhs_priv {
 	const struct renesas_usbhs_platform_callback *pfunc;
 	struct renesas_usbhs_driver_param	dparam;
 
-	struct delayed_work notify_hotplug_work;
+	struct delayed_work analtify_hotplug_work;
 	struct platform_device *pdev;
 
 	struct extcon_dev *edev;
@@ -316,7 +316,7 @@ void usbhs_bus_send_sof_enable(struct usbhs_priv *priv);
 void usbhs_bus_send_reset(struct usbhs_priv *priv);
 int usbhs_bus_get_speed(struct usbhs_priv *priv);
 int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable);
-int usbhsc_schedule_notify_hotplug(struct platform_device *pdev);
+int usbhsc_schedule_analtify_hotplug(struct platform_device *pdev);
 
 /*
  * frame

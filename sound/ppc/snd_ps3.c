@@ -78,7 +78,7 @@ static inline void update_mask_reg(unsigned int reg, u32 mask, u32 or_val)
  */
 static const struct snd_pcm_hardware snd_ps3_pcm_hw = {
 	.info = (SNDRV_PCM_INFO_MMAP |
-		 SNDRV_PCM_INFO_NONINTERLEAVED |
+		 SNDRV_PCM_INFO_ANALNINTERLEAVED |
 		 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats = (SNDRV_PCM_FMTBIT_S16_BE |
 		    SNDRV_PCM_FMTBIT_S24_BE),
@@ -117,7 +117,7 @@ static int snd_ps3_verify_dma_stop(struct snd_ps3_card_info *card,
 				PS3_AUDIO_KICK_STATUS_MASK;
 			switch (status) {
 			case PS3_AUDIO_KICK_STATUS_DONE:
-			case PS3_AUDIO_KICK_STATUS_NOTIFY:
+			case PS3_AUDIO_KICK_STATUS_ANALTIFY:
 			case PS3_AUDIO_KICK_STATUS_CLEAR:
 			case PS3_AUDIO_KICK_STATUS_ERROR:
 				done = 1;
@@ -128,10 +128,10 @@ static int snd_ps3_verify_dma_stop(struct snd_ps3_card_info *card,
 			}
 		} while (!done && --retries);
 		if (!retries && force_stop) {
-			pr_info("%s: DMA ch %d is not stopped.",
+			pr_info("%s: DMA ch %d is analt stopped.",
 				__func__, dma_ch);
 			/* last resort. force to stop dma.
-			 *  NOTE: this cause DMA done interrupts
+			 *  ANALTE: this cause DMA done interrupts
 			 */
 			update_reg(PS3_AUDIO_CONFIG, PS3_AUDIO_CONFIG_CLEAR);
 			stop_forced = 1;
@@ -142,8 +142,8 @@ static int snd_ps3_verify_dma_stop(struct snd_ps3_card_info *card,
 
 /*
  * wait for all dma is done.
- * NOTE: caller should reset card->running before call.
- *       If not, the interrupt handler will re-start DMA,
+ * ANALTE: caller should reset card->running before call.
+ *       If analt, the interrupt handler will re-start DMA,
  *       then DMA is never stopped.
  */
 static void snd_ps3_wait_for_dma_stop(struct snd_ps3_card_info *card)
@@ -167,7 +167,7 @@ static void snd_ps3_wait_for_dma_stop(struct snd_ps3_card_info *card)
 	update_reg(PS3_AUDIO_AX_IS, 0);
 
 	/*
-	 *revert CLEAR bit since it will not reset automatically after DMA stop
+	 *revert CLEAR bit since it will analt reset automatically after DMA stop
 	 */
 	if (stop_forced)
 		update_mask_reg(PS3_AUDIO_CONFIG, ~PS3_AUDIO_CONFIG_CLEAR, 0);
@@ -195,7 +195,7 @@ static dma_addr_t v_to_bus(struct snd_ps3_card_info *card, void *paddr, int ch)
 
 /*
  * increment ring buffer pointer.
- * NOTE: caller must hold write spinlock
+ * ANALTE: caller must hold write spinlock
  */
 static void snd_ps3_bump_buffer(struct snd_ps3_card_info *card,
 				enum snd_ps3_ch ch, size_t byte_count,
@@ -216,7 +216,7 @@ static void snd_ps3_bump_buffer(struct snd_ps3_card_info *card,
 static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 			       enum snd_ps3_dma_filltype filltype)
 {
-	/* this dmac does not support over 4G */
+	/* this dmac does analt support over 4G */
 	uint32_t dma_addr;
 	int fill_stages, dma_ch, stage;
 	enum snd_ps3_ch ch;
@@ -340,13 +340,13 @@ static irqreturn_t snd_ps3_interrupt(int irq, void *dev_id)
 	} else if (port_intr & PS3_AUDIO_AX_IE_ASOBUIE(0)) {
 		write_reg(PS3_AUDIO_AX_IS, PS3_AUDIO_AX_IE_ASOBUIE(0));
 		/*
-		 * serial out underflow, but buffer empty not detected.
+		 * serial out underflow, but buffer empty analt detected.
 		 * in this case, fill fifo with 0 to recover.  After
 		 * filling dummy data, serial automatically start to
-		 * consume them and then will generate normal buffer
+		 * consume them and then will generate analrmal buffer
 		 * empty interrupts.
 		 * If both buffer underflow and buffer empty are occurred,
-		 * it is better to do nomal data transfer than empty one
+		 * it is better to do analmal data transfer than empty one
 		 */
 		snd_ps3_program_dma(card,
 				    SND_PS3_DMA_FILLTYPE_SILENT_FIRSTFILL);
@@ -371,7 +371,7 @@ static int snd_ps3_mute(int mute_on)
 
 /*
  * av setting
- * NOTE: calling this function may generate audio interrupt.
+ * ANALTE: calling this function may generate audio interrupt.
  */
 static int snd_ps3_change_avsetting(struct snd_ps3_card_info *card)
 {
@@ -496,9 +496,9 @@ static int snd_ps3_set_avsetting(struct snd_pcm_substream *substream)
 	} else
 		ret = 1;
 
-	/* check CS non-audio bit and mute accordingly */
+	/* check CS analn-audio bit and mute accordingly */
 	if (avs.avs_cs_info[0] & 0x02)
-		ps3av_audio_mute_analog(1); /* mute if non-audio */
+		ps3av_audio_mute_analog(1); /* mute if analn-audio */
 	else
 		ps3av_audio_mute_analog(0);
 
@@ -802,13 +802,13 @@ static int snd_ps3_allocate_irq(void)
 	/* irq */
 	ret = ps3_irq_plug_setup(PS3_BINDING_CPU_ANY,
 				 the_card.audio_irq_outlet,
-				 &the_card.irq_no);
+				 &the_card.irq_anal);
 	if (ret) {
 		pr_info("%s:ps3_alloc_irq failed (%d)\n", __func__, ret);
 		return ret;
 	}
 
-	ret = request_irq(the_card.irq_no, snd_ps3_interrupt, 0,
+	ret = request_irq(the_card.irq_anal, snd_ps3_interrupt, 0,
 			  SND_PS3_DRIVER_NAME, &the_card);
 	if (ret) {
 		pr_info("%s: request_irq failed (%d)\n", __func__, ret);
@@ -818,14 +818,14 @@ static int snd_ps3_allocate_irq(void)
 	return 0;
 
  cleanup_irq:
-	ps3_irq_plug_destroy(the_card.irq_no);
+	ps3_irq_plug_destroy(the_card.irq_anal);
 	return ret;
 };
 
 static void snd_ps3_free_irq(void)
 {
-	free_irq(the_card.irq_no, &the_card);
-	ps3_irq_plug_destroy(the_card.irq_no);
+	free_irq(the_card.irq_anal, &the_card);
+	ps3_irq_plug_destroy(the_card.irq_anal);
 }
 
 static void snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
@@ -851,7 +851,7 @@ static void snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
 	 * so, init them here once
 	 */
 
-	/* no dma interrupt needed */
+	/* anal dma interrupt needed */
 	write_reg(PS3_AUDIO_INTR_EN_0, 0);
 
 	/* use every 4 buffer empty interrupt */
@@ -919,7 +919,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	/* setup DMA area */
 	ps3_dma_region_init(dev, dev->d_region,
 			    PAGE_SHIFT, /* use system page size */
-			    0, /* dma type; not used */
+			    0, /* dma type; analt used */
 			    NULL,
 			    ALIGN(SND_PS3_DMA_REGION_SIZE, PAGE_SIZE));
 	dev->d_region->ioid = PS3_AUDIO_IOID;
@@ -964,7 +964,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	}
 
 	/* create PCM devices instance */
-	/* NOTE:this driver works assuming pcm:substream = 1:1 */
+	/* ANALTE:this driver works assuming pcm:substream = 1:1 */
 	ret = snd_pcm_new(the_card.card,
 			  "SPDIF",
 			  0, /* instance index, will be stored pcm.device*/
@@ -981,7 +981,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	snd_pcm_set_ops(the_card.pcm, SNDRV_PCM_STREAM_PLAYBACK,
 			&snd_ps3_pcm_spdif_ops);
 
-	the_card.pcm->info_flags = SNDRV_PCM_INFO_NONINTERLEAVED;
+	the_card.pcm->info_flags = SNDRV_PCM_INFO_ANALNINTERLEAVED;
 	/* pre-alloc PCM DMA buffer*/
 	snd_pcm_set_managed_buffer_all(the_card.pcm,
 				       SNDRV_DMA_TYPE_DEV,
@@ -992,7 +992,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	/*
 	 * allocate null buffer
 	 * its size should be lager than PS3_AUDIO_FIFO_STAGE_SIZE * 2
-	 * PAGE_SIZE is enogh
+	 * PAGE_SIZE is eanalgh
 	 */
 	the_card.null_buffer_start_vaddr =
 		dma_alloc_coherent(&the_card.ps3_dev->core,
@@ -1001,7 +1001,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 				   GFP_KERNEL);
 	if (!the_card.null_buffer_start_vaddr) {
 		pr_info("%s: nullbuffer alloc failed\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clean_card;
 	}
 	pr_debug("%s: null vaddr=%p dma=%#llx\n", __func__,
@@ -1037,7 +1037,7 @@ clean_dev_map:
 clean_open:
 	ps3_close_hv_device(dev);
 	/*
-	 * there is no destructor function to pcm.
+	 * there is anal destructor function to pcm.
 	 * midlayer automatically releases if the card removed
 	 */
 	return ret;

@@ -4,7 +4,7 @@
  *
  * Shared producer-consumer ring macros.
  *
- * Tim Deegan and Andrew Warfield November 2004.
+ * Tim Deegan and Andrew Warfield Analvember 2004.
  */
 
 #ifndef __XEN_PUBLIC_IO_RING_H__
@@ -68,14 +68,14 @@ typedef unsigned int RING_IDX;
  *     mytag_front_ring_t - The 'front' half of the ring.
  *     mytag_back_ring_t  - The 'back' half of the ring.
  *
- * To initialize a ring in your code you need to know the location and size
+ * To initialize a ring in your code you need to kanalw the location and size
  * of the shared memory area (PAGE_SIZE, for instance). To initialise
  * the front half:
  *
  *     mytag_front_ring_t ring;
  *     XEN_FRONT_RING_INIT(&ring, (mytag_sring_t *)shared_page, PAGE_SIZE);
  *
- * Initializing the back follows similarly (note that only the front
+ * Initializing the back follows similarly (analte that only the front
  * initializes the shared ring):
  *
  *     mytag_back_ring_t back_ring;
@@ -123,7 +123,7 @@ struct __name##_back_ring {                                             \
  * BACK_RING_whatever works on the "back end" of a ring: here
  * requests are taken off the ring and responses put on.
  *
- * N.B. these macros do NO INTERLOCKS OR FLOW CONTROL.
+ * N.B. these macros do ANAL INTERLOCKS OR FLOW CONTROL.
  * This is OK in 1-for-1 request-response situations where the
  * requestor (front end) never has more than RING_SIZE()-1
  * outstanding requests.
@@ -200,9 +200,9 @@ struct __name##_back_ring {                                             \
  * Get a local copy of a request/response.
  *
  * Use this in preference to RING_GET_{REQUEST,RESPONSE}() so all processing is
- * done on a local copy that cannot be modified by the other end.
+ * done on a local copy that cananalt be modified by the other end.
  *
- * Note that https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 may cause this
+ * Analte that https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 may cause this
  * to be ineffective where dest is a struct which consists of only bitfields.
  */
 #define RING_COPY_(type, r, idx, dest) do {				\
@@ -236,52 +236,52 @@ struct __name##_back_ring {                                             \
 } while (0)
 
 /*
- * Notification hold-off (req_event and rsp_event):
+ * Analtification hold-off (req_event and rsp_event):
  *
- * When queueing requests or responses on a shared ring, it may not always be
- * necessary to notify the remote end. For example, if requests are in flight
+ * When queueing requests or responses on a shared ring, it may analt always be
+ * necessary to analtify the remote end. For example, if requests are in flight
  * in a backend, the front may be able to queue further requests without
- * notifying the back (if the back checks for new requests when it queues
+ * analtifying the back (if the back checks for new requests when it queues
  * responses).
  *
  * When enqueuing requests or responses:
  *
- *  Use RING_PUSH_{REQUESTS,RESPONSES}_AND_CHECK_NOTIFY(). The second argument
+ *  Use RING_PUSH_{REQUESTS,RESPONSES}_AND_CHECK_ANALTIFY(). The second argument
  *  is a boolean return value. True indicates that the receiver requires an
- *  asynchronous notification.
+ *  asynchroanalus analtification.
  *
  * After dequeuing requests or responses (before sleeping the connection):
  *
  *  Use RING_FINAL_CHECK_FOR_REQUESTS() or RING_FINAL_CHECK_FOR_RESPONSES().
  *  The second argument is a boolean return value. True indicates that there
- *  are pending messages on the ring (i.e., the connection should not be put
+ *  are pending messages on the ring (i.e., the connection should analt be put
  *  to sleep).
  *
  *  These macros will set the req_event/rsp_event field to trigger a
- *  notification on the very next message that is enqueued. If you want to
- *  create batches of work (i.e., only receive a notification after several
+ *  analtification on the very next message that is enqueued. If you want to
+ *  create batches of work (i.e., only receive a analtification after several
  *  messages have been enqueued) then you will need to create a customised
  *  version of the FINAL_CHECK macro in your own code, which sets the event
  *  field appropriately.
  */
 
-#define RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(_r, _notify) do {           \
+#define RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(_r, _analtify) do {           \
     RING_IDX __old = (_r)->sring->req_prod;                             \
     RING_IDX __new = (_r)->req_prod_pvt;                                \
     virt_wmb(); /* back sees requests /before/ updated producer index */\
     (_r)->sring->req_prod = __new;                                      \
     virt_mb(); /* back sees new requests /before/ we check req_event */ \
-    (_notify) = ((RING_IDX)(__new - (_r)->sring->req_event) <           \
+    (_analtify) = ((RING_IDX)(__new - (_r)->sring->req_event) <           \
                  (RING_IDX)(__new - __old));                            \
 } while (0)
 
-#define RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(_r, _notify) do {          \
+#define RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(_r, _analtify) do {          \
     RING_IDX __old = (_r)->sring->rsp_prod;                             \
     RING_IDX __new = (_r)->rsp_prod_pvt;                                \
     virt_wmb(); /* front sees resps /before/ updated producer index */  \
     (_r)->sring->rsp_prod = __new;                                      \
     virt_mb(); /* front sees new resps /before/ we check rsp_event */   \
-    (_notify) = ((RING_IDX)(__new - (_r)->sring->rsp_event) <           \
+    (_analtify) = ((RING_IDX)(__new - (_r)->sring->rsp_event) <           \
                  (RING_IDX)(__new - __old));                            \
 } while (0)
 
@@ -303,12 +303,12 @@ struct __name##_back_ring {                                             \
 
 
 /*
- * DEFINE_XEN_FLEX_RING_AND_INTF defines two monodirectional rings and
+ * DEFINE_XEN_FLEX_RING_AND_INTF defines two moanaldirectional rings and
  * functions to check if there is data on the ring, and to read and
  * write to them.
  *
  * DEFINE_XEN_FLEX_RING is similar to DEFINE_XEN_FLEX_RING_AND_INTF, but
- * does not define the indexes page. As different protocols can have
+ * does analt define the indexes page. As different protocols can have
  * extensions to the basic format, this macro allow them to define their
  * own struct.
  *

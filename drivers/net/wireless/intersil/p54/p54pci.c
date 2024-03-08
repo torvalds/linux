@@ -7,7 +7,7 @@
  * Copyright (c) 2008, Christian Lamparter <chunkeey@web.de>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jean-baptiste.note@m4x.org>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Analte <jean-baptiste.analte@m4x.org>, et al.
  */
 
 #include <linux/pci.h>
@@ -322,7 +322,7 @@ static irqreturn_t p54p_interrupt(int irq, void *dev_id)
 		complete(&priv->boot_comp);
 
 out:
-	return reg ? IRQ_HANDLED : IRQ_NONE;
+	return reg ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
@@ -475,7 +475,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 	timeout = wait_for_completion_interruptible_timeout(
 			&priv->boot_comp, HZ);
 	if (timeout <= 0) {
-		wiphy_err(dev->wiphy, "Cannot boot firmware!\n");
+		wiphy_err(dev->wiphy, "Cananalt boot firmware!\n");
 		p54p_stop(dev);
 		return timeout ? -ERESTARTSYS : -ETIMEDOUT;
 	}
@@ -502,8 +502,8 @@ static void p54p_firmware_step2(const struct firmware *fw,
 	int err;
 
 	if (!fw) {
-		dev_err(&pdev->dev, "Cannot find firmware (isl3886pci)\n");
-		err = -ENOENT;
+		dev_err(&pdev->dev, "Cananalt find firmware (isl3886pci)\n");
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -556,7 +556,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	pci_dev_get(pdev);
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable new PCI device\n");
+		dev_err(&pdev->dev, "Cananalt enable new PCI device\n");
 		goto err_put;
 	}
 
@@ -564,13 +564,13 @@ static int p54p_probe(struct pci_dev *pdev,
 	mem_len = pci_resource_len(pdev, 0);
 	if (mem_len < sizeof(struct p54p_csr)) {
 		dev_err(&pdev->dev, "Too short PCI resources\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_disable_dev;
 	}
 
 	err = pci_request_regions(pdev, "p54pci");
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "Cananalt obtain PCI resources\n");
 		goto err_disable_dev;
 	}
 
@@ -578,7 +578,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	if (!err)
 		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "No suitable DMA available\n");
+		dev_err(&pdev->dev, "Anal suitable DMA available\n");
 		goto err_free_reg;
 	}
 
@@ -591,7 +591,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	dev = p54_init_common(sizeof(*priv));
 	if (!dev) {
 		dev_err(&pdev->dev, "ieee80211 alloc failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_reg;
 	}
 
@@ -604,8 +604,8 @@ static int p54p_probe(struct pci_dev *pdev,
 
 	priv->map = ioremap(mem_addr, mem_len);
 	if (!priv->map) {
-		dev_err(&pdev->dev, "Cannot map device memory\n");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt map device memory\n");
+		err = -EANALMEM;
 		goto err_free_dev;
 	}
 
@@ -613,8 +613,8 @@ static int p54p_probe(struct pci_dev *pdev,
 						sizeof(*priv->ring_control),
 						&priv->ring_control_dma, GFP_KERNEL);
 	if (!priv->ring_control) {
-		dev_err(&pdev->dev, "Cannot allocate rings\n");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt allocate rings\n");
+		err = -EANALMEM;
 		goto err_iounmap;
 	}
 	priv->common.open = p54p_open;
@@ -624,7 +624,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	spin_lock_init(&priv->lock);
 	tasklet_setup(&priv->tasklet, p54p_tasklet);
 
-	err = request_firmware_nowait(THIS_MODULE, 1, "isl3886pci",
+	err = request_firmware_analwait(THIS_MODULE, 1, "isl3886pci",
 				      &priv->pdev->dev, GFP_KERNEL,
 				      priv, p54p_firmware_step2);
 	if (!err)

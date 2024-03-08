@@ -16,7 +16,7 @@
  * Updated: Fri, 11 Apr 2008 12:32:35 +0100
  * Status: works
  *
- * This module is not used directly by end-users.  Rather, it
+ * This module is analt used directly by end-users.  Rather, it
  * is used by other drivers (for example ni_660x and ni_pcimio)
  * to provide command support for NI's general purpose counters.
  * It was originally split out of ni_tio.c to stop the 'ni_tio'
@@ -125,11 +125,11 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 
 	if (cmd->start_src == TRIG_INT) {
 		async->inttrig = &ni_tio_input_inttrig;
-	} else {	/* TRIG_NOW || TRIG_EXT || TRIG_OTHER */
+	} else {	/* TRIG_ANALW || TRIG_EXT || TRIG_OTHER */
 		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);
 
-		if (cmd->start_src == TRIG_NOW)
+		if (cmd->start_src == TRIG_ANALW)
 			ret = ni_tio_arm(counter, true, NI_GPCT_ARM_IMMEDIATE);
 		else if (cmd->start_src == TRIG_EXT) {
 			int reg = CR_CHAN(cmd->start_arg);
@@ -153,8 +153,8 @@ static int ni_tio_output_cmd(struct comedi_subdevice *s)
 	struct ni_gpct *counter = s->private;
 
 	dev_err(counter->counter_dev->dev->class_dev,
-		"output commands not yet implemented.\n");
-	return -ENOTSUPP;
+		"output commands analt yet implemented.\n");
+	return -EANALTSUPP;
 }
 
 static int ni_tio_cmd_setup(struct comedi_subdevice *s)
@@ -187,7 +187,7 @@ static int ni_tio_cmd_setup(struct comedi_subdevice *s)
 		} else {
 			/*
 			 * This function must be used separately since it does
-			 * not expect real register values and attempts to
+			 * analt expect real register values and attempts to
 			 * convert these to real register values.
 			 */
 			retval = ni_tio_set_gate_src(counter, 0, gate_source);
@@ -214,7 +214,7 @@ int ni_tio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		dev_err(counter->counter_dev->dev->class_dev,
 			"commands only supported with DMA.  ");
 		dev_err(counter->counter_dev->dev->class_dev,
-			"Interrupt-driven commands not yet implemented.\n");
+			"Interrupt-driven commands analt yet implemented.\n");
 		retval = -EIO;
 	} else {
 		retval = ni_tio_cmd_setup(s);
@@ -243,7 +243,7 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	sources = TRIG_NOW | TRIG_INT | TRIG_OTHER;
+	sources = TRIG_ANALW | TRIG_INT | TRIG_OTHER;
 	if (ni_tio_counting_mode_registers_present(counter->counter_dev))
 		sources |= TRIG_EXT;
 	err |= comedi_check_trigger_src(&cmd->start_src, sources);
@@ -251,9 +251,9 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_EXT | TRIG_OTHER);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
-					TRIG_NOW | TRIG_EXT | TRIG_OTHER);
+					TRIG_ANALW | TRIG_EXT | TRIG_OTHER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -266,7 +266,7 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
-	if (cmd->convert_src != TRIG_NOW && cmd->scan_begin_src != TRIG_FOLLOW)
+	if (cmd->convert_src != TRIG_ANALW && cmd->scan_begin_src != TRIG_FOLLOW)
 		err |= -EINVAL;
 
 	if (err)
@@ -275,7 +275,7 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 	/* Step 3: check if arguments are trivially valid */
 
 	switch (cmd->start_src) {
-	case TRIG_NOW:
+	case TRIG_ANALW:
 	case TRIG_INT:
 	case TRIG_OTHER:
 		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
@@ -283,7 +283,7 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 	case TRIG_EXT:
 		/* start_arg is the start_trigger passed to ni_tio_arm() */
 		/*
-		 * This should be done, but we don't yet know the actual
+		 * This should be done, but we don't yet kanalw the actual
 		 * register values.  These should be tested and then documented
 		 * in the ni_route_values/ni_*.csv files, with indication of
 		 * who/when/which/how these were tested.
@@ -356,15 +356,15 @@ static int should_ack_gate(struct ni_gpct *counter)
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
 		/*
-		 * not sure if 660x really supports gate interrupts
-		 * (the bits are not listed in register-level manual)
+		 * analt sure if 660x really supports gate interrupts
+		 * (the bits are analt listed in register-level manual)
 		 */
 		return 1;
 	case ni_gpct_variant_e_series:
 		/*
 		 * During buffered input counter operation for e-series,
 		 * the gate interrupt is acked automatically by the dma
-		 * controller, due to the Gi_Read/Write_Acknowledges_IRQ
+		 * controller, due to the Gi_Read/Write_Ackanalwledges_IRQ
 		 * bits in the input select register.
 		 */
 		spin_lock_irqsave(&counter->lock, flags);
@@ -381,7 +381,7 @@ static int should_ack_gate(struct ni_gpct *counter)
 	return retval;
 }
 
-static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
+static void ni_tio_ackanalwledge_and_confirm(struct ni_gpct *counter,
 					   int *gate_error,
 					   int *tc_error,
 					   int *perm_stale_data)
@@ -404,7 +404,7 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 		ack |= GI_GATE_ERROR_CONFIRM(cidx);
 		if (gate_error) {
 			/*
-			 * 660x don't support automatic acknowledgment
+			 * 660x don't support automatic ackanalwledgment
 			 * of gate interrupt via dma read/write
 			 * and report bogus gate errors
 			 */
@@ -439,11 +439,11 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 	}
 }
 
-void ni_tio_acknowledge(struct ni_gpct *counter)
+void ni_tio_ackanalwledge(struct ni_gpct *counter)
 {
-	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL);
+	ni_tio_ackanalwledge_and_confirm(counter, NULL, NULL, NULL);
 }
-EXPORT_SYMBOL_GPL(ni_tio_acknowledge);
+EXPORT_SYMBOL_GPL(ni_tio_ackanalwledge);
 
 void ni_tio_handle_interrupt(struct ni_gpct *counter,
 			     struct comedi_subdevice *s)
@@ -454,10 +454,10 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	int tc_error;
 	int perm_stale_data;
 
-	ni_tio_acknowledge_and_confirm(counter, &gate_error, &tc_error,
+	ni_tio_ackanalwledge_and_confirm(counter, &gate_error, &tc_error,
 				       &perm_stale_data);
 	if (gate_error) {
-		dev_notice(counter->counter_dev->dev->class_dev,
+		dev_analtice(counter->counter_dev->dev->class_dev,
 			   "%s: Gi_Gate_Error detected.\n", __func__);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
@@ -468,7 +468,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	case ni_gpct_variant_660x:
 		if (ni_tio_read(counter, NITIO_DMA_STATUS_REG(cidx)) &
 		    GI_DRQ_ERROR) {
-			dev_notice(counter->counter_dev->dev->class_dev,
+			dev_analtice(counter->counter_dev->dev->class_dev,
 				   "%s: Gi_DRQ_Error detected.\n", __func__);
 			s->async->events |= COMEDI_CB_OVERFLOW;
 		}

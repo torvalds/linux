@@ -3,7 +3,7 @@
  * vivid-meta-out.c - meta output support functions.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
@@ -54,7 +54,7 @@ static int meta_out_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 	if (vb2_plane_size(vb, 0) < size) {
-		dprintk(dev, 1, "%s data will not fit into plane (%lu < %u)\n",
+		dprintk(dev, 1, "%s data will analt fit into plane (%lu < %u)\n",
 			__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}

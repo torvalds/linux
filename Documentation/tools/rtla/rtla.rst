@@ -7,7 +7,7 @@ Real-time Linux Analysis tool
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
 **rtla** *COMMAND* [*OPTIONS*]
 
@@ -21,9 +21,9 @@ results.
 
 COMMANDS
 ========
-**osnoise**
+**osanalise**
 
-        Gives information about the operating system noise (osnoise).
+        Gives information about the operating system analise (osanalise).
 
 **timerlat**
 
@@ -39,7 +39,7 @@ For other options, see the man page for the corresponding command.
 
 SEE ALSO
 ========
-**rtla-osnoise**\(1), **rtla-timerlat**\(1)
+**rtla-osanalise**\(1), **rtla-timerlat**\(1)
 
 AUTHOR
 ======

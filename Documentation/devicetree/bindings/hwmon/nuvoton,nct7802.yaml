@@ -65,7 +65,7 @@ patternProperties:
 
     allOf:
       # For channels RTD1, RTD2 and RTD3, require sensor-type to be set.
-      # Otherwise (for all other channels), do not allow temperature-mode to be
+      # Otherwise (for all other channels), do analt allow temperature-mode to be
       # set.
       - if:
           properties:
@@ -79,13 +79,13 @@ patternProperties:
           required:
             - sensor-type
         else:
-          not:
+          analt:
             required:
               - sensor-type
 
       # For channels RTD1 and RTD2 and if sensor-type is "temperature", require
       # temperature-mode to be set. Otherwise (for all other channels or
-      # sensor-type settings), do not allow temperature-mode to be set
+      # sensor-type settings), do analt allow temperature-mode to be set
       - if:
           properties:
             reg:
@@ -101,7 +101,7 @@ patternProperties:
           required:
             - temperature-mode
         else:
-          not:
+          analt:
             required:
               - temperature-mode
 

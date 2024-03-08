@@ -6,7 +6,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/bitfield.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mii.h>
@@ -48,7 +48,7 @@ static int ncn26000_config_init(struct phy_device *phydev)
 
 static int ncn26000_config_aneg(struct phy_device *phydev)
 {
-	/* Note: the NCN26000 supports only P2MP link mode. Therefore, AN is not
+	/* Analte: the NCN26000 supports only P2MP link mode. Therefore, AN is analt
 	 * supported. However, this function is invoked by phylib to enable the
 	 * PHY, regardless of the AN support.
 	 */
@@ -68,7 +68,7 @@ static int ncn26000_read_status(struct phy_device *phydev)
 	int ret;
 
 	/* The link state is latched low so that momentary link
-	 * drops can be detected. Do not double-read the status
+	 * drops can be detected. Do analt double-read the status
 	 * in polling mode to detect such short link drops except
 	 * the link was already down.
 	 */
@@ -93,8 +93,8 @@ upd_link:
 		phydev->speed = SPEED_10;
 	} else {
 		phydev->link = 0;
-		phydev->duplex = DUPLEX_UNKNOWN;
-		phydev->speed = SPEED_UNKNOWN;
+		phydev->duplex = DUPLEX_UNKANALWN;
+		phydev->speed = SPEED_UNKANALWN;
 	}
 
 	return 0;
@@ -104,12 +104,12 @@ static irqreturn_t ncn26000_handle_interrupt(struct phy_device *phydev)
 {
 	int ret;
 
-	// read and aknowledge the IRQ status register
+	// read and akanalwledge the IRQ status register
 	ret = phy_read(phydev, NCN26000_REG_IRQ_STATUS);
 
 	// check only link status changes
 	if (ret < 0 || (ret & NCN26000_REG_IRQ_STATUS) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 	return IRQ_HANDLED;
@@ -121,12 +121,12 @@ static int ncn26000_config_intr(struct phy_device *phydev)
 	u16 irqe;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		// acknowledge IRQs
+		// ackanalwledge IRQs
 		ret = phy_read(phydev, NCN26000_REG_IRQ_STATUS);
 		if (ret < 0)
 			return ret;
 
-		// get link status notifications
+		// get link status analtifications
 		irqe = NCN26000_IRQ_LINKST_BIT;
 	} else {
 		// disable all IRQs

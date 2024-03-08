@@ -89,22 +89,22 @@ machine_arch_initcall(powernv, opal_nvram_init_log_partitions);
 
 void __init opal_nvram_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const __be32 *nbytes_p;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,opal-nvram");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,opal-nvram");
 	if (np == NULL)
 		return;
 
 	nbytes_p = of_get_property(np, "#bytes", NULL);
 	if (!nbytes_p) {
-		of_node_put(np);
+		of_analde_put(np);
 		return;
 	}
 	nvram_size = be32_to_cpup(nbytes_p);
 
 	pr_info("OPAL nvram setup, %u bytes\n", nvram_size);
-	of_node_put(np);
+	of_analde_put(np);
 
 	ppc_md.nvram_read = opal_nvram_read;
 	ppc_md.nvram_write = opal_nvram_write;

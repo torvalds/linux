@@ -54,7 +54,7 @@ static int macronix_nand_setup_read_retry(struct nand_chip *chip, int mode)
 	if (!chip->parameters.supports_set_get_features ||
 	    !test_bit(ONFI_FEATURE_ADDR_READ_RETRY,
 		      chip->parameters.set_feature_list))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	feature[0] = mode;
 	return nand_set_features(chip, ONFI_FEATURE_ADDR_READ_RETRY, feature);
@@ -103,7 +103,7 @@ static void macronix_nand_onfi_init(struct nand_chip *chip)
 {
 	struct nand_parameters *p = &chip->parameters;
 	struct nand_onfi_vendor_macronix *mxic;
-	struct device_node *dn = nand_get_flash_node(chip);
+	struct device_analde *dn = nand_get_flash_analde(chip);
 	int rand_otp;
 	int ret;
 
@@ -114,7 +114,7 @@ static void macronix_nand_onfi_init(struct nand_chip *chip)
 
 	mxic = (struct nand_onfi_vendor_macronix *)p->onfi->vendor;
 	/* Subpage write is prohibited in randomizer operatoin */
-	if (rand_otp && chip->options & NAND_NO_SUBPAGE_WRITE &&
+	if (rand_otp && chip->options & NAND_ANAL_SUBPAGE_WRITE &&
 	    mxic->reliability_func & MACRONIX_RANDOMIZER_BIT) {
 		if (p->supports_set_get_features) {
 			bitmap_set(p->set_feature_list,
@@ -151,7 +151,7 @@ static void macronix_nand_onfi_init(struct nand_chip *chip)
 }
 
 /*
- * Macronix AC series does not support using SET/GET_FEATURES to change
+ * Macronix AC series does analt support using SET/GET_FEATURES to change
  * the timings unlike what is declared in the parameter page. Unflag
  * this feature to avoid unnecessary downturns.
  */
@@ -335,11 +335,11 @@ static int macronix_30lfxg18ac_get_otp_info(struct mtd_info *mtd, size_t len,
 
 	/* Always report that OTP is unlocked. Reason is that this
 	 * type of flash chip doesn't provide way to check that OTP
-	 * is locked or not: subfeature parameter is implemented as
+	 * is locked or analt: subfeature parameter is implemented as
 	 * volatile register. Technically OTP region could be locked
-	 * and become readonly, but as there is no way to check it,
+	 * and become readonly, but as there is anal way to check it,
 	 * don't allow to lock it ('_lock_user_prot_reg' callback
-	 * always returns -EOPNOTSUPP) and thus we report that OTP
+	 * always returns -EOPANALTSUPP) and thus we report that OTP
 	 * is unlocked.
 	 */
 	buf->locked = 0;
@@ -449,7 +449,7 @@ static int macronix_30lfxg18ac_lock_otp(struct mtd_info *mtd, loff_t from,
 					size_t len)
 {
 	/* See comment in 'macronix_30lfxg18ac_get_otp_info()'. */
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void macronix_nand_setup_otp(struct nand_chip *chip)

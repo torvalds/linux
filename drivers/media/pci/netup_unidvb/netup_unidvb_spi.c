@@ -72,15 +72,15 @@ irqreturn_t netup_spi_interrupt(struct netup_spi *spi)
 	unsigned long flags;
 
 	if (!spi)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock_irqsave(&spi->lock, flags);
 	reg = readw(&spi->regs->control_stat);
 	if (!(reg & NETUP_SPI_CTRL_IRQ)) {
 		spin_unlock_irqrestore(&spi->lock, flags);
 		dev_dbg(&spi->master->dev,
-			"%s(): not mine interrupt\n", __func__);
-		return IRQ_NONE;
+			"%s(): analt mine interrupt\n", __func__);
+		return IRQ_ANALNE;
 	}
 	writew(reg | NETUP_SPI_CTRL_IRQ, &spi->regs->control_stat);
 	reg = readw(&spi->regs->control_stat);

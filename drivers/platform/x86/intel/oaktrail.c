@@ -81,7 +81,7 @@
 
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, iganalre DMI data");
 
 static struct platform_device *oaktrail_device;
 static struct backlight_device *oaktrail_bl_device;
@@ -124,7 +124,7 @@ static struct rfkill *oaktrail_rfkill_new(char *name, enum rfkill_type type,
 	rfkill_dev = rfkill_alloc(name, &oaktrail_device->dev, type,
 				  &oaktrail_rfkill_ops, (void *)mask);
 	if (!rfkill_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ec_read(OT_EC_DEVICE_STATE_ADDRESS, &value);
 	rfkill_init_sw_state(rfkill_dev, (value & mask) != 1);
@@ -297,12 +297,12 @@ static int __init oaktrail_init(void)
 
 	if (acpi_disabled) {
 		pr_err("ACPI needs to be enabled for this driver to work!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!force && !dmi_check_system(oaktrail_dmi_table)) {
-		pr_err("Platform not recognized (You could try the module's force-parameter)");
-		return -ENODEV;
+		pr_err("Platform analt recognized (You could try the module's force-parameter)");
+		return -EANALDEV;
 	}
 
 	ret = platform_driver_register(&oaktrail_driver);
@@ -311,10 +311,10 @@ static int __init oaktrail_init(void)
 		goto err_driver_reg;
 	}
 
-	oaktrail_device = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_NONE);
+	oaktrail_device = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_ANALNE);
 	if (!oaktrail_device) {
 		pr_warn("Unable to allocate platform device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_device_alloc;
 	}
 

@@ -110,7 +110,7 @@ struct mbox_chan *sti_mbox_to_channel(struct mbox_controller *mbox,
 	}
 
 	dev_err(mbox->dev,
-		"Channel not registered: instance: %d channel: %d\n",
+		"Channel analt registered: instance: %d channel: %d\n",
 		instance, channel);
 
 	return NULL;
@@ -168,7 +168,7 @@ static struct mbox_chan *sti_mbox_irq_to_channel(struct sti_mbox_device *mdev,
 
 	bits = readl_relaxed(base + STI_IRQ_VAL_OFFSET);
 	if (!bits)
-		/* No IRQs fired in specified instance */
+		/* Anal IRQs fired in specified instance */
 		return NULL;
 
 	/* An IRQ has fired, find the associated channel */
@@ -217,7 +217,7 @@ static irqreturn_t sti_mbox_irq_handler(int irq, void *data)
 	struct sti_channel *chan_info;
 	struct mbox_chan *chan;
 	unsigned int instance;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	for (instance = 0; instance < pdata->num_inst; instance++) {
 		chan = sti_mbox_irq_to_channel(mdev, instance);
@@ -232,8 +232,8 @@ static irqreturn_t sti_mbox_irq_handler(int irq, void *data)
 				 mdev->name, chan_info->instance,
 				 chan_info->channel, mdev->enabled[instance]);
 
-			/* Only handle IRQ if no other valid IRQs were found */
-			if (ret == IRQ_NONE)
+			/* Only handle IRQ if anal other valid IRQs were found */
+			if (ret == IRQ_ANALNE)
 				ret = IRQ_HANDLED;
 			continue;
 		}
@@ -242,7 +242,7 @@ static irqreturn_t sti_mbox_irq_handler(int irq, void *data)
 		ret = IRQ_WAKE_THREAD;
 	}
 
-	if (ret == IRQ_NONE)
+	if (ret == IRQ_ANALNE)
 		dev_err(mdev->dev, "Spurious IRQ - was a channel requested?\n");
 
 	return ret;
@@ -263,7 +263,7 @@ static bool sti_mbox_tx_is_ready(struct mbox_chan *chan)
 	}
 
 	if (readl_relaxed(base + STI_IRQ_VAL_OFFSET) & BIT(channel)) {
-		dev_dbg(mdev->dev, "Mbox: %s: inst: %d, chan: %d not ready\n",
+		dev_dbg(mdev->dev, "Mbox: %s: inst: %d, chan: %d analt ready\n",
 			mdev->name, instance, channel);
 		return false;
 	}
@@ -308,7 +308,7 @@ static void sti_mbox_shutdown_chan(struct mbox_chan *chan)
 			break;
 
 	if (mbox->num_chans == i) {
-		dev_warn(mbox->dev, "Request to free non-existent channel\n");
+		dev_warn(mbox->dev, "Request to free analn-existent channel\n");
 		return;
 	}
 
@@ -359,13 +359,13 @@ static struct mbox_chan *sti_mbox_xlate(struct mbox_controller *mbox,
 	}
 
 	if (!chan) {
-		dev_err(mbox->dev, "No free channels left\n");
+		dev_err(mbox->dev, "Anal free channels left\n");
 		return ERR_PTR(-EBUSY);
 	}
 
 	chan_info = devm_kzalloc(mbox->dev, sizeof(*chan_info), GFP_KERNEL);
 	if (!chan_info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	chan_info->mdev		= mdev;
 	chan_info->instance	= instance;
@@ -405,20 +405,20 @@ static int sti_mbox_probe(struct platform_device *pdev)
 {
 	struct mbox_controller *mbox;
 	struct sti_mbox_device *mdev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mbox_chan *chans;
 	int irq;
 	int ret;
 
 	pdev->dev.platform_data = (struct sti_mbox_pdata *)device_get_match_data(&pdev->dev);
 	if (!pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "No configuration found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal configuration found\n");
+		return -EANALDEV;
 	}
 
 	mdev = devm_kzalloc(&pdev->dev, sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mdev);
 
@@ -432,19 +432,19 @@ static int sti_mbox_probe(struct platform_device *pdev)
 
 	mbox = devm_kzalloc(&pdev->dev, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chans = devm_kcalloc(&pdev->dev,
 			     STI_MBOX_CHAN_MAX, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev->dev		= &pdev->dev;
 	mdev->mbox		= mbox;
 
 	spin_lock_init(&mdev->lock);
 
-	/* STi Mailbox does not have a Tx-Done or Tx-Ready IRQ */
+	/* STi Mailbox does analt have a Tx-Done or Tx-Ready IRQ */
 	mbox->txdone_irq	= false;
 	mbox->txdone_poll	= true;
 	mbox->txpoll_period	= 100;
@@ -458,7 +458,7 @@ static int sti_mbox_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* It's okay for Tx Mailboxes to not supply IRQs */
+	/* It's okay for Tx Mailboxes to analt supply IRQs */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_info(&pdev->dev,

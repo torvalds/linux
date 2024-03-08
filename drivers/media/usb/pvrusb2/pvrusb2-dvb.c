@@ -33,7 +33,7 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 	for (;;) {
 		if (kthread_should_stop()) break;
 
-		/* Not sure about this... */
+		/* Analt sure about this... */
 		try_to_freeze();
 
 		bp = pvr2_stream_get_ready_buffer(stream);
@@ -52,8 +52,8 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 			ret = pvr2_buffer_queue(bp);
 			if (ret < 0) break;
 
-			/* Since we know we did something to a buffer,
-			   just go back and try again.  No point in
+			/* Since we kanalw we did something to a buffer,
+			   just go back and try again.  Anal point in
 			   blocking unless we really ran out of
 			   buffers to process. */
 			continue;
@@ -61,7 +61,7 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 
 
 		/* Wait until more buffers become available or we're
-		   told not to wait any longer. */
+		   told analt to wait any longer. */
 		ret = wait_event_interruptible(
 		    adap->buffer_wait_data,
 		    (pvr2_stream_get_ready_count(stream) > 0) ||
@@ -88,7 +88,7 @@ static int pvr2_dvb_feed_thread(void *data)
 	return stat;
 }
 
-static void pvr2_dvb_notify(struct pvr2_dvb_adapter *adap)
+static void pvr2_dvb_analtify(struct pvr2_dvb_adapter *adap)
 {
 	wake_up(&adap->buffer_wait_data);
 }
@@ -145,11 +145,11 @@ static int pvr2_dvb_stream_do_start(struct pvr2_dvb_adapter *adap)
 	for (idx = 0; idx < PVR2_DVB_BUFFER_COUNT; idx++) {
 		adap->buffer_storage[idx] = kmalloc(PVR2_DVB_BUFFER_SIZE,
 						    GFP_KERNEL);
-		if (!(adap->buffer_storage[idx])) return -ENOMEM;
+		if (!(adap->buffer_storage[idx])) return -EANALMEM;
 	}
 
 	pvr2_stream_set_callback(pvr->video_stream.stream,
-				 (pvr2_stream_callback) pvr2_dvb_notify, adap);
+				 (pvr2_stream_callback) pvr2_dvb_analtify, adap);
 
 	ret = pvr2_stream_set_buffer_count(stream, PVR2_DVB_BUFFER_COUNT);
 	if (ret < 0) return ret;
@@ -189,16 +189,16 @@ static int pvr2_dvb_stream_start(struct pvr2_dvb_adapter *adap)
 	return ret;
 }
 
-static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
+static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int oanalff)
 {
 	struct pvr2_dvb_adapter *adap = dvbdmxfeed->demux->priv;
 	int ret = 0;
 
-	if (adap == NULL) return -ENODEV;
+	if (adap == NULL) return -EANALDEV;
 
 	mutex_lock(&adap->lock);
 	do {
-		if (onoff) {
+		if (oanalff) {
 			if (!adap->feedcount) {
 				pvr2_trace(PVR2_TRACE_DVB_FEED,
 					   "start feeding demux");
@@ -313,7 +313,7 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 	int ret = 0;
 
 	if (dvb_props == NULL) {
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS, "fe_props not defined!");
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS, "fe_props analt defined!");
 		return -EINVAL;
 	}
 
@@ -329,7 +329,7 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 
 	if (dvb_props->frontend_attach == NULL) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "frontend_attach not defined!");
+			   "frontend_attach analt defined!");
 		ret = -EINVAL;
 		goto done;
 	}
@@ -338,7 +338,7 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 		if (dvb_register_frontend(&adap->dvb_adap, adap->fe[0])) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "frontend registration failed!");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto fail_frontend0;
 		}
 		if (adap->fe[0]->ops.analog_ops.standby)
@@ -349,14 +349,14 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 		adap->fe[0]->ops.ts_bus_ctrl = pvr2_dvb_bus_ctrl;
 	} else {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "no frontend was attached!");
-		ret = -ENODEV;
+			   "anal frontend was attached!");
+		ret = -EANALDEV;
 		return ret;
 	}
 
 	if (dvb_props->tuner_attach && dvb_props->tuner_attach(adap)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS, "tuner attach failed");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_tuner;
 	}
 
@@ -370,7 +370,7 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 		if (dvb_register_frontend(&adap->dvb_adap, adap->fe[1])) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "frontend registration failed!");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto fail_frontend1;
 		}
 		/* MFE lock */
@@ -448,7 +448,7 @@ struct pvr2_dvb_adapter *pvr2_dvb_create(struct pvr2_context *pvr)
 	struct pvr2_dvb_adapter *adap;
 	if (!pvr->hdw->hdw_desc->dvb_props) {
 		/* Device lacks a digital interface so don't set up
-		   the DVB side of the driver either.  For now. */
+		   the DVB side of the driver either.  For analw. */
 		return NULL;
 	}
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);

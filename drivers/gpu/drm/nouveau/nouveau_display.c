@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -35,9 +35,9 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
-#include "nouveau_crtc.h"
-#include "nouveau_gem.h"
-#include "nouveau_connector.h"
+#include "analuveau_crtc.h"
+#include "analuveau_gem.h"
+#include "analuveau_connector.h"
 #include "nv50_display.h"
 
 #include <nvif/class.h>
@@ -46,22 +46,22 @@
 #include <dispnv50/crc.h>
 
 int
-nouveau_display_vblank_enable(struct drm_crtc *crtc)
+analuveau_display_vblank_enable(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc;
+	struct analuveau_crtc *nv_crtc;
 
-	nv_crtc = nouveau_crtc(crtc);
+	nv_crtc = analuveau_crtc(crtc);
 	nvif_event_allow(&nv_crtc->vblank);
 
 	return 0;
 }
 
 void
-nouveau_display_vblank_disable(struct drm_crtc *crtc)
+analuveau_display_vblank_disable(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc;
+	struct analuveau_crtc *nv_crtc;
 
-	nv_crtc = nouveau_crtc(crtc);
+	nv_crtc = analuveau_crtc(crtc);
 	nvif_event_block(&nv_crtc->vblank);
 }
 
@@ -80,19 +80,19 @@ calc(int blanks, int blanke, int total, int line)
 }
 
 static bool
-nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
+analuveau_display_scaanalutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 				ktime_t *stime, ktime_t *etime)
 {
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
-	struct nvif_head *head = &nouveau_crtc(crtc)->head;
-	struct nvif_head_scanoutpos_v0 args;
+	struct nvif_head *head = &analuveau_crtc(crtc)->head;
+	struct nvif_head_scaanalutpos_v0 args;
 	int retry = 20;
 	bool ret = false;
 
 	args.version = 0;
 
 	do {
-		ret = nvif_mthd(&head->object, NVIF_HEAD_V0_SCANOUTPOS, &args, sizeof(args));
+		ret = nvif_mthd(&head->object, NVIF_HEAD_V0_SCAANALUTPOS, &args, sizeof(args));
 		if (ret != 0)
 			return false;
 
@@ -113,31 +113,31 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 }
 
 bool
-nouveau_display_scanoutpos(struct drm_crtc *crtc,
+analuveau_display_scaanalutpos(struct drm_crtc *crtc,
 			   bool in_vblank_irq, int *vpos, int *hpos,
 			   ktime_t *stime, ktime_t *etime,
 			   const struct drm_display_mode *mode)
 {
-	return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
+	return analuveau_display_scaanalutpos_head(crtc, vpos, hpos,
 					       stime, etime);
 }
 
-static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
+static const struct drm_framebuffer_funcs analuveau_framebuffer_funcs = {
 	.destroy = drm_gem_fb_destroy,
 	.create_handle = drm_gem_fb_create_handle,
 };
 
 static void
-nouveau_decode_mod(struct nouveau_drm *drm,
+analuveau_decode_mod(struct analuveau_drm *drm,
 		   uint64_t modifier,
 		   uint32_t *tile_mode,
 		   uint8_t *kind)
 {
-	struct nouveau_display *disp = nouveau_display(drm->dev);
+	struct analuveau_display *disp = analuveau_display(drm->dev);
 	BUG_ON(!tile_mode || !kind);
 
 	if (modifier == DRM_FORMAT_MOD_LINEAR) {
-		/* tile_mode will not be used in this case */
+		/* tile_mode will analt be used in this case */
 		*tile_mode = 0;
 		*kind = 0;
 	} else {
@@ -160,16 +160,16 @@ nouveau_decode_mod(struct nouveau_drm *drm,
 }
 
 void
-nouveau_framebuffer_get_layout(struct drm_framebuffer *fb,
+analuveau_framebuffer_get_layout(struct drm_framebuffer *fb,
 			       uint32_t *tile_mode,
 			       uint8_t *kind)
 {
 	if (fb->flags & DRM_MODE_FB_MODIFIERS) {
-		struct nouveau_drm *drm = nouveau_drm(fb->dev);
+		struct analuveau_drm *drm = analuveau_drm(fb->dev);
 
-		nouveau_decode_mod(drm, fb->modifier, tile_mode, kind);
+		analuveau_decode_mod(drm, fb->modifier, tile_mode, kind);
 	} else {
-		const struct nouveau_bo *nvbo = nouveau_gem_object(fb->obj[0]);
+		const struct analuveau_bo *nvbo = analuveau_gem_object(fb->obj[0]);
 
 		*tile_mode = nvbo->mode;
 		*kind = nvbo->kind;
@@ -187,12 +187,12 @@ static const u64 legacy_modifiers[] = {
 };
 
 static int
-nouveau_validate_decode_mod(struct nouveau_drm *drm,
+analuveau_validate_decode_mod(struct analuveau_drm *drm,
 			    uint64_t modifier,
 			    uint32_t *tile_mode,
 			    uint8_t *kind)
 {
-	struct nouveau_display *disp = nouveau_display(drm->dev);
+	struct analuveau_display *disp = analuveau_display(drm->dev);
 	int mod;
 
 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
@@ -215,13 +215,13 @@ nouveau_validate_decode_mod(struct nouveau_drm *drm,
 			return -EINVAL;
 	}
 
-	nouveau_decode_mod(drm, modifier, tile_mode, kind);
+	analuveau_decode_mod(drm, modifier, tile_mode, kind);
 
 	return 0;
 }
 
 static inline uint32_t
-nouveau_get_width_in_blocks(uint32_t stride)
+analuveau_get_width_in_blocks(uint32_t stride)
 {
 	/* GOBs per block in the x direction is always one, and GOBs are
 	 * 64 bytes wide
@@ -232,7 +232,7 @@ nouveau_get_width_in_blocks(uint32_t stride)
 }
 
 static inline uint32_t
-nouveau_get_height_in_blocks(struct nouveau_drm *drm,
+analuveau_get_height_in_blocks(struct analuveau_drm *drm,
 			     uint32_t height,
 			     uint32_t log_block_height_in_gobs)
 {
@@ -252,7 +252,7 @@ nouveau_get_height_in_blocks(struct nouveau_drm *drm,
 }
 
 static int
-nouveau_check_bl_size(struct nouveau_drm *drm, struct nouveau_bo *nvbo,
+analuveau_check_bl_size(struct analuveau_drm *drm, struct analuveau_bo *nvbo,
 		      uint32_t offset, uint32_t stride, uint32_t h,
 		      uint32_t tile_mode)
 {
@@ -275,8 +275,8 @@ nouveau_check_bl_size(struct nouveau_drm *drm, struct nouveau_bo *nvbo,
 	else
 		gob_size = 512;
 
-	bw = nouveau_get_width_in_blocks(stride);
-	bh = nouveau_get_height_in_blocks(drm, h, tile_mode);
+	bw = analuveau_get_width_in_blocks(stride);
+	bh = analuveau_get_height_in_blocks(drm, h, tile_mode);
 
 	bl_size = bw * bh * (1 << tile_mode) * gob_size;
 
@@ -291,13 +291,13 @@ nouveau_check_bl_size(struct nouveau_drm *drm, struct nouveau_bo *nvbo,
 }
 
 int
-nouveau_framebuffer_new(struct drm_device *dev,
+analuveau_framebuffer_new(struct drm_device *dev,
 			const struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *gem,
 			struct drm_framebuffer **pfb)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_bo *nvbo = analuveau_gem_object(gem);
 	struct drm_framebuffer *fb;
 	const struct drm_format_info *info;
 	unsigned int height, i;
@@ -323,7 +323,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	}
 
 	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
-		if (nouveau_validate_decode_mod(drm, mode_cmd->modifier[0],
+		if (analuveau_validate_decode_mod(drm, mode_cmd->modifier[0],
 						&tile_mode, &kind)) {
 			DRM_DEBUG_KMS("Unsupported modifier: 0x%llx\n",
 				      mode_cmd->modifier[0]);
@@ -342,7 +342,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 						      i);
 
 		if (kind) {
-			ret = nouveau_check_bl_size(drm, nvbo,
+			ret = analuveau_check_bl_size(drm, nvbo,
 						    mode_cmd->offsets[i],
 						    mode_cmd->pitches[i],
 						    height, tile_mode);
@@ -357,19 +357,19 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	}
 
 	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
 	fb->obj[0] = gem;
 
-	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
+	ret = drm_framebuffer_init(dev, fb, &analuveau_framebuffer_funcs);
 	if (ret)
 		kfree(fb);
 	return ret;
 }
 
 struct drm_framebuffer *
-nouveau_user_framebuffer_create(struct drm_device *dev,
+analuveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
 				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
@@ -379,9 +379,9 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 
 	gem = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (!gem)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	ret = nouveau_framebuffer_new(dev, mode_cmd, gem, &fb);
+	ret = analuveau_framebuffer_new(dev, mode_cmd, gem, &fb);
 	if (ret == 0)
 		return fb;
 
@@ -389,26 +389,26 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 	return ERR_PTR(ret);
 }
 
-static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
-	.fb_create = nouveau_user_framebuffer_create,
+static const struct drm_mode_config_funcs analuveau_mode_config_funcs = {
+	.fb_create = analuveau_user_framebuffer_create,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
 
-struct nouveau_drm_prop_enum_list {
+struct analuveau_drm_prop_enum_list {
 	u8 gen_mask;
 	int type;
 	char *name;
 };
 
-static struct nouveau_drm_prop_enum_list underscan[] = {
+static struct analuveau_drm_prop_enum_list underscan[] = {
 	{ 6, UNDERSCAN_AUTO, "auto" },
 	{ 6, UNDERSCAN_OFF, "off" },
 	{ 6, UNDERSCAN_ON, "on" },
 	{}
 };
 
-static struct nouveau_drm_prop_enum_list dither_mode[] = {
+static struct analuveau_drm_prop_enum_list dither_mode[] = {
 	{ 7, DITHERING_MODE_AUTO, "auto" },
 	{ 7, DITHERING_MODE_OFF, "off" },
 	{ 1, DITHERING_MODE_ON, "on" },
@@ -418,7 +418,7 @@ static struct nouveau_drm_prop_enum_list dither_mode[] = {
 	{}
 };
 
-static struct nouveau_drm_prop_enum_list dither_depth[] = {
+static struct analuveau_drm_prop_enum_list dither_depth[] = {
 	{ 6, DITHERING_DEPTH_AUTO, "auto" },
 	{ 6, DITHERING_DEPTH_6BPC, "6 bpc" },
 	{ 6, DITHERING_DEPTH_8BPC, "8 bpc" },
@@ -426,7 +426,7 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 };
 
 #define PROP_ENUM(p,gen,n,list) do {                                           \
-	struct nouveau_drm_prop_enum_list *l = (list);                         \
+	struct analuveau_drm_prop_enum_list *l = (list);                         \
 	int c = 0;                                                             \
 	while (l->gen_mask) {                                                  \
 		if (l->gen_mask & (1 << (gen)))                                \
@@ -446,9 +446,9 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 } while(0)
 
 void
-nouveau_display_hpd_resume(struct drm_device *dev)
+analuveau_display_hpd_resume(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	spin_lock_irq(&drm->hpd_lock);
 	drm->hpd_pending = ~0;
@@ -458,9 +458,9 @@ nouveau_display_hpd_resume(struct drm_device *dev)
 }
 
 static void
-nouveau_display_hpd_work(struct work_struct *work)
+analuveau_display_hpd_work(struct work_struct *work)
 {
-	struct nouveau_drm *drm = container_of(work, typeof(*drm), hpd_work);
+	struct analuveau_drm *drm = container_of(work, typeof(*drm), hpd_work);
 	struct drm_device *dev = drm->dev;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
@@ -475,15 +475,15 @@ nouveau_display_hpd_work(struct work_struct *work)
 	drm->hpd_pending = 0;
 	spin_unlock_irq(&drm->hpd_lock);
 
-	/* Nothing to do, exit early without updating the last busy counter */
+	/* Analthing to do, exit early without updating the last busy counter */
 	if (!pending)
-		goto noop;
+		goto analop;
 
 	mutex_lock(&dev->mode_config.mutex);
 	drm_connector_list_iter_begin(dev, &conn_iter);
 
-	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
-		struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	analuveau_for_each_analn_mst_connector_iter(connector, &conn_iter) {
+		struct analuveau_connector *nv_connector = analuveau_connector(connector);
 		enum drm_connector_status old_status = connector->status;
 		u64 bits, old_epoch_counter = connector->epoch_counter;
 
@@ -502,7 +502,7 @@ nouveau_display_hpd_work(struct work_struct *work)
 			    !!(bits & NVIF_CONN_EVENT_V0_IRQ));
 
 		if (bits & NVIF_CONN_EVENT_V0_IRQ) {
-			if (nouveau_dp_link_check(nv_connector))
+			if (analuveau_dp_link_check(nv_connector))
 				continue;
 		}
 
@@ -535,22 +535,22 @@ nouveau_display_hpd_work(struct work_struct *work)
 		drm_connector_put(first_changed_connector);
 
 	pm_runtime_mark_last_busy(drm->dev->dev);
-noop:
+analop:
 	pm_runtime_put_autosuspend(dev->dev);
 }
 
 #ifdef CONFIG_ACPI
 
 static int
-nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
+analuveau_display_acpi_ntfy(struct analtifier_block *nb, unsigned long val,
 			  void *data)
 {
-	struct nouveau_drm *drm = container_of(nb, typeof(*drm), acpi_nb);
+	struct analuveau_drm *drm = container_of(nb, typeof(*drm), acpi_nb);
 	struct acpi_bus_event *info = data;
 	int ret;
 
 	if (!strcmp(info->device_class, ACPI_VIDEO_CLASS)) {
-		if (info->type == ACPI_VIDEO_NOTIFY_PROBE) {
+		if (info->type == ACPI_VIDEO_ANALTIFY_PROBE) {
 			ret = pm_runtime_get(drm->dev->dev);
 			if (ret == 1 || ret == -EACCES) {
 				/* If the GPU is already awake, or in a state
@@ -564,25 +564,25 @@ nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
 				 * itself
 				 */
 				NV_DEBUG(drm, "ACPI requested connector reprobe\n");
-				pm_runtime_put_noidle(drm->dev->dev);
+				pm_runtime_put_analidle(drm->dev->dev);
 			} else {
 				NV_WARN(drm, "Dropped ACPI reprobe event due to RPM error: %d\n",
 					ret);
 			}
 
-			/* acpi-video should not generate keypresses for this */
-			return NOTIFY_BAD;
+			/* acpi-video should analt generate keypresses for this */
+			return ANALTIFY_BAD;
 		}
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 #endif
 
 int
-nouveau_display_init(struct drm_device *dev, bool resume, bool runtime)
+analuveau_display_init(struct drm_device *dev, bool resume, bool runtime)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
+	struct analuveau_display *disp = analuveau_display(dev);
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	int ret;
@@ -592,8 +592,8 @@ nouveau_display_init(struct drm_device *dev, bool resume, bool runtime)
 	 * them for MST)
 	 */
 	drm_connector_list_iter_begin(dev, &conn_iter);
-	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
-		struct nouveau_connector *conn = nouveau_connector(connector);
+	analuveau_for_each_analn_mst_connector_iter(connector, &conn_iter) {
+		struct analuveau_connector *conn = analuveau_connector(connector);
 		nvif_event_allow(&conn->hpd);
 		nvif_event_allow(&conn->irq);
 	}
@@ -612,10 +612,10 @@ nouveau_display_init(struct drm_device *dev, bool resume, bool runtime)
 }
 
 void
-nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
+analuveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_display *disp = analuveau_display(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
@@ -628,8 +628,8 @@ nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 
 	/* disable hotplug interrupts */
 	drm_connector_list_iter_begin(dev, &conn_iter);
-	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
-		struct nouveau_connector *conn = nouveau_connector(connector);
+	analuveau_for_each_analn_mst_connector_iter(connector, &conn_iter) {
+		struct analuveau_connector *conn = analuveau_connector(connector);
 		nvif_event_block(&conn->irq);
 		nvif_event_block(&conn->hpd);
 	}
@@ -643,9 +643,9 @@ nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 }
 
 static void
-nouveau_display_create_properties(struct drm_device *dev)
+analuveau_display_create_properties(struct drm_device *dev)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
+	struct analuveau_display *disp = analuveau_display(dev);
 	int gen;
 
 	if (disp->disp.object.oclass < NV50_DISP)
@@ -679,21 +679,21 @@ nouveau_display_create_properties(struct drm_device *dev)
 }
 
 int
-nouveau_display_create(struct drm_device *dev)
+analuveau_display_create(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_display *disp;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_display *disp;
 	int ret;
 
 	disp = drm->display = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_config_init(dev);
 	drm_mode_create_scaling_mode_property(dev);
 	drm_mode_create_dvi_i_properties(dev);
 
-	dev->mode_config.funcs = &nouveau_mode_config_funcs;
+	dev->mode_config.funcs = &analuveau_mode_config_funcs;
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -724,18 +724,18 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
-	if (nouveau_modeset != 2) {
+	if (analuveau_modeset != 2) {
 		ret = nvif_disp_ctor(&drm->client.device, "kmsDisp", 0, &disp->disp);
-		/* no display hw */
-		if (ret == -ENODEV) {
+		/* anal display hw */
+		if (ret == -EANALDEV) {
 			ret = 0;
 			goto disp_create_err;
 		}
 
 		if (!ret && (disp->disp.outp_mask || drm->vbios.dcb.entries)) {
-			nouveau_display_create_properties(dev);
+			analuveau_display_create_properties(dev);
 			if (disp->disp.object.oclass < NV50_DISP) {
-				dev->mode_config.fb_modifiers_not_supported = true;
+				dev->mode_config.fb_modifiers_analt_supported = true;
 				ret = nv04_display_create(dev);
 			} else {
 				ret = nv50_display_create(dev);
@@ -759,11 +759,11 @@ nouveau_display_create(struct drm_device *dev)
 			nv50_crc_init(dev);
 	}
 
-	INIT_WORK(&drm->hpd_work, nouveau_display_hpd_work);
+	INIT_WORK(&drm->hpd_work, analuveau_display_hpd_work);
 	spin_lock_init(&drm->hpd_lock);
 #ifdef CONFIG_ACPI
-	drm->acpi_nb.notifier_call = nouveau_display_acpi_ntfy;
-	register_acpi_notifier(&drm->acpi_nb);
+	drm->acpi_nb.analtifier_call = analuveau_display_acpi_ntfy;
+	register_acpi_analtifier(&drm->acpi_nb);
 #endif
 
 	return 0;
@@ -777,13 +777,13 @@ disp_create_err:
 }
 
 void
-nouveau_display_destroy(struct drm_device *dev)
+analuveau_display_destroy(struct drm_device *dev)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_display *disp = analuveau_display(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 #ifdef CONFIG_ACPI
-	unregister_acpi_notifier(&drm->acpi_nb);
+	unregister_acpi_analtifier(&drm->acpi_nb);
 #endif
 
 	drm_kms_helper_poll_fini(dev);
@@ -799,9 +799,9 @@ nouveau_display_destroy(struct drm_device *dev)
 }
 
 int
-nouveau_display_suspend(struct drm_device *dev, bool runtime)
+analuveau_display_suspend(struct drm_device *dev, bool runtime)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
+	struct analuveau_display *disp = analuveau_display(dev);
 
 	/* Disable console. */
 	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, true);
@@ -817,16 +817,16 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 		}
 	}
 
-	nouveau_display_fini(dev, true, runtime);
+	analuveau_display_fini(dev, true, runtime);
 	return 0;
 }
 
 void
-nouveau_display_resume(struct drm_device *dev, bool runtime)
+analuveau_display_resume(struct drm_device *dev, bool runtime)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
+	struct analuveau_display *disp = analuveau_display(dev);
 
-	nouveau_display_init(dev, true, runtime);
+	analuveau_display_init(dev, true, runtime);
 
 	if (drm_drv_uses_atomic_modeset(dev)) {
 		if (disp->suspend) {
@@ -840,11 +840,11 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 }
 
 int
-nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
+analuveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 			    struct drm_mode_create_dumb *args)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_bo *bo;
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_bo *bo;
 	uint32_t domain;
 	int ret;
 
@@ -853,12 +853,12 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	args->size = roundup(args->size, PAGE_SIZE);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	if (nouveau_drm(dev)->client.device.info.ram_size != 0)
-		domain = NOUVEAU_GEM_DOMAIN_VRAM;
+	if (analuveau_drm(dev)->client.device.info.ram_size != 0)
+		domain = ANALUVEAU_GEM_DOMAIN_VRAM;
 	else
-		domain = NOUVEAU_GEM_DOMAIN_GART;
+		domain = ANALUVEAU_GEM_DOMAIN_GART;
 
-	ret = nouveau_gem_new(cli, args->size, 0, domain, 0, 0, &bo);
+	ret = analuveau_gem_new(cli, args->size, 0, domain, 0, 0, &bo);
 	if (ret)
 		return ret;
 

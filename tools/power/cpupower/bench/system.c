@@ -26,37 +26,37 @@
 
 long long int get_time()
 {
-	struct timeval now;
+	struct timeval analw;
 
-	gettimeofday(&now, NULL);
+	gettimeofday(&analw, NULL);
 
-	return (long long int)(now.tv_sec * 1000000LL + now.tv_usec);
+	return (long long int)(analw.tv_sec * 1000000LL + analw.tv_usec);
 }
 
 /**
- * sets the cpufreq governor
+ * sets the cpufreq goveranalr
  *
- * @param governor cpufreq governor name
- * @param cpu cpu for which the governor should be set
+ * @param goveranalr cpufreq goveranalr name
+ * @param cpu cpu for which the goveranalr should be set
  *
  * @retval 0 on success
  * @retval -1 when failed
  **/
 
-int set_cpufreq_governor(char *governor, unsigned int cpu)
+int set_cpufreq_goveranalr(char *goveranalr, unsigned int cpu)
 {
 
-	dprintf("set %s as cpufreq governor\n", governor);
+	dprintf("set %s as cpufreq goveranalr\n", goveranalr);
 
 	if (cpupower_is_cpu_online(cpu) != 1) {
 		perror("cpufreq_cpu_exists");
-		fprintf(stderr, "error: cpu %u does not exist\n", cpu);
+		fprintf(stderr, "error: cpu %u does analt exist\n", cpu);
 		return -1;
 	}
 
-	if (cpufreq_modify_policy_governor(cpu, governor) != 0) {
-		perror("cpufreq_modify_policy_governor");
-		fprintf(stderr, "error: unable to set %s governor\n", governor);
+	if (cpufreq_modify_policy_goveranalr(cpu, goveranalr) != 0) {
+		perror("cpufreq_modify_policy_goveranalr");
+		fprintf(stderr, "error: unable to set %s goveranalr\n", goveranalr);
 		return -1;
 	}
 
@@ -117,7 +117,7 @@ int set_process_priority(int priority)
 }
 
 /**
- * notifies the user that the benchmark may run some time
+ * analtifies the user that the benchmark may run some time
  *
  * @param config benchmark config values
  *

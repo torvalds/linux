@@ -285,7 +285,7 @@ void dphy_timing_config(struct dsi_context *ctx)
 
 	/* SETTLE_TIME:
 	 * This time is used for receiver. So for transmitter,
-	 * it can be ignored.
+	 * it can be iganalred.
 	 */
 
 	/* TA_GO:

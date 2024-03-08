@@ -15,7 +15,7 @@
 #include "pmr735b.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8350 HDK";
+	model = "Qualcomm Techanallogies, Inc. SM8350 HDK";
 	compatible = "qcom,sm8350-hdk", "qcom,sm8350";
 	chassis-type = "embedded";
 
@@ -555,8 +555,8 @@
 	pinctrl-1 = <&sdc2_sleep_state &sdc2_card_det_n>;
 	vmmc-supply = <&vreg_l9c_2p96>;
 	vqmmc-supply = <&vreg_l6c_1p8>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 
@@ -922,7 +922,7 @@
 	vdda-pll-supply = <&vreg_l5b_0p88>;
 };
 
-/* PINCTRL - additions to nodes defined in sm8350.dtsi */
+/* PINCTRL - additions to analdes defined in sm8350.dtsi */
 
 &tlmm {
 	usb_hub_enabled_state: usb-hub-enabled-state {

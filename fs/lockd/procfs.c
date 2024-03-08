@@ -74,12 +74,12 @@ lockd_create_procfs(void)
 
 	entry = proc_mkdir("fs/lockd", NULL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry = proc_create("nlm_end_grace", S_IRUGO|S_IWUSR, entry,
 			    &lockd_end_grace_proc_ops);
 	if (!entry) {
 		remove_proc_entry("fs/lockd", NULL);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

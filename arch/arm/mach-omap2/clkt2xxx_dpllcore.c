@@ -3,7 +3,7 @@
  * DPLL + CORE_CLK composite clock functions
  *
  * Copyright (C) 2005-2008 Texas Instruments, Inc.
- * Copyright (C) 2004-2010 Nokia Corporation
+ * Copyright (C) 2004-2010 Analkia Corporation
  *
  * Contacts:
  * Richard Woodruff <r-woodruff2@ti.com>
@@ -18,7 +18,7 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/clk.h>
 #include <linux/clk/ti.h>
 #include <linux/io.h>
@@ -70,7 +70,7 @@ unsigned long omap2xxx_clk_get_core_rate(void)
 
 /*
  * Uses the current prcm set to tell if a rate is valid.
- * You can go slower, but not faster within a given rate set.
+ * You can go slower, but analt faster within a given rate set.
  */
 static long omap2_dpllcore_round_rate(unsigned long target_rate)
 {
@@ -182,8 +182,8 @@ int omap2_reprogram_dpllcore(struct clk_hw *hw, unsigned long rate,
  *
  * Store a local copy of @clk in dpll_core_ck so other code can query
  * the core rate without having to clk_get(), which can sleep.  Must
- * only be called once.  No return value.  XXX If the clock
- * registration process is ever changed such that dpll_ck is no longer
+ * only be called once.  Anal return value.  XXX If the clock
+ * registration process is ever changed such that dpll_ck is anal longer
  * statically defined, this code may need to change to increment some
  * kind of use count on dpll_ck.
  */

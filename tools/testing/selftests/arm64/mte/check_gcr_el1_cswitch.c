@@ -3,7 +3,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>

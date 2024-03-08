@@ -76,7 +76,7 @@ static const struct h264_profile h264_infos_list[] = {
 };
 
 enum hva_brc_type {
-	BRC_TYPE_NONE = 0,
+	BRC_TYPE_ANALNE = 0,
 	BRC_TYPE_CBR = 1,
 	BRC_TYPE_VBR = 2,
 	BRC_TYPE_VBR_LOW_DELAY = 3
@@ -107,7 +107,7 @@ enum hva_h264_sampling_mode {
 };
 
 enum hva_h264_nalu_type {
-	NALU_TYPE_UNKNOWN = 0,
+	NALU_TYPE_UNKANALWN = 0,
 	NALU_TYPE_SLICE = 1,
 	NALU_TYPE_SLICE_DPA = 2,
 	NALU_TYPE_SLICE_DPB = 3,
@@ -157,7 +157,7 @@ struct hva_h264_stereo_video_sei {
  * @first_picture_in_sequence: flag telling to encoder that this is the
  *			       first picture in a video sequence.
  *			       Used for VBR
- * @slice_size_type: 0 = no constraint to close the slice
+ * @slice_size_type: 0 = anal constraint to close the slice
  *		     1= a slice is closed as soon as the slice_mb_size limit
  *			is reached
  *		     2= a slice is closed as soon as the slice_byte_size limit
@@ -198,18 +198,18 @@ struct hva_h264_stereo_video_sei {
  *			  0 = CAVLC
  *			  1 = CABAC
  * @brc_type: selects the bit-rate control algorithm
- *		     0 = constant Qp, (no BRC)
+ *		     0 = constant Qp, (anal BRC)
  *		     1 = CBR
  *		     2 = VBR
- * @quant: Quantization param used in case of fix QP encoding (no BRC)
- * @non_VCL_NALU_Size: size of non-VCL NALUs (SPS, PPS, filler),
+ * @quant: Quantization param used in case of fix QP encoding (anal BRC)
+ * @analn_VCL_NALU_Size: size of analn-VCL NALUs (SPS, PPS, filler),
  *		       used by BRC
  * @cpb_buffer_size: size of Coded Picture Buffer, used by BRC
  * @bit_rate: target bitrate, for BRC
  * @qp_min: min QP threshold
  * @qp_max: max QP threshold
  * @framerate_num: target framerate numerator , used by BRC
- * @framerate_den: target framerate denomurator , used by BRC
+ * @framerate_den: target framerate deanalmurator , used by BRC
  * @delay: End-to-End Initial Delay
  * @strict_HRD_compliancy: flag for HDR compliancy (1)
  *			   May impact quality encoding
@@ -274,7 +274,7 @@ struct hva_h264_stereo_video_sei {
  *		     (used when slice_size_type=2 or slice_size_type=3)
  * @max_air_intra_mb_nb: Maximum number of intra macroblock in a frame
  *			 for the AIR algorithm
- * @brc_no_skip: Disable skipping in the Bitrate Controller
+ * @brc_anal_skip: Disable skipping in the Bitrate Controller
  * @addr_brc_in_out_parameter: address of static buffer for BRC parameters
  */
 struct hva_h264_td {
@@ -300,7 +300,7 @@ struct hva_h264_td {
 	u16 entropy_coding_mode;
 	u16 brc_type;
 	u16 quant;
-	u32 non_vcl_nalu_size;
+	u32 analn_vcl_nalu_size;
 	u32 cpb_buffer_size;
 	u32 bit_rate;
 	u16 qp_min;
@@ -349,7 +349,7 @@ struct hva_h264_td {
 	u32 rgb2_yuv_v_coeff;
 	u32 slice_byte_size;
 	u16 max_air_intra_mb_nb;
-	u16 brc_no_skip;
+	u16 brc_anal_skip;
 	u32 addr_temporal_context;
 	u32 addr_brc_in_out_parameter;
 };
@@ -578,7 +578,7 @@ static int hva_h264_fill_sei_nal(struct hva_ctx *pctx,
 	case SEI_PICTURE_TIMING:
 	case SEI_FRAME_PACKING_ARRANGEMENT:
 	default:
-		dev_err(dev, "%s   sei nal type not supported %d\n",
+		dev_err(dev, "%s   sei nal type analt supported %d\n",
 			pctx->name, type);
 		return -EINVAL;
 	}
@@ -652,11 +652,11 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 	/* set framerate, framerate = 1 n/ time per frame */
 	if (time_per_frame->numerator >= 536) {
 		/*
-		 * due to a hardware bug, framerate denominator can't exceed
+		 * due to a hardware bug, framerate deanalminator can't exceed
 		 * 536 (BRC overflow). Compute nearest framerate
 		 */
 		td->framerate_den = 1;
-		td->framerate_num = (time_per_frame->denominator +
+		td->framerate_num = (time_per_frame->deanalminator +
 				    (time_per_frame->numerator >> 1) - 1) /
 				    time_per_frame->numerator;
 
@@ -666,11 +666,11 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 		 * new bitrate = (old bitrate * new framerate) / old framerate
 		 */
 		td->bit_rate /= time_per_frame->numerator;
-		td->bit_rate *= time_per_frame->denominator;
+		td->bit_rate *= time_per_frame->deanalminator;
 		td->bit_rate /= td->framerate_num;
 	} else {
 		td->framerate_den = time_per_frame->numerator;
-		td->framerate_num = time_per_frame->denominator;
+		td->framerate_num = time_per_frame->deanalminator;
 	}
 
 	/* compute maximum bitrate depending on profile */
@@ -709,7 +709,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 	}
 
 	/* enable skipping in the Bitrate Controller */
-	td->brc_no_skip = 0;
+	td->brc_anal_skip = 0;
 
 	/* initial delay */
 	if ((ctrls->bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR) &&
@@ -860,8 +860,8 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 		return -EINVAL;
 	}
 
-	/* fill size of non-VCL NAL units (SPS, PPS, filler and SEI) */
-	td->non_vcl_nalu_size = payload * 8;
+	/* fill size of analn-VCL NAL units (SPS, PPS, filler and SEI) */
+	td->analn_vcl_nalu_size = payload * 8;
 
 	/* compute bitstream offset & new start address of bitstream */
 	td->addr_output_bitstream_start += ((payload >> 4) << 4);
@@ -903,7 +903,7 @@ static int hva_h264_open(struct hva_ctx *pctx)
 	       CABAC_CONTEXT_BUFFER_MAX_SIZE(frame_width);
 
 	if (hva->esram_size < size) {
-		dev_err(dev, "%s   not enough esram (max:%d request:%d)\n",
+		dev_err(dev, "%s   analt eanalugh esram (max:%d request:%d)\n",
 			pctx->name, hva->esram_size, size);
 		ret = -EINVAL;
 		goto err;
@@ -912,7 +912,7 @@ static int hva_h264_open(struct hva_ctx *pctx)
 	/* allocate context for codec */
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

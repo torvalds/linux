@@ -146,7 +146,7 @@ MODULE_DEVICE_TABLE(of, pbias_of_match);
 
 static int pbias_regulator_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct resource *res;
 	struct regulator_config cfg = { };
 	struct regulator_desc *desc;
@@ -164,7 +164,7 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 
 	desc = devm_kcalloc(&pdev->dev, count, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(syscon))
@@ -188,12 +188,12 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 
 	for (idx = 0; idx < PBIAS_NUM_REGS && count; idx++) {
 		if (!pbias_matches[idx].init_data ||
-			!pbias_matches[idx].of_node)
+			!pbias_matches[idx].of_analde)
 			continue;
 
 		info = pbias_matches[idx].driver_data;
 		if (!info)
-			return -ENODEV;
+			return -EANALDEV;
 
 		desc->name = info->name;
 		desc->owner = THIS_MODULE;
@@ -210,7 +210,7 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 		desc->disable_val = info->disable_val;
 
 		cfg.init_data = pbias_matches[idx].init_data;
-		cfg.of_node = pbias_matches[idx].of_node;
+		cfg.of_analde = pbias_matches[idx].of_analde;
 
 		rdev = devm_regulator_register(&pdev->dev, desc, &cfg);
 		if (IS_ERR(rdev)) {
@@ -230,7 +230,7 @@ static struct platform_driver pbias_regulator_driver = {
 	.probe		= pbias_regulator_probe,
 	.driver		= {
 		.name		= "pbias-regulator",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(pbias_of_match),
 	},
 };

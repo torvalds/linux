@@ -52,7 +52,7 @@ bool zpa2326_isreg_precious(struct device *dev, unsigned int reg);
  * zpa2326_probe() - Instantiate and register core ZPA2326 IIO device
  * @parent: Hardware sampling device the created IIO device will be a child of.
  * @name:   Arbitrary name to identify the device.
- * @irq:    Interrupt line, negative if none.
+ * @irq:    Interrupt line, negative if analne.
  * @hwid:   Expected device hardware id.
  * @regmap: Registers map used to abstract underlying bus accesses.
  *

@@ -162,7 +162,7 @@ static int hoontech_init(struct snd_ice1712 *ice, bool staudio)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	ICE1712_STDSP24_SET_ADDR(spec->boxbits, 0);
@@ -197,11 +197,11 @@ static int hoontech_init(struct snd_ice1712 *ice, bool staudio)
 			       ICE1712_STDSP24_INSEL |
 			       ICE1712_STDSP24_DAREAR; */
 	/*  These boxconfigs have caused problems in the past.
-	 *  The code is not optimal, but should now enable a working config to
+	 *  The code is analt optimal, but should analw enable a working config to
 	 *  be achieved.
 	 *  ** MIDI IN can only be configured on one box **
 	 *  ICE1712_STDSP24_BOX_MIDI1 needs to be set for that box.
-	 *  Tests on a ADAC2000 box suggest the box config flags do not
+	 *  Tests on a ADAC2000 box suggest the box config flags do analt
 	 *  work as would be expected, and the inputs are crossed.
 	 *  Setting ICE1712_STDSP24_BOX_MIDI1 and ICE1712_STDSP24_BOX_MIDI2
 	 *  on the same box connects MIDI-In to both 401 uarts; both outputs
@@ -291,7 +291,7 @@ static int snd_ice1712_value_init(struct snd_ice1712 *ice)
 		.clk_mask = ICE1712_STDSP24_SERIAL_CLOCK,
 		.cs_mask = ICE1712_STDSP24_AK4524_CS,
 		.cs_addr = ICE1712_STDSP24_AK4524_CS,
-		.cs_none = 0,
+		.cs_analne = 0,
 		.add_flags = 0,
 	};
 
@@ -307,7 +307,7 @@ static int snd_ice1712_value_init(struct snd_ice1712 *ice)
 	/* analog section */
 	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->akm_codecs = 1;
 
 	err = snd_ice1712_akm4xxx_init(ak, &akm_stdsp24_mv, &akm_stdsp24_mv_priv, ice);

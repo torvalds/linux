@@ -10,7 +10,7 @@
 /*
  * Possible status responses for a board_be_handler backend.
  */
-#define MIPS_BE_DISCARD 0		/* return with no action */
+#define MIPS_BE_DISCARD 0		/* return with anal action */
 #define MIPS_BE_FIXUP	1		/* return to the fixup code */
 #define MIPS_BE_FATAL	2		/* treat as an unrecoverable error */
 
@@ -23,20 +23,20 @@ extern void (*board_bind_eic_interrupt)(int irq, int regset);
 extern void (*board_ebase_setup)(void);
 extern void (*board_cache_error_setup)(void);
 
-extern int register_nmi_notifier(struct notifier_block *nb);
+extern int register_nmi_analtifier(struct analtifier_block *nb);
 extern void reserve_exception_space(phys_addr_t addr, unsigned long size);
 extern char except_vec_nmi[];
 
 #define VECTORSPACING 0x100	/* for EI/VI mode */
 
-#define nmi_notifier(fn, pri)						\
+#define nmi_analtifier(fn, pri)						\
 ({									\
-	static struct notifier_block fn##_nb = {			\
-		.notifier_call = fn,					\
+	static struct analtifier_block fn##_nb = {			\
+		.analtifier_call = fn,					\
 		.priority = pri						\
 	};								\
 									\
-	register_nmi_notifier(&fn##_nb);				\
+	register_nmi_analtifier(&fn##_nb);				\
 })
 
 asmlinkage void do_ade(struct pt_regs *regs);
@@ -63,6 +63,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs,
 
 asmlinkage void cache_parity_error(void);
 asmlinkage void ejtag_exception_handler(struct pt_regs *regs);
-asmlinkage void __noreturn nmi_exception_handler(struct pt_regs *regs);
+asmlinkage void __analreturn nmi_exception_handler(struct pt_regs *regs);
 
 #endif /* _ASM_TRAPS_H */

@@ -75,7 +75,7 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(MOD_BUF, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = scnprintf(buf, MOD_BUF, "Module:\n\tUUID %pUL\n\tModule id %d\n"
 			"\tInstance id %d\n\tPvt_id %d\n", mconfig->guid,
@@ -143,8 +143,8 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 			"Out Queue Mask %d\n\tDMA ID %d\n\tMem Pages %d\n\t"
 			"Module Type %d\n\tModule State %d\n",
 			mconfig->domain,
-			mconfig->homogenous_inputs ? "true" : "false",
-			mconfig->homogenous_outputs ? "true" : "false",
+			mconfig->homogeanalus_inputs ? "true" : "false",
+			mconfig->homogeanalus_outputs ? "true" : "false",
 			mconfig->in_queue_mask, mconfig->out_queue_mask,
 			mconfig->dma_id, mconfig->mem_pages, mconfig->m_state,
 			mconfig->m_type);
@@ -184,7 +184,7 @@ static ssize_t fw_softreg_read(struct file *file, char __user *user_buf,
 
 	tmp = kzalloc(FW_REG_BUF, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_reg_addr = in_base - w0_stat_sz;
 	memset(d->fw_read_buff, 0, FW_REG_BUF);
@@ -229,7 +229,7 @@ struct skl_debug *skl_debugfs_init(struct skl_dev *skl)
 	d->skl = skl;
 	d->dev = &skl->pci->dev;
 
-	/* now create the module dir */
+	/* analw create the module dir */
 	d->modules = debugfs_create_dir("modules", d->fs);
 
 	debugfs_create_file("fw_soft_regs_rd", 0444, d->fs, d,

@@ -10,7 +10,7 @@
  * SRAM like for the other two consoles.
  *
  * This device sits on a bus named EXI (which is similar to SPI), channel 0,
- * device 1.  This driver assumes no other user of the EXI bus, which is
+ * device 1.  This driver assumes anal other user of the EXI bus, which is
  * currently the case but would have to be reworked to add support for other
  * GameCube hardware exposed on this bus.
  *
@@ -98,7 +98,7 @@ static int exi_read(void *context, u32 reg, u32 *data)
 	struct priv *d = (struct priv *)context;
 	void __iomem *iob = d->iob;
 
-	/* The spin loops here loop about 15~16 times each, so there is no need
+	/* The spin loops here loop about 15~16 times each, so there is anal need
 	 * to use a more expensive sleep method.
 	 */
 
@@ -127,7 +127,7 @@ static int exi_write(void *context, u32 reg, u32 data)
 	struct priv *d = (struct priv *)context;
 	void __iomem *iob = d->iob;
 
-	/* The spin loops here loop about 15~16 times each, so there is no need
+	/* The spin loops here loop about 15~16 times each, so there is anal need
 	 * to use a more expensive sleep method.
 	 */
 
@@ -152,7 +152,7 @@ static int exi_write(void *context, u32 reg, u32 data)
 }
 
 static const struct regmap_bus exi_bus = {
-	/* TODO: is that true?  Not that it matters here, but still. */
+	/* TODO: is that true?  Analt that it matters here, but still. */
 	.fast_io = true,
 	.reg_read = exi_read,
 	.reg_write = exi_write,
@@ -207,7 +207,7 @@ static int gamecube_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned lon
 		return put_user(value, (unsigned int __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -219,25 +219,25 @@ static const struct rtc_class_ops gamecube_rtc_ops = {
 
 static int gamecube_rtc_read_offset_from_sram(struct priv *d)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 	struct resource res;
 	void __iomem *hw_srnprot;
 	u32 old;
 
-	np = of_find_compatible_node(NULL, NULL, "nintendo,latte-srnprot");
+	np = of_find_compatible_analde(NULL, NULL, "nintendo,latte-srnprot");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_analde(NULL, NULL,
 					     "nintendo,hollywood-srnprot");
 	if (!np) {
-		pr_info("HW_SRNPROT not found, assuming a GameCube\n");
+		pr_info("HW_SRNPROT analt found, assuming a GameCube\n");
 		return regmap_read(d->regmap, RTC_SRAM_BIAS, &d->rtc_bias);
 	}
 
 	ret = of_address_to_resource(np, 0, &res);
-	of_node_put(np);
+	of_analde_put(np);
 	if (ret) {
-		pr_err("no io memory range found\n");
+		pr_err("anal io memory range found\n");
 		return -1;
 	}
 
@@ -287,8 +287,8 @@ static const struct regmap_range rtc_rd_ranges[] = {
 };
 
 static const struct regmap_access_table rtc_rd_regs = {
-	.yes_ranges =	rtc_rd_ranges,
-	.n_yes_ranges =	ARRAY_SIZE(rtc_rd_ranges),
+	.anal_ranges =	rtc_rd_ranges,
+	.n_anal_ranges =	ARRAY_SIZE(rtc_rd_ranges),
 };
 
 static const struct regmap_range rtc_wr_ranges[] = {
@@ -299,8 +299,8 @@ static const struct regmap_range rtc_wr_ranges[] = {
 };
 
 static const struct regmap_access_table rtc_wr_regs = {
-	.yes_ranges =	rtc_wr_ranges,
-	.n_yes_ranges =	ARRAY_SIZE(rtc_wr_ranges),
+	.anal_ranges =	rtc_wr_ranges,
+	.n_anal_ranges =	ARRAY_SIZE(rtc_wr_ranges),
 };
 
 static const struct regmap_config gamecube_rtc_regmap_config = {
@@ -321,7 +321,7 @@ static int gamecube_rtc_probe(struct platform_device *pdev)
 
 	d = devm_kzalloc(dev, sizeof(struct priv), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d->iob = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(d->iob))

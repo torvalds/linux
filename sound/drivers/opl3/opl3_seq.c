@@ -99,7 +99,7 @@ static int snd_opl3_synth_use(void *private_data, struct snd_seq_port_subscribe 
 	if (use_internal_drums) {
 		/* Percussion mode */
 		opl3->voices[6].state = opl3->voices[7].state = 
-			opl3->voices[8].state = SNDRV_OPL3_ST_NOT_AVAIL;
+			opl3->voices[8].state = SNDRV_OPL3_ST_ANALT_AVAIL;
 		snd_opl3_load_drums(opl3);
 		opl3->drum_reg = OPL3_PERCUSSION_ENABLE;
 		opl3->command(opl3, OPL3_LEFT | OPL3_REG_PERCUSSION, opl3->drum_reg);
@@ -131,10 +131,10 @@ static int snd_opl3_synth_unuse(void *private_data, struct snd_seq_port_subscrib
  * MIDI emulation operators
  */
 const struct snd_midi_op opl3_ops = {
-	.note_on =		snd_opl3_note_on,
-	.note_off =		snd_opl3_note_off,
+	.analte_on =		snd_opl3_analte_on,
+	.analte_off =		snd_opl3_analte_off,
 	.key_press =		snd_opl3_key_press,
-	.note_terminate =	snd_opl3_terminate_note,
+	.analte_terminate =	snd_opl3_terminate_analte,
 	.control =		snd_opl3_control,
 	.nrpn =			snd_opl3_nrpn,
 	.sysex =		snd_opl3_sysex,
@@ -168,7 +168,7 @@ static int snd_opl3_synth_create_port(struct snd_opl3 * opl3)
 		MAX_OPL2_VOICES : MAX_OPL3_VOICES;
 	opl3->chset = snd_midi_channel_alloc_set(16);
 	if (opl3->chset == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	opl3->chset->private_data = opl3;
 
 	memset(&callbacks, 0, sizeof(callbacks));

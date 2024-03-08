@@ -15,7 +15,7 @@ void simulate_##name(u32 opcode, long addr, struct pt_regs *regs);
 	do {								\
 		if (csky_insn_is_##name(code)) {			\
 			api->handler = simulate_##name;			\
-			return INSN_GOOD_NO_SLOT;			\
+			return INSN_GOOD_ANAL_SLOT;			\
 		}							\
 	} while (0)
 

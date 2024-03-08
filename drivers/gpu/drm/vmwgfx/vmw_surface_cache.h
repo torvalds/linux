@@ -10,13 +10,13 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright analtice and this permission analtice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -274,9 +274,9 @@ vmw_surface_is_gb_screen_target_format(SVGA3dSurfaceFormat format)
 static inline bool
 vmw_surface_is_dx_screen_target_format(SVGA3dSurfaceFormat format)
 {
-	return (format == SVGA3D_R8G8B8A8_UNORM ||
-		format == SVGA3D_B8G8R8A8_UNORM ||
-		format == SVGA3D_B8G8R8X8_UNORM);
+	return (format == SVGA3D_R8G8B8A8_UANALRM ||
+		format == SVGA3D_B8G8R8A8_UANALRM ||
+		format == SVGA3D_B8G8R8X8_UANALRM);
 }
 
 
@@ -467,7 +467,7 @@ vmw_surface_get_loc(const struct vmw_surface_cache *cache,
  * in each dimension.
  * @loc: Pointer to a struct vmw_surface_loc to be incremented.
  *
- * When computing the size of a range as size = end - start, the range does not
+ * When computing the size of a range as size = end - start, the range does analt
  * include the end element. However a location representing the last byte
  * of a touched region in the backing store *is* included in the range.
  * This function modifies such a location to match the end definition

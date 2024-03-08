@@ -14,7 +14,7 @@
 
 enum ynl_policy_type {
 	YNL_PT_REJECT = 1,
-	YNL_PT_IGNORE,
+	YNL_PT_IGANALRE,
 	YNL_PT_NEST,
 	YNL_PT_FLAG,
 	YNL_PT_BINARY,
@@ -122,7 +122,7 @@ int ynl_exec(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 		  struct ynl_dump_state *yds);
 
-void ynl_error_unknown_notification(struct ynl_sock *ys, __u8 cmd);
+void ynl_error_unkanalwn_analtification(struct ynl_sock *ys, __u8 cmd);
 int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
 
 #ifndef MNL_HAS_AUTO_SCALARS

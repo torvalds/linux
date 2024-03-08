@@ -20,11 +20,11 @@ properties:
   compatible:
     enum:
       - qcom,msm8974-bimc
-      - qcom,msm8974-cnoc
-      - qcom,msm8974-mmssnoc
-      - qcom,msm8974-ocmemnoc
-      - qcom,msm8974-pnoc
-      - qcom,msm8974-snoc
+      - qcom,msm8974-canalc
+      - qcom,msm8974-mmssanalc
+      - qcom,msm8974-ocmemanalc
+      - qcom,msm8974-panalc
+      - qcom,msm8974-sanalc
 
   '#interconnect-cells':
     const: 1

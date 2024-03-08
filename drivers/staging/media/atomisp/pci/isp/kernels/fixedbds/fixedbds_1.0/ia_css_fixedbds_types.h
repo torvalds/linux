@@ -18,7 +18,7 @@
 
 struct sh_css_bds_factor {
 	unsigned int numerator;
-	unsigned int denominator;
+	unsigned int deanalminator;
 	unsigned int bds_factor;
 };
 

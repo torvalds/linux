@@ -30,7 +30,7 @@
  *
  * Class 0xF remains for PrimeCell and legacy components. (AMBA_CID above)
  * Class 0x9 defines the component as CoreSight (CORESIGHT_CID above)
- * Class 0x0, 0x1, 0xB, 0xE define components that do not have driver support
+ * Class 0x0, 0x1, 0xB, 0xE define components that do analt have driver support
  * at present.
  * Class 0x2-0x8,0xA and 0xD-0xD are presently reserved.
  *
@@ -43,7 +43,7 @@
  * components. Passed to the amba bus code from the component driver via
  * the amba_id->data pointer.
  * @devarch	: coresight devarch register value
- * @devarch_mask: mask bits used for matching. 0 indicates UCI not used.
+ * @devarch_mask: mask bits used for matching. 0 indicates UCI analt used.
  * @devtype	: coresight device type value
  * @data	: additional driver data. As we have usurped the original
  *		pointer some devices may still need additional data
@@ -72,7 +72,7 @@ struct amba_device {
 	struct amba_cs_uci_id	uci;
 	unsigned int		irq[AMBA_NR_IRQS];
 	/*
-	 * Driver name to force a match.  Do not set directly, because core
+	 * Driver name to force a match.  Do analt set directly, because core
 	 * frees it.  Use driver_set_override() to set or clear it.
 	 */
 	const char		*driver_override;
@@ -85,9 +85,9 @@ struct amba_driver {
 	void			(*shutdown)(struct amba_device *);
 	const struct amba_id	*id_table;
 	/*
-	 * For most device drivers, no need to care about this flag as long as
+	 * For most device drivers, anal need to care about this flag as long as
 	 * all DMAs are handled through the kernel DMA API. For some special
-	 * ones, for example VFIO drivers, they know how to manage the DMA
+	 * ones, for example VFIO drivers, they kanalw how to manage the DMA
 	 * themselves and set this flag so that the IOMMU layer will allow them
 	 * to setup and manage their own I/O address space.
 	 */
@@ -152,7 +152,7 @@ void amba_release_regions(struct amba_device *);
 	}
 
 /*
- * APB devices do not themselves have the ability to address memory,
+ * APB devices do analt themselves have the ability to address memory,
  * so DMA masks should be zero (much like USB peripheral devices.)
  * The DMA controller DMA masks should be used instead (much like
  * USB host controllers in conventional PCs.)

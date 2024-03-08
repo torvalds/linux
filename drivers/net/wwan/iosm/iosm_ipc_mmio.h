@@ -74,7 +74,7 @@ struct mmio_offset {
  * @chip_info_size:	Size of chip info structure
  * @mux_protocol:	mux protocol
  * @has_ul_flow_credit:	Ul flow credit support
- * @has_slp_no_prot:	Device sleep no protocol support
+ * @has_slp_anal_prot:	Device sleep anal protocol support
  * @has_mcr_support:	Usage of mcr support
  */
 struct iosm_mmio {
@@ -86,7 +86,7 @@ struct iosm_mmio {
 	unsigned int chip_info_size;
 	u32 mux_protocol;
 	u8 has_ul_flow_credit:1,
-	   has_slp_no_prot:1,
+	   has_slp_anal_prot:1,
 	   has_mcr_support:1;
 };
 

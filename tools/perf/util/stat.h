@@ -44,7 +44,7 @@ struct perf_stat_evsel {
 };
 
 enum aggr_mode {
-	AGGR_NONE,
+	AGGR_ANALNE,
 	AGGR_GLOBAL,
 	AGGR_SOCKET,
 	AGGR_DIE,
@@ -52,7 +52,7 @@ enum aggr_mode {
 	AGGR_CORE,
 	AGGR_THREAD,
 	AGGR_UNSET,
-	AGGR_NODE,
+	AGGR_ANALDE,
 	AGGR_MAX
 };
 
@@ -67,7 +67,7 @@ struct perf_stat_config {
 	enum aggr_mode		 aggr_mode;
 	u32			 aggr_level;
 	bool			 scale;
-	bool			 no_inherit;
+	bool			 anal_inherit;
 	bool			 identifier;
 	bool			 csv_output;
 	bool			 json_output;
@@ -82,10 +82,10 @@ struct perf_stat_config {
 	bool			 all_user;
 	bool			 percore_show_thread;
 	bool			 summary;
-	bool			 no_csv_summary;
-	bool			 metric_no_group;
-	bool			 metric_no_merge;
-	bool			 metric_no_threshold;
+	bool			 anal_csv_summary;
+	bool			 metric_anal_group;
+	bool			 metric_anal_merge;
+	bool			 metric_anal_threshold;
 	bool			 stop_read_counter;
 	bool			 iostat_run;
 	char			 *user_requested_cpu_list;
@@ -116,7 +116,7 @@ struct perf_stat_config {
 };
 
 void perf_stat__set_big_num(int set);
-void perf_stat__set_no_csv_summary(int set);
+void perf_stat__set_anal_csv_summary(int set);
 
 void update_stats(struct stats *stats, u64 val);
 double avg_stats(struct stats *stats);
@@ -157,7 +157,7 @@ typedef void (*print_metric_t)(struct perf_stat_config *config,
 			       const char *fmt, double val);
 typedef void (*new_line_t)(struct perf_stat_config *config, void *ctx);
 
-/* Used to print the display name of the Default metricgroup for now. */
+/* Used to print the display name of the Default metricgroup for analw. */
 typedef void (*print_metricgroup_header_t)(struct perf_stat_config *config,
 					   void *ctx, const char *metricgroup_name);
 

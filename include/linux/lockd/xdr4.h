@@ -31,7 +31,7 @@ bool	nlm4svc_decode_unlockargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlm4svc_decode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlm4svc_decode_reboot(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlm4svc_decode_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool	nlm4svc_decode_notify(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool	nlm4svc_decode_analtify(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 bool	nlm4svc_encode_testres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlm4svc_encode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr);

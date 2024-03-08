@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Userspace interface for TDX guest driver
  *
@@ -21,7 +21,7 @@
  * struct tdx_report_req - Request struct for TDX_CMD_GET_REPORT0 IOCTL.
  *
  * @reportdata: User buffer with REPORTDATA to be included into TDREPORT.
- *              Typically it can be some nonce provided by attestation
+ *              Typically it can be some analnce provided by attestation
  *              service, so the generated TDREPORT can be uniquely verified.
  * @tdreport: User buffer to store TDREPORT output from TDCALL[TDG.MR.REPORT].
  */
@@ -35,7 +35,7 @@ struct tdx_report_req {
  *                       TDCALL[TDG.MR.REPORT]
  *
  * Return 0 on success, -EIO on TDCALL execution failure, and
- * standard errno on other general error cases.
+ * standard erranal on other general error cases.
  */
 #define TDX_CMD_GET_REPORT0              _IOWR('T', 1, struct tdx_report_req)
 

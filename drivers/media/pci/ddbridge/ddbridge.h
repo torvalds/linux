@@ -96,7 +96,7 @@ struct ddb_ids {
 
 struct ddb_info {
 	int   type;
-#define DDB_NONE            0
+#define DDB_ANALNE            0
 #define DDB_OCTOPUS         1
 #define DDB_OCTOPUS_CI      2
 #define DDB_OCTOPUS_MAX     5
@@ -217,7 +217,7 @@ struct ddb_port {
 	struct ddb_i2c        *i2c;
 	struct mutex           i2c_gate_lock; /* I2C access lock */
 	u32                    class;
-#define DDB_PORT_NONE           0
+#define DDB_PORT_ANALNE           0
 #define DDB_PORT_CI             1
 #define DDB_PORT_TUNER          2
 #define DDB_PORT_LOOP           3
@@ -225,7 +225,7 @@ struct ddb_port {
 	char                   *type_name;
 	u32                     type;
 #define DDB_TUNER_DUMMY          0xffffffff
-#define DDB_TUNER_NONE           0
+#define DDB_TUNER_ANALNE           0
 #define DDB_TUNER_DVBS_ST        1
 #define DDB_TUNER_DVBS_ST_AA     2
 #define DDB_TUNER_DVBCT_TR       3

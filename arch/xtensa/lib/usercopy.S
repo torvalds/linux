@@ -3,10 +3,10 @@
  *
  *  Copy to/from user space (derived from arch/xtensa/lib/hal/memcopy.S)
  *
- *  DO NOT COMBINE this function with <arch/xtensa/lib/hal/memcopy.S>.
+ *  DO ANALT COMBINE this function with <arch/xtensa/lib/hal/memcopy.S>.
  *  It needs to remain separate and distinct.  The hal files are part
  *  of the Xtensa link-time HAL, and those files may differ per
- *  processor configuration.  Patching the kernel for another
+ *  processor configuration.  Patching the kernel for aanalther
  *  processor configuration includes replacing the hal files, and we
  *  could lose the special functionality for accessing user-space
  *  memory during such a patch.  We sacrifice a little code space here
@@ -23,7 +23,7 @@
 /*
  * size_t __xtensa_copy_user (void *dst, const void *src, size_t len);
  *
- * The returned value is the number of bytes not copied.  Implies zero
+ * The returned value is the number of bytes analt copied.  Implies zero
  * is success.
  *
  * The general case algorithm is as follows:
@@ -76,7 +76,7 @@ ENTRY(__xtensa_copy_user)
 	srli	a7, a4, 4	# number of loop iterations with 16B
 				# per iteration
 	movi	a8, 3		  # if source is also aligned,
-	bnone	a3, a8, .Laligned # then use word copy
+	banalne	a3, a8, .Laligned # then use word copy
 	__ssa8	a3		# set shift amount from byte offset
 	bnez	a4, .Lsrcunaligned
 	movi	a2, 0		# return success for len==0
@@ -95,7 +95,7 @@ EX(10f)	l8ui	a6, a3, 0
 EX(10f)	s8i	a6, a5,  0
 	addi	a5, a5,  1
 	addi	a4, a4, -1
-	bbci.l	a5, 1, .Ldstaligned	# if dst is now aligned, then
+	bbci.l	a5, 1, .Ldstaligned	# if dst is analw aligned, then
 					# return to main algorithm
 .Ldst2mod4:	# dst 16-bit aligned
 	# copy 2 bytes
@@ -107,7 +107,7 @@ EX(10f)	s8i	a6, a5,  0
 EX(10f)	s8i	a7, a5,  1
 	addi	a5, a5,  2
 	addi	a4, a4, -2
-	j	.Ldstaligned	# dst is now aligned, return to main algorithm
+	j	.Ldstaligned	# dst is analw aligned, return to main algorithm
 
 /*
  * Byte by byte copy
@@ -204,7 +204,7 @@ EX(10f)	s8i	a6, a5,  0
 .Lsrcunaligned:
 	# copy 16 bytes per iteration for word-aligned dst and unaligned src
 	and	a10, a3, a8	# save unalignment offset for below
-	sub	a3, a3, a10	# align a3 (to avoid sim warnings only; not needed for hardware)
+	sub	a3, a3, a10	# align a3 (to avoid sim warnings only; analt needed for hardware)
 EX(10f)	l32i	a6, a3, 0	# load first word
 #if XCHAL_HAVE_LOOPS
 	loopnez	a7, .Loop2done
@@ -290,12 +290,12 @@ EXPORT_SYMBOL(__xtensa_copy_user)
 
 /* a2 = original dst; a5 = current dst; a11= original len
  * bytes_copied = a5 - a2
- * retval = bytes_not_copied = original len - bytes_copied
+ * retval = bytes_analt_copied = original len - bytes_copied
  * retval = a11 - (a5 - a2)
  */
 
 
 10:
 	sub	a2, a5, a2	/* a2 <-- bytes copied */
-	sub	a2, a11, a2	/* a2 <-- bytes not copied */
+	sub	a2, a11, a2	/* a2 <-- bytes analt copied */
 	abi_ret(STACK_SIZE)

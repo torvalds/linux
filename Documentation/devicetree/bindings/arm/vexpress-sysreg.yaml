@@ -12,7 +12,7 @@ maintainers:
 description:
   This is a system control registers block, providing multiple low level
   platform functions like board detection and identification, software
-  interrupt generation, MMC and NOR Flash control, etc.
+  interrupt generation, MMC and ANALR Flash control, etc.
 
 properties:
   compatible:
@@ -60,7 +60,7 @@ patternProperties:
           The first cell is the function number:
           for sys_led : 0..7 = LED 0..7
           for sys_mci : 0 = MMC CARDIN, 1 = MMC WPROT
-          for sys_flash : 0 = NOR FLASH WPn
+          for sys_flash : 0 = ANALR FLASH WPn
           The second cell can take standard GPIO flags.
 
       reg:

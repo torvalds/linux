@@ -9,7 +9,7 @@ title: Xilinx firmware driver
 maintainers:
   - Nava kishore Manne <nava.kishore.manne@amd.com>
 
-description: The zynqmp-firmware node describes the interface to platform
+description: The zynqmp-firmware analde describes the interface to platform
   firmware. ZynqMP has an interface to communicate with secure firmware.
   Firmware driver provides an interface to firmware APIs. Interface APIs
   can be used by any driver to communicate to PMUFW(Platform Management Unit).

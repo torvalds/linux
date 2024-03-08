@@ -1,13 +1,13 @@
 /*
- * Non-physical true random number generator based on timing jitter --
+ * Analn-physical true random number generator based on timing jitter --
  * Jitter RNG standalone code.
  *
- * Copyright Stephan Mueller <smueller@chronox.de>, 2015 - 2023
+ * Copyright Stephan Mueller <smueller@chroanalx.de>, 2015 - 2023
  *
  * Design
  * ======
  *
- * See https://www.chronox.de/jent.html
+ * See https://www.chroanalx.de/jent.html
  *
  * License
  * =======
@@ -16,12 +16,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -32,26 +32,26 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, ALL OF
- * WHICH ARE HEREBY DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE
+ * WHICH ARE HEREBY DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT
  * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- * USE OF THIS SOFTWARE, EVEN IF NOT ADVISED OF THE POSSIBILITY OF SUCH
+ * USE OF THIS SOFTWARE, EVEN IF ANALT ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
 
 /*
  * This Jitterentropy RNG is based on the jitterentropy library
- * version 3.4.0 provided at https://www.chronox.de/jent.html
+ * version 3.4.0 provided at https://www.chroanalx.de/jent.html
  */
 
 #ifdef __OPTIMIZE__
- #error "The CPU Jitter random number generator must not be compiled with optimizations. See documentation. Use the compiler switch -O0 for compiling jitterentropy.c."
+ #error "The CPU Jitter random number generator must analt be compiled with optimizations. See documentation. Use the compiler switch -O0 for compiling jitterentropy.c."
 #endif
 
 typedef	unsigned long long	__u64;
@@ -65,7 +65,7 @@ struct rand_data {
 	/* SHA3-256 is used as conditioner */
 #define DATA_SIZE_BITS 256
 	/* all data values that are vital to maintain the security
-	 * of the RNG are marked as SENSITIVE. A user must not
+	 * of the RNG are marked as SENSITIVE. A user must analt
 	 * access that information while the RNG executes its loops to
 	 * calculate the next random value. */
 	void *hash_state;		/* SENSITIVE hash state entropy pool */
@@ -111,10 +111,10 @@ struct rand_data {
 					   * entropy collector */
 
 /* -- error codes for init function -- */
-#define JENT_ENOTIME		1 /* Timer service not available */
+#define JENT_EANALTIME		1 /* Timer service analt available */
 #define JENT_ECOARSETIME	2 /* Timer too coarse for RNG */
-#define JENT_ENOMONOTONIC	3 /* Timer is not monotonic increasing */
-#define JENT_EVARVAR		5 /* Timer does not produce variations of
+#define JENT_EANALMOANALTONIC	3 /* Timer is analt moanaltonic increasing */
+#define JENT_EVARVAR		5 /* Timer does analt produce variations of
 				   * variations (2nd derivation of time is
 				   * zero). */
 #define JENT_ESTUCK		8 /* Too many stuck results during init. */
@@ -133,7 +133,7 @@ struct rand_data {
 /*
  * The output n bits can receive more than n bits of min entropy, of course,
  * but the fixed output of the conditioning function can only asymptotically
- * approach the output size bits of min entropy, not attain that bound. Random
+ * approach the output size bits of min entropy, analt attain that bound. Random
  * maps will tend to have output collisions, which reduces the creditable
  * output entropy (that is what SP 800-90B Section 3.1.5.1.2 attempts to bound).
  *
@@ -158,17 +158,17 @@ struct rand_data {
  * See the SP 800-90B comment #10b for the corrected cutoff for the SP 800-90B
  * APT.
  * http://www.untruth.org/~josh/sp80090b/UL%20SP800-90B-final%20comments%20v1.9%2020191212.pdf
- * In in the syntax of R, this is C = 2 + qbinom(1 − 2^(−30), 511, 2^(-1/osr)).
+ * In in the syntax of R, this is C = 2 + qbianalm(1 − 2^(−30), 511, 2^(-1/osr)).
  * (The original formula wasn't correct because the first symbol must
- * necessarily have been observed, so there is no chance of observing 0 of these
+ * necessarily have been observed, so there is anal chance of observing 0 of these
  * symbols.)
  *
- * For the alpha < 2^-53, R cannot be used as it uses a float data type without
+ * For the alpha < 2^-53, R cananalt be used as it uses a float data type without
  * arbitrary precision. A SageMath script is used to calculate those cutoff
  * values.
  *
  * For any value above 14, this yields the maximal allowable value of 512
- * (by FIPS 140-2 IG 7.19 Resolution # 16, we cannot choose a cutoff value that
+ * (by FIPS 140-2 IG 7.19 Resolution # 16, we cananalt choose a cutoff value that
  * renders the test unable to fail).
  */
 static const unsigned int jent_apt_cutoff_lookup[15] = {
@@ -227,7 +227,7 @@ static void jent_apt_insert(struct rand_data *ec, unsigned int delta_masked)
 	if (delta_masked == ec->apt_base) {
 		ec->apt_count++;
 
-		/* Note, ec->apt_count starts with one. */
+		/* Analte, ec->apt_count starts with one. */
 		if (ec->apt_count >= ec->apt_cutoff_permanent)
 			ec->health_failure |= JENT_APT_FAILURE_PERMANENT;
 		else if (ec->apt_count >= ec->apt_cutoff)
@@ -272,12 +272,12 @@ static void jent_rct_insert(struct rand_data *ec, int stuck)
 		 * alpha = 2^-30 or 2^-60 as recommended in SP800-90B.
 		 * In addition, we require an entropy value H of 1/osr as this
 		 * is the minimum entropy required to provide full entropy.
-		 * Note, we collect (DATA_SIZE_BITS + ENTROPY_SAFETY_FACTOR)*osr
+		 * Analte, we collect (DATA_SIZE_BITS + ENTROPY_SAFETY_FACTOR)*osr
 		 * deltas for inserting them into the entropy pool which should
 		 * then have (close to) DATA_SIZE_BITS bits of entropy in the
 		 * conditioned output.
 		 *
-		 * Note, ec->rct_count (which equals to value B in the pseudo
+		 * Analte, ec->rct_count (which equals to value B in the pseudo
 		 * code of SP800-90B section 4.4.1) starts with zero. Hence
 		 * we need to subtract one from the cutoff value as calculated
 		 * following SP800-90B. Thus C = ceil(-log_2(alpha)/H) = 30*osr
@@ -309,13 +309,13 @@ static inline __u64 jent_delta(__u64 prev, __u64 next)
  * 	2nd derivative of the jitter measurement (delta of time deltas)
  * 	3rd derivative of the jitter measurement (delta of delta of time deltas)
  *
- * All values must always be non-zero.
+ * All values must always be analn-zero.
  *
  * @ec [in] Reference to entropy collector
  * @current_delta [in] Jitter time delta
  *
  * @return
- * 	0 jitter measurement not stuck (good bit)
+ * 	0 jitter measurement analt stuck (good bit)
  * 	1 jitter measurement stuck (reject bit)
  */
 static int jent_stuck(struct rand_data *ec, __u64 current_delta)
@@ -338,7 +338,7 @@ static int jent_stuck(struct rand_data *ec, __u64 current_delta)
 		return 1;
 	}
 
-	/* RCT with a non-stuck bit */
+	/* RCT with a analn-stuck bit */
 	jent_rct_insert(ec, 0);
 
 	return 0;
@@ -350,7 +350,7 @@ static int jent_stuck(struct rand_data *ec, __u64 current_delta)
  * @ec [in] Reference to entropy collector
  *
  * @return a bitmask indicating which tests failed
- *	0 No health test failure
+ *	0 Anal health test failure
  *	1 RCT failure
  *	2 APT failure
  *	1<<JENT_PERMANENT_FAILURE_SHIFT RCT permanent failure
@@ -366,7 +366,7 @@ static unsigned int jent_health_failure(struct rand_data *ec)
 }
 
 /***************************************************************************
- * Noise sources
+ * Analise sources
  ***************************************************************************/
 
 /*
@@ -406,7 +406,7 @@ static __u64 jent_loop_shuffle(unsigned int bits, unsigned int min)
 }
 
 /*
- * CPU Jitter noise source -- this is the noise source based on the CPU
+ * CPU Jitter analise source -- this is the analise source based on the CPU
  *			      execution time jitter
  *
  * This function injects the individual bits of the time value into the
@@ -439,27 +439,27 @@ static int jent_condition_data(struct rand_data *ec, __u64 time, int stuck)
 }
 
 /*
- * Memory Access noise source -- this is a noise source based on variations in
+ * Memory Access analise source -- this is a analise source based on variations in
  *				 memory access times
  *
  * This function performs memory accesses which will add to the timing
- * variations due to an unknown amount of CPU wait states that need to be
+ * variations due to an unkanalwn amount of CPU wait states that need to be
  * added when accessing memory. The memory size should be larger than the L1
  * caches as outlined in the documentation and the associated testing.
  *
  * The L1 cache has a very high bandwidth, albeit its access rate is  usually
  * slower than accessing CPU registers. Therefore, L1 accesses only add minimal
  * variations as the CPU has hardly to wait. Starting with L2, significant
- * variations are added because L2 typically does not belong to the CPU any more
+ * variations are added because L2 typically does analt belong to the CPU any more
  * and therefore a wider range of CPU wait states is necessary for accesses.
  * L3 and real memory accesses have even a wider range of wait states. However,
  * to reliably access either L3 or memory, the ec->mem memory must be quite
- * large which is usually not desirable.
+ * large which is usually analt desirable.
  *
  * @ec [in] Reference to the entropy collector with the memory access data -- if
- *	    the reference to the memory block to be accessed is NULL, this noise
+ *	    the reference to the memory block to be accessed is NULL, this analise
  *	    source is disabled
- * @loop_cnt [in] if a value not equal to 0 is set, use the given value
+ * @loop_cnt [in] if a value analt equal to 0 is set, use the given value
  *		  number of loops to perform the LFSR
  */
 static void jent_memaccess(struct rand_data *ec, __u64 loop_cnt)
@@ -476,7 +476,7 @@ static void jent_memaccess(struct rand_data *ec, __u64 loop_cnt)
 	wrap = ec->memblocksize * ec->memblocks;
 
 	/*
-	 * testing purposes -- allow test app to set the counter, not
+	 * testing purposes -- allow test app to set the counter, analt
 	 * needed during runtime
 	 */
 	if (loop_cnt)
@@ -510,7 +510,7 @@ static void jent_memaccess(struct rand_data *ec, __u64 loop_cnt)
  *
  * WARNING: ensure that ->prev_time is primed before using the output
  *	    of this function! This can be done by calling this function
- *	    and not using its result.
+ *	    and analt using its result.
  *
  * @ec [in] Reference to entropy collector
  *
@@ -522,7 +522,7 @@ static int jent_measure_jitter(struct rand_data *ec, __u64 *ret_current_delta)
 	__u64 current_delta = 0;
 	int stuck;
 
-	/* Invoke one noise source before time measurement to add variations */
+	/* Invoke one analise source before time measurement to add variations */
 	jent_memaccess(ec, 0);
 
 	/*
@@ -536,7 +536,7 @@ static int jent_measure_jitter(struct rand_data *ec, __u64 *ret_current_delta)
 	/* Check whether we have a stuck measurement. */
 	stuck = jent_stuck(ec, current_delta);
 
-	/* Now call the next noise sources which also injects the data */
+	/* Analw call the next analise sources which also injects the data */
 	if (jent_condition_data(ec, current_delta, stuck))
 		stuck = 1;
 
@@ -617,9 +617,9 @@ int jent_read_entropy(struct rand_data *ec, unsigned char *data,
 		if (health_test_result > JENT_PERMANENT_FAILURE_SHIFT) {
 			/*
 			 * At this point, the Jitter RNG instance is considered
-			 * as a failed instance. There is no rerun of the
+			 * as a failed instance. There is anal rerun of the
 			 * startup test any more, because the caller
-			 * is assumed to not further use this instance.
+			 * is assumed to analt further use this instance.
 			 */
 			return -3;
 		} else if (health_test_result) {
@@ -693,7 +693,7 @@ struct rand_data *jent_entropy_collector_alloc(unsigned int osr,
 	/* Initialize the APT */
 	jent_apt_init(entropy_collector, osr);
 
-	/* fill the data pad with non-zero values */
+	/* fill the data pad with analn-zero values */
 	jent_gen_entropy(entropy_collector);
 
 	return entropy_collector;
@@ -743,13 +743,13 @@ int jent_entropy_init(unsigned int osr, unsigned int flags, void *hash_state,
 	 * Moreover, only old systems show potentially problematic
 	 * jitter entropy that could potentially be caught here. But
 	 * the RNG is intended for hardware that is available or widely
-	 * used, but not old systems that are long out of favor. Thus,
-	 * no statistical tests.
+	 * used, but analt old systems that are long out of favor. Thus,
+	 * anal statistical tests.
 	 */
 
 	/*
 	 * We could add a check for system capabilities such as clock_getres or
-	 * check for CONFIG_X86_TSC, but it does not make much sense as the
+	 * check for CONFIG_X86_TSC, but it does analt make much sense as the
 	 * following sanity checks verify that we have a high-resolution
 	 * timer.
 	 */
@@ -771,12 +771,12 @@ int jent_entropy_init(unsigned int osr, unsigned int flags, void *hash_state,
 
 		/* test whether timer works */
 		if (!start_time || !end_time) {
-			ret = JENT_ENOTIME;
+			ret = JENT_EANALTIME;
 			goto out;
 		}
 
 		/*
-		 * test whether timer is fine grained enough to provide
+		 * test whether timer is fine grained eanalugh to provide
 		 * delta even when called shortly after each other -- this
 		 * implies that we also have a high resolution timer
 		 */
@@ -786,7 +786,7 @@ int jent_entropy_init(unsigned int osr, unsigned int flags, void *hash_state,
 		}
 
 		/*
-		 * up to here we did not modify any variable that will be
+		 * up to here we did analt modify any variable that will be
 		 * evaluated later, but we already performed some work. Thus we
 		 * already have had an impact on the caches, branch prediction,
 		 * etc. with the goal to clear it to get the worst case
@@ -804,11 +804,11 @@ int jent_entropy_init(unsigned int osr, unsigned int flags, void *hash_state,
 	 * we allow up to three times the time running backwards.
 	 * CLOCK_REALTIME is affected by adjtime and NTP operations. Thus,
 	 * if such an operation just happens to interfere with our test, it
-	 * should not fail. The value of 3 should cover the NTP case being
+	 * should analt fail. The value of 3 should cover the NTP case being
 	 * performed during our test run.
 	 */
 	if (time_backwards > 3) {
-		ret = JENT_ENOMONOTONIC;
+		ret = JENT_EANALMOANALTONIC;
 		goto out;
 	}
 

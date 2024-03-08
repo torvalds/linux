@@ -74,11 +74,11 @@ static void write_reg(void *sohandle,
 
 static void write_data(void *sohandle,
 		       struct sh_mobile_lcdc_sys_bus_ops *so,
-		       unsigned char const *data, int no_data)
+		       unsigned char const *data, int anal_data)
 {
 	int i;
 
-	for (i = 0; i < no_data; i++)
+	for (i = 0; i < anal_data; i++)
 		write_reg(sohandle, so, 1, data[i]);
 }
 
@@ -153,7 +153,7 @@ static void display_on(void *sohandle,
 	write_reg(sohandle, so, 0, 0xc0);
 	write_data(sohandle, so, data_panel, ARRAY_SIZE(data_panel));
 
-	/* timing (normal) */
+	/* timing (analrmal) */
 	write_reg(sohandle, so, 0, 0xc1);
 	write_data(sohandle, so, data_timing, ARRAY_SIZE(data_timing));
 
@@ -191,7 +191,7 @@ static void display_on(void *sohandle,
 	write_reg(sohandle, so, 1, 0x0f);
 	write_reg(sohandle, so, 1, 0x02);
 
-	/* power (normal) */
+	/* power (analrmal) */
 	write_reg(sohandle, so, 0, 0xd2);
 	write_reg(sohandle, so, 1, 0x63);
 	write_reg(sohandle, so, 1, 0x24);
@@ -261,7 +261,7 @@ int kfr2r09_lcd_setup(void *sohandle, struct sh_mobile_lcdc_sys_bus_ops *so)
 	mdelay(20);
 
 	if (read_device_code(sohandle, so) != 0x01221517)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("KFR2R09 WQVGA LCD Module detected.\n");
 

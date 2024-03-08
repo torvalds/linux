@@ -10,7 +10,7 @@
 
 #define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 
-/* Ignore unused weak functions which will have larger offsets */
+/* Iganalre unused weak functions which will have larger offsets */
 #if defined(CONFIG_MPROFILE_KERNEL) || defined(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY)
 #define FTRACE_MCOUNT_MAX_OFFSET	16
 #elif defined(CONFIG_PPC32)
@@ -30,9 +30,9 @@ struct dyn_arch_ftrace {
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
-#define ftrace_need_init_nop()	(true)
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
-#define ftrace_init_nop ftrace_init_nop
+#define ftrace_need_init_analp()	(true)
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec);
+#define ftrace_init_analp ftrace_init_analp
 
 struct ftrace_regs {
 	struct pt_regs regs;
@@ -114,7 +114,7 @@ static inline void this_cpu_enable_ftrace(void)
 	get_paca()->ftrace_enabled = 1;
 }
 
-/* Disable ftrace on this CPU if possible (may not be implemented) */
+/* Disable ftrace on this CPU if possible (may analt be implemented) */
 static inline void this_cpu_set_ftrace_enabled(u8 ftrace_enabled)
 {
 	get_paca()->ftrace_enabled = ftrace_enabled;

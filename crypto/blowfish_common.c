@@ -306,7 +306,7 @@ static const u32 bf_sbox[256 * 4] = {
 
 /*
  * The blowfish encipher, processes 64-bit blocks.
- * NOTE: This function MUSTN'T respect endianess
+ * ANALTE: This function MUSTN'T respect endianess
  */
 static void encrypt_block(struct bf_ctx *bctx, u32 *dst, u32 *src)
 {
@@ -389,7 +389,7 @@ int blowfish_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 		}
 	}
 
-	/* Bruce says not to bother with the weak key check. */
+	/* Bruce says analt to bother with the weak key check. */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(blowfish_setkey);

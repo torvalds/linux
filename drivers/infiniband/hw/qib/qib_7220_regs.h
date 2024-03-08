@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -49,8 +49,8 @@
 #define QIB_7220_Revision_R_Arch_RMASK 0xFF
 #define QIB_7220_Revision_R_ChipRevMajor_LSB 0x8
 #define QIB_7220_Revision_R_ChipRevMajor_RMASK 0xFF
-#define QIB_7220_Revision_R_ChipRevMinor_LSB 0x0
-#define QIB_7220_Revision_R_ChipRevMinor_RMASK 0xFF
+#define QIB_7220_Revision_R_ChipRevMianalr_LSB 0x0
+#define QIB_7220_Revision_R_ChipRevMianalr_RMASK 0xFF
 
 #define QIB_7220_Control_OFFS 0x8
 #define QIB_7220_Control_SyncResetExceptPcieIRAMRST_LSB 0x7
@@ -645,18 +645,18 @@
 #define QIB_7220_HwErrMask_IBCBusFromSPCParityErrMask_RMASK 0x1
 #define QIB_7220_HwErrMask_IBCBusToSPCParityErrMask_LSB 0x3E
 #define QIB_7220_HwErrMask_IBCBusToSPCParityErrMask_RMASK 0x1
-#define QIB_7220_HwErrMask_Clk_uC_PLLNotLockedMask_LSB 0x3D
-#define QIB_7220_HwErrMask_Clk_uC_PLLNotLockedMask_RMASK 0x1
-#define QIB_7220_HwErrMask_IBSerdesPClkNotDetectMask_LSB 0x3C
-#define QIB_7220_HwErrMask_IBSerdesPClkNotDetectMask_RMASK 0x1
-#define QIB_7220_HwErrMask_PCIESerdesQ3PClkNotDetectMask_LSB 0x3B
-#define QIB_7220_HwErrMask_PCIESerdesQ3PClkNotDetectMask_RMASK 0x1
-#define QIB_7220_HwErrMask_PCIESerdesQ2PClkNotDetectMask_LSB 0x3A
-#define QIB_7220_HwErrMask_PCIESerdesQ2PClkNotDetectMask_RMASK 0x1
-#define QIB_7220_HwErrMask_PCIESerdesQ1PClkNotDetectMask_LSB 0x39
-#define QIB_7220_HwErrMask_PCIESerdesQ1PClkNotDetectMask_RMASK 0x1
-#define QIB_7220_HwErrMask_PCIESerdesQ0PClkNotDetectMask_LSB 0x38
-#define QIB_7220_HwErrMask_PCIESerdesQ0PClkNotDetectMask_RMASK 0x1
+#define QIB_7220_HwErrMask_Clk_uC_PLLAnaltLockedMask_LSB 0x3D
+#define QIB_7220_HwErrMask_Clk_uC_PLLAnaltLockedMask_RMASK 0x1
+#define QIB_7220_HwErrMask_IBSerdesPClkAnaltDetectMask_LSB 0x3C
+#define QIB_7220_HwErrMask_IBSerdesPClkAnaltDetectMask_RMASK 0x1
+#define QIB_7220_HwErrMask_PCIESerdesQ3PClkAnaltDetectMask_LSB 0x3B
+#define QIB_7220_HwErrMask_PCIESerdesQ3PClkAnaltDetectMask_RMASK 0x1
+#define QIB_7220_HwErrMask_PCIESerdesQ2PClkAnaltDetectMask_LSB 0x3A
+#define QIB_7220_HwErrMask_PCIESerdesQ2PClkAnaltDetectMask_RMASK 0x1
+#define QIB_7220_HwErrMask_PCIESerdesQ1PClkAnaltDetectMask_LSB 0x39
+#define QIB_7220_HwErrMask_PCIESerdesQ1PClkAnaltDetectMask_RMASK 0x1
+#define QIB_7220_HwErrMask_PCIESerdesQ0PClkAnaltDetectMask_LSB 0x38
+#define QIB_7220_HwErrMask_PCIESerdesQ0PClkAnaltDetectMask_RMASK 0x1
 #define QIB_7220_HwErrMask_Reserved_LSB 0x37
 #define QIB_7220_HwErrMask_Reserved_RMASK 0x1
 #define QIB_7220_HwErrMask_PowerOnBISTFailedMask_LSB 0x36
@@ -695,18 +695,18 @@
 #define QIB_7220_HwErrStatus_IBCBusFromSPCParityErr_RMASK 0x1
 #define QIB_7220_HwErrStatus_IBCBusToSPCParityErr_LSB 0x3E
 #define QIB_7220_HwErrStatus_IBCBusToSPCParityErr_RMASK 0x1
-#define QIB_7220_HwErrStatus_Clk_uC_PLLNotLocked_LSB 0x3D
-#define QIB_7220_HwErrStatus_Clk_uC_PLLNotLocked_RMASK 0x1
-#define QIB_7220_HwErrStatus_IBSerdesPClkNotDetect_LSB 0x3C
-#define QIB_7220_HwErrStatus_IBSerdesPClkNotDetect_RMASK 0x1
-#define QIB_7220_HwErrStatus_PCIESerdesQ3PClkNotDetect_LSB 0x3B
-#define QIB_7220_HwErrStatus_PCIESerdesQ3PClkNotDetect_RMASK 0x1
-#define QIB_7220_HwErrStatus_PCIESerdesQ2PClkNotDetect_LSB 0x3A
-#define QIB_7220_HwErrStatus_PCIESerdesQ2PClkNotDetect_RMASK 0x1
-#define QIB_7220_HwErrStatus_PCIESerdesQ1PClkNotDetect_LSB 0x39
-#define QIB_7220_HwErrStatus_PCIESerdesQ1PClkNotDetect_RMASK 0x1
-#define QIB_7220_HwErrStatus_PCIESerdesQ0PClkNotDetect_LSB 0x38
-#define QIB_7220_HwErrStatus_PCIESerdesQ0PClkNotDetect_RMASK 0x1
+#define QIB_7220_HwErrStatus_Clk_uC_PLLAnaltLocked_LSB 0x3D
+#define QIB_7220_HwErrStatus_Clk_uC_PLLAnaltLocked_RMASK 0x1
+#define QIB_7220_HwErrStatus_IBSerdesPClkAnaltDetect_LSB 0x3C
+#define QIB_7220_HwErrStatus_IBSerdesPClkAnaltDetect_RMASK 0x1
+#define QIB_7220_HwErrStatus_PCIESerdesQ3PClkAnaltDetect_LSB 0x3B
+#define QIB_7220_HwErrStatus_PCIESerdesQ3PClkAnaltDetect_RMASK 0x1
+#define QIB_7220_HwErrStatus_PCIESerdesQ2PClkAnaltDetect_LSB 0x3A
+#define QIB_7220_HwErrStatus_PCIESerdesQ2PClkAnaltDetect_RMASK 0x1
+#define QIB_7220_HwErrStatus_PCIESerdesQ1PClkAnaltDetect_LSB 0x39
+#define QIB_7220_HwErrStatus_PCIESerdesQ1PClkAnaltDetect_RMASK 0x1
+#define QIB_7220_HwErrStatus_PCIESerdesQ0PClkAnaltDetect_LSB 0x38
+#define QIB_7220_HwErrStatus_PCIESerdesQ0PClkAnaltDetect_RMASK 0x1
 #define QIB_7220_HwErrStatus_Reserved_LSB 0x37
 #define QIB_7220_HwErrStatus_Reserved_RMASK 0x1
 #define QIB_7220_HwErrStatus_PowerOnBISTFailed_LSB 0x36
@@ -745,18 +745,18 @@
 #define QIB_7220_HwErrClear_IBCBusFromSPCParityErrClear_RMASK 0x1
 #define QIB_7220_HwErrClear_IBCBusToSPCparityErrClear_LSB 0x3E
 #define QIB_7220_HwErrClear_IBCBusToSPCparityErrClear_RMASK 0x1
-#define QIB_7220_HwErrClear_Clk_uC_PLLNotLockedClear_LSB 0x3D
-#define QIB_7220_HwErrClear_Clk_uC_PLLNotLockedClear_RMASK 0x1
-#define QIB_7220_HwErrClear_IBSerdesPClkNotDetectClear_LSB 0x3C
-#define QIB_7220_HwErrClear_IBSerdesPClkNotDetectClear_RMASK 0x1
-#define QIB_7220_HwErrClear_PCIESerdesQ3PClkNotDetectClear_LSB 0x3B
-#define QIB_7220_HwErrClear_PCIESerdesQ3PClkNotDetectClear_RMASK 0x1
-#define QIB_7220_HwErrClear_PCIESerdesQ2PClkNotDetectClear_LSB 0x3A
-#define QIB_7220_HwErrClear_PCIESerdesQ2PClkNotDetectClear_RMASK 0x1
-#define QIB_7220_HwErrClear_PCIESerdesQ1PClkNotDetectClear_LSB 0x39
-#define QIB_7220_HwErrClear_PCIESerdesQ1PClkNotDetectClear_RMASK 0x1
-#define QIB_7220_HwErrClear_PCIESerdesQ0PClkNotDetectClear_LSB 0x38
-#define QIB_7220_HwErrClear_PCIESerdesQ0PClkNotDetectClear_RMASK 0x1
+#define QIB_7220_HwErrClear_Clk_uC_PLLAnaltLockedClear_LSB 0x3D
+#define QIB_7220_HwErrClear_Clk_uC_PLLAnaltLockedClear_RMASK 0x1
+#define QIB_7220_HwErrClear_IBSerdesPClkAnaltDetectClear_LSB 0x3C
+#define QIB_7220_HwErrClear_IBSerdesPClkAnaltDetectClear_RMASK 0x1
+#define QIB_7220_HwErrClear_PCIESerdesQ3PClkAnaltDetectClear_LSB 0x3B
+#define QIB_7220_HwErrClear_PCIESerdesQ3PClkAnaltDetectClear_RMASK 0x1
+#define QIB_7220_HwErrClear_PCIESerdesQ2PClkAnaltDetectClear_LSB 0x3A
+#define QIB_7220_HwErrClear_PCIESerdesQ2PClkAnaltDetectClear_RMASK 0x1
+#define QIB_7220_HwErrClear_PCIESerdesQ1PClkAnaltDetectClear_LSB 0x39
+#define QIB_7220_HwErrClear_PCIESerdesQ1PClkAnaltDetectClear_RMASK 0x1
+#define QIB_7220_HwErrClear_PCIESerdesQ0PClkAnaltDetectClear_LSB 0x38
+#define QIB_7220_HwErrClear_PCIESerdesQ0PClkAnaltDetectClear_RMASK 0x1
 #define QIB_7220_HwErrClear_Reserved_LSB 0x37
 #define QIB_7220_HwErrClear_Reserved_RMASK 0x1
 #define QIB_7220_HwErrClear_PowerOnBISTFailedClear_LSB 0x36
@@ -1043,8 +1043,8 @@
 #define QIB_7220_IBNCModeCtrl_TSMCode_TS1_RMASK 0x1FF
 #define QIB_7220_IBNCModeCtrl_Reserved1_LSB 0x3
 #define QIB_7220_IBNCModeCtrl_Reserved1_RMASK 0x1F
-#define QIB_7220_IBNCModeCtrl_TSMEnable_ignore_TSM_on_rx_LSB 0x2
-#define QIB_7220_IBNCModeCtrl_TSMEnable_ignore_TSM_on_rx_RMASK 0x1
+#define QIB_7220_IBNCModeCtrl_TSMEnable_iganalre_TSM_on_rx_LSB 0x2
+#define QIB_7220_IBNCModeCtrl_TSMEnable_iganalre_TSM_on_rx_RMASK 0x1
 #define QIB_7220_IBNCModeCtrl_TSMEnable_send_TS2_LSB 0x1
 #define QIB_7220_IBNCModeCtrl_TSMEnable_send_TS2_RMASK 0x1
 #define QIB_7220_IBNCModeCtrl_TSMEnable_send_TS1_LSB 0x0

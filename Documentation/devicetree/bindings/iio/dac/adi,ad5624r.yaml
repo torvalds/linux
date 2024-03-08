@@ -23,7 +23,7 @@ properties:
     maxItems: 1
 
   vref-supply:
-    description: If not present, internal reference will be used.
+    description: If analt present, internal reference will be used.
 
 required:
   - compatible

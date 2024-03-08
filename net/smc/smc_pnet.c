@@ -105,7 +105,7 @@ static int smc_pnet_remove_by_pnetid(struct net *net, char *pnet_name)
 	struct smc_ib_device *ibdev;
 	struct smcd_dev *smcd;
 	struct smc_net *sn;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 	int ibport;
 
 	/* get pnettable for namespace */
@@ -134,7 +134,7 @@ static int smc_pnet_remove_by_pnetid(struct net *net, char *pnet_name)
 	}
 	mutex_unlock(&pnettable->lock);
 
-	/* if this is not the initial namespace, stop here */
+	/* if this is analt the initial namespace, stop here */
 	if (net != &init_net)
 		return rc;
 
@@ -188,7 +188,7 @@ static int smc_pnet_add_by_ndev(struct net_device *ndev)
 	struct smc_pnettable *pnettable;
 	struct net *net = dev_net(ndev);
 	struct smc_net *sn;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	/* get pnettable for namespace */
 	sn = net_generic(net, smc_net_id);
@@ -220,7 +220,7 @@ static int smc_pnet_remove_by_ndev(struct net_device *ndev)
 	struct smc_pnettable *pnettable;
 	struct net *net = dev_net(ndev);
 	struct smc_net *sn;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	/* get pnettable for namespace */
 	sn = net_generic(net, smc_net_id);
@@ -243,7 +243,7 @@ static int smc_pnet_remove_by_ndev(struct net_device *ndev)
 	return rc;
 }
 
-/* Apply pnetid to ib device when no pnetid is set.
+/* Apply pnetid to ib device when anal pnetid is set.
  */
 static bool smc_pnet_apply_ib(struct smc_ib_device *ib_dev, u8 ib_port,
 			      char *pnet_name)
@@ -261,7 +261,7 @@ static bool smc_pnet_apply_ib(struct smc_ib_device *ib_dev, u8 ib_port,
 	return applied;
 }
 
-/* Apply pnetid to smcd device when no pnetid is set.
+/* Apply pnetid to smcd device when anal pnetid is set.
  */
 static bool smc_pnet_apply_smcd(struct smcd_dev *smcd_dev, char *pnet_name)
 {
@@ -280,7 +280,7 @@ static bool smc_pnet_apply_smcd(struct smcd_dev *smcd_dev, char *pnet_name)
 /* The limit for pnetid is 16 characters.
  * Valid characters should be (single-byte character set) a-z, A-Z, 0-9.
  * Lower case letters are converted to upper case.
- * Interior blanks should not be used.
+ * Interior blanks should analt be used.
  */
 static bool smc_pnetid_valid(const char *pnet_name, char *pnetid)
 {
@@ -304,7 +304,7 @@ static bool smc_pnetid_valid(const char *pnet_name, char *pnetid)
 	return true;
 }
 
-/* Find an infiniband device by a given name. The device might not exist. */
+/* Find an infiniband device by a given name. The device might analt exist. */
 static struct smc_ib_device *smc_pnet_find_ib(char *ib_name)
 {
 	struct smc_ib_device *ibdev;
@@ -325,7 +325,7 @@ out:
 	return ibdev;
 }
 
-/* Find an smcd device by a given name. The device might not exist. */
+/* Find an smcd device by a given name. The device might analt exist. */
 static struct smcd_dev *smc_pnet_find_smcd(char *smcd_name)
 {
 	struct smcd_dev *smcd_dev;
@@ -352,7 +352,7 @@ static int smc_pnet_add_eth(struct smc_pnettable *pnettable, struct net *net,
 	int rc;
 
 	/* check if (base) netdev already has a pnetid. If there is one, we do
-	 * not want to add a pnet table entry
+	 * analt want to add a pnet table entry
 	 */
 	rc = -EEXIST;
 	ndev = dev_get_by_name(net, eth_name);	/* dev_hold() */
@@ -364,7 +364,7 @@ static int smc_pnet_add_eth(struct smc_pnettable *pnettable, struct net *net,
 	}
 
 	/* add a new netdev entry to the pnet table if there isn't one */
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	new_pe = kzalloc(sizeof(*new_pe), GFP_KERNEL);
 	if (!new_pe)
 		goto out_put;
@@ -438,7 +438,7 @@ static int smc_pnet_add_ib(struct smc_pnettable *pnettable, char *ib_name,
 					    smcd->pnetid);
 		}
 	}
-	/* Apply fails when a device has a hardware-defined pnetid set, do not
+	/* Apply fails when a device has a hardware-defined pnetid set, do analt
 	 * add a pnet table entry in that case.
 	 */
 	if (!ibdev_applied || !smcddev_applied)
@@ -447,7 +447,7 @@ static int smc_pnet_add_ib(struct smc_pnettable *pnettable, char *ib_name,
 	/* add a new ib entry to the pnet table if there isn't one */
 	new_pe = kzalloc(sizeof(*new_pe), GFP_KERNEL);
 	if (!new_pe)
-		return -ENOMEM;
+		return -EANALMEM;
 	new_pe->type = SMC_PNET_IB;
 	memcpy(new_pe->pnet_name, pnet_name, SMC_MAX_PNETID_LEN);
 	strncpy(new_pe->ib_name, ib_name, IB_DEVICE_NAME_MAX);
@@ -472,7 +472,7 @@ static int smc_pnet_add_ib(struct smc_pnettable *pnettable, char *ib_name,
 	return (new_ibdev) ? 0 : -EEXIST;
 }
 
-/* Append a pnetid to the end of the pnet table if not already on this list.
+/* Append a pnetid to the end of the pnet table if analt already on this list.
  */
 static int smc_pnet_enter(struct net *net, struct nlattr *tb[])
 {
@@ -505,7 +505,7 @@ static int smc_pnet_enter(struct net *net, struct nlattr *tb[])
 			goto error;
 	}
 
-	/* if this is not the initial namespace, stop here */
+	/* if this is analt the initial namespace, stop here */
 	if (net != &init_net)
 		return new_netdev ? 0 : -EEXIST;
 
@@ -589,7 +589,7 @@ static int smc_pnet_dumpinfo(struct sk_buff *skb,
 	hdr = genlmsg_put(skb, portid, seq, &smc_pnet_nl_family,
 			  flags, SMC_PNETID_GET);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (smc_pnet_set_nla(skb, pnetelem) < 0) {
 		genlmsg_cancel(skb, hdr);
 		return -EMSGSIZE;
@@ -617,7 +617,7 @@ static int _smc_pnet_dump(struct net *net, struct sk_buff *skb, u32 portid,
 			continue;
 		if (idx++ < start_idx)
 			continue;
-		/* if this is not the initial namespace, dump only netdev */
+		/* if this is analt the initial namespace, dump only netdev */
 		if (net != &init_net && pnetelem->type != SMC_PNET_ETH)
 			continue;
 		if (smc_pnet_dumpinfo(skb, portid, seq, NLM_F_MULTI,
@@ -654,7 +654,7 @@ static int smc_pnet_get(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	_smc_pnet_dump(net, msg, info->snd_portid, info->snd_seq,
 		       nla_data(info->attrs[SMC_PNETID_NAME]), 0);
@@ -749,7 +749,7 @@ static int smc_pnet_add_pnetid(struct net *net, u8 *pnetid)
 
 	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
 	if (!pe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	write_lock(&sn->pnetids_ndev.lock);
 	list_for_each_entry(pi, &sn->pnetids_ndev.list, list) {
@@ -826,10 +826,10 @@ static void smc_pnet_destroy_pnetids_list(struct net *net)
 	write_unlock(&sn->pnetids_ndev.lock);
 }
 
-static int smc_pnet_netdev_event(struct notifier_block *this,
+static int smc_pnet_netdev_event(struct analtifier_block *this,
 				 unsigned long event, void *ptr)
 {
-	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *event_dev = netdev_analtifier_info_to_dev(ptr);
 	struct net *net = dev_net(event_dev);
 	u8 ndev_pnetid[SMC_MAX_PNETID_LEN];
 
@@ -838,14 +838,14 @@ static int smc_pnet_netdev_event(struct notifier_block *this,
 	case NETDEV_UNREGISTER:
 		smc_pnet_remove_by_ndev(event_dev);
 		smc_ib_ndev_change(event_dev, event);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	case NETDEV_REGISTER:
 		smc_pnet_add_by_ndev(event_dev);
 		smc_ib_ndev_change(event_dev, event);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	case NETDEV_UP:
 		smc_pnet_add_base_pnetid(net, event_dev, ndev_pnetid);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	case NETDEV_DOWN:
 		event_dev = __pnet_find_base_ndev(event_dev);
 		if (!smc_pnetid_by_dev_port(event_dev->dev.parent,
@@ -853,14 +853,14 @@ static int smc_pnet_netdev_event(struct notifier_block *this,
 			/* remove from PNETIDs list */
 			smc_pnet_remove_pnetid(net, ndev_pnetid);
 		}
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
-static struct notifier_block smc_netdev_notifier = {
-	.notifier_call = smc_pnet_netdev_event
+static struct analtifier_block smc_netdev_analtifier = {
+	.analtifier_call = smc_pnet_netdev_event
 };
 
 /* init network namespace */
@@ -890,7 +890,7 @@ int __init smc_pnet_init(void)
 	rc = genl_register_family(&smc_pnet_nl_family);
 	if (rc)
 		return rc;
-	rc = register_netdevice_notifier(&smc_netdev_notifier);
+	rc = register_netdevice_analtifier(&smc_netdev_analtifier);
 	if (rc)
 		genl_unregister_family(&smc_pnet_nl_family);
 
@@ -907,7 +907,7 @@ void smc_pnet_net_exit(struct net *net)
 
 void smc_pnet_exit(void)
 {
-	unregister_netdevice_notifier(&smc_netdev_notifier);
+	unregister_netdevice_analtifier(&smc_netdev_analtifier);
 	genl_unregister_family(&smc_pnet_nl_family);
 }
 
@@ -948,7 +948,7 @@ static int smc_pnet_find_ndev_pnetid_by_table(struct net_device *ndev,
 	struct net *net = dev_net(ndev);
 	struct smc_pnetentry *pnetelem;
 	struct smc_net *sn;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	/* get pnettable for namespace */
 	sn = net_generic(net, smc_net_id);
@@ -984,13 +984,13 @@ static int smc_pnet_determine_gid(struct smc_ib_device *ibdev, int i,
 		ini->smcrv2.ib_port_v2 = i;
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* find a roce device for the given pnetid */
 static void _smc_pnet_find_roce_by_pnetid(u8 *pnet_id,
 					  struct smc_init_info *ini,
-					  struct smc_ib_device *known_dev,
+					  struct smc_ib_device *kanalwn_dev,
 					  struct net *net)
 {
 	struct smc_ib_device *ibdev;
@@ -998,7 +998,7 @@ static void _smc_pnet_find_roce_by_pnetid(u8 *pnet_id,
 
 	mutex_lock(&smc_ib_devices.mutex);
 	list_for_each_entry(ibdev, &smc_ib_devices.list, list) {
-		if (ibdev == known_dev ||
+		if (ibdev == kanalwn_dev ||
 		    !rdma_dev_access_netns(ibdev->ibdev, net))
 			continue;
 		for (i = 1; i <= SMC_MAX_PORTS; i++) {
@@ -1019,11 +1019,11 @@ out:
 /* find alternate roce device with same pnet_id, vlan_id and net namespace */
 void smc_pnet_find_alt_roce(struct smc_link_group *lgr,
 			    struct smc_init_info *ini,
-			    struct smc_ib_device *known_dev)
+			    struct smc_ib_device *kanalwn_dev)
 {
 	struct net *net = lgr->net;
 
-	_smc_pnet_find_roce_by_pnetid(lgr->pnet_id, ini, known_dev, net);
+	_smc_pnet_find_roce_by_pnetid(lgr->pnet_id, ini, kanalwn_dev, net);
 }
 
 /* if handshake network device belongs to a roce device, return its
@@ -1067,8 +1067,8 @@ static void smc_pnet_find_rdma_dev(struct net_device *netdev,
 /* Determine the corresponding IB device port based on the hardware PNETID.
  * Searching stops at the first matching active IB device port with vlan_id
  * configured.
- * If nothing found, check pnetid table.
- * If nothing found, try to use handshake device
+ * If analthing found, check pnetid table.
+ * If analthing found, try to use handshake device
  */
 static void smc_pnet_find_roce_by_pnetid(struct net_device *ndev,
 					 struct smc_init_info *ini)
@@ -1082,7 +1082,7 @@ static void smc_pnet_find_roce_by_pnetid(struct net_device *ndev,
 				   ndev_pnetid) &&
 	    smc_pnet_find_ndev_pnetid_by_table(ndev, ndev_pnetid)) {
 		smc_pnet_find_rdma_dev(ndev, ini);
-		return; /* pnetid could not be determined */
+		return; /* pnetid could analt be determined */
 	}
 	_smc_pnet_find_roce_by_pnetid(ndev_pnetid, ini, NULL, net);
 }
@@ -1097,7 +1097,7 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
 	if (smc_pnetid_by_dev_port(ndev->dev.parent, ndev->dev_port,
 				   ndev_pnetid) &&
 	    smc_pnet_find_ndev_pnetid_by_table(ndev, ndev_pnetid))
-		return; /* pnetid could not be determined */
+		return; /* pnetid could analt be determined */
 
 	mutex_lock(&smcd_dev_list.mutex);
 	list_for_each_entry(ismdev, &smcd_dev_list.list, list) {
@@ -1160,7 +1160,7 @@ int smc_pnetid_by_table_ib(struct smc_ib_device *smcibdev, u8 ib_port)
 	struct smc_pnettable *pnettable;
 	struct smc_pnetentry *tmp_pe;
 	struct smc_net *sn;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	/* get pnettable for init namespace */
 	sn = net_generic(&init_net, smc_net_id);
@@ -1189,7 +1189,7 @@ int smc_pnetid_by_table_smcd(struct smcd_dev *smcddev)
 	struct smc_pnettable *pnettable;
 	struct smc_pnetentry *tmp_pe;
 	struct smc_net *sn;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	/* get pnettable for init namespace */
 	sn = net_generic(&init_net, smc_net_id);

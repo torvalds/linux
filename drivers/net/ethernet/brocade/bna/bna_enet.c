@@ -160,7 +160,7 @@ bna_bfi_attr_get_rsp(struct bna_ioceth *ioceth,
 		container_of(msghdr, struct bfi_enet_attr_rsp, mh);
 
 	/**
-	 * Store only if not set earlier, since BNAD can override the HW
+	 * Store only if analt set earlier, since BNAD can override the HW
 	 * attributes
 	 */
 	if (!ioceth->attr.fw_query_complete) {
@@ -351,7 +351,7 @@ bna_msgq_rsp_handler(void *arg, struct bfi_msgq_mhdr *msghdr)
 		break;
 
 	case BFI_ENET_I2H_STATS_CLR_RSP:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case BFI_ENET_I2H_LINK_UP_AEN:
@@ -524,12 +524,12 @@ bna_ethport_sm_stopped(struct bna_ethport *ethport,
 		break;
 
 	case ETHPORT_E_FAIL:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case ETHPORT_E_DOWN:
 		/* This event is received due to Rx objects failing */
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	default:
@@ -613,7 +613,7 @@ static void
 bna_ethport_sm_down_resp_wait_entry(struct bna_ethport *ethport)
 {
 	/**
-	 * NOTE: Do not call bna_bfi_ethport_down() here. That will over step
+	 * ANALTE: Do analt call bna_bfi_ethport_down() here. That will over step
 	 * mbox due to up_resp_wait -> down_resp_wait transition on event
 	 * ETHPORT_E_DOWN
 	 */
@@ -699,7 +699,7 @@ bna_ethport_sm_last_resp_wait(struct bna_ethport *ethport,
 		 * This event is received due to Rx objects stopping in
 		 * parallel to ethport
 		 */
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case ETHPORT_E_FWRESP_UP_OK:
@@ -924,7 +924,7 @@ bna_enet_sm_stopped(struct bna_enet *enet, enum bna_enet_event event)
 		break;
 
 	case ENET_E_FAIL:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case ENET_E_PAUSE_CFG:
@@ -939,7 +939,7 @@ bna_enet_sm_stopped(struct bna_enet *enet, enum bna_enet_event event)
 		 * This event is received due to Ethport, Tx and Rx objects
 		 * failing
 		 */
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	default:
@@ -973,7 +973,7 @@ bna_enet_sm_pause_init_wait(struct bna_enet *enet,
 		break;
 
 	case ENET_E_MTU_CFG:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case ENET_E_FWRESP_PAUSE:
@@ -1016,7 +1016,7 @@ static void
 bna_enet_sm_started_entry(struct bna_enet *enet)
 {
 	/**
-	 * NOTE: Do not call bna_enet_chld_start() here, since it will be
+	 * ANALTE: Do analt call bna_enet_chld_start() here, since it will be
 	 * inadvertently called during cfg_wait->started transition as well
 	 */
 	call_enet_mtu_cbfn(enet);
@@ -1416,7 +1416,7 @@ static void
 bna_ioceth_sm_ioc_ready_wait_entry(struct bna_ioceth *ioceth)
 {
 	/**
-	 * Do not call bfa_nw_ioc_enable() here. It must be called in the
+	 * Do analt call bfa_nw_ioc_enable() here. It must be called in the
 	 * previous state due to failed -> ioc_ready_wait transition.
 	 */
 }
@@ -1579,7 +1579,7 @@ bna_ioceth_sm_ioc_disable_wait(struct bna_ioceth *ioceth,
 
 	case IOCETH_E_ENET_STOPPED:
 		/* This event is received due to enet failing */
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	default:
@@ -1787,7 +1787,7 @@ bna_ucam_mod_init(struct bna_ucam_mod *ucam_mod, struct bna *bna,
 	for (i = 0; i < bna->ioceth.attr.num_ucmac; i++)
 		list_add_tail(&ucam_mod->ucmac[i].qe, &ucam_mod->free_q);
 
-	/* A separate queue to allow synchronous setting of a list of MACs */
+	/* A separate queue to allow synchroanalus setting of a list of MACs */
 	INIT_LIST_HEAD(&ucam_mod->del_q);
 	for (; i < (bna->ioceth.attr.num_ucmac * 2); i++)
 		list_add_tail(&ucam_mod->ucmac[i].qe, &ucam_mod->del_q);
@@ -1822,7 +1822,7 @@ bna_mcam_mod_init(struct bna_mcam_mod *mcam_mod, struct bna *bna,
 		list_add_tail(&mcam_mod->mchandle[i].qe,
 			      &mcam_mod->free_handle_q);
 
-	/* A separate queue to allow synchronous setting of a list of MACs */
+	/* A separate queue to allow synchroanalus setting of a list of MACs */
 	INIT_LIST_HEAD(&mcam_mod->del_q);
 	for (; i < (bna->ioceth.attr.num_mcmac * 2); i++)
 		list_add_tail(&mcam_mod->mcmac[i].qe, &mcam_mod->del_q);

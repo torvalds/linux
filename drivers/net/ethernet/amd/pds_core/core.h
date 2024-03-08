@@ -17,7 +17,7 @@
 #define PDSC_WATCHDOG_SECS	5
 #define PDSC_QUEUE_NAME_MAX_SZ  16
 #define PDSC_ADMINQ_MIN_LENGTH	16	/* must be a power of two */
-#define PDSC_NOTIFYQ_LENGTH	64	/* must be a power of two */
+#define PDSC_ANALTIFYQ_LENGTH	64	/* must be a power of two */
 #define PDSC_TEARDOWN_RECOVERY	false
 #define PDSC_TEARDOWN_REMOVING	true
 #define PDSC_SETUP_RECOVERY	false
@@ -115,9 +115,9 @@ struct pdsc_cq {
 struct pdsc_qcq {
 	struct pdsc *pdsc;
 	void *q_base;
-	dma_addr_t q_base_pa;	/* might not be page aligned */
+	dma_addr_t q_base_pa;	/* might analt be page aligned */
 	void *cq_base;
-	dma_addr_t cq_base_pa;	/* might not be page aligned */
+	dma_addr_t cq_base_pa;	/* might analt be page aligned */
 	u32 q_size;
 	u32 cq_size;
 	bool armed;
@@ -141,7 +141,7 @@ struct pdsc_viftype {
 	struct pds_auxiliary_dev *padev;
 };
 
-/* No state flags set means we are in a steady running state */
+/* Anal state flags set means we are in a steady running state */
 enum pdsc_state_flags {
 	PDSC_S_FW_DEAD,		    /* stopped, wait on startup or recovery */
 	PDSC_S_INITING_DRIVER,	    /* initial startup from probe */
@@ -194,7 +194,7 @@ struct pdsc {
 	u64 __iomem *kern_dbpage;
 
 	struct pdsc_qcq adminqcq;
-	struct pdsc_qcq notifyqcq;
+	struct pdsc_qcq analtifyqcq;
 	u64 last_eid;
 	struct pdsc_viftype *viftype_status;
 };
@@ -214,7 +214,7 @@ struct pdsc {
  * @PDS_CORE_DBELL_RING_2:	ring two dbell component value.
  * @PDS_CORE_DBELL_RING_3:	ring three dbell component value.
  *
- * @PDS_CORE_DBELL_INDEX_MASK:	bit mask of valid index bits, no shift needed.
+ * @PDS_CORE_DBELL_INDEX_MASK:	bit mask of valid index bits, anal shift needed.
  */
 enum pds_core_dbell_bits {
 	PDS_CORE_DBELL_QID_MASK		= 0xffffff,
@@ -244,7 +244,7 @@ static inline void pds_core_dbell_ring(u64 __iomem *db_page,
 	writeq(val, &db_page[qtype]);
 }
 
-int pdsc_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
+int pdsc_fw_reporter_diaganalse(struct devlink_health_reporter *reporter,
 			      struct devlink_fmsg *fmsg,
 			      struct netlink_ext_ack *extack);
 int pdsc_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
@@ -272,7 +272,7 @@ void pdsc_debugfs_add_irqs(struct pdsc *pdsc);
 void pdsc_debugfs_add_qcq(struct pdsc *pdsc, struct pdsc_qcq *qcq);
 void pdsc_debugfs_del_qcq(struct pdsc_qcq *qcq);
 
-int pdsc_err_to_errno(enum pds_core_status_code code);
+int pdsc_err_to_erranal(enum pds_core_status_code code);
 bool pdsc_is_fw_running(struct pdsc *pdsc);
 bool pdsc_is_fw_good(struct pdsc *pdsc);
 int pdsc_devcmd(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
@@ -300,9 +300,9 @@ int pdsc_start(struct pdsc *pdsc);
 void pdsc_stop(struct pdsc *pdsc);
 void pdsc_health_thread(struct work_struct *work);
 
-int pdsc_register_notify(struct notifier_block *nb);
-void pdsc_unregister_notify(struct notifier_block *nb);
-void pdsc_notify(unsigned long event, void *data);
+int pdsc_register_analtify(struct analtifier_block *nb);
+void pdsc_unregister_analtify(struct analtifier_block *nb);
+void pdsc_analtify(unsigned long event, void *data);
 int pdsc_auxbus_dev_add(struct pdsc *cf, struct pdsc *pf);
 int pdsc_auxbus_dev_del(struct pdsc *cf, struct pdsc *pf);
 

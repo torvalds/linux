@@ -82,7 +82,7 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_TRACE] =    "Dbg Trace",
 	[WM_ADSP_FW_SPK_PROT] = "Protection",
 	[WM_ADSP_FW_SPK_CALI] = "Calibration",
-	[WM_ADSP_FW_SPK_DIAG] = "Diagnostic",
+	[WM_ADSP_FW_SPK_DIAG] = "Diaganalstic",
 	[WM_ADSP_FW_MISC] =     "Misc",
 };
 
@@ -424,7 +424,7 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 
 	scratch = vmalloc(size);
 	if (!scratch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(scratch, bytes, size)) {
 		ret = -EFAULT;
@@ -449,7 +449,7 @@ static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
 	int ret;
 
 	if (val == 0)
-		return 0;	/* 0 means no event */
+		return 0;	/* 0 means anal event */
 
 	mutex_lock(&cs_ctl->dsp->pwr_lock);
 
@@ -508,11 +508,11 @@ static int wm_coeff_get_acked(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	/*
-	 * Although it's not useful to read an acked control, we must satisfy
+	 * Although it's analt useful to read an acked control, we must satisfy
 	 * user-side assumptions that all controls are readable and that a
 	 * write of the same value should be filtered out (it's valid to send
 	 * the same event number again to the firmware). We therefore return 0,
-	 * meaning "no event" so valid event numbers will always be a change
+	 * meaning "anal event" so valid event numbers will always be a change
 	 */
 	ucontrol->value.integer.value[0] = 0;
 
@@ -608,7 +608,7 @@ static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 
 	region_name = cs_dsp_mem_region_name(cs_ctl->alg_region.type);
 	if (!region_name) {
-		adsp_err(dsp, "Unknown region type: %d\n", cs_ctl->alg_region.type);
+		adsp_err(dsp, "Unkanalwn region type: %d\n", cs_ctl->alg_region.type);
 		return -EINVAL;
 	}
 
@@ -648,12 +648,12 @@ static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 
 	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctl->cs_ctl = cs_ctl;
 
 	ctl->name = kmemdup(name, strlen(name) + 1, GFP_KERNEL);
 	if (!ctl->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ctl;
 	}
 
@@ -699,7 +699,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 
 	ctl = cs_ctl->priv;
 
-	return snd_soc_component_notify_control(dsp->component, ctl->name);
+	return snd_soc_component_analtify_control(dsp->component, ctl->name);
 }
 EXPORT_SYMBOL_GPL(wm_adsp_write_ctl);
 
@@ -761,10 +761,10 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 				      wm_adsp_fw[dsp->fw].file, filetype);
 
 	if (*filename == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Make sure that filename is lower-case and any non alpha-numeric
+	 * Make sure that filename is lower-case and any analn alpha-numeric
 	 * characters except full stop and forward slash are replaced with
 	 * hyphens.
 	 */
@@ -778,7 +778,7 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 		s++;
 	}
 
-	ret = firmware_request_nowarn(firmware, *filename, cs_dsp->dev);
+	ret = firmware_request_analwarn(firmware, *filename, cs_dsp->dev);
 	if (ret != 0) {
 		adsp_dbg(dsp, "Failed to request '%s'\n", *filename);
 		kfree(*filename);
@@ -867,7 +867,7 @@ static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 		 dsp->fwf_name ? dsp->fwf_name : dsp->cs_dsp.name,
 		 wm_adsp_fw[dsp->fw].file, system_name, asoc_component_prefix);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int wm_adsp_common_init(struct wm_adsp *dsp)
@@ -1120,7 +1120,7 @@ int wm_adsp2_component_probe(struct wm_adsp *dsp, struct snd_soc_component *comp
 {
 	char preload[32];
 
-	if (!dsp->cs_dsp.no_core_startstop) {
+	if (!dsp->cs_dsp.anal_core_startstop) {
 		snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->cs_dsp.name);
 		snd_soc_component_disable_pin(component, preload);
 	}
@@ -1214,7 +1214,7 @@ static void wm_adsp_compr_detach(struct wm_adsp_compr *compr)
 	if (!compr)
 		return;
 
-	/* Wake the poll so it can see buffer is no longer attached */
+	/* Wake the poll so it can see buffer is anal longer attached */
 	if (compr->stream)
 		snd_compr_fragment_elapsed(compr->stream);
 
@@ -1233,14 +1233,14 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 	mutex_lock(&dsp->cs_dsp.pwr_lock);
 
 	if (wm_adsp_fw[dsp->fw].num_caps == 0) {
-		adsp_err(dsp, "%s: Firmware does not support compressed API\n",
+		adsp_err(dsp, "%s: Firmware does analt support compressed API\n",
 			 snd_soc_rtd_to_codec(rtd, 0)->name);
 		ret = -ENXIO;
 		goto out;
 	}
 
 	if (wm_adsp_fw[dsp->fw].compr_direction != stream->direction) {
-		adsp_err(dsp, "%s: Firmware does not support stream direction\n",
+		adsp_err(dsp, "%s: Firmware does analt support stream direction\n",
 			 snd_soc_rtd_to_codec(rtd, 0)->name);
 		ret = -EINVAL;
 		goto out;
@@ -1257,7 +1257,7 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 
 	compr = kzalloc(sizeof(*compr), GFP_KERNEL);
 	if (!compr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1371,7 +1371,7 @@ int wm_adsp_compr_set_params(struct snd_soc_component *component,
 	size = wm_adsp_compr_frag_words(compr) * sizeof(*compr->raw_buf);
 	compr->raw_buf = kmalloc(size, GFP_DMA | GFP_KERNEL);
 	if (!compr->raw_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	compr->sample_rate = params->codec.sample_rate;
 
@@ -1429,7 +1429,7 @@ static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 	buf->regions = kcalloc(caps->num_regions, sizeof(*buf->regions),
 			       GFP_KERNEL);
 	if (!buf->regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < caps->num_regions; ++i) {
 		region = &buf->regions[i];
@@ -1493,7 +1493,7 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 
 	alg_region = cs_dsp_find_alg_region(&dsp->cs_dsp, WMFW_ADSP2_XM, dsp->cs_dsp.fw_id);
 	if (!alg_region) {
-		adsp_err(dsp, "No algorithm region found\n");
+		adsp_err(dsp, "Anal algorithm region found\n");
 		return -EINVAL;
 	}
 
@@ -1505,11 +1505,11 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 		return ret;
 
 	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf = wm_adsp_buffer_alloc(dsp);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(host_buf_ptr);
 	for (i = 0; i < 5; ++i) {
@@ -1574,7 +1574,7 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 
 	buf = wm_adsp_buffer_alloc(dsp);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->host_buf_mem_type = cs_ctl->alg_region.type;
 	buf->host_buf_ptr = be32_to_cpu(coeff_v1.host_buf_ptr);
@@ -1645,8 +1645,8 @@ static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 	if (list_empty(&dsp->buffer_list)) {
 		/* Fall back to legacy support */
 		ret = wm_adsp_buffer_parse_legacy(dsp);
-		if (ret == -ENODEV)
-			adsp_info(dsp, "Legacy support not available\n");
+		if (ret == -EANALDEV)
+			adsp_info(dsp, "Legacy support analt available\n");
 		else if (ret)
 			adsp_warn(dsp, "Failed to parse legacy: %d\n", ret);
 	}
@@ -1801,7 +1801,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 	mutex_lock(&dsp->cs_dsp.pwr_lock);
 
 	if (list_empty(&dsp->buffer_list)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1812,7 +1812,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 
 		ret = wm_adsp_buffer_get_error(buf);
 		if (ret < 0)
-			goto out_notify; /* Wake poll to report error */
+			goto out_analtify; /* Wake poll to report error */
 
 		ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(irq_count),
 					  &buf->irq_count);
@@ -1830,7 +1830,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 		if (wm_adsp_fw[dsp->fw].voice_trigger && buf->irq_count == 2)
 			ret = WM_ADSP_COMPR_VOICE_TRIGGER;
 
-out_notify:
+out_analtify:
 		if (compr && compr->stream)
 			snd_compr_fragment_elapsed(compr->stream);
 	}
@@ -2027,7 +2027,7 @@ int wm_adsp_compr_copy(struct snd_soc_component *component,
 	if (stream->direction == SND_COMPRESS_CAPTURE)
 		ret = wm_adsp_compr_read(compr, buf, count);
 	else
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 
 	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 

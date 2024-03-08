@@ -53,7 +53,7 @@ void write_pci_config_16(u8 bus, u8 slot, u8 func, u8 offset, u16 val)
 
 int early_pci_allowed(void)
 {
-	return (pci_probe & (PCI_PROBE_CONF1|PCI_PROBE_NOEARLY)) ==
+	return (pci_probe & (PCI_PROBE_CONF1|PCI_PROBE_ANALEARLY)) ==
 			PCI_PROBE_CONF1;
 }
 

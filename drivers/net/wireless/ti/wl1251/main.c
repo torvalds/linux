@@ -2,7 +2,7 @@
 /*
  * This file is part of wl1251
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  */
 
 #include <linux/module.h>
@@ -58,12 +58,12 @@ static int wl1251_fetch_firmware(struct wl1251 *wl)
 	ret = request_firmware(&fw, WL1251_FW_NAME, dev);
 
 	if (ret < 0) {
-		wl1251_error("could not get firmware: %d", ret);
+		wl1251_error("could analt get firmware: %d", ret);
 		return ret;
 	}
 
 	if (fw->size % 4) {
-		wl1251_error("firmware size is not multiple of 32 bits: %zu",
+		wl1251_error("firmware size is analt multiple of 32 bits: %zu",
 			     fw->size);
 		ret = -EILSEQ;
 		goto out;
@@ -73,8 +73,8 @@ static int wl1251_fetch_firmware(struct wl1251 *wl)
 	wl->fw = vmalloc(wl->fw_len);
 
 	if (!wl->fw) {
-		wl1251_error("could not allocate memory for the firmware");
-		ret = -ENOMEM;
+		wl1251_error("could analt allocate memory for the firmware");
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -97,12 +97,12 @@ static int wl1251_fetch_nvs(struct wl1251 *wl)
 	ret = request_firmware(&fw, WL1251_NVS_NAME, dev);
 
 	if (ret < 0) {
-		wl1251_error("could not get nvs file: %d", ret);
+		wl1251_error("could analt get nvs file: %d", ret);
 		return ret;
 	}
 
 	if (fw->size % 4) {
-		wl1251_error("nvs size is not multiple of 32 bits: %zu",
+		wl1251_error("nvs size is analt multiple of 32 bits: %zu",
 			     fw->size);
 		ret = -EILSEQ;
 		goto out;
@@ -111,8 +111,8 @@ static int wl1251_fetch_nvs(struct wl1251 *wl)
 	wl->nvs = kmemdup(fw->data, fw->size, GFP_KERNEL);
 
 	if (!wl->nvs) {
-		wl1251_error("could not allocate memory for the nvs file");
-		ret = -ENOMEM;
+		wl1251_error("could analt allocate memory for the nvs file");
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -135,7 +135,7 @@ static void wl1251_fw_wakeup(struct wl1251 *wl)
 	elp_reg = wl1251_read_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 
 	if (!(elp_reg & ELPCTRL_WLAN_READY))
-		wl1251_warning("WLAN not ready");
+		wl1251_warning("WLAN analt ready");
 }
 
 static int wl1251_chip_wakeup(struct wl1251 *wl)
@@ -179,7 +179,7 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 	case CHIP_ID_1251_PG10:
 	default:
 		wl1251_error("unsupported chip id: 0x%x", wl->chip_id);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -316,7 +316,7 @@ static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 		goto out;
 
 	/*
-	 * Join command applies filters, and if we are not associated,
+	 * Join command applies filters, and if we are analt associated,
 	 * BSSID filter must be disabled for association to work.
 	 */
 	if (is_zero_ether_addr(wl->bssid))
@@ -346,7 +346,7 @@ static void wl1251_op_tx(struct ieee80211_hw *hw,
 
 	/*
 	 * The chip specific setup must run before the first TX packet -
-	 * before that, the tx_work will not be initialized!
+	 * before that, the tx_work will analt be initialized!
 	 */
 
 	ieee80211_queue_work(wl->hw, &wl->tx_work);
@@ -376,7 +376,7 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 	mutex_lock(&wl->mutex);
 
 	if (wl->state != WL1251_STATE_OFF) {
-		wl1251_error("cannot start because not in off state: %d",
+		wl1251_error("cananalt start because analt in off state: %d",
 			     wl->state);
 		ret = -EBUSY;
 		goto out;
@@ -448,7 +448,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&wl->mutex);
 
-	/* let's notify MAC80211 about the remaining pending TX frames */
+	/* let's analtify MAC80211 about the remaining pending TX frames */
 	wl1251_tx_flush(wl);
 	wl1251_power_off(wl);
 
@@ -506,7 +506,7 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		wl->bss_type = BSS_TYPE_IBSS;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -540,7 +540,7 @@ static int wl1251_build_null_data(struct wl1251 *wl)
 	struct sk_buff *skb = NULL;
 	int size;
 	void *ptr;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (wl->bss_type == BSS_TYPE_IBSS) {
 		size = sizeof(struct wl12xx_null_data_template);
@@ -577,7 +577,7 @@ static int wl1251_build_qos_null_data(struct wl1251 *wl)
 					     IEEE80211_STYPE_QOS_NULLFUNC |
 					     IEEE80211_FCTL_TODS);
 
-	/* FIXME: not sure what priority to use here */
+	/* FIXME: analt sure what priority to use here */
 	template.qos_ctrl = cpu_to_le16(0);
 
 	return wl1251_cmd_template_set(wl, CMD_QOS_NULL_DATA, &template,
@@ -631,7 +631,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		wl->channel = channel;
 
 		/*
-		 * Use ENABLE_RX command for channel switching when no
+		 * Use ENABLE_RX command for channel switching when anal
 		 * interface is present (monitor mode only).
 		 * This leaves the tx path disabled in firmware, whereas
 		 * the usual JOIN command seems to transmit some frames
@@ -768,7 +768,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	changed &= WL1251_SUPPORTED_FILTERS;
 
 	if (changed == 0) {
-		/* no filters which we support changed */
+		/* anal filters which we support changed */
 		kfree(fp);
 		return;
 	}
@@ -856,8 +856,8 @@ static int wl1251_set_key_type(struct wl1251 *wl,
 		mac80211_key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		break;
 	default:
-		wl1251_error("Unknown key cipher 0x%x", mac80211_key->cipher);
-		return -EOPNOTSUPP;
+		wl1251_error("Unkanalwn key cipher 0x%x", mac80211_key->cipher);
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -880,7 +880,7 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	wl_cmd = kzalloc(sizeof(*wl_cmd), GFP_KERNEL);
 	if (!wl_cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -894,7 +894,7 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (is_zero_ether_addr(addr)) {
 		/* We dont support TX only encryption */
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -903,7 +903,7 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	switch (cmd) {
 	case SET_KEY:
 		if (wl->monitor_present) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto out_unlock;
 		}
 		wl_cmd->key_action = KEY_ADD_OR_REPLACE;
@@ -953,7 +953,7 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	ret = wl1251_cmd_send(wl, CMD_SET_KEYS, wl_cmd, sizeof(*wl_cmd));
 	if (ret < 0) {
-		wl1251_warning("could not set keys");
+		wl1251_warning("could analt set keys");
 		goto out_sleep;
 	}
 
@@ -1012,7 +1012,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 	skb = ieee80211_probereq_get(wl->hw, wl->vif->addr, ssid, ssid_len,
 				     req->ie_len);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_idle;
 	}
 	if (req->ie_len)
@@ -1141,7 +1141,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 		} else {
-			/* use defaults when not associated */
+			/* use defaults when analt associated */
 			wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
 			wl->dtim_period = WL1251_DEFAULT_DTIM_PERIOD;
 		}
@@ -1333,11 +1333,11 @@ static int wl1251_op_get_survey(struct ieee80211_hw *hw, int idx,
 	struct ieee80211_conf *conf = &hw->conf;
  
 	if (idx != 0)
-		return -ENOENT;
+		return -EANALENT;
  
 	survey->channel = conf->chandef.chan;
-	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = wl->noise;
+	survey->filled = SURVEY_INFO_ANALISE_DBM;
+	survey->analise = wl->analise;
  
 	return 0;
 }
@@ -1436,7 +1436,7 @@ static int wl1251_read_eeprom_mac(struct wl1251 *wl)
 static int wl1251_check_nvs_mac(struct wl1251 *wl)
 {
 	if (wl->nvs_len < 0x24)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* length is 2 and data address is 0x546c (ANDed with 0xfffe) */
 	if (wl->nvs[NVS_OFF_MAC_LEN] != 2 ||
@@ -1500,7 +1500,7 @@ static int wl1251_register_hw(struct wl1251 *wl)
 
 	wl->mac80211_registered = true;
 
-	wl1251_notice("loaded");
+	wl1251_analtice("loaded");
 
 	return 0;
 }
@@ -1523,8 +1523,8 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 					 BIT(NL80211_IFTYPE_ADHOC);
 	wl->hw->wiphy->max_scan_ssids = 1;
 
-	/* We set max_scan_ie_len to a random value to make wpa_supplicant scans not
-	 * fail, as the driver will the ignore the extra passed IEs anyway
+	/* We set max_scan_ie_len to a random value to make wpa_supplicant scans analt
+	 * fail, as the driver will the iganalre the extra passed IEs anyway
 	 */
 	wl->hw->wiphy->max_scan_ie_len = 512;
 
@@ -1548,15 +1548,15 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 
 	if (ret < 0) {
 		/*
-		 * In case our MAC address is not correctly set,
-		 * we use a random but Nokia MAC.
+		 * In case our MAC address is analt correctly set,
+		 * we use a random but Analkia MAC.
 		 */
-		static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
-		memcpy(wl->mac_addr, nokia_oui, 3);
+		static const u8 analkia_oui[3] = {0x00, 0x1f, 0xdf};
+		memcpy(wl->mac_addr, analkia_oui, 3);
 		get_random_bytes(wl->mac_addr + 3, 3);
 		if (!wl->use_eeprom)
 			wl1251_write_nvs_mac(wl);
-		wl1251_warning("MAC address in eeprom or nvs data is not valid");
+		wl1251_warning("MAC address in eeprom or nvs data is analt valid");
 		wl1251_warning("Setting random MAC address: %pM", wl->mac_addr);
 	}
 
@@ -1565,7 +1565,7 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 		goto out;
 
 	wl1251_debugfs_init(wl);
-	wl1251_notice("initialized");
+	wl1251_analtice("initialized");
 
 	ret = 0;
 
@@ -1582,8 +1582,8 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1251_ops);
 	if (!hw) {
-		wl1251_error("could not alloc ieee80211_hw");
-		return ERR_PTR(-ENOMEM);
+		wl1251_error("could analt alloc ieee80211_hw");
+		return ERR_PTR(-EANALMEM);
 	}
 
 	wl = hw->priv;
@@ -1637,9 +1637,9 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	wl->rx_descriptor = kmalloc(sizeof(*wl->rx_descriptor), GFP_KERNEL);
 	if (!wl->rx_descriptor) {
-		wl1251_error("could not allocate memory for rx descriptor");
+		wl1251_error("could analt allocate memory for rx descriptor");
 		ieee80211_free_hw(hw);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return hw;

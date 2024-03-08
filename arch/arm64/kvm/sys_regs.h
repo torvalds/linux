@@ -66,7 +66,7 @@ struct sys_reg_desc {
 	u8	CRm;
 	u8	Op2;
 
-	/* Trapped access from guest, if non-NULL. */
+	/* Trapped access from guest, if analn-NULL. */
 	bool (*access)(struct kvm_vcpu *,
 		       struct sys_reg_params *,
 		       const struct sys_reg_desc *);
@@ -119,7 +119,7 @@ static inline void print_sys_reg_instr(const struct sys_reg_params *p)
 	print_sys_reg_msg(p, "%s", "");
 }
 
-static inline bool ignore_write(struct kvm_vcpu *vcpu,
+static inline bool iganalre_write(struct kvm_vcpu *vcpu,
 				const struct sys_reg_params *p)
 {
 	return true;
@@ -133,7 +133,7 @@ static inline bool read_zero(struct kvm_vcpu *vcpu,
 }
 
 /* Reset functions */
-static inline u64 reset_unknown(struct kvm_vcpu *vcpu,
+static inline u64 reset_unkanalwn(struct kvm_vcpu *vcpu,
 				 const struct sys_reg_desc *r)
 {
 	BUG_ON(!r->reg);
@@ -180,7 +180,7 @@ static inline bool sysreg_visible_as_raz(const struct kvm_vcpu *vcpu,
 	return sysreg_visibility(vcpu, r) & REG_RAZ;
 }
 
-static inline bool sysreg_user_write_ignore(const struct kvm_vcpu *vcpu,
+static inline bool sysreg_user_write_iganalre(const struct kvm_vcpu *vcpu,
 					    const struct sys_reg_desc *r)
 {
 	return sysreg_visibility(vcpu, r) & REG_USER_WI;

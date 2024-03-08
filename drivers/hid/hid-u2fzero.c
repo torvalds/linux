@@ -137,7 +137,7 @@ static int u2fzero_recv(struct u2fzero_device *dev,
 	dev->urb->context = &ctx;
 	init_completion(&ctx.done);
 
-	ret = usb_submit_urb(dev->urb, GFP_NOIO);
+	ret = usb_submit_urb(dev->urb, GFP_ANALIO);
 	if (unlikely(ret)) {
 		hid_err(hdev, "usb_submit_urb failed: %d", ret);
 		goto err;
@@ -216,13 +216,13 @@ static int u2fzero_rng_read(struct hwrng *rng, void *data,
 	int min_length = offsetof(struct u2f_hid_msg, init.data);
 
 	if (!dev->present) {
-		hid_dbg(dev->hdev, "device not present");
+		hid_dbg(dev->hdev, "device analt present");
 		return 0;
 	}
 
 	ret = u2fzero_recv(dev, &req, &resp);
 
-	/* ignore errors or packets without data */
+	/* iganalre errors or packets without data */
 	if (ret < min_length)
 		return 0;
 
@@ -236,12 +236,12 @@ static int u2fzero_rng_read(struct hwrng *rng, void *data,
 }
 
 static int u2fzero_init_led(struct u2fzero_device *dev,
-			    unsigned int minor)
+			    unsigned int mianalr)
 {
 	dev->led_name = devm_kasprintf(&dev->hdev->dev, GFP_KERNEL,
-		"%s%u", DRIVER_SHORT, minor);
+		"%s%u", DRIVER_SHORT, mianalr);
 	if (dev->led_name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->ldev.name = dev->led_name;
 	dev->ldev.max_brightness = LED_ON;
@@ -252,12 +252,12 @@ static int u2fzero_init_led(struct u2fzero_device *dev,
 }
 
 static int u2fzero_init_hwrng(struct u2fzero_device *dev,
-			      unsigned int minor)
+			      unsigned int mianalr)
 {
 	dev->rng_name = devm_kasprintf(&dev->hdev->dev, GFP_KERNEL,
-		"%s-rng%u", DRIVER_SHORT, minor);
+		"%s-rng%u", DRIVER_SHORT, mianalr);
 	if (dev->rng_name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->hwrng.name = dev->rng_name;
 	dev->hwrng.read = u2fzero_rng_read;
@@ -279,15 +279,15 @@ static int u2fzero_fill_in_urb(struct u2fzero_device *dev)
 	udev = hid_to_usb_dev(hdev);
 
 	if (!usbhid->urbout || !usbhid->urbin)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ep = usb_pipe_endpoint(udev, usbhid->urbin->pipe);
 	if (!ep)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pipe_in = (usbhid->urbin->pipe & ~(3 << 30)) | (PIPE_INTERRUPT << 30);
 
@@ -307,7 +307,7 @@ static int u2fzero_probe(struct hid_device *hdev,
 			 const struct hid_device_id *id)
 {
 	struct u2fzero_device *dev;
-	unsigned int minor;
+	unsigned int mianalr;
 	int ret;
 
 	if (!hid_is_usb(hdev))
@@ -315,19 +315,19 @@ static int u2fzero_probe(struct hid_device *hdev,
 
 	dev = devm_kzalloc(&hdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->hw_revision = id->driver_data;
 
 	dev->buf_out = devm_kmalloc(&hdev->dev,
 		sizeof(struct u2f_hid_report), GFP_KERNEL);
 	if (dev->buf_out == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->buf_in = devm_kmalloc(&hdev->dev,
 		sizeof(struct u2f_hid_msg), GFP_KERNEL);
 	if (dev->buf_in == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_parse(hdev);
 	if (ret)
@@ -345,9 +345,9 @@ static int u2fzero_probe(struct hid_device *hdev,
 
 	dev->present = true;
 
-	minor = ((struct hidraw *) hdev->hidraw)->minor;
+	mianalr = ((struct hidraw *) hdev->hidraw)->mianalr;
 
-	ret = u2fzero_init_led(dev, minor);
+	ret = u2fzero_init_led(dev, mianalr);
 	if (ret) {
 		hid_hw_stop(hdev);
 		return ret;
@@ -355,7 +355,7 @@ static int u2fzero_probe(struct hid_device *hdev,
 
 	hid_info(hdev, "%s LED initialised\n", hw_configs[dev->hw_revision].name);
 
-	ret = u2fzero_init_hwrng(dev, minor);
+	ret = u2fzero_init_hwrng(dev, mianalr);
 	if (ret) {
 		hid_hw_stop(hdev);
 		return ret;

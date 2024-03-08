@@ -13,7 +13,7 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 
-/* Power savings opcodes since not all binutils have them at this time */
+/* Power savings opcodes since analt all binutils have them at this time */
 #define DOZE	.long	0x4c000324
 #define NAP	.long	0x4c000364
 #define SLEEP	.long	0x4c0003a4

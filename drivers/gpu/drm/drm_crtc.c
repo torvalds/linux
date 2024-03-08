@@ -7,16 +7,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -154,7 +154,7 @@ static int drm_crtc_crc_init(struct drm_crtc *crtc)
 	init_waitqueue_head(&crtc->crc.wq);
 	crtc->crc.source = kstrdup("auto", GFP_KERNEL);
 	if (!crtc->crc.source)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 	return 0;
 }
@@ -202,7 +202,7 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
 		return NULL;
 
 	dma_fence_init(fence, &drm_crtc_fence_ops, &crtc->fence_lock,
-		       crtc->fence_context, ++crtc->fence_seqno);
+		       crtc->fence_context, ++crtc->fence_seqanal);
 
 	return fence;
 }
@@ -215,16 +215,16 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
  * ACTIVE:
  * 	Atomic property for setting the power state of the CRTC. When set to 1
  * 	the CRTC will actively display content. When set to 0 the CRTC will be
- * 	powered off. There is no expectation that user-space will reset CRTC
+ * 	powered off. There is anal expectation that user-space will reset CRTC
  * 	resources like the mode and planes when setting ACTIVE to 0.
  *
  * 	User-space can rely on an ACTIVE change to 1 to never fail an atomic
- * 	test as long as no other property has changed. If a change to ACTIVE
+ * 	test as long as anal other property has changed. If a change to ACTIVE
  * 	fails an atomic test, this is a driver bug. For this reason setting
- * 	ACTIVE to 0 must not release internal resources (like reserved memory
+ * 	ACTIVE to 0 must analt release internal resources (like reserved memory
  * 	bandwidth or clock generators).
  *
- * 	Note that the legacy DPMS property on connectors is internally routed
+ * 	Analte that the legacy DPMS property on connectors is internally routed
  * 	to control this property for atomic drivers.
  * MODE_ID:
  * 	Atomic property for setting the CRTC display timings. The value is the
@@ -283,7 +283,7 @@ static int __drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *
 	}
 	if (!crtc->name) {
 		drm_mode_object_unregister(dev, &crtc->base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	crtc->fence_context = dma_fence_context_alloc(1);
@@ -333,17 +333,17 @@ static int __drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *
  *
  * Inits a new object created as base part of a driver crtc object. Drivers
  * should use this function instead of drm_crtc_init(), which is only provided
- * for backwards compatibility with drivers which do not yet support universal
+ * for backwards compatibility with drivers which do analt yet support universal
  * planes). For really simple hardware which has only 1 plane look at
  * drm_simple_display_pipe_init() instead.
  * The &drm_crtc_funcs.destroy hook should call drm_crtc_cleanup() and kfree()
- * the crtc structure. The crtc structure should not be allocated with
+ * the crtc structure. The crtc structure should analt be allocated with
  * devm_kzalloc().
  *
  * The @primary and @cursor planes are only relevant for legacy uAPI, see
  * &drm_crtc.primary and &drm_crtc.cursor.
  *
- * Note: consider using drmm_crtc_alloc_with_planes() or
+ * Analte: consider using drmm_crtc_alloc_with_planes() or
  * drmm_crtc_init_with_planes() instead of drm_crtc_init_with_planes()
  * to let the DRM managed resource infrastructure take care of cleanup
  * and deallocation.
@@ -417,7 +417,7 @@ static int __drmm_crtc_init_with_planes(struct drm_device *dev,
  *
  * Inits a new object created as base part of a driver crtc object. Drivers
  * should use this function instead of drm_crtc_init(), which is only provided
- * for backwards compatibility with drivers which do not yet support universal
+ * for backwards compatibility with drivers which do analt yet support universal
  * planes). For really simple hardware which has only 1 plane look at
  * drm_simple_display_pipe_init() instead.
  *
@@ -470,7 +470,7 @@ void *__drmm_crtc_alloc_with_planes(struct drm_device *dev,
 
 	container = drmm_kzalloc(dev, size, GFP_KERNEL);
 	if (!container)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	crtc = container + offset;
 
@@ -490,14 +490,14 @@ EXPORT_SYMBOL(__drmm_crtc_alloc_with_planes);
  * @crtc: CRTC to cleanup
  *
  * This function cleans up @crtc and removes it from the DRM mode setting
- * core. Note that the function does *not* free the crtc structure itself,
+ * core. Analte that the function does *analt* free the crtc structure itself,
  * this is the responsibility of the caller.
  */
 void drm_crtc_cleanup(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 
-	/* Note that the crtc_list is considered to be static; should we
+	/* Analte that the crtc_list is considered to be static; should we
 	 * remove the drm_crtc at runtime we would have to decrement all
 	 * the indices on the drm_crtc after us in the crtc_list.
 	 */
@@ -534,7 +534,7 @@ EXPORT_SYMBOL(drm_crtc_cleanup);
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv)
@@ -544,11 +544,11 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	struct drm_plane *plane;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_resp->crtc_id);
 	if (!crtc)
-		return -ENOENT;
+		return -EANALENT;
 
 	plane = crtc->primary;
 
@@ -606,7 +606,7 @@ static int __drm_mode_set_config_internal(struct drm_mode_set *set,
 	WARN_ON(drm_drv_uses_atomic_modeset(crtc->dev));
 
 	/*
-	 * NOTE: ->set_config can also disable other crtcs (if we steal all
+	 * ANALTE: ->set_config can also disable other crtcs (if we steal all
 	 * connectors from it), hence we need to refcount the fbs across all
 	 * crtcs. Atomic modeset will have saner semantics ...
 	 */
@@ -647,10 +647,10 @@ static int __drm_mode_set_config_internal(struct drm_mode_set *set,
  * &drm_mode_config_funcs.set_config driver interface. The only thing it adds is
  * correct refcounting dance.
  *
- * This should only be used by non-atomic legacy drivers.
+ * This should only be used by analn-atomic legacy drivers.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_set_config_internal(struct drm_mode_set *set)
 {
@@ -661,7 +661,7 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 EXPORT_SYMBOL(drm_mode_set_config_internal);
 
 /**
- * drm_crtc_check_viewport - Checks that a framebuffer is big enough for the
+ * drm_crtc_check_viewport - Checks that a framebuffer is big eanalugh for the
  *     CRTC viewport
  * @crtc: CRTC that framebuffer will be displayed on
  * @x: x panning
@@ -700,7 +700,7 @@ EXPORT_SYMBOL(drm_crtc_check_viewport);
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)
@@ -718,7 +718,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	int ret, i, num_connectors = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * Universal plane src offsets are only 16.16, prevent havoc for
@@ -729,8 +729,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_req->crtc_id);
 	if (!crtc) {
-		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", crtc_req->crtc_id);
-		return -ENOENT;
+		DRM_DEBUG_KMS("Unkanalwn CRTC ID %d\n", crtc_req->crtc_id);
+		return -EANALENT;
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
@@ -766,20 +766,20 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		} else {
 			fb = drm_framebuffer_lookup(dev, file_priv, crtc_req->fb_id);
 			if (!fb) {
-				DRM_DEBUG_KMS("Unknown FB ID%d\n",
+				DRM_DEBUG_KMS("Unkanalwn FB ID%d\n",
 						crtc_req->fb_id);
-				ret = -ENOENT;
+				ret = -EANALENT;
 				goto out;
 			}
 		}
 
 		mode = drm_mode_create(dev);
 		if (!mode) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		if (!file_priv->aspect_ratio_allowed &&
-		    (crtc_req->mode.flags & DRM_MODE_FLAG_PIC_AR_MASK) != DRM_MODE_FLAG_PIC_AR_NONE) {
+		    (crtc_req->mode.flags & DRM_MODE_FLAG_PIC_AR_MASK) != DRM_MODE_FLAG_PIC_AR_ANALNE) {
 			DRM_DEBUG_KMS("Unexpected aspect-ratio flag bits\n");
 			ret = -EINVAL;
 			goto out;
@@ -796,7 +796,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 		/*
 		 * Check whether the primary plane supports the fb pixel format.
-		 * Drivers not implementing the universal planes API use a
+		 * Drivers analt implementing the universal planes API use a
 		 * default formats list provided by the DRM core which doesn't
 		 * match real hardware capabilities. Skip the check in that
 		 * case.
@@ -827,7 +827,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	}
 
 	if (crtc_req->count_connectors > 0 && (!mode || !fb)) {
-		DRM_DEBUG_KMS("Count connectors is %d but no mode or fb set\n",
+		DRM_DEBUG_KMS("Count connectors is %d but anal mode or fb set\n",
 			  crtc_req->count_connectors);
 		ret = -EINVAL;
 		goto out;
@@ -846,7 +846,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 					      sizeof(struct drm_connector *),
 					      GFP_KERNEL);
 		if (!connector_set) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -860,9 +860,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 			connector = drm_connector_lookup(dev, file_priv, out_id);
 			if (!connector) {
-				DRM_DEBUG_KMS("Connector id %d unknown\n",
+				DRM_DEBUG_KMS("Connector id %d unkanalwn\n",
 						out_id);
-				ret = -ENOENT;
+				ret = -EANALENT;
 				goto out;
 			}
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
@@ -938,7 +938,7 @@ int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
  * CRTC.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erranal
  */
 int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
 					    unsigned int supported_filters)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -126,7 +126,7 @@ int hubbub21_init_dchub(struct hubbub *hubbub,
 	if (pa_config->gart_config.page_table_start_addr != pa_config->gart_config.page_table_end_addr) {
 		phys_config.page_table_start_addr = pa_config->gart_config.page_table_start_addr >> 12;
 		phys_config.page_table_end_addr = pa_config->gart_config.page_table_end_addr >> 12;
-		phys_config.page_table_base_addr = pa_config->gart_config.page_table_base_addr | 1; //Note: hack
+		phys_config.page_table_base_addr = pa_config->gart_config.page_table_base_addr | 1; //Analte: hack
 		phys_config.depth = 0;
 		phys_config.block_size = 0;
 		// Init VMID 0 based on PA config
@@ -175,14 +175,14 @@ bool hubbub21_program_urgent_watermarks(
 			< hubbub1->watermarks.a.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub1->watermarks.a.frac_urg_bw_nom) {
-		hubbub1->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_analm
+			> hubbub1->watermarks.a.frac_urg_bw_analm) {
+		hubbub1->watermarks.a.frac_urg_bw_analm = watermarks->a.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, watermarks->a.frac_urg_bw_nom);
-	} else if (watermarks->a.frac_urg_bw_nom
-			< hubbub1->watermarks.a.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A, watermarks->a.frac_urg_bw_analm);
+	} else if (watermarks->a.frac_urg_bw_analm
+			< hubbub1->watermarks.a.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->a.urgent_latency_ns > hubbub1->watermarks.a.urgent_latency_ns) {
@@ -220,14 +220,14 @@ bool hubbub21_program_urgent_watermarks(
 			< hubbub1->watermarks.a.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub1->watermarks.a.frac_urg_bw_nom) {
-		hubbub1->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_analm
+			> hubbub1->watermarks.a.frac_urg_bw_analm) {
+		hubbub1->watermarks.a.frac_urg_bw_analm = watermarks->a.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, watermarks->a.frac_urg_bw_nom);
-	} else if (watermarks->a.frac_urg_bw_nom
-			< hubbub1->watermarks.a.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B, watermarks->a.frac_urg_bw_analm);
+	} else if (watermarks->a.frac_urg_bw_analm
+			< hubbub1->watermarks.a.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->b.urgent_latency_ns > hubbub1->watermarks.b.urgent_latency_ns) {
@@ -265,14 +265,14 @@ bool hubbub21_program_urgent_watermarks(
 			< hubbub1->watermarks.a.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub1->watermarks.a.frac_urg_bw_nom) {
-		hubbub1->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_analm
+			> hubbub1->watermarks.a.frac_urg_bw_analm) {
+		hubbub1->watermarks.a.frac_urg_bw_analm = watermarks->a.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, watermarks->a.frac_urg_bw_nom);
-	} else if (watermarks->a.frac_urg_bw_nom
-			< hubbub1->watermarks.a.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C, watermarks->a.frac_urg_bw_analm);
+	} else if (watermarks->a.frac_urg_bw_analm
+			< hubbub1->watermarks.a.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->c.urgent_latency_ns > hubbub1->watermarks.c.urgent_latency_ns) {
@@ -310,14 +310,14 @@ bool hubbub21_program_urgent_watermarks(
 			< hubbub1->watermarks.a.frac_urg_bw_flip)
 		wm_pending = true;
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub1->watermarks.a.frac_urg_bw_nom) {
-		hubbub1->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_analm
+			> hubbub1->watermarks.a.frac_urg_bw_analm) {
+		hubbub1->watermarks.a.frac_urg_bw_analm = watermarks->a.frac_urg_bw_analm;
 
-		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, watermarks->a.frac_urg_bw_nom);
-	} else if (watermarks->a.frac_urg_bw_nom
-			< hubbub1->watermarks.a.frac_urg_bw_nom)
+		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D, 0,
+				DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D, watermarks->a.frac_urg_bw_analm);
+	} else if (watermarks->a.frac_urg_bw_analm
+			< hubbub1->watermarks.a.frac_urg_bw_analm)
 		wm_pending = true;
 
 	if (safe_to_lower || watermarks->d.urgent_latency_ns > hubbub1->watermarks.d.urgent_latency_ns) {
@@ -599,8 +599,8 @@ bool hubbub21_program_watermarks(
 	 * by the ARB_MIN_REQ_OUTSTANDING. To determine that the DCHub requestors are well ahead of the amortized schedule,
 	 * the slack of the next winner is compared with the ARB_SAT_LEVEL in DLG RefClk cycles.
 	 *
-	 * TODO: Revisit request limit after figure out right number. request limit for Renoir isn't decided yet, set maximum value (0x1FF)
-	 * to turn off it for now.
+	 * TODO: Revisit request limit after figure out right number. request limit for Reanalir isn't decided yet, set maximum value (0x1FF)
+	 * to turn off it for analw.
 	 */
 	REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);

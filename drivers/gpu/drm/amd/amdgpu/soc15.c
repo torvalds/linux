@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -135,7 +135,7 @@ static const struct amdgpu_video_codecs rv_video_codecs_decode =
 	.codec_array = rv_video_codecs_decode_array,
 };
 
-/* Renoir, Arcturus */
+/* Reanalir, Arcturus */
 static const struct amdgpu_video_codec_info rn_video_codecs_decode_array[] =
 {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2, 4096, 4096, 3)},
@@ -596,7 +596,7 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 {
 	/* original raven doesn't have full asic reset */
 	/* On the latest Raven, the GPU reset can be performed
-	 * successfully. So now, temporarily enable it for the
+	 * successfully. So analw, temporarily enable it for the
 	 * S3 suspend abort case.
 	 */
 	if (((adev->apu_flags & AMD_APU_IS_RAVEN) ||
@@ -677,7 +677,7 @@ const struct amdgpu_ip_block_version vega10_common_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 2,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &soc15_common_ip_funcs,
 };
@@ -689,7 +689,7 @@ static void soc15_reg_base_init(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
-	case CHIP_RENOIR:
+	case CHIP_REANALIR:
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_VEGA20:
@@ -711,7 +711,7 @@ void soc15_set_virt_ops(struct amdgpu_device *adev)
 {
 	adev->virt.ops = &xgpu_ai_virt_ops;
 
-	/* init soc15 reg base early enough so we can
+	/* init soc15 reg base early eanalugh so we can
 	 * request request full access for sriov before
 	 * set_ip_blocks. */
 	soc15_reg_base_init(adev);
@@ -731,7 +731,7 @@ static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may analt be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -778,7 +778,7 @@ static void vega20_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may analt be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -824,10 +824,10 @@ static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 	u32 sol_reg;
 
 	/* CP hangs in IGT reloading test on RN, reset to WA */
-	if (adev->asic_type == CHIP_RENOIR)
+	if (adev->asic_type == CHIP_REANALIR)
 		return true;
 
-	/* Just return false for soc15 GPUs.  Reset does not seem to
+	/* Just return false for soc15 GPUs.  Reset does analt seem to
 	 * be necessary.
 	 */
 	if (!amdgpu_passthrough(adev))
@@ -1131,7 +1131,7 @@ static int soc15_common_early_init(void *handle)
 	case IP_VERSION(9, 3, 0):
 		adev->asic_funcs = &soc15_asic_funcs;
 
-		if (adev->apu_flags & AMD_APU_IS_RENOIR)
+		if (adev->apu_flags & AMD_APU_IS_REANALIR)
 			adev->external_rev_id = adev->rev_id + 0x91;
 		else
 			adev->external_rev_id = adev->rev_id + 0xa1;
@@ -1192,7 +1192,7 @@ static int soc15_common_early_init(void *handle)
 		}
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: analt supported yet */
 		return -EINVAL;
 	}
 
@@ -1275,7 +1275,7 @@ static int soc15_common_hw_init(void *handle)
 	/* enable the doorbell aperture */
 	adev->nbio.funcs->enable_doorbell_aperture(adev, true);
 
-	/* HW doorbell routing policy: doorbell writing not
+	/* HW doorbell routing policy: doorbell writing analt
 	 * in SDMA/IH/MM/ACV range will be routed to CP. So
 	 * we need to init SDMA doorbell range prior
 	 * to CP ip block init and ring test.  IH already
@@ -1292,7 +1292,7 @@ static int soc15_common_hw_fini(void *handle)
 
 	/* Disable the doorbell aperture and selfring doorbell aperture
 	 * separately in hw_fini because soc15_enable_doorbell_aperture
-	 * has been removed and there is no need to delay disabling
+	 * has been removed and there is anal need to delay disabling
 	 * selfring doorbell.
 	 */
 	adev->nbio.funcs->enable_doorbell_aperture(adev, false);

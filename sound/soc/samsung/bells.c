@@ -18,7 +18,7 @@
 
 /*
  * Expect a 24.576MHz crystal if one is fitted (the driver will function
- * if this is not fitted).
+ * if this is analt fitted).
  */
 #define MCLK_RATE 24576000
 
@@ -266,7 +266,7 @@ static struct snd_soc_dai_link bells_dai_wm2200[] = {
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.c2c_params = &sub_params,
 		.num_c2c_params = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(wm2200_dsp_codec),
 	},
 };
@@ -303,7 +303,7 @@ static struct snd_soc_dai_link bells_dai_wm5102[] = {
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.c2c_params = &sub_params,
 		.num_c2c_params = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(wm5102_dsp_codec),
 	},
 	{
@@ -311,7 +311,7 @@ static struct snd_soc_dai_link bells_dai_wm5102[] = {
 		.stream_name = "Baseband",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.c2c_params = &baseband_params,
 		.num_c2c_params = 1,
 		SND_SOC_DAILINK_REG(wm5102_baseband),
@@ -321,7 +321,7 @@ static struct snd_soc_dai_link bells_dai_wm5102[] = {
 		.stream_name = "Sub",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBS_CFS,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.c2c_params = &sub_params,
 		.num_c2c_params = 1,
 		SND_SOC_DAILINK_REG(wm5102_sub),
@@ -361,7 +361,7 @@ static struct snd_soc_dai_link bells_dai_wm5110[] = {
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.c2c_params = &sub_params,
 		.num_c2c_params = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(wm5110_dsp_codec),
 	},
 	{
@@ -369,7 +369,7 @@ static struct snd_soc_dai_link bells_dai_wm5110[] = {
 		.stream_name = "Baseband",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.c2c_params = &baseband_params,
 		.num_c2c_params = 1,
 		SND_SOC_DAILINK_REG(wm5110_baseband),
@@ -379,7 +379,7 @@ static struct snd_soc_dai_link bells_dai_wm5110[] = {
 		.stream_name = "Sub",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBS_CFS,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.c2c_params = &sub_params,
 		.num_c2c_params = 1,
 		SND_SOC_DAILINK_REG(wm5110_sub),

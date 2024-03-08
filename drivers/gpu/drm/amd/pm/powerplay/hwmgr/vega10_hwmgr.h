@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -252,7 +252,7 @@ struct vega10_registry_data {
 	uint8_t   sclk_deep_sleep_support;
 	uint8_t   sclk_dpm_key_disabled;
 	uint8_t   sclk_from_vbios;
-	uint8_t   sclk_throttle_low_notification;
+	uint8_t   sclk_throttle_low_analtification;
 	uint8_t   show_baco_dbg_info;
 	uint8_t   skip_baco_hardware;
 	uint8_t   socclk_dpm_key_disabled;
@@ -407,7 +407,7 @@ struct vega10_hwmgr {
 #define VEGA10_DPM2_SQ_RAMP_SHORT_TERM_INTERVAL_SIZE  0x1E
 #define VEGA10_DPM2_SQ_RAMP_LONG_TERM_INTERVAL_RATIO  0xF
 
-#define VEGA10_VOLTAGE_CONTROL_NONE                   0x0
+#define VEGA10_VOLTAGE_CONTROL_ANALNE                   0x0
 #define VEGA10_VOLTAGE_CONTROL_BY_GPIO                0x1
 #define VEGA10_VOLTAGE_CONTROL_BY_SVID2               0x2
 #define VEGA10_VOLTAGE_CONTROL_MERGED                 0x3
@@ -435,8 +435,8 @@ struct vega10_hwmgr {
 extern int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern int tonga_get_mc_microcode_version (struct pp_hwmgr *hwmgr);
-extern int tonga_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
-extern int tonga_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display);
+extern int tonga_analtify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
+extern int tonga_analtify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display);
 int vega10_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input);
 int vega10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);

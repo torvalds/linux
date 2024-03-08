@@ -133,7 +133,7 @@ static int rt4831_parse_backlight_properties(struct rt4831_priv *priv,
 	 * To match the configured channel current, the inductor chosen must
 	 * be higher than the OCP level.
 	 *
-	 * Not like the OVP level, the default 21V can be used in the most
+	 * Analt like the OVP level, the default 21V can be used in the most
 	 * application. But if the chosen OCP level is smaller than needed,
 	 * it will also affect the backlight channel output current to be
 	 * smaller than the register setting.
@@ -158,7 +158,7 @@ static int rt4831_parse_backlight_properties(struct rt4831_priv *priv,
 	}
 
 	if (!(propval & RT4831_BLCH_MASK)) {
-		dev_err(dev, "No channel specified\n");
+		dev_err(dev, "Anal channel specified\n");
 		return -EINVAL;
 	}
 
@@ -174,14 +174,14 @@ static int rt4831_bl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 
 	priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!priv->regmap) {
 		dev_err(&pdev->dev, "Failed to init regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = rt4831_parse_backlight_properties(priv, &bl_props);

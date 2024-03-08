@@ -136,7 +136,7 @@
 		};
 
 		bl_en: bl-en {
-			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

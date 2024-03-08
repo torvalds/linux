@@ -20,7 +20,7 @@ management subsystem maintainer.  After more sufficient tests, the patches will
 be queued in mm-stable [3]_ , and finally pull-requested to the mainline by the
 memory management subsystem maintainer.
 
-Note again the patches for review should be made against the mm-unstable
+Analte again the patches for review should be made against the mm-unstable
 tree[1] whenever possible.  damon/next is only for preview of others' works in
 progress.
 
@@ -30,12 +30,12 @@ Submit checklist addendum
 When making DAMON changes, you should do below.
 
 - Build changes related outputs including kernel and documents.
-- Ensure the builds introduce no new errors or warnings.
-- Run and ensure no new failures for DAMON selftests [4]_ and kunittests [5]_ .
+- Ensure the builds introduce anal new errors or warnings.
+- Run and ensure anal new failures for DAMON selftests [4]_ and kunittests [5]_ .
 
 Further doing below and putting the results will be helpful.
 
-- Run damon-tests/corr [6]_ for normal changes.
+- Run damon-tests/corr [6]_ for analrmal changes.
 - Run damon-tests/perf [7]_ for performance changes.
 
 Key cycle dates
@@ -48,8 +48,8 @@ Review cadence
 --------------
 
 The DAMON maintainer does the work on the usual work hour (09:00 to 17:00,
-Mon-Fri) in PST.  The response to patches will occasionally be slow.  Do not
-hesitate to send a ping if you have not heard back within a week of sending a
+Mon-Fri) in PST.  The response to patches will occasionally be slow.  Do analt
+hesitate to send a ping if you have analt heard back within a week of sending a
 patch.
 
 

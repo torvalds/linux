@@ -14,12 +14,12 @@
 * and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
 * subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in all copies or substantial
+* The above copyright analtice and this permission analtice shall be included in all copies or substantial
 * portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+* IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
 * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
 * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,7 +38,7 @@
 * Display Object Type Definition 
 *****************************************************/
 enum display_object_type{
-DISPLAY_OBJECT_TYPE_NONE						=0x00,
+DISPLAY_OBJECT_TYPE_ANALNE						=0x00,
 DISPLAY_OBJECT_TYPE_GPU							=0x01,
 DISPLAY_OBJECT_TYPE_ENCODER						=0x02,
 DISPLAY_OBJECT_TYPE_CONNECTOR					=0x03
@@ -48,7 +48,7 @@ DISPLAY_OBJECT_TYPE_CONNECTOR					=0x03
 * Encorder Object Type Definition 
 *****************************************************/
 enum encoder_object_type{
-ENCODER_OBJECT_ID_NONE							 =0x00,
+ENCODER_OBJECT_ID_ANALNE							 =0x00,
 ENCODER_OBJECT_ID_INTERNAL_UNIPHY				 =0x01,
 ENCODER_OBJECT_ID_INTERNAL_UNIPHY1				 =0x02,
 ENCODER_OBJECT_ID_INTERNAL_UNIPHY2				 =0x03,
@@ -60,7 +60,7 @@ ENCODER_OBJECT_ID_INTERNAL_UNIPHY2				 =0x03,
 *****************************************************/
 
 enum connector_object_type{
-CONNECTOR_OBJECT_ID_NONE						  =0x00, 
+CONNECTOR_OBJECT_ID_ANALNE						  =0x00, 
 CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D			  =0x01,
 CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D				  =0x02,
 CONNECTOR_OBJECT_ID_HDMI_TYPE_A					  =0x03,
@@ -74,7 +74,7 @@ CONNECTOR_OBJECT_ID_OPM							  =0x07
 /****************************************************
 * Protection Object ID Definition 
 *****************************************************/
-//No need
+//Anal need
 
 /****************************************************
 *  Object ENUM ID Definition 
@@ -225,18 +225,18 @@ CONNECTOR_OPM_ENUM_ID6							=( DISPLAY_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHI
 /****************************************************
 * Router Object ID definition - Shared with BIOS
 *****************************************************/
-//No Need, in future we ever need, we can define a record in atomfirwareSoC15.h associated with an object that has this router
+//Anal Need, in future we ever need, we can define a record in atomfirwareSoC15.h associated with an object that has this router
 
 
 /****************************************************
 * PROTECTION Object ID definition - Shared with BIOS
 *****************************************************/
-//No need,in future we ever need, all display path are capable of protection now.
+//Anal need,in future we ever need, all display path are capable of protection analw.
 
 /****************************************************
 * Generic Object ID definition - Shared with BIOS
 *****************************************************/
-//No need, in future we ever need like GLsync, we can define a record in atomfirwareSoC15.h associated with an object.
+//Anal need, in future we ever need like GLsync, we can define a record in atomfirwareSoC15.h associated with an object.
 
 
 #if defined(_X86_)

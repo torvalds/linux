@@ -20,7 +20,7 @@ static void test_sort(struct kunit *test)
 	int *a, i, r = 1;
 
 	a = kunit_kmalloc_array(test, TEST_LEN, sizeof(*a), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, a);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, a);
 
 	for (i = 0; i < TEST_LEN; i++) {
 		r = (r * 725861) % 6599;

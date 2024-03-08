@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,7 +46,7 @@
 	hubp21->hubp_shift->field_name, hubp21->hubp_mask->field_name
 
 /*
- * In DCN2.1, the non-double buffered version of the following 4 DLG registers are used in RTL.
+ * In DCN2.1, the analn-double buffered version of the following 4 DLG registers are used in RTL.
  * As a result, if S/W updates any of these registers during a mode change,
  * the current frame before the mode change will use the new value right away
  * and can lead to generating incorrect request deadlines and incorrect TTU/QoS behavior.
@@ -176,7 +176,7 @@ static void hubp21_setup(
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	/* otg is locked when this func is called. Register are double buffered.
-	 * disable the requestors is not needed
+	 * disable the requestors is analt needed
 	 */
 
 	hubp2_vready_at_or_After_vsync(hubp, pipe_dest);
@@ -392,16 +392,16 @@ static void hubp21_validate_dml_output(struct hubp *hubp,
 	/* DLG - Per luma/chroma */
 	REG_GET(VBLANK_PARAMETERS_1,
 		REFCYC_PER_PTE_GROUP_VBLANK_L, &dlg_attr.refcyc_per_pte_group_vblank_l);
-	if (REG(NOM_PARAMETERS_0))
-		REG_GET(NOM_PARAMETERS_0,
-			DST_Y_PER_PTE_ROW_NOM_L, &dlg_attr.dst_y_per_pte_row_nom_l);
-	if (REG(NOM_PARAMETERS_1))
-		REG_GET(NOM_PARAMETERS_1,
-			REFCYC_PER_PTE_GROUP_NOM_L, &dlg_attr.refcyc_per_pte_group_nom_l);
-	REG_GET(NOM_PARAMETERS_4,
-		DST_Y_PER_META_ROW_NOM_L, &dlg_attr.dst_y_per_meta_row_nom_l);
-	REG_GET(NOM_PARAMETERS_5,
-		REFCYC_PER_META_CHUNK_NOM_L, &dlg_attr.refcyc_per_meta_chunk_nom_l);
+	if (REG(ANALM_PARAMETERS_0))
+		REG_GET(ANALM_PARAMETERS_0,
+			DST_Y_PER_PTE_ROW_ANALM_L, &dlg_attr.dst_y_per_pte_row_analm_l);
+	if (REG(ANALM_PARAMETERS_1))
+		REG_GET(ANALM_PARAMETERS_1,
+			REFCYC_PER_PTE_GROUP_ANALM_L, &dlg_attr.refcyc_per_pte_group_analm_l);
+	REG_GET(ANALM_PARAMETERS_4,
+		DST_Y_PER_META_ROW_ANALM_L, &dlg_attr.dst_y_per_meta_row_analm_l);
+	REG_GET(ANALM_PARAMETERS_5,
+		REFCYC_PER_META_CHUNK_ANALM_L, &dlg_attr.refcyc_per_meta_chunk_analm_l);
 	REG_GET_2(PER_LINE_DELIVERY,
 		REFCYC_PER_LINE_DELIVERY_L, &dlg_attr.refcyc_per_line_delivery_l,
 		REFCYC_PER_LINE_DELIVERY_C, &dlg_attr.refcyc_per_line_delivery_c);
@@ -410,16 +410,16 @@ static void hubp21_validate_dml_output(struct hubp *hubp,
 		REFCYC_PER_LINE_DELIVERY_PRE_C, &dlg_attr.refcyc_per_line_delivery_pre_c);
 	REG_GET(VBLANK_PARAMETERS_2,
 		REFCYC_PER_PTE_GROUP_VBLANK_C, &dlg_attr.refcyc_per_pte_group_vblank_c);
-	if (REG(NOM_PARAMETERS_2))
-		REG_GET(NOM_PARAMETERS_2,
-			DST_Y_PER_PTE_ROW_NOM_C, &dlg_attr.dst_y_per_pte_row_nom_c);
-	if (REG(NOM_PARAMETERS_3))
-		REG_GET(NOM_PARAMETERS_3,
-			REFCYC_PER_PTE_GROUP_NOM_C, &dlg_attr.refcyc_per_pte_group_nom_c);
-	REG_GET(NOM_PARAMETERS_6,
-		DST_Y_PER_META_ROW_NOM_C, &dlg_attr.dst_y_per_meta_row_nom_c);
-	REG_GET(NOM_PARAMETERS_7,
-		REFCYC_PER_META_CHUNK_NOM_C, &dlg_attr.refcyc_per_meta_chunk_nom_c);
+	if (REG(ANALM_PARAMETERS_2))
+		REG_GET(ANALM_PARAMETERS_2,
+			DST_Y_PER_PTE_ROW_ANALM_C, &dlg_attr.dst_y_per_pte_row_analm_c);
+	if (REG(ANALM_PARAMETERS_3))
+		REG_GET(ANALM_PARAMETERS_3,
+			REFCYC_PER_PTE_GROUP_ANALM_C, &dlg_attr.refcyc_per_pte_group_analm_c);
+	REG_GET(ANALM_PARAMETERS_6,
+		DST_Y_PER_META_ROW_ANALM_C, &dlg_attr.dst_y_per_meta_row_analm_c);
+	REG_GET(ANALM_PARAMETERS_7,
+		REFCYC_PER_META_CHUNK_ANALM_C, &dlg_attr.refcyc_per_meta_chunk_analm_c);
 	REG_GET(VBLANK_PARAMETERS_3,
 			REFCYC_PER_META_CHUNK_VBLANK_L, &dlg_attr.refcyc_per_meta_chunk_vblank_l);
 	REG_GET(VBLANK_PARAMETERS_4,
@@ -428,18 +428,18 @@ static void hubp21_validate_dml_output(struct hubp *hubp,
 	if (dlg_attr.refcyc_per_pte_group_vblank_l != dml_dlg_attr->refcyc_per_pte_group_vblank_l)
 		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_1:REFCYC_PER_PTE_GROUP_VBLANK_L - Expected: %u  Actual: %u\n",
 				dml_dlg_attr->refcyc_per_pte_group_vblank_l, dlg_attr.refcyc_per_pte_group_vblank_l);
-	if (dlg_attr.dst_y_per_pte_row_nom_l != dml_dlg_attr->dst_y_per_pte_row_nom_l)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_0:DST_Y_PER_PTE_ROW_NOM_L - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->dst_y_per_pte_row_nom_l, dlg_attr.dst_y_per_pte_row_nom_l);
-	if (dlg_attr.refcyc_per_pte_group_nom_l != dml_dlg_attr->refcyc_per_pte_group_nom_l)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_1:REFCYC_PER_PTE_GROUP_NOM_L - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->refcyc_per_pte_group_nom_l, dlg_attr.refcyc_per_pte_group_nom_l);
-	if (dlg_attr.dst_y_per_meta_row_nom_l != dml_dlg_attr->dst_y_per_meta_row_nom_l)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_4:DST_Y_PER_META_ROW_NOM_L - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->dst_y_per_meta_row_nom_l, dlg_attr.dst_y_per_meta_row_nom_l);
-	if (dlg_attr.refcyc_per_meta_chunk_nom_l != dml_dlg_attr->refcyc_per_meta_chunk_nom_l)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_5:REFCYC_PER_META_CHUNK_NOM_L - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->refcyc_per_meta_chunk_nom_l, dlg_attr.refcyc_per_meta_chunk_nom_l);
+	if (dlg_attr.dst_y_per_pte_row_analm_l != dml_dlg_attr->dst_y_per_pte_row_analm_l)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_0:DST_Y_PER_PTE_ROW_ANALM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_pte_row_analm_l, dlg_attr.dst_y_per_pte_row_analm_l);
+	if (dlg_attr.refcyc_per_pte_group_analm_l != dml_dlg_attr->refcyc_per_pte_group_analm_l)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_1:REFCYC_PER_PTE_GROUP_ANALM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_analm_l, dlg_attr.refcyc_per_pte_group_analm_l);
+	if (dlg_attr.dst_y_per_meta_row_analm_l != dml_dlg_attr->dst_y_per_meta_row_analm_l)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_4:DST_Y_PER_META_ROW_ANALM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_meta_row_analm_l, dlg_attr.dst_y_per_meta_row_analm_l);
+	if (dlg_attr.refcyc_per_meta_chunk_analm_l != dml_dlg_attr->refcyc_per_meta_chunk_analm_l)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_5:REFCYC_PER_META_CHUNK_ANALM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_analm_l, dlg_attr.refcyc_per_meta_chunk_analm_l);
 	if (dlg_attr.refcyc_per_line_delivery_l != dml_dlg_attr->refcyc_per_line_delivery_l)
 		DC_LOG_DEBUG("DML Validation | PER_LINE_DELIVERY:REFCYC_PER_LINE_DELIVERY_L - Expected: %u  Actual: %u\n",
 				dml_dlg_attr->refcyc_per_line_delivery_l, dlg_attr.refcyc_per_line_delivery_l);
@@ -449,18 +449,18 @@ static void hubp21_validate_dml_output(struct hubp *hubp,
 	if (dlg_attr.refcyc_per_pte_group_vblank_c != dml_dlg_attr->refcyc_per_pte_group_vblank_c)
 		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_2:REFCYC_PER_PTE_GROUP_VBLANK_C - Expected: %u  Actual: %u\n",
 				dml_dlg_attr->refcyc_per_pte_group_vblank_c, dlg_attr.refcyc_per_pte_group_vblank_c);
-	if (dlg_attr.dst_y_per_pte_row_nom_c != dml_dlg_attr->dst_y_per_pte_row_nom_c)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_2:DST_Y_PER_PTE_ROW_NOM_C - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->dst_y_per_pte_row_nom_c, dlg_attr.dst_y_per_pte_row_nom_c);
-	if (dlg_attr.refcyc_per_pte_group_nom_c != dml_dlg_attr->refcyc_per_pte_group_nom_c)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_3:REFCYC_PER_PTE_GROUP_NOM_C - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->refcyc_per_pte_group_nom_c, dlg_attr.refcyc_per_pte_group_nom_c);
-	if (dlg_attr.dst_y_per_meta_row_nom_c != dml_dlg_attr->dst_y_per_meta_row_nom_c)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_6:DST_Y_PER_META_ROW_NOM_C - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->dst_y_per_meta_row_nom_c, dlg_attr.dst_y_per_meta_row_nom_c);
-	if (dlg_attr.refcyc_per_meta_chunk_nom_c != dml_dlg_attr->refcyc_per_meta_chunk_nom_c)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_7:REFCYC_PER_META_CHUNK_NOM_C - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->refcyc_per_meta_chunk_nom_c, dlg_attr.refcyc_per_meta_chunk_nom_c);
+	if (dlg_attr.dst_y_per_pte_row_analm_c != dml_dlg_attr->dst_y_per_pte_row_analm_c)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_2:DST_Y_PER_PTE_ROW_ANALM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_pte_row_analm_c, dlg_attr.dst_y_per_pte_row_analm_c);
+	if (dlg_attr.refcyc_per_pte_group_analm_c != dml_dlg_attr->refcyc_per_pte_group_analm_c)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_3:REFCYC_PER_PTE_GROUP_ANALM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_analm_c, dlg_attr.refcyc_per_pte_group_analm_c);
+	if (dlg_attr.dst_y_per_meta_row_analm_c != dml_dlg_attr->dst_y_per_meta_row_analm_c)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_6:DST_Y_PER_META_ROW_ANALM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_meta_row_analm_c, dlg_attr.dst_y_per_meta_row_analm_c);
+	if (dlg_attr.refcyc_per_meta_chunk_analm_c != dml_dlg_attr->refcyc_per_meta_chunk_analm_c)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_7:REFCYC_PER_META_CHUNK_ANALM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_analm_c, dlg_attr.refcyc_per_meta_chunk_analm_c);
 	if (dlg_attr.refcyc_per_line_delivery_pre_l != dml_dlg_attr->refcyc_per_line_delivery_pre_l)
 		DC_LOG_DEBUG("DML Validation | PER_LINE_DELIVERY_PRE:REFCYC_PER_LINE_DELIVERY_PRE_L - Expected: %u  Actual: %u\n",
 				dml_dlg_attr->refcyc_per_line_delivery_pre_l, dlg_attr.refcyc_per_line_delivery_pre_l);

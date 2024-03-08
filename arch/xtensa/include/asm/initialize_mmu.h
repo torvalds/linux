@@ -50,7 +50,7 @@
 				 * RCW otherwise
 				 */
 #else
-	movi	a3, 0x29	/* non-MX -- Most cores use Std Memory
+	movi	a3, 0x29	/* analn-MX -- Most cores use Std Memory
 				 * Controlers which usually can't use RCW
 				 */
 #endif
@@ -180,7 +180,7 @@
 
 #if !defined(CONFIG_MMU) && (XCHAL_HAVE_TLBS || XCHAL_HAVE_MPU)
 #if CONFIG_MEMMAP_CACHEATTR == 0x22222222 && XCHAL_HAVE_PTP_MMU
-#error Default MEMMAP_CACHEATTR of 0x22222222 does not work with full MMU.
+#error Default MEMMAP_CACHEATTR of 0x22222222 does analt work with full MMU.
 #endif
 
 #if XCHAL_HAVE_MPU

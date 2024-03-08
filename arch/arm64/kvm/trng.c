@@ -12,9 +12,9 @@
 
 /* Those values are deliberately separate from the generic SMCCC definitions. */
 #define TRNG_SUCCESS			0UL
-#define TRNG_NOT_SUPPORTED		((unsigned long)-1)
+#define TRNG_ANALT_SUPPORTED		((unsigned long)-1)
 #define TRNG_INVALID_PARAMETER		((unsigned long)-2)
-#define TRNG_NO_ENTROPY			((unsigned long)-3)
+#define TRNG_ANAL_ENTROPY			((unsigned long)-3)
 
 #define TRNG_MAX_BITS64			192
 
@@ -52,7 +52,7 @@ int kvm_trng_call(struct kvm_vcpu *vcpu)
 {
 	const __le32 *u = (__le32 *)arm_smc_trng_uuid.b;
 	u32 func_id = smccc_get_function(vcpu);
-	unsigned long val = TRNG_NOT_SUPPORTED;
+	unsigned long val = TRNG_ANALT_SUPPORTED;
 	int size = 64;
 
 	switch (func_id) {

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-analte */
 /*
  * cn_proc.h - process events connector
  *
@@ -27,12 +27,12 @@
  */
 enum proc_cn_mcast_op {
 	PROC_CN_MCAST_LISTEN = 1,
-	PROC_CN_MCAST_IGNORE = 2
+	PROC_CN_MCAST_IGANALRE = 2
 };
 
 #define PROC_EVENT_ALL (PROC_EVENT_FORK | PROC_EVENT_EXEC | PROC_EVENT_UID |  \
 			PROC_EVENT_GID | PROC_EVENT_SID | PROC_EVENT_PTRACE | \
-			PROC_EVENT_COMM | PROC_EVENT_NONZERO_EXIT |           \
+			PROC_EVENT_COMM | PROC_EVENT_ANALNZERO_EXIT |           \
 			PROC_EVENT_COREDUMP | PROC_EVENT_EXIT)
 
 /*
@@ -43,7 +43,7 @@ enum proc_cn_event {
 	/* Use successive bits so the enums can be used to record
 	 * sets of events as well
 	 */
-	PROC_EVENT_NONE = 0x00000000,
+	PROC_EVENT_ANALNE = 0x00000000,
 	PROC_EVENT_FORK = 0x00000001,
 	PROC_EVENT_EXEC = 0x00000002,
 	PROC_EVENT_UID  = 0x00000004,
@@ -55,9 +55,9 @@ enum proc_cn_event {
 	/* "last" is the last process event: exit,
 	 * while "next to last" is coredumping event
 	 * before that is report only if process dies
-	 * with non-zero exit status
+	 * with analn-zero exit status
 	 */
-	PROC_EVENT_NONZERO_EXIT = 0x20000000,
+	PROC_EVENT_ANALNZERO_EXIT = 0x20000000,
 	PROC_EVENT_COREDUMP = 0x40000000,
 	PROC_EVENT_EXIT = 0x80000000
 };
@@ -90,7 +90,7 @@ struct proc_event {
 	enum proc_cn_event what;
 	__u32 cpu;
 	__u64 __attribute__((aligned(8))) timestamp_ns;
-		/* Number of nano seconds since system boot */
+		/* Number of naanal seconds since system boot */
 	union { /* must be last field of proc_event struct */
 		struct {
 			__u32 err;

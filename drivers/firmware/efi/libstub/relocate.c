@@ -13,9 +13,9 @@
  * @addr:	on exit the address of the allocated memory
  * @min:	minimum address to used for the memory allocation
  *
- * Allocate at the lowest possible address that is not below @min as
+ * Allocate at the lowest possible address that is analt below @min as
  * EFI_LOADER_DATA. The allocated pages are aligned according to @align but at
- * least EFI_ALLOC_ALIGN. The first allocated page will not below the address
+ * least EFI_ALLOC_ALIGN. The first allocated page will analt below the address
  * given by @min.
  *
  * Return:	status code
@@ -79,7 +79,7 @@ efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 	}
 
 	if (i == map->map_size / map->desc_size)
-		status = EFI_NOT_FOUND;
+		status = EFI_ANALT_FOUND;
 
 	efi_bs_call(free_pool, map);
 fail:
@@ -99,10 +99,10 @@ fail:
  *
  * Copy a memory area to a newly allocated memory area aligned according
  * to @alignment but at least EFI_ALLOC_ALIGN. If the preferred address
- * is not available, the allocated address will not be below @min_addr.
+ * is analt available, the allocated address will analt be below @min_addr.
  * On exit, @image_addr is updated to the target copy address that was used.
  *
- * This function is used to copy the Linux kernel verbatim. It does not apply
+ * This function is used to copy the Linux kernel verbatim. It does analt apply
  * any relocation changes.
  *
  * Return:		status code
@@ -153,7 +153,7 @@ efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 	}
 
 	/*
-	 * We know source/dest won't overlap since both memory ranges
+	 * We kanalw source/dest won't overlap since both memory ranges
 	 * have been allocated by UEFI, so we can safely use memcpy.
 	 */
 	memcpy((void *)new_addr, (void *)cur_image_addr, image_size);

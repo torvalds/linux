@@ -67,7 +67,7 @@ struct rtw89_sar_span {
 		.subband_high = RTW89_SAR_6GHZ_ ## subband_h, \
 	}
 
-/* Since 6GHz SAR subbands are not edge aligned, some cases span two SAR
+/* Since 6GHz SAR subbands are analt edge aligned, some cases span two SAR
  * subbands. In the following, we describe each of them with rtw89_sar_span.
  */
 static const struct rtw89_sar_span rtw89_sar_overlapping_6ghz[] = {
@@ -117,7 +117,7 @@ static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
 		    center_freq, subband_l, subband_h);
 
 	if (!rtwsar->set[subband_l] && !rtwsar->set[subband_h])
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (!rtwsar->set[subband_l])
 		*cfg = rtwsar->cfg[subband_h];
@@ -197,7 +197,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 
 	lockdep_assert_held(&rtwdev->mutex);
 
-	if (src == RTW89_SAR_SOURCE_NONE)
+	if (src == RTW89_SAR_SOURCE_ANALNE)
 		return RTW89_SAR_TXPWR_MAC_MAX;
 
 	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
@@ -235,8 +235,8 @@ void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev, u32 center_fr
 
 	lockdep_assert_held(&rtwdev->mutex);
 
-	if (src == RTW89_SAR_SOURCE_NONE) {
-		seq_puts(m, "no SAR is applied\n");
+	if (src == RTW89_SAR_SOURCE_ANALNE) {
+		seq_puts(m, "anal SAR is applied\n");
 		return;
 	}
 
@@ -260,7 +260,7 @@ void rtw89_print_tas(struct seq_file *m, struct rtw89_dev *rtwdev)
 	struct rtw89_tas_info *tas = &rtwdev->tas;
 
 	if (!tas->enable) {
-		seq_puts(m, "no TAS is applied\n");
+		seq_puts(m, "anal TAS is applied\n");
 		return;
 	}
 
@@ -277,7 +277,7 @@ static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
 	mutex_lock(&rtwdev->mutex);
 
 	src = rtwdev->sar.src;
-	if (src != RTW89_SAR_SOURCE_NONE && src != RTW89_SAR_SOURCE_COMMON) {
+	if (src != RTW89_SAR_SOURCE_ANALNE && src != RTW89_SAR_SOURCE_COMMON) {
 		rtw89_warn(rtwdev, "SAR source: %d is in use", src);
 		ret = -EBUSY;
 		goto exit;
@@ -363,7 +363,7 @@ static void rtw89_tas_state_update(struct rtw89_dev *rtwdev)
 
 	lockdep_assert_held(&rtwdev->mutex);
 
-	if (src == RTW89_SAR_SOURCE_NONE)
+	if (src == RTW89_SAR_SOURCE_ANALNE)
 		return;
 
 	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
@@ -411,7 +411,7 @@ void rtw89_tas_init(struct rtw89_dev *rtwdev)
 	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_TAS_EN, &res);
 	if (ret) {
 		rtw89_debug(rtwdev, RTW89_DBG_SAR,
-			    "acpi: cannot get TAS: %d\n", ret);
+			    "acpi: cananalt get TAS: %d\n", ret);
 		return;
 	}
 
@@ -428,7 +428,7 @@ void rtw89_tas_init(struct rtw89_dev *rtwdev)
 	}
 
 	if (!tas->enable) {
-		rtw89_debug(rtwdev, RTW89_DBG_SAR, "TAS not enable\n");
+		rtw89_debug(rtwdev, RTW89_DBG_SAR, "TAS analt enable\n");
 		return;
 	}
 
@@ -464,7 +464,7 @@ void rtw89_tas_track(struct rtw89_dev *rtwdev)
 	u32 val;
 	int i;
 
-	if (!tas->enable || src == RTW89_SAR_SOURCE_NONE)
+	if (!tas->enable || src == RTW89_SAR_SOURCE_ANALNE)
 		return;
 
 	if (env->ccx_watchdog_result != RTW89_PHY_ENV_MON_IFS_CLM)

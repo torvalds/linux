@@ -15,7 +15,7 @@ SunXi family
     * ARM926 based SoCs
       - Allwinner F20 (sun3i)
 
-        * Not Supported
+        * Analt Supported
 
     * ARM Cortex-A8 based SoCs
       - Allwinner A10 (sun4i)
@@ -101,7 +101,7 @@ SunXi family
 
       - Allwinner H2+ (sun8i)
 
-        * No document available now, but is known to be working properly with
+        * Anal document available analw, but is kanalwn to be working properly with
           H3 drivers and memory map.
 
       - Allwinner H3 (sun8i)

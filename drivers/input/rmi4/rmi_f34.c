@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007-2016, Synaptics Incorporated
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inanalvations
  */
 
 #include <linux/kernel.h>
@@ -282,7 +282,7 @@ static int rmi_f34_update_firmware(struct f34_data *f34,
 	}
 
 	if (image_size && !config_size) {
-		dev_err(&f34->fn->dev, "Bad firmware image: no config data\n");
+		dev_err(&f34->fn->dev, "Bad firmware image: anal config data\n");
 		ret = -EILSEQ;
 		goto out;
 	}
@@ -364,7 +364,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	int ret;
 
 	if (!data->f34_container) {
-		dev_warn(dev, "%s: No F34 present!\n", __func__);
+		dev_warn(dev, "%s: Anal F34 present!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -372,13 +372,13 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 
 	if (f34->bl_version >= 7) {
 		if (data->pdt_props & HAS_BSR) {
-			dev_err(dev, "%s: LTS not supported\n", __func__);
-			return -ENODEV;
+			dev_err(dev, "%s: LTS analt supported\n", __func__);
+			return -EANALDEV;
 		}
 	} else if (f34->bl_version != 5) {
-		dev_warn(dev, "F34 V%d not supported!\n",
+		dev_warn(dev, "F34 V%d analt supported!\n",
 			 data->f34_container->fd.function_version);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Enter flash mode */
@@ -403,7 +403,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 		return ret;
 
 	if (!data->bootloader_mode || !data->f34_container) {
-		dev_warn(dev, "%s: No F34 present or not in bootloader!\n",
+		dev_warn(dev, "%s: Anal F34 present or analt in bootloader!\n",
 				__func__);
 		return -EINVAL;
 	}
@@ -447,7 +447,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	rmi_enable_irq(rmi_dev, false);
 
 	if (data->f01_container->dev.driver)
-		/* Driver already bound, so enable ATTN now. */
+		/* Driver already bound, so enable ATTN analw. */
 		return rmi_enable_sensor(rmi_dev);
 
 	rmi_dbg(RMI_DEBUG_FN, dev, "%s complete\n", __func__);
@@ -527,7 +527,7 @@ static int rmi_f34_probe(struct rmi_function *fn)
 
 	f34 = devm_kzalloc(&fn->dev, sizeof(struct f34_data), GFP_KERNEL);
 	if (!f34)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f34->fn = fn;
 	dev_set_drvdata(&fn->dev, f34);

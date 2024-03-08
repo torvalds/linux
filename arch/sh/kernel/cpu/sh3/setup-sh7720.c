@@ -241,7 +241,7 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(SIM, 0x4e0),	      INTC_VECT(SIM, 0x500),
 	INTC_VECT(SIM, 0x520),	      INTC_VECT(SIM, 0x540),
 	INTC_VECT(WDT, 0x560),        INTC_VECT(REF_RCMI, 0x580),
-	/* H_UDI cannot be masked */  INTC_VECT(TMU_SUNI, 0x6c0),
+	/* H_UDI cananalt be masked */  INTC_VECT(TMU_SUNI, 0x6c0),
 	INTC_VECT(USBF_SPD, 0x6e0),   INTC_VECT(DMAC1, 0x800),
 	INTC_VECT(DMAC1, 0x820),      INTC_VECT(DMAC1, 0x840),
 	INTC_VECT(DMAC1, 0x860),      INTC_VECT(LCDC, 0x900),

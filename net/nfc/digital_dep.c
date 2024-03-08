@@ -211,7 +211,7 @@ digital_send_dep_data_prep(struct nfc_digital_dev *ddev, struct sk_buff *skb,
 			kfree_skb(ddev->chaining_skb);
 			ddev->chaining_skb = NULL;
 
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 
 		skb_put_data(new_skb, skb->data, ddev->remote_payload_max);
@@ -243,7 +243,7 @@ digital_recv_dep_data_gather(struct nfc_digital_dev *ddev, u8 pfb,
 			nfc_alloc_recv_skb(8 * ddev->local_payload_max,
 					   GFP_KERNEL);
 		if (!ddev->chaining_skb) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto error;
 		}
 	}
@@ -256,7 +256,7 @@ digital_recv_dep_data_gather(struct nfc_digital_dev *ddev, u8 pfb,
 						  8 * ddev->local_payload_max,
 						  GFP_KERNEL);
 			if (!new_skb) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto error;
 			}
 
@@ -366,7 +366,7 @@ static int digital_in_send_psl_req(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, sizeof(*psl_req));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(*psl_req));
 
@@ -487,7 +487,7 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(struct digital_atr_req));
 
@@ -535,7 +535,7 @@ static int digital_in_send_ack(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_push(skb, sizeof(struct digital_dep_req_res));
 
@@ -572,7 +572,7 @@ static int digital_in_send_nack(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_push(skb, sizeof(struct digital_dep_req_res));
 
@@ -604,7 +604,7 @@ static int digital_in_send_atn(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_push(skb, sizeof(struct digital_dep_req_res));
 
@@ -640,7 +640,7 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, rtox);
 
@@ -952,8 +952,8 @@ static void digital_tg_set_rf_tech(struct nfc_digital_dev *ddev, u8 rf_tech)
 {
 	ddev->curr_rf_tech = rf_tech;
 
-	ddev->skb_add_crc = digital_skb_add_crc_none;
-	ddev->skb_check_crc = digital_skb_check_crc_none;
+	ddev->skb_add_crc = digital_skb_add_crc_analne;
+	ddev->skb_check_crc = digital_skb_check_crc_analne;
 
 	if (DIGITAL_DRV_CAPS_TG_CRC(ddev))
 		return;
@@ -984,7 +984,7 @@ static int digital_tg_send_ack(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_push(skb, sizeof(struct digital_dep_req_res));
 
@@ -1029,7 +1029,7 @@ static int digital_tg_send_atn(struct nfc_digital_dev *ddev)
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_push(skb, sizeof(struct digital_dep_req_res));
 
@@ -1166,9 +1166,9 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			}
 
 			/* atn_count > 0 and PDU pni != curr_nfc_dep_pni - 1
-			 * means the target probably did not received the last
+			 * means the target probably did analt received the last
 			 * DEP_REQ PDU sent by the initiator. The target
-			 * fallbacks to normal processing then.
+			 * fallbacks to analrmal processing then.
 			 */
 		}
 
@@ -1223,7 +1223,7 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			ddev->atn_count = 0;
 
 			/* If the ACK PNI is equal to the target PNI - 1 means
-			 * that the initiator did not receive the previous PDU
+			 * that the initiator did analt receive the previous PDU
 			 * sent by the target so re-send it.
 			 */
 			if (DIGITAL_NFC_DEP_PFB_PNI(pfb + 1) ==
@@ -1235,8 +1235,8 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 				goto free_resp;
 			}
 
-			/* Otherwise, the target did not receive the previous
-			 * ACK PDU from the initiator. Fallback to normal
+			/* Otherwise, the target did analt receive the previous
+			 * ACK PDU from the initiator. Fallback to analrmal
 			 * processing of chained PDU then.
 			 */
 		}
@@ -1371,7 +1371,7 @@ static int digital_tg_send_psl_res(struct nfc_digital_dev *ddev, u8 did,
 
 	skb = digital_skb_alloc(ddev, sizeof(struct digital_psl_res));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(struct digital_psl_res));
 
@@ -1501,7 +1501,7 @@ static int digital_tg_send_atr_res(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, sizeof(struct digital_atr_res) + gb_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(struct digital_atr_res));
 	atr_res = (struct digital_atr_res *)skb->data;

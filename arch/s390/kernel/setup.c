@@ -16,7 +16,7 @@
 #define KMSG_COMPONENT "setup"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -39,7 +39,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/dma-map-ops.h>
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/pfn.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
@@ -73,7 +73,7 @@
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
 #include <asm/alternative.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/uv.h>
@@ -86,8 +86,8 @@
 unsigned int console_mode = 0;
 EXPORT_SYMBOL(console_mode);
 
-unsigned int console_devno = -1;
-EXPORT_SYMBOL(console_devno);
+unsigned int console_devanal = -1;
+EXPORT_SYMBOL(console_devanal);
 
 unsigned int console_irq = -1;
 EXPORT_SYMBOL(console_irq);
@@ -201,7 +201,7 @@ static int __init condev_setup(char *str)
 
 	vdev = simple_strtoul(str, &str, 0);
 	if (vdev >= 0 && vdev < 65536) {
-		console_devno = vdev;
+		console_devanal = vdev;
 		console_irq = -1;
 	}
 	return 1;
@@ -248,7 +248,7 @@ static void __init conmode_default(void)
 
         if (MACHINE_IS_VM) {
 		cpcmd("QUERY CONSOLE", query_buffer, 1024, NULL);
-		console_devno = simple_strtoul(query_buffer + 5, NULL, 16);
+		console_devanal = simple_strtoul(query_buffer + 5, NULL, 16);
 		ptr = strstr(query_buffer, "SUBCHANNEL =");
 		console_irq = simple_strtoul(ptr + 13, NULL, 16);
 		cpcmd("QUERY TERM", query_buffer, 1024, NULL);
@@ -258,7 +258,7 @@ static void __init conmode_default(void)
 		 * will set the cu_type of the console to 3215. If the
 		 * conmode is 3270 and we don't set it back then both
 		 * 3215 and the 3270 driver will try to access the console
-		 * device (3215 as console and 3270 as normal tty).
+		 * device (3215 as console and 3270 as analrmal tty).
 		 */
 		cpcmd("TERM CONMODE 3215", NULL, 0, NULL);
 		if (ptr == NULL) {
@@ -305,7 +305,7 @@ static void __init setup_zfcpdump(void)
 		return;
 	if (oldmem_data.start)
 		return;
-	strlcat(boot_command_line, " cio_ignore=all,!ipldev,!condev", COMMAND_LINE_SIZE);
+	strlcat(boot_command_line, " cio_iganalre=all,!ipldev,!condev", COMMAND_LINE_SIZE);
 	console_loglevel = 2;
 }
 #else
@@ -363,9 +363,9 @@ unsigned long stack_alloc(void)
 #ifdef CONFIG_VMAP_STACK
 	void *ret;
 
-	ret = __vmalloc_node(THREAD_SIZE, THREAD_SIZE, THREADINFO_GFP,
-			     NUMA_NO_NODE, __builtin_return_address(0));
-	kmemleak_not_leak(ret);
+	ret = __vmalloc_analde(THREAD_SIZE, THREAD_SIZE, THREADINFO_GFP,
+			     NUMA_ANAL_ANALDE, __builtin_return_address(0));
+	kmemleak_analt_leak(ret);
 	return (unsigned long)ret;
 #else
 	return __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
@@ -438,7 +438,7 @@ static void __init setup_lowcore(void)
 	restart_stack = (void *)(stack_alloc_early() + STACK_INIT_OFFSET);
 	lc->mcck_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->async_stack = stack_alloc_early() + STACK_INIT_OFFSET;
-	lc->nodat_stack = stack_alloc_early() + STACK_INIT_OFFSET;
+	lc->analdat_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->kernel_stack = S390_lowcore.kernel_stack;
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
@@ -552,12 +552,12 @@ static void __init setup_resources(void)
 	 * Re-add removed crash kernel memory as reserved memory. This makes
 	 * sure it will be mapped with the identity mapping and struct pages
 	 * will be created, so it can be resized later on.
-	 * However add it later since the crash kernel resource should not be
+	 * However add it later since the crash kernel resource should analt be
 	 * part of the System RAM resource.
 	 */
 	if (crashk_res.end) {
-		memblock_add_node(crashk_res.start, resource_size(&crashk_res),
-				  0, MEMBLOCK_NONE);
+		memblock_add_analde(crashk_res.start, resource_size(&crashk_res),
+				  0, MEMBLOCK_ANALNE);
 		memblock_reserve(crashk_res.start, resource_size(&crashk_res));
 		insert_resource(&iomem_resource, &crashk_res);
 	}
@@ -567,31 +567,31 @@ static void __init setup_resources(void)
 static void __init setup_memory_end(void)
 {
 	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
-	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
+	pr_analtice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
 
 #ifdef CONFIG_CRASH_DUMP
 
 /*
- * When kdump is enabled, we have to ensure that no memory from the area
+ * When kdump is enabled, we have to ensure that anal memory from the area
  * [0 - crashkernel memory size] is set offline - it will be exchanged with
  * the crashkernel memory region when kdump is triggered. The crashkernel
  * memory region can never get offlined (pages are unmovable).
  */
-static int kdump_mem_notifier(struct notifier_block *nb,
+static int kdump_mem_analtifier(struct analtifier_block *nb,
 			      unsigned long action, void *data)
 {
-	struct memory_notify *arg = data;
+	struct memory_analtify *arg = data;
 
 	if (action != MEM_GOING_OFFLINE)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	if (arg->start_pfn < PFN_DOWN(resource_size(&crashk_res)))
-		return NOTIFY_BAD;
-	return NOTIFY_OK;
+		return ANALTIFY_BAD;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block kdump_mem_nb = {
-	.notifier_call = kdump_mem_notifier,
+static struct analtifier_block kdump_mem_nb = {
+	.analtifier_call = kdump_mem_analtifier,
 };
 
 #endif
@@ -655,11 +655,11 @@ static void __init reserve_crashkernel(void)
 
 	if (!crash_base) {
 		pr_info("crashkernel reservation failed: %s\n",
-			"no suitable area found");
+			"anal suitable area found");
 		return;
 	}
 
-	if (register_memory_notifier(&kdump_mem_nb)) {
+	if (register_memory_analtifier(&kdump_mem_nb)) {
 		memblock_phys_free(crash_base, crash_size);
 		return;
 	}
@@ -730,7 +730,7 @@ static void __init memblock_add_physmem_info(void)
 	for_each_physmem_online_range(i, &start, &end)
 		memblock_physmem_add(start, end - start);
 	memblock_set_bottom_up(false);
-	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
+	memblock_set_analde(0, ULONG_MAX, &memblock.memory, 0);
 }
 
 /*
@@ -738,7 +738,7 @@ static void __init memblock_add_physmem_info(void)
  */
 static void __init reserve_kernel(void)
 {
-	memblock_reserve(0, STARTUP_NORMAL_OFFSET);
+	memblock_reserve(0, STARTUP_ANALRMAL_OFFSET);
 	memblock_reserve(OLDMEM_BASE, sizeof(unsigned long));
 	memblock_reserve(OLDMEM_SIZE, sizeof(unsigned long));
 	memblock_reserve(physmem_info.reserved[RR_AMODE31].start, __eamode31 - __samode31);
@@ -815,12 +815,12 @@ static void __init setup_randomness(void)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
 	memblock_free(vmms, PAGE_SIZE);
 
-	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
+	if (cpacf_query_func(CPACF_PRANAL, CPACF_PRANAL_TRNG))
 		static_branch_enable(&s390_arch_random_available);
 }
 
 /*
- * Issue diagnose 318 to set the control program name and
+ * Issue diaganalse 318 to set the control program name and
  * version codes.
  */
 static void __init setup_control_program_code(void)
@@ -861,7 +861,7 @@ static void __init log_component_list(void)
 			else
 				str = "signed, verification failed";
 		} else {
-			str = "not signed";
+			str = "analt signed";
 		}
 		pr_info("%016llx - %016llx (%s)\n",
 			ptr->addr, ptr->addr + ptr->len, str);
@@ -900,7 +900,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_initial_init_mm(_text, _etext, _edata, _end);
 
 	if (IS_ENABLED(CONFIG_EXPOLINE_AUTO))
-		nospec_auto_detect();
+		analspec_auto_detect();
 
 	jump_label_init();
 	parse_early_param();
@@ -966,7 +966,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * After paging_init created the kernel page table, the new PSWs
-	 * in lowcore can now run with DAT enabled.
+	 * in lowcore can analw run with DAT enabled.
 	 */
 #ifdef CONFIG_CRASH_DUMP
 	smp_save_dump_ipl_cpu();
@@ -978,7 +978,7 @@ void __init setup_arch(char **cmdline_p)
 
 	apply_alternative_instructions();
 	if (IS_ENABLED(CONFIG_EXPOLINE))
-		nospec_init_branches();
+		analspec_init_branches();
 
 	/* Setup zfcp/nvme dump support */
 	setup_zfcpdump();

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ltc2485.c - Driver for Linear Technology LTC2485 ADC
+ * ltc2485.c - Driver for Linear Techanallogy LTC2485 ADC
  *
  * Copyright (C) 2016 Alison Schofield <amsfield22@gmail.com>
  *
@@ -27,7 +27,7 @@ static void ltc2485_wait_conv(struct ltc2485_data *data)
 	const unsigned int conv_time = 147;	/* conversion time ms */
 	unsigned int time_elapsed;
 
-	/* delay if conversion time not passed since last read or write */
+	/* delay if conversion time analt passed since last read or write */
 	time_elapsed = ktime_ms_delta(ktime_get(), data->time_prev);
 
 	if (time_elapsed < conv_time)
@@ -98,11 +98,11 @@ static int ltc2485_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_WRITE_BYTE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -139,5 +139,5 @@ static struct i2c_driver ltc2485_driver = {
 module_i2c_driver(ltc2485_driver);
 
 MODULE_AUTHOR("Alison Schofield <amsfield22@gmail.com>");
-MODULE_DESCRIPTION("Linear Technology LTC2485 ADC driver");
+MODULE_DESCRIPTION("Linear Techanallogy LTC2485 ADC driver");
 MODULE_LICENSE("GPL v2");

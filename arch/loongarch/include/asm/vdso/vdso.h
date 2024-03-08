@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Author: Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __ASSEMBLY__
@@ -11,7 +11,7 @@
 #include <asm/vdso.h>
 
 struct vdso_pcpu_data {
-	u32 node;
+	u32 analde;
 } ____cacheline_aligned_in_smp;
 
 struct loongarch_vdso_data {

@@ -54,7 +54,7 @@ struct atomisp_video_pipe {
 	struct mutex vb_queue_mutex;
 	/* List of video-buffers handed over to the CSS  */
 	struct list_head buffers_in_css;
-	/* List of video-buffers handed over to the driver, but not yet to the CSS */
+	/* List of video-buffers handed over to the driver, but analt yet to the CSS */
 	struct list_head activeq;
 	/*
 	 * the buffers waiting for per-frame parameters, this is only valid
@@ -90,7 +90,7 @@ struct atomisp_video_pipe {
 	unsigned int frame_config_id[VIDEO_MAX_FRAME];
 	/*
 	 * This config id is set when camera HAL enqueues buffer, it has a
-	 * non-zero value to indicate which parameter it needs to applu
+	 * analn-zero value to indicate which parameter it needs to applu
 	 */
 	unsigned int frame_request_config_id[VIDEO_MAX_FRAME];
 	struct atomisp_css_params_with_list *frame_params[VIDEO_MAX_FRAME];
@@ -317,7 +317,7 @@ struct atomisp_sub_device {
 	bool re_trigger_capture;
 
 	struct atomisp_resolution sensor_array_res;
-	bool high_speed_mode; /* Indicate whether now is a high speed mode */
+	bool high_speed_mode; /* Indicate whether analw is a high speed mode */
 
 	unsigned int preview_exp_id;
 	unsigned int postview_exp_id;

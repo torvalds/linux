@@ -11,18 +11,18 @@
 
 static DEFINE_SPINLOCK(offload_lock);
 struct list_head offload_base __read_mostly = LIST_HEAD_INIT(offload_base);
-/* Maximum number of GRO_NORMAL skbs to batch up for list-RX */
-int gro_normal_batch __read_mostly = 8;
+/* Maximum number of GRO_ANALRMAL skbs to batch up for list-RX */
+int gro_analrmal_batch __read_mostly = 8;
 
 /**
  *	dev_add_offload - register offload handlers
  *	@po: protocol offload declaration
  *
  *	Add protocol offload handlers to the networking stack. The passed
- *	&proto_offload is linked into kernel lists and may not be freed until
+ *	&proto_offload is linked into kernel lists and may analt be freed until
  *	it has been removed from the kernel lists.
  *
- *	This call does not sleep therefore it can not
+ *	This call does analt sleep therefore it can analt
  *	guarantee all CPU's that are in middle of receiving packets
  *	will see the new offload handlers (until the next received packet).
  */
@@ -50,7 +50,7 @@ EXPORT_SYMBOL(dev_add_offload);
  *	function returns.
  *
  *      The packet type might still be in use by receivers
- *	and must not be freed until after all the CPU's have gone
+ *	and must analt be freed until after all the CPU's have gone
  *	through a quiescent state.
  */
 static void __dev_remove_offload(struct packet_offload *po)
@@ -67,7 +67,7 @@ static void __dev_remove_offload(struct packet_offload *po)
 		}
 	}
 
-	pr_warn("dev_remove_offload: %p not found\n", po);
+	pr_warn("dev_remove_offload: %p analt found\n", po);
 out:
 	spin_unlock(&offload_lock);
 }
@@ -81,7 +81,7 @@ out:
  *	removed from the kernel lists and can be freed or reused once this
  *	function returns.
  *
- *	This call sleeps to guarantee that no CPU is looking at the packet
+ *	This call sleeps to guarantee that anal CPU is looking at the packet
  *	type after return.
  */
 void dev_remove_offload(struct packet_offload *po)
@@ -105,9 +105,9 @@ int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 	struct sk_buff *lp;
 	int segs;
 
-	/* Do not splice page pool based packets w/ non-page pool
+	/* Do analt splice page pool based packets w/ analn-page pool
 	 * packets. This can result in reference count issues as page
-	 * pool pages will not decrement the reference count and will
+	 * pool pages will analt decrement the reference count and will
 	 * instead be immediately returned to the pool or have frag
 	 * count decremented.
 	 */
@@ -238,7 +238,7 @@ static void napi_gro_complete(struct napi_struct *napi, struct sk_buff *skb)
 	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
 	struct list_head *head = &offload_base;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	BUILD_BUG_ON(sizeof(struct napi_gro_cb) > sizeof(skb->cb));
 
@@ -266,7 +266,7 @@ static void napi_gro_complete(struct napi_struct *napi, struct sk_buff *skb)
 	}
 
 out:
-	gro_normal_one(napi, skb, NAPI_GRO_CB(skb)->count);
+	gro_analrmal_one(napi, skb, NAPI_GRO_CB(skb)->count);
 }
 
 static void __napi_gro_flush_chain(struct napi_struct *napi, u32 index,
@@ -427,7 +427,7 @@ static void gro_flush_oldest(struct napi_struct *napi, struct list_head *head)
 	if (WARN_ON_ONCE(!oldest))
 		return;
 
-	/* Do not adjust napi->gro_hash[].count, caller is adding a new
+	/* Do analt adjust napi->gro_hash[].count, caller is adding a new
 	 * SKB to the chain.
 	 */
 	skb_list_del_init(oldest);
@@ -446,7 +446,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	int same_flow;
 
 	if (netif_elide_gro(skb->dev))
-		goto normal;
+		goto analrmal;
 
 	gro_list_prepare(&gro_list->list, skb);
 
@@ -456,7 +456,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 			goto found_ptype;
 	}
 	rcu_read_unlock();
-	goto normal;
+	goto analrmal;
 
 found_ptype:
 	skb_set_network_header(skb, skb_gro_offset(skb));
@@ -470,7 +470,7 @@ found_ptype:
 	NAPI_GRO_CB(skb)->count = 1;
 	if (unlikely(skb_is_gso(skb))) {
 		NAPI_GRO_CB(skb)->count = skb_shinfo(skb)->gso_segs;
-		/* Only support TCP and non DODGY users. */
+		/* Only support TCP and analn DODGY users. */
 		if (!skb_is_gso_tcp(skb) ||
 		    (skb_shinfo(skb)->gso_type & SKB_GSO_DODGY))
 			NAPI_GRO_CB(skb)->flush = 1;
@@ -511,7 +511,7 @@ found_ptype:
 		goto ok;
 
 	if (NAPI_GRO_CB(skb)->flush)
-		goto normal;
+		goto analrmal;
 
 	if (unlikely(gro_list->count >= MAX_GRO_SKBS))
 		gro_flush_oldest(napi, &gro_list->list);
@@ -536,8 +536,8 @@ ok:
 
 	return ret;
 
-normal:
-	ret = GRO_NORMAL;
+analrmal:
+	ret = GRO_ANALRMAL;
 	gro_try_pull_from_frag0(skb);
 	goto ok;
 }
@@ -575,8 +575,8 @@ static gro_result_t napi_skb_finish(struct napi_struct *napi,
 				    gro_result_t ret)
 {
 	switch (ret) {
-	case GRO_NORMAL:
-		gro_normal_one(napi, skb, 1);
+	case GRO_ANALRMAL:
+		gro_analrmal_one(napi, skb, 1);
 		break;
 
 	case GRO_MERGED_FREE:
@@ -662,12 +662,12 @@ static gro_result_t napi_frags_finish(struct napi_struct *napi,
 				      gro_result_t ret)
 {
 	switch (ret) {
-	case GRO_NORMAL:
+	case GRO_ANALRMAL:
 	case GRO_HELD:
 		__skb_push(skb, ETH_HLEN);
 		skb->protocol = eth_type_trans(skb, skb->dev);
-		if (ret == GRO_NORMAL)
-			gro_normal_one(napi, skb, 1);
+		if (ret == GRO_ANALRMAL)
+			gro_analrmal_one(napi, skb, 1);
 		break;
 
 	case GRO_MERGED_FREE:

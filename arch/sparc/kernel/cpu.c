@@ -42,13 +42,13 @@ struct fpu_info {
 	const char *name;
 };
 
-#define NOCPU 8
-#define NOFPU 8
+#define ANALCPU 8
+#define ANALFPU 8
 
 struct manufacturer_info {
 	int psr_impl;
-	struct cpu_info cpu_info[NOCPU];
-	struct fpu_info fpu_info[NOFPU];
+	struct cpu_info cpu_info[ANALCPU];
+	struct fpu_info fpu_info[ANALFPU];
 };
 
 #define CPU(ver, _name) \
@@ -90,7 +90,7 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 		CPU(1, "Cypress/ROSS CY7C601"),
 		/* Embedded controller */
 		CPU(3, "Cypress/ROSS CY7C611"),
-		/* Ross Technologies HyperSparc */
+		/* Ross Techanallogies HyperSparc */
 		CPU(0xf, "ROSS HyperSparc RT620"),
 		CPU(0xe, "ROSS HyperSparc RT625 or RT626"),
 		CPU(-1, NULL)
@@ -107,7 +107,7 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 	.cpu_info = {
 		/* ECL Implementation, CRAY S-MP Supercomputer... AIEEE! */
 		/* Someone please write the code to support this beast! ;) */
-		CPU(0, "Bipolar Integrated Technology - B5010"),
+		CPU(0, "Bipolar Integrated Techanallogy - B5010"),
 		CPU(-1, NULL)
 	},
 	.fpu_info = {
@@ -116,7 +116,7 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 },{
 	3,
 	.cpu_info = {
-		CPU(0, "LSI Logic Corporation - unknown-type"),
+		CPU(0, "LSI Logic Corporation - unkanalwn-type"),
 		CPU(-1, NULL)
 	},
 	.fpu_info = {
@@ -131,7 +131,7 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 		CPU(2, "Texas Instruments, Inc. - MicroSparc II"),
 		CPU(3, "Texas Instruments, Inc. - SuperSparc 51"),
 		CPU(4, "Texas Instruments, Inc. - SuperSparc 61"),
-		CPU(5, "Texas Instruments, Inc. - unknown"),
+		CPU(5, "Texas Instruments, Inc. - unkanalwn"),
 		CPU(-1, NULL)
 	},
 	.fpu_info = {
@@ -154,7 +154,7 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 },{
 	6,
 	.cpu_info = {
-		CPU(0, "Philips Corporation - unknown"),
+		CPU(0, "Philips Corporation - unkanalwn"),
 		CPU(-1, NULL)
 	},
 	.fpu_info = {
@@ -163,7 +163,7 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 },{
 	7,
 	.cpu_info = {
-		CPU(0, "Harvest VLSI Design Center, Inc. - unknown"),
+		CPU(0, "Harvest VLSI Design Center, Inc. - unkanalwn"),
 		CPU(-1, NULL)
 	},
 	.fpu_info = {
@@ -234,10 +234,10 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 	.cpu_info = {
 		CPU_PMU(0x14, "TI UltraSparc III (Cheetah)", "ultra3"),
 		CPU_PMU(0x15, "TI UltraSparc III+ (Cheetah+)", "ultra3+"),
-		CPU_PMU(0x16, "TI UltraSparc IIIi (Jalapeno)", "ultra3i"),
+		CPU_PMU(0x16, "TI UltraSparc IIIi (Jalapeanal)", "ultra3i"),
 		CPU_PMU(0x18, "TI UltraSparc IV (Jaguar)", "ultra3+"),
 		CPU_PMU(0x19, "TI UltraSparc IV+ (Panther)", "ultra4+"),
-		CPU_PMU(0x22, "TI UltraSparc IIIi+ (Serrano)", "ultra3i"),
+		CPU_PMU(0x22, "TI UltraSparc IIIi+ (Serraanal)", "ultra3i"),
 		CPU(-1, NULL)
 	},
 	.fpu_info = {
@@ -288,7 +288,7 @@ static void __init set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
 			if (cpu->psr_vers == psr_vers) {
 				sparc_cpu_type = cpu->name;
 				sparc_pmu_type = cpu->pmu_name;
-				sparc_fpu_type = "No FPU";
+				sparc_fpu_type = "Anal FPU";
 				break;
 			}
 			cpu++;
@@ -305,18 +305,18 @@ static void __init set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
 	}
 	if (sparc_cpu_type == NULL)
 	{
-		printk(KERN_ERR "CPU: Unknown chip, impl[0x%x] vers[0x%x]\n",
+		printk(KERN_ERR "CPU: Unkanalwn chip, impl[0x%x] vers[0x%x]\n",
 		       psr_impl, psr_vers);
-		sparc_cpu_type = "Unknown CPU";
+		sparc_cpu_type = "Unkanalwn CPU";
 	}
 	if (sparc_fpu_type == NULL)
 	{
-		printk(KERN_ERR "FPU: Unknown chip, impl[0x%x] vers[0x%x]\n",
+		printk(KERN_ERR "FPU: Unkanalwn chip, impl[0x%x] vers[0x%x]\n",
 		       psr_impl, fpu_vers);
-		sparc_fpu_type = "Unknown FPU";
+		sparc_fpu_type = "Unkanalwn FPU";
 	}
 	if (sparc_pmu_type == NULL)
-		sparc_pmu_type = "Unknown PMU";
+		sparc_pmu_type = "Unkanalwn PMU";
 }
 
 #ifdef CONFIG_SPARC32
@@ -413,7 +413,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	/* The pointer we are returning is arbitrary,
-	 * it just has to be non-NULL and not IS_ERR
+	 * it just has to be analn-NULL and analt IS_ERR
 	 * in the success case.
 	 */
 	return *pos == 0 ? &c_start : NULL;
@@ -526,11 +526,11 @@ static void __init sun4v_cpu_probe(void)
 		break;
 
 	default:
-		printk(KERN_WARNING "CPU: Unknown sun4v cpu type [%s]\n",
+		printk(KERN_WARNING "CPU: Unkanalwn sun4v cpu type [%s]\n",
 		       prom_cpu_compatible);
-		sparc_cpu_type = "Unknown SUN4V CPU";
-		sparc_fpu_type = "Unknown SUN4V FPU";
-		sparc_pmu_type = "Unknown SUN4V PMU";
+		sparc_cpu_type = "Unkanalwn SUN4V CPU";
+		sparc_fpu_type = "Unkanalwn SUN4V FPU";
+		sparc_pmu_type = "Unkanalwn SUN4V PMU";
 		break;
 	}
 }

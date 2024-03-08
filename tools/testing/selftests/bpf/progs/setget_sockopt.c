@@ -33,9 +33,9 @@ struct sockopt_test {
 	unsigned int flip:1;
 };
 
-static const char not_exist_cc[] = "not_exist";
+static const char analt_exist_cc[] = "analt_exist";
 static const char cubic_cc[] = "cubic";
-static const char reno_cc[] = "reno";
+static const char reanal_cc[] = "reanal";
 
 static const struct sockopt_test sol_socket_tests[] = {
 	{ .opt = SO_REUSEADDR, .flip = 1, },
@@ -52,7 +52,7 @@ static const struct sockopt_test sol_socket_tests[] = {
 };
 
 static const struct sockopt_test sol_tcp_tests[] = {
-	{ .opt = TCP_NODELAY, .flip = 1, },
+	{ .opt = TCP_ANALDELAY, .flip = 1, },
 	{ .opt = TCP_KEEPIDLE, .new = 123, .expected = 123, .restore = 321, },
 	{ .opt = TCP_KEEPINTVL, .new = 123, .expected = 123, .restore = 321, },
 	{ .opt = TCP_KEEPCNT, .new = 123, .expected = 123, .restore = 124, },
@@ -61,7 +61,7 @@ static const struct sockopt_test sol_tcp_tests[] = {
 	{ .opt = TCP_CONGESTION, },
 	{ .opt = TCP_THIN_LINEAR_TIMEOUTS, .flip = 1, },
 	{ .opt = TCP_USER_TIMEOUT, .new = 123400, .expected = 123400, },
-	{ .opt = TCP_NOTSENT_LOWAT, .new = 1314, .expected = 1314, },
+	{ .opt = TCP_ANALTSENT_LOWAT, .new = 1314, .expected = 1314, },
 	{ .opt = 0, },
 };
 
@@ -212,13 +212,13 @@ static int bpf_test_tcp_sockopt(__u32 i, struct loop_ctx *lc)
 		int new_cc_len;
 
 		if (!bpf_setsockopt(ctx, IPPROTO_TCP, TCP_CONGESTION,
-				    (void *)not_exist_cc, sizeof(not_exist_cc)))
+				    (void *)analt_exist_cc, sizeof(analt_exist_cc)))
 			return 1;
 		if (bpf_getsockopt(ctx, IPPROTO_TCP, TCP_CONGESTION, old_cc, sizeof(old_cc)))
 			return 1;
 		if (!bpf_strncmp(old_cc, sizeof(old_cc), cubic_cc)) {
-			new_cc = reno_cc;
-			new_cc_len = sizeof(reno_cc);
+			new_cc = reanal_cc;
+			new_cc_len = sizeof(reanal_cc);
 		} else {
 			new_cc = cubic_cc;
 			new_cc_len = sizeof(cubic_cc);

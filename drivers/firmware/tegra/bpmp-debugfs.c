@@ -301,8 +301,8 @@ out:
 static int bpmp_debug_show(struct seq_file *m, void *p)
 {
 	struct file *file = m->private;
-	struct inode *inode = file_inode(file);
-	struct tegra_bpmp *bpmp = inode->i_private;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct tegra_bpmp *bpmp = ianalde->i_private;
 	char fnamebuf[256];
 	const char *filename;
 	struct mrq_debug_request req = {
@@ -325,7 +325,7 @@ static int bpmp_debug_show(struct seq_file *m, void *p)
 
 	filename = get_filename(bpmp, file, fnamebuf, sizeof(fnamebuf));
 	if (!filename)
-		return -ENOENT;
+		return -EANALENT;
 
 	mutex_lock(&bpmp_debug_lock);
 	err = mrq_debug_open(bpmp, filename, &fd, &len, 0);
@@ -366,8 +366,8 @@ out:
 static ssize_t bpmp_debug_store(struct file *file, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
-	struct inode *inode = file_inode(file);
-	struct tegra_bpmp *bpmp = inode->i_private;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct tegra_bpmp *bpmp = ianalde->i_private;
 	char *databuf = NULL;
 	char fnamebuf[256];
 	const char *filename;
@@ -375,7 +375,7 @@ static ssize_t bpmp_debug_store(struct file *file, const char __user *buf,
 
 	filename = get_filename(bpmp, file, fnamebuf, sizeof(fnamebuf));
 	if (!filename)
-		return -ENOENT;
+		return -EANALENT;
 
 	databuf = memdup_user(buf, count);
 	if (IS_ERR(databuf))
@@ -387,7 +387,7 @@ static ssize_t bpmp_debug_store(struct file *file, const char __user *buf,
 	return err ?: count;
 }
 
-static int bpmp_debug_open(struct inode *inode, struct file *file)
+static int bpmp_debug_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open_size(file, bpmp_debug_show, file, SZ_256K);
 }
@@ -418,12 +418,12 @@ static int bpmp_populate_debugfs_inband(struct tegra_bpmp *bpmp,
 
 	buf = kmalloc(bufsize, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pathbuf = kzalloc(pathlen, GFP_KERNEL);
 	if (!pathbuf) {
 		kfree(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = mrq_debug_read(bpmp, ppath, buf, bufsize, &dsize);
@@ -468,7 +468,7 @@ static int bpmp_populate_debugfs_inband(struct tegra_bpmp *bpmp,
 			dentry = debugfs_create_file(name, mode, parent, bpmp,
 						     &bpmp_debug_fops);
 			if (IS_ERR(dentry)) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto out;
 			}
 		}
@@ -582,8 +582,8 @@ static int mrq_debugfs_dumpdir(struct tegra_bpmp *bpmp, dma_addr_t addr,
 static int debugfs_show(struct seq_file *m, void *p)
 {
 	struct file *file = m->private;
-	struct inode *inode = file_inode(file);
-	struct tegra_bpmp *bpmp = inode->i_private;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct tegra_bpmp *bpmp = ianalde->i_private;
 	const size_t datasize = m->size;
 	const size_t namesize = SZ_256;
 	void *datavirt, *namevirt;
@@ -595,17 +595,17 @@ static int debugfs_show(struct seq_file *m, void *p)
 
 	filename = get_filename(bpmp, file, buf, sizeof(buf));
 	if (!filename)
-		return -ENOENT;
+		return -EANALENT;
 
 	namevirt = dma_alloc_coherent(bpmp->dev, namesize, &namephys,
 				      GFP_KERNEL | GFP_DMA32);
 	if (!namevirt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	datavirt = dma_alloc_coherent(bpmp->dev, datasize, &dataphys,
 				      GFP_KERNEL | GFP_DMA32);
 	if (!datavirt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_namebuf;
 	}
 
@@ -625,7 +625,7 @@ free_namebuf:
 	return err;
 }
 
-static int debugfs_open(struct inode *inode, struct file *file)
+static int debugfs_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open_size(file, debugfs_show, file, SZ_128K);
 }
@@ -633,8 +633,8 @@ static int debugfs_open(struct inode *inode, struct file *file)
 static ssize_t debugfs_store(struct file *file, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
-	struct inode *inode = file_inode(file);
-	struct tegra_bpmp *bpmp = inode->i_private;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct tegra_bpmp *bpmp = ianalde->i_private;
 	const size_t datasize = count;
 	const size_t namesize = SZ_256;
 	void *datavirt, *namevirt;
@@ -646,17 +646,17 @@ static ssize_t debugfs_store(struct file *file, const char __user *buf,
 
 	filename = get_filename(bpmp, file, fnamebuf, sizeof(fnamebuf));
 	if (!filename)
-		return -ENOENT;
+		return -EANALENT;
 
 	namevirt = dma_alloc_coherent(bpmp->dev, namesize, &namephys,
 				      GFP_KERNEL | GFP_DMA32);
 	if (!namevirt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	datavirt = dma_alloc_coherent(bpmp->dev, datasize, &dataphys,
 				      GFP_KERNEL | GFP_DMA32);
 	if (!datavirt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_namebuf;
 	}
 
@@ -719,7 +719,7 @@ static int bpmp_populate_dir(struct tegra_bpmp *bpmp, struct seqbuf *seqbuf,
 		if (t & DEBUGFS_S_ISDIR) {
 			dentry = debugfs_create_dir(name, parent);
 			if (IS_ERR(dentry))
-				return -ENOMEM;
+				return -EANALMEM;
 			err = bpmp_populate_dir(bpmp, seqbuf, dentry, depth+1);
 			if (err < 0)
 				return err;
@@ -732,7 +732,7 @@ static int bpmp_populate_dir(struct tegra_bpmp *bpmp, struct seqbuf *seqbuf,
 						     parent, bpmp,
 						     &debugfs_fops);
 			if (IS_ERR(dentry))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
@@ -751,7 +751,7 @@ static int bpmp_populate_debugfs_shmem(struct tegra_bpmp *bpmp)
 	virt = dma_alloc_coherent(bpmp->dev, sz, &phys,
 				  GFP_KERNEL | GFP_DMA32);
 	if (!virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mrq_debugfs_dumpdir(bpmp, phys, sz, &nbytes);
 	if (err < 0) {
@@ -782,11 +782,11 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 
 	root = debugfs_create_dir("bpmp", NULL);
 	if (IS_ERR(root))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpmp->debugfs_mirror = debugfs_create_dir("debug", root);
 	if (IS_ERR(bpmp->debugfs_mirror)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

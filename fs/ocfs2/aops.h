@@ -8,13 +8,13 @@
 
 #include <linux/fs.h>
 
-handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
+handle_t *ocfs2_start_walk_page_trans(struct ianalde *ianalde,
 							 struct page *page,
 							 unsigned from,
 							 unsigned to);
 
-int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
-			  struct inode *inode, unsigned int from,
+int ocfs2_map_page_blocks(struct page *page, u64 *p_blkanal,
+			  struct ianalde *ianalde, unsigned int from,
 			  unsigned int to, int new);
 
 void ocfs2_unlock_and_free_pages(struct page **pages, int num_pages);
@@ -27,7 +27,7 @@ int walk_page_buffers(	handle_t *handle,
 			int (*fn)(	handle_t *handle,
 					struct buffer_head *bh));
 
-int ocfs2_write_end_nolock(struct address_space *mapping,
+int ocfs2_write_end_anallock(struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied, void *fsdata);
 
 typedef enum {
@@ -36,16 +36,16 @@ typedef enum {
 	OCFS2_WRITE_MMAP,
 } ocfs2_write_type_t;
 
-int ocfs2_write_begin_nolock(struct address_space *mapping,
+int ocfs2_write_begin_anallock(struct address_space *mapping,
 			     loff_t pos, unsigned len, ocfs2_write_type_t type,
 			     struct page **pagep, void **fsdata,
 			     struct buffer_head *di_bh, struct page *mmap_page);
 
-int ocfs2_read_inline_data(struct inode *inode, struct page *page,
+int ocfs2_read_inline_data(struct ianalde *ianalde, struct page *page,
 			   struct buffer_head *di_bh);
 int ocfs2_size_fits_inline_data(struct buffer_head *di_bh, u64 new_size);
 
-int ocfs2_get_block(struct inode *inode, sector_t iblock,
+int ocfs2_get_block(struct ianalde *ianalde, sector_t iblock,
 		    struct buffer_head *bh_result, int create);
 /* all ocfs2_dio_end_io()'s fault */
 #define ocfs2_iocb_is_rw_locked(iocb) \

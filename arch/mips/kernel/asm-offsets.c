@@ -7,7 +7,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  *
  * Kevin Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.
  */
 #include <linux/compat.h>
 #include <linux/types.h>
@@ -132,7 +132,7 @@ void output_thread_defines(void)
 	       thread.cp0_baduaddr);
 	OFFSET(THREAD_ECODE, task_struct, \
 	       thread.error_code);
-	OFFSET(THREAD_TRAPNO, task_struct, thread.trap_nr);
+	OFFSET(THREAD_TRAPANAL, task_struct, thread.trap_nr);
 	BLANK();
 }
 

@@ -98,9 +98,9 @@ nf_tproxy_get_sock_v4(struct net *net, struct sk_buff *skb,
 						  saddr, sport, daddr, dport,
 						  in->ifindex, 0);
 
-			if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
+			if (sk && !refcount_inc_analt_zero(&sk->sk_refcnt))
 				sk = NULL;
-			/* NOTE: we return listeners even if bound to
+			/* ANALTE: we return listeners even if bound to
 			 * 0.0.0.0, those are filtered out in
 			 * xt_socket, since xt_TPROXY needs 0 bound
 			 * listeners too
@@ -122,7 +122,7 @@ nf_tproxy_get_sock_v4(struct net *net, struct sk_buff *skb,
 			int connected = (sk->sk_state == TCP_ESTABLISHED);
 			int wildcard = (inet_sk(sk)->inet_rcv_saddr == 0);
 
-			/* NOTE: we return listeners even if bound to
+			/* ANALTE: we return listeners even if bound to
 			 * 0.0.0.0, those are filtered out in
 			 * xt_socket, since xt_TPROXY needs 0 bound
 			 * listeners too

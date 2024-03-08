@@ -65,7 +65,7 @@ static int cn10k_ecb_aes_encrypt(struct otx2_nic *pfvf, u8 *sak,
 	req = skcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
 		dev_err(pfvf->dev, "failed to allocate request for skcipher\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_tfm;
 	}
 
@@ -132,10 +132,10 @@ static const char *rsrc_name(enum mcs_rsrc_type rsrc_type)
 	case MCS_RSRC_TYPE_SA:
 		return "SA";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	};
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static int cn10k_mcs_alloc_rsrc(struct otx2_nic *pfvf, enum mcs_direction dir,
@@ -144,7 +144,7 @@ static int cn10k_mcs_alloc_rsrc(struct otx2_nic *pfvf, enum mcs_direction dir,
 	struct mbox *mbox = &pfvf->mbox;
 	struct mcs_alloc_rsrc_req *req;
 	struct mcs_alloc_rsrc_rsp *rsp;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	mutex_lock(&mbox->lock);
 
@@ -269,7 +269,7 @@ static int cn10k_mcs_write_rx_secy(struct otx2_nic *pfvf,
 
 	req = otx2_mbox_alloc_msg_mcs_secy_plcy_write(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -322,7 +322,7 @@ static int cn10k_mcs_write_rx_flowid(struct otx2_nic *pfvf,
 
 	req = otx2_mbox_alloc_msg_mcs_flowid_entry_write(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -366,7 +366,7 @@ static int cn10k_mcs_write_sc_cam(struct otx2_nic *pfvf,
 
 	sc_req = otx2_mbox_alloc_msg_mcs_rx_sc_cam_write(mbox);
 	if (!sc_req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -434,14 +434,14 @@ static int cn10k_mcs_write_rx_sa_plcy(struct otx2_nic *pfvf,
 
 	plcy_req = otx2_mbox_alloc_msg_mcs_sa_plcy_write(mbox);
 	if (!plcy_req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	map_req = otx2_mbox_alloc_msg_mcs_rx_sc_sa_map_write(mbox);
 	if (!map_req) {
 		otx2_mbox_reset(&mbox->mbox, 0);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -479,7 +479,7 @@ static int cn10k_mcs_write_rx_sa_pn(struct otx2_nic *pfvf,
 
 	req = otx2_mbox_alloc_msg_mcs_pn_table_write(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -517,7 +517,7 @@ static int cn10k_mcs_write_tx_secy(struct otx2_nic *pfvf,
 
 	req = otx2_mbox_alloc_msg_mcs_secy_plcy_write(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -558,8 +558,8 @@ static int cn10k_mcs_write_tx_secy(struct otx2_nic *pfvf,
 	if (secy->protect_frames)
 		policy |= MCS_TX_SECY_PLCY_PROTECT;
 
-	/* If the encodingsa does not exist/active and protect is
-	 * not set then frames can be sent out as it is. Hence enable
+	/* If the encodingsa does analt exist/active and protect is
+	 * analt set then frames can be sent out as it is. Hence enable
 	 * the policy irrespective of secy operational when !protect.
 	 */
 	if (!secy->protect_frames || secy->operational)
@@ -589,7 +589,7 @@ static int cn10k_mcs_write_tx_flowid(struct otx2_nic *pfvf,
 
 	req = otx2_mbox_alloc_msg_mcs_flowid_entry_write(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -640,7 +640,7 @@ static int cn10k_mcs_link_tx_sa2sc(struct otx2_nic *pfvf,
 	map_req = otx2_mbox_alloc_msg_mcs_tx_sc_sa_map_write(mbox);
 	if (!map_req) {
 		otx2_mbox_reset(&mbox->mbox, 0);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -671,7 +671,7 @@ static int cn10k_mcs_write_tx_sa_plcy(struct otx2_nic *pfvf,
 
 	plcy_req = otx2_mbox_alloc_msg_mcs_sa_plcy_write(mbox);
 	if (!plcy_req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -704,7 +704,7 @@ static int cn10k_write_tx_sa_pn(struct otx2_nic *pfvf,
 
 	req = otx2_mbox_alloc_msg_mcs_pn_table_write(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -730,7 +730,7 @@ static int cn10k_mcs_ena_dis_flowid(struct otx2_nic *pfvf, u16 hw_flow_id,
 
 	req = otx2_mbox_alloc_msg_mcs_flowid_ena_entry(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -759,7 +759,7 @@ static int cn10k_mcs_sa_stats(struct otx2_nic *pfvf, u8 hw_sa_id,
 
 	req = otx2_mbox_alloc_msg_mcs_get_sa_stats(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -771,7 +771,7 @@ static int cn10k_mcs_sa_stats(struct otx2_nic *pfvf, u8 hw_sa_id,
 
 	clear_req = otx2_mbox_alloc_msg_mcs_clear_stats(mbox);
 	if (!clear_req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 	clear_req->id = hw_sa_id;
@@ -814,7 +814,7 @@ static int cn10k_mcs_sc_stats(struct otx2_nic *pfvf, u8 hw_sc_id,
 
 	req = otx2_mbox_alloc_msg_mcs_get_sc_stats(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -826,7 +826,7 @@ static int cn10k_mcs_sc_stats(struct otx2_nic *pfvf, u8 hw_sc_id,
 
 	clear_req = otx2_mbox_alloc_msg_mcs_clear_stats(mbox);
 	if (!clear_req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 	clear_req->id = hw_sc_id;
@@ -869,7 +869,7 @@ static int cn10k_mcs_secy_stats(struct otx2_nic *pfvf, u8 hw_secy_id,
 
 	req = otx2_mbox_alloc_msg_mcs_get_secy_stats(mbox);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -881,7 +881,7 @@ static int cn10k_mcs_secy_stats(struct otx2_nic *pfvf, u8 hw_secy_id,
 
 	clear_req = otx2_mbox_alloc_msg_mcs_clear_stats(mbox);
 	if (!clear_req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 	clear_req->id = hw_secy_id;
@@ -917,7 +917,7 @@ static struct cn10k_mcs_txsc *cn10k_mcs_create_txsc(struct otx2_nic *pfvf)
 
 	txsc = kzalloc(sizeof(*txsc), GFP_KERNEL);
 	if (!txsc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = cn10k_mcs_alloc_rsrc(pfvf, MCS_TX, MCS_RSRC_TYPE_FLOWID,
 				   &txsc->hw_flow_id);
@@ -990,7 +990,7 @@ static struct cn10k_mcs_rxsc *cn10k_mcs_create_rxsc(struct otx2_nic *pfvf)
 
 	rxsc = kzalloc(sizeof(*rxsc), GFP_KERNEL);
 	if (!rxsc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = cn10k_mcs_alloc_rsrc(pfvf, MCS_RX, MCS_RSRC_TYPE_FLOWID,
 				   &rxsc->hw_flow_id);
@@ -1138,10 +1138,10 @@ static void cn10k_mcs_sync_stats(struct otx2_nic *pfvf, struct macsec_secy *secy
 	cn10k_mcs_secy_stats(pfvf, txsc->hw_secy_id_rx, &rx_rsp, MCS_RX, true);
 
 	txsc->stats.InPktsBadTag += rx_rsp.pkt_badtag_cnt;
-	txsc->stats.InPktsUnknownSCI += rx_rsp.pkt_nosa_cnt;
-	txsc->stats.InPktsNoSCI += rx_rsp.pkt_nosaerror_cnt;
+	txsc->stats.InPktsUnkanalwnSCI += rx_rsp.pkt_analsa_cnt;
+	txsc->stats.InPktsAnalSCI += rx_rsp.pkt_analsaerror_cnt;
 	if (txsc->last_validate_frames == MACSEC_VALIDATE_STRICT)
-		txsc->stats.InPktsNoTag += rx_rsp.pkt_untaged_cnt;
+		txsc->stats.InPktsAnalTag += rx_rsp.pkt_untaged_cnt;
 	else
 		txsc->stats.InPktsUntagged += rx_rsp.pkt_untaged_cnt;
 
@@ -1152,7 +1152,7 @@ static void cn10k_mcs_sync_stats(struct otx2_nic *pfvf, struct macsec_secy *secy
 		rxsc->stats.InOctetsDecrypted += sc_rsp.octet_decrypt_cnt;
 
 		rxsc->stats.InPktsInvalid += sc_rsp.pkt_invalid_cnt;
-		rxsc->stats.InPktsNotValid += sc_rsp.pkt_notvalid_cnt;
+		rxsc->stats.InPktsAnaltValid += sc_rsp.pkt_analtvalid_cnt;
 
 		if (txsc->last_replay_protect)
 			rxsc->stats.InPktsLate += sc_rsp.pkt_late_cnt;
@@ -1181,7 +1181,7 @@ static int cn10k_mdo_open(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, ctx->secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	sa_num = txsc->encoding_sa;
 	sw_tx_sa = rcu_dereference_bh(secy->tx_sc.sa[sa_num]);
@@ -1202,7 +1202,7 @@ static int cn10k_mdo_stop(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, ctx->secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = cn10k_mcs_ena_dis_flowid(pfvf, txsc->hw_flow_id, false, MCS_TX);
 	if (err)
@@ -1219,11 +1219,11 @@ static int cn10k_mdo_add_secy(struct macsec_context *ctx)
 	struct cn10k_mcs_txsc *txsc;
 
 	if (secy->icv_len != MACSEC_DEFAULT_ICV_LEN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	txsc = cn10k_mcs_create_txsc(pfvf);
 	if (IS_ERR(txsc))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	txsc->sw_secy = secy;
 	txsc->encoding_sa = secy->tx_sc.encoding_sa;
@@ -1252,7 +1252,7 @@ static int cn10k_mdo_upd_secy(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Encoding SA got changed */
 	if (txsc->encoding_sa != secy->tx_sc.encoding_sa) {
@@ -1282,7 +1282,7 @@ static int cn10k_mdo_del_secy(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, ctx->secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	cn10k_mcs_ena_dis_flowid(pfvf, txsc->hw_flow_id, false, MCS_TX);
 	cn10k_mcs_disable_rxscs(pfvf, ctx->secy, true);
@@ -1305,13 +1305,13 @@ static int cn10k_mdo_add_txsa(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sa_num >= CN10K_MCS_SA_PER_SC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cn10k_mcs_alloc_txsa(pfvf, &txsc->hw_sa_id[sa_num]))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memcpy(&txsc->sa_key[sa_num], ctx->sa.key, secy->key_len);
 	memcpy(&txsc->salt[sa_num], sw_tx_sa->key.salt.bytes, MACSEC_SALT_LEN);
@@ -1350,13 +1350,13 @@ static int cn10k_mdo_upd_txsa(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sa_num >= CN10K_MCS_SA_PER_SC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (netif_running(secy->netdev)) {
-		/* Keys cannot be changed after creation */
+		/* Keys cananalt be changed after creation */
 		if (ctx->sa.update_pn) {
 			err = cn10k_write_tx_sa_pn(pfvf, txsc, sa_num,
 						   sw_tx_sa->next_pn);
@@ -1382,10 +1382,10 @@ static int cn10k_mdo_del_txsa(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, ctx->secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sa_num >= CN10K_MCS_SA_PER_SC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cn10k_mcs_free_txsa(pfvf, txsc->hw_sa_id[sa_num]);
 	txsc->sa_bmap &= ~(1 << sa_num);
@@ -1404,11 +1404,11 @@ static int cn10k_mdo_add_rxsc(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	rxsc = cn10k_mcs_create_rxsc(pfvf);
 	if (IS_ERR(rxsc))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	rxsc->sw_secy = ctx->secy;
 	rxsc->sw_rxsc = ctx->rx_sc;
@@ -1437,7 +1437,7 @@ static int cn10k_mdo_upd_rxsc(struct macsec_context *ctx)
 
 	rxsc = cn10k_mcs_get_rxsc(cfg, secy, ctx->rx_sc);
 	if (!rxsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (netif_running(secy->netdev))
 		return cn10k_mcs_ena_dis_flowid(pfvf, rxsc->hw_flow_id,
@@ -1454,7 +1454,7 @@ static int cn10k_mdo_del_rxsc(struct macsec_context *ctx)
 
 	rxsc = cn10k_mcs_get_rxsc(cfg, ctx->secy, ctx->rx_sc);
 	if (!rxsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	cn10k_mcs_ena_dis_flowid(pfvf, rxsc->hw_flow_id, false, MCS_RX);
 	cn10k_mcs_delete_rxsc(pfvf, rxsc);
@@ -1478,13 +1478,13 @@ static int cn10k_mdo_add_rxsa(struct macsec_context *ctx)
 
 	rxsc = cn10k_mcs_get_rxsc(cfg, secy, sw_rx_sc);
 	if (!rxsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sa_num >= CN10K_MCS_SA_PER_SC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cn10k_mcs_alloc_rxsa(pfvf, &rxsc->hw_sa_id[sa_num]))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memcpy(&rxsc->sa_key[sa_num], ctx->sa.key, ctx->secy->key_len);
 	memcpy(&rxsc->salt[sa_num], rx_sa->key.salt.bytes, MACSEC_SALT_LEN);
@@ -1521,10 +1521,10 @@ static int cn10k_mdo_upd_rxsa(struct macsec_context *ctx)
 
 	rxsc = cn10k_mcs_get_rxsc(cfg, secy, sw_rx_sc);
 	if (!rxsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sa_num >= CN10K_MCS_SA_PER_SC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (netif_running(secy->netdev)) {
 		err = cn10k_mcs_write_rx_sa_plcy(pfvf, secy, rxsc, sa_num, sa_in_use);
@@ -1553,10 +1553,10 @@ static int cn10k_mdo_del_rxsa(struct macsec_context *ctx)
 
 	rxsc = cn10k_mcs_get_rxsc(cfg, ctx->secy, sw_rx_sc);
 	if (!rxsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sa_num >= CN10K_MCS_SA_PER_SC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cn10k_mcs_write_rx_sa_plcy(pfvf, ctx->secy, rxsc, sa_num, false);
 	cn10k_mcs_free_rxsa(pfvf, rxsc->hw_sa_id[sa_num]);
@@ -1576,7 +1576,7 @@ static int cn10k_mdo_get_dev_stats(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, ctx->secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	cn10k_mcs_secy_stats(pfvf, txsc->hw_secy_id_tx, &tx_rsp, MCS_TX, false);
 	ctx->stats.dev_stats->OutPktsUntagged = tx_rsp.pkt_untagged_cnt;
@@ -1584,19 +1584,19 @@ static int cn10k_mdo_get_dev_stats(struct macsec_context *ctx)
 
 	cn10k_mcs_secy_stats(pfvf, txsc->hw_secy_id_rx, &rx_rsp, MCS_RX, true);
 	txsc->stats.InPktsBadTag += rx_rsp.pkt_badtag_cnt;
-	txsc->stats.InPktsUnknownSCI += rx_rsp.pkt_nosa_cnt;
-	txsc->stats.InPktsNoSCI += rx_rsp.pkt_nosaerror_cnt;
+	txsc->stats.InPktsUnkanalwnSCI += rx_rsp.pkt_analsa_cnt;
+	txsc->stats.InPktsAnalSCI += rx_rsp.pkt_analsaerror_cnt;
 	if (secy->validate_frames == MACSEC_VALIDATE_STRICT)
-		txsc->stats.InPktsNoTag += rx_rsp.pkt_untaged_cnt;
+		txsc->stats.InPktsAnalTag += rx_rsp.pkt_untaged_cnt;
 	else
 		txsc->stats.InPktsUntagged += rx_rsp.pkt_untaged_cnt;
 	txsc->stats.InPktsOverrun = 0;
 
-	ctx->stats.dev_stats->InPktsNoTag = txsc->stats.InPktsNoTag;
+	ctx->stats.dev_stats->InPktsAnalTag = txsc->stats.InPktsAnalTag;
 	ctx->stats.dev_stats->InPktsUntagged = txsc->stats.InPktsUntagged;
 	ctx->stats.dev_stats->InPktsBadTag = txsc->stats.InPktsBadTag;
-	ctx->stats.dev_stats->InPktsUnknownSCI = txsc->stats.InPktsUnknownSCI;
-	ctx->stats.dev_stats->InPktsNoSCI = txsc->stats.InPktsNoSCI;
+	ctx->stats.dev_stats->InPktsUnkanalwnSCI = txsc->stats.InPktsUnkanalwnSCI;
+	ctx->stats.dev_stats->InPktsAnalSCI = txsc->stats.InPktsAnalSCI;
 	ctx->stats.dev_stats->InPktsOverrun = txsc->stats.InPktsOverrun;
 
 	return 0;
@@ -1611,7 +1611,7 @@ static int cn10k_mdo_get_tx_sc_stats(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, ctx->secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	cn10k_mcs_sc_stats(pfvf, txsc->hw_sc_id, &rsp, MCS_TX, false);
 
@@ -1633,10 +1633,10 @@ static int cn10k_mdo_get_tx_sa_stats(struct macsec_context *ctx)
 
 	txsc = cn10k_mcs_get_txsc(cfg, ctx->secy);
 	if (!txsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sa_num >= CN10K_MCS_SA_PER_SC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cn10k_mcs_sa_stats(pfvf, txsc->hw_sa_id[sa_num], &rsp, MCS_TX, false);
 
@@ -1656,7 +1656,7 @@ static int cn10k_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 
 	rxsc = cn10k_mcs_get_rxsc(cfg, secy, ctx->rx_sc);
 	if (!rxsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	cn10k_mcs_sc_stats(pfvf, rxsc->hw_sc_id, &rsp, MCS_RX, true);
 
@@ -1664,7 +1664,7 @@ static int cn10k_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 	rxsc->stats.InOctetsDecrypted += rsp.octet_decrypt_cnt;
 
 	rxsc->stats.InPktsInvalid += rsp.pkt_invalid_cnt;
-	rxsc->stats.InPktsNotValid += rsp.pkt_notvalid_cnt;
+	rxsc->stats.InPktsAnaltValid += rsp.pkt_analtvalid_cnt;
 
 	if (secy->replay_protect)
 		rxsc->stats.InPktsLate += rsp.pkt_late_cnt;
@@ -1679,7 +1679,7 @@ static int cn10k_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 	ctx->stats.rx_sc_stats->InOctetsValidated = rxsc->stats.InOctetsValidated;
 	ctx->stats.rx_sc_stats->InOctetsDecrypted = rxsc->stats.InOctetsDecrypted;
 	ctx->stats.rx_sc_stats->InPktsInvalid = rxsc->stats.InPktsInvalid;
-	ctx->stats.rx_sc_stats->InPktsNotValid = rxsc->stats.InPktsNotValid;
+	ctx->stats.rx_sc_stats->InPktsAnaltValid = rxsc->stats.InPktsAnaltValid;
 	ctx->stats.rx_sc_stats->InPktsLate = rxsc->stats.InPktsLate;
 	ctx->stats.rx_sc_stats->InPktsDelayed = rxsc->stats.InPktsDelayed;
 	ctx->stats.rx_sc_stats->InPktsUnchecked = rxsc->stats.InPktsUnchecked;
@@ -1699,18 +1699,18 @@ static int cn10k_mdo_get_rx_sa_stats(struct macsec_context *ctx)
 
 	rxsc = cn10k_mcs_get_rxsc(cfg, ctx->secy, sw_rx_sc);
 	if (!rxsc)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sa_num >= CN10K_MCS_SA_PER_SC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cn10k_mcs_sa_stats(pfvf, rxsc->hw_sa_id[sa_num], &rsp, MCS_RX, false);
 
 	ctx->stats.rx_sa_stats->InPktsOK = rsp.pkt_ok_cnt;
 	ctx->stats.rx_sa_stats->InPktsInvalid = rsp.pkt_invalid_cnt;
-	ctx->stats.rx_sa_stats->InPktsNotValid = rsp.pkt_notvalid_cnt;
-	ctx->stats.rx_sa_stats->InPktsNotUsingSA = rsp.pkt_nosaerror_cnt;
-	ctx->stats.rx_sa_stats->InPktsUnusedSA = rsp.pkt_nosa_cnt;
+	ctx->stats.rx_sa_stats->InPktsAnaltValid = rsp.pkt_analtvalid_cnt;
+	ctx->stats.rx_sa_stats->InPktsAnaltUsingSA = rsp.pkt_analsaerror_cnt;
+	ctx->stats.rx_sa_stats->InPktsUnusedSA = rsp.pkt_analsa_cnt;
 
 	return 0;
 }
@@ -1775,7 +1775,7 @@ int cn10k_mcs_init(struct otx2_nic *pfvf)
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&cfg->txsc_list);
 	INIT_LIST_HEAD(&cfg->rxsc_list);
@@ -1799,7 +1799,7 @@ int cn10k_mcs_init(struct otx2_nic *pfvf)
 
 	return 0;
 fail:
-	dev_err(pfvf->dev, "Cannot notify PN wrapped event\n");
+	dev_err(pfvf->dev, "Cananalt analtify PN wrapped event\n");
 	mutex_unlock(&mbox->lock);
 	return 0;
 }

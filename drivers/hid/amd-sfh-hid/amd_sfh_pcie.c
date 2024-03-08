@@ -13,7 +13,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmi.h>
 #include <linux/interrupt.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -26,7 +26,7 @@
 
 #define ACEL_EN		BIT(0)
 #define GYRO_EN		BIT(1)
-#define MAGNO_EN	BIT(2)
+#define MAGANAL_EN	BIT(2)
 #define HPD_EN		BIT(16)
 #define ALS_EN		BIT(19)
 #define ACS_EN		BIT(22)
@@ -191,13 +191,13 @@ static const struct dmi_system_id dmi_sensor_mask_overrides[] = {
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY x360 Convertible 13-ag0xxx"),
 		},
-		.driver_data = (void *)(ACEL_EN | MAGNO_EN),
+		.driver_data = (void *)(ACEL_EN | MAGANAL_EN),
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY x360 Convertible 15-cp0xxx"),
 		},
-		.driver_data = (void *)(ACEL_EN | MAGNO_EN),
+		.driver_data = (void *)(ACEL_EN | MAGANAL_EN),
 	},
 	{ }
 };
@@ -225,7 +225,7 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 	if (GYRO_EN & activestatus)
 		sensor_id[num_of_sensors++] = gyro_idx;
 
-	if (MAGNO_EN & activestatus)
+	if (MAGANAL_EN & activestatus)
 		sensor_id[num_of_sensors++] = mag_idx;
 
 	if (ALS_EN & activestatus)
@@ -292,7 +292,7 @@ int amd_sfh_irq_init(struct amd_mp2_dev *privdata)
 	return 0;
 }
 
-static const struct dmi_system_id dmi_nodevs[] = {
+static const struct dmi_system_id dmi_analdevs[] = {
 	{
 		/*
 		 * Google Chromebooks use Chrome OS Embedded Controller Sensor
@@ -312,12 +312,12 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	struct amd_mp2_dev *privdata;
 	int rc;
 
-	if (dmi_first_match(dmi_nodevs))
-		return -ENODEV;
+	if (dmi_first_match(dmi_analdevs))
+		return -EANALDEV;
 
 	privdata = devm_kzalloc(&pdev->dev, sizeof(*privdata), GFP_KERNEL);
 	if (!privdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	privdata->pdev = pdev;
 	dev_set_drvdata(&pdev->dev, privdata);
@@ -339,7 +339,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	privdata->cl_data = devm_kzalloc(&pdev->dev, sizeof(struct amdtp_cl_data), GFP_KERNEL);
 	if (!privdata->cl_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	privdata->sfh1_1_ops = (const struct amd_sfh1_1_ops *)id->driver_data;
 	if (privdata->sfh1_1_ops) {
@@ -360,7 +360,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	rc = amd_sfh_hid_client_init(privdata);
 	if (rc) {
 		amd_sfh_clear_intr(privdata);
-		if (rc != -EOPNOTSUPP)
+		if (rc != -EOPANALTSUPP)
 			dev_err(&pdev->dev, "amd_sfh_hid_client_init failed\n");
 		return rc;
 	}

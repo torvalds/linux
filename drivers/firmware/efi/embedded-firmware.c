@@ -28,9 +28,9 @@ static const struct dmi_system_id * const embedded_fw_table[] = {
 };
 
 /*
- * Note the efi_check_for_embedded_firmwares() code currently makes the
+ * Analte the efi_check_for_embedded_firmwares() code currently makes the
  * following 2 assumptions. This may needs to be revisited if embedded firmware
- * is found where this is not true:
+ * is found where this is analt true:
  * 1) The firmware is only found in EFI_BOOT_SERVICES_CODE memory segments
  * 2) The firmware always starts at an offset which is a multiple of 8 bytes
  */
@@ -46,7 +46,7 @@ static int __init efi_check_md_for_embedded_firmware(
 	map = memremap(md->phys_addr, size, MEMREMAP_WB);
 	if (!map) {
 		pr_err("Error mapping EFI mem at %#llx\n", md->phys_addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; (i + desc->length) <= size; i += 8) {
@@ -59,7 +59,7 @@ static int __init efi_check_md_for_embedded_firmware(
 	}
 	if ((i + desc->length) > size) {
 		memunmap(map);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	pr_info("Found EFI embedded fw '%s'\n", desc->name);
@@ -67,14 +67,14 @@ static int __init efi_check_md_for_embedded_firmware(
 	fw = kmalloc(sizeof(*fw), GFP_KERNEL);
 	if (!fw) {
 		memunmap(map);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fw->data = kmemdup(map + i, desc->length, GFP_KERNEL);
 	memunmap(map);
 	if (!fw->data) {
 		kfree(fw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fw->name = desc->name;
@@ -124,9 +124,9 @@ int efi_get_embedded_fw(const char *name, const u8 **data, size_t *size)
 	struct efi_embedded_fw *iter, *fw = NULL;
 
 	if (!efi_embedded_fw_checked) {
-		pr_warn("Warning %s called while we did not check for embedded fw\n",
+		pr_warn("Warning %s called while we did analt check for embedded fw\n",
 			__func__);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	list_for_each_entry(iter, &efi_embedded_fw_list, list) {
@@ -137,7 +137,7 @@ int efi_get_embedded_fw(const char *name, const u8 **data, size_t *size)
 	}
 
 	if (!fw)
-		return -ENOENT;
+		return -EANALENT;
 
 	*data = fw->data;
 	*size = fw->length;

@@ -103,7 +103,7 @@ struct mmdc_pmu {
 	int id;
 	struct device *dev;
 	struct perf_event *mmdc_events[MMDC_NUM_COUNTERS];
-	struct hlist_node node;
+	struct hlist_analde analde;
 	const struct fsl_mmdc_devtype_data *devtype_data;
 	struct clk *mmdc_ipg_clk;
 };
@@ -214,9 +214,9 @@ static u32 mmdc_pmu_read_counter(struct mmdc_pmu *pmu_mmdc, int cfg)
 	return readl(reg);
 }
 
-static int mmdc_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int mmdc_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct mmdc_pmu *pmu_mmdc = hlist_entry_safe(node, struct mmdc_pmu, node);
+	struct mmdc_pmu *pmu_mmdc = hlist_entry_safe(analde, struct mmdc_pmu, analde);
 	int target;
 
 	if (!cpumask_test_and_clear_cpu(cpu, &pmu_mmdc->cpu))
@@ -281,14 +281,14 @@ static int mmdc_pmu_event_init(struct perf_event *event)
 	int cfg = event->attr.config;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (event->cpu < 0) {
 		dev_warn(pmu_mmdc->dev, "Can't provide per-task data!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (event->attr.sample_period)
@@ -333,7 +333,7 @@ static void mmdc_pmu_event_start(struct perf_event *event, int flags)
 	reg = mmdc_base + MMDC_MADPCR0;
 
 	/*
-	 * hrtimer is required because mmdc does not provide an interrupt so
+	 * hrtimer is required because mmdc does analt provide an interrupt so
 	 * polling is necessary
 	 */
 	hrtimer_start(&pmu_mmdc->hrtimer, mmdc_pmu_timer_period(),
@@ -427,7 +427,7 @@ static enum hrtimer_restart mmdc_pmu_timer_handler(struct hrtimer *hrtimer)
 			hrtimer);
 
 	mmdc_pmu_overflow_handler(pmu_mmdc);
-	hrtimer_forward_now(hrtimer, mmdc_pmu_timer_period());
+	hrtimer_forward_analw(hrtimer, mmdc_pmu_timer_period());
 
 	return HRTIMER_RESTART;
 }
@@ -445,7 +445,7 @@ static int mmdc_pmu_init(struct mmdc_pmu *pmu_mmdc,
 			.start          = mmdc_pmu_event_start,
 			.stop           = mmdc_pmu_event_stop,
 			.read           = mmdc_pmu_event_update,
-			.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+			.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 		},
 		.mmdc_base = mmdc_base,
 		.dev = dev,
@@ -462,7 +462,7 @@ static void imx_mmdc_remove(struct platform_device *pdev)
 	struct mmdc_pmu *pmu_mmdc = platform_get_drvdata(pdev);
 
 	ida_simple_remove(&mmdc_ida, pmu_mmdc->id);
-	cpuhp_state_remove_instance_nocalls(cpuhp_mmdc_state, &pmu_mmdc->node);
+	cpuhp_state_remove_instance_analcalls(cpuhp_mmdc_state, &pmu_mmdc->analde);
 	perf_pmu_unregister(&pmu_mmdc->pmu);
 	iounmap(pmu_mmdc->mmdc_base);
 	clk_disable_unprepare(pmu_mmdc->mmdc_ipg_clk);
@@ -479,7 +479,7 @@ static int imx_mmdc_perf_init(struct platform_device *pdev, void __iomem *mmdc_b
 	pmu_mmdc = kzalloc(sizeof(*pmu_mmdc), GFP_KERNEL);
 	if (!pmu_mmdc) {
 		pr_err("failed to allocate PMU device!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* The first instance registers the hotplug state */
@@ -501,21 +501,21 @@ static int imx_mmdc_perf_init(struct platform_device *pdev, void __iomem *mmdc_b
 	name = devm_kasprintf(&pdev->dev,
 				GFP_KERNEL, "mmdc%d", ret);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto pmu_release_id;
 	}
 
 	pmu_mmdc->mmdc_ipg_clk = mmdc_ipg_clk;
 	pmu_mmdc->devtype_data = device_get_match_data(&pdev->dev);
 
-	hrtimer_init(&pmu_mmdc->hrtimer, CLOCK_MONOTONIC,
+	hrtimer_init(&pmu_mmdc->hrtimer, CLOCK_MOANALTONIC,
 			HRTIMER_MODE_REL);
 	pmu_mmdc->hrtimer.function = mmdc_pmu_timer_handler;
 
 	cpumask_set_cpu(raw_smp_processor_id(), &pmu_mmdc->cpu);
 
 	/* Register the pmu instance for cpu hotplug */
-	cpuhp_state_add_instance_nocalls(cpuhp_mmdc_state, &pmu_mmdc->node);
+	cpuhp_state_add_instance_analcalls(cpuhp_mmdc_state, &pmu_mmdc->analde);
 
 	ret = perf_pmu_register(&(pmu_mmdc->pmu), name, -1);
 	if (ret)
@@ -526,7 +526,7 @@ static int imx_mmdc_perf_init(struct platform_device *pdev, void __iomem *mmdc_b
 
 pmu_register_err:
 	pr_warn("MMDC Perf PMU failed (%d), disabled\n", ret);
-	cpuhp_state_remove_instance_nocalls(cpuhp_mmdc_state, &pmu_mmdc->node);
+	cpuhp_state_remove_instance_analcalls(cpuhp_mmdc_state, &pmu_mmdc->analde);
 	hrtimer_cancel(&pmu_mmdc->hrtimer);
 pmu_release_id:
 	ida_simple_remove(&mmdc_ida, pmu_mmdc->id);
@@ -542,7 +542,7 @@ pmu_free:
 
 static int imx_mmdc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	void __iomem *mmdc_base, *reg;
 	struct clk *mmdc_ipg_clk;
 	u32 val;

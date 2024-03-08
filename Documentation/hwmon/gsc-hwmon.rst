@@ -19,7 +19,7 @@ Voltage Monitoring
 ------------------
 
 The voltage inputs are scaled either internally or by the driver depending
-on the GSC version and firmware. The values returned by the driver do not need
+on the GSC version and firmware. The values returned by the driver do analt need
 further scaling. The voltage input labels provide the voltage rail name:
 
 inX_input                  Measured voltage (mV).

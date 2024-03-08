@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (c) 2016 Iceanalwy Zheng <iceanalwy@aosc.xyz>
  */
 
 #include <linux/clk-provider.h>
@@ -57,7 +57,7 @@ static SUNXI_CCU_M(apb0_clk, "apb0", "ahb0", 0x0c, 0, 2, 0);
 /*
  * Define the parent as an array that can be reused to save space
  * instead of having compound literals for each gate. Also have it
- * non-const so we can change it on the A83T.
+ * analn-const so we can change it on the A83T.
  */
 static const struct clk_hw *apb0_gate_parent[] = { &apb0_clk.common.hw };
 static SUNXI_CCU_GATE_HWS(apb0_pio_clk,		"apb0-pio",

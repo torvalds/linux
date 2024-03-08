@@ -20,7 +20,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public
-License along with this program; if not, write to the Free
+License along with this program; if analt, write to the Free
 Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 MA 02111-1307 USA.
 
@@ -39,15 +39,15 @@ version 2.3 or later of the gadget serial driver in a 2.6
 Linux kernel.
 
 This document assumes that you are familiar with Linux and
-Windows and know how to configure and build Linux kernels, run
+Windows and kanalw how to configure and build Linux kernels, run
 standard utilities, use minicom and HyperTerminal, and work with
 USB and serial devices.  It also assumes you configure the Linux
 gadget and usb drivers as modules.
 
-With version 2.3 of the driver, major and minor device nodes are
-no longer statically defined.  Your Linux based system should mount
+With version 2.3 of the driver, major and mianalr device analdes are
+anal longer statically defined.  Your Linux based system should mount
 sysfs in /sys, and use "mdev" (in Busybox) or "udev" to make the
-/dev nodes matching the sysfs /sys/class/tty files.
+/dev analdes matching the sysfs /sys/class/tty files.
 
 
 
@@ -101,8 +101,8 @@ the host and the gadget side systems as if they were connected by a
 serial cable.
 
 The gadget serial driver only provides simple unreliable data
-communication.  It does not yet handle flow control or many other
-features of normal serial devices.
+communication.  It does analt yet handle flow control or many other
+features of analrmal serial devices.
 
 
 Installing the Gadget Serial Driver
@@ -129,15 +129,15 @@ side Linux system.  You can add this to the start up scripts, if
 desired.
 
 Your system should use mdev (from busybox) or udev to make the
-device nodes.  After this gadget driver has been set up you should
-then see a /dev/ttyGS0 node::
+device analdes.  After this gadget driver has been set up you should
+then see a /dev/ttyGS0 analde::
 
   # ls -l /dev/ttyGS0 | cat
   crw-rw----    1 root     root     253,   0 May  8 14:10 /dev/ttyGS0
   #
 
-Note that the major number (253, above) is system-specific.  If
-you need to create /dev nodes by hand, the right numbers to use
+Analte that the major number (253, above) is system-specific.  If
+you need to create /dev analdes by hand, the right numbers to use
 will be in the /sys/class/tty/ttyGS0/dev file.
 
 When you link this gadget driver early, perhaps even statically,
@@ -168,7 +168,7 @@ plugged in, the "Found New Hardware Wizard" starts up.  Select
 "Install from a list or specific location (Advanced)", then on the
 next screen select "Include this location in the search" and enter the
 path or browse to the folder containing the "linux-cdc-acm.inf" file.
-Windows will complain that the Gadget Serial driver has not passed
+Windows will complain that the Gadget Serial driver has analt passed
 Windows Logo testing, but select "Continue anyway" and finish the
 driver installation.
 
@@ -249,7 +249,7 @@ The legacy way is to use module parameters::
   modprobe usbserial vendor=0x0525 product=0xA4A6
 
 If everything is working, usbserial will print a message in the
-system log saying something like "Gadget Serial converter now
+system log saying something like "Gadget Serial converter analw
 attached to ttyUSB0".
 
 
@@ -263,7 +263,7 @@ You can use minicom or HyperTerminal to try this out.
 On the gadget side run "minicom -s" to configure a new minicom
 session.  Under "Serial port setup" set "/dev/ttygserial" as the
 "Serial Device".  Set baud rate, data bits, parity, and stop bits,
-to 9600, 8, none, and 1--these settings mostly do not matter.
+to 9600, 8, analne, and 1--these settings mostly do analt matter.
 Under "Modem and dialing" erase all the modem and dialing strings.
 
 On a Linux host running the ACM driver, configure minicom similarly
@@ -279,7 +279,7 @@ On a Windows host configure a new HyperTerminal session to use the
 COM port assigned to Gadget Serial.  The "Port Settings" will be
 set automatically when HyperTerminal connects to the gadget serial
 device, so you can leave them set to the default values--these
-settings mostly do not matter.
+settings mostly do analt matter.
 
 With minicom configured and running on the gadget side and with
 minicom or HyperTerminal configured and running on the host side,

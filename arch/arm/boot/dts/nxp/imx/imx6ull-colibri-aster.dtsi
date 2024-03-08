@@ -63,8 +63,8 @@
 };
 
 /*
- * Following SODIMM Pins should not be accessed as GPIO on Aster board:
- * 134 - AIN5_SCL (no connection)
+ * Following SODIMM Pins should analt be accessed as GPIO on Aster board:
+ * 134 - AIN5_SCL (anal connection)
  * 127 - Voltage Level Translator OE# signal (IC11 and IC12)
  *
  * To configure GPIO to LED5, please disable FEC2 and uncomment the following:
@@ -75,7 +75,7 @@
  *			&pinctrl_gpio2
  *			&pinctrl_gpio3
  *			&pinctrl_gpio4
- *			&pinctrl_gpio6 - for non-WiFi modules only
+ *			&pinctrl_gpio6 - for analn-WiFi modules only
  *			&pinctrl_gpio7
  *			&pinctrl_gpio_aster
  *		>;

@@ -114,7 +114,7 @@ enum RxFilter {
 	RxProm		= 8
 };
 
-/* Register window 1 offsets, the window used in normal operation. */
+/* Register window 1 offsets, the window used in analrmal operation. */
 #define TX_FIFO		0x00
 #define RX_FIFO		0x00
 #define RX_STATUS	0x08
@@ -202,7 +202,7 @@ static int tc589_probe(struct pcmcia_device *link)
 	/* Create new ethernet device */
 	dev = alloc_etherdev(sizeof(struct el3_private));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	lp = netdev_priv(dev);
 	link->priv = dev;
 	lp->p_dev = link;
@@ -337,7 +337,7 @@ static int tc589_config(struct pcmcia_device *link)
 
 failed:
 	tc589_release(link);
-	return -ENODEV;
+	return -EANALDEV;
 } /* tc589_config */
 
 static void tc589_release(struct pcmcia_device *link)
@@ -379,7 +379,7 @@ static void tc589_wait_for_completion(struct net_device *dev, int cmd)
 		if (!(inw(dev->base_addr + EL3_STATUS) & 0x1000))
 			break;
 	if (i == 0)
-		netdev_warn(dev, "command 0x%04x did not complete!\n", cmd);
+		netdev_warn(dev, "command 0x%04x did analt complete!\n", cmd);
 }
 
 /* Read a word from the EEPROM using the regular EEPROM access register.
@@ -439,7 +439,7 @@ static void dump_status(struct net_device *dev)
 			inw(ioaddr+EL3_STATUS), inw(ioaddr+RX_STATUS),
 			inb(ioaddr+TX_STATUS), inw(ioaddr+TX_FREE));
 	EL3WINDOW(4);
-	netdev_info(dev, "  diagnostics: fifo %04x net %04x ethernet %04x media %04x\n",
+	netdev_info(dev, "  diaganalstics: fifo %04x net %04x ethernet %04x media %04x\n",
 			inw(ioaddr+0x04), inw(ioaddr+0x06), inw(ioaddr+0x08),
 			inw(ioaddr+0x0a));
 	EL3WINDOW(1);
@@ -470,7 +470,7 @@ static void tc589_reset(struct net_device *dev)
 	inw(ioaddr + 10);
 	inw(ioaddr + 12);
 
-	/* Switch to register set 1 for normal use. */
+	/* Switch to register set 1 for analrmal use. */
 	EL3WINDOW(1);
 
 	set_rx_mode(dev);
@@ -518,7 +518,7 @@ static int el3_open(struct net_device *dev)
 	struct pcmcia_device *link = lp->p_dev;
 
 	if (!pcmcia_dev_present(link))
-		return -ENODEV;
+		return -EANALDEV;
 
 	link->open++;
 	netif_start_queue(dev);
@@ -612,7 +612,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 	int i = 0, handled = 1;
 
 	if (!netif_device_present(dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ioaddr = dev->base_addr;
 
@@ -650,7 +650,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 				EL3WINDOW(4);
 				fifo_diag = inw(ioaddr + 4);
 				EL3WINDOW(1);
-				netdev_warn(dev, "adapter failure, FIFO diagnostic register %04x.\n",
+				netdev_warn(dev, "adapter failure, FIFO diaganalstic register %04x.\n",
 			    fifo_diag);
 				if (fifo_diag & 0x0400) {
 					/* Tx overrun */
@@ -673,7 +673,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 			outw(AckIntr | 0xFF, ioaddr + EL3_CMD);
 			break;
 		}
-		/* Acknowledge the IRQ. */
+		/* Ackanalwledge the IRQ. */
 		outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 	}
 	lp->last_irq = jiffies;
@@ -723,7 +723,7 @@ static void media_check(struct timer_list *t)
 	EL3WINDOW(4);
 	media = inw(ioaddr+WN4_MEDIA) & 0xc810;
 
-	/* Ignore collisions unless we've had no irq's recently */
+	/* Iganalre collisions unless we've had anal irq's recently */
 	if (time_before(jiffies, lp->last_irq + HZ)) {
 		media &= ~0x0010;
 	} else {

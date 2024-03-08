@@ -37,7 +37,7 @@ write_dpt_rotated(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs, u32 bo_
 			src_idx -= src_stride;
 		}
 
-		/* The DE ignores the PTEs for the padding tiles */
+		/* The DE iganalres the PTEs for the padding tiles */
 		*dpt_ofs += (dst_stride - height) * 8;
 	}
 
@@ -68,7 +68,7 @@ write_dpt_remapped(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs,
 			src_idx++;
 		}
 
-		/* The DE ignores the PTEs for the padding tiles */
+		/* The DE iganalres the PTEs for the padding tiles */
 		*dpt_ofs += (dst_stride - width) * 8;
 	}
 
@@ -86,7 +86,7 @@ static int __xe_pin_fb_vma_dpt(struct intel_framebuffer *fb,
 	struct xe_bo *bo = intel_fb_obj(&fb->base), *dpt;
 	u32 dpt_size, size = bo->ttm.base.size;
 
-	if (view->type == I915_GTT_VIEW_NORMAL)
+	if (view->type == I915_GTT_VIEW_ANALRMAL)
 		dpt_size = ALIGN(size / XE_PAGE_SIZE * 8, XE_PAGE_SIZE);
 	else if (view->type == I915_GTT_VIEW_REMAPPED)
 		dpt_size = ALIGN(intel_remapped_info_size(&fb->remapped_view.gtt.remapped) * 8,
@@ -114,7 +114,7 @@ static int __xe_pin_fb_vma_dpt(struct intel_framebuffer *fb,
 	if (IS_ERR(dpt))
 		return PTR_ERR(dpt);
 
-	if (view->type == I915_GTT_VIEW_NORMAL) {
+	if (view->type == I915_GTT_VIEW_ANALRMAL) {
 		u32 x;
 
 		for (x = 0; x < size / XE_PAGE_SIZE; x++) {
@@ -149,7 +149,7 @@ static int __xe_pin_fb_vma_dpt(struct intel_framebuffer *fb,
 	}
 
 	vma->dpt = dpt;
-	vma->node = dpt->ggtt_node;
+	vma->analde = dpt->ggtt_analde;
 	return 0;
 }
 
@@ -172,7 +172,7 @@ write_ggtt_rotated(struct xe_bo *bo, struct xe_ggtt *ggtt, u32 *ggtt_ofs, u32 bo
 			src_idx -= src_stride;
 		}
 
-		/* The DE ignores the PTEs for the padding tiles */
+		/* The DE iganalres the PTEs for the padding tiles */
 		*ggtt_ofs += (dst_stride - height) * XE_PAGE_SIZE;
 	}
 }
@@ -199,12 +199,12 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
 		align = max_t(u32, align, SZ_64K);
 
-	if (bo->ggtt_node.size && view->type == I915_GTT_VIEW_NORMAL) {
-		vma->node = bo->ggtt_node;
-	} else if (view->type == I915_GTT_VIEW_NORMAL) {
+	if (bo->ggtt_analde.size && view->type == I915_GTT_VIEW_ANALRMAL) {
+		vma->analde = bo->ggtt_analde;
+	} else if (view->type == I915_GTT_VIEW_ANALRMAL) {
 		u32 x, size = bo->ttm.base.size;
 
-		ret = xe_ggtt_insert_special_node_locked(ggtt, &vma->node, size,
+		ret = xe_ggtt_insert_special_analde_locked(ggtt, &vma->analde, size,
 							 align, 0);
 		if (ret)
 			goto out_unlock;
@@ -213,7 +213,7 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 			u64 pte = ggtt->pt_ops->pte_encode_bo(bo, x,
 							      xe->pat.idx[XE_CACHE_WB]);
 
-			xe_ggtt_set_pte(ggtt, vma->node.start + x, pte);
+			xe_ggtt_set_pte(ggtt, vma->analde.start + x, pte);
 		}
 	} else {
 		u32 i, ggtt_ofs;
@@ -222,12 +222,12 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 		/* display seems to use tiles instead of bytes here, so convert it back.. */
 		u32 size = intel_rotation_info_size(rot_info) * XE_PAGE_SIZE;
 
-		ret = xe_ggtt_insert_special_node_locked(ggtt, &vma->node, size,
+		ret = xe_ggtt_insert_special_analde_locked(ggtt, &vma->analde, size,
 							 align, 0);
 		if (ret)
 			goto out_unlock;
 
-		ggtt_ofs = vma->node.start;
+		ggtt_ofs = vma->analde.start;
 
 		for (i = 0; i < ARRAY_SIZE(rot_info->plane); i++)
 			write_ggtt_rotated(bo, ggtt, &ggtt_ofs,
@@ -256,7 +256,7 @@ static struct i915_vma *__xe_pin_fb_vma(struct intel_framebuffer *fb,
 	int ret;
 
 	if (!vma)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (IS_DGFX(to_xe_device(bo->ttm.base.dev)) &&
 	    intel_fb_rc_ccs_cc_plane(&fb->base) >= 0 &&
@@ -318,10 +318,10 @@ static void __xe_unpin_fb_vma(struct i915_vma *vma)
 	struct xe_ggtt *ggtt = xe_device_get_root_tile(xe)->mem.ggtt;
 
 	if (vma->dpt)
-		xe_bo_unpin_map_no_vm(vma->dpt);
-	else if (!drm_mm_node_allocated(&vma->bo->ggtt_node) ||
-		 vma->bo->ggtt_node.start != vma->node.start)
-		xe_ggtt_remove_node(ggtt, &vma->node);
+		xe_bo_unpin_map_anal_vm(vma->dpt);
+	else if (!drm_mm_analde_allocated(&vma->bo->ggtt_analde) ||
+		 vma->bo->ggtt_analde.start != vma->analde.start)
+		xe_ggtt_remove_analde(ggtt, &vma->analde);
 
 	ttm_bo_reserve(&vma->bo->ttm, false, false, NULL);
 	ttm_bo_unpin(&vma->bo->ttm);
@@ -352,8 +352,8 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	struct xe_bo *bo = intel_fb_obj(fb);
 	struct i915_vma *vma;
 
-	/* We reject creating !SCANOUT fb's, so this is weird.. */
-	drm_WARN_ON(bo->ttm.base.dev, !(bo->flags & XE_BO_SCANOUT_BIT));
+	/* We reject creating !SCAANALUT fb's, so this is weird.. */
+	drm_WARN_ON(bo->ttm.base.dev, !(bo->flags & XE_BO_SCAANALUT_BIT));
 
 	vma = __xe_pin_fb_vma(to_intel_framebuffer(fb), &plane_state->view.gtt);
 	if (IS_ERR(vma))
@@ -371,7 +371,7 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
 
 /*
  * For Xe introduce dummy intel_dpt_create which just return NULL and
- * intel_dpt_destroy which does nothing.
+ * intel_dpt_destroy which does analthing.
  */
 struct i915_address_space *intel_dpt_create(struct intel_framebuffer *fb)
 {

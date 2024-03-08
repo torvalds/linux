@@ -17,10 +17,10 @@
 #define SUPPORT_VOLTAGE	0x003C0000
 
 /* Error Code */
-#define	SD_NO_ERROR		0x0
+#define	SD_ANAL_ERROR		0x0
 #define	SD_CRC_ERR		0x80
 #define	SD_TO_ERR		0x40
-#define	SD_NO_CARD		0x20
+#define	SD_ANAL_CARD		0x20
 #define SD_BUSY			0x10
 #define	SD_STS_ERR		0x08
 #define SD_RSP_TIMEOUT		0x04
@@ -99,18 +99,18 @@
 #define	SD_FUNC_GROUP_4		0x04
 #define	SD_CHECK_SPEC_V1_1	0xFF
 
-#define	NO_ARGUMENT				0x00
+#define	ANAL_ARGUMENT				0x00
 #define	CHECK_PATTERN				0x000000AA
 #define	VOLTAGE_SUPPLY_RANGE			0x00000100
 #define	SUPPORT_HIGH_AND_EXTENDED_CAPACITY	0x40000000
 #define	SUPPORT_MAX_POWER_PERMANCE		0x10000000
 #define	SUPPORT_1V8				0x01000000
 
-#define	SWITCH_NO_ERR		0x00
-#define	CARD_NOT_EXIST		0x01
-#define	SPEC_NOT_SUPPORT	0x02
+#define	SWITCH_ANAL_ERR		0x00
+#define	CARD_ANALT_EXIST		0x01
+#define	SPEC_ANALT_SUPPORT	0x02
 #define	CHECK_MODE_ERR		0x03
-#define	CHECK_NOT_READY		0x04
+#define	CHECK_ANALT_READY		0x04
 #define	SWITCH_CRC_ERR		0x05
 #define	SWITCH_MODE_ERR		0x06
 #define	SWITCH_PASS		0x07
@@ -130,7 +130,7 @@
 #define SD_UNLOCK_POW_ON	0x01
 #define SD_SDR_RST		0x02
 
-#define SD_NOT_ERASE		0x00
+#define SD_ANALT_ERASE		0x00
 #define SD_UNDER_ERASING	0x01
 #define SD_COMPLETE_ERASE	0x02
 
@@ -279,7 +279,7 @@ int ext_sd_send_cmd_get_rsp(struct rtsx_chip *chip, u8 cmd_idx,
 int ext_sd_get_rsp(struct rtsx_chip *chip, int len, u8 *rsp, u8 rsp_type);
 
 int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip);
-int sd_execute_no_data(struct scsi_cmnd *srb, struct rtsx_chip *chip);
+int sd_execute_anal_data(struct scsi_cmnd *srb, struct rtsx_chip *chip);
 int sd_execute_read_data(struct scsi_cmnd *srb, struct rtsx_chip *chip);
 int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip);
 int sd_get_cmd_rsp(struct scsi_cmnd *srb, struct rtsx_chip *chip);

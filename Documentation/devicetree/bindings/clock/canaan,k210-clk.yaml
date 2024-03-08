@@ -11,8 +11,8 @@ maintainers:
 
 description: |
   Canaan Kendryte K210 SoC clocks driver bindings. The clock
-  controller node must be defined as a child node of the K210
-  system controller node.
+  controller analde must be defined as a child analde of the K210
+  system controller analde.
 
   See also:
   - dt-bindings/clock/k210-clk.h

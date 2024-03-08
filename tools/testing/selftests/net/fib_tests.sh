@@ -7,15 +7,15 @@ source lib.sh
 ret=0
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop suppress ipv6_notify ipv4_notify \
+TESTS="unregister down carrier nexthop suppress ipv6_analtify ipv4_analtify \
        ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics \
        ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr \
        ipv6_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh fib6_gc_test \
        ipv4_mpath_list ipv6_mpath_list"
 
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 
 which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
@@ -32,7 +32,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -40,7 +40,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -112,9 +112,9 @@ fib_unreg_unicast_test()
 
 	echo "    Nexthop device deleted"
 	$IP route get fibmatch 198.51.100.2 &> /dev/null
-	log_test $? 2 "IPv4 fibmatch - no route"
+	log_test $? 2 "IPv4 fibmatch - anal route"
 	$IP -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	log_test $? 2 "IPv6 fibmatch - no route"
+	log_test $? 2 "IPv6 fibmatch - anal route"
 
 	cleanup
 }
@@ -156,7 +156,7 @@ fib_unreg_multipath_test()
 	log_test $? 2 "IPv4 - multipath route removed on delete"
 
 	$IP -6 route get fibmatch 2001:db8:3::1 &> /dev/null
-	# In IPv6 we do not flush the entire multipath route.
+	# In IPv6 we do analt flush the entire multipath route.
 	log_test $? 0 "IPv6 - multipath down to single path"
 
 	set -e
@@ -165,7 +165,7 @@ fib_unreg_multipath_test()
 
 	echo "    Second nexthop device deleted"
 	$IP -6 route get fibmatch 2001:db8:3::1 &> /dev/null
-	log_test $? 2 "IPv6 - no route"
+	log_test $? 2 "IPv6 - anal route"
 
 	cleanup
 }
@@ -300,7 +300,7 @@ fib_down_test()
 	fib_down_multipath_test
 }
 
-# Local routes should not be affected when carrier changes.
+# Local routes should analt be affected when carrier changes.
 fib_carrier_local_test()
 {
 	echo
@@ -320,10 +320,10 @@ fib_carrier_local_test()
 
 	$IP route get fibmatch 198.51.100.1 | \
 		grep -q "linkdown"
-	log_test $? 1 "IPv4 - no linkdown flag"
+	log_test $? 1 "IPv4 - anal linkdown flag"
 	$IP -6 route get fibmatch 2001:db8:1::1 | \
 		grep -q "linkdown"
-	log_test $? 1 "IPv6 - no linkdown flag"
+	log_test $? 1 "IPv6 - anal linkdown flag"
 
 	set -e
 	$IP link set dev dummy0 carrier off
@@ -385,10 +385,10 @@ fib_carrier_unicast_test()
 
 	$IP route get fibmatch 198.51.100.2 | \
 		grep -q "linkdown"
-	log_test $? 1 "IPv4 no linkdown flag"
+	log_test $? 1 "IPv4 anal linkdown flag"
 	$IP -6 route get fibmatch 2001:db8:1::2 | \
 		grep -q "linkdown"
-	log_test $? 1 "IPv6 no linkdown flag"
+	log_test $? 1 "IPv6 anal linkdown flag"
 
 	set -e
 	$IP link set dev dummy0 carrier off
@@ -566,15 +566,15 @@ fib6_nexthop()
 		- 2001:db8:103::1/64 $llv1 "veth0"
 
 	# fails because LL address requires a device
-	add_rt "Gateway is linklocal address, no device" 2 \
+	add_rt "Gateway is linklocal address, anal device" 2 \
 		- 2001:db8:104::1/64 $llv1
 
-	# local address can not be a gateway
-	add_rt "Gateway can not be local unicast address" 2 \
+	# local address can analt be a gateway
+	add_rt "Gateway can analt be local unicast address" 2 \
 		- 2001:db8:105::/64 2001:db8:1::1
-	add_rt "Gateway can not be local unicast address, with device" 2 \
+	add_rt "Gateway can analt be local unicast address, with device" 2 \
 		- 2001:db8:106::/64 2001:db8:1::1 "dummy0"
-	add_rt "Gateway can not be a local linklocal address" 2 \
+	add_rt "Gateway can analt be a local linklocal address" 2 \
 		- 2001:db8:107::1/64 $lldummy "dummy0"
 
 	# VRF tests
@@ -592,9 +592,9 @@ fib6_nexthop()
 		red 2001:db8:112::/64 2001:db8:51::1
 
 	# local address in same VRF fails
-	add_rt "VRF route, gateway can not be a local address" 2 \
+	add_rt "VRF route, gateway can analt be a local address" 2 \
 		red 2001:db8:113::1/64 2001:db8:2::1
-	add_rt "VRF route, gateway can not be a local addr with device" 2 \
+	add_rt "VRF route, gateway can analt be a local addr with device" 2 \
 		red 2001:db8:114::1/64 2001:db8:2::1 "dummy1"
 }
 
@@ -651,12 +651,12 @@ fib_nexthop_test()
 	cleanup
 }
 
-fib6_notify_test()
+fib6_analtify_test()
 {
 	setup
 
 	echo
-	echo "Fib6 info length calculation in route notify test"
+	echo "Fib6 info length calculation in route analtify test"
 	set -e
 
 	for i in 10 20 30 40 50 60 70;
@@ -687,7 +687,7 @@ fib6_notify_test()
 		ret=1
 	fi
 
-	log_test $ret 0 "ipv6 route add notify"
+	log_test $ret 0 "ipv6 route add analtify"
 
 	{ kill %% && wait %%; } 2>/dev/null
 
@@ -697,12 +697,12 @@ fib6_notify_test()
 }
 
 
-fib_notify_test()
+fib_analtify_test()
 {
 	setup
 
 	echo
-	echo "Fib4 info length calculation in route notify test"
+	echo "Fib4 info length calculation in route analtify test"
 
 	set -e
 
@@ -734,7 +734,7 @@ fib_notify_test()
 		ret=1
 	fi
 
-	log_test $ret 0 "ipv4 route add notify"
+	log_test $ret 0 "ipv4 route add analtify"
 
 	{ kill %% && wait %%; } 2>/dev/null
 
@@ -860,7 +860,7 @@ check_expected()
 
 	if [ -z "${out}" ]; then
 		if [ "$VERBOSE" = "1" ]; then
-			printf "\nNo route entry found\n"
+			printf "\nAnal route entry found\n"
 			printf "Expected:\n"
 			printf "    ${expected}\n"
 		fi
@@ -965,14 +965,14 @@ route_setup()
 	ip -netns $ns2 li add dummy1 type dummy
 	ip -netns $ns2 li set dummy1 up
 
-	$IP -6 addr add 2001:db8:101::1/64 dev veth1 nodad
-	$IP -6 addr add 2001:db8:103::1/64 dev veth3 nodad
+	$IP -6 addr add 2001:db8:101::1/64 dev veth1 analdad
+	$IP -6 addr add 2001:db8:103::1/64 dev veth3 analdad
 	$IP addr add 172.16.101.1/24 dev veth1
 	$IP addr add 172.16.103.1/24 dev veth3
 
-	ip -netns $ns2 -6 addr add 2001:db8:101::2/64 dev veth2 nodad
-	ip -netns $ns2 -6 addr add 2001:db8:103::2/64 dev veth4 nodad
-	ip -netns $ns2 -6 addr add 2001:db8:104::1/64 dev dummy1 nodad
+	ip -netns $ns2 -6 addr add 2001:db8:101::2/64 dev veth2 analdad
+	ip -netns $ns2 -6 addr add 2001:db8:103::2/64 dev veth4 analdad
+	ip -netns $ns2 -6 addr add 2001:db8:104::1/64 dev dummy1 analdad
 
 	ip -netns $ns2 addr add 172.16.101.2/24 dev veth2
 	ip -netns $ns2 addr add 172.16.103.2/24 dev veth4
@@ -1075,12 +1075,12 @@ ipv6_rt_replace_single()
 		log_test $? 0 "Invalid nexthop"
 	fi
 
-	# replace non-existent route
-	# - note use of change versus replace since ip adds NLM_F_CREATE
+	# replace analn-existent route
+	# - analte use of change versus replace since ip adds NLM_F_CREATE
 	#   for replace
 	add_initial_route6 "via 2001:db8:101::2"
 	run_cmd "$IP -6 ro change 2001:db8:105::/64 via 2001:db8:101::2"
-	log_test $? 2 "Single path - replace of non-existent route"
+	log_test $? 2 "Single path - replace of analn-existent route"
 }
 
 ipv6_rt_replace_mpath()
@@ -1121,10 +1121,10 @@ ipv6_rt_replace_mpath()
 	check_route6  "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
 	log_test $? 0 "Multipath - invalid second nexthop"
 
-	# multipath non-existent route
+	# multipath analn-existent route
 	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
 	run_cmd "$IP -6 ro change 2001:db8:105::/64 nexthop via 2001:db8:101::3 nexthop via 2001:db8:103::3"
-	log_test $? 2 "Multipath - replace of non-existent route"
+	log_test $? 2 "Multipath - replace of analn-existent route"
 }
 
 ipv6_rt_replace()
@@ -1163,7 +1163,7 @@ ip_addr_metric_check()
 {
 	ip addr help 2>&1 | grep -q metric
 	if [ $? -ne 0 ]; then
-		echo "iproute2 command does not support metric for addresses. Skipping test"
+		echo "iproute2 command does analt support metric for addresses. Skipping test"
 		return 1
 	fi
 
@@ -1418,7 +1418,7 @@ ipv4_rt_add()
 	log_test $? 2 "Attempt to add duplicate route - reject route"
 
 	# iproute2 prepend only sets NLM_F_CREATE
-	# - adds a new route; does NOT convert existing route to ECMP
+	# - adds a new route; does ANALT convert existing route to ECMP
 	add_route "172.16.104.0/24" "via 172.16.101.2"
 	run_cmd "$IP ro prepend 172.16.104.0/24 via 172.16.103.2"
 	check_route "172.16.104.0/24 via 172.16.103.2 dev veth3 172.16.104.0/24 via 172.16.101.2 dev veth1"
@@ -1523,12 +1523,12 @@ ipv4_rt_replace_single()
 		log_test $? 0 "Invalid nexthop"
 	fi
 
-	# replace non-existent route
-	# - note use of change versus replace since ip adds NLM_F_CREATE
+	# replace analn-existent route
+	# - analte use of change versus replace since ip adds NLM_F_CREATE
 	#   for replace
 	add_initial_route "via 172.16.101.2"
 	run_cmd "$IP ro change 172.16.105.0/24 via 172.16.101.2"
-	log_test $? 2 "Single path - replace of non-existent route"
+	log_test $? 2 "Single path - replace of analn-existent route"
 }
 
 ipv4_rt_replace_mpath()
@@ -1569,10 +1569,10 @@ ipv4_rt_replace_mpath()
 	check_route  "172.16.104.0/24 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
 	log_test $? 0 "Multipath - invalid second nexthop"
 
-	# multipath non-existent route
+	# multipath analn-existent route
 	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
 	run_cmd "$IP ro change 172.16.105.0/24 nexthop via 172.16.101.3 nexthop via 172.16.103.3"
-	log_test $? 2 "Multipath - replace of non-existent route"
+	log_test $? 2 "Multipath - replace of analn-existent route"
 }
 
 ipv4_rt_replace()
@@ -1604,7 +1604,7 @@ ipv4_local_rt_cache()
 	run_cmd "ip netns exec $test-ns ping 10.0.0.1 -c 1 -i 1"
 	run_cmd "ip link delete vrf-100"
 
-	# if we do not hang test is a success
+	# if we do analt hang test is a success
 	log_test $? 0 "Cached route removed from VRF port device"
 }
 
@@ -1631,10 +1631,10 @@ ipv4_rt_dsfield()
 	# A more specific route for DSCP 0x10
 	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x10 via 172.16.103.2"
 
-	# DSCP 0x10 should match the specific route, no matter the ECN bits
+	# DSCP 0x10 should match the specific route, anal matter the ECN bits
 	$IP route get fibmatch 172.16.102.1 dsfield 0x10 | \
 		grep -q "via 172.16.103.2"
-	log_test $? 0 "IPv4 route with DSCP and ECN:Not-ECT"
+	log_test $? 0 "IPv4 route with DSCP and ECN:Analt-ECT"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x11 | \
 		grep -q "via 172.16.103.2"
@@ -1648,39 +1648,39 @@ ipv4_rt_dsfield()
 		grep -q "via 172.16.103.2"
 	log_test $? 0 "IPv4 route with DSCP and ECN:CE"
 
-	# Unknown DSCP should match the generic route, no matter the ECN bits
+	# Unkanalwn DSCP should match the generic route, anal matter the ECN bits
 	$IP route get fibmatch 172.16.102.1 dsfield 0x14 | \
 		grep -q "via 172.16.101.2"
-	log_test $? 0 "IPv4 route with unknown DSCP and ECN:Not-ECT"
+	log_test $? 0 "IPv4 route with unkanalwn DSCP and ECN:Analt-ECT"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x15 | \
 		grep -q "via 172.16.101.2"
-	log_test $? 0 "IPv4 route with unknown DSCP and ECN:ECT(1)"
+	log_test $? 0 "IPv4 route with unkanalwn DSCP and ECN:ECT(1)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x16 | \
 		grep -q "via 172.16.101.2"
-	log_test $? 0 "IPv4 route with unknown DSCP and ECN:ECT(0)"
+	log_test $? 0 "IPv4 route with unkanalwn DSCP and ECN:ECT(0)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x17 | \
 		grep -q "via 172.16.101.2"
-	log_test $? 0 "IPv4 route with unknown DSCP and ECN:CE"
+	log_test $? 0 "IPv4 route with unkanalwn DSCP and ECN:CE"
 
-	# Null DSCP should match the generic route, no matter the ECN bits
+	# Null DSCP should match the generic route, anal matter the ECN bits
 	$IP route get fibmatch 172.16.102.1 dsfield 0x00 | \
 		grep -q "via 172.16.101.2"
-	log_test $? 0 "IPv4 route with no DSCP and ECN:Not-ECT"
+	log_test $? 0 "IPv4 route with anal DSCP and ECN:Analt-ECT"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x01 | \
 		grep -q "via 172.16.101.2"
-	log_test $? 0 "IPv4 route with no DSCP and ECN:ECT(1)"
+	log_test $? 0 "IPv4 route with anal DSCP and ECN:ECT(1)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x02 | \
 		grep -q "via 172.16.101.2"
-	log_test $? 0 "IPv4 route with no DSCP and ECN:ECT(0)"
+	log_test $? 0 "IPv4 route with anal DSCP and ECN:ECT(0)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x03 | \
 		grep -q "via 172.16.101.2"
-	log_test $? 0 "IPv4 route with no DSCP and ECN:CE"
+	log_test $? 0 "IPv4 route with anal DSCP and ECN:CE"
 }
 
 ipv4_route_test()
@@ -1879,7 +1879,7 @@ ipv4_del_addr_test()
 	log_test $? 1 "Route removed from VRF when source address deleted"
 
 	$IP ro ls | grep -q 172.16.105.0/24
-	log_test $? 0 "Route in default VRF not removed"
+	log_test $? 0 "Route in default VRF analt removed"
 
 	$IP addr add dev dummy2 172.16.104.11/24
 	$IP route add vrf red 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
@@ -1889,7 +1889,7 @@ ipv4_del_addr_test()
 	log_test $? 1 "Route removed in default VRF when source address deleted"
 
 	$IP ro ls vrf red | grep -q 172.16.105.0/24
-	log_test $? 0 "Route in VRF is not removed by address delete"
+	log_test $? 0 "Route in VRF is analt removed by address delete"
 
 	# removing address from device in vrf should only remove route from vrf
 	# table even when the associated fib info only differs in table ID
@@ -1900,7 +1900,7 @@ ipv4_del_addr_test()
 	log_test $? 1 "Route removed from VRF when source address deleted"
 
 	$IP ro ls | grep -q 172.16.106.0/24
-	log_test $? 0 "Route in default VRF not removed"
+	log_test $? 0 "Route in default VRF analt removed"
 
 	$IP addr add dev dummy2 172.16.104.12/24
 	$IP route add vrf red 172.16.106.0/24 dev lo src 172.16.104.12
@@ -1910,7 +1910,7 @@ ipv4_del_addr_test()
 	log_test $? 1 "Route removed in default VRF when source address deleted"
 
 	$IP ro ls vrf red | grep -q 172.16.106.0/24
-	log_test $? 0 "Route in VRF is not removed by address delete"
+	log_test $? 0 "Route in VRF is analt removed by address delete"
 
 	# removing address from device in default vrf should remove route from
 	# the default vrf even when route was inserted with a table ID of 0.
@@ -1996,7 +1996,7 @@ ipv6_del_addr_test()
 
 	$IP addr del dev dummy1 2001:db8:101::11/64
 	$IP -6 route show | grep -q "src 2001:db8:101::11 "
-	log_test $? 0 "Prefsrc not removed when src address exist on other device"
+	log_test $? 0 "Prefsrc analt removed when src address exist on other device"
 
 	$IP addr del dev dummy2 2001:db8:101::11/64
 	$IP -6 route show | grep -q "src 2001:db8:101::11 "
@@ -2012,7 +2012,7 @@ ipv6_del_addr_test()
 
 	$IP addr del dev dummy4 2001:db8:101::11/64
 	$IP -6 route show vrf red | grep -q "src 2001:db8:101::11 "
-	log_test $? 0 "Prefsrc not removed when src address exist on other device"
+	log_test $? 0 "Prefsrc analt removed when src address exist on other device"
 
 	$IP addr del dev dummy5 2001:db8:101::11/64
 	$IP -6 route show vrf red | grep -q "src 2001:db8:101::11 "
@@ -2024,13 +2024,13 @@ ipv6_del_addr_test()
 	$IP -6 route show vrf red | grep -q "src 2001:db8:101::12 "
 	log_test $? 1 "Prefsrc removed from VRF when source address deleted"
 	$IP -6 route show | grep -q " src 2001:db8:101::12 "
-	log_test $? 0 "Prefsrc in default VRF not removed"
+	log_test $? 0 "Prefsrc in default VRF analt removed"
 
 	$IP addr add dev dummy4 2001:db8:101::12/64
 	$IP route replace vrf red 2001:db8:112::/64 dev dummy6 src 2001:db8:101::12
 	$IP addr del dev dummy1 2001:db8:101::12/64
 	$IP -6 route show vrf red | grep -q "src 2001:db8:101::12 "
-	log_test $? 0 "Prefsrc not removed from VRF when source address exist"
+	log_test $? 0 "Prefsrc analt removed from VRF when source address exist"
 	$IP -6 route show | grep -q " src 2001:db8:101::12 "
 	log_test $? 1 "Prefsrc in default VRF removed"
 
@@ -2038,9 +2038,9 @@ ipv6_del_addr_test()
 
 	$IP addr del dev dummy4 2001:db8:101::13/64
 	$IP -6 route show vrf red | grep -q "src 2001:db8:101::13 "
-	log_test $? 0 "Prefsrc not removed from VRF when nexthop dev in diff VRF"
+	log_test $? 0 "Prefsrc analt removed from VRF when nexthop dev in diff VRF"
 	$IP -6 route show | grep -q "src 2001:db8:101::13 "
-	log_test $? 0 "Prefsrc not removed in default VRF"
+	log_test $? 0 "Prefsrc analt removed in default VRF"
 
 	$IP addr add dev dummy4 2001:db8:101::13/64
 	$IP addr del dev dummy1 2001:db8:101::13/64
@@ -2058,12 +2058,12 @@ ipv6_del_addr_test()
 	echo "    Link local source route"
 	$IP addr del dev dummy1 fe80::1/128
 	$IP -6 route show | grep -q "2001:db8:116::/64 dev dummy2 src fe80::1"
-	log_test $? 0 "Prefsrc not removed when delete ll addr from other dev"
+	log_test $? 0 "Prefsrc analt removed when delete ll addr from other dev"
 	$IP addr del dev dummy2 fe80::1/128
 	$IP -6 route show | grep -q "2001:db8:116::/64 dev dummy2 src fe80::1"
 	log_test $? 1 "Prefsrc removed when delete ll addr"
 	$IP -6 route show | grep -q "2001:db8:117::/64 dev dummy3 src fe80::1"
-	log_test $? 0 "Prefsrc not removed when delete ll addr from other dev"
+	log_test $? 0 "Prefsrc analt removed when delete ll addr from other dev"
 	$IP addr add dev dummy1 fe80::1/128
 	$IP addr del dev dummy3 fe80::1/128
 	$IP -6 route show | grep -q "2001:db8:117::/64 dev dummy3 src fe80::1"
@@ -2143,7 +2143,7 @@ ipv4_route_v6_gw_test()
 socat_check()
 {
 	if [ ! -x "$(command -v socat)" ]; then
-		echo "socat command not found. Skipping test"
+		echo "socat command analt found. Skipping test"
 		return 1
 	fi
 
@@ -2154,7 +2154,7 @@ iptables_check()
 {
 	iptables -t mangle -L OUTPUT &> /dev/null
 	if [ $? -ne 0 ]; then
-		echo "iptables configuration not supported. Skipping test"
+		echo "iptables configuration analt supported. Skipping test"
 		return 1
 	fi
 
@@ -2165,7 +2165,7 @@ ip6tables_check()
 {
 	ip6tables -t mangle -L OUTPUT &> /dev/null
 	if [ $? -ne 0 ]; then
-		echo "ip6tables configuration not supported. Skipping test"
+		echo "ip6tables configuration analt supported. Skipping test"
 		return 1
 	fi
 
@@ -2194,7 +2194,7 @@ ipv4_mangle_test()
 	$IP route add table 123 172.16.101.0/24 dev veth1
 
 	# Add an unreachable route to the main table that will block our
-	# connection in case the FIB rule is not hit.
+	# connection in case the FIB rule is analt hit.
 	$IP route add unreachable 172.16.101.2/32
 
 	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=12345"
@@ -2214,7 +2214,7 @@ ipv4_mangle_test()
 	$NS_EXEC iptables -t mangle -D OUTPUT -j MARK --set-mark 1
 
 	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=12345"
-	log_test $? 0 "    Connection with correct parameters - no mangling"
+	log_test $? 0 "    Connection with correct parameters - anal mangling"
 
 	# Verify connections were indeed successful on server side.
 	[[ $(cat $tmp_file | wc -l) -eq 3 ]]
@@ -2252,7 +2252,7 @@ ipv6_mangle_test()
 	$IP -6 route add table 123 2001:db8:101::/64 dev veth1
 
 	# Add an unreachable route to the main table that will block our
-	# connection in case the FIB rule is not hit.
+	# connection in case the FIB rule is analt hit.
 	$IP -6 route add unreachable 2001:db8:101::2/128
 
 	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=12345"
@@ -2272,7 +2272,7 @@ ipv6_mangle_test()
 	$NS_EXEC ip6tables -t mangle -D OUTPUT -j MARK --set-mark 1
 
 	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=12345"
-	log_test $? 0 "    Connection with correct parameters - no mangling"
+	log_test $? 0 "    Connection with correct parameters - anal mangling"
 
 	# Verify connections were indeed successful on server side.
 	[[ $(cat $tmp_file | wc -l) -eq 3 ]]
@@ -2292,7 +2292,7 @@ ip_neigh_get_check()
 {
 	ip neigh help 2>&1 | grep -q 'ip neigh get'
 	if [ $? -ne 0 ]; then
-		echo "iproute2 command does not support neigh get. Skipping test"
+		echo "iproute2 command does analt support neigh get. Skipping test"
 		return 1
 	fi
 
@@ -2346,34 +2346,34 @@ ipv4_bcast_neigh_test()
 mpath_dep_check()
 {
 	if [ ! -x "$(command -v mausezahn)" ]; then
-		echo "mausezahn command not found. Skipping test"
+		echo "mausezahn command analt found. Skipping test"
 		return 1
 	fi
 
 	if [ ! -x "$(command -v jq)" ]; then
-		echo "jq command not found. Skipping test"
+		echo "jq command analt found. Skipping test"
 		return 1
 	fi
 
 	if [ ! -x "$(command -v bc)" ]; then
-		echo "bc command not found. Skipping test"
+		echo "bc command analt found. Skipping test"
 		return 1
 	fi
 
 	if [ ! -x "$(command -v perf)" ]; then
-		echo "perf command not found. Skipping test"
+		echo "perf command analt found. Skipping test"
 		return 1
 	fi
 
 	perf list fib:* | grep -q fib_table_lookup
 	if [ $? -ne 0 ]; then
-		echo "IPv4 FIB tracepoint not found. Skipping test"
+		echo "IPv4 FIB tracepoint analt found. Skipping test"
 		return 1
 	fi
 
 	perf list fib6:* | grep -q fib6_table_lookup
 	if [ $? -ne 0 ]; then
-		echo "IPv6 FIB tracepoint not found. Skipping test"
+		echo "IPv6 FIB tracepoint analt found. Skipping test"
 		return 1
 	fi
 
@@ -2437,7 +2437,7 @@ ipv4_mpath_list_test()
 	local cmd="ip netns exec $ns1 mausezahn veth1 -a own -b $dmac
 		-A 172.16.101.1 -B 203.0.113.1 -t udp 'sp=12345,dp=0-65535' -q"
 
-	# Packets forwarded in a list using a multipath route must not reuse a
+	# Packets forwarded in a list using a multipath route must analt reuse a
 	# cached result so that a flow always hits the same nexthop. In other
 	# words, the FIB lookup tracepoint needs to be triggered for every
 	# packet.
@@ -2482,7 +2482,7 @@ ipv6_mpath_list_test()
 	local cmd="ip netns exec $ns1 mausezahn -6 veth1 -a own -b $dmac
 		-A 2001:db8:101::1 -B 2001:db8:301::1 -t udp 'sp=12345,dp=0-65535' -q"
 
-	# Packets forwarded in a list using a multipath route must not reuse a
+	# Packets forwarded in a list using a multipath route must analt reuse a
 	# cached result so that a flow always hits the same nexthop. In other
 	# words, the FIB lookup tracepoint needs to be triggered for every
 	# packet.
@@ -2521,8 +2521,8 @@ while getopts :t:pPhv o
 do
 	case $o in
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -2532,7 +2532,7 @@ done
 PEER_CMD="ip netns exec ${PEER_NS}"
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -2540,7 +2540,7 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -2561,8 +2561,8 @@ do
 	fib_carrier_test|carrier)	fib_carrier_test;;
 	fib_rp_filter_test|rp_filter)	fib_rp_filter_test;;
 	fib_nexthop_test|nexthop)	fib_nexthop_test;;
-	fib_notify_test|ipv4_notify)	fib_notify_test;;
-	fib6_notify_test|ipv6_notify)	fib6_notify_test;;
+	fib_analtify_test|ipv4_analtify)	fib_analtify_test;;
+	fib6_analtify_test|ipv6_analtify)	fib6_analtify_test;;
 	fib_suppress_test|suppress)	fib_suppress_test;;
 	ipv6_route_test|ipv6_rt)	ipv6_route_test;;
 	ipv4_route_test|ipv4_rt)	ipv4_route_test;;
@@ -2584,7 +2584,7 @@ do
 	esac
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

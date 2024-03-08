@@ -3,7 +3,7 @@
  * Management Component Transport Protocol (MCTP) - routing
  * implementation.
  *
- * This is currently based on a simple routing table, with no dst cache. The
+ * This is currently based on a simple routing table, with anal dst cache. The
  * number of routes should stay fairly small, so the lookup cost is small.
  *
  * Copyright (c) 2021 Code Construct
@@ -88,7 +88,7 @@ static bool mctp_key_match(struct mctp_sk_key *key, mctp_eid_t local,
 	return true;
 }
 
-/* returns a key (with key->lock held, and refcounted), or NULL if no such
+/* returns a key (with key->lock held, and refcounted), or NULL if anal such
  * key exists.
  */
 static struct mctp_sk_key *mctp_lookup_key(struct net *net, struct sk_buff *skb,
@@ -159,7 +159,7 @@ void mctp_key_unref(struct mctp_sk_key *key)
 	if (!refcount_dec_and_test(&key->refs))
 		return;
 
-	/* even though no refs exist here, the lock allows us to stay
+	/* even though anal refs exist here, the lock allows us to stay
 	 * consistent with the locking requirement of mctp_dev_release_key
 	 */
 	spin_lock_irqsave(&key->lock, flags);
@@ -339,7 +339,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 	 */
 	skb_orphan(skb);
 
-	/* ensure we have enough data for a header and a type */
+	/* ensure we have eanalugh data for a header and a type */
 	if (skb->len < sizeof(struct mctp_hdr) + 1)
 		goto out;
 
@@ -381,7 +381,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 			msk = mctp_lookup_bind(net, skb);
 
 		if (!msk) {
-			rc = -ENOENT;
+			rc = -EANALENT;
 			goto out_unlock;
 		}
 
@@ -391,7 +391,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 		if (flags & MCTP_HDR_FLAG_EOM) {
 			sock_queue_rcv_skb(&msk->sk, skb);
 			if (key) {
-				/* we've hit a pending reassembly; not much we
+				/* we've hit a pending reassembly; analt much we
 				 * can do but drop it
 				 */
 				__mctp_key_done_in(key, net, f,
@@ -409,7 +409,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 			key = mctp_key_alloc(msk, mh->dest, mh->src,
 					     tag, GFP_ATOMIC);
 			if (!key) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out_unlock;
 			}
 
@@ -418,9 +418,9 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 			 */
 			mctp_frag_queue(key, skb);
 
-			/* if the key_add fails, we've raced with another
+			/* if the key_add fails, we've raced with aanalther
 			 * SOM packet with the same src, dest and tag. There's
-			 * no way to distinguish future packets, so all we
+			 * anal way to distinguish future packets, so all we
 			 * can do is drop; we'll free the skb on exit from
 			 * this function.
 			 */
@@ -469,8 +469,8 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 		}
 
 	} else {
-		/* not a start, no matching key */
-		rc = -ENOENT;
+		/* analt a start, anal matching key */
+		rc = -EANALENT;
 	}
 
 out_unlock:
@@ -534,7 +534,7 @@ static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 
 	rc = dev_queue_xmit(skb);
 	if (rc)
-		rc = net_xmit_errno(rc);
+		rc = net_xmit_erranal(rc);
 
 	return rc;
 }
@@ -613,10 +613,10 @@ struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
 	if (daddr == MCTP_ADDR_NULL)
 		daddr = MCTP_ADDR_ANY;
 
-	/* be optimistic, alloc now */
+	/* be optimistic, alloc analw */
 	key = mctp_key_alloc(msk, saddr, daddr, 0, GFP_KERNEL);
 	if (!key)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* 8 possible tag values */
 	tagbits = 0xff;
@@ -706,7 +706,7 @@ static struct mctp_sk_key *mctp_lookup_prealloc_tag(struct mctp_sock *msk,
 	spin_unlock_irqrestore(&mns->keys_lock, flags);
 
 	if (!key)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (tagp)
 		*tagp = key->tag;
@@ -742,7 +742,7 @@ struct mctp_route *mctp_route_lookup(struct net *net, unsigned int dnet,
 	list_for_each_entry_rcu(tmp, &net->mctp.routes, list) {
 		/* TODO: add metrics */
 		if (mctp_rt_match_eid(tmp, dnet, daddr)) {
-			if (refcount_inc_not_zero(&tmp->refs)) {
+			if (refcount_inc_analt_zero(&tmp->refs)) {
 				rt = tmp;
 				break;
 			}
@@ -763,7 +763,7 @@ static struct mctp_route *mctp_route_lookup_null(struct net *net,
 
 	list_for_each_entry_rcu(tmp, &net->mctp.routes, list) {
 		if (tmp->dev->dev == dev && tmp->type == RTN_LOCAL &&
-		    refcount_inc_not_zero(&tmp->refs)) {
+		    refcount_inc_analt_zero(&tmp->refs)) {
 			rt = tmp;
 			break;
 		}
@@ -805,7 +805,7 @@ static int mctp_do_fragment_route(struct mctp_route *rt, struct sk_buff *skb,
 
 		skb2 = alloc_skb(headroom + hlen + size, GFP_KERNEL);
 		if (!skb2) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			break;
 		}
 
@@ -871,7 +871,7 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 	int rc;
 	u8 tag;
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 
 	if (rt) {
 		ext_rt = false;
@@ -896,7 +896,7 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		if (!rt->dev)
 			goto out_release;
 
-		/* establish temporary route - we set up enough to keep
+		/* establish temporary route - we set up eanalugh to keep
 		 * mctp_route_output happy
 		 */
 		rt->output = mctp_route_output;
@@ -1009,7 +1009,7 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 
 	rt = mctp_route_alloc();
 	if (!rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt->min = daddr_start;
 	rt->max = daddr_start + daddr_extent;
@@ -1060,7 +1060,7 @@ static int mctp_route_remove(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 		}
 	}
 
-	return dropped ? 0 : -ENOENT;
+	return dropped ? 0 : -EANALENT;
 }
 
 int mctp_route_add_local(struct mctp_dev *mdev, mctp_eid_t addr)
@@ -1105,7 +1105,7 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 	mdev = __mctp_dev_get(dev);
 	rcu_read_unlock();
 	if (!mdev) {
-		/* basic non-data sanity checks */
+		/* basic analn-data sanity checks */
 		goto err_drop;
 	}
 
@@ -1115,7 +1115,7 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
 
-	/* We have enough for a header; decode and route */
+	/* We have eanalugh for a header; decode and route */
 	mh = mctp_hdr(skb);
 	if (mh->ver < MCTP_VER_MIN || mh->ver > MCTP_VER_MAX)
 		goto err_drop;
@@ -1216,14 +1216,14 @@ static int mctp_route_nlparse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	dev = __dev_get_by_index(net, ifindex);
 	if (!dev) {
 		NL_SET_ERR_MSG(extack, "bad ifindex");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	*mdev = mctp_dev_get_rtnl(dev);
 	if (!*mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->flags & IFF_LOOPBACK) {
-		NL_SET_ERR_MSG(extack, "no routes to loopback");
+		NL_SET_ERR_MSG(extack, "anal routes to loopback");
 		return -EINVAL;
 	}
 
@@ -1320,7 +1320,7 @@ static int mctp_fill_rtinfo(struct sk_buff *skb, struct mctp_route *rt,
 	if (nla_put_u8(skb, RTA_DST, rt->min))
 		goto cancel;
 
-	metrics = nla_nest_start_noflag(skb, RTA_METRICS);
+	metrics = nla_nest_start_analflag(skb, RTA_METRICS);
 	if (!metrics)
 		goto cancel;
 

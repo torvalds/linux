@@ -6,10 +6,10 @@
  *
  * Implementation of the SCU based Power Domains
  *
- * NOTE: a better implementation suggested by Ulf Hansson is using a
+ * ANALTE: a better implementation suggested by Ulf Hansson is using a
  * single global power domain and implement the ->attach|detach_dev()
  * callback for the genpd and use the regular of_genpd_add_provider_simple().
- * From within the ->attach_dev(), we could get the OF node for
+ * From within the ->attach_dev(), we could get the OF analde for
  * the device that is being attached and then parse the power-domain
  * cell containing the "resource id" and store that in the per device
  * struct generic_pm_domain_data (we have void pointer there for
@@ -19,26 +19,26 @@
  * callbacks of genpd, which is where you "power on/off" devices,
  * rather than using the above ->power_on|off() callbacks.
  *
- * However, there're two known issues:
+ * However, there're two kanalwn issues:
  * 1. The ->attach_dev() of power domain infrastructure still does
- *    not support multi domains case as the struct device *dev passed
- *    in is a virtual PD device, it does not help for parsing the real
+ *    analt support multi domains case as the struct device *dev passed
+ *    in is a virtual PD device, it does analt help for parsing the real
  *    device resource id from device tree, so it's unware of which
  *    real sub power domain of device should be attached.
  *
  *    The framework needs some proper extension to support multi power
  *    domain cases.
  *
- *    Update: Genpd assigns the ->of_node for the virtual device before it
+ *    Update: Genpd assigns the ->of_analde for the virtual device before it
  *    invokes ->attach_dev() callback, hence parsing for device resources via
  *    DT should work fine.
  *
  * 2. It also breaks most of current drivers as the driver probe sequence
  *    behavior changed if removing ->power_on|off() callback and use
  *    ->start() and ->stop() instead. genpd_dev_pm_attach will only power
- *    up the domain and attach device, but will not call .start() which
+ *    up the domain and attach device, but will analt call .start() which
  *    relies on device runtime pm. That means the device power is still
- *    not up before running driver probe function. For SCU enabled
+ *    analt up before running driver probe function. For SCU enabled
  *    platforms, all device drivers accessing registers/clock without power
  *    domain enabled will trigger a HW access error. That means we need fix
  *    most drivers probe sequence with proper runtime pm.
@@ -46,7 +46,7 @@
  *    Update: Runtime PM support isn't necessary. Instead, this can easily be
  *    fixed in drivers by adding a call to dev_pm_domain_start() during probe.
  *
- * In summary, the second part needs to be addressed via minor updates to the
+ * In summary, the second part needs to be addressed via mianalr updates to the
  * relevant drivers, before the "single global power domain" model can be used.
  *
  */
@@ -371,7 +371,7 @@ static int imx_sc_pd_power(struct generic_pm_domain *domain, bool power_on)
 	msg.resource = pd->rsrc;
 	msg.mode = power_on ? IMX_SC_PM_PW_MODE_ON : IMX_SC_PM_PW_MODE_LP;
 
-	/* keep uart console power on for no_console_suspend */
+	/* keep uart console power on for anal_console_suspend */
 	if (imx_con_rsrc == pd->rsrc && !console_suspend_enabled && !power_on)
 		return -EBUSY;
 
@@ -396,7 +396,7 @@ static int imx_sc_pd_power_off(struct generic_pm_domain *domain)
 static struct generic_pm_domain *imx_scu_pd_xlate(struct of_phandle_args *spec,
 						  void *data)
 {
-	struct generic_pm_domain *domain = ERR_PTR(-ENOENT);
+	struct generic_pm_domain *domain = ERR_PTR(-EANALENT);
 	struct genpd_onecell_data *pd_data = data;
 	unsigned int i;
 
@@ -426,7 +426,7 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 
 	sc_pd = devm_kzalloc(dev, sizeof(*sc_pd), GFP_KERNEL);
 	if (!sc_pd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sc_pd->rsrc = pd_ranges->rsrc + idx;
 	sc_pd->pd.power_off = imx_sc_pd_power_off;
@@ -485,11 +485,11 @@ static int imx_scu_init_pm_domains(struct device *dev,
 
 	domains = devm_kcalloc(dev, count, sizeof(*domains), GFP_KERNEL);
 	if (!domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd_data = devm_kzalloc(dev, sizeof(*pd_data), GFP_KERNEL);
 	if (!pd_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	count = 0;
 	for (i = 0; i < pd_soc->num_ranges; i++) {
@@ -507,7 +507,7 @@ static int imx_scu_init_pm_domains(struct device *dev,
 	pd_data->num_domains = count;
 	pd_data->xlate = imx_scu_pd_xlate;
 
-	of_genpd_add_provider_onecell(dev->of_node, pd_data);
+	of_genpd_add_provider_onecell(dev->of_analde, pd_data);
 
 	return 0;
 }
@@ -523,7 +523,7 @@ static int imx_sc_pd_probe(struct platform_device *pdev)
 
 	pd_soc = of_device_get_match_data(&pdev->dev);
 	if (!pd_soc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	imx_sc_pd_get_console_rsrc();
 

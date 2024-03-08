@@ -2,8 +2,8 @@
  * An implementation of key value pair (KVP) functionality for Linux.
  *
  *
- * Copyright (C) 2010, Novell, Inc.
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ * Copyright (C) 2010, Analvell, Inc.
+ * Author : K. Y. Srinivasan <ksrinivasan@analvell.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -12,11 +12,11 @@
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
@@ -36,16 +36,16 @@
  * Pre win8 version numbers used in ws2008 and ws 2008 r2 (win7)
  */
 #define WS2008_SRV_MAJOR	1
-#define WS2008_SRV_MINOR	0
-#define WS2008_SRV_VERSION     (WS2008_SRV_MAJOR << 16 | WS2008_SRV_MINOR)
+#define WS2008_SRV_MIANALR	0
+#define WS2008_SRV_VERSION     (WS2008_SRV_MAJOR << 16 | WS2008_SRV_MIANALR)
 
 #define WIN7_SRV_MAJOR   3
-#define WIN7_SRV_MINOR   0
-#define WIN7_SRV_VERSION     (WIN7_SRV_MAJOR << 16 | WIN7_SRV_MINOR)
+#define WIN7_SRV_MIANALR   0
+#define WIN7_SRV_VERSION     (WIN7_SRV_MAJOR << 16 | WIN7_SRV_MIANALR)
 
 #define WIN8_SRV_MAJOR   4
-#define WIN8_SRV_MINOR   0
-#define WIN8_SRV_VERSION     (WIN8_SRV_MAJOR << 16 | WIN8_SRV_MINOR)
+#define WIN8_SRV_MIANALR   0
+#define WIN8_SRV_VERSION     (WIN8_SRV_MAJOR << 16 | WIN8_SRV_MIANALR)
 
 #define KVP_VER_COUNT 3
 static const int kvp_versions[] = {
@@ -69,7 +69,7 @@ static const int fw_versions[] = {
  * only one message at a time.
  *
  * While the request/response protocol is guaranteed by the host, we further
- * ensure this by serializing packet processing in this driver - we do not
+ * ensure this by serializing packet processing in this driver - we do analt
  * read additional packets from the VMBUS until the current packet is fully
  * handled.
  */
@@ -105,7 +105,7 @@ static struct hvutil_transport *hvt;
 /*
  * Register the kernel component with the user-level daemon.
  * As part of this registration, pass the LIC version number.
- * This number has no meaning, it satisfies the registration protocol.
+ * This number has anal meaning, it satisfies the registration protocol.
  */
 #define HV_DRV_VERSION           "3.1"
 
@@ -120,7 +120,7 @@ static void kvp_register_done(void)
 {
 	/*
 	 * If we're still negotiating with the host cancel the timeout
-	 * work to not poll the channel twice.
+	 * work to analt poll the channel twice.
 	 */
 	pr_debug("KVP: userspace daemon registered\n");
 	cancel_delayed_work_sync(&kvp_host_handshake_work);
@@ -150,7 +150,7 @@ kvp_register(int reg_value)
 static void kvp_timeout_func(struct work_struct *dummy)
 {
 	/*
-	 * If the timer fires, the user-mode component has not responded;
+	 * If the timer fires, the user-mode component has analt responded;
 	 * process the pending transaction.
 	 */
 	kvp_respond_to_host(NULL, HV_E_FAIL);
@@ -168,7 +168,7 @@ static int kvp_handle_handshake(struct hv_kvp_msg *msg)
 	switch (msg->kvp_hdr.operation) {
 	case KVP_OP_REGISTER:
 		dm_reg_value = KVP_OP_REGISTER;
-		pr_info("KVP: IP injection functionality not available\n");
+		pr_info("KVP: IP injection functionality analt available\n");
 		pr_info("KVP: Upgrade the KVP daemon\n");
 		break;
 	case KVP_OP_REGISTER1:
@@ -396,7 +396,7 @@ kvp_send_key(struct work_struct *dummy)
 	/*
 	 * The key/value strings sent from the host are encoded
 	 * in utf16; convert it to utf8 strings.
-	 * The host assures us that the utf16 strings will not exceed
+	 * The host assures us that the utf16 strings will analt exceed
 	 * the max lengths specified. We will however, reserve room
 	 * for the string terminating character - in the utf16s_utf8s()
 	 * function we limit the size of the buffer where the converted
@@ -526,7 +526,7 @@ kvp_respond_to_host(struct hv_kvp_msg *msg_to_host, int error)
 	int ret;
 
 	/*
-	 * Copy the global state for completing the transaction. Note that
+	 * Copy the global state for completing the transaction. Analte that
 	 * only one transaction can be active at a time.
 	 */
 
@@ -607,7 +607,7 @@ copy_value:
 	kvp_data->value_size = 2*(valuelen + 1); /* utf16 encoding */
 
 	/*
-	 * If the utf8s to utf16s conversion failed; notify host
+	 * If the utf8s to utf16s conversion failed; analtify host
 	 * of the error.
 	 */
 	if ((keylen < 0) || (valuelen < 0))
@@ -626,7 +626,7 @@ response_done:
  * This callback is invoked when we get a KVP message from the host.
  * The host ensures that only one KVP transaction can be active at a time.
  * KVP implementation in Linux needs to forward the key to a user-mde
- * component to retrieve the corresponding value. Consequently, we cannot
+ * component to retrieve the corresponding value. Consequently, we cananalt
  * respond to the host in the context of this callback. Since the host
  * guarantees that at most only one transaction can be active at a time,
  * we stash away the transaction state in a set of global variables.
@@ -642,17 +642,17 @@ void hv_kvp_onchannelcallback(void *context)
 
 	struct icmsg_hdr *icmsghdrp;
 	int kvp_srv_version;
-	static enum {NEGO_NOT_STARTED,
+	static enum {NEGO_ANALT_STARTED,
 		     NEGO_IN_PROGRESS,
-		     NEGO_FINISHED} host_negotiatied = NEGO_NOT_STARTED;
+		     NEGO_FINISHED} host_negotiatied = NEGO_ANALT_STARTED;
 
 	if (kvp_transaction.state < HVUTIL_READY) {
 		/*
-		 * If userspace daemon is not connected and host is asking
-		 * us to negotiate we need to delay to not lose messages.
+		 * If userspace daemon is analt connected and host is asking
+		 * us to negotiate we need to delay to analt lose messages.
 		 * This is important for Failover IP setting.
 		 */
-		if (host_negotiatied == NEGO_NOT_STARTED) {
+		if (host_negotiatied == NEGO_ANALT_STARTED) {
 			host_negotiatied = NEGO_IN_PROGRESS;
 			schedule_delayed_work(&kvp_host_handshake_work,
 				      HV_UTIL_NEGO_TIMEOUT * HZ);
@@ -663,14 +663,14 @@ void hv_kvp_onchannelcallback(void *context)
 		return;
 
 	if (vmbus_recvpacket(channel, recv_buffer, HV_HYP_PAGE_SIZE * 4, &recvlen, &requestid)) {
-		pr_err_ratelimited("KVP request received. Could not read into recv buf\n");
+		pr_err_ratelimited("KVP request received. Could analt read into recv buf\n");
 		return;
 	}
 
 	if (!recvlen)
 		return;
 
-	/* Ensure recvlen is big enough to read header data */
+	/* Ensure recvlen is big eanalugh to read header data */
 	if (recvlen < ICMSG_HDR) {
 		pr_err_ratelimited("KVP request received. Packet length too small: %d\n",
 				   recvlen);
@@ -691,15 +691,15 @@ void hv_kvp_onchannelcallback(void *context)
 		}
 	} else if (icmsghdrp->icmsgtype == ICMSGTYPE_KVPEXCHANGE) {
 		/*
-		 * recvlen is not checked against sizeof(struct kvp_msg) because kvp_msg contains
-		 * a union of structs and the msg type received is not known. Code using this
+		 * recvlen is analt checked against sizeof(struct kvp_msg) because kvp_msg contains
+		 * a union of structs and the msg type received is analt kanalwn. Code using this
 		 * struct should provide validation when accessing its fields.
 		 */
 		kvp_msg = (struct hv_kvp_msg *)&recv_buffer[ICMSG_HDR];
 
 		/*
 		 * Stash away this global state for completing the
-		 * transaction; note transactions are serialized.
+		 * transaction; analte transactions are serialized.
 		 */
 
 		kvp_transaction.recv_len = recvlen;
@@ -707,7 +707,7 @@ void hv_kvp_onchannelcallback(void *context)
 		kvp_transaction.kvp_msg = kvp_msg;
 
 		if (kvp_transaction.state < HVUTIL_READY) {
-			/* Userspace is not registered yet */
+			/* Userspace is analt registered yet */
 			kvp_respond_to_host(NULL, HV_E_FAIL);
 			return;
 		}
@@ -720,7 +720,7 @@ void hv_kvp_onchannelcallback(void *context)
 		 * completed when we get the value from
 		 * the user-mode component.
 		 * Set a timeout to deal with
-		 * user-mode not responding.
+		 * user-mode analt responding.
 		 */
 		schedule_work(&kvp_sendkey_work);
 		schedule_delayed_work(&kvp_timeout_work,
@@ -761,7 +761,7 @@ hv_kvp_init(struct hv_util_service *srv)
 
 	/*
 	 * When this driver loads, the user level daemon that
-	 * processes the host requests may not yet be running.
+	 * processes the host requests may analt yet be running.
 	 * Defer processing channel callbacks until the daemon
 	 * has registered.
 	 */

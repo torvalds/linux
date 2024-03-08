@@ -13,18 +13,18 @@ function config_device {
 	ip link set veth0 netns at_ns0
 	ip netns exec at_ns0 sysctl -q net.ipv6.conf.veth0.disable_ipv6=0
 	ip netns exec at_ns0 ip addr add 172.16.1.100/24 dev veth0
-	ip netns exec at_ns0 ip addr add 2401:db00::1/64 dev veth0 nodad
+	ip netns exec at_ns0 ip addr add 2401:db00::1/64 dev veth0 analdad
 	ip netns exec at_ns0 ip link set dev veth0 up
 	sysctl -q net.ipv6.conf.veth0b.disable_ipv6=0
 	ip addr add 172.16.1.101/24 dev veth0b
-	ip addr add 2401:db00::2/64 dev veth0b nodad
+	ip addr add 2401:db00::2/64 dev veth0b analdad
 	ip link set veth0b up
 }
 
 function config_cgroup {
 	rm -rf /tmp/cgroupv2
 	mkdir -p /tmp/cgroupv2
-	mount -t cgroup2 none /tmp/cgroupv2
+	mount -t cgroup2 analne /tmp/cgroupv2
 	mkdir -p /tmp/cgroupv2/foo
 	echo $$ >> /tmp/cgroupv2/foo/cgroup.procs
 }
@@ -33,8 +33,8 @@ function config_bpffs {
 	if mount | grep $BPFFS > /dev/null; then
 		echo "bpffs already mounted"
 	else
-		echo "bpffs not mounted. Mounting..."
-		mount -t bpf none $BPFFS
+		echo "bpffs analt mounted. Mounting..."
+		mount -t bpf analne $BPFFS
 	fi
 }
 
@@ -72,7 +72,7 @@ fi
 
 ping6 -c1 -w1 2401:db00::1
 if [ $? -eq 0 ]; then
-	echo "ping6 succeeded when it should not"
+	echo "ping6 succeeded when it should analt"
 	cleanup
 	exit 1
 fi
@@ -93,7 +93,7 @@ fi
 
 ping -c1 -w1 172.16.1.100
 if [ $? -eq 0 ]; then
-	echo "ping succeeded when it should not"
+	echo "ping succeeded when it should analt"
 	cleanup
 	exit 1
 fi

@@ -35,7 +35,7 @@ static void assert_iir_is_zero(struct xe_gt *mmio, struct xe_reg reg)
 		return;
 
 	drm_WARN(&gt_to_xe(mmio)->drm, 1,
-		 "Interrupt register 0x%x is not zero: 0x%08x\n",
+		 "Interrupt register 0x%x is analt zero: 0x%08x\n",
 		 reg.addr, val);
 	xe_mmio_write32(mmio, reg, 0xffffffff);
 	xe_mmio_read32(mmio, reg);
@@ -44,15 +44,15 @@ static void assert_iir_is_zero(struct xe_gt *mmio, struct xe_reg reg)
 }
 
 /*
- * Unmask and enable the specified interrupts.  Does not check current state,
- * so any bits not specified here will become masked and disabled.
+ * Unmask and enable the specified interrupts.  Does analt check current state,
+ * so any bits analt specified here will become masked and disabled.
  */
 static void unmask_and_enable(struct xe_tile *tile, u32 irqregs, u32 bits)
 {
 	struct xe_gt *mmio = tile->primary_gt;
 
 	/*
-	 * If we're just enabling an interrupt now, it shouldn't already
+	 * If we're just enabling an interrupt analw, it shouldn't already
 	 * be raised in the IIR.
 	 */
 	assert_iir_is_zero(mmio, IIR(irqregs));
@@ -75,7 +75,7 @@ static void mask_and_disable(struct xe_tile *tile, u32 irqregs)
 
 	xe_mmio_write32(mmio, IER(irqregs), 0);
 
-	/* IIR can theoretically queue up two events. Be paranoid. */
+	/* IIR can theoretically queue up two events. Be paraanalid. */
 	xe_mmio_write32(mmio, IIR(irqregs), ~0);
 	xe_mmio_read32(mmio, IIR(irqregs));
 	xe_mmio_write32(mmio, IIR(irqregs), ~0);
@@ -89,7 +89,7 @@ static u32 xelp_intr_disable(struct xe_device *xe)
 	xe_mmio_write32(mmio, GFX_MSTR_IRQ, 0);
 
 	/*
-	 * Now with master disabled, get a sample of level indications
+	 * Analw with master disabled, get a sample of level indications
 	 * for this interrupt. Indications will be cleared on related acks.
 	 * New indications can and will light up during processing,
 	 * and will generate new interrupt after enabling master.
@@ -132,7 +132,7 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 
 	if (xe_device_uc_enabled(xe)) {
 		irqs = GT_RENDER_USER_INTERRUPT |
-			GT_RENDER_PIPECTL_NOTIFY_INTERRUPT;
+			GT_RENDER_PIPECTL_ANALTIFY_INTERRUPT;
 	} else {
 		irqs = GT_RENDER_USER_INTERRUPT |
 		       GT_CS_MASTER_ERROR_INTERRUPT |
@@ -203,7 +203,7 @@ gt_engine_identity(struct xe_device *xe,
 	xe_mmio_write32(mmio, IIR_REG_SELECTOR(bank), BIT(bit));
 
 	/*
-	 * NB: Specs do not specify how long to spin wait,
+	 * NB: Specs do analt specify how long to spin wait,
 	 * so we do ~100us as an educated guess.
 	 */
 	timeout_ts = (local_clock() >> 10) + 100;
@@ -213,7 +213,7 @@ gt_engine_identity(struct xe_device *xe,
 		 !time_after32(local_clock() >> 10, timeout_ts));
 
 	if (unlikely(!(ident & INTR_DATA_VALID))) {
-		drm_err(&xe->drm, "INTR_IDENTITY_REG%u:%u 0x%08x not valid!\n",
+		drm_err(&xe->drm, "INTR_IDENTITY_REG%u:%u 0x%08x analt valid!\n",
 			bank, bit, ident);
 		return 0;
 	}
@@ -312,7 +312,7 @@ static void gt_irq_handler(struct xe_tile *tile,
 }
 
 /*
- * Top-level interrupt handler for Xe_LP platforms (which did not have
+ * Top-level interrupt handler for Xe_LP platforms (which did analt have
  * a "master tile" interrupt register.
  */
 static irqreturn_t xelp_irq_handler(int irq, void *arg)
@@ -326,14 +326,14 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 	spin_lock(&xe->irq.lock);
 	if (!xe->irq.enabled) {
 		spin_unlock(&xe->irq.lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	spin_unlock(&xe->irq.lock);
 
 	master_ctl = xelp_intr_disable(xe);
 	if (!master_ctl) {
 		xelp_intr_enable(xe, false);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	gt_irq_handler(tile, master_ctl, intr_dw, identity);
@@ -395,14 +395,14 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 	spin_lock(&xe->irq.lock);
 	if (!xe->irq.enabled) {
 		spin_unlock(&xe->irq.lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	spin_unlock(&xe->irq.lock);
 
 	master_tile_ctl = dg1_intr_disable(xe);
 	if (!master_tile_ctl) {
 		dg1_intr_enable(xe, false);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	for_each_tile(tile, xe, id) {
@@ -415,12 +415,12 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 
 		/*
 		 * We might be in irq handler just when PCIe DPC is initiated
-		 * and all MMIO reads will be returned with all 1's. Ignore this
+		 * and all MMIO reads will be returned with all 1's. Iganalre this
 		 * irq as device is inaccessible.
 		 */
 		if (master_ctl == REG_GENMASK(31, 0)) {
 			dev_dbg(tile_to_xe(tile)->drm.dev,
-				"Ignore this IRQ as device might be in DPC containment.\n");
+				"Iganalre this IRQ as device might be in DPC containment.\n");
 			return IRQ_HANDLED;
 		}
 
@@ -595,7 +595,7 @@ int xe_irq_install(struct xe_device *xe)
 
 	irq_handler = xe_irq_handler(xe);
 	if (!irq_handler) {
-		drm_err(&xe->drm, "No supported interrupt handler");
+		drm_err(&xe->drm, "Anal supported interrupt handler");
 		return -EINVAL;
 	}
 
@@ -640,7 +640,7 @@ void xe_irq_suspend(struct xe_device *xe)
 	int irq = to_pci_dev(xe->drm.dev)->irq;
 
 	spin_lock_irq(&xe->irq.lock);
-	xe->irq.enabled = false; /* no new irqs */
+	xe->irq.enabled = false; /* anal new irqs */
 	spin_unlock_irq(&xe->irq.lock);
 
 	synchronize_irq(irq); /* flush irqs */
@@ -653,9 +653,9 @@ void xe_irq_resume(struct xe_device *xe)
 	int id;
 
 	/*
-	 * lock not needed:
-	 * 1. no irq will arrive before the postinstall
-	 * 2. display is not yet resumed
+	 * lock analt needed:
+	 * 1. anal irq will arrive before the postinstall
+	 * 2. display is analt yet resumed
 	 */
 	xe->irq.enabled = true;
 	xe_irq_reset(xe);

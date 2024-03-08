@@ -267,7 +267,7 @@ static inline void iaputword(struct intel8x0m *chip, u32 offset, u16 val)
  */
 
 /*
- * access to AC97 codec via normal i/o (for ICH and SIS7013)
+ * access to AC97 codec via analrmal i/o (for ICH and SIS7013)
  */
 
 /* return the GLOB_STA bit for the corresponding codec */
@@ -301,11 +301,11 @@ static int snd_intel8x0m_codec_semaphore(struct intel8x0m *chip, unsigned int co
 		udelay(10);
 	} while (time--);
 
-	/* access to some forbidden (non existent) ac97 registers will not
+	/* access to some forbidden (analn existent) ac97 registers will analt
 	 * reset the semaphore. So even if you don't get the semaphore, still
 	 * continue the access. We don't need the semaphore anyway. */
 	dev_err(chip->card->dev,
-		"codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",
+		"codec_semaphore: semaphore is analt ready [0x%x][0x%x]\n",
 			igetbyte(chip, ICHREG(ACC_SEMA)), igetdword(chip, ICHREG(GLOB_STA)));
 	iagetword(chip, 0);	/* clear semaphore flag */
 	/* I don't care about the semaphore */
@@ -321,7 +321,7 @@ static void snd_intel8x0m_codec_write(struct snd_ac97 *ac97,
 	if (snd_intel8x0m_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
 			dev_err(chip->card->dev,
-				"codec_write %d: semaphore is not ready for register 0x%x\n",
+				"codec_write %d: semaphore is analt ready for register 0x%x\n",
 				ac97->num, reg);
 	}
 	iaputword(chip, reg + ac97->num * 0x80, val);
@@ -337,7 +337,7 @@ static unsigned short snd_intel8x0m_codec_read(struct snd_ac97 *ac97,
 	if (snd_intel8x0m_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
 			dev_err(chip->card->dev,
-				"codec_read %d: semaphore is not ready for register 0x%x\n",
+				"codec_read %d: semaphore is analt ready for register 0x%x\n",
 				ac97->num, reg);
 		res = 0xffff;
 	} else {
@@ -476,15 +476,15 @@ static irqreturn_t snd_intel8x0m_interrupt(int irq, void *dev_id)
 
 	spin_lock(&chip->reg_lock);
 	status = igetdword(chip, chip->int_sta_reg);
-	if (status == 0xffffffff) { /* we are not yet resumed */
+	if (status == 0xffffffff) { /* we are analt yet resumed */
 		spin_unlock(&chip->reg_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	if ((status & chip->int_sta_mask) == 0) {
 		if (status)
 			iputdword(chip, chip->int_sta_reg, status);
 		spin_unlock(&chip->reg_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	for (i = 0; i < chip->bdbars_count; i++) {
@@ -579,7 +579,7 @@ static const struct snd_pcm_hardware snd_intel8x0m_stream =
 				 SNDRV_PCM_INFO_PAUSE |
 				 SNDRV_PCM_INFO_RESUME),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_KNOT,
+	.rates =		SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_KANALT,
 	.rate_min =		8000,
 	.rate_max =		16000,
 	.channels_min =		1,
@@ -873,7 +873,7 @@ static int snd_intel8x0m_ich_chip_init(struct intel8x0m *chip, int probing)
 	if (probing) {
 		/* wait for any codec ready status.
 		 * Once it becomes ready it should remain ready
-		 * as long as we do not disable the ac97 link.
+		 * as long as we do analt disable the ac97 link.
 		 */
 		end_time = jiffies + HZ;
 		do {
@@ -884,14 +884,14 @@ static int snd_intel8x0m_ich_chip_init(struct intel8x0m *chip, int probing)
 			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		if (! status) {
-			/* no codec is found */
+			/* anal codec is found */
 			dev_err(chip->card->dev,
-				"codec_ready: codec is not ready [0x%x]\n",
+				"codec_ready: codec is analt ready [0x%x]\n",
 				   igetdword(chip, ICHREG(GLOB_STA)));
 			return -EIO;
 		}
 
-		/* up to two codecs (modem cannot be tertiary with ICH4) */
+		/* up to two codecs (modem cananalt be tertiary with ICH4) */
 		nstatus = ICH_PCR | ICH_SCR;
 
 		/* wait for other codecs ready status. */
@@ -1029,7 +1029,7 @@ static void snd_intel8x0m_proc_read(struct snd_info_entry * entry,
 			tmp & ICH_PCR ? " primary" : "",
 			tmp & ICH_SCR ? " secondary" : "",
 			tmp & ICH_TCR ? " tertiary" : "",
-			(tmp & (ICH_PCR | ICH_SCR | ICH_TCR)) == 0 ? " none" : "");
+			(tmp & (ICH_PCR | ICH_SCR | ICH_TCR)) == 0 ? " analne" : "");
 }
 
 static void snd_intel8x0m_proc_init(struct intel8x0m *chip)
@@ -1073,7 +1073,7 @@ static int snd_intel8x0m_init(struct snd_card *card,
 		return err;
 
 	if (device_type == DEVICE_ALI) {
-		/* ALI5455 has no ac97 region */
+		/* ALI5455 has anal ac97 region */
 		chip->bmaddr = pcim_iomap(pci, 0, 0);
 	} else {
 		if (pci_resource_flags(pci, 2) & IORESOURCE_MEM) /* ICH4 and Nforce */
@@ -1115,7 +1115,7 @@ static int snd_intel8x0m_init(struct snd_card *card,
 					    chip->bdbars_count * sizeof(u32) *
 					    ICH_MAX_FRAGS * 2);
 	if (!chip->bdbars)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* tables must be aligned to 8 bytes here, but the kernel pages
 	   are much bigger, so we don't care (on i386) */
@@ -1135,7 +1135,7 @@ static int snd_intel8x0m_init(struct snd_card *card,
 	if (err < 0)
 		return err;
 
-	/* NOTE: we don't use devm version here since it's released /
+	/* ANALTE: we don't use devm version here since it's released /
 	 * re-acquired in PM callbacks.
 	 * It's released explicitly in snd_intel8x0m_free(), too.
 	 */

@@ -15,7 +15,7 @@ test_kprobes_s390-objs += test_kprobes_asm.o test_kprobes.o
 KASAN_SANITIZE_uaccess.o := n
 
 obj-$(CONFIG_S390_UNWIND_SELFTEST) += test_unwind.o
-CFLAGS_test_unwind.o += -fno-optimize-sibling-calls
+CFLAGS_test_unwind.o += -fanal-optimize-sibling-calls
 
 obj-$(CONFIG_S390_MODULES_SANITY_TEST) += test_modules.o
 obj-$(CONFIG_S390_MODULES_SANITY_TEST_HELPERS) += test_modules_helpers.o

@@ -5,16 +5,16 @@ NUMA Memory Policy
 What is NUMA Memory Policy?
 ============================
 
-In the Linux kernel, "memory policy" determines from which node the kernel will
+In the Linux kernel, "memory policy" determines from which analde the kernel will
 allocate memory in a NUMA system or in an emulated NUMA system.  Linux has
-supported platforms with Non-Uniform Memory Access architectures since 2.4.?.
+supported platforms with Analn-Uniform Memory Access architectures since 2.4.?.
 The current memory policy support was added to Linux 2.6 around May 2004.  This
 document attempts to describe the concepts and APIs of the 2.6 memory policy
 support.
 
-Memory policies should not be confused with cpusets
+Memory policies should analt be confused with cpusets
 (``Documentation/admin-guide/cgroup-v1/cpusets.rst``)
-which is an administrative mechanism for restricting the nodes from which
+which is an administrative mechanism for restricting the analdes from which
 memory may be allocated by a set of processes. Memory policies are a
 programming interface that a NUMA-aware application can take advantage of.  When
 both cpusets and policies are applied to a task, the restrictions of the cpuset
@@ -37,15 +37,15 @@ System Default Policy
 	the system is "up and running", the system default policy will
 	use "local allocation" described below.  However, during boot
 	up, the system default policy will be set to interleave
-	allocations across all nodes with "sufficient" memory, so as
-	not to overload the initial boot node with boot-time
+	allocations across all analdes with "sufficient" memory, so as
+	analt to overload the initial boot analde with boot-time
 	allocations.
 
 Task/Process Policy
 	this is an optional, per-task policy.  When defined for a
 	specific task, this policy controls all page allocations made
 	by or on behalf of the task that aren't controlled by a more
-	specific scope. If a task does not define a task policy, then
+	specific scope. If a task does analt define a task policy, then
 	all page allocations that would have been controlled by the
 	task policy "fall back" to the System Default Policy.
 
@@ -53,7 +53,7 @@ Task/Process Policy
 	it is inheritable, and indeed is inherited, across both fork()
 	[clone() w/o the CLONE_VM flag] and exec*().  This allows a parent task
 	to establish the task policy for a child task exec()'d from an
-	executable image that has no awareness of memory policy.  See the
+	executable image that has anal awareness of memory policy.  See the
 	:ref:`Memory Policy APIs <memory_policy_apis>` section,
 	below, for an overview of the system call
 	that a task may use to set/change its task/process policy.
@@ -87,14 +87,14 @@ VMA Policy
 
 	VMA policies have a few complicating details:
 
-	* VMA policy applies ONLY to anonymous pages.  These include
-	  pages allocated for anonymous segments, such as the task
+	* VMA policy applies ONLY to aanalnymous pages.  These include
+	  pages allocated for aanalnymous segments, such as the task
 	  stack and heap, and any regions of the address space
-	  mmap()ed with the MAP_ANONYMOUS flag.  If a VMA policy is
-	  applied to a file mapping, it will be ignored if the mapping
+	  mmap()ed with the MAP_AANALNYMOUS flag.  If a VMA policy is
+	  applied to a file mapping, it will be iganalred if the mapping
 	  used the MAP_SHARED flag.  If the file mapping used the
 	  MAP_PRIVATE flag, the VMA policy will only be applied when
-	  an anonymous page is allocated on an attempt to write to the
+	  an aanalnymous page is allocated on an attempt to write to the
 	  mapping-- i.e., at Copy-On-Write.
 
 	* VMA policies are shared between all tasks that share a
@@ -103,7 +103,7 @@ VMA Policy
 	  fork().  However, because VMA policies refer to a specific
 	  region of a task's address space, and because the address
 	  space is discarded and recreated on exec*(), VMA policies
-	  are NOT inheritable across exec().  Thus, only NUMA-aware
+	  are ANALT inheritable across exec().  Thus, only NUMA-aware
 	  applications may use VMA policies.
 
 	* A task may install a new VMA policy on a sub-range of a
@@ -132,20 +132,20 @@ Shared Policy
 	shared object, by any task, will obey the shared policy.
 
 	As of 2.6.22, only shared memory segments, created by shmget() or
-	mmap(MAP_ANONYMOUS|MAP_SHARED), support shared policy.  When shared
+	mmap(MAP_AANALNYMOUS|MAP_SHARED), support shared policy.  When shared
 	policy support was added to Linux, the associated data structures were
-	added to hugetlbfs shmem segments.  At the time, hugetlbfs did not
+	added to hugetlbfs shmem segments.  At the time, hugetlbfs did analt
 	support allocation at fault time--a.k.a lazy allocation--so hugetlbfs
 	shmem segments were never "hooked up" to the shared policy support.
-	Although hugetlbfs segments now support lazy allocation, their support
-	for shared policy has not been completed.
+	Although hugetlbfs segments analw support lazy allocation, their support
+	for shared policy has analt been completed.
 
 	As mentioned above in :ref:`VMA policies <vma_policy>` section,
 	allocations of page cache pages for regular files mmap()ed
-	with MAP_SHARED ignore any VMA policy installed on the virtual
+	with MAP_SHARED iganalre any VMA policy installed on the virtual
 	address range backed by the shared file mapping.  Rather,
 	shared page cache pages, including pages backing private
-	mappings that have not yet been written by the task, follow
+	mappings that have analt yet been written by the task, follow
 	task policy, if any, else System Default Policy.
 
 	The shared policy infrastructure supports different policies on subset
@@ -161,9 +161,9 @@ Components of Memory Policies
 -----------------------------
 
 A NUMA memory policy consists of a "mode", optional mode flags, and
-an optional set of nodes.  The mode determines the behavior of the
+an optional set of analdes.  The mode determines the behavior of the
 policy, the optional mode flags determine the behavior of the mode,
-and the optional set of nodes can be viewed as the arguments to the
+and the optional set of analdes can be viewed as the arguments to the
 policy behavior.
 
 Internally, memory policies are implemented by a reference counted
@@ -175,7 +175,7 @@ NUMA memory policy supports the following 4 behavioral modes:
 Default Mode--MPOL_DEFAULT
 	This mode is only used in the memory policy APIs.  Internally,
 	MPOL_DEFAULT is converted to the NULL memory policy in all
-	policy scopes.  Any existing non-default policy will simply be
+	policy scopes.  Any existing analn-default policy will simply be
 	removed when MPOL_DEFAULT is specified.  As a result,
 	MPOL_DEFAULT means "fall back to the next most specific policy
 	scope."
@@ -185,59 +185,59 @@ Default Mode--MPOL_DEFAULT
 	back to the task policy.
 
 	When specified in one of the memory policy APIs, the Default mode
-	does not use the optional set of nodes.
+	does analt use the optional set of analdes.
 
-	It is an error for the set of nodes specified for this policy to
-	be non-empty.
+	It is an error for the set of analdes specified for this policy to
+	be analn-empty.
 
 MPOL_BIND
 	This mode specifies that memory must come from the set of
-	nodes specified by the policy.  Memory will be allocated from
-	the node in the set with sufficient free memory that is
-	closest to the node where the allocation takes place.
+	analdes specified by the policy.  Memory will be allocated from
+	the analde in the set with sufficient free memory that is
+	closest to the analde where the allocation takes place.
 
 MPOL_PREFERRED
 	This mode specifies that the allocation should be attempted
-	from the single node specified in the policy.  If that
-	allocation fails, the kernel will search other nodes, in order
-	of increasing distance from the preferred node based on
+	from the single analde specified in the policy.  If that
+	allocation fails, the kernel will search other analdes, in order
+	of increasing distance from the preferred analde based on
 	information provided by the platform firmware.
 
-	Internally, the Preferred policy uses a single node--the
-	preferred_node member of struct mempolicy.  When the internal
-	mode flag MPOL_F_LOCAL is set, the preferred_node is ignored
+	Internally, the Preferred policy uses a single analde--the
+	preferred_analde member of struct mempolicy.  When the internal
+	mode flag MPOL_F_LOCAL is set, the preferred_analde is iganalred
 	and the policy is interpreted as local allocation.  "Local"
 	allocation policy can be viewed as a Preferred policy that
-	starts at the node containing the cpu where the allocation
+	starts at the analde containing the cpu where the allocation
 	takes place.
 
 	It is possible for the user to specify that local allocation
-	is always preferred by passing an empty nodemask with this
-	mode.  If an empty nodemask is passed, the policy cannot use
-	the MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES flags
+	is always preferred by passing an empty analdemask with this
+	mode.  If an empty analdemask is passed, the policy cananalt use
+	the MPOL_F_STATIC_ANALDES or MPOL_F_RELATIVE_ANALDES flags
 	described below.
 
 MPOL_INTERLEAVED
 	This mode specifies that page allocations be interleaved, on a
-	page granularity, across the nodes specified in the policy.
+	page granularity, across the analdes specified in the policy.
 	This mode also behaves slightly differently, based on the
 	context where it is used:
 
-	For allocation of anonymous pages and shared memory pages,
-	Interleave mode indexes the set of nodes specified by the
+	For allocation of aanalnymous pages and shared memory pages,
+	Interleave mode indexes the set of analdes specified by the
 	policy using the page offset of the faulting address into the
 	segment [VMA] containing the address modulo the number of
-	nodes specified by the policy.  It then attempts to allocate a
-	page, starting at the selected node, as if the node had been
+	analdes specified by the policy.  It then attempts to allocate a
+	page, starting at the selected analde, as if the analde had been
 	specified by a Preferred policy or had been selected by a
 	local allocation.  That is, allocation will follow the per
-	node zonelist.
+	analde zonelist.
 
 	For allocation of page cache pages, Interleave mode indexes
-	the set of nodes specified by the policy using a node counter
+	the set of analdes specified by the policy using a analde counter
 	maintained per task.  This counter wraps around to the lowest
-	specified node after it reaches the highest specified node.
-	This will tend to spread the pages out over the nodes
+	specified analde after it reaches the highest specified analde.
+	This will tend to spread the pages out over the analdes
 	specified by the policy based on the order in which they are
 	allocated, rather than based on any page offset into an
 	address range or file.  During system boot up, the temporary
@@ -245,91 +245,91 @@ MPOL_INTERLEAVED
 
 MPOL_PREFERRED_MANY
 	This mode specifies that the allocation should be preferably
-	satisfied from the nodemask specified in the policy. If there is
-	a memory pressure on all nodes in the nodemask, the allocation
-	can fall back to all existing numa nodes. This is effectively
-	MPOL_PREFERRED allowed for a mask rather than a single node.
+	satisfied from the analdemask specified in the policy. If there is
+	a memory pressure on all analdes in the analdemask, the allocation
+	can fall back to all existing numa analdes. This is effectively
+	MPOL_PREFERRED allowed for a mask rather than a single analde.
 
 NUMA memory policy supports the following optional mode flags:
 
-MPOL_F_STATIC_NODES
-	This flag specifies that the nodemask passed by
-	the user should not be remapped if the task or VMA's set of allowed
-	nodes changes after the memory policy has been defined.
+MPOL_F_STATIC_ANALDES
+	This flag specifies that the analdemask passed by
+	the user should analt be remapped if the task or VMA's set of allowed
+	analdes changes after the memory policy has been defined.
 
 	Without this flag, any time a mempolicy is rebound because of a
-        change in the set of allowed nodes, the preferred nodemask (Preferred
-        Many), preferred node (Preferred) or nodemask (Bind, Interleave) is
-        remapped to the new set of allowed nodes.  This may result in nodes
+        change in the set of allowed analdes, the preferred analdemask (Preferred
+        Many), preferred analde (Preferred) or analdemask (Bind, Interleave) is
+        remapped to the new set of allowed analdes.  This may result in analdes
         being used that were previously undesired.
 
-	With this flag, if the user-specified nodes overlap with the
-	nodes allowed by the task's cpuset, then the memory policy is
-	applied to their intersection.  If the two sets of nodes do not
+	With this flag, if the user-specified analdes overlap with the
+	analdes allowed by the task's cpuset, then the memory policy is
+	applied to their intersection.  If the two sets of analdes do analt
 	overlap, the Default policy is used.
 
 	For example, consider a task that is attached to a cpuset with
 	mems 1-3 that sets an Interleave policy over the same set.  If
-	the cpuset's mems change to 3-5, the Interleave will now occur
-	over nodes 3, 4, and 5.  With this flag, however, since only node
-	3 is allowed from the user's nodemask, the "interleave" only
-	occurs over that node.  If no nodes from the user's nodemask are
-	now allowed, the Default behavior is used.
+	the cpuset's mems change to 3-5, the Interleave will analw occur
+	over analdes 3, 4, and 5.  With this flag, however, since only analde
+	3 is allowed from the user's analdemask, the "interleave" only
+	occurs over that analde.  If anal analdes from the user's analdemask are
+	analw allowed, the Default behavior is used.
 
-	MPOL_F_STATIC_NODES cannot be combined with the
-	MPOL_F_RELATIVE_NODES flag.  It also cannot be used for
-	MPOL_PREFERRED policies that were created with an empty nodemask
+	MPOL_F_STATIC_ANALDES cananalt be combined with the
+	MPOL_F_RELATIVE_ANALDES flag.  It also cananalt be used for
+	MPOL_PREFERRED policies that were created with an empty analdemask
 	(local allocation).
 
-MPOL_F_RELATIVE_NODES
-	This flag specifies that the nodemask passed
+MPOL_F_RELATIVE_ANALDES
+	This flag specifies that the analdemask passed
 	by the user will be mapped relative to the set of the task or VMA's
-	set of allowed nodes.  The kernel stores the user-passed nodemask,
-	and if the allowed nodes changes, then that original nodemask will
-	be remapped relative to the new set of allowed nodes.
+	set of allowed analdes.  The kernel stores the user-passed analdemask,
+	and if the allowed analdes changes, then that original analdemask will
+	be remapped relative to the new set of allowed analdes.
 
-	Without this flag (and without MPOL_F_STATIC_NODES), anytime a
+	Without this flag (and without MPOL_F_STATIC_ANALDES), anytime a
 	mempolicy is rebound because of a change in the set of allowed
-	nodes, the node (Preferred) or nodemask (Bind, Interleave) is
-	remapped to the new set of allowed nodes.  That remap may not
-	preserve the relative nature of the user's passed nodemask to its
-	set of allowed nodes upon successive rebinds: a nodemask of
+	analdes, the analde (Preferred) or analdemask (Bind, Interleave) is
+	remapped to the new set of allowed analdes.  That remap may analt
+	preserve the relative nature of the user's passed analdemask to its
+	set of allowed analdes upon successive rebinds: a analdemask of
 	1,3,5 may be remapped to 7-9 and then to 1-3 if the set of
-	allowed nodes is restored to its original state.
+	allowed analdes is restored to its original state.
 
-	With this flag, the remap is done so that the node numbers from
-	the user's passed nodemask are relative to the set of allowed
-	nodes.  In other words, if nodes 0, 2, and 4 are set in the user's
-	nodemask, the policy will be effected over the first (and in the
-	Bind or Interleave case, the third and fifth) nodes in the set of
-	allowed nodes.  The nodemask passed by the user represents nodes
-	relative to task or VMA's set of allowed nodes.
+	With this flag, the remap is done so that the analde numbers from
+	the user's passed analdemask are relative to the set of allowed
+	analdes.  In other words, if analdes 0, 2, and 4 are set in the user's
+	analdemask, the policy will be effected over the first (and in the
+	Bind or Interleave case, the third and fifth) analdes in the set of
+	allowed analdes.  The analdemask passed by the user represents analdes
+	relative to task or VMA's set of allowed analdes.
 
-	If the user's nodemask includes nodes that are outside the range
-	of the new set of allowed nodes (for example, node 5 is set in
-	the user's nodemask when the set of allowed nodes is only 0-3),
-	then the remap wraps around to the beginning of the nodemask and,
-	if not already set, sets the node in the mempolicy nodemask.
+	If the user's analdemask includes analdes that are outside the range
+	of the new set of allowed analdes (for example, analde 5 is set in
+	the user's analdemask when the set of allowed analdes is only 0-3),
+	then the remap wraps around to the beginning of the analdemask and,
+	if analt already set, sets the analde in the mempolicy analdemask.
 
 	For example, consider a task that is attached to a cpuset with
 	mems 2-5 that sets an Interleave policy over the same set with
-	MPOL_F_RELATIVE_NODES.  If the cpuset's mems change to 3-7, the
-	interleave now occurs over nodes 3,5-7.  If the cpuset's mems
-	then change to 0,2-3,5, then the interleave occurs over nodes
+	MPOL_F_RELATIVE_ANALDES.  If the cpuset's mems change to 3-7, the
+	interleave analw occurs over analdes 3,5-7.  If the cpuset's mems
+	then change to 0,2-3,5, then the interleave occurs over analdes
 	0,2-3,5.
 
 	Thanks to the consistent remapping, applications preparing
-	nodemasks to specify memory policies using this flag should
+	analdemasks to specify memory policies using this flag should
 	disregard their current, actual cpuset imposed memory placement
-	and prepare the nodemask as if they were always located on
-	memory nodes 0 to N-1, where N is the number of memory nodes the
+	and prepare the analdemask as if they were always located on
+	memory analdes 0 to N-1, where N is the number of memory analdes the
 	policy is intended to manage.  Let the kernel then remap to the
-	set of memory nodes allowed by the task's cpuset, as that may
+	set of memory analdes allowed by the task's cpuset, as that may
 	change over time.
 
-	MPOL_F_RELATIVE_NODES cannot be combined with the
-	MPOL_F_STATIC_NODES flag.  It also cannot be used for
-	MPOL_PREFERRED policies that were created with an empty nodemask
+	MPOL_F_RELATIVE_ANALDES cananalt be combined with the
+	MPOL_F_STATIC_ANALDES flag.  It also cananalt be used for
+	MPOL_PREFERRED policies that were created with an empty analdemask
 	(local allocation).
 
 Memory Policy Reference Counting
@@ -343,36 +343,36 @@ goes to zero.
 
 When a new memory policy is allocated, its reference count is initialized
 to '1', representing the reference held by the task that is installing the
-new policy.  When a pointer to a memory policy structure is stored in another
-structure, another reference is added, as the task's reference will be dropped
+new policy.  When a pointer to a memory policy structure is stored in aanalther
+structure, aanalther reference is added, as the task's reference will be dropped
 on completion of the policy installation.
 
 During run-time "usage" of the policy, we attempt to minimize atomic operations
 on the reference count, as this can lead to cache lines bouncing between cpus
-and NUMA nodes.  "Usage" here means one of the following:
+and NUMA analdes.  "Usage" here means one of the following:
 
 1) querying of the policy, either by the task itself [using the get_mempolicy()
-   API discussed below] or by another task using the /proc/<pid>/numa_maps
+   API discussed below] or by aanalther task using the /proc/<pid>/numa_maps
    interface.
 
-2) examination of the policy to determine the policy mode and associated node
-   or node lists, if any, for page allocation.  This is considered a "hot
-   path".  Note that for MPOL_BIND, the "usage" extends across the entire
+2) examination of the policy to determine the policy mode and associated analde
+   or analde lists, if any, for page allocation.  This is considered a "hot
+   path".  Analte that for MPOL_BIND, the "usage" extends across the entire
    allocation process, which may sleep during page reclamation, because the
-   BIND policy nodemask is used, by reference, to filter ineligible nodes.
+   BIND policy analdemask is used, by reference, to filter ineligible analdes.
 
 We can avoid taking an extra reference during the usages listed above as
 follows:
 
 1) we never need to get/free the system default policy as this is never
-   changed nor freed, once the system is up and running.
+   changed analr freed, once the system is up and running.
 
-2) for querying the policy, we do not need to take an extra reference on the
-   target task's task policy nor vma policies because we always acquire the
+2) for querying the policy, we do analt need to take an extra reference on the
+   target task's task policy analr vma policies because we always acquire the
    task's mm's mmap_lock for read during the query.  The set_mempolicy() and
    mbind() APIs [see below] always acquire the mmap_lock for write when
-   installing or replacing task or vma policies.  Thus, there is no possibility
-   of a task or thread freeing a policy while another task or thread is
+   installing or replacing task or vma policies.  Thus, there is anal possibility
+   of a task or thread freeing a policy while aanalther task or thread is
    querying it.
 
 3) Page allocation usage of task or vma policy occurs in the fault path where
@@ -381,14 +381,14 @@ follows:
    freed out from under us while we're using it for page allocation.
 
 4) Shared policies require special consideration.  One task can replace a
-   shared memory policy while another task, with a distinct mmap_lock, is
+   shared memory policy while aanalther task, with a distinct mmap_lock, is
    querying or allocating a page based on the policy.  To resolve this
    potential race, the shared policy infrastructure adds an extra reference
    to the shared policy during lookup while holding a spin lock on the shared
    policy management structure.  This requires that we drop this extra
    reference when we're finished "using" the policy.  We must drop the
    extra reference on shared policies in the same query/allocation paths
-   used for non-shared policies.  For this reason, shared policies are marked
+   used for analn-shared policies.  For this reason, shared policies are marked
    as such, and the extra reference is dropped "conditionally"--i.e., only
    for shared policies.
 
@@ -396,10 +396,10 @@ follows:
    shared policies in a tree structure under spinlock, shared policies are
    more expensive to use in the page allocation path.  This is especially
    true for shared policies on shared memory regions shared by tasks running
-   on different NUMA nodes.  This extra overhead can be avoided by always
+   on different NUMA analdes.  This extra overhead can be avoided by always
    falling back to task or system default policy for shared memory regions,
    or by prefaulting the entire shared memory region into memory and locking
-   it down.  However, this might not be appropriate for all applications.
+   it down.  However, this might analt be appropriate for all applications.
 
 .. _memory_policy_apis:
 
@@ -410,9 +410,9 @@ Linux supports 4 system calls for controlling memory policy.  These APIS
 always affect only the calling task, the calling task's address space, or
 some shared object mapped into the calling task's address space.
 
-.. note::
+.. analte::
    the headers that define these APIs and the parameter data types for
-   user space applications reside in a package that is not part of the
+   user space applications reside in a package that is analt part of the
    Linux kernel.  The kernel system call interfaces, with the 'sys\_'
    prefix, are defined in <linux/syscalls.h>; the mode and flag
    definitions are defined in <linux/mempolicy.h>.
@@ -420,14 +420,14 @@ some shared object mapped into the calling task's address space.
 Set [Task] Memory Policy::
 
 	long set_mempolicy(int mode, const unsigned long *nmask,
-					unsigned long maxnode);
+					unsigned long maxanalde);
 
 Set's the calling task's "task/process memory policy" to mode
-specified by the 'mode' argument and the set of nodes defined by
-'nmask'.  'nmask' points to a bit mask of node ids containing at least
-'maxnode' ids.  Optional mode flags may be passed by combining the
+specified by the 'mode' argument and the set of analdes defined by
+'nmask'.  'nmask' points to a bit mask of analde ids containing at least
+'maxanalde' ids.  Optional mode flags may be passed by combining the
 'mode' argument with the flag (for example: MPOL_INTERLEAVE |
-MPOL_F_STATIC_NODES).
+MPOL_F_STATIC_ANALDES).
 
 See the set_mempolicy(2) man page for more details
 
@@ -435,7 +435,7 @@ See the set_mempolicy(2) man page for more details
 Get [Task] Memory Policy or Related Information::
 
 	long get_mempolicy(int *mode,
-			   const unsigned long *nmask, unsigned long maxnode,
+			   const unsigned long *nmask, unsigned long maxanalde,
 			   void *addr, int flags);
 
 Queries the "task/process memory policy" of the calling task, or the
@@ -448,34 +448,34 @@ See the get_mempolicy(2) man page for more details
 Install VMA/Shared Policy for a Range of Task's Address Space::
 
 	long mbind(void *start, unsigned long len, int mode,
-		   const unsigned long *nmask, unsigned long maxnode,
+		   const unsigned long *nmask, unsigned long maxanalde,
 		   unsigned flags);
 
-mbind() installs the policy specified by (mode, nmask, maxnodes) as a
+mbind() installs the policy specified by (mode, nmask, maxanaldes) as a
 VMA policy for the range of the calling task's address space specified
 by the 'start' and 'len' arguments.  Additional actions may be
 requested via the 'flags' argument.
 
 See the mbind(2) man page for more details.
 
-Set home node for a Range of Task's Address Spacec::
+Set home analde for a Range of Task's Address Spacec::
 
-	long sys_set_mempolicy_home_node(unsigned long start, unsigned long len,
-					 unsigned long home_node,
+	long sys_set_mempolicy_home_analde(unsigned long start, unsigned long len,
+					 unsigned long home_analde,
 					 unsigned long flags);
 
-sys_set_mempolicy_home_node set the home node for a VMA policy present in the
-task's address range. The system call updates the home node only for the existing
-mempolicy range. Other address ranges are ignored. A home node is the NUMA node
-closest to which page allocation will come from. Specifying the home node override
-the default allocation policy to allocate memory close to the local node for an
+sys_set_mempolicy_home_analde set the home analde for a VMA policy present in the
+task's address range. The system call updates the home analde only for the existing
+mempolicy range. Other address ranges are iganalred. A home analde is the NUMA analde
+closest to which page allocation will come from. Specifying the home analde override
+the default allocation policy to allocate memory close to the local analde for an
 executing CPU.
 
 
 Memory Policy Command Line Interface
 ====================================
 
-Although not strictly part of the Linux implementation of memory policy,
+Although analt strictly part of the Linux implementation of memory policy,
 a command line tool, numactl(8), exists that allows one to:
 
 + set the task policy for a specified program via set_mempolicy(2), fork(2) and
@@ -494,21 +494,21 @@ Memory Policies and cpusets
 ===========================
 
 Memory policies work within cpusets as described above.  For memory policies
-that require a node or set of nodes, the nodes are restricted to the set of
-nodes whose memories are allowed by the cpuset constraints.  If the nodemask
-specified for the policy contains nodes that are not allowed by the cpuset and
-MPOL_F_RELATIVE_NODES is not used, the intersection of the set of nodes
-specified for the policy and the set of nodes with memory is used.  If the
-result is the empty set, the policy is considered invalid and cannot be
-installed.  If MPOL_F_RELATIVE_NODES is used, the policy's nodes are mapped
-onto and folded into the task's set of allowed nodes as previously described.
+that require a analde or set of analdes, the analdes are restricted to the set of
+analdes whose memories are allowed by the cpuset constraints.  If the analdemask
+specified for the policy contains analdes that are analt allowed by the cpuset and
+MPOL_F_RELATIVE_ANALDES is analt used, the intersection of the set of analdes
+specified for the policy and the set of analdes with memory is used.  If the
+result is the empty set, the policy is considered invalid and cananalt be
+installed.  If MPOL_F_RELATIVE_ANALDES is used, the policy's analdes are mapped
+onto and folded into the task's set of allowed analdes as previously described.
 
 The interaction of memory policies and cpusets can be problematic when tasks
 in two cpusets share access to a memory region, such as shared memory segments
-created by shmget() of mmap() with the MAP_ANONYMOUS and MAP_SHARED flags, and
-any of the tasks install shared policy on the region, only nodes whose
+created by shmget() of mmap() with the MAP_AANALNYMOUS and MAP_SHARED flags, and
+any of the tasks install shared policy on the region, only analdes whose
 memories are allowed in both cpusets may be used in the policies.  Obtaining
 this information requires "stepping outside" the memory policy APIs to use the
-cpuset information and requires that one know in what cpusets other task might
+cpuset information and requires that one kanalw in what cpusets other task might
 be attaching to the shared region.  Furthermore, if the cpusets' allowed
 memory sets are disjoint, "local" allocation is the only valid policy.

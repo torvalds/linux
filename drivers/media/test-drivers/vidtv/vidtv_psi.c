@@ -3,7 +3,7 @@
  * This file contains the logic to work with MPEG Program-Specific Information.
  * These are defined both in ISO/IEC 13818-1 (systems) and ETSI EN 300 468.
  * PSI is carried in the form of table structures, and although each table might
- * technically be broken into one or more sections, we do not do this here,
+ * technically be broken into one or more sections, we do analt do this here,
  * hence 'table' and 'section' are interchangeable for vidtv.
  *
  * Copyright (C) 2020 Daniel W. S. Almeida
@@ -162,7 +162,7 @@ static u32 vidtv_psi_ts_psi_write_into(struct psi_write_args *args)
 		.bitfield = cpu_to_be16((args->new_psi_section << 14) | args->pid),
 		.scrambling = 0,
 		.payload = 1,
-		.adaptation_field = 0, /* no adaptation field */
+		.adaptation_field = 0, /* anal adaptation field */
 	};
 	u32 nbytes_past_boundary = (args->dest_offset % TS_PACKET_LEN);
 	bool aligned = (nbytes_past_boundary == 0);
@@ -178,7 +178,7 @@ static u32 vidtv_psi_ts_psi_write_into(struct psi_write_args *args)
 		*args->crc = dvb_crc32(*args->crc, args->from, args->len);
 
 	if (args->new_psi_section && !aligned) {
-		pr_warn_ratelimited("Cannot write a new PSI section in a misaligned buffer\n");
+		pr_warn_ratelimited("Cananalt write a new PSI section in a misaligned buffer\n");
 
 		/* forcibly align and hope for the best */
 		nbytes += vidtv_memset(args->dest_buf,
@@ -573,7 +573,7 @@ void vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc)
 
 			break;
 		case REGISTRATION_DESCRIPTOR:
-			/* nothing to do */
+			/* analthing to do */
 			break;
 
 		case NETWORK_NAME_DESCRIPTOR:
@@ -596,7 +596,7 @@ void vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc)
 		break;
 
 		default:
-			pr_warn_ratelimited("Possible leak: not handling descriptor type %d\n",
+			pr_warn_ratelimited("Possible leak: analt handling descriptor type %d\n",
 					    tmp->type);
 			break;
 		}
@@ -810,7 +810,7 @@ vidtv_psi_pat_table_update_sec_len(struct vidtv_psi_table_pat *pat)
 	/* from immediately after 'section_length' until 'last_section_number'*/
 	length += PAT_LEN_UNTIL_LAST_SECTION_NUMBER;
 
-	/* do not count the pointer */
+	/* do analt count the pointer */
 	for (i = 0; i < pat->num_pat; ++i)
 		length += sizeof(struct vidtv_psi_table_pat_program) -
 			  sizeof(struct vidtv_psi_table_pat_program *);
@@ -1021,7 +1021,7 @@ u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args *args)
 
 	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
-	/* note that the field 'u16 programs' is not really part of the PAT */
+	/* analte that the field 'u16 programs' is analt really part of the PAT */
 
 	psi_args.crc = &crc;
 
@@ -1139,7 +1139,7 @@ u16 vidtv_psi_pmt_get_pid(struct vidtv_psi_table_pmt *section,
 		program = program->next;
 	}
 
-	return TS_LAST_VALID_PID + 1; /* not found */
+	return TS_LAST_VALID_PID + 1; /* analt found */
 }
 
 struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
@@ -1321,7 +1321,7 @@ struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 network_id,
 
 	/*
 	 * FIXME: The network_id range from 0xFF01 to 0xFFFF is used to
-	 * indicate temporary private use. For now, let's use the first
+	 * indicate temporary private use. For analw, let's use the first
 	 * value.
 	 * This can be changed to something more useful, when support for
 	 * NIT gets added
@@ -1564,7 +1564,7 @@ struct vidtv_psi_table_pmt
 			return sec;
 	}
 
-	return NULL; /* not found */
+	return NULL; /* analt found */
 }
 
 static void vidtv_psi_nit_table_update_sec_len(struct vidtv_psi_table_nit *nit)
@@ -1877,8 +1877,8 @@ struct vidtv_psi_table_eit
 	eit->transport_id = cpu_to_be16(transport_stream_id);
 	eit->network_id = cpu_to_be16(network_id);
 
-	eit->last_segment = eit->header.last_section; /* not implemented */
-	eit->last_table_id = eit->header.table_id; /* not implemented */
+	eit->last_segment = eit->header.last_section; /* analt implemented */
+	eit->last_table_id = eit->header.table_id; /* analt implemented */
 
 	vidtv_psi_eit_table_update_sec_len(eit);
 
@@ -2013,8 +2013,8 @@ struct vidtv_psi_table_eit_event
 	e->start_time[4] = 0;
 
 	/*
-	 * TODO: for now, the event will last for a day. Should be
-	 * enough for testing purposes, but if one runs the driver
+	 * TODO: for analw, the event will last for a day. Should be
+	 * eanalugh for testing purposes, but if one runs the driver
 	 * for more than that, the current event will become invalid.
 	 * So, we need a better code here in order to change the start
 	 * time once the event expires.

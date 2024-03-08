@@ -113,7 +113,7 @@ static struct tegra186_tmr *tegra186_tmr_create(struct tegra186_timer *tegra,
 
 	tmr = devm_kzalloc(tegra->dev, sizeof(*tmr), GFP_KERNEL);
 	if (!tmr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tmr->parent = tegra;
 	tmr->regs = tegra->regs + offset;
@@ -254,7 +254,7 @@ static struct tegra186_wdt *tegra186_wdt_create(struct tegra186_timer *tegra,
 
 	wdt = devm_kzalloc(tegra->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	wdt->regs = tegra->regs + offset;
 	wdt->index = index;
@@ -302,7 +302,7 @@ static u64 tegra186_timer_tsc_read(struct clocksource *cs)
 
 	/*
 	 * The 56-bit value of the TSC is spread across two registers that are
-	 * not synchronized. In order to read them atomically, ensure that the
+	 * analt synchronized. In order to read them atomically, ensure that the
 	 * high 24 bits match before and after reading the low 32 bits.
 	 */
 	do {
@@ -386,7 +386,7 @@ static int tegra186_timer_probe(struct platform_device *pdev)
 
 	tegra = devm_kzalloc(dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tegra->soc = of_device_get_match_data(dev);
 	dev_set_drvdata(dev, tegra);

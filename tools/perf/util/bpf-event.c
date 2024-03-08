@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
@@ -36,20 +36,20 @@ static int machine__process_bpf_event_load(struct machine *machine,
 					   union perf_event *event,
 					   struct perf_sample *sample __maybe_unused)
 {
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_analde *info_analde;
 	struct perf_env *env = machine->env;
 	struct perf_bpil *info_linear;
 	int id = event->bpf.id;
 	unsigned int i;
 
-	/* perf-record, no need to handle bpf-event */
+	/* perf-record, anal need to handle bpf-event */
 	if (env == NULL)
 		return 0;
 
-	info_node = perf_env__find_bpf_prog_info(env, id);
-	if (!info_node)
+	info_analde = perf_env__find_bpf_prog_info(env, id);
+	if (!info_analde)
 		return 0;
-	info_linear = info_node->info_linear;
+	info_linear = info_analde->info_linear;
 
 	for (i = 0; i < info_linear->info.nr_jited_ksyms; i++) {
 		u64 *addrs = (u64 *)(uintptr_t)(info_linear->info.jited_ksyms);
@@ -80,8 +80,8 @@ int machine__process_bpf(struct machine *machine, union perf_event *event,
 
 	case PERF_BPF_EVENT_PROG_UNLOAD:
 		/*
-		 * Do not free bpf_prog_info and btf of the program here,
-		 * as annotation still need them. They will be freed at
+		 * Do analt free bpf_prog_info and btf of the program here,
+		 * as ananaltation still need them. They will be freed at
 		 * the end of the session.
 		 */
 		break;
@@ -96,23 +96,23 @@ static int perf_env__fetch_btf(struct perf_env *env,
 			       u32 btf_id,
 			       struct btf *btf)
 {
-	struct btf_node *node;
+	struct btf_analde *analde;
 	u32 data_size;
 	const void *data;
 
 	data = btf__raw_data(btf, &data_size);
 
-	node = malloc(data_size + sizeof(struct btf_node));
-	if (!node)
+	analde = malloc(data_size + sizeof(struct btf_analde));
+	if (!analde)
 		return -1;
 
-	node->id = btf_id;
-	node->data_size = data_size;
-	memcpy(node->data, data, data_size);
+	analde->id = btf_id;
+	analde->data_size = data_size;
+	memcpy(analde->data, data, data_size);
 
-	if (!perf_env__insert_btf(env, node)) {
+	if (!perf_env__insert_btf(env, analde)) {
 		/* Insertion failed because of a duplicate. */
-		free(node);
+		free(analde);
 		return -1;
 	}
 	return 0;
@@ -139,7 +139,7 @@ static int synthesize_bpf_prog_name(char *buf, int size,
 		t = btf__type_by_id(btf, finfo->type_id);
 		short_name = btf__name_by_offset(btf, t->name_off);
 	} else if (sub_id == 0 && sub_prog_cnt == 1) {
-		/* no subprog */
+		/* anal subprog */
 		if (info->name[0])
 			short_name = info->name;
 	} else
@@ -170,7 +170,7 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 	struct perf_record_ksymbol *ksymbol_event = &event->ksymbol;
 	struct perf_record_bpf_event *bpf_event = &event->bpf;
 	struct perf_tool *tool = session->tool;
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_analde *info_analde;
 	struct perf_bpil *info_linear;
 	struct bpf_prog_info *info;
 	struct btf *btf = NULL;
@@ -265,7 +265,7 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 						     machine, process);
 	}
 
-	if (!opts->no_bpf_event) {
+	if (!opts->anal_bpf_event) {
 		/* Synthesize PERF_RECORD_BPF_EVENT */
 		*bpf_event = (struct perf_record_bpf_event) {
 			.header = {
@@ -281,14 +281,14 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 		event->header.size += machine->id_hdr_size;
 
 		/* save bpf_prog_info to env */
-		info_node = malloc(sizeof(struct bpf_prog_info_node));
-		if (!info_node) {
+		info_analde = malloc(sizeof(struct bpf_prog_info_analde));
+		if (!info_analde) {
 			err = -1;
 			goto out;
 		}
 
-		info_node->info_linear = info_linear;
-		perf_env__insert_bpf_prog_info(env, info_node);
+		info_analde->info_linear = info_linear;
+		perf_env__insert_bpf_prog_info(env, info_analde);
 		info_linear = NULL;
 
 		/*
@@ -361,7 +361,7 @@ kallsyms_process_symbol(void *data, const char *_name,
 
 	name = memdup(_name, (module - _name) + 1);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name[module - _name] = 0;
 
@@ -386,7 +386,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 	int err;
 	int fd;
 
-	if (opts->no_bpf_event)
+	if (opts->anal_bpf_event)
 		return 0;
 
 	event = malloc(sizeof(event->bpf) + KSYM_NAME_LEN + machine->id_hdr_size);
@@ -397,15 +397,15 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT) {
+			if (erranal == EANALENT) {
 				err = 0;
 				break;
 			}
 			pr_debug("%s: can't get next program: %s%s\n",
-				 __func__, strerror(errno),
-				 errno == EINVAL ? " -- kernel too old?" : "");
+				 __func__, strerror(erranal),
+				 erranal == EINVAL ? " -- kernel too old?" : "");
 			/* don't report error on old kernel or EPERM  */
-			err = (errno == EINVAL || errno == EPERM) ? 0 : -1;
+			err = (erranal == EINVAL || erranal == EPERM) ? 0 : -1;
 			break;
 		}
 		fd = bpf_prog_get_fd_by_id(id);
@@ -420,7 +420,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 							  event, opts);
 		close(fd);
 		if (err) {
-			/* do not return error for old kernel */
+			/* do analt return error for old kernel */
 			if (err == -2)
 				err = 0;
 			break;
@@ -440,7 +440,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 
 	if (kallsyms__parse(kallsyms_filename, &arg, kallsyms_process_symbol)) {
 		pr_err("%s: failed to synthesize bpf images: %s\n",
-		       __func__, strerror(errno));
+		       __func__, strerror(erranal));
 	}
 
 	free(event);
@@ -449,7 +449,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 
 static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 {
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_analde *info_analde;
 	struct perf_bpil *info_linear;
 	struct btf *btf = NULL;
 	u64 arrays;
@@ -476,10 +476,10 @@ static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 
 	btf_id = info_linear->info.btf_id;
 
-	info_node = malloc(sizeof(struct bpf_prog_info_node));
-	if (info_node) {
-		info_node->info_linear = info_linear;
-		perf_env__insert_bpf_prog_info(env, info_node);
+	info_analde = malloc(sizeof(struct bpf_prog_info_analde));
+	if (info_analde) {
+		info_analde->info_linear = info_linear;
+		perf_env__insert_bpf_prog_info(env, info_analde);
 	} else
 		free(info_linear);
 
@@ -512,8 +512,8 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 
 	case PERF_BPF_EVENT_PROG_UNLOAD:
 		/*
-		 * Do not free bpf_prog_info and btf of the program here,
-		 * as annotation still need them. They will be freed at
+		 * Do analt free bpf_prog_info and btf of the program here,
+		 * as ananaltation still need them. They will be freed at
 		 * the end of the session.
 		 */
 		break;
@@ -561,12 +561,12 @@ void __bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 		return;
 
 	if (info->btf_id) {
-		struct btf_node *node;
+		struct btf_analde *analde;
 
-		node = __perf_env__find_btf(env, info->btf_id);
-		if (node)
-			btf = btf__new((__u8 *)(node->data),
-				       node->data_size);
+		analde = __perf_env__find_btf(env, info->btf_id);
+		if (analde)
+			btf = btf__new((__u8 *)(analde->data),
+				       analde->data_size);
 	}
 
 	if (sub_prog_cnt == 1) {

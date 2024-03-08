@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Mellanox BlueField I2C bus driver
+ *  Mellaanalx BlueField I2C bus driver
  *
- *  Copyright (C) 2020 Mellanox Technologies, Ltd.
+ *  Copyright (C) 2020 Mellaanalx Techanallogies, Ltd.
  */
 
 #include <linux/acpi.h>
@@ -52,7 +52,7 @@
 #define MLXBF_I2C_SHARED_RES_MAX       3
 
 /*
- * Note that the following SMBus, CAUSE, GPIO and PLL register addresses
+ * Analte that the following SMBus, CAUSE, GPIO and PLL register addresses
  * refer to their respective offsets relative to the corresponding
  * memory-mapped region whose addresses are specified in either the DT or
  * the ACPI tables or above.
@@ -84,7 +84,7 @@
 #define MLXBF_I2C_CAUSE_ARBITER      0x1c
 
 /*
- * Cause Status flags. Note that those bits might be considered
+ * Cause Status flags. Analte that those bits might be considered
  * as interrupt enabled bits.
  */
 
@@ -121,7 +121,7 @@
 	 MLXBF_I2C_CAUSE_M_FW_TIMEOUT)
 
 /*
- * Slave cause status flags. Note that those bits might be considered
+ * Slave cause status flags. Analte that those bits might be considered
  * as interrupt enabled bits.
  */
 
@@ -143,7 +143,7 @@
 /* Force OE enable register. */
 #define MLXBF_I2C_GPIO_0_FORCE_OE_EN  0x30
 /*
- * Note that Smbus GWs are on GPIOs 30:25. Two pins are used to control
+ * Analte that Smbus GWs are on GPIOs 30:25. Two pins are used to control
  * SDA/SCL lines:
  *
  *  SMBUS GW0 -> bits[26:25]
@@ -152,7 +152,7 @@
  */
 #define MLXBF_I2C_GPIO_SMBUS_GW_PINS(num) (25 + ((num) << 1))
 
-/* Note that gw_id can be 0,1 or 2. */
+/* Analte that gw_id can be 0,1 or 2. */
 #define MLXBF_I2C_GPIO_SMBUS_GW_MASK(num) \
 	(0xffffffff & (~(0x3 << MLXBF_I2C_GPIO_SMBUS_GW_PINS(num))))
 
@@ -300,7 +300,7 @@
 #define MLXBF_I2C_SMBUS_SLAVE_ADDR_MASK       GENMASK(6, 0)
 
 /*
- * Timeout is given in microsends. Note also that timeout handling is not
+ * Timeout is given in microsends. Analte also that timeout handling is analt
  * exact.
  */
 #define MLXBF_I2C_SMBUS_TIMEOUT   (300 * 1000) /* 300ms */
@@ -331,18 +331,18 @@ enum {
 enum {
 	MLXBF_I2C_F_READ = BIT(0),
 	MLXBF_I2C_F_WRITE = BIT(1),
-	MLXBF_I2C_F_NORESTART = BIT(3),
+	MLXBF_I2C_F_ANALRESTART = BIT(3),
 	MLXBF_I2C_F_SMBUS_OPERATION = BIT(4),
 	MLXBF_I2C_F_SMBUS_BLOCK = BIT(5),
 	MLXBF_I2C_F_SMBUS_PEC = BIT(6),
 	MLXBF_I2C_F_SMBUS_PROCESS_CALL = BIT(7),
 };
 
-/* Mellanox BlueField chip type. */
+/* Mellaanalx BlueField chip type. */
 enum mlxbf_i2c_chip_type {
-	MLXBF_I2C_CHIP_TYPE_1, /* Mellanox BlueField-1 chip. */
-	MLXBF_I2C_CHIP_TYPE_2, /* Mellanox BlueField-2 chip. */
-	MLXBF_I2C_CHIP_TYPE_3 /* Mellanox BlueField-3 chip. */
+	MLXBF_I2C_CHIP_TYPE_1, /* Mellaanalx BlueField-1 chip. */
+	MLXBF_I2C_CHIP_TYPE_2, /* Mellaanalx BlueField-2 chip. */
+	MLXBF_I2C_CHIP_TYPE_3 /* Mellaanalx BlueField-3 chip. */
 };
 
 /* List of chip resources that are being accessed by the driver. */
@@ -497,9 +497,9 @@ static struct mutex mlxbf_i2c_bus_lock;
 
 /*
  * Function to poll a set of bits at a specific address; it checks whether
- * the bits are equal to zero when eq_zero is set to 'true', and not equal
+ * the bits are equal to zero when eq_zero is set to 'true', and analt equal
  * to zero when eq_zero is set to 'false'.
- * Note that the timeout is given in microseconds.
+ * Analte that the timeout is given in microseconds.
  */
 static u32 mlxbf_i2c_poll(void __iomem *io, u32 addr, u32 mask,
 			    bool eq_zero, u32  timeout)
@@ -521,7 +521,7 @@ static u32 mlxbf_i2c_poll(void __iomem *io, u32 addr, u32 mask,
 /*
  * SW must make sure that the SMBus Master GW is idle before starting
  * a transaction. Accordingly, this function polls the Master FSM stop
- * bit; it returns false when the bit is asserted, true if not.
+ * bit; it returns false when the bit is asserted, true if analt.
  */
 static bool mlxbf_i2c_smbus_master_wait_for_idle(struct mlxbf_i2c_priv *priv)
 {
@@ -559,7 +559,7 @@ static bool mlxbf_i2c_smbus_transaction_success(u32 master_status,
 {
 	/*
 	 * When transaction ended with STOP, all bytes were transmitted,
-	 * and no NACK received, then the transaction ended successfully.
+	 * and anal NACK received, then the transaction ended successfully.
 	 * On the other hand, when the GW is configured with the stop bit
 	 * de-asserted then the SMBus expects the following GW configuration
 	 * for transfer continuation.
@@ -577,7 +577,7 @@ static bool mlxbf_i2c_smbus_transaction_success(u32 master_status,
  * Poll SMBus master status and return transaction status,
  * i.e. whether succeeded or failed. I2C and SMBus fault codes
  * are returned as negative numbers from most calls, with zero
- * or some positive number indicating a non-fault return.
+ * or some positive number indicating a analn-fault return.
  */
 static int mlxbf_i2c_smbus_check_status(struct mlxbf_i2c_priv *priv)
 {
@@ -614,7 +614,7 @@ static int mlxbf_i2c_smbus_check_status(struct mlxbf_i2c_priv *priv)
 
 	/*
 	 * In case of timeout on GW busy, the ISR will clear busy bit but
-	 * transaction ended bits cause will not be set so the transaction
+	 * transaction ended bits cause will analt be set so the transaction
 	 * fails. Then, we must check Master GW status bits.
 	 */
 	if ((master_status_bits & MLXBF_I2C_SMBUS_MASTER_STATUS_ERROR) &&
@@ -777,7 +777,7 @@ mlxbf_i2c_smbus_start_transaction(struct mlxbf_i2c_priv *priv,
 		flags = operation->flags;
 
 		/*
-		 * Note that read and write operations might be handled by a
+		 * Analte that read and write operations might be handled by a
 		 * single command. If the MLXBF_I2C_F_SMBUS_OPERATION is set
 		 * then write command byte and set the optional SMBus specific
 		 * bits such as block_en and pec_en. These bits MUST be
@@ -793,7 +793,7 @@ mlxbf_i2c_smbus_start_transaction(struct mlxbf_i2c_priv *priv,
 			write_len += operation->length;
 			if (data_idx + operation->length >
 					MLXBF_I2C_MASTER_DATA_DESC_SIZE) {
-				ret = -ENOBUFS;
+				ret = -EANALBUFS;
 				goto out_unlock;
 			}
 			memcpy(data_desc + data_idx,
@@ -817,7 +817,7 @@ mlxbf_i2c_smbus_start_transaction(struct mlxbf_i2c_priv *priv,
 	/* Set Master GW data descriptor. */
 	data_len = write_len + 1; /* Add one byte of the slave address. */
 	/*
-	 * Note that data_len cannot be 0. Indeed, the slave address byte
+	 * Analte that data_len cananalt be 0. Indeed, the slave address byte
 	 * must be written to the data registers.
 	 */
 	mlxbf_i2c_smbus_write_data(priv, (const u8 *)data_desc, data_len,
@@ -1078,7 +1078,7 @@ static int mlxbf_i2c_init_resource(struct platform_device *pdev,
 	tmp_res = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_resource),
 			       GFP_KERNEL);
 	if (!tmp_res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp_res->io = devm_platform_get_and_ioremap_resource(pdev, type, &tmp_res->params);
 	if (IS_ERR(tmp_res->io)) {
@@ -1093,7 +1093,7 @@ static int mlxbf_i2c_init_resource(struct platform_device *pdev,
 	return 0;
 }
 
-static u32 mlxbf_i2c_get_ticks(struct mlxbf_i2c_priv *priv, u64 nanoseconds,
+static u32 mlxbf_i2c_get_ticks(struct mlxbf_i2c_priv *priv, u64 naanalseconds,
 			       bool minimum)
 {
 	u64 frequency;
@@ -1107,7 +1107,7 @@ static u32 mlxbf_i2c_get_ticks(struct mlxbf_i2c_priv *priv, u64 nanoseconds,
 	 *         Frequency
 	 */
 	frequency = priv->frequency;
-	ticks = (nanoseconds * frequency) / MLXBF_I2C_FREQUENCY_1GHZ;
+	ticks = (naanalseconds * frequency) / MLXBF_I2C_FREQUENCY_1GHZ;
 	/*
 	 * The number of ticks is rounded down and if minimum is equal to 1
 	 * then add one tick.
@@ -1185,7 +1185,7 @@ enum mlxbf_i2c_timings_config {
 };
 
 /*
- * Note that the mlxbf_i2c_timings->timeout value is not related to the
+ * Analte that the mlxbf_i2c_timings->timeout value is analt related to the
  * bus frequency, it is impacted by the time it takes the driver to
  * complete data transmission before transaction abort.
  */
@@ -1309,7 +1309,7 @@ static int mlxbf_i2c_get_gpio(struct platform_device *pdev,
 	gpio_res->io = devm_ioremap(dev, params->start, size);
 	if (!gpio_res->io) {
 		devm_release_mem_region(dev, params->start, size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1374,7 +1374,7 @@ static int mlxbf_i2c_get_corepll(struct platform_device *pdev,
 	corepll_res->io = devm_ioremap(dev, params->start, size);
 	if (!corepll_res->io) {
 		devm_release_mem_region(dev, params->start, size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1441,8 +1441,8 @@ static int mlxbf_i2c_init_master(struct platform_device *pdev,
 	 * MLXBF_I2C_GPIO_0_FUNC_EN_0, i.e. GPIO 0 is controlled by HW, and must
 	 * be reset in MLXBF_I2C_GPIO_0_FORCE_OE_EN, i.e. GPIO_OE will be driven
 	 * instead of HW_OE.
-	 * For now, we do not reset the GPIO state when the driver is removed.
-	 * First, it is not necessary to disable the bus since we are using
+	 * For analw, we do analt reset the GPIO state when the driver is removed.
+	 * First, it is analt necessary to disable the bus since we are using
 	 * the same busses. Then, some busses might be shared among Linux and
 	 * platform firmware; disabling the bus might compromise the system
 	 * functionality.
@@ -1583,7 +1583,7 @@ static int mlxbf_i2c_slave_enable(struct mlxbf_i2c_priv *priv,
 	 * Read the slave registers. There are 4 * 32-bit slave registers.
 	 * Each slave register can hold up to 4 * 8-bit slave configuration:
 	 * 1) A 7-bit address
-	 * 2) And a status bit (1 if enabled, 0 if not).
+	 * 2) And a status bit (1 if enabled, 0 if analt).
 	 * Look for the next available slave register slot.
 	 */
 	for (reg = 0; reg < reg_cnt; reg++) {
@@ -1599,7 +1599,7 @@ static int mlxbf_i2c_slave_enable(struct mlxbf_i2c_priv *priv,
 			addr_tmp = slave_reg_tmp & GENMASK(7, 0);
 
 			/*
-			 * If an enable bit is not set in the
+			 * If an enable bit is analt set in the
 			 * MLXBF_I2C_SMBUS_SLAVE_ADDR_CFG register, then the
 			 * slave address slot associated with that bit is
 			 * free. So set the enable bit and write the
@@ -1640,7 +1640,7 @@ static int mlxbf_i2c_slave_disable(struct mlxbf_i2c_priv *priv, u8 addr)
 	 * Read the slave registers. There are 4 * 32-bit slave registers.
 	 * Each slave register can hold up to 4 * 8-bit slave configuration:
 	 * 1) A 7-bit address
-	 * 2) And a status bit (1 if enabled, 0 if not).
+	 * 2) And a status bit (1 if enabled, 0 if analt).
 	 * Check if addr is present in the registers.
 	 */
 	for (reg = 0; reg < reg_cnt; reg++) {
@@ -1722,7 +1722,7 @@ static int mlxbf_i2c_init_coalesce(struct platform_device *pdev,
 		coalesce_res->io = ioremap(params->start, size);
 		if (!coalesce_res->io) {
 			release_mem_region(params->start, size);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		priv->coalesce = coalesce_res;
@@ -1930,7 +1930,7 @@ static int mlxbf_i2c_irq_send(struct mlxbf_i2c_priv *priv, u8 recv_bytes)
 	mlxbf_i2c_smbus_write_data(priv, data_desc, byte_cnt,
 				   MLXBF_I2C_SLAVE_DATA_DESC_ADDR, false);
 
-	pec_en = 0; /* Disable PEC since it is not supported. */
+	pec_en = 0; /* Disable PEC since it is analt supported. */
 
 	/* Prepare control word. */
 	control32 = MLXBF_I2C_SLAVE_ENABLE;
@@ -1981,7 +1981,7 @@ static int mlxbf_i2c_irq_recv(struct mlxbf_i2c_priv *priv, u8 recv_bytes)
 	}
 
 	/*
-	 * Notify the slave backend that an smbus master wants to write data
+	 * Analtify the slave backend that an smbus master wants to write data
 	 * to the BlueField.
 	 */
 	i2c_slave_event(slave, I2C_SLAVE_WRITE_REQUESTED, &value);
@@ -2025,12 +2025,12 @@ static irqreturn_t mlxbf_i2c_irq(int irq, void *ptr)
 	 *  - Send data and release slave GW.
 	 *
 	 * Handle read/write transaction only. CRmaster and Iarp requests
-	 * are ignored for now.
+	 * are iganalred for analw.
 	 */
 	irq_is_set = mlxbf_i2c_has_coalesce(priv, &read, &write);
 	if (!irq_is_set || (!read && !write)) {
-		/* Nothing to do here, interrupt was not from this device. */
-		return IRQ_NONE;
+		/* Analthing to do here, interrupt was analt from this device. */
+		return IRQ_ANALNE;
 	}
 
 	/*
@@ -2045,13 +2045,13 @@ static irqreturn_t mlxbf_i2c_irq(int irq, void *ptr)
 	recv_bytes = (rw_bytes_reg >> 8) & GENMASK(7, 0);
 
 	/*
-	 * For now, the slave supports 128 bytes transfer. Discard remaining
+	 * For analw, the slave supports 128 bytes transfer. Discard remaining
 	 * data bytes if the master wrote more than
 	 * MLXBF_I2C_SLAVE_DATA_DESC_SIZE, i.e, the actual size of the slave
 	 * data descriptor.
 	 *
-	 * Note that we will never expect to transfer more than 128 bytes; as
-	 * specified in the SMBus standard, block transactions cannot exceed
+	 * Analte that we will never expect to transfer more than 128 bytes; as
+	 * specified in the SMBus standard, block transactions cananalt exceed
 	 * 32 bytes.
 	 */
 	recv_bytes = recv_bytes > MLXBF_I2C_SLAVE_DATA_DESC_SIZE ?
@@ -2065,7 +2065,7 @@ static irqreturn_t mlxbf_i2c_irq(int irq, void *ptr)
 	return IRQ_HANDLED;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 mlxbf_i2c_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 				unsigned short flags, char read_write,
 				u8 command, int size,
@@ -2144,7 +2144,7 @@ static s32 mlxbf_i2c_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	default:
 		dev_dbg(&adap->dev, "Unsupported I2C/SMBus command %d\n",
 			size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv = i2c_get_adapdata(adap);
@@ -2159,12 +2159,12 @@ static int mlxbf_i2c_reg_slave(struct i2c_client *slave)
 	int ret;
 
 	/*
-	 * Do not support ten bit chip address and do not use Packet Error
+	 * Do analt support ten bit chip address and do analt use Packet Error
 	 * Checking (PEC).
 	 */
 	if (slave->flags & (I2C_CLIENT_TEN | I2C_CLIENT_PEC)) {
-		dev_err(dev, "SMBus PEC and 10 bit address not supported\n");
-		return -EAFNOSUPPORT;
+		dev_err(dev, "SMBus PEC and 10 bit address analt supported\n");
+		return -EAFANALSUPPORT;
 	}
 
 	ret = mlxbf_i2c_slave_enable(priv, slave);
@@ -2257,17 +2257,17 @@ static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
 	int ret;
 
 	if (acpi_disabled)
-		return -ENOENT;
+		return -EANALENT;
 
 	aid = acpi_match_device(mlxbf_i2c_acpi_ids, dev);
 	if (!aid)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->chip = (struct mlxbf_i2c_chip_info *)aid->driver_data;
 
 	ret = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &bus_id);
 	if (ret) {
-		dev_err(dev, "Cannot retrieve UID\n");
+		dev_err(dev, "Cananalt retrieve UID\n");
 		return ret;
 	}
 
@@ -2286,7 +2286,7 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mlxbf_i2c_acpi_probe(dev, priv);
 	if (ret < 0)
@@ -2305,20 +2305,20 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	if (priv->chip->type < MLXBF_I2C_CHIP_TYPE_3 && resource_version == 0) {
 		priv->timer = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_resource), GFP_KERNEL);
 		if (!priv->timer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		priv->mst = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_resource), GFP_KERNEL);
 		if (!priv->mst)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		priv->slv = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_resource), GFP_KERNEL);
 		if (!priv->slv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = mlxbf_i2c_init_resource(pdev, &priv->smbus,
 					      MLXBF_I2C_SMBUS_RES);
 		if (ret < 0)
-			return dev_err_probe(dev, ret, "Cannot fetch smbus resource info");
+			return dev_err_probe(dev, ret, "Cananalt fetch smbus resource info");
 
 		priv->timer->io = priv->smbus->io;
 		priv->mst->io = priv->smbus->io + MLXBF_I2C_MST_ADDR_OFFSET;
@@ -2327,28 +2327,28 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 		ret = mlxbf_i2c_init_resource(pdev, &priv->timer,
 					      MLXBF_I2C_SMBUS_TIMER_RES);
 		if (ret < 0)
-			return dev_err_probe(dev, ret, "Cannot fetch timer resource info");
+			return dev_err_probe(dev, ret, "Cananalt fetch timer resource info");
 
 		ret = mlxbf_i2c_init_resource(pdev, &priv->mst,
 					      MLXBF_I2C_SMBUS_MST_RES);
 		if (ret < 0)
-			return dev_err_probe(dev, ret, "Cannot fetch master resource info");
+			return dev_err_probe(dev, ret, "Cananalt fetch master resource info");
 
 		ret = mlxbf_i2c_init_resource(pdev, &priv->slv,
 					      MLXBF_I2C_SMBUS_SLV_RES);
 		if (ret < 0)
-			return dev_err_probe(dev, ret, "Cannot fetch slave resource info");
+			return dev_err_probe(dev, ret, "Cananalt fetch slave resource info");
 	}
 
 	ret = mlxbf_i2c_init_resource(pdev, &priv->mst_cause,
 				      MLXBF_I2C_MST_CAUSE_RES);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Cannot fetch cause master resource info");
+		return dev_err_probe(dev, ret, "Cananalt fetch cause master resource info");
 
 	ret = mlxbf_i2c_init_resource(pdev, &priv->slv_cause,
 				      MLXBF_I2C_SLV_CAUSE_RES);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Cannot fetch cause slave resource info");
+		return dev_err_probe(dev, ret, "Cananalt fetch cause slave resource info");
 
 	adap = &priv->adap;
 	adap->owner = THIS_MODULE;
@@ -2356,7 +2356,7 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	adap->algo = &mlxbf_i2c_algo;
 	adap->quirks = &mlxbf_i2c_quirks;
 	adap->dev.parent = dev;
-	adap->dev.of_node = dev->of_node;
+	adap->dev.of_analde = dev->of_analde;
 	adap->nr = priv->bus;
 
 	snprintf(adap->name, sizeof(adap->name), "i2c%d", adap->nr);
@@ -2365,18 +2365,18 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	/* Read Core PLL frequency. */
 	ret = mlxbf_i2c_calculate_corepll_freq(pdev, priv);
 	if (ret < 0) {
-		dev_err(dev, "cannot get core clock frequency\n");
+		dev_err(dev, "cananalt get core clock frequency\n");
 		/* Set to default value. */
 		priv->frequency = MLXBF_I2C_COREPLL_FREQ;
 	}
 
 	/*
 	 * Initialize master.
-	 * Note that a physical bus might be shared among Linux and firmware
+	 * Analte that a physical bus might be shared among Linux and firmware
 	 * (e.g., ATF). Thus, the bus should be initialized and ready and
 	 * bus initialization would be unnecessary. This requires additional
-	 * knowledge about physical busses. But, since an extra initialization
-	 * does not really hurt, then keep the code as is.
+	 * kanalwledge about physical busses. But, since an extra initialization
+	 * does analt really hurt, then keep the code as is.
 	 */
 	ret = mlxbf_i2c_init_master(pdev, priv);
 	if (ret < 0)
@@ -2394,7 +2394,7 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 			       IRQF_SHARED | IRQF_PROBE_SHARED,
 			       dev_name(dev), priv);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Cannot get irq %d\n", irq);
+		return dev_err_probe(dev, ret, "Cananalt get irq %d\n", irq);
 
 	priv->irq = irq;
 
@@ -2487,7 +2487,7 @@ static void __exit mlxbf_i2c_exit(void)
 }
 module_exit(mlxbf_i2c_exit);
 
-MODULE_DESCRIPTION("Mellanox BlueField I2C bus driver");
+MODULE_DESCRIPTION("Mellaanalx BlueField I2C bus driver");
 MODULE_AUTHOR("Khalil Blaiech <kblaiech@nvidia.com>");
 MODULE_AUTHOR("Asmaa Mnebhi <asmaa@nvidia.com>");
 MODULE_LICENSE("GPL v2");

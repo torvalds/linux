@@ -7,7 +7,7 @@
  *  "Kid-friendly Wired Controller" PS3OFMINIPAD SONY
  *  sold for use with the PS3
  *
- *  Copyright (c) 2018 Hanno Zulla <kontakt@hanno.de>
+ *  Copyright (c) 2018 Hananal Zulla <kontakt@hananal.de>
  */
 
 #include <linux/input.h>
@@ -34,9 +34,9 @@
  *   0x05, 0x09,        //   Usage Page (Button)
  *   0x19, 0x01,        //   Usage Minimum (0x01)
  *   0x29, 0x0D,        //   Usage Maximum (0x0D)
- *   0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+ *   0x81, 0x02,        //   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position)
  *   0x95, 0x03,        //   Report Count (3)
- *   0x81, 0x01,        //   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+ *   0x81, 0x01,        //   Input (Const,Array,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position)
  *   0x05, 0x01,        //   Usage Page (Generic Desktop Ctrls)
  *   0x25, 0x07,        //   Logical Maximum (7)
  *   0x46, 0x3B, 0x01,  //   Physical Maximum (315)
@@ -44,10 +44,10 @@
  *   0x95, 0x01,        //   Report Count (1)
  *   0x65, 0x14,        //   Unit (System: English Rotation, Length: Centimeter)
  *   0x09, 0x39,        //   Usage (Hat switch)
- *   0x81, 0x42,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,Null State)
- *   0x65, 0x00,        //   Unit (None)
+ *   0x81, 0x42,        //   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Null State)
+ *   0x65, 0x00,        //   Unit (Analne)
  *   0x95, 0x01,        //   Report Count (1)
- *   0x81, 0x01,        //   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+ *   0x81, 0x01,        //   Input (Const,Array,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position)
  *   0x26, 0xFF, 0x00,  //   Logical Maximum (255)
  *   0x46, 0xFF, 0x00,  //   Physical Maximum (255)
  *   0x09, 0x30,        //   Usage (X)
@@ -56,7 +56,7 @@
  *   0x09, 0x35,        //   Usage (Rz)
  *   0x75, 0x08,        //   Report Size (8)
  *   0x95, 0x04,        //   Report Count (4)
- *   0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+ *   0x81, 0x02,        //   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position)
  *   0x06, 0x00, 0xFF,  //   Usage Page (Vendor Defined 0xFF00)
  *   0x09, 0x20,        //   Usage (0x20)
  *   0x09, 0x21,        //   Usage (0x21)
@@ -71,12 +71,12 @@
  *   0x09, 0x2A,        //   Usage (0x2A)
  *   0x09, 0x2B,        //   Usage (0x2B)
  *   0x95, 0x0C,        //   Report Count (12)
- *   0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+ *   0x81, 0x02,        //   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position)
  *   0x0A, 0x21, 0x26,  //   Usage (0x2621)
  *   0x95, 0x08,        //   Report Count (8)
- *   0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+ *   0xB1, 0x02,        //   Feature (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position,Analn-volatile)
  *   0x0A, 0x21, 0x26,  //   Usage (0x2621)
- *   0x91, 0x02,        //   Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+ *   0x91, 0x02,        //   Output (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position,Analn-volatile)
  *   0x26, 0xFF, 0x03,  //   Logical Maximum (1023)
  *   0x46, 0xFF, 0x03,  //   Physical Maximum (1023)
  *   0x09, 0x2C,        //   Usage (0x2C)
@@ -85,7 +85,7 @@
  *   0x09, 0x2F,        //   Usage (0x2F)
  *   0x75, 0x10,        //   Report Size (16)
  *   0x95, 0x04,        //   Report Count (4)
- *   0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+ *   0x81, 0x02,        //   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position)
  *   0xC0,              // End Collection
  */
 
@@ -113,7 +113,7 @@ static __u8 pid0902_rdesc_fixed[] = {
 	0x09, 0x05,        /*   Usage (BTN_WEST) */
 	0x09, 0x01,        /*   Usage (BTN_SOUTH) */
 	0x09, 0x02,        /*   Usage (BTN_EAST) */
-	0x09, 0x04,        /*   Usage (BTN_NORTH) */
+	0x09, 0x04,        /*   Usage (BTN_ANALRTH) */
 	0x09, 0x07,        /*   Usage (BTN_TL) */
 	0x09, 0x08,        /*   Usage (BTN_TR) */
 	0x09, 0x09,        /*   Usage (BTN_TL2) */
@@ -123,10 +123,10 @@ static __u8 pid0902_rdesc_fixed[] = {
 	0x09, 0x0E,        /*   Usage (BTN_THUMBL) */
 	0x09, 0x0F,        /*   Usage (BTN_THUMBR) */
 	0x09, 0x0D,        /*   Usage (BTN_MODE) */
-	0x81, 0x02,        /*   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position) */
+	0x81, 0x02,        /*   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position) */
 	0x75, 0x01,        /*   Report Size (1) */
 	0x95, 0x03,        /*   Report Count (3) */
-	0x81, 0x01,        /*   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position) */
+	0x81, 0x01,        /*   Input (Const,Array,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position) */
 	0x05, 0x01,        /*   Usage Page (Generic Desktop Ctrls) */
 	0x25, 0x07,        /*   Logical Maximum (7) */
 	0x46, 0x3B, 0x01,  /*   Physical Maximum (315) */
@@ -134,10 +134,10 @@ static __u8 pid0902_rdesc_fixed[] = {
 	0x95, 0x01,        /*   Report Count (1) */
 	0x65, 0x14,        /*   Unit (System: English Rotation, Length: Centimeter) */
 	0x09, 0x39,        /*   Usage (Hat switch) */
-	0x81, 0x42,        /*   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,Null State) */
-	0x65, 0x00,        /*   Unit (None) */
+	0x81, 0x42,        /*   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Null State) */
+	0x65, 0x00,        /*   Unit (Analne) */
 	0x95, 0x01,        /*   Report Count (1) */
-	0x81, 0x01,        /*   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position) */
+	0x81, 0x01,        /*   Input (Const,Array,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position) */
 	0x26, 0xFF, 0x00,  /*   Logical Maximum (255) */
 	0x46, 0xFF, 0x00,  /*   Physical Maximum (255) */
 	0x09, 0x30,        /*   Usage (X) */
@@ -146,26 +146,26 @@ static __u8 pid0902_rdesc_fixed[] = {
 	0x09, 0x34,        /*   Usage (Ry) */
 	0x75, 0x08,        /*   Report Size (8) */
 	0x95, 0x04,        /*   Report Count (4) */
-	0x81, 0x02,        /*   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position) */
+	0x81, 0x02,        /*   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position) */
 	0x95, 0x0A,        /*   Report Count (10) */
-	0x81, 0x01,        /*   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position) */
+	0x81, 0x01,        /*   Input (Const,Array,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position) */
 	0x05, 0x01,        /*   Usage Page (Generic Desktop Ctrls) */
 	0x26, 0xFF, 0x00,  /*   Logical Maximum (255) */
 	0x46, 0xFF, 0x00,  /*   Physical Maximum (255) */
 	0x09, 0x32,        /*   Usage (Z) */
 	0x09, 0x35,        /*   Usage (Rz) */
 	0x95, 0x02,        /*   Report Count (2) */
-	0x81, 0x02,        /*   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position) */
+	0x81, 0x02,        /*   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position) */
 	0x95, 0x08,        /*   Report Count (8) */
-	0x81, 0x01,        /*   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position) */
+	0x81, 0x01,        /*   Input (Const,Array,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position) */
 	0x06, 0x00, 0xFF,  /*   Usage Page (Vendor Defined 0xFF00) */
-	0xB1, 0x02,        /*   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile) */
+	0xB1, 0x02,        /*   Feature (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position,Analn-volatile) */
 	0x0A, 0x21, 0x26,  /*   Usage (0x2621) */
 	0x95, 0x08,        /*   Report Count (8) */
-	0x91, 0x02,        /*   Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile) */
+	0x91, 0x02,        /*   Output (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position,Analn-volatile) */
 	0x0A, 0x21, 0x26,  /*   Usage (0x2621) */
 	0x95, 0x08,        /*   Report Count (8) */
-	0x81, 0x02,        /*   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position) */
+	0x81, 0x02,        /*   Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position) */
 	0xC0,              /* End Collection */
 };
 
@@ -246,7 +246,7 @@ static void bigben_worker(struct work_struct *work)
 		report_field->value[1] = 0x08; /* reserved value, always 8 */
 		report_field->value[2] = bigben->right_motor_on;
 		report_field->value[3] = bigben->left_motor_force;
-		report_field->value[4] = 0xff; /* duration 0-254 (255 = nonstop) */
+		report_field->value[4] = 0xff; /* duration 0-254 (255 = analnstop) */
 		report_field->value[5] = 0x00; /* padding */
 		report_field->value[6] = 0x00; /* padding */
 		report_field->value[7] = 0x00; /* padding */
@@ -273,7 +273,7 @@ static int hid_bigben_play_effect(struct input_dev *dev, void *data,
 	unsigned long flags;
 
 	if (!bigben) {
-		hid_err(hid, "no device data\n");
+		hid_err(hid, "anal device data\n");
 		return 0;
 	}
 
@@ -308,7 +308,7 @@ static void bigben_set_led(struct led_classdev *led,
 	unsigned long flags;
 
 	if (!bigben) {
-		hid_err(hid, "no device data\n");
+		hid_err(hid, "anal device data\n");
 		return;
 	}
 
@@ -341,7 +341,7 @@ static enum led_brightness bigben_get_led(struct led_classdev *led)
 	int n;
 
 	if (!bigben) {
-		hid_err(hid, "no device data\n");
+		hid_err(hid, "anal device data\n");
 		return LED_OFF;
 	}
 
@@ -378,7 +378,7 @@ static int bigben_probe(struct hid_device *hid,
 
 	bigben = devm_kzalloc(&hid->dev, sizeof(*bigben), GFP_KERNEL);
 	if (!bigben)
-		return -ENOMEM;
+		return -EANALMEM;
 	hid_set_drvdata(hid, bigben);
 	bigben->hid = hid;
 	bigben->removed = false;
@@ -397,14 +397,14 @@ static int bigben_probe(struct hid_device *hid,
 
 	bigben->report = hid_validate_values(hid, HID_OUTPUT_REPORT, 0, 0, 8);
 	if (!bigben->report) {
-		hid_err(hid, "no output report found\n");
-		error = -ENODEV;
+		hid_err(hid, "anal output report found\n");
+		error = -EANALDEV;
 		goto error_hw_stop;
 	}
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		error = -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		error = -EANALDEV;
 		goto error_hw_stop;
 	}
 
@@ -428,7 +428,7 @@ static int bigben_probe(struct hid_device *hid,
 			GFP_KERNEL
 		);
 		if (!led) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto error_hw_stop;
 		}
 		name = (void *)(&led[1]);
@@ -447,7 +447,7 @@ static int bigben_probe(struct hid_device *hid,
 			goto error_hw_stop;
 	}
 
-	/* initial state: LED1 is on, no rumble effect */
+	/* initial state: LED1 is on, anal rumble effect */
 	bigben->led_state = BIT(0);
 	bigben->right_motor_on = 0;
 	bigben->left_motor_force = 0;

@@ -5,7 +5,7 @@
  * Based on a mashup of the hrtimer trigger and continuous sampling proposal of
  * Gregor Boirie <gregor.boirie@parrot.com>
  *
- * Note this is still rather experimental and may eat babies.
+ * Analte this is still rather experimental and may eat babies.
  *
  * Todo
  * * Protect against connection of devices that 'need' the top half
@@ -82,11 +82,11 @@ static struct iio_sw_trigger *iio_trig_loop_probe(const char *name)
 
 	trig_info = kzalloc(sizeof(*trig_info), GFP_KERNEL);
 	if (!trig_info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	trig_info->swt.trigger = iio_trigger_alloc(NULL, "%s", name);
 	if (!trig_info->swt.trigger) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_trig_info;
 	}
 

@@ -50,7 +50,7 @@ static int vfio_amba_init_dev(struct vfio_device *core_vdev)
 
 	vdev->name = kasprintf(GFP_KERNEL, "vfio-amba-%08x", adev->periphid);
 	if (!vdev->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->opaque = (void *) adev;
 	vdev->flags = VFIO_DEVICE_FLAGS_AMBA;

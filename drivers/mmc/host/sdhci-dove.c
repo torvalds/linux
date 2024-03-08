@@ -57,11 +57,11 @@ static const struct sdhci_ops sdhci_dove_ops = {
 
 static const struct sdhci_pltfm_data sdhci_dove_pdata = {
 	.ops	= &sdhci_dove_ops,
-	.quirks	= SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
-		  SDHCI_QUIRK_NO_BUSY_IRQ |
+	.quirks	= SDHCI_QUIRK_ANAL_SIMULT_VDD_AND_POWER |
+		  SDHCI_QUIRK_ANAL_BUSY_IRQ |
 		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_FORCE_DMA |
-		  SDHCI_QUIRK_NO_HISPD_BIT,
+		  SDHCI_QUIRK_ANAL_HISPD_BIT,
 };
 
 static int sdhci_dove_probe(struct platform_device *pdev)
@@ -101,7 +101,7 @@ MODULE_DEVICE_TABLE(of, sdhci_dove_of_match_table);
 static struct platform_driver sdhci_dove_driver = {
 	.driver		= {
 		.name	= "sdhci-dove",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &sdhci_pltfm_pmops,
 		.of_match_table = sdhci_dove_of_match_table,
 	},

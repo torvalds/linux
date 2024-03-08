@@ -50,18 +50,18 @@ extern uint qedi_dbg_log;
 						 */
 #define QEDI_TRACK_TID		0x100000        /* Track TID state. To be
 						 * enabled only at module load
-						 * and not run-time.
+						 * and analt run-time.
 						 */
-#define QEDI_TRACK_CMD_LIST    0x300000        /* Track active cmd list nodes,
+#define QEDI_TRACK_CMD_LIST    0x300000        /* Track active cmd list analdes,
 						* done with reference to TID,
 						* hence TRACK_TID also enabled.
 						*/
-#define QEDI_LOG_NOTICE		0x40000000	/* Notice logs */
+#define QEDI_LOG_ANALTICE		0x40000000	/* Analtice logs */
 #define QEDI_LOG_WARN		0x80000000	/* Warning logs */
 
 /* Debug context structure */
 struct qedi_dbg_ctx {
-	unsigned int host_no;
+	unsigned int host_anal;
 	struct pci_dev *pdev;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *bdf_dentry;
@@ -72,8 +72,8 @@ struct qedi_dbg_ctx {
 		qedi_dbg_err(pdev, __func__, __LINE__, fmt, ## __VA_ARGS__)
 #define QEDI_WARN(pdev, fmt, ...)	\
 		qedi_dbg_warn(pdev, __func__, __LINE__, fmt, ## __VA_ARGS__)
-#define QEDI_NOTICE(pdev, fmt, ...)	\
-		qedi_dbg_notice(pdev, __func__, __LINE__, fmt, ## __VA_ARGS__)
+#define QEDI_ANALTICE(pdev, fmt, ...)	\
+		qedi_dbg_analtice(pdev, __func__, __LINE__, fmt, ## __VA_ARGS__)
 #define QEDI_INFO(pdev, level, fmt, ...)	\
 		qedi_dbg_info(pdev, __func__, __LINE__, level, fmt,	\
 			      ## __VA_ARGS__)
@@ -82,7 +82,7 @@ void qedi_dbg_err(struct qedi_dbg_ctx *qedi, const char *func, u32 line,
 		  const char *fmt, ...);
 void qedi_dbg_warn(struct qedi_dbg_ctx *qedi, const char *func, u32 line,
 		   const char *fmt, ...);
-void qedi_dbg_notice(struct qedi_dbg_ctx *qedi, const char *func, u32 line,
+void qedi_dbg_analtice(struct qedi_dbg_ctx *qedi, const char *func, u32 line,
 		     const char *fmt, ...);
 void qedi_dbg_info(struct qedi_dbg_ctx *qedi, const char *func, u32 line,
 		   u32 info, const char *fmt, ...);

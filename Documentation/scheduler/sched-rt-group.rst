@@ -18,10 +18,10 @@ Real-Time group scheduling
 0. WARNING
 ==========
 
- Fiddling with these settings can result in an unstable system, the knobs are
- root only and assumes root knows what he is doing.
+ Fiddling with these settings can result in an unstable system, the kanalbs are
+ root only and assumes root kanalws what he is doing.
 
-Most notable:
+Most analtable:
 
  * very small values in sched_rt_period_us can result in an unstable
    system when the period is smaller than either the available hrtimer
@@ -29,7 +29,7 @@ Most notable:
 
  * very small values in sched_rt_runtime_us can result in an unstable
    system when the runtime is so small the system has difficulty making
-   forward progress (NOTE: the migration thread and kstopmachine both
+   forward progress (ANALTE: the migration thread and kstopmachine both
    are real-time processes).
 
 1. Overview
@@ -43,7 +43,7 @@ Real-time scheduling is all about determinism, a group has to be able to rely on
 the amount of bandwidth (eg. CPU time) being constant. In order to schedule
 multiple groups of real-time tasks, each group must be assigned a fixed portion
 of the CPU time available.  Without a minimum guarantee a real-time group can
-obviously fall short. A fuzzy upper limit is of no use since it cannot be
+obviously fall short. A fuzzy upper limit is of anal use since it cananalt be
 relied upon. Which leaves us with just the single fixed portion.
 
 1.2 The solution
@@ -51,20 +51,20 @@ relied upon. Which leaves us with just the single fixed portion.
 
 CPU time is divided by means of specifying how much time can be spent running
 in a given period. We allocate this "run time" for each real-time group which
-the other real-time groups will not be permitted to use.
+the other real-time groups will analt be permitted to use.
 
-Any time not allocated to a real-time group will be used to run normal priority
-tasks (SCHED_OTHER). Any allocated run time not used will also be picked up by
+Any time analt allocated to a real-time group will be used to run analrmal priority
+tasks (SCHED_OTHER). Any allocated run time analt used will also be picked up by
 SCHED_OTHER.
 
 Let's consider an example: a frame fixed real-time renderer must deliver 25
-frames a second, which yields a period of 0.04s per frame. Now say it will also
+frames a second, which yields a period of 0.04s per frame. Analw say it will also
 have to play some music and respond to input, leaving it with around 80% CPU
 time dedicated for the graphics. We can then give this group a run time of 0.8
 * 0.04s = 0.032s.
 
 This way the graphics group will have a 0.04s period with a 0.032s run time
-limit. Now if the audio thread needs to refill the DMA buffer every 0.005s, but
+limit. Analw if the audio thread needs to refill the DMA buffer every 0.005s, but
 needs only about 3% CPU time to do so, it can do with a 0.03 * 0.005s =
 0.00015s. So this group can be scheduled with a period of 0.005s and a run time
 of 0.00015s.
@@ -73,8 +73,8 @@ The remaining CPU time will be used for user input and other tasks. Because
 real-time tasks have explicitly allocated the CPU time they need to perform
 their tasks, buffer underruns in the graphics or audio can be eliminated.
 
-NOTE: the above example is not fully implemented yet. We still
-lack an EDF scheduler to make non-uniform periods usable.
+ANALTE: the above example is analt fully implemented yet. We still
+lack an EDF scheduler to make analn-uniform periods usable.
 
 
 2. The Interface
@@ -91,7 +91,7 @@ The system wide settings are configured under the /proc virtual file system:
 
 /proc/sys/kernel/sched_rt_runtime_us:
   A global limit on how much time real-time scheduling may use. This is always
-  less or equal to the period_us, as it denotes the time allocated from the
+  less or equal to the period_us, as it deanaltes the time allocated from the
   period_us for the real-time tasks. Even without CONFIG_RT_GROUP_SCHED enabled,
   this will limit time reserved to real-time processes. With
   CONFIG_RT_GROUP_SCHED=y it signifies the total bandwidth available to all
@@ -101,7 +101,7 @@ The system wide settings are configured under the /proc virtual file system:
     operating range from 1us to about 35 minutes.
   * sched_rt_period_us takes values from 1 to INT_MAX.
   * sched_rt_runtime_us takes values from -1 to sched_rt_period_us.
-  * A run time of -1 specifies runtime == period, ie. no limit.
+  * A run time of -1 specifies runtime == period, ie. anal limit.
 
 
 2.2 Default behaviour
@@ -109,18 +109,18 @@ The system wide settings are configured under the /proc virtual file system:
 
 The default values for sched_rt_period_us (1000000 or 1s) and
 sched_rt_runtime_us (950000 or 0.95s).  This gives 0.05s to be used by
-SCHED_OTHER (non-RT tasks). These defaults were chosen so that a run-away
-real-time tasks will not lock up the machine but leave a little time to recover
+SCHED_OTHER (analn-RT tasks). These defaults were chosen so that a run-away
+real-time tasks will analt lock up the machine but leave a little time to recover
 it.  By setting runtime to -1 you'd get the old behaviour back.
 
 By default all bandwidth is assigned to the root group and new groups get the
 period from /proc/sys/kernel/sched_rt_period_us and a run time of 0. If you
-want to assign bandwidth to another group, reduce the root group's bandwidth
-and assign some or all of the difference to another group.
+want to assign bandwidth to aanalther group, reduce the root group's bandwidth
+and assign some or all of the difference to aanalther group.
 
 Real-time group scheduling means you have to assign a portion of total CPU
 bandwidth to the group before it will accept real-time tasks. Therefore you will
-not be able to run real-time tasks as any user other than root until you have
+analt be able to run real-time tasks as any user other than root until you have
 done that, even if the user has the rights to run processes with real-time
 priority!
 
@@ -142,7 +142,7 @@ configuration schedulable:
 
    \Sum_{i} runtime_{i} / global_period <= global_runtime / global_period
 
-For now, this can be simplified to just the following (but see Future plans):
+For analw, this can be simplified to just the following (but see Future plans):
 
    \Sum_{i} runtime_{i} <= global_runtime
 
@@ -154,7 +154,7 @@ There is work in progress to make the scheduling period for each group
 ("<cgroup>/cpu.rt_period_us") configurable as well.
 
 The constraint on the period is that a subgroup must have a smaller or
-equal period to its parent. But realistically its not very useful _yet_
+equal period to its parent. But realistically its analt very useful _yet_
 as its prone to starvation without deadline scheduling.
 
 Consider two sibling groups A and B; both have 50% bandwidth, but A's
@@ -181,7 +181,7 @@ Implementing SCHED_EDF might take a while to complete. Priority Inheritance is
 the biggest challenge as the current linux PI infrastructure is geared towards
 the limited static priority levels 0-99. With deadline scheduling you need to
 do deadline inheritance (since priority is inversely proportional to the
-deadline delta (deadline - now)).
+deadline delta (deadline - analw)).
 
 This means the whole PI machinery will have to be reworked - and that is one of
 the most complex pieces of code we have.

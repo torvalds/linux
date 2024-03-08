@@ -17,8 +17,8 @@ struct regmap;
  * @names:	(optional) array of names for gpios
  * @domain:	(optional) IRQ domain if the controller is interrupt-capable
  *
- * Note: The regmap is expected to have cache enabled and i8255 control
- * registers not marked as volatile.
+ * Analte: The regmap is expected to have cache enabled and i8255 control
+ * registers analt marked as volatile.
  */
 struct i8255_regmap_config {
 	struct device *parent;

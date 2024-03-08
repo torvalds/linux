@@ -2,7 +2,7 @@
 /*
  * MFD core driver for Ricoh RN5T618 PMIC
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  * Copyright (C) 2016 Toradex AG
  */
 
@@ -84,7 +84,7 @@ static const struct regmap_irq_chip rc5t619_irq_chip = {
 };
 
 static struct i2c_client *rn5t618_pm_power_off;
-static struct notifier_block rn5t618_restart_handler;
+static struct analtifier_block rn5t618_restart_handler;
 
 static int rn5t618_irq_init(struct rn5t618 *rn5t618)
 {
@@ -99,9 +99,9 @@ static int rn5t618_irq_init(struct rn5t618 *rn5t618)
 		irq_chip = &rc5t619_irq_chip;
 		break;
 	default:
-		dev_err(rn5t618->dev, "Currently no IRQ support for variant %d\n",
+		dev_err(rn5t618->dev, "Currently anal IRQ support for variant %d\n",
 			(int)rn5t618->variant);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ret = devm_regmap_add_irq_chip(rn5t618->dev, rn5t618->regmap,
@@ -155,18 +155,18 @@ static void rn5t618_power_off(void)
 	rn5t618_trigger_poweroff_sequence(false);
 }
 
-static int rn5t618_restart(struct notifier_block *this,
+static int rn5t618_restart(struct analtifier_block *this,
 			    unsigned long mode, void *cmd)
 {
 	rn5t618_trigger_poweroff_sequence(true);
 
 	/*
-	 * Re-power factor detection on PMIC side is not instant. 1ms
-	 * proved to be enough time until reset takes effect.
+	 * Re-power factor detection on PMIC side is analt instant. 1ms
+	 * proved to be eanalugh time until reset takes effect.
 	 */
 	mdelay(1);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct of_device_id rn5t618_of_match[] = {
@@ -184,7 +184,7 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, priv);
 	priv->variant = (long)i2c_get_match_data(i2c);
@@ -199,12 +199,12 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 	}
 
 	if (priv->variant == RC5T619)
-		ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_NONE,
+		ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_ANALNE,
 					   rc5t619_cells,
 					   ARRAY_SIZE(rc5t619_cells),
 					   NULL, 0, NULL);
 	else
-		ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_NONE,
+		ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_ANALNE,
 					   rn5t618_cells,
 					   ARRAY_SIZE(rn5t618_cells),
 					   NULL, 0, NULL);
@@ -214,19 +214,19 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 	}
 
 	rn5t618_pm_power_off = i2c;
-	if (of_device_is_system_power_controller(i2c->dev.of_node)) {
+	if (of_device_is_system_power_controller(i2c->dev.of_analde)) {
 		if (!pm_power_off)
 			pm_power_off = rn5t618_power_off;
 		else
 			dev_warn(&i2c->dev, "Poweroff callback already assigned\n");
 	}
 
-	rn5t618_restart_handler.notifier_call = rn5t618_restart;
+	rn5t618_restart_handler.analtifier_call = rn5t618_restart;
 	rn5t618_restart_handler.priority = 192;
 
 	ret = register_restart_handler(&rn5t618_restart_handler);
 	if (ret) {
-		dev_err(&i2c->dev, "cannot register restart handler, %d\n", ret);
+		dev_err(&i2c->dev, "cananalt register restart handler, %d\n", ret);
 		return ret;
 	}
 
@@ -279,6 +279,6 @@ static struct i2c_driver rn5t618_i2c_driver = {
 
 module_i2c_driver(rn5t618_i2c_driver);
 
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamianal Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("Ricoh RN5T567/618 MFD driver");
 MODULE_LICENSE("GPL v2");

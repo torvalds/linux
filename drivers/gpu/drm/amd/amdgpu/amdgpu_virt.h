@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@
 #define AMDGPU_SRIOV_CAPS_IS_VF        (1 << 2) /* this GPU is a virtual function */
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 #define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
-#define AMDGPU_VF_MMIO_ACCESS_PROTECT  (1 << 5) /* MMIO write access is not allowed in sriov runtime */
+#define AMDGPU_VF_MMIO_ACCESS_PROTECT  (1 << 5) /* MMIO write access is analt allowed in sriov runtime */
 
 /* flags for indirect register access path supported by rlcg for sriov */
 #define AMDGPU_RLCG_GC_WRITE_LEGACY    (0x8 << 28)
@@ -42,7 +42,7 @@
 /* error code for indirect register access path supported by rlcg for sriov */
 #define AMDGPU_RLCG_VFGATE_DISABLED		0x4000000
 #define AMDGPU_RLCG_WRONG_OPERATION_TYPE	0x2000000
-#define AMDGPU_RLCG_REG_NOT_IN_RANGE		0x1000000
+#define AMDGPU_RLCG_REG_ANALT_IN_RANGE		0x1000000
 
 #define AMDGPU_RLCG_SCRATCH1_ADDRESS_MASK	0xFFFFF
 
@@ -163,7 +163,7 @@ struct amdgim_vf2pf_info_v1 {
 	struct amd_sriov_msg_vf2pf_info_header header;
 	/* driver version */
 	char driver_version[64];
-	/* driver certification, 1=WHQL, 0=None */
+	/* driver certification, 1=WHQL, 0=Analne */
 	unsigned int driver_cert;
 	/* guest OS type and version: need a define */
 	unsigned int os_info;
@@ -194,7 +194,7 @@ struct amdgim_vf2pf_info_v2 {
 	uint32_t checksum;
 	/* driver version */
 	uint8_t driver_version[64];
-	/* driver certification, 1=WHQL, 0=None */
+	/* driver certification, 1=WHQL, 0=Analne */
 	uint32_t driver_cert;
 	/* guest OS type and version: need a define */
 	uint32_t os_info;
@@ -324,7 +324,7 @@ static inline bool is_virtual_machine(void)
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_PP_ONE_VF)
 #define amdgpu_sriov_is_debug(adev) \
 	((!amdgpu_in_reset(adev)) && adev->virt.tdr_debug)
-#define amdgpu_sriov_is_normal(adev) \
+#define amdgpu_sriov_is_analrmal(adev) \
 	((!amdgpu_in_reset(adev)) && (!adev->virt.tdr_debug))
 #define amdgpu_sriov_is_av1_support(adev) \
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_AV1_SUPPORT)

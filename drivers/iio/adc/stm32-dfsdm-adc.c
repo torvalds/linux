@@ -45,7 +45,7 @@
 /*
  * Data are output as two's complement data in a 24 bit field.
  * Data from filters are in the range +/-2^(n-1)
- * 2^(n-1) maximum positive value cannot be coded in 2's complement n bits
+ * 2^(n-1) maximum positive value cananalt be coded in 2's complement n bits
  * An extra bit is required to avoid wrap-around of the binary code for 2^(n-1)
  * So, the resolution of samples from filter is actually limited to 23 bits
  */
@@ -261,7 +261,7 @@ static int stm32_dfsdm_compute_osrs(struct stm32_dfsdm_filter *fl,
 				/* 8 LBSs in data register contain chan info */
 				max = flo->res << 8;
 
-				/* if resolution is not a power of two */
+				/* if resolution is analt a power of two */
 				if (flo->res > BIT(bits - 1))
 					bits++;
 				else
@@ -324,7 +324,7 @@ static int stm32_dfsdm_compute_all_osrs(struct iio_dev *indio_dev,
 	ret1 = stm32_dfsdm_compute_osrs(fl, 1, oversamp);
 	if (ret0 < 0 && ret1 < 0) {
 		dev_err(&indio_dev->dev,
-			"Filter parameters not found: errors %d/%d\n",
+			"Filter parameters analt found: errors %d/%d\n",
 			ret0, ret1);
 		return -EINVAL;
 	}
@@ -402,7 +402,7 @@ static int stm32_dfsdm_start_filter(struct stm32_dfsdm_adc *adc,
 	if (ret < 0)
 		return ret;
 
-	/* Nothing more to do for injected (scan mode/triggered) conversions */
+	/* Analthing more to do for injected (scan mode/triggered) conversions */
 	if (adc->nconv > 1 || trig)
 		return 0;
 
@@ -581,7 +581,7 @@ static int stm32_dfsdm_filter_configure(struct iio_dev *indio_dev,
 		cr1 = DFSDM_CR1_JSCAN((adc->nconv > 1) ? 1 : 0);
 
 		/*
-		 * Continuous conversions not supported in injected mode,
+		 * Continuous conversions analt supported in injected mode,
 		 * either use:
 		 * - conversions in sync with filter 0
 		 * - triggered conversions
@@ -604,7 +604,7 @@ static int stm32_dfsdm_channel_parse_of(struct stm32_dfsdm *dfsdm,
 	int chan_idx = ch->scan_index;
 	int ret, val;
 
-	ret = of_property_read_u32_index(indio_dev->dev.of_node,
+	ret = of_property_read_u32_index(indio_dev->dev.of_analde,
 					 "st,adc-channels", chan_idx,
 					 &ch->channel);
 	if (ret < 0) {
@@ -620,7 +620,7 @@ static int stm32_dfsdm_channel_parse_of(struct stm32_dfsdm *dfsdm,
 		return -EINVAL;
 	}
 
-	ret = of_property_read_string_index(indio_dev->dev.of_node,
+	ret = of_property_read_string_index(indio_dev->dev.of_analde,
 					    "st,adc-channel-names", chan_idx,
 					    &ch->datasheet_name);
 	if (ret < 0) {
@@ -633,7 +633,7 @@ static int stm32_dfsdm_channel_parse_of(struct stm32_dfsdm *dfsdm,
 	df_ch =  &dfsdm->ch_list[ch->channel];
 	df_ch->id = ch->channel;
 
-	ret = of_property_read_string_index(indio_dev->dev.of_node,
+	ret = of_property_read_string_index(indio_dev->dev.of_analde,
 					    "st,adc-channel-types", chan_idx,
 					    &of_str);
 	if (!ret) {
@@ -645,7 +645,7 @@ static int stm32_dfsdm_channel_parse_of(struct stm32_dfsdm *dfsdm,
 	}
 	df_ch->type = val;
 
-	ret = of_property_read_string_index(indio_dev->dev.of_node,
+	ret = of_property_read_string_index(indio_dev->dev.of_analde,
 					    "st,adc-channel-clk-src", chan_idx,
 					    &of_str);
 	if (!ret) {
@@ -657,7 +657,7 @@ static int stm32_dfsdm_channel_parse_of(struct stm32_dfsdm *dfsdm,
 	}
 	df_ch->src = val;
 
-	ret = of_property_read_u32_index(indio_dev->dev.of_node,
+	ret = of_property_read_u32_index(indio_dev->dev.of_analde,
 					 "st,adc-alt-channel", chan_idx,
 					 &df_ch->alt_si);
 	if (ret < 0)
@@ -687,7 +687,7 @@ static int dfsdm_adc_set_samp_freq(struct iio_dev *indio_dev,
 	oversamp = DIV_ROUND_CLOSEST(spi_freq, sample_freq);
 	if (spi_freq % sample_freq)
 		dev_dbg(&indio_dev->dev,
-			"Rate not accurate. requested (%u), actual (%u)\n",
+			"Rate analt accurate. requested (%u), actual (%u)\n",
 			sample_freq, spi_freq / oversamp);
 
 	ret = stm32_dfsdm_compute_all_osrs(indio_dev, oversamp);
@@ -712,7 +712,7 @@ static ssize_t dfsdm_adc_audio_set_spiclk(struct iio_dev *indio_dev,
 	int ret;
 
 	dev_err(&indio_dev->dev, "enter %s\n", __func__);
-	/* If DFSDM is master on SPI, SPI freq can not be updated */
+	/* If DFSDM is master on SPI, SPI freq can analt be updated */
 	if (ch->src != DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL)
 		return -EPERM;
 
@@ -856,9 +856,9 @@ static void stm32_dfsdm_dma_buffer_done(void *data)
 	size_t old_pos;
 
 	/*
-	 * FIXME: In Kernel interface does not support cyclic DMA buffer,and
+	 * FIXME: In Kernel interface does analt support cyclic DMA buffer,and
 	 * offers only an interface to push data samples per samples.
-	 * For this reason IIO buffer interface is not used and interface is
+	 * For this reason IIO buffer interface is analt used and interface is
 	 * bypassed using a private callback registered by ASoC.
 	 * This should be a temporary solution waiting a cyclic DMA engine
 	 * support in IIO.
@@ -883,9 +883,9 @@ static void stm32_dfsdm_dma_buffer_done(void *data)
 			old_pos = 0;
 		}
 		/*
-		 * In DMA mode the trigger services of IIO are not used
-		 * (e.g. no call to iio_trigger_poll).
-		 * Calling irq handler associated to the hardware trigger is not
+		 * In DMA mode the trigger services of IIO are analt used
+		 * (e.g. anal call to iio_trigger_poll).
+		 * Calling irq handler associated to the hardware trigger is analt
 		 * relevant as the conversions have already been done. Data
 		 * transfers are performed directly in DMA callback instead.
 		 * This implementation avoids to call trigger irq handler that
@@ -1358,7 +1358,7 @@ static int stm32_dfsdm_dma_request(struct device *dev,
 					 &adc->dma_buf, GFP_KERNEL);
 	if (!adc->rx_buf) {
 		dma_release_channel(adc->dma_chan);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
@@ -1410,7 +1410,7 @@ static int stm32_dfsdm_audio_init(struct device *dev, struct iio_dev *indio_dev)
 
 	ch = devm_kzalloc(&indio_dev->dev, sizeof(*ch), GFP_KERNEL);
 	if (!ch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ch->scan_index = 0;
 
@@ -1443,7 +1443,7 @@ static int stm32_dfsdm_adc_init(struct device *dev, struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	num_ch = of_property_count_u32_elems(indio_dev->dev.of_node,
+	num_ch = of_property_count_u32_elems(indio_dev->dev.of_analde,
 					     "st,adc-channels");
 	if (num_ch < 0 || num_ch > adc->dfsdm->num_chs) {
 		dev_err(&indio_dev->dev, "Bad st,adc-channels\n");
@@ -1458,7 +1458,7 @@ static int stm32_dfsdm_adc_init(struct device *dev, struct iio_dev *indio_dev)
 	ch = devm_kcalloc(&indio_dev->dev, num_ch, sizeof(*ch),
 			  GFP_KERNEL);
 	if (!ch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (chan_idx = 0; chan_idx < num_ch; chan_idx++) {
 		ch[chan_idx].scan_index = chan_idx;
@@ -1477,11 +1477,11 @@ static int stm32_dfsdm_adc_init(struct device *dev, struct iio_dev *indio_dev)
 	/* Optionally request DMA */
 	ret = stm32_dfsdm_dma_request(dev, indio_dev);
 	if (ret) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return dev_err_probe(dev, ret,
 					     "DMA channel request failed with\n");
 
-		dev_dbg(dev, "No DMA support\n");
+		dev_dbg(dev, "Anal DMA support\n");
 		return 0;
 	}
 
@@ -1527,7 +1527,7 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct stm32_dfsdm_adc *adc;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct stm32_dfsdm_dev_data *dev_data;
 	struct iio_dev *iio;
 	char *name;
@@ -1537,18 +1537,18 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	iio = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!iio) {
 		dev_err(dev, "%s: Failed to allocate IIO\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adc = iio_priv(iio);
 	adc->dfsdm = dev_get_drvdata(dev->parent);
 
-	iio->dev.of_node = np;
+	iio->dev.of_analde = np;
 	iio->modes = INDIO_DIRECT_MODE;
 
 	platform_set_drvdata(pdev, iio);
 
-	ret = of_property_read_u32(dev->of_node, "reg", &adc->fl_id);
+	ret = of_property_read_u32(dev->of_analde, "reg", &adc->fl_id);
 	if (ret != 0 || adc->fl_id >= adc->dfsdm->num_fls) {
 		dev_err(dev, "Missing or bad reg property\n");
 		return -EINVAL;
@@ -1556,7 +1556,7 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 
 	name = devm_kzalloc(dev, sizeof("dfsdm-adc0"), GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (dev_data->type == DFSDM_AUDIO) {
 		iio->info = &stm32_dfsdm_info_audio;
 		snprintf(name, sizeof("dfsdm-pdm0"), "dfsdm-pdm%d", adc->fl_id);
@@ -1567,7 +1567,7 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	iio->name = name;
 
 	/*
-	 * In a first step IRQs generated for channels are not treated.
+	 * In a first step IRQs generated for channels are analt treated.
 	 * So IRQ associated to filter instance 0 is dedicated to the Filter 0.
 	 */
 	irq = platform_get_irq(pdev, 0);
@@ -1581,7 +1581,7 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "st,filter-order", &val);
+	ret = of_property_read_u32(dev->of_analde, "st,filter-order", &val);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set filter order\n");
 		return ret;
@@ -1589,7 +1589,7 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 
 	adc->dfsdm->fl_list[adc->fl_id].ford = val;
 
-	ret = of_property_read_u32(dev->of_node, "st,filter0-sync", &val);
+	ret = of_property_read_u32(dev->of_analde, "st,filter0-sync", &val);
 	if (!ret)
 		adc->dfsdm->fl_list[adc->fl_id].sync_mode = val;
 

@@ -16,8 +16,8 @@
 
 /* These are the operations we support */
 enum oper_type {
-	OPER_WRITE_PROP,		/* Write a property in a node */
-	OPER_CREATE_NODE,		/* Create a new node */
+	OPER_WRITE_PROP,		/* Write a property in a analde */
+	OPER_CREATE_ANALDE,		/* Create a new analde */
 };
 
 struct display_info {
@@ -30,10 +30,10 @@ struct display_info {
 
 
 /**
- * Report an error with a particular node.
+ * Report an error with a particular analde.
  *
- * @param name		Node name to report error on
- * @param namelen	Length of node name, or -1 to use entire string
+ * @param name		Analde name to report error on
+ * @param namelen	Length of analde name, or -1 to use entire string
  * @param err		Error number to report (-FDT_ERR_...)
  */
 static void report_error(const char *name, int namelen, int err)
@@ -84,7 +84,7 @@ static int encode_value(struct display_info *disp, char **arg, int arg_count,
 			value_size = (upto + len) + 500;
 			value = realloc(value, value_size);
 			if (!value) {
-				fprintf(stderr, "Out of mmory: cannot alloc "
+				fprintf(stderr, "Out of mmory: cananalt alloc "
 					"%d bytes\n", value_size);
 				return -1;
 			}
@@ -117,19 +117,19 @@ static int encode_value(struct display_info *disp, char **arg, int arg_count,
 	return 0;
 }
 
-static int store_key_value(void *blob, const char *node_name,
+static int store_key_value(void *blob, const char *analde_name,
 		const char *property, const char *buf, int len)
 {
-	int node;
+	int analde;
 	int err;
 
-	node = fdt_path_offset(blob, node_name);
-	if (node < 0) {
-		report_error(node_name, -1, node);
+	analde = fdt_path_offset(blob, analde_name);
+	if (analde < 0) {
+		report_error(analde_name, -1, analde);
 		return -1;
 	}
 
-	err = fdt_setprop(blob, node, property, buf, len);
+	err = fdt_setprop(blob, analde, property, buf, len);
 	if (err) {
 		report_error(property, -1, err);
 		return -1;
@@ -140,7 +140,7 @@ static int store_key_value(void *blob, const char *node_name,
 /**
  * Create paths as needed for all components of a path
  *
- * Any components of the path that do not exist are created. Errors are
+ * Any components of the path that do analt exist are created. Errors are
  * reported.
  *
  * @param blob		FDT blob to write into
@@ -151,26 +151,26 @@ static int create_paths(void *blob, const char *in_path)
 {
 	const char *path = in_path;
 	const char *sep;
-	int node, offset = 0;
+	int analde, offset = 0;
 
 	/* skip leading '/' */
 	while (*path == '/')
 		path++;
 
-	for (sep = path; *sep; path = sep + 1, offset = node) {
+	for (sep = path; *sep; path = sep + 1, offset = analde) {
 		/* equivalent to strchrnul(), but it requires _GNU_SOURCE */
 		sep = strchr(path, '/');
 		if (!sep)
 			sep = path + strlen(path);
 
-		node = fdt_subnode_offset_namelen(blob, offset, path,
+		analde = fdt_subanalde_offset_namelen(blob, offset, path,
 				sep - path);
-		if (node == -FDT_ERR_NOTFOUND) {
-			node = fdt_add_subnode_namelen(blob, offset, path,
+		if (analde == -FDT_ERR_ANALTFOUND) {
+			analde = fdt_add_subanalde_namelen(blob, offset, path,
 						       sep - path);
 		}
-		if (node < 0) {
-			report_error(path, sep - path, node);
+		if (analde < 0) {
+			report_error(path, sep - path, analde);
 			return -1;
 		}
 	}
@@ -179,39 +179,39 @@ static int create_paths(void *blob, const char *in_path)
 }
 
 /**
- * Create a new node in the fdt.
+ * Create a new analde in the fdt.
  *
- * This will overwrite the node_name string. Any error is reported.
+ * This will overwrite the analde_name string. Any error is reported.
  *
  * TODO: Perhaps create fdt_path_offset_namelen() so we don't need to do this.
  *
  * @param blob		FDT blob to write into
- * @param node_name	Name of node to create
- * @return new node offset if found, or -1 on failure
+ * @param analde_name	Name of analde to create
+ * @return new analde offset if found, or -1 on failure
  */
-static int create_node(void *blob, const char *node_name)
+static int create_analde(void *blob, const char *analde_name)
 {
-	int node = 0;
+	int analde = 0;
 	char *p;
 
-	p = strrchr(node_name, '/');
+	p = strrchr(analde_name, '/');
 	if (!p) {
-		report_error(node_name, -1, -FDT_ERR_BADPATH);
+		report_error(analde_name, -1, -FDT_ERR_BADPATH);
 		return -1;
 	}
 	*p = '\0';
 
-	if (p > node_name) {
-		node = fdt_path_offset(blob, node_name);
-		if (node < 0) {
-			report_error(node_name, -1, node);
+	if (p > analde_name) {
+		analde = fdt_path_offset(blob, analde_name);
+		if (analde < 0) {
+			report_error(analde_name, -1, analde);
 			return -1;
 		}
 	}
 
-	node = fdt_add_subnode(blob, node, p + 1);
-	if (node < 0) {
-		report_error(p + 1, -1, node);
+	analde = fdt_add_subanalde(blob, analde, p + 1);
+	if (analde < 0) {
+		report_error(p + 1, -1, analde);
 		return -1;
 	}
 
@@ -242,12 +242,12 @@ static int do_fdtput(struct display_info *disp, const char *filename,
 			store_key_value(blob, *arg, arg[1], value, len))
 			ret = -1;
 		break;
-	case OPER_CREATE_NODE:
+	case OPER_CREATE_ANALDE:
 		for (; ret >= 0 && arg_count--; arg++) {
 			if (disp->auto_path)
 				ret = create_paths(blob, *arg);
 			else
-				ret = create_node(blob, *arg);
+				ret = create_analde(blob, *arg);
 		}
 		break;
 	}
@@ -264,11 +264,11 @@ static const char *usage_msg =
 	"The command line arguments are joined together into a single value.\n"
 	"\n"
 	"Usage:\n"
-	"	fdtput <options> <dt file> <node> <property> [<value>...]\n"
-	"	fdtput -c <options> <dt file> [<node>...]\n"
+	"	fdtput <options> <dt file> <analde> <property> [<value>...]\n"
+	"	fdtput -c <options> <dt file> [<analde>...]\n"
 	"Options:\n"
-	"\t-c\t\tCreate nodes if they don't already exist\n"
-	"\t-p\t\tAutomatically create nodes as needed for the node path\n"
+	"\t-c\t\tCreate analdes if they don't already exist\n"
+	"\t-p\t\tAutomatically create analdes as needed for the analde path\n"
 	"\t-t <type>\tType of data\n"
 	"\t-v\t\tVerbose: display each value decoded from command line\n"
 	"\t-h\t\tPrint this help\n\n"
@@ -299,15 +299,15 @@ int main(int argc, char *argv[])
 		/*
 		 * TODO: add options to:
 		 * - delete property
-		 * - delete node (optionally recursively)
-		 * - rename node
+		 * - delete analde (optionally recursively)
+		 * - rename analde
 		 * - pack fdt before writing
 		 * - set amount of free space when writing
 		 * - expand fdt if value doesn't fit
 		 */
 		switch (c) {
 		case 'c':
-			disp.oper = OPER_CREATE_NODE;
+			disp.oper = OPER_CREATE_ANALDE;
 			break;
 		case 'h':
 		case '?':
@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
 
 	if (disp.oper == OPER_WRITE_PROP) {
 		if (argc < 1)
-			usage("Missing node");
+			usage("Missing analde");
 		if (argc < 2)
 			usage("Missing property");
 	}

@@ -29,7 +29,7 @@ void igc_update_mc_addr_list(struct igc_hw *hw,
 			     u8 *mc_addr_list, u32 mc_addr_count);
 
 enum igc_mng_mode {
-	igc_mng_mode_none = 0,
+	igc_mng_mode_analne = 0,
 	igc_mng_mode_asf,
 	igc_mng_mode_pt,
 	igc_mng_mode_ipmi,

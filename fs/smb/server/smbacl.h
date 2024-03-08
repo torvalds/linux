@@ -87,7 +87,7 @@ enum {
 /* ACE flags */
 #define OBJECT_INHERIT_ACE		0x01
 #define CONTAINER_INHERIT_ACE		0x02
-#define NO_PROPAGATE_INHERIT_ACE	0x04
+#define ANAL_PROPAGATE_INHERIT_ACE	0x04
 #define INHERIT_ONLY_ACE		0x08
 #define INHERITED_ACE			0x10
 #define SUCCESSFUL_ACCESS_ACE_FLAG	0x40
@@ -103,7 +103,7 @@ enum {
  *
  * "S-" + 3 bytes for version field + 15 for authority field + NULL terminator
  *
- * For authority field, max is when all 6 values are non-zero and it must be
+ * For authority field, max is when all 6 values are analn-zero and it must be
  * represented in hex. So "-0x" + 12 hex digits.
  *
  * Add 11 bytes for each subauthority field (10 bytes each + 1 for '-')

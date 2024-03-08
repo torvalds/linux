@@ -22,6 +22,6 @@ struct usb_phy_generic {
 int usb_gen_phy_init(struct usb_phy *phy);
 void usb_gen_phy_shutdown(struct usb_phy *phy);
 
-int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop);
+int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *analp);
 
 #endif

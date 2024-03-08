@@ -90,10 +90,10 @@ static void ip6erspan_tnl_link_config(struct ip6_tnl *t, int set_mtu);
    0: (*,*)
 
    We require exact key match i.e. if a key is present in packet
-   it will match only tunnel with the same key; if it is not present,
+   it will match only tunnel with the same key; if it is analt present,
    it will match only keyless tunnel.
 
-   All keysless packets, if not matched configured keyless tunnels
+   All keysless packets, if analt matched configured keyless tunnels
    will match fallback tunnel.
  */
 
@@ -364,7 +364,7 @@ static struct ip6_tnl *ip6gre_tunnel_locate(struct net *net,
 	} else {
 		strcpy(name, "ip6gre%d");
 	}
-	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKANALWN,
 			   ip6gre_tunnel_setup);
 	if (!dev)
 		return NULL;
@@ -431,7 +431,7 @@ static int ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	t = ip6gre_tunnel_lookup(skb->dev, &ipv6h->daddr, &ipv6h->saddr,
 				 tpi.key, tpi.proto);
 	if (!t)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (type) {
 	case ICMPV6_DEST_UNREACH:
@@ -564,7 +564,7 @@ static int ip6erspan_rcv(struct sk_buff *skb,
 				return PACKET_REJECT;
 
 			/* skb can be uncloned in __iptunnel_pull_header, so
-			 * old pkt_md is no longer valid and we need to reset
+			 * old pkt_md is anal longer valid and we need to reset
 			 * it
 			 */
 			gh = skb_network_header(skb) +
@@ -783,23 +783,23 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 		tun_hlen = gre_calc_hlen(flags);
 
 		if (skb_cow_head(skb, dev->needed_headroom ?: tun_hlen + tunnel->encap_hlen))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		gre_build_header(skb, tun_hlen,
 				 flags, protocol,
 				 tunnel_id_to_key32(tun_info->key.tun_id),
-				 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqno))
+				 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqanal))
 						      : 0);
 
 	} else {
 		if (skb_cow_head(skb, dev->needed_headroom ?: tunnel->hlen))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		flags = tunnel->parms.o_flags;
 
 		gre_build_header(skb, tunnel->tun_hlen, flags,
 				 protocol, tunnel->parms.o_key,
-				 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqno))
+				 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqanal))
 						      : 0);
 	}
 
@@ -829,7 +829,7 @@ static inline int ip6gre_xmit_ipv4(struct sk_buff *skb, struct net_device *dev)
 	err = __gre6_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
 			  skb->protocol);
 	if (err != 0) {
-		/* XXX: send ICMP error even if DF is not set. */
+		/* XXX: send ICMP error even if DF is analt set. */
 		if (err == -EMSGSIZE)
 			icmp_ndo_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 				      htonl(mtu));
@@ -1065,7 +1065,7 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	/* Push GRE header. */
-	gre_build_header(skb, 8, TUNNEL_SEQ, proto, 0, htonl(atomic_fetch_inc(&t->o_seqno)));
+	gre_build_header(skb, 8, TUNNEL_SEQ, proto, 0, htonl(atomic_fetch_inc(&t->o_seqanal)));
 
 	/* TooBig packet may have updated dst->dev's mtu */
 	if (!t->parms.collect_md && dst && dst_mtu(dst) > dst->dev->mtu)
@@ -1074,7 +1074,7 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
 			   NEXTHDR_GRE);
 	if (err != 0) {
-		/* XXX: send ICMP error even if DF is not set. */
+		/* XXX: send ICMP error even if DF is analt set. */
 		if (err == -EMSGSIZE) {
 			if (skb->protocol == htons(ETH_P_IP))
 				icmp_ndo_send(skb, ICMP_DEST_UNREACH,
@@ -1339,7 +1339,7 @@ static int ip6gre_tunnel_siocdevprivate(struct net_device *dev,
 			if (copy_to_user(data, &p, sizeof(p)))
 				err = -EFAULT;
 		} else
-			err = (cmd == SIOCADDTUNNEL ? -ENOBUFS : -ENOENT);
+			err = (cmd == SIOCADDTUNNEL ? -EANALBUFS : -EANALENT);
 		break;
 
 	case SIOCDELTUNNEL:
@@ -1351,7 +1351,7 @@ static int ip6gre_tunnel_siocdevprivate(struct net_device *dev,
 			err = -EFAULT;
 			if (copy_from_user(&p, data, sizeof(p)))
 				goto done;
-			err = -ENOENT;
+			err = -EANALENT;
 			ip6gre_tnl_parm_from_user(&p1, &p);
 			t = ip6gre_tunnel_locate(net, &p1, 0);
 			if (!t)
@@ -1439,7 +1439,7 @@ static void ip6gre_tunnel_setup(struct net_device *dev)
 
 	dev->type = ARPHRD_IP6GRE;
 
-	dev->flags |= IFF_NOARP;
+	dev->flags |= IFF_ANALARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	netif_keep_dst(dev);
 	/* This perm addr will be used as interface identifier by IPv6 */
@@ -1462,12 +1462,12 @@ static void ip6gre_tnl_init_features(struct net_device *dev)
 
 	flags = nt->parms.o_flags;
 
-	/* TCP offload with GRE SEQ is not supported, nor can we support 2
+	/* TCP offload with GRE SEQ is analt supported, analr can we support 2
 	 * levels of outer headers requiring an update.
 	 */
 	if (flags & TUNNEL_SEQ)
 		return;
-	if (flags & TUNNEL_CSUM && nt->encap.type != TUNNEL_ENCAP_NONE)
+	if (flags & TUNNEL_CSUM && nt->encap.type != TUNNEL_ENCAP_ANALNE)
 		return;
 
 	dev->features |= NETIF_F_GSO_SOFTWARE;
@@ -1488,7 +1488,7 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
 	if (ret)
@@ -1602,15 +1602,15 @@ static int __net_init ip6gre_init_net(struct net *net)
 	if (!net_has_fallback_tunnels(net))
 		return 0;
 	ndev = alloc_netdev(sizeof(struct ip6_tnl), "ip6gre0",
-			    NET_NAME_UNKNOWN, ip6gre_tunnel_setup);
+			    NET_NAME_UNKANALWN, ip6gre_tunnel_setup);
 	if (!ndev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_dev;
 	}
 	ign->fb_tunnel_dev = ndev;
 	dev_net_set(ign->fb_tunnel_dev, net);
 	/* FB netdevice is special: we have one, and only one per netns.
-	 * Allowing to move it to another netns is clearly unsafe.
+	 * Allowing to move it to aanalther netns is clearly unsafe.
 	 */
 	ign->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
 
@@ -1679,7 +1679,7 @@ static int ip6gre_tap_validate(struct nlattr *tb[], struct nlattr *data[],
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
 			return -EINVAL;
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 
 	if (!data)
@@ -1882,7 +1882,7 @@ static int ip6erspan_tap_init(struct net_device *dev)
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
 	if (ret)
@@ -2348,7 +2348,7 @@ static struct rtnl_link_ops ip6erspan_tap_ops __read_mostly = {
 };
 
 /*
- *	And now the modules code and kernel interface.
+ *	And analw the modules code and kernel interface.
  */
 
 static int __init ip6gre_init(void)

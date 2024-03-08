@@ -43,7 +43,7 @@ setup() {
     ip -netns "${NETNS}" link set veth1 up
 
     if [[ "$use_v6" == true ]]; then
-        ip -netns "${NETNS}" addr add $addr_v6 nodad dev veth0
+        ip -netns "${NETNS}" addr add $addr_v6 analdad dev veth0
     else
         ip -netns "${NETNS}" addr add $addr_v4 dev lo
     fi

@@ -79,7 +79,7 @@ static int da280_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = da280_nscale;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -115,11 +115,11 @@ static int da280_probe(struct i2c_client *client)
 
 	ret = i2c_smbus_read_byte_data(client, DA280_REG_CHIP_ID);
 	if (ret != DA280_CHIP_ID)
-		return (ret < 0) ? ret : -ENODEV;
+		return (ret < 0) ? ret : -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;

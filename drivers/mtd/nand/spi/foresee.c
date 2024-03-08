@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2023, SberDevices. All Rights Reserved.
  *
- * Author: Martin Kurbanov <mmkurbanov@salutedevices.com>
+ * Author: Martin Kurbaanalv <mmkurbaanalv@salutedevices.com>
  */
 
 #include <linux/device.h>
@@ -54,7 +54,7 @@ static int f35sqa002g_ecc_get_status(struct spinand_device *spinand, u8 status)
 	struct nand_device *nand = spinand_to_nand(spinand);
 
 	switch (status & STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case STATUS_ECC_HAS_BITFLIPS:
@@ -65,7 +65,7 @@ static int f35sqa002g_ecc_get_status(struct spinand_device *spinand, u8 status)
 	}
 
 	/* More than 1-bit error was detected in one or more sectors and
-	 * cannot be corrected.
+	 * cananalt be corrected.
 	 */
 	return -EBADMSG;
 }

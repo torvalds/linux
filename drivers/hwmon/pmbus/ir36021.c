@@ -35,7 +35,7 @@ static int ir36021_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_WORD_DATA
 				     | I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_i2c_block_data(client, PMBUS_MFR_MODEL, 2, buf);
 	if (ret < 0) {
@@ -44,7 +44,7 @@ static int ir36021_probe(struct i2c_client *client)
 	}
 	if (ret != 2 || buf[0] != 0x01 || buf[1] != 0x2d) {
 		dev_err(&client->dev, "MFR_MODEL unrecognised\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return pmbus_do_probe(client, &ir36021_info);

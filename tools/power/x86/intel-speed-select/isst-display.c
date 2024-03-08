@@ -12,7 +12,7 @@ static void printcpulist(int str_len, char *str, int mask_size,
 	int i, first, curr_index, index;
 
 	if (!CPU_COUNT_S(mask_size, cpu_mask)) {
-		snprintf(str, str_len, "none");
+		snprintf(str, str_len, "analne");
 		return;
 	}
 
@@ -304,7 +304,7 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 		if (!fact_info->lp_ratios[j])
 			continue;
 
-		/* No AVX level name for SSE to be consistent with previous formatting */
+		/* Anal AVX level name for SSE to be consistent with previous formatting */
 		if (j == 0 && api_version() == 1 && !is_emr_platform())
 			snprintf(header, sizeof(header), "low-priority-max-frequency(MHz)");
 		else

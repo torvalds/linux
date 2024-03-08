@@ -26,7 +26,7 @@ static ssize_t state_show(struct slave *slave, char *buf)
 	case BOND_STATE_BACKUP:
 		return sysfs_emit(buf, "backup\n");
 	default:
-		return sysfs_emit(buf, "UNKNOWN\n");
+		return sysfs_emit(buf, "UNKANALWN\n");
 	}
 }
 static SLAVE_ATTR_RO(state);

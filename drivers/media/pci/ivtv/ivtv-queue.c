@@ -104,8 +104,8 @@ static void ivtv_queue_move_buf(struct ivtv_stream *s, struct ivtv_queue *from,
    bytesused value. For the 'steal' queue the total available buffer
    length is always used.
 
-   -ENOMEM is returned if the buffers could not be obtained, 0 if all
-   buffers where obtained from the 'from' list and if non-zero then
+   -EANALMEM is returned if the buffers could analt be obtained, 0 if all
+   buffers where obtained from the 'from' list and if analn-zero then
    the number of stolen buffers is returned. */
 int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_queue *steal,
 		    struct ivtv_queue *to, int needed_bytes)
@@ -127,7 +127,7 @@ int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_
 
 	if (bytes_available + bytes_steal < needed_bytes) {
 		spin_unlock_irqrestore(&s->qlock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	while (steal && bytes_available < needed_bytes) {
 		struct ivtv_buffer *buf = list_entry(steal->list.prev, struct ivtv_buffer, list);
@@ -135,7 +135,7 @@ int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_
 
 		/* move buffers from the tail of the 'steal' queue to the tail of the
 		   'from' queue. Always copy all the buffers with the same dma_xfer_cnt
-		   value, this ensures that you do not end up with partial frame data
+		   value, this ensures that you do analt end up with partial frame data
 		   if one frame is stored in multiple buffers. */
 		while (dma_xfer_cnt == buf->dma_xfer_cnt) {
 			list_move_tail(steal->list.prev, &from->list);
@@ -188,34 +188,34 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 		return 0;
 
 	IVTV_DEBUG_INFO("Allocate %s%s stream: %d x %d buffers (%dkB total)\n",
-		s->dma != DMA_NONE ? "DMA " : "",
+		s->dma != DMA_ANALNE ? "DMA " : "",
 		s->name, s->buffers, s->buf_size, s->buffers * s->buf_size / 1024);
 
-	s->sg_pending = kzalloc(SGsize, GFP_KERNEL|__GFP_NOWARN);
+	s->sg_pending = kzalloc(SGsize, GFP_KERNEL|__GFP_ANALWARN);
 	if (s->sg_pending == NULL) {
-		IVTV_ERR("Could not allocate sg_pending for %s stream\n", s->name);
-		return -ENOMEM;
+		IVTV_ERR("Could analt allocate sg_pending for %s stream\n", s->name);
+		return -EANALMEM;
 	}
 	s->sg_pending_size = 0;
 
-	s->sg_processing = kzalloc(SGsize, GFP_KERNEL|__GFP_NOWARN);
+	s->sg_processing = kzalloc(SGsize, GFP_KERNEL|__GFP_ANALWARN);
 	if (s->sg_processing == NULL) {
-		IVTV_ERR("Could not allocate sg_processing for %s stream\n", s->name);
+		IVTV_ERR("Could analt allocate sg_processing for %s stream\n", s->name);
 		kfree(s->sg_pending);
 		s->sg_pending = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	s->sg_processing_size = 0;
 
 	s->sg_dma = kzalloc(sizeof(struct ivtv_sg_element),
-					GFP_KERNEL|__GFP_NOWARN);
+					GFP_KERNEL|__GFP_ANALWARN);
 	if (s->sg_dma == NULL) {
-		IVTV_ERR("Could not allocate sg_dma for %s stream\n", s->name);
+		IVTV_ERR("Could analt allocate sg_dma for %s stream\n", s->name);
 		kfree(s->sg_pending);
 		s->sg_pending = NULL;
 		kfree(s->sg_processing);
 		s->sg_processing = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (ivtv_might_use_dma(s)) {
 		s->sg_handle = dma_map_single(&itv->pdev->dev, s->sg_dma,
@@ -227,11 +227,11 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 	/* allocate stream buffers. Initially all buffers are in q_free. */
 	for (i = 0; i < s->buffers; i++) {
 		struct ivtv_buffer *buf = kzalloc(sizeof(struct ivtv_buffer),
-						GFP_KERNEL|__GFP_NOWARN);
+						GFP_KERNEL|__GFP_ANALWARN);
 
 		if (buf == NULL)
 			break;
-		buf->buf = kmalloc(s->buf_size + 256, GFP_KERNEL|__GFP_NOWARN);
+		buf->buf = kmalloc(s->buf_size + 256, GFP_KERNEL|__GFP_ANALWARN);
 		if (buf->buf == NULL) {
 			kfree(buf);
 			break;
@@ -248,7 +248,7 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 		return 0;
 	IVTV_ERR("Couldn't allocate buffers for %s stream\n", s->name);
 	ivtv_stream_free(s);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void ivtv_stream_free(struct ivtv_stream *s)

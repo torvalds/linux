@@ -5,7 +5,7 @@ Firmware Upload API
 ===================
 
 A device driver that registers with the firmware loader will expose
-persistent sysfs nodes to enable users to initiate firmware updates for
+persistent sysfs analdes to enable users to initiate firmware updates for
 that device.  It is the responsibility of the device driver and/or the
 device itself to perform any validation on the data received. Firmware
 upload uses the same *loading* and *data* sysfs files described in the
@@ -46,7 +46,7 @@ function calls firmware_upload_unregister() such as::
 
 		sec = devm_kzalloc(&pdev->dev, sizeof(*sec), GFP_KERNEL);
 		if (!sec)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sec->dev = &pdev->dev;
 		sec->m10bmc = dev_get_drvdata(pdev->dev.parent);
@@ -96,7 +96,7 @@ Firmware Upload Ops
 Firmware Upload Progress Codes
 ------------------------------
 The following progress codes are used internally by the firmware loader.
-Corresponding strings are reported through the status sysfs node that
+Corresponding strings are reported through the status sysfs analde that
 is described below and are documented in the ABI documentation.
 
 .. kernel-doc:: drivers/base/firmware_loader/sysfs_upload.h

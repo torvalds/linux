@@ -9,7 +9,7 @@
 #include "event.h"
 #include "utils.h"
 
-#define MALLOC_SIZE     (0x10000 * 10)  /* Ought to be enough .. */
+#define MALLOC_SIZE     (0x10000 * 10)  /* Ought to be eanalugh .. */
 
 /*
  * Tests that the L3 bank handling is correct. We fixed it in commit e9aaac1.

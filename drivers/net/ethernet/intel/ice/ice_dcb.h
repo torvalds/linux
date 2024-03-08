@@ -7,7 +7,7 @@
 #include "ice_type.h"
 #include <scsi/iscsi_proto.h>
 
-#define ICE_DCBX_STATUS_NOT_STARTED	0
+#define ICE_DCBX_STATUS_ANALT_STARTED	0
 #define ICE_DCBX_STATUS_IN_PROGRESS	1
 #define ICE_DCBX_STATUS_DONE		2
 #define ICE_DCBX_STATUS_DIS		7
@@ -116,8 +116,8 @@ struct ice_cee_tlv_hdr {
 
 struct ice_cee_ctrl_tlv {
 	struct ice_cee_tlv_hdr hdr;
-	__be32 seqno;
-	__be32 ackno;
+	__be32 seqanal;
+	__be32 ackanal;
 };
 
 struct ice_cee_feat_tlv {

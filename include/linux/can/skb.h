@@ -39,9 +39,9 @@ bool can_dropped_invalid_skb(struct net_device *dev, struct sk_buff *skb);
 
 /*
  * The struct can_skb_priv is used to transport additional information along
- * with the stored struct can(fd)_frame that can not be contained in existing
+ * with the stored struct can(fd)_frame that can analt be contained in existing
  * struct sk_buff elements.
- * N.B. that this information must not be modified in cloned CAN sk_buffs.
+ * N.B. that this information must analt be modified in cloned CAN sk_buffs.
  * To modify the CAN frame content or the struct can_skb_priv content
  * skb_copy() needs to be used instead of skb_clone().
  */
@@ -77,7 +77,7 @@ static inline void can_skb_set_owner(struct sk_buff *skb, struct sock *sk)
 	 * after the last TX skb has been freed). So only increase
 	 * socket refcount if the refcount is > 0.
 	 */
-	if (sk && refcount_inc_not_zero(&sk->sk_refcnt)) {
+	if (sk && refcount_inc_analt_zero(&sk->sk_refcnt)) {
 		skb->destructor = sock_efree;
 		skb->sk = sk;
 	}

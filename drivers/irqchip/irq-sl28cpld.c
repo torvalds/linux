@@ -42,15 +42,15 @@ static int sl28cpld_intc_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!dev->parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irqchip = devm_kzalloc(dev, sizeof(*irqchip), GFP_KERNEL);
 	if (!irqchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irqchip->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!irqchip->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -68,7 +68,7 @@ static int sl28cpld_intc_probe(struct platform_device *pdev)
 	irqchip->chip.unmask_base = base + INTC_IE;
 	irqchip->chip.ack_base = base + INTC_IP;
 
-	return devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(dev),
+	return devm_regmap_add_irq_chip_fwanalde(dev, dev_fwanalde(dev),
 					       irqchip->regmap, irq,
 					       IRQF_SHARED | IRQF_ONESHOT, 0,
 					       &irqchip->chip,

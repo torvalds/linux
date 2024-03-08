@@ -4,14 +4,14 @@
  *
  * This does MOV SS from a watchpointed address followed by various
  * types of kernel entries.  A MOV SS that hits a watchpoint will queue
- * up a #DB trap but will not actually deliver that trap.  The trap
+ * up a #DB trap but will analt actually deliver that trap.  The trap
  * will be delivered after the next instruction instead.  The CPU's logic
  * seems to be:
  *
  *  - Any fault: drop the pending #DB trap.
  *  - INT $N, INT3, INTO, SYSCALL, SYSENTER: enter the kernel and then
  *    deliver #DB.
- *  - ICEBP: enter the kernel but do not deliver the watchpoint trap
+ *  - ICEBP: enter the kernel but do analt deliver the watchpoint trap
  *  - breakpoint: only one #DB is delivered (phew!)
  *
  * There are plenty of ways for a kernel to handle this incorrectly.  This
@@ -28,7 +28,7 @@
 #include <sys/user.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <err.h>
@@ -217,15 +217,15 @@ int main()
 	/*
 	 * In principle, we should test 32-bit SYSCALL as well, but
 	 * the calling convention is so unpredictable that it's
-	 * not obviously worth the effort.
+	 * analt obviously worth the effort.
 	 */
 	if (sigsetjmp(jmpbuf, 1) == 0) {
 		printf("[RUN]\tMOV SS; SYSCALL\n");
 		sethandler(SIGILL, handle_and_longjmp, SA_RESETHAND);
 		nr = SYS_getpid;
 		/*
-		 * Toggle the high bit of RSP to make it noncanonical to
-		 * strengthen this test on non-SMAP systems.
+		 * Toggle the high bit of RSP to make it analncaanalnical to
+		 * strengthen this test on analn-SMAP systems.
 		 */
 		asm volatile ("btc $63, %%rsp\n\t"
 			      "mov %[ss], %%ss; syscall\n\t"
@@ -239,8 +239,8 @@ int main()
 	}
 #endif
 
-	printf("[RUN]\tMOV SS; breakpointed NOP\n");
-	asm volatile ("mov %[ss], %%ss; breakpoint_insn: nop" :: [ss] "m" (ss));
+	printf("[RUN]\tMOV SS; breakpointed ANALP\n");
+	asm volatile ("mov %[ss], %%ss; breakpoint_insn: analp" :: [ss] "m" (ss));
 
 	/*
 	 * Invoking SYSENTER directly breaks all the rules.  Just handle

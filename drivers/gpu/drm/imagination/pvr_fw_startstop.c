@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_fw.h"
@@ -21,8 +21,8 @@ rogue_axi_ace_list_init(struct pvr_device *pvr_dev)
 {
 	/* Setup AXI-ACE config. Set everything to outer cache. */
 	u64 reg_val =
-		(3U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_AWDOMAIN_NON_SNOOPING_SHIFT) |
-		(3U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_ARDOMAIN_NON_SNOOPING_SHIFT) |
+		(3U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_AWDOMAIN_ANALN_SANALOPING_SHIFT) |
+		(3U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_ARDOMAIN_ANALN_SANALOPING_SHIFT) |
 		(2U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_ARDOMAIN_CACHE_MAINTENANCE_SHIFT) |
 		(2U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_AWDOMAIN_COHERENT_SHIFT) |
 		(2U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_ARDOMAIN_COHERENT_SHIFT) |
@@ -61,7 +61,7 @@ rogue_slc_init(struct pvr_device *pvr_dev)
 	/*
 	 * SLC Misc control.
 	 *
-	 * Note: This is a 64bit register and we set only the lower 32bits
+	 * Analte: This is a 64bit register and we set only the lower 32bits
 	 *       leaving the top 32bits (ROGUE_CR_SLC_CTRL_MISC_SCRAMBLE_BITS)
 	 *       unchanged from the HW default.
 	 */
@@ -280,7 +280,7 @@ pvr_fw_stop(struct pvr_device *pvr_dev)
 
 		/*
 		 * Wait for Sidekick/Jones to signal IDLE including the Garten
-		 * Wrapper if there is no debugger attached (TxVECINT_BHALT =
+		 * Wrapper if there is anal debugger attached (TxVECINT_BHALT =
 		 * 0x0).
 		 */
 		if (reg_value)

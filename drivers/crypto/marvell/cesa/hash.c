@@ -3,7 +3,7 @@
  * Hash algorithms supported by the CESA: MD5, SHA1 and SHA256.
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- * Author: Arnaud Ebalard <arno@natisbad.org>
+ * Author: Arnaud Ebalard <aranal@natisbad.org>
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
@@ -52,7 +52,7 @@ mv_cesa_ahash_dma_alloc_cache(struct mv_cesa_ahash_dma_req *req, gfp_t flags)
 	req->cache = dma_pool_alloc(cesa_dev->dma->cache_pool, flags,
 				    &req->cache_dma);
 	if (!req->cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -76,7 +76,7 @@ static int mv_cesa_ahash_dma_alloc_padding(struct mv_cesa_ahash_dma_req *req,
 	req->padding = dma_pool_alloc(cesa_dev->dma->padding_pool, flags,
 				      &req->padding_dma);
 	if (!req->padding)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -212,12 +212,12 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 	if (creq->last_req && sreq->offset == req->nbytes &&
 	    creq->len <= CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX) {
 		if (frag_mode == CESA_SA_DESC_CFG_FIRST_FRAG)
-			frag_mode = CESA_SA_DESC_CFG_NOT_FRAG;
+			frag_mode = CESA_SA_DESC_CFG_ANALT_FRAG;
 		else if (frag_mode == CESA_SA_DESC_CFG_MID_FRAG)
 			frag_mode = CESA_SA_DESC_CFG_LAST_FRAG;
 	}
 
-	if (frag_mode == CESA_SA_DESC_CFG_NOT_FRAG ||
+	if (frag_mode == CESA_SA_DESC_CFG_ANALT_FRAG ||
 	    frag_mode == CESA_SA_DESC_CFG_LAST_FRAG) {
 		if (len &&
 		    creq->len <= CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX) {
@@ -564,7 +564,7 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 
 		mv_cesa_set_mac_op_total_len(op, creq->len);
 		mv_cesa_update_op_cfg(op, mv_cesa_mac_op_is_first_frag(op) ?
-						CESA_SA_DESC_CFG_NOT_FRAG :
+						CESA_SA_DESC_CFG_ANALT_FRAG :
 						CESA_SA_DESC_CFG_LAST_FRAG,
 				      CESA_SA_DESC_CFG_FRAG_MSK);
 
@@ -573,13 +573,13 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 						CESA_SA_DATA_SRAM_OFFSET,
 						CESA_TDMA_SRC_IN_SRAM, flags);
 		if (ret)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		return op;
 	}
 
 	/*
 	 * The request is longer than the engine can handle, or we have
-	 * no data outstanding. Manually generate the padding, adding it
+	 * anal data outstanding. Manually generate the padding, adding it
 	 * as a "mid" fragment.
 	 */
 	ret = mv_cesa_ahash_dma_alloc_padding(ahashdreq, flags);
@@ -647,7 +647,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		ret = dma_map_sg(cesa_dev->dev, req->src, creq->src_nents,
 				 DMA_TO_DEVICE);
 		if (!ret) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 	}
@@ -667,7 +667,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		/*
 		 * Add all the new data, inserting an operation block and
 		 * launch command between each full SRAM block-worth of
-		 * data. We intentionally do not add the final op block.
+		 * data. We intentionally do analt add the final op block.
 		 */
 		while (true) {
 			ret = mv_cesa_dma_add_op_transfers(&basereq->chain,
@@ -740,7 +740,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 	if (set_state) {
 		/*
 		 * Put the CESA_TDMA_SET_STATE flag on the first tdma desc to
-		 * let the step logic know that the IVDIG registers should be
+		 * let the step logic kanalw that the IVDIG registers should be
 		 * explicitly set before launching a TDMA chain.
 		 */
 		basereq->chain.first->flags |= CESA_TDMA_SET_STATE;
@@ -1149,7 +1149,7 @@ static int mv_cesa_ahmac_pad_init(struct ahash_request *req,
 		u8 *keydup = kmemdup(key, keylen, GFP_KERNEL);
 
 		if (!keydup)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 					   crypto_req_done, &result);
@@ -1196,7 +1196,7 @@ static int mv_cesa_ahmac_setkey(const char *hash_alg_name,
 
 	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_ahash;
 	}
 
@@ -1206,7 +1206,7 @@ static int mv_cesa_ahmac_setkey(const char *hash_alg_name,
 
 	ipad = kcalloc(2, blocksize, GFP_KERNEL);
 	if (!ipad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_req;
 	}
 

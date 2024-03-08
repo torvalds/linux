@@ -134,7 +134,7 @@ static void uniphier_spi_set_mode(struct spi_device *spi)
 	 * clock setting
 	 * CKPHS    capture timing. 0:rising edge, 1:falling edge
 	 * CKINIT   clock initial level. 0:low, 1:high
-	 * CKDLY    clock delay. 0:no delay, 1:delay depending on FSTRT
+	 * CKDLY    clock delay. 0:anal delay, 1:delay depending on FSTRT
 	 *          (FSTRT=0: 1 clock, FSTRT=1: 0.5 clock)
 	 *
 	 * frame setting
@@ -365,7 +365,7 @@ static void uniphier_spi_dma_rxcb(void *data)
 {
 	struct spi_controller *host = data;
 	struct uniphier_spi_priv *priv = spi_controller_get_devdata(host);
-	int state = atomic_fetch_andnot(SSI_DMA_RX_BUSY, &priv->dma_busy);
+	int state = atomic_fetch_andanalt(SSI_DMA_RX_BUSY, &priv->dma_busy);
 
 	uniphier_spi_irq_disable(priv, SSI_IE_RXRE);
 
@@ -377,7 +377,7 @@ static void uniphier_spi_dma_txcb(void *data)
 {
 	struct spi_controller *host = data;
 	struct uniphier_spi_priv *priv = spi_controller_get_devdata(host);
-	int state = atomic_fetch_andnot(SSI_DMA_TX_BUSY, &priv->dma_busy);
+	int state = atomic_fetch_andanalt(SSI_DMA_TX_BUSY, &priv->dma_busy);
 
 	uniphier_spi_irq_disable(priv, SSI_IE_TXRE);
 
@@ -588,12 +588,12 @@ static void uniphier_spi_handle_err(struct spi_controller *host,
 
 	if (atomic_read(&priv->dma_busy) & SSI_DMA_TX_BUSY) {
 		dmaengine_terminate_async(host->dma_tx);
-		atomic_andnot(SSI_DMA_TX_BUSY, &priv->dma_busy);
+		atomic_andanalt(SSI_DMA_TX_BUSY, &priv->dma_busy);
 	}
 
 	if (atomic_read(&priv->dma_busy) & SSI_DMA_RX_BUSY) {
 		dmaengine_terminate_async(host->dma_rx);
-		atomic_andnot(SSI_DMA_RX_BUSY, &priv->dma_busy);
+		atomic_andanalt(SSI_DMA_RX_BUSY, &priv->dma_busy);
 	}
 }
 
@@ -631,7 +631,7 @@ static irqreturn_t uniphier_spi_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 
 done:
 	complete(&priv->xfer_done);
@@ -651,7 +651,7 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*priv));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 
@@ -697,7 +697,7 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 	host->max_speed_hz = DIV_ROUND_UP(clk_rate, SSI_MIN_CLK_DIVIDER);
 	host->min_speed_hz = DIV_ROUND_UP(clk_rate, SSI_MAX_CLK_DIVIDER);
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bus_num = pdev->id;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 

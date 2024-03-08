@@ -3,7 +3,7 @@
  * Interrupt request handling routines. On the
  * Sparc the IRQs are basically 'cast in stone'
  * and you are supposed to probe the prom's device
- * node trees to find out who's got which IRQ.
+ * analde trees to find out who's got which IRQ.
  *
  *  Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  *  Copyright (C) 1995 Miguel de Icaza (miguel@nuclecu.unam.mx)
@@ -37,7 +37,7 @@ unsigned long arch_local_irq_save(void)
 		"rd	%%psr, %0\n\t"
 		"or	%0, %2, %1\n\t"
 		"wr	%1, 0, %%psr\n\t"
-		"nop; nop; nop\n"
+		"analp; analp; analp\n"
 		: "=&r" (retval), "=r" (tmp)
 		: "i" (PSR_PIL)
 		: "memory");
@@ -54,7 +54,7 @@ void arch_local_irq_enable(void)
 		"rd	%%psr, %0\n\t"
 		"andn	%0, %1, %0\n\t"
 		"wr	%0, 0, %%psr\n\t"
-		"nop; nop; nop\n"
+		"analp; analp; analp\n"
 		: "=&r" (tmp)
 		: "i" (PSR_PIL)
 		: "memory");
@@ -70,7 +70,7 @@ void arch_local_irq_restore(unsigned long old_psr)
 		"and	%2, %1, %2\n\t"
 		"andn	%0, %1, %0\n\t"
 		"wr	%0, %2, %%psr\n\t"
-		"nop; nop; nop\n"
+		"analp; analp; analp\n"
 		: "=&r" (tmp)
 		: "i" (PSR_PIL), "r" (old_psr)
 		: "memory");
@@ -80,17 +80,17 @@ EXPORT_SYMBOL(arch_local_irq_restore);
 /*
  * Dave Redman (djhr@tadpole.co.uk)
  *
- * IRQ numbers.. These are no longer restricted to 15..
+ * IRQ numbers.. These are anal longer restricted to 15..
  *
  * this is done to enable SBUS cards and onboard IO to be masked
- * correctly. using the interrupt level isn't good enough.
+ * correctly. using the interrupt level isn't good eanalugh.
  *
  * For example:
  *   A device interrupting at sbus level6 and the Floppy both come in
  *   at IRQ11, but enabling and disabling them requires writing to
  *   different bits in the SLAVIO/SEC.
  *
- * As a result of these changes sun4m machines could now support
+ * As a result of these changes sun4m machines could analw support
  * directed CPU interrupts using the existing enable/disable irq code
  * with tweaks.
  *
@@ -101,7 +101,7 @@ EXPORT_SYMBOL(arch_local_irq_restore);
  * just becomes a limit of how many interrupt sources we can handle in
  * a single system.  Even fully loaded SS2000 machines top off at
  * about 32 interrupt sources or so, therefore a NR_IRQS value of 64
- * is more than enough.
+ * is more than eanalugh.
   *
  * We keep a map of per-PIL enable interrupts.  These get wired
  * up via the irq_chip->startup() method which gets invoked by
@@ -211,7 +211,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "NMI: ");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", cpu_data(j).counter);
-	seq_printf(p, "     Non-maskable interrupts\n");
+	seq_printf(p, "     Analn-maskable interrupts\n");
 	return 0;
 }
 
@@ -260,7 +260,7 @@ int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler)
 		SPARC_BRANCH((unsigned long) floppy_hardint, \
 			     (unsigned long) &table[SP_TRAP_IRQ1+(cpu_irq-1)].inst_two);\
 	table[SP_TRAP_IRQ1+(cpu_irq-1)].inst_three = SPARC_RD_WIM_L3; \
-	table[SP_TRAP_IRQ1+(cpu_irq-1)].inst_four = SPARC_NOP;
+	table[SP_TRAP_IRQ1+(cpu_irq-1)].inst_four = SPARC_ANALP;
 
 	INSTANTIATE(sparc_ttable)
 
@@ -280,7 +280,7 @@ int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler)
 	/*
 	 * XXX Correct thing whould be to flush only I- and D-cache lines
 	 * which contain the handler in question. But as of time of the
-	 * writing we have no CPU-neutral interface to fine-grained flushes.
+	 * writing we have anal CPU-neutral interface to fine-grained flushes.
 	 */
 	flush_cache_all();
 	return 0;
@@ -289,8 +289,8 @@ EXPORT_SYMBOL(sparc_floppy_request_irq);
 
 /*
  * These variables are used to access state from the assembler
- * interrupt handler, floppy_hardint, so we cannot put these in
- * the floppy driver image because that would not work in the
+ * interrupt handler, floppy_hardint, so we cananalt put these in
+ * the floppy driver image because that would analt work in the
  * modular case.
  */
 volatile unsigned char *fdc_status;
@@ -313,7 +313,7 @@ EXPORT_SYMBOL(pdma_areasize);
 
 /* Use the generic irq support to call floppy_interrupt
  * which was setup using request_irq() in sparc_floppy_request_irq().
- * We only have one floppy interrupt so we do not need to check
+ * We only have one floppy interrupt so we do analt need to check
  * for additional handlers being wired up by irq_link()
  */
 void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
@@ -356,7 +356,7 @@ void __init init_IRQ(void)
 		break;
 
 	default:
-		prom_printf("Cannot initialize IRQs on this Sun machine...");
+		prom_printf("Cananalt initialize IRQs on this Sun machine...");
 		break;
 	}
 }

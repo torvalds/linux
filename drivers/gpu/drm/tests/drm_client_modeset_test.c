@@ -24,7 +24,7 @@ static int drm_client_modeset_connector_get_modes(struct drm_connector *connecto
 	struct drm_display_mode *mode;
 	int count;
 
-	count = drm_add_modes_noedid(connector, 1920, 1200);
+	count = drm_add_modes_analedid(connector, 1920, 1200);
 
 	mode = drm_mode_analog_ntsc_480i(connector->dev);
 	if (!mode)
@@ -56,21 +56,21 @@ static int drm_client_modeset_test_init(struct kunit *test)
 	int ret;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, priv);
+	KUNIT_ASSERT_ANALT_NULL(test, priv);
 
 	test->priv = priv;
 
 	priv->dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->dev);
 
 	priv->drm = __drm_kunit_helper_alloc_drm_device(test, priv->dev,
 							sizeof(*priv->drm), 0,
 							DRIVER_MODESET);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->drm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->drm);
 
 	ret = drmm_connector_init(priv->drm, &priv->connector,
 				  &drm_client_modeset_connector_funcs,
-				  DRM_MODE_CONNECTOR_Unknown,
+				  DRM_MODE_CONNECTOR_Unkanalwn,
 				  NULL);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
@@ -93,7 +93,7 @@ static void drm_test_pick_cmdline_res_1920_1080_60(struct kunit *test)
 	int ret;
 
 	expected_mode = drm_mode_find_dmt(priv->drm, 1920, 1080, 60, false);
-	KUNIT_ASSERT_NOT_NULL(test, expected_mode);
+	KUNIT_ASSERT_ANALT_NULL(test, expected_mode);
 
 	KUNIT_ASSERT_TRUE(test,
 			  drm_mode_parse_command_line_for_connector(cmdline,
@@ -106,7 +106,7 @@ static void drm_test_pick_cmdline_res_1920_1080_60(struct kunit *test)
 	KUNIT_ASSERT_GT(test, ret, 0);
 
 	mode = drm_connector_pick_cmdline_mode(connector);
-	KUNIT_ASSERT_NOT_NULL(test, mode);
+	KUNIT_ASSERT_ANALT_NULL(test, mode);
 
 	KUNIT_EXPECT_TRUE(test, drm_mode_equal(expected_mode, mode));
 }
@@ -144,10 +144,10 @@ static void drm_test_pick_cmdline_named(struct kunit *test)
 	KUNIT_ASSERT_GT(test, ret, 0);
 
 	mode = drm_connector_pick_cmdline_mode(connector);
-	KUNIT_ASSERT_NOT_NULL(test, mode);
+	KUNIT_ASSERT_ANALT_NULL(test, mode);
 
 	expected_mode = params->func(drm);
-	KUNIT_ASSERT_NOT_NULL(test, expected_mode);
+	KUNIT_ASSERT_ANALT_NULL(test, expected_mode);
 
 	KUNIT_EXPECT_TRUE(test, drm_mode_equal(expected_mode, mode));
 }

@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  **********************************************************************/
 
@@ -50,7 +50,7 @@ struct octnic_ctrl_pkt {
 	u64 udd[MAX_NCTRL_UDD];
 
 	/** Input queue to use to send this command. */
-	u64 iq_no;
+	u64 iq_anal;
 
 	/** The network device that issued the control command. */
 	u64 netpndev;
@@ -82,7 +82,7 @@ struct octnic_data_pkt {
 	union octeon_instr_64B cmd;
 
 	/** Input queue to use to send this command. */
-	u32 q_no;
+	u32 q_anal;
 
 };
 
@@ -91,7 +91,7 @@ struct octnic_data_pkt {
  */
 union octnic_cmd_setup {
 	struct {
-		u32 iq_no:8;
+		u32 iq_anal:8;
 		u32 gather:1;
 		u32 timestamp:1;
 		u32 ip_csum:1;
@@ -109,10 +109,10 @@ union octnic_cmd_setup {
 
 };
 
-static inline int octnet_iq_is_full(struct octeon_device *oct, u32 q_no)
+static inline int octnet_iq_is_full(struct octeon_device *oct, u32 q_anal)
 {
-	return ((u32)atomic_read(&oct->instr_queue[q_no]->instr_pending)
-		>= (oct->instr_queue[q_no]->max_count - 2));
+	return ((u32)atomic_read(&oct->instr_queue[q_anal]->instr_pending)
+		>= (oct->instr_queue[q_anal]->max_count - 2));
 }
 
 static inline void
@@ -137,7 +137,7 @@ octnet_prepare_pci_cmd_o2(struct octeon_device *oct,
 	ih2->tagtype = ORDERED_TAG;
 	ih2->grp = DEFAULT_POW_GRP;
 
-	port = (int)oct->instr_queue[setup->s.iq_no]->txpciq.s.port;
+	port = (int)oct->instr_queue[setup->s.iq_anal]->txpciq.s.port;
 
 	if (tag)
 		ih2->tag = tag;
@@ -188,7 +188,7 @@ octnet_prepare_pci_cmd_o3(struct octeon_device *oct,
 	/* assume that rflag is cleared so therefore front data will only have
 	 * irh and ossp[1] and ossp[2] for a total of 24 bytes
 	 */
-	ih3->pkind       = oct->instr_queue[setup->s.iq_no]->txpciq.s.pkind;
+	ih3->pkind       = oct->instr_queue[setup->s.iq_anal]->txpciq.s.pkind;
 	/*PKI IH*/
 	ih3->fsz = LIO_PCICMD_O3;
 
@@ -203,9 +203,9 @@ octnet_prepare_pci_cmd_o3(struct octeon_device *oct,
 	pki_ih3->raw     = 1;
 	pki_ih3->utag    = 1;
 	pki_ih3->utt     = 1;
-	pki_ih3->uqpg    = oct->instr_queue[setup->s.iq_no]->txpciq.s.use_qpg;
+	pki_ih3->uqpg    = oct->instr_queue[setup->s.iq_anal]->txpciq.s.use_qpg;
 
-	port = (int)oct->instr_queue[setup->s.iq_no]->txpciq.s.port;
+	port = (int)oct->instr_queue[setup->s.iq_anal]->txpciq.s.port;
 
 	if (tag)
 		pki_ih3->tag = tag;
@@ -213,8 +213,8 @@ octnet_prepare_pci_cmd_o3(struct octeon_device *oct,
 		pki_ih3->tag     = LIO_DATA(port);
 
 	pki_ih3->tagtype = ORDERED_TAG;
-	pki_ih3->qpg     = oct->instr_queue[setup->s.iq_no]->txpciq.s.qpg;
-	pki_ih3->pm      = 0x7; /*0x7 - meant for Parse nothing, uninterpreted*/
+	pki_ih3->qpg     = oct->instr_queue[setup->s.iq_anal]->txpciq.s.qpg;
+	pki_ih3->pm      = 0x7; /*0x7 - meant for Parse analthing, uninterpreted*/
 	pki_ih3->sl      = 8;   /* sl will be sizeof(pki_ih3)*/
 
 	irh = (struct octeon_instr_irh *)&cmd->cmd3.irh;
@@ -235,9 +235,9 @@ octnet_prepare_pci_cmd_o3(struct octeon_device *oct,
 /** Utility function to prepare a 64B NIC instruction based on a setup command
  * @param cmd - pointer to instruction to be filled in.
  * @param setup - pointer to the setup structure
- * @param q_no - which queue for back pressure
+ * @param q_anal - which queue for back pressure
  *
- * Assumes the cmd instruction is pre-allocated, but no fields are filled in.
+ * Assumes the cmd instruction is pre-allocated, but anal fields are filled in.
  */
 static inline void
 octnet_prepare_pci_cmd(struct octeon_device *oct, union octeon_instr_64B *cmd,

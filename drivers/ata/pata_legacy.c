@@ -32,7 +32,7 @@
  *  opti82c465mv/promise 20230c/20630/qdi65x0/winbond83759A
  *
  *  Support for the Winbond 83759A when operating in advanced mode.
- *  Multichip mode is not currently supported.
+ *  Multichip mode is analt currently supported.
  *
  *  Use the autospeed and pio_mask options with:
  *	Appian ADI/2 aka CLPD7220 or AIC25VL01.
@@ -40,7 +40,7 @@
  *	Goldstar GM82C711, PIC-1288A-125, UMC 82C871F, Winbond W83759,
  *	Winbond W83759A, Promise PDC20230-B
  *
- *  For now use autospeed and pio_mask as above with the W83759A. This may
+ *  For analw use autospeed and pio_mask as above with the W83759A. This may
  *  change.
  */
 
@@ -77,7 +77,7 @@ MODULE_PARM_DESC(probe_mask, "Probe mask for legacy ISA PATA ports");
 
 static int autospeed;
 module_param(autospeed, int, 0);
-MODULE_PARM_DESC(autospeed, "Chip present that snoops speed changes");
+MODULE_PARM_DESC(autospeed, "Chip present that sanalops speed changes");
 
 static int pio_mask = ATA_PIO4;
 module_param(pio_mask, int, 0);
@@ -121,12 +121,12 @@ static int winbond;
 module_param(winbond, int, 0);
 MODULE_PARM_DESC(winbond,
 		 "Set to probe Winbond controllers, "
-		 "give I/O port if non standard");
+		 "give I/O port if analn standard");
 
 
 enum controller {
 	BIOS = 0,
-	SNOOP = 1,
+	SANALOP = 1,
 	PDC20230 = 2,
 	HT6560A = 3,
 	HT6560B = 4,
@@ -137,7 +137,7 @@ enum controller {
 	QDI6580DP = 9,		/* Dual channel mode is different */
 	W83759A = 10,
 
-	UNKNOWN = -1
+	UNKANALWN = -1
 };
 
 struct legacy_data {
@@ -228,9 +228,9 @@ static int legacy_probe_add(unsigned long port, unsigned int irq,
  *	@link: IDE link
  *	@unused: Device that failed when error is returned
  *
- *	Use a non standard set_mode function. We don't want to be tuned.
+ *	Use a analn standard set_mode function. We don't want to be tuned.
  *
- *	The BIOS configured everything. Our job is not to fiddle. Just use
+ *	The BIOS configured everything. Our job is analt to fiddle. Just use
  *	whatever PIO the hardware is using and leave it at that. When we
  *	get some kind of nice user driven API for control then we can
  *	expand on this as per hdparm in the base kernel.
@@ -261,9 +261,9 @@ static const struct ata_port_operations legacy_base_port_ops = {
 
 /*
  *	These ops are used if the user indicates the hardware
- *	snoops the commands to decide on the mode and handles the
+ *	sanalops the commands to decide on the mode and handles the
  *	mode selection "magically" itself. Several legacy controllers
- *	do this. The mode range can be set if it is not 0x1F by setting
+ *	do this. The mode range can be set if it is analt 0x1F by setting
  *	pio_mask as well.
  */
 
@@ -284,7 +284,7 @@ static struct ata_port_operations legacy_port_ops = {
  *	This controller supports PIO0 to PIO2. We set PIO timings
  *	conservatively to allow for 50MHz Vesa Local Bus. The 20620 DMA
  *	support is weird being DMA to controller and PIO'd to the host
- *	and not supported.
+ *	and analt supported.
  */
 
 static void pdc20230_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -315,9 +315,9 @@ static void pdc20230_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	outb(inb(0x1F4) & 0x07, 0x1F4);
 
 	rt = inb(0x1F3);
-	rt &= ~(0x07 << (3 * !adev->devno));
+	rt &= ~(0x07 << (3 * !adev->devanal));
 	if (pio)
-		rt |= (1 + 3 * pio) << (3 * !adev->devno);
+		rt |= (1 + 3 * pio) << (3 * !adev->devanal);
 	outb(rt, 0x1F3);
 
 	udelay(100);
@@ -346,7 +346,7 @@ static unsigned int pdc_data_xfer_vlb(struct ata_queued_cmd *qc,
 		ioread8(ap->ioaddr.nsect_addr);
 		ioread8(ap->ioaddr.nsect_addr);
 
-		/* Now the data */
+		/* Analw the data */
 		if (rw == READ)
 			ioread32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 		else
@@ -380,7 +380,7 @@ static struct ata_port_operations pdc20230_port_ops = {
 /*
  *	Holtek 6560A support
  *
- *	This controller supports PIO0 to PIO2 (no IORDY even though higher
+ *	This controller supports PIO0 to PIO2 (anal IORDY even though higher
  *	timings can be loaded).
  */
 
@@ -389,7 +389,7 @@ static void ht6560a_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	u8 active, recover;
 	struct ata_timing t;
 
-	/* Get the timing data in cycles. For now play safe at 50Mhz */
+	/* Get the timing data in cycles. For analw play safe at 50Mhz */
 	ata_timing_compute(adev, adev->pio_mode, &t, 20000, 1000);
 
 	active = clamp_val(t.active, 2, 15);
@@ -412,7 +412,7 @@ static struct ata_port_operations ht6560a_port_ops = {
 /*
  *	Holtek 6560B support
  *
- *	This controller supports PIO0 to PIO4. We honour the BIOS/jumper FIFO
+ *	This controller supports PIO0 to PIO4. We hoanalur the BIOS/jumper FIFO
  *	setting unless we see an ATAPI device in which case we force it off.
  *
  *	FIXME: need to implement 2nd channel support.
@@ -423,7 +423,7 @@ static void ht6560b_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	u8 active, recover;
 	struct ata_timing t;
 
-	/* Get the timing data in cycles. For now play safe at 50Mhz */
+	/* Get the timing data in cycles. For analw play safe at 50Mhz */
 	ata_timing_compute(adev, adev->pio_mode, &t, 20000, 1000);
 
 	active = clamp_val(t.active, 2, 15);
@@ -517,7 +517,7 @@ static void opti82c611a_set_piomode(struct ata_port *ap,
 	/* Select the right timing bank for write timing */
 	rc = ioread8(ap->ioaddr.lbal_addr);
 	rc &= 0x7F;
-	rc |= (adev->devno << 7);
+	rc |= (adev->devanal << 7);
 	iowrite8(rc, ap->ioaddr.lbal_addr);
 
 	/* Write the timings */
@@ -527,7 +527,7 @@ static void opti82c611a_set_piomode(struct ata_port *ap,
 	   load the shared timings for address */
 	rc = ioread8(ap->ioaddr.device_addr);
 	rc &= 0xC0;
-	rc |= adev->devno;	/* Index select */
+	rc |= adev->devanal;	/* Index select */
 	rc |= (setup << 4) | 0x04;
 	iowrite8(rc, ap->ioaddr.device_addr);
 
@@ -596,7 +596,7 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	/* Select the right timing bank for write timing */
 	rc = ioread8(ap->ioaddr.lbal_addr);
 	rc &= 0x7F;
-	rc |= (adev->devno << 7);
+	rc |= (adev->devanal << 7);
 	iowrite8(rc, ap->ioaddr.lbal_addr);
 
 	/* Write the timings */
@@ -606,7 +606,7 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	   load the shared timings for address */
 	rc = ioread8(ap->ioaddr.device_addr);
 	rc &= 0xC0;
-	rc |= adev->devno;	/* Index select */
+	rc |= adev->devanal;	/* Index select */
 	rc |= (setup << 4) | 0x04;
 	iowrite8(rc, ap->ioaddr.device_addr);
 
@@ -622,7 +622,7 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	/* Exit command mode */
 	iowrite8(0x83,  ap->ioaddr.nsect_addr);
 
-	/* We need to know this for quad device on the MVB */
+	/* We need to kanalw this for quad device on the MVB */
 	ap->host->private_data = ap;
 }
 
@@ -635,8 +635,8 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	MVB has a single set of timing registers and these are shared
  *	across channels. As there are two registers we really ought to
  *	track the last two used values as a sort of register window. For
- *	now we just reload on a channel switch. On the single channel
- *	setup this condition never fires so we do nothing extra.
+ *	analw we just reload on a channel switch. On the single channel
+ *	setup this condition never fires so we do analthing extra.
  *
  *	FIXME: dual channel needs ->serialize support
  */
@@ -692,12 +692,12 @@ static void qdi65x0_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		recovery = 15 - clamp_val(t.recover, 0, 15);
 	}
 	timing = (recovery << 4) | active | 0x08;
-	ld_qdi->clock[adev->devno] = timing;
+	ld_qdi->clock[adev->devanal] = timing;
 
 	if (ld_qdi->type == QDI6580)
-		outb(timing, ld_qdi->timing + 2 * adev->devno);
+		outb(timing, ld_qdi->timing + 2 * adev->devanal);
 	else
-		outb(timing, ld_qdi->timing + 2 * ap->port_no);
+		outb(timing, ld_qdi->timing + 2 * ap->port_anal);
 
 	/* Clear the FIFO */
 	if (ld_qdi->type != QDI6500 && adev->class != ATA_DEV_ATA)
@@ -718,11 +718,11 @@ static unsigned int qdi_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_device *adev = qc->dev;
 	struct legacy_data *ld_qdi = ap->host->private_data;
 
-	if (ld_qdi->clock[adev->devno] != ld_qdi->last) {
+	if (ld_qdi->clock[adev->devanal] != ld_qdi->last) {
 		if (adev->pio_mode) {
-			ld_qdi->last = ld_qdi->clock[adev->devno];
-			outb(ld_qdi->clock[adev->devno], ld_qdi->timing +
-							2 * ap->port_no);
+			ld_qdi->last = ld_qdi->clock[adev->devanal];
+			outb(ld_qdi->clock[adev->devanal], ld_qdi->timing +
+							2 * ap->port_anal);
 		}
 	}
 	return ata_sff_qc_issue(qc);
@@ -818,7 +818,7 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	struct legacy_data *ld_winbond = ap->host->private_data;
 	int active, recovery;
 	u8 reg;
-	int timing = 0x88 + (ap->port_no * 4) + (adev->devno * 2);
+	int timing = 0x88 + (ap->port_anal * 4) + (adev->devanal * 2);
 
 	reg = winbond_readcfg(ld_winbond->timing, 0x81);
 
@@ -861,22 +861,22 @@ static struct ata_port_operations winbond_port_ops = {
 
 static struct legacy_controller controllers[] = {
 	{"BIOS",	&legacy_port_ops, 	ATA_PIO4,
-			ATA_FLAG_NO_IORDY,	0,			NULL },
-	{"Snooping", 	&simple_port_ops, 	ATA_PIO4,
+			ATA_FLAG_ANAL_IORDY,	0,			NULL },
+	{"Sanaloping", 	&simple_port_ops, 	ATA_PIO4,
 			0,			0,			NULL },
 	{"PDC20230",	&pdc20230_port_ops,	ATA_PIO2,
-			ATA_FLAG_NO_IORDY,
+			ATA_FLAG_ANAL_IORDY,
 			ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE,	NULL },
 	{"HT6560A",	&ht6560a_port_ops,	ATA_PIO2,
-			ATA_FLAG_NO_IORDY,	0,			NULL },
+			ATA_FLAG_ANAL_IORDY,	0,			NULL },
 	{"HT6560B",	&ht6560b_port_ops,	ATA_PIO4,
-			ATA_FLAG_NO_IORDY,	0,			NULL },
+			ATA_FLAG_ANAL_IORDY,	0,			NULL },
 	{"OPTI82C611A",	&opti82c611a_port_ops,	ATA_PIO3,
 			0,			0,			NULL },
 	{"OPTI82C46X",	&opti82c46x_port_ops,	ATA_PIO3,
 			0,			0,			NULL },
 	{"QDI6500",	&qdi6500_port_ops,	ATA_PIO2,
-			ATA_FLAG_NO_IORDY,
+			ATA_FLAG_ANAL_IORDY,
 			ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE,    qdi_port },
 	{"QDI6580",	&qdi6580_port_ops,	ATA_PIO4,
 			0, ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE, qdi_port },
@@ -956,7 +956,7 @@ static __init int probe_chip_type(struct legacy_probe *probe)
 	if (opti82c46x & mask)
 		return OPTI46X;
 	if (autospeed & mask)
-		return SNOOP;
+		return SANALOP;
 	return BIOS;
 }
 
@@ -966,7 +966,7 @@ static __init int probe_chip_type(struct legacy_probe *probe)
  *	@probe: probe record
  *
  *	Register an ISA bus IDE interface. Such interfaces are PIO and we
- *	assume do not support IRQ sharing.
+ *	assume do analt support IRQ sharing.
  */
 
 static __init int legacy_init_one(struct legacy_probe *probe)
@@ -982,7 +982,7 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 	struct platform_device *pdev;
 	struct ata_device *dev;
 	void __iomem *io_addr, *ctrl_addr;
-	u32 iordy = (iordy_mask & mask) ? 0: ATA_FLAG_NO_IORDY;
+	u32 iordy = (iordy_mask & mask) ? 0: ATA_FLAG_ANAL_IORDY;
 	int ret;
 
 	iordy |= controller->flags;
@@ -997,7 +997,7 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 							"pata_legacy") == NULL)
 		goto fail;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	io_addr = devm_ioport_map(&pdev->dev, io, 8);
 	ctrl_addr = devm_ioport_map(&pdev->dev, io + 0x0206, 1);
 	if (!io_addr || !ctrl_addr)
@@ -1030,9 +1030,9 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 	async_synchronize_full();
 	ld->platform_dev = pdev;
 
-	/* Nothing found means we drop the port as its probably not there */
+	/* Analthing found means we drop the port as its probably analt there */
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	ata_for_each_dev(dev, &ap->link, ALL) {
 		if (!ata_dev_absent(dev)) {
 			legacy_host[probe->slot] = host;
@@ -1055,7 +1055,7 @@ fail:
  *	A small number of vendors implemented early PCI ATA interfaces
  *	on bridge logic without the ATA interface being PCI visible.
  *	Where we have a matching PCI driver we must skip the relevant
- *	device here. If we don't know about it then the legacy driver
+ *	device here. If we don't kanalw about it then the legacy driver
  *	is the right driver anyway.
  */
 
@@ -1072,7 +1072,7 @@ static void __init legacy_check_special_cases(struct pci_dev *p, int *primary,
 		*primary = *secondary = 1;
 		return;
 	}
-	/* Intel MPIIX - PIO ATA on non PCI side of bridge */
+	/* Intel MPIIX - PIO ATA on analn PCI side of bridge */
 	if (p->vendor == 0x8086 && p->device == 0x1234) {
 		u16 r;
 		pci_read_config_word(p, 0x6C, &r);
@@ -1168,7 +1168,7 @@ static __init void probe_qdi_vlb(void)
 		if (request_region(port, 2, "pata_qdi")) {
 			/* Check for a card */
 			local_irq_save(flags);
-			/* I have no h/w that needs this delay but it
+			/* I have anal h/w that needs this delay but it
 			   is present in the historic code */
 			r = inb(port);
 			udelay(1);
@@ -1200,9 +1200,9 @@ static __init void probe_qdi_vlb(void)
  *	legacy_init		-	attach legacy interfaces
  *
  *	Attach legacy IDE interfaces by scanning the usual IRQ/port suspects.
- *	Right now we do not scan the ide0 and ide1 address but should do so
- *	for non PCI systems or systems with no PCI IDE legacy mode devices.
- *	If you fix that note there are special cases to consider like VLB
+ *	Right analw we do analt scan the ide0 and ide1 address but should do so
+ *	for analn PCI systems or systems with anal PCI IDE legacy mode devices.
+ *	If you fix that analte there are special cases to consider like VLB
  *	drivers and CS5510/20.
  */
 
@@ -1241,16 +1241,16 @@ static __init int legacy_init(void)
 		winbond = 0x130;	/* Default port, alt is 1B0 */
 
 	if (primary == 0 || all)
-		legacy_probe_add(0x1F0, 14, UNKNOWN, 0);
+		legacy_probe_add(0x1F0, 14, UNKANALWN, 0);
 	if (secondary == 0 || all)
-		legacy_probe_add(0x170, 15, UNKNOWN, 0);
+		legacy_probe_add(0x170, 15, UNKANALWN, 0);
 
 	if (probe_all || !pci_present) {
 		/* ISA/VLB extra ports */
-		legacy_probe_add(0x1E8, 11, UNKNOWN, 0);
-		legacy_probe_add(0x168, 10, UNKNOWN, 0);
-		legacy_probe_add(0x1E0, 8, UNKNOWN, 0);
-		legacy_probe_add(0x160, 12, UNKNOWN, 0);
+		legacy_probe_add(0x1E8, 11, UNKANALWN, 0);
+		legacy_probe_add(0x168, 10, UNKANALWN, 0);
+		legacy_probe_add(0x1E0, 8, UNKANALWN, 0);
+		legacy_probe_add(0x160, 12, UNKANALWN, 0);
 	}
 
 	if (opti82c46x)
@@ -1261,7 +1261,7 @@ static __init int legacy_init(void)
 	for (i = 0; i < NR_HOST; i++, pl++) {
 		if (pl->port == 0)
 			continue;
-		if (pl->type == UNKNOWN)
+		if (pl->type == UNKANALWN)
 			pl->type = probe_chip_type(pl);
 		pl->slot = slot++;
 		if (legacy_init_one(pl) == 0)
@@ -1269,7 +1269,7 @@ static __init int legacy_init(void)
 	}
 	if (ct != 0)
 		return 0;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static __exit void legacy_exit(void)

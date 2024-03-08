@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -105,7 +105,7 @@ static bool lspcon_detect_vendor(struct intel_lspcon *lspcon)
 		break;
 
 	default:
-		drm_err(&i915->drm, "Invalid/Unknown vendor OUI\n");
+		drm_err(&i915->drm, "Invalid/Unkanalwn vendor OUI\n");
 		return false;
 	}
 
@@ -263,7 +263,7 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 	}
 
 	if (adaptor_type != DRM_DP_DUAL_MODE_LSPCON) {
-		drm_dbg_kms(&i915->drm, "No LSPCON detected, found %s\n",
+		drm_dbg_kms(&i915->drm, "Anal LSPCON detected, found %s\n",
 			    drm_dp_get_dual_mode_type_name(adaptor_type));
 		return false;
 	}
@@ -331,7 +331,7 @@ static bool lspcon_parade_fw_ready(struct drm_dp_aux *aux)
 			return true;
 	}
 
-	drm_err(aux->drm_dev, "Parade FW not ready to accept AVI IF\n");
+	drm_err(aux->drm_dev, "Parade FW analt ready to accept AVI IF\n");
 	return false;
 }
 
@@ -346,7 +346,7 @@ static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
 
 	while (block_count < 4) {
 		if (!lspcon_parade_fw_ready(aux)) {
-			drm_dbg_kms(aux->drm_dev, "LSPCON FW not ready, block %d\n",
+			drm_dbg_kms(aux->drm_dev, "LSPCON FW analt ready, block %d\n",
 				    block_count);
 			return false;
 		}
@@ -364,7 +364,7 @@ static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
 		 * Once a block of data is written, we have to inform the FW
 		 * about this by writing into avi infoframe control register:
 		 * - set the kickoff bit[7] to 1
-		 * - write the block no. to bits[1:0]
+		 * - write the block anal. to bits[1:0]
 		 */
 		reg = LSPCON_PARADE_AVI_IF_CTRL;
 		avi_if_ctrl = LSPCON_PARADE_AVI_IF_KICKOFF | block_count;
@@ -391,7 +391,7 @@ static bool _lspcon_write_avi_infoframe_parade(struct drm_dp_aux *aux,
 	/*
 	 * Parade's frames contains 32 bytes of data, divided
 	 * into 4 frames:
-	 *	Token byte (first byte of first frame, must be non-zero)
+	 *	Token byte (first byte of first frame, must be analn-zero)
 	 *	HB0 to HB2	 from AVI IF (3 bytes header)
 	 *	PB0 to PB27 from AVI IF (28 bytes data)
 	 * So it should look like this
@@ -547,7 +547,7 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 	}
 
 	/*
-	 * Currently there is no interface defined to
+	 * Currently there is anal interface defined to
 	 * check user preference between RGB/YCBCR444
 	 * or YCBCR420. So the only possible case for
 	 * YCBCR444 usage is driving YCBCR420 output
@@ -563,7 +563,7 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 	/* Set the Colorspace as per the HDMI spec */
 	drm_hdmi_avi_infoframe_colorimetry(&frame.avi, conn_state);
 
-	/* nonsense combination */
+	/* analnsense combination */
 	drm_WARN_ON(encoder->base.dev, crtc_state->limited_color_range &&
 		    crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
 

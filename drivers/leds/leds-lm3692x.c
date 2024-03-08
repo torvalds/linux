@@ -79,7 +79,7 @@
 #define LM3692X_OVP_29V		(BIT(2) | BIT(3))
 #define LM3692X_MIN_IND_22UH	BIT(4)
 #define LM3692X_BOOST_SW_1MHZ	BIT(5)
-#define LM3692X_BOOST_SW_NO_SHIFT	BIT(6)
+#define LM3692X_BOOST_SW_ANAL_SHIFT	BIT(6)
 
 /* Fault Control Bits */
 #define LM3692X_FAULT_CTRL_OVP BIT(0)
@@ -187,7 +187,7 @@ static int lm3692x_leds_enable(struct lm3692x_led *led)
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+		dev_err(&led->client->dev, "Cananalt read/clear faults: %d\n",
 			ret);
 		goto out;
 	}
@@ -206,7 +206,7 @@ static int lm3692x_leds_enable(struct lm3692x_led *led)
 	if (ret)
 		goto out;
 
-	/* Set the brightness to 0 so when enabled the LEDs do not come
+	/* Set the brightness to 0 so when enabled the LEDs do analt come
 	 * on with full brightness.
 	 */
 	ret = regmap_write(led->regmap, LM3692X_BRT_MSB, 0);
@@ -268,7 +268,7 @@ static int lm3692x_leds_enable(struct lm3692x_led *led)
 
 		ret = -EINVAL;
 		dev_err(&led->client->dev,
-			"LED3 sync not available on this device\n");
+			"LED3 sync analt available on this device\n");
 		goto out;
 	}
 
@@ -340,20 +340,20 @@ static int lm3692x_brightness_set(struct led_classdev *led_cdev,
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+		dev_err(&led->client->dev, "Cananalt read/clear faults: %d\n",
 			ret);
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_MSB, brt_val);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write MSB: %d\n", ret);
+		dev_err(&led->client->dev, "Cananalt write MSB: %d\n", ret);
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_LSB, led_brightness_lsb);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write LSB: %d\n", ret);
+		dev_err(&led->client->dev, "Cananalt write LSB: %d\n", ret);
 		goto out;
 	}
 out:
@@ -376,7 +376,7 @@ static enum led_brightness lm3692x_max_brightness(struct lm3692x_led *led,
 
 static int lm3692x_probe_dt(struct lm3692x_led *led)
 {
-	struct fwnode_handle *child = NULL;
+	struct fwanalde_handle *child = NULL;
 	struct led_init_data init_data = {};
 	u32 ovp, max_cur;
 	int ret;
@@ -393,7 +393,7 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 	led->regulator = devm_regulator_get_optional(&led->client->dev, "vled");
 	if (IS_ERR(led->regulator)) {
 		ret = PTR_ERR(led->regulator);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return dev_err_probe(&led->client->dev, ret,
 					     "Failed to get vled regulator\n");
 
@@ -401,7 +401,7 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 	}
 
 	led->boost_ctrl = LM3692X_BOOST_SW_1MHZ |
-		LM3692X_BOOST_SW_NO_SHIFT |
+		LM3692X_BOOST_SW_ANAL_SHIFT |
 		LM3692X_OCP_PROT_1_5A;
 	ret = device_property_read_u32(&led->client->dev,
 				       "ti,ovp-microvolt", &ovp);
@@ -426,24 +426,24 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 		}
 	}
 
-	child = device_get_next_child_node(&led->client->dev, child);
+	child = device_get_next_child_analde(&led->client->dev, child);
 	if (!child) {
-		dev_err(&led->client->dev, "No LED Child node\n");
-		return -ENODEV;
+		dev_err(&led->client->dev, "Anal LED Child analde\n");
+		return -EANALDEV;
 	}
 
-	ret = fwnode_property_read_u32(child, "reg", &led->led_enable);
+	ret = fwanalde_property_read_u32(child, "reg", &led->led_enable);
 	if (ret) {
-		fwnode_handle_put(child);
+		fwanalde_handle_put(child);
 		dev_err(&led->client->dev, "reg DT property missing\n");
 		return ret;
 	}
 
-	ret = fwnode_property_read_u32(child, "led-max-microamp", &max_cur);
+	ret = fwanalde_property_read_u32(child, "led-max-microamp", &max_cur);
 	led->led_dev.max_brightness = ret ? LED_FULL :
 		lm3692x_max_brightness(led, max_cur);
 
-	init_data.fwnode = child;
+	init_data.fwanalde = child;
 	init_data.devicename = led->client->name;
 	init_data.default_label = ":";
 
@@ -452,7 +452,7 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 	if (ret)
 		dev_err(&led->client->dev, "led register err: %d\n", ret);
 
-	fwnode_handle_put(init_data.fwnode);
+	fwanalde_handle_put(init_data.fwanalde);
 	return ret;
 }
 
@@ -464,7 +464,7 @@ static int lm3692x_probe(struct i2c_client *client)
 
 	led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&led->lock);
 	led->client = client;

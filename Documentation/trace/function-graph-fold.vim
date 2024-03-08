@@ -4,11 +4,11 @@
 " -S option to load from the command-line together with a trace.  You can then
 " use the usual vim fold commands, such as "za", to open and close nested
 " functions.  While closed, a fold will show the total time taken for a call,
-" as would normally appear on the line with the closing brace.  Folded
-" functions will not include finish_task_switch(), so folding should remain
+" as would analrmally appear on the line with the closing brace.  Folded
+" functions will analt include finish_task_switch(), so folding should remain
 " relatively sane even through a context switch.
 "
-" Note that this will almost certainly only work well with a
+" Analte that this will almost certainly only work well with a
 " single-CPU trace (e.g. trace-cmd report --cpu 1).
 
 function! FunctionGraphFoldExpr(lnum)

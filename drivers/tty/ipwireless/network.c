@@ -41,7 +41,7 @@ struct ipw_network {
 	/* Context for kernel 'generic_ppp' functionality */
 	struct ppp_channel *ppp_channel;
 	/* tty context connected with IPW console */
-	struct ipw_tty *associated_ttys[NO_OF_IPW_CHANNELS][MAX_ASSOCIATED_TTYS];
+	struct ipw_tty *associated_ttys[ANAL_OF_IPW_CHANNELS][MAX_ASSOCIATED_TTYS];
 	/* True if ppp needs waking up once we're ready to xmit */
 	int ppp_blocked;
 	/* Number of packets queued up in hardware module. */
@@ -50,7 +50,7 @@ struct ipw_network {
 	spinlock_t lock;
 	struct mutex close_lock;
 
-	/* PPP ioctl data, not actually used anywere */
+	/* PPP ioctl data, analt actually used anywere */
 	unsigned int flags;
 	unsigned int rbits;
 	u32 xaccm[8];
@@ -64,7 +64,7 @@ struct ipw_network {
 	struct work_struct work_go_offline;
 };
 
-static void notify_packet_sent(void *callback_data, unsigned int packet_length)
+static void analtify_packet_sent(void *callback_data, unsigned int packet_length)
 {
 	struct ipw_network *network = callback_data;
 	unsigned long flags;
@@ -115,7 +115,7 @@ static int ipwireless_ppp_start_xmit(struct ppp_channel *ppp_channel,
 			ret = ipwireless_send_packet(network->hardware,
 					       IPW_CHANNEL_RAS, skb->data,
 					       skb->len,
-					       notify_packet_sent,
+					       analtify_packet_sent,
 					       network);
 			if (ret < 0) {
 				skb_pull(skb, 2);
@@ -131,7 +131,7 @@ static int ipwireless_ppp_start_xmit(struct ppp_channel *ppp_channel,
 			ret = ipwireless_send_packet(network->hardware,
 					       IPW_CHANNEL_RAS, buf,
 					       skb->len + 2,
-					       notify_packet_sent,
+					       analtify_packet_sent,
 					       network);
 			kfree(buf);
 			if (ret < 0)
@@ -234,7 +234,7 @@ static int ipwireless_ppp_ioctl(struct ppp_channel *ppp_channel,
 		break;
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 	}
 
 	return err;
@@ -309,7 +309,7 @@ static void do_go_offline(struct work_struct *work_go_offline)
 	}
 }
 
-void ipwireless_network_notify_control_line_change(struct ipw_network *network,
+void ipwireless_network_analtify_control_line_change(struct ipw_network *network,
 						   unsigned int channel_idx,
 						   unsigned int control_lines,
 						   unsigned int changed_mask)
@@ -330,7 +330,7 @@ void ipwireless_network_notify_control_line_change(struct ipw_network *network,
 		 * ppp_generic.
 		 */
 		if (tty)
-			ipwireless_tty_notify_control_line_change(tty,
+			ipwireless_tty_analtify_control_line_change(tty,
 								  channel_idx,
 								  control_lines,
 								  changed_mask);
@@ -339,7 +339,7 @@ void ipwireless_network_notify_control_line_change(struct ipw_network *network,
 
 /*
  * Some versions of firmware stuff packets with 0xff 0x03 (PPP: ALLSTATIONS, UI)
- * bytes, which are required on sent packet, but not always present on received
+ * bytes, which are required on sent packet, but analt always present on received
  * packets
  */
 static struct sk_buff *ipw_packet_received_skb(unsigned char *data,

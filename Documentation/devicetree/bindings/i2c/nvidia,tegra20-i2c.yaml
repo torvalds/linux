@@ -27,7 +27,7 @@ properties:
       - description: |
           Tegra30 has 5 generic I2C controller. This controller is very much
           similar to Tegra20 I2C controller with additional feature: Continue
-          Transfer Support. This feature helps to implement M_NO_START as per
+          Transfer Support. This feature helps to implement M_ANAL_START as per
           I2C core API transfer flags. Driver of I2C controller is compatible
           with "nvidia,tegra30-i2c" to enable the continue transfer support.
           This is also compatible with "nvidia,tegra20-i2c" without continue
@@ -42,7 +42,7 @@ properties:
               and fast-clk. Tegra114 has only one clock source called as
               div-clk and hence clock mechanism is changed in I2C controller.
             - Tegra30/Tegra20 I2C controller has enabled per packet transfer
-              by default and there is no way to disable it. Tegra114 has this
+              by default and there is anal way to disable it. Tegra114 has this
               interrupt disable by default and SW need to enable explicitly.
           Due to above changes, Tegra114 I2C driver makes incompatible with
           previous hardware driver. Hence, Tegra114 I2C controller is
@@ -65,7 +65,7 @@ properties:
           I2C controller is mostly compatible with the programming model of
           the regular I2C controllers with a few exceptions. The I2C registers
           start at an offset of 0xc00 (instead of 0), registers are 16 bytes
-          apart (rather than 4) and the controller does not support slave
+          apart (rather than 4) and the controller does analt support slave
           mode.
         const: nvidia,tegra210-i2c-vi
       - description: |
@@ -77,7 +77,7 @@ properties:
           Tegra194 has 8 generic I2C controllers, two of which are in the AON
           (always-on) partition of the SoC. All of these controllers are very
           similar to those found on Tegra186. However, these controllers have
-          support for 64 KiB transactions whereas earlier chips supported no
+          support for 64 KiB transactions whereas earlier chips supported anal
           more than 4 KiB per transactions.
         const: nvidia,tegra194-i2c
 

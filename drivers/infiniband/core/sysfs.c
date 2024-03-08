@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies Ltd.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -217,7 +217,7 @@ static ssize_t state_show(struct ib_device *ibdev, u32 port_num,
 	ssize_t ret;
 
 	static const char *state_name[] = {
-		[IB_PORT_NOP]		= "NOP",
+		[IB_PORT_ANALP]		= "ANALP",
 		[IB_PORT_DOWN]		= "DOWN",
 		[IB_PORT_INIT]		= "INIT",
 		[IB_PORT_ARMED]		= "ARMED",
@@ -233,7 +233,7 @@ static ssize_t state_show(struct ib_device *ibdev, u32 port_num,
 			  attr.state >= 0 &&
 					  attr.state < ARRAY_SIZE(state_name) ?
 				  state_name[attr.state] :
-				  "UNKNOWN");
+				  "UNKANALWN");
 }
 
 static ssize_t lid_show(struct ib_device *ibdev, u32 port_num,
@@ -365,7 +365,7 @@ static ssize_t rate_show(struct ib_device *ibdev, u32 port_num,
 static const char *phys_state_to_str(enum ib_port_phys_state phys_state)
 {
 	static const char *phys_state_str[] = {
-		"<unknown>",
+		"<unkanalwn>",
 		"Sleep",
 		"Polling",
 		"Disabled",
@@ -377,7 +377,7 @@ static const char *phys_state_to_str(enum ib_port_phys_state phys_state)
 
 	if (phys_state < ARRAY_SIZE(phys_state_str))
 		return phys_state_str[phys_state];
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 
 static ssize_t phys_state_show(struct ib_device *ibdev, u32 port_num,
@@ -408,7 +408,7 @@ static ssize_t link_layer_show(struct ib_device *ibdev, u32 port_num,
 		output = "Ethernet";
 		break;
 	default:
-		output = "Unknown";
+		output = "Unkanalwn";
 		break;
 	}
 
@@ -565,12 +565,12 @@ static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 	ssize_t ret;
 
 	if (!dev->ops.process_mad)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	in_mad = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kzalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!in_mad || !out_mad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -583,7 +583,7 @@ static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 	if (attr != IB_PMA_CLASS_PORT_INFO)
 		in_mad->data[41] = port_num;	/* PortSelect field */
 
-	if ((dev->ops.process_mad(dev, IB_MAD_IGNORE_MKEY, port_num, NULL, NULL,
+	if ((dev->ops.process_mad(dev, IB_MAD_IGANALRE_MKEY, port_num, NULL, NULL,
 				  in_mad, out_mad, &mad_size,
 				  &out_mad_pkey_index) &
 	     (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) !=
@@ -716,7 +716,7 @@ static struct attribute *pma_attrs_ext[] = {
 	NULL
 };
 
-static struct attribute *pma_attrs_noietf[] = {
+static struct attribute *pma_attrs_analietf[] = {
 	&port_pma_attr_symbol_error.attr.attr,
 	&port_pma_attr_link_error_recovery.attr.attr,
 	&port_pma_attr_link_downed.attr.attr,
@@ -747,9 +747,9 @@ static const struct attribute_group pma_group_ext = {
 	.attrs  = pma_attrs_ext
 };
 
-static const struct attribute_group pma_group_noietf = {
+static const struct attribute_group pma_group_analietf = {
 	.name  = "counters",
-	.attrs  = pma_attrs_noietf
+	.attrs  = pma_attrs_analietf
 };
 
 static void ib_port_release(struct kobject *kobj)
@@ -802,12 +802,12 @@ static const struct attribute_group *get_counter_table(struct ib_device *dev,
 			/* We have extended counters */
 			return &pma_group_ext;
 
-		if (cpi.capability_mask & IB_PMA_CLASS_CAP_EXT_WIDTH_NOIETF)
-			/* But not the IETF ones */
-			return &pma_group_noietf;
+		if (cpi.capability_mask & IB_PMA_CLASS_CAP_EXT_WIDTH_ANALIETF)
+			/* But analt the IETF ones */
+			return &pma_group_analietf;
 	}
 
-	/* Fall back to normal counters */
+	/* Fall back to analrmal counters */
 	return &pma_group;
 }
 
@@ -896,10 +896,10 @@ alloc_hw_stats_device(struct ib_device *ibdev)
 	struct rdma_hw_stats *stats;
 
 	if (!ibdev->ops.alloc_hw_device_stats)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	stats = ibdev->ops.alloc_hw_device_stats(ibdev);
 	if (!stats)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (!stats->descs || stats->num_counters <= 0)
 		goto err_free_stats;
 
@@ -924,7 +924,7 @@ err_free_data:
 	kfree(data);
 err_free_stats:
 	rdma_free_hw_stats_struct(stats);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 void ib_device_release_hw_stats(struct hw_stats_device_data *data)
@@ -943,7 +943,7 @@ int ib_setup_device_attrs(struct ib_device *ibdev)
 
 	data = alloc_hw_stats_device(ibdev);
 	if (IS_ERR(data)) {
-		if (PTR_ERR(data) == -EOPNOTSUPP)
+		if (PTR_ERR(data) == -EOPANALTSUPP)
 			return 0;
 		return PTR_ERR(data);
 	}
@@ -1002,10 +1002,10 @@ alloc_hw_stats_port(struct ib_port *port, struct attribute_group *group)
 	struct rdma_hw_stats *stats;
 
 	if (!ibdev->ops.alloc_hw_port_stats)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	stats = ibdev->ops.alloc_hw_port_stats(port->ibdev, port->port_num);
 	if (!stats)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (!stats->descs || stats->num_counters <= 0)
 		goto err_free_stats;
 
@@ -1030,7 +1030,7 @@ err_free_data:
 	kfree(data);
 err_free_stats:
 	rdma_free_hw_stats_struct(stats);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static int setup_hw_port_stats(struct ib_port *port,
@@ -1107,7 +1107,7 @@ alloc_port_table_group(const char *name, struct attribute_group *group,
 
 	attr_list = kcalloc(num + 1, sizeof(*attr_list), GFP_KERNEL);
 	if (!attr_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
 		struct port_table_attribute *element = &attrs[i];
@@ -1147,7 +1147,7 @@ static int setup_gid_attrs(struct ib_port *port,
 					     size_mul(attr->gid_tbl_len, 2)),
 				 GFP_KERNEL);
 	if (!gid_attr_group)
-		return -ENOMEM;
+		return -EANALMEM;
 	gid_attr_group->port = port;
 	kobject_init(&gid_attr_group->kobj, &gid_attr_type);
 
@@ -1212,7 +1212,7 @@ static struct ib_port *setup_port(struct ib_core_device *coredev, int port_num,
 				size_add(attr->gid_tbl_len, attr->pkey_tbl_len)),
 		     GFP_KERNEL);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	p->ibdev = device;
 	p->port_num = port_num;
 	kobject_init(&p->kobj, &port_type);
@@ -1237,13 +1237,13 @@ static struct ib_port *setup_port(struct ib_core_device *coredev, int port_num,
 	}
 
 	/*
-	 * If port == 0, it means hw_counters are per device and not per
+	 * If port == 0, it means hw_counters are per device and analt per
 	 * port, so holder should be device. Therefore skip per port
 	 * counter initialization.
 	 */
 	if (port_num && is_full_dev) {
 		ret = setup_hw_port_stats(p, &p->groups[2]);
-		if (ret && ret != -EOPNOTSUPP)
+		if (ret && ret != -EOPANALTSUPP)
 			goto err_put;
 		if (!ret)
 			*cur_group++ = &p->groups[2];
@@ -1296,36 +1296,36 @@ static void destroy_port(struct ib_core_device *coredev, struct ib_port *port)
 	kobject_put(&port->kobj);
 }
 
-static const char *node_type_string(int node_type)
+static const char *analde_type_string(int analde_type)
 {
-	switch (node_type) {
-	case RDMA_NODE_IB_CA:
+	switch (analde_type) {
+	case RDMA_ANALDE_IB_CA:
 		return "CA";
-	case RDMA_NODE_IB_SWITCH:
+	case RDMA_ANALDE_IB_SWITCH:
 		return "switch";
-	case RDMA_NODE_IB_ROUTER:
+	case RDMA_ANALDE_IB_ROUTER:
 		return "router";
-	case RDMA_NODE_RNIC:
+	case RDMA_ANALDE_RNIC:
 		return "RNIC";
-	case RDMA_NODE_USNIC:
+	case RDMA_ANALDE_USNIC:
 		return "usNIC";
-	case RDMA_NODE_USNIC_UDP:
+	case RDMA_ANALDE_USNIC_UDP:
 		return "usNIC UDP";
-	case RDMA_NODE_UNSPECIFIED:
+	case RDMA_ANALDE_UNSPECIFIED:
 		return "unspecified";
 	}
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 
-static ssize_t node_type_show(struct device *device,
+static ssize_t analde_type_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	return sysfs_emit(buf, "%u: %s\n", dev->node_type,
-			  node_type_string(dev->node_type));
+	return sysfs_emit(buf, "%u: %s\n", dev->analde_type,
+			  analde_type_string(dev->analde_type));
 }
-static DEVICE_ATTR_RO(node_type);
+static DEVICE_ATTR_RO(analde_type);
 
 static ssize_t sys_image_guid_show(struct device *device,
 				   struct device_attribute *dev_attr, char *buf)
@@ -1341,29 +1341,29 @@ static ssize_t sys_image_guid_show(struct device *device,
 }
 static DEVICE_ATTR_RO(sys_image_guid);
 
-static ssize_t node_guid_show(struct device *device,
+static ssize_t analde_guid_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
-	__be16 *node_guid = (__be16 *)&dev->node_guid;
+	__be16 *analde_guid = (__be16 *)&dev->analde_guid;
 
 	return sysfs_emit(buf, "%04x:%04x:%04x:%04x\n",
-			  be16_to_cpu(node_guid[0]),
-			  be16_to_cpu(node_guid[1]),
-			  be16_to_cpu(node_guid[2]),
-			  be16_to_cpu(node_guid[3]));
+			  be16_to_cpu(analde_guid[0]),
+			  be16_to_cpu(analde_guid[1]),
+			  be16_to_cpu(analde_guid[2]),
+			  be16_to_cpu(analde_guid[3]));
 }
-static DEVICE_ATTR_RO(node_guid);
+static DEVICE_ATTR_RO(analde_guid);
 
-static ssize_t node_desc_show(struct device *device,
+static ssize_t analde_desc_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	return sysfs_emit(buf, "%.64s\n", dev->node_desc);
+	return sysfs_emit(buf, "%.64s\n", dev->analde_desc);
 }
 
-static ssize_t node_desc_store(struct device *device,
+static ssize_t analde_desc_store(struct device *device,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
@@ -1372,16 +1372,16 @@ static ssize_t node_desc_store(struct device *device,
 	int ret;
 
 	if (!dev->ops.modify_device)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	memcpy(desc.node_desc, buf, min_t(int, count, IB_DEVICE_NODE_DESC_MAX));
-	ret = ib_modify_device(dev, IB_DEVICE_MODIFY_NODE_DESC, &desc);
+	memcpy(desc.analde_desc, buf, min_t(int, count, IB_DEVICE_ANALDE_DESC_MAX));
+	ret = ib_modify_device(dev, IB_DEVICE_MODIFY_ANALDE_DESC, &desc);
 	if (ret)
 		return ret;
 
 	return count;
 }
-static DEVICE_ATTR_RW(node_desc);
+static DEVICE_ATTR_RW(analde_desc);
 
 static ssize_t fw_ver_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
@@ -1396,11 +1396,11 @@ static ssize_t fw_ver_show(struct device *device, struct device_attribute *attr,
 static DEVICE_ATTR_RO(fw_ver);
 
 static struct attribute *ib_dev_attrs[] = {
-	&dev_attr_node_type.attr,
-	&dev_attr_node_guid.attr,
+	&dev_attr_analde_type.attr,
+	&dev_attr_analde_guid.attr,
 	&dev_attr_sys_image_guid.attr,
 	&dev_attr_fw_ver.attr,
-	&dev_attr_node_desc.attr,
+	&dev_attr_analde_desc.attr,
 	NULL,
 };
 
@@ -1431,7 +1431,7 @@ int ib_setup_port_attrs(struct ib_core_device *coredev)
 	coredev->ports_kobj = kobject_create_and_add("ports",
 						     &coredev->dev.kobj);
 	if (!coredev->ports_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdma_for_each_port (device, port_num) {
 		struct ib_port_attr attr;
@@ -1465,7 +1465,7 @@ err_put:
  * @port_num: valid port number
  * @groups: Group list of attributes
  *
- * Do not use. Only for legacy sysfs compatibility.
+ * Do analt use. Only for legacy sysfs compatibility.
  */
 int ib_port_register_client_groups(struct ib_device *ibdev, u32 port_num,
 				   const struct attribute_group **groups)

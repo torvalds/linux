@@ -74,12 +74,12 @@
 	/* Main DTS file for Espressobin is without eMMC */
 	status = "disabled";
 
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
 	mmc-ddr-1_8v;
 	mmc-hs400-1_8v;
-	marvell,xenon-emmc;
-	marvell,xenon-tun-count = <9>;
+	marvell,xeanaln-emmc;
+	marvell,xeanaln-tun-count = <9>;
 	marvell,pad-type = "fixed-1-8v";
 
 	pinctrl-names = "default";
@@ -111,7 +111,7 @@
 
 	flash@0 {
 		reg = <0>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <104000000>;
 		m25p,fast-read;
 	};

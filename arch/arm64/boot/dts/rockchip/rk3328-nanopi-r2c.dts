@@ -7,11 +7,11 @@
  */
 
 /dts-v1/;
-#include "rk3328-nanopi-r2s.dts"
+#include "rk3328-naanalpi-r2s.dts"
 
 / {
-	model = "FriendlyElec NanoPi R2C";
-	compatible = "friendlyarm,nanopi-r2c", "rockchip,rk3328";
+	model = "FriendlyElec NaanalPi R2C";
+	compatible = "friendlyarm,naanalpi-r2c", "rockchip,rk3328";
 };
 
 &gmac2io {
@@ -20,7 +20,7 @@
 	rx_delay = <0x12>;
 
 	mdio {
-		/delete-node/ ethernet-phy@1;
+		/delete-analde/ ethernet-phy@1;
 
 		yt8521s: ethernet-phy@3 {
 			compatible = "ethernet-phy-ieee802.3-c22";

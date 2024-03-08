@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -33,7 +33,7 @@
 static void virtio_gpu_add_bool(struct seq_file *m, const char *name,
 				bool value)
 {
-	seq_printf(m, "%-16s : %s\n", name, str_yes_no(value));
+	seq_printf(m, "%-16s : %s\n", name, str_anal_anal(value));
 }
 
 static void virtio_gpu_add_int(struct seq_file *m, const char *name, int value)
@@ -43,8 +43,8 @@ static void virtio_gpu_add_int(struct seq_file *m, const char *name, int value)
 
 static int virtio_gpu_features(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct virtio_gpu_device *vgdev = node->minor->dev->dev_private;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct virtio_gpu_device *vgdev = analde->mianalr->dev->dev_private;
 
 	virtio_gpu_add_bool(m, "virgl", vgdev->has_virgl_3d);
 	virtio_gpu_add_bool(m, "edid", vgdev->has_edid);
@@ -56,7 +56,7 @@ static int virtio_gpu_features(struct seq_file *m, void *data)
 	virtio_gpu_add_bool(m, "blob resources", vgdev->has_resource_blob);
 	virtio_gpu_add_bool(m, "context init", vgdev->has_context_init);
 	virtio_gpu_add_int(m, "cap sets", vgdev->num_capsets);
-	virtio_gpu_add_int(m, "scanouts", vgdev->num_scanouts);
+	virtio_gpu_add_int(m, "scaanaluts", vgdev->num_scaanaluts);
 	if (vgdev->host_visible_region.len) {
 		seq_printf(m, "%-16s : 0x%lx +0x%lx\n", "host visible region",
 			   (unsigned long)vgdev->host_visible_region.addr,
@@ -68,8 +68,8 @@ static int virtio_gpu_features(struct seq_file *m, void *data)
 static int
 virtio_gpu_debugfs_irq_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct virtio_gpu_device *vgdev = node->minor->dev->dev_private;
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct virtio_gpu_device *vgdev = analde->mianalr->dev->dev_private;
 
 	seq_printf(m, "fence %llu %lld\n",
 		   (u64)atomic64_read(&vgdev->fence_drv.last_fence_id),
@@ -80,12 +80,12 @@ virtio_gpu_debugfs_irq_info(struct seq_file *m, void *data)
 static int
 virtio_gpu_debugfs_host_visible_mm(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct virtio_gpu_device *vgdev = node->minor->dev->dev_private;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct virtio_gpu_device *vgdev = analde->mianalr->dev->dev_private;
 	struct drm_printer p;
 
 	if (!vgdev->has_host_visible) {
-		seq_puts(m, "Host allocations not visible to guest\n");
+		seq_puts(m, "Host allocations analt visible to guest\n");
 		return 0;
 	}
 
@@ -103,9 +103,9 @@ static struct drm_info_list virtio_gpu_debugfs_list[] = {
 #define VIRTIO_GPU_DEBUGFS_ENTRIES ARRAY_SIZE(virtio_gpu_debugfs_list)
 
 void
-virtio_gpu_debugfs_init(struct drm_minor *minor)
+virtio_gpu_debugfs_init(struct drm_mianalr *mianalr)
 {
 	drm_debugfs_create_files(virtio_gpu_debugfs_list,
 				 VIRTIO_GPU_DEBUGFS_ENTRIES,
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 }

@@ -8,7 +8,7 @@
  *	PIO mode and smarter silicon.
  *
  *	The practical upshot of this is that we must always tune the
- *	drive for the right PIO mode. We must also ignore all the blacklists
+ *	drive for the right PIO mode. We must also iganalre all the blacklists
  *	and the drive bus mastering DMA information. Also to confuse matters
  *	further we can do DMA on PIO only drives.
  *
@@ -20,7 +20,7 @@
  *	(c) Copyright Red Hat Inc 2002
  *
  * Documentation:
- *	Not publicly available.
+ *	Analt publicly available.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -61,21 +61,21 @@ static const struct pio_clocks cs5520_pio_clocks[]={
 static void cs5520_set_timings(struct ata_port *ap, struct ata_device *adev, int pio)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int slave = adev->devno;
+	int slave = adev->devanal;
 
 	pio -= XFER_PIO_0;
 
 	/* Channel command timing */
-	pci_write_config_byte(pdev, 0x62 + ap->port_no,
+	pci_write_config_byte(pdev, 0x62 + ap->port_anal,
 				(cs5520_pio_clocks[pio].recovery << 4) |
 				(cs5520_pio_clocks[pio].assert));
 	/* FIXME: should these use address ? */
 	/* Read command timing */
-	pci_write_config_byte(pdev, 0x64 +  4*ap->port_no + slave,
+	pci_write_config_byte(pdev, 0x64 +  4*ap->port_anal + slave,
 				(cs5520_pio_clocks[pio].recovery << 4) |
 				(cs5520_pio_clocks[pio].assert));
 	/* Write command timing */
-	pci_write_config_byte(pdev, 0x66 +  4*ap->port_no + slave,
+	pci_write_config_byte(pdev, 0x66 +  4*ap->port_anal + slave,
 				(cs5520_pio_clocks[pio].recovery << 4) |
 				(cs5520_pio_clocks[pio].assert));
 }
@@ -132,7 +132,7 @@ static int cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Check if the ATA ports are enabled */
 	if ((pcicfg & 3) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ppi[0] = ppi[1] = &ata_dummy_port_info;
 	if (pcicfg & 1)
@@ -149,17 +149,17 @@ static int cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Perform set up for DMA */
 	if (pci_enable_device_io(pdev)) {
 		dev_err(&pdev->dev, "unable to configure BAR2.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
 		dev_err(&pdev->dev, "unable to configure DMA mask.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Map IO ports and initialize host accordingly */
@@ -170,7 +170,7 @@ static int cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	iomap[4] = pcim_iomap(pdev, 2, 0);
 
 	if (!iomap[0] || !iomap[1] || !iomap[2] || !iomap[3] || !iomap[4])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ioaddr = &host->ports[0]->ioaddr;
 	ioaddr->cmd_addr = iomap[0];
@@ -207,7 +207,7 @@ static int cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (ata_port_is_dummy(ap))
 			continue;
 
-		rc = devm_request_irq(&pdev->dev, irq[ap->port_no],
+		rc = devm_request_irq(&pdev->dev, irq[ap->port_anal],
 				      ata_bmdma_interrupt, 0, DRV_NAME, host);
 		if (rc)
 			return rc;
@@ -251,8 +251,8 @@ static int cs5520_reinit_one(struct pci_dev *pdev)
  *	@mesg: PM event message
  *
  *	We have to cut and waste bits from the standard method because
- *	the 5520 is a bit odd and not just a pure ATA device. As a result
- *	we must not disable it. The needed code is short and this avoids
+ *	the 5520 is a bit odd and analt just a pure ATA device. As a result
+ *	we must analt disable it. The needed code is short and this avoids
  *	chip specific mess in the core code.
  */
 
@@ -267,7 +267,7 @@ static int cs5520_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-/* For now keep DMA off. We can set it for all but A rev CS5510 once the
+/* For analw keep DMA off. We can set it for all but A rev CS5510 once the
    core ATA code can handle it */
 
 static const struct pci_device_id pata_cs5520[] = {

@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel_stat.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
@@ -34,7 +34,7 @@ struct appldata_mem_data {
 	u64 timestamp;
 	u32 sync_count_1;       /* after VM collected the record data, */
 	u32 sync_count_2;	/* sync_count_1 and sync_count_2 should be the
-				   same. If not, the record has been updated on
+				   same. If analt, the record has been updated on
 				   the Linux side while VM was collecting the
 				   (possibly corrupt) data */
 
@@ -57,7 +57,7 @@ struct appldata_mem_data {
 
 // New in 2.6 -->
 	u64 pgalloc;		/* page allocations */
-	u64 pgfault;		/* page faults (major+minor) */
+	u64 pgfault;		/* page faults (major+mianalr) */
 	u64 pgmajfault;		/* page faults (major only) */
 // <-- New in 2.6
 
@@ -87,7 +87,7 @@ static void appldata_get_mem_data(void *data)
 	mem_data->pgpgout    = ev[PGPGOUT] >> 1;
 	mem_data->pswpin     = ev[PSWPIN];
 	mem_data->pswpout    = ev[PSWPOUT];
-	mem_data->pgalloc    = ev[PGALLOC_NORMAL];
+	mem_data->pgalloc    = ev[PGALLOC_ANALRMAL];
 	mem_data->pgalloc    += ev[PGALLOC_DMA];
 	mem_data->pgfault    = ev[PGFAULT];
 	mem_data->pgmajfault = ev[PGMAJFAULT];
@@ -99,7 +99,7 @@ static void appldata_get_mem_data(void *data)
 	mem_data->totalhigh = P2K(val.totalhigh);
 	mem_data->freehigh  = P2K(val.freehigh);
 	mem_data->bufferram = P2K(val.bufferram);
-	mem_data->cached    = P2K(global_node_page_state(NR_FILE_PAGES)
+	mem_data->cached    = P2K(global_analde_page_state(NR_FILE_PAGES)
 				- val.bufferram);
 
 	si_swapinfo(&val);
@@ -132,7 +132,7 @@ static int __init appldata_mem_init(void)
 
 	ops.data = kzalloc(sizeof(struct appldata_mem_data), GFP_KERNEL);
 	if (!ops.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = appldata_register_ops(&ops);
 	if (ret)

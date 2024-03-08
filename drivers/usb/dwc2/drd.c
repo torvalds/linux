@@ -89,7 +89,7 @@ static int dwc2_drd_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 	unsigned long flags;
 	int already = 0;
 
-	/* Skip session not in line with dr_mode */
+	/* Skip session analt in line with dr_mode */
 	if ((role == USB_ROLE_DEVICE && hsotg->dr_mode == USB_DR_MODE_HOST) ||
 	    (role == USB_ROLE_HOST && hsotg->dr_mode == USB_DR_MODE_PERIPHERAL))
 		return -EINVAL;
@@ -97,7 +97,7 @@ static int dwc2_drd_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
 	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 	/* Skip session if core is in test mode */
-	if (role == USB_ROLE_NONE && hsotg->test_mode) {
+	if (role == USB_ROLE_ANALNE && hsotg->test_mode) {
 		dev_dbg(hsotg->dev, "Core is in test mode\n");
 		return -EBUSY;
 	}
@@ -119,8 +119,8 @@ static int dwc2_drd_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
-	if (role == USB_ROLE_NONE) {
-		/* default operation mode when usb role is USB_ROLE_NONE */
+	if (role == USB_ROLE_ANALNE) {
+		/* default operation mode when usb role is USB_ROLE_ANALNE */
 		if (hsotg->role_sw_default_mode == USB_DR_MODE_HOST)
 			role = USB_ROLE_HOST;
 		else if (hsotg->role_sw_default_mode == USB_DR_MODE_PERIPHERAL)
@@ -155,7 +155,7 @@ static int dwc2_drd_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 		clk_disable_unprepare(hsotg->clk);
 
 	dev_dbg(hsotg->dev, "%s-session valid\n",
-		role == USB_ROLE_NONE ? "No" :
+		role == USB_ROLE_ANALNE ? "Anal" :
 		role == USB_ROLE_HOST ? "A" : "B");
 
 	return 0;
@@ -172,7 +172,7 @@ int dwc2_drd_init(struct dwc2_hsotg *hsotg)
 
 	hsotg->role_sw_default_mode = usb_get_role_switch_default_mode(hsotg->dev);
 	role_sw_desc.driver_data = hsotg;
-	role_sw_desc.fwnode = dev_fwnode(hsotg->dev);
+	role_sw_desc.fwanalde = dev_fwanalde(hsotg->dev);
 	role_sw_desc.set = dwc2_drd_role_sw_set;
 	role_sw_desc.allow_userspace_control = true;
 
@@ -211,10 +211,10 @@ void dwc2_drd_resume(struct dwc2_hsotg *hsotg)
 	enum usb_role role;
 
 	if (hsotg->role_sw) {
-		/* get last known role (as the get ops isn't implemented by this driver) */
+		/* get last kanalwn role (as the get ops isn't implemented by this driver) */
 		role = usb_role_switch_get_role(hsotg->role_sw);
 
-		if (role == USB_ROLE_NONE) {
+		if (role == USB_ROLE_ANALNE) {
 			if (hsotg->role_sw_default_mode == USB_DR_MODE_HOST)
 				role = USB_ROLE_HOST;
 			else if (hsotg->role_sw_default_mode == USB_DR_MODE_PERIPHERAL)
@@ -230,7 +230,7 @@ void dwc2_drd_resume(struct dwc2_hsotg *hsotg)
 		dwc2_force_mode(hsotg, role == USB_ROLE_HOST);
 
 		dev_dbg(hsotg->dev, "resuming %s-session valid\n",
-			role == USB_ROLE_NONE ? "No" :
+			role == USB_ROLE_ANALNE ? "Anal" :
 			role == USB_ROLE_HOST ? "A" : "B");
 	}
 

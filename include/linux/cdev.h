@@ -8,7 +8,7 @@
 #include <linux/device.h>
 
 struct file_operations;
-struct inode;
+struct ianalde;
 struct module;
 
 struct cdev {
@@ -34,6 +34,6 @@ void cdev_device_del(struct cdev *cdev, struct device *dev);
 
 void cdev_del(struct cdev *);
 
-void cd_forget(struct inode *);
+void cd_forget(struct ianalde *);
 
 #endif

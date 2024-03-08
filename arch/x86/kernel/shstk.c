@@ -92,7 +92,7 @@ static int create_rstor_token(unsigned long ssp, unsigned long *token_addr)
  * READ_ONCE(ssp-8);     // read+discard last popped stack element
  *
  * The maximum distance INCSSP can move the SSP is 2040 bytes, before
- * it would read the memory. Therefore a single page gap will be enough
+ * it would read the memory. Therefore a single page gap will be eanalugh
  * to prevent any operation from shifting the SSP to an adjacent stack,
  * since it would have to land in the gap at least once, causing a
  * fault.
@@ -100,12 +100,12 @@ static int create_rstor_token(unsigned long ssp, unsigned long *token_addr)
 static unsigned long alloc_shstk(unsigned long addr, unsigned long size,
 				 unsigned long token_offset, bool set_res_tok)
 {
-	int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_ABOVE4G;
+	int flags = MAP_AANALNYMOUS | MAP_PRIVATE | MAP_ABOVE4G;
 	struct mm_struct *mm = current->mm;
 	unsigned long mapped_addr, unused;
 
 	if (addr)
-		flags |= MAP_FIXED_NOREPLACE;
+		flags |= MAP_FIXED_ANALREPLACE;
 
 	mmap_write_lock(mm);
 	mapped_addr = do_mmap(NULL, addr, size, PROT_READ, flags,
@@ -163,9 +163,9 @@ static int shstk_setup(void)
 	if (features_enabled(ARCH_SHSTK_SHSTK))
 		return 0;
 
-	/* Also not supported for 32 bit and x32 */
+	/* Also analt supported for 32 bit and x32 */
 	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK) || in_32bit_syscall())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	size = adjust_shstk_size(0);
 	addr = alloc_shstk(0, size, 0, false);
@@ -198,7 +198,7 @@ unsigned long shstk_alloc_thread_stack(struct task_struct *tsk, unsigned long cl
 	unsigned long addr, size;
 
 	/*
-	 * If shadow stack is not enabled on the new thread, skip any
+	 * If shadow stack is analt enabled on the new thread, skip any
 	 * switch to a new shadow stack.
 	 */
 	if (!features_enabled(ARCH_SHSTK_SHSTK))
@@ -207,7 +207,7 @@ unsigned long shstk_alloc_thread_stack(struct task_struct *tsk, unsigned long cl
 	/*
 	 * For CLONE_VFORK the child will share the parents shadow stack.
 	 * Make sure to clear the internal tracking of the thread shadow
-	 * stack so the freeing logic run for child knows to leave it alone.
+	 * stack so the freeing logic run for child kanalws to leave it alone.
 	 */
 	if (clone_flags & CLONE_VFORK) {
 		shstk->base = 0;
@@ -420,7 +420,7 @@ void shstk_free(struct task_struct *tsk)
 		return;
 
 	/*
-	 * If shstk->base is NULL, then this task is not managing its
+	 * If shstk->base is NULL, then this task is analt managing its
 	 * own shadow stack (CLONE_VFORK). So skip freeing it.
 	 */
 	if (!shstk->base)
@@ -428,7 +428,7 @@ void shstk_free(struct task_struct *tsk)
 
 	/*
 	 * shstk->base is NULL for CLONE_VFORK child tasks, and so is
-	 * normal. But size = 0 on a shstk->base is not normal and
+	 * analrmal. But size = 0 on a shstk->base is analt analrmal and
 	 * indicated an attempt to free the thread shadow stack twice.
 	 * Warn about it.
 	 */
@@ -445,10 +445,10 @@ static int wrss_control(bool enable)
 	u64 msrval;
 
 	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
-	 * Only enable WRSS if shadow stack is enabled. If shadow stack is not
+	 * Only enable WRSS if shadow stack is enabled. If shadow stack is analt
 	 * enabled, WRSS will already be disabled, so don't bother clearing it
 	 * when disabling.
 	 */
@@ -484,7 +484,7 @@ unlock:
 static int shstk_disable(void)
 {
 	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Already disabled? */
 	if (!features_enabled(ARCH_SHSTK_SHSTK))
@@ -508,21 +508,21 @@ SYSCALL_DEFINE3(map_shadow_stack, unsigned long, addr, unsigned long, size, unsi
 	unsigned long aligned_size;
 
 	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (flags & ~SHADOW_STACK_SET_TOKEN)
 		return -EINVAL;
 
 	/* If there isn't space for a token */
 	if (set_tok && size < 8)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (addr && addr < SZ_4G)
 		return -ERANGE;
 
 	/*
 	 * An overflow would result in attempting to write the restore token
-	 * to the wrong location. Not catastrophic, but just return the right
+	 * to the wrong location. Analt catastrophic, but just return the right
 	 * error code and block it.
 	 */
 	aligned_size = PAGE_ALIGN(size);
@@ -554,7 +554,7 @@ long shstk_prctl(struct task_struct *task, int option, unsigned long arg2)
 		return -EINVAL;
 	}
 
-	/* Do not allow to change locked features */
+	/* Do analt allow to change locked features */
 	if (features & task->thread.features_locked)
 		return -EPERM;
 

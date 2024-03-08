@@ -113,7 +113,7 @@ int xe_reg_sr_add(struct xe_reg_sr *sr,
 
 	pentry = alloc_entry(sr);
 	if (!pentry) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -128,8 +128,8 @@ fail:
 	xe_gt_err(gt,
 		  "discarding save-restore reg %04lx (clear: %08x, set: %08x, masked: %s, mcr: %s): ret=%d\n",
 		  idx, e->clr_bits, e->set_bits,
-		  str_yes_no(e->reg.masked),
-		  str_yes_no(e->reg.mcr),
+		  str_anal_anal(e->reg.masked),
+		  str_anal_anal(e->reg.mcr),
 		  ret);
 	reg_sr_inc_error(sr);
 
@@ -156,7 +156,7 @@ static void apply_one_mmio(struct xe_gt *gt, struct xe_reg_sr_entry *entry)
 	 * Set them to clr_bits since that is always a superset of the bits
 	 * being modified.
 	 *
-	 * When it's not masked, we have to read it from hardware, unless we are
+	 * When it's analt masked, we have to read it from hardware, unless we are
 	 * supposed to set all bits.
 	 */
 	if (reg.masked)
@@ -233,24 +233,24 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 
 	p = drm_debug_printer(KBUILD_MODNAME);
 	xa_for_each(&sr->xa, reg, entry) {
-		if (slot == RING_MAX_NONPRIV_SLOTS) {
+		if (slot == RING_MAX_ANALNPRIV_SLOTS) {
 			xe_gt_err(gt,
 				  "hwe %s: maximum register whitelist slots (%d) reached, refusing to add more\n",
-				  hwe->name, RING_MAX_NONPRIV_SLOTS);
+				  hwe->name, RING_MAX_ANALNPRIV_SLOTS);
 			break;
 		}
 
 		xe_reg_whitelist_print_entry(&p, 0, reg, entry);
-		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot),
+		xe_mmio_write32(gt, RING_FORCE_TO_ANALNPRIV(mmio_base, slot),
 				reg | entry->set_bits);
 		slot++;
 	}
 
 	/* And clear the rest just in case of garbage */
-	for (; slot < RING_MAX_NONPRIV_SLOTS; slot++) {
-		u32 addr = RING_NOPID(mmio_base).addr;
+	for (; slot < RING_MAX_ANALNPRIV_SLOTS; slot++) {
+		u32 addr = RING_ANALPID(mmio_base).addr;
 
-		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot), addr);
+		xe_mmio_write32(gt, RING_FORCE_TO_ANALNPRIV(mmio_base, slot), addr);
 	}
 
 	err = xe_force_wake_put(&gt->mmio.fw, XE_FORCEWAKE_ALL);
@@ -279,6 +279,6 @@ void xe_reg_sr_dump(struct xe_reg_sr *sr, struct drm_printer *p)
 	xa_for_each(&sr->xa, reg, entry)
 		drm_printf(p, "\tREG[0x%lx] clr=0x%08x set=0x%08x masked=%s mcr=%s\n",
 			   reg, entry->clr_bits, entry->set_bits,
-			   str_yes_no(entry->reg.masked),
-			   str_yes_no(entry->reg.mcr));
+			   str_anal_anal(entry->reg.masked),
+			   str_anal_anal(entry->reg.mcr));
 }

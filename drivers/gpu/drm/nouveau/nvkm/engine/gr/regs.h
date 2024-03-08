@@ -18,7 +18,7 @@
 #    define NV10_PGRAPH_NSTATUS_BAD_ARGUMENT                  (1<<25)
 #    define NV10_PGRAPH_NSTATUS_PROTECTION_FAULT              (1<<26)
 #define NV03_PGRAPH_NSOURCE                                0x00400108
-#    define NV03_PGRAPH_NSOURCE_NOTIFICATION                   (1<<0)
+#    define NV03_PGRAPH_NSOURCE_ANALTIFICATION                   (1<<0)
 #    define NV03_PGRAPH_NSOURCE_DATA_ERROR                     (1<<1)
 #    define NV03_PGRAPH_NSOURCE_PROTECTION_ERROR               (1<<2)
 #    define NV03_PGRAPH_NSOURCE_RANGE_EXCEPTION                (1<<3)
@@ -30,19 +30,19 @@
 #    define NV03_PGRAPH_NSOURCE_FORMAT_EXCEPTION               (1<<9)
 #    define NV03_PGRAPH_NSOURCE_PATCH_EXCEPTION               (1<<10)
 #    define NV03_PGRAPH_NSOURCE_STATE_INVALID                 (1<<11)
-#    define NV03_PGRAPH_NSOURCE_DOUBLE_NOTIFY                 (1<<12)
-#    define NV03_PGRAPH_NSOURCE_NOTIFY_IN_USE                 (1<<13)
+#    define NV03_PGRAPH_NSOURCE_DOUBLE_ANALTIFY                 (1<<12)
+#    define NV03_PGRAPH_NSOURCE_ANALTIFY_IN_USE                 (1<<13)
 #    define NV03_PGRAPH_NSOURCE_METHOD_CNT                    (1<<14)
-#    define NV03_PGRAPH_NSOURCE_BFR_NOTIFICATION              (1<<15)
+#    define NV03_PGRAPH_NSOURCE_BFR_ANALTIFICATION              (1<<15)
 #    define NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION            (1<<16)
 #    define NV03_PGRAPH_NSOURCE_DMA_WIDTH_A                   (1<<17)
 #    define NV03_PGRAPH_NSOURCE_DMA_WIDTH_B                   (1<<18)
 #define NV03_PGRAPH_INTR_EN                                0x00400140
 #define NV40_PGRAPH_INTR_EN                                0x0040013C
-#    define NV_PGRAPH_INTR_NOTIFY                              (1<<0)
+#    define NV_PGRAPH_INTR_ANALTIFY                              (1<<0)
 #    define NV_PGRAPH_INTR_MISSING_HW                          (1<<4)
 #    define NV_PGRAPH_INTR_CONTEXT_SWITCH                     (1<<12)
-#    define NV_PGRAPH_INTR_BUFFER_NOTIFY                      (1<<16)
+#    define NV_PGRAPH_INTR_BUFFER_ANALTIFY                      (1<<16)
 #    define NV_PGRAPH_INTR_ERROR                              (1<<20)
 #define NV10_PGRAPH_CTX_CONTROL                            0x00400144
 #define NV10_PGRAPH_CTX_USER                               0x00400148
@@ -124,7 +124,7 @@
 #define NV04_PGRAPH_FORMAT_1                               0x004005AC
 #define NV04_PGRAPH_FILTER_0                               0x004005B0
 #define NV04_PGRAPH_FILTER_1                               0x004005B4
-#define NV03_PGRAPH_MONO_COLOR0                            0x00400600
+#define NV03_PGRAPH_MOANAL_COLOR0                            0x00400600
 #define NV04_PGRAPH_ROP3                                   0x00400604
 #define NV04_PGRAPH_BETA_AND                               0x00400608
 #define NV04_PGRAPH_BETA_PREMULT                           0x0040060C
@@ -165,9 +165,9 @@
 #define NV10_PGRAPH_TRAPPED_DATA_HIGH                      0x0040070C
 #define NV04_PGRAPH_STATE                                  0x00400710
 #define NV10_PGRAPH_SURFACE                                0x00400710
-#define NV04_PGRAPH_NOTIFY                                 0x00400714
+#define NV04_PGRAPH_ANALTIFY                                 0x00400714
 #define NV10_PGRAPH_STATE                                  0x00400714
-#define NV10_PGRAPH_NOTIFY                                 0x00400718
+#define NV10_PGRAPH_ANALTIFY                                 0x00400718
 
 #define NV04_PGRAPH_FIFO                                   0x00400720
 

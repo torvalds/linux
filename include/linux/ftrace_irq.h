@@ -7,9 +7,9 @@ extern bool trace_hwlat_callback_enabled;
 extern void trace_hwlat_callback(bool enter);
 #endif
 
-#ifdef CONFIG_OSNOISE_TRACER
-extern bool trace_osnoise_callback_enabled;
-extern void trace_osnoise_callback(bool enter);
+#ifdef CONFIG_OSANALISE_TRACER
+extern bool trace_osanalise_callback_enabled;
+extern void trace_osanalise_callback(bool enter);
 #endif
 
 static inline void ftrace_nmi_enter(void)
@@ -18,9 +18,9 @@ static inline void ftrace_nmi_enter(void)
 	if (trace_hwlat_callback_enabled)
 		trace_hwlat_callback(true);
 #endif
-#ifdef CONFIG_OSNOISE_TRACER
-	if (trace_osnoise_callback_enabled)
-		trace_osnoise_callback(true);
+#ifdef CONFIG_OSANALISE_TRACER
+	if (trace_osanalise_callback_enabled)
+		trace_osanalise_callback(true);
 #endif
 }
 
@@ -30,9 +30,9 @@ static inline void ftrace_nmi_exit(void)
 	if (trace_hwlat_callback_enabled)
 		trace_hwlat_callback(false);
 #endif
-#ifdef CONFIG_OSNOISE_TRACER
-	if (trace_osnoise_callback_enabled)
-		trace_osnoise_callback(false);
+#ifdef CONFIG_OSANALISE_TRACER
+	if (trace_osanalise_callback_enabled)
+		trace_osanalise_callback(false);
 #endif
 }
 

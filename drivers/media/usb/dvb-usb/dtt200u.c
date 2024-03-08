@@ -21,7 +21,7 @@ struct dtt200u_state {
 	unsigned char data[80];
 };
 
-static int dtt200u_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int dtt200u_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
 	struct dtt200u_state *st = d->priv;
 	int ret = 0;
@@ -30,14 +30,14 @@ static int dtt200u_power_ctrl(struct dvb_usb_device *d, int onoff)
 
 	st->data[0] = SET_INIT;
 
-	if (onoff)
+	if (oanalff)
 		ret = dvb_usb_generic_write(d, st->data, 2);
 
 	mutex_unlock(&d->data_mutex);
 	return ret;
 }
 
-static int dtt200u_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int dtt200u_streaming_ctrl(struct dvb_usb_adapter *adap, int oanalff)
 {
 	struct dvb_usb_device *d = adap->dev;
 	struct dtt200u_state *st = d->priv;
@@ -45,13 +45,13 @@ static int dtt200u_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	mutex_lock(&d->data_mutex);
 	st->data[0] = SET_STREAMING;
-	st->data[1] = onoff;
+	st->data[1] = oanalff;
 
 	ret = dvb_usb_generic_write(adap->dev, st->data, 2);
 	if (ret < 0)
 		goto ret;
 
-	if (onoff)
+	if (oanalff)
 		goto ret;
 
 	st->data[0] = RESET_PID_FILTER;
@@ -63,13 +63,13 @@ ret:
 	return ret;
 }
 
-static int dtt200u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
+static int dtt200u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int oanalff)
 {
 	struct dvb_usb_device *d = adap->dev;
 	struct dtt200u_state *st = d->priv;
 	int ret;
 
-	pid = onoff ? pid : 0;
+	pid = oanalff ? pid : 0;
 
 	mutex_lock(&d->data_mutex);
 	st->data[0] = SET_PID_FILTER;
@@ -155,7 +155,7 @@ static int dtt200u_usb_probe(struct usb_interface *intf,
 				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 enum {

@@ -16,13 +16,13 @@
 /*   Falcon: Floppy and SCSI                                           */
 /*                                                                     */
 /* The controlling functions set up a wait queue for access to the     */
-/* ST-DMA chip. Callers to stdma_lock() that cannot granted access are */
+/* ST-DMA chip. Callers to stdma_lock() that cananalt granted access are */
 /* put onto a queue and waked up later if the owner calls              */
 /* stdma_release(). Additionally, the caller gives his interrupt       */
 /* service routine to stdma_lock().                                    */
 /*                                                                     */
 /* On the Falcon, the IDE bus uses just the ACSI/Floppy interrupt, but */
-/* not the ST-DMA chip itself. So falhd.c needs not to lock the        */
+/* analt the ST-DMA chip itself. So falhd.c needs analt to lock the        */
 /* chip. The interrupt is routed to falhd.c if IDE is configured, the  */
 /* model is a Falcon and the interrupt was caused by the HD controller */
 /* (can be determined by looking at its status register).              */
@@ -90,14 +90,14 @@ EXPORT_SYMBOL(stdma_try_lock);
  *
  * Purpose: Tries to get a lock on the ST-DMA chip that is used by more
  *   then one device driver. Waits on stdma_wait until lock is free.
- *   stdma_lock() may not be called from an interrupt! You have to
+ *   stdma_lock() may analt be called from an interrupt! You have to
  *   get the lock in your main routine and release it when your
  *   request is finished.
  *
  * Inputs: A interrupt function that is called until the lock is
  *   released.
  *
- * Returns: nothing
+ * Returns: analthing
  *
  */
 
@@ -116,9 +116,9 @@ EXPORT_SYMBOL(stdma_lock);
  *
  * Purpose: Releases the lock on the ST-DMA chip.
  *
- * Inputs: none
+ * Inputs: analne
  *
- * Returns: nothing
+ * Returns: analthing
  *
  */
 
@@ -163,12 +163,12 @@ EXPORT_SYMBOL(stdma_is_locked_by);
  * Function: int stdma_islocked( void )
  *
  * Purpose: Check if the ST-DMA is currently locked.
- * Note: Returned status is only valid if ints are disabled while calling and
+ * Analte: Returned status is only valid if ints are disabled while calling and
  *       as long as they remain disabled.
  *       If called with ints enabled, status can change only from locked to
- *       unlocked, because ints may not lock the ST-DMA.
+ *       unlocked, because ints may analt lock the ST-DMA.
  *
- * Inputs: none
+ * Inputs: analne
  *
  * Returns: != 0 if locked, 0 otherwise
  *
@@ -186,12 +186,12 @@ EXPORT_SYMBOL(stdma_islocked);
  *
  * Purpose: Initialize the ST-DMA chip access controlling.
  *   It sets up the interrupt and its service routine. The int is registered
- *   as slow int, client devices have to live with that (no problem
+ *   as slow int, client devices have to live with that (anal problem
  *   currently).
  *
- * Inputs: none
+ * Inputs: analne
  *
- * Return: nothing
+ * Return: analthing
  *
  */
 

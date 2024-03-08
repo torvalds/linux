@@ -480,11 +480,11 @@ static int pmc_usb_connect(struct pmc_usb_port *port, enum usb_role role)
 	u8 msg[2];
 	int ret;
 
-	if (port->orientation == TYPEC_ORIENTATION_NONE)
+	if (port->orientation == TYPEC_ORIENTATION_ANALNE)
 		return -EINVAL;
 
 	if (port->iom_status & IOM_PORT_STATUS_CONNECTED) {
-		if (port->role == role || port->role == USB_ROLE_NONE)
+		if (port->role == role || port->role == USB_ROLE_ANALNE)
 			return 0;
 
 		/* Role swap */
@@ -511,7 +511,7 @@ pmc_usb_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *state)
 
 	update_port_status(port);
 
-	if (port->orientation == TYPEC_ORIENTATION_NONE || port->role == USB_ROLE_NONE)
+	if (port->orientation == TYPEC_ORIENTATION_ANALNE || port->role == USB_ROLE_ANALNE)
 		return 0;
 
 	if (state->mode == TYPEC_STATE_SAFE)
@@ -538,7 +538,7 @@ pmc_usb_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *state)
 		}
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int pmc_usb_set_orientation(struct typec_switch_dev *sw,
@@ -560,7 +560,7 @@ static int pmc_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 
 	update_port_status(port);
 
-	if (role == USB_ROLE_NONE)
+	if (role == USB_ROLE_ANALNE)
 		ret = pmc_usb_disconnect(port);
 	else
 		ret = pmc_usb_connect(port, role);
@@ -571,7 +571,7 @@ static int pmc_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 }
 
 static int pmc_usb_register_port(struct pmc_usb *pmc, int index,
-				 struct fwnode_handle *fwnode)
+				 struct fwanalde_handle *fwanalde)
 {
 	struct pmc_usb_port *port = &pmc->port[index];
 	struct usb_role_switch_desc desc = { };
@@ -580,37 +580,37 @@ static int pmc_usb_register_port(struct pmc_usb *pmc, int index,
 	const char *str;
 	int ret;
 
-	ret = fwnode_property_read_u8(fwnode, "usb2-port-number", &port->usb2_port);
+	ret = fwanalde_property_read_u8(fwanalde, "usb2-port-number", &port->usb2_port);
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_u8(fwnode, "usb3-port-number", &port->usb3_port);
+	ret = fwanalde_property_read_u8(fwanalde, "usb3-port-number", &port->usb3_port);
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_string(fwnode, "sbu-orientation", &str);
+	ret = fwanalde_property_read_string(fwanalde, "sbu-orientation", &str);
 	if (!ret)
 		port->sbu_orientation = typec_find_orientation(str);
 
-	ret = fwnode_property_read_string(fwnode, "hsl-orientation", &str);
+	ret = fwanalde_property_read_string(fwanalde, "hsl-orientation", &str);
 	if (!ret)
 		port->hsl_orientation = typec_find_orientation(str);
 
 	port->num = index;
 	port->pmc = pmc;
 
-	sw_desc.fwnode = fwnode;
+	sw_desc.fwanalde = fwanalde;
 	sw_desc.drvdata = port;
-	sw_desc.name = fwnode_get_name(fwnode);
+	sw_desc.name = fwanalde_get_name(fwanalde);
 	sw_desc.set = pmc_usb_set_orientation;
 
 	port->typec_sw = typec_switch_register(pmc->dev, &sw_desc);
 	if (IS_ERR(port->typec_sw))
 		return PTR_ERR(port->typec_sw);
 
-	mux_desc.fwnode = fwnode;
+	mux_desc.fwanalde = fwanalde;
 	mux_desc.drvdata = port;
-	mux_desc.name = fwnode_get_name(fwnode);
+	mux_desc.name = fwanalde_get_name(fwanalde);
 	mux_desc.set = pmc_usb_mux_set;
 
 	port->typec_mux = typec_mux_register(pmc->dev, &mux_desc);
@@ -619,9 +619,9 @@ static int pmc_usb_register_port(struct pmc_usb *pmc, int index,
 		goto err_unregister_switch;
 	}
 
-	desc.fwnode = fwnode;
+	desc.fwanalde = fwanalde;
 	desc.driver_data = port;
-	desc.name = fwnode_get_name(fwnode);
+	desc.name = fwanalde_get_name(fwanalde);
 	desc.set = pmc_usb_set_role;
 	desc.allow_userspace_control = true;
 
@@ -672,7 +672,7 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 			break;
 	}
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pmc->iom_port_status_offset = IOM_PORT_STATUS_REGS_OFFSET(dev_id->driver_data);
 	pmc->iom_port_status_size = IOM_PORT_STATUS_REGS_SIZE(dev_id->driver_data);
@@ -684,7 +684,7 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 		return ret;
 	}
 
-	rentry = list_first_entry_or_null(&resource_list, struct resource_entry, node);
+	rentry = list_first_entry_or_null(&resource_list, struct resource_entry, analde);
 	if (rentry)
 		pmc->iom_base = devm_ioremap_resource(pmc->dev, rentry->res);
 
@@ -692,7 +692,7 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 
 	if (!pmc->iom_base) {
 		acpi_dev_put(adev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (IS_ERR(pmc->iom_base)) {
@@ -730,16 +730,16 @@ static void pmc_mux_port_debugfs_init(struct pmc_usb_port *port)
 
 static int pmc_usb_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *fwnode = NULL;
+	struct fwanalde_handle *fwanalde = NULL;
 	struct pmc_usb *pmc;
 	int i = 0;
 	int ret;
 
 	pmc = devm_kzalloc(&pdev->dev, sizeof(*pmc), GFP_KERNEL);
 	if (!pmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	device_for_each_child_node(&pdev->dev, fwnode)
+	device_for_each_child_analde(&pdev->dev, fwanalde)
 		pmc->num_ports++;
 
 	/* The IOM microcontroller has a limitation of max 4 ports. */
@@ -751,11 +751,11 @@ static int pmc_usb_probe(struct platform_device *pdev)
 	pmc->port = devm_kcalloc(&pdev->dev, pmc->num_ports,
 				 sizeof(struct pmc_usb_port), GFP_KERNEL);
 	if (!pmc->port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmc->ipc = devm_intel_scu_ipc_dev_get(&pdev->dev);
 	if (!pmc->ipc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pmc->dev = &pdev->dev;
 
@@ -767,16 +767,16 @@ static int pmc_usb_probe(struct platform_device *pdev)
 
 	/*
 	 * For every physical USB connector (USB2 and USB3 combo) there is a
-	 * child ACPI device node under the PMC mux ACPI device object.
+	 * child ACPI device analde under the PMC mux ACPI device object.
 	 */
 	for (i = 0; i < pmc->num_ports; i++) {
-		fwnode = device_get_next_child_node(pmc->dev, fwnode);
-		if (!fwnode)
+		fwanalde = device_get_next_child_analde(pmc->dev, fwanalde);
+		if (!fwanalde)
 			break;
 
-		ret = pmc_usb_register_port(pmc, i, fwnode);
+		ret = pmc_usb_register_port(pmc, i, fwanalde);
 		if (ret) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			goto err_remove_ports;
 		}
 

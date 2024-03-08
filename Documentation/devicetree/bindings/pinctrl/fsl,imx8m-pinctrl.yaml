@@ -24,13 +24,13 @@ properties:
   reg:
     maxItems: 1
 
-# Client device subnode's properties
+# Client device subanalde's properties
 patternProperties:
   'grp$':
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
 
     properties:
       fsl,pins:
@@ -40,7 +40,7 @@ patternProperties:
           mux_val input_val> are specified using a PIN_FUNC_ID macro, which can
           be found in <arch/arm64/boot/dts/freescale/imx8m[m,n,p,q]-pinfunc.h>.
           The last integer CONFIG is the pad setting value like pull-up on this
-          pin. Please refer to i.MX8M Mini/Nano/Plus/Quad Reference Manual for
+          pin. Please refer to i.MX8M Mini/Naanal/Plus/Quad Reference Manual for
           detailed CONFIG settings.
         $ref: /schemas/types.yaml#/definitions/uint32-matrix
         items:
@@ -74,7 +74,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Pinmux controller node
+  # Pinmux controller analde
   - |
     iomuxc: pinctrl@30330000 {
         compatible = "fsl,imx8mm-iomuxc";

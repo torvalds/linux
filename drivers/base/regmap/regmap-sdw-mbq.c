@@ -2,7 +2,7 @@
 // Copyright(c) 2020 Intel Corporation.
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/soundwire/sdw.h>
@@ -15,11 +15,11 @@ static int regmap_sdw_mbq_write(void *context, unsigned int reg, unsigned int va
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	int ret;
 
-	ret = sdw_write_no_pm(slave, SDW_SDCA_MBQ_CTL(reg), (val >> 8) & 0xff);
+	ret = sdw_write_anal_pm(slave, SDW_SDCA_MBQ_CTL(reg), (val >> 8) & 0xff);
 	if (ret < 0)
 		return ret;
 
-	return sdw_write_no_pm(slave, reg, val & 0xff);
+	return sdw_write_anal_pm(slave, reg, val & 0xff);
 }
 
 static int regmap_sdw_mbq_read(void *context, unsigned int reg, unsigned int *val)
@@ -29,11 +29,11 @@ static int regmap_sdw_mbq_read(void *context, unsigned int reg, unsigned int *va
 	int read0;
 	int read1;
 
-	read0 = sdw_read_no_pm(slave, reg);
+	read0 = sdw_read_anal_pm(slave, reg);
 	if (read0 < 0)
 		return read0;
 
-	read1 = sdw_read_no_pm(slave, SDW_SDCA_MBQ_CTL(reg));
+	read1 = sdw_read_anal_pm(slave, SDW_SDCA_MBQ_CTL(reg));
 	if (read1 < 0)
 		return read1;
 
@@ -51,16 +51,16 @@ static const struct regmap_bus regmap_sdw_mbq = {
 
 static int regmap_sdw_mbq_config_check(const struct regmap_config *config)
 {
-	/* MBQ-based controls are only 16-bits for now */
+	/* MBQ-based controls are only 16-bits for analw */
 	if (config->val_bits != 16)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* Registers are 32 bits wide */
 	if (config->reg_bits != 32)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (config->pad_bits != 0)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return 0;
 }

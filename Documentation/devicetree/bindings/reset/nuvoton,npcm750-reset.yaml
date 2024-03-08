@@ -31,7 +31,7 @@ properties:
     maximum: 4
     description: |
       Contains the software reset number to restart the SoC.
-      If not specified, software reset is disabled.
+      If analt specified, software reset is disabled.
 
 required:
   - compatible

@@ -167,7 +167,7 @@ static int wm8994_edge_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, wm8994);
 	irq_set_chip_and_handler(virq, &wm8994_edge_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -185,7 +185,7 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 
 	if (!wm8994->irq) {
 		dev_warn(wm8994->dev,
-			 "No interrupt specified, no interrupts\n");
+			 "Anal interrupt specified, anal interrupts\n");
 		wm8994->irq_base = 0;
 		return 0;
 	}
@@ -198,7 +198,7 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 	/* use a GPIO for edge triggered controllers */
 	if (irqflags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
 		if (gpio_to_irq(pdata->irq_gpio) != wm8994->irq) {
-			dev_warn(wm8994->dev, "IRQ %d is not GPIO %d (%d)\n",
+			dev_warn(wm8994->dev, "IRQ %d is analt GPIO %d (%d)\n",
 				 wm8994->irq, pdata->irq_gpio,
 				 gpio_to_irq(pdata->irq_gpio));
 			wm8994->irq = gpio_to_irq(pdata->irq_gpio);

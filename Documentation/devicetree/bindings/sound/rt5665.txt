@@ -19,17 +19,17 @@ Optional properties:
   Boolean. Indicate MIC1/2/3/4 input are differential, rather than single-ended.
 
 - realtek,dmic1-data-pin
-  0: dmic1 is not used
+  0: dmic1 is analt used
   1: using GPIO4 pin as dmic1 data pin
   2: using IN2N pin as dmic2 data pin
 
 - realtek,dmic2-data-pin
-  0: dmic2 is not used
+  0: dmic2 is analt used
   1: using GPIO5 pin as dmic2 data pin
   2: using IN2P pin as dmic2 data pin
 
 - realtek,jd-src
-  0: No JD is used
+  0: Anal JD is used
   1: using JD1 as JD source
 
 - realtek,ldo1-en-gpios : The GPIO that controls the CODEC's LDO1_EN pin.
@@ -52,7 +52,7 @@ Pins on the device (for linking into audio routes) for RT5659/RT5658:
   * HPOR
   * LOUTL
   * LOUTR
-  * MONOOUT
+  * MOANALOUT
   * PDML
   * PDMR
 

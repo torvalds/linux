@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <fcntl.h>
 #include <string.h>
@@ -52,13 +52,13 @@ enum cfg_mode {
 };
 
 enum cfg_peek {
-	CFG_NONE_PEEK,
+	CFG_ANALNE_PEEK,
 	CFG_WITH_PEEK,
 	CFG_AFTER_PEEK,
 };
 
 static enum cfg_mode cfg_mode = CFG_MODE_POLL;
-static enum cfg_peek cfg_peek = CFG_NONE_PEEK;
+static enum cfg_peek cfg_peek = CFG_ANALNE_PEEK;
 static const char *cfg_host;
 static const char *cfg_port	= "12000";
 static int cfg_sock_proto	= IPPROTO_MPTCP;
@@ -156,7 +156,7 @@ static void handle_signal(int nr)
 static const char *getxinfo_strerr(int err)
 {
 	if (err == EAI_SYSTEM)
-		return strerror(errno);
+		return strerror(erranal);
 
 	return gai_strerror(err);
 }
@@ -177,17 +177,17 @@ static void xgetnameinfo(const struct sockaddr *addr, socklen_t addrlen,
 	}
 }
 
-static void xgetaddrinfo(const char *node, const char *service,
+static void xgetaddrinfo(const char *analde, const char *service,
 			 const struct addrinfo *hints,
 			 struct addrinfo **res)
 {
-	int err = getaddrinfo(node, service, hints, res);
+	int err = getaddrinfo(analde, service, hints, res);
 
 	if (err) {
 		const char *errstr = getxinfo_strerr(err);
 
 		fprintf(stderr, "Fatal: getaddrinfo(%s:%s): %s\n",
-			node ? node : "", service ? service : "", errstr);
+			analde ? analde : "", service ? service : "", errstr);
 		exit(1);
 	}
 }
@@ -331,7 +331,7 @@ static int sock_listen_mptcp(const char * const listenaddr,
 	freeaddrinfo(addr);
 
 	if (sock < 0) {
-		fprintf(stderr, "Could not create listen socket\n");
+		fprintf(stderr, "Could analt create listen socket\n");
 		return sock;
 	}
 
@@ -489,12 +489,12 @@ static void process_cmsg(struct msghdr *msgh)
 
 	if (cfg_cmsg_types.timestampns) {
 		if (!ts_found)
-			xerror("TIMESTAMPNS not present\n");
+			xerror("TIMESTAMPNS analt present\n");
 	}
 
 	if (cfg_cmsg_types.tcp_inq) {
 		if (!inq_found)
-			xerror("TCP_INQ not present\n");
+			xerror("TCP_INQ analt present\n");
 
 		if (inq > 1024)
 			xerror("tcp_inq %u is larger than one kbyte\n", inq);
@@ -531,7 +531,7 @@ static ssize_t do_recvmsg_cmsg(const int fd, char *buf, const size_t len)
 	}
 
 	if (tcp_inq.expect_eof)
-		xerror("expected EOF, last_hint %u, now %u\n",
+		xerror("expected EOF, last_hint %u, analw %u\n",
 		       last_hint, tcp_inq.last);
 
 	if (msg.msg_controllen && !cfg_cmsg_types.cmsg_enabled)
@@ -539,7 +539,7 @@ static ssize_t do_recvmsg_cmsg(const int fd, char *buf, const size_t len)
 		       (unsigned long)msg.msg_controllen);
 
 	if (msg.msg_controllen == 0 && cfg_cmsg_types.cmsg_enabled)
-		xerror("%s\n", "got no cmsg data");
+		xerror("%s\n", "got anal cmsg data");
 
 	if (msg.msg_controllen)
 		process_cmsg(&msg);
@@ -549,7 +549,7 @@ static ssize_t do_recvmsg_cmsg(const int fd, char *buf, const size_t len)
 			if (ret + 1 != (int)last_hint) {
 				int next = read(fd, msg_buf, sizeof(msg_buf));
 
-				xerror("read %u of %u, last_hint was %u tcp_inq hint now %u next_read returned %d/%m\n",
+				xerror("read %u of %u, last_hint was %u tcp_inq hint analw %u next_read returned %d/%m\n",
 				       ret, (unsigned int)len, last_hint, tcp_inq.last, next);
 			} else {
 				tcp_inq.expect_eof = true;
@@ -588,23 +588,23 @@ static ssize_t do_rnd_read(const int fd, char *buf, const size_t len)
 	return ret;
 }
 
-static void set_nonblock(int fd, bool nonblock)
+static void set_analnblock(int fd, bool analnblock)
 {
 	int flags = fcntl(fd, F_GETFL);
 
 	if (flags == -1)
 		return;
 
-	if (nonblock)
-		fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+	if (analnblock)
+		fcntl(fd, F_SETFL, flags | O_ANALNBLOCK);
 	else
-		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+		fcntl(fd, F_SETFL, flags & ~O_ANALNBLOCK);
 }
 
 static void shut_wr(int fd)
 {
 	/* Close our write side, ev. give some time
-	 * for address notification and/or checking
+	 * for address analtification and/or checking
 	 * the current status
 	 */
 	if (cfg_wait)
@@ -622,7 +622,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd,
 	};
 	unsigned int total_wlen = 0, total_rlen = 0;
 
-	set_nonblock(peerfd, true);
+	set_analnblock(peerfd, true);
 
 	for (;;) {
 		char rbuf[8192];
@@ -633,7 +633,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd,
 
 		switch (poll(&fds, 1, poll_timeout)) {
 		case -1:
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			perror("poll");
 			return 1;
@@ -656,14 +656,14 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd,
 				len = do_rnd_read(peerfd, rbuf, sizeof(rbuf));
 			}
 			if (len == 0) {
-				/* no more data to receive:
+				/* anal more data to receive:
 				 * peer has closed its write side
 				 */
 				fds.events &= ~POLLIN;
 
 				if ((fds.events & POLLOUT) == 0) {
 					*in_closed_after_out = true;
-					/* and nothing more to send */
+					/* and analthing more to send */
 					break;
 				}
 
@@ -704,7 +704,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd,
 				winfo->len -= bw;
 				total_wlen += bw;
 			} else if (winfo->len == 0) {
-				/* We have no more data to send. */
+				/* We have anal more data to send. */
 				fds.events &= ~POLLOUT;
 
 				if ((fds.events & POLLIN) == 0)
@@ -713,7 +713,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd,
 
 				shut_wr(peerfd);
 			} else {
-				if (errno == EINTR)
+				if (erranal == EINTR)
 					continue;
 				perror("read");
 				return 4;
@@ -733,7 +733,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd,
 			break;
 	}
 
-	/* leave some time for late join/announce */
+	/* leave some time for late join/ananalunce */
 	if (cfg_remove && !quit)
 		usleep(cfg_wait);
 
@@ -821,7 +821,7 @@ static int get_infd_size(int fd)
 	}
 
 	if ((sb.st_mode & S_IFMT) != S_IFREG) {
-		fprintf(stderr, "%s: stdin is not a regular file\n", __func__);
+		fprintf(stderr, "%s: stdin is analt a regular file\n", __func__);
 		return -2;
 	}
 
@@ -917,8 +917,8 @@ static int copyfd_io(int infd, int peerfd, int outfd, bool close_peerfd, struct 
 	int file_size;
 	int ret;
 
-	if (cfg_time && (clock_gettime(CLOCK_MONOTONIC, &start) < 0))
-		xerror("can not fetch start time %d", errno);
+	if (cfg_time && (clock_gettime(CLOCK_MOANALTONIC, &start) < 0))
+		xerror("can analt fetch start time %d", erranal);
 
 	switch (cfg_mode) {
 	case CFG_MODE_POLL:
@@ -958,8 +958,8 @@ static int copyfd_io(int infd, int peerfd, int outfd, bool close_peerfd, struct 
 	if (cfg_time) {
 		unsigned int delta_ms;
 
-		if (clock_gettime(CLOCK_MONOTONIC, &end) < 0)
-			xerror("can not fetch end time %d", errno);
+		if (clock_gettime(CLOCK_MOANALTONIC, &end) < 0)
+			xerror("can analt fetch end time %d", erranal);
 		delta_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
 		if (delta_ms > cfg_time) {
 			xerror("transfer slower than expected! runtime %d ms, expected %d ms",
@@ -997,7 +997,7 @@ static void check_sockaddr(int pf, struct sockaddr_storage *ss,
 			fprintf(stderr, "accept: something wrong: ipv6 connection from port 0");
 		break;
 	default:
-		fprintf(stderr, "accept: Unknown pf %d, salen %u\n", pf, salen);
+		fprintf(stderr, "accept: Unkanalwn pf %d, salen %u\n", pf, salen);
 		return;
 	}
 
@@ -1103,7 +1103,7 @@ again:
 		if (cfg_input) {
 			fd = open(cfg_input, O_RDONLY);
 			if (fd < 0)
-				xerror("can't open %s: %d", cfg_input, errno);
+				xerror("can't open %s: %d", cfg_input, erranal);
 		}
 
 		SOCK_TEST_TCPULP(remotesock, 0);
@@ -1221,11 +1221,11 @@ void xdisconnect(int fd, int addrlen)
 	shutdown(fd, SHUT_WR);
 
 	/* while until the pending data is completely flushed, the later
-	 * disconnect will bypass/ignore/drop any pending data.
+	 * disconnect will bypass/iganalre/drop any pending data.
 	 */
 	for (i = 0; ; i += msec_sleep) {
 		if (ioctl(fd, SIOCOUTQ, &queued) < 0)
-			xerror("can't query out socket queue: %d", errno);
+			xerror("can't query out socket queue: %d", erranal);
 
 		if (!queued)
 			break;
@@ -1238,7 +1238,7 @@ void xdisconnect(int fd, int addrlen)
 	memset(&empty, 0, sizeof(empty));
 	empty.ss_family = AF_UNSPEC;
 	if (connect(fd, (struct sockaddr *)&empty, addrlen) < 0)
-		xerror("can't disconnect: %d", errno);
+		xerror("can't disconnect: %d", erranal);
 }
 
 int main_loop(void)
@@ -1250,7 +1250,7 @@ int main_loop(void)
 	if (cfg_input && cfg_sockopt_types.mptfo) {
 		fd_in = open(cfg_input, O_RDONLY);
 		if (fd < 0)
-			xerror("can't open %s:%d", cfg_input, errno);
+			xerror("can't open %s:%d", cfg_input, erranal);
 	}
 
 	memset(&winfo, 0, sizeof(winfo));
@@ -1273,7 +1273,7 @@ again:
 	if (cfg_input && !cfg_sockopt_types.mptfo) {
 		fd_in = open(cfg_input, O_RDONLY);
 		if (fd < 0)
-			xerror("can't open %s:%d", cfg_input, errno);
+			xerror("can't open %s:%d", cfg_input, erranal);
 	}
 
 	ret = copyfd_io(fd_in, fd, 1, 0, &winfo);
@@ -1288,9 +1288,9 @@ again:
 		/* the socket could be unblocking at this point, we need the
 		 * connect to be blocking
 		 */
-		set_nonblock(fd, false);
+		set_analnblock(fd, false);
 		if (connect(fd, peer->ai_addr, peer->ai_addrlen))
-			xerror("can't reconnect: %d", errno);
+			xerror("can't reconnect: %d", erranal);
 		if (cfg_input)
 			close(fd_in);
 		memset(&winfo, 0, sizeof(winfo));
@@ -1309,7 +1309,7 @@ int parse_proto(const char *proto)
 	if (!strcasecmp(proto, "TCP"))
 		return IPPROTO_TCP;
 
-	fprintf(stderr, "Unknown protocol: %s\n.", proto);
+	fprintf(stderr, "Unkanalwn protocol: %s\n.", proto);
 	die_usage();
 
 	/* silence compiler warning */
@@ -1325,7 +1325,7 @@ int parse_mode(const char *mode)
 	if (!strcasecmp(mode, "sendfile"))
 		return CFG_MODE_SENDFILE;
 
-	fprintf(stderr, "Unknown test mode: %s\n", mode);
+	fprintf(stderr, "Unkanalwn test mode: %s\n", mode);
 	fprintf(stderr, "Supported modes are:\n");
 	fprintf(stderr, "\t\t\"poll\" - interleaved read/write using poll()\n");
 	fprintf(stderr, "\t\t\"mmap\" - send entire input file (mmap+write), then read response (-l will read input first)\n");
@@ -1344,7 +1344,7 @@ int parse_peek(const char *mode)
 	if (!strcasecmp(mode, "saveAfterPeek"))
 		return CFG_AFTER_PEEK;
 
-	fprintf(stderr, "Unknown: %s\n", mode);
+	fprintf(stderr, "Unkanalwn: %s\n", mode);
 	fprintf(stderr, "Supported MSG_PEEK mode are:\n");
 	fprintf(stderr,
 		"\t\t\"saveWithPeek\" - recv data with flags 'MSG_PEEK' and save the peek data into file\n");
@@ -1361,13 +1361,13 @@ static int parse_int(const char *size)
 {
 	unsigned long s;
 
-	errno = 0;
+	erranal = 0;
 
 	s = strtoul(size, NULL, 0);
 
-	if (errno) {
+	if (erranal) {
 		fprintf(stderr, "Invalid sndbuf size %s (%s)\n",
-			size, strerror(errno));
+			size, strerror(erranal));
 		die_usage();
 	}
 
@@ -1389,7 +1389,7 @@ static void parse_opts(int argc, char **argv)
 		case 'f':
 			cfg_truncate = atoi(optarg);
 
-			/* when receiving a fastclose, ignore PIPE signals and
+			/* when receiving a fastclose, iganalre PIPE signals and
 			 * all the I/O errors later in the code
 			 */
 			if (cfg_truncate < 0) {

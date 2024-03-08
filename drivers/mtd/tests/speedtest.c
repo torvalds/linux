@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2007 Nokia Corporation
+ * Copyright (C) 2007 Analkia Corporation
  *
  * Test read and write speed of a MTD device.
  *
- * Author: Adrian Hunter <adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <adrian.hunter@analkia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -193,12 +193,12 @@ static int __init mtd_speedtest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: cananalt get MTD device\n");
 		return err;
 	}
 
 	if (mtd->writesize == 1) {
-		pr_info("not NAND flash, assume page size is 512 "
+		pr_info("analt NAND flash, assume page size is 512 "
 		       "bytes.\n");
 		pgsize = 512;
 	} else
@@ -218,7 +218,7 @@ static int __init mtd_speedtest_init(void)
 	if (count > 0 && count < ebcnt)
 		ebcnt = count;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	iobuf = kmalloc(mtd->erasesize, GFP_KERNEL);
 	if (!iobuf)
 		goto out;

@@ -26,8 +26,8 @@
  *	marvell_pata_active	-	check if PATA is active
  *	@pdev: PCI device
  *
- *	Returns 1 if the PATA port may be active. We know how to check this
- *	for the 6145 but not the other devices
+ *	Returns 1 if the PATA port may be active. We kanalw how to check this
+ *	for the 6145 but analt the other devices
  */
 
 static int marvell_pata_active(struct pci_dev *pdev)
@@ -35,13 +35,13 @@ static int marvell_pata_active(struct pci_dev *pdev)
 	u32 devices;
 	void __iomem *barp;
 
-	/* We don't yet know how to do this for other devices */
+	/* We don't yet kanalw how to do this for other devices */
 	if (pdev->device != 0x6145)
 		return 1;
 
 	barp = pci_iomap(pdev, 5, 0x10);
 	if (barp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devices = ioread32(barp + 0x0C);
 	pci_iounmap(pdev, barp);
@@ -64,9 +64,9 @@ static int marvell_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (pdev->device == 0x6145 && ap->port_no == 0 &&
+	if (pdev->device == 0x6145 && ap->port_anal == 0 &&
 		!marvell_pata_active(pdev))	/* PATA enable ? */
-			return -ENOENT;
+			return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -74,7 +74,7 @@ static int marvell_pre_reset(struct ata_link *link, unsigned long deadline)
 static int marvell_cable_detect(struct ata_port *ap)
 {
 	/* Cable type */
-	switch(ap->port_no)
+	switch(ap->port_anal)
 	{
 	case 0:
 		if (!ap->ioaddr.bmdma_addr)
@@ -90,7 +90,7 @@ static int marvell_cable_detect(struct ata_port *ap)
 	return 0;	/* Our BUG macro needs the right markup */
 }
 
-/* No PIO or DMA methods needed for this device */
+/* Anal PIO or DMA methods needed for this device */
 
 static const struct scsi_host_template marvell_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
@@ -114,7 +114,7 @@ static struct ata_port_operations marvell_ops = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
@@ -129,7 +129,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 		.port_ops	= &marvell_ops,
 	};
 	static const struct ata_port_info info_sata = {
-		/* Slave possible as its magically mapped not real */
+		/* Slave possible as its magically mapped analt real */
 		.flags		= ATA_FLAG_SLAVE_POSS,
 
 		.pio_mask	= ATA_PIO4,
@@ -146,8 +146,8 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 #if IS_ENABLED(CONFIG_SATA_AHCI)
 	if (!marvell_pata_active(pdev)) {
 		dev_info(&pdev->dev,
-			 "PATA port not active, deferring to AHCI driver.\n");
-		return -ENODEV;
+			 "PATA port analt active, deferring to AHCI driver.\n");
+		return -EANALDEV;
 	}
 #endif
 	return ata_pci_bmdma_init_one(pdev, ppi, &marvell_sht, NULL, 0);

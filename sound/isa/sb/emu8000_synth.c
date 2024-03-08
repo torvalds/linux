@@ -35,7 +35,7 @@ static int snd_emu8000_probe(struct device *_dev)
 		return -EBUSY; /* already exists..? */
 
 	if (snd_emux_new(&emu) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->emu = emu;
 	snd_emu8000_ops_setup(hw);
@@ -52,7 +52,7 @@ static int snd_emu8000_probe(struct device *_dev)
 	if (hw->memhdr == NULL) {
 		snd_emux_free(emu);
 		hw->emu = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	emu->memhdr = hw->memhdr;
@@ -66,7 +66,7 @@ static int snd_emu8000_probe(struct device *_dev)
 		snd_util_memhdr_free(hw->memhdr);
 		hw->emu = NULL;
 		hw->memhdr = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (hw->mem_size > 0)
@@ -87,7 +87,7 @@ static int snd_emu8000_remove(struct device *_dev)
 	struct snd_emu8000 *hw;
 
 	if (dev->driver_data == NULL)
-		return 0; /* no synth was allocated actually */
+		return 0; /* anal synth was allocated actually */
 
 	hw = dev->driver_data;
 	if (hw->pcm)

@@ -3,7 +3,7 @@
 #define TRACE_SYSTEM iocost
 
 struct ioc;
-struct ioc_now;
+struct ioc_analw;
 struct ioc_gq;
 
 #if !defined(_TRACE_BLK_IOCOST_H) || defined(TRACE_HEADER_MULTI_READ)
@@ -13,16 +13,16 @@ struct ioc_gq;
 
 DECLARE_EVENT_CLASS(iocost_iocg_state,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_analw *analw,
 		u64 last_period, u64 cur_period, u64 vtime),
 
-	TP_ARGS(iocg, path, now, last_period, cur_period, vtime),
+	TP_ARGS(iocg, path, analw, last_period, cur_period, vtime),
 
 	TP_STRUCT__entry (
 		__string(devname, ioc_name(iocg->ioc))
 		__string(cgroup, path)
-		__field(u64, now)
-		__field(u64, vnow)
+		__field(u64, analw)
+		__field(u64, vanalw)
 		__field(u64, vrate)
 		__field(u64, last_period)
 		__field(u64, cur_period)
@@ -36,8 +36,8 @@ DECLARE_EVENT_CLASS(iocost_iocg_state,
 	TP_fast_assign(
 		__assign_str(devname, ioc_name(iocg->ioc));
 		__assign_str(cgroup, path);
-		__entry->now = now->now;
-		__entry->vnow = now->vnow;
+		__entry->analw = analw->analw;
+		__entry->vanalw = analw->vanalw;
 		__entry->vrate = iocg->ioc->vtime_base_rate;
 		__entry->last_period = last_period;
 		__entry->cur_period = cur_period;
@@ -48,11 +48,11 @@ DECLARE_EVENT_CLASS(iocost_iocg_state,
 		__entry->hweight_inuse = iocg->hweight_inuse;
 	),
 
-	TP_printk("[%s:%s] now=%llu:%llu vrate=%llu "
+	TP_printk("[%s:%s] analw=%llu:%llu vrate=%llu "
 		  "period=%llu->%llu vtime=%llu "
 		  "weight=%u/%u hweight=%llu/%llu",
 		__get_str(devname), __get_str(cgroup),
-		__entry->now, __entry->vnow, __entry->vrate,
+		__entry->analw, __entry->vanalw, __entry->vrate,
 		__entry->last_period, __entry->cur_period,
 		__entry->vtime, __entry->inuse, __entry->weight,
 		__entry->hweight_inuse, __entry->hweight_active
@@ -60,32 +60,32 @@ DECLARE_EVENT_CLASS(iocost_iocg_state,
 );
 
 DEFINE_EVENT(iocost_iocg_state, iocost_iocg_activate,
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_analw *analw,
 		 u64 last_period, u64 cur_period, u64 vtime),
 
-	TP_ARGS(iocg, path, now, last_period, cur_period, vtime)
+	TP_ARGS(iocg, path, analw, last_period, cur_period, vtime)
 );
 
 DEFINE_EVENT(iocost_iocg_state, iocost_iocg_idle,
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_analw *analw,
 		 u64 last_period, u64 cur_period, u64 vtime),
 
-	TP_ARGS(iocg, path, now, last_period, cur_period, vtime)
+	TP_ARGS(iocg, path, analw, last_period, cur_period, vtime)
 );
 
 DECLARE_EVENT_CLASS(iocg_inuse_update,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_analw *analw,
 		u32 old_inuse, u32 new_inuse,
 		u64 old_hw_inuse, u64 new_hw_inuse),
 
-	TP_ARGS(iocg, path, now, old_inuse, new_inuse,
+	TP_ARGS(iocg, path, analw, old_inuse, new_inuse,
 		old_hw_inuse, new_hw_inuse),
 
 	TP_STRUCT__entry (
 		__string(devname, ioc_name(iocg->ioc))
 		__string(cgroup, path)
-		__field(u64, now)
+		__field(u64, analw)
 		__field(u32, old_inuse)
 		__field(u32, new_inuse)
 		__field(u64, old_hweight_inuse)
@@ -95,15 +95,15 @@ DECLARE_EVENT_CLASS(iocg_inuse_update,
 	TP_fast_assign(
 		__assign_str(devname, ioc_name(iocg->ioc));
 		__assign_str(cgroup, path);
-		__entry->now = now->now;
+		__entry->analw = analw->analw;
 		__entry->old_inuse = old_inuse;
 		__entry->new_inuse = new_inuse;
 		__entry->old_hweight_inuse = old_hw_inuse;
 		__entry->new_hweight_inuse = new_hw_inuse;
 	),
 
-	TP_printk("[%s:%s] now=%llu inuse=%u->%u hw_inuse=%llu->%llu",
-		__get_str(devname), __get_str(cgroup), __entry->now,
+	TP_printk("[%s:%s] analw=%llu inuse=%u->%u hw_inuse=%llu->%llu",
+		__get_str(devname), __get_str(cgroup), __entry->analw,
 		__entry->old_inuse, __entry->new_inuse,
 		__entry->old_hweight_inuse, __entry->new_hweight_inuse
 	)
@@ -111,31 +111,31 @@ DECLARE_EVENT_CLASS(iocg_inuse_update,
 
 DEFINE_EVENT(iocg_inuse_update, iocost_inuse_shortage,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_analw *analw,
 		u32 old_inuse, u32 new_inuse,
 		u64 old_hw_inuse, u64 new_hw_inuse),
 
-	TP_ARGS(iocg, path, now, old_inuse, new_inuse,
+	TP_ARGS(iocg, path, analw, old_inuse, new_inuse,
 		old_hw_inuse, new_hw_inuse)
 );
 
 DEFINE_EVENT(iocg_inuse_update, iocost_inuse_transfer,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_analw *analw,
 		u32 old_inuse, u32 new_inuse,
 		u64 old_hw_inuse, u64 new_hw_inuse),
 
-	TP_ARGS(iocg, path, now, old_inuse, new_inuse,
+	TP_ARGS(iocg, path, analw, old_inuse, new_inuse,
 		old_hw_inuse, new_hw_inuse)
 );
 
 DEFINE_EVENT(iocg_inuse_update, iocost_inuse_adjust,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_analw *analw,
 		u32 old_inuse, u32 new_inuse,
 		u64 old_hw_inuse, u64 new_hw_inuse),
 
-	TP_ARGS(iocg, path, now, old_inuse, new_inuse,
+	TP_ARGS(iocg, path, analw, old_inuse, new_inuse,
 		old_hw_inuse, new_hw_inuse)
 );
 
@@ -180,18 +180,18 @@ TRACE_EVENT(iocost_ioc_vrate_adj,
 
 TRACE_EVENT(iocost_iocg_forgive_debt,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_analw *analw,
 		u32 usage_pct, u64 old_debt, u64 new_debt,
 		u64 old_delay, u64 new_delay),
 
-	TP_ARGS(iocg, path, now, usage_pct,
+	TP_ARGS(iocg, path, analw, usage_pct,
 		old_debt, new_debt, old_delay, new_delay),
 
 	TP_STRUCT__entry (
 		__string(devname, ioc_name(iocg->ioc))
 		__string(cgroup, path)
-		__field(u64, now)
-		__field(u64, vnow)
+		__field(u64, analw)
+		__field(u64, vanalw)
 		__field(u32, usage_pct)
 		__field(u64, old_debt)
 		__field(u64, new_debt)
@@ -202,8 +202,8 @@ TRACE_EVENT(iocost_iocg_forgive_debt,
 	TP_fast_assign(
 		__assign_str(devname, ioc_name(iocg->ioc));
 		__assign_str(cgroup, path);
-		__entry->now = now->now;
-		__entry->vnow = now->vnow;
+		__entry->analw = analw->analw;
+		__entry->vanalw = analw->vanalw;
 		__entry->usage_pct = usage_pct;
 		__entry->old_debt = old_debt;
 		__entry->new_debt = new_debt;
@@ -211,9 +211,9 @@ TRACE_EVENT(iocost_iocg_forgive_debt,
 		__entry->new_delay = new_delay;
 	),
 
-	TP_printk("[%s:%s] now=%llu:%llu usage=%u debt=%llu->%llu delay=%llu->%llu",
+	TP_printk("[%s:%s] analw=%llu:%llu usage=%u debt=%llu->%llu delay=%llu->%llu",
 		__get_str(devname), __get_str(cgroup),
-		__entry->now, __entry->vnow, __entry->usage_pct,
+		__entry->analw, __entry->vanalw, __entry->usage_pct,
 		__entry->old_debt, __entry->new_debt,
 		__entry->old_delay, __entry->new_delay
 	)

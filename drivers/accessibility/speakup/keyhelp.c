@@ -148,7 +148,7 @@ int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		if (ch < 'a' || ch > 'z')
 			return -1;
 		if (letter_offsets[ch - 'a'] == -1) {
-			synth_printf(spk_msg_get(MSG_NO_COMMAND), ch);
+			synth_printf(spk_msg_get(MSG_ANAL_COMMAND), ch);
 			synth_printf("\n");
 			return 1;
 		}

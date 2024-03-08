@@ -125,7 +125,7 @@ bool kvm_is_tdp_enabled(void)
 void virt_arch_pgd_alloc(struct kvm_vm *vm)
 {
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+		"unkanalwn or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	/* If needed, create page map l4 table. */
 	if (!vm->pgd_created) {
@@ -142,7 +142,7 @@ static void *virt_get_pte(struct kvm_vm *vm, uint64_t *parent_pte,
 	int index = (vaddr >> PG_LEVEL_SHIFT(level)) & 0x1ffu;
 
 	TEST_ASSERT((*parent_pte & PTE_PRESENT_MASK) || parent_pte == &vm->pgd,
-		    "Parent PTE (level %d) not PRESENT for gva: 0x%08lx",
+		    "Parent PTE (level %d) analt PRESENT for gva: 0x%08lx",
 		    level + 1, vaddr);
 
 	return &page_table[index];
@@ -170,10 +170,10 @@ static uint64_t *virt_create_upper_pte(struct kvm_vm *vm,
 		 * this level.
 		 */
 		TEST_ASSERT(current_level != target_level,
-			    "Cannot create hugepage at level: %u, vaddr: 0x%lx",
+			    "Cananalt create hugepage at level: %u, vaddr: 0x%lx",
 			    current_level, vaddr);
 		TEST_ASSERT(!(*pte & PTE_LARGE_MASK),
-			    "Cannot create page table at level: %u, vaddr: 0x%lx",
+			    "Cananalt create page table at level: %u, vaddr: 0x%lx",
 			    current_level, vaddr);
 	}
 	return pte;
@@ -186,15 +186,15 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 	uint64_t *pte;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K,
-		    "Unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+		    "Unkanalwn or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	TEST_ASSERT((vaddr % pg_size) == 0,
-		    "Virtual address not aligned,\n"
+		    "Virtual address analt aligned,\n"
 		    "vaddr: 0x%lx page size: 0x%lx", vaddr, pg_size);
 	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid, (vaddr >> vm->page_shift)),
 		    "Invalid virtual address, vaddr: 0x%lx", vaddr);
 	TEST_ASSERT((paddr % pg_size) == 0,
-		    "Physical address not aligned,\n"
+		    "Physical address analt aligned,\n"
 		    "  paddr: 0x%lx page size: 0x%lx", paddr, pg_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
 		    "Physical address beyond maximum supported,\n"
@@ -202,7 +202,7 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 		    paddr, vm->max_gfn, vm->page_size);
 
 	/*
-	 * Allocate upper level page tables, if not already present.  Return
+	 * Allocate upper level page tables, if analt already present.  Return
 	 * early if a hugepage was created.
 	 */
 	pml4e = virt_create_upper_pte(vm, &vm->pgd, vaddr, paddr, PG_LEVEL_512G, level);
@@ -237,7 +237,7 @@ void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	int i;
 
 	TEST_ASSERT(nr_bytes % pg_size == 0,
-		    "Region size not aligned: nr_bytes: 0x%lx, page size: 0x%lx",
+		    "Region size analt aligned: nr_bytes: 0x%lx, page size: 0x%lx",
 		    nr_bytes, pg_size);
 
 	for (i = 0; i < nr_pages; i++) {
@@ -251,7 +251,7 @@ void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 static bool vm_is_target_pte(uint64_t *pte, int *level, int current_level)
 {
 	if (*pte & PTE_LARGE_MASK) {
-		TEST_ASSERT(*level == PG_LEVEL_NONE ||
+		TEST_ASSERT(*level == PG_LEVEL_ANALNE ||
 			    *level == current_level,
 			    "Unexpected hugepage at level %d", current_level);
 		*level = current_level;
@@ -265,11 +265,11 @@ uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
 {
 	uint64_t *pml4e, *pdpe, *pde;
 
-	TEST_ASSERT(*level >= PG_LEVEL_NONE && *level < PG_LEVEL_NUM,
+	TEST_ASSERT(*level >= PG_LEVEL_ANALNE && *level < PG_LEVEL_NUM,
 		    "Invalid PG_LEVEL_* '%d'", *level);
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+		"unkanalwn or unsupported guest mode, mode: 0x%x", vm->mode);
 	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
 		(vaddr >> vm->page_shift)),
 		"Invalid virtual address, vaddr: 0x%lx",
@@ -279,7 +279,7 @@ uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
 	 * shift 16 to sign extend the last bit (bit-47),
 	 */
 	TEST_ASSERT(vaddr == (((int64_t)vaddr << 16) >> 16),
-		"Canonical check failed.  The virtual address is invalid.");
+		"Caanalnical check failed.  The virtual address is invalid.");
 
 	pml4e = virt_get_pte(vm, &vm->pgd, vaddr, PG_LEVEL_512G);
 	if (vm_is_target_pte(pml4e, level, PG_LEVEL_512G))
@@ -314,7 +314,7 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		return;
 
 	fprintf(stream, "%*s                                          "
-		"                no\n", indent, "");
+		"                anal\n", indent, "");
 	fprintf(stream, "%*s      index hvaddr         gpaddr         "
 		"addr         w exec dirty\n",
 		indent, "");
@@ -383,12 +383,12 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 /*
  * Set Unusable Segment
  *
- * Input Args: None
+ * Input Args: Analne
  *
  * Output Args:
  *   segp - Pointer to segment register
  *
- * Return: None
+ * Return: Analne
  *
  * Sets the segment register pointed to by @segp to an unusable state.
  */
@@ -431,7 +431,7 @@ static void kvm_seg_fill_gdt_64bit(struct kvm_vm *vm, struct kvm_segment *segp)
  * Output Args:
  *   segp - Pointer to KVM segment
  *
- * Return: None
+ * Return: Analne
  *
  * Sets up the KVM segment pointed to by @segp, to be a code segment
  * with the selector value given by @selector.
@@ -463,7 +463,7 @@ static void kvm_seg_set_kernel_code_64bit(struct kvm_vm *vm, uint16_t selector,
  * Output Args:
  *   segp - Pointer to KVM segment
  *
- * Return: None
+ * Return: Analne
  *
  * Sets up the KVM segment pointed to by @segp, to be a data segment
  * with the selector value given by @selector.
@@ -486,14 +486,14 @@ static void kvm_seg_set_kernel_data_64bit(struct kvm_vm *vm, uint16_t selector,
 
 vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 {
-	int level = PG_LEVEL_NONE;
+	int level = PG_LEVEL_ANALNE;
 	uint64_t *pte = __vm_get_page_table_entry(vm, gva, &level);
 
 	TEST_ASSERT(*pte & PTE_PRESENT_MASK,
-		    "Leaf PTE not PRESENT for gva: 0x%08lx", gva);
+		    "Leaf PTE analt PRESENT for gva: 0x%08lx", gva);
 
 	/*
-	 * No need for a hugepage mask on the PTE, x86-64 requires the "unused"
+	 * Anal need for a hugepage mask on the PTE, x86-64 requires the "unused"
 	 * address bits to be zero.
 	 */
 	return PTE_GET_PA(*pte) | (gva & ~HUGEPAGE_MASK(level));
@@ -548,7 +548,7 @@ static void vcpu_setup(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 		break;
 
 	default:
-		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_FAIL("Unkanalwn guest mode, mode: 0x%x", vm->mode);
 	}
 
 	sregs.cr3 = vm->pgd;
@@ -586,7 +586,7 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 	 * may need to subtract 4 bytes instead of 8 bytes.
 	 */
 	TEST_ASSERT(IS_ALIGNED(stack_vaddr, PAGE_SIZE),
-		    "__vm_vaddr_alloc() did not provide a page-aligned address");
+		    "__vm_vaddr_alloc() did analt provide a page-aligned address");
 	stack_vaddr -= 8;
 
 	vcpu = __vm_vcpu_add(vm, vcpu_id);
@@ -622,7 +622,7 @@ void vcpu_arch_free(struct kvm_vcpu *vcpu)
 		free(vcpu->cpuid);
 }
 
-/* Do not use kvm_supported_cpuid directly except for validity checks. */
+/* Do analt use kvm_supported_cpuid directly except for validity checks. */
 static void *kvm_supported_cpuid;
 
 const struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
@@ -709,7 +709,7 @@ void __vm_xsave_require_permission(uint64_t xfeature, const char *name)
 	};
 
 	TEST_ASSERT(!kvm_supported_cpuid,
-		    "kvm_get_supported_cpuid() cannot be used before ARCH_REQ_XCOMP_GUEST_PERM");
+		    "kvm_get_supported_cpuid() cananalt be used before ARCH_REQ_XCOMP_GUEST_PERM");
 
 	TEST_ASSERT(is_power_of_2(xfeature),
 		    "Dynamic XFeatures must be enabled one at a time");
@@ -718,20 +718,20 @@ void __vm_xsave_require_permission(uint64_t xfeature, const char *name)
 	rc = __kvm_ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
 	close(kvm_fd);
 
-	if (rc == -1 && (errno == ENXIO || errno == EINVAL))
-		__TEST_REQUIRE(0, "KVM_X86_XCOMP_GUEST_SUPP not supported");
+	if (rc == -1 && (erranal == ENXIO || erranal == EINVAL))
+		__TEST_REQUIRE(0, "KVM_X86_XCOMP_GUEST_SUPP analt supported");
 
 	TEST_ASSERT(rc == 0, "KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) error: %ld", rc);
 
 	__TEST_REQUIRE(bitmask & xfeature,
-		       "Required XSAVE feature '%s' not supported", name);
+		       "Required XSAVE feature '%s' analt supported", name);
 
 	TEST_REQUIRE(!syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, ilog2(xfeature)));
 
 	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_GUEST_PERM, &bitmask);
 	TEST_ASSERT(rc == 0, "prctl(ARCH_GET_XCOMP_GUEST_PERM) error: %ld", rc);
 	TEST_ASSERT(bitmask & xfeature,
-		    "'%s' (0x%lx) not permitted after prctl(ARCH_REQ_XCOMP_GUEST_PERM) permitted=0x%lx",
+		    "'%s' (0x%lx) analt permitted after prctl(ARCH_REQ_XCOMP_GUEST_PERM) permitted=0x%lx",
 		    name, xfeature, bitmask);
 }
 
@@ -883,12 +883,12 @@ static struct kvm_msr_list *__kvm_get_msr_index_list(bool feature_msrs)
 	else
 		r = __kvm_ioctl(kvm_fd, KVM_GET_MSR_FEATURE_INDEX_LIST, &nmsrs);
 
-	TEST_ASSERT(r == -1 && errno == E2BIG,
-		    "Expected -E2BIG, got rc: %i errno: %i (%s)",
-		    r, errno, strerror(errno));
+	TEST_ASSERT(r == -1 && erranal == E2BIG,
+		    "Expected -E2BIG, got rc: %i erranal: %i (%s)",
+		    r, erranal, strerror(erranal));
 
 	list = malloc(sizeof(*list) + nmsrs.nmsrs * sizeof(list->indices[0]));
-	TEST_ASSERT(list, "-ENOMEM when allocating MSR index list");
+	TEST_ASSERT(list, "-EANALMEM when allocating MSR index list");
 	list->nmsrs = nmsrs.nmsrs;
 
 	if (!feature_msrs)
@@ -898,7 +898,7 @@ static struct kvm_msr_list *__kvm_get_msr_index_list(bool feature_msrs)
 	close(kvm_fd);
 
 	TEST_ASSERT(list->nmsrs == nmsrs.nmsrs,
-		    "Number of MSRs in list changed, was %d, now %d",
+		    "Number of MSRs in list changed, was %d, analw %d",
 		    nmsrs.nmsrs, list->nmsrs);
 	return list;
 }
@@ -973,7 +973,7 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu)
 	vcpu_run_complete_io(vcpu);
 
 	state = malloc(sizeof(*state) + msr_list->nmsrs * sizeof(state->msrs.entries[0]));
-	TEST_ASSERT(state, "-ENOMEM when allocating kvm state");
+	TEST_ASSERT(state, "-EANALMEM when allocating kvm state");
 
 	vcpu_events_get(vcpu, &state->events);
 	vcpu_mp_state_get(vcpu, &state->mp_state);
@@ -1148,7 +1148,7 @@ const struct kvm_cpuid_entry2 *get_cpuid_entry(const struct kvm_cpuid2 *cpuid,
 			return &cpuid->entries[i];
 	}
 
-	TEST_FAIL("CPUID function 0x%x index 0x%x not found ", function, index);
+	TEST_FAIL("CPUID function 0x%x index 0x%x analt found ", function, index);
 
 	return NULL;
 }
@@ -1268,7 +1268,7 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 	/*
 	 * Otherwise it's at the top of the physical address space, possibly
 	 * reduced due to SME by bits 11:6 of CPUID[0x8000001f].EBX.  Use
-	 * the old conservative value if MAXPHYADDR is not enumerated.
+	 * the old conservative value if MAXPHYADDR is analt enumerated.
 	 */
 	if (!this_cpu_has_p(X86_PROPERTY_MAX_PHY_ADDR))
 		goto done;

@@ -1,5 +1,5 @@
 
-ppc476gtr High Speed Serial Assist (HSTA) node
+ppc476gtr High Speed Serial Assist (HSTA) analde
 ==============================================
 
 The 476gtr SoC contains a high speed serial assist module attached

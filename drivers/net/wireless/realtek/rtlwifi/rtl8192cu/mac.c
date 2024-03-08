@@ -29,7 +29,7 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-	enum version_8192c chip_version = VERSION_UNKNOWN;
+	enum version_8192c chip_version = VERSION_UNKANALWN;
 	const char *versionid;
 	u32 value32;
 
@@ -38,8 +38,8 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		chip_version = (value32 & TYPE_ID) ? VERSION_TEST_CHIP_92C :
 			       VERSION_TEST_CHIP_88C;
 	} else {
-		/* Normal mass production chip. */
-		chip_version = NORMAL_CHIP;
+		/* Analrmal mass production chip. */
+		chip_version = ANALRMAL_CHIP;
 		chip_version |= ((value32 & TYPE_ID) ? CHIP_92C : 0);
 		chip_version |= ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : 0);
 		if (IS_VENDOR_UMC(chip_version))
@@ -54,32 +54,32 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 	rtlhal->version  = (enum version_8192c)chip_version;
 	pr_info("Chip version 0x%x\n", chip_version);
 	switch (rtlhal->version) {
-	case VERSION_NORMAL_TSMC_CHIP_92C_1T2R:
-		versionid = "NORMAL_B_CHIP_92C";
+	case VERSION_ANALRMAL_TSMC_CHIP_92C_1T2R:
+		versionid = "ANALRMAL_B_CHIP_92C";
 		break;
-	case VERSION_NORMAL_TSMC_CHIP_92C:
-		versionid = "NORMAL_TSMC_CHIP_92C";
+	case VERSION_ANALRMAL_TSMC_CHIP_92C:
+		versionid = "ANALRMAL_TSMC_CHIP_92C";
 		break;
-	case VERSION_NORMAL_TSMC_CHIP_88C:
-		versionid = "NORMAL_TSMC_CHIP_88C";
+	case VERSION_ANALRMAL_TSMC_CHIP_88C:
+		versionid = "ANALRMAL_TSMC_CHIP_88C";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT:
-		versionid = "NORMAL_UMC_CHIP_i92C_1T2R_A_CUT";
+	case VERSION_ANALRMAL_UMC_CHIP_92C_1T2R_A_CUT:
+		versionid = "ANALRMAL_UMC_CHIP_i92C_1T2R_A_CUT";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_92C_A_CUT:
-		versionid = "NORMAL_UMC_CHIP_92C_A_CUT";
+	case VERSION_ANALRMAL_UMC_CHIP_92C_A_CUT:
+		versionid = "ANALRMAL_UMC_CHIP_92C_A_CUT";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_88C_A_CUT:
-		versionid = "NORMAL_UMC_CHIP_88C_A_CUT";
+	case VERSION_ANALRMAL_UMC_CHIP_88C_A_CUT:
+		versionid = "ANALRMAL_UMC_CHIP_88C_A_CUT";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT:
-		versionid = "NORMAL_UMC_CHIP_92C_1T2R_B_CUT";
+	case VERSION_ANALRMAL_UMC_CHIP_92C_1T2R_B_CUT:
+		versionid = "ANALRMAL_UMC_CHIP_92C_1T2R_B_CUT";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_92C_B_CUT:
-		versionid = "NORMAL_UMC_CHIP_92C_B_CUT";
+	case VERSION_ANALRMAL_UMC_CHIP_92C_B_CUT:
+		versionid = "ANALRMAL_UMC_CHIP_92C_B_CUT";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_88C_B_CUT:
-		versionid = "NORMAL_UMC_CHIP_88C_B_CUT";
+	case VERSION_ANALRMAL_UMC_CHIP_88C_B_CUT:
+		versionid = "ANALRMAL_UMC_CHIP_88C_B_CUT";
 		break;
 	case VERSION_TEST_CHIP_92C:
 		versionid = "TEST_CHIP_92C";
@@ -88,7 +88,7 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		versionid = "TEST_CHIP_88C";
 		break;
 	default:
-		versionid = "UNKNOWN";
+		versionid = "UNKANALWN";
 		break;
 	}
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
@@ -131,7 +131,7 @@ bool rtl92c_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 	rtl_write_dword(rtlpriv, REG_LLT_INIT, value);
 	do {
 		value = rtl_read_dword(rtlpriv, REG_LLT_INIT);
-		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
+		if (_LLT_ANAL_ACTIVE == _LLT_OP_VALUE(value))
 			break;
 		if (count > POLLING_LLT_THRESHOLD) {
 			pr_err("Failed to polling write LLT done at address %d! _LLT_OP_VALUE(%x)\n",
@@ -256,7 +256,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can analt find free hw security cam entry\n");
 						return;
 					}
 				} else {
@@ -295,7 +295,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						entry_id, enc_algo,
-						CAM_CONFIG_NO_USEDK,
+						CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.
 						key_buf[key_index]);
 			} else {
@@ -307,13 +307,13 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 						PAIRWISE_KEYIDX,
 						CAM_PAIRWISE_KEY_POSITION,
 						enc_algo,
-						CAM_CONFIG_NO_USEDK,
+						CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf
 						[entry_id]);
 				}
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						entry_id, enc_algo,
-						CAM_CONFIG_NO_USEDK,
+						CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf[entry_id]);
 			}
 		}
@@ -381,9 +381,9 @@ int rtl92c_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		value = NT_NO_LINK;
+		value = NT_ANAL_LINK;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
-			"Set Network type to NO LINK!\n");
+			"Set Network type to ANAL LINK!\n");
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		value = NT_LINK_AD_HOC;
@@ -402,8 +402,8 @@ int rtl92c_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
-			"Network type %d not supported!\n", type);
-		return -EOPNOTSUPP;
+			"Network type %d analt supported!\n", type);
+		return -EOPANALTSUPP;
 	}
 	rtl_write_byte(rtlpriv, MSR, value);
 	return 0;

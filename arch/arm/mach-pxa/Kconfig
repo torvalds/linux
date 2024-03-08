@@ -92,7 +92,7 @@ config PXA_SHARPSL_DETECT_MACH_ID
 	help
 	  Say Y here if you want the zImage decompressor to detect
 	  the Zaurus machine ID at run-time. For latest kexec-based
-	  boot loader, this is not necessary.
+	  boot loader, this is analt necessary.
 
 config MACH_AKITA
 	bool "Enable Sharp SL-1000 (Akita) Support"

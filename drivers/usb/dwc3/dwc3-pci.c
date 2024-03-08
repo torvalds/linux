@@ -71,7 +71,7 @@
  * @pci: our link to PCI bus
  * @guid: _DSM GUID
  * @has_dsm_for_pm: true for devices which need to run _DSM on runtime PM
- * @wakeup_work: work for asynchronous resume
+ * @wakeup_work: work for asynchroanalus resume
  */
 struct dwc3_pci {
 	struct platform_device *dwc3;
@@ -108,7 +108,7 @@ static int dwc3_byt_enable_ulpi_refclock(struct pci_dev *pci)
 
 	reg = pcim_iomap(pci, GP_RWBAR, 0);
 	if (!reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	value = readl(reg + GP_RWREG1);
 	if (!(value & GP_RWREG1_ULPI_REFCLK_DISABLE))
@@ -182,32 +182,32 @@ static const struct property_entry dwc3_pci_mr_properties[] = {
 	{}
 };
 
-static const struct software_node dwc3_pci_intel_swnode = {
+static const struct software_analde dwc3_pci_intel_swanalde = {
 	.properties = dwc3_pci_intel_properties,
 };
 
-static const struct software_node dwc3_pci_intel_phy_charger_detect_swnode = {
+static const struct software_analde dwc3_pci_intel_phy_charger_detect_swanalde = {
 	.properties = dwc3_pci_intel_phy_charger_detect_properties,
 };
 
-static const struct software_node dwc3_pci_intel_byt_swnode = {
+static const struct software_analde dwc3_pci_intel_byt_swanalde = {
 	.properties = dwc3_pci_intel_byt_properties,
 };
 
-static const struct software_node dwc3_pci_intel_mrfld_swnode = {
+static const struct software_analde dwc3_pci_intel_mrfld_swanalde = {
 	.properties = dwc3_pci_mrfld_properties,
 };
 
-static const struct software_node dwc3_pci_amd_swnode = {
+static const struct software_analde dwc3_pci_amd_swanalde = {
 	.properties = dwc3_pci_amd_properties,
 };
 
-static const struct software_node dwc3_pci_amd_mr_swnode = {
+static const struct software_analde dwc3_pci_amd_mr_swanalde = {
 	.properties = dwc3_pci_mr_properties,
 };
 
 static int dwc3_pci_quirks(struct dwc3_pci *dwc,
-			   const struct software_node *swnode)
+			   const struct software_analde *swanalde)
 {
 	struct pci_dev			*pdev = dwc->pci;
 
@@ -223,7 +223,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc,
 			struct gpio_desc *gpio;
 			int ret;
 
-			/* On BYT the FW does not always enable the refclock */
+			/* On BYT the FW does analt always enable the refclock */
 			ret = dwc3_byt_enable_ulpi_refclock(pdev);
 			if (ret)
 				return ret;
@@ -243,7 +243,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc,
 				gpiod_add_lookup_table(&platform_bytcr_gpios);
 
 			/*
-			 * These GPIOs will turn on the USB2 PHY. Note that we have to
+			 * These GPIOs will turn on the USB2 PHY. Analte that we have to
 			 * put the gpio descriptors again here because the phy driver
 			 * might want to grab them, too.
 			 */
@@ -269,24 +269,24 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc,
 			 * and patch the phy dev-name into the lookup table so
 			 * that the phy-driver can get the GPIOs.
 			 */
-			dwc->dwc3->id = PLATFORM_DEVID_NONE;
+			dwc->dwc3->id = PLATFORM_DEVID_ANALNE;
 			platform_bytcr_gpios.dev_id = "dwc3.ulpi";
 
 			/*
 			 * Some Android tablets with a Crystal Cove PMIC
 			 * (INT33FD), rely on the TUSB1211 phy for charger
-			 * detection. These can be identified by them _not_
+			 * detection. These can be identified by them _analt_
 			 * using the standard ACPI battery and ac drivers.
 			 */
 			if (acpi_dev_present("INT33FD", "1", 2) &&
 			    acpi_quirk_skip_acpi_ac_and_battery()) {
 				dev_info(&pdev->dev, "Using TUSB1211 phy for charger detection\n");
-				swnode = &dwc3_pci_intel_phy_charger_detect_swnode;
+				swanalde = &dwc3_pci_intel_phy_charger_detect_swanalde;
 			}
 		}
 	}
 
-	return device_add_software_node(&dwc->dwc3->dev, swnode);
+	return device_add_software_analde(&dwc->dwc3->dev, swanalde);
 }
 
 #ifdef CONFIG_PM
@@ -317,18 +317,18 @@ static int dwc3_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	ret = pcim_enable_device(pci);
 	if (ret) {
 		dev_err(dev, "failed to enable pci device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_set_master(pci);
 
 	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
 	if (!dwc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwc->dwc3 = platform_device_alloc("dwc3", PLATFORM_DEVID_AUTO);
 	if (!dwc->dwc3)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(res, 0x00, sizeof(struct resource) * ARRAY_SIZE(res));
 
@@ -370,7 +370,7 @@ static int dwc3_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	return 0;
 err:
-	device_remove_software_node(&dwc->dwc3->dev);
+	device_remove_software_analde(&dwc->dwc3->dev);
 	platform_device_put(dwc->dwc3);
 	return ret;
 }
@@ -387,48 +387,48 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 #endif
 	device_init_wakeup(&pci->dev, false);
 	pm_runtime_get(&pci->dev);
-	device_remove_software_node(&dwc->dwc3->dev);
+	device_remove_software_analde(&dwc->dwc3->dev);
 	platform_device_unregister(dwc->dwc3);
 }
 
 static const struct pci_device_id dwc3_pci_id_table[] = {
-	{ PCI_DEVICE_DATA(INTEL, BSW, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, BYT, &dwc3_pci_intel_byt_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, MRFLD, &dwc3_pci_intel_mrfld_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, CMLLP, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, CMLH, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, SPTLP, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, SPTH, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, BXT, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, BXT_M, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, APL, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, KBP, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, GLK, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, CNPLP, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, CNPH, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, CNPV, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, ICLLP, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, EHL, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, TGPLP, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, TGPH, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, JSP, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, ADL, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, ADL_PCH, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, ADLN, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, ADLN_PCH, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, ADLS, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, RPL, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, RPLS, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, MTLM, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, MTLP, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, MTL, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, MTLS, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, ARLH, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, ARLH_PCH, &dwc3_pci_intel_swnode) },
-	{ PCI_DEVICE_DATA(INTEL, TGL, &dwc3_pci_intel_swnode) },
+	{ PCI_DEVICE_DATA(INTEL, BSW, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, BYT, &dwc3_pci_intel_byt_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, MRFLD, &dwc3_pci_intel_mrfld_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, CMLLP, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, CMLH, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, SPTLP, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, SPTH, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, BXT, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, BXT_M, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, APL, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, KBP, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, GLK, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, CNPLP, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, CNPH, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, CNPV, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, ICLLP, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, EHL, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, TGPLP, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, TGPH, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, JSP, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, ADL, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, ADL_PCH, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, ADLN, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, ADLN_PCH, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, ADLS, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, RPL, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, RPLS, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, MTLM, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, MTLP, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, MTL, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, MTLS, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, ARLH, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, ARLH_PCH, &dwc3_pci_intel_swanalde) },
+	{ PCI_DEVICE_DATA(INTEL, TGL, &dwc3_pci_intel_swanalde) },
 
-	{ PCI_DEVICE_DATA(AMD, NL_USB, &dwc3_pci_amd_swnode) },
-	{ PCI_DEVICE_DATA(AMD, MR, &dwc3_pci_amd_mr_swnode) },
+	{ PCI_DEVICE_DATA(AMD, NL_USB, &dwc3_pci_amd_swanalde) },
+	{ PCI_DEVICE_DATA(AMD, MR, &dwc3_pci_amd_mr_swanalde) },
 
 	{  }	/* Terminating Entry */
 };

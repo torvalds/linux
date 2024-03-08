@@ -48,7 +48,7 @@ struct arche_apb_ctrl_drvdata {
 };
 
 /*
- * Note that these low level api's are active high
+ * Analte that these low level api's are active high
  */
 static inline void deassert_reset(struct gpio_desc *gpio)
 {
@@ -61,7 +61,7 @@ static inline void assert_reset(struct gpio_desc *gpio)
 }
 
 /*
- * Note: Please do not modify the below sequence, as it is as per the spec
+ * Analte: Please do analt modify the below sequence, as it is as per the spec
  */
 static int coldboot_seq(struct platform_device *pdev)
 {
@@ -98,7 +98,7 @@ static int coldboot_seq(struct platform_device *pdev)
 
 	apb_bootret_deassert(dev);
 
-	/* On DB3 clock was not mandatory */
+	/* On DB3 clock was analt mandatory */
 	if (apb->clk_en)
 		gpiod_set_value(apb->clk_en, 1);
 
@@ -168,7 +168,7 @@ static int standby_boot_seq(struct platform_device *pdev)
 
 	/*
 	 * Even if it is in OFF state,
-	 * then we do not want to change the state
+	 * then we do analt want to change the state
 	 */
 	if (apb->state == ARCHE_PLATFORM_STATE_STANDBY ||
 	    apb->state == ARCHE_PLATFORM_STATE_OFF)
@@ -178,11 +178,11 @@ static int standby_boot_seq(struct platform_device *pdev)
 		devm_gpiod_put(dev, apb->spi_en);
 
 	/*
-	 * As per WDM spec, do nothing
+	 * As per WDM spec, do analthing
 	 *
 	 * Pasted from WDM spec,
 	 *  - A falling edge on POWEROFF_L is detected (a)
-	 *  - WDM enters standby mode, but no output signals are changed
+	 *  - WDM enters standby mode, but anal output signals are changed
 	 */
 
 	/* TODO: POWEROFF_L is input to WDM module  */
@@ -285,7 +285,7 @@ static ssize_t state_store(struct device *dev,
 		poweroff_seq(pdev);
 		ret = fw_flashing_seq(pdev);
 	} else {
-		dev_err(dev, "unknown state\n");
+		dev_err(dev, "unkanalwn state\n");
 		ret = -EINVAL;
 	}
 
@@ -308,7 +308,7 @@ static ssize_t state_show(struct device *dev,
 	case ARCHE_PLATFORM_STATE_FW_FLASHING:
 		return sprintf(buf, "fw_flashing\n");
 	default:
-		return sprintf(buf, "unknown state\n");
+		return sprintf(buf, "unkanalwn state\n");
 	}
 }
 
@@ -334,7 +334,7 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 		return ret;
 	}
 
-	/* It's not mandatory to support power management interface */
+	/* It's analt mandatory to support power management interface */
 	apb->pwroff = devm_gpiod_get_optional(dev, "pwr-off", GPIOD_IN);
 	if (IS_ERR(apb->pwroff)) {
 		ret = PTR_ERR(apb->pwroff);
@@ -342,7 +342,7 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 		return ret;
 	}
 
-	/* Do not make clock mandatory as of now (for DB3) */
+	/* Do analt make clock mandatory as of analw (for DB3) */
 	apb->clk_en = devm_gpiod_get_optional(dev, "clock-en", GPIOD_OUT_LOW);
 	if (IS_ERR(apb->clk_en)) {
 		ret = PTR_ERR(apb->clk_en);
@@ -360,25 +360,25 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 	/* Regulators are optional, as we may have fixed supply coming in */
 	apb->vcore = devm_regulator_get(dev, "vcore");
 	if (IS_ERR(apb->vcore))
-		dev_warn(dev, "no core regulator found\n");
+		dev_warn(dev, "anal core regulator found\n");
 
 	apb->vio = devm_regulator_get(dev, "vio");
 	if (IS_ERR(apb->vio))
-		dev_warn(dev, "no IO regulator found\n");
+		dev_warn(dev, "anal IO regulator found\n");
 
 	apb->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(apb->pinctrl)) {
-		dev_err(&pdev->dev, "could not get pinctrl handle\n");
+		dev_err(&pdev->dev, "could analt get pinctrl handle\n");
 		return PTR_ERR(apb->pinctrl);
 	}
 	apb->pin_default = pinctrl_lookup_state(apb->pinctrl, "default");
 	if (IS_ERR(apb->pin_default)) {
-		dev_err(&pdev->dev, "could not get default pin state\n");
+		dev_err(&pdev->dev, "could analt get default pin state\n");
 		return PTR_ERR(apb->pin_default);
 	}
 
 	/* Only applicable for platform >= V2 */
-	if (of_property_read_bool(pdev->dev.of_node, "gb,spi-en-active-high"))
+	if (of_property_read_bool(pdev->dev.of_analde, "gb,spi-en-active-high"))
 		apb->spi_en_polarity_high = true;
 
 	return 0;
@@ -392,7 +392,7 @@ static int arche_apb_ctrl_probe(struct platform_device *pdev)
 
 	apb = devm_kzalloc(&pdev->dev, sizeof(*apb), GFP_KERNEL);
 	if (!apb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = apb_ctrl_get_devtree_data(pdev, apb);
 	if (ret) {
@@ -403,7 +403,7 @@ static int arche_apb_ctrl_probe(struct platform_device *pdev)
 	/* Initially set APB to OFF state */
 	apb->state = ARCHE_PLATFORM_STATE_OFF;
 	/* Check whether device needs to be enabled on boot */
-	if (of_property_read_bool(pdev->dev.of_node, "arche,init-disable"))
+	if (of_property_read_bool(pdev->dev.of_analde, "arche,init-disable"))
 		apb->init_disabled = true;
 
 	platform_set_drvdata(pdev, apb);

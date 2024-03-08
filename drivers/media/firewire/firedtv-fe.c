@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * FireDTV driver (formerly known as FireSAT)
+ * FireDTV driver (formerly kanalwn as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -28,7 +28,7 @@ static int fdtv_dvb_init(struct dvb_frontend *fe)
 					  fdtv->isochannel);
 	if (err) {
 		dev_err(fdtv->device,
-			"could not establish point to point connection\n");
+			"could analt establish point to point connection\n");
 		return err;
 	}
 
@@ -87,7 +87,7 @@ static int fdtv_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (avc_tuner_status(fdtv, &stat))
 		return -EINVAL;
 
-	if (stat.no_rf)
+	if (stat.anal_rf)
 		*status = 0;
 	else
 		*status = FE_HAS_SIGNAL | FE_HAS_VITERBI | FE_HAS_SYNC |
@@ -128,13 +128,13 @@ static int fdtv_read_snr(struct dvb_frontend *fe, u16 *snr)
 		return -EINVAL;
 
 	/* C/N[dB] = -10 * log10(snr / 65535) */
-	*snr = stat.carrier_noise_ratio * 257;
+	*snr = stat.carrier_analise_ratio * 257;
 	return 0;
 }
 
 static int fdtv_read_uncorrected_blocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int fdtv_set_frontend(struct dvb_frontend *fe)
@@ -240,7 +240,7 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 		break;
 
 	default:
-		dev_err(fdtv->device, "no frontend for model type %d\n",
+		dev_err(fdtv->device, "anal frontend for model type %d\n",
 			fdtv->type);
 	}
 	strscpy(fi->name, name, sizeof(fi->name));

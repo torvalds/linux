@@ -35,7 +35,7 @@
 struct sh_css {
 	struct ia_css_pipe            *active_pipes[IA_CSS_PIPELINE_NUM_MAX];
 	/* All of the pipes created at any point of time. At this moment there can
-	 * be no more than MAX_SP_THREADS of them because pipe_num is reused as SP
+	 * be anal more than MAX_SP_THREADS of them because pipe_num is reused as SP
 	 * thread_id to which a pipe's pipeline is associated. At a later point, if
 	 * we support more pipe objects, we should add test code to test that
 	 * possibility. Also, active_pipes[] should be able to hold only
@@ -61,7 +61,7 @@ struct sh_css {
 	struct ia_css_metadata
 		*mipi_metadata[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
 	unsigned int
-	mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
+	mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_ANALF_ENTRIES_PER_PORT];
 	unsigned int                   mipi_frame_size[N_CSI_PORTS];
 	ia_css_ptr                   sp_bin_addr;
 	hrt_data                       page_table_base_index;
@@ -71,7 +71,7 @@ struct sh_css {
 	enum ia_css_irq_type           irq_type;
 	unsigned int                   pipe_counter;
 
-	unsigned int		type;	/* 2400 or 2401 for now */
+	unsigned int		type;	/* 2400 or 2401 for analw */
 };
 
 #define IPU_2400		1

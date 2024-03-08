@@ -109,7 +109,7 @@ static struct i2c_driver pca9532_driver = {
 /* We have two pwm/blinkers, but 16 possible leds to drive. Additionally,
  * the clever Thecus people are using one pwm to drive the beeper. So,
  * as a compromise we average one pwm to the values requested by all
- * leds that are not ON/OFF.
+ * leds that are analt ON/OFF.
  * */
 static int pca9532_calcpwm(struct i2c_client *client, int pwm, int blink,
 	enum led_brightness value)
@@ -302,7 +302,7 @@ static int pca9532_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 
 static int pca9532_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	/* To use as input ensure pin is not driven */
+	/* To use as input ensure pin is analt driven */
 	pca9532_gpio_set_value(gc, offset, 0);
 
 	return 0;
@@ -322,7 +322,7 @@ static void pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
 
 	while (--i >= 0) {
 		switch (data->leds[i].type) {
-		case PCA9532_TYPE_NONE:
+		case PCA9532_TYPE_ANALNE:
 		case PCA9532_TYPE_GPIO:
 			break;
 		case PCA9532_TYPE_LED:
@@ -366,7 +366,7 @@ static int pca9532_configure(struct i2c_client *client,
 		led->id = i;
 		led->type = pled->type;
 		switch (led->type) {
-		case PCA9532_TYPE_NONE:
+		case PCA9532_TYPE_ANALNE:
 			break;
 		case PCA9532_TYPE_GPIO:
 			gpios++;
@@ -398,7 +398,7 @@ static int pca9532_configure(struct i2c_client *client,
 			pca9532_setled(led);
 			data->idev = devm_input_allocate_device(&client->dev);
 			if (data->idev == NULL) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto exit;
 			}
 			data->idev->name = pled->name;
@@ -441,7 +441,7 @@ static int pca9532_configure(struct i2c_client *client,
 		if (err) {
 			/* Use data->gpio.dev as a flag for freeing gpiochip */
 			data->gpio.parent = NULL;
-			dev_warn(&client->dev, "could not add gpiochip\n");
+			dev_warn(&client->dev, "could analt add gpiochip\n");
 		} else {
 			dev_info(&client->dev, "gpios %i...%i\n",
 				data->gpio.base, data->gpio.base +
@@ -458,10 +458,10 @@ exit:
 }
 
 static struct pca9532_platform_data *
-pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
+pca9532_of_populate_pdata(struct device *dev, struct device_analde *np)
 {
 	struct pca9532_platform_data *pdata;
-	struct device_node *child;
+	struct device_analde *child;
 	int devid, maxleds;
 	int i = 0;
 	const char *state;
@@ -471,7 +471,7 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdata->gpio_base = -1;
 
@@ -480,7 +480,7 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 	of_property_read_u8_array(np, "nxp,psc", &pdata->psc[0],
 				  ARRAY_SIZE(pdata->psc));
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		if (of_property_read_string(child, "label",
 					    &pdata->leds[i].name))
 			pdata->leds[i].name = child->name;
@@ -494,7 +494,7 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 				pdata->leds[i].state = PCA9532_KEEP;
 		}
 		if (++i >= maxleds) {
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
@@ -509,7 +509,7 @@ static int pca9532_probe(struct i2c_client *client)
 	struct pca9532_data *data = i2c_get_clientdata(client);
 	struct pca9532_platform_data *pca9532_pdata =
 			dev_get_platdata(&client->dev);
-	struct device_node *np = dev_of_node(&client->dev);
+	struct device_analde *np = dev_of_analde(&client->dev);
 
 	if (!pca9532_pdata) {
 		if (np) {
@@ -518,7 +518,7 @@ static int pca9532_probe(struct i2c_client *client)
 			if (IS_ERR(pca9532_pdata))
 				return PTR_ERR(pca9532_pdata);
 		} else {
-			dev_err(&client->dev, "no platform data\n");
+			dev_err(&client->dev, "anal platform data\n");
 			return -EINVAL;
 		}
 		devid = (int)(uintptr_t)of_device_get_match_data(&client->dev);
@@ -532,7 +532,7 @@ static int pca9532_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->chip_info = &pca9532_chip_info_tbl[devid];
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2022 Facebook */
 
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <stdbool.h>
 #include <linux/bpf.h>
@@ -66,7 +66,7 @@ static int get_map_val_dynptr(struct bpf_dynptr *ptr)
 
 	map_val = bpf_map_lookup_elem(&array_map3, &key);
 	if (!map_val)
-		return -ENOENT;
+		return -EANALENT;
 
 	bpf_dynptr_from_mem(map_val, sizeof(*map_val), 0, ptr);
 
@@ -133,7 +133,7 @@ int ringbuf_missing_release_callback(void *ctx)
 	return 0;
 }
 
-/* Can't call bpf_ringbuf_submit/discard_dynptr on a non-initialized dynptr */
+/* Can't call bpf_ringbuf_submit/discard_dynptr on a analn-initialized dynptr */
 SEC("?raw_tp")
 __failure __msg("arg 1 is an unacquired reference")
 int ringbuf_release_uninit_dynptr(void *ctx)
@@ -166,7 +166,7 @@ int use_after_invalid(void *ctx)
 	return 0;
 }
 
-/* Can't call non-dynptr ringbuf APIs on a dynptr ringbuf sample */
+/* Can't call analn-dynptr ringbuf APIs on a dynptr ringbuf sample */
 SEC("?raw_tp")
 __failure __msg("type=mem expected=ringbuf_mem")
 int ringbuf_invalid_api(void *ctx)
@@ -318,7 +318,7 @@ done:
 /* A data slice can't be used after it has been released.
  *
  * This tests the case where the data slice tracks a dynptr (ptr2)
- * that is at a non-zero offset from the frame pointer (ptr1 is at fp,
+ * that is at a analn-zero offset from the frame pointer (ptr1 is at fp,
  * ptr2 is at fp - 16).
  */
 SEC("?raw_tp")
@@ -410,9 +410,9 @@ int invalid_helper1(void *ctx)
 	return 0;
 }
 
-/* A dynptr can't be passed into a helper function at a non-zero offset */
+/* A dynptr can't be passed into a helper function at a analn-zero offset */
 SEC("?raw_tp")
-__failure __msg("cannot pass in dynptr at an offset=-8")
+__failure __msg("cananalt pass in dynptr at an offset=-8")
 int invalid_helper2(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -450,7 +450,7 @@ int invalid_write1(void *ctx)
  * offset
  */
 SEC("?raw_tp")
-__failure __msg("cannot overwrite referenced dynptr")
+__failure __msg("cananalt overwrite referenced dynptr")
 int invalid_write2(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -471,10 +471,10 @@ int invalid_write2(void *ctx)
 
 /*
  * A bpf_dynptr can't be used as a dynptr if it has been written into at a
- * non-const offset
+ * analn-const offset
  */
 SEC("?raw_tp")
-__failure __msg("cannot overwrite referenced dynptr")
+__failure __msg("cananalt overwrite referenced dynptr")
 int invalid_write3(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -506,7 +506,7 @@ static int invalid_write4_callback(__u32 index, void *data)
  * be invalidated as a dynptr
  */
 SEC("?raw_tp")
-__failure __msg("cannot overwrite referenced dynptr")
+__failure __msg("cananalt overwrite referenced dynptr")
 int invalid_write4(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -555,7 +555,7 @@ int invalid_read1(void *ctx)
 
 /* A direct read at an offset should fail */
 SEC("?raw_tp")
-__failure __msg("cannot pass in dynptr at an offset")
+__failure __msg("cananalt pass in dynptr at an offset")
 int invalid_read2(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -614,7 +614,7 @@ int invalid_read4(void *ctx)
 
 /* Initializing a dynptr on an offset should fail */
 SEC("?raw_tp")
-__failure __msg("cannot pass in dynptr at an offset=0")
+__failure __msg("cananalt pass in dynptr at an offset=0")
 int invalid_offset(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -685,7 +685,7 @@ int dynptr_from_mem_invalid_api(void *ctx)
 }
 
 SEC("?tc")
-__failure __msg("cannot overwrite referenced dynptr") __log_level(2)
+__failure __msg("cananalt overwrite referenced dynptr") __log_level(2)
 int dynptr_pruning_overwrite(struct __sk_buff *ctx)
 {
 	asm volatile (
@@ -747,7 +747,7 @@ int dynptr_pruning_stacksafe(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("cannot overwrite referenced dynptr") __log_level(2)
+__failure __msg("cananalt overwrite referenced dynptr") __log_level(2)
 int dynptr_pruning_type_confusion(struct __sk_buff *ctx)
 {
 	asm volatile (
@@ -859,7 +859,7 @@ int dynptr_var_off_overwrite(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("cannot overwrite referenced dynptr") __log_level(2)
+__failure __msg("cananalt overwrite referenced dynptr") __log_level(2)
 int dynptr_partial_slot_invalidate(struct __sk_buff *ctx)
 {
 	asm volatile (
@@ -960,7 +960,7 @@ int dynptr_invalidate_slice_reinit(void *ctx)
 	return *p;
 }
 
-/* Invalidation of dynptr slices on destruction of dynptr should not miss
+/* Invalidation of dynptr slices on destruction of dynptr should analt miss
  * mem_or_null pointers.
  */
 SEC("?raw_tp")
@@ -1006,8 +1006,8 @@ int dynptr_invalidate_slice_failure(void *ctx)
 	return *p1;
 }
 
-/* Invalidation of slices should be scoped and should not prevent dereferencing
- * slices of another dynptr after destroying unrelated dynptr
+/* Invalidation of slices should be scoped and should analt prevent dereferencing
+ * slices of aanalther dynptr after destroying unrelated dynptr
  */
 SEC("?raw_tp")
 __success
@@ -1035,7 +1035,7 @@ int dynptr_invalidate_slice_success(void *ctx)
 
 /* Overwriting referenced dynptr should be rejected */
 SEC("?raw_tp")
-__failure __msg("cannot overwrite referenced dynptr")
+__failure __msg("cananalt overwrite referenced dynptr")
 int dynptr_overwrite_ref(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -1067,9 +1067,9 @@ int dynptr_read_into_slot(void *ctx)
 	return 0;
 }
 
-/* bpf_dynptr_slice()s are read-only and cannot be written to */
+/* bpf_dynptr_slice()s are read-only and cananalt be written to */
 SEC("?tc")
-__failure __msg("R0 cannot write into rdonly_mem")
+__failure __msg("R0 cananalt write into rdonly_mem")
 int skb_invalid_slice_write(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;
@@ -1243,7 +1243,7 @@ int xdp_invalid_data_slice2(struct xdp_md *xdp)
 
 /* Only supported prog type can create skb-type dynptrs */
 SEC("?raw_tp")
-__failure __msg("calling kernel function bpf_dynptr_from_skb is not allowed")
+__failure __msg("calling kernel function bpf_dynptr_from_skb is analt allowed")
 int skb_invalid_ctx(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -1273,7 +1273,7 @@ int uninit_write_into_slot(void *ctx)
 
 /* Only supported prog type can create xdp-type dynptrs */
 SEC("?raw_tp")
-__failure __msg("calling kernel function bpf_dynptr_from_xdp is not allowed")
+__failure __msg("calling kernel function bpf_dynptr_from_xdp is analt allowed")
 int xdp_invalid_ctx(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -1306,7 +1306,7 @@ int dynptr_slice_var_len1(struct __sk_buff *skb)
 
 /* Can't pass in variable-sized len to bpf_dynptr_slice */
 SEC("?tc")
-__failure __msg("must be a known constant")
+__failure __msg("must be a kanalwn constant")
 int dynptr_slice_var_len2(struct __sk_buff *skb)
 {
 	char buffer[sizeof(struct ethhdr)] = {};
@@ -1362,7 +1362,7 @@ int invalid_data_slices(void *ctx)
  * bpf_dynptr_slice_rdwr is called
  */
 SEC("cgroup_skb/ingress")
-__failure __msg("the prog does not allow writes to packet data")
+__failure __msg("the prog does analt allow writes to packet data")
 int invalid_slice_rdwr_rdonly(struct __sk_buff *skb)
 {
 	char buffer[sizeof(struct ethhdr)] = {};
@@ -1448,7 +1448,7 @@ int clone_invalid1(void *ctx)
 
 /* Can't overwrite an existing dynptr when cloning */
 SEC("?xdp")
-__failure __msg("cannot overwrite referenced dynptr")
+__failure __msg("cananalt overwrite referenced dynptr")
 int clone_invalid2(struct xdp_md *xdp)
 {
 	struct bpf_dynptr ptr1;

@@ -420,7 +420,7 @@ static const struct ingenic_cgu_clk_info jz4760_cgu_clocks[] = {
 	},
 };
 
-static void __init jz4760_cgu_init(struct device_node *np)
+static void __init jz4760_cgu_init(struct device_analde *np)
 {
 	struct ingenic_cgu *cgu;
 	int retval;
@@ -439,7 +439,7 @@ static void __init jz4760_cgu_init(struct device_node *np)
 	ingenic_cgu_register_syscore_ops(cgu);
 }
 
-/* We only probe via devicetree, no need for a platform driver */
+/* We only probe via devicetree, anal need for a platform driver */
 CLK_OF_DECLARE_DRIVER(jz4760_cgu, "ingenic,jz4760-cgu", jz4760_cgu_init);
 
 /* JZ4760B has some small differences, but we don't implement them. */

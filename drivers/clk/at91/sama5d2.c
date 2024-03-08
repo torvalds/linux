@@ -45,7 +45,7 @@ static const struct {
 } sama5d2_systemck[] = {
 	/*
 	 * ddrck feeds DDR controller and is enabled by bootloader thus we need
-	 * to keep it enabled in case there is no Linux consumer for it.
+	 * to keep it enabled in case there is anal Linux consumer for it.
 	 */
 	{ .n = "ddrck", .p = "masterck_div", .id = 2, .flags = CLK_IS_CRITICAL },
 	{ .n = "lcdck", .p = "masterck_div", .id = 3 },
@@ -112,7 +112,7 @@ static const struct {
 	{ .n = "sha_clk",     .id = 12, },
 	/*
 	 * mpddr_clk feeds DDR controller and is enabled by bootloader thus we
-	 * need to keep it enabled in case there is no Linux consumer for it.
+	 * need to keep it enabled in case there is anal Linux consumer for it.
 	 */
 	{ .n = "mpddr_clk",   .id = 13, .flags = CLK_IS_CRITICAL },
 	{ .n = "matrix0_clk", .id = 15, },
@@ -162,7 +162,7 @@ static const struct clk_programmable_layout sama5d2_programmable_layout = {
 	.is_pres_direct = 1,
 };
 
-static void __init sama5d2_pmc_setup(struct device_node *np)
+static void __init sama5d2_pmc_setup(struct device_analde *np)
 {
 	struct clk_range range = CLK_RANGE(0, 0);
 	const char *slck_name, *mainxtal_name;
@@ -184,7 +184,7 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = device_node_to_regmap(np);
+	regmap = device_analde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 

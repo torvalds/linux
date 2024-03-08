@@ -5,7 +5,7 @@
  *                   Cirrus Logic, Inc.
  *  Routines for control of Cirrus Logic CS461x chips
  *
- *  KNOWN BUGS:
+ *  KANALWN BUGS:
  *    - Sometimes the SPDIF input DSP tasks get's unsynchronized
  *      and the SPDIF get somewhat "distorcionated", or/and left right channel
  *      are swapped. To get around this problem when it happens, mute and unmute 
@@ -19,9 +19,9 @@
  *    - Posibility to mix the SPDIF output with analog sources.
  *    - PCM channels for Center and LFE on secondary codec
  *
- *  NOTE: with CONFIG_SND_CS46XX_NEW_DSP unset uses old DSP image (which
- *        is default configuration), no SPDIF, no secondary codec, no
- *        multi channel PCM.  But known to work.
+ *  ANALTE: with CONFIG_SND_CS46XX_NEW_DSP unset uses old DSP image (which
+ *        is default configuration), anal SPDIF, anal secondary codec, anal
+ *        multi channel PCM.  But kanalwn to work.
  *
  *  FINALLY: A credit to the developers Tom and Jordan 
  *           at Cirrus for have helping me out with the DSP, however we
@@ -92,8 +92,8 @@ static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 	 *  1. Write ACCAD = Command Address Register = 46Ch for AC97 register address
 	 *  2. Write ACCDA = Command Data Register = 470h    for data to write to AC97 
 	 *  3. Write ACCTL = Control Register = 460h for initiating the write7---55
-	 *  4. Read ACCTL = 460h, DCV should be reset by now and 460h = 17h
-	 *  5. if DCV not cleared, break and return error
+	 *  4. Read ACCTL = 460h, DCV should be reset by analw and 460h = 17h
+	 *  5. if DCV analt cleared, break and return error
 	 *  6. Read ACSTS = Status Register = 464h, check VSTS bit
 	 */
 
@@ -101,7 +101,7 @@ static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 
 	tmp = snd_cs46xx_peekBA0(chip, BA0_ACCTL);
 	if ((tmp & ACCTL_VFRM) == 0) {
-		dev_warn(chip->card->dev, "ACCTL_VFRM not set 0x%x\n", tmp);
+		dev_warn(chip->card->dev, "ACCTL_VFRM analt set 0x%x\n", tmp);
 		snd_cs46xx_pokeBA0(chip, BA0_ACCTL, (tmp & (~ACCTL_ESYN)) | ACCTL_VFRM );
 		msleep(50);
 		tmp = snd_cs46xx_peekBA0(chip, BA0_ACCTL + offset);
@@ -119,7 +119,7 @@ static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 	 *  set CRW - Read command
 	 *  set VFRM - valid frame enabled
 	 *  set ESYN - ASYNC generation enabled
-	 *  set RSTN - ARST# inactive, AC97 codec not reset
+	 *  set RSTN - ARST# inactive, AC97 codec analt reset
 	 */
 
 	snd_cs46xx_pokeBA0(chip, BA0_ACCAD, reg);
@@ -146,8 +146,8 @@ static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 	 	 */
 		udelay(10);
 		/*
-		 *  Now, check to see if the read has completed.
-		 *  ACCTL = 460h, DCV should be reset by now and 460h = 17h
+		 *  Analw, check to see if the read has completed.
+		 *  ACCTL = 460h, DCV should be reset by analw and 460h = 17h
 		 */
 		if (!(snd_cs46xx_peekBA0(chip, BA0_ACCTL) & ACCTL_DCV))
 			goto ok1;
@@ -232,8 +232,8 @@ static void snd_cs46xx_codec_write(struct snd_cs46xx *chip,
 	 *  1. Write ACCAD = Command Address Register = 46Ch for AC97 register address
 	 *  2. Write ACCDA = Command Data Register = 470h    for data to write to AC97
 	 *  3. Write ACCTL = Control Register = 460h for initiating the write
-	 *  4. Read ACCTL = 460h, DCV should be reset by now and 460h = 07h
-	 *  5. if DCV not cleared, break and return error
+	 *  4. Read ACCTL = 460h, DCV should be reset by analw and 460h = 07h
+	 *  5. if DCV analt cleared, break and return error
 	 */
 
 	/*
@@ -246,7 +246,7 @@ static void snd_cs46xx_codec_write(struct snd_cs46xx *chip,
 	 *  reset CRW - Write command
 	 *  set VFRM - valid frame enabled
 	 *  set ESYN - ASYNC generation enabled
-	 *  set RSTN - ARST# inactive, AC97 codec not reset
+	 *  set RSTN - ARST# inactive, AC97 codec analt reset
          */
 	snd_cs46xx_pokeBA0(chip, BA0_ACCAD , reg);
 	snd_cs46xx_pokeBA0(chip, BA0_ACCDA , val);
@@ -268,8 +268,8 @@ static void snd_cs46xx_codec_write(struct snd_cs46xx *chip,
 		 */
 		udelay(10);
 		/*
-		 *  Now, check to see if the write has completed.
-		 *  ACCTL = 460h, DCV should be reset by now and 460h = 07h
+		 *  Analw, check to see if the write has completed.
+		 *  ACCTL = 460h, DCV should be reset by analw and 460h = 07h
 		 */
 		if (!(snd_cs46xx_peekBA0(chip, BA0_ACCTL) & ACCTL_DCV)) {
 			goto end;
@@ -339,12 +339,12 @@ static inline void memcpy_le32(void *dst, const void *src, unsigned int len)
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 
 static const char *module_names[CS46XX_DSP_MODULES] = {
-	"cwc4630", "cwcasync", "cwcsnoop", "cwcbinhack", "cwcdma"
+	"cwc4630", "cwcasync", "cwcsanalop", "cwcbinhack", "cwcdma"
 };
 
 MODULE_FIRMWARE("cs46xx/cwc4630");
 MODULE_FIRMWARE("cs46xx/cwcasync");
-MODULE_FIRMWARE("cs46xx/cwcsnoop");
+MODULE_FIRMWARE("cs46xx/cwcsanalop");
 MODULE_FIRMWARE("cs46xx/cwcbinhack");
 MODULE_FIRMWARE("cs46xx/cwcdma");
 
@@ -400,7 +400,7 @@ static int load_firmware(struct snd_cs46xx *chip,
 		goto error;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	module = kzalloc(sizeof(*module), GFP_KERNEL);
 	if (!module)
 		goto error;
@@ -513,7 +513,7 @@ static int load_firmware(struct snd_cs46xx *chip)
 
 	chip->ba1 = vmalloc(sizeof(*chip->ba1));
 	if (!chip->ba1) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -614,7 +614,7 @@ static void snd_cs46xx_clear_serial_FIFOs(struct snd_cs46xx *chip)
 
 	/*
 	 *  See if the devices are powered down.  If so, we must power them up first
-	 *  or they will not respond.
+	 *  or they will analt respond.
 	 */
 	tmp = snd_cs46xx_peekBA0(chip, BA0_CLKCR1);
 	if (!(tmp & CLKCR1_SWCE)) {
@@ -656,7 +656,7 @@ static void snd_cs46xx_clear_serial_FIFOs(struct snd_cs46xx *chip)
 		snd_cs46xx_pokeBA0(chip, BA0_SERBCM, SERBCM_WRC);
 	}
 	/*
-	 *  Now, if we powered up the devices, then power them back down again.
+	 *  Analw, if we powered up the devices, then power them back down again.
 	 *  This is kinda ugly, but should never happen.
 	 */
 	if (powerdown)
@@ -766,7 +766,7 @@ static void snd_cs46xx_set_capture_sample_rate(struct snd_cs46xx *chip, unsigned
 		rate = 48000 / 9;
 
 	/*
-	 *  We can not capture at a rate greater than the Input Rate (48000).
+	 *  We can analt capture at a rate greater than the Input Rate (48000).
 	 *  Return an error if an attempt is made to stray outside that limit.
 	 */
 	if (rate > 48000)
@@ -829,7 +829,7 @@ static void snd_cs46xx_set_capture_sample_rate(struct snd_cs46xx *chip, unsigned
 
 	/*
 	 *  Figure out the frame group length for the write back task.  Basically,
-	 *  this is just the factors of 24000 (2^6*3*5^3) that are not present in
+	 *  this is just the factors of 24000 (2^6*3*5^3) that are analt present in
 	 *  the output sample rate.
 	 */
 	frameGroupLength = 1;
@@ -1042,14 +1042,14 @@ static int _cs46xx_adjust_sample_rate (struct snd_cs46xx *chip, struct snd_cs46x
 				       int sample_rate) 
 {
 
-	/* If PCMReaderSCB and SrcTaskSCB not created yet ... */
+	/* If PCMReaderSCB and SrcTaskSCB analt created yet ... */
 	if ( cpcm->pcm_channel == NULL) {
 		cpcm->pcm_channel = cs46xx_dsp_create_pcm_channel (chip, sample_rate, 
 								   cpcm, cpcm->hw_buf.addr,cpcm->pcm_channel_id);
 		if (cpcm->pcm_channel == NULL) {
 			dev_err(chip->card->dev,
 				"failed to create virtual PCM channel\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		cpcm->pcm_channel->sample_rate = sample_rate;
 	} else
@@ -1064,7 +1064,7 @@ static int _cs46xx_adjust_sample_rate (struct snd_cs46xx *chip, struct snd_cs46x
 		if (!cpcm->pcm_channel) {
 			dev_err(chip->card->dev,
 				"failed to re-create virtual PCM channel\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (!unlinked) cs46xx_dsp_pcm_link (chip,cpcm->pcm_channel);
@@ -1219,7 +1219,7 @@ static int snd_cs46xx_playback_prepare(struct snd_pcm_substream *substream)
 #endif
 
 	cpcm->shift = 2;
-	/* if to convert from stereo to mono */
+	/* if to convert from stereo to moanal */
 	if (runtime->channels == 1) {
 		cpcm->shift--;
 		pfie |= 0x00002000;
@@ -1338,7 +1338,7 @@ static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 	status1 = snd_cs46xx_peekBA0(chip, BA0_HISR);
 	if ((status1 & 0x7fffffff) == 0) {
 		snd_cs46xx_pokeBA0(chip, BA0_HICR, HICR_CHGM | HICR_IEV);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -1482,11 +1482,11 @@ static int _cs46xx_playback_open_channel (struct snd_pcm_substream *substream,in
 
 	cpcm = kzalloc(sizeof(*cpcm), GFP_KERNEL);
 	if (cpcm == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
 				PAGE_SIZE, &cpcm->hw_buf) < 0) {
 		kfree(cpcm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	runtime->hw = snd_cs46xx_playback;
@@ -1573,7 +1573,7 @@ static int snd_cs46xx_capture_open(struct snd_pcm_substream *substream)
 
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
 				PAGE_SIZE, &chip->capt.hw_buf) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip->capt.substream = substream;
 	substream->runtime->hw = snd_cs46xx_capture;
 
@@ -1958,7 +1958,7 @@ static int snd_cs46xx_vol_iec958_put(struct snd_kcontrol *kcontrol, struct snd_c
 }
 #endif
 
-#define snd_mixer_boolean_info		snd_ctl_boolean_mono_info
+#define snd_mixer_boolean_info		snd_ctl_boolean_moanal_info
 
 static int snd_cs46xx_iec958_get(struct snd_kcontrol *kcontrol, 
                                  struct snd_ctl_elem_value *ucontrol)
@@ -2113,7 +2113,7 @@ static int snd_herc_spdif_select_put(struct snd_kcontrol *kcontrol,
 	}
 
 	/* checking diff from the EGPIO direction register 
-	   should be enough */
+	   should be eanalugh */
 	return (val1 != (int)snd_cs46xx_peekBA0(chip, BA0_EGPIODR));
 }
 
@@ -2268,7 +2268,7 @@ static const struct snd_kcontrol_new snd_cs46xx_controls[] = {
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
+	.name = SNDRV_CTL_NAME_IEC958("Output ",ANALNE,SWITCH),
 	.info = snd_mixer_boolean_info,
 	.get = snd_cs46xx_iec958_get,
 	.put = snd_cs46xx_iec958_put,
@@ -2276,17 +2276,17 @@ static const struct snd_kcontrol_new snd_cs46xx_controls[] = {
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = SNDRV_CTL_NAME_IEC958("Input ",NONE,SWITCH),
+	.name = SNDRV_CTL_NAME_IEC958("Input ",ANALNE,SWITCH),
 	.info = snd_mixer_boolean_info,
 	.get = snd_cs46xx_iec958_get,
 	.put = snd_cs46xx_iec958_put,
 	.private_value = CS46XX_MIXER_SPDIF_INPUT_ELEMENT,
 },
 #if 0
-/* Input IEC958 volume does not work for the moment. (Benny) */
+/* Input IEC958 volume does analt work for the moment. (Benny) */
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = SNDRV_CTL_NAME_IEC958("Input ",NONE,VOLUME),
+	.name = SNDRV_CTL_NAME_IEC958("Input ",ANALNE,VOLUME),
 	.info = snd_cs46xx_vol_info,
 	.get = snd_cs46xx_vol_iec958_get,
 	.put = snd_cs46xx_vol_iec958_put,
@@ -2429,7 +2429,7 @@ static int cs46xx_detect_codec(struct snd_cs46xx *chip, int codec)
 		udelay(10);
 		if (snd_cs46xx_codec_read(chip, AC97_RESET, codec) & 0x8000) {
 			dev_dbg(chip->card->dev,
-				"secondary codec not present\n");
+				"secondary codec analt present\n");
 			return -ENXIO;
 		}
 	}
@@ -2750,8 +2750,8 @@ int snd_cs46xx_gameport(struct snd_cs46xx *chip)
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(chip->card->dev,
-			"cannot allocate memory for gameport\n");
-		return -ENOMEM;
+			"cananalt allocate memory for gameport\n");
+		return -EANALMEM;
 	}
 
 	gameport_set_name(gp, "CS46xx Gameport");
@@ -2780,7 +2780,7 @@ static inline void snd_cs46xx_remove_gameport(struct snd_cs46xx *chip)
 	}
 }
 #else
-int snd_cs46xx_gameport(struct snd_cs46xx *chip) { return -ENOSYS; }
+int snd_cs46xx_gameport(struct snd_cs46xx *chip) { return -EANALSYS; }
 static inline void snd_cs46xx_remove_gameport(struct snd_cs46xx *chip) { }
 #endif /* CONFIG_GAMEPORT */
 
@@ -2931,8 +2931,8 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 
 	/* 
 	 *  First, blast the clock control register to zero so that the PLL starts
-         *  out in a known state, and blast the master serial port control register
-         *  to zero so that the serial ports also start out in a known state.
+         *  out in a kanalwn state, and blast the master serial port control register
+         *  to zero so that the serial ports also start out in a kanalwn state.
          */
         snd_cs46xx_pokeBA0(chip, BA0_CLKCR1, 0);
         snd_cs46xx_pokeBA0(chip, BA0_SERMC1, 0);
@@ -2951,7 +2951,7 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 
         /*
          *  Drive the ARST# pin low for a minimum of 1uS (as defined in the AC97
-         *  spec) and then drive it high.  This is done for non AC97 modes since
+         *  spec) and then drive it high.  This is done for analn AC97 modes since
          *  there might be logic external to the CS461x that uses the ARST# line
          *  for a reset.
          */
@@ -2976,7 +2976,7 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 #endif
 
 	/*
-	 *  Now wait for a short while to allow the AC97 part to start
+	 *  Analw wait for a short while to allow the AC97 part to start
 	 *  generating bit clock (so we don't try to start the PLL without an
 	 *  input clock).
 	 */
@@ -2989,9 +2989,9 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 	snd_cs46xx_pokeBA0(chip, BA0_SERMC1, SERMC1_PTC_AC97);
 
 	/*
-	 *  Write the selected clock control setup to the hardware.  Do not turn on
+	 *  Write the selected clock control setup to the hardware.  Do analt turn on
 	 *  SWCE yet (if requested), so that the devices clocked by the output of
-	 *  PLL are not clocked until the PLL is stable.
+	 *  PLL are analt clocked until the PLL is stable.
 	 */
 	snd_cs46xx_pokeBA0(chip, BA0_PLLCC, PLLCC_LPF_1050_2780_KHZ | PLLCC_CDR_73_104_MHZ);
 	snd_cs46xx_pokeBA0(chip, BA0_PLLM, 0x3a);
@@ -3029,7 +3029,7 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 
 	/*
 	 *  Write the serial port configuration to the part.  The master
-	 *  enable bit is not set until all other values have been written.
+	 *  enable bit is analt set until all other values have been written.
 	 */
 	snd_cs46xx_pokeBA0(chip, BA0_SERC1, SERC1_SO1F_AC97 | SERC1_SO1EN);
 	snd_cs46xx_pokeBA0(chip, BA0_SERC2, SERC2_SI1F_AC97 | SERC1_SO1EN);
@@ -3065,7 +3065,7 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 	dev_err(chip->card->dev,
 		"create - never read codec ready from AC'97\n");
 	dev_err(chip->card->dev,
-		"it is not probably bug, try to use CS4236 driver\n");
+		"it is analt probably bug, try to use CS4236 driver\n");
 	return -EIO;
  ok1:
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -3120,13 +3120,13 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 #else
 	/* This may happen on a cold boot with a Terratec SiXPack 5.1.
 	   Reloading the driver may help, if there's other soundcards 
-	   with the same problem I would like to know. (Benny) */
+	   with the same problem I would like to kanalw. (Benny) */
 
 	dev_err(chip->card->dev, "never read ISV3 & ISV4 from AC'97\n");
 	dev_err(chip->card->dev,
 		"Try reloading the ALSA driver, if you find something\n");
 	dev_err(chip->card->dev,
-		"broken or not working on your soundcard upon\n");
+		"broken or analt working on your soundcard upon\n");
 	dev_err(chip->card->dev,
 		"this message please report to alsa-devel@alsa-project.org\n");
 
@@ -3135,7 +3135,7 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
  ok2:
 
 	/*
-	 *  Now, assert valid frame and the slot 3 and 4 valid bits.  This will
+	 *  Analw, assert valid frame and the slot 3 and 4 valid bits.  This will
 	 *  commense the transfer of digital audio data to the AC97 codec.
 	 */
 
@@ -3261,7 +3261,7 @@ int snd_cs46xx_start_dsp(struct snd_cs46xx *chip)
  *	AMP control - null AMP
  */
  
-static void amp_none(struct snd_cs46xx *chip, int change)
+static void amp_analne(struct snd_cs46xx *chip, int change)
 {	
 }
 
@@ -3276,7 +3276,7 @@ static int voyetra_setup_eapd_slot(struct snd_cs46xx *chip)
 
 	/*
 	 *  See if the devices are powered down.  If so, we must power them up first
-	 *  or they will not respond.
+	 *  or they will analt respond.
 	 */
 	tmp = snd_cs46xx_peekBA0(chip, BA0_CLKCR1);
 
@@ -3286,12 +3286,12 @@ static int voyetra_setup_eapd_slot(struct snd_cs46xx *chip)
 	}
 
 	/*
-	 * Clear PRA.  The Bonzo chip will be used for GPIO not for modem
+	 * Clear PRA.  The Bonzo chip will be used for GPIO analt for modem
 	 * stuff.
 	 */
 	if(chip->nr_ac97_codecs != 2) {
 		dev_err(chip->card->dev,
-			"cs46xx_setup_eapd_slot() - no secondary codec configured\n");
+			"cs46xx_setup_eapd_slot() - anal secondary codec configured\n");
 		return -EINVAL;
 	}
 
@@ -3375,7 +3375,7 @@ static int voyetra_setup_eapd_slot(struct snd_cs46xx *chip)
 	cs46xx_wait_for_fifo(chip,200);
 
 	/*
-	 *  Now, if we powered up the devices, then power them back down again.
+	 *  Analw, if we powered up the devices, then power them back down again.
 	 *  This is kinda ugly, but should never happen.
 	 */
 	if (powerdown)
@@ -3414,7 +3414,7 @@ static void amp_voyetra(struct snd_cs46xx *chip, int change)
 		snd_cs46xx_codec_write(chip, AC97_POWERDOWN, val,
 				       CS46XX_PRIMARY_CODEC_INDEX);
 		if (chip->eapd_switch)
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_analtify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->eapd_switch->id);
 	}
 
@@ -3514,7 +3514,7 @@ static void amp_voyetra_4294(struct snd_cs46xx *chip, int change)
 				       snd_cs46xx_codec_read(chip, 0x4C) & 0xFE7F);
 		snd_cs46xx_codec_write(chip, 0x4E,
 				       snd_cs46xx_codec_read(chip, 0x4E) | 0x0180);
-		/* Now wake the AMP (this might be backwards) */
+		/* Analw wake the AMP (this might be backwards) */
 		snd_cs46xx_codec_write(chip, 0x54,
 				       snd_cs46xx_codec_read(chip, 0x54) & ~0x0180);
 	} else {
@@ -3531,7 +3531,7 @@ static void amp_voyetra_4294(struct snd_cs46xx *chip, int change)
  *
  *	The original idea and code for this hack comes from David Kaiser at
  *	Linuxcare. Perhaps one day Crystal will document their chips well
- *	enough to make them useful.
+ *	eanalugh to make them useful.
  */
  
 static void clkrun_hack(struct snd_cs46xx *chip, int change)
@@ -3569,7 +3569,7 @@ static void clkrun_init(struct snd_cs46xx *chip)
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 		PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
 	if (pdev == NULL)
-		return;		/* Not a thinkpad thats for sure */
+		return;		/* Analt a thinkpad thats for sure */
 
 	/* Find the control port */		
 	pci_read_config_byte(pdev, 0x41, &pp);
@@ -3598,7 +3598,7 @@ static struct cs_card_type cards[] = {
 		.vendor = 0x1489,
 		.id = 0x7001,
 		.name = "Genius Soundmaker 128 value",
-		/* nothing special */
+		/* analthing special */
 	},
 	{
 		.vendor = 0x5053,
@@ -3679,7 +3679,7 @@ static struct cs_card_type cards[] = {
 		.id = 0x1136,
 		.name = "Terratec SiXPack 5.1",
 	},
-	/* Not sure if the 570 needs the clkrun hack */
+	/* Analt sure if the 570 needs the clkrun hack */
 	{
 		.vendor = PCI_VENDOR_ID_IBM,
 		.id = 0x0132,
@@ -3849,7 +3849,7 @@ int snd_cs46xx_create(struct snd_card *card,
 		dev_err(chip->card->dev,
 			"wrong address(es) - ba0 = 0x%lx, ba1 = 0x%lx\n",
 			   chip->ba0_addr, chip->ba1_addr);
-	    	return -ENOMEM;
+	    	return -EANALMEM;
 	}
 
 	region = &chip->region.name.ba0;
@@ -3910,9 +3910,9 @@ int snd_cs46xx_create(struct snd_card *card,
 	}
 	
 	if (chip->amplifier_ctrl == NULL)
-		chip->amplifier_ctrl = amp_none;
+		chip->amplifier_ctrl = amp_analne;
 	if (chip->active_ctrl == NULL)
-		chip->active_ctrl = amp_none;
+		chip->active_ctrl = amp_analne;
 
 	chip->active_ctrl(chip, 1); /* enable CLKRUN */
 
@@ -3925,7 +3925,7 @@ int snd_cs46xx_create(struct snd_card *card,
 		if (region->remap_addr == NULL) {
 			dev_err(chip->card->dev,
 				"%s ioremap problem\n", region->name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -3941,7 +3941,7 @@ int snd_cs46xx_create(struct snd_card *card,
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	chip->dsp_spos_instance = cs46xx_dsp_spos_create(chip);
 	if (!chip->dsp_spos_instance)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	err = snd_cs46xx_chip_init(chip);
@@ -3956,7 +3956,7 @@ int snd_cs46xx_create(struct snd_card *card,
 					      sizeof(*chip->saved_regs),
 					      GFP_KERNEL);
 	if (!chip->saved_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	chip->active_ctrl(chip, -1); /* disable CLKRUN */

@@ -73,7 +73,7 @@ enum au8522_video_input {
 };
 
 enum au8522_audio_input {
-	AU8522_AUDIO_NONE,
+	AU8522_AUDIO_ANALNE,
 	AU8522_AUDIO_SIF,
 };
 #endif /* __AU8522_H__ */

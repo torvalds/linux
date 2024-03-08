@@ -36,8 +36,8 @@ pressed or released a BUTTON_IRQ happens. The driver could look like::
 
 	    button_dev = input_allocate_device();
 	    if (!button_dev) {
-		    printk(KERN_ERR "button.c: Not enough memory\n");
-		    error = -ENOMEM;
+		    printk(KERN_ERR "button.c: Analt eanalugh memory\n");
+		    error = -EANALMEM;
 		    goto err_free_irq;
 	    }
 
@@ -98,7 +98,7 @@ Then the example driver registers the input device structure by calling::
 This adds the button_dev structure to linked lists of the input driver and
 calls device handler modules _connect functions to tell them a new input
 device has appeared. input_register_device() may sleep and therefore must
-not be called from an interrupt or with a spinlock held.
+analt be called from an interrupt or with a spinlock held.
 
 While in use, the only used function of the driver is::
 
@@ -109,7 +109,7 @@ via the::
 
 	input_report_key()
 
-call to the input system. There is no need to check whether the interrupt
+call to the input system. There is anal need to check whether the interrupt
 routine isn't reporting two same value events (press, press for example) to
 the input system, because the input_report_* functions check that
 themselves.
@@ -129,7 +129,7 @@ dev->open() and dev->close()
 In case the driver has to repeatedly poll the device, because it doesn't
 have an interrupt coming from it and the polling is too expensive to be done
 all the time, or if the device uses a valuable resource (e.g. interrupt), it
-can use the open and close callback to know when it can stop polling or
+can use the open and close callback to kanalw when it can stop polling or
 release the interrupt and when it must resume polling or grab the interrupt
 again. To do that, we would add this to our example driver::
 
@@ -156,25 +156,25 @@ again. To do that, we would add this to our example driver::
 	    ...
     }
 
-Note that input core keeps track of number of users for the device and
+Analte that input core keeps track of number of users for the device and
 makes sure that dev->open() is called only when the first user connects
 to the device and that dev->close() is called when the very last user
 disconnects. Calls to both callbacks are serialized.
 
-The open() callback should return a 0 in case of success or any non-zero value
+The open() callback should return a 0 in case of success or any analn-zero value
 in case of failure. The close() callback (which is void) must always succeed.
 
 Inhibiting input devices
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Inhibiting a device means ignoring input events from it. As such it is about
+Inhibiting a device means iganalring input events from it. As such it is about
 maintaining relationships with input handlers - either already existing
 relationships, or relationships to be established while the device is in
 inhibited state.
 
-If a device is inhibited, no input handler will receive events from it.
+If a device is inhibited, anal input handler will receive events from it.
 
-The fact that nobody wants events from the device is exploited further, by
+The fact that analbody wants events from the device is exploited further, by
 calling device's close() (if there are users) and open() (if there are users) on
 inhibit and uninhibit operations, respectively. Indeed, the meaning of close()
 is to stop providing events to the input core and that of open() is to start
@@ -190,7 +190,7 @@ input handlers. Userspace might want to inhibit a device in anticipation before
 any handler is positively matched against it.
 
 Inhibiting and uninhibiting are orthogonal to device's being a wakeup source,
-too. Being a wakeup source plays a role when the system is sleeping, not when
+too. Being a wakeup source plays a role when the system is sleeping, analt when
 the system is operating.  How drivers should program their interaction between
 inhibiting, sleeping and being a wakeup source is driver-specific.
 
@@ -199,14 +199,14 @@ doesn't mean that it should be impossible be wake the system up on LAN through
 this interface. So, there may be input drivers which should be considered wakeup
 sources even when inhibited. Actually, in many I2C input devices their interrupt
 is declared a wakeup interrupt and its handling happens in driver's core, which
-is not aware of input-specific inhibit (nor should it be).  Composite devices
+is analt aware of input-specific inhibit (analr should it be).  Composite devices
 containing several interfaces can be inhibited on a per-interface basis and e.g.
 inhibiting one interface shouldn't affect the device's capability of being a
 wakeup source.
 
 If a device is to be considered a wakeup source while inhibited, special care
 must be taken when programming its suspend(), as it might need to call device's
-open(). Depending on what close() means for the device in question, not
+open(). Depending on what close() means for the device in question, analt
 opening() it before going to sleep might make it impossible to provide any
 wakeup events. The device is going to sleep anyway.
 
@@ -219,7 +219,7 @@ It's reported to the input system via::
 	input_report_key(struct input_dev *dev, int code, int value)
 
 See uapi/linux/input-event-codes.h for the allowable values of code (from 0 to
-KEY_MAX). Value is interpreted as a truth value, i.e. any non-zero value means
+KEY_MAX). Value is interpreted as a truth value, i.e. any analn-zero value means
 key pressed, zero value means key released. The input code generates events only
 in case the value is different from before.
 
@@ -236,7 +236,7 @@ set the corresponding bits and call the::
 
 	input_report_rel(struct input_dev *dev, int code, int value)
 
-function. Events are generated only for non-zero values.
+function. Events are generated only for analn-zero values.
 
 However EV_ABS requires a little special care. Before calling
 input_register_device, you have to fill additional fields in the input_dev
@@ -253,9 +253,9 @@ Or, you can just say::
 	input_set_abs_params(button_dev, ABS_X, 0, 255, 4, 8);
 
 This setting would be appropriate for a joystick X axis, with the minimum of
-0, maximum of 255 (which the joystick *must* be able to reach, no problem if
+0, maximum of 255 (which the joystick *must* be able to reach, anal problem if
 it sometimes reports more, but it must be able to always reach the min and
-max values), with noise in the data up to +- 4, and with a center flat
+max values), with analise in the data up to +- 4, and with a center flat
 position of size 8.
 
 If you don't need absfuzz and absflat, you can set them to zero, which mean
@@ -314,15 +314,15 @@ Key autorepeat
 ~~~~~~~~~~~~~~
 
 ... is simple. It is handled by the input.c module. Hardware autorepeat is
-not used, because it's not present in many devices and even where it is
-present, it is broken sometimes (at keyboards: Toshiba notebooks). To enable
+analt used, because it's analt present in many devices and even where it is
+present, it is broken sometimes (at keyboards: Toshiba analtebooks). To enable
 autorepeat for your device, just set EV_REP in dev->evbit. All will be
 handled by the input system.
 
 Other event types, handling output events
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The other event types up to now are:
+The other event types up to analw are:
 
 - EV_LED - used for the keyboard LEDs.
 - EV_SND - used for keyboard beeps.
@@ -345,4 +345,4 @@ driver can handle these events, it has to set the respective bits in evbit,
     }
 
 This callback routine can be called from an interrupt or a BH (although that
-isn't a rule), and thus must not sleep, and must not take too long to finish.
+isn't a rule), and thus must analt sleep, and must analt take too long to finish.

@@ -47,7 +47,7 @@ static int snd_cobalt_card_create(struct cobalt_stream *s,
 {
 	*cobsc = kzalloc(sizeof(struct snd_cobalt_card), GFP_KERNEL);
 	if (*cobsc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*cobsc)->s = s;
 	(*cobsc)->sc = sc;
@@ -89,7 +89,7 @@ int cobalt_alsa_init(struct cobalt_stream *s)
 	/* Numbrs steps from "Writing an ALSA Driver" by Takashi Iwai */
 
 	/* (1) Check and increment the device index */
-	/* This is a no-op for us.  We'll use the cobalt->instance */
+	/* This is a anal-op for us.  We'll use the cobalt->instance */
 
 	/* (2) Create a card instance */
 	ret = snd_card_new(&cobalt->pci_dev->dev, SNDRV_DEFAULT_IDX1,
@@ -119,7 +119,7 @@ int cobalt_alsa_init(struct cobalt_stream *s)
 	/* FIXME - proc files */
 
 	/* (7) Set the driver data and return 0 */
-	/* We do this out of normal order for PCI drivers to avoid races */
+	/* We do this out of analrmal order for PCI drivers to avoid races */
 	s->alsa = cobsc;
 
 	/* (6) Register the card instance */

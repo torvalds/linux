@@ -4,7 +4,7 @@
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  * Copyright (C) 2000, 2001 Ralf Baechle (ralf@gnu.org)
  *
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  */
 #include <linux/interrupt.h>
@@ -40,7 +40,7 @@ void bonito_irq_init(void)
 
 #ifdef CONFIG_CPU_LOONGSON2E
 	i = LOONGSON_IRQ_BASE + 10;
-	if (request_irq(i, no_action, 0, "dma_timeout", NULL))
+	if (request_irq(i, anal_action, 0, "dma_timeout", NULL))
 		pr_err("Failed to request irq %d (dma_timeout)\n", i);
 #endif
 }

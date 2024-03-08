@@ -57,7 +57,7 @@ static const struct mtk_gate_regs vdo1_4_cg_regs = {
 	GATE_MTK(_id, _name, _parent, &vdo1_3_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 #define GATE_VDO1_4(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &vdo1_4_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &vdo1_4_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate vdo1_clks[] = {
 	/* VDO1_0 */

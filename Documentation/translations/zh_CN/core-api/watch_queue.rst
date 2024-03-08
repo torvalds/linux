@@ -25,7 +25,7 @@
 
 通知缓冲区可以通过以下方式启用：
 
-	“General setup”/“General notification queue”
+	“General setup”/“General analtification queue”
 	(CONFIG_WATCH_QUEUE)
 
 文档包含以下章节：
@@ -46,7 +46,7 @@
 还可以将过滤器放置在管道上，以便在不感兴趣时可以忽略某些源类型和子事件。
 
 如果环中没有可用的插槽，或者没有预分配的消息缓冲区可用，则将丢弃消息。在这两种情
-况下，read()都会在读取缓冲区中当前的最后一条消息后，将WATCH_META_LOSS_NOTIFICATION
+况下，read()都会在读取缓冲区中当前的最后一条消息后，将WATCH_META_LOSS_ANALTIFICATION
 插入到输出缓冲区中。
 
 请注意，当生成一个通知时，内核不会等待消费者收集它，而是继续执行。这意味着可以在
@@ -58,7 +58,7 @@
 
 通知消息由一个简短的头部开始::
 
-	struct watch_notification {
+	struct watch_analtification {
 		__u32	type:24;
 		__u32	subtype:8;
 		__u32	info;
@@ -68,8 +68,8 @@
 型也可以是“WATCH_TYPE_META”。这是一个由观测队列本身在内部生成的特殊记录类型。有两
 个子类型：
 
-  * WATCH_META_REMOVAL_NOTIFICATION
-  * WATCH_META_LOSS_NOTIFICATION
+  * WATCH_META_REMOVAL_ANALTIFICATION
+  * WATCH_META_LOSS_ANALTIFICATION
 
 第一个表示安装了观察的对象已被删除或销毁，第二个表示某些消息已丢失。
 
@@ -94,7 +94,7 @@
 
 “观测列表“是订阅通知源的观测者的列表。列表可以附加到对象（比如键或超级块），也可
 以是全局的（比如对于设备事件）。从用户空间的角度来看，一个非全局的观测列表通常是
-通过引用它所属的对象来引用的（比如使用KEYCTL_NOTIFY并给它一个密钥序列号来观测特定
+通过引用它所属的对象来引用的（比如使用KEYCTL_ANALTIFY并给它一个密钥序列号来观测特定
 的密钥）。
 
 为了管理观测列表，提供了以下函数：
@@ -146,7 +146,7 @@
 	};
 
 ``info_id`` 值是从用户空间获得并按WATCH_INFO_ID__SHIFT移位的8位数字。当通知写入关
-联的观测队列缓冲区时，这将与struct watch_notification::info的WATCH_INFO_ID字段进
+联的观测队列缓冲区时，这将与struct watch_analtification::info的WATCH_INFO_ID字段进
 行或运算。
 
 ``private`` 字段是与watch_list相关联的驱动程序数据，并由 ``watch_list::release_watch()``
@@ -172,13 +172,13 @@
 				     u64 id, false);
 
     从观测列表中删除一个观测，该观测必须与指定的观测队列（``wqueue``）和对象标识
-    符（``id``）匹配。通知（``WATCH_META_REMOVAL_NOTIFICATION``）被发送到观测队列
+    符（``id``）匹配。通知（``WATCH_META_REMOVAL_ANALTIFICATION``）被发送到观测队列
     表示该观测已被删除。
 
   * ``int remove_watch_from_object(struct watch_list *wlist, NULL, 0, true);``
 
     从观测列表中删除所有观测。预计这将被称为销毁前的准备工作，届时新的观测将无法
-    访问观测列表。通知（``WATCH_META_REMOVAL_NOTIFICATION``）被发送到每个订阅观测
+    访问观测列表。通知（``WATCH_META_REMOVAL_ANALTIFICATION``）被发送到每个订阅观测
     的观测队列，以表明该观测已被删除。
 
 
@@ -187,8 +187,8 @@
 
 要将通知发布到观测列表以便订阅的观测可以看到，应使用以下函数::
 
-	void post_watch_notification(struct watch_list *wlist,
-				     struct watch_notification *n,
+	void post_watch_analtification(struct watch_list *wlist,
+				     struct watch_analtification *n,
 				     const struct cred *cred,
 				     u64 id);
 
@@ -206,7 +206,7 @@
 
 任何特定的缓冲区都可以从多个源获取信息。 这些源包括:
 
-  * WATCH_TYPE_KEY_NOTIFY
+  * WATCH_TYPE_KEY_ANALTIFY
 
     这种类型的通知表示密钥和密钥环的变化，包括密钥环内容或密钥属性的变化。
 
@@ -218,23 +218,23 @@
 
 当创建观测队列后，我们可以应用一组过滤器以限制接收的事件::
 
-	struct watch_notification_filter filter = {
+	struct watch_analtification_filter filter = {
 		...
 	};
 	ioctl(fd, IOC_WATCH_QUEUE_SET_FILTER, &filter)
 
 过滤器的描述的类型变量是::
 
-	struct watch_notification_filter {
+	struct watch_analtification_filter {
 		__u32	nr_filters;
 		__u32	__reserved;
-		struct watch_notification_type_filter filters[];
+		struct watch_analtification_type_filter filters[];
 	};
 
 其中“nr_filters”表示filters[]数组中过滤器的数量，而“__reserved”应为0。
 “filter”数组有以下类型的元素::
 
-	struct watch_notification_type_filter {
+	struct watch_analtification_type_filter {
 		__u32	type;
 		__u32	info_filter;
 		__u32	info_mask;
@@ -243,7 +243,7 @@
 
 其中：
 
-  * ``type`` 是过滤的事件类型，应类似于“WATCH_TYPE_KEY_NOTIFY”。
+  * ``type`` 是过滤的事件类型，应类似于“WATCH_TYPE_KEY_ANALTIFY”。
 
   * ``info_filter`` 与 ``info_mask`` 充当通知记录的信息字段的过滤器，只有在以下情
     况，通知才会写入缓冲区::
@@ -284,7 +284,7 @@
 			void *end = buffer + buf_len;
 			while (p < end) {
 				union {
-					struct watch_notification n;
+					struct watch_analtification n;
 					unsigned char buf1[128];
 				} n;
 				size_t largest, len;
@@ -302,7 +302,7 @@
 				switch (n.n.type) {
 				case WATCH_TYPE_META:
 					got_meta(&n.n);
-				case WATCH_TYPE_KEY_NOTIFY:
+				case WATCH_TYPE_KEY_ANALTIFY:
 					saw_key_change(&n.n);
 					break;
 				}

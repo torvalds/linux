@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1+
-// Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>
+// Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -23,7 +23,7 @@ static struct nla_policy thermal_genl_policy[THERMAL_GENL_ATTR_MAX + 1] = {
 	[THERMAL_GENL_ATTR_TZ_CDEV_WEIGHT]      = { .type = NLA_U32 },
 	[THERMAL_GENL_ATTR_TZ_NAME]             = { .type = NLA_STRING },
 
-	/* Governor(s) */
+	/* Goveranalr(s) */
 	[THERMAL_GENL_ATTR_TZ_GOV]              = { .type = NLA_NESTED },
 	[THERMAL_GENL_ATTR_TZ_GOV_NAME]         = { .type = NLA_STRING },
 
@@ -174,7 +174,7 @@ static int parse_tz_get_gov(struct genl_info *info, struct thermal_zone *tz)
 		return THERMAL_ERROR;
 
 	if (info->attrs[THERMAL_GENL_ATTR_TZ_GOV_NAME]) {
-		nla_strlcpy(tz->governor,
+		nla_strlcpy(tz->goveranalr,
 			    info->attrs[THERMAL_GENL_ATTR_TZ_GOV_NAME],
 			    THERMAL_NAME_LENGTH);
 	}
@@ -227,7 +227,7 @@ static struct genl_cmd thermal_cmds[] = {
 	},
 	{
 		.c_id		= THERMAL_GENL_CMD_TZ_GET_GOV,
-		.c_name		= (char *)"Get governor",
+		.c_name		= (char *)"Get goveranalr",
 		.c_msg_parser	= handle_netlink,
 		.c_maxattr	= THERMAL_GENL_ATTR_MAX,
 		.c_attr_policy	= thermal_genl_policy,
@@ -305,7 +305,7 @@ thermal_error_t thermal_cmd_get_trip(struct thermal_handler *th, struct thermal_
 				 0, tz);
 }
 
-thermal_error_t thermal_cmd_get_governor(struct thermal_handler *th, struct thermal_zone *tz)
+thermal_error_t thermal_cmd_get_goveranalr(struct thermal_handler *th, struct thermal_zone *tz)
 {
 	return thermal_genl_auto(th, tz->id, THERMAL_GENL_CMD_TZ_GET_GOV, 0, tz);
 }

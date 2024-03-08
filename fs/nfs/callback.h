@@ -24,7 +24,7 @@ struct cb_process_state {
 	struct nfs_client	*clp;
 	struct nfs4_slot	*slot;
 	struct net		*net;
-	u32			minorversion;
+	u32			mianalrversion;
 	__be32			drc_status;
 	unsigned int		referring_calls;
 };
@@ -32,16 +32,16 @@ struct cb_process_state {
 struct cb_compound_hdr_arg {
 	unsigned int taglen;
 	const char *tag;
-	unsigned int minorversion;
+	unsigned int mianalrversion;
 	unsigned int cb_ident; /* v4.0 callback identifier */
-	unsigned nops;
+	unsigned analps;
 };
 
 struct cb_compound_hdr_res {
 	__be32 *status;
 	unsigned int taglen;
 	const char *tag;
-	__be32 *nops;
+	__be32 *analps;
 };
 
 struct cb_getattrargs {
@@ -144,28 +144,28 @@ struct cb_layoutrecallargs {
 extern __be32 nfs4_callback_layoutrecall(void *argp, void *resp,
 		struct cb_process_state *cps);
 
-struct cb_devicenotifyitem {
-	uint32_t		cbd_notify_type;
+struct cb_deviceanaltifyitem {
+	uint32_t		cbd_analtify_type;
 	uint32_t		cbd_layout_type;
 	struct nfs4_deviceid	cbd_dev_id;
 	uint32_t		cbd_immediate;
 };
 
-struct cb_devicenotifyargs {
+struct cb_deviceanaltifyargs {
 	uint32_t			 ndevs;
-	struct cb_devicenotifyitem	 *devs;
+	struct cb_deviceanaltifyitem	 *devs;
 };
 
-extern __be32 nfs4_callback_devicenotify(void *argp, void *resp,
+extern __be32 nfs4_callback_deviceanaltify(void *argp, void *resp,
 		struct cb_process_state *cps);
 
-struct cb_notify_lock_args {
+struct cb_analtify_lock_args {
 	struct nfs_fh			cbnl_fh;
 	struct nfs_lowner		cbnl_owner;
 	bool				cbnl_valid;
 };
 
-extern __be32 nfs4_callback_notify_lock(void *argp, void *resp,
+extern __be32 nfs4_callback_analtify_lock(void *argp, void *resp,
 					 struct cb_process_state *cps);
 #endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
@@ -186,11 +186,11 @@ extern __be32 nfs4_callback_getattr(void *argp, void *resp,
 extern __be32 nfs4_callback_recall(void *argp, void *resp,
 				   struct cb_process_state *cps);
 #if IS_ENABLED(CONFIG_NFS_V4)
-extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);
-extern void nfs_callback_down(int minorversion, struct net *net);
+extern int nfs_callback_up(u32 mianalrversion, struct rpc_xprt *xprt);
+extern void nfs_callback_down(int mianalrversion, struct net *net);
 #endif /* CONFIG_NFS_V4 */
 /*
- * nfs41: Callbacks are expected to not cause substantial latency,
+ * nfs41: Callbacks are expected to analt cause substantial latency,
  * so we limit their concurrency to 1 by setting up the maximum number
  * of slots for the backchannel.
  */

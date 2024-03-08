@@ -11,7 +11,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -119,7 +119,7 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
  */
 
 #if _NSIG_WORDS > 1
-# error "Non SA_SIGINFO frame needs rearranging"
+# error "Analn SA_SIGINFO frame needs rearranging"
 #endif
 
 struct sigframe
@@ -135,8 +135,8 @@ struct rt_sigframe
 	unsigned int retcode[3];
 };
 
-/* If this changes, userland unwinders that Know Things about our signal
-   frame will break.  Do not undertake lightly.  It also implies an ABI
+/* If this changes, userland unwinders that Kanalw Things about our signal
+   frame will break.  Do analt undertake lightly.  It also implies an ABI
    change wrt the size of siginfo_t, which may cause some pain.  */
 extern char compile_time_assert
         [offsetof(struct rt_sigframe, uc.uc_mcontext) == 176 ? 1 : -1];
@@ -152,7 +152,7 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
 	long err = __get_user(regs->pc, &sc->sc_pc);
 
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 	current_thread_info()->status |= TS_SAVED_FP | TS_RESTORE_FP;
 
 	sw->r26 = (unsigned long) ret_from_sys_call;
@@ -197,7 +197,7 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 	return err;
 }
 
-/* Note that this syscall is also used by setcontext(3) to install
+/* Analte that this syscall is also used by setcontext(3) to install
    a given sigcontext.  This because it's impossible to set *all*
    registers and transfer control from userland.  */
 
@@ -450,12 +450,12 @@ syscall_restart(unsigned long r0, unsigned long r19,
 	switch (regs->r0) {
 	case ERESTARTSYS:
 		if (!(ka->sa.sa_flags & SA_RESTART)) {
-		case ERESTARTNOHAND:
+		case ERESTARTANALHAND:
 			regs->r0 = EINTR;
 			break;
 		}
 		fallthrough;
-	case ERESTARTNOINTR:
+	case ERESTARTANALINTR:
 		regs->r0 = r0;	/* reset v0 and a3 and replay syscall */
 		regs->r19 = r19;
 		regs->pc -= 4;
@@ -468,11 +468,11 @@ syscall_restart(unsigned long r0, unsigned long r19,
 
 
 /*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  *
- * Note that we go through the signals twice: once to check the signals that
+ * Analte that we go through the signals twice: once to check the signals that
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  *
@@ -498,9 +498,9 @@ do_signal(struct pt_regs *regs, unsigned long r0, unsigned long r19)
 		single_stepping |= ptrace_cancel_bpt(current);
 		if (r0) {
 			switch (regs->r0) {
-			case ERESTARTNOHAND:
+			case ERESTARTANALHAND:
 			case ERESTARTSYS:
-			case ERESTARTNOINTR:
+			case ERESTARTANALINTR:
 				/* Reset v0 and a3 and replay syscall.  */
 				regs->r0 = r0;
 				regs->r19 = r19;
@@ -528,7 +528,7 @@ do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
 			schedule();
 		} else {
 			local_irq_enable();
-			if (thread_flags & (_TIF_SIGPENDING|_TIF_NOTIFY_SIGNAL)) {
+			if (thread_flags & (_TIF_SIGPENDING|_TIF_ANALTIFY_SIGNAL)) {
 				preempt_disable();
 				save_fpu();
 				preempt_enable();

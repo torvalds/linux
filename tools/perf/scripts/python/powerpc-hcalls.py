@@ -140,7 +140,7 @@ hcall_table = {
 	696: 'H_GET_EM_PARMS',
 	720: 'H_SET_MPP',
 	724: 'H_GET_MPP',
-	748: 'H_HOME_NODE_ASSOCIATIVITY',
+	748: 'H_HOME_ANALDE_ASSOCIATIVITY',
 	756: 'H_BEST_ENERGY',
 	764: 'H_XIRR_X',
 	768: 'H_RANDOM',
@@ -192,7 +192,7 @@ def powerpc__hcall_exit(name, context, cpu, sec, nsec, pid, comm, callchain,
 
 		del d_enter[cpu][opcode]
 #	else:
-#		print("Can't find matching hcall_enter event. Ignoring sample")
+#		print("Can't find matching hcall_enter event. Iganalring sample")
 
 def powerpc__hcall_entry(event_name, context, cpu, sec, nsec, pid, comm,
 			 callchain, opcode):

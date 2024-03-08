@@ -51,7 +51,7 @@ struct da9034_touch {
 	struct input_dev	*input_dev;
 
 	struct delayed_work	tsi_work;
-	struct notifier_block	notifier;
+	struct analtifier_block	analtifier;
 
 	int	state;
 
@@ -175,7 +175,7 @@ static void da9034_event_handler(struct da9034_touch *touch, int event)
 		touch->state = STATE_STOP;
 
 		/* FIXME: PEN_{UP/DOWN} events are expected to be
-		 * available by stopping TSI, but this is found not
+		 * available by stopping TSI, but this is found analt
 		 * always true, delay and simulate such an event
 		 * here is more reliable
 		 */
@@ -228,11 +228,11 @@ static void da9034_tsi_work(struct work_struct *work)
 	da9034_event_handler(touch, EVENT_TIMEDOUT);
 }
 
-static int da9034_touch_notifier(struct notifier_block *nb,
+static int da9034_touch_analtifier(struct analtifier_block *nb,
 				 unsigned long event, void *data)
 {
 	struct da9034_touch *touch =
-		container_of(nb, struct da9034_touch, notifier);
+		container_of(nb, struct da9034_touch, analtifier);
 
 	if (event & DA9034_EVENT_TSI_READY)
 		da9034_event_handler(touch, EVENT_TSI_READY);
@@ -248,7 +248,7 @@ static int da9034_touch_open(struct input_dev *dev)
 	struct da9034_touch *touch = input_get_drvdata(dev);
 	int ret;
 
-	ret = da903x_register_notifier(touch->da9034_dev, &touch->notifier,
+	ret = da903x_register_analtifier(touch->da9034_dev, &touch->analtifier,
 			DA9034_EVENT_PEN_DOWN | DA9034_EVENT_TSI_READY);
 	if (ret)
 		return -EBUSY;
@@ -278,7 +278,7 @@ static void da9034_touch_close(struct input_dev *dev)
 {
 	struct da9034_touch *touch = input_get_drvdata(dev);
 
-	da903x_unregister_notifier(touch->da9034_dev, &touch->notifier,
+	da903x_unregister_analtifier(touch->da9034_dev, &touch->analtifier,
 			DA9034_EVENT_PEN_DOWN | DA9034_EVENT_TSI_READY);
 
 	cancel_delayed_work_sync(&touch->tsi_work);
@@ -304,7 +304,7 @@ static int da9034_touch_probe(struct platform_device *pdev)
 			     GFP_KERNEL);
 	if (!touch) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	touch->da9034_dev = pdev->dev.parent;
@@ -319,12 +319,12 @@ static int da9034_touch_probe(struct platform_device *pdev)
 	}
 
 	INIT_DELAYED_WORK(&touch->tsi_work, da9034_tsi_work);
-	touch->notifier.notifier_call = da9034_touch_notifier;
+	touch->analtifier.analtifier_call = da9034_touch_analtifier;
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev->name		= pdev->name;

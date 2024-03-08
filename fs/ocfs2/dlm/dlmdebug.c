@@ -16,7 +16,7 @@
 #include <linux/export.h>
 
 #include "../cluster/heartbeat.h"
-#include "../cluster/nodemanager.h"
+#include "../cluster/analdemanager.h"
 #include "../cluster/tcp.h"
 
 #include "dlmapi.h"
@@ -42,11 +42,11 @@ static void dlm_print_lockres_refmap(struct dlm_lock_resource *res)
 	int bit;
 	assert_spin_locked(&res->spinlock);
 
-	printk("  refmap nodes: [ ");
+	printk("  refmap analdes: [ ");
 	bit = 0;
 	while (1) {
-		bit = find_next_bit(res->refmap, O2NM_MAX_NODES, bit);
-		if (bit >= O2NM_MAX_NODES)
+		bit = find_next_bit(res->refmap, O2NM_MAX_ANALDES, bit);
+		if (bit >= O2NM_MAX_ANALDES)
 			break;
 		printk("%u ", bit);
 		bit++;
@@ -58,11 +58,11 @@ static void __dlm_print_lock(struct dlm_lock *lock)
 {
 	spin_lock(&lock->spinlock);
 
-	printk("    type=%d, conv=%d, node=%u, cookie=%u:%llu, "
+	printk("    type=%d, conv=%d, analde=%u, cookie=%u:%llu, "
 	       "ref=%u, ast=(empty=%c,pend=%c), bast=(empty=%c,pend=%c), "
 	       "pending=(conv=%c,lock=%c,cancel=%c,unlock=%c)\n",
-	       lock->ml.type, lock->ml.convert_type, lock->ml.node,
-	       dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+	       lock->ml.type, lock->ml.convert_type, lock->ml.analde,
+	       dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 	       dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 	       kref_read(&lock->lock_refs),
 	       (list_empty(&lock->ast_list) ? 'y' : 'n'),
@@ -90,12 +90,12 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 	       buf, res->owner, res->state);
 	printk("  last used: %lu, refcnt: %u, on purge list: %s\n",
 	       res->last_used, kref_read(&res->refs),
-	       list_empty(&res->purge) ? "no" : "yes");
+	       list_empty(&res->purge) ? "anal" : "anal");
 	printk("  on dirty list: %s, on reco list: %s, "
 	       "migrating pending: %s\n",
-	       list_empty(&res->dirty) ? "no" : "yes",
-	       list_empty(&res->recovering) ? "no" : "yes",
-	       res->migration_pending ? "yes" : "no");
+	       list_empty(&res->dirty) ? "anal" : "anal",
+	       list_empty(&res->recovering) ? "anal" : "anal",
+	       res->migration_pending ? "anal" : "anal");
 	printk("  inflight locks: %d, asts reserved: %d\n",
 	       res->inflight_locks, atomic_read(&res->asts_reserved));
 	dlm_print_lockres_refmap(res);
@@ -120,90 +120,90 @@ void dlm_print_one_lock(struct dlm_lock *lockid)
 EXPORT_SYMBOL_GPL(dlm_print_one_lock);
 
 static const char *dlm_errnames[] = {
-	[DLM_NORMAL] =			"DLM_NORMAL",
+	[DLM_ANALRMAL] =			"DLM_ANALRMAL",
 	[DLM_GRANTED] =			"DLM_GRANTED",
 	[DLM_DENIED] =			"DLM_DENIED",
-	[DLM_DENIED_NOLOCKS] =		"DLM_DENIED_NOLOCKS",
+	[DLM_DENIED_ANALLOCKS] =		"DLM_DENIED_ANALLOCKS",
 	[DLM_WORKING] =			"DLM_WORKING",
 	[DLM_BLOCKED] =			"DLM_BLOCKED",
 	[DLM_BLOCKED_ORPHAN] =		"DLM_BLOCKED_ORPHAN",
 	[DLM_DENIED_GRACE_PERIOD] =	"DLM_DENIED_GRACE_PERIOD",
 	[DLM_SYSERR] =			"DLM_SYSERR",
-	[DLM_NOSUPPORT] =		"DLM_NOSUPPORT",
+	[DLM_ANALSUPPORT] =		"DLM_ANALSUPPORT",
 	[DLM_CANCELGRANT] =		"DLM_CANCELGRANT",
 	[DLM_IVLOCKID] =		"DLM_IVLOCKID",
 	[DLM_SYNC] =			"DLM_SYNC",
 	[DLM_BADTYPE] =			"DLM_BADTYPE",
 	[DLM_BADRESOURCE] =		"DLM_BADRESOURCE",
 	[DLM_MAXHANDLES] =		"DLM_MAXHANDLES",
-	[DLM_NOCLINFO] =		"DLM_NOCLINFO",
-	[DLM_NOLOCKMGR] =		"DLM_NOLOCKMGR",
-	[DLM_NOPURGED] =		"DLM_NOPURGED",
+	[DLM_ANALCLINFO] =		"DLM_ANALCLINFO",
+	[DLM_ANALLOCKMGR] =		"DLM_ANALLOCKMGR",
+	[DLM_ANALPURGED] =		"DLM_ANALPURGED",
 	[DLM_BADARGS] =			"DLM_BADARGS",
 	[DLM_VOID] =			"DLM_VOID",
-	[DLM_NOTQUEUED] =		"DLM_NOTQUEUED",
+	[DLM_ANALTQUEUED] =		"DLM_ANALTQUEUED",
 	[DLM_IVBUFLEN] =		"DLM_IVBUFLEN",
 	[DLM_CVTUNGRANT] =		"DLM_CVTUNGRANT",
 	[DLM_BADPARAM] =		"DLM_BADPARAM",
-	[DLM_VALNOTVALID] =		"DLM_VALNOTVALID",
+	[DLM_VALANALTVALID] =		"DLM_VALANALTVALID",
 	[DLM_REJECTED] =		"DLM_REJECTED",
 	[DLM_ABORT] =			"DLM_ABORT",
 	[DLM_CANCEL] =			"DLM_CANCEL",
 	[DLM_IVRESHANDLE] =		"DLM_IVRESHANDLE",
 	[DLM_DEADLOCK] =		"DLM_DEADLOCK",
-	[DLM_DENIED_NOASTS] =		"DLM_DENIED_NOASTS",
+	[DLM_DENIED_ANALASTS] =		"DLM_DENIED_ANALASTS",
 	[DLM_FORWARD] =			"DLM_FORWARD",
 	[DLM_TIMEOUT] =			"DLM_TIMEOUT",
 	[DLM_IVGROUPID] =		"DLM_IVGROUPID",
 	[DLM_VERS_CONFLICT] =		"DLM_VERS_CONFLICT",
 	[DLM_BAD_DEVICE_PATH] =		"DLM_BAD_DEVICE_PATH",
-	[DLM_NO_DEVICE_PERMISSION] =	"DLM_NO_DEVICE_PERMISSION",
-	[DLM_NO_CONTROL_DEVICE ] =	"DLM_NO_CONTROL_DEVICE ",
+	[DLM_ANAL_DEVICE_PERMISSION] =	"DLM_ANAL_DEVICE_PERMISSION",
+	[DLM_ANAL_CONTROL_DEVICE ] =	"DLM_ANAL_CONTROL_DEVICE ",
 	[DLM_RECOVERING] =		"DLM_RECOVERING",
 	[DLM_MIGRATING] =		"DLM_MIGRATING",
 	[DLM_MAXSTATS] =		"DLM_MAXSTATS",
 };
 
 static const char *dlm_errmsgs[] = {
-	[DLM_NORMAL] = 			"request in progress",
+	[DLM_ANALRMAL] = 			"request in progress",
 	[DLM_GRANTED] = 		"request granted",
 	[DLM_DENIED] = 			"request denied",
-	[DLM_DENIED_NOLOCKS] = 		"request denied, out of system resources",
+	[DLM_DENIED_ANALLOCKS] = 		"request denied, out of system resources",
 	[DLM_WORKING] = 		"async request in progress",
 	[DLM_BLOCKED] = 		"lock request blocked",
 	[DLM_BLOCKED_ORPHAN] = 		"lock request blocked by a orphan lock",
 	[DLM_DENIED_GRACE_PERIOD] = 	"topological change in progress",
 	[DLM_SYSERR] = 			"system error",
-	[DLM_NOSUPPORT] = 		"unsupported",
+	[DLM_ANALSUPPORT] = 		"unsupported",
 	[DLM_CANCELGRANT] = 		"can't cancel convert: already granted",
 	[DLM_IVLOCKID] = 		"bad lockid",
-	[DLM_SYNC] = 			"synchronous request granted",
+	[DLM_SYNC] = 			"synchroanalus request granted",
 	[DLM_BADTYPE] = 		"bad resource type",
 	[DLM_BADRESOURCE] = 		"bad resource handle",
-	[DLM_MAXHANDLES] = 		"no more resource handles",
-	[DLM_NOCLINFO] = 		"can't contact cluster manager",
-	[DLM_NOLOCKMGR] = 		"can't contact lock manager",
-	[DLM_NOPURGED] = 		"can't contact purge daemon",
+	[DLM_MAXHANDLES] = 		"anal more resource handles",
+	[DLM_ANALCLINFO] = 		"can't contact cluster manager",
+	[DLM_ANALLOCKMGR] = 		"can't contact lock manager",
+	[DLM_ANALPURGED] = 		"can't contact purge daemon",
 	[DLM_BADARGS] = 		"bad api args",
-	[DLM_VOID] = 			"no status",
-	[DLM_NOTQUEUED] = 		"NOQUEUE was specified and request failed",
+	[DLM_VOID] = 			"anal status",
+	[DLM_ANALTQUEUED] = 		"ANALQUEUE was specified and request failed",
 	[DLM_IVBUFLEN] = 		"invalid resource name length",
 	[DLM_CVTUNGRANT] = 		"attempted to convert ungranted lock",
 	[DLM_BADPARAM] = 		"invalid lock mode specified",
-	[DLM_VALNOTVALID] = 		"value block has been invalidated",
+	[DLM_VALANALTVALID] = 		"value block has been invalidated",
 	[DLM_REJECTED] = 		"request rejected, unrecognized client",
 	[DLM_ABORT] = 			"blocked lock request cancelled",
 	[DLM_CANCEL] = 			"conversion request cancelled",
 	[DLM_IVRESHANDLE] = 		"invalid resource handle",
 	[DLM_DEADLOCK] = 		"deadlock recovery refused this request",
-	[DLM_DENIED_NOASTS] = 		"failed to allocate AST",
+	[DLM_DENIED_ANALASTS] = 		"failed to allocate AST",
 	[DLM_FORWARD] = 		"request must wait for primary's response",
 	[DLM_TIMEOUT] = 		"timeout value for lock has expired",
 	[DLM_IVGROUPID] = 		"invalid group specification",
 	[DLM_VERS_CONFLICT] = 		"version conflicts prevent request handling",
-	[DLM_BAD_DEVICE_PATH] = 	"Locks device does not exist or path wrong",
-	[DLM_NO_DEVICE_PERMISSION] = 	"Client has insufficient perms for device",
-	[DLM_NO_CONTROL_DEVICE] = 	"Cannot set options on opened device ",
+	[DLM_BAD_DEVICE_PATH] = 	"Locks device does analt exist or path wrong",
+	[DLM_ANAL_DEVICE_PERMISSION] = 	"Client has insufficient perms for device",
+	[DLM_ANAL_CONTROL_DEVICE] = 	"Cananalt set options on opened device ",
 	[DLM_RECOVERING] = 		"lock resource being recovered",
 	[DLM_MIGRATING] = 		"lock resource being migrated",
 	[DLM_MAXSTATS] = 		"invalid error number",
@@ -225,7 +225,7 @@ const char *dlm_errname(enum dlm_status err)
 }
 EXPORT_SYMBOL_GPL(dlm_errname);
 
-/* NOTE: This function converts a lockname into a string. It uses knowledge
+/* ANALTE: This function converts a lockname into a string. It uses kanalwledge
  * of the format of the lockname that should be outside the purview of the dlm.
  * We are adding only to make dlm debugging slightly easier.
  *
@@ -235,29 +235,29 @@ static int stringify_lockname(const char *lockname, int locklen, char *buf,
 			      int len)
 {
 	int out = 0;
-	__be64 inode_blkno_be;
+	__be64 ianalde_blkanal_be;
 
-#define OCFS2_DENTRY_LOCK_INO_START	18
+#define OCFS2_DENTRY_LOCK_IANAL_START	18
 	if (*lockname == 'N') {
-		memcpy((__be64 *)&inode_blkno_be,
-		       (char *)&lockname[OCFS2_DENTRY_LOCK_INO_START],
+		memcpy((__be64 *)&ianalde_blkanal_be,
+		       (char *)&lockname[OCFS2_DENTRY_LOCK_IANAL_START],
 		       sizeof(__be64));
 		out += scnprintf(buf + out, len - out, "%.*s%08x",
-				OCFS2_DENTRY_LOCK_INO_START - 1, lockname,
-				(unsigned int)be64_to_cpu(inode_blkno_be));
+				OCFS2_DENTRY_LOCK_IANAL_START - 1, lockname,
+				(unsigned int)be64_to_cpu(ianalde_blkanal_be));
 	} else
 		out += scnprintf(buf + out, len - out, "%.*s",
 				locklen, lockname);
 	return out;
 }
 
-static int stringify_nodemap(unsigned long *nodemap, int maxnodes,
+static int stringify_analdemap(unsigned long *analdemap, int maxanaldes,
 			     char *buf, int len)
 {
 	int out = 0;
 	int i = -1;
 
-	while ((i = find_next_bit(nodemap, maxnodes, i + 1)) < maxnodes)
+	while ((i = find_next_bit(analdemap, maxanaldes, i + 1)) < maxanaldes)
 		out += scnprintf(buf + out, len - out, "%d ", i);
 
 	return out;
@@ -284,22 +284,22 @@ static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
 			kref_read(&mle->mle_refs));
 
 	out += scnprintf(buf + out, len - out, "Maybe=");
-	out += stringify_nodemap(mle->maybe_map, O2NM_MAX_NODES,
+	out += stringify_analdemap(mle->maybe_map, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
 	out += scnprintf(buf + out, len - out, "Vote=");
-	out += stringify_nodemap(mle->vote_map, O2NM_MAX_NODES,
+	out += stringify_analdemap(mle->vote_map, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
 	out += scnprintf(buf + out, len - out, "Response=");
-	out += stringify_nodemap(mle->response_map, O2NM_MAX_NODES,
+	out += stringify_analdemap(mle->response_map, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
-	out += scnprintf(buf + out, len - out, "Node=");
-	out += stringify_nodemap(mle->node_map, O2NM_MAX_NODES,
+	out += scnprintf(buf + out, len - out, "Analde=");
+	out += stringify_analdemap(mle->analde_map, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
@@ -330,7 +330,7 @@ static struct dentry *dlm_debugfs_root;
 #define DLM_DEBUGFS_PURGE_LIST			"purge_list"
 
 /* begin - utils funcs */
-static int debug_release(struct inode *inode, struct file *file)
+static int debug_release(struct ianalde *ianalde, struct file *file)
 {
 	free_page((unsigned long)file->private_data);
 	return 0;
@@ -374,22 +374,22 @@ static int debug_purgelist_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_purgelist_open(struct inode *inode, struct file *file)
+static int debug_purgelist_open(struct ianalde *ianalde, struct file *file)
 {
-	struct dlm_ctxt *dlm = inode->i_private;
+	struct dlm_ctxt *dlm = ianalde->i_private;
 	char *buf = NULL;
 
-	buf = (char *) get_zeroed_page(GFP_NOFS);
+	buf = (char *) get_zeroed_page(GFP_ANALFS);
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_purgelist_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(ianalde, debug_purgelist_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 
 	return 0;
 bail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static const struct file_operations debug_purgelist_fops = {
@@ -414,7 +414,7 @@ static int debug_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
 	spin_lock(&dlm->master_lock);
 	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
 		bucket = dlm_master_hash(dlm, i);
-		hlist_for_each_entry(mle, bucket, master_hash_node) {
+		hlist_for_each_entry(mle, bucket, master_hash_analde) {
 			++total;
 			++bucket_count;
 			if (len - out < 200)
@@ -431,22 +431,22 @@ static int debug_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_mle_open(struct inode *inode, struct file *file)
+static int debug_mle_open(struct ianalde *ianalde, struct file *file)
 {
-	struct dlm_ctxt *dlm = inode->i_private;
+	struct dlm_ctxt *dlm = ianalde->i_private;
 	char *buf = NULL;
 
-	buf = (char *) get_zeroed_page(GFP_NOFS);
+	buf = (char *) get_zeroed_page(GFP_ANALFS);
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_mle_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(ianalde, debug_mle_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 
 	return 0;
 bail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static const struct file_operations debug_mle_fops = {
@@ -469,8 +469,8 @@ static int dump_lock(struct dlm_lock *lock, int list_type, char *buf, int len)
 		       "%d,%d,%d,%d\n",
 		       DEBUG_LOCK_VERSION,
 		       list_type, lock->ml.type, lock->ml.convert_type,
-		       lock->ml.node,
-		       dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		       lock->ml.analde,
+		       dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 		       dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		       !list_empty(&lock->ast_list),
 		       !list_empty(&lock->bast_list),
@@ -508,7 +508,7 @@ static int dump_lockres(struct dlm_lock_resource *res, char *buf, int len)
 
 	/* refmap */
 	out += scnprintf(buf + out, len - out, "RMAP:");
-	out += stringify_nodemap(res->refmap, O2NM_MAX_NODES,
+	out += stringify_analdemap(res->refmap, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
@@ -607,9 +607,9 @@ static const struct seq_operations debug_lockres_ops = {
 	.show =		lockres_seq_show,
 };
 
-static int debug_lockres_open(struct inode *inode, struct file *file)
+static int debug_lockres_open(struct ianalde *ianalde, struct file *file)
 {
-	struct dlm_ctxt *dlm = inode->i_private;
+	struct dlm_ctxt *dlm = ianalde->i_private;
 	struct debug_lockres *dl;
 	void *buf;
 
@@ -632,11 +632,11 @@ static int debug_lockres_open(struct inode *inode, struct file *file)
 bailfree:
 	kfree(buf);
 bail:
-	mlog_errno(-ENOMEM);
-	return -ENOMEM;
+	mlog_erranal(-EANALMEM);
+	return -EANALMEM;
 }
 
-static int debug_lockres_release(struct inode *inode, struct file *file)
+static int debug_lockres_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct debug_lockres *dl = (struct debug_lockres *)seq->private;
@@ -645,7 +645,7 @@ static int debug_lockres_release(struct inode *inode, struct file *file)
 		dlm_lockres_put(dl->dl_res);
 	dlm_put(dl->dl_ctxt);
 	kfree(dl->dl_buf);
-	return seq_release_private(inode, file);
+	return seq_release_private(ianalde, file);
 }
 
 static const struct file_operations debug_lockres_fops = {
@@ -660,7 +660,7 @@ static const struct file_operations debug_lockres_fops = {
 static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 {
 	int out = 0;
-	struct dlm_reco_node_data *node;
+	struct dlm_reco_analde_data *analde;
 	char *state;
 	int cur_mles = 0, tot_mles = 0;
 	int i;
@@ -677,40 +677,40 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	case DLM_CTXT_LEAVING:
 		state = "LEAVING"; break;
 	default:
-		state = "UNKNOWN"; break;
+		state = "UNKANALWN"; break;
 	}
 
 	/* Domain: xxxxxxxxxx  Key: 0xdfbac769 */
 	out += scnprintf(buf + out, len - out,
 			"Domain: %s  Key: 0x%08x  Protocol: %d.%d\n",
 			dlm->name, dlm->key, dlm->dlm_locking_proto.pv_major,
-			dlm->dlm_locking_proto.pv_minor);
+			dlm->dlm_locking_proto.pv_mianalr);
 
-	/* Thread Pid: xxx  Node: xxx  State: xxxxx */
+	/* Thread Pid: xxx  Analde: xxx  State: xxxxx */
 	out += scnprintf(buf + out, len - out,
-			"Thread Pid: %d  Node: %d  State: %s\n",
-			task_pid_nr(dlm->dlm_thread_task), dlm->node_num, state);
+			"Thread Pid: %d  Analde: %d  State: %s\n",
+			task_pid_nr(dlm->dlm_thread_task), dlm->analde_num, state);
 
-	/* Number of Joins: xxx  Joining Node: xxx */
+	/* Number of Joins: xxx  Joining Analde: xxx */
 	out += scnprintf(buf + out, len - out,
-			"Number of Joins: %d  Joining Node: %d\n",
-			dlm->num_joins, dlm->joining_node);
+			"Number of Joins: %d  Joining Analde: %d\n",
+			dlm->num_joins, dlm->joining_analde);
 
 	/* Domain Map: xx xx xx */
 	out += scnprintf(buf + out, len - out, "Domain Map: ");
-	out += stringify_nodemap(dlm->domain_map, O2NM_MAX_NODES,
+	out += stringify_analdemap(dlm->domain_map, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
 	/* Exit Domain Map: xx xx xx */
 	out += scnprintf(buf + out, len - out, "Exit Domain Map: ");
-	out += stringify_nodemap(dlm->exit_domain_map, O2NM_MAX_NODES,
+	out += stringify_analdemap(dlm->exit_domain_map, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
 	/* Live Map: xx xx xx */
 	out += scnprintf(buf + out, len - out, "Live Map: ");
-	out += stringify_nodemap(dlm->live_nodes_map, O2NM_MAX_NODES,
+	out += stringify_analdemap(dlm->live_analdes_map, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
@@ -762,9 +762,9 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 			"Purge Count: %d  Refs: %d\n", dlm->purge_count,
 			kref_read(&dlm->dlm_refs));
 
-	/* Dead Node: xxx */
+	/* Dead Analde: xxx */
 	out += scnprintf(buf + out, len - out,
-			"Dead Node: %d\n", dlm->reco.dead_node);
+			"Dead Analde: %d\n", dlm->reco.dead_analde);
 
 	/* What about DLM_RECO_STATE_FINALIZE? */
 	if (dlm->reco.state == DLM_RECO_STATE_ACTIVE)
@@ -780,33 +780,33 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 
 	/* Recovery Map: xx xx */
 	out += scnprintf(buf + out, len - out, "Recovery Map: ");
-	out += stringify_nodemap(dlm->recovery_map, O2NM_MAX_NODES,
+	out += stringify_analdemap(dlm->recovery_map, O2NM_MAX_ANALDES,
 				 buf + out, len - out);
 	out += scnprintf(buf + out, len - out, "\n");
 
-	/* Recovery Node State: */
-	out += scnprintf(buf + out, len - out, "Recovery Node State:\n");
-	list_for_each_entry(node, &dlm->reco.node_data, list) {
-		switch (node->state) {
-		case DLM_RECO_NODE_DATA_INIT:
+	/* Recovery Analde State: */
+	out += scnprintf(buf + out, len - out, "Recovery Analde State:\n");
+	list_for_each_entry(analde, &dlm->reco.analde_data, list) {
+		switch (analde->state) {
+		case DLM_RECO_ANALDE_DATA_INIT:
 			state = "INIT";
 			break;
-		case DLM_RECO_NODE_DATA_REQUESTING:
+		case DLM_RECO_ANALDE_DATA_REQUESTING:
 			state = "REQUESTING";
 			break;
-		case DLM_RECO_NODE_DATA_DEAD:
+		case DLM_RECO_ANALDE_DATA_DEAD:
 			state = "DEAD";
 			break;
-		case DLM_RECO_NODE_DATA_RECEIVING:
+		case DLM_RECO_ANALDE_DATA_RECEIVING:
 			state = "RECEIVING";
 			break;
-		case DLM_RECO_NODE_DATA_REQUESTED:
+		case DLM_RECO_ANALDE_DATA_REQUESTED:
 			state = "REQUESTED";
 			break;
-		case DLM_RECO_NODE_DATA_DONE:
+		case DLM_RECO_ANALDE_DATA_DONE:
 			state = "DONE";
 			break;
-		case DLM_RECO_NODE_DATA_FINALIZE_SENT:
+		case DLM_RECO_ANALDE_DATA_FINALIZE_SENT:
 			state = "FINALIZE-SENT";
 			break;
 		default:
@@ -814,7 +814,7 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 			break;
 		}
 		out += scnprintf(buf + out, len - out, "\t%u - %s\n",
-				node->node_num, state);
+				analde->analde_num, state);
 	}
 
 	spin_unlock(&dlm->spinlock);
@@ -822,22 +822,22 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_state_open(struct inode *inode, struct file *file)
+static int debug_state_open(struct ianalde *ianalde, struct file *file)
 {
-	struct dlm_ctxt *dlm = inode->i_private;
+	struct dlm_ctxt *dlm = ianalde->i_private;
 	char *buf = NULL;
 
-	buf = (char *) get_zeroed_page(GFP_NOFS);
+	buf = (char *) get_zeroed_page(GFP_ANALFS);
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_state_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(ianalde, debug_state_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 
 	return 0;
 bail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static const struct file_operations debug_state_fops = {

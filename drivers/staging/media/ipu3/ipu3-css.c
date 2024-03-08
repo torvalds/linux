@@ -18,7 +18,7 @@
 				 IMGU_IRQCTRL_IRQ_SW_PIN(0) | \
 				 IMGU_IRQCTRL_IRQ_SW_PIN(1))
 
-#define IPU3_CSS_FORMAT_BPP_DEN	50	/* Denominator */
+#define IPU3_CSS_FORMAT_BPP_DEN	50	/* Deanalminator */
 
 /* Some sane limits for resolutions */
 #define IPU3_CSS_MIN_RES	32
@@ -31,7 +31,7 @@
 /*
  * pre-allocated buffer size for CSS ABI, auxiliary frames
  * after BDS and before GDC. Those values should be tuned
- * to big enough to avoid buffer re-allocation when
+ * to big eanalugh to avoid buffer re-allocation when
  * streaming to lower streaming latency.
  */
 #define CSS_ABI_SIZE    136
@@ -53,7 +53,7 @@ static const struct imgu_css_format imgu_css_formats[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.frame_format = IMGU_ABI_FRAME_FORMAT_NV12,
 		.osys_format = IMGU_ABI_OSYS_FORMAT_NV12,
-		.osys_tiling = IMGU_ABI_OSYS_TILING_NONE,
+		.osys_tiling = IMGU_ABI_OSYS_TILING_ANALNE,
 		.chroma_decim = 4,
 		.width_align = IPU3_UAPI_ISP_VEC_ELEMS,
 		.flags = IPU3_CSS_FORMAT_FL_OUT | IPU3_CSS_FORMAT_FL_VF,
@@ -137,7 +137,7 @@ static int imgu_css_queue_init(struct imgu_css_queue *queue,
 			break;
 	}
 	if (!queue->css_fmt)
-		return -EINVAL;	/* Could not find any suitable format */
+		return -EINVAL;	/* Could analt find any suitable format */
 
 	queue->fmt.mpix = *fmt;
 
@@ -153,7 +153,7 @@ static int imgu_css_queue_init(struct imgu_css_queue *queue,
 		sizeimage += 2 * sizeimage / queue->css_fmt->chroma_decim;
 
 	f->plane_fmt[0].sizeimage = sizeimage;
-	f->field = V4L2_FIELD_NONE;
+	f->field = V4L2_FIELD_ANALNE;
 	f->num_planes = 1;
 	f->colorspace = queue->css_fmt->colorspace;
 	f->flags = 0;
@@ -331,7 +331,7 @@ static void imgu_css_hw_enable_irq(struct imgu_css *css)
 	writel(IMGU_REG_INT_CSS_IRQ, base + IMGU_REG_INT_STATUS);
 
 	/* Enable IRQs from main IRQ controller */
-	writel(~0, base + IMGU_REG_IRQCTRL_EDGE_NOT_PULSE(IMGU_IRQCTRL_MAIN));
+	writel(~0, base + IMGU_REG_IRQCTRL_EDGE_ANALT_PULSE(IMGU_IRQCTRL_MAIN));
 	writel(0, base + IMGU_REG_IRQCTRL_MASK(IMGU_IRQCTRL_MAIN));
 	writel(IMGU_IRQCTRL_IRQ_MASK,
 	       base + IMGU_REG_IRQCTRL_EDGE(IMGU_IRQCTRL_MAIN));
@@ -346,7 +346,7 @@ static void imgu_css_hw_enable_irq(struct imgu_css *css)
 
 	/* Enable IRQs from SP0 and SP1 controllers */
 	for (i = IMGU_IRQCTRL_SP0; i <= IMGU_IRQCTRL_SP1; i++) {
-		writel(~0, base + IMGU_REG_IRQCTRL_EDGE_NOT_PULSE(i));
+		writel(~0, base + IMGU_REG_IRQCTRL_EDGE_ANALT_PULSE(i));
 		writel(0, base + IMGU_REG_IRQCTRL_MASK(i));
 		writel(IMGU_IRQCTRL_IRQ_MASK, base + IMGU_REG_IRQCTRL_EDGE(i));
 		writel(IMGU_IRQCTRL_IRQ_MASK,
@@ -431,11 +431,11 @@ static int imgu_css_hw_init(struct imgu_css *css)
 	/* Check that IMGU hardware is ready */
 
 	if (!(readl(base + IMGU_REG_SP_CTRL(0)) & IMGU_CTRL_IDLE)) {
-		dev_err(dev, "SP is not idle\n");
+		dev_err(dev, "SP is analt idle\n");
 		return -EIO;
 	}
 	if (!(readl(base + IMGU_REG_ISP_CTRL) & IMGU_CTRL_IDLE)) {
-		dev_err(dev, "ISP is not idle\n");
+		dev_err(dev, "ISP is analt idle\n");
 		return -EIO;
 	}
 
@@ -618,7 +618,7 @@ static void imgu_css_hw_stop(struct imgu_css *css)
 		dev_err(css->dev, "wait sp0 idle timeout.\n");
 	if (readl(base + IMGU_REG_SP_DMEM_BASE(0) + bi->info.sp.sw_state) !=
 		  IMGU_ABI_SP_SWSTATE_TERMINATED)
-		dev_err(css->dev, "sp0 is not terminated.\n");
+		dev_err(css->dev, "sp0 is analt terminated.\n");
 	if (imgu_hw_wait(css->base, IMGU_REG_ISP_CTRL,
 			 IMGU_CTRL_IDLE, IMGU_CTRL_IDLE))
 		dev_err(css->dev, "wait isp idle timeout\n");
@@ -812,7 +812,7 @@ static int imgu_css_pipeline_init(struct imgu_css *css, unsigned int pipe)
 			DIV_ROUND_UP(css_pipe->rect[IPU3_CSS_RECT_GDC].height,
 				     IMGU_DVS_BLOCK_H);
 
-	/* Configure TNR (temporal noise reduction) */
+	/* Configure TNR (temporal analise reduction) */
 
 	if (css_pipe->pipe_id == IPU3_CSS_PIPE_ID_VIDEO) {
 		cfg_tnr = imgu_css_fw_pipeline_params(css, pipe, cfg, m0,
@@ -1009,7 +1009,7 @@ static int imgu_css_pipeline_init(struct imgu_css *css, unsigned int pipe)
 	sp_group->pipe[pipe].pipe_qos_config = -1;
 	sp_group->pipe[pipe].required_bds_factor = 0;
 	sp_group->pipe[pipe].dvs_frame_delay = IPU3_CSS_AUX_FRAMES - 1;
-	sp_group->pipe[pipe].inout_port_config =
+	sp_group->pipe[pipe].ianalut_port_config =
 					IMGU_ABI_PORT_CONFIG_TYPE_INPUT_HOST |
 					IMGU_ABI_PORT_CONFIG_TYPE_OUTPUT_HOST;
 	sp_group->pipe[pipe].scaler_pp_lut = 0;
@@ -1051,7 +1051,7 @@ bad_firmware:
 
 out_of_memory:
 	imgu_css_pipeline_cleanup(css, pipe);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static u8 imgu_css_queue_pos(struct imgu_css *css, int queue, int thread)
@@ -1142,7 +1142,7 @@ static int imgu_css_dequeue_data(struct imgu_css *css, int queue, u32 *data)
 		*data = readl(&q->sp2host_evtq[start]);
 		writeb(start2, &q->sp2host_evtq_info.start);
 
-		/* Acknowledge events dequeued from event queue */
+		/* Ackanalwledge events dequeued from event queue */
 		r = imgu_css_queue_data(css, queue, 0,
 					IMGU_ABI_EVENT_EVENT_DEQUEUED);
 		if (r < 0)
@@ -1207,7 +1207,7 @@ static int imgu_css_binary_preallocate(struct imgu_css *css, unsigned int pipe)
 
 out_of_memory:
 	imgu_css_binary_cleanup(css, pipe);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* allocate binary-specific resources */
@@ -1253,7 +1253,7 @@ static int imgu_css_binary_setup(struct imgu_css *css, unsigned int pipe)
 			size))
 			goto out_of_memory;
 
-	/* TNR frames for temporal noise reduction, FRAME_FORMAT_YUV_LINE */
+	/* TNR frames for temporal analise reduction, FRAME_FORMAT_YUV_LINE */
 	css_pipe->aux_frames[IPU3_CSS_AUX_FRAME_TNR].bytesperpixel = 1;
 	css_pipe->aux_frames[IPU3_CSS_AUX_FRAME_TNR].width =
 			roundup(css_pipe->rect[IPU3_CSS_RECT_GDC].width,
@@ -1278,7 +1278,7 @@ static int imgu_css_binary_setup(struct imgu_css *css, unsigned int pipe)
 
 out_of_memory:
 	imgu_css_binary_cleanup(css, pipe);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int imgu_css_start_streaming(struct imgu_css *css)
@@ -1430,17 +1430,17 @@ static int imgu_css_map_init(struct imgu_css *css, unsigned int pipe)
 			if (!imgu_dmamap_alloc(imgu,
 					       &css_pipe->xmem_sp_stage_ptrs[p][i],
 					       sizeof(struct imgu_abi_sp_stage)))
-				return -ENOMEM;
+				return -EANALMEM;
 			if (!imgu_dmamap_alloc(imgu,
 					       &css_pipe->xmem_isp_stage_ptrs[p][i],
 					       sizeof(struct imgu_abi_isp_stage)))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 	if (!imgu_dmamap_alloc(imgu, &css_pipe->sp_ddr_ptrs,
 			       ALIGN(sizeof(struct imgu_abi_ddr_address_map),
 				     IMGU_ABI_ISP_DDR_WORD_BYTES)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (q = 0; q < IPU3_CSS_QUEUES; q++) {
 		unsigned int abi_buf_num = ARRAY_SIZE(css_pipe->abi_buffers[q]);
@@ -1449,12 +1449,12 @@ static int imgu_css_map_init(struct imgu_css *css, unsigned int pipe)
 			if (!imgu_dmamap_alloc(imgu,
 					       &css_pipe->abi_buffers[q][i],
 					       sizeof(struct imgu_abi_buffer)))
-				return -ENOMEM;
+				return -EANALMEM;
 	}
 
 	if (imgu_css_binary_preallocate(css, pipe)) {
 		imgu_css_binary_cleanup(css, pipe);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1528,7 +1528,7 @@ int imgu_css_init(struct device *dev, struct imgu_css *css,
 	}
 	if (!imgu_dmamap_alloc(imgu, &css->xmem_sp_group_ptrs,
 			       sizeof(struct imgu_abi_sp_group)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = imgu_css_fw_init(css);
 	if (r)
@@ -1658,15 +1658,15 @@ static int imgu_css_find_binary(struct imgu_css *css,
 		return i;
 	}
 
-	/* Can not find suitable binary for these parameters */
+	/* Can analt find suitable binary for these parameters */
 	return -EINVAL;
 }
 
 /*
  * Check that there is a binary matching requirements. Parameters may be
  * NULL indicating disabled input/output. Return negative if given
- * parameters can not be supported or on error, zero or positive indicating
- * found binary number. May modify the given parameters if not exact match
+ * parameters can analt be supported or on error, zero or positive indicating
+ * found binary number. May modify the given parameters if analt exact match
  * is found.
  */
 int imgu_css_fmt_try(struct imgu_css *css,
@@ -1703,7 +1703,7 @@ int imgu_css_fmt_try(struct imgu_css *css,
 
 	q = kcalloc(IPU3_CSS_QUEUES, sizeof(struct imgu_css_queue), GFP_KERNEL);
 	if (!q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	in  = &q[IPU3_CSS_QUEUE_IN].fmt.mpix;
 	out = &q[IPU3_CSS_QUEUE_OUT].fmt.mpix;
@@ -1716,11 +1716,11 @@ int imgu_css_fmt_try(struct imgu_css *css,
 				qnames[i], fmts[i]->width, fmts[i]->height,
 				fmts[i]->pixelformat);
 		else
-			dev_dbg(css->dev, "%s %s: (not set)\n", __func__,
+			dev_dbg(css->dev, "%s %s: (analt set)\n", __func__,
 				qnames[i]);
 		if (imgu_css_queue_init(&q[i], fmts[i],
 					IPU3_CSS_QUEUE_TO_FLAGS(i))) {
-			dev_notice(css->dev, "can not initialize queue %s\n",
+			dev_analtice(css->dev, "can analt initialize queue %s\n",
 				   qnames[i]);
 			ret = -EINVAL;
 			goto out;
@@ -1733,10 +1733,10 @@ int imgu_css_fmt_try(struct imgu_css *css,
 			r[i].width  = rects[i]->width;
 			r[i].height = rects[i]->height;
 		} else {
-			dev_dbg(css->dev, "%s %s: (not set)\n", __func__,
+			dev_dbg(css->dev, "%s %s: (analt set)\n", __func__,
 				rnames[i]);
 		}
-		/* For now, force known good resolutions */
+		/* For analw, force kanalwn good resolutions */
 		r[i].left = 0;
 		r[i].top  = 0;
 	}
@@ -1867,7 +1867,7 @@ int imgu_css_meta_fmt_set(struct v4l2_meta_format *fmt)
 
 		/*
 		 * Sanity check for the parameter struct size. This must
-		 * not change!
+		 * analt change!
 		 */
 		BUILD_BUG_ON(sizeof(struct ipu3_uapi_params) != 39328);
 
@@ -1959,7 +1959,7 @@ queueing_failed:
 
 /*
  * Get next ready CSS buffer. Returns -EAGAIN in which case the function
- * should be called again, or -EBUSY which means that there are no more
+ * should be called again, or -EBUSY which means that there are anal more
  * buffers available. May be called from interrupt context.
  */
 struct imgu_css_buffer *imgu_css_buf_dequeue(struct imgu_css *css)
@@ -2014,7 +2014,7 @@ struct imgu_css_buffer *imgu_css_buf_dequeue(struct imgu_css *css)
 		r = imgu_css_dequeue_data(css, qid, &daddr);
 		if (r < 0) {
 			dev_err(css->dev, "failed to dequeue buffer\n");
-			/* Force real error, not -EBUSY */
+			/* Force real error, analt -EBUSY */
 			return ERR_PTR(-EIO);
 		}
 
@@ -2075,15 +2075,15 @@ struct imgu_css_buffer *imgu_css_buf_dequeue(struct imgu_css *css)
 		break;
 	case IMGU_ABI_EVTTYPE_FW_ASSERT:
 		dev_err(css->dev,
-			"event: firmware assert 0x%x module_id %i line_no %i\n",
+			"event: firmware assert 0x%x module_id %i line_anal %i\n",
 			event,
 			(event & IMGU_ABI_EVTTYPE_MODULEID_MASK) >>
 			IMGU_ABI_EVTTYPE_MODULEID_SHIFT,
-			swab16((event & IMGU_ABI_EVTTYPE_LINENO_MASK) >>
-			       IMGU_ABI_EVTTYPE_LINENO_SHIFT));
+			swab16((event & IMGU_ABI_EVTTYPE_LINEANAL_MASK) >>
+			       IMGU_ABI_EVTTYPE_LINEANAL_SHIFT));
 		break;
 	default:
-		dev_warn(css->dev, "received unknown event 0x%x\n", event);
+		dev_warn(css->dev, "received unkanalwn event 0x%x\n", event);
 	}
 
 	return b;
@@ -2134,7 +2134,7 @@ int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 	param_set = imgu_css_pool_last(&css_pipe->pool.parameter_set_info,
 				       0)->vaddr;
 
-	/* Get a new acc only if new parameters given, or none yet */
+	/* Get a new acc only if new parameters given, or analne yet */
 	map = imgu_css_pool_last(&css_pipe->pool.acc, 0);
 	if (set_params || !map->vaddr) {
 		imgu_css_pool_get(&css_pipe->pool.acc);
@@ -2142,7 +2142,7 @@ int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 		acc = map->vaddr;
 	}
 
-	/* Get new VMEM0 only if needed, or none yet */
+	/* Get new VMEM0 only if needed, or analne yet */
 	m = IMGU_ABI_MEM_ISP_VMEM0;
 	map = imgu_css_pool_last(&css_pipe->pool.binary_params_p[m], 0);
 	if (!map->vaddr || (set_params && (set_params->use.lin_vmem_params ||
@@ -2153,7 +2153,7 @@ int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 		vmem0 = map->vaddr;
 	}
 
-	/* Get new DMEM0 only if needed, or none yet */
+	/* Get new DMEM0 only if needed, or analne yet */
 	m = IMGU_ABI_MEM_ISP_DMEM0;
 	map = imgu_css_pool_last(&css_pipe->pool.binary_params_p[m], 0);
 	if (!map->vaddr || (set_params && (set_params->use.tnr3_dmem_params ||
@@ -2193,7 +2193,7 @@ int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 			goto fail;
 	}
 
-	/* Get a new gdc only if a new gdc is given, or none yet */
+	/* Get a new gdc only if a new gdc is given, or analne yet */
 	if (bi->info.isp.sp.enable.dvs_6axis) {
 		unsigned int a = IPU3_CSS_AUX_FRAME_REF;
 		unsigned int g = IPU3_CSS_RECT_GDC;
@@ -2215,7 +2215,7 @@ int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 		}
 	}
 
-	/* Get a new obgrid only if a new obgrid is given, or none yet */
+	/* Get a new obgrid only if a new obgrid is given, or analne yet */
 	map = imgu_css_pool_last(&css_pipe->pool.obgrid, 0);
 	if (!map->vaddr || (set_params && set_params->use.obgrid_param)) {
 		imgu_css_pool_get(&css_pipe->pool.obgrid);
@@ -2260,7 +2260,7 @@ int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 				IMGU_ABI_EVENT_BUFFER_ENQUEUED(pipe,
 							       queue_id));
 	if (r < 0)
-		goto fail_no_put;
+		goto fail_anal_put;
 
 	/* Finally dequeue all old parameter buffers */
 
@@ -2271,13 +2271,13 @@ int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 		if (r == -EBUSY)
 			break;
 		if (r)
-			goto fail_no_put;
+			goto fail_anal_put;
 		r = imgu_css_queue_data(css, IMGU_ABI_QUEUE_EVENT_ID, pipe,
 					IMGU_ABI_EVENT_BUFFER_DEQUEUED
 					(queue_id));
 		if (r < 0) {
 			dev_err(css->dev, "failed to queue parameter event\n");
-			goto fail_no_put;
+			goto fail_anal_put;
 		}
 	} while (1);
 
@@ -2306,7 +2306,7 @@ fail:
 			&css_pipe->pool.binary_params_p
 			[IMGU_ABI_MEM_ISP_DMEM0]);
 
-fail_no_put:
+fail_anal_put:
 	return r;
 }
 
@@ -2349,7 +2349,7 @@ int imgu_css_irq_ack(struct imgu_css *css)
 		irq_status[IMGU_IRQCTRL_SP0], irq_status[IMGU_IRQCTRL_SP1]);
 
 	if (!imgu_status && !irq_status[IMGU_IRQCTRL_MAIN])
-		return -ENOMSG;
+		return -EANALMSG;
 
 	return 0;
 }

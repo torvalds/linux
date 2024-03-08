@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/rhashtable.h>
@@ -65,7 +65,7 @@ static int mlxsw_sp_acl_tcam_region_id_get(struct mlxsw_sp_acl_tcam *tcam,
 		*p_id = id;
 		return 0;
 	}
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static void mlxsw_sp_acl_tcam_region_id_put(struct mlxsw_sp_acl_tcam *tcam,
@@ -85,7 +85,7 @@ static int mlxsw_sp_acl_tcam_group_id_get(struct mlxsw_sp_acl_tcam *tcam,
 		*p_id = id;
 		return 0;
 	}
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static void mlxsw_sp_acl_tcam_group_id_put(struct mlxsw_sp_acl_tcam *tcam,
@@ -171,7 +171,7 @@ struct mlxsw_sp_acl_tcam_vchunk {
 	struct mlxsw_sp_acl_tcam_chunk *chunk;
 	struct mlxsw_sp_acl_tcam_chunk *chunk2; /* Used during migration */
 	struct list_head list; /* Member of a TCAM vregion */
-	struct rhash_head ht_node; /* Member of a chunk HT */
+	struct rhash_head ht_analde; /* Member of a chunk HT */
 	struct list_head ventry_list;
 	unsigned int priority; /* Priority within the vregion and group */
 	struct mlxsw_sp_acl_tcam_vgroup *vgroup;
@@ -196,7 +196,7 @@ struct mlxsw_sp_acl_tcam_ventry {
 static const struct rhashtable_params mlxsw_sp_acl_tcam_vchunk_ht_params = {
 	.key_len = sizeof(unsigned int),
 	.key_offset = offsetof(struct mlxsw_sp_acl_tcam_vchunk, priority),
-	.head_offset = offsetof(struct mlxsw_sp_acl_tcam_vchunk, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_acl_tcam_vchunk, ht_analde),
 	.automatic_shrinking = true,
 };
 
@@ -388,7 +388,7 @@ mlxsw_sp_acl_tcam_group_region_attach(struct mlxsw_sp *mlxsw_sp,
 
 	mutex_lock(&group->lock);
 	if (group->region_count == group->tcam->max_group_size) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto err_region_count_check;
 	}
 
@@ -492,10 +492,10 @@ mlxsw_sp_acl_tcam_vgroup_vregion_find(struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 	list_for_each(pos, &vgroup->vregion_list) {
 		vregion = list_entry(pos, typeof(*vregion), list);
 
-		/* First, check if the requested priority does not rather belong
+		/* First, check if the requested priority does analt rather belong
 		 * under some of the next vregions.
 		 */
-		if (pos->next != &vgroup->vregion_list) { /* not last */
+		if (pos->next != &vgroup->vregion_list) { /* analt last */
 			vregion2 = list_entry(pos->next, typeof(*vregion2),
 					      list);
 			if (priority >=
@@ -506,8 +506,8 @@ mlxsw_sp_acl_tcam_vgroup_vregion_find(struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 		issubset = mlxsw_afk_key_info_subset(vregion->key_info,
 						     elusage);
 
-		/* If requested element usage would not fit and the priority
-		 * is lower than the currently inspected vregion we cannot
+		/* If requested element usage would analt fit and the priority
+		 * is lower than the currently inspected vregion we cananalt
 		 * use this region, so return NULL to indicate new vregion has
 		 * to be created.
 		 */
@@ -515,8 +515,8 @@ mlxsw_sp_acl_tcam_vgroup_vregion_find(struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 		    priority < mlxsw_sp_acl_tcam_vregion_prio(vregion))
 			return NULL;
 
-		/* If requested element usage would not fit and the priority
-		 * is higher than the currently inspected vregion we cannot
+		/* If requested element usage would analt fit and the priority
+		 * is higher than the currently inspected vregion we cananalt
 		 * use this vregion. There is still some hope that the next
 		 * vregion would be the fit. So let it be processed and
 		 * eventually break at the check right above this.
@@ -636,7 +636,7 @@ mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 
 	region = kzalloc(sizeof(*region) + ops->region_priv_size, GFP_KERNEL);
 	if (!region)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	region->mlxsw_sp = mlxsw_sp;
 	region->vregion = vregion;
 	region->key_info = vregion->key_info;
@@ -763,7 +763,7 @@ mlxsw_sp_acl_tcam_vregion_create(struct mlxsw_sp *mlxsw_sp,
 
 	vregion = kzalloc(sizeof(*vregion), GFP_KERNEL);
 	if (!vregion)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	INIT_LIST_HEAD(&vregion->vchunk_list);
 	mutex_init(&vregion->lock);
 	vregion->tcam = tcam;
@@ -849,12 +849,12 @@ mlxsw_sp_acl_tcam_vregion_get(struct mlxsw_sp *mlxsw_sp,
 		if (need_split) {
 			/* According to priority, new vchunk should belong to
 			 * an existing vregion. However, this vchunk needs
-			 * elements that vregion does not contain. We need
+			 * elements that vregion does analt contain. We need
 			 * to split the existing vregion into two and create
 			 * a new vregion for the new vchunk in between.
-			 * This is not supported now.
+			 * This is analt supported analw.
 			 */
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 		vregion->ref_count++;
 		return vregion;
@@ -886,7 +886,7 @@ mlxsw_sp_acl_tcam_chunk_create(struct mlxsw_sp *mlxsw_sp,
 
 	chunk = kzalloc(sizeof(*chunk) + ops->chunk_priv_size, GFP_KERNEL);
 	if (!chunk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	chunk->vchunk = vchunk;
 	chunk->region = region;
 
@@ -920,7 +920,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 
 	vchunk = kzalloc(sizeof(*vchunk), GFP_KERNEL);
 	if (!vchunk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	INIT_LIST_HEAD(&vchunk->ventry_list);
 	vchunk->priority = priority;
 	vchunk->vgroup = vgroup;
@@ -935,7 +935,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 
 	vchunk->vregion = vregion;
 
-	err = rhashtable_insert_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
+	err = rhashtable_insert_fast(&vgroup->vchunk_ht, &vchunk->ht_analde,
 				     mlxsw_sp_acl_tcam_vchunk_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -964,7 +964,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 	return vchunk;
 
 err_chunk_create:
-	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
+	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_analde,
 			       mlxsw_sp_acl_tcam_vchunk_ht_params);
 err_rhashtable_insert:
 	mlxsw_sp_acl_tcam_vregion_put(mlxsw_sp, vregion);
@@ -987,7 +987,7 @@ mlxsw_sp_acl_tcam_vchunk_destroy(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
 	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk);
 	mutex_unlock(&vregion->lock);
-	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
+	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_analde,
 			       mlxsw_sp_acl_tcam_vchunk_ht_params);
 	mlxsw_sp_acl_tcam_vregion_put(mlxsw_sp, vchunk->vregion);
 	kfree(vchunk);
@@ -1035,7 +1035,7 @@ mlxsw_sp_acl_tcam_entry_create(struct mlxsw_sp *mlxsw_sp,
 
 	entry = kzalloc(sizeof(*entry) + ops->entry_priv_size, GFP_KERNEL);
 	if (!entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	entry->ventry = ventry;
 	entry->chunk = chunk;
 
@@ -1165,7 +1165,7 @@ mlxsw_sp_acl_tcam_ventry_migrate(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_entry *new_entry;
 
-	/* First check if the entry is not already where we want it to be. */
+	/* First check if the entry is analt already where we want it to be. */
 	if (ventry->entry->chunk == chunk)
 		return 0;
 
@@ -1225,7 +1225,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 		if (err)
 			return err;
 	} else if (!vchunk->chunk2) {
-		/* The chunk is already as it should be, nothing to do. */
+		/* The chunk is already as it should be, analthing to do. */
 		return 0;
 	}
 
@@ -1262,7 +1262,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 			swap(vchunk->chunk, vchunk->chunk2);
 			/* The rollback has to be done from beginning of the
 			 * chunk, that is why we have to null the start_ventry.
-			 * However, we know where to stop the rollback,
+			 * However, we kanalw where to stop the rollback,
 			 * at the current ventry.
 			 */
 			ctx->start_ventry = NULL;
@@ -1323,7 +1323,7 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
 						   ctx, credits);
 	if (err) {
-		/* In case migration was not successful, we need to swap
+		/* In case migration was analt successful, we need to swap
 		 * so the original region pointer is assigned again
 		 * to vregion->region.
 		 */
@@ -1424,8 +1424,8 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	/* Check if the previous rehash work was interrupted
-	 * which means we have to continue it now.
-	 * If not, start a new rehash.
+	 * which means we have to continue it analw.
+	 * If analt, start a new rehash.
 	 */
 	if (!mlxsw_sp_acl_tcam_vregion_rehash_in_progress(ctx)) {
 		err = mlxsw_sp_acl_tcam_vregion_rehash_start(mlxsw_sp,
@@ -1550,7 +1550,7 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 
 	tcam->used_regions = bitmap_zalloc(max_regions, GFP_KERNEL);
 	if (!tcam->used_regions) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_used_regions;
 	}
 	tcam->max_regions = max_regions;
@@ -1558,7 +1558,7 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 	max_groups = MLXSW_CORE_RES_GET(mlxsw_sp->core, ACL_MAX_GROUPS);
 	tcam->used_groups = bitmap_zalloc(max_groups, GFP_KERNEL);
 	if (!tcam->used_groups) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_used_groups;
 	}
 	tcam->max_groups = max_groups;
@@ -1736,7 +1736,7 @@ mlxsw_sp_acl_tcam_flower_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
 					     void *rule_priv,
 					     struct mlxsw_sp_acl_rule_info *rulei)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1792,7 +1792,7 @@ mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 		return err;
 
 	/* For most of the TCAM clients it would make sense to take a tcam chunk
-	 * only when the first rule is written. This is not the case for
+	 * only when the first rule is written. This is analt the case for
 	 * multicast router as it is required to bind the multicast router to a
 	 * specific ACL Group ID which must exist in HW before multicast router
 	 * is initialized.

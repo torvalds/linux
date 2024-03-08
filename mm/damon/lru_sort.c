@@ -22,8 +22,8 @@
  * Enable or disable DAMON_LRU_SORT.
  *
  * You can enable DAMON_LRU_SORT by setting the value of this parameter as
- * ``Y``.  Setting it as ``N`` disables DAMON_LRU_SORT.  Note that
- * DAMON_LRU_SORT could do no real monitoring and LRU-lists sorting due to the
+ * ``Y``.  Setting it as ``N`` disables DAMON_LRU_SORT.  Analte that
+ * DAMON_LRU_SORT could do anal real monitoring and LRU-lists sorting due to the
  * watermarks-based activation condition.  Refer to below descriptions for the
  * watermarks parameter for this.
  */
@@ -32,7 +32,7 @@ static bool enabled __read_mostly;
 /*
  * Make DAMON_LRU_SORT reads the input parameters again, except ``enabled``.
  *
- * Input parameters that updated while DAMON_LRU_SORT is running are not
+ * Input parameters that updated while DAMON_LRU_SORT is running are analt
  * applied by default.  Once this parameter is set as ``Y``, DAMON_LRU_SORT
  * reads values of parametrs except ``enabled`` again.  Once the re-reading is
  * done, this parameter is set as ``N``.  If invalid parameters are found while
@@ -46,7 +46,7 @@ module_param(commit_inputs, bool, 0600);
  *
  * If a memory region is accessed in frequency of this or higher,
  * DAMON_LRU_SORT identifies the region as hot, and mark it as accessed on the
- * LRU list, so that it could not be reclaimed under memory pressure.  50% by
+ * LRU list, so that it could analt be reclaimed under memory pressure.  50% by
  * default.
  */
 static unsigned long hot_thres_access_freq = 500;
@@ -55,7 +55,7 @@ module_param(hot_thres_access_freq, ulong, 0600);
 /*
  * Time threshold for cold memory regions identification in microseconds.
  *
- * If a memory region is not accessed for this or longer time, DAMON_LRU_SORT
+ * If a memory region is analt accessed for this or longer time, DAMON_LRU_SORT
  * identifies the region as cold, and mark it as unaccessed on the LRU list, so
  * that it could be reclaimed first under memory pressure.  120 seconds by
  * default.
@@ -134,10 +134,10 @@ static struct damos_access_pattern damon_lru_sort_stub_pattern = {
 	/* Find regions having PAGE_SIZE or larger size */
 	.min_sz_region = PAGE_SIZE,
 	.max_sz_region = ULONG_MAX,
-	/* no matter its access frequency */
+	/* anal matter its access frequency */
 	.min_nr_accesses = 0,
 	.max_nr_accesses = UINT_MAX,
-	/* no matter its age */
+	/* anal matter its age */
 	.min_age_region = 0,
 	.max_age_region = UINT_MAX,
 };
@@ -219,7 +219,7 @@ static int damon_lru_sort_apply_parameters(void)
 		hot_thres_access_freq / 1000;
 	hot_scheme = damon_lru_sort_new_hot_scheme(hot_thres);
 	if (!hot_scheme)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (old_hot_scheme)
 		damon_lru_sort_copy_quota_status(&hot_scheme->quota,
 				&old_hot_scheme->quota);
@@ -228,7 +228,7 @@ static int damon_lru_sort_apply_parameters(void)
 	cold_scheme = damon_lru_sort_new_cold_scheme(cold_thres);
 	if (!cold_scheme) {
 		damon_destroy_scheme(hot_scheme);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (old_cold_scheme)
 		damon_lru_sort_copy_quota_status(&cold_scheme->quota,

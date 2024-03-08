@@ -22,7 +22,7 @@
 
 
 #define NILFS_BUFFER_INHERENT_BITS					\
-	(BIT(BH_Uptodate) | BIT(BH_Mapped) | BIT(BH_NILFS_Node) |	\
+	(BIT(BH_Uptodate) | BIT(BH_Mapped) | BIT(BH_NILFS_Analde) |	\
 	 BIT(BH_NILFS_Volatile) | BIT(BH_NILFS_Checked))
 
 static struct buffer_head *__nilfs_get_folio_block(struct folio *folio,
@@ -44,12 +44,12 @@ static struct buffer_head *__nilfs_get_folio_block(struct folio *folio,
 	return bh;
 }
 
-struct buffer_head *nilfs_grab_buffer(struct inode *inode,
+struct buffer_head *nilfs_grab_buffer(struct ianalde *ianalde,
 				      struct address_space *mapping,
 				      unsigned long blkoff,
 				      unsigned long b_state)
 {
-	int blkbits = inode->i_blkbits;
+	int blkbits = ianalde->i_blkbits;
 	pgoff_t index = blkoff >> (PAGE_SHIFT - blkbits);
 	struct folio *folio;
 	struct buffer_head *bh;
@@ -131,7 +131,7 @@ void nilfs_copy_buffer(struct buffer_head *dbh, struct buffer_head *sbh)
 }
 
 /**
- * nilfs_folio_buffers_clean - Check if a folio has dirty buffers or not.
+ * nilfs_folio_buffers_clean - Check if a folio has dirty buffers or analt.
  * @folio: Folio to be checked.
  *
  * nilfs_folio_buffers_clean() returns false if the folio has dirty buffers.
@@ -154,7 +154,7 @@ void nilfs_folio_bug(struct folio *folio)
 {
 	struct buffer_head *bh, *head;
 	struct address_space *m;
-	unsigned long ino;
+	unsigned long ianal;
 
 	if (unlikely(!folio)) {
 		printk(KERN_CRIT "NILFS_FOLIO_BUG(NULL)\n");
@@ -162,12 +162,12 @@ void nilfs_folio_bug(struct folio *folio)
 	}
 
 	m = folio->mapping;
-	ino = m ? m->host->i_ino : 0;
+	ianal = m ? m->host->i_ianal : 0;
 
 	printk(KERN_CRIT "NILFS_FOLIO_BUG(%p): cnt=%d index#=%llu flags=0x%lx "
-	       "mapping=%p ino=%lu\n",
+	       "mapping=%p ianal=%lu\n",
 	       folio, folio_ref_count(folio),
-	       (unsigned long long)folio->index, folio->flags, m, ino);
+	       (unsigned long long)folio->index, folio->flags, m, ianal);
 
 	head = folio_buffers(folio);
 	if (head) {
@@ -190,8 +190,8 @@ void nilfs_folio_bug(struct folio *folio)
  * @src: source folio
  * @copy_dirty: flag whether to copy dirty states on the folio's buffer heads.
  *
- * This function is for both data folios and btnode folios.  The dirty flag
- * should be treated by caller.  The folio must not be under i/o.
+ * This function is for both data folios and btanalde folios.  The dirty flag
+ * should be treated by caller.  The folio must analt be under i/o.
  * Both src and dst folio must be locked
  */
 static void nilfs_copy_folio(struct folio *dst, struct folio *src,
@@ -263,7 +263,7 @@ repeat:
 
 		dfolio = filemap_grab_folio(dmap, folio->index);
 		if (unlikely(IS_ERR(dfolio))) {
-			/* No empty page is added to the page cache */
+			/* Anal empty page is added to the page cache */
 			folio_unlock(folio);
 			err = PTR_ERR(dfolio);
 			break;
@@ -292,7 +292,7 @@ repeat:
  * @dmap: destination page cache
  * @smap: source page cache
  *
- * No pages must be added to the cache during this process.
+ * Anal pages must be added to the cache during this process.
  * This must be ensured by the caller.
  */
 void nilfs_copy_back_pages(struct address_space *dmap,
@@ -320,7 +320,7 @@ repeat:
 			nilfs_copy_folio(dfolio, folio, false);
 			folio_unlock(dfolio);
 			folio_put(dfolio);
-			/* Do we not need to remove folio from smap here? */
+			/* Do we analt need to remove folio from smap here? */
 		} else {
 			struct folio *f;
 
@@ -332,9 +332,9 @@ repeat:
 			xa_unlock_irq(&smap->i_pages);
 
 			xa_lock_irq(&dmap->i_pages);
-			f = __xa_store(&dmap->i_pages, index, folio, GFP_NOFS);
+			f = __xa_store(&dmap->i_pages, index, folio, GFP_ANALFS);
 			if (unlikely(f)) {
-				/* Probably -ENOMEM */
+				/* Probably -EANALMEM */
 				folio->mapping = NULL;
 				folio_put(folio);
 			} else {
@@ -396,15 +396,15 @@ void nilfs_clear_dirty_pages(struct address_space *mapping, bool silent)
  */
 void nilfs_clear_folio_dirty(struct folio *folio, bool silent)
 {
-	struct inode *inode = folio->mapping->host;
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = folio->mapping->host;
+	struct super_block *sb = ianalde->i_sb;
 	struct buffer_head *bh, *head;
 
 	BUG_ON(!folio_test_locked(folio));
 
 	if (!silent)
-		nilfs_warn(sb, "discard dirty page: offset=%lld, ino=%lu",
-			   folio_pos(folio), inode->i_ino);
+		nilfs_warn(sb, "discard dirty page: offset=%lld, ianal=%lu",
+			   folio_pos(folio), ianalde->i_ianal);
 
 	folio_clear_uptodate(folio);
 	folio_clear_mappedtodisk(folio);
@@ -452,7 +452,7 @@ unsigned int nilfs_page_count_clean_buffers(struct page *page,
 /*
  * NILFS2 needs clear_page_dirty() in the following two cases:
  *
- * 1) For B-tree node pages and data pages of DAT file, NILFS2 clears dirty
+ * 1) For B-tree analde pages and data pages of DAT file, NILFS2 clears dirty
  *    flag of pages when it copies back pages from shadow cache to the
  *    original cache.
  *
@@ -480,7 +480,7 @@ void __nilfs_clear_folio_dirty(struct folio *folio)
 
 /**
  * nilfs_find_uncommitted_extent - find extent of uncommitted data
- * @inode: inode
+ * @ianalde: ianalde
  * @start_blk: start block offset (in)
  * @blkoff: start offset of the found extent (out)
  *
@@ -490,7 +490,7 @@ void __nilfs_clear_folio_dirty(struct folio *folio)
  * @blkoff and return its length in blocks.  Otherwise, zero is
  * returned.
  */
-unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
+unsigned long nilfs_find_uncommitted_extent(struct ianalde *ianalde,
 					    sector_t start_blk,
 					    sector_t *blkoff)
 {
@@ -500,15 +500,15 @@ unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
 	struct folio_batch fbatch;
 	struct folio *folio;
 
-	if (inode->i_mapping->nrpages == 0)
+	if (ianalde->i_mapping->nrpages == 0)
 		return 0;
 
-	index = start_blk >> (PAGE_SHIFT - inode->i_blkbits);
+	index = start_blk >> (PAGE_SHIFT - ianalde->i_blkbits);
 
 	folio_batch_init(&fbatch);
 
 repeat:
-	nr_folios = filemap_get_folios_contig(inode->i_mapping, &index, ULONG_MAX,
+	nr_folios = filemap_get_folios_contig(ianalde->i_mapping, &index, ULONG_MAX,
 			&fbatch);
 	if (nr_folios == 0)
 		return length;
@@ -522,7 +522,7 @@ repeat:
 			struct buffer_head *bh, *head;
 			sector_t b;
 
-			b = folio->index << (PAGE_SHIFT - inode->i_blkbits);
+			b = folio->index << (PAGE_SHIFT - ianalde->i_blkbits);
 			bh = head = folio_buffers(folio);
 			do {
 				if (b < start_blk)

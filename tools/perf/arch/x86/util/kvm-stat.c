@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include "../../../util/kvm-stat.h"
 #include "../../../util/evsel.h"
@@ -207,7 +207,7 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
 		kvm->exit_reasons = svm_exit_reasons;
 		kvm->exit_reasons_isa = "SVM";
 	} else
-		return -ENOTSUP;
+		return -EANALTSUP;
 
 	return 0;
 }

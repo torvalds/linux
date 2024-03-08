@@ -4,7 +4,7 @@
 #
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not trace early boot code and low level code
+# Do analt trace early boot code and low level code
 CFLAGS_REMOVE_timer.o = -pg
 CFLAGS_REMOVE_intc.o = -pg
 CFLAGS_REMOVE_early_printk.o = -pg

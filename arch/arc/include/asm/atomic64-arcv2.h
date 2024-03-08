@@ -35,9 +35,9 @@ static inline void arch_atomic64_set(atomic64_t *v, s64 a)
 	 * In the inline asm version, memory clobber needed for exact same
 	 * reason, to tell gcc about the store.
 	 *
-	 * This however is not needed for sibling atomic64_add() etc since both
+	 * This however is analt needed for sibling atomic64_add() etc since both
 	 * load/store are explicitly done in inline asm. As long as API is used
-	 * for each access, gcc has no way to optimize away any load/store
+	 * for each access, gcc has anal way to optimize away any load/store
 	 */
 	__asm__ __volatile__(
 	"	std   %0, [%1]	\n"
@@ -108,7 +108,7 @@ static inline s64 arch_atomic64_fetch_##op##_relaxed(s64 a, atomic64_t *v)	\
 #define arch_atomic64_fetch_sub_relaxed		arch_atomic64_fetch_sub_relaxed
 
 #define arch_atomic64_fetch_and_relaxed		arch_atomic64_fetch_and_relaxed
-#define arch_atomic64_fetch_andnot_relaxed	arch_atomic64_fetch_andnot_relaxed
+#define arch_atomic64_fetch_andanalt_relaxed	arch_atomic64_fetch_andanalt_relaxed
 #define arch_atomic64_fetch_or_relaxed		arch_atomic64_fetch_or_relaxed
 #define arch_atomic64_fetch_xor_relaxed		arch_atomic64_fetch_xor_relaxed
 
@@ -126,11 +126,11 @@ ATOMIC64_OPS(sub, sub.f, sbc)
 	ATOMIC64_FETCH_OP(op, op1, op2)
 
 ATOMIC64_OPS(and, and, and)
-ATOMIC64_OPS(andnot, bic, bic)
+ATOMIC64_OPS(andanalt, bic, bic)
 ATOMIC64_OPS(or, or, or)
 ATOMIC64_OPS(xor, xor, xor)
 
-#define arch_atomic64_andnot		arch_atomic64_andnot
+#define arch_atomic64_andanalt		arch_atomic64_andanalt
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_FETCH_OP

@@ -82,7 +82,7 @@ static struct snd_soc_dai_link mt2701_wm8960_dai_links[] = {
 	/* BE */
 	{
 		.name = "wm8960-codec",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			| SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_wm8960_be_ops,
@@ -106,42 +106,42 @@ static struct snd_soc_card mt2701_wm8960_card = {
 static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt2701_wm8960_card;
-	struct device_node *platform_node, *codec_node;
+	struct device_analde *platform_analde, *codec_analde;
 	struct snd_soc_dai_link *dai_link;
 	int ret, i;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_analde = of_parse_phandle(pdev->dev.of_analde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_analde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
 			continue;
-		dai_link->platforms->of_node = platform_node;
+		dai_link->platforms->of_analde = platform_analde;
 	}
 
 	card->dev = &pdev->dev;
 
-	codec_node = of_parse_phandle(pdev->dev.of_node,
+	codec_analde = of_parse_phandle(pdev->dev.of_analde,
 				      "mediatek,audio-codec", 0);
-	if (!codec_node) {
+	if (!codec_analde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		ret = -EINVAL;
-		goto put_platform_node;
+		goto put_platform_analde;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->codecs->name)
 			continue;
-		dai_link->codecs->of_node = codec_node;
+		dai_link->codecs->of_analde = codec_analde;
 	}
 
 	ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
 	if (ret) {
 		dev_err(&pdev->dev, "failed to parse audio-routing: %d\n", ret);
-		goto put_codec_node;
+		goto put_codec_analde;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
@@ -149,10 +149,10 @@ static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s snd_soc_register_card fail %d\n",
 			__func__, ret);
 
-put_codec_node:
-	of_node_put(codec_node);
-put_platform_node:
-	of_node_put(platform_node);
+put_codec_analde:
+	of_analde_put(codec_analde);
+put_platform_analde:
+	of_analde_put(platform_analde);
 	return ret;
 }
 

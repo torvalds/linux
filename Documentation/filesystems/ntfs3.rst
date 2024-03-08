@@ -10,7 +10,7 @@ Summary and Features
 NTFS3 is fully functional NTFS Read-Write driver. The driver works with NTFS
 versions up to 3.1. File system type to use on mount is *ntfs3*.
 
-- This driver implements NTFS read/write support for normal, sparse and
+- This driver implements NTFS read/write support for analrmal, sparse and
   compressed files.
 - Supports native journal replaying.
 - Supports NFS export of mounted NTFS volumes.
@@ -22,8 +22,8 @@ versions up to 3.1. File system type to use on mount is *ntfs3*.
 
 	- *system.ntfs_attrib* gets/sets ntfs file/dir attributes.
 
-	  Note: Applied to empty files, this allows to switch type between
-	  sparse(0x200), compressed(0x800) and normal.
+	  Analte: Applied to empty files, this allows to switch type between
+	  sparse(0x200), compressed(0x800) and analrmal.
 
 	- *system.ntfs_attrib_be* gets/sets ntfs file/dir attributes.
 
@@ -34,8 +34,8 @@ Mount Options
 =============
 
 The list below describes mount options supported by NTFS3 driver in addition to
-generic ones. You can use every mount option with **no** option. If it is in
-this table marked with no it means default is without **no**.
+generic ones. You can use every mount option with **anal** option. If it is in
+this table marked with anal it means default is without **anal**.
 
 .. flat-table::
    :widths: 1 5
@@ -43,7 +43,7 @@ this table marked with no it means default is without **no**.
 
    * - iocharset=name
      - This option informs the driver how to interpret path strings and
-       translate them to Unicode and back. If this option is not set, the
+       translate them to Unicode and back. If this option is analt set, the
        default codepage will be used (CONFIG_NLS_DEFAULT).
 
        Example: iocharset=utf8
@@ -61,9 +61,9 @@ this table marked with no it means default is without **no**.
        directories, fmask applies only to files and dmask only to directories.
    * - fmask=
 
-   * - nohidden
+   * - analhidden
      - Files with the Windows-specific HIDDEN (FILE_ATTRIBUTE_HIDDEN) attribute
-       will not be shown under Linux.
+       will analt be shown under Linux.
 
    * - sys_immutable
      - Files with the Windows-specific SYSTEM (FILE_ATTRIBUTE_SYSTEM) attribute
@@ -73,11 +73,11 @@ this table marked with no it means default is without **no**.
      - Updates the Windows-specific HIDDEN (FILE_ATTRIBUTE_HIDDEN) attribute
        when creating and moving or renaming files. Files whose names start
        with a dot will have the HIDDEN attribute set and files whose names
-       do not start with a dot will have it unset.
+       do analt start with a dot will have it unset.
 
    * - windows_names
-     - Prevents the creation of files and directories with a name not allowed
-       by Windows, either because it contains some not allowed character (which
+     - Prevents the creation of files and directories with a name analt allowed
+       by Windows, either because it contains some analt allowed character (which
        are the characters " * / : < > ? \\ | and those whose code is less than
        0x20), because the name (with or without extension) is a reserved file
        name (CON, AUX, NUL, PRN, LPT1-9, COM1-9) or because the last character
@@ -90,7 +90,7 @@ this table marked with no it means default is without **no**.
 
    * - force
      - Forces the driver to mount partitions even if volume is marked dirty.
-       Not recommended for use.
+       Analt recommended for use.
 
    * - sparse
      - Create new files as sparse.
@@ -106,13 +106,13 @@ this table marked with no it means default is without **no**.
 
    * - acl
      - Support POSIX ACLs (Access Control Lists). Effective if supported by
-       Kernel. Not to be confused with NTFS ACLs. The option specified as acl
+       Kernel. Analt to be confused with NTFS ACLs. The option specified as acl
        enables support for POSIX ACLs.
 
 Todo list
 =========
 - Full journaling support over JBD. Currently journal replaying is supported
-  which is not necessarily as effective as JBD would be.
+  which is analt necessarily as effective as JBD would be.
 
 References
 ==========

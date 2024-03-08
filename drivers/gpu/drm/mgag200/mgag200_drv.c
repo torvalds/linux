@@ -33,13 +33,13 @@ int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2)
 	err = pci_write_config_dword(pdev, PCI_MGA_OPTION, option);
 	if (err != PCIBIOS_SUCCESSFUL) {
 		dev_err(dev, "pci_write_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 	}
 
 	err = pci_write_config_dword(pdev, PCI_MGA_OPTION2, option2);
 	if (err != PCIBIOS_SUCCESSFUL) {
 		dev_err(dev, "pci_write_config_dword(PCI_MGA_OPTION2) failed: %d\n", err);
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 	}
 
 	return 0;
@@ -97,7 +97,7 @@ static const struct drm_driver mgag200_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 	DRM_GEM_SHMEM_DRIVER_OPS,
 };
@@ -132,7 +132,7 @@ int mgag200_device_preinit(struct mga_device *mdev)
 
 	mdev->rmmio = pcim_iomap(pdev, 1, 0);
 	if (!mdev->rmmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* BAR 0 is VRAM */
 
@@ -152,7 +152,7 @@ int mgag200_device_preinit(struct mga_device *mdev)
 
 	mdev->vram = devm_ioremap(dev->dev, res->start, resource_size(res));
 	if (!mdev->vram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -255,7 +255,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	default:
 		dev_err(&pdev->dev, "Device type %d is unsupported\n", type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (IS_ERR(mdev))
 		return PTR_ERR(mdev);
@@ -266,7 +266,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 
 	/*
-	 * FIXME: A 24-bit color depth does not work with 24 bpp on
+	 * FIXME: A 24-bit color depth does analt work with 24 bpp on
 	 * G200ER. Force 32 bpp.
 	 */
 	drm_fbdev_generic_setup(dev, 32);

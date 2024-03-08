@@ -17,12 +17,12 @@
 #define __IA_CSS_XNR_TYPES_H
 
 /* @file
-* CSS-API header file for Extra Noise Reduction (XNR) parameters.
+* CSS-API header file for Extra Analise Reduction (XNR) parameters.
 */
 
 /* XNR table.
  *
- *  NOTE: The driver does not need to set this table,
+ *  ANALTE: The driver does analt need to set this table,
  *        because the default values are set inside the css.
  *
  *  This table contains coefficients used for division in XNR.

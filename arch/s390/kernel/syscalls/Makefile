@@ -20,7 +20,7 @@ kapi:	$(gen-y) $(kapi-hdrs-y)
 uapi:	$(uapi-hdrs-y)
 
 
-# Create output directory if not already present
+# Create output directory if analt already present
 $(shell mkdir -p $(uapi) $(kapi))
 
 filechk_syshdr = $(CONFIG_SHELL) '$(systbl)' -H -a $(syshdr_abi_$(basetarget)) -f "$2" < $<

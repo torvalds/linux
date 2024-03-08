@@ -20,8 +20,8 @@ unsigned int rxrpc_max_backlog __read_mostly = 10;
  * How long to wait before scheduling an ACK with subtype DELAY (in jiffies).
  *
  * We use this when we've received new data packets.  If those packets aren't
- * all consumed within this time we will send a DELAY ACK if an ACK was not
- * requested to let the sender know it doesn't need to resend.
+ * all consumed within this time we will send a DELAY ACK if an ACK was analt
+ * requested to let the sender kanalw it doesn't need to resend.
  */
 unsigned long rxrpc_soft_ack_delay = HZ;
 
@@ -30,7 +30,7 @@ unsigned long rxrpc_soft_ack_delay = HZ;
  *
  * We use this when we've consumed some previously soft-ACK'd packets when
  * further packets aren't immediately received to decide when to send an IDLE
- * ACK let the other end know that it can free up its Tx buffer space.
+ * ACK let the other end kanalw that it can free up its Tx buffer space.
  */
 unsigned long rxrpc_idle_ack_delay = HZ / 2;
 
@@ -44,7 +44,7 @@ unsigned int rxrpc_rx_window_size = 255;
 
 /*
  * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet
- * made by gluing normal packets together that we're willing to handle.
+ * made by gluing analrmal packets together that we're willing to handle.
  */
 unsigned int rxrpc_rx_mtu = 5692;
 

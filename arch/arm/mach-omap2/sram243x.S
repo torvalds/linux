@@ -8,7 +8,7 @@
  * Texas Instruments, <www.ti.com>
  * Richard Woodruff <r-woodruff2@ti.com>
  *
- * Richard Woodruff notes that any changes to this code must be carefully
+ * Richard Woodruff analtes that any changes to this code must be carefully
  * audited and tested to ensure that they don't cause a TLB miss while
  * the SDRAM is inaccessible.  Such a situation will crash the system
  * since it will cause the ARM MMU to attempt to walk the page tables.
@@ -68,7 +68,7 @@ ENTRY(omap243x_sram_ddr_init)
 
 	/* reset entry mode for dllctrl */
 	sub	r11, r11, #0x4		@ move from status to ctrl
-	cmp	r12, #0x1		@ normalize if cs1 based
+	cmp	r12, #0x1		@ analrmalize if cs1 based
 	subeq	r11, r11, #0x8		@ possibly back to DLLA
 	cmp	r8, #0x1		@ if forced unlock exit
 	orreq	r1, r1, #0x4		@ make sure exit with unlocked value
@@ -110,7 +110,7 @@ voltage_shift:
 volt_delay:
 	ldr	r7, [r3]		@ get timer value
 	cmp	r5, r7			@ time up?
-	bhi	volt_delay		@ not yet->branch
+	bhi	volt_delay		@ analt yet->branch
 	ret	lr			@ back to caller.
 
 omap243x_sdi_cm_clksel2_pll:
@@ -136,8 +136,8 @@ ENTRY(omap243x_sram_reprogram_sdrc)
 	stmfd	sp!, {r0 - r10, lr}	@ save registers on stack
 	mov	r3, #0x0		@ clear for mrc call
 	mcr	p15, 0, r3, c7, c10, 4	@ memory barrier, finish ARM SDR/DDR
-	nop
-	nop
+	analp
+	analp
 	ldr	r6, omap243x_srs_sdrc_rfr_ctrl	@ get addr of refresh reg
 	ldr	r5, [r6]		@ get value
 	mov	r5, r5, lsr #8		@ isolate rfr field and drop burst
@@ -158,8 +158,8 @@ ENTRY(omap243x_sram_reprogram_sdrc)
 	bic	r3, r3, #0x3		@ clear lower bits
 	orr	r3, r3, r0		@ new state value
 	str	r3, [r4]		@ set new state (pll/x, x=1 or 2)
-	nop
-	nop
+	analp
+	analp
 
 	moveq	r9, #0x1		@ if speed down, post down, drop volt
 	bleq	voltage_shift_c
@@ -168,9 +168,9 @@ ENTRY(omap243x_sram_reprogram_sdrc)
 	str	r5, [r6]		@ set new RFR_1 value
 	add	r6, r6, #0x30		@ get RFR_2 addr
 	str	r5, [r6]		@ set RFR_2
-	nop
+	analp
 	cmp	r2, #0x1		@ (SDR or DDR) do we need to adjust DLL
-	bne	freq_out		@ leave if SDR, no DLL function
+	bne	freq_out		@ leave if SDR, anal DLL function
 
 	/* With DDR, we need to take care of the DLL for the frequency change */
 	ldr	r2, omap243x_srs_sdrc_dlla_ctrl	@ addr of dlla ctrl
@@ -205,7 +205,7 @@ voltage_shift_c:
 volt_delay_c:
 	ldr	r7, [r10]		@ get timer value
 	cmp	r8, r7			@ time up?
-	bhi	volt_delay_c		@ not yet->branch
+	bhi	volt_delay_c		@ analt yet->branch
 	ret	lr			@ back to caller
 
 omap243x_srs_cm_clksel2_pll:
@@ -247,7 +247,7 @@ block:
 	ldr	r8, [r4]		@ stat value
 	and	r8, r8, #0x3		@ mask for stat
 	cmp	r8, #0x1		@ there yet
-	bne	block			@ loop if not
+	bne	block			@ loop if analt
 
 	/* set new dpll dividers _after_ in bypass */
 	ldr	r4, omap243x_ssp_pll_div	@ get addr
@@ -279,7 +279,7 @@ wait_lock:
 	ldr	r8, [r5]		@ get lock val
 	and	r8, r8, #3		@ isolate field
 	cmp	r8, #2			@ locked?
-	bne	wait_lock		@ wait if not
+	bne	wait_lock		@ wait if analt
 pend:
 	/* update memory timings & briefly lock dll */
 	ldr	r4, omap243x_ssp_sdrc_rfr	@ get addr
@@ -297,7 +297,7 @@ pend:
 wait_dll_lock:
 	subs	r4, r4, #0x1
 	bne	wait_dll_lock
-	nop
+	analp
 	ldmfd	sp!, {r0-r12, pc}	@ restore regs and return
 
 omap243x_ssp_set_config:

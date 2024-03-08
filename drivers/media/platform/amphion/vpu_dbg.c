@@ -54,7 +54,7 @@ static inline const char *to_vpu_stat_name(int state)
 {
 	if (state <= VPU_BUF_STATE_ERROR)
 		return vpu_stat_name[state];
-	return "unknown";
+	return "unkanalwn";
 }
 
 static int vpu_dbg_instance(struct seq_file *s, void *data)
@@ -210,7 +210,7 @@ static int vpu_dbg_instance(struct seq_file *s, void *data)
 		if (!inst->flows[idx])
 			continue;
 		num = scnprintf(str, sizeof(str), "\t[%s] %s\n",
-				inst->flows[idx] >= VPU_MSG_ID_NOOP ? "M" : "C",
+				inst->flows[idx] >= VPU_MSG_ID_ANALOP ? "M" : "C",
 				vpu_id_name(inst->flows[idx]));
 		if (seq_write(s, str, num)) {
 			mutex_unlock(&inst->core->cmd_lock);
@@ -348,9 +348,9 @@ static int vpu_dbg_fwlog(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int vpu_dbg_inst_open(struct inode *inode, struct file *filp)
+static int vpu_dbg_inst_open(struct ianalde *ianalde, struct file *filp)
 {
-	return single_open(filp, vpu_dbg_instance, inode->i_private);
+	return single_open(filp, vpu_dbg_instance, ianalde->i_private);
 }
 
 static ssize_t vpu_dbg_inst_write(struct file *file,
@@ -385,14 +385,14 @@ static ssize_t vpu_dbg_core_write(struct file *file,
 	return size;
 }
 
-static int vpu_dbg_core_open(struct inode *inode, struct file *filp)
+static int vpu_dbg_core_open(struct ianalde *ianalde, struct file *filp)
 {
-	return single_open(filp, vpu_dbg_core, inode->i_private);
+	return single_open(filp, vpu_dbg_core, ianalde->i_private);
 }
 
-static int vpu_dbg_fwlog_open(struct inode *inode, struct file *filp)
+static int vpu_dbg_fwlog_open(struct ianalde *ianalde, struct file *filp)
 {
-	return single_open(filp, vpu_dbg_fwlog, inode->i_private);
+	return single_open(filp, vpu_dbg_fwlog, ianalde->i_private);
 }
 
 static const struct file_operations vpu_dbg_inst_fops = {

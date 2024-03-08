@@ -2,7 +2,7 @@
 /*
  * RDMA Network Block Driver
  *
- * Copyright (c) 2022 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2022 1&1 IOANALS SE. All rights reserved.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM rtrs_srv
@@ -32,9 +32,9 @@ TRACE_EVENT(send_io_resp_imm,
 	TP_PROTO(struct rtrs_srv_op *id,
 		 bool need_inval,
 		 bool always_invalidate,
-		 int errno),
+		 int erranal),
 
-	TP_ARGS(id, need_inval, always_invalidate, errno),
+	TP_ARGS(id, need_inval, always_invalidate, erranal),
 
 	TP_STRUCT__entry(
 		__field(u8, dir)
@@ -44,7 +44,7 @@ TRACE_EVENT(send_io_resp_imm,
 		__field(int, wr_cnt)
 		__field(u32, signal_interval)
 		__field(int, state)
-		__field(int, errno)
+		__field(int, erranal)
 		__array(char, sessname, NAME_MAX)
 	),
 
@@ -55,7 +55,7 @@ TRACE_EVENT(send_io_resp_imm,
 
 		__entry->dir = id->dir;
 		__entry->state = srv_path->state;
-		__entry->errno = errno;
+		__entry->erranal = erranal;
 		__entry->need_inval = need_inval;
 		__entry->always_invalidate = always_invalidate;
 		__entry->msg_id = id->msg_id;
@@ -70,7 +70,7 @@ TRACE_EVENT(send_io_resp_imm,
 		   __print_symbolic(__entry->dir,
 			 { READ,  "READ" },
 			 { WRITE, "WRITE" }),
-		   __entry->errno,
+		   __entry->erranal,
 		   __entry->need_inval,
 		   __entry->always_invalidate,
 		   __entry->msg_id,

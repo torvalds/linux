@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
@@ -45,7 +45,7 @@ static irqreturn_t fsl_mpic_timer_irq(int irq, void *dev_id)
 
 	schedule_work(&wakeup->free_work);
 
-	return wakeup->timer ? IRQ_HANDLED : IRQ_NONE;
+	return wakeup->timer ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static ssize_t fsl_timer_wakeup_show(struct device *dev,
@@ -121,7 +121,7 @@ static int __init fsl_wakeup_sys_init(void)
 
 	fsl_wakeup = kzalloc(sizeof(struct fsl_mpic_timer_wakeup), GFP_KERNEL);
 	if (!fsl_wakeup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&fsl_wakeup->free_work, fsl_free_resource);
 

@@ -79,7 +79,7 @@
 #define BT878_RISC_SYNC_MASK	(1 << 15)
 
 
-#define BTTV_BOARD_UNKNOWN                 0x00
+#define BTTV_BOARD_UNKANALWN                 0x00
 #define BTTV_BOARD_PINNACLESAT             0x5e
 #define BTTV_BOARD_NEBULA_DIGITV           0x68
 #define BTTV_BOARD_PC_HDTV                 0x70
@@ -127,7 +127,7 @@ struct bt878 {
 extern struct bt878 bt878[BT878_MAX];
 
 void bt878_start(struct bt878 *bt, u32 controlreg, u32 op_sync_orin,
-		u32 irq_err_ignore);
+		u32 irq_err_iganalre);
 void bt878_stop(struct bt878 *bt);
 
 #define bmtwrite(dat,adr)  writel((dat), (adr))

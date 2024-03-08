@@ -9,9 +9,9 @@
  */
 
 #include <linux/bits.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
@@ -200,7 +200,7 @@ static int get_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	off = core_reg_offset_from_id(reg->id);
 	if (off >= nr_regs ||
 	    (off + (KVM_REG_SIZE(reg->id) / sizeof(__u32))) >= nr_regs)
-		return -ENOENT;
+		return -EANALENT;
 
 	addr = core_reg_addr(vcpu, reg);
 	if (!addr)
@@ -225,7 +225,7 @@ static int set_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	off = core_reg_offset_from_id(reg->id);
 	if (off >= nr_regs ||
 	    (off + (KVM_REG_SIZE(reg->id) / sizeof(__u32))) >= nr_regs)
-		return -ENOENT;
+		return -EANALENT;
 
 	addr = core_reg_addr(vcpu, reg);
 	if (!addr)
@@ -315,7 +315,7 @@ static int get_sve_vls(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	u64 vqs[KVM_ARM64_SVE_VLS_WORDS];
 
 	if (!vcpu_has_sve(vcpu))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (WARN_ON(!sve_vl_valid(vcpu->arch.sve_max_vl)))
 		return -EINVAL;
@@ -339,7 +339,7 @@ static int set_sve_vls(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	u64 vqs[KVM_ARM64_SVE_VLS_WORDS];
 
 	if (!vcpu_has_sve(vcpu))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (kvm_arm_vcpu_sve_finalized(vcpu))
 		return -EPERM; /* too late! */
@@ -369,7 +369,7 @@ static int set_sve_vls(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		if (vq_present(vqs, vq) != sve_vq_available(vq))
 			return -EINVAL;
 
-	/* Can't run with no vector lengths at all: */
+	/* Can't run with anal vector lengths at all: */
 	if (max_vq < SVE_VQ_MIN)
 		return -EINVAL;
 
@@ -397,7 +397,7 @@ static int set_sve_vls(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 
 /*
  * Number of register slices required to cover each whole SVE register.
- * NOTE: Only the first slice every exists, for now.
+ * ANALTE: Only the first slice every exists, for analw.
  * If you are tempted to modify this, you must also rework sve_reg_to_region()
  * to match:
  */
@@ -448,7 +448,7 @@ static int sve_reg_to_region(struct sve_state_reg_region *region,
 
 	if (reg->id >= zreg_id_min && reg->id <= zreg_id_max) {
 		if (!vcpu_has_sve(vcpu) || (reg->id & SVE_REG_SLICE_MASK) > 0)
-			return -ENOENT;
+			return -EANALENT;
 
 		vq = vcpu_sve_max_vq(vcpu);
 
@@ -458,7 +458,7 @@ static int sve_reg_to_region(struct sve_state_reg_region *region,
 		maxlen = SVE_SIG_ZREG_SIZE(vq);
 	} else if (reg->id >= preg_id_min && reg->id <= preg_id_max) {
 		if (!vcpu_has_sve(vcpu) || (reg->id & SVE_REG_SLICE_MASK) > 0)
-			return -ENOENT;
+			return -EANALENT;
 
 		vq = vcpu_sve_max_vq(vcpu);
 
@@ -474,7 +474,7 @@ static int sve_reg_to_region(struct sve_state_reg_region *region,
 	if (WARN_ON(!sve_state_size))
 		return -EINVAL;
 
-	region->koffset = array_index_nospec(reqoffset, sve_state_size);
+	region->koffset = array_index_analspec(reqoffset, sve_state_size);
 	region->klen = min(maxlen, reqlen);
 	region->upad = reqlen - region->klen;
 
@@ -761,7 +761,7 @@ int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
-	/* We currently use nothing arch-specific in upper 32 bits */
+	/* We currently use analthing arch-specific in upper 32 bits */
 	if ((reg->id & ~KVM_REG_SIZE_MASK) >> 32 != KVM_REG_ARM64 >> 32)
 		return -EINVAL;
 
@@ -781,7 +781,7 @@ int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
-	/* We currently use nothing arch-specific in upper 32 bits */
+	/* We currently use analthing arch-specific in upper 32 bits */
 	if ((reg->id & ~KVM_REG_SIZE_MASK) >> 32 != KVM_REG_ARM64 >> 32)
 		return -EINVAL;
 
@@ -822,7 +822,7 @@ int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 
 	/*
 	 * We never return a pending ext_dabt here because we deliver it to
-	 * the virtual CPU directly when setting the event and it's no longer
+	 * the virtual CPU directly when setting the event and it's anal longer
 	 * 'pending' at this point.
 	 */
 
@@ -931,7 +931,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		}
 
 	} else {
-		/* If not enabled clear all flags */
+		/* If analt enabled clear all flags */
 		vcpu->guest_debug = 0;
 		vcpu_clear_flag(vcpu, DBG_SS_ACTIVE_PENDING);
 	}
@@ -1033,7 +1033,7 @@ int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 	if (length & ~PAGE_MASK || guest_ipa & ~PAGE_MASK)
 		return -EINVAL;
 
-	/* Lengths above INT_MAX cannot be represented in the return value */
+	/* Lengths above INT_MAX cananalt be represented in the return value */
 	if (length > INT_MAX)
 		return -EINVAL;
 
@@ -1047,7 +1047,7 @@ int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 		unsigned long num_tags;
 		struct page *page;
 
-		if (is_error_noslot_pfn(pfn)) {
+		if (is_error_analslot_pfn(pfn)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1065,7 +1065,7 @@ int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 				num_tags = mte_copy_tags_to_user(tags, maddr,
 							MTE_GRANULES_PER_PAGE);
 			else
-				/* No tags in memory, so write zeros */
+				/* Anal tags in memory, so write zeros */
 				num_tags = MTE_GRANULES_PER_PAGE -
 					clear_user(tags, MTE_GRANULES_PER_PAGE);
 			kvm_release_pfn_clean(pfn);
@@ -1073,7 +1073,7 @@ int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 			/*
 			 * Only locking to serialise with a concurrent
 			 * set_pte_at() in the VMM but still overriding the
-			 * tags, hence ignoring the return value.
+			 * tags, hence iganalring the return value.
 			 */
 			try_page_mte_tagging(page);
 			num_tags = mte_copy_tags_from_user(maddr, tags,

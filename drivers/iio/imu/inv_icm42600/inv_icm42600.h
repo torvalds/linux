@@ -40,7 +40,7 @@ enum inv_icm42600_sensor_mode {
 	INV_ICM42600_SENSOR_MODE_OFF,
 	INV_ICM42600_SENSOR_MODE_STANDBY,
 	INV_ICM42600_SENSOR_MODE_LOW_POWER,
-	INV_ICM42600_SENSOR_MODE_LOW_NOISE,
+	INV_ICM42600_SENSOR_MODE_LOW_ANALISE,
 	INV_ICM42600_SENSOR_MODE_NB,
 };
 
@@ -66,7 +66,7 @@ enum inv_icm42600_accel_fs {
 	INV_ICM42600_ACCEL_FS_NB,
 };
 
-/* ODR suffixed by LN or LP are Low-Noise or Low-Power mode only */
+/* ODR suffixed by LN or LP are Low-Analise or Low-Power mode only */
 enum inv_icm42600_odr {
 	INV_ICM42600_ODR_8KHZ_LN = 3,
 	INV_ICM42600_ODR_4KHZ_LN,
@@ -85,7 +85,7 @@ enum inv_icm42600_odr {
 };
 
 enum inv_icm42600_filter {
-	/* Low-Noise mode sensor data filter (3rd order filter by default) */
+	/* Low-Analise mode sensor data filter (3rd order filter by default) */
 	INV_ICM42600_FILTER_BW_ODR_DIV_2,
 
 	/* Low-Power mode sensor data filter (averaging) */

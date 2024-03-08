@@ -458,7 +458,7 @@ static int s6e3ha2_set_brightness(struct backlight_device *bl_dev)
 		return -EINVAL;
 	}
 
-	if (bl_dev->props.power > FB_BLANK_NORMAL)
+	if (bl_dev->props.power > FB_BLANK_ANALRMAL)
 		return -EPERM;
 
 	s6e3ha2_call_write_func(ret, s6e3ha2_test_key_on_f0(ctx));
@@ -508,7 +508,7 @@ static int s6e3ha2_disable(struct drm_panel *panel)
 	s6e3ha2_call_write_func(ret, mipi_dsi_dcs_set_display_off(dsi));
 
 	msleep(40);
-	ctx->bl_dev->props.power = FB_BLANK_NORMAL;
+	ctx->bl_dev->props.power = FB_BLANK_ANALRMAL;
 
 	return 0;
 }
@@ -554,7 +554,7 @@ static int s6e3ha2_prepare(struct drm_panel *panel)
 	if (ret < 0)
 		goto err;
 
-	ctx->bl_dev->props.power = FB_BLANK_NORMAL;
+	ctx->bl_dev->props.power = FB_BLANK_ANALRMAL;
 
 	return 0;
 
@@ -653,7 +653,7 @@ static int s6e3ha2_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
 			drm_mode_vrefresh(ctx->desc->mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -683,7 +683,7 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 
@@ -692,9 +692,9 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS |
-		MIPI_DSI_MODE_VIDEO_NO_HFP | MIPI_DSI_MODE_VIDEO_NO_HBP |
-		MIPI_DSI_MODE_VIDEO_NO_HSA | MIPI_DSI_MODE_NO_EOT_PACKET;
+	dsi->mode_flags = MIPI_DSI_CLOCK_ANALN_CONTINUOUS |
+		MIPI_DSI_MODE_VIDEO_ANAL_HFP | MIPI_DSI_MODE_VIDEO_ANAL_HBP |
+		MIPI_DSI_MODE_VIDEO_ANAL_HSA | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	ctx->supplies[0].supply = "vdd3";
 	ctx->supplies[1].supply = "vci";
@@ -708,14 +708,14 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset-gpios %ld\n",
+		dev_err(dev, "cananalt get reset-gpios %ld\n",
 			PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
 	ctx->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->enable_gpio)) {
-		dev_err(dev, "cannot get enable-gpios %ld\n",
+		dev_err(dev, "cananalt get enable-gpios %ld\n",
 			PTR_ERR(ctx->enable_gpio));
 		return PTR_ERR(ctx->enable_gpio);
 	}

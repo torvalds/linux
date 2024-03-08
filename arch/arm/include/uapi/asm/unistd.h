@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  arch/arm/include/asm/unistd.h
  *
@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  *
  * Please forward _all_ changes to this file to rmk@arm.linux.org.uk,
- * no matter what the change is.  Thanks!
+ * anal matter what the change is.  Thanks!
  */
 #ifndef _UAPI__ASM_ARM_UNISTD_H
 #define _UAPI__ASM_ARM_UNISTD_H

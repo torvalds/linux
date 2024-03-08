@@ -641,12 +641,12 @@ static int armada_cp110_pinctrl_probe(struct platform_device *pdev)
 	int i;
 
 	if (!pdev->dev.parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	soc = devm_kzalloc(&pdev->dev,
 			   sizeof(struct mvebu_pinctrl_soc_info), GFP_KERNEL);
 	if (!soc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc->variant = (unsigned long)device_get_match_data(&pdev->dev) & 0xff;
 	soc->controls = armada_cp110_mpp_controls;

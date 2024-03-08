@@ -17,7 +17,7 @@ struct io_path_stats {
 	atomic64_t ioreq_null;
 	atomic64_t alloc_failures;
 	atomic64_t sc_null;
-	atomic64_t io_not_found;
+	atomic64_t io_analt_found;
 	atomic64_t num_ios;
 	atomic64_t io_btw_0_to_10_msec;
 	atomic64_t io_btw_10_to_100_msec;
@@ -35,7 +35,7 @@ struct abort_stats {
 	atomic64_t abort_failures;
 	atomic64_t abort_drv_timeouts;
 	atomic64_t abort_fw_timeouts;
-	atomic64_t abort_io_not_found;
+	atomic64_t abort_io_analt_found;
 	atomic64_t abort_issued_btw_0_to_6_sec;
 	atomic64_t abort_issued_btw_6_to_20_sec;
 	atomic64_t abort_issued_btw_20_to_30_sec;
@@ -50,7 +50,7 @@ struct terminate_stats {
 	atomic64_t max_terminates;
 	atomic64_t terminate_drv_timeouts;
 	atomic64_t terminate_fw_timeouts;
-	atomic64_t terminate_io_not_found;
+	atomic64_t terminate_io_analt_found;
 	atomic64_t terminate_failures;
 };
 
@@ -77,7 +77,7 @@ struct fw_stats {
 
 struct vlan_stats {
 	atomic64_t vlan_disc_reqs;
-	atomic64_t resp_withno_vlanID;
+	atomic64_t resp_withanal_vlanID;
 	atomic64_t sol_expiry_count;
 	atomic64_t flogi_rejects;
 };
@@ -99,10 +99,10 @@ struct misc_stats {
 	atomic64_t abts_cpwq_alloc_failures;
 	atomic64_t devrst_cpwq_alloc_failures;
 	atomic64_t io_cpwq_alloc_failures;
-	atomic64_t no_icmnd_itmf_cmpls;
+	atomic64_t anal_icmnd_itmf_cmpls;
 	atomic64_t check_condition;
 	atomic64_t queue_fulls;
-	atomic64_t rport_not_ready;
+	atomic64_t rport_analt_ready;
 	atomic64_t frame_errors;
 	atomic64_t current_port_speed;
 	atomic64_t intx_dummy;

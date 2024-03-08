@@ -57,7 +57,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->cfg->alt_fw_name = "rtlwifi/rtl8192cufw.bin";
 	pr_info("Loading firmware %s\n", fw_name);
 	rtlpriv->max_fw_size = 0x4000;
-	err = request_firmware_nowait(THIS_MODULE, 1,
+	err = request_firmware_analwait(THIS_MODULE, 1,
 				      fw_name, rtlpriv->io.dev,
 				      GFP_KERNEL, hw, rtl_fw_cb);
 	if (err) {
@@ -105,7 +105,7 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.fill_tx_cmddesc = rtl92cu_tx_fill_cmddesc,
 	.query_rx_desc = rtl92cu_rx_query_desc,
 	.set_channel_access = rtl92cu_update_channel_access_setting,
-	.radio_onoff_checking = rtl92cu_gpio_radio_on_off_checking,
+	.radio_oanalff_checking = rtl92cu_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92c_phy_set_bw_mode,
 	.switch_channel = rtl92c_phy_sw_chnl,
 	.dm_watchdog = rtl92c_dm_watchdog,
@@ -191,7 +191,7 @@ static struct rtl_hal_cfg rtl92cu_hal_cfg = {
 	.maps[RCAMO] = REG_CAMREAD,
 	.maps[CAMDBG] = REG_CAMDBG,
 	.maps[SECR] = REG_SECCFG,
-	.maps[SEC_CAM_NONE] = CAM_NONE,
+	.maps[SEC_CAM_ANALNE] = CAM_ANALNE,
 	.maps[SEC_CAM_WEP40] = CAM_WEP40,
 	.maps[SEC_CAM_TKIP] = CAM_TKIP,
 	.maps[SEC_CAM_AES] = CAM_AES,
@@ -303,7 +303,7 @@ static const struct usb_device_id rtl8192c_usb_ids[] = {
 	{RTL_USB_DEVICE(0x0df6, 0x005c, rtl92cu_hal_cfg)}, /*Sitecom - Edimax*/
 	{RTL_USB_DEVICE(0x0df6, 0x0070, rtl92cu_hal_cfg)}, /*Sitecom - 150N */
 	{RTL_USB_DEVICE(0x0df6, 0x0077, rtl92cu_hal_cfg)}, /*Sitecom-WLA2100V2*/
-	{RTL_USB_DEVICE(0x0eb0, 0x9071, rtl92cu_hal_cfg)}, /*NO Brand - Etop*/
+	{RTL_USB_DEVICE(0x0eb0, 0x9071, rtl92cu_hal_cfg)}, /*ANAL Brand - Etop*/
 	{RTL_USB_DEVICE(0x4856, 0x0091, rtl92cu_hal_cfg)}, /*NetweeN - Feixun*/
 	/* HP - Lite-On ,8188CUS Slim Combo */
 	{RTL_USB_DEVICE(0x103c, 0x1629, rtl92cu_hal_cfg)},

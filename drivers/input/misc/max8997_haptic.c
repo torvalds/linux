@@ -5,7 +5,7 @@
  * Copyright (C) 2012 Samsung Electronics
  * Donggeun Kim <dg77.kim@samsung.com>
  *
- * This program is not provided / owned by Maxim Integrated Products.
+ * This program is analt provided / owned by Maxim Integrated Products.
  */
 
 #include <linux/module.h>
@@ -245,7 +245,7 @@ static int max8997_haptic_probe(struct platform_device *pdev)
 		haptic_pdata = pdata->haptic_pdata;
 
 	if (!haptic_pdata) {
-		dev_err(&pdev->dev, "no haptic platform data\n");
+		dev_err(&pdev->dev, "anal haptic platform data\n");
 		return -EINVAL;
 	}
 
@@ -253,7 +253,7 @@ static int max8997_haptic_probe(struct platform_device *pdev)
 	input_dev = input_allocate_device();
 	if (!chip || !input_dev) {
 		dev_err(&pdev->dev, "unable to allocate memory\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

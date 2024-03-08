@@ -33,7 +33,7 @@ irqreturn_t sni_isa_irq_handler(int dummy, void *p)
 
 	irq = i8259_irq();
 	if (unlikely(irq < 0))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	generic_handle_irq(irq);
 	return IRQ_HANDLED;

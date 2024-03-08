@@ -30,10 +30,10 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 	 * Convert encoding		  pte bits	pmd / pud bits
 	 *				lIR.uswrdy.p	dy..R...I...wr
 	 * empty			010.000000.0 -> 00..0...1...00
-	 * prot-none, clean, old	111.000000.1 -> 00..1...1...00
-	 * prot-none, clean, young	111.000001.1 -> 01..1...1...00
-	 * prot-none, dirty, old	111.000010.1 -> 10..1...1...00
-	 * prot-none, dirty, young	111.000011.1 -> 11..1...1...00
+	 * prot-analne, clean, old	111.000000.1 -> 00..1...1...00
+	 * prot-analne, clean, young	111.000001.1 -> 01..1...1...00
+	 * prot-analne, dirty, old	111.000010.1 -> 10..1...1...00
+	 * prot-analne, dirty, young	111.000011.1 -> 11..1...1...00
 	 * read-only, clean, old	111.000100.1 -> 00..1...1...01
 	 * read-only, clean, young	101.000101.1 -> 01..1...0...01
 	 * read-only, dirty, old	111.000110.1 -> 10..1...1...01
@@ -64,8 +64,8 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 		rste |= move_set_bit(pte_val(pte), _PAGE_SOFT_DIRTY,
 				     _SEGMENT_ENTRY_SOFT_DIRTY);
 #endif
-		rste |= move_set_bit(pte_val(pte), _PAGE_NOEXEC,
-				     _SEGMENT_ENTRY_NOEXEC);
+		rste |= move_set_bit(pte_val(pte), _PAGE_ANALEXEC,
+				     _SEGMENT_ENTRY_ANALEXEC);
 	} else
 		rste = _SEGMENT_ENTRY_EMPTY;
 	return rste;
@@ -85,10 +85,10 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 	 * Convert encoding		pmd / pud bits	    pte bits
 	 *				dy..R...I...wr	  lIR.uswrdy.p
 	 * empty			00..0...1...00 -> 010.000000.0
-	 * prot-none, clean, old	00..1...1...00 -> 111.000000.1
-	 * prot-none, clean, young	01..1...1...00 -> 111.000001.1
-	 * prot-none, dirty, old	10..1...1...00 -> 111.000010.1
-	 * prot-none, dirty, young	11..1...1...00 -> 111.000011.1
+	 * prot-analne, clean, old	00..1...1...00 -> 111.000000.1
+	 * prot-analne, clean, young	01..1...1...00 -> 111.000001.1
+	 * prot-analne, dirty, old	10..1...1...00 -> 111.000010.1
+	 * prot-analne, dirty, young	11..1...1...00 -> 111.000011.1
 	 * read-only, clean, old	00..1...1...01 -> 111.000100.1
 	 * read-only, clean, young	01..1...0...01 -> 101.000101.1
 	 * read-only, dirty, old	10..1...1...01 -> 111.000110.1
@@ -113,7 +113,7 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 #ifdef CONFIG_MEM_SOFT_DIRTY
 		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_SOFT_DIRTY, _PAGE_SOFT_DIRTY);
 #endif
-		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_NOEXEC, _PAGE_NOEXEC);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_ANALEXEC, _PAGE_ANALEXEC);
 	} else
 		pteval = _PAGE_INVALID;
 	return __pte(pteval);
@@ -149,7 +149,7 @@ void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	rste = __pte_to_rste(pte);
 	if (!MACHINE_HAS_NX)
-		rste &= ~_SEGMENT_ENTRY_NOEXEC;
+		rste &= ~_SEGMENT_ENTRY_ANALEXEC;
 
 	/* Set correct table type for 2G hugepages */
 	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3) {
@@ -292,7 +292,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = TASK_SIZE;
@@ -312,7 +312,7 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	if (len & ~huge_page_mask(h))
 		return -EINVAL;
 	if (len > TASK_SIZE - mmap_min_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED) {
 		if (prepare_hugepage_range(file, addr, len))

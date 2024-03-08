@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _OBJAGG_H
 #define _OBJAGG_H

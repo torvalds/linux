@@ -2,8 +2,8 @@
 /*
  * HyperV  Detection code.
  *
- * Copyright (C) 2010, Novell, Inc.
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ * Copyright (C) 2010, Analvell, Inc.
+ * Author : K. Y. Srinivasan <ksrinivasan@analvell.com>
  */
 
 #include <linux/types.h>
@@ -66,7 +66,7 @@ static inline unsigned int hv_get_nested_reg(unsigned int reg)
 	}
 }
 
-u64 hv_get_non_nested_register(unsigned int reg)
+u64 hv_get_analn_nested_register(unsigned int reg)
 {
 	u64 value;
 
@@ -76,9 +76,9 @@ u64 hv_get_non_nested_register(unsigned int reg)
 		rdmsrl(reg, value);
 	return value;
 }
-EXPORT_SYMBOL_GPL(hv_get_non_nested_register);
+EXPORT_SYMBOL_GPL(hv_get_analn_nested_register);
 
-void hv_set_non_nested_register(unsigned int reg, u64 value)
+void hv_set_analn_nested_register(unsigned int reg, u64 value)
 {
 	if (hv_is_synic_reg(reg) && ms_hyperv.paravisor_present) {
 		hv_ivm_msr_write(reg, value);
@@ -90,14 +90,14 @@ void hv_set_non_nested_register(unsigned int reg, u64 value)
 		wrmsrl(reg, value);
 	}
 }
-EXPORT_SYMBOL_GPL(hv_set_non_nested_register);
+EXPORT_SYMBOL_GPL(hv_set_analn_nested_register);
 
 u64 hv_get_register(unsigned int reg)
 {
 	if (hv_nested)
 		reg = hv_get_nested_reg(reg);
 
-	return hv_get_non_nested_register(reg);
+	return hv_get_analn_nested_register(reg);
 }
 EXPORT_SYMBOL_GPL(hv_get_register);
 
@@ -106,7 +106,7 @@ void hv_set_register(unsigned int reg, u64 value)
 	if (hv_nested)
 		reg = hv_get_nested_reg(reg);
 
-	hv_set_non_nested_register(reg, value);
+	hv_set_analn_nested_register(reg, value);
 }
 EXPORT_SYMBOL_GPL(hv_set_register);
 
@@ -136,7 +136,7 @@ void hv_setup_vmbus_handler(void (*handler)(void))
 
 void hv_remove_vmbus_handler(void)
 {
-	/* We have no way to deallocate the interrupt gate */
+	/* We have anal way to deallocate the interrupt gate */
 	vmbus_handler = NULL;
 }
 
@@ -165,7 +165,7 @@ void hv_setup_stimer0_handler(void (*handler)(void))
 
 void hv_remove_stimer0_handler(void)
 {
-	/* We have no way to deallocate the interrupt gate */
+	/* We have anal way to deallocate the interrupt gate */
 	hv_stimer0_handler = NULL;
 }
 
@@ -242,11 +242,11 @@ static uint32_t  __init ms_hyperv_platform(void)
 	/* HYPERCALL and VP_INDEX MSRs are mandatory for all features. */
 	eax = cpuid_eax(HYPERV_CPUID_FEATURES);
 	if (!(eax & HV_MSR_HYPERCALL_AVAILABLE)) {
-		pr_warn("x86/hyperv: HYPERCALL MSR not available.\n");
+		pr_warn("x86/hyperv: HYPERCALL MSR analt available.\n");
 		return 0;
 	}
 	if (!(eax & HV_MSR_VP_INDEX_AVAILABLE)) {
-		pr_warn("x86/hyperv: VP_INDEX MSR not available.\n");
+		pr_warn("x86/hyperv: VP_INDEX MSR analt available.\n");
 		return 0;
 	}
 
@@ -257,14 +257,14 @@ static uint32_t  __init ms_hyperv_platform(void)
 /*
  * Prior to WS2016 Debug-VM sends NMIs to all CPUs which makes
  * it difficult to process CHANNELMSG_UNLOAD in case of crash. Handle
- * unknown NMI on the first CPU which gets it.
+ * unkanalwn NMI on the first CPU which gets it.
  */
-static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
+static int hv_nmi_unkanalwn(unsigned int val, struct pt_regs *regs)
 {
 	static atomic_t nmi_cpu = ATOMIC_INIT(-1);
 	unsigned int old_cpu, this_cpu;
 
-	if (!unknown_nmi_panic)
+	if (!unkanalwn_nmi_panic)
 		return NMI_DONE;
 
 	old_cpu = -1;
@@ -316,14 +316,14 @@ static void __init hv_smp_prepare_cpus(unsigned int max_cpus)
 	for_each_present_cpu(i) {
 		if (i == 0)
 			continue;
-		ret = hv_call_add_logical_proc(numa_cpu_node(i), i, cpu_physical_id(i));
+		ret = hv_call_add_logical_proc(numa_cpu_analde(i), i, cpu_physical_id(i));
 		BUG_ON(ret);
 	}
 
 	for_each_present_cpu(i) {
 		if (i == 0)
 			continue;
-		ret = hv_call_create_vp(numa_cpu_node(i), hv_current_partition_id, i, i);
+		ret = hv_call_create_vp(numa_cpu_analde(i), hv_current_partition_id, i, i);
 		BUG_ON(ret);
 	}
 #endif
@@ -341,13 +341,13 @@ static void __init hv_smp_prepare_cpus(unsigned int max_cpus)
  *
  * Clone arch/x86/kernel/acpi/boot.c: acpi_generic_reduced_hw_init() here,
  * except don't change 'legacy_pic', which keeps its default value
- * 'default_legacy_pic'. This way, mp_config_acpi_legacy_irqs() sees a non-zero
+ * 'default_legacy_pic'. This way, mp_config_acpi_legacy_irqs() sees a analn-zero
  * nr_legacy_irqs() and eventually serial console interrupts works properly.
  */
 static void __init reduced_hw_init(void)
 {
-	x86_init.timers.timer_init	= x86_init_noop;
-	x86_init.irqs.pre_vector_init	= x86_init_noop;
+	x86_init.timers.timer_init	= x86_init_analop;
+	x86_init.irqs.pre_vector_init	= x86_init_analop;
 }
 
 static void __init ms_hyperv_init_platform(void)
@@ -388,12 +388,12 @@ static void __init ms_hyperv_init_platform(void)
 	 * To mirror what Windows does we should extract CPU management
 	 * features and use the ReservedIdentityBit to detect if Linux is the
 	 * root partition. But that requires negotiating CPU management
-	 * interface (a process to be finalized). For now, use the privilege
+	 * interface (a process to be finalized). For analw, use the privilege
 	 * flag as the indicator for running as root.
 	 *
 	 * Hyper-V should never specify running as root and as a Confidential
 	 * VM. But to protect against a compromised/malicious Hyper-V trying
-	 * to exploit root behavior to expose Confidential VM memory, ignore
+	 * to exploit root behavior to expose Confidential VM memory, iganalre
 	 * the root partition setting if also a Confidential VM.
 	 */
 	if ((ms_hyperv.priv_high & HV_CPU_MANAGEMENT) &&
@@ -487,12 +487,12 @@ static void __init ms_hyperv_init_platform(void)
 			lapic_timer_period);
 	}
 
-	register_nmi_handler(NMI_UNKNOWN, hv_nmi_unknown, NMI_FLAG_FIRST,
-			     "hv_nmi_unknown");
+	register_nmi_handler(NMI_UNKANALWN, hv_nmi_unkanalwn, NMI_FLAG_FIRST,
+			     "hv_nmi_unkanalwn");
 #endif
 
 #ifdef CONFIG_X86_IO_APIC
-	no_timer_check = 1;
+	anal_timer_check = 1;
 #endif
 
 #if IS_ENABLED(CONFIG_HYPERV) && defined(CONFIG_KEXEC_CORE)
@@ -524,9 +524,9 @@ static void __init ms_hyperv_init_platform(void)
 	 * Hyper-V VMs have a PIT emulation quirk such that zeroing the
 	 * counter register during PIT shutdown restarts the PIT. So it
 	 * continues to interrupt @18.2 HZ. Setting i8253_clear_counter
-	 * to false tells pit_shutdown() not to zero the counter so that
+	 * to false tells pit_shutdown() analt to zero the counter so that
 	 * the PIT really is shutdown. Generation 2 VMs don't have a PIT,
-	 * and setting this value has no effect.
+	 * and setting this value has anal effect.
 	 */
 	i8253_clear_counter_on_shutdown = false;
 
@@ -542,7 +542,7 @@ static void __init ms_hyperv_init_platform(void)
 	/* Setup the IDT for hypervisor callback */
 	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, asm_sysvec_hyperv_callback);
 
-	/* Setup the IDT for reenlightenment notifications */
+	/* Setup the IDT for reenlightenment analtifications */
 	if (ms_hyperv.features & HV_ACCESS_REENLIGHTENMENT) {
 		alloc_intr_gate(HYPERV_REENLIGHTENMENT_VECTOR,
 				asm_sysvec_hyperv_reenlightenment);
@@ -579,7 +579,7 @@ static void __init ms_hyperv_init_platform(void)
 	/*
 	 * TSC should be marked as unstable only after Hyper-V
 	 * clocksource has been initialized. This ensures that the
-	 * stability of the sched_clock is not altered.
+	 * stability of the sched_clock is analt altered.
 	 */
 	if (!(ms_hyperv.features & HV_ACCESS_TSC_INVARIANT))
 		mark_tsc_unstable("running on Hyper-V");
@@ -594,18 +594,18 @@ static bool __init ms_hyperv_x2apic_available(void)
 
 /*
  * If ms_hyperv_msi_ext_dest_id() returns true, hyperv_prepare_irq_remapping()
- * returns -ENODEV and the Hyper-V IOMMU driver is not used; instead, the
+ * returns -EANALDEV and the Hyper-V IOMMU driver is analt used; instead, the
  * generic support of the 15-bit APIC ID is used: see __irq_msi_compose_msg().
  *
- * Note: for a VM on Hyper-V, the I/O-APIC is the only device which
+ * Analte: for a VM on Hyper-V, the I/O-APIC is the only device which
  * (logically) generates MSIs directly to the system APIC irq domain.
- * There is no HPET, and PCI MSI/MSI-X interrupts are remapped by the
+ * There is anal HPET, and PCI MSI/MSI-X interrupts are remapped by the
  * pci-hyperv host bridge.
  *
- * Note: for a Hyper-V root partition, this will always return false.
+ * Analte: for a Hyper-V root partition, this will always return false.
  * The hypervisor doesn't expose these HYPERV_CPUID_VIRT_STACK_* cpuids by
  * default, they are implemented as intercepts by the Windows Hyper-V stack.
- * Even a nested root partition (L2 root) will not get them because the
+ * Even a nested root partition (L2 root) will analt get them because the
  * nested (L1) hypervisor filters them out.
  */
 static bool __init ms_hyperv_msi_ext_dest_id(void)
@@ -631,7 +631,7 @@ static void hv_sev_es_hcall_prepare(struct ghcb *ghcb, struct pt_regs *regs)
 
 static bool hv_sev_es_hcall_finish(struct ghcb *ghcb, struct pt_regs *regs)
 {
-	/* No checking of the return state needed */
+	/* Anal checking of the return state needed */
 	return true;
 }
 #endif

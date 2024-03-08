@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,14 +44,14 @@ nvkm_mmu_ptp_put(struct nvkm_mmu *mmu, bool force, struct nvkm_mmu_pt *pt)
 	const int slot = pt->base >> pt->ptp->shift;
 	struct nvkm_mmu_ptp *ptp = pt->ptp;
 
-	/* If there were no free slots in the parent allocation before,
-	 * there will be now, so return PTP to the cache.
+	/* If there were anal free slots in the parent allocation before,
+	 * there will be analw, so return PTP to the cache.
 	 */
 	if (!ptp->free)
 		list_add(&ptp->head, &mmu->ptp.list);
 	ptp->free |= BIT(slot);
 
-	/* If there's no more sub-allocations, destroy PTP. */
+	/* If there's anal more sub-allocations, destroy PTP. */
 	if (ptp->free == ptp->mask) {
 		nvkm_mmu_ptc_put(mmu, force, &ptp->pt);
 		list_del(&ptp->head);
@@ -96,7 +96,7 @@ nvkm_mmu_ptp_get(struct nvkm_mmu *mmu, u32 size, bool zero)
 	pt->sub = true;
 
 	/* Sub-allocate from parent object, removing PTP from cache
-	 * if there's no more free slots left.
+	 * if there's anal more free slots left.
 	 */
 	slot = __ffs(ptp->free);
 	ptp->free &= ~BIT(slot);
@@ -198,7 +198,7 @@ nvkm_mmu_ptc_get(struct nvkm_mmu *mmu, u32 size, u32 align, bool zero)
 	}
 	mutex_unlock(&mmu->ptc.mutex);
 
-	/* No such luck, we need to allocate. */
+	/* Anal such luck, we need to allocate. */
 	if (!(pt = kmalloc(sizeof(*pt), GFP_KERNEL)))
 		return NULL;
 	pt->ptc = ptc;
@@ -281,14 +281,14 @@ nvkm_mmu_host(struct nvkm_mmu *mmu)
 	u8 type = NVKM_MEM_KIND * !!mmu->func->kind_sys;
 	int heap;
 
-	/* Non-mappable system memory. */
+	/* Analn-mappable system memory. */
 	heap = nvkm_mmu_heap(mmu, NVKM_MEM_HOST, ~0ULL);
 	nvkm_mmu_type(mmu, heap, type);
 
-	/* Non-coherent, cached, system memory.
+	/* Analn-coherent, cached, system memory.
 	 *
 	 * Block-linear mappings of system memory must be done through
-	 * BAR1, and cannot be supported on systems where we're unable
+	 * BAR1, and cananalt be supported on systems where we're unable
 	 * to map BAR1 with write-combining.
 	 */
 	type |= NVKM_MEM_MAPPABLE;
@@ -299,7 +299,7 @@ nvkm_mmu_host(struct nvkm_mmu *mmu)
 
 	/* Coherent, cached, system memory.
 	 *
-	 * Unsupported on systems that aren't able to support snooped
+	 * Unsupported on systems that aren't able to support sanaloped
 	 * mappings, and also for block-linear mappings which must be
 	 * done through BAR1.
 	 */
@@ -316,8 +316,8 @@ nvkm_mmu_vram(struct nvkm_mmu *mmu)
 {
 	struct nvkm_device *device = mmu->subdev.device;
 	struct nvkm_mm *mm = &device->fb->ram->vram;
-	const u64 sizeN = nvkm_mm_heap_size(mm, NVKM_RAM_MM_NORMAL);
-	const u64 sizeU = nvkm_mm_heap_size(mm, NVKM_RAM_MM_NOMAP);
+	const u64 sizeN = nvkm_mm_heap_size(mm, NVKM_RAM_MM_ANALRMAL);
+	const u64 sizeU = nvkm_mm_heap_size(mm, NVKM_RAM_MM_ANALMAP);
 	const u64 sizeM = nvkm_mm_heap_size(mm, NVKM_RAM_MM_MIXED);
 	u8 type = NVKM_MEM_KIND * !!mmu->func->kind;
 	u8 heap = NVKM_MEM_VRAM;
@@ -331,7 +331,7 @@ nvkm_mmu_vram(struct nvkm_mmu *mmu)
 	heapN = nvkm_mmu_heap(mmu, heap, sizeN << NVKM_RAM_MM_SHIFT);
 	heapU = nvkm_mmu_heap(mmu, heap, sizeU << NVKM_RAM_MM_SHIFT);
 
-	/* Add non-mappable VRAM types first so that they're preferred
+	/* Add analn-mappable VRAM types first so that they're preferred
 	 * over anything else.  Mixed-memory will be slower than other
 	 * heaps, it's prioritised last.
 	 */
@@ -346,7 +346,7 @@ nvkm_mmu_vram(struct nvkm_mmu *mmu)
 	nvkm_mmu_host(mmu);
 
 	/* Mappable VRAM types go last, as they're basically the worst
-	 * possible type to ask for unless there's no other choice.
+	 * possible type to ask for unless there's anal other choice.
 	 */
 	if (device->bar) {
 		/* Write-combined BAR1 access. */
@@ -435,7 +435,7 @@ nvkm_mmu_new_(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, struct nvkm_mmu **pmmu)
 {
 	if (!(*pmmu = kzalloc(sizeof(**pmmu), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_mmu_ctor(func, device, type, inst, *pmmu);
 	return 0;
 }

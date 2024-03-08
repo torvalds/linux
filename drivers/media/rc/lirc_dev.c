@@ -44,7 +44,7 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 	/* Receiver overflow, data missing */
 	if (ev.overflow) {
 		/*
-		 * Send lirc overflow message. This message is unknown to
+		 * Send lirc overflow message. This message is unkanalwn to
 		 * lircd, but it will interpret this as a long space as
 		 * long as the value is set to high value. This resets its
 		 * decoder state.
@@ -64,7 +64,7 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		sample = LIRC_TIMEOUT(ev.duration);
 		dev_dbg(&dev->dev, "timeout report (duration: %d)\n", sample);
 
-	/* Normal sample */
+	/* Analrmal sample */
 	} else {
 		if (dev->gap_start) {
 			u64 duration = ktime_us_delta(ktime_get(),
@@ -87,7 +87,7 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	/*
-	 * bpf does not care about the gap generated above; that exists
+	 * bpf does analt care about the gap generated above; that exists
 	 * for backwards compatibility
 	 */
 	lirc_bpf_run(dev, sample);
@@ -95,7 +95,7 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 	list_for_each_entry(fh, &dev->lirc_fh, list) {
 		if (kfifo_put(&fh->rawir, sample))
-			wake_up_poll(&fh->wait_poll, EPOLLIN | EPOLLRDNORM);
+			wake_up_poll(&fh->wait_poll, EPOLLIN | EPOLLRDANALRM);
 	}
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 }
@@ -116,40 +116,40 @@ void lirc_scancode_event(struct rc_dev *dev, struct lirc_scancode *lsc)
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 	list_for_each_entry(fh, &dev->lirc_fh, list) {
 		if (kfifo_put(&fh->scancodes, *lsc))
-			wake_up_poll(&fh->wait_poll, EPOLLIN | EPOLLRDNORM);
+			wake_up_poll(&fh->wait_poll, EPOLLIN | EPOLLRDANALRM);
 	}
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 }
 EXPORT_SYMBOL_GPL(lirc_scancode_event);
 
-static int lirc_open(struct inode *inode, struct file *file)
+static int lirc_open(struct ianalde *ianalde, struct file *file)
 {
-	struct rc_dev *dev = container_of(inode->i_cdev, struct rc_dev,
+	struct rc_dev *dev = container_of(ianalde->i_cdev, struct rc_dev,
 					  lirc_cdev);
 	struct lirc_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	unsigned long flags;
 	int retval;
 
 	if (!fh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	get_device(&dev->dev);
 
 	if (!dev->registered) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out_fh;
 	}
 
 	if (dev->driver_type == RC_DRIVER_IR_RAW) {
 		if (kfifo_alloc(&fh->rawir, MAX_IR_EVENT_SIZE, GFP_KERNEL)) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto out_fh;
 		}
 	}
 
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
 		if (kfifo_alloc(&fh->scancodes, 32, GFP_KERNEL)) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto out_rawir;
 		}
 	}
@@ -173,7 +173,7 @@ static int lirc_open(struct inode *inode, struct file *file)
 	list_add(&fh->list, &dev->lirc_fh);
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 
-	stream_open(inode, file);
+	stream_open(ianalde, file);
 
 	return 0;
 out_kfifo:
@@ -189,7 +189,7 @@ out_fh:
 	return retval;
 }
 
-static int lirc_close(struct inode *inode, struct file *file)
+static int lirc_close(struct ianalde *ianalde, struct file *file)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *dev = fh->rc;
@@ -230,7 +230,7 @@ static ssize_t lirc_transmit(struct file *file, const char __user *buf,
 		return ret;
 
 	if (!dev->registered) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -267,7 +267,7 @@ static ssize_t lirc_transmit(struct file *file, const char __user *buf,
 
 		raw = kmalloc_array(LIRCBUF_SIZE, sizeof(*raw), GFP_KERNEL);
 		if (!raw) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_unlock;
 		}
 
@@ -284,7 +284,7 @@ static ssize_t lirc_transmit(struct file *file, const char __user *buf,
 
 		txbuf = kmalloc_array(count, sizeof(unsigned int), GFP_KERNEL);
 		if (!txbuf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_kfree_raw;
 		}
 
@@ -376,7 +376,7 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return ret;
 
 	if (!dev->registered) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -419,7 +419,7 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* mode support */
 	case LIRC_GET_REC_MODE:
 		if (dev->driver_type == RC_DRIVER_IR_RAW_TX)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			val = fh->rec_mode;
 		break;
@@ -427,7 +427,7 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LIRC_SET_REC_MODE:
 		switch (dev->driver_type) {
 		case RC_DRIVER_IR_RAW_TX:
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 			break;
 		case RC_DRIVER_SCANCODE:
 			if (val != LIRC_MODE_SCANCODE)
@@ -446,14 +446,14 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case LIRC_GET_SEND_MODE:
 		if (!dev->tx_ir)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			val = fh->send_mode;
 		break;
 
 	case LIRC_SET_SEND_MODE:
 		if (!dev->tx_ir)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else if (!(val == LIRC_MODE_PULSE || val == LIRC_MODE_SCANCODE))
 			ret = -EINVAL;
 		else
@@ -463,21 +463,21 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* TX settings */
 	case LIRC_SET_TRANSMITTER_MASK:
 		if (!dev->s_tx_mask)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			ret = dev->s_tx_mask(dev, val);
 		break;
 
 	case LIRC_SET_SEND_CARRIER:
 		if (!dev->s_tx_carrier)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			ret = dev->s_tx_carrier(dev, val);
 		break;
 
 	case LIRC_SET_SEND_DUTY_CYCLE:
 		if (!dev->s_tx_duty_cycle)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else if (val <= 0 || val >= 100)
 			ret = -EINVAL;
 		else
@@ -487,7 +487,7 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* RX settings */
 	case LIRC_SET_REC_CARRIER:
 		if (!dev->s_rx_carrier_range)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else if (val <= 0)
 			ret = -EINVAL;
 		else
@@ -497,7 +497,7 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case LIRC_SET_REC_CARRIER_RANGE:
 		if (!dev->s_rx_carrier_range)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else if (val <= 0)
 			ret = -EINVAL;
 		else
@@ -506,21 +506,21 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case LIRC_GET_REC_RESOLUTION:
 		if (!dev->rx_resolution)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			val = dev->rx_resolution;
 		break;
 
 	case LIRC_SET_WIDEBAND_RECEIVER:
 		if (!dev->s_wideband_receiver)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			ret = dev->s_wideband_receiver(dev, !!val);
 		break;
 
 	case LIRC_SET_MEASURE_CARRIER_MODE:
 		if (!dev->s_carrier_report)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			ret = dev->s_carrier_report(dev, !!val);
 		break;
@@ -528,21 +528,21 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* Generic timeout support */
 	case LIRC_GET_MIN_TIMEOUT:
 		if (!dev->max_timeout)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			val = dev->min_timeout;
 		break;
 
 	case LIRC_GET_MAX_TIMEOUT:
 		if (!dev->max_timeout)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			val = dev->max_timeout;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT:
 		if (!dev->max_timeout) {
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		} else {
 			if (val < dev->min_timeout || val > dev->max_timeout)
 				ret = -EINVAL;
@@ -555,18 +555,18 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case LIRC_GET_REC_TIMEOUT:
 		if (!dev->timeout)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		else
 			val = dev->timeout;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT_REPORTS:
 		if (dev->driver_type != RC_DRIVER_IR_RAW)
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		break;
 
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 	}
 
 	if (!ret && _IOC_DIR(cmd) & _IOC_READ)
@@ -590,11 +590,11 @@ static __poll_t lirc_poll(struct file *file, struct poll_table_struct *wait)
 	} else if (rcdev->driver_type != RC_DRIVER_IR_RAW_TX) {
 		if (fh->rec_mode == LIRC_MODE_SCANCODE &&
 		    !kfifo_is_empty(&fh->scancodes))
-			events = EPOLLIN | EPOLLRDNORM;
+			events = EPOLLIN | EPOLLRDANALRM;
 
 		if (fh->rec_mode == LIRC_MODE_MODE2 &&
 		    !kfifo_is_empty(&fh->rawir))
-			events = EPOLLIN | EPOLLRDNORM;
+			events = EPOLLIN | EPOLLRDANALRM;
 	}
 
 	return events;
@@ -613,7 +613,7 @@ static ssize_t lirc_read_mode2(struct file *file, char __user *buffer,
 
 	do {
 		if (kfifo_is_empty(&fh->rawir)) {
-			if (file->f_flags & O_NONBLOCK)
+			if (file->f_flags & O_ANALNBLOCK)
 				return -EAGAIN;
 
 			ret = wait_event_interruptible(fh->wait_poll,
@@ -624,7 +624,7 @@ static ssize_t lirc_read_mode2(struct file *file, char __user *buffer,
 		}
 
 		if (!rcdev->registered)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = mutex_lock_interruptible(&rcdev->lock);
 		if (ret)
@@ -652,7 +652,7 @@ static ssize_t lirc_read_scancode(struct file *file, char __user *buffer,
 
 	do {
 		if (kfifo_is_empty(&fh->scancodes)) {
-			if (file->f_flags & O_NONBLOCK)
+			if (file->f_flags & O_ANALNBLOCK)
 				return -EAGAIN;
 
 			ret = wait_event_interruptible(fh->wait_poll,
@@ -663,7 +663,7 @@ static ssize_t lirc_read_scancode(struct file *file, char __user *buffer,
 		}
 
 		if (!rcdev->registered)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = mutex_lock_interruptible(&rcdev->lock);
 		if (ret)
@@ -687,7 +687,7 @@ static ssize_t lirc_read(struct file *file, char __user *buffer, size_t length,
 		return -EINVAL;
 
 	if (!rcdev->registered)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fh->rec_mode == LIRC_MODE_MODE2)
 		return lirc_read_mode2(file, buffer, length);
@@ -704,7 +704,7 @@ static const struct file_operations lirc_fops = {
 	.poll		= lirc_poll,
 	.open		= lirc_open,
 	.release	= lirc_close,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static void lirc_release_device(struct device *ld)
@@ -717,18 +717,18 @@ static void lirc_release_device(struct device *ld)
 int lirc_register(struct rc_dev *dev)
 {
 	const char *rx_type, *tx_type;
-	int err, minor;
+	int err, mianalr;
 
-	minor = ida_alloc_max(&lirc_ida, RC_DEV_MAX - 1, GFP_KERNEL);
-	if (minor < 0)
-		return minor;
+	mianalr = ida_alloc_max(&lirc_ida, RC_DEV_MAX - 1, GFP_KERNEL);
+	if (mianalr < 0)
+		return mianalr;
 
 	device_initialize(&dev->lirc_dev);
 	dev->lirc_dev.class = lirc_class;
 	dev->lirc_dev.parent = &dev->dev;
 	dev->lirc_dev.release = lirc_release_device;
-	dev->lirc_dev.devt = MKDEV(MAJOR(lirc_base_dev), minor);
-	dev_set_name(&dev->lirc_dev, "lirc%d", minor);
+	dev->lirc_dev.devt = MKDEV(MAJOR(lirc_base_dev), mianalr);
+	dev_set_name(&dev->lirc_dev, "lirc%d", mianalr);
 
 	INIT_LIST_HEAD(&dev->lirc_fh);
 	spin_lock_init(&dev->lirc_fh_lock);
@@ -749,22 +749,22 @@ int lirc_register(struct rc_dev *dev)
 		rx_type = "raw IR";
 		break;
 	default:
-		rx_type = "no";
+		rx_type = "anal";
 		break;
 	}
 
 	if (dev->tx_ir)
 		tx_type = "raw IR";
 	else
-		tx_type = "no";
+		tx_type = "anal";
 
-	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d, %s receiver, %s transmitter",
-		 dev->driver_name, minor, rx_type, tx_type);
+	dev_info(&dev->dev, "lirc_dev: driver %s registered at mianalr = %d, %s receiver, %s transmitter",
+		 dev->driver_name, mianalr, rx_type, tx_type);
 
 	return 0;
 
 out_ida:
-	ida_free(&lirc_ida, minor);
+	ida_free(&lirc_ida, mianalr);
 	return err;
 }
 
@@ -773,8 +773,8 @@ void lirc_unregister(struct rc_dev *dev)
 	unsigned long flags;
 	struct lirc_fh *fh;
 
-	dev_dbg(&dev->dev, "lirc_dev: driver %s unregistered from minor = %d\n",
-		dev->driver_name, MINOR(dev->lirc_dev.devt));
+	dev_dbg(&dev->dev, "lirc_dev: driver %s unregistered from mianalr = %d\n",
+		dev->driver_name, MIANALR(dev->lirc_dev.devt));
 
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 	list_for_each_entry(fh, &dev->lirc_fh, list)
@@ -782,7 +782,7 @@ void lirc_unregister(struct rc_dev *dev)
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 
 	cdev_device_del(&dev->lirc_cdev, &dev->lirc_dev);
-	ida_free(&lirc_ida, MINOR(dev->lirc_dev.devt));
+	ida_free(&lirc_ida, MIANALR(dev->lirc_dev.devt));
 }
 
 int __init lirc_dev_init(void)

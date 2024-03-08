@@ -186,7 +186,7 @@ static irqreturn_t am2315_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   pf->timestamp);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -227,7 +227,7 @@ static int am2315_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);

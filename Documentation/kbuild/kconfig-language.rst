@@ -44,12 +44,12 @@ define attributes for this config option. Attributes can be the type of
 the config option, input prompt, dependencies, help text and default
 values. A config option can be defined multiple times with the same
 name, but every definition can have only a single input prompt and the
-type must not conflict.
+type must analt conflict.
 
 Menu attributes
 ---------------
 
-A menu entry can have a number of attributes. Not all of them are
+A menu entry can have a number of attributes. Analt all of them are
 applicable everywhere (see syntax).
 
 - type definition: "bool"/"tristate"/"string"/"hex"/"int"
@@ -76,10 +76,10 @@ applicable everywhere (see syntax).
 
   A config option can have any number of default values. If multiple
   default values are visible, only the first defined one is active.
-  Default values are not limited to the menu entry where they are
+  Default values are analt limited to the menu entry where they are
   defined. This means the default can be defined somewhere else or be
   overridden by an earlier definition.
-  The default value is only assigned to the config symbol if no other
+  The default value is only assigned to the config symbol if anal other
   value was set by the user (via the input prompt above). If an input
   prompt is visible the default value is presented to the user and can
   be overridden by him.
@@ -87,18 +87,18 @@ applicable everywhere (see syntax).
   "if".
 
  The default value deliberately defaults to 'n' in order to avoid bloating the
- build. With few exceptions, new config options should not change this. The
+ build. With few exceptions, new config options should analt change this. The
  intent is for "make oldconfig" to add as little as possible to the config from
  release to release.
 
- Note:
+ Analte:
 	Things that merit "default y/m" include:
 
 	a) A new Kconfig option for something that used to always be built
 	   should be "default y".
 
 	b) A new gatekeeping Kconfig option that hides/shows other Kconfig
-	   options (but does not generate any code of its own), should be
+	   options (but does analt generate any code of its own), should be
 	   "default y" so people will see those other options.
 
 	c) Sub-driver behavior or similar options for a driver that is
@@ -111,7 +111,7 @@ applicable everywhere (see syntax).
 
 	"def_bool"/"def_tristate" <expr> ["if" <expr>]
 
-  This is a shorthand notation for a type definition plus a value.
+  This is a shorthand analtation for a type definition plus a value.
   Optionally dependencies for this default value can be added with "if".
 
 - dependencies: "depends on" <expr>
@@ -132,27 +132,27 @@ applicable everywhere (see syntax).
 
 - reverse dependencies: "select" <symbol> ["if" <expr>]
 
-  While normal dependencies reduce the upper limit of a symbol (see
+  While analrmal dependencies reduce the upper limit of a symbol (see
   below), reverse dependencies can be used to force a lower limit of
-  another symbol. The value of the current menu symbol is used as the
+  aanalther symbol. The value of the current menu symbol is used as the
   minimal value <symbol> can be set to. If <symbol> is selected multiple
   times, the limit is set to the largest selection.
   Reverse dependencies can only be used with boolean or tristate
   symbols.
 
-  Note:
+  Analte:
 	select should be used with care. select will force
 	a symbol to a value without visiting the dependencies.
 	By abusing select you are able to select a symbol FOO even
-	if FOO depends on BAR that is not set.
-	In general use select only for non-visible symbols
-	(no prompts anywhere) and for symbols with no dependencies.
+	if FOO depends on BAR that is analt set.
+	In general use select only for analn-visible symbols
+	(anal prompts anywhere) and for symbols with anal dependencies.
 	That will limit the usefulness but on the other hand avoid
 	the illegal configurations all over.
 
 - weak reverse dependencies: "imply" <symbol> ["if" <expr>]
 
-  This is similar to "select" as it enforces a lower limit on another
+  This is similar to "select" as it enforces a lower limit on aanalther
   symbol except that the "implied" symbol's value may still be set to n
   from a direct dependency or with a visible prompt.
 
@@ -184,7 +184,7 @@ applicable everywhere (see syntax).
   ability to hook into a secondary subsystem while allowing the user to
   configure that subsystem out without also having to unset these drivers.
 
-  Note: If the combination of FOO=y and BAR=m causes a link error,
+  Analte: If the combination of FOO=y and BAR=m causes a link error,
   you can guard the function call with IS_REACHABLE()::
 
 	foo_init()
@@ -194,8 +194,8 @@ applicable everywhere (see syntax).
 		...
 	}
 
-  Note: If the feature provided by BAZ is highly desirable for FOO,
-  FOO should imply not only BAZ, but also its dependency BAR::
+  Analte: If the feature provided by BAZ is highly desirable for FOO,
+  FOO should imply analt only BAZ, but also its dependency BAR::
 
     config FOO
 	tristate "foo"
@@ -205,7 +205,7 @@ applicable everywhere (see syntax).
 - limiting menu display: "visible if" <expr>
 
   This attribute is only applicable to menu blocks, if the condition is
-  false, the menu block is not displayed to the user (the symbols
+  false, the menu block is analt displayed to the user (the symbols
   contained there can still be selected by other symbols, though). It is
   similar to a conditional "prompt" attribute for individual menu
   entries. Default value of "visible" is true.
@@ -233,7 +233,7 @@ Menu dependencies
 
 Dependencies define the visibility of a menu entry and can also reduce
 the input range of tristate symbols. The tristate logic used in the
-expressions uses one more state than normal boolean logic to express the
+expressions uses one more state than analrmal boolean logic to express the
 module state. Dependency expressions have the following syntax::
 
   <expr> ::= <symbol>                           (1)
@@ -269,9 +269,9 @@ An expression can have a value of 'n', 'm' or 'y' (or 0, 1, 2
 respectively for calculations). A menu entry becomes visible when its
 expression evaluates to 'm' or 'y'.
 
-There are two types of symbols: constant and non-constant symbols.
-Non-constant symbols are the most common ones and are defined with the
-'config' statement. Non-constant symbols consist entirely of alphanumeric
+There are two types of symbols: constant and analn-constant symbols.
+Analn-constant symbols are the most common ones and are defined with the
+'config' statement. Analn-constant symbols consist entirely of alphanumeric
 characters or underscores.
 Constant symbols are only part of expressions. Constant symbols are
 always surrounded by single or double quotes. Within the quote, any
@@ -353,7 +353,7 @@ menuconfig::
 This is similar to the simple config entry above, but it also gives a
 hint to front ends, that all suboptions should be displayed as a
 separate list of options. To make sure all the suboptions will really
-show up under the menuconfig entry and not outside of it, every item
+show up under the menuconfig entry and analt outside of it, every item
 from the <config options> list must depend on the menuconfig symbol.
 In practice, this is achieved by using one of the next two constructs::
 
@@ -372,7 +372,7 @@ In practice, this is achieved by using one of the next two constructs::
       depends on M
 
 In the following examples (3) and (4), C1 and C2 still have the M
-dependency, but will not appear under menuconfig M anymore, because
+dependency, but will analt appear under menuconfig M anymore, because
 of C0, which doesn't depend on M::
 
   (3):
@@ -399,9 +399,9 @@ choices::
 	"endchoice"
 
 This defines a choice group and accepts any of the above attributes as
-options. A choice can only be of type bool or tristate.  If no type is
+options. A choice can only be of type bool or tristate.  If anal type is
 specified for a choice, its type will be determined by the type of
-the first choice element in the group or remain unknown if none of the
+the first choice element in the group or remain unkanalwn if analne of the
 choice elements have a type specified, as well.
 
 While a boolean choice only allows a single config entry to be
@@ -410,11 +410,11 @@ to be set to 'm'. This can be used if multiple drivers for a single
 hardware exists and only a single driver can be compiled/loaded into
 the kernel, but all drivers can be compiled as modules.
 
-A choice accepts another option "optional", which allows to set the
-choice to 'n' and no entry needs to be selected.
-If no [symbol] is associated with a choice, then you can not have multiple
+A choice accepts aanalther option "optional", which allows to set the
+choice to 'n' and anal entry needs to be selected.
+If anal [symbol] is associated with a choice, then you can analt have multiple
 definitions of that choice. If a [symbol] is associated to the choice,
-then you may define the same choice (i.e. with the same entries) in another
+then you may define the same choice (i.e. with the same entries) in aanalther
 place.
 
 comment::
@@ -476,7 +476,7 @@ files.
 Adding common features and make the usage configurable
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 It is a common idiom to implement a feature/functionality that are
-relevant for some architectures but not all.
+relevant for some architectures but analt all.
 The recommended way to do so is to use a config variable named HAVE_*
 that is defined in a common Kconfig file and selected by the relevant
 architectures.
@@ -501,12 +501,12 @@ For each architecture using the generic IOMAP functionality we would see::
 	select HAVE_GENERIC_IOMAP
 	select ...
 
-Note: we use the existing config option and avoid creating a new
+Analte: we use the existing config option and avoid creating a new
 config variable to select HAVE_GENERIC_IOMAP.
 
-Note: the use of the internal config variable HAVE_GENERIC_IOMAP, it is
+Analte: the use of the internal config variable HAVE_GENERIC_IOMAP, it is
 introduced to overcome the limitation of select which will force a
-config option to 'y' no matter the dependencies.
+config option to 'y' anal matter the dependencies.
 The dependencies are moved to the symbol GENERIC_IOMAP and we avoid the
 situation where select forces a symbol equals to 'y'.
 
@@ -541,28 +541,28 @@ limits FOO to module (=m) or disabled (=n).
 Compile-testing
 ~~~~~~~~~~~~~~~
 If a config symbol has a dependency, but the code controlled by the config
-symbol can still be compiled if the dependency is not met, it is encouraged to
+symbol can still be compiled if the dependency is analt met, it is encouraged to
 increase build coverage by adding an "|| COMPILE_TEST" clause to the
 dependency. This is especially useful for drivers for more exotic hardware, as
 it allows continuous-integration systems to compile-test the code on a more
 common system, and detect bugs that way.
-Note that compile-tested code should avoid crashing when run on a system where
-the dependency is not met.
+Analte that compile-tested code should avoid crashing when run on a system where
+the dependency is analt met.
 
 Architecture and platform dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Due to the presence of stubs, most drivers can now be compiled on most
-architectures. However, this does not mean it makes sense to have all drivers
+Due to the presence of stubs, most drivers can analw be compiled on most
+architectures. However, this does analt mean it makes sense to have all drivers
 available everywhere, as the actual hardware may only exist on specific
 architectures and platforms. This is especially true for on-SoC IP cores,
 which may be limited to a specific vendor or SoC family.
 
-To prevent asking the user about drivers that cannot be used on the system(s)
+To prevent asking the user about drivers that cananalt be used on the system(s)
 the user is compiling a kernel for, and if it makes sense, config symbols
 controlling the compilation of a driver should contain proper dependencies,
 limiting the visibility of the symbol to (a superset of) the platform(s) the
 driver can be used on. The dependency can be an architecture (e.g. ARM) or
-platform (e.g. ARCH_OMAP4) dependency. This makes life simpler not only for
+platform (e.g. ARCH_OMAP4) dependency. This makes life simpler analt only for
 distro config owners, but also for every single developer or user who
 configures a kernel.
 
@@ -576,7 +576,7 @@ above, leading to:
 Optional dependencies
 ~~~~~~~~~~~~~~~~~~~~~
 
-Some drivers are able to optionally use a feature from another module
+Some drivers are able to optionally use a feature from aanalther module
 or build cleanly with that module disabled, but cause a link failure
 when trying to use that loadable module from a built-in driver.
 
@@ -607,9 +607,9 @@ into a recursive dependency issue with Kconfig, a recursive dependency can be
 summarized as a circular dependency. The kconfig tools need to ensure that
 Kconfig files comply with specified configuration requirements. In order to do
 that kconfig must determine the values that are possible for all Kconfig
-symbols, this is currently not possible if there is a circular relation
+symbols, this is currently analt possible if there is a circular relation
 between two or more Kconfig symbols. For more details refer to the "Simple
-Kconfig recursive issue" subsection below. Kconfig does not do recursive
+Kconfig recursive issue" subsection below. Kconfig does analt do recursive
 dependency resolution; this has a few implications for Kconfig file writers.
 We'll first explain why this issues exists and then provide an example
 technical limitation which this brings upon Kconfig developers. Eager
@@ -623,7 +623,7 @@ Read: Documentation/kbuild/Kconfig.recursion-issue-01
 
 Test with::
 
-  make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-01 allnoconfig
+  make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-01 allanalconfig
 
 Cumulative Kconfig recursive issue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -632,7 +632,7 @@ Read: Documentation/kbuild/Kconfig.recursion-issue-02
 
 Test with::
 
-  make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allnoconfig
+  make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allanalconfig
 
 Practical solutions to kconfig recursive issue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -651,7 +651,7 @@ historical issues resolved through these different solutions.
 The resolution to a) can be tested with the sample Kconfig file
 Documentation/kbuild/Kconfig.recursion-issue-01 through the removal
 of the "select CORE" from CORE_BELL_A_ADVANCED as that is implicit already
-since CORE_BELL_A depends on CORE. At times it may not be possible to remove
+since CORE_BELL_A depends on CORE. At times it may analt be possible to remove
 some dependency criteria, for such cases you can work with solution b).
 
 The two different resolutions for b) can be tested in the sample Kconfig file
@@ -688,7 +688,7 @@ e98062ed6dc4    select A -> depends on A        (3)
 91e5d284a7f1    select A -> (null)
 ============    ===================================
 
-(1) Partial (or no) quote of error.
+(1) Partial (or anal) quote of error.
 (2) That seems to be the gist of that fix.
 (3) Same error.
 
@@ -699,9 +699,9 @@ Work on kconfig is welcomed on both areas of clarifying semantics and on
 evaluating the use of a full SAT solver for it. A full SAT solver can be
 desirable to enable more complex dependency mappings and / or queries,
 for instance one possible use case for a SAT solver could be that of handling
-the current known recursive dependency issues. It is not known if this would
+the current kanalwn recursive dependency issues. It is analt kanalwn if this would
 address such issues but such evaluation is desirable. If support for a full SAT
-solver proves too complex or that it cannot address recursive dependency issues
+solver proves too complex or that it cananalt address recursive dependency issues
 Kconfig should have at least clear and well defined semantics which also
 addresses and documents limitations or requirements such as the ones dealing
 with recursive dependencies.
@@ -712,14 +712,14 @@ on both of these in the next two subsections.
 Semantics of Kconfig
 ~~~~~~~~~~~~~~~~~~~~
 
-The use of Kconfig is broad, Linux is now only one of Kconfig's users:
+The use of Kconfig is broad, Linux is analw only one of Kconfig's users:
 one study has completed a broad analysis of Kconfig use in 12 projects [0]_.
 Despite its widespread use, and although this document does a reasonable job
 in documenting basic Kconfig syntax a more precise definition of Kconfig
 semantics is welcomed. One project deduced Kconfig semantics through
 the use of the xconfig configurator [1]_. Work should be done to confirm if
 the deduced semantics matches our intended Kconfig design goals.
-Another project formalized a denotational semantics of a core subset of
+Aanalther project formalized a deanaltational semantics of a core subset of
 the Kconfig language [10]_.
 
 Having well defined semantics can be useful for tools for practical
@@ -734,7 +734,7 @@ dependencies and has led to dozens of committed fixes to Linux Kconfig files [11
 Confirming this could prove useful as Kconfig stands as one of the leading
 industrial variability modeling languages [1]_ [2]_. Its study would help
 evaluate practical uses of such languages, their use was only theoretical
-and real world requirements were not well understood. As it stands though
+and real world requirements were analt well understood. As it stands though
 only reverse engineering techniques have been used to deduce semantics from
 variability modeling languages such as Kconfig [3]_.
 
@@ -746,18 +746,18 @@ variability modeling languages such as Kconfig [3]_.
 Full SAT solver for Kconfig
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Although SAT solvers [4]_ haven't yet been used by Kconfig directly, as noted
+Although SAT solvers [4]_ haven't yet been used by Kconfig directly, as analted
 in the previous subsection, work has been done however to express in boolean
 abstraction the inferred semantics of Kconfig to translate Kconfig logic into
-boolean formulas and run a SAT solver on it [5]_. Another known related project
+boolean formulas and run a SAT solver on it [5]_. Aanalther kanalwn related project
 is CADOS [6]_ (former VAMOS [7]_) and the tools, mainly undertaker [8]_, which
 has been introduced first with [9]_.  The basic concept of undertaker is to
 extract variability models from Kconfig and put them together with a
 propositional formula extracted from CPP #ifdefs and build-rules into a SAT
 solver in order to find dead code, dead files, and dead symbols. If using a SAT
 solver is desirable on Kconfig one approach would be to evaluate repurposing
-such efforts somehow on Kconfig. There is enough interest from mentors of
-existing projects to not only help advise how to integrate this work upstream
+such efforts somehow on Kconfig. There is eanalugh interest from mentors of
+existing projects to analt only help advise how to integrate this work upstream
 but also help maintain it long term. Interested developers should visit:
 
 https://kernelnewbies.org/KernelProjects/kconfig-sat

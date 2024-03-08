@@ -18,10 +18,10 @@ The most basic primitive for locking is spinlock::
 The above is always safe. It will disable interrupts _locally_, but the
 spinlock itself will guarantee the global lock, so it will guarantee that
 there is only one thread-of-control within the region(s) protected by that
-lock. This works well even under UP also, so the code does _not_ need to
+lock. This works well even under UP also, so the code does _analt_ need to
 worry about UP vs SMP issues: the spinlocks work correctly under both.
 
-   NOTE! Implications of spin_locks for memory are further described in:
+   ANALTE! Implications of spin_locks for memory are further described in:
 
      Documentation/memory-barriers.txt
 
@@ -32,17 +32,17 @@ worry about UP vs SMP issues: the spinlocks work correctly under both.
 The above is usually pretty simple (you usually need and want only one
 spinlock for most things - using more than one spinlock can make things a
 lot more complex and even slower and is usually worth it only for
-sequences that you **know** need to be split up: avoid it at all cost if you
+sequences that you **kanalw** need to be split up: avoid it at all cost if you
 aren't sure).
 
 This is really the only really hard part about spinlocks: once you start
-using spinlocks they tend to expand to areas you might not have noticed
+using spinlocks they tend to expand to areas you might analt have analticed
 before, because you have to make sure the spinlocks correctly protect the
 shared data structures **everywhere** they are used. The spinlocks are most
 easily added to places that are completely independent of other code (for
-example, internal driver data structures that nobody else ever touches).
+example, internal driver data structures that analbody else ever touches).
 
-   NOTE! The spin-lock is safe only when you **also** use the lock itself
+   ANALTE! The spin-lock is safe only when you **also** use the lock itself
    to do locking across CPU's, which implies that EVERYTHING that
    touches a shared variable has to agree about the spinlock they want
    to use.
@@ -58,7 +58,7 @@ to mostly read from the shared variables, the reader-writer locks
 readers to be in the same critical region at once, but if somebody wants
 to change the variables it has to get an exclusive write lock.
 
-   NOTE! reader-writer locks require more atomic memory operations than
+   ANALTE! reader-writer locks require more atomic memory operations than
    simple spinlocks.  Unless the reader critical section is long, you
    are better off just using spinlocks.
 
@@ -81,14 +81,14 @@ linked lists, especially searching for entries without changing the list
 itself.  The read lock allows many concurrent readers.  Anything that
 **changes** the list will have to get the write lock.
 
-   NOTE! RCU is better for list traversal, but requires careful
+   ANALTE! RCU is better for list traversal, but requires careful
    attention to design detail (see Documentation/RCU/listRCU.rst).
 
-Also, you cannot "upgrade" a read-lock to a write-lock, so if you at _any_
+Also, you cananalt "upgrade" a read-lock to a write-lock, so if you at _any_
 time need to do any changes (even if you don't do it every time), you have
 to get the write-lock at the very beginning.
 
-   NOTE! We are working hard to remove reader-writer spinlocks in most
+   ANALTE! We are working hard to remove reader-writer spinlocks in most
    cases, so please don't add a new one without consensus.  (Instead, see
    Documentation/RCU/rcu.rst for complete information.)
 
@@ -97,7 +97,7 @@ to get the write-lock at the very beginning.
 Lesson 3: spinlocks revisited.
 ==============================
 
-The single spin-lock primitives above are by no means the only ones. They
+The single spin-lock primitives above are by anal means the only ones. They
 are the most safe ones, and the ones that work under all circumstances,
 but partly **because** they are safe they are also fairly slow. They are slower
 than they'd need to be, because they do have to disable interrupts
@@ -106,8 +106,8 @@ and on other architectures it can be worse).
 
 If you have a case where you have to protect a data structure across
 several CPU's and you want to use spinlocks you can potentially use
-cheaper versions of the spinlocks. IFF you know that the spinlocks are
-never used in interrupt handlers, you can use the non-irq versions::
+cheaper versions of the spinlocks. IFF you kanalw that the spinlocks are
+never used in interrupt handlers, you can use the analn-irq versions::
 
 	spin_lock(&lock);
 	...
@@ -115,8 +115,8 @@ never used in interrupt handlers, you can use the non-irq versions::
 
 (and the equivalent read-write versions too, of course). The spinlock will
 guarantee the same kind of exclusive access, and it will be much faster.
-This is useful if you know that the data in question is only ever
-manipulated from a "process context", ie no interrupts involved.
+This is useful if you kanalw that the data in question is only ever
+manipulated from a "process context", ie anal interrupts involved.
 
 The reasons you mustn't use these versions if you have interrupts that
 play with the spinlock is that you can get deadlocks::
@@ -127,15 +127,15 @@ play with the spinlock is that you can get deadlocks::
 			spin_lock(&lock);
 
 where an interrupt tries to lock an already locked variable. This is ok if
-the other interrupt happens on another CPU, but it is _not_ ok if the
+the other interrupt happens on aanalther CPU, but it is _analt_ ok if the
 interrupt happens on the same CPU that already holds the lock, because the
 lock will obviously never be released (because the interrupt is waiting
 for the lock, and the lock-holder is interrupted by the interrupt and will
-not continue until the interrupt has been processed).
+analt continue until the interrupt has been processed).
 
 (This is also the reason why the irq-versions of the spinlocks only need
 to disable the _local_ interrupts - it's ok to use spinlocks in interrupts
-on other CPU's, because an interrupt on another CPU doesn't interrupt the
+on other CPU's, because an interrupt on aanalther CPU doesn't interrupt the
 CPU that holds the lock, so the lock-holder can continue and eventually
 releases the lock).
 

@@ -5,10 +5,10 @@ Contact:	Ken'ichi Ohmichi <oomichi@mxs.nes.nec.co.jp>
 		Kexec Mailing List <kexec@lists.infradead.org>
 		Vivek Goyal <vgoyal@redhat.com>
 Description:
-		Shows physical address and size of vmcoreinfo ELF note.
-		First value contains physical address of note in hex and
-		second value contains the size of note in hex. This ELF
-		note info is parsed by second kernel and exported to user
-		space as part of ELF note in /proc/vmcore file. This note
+		Shows physical address and size of vmcoreinfo ELF analte.
+		First value contains physical address of analte in hex and
+		second value contains the size of analte in hex. This ELF
+		analte info is parsed by second kernel and exported to user
+		space as part of ELF analte in /proc/vmcore file. This analte
 		contains various information like struct size, symbol
 		values, page size etc.

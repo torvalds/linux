@@ -6,29 +6,29 @@
  *
  *	Copyright (c) 2003 Takashi Iwai <tiwai@suse.de>
  *
- * NOTES:
+ * ANALTES:
  *
  * - we reuse the struct snd_akm4xxx record for storing the wm8770 codec data.
  *   both wm and akm codecs are pretty similar, so we can integrate
  *   both controls in the future, once if wm codecs are reused in
  *   many boards.
  *
- * - DAC digital volumes are not implemented in the mixer.
+ * - DAC digital volumes are analt implemented in the mixer.
  *   if they show better response than DAC analog volumes, we can use them
  *   instead.
  *
  *   Lowlevel functions for AudioTrak Prodigy 7.1 (and possibly 192) cards
- *      Copyright (c) 2003 Dimitromanolakis Apostolos <apostol@cs.utoronto.ca>
+ *      Copyright (c) 2003 Dimitromaanallakis Apostolos <apostol@cs.utoronto.ca>
  *
- *   version 0.82: Stable / not all features work yet (no communication with AC97 secondary)
+ *   version 0.82: Stable / analt all features work yet (anal communication with AC97 secondary)
  *       added 64x/128x oversampling switch (should be 64x only for 96khz)
  *       fixed some recording labels (still need to check the rest)
  *       recording is working probably thanks to correct wm8770 initialization
  *
  *   version 0.5: Initial release:
  *           working: analog output, mixer, headphone amplifier switch
- *       not working: prety much everything else, at least i could verify that
- *                    we have no digital output, no capture, pretty bad clicks and poops
+ *       analt working: prety much everything else, at least i could verify that
+ *                    we have anal digital output, anal capture, pretty bad clicks and poops
  *                    on mixer switch and other coll stuff.
  */
 
@@ -395,7 +395,7 @@ static int aureon_ac97_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 /*
  * AC'97 mute controls
  */
-#define aureon_ac97_mute_info	snd_ctl_boolean_mono_info
+#define aureon_ac97_mute_info	snd_ctl_boolean_moanal_info
 
 static int aureon_ac97_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -433,7 +433,7 @@ static int aureon_ac97_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 /*
  * AC'97 mute controls
  */
-#define aureon_ac97_micboost_info	snd_ctl_boolean_mono_info
+#define aureon_ac97_micboost_info	snd_ctl_boolean_moanal_info
 
 static int aureon_ac97_micboost_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -609,7 +609,7 @@ static unsigned short wm_get(struct snd_ice1712 *ice, int reg)
 /*
  * set the register value of WM codec
  */
-static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
+static void wm_put_analcache(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
 	aureon_spi_write(ice,
 			 ((ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71LT ||
@@ -623,7 +623,7 @@ static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
  */
 static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
-	wm_put_nocache(ice, reg, val);
+	wm_put_analcache(ice, reg, val);
 	reg <<= 1;
 	ice->akm[0].images[reg] = val >> 8;
 	ice->akm[0].images[reg + 1] = val;
@@ -631,12 +631,12 @@ static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 
 /*
  */
-#define aureon_mono_bool_info		snd_ctl_boolean_mono_info
+#define aureon_moanal_bool_info		snd_ctl_boolean_moanal_info
 
 /*
  * AC'97 master playback mute controls (Mute on WM8770 chip)
  */
-#define aureon_ac97_mmute_info		snd_ctl_boolean_mono_info
+#define aureon_ac97_mmute_info		snd_ctl_boolean_moanal_info
 
 static int aureon_ac97_mmute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -692,13 +692,13 @@ static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index, unsigned sho
 	}
 
 	wm_put(ice, index, nvol);
-	wm_put_nocache(ice, index, 0x180 | nvol);
+	wm_put_analcache(ice, index, 0x180 | nvol);
 }
 
 /*
  * DAC mute control
  */
-#define wm_pcm_mute_info	snd_ctl_boolean_mono_info
+#define wm_pcm_mute_info	snd_ctl_boolean_moanal_info
 
 static int wm_pcm_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -966,7 +966,7 @@ static int wm_pcm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 	ovol = wm_get(ice, WM_DAC_DIG_MASTER_ATTEN) & 0xff;
 	if (ovol != nvol) {
 		wm_put(ice, WM_DAC_DIG_MASTER_ATTEN, nvol); /* prelatch */
-		wm_put_nocache(ice, WM_DAC_DIG_MASTER_ATTEN, nvol | 0x100); /* update */
+		wm_put_analcache(ice, WM_DAC_DIG_MASTER_ATTEN, nvol | 0x100); /* update */
 		change = 1;
 	}
 	snd_ice1712_restore_gpio_status(ice);
@@ -1077,7 +1077,7 @@ static int wm_adc_mux_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_in
 	static const char * const universe_texts[] = {
 		"Aux1",		/* AIN1 */
 		"CD",		/* AIN2 */
-		"Phono",	/* AIN3 */
+		"Phoanal",	/* AIN3 */
 		"Line",		/* AIN4 */
 		"Aux2",		/* AIN5 */
 		"Mic",		/* AIN6 */
@@ -1195,7 +1195,7 @@ static int aureon_cs8415_rate_get(struct snd_kcontrol *kcontrol, struct snd_ctl_
 /*
  * CS8415A Mute
  */
-#define aureon_cs8415_mute_info		snd_ctl_boolean_mono_info
+#define aureon_cs8415_mute_info		snd_ctl_boolean_moanal_info
 
 static int aureon_cs8415_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1302,7 +1302,7 @@ static int aureon_get_headphone_amp(struct snd_ice1712 *ice)
 	return (tmp & AUREON_HP_SEL) != 0;
 }
 
-#define aureon_hpamp_info	snd_ctl_boolean_mono_info
+#define aureon_hpamp_info	snd_ctl_boolean_moanal_info
 
 static int aureon_hpamp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1324,7 +1324,7 @@ static int aureon_hpamp_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
  * Deemphasis
  */
 
-#define aureon_deemp_info	snd_ctl_boolean_mono_info
+#define aureon_deemp_info	snd_ctl_boolean_moanal_info
 
 static int aureon_deemp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1716,7 +1716,7 @@ static const struct snd_kcontrol_new universe_ac97_controls[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Phono Playback Switch",
+		.name = "Phoanal Playback Switch",
 		.info = aureon_ac97_mute_info,
 		.get = aureon_ac97_mute_get,
 		.put = aureon_ac97_mute_put,
@@ -1726,7 +1726,7 @@ static const struct snd_kcontrol_new universe_ac97_controls[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 				SNDRV_CTL_ELEM_ACCESS_TLV_READ),
-		.name = "Phono Playback Volume",
+		.name = "Phoanal Playback Volume",
 		.info = aureon_ac97_vol_info,
 		.get = aureon_ac97_vol_get,
 		.put = aureon_ac97_vol_put,
@@ -1817,7 +1817,7 @@ static const struct snd_kcontrol_new cs8415_controls[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, NONE) "Source",
+		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, ANALNE) "Source",
 		.info = aureon_cs8415_mux_info,
 		.get = aureon_cs8415_mux_get,
 		.put = aureon_cs8415_mux_put,
@@ -1845,7 +1845,7 @@ static const struct snd_kcontrol_new cs8415_controls[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
-		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, NONE) "Rate",
+		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, ANALNE) "Rate",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 		.info = aureon_cs8415_rate_info,
 		.get = aureon_cs8415_rate_get
@@ -1859,7 +1859,7 @@ static int aureon_add_controls(struct snd_ice1712 *ice)
 
 	counts = ARRAY_SIZE(aureon_dac_controls);
 	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_AUREON51_SKY)
-		counts -= 2; /* no side */
+		counts -= 2; /* anal side */
 	for (i = 0; i < counts; i++) {
 		err = snd_ctl_add(ice->card, snd_ctl_new1(&aureon_dac_controls[i], ice));
 		if (err < 0)
@@ -1895,7 +1895,7 @@ static int aureon_add_controls(struct snd_ice1712 *ice)
 		snd_ice1712_restore_gpio_status(ice);
 		if (id != 0x41)
 			dev_info(ice->card->dev,
-				 "No CS8415 chip. Skipping CS8415 controls.\n");
+				 "Anal CS8415 chip. Skipping CS8415 controls.\n");
 		else {
 			for (i = 0; i < ARRAY_SIZE(cs8415_controls); i++) {
 				struct snd_kcontrol *kctl;
@@ -1918,14 +1918,14 @@ static int aureon_add_controls(struct snd_ice1712 *ice)
 static int aureon_reset(struct snd_ice1712 *ice)
 {
 	static const unsigned short wm_inits_aureon[] = {
-		/* These come first to reduce init pop noise */
+		/* These come first to reduce init pop analise */
 		0x1b, 0x044,		/* ADC Mux (AC'97 source) */
 		0x1c, 0x00B,		/* Out Mux1 (VOUT1 = DAC+AUX, VOUT2 = DAC) */
 		0x1d, 0x009,		/* Out Mux2 (VOUT2 = DAC, VOUT3 = DAC) */
 
 		0x18, 0x000,		/* All power-up */
 
-		0x16, 0x122,		/* I2S, normal polarity, 24bit */
+		0x16, 0x122,		/* I2S, analrmal polarity, 24bit */
 		0x17, 0x022,		/* 256fs, slave mode */
 		0x00, 0,		/* DAC1 analog mute */
 		0x01, 0,		/* DAC2 analog mute */
@@ -1945,24 +1945,24 @@ static int aureon_reset(struct snd_ice1712 *ice)
 		0x0f, 0xff,		/* DAC7 digital full */
 		0x10, 0xff,		/* DAC8 digital full */
 		0x11, 0x1ff,		/* master digital full */
-		0x12, 0x000,		/* phase normal */
+		0x12, 0x000,		/* phase analrmal */
 		0x13, 0x090,		/* unmute DAC L/R */
 		0x14, 0x000,		/* all unmute */
-		0x15, 0x000,		/* no deemphasis, no ZFLG */
+		0x15, 0x000,		/* anal deemphasis, anal ZFLG */
 		0x19, 0x000,		/* -12dB ADC/L */
 		0x1a, 0x000,		/* -12dB ADC/R */
 		(unsigned short)-1
 	};
 	static const unsigned short wm_inits_prodigy[] = {
 
-		/* These come first to reduce init pop noise */
+		/* These come first to reduce init pop analise */
 		0x1b, 0x000,		/* ADC Mux */
 		0x1c, 0x009,		/* Out Mux1 */
 		0x1d, 0x009,		/* Out Mux2 */
 
 		0x18, 0x000,		/* All power-up */
 
-		0x16, 0x022,		/* I2S, normal polarity, 24bit, high-pass on */
+		0x16, 0x022,		/* I2S, analrmal polarity, 24bit, high-pass on */
 		0x17, 0x006,		/* 128fs, slave mode */
 
 		0x00, 0,		/* DAC1 analog mute */
@@ -1985,10 +1985,10 @@ static int aureon_reset(struct snd_ice1712 *ice)
 		0x10, 0x7f,		/* DAC8 digital full */
 		0x11, 0x1FF,		/* master digital full */
 
-		0x12, 0x000,		/* phase normal */
+		0x12, 0x000,		/* phase analrmal */
 		0x13, 0x090,		/* unmute DAC L/R */
 		0x14, 0x000,		/* all unmute */
-		0x15, 0x000,		/* no deemphasis, no ZFLG */
+		0x15, 0x000,		/* anal deemphasis, anal ZFLG */
 
 		0x19, 0x000,		/* -12dB ADC/L */
 		0x1a, 0x000,		/* -12dB ADC/R */
@@ -1997,7 +1997,7 @@ static int aureon_reset(struct snd_ice1712 *ice)
 	};
 	static const unsigned short cs_inits[] = {
 		0x0441, /* RUN */
-		0x0180, /* no mute, OMCK output on RMCK pin */
+		0x0180, /* anal mute, OMCK output on RMCK pin */
 		0x0201, /* S/PDIF source on RXP1 */
 		0x0605, /* slave, 24bit, MSB on second OSCLK, SDOUT for right channel when OLRCK is high */
 		(unsigned short)-1
@@ -2087,7 +2087,7 @@ static int aureon_init(struct snd_ice1712 *ice)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_AUREON51_SKY) {
@@ -2102,7 +2102,7 @@ static int aureon_init(struct snd_ice1712 *ice)
 	/* to remember the register values of CS8415 */
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (!ice->akm)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->akm_codecs = 1;
 
 	err = aureon_reset(ice);

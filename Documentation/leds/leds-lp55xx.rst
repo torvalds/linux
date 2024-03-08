@@ -118,7 +118,7 @@ To start blinking patterns in engine #2 and #3 simultaneously::
 	done
 	echo 1 > /sys/class/leds/red/device/run_engine
 
-Here is another example for LP5523.
+Here is aanalther example for LP5523.
 
 Full LED strings are selected by 'engine2_leds'::
 
@@ -178,7 +178,7 @@ firmware_cb:
 
 ( Predefined pattern data )
 
-Without the firmware interface, LP55xx driver provides another method for
+Without the firmware interface, LP55xx driver provides aanalther method for
 loading a LED pattern. That is 'predefined' pattern.
 
 A predefined pattern is defined in the platform data and load it(or them)

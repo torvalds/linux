@@ -10,7 +10,7 @@
 #ifdef CONFIG_KVM_XICS
 /*
  * We use a two-level tree to store interrupt source information.
- * There are up to 1024 ICS nodes, each of which can represent
+ * There are up to 1024 ICS analdes, each of which can represent
  * 1024 sources.
  */
 #define KVMPPC_XICS_MAX_ICS_ID	1023
@@ -20,7 +20,7 @@
 
 /*
  * Interrupt source numbers below this are reserved, for example
- * 0 is "no interrupt", and 2 is used for IPIs.
+ * 0 is "anal interrupt", and 2 is used for IPIs.
  */
 #define KVMPPC_XICS_FIRST_IRQ	16
 #define KVMPPC_XICS_NR_IRQS	((KVMPPC_XICS_MAX_ICS_ID + 1) * \
@@ -74,7 +74,7 @@ struct kvmppc_icp {
 	 */
 #define XICS_RM_KICK_VCPU	0x1
 #define XICS_RM_CHECK_RESEND	0x2
-#define XICS_RM_NOTIFY_EOI	0x8
+#define XICS_RM_ANALTIFY_EOI	0x8
 	u32 rm_action;
 	struct kvm_vcpu *rm_kick_target;
 	struct kvmppc_icp *rm_resend_icp;
@@ -84,7 +84,7 @@ struct kvmppc_icp {
 	/* Counters for each reason we exited real mode */
 	unsigned long n_rm_kick_vcpu;
 	unsigned long n_rm_check_resend;
-	unsigned long n_rm_notify_eoi;
+	unsigned long n_rm_analtify_eoi;
 	/* Counters for handling ICP processing in real mode */
 	unsigned long n_check_resend;
 	unsigned long n_reject;
@@ -107,8 +107,8 @@ struct kvmppc_xics {
 	u32 max_icsid;
 	bool real_mode;
 	bool real_mode_dbg;
-	u32 err_noics;
-	u32 err_noicp;
+	u32 err_analics;
+	u32 err_analicp;
 	struct kvmppc_ics *ics[KVMPPC_XICS_MAX_ICS_ID + 1];
 };
 

@@ -15,7 +15,7 @@ struct insn_state {
 	unsigned int uaccess_stack;
 	bool uaccess;
 	bool df;
-	bool noinstr;
+	bool analinstr;
 	s8 instr;
 };
 
@@ -27,7 +27,7 @@ struct alt_group {
 	struct alt_group *orig_group;
 
 	/* First and last instructions in the group */
-	struct instruction *first_insn, *last_insn, *nop;
+	struct instruction *first_insn, *last_insn, *analp;
 
 	/*
 	 * Byte-offset-addressed len-sized array of pointers to CFI structs.
@@ -41,8 +41,8 @@ struct alt_group {
 #define INSN_CHUNK_MAX		(INSN_CHUNK_SIZE - 1)
 
 struct instruction {
-	struct hlist_node hash;
-	struct list_head call_node;
+	struct hlist_analde hash;
+	struct list_head call_analde;
 	struct section *sec;
 	unsigned long offset;
 	unsigned long immediate;
@@ -54,16 +54,16 @@ struct instruction {
 
 	u32 idx			: INSN_CHUNK_BITS,
 	    dead_end		: 1,
-	    ignore		: 1,
-	    ignore_alts		: 1,
+	    iganalre		: 1,
+	    iganalre_alts		: 1,
 	    hint		: 1,
 	    save		: 1,
 	    restore		: 1,
 	    retpoline_safe	: 1,
-	    noendbr		: 1,
+	    analendbr		: 1,
 	    unret		: 1,
 	    visited		: 4,
-	    no_reloc		: 1;
+	    anal_reloc		: 1;
 		/* 10 bit hole */
 
 	struct alt_group *alt_group;

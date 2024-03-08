@@ -11,12 +11,12 @@ tool for inspection and simple manipulation of eBPF links
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **link** *COMMAND*
 
-	*OPTIONS* := { |COMMON_OPTIONS| | { **-f** | **--bpffs** } | { **-n** | **--nomount** } }
+	*OPTIONS* := { |COMMON_OPTIONS| | { **-f** | **--bpffs** } | { **-n** | **--analmount** } }
 
 	*COMMANDS* := { **show** | **list** | **pin** | **help** }
 
@@ -50,7 +50,7 @@ DESCRIPTION
 	**bpftool link pin** *LINK* *FILE*
 		  Pin link *LINK* as *FILE*.
 
-		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  Analte: *FILE* must be located in *bpffs* mount. It must analt
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
@@ -72,8 +72,8 @@ OPTIONS
 		  When showing BPF links, show file names of pinned
 		  links.
 
-	-n, --nomount
-		  Do not automatically attempt to mount any virtual file system
+	-n, --analmount
+		  Do analt automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
 EXAMPLES

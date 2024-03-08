@@ -16,7 +16,7 @@
  *
  * All the routines below use bits of fixup code that are out of line
  * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
+ * we don't even have to jump over them.  Further, they do analt intrude
  * on our cache or tlb entries.
  */
 
@@ -42,9 +42,9 @@ extern int ex_get_fixup_type(unsigned long ip);
 extern void early_fixup_exception(struct pt_regs *regs, int trapnr);
 
 #ifdef CONFIG_X86_MCE
-extern void __noreturn ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr);
+extern void __analreturn ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr);
 #else
-static inline void __noreturn ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr)
+static inline void __analreturn ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr)
 {
 	for (;;)
 		cpu_relax();

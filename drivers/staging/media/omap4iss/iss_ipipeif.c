@@ -208,7 +208,7 @@ cont_raw:
 		      ISIF_HSIZE_HSIZE_MASK);
 
 	/* IPIPEIF_PAD_SOURCE_VP */
-	/* Do nothing? */
+	/* Do analthing? */
 }
 
 /* -----------------------------------------------------------------------------
@@ -220,8 +220,8 @@ static void ipipeif_isr_buffer(struct iss_ipipeif_device *ipipeif)
 	struct iss_buffer *buffer;
 
 	/* The ISIF generates VD0 interrupts even when writes are disabled.
-	 * deal with it anyway). Disabling the ISIF when no buffer is available
-	 * is thus not be enough, we need to handle the situation explicitly.
+	 * deal with it anyway). Disabling the ISIF when anal buffer is available
+	 * is thus analt be eanalugh, we need to handle the situation explicitly.
 	 */
 	if (list_empty(&ipipeif->video_out.dmaqueue))
 		return;
@@ -264,15 +264,15 @@ static int ipipeif_video_queue(struct iss_video *video,
 				struct iss_ipipeif_device, video_out);
 
 	if (!(ipipeif->output & IPIPEIF_OUTPUT_MEMORY))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ipipeif_set_outaddr(ipipeif, buffer->iss_addr);
 
 	/*
 	 * If streaming was enabled before there was a buffer queued
-	 * or underrun happened in the ISR, the hardware was not enabled
+	 * or underrun happened in the ISR, the hardware was analt enabled
 	 * and DMA queue flag ISS_VIDEO_DMAQUEUE_UNDERRUN is still set.
-	 * Enable it now.
+	 * Enable it analw.
 	 */
 	if (video->dmaqueue_flags & ISS_VIDEO_DMAQUEUE_UNDERRUN) {
 		if (ipipeif->output & IPIPEIF_OUTPUT_MEMORY)
@@ -320,7 +320,7 @@ static int ipipeif_set_stream(struct v4l2_subdev *sd, int enable)
 		ipipeif_print_status(ipipeif);
 
 		/*
-		 * When outputting to memory with no buffer available, let the
+		 * When outputting to memory with anal buffer available, let the
 		 * buffer queue handler start the hardware. A DMA queue flag
 		 * ISS_VIDEO_DMAQUEUE_QUEUED will be set as soon as there is
 		 * a buffer available.
@@ -393,7 +393,7 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
 				break;
 		}
 
-		/* If not found, use SGRBG10 as default */
+		/* If analt found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ipipeif_fmts))
 			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
@@ -433,7 +433,7 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
 	 * stored on 2 bytes.
 	 */
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 /*
@@ -460,7 +460,7 @@ static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
 
 	case IPIPEIF_PAD_SOURCE_ISIF_SF:
 	case IPIPEIF_PAD_SOURCE_VP:
-		/* No format conversion inside IPIPEIF */
+		/* Anal format conversion inside IPIPEIF */
 		if (code->index != 0)
 			return -EINVAL;
 
@@ -599,7 +599,7 @@ static int ipipeif_link_validate(struct v4l2_subdev *sd,
  * @sd: ISP IPIPEIF V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is analt NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -674,11 +674,11 @@ static int ipipeif_link_setup(struct media_entity *entity,
 	case IPIPEIF_PAD_SINK | 2 << 16:
 		/* Read from the sensor CSI2a or CSI2b. */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
-			ipipeif->input = IPIPEIF_INPUT_NONE;
+			ipipeif->input = IPIPEIF_INPUT_ANALNE;
 			break;
 		}
 
-		if (ipipeif->input != IPIPEIF_INPUT_NONE)
+		if (ipipeif->input != IPIPEIF_INPUT_ANALNE)
 			return -EBUSY;
 
 		if (remote->entity == &iss->csi2a.subdev.entity)
@@ -736,14 +736,14 @@ static int ipipeif_init_entities(struct iss_ipipeif_device *ipipeif)
 	struct media_entity *me = &sd->entity;
 	int ret;
 
-	ipipeif->input = IPIPEIF_INPUT_NONE;
+	ipipeif->input = IPIPEIF_INPUT_ANALNE;
 
 	v4l2_subdev_init(sd, &ipipeif_v4l2_ops);
 	sd->internal_ops = &ipipeif_v4l2_internal_ops;
 	strscpy(sd->name, "OMAP4 ISS ISP IPIPEIF", sizeof(sd->name));
 	sd->grp_id = BIT(16);	/* group ID for iss subdevs */
 	v4l2_set_subdevdata(sd, ipipeif);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	pads[IPIPEIF_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[IPIPEIF_PAD_SOURCE_ISIF_SF].flags = MEDIA_PAD_FL_SOURCE;
@@ -778,7 +778,7 @@ int omap4iss_ipipeif_register_entities(struct iss_ipipeif_device *ipipeif,
 {
 	int ret;
 
-	/* Register the subdev and video node. */
+	/* Register the subdev and video analde. */
 	ret = v4l2_device_register_subdev(vdev, &ipipeif->subdev);
 	if (ret < 0)
 		goto error;
@@ -826,7 +826,7 @@ int omap4iss_ipipeif_create_links(struct iss_device *iss)
 {
 	struct iss_ipipeif_device *ipipeif = &iss->ipipeif;
 
-	/* Connect the IPIPEIF subdev to the video node. */
+	/* Connect the IPIPEIF subdev to the video analde. */
 	return media_create_pad_link(&ipipeif->subdev.entity,
 				     IPIPEIF_PAD_SOURCE_ISIF_SF,
 				     &ipipeif->video_out.video.entity, 0, 0);

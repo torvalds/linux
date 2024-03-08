@@ -136,15 +136,15 @@ static const struct asm9260_gate_data asm9260_mux_gates[] __initconst = {
 static const struct asm9260_gate_data asm9260_ahb_gates[] __initconst = {
 	/* ahb gates */
 	{ CLKID_AHB_ROM,	"rom",		"ahb_div",
-		HW_AHBCLKCTRL0,	1, CLK_IGNORE_UNUSED},
+		HW_AHBCLKCTRL0,	1, CLK_IGANALRE_UNUSED},
 	{ CLKID_AHB_RAM,	"ram",		"ahb_div",
-		HW_AHBCLKCTRL0,	2, CLK_IGNORE_UNUSED},
+		HW_AHBCLKCTRL0,	2, CLK_IGANALRE_UNUSED},
 	{ CLKID_AHB_GPIO,	"gpio",		"ahb_div",
 		HW_AHBCLKCTRL0,	4 },
 	{ CLKID_AHB_MAC,	"mac",		"ahb_div",
 		HW_AHBCLKCTRL0,	5 },
 	{ CLKID_AHB_EMI,	"emi",		"ahb_div",
-		HW_AHBCLKCTRL0,	6, CLK_IGNORE_UNUSED},
+		HW_AHBCLKCTRL0,	6, CLK_IGANALRE_UNUSED},
 	{ CLKID_AHB_USB0,	"usb0",		"ahb_div",
 		HW_AHBCLKCTRL0,	7 },
 	{ CLKID_AHB_USB1,	"usb1",		"ahb_div",
@@ -213,7 +213,7 @@ static const struct asm9260_gate_data asm9260_ahb_gates[] __initconst = {
 	{ CLKID_AHB_TIMER3,	"timer3",	"ahb_div",
 		HW_AHBCLKCTRL1,	7 },
 	{ CLKID_AHB_IRQ,	"irq",		"ahb_div",
-		HW_AHBCLKCTRL1,	8, CLK_IGNORE_UNUSED},
+		HW_AHBCLKCTRL1,	8, CLK_IGANALRE_UNUSED},
 	{ CLKID_AHB_RTC,	"rtc",		"ahb_div",
 		HW_AHBCLKCTRL1,	9 },
 	{ CLKID_AHB_NAND,	"nand",		"ahb_div",
@@ -253,7 +253,7 @@ static struct asm9260_mux_clock asm9260_mux_clks[] __initdata = {
 		ARRAY_SIZE(clkout_mux_p), HW_CLKOUTCLKSEL, },
 };
 
-static void __init asm9260_acc_init(struct device_node *np)
+static void __init asm9260_acc_init(struct device_analde *np)
 {
 	struct clk_hw *pll_hw;
 	struct clk_hw **hws;

@@ -7,7 +7,7 @@ Thin-streams and TCP
 A wide range of Internet-based services that use reliable transport
 protocols display what we call thin-stream properties. This means
 that the application sends data with such a low rate that the
-retransmission mechanisms of the transport protocol are not fully
+retransmission mechanisms of the transport protocol are analt fully
 effective. In time-dependent scenarios (like online games, control
 systems, stock trading etc.) where the user experience depends
 on the data delivery latency, packet loss can be devastating for
@@ -28,12 +28,12 @@ for thin streams. In short, if the kernel detects a thin stream,
 the retransmission mechanisms are modified in the following manner:
 
 1) If the stream is thin, fast retransmit on the first dupACK.
-2) If the stream is thin, do not apply exponential backoff.
+2) If the stream is thin, do analt apply exponential backoff.
 
 These enhancements are applied only if the stream is detected as
 thin. This is accomplished by defining a threshold for the number
 of packets in flight. If there are less than 4 packets in flight,
-fast retransmissions can not be triggered, and the stream is prone
+fast retransmissions can analt be triggered, and the stream is prone
 to experience high retransmission latencies.
 
 Since these mechanisms are targeted at time-dependent applications,
@@ -49,4 +49,4 @@ experimental data can be found here:
 
 "Improving latency for interactive, thin-stream applications over
 reliable transport"
-http://simula.no/research/nd/publications/Simula.nd.477/simula_pdf_file
+http://simula.anal/research/nd/publications/Simula.nd.477/simula_pdf_file

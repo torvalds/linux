@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	ctimap.c
  *
@@ -76,7 +76,7 @@ int input_mapper_delete(struct list_head *mappers, struct imapper *entry,
 	next = (entry->list.next == head) ? head->next : entry->list.next;
 
 	if (pre == &entry->list) {
-		/* entry is the only one node in mappers list */
+		/* entry is the only one analde in mappers list */
 		entry->next = entry->addr = entry->user = entry->slot = 0;
 		map_op(data, entry);
 		list_del(&entry->list);

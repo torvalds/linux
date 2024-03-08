@@ -30,7 +30,7 @@ char *extract_hostname(const char *unc)
 	if (!*src)
 		return ERR_PTR(-EINVAL);
 
-	/* delimiter between hostname and sharename is always '\\' now */
+	/* delimiter between hostname and sharename is always '\\' analw */
 	delim = strchr(src, '\\');
 	if (!delim)
 		return ERR_PTR(-EINVAL);
@@ -38,7 +38,7 @@ char *extract_hostname(const char *unc)
 	len = delim - src;
 	dst = kmalloc((len + 1), GFP_KERNEL);
 	if (dst == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memcpy(dst, src, len);
 	dst[len] = '\0';
@@ -54,7 +54,7 @@ char *extract_sharename(const char *unc)
 	/* skip double chars at the beginning */
 	src = unc + 2;
 
-	/* share name is always preceded by '\\' now */
+	/* share name is always preceded by '\\' analw */
 	delim = strchr(src, '\\');
 	if (!delim)
 		return ERR_PTR(-EINVAL);
@@ -63,7 +63,7 @@ char *extract_sharename(const char *unc)
 	/* caller has to free the memory */
 	dst = kstrdup(delim, GFP_KERNEL);
 	if (!dst)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return dst;
 }

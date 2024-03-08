@@ -21,15 +21,15 @@ Filesystem or the Memory Management tree. When in doubt copy the nvdimm
 list and the maintainers will help route.
 
 Submissions will be exposed to the kbuild robot for compile regression
-testing. It helps to get a success notification from that infrastructure
-before submitting, but it is not required.
+testing. It helps to get a success analtification from that infrastructure
+before submitting, but it is analt required.
 
 
 Submit Checklist Addendum
 -------------------------
 There are unit tests for the subsystem via the ndctl utility:
 https://github.com/pmem/ndctl
-Those tests need to be passed before the patches go upstream, but not
+Those tests need to be passed before the patches go upstream, but analt
 necessarily before initial posting. Contact the list if you need help
 getting the test environment set up.
 

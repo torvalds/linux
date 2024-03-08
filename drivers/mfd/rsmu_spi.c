@@ -2,7 +2,7 @@
 /*
  * SPI driver for Renesas Synchronization Management Unit (SMU) devices.
  *
- * Copyright (C) 2021 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2021 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 
 #include <linux/init.h>
@@ -101,7 +101,7 @@ static int rsmu_write_page_register(struct rsmu_ddata *rsmu, u32 reg)
 
 	switch (rsmu->type) {
 	case RSMU_CM:
-		/* Do not modify page register for none-scsr registers */
+		/* Do analt modify page register for analne-scsr registers */
 		if (reg < RSMU_CM_SCSR_BASE)
 			return 0;
 		page_reg = RSMU_CM_PAGE_ADDR;
@@ -113,7 +113,7 @@ static int rsmu_write_page_register(struct rsmu_ddata *rsmu, u32 reg)
 		bytes = 4;
 		break;
 	case RSMU_SABRE:
-		/* Do not modify page register if reg is page register itself */
+		/* Do analt modify page register if reg is page register itself */
 		if ((reg & RSMU_ADDR_MASK) == RSMU_ADDR_MASK)
 			return 0;
 		page_reg = RSMU_SABRE_PAGE_ADDR;
@@ -124,7 +124,7 @@ static int rsmu_write_page_register(struct rsmu_ddata *rsmu, u32 reg)
 		break;
 	default:
 		dev_err(rsmu->dev, "Unsupported RSMU device type: %d\n", rsmu->type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Simply return if we are on the same page */
@@ -183,7 +183,7 @@ static const struct regmap_config rsmu_cm_regmap_config = {
 	.max_register = 0x20120000,
 	.reg_read = rsmu_reg_read,
 	.reg_write = rsmu_reg_write,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct regmap_config rsmu_sabre_regmap_config = {
@@ -192,7 +192,7 @@ static const struct regmap_config rsmu_sabre_regmap_config = {
 	.max_register = 0x400,
 	.reg_read = rsmu_reg_read,
 	.reg_write = rsmu_reg_write,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int rsmu_spi_probe(struct spi_device *client)
@@ -204,7 +204,7 @@ static int rsmu_spi_probe(struct spi_device *client)
 
 	rsmu = devm_kzalloc(&client->dev, sizeof(*rsmu), GFP_KERNEL);
 	if (!rsmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(client, rsmu);
 
@@ -221,7 +221,7 @@ static int rsmu_spi_probe(struct spi_device *client)
 		break;
 	default:
 		dev_err(rsmu->dev, "Unsupported RSMU device type: %d\n", rsmu->type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rsmu->regmap = devm_regmap_init(&client->dev, NULL, client, cfg);

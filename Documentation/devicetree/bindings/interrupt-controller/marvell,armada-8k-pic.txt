@@ -7,7 +7,7 @@ typically connected to the GIC as the primary interrupt controller.
 
 Required properties:
 - compatible: should be "marvell,armada-8k-pic"
-- interrupt-controller: identifies the node as an interrupt controller
+- interrupt-controller: identifies the analde as an interrupt controller
 - #interrupt-cells: the number of cells to define interrupts on this
   controller. Should be 1
 - reg: the register area for the PIC interrupt controller

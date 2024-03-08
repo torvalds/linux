@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -143,7 +143,7 @@ static uint8_t hpd_sel_to_atom(enum hpd_source_id id)
 	case HPD_SOURCEID6:
 		atom_hpd_sel = ATOM_TRANSMITTER_CONFIG_V5_HPD6_SEL;
 		break;
-	case HPD_SOURCEID_UNKNOWN:
+	case HPD_SOURCEID_UNKANALWN:
 	default:
 		atom_hpd_sel = 0;
 		break;
@@ -155,7 +155,7 @@ static uint8_t dig_encoder_sel_to_atom(enum engine_id id)
 {
 	/* On any ASIC after DCE80, we manually program the DIG_FE
 	 * selection (see connect_dig_be_to_fe function of the link
-	 * encoder), so translation should always return 0 (no FE).
+	 * encoder), so translation should always return 0 (anal FE).
 	 */
 
 	return 0;
@@ -195,7 +195,7 @@ static bool clock_source_id_to_atom(
 			*atom_pll_id = ATOM_PPLL_INVALID;
 			break;
 		case CLOCK_SOURCE_ID_UNDEFINED:
-			/* Should not happen */
+			/* Should analt happen */
 			*atom_pll_id = ATOM_PPLL_INVALID;
 			result = false;
 			break;

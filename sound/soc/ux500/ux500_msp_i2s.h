@@ -14,11 +14,11 @@
 
 #define MSP_INPUT_FREQ_APB 48000000
 
-/*** Stereo mode. Used for APB data accesses as 16 bits accesses (mono),
+/*** Stereo mode. Used for APB data accesses as 16 bits accesses (moanal),
  *   32 bits accesses (stereo).
  ***/
 enum msp_stereo_mode {
-	MSP_MONO,
+	MSP_MOANAL,
 	MSP_STEREO
 };
 
@@ -32,8 +32,8 @@ enum msp_direction {
 #define MSP_BIG_ENDIAN           0x00000000
 #define MSP_LITTLE_ENDIAN        0x00001000
 #define MSP_UNEXPECTED_FS_ABORT  0x00000000
-#define MSP_UNEXPECTED_FS_IGNORE 0x00008000
-#define MSP_NON_MODE_BIT_MASK    0x00009000
+#define MSP_UNEXPECTED_FS_IGANALRE 0x00008000
+#define MSP_ANALN_MODE_BIT_MASK    0x00009000
 
 /* Global configuration register */
 #define RX_ENABLE             0x00000001
@@ -53,7 +53,7 @@ enum msp_direction {
 #define SRG_CLK_SEL_APB       0x00000000
 #define RX_FIFO_SYNC_HI       0x00000000
 #define TX_FIFO_SYNC_HI       0x00000000
-#define SPI_CLK_MODE_NORMAL   0x00000000
+#define SPI_CLK_MODE_ANALRMAL   0x00000000
 
 #define MSP_FRAME_SIZE_AUTO -1
 
@@ -190,7 +190,7 @@ enum msp_direction {
 #define MSP_DATA_WORD_SWAP(n)		((n << TBSWAP_SHIFT) & TBSWAP_MASK)
 #define MSP_SET_COMPANDING_MODE(n)	((n << DTYP_SHIFT) & \
 						COMPANDING_MODE_MASK)
-#define MSP_SET_FSYNC_IGNORE(n)		((n << FSYNC_SHIFT) & FSYNC_MASK)
+#define MSP_SET_FSYNC_IGANALRE(n)		((n << FSYNC_SHIFT) & FSYNC_MASK)
 
 /* Flag register */
 #define RX_BUSY			BIT(0)
@@ -290,8 +290,8 @@ enum msp_data_xfer_width {
 };
 
 enum msp_frame_sync {
-	MSP_FSYNC_UNIGNORE = 0,
-	MSP_FSYNC_IGNORE = 1,
+	MSP_FSYNC_UNIGANALRE = 0,
+	MSP_FSYNC_IGANALRE = 1,
 };
 
 enum msp_phase2_start_mode {
@@ -324,7 +324,7 @@ enum msp_edge {
 };
 
 enum msp_hws {
-	MSP_SWAP_NONE = 0,
+	MSP_SWAP_ANALNE = 0,
 	MSP_SWAP_BYTE_PER_WORD = 1,
 	MSP_SWAP_BYTE_PER_HALF_WORD = 2,
 	MSP_SWAP_HALF_WORD_PER_WORD = 3
@@ -343,7 +343,7 @@ enum msp_expand_mode {
 	MSP_EXPAND_MODE_A_LAW = 3
 };
 
-#define MSP_FRAME_PERIOD_IN_MONO_MODE 256
+#define MSP_FRAME_PERIOD_IN_MOANAL_MODE 256
 #define MSP_FRAME_PERIOD_IN_STEREO_MODE 32
 #define MSP_FRAME_WIDTH_IN_STEREO_MODE 16
 
@@ -355,7 +355,7 @@ enum msp_protocol {
 };
 
 /*
- * No of registers to backup during
+ * Anal of registers to backup during
  * suspend resume
  */
 #define MAX_MSP_BACKUP_REGS 36
@@ -385,7 +385,7 @@ enum msp_state {
 
 enum msp_rx_comparison_enable_mode {
 	MSP_COMPARISON_DISABLED = 0,
-	MSP_COMPARISON_NONEQUAL_ENABLED = 2,
+	MSP_COMPARISON_ANALNEQUAL_ENABLED = 2,
 	MSP_COMPARISON_EQUAL_ENABLED = 3
 };
 
@@ -431,7 +431,7 @@ struct msp_protdesc {
 	u32 tx_half_word_swap;
 	u32 compression_mode;
 	u32 expansion_mode;
-	u32 frame_sync_ignore;
+	u32 frame_sync_iganalre;
 	u32 frame_period;
 	u32 frame_width;
 	u32 clocks_per_frame;

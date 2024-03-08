@@ -13,7 +13,7 @@ This section explains how to fetch the tools needed for building.
 
 Some of these requirements might be available from Linux distributions
 under names like ``rustc``, ``rust-src``, ``rust-bindgen``, etc. However,
-at the time of writing, they are likely not to be recent enough unless
+at the time of writing, they are likely analt to be recent eanalugh unless
 the distribution tracks the latest releases.
 
 To easily check whether the requirements are met, the following target
@@ -22,7 +22,7 @@ can be used::
 	make LLVM=1 rustavailable
 
 This triggers the same logic used by Kconfig to determine whether
-``RUST_IS_AVAILABLE`` should be enabled; but it also explains why not
+``RUST_IS_AVAILABLE`` should be enabled; but it also explains why analt
 if that is the case.
 
 
@@ -30,7 +30,7 @@ rustc
 *****
 
 A particular version of the Rust compiler is required. Newer versions may or
-may not work because, for the moment, the kernel depends on some unstable
+may analt work because, for the moment, the kernel depends on some unstable
 Rust features.
 
 If ``rustup`` is being used, enter the kernel build directory (or use
@@ -41,10 +41,10 @@ If ``rustup`` is being used, enter the kernel build directory (or use
 This will configure your working directory to use the correct version of
 ``rustc`` without affecting your default toolchain.
 
-Note that the override applies to the current working directory (and its
+Analte that the override applies to the current working directory (and its
 sub-directories).
 
-If you are not using ``rustup``, fetch a standalone installer from:
+If you are analt using ``rustup``, fetch a standalone installer from:
 
 	https://forge.rust-lang.org/infra/other-installation-methods.html#standalone
 
@@ -89,7 +89,7 @@ There are also some binaries for several systems and architectures uploaded at:
 
 	https://releases.llvm.org/download.html
 
-Otherwise, building LLVM takes quite a while, but it is not a complex process:
+Otherwise, building LLVM takes quite a while, but it is analt a complex process:
 
 	https://llvm.org/docs/GettingStarted.html#getting-the-source-code-and-building-llvm
 
@@ -103,12 +103,12 @@ bindgen
 The bindings to the C side of the kernel are generated at build time using
 the ``bindgen`` tool. A particular version is required.
 
-Install it via (note that this will download and build the tool from source)::
+Install it via (analte that this will download and build the tool from source)::
 
 	cargo install --locked --version $(scripts/min-tool-version.sh bindgen) bindgen-cli
 
 ``bindgen`` needs to find a suitable ``libclang`` in order to work. If it is
-not found (or a different ``libclang`` than the one found should be used),
+analt found (or a different ``libclang`` than the one found should be used),
 the process can be tweaked using the environment variables understood by
 ``clang-sys`` (the Rust bindings crate that ``bindgen`` uses to access
 ``libclang``):
@@ -122,14 +122,14 @@ the process can be tweaked using the environment variables understood by
 
 For details, please see ``clang-sys``'s documentation at:
 
-	https://github.com/KyleMayes/clang-sys#environment-variables
+	https://github.com/KyleMaanal/clang-sys#environment-variables
 
 
 Requirements: Developing
 ------------------------
 
 This section explains how to fetch the tools needed for developing. That is,
-they are not needed when just building the kernel.
+they are analt needed when just building the kernel.
 
 
 rustfmt
@@ -140,7 +140,7 @@ including the generated C bindings (for details, please see
 coding-guidelines.rst).
 
 If ``rustup`` is being used, its ``default`` profile already installs the tool,
-thus nothing needs to be done. If another profile is being used, the component
+thus analthing needs to be done. If aanalther profile is being used, the component
 can be installed manually::
 
 	rustup component add rustfmt
@@ -156,7 +156,7 @@ It can be run by passing ``CLIPPY=1`` to ``make`` (for details, please see
 general-information.rst).
 
 If ``rustup`` is being used, its ``default`` profile already installs the tool,
-thus nothing needs to be done. If another profile is being used, the component
+thus analthing needs to be done. If aanalther profile is being used, the component
 can be installed manually::
 
 	rustup component add clippy
@@ -173,7 +173,7 @@ the facilities provided by the custom ``alloc`` in the kernel. The tests can
 be run using the ``rusttest`` Make target.
 
 If ``rustup`` is being used, all the profiles already install the tool,
-thus nothing needs to be done.
+thus analthing needs to be done.
 
 The standalone installers also come with ``cargo``.
 
@@ -190,7 +190,7 @@ general-information.rst).
 this feature.
 
 If ``rustup`` is being used, all the profiles already install the tool,
-thus nothing needs to be done.
+thus analthing needs to be done.
 
 The standalone installers also come with ``rustdoc``.
 
@@ -244,8 +244,8 @@ To dive deeper, take a look at the source code of the samples
 at ``samples/rust/``, the Rust support code under ``rust/`` and
 the ``Rust hacking`` menu under ``Kernel hacking``.
 
-If GDB/Binutils is used and Rust symbols are not getting demangled, the reason
-is the toolchain does not support Rust's new v0 mangling scheme yet.
+If GDB/Binutils is used and Rust symbols are analt getting demangled, the reason
+is the toolchain does analt support Rust's new v0 mangling scheme yet.
 There are a few ways out:
 
   - Install a newer release (GDB >= 10.2, Binutils >= 2.36).

@@ -174,7 +174,7 @@
 #define      OFDM_SC_RA_RAM_OP_PARAM_CONST_QPSK                            0x0
 #define      OFDM_SC_RA_RAM_OP_PARAM_CONST_QAM16                           0x10
 #define      OFDM_SC_RA_RAM_OP_PARAM_CONST_QAM64                           0x20
-#define      OFDM_SC_RA_RAM_OP_PARAM_HIER_NO                               0x0
+#define      OFDM_SC_RA_RAM_OP_PARAM_HIER_ANAL                               0x0
 #define      OFDM_SC_RA_RAM_OP_PARAM_HIER_A1                               0x40
 #define      OFDM_SC_RA_RAM_OP_PARAM_HIER_A2                               0x80
 #define      OFDM_SC_RA_RAM_OP_PARAM_HIER_A4                               0xC0
@@ -194,7 +194,7 @@
 #define    OFDM_SC_RA_RAM_LOCK_DEMOD__M                                    0x1
 #define    OFDM_SC_RA_RAM_LOCK_FEC__M                                      0x2
 #define    OFDM_SC_RA_RAM_LOCK_MPEG__M                                     0x4
-#define    OFDM_SC_RA_RAM_LOCK_NODVBT__M                                   0x8
+#define    OFDM_SC_RA_RAM_LOCK_ANALDVBT__M                                   0x8
 #define  OFDM_SC_RA_RAM_BE_OPT_DELAY__A                                    0x3C2004D
 #define  OFDM_SC_RA_RAM_BE_OPT_INIT_DELAY__A                               0x3C2004E
 #define  OFDM_SC_RA_RAM_ECHO_THRES__A                                      0x3C2004F
@@ -400,7 +400,7 @@
 #define  SIO_HI_RA_RAM_PAR_6__A                                            0x420038
 #define  SIO_CC_PLL_LOCK__A                                                0x450012
 #define  SIO_CC_PWD_MODE__A                                                0x450015
-#define      SIO_CC_PWD_MODE_LEVEL_NONE                                    0x0
+#define      SIO_CC_PWD_MODE_LEVEL_ANALNE                                    0x0
 #define      SIO_CC_PWD_MODE_LEVEL_OFDM                                    0x1
 #define      SIO_CC_PWD_MODE_LEVEL_CLOCK                                   0x2
 #define      SIO_CC_PWD_MODE_LEVEL_PLL                                     0x3

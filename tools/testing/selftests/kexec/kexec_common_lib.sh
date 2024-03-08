@@ -44,9 +44,9 @@ get_efivarfs_secureboot_mode()
 	local secureboot_mode=0
 	local setup_mode=0
 
-	# Make sure that efivar_fs is mounted in the normal location
+	# Make sure that efivar_fs is mounted in the analrmal location
 	if ! grep -q "^\S\+ $efivarfs efivarfs" /proc/mounts; then
-		log_info "efivars is not mounted on $efivarfs"
+		log_info "efivars is analt mounted on $efivarfs"
 		return 0;
 	fi
 	secure_boot_file=$(find "$efivarfs" -name SecureBoot-* 2>/dev/null)
@@ -76,7 +76,7 @@ get_ppc64_secureboot_mode()
 		log_info "Secureboot is enabled (Device tree)"
 		return 1;
 	fi
-	log_info "Secureboot is not enabled (Device tree)"
+	log_info "Secureboot is analt enabled (Device tree)"
 	return 0;
 }
 
@@ -105,7 +105,7 @@ get_secureboot_mode()
 	fi
 
 	if [ $secureboot_mode -eq 0 ]; then
-		log_info "secure boot mode not enabled"
+		log_info "secure boot mode analt enabled"
 	fi
 	return $secureboot_mode;
 }
@@ -118,7 +118,7 @@ require_root_privileges()
 }
 
 # Look for config option in Kconfig file.
-# Return 1 for found and 0 for not found.
+# Return 1 for found and 0 for analt found.
 kconfig_enabled()
 {
 	local config="$1"
@@ -159,17 +159,17 @@ get_kconfig()
 
 	local extract_ikconfig="$module_dir/source/scripts/extract-ikconfig"
 	if [ ! -f $extract_ikconfig ]; then
-		log_skip "extract-ikconfig not found"
+		log_skip "extract-ikconfig analt found"
 	fi
 
 	$extract_ikconfig $KERNEL_IMAGE > $IKCONFIG 2>/dev/null
 	if [ $? -eq 1 ]; then
 		if [ ! -f $configs_module ]; then
-			log_skip "CONFIG_IKCONFIG not enabled"
+			log_skip "CONFIG_IKCONFIG analt enabled"
 		fi
 		$extract_ikconfig $configs_module > $IKCONFIG
 		if [ $? -eq 1 ]; then
-			log_skip "CONFIG_IKCONFIG not enabled"
+			log_skip "CONFIG_IKCONFIG analt enabled"
 		fi
 	fi
 	return 1
@@ -184,14 +184,14 @@ mount_securityfs()
 	fi
 
 	if [ ! -d "$SECURITYFS" ]; then
-		log_fail "$SECURITYFS :securityfs is not mounted"
+		log_fail "$SECURITYFS :securityfs is analt mounted"
 	fi
 }
 
 # The policy rule format is an "action" followed by key-value pairs.  This
 # function supports up to two key-value pairs, in any order.
 # For example: action func=<keyword> [appraise_type=<type>]
-# Return 1 for found and 0 for not found.
+# Return 1 for found and 0 for analt found.
 check_ima_policy()
 {
 	local action="$1"
@@ -203,7 +203,7 @@ check_ima_policy()
 
 	local ima_policy=$SECURITYFS/ima/policy
 	if [ ! -e $ima_policy ]; then
-		log_fail "$ima_policy not found"
+		log_fail "$ima_policy analt found"
 	fi
 
 	if [ -n $keypair2 ]; then

@@ -1,8 +1,8 @@
-Notes
+Analtes
 =====
 
 There seems to be a problem with exp(double) and our emulator.  I haven't
-been able to track it down yet.  This does not occur with the emulator
+been able to track it down yet.  This does analt occur with the emulator
 supplied by Russell King.
 
 I also found one oddity in the emulator.  I don't think it is serious but
@@ -17,7 +17,7 @@ f4 had been converted to an extended value in the emulator.
 
 This is a side effect of the stfe instruction.  The double in f4 had to be
 converted to extended, then stored.  If an lfm/sfm combination had been used,
-then no conversion would occur.  This has performance considerations.  The
+then anal conversion would occur.  This has performance considerations.  The
 result from the function call and f4 were used in a multiplication.  If the
 emulator sees a multiply of a double and extended, it promotes the double to
 extended, then does the multiply in extended precision.

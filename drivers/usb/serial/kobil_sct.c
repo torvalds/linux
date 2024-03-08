@@ -20,7 +20,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -118,7 +118,7 @@ static int kobil_port_probe(struct usb_serial_port *port)
 
 	priv = kmalloc(sizeof(struct kobil_private), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->filled = 0;
 	priv->cur_pos = 0;
@@ -156,9 +156,9 @@ static void kobil_init_termios(struct tty_struct *tty)
 {
 	/* Default to echo off and other sane device settings */
 	tty->termios.c_lflag = 0;
-	tty->termios.c_iflag &= ~(ISIG | ICANON | ECHO | IEXTEN | XCASE);
+	tty->termios.c_iflag &= ~(ISIG | ICAANALN | ECHO | IEXTEN | XCASE);
 	tty->termios.c_iflag |= IGNBRK | IGNPAR | IXOFF;
-	/* do NOT translate CR to CR-NL (0x0A -> 0x0A 0x0D) */
+	/* do ANALT translate CR to CR-NL (0x0A -> 0x0A 0x0D) */
 	tty->termios.c_oflag &= ~ONLCR;
 }
 
@@ -175,7 +175,7 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* allocate memory for transfer buffer */
 	transfer_buffer = kzalloc(transfer_buffer_length, GFP_KERNEL);
 	if (!transfer_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get hardware version */
 	result = usb_control_msg(port->serial->dev,
@@ -269,7 +269,7 @@ static void kobil_read_int_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		dev_dbg(&port->dev, "%s - Read int status not zero: %d\n", __func__, status);
+		dev_dbg(&port->dev, "%s - Read int status analt zero: %d\n", __func__, status);
 		return;
 	}
 
@@ -307,7 +307,7 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	if (count > (KOBIL_BUF_LENGTH - priv->filled)) {
 		dev_dbg(&port->dev, "%s - Error: write request bigger than buffer size\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Copy data to buffer */
@@ -384,7 +384,7 @@ static int kobil_tiocmget(struct tty_struct *tty)
 	/* allocate memory for transfer buffer */
 	transfer_buffer = kzalloc(transfer_buffer_length, GFP_KERNEL);
 	if (!transfer_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = usb_control_msg(port->serial->dev,
 			  usb_rcvctrlpipe(port->serial->dev, 0),
@@ -512,7 +512,7 @@ static void kobil_set_termios(struct tty_struct *tty,
 		else
 			urb_val |= SUSBCR_SPASB_EvenParity;
 	} else
-		urb_val |= SUSBCR_SPASB_NoParity;
+		urb_val |= SUSBCR_SPASB_AnalParity;
 	tty->termios.c_cflag &= ~CMSPAR;
 	tty_encode_baud_rate(tty, speed, speed);
 
@@ -542,7 +542,7 @@ static int kobil_ioctl(struct tty_struct *tty,
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
 			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID)
 		/* This device doesn't support ioctl calls */
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	switch (cmd) {
 	case TCFLSH:
@@ -562,7 +562,7 @@ static int kobil_ioctl(struct tty_struct *tty,
 			__func__, result);
 		return (result < 0) ? -EIO: 0;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 

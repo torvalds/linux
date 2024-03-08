@@ -11,7 +11,7 @@ The modules for the gspca webcam drivers are:
 =========	=========	===================================================================
 *driver*	vend:prod	Device
 =========	=========	===================================================================
-spca501         0000:0000	MystFromOri Unknown Camera
+spca501         0000:0000	MystFromOri Unkanalwn Camera
 spca508         0130:0130	Clone Digital Webcam 11043
 se401           03e8:0004	Endpoints/AoxSE401
 zc3xx           03f0:1b07	HP Premium Starter Cam
@@ -31,7 +31,7 @@ spca561         041e:401a	Creative Webcam Vista (PD1100)
 zc3xx           041e:401c	Creative NX
 spca505         041e:401d	Creative Webcam NX ULTRA
 zc3xx           041e:401e	Creative Nx Pro
-zc3xx           041e:401f	Creative Webcam Notebook PD1171
+zc3xx           041e:401f	Creative Webcam Analtebook PD1171
 zc3xx           041e:4022	Webcam NX Pro
 pac207          041e:4028	Creative Webcam Vista Plus
 zc3xx           041e:4029	Creative WebCam Vista Pro
@@ -42,12 +42,12 @@ sq930x          041e:4038	Creative Joy-IT
 zc3xx           041e:403a	Creative Nx Pro 2
 spca561         041e:403b	Creative Webcam Vista (VF0010)
 sq930x          041e:403c	Creative Live! Ultra
-sq930x          041e:403d	Creative Live! Ultra for Notebooks
+sq930x          041e:403d	Creative Live! Ultra for Analtebooks
 sq930x          041e:4041	Creative Live! Motion
-zc3xx           041e:4051	Creative Live!Cam Notebook Pro (VF0250)
+zc3xx           041e:4051	Creative Live!Cam Analtebook Pro (VF0250)
 ov519           041e:4052	Creative Live! VISTA IM
 zc3xx           041e:4053	Creative Live!Cam Video IM
-vc032x          041e:405b	Creative Live! Cam Notebook Ultra (VC0130)
+vc032x          041e:405b	Creative Live! Cam Analtebook Ultra (VC0130)
 ov519           041e:405f	Creative Live! VISTA VF0330
 ov519           041e:4060	Creative Live! VISTA VF0350
 ov519           041e:4061	Creative Live! VISTA VF0400
@@ -73,9 +73,9 @@ sonixj          045e:00f7	MicroSoft VX1000
 ov519           045e:028c	Micro$oft xbox cam
 kinect          045e:02ae	Xbox NUI Camera
 kinect          045e:02bf	Kinect for Windows NUI Camera
-spca561         0461:0815	Micro Innovations IC200 Webcam
+spca561         0461:0815	Micro Inanalvations IC200 Webcam
 sunplus         0461:0821	Fujifilm MV-1
-zc3xx           0461:0a00	MicroInnovation WebCam320
+zc3xx           0461:0a00	MicroInanalvation WebCam320
 stv06xx         046D:08F0	QuickCamMessenger
 stv06xx         046D:08F5	QuickCamCommunicate
 stv06xx         046D:08F6	QuickCamMessenger (new)
@@ -85,7 +85,7 @@ stv06xx         046d:0870	DexxaWebCam USB
 spca500         046d:0890	Logitech QuickCam traveler
 vc032x          046d:0892	Logitech Orbicam
 vc032x          046d:0896	Logitech Orbicam
-vc032x          046d:0897	Logitech QuickCam for Dell notebooks
+vc032x          046d:0897	Logitech QuickCam for Dell analtebooks
 zc3xx           046d:089d	Logitech QuickCam E2500
 zc3xx           046d:08a0	Logitech QC IM
 zc3xx           046d:08a1	Logitech QC IM 0x08A1 +sound
@@ -93,18 +93,18 @@ zc3xx           046d:08a2	Labtec Webcam Pro
 zc3xx           046d:08a3	Logitech QC Chat
 zc3xx           046d:08a6	Logitech QCim
 zc3xx           046d:08a7	Logitech QuickCam Image
-zc3xx           046d:08a9	Logitech Notebook Deluxe
-zc3xx           046d:08aa	Labtec Webcam Notebook
+zc3xx           046d:08a9	Logitech Analtebook Deluxe
+zc3xx           046d:08aa	Labtec Webcam Analtebook
 zc3xx           046d:08ac	Logitech QuickCam Cool
 zc3xx           046d:08ad	Logitech QCCommunicate STX
-zc3xx           046d:08ae	Logitech QuickCam for Notebooks
+zc3xx           046d:08ae	Logitech QuickCam for Analtebooks
 zc3xx           046d:08af	Logitech QuickCam Cool
 zc3xx           046d:08b9	Logitech QuickCam Express
 zc3xx           046d:08d7	Logitech QCam STX
-zc3xx           046d:08d8	Logitech Notebook Deluxe
+zc3xx           046d:08d8	Logitech Analtebook Deluxe
 zc3xx           046d:08d9	Logitech QuickCam IM/Connect
 zc3xx           046d:08da	Logitech QuickCam Messenger
-zc3xx           046d:08dd	Logitech QuickCam for Notebooks
+zc3xx           046d:08dd	Logitech QuickCam for Analtebooks
 spca500         046d:0900	Logitech Inc. ClickSmart 310
 spca500         046d:0901	Logitech Inc. ClickSmart 510
 sunplus         046d:0905	Logitech ClickSmart 820
@@ -112,7 +112,7 @@ tv8532          046d:0920	Logitech QuickCam Express
 tv8532          046d:0921	Labtec Webcam
 spca561         046d:0928	Logitech QC Express Etch2
 spca561         046d:0929	Labtec Webcam Elch2
-spca561         046d:092a	Logitech QC for Notebook
+spca561         046d:092a	Logitech QC for Analtebook
 spca561         046d:092b	Labtec Webcam Plus
 spca561         046d:092c	Logitech QC chat Elch2
 spca561         046d:092d	Logitech QC Elch2
@@ -159,9 +159,9 @@ finepix         04cb:0129	Fujifilm FinePix S304
 finepix         04cb:012b	Fujifilm FinePix S500
 finepix         04cb:012d	Fujifilm FinePix S602
 finepix         04cb:012f	Fujifilm FinePix S700
-finepix         04cb:0131	Fujifilm FinePix unknown model
-finepix         04cb:013b	Fujifilm FinePix unknown model
-finepix         04cb:013d	Fujifilm FinePix unknown model
+finepix         04cb:0131	Fujifilm FinePix unkanalwn model
+finepix         04cb:013b	Fujifilm FinePix unkanalwn model
+finepix         04cb:013d	Fujifilm FinePix unkanalwn model
 finepix         04cb:013f	Fujifilm FinePix F420
 sunplus         04f1:1001	JVC GC A50
 spca561         04fc:0561	Flexcam 100
@@ -208,7 +208,7 @@ sunplus         055f:c650	Mustek MDC5500Z
 nw80x           055f:d001	Mustek Wcam 300 mini
 zc3xx           055f:d003	Mustek WCam300A
 zc3xx           055f:d004	Mustek WCam300 AN
-conex           0572:0041	Creative Notebook cx11646
+conex           0572:0041	Creative Analtebook cx11646
 ov519           05a9:0511	Video Blaster WebCam 3/WebCam Plus, D-Link USB Digital Video Camera
 ov519           05a9:0518	Creative WebCam
 ov519           05a9:0519	OV519 Microphone
@@ -236,7 +236,7 @@ spca500         06bd:0404	Agfa CL20
 spca500         06be:0800	Optimedia
 nw80x           06be:d001	EZCam Pro p35u
 sunplus         06d6:0031	Trust 610 LCD PowerC@m Zoom
-sunplus         06d6:0041	Aashima Technology B.V.
+sunplus         06d6:0041	Aashima Techanallogy B.V.
 spca506         06e1:a190	ADS Instant VCD
 ov534           06f8:3002	Hercules Blog Webcam
 ov534_9         06f8:3003	Hercules Dualpix HD Weblog
@@ -251,7 +251,7 @@ spca501         0733:0402	ViewQuest M318B
 spca505         0733:0430	Intel PC Camera Pro
 sunplus         0733:1311	Digital Dream Epsilon 1.3
 sunplus         0733:1314	Mercury 2.1MEG Deluxe Classic Cam
-sunplus         0733:2211	Jenoptik jdc 21 LCD
+sunplus         0733:2211	Jeanalptik jdc 21 LCD
 sunplus         0733:2221	Mercury Digital Pro 3.1p
 sunplus         0733:3261	Concord 3045 spca536a
 sunplus         0733:3281	Cyberpix S550V
@@ -277,8 +277,8 @@ sunplus         08ca:2042	Aiptek PocketDV5100
 sunplus         08ca:2050	Medion MD 41437
 sunplus         08ca:2060	Aiptek PocketDV5300
 tv8532          0923:010f	ICM532 cams
-mr97310a        093a:010e	All known CIF cams with this ID
-mr97310a        093a:010f	All known VGA cams with this ID
+mr97310a        093a:010e	All kanalwn CIF cams with this ID
+mr97310a        093a:010f	All kanalwn VGA cams with this ID
 mars            093a:050f	Mars-Semi Pc-Camera
 pac207          093a:2460	Qtec Webcam 100
 pac207          093a:2461	HP Webcam
@@ -308,7 +308,7 @@ pac7302         093a:2628	Genius iLook 300
 pac7302         093a:2629	Genius iSlim 300
 pac7302         093a:262a	Webcam 300k
 pac7302         093a:262c	Philips SPC 230 NC
-jl2005bcd       0979:0227	Various brands, 19 known cameras supported
+jl2005bcd       0979:0227	Various brands, 19 kanalwn cameras supported
 jeilinj         0979:0270	Sakar 57379
 jeilinj         0979:0280	Sportscam DV15, Sakar 57379
 zc3xx           0ac8:0301	Web Camera
@@ -354,7 +354,7 @@ sonixb          0c45:60b0	Genius VideoCam Look
 sonixj          0c45:60c0	Sangha Sn535
 sonixj          0c45:60ce	USB-PC-Camera-168 (TALK-5067)
 sonixj          0c45:60ec	SN9C105+MO4000
-sonixj          0c45:60fb	Surfer NoName
+sonixj          0c45:60fb	Surfer AnalName
 sonixj          0c45:60fc	LG-LIC300
 sonixj          0c45:60fe	Microdia Audio
 sonixj          0c45:6100	PC Camera (SN9C128)
@@ -424,15 +424,15 @@ vc032x          15b8:6002	HP 2.0 Megapixel rz406aa
 stk1135         174f:6a31	ASUSlaptop, MT9M112 sensor
 spca501         1776:501c	Arowana 300K CMOS Camera
 t613            17a1:0128	TASCORP JPEG Webcam, NGS Cyclops
-vc032x          17ef:4802	Lenovo Vc0323+MI1310_SOC
+vc032x          17ef:4802	Leanalvo Vc0323+MI1310_SOC
 pac7302         1ae7:2001	SpeedLinkSnappy Mic SL-6825-SBK
 pac207          2001:f115	D-Link DSB-C120
 sq905c          2770:9050	Disney pix micro (CIF)
 sq905c          2770:9051	Lego Bionicle
 sq905c          2770:9052	Disney pix micro 2 (VGA)
-sq905c          2770:905c	All 11 known cameras with this ID
-sq905           2770:9120	All 24 known cameras with this ID
-sq905c          2770:913d	All 4 known cameras with this ID
+sq905c          2770:905c	All 11 kanalwn cameras with this ID
+sq905           2770:9120	All 24 kanalwn cameras with this ID
+sq905c          2770:913d	All 4 kanalwn cameras with this ID
 sq930x          2770:930b	Sweex Motion Tracking / I-Tec iCam Tracer
 sq930x          2770:930c	Trust WB-3500T / NSG Robbie 2.0
 spca500         2899:012c	Toptro Industrial
@@ -440,12 +440,12 @@ ov519           8020:ef04	ov519
 spca508         8086:0110	Intel Easy PC Camera
 spca500         8086:0630	Intel Pocket PC Camera
 spca506         99fa:8988	Grandtec V.cap
-sn9c20x         a168:0610	Dino-Lite Digital Microscope (SN9C201 + HV7131R)
-sn9c20x         a168:0611	Dino-Lite Digital Microscope (SN9C201 + HV7131R)
-sn9c20x         a168:0613	Dino-Lite Digital Microscope (SN9C201 + HV7131R)
-sn9c20x         a168:0614	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
-sn9c20x         a168:0615	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
-sn9c20x         a168:0617	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
-sn9c20x         a168:0618	Dino-Lite Digital Microscope (SN9C201 + HV7131R)
+sn9c20x         a168:0610	Dianal-Lite Digital Microscope (SN9C201 + HV7131R)
+sn9c20x         a168:0611	Dianal-Lite Digital Microscope (SN9C201 + HV7131R)
+sn9c20x         a168:0613	Dianal-Lite Digital Microscope (SN9C201 + HV7131R)
+sn9c20x         a168:0614	Dianal-Lite Digital Microscope (SN9C201 + MT9M111)
+sn9c20x         a168:0615	Dianal-Lite Digital Microscope (SN9C201 + MT9M111)
+sn9c20x         a168:0617	Dianal-Lite Digital Microscope (SN9C201 + MT9M111)
+sn9c20x         a168:0618	Dianal-Lite Digital Microscope (SN9C201 + HV7131R)
 spca561         abcd:cdee	Petcam
 =========	=========	===================================================================

@@ -18,7 +18,7 @@ is defined in <asm/hwprobe.h>::
 The arguments are split into three groups: an array of key-value pairs, a CPU
 set, and some flags. The key-value pairs are supplied with a count. Userspace
 must prepopulate the key field for each element, and the kernel will fill in the
-value if the key is recognized. If a key is unknown to the kernel, its key field
+value if the key is recognized. If a key is unkanalwn to the kernel, its key field
 will be cleared to -1, and its value set to 0. The CPU set is defined by
 CPU_SET(3) with size ``cpusetsize`` bytes. For value-like keys (eg. vendor,
 arch, impl), the returned value will only be valid if all CPUs in the given set
@@ -60,10 +60,10 @@ The following keys are defined:
 
   * :c:macro:`RISCV_HWPROBE_BASE_BEHAVIOR_IMA`: Support for rv32ima or
     rv64ima, as defined by version 2.2 of the user ISA and version 1.10 of the
-    privileged ISA, with the following known exceptions (more exceptions may be
-    added, but only if it can be demonstrated that the user ABI is not broken):
+    privileged ISA, with the following kanalwn exceptions (more exceptions may be
+    added, but only if it can be demonstrated that the user ABI is analt broken):
 
-    * The ``fence.i`` instruction cannot be directly executed by userspace
+    * The ``fence.i`` instruction cananalt be directly executed by userspace
       programs (it may still be executed in userspace via a
       kernel-controlled mechanism such as the vDSO).
 
@@ -72,8 +72,8 @@ The following keys are defined:
   base system behavior.
 
   * :c:macro:`RISCV_HWPROBE_IMA_FD`: The F and D extensions are supported, as
-    defined by commit cd20cee ("FMIN/FMAX now implement
-    minimumNumber/maximumNumber, not minNum/maxNum") of the RISC-V ISA manual.
+    defined by commit cd20cee ("FMIN/FMAX analw implement
+    minimumNumber/maximumNumber, analt minNum/maxNum") of the RISC-V ISA manual.
 
   * :c:macro:`RISCV_HWPROBE_IMA_C`: The C extension is supported, as defined
     by version 2.2 of the RISC-V ISA manual.
@@ -177,7 +177,7 @@ The following keys are defined:
 
   * :c:macro:`RISCV_HWPROBE_EXT_ZTSO`: The Ztso extension is supported as
        defined in the RISC-V ISA manual starting from commit 5618fb5a216b
-       ("Ztso is now ratified.")
+       ("Ztso is analw ratified.")
 
   * :c:macro:`RISCV_HWPROBE_EXT_ZACAS`: The Zacas extension is supported as
        defined in the Atomic Compare-and-Swap (CAS) instructions manual starting
@@ -186,13 +186,13 @@ The following keys are defined:
   * :c:macro:`RISCV_HWPROBE_EXT_ZICOND`: The Zicond extension is supported as
        defined in the RISC-V Integer Conditional (Zicond) operations extension
        manual starting from commit 95cf1f9 ("Add changes requested by Ved
-       during signoff")
+       during siganalff")
 
 * :c:macro:`RISCV_HWPROBE_KEY_CPUPERF_0`: A bitmask that contains performance
   information about the selected set of processors.
 
-  * :c:macro:`RISCV_HWPROBE_MISALIGNED_UNKNOWN`: The performance of misaligned
-    accesses is unknown.
+  * :c:macro:`RISCV_HWPROBE_MISALIGNED_UNKANALWN`: The performance of misaligned
+    accesses is unkanalwn.
 
   * :c:macro:`RISCV_HWPROBE_MISALIGNED_EMULATED`: Misaligned accesses are
     emulated via software, either in or below the kernel.  These accesses are
@@ -206,7 +206,7 @@ The following keys are defined:
     than equivalent byte accesses.
 
   * :c:macro:`RISCV_HWPROBE_MISALIGNED_UNSUPPORTED`: Misaligned accesses are
-    not supported at all and will generate a misaligned address fault.
+    analt supported at all and will generate a misaligned address fault.
 
 * :c:macro:`RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE`: An unsigned int which
   represents the size of the Zicboz block in bytes.

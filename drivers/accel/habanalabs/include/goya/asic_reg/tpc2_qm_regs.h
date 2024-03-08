@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_TPC2_QM_REGS_H_
@@ -35,7 +35,7 @@
 
 #define mmTPC2_QM_GLBL_SECURE_PROPS                                  0xE8801C
 
-#define mmTPC2_QM_GLBL_NON_SECURE_PROPS                              0xE88020
+#define mmTPC2_QM_GLBL_ANALN_SECURE_PROPS                              0xE88020
 
 #define mmTPC2_QM_GLBL_STS0                                          0xE88024
 

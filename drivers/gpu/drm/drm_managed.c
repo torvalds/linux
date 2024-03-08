@@ -30,13 +30,13 @@
  * release actions have been added and memory has been allocated since driver
  * loading started with devm_drm_dev_alloc().
  *
- * Note that release actions and managed memory can also be added and removed
+ * Analte that release actions and managed memory can also be added and removed
  * during the lifetime of the driver, all the functions are fully concurrent
  * safe. But it is recommended to use managed resources only for resources that
  * change rarely, if ever, during the lifetime of the &drm_device instance.
  */
 
-struct drmres_node {
+struct drmres_analde {
 	struct list_head	entry;
 	drmres_release_t	release;
 	const char		*name;
@@ -44,7 +44,7 @@ struct drmres_node {
 };
 
 struct drmres {
-	struct drmres_node		node;
+	struct drmres_analde		analde;
 	/*
 	 * Some archs want to perform DMA into kmalloc caches
 	 * and need a guaranteed alignment larger than
@@ -57,7 +57,7 @@ struct drmres {
 
 static void free_dr(struct drmres *dr)
 {
-	kfree_const(dr->node.name);
+	kfree_const(dr->analde.name);
 	kfree(dr);
 }
 
@@ -66,14 +66,14 @@ void drm_managed_release(struct drm_device *dev)
 	struct drmres *dr, *tmp;
 
 	drm_dbg_drmres(dev, "drmres release begin\n");
-	list_for_each_entry_safe(dr, tmp, &dev->managed.resources, node.entry) {
+	list_for_each_entry_safe(dr, tmp, &dev->managed.resources, analde.entry) {
 		drm_dbg_drmres(dev, "REL %p %s (%zu bytes)\n",
-			       dr, dr->node.name, dr->node.size);
+			       dr, dr->analde.name, dr->analde.size);
 
-		if (dr->node.release)
-			dr->node.release(dev, dr->node.size ? *(void **)&dr->data : NULL);
+		if (dr->analde.release)
+			dr->analde.release(dev, dr->analde.size ? *(void **)&dr->data : NULL);
 
-		list_del(&dr->node.entry);
+		list_del(&dr->analde.entry);
 		free_dr(dr);
 	}
 	drm_dbg_drmres(dev, "drmres release end\n");
@@ -93,25 +93,25 @@ static __always_inline struct drmres * alloc_dr(drmres_release_t release,
 	if (unlikely(check_add_overflow(sizeof(*dr), size, &tot_size)))
 		return NULL;
 
-	dr = kmalloc_node_track_caller(tot_size, gfp, nid);
+	dr = kmalloc_analde_track_caller(tot_size, gfp, nid);
 	if (unlikely(!dr))
 		return NULL;
 
 	memset(dr, 0, offsetof(struct drmres, data));
 
-	INIT_LIST_HEAD(&dr->node.entry);
-	dr->node.release = release;
-	dr->node.size = size;
+	INIT_LIST_HEAD(&dr->analde.entry);
+	dr->analde.release = release;
+	dr->analde.size = size;
 
 	return dr;
 }
 
 static void del_dr(struct drm_device *dev, struct drmres *dr)
 {
-	list_del_init(&dr->node.entry);
+	list_del_init(&dr->analde.entry);
 
 	drm_dbg_drmres(dev, "DEL %p %s (%lu bytes)\n",
-		       dr, dr->node.name, (unsigned long) dr->node.size);
+		       dr, dr->analde.name, (unsigned long) dr->analde.size);
 }
 
 static void add_dr(struct drm_device *dev, struct drmres *dr)
@@ -119,11 +119,11 @@ static void add_dr(struct drm_device *dev, struct drmres *dr)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->managed.lock, flags);
-	list_add(&dr->node.entry, &dev->managed.resources);
+	list_add(&dr->analde.entry, &dev->managed.resources);
 	spin_unlock_irqrestore(&dev->managed.lock, flags);
 
 	drm_dbg_drmres(dev, "ADD %p %s (%lu bytes)\n",
-		       dr, dr->node.name, (unsigned long) dr->node.size);
+		       dr, dr->analde.name, (unsigned long) dr->analde.size);
 }
 
 void drmm_add_final_kfree(struct drm_device *dev, void *container)
@@ -143,14 +143,14 @@ int __drmm_add_action(struct drm_device *dev,
 
 	dr = alloc_dr(action, data ? sizeof(void*) : 0,
 		      GFP_KERNEL | __GFP_ZERO,
-		      dev_to_node(dev->dev));
+		      dev_to_analde(dev->dev));
 	if (!dr) {
 		drm_dbg_drmres(dev, "failed to add action %s for %p\n",
 			       name, data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	dr->node.name = kstrdup_const(name, GFP_KERNEL);
+	dr->analde.name = kstrdup_const(name, GFP_KERNEL);
 	if (data) {
 		void_ptr = (void **)&dr->data;
 		*void_ptr = data;
@@ -190,13 +190,13 @@ void *drmm_kmalloc(struct drm_device *dev, size_t size, gfp_t gfp)
 {
 	struct drmres *dr;
 
-	dr = alloc_dr(NULL, size, gfp, dev_to_node(dev->dev));
+	dr = alloc_dr(NULL, size, gfp, dev_to_analde(dev->dev));
 	if (!dr) {
 		drm_dbg_drmres(dev, "failed to allocate %zu bytes, %u flags\n",
 			       size, gfp);
 		return NULL;
 	}
-	dr->node.name = kstrdup_const("kmalloc", gfp);
+	dr->analde.name = kstrdup_const("kmalloc", gfp);
 
 	add_dr(dev, dr);
 
@@ -248,7 +248,7 @@ void drmm_kfree(struct drm_device *dev, void *data)
 		return;
 
 	spin_lock_irqsave(&dev->managed.lock, flags);
-	list_for_each_entry(dr, &dev->managed.resources, node.entry) {
+	list_for_each_entry(dr, &dev->managed.resources, analde.entry) {
 		if (dr->data == data) {
 			dr_match = dr;
 			del_dr(dev, dr_match);

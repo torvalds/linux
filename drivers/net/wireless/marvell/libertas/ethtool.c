@@ -84,7 +84,7 @@ static int lbs_ethtool_set_wol(struct net_device *dev,
 	struct lbs_private *priv = dev->ml_priv;
 
 	if (wol->wolopts & ~(WAKE_UCAST|WAKE_MCAST|WAKE_BCAST|WAKE_PHY))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	priv->wol_criteria = 0;
 	if (wol->wolopts & WAKE_UCAST)

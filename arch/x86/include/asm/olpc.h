@@ -20,8 +20,8 @@ extern struct olpc_platform_t olpc_platform_info;
 
 /*
  * OLPC board IDs contain the major build number within the mask 0x0ff0,
- * and the minor build number within 0x000f.  Pre-builds have a minor
- * number less than 8, and normal builds start at 8.  For example, 0x0B10
+ * and the mianalr build number within 0x000f.  Pre-builds have a mianalr
+ * number less than 8, and analrmal builds start at 8.  For example, 0x0B10
  * is a PreB1, and 0x0C18 is a C1.
  */
 
@@ -51,7 +51,7 @@ static inline int olpc_has_dcon(void)
 
 /*
  * The "Mass Production" version of OLPC's XO is identified as being model
- * C2.  During the prototype phase, the following models (in chronological
+ * C2.  During the prototype phase, the following models (in chroanallogical
  * order) were created: A1, B1, B2, B3, B4, C1.  The A1 through B2 models
  * were based on Geode GX CPUs, and models after that were based upon
  * Geode LX CPUs.  There were also some hand-assembled models floating

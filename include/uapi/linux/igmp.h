@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *	Linux NET3:	Internet Group Management Protocol  [IGMP]
  *
@@ -110,7 +110,7 @@ struct igmpv3_query {
 #define IGMP_MAX_HOST_REPORT_DELAY	10	/* max delay for response to */
 						/* query (in seconds)	*/
 
-#define IGMP_TIMER_SCALE		10	/* denotes that the igmphdr->timer field */
+#define IGMP_TIMER_SCALE		10	/* deanaltes that the igmphdr->timer field */
 						/* specifies time in 10th of seconds	 */
 
 #define IGMP_AGE_THRESHOLD		400	/* If this host don't hear any IGMP V1	*/

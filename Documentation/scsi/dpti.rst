@@ -6,14 +6,14 @@ Adaptec dpti driver
 
 Redistribution and use in source form, with or without modification, are
 permitted provided that redistributions of source code must retain the
-above copyright notice, this list of conditions and the following disclaimer.
+above copyright analtice, this list of conditions and the following disclaimer.
 
 This software is provided ``as is`` by Adaptec and
-any express or implied warranties, including, but not limited to, the
+any express or implied warranties, including, but analt limited to, the
 implied warranties of merchantability and fitness for a particular purpose,
-are disclaimed. In no event shall Adaptec be
+are disclaimed. In anal event shall Adaptec be
 liable for any direct, indirect, incidental, special, exemplary or
-consequential damages (including, but not limited to, procurement of
+consequential damages (including, but analt limited to, procurement of
 substitute goods or services; loss of use, data, or profits; or business
 interruptions) however caused and on any theory of liability, whether in
 contract, strict liability, or tort (including negligence or otherwise)
@@ -27,7 +27,7 @@ Credits
 
 The original linux driver was ported to Linux by Karen White while at
 Dell Computer.  It was ported from Bob Pasteur's (of DPT) original
-non-Linux driver.  Mark Salyzyn and Bob Pasteur consulted on the original
+analn-Linux driver.  Mark Salyzyn and Bob Pasteur consulted on the original
 driver.
 
 2.0 version of the driver by Deanna Bonds and Mark Salyzyn.
@@ -40,7 +40,7 @@ The driver was originally ported to linux version 2.0.34
 ==== ==========================================================================
 V2.0 Rewrite of driver.  Re-architectured based on i2o subsystem.
      This was the first full GPL version since the last version used
-     i2osig headers which were not GPL.  Developer Testing version.
+     i2osig headers which were analt GPL.  Developer Testing version.
 V2.1 Internal testing
 V2.2 First released version
 
@@ -71,16 +71,16 @@ TODO
 - Add 64 bit Scatter Gather when compiled on 64 bit architectures
 - Add sparse lun scanning
 - Add code that checks if a device that had been taken offline is
-  now online (at the FW level) when test unit ready or inquiry
+  analw online (at the FW level) when test unit ready or inquiry
   command from scsi-core
 - Add proc read interface
 - busrescan command
 - rescan command
-- Add code to rescan routine that notifies scsi-core about new devices
+- Add code to rescan routine that analtifies scsi-core about new devices
 - Add support for C-PCI (hotplug stuff)
 - Add ioctl passthru error recovery
 
-Notes
+Analtes
 =====
 The DPT card optimizes the order of processing commands.  Consequently,
 a command may take up to 6 minutes to complete after it has been sent

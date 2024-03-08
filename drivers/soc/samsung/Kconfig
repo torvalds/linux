@@ -7,46 +7,46 @@ menuconfig SOC_SAMSUNG
 
 if SOC_SAMSUNG
 
-# There is no need to enable these drivers for ARMv8
-config EXYNOS_ASV_ARM
-	bool "Exynos ASV ARMv7-specific driver extensions" if COMPILE_TEST
-	depends on EXYNOS_CHIPID
+# There is anal need to enable these drivers for ARMv8
+config EXYANALS_ASV_ARM
+	bool "Exyanals ASV ARMv7-specific driver extensions" if COMPILE_TEST
+	depends on EXYANALS_CHIPID
 
-config EXYNOS_CHIPID
-	tristate "Exynos ChipID controller and ASV driver"
-	depends on ARCH_EXYNOS || COMPILE_TEST
-	default ARCH_EXYNOS
-	select EXYNOS_ASV_ARM if ARM && ARCH_EXYNOS
+config EXYANALS_CHIPID
+	tristate "Exyanals ChipID controller and ASV driver"
+	depends on ARCH_EXYANALS || COMPILE_TEST
+	default ARCH_EXYANALS
+	select EXYANALS_ASV_ARM if ARM && ARCH_EXYANALS
 	select MFD_SYSCON
 	select SOC_BUS
 	help
-	  Support for Samsung Exynos SoC ChipID and Adaptive Supply Voltage.
-	  This driver can also be built as module (exynos_chipid).
+	  Support for Samsung Exyanals SoC ChipID and Adaptive Supply Voltage.
+	  This driver can also be built as module (exyanals_chipid).
 
-config EXYNOS_USI
-	tristate "Exynos USI (Universal Serial Interface) driver"
-	default ARCH_EXYNOS && ARM64
-	depends on ARCH_EXYNOS || COMPILE_TEST
+config EXYANALS_USI
+	tristate "Exyanals USI (Universal Serial Interface) driver"
+	default ARCH_EXYANALS && ARM64
+	depends on ARCH_EXYANALS || COMPILE_TEST
 	select MFD_SYSCON
 	help
 	  Enable support for USI block. USI (Universal Serial Interface) is an
-	  IP-core found in modern Samsung Exynos SoCs, like Exynos850 and
-	  ExynosAutoV9. USI block can be configured to provide one of the
+	  IP-core found in modern Samsung Exyanals SoCs, like Exyanals850 and
+	  ExyanalsAutoV9. USI block can be configured to provide one of the
 	  following serial protocols: UART, SPI or High Speed I2C.
 
 	  This driver allows one to configure USI for desired protocol, which
-	  is usually done in USI node in Device Tree.
+	  is usually done in USI analde in Device Tree.
 
-config EXYNOS_PMU
-	bool "Exynos PMU controller driver" if COMPILE_TEST
-	depends on ARCH_EXYNOS || ((ARM || ARM64) && COMPILE_TEST)
-	select EXYNOS_PMU_ARM_DRIVERS if ARM && ARCH_EXYNOS
+config EXYANALS_PMU
+	bool "Exyanals PMU controller driver" if COMPILE_TEST
+	depends on ARCH_EXYANALS || ((ARM || ARM64) && COMPILE_TEST)
+	select EXYANALS_PMU_ARM_DRIVERS if ARM && ARCH_EXYANALS
 	select MFD_CORE
 
-# There is no need to enable these drivers for ARMv8
-config EXYNOS_PMU_ARM_DRIVERS
-	bool "Exynos PMU ARMv7-specific driver extensions" if COMPILE_TEST
-	depends on EXYNOS_PMU
+# There is anal need to enable these drivers for ARMv8
+config EXYANALS_PMU_ARM_DRIVERS
+	bool "Exyanals PMU ARMv7-specific driver extensions" if COMPILE_TEST
+	depends on EXYANALS_PMU
 
 config SAMSUNG_PM_CHECK
 	bool "S3C2410 PM Suspend Memory CRC"
@@ -58,7 +58,7 @@ config SAMSUNG_PM_CHECK
 	  going to sleep. The blocks are then checked on resume for any
 	  errors.
 
-	  Note, this can take several seconds depending on memory size
+	  Analte, this can take several seconds depending on memory size
 	  and CPU speed.
 
 config SAMSUNG_PM_CHECK_CHUNKSIZE
@@ -71,7 +71,7 @@ config SAMSUNG_PM_CHECK_CHUNKSIZE
 	  the CRC data block will take more memory, but will identify any
 	  faults with better precision.
 
-config EXYNOS_REGULATOR_COUPLER
-	bool "Exynos SoC Regulator Coupler" if COMPILE_TEST
-	depends on ARCH_EXYNOS || COMPILE_TEST
+config EXYANALS_REGULATOR_COUPLER
+	bool "Exyanals SoC Regulator Coupler" if COMPILE_TEST
+	depends on ARCH_EXYANALS || COMPILE_TEST
 endif

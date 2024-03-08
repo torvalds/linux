@@ -34,7 +34,7 @@
 #define ADIS16260_SMPL_PRD   0x36 /* Control, internal sample rate */
 #define ADIS16260_SENS_AVG   0x38 /* Control, dynamic range, filtering */
 #define ADIS16260_SLP_CNT    0x3A /* Control, sleep mode initiation */
-#define ADIS16260_DIAG_STAT  0x3C /* Diagnostic, error flags */
+#define ADIS16260_DIAG_STAT  0x3C /* Diaganalstic, error flags */
 #define ADIS16260_GLOB_CMD   0x3E /* Control, global commands */
 #define ADIS16260_LOT_ID1    0x52 /* Lot Identification Code 1 */
 #define ADIS16260_LOT_ID2    0x54 /* Lot Identification Code 2 */
@@ -368,12 +368,12 @@ static int adis16260_probe(struct spi_device *spi)
 
 	id = spi_get_device_id(spi);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* setup the industrialio driver allocated elements */
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adis16260));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	adis16260 = iio_priv(indio_dev);
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
@@ -407,7 +407,7 @@ static int adis16260_probe(struct spi_device *spi)
 }
 
 /*
- * These parts do not need to be differentiated until someone adds
+ * These parts do analt need to be differentiated until someone adds
  * support for the on chip filtering.
  */
 static const struct spi_device_id adis16260_id[] = {

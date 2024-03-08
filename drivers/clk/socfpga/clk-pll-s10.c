@@ -44,7 +44,7 @@ static unsigned long n5x_clk_pll_recalc_rate(struct clk_hw *hwclk,
 	unsigned long fdiv, reg, rdiv, qdiv;
 	u32 power = 1;
 
-	/* read VCO1 reg for numerator and denominator */
+	/* read VCO1 reg for numerator and deanalminator */
 	reg = readl(socfpgaclk->hw.reg + 0x8);
 	fdiv = (reg & SOCFPGA_N5X_PLLDIV_FDIV_MASK) >> SOCFPGA_N5X_PLLDIV_FDIV_SHIFT;
 	rdiv = (reg & SOCFPGA_N5X_PLLDIV_RDIV_MASK);
@@ -65,7 +65,7 @@ static unsigned long agilex_clk_pll_recalc_rate(struct clk_hw *hwclk,
 	unsigned long arefdiv, reg, mdiv;
 	unsigned long long vco_freq;
 
-	/* read VCO1 reg for numerator and denominator */
+	/* read VCO1 reg for numerator and deanalminator */
 	reg = readl(socfpgaclk->hw.reg);
 	arefdiv = (reg & SOCFPGA_PLL_AREFDIV_MASK) >> SOCFPGA_PLL_REFDIV_SHIFT;
 
@@ -88,7 +88,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 	unsigned long reg;
 	unsigned long long vco_freq;
 
-	/* read VCO1 reg for numerator and denominator */
+	/* read VCO1 reg for numerator and deanalminator */
 	reg = readl(socfpgaclk->hw.reg);
 	refdiv = (reg & SOCFPGA_PLL_REFDIV_MASK) >> SOCFPGA_PLL_REFDIV_SHIFT;
 

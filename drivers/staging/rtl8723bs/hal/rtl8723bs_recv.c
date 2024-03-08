@@ -36,10 +36,10 @@ static void update_recvframe_attrib(struct adapter *padapter,
 	memset(pattrib, 0, sizeof(struct rx_pkt_attrib));
 
 	/*  update rx report to recv_frame attribute */
-	pattrib->pkt_rpt_type = prxreport->c2h_ind ? C2H_PACKET : NORMAL_RX;
+	pattrib->pkt_rpt_type = prxreport->c2h_ind ? C2H_PACKET : ANALRMAL_RX;
 
-	if (pattrib->pkt_rpt_type == NORMAL_RX) {
-		/*  Normal rx packet */
+	if (pattrib->pkt_rpt_type == ANALRMAL_RX) {
+		/*  Analrmal rx packet */
 		/*  update rx report to recv_frame attribute */
 		pattrib->pkt_len = (u16)prxreport->pktlen;
 		pattrib->drvinfo_sz = (u8)(prxreport->drvinfosize << 3);
@@ -68,7 +68,7 @@ static void update_recvframe_attrib(struct adapter *padapter,
 }
 
 /*
- * Notice:
+ * Analtice:
  *Before calling this function,
  *precvframe->u.hdr.rx_data should be ready!
  */
@@ -323,7 +323,7 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 					ptr += 4;
 				}
 
-				if (pattrib->pkt_rpt_type == NORMAL_RX) { /* Normal rx packet */
+				if (pattrib->pkt_rpt_type == ANALRMAL_RX) { /* Analrmal rx packet */
 					if (pattrib->physt)
 						update_recvframe_phyinfo(precvframe, (struct phy_stat *)ptr);
 

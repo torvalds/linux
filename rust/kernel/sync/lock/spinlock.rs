@@ -22,7 +22,7 @@ macro_rules! new_spinlock {
 ///
 /// Exposes the kernel's [`spinlock_t`]. When multiple CPUs attempt to lock the same spinlock, only
 /// one at a time is allowed to progress, the others will block (spinning) until the spinlock is
-/// unlocked, at which point another CPU will be allowed to make progress.
+/// unlocked, at which point aanalther CPU will be allowed to make progress.
 ///
 /// Instances of [`SpinLock`] need a lock class and to be pinned. The recommended way to create such
 /// instances is with the [`pin_init`](crate::pin_init) and [`new_spinlock`] macros.

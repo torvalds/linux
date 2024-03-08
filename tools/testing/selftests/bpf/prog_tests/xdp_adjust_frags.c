@@ -132,8 +132,8 @@ static void test_xdp_update_frags(void)
 	topts.data_size_out = buf_size;
 
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
-	ASSERT_EQ(err, -ENOMEM,
-		  "unsupported buf size, possible non-default /proc/sys/net/core/max_skb_flags?");
+	ASSERT_EQ(err, -EANALMEM,
+		  "unsupported buf size, possible analn-default /proc/sys/net/core/max_skb_flags?");
 	free(buf);
 out:
 	bpf_object__close(obj);

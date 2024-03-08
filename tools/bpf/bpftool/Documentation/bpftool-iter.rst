@@ -11,7 +11,7 @@ tool to create BPF iterators
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **iter** *COMMAND*
@@ -40,7 +40,7 @@ DESCRIPTION
 
 		  The *pin* command creates a bpf iterator from *OBJ*,
 		  and pin it to *PATH*. The *PATH* should be located
-		  in *bpffs* mount. It must not contain a dot
+		  in *bpffs* mount. It must analt contain a dot
 		  character ('.'), which is reserved for future extensions
 		  of *bpffs*.
 

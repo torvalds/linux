@@ -285,7 +285,7 @@ void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
 		   u32 qp1, u32 qp2, u32 lid1, u32 lid2);
 void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u32 port_num);
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp);
-void hfi1_node_desc_chg(struct hfi1_ibport *ibp);
+void hfi1_analde_desc_chg(struct hfi1_ibport *ibp);
 int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u32 port,
 		     const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		     const struct ib_mad *in_mad, struct ib_mad *out_mad,

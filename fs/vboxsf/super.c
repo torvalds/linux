@@ -32,7 +32,7 @@ static DEFINE_IDA(vboxsf_bdi_ida);
 static DEFINE_MUTEX(vboxsf_setup_mutex);
 static bool vboxsf_setup_done;
 static struct super_operations vboxsf_super_ops; /* forward declaration */
-static struct kmem_cache *vboxsf_inode_cachep;
+static struct kmem_cache *vboxsf_ianalde_cachep;
 
 static char * const vboxsf_default_nls = CONFIG_NLS_DEFAULT;
 
@@ -66,7 +66,7 @@ static int vboxsf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	switch (opt) {
 	case opt_nls:
 		if (ctx->nls_name || fc->purpose != FS_CONTEXT_FOR_MOUNT) {
-			vbg_err("vboxsf: Cannot reconfigure nls option\n");
+			vbg_err("vboxsf: Cananalt reconfigure nls option\n");
 			return -EINVAL;
 		}
 		ctx->nls_name = param->string;
@@ -122,7 +122,7 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct shfl_string *folder_name, root_path;
 	struct vboxsf_sbi *sbi;
 	struct dentry *droot;
-	struct inode *iroot;
+	struct ianalde *iroot;
 	char *nls_name;
 	size_t size;
 	int err;
@@ -132,15 +132,15 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sbi->o = ctx->o;
-	idr_init(&sbi->ino_idr);
-	spin_lock_init(&sbi->ino_idr_lock);
+	idr_init(&sbi->ianal_idr);
+	spin_lock_init(&sbi->ianal_idr_lock);
 	sbi->next_generation = 1;
 	sbi->bdi_id = -1;
 
-	/* Load nls if not utf8 */
+	/* Load nls if analt utf8 */
 	nls_name = ctx->nls_name ? ctx->nls_name : vboxsf_default_nls;
 	if (strcmp(nls_name, "utf8") != 0) {
 		if (nls_name == vboxsf_default_nls)
@@ -149,7 +149,7 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 			sbi->nls = load_nls(nls_name);
 
 		if (!sbi->nls) {
-			vbg_err("vboxsf: Count not load '%s' nls\n", nls_name);
+			vbg_err("vboxsf: Count analt load '%s' nls\n", nls_name);
 			err = -EINVAL;
 			goto fail_free;
 		}
@@ -171,7 +171,7 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 	size = strlen(fc->source) + 1;
 	folder_name = kmalloc(SHFLSTRING_HEADER_SIZE + size, GFP_KERNEL);
 	if (!folder_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_free;
 	}
 	folder_name->size = size;
@@ -201,15 +201,15 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	iroot = iget_locked(sb, 0);
 	if (!iroot) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_unmap;
 	}
-	vboxsf_init_inode(sbi, iroot, &sbi->root_info, false);
-	unlock_new_inode(iroot);
+	vboxsf_init_ianalde(sbi, iroot, &sbi->root_info, false);
+	unlock_new_ianalde(iroot);
 
 	droot = d_make_root(iroot);
 	if (!droot) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_unmap;
 	}
 
@@ -224,42 +224,42 @@ fail_free:
 		ida_simple_remove(&vboxsf_bdi_ida, sbi->bdi_id);
 	if (sbi->nls)
 		unload_nls(sbi->nls);
-	idr_destroy(&sbi->ino_idr);
+	idr_destroy(&sbi->ianal_idr);
 	kfree(sbi);
 	return err;
 }
 
-static void vboxsf_inode_init_once(void *data)
+static void vboxsf_ianalde_init_once(void *data)
 {
-	struct vboxsf_inode *sf_i = data;
+	struct vboxsf_ianalde *sf_i = data;
 
 	mutex_init(&sf_i->handle_list_mutex);
-	inode_init_once(&sf_i->vfs_inode);
+	ianalde_init_once(&sf_i->vfs_ianalde);
 }
 
-static struct inode *vboxsf_alloc_inode(struct super_block *sb)
+static struct ianalde *vboxsf_alloc_ianalde(struct super_block *sb)
 {
-	struct vboxsf_inode *sf_i;
+	struct vboxsf_ianalde *sf_i;
 
-	sf_i = alloc_inode_sb(sb, vboxsf_inode_cachep, GFP_NOFS);
+	sf_i = alloc_ianalde_sb(sb, vboxsf_ianalde_cachep, GFP_ANALFS);
 	if (!sf_i)
 		return NULL;
 
 	sf_i->force_restat = 0;
 	INIT_LIST_HEAD(&sf_i->handle_list);
 
-	return &sf_i->vfs_inode;
+	return &sf_i->vfs_ianalde;
 }
 
-static void vboxsf_free_inode(struct inode *inode)
+static void vboxsf_free_ianalde(struct ianalde *ianalde)
 {
-	struct vboxsf_sbi *sbi = VBOXSF_SBI(inode->i_sb);
+	struct vboxsf_sbi *sbi = VBOXSF_SBI(ianalde->i_sb);
 	unsigned long flags;
 
-	spin_lock_irqsave(&sbi->ino_idr_lock, flags);
-	idr_remove(&sbi->ino_idr, inode->i_ino);
-	spin_unlock_irqrestore(&sbi->ino_idr_lock, flags);
-	kmem_cache_free(vboxsf_inode_cachep, VBOXSF_I(inode));
+	spin_lock_irqsave(&sbi->ianal_idr_lock, flags);
+	idr_remove(&sbi->ianal_idr, ianalde->i_ianal);
+	spin_unlock_irqrestore(&sbi->ianal_idr_lock, flags);
+	kmem_cache_free(vboxsf_ianalde_cachep, VBOXSF_I(ianalde));
 }
 
 static void vboxsf_put_super(struct super_block *sb)
@@ -273,11 +273,11 @@ static void vboxsf_put_super(struct super_block *sb)
 		unload_nls(sbi->nls);
 
 	/*
-	 * vboxsf_free_inode uses the idr, make sure all delayed rcu free
-	 * inodes are flushed.
+	 * vboxsf_free_ianalde uses the idr, make sure all delayed rcu free
+	 * ianaldes are flushed.
 	 */
 	rcu_barrier();
-	idr_destroy(&sbi->ino_idr);
+	idr_destroy(&sbi->ianal_idr);
 	kfree(sbi);
 }
 
@@ -310,7 +310,7 @@ static int vboxsf_statfs(struct dentry *dentry, struct kstatfs *stat)
 
 	stat->f_files = 1000;
 	/*
-	 * Don't return 0 here since the guest may then think that it is not
+	 * Don't return 0 here since the guest may then think that it is analt
 	 * possible to create any more files.
 	 */
 	stat->f_ffree = 1000000;
@@ -321,8 +321,8 @@ static int vboxsf_statfs(struct dentry *dentry, struct kstatfs *stat)
 }
 
 static struct super_operations vboxsf_super_ops = {
-	.alloc_inode	= vboxsf_alloc_inode,
-	.free_inode	= vboxsf_free_inode,
+	.alloc_ianalde	= vboxsf_alloc_ianalde,
+	.free_ianalde	= vboxsf_free_ianalde,
 	.put_super	= vboxsf_put_super,
 	.statfs		= vboxsf_statfs,
 };
@@ -336,15 +336,15 @@ static int vboxsf_setup(void)
 	if (vboxsf_setup_done)
 		goto success;
 
-	vboxsf_inode_cachep =
-		kmem_cache_create("vboxsf_inode_cache",
-				  sizeof(struct vboxsf_inode), 0,
+	vboxsf_ianalde_cachep =
+		kmem_cache_create("vboxsf_ianalde_cache",
+				  sizeof(struct vboxsf_ianalde), 0,
 				  (SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
 				   SLAB_ACCOUNT),
-				  vboxsf_inode_init_once);
-	if (!vboxsf_inode_cachep) {
-		err = -ENOMEM;
-		goto fail_nomem;
+				  vboxsf_ianalde_init_once);
+	if (!vboxsf_ianalde_cachep) {
+		err = -EANALMEM;
+		goto fail_analmem;
 	}
 
 	err = vboxsf_connect();
@@ -375,20 +375,20 @@ success:
 fail_disconnect:
 	vboxsf_disconnect();
 fail_free_cache:
-	kmem_cache_destroy(vboxsf_inode_cachep);
-fail_nomem:
+	kmem_cache_destroy(vboxsf_ianalde_cachep);
+fail_analmem:
 	mutex_unlock(&vboxsf_setup_mutex);
 	return err;
 }
 
-static int vboxsf_parse_monolithic(struct fs_context *fc, void *data)
+static int vboxsf_parse_moanallithic(struct fs_context *fc, void *data)
 {
 	if (data && !memcmp(data, VBSF_MOUNT_SIGNATURE, 4)) {
-		vbg_err("vboxsf: Old binary mount data not supported, remove obsolete mount.vboxsf and/or update your VBoxService.\n");
+		vbg_err("vboxsf: Old binary mount data analt supported, remove obsolete mount.vboxsf and/or update your VBoxService.\n");
 		return -EINVAL;
 	}
 
-	return generic_parse_monolithic(fc, data);
+	return generic_parse_moanallithic(fc, data);
 }
 
 static int vboxsf_get_tree(struct fs_context *fc)
@@ -399,18 +399,18 @@ static int vboxsf_get_tree(struct fs_context *fc)
 	if (err)
 		return err;
 
-	return get_tree_nodev(fc, vboxsf_fill_super);
+	return get_tree_analdev(fc, vboxsf_fill_super);
 }
 
 static int vboxsf_reconfigure(struct fs_context *fc)
 {
 	struct vboxsf_sbi *sbi = VBOXSF_SBI(fc->root->d_sb);
 	struct vboxsf_fs_context *ctx = fc->fs_private;
-	struct inode *iroot = fc->root->d_sb->s_root->d_inode;
+	struct ianalde *iroot = fc->root->d_sb->s_root->d_ianalde;
 
-	/* Apply changed options to the root inode */
+	/* Apply changed options to the root ianalde */
 	sbi->o = ctx->o;
-	vboxsf_init_inode(sbi, iroot, &sbi->root_info, true);
+	vboxsf_init_ianalde(sbi, iroot, &sbi->root_info, true);
 
 	return 0;
 }
@@ -426,7 +426,7 @@ static void vboxsf_free_fc(struct fs_context *fc)
 static const struct fs_context_operations vboxsf_context_ops = {
 	.free			= vboxsf_free_fc,
 	.parse_param		= vboxsf_parse_param,
-	.parse_monolithic	= vboxsf_parse_monolithic,
+	.parse_moanallithic	= vboxsf_parse_moanallithic,
 	.get_tree		= vboxsf_get_tree,
 	.reconfigure		= vboxsf_reconfigure,
 };
@@ -437,7 +437,7 @@ static int vboxsf_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	current_uid_gid(&ctx->o.uid, &ctx->o.gid);
 
@@ -450,7 +450,7 @@ static struct file_system_type vboxsf_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "vboxsf",
 	.init_fs_context	= vboxsf_init_fs_context,
-	.kill_sb		= kill_anon_super
+	.kill_sb		= kill_aanaln_super
 };
 
 /* Module initialization/finalization handlers */
@@ -467,11 +467,11 @@ static void __exit vboxsf_fini(void)
 	if (vboxsf_setup_done) {
 		vboxsf_disconnect();
 		/*
-		 * Make sure all delayed rcu free inodes are flushed
+		 * Make sure all delayed rcu free ianaldes are flushed
 		 * before we destroy the cache.
 		 */
 		rcu_barrier();
-		kmem_cache_destroy(vboxsf_inode_cachep);
+		kmem_cache_destroy(vboxsf_ianalde_cachep);
 	}
 	mutex_unlock(&vboxsf_setup_mutex);
 }

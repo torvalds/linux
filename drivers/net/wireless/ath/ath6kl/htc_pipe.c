@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -40,7 +40,7 @@ static void do_send_completion(struct htc_endpoint *ep,
 	struct htc_packet *packet;
 
 	if (list_empty(queue_to_indicate)) {
-		/* nothing to indicate */
+		/* analthing to indicate */
 		return;
 	}
 
@@ -55,7 +55,7 @@ static void do_send_completion(struct htc_endpoint *ep,
 		 */
 		ep->ep_cb.tx_comp_multi(ep->target, queue_to_indicate);
 		/*
-		 * all packets are now owned by the callback,
+		 * all packets are analw owned by the callback,
 		 * reset queue to be safe
 		 */
 		INIT_LIST_HEAD(queue_to_indicate);
@@ -98,7 +98,7 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 	struct htc_packet *packet;
 	unsigned int transfer_len;
 
-	/* NOTE : the TX lock is held when this function is called */
+	/* ANALTE : the TX lock is held when this function is called */
 
 	/* loop until we can grab as many packets out of the queue as we can */
 	while (true) {
@@ -132,7 +132,7 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 		if (ep->eid == ENDPOINT_0) {
 			/*
 			 * endpoint 0 is special, it always has a credit and
-			 * does not require credit based flow control
+			 * does analt require credit based flow control
 			 */
 			credits_required = 0;
 
@@ -155,7 +155,7 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 			}
 		}
 
-		/* now we can fully dequeue */
+		/* analw we can fully dequeue */
 		packet = list_first_entry(&ep->txq, struct htc_packet, list);
 
 		list_del(&packet->list);
@@ -163,8 +163,8 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 		packet->info.tx.cred_used = credits_required;
 		/* save send flags */
 		packet->info.tx.flags = send_flags;
-		packet->info.tx.seqno = ep->seqno;
-		ep->seqno++;
+		packet->info.tx.seqanal = ep->seqanal;
+		ep->seqanal++;
 		/* queue this packet into the caller's queue */
 		list_add_tail(&packet->list, queue);
 	}
@@ -176,7 +176,7 @@ static void get_htc_packet(struct htc_target *target,
 {
 	struct htc_packet *packet;
 
-	/* NOTE : the TX lock is held when this function is called */
+	/* ANALTE : the TX lock is held when this function is called */
 
 	/* loop until we can grab as many packets out of the queue as we can */
 	while (resources) {
@@ -189,10 +189,10 @@ static void get_htc_packet(struct htc_target *target,
 		ath6kl_dbg(ATH6KL_DBG_HTC,
 			   "%s: got packet:0x%p , new queue depth: %d\n",
 			   __func__, packet, get_queue_depth(&ep->txq));
-		packet->info.tx.seqno = ep->seqno;
+		packet->info.tx.seqanal = ep->seqanal;
 		packet->info.tx.flags = 0;
 		packet->info.tx.cred_used = 0;
-		ep->seqno++;
+		ep->seqanal++;
 
 		/* queue this packet into the caller's queue */
 		list_add_tail(&packet->list, queue);
@@ -242,7 +242,7 @@ static int htc_issue_packets(struct htc_target *target,
 		htc_hdr->flags = packet->info.tx.flags;
 		htc_hdr->eid = (u8) packet->endpoint;
 		htc_hdr->ctrl[0] = 0;
-		htc_hdr->ctrl[1] = (u8) packet->info.tx.seqno;
+		htc_hdr->ctrl[1] = (u8) packet->info.tx.seqanal;
 
 		spin_lock_bh(&target->tx_lock);
 
@@ -255,7 +255,7 @@ static int htc_issue_packets(struct htc_target *target,
 					      ep->pipe.pipeid_ul, NULL, skb);
 
 		if (status != 0) {
-			if (status != -ENOMEM) {
+			if (status != -EANALMEM) {
 				/* TODO: if more than 1 endpoint maps to the
 				 * same PipeID, it is possible to run out of
 				 * resources in the HIF layer.
@@ -280,7 +280,7 @@ static int htc_issue_packets(struct htc_target *target,
 
 	if (status != 0) {
 		while (!list_empty(pkt_queue)) {
-			if (status != -ENOMEM) {
+			if (status != -EANALMEM) {
 				ath6kl_dbg(ATH6KL_DBG_HTC,
 					   "%s: failed pkt:0x%p status:%d\n",
 					   __func__, packet, status);
@@ -351,7 +351,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 		if ((overflow <= 0) ||
 		    (ep->ep_cb.tx_full == NULL)) {
 			/*
-			 * all packets will fit or caller did not provide send
+			 * all packets will fit or caller did analt provide send
 			 * full indication handler -- just move all of them
 			 * to the local send_queue object
 			 */
@@ -364,7 +364,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 			}
 
 			/* we have overflowed, and a callback is provided */
-			/* dequeue all non-overflow packets to the sendqueue */
+			/* dequeue all analn-overflow packets to the sendqueue */
 			for (i = 0; i < good_pkts; i++) {
 				/* pop off caller's queue */
 				packet = list_first_entry(txq,
@@ -401,7 +401,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 			}
 
 			if (list_empty(&send_queue)) {
-				/* no packets made it in, caller will cleanup */
+				/* anal packets made it in, caller will cleanup */
 				return HTC_SEND_QUEUE_DROP;
 			}
 		}
@@ -432,7 +432,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 
 	if (ep->tx_proc_cnt > 1) {
 		/*
-		 * Another thread or task is draining the TX queues on this
+		 * Aanalther thread or task is draining the TX queues on this
 		 * endpoint that thread will reset the tx processing count
 		 * when the queue is drained.
 		 */
@@ -444,8 +444,8 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 	/***** beyond this point only 1 thread may enter ******/
 
 	/*
-	 * Now drain the endpoint TX queue for transmission as long as we have
-	 * enough transmit resources.
+	 * Analw drain the endpoint TX queue for transmission as long as we have
+	 * eanalugh transmit resources.
 	 */
 	while (true) {
 		if (get_queue_depth(&ep->txq) == 0)
@@ -560,7 +560,7 @@ static int htc_setup_target_buffer_assignments(struct htc_target *target)
 	credits = target->tgt_creds;
 	entry = &target->pipe.txcredit_alloc[0];
 
-	status = -ENOMEM;
+	status = -EANALMEM;
 
 	/* FIXME: hif_usbaudioclass is always zero */
 	if (hif_usbaudioclass) {
@@ -767,9 +767,9 @@ static int ath6kl_htc_pipe_tx_complete(struct ath6kl *ar, struct sk_buff *skb)
 
 	if (!ep->pipe.tx_credit_flow_enabled) {
 		/*
-		 * note: when using TX credit flow, the re-checking of queues
+		 * analte: when using TX credit flow, the re-checking of queues
 		 * happens when credits flow back from the target. in the
-		 * non-TX credit case, we recheck after the packet completes
+		 * analn-TX credit case, we recheck after the packet completes
 		 */
 		htc_try_send(target, ep, NULL);
 	}
@@ -800,7 +800,7 @@ static int htc_send_packets_multiple(struct htc_target *target,
 	/* do completion on any packets that couldn't get in */
 	if (!list_empty(pkt_queue)) {
 		list_for_each_entry_safe(packet, tmp_pkt, pkt_queue, list) {
-			packet->status = -ENOMEM;
+			packet->status = -EANALMEM;
 		}
 
 		do_send_completion(ep, pkt_queue);
@@ -868,7 +868,7 @@ static int htc_process_trailer(struct htc_target *target, u8 *buffer,
 		buffer += sizeof(struct htc_record_hdr);
 
 		if (record->len > len) {
-			/* no room left in buffer for record */
+			/* anal room left in buffer for record */
 			ath6kl_dbg(ATH6KL_DBG_HTC,
 				   "invalid length: %d (id:%d) buffer has: %d bytes left\n",
 				   record->len, record->rec_id, len);
@@ -912,7 +912,7 @@ static void do_recv_completion(struct htc_endpoint *ep,
 	struct htc_packet *packet;
 
 	if (list_empty(queue_to_indicate)) {
-		/* nothing to indicate */
+		/* analthing to indicate */
 		return;
 	}
 
@@ -961,7 +961,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 	 * via ath6kl_recv_complete -> ath6kl_usb_io_comp_work.
 	 */
 	if (!target) {
-		ath6kl_dbg(ATH6KL_DBG_HTC, "Target not yet initialized\n");
+		ath6kl_dbg(ATH6KL_DBG_HTC, "Target analt yet initialized\n");
 		status = -EINVAL;
 		goto free_skb;
 	}
@@ -1024,11 +1024,11 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 		/* handle HTC control message */
 		if (target->htc_flags & HTC_OP_STATE_SETUP_COMPLETE) {
 			/*
-			 * fatal: target should not send unsolicited
+			 * fatal: target should analt send unsolicited
 			 * messageson the endpoint 0
 			 */
 			ath6kl_dbg(ATH6KL_DBG_HTC,
-				   "HTC ignores Rx Ctrl after setup complete\n");
+				   "HTC iganalres Rx Ctrl after setup complete\n");
 			status = -EINVAL;
 			goto free_skb;
 		}
@@ -1062,7 +1062,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 	 */
 	packet = alloc_htc_packet_container(target);
 	if (packet == NULL) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto free_skb;
 	}
 
@@ -1247,7 +1247,7 @@ static int ath6kl_htc_pipe_conn_service(struct htc_target *target,
 	} else {
 		tx_alloc = htc_get_credit_alloc(target, conn_req->svc_id);
 		if (tx_alloc == 0) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto free_packet;
 		}
 
@@ -1256,7 +1256,7 @@ static int ath6kl_htc_pipe_conn_service(struct htc_target *target,
 
 		if (packet == NULL) {
 			WARN_ON_ONCE(1);
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto free_packet;
 		}
 
@@ -1311,7 +1311,7 @@ static int ath6kl_htc_pipe_conn_service(struct htc_target *target,
 
 		if (resp_msg->msg_id != cpu_to_le16(HTC_MSG_CONN_SVC_RESP_ID) ||
 		    (target->pipe.ctrl_response_len < sizeof(*resp_msg))) {
-			/* this message is not valid */
+			/* this message is analt valid */
 			WARN_ON_ONCE(1);
 			status = -EINVAL;
 			goto free_packet;
@@ -1413,7 +1413,7 @@ static void *ath6kl_htc_pipe_create(struct ath6kl *ar)
 	target = kzalloc(sizeof(struct htc_target), GFP_KERNEL);
 	if (target == NULL) {
 		ath6kl_err("htc create unable to allocate memory\n");
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail_htc_create;
 	}
 
@@ -1433,7 +1433,7 @@ static void *ath6kl_htc_pipe_create(struct ath6kl *ar)
 	target->dev = kzalloc(sizeof(*target->dev), GFP_KERNEL);
 	if (!target->dev) {
 		ath6kl_err("unable to allocate memory\n");
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail_htc_create;
 	}
 	target->dev->ar = ar;
@@ -1487,7 +1487,7 @@ static int ath6kl_htc_pipe_start(struct htc_target *target)
 	packet = htc_alloc_txctrl_packet(target);
 	if (packet == NULL) {
 		WARN_ON_ONCE(1);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb = packet->skb;
@@ -1612,7 +1612,7 @@ static void ath6kl_htc_pipe_flush_txep(struct htc_target *target,
 
 	if (ep->svc_id == 0) {
 		WARN_ON_ONCE(1);
-		/* not in use.. */
+		/* analt in use.. */
 		return;
 	}
 

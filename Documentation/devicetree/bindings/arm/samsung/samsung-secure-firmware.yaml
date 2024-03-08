@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/samsung/samsung-secure-firmware.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos Secure Firmware
+title: Samsung Exyanals Secure Firmware
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -16,7 +16,7 @@ properties:
 
   reg:
     description:
-      Address of non-secure SYSRAM used for communication with firmware.
+      Address of analn-secure SYSRAM used for communication with firmware.
     maxItems: 1
 
 required:

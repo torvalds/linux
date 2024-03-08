@@ -49,7 +49,7 @@ static void test_vma_reuse(int pagemap_fd, int pagesize)
 {
 	char *map, *map2;
 
-	map = mmap(NULL, pagesize, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANON), -1, 0);
+	map = mmap(NULL, pagesize, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_AANALN), -1, 0);
 	if (map == MAP_FAILED)
 		ksft_exit_fail_msg("mmap failed");
 
@@ -60,7 +60,7 @@ static void test_vma_reuse(int pagemap_fd, int pagesize)
 	clear_softdirty();
 	munmap(map, pagesize);
 
-	map2 = mmap(NULL, pagesize, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANON), -1, 0);
+	map2 = mmap(NULL, pagesize, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_AANALN), -1, 0);
 	if (map2 == MAP_FAILED)
 		ksft_exit_fail_msg("mmap failed");
 
@@ -94,7 +94,7 @@ static void test_hugepage(int pagemap_fd, int pagesize)
 	for (i = 0; i < hpage_len; i++)
 		map[i] = (char)i;
 
-	if (check_huge_anon(map, 1, hpage_len)) {
+	if (check_huge_aanaln(map, 1, hpage_len)) {
 		ksft_test_result_pass("Test %s huge page allocation\n", __func__);
 
 		clear_softdirty();
@@ -124,18 +124,18 @@ static void test_hugepage(int pagemap_fd, int pagesize)
 	free(map);
 }
 
-static void test_mprotect(int pagemap_fd, int pagesize, bool anon)
+static void test_mprotect(int pagemap_fd, int pagesize, bool aanaln)
 {
-	const char *type[] = {"file", "anon"};
+	const char *type[] = {"file", "aanaln"};
 	const char *fname = "./soft-dirty-test-file";
 	int test_fd;
 	char *map;
 
-	if (anon) {
+	if (aanaln) {
 		map = mmap(NULL, pagesize, PROT_READ|PROT_WRITE,
-			   MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+			   MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 		if (!map)
-			ksft_exit_fail_msg("anon mmap failed\n");
+			ksft_exit_fail_msg("aanaln mmap failed\n");
 	} else {
 		test_fd = open(fname, O_RDWR | O_CREAT);
 		if (test_fd < 0) {
@@ -153,31 +153,31 @@ static void test_mprotect(int pagemap_fd, int pagesize, bool anon)
 	*map = 1;
 	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 1,
 			 "Test %s-%s dirty bit of new written page\n",
-			 __func__, type[anon]);
+			 __func__, type[aanaln]);
 	clear_softdirty();
 	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 0,
 			 "Test %s-%s soft-dirty clear after clear_refs\n",
-			 __func__, type[anon]);
+			 __func__, type[aanaln]);
 	mprotect(map, pagesize, PROT_READ);
 	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 0,
 			 "Test %s-%s soft-dirty clear after marking RO\n",
-			 __func__, type[anon]);
+			 __func__, type[aanaln]);
 	mprotect(map, pagesize, PROT_READ|PROT_WRITE);
 	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 0,
 			 "Test %s-%s soft-dirty clear after marking RW\n",
-			 __func__, type[anon]);
+			 __func__, type[aanaln]);
 	*map = 2;
 	ksft_test_result(pagemap_is_softdirty(pagemap_fd, map) == 1,
 			 "Test %s-%s soft-dirty after rewritten\n",
-			 __func__, type[anon]);
+			 __func__, type[aanaln]);
 
 	munmap(map, pagesize);
 
-	if (!anon)
+	if (!aanaln)
 		close(test_fd);
 }
 
-static void test_mprotect_anon(int pagemap_fd, int pagesize)
+static void test_mprotect_aanaln(int pagemap_fd, int pagesize)
 {
 	test_mprotect(pagemap_fd, pagesize, true);
 }
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
 	test_simple(pagemap_fd, pagesize);
 	test_vma_reuse(pagemap_fd, pagesize);
 	test_hugepage(pagemap_fd, pagesize);
-	test_mprotect_anon(pagemap_fd, pagesize);
+	test_mprotect_aanaln(pagemap_fd, pagesize);
 	test_mprotect_file(pagemap_fd, pagesize);
 
 	close(pagemap_fd);

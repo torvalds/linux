@@ -178,7 +178,7 @@ static ssize_t reset_store(struct device *dev,
 	if (val)
 		config->mode = 0x0;
 
-	/* Disable data tracing: do not trace load and store data transfers */
+	/* Disable data tracing: do analt trace load and store data transfers */
 	config->mode &= ~(ETM_MODE_LOAD | ETM_MODE_STORE);
 	config->cfg &= ~(TRCCONFIGR_INSTP0_LOAD | TRCCONFIGR_INSTP0_STORE);
 
@@ -213,10 +213,10 @@ static ssize_t reset_store(struct device *dev,
 		config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 	}
 
-	/* No address range filtering for ViewInst */
+	/* Anal address range filtering for ViewInst */
 	config->viiectlr = 0x0;
 
-	/* No start-stop filtering for ViewInst */
+	/* Anal start-stop filtering for ViewInst */
 	config->vissctlr = 0x0;
 	config->vipcssctlr = 0x0;
 
@@ -250,7 +250,7 @@ static ssize_t reset_store(struct device *dev,
 	for (i = 0; i < drvdata->nr_addr_cmp * 2; i++) {
 		config->addr_val[i] = 0x0;
 		config->addr_acc[i] = 0x0;
-		config->addr_type[i] = ETM_ADDR_TYPE_NONE;
+		config->addr_type[i] = ETM_ADDR_TYPE_ANALNE;
 	}
 
 	config->ctxid_idx = 0x0;
@@ -409,11 +409,11 @@ static ssize_t mode_store(struct device *dev,
 		config->stall_ctrl &= ~TRCSTALLCTLR_INSTPRIORITY;
 
 	/* bit[13], Trace overflow prevention bit */
-	if ((config->mode & ETM_MODE_NOOVERFLOW) &&
-		(drvdata->nooverflow == true))
-		config->stall_ctrl |= TRCSTALLCTLR_NOOVERFLOW;
+	if ((config->mode & ETM_MODE_ANALOVERFLOW) &&
+		(drvdata->analoverflow == true))
+		config->stall_ctrl |= TRCSTALLCTLR_ANALOVERFLOW;
 	else
-		config->stall_ctrl &= ~TRCSTALLCTLR_NOOVERFLOW;
+		config->stall_ctrl &= ~TRCSTALLCTLR_ANALOVERFLOW;
 
 	/* bit[9] Start/stop logic control bit */
 	if (config->mode & ETM_MODE_VIEWINST_STARTSTOP)
@@ -910,7 +910,7 @@ static ssize_t addr_single_show(struct device *dev,
 
 	idx = config->addr_idx;
 	spin_lock(&drvdata->spinlock);
-	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_ANALNE ||
 	      config->addr_type[idx] == ETM_ADDR_TYPE_SINGLE)) {
 		spin_unlock(&drvdata->spinlock);
 		return -EPERM;
@@ -934,7 +934,7 @@ static ssize_t addr_single_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
-	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_ANALNE ||
 	      config->addr_type[idx] == ETM_ADDR_TYPE_SINGLE)) {
 		spin_unlock(&drvdata->spinlock);
 		return -EPERM;
@@ -962,8 +962,8 @@ static ssize_t addr_range_show(struct device *dev,
 		spin_unlock(&drvdata->spinlock);
 		return -EPERM;
 	}
-	if (!((config->addr_type[idx] == ETM_ADDR_TYPE_NONE &&
-	       config->addr_type[idx + 1] == ETM_ADDR_TYPE_NONE) ||
+	if (!((config->addr_type[idx] == ETM_ADDR_TYPE_ANALNE &&
+	       config->addr_type[idx + 1] == ETM_ADDR_TYPE_ANALNE) ||
 	      (config->addr_type[idx] == ETM_ADDR_TYPE_RANGE &&
 	       config->addr_type[idx + 1] == ETM_ADDR_TYPE_RANGE))) {
 		spin_unlock(&drvdata->spinlock);
@@ -991,7 +991,7 @@ static ssize_t addr_range_store(struct device *dev,
 	/*  exclude is optional, but need at least two parameter */
 	if (elements < 2)
 		return -EINVAL;
-	/* lower address comparator cannot have a higher address value */
+	/* lower address comparator cananalt have a higher address value */
 	if (val1 > val2)
 		return -EINVAL;
 
@@ -1002,8 +1002,8 @@ static ssize_t addr_range_store(struct device *dev,
 		return -EPERM;
 	}
 
-	if (!((config->addr_type[idx] == ETM_ADDR_TYPE_NONE &&
-	       config->addr_type[idx + 1] == ETM_ADDR_TYPE_NONE) ||
+	if (!((config->addr_type[idx] == ETM_ADDR_TYPE_ANALNE &&
+	       config->addr_type[idx + 1] == ETM_ADDR_TYPE_ANALNE) ||
 	      (config->addr_type[idx] == ETM_ADDR_TYPE_RANGE &&
 	       config->addr_type[idx + 1] == ETM_ADDR_TYPE_RANGE))) {
 		spin_unlock(&drvdata->spinlock);
@@ -1040,7 +1040,7 @@ static ssize_t addr_start_show(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
 
-	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_ANALNE ||
 	      config->addr_type[idx] == ETM_ADDR_TYPE_START)) {
 		spin_unlock(&drvdata->spinlock);
 		return -EPERM;
@@ -1069,7 +1069,7 @@ static ssize_t addr_start_store(struct device *dev,
 		spin_unlock(&drvdata->spinlock);
 		return -EINVAL;
 	}
-	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_ANALNE ||
 	      config->addr_type[idx] == ETM_ADDR_TYPE_START)) {
 		spin_unlock(&drvdata->spinlock);
 		return -EPERM;
@@ -1095,7 +1095,7 @@ static ssize_t addr_stop_show(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
 
-	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_ANALNE ||
 	      config->addr_type[idx] == ETM_ADDR_TYPE_STOP)) {
 		spin_unlock(&drvdata->spinlock);
 		return -EPERM;
@@ -1124,7 +1124,7 @@ static ssize_t addr_stop_store(struct device *dev,
 		spin_unlock(&drvdata->spinlock);
 		return -EINVAL;
 	}
-	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	if (!(config->addr_type[idx] == ETM_ADDR_TYPE_ANALNE ||
 	       config->addr_type[idx] == ETM_ADDR_TYPE_STOP)) {
 		spin_unlock(&drvdata->spinlock);
 		return -EPERM;
@@ -1151,7 +1151,7 @@ static ssize_t addr_ctxtype_show(struct device *dev,
 	idx = config->addr_idx;
 	/* CONTEXTTYPE, bits[3:2] */
 	val = FIELD_GET(TRCACATRn_CONTEXTTYPE_MASK, config->addr_acc[idx]);
-	len = scnprintf(buf, PAGE_SIZE, "%s\n", val == ETM_CTX_NONE ? "none" :
+	len = scnprintf(buf, PAGE_SIZE, "%s\n", val == ETM_CTX_ANALNE ? "analne" :
 			(val == ETM_CTX_CTXID ? "ctxid" :
 			(val == ETM_CTX_VMID ? "vmid" : "all")));
 	spin_unlock(&drvdata->spinlock);
@@ -1174,7 +1174,7 @@ static ssize_t addr_ctxtype_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
-	if (!strcmp(str, "none"))
+	if (!strcmp(str, "analne"))
 		/* start by clearing context type bits */
 		config->addr_acc[idx] &= ~TRCACATRn_CONTEXTTYPE_MASK;
 	else if (!strcmp(str, "ctxid")) {
@@ -1928,7 +1928,7 @@ static ssize_t ctxid_pid_store(struct device *dev,
 	 * a process is in a namespace the PID of that process as seen from the
 	 * namespace won't be what the kernel sees, something that makes the
 	 * feature confusing and can potentially leak kernel only information.
-	 * As such refuse to use the feature if @current is not in the initial
+	 * As such refuse to use the feature if @current is analt in the initial
 	 * PID namespace.
 	 */
 	if (task_active_pid_ns(current) != &init_pid_ns)
@@ -2477,7 +2477,7 @@ etm4x_register_implemented(struct etmv4_drvdata *drvdata, u32 offset)
 
 	ETM4x_ONLY_SYSREG_LIST_CASES
 		/*
-		 * We only support etm4x and ete. So if the device is not
+		 * We only support etm4x and ete. So if the device is analt
 		 * ETE, it must be ETMv4x.
 		 */
 		return !etm4x_is_ete(drvdata);
@@ -2485,10 +2485,10 @@ etm4x_register_implemented(struct etmv4_drvdata *drvdata, u32 offset)
 	ETM4x_MMAP_LIST_CASES
 		/*
 		 * Registers accessible only via memory-mapped registers
-		 * must not be accessed via system instructions.
-		 * We cannot access the drvdata->csdev here, as this
+		 * must analt be accessed via system instructions.
+		 * We cananalt access the drvdata->csdev here, as this
 		 * function is called during the device creation, via
-		 * coresight_register() and the csdev is not initialized
+		 * coresight_register() and the csdev is analt initialized
 		 * until that is done. So rely on the drvdata->base to
 		 * detect if we have a memory mapped access.
 		 * Also ETE doesn't implement memory mapped access, thus
@@ -2504,7 +2504,7 @@ etm4x_register_implemented(struct etmv4_drvdata *drvdata, u32 offset)
 }
 
 /*
- * Hide the ETM4x registers that may not be available on the
+ * Hide the ETM4x registers that may analt be available on the
  * hardware.
  * There are certain management registers unavailable via system
  * instructions. Make those sysfs attributes hidden on such

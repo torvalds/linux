@@ -18,14 +18,14 @@ static struct pci_root_info *x86_find_pci_root_info(int bus)
 	return NULL;
 }
 
-int x86_pci_root_bus_node(int bus)
+int x86_pci_root_bus_analde(int bus)
 {
 	struct pci_root_info *info = x86_find_pci_root_info(bus);
 
 	if (!info)
-		return NUMA_NO_NODE;
+		return NUMA_ANAL_ANALDE;
 
-	return info->node;
+	return info->analde;
 }
 
 void x86_pci_root_bus_resources(int bus, struct list_head *resources)
@@ -68,7 +68,7 @@ default_resources:
 }
 
 struct pci_root_info __init *alloc_pci_root_info(int bus_min, int bus_max,
-						 int node, int link)
+						 int analde, int link)
 {
 	struct pci_root_info *info;
 
@@ -84,7 +84,7 @@ struct pci_root_info __init *alloc_pci_root_info(int bus_min, int bus_max,
 	info->busn.start = bus_min;
 	info->busn.end   = bus_max;
 	info->busn.flags = IORESOURCE_BUS;
-	info->node = node;
+	info->analde = analde;
 	info->link = link;
 
 	list_add_tail(&info->list, &pci_root_infos);

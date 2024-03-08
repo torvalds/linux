@@ -34,9 +34,9 @@ void qed_fcoe_free(struct qed_hwfn *p_hwfn);
  *
  * @cdev: Qed dev pointer.
  * @stats: Points to struct that will be filled with statistics.
- * @is_atomic: Hint from the caller - if the func can sleep or not.
+ * @is_atomic: Hint from the caller - if the func can sleep or analt.
  *
- * Context: The function should not sleep in case is_atomic == true.
+ * Context: The function should analt sleep in case is_atomic == true.
  * Return: Void.
  */
 void qed_get_protocol_stats_fcoe(struct qed_dev *cdev,

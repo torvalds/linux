@@ -150,7 +150,7 @@ static int sun8i_ss_setup_ivs(struct skcipher_request *areq)
 		a = dma_map_single(ss->dev, sf->iv[i], ivsize, DMA_TO_DEVICE);
 		if (dma_mapping_error(ss->dev, a)) {
 			memzero_explicit(sf->iv[i], ivsize);
-			dev_err(ss->dev, "Cannot DMA MAP IV\n");
+			dev_err(ss->dev, "Cananalt DMA MAP IV\n");
 			err = -EFAULT;
 			goto dma_iv_error;
 		}
@@ -216,7 +216,7 @@ static int sun8i_ss_cipher(struct skcipher_request *areq)
 
 	rctx->p_key = dma_map_single(ss->dev, op->key, op->keylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(ss->dev, rctx->p_key)) {
-		dev_err(ss->dev, "Cannot DMA MAP KEY\n");
+		dev_err(ss->dev, "Cananalt DMA MAP KEY\n");
 		err = -EFAULT;
 		goto theend;
 	}
@@ -400,7 +400,7 @@ int sun8i_ss_cipher_init(struct crypto_tfm *tfm)
 
 	op->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(op->ss->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(op->ss->dev, "ERROR: Cananalt allocate fallback for %s %ld\n",
 			name, PTR_ERR(op->fallback_tfm));
 		return PTR_ERR(op->fallback_tfm);
 	}
@@ -454,7 +454,7 @@ int sun8i_ss_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	op->keylen = keylen;
 	op->key = kmemdup(key, keylen, GFP_KERNEL);
 	if (!op->key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
@@ -477,7 +477,7 @@ int sun8i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	op->keylen = keylen;
 	op->key = kmemdup(key, keylen, GFP_KERNEL);
 	if (!op->key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);

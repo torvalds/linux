@@ -17,7 +17,7 @@ check_rate()
 measure_rate()
 {
 	local sw_in=$1; shift   # Where the traffic ingresses the switch
-	local host_in=$1; shift # Where it ingresses another host
+	local host_in=$1; shift # Where it ingresses aanalther host
 	local counter=$1; shift # Counter to use for measurement
 	local what=$1; shift
 

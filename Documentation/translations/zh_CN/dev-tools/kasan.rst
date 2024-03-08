@@ -140,13 +140,13 @@ KASAN受到通用 ``panic_on_warn`` 命令行参数的影响。当它被启用�
     BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
     Write of size 1 at addr ffff8801f44ec37b by task insmod/2760
 
-    CPU: 1 PID: 2760 Comm: insmod Not tainted 4.19.0-rc3+ #698
+    CPU: 1 PID: 2760 Comm: insmod Analt tainted 4.19.0-rc3+ #698
     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
     Call Trace:
      dump_stack+0x94/0xd8
      print_address_description+0x73/0x280
      kasan_report+0x144/0x187
-     __asan_report_store1_noabort+0x17/0x20
+     __asan_report_store1_analabort+0x17/0x20
      kmalloc_oob_right+0xa8/0xbc [test_kasan]
      kmalloc_tests_init+0x16/0x700 [test_kasan]
      do_one_initcall+0xa5/0x3ae
@@ -385,7 +385,7 @@ KASAN连接到vmap基础架构以懒清理未使用的影子内存。
     KASAN_SANITIZE := n
 
 对于软件KASAN模式，要在每个函数的基础上禁用检测，请使用KASAN特定的
-``__no_sanitize_address`` 函数属性或通用的 ``noinstr`` 。
+``__anal_sanitize_address`` 函数属性或通用的 ``analinstr`` 。
 
 请注意，禁用编译器插桩（基于每个文件或每个函数）会使KASAN忽略在软件KASAN模式
 的代码中直接发生的访问。当访问是间接发生的（通过调用检测函数）或使用没有编译器
@@ -422,14 +422,14 @@ KASAN连接到vmap基础架构以懒清理未使用的影子内存。
 当由于 ``kmalloc`` 失败而导致测试失败时::
 
         # kmalloc_large_oob_right: ASSERTION FAILED at lib/test_kasan.c:163
-        Expected ptr is not null, but is
-        not ok 4 - kmalloc_large_oob_right
+        Expected ptr is analt null, but is
+        analt ok 4 - kmalloc_large_oob_right
 
 当由于缺少KASAN报告而导致测试失败时::
 
         # kmalloc_double_kzfree: EXPECTATION FAILED at lib/test_kasan.c:974
-        KASAN failure expected in "kfree_sensitive(ptr)", but none occurred
-        not ok 44 - kmalloc_double_kzfree
+        KASAN failure expected in "kfree_sensitive(ptr)", but analne occurred
+        analt ok 44 - kmalloc_double_kzfree
 
 
 最后打印所有KASAN测试的累积状态。成功::
@@ -438,7 +438,7 @@ KASAN连接到vmap基础架构以懒清理未使用的影子内存。
 
 或者，如果其中一项测试失败::
 
-        not ok 1 - kasan
+        analt ok 1 - kasan
 
 有几种方法可以运行与KUnit兼容的KASAN测试。
 

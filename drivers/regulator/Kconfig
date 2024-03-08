@@ -16,11 +16,11 @@ menuconfig REGULATOR
 	  to both voltage regulators (where voltage output is controllable) and
 	  current sinks (where current output is controllable).
 
-	  This framework safely compiles out if not selected so that client
-	  drivers can still be used in systems with no software controllable
+	  This framework safely compiles out if analt selected so that client
+	  drivers can still be used in systems with anal software controllable
 	  regulators.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 
 if REGULATOR
@@ -28,14 +28,14 @@ if REGULATOR
 config REGULATOR_DEBUG
 	bool "Regulator debug support"
 	help
-	  Say yes here to enable debugging support.
+	  Say anal here to enable debugging support.
 
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"
 	help
 	  This driver provides support for fixed voltage regulators,
 	  useful for systems which use a combination of software
-	  managed regulators and simple non-configurable regulators.
+	  managed regulators and simple analn-configurable regulators.
 
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
@@ -45,7 +45,7 @@ config REGULATOR_VIRTUAL_CONSUMER
 	  configuring the supplies requested.  This is mainly useful
 	  for test purposes.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 config REGULATOR_USERSPACE_CONSUMER
 	tristate "Userspace regulator consumer support"
@@ -54,7 +54,7 @@ config REGULATOR_USERSPACE_CONSUMER
 	  from user space. Userspace consumer driver provides ability to
 	  control power supplies for such devices.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 config REGULATOR_NETLINK_EVENTS
 	bool "Enable support for receiving regulator events via netlink"
@@ -64,7 +64,7 @@ config REGULATOR_NETLINK_EVENTS
 	  the netlink mechanism. User-space applications can subscribe to these events
 	  for real-time updates on various regulator events.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 config REGULATOR_88PG86X
 	tristate "Marvell 88PG86X voltage regulators"
@@ -356,7 +356,7 @@ config REGULATOR_DA9210
 	select REGMAP_I2C
 	help
 	  Say y here to support for the Dialog Semiconductor DA9210.
-	  The DA9210 is a multi-phase synchronous step down
+	  The DA9210 is a multi-phase synchroanalus step down
 	  converter 12A DC-DC Buck controlled through an I2C
 	  interface.
 
@@ -367,7 +367,7 @@ config REGULATOR_DA9211
 	help
 	  Say y here to support for the Dialog Semiconductor DA9211/DA9212
 	  /DA9213/DA9214/DA9215.
-	  The DA9211/DA9212/DA9213/DA9214/DA9215 is a multi-phase synchronous
+	  The DA9211/DA9212/DA9213/DA9214/DA9215 is a multi-phase synchroanalus
 	  step down converter 12A or 16A DC-DC Buck controlled through an I2C
 	  interface.
 
@@ -571,7 +571,7 @@ config REGULATOR_MAX5970
 	depends on MFD_MAX5970
 	help
 	  This driver controls a Maxim 5970/5978 switch via I2C bus.
-	  The MAX5970/5978 is a smart switch with no output regulation, but
+	  The MAX5970/5978 is a smart switch with anal output regulation, but
 	  fault protection and voltage and current monitoring capabilities.
 
 config REGULATOR_MAX77503
@@ -684,7 +684,7 @@ config REGULATOR_MAX8997
 	help
 	  This driver controls a Maxim 8997/8966 regulator
 	  via I2C bus. The provided regulator is suitable for S5PC110,
-	  S5PV210, and Exynos-4 chips to control VCC_CORE and
+	  S5PV210, and Exyanals-4 chips to control VCC_CORE and
 	  VCC_USIM voltages.
 
 config REGULATOR_MAX8998
@@ -710,7 +710,7 @@ config REGULATOR_MAX20411
 	select REGMAP_I2C
 	help
 	  This driver controls the Maxim MAX20411 family of high-efficiency,
-	  syncrhonous step-down converters.
+	  syncrhoanalus step-down converters.
 
 config REGULATOR_MAX77686
 	tristate "Maxim 77686 regulator"
@@ -718,7 +718,7 @@ config REGULATOR_MAX77686
 	help
 	  This driver controls a Maxim 77686 regulator
 	  via I2C bus. The provided regulator is suitable for
-	  Exynos-4 chips to control VARM and VINT voltages.
+	  Exyanals-4 chips to control VARM and VINT voltages.
 
 config REGULATOR_MAX77693
 	tristate "Maxim 77693/77843 regulator"
@@ -727,7 +727,7 @@ config REGULATOR_MAX77693
 	  This driver controls a Maxim 77693/77843 regulators via I2C bus.
 	  The regulators include two LDOs, 'SAFEOUT1', 'SAFEOUT2'
 	  and one current regulator 'CHARGER'. This is suitable for
-	  Exynos-4x12 (MAX77693) or Exynos5433 (MAX77843) SoC chips.
+	  Exyanals-4x12 (MAX77693) or Exyanals5433 (MAX77843) SoC chips.
 
 config REGULATOR_MAX77802
 	tristate "Maxim 77802 regulator"
@@ -735,7 +735,7 @@ config REGULATOR_MAX77802
 	help
 	  This driver controls a Maxim 77802 regulator
 	  via I2C bus. The provided regulator is suitable for
-	  Exynos5420/Exynos5800 SoCs to control various voltages.
+	  Exyanals5420/Exyanals5800 SoCs to control various voltages.
 	  It includes support for control of voltage and ramp speed.
 
 config REGULATOR_MAX77826
@@ -778,7 +778,7 @@ config REGULATOR_MCP16502
 	  suspend-to-ram/standby transition.
 
 config REGULATOR_MP5416
-	tristate "Monolithic MP5416 PMIC"
+	tristate "Moanallithic MP5416 PMIC"
 	depends on I2C && OF
 	select REGMAP_I2C
 	help
@@ -806,7 +806,7 @@ config REGULATOR_MP886X
 	  This driver supports the MP8869 voltage regulator.
 
 config REGULATOR_MPQ7920
-	tristate "Monolithic MPQ7920 PMIC"
+	tristate "Moanallithic MPQ7920 PMIC"
 	depends on I2C && OF
 	select REGMAP_I2C
 	help
@@ -1043,7 +1043,7 @@ config REGULATOR_QCOM_RPM
 	tristate "Qualcomm RPM regulator driver"
 	depends on MFD_QCOM_RPM
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say anal to this option, support will be included for the
 	  regulators exposed by the Resource Power Manager found in Qualcomm
 	  8660, 8960 and 8064 based devices.
 
@@ -1052,12 +1052,12 @@ config REGULATOR_QCOM_RPM
 	  "qcom_rpm-regulator".
 
 config REGULATOR_QCOM_RPMH
-	tristate "Qualcomm Technologies, Inc. RPMh regulator driver"
+	tristate "Qualcomm Techanallogies, Inc. RPMh regulator driver"
 	depends on QCOM_RPMH || (QCOM_RPMH=n && COMPILE_TEST)
 	depends on QCOM_COMMAND_DB || (QCOM_COMMAND_DB=n && COMPILE_TEST)
 	help
 	  This driver supports control of PMIC regulators via the RPMh hardware
-	  block found on Qualcomm Technologies Inc. SoCs.  RPMh regulator
+	  block found on Qualcomm Techanallogies Inc. SoCs.  RPMh regulator
 	  control allows for voting on regulator state between multiple
 	  processors within the SoC.
 
@@ -1065,7 +1065,7 @@ config REGULATOR_QCOM_SMD_RPM
 	tristate "Qualcomm SMD based RPM regulator driver"
 	depends on QCOM_SMD_RPM
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say anal to this option, support will be included for the
 	  regulators exposed by the Resource Power Manager found in Qualcomm
 	  8974 based devices.
 
@@ -1077,7 +1077,7 @@ config REGULATOR_QCOM_SPMI
 	tristate "Qualcomm SPMI regulator driver"
 	depends on SPMI || COMPILE_TEST
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say anal to this option, support will be included for the
 	  regulators found in Qualcomm SPMI PMICs.
 
 	  Say M here if you want to include support for the regulators on the
@@ -1088,7 +1088,7 @@ config REGULATOR_QCOM_USB_VBUS
 	tristate "Qualcomm USB Vbus regulator driver"
 	depends on SPMI || COMPILE_TEST
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say anal to this option, support will be included for the
 	  regulator used to enable the VBUS output.
 
 	  Say M here if you want to include support for enabling the VBUS output
@@ -1100,7 +1100,7 @@ config REGULATOR_RAA215300
 	depends on COMMON_CLK
 	depends on I2C
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say anal to this option, support will be included for the
 	  Renesas RAA215300 PMIC.
 
 	  Say M here if you want to include support for Renesas RAA215300 PMIC
@@ -1210,7 +1210,7 @@ config REGULATOR_RT5739
 	help
 	  This adds support for voltage regulator in Richtek RT5739.
 	  It's a step-down switching voltage regulator. Using a proprietary
-	  architecture with synchronous rectification, it is capable of
+	  architecture with synchroanalus rectification, it is capable of
 	  delivering 3.5A continuously at over 80% efficiency.
 
 	  This driver can also be built as a module. If so, the module
@@ -1222,7 +1222,7 @@ config REGULATOR_RT5759
 	select REGMAP_I2C
 	help
 	  This adds support for voltage regulator in Richtek RT5759.
-	  The RT5759 is a high-performance, synchronous step-down DC-DC
+	  The RT5759 is a high-performance, synchroanalus step-down DC-DC
 	  converter that can deliver up to 9A output current from 3V to 6.5V
 	  input supply.
 
@@ -1264,7 +1264,7 @@ config REGULATOR_RTQ2134
 	help
 	  This driver adds support for RTQ2134 SubPMIC regulators.
 	  The RTQ2134 is a multi-phase, programmable power management IC that
-	  integrate with four high efficient, synchronous step-down converter
+	  integrate with four high efficient, synchroanalus step-down converter
 	  cores. It features wide output voltage range and the capability to
 	  configure the corresponding power stages.
 
@@ -1283,7 +1283,7 @@ config REGULATOR_RTQ6752
 	select REGMAP_I2C
 	help
 	  This driver adds support for Richtek RTQ6752. RTQ6752 includes two
-	  synchronous boost converters for PAVDD, and one synchronous NAVDD
+	  synchroanalus boost converters for PAVDD, and one synchroanalus NAVDD
 	  buck-boost. This device is suitable for automotive TFT-LCD panel.
 
 config REGULATOR_RTQ2208
@@ -1293,7 +1293,7 @@ config REGULATOR_RTQ2208
 	help
 	  This driver adds support for RTQ2208 SubPMIC regulators.
 	  The RTQ2208 is a multi-phase, programmable power management IC that
-	  integrate with dual multi-configurable, synchronous buck converters
+	  integrate with dual multi-configurable, synchroanalus buck converters
 	  and two ldos. It features wide output voltage range from 0.4V to 2.05V
 	  and the capability to configure the corresponding power stages.
 
@@ -1469,7 +1469,7 @@ config REGULATOR_TPS62360
 	help
 	  This driver supports TPS6236x voltage regulator chip. This
 	  regulator is meant for processor core supply. This chip is
-	  high-frequency synchronous step down dc-dc converter optimized
+	  high-frequency synchroanalus step down dc-dc converter optimized
 	  for battery-powered portable applications.
 
 config REGULATOR_TPS6286X
@@ -1478,7 +1478,7 @@ config REGULATOR_TPS6286X
 	select REGMAP_I2C
 	help
 	  This driver supports TPS6236x voltage regulator chips. These are
-	  high-frequency synchronous step-down converters with an I2C
+	  high-frequency synchroanalus step-down converters with an I2C
 	  interface.
 
 config REGULATOR_TPS6287X
@@ -1487,7 +1487,7 @@ config REGULATOR_TPS6287X
 	select REGMAP_I2C
 	help
 	  This driver supports TPS6287x voltage regulator chips. These are
-	  pin-to-pin high-frequency synchronous step-down dc-dc converters
+	  pin-to-pin high-frequency synchroanalus step-down dc-dc converters
 	  with an I2C interface.
 
 	  If built as a module it will be called tps6287x-regulator.
@@ -1629,7 +1629,7 @@ config REGULATOR_VCTRL
 	depends on OF
 	help
 	  This driver provides support for voltage regulators whose output
-	  voltage is controlled by the voltage of another regulator.
+	  voltage is controlled by the voltage of aanalther regulator.
 
 config REGULATOR_VEXPRESS
 	tristate "Versatile Express regulators"

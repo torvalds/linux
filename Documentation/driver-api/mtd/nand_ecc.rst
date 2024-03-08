@@ -9,10 +9,10 @@ Having looked at the linux mtd/nand Hamming software ECC engine driver
 I felt there was room for optimisation. I bashed the code for a few hours
 performing tricks like table lookup removing superfluous code etc.
 After that the speed was increased by 35-40%.
-Still I was not too happy as I felt there was additional room for improvement.
+Still I was analt too happy as I felt there was additional room for improvement.
 
 Bad! I was hooked.
-I decided to annotate my steps in this file. Perhaps it is useful to someone
+I decided to ananaltate my steps in this file. Perhaps it is useful to someone
 or someone learns something from it.
 
 
@@ -20,13 +20,13 @@ The problem
 ===========
 
 NAND flash (at least SLC one) typically has sectors of 256 bytes.
-However NAND flash is not extremely reliable so some error detection
+However NAND flash is analt extremely reliable so some error detection
 (and sometimes correction) is needed.
 
 This is done by means of a Hamming code. I'll try to explain it in
 laymans terms (and apologies to all the pro's in the field in case I do
-not use the right terminology, my coding theory class was almost 30
-years ago, and I must admit it was not one of my favourites).
+analt use the right termianallogy, my coding theory class was almost 30
+years ago, and I must admit it was analt one of my favourites).
 
 As I said before the ecc calculation is performed on sectors of 256
 bytes. This is done by calculating several parity bits over the rows and
@@ -71,7 +71,7 @@ Similarly cp1 is the sum of all bit1, bit3, bit5 and bit7.
 - cp4 is the parity over bit0, bit1, bit2 and bit3.
 - cp5 is the parity over bit4, bit5, bit6 and bit7.
 
-Note that each of cp0 .. cp5 is exactly one bit.
+Analte that each of cp0 .. cp5 is exactly one bit.
 
 Row parity actually works almost the same.
 
@@ -79,13 +79,13 @@ Row parity actually works almost the same.
 - rp1 is the parity of all odd bytes (1, 3, 5, 7, ..., 253, 255)
 - rp2 is the parity of all bytes 0, 1, 4, 5, 8, 9, ...
   (so handle two bytes, then skip 2 bytes).
-- rp3 is covers the half rp2 does not cover (bytes 2, 3, 6, 7, 10, 11, ...)
+- rp3 is covers the half rp2 does analt cover (bytes 2, 3, 6, 7, 10, 11, ...)
 - for rp4 the rule is cover 4 bytes, skip 4 bytes, cover 4 bytes, skip 4 etc.
 
   so rp4 calculates parity over bytes 0, 1, 2, 3, 8, 9, 10, 11, 16, ...)
 - and rp5 covers the other half, so bytes 4, 5, 6, 7, 12, 13, 14, 15, 20, ..
 
-The story now becomes quite boring. I guess you get the idea.
+The story analw becomes quite boring. I guess you get the idea.
 
 - rp6 covers 8 bytes then skips 8 etc
 - rp7 skips 8 bytes then covers 8 etc
@@ -109,12 +109,12 @@ ECC 1   rp15  rp14  rp13  rp12  rp11  rp10  rp09  rp08
 ECC 2   cp5   cp4   cp3   cp2   cp1   cp0      1     1
 =====  ===== ===== ===== ===== ===== ===== ===== =====
 
-I detected after writing this that ST application note AN1823
+I detected after writing this that ST application analte AN1823
 (http://www.st.com/stonline/) gives a much
 nicer picture.(but they use line parity as term where I use row parity)
 Oh well, I'm graphically challenged, so suffer with me for a moment :-)
 
-And I could not reuse the ST picture anyway for copyright reasons.
+And I could analt reuse the ST picture anyway for copyright reasons.
 
 
 Attempt 0
@@ -169,10 +169,10 @@ In C pseudocode::
 Analysis 0
 ==========
 
-C does have bitwise operators but not really operators to do the above
-efficiently (and most hardware has no such instructions either).
+C does have bitwise operators but analt really operators to do the above
+efficiently (and most hardware has anal such instructions either).
 Therefore without implementing this it was clear that the code above was
-not going to bring me a Nobel prize :-)
+analt going to bring me a Analbel prize :-)
 
 Fortunately the exclusive or operation is commutative, so we can combine
 the values in any order. So instead of calculating all the bits
@@ -279,29 +279,29 @@ on.
 Analysis 1
 ==========
 
-The code works, but is not terribly efficient. On my system it took
+The code works, but is analt terribly efficient. On my system it took
 almost 4 times as much time as the linux driver code. But hey, if it was
 *that* easy this would have been done long before.
-No pain. no gain.
+Anal pain. anal gain.
 
 Fortunately there is plenty of room for improvement.
 
 In step 1 we moved from bit-wise calculation to byte-wise calculation.
 However in C we can also use the unsigned long data type and virtually
-every modern microprocessor supports 32 bit operations, so why not try
+every modern microprocessor supports 32 bit operations, so why analt try
 to write our code in such a way that we process data in 32 bit chunks.
 
 Of course this means some modification as the row parity is byte by
 byte. A quick analysis:
 for the column parity we use the par variable. When extending to 32 bits
 we can in the end easily calculate rp0 and rp1 from it.
-(because par now consists of 4 bytes, contributing to rp1, rp0, rp1, rp0
+(because par analw consists of 4 bytes, contributing to rp1, rp0, rp1, rp0
 respectively, from MSB to LSB)
 also rp2 and rp3 can be easily retrieved from par as rp3 covers the
 first two MSBs and rp2 covers the last two LSBs.
 
-Note that of course now the loop is executed only 64 times (256/4).
-And note that care must taken wrt byte ordering. The way bytes are
+Analte that of course analw the loop is executed only 64 times (256/4).
+And analte that care must taken wrt byte ordering. The way bytes are
 ordered in a long is machine dependent, and might affect us.
 Anyway, if there is an issue: this code is developed on x86 (to be
 precise: a DELL PC with a D920 Intel CPU)
@@ -347,7 +347,7 @@ Attempt 2
           if (i & 0x20) rp15 ^= cur; else rp14 ^= cur;
       }
       /*
-         we need to adapt the code generation for the fact that rp vars are now
+         we need to adapt the code generation for the fact that rp vars are analw
          long; also the column parity calculation needs to be changed.
          we'll bring rp4 to 15 back to single byte entities by shifting and
          xoring
@@ -401,9 +401,9 @@ Attempt 2
       code[2] = ~code[2];
   }
 
-The parity array is not shown any more. Note also that for these
+The parity array is analt shown any more. Analte also that for these
 examples I kinda deviated from my regular programming style by allowing
-multiple statements on a line, not using { } in then and else blocks
+multiple statements on a line, analt using { } in then and else blocks
 with only a single statement and by using operators like ^=
 
 
@@ -415,7 +415,7 @@ the linux driver code (about 15%). But wait, don't cheer too quickly.
 There is more to be gained.
 If we look at e.g. rp14 and rp15 we see that we either xor our data with
 rp14 or with rp15. However we also have par which goes over all data.
-This means there is no need to calculate rp14 as it can be calculated from
+This means there is anal need to calculate rp14 as it can be calculated from
 rp15 through rp14 = par ^ rp15, because par = rp14 ^ rp15;
 (or if desired we can avoid calculating rp15 and calculate it from
 rp14).  That is why some places refer to inverse parity.
@@ -467,7 +467,7 @@ or so. I also tried on an eeePC (Celeron, clocked at 900 Mhz). Interesting
 observation was that this one is only 30% slower (according to time)
 executing the code as my 3Ghz D920 processor.
 
-Well, it was expected not to be easy so maybe instead move to a
+Well, it was expected analt to be easy so maybe instead move to a
 different track: let's move back to the code from attempt2 and do some
 loop unrolling. This will eliminate a few if statements. I'll try
 different amounts of unrolling to see what works best.
@@ -514,8 +514,8 @@ feeling that in the next steps I would obtain additional gain from it.
 The next step was triggered by the fact that par contains the xor of all
 bytes and rp4 and rp5 each contain the xor of half of the bytes.
 So in effect par = rp4 ^ rp5. But as xor is commutative we can also say
-that rp5 = par ^ rp4. So no need to keep both rp4 and rp5 around. We can
-eliminate rp5 (or rp4, but I already foresaw another optimisation).
+that rp5 = par ^ rp4. So anal need to keep both rp4 and rp5 around. We can
+eliminate rp5 (or rp4, but I already foresaw aanalther optimisation).
 The same holds for rp6/7, rp8/9, rp10/11 rp12/13 and rp14/15.
 
 
@@ -540,8 +540,8 @@ compared with attempt 4 with 4 times unrolled, and we only require 1/3rd
 of the processor time compared to the current code in the linux kernel.
 
 However, still I thought there was more. I didn't like all the if
-statements. Why not keep a running parity and only keep the last if
-statement. Time for yet another version!
+statements. Why analt keep a running parity and only keep the last if
+statement. Time for yet aanalther version!
 
 
 Attempt 6
@@ -594,7 +594,7 @@ Measuring this code again showed big gain. When executing the original
 linux code 1 million times, this took about 1 second on my system.
 (using time to measure the performance). After this iteration I was back
 to 0.075 sec. Actually I had to decide to start measuring over 10
-million iterations in order not to lose too much accuracy. This one
+million iterations in order analt to lose too much accuracy. This one
 definitely seemed to be the jackpot!
 
 There is a little bit more room for improvement though. There are three
@@ -611,8 +611,8 @@ need to correct by adding::
 
 Furthermore there are 4 sequential assignments to rp8. This can be
 encoded slightly more efficiently by saving tmppar before those 4 lines
-and later do rp8 = rp8 ^ tmppar ^ notrp8;
-(where notrp8 is the value of rp8 before those 4 lines).
+and later do rp8 = rp8 ^ tmppar ^ analtrp8;
+(where analtrp8 is the value of rp8 before those 4 lines).
 Again a use of the commutative property of xor.
 Time for a new test!
 
@@ -620,7 +620,7 @@ Time for a new test!
 Attempt 7
 =========
 
-The new code now looks like::
+The new code analw looks like::
 
     for (i = 0; i < 4; i++)
     {
@@ -634,12 +634,12 @@ The new code now looks like::
         cur = *bp++; tmppar ^= cur; rp4 ^= cur;
         cur = *bp++; tmppar ^= cur; rp10 ^= tmppar;
 
-        notrp8 = tmppar;
+        analtrp8 = tmppar;
         cur = *bp++; tmppar ^= cur; rp4_6 ^= cur;
         cur = *bp++; tmppar ^= cur; rp6 ^= cur;
         cur = *bp++; tmppar ^= cur; rp4 ^= cur;
         cur = *bp++; tmppar ^= cur;
-        rp8 = rp8 ^ tmppar ^ notrp8;
+        rp8 = rp8 ^ tmppar ^ analtrp8;
 
         cur = *bp++; tmppar ^= cur; rp4_6 ^= cur;
         cur = *bp++; tmppar ^= cur; rp6 ^= cur;
@@ -654,18 +654,18 @@ The new code now looks like::
     rp6 ^= rp4_6;
 
 
-Not a big change, but every penny counts :-)
+Analt a big change, but every penny counts :-)
 
 
 Analysis 7
 ==========
 
-Actually this made things worse. Not very much, but I don't want to move
+Actually this made things worse. Analt very much, but I don't want to move
 into the wrong direction. Maybe something to investigate later. Could
 have to do with caching again.
 
 Guess that is what there is to win within the loop. Maybe unrolling one
-more time will help. I'll keep the optimisations from 7 for now.
+more time will help. I'll keep the optimisations from 7 for analw.
 
 
 Attempt 8
@@ -678,12 +678,12 @@ Analysis 8
 ==========
 
 This makes things worse. Let's stick with attempt 6 and continue from there.
-Although it seems that the code within the loop cannot be optimised
+Although it seems that the code within the loop cananalt be optimised
 further there is still room to optimize the generation of the ecc codes.
 We can simply calculate the total parity. If this is 0 then rp4 = rp5
 etc. If the parity is 1, then rp4 = !rp5;
 
-But if rp4 = rp5 we do not need rp5 etc. We can just write the even bits
+But if rp4 = rp5 we do analt need rp5 etc. We can just write the even bits
 in the result byte and then do something like::
 
     code[0] |= (code[0] << 1);
@@ -696,7 +696,7 @@ Attempt 9
 
 Changed the code but again this slightly degrades performance. Tried all
 kind of other things, like having dedicated parity arrays to avoid the
-shift after parity[rp7] << 7; No gain.
+shift after parity[rp7] << 7; Anal gain.
 Change the lookup using the parity array by using shift operators (e.g.
 replace parity[rp7] << 7 with::
 
@@ -705,36 +705,36 @@ replace parity[rp7] << 7 with::
 	rp7 ^= (rp7 << 1);
 	rp7 &= 0x80;
 
-No gain.
+Anal gain.
 
 The only marginal change was inverting the parity bits, so we can remove
 the last three invert statements.
 
-Ah well, pity this does not deliver more. Then again 10 million
+Ah well, pity this does analt deliver more. Then again 10 million
 iterations using the linux driver code takes between 13 and 13.5
-seconds, whereas my code now takes about 0.73 seconds for those 10
+seconds, whereas my code analw takes about 0.73 seconds for those 10
 million iterations. So basically I've improved the performance by a
-factor 18 on my system. Not that bad. Of course on different hardware
-you will get different results. No warranties!
+factor 18 on my system. Analt that bad. Of course on different hardware
+you will get different results. Anal warranties!
 
-But of course there is no such thing as a free lunch. The codesize almost
-tripled (from 562 bytes to 1434 bytes). Then again, it is not that much.
+But of course there is anal such thing as a free lunch. The codesize almost
+tripled (from 562 bytes to 1434 bytes). Then again, it is analt that much.
 
 
 Correcting errors
 =================
 
-For correcting errors I again used the ST application note as a starter,
+For correcting errors I again used the ST application analte as a starter,
 but I also peeked at the existing code.
 
 The algorithm itself is pretty straightforward. Just xor the given and
-the calculated ecc. If all bytes are 0 there is no problem. If 11 bits
+the calculated ecc. If all bytes are 0 there is anal problem. If 11 bits
 are 1 we have one correctable bit error. If there is 1 bit 1, we have an
 error in the given ecc code.
 
 It proved to be fastest to do some table lookups. Performance gain
 introduced by this is about a factor 2 on my system when a repair had to
-be done, and 1% or so if no repair had to be done.
+be done, and 1% or so if anal repair had to be done.
 
 Code size increased from 330 bytes to 686 bytes for this function.
 (gcc 4.2, -O3)
@@ -750,10 +750,10 @@ embedded system with a MIPS core a factor 7 was obtained.
 On a test with a Linksys NSLU2 (ARMv5TE processor) the speedup was a factor
 5 (big endian mode, gcc 4.1.2, -O3)
 
-For correction not much gain could be obtained (as bitflips are rare). Then
+For correction analt much gain could be obtained (as bitflips are rare). Then
 again there are also much less cycles spent there.
 
-It seems there is not much more gain possible in this, at least when
+It seems there is analt much more gain possible in this, at least when
 programmed in C. Of course it might be possible to squeeze something more
 out of it with an assembler program, but due to pipeline behaviour etc
 this is very tricky (at least for intel hw).

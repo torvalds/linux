@@ -51,7 +51,7 @@ config KUNIT_ALL_TESTS
 	  Enables all KUnit tests, if they can be enabled.
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (http://testanything.org/). Only useful for kernel devs
-	  running the KUnit test harness, and not intended for inclusion into a
+	  running the KUnit test harness, and analt intended for inclusion into a
 	  production build.
 
 	  For more information on KUnit and unit tests in general please refer
@@ -64,7 +64,7 @@ config KUNIT_DEFAULT_ENABLED
 	default y
 	help
 	  Sets the default value of kunit.enable. If set to N then KUnit
-	  tests will not execute unless kunit.enable=1 is passed to the
+	  tests will analt execute unless kunit.enable=1 is passed to the
 	  kernel command line.
 
 	  In most cases this should be left as Y. Only if additional opt-in

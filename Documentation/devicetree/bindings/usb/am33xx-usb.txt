@@ -4,9 +4,9 @@
 - reg: offset and length of the usbss register sets
 - ti,hwmods : must be "usb_otg_hs"
 
-The glue layer contains multiple child nodes. It is required to have
-at least a control module node, USB node and a PHY node. The second USB
-node and its PHY node are optional. The DMA node is also optional.
+The glue layer contains multiple child analdes. It is required to have
+at least a control module analde, USB analde and a PHY analde. The second USB
+analde and its PHY analde are optional. The DMA analde is also optional.
 
 Reset module
 ~~~~~~~~~~~~
@@ -21,10 +21,10 @@ USB PHY
 ~~~~~~~
 compatible: ti,am335x-usb-phy
 reg: offset and length of the "USB PHY" register space
-ti,ctrl_mod: reference to the "reset module" node
+ti,ctrl_mod: reference to the "reset module" analde
 reg-names: phy
 The PHY should have a "phy" alias numbered properly in the alias
-node.
+analde.
 
 USB
 ~~~
@@ -49,7 +49,7 @@ USB
   and "txN" for transmit endpoints. N specifies the endpoint number.
 
 The controller should have an "usb" alias numbered properly in the alias
-node.
+analde.
 
 DMA
 ~~~
@@ -67,7 +67,7 @@ DMA
 
 Example:
 ~~~~~~~~
-The following example contains all the nodes as used on am335x-evm:
+The following example contains all the analdes as used on am335x-evm:
 
 aliases {
 	usb0 = &usb0;

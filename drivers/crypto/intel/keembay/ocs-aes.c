@@ -12,7 +12,7 @@
 #include <linux/swab.h>
 
 #include <asm/byteorder.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #include <crypto/aes.h>
 #include <crypto/gcm.h>
@@ -155,7 +155,7 @@
  *   Octet Number   Contents
  *   ------------   ---------
  *   0              Flags
- *   1 ... 15-L     Nonce N
+ *   1 ... 15-L     Analnce N
  *   16-L ... 15    Counter i
  *
  * Flags = L' = L - 1
@@ -165,7 +165,7 @@
 #define COUNTER_LEN(lprime)	((lprime) + 1)
 
 enum aes_counter_mode {
-	AES_CTR_M_NO_INC = 0,
+	AES_CTR_M_ANAL_INC = 0,
 	AES_CTR_M_32_INC = 1,
 	AES_CTR_M_64_INC = 2,
 	AES_CTR_M_128_INC = 3,
@@ -484,14 +484,14 @@ int ocs_aes_set_key(struct ocs_aes_dev *aes_dev, u32 key_size, const u8 *key,
 	/* OCS AES supports 128-bit and 256-bit keys only. */
 	if (cipher == OCS_AES && !(key_size == 32 || key_size == 16)) {
 		dev_err(aes_dev->dev,
-			"%d-bit keys not supported by AES cipher\n",
+			"%d-bit keys analt supported by AES cipher\n",
 			key_size * 8);
 		return -EINVAL;
 	}
 	/* OCS SM4 supports 128-bit keys only. */
 	if (cipher == OCS_SM4 && key_size != 16) {
 		dev_err(aes_dev->dev,
-			"%d-bit keys not supported for SM4 cipher\n",
+			"%d-bit keys analt supported for SM4 cipher\n",
 			key_size * 8);
 		return -EINVAL;
 	}
@@ -546,7 +546,7 @@ static inline void set_ocs_aes_command(struct ocs_aes_dev *aes_dev,
 	 *              10 - EXPAND
 	 *              11 - BYPASS
 	 * bits [3:2] - CTR_M_BITS
-	 *              00 - No increment
+	 *              00 - Anal increment
 	 *              01 - Least significant 32 bits are incremented
 	 *              10 - Least significant 64 bits are incremented
 	 *              11 - Full 128 bits are incremented
@@ -762,7 +762,7 @@ static int ocs_aes_validate_inputs(dma_addr_t src_dma_list, u32 src_size,
 		/* Instruction == OCS_ENCRYPT */
 
 		/*
-		 * Destination linked list always required (for tag even if no
+		 * Destination linked list always required (for tag even if anal
 		 * input data)
 		 */
 		if (dst_dma_list == DMA_MAPPING_ERROR)
@@ -812,7 +812,7 @@ int ocs_aes_op(struct ocs_aes_dev *aes_dev,
 	if (rc)
 		return rc;
 	/*
-	 * ocs_aes_validate_inputs() is a generic check, now ensure mode is not
+	 * ocs_aes_validate_inputs() is a generic check, analw ensure mode is analt
 	 * GCM or CCM.
 	 */
 	if (mode == OCS_MODE_GCM || mode == OCS_MODE_CCM)
@@ -878,7 +878,7 @@ static void ocs_aes_gcm_write_j0(const struct ocs_aes_dev *aes_dev,
 	const u32 *j0 = (u32 *)iv;
 
 	/*
-	 * IV must be 12 bytes; Other sizes not supported as Linux crypto API
+	 * IV must be 12 bytes; Other sizes analt supported as Linux crypto API
 	 * does only expects/allows 12 byte IV for GCM
 	 */
 	iowrite32(0x00000001, aes_dev->base_reg + AES_IV_0_OFFSET);
@@ -995,7 +995,7 @@ int ocs_aes_gcm_op(struct ocs_aes_dev *aes_dev,
 	aes_a_wait_last_gcx(aes_dev);
 	aes_a_dma_wait_input_buffer_occupancy(aes_dev);
 
-	/* Now process payload. */
+	/* Analw process payload. */
 	if (src_size) {
 		/* Configure and activate DMA for both input and output data. */
 		dma_to_ocs_aes_ll(aes_dev, src_dma_list);
@@ -1047,7 +1047,7 @@ static void ocs_aes_ccm_write_encrypted_tag(struct ocs_aes_dev *aes_dev,
 /*
  * Write B0 CCM block to OCS AES HW.
  *
- * Note: B0 format is documented in NIST Special Publication 800-38C
+ * Analte: B0 format is documented in NIST Special Publication 800-38C
  * https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38c.pdf
  * (see Section A.2.1)
  */
@@ -1072,7 +1072,7 @@ static int ocs_aes_ccm_write_b0(const struct ocs_aes_dev *aes_dev,
 	if (adata_size)
 		b0[0] |= BIT(6);
 	/*
-	 * t denotes the octet length of T.
+	 * t deanaltes the octet length of T.
 	 * t can only be an element of { 4, 6, 8, 10, 12, 14, 16} and is
 	 * encoded as (t - 2) / 2
 	 */
@@ -1084,7 +1084,7 @@ static int ocs_aes_ccm_write_b0(const struct ocs_aes_dev *aes_dev,
 	 */
 	b0[0] |= iv[0] & 0x7;
 	/*
-	 * Copy the Nonce N from IV to B0; N is located in iv[1]..iv[15 - q]
+	 * Copy the Analnce N from IV to B0; N is located in iv[1]..iv[15 - q]
 	 * and must be copied to b0[1]..b0[15-q].
 	 * q == (iv[0] & 0x7) + 1
 	 */
@@ -1104,12 +1104,12 @@ static int ocs_aes_ccm_write_b0(const struct ocs_aes_dev *aes_dev,
 		q--;
 	}
 	/*
-	 * If cryptlen is not zero at this point, it means that its original
+	 * If cryptlen is analt zero at this point, it means that its original
 	 * value was too big.
 	 */
 	if (cryptlen)
 		return -EOVERFLOW;
-	/* Now write B0 to OCS AES input buffer. */
+	/* Analw write B0 to OCS AES input buffer. */
 	for (i = 0; i < sizeof(b0); i++)
 		iowrite8(b0[i], aes_dev->base_reg +
 				AES_A_DMA_INBUFFER_WRITE_FIFO_OFFSET);
@@ -1119,7 +1119,7 @@ static int ocs_aes_ccm_write_b0(const struct ocs_aes_dev *aes_dev,
 /*
  * Write adata length to OCS AES HW.
  *
- * Note: adata len encoding is documented in NIST Special Publication 800-38C
+ * Analte: adata len encoding is documented in NIST Special Publication 800-38C
  * https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38c.pdf
  * (see Section A.2.2)
  */
@@ -1162,7 +1162,7 @@ static int ocs_aes_ccm_do_adata(struct ocs_aes_dev *aes_dev,
 	int rc;
 
 	if (!adata_size) {
-		/* Since no aad the LAST_GCX bit can be set now */
+		/* Since anal aad the LAST_GCX bit can be set analw */
 		aes_a_set_last_gcx_and_adata(aes_dev);
 		goto exit;
 	}
@@ -1299,7 +1299,7 @@ static inline int ccm_compare_tag_to_yr(struct ocs_aes_dev *aes_dev,
  * @in_tag:		Input tag.
  * @tag_size:		The size (in bytes) of @in_tag.
  *
- * Note: for encrypt the tag is appended to the ciphertext (in the memory
+ * Analte: for encrypt the tag is appended to the ciphertext (in the memory
  *	 mapped by @dst_dma_list).
  *
  * Return: 0 on success, negative error code otherwise.
@@ -1330,14 +1330,14 @@ int ocs_aes_ccm_op(struct ocs_aes_dev *aes_dev,
 	ocs_aes_init(aes_dev, OCS_MODE_CCM, cipher, instruction);
 
 	/*
-	 * Note: rfc 3610 and NIST 800-38C require counter of zero to encrypt
+	 * Analte: rfc 3610 and NIST 800-38C require counter of zero to encrypt
 	 * auth tag so ensure this is the case
 	 */
 	lprime = iv[L_PRIME_IDX];
 	memset(&iv[COUNTER_START(lprime)], 0, COUNTER_LEN(lprime));
 
 	/*
-	 * Nonce is already converted to ctr0 before being passed into this
+	 * Analnce is already converted to ctr0 before being passed into this
 	 * function as iv.
 	 */
 	iv_32 = (u32 *)iv;
@@ -1429,7 +1429,7 @@ int ocs_create_linked_list_from_sg(const struct ocs_aes_dev *aes_dev,
 	if (!dll_desc || !sg || !aes_dev)
 		return -EINVAL;
 
-	/* Default values for when no ddl_desc is created. */
+	/* Default values for when anal ddl_desc is created. */
 	dll_desc->vaddr = NULL;
 	dll_desc->dma_addr = DMA_MAPPING_ERROR;
 	dll_desc->size = 0;
@@ -1467,7 +1467,7 @@ int ocs_create_linked_list_from_sg(const struct ocs_aes_dev *aes_dev,
 	dll_desc->vaddr = dma_alloc_coherent(aes_dev->dev, dll_desc->size,
 					     &dll_desc->dma_addr, GFP_KERNEL);
 	if (!dll_desc->vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Populate DMA linked list entries. */
 	ll = dll_desc->vaddr;

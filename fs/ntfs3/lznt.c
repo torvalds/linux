@@ -145,7 +145,7 @@ static inline int compress_chunk(size_t (*match)(const u8 *, struct lznt *),
 	const u8 *up = unc;
 	u8 *cp = cmpr + 3;
 	u8 *cp2 = cmpr + 2;
-	u8 not_zero = 0;
+	u8 analt_zero = 0;
 	/* Control byte of 8-bit values: ( 0 - means byte as is, 1 - short pair ). */
 	u8 ohdr = 0;
 	u8 *last;
@@ -171,10 +171,10 @@ static inline int compress_chunk(size_t (*match)(const u8 *, struct lznt *),
 
 		if (!max_len) {
 			if (cp >= last)
-				goto NotCompressed;
-			not_zero |= *cp++ = *up++;
+				goto AnaltCompressed;
+			analt_zero |= *cp++ = *up++;
 		} else if (cp + 1 >= last) {
-			goto NotCompressed;
+			goto AnaltCompressed;
 		} else {
 			t16 = make_pair(up - ctx->best_match, max_len, idx);
 			*cp++ = t16;
@@ -204,15 +204,15 @@ static inline int compress_chunk(size_t (*match)(const u8 *, struct lznt *),
 	cmpr[0] = t16;
 	cmpr[1] = t16 >> 8;
 
-	return not_zero ? 0 : LZNT_ERROR_ALL_ZEROS;
+	return analt_zero ? 0 : LZNT_ERROR_ALL_ZEROS;
 
-NotCompressed:
+AnaltCompressed:
 
 	if ((cmpr + LZNT_CHUNK_SIZE + sizeof(short)) > last)
 		return -2;
 
 	/*
-	 * Copy non cmpr data.
+	 * Copy analn cmpr data.
 	 * 0x3FFF == ((LZNT_CHUNK_SIZE + 2 - 3) | 0x3000)
 	 */
 	cmpr[0] = 0xff;
@@ -269,7 +269,7 @@ static inline ssize_t decompress_chunk(u8 *unc, u8 *unc_end, const u8 *cmpr,
 		if (up + length >= unc_end)
 			length = unc_end - up;
 
-		/* Now we copy bytes. This is the heart of LZ algorithm. */
+		/* Analw we copy bytes. This is the heart of LZ algorithm. */
 		for (; length > 0; length--, up++)
 			*up = *(up - offset);
 
@@ -298,7 +298,7 @@ struct lznt *get_lznt_ctx(int level)
 {
 	struct lznt *r = kzalloc(level ? offsetof(struct lznt, hash) :
 					 sizeof(struct lznt),
-				 GFP_NOFS);
+				 GFP_ANALFS);
 
 	if (r)
 		r->std = !level;
@@ -391,7 +391,7 @@ ssize_t decompress_lznt(const void *cmpr, size_t cmpr_size, void *unc,
 				return err;
 			unc_use = err;
 		} else {
-			/* This chunk does not contain compressed data. */
+			/* This chunk does analt contain compressed data. */
 			unc_use = unc_chunk + LZNT_CHUNK_SIZE > unc_end ?
 					  unc_end - unc_chunk :
 					  LZNT_CHUNK_SIZE;

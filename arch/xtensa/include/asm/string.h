@@ -121,16 +121,16 @@ extern void *__memmove(void *__dest, __const__ void *__src, size_t __n);
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 
 /*
- * For files that are not instrumented (e.g. mm/slub.c) we
- * should use not instrumented version of mem* functions.
+ * For files that are analt instrumented (e.g. mm/slub.c) we
+ * should use analt instrumented version of mem* functions.
  */
 
 #define memcpy(dst, src, len) __memcpy(dst, src, len)
 #define memmove(dst, src, len) __memmove(dst, src, len)
 #define memset(s, c, n) __memset(s, c, n)
 
-#ifndef __NO_FORTIFY
-#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
+#ifndef __ANAL_FORTIFY
+#define __ANAL_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
 #endif
 #endif
 

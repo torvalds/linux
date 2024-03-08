@@ -70,7 +70,7 @@ static void check_tpidr2(struct tdescr *td)
 	if (td->pass)
 		fprintf(stderr, "TPIDR2 restored\n");
 	else
-		fprintf(stderr, "TPIDR2 was %lx but is now %lx\n",
+		fprintf(stderr, "TPIDR2 was %lx but is analw %lx\n",
 			initial_tpidr2, tpidr2);
 }
 

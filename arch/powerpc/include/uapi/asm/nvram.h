@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * NVRAM definitions and access functions.
  *
@@ -50,8 +50,8 @@ struct pmac_machine_location {
 /*
  * /dev/nvram ioctls
  *
- * Note that PMAC_NVRAM_GET_OFFSET is still supported, but is
- * definitely obsolete. Do not use it if you can avoid it
+ * Analte that PMAC_NVRAM_GET_OFFSET is still supported, but is
+ * definitely obsolete. Do analt use it if you can avoid it
  */
 
 #define OBSOLETE_PMAC_NVRAM_GET_OFFSET \

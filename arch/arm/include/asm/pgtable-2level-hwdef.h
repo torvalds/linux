@@ -45,10 +45,10 @@
 #define PMD_SECT_MINICACHE	(PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE)
 #define PMD_SECT_WBWA		(PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE | PMD_SECT_BUFFERABLE)
 #define PMD_SECT_CACHE_MASK	(PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE | PMD_SECT_BUFFERABLE)
-#define PMD_SECT_NONSHARED_DEV	(PMD_SECT_TEX(2))
+#define PMD_SECT_ANALNSHARED_DEV	(PMD_SECT_TEX(2))
 
 /*
- *   - coarse table (not used)
+ *   - coarse table (analt used)
  */
 
 /*
@@ -70,8 +70,8 @@
 #define PTE_EXT_AP_MASK		(_AT(pteval_t, 3) << 4)
 #define PTE_EXT_AP0		(_AT(pteval_t, 1) << 4)
 #define PTE_EXT_AP1		(_AT(pteval_t, 2) << 4)
-#define PTE_EXT_AP_UNO_SRO	(_AT(pteval_t, 0) << 4)
-#define PTE_EXT_AP_UNO_SRW	(PTE_EXT_AP0)
+#define PTE_EXT_AP_UANAL_SRO	(_AT(pteval_t, 0) << 4)
+#define PTE_EXT_AP_UANAL_SRW	(PTE_EXT_AP0)
 #define PTE_EXT_AP_URO_SRW	(PTE_EXT_AP1)
 #define PTE_EXT_AP_URW_SRW	(PTE_EXT_AP1|PTE_EXT_AP0)
 #define PTE_EXT_TEX(x)		(_AT(pteval_t, (x)) << 6)	/* v5 */
@@ -84,8 +84,8 @@
  *   - small page
  */
 #define PTE_SMALL_AP_MASK	(_AT(pteval_t, 0xff) << 4)
-#define PTE_SMALL_AP_UNO_SRO	(_AT(pteval_t, 0x00) << 4)
-#define PTE_SMALL_AP_UNO_SRW	(_AT(pteval_t, 0x55) << 4)
+#define PTE_SMALL_AP_UANAL_SRO	(_AT(pteval_t, 0x00) << 4)
+#define PTE_SMALL_AP_UANAL_SRW	(_AT(pteval_t, 0x55) << 4)
 #define PTE_SMALL_AP_URO_SRW	(_AT(pteval_t, 0xaa) << 4)
 #define PTE_SMALL_AP_URW_SRW	(_AT(pteval_t, 0xff) << 4)
 

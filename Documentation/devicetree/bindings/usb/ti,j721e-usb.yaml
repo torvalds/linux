@@ -25,7 +25,7 @@ properties:
 
   power-domains:
     description:
-      PM domain provider node and an args specifier containing
+      PM domain provider analde and an args specifier containing
       the USB device id value. See,
       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
     maxItems: 1
@@ -43,7 +43,7 @@ properties:
   ti,usb2-only:
     description:
       If present, it restricts the controller to USB2.0 mode of
-      operation. Must be present if USB3 PHY is not available
+      operation. Must be present if USB3 PHY is analt available
       for USB.
     type: boolean
 

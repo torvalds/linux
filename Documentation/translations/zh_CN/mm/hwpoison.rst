@@ -112,12 +112,12 @@ PR_MCE_KILL_GET
 
   注意这些注入接口并不稳定，可能会在不同的内核版本中发生变化
 
-  corrupt-filter-dev-major, corrupt-filter-dev-minor
-	只处理与块设备major/minor定义的文件系统相关的页面的内存故障。-1U是通
+  corrupt-filter-dev-major, corrupt-filter-dev-mianalr
+	只处理与块设备major/mianalr定义的文件系统相关的页面的内存故障。-1U是通
 	配符值。这应该只用于人工注入的测试。
 
   corrupt-filter-memcg
-	限制注入到memgroup拥有的页面。由memcg的inode号指定。
+	限制注入到memgroup拥有的页面。由memcg的ianalde号指定。
 
 	Example::
 
@@ -126,10 +126,10 @@ PR_MCE_KILL_GET
 	        usemem -m 100 -s 1000 &
 		echo `jobs -p` > /sys/fs/cgroup/mem/hwpoison/tasks
 
-		memcg_ino=$(ls -id /sys/fs/cgroup/mem/hwpoison | cut -f1 -d' ')
-		echo $memcg_ino > /debug/hwpoison/corrupt-filter-memcg
+		memcg_ianal=$(ls -id /sys/fs/cgroup/mem/hwpoison | cut -f1 -d' ')
+		echo $memcg_ianal > /debug/hwpoison/corrupt-filter-memcg
 
-		page-types -p `pidof init`   --hwpoison  # shall do nothing
+		page-types -p `pidof init`   --hwpoison  # shall do analthing
 		page-types -p `pidof usemem` --hwpoison  # poison its pages
 
   corrupt-filter-flags-mask, corrupt-filter-flags-value

@@ -110,7 +110,7 @@ static const struct regulator_ops hi655x_ldo_linear_ops = {
 		.name            = #_ID,                         \
 		.of_match        = of_match_ptr(#_ID),           \
 		.ops             = &hi655x_regulator_ops,        \
-		.regulators_node = of_match_ptr("regulators"),   \
+		.regulators_analde = of_match_ptr("regulators"),   \
 		.type            = REGULATOR_VOLTAGE,            \
 		.id              = HI655X_##_ID,                 \
 		.owner           = THIS_MODULE,                  \
@@ -131,7 +131,7 @@ static const struct regulator_ops hi655x_ldo_linear_ops = {
 		.name            = #_ID,                         \
 		.of_match        = of_match_ptr(#_ID),           \
 		.ops             = &hi655x_ldo_linear_ops,       \
-		.regulators_node = of_match_ptr("regulators"),   \
+		.regulators_analde = of_match_ptr("regulators"),   \
 		.type            = REGULATOR_VOLTAGE,            \
 		.id              = HI655X_##_ID,                 \
 		.owner           = THIS_MODULE,                  \
@@ -175,8 +175,8 @@ static int hi655x_regulator_probe(struct platform_device *pdev)
 
 	pmic = dev_get_drvdata(pdev->dev.parent);
 	if (!pmic) {
-		dev_err(&pdev->dev, "no pmic in the regulator parent node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal pmic in the regulator parent analde\n");
+		return -EANALDEV;
 	}
 
 	config.dev = pdev->dev.parent;
@@ -206,7 +206,7 @@ static struct platform_driver hi655x_regulator_driver = {
 	.id_table = hi655x_regulator_table,
 	.driver = {
 		.name	= "hi655x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe	= hi655x_regulator_probe,
 };

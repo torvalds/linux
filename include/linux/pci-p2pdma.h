@@ -38,7 +38,7 @@ ssize_t pci_p2pdma_enable_show(char *page, struct pci_dev *p2p_dev,
 static inline int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar,
 		size_t size, u64 offset)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int pci_p2pdma_distance_many(struct pci_dev *provider,
 	struct device **clients, int num_clients, bool verbose)
@@ -88,7 +88,7 @@ static inline int pci_p2pdma_enable_store(const char *page,
 static inline ssize_t pci_p2pdma_enable_show(char *page,
 		struct pci_dev *p2p_dev, bool use_p2pdma)
 {
-	return sprintf(page, "none\n");
+	return sprintf(page, "analne\n");
 }
 #endif /* CONFIG_PCI_P2PDMA */
 

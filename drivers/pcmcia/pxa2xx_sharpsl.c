@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
@@ -20,7 +20,7 @@
 
 #include <pcmcia/soc_common.h>
 
-#define	NO_KEEP_VS 0x0001
+#define	ANAL_KEEP_VS 0x0001
 #define SCOOP_DEV platform_scoop_config->devs
 
 static void sharpsl_pcmcia_init_reset(struct soc_pcmcia_socket *skt)
@@ -35,7 +35,7 @@ static void sharpsl_pcmcia_init_reset(struct soc_pcmcia_socket *skt)
 	else
 		write_scoop_reg(scoopdev->dev, SCOOP_CPR, 0x0000);
 
-	scoopdev->keep_vs = NO_KEEP_VS;
+	scoopdev->keep_vs = ANAL_KEEP_VS;
 	scoopdev->keep_rd = 0;
 }
 
@@ -66,9 +66,9 @@ static void sharpsl_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 	if (csr & 0x0004) {
 		/* card eject */
 		write_scoop_reg(scoop, SCOOP_CDR, 0x0000);
-		SCOOP_DEV[skt->nr].keep_vs = NO_KEEP_VS;
+		SCOOP_DEV[skt->nr].keep_vs = ANAL_KEEP_VS;
 	}
-	else if (!(SCOOP_DEV[skt->nr].keep_vs & NO_KEEP_VS)) {
+	else if (!(SCOOP_DEV[skt->nr].keep_vs & ANAL_KEEP_VS)) {
 		/* keep vs1,vs2 */
 		write_scoop_reg(scoop, SCOOP_CDR, 0x0000);
 		csr |= SCOOP_DEV[skt->nr].keep_vs;
@@ -119,7 +119,7 @@ static int sharpsl_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	}
 
 	if ((state->Vpp!=state->Vcc) && (state->Vpp!=0)) {
-		printk(KERN_ERR "CF slot cannot support Vpp %u\n", state->Vpp);
+		printk(KERN_ERR "CF slot cananalt support Vpp %u\n", state->Vpp);
 		return -1;
 	}
 
@@ -181,7 +181,7 @@ static void sharpsl_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
 	/* Enable interrupt */
 	write_scoop_reg(SCOOP_DEV[skt->nr].dev, SCOOP_IMR, 0x00C0);
 	write_scoop_reg(SCOOP_DEV[skt->nr].dev, SCOOP_MCR, 0x0101);
-	SCOOP_DEV[skt->nr].keep_vs = NO_KEEP_VS;
+	SCOOP_DEV[skt->nr].keep_vs = ANAL_KEEP_VS;
 }
 
 static void sharpsl_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
@@ -205,7 +205,7 @@ static struct pcmcia_low_level sharpsl_pcmcia_ops = {
 
 int pcmcia_collie_init(struct device *dev)
 {
-       int ret = -ENODEV;
+       int ret = -EANALDEV;
 
        if (machine_is_collie())
                ret = sa11xx_drv_pcmcia_probe(dev, &sharpsl_pcmcia_ops, 0, 1);
@@ -222,13 +222,13 @@ static int __init sharpsl_pcmcia_init(void)
 	int ret;
 
 	if (!platform_scoop_config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sharpsl_pcmcia_ops.nr = platform_scoop_config->num_devs;
 	sharpsl_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 
 	if (!sharpsl_pcmcia_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_device_add_data(sharpsl_pcmcia_device,
 			&sharpsl_pcmcia_ops, sizeof(sharpsl_pcmcia_ops));

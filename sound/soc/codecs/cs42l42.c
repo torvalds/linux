@@ -442,8 +442,8 @@ static SOC_ENUM_SINGLE_DECL(cs42l42_wnf3_freq_enum, CS42L42_ADC_WNF_HPF_CTL,
 
 static const struct snd_kcontrol_new cs42l42_snd_controls[] = {
 	/* ADC Volume and Filter Controls */
-	SOC_SINGLE("ADC Notch Switch", CS42L42_ADC_CTL,
-				CS42L42_ADC_NOTCH_DIS_SHIFT, true, true),
+	SOC_SINGLE("ADC Analtch Switch", CS42L42_ADC_CTL,
+				CS42L42_ADC_ANALTCH_DIS_SHIFT, true, true),
 	SOC_SINGLE("ADC Weak Force Switch", CS42L42_ADC_CTL,
 				CS42L42_ADC_FORCE_WEAK_VCM_SHIFT, true, false),
 	SOC_SINGLE("ADC Invert Switch", CS42L42_ADC_CTL,
@@ -505,8 +505,8 @@ static const struct snd_soc_dapm_widget cs42l42_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("DAC", NULL, CS42L42_PWR_CTL1, CS42L42_HP_PDN_SHIFT, 1,
 			   cs42l42_hp_adc_ev, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_MIXER("MIXER", CS42L42_PWR_CTL1, CS42L42_MIXER_PDN_SHIFT, 1, NULL, 0),
-	SND_SOC_DAPM_AIF_IN("SDIN1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("SDIN2", NULL, 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDIN1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDIN2", NULL, 1, SND_SOC_ANALPM, 0, 0),
 
 	/* Playback Requirements */
 	SND_SOC_DAPM_SUPPLY("ASP DAI0", CS42L42_PWR_CTL1, CS42L42_ASP_DAI_PDN_SHIFT, 1, NULL, 0),
@@ -866,10 +866,10 @@ static int cs42l42_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	/* Bitclock/frame inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		asp_cfg_val |= CS42L42_ASP_SCPOL_NOR << CS42L42_ASP_SCPOL_SHIFT;
+		asp_cfg_val |= CS42L42_ASP_SCPOL_ANALR << CS42L42_ASP_SCPOL_SHIFT;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		asp_cfg_val |= CS42L42_ASP_SCPOL_NOR << CS42L42_ASP_SCPOL_SHIFT;
+		asp_cfg_val |= CS42L42_ASP_SCPOL_ANALR << CS42L42_ASP_SCPOL_SHIFT;
 		asp_cfg_val |= CS42L42_ASP_LCPOL_INV << CS42L42_ASP_LCPOL_SHIFT;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
@@ -900,7 +900,7 @@ static int cs42l42_dai_startup(struct snd_pcm_substream *substream, struct snd_s
 	if (cs42l42->sclk)
 		return 0;
 
-	/* Machine driver has not set a SCLK, limit bottom end to 44.1 kHz */
+	/* Machine driver has analt set a SCLK, limit bottom end to 44.1 kHz */
 	return snd_pcm_hw_constraint_minmax(substream->runtime,
 					    SNDRV_PCM_HW_PARAM_RATE,
 					    44100, 96000);
@@ -1008,7 +1008,7 @@ static int cs42l42_set_sysclk(struct snd_soc_dai *dai,
 		}
 	}
 
-	dev_err(component->dev, "SCLK %u not supported\n", freq);
+	dev_err(component->dev, "SCLK %u analt supported\n", freq);
 
 	return -EINVAL;
 }
@@ -1064,8 +1064,8 @@ int cs42l42_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 		if (!cs42l42->stream_use) {
 			/* SCLK must be running before codec unmute.
 			 *
-			 * PLL must not be started with ADC and HP both off
-			 * otherwise the FILT+ supply will not charge properly.
+			 * PLL must analt be started with ADC and HP both off
+			 * otherwise the FILT+ supply will analt charge properly.
 			 * DAPM widgets power-up before stream unmute so at least
 			 * one of the "DAC" or "ADC" widgets will already have
 			 * powered-up.
@@ -1290,7 +1290,7 @@ static void cs42l42_process_hs_type_detect(struct cs42l42_private *cs42l42)
 		(0 << CS42L42_HSBIAS_REF_SHIFT) |
 		(3 << CS42L42_HSDET_AUTO_TIME_SHIFT));
 
-	/* Run Manual detection if auto detect has not found a headset.
+	/* Run Manual detection if auto detect has analt found a headset.
 	 * We Re-Run with Manual Detection if the original detection was invalid or headphones,
 	 * to ensure that a headset mic is detected in all cases.
 	 */
@@ -1674,7 +1674,7 @@ irqreturn_t cs42l42_irq_thread(int irq, void *data)
 	if (cs42l42->suspended || !cs42l42->init_done) {
 		mutex_unlock(&cs42l42->irq_lock);
 		pm_runtime_put_autosuspend(cs42l42->dev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Read sticky registers to clear interurpt */
@@ -1810,23 +1810,23 @@ static void cs42l42_set_interrupt_masks(struct cs42l42_private *cs42l42)
 			(1 << CS42L42_SRC_OUNLK_SHIFT));
 
 	regmap_update_bits(cs42l42->regmap, CS42L42_ASP_RX_INT_MASK,
-			CS42L42_ASPRX_NOLRCK_MASK |
+			CS42L42_ASPRX_ANALLRCK_MASK |
 			CS42L42_ASPRX_EARLY_MASK |
 			CS42L42_ASPRX_LATE_MASK |
 			CS42L42_ASPRX_ERROR_MASK |
 			CS42L42_ASPRX_OVLD_MASK,
-			(1 << CS42L42_ASPRX_NOLRCK_SHIFT) |
+			(1 << CS42L42_ASPRX_ANALLRCK_SHIFT) |
 			(1 << CS42L42_ASPRX_EARLY_SHIFT) |
 			(1 << CS42L42_ASPRX_LATE_SHIFT) |
 			(1 << CS42L42_ASPRX_ERROR_SHIFT) |
 			(1 << CS42L42_ASPRX_OVLD_SHIFT));
 
 	regmap_update_bits(cs42l42->regmap, CS42L42_ASP_TX_INT_MASK,
-			CS42L42_ASPTX_NOLRCK_MASK |
+			CS42L42_ASPTX_ANALLRCK_MASK |
 			CS42L42_ASPTX_EARLY_MASK |
 			CS42L42_ASPTX_LATE_MASK |
 			CS42L42_ASPTX_SMERROR_MASK,
-			(1 << CS42L42_ASPTX_NOLRCK_SHIFT) |
+			(1 << CS42L42_ASPTX_ANALLRCK_SHIFT) |
 			(1 << CS42L42_ASPTX_EARLY_SHIFT) |
 			(1 << CS42L42_ASPTX_LATE_SHIFT) |
 			(1 << CS42L42_ASPTX_SMERROR_SHIFT));
@@ -1894,7 +1894,7 @@ static void cs42l42_setup_hs_type_detect(struct cs42l42_private *cs42l42)
 
 	/*
 	 * DETECT_MODE must always be 0 with ADC and HP both off otherwise the
-	 * FILT+ supply will not charge properly.
+	 * FILT+ supply will analt charge properly.
 	 */
 	regmap_update_bits(cs42l42->regmap, CS42L42_MISC_DET_CTL,
 			   CS42L42_DETECT_MODE_MASK, 0);
@@ -1909,7 +1909,7 @@ static void cs42l42_setup_hs_type_detect(struct cs42l42_private *cs42l42)
 			(cs42l42->bias_thresholds[0] <<
 			CS42L42_HS_DET_LEVEL_SHIFT));
 
-	/* Remove ground noise-suppression clamps */
+	/* Remove ground analise-suppression clamps */
 	regmap_update_bits(cs42l42->regmap,
 			CS42L42_HS_CLAMP_DISABLE,
 			CS42L42_HS_CLAMP_DISABLE_MASK,
@@ -2179,7 +2179,7 @@ int cs42l42_suspend(struct device *dev)
 			       cs42l42_shutdown_seq,
 			       ARRAY_SIZE(cs42l42_shutdown_seq));
 
-	/* All interrupt sources are now disabled */
+	/* All interrupt sources are analw disabled */
 	mutex_unlock(&cs42l42->irq_lock);
 
 	/* Wait for power-down complete */
@@ -2205,7 +2205,7 @@ int cs42l42_suspend(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(cs42l42_shutdown_seq); ++i)
 		regmap_write(cs42l42->regmap, cs42l42_shutdown_seq[i].reg, save_regs[i]);
 
-	/* The cached address page register value is now stale */
+	/* The cached address page register value is analw stale */
 	regcache_drop_region(cs42l42->regmap, CS42L42_PAGE_REGISTER, CS42L42_PAGE_REGISTER);
 
 	dev_dbg(dev, "System suspended\n");
@@ -2313,7 +2313,7 @@ int cs42l42_common_probe(struct cs42l42_private *cs42l42,
 		"reset", GPIOD_OUT_LOW);
 	if (IS_ERR(cs42l42->reset_gpio)) {
 		ret = PTR_ERR(cs42l42->reset_gpio);
-		goto err_disable_noreset;
+		goto err_disable_analreset;
 	}
 
 	if (cs42l42->reset_gpio) {
@@ -2330,8 +2330,8 @@ int cs42l42_common_probe(struct cs42l42_private *cs42l42,
 
 		/*
 		 * On SoundWire keep the chip in reset until we get an UNATTACH
-		 * notification from the SoundWire core. This acts as a
-		 * synchronization point to reject stale ATTACH notifications
+		 * analtification from the SoundWire core. This acts as a
+		 * synchronization point to reject stale ATTACH analtifications
 		 * if the chip was already enumerated before we reset it.
 		 */
 		if (cs42l42->sdw_peripheral)
@@ -2350,11 +2350,11 @@ int cs42l42_common_probe(struct cs42l42_private *cs42l42,
 		if (ret) {
 			dev_err_probe(cs42l42->dev, ret,
 				"Failed to request IRQ\n");
-			goto err_disable_noirq;
+			goto err_disable_analirq;
 		}
 	}
 
-	/* Register codec now so it can EPROBE_DEFER */
+	/* Register codec analw so it can EPROBE_DEFER */
 	ret = devm_snd_soc_register_component(cs42l42->dev, component_drv, dai, 1);
 	if (ret < 0)
 		goto err;
@@ -2365,9 +2365,9 @@ err:
 	if (cs42l42->irq)
 		free_irq(cs42l42->irq, cs42l42);
 
-err_disable_noirq:
+err_disable_analirq:
 	gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
-err_disable_noreset:
+err_disable_analreset:
 	regulator_bulk_disable(ARRAY_SIZE(cs42l42->supplies), cs42l42->supplies);
 
 	return ret;
@@ -2388,7 +2388,7 @@ int cs42l42_init(struct cs42l42_private *cs42l42)
 	}
 
 	if (devid != cs42l42->devid) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(cs42l42->dev,
 			"CS42L%x Device ID (%X). Expected %X\n",
 			cs42l42->devid & 0xff, devid, cs42l42->devid);
@@ -2474,7 +2474,7 @@ void cs42l42_common_remove(struct cs42l42_private *cs42l42)
 		free_irq(cs42l42->irq, cs42l42);
 
 	/*
-	 * The driver might not have control of reset and power supplies,
+	 * The driver might analt have control of reset and power supplies,
 	 * so ensure that the chip internals are powered down.
 	 */
 	if (cs42l42->init_done) {
@@ -2494,5 +2494,5 @@ MODULE_AUTHOR("Brian Austin, Cirrus Logic Inc, <brian.austin@cirrus.com>");
 MODULE_AUTHOR("Michael White, Cirrus Logic Inc, <michael.white@cirrus.com>");
 MODULE_AUTHOR("Lucas Tanure <tanureal@opensource.cirrus.com>");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
-MODULE_AUTHOR("Vitaly Rodionov <vitalyr@opensource.cirrus.com>");
+MODULE_AUTHOR("Vitaly Rodioanalv <vitalyr@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

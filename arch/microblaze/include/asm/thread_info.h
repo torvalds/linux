@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  */
 
 #ifndef _ASM_MICROBLAZE_THREAD_INFO_H
@@ -35,7 +35,7 @@ struct cpu_context {
 	__u32	r16;
 	__u32	r17;
 	__u32	r18;
-	/* non-volatile registers */
+	/* analn-volatile registers */
 	__u32	r19;
 	__u32	r20;
 	__u32	r21;
@@ -59,7 +59,7 @@ struct cpu_context {
 struct thread_info {
 	struct task_struct	*task; /* main task structure */
 	unsigned long		flags; /* low level flags */
-	unsigned long		status; /* thread-synchronous flags */
+	unsigned long		status; /* thread-synchroanalus flags */
 	__u32			cpu; /* current CPU */
 	__s32			preempt_count; /* 0 => preemptable,< 0 => BUG*/
 
@@ -96,12 +96,12 @@ static inline struct thread_info *current_thread_info(void)
  * - other flags in MSW
  */
 #define TIF_SYSCALL_TRACE	0 /* syscall trace active */
-#define TIF_NOTIFY_RESUME	1 /* resumption notification requested */
+#define TIF_ANALTIFY_RESUME	1 /* resumption analtification requested */
 #define TIF_SIGPENDING		2 /* signal pending */
 #define TIF_NEED_RESCHED	3 /* rescheduling necessary */
 /* restore singlestep on return to user mode */
 #define TIF_SINGLESTEP		4
-#define TIF_NOTIFY_SIGNAL	5	/* signal notifications exist */
+#define TIF_ANALTIFY_SIGNAL	5	/* signal analtifications exist */
 #define TIF_MEMDIE		6	/* is terminating due to OOM killer */
 #define TIF_SYSCALL_AUDIT	9       /* syscall auditing active */
 #define TIF_SECCOMP		10      /* secure computing */
@@ -110,11 +110,11 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_POLLING_NRFLAG	16
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
+#define _TIF_ANALTIFY_RESUME	(1 << TIF_ANALTIFY_RESUME)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_SINGLESTEP		(1 << TIF_SINGLESTEP)
-#define _TIF_NOTIFY_SIGNAL	(1 << TIF_NOTIFY_SIGNAL)
+#define _TIF_ANALTIFY_SIGNAL	(1 << TIF_ANALTIFY_SIGNAL)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
 #define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
@@ -130,10 +130,10 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_ALLWORK_MASK	0x0000FFFF
 
 /*
- * Thread-synchronous status.
+ * Thread-synchroanalus status.
  *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
+ * This is different from the flags in that analbody else
+ * ever touches our thread-synchroanalus status, so we don't
  * have to worry about atomic accesses.
  */
 /* FPU was used by this task this quantum (SMP) */

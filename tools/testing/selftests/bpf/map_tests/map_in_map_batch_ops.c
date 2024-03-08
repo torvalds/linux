@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -20,7 +20,7 @@ static __u32 get_map_id_from_fd(int map_fd)
 
 	ret = bpf_map_get_info_by_fd(map_fd, &map_info, &info_len);
 	CHECK(ret < 0, "Finding map info failed", "error:%s\n",
-	      strerror(errno));
+	      strerror(erranal));
 
 	return map_info.id;
 }
@@ -43,7 +43,7 @@ static void create_inner_maps(enum bpf_map_type map_type,
 		CHECK(map_fd < 0,
 		      "inner bpf_map_create() failed",
 		      "map_type=(%d) map_name(%s), error:%s\n",
-		      map_type, map_name, strerror(errno));
+		      map_type, map_name, strerror(erranal));
 
 		/* keep track of the inner map fd as it is required
 		 * to add records in outer map
@@ -59,7 +59,7 @@ static void create_inner_maps(enum bpf_map_type map_type,
 		CHECK(ret != 0,
 		      "bpf_map_update_elem failed",
 		      "map_type=(%d) map_name(%s), error:%s\n",
-		      map_type, map_name, strerror(errno));
+		      map_type, map_name, strerror(erranal));
 	}
 }
 
@@ -75,7 +75,7 @@ static int create_outer_map(enum bpf_map_type map_type, __u32 inner_map_fd)
 	CHECK(outer_map_fd < 0,
 	      "outer bpf_map_create()",
 	      "map_type=(%d), error:%s\n",
-	      map_type, strerror(errno));
+	      map_type, strerror(erranal));
 
 	return outer_map_fd;
 }
@@ -94,11 +94,11 @@ static void validate_fetch_results(int outer_map_fd,
 		CHECK(inner_map_fd < 0,
 		      "Failed to get inner map fd",
 		      "from id(%d), error=%s\n",
-		      outer_map_value, strerror(errno));
+		      outer_map_value, strerror(erranal));
 		err = bpf_map_get_next_key(inner_map_fd, NULL, &inner_map_key);
 		CHECK(err != 0,
 		      "Failed to get inner map key",
-		      "error=%s\n", strerror(errno));
+		      "error=%s\n", strerror(erranal));
 
 		err = bpf_map_lookup_elem(inner_map_fd, &inner_map_key,
 					  &inner_map_value);
@@ -108,7 +108,7 @@ static void validate_fetch_results(int outer_map_fd,
 		CHECK(err != 0,
 		      "Failed to get inner map value",
 		      "for key(%d), error=%s\n",
-		      inner_map_key, strerror(errno));
+		      inner_map_key, strerror(erranal));
 
 		/* Actual value validation */
 		CHECK(outer_map_value != inner_map_value,
@@ -132,7 +132,7 @@ static void fetch_and_validate(int outer_map_fd,
 	fetched_values = calloc(max_entries, value_size);
 	CHECK((!fetched_keys || !fetched_values),
 	      "Memory allocation failed for fetched_keys or fetched_values",
-	      "error=%s\n", strerror(errno));
+	      "error=%s\n", strerror(erranal));
 
 	for (step_size = batch_size;
 	     step_size <= max_entries;
@@ -152,15 +152,15 @@ static void fetch_and_validate(int outer_map_fd,
 				      fetched_values + total_fetched,
 				      &fetch_count, opts);
 
-		if (err && errno == ENOSPC) {
+		if (err && erranal == EANALSPC) {
 			/* Fetch again with higher batch size */
 			total_fetched = 0;
 			continue;
 		}
 
-		CHECK((err < 0 && (errno != ENOENT)),
+		CHECK((err < 0 && (erranal != EANALENT)),
 		      "lookup with steps failed",
-		      "error: %s\n", strerror(errno));
+		      "error: %s\n", strerror(erranal));
 
 		/* Update the total fetched number */
 		total_fetched += fetch_count;
@@ -171,7 +171,7 @@ static void fetch_and_validate(int outer_map_fd,
 	CHECK((total_fetched != max_entries),
 	      "Unable to fetch expected entries !",
 	      "total_fetched(%d) and max_entries(%d) error: (%d):%s\n",
-	      total_fetched, max_entries, errno, strerror(errno));
+	      total_fetched, max_entries, erranal, strerror(erranal));
 
 	/* validate the fetched entries */
 	validate_fetch_results(outer_map_fd, fetched_keys,
@@ -198,7 +198,7 @@ static void _map_in_map_batch_ops(enum bpf_map_type outer_map_type,
 	inner_map_fds = calloc(max_entries, value_size);
 	CHECK((!outer_map_keys || !inner_map_fds),
 	      "Memory allocation failed for outer_map_keys or inner_map_fds",
-	      "error=%s\n", strerror(errno));
+	      "error=%s\n", strerror(erranal));
 
 	create_inner_maps(inner_map_type, inner_map_fds);
 
@@ -214,7 +214,7 @@ static void _map_in_map_batch_ops(enum bpf_map_type outer_map_type,
 				   inner_map_fds, &max_entries, &opts);
 	CHECK(ret != 0,
 	      "Failed to update the outer map batch ops",
-	      "error=%s\n", strerror(errno));
+	      "error=%s\n", strerror(erranal));
 
 	/* batch operation - map_lookup */
 	for (op_index = 0; op_index < 2; ++op_index)

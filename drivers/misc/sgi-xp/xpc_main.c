@@ -26,16 +26,16 @@
  *
  *	Caveats:
  *
- *	  . Currently on sn2, we have no way to determine which nasid an IRQ
+ *	  . Currently on sn2, we have anal way to determine which nasid an IRQ
  *	    came from. Thus, xpc_send_IRQ_sn2() does a remote amo write
  *	    followed by an IPI. The amo indicates where data is to be pulled
  *	    from, so after the IPI arrives, the remote partition checks the amo
  *	    word. The IPI can actually arrive before the amo however, so other
  *	    code must periodically check for this case. Also, remote amo
- *	    operations do not reliably time out. Thus we do a remote PIO read
- *	    solely to know whether the remote partition is down and whether we
+ *	    operations do analt reliably time out. Thus we do a remote PIO read
+ *	    solely to kanalw whether the remote partition is down and whether we
  *	    should stop sending IPIs to it. This remote PIO read operation is
- *	    set up in a special nofault region so SAL knows to ignore (and
+ *	    set up in a special analfault region so SAL kanalws to iganalre (and
  *	    cleanup) any errors due to the remote amo write, PIO read, and/or
  *	    PIO write operations.
  *
@@ -77,7 +77,7 @@ static struct device xpc_chan_dbg_subname = {
 struct device *xpc_part = &xpc_part_dbg_subname;
 struct device *xpc_chan = &xpc_chan_dbg_subname;
 
-static int xpc_kdebug_ignore;
+static int xpc_kdebug_iganalre;
 
 /* systune related variables for /proc/sys directories */
 
@@ -125,35 +125,35 @@ static struct ctl_table xpc_sys_xpc[] = {
 static struct ctl_table_header *xpc_sysctl;
 static struct ctl_table_header *xpc_sysctl_hb;
 
-/* non-zero if any remote partition disengage was timed out */
+/* analn-zero if any remote partition disengage was timed out */
 int xpc_disengage_timedout;
 
-/* #of activate IRQs received and not yet processed */
+/* #of activate IRQs received and analt yet processed */
 int xpc_activate_IRQ_rcvd;
 DEFINE_SPINLOCK(xpc_activate_IRQ_rcvd_lock);
 
-/* IRQ handler notifies this wait queue on receipt of an IRQ */
+/* IRQ handler analtifies this wait queue on receipt of an IRQ */
 DECLARE_WAIT_QUEUE_HEAD(xpc_activate_IRQ_wq);
 
 static unsigned long xpc_hb_check_timeout;
 static struct timer_list xpc_hb_timer;
 
-/* notification that the xpc_hb_checker thread has exited */
+/* analtification that the xpc_hb_checker thread has exited */
 static DECLARE_COMPLETION(xpc_hb_checker_exited);
 
-/* notification that the xpc_discovery thread has exited */
+/* analtification that the xpc_discovery thread has exited */
 static DECLARE_COMPLETION(xpc_discovery_exited);
 
 static void xpc_kthread_waitmsgs(struct xpc_partition *, struct xpc_channel *);
 
-static int xpc_system_reboot(struct notifier_block *, unsigned long, void *);
-static struct notifier_block xpc_reboot_notifier = {
-	.notifier_call = xpc_system_reboot,
+static int xpc_system_reboot(struct analtifier_block *, unsigned long, void *);
+static struct analtifier_block xpc_reboot_analtifier = {
+	.analtifier_call = xpc_system_reboot,
 };
 
-static int xpc_system_die(struct notifier_block *, unsigned long, void *);
-static struct notifier_block xpc_die_notifier = {
-	.notifier_call = xpc_system_die,
+static int xpc_system_die(struct analtifier_block *, unsigned long, void *);
+static struct analtifier_block xpc_die_analtifier = {
+	.analtifier_call = xpc_system_die,
 };
 
 struct xpc_arch_operations xpc_arch_ops;
@@ -208,7 +208,7 @@ xpc_stop_hb_beater(void)
 
 /*
  * At periodic intervals, scan through all active partitions and ensure
- * their heartbeat is still active.  If not, the partition is deactivated.
+ * their heartbeat is still active.  If analt, the partition is deactivated.
  */
 static void
 xpc_check_remote_hb(void)
@@ -243,7 +243,7 @@ xpc_check_remote_hb(void)
  * activation/deactivation.
  */
 static int
-xpc_hb_checker(void *ignore)
+xpc_hb_checker(void *iganalre)
 {
 	int force_IRQ = 0;
 
@@ -302,7 +302,7 @@ xpc_hb_checker(void *ignore)
  * will exit once discovery is complete.
  */
 static int
-xpc_initiate_discovery(void *ignore)
+xpc_initiate_discovery(void *iganalre)
 {
 	xpc_discovery();
 
@@ -343,7 +343,7 @@ xpc_channel_mgr(struct xpc_partition *part)
 		 * This is done to prevent the channel mgr from making one pass
 		 * through the loop for each request, since he will
 		 * be servicing all the requests in one pass. The reason it's
-		 * set to 1 instead of 0 is so that other kthreads will know
+		 * set to 1 instead of 0 is so that other kthreads will kanalw
 		 * that the channel mgr is running and won't bother trying to
 		 * wake him up.
 		 */
@@ -374,7 +374,7 @@ xpc_kzalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
 
 	kfree(*base);
 
-	/* nope, we'll have to do it ourselves */
+	/* analpe, we'll have to do it ourselves */
 	*base = kzalloc(size + L1_CACHE_BYTES, flags);
 	if (*base == NULL)
 		return NULL;
@@ -404,7 +404,7 @@ xpc_setup_ch_structures(struct xpc_partition *part)
 				 GFP_KERNEL);
 	if (part->channels == NULL) {
 		dev_err(xpc_chan, "can't get memory for channels\n");
-		return xpNoMemory;
+		return xpAnalMemory;
 	}
 
 	/* allocate the remote open and close args */
@@ -415,7 +415,7 @@ xpc_setup_ch_structures(struct xpc_partition *part)
 					  remote_openclose_args_base);
 	if (part->remote_openclose_args == NULL) {
 		dev_err(xpc_chan, "can't get memory for remote connect args\n");
-		ret = xpNoMemory;
+		ret = xpAnalMemory;
 		goto out_1;
 	}
 
@@ -442,7 +442,7 @@ xpc_setup_ch_structures(struct xpc_partition *part)
 		atomic_set(&ch->kthreads_active, 0);
 
 		atomic_set(&ch->references, 0);
-		atomic_set(&ch->n_to_notify, 0);
+		atomic_set(&ch->n_to_analtify, 0);
 
 		spin_lock_init(&ch->lock);
 		init_completion(&ch->wdisconnect_wait);
@@ -486,7 +486,7 @@ xpc_teardown_ch_structures(struct xpc_partition *part)
 
 	/*
 	 * Make this partition inaccessible to local processes by marking it
-	 * as no longer setup. Then wait before proceeding with the teardown
+	 * as anal longer setup. Then wait before proceeding with the teardown
 	 * until all existing references cease.
 	 */
 	DBUG_ON(part->setup_state != XPC_P_SS_SETUP);
@@ -494,7 +494,7 @@ xpc_teardown_ch_structures(struct xpc_partition *part)
 
 	wait_event(part->teardown_wq, (atomic_read(&part->references) == 0));
 
-	/* now we can begin tearing down the infrastructure */
+	/* analw we can begin tearing down the infrastructure */
 
 	xpc_arch_ops.teardown_ch_structures(part);
 
@@ -686,7 +686,7 @@ xpc_kthread_start(void *args)
 
 	if (!(ch->flags & XPC_C_DISCONNECTING)) {
 
-		/* let registerer know that connection has been established */
+		/* let registerer kanalw that connection has been established */
 
 		spin_lock_irqsave(&ch->lock, irq_flags);
 		if (!(ch->flags & XPC_C_CONNECTEDCALLOUT)) {
@@ -717,7 +717,7 @@ xpc_kthread_start(void *args)
 		xpc_kthread_waitmsgs(part, ch);
 	}
 
-	/* let registerer know that connection is disconnecting */
+	/* let registerer kanalw that connection is disconnecting */
 
 	spin_lock_irqsave(&ch->lock, irq_flags);
 	if ((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
@@ -749,7 +749,7 @@ xpc_kthread_start(void *args)
 /*
  * For each partition that XPC has established communications with, there is
  * a minimum of one kernel thread assigned to perform any operation that
- * may potentially sleep or block (basically the callouts to the asynchronous
+ * may potentially sleep or block (basically the callouts to the asynchroanalus
  * functions registered via xpc_connect()).
  *
  * Additional kthreads are created and destroyed by XPC as the workload
@@ -760,7 +760,7 @@ xpc_kthread_start(void *args)
  */
 void
 xpc_create_kthreads(struct xpc_channel *ch, int needed,
-		    int ignore_disconnecting)
+		    int iganalre_disconnecting)
 {
 	unsigned long irq_flags;
 	u64 args = XPC_PACK_ARGS(ch->partid, ch->number);
@@ -776,8 +776,8 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 		 * kthread. That kthread is responsible for doing the
 		 * counterpart to the following before it exits.
 		 */
-		if (ignore_disconnecting) {
-			if (!atomic_inc_not_zero(&ch->kthreads_assigned)) {
+		if (iganalre_disconnecting) {
+			if (!atomic_inc_analt_zero(&ch->kthreads_assigned)) {
 				/* kthreads assigned had gone to zero */
 				BUG_ON(!(ch->flags &
 					 XPC_C_DISCONNECTINGCALLOUT_MADE));
@@ -800,7 +800,7 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 			/* the fork failed */
 
 			/*
-			 * NOTE: if (ignore_disconnecting &&
+			 * ANALTE: if (iganalre_disconnecting &&
 			 * !(ch->flags & XPC_C_DISCONNECTINGCALLOUT)) is true,
 			 * then we'll deadlock if all other kthreads assigned
 			 * to this channel are blocked in the channel's
@@ -842,7 +842,7 @@ xpc_disconnect_wait(int ch_number)
 	struct xpc_channel *ch;
 	int wakeup_channel_mgr;
 
-	/* now wait for all callouts to the caller's function to cease */
+	/* analw wait for all callouts to the caller's function to cease */
 	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
 
@@ -894,14 +894,14 @@ xpc_setup_partitions(void)
 				 GFP_KERNEL);
 	if (xpc_partitions == NULL) {
 		dev_err(xpc_part, "can't get memory for partition structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
 	 * The first few fields of each entry of xpc_partitions[] need to
-	 * be initialized now so that calls to xpc_connect() and
+	 * be initialized analw so that calls to xpc_connect() and
 	 * xpc_disconnect() can be made prior to the activation of any remote
-	 * partition. NOTE THAT NONE OF THE OTHER FIELDS BELONGING TO THESE
+	 * partition. ANALTE THAT ANALNE OF THE OTHER FIELDS BELONGING TO THESE
 	 * ENTRIES ARE MEANINGFUL UNTIL AFTER AN ENTRY'S CORRESPONDING
 	 * PARTITION HAS BEEN ACTIVATED.
 	 */
@@ -941,12 +941,12 @@ xpc_do_exit(enum xp_retval reason)
 	struct xpc_partition *part;
 	unsigned long printmsg_time, disengage_timeout = 0;
 
-	/* a 'rmmod XPC' and a 'reboot' cannot both end up here together */
+	/* a 'rmmod XPC' and a 'reboot' cananalt both end up here together */
 	DBUG_ON(xpc_exiting == 1);
 
 	/*
 	 * Let the heartbeat checker thread and the discovery thread
-	 * (if one is running) know that they should exit. Also wake up
+	 * (if one is running) kanalw that they should exit. Also wake up
 	 * the heartbeat checker thread in case it's sleeping.
 	 */
 	xpc_exiting = 1;
@@ -1021,8 +1021,8 @@ xpc_do_exit(enum xp_retval reason)
 	xpc_teardown_rsvd_page();
 
 	if (reason == xpUnloading) {
-		(void)unregister_die_notifier(&xpc_die_notifier);
-		(void)unregister_reboot_notifier(&xpc_reboot_notifier);
+		(void)unregister_die_analtifier(&xpc_die_analtifier);
+		(void)unregister_reboot_analtifier(&xpc_reboot_analtifier);
 	}
 
 	/* clear the interface to XPC's functions */
@@ -1043,7 +1043,7 @@ xpc_do_exit(enum xp_retval reason)
  * This function is called when the system is being rebooted.
  */
 static int
-xpc_system_reboot(struct notifier_block *nb, unsigned long event, void *unused)
+xpc_system_reboot(struct analtifier_block *nb, unsigned long event, void *unused)
 {
 	enum xp_retval reason;
 
@@ -1062,14 +1062,14 @@ xpc_system_reboot(struct notifier_block *nb, unsigned long event, void *unused)
 	}
 
 	xpc_do_exit(reason);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* Used to only allow one cpu to complete disconnect */
 static unsigned int xpc_die_disconnecting;
 
 /*
- * Notify other partitions to deactivate from us by first disengaging from all
+ * Analtify other partitions to deactivate from us by first disengaging from all
  * references to our memory.
  */
 static void
@@ -1144,14 +1144,14 @@ xpc_die_deactivate(void)
 
 /*
  * This function is called when the system is being restarted or halted due
- * to some sort of system failure. If this is the case we need to notify the
+ * to some sort of system failure. If this is the case we need to analtify the
  * other partitions to disengage from all references to our memory.
  * This function can also be called when our heartbeater could be offlined
- * for a time. In this case we need to notify other partitions to not worry
+ * for a time. In this case we need to analtify other partitions to analt worry
  * about the lack of a heartbeat.
  */
 static int
-xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
+xpc_system_die(struct analtifier_block *nb, unsigned long event, void *_die_args)
 {
 	struct die_args *die_args = _die_args;
 
@@ -1175,7 +1175,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 		xpc_die_deactivate();
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int __init
@@ -1191,7 +1191,7 @@ xpc_init(void)
 		ret = xpc_init_uv();
 
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	if (ret != 0)
@@ -1217,15 +1217,15 @@ xpc_init(void)
 		goto out_2;
 	}
 
-	/* add ourselves to the reboot_notifier_list */
-	ret = register_reboot_notifier(&xpc_reboot_notifier);
+	/* add ourselves to the reboot_analtifier_list */
+	ret = register_reboot_analtifier(&xpc_reboot_analtifier);
 	if (ret != 0)
-		dev_warn(xpc_part, "can't register reboot notifier\n");
+		dev_warn(xpc_part, "can't register reboot analtifier\n");
 
-	/* add ourselves to the die_notifier list */
-	ret = register_die_notifier(&xpc_die_notifier);
+	/* add ourselves to the die_analtifier list */
+	ret = register_die_analtifier(&xpc_die_analtifier);
 	if (ret != 0)
-		dev_warn(xpc_part, "can't register die notifier\n");
+		dev_warn(xpc_part, "can't register die analtifier\n");
 
 	/*
 	 * The real work-horse behind xpc.  This processes incoming
@@ -1248,7 +1248,7 @@ xpc_init(void)
 	if (IS_ERR(kthread)) {
 		dev_err(xpc_part, "failed while forking discovery thread\n");
 
-		/* mark this new thread as a non-starter */
+		/* mark this new thread as a analn-starter */
 		complete(&xpc_discovery_exited);
 
 		xpc_do_exit(xpUnloading);
@@ -1257,17 +1257,17 @@ xpc_init(void)
 
 	/* set the interface to point at XPC's functions */
 	xpc_set_interface(xpc_initiate_connect, xpc_initiate_disconnect,
-			  xpc_initiate_send, xpc_initiate_send_notify,
+			  xpc_initiate_send, xpc_initiate_send_analtify,
 			  xpc_initiate_received, xpc_initiate_partid_to_nasids);
 
 	return 0;
 
-	/* initialization was not successful */
+	/* initialization was analt successful */
 out_3:
 	xpc_teardown_rsvd_page();
 
-	(void)unregister_die_notifier(&xpc_die_notifier);
-	(void)unregister_reboot_notifier(&xpc_reboot_notifier);
+	(void)unregister_die_analtifier(&xpc_die_analtifier);
+	(void)unregister_reboot_analtifier(&xpc_reboot_analtifier);
 out_2:
 	if (xpc_sysctl_hb)
 		unregister_sysctl_table(xpc_sysctl_hb);
@@ -1307,6 +1307,6 @@ module_param(xpc_disengage_timelimit, int, 0);
 MODULE_PARM_DESC(xpc_disengage_timelimit, "Number of seconds to wait "
 		 "for disengage to complete.");
 
-module_param(xpc_kdebug_ignore, int, 0);
-MODULE_PARM_DESC(xpc_kdebug_ignore, "Should lack of heartbeat be ignored by "
+module_param(xpc_kdebug_iganalre, int, 0);
+MODULE_PARM_DESC(xpc_kdebug_iganalre, "Should lack of heartbeat be iganalred by "
 		 "other partitions when dropping into kdebug.");

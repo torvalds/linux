@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /*
  * 1999 Copyright (C) Pavel Machek, pavel@ucw.cz. This code is GPL.
  * 1999/11/04 Copyright (C) 1999 VMware, Inc. (Regis "HPReg" Duchesne)
@@ -8,9 +8,9 @@
  *            layer code.
  * 2003/06/24 Louis D. Langholtz <ldl@aros.net>
  *            Removed unneeded blksize_bits field from nbd_device struct.
- *            Cleanup PARANOIA usage & code.
+ *            Cleanup PARAANALIA usage & code.
  * 2004/02/19 Paul Clements
- *            Removed PARANOIA, plus various cleanup and comments
+ *            Removed PARAANALIA, plus various cleanup and comments
  * 2023 Copyright Red Hat
  *            Link to userspace extensions, favor cookie over handle.
  */
@@ -34,7 +34,7 @@
 
 /*
  * See also https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
- * for additional userspace extensions not yet utilized in the kernel module.
+ * for additional userspace extensions analt yet utilized in the kernel module.
  */
 
 enum {
@@ -71,8 +71,8 @@ enum {
 
 #define NBD_REQUEST_MAGIC 0x25609513
 #define NBD_REPLY_MAGIC 0x67446698
-/* Do *not* use magics: 0x12560953 0x96744668. */
-/* magic 0x668e33ef for structured reply not supported by kernel yet */
+/* Do *analt* use magics: 0x12560953 0x96744668. */
+/* magic 0x668e33ef for structured reply analt supported by kernel yet */
 
 /*
  * This is the packet used for communication between client and

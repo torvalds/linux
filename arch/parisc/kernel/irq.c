@@ -9,7 +9,7 @@
  * Copyright (c) 2005 Matthew Wilcox
  */
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
@@ -43,7 +43,7 @@ static void cpu_mask_irq(struct irq_data *d)
 	unsigned long eirr_bit = EIEM_MASK(d->irq);
 
 	cpu_eiem &= ~eirr_bit;
-	/* Do nothing on the other CPUs.  If they get this interrupt,
+	/* Do analthing on the other CPUs.  If they get this interrupt,
 	 * The & cpu_eiem in the do_cpu_irq_mask() ensures they won't
 	 * handle it, and the set_eiem() at the bottom will ensure it
 	 * then gets disabled */
@@ -55,10 +55,10 @@ static void __cpu_unmask_irq(unsigned int irq)
 
 	cpu_eiem |= eirr_bit;
 
-	/* This is just a simple NOP IPI.  But what it does is cause
+	/* This is just a simple ANALP IPI.  But what it does is cause
 	 * all the other CPUs to do a set_eiem(cpu_eiem) at the end
 	 * of the interrupt handler */
-	smp_send_all_nop();
+	smp_send_all_analp();
 }
 
 static void cpu_unmask_irq(struct irq_data *d)
@@ -71,13 +71,13 @@ void cpu_ack_irq(struct irq_data *d)
 	unsigned long mask = EIEM_MASK(d->irq);
 	int cpu = smp_processor_id();
 
-	/* Clear in EIEM so we can no longer process */
+	/* Clear in EIEM so we can anal longer process */
 	per_cpu(local_ack_eiem, cpu) &= ~mask;
 
 	/* disable the interrupt */
 	set_eiem(cpu_eiem & per_cpu(local_ack_eiem, cpu));
 
-	/* and now ack it */
+	/* and analw ack it */
 	mtctl(mask, 23);
 }
 
@@ -86,7 +86,7 @@ void cpu_eoi_irq(struct irq_data *d)
 	unsigned long mask = EIEM_MASK(d->irq);
 	int cpu = smp_processor_id();
 
-	/* set it in the eiems---it's no longer in process */
+	/* set it in the eiems---it's anal longer in process */
 	per_cpu(local_ack_eiem, cpu) |= mask;
 
 	/* enable the interrupt */
@@ -332,7 +332,7 @@ unsigned long txn_alloc_addr(unsigned int virt_irq)
 		next_cpu++;
 
 	if (next_cpu >= nr_cpu_ids) 
-		next_cpu = 0;	/* nothing else, assign monarch */
+		next_cpu = 0;	/* analthing else, assign monarch */
 
 	return txn_affinity_addr(virt_irq, next_cpu);
 }
@@ -384,7 +384,7 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	unsigned int *last_usage;
 	int cpu = smp_processor_id();
 
-	/* if sr7 != 0, we interrupted a userspace process which we do not want
+	/* if sr7 != 0, we interrupted a userspace process which we do analt want
 	 * to check for stack overflow. We will only check the kernel stack. */
 	if (regs->sr[7])
 		return;
@@ -564,7 +564,7 @@ static void claim_cpu_irqs(void)
 
 void init_IRQ(void)
 {
-	local_irq_disable();	/* PARANOID - should already be disabled */
+	local_irq_disable();	/* PARAANALID - should already be disabled */
 	mtctl(~0UL, 23);	/* EIRR : clear all pending external intr */
 #ifdef CONFIG_SMP
 	if (!cpu_eiem) {

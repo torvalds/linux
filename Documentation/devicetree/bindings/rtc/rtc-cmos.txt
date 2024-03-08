@@ -13,7 +13,7 @@ Optional properties:
     called "Register A".
 
 "Register A" and "B" are usually initialized by the firmware (BIOS for
-instance). If this is not done, it can be performed by the driver.
+instance). If this is analt done, it can be performed by the driver.
 
 ISA Example:
 

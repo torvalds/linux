@@ -25,7 +25,7 @@ _b43legacy_declare_plcp_hdr(6);
 struct b43legacy_txhdr_fw3 {
 	__le32 mac_ctl;				/* MAC TX control */
 	__le16 mac_frame_ctl;			/* Copy of the FrameControl */
-	__le16 tx_fes_time_norm;		/* TX FES Time Normal */
+	__le16 tx_fes_time_analrm;		/* TX FES Time Analrmal */
 	__le16 phy_ctl;				/* PHY TX control */
 	__u8 iv[16];				/* Encryption IV */
 	__u8 tx_receiver[6];			/* TX Frame Receiver address */
@@ -36,7 +36,7 @@ struct b43legacy_txhdr_fw3 {
 	__le16 dur_fb;				/* Fallback duration */
 	PAD_BYTES(2);
 	__le16 cookie;
-	__le16 unknown_scb_stuff;
+	__le16 unkanalwn_scb_stuff;
 	struct b43legacy_plcp_hdr6 rts_plcp;	/* RTS PLCP */
 	__u8 rts_frame[18];			/* The RTS frame (if used) */
 	struct b43legacy_plcp_hdr6 plcp;
@@ -56,7 +56,7 @@ struct b43legacy_txhdr_fw3 {
 #define B43legacy_TX4_MAC_FALLBACKOFDM	0x00000100
 #define B43legacy_TX4_MAC_5GHZ		0x00000080
 #define B43legacy_TX4_MAC_IGNPMQ	0x00000020
-#define B43legacy_TX4_MAC_HWSEQ		0x00000010 /* Use Hardware Seq No */
+#define B43legacy_TX4_MAC_HWSEQ		0x00000010 /* Use Hardware Seq Anal */
 #define B43legacy_TX4_MAC_STMSDU	0x00000008 /* Start MSDU */
 #define B43legacy_TX4_MAC_SENDRTS	0x00000004
 #define B43legacy_TX4_MAC_LONGFRAME	0x00000002
@@ -97,14 +97,14 @@ struct b43legacy_txstatus {
 	u8 supp_reason;	/* Suppression reason */
 	/* flags */
 	u8 pm_indicated;/* PM mode indicated to AP */
-	u8 intermediate;/* Intermediate status notification */
+	u8 intermediate;/* Intermediate status analtification */
 	u8 for_ampdu;	/* Status is for an AMPDU (afterburner) */
 	u8 acked;	/* Wireless ACK received */
 };
 
 /* txstatus supp_reason values */
 enum {
-	B43legacy_TXST_SUPP_NONE,	/* Not suppressed */
+	B43legacy_TXST_SUPP_ANALNE,	/* Analt suppressed */
 	B43legacy_TXST_SUPP_PMQ,	/* Suppressed due to PMQ entry */
 	B43legacy_TXST_SUPP_FLUSH,	/* Suppressed due to flush request */
 	B43legacy_TXST_SUPP_PREV,	/* Previous fragment failed */
@@ -230,7 +230,7 @@ void b43legacy_qos_init(struct b43legacy_wldev *dev);
 static inline
 int b43legacy_new_kidx_api(struct b43legacy_wldev *dev)
 {
-	/* FIXME: Not sure the change was at rev 351 */
+	/* FIXME: Analt sure the change was at rev 351 */
 	return (dev->fw.rev >= 351);
 }
 static inline

@@ -9,7 +9,7 @@ struct z_erofs_lzma {
 	u8 bounce[PAGE_SIZE];
 };
 
-/* considering the LZMA performance, no need to use a lockless list for now */
+/* considering the LZMA performance, anal need to use a lockless list for analw */
 static DEFINE_SPINLOCK(z_erofs_lzma_lock);
 static unsigned int z_erofs_lzma_max_dictsize;
 static unsigned int z_erofs_lzma_nstrms, z_erofs_lzma_avail_strms;
@@ -20,7 +20,7 @@ module_param_named(lzma_streams, z_erofs_lzma_nstrms, uint, 0444);
 
 void z_erofs_lzma_exit(void)
 {
-	/* there should be no running fs instance */
+	/* there should be anal running fs instance */
 	while (z_erofs_lzma_avail_strms) {
 		struct z_erofs_lzma *strm;
 
@@ -59,7 +59,7 @@ int __init z_erofs_lzma_init(void)
 
 		if (!strm) {
 			z_erofs_lzma_exit();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		spin_lock(&z_erofs_lzma_lock);
 		strm->next = z_erofs_lzma_head;
@@ -132,7 +132,7 @@ again:
 			xz_dec_microlzma_end(strm->state);
 		strm->state = xz_dec_microlzma_alloc(XZ_PREALLOC, dict_size);
 		if (!strm->state)
-			err = -ENOMEM;
+			err = -EANALMEM;
 	}
 
 	/* 3. push back all to the global list and update max dict_size */
@@ -158,7 +158,7 @@ int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 	struct z_erofs_lzma *strm;
 	u8 *kin;
 	bool bounced = false;
-	int no, ni, j, err = 0;
+	int anal, ni, j, err = 0;
 
 	/* 1. get the exact LZMA compressed size */
 	kin = kmap(*rq->in);
@@ -196,16 +196,16 @@ again:
 	strm->buf.out_pos = 0;
 	strm->buf.out_size = 0;
 
-	for (ni = 0, no = -1;;) {
+	for (ni = 0, anal = -1;;) {
 		enum xz_ret xz_err;
 
 		if (strm->buf.out_pos == strm->buf.out_size) {
 			if (strm->buf.out) {
-				kunmap(rq->out[no]);
+				kunmap(rq->out[anal]);
 				strm->buf.out = NULL;
 			}
 
-			if (++no >= nrpages_out || !outlen) {
+			if (++anal >= nrpages_out || !outlen) {
 				erofs_err(rq->sb, "decompressed buf out of bound");
 				err = -EFSCORRUPTED;
 				break;
@@ -214,17 +214,17 @@ again:
 			strm->buf.out_size = min_t(u32, outlen,
 						   PAGE_SIZE - pageofs);
 			outlen -= strm->buf.out_size;
-			if (!rq->out[no] && rq->fillgaps) {	/* deduped */
-				rq->out[no] = erofs_allocpage(pgpl, rq->gfp);
-				if (!rq->out[no]) {
-					err = -ENOMEM;
+			if (!rq->out[anal] && rq->fillgaps) {	/* deduped */
+				rq->out[anal] = erofs_allocpage(pgpl, rq->gfp);
+				if (!rq->out[anal]) {
+					err = -EANALMEM;
 					break;
 				}
-				set_page_private(rq->out[no],
+				set_page_private(rq->out[anal],
 						 Z_EROFS_SHORTLIVED_PAGE);
 			}
-			if (rq->out[no])
-				strm->buf.out = kmap(rq->out[no]) + pageofs;
+			if (rq->out[anal])
+				strm->buf.out = kmap(rq->out[anal]) + pageofs;
 			pageofs = 0;
 		} else if (strm->buf.in_pos == strm->buf.in_size) {
 			kunmap(rq->in[ni]);
@@ -248,7 +248,7 @@ again:
 		 * from the on-stack pagepool where pages share with the same
 		 * request.
 		 */
-		if (!bounced && rq->out[no] == rq->in[ni]) {
+		if (!bounced && rq->out[anal] == rq->in[ni]) {
 			memcpy(strm->bounce, strm->buf.in, strm->buf.in_size);
 			strm->buf.in = strm->bounce;
 			bounced = true;
@@ -256,14 +256,14 @@ again:
 		for (j = ni + 1; j < nrpages_in; ++j) {
 			struct page *tmppage;
 
-			if (rq->out[no] != rq->in[j])
+			if (rq->out[anal] != rq->in[j])
 				continue;
 
 			DBG_BUGON(erofs_page_is_managed(EROFS_SB(rq->sb),
 							rq->in[j]));
 			tmppage = erofs_allocpage(pgpl, rq->gfp);
 			if (!tmppage) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto failed;
 			}
 			set_page_private(tmppage, Z_EROFS_SHORTLIVED_PAGE);
@@ -284,8 +284,8 @@ again:
 		}
 	}
 failed:
-	if (no < nrpages_out && strm->buf.out)
-		kunmap(rq->out[no]);
+	if (anal < nrpages_out && strm->buf.out)
+		kunmap(rq->out[anal]);
 	if (ni < nrpages_in)
 		kunmap(rq->in[ni]);
 	/* 4. push back LZMA stream context to the global list */

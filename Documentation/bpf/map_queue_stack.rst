@@ -5,7 +5,7 @@
 BPF_MAP_TYPE_QUEUE and BPF_MAP_TYPE_STACK
 =========================================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_QUEUE`` and ``BPF_MAP_TYPE_STACK`` were introduced
      in kernel version 4.20
 
@@ -19,8 +19,8 @@ the existing ``bpf`` syscall in the following way:
 - ``BPF_MAP_LOOKUP_AND_DELETE_ELEM`` -> pop
 - ``BPF_MAP_UPDATE_ELEM`` -> push
 
-``BPF_MAP_TYPE_QUEUE`` and ``BPF_MAP_TYPE_STACK`` do not support
-``BPF_F_NO_PREALLOC``.
+``BPF_MAP_TYPE_QUEUE`` and ``BPF_MAP_TYPE_STACK`` do analt support
+``BPF_F_ANAL_PREALLOC``.
 
 Usage
 =====

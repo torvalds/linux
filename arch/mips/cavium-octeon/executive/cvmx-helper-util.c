@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -77,7 +77,7 @@ const char *cvmx_helper_interface_mode_to_string(cvmx_helper_interface_mode_t
 	case CVMX_HELPER_INTERFACE_MODE_LOOP:
 		return "LOOP";
 	}
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 /**
@@ -106,7 +106,7 @@ static int cvmx_helper_setup_red_queue(int queue, int pass_thresh,
 	red_marks.s.pass = pass_thresh;
 	cvmx_write_csr(CVMX_IPD_QOSX_RED_MARKS(queue), red_marks.u64);
 
-	/* Use the actual queue 0 counter, not the average */
+	/* Use the actual queue 0 counter, analt the average */
 	red_param.u64 = 0;
 	red_param.s.prb_con =
 	    (255ul << 24) / (red_marks.s.pass - red_marks.s.drop);
@@ -152,7 +152,7 @@ int cvmx_helper_setup_red(int pass_thresh, int drop_thresh)
 		cvmx_helper_setup_red_queue(queue, pass_thresh, drop_thresh);
 
 	/* Shutoff the dropping based on the per port page count. SW isn't
-	   decrementing it right now */
+	   decrementing it right analw */
 	ipd_bp_prt_red_end.u64 = 0;
 	ipd_bp_prt_red_end.s.prt_enb = 0;
 	cvmx_write_csr(CVMX_IPD_BP_PRT_RED_END, ipd_bp_prt_red_end.u64);

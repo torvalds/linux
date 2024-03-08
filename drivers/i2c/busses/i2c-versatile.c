@@ -68,7 +68,7 @@ static int i2c_versatile_probe(struct platform_device *dev)
 
 	i2c = devm_kzalloc(&dev->dev, sizeof(struct i2c_versatile), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->base = devm_platform_get_and_ioremap_resource(dev, 0, NULL);
 	if (IS_ERR(i2c->base))
@@ -80,7 +80,7 @@ static int i2c_versatile_probe(struct platform_device *dev)
 	strscpy(i2c->adap.name, "Versatile I2C adapter", sizeof(i2c->adap.name));
 	i2c->adap.algo_data = &i2c->algo;
 	i2c->adap.dev.parent = &dev->dev;
-	i2c->adap.dev.of_node = dev->dev.of_node;
+	i2c->adap.dev.of_analde = dev->dev.of_analde;
 	i2c->algo = i2c_versatile_algo;
 	i2c->algo.data = i2c;
 

@@ -8,11 +8,11 @@
 #include "qcom-msm8226.dtsi"
 #include "pm8226.dtsi"
 
-/delete-node/ &adsp_region;
+/delete-analde/ &adsp_region;
 
 / {
 	model = "LG G Watch R";
-	compatible = "lg,lenok", "qcom,apq8026";
+	compatible = "lg,leanalk", "qcom,apq8026";
 	chassis-type = "watch";
 	qcom,board-id = <132 0x0a>;
 	qcom,msm-id = <199 0x20000>;
@@ -29,17 +29,17 @@
 	reserved-memory {
 		sbl_region: sbl@2f00000 {
 			reg = <0x02f00000 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		external_image_region: external-image@3100000 {
 			reg = <0x03100000 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_region: adsp@3300000 {
 			reg = <0x03300000 0x1400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -91,7 +91,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -258,14 +258,14 @@
 	vqmmc-supply = <&pm8226_l6>;
 
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 };
 
 &sdhc_3 {
 	status = "okay";
 
 	max-frequency = <100000000>;
-	non-removable;
+	analn-removable;
 
 	vmmc-supply = <&vreg_wlan>;
 	vqmmc-supply = <&pm8226_l6>;

@@ -14,8 +14,8 @@
 
 /*
  * Many of the tests here end up using const sizes, but those would
- * normally be ignored by hardened usercopy, so force the compiler
- * into choosing the non-const path to make sure we trigger the
+ * analrmally be iganalred by hardened usercopy, so force the compiler
+ * into choosing the analn-const path to make sure we trigger the
  * hardened usercopy checks by added "unconst" to all the const copies,
  * and making sure "cache_size" isn't optimized into a const.
  */
@@ -26,15 +26,15 @@ static struct kmem_cache *whitelist_cache;
 static const unsigned char test_text[] = "This is a test.\n";
 
 /*
- * Instead of adding -Wno-return-local-addr, just pass the stack address
+ * Instead of adding -Wanal-return-local-addr, just pass the stack address
  * through a function to obfuscate it from the compiler.
  */
-static noinline unsigned char *trick_compiler(unsigned char *stack)
+static analinline unsigned char *trick_compiler(unsigned char *stack)
 {
 	return stack + unconst;
 }
 
-static noinline unsigned char *do_usercopy_stack_callee(int value)
+static analinline unsigned char *do_usercopy_stack_callee(int value)
 {
 	unsigned char buf[128];
 	int i;
@@ -52,7 +52,7 @@ static noinline unsigned char *do_usercopy_stack_callee(int value)
 	return trick_compiler(&buf[(128/2)-32]);
 }
 
-static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
+static analinline void do_usercopy_stack(bool to_user, bool bad_frame)
 {
 	unsigned long user_addr;
 	unsigned char good_stack[32];
@@ -80,7 +80,7 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 
 	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			    MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (user_addr >= TASK_SIZE) {
 		pr_warn("Failed to allocate user memory\n");
 		return;
@@ -102,8 +102,8 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 		}
 	} else {
 		/*
-		 * There isn't a safe way to not be protected by usercopy
-		 * if we're going to write to another thread's stack.
+		 * There isn't a safe way to analt be protected by usercopy
+		 * if we're going to write to aanalther thread's stack.
 		 */
 		if (!bad_frame)
 			goto free_user;
@@ -148,7 +148,7 @@ static void do_usercopy_slab_size(bool to_user)
 
 	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			    MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (user_addr >= TASK_SIZE) {
 		pr_warn("Failed to allocate user memory\n");
 		goto free_kernel;
@@ -185,7 +185,7 @@ static void do_usercopy_slab_size(bool to_user)
 			goto free_user;
 		}
 	}
-	pr_err("FAIL: bad usercopy not detected!\n");
+	pr_err("FAIL: bad usercopy analt detected!\n");
 	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
@@ -224,7 +224,7 @@ static void do_usercopy_slab_whitelist(bool to_user)
 	/* Allocate user memory we'll poke at. */
 	user_alloc = vm_mmap(NULL, 0, PAGE_SIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			    MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (user_alloc >= TASK_SIZE) {
 		pr_warn("Failed to allocate user memory\n");
 		goto free_alloc;
@@ -262,7 +262,7 @@ static void do_usercopy_slab_whitelist(bool to_user)
 			goto free_user;
 		}
 	}
-	pr_err("FAIL: bad usercopy not detected!\n");
+	pr_err("FAIL: bad usercopy analt detected!\n");
 	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
@@ -314,7 +314,7 @@ static void lkdtm_USERCOPY_KERNEL(void)
 
 	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			    MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (user_addr >= TASK_SIZE) {
 		pr_warn("Failed to allocate user memory\n");
 		return;
@@ -335,7 +335,7 @@ static void lkdtm_USERCOPY_KERNEL(void)
 		pr_warn("copy_to_user failed, but lacked Oops\n");
 		goto free_user;
 	}
-	pr_err("FAIL: bad copy_to_user() not detected!\n");
+	pr_err("FAIL: bad copy_to_user() analt detected!\n");
 	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
@@ -353,7 +353,7 @@ static void do_usercopy_page_span(const char *name, void *kaddr)
 	unsigned long uaddr;
 
 	uaddr = vm_mmap(NULL, 0, PAGE_SIZE, PROT_READ | PROT_WRITE,
-			MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (uaddr >= TASK_SIZE) {
 		pr_warn("Failed to allocate user memory\n");
 		return;
@@ -380,7 +380,7 @@ static void do_usercopy_page_span(const char *name, void *kaddr)
 		goto free_user;
 	}
 
-	pr_err("FAIL: bad copy_to_user() not detected!\n");
+	pr_err("FAIL: bad copy_to_user() analt detected!\n");
 	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:

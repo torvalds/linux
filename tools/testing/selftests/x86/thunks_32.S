@@ -46,4 +46,4 @@ call64_from_32:
 
 .size call64_from_32, .-call64_from_32
 
-.section .note.GNU-stack,"",%progbits
+.section .analte.GNU-stack,"",%progbits

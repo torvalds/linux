@@ -56,13 +56,13 @@
 /* Output, Capture Buffer 2, Z acceleration */
 #define ADIS16240_CAPT_BUF2      0x18
 
-/* Diagnostic, error flags */
+/* Diaganalstic, error flags */
 #define ADIS16240_DIAG_STAT      0x1A
 
-/* Diagnostic, event counter */
+/* Diaganalstic, event counter */
 #define ADIS16240_EVNT_CNTR      0x1C
 
-/* Diagnostic, check sum value from firmware test */
+/* Diaganalstic, check sum value from firmware test */
 #define ADIS16240_CHK_SUM        0x1E
 
 /* Calibration, x-axis acceleration offset adjustment */
@@ -368,7 +368,7 @@ static const struct adis_data adis16240_data = {
 
 	.self_test_mask = ADIS16240_MSC_CTRL_SELF_TEST_EN,
 	.self_test_reg = ADIS16240_MSC_CTRL,
-	.self_test_no_autoclear = true,
+	.self_test_anal_autoclear = true,
 	.timeouts = &adis16240_timeouts,
 
 	.status_error_msgs = adis16240_status_error_msgs,
@@ -388,7 +388,7 @@ static int adis16240_probe(struct spi_device *spi)
 	/* setup the industrialio driver allocated elements */
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	st = iio_priv(indio_dev);
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);

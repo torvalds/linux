@@ -7,11 +7,11 @@
  * Prototype for this hypercall is:
  *  int physdev_op(int cmd, void *args)
  * @cmd	 == PHYSDEVOP_??? (physdev operation).
- * @args == Operation-specific extra arguments (NULL if none).
+ * @args == Operation-specific extra arguments (NULL if analne).
  */
 
 /*
- * Notify end-of-interrupt (EOI) for the specified IRQ.
+ * Analtify end-of-interrupt (EOI) for the specified IRQ.
  * @arg == pointer to physdev_eoi structure.
  */
 #define PHYSDEVOP_eoi			12
@@ -111,7 +111,7 @@ struct physdev_irq {
 
 #define MAP_PIRQ_TYPE_MSI		0x0
 #define MAP_PIRQ_TYPE_GSI		0x1
-#define MAP_PIRQ_TYPE_UNKNOWN		0x2
+#define MAP_PIRQ_TYPE_UNKANALWN		0x2
 #define MAP_PIRQ_TYPE_MSI_SEG		0x3
 #define MAP_PIRQ_TYPE_MULTI_MSI		0x4
 
@@ -251,7 +251,7 @@ struct physdev_pci_device_add {
 #define PHYSDEVOP_pci_device_remove     26
 #define PHYSDEVOP_restore_msi_ext       27
 /*
- * Dom0 should use these two to announce MMIO resources assigned to
+ * Dom0 should use these two to ananalunce MMIO resources assigned to
  * MSI-X capable devices won't (prepare) or may (release) change.
  */
 #define PHYSDEVOP_prepare_msix          30
@@ -266,7 +266,7 @@ struct physdev_pci_device {
 #define PHYSDEVOP_DBGP_RESET_PREPARE    1
 #define PHYSDEVOP_DBGP_RESET_DONE       2
 
-#define PHYSDEVOP_DBGP_BUS_UNKNOWN      0
+#define PHYSDEVOP_DBGP_BUS_UNKANALWN      0
 #define PHYSDEVOP_DBGP_BUS_PCI          1
 
 #define PHYSDEVOP_dbgp_op               29
@@ -280,11 +280,11 @@ struct physdev_dbgp_op {
 };
 
 /*
- * Notify that some PIRQ-bound event channels have been unmasked.
+ * Analtify that some PIRQ-bound event channels have been unmasked.
  * ** This command is obsolete since interface version 0x00030202 and is **
  * ** unsupported by newer versions of Xen.				 **
  */
-#define PHYSDEVOP_IRQ_UNMASK_NOTIFY	 4
+#define PHYSDEVOP_IRQ_UNMASK_ANALTIFY	 4
 
 /*
  * These all-capitals physdev operation names are superceded by the new names
@@ -297,7 +297,7 @@ struct physdev_dbgp_op {
 #define PHYSDEVOP_APIC_WRITE		 PHYSDEVOP_apic_write
 #define PHYSDEVOP_ASSIGN_VECTOR		 PHYSDEVOP_alloc_irq_vector
 #define PHYSDEVOP_FREE_VECTOR		 PHYSDEVOP_free_irq_vector
-#define PHYSDEVOP_IRQ_NEEDS_UNMASK_NOTIFY XENIRQSTAT_needs_eoi
+#define PHYSDEVOP_IRQ_NEEDS_UNMASK_ANALTIFY XENIRQSTAT_needs_eoi
 #define PHYSDEVOP_IRQ_SHARED		 XENIRQSTAT_shared
 
 #endif /* __XEN_PUBLIC_PHYSDEV_H__ */

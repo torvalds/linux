@@ -6,7 +6,7 @@ ORANGEFS
 
 OrangeFS is an LGPL userspace scale-out parallel storage system. It is ideal
 for large storage problems faced by HPC, BigData, Streaming Video,
-Genomics, Bioinformatics.
+Geanalmics, Bioinformatics.
 
 Orangefs, originally called PVFS, was first developed in 1993 by
 Walt Ligon and Eric Blumer as a parallel file system for Parallel
@@ -60,7 +60,7 @@ To generate a filesystem to run xfstests against, see below.
 
 There is an example client configuration file in /etc/pvfs2tab.  It is a
 single line.  Uncomment it and change the hostname if necessary.  This
-controls clients which use libpvfs2.  This does not control the
+controls clients which use libpvfs2.  This does analt control the
 pvfs2-client-core.
 
 Create the filesystem::
@@ -89,14 +89,14 @@ Userspace Filesystem Source
 
 http://www.orangefs.org/download
 
-Orangefs versions prior to 2.9.3 would not be compatible with the
+Orangefs versions prior to 2.9.3 would analt be compatible with the
 upstream version of the kernel client.
 
 
 Building ORANGEFS on a Single Server
 ====================================
 
-Where OrangeFS cannot be installed from distribution packages, it may be
+Where OrangeFS cananalt be installed from distribution packages, it may be
 built from source.
 
 You can omit --prefix if you don't care that things are sprinkled around
@@ -121,7 +121,7 @@ it comes to that question::
 
 Create an /etc/pvfs2tab file (localhost is fine)::
 
-    echo tcp://localhost:3334/orangefs /pvfsmnt pvfs2 defaults,noauto 0 0 > \
+    echo tcp://localhost:3334/orangefs /pvfsmnt pvfs2 defaults,analauto 0 0 > \
 	/etc/pvfs2tab
 
 Create the mount point you specified in the tab file if needed::
@@ -136,7 +136,7 @@ Start the server::
 
     /opt/ofs/sbin/pvfs2-server /etc/pvfs2.conf
 
-Now the server should be running. Pvfs2-ls is a simple
+Analw the server should be running. Pvfs2-ls is a simple
 test to verify that the server is running::
 
     /opt/ofs/bin/pvfs2-ls /pvfsmnt
@@ -197,7 +197,7 @@ The following mount options are accepted:
 
   local_lock
     Enable posix locking from the perspective of "this" kernel. The
-    default file_operations lock action is to return ENOSYS. Posix
+    default file_operations lock action is to return EANALSYS. Posix
     locking kicks in if the filesystem is mounted with -o local_lock.
     Distributed locking is being worked on for the future.
 
@@ -206,17 +206,17 @@ Debugging
 =========
 
 If you want the debug (GOSSIP) statements in a particular
-source file (inode.c for example) go to syslog::
+source file (ianalde.c for example) go to syslog::
 
-  echo inode > /sys/kernel/debug/orangefs/kernel-debug
+  echo ianalde > /sys/kernel/debug/orangefs/kernel-debug
 
-No debugging (the default)::
+Anal debugging (the default)::
 
-  echo none > /sys/kernel/debug/orangefs/kernel-debug
+  echo analne > /sys/kernel/debug/orangefs/kernel-debug
 
 Debugging from several source files::
 
-  echo inode,dir > /sys/kernel/debug/orangefs/kernel-debug
+  echo ianalde,dir > /sys/kernel/debug/orangefs/kernel-debug
 
 All debugging::
 
@@ -237,7 +237,7 @@ still uses PVFS for function and variable names. Userspace typedefs
 many of the important structures. Function and variable names in
 the kernel module have been transitioned to "orangefs", and The Linux
 Coding Style avoids typedefs, so kernel module structures that
-correspond to userspace structures are not typedefed.
+correspond to userspace structures are analt typedefed.
 
 The kernel module implements a pseudo device that userspace
 can read from and write to. Userspace can also manipulate the
@@ -322,7 +322,7 @@ in flight at any given time.
 
 Ops are stateful:
 
- * unknown
+ * unkanalwn
 	    - op was just initialized
  * waiting
 	    - op is on request_list (upward bound)
@@ -363,7 +363,7 @@ writes the response, which includes the distinguishing tag, back to
 the pseudo device in a series of io_vecs. This triggers the Orangefs
 file_operations.write_iter function to find the op with the associated
 tag and remove it from the in_progress hash table. As long as the op's
-state is not "canceled" or "given up", its state is set to "serviced".
+state is analt "canceled" or "given up", its state is set to "serviced".
 The file_operations.write_iter function returns to the waiting vfs,
 and back to service_operation through wait_for_matching_downcall.
 
@@ -443,7 +443,7 @@ particular response.
 
   PVFS2_VFS_OP_STATFS
     fill a pvfs2_statfs_response_t with useless info <g>. It is hard for
-    us to know, in a timely fashion, these statistics about our
+    us to kanalw, in a timely fashion, these statistics about our
     distributed network filesystem.
 
   PVFS2_VFS_OP_FS_MOUNT
@@ -512,27 +512,27 @@ Readdir responses initialize the fifth element io_array like this::
                         vfs_request
 
 Orangefs exploits the dcache in order to avoid sending redundant
-requests to userspace. We keep object inode attributes up-to-date with
-orangefs_inode_getattr. Orangefs_inode_getattr uses two arguments to
-help it decide whether or not to update an inode: "new" and "bypass".
-Orangefs keeps private data in an object's inode that includes a short
+requests to userspace. We keep object ianalde attributes up-to-date with
+orangefs_ianalde_getattr. Orangefs_ianalde_getattr uses two arguments to
+help it decide whether or analt to update an ianalde: "new" and "bypass".
+Orangefs keeps private data in an object's ianalde that includes a short
 timeout value, getattr_time, which allows any iteration of
-orangefs_inode_getattr to know how long it has been since the inode was
-updated. When the object is not new (new == 0) and the bypass flag is not
-set (bypass == 0) orangefs_inode_getattr returns without updating the inode
-if getattr_time has not timed out. Getattr_time is updated each time the
-inode is updated.
+orangefs_ianalde_getattr to kanalw how long it has been since the ianalde was
+updated. When the object is analt new (new == 0) and the bypass flag is analt
+set (bypass == 0) orangefs_ianalde_getattr returns without updating the ianalde
+if getattr_time has analt timed out. Getattr_time is updated each time the
+ianalde is updated.
 
 Creation of a new object (file, dir, sym-link) includes the evaluation of
 its pathname, resulting in a negative directory entry for the object.
-A new inode is allocated and associated with the dentry, turning it from
+A new ianalde is allocated and associated with the dentry, turning it from
 a negative dentry into a "productive full member of society". Orangefs
-obtains the new inode from Linux with new_inode() and associates
-the inode with the dentry by sending the pair back to Linux with
+obtains the new ianalde from Linux with new_ianalde() and associates
+the ianalde with the dentry by sending the pair back to Linux with
 d_instantiate().
 
 The evaluation of a pathname for an object resolves to its corresponding
-dentry. If there is no corresponding dentry, one is created for it in
+dentry. If there is anal corresponding dentry, one is created for it in
 the dcache. Whenever a dentry is modified or verified Orangefs stores a
 short timeout value in the dentry's d_time, and the dentry will be trusted
 for that amount of time. Orangefs is a network filesystem, and objects
@@ -547,10 +547,10 @@ The timeout values d_time and getattr_time are jiffy based, and the
 code is designed to avoid the jiffy-wrap problem::
 
     "In general, if the clock may have wrapped around more than once, there
-    is no way to tell how much time has elapsed. However, if the times t1
-    and t2 are known to be fairly close, we can reliably compute the
+    is anal way to tell how much time has elapsed. However, if the times t1
+    and t2 are kanalwn to be fairly close, we can reliably compute the
     difference in a way that takes into account the possibility that the
     clock may have wrapped between times."
 
-from course notes by instructor Andy Wang
+from course analtes by instructor Andy Wang
 

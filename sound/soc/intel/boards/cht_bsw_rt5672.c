@@ -58,7 +58,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 
 	codec_dai = snd_soc_card_get_codec_dai(card, CHT_CODEC_DAI);
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found; Unable to set platform clock\n");
+		dev_err(card->dev, "Codec dai analt found; Unable to set platform clock\n");
 		return -EIO;
 	}
 
@@ -67,7 +67,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 			ret = clk_prepare_enable(ctx->mclk);
 			if (ret < 0) {
 				dev_err(card->dev,
-					"could not configure MCLK state");
+					"could analt configure MCLK state");
 				return ret;
 			}
 		}
@@ -111,7 +111,7 @@ static const struct snd_soc_dapm_widget cht_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0,
 			platform_clock_control, SND_SOC_DAPM_PRE_PMU |
 			SND_SOC_DAPM_POST_PMD),
 };
@@ -200,17 +200,17 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		dev_warn(runtime->dev, "Unable to add GPIO mapping table\n");
 
 	/* Select codec ASRC clock source to track I2S1 clock, because codec
-	 * is in slave mode and 100fs I2S format (BCLK = 100 * LRCLK) cannot
+	 * is in slave mode and 100fs I2S format (BCLK = 100 * LRCLK) cananalt
 	 * be supported by RT5672. Otherwise, ASRC will be disabled and cause
-	 * noise.
+	 * analise.
 	 */
 	rt5670_sel_asrc_clk_src(component,
 				RT5670_DA_STEREO_FILTER
-				| RT5670_DA_MONO_L_FILTER
-				| RT5670_DA_MONO_R_FILTER
+				| RT5670_DA_MOANAL_L_FILTER
+				| RT5670_DA_MOANAL_R_FILTER
 				| RT5670_AD_STEREO_FILTER
-				| RT5670_AD_MONO_L_FILTER
-				| RT5670_AD_MONO_R_FILTER,
+				| RT5670_AD_MOANAL_L_FILTER
+				| RT5670_AD_MOANAL_R_FILTER,
 				RT5670_CLK_SEL_I2S1_ASRC);
 
 	if (ctx->use_ssp0) {
@@ -242,12 +242,12 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	if (ctx->mclk) {
 		/*
 		 * The firmware might enable the clock at
-		 * boot (this information may or may not
+		 * boot (this information may or may analt
 		 * be reflected in the enable clock register).
 		 * To change the rate we must disable the clock
 		 * first to cover these cases. Due to common
-		 * clock framework restrictions that do not allow
-		 * to disable a clock that has not been enabled,
+		 * clock framework restrictions that do analt allow
+		 * to disable a clock that has analt been enabled,
 		 * we need to enable the clock first.
 		 */
 		ret = clk_prepare_enable(ctx->mclk);
@@ -292,13 +292,13 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	 * The default mode for the cpu-dai is TDM 4 slot. The default mode
 	 * for the codec-dai is I2S. So we need to either set the cpu-dai to
 	 * I2S mode to match the codec-dai, or set the codec-dai to TDM 4 slot
-	 * (or program both to yet another mode).
-	 * One board, the Lenovo Miix 2 10, uses not 1 but 2 codecs connected
+	 * (or program both to yet aanalther mode).
+	 * One board, the Leanalvo Miix 2 10, uses analt 1 but 2 codecs connected
 	 * to SSP2. The second piggy-backed, output-only codec is inside the
 	 * keyboard-dock (which has extra speakers). Unlike the main rt5672
-	 * codec, we cannot configure this codec, it is hard coded to use
+	 * codec, we cananalt configure this codec, it is hard coded to use
 	 * 2 channel 24 bit I2S. For this to work we must use I2S mode on this
-	 * board. Since we only support 2 channels anyways, there is no need
+	 * board. Since we only support 2 channels anyways, there is anal need
 	 * for TDM on any cht-bsw-rt5672 designs. So we use I2S 2ch everywhere.
 	 */
 	ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_cpu(rtd, 0),
@@ -356,7 +356,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -366,7 +366,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &cht_aif1_ops,
@@ -378,7 +378,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		/* SSP2 - Codec */
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.init = cht_codec_init,
 		.be_hw_params_fixup = cht_codec_fixup,
 		.dpcm_playback = 1,
@@ -460,7 +460,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(drv->codec_name, RT5672_I2C_DEFAULT);
 

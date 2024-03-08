@@ -31,18 +31,18 @@ struct ucsi_dp {
 };
 
 /*
- * Note. Alternate mode control is optional feature in UCSI. It means that even
- * if the system supports alternate modes, the OS may not be aware of them.
+ * Analte. Alternate mode control is optional feature in UCSI. It means that even
+ * if the system supports alternate modes, the OS may analt be aware of them.
  *
  * In most cases however, the OS will be able to see the supported alternate
- * modes, but it may still not be able to configure them, not even enter or exit
+ * modes, but it may still analt be able to configure them, analt even enter or exit
  * them. That is because UCSI defines alt mode details and alt mode "overriding"
  * as separate options.
  *
- * In case alt mode details are supported, but overriding is not, the driver
+ * In case alt mode details are supported, but overriding is analt, the driver
  * will still display the supported pin assignments and configuration, but any
  * changes the user attempts to do will lead into failure with return value of
- * -EOPNOTSUPP.
+ * -EOPANALTSUPP.
  */
 
 static int ucsi_displayport_enter(struct typec_altmode *alt, u32 *vdo)
@@ -61,7 +61,7 @@ static int ucsi_displayport_enter(struct typec_altmode *alt, u32 *vdo)
 
 		dev_warn(&p->dev,
 			 "firmware doesn't support alternate mode overriding\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_unlock;
 	}
 
@@ -80,7 +80,7 @@ static int ucsi_displayport_enter(struct typec_altmode *alt, u32 *vdo)
 
 	/*
 	 * We can't send the New CAM command yet to the PPM as it needs the
-	 * configuration value as well. Pretending that we have now entered the
+	 * configuration value as well. Pretending that we have analw entered the
 	 * mode, and letting the alt mode driver continue.
 	 */
 
@@ -119,7 +119,7 @@ static int ucsi_displayport_exit(struct typec_altmode *alt)
 
 		dev_warn(&p->dev,
 			 "firmware doesn't support alternate mode overriding\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out_unlock;
 	}
 
@@ -150,7 +150,7 @@ out_unlock:
 }
 
 /*
- * We do not actually have access to the Status Update VDO, so we have to guess
+ * We do analt actually have access to the Status Update VDO, so we have to guess
  * things.
  */
 static int ucsi_displayport_status_update(struct ucsi_dp *dp)
@@ -210,7 +210,7 @@ static int ucsi_displayport_vdm(struct typec_altmode *alt,
 		dev_warn(&p->dev,
 			 "firmware doesn't support alternate mode overriding\n");
 		mutex_unlock(&dp->con->lock);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	svdm_version = typec_altmode_get_svdm_version(alt);
@@ -328,7 +328,7 @@ struct typec_altmode *ucsi_register_displayport(struct ucsi_connector *con,
 	dp = devm_kzalloc(&alt->dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp) {
 		typec_unregister_altmode(alt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	INIT_WORK(&dp->work, ucsi_displayport_work);

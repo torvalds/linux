@@ -13,8 +13,8 @@ void call_using_br_x16(void (*)(void));
 void call_using_blr(void (*)(void));
 
 /* Test stubs: */
-void nohint_func(void);
-void bti_none_func(void);
+void analhint_func(void);
+void bti_analne_func(void);
 void bti_c_func(void);
 void bti_j_func(void);
 void bti_jc_func(void);

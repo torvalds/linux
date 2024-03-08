@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -106,7 +106,7 @@ struct vmw_stdu_update_gb_image {
  * @display_srf: surface to be displayed.  The dimension of this will always
  *               match the display mode.  If the display mode matches
  *               content_vfbs dimensions, then this is a pointer into the
- *               corresponding field in content_vfbs.  If not, then this
+ *               corresponding field in content_vfbs.  If analt, then this
  *               is a separate buffer to which content_vfbs will blit to.
  * @content_fb_type: content_fb type
  * @display_width:  display width
@@ -173,7 +173,7 @@ static int vmw_stdu_define_st(struct vmw_private *dev_priv,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id   = SVGA_3D_CMD_DEFINE_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -222,7 +222,7 @@ static int vmw_stdu_bind_st(struct vmw_private *dev_priv,
 
 
 	if (!stdu->defined) {
-		DRM_ERROR("No screen target defined\n");
+		DRM_ERROR("Anal screen target defined\n");
 		return -EINVAL;
 	}
 
@@ -232,7 +232,7 @@ static int vmw_stdu_bind_st(struct vmw_private *dev_priv,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id   = SVGA_3D_CMD_BIND_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -290,13 +290,13 @@ static int vmw_stdu_update_st(struct vmw_private *dev_priv,
 	struct vmw_stdu_update *cmd;
 
 	if (!stdu->defined) {
-		DRM_ERROR("No screen target defined");
+		DRM_ERROR("Anal screen target defined");
 		return -EINVAL;
 	}
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vmw_stdu_populate_update(cmd, stdu->base.unit,
 				 0, stdu->display_width,
@@ -326,13 +326,13 @@ static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 	} *cmd;
 
 
-	/* Nothing to do if not successfully defined */
+	/* Analthing to do if analt successfully defined */
 	if (unlikely(!stdu->defined))
 		return 0;
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id   = SVGA_3D_CMD_DESTROY_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -355,14 +355,14 @@ static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 
 
 /**
- * vmw_stdu_crtc_mode_set_nofb - Updates screen target size
+ * vmw_stdu_crtc_mode_set_analfb - Updates screen target size
  *
  * @crtc: CRTC associated with the screen target
  *
  * This function defines/destroys a screen target
  *
  */
-static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void vmw_stdu_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
@@ -479,7 +479,7 @@ static void vmw_stdu_bo_cpu_clip(struct vmw_kms_dirty *dirty)
  *
  * @dirty: The closure structure.
  *
- * For the special case when we cannot create a proxy surface in a
+ * For the special case when we cananalt create a proxy surface in a
  * 2D VM, we have to do a CPU blit ourselves.
  */
 static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
@@ -533,7 +533,7 @@ static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
  * @increment: Increment to use when looping over @clips or @vclips.
  * @crtc: If crtc is passed, perform stdu dma on that crtc only.
  *
- * If DMA-ing till the screen target system, the function will also notify
+ * If DMA-ing till the screen target system, the function will also analtify
  * the screen target system that a bounding box of the cliprects has been
  * updated.
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
@@ -559,7 +559,7 @@ int vmw_kms_stdu_readback(struct vmw_private *dev_priv,
 	 * The GMR domain might seem confusing because it might seem like it should
 	 * never happen with screen targets but e.g. the xorg vmware driver issues
 	 * CMD_SURFACE_DMA for various pixmap updates which might transition our bo to
-	 * a GMR. Instead of forcing another transition we can optimize the readback
+	 * a GMR. Instead of forcing aanalther transition we can optimize the readback
 	 * by reading directly from the GMR.
 	 */
 	vmw_bo_placement_set(buf,
@@ -698,7 +698,7 @@ static void vmw_kms_stdu_surface_fifo_commit(struct vmw_kms_dirty *dirty)
  * @dest_y: Y coordinate offset to align @srf with framebuffer coordinates.
  * @num_clips: Number of clip rects in @clips.
  * @inc: Increment to use when looping over @clips.
- * @out_fence: If non-NULL, will return a ref-counted pointer to a
+ * @out_fence: If analn-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
  * @crtc: If crtc is passed, perform surface dirty on that crtc only.
@@ -726,7 +726,7 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 	if (!srf)
 		srf = &vfbs->surface->res;
 
-	ret = vmw_validation_add_resource(&val_ctx, srf, 0, VMW_RES_DIRTY_NONE,
+	ret = vmw_validation_add_resource(&val_ctx, srf, 0, VMW_RES_DIRTY_ANALNE,
 					  NULL, NULL);
 	if (ret)
 		return ret;
@@ -791,7 +791,7 @@ static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
  * @encoder: used the get the containing STDU
  *
  * vmwgfx cleans up crtc/encoder/connector all at the same time so technically
- * this can be a no-op.  Nevertheless, it doesn't hurt of have this in case
+ * this can be a anal-op.  Nevertheless, it doesn't hurt of have this in case
  * the common KMS code changes and somehow vmw_stdu_crtc_destroy() doesn't
  * get called.
  */
@@ -816,7 +816,7 @@ static const struct drm_encoder_funcs vmw_stdu_encoder_funcs = {
  * @connector: used to get the containing STDU
  *
  * vmwgfx cleans up crtc/encoder/connector all at the same time so technically
- * this can be a no-op.  Nevertheless, it doesn't hurt of have this in case
+ * this can be a anal-op.  Nevertheless, it doesn't hurt of have this in case
  * the common KMS code changes and somehow vmw_stdu_crtc_destroy() doesn't
  * get called.
  */
@@ -902,7 +902,7 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	uint32_t hdisplay = new_state->crtc_w, vdisplay = new_state->crtc_h;
 	int ret;
 
-	/* No FB to prepare */
+	/* Anal FB to prepare */
 	if (!new_fb) {
 		if (vps->surf) {
 			WARN_ON(vps->pinned != 0);
@@ -953,7 +953,7 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 
 			metadata.mip_levels[0] = 1;
 			metadata.num_sizes = 1;
-			metadata.scanout = true;
+			metadata.scaanalut = true;
 		} else {
 			metadata = new_vfbs->surface->metadata;
 		}
@@ -1126,7 +1126,7 @@ vmw_stdu_bo_populate_update_cpu(struct vmw_du_update_plane  *update, void *cmd,
  * @plane: plane state.
  * @old_state: old plane state.
  * @vfb: framebuffer which is blitted to display unit.
- * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ * @out_fence: If analn-NULL, will return a ref-counted pointer to vmw_fence_obj.
  *             The returned fence pointer may be NULL in which case the device
  *             has already synchronized.
  *
@@ -1289,7 +1289,7 @@ vmw_stdu_surface_populate_update(struct vmw_du_update_plane  *update, void *cmd,
  * @plane: Plane state
  * @old_state: Old plane state
  * @vfb: Framebuffer which is blitted to display unit
- * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ * @out_fence: If analn-NULL, will return a ref-counted pointer to vmw_fence_obj.
  *             The returned fence pointer may be NULL in which case the device
  *             has already synchronized.
  *
@@ -1447,7 +1447,7 @@ drm_plane_helper_funcs vmw_stdu_primary_plane_helper_funcs = {
 
 static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
 	.prepare = vmw_stdu_crtc_helper_prepare,
-	.mode_set_nofb = vmw_stdu_crtc_mode_set_nofb,
+	.mode_set_analfb = vmw_stdu_crtc_mode_set_analfb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
@@ -1463,7 +1463,7 @@ static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
  * @unit: unit number range from 0 to VMWGFX_NUM_DISPLAY_UNITS
  *
  * This function is called once per CRTC, and allocates one Screen Target
- * display unit to represent that CRTC.  Since the SVGA device does not separate
+ * display unit to represent that CRTC.  Since the SVGA device does analt separate
  * out encoder and connector, they are represented as part of the STDU as well.
  */
 static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
@@ -1479,7 +1479,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 
 	stdu = kzalloc(sizeof(*stdu), GFP_KERNEL);
 	if (!stdu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stdu->base.unit = unit;
 	crtc = &stdu->base.crtc;
@@ -1621,12 +1621,12 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 	int i, ret;
 
 
-	/* Do nothing if there's no support for MOBs */
+	/* Do analthing if there's anal support for MOBs */
 	if (!dev_priv->has_mob)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_GBOBJECTS))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	dev_priv->active_display_unit = vmw_du_screen_target;
 

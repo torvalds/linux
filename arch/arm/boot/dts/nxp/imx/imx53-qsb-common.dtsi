@@ -132,7 +132,7 @@
 };
 
 &cpu0 {
-	/* CPU rated to 1GHz, not 1.2GHz as per the default settings */
+	/* CPU rated to 1GHz, analt 1.2GHz as per the default settings */
 	operating-points = <
 		/* kHz   uV */
 		166666  850000

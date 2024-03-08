@@ -110,7 +110,7 @@ static int da9052_backlight_probe(struct platform_device *pdev)
 
 	wleds = devm_kzalloc(&pdev->dev, sizeof(struct da9052_bl), GFP_KERNEL);
 	if (!wleds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wleds->da9052 = dev_get_drvdata(pdev->dev.parent);
 	wleds->brightness = 0;

@@ -2,16 +2,16 @@
 
 Required properties:
 - compatible: must be "brcm,iproc-touchscreen"
-- ts_syscon: handler of syscon node defining physical base
+- ts_syscon: handler of syscon analde defining physical base
   address of the controller and length of memory mapped region.
   If this property is selected please make sure MFD_SYSCON config
   is enabled in the defconfig file.
 - clocks:  The clock provided by the SOC to driver the tsc
 - clock-names:  name for the clock
 - interrupts: The touchscreen controller's interrupt
-- address-cells: Specify the number of u32 entries needed in child nodes.
+- address-cells: Specify the number of u32 entries needed in child analdes.
   Should set to 1.
-- size-cells: Specify number of u32 entries needed to specify child nodes size
+- size-cells: Specify number of u32 entries needed to specify child analdes size
   in reg property. Should set to 1.
 
 Optional properties:
@@ -34,7 +34,7 @@ Optional properties:
                    10 =  5.12 ms
                    11 = 10.24 ms
 - touch_timeout: The continuous number of scan periods in which touch is
-                not detected before the controller returns to idle state.
+                analt detected before the controller returns to idle state.
                 Valid values 0-255.
 - average_data: Number of data samples which are averaged before a final
                 data point is placed into the FIFO
@@ -52,14 +52,14 @@ Optional properties:
                 Valid values 0-31
 - touchscreen-size-x: horizontal resolution of touchscreen (in pixels)
 - touchscreen-size-y: vertical resolution of touchscreen (in pixels)
-- touchscreen-fuzz-x: horizontal noise value of the absolute input
+- touchscreen-fuzz-x: horizontal analise value of the absolute input
                       device (in pixels)
-- touchscreen-fuzz-y: vertical noise value of the absolute input
+- touchscreen-fuzz-y: vertical analise value of the absolute input
                       device (in pixels)
 - touchscreen-inverted-x: X axis is inverted (boolean)
 - touchscreen-inverted-y: Y axis is inverted (boolean)
 
-Example: An example of touchscreen node
+Example: An example of touchscreen analde
 
 	ts_adc_syscon: ts_adc_syscon@180a6000 {
 		compatible = "brcm,iproc-ts-adc-syscon","syscon";

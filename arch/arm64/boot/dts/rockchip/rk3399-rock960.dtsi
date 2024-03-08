@@ -416,15 +416,15 @@
 &pinctrl {
 	bt {
 		bt_enable_h: bt-enable-h {
-			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
-			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_l: bt-wake-l {
-			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -444,7 +444,7 @@
 
 		sdmmc_clk: sdmmc-clk {
 			rockchip,pins =
-				<4 RK_PB4 1 &pcfg_pull_none_18ma>;
+				<4 RK_PB4 1 &pcfg_pull_analne_18ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
@@ -469,7 +469,7 @@
 
 		sdio0_clk: sdio0-clk {
 			rockchip,pins =
-				<2 RK_PD1 1 &pcfg_pull_none_20ma>;
+				<2 RK_PD1 1 &pcfg_pull_analne_20ma>;
 		};
 	};
 
@@ -493,13 +493,13 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	wifi {
 		wifi_host_wake_l: wifi-host-wake-l {
-			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -519,7 +519,7 @@
 	cap-sd-highspeed;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
 	sd-uhs-sdr104;
@@ -542,7 +542,7 @@
 	bus-width = <8>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

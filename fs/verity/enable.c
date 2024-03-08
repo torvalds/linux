@@ -19,7 +19,7 @@ struct block_buffer {
 };
 
 /* Hash a block, writing the result to the next level's pending block buffer. */
-static int hash_one_block(struct inode *inode,
+static int hash_one_block(struct ianalde *ianalde,
 			  const struct merkle_tree_params *params,
 			  struct block_buffer *cur)
 {
@@ -37,7 +37,7 @@ static int hash_one_block(struct inode *inode,
 	/* Zero-pad the block if it's shorter than the block size. */
 	memset(&cur->data[cur->filled], 0, params->block_size - cur->filled);
 
-	err = fsverity_hash_block(params, inode, cur->data,
+	err = fsverity_hash_block(params, ianalde, cur->data,
 				  &next->data[next->filled]);
 	if (err)
 		return err;
@@ -46,17 +46,17 @@ static int hash_one_block(struct inode *inode,
 	return 0;
 }
 
-static int write_merkle_tree_block(struct inode *inode, const u8 *buf,
+static int write_merkle_tree_block(struct ianalde *ianalde, const u8 *buf,
 				   unsigned long index,
 				   const struct merkle_tree_params *params)
 {
 	u64 pos = (u64)index << params->log_blocksize;
 	int err;
 
-	err = inode->i_sb->s_vop->write_merkle_tree_block(inode, buf, pos,
+	err = ianalde->i_sb->s_vop->write_merkle_tree_block(ianalde, buf, pos,
 							  params->block_size);
 	if (err)
-		fsverity_err(inode, "Error %d writing Merkle tree block %lu",
+		fsverity_err(ianalde, "Error %d writing Merkle tree block %lu",
 			     err, index);
 	return err;
 }
@@ -73,8 +73,8 @@ static int build_merkle_tree(struct file *filp,
 			     const struct merkle_tree_params *params,
 			     u8 *root_hash)
 {
-	struct inode *inode = file_inode(filp);
-	const u64 data_size = inode->i_size;
+	struct ianalde *ianalde = file_ianalde(filp);
+	const u64 data_size = ianalde->i_size;
 	const int num_levels = params->num_levels;
 	struct block_buffer _buffers[1 + FS_VERITY_MAX_LEVELS + 1] = {};
 	struct block_buffer *buffers = &_buffers[1];
@@ -97,7 +97,7 @@ static int build_merkle_tree(struct file *filp,
 	for (level = -1; level < num_levels; level++) {
 		buffers[level].data = kzalloc(params->block_size, GFP_KERNEL);
 		if (!buffers[level].data) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	}
@@ -118,15 +118,15 @@ static int build_merkle_tree(struct file *filp,
 					   buffers[-1].filled, &pos);
 		if (bytes_read < 0) {
 			err = bytes_read;
-			fsverity_err(inode, "Error %d reading file data", err);
+			fsverity_err(ianalde, "Error %d reading file data", err);
 			goto out;
 		}
 		if (bytes_read != buffers[-1].filled) {
 			err = -EINVAL;
-			fsverity_err(inode, "Short read of file data");
+			fsverity_err(ianalde, "Short read of file data");
 			goto out;
 		}
-		err = hash_one_block(inode, params, &buffers[-1]);
+		err = hash_one_block(ianalde, params, &buffers[-1]);
 		if (err)
 			goto out;
 		for (level = 0; level < num_levels; level++) {
@@ -137,10 +137,10 @@ static int build_merkle_tree(struct file *filp,
 			}
 			/* Next block at @level is full */
 
-			err = hash_one_block(inode, params, &buffers[level]);
+			err = hash_one_block(ianalde, params, &buffers[level]);
 			if (err)
 				goto out;
-			err = write_merkle_tree_block(inode,
+			err = write_merkle_tree_block(ianalde,
 						      buffers[level].data,
 						      level_offset[level],
 						      params);
@@ -154,13 +154,13 @@ static int build_merkle_tree(struct file *filp,
 		}
 		cond_resched();
 	}
-	/* Finish all nonempty pending tree blocks. */
+	/* Finish all analnempty pending tree blocks. */
 	for (level = 0; level < num_levels; level++) {
 		if (buffers[level].filled != 0) {
-			err = hash_one_block(inode, params, &buffers[level]);
+			err = hash_one_block(ianalde, params, &buffers[level]);
 			if (err)
 				goto out;
-			err = write_merkle_tree_block(inode,
+			err = write_merkle_tree_block(ianalde,
 						      buffers[level].data,
 						      level_offset[level],
 						      params);
@@ -183,8 +183,8 @@ out:
 static int enable_verity(struct file *filp,
 			 const struct fsverity_enable_arg *arg)
 {
-	struct inode *inode = file_inode(filp);
-	const struct fsverity_operations *vops = inode->i_sb->s_vop;
+	struct ianalde *ianalde = file_ianalde(filp);
+	const struct fsverity_operations *vops = ianalde->i_sb->s_vop;
 	struct merkle_tree_params params = { };
 	struct fsverity_descriptor *desc;
 	size_t desc_size = struct_size(desc, signature, arg->sig_size);
@@ -194,7 +194,7 @@ static int enable_verity(struct file *filp,
 	/* Start initializing the fsverity_descriptor */
 	desc = kzalloc(desc_size, GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 	desc->version = 1;
 	desc->hash_algorithm = arg->hash_algorithm;
 	desc->log_blocksize = ilog2(arg->block_size);
@@ -217,10 +217,10 @@ static int enable_verity(struct file *filp,
 	}
 	desc->sig_size = cpu_to_le32(arg->sig_size);
 
-	desc->data_size = cpu_to_le64(inode->i_size);
+	desc->data_size = cpu_to_le64(ianalde->i_size);
 
 	/* Prepare the Merkle tree parameters */
-	err = fsverity_init_merkle_tree_params(&params, inode,
+	err = fsverity_init_merkle_tree_params(&params, ianalde,
 					       arg->hash_algorithm,
 					       desc->log_blocksize,
 					       desc->salt, desc->salt_size);
@@ -228,31 +228,31 @@ static int enable_verity(struct file *filp,
 		goto out;
 
 	/*
-	 * Start enabling verity on this file, serialized by the inode lock.
+	 * Start enabling verity on this file, serialized by the ianalde lock.
 	 * Fail if verity is already enabled or is already being enabled.
 	 */
-	inode_lock(inode);
-	if (IS_VERITY(inode))
+	ianalde_lock(ianalde);
+	if (IS_VERITY(ianalde))
 		err = -EEXIST;
 	else
 		err = vops->begin_enable_verity(filp);
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	if (err)
 		goto out;
 
 	/*
-	 * Build the Merkle tree.  Don't hold the inode lock during this, since
+	 * Build the Merkle tree.  Don't hold the ianalde lock during this, since
 	 * on huge files this may take a very long time and we don't want to
 	 * force unrelated syscalls like chown() to block forever.  We don't
-	 * need the inode lock here because deny_write_access() already prevents
+	 * need the ianalde lock here because deny_write_access() already prevents
 	 * the file from being written to or truncated, and we still serialize
-	 * ->begin_enable_verity() and ->end_enable_verity() using the inode
+	 * ->begin_enable_verity() and ->end_enable_verity() using the ianalde
 	 * lock and only allow one process to be here at a time on a given file.
 	 */
 	BUILD_BUG_ON(sizeof(desc->root_hash) < FS_VERITY_MAX_DIGEST_SIZE);
 	err = build_merkle_tree(filp, &params, desc->root_hash);
 	if (err) {
-		fsverity_err(inode, "Error %d building Merkle tree", err);
+		fsverity_err(ianalde, "Error %d building Merkle tree", err);
 		goto rollback;
 	}
 
@@ -263,7 +263,7 @@ static int enable_verity(struct file *filp,
 	 * from disk.  This is simpler, and it serves as an extra check that the
 	 * metadata we're writing is valid before actually enabling verity.
 	 */
-	vi = fsverity_create_info(inode, desc);
+	vi = fsverity_create_info(ianalde, desc);
 	if (IS_ERR(vi)) {
 		err = PTR_ERR(vi);
 		goto rollback;
@@ -271,16 +271,16 @@ static int enable_verity(struct file *filp,
 
 	/*
 	 * Tell the filesystem to finish enabling verity on the file.
-	 * Serialized with ->begin_enable_verity() by the inode lock.
+	 * Serialized with ->begin_enable_verity() by the ianalde lock.
 	 */
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	err = vops->end_enable_verity(filp, desc, desc_size, params.tree_size);
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	if (err) {
-		fsverity_err(inode, "%ps() failed with err %d",
+		fsverity_err(ianalde, "%ps() failed with err %d",
 			     vops->end_enable_verity, err);
 		fsverity_free_info(vi);
-	} else if (WARN_ON_ONCE(!IS_VERITY(inode))) {
+	} else if (WARN_ON_ONCE(!IS_VERITY(ianalde))) {
 		err = -EINVAL;
 		fsverity_free_info(vi);
 	} else {
@@ -291,7 +291,7 @@ static int enable_verity(struct file *filp,
 		 * can't be rolled back once set.  So don't set it until just
 		 * after the filesystem has successfully enabled verity.
 		 */
-		fsverity_set_info(inode, vi);
+		fsverity_set_info(ianalde, vi);
 	}
 out:
 	kfree(params.hashstate);
@@ -299,9 +299,9 @@ out:
 	return err;
 
 rollback:
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	(void)vops->end_enable_verity(filp, NULL, 0, params.tree_size);
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	goto out;
 }
 
@@ -313,11 +313,11 @@ rollback:
  * Enable fs-verity on a file.  See the "FS_IOC_ENABLE_VERITY" section of
  * Documentation/filesystems/fsverity.rst for the documentation.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	struct fsverity_enable_arg arg;
 	int err;
 
@@ -343,7 +343,7 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	/*
 	 * Require a regular file with write access.  But the actual fd must
 	 * still be readonly so that we can lock out all writers.  This is
-	 * needed to guarantee that no writable fds exist to the file once it
+	 * needed to guarantee that anal writable fds exist to the file once it
 	 * has verity enabled, and to stabilize the data being hashed.
 	 */
 
@@ -353,18 +353,18 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	/*
 	 * __kernel_read() is used while building the Merkle tree.  So, we can't
 	 * allow file descriptors that were opened for ioctl access only, using
-	 * the special nonstandard access mode 3.  O_RDONLY only, please!
+	 * the special analnstandard access mode 3.  O_RDONLY only, please!
 	 */
 	if (!(filp->f_mode & FMODE_READ))
 		return -EBADF;
 
-	if (IS_APPEND(inode))
+	if (IS_APPEND(ianalde))
 		return -EPERM;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		return -EISDIR;
 
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(ianalde->i_mode))
 		return -EINVAL;
 
 	err = mnt_want_write_file(filp);
@@ -378,7 +378,7 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	err = enable_verity(filp, &arg);
 
 	/*
-	 * We no longer drop the inode's pagecache after enabling verity.  This
+	 * We anal longer drop the ianalde's pagecache after enabling verity.  This
 	 * used to be done to try to avoid a race condition where pages could be
 	 * evicted after being used in the Merkle tree construction, then
 	 * re-instantiated by a concurrent read.  Such pages are unverified, and
@@ -390,7 +390,7 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	 * and also because this race condition isn't very important relatively
 	 * speaking (especially for small-ish files, where the chance of a page
 	 * being used, evicted, *and* re-instantiated all while enabling verity
-	 * is quite small), we no longer drop the inode's pagecache.
+	 * is quite small), we anal longer drop the ianalde's pagecache.
 	 */
 
 	/*

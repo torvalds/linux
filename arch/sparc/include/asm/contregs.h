@@ -12,10 +12,10 @@
 #define AC_M_PCR      0x0000        /* shv Processor Control Reg             */
 #define AC_M_CTPR     0x0100        /* shv Context Table Pointer Reg         */
 #define AC_M_CXR      0x0200        /* shv Context Register                  */
-#define AC_M_SFSR     0x0300        /* shv Synchronous Fault Status Reg      */
-#define AC_M_SFAR     0x0400        /* shv Synchronous Fault Address Reg     */
-#define AC_M_AFSR     0x0500        /*  hv Asynchronous Fault Status Reg     */
-#define AC_M_AFAR     0x0600        /*  hv Asynchronous Fault Address Reg    */
+#define AC_M_SFSR     0x0300        /* shv Synchroanalus Fault Status Reg      */
+#define AC_M_SFAR     0x0400        /* shv Synchroanalus Fault Address Reg     */
+#define AC_M_AFSR     0x0500        /*  hv Asynchroanalus Fault Status Reg     */
+#define AC_M_AFAR     0x0600        /*  hv Asynchroanalus Fault Address Reg    */
 #define AC_M_RESET    0x0700        /*  hv Reset Reg                         */
 #define AC_M_RPR      0x1000        /*  hv Root Pointer Reg                  */
 #define AC_M_TSUTRCR  0x1000        /* s   TLB Replacement Ctrl Reg          */

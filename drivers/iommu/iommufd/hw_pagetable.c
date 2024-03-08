@@ -111,9 +111,9 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	lockdep_assert_held(&ioas->mutex);
 
 	if ((flags || user_data) && !ops->domain_alloc_user)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	if (flags & ~valid_flags)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	hwpt_paging = __iommufd_object_alloc(
 		ictx, hwpt_paging, IOMMUFD_OBJ_HWPT_PAGING, common.obj);
@@ -139,7 +139,7 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	} else {
 		hwpt->domain = iommu_domain_alloc(idev->dev->bus);
 		if (!hwpt->domain) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_abort;
 		}
 	}
@@ -152,11 +152,11 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	 * a new domain.
 	 *
 	 * The cache coherency mode must be configured here and unchanged later.
-	 * Note that a HWPT (non-CC) created for a device (non-CC) can be later
-	 * reused by another device (either non-CC or CC). However, A HWPT (CC)
-	 * created for a device (CC) cannot be reused by another device (non-CC)
+	 * Analte that a HWPT (analn-CC) created for a device (analn-CC) can be later
+	 * reused by aanalther device (either analn-CC or CC). However, A HWPT (CC)
+	 * created for a device (CC) cananalt be reused by aanalther device (analn-CC)
 	 * but only devices (CC). Instead user space in this case would need to
-	 * allocate a separate HWPT (non-CC).
+	 * allocate a separate HWPT (analn-CC).
 	 */
 	if (idev->enforce_cache_coherency) {
 		rc = iommufd_hwpt_paging_enforce_cc(hwpt_paging);
@@ -165,8 +165,8 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	}
 
 	/*
-	 * immediate_attach exists only to accommodate iommu drivers that cannot
-	 * directly allocate a domain. These drivers do not finish creating the
+	 * immediate_attach exists only to accommodate iommu drivers that cananalt
+	 * directly allocate a domain. These drivers do analt finish creating the
 	 * domain until attach is completed. Thus we must have this call
 	 * sequence. Once those drivers are fixed this should be removed.
 	 */
@@ -214,7 +214,7 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 	int rc;
 
 	if (flags || !user_data->len || !ops->domain_alloc_user)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	if (parent->auto_domain || !parent->nest_parent)
 		return ERR_PTR(-EINVAL);
 
@@ -262,9 +262,9 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	int rc;
 
 	if (cmd->__reserved)
-		return -EOPNOTSUPP;
-	if ((cmd->data_type == IOMMU_HWPT_DATA_NONE && cmd->data_len) ||
-	    (cmd->data_type != IOMMU_HWPT_DATA_NONE && !cmd->data_len))
+		return -EOPANALTSUPP;
+	if ((cmd->data_type == IOMMU_HWPT_DATA_ANALNE && cmd->data_len) ||
+	    (cmd->data_type != IOMMU_HWPT_DATA_ANALNE && !cmd->data_len))
 		return -EINVAL;
 
 	idev = iommufd_get_device(ucmd, cmd->dev_id);
@@ -332,7 +332,7 @@ int iommufd_hwpt_set_dirty_tracking(struct iommufd_ucmd *ucmd)
 	struct iommu_hwpt_set_dirty_tracking *cmd = ucmd->cmd;
 	struct iommufd_hwpt_paging *hwpt_paging;
 	struct iommufd_ioas *ioas;
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 	bool enable;
 
 	if (cmd->flags & ~IOMMU_HWPT_DIRTY_TRACKING_ENABLE)
@@ -357,11 +357,11 @@ int iommufd_hwpt_get_dirty_bitmap(struct iommufd_ucmd *ucmd)
 	struct iommu_hwpt_get_dirty_bitmap *cmd = ucmd->cmd;
 	struct iommufd_hwpt_paging *hwpt_paging;
 	struct iommufd_ioas *ioas;
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
-	if ((cmd->flags & ~(IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR)) ||
+	if ((cmd->flags & ~(IOMMU_HWPT_GET_DIRTY_BITMAP_ANAL_CLEAR)) ||
 	    cmd->__reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	hwpt_paging = iommufd_get_hwpt_paging(ucmd, cmd->hwpt_id);
 	if (IS_ERR(hwpt_paging))
@@ -389,7 +389,7 @@ int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
 	int rc;
 
 	if (cmd->__reserved) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out;
 	}
 

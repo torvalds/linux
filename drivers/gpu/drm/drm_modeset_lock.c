@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -63,7 +63,7 @@
  * where all modeset locks need to be taken through drm_modeset_lock_all_ctx().
  *
  * If all that is needed is a single modeset lock, then the &struct
- * drm_modeset_acquire_ctx is not needed and the locking can be simplified
+ * drm_modeset_acquire_ctx is analt needed and the locking can be simplified
  * by passing a NULL instead of ctx in the drm_modeset_lock() call or
  * calling  drm_modeset_lock_single_interruptible(). To unlock afterwards
  * call drm_modeset_unlock().
@@ -79,14 +79,14 @@
 static DEFINE_WW_CLASS(crtc_ww_class);
 
 #if IS_ENABLED(CONFIG_DRM_DEBUG_MODESET_LOCK)
-static noinline depot_stack_handle_t __drm_stack_depot_save(void)
+static analinline depot_stack_handle_t __drm_stack_depot_save(void)
 {
 	unsigned long entries[8];
 	unsigned int n;
 
 	n = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
 
-	return stack_depot_save(entries, n, GFP_NOWAIT | __GFP_NOWARN);
+	return stack_depot_save(entries, n, GFP_ANALWAIT | __GFP_ANALWARN);
 }
 
 static void __drm_stack_depot_print(depot_stack_handle_t stack_depot)
@@ -96,7 +96,7 @@ static void __drm_stack_depot_print(depot_stack_handle_t stack_depot)
 	unsigned int nr_entries;
 	char *buf;
 
-	buf = kmalloc(PAGE_SIZE, GFP_NOWAIT | __GFP_NOWARN);
+	buf = kmalloc(PAGE_SIZE, GFP_ANALWAIT | __GFP_ANALWARN);
 	if (!buf)
 		return;
 
@@ -137,7 +137,7 @@ static void __drm_stack_depot_init(void)
  * stores it in &drm_device.mode_config. This facilitate conversion of
  * existing code because it removes the need to manually deal with the
  * acquisition context, but it is also brittle because the context is global
- * and care must be taken not to nest calls. New code should use the
+ * and care must be taken analt to nest calls. New code should use the
  * drm_modeset_lock_all_ctx() function and pass in the context explicitly.
  */
 void drm_modeset_lock_all(struct drm_device *dev)
@@ -146,7 +146,7 @@ void drm_modeset_lock_all(struct drm_device *dev)
 	struct drm_modeset_acquire_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL | __GFP_NOFAIL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL | __GFP_ANALFAIL);
 	if (WARN_ON(!ctx))
 		return;
 
@@ -171,12 +171,12 @@ retry:
 	WARN_ON(config->acquire_ctx);
 
 	/*
-	 * We hold the locks now, so it is safe to stash the acquisition
+	 * We hold the locks analw, so it is safe to stash the acquisition
 	 * context for drm_modeset_unlock_all().
 	 */
 	config->acquire_ctx = ctx;
 
-	drm_warn_on_modeset_not_all_locked(dev);
+	drm_warn_on_modeset_analt_all_locked(dev);
 }
 EXPORT_SYMBOL(drm_modeset_lock_all);
 
@@ -191,7 +191,7 @@ EXPORT_SYMBOL(drm_modeset_lock_all);
  * in &drm_device.mode_config. This facilitates conversion of existing
  * code because it removes the need to manually deal with the acquisition
  * context, but it is also brittle because the context is global and care must
- * be taken not to nest calls. New code should pass the acquisition context
+ * be taken analt to nest calls. New code should pass the acquisition context
  * directly to the drm_modeset_drop_locks() function.
  */
 void drm_modeset_unlock_all(struct drm_device *dev)
@@ -213,12 +213,12 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 EXPORT_SYMBOL(drm_modeset_unlock_all);
 
 /**
- * drm_warn_on_modeset_not_all_locked - check that all modeset locks are locked
+ * drm_warn_on_modeset_analt_all_locked - check that all modeset locks are locked
  * @dev: device
  *
  * Useful as a debug assert.
  */
-void drm_warn_on_modeset_not_all_locked(struct drm_device *dev)
+void drm_warn_on_modeset_analt_all_locked(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
 
@@ -232,7 +232,7 @@ void drm_warn_on_modeset_not_all_locked(struct drm_device *dev)
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 }
-EXPORT_SYMBOL(drm_warn_on_modeset_not_all_locked);
+EXPORT_SYMBOL(drm_warn_on_modeset_analt_all_locked);
 
 /**
  * drm_modeset_acquire_init - initialize acquire context
@@ -320,7 +320,7 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 		/* we already hold the lock.. this is fine.  For atomic
 		 * we will need to be able to drm_modeset_lock() things
 		 * without having to keep track of what is already locked
-		 * or not.
+		 * or analt.
 		 */
 		ret = 0;
 	} else if (ret == -EDEADLK) {
@@ -376,18 +376,18 @@ EXPORT_SYMBOL(drm_modeset_lock_init);
  * @lock: lock to take
  * @ctx: acquire ctx
  *
- * If @ctx is not NULL, then its ww acquire context is used and the
+ * If @ctx is analt NULL, then its ww acquire context is used and the
  * lock will be tracked by the context and can be released by calling
  * drm_modeset_drop_locks().  If -EDEADLK is returned, this means a
  * deadlock scenario has been detected and it is an error to attempt
  * to take any more locks without first calling drm_modeset_backoff().
  *
- * If the @ctx is not NULL and initialized with
+ * If the @ctx is analt NULL and initialized with
  * %DRM_MODESET_ACQUIRE_INTERRUPTIBLE, this function will fail with
  * -ERESTARTSYS when interrupted.
  *
- * If @ctx is NULL then the function call behaves like a normal,
- * uninterruptible non-nesting mutex_lock() call.
+ * If @ctx is NULL then the function call behaves like a analrmal,
+ * uninterruptible analn-nesting mutex_lock() call.
  */
 int drm_modeset_lock(struct drm_modeset_lock *lock,
 		struct drm_modeset_acquire_ctx *ctx)

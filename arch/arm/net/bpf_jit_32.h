@@ -35,14 +35,14 @@
 #define ARM_COND_MI		0x4	/* < 0 */
 #define ARM_COND_PL		0x5	/* >= 0 */
 #define ARM_COND_VS		0x6	/* Signed Overflow */
-#define ARM_COND_VC		0x7	/* No Signed Overflow */
+#define ARM_COND_VC		0x7	/* Anal Signed Overflow */
 #define ARM_COND_HI		0x8	/* unsigned > */
 #define ARM_COND_LS		0x9	/* unsigned <= */
 #define ARM_COND_GE		0xa	/* Signed >= */
 #define ARM_COND_LT		0xb	/* Signed < */
 #define ARM_COND_GT		0xc	/* Signed > */
 #define ARM_COND_LE		0xd	/* Signed <= */
-#define ARM_COND_AL		0xe	/* None */
+#define ARM_COND_AL		0xe	/* Analne */
 
 /* register shift types */
 #define SRTYPE_LSL		0
@@ -149,7 +149,7 @@
 
 /*
  * Use a suitable undefined instruction to use for ARM/Thumb2 faulting.
- * We need to be careful not to conflict with those used by other modules
+ * We need to be careful analt to conflict with those used by other modules
  * (BUG, kprobes, etc) and the register_undef_hook() system.
  *
  * The ARM architecture reference manual guarantees that the following

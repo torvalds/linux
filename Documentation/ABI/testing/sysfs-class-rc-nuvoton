@@ -9,7 +9,7 @@ Description:
 		The same format can be used to store a wakeup sequence
 		in the Nuvoton chip by writing to this file.
 
-		Note: Some systems reset the stored wakeup sequence to a
+		Analte: Some systems reset the stored wakeup sequence to a
 		factory default on each boot. On such systems store the
 		wakeup sequence in a file and set it on boot using e.g.
 		a udev rule.

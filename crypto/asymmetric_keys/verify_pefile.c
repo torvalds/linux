@@ -74,7 +74,7 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 		break;
 
 	default:
-		pr_warn("Unknown PEOPT magic = %04hx\n", pe32->magic);
+		pr_warn("Unkanalwn PEOPT magic = %04hx\n", pe32->magic);
 		return -ELIBBAD;
 	}
 
@@ -96,7 +96,7 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 
 	if (!ddir->certs.virtual_address || !ddir->certs.size) {
 		pr_warn("Unsigned PE binary\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	chkaddr(ctx->header_size, ddir->certs.virtual_address,
@@ -138,7 +138,7 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 	/* sbsign rounds up the length of certificate table (in optional
 	 * header data directories) to 8 byte alignment.  However, the PE
 	 * specification states that while entries are 8-byte aligned, this is
-	 * not included in their length, and as a result, pesign has not
+	 * analt included in their length, and as a result, pesign has analt
 	 * rounded up since 0.110.
 	 */
 	if (wrapper.length > ctx->sig_len) {
@@ -147,12 +147,12 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 		return -ELIBBAD;
 	}
 	if (wrapper.revision != WIN_CERT_REVISION_2_0) {
-		pr_warn("Signature is not revision 2.0\n");
-		return -ENOTSUPP;
+		pr_warn("Signature is analt revision 2.0\n");
+		return -EANALTSUPP;
 	}
 	if (wrapper.cert_type != WIN_CERT_TYPE_PKCS_SIGNED_DATA) {
-		pr_warn("Signature certificate type is not PKCS\n");
-		return -ENOTSUPP;
+		pr_warn("Signature certificate type is analt PKCS\n");
+		return -EANALTSUPP;
 	}
 
 	/* It looks like the pkcs signature length in wrapper->length and the
@@ -171,7 +171,7 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 	/* What's left should be a PKCS#7 cert */
 	pkcs7 = pebuf + ctx->sig_offset;
 	if (pkcs7[0] != (ASN1_CONS_BIT | ASN1_SEQ))
-		goto not_pkcs7;
+		goto analt_pkcs7;
 
 	switch (pkcs7[1]) {
 	case 0 ... 0x7f:
@@ -188,7 +188,7 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 	case 0x83 ... 0xff:
 		return -EMSGSIZE;
 	default:
-		goto not_pkcs7;
+		goto analt_pkcs7;
 	}
 
 check_len:
@@ -197,13 +197,13 @@ check_len:
 		ctx->sig_len = len;
 		return 0;
 	}
-not_pkcs7:
-	pr_warn("Signature data not PKCS#7\n");
+analt_pkcs7:
+	pr_warn("Signature data analt PKCS#7\n");
 	return -ELIBBAD;
 }
 
 /*
- * Compare two sections for canonicalisation.
+ * Compare two sections for caanalnicalisation.
  */
 static int pefile_compare_shdrs(const void *a, const void *b)
 {
@@ -246,7 +246,7 @@ static int pefile_digest_pe_contents(const void *pebuf, unsigned int pelen,
 				     struct pefile_context *ctx,
 				     struct shash_desc *desc)
 {
-	unsigned *canon, tmp, loop, i, hashed_bytes;
+	unsigned *caanaln, tmp, loop, i, hashed_bytes;
 	int ret;
 
 	/* Digest the header and data directory, but leave out the image
@@ -267,41 +267,41 @@ static int pefile_digest_pe_contents(const void *pebuf, unsigned int pelen,
 	if (ret < 0)
 		return ret;
 
-	canon = kcalloc(ctx->n_sections, sizeof(unsigned), GFP_KERNEL);
-	if (!canon)
-		return -ENOMEM;
+	caanaln = kcalloc(ctx->n_sections, sizeof(unsigned), GFP_KERNEL);
+	if (!caanaln)
+		return -EANALMEM;
 
-	/* We have to canonicalise the section table, so we perform an
+	/* We have to caanalnicalise the section table, so we perform an
 	 * insertion sort.
 	 */
-	canon[0] = 0;
+	caanaln[0] = 0;
 	for (loop = 1; loop < ctx->n_sections; loop++) {
 		for (i = 0; i < loop; i++) {
-			if (pefile_compare_shdrs(&ctx->secs[canon[i]],
+			if (pefile_compare_shdrs(&ctx->secs[caanaln[i]],
 						 &ctx->secs[loop]) > 0) {
-				memmove(&canon[i + 1], &canon[i],
-					(loop - i) * sizeof(canon[0]));
+				memmove(&caanaln[i + 1], &caanaln[i],
+					(loop - i) * sizeof(caanaln[0]));
 				break;
 			}
 		}
-		canon[i] = loop;
+		caanaln[i] = loop;
 	}
 
 	hashed_bytes = ctx->header_size;
 	for (loop = 0; loop < ctx->n_sections; loop++) {
-		i = canon[loop];
+		i = caanaln[loop];
 		if (ctx->secs[i].raw_data_size == 0)
 			continue;
 		ret = crypto_shash_update(desc,
 					  pebuf + ctx->secs[i].data_addr,
 					  ctx->secs[i].raw_data_size);
 		if (ret < 0) {
-			kfree(canon);
+			kfree(caanaln);
 			return ret;
 		}
 		hashed_bytes += ctx->secs[i].raw_data_size;
 	}
-	kfree(canon);
+	kfree(caanaln);
 
 	if (pelen > hashed_bytes) {
 		tmp = hashed_bytes + ctx->certs_size;
@@ -335,7 +335,7 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 	 */
 	tfm = crypto_alloc_shash(ctx->digest_algo, 0, 0);
 	if (IS_ERR(tfm))
-		return (PTR_ERR(tfm) == -ENOENT) ? -ENOPKG : PTR_ERR(tfm);
+		return (PTR_ERR(tfm) == -EANALENT) ? -EANALPKG : PTR_ERR(tfm);
 
 	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
 	digest_size = crypto_shash_digestsize(tfm);
@@ -344,14 +344,14 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 		pr_warn("Digest size mismatch (%zx != %x)\n",
 			digest_size, ctx->digest_len);
 		ret = -EBADMSG;
-		goto error_no_desc;
+		goto error_anal_desc;
 	}
 	pr_debug("Digest: desc=%zu size=%zu\n", desc_size, digest_size);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	desc = kzalloc(desc_size + digest_size, GFP_KERNEL);
 	if (!desc)
-		goto error_no_desc;
+		goto error_anal_desc;
 
 	desc->tfm   = tfm;
 	ret = crypto_shash_init(desc);
@@ -381,7 +381,7 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 
 error:
 	kfree_sensitive(desc);
-error_no_desc:
+error_anal_desc:
 	crypto_free_shash(tfm);
 	kleave(" = %d", ret);
 	return ret;
@@ -395,11 +395,11 @@ error_no_desc:
  * @usage: The use to which the key is being put.
  *
  * Validate that the certificate chain inside the PKCS#7 message inside the PE
- * binary image intersects keys we already know and trust.
+ * binary image intersects keys we already kanalw and trust.
  *
  * Returns, in order of descending priority:
  *
- *  (*) -ELIBBAD if the image cannot be parsed, or:
+ *  (*) -ELIBBAD if the image cananalt be parsed, or:
  *
  *  (*) -EKEYREJECTED if a signature failed to match for which we have a valid
  *	key, or:
@@ -407,15 +407,15 @@ error_no_desc:
  *  (*) 0 if at least one signature chain intersects with the keys in the trust
  *	keyring, or:
  *
- *  (*) -ENODATA if there is no signature present.
+ *  (*) -EANALDATA if there is anal signature present.
  *
- *  (*) -ENOPKG if a suitable crypto module couldn't be found for a check on a
+ *  (*) -EANALPKG if a suitable crypto module couldn't be found for a check on a
  *	chain.
  *
- *  (*) -ENOKEY if we couldn't find a match for any of the signature chains in
+ *  (*) -EANALKEY if we couldn't find a match for any of the signature chains in
  *	the message.
  *
- * May also return -ENOMEM.
+ * May also return -EANALMEM.
  */
 int verify_pefile_signature(const void *pebuf, unsigned pelen,
 			    struct key *trusted_keys,

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -1639,8 +1639,8 @@ static int btc_init_smc_table(struct radeon_device *rdev,
 	case THERMAL_TYPE_EMC2103_WITH_INTERNAL:
 		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_INTERNAL;
 		break;
-	case THERMAL_TYPE_NONE:
-		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_NONE;
+	case THERMAL_TYPE_ANALNE:
+		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_ANALNE;
 		break;
 	default:
 		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_EXTERNAL;
@@ -1710,7 +1710,7 @@ static void btc_set_at_for_uvd(struct radeon_device *rdev,
 
 }
 
-void btc_notify_uvd_to_smc(struct radeon_device *rdev,
+void btc_analtify_uvd_to_smc(struct radeon_device *rdev,
 			   struct radeon_ps *radeon_new_state)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
@@ -2022,9 +2022,9 @@ static int btc_initialize_mc_reg_table(struct radeon_device *rdev)
 
 	table = kzalloc(sizeof(struct atom_mc_reg_table), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Program additional LP registers that are no longer programmed by VBIOS */
+	/* Program additional LP registers that are anal longer programmed by VBIOS */
 	WREG32(MC_SEQ_RAS_TIMING_LP, RREG32(MC_SEQ_RAS_TIMING));
 	WREG32(MC_SEQ_CAS_TIMING_LP, RREG32(MC_SEQ_CAS_TIMING));
 	WREG32(MC_SEQ_MISC_TIMING_LP, RREG32(MC_SEQ_MISC_TIMING));
@@ -2313,7 +2313,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
+		cypress_analtify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = rv770_halt_smc(rdev);
@@ -2323,7 +2323,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	}
 	btc_set_at_for_uvd(rdev, new_ps);
 	if (eg_pi->smu_uvd_hs)
-		btc_notify_uvd_to_smc(rdev, new_ps);
+		btc_analtify_uvd_to_smc(rdev, new_ps);
 	ret = cypress_upload_sw_state(rdev, new_ps);
 	if (ret) {
 		DRM_ERROR("cypress_upload_sw_state failed\n");
@@ -2352,7 +2352,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
+		cypress_analtify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
 	ret = btc_set_power_state_conditionally_enable_ulv(rdev, new_ps);
 	if (ret) {
@@ -2458,9 +2458,9 @@ int btc_dpm_enable(struct radeon_device *rdev)
 
 	cypress_program_response_times(rdev);
 	r7xx_start_smc(rdev);
-	ret = cypress_notify_smc_display_change(rdev, false);
+	ret = cypress_analtify_smc_display_change(rdev, false);
 	if (ret) {
-		DRM_ERROR("cypress_notify_smc_display_change failed\n");
+		DRM_ERROR("cypress_analtify_smc_display_change failed\n");
 		return ret;
 	}
 	cypress_enable_sclk_control(rdev, true);
@@ -2556,7 +2556,7 @@ int btc_dpm_init(struct radeon_device *rdev)
 
 	eg_pi = kzalloc(sizeof(struct evergreen_power_info), GFP_KERNEL);
 	if (eg_pi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdev->pm.dpm.priv = eg_pi;
 	pi = &eg_pi->rv7xx;
 
@@ -2585,7 +2585,7 @@ int btc_dpm_init(struct radeon_device *rdev)
 			GFP_KERNEL);
 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
 		r600_free_extended_power_table(rdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.count = 4;
 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[0].clk = 0;
@@ -2656,7 +2656,7 @@ int btc_dpm_init(struct radeon_device *rdev)
 
 	pi->dynamic_pcie_gen2 = true;
 
-	if (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE)
+	if (rdev->pm.int_thermal_type != THERMAL_TYPE_ANALNE)
 		pi->thermal_protection = true;
 	else
 		pi->thermal_protection = false;

@@ -30,7 +30,7 @@
  * Determine initial path cost based on speed.
  * using recommendations from 802.1d standard
  *
- * Since driver might sleep need to not be holding any locks.
+ * Since driver might sleep need to analt be holding any locks.
  */
 static int port_cost(struct net_device *dev)
 {
@@ -50,7 +50,7 @@ static int port_cost(struct net_device *dev)
 			return 19;
 		case SPEED_10:
 			return 100;
-		case SPEED_UNKNOWN:
+		case SPEED_UNKANALWN:
 			return 100;
 		default:
 			if (ecmd.base.speed > SPEED_10000)
@@ -70,7 +70,7 @@ static int port_cost(struct net_device *dev)
 
 
 /* Check for port carrier transitions. */
-void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
+void br_port_carrier_check(struct net_bridge_port *p, bool *analtified)
 {
 	struct net_device *dev = p->dev;
 	struct net_bridge *br = p->br;
@@ -79,7 +79,7 @@ void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
 	    netif_running(dev) && netif_oper_up(dev))
 		p->path_cost = port_cost(dev);
 
-	*notified = false;
+	*analtified = false;
 	if (!netif_running(br->dev))
 		return;
 
@@ -87,12 +87,12 @@ void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
 	if (netif_running(dev) && netif_oper_up(dev)) {
 		if (p->state == BR_STATE_DISABLED) {
 			br_stp_enable_port(p);
-			*notified = true;
+			*analtified = true;
 		}
 	} else {
 		if (p->state != BR_STATE_DISABLED) {
 			br_stp_disable_port(p);
-			*notified = true;
+			*analtified = true;
 		}
 	}
 	spin_unlock_bh(&br->lock);
@@ -117,7 +117,7 @@ static void br_port_clear_promisc(struct net_bridge_port *p)
 {
 	int err;
 
-	/* Check if the port is already non-promisc or if it doesn't
+	/* Check if the port is already analn-promisc or if it doesn't
 	 * support UNICAST filtering.  Without unicast filtering support
 	 * we'll end up re-enabling promisc mode anyway, so just check for
 	 * it here.
@@ -160,9 +160,9 @@ void br_manage_promisc(struct net_bridge *br)
 			 * ports will have their output configuration
 			 * statically specified through fdbs.  Since ingress
 			 * on the auto-port becomes forwarding/egress to other
-			 * ports and egress configuration is statically known,
+			 * ports and egress configuration is statically kanalwn,
 			 * we can say that ingress configuration of the
-			 * auto-port is also statically known.
+			 * auto-port is also statically kanalwn.
 			 * This lets us disable promiscuous mode and write
 			 * this config to hw.
 			 */
@@ -186,7 +186,7 @@ int nbp_backup_change(struct net_bridge_port *p,
 
 	if (backup_dev) {
 		if (!netif_is_bridge_port(backup_dev))
-			return -ENOENT;
+			return -EANALENT;
 
 		backup_p = br_port_get_rtnl(backup_dev);
 		if (backup_p->br != p->br)
@@ -346,7 +346,7 @@ static void del_nbp(struct net_bridge_port *p)
 	br_mrp_port_del(br, p);
 	br_cfm_port_del(br, p);
 
-	br_ifinfo_notify(RTM_DELLINK, NULL, p);
+	br_ifinfo_analtify(RTM_DELLINK, NULL, p);
 
 	list_del_rcu(&p->list);
 	if (netdev_get_fwd_headroom(dev) == br->dev->needed_headroom)
@@ -397,7 +397,7 @@ void br_dev_delete(struct net_device *dev, struct list_head *head)
 }
 
 /* find an available port number */
-static int find_portno(struct net_bridge *br)
+static int find_portanal(struct net_bridge *br)
 {
 	int index;
 	struct net_bridge_port *p;
@@ -405,11 +405,11 @@ static int find_portno(struct net_bridge *br)
 
 	inuse = bitmap_zalloc(BR_MAX_PORTS, GFP_KERNEL);
 	if (!inuse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__set_bit(0, inuse);	/* zero is reserved */
 	list_for_each_entry(p, &br->port_list, list)
-		__set_bit(p->port_no, inuse);
+		__set_bit(p->port_anal, inuse);
 
 	index = find_first_zero_bit(inuse, BR_MAX_PORTS);
 	bitmap_free(inuse);
@@ -424,20 +424,20 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	struct net_bridge_port *p;
 	int index, err;
 
-	index = find_portno(br);
+	index = find_portanal(br);
 	if (index < 0)
 		return ERR_PTR(index);
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	p->br = br;
 	netdev_hold(dev, &p->dev_tracker, GFP_KERNEL);
 	p->dev = dev;
 	p->path_cost = port_cost(dev);
 	p->priority = 0x8000 >> BR_PORT_BITS;
-	p->port_no = index;
+	p->port_anal = index;
 	p->flags = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
 	br_init_port(p);
 	br_set_state(p, BR_STATE_DISABLED);
@@ -457,11 +457,11 @@ int br_add_bridge(struct net *net, const char *name)
 	struct net_device *dev;
 	int res;
 
-	dev = alloc_netdev(sizeof(struct net_bridge), name, NET_NAME_UNKNOWN,
+	dev = alloc_netdev(sizeof(struct net_bridge), name, NET_NAME_UNKANALWN,
 			   br_dev_setup);
 
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_net_set(dev, net);
 	dev->rtnl_link_ops = &br_link_ops;
@@ -479,15 +479,15 @@ int br_del_bridge(struct net *net, const char *name)
 
 	dev = __dev_get_by_name(net, name);
 	if (dev == NULL)
-		ret =  -ENXIO; 	/* Could not find device */
+		ret =  -ENXIO; 	/* Could analt find device */
 
 	else if (!netif_is_bridge_master(dev)) {
-		/* Attempt to delete non bridge device! */
+		/* Attempt to delete analn bridge device! */
 		ret = -EPERM;
 	}
 
 	else if (dev->flags & IFF_UP) {
-		/* Not shutdown yet. */
+		/* Analt shutdown yet. */
 		ret = -EBUSY;
 	}
 
@@ -572,16 +572,16 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	unsigned br_hr, dev_hr;
 	bool changed_addr, fdb_synced = false;
 
-	/* Don't allow bridging non-ethernet like devices. */
+	/* Don't allow bridging analn-ethernet like devices. */
 	if ((dev->flags & IFF_LOOPBACK) ||
 	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN ||
 	    !is_valid_ether_addr(dev->dev_addr))
 		return -EINVAL;
 
-	/* No bridging of bridges */
+	/* Anal bridging of bridges */
 	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit) {
 		NL_SET_ERR_MSG(extack,
-			       "Can not enslave a bridge to a bridge");
+			       "Can analt enslave a bridge to a bridge");
 		return -ELOOP;
 	}
 
@@ -589,24 +589,24 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	if (netdev_master_upper_dev_get(dev))
 		return -EBUSY;
 
-	/* No bridging devices that dislike that (e.g. wireless) */
+	/* Anal bridging devices that dislike that (e.g. wireless) */
 	if (dev->priv_flags & IFF_DONT_BRIDGE) {
 		NL_SET_ERR_MSG(extack,
-			       "Device does not allow enslaving to a bridge");
-		return -EOPNOTSUPP;
+			       "Device does analt allow enslaving to a bridge");
+		return -EOPANALTSUPP;
 	}
 
 	p = new_nbp(br, dev);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
-	call_netdevice_notifiers(NETDEV_JOIN, dev);
+	call_netdevice_analtifiers(NETDEV_JOIN, dev);
 
 	err = dev_set_allmulti(dev, 1);
 	if (err) {
 		br_multicast_del_port(p);
 		netdev_put(dev, &p->dev_tracker);
-		kfree(p);	/* kobject not yet init'd, manually free */
+		kfree(p);	/* kobject analt yet init'd, manually free */
 		goto err1;
 	}
 
@@ -641,10 +641,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	if (!br_promisc_port(p) && (p->dev->priv_flags & IFF_UNICAST_FLT)) {
 		/* When updating the port count we also update all ports'
 		 * promiscuous mode.
-		 * A port leaving promiscuous mode normally gets the bridge's
+		 * A port leaving promiscuous mode analrmally gets the bridge's
 		 * fdb synced to the unicast filter (if supported), however,
-		 * `br_port_clear_promisc` does not distinguish between
-		 * non-promiscuous ports and *new* ports, so we need to
+		 * `br_port_clear_promisc` does analt distinguish between
+		 * analn-promiscuous ports and *new* ports, so we need to
 		 * sync explicitly here.
 		 */
 		fdb_synced = br_fdb_sync_static(br, p) == 0;
@@ -665,10 +665,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 
 	if (br->dev->addr_assign_type != NET_ADDR_SET) {
-		/* Ask for permission to use this MAC address now, even if we
+		/* Ask for permission to use this MAC address analw, even if we
 		 * don't end up choosing it below.
 		 */
-		err = dev_pre_changeaddr_notify(br->dev, dev->dev_addr, extack);
+		err = dev_pre_changeaddr_analtify(br->dev, dev->dev_addr, extack);
 		if (err)
 			goto err6;
 	}
@@ -687,10 +687,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 		br_stp_enable_port(p);
 	spin_unlock_bh(&br->lock);
 
-	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+	br_ifinfo_analtify(RTM_NEWLINK, NULL, p);
 
 	if (changed_addr)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
+		call_netdevice_analtifiers(NETDEV_CHANGEADDR, br->dev);
 
 	br_mtu_auto_adjust(br);
 	br_set_gso_limits(br);
@@ -734,7 +734,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 
 	/* Since more than one interface can be attached to a bridge,
 	 * there still maybe an alternate path for netconsole to use;
-	 * therefore there is no reason for a NETDEV_RELEASE event.
+	 * therefore there is anal reason for a NETDEV_RELEASE event.
 	 */
 	del_nbp(p);
 
@@ -746,7 +746,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	spin_unlock_bh(&br->lock);
 
 	if (changed_addr)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
+		call_netdevice_analtifiers(NETDEV_CHANGEADDR, br->dev);
 
 	netdev_update_features(br->dev);
 

@@ -260,7 +260,7 @@ static struct phy *rockchip_combphy_xlate(struct device *dev, struct of_phandle_
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (priv->type != PHY_NONE && priv->type != args->args[0])
+	if (priv->type != PHY_ANALNE && priv->type != args->args[0])
 		dev_warn(dev, "phy type select %d overwriting type %d\n",
 			 args->args[0], priv->type);
 
@@ -286,17 +286,17 @@ static int rockchip_combphy_parse_dt(struct device *dev, struct rockchip_combphy
 	}
 
 	if (!priv->refclk) {
-		dev_err(dev, "no refclk found\n");
+		dev_err(dev, "anal refclk found\n");
 		return -EINVAL;
 	}
 
-	priv->pipe_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pipe-grf");
+	priv->pipe_grf = syscon_regmap_lookup_by_phandle(dev->of_analde, "rockchip,pipe-grf");
 	if (IS_ERR(priv->pipe_grf)) {
 		dev_err(dev, "failed to find peri_ctrl pipe-grf regmap\n");
 		return PTR_ERR(priv->pipe_grf);
 	}
 
-	priv->phy_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pipe-phy-grf");
+	priv->phy_grf = syscon_regmap_lookup_by_phandle(dev->of_analde, "rockchip,pipe-phy-grf");
 	if (IS_ERR(priv->phy_grf)) {
 		dev_err(dev, "failed to find peri_ctrl pipe-phy-grf regmap\n");
 		return PTR_ERR(priv->phy_grf);
@@ -324,13 +324,13 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 
 	phy_cfg = of_device_get_match_data(dev);
 	if (!phy_cfg) {
-		dev_err(dev, "no OF match data provided\n");
+		dev_err(dev, "anal OF match data provided\n");
 		return -EINVAL;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mmio = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->mmio)) {
@@ -339,7 +339,7 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 	}
 
 	priv->dev = dev;
-	priv->type = PHY_NONE;
+	priv->type = PHY_ANALNE;
 	priv->cfg = phy_cfg;
 
 	ret = rockchip_combphy_parse_dt(dev, priv);

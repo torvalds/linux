@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 1999, 2000, 2004, 2005	 MIPS Technologies, Inc.
+ * Copyright (C) 1999, 2000, 2004, 2005	 MIPS Techanallogies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -108,7 +108,7 @@ void __init mips_pcibios_init(void)
 		end1 = GT_READ(GT_PCI0M1HD_OFS);
 		map1 = GT_READ(GT_PCI0M1REMAP_OFS);
 		end1 = (end1 & GT_PCI_HD_MSK) | (start1 & ~GT_PCI_HD_MSK);
-		/* Cannot support multiple windows, use the wider.  */
+		/* Cananalt support multiple windows, use the wider.  */
 		if (end1 - start1 > end - start) {
 			start = start1;
 			end = end1;

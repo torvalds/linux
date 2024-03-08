@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   Analog Devices Generic AXI ADC IP core for interfacing an ADC device
-  with a high speed serial (JESD204B/C) or source synchronous parallel
+  with a high speed serial (JESD204B/C) or source synchroanalus parallel
   interface (LVDS/CMOS).
   Usually, some other interface type (i.e SPI) is used as a control
   interface for the actual ADC, while this IP core will interface

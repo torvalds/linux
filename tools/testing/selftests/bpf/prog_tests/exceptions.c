@@ -119,7 +119,7 @@ static void test_exceptions_success(void)
 		}								  \
 	}
 
-	if (test__start_subtest("non-throwing fentry -> exception_cb"))
+	if (test__start_subtest("analn-throwing fentry -> exception_cb"))
 		RUN_EXT(-EINVAL, true, ({
 			prog = eskel->progs.pfentry;
 			bpf_program__set_autoload(prog, true);
@@ -127,7 +127,7 @@ static void test_exceptions_success(void)
 				       bpf_program__fd(skel->progs.exception_ext_mod_cb_runtime),
 				       "exception_cb_mod"), "set_attach_target"))
 				goto done;
-		}), "FENTRY/FEXIT programs cannot attach to exception callback", 0);
+		}), "FENTRY/FEXIT programs cananalt attach to exception callback", 0);
 
 	if (test__start_subtest("throwing fentry -> exception_cb"))
 		RUN_EXT(-EINVAL, true, ({
@@ -137,9 +137,9 @@ static void test_exceptions_success(void)
 				       bpf_program__fd(skel->progs.exception_ext_mod_cb_runtime),
 				       "exception_cb_mod"), "set_attach_target"))
 				goto done;
-		}), "FENTRY/FEXIT programs cannot attach to exception callback", 0);
+		}), "FENTRY/FEXIT programs cananalt attach to exception callback", 0);
 
-	if (test__start_subtest("non-throwing fexit -> exception_cb"))
+	if (test__start_subtest("analn-throwing fexit -> exception_cb"))
 		RUN_EXT(-EINVAL, true, ({
 			prog = eskel->progs.pfexit;
 			bpf_program__set_autoload(prog, true);
@@ -147,7 +147,7 @@ static void test_exceptions_success(void)
 				       bpf_program__fd(skel->progs.exception_ext_mod_cb_runtime),
 				       "exception_cb_mod"), "set_attach_target"))
 				goto done;
-		}), "FENTRY/FEXIT programs cannot attach to exception callback", 0);
+		}), "FENTRY/FEXIT programs cananalt attach to exception callback", 0);
 
 	if (test__start_subtest("throwing fexit -> exception_cb"))
 		RUN_EXT(-EINVAL, true, ({
@@ -157,7 +157,7 @@ static void test_exceptions_success(void)
 				       bpf_program__fd(skel->progs.exception_ext_mod_cb_runtime),
 				       "exception_cb_mod"), "set_attach_target"))
 				goto done;
-		}), "FENTRY/FEXIT programs cannot attach to exception callback", 0);
+		}), "FENTRY/FEXIT programs cananalt attach to exception callback", 0);
 
 	if (test__start_subtest("throwing extension (with custom cb) -> exception_cb"))
 		RUN_EXT(-EINVAL, true, ({
@@ -167,7 +167,7 @@ static void test_exceptions_success(void)
 				       bpf_program__fd(skel->progs.exception_ext_mod_cb_runtime),
 				       "exception_cb_mod"), "set_attach_target"))
 				goto done;
-		}), "Extension programs cannot attach to exception callback", 0);
+		}), "Extension programs cananalt attach to exception callback", 0);
 
 	if (test__start_subtest("throwing extension -> global func in exception_cb"))
 		RUN_EXT(0, false, ({
@@ -189,8 +189,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", ({ RUN_SUCCESS(exception_ext, 128); }));
 
-	if (test__start_subtest("non-throwing fentry -> non-throwing subprog"))
-		/* non-throwing fentry -> non-throwing subprog : OK */
+	if (test__start_subtest("analn-throwing fentry -> analn-throwing subprog"))
+		/* analn-throwing fentry -> analn-throwing subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.pfentry;
 			bpf_program__set_autoload(prog, true);
@@ -200,8 +200,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	if (test__start_subtest("throwing fentry -> non-throwing subprog"))
-		/* throwing fentry -> non-throwing subprog : OK */
+	if (test__start_subtest("throwing fentry -> analn-throwing subprog"))
+		/* throwing fentry -> analn-throwing subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.throwing_fentry;
 			bpf_program__set_autoload(prog, true);
@@ -211,8 +211,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	if (test__start_subtest("non-throwing fentry -> throwing subprog"))
-		/* non-throwing fentry -> throwing subprog : OK */
+	if (test__start_subtest("analn-throwing fentry -> throwing subprog"))
+		/* analn-throwing fentry -> throwing subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.pfentry;
 			bpf_program__set_autoload(prog, true);
@@ -233,8 +233,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	if (test__start_subtest("non-throwing fexit -> non-throwing subprog"))
-		/* non-throwing fexit -> non-throwing subprog : OK */
+	if (test__start_subtest("analn-throwing fexit -> analn-throwing subprog"))
+		/* analn-throwing fexit -> analn-throwing subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.pfexit;
 			bpf_program__set_autoload(prog, true);
@@ -244,8 +244,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	if (test__start_subtest("throwing fexit -> non-throwing subprog"))
-		/* throwing fexit -> non-throwing subprog : OK */
+	if (test__start_subtest("throwing fexit -> analn-throwing subprog"))
+		/* throwing fexit -> analn-throwing subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.throwing_fexit;
 			bpf_program__set_autoload(prog, true);
@@ -255,8 +255,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	if (test__start_subtest("non-throwing fexit -> throwing subprog"))
-		/* non-throwing fexit -> throwing subprog : OK */
+	if (test__start_subtest("analn-throwing fexit -> throwing subprog"))
+		/* analn-throwing fexit -> throwing subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.pfexit;
 			bpf_program__set_autoload(prog, true);
@@ -277,10 +277,10 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	/* fmod_ret not allowed for subprog - Check so we remember to handle its
+	/* fmod_ret analt allowed for subprog - Check so we remember to handle its
 	 * throwing specification compatibility with target when supported.
 	 */
-	if (test__start_subtest("non-throwing fmod_ret -> non-throwing subprog"))
+	if (test__start_subtest("analn-throwing fmod_ret -> analn-throwing subprog"))
 		RUN_EXT(-EINVAL, true, ({
 			prog = eskel->progs.pfmod_ret;
 			bpf_program__set_autoload(prog, true);
@@ -290,10 +290,10 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "can't modify return codes of BPF program", 0);
 
-	/* fmod_ret not allowed for subprog - Check so we remember to handle its
+	/* fmod_ret analt allowed for subprog - Check so we remember to handle its
 	 * throwing specification compatibility with target when supported.
 	 */
-	if (test__start_subtest("non-throwing fmod_ret -> non-throwing global subprog"))
+	if (test__start_subtest("analn-throwing fmod_ret -> analn-throwing global subprog"))
 		RUN_EXT(-EINVAL, true, ({
 			prog = eskel->progs.pfmod_ret;
 			bpf_program__set_autoload(prog, true);
@@ -303,8 +303,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "can't modify return codes of BPF program", 0);
 
-	if (test__start_subtest("non-throwing extension -> non-throwing subprog"))
-		/* non-throwing extension -> non-throwing subprog : BAD (!global) */
+	if (test__start_subtest("analn-throwing extension -> analn-throwing subprog"))
+		/* analn-throwing extension -> analn-throwing subprog : BAD (!global) */
 		RUN_EXT(-EINVAL, true, ({
 			prog = eskel->progs.extension;
 			bpf_program__set_autoload(prog, true);
@@ -312,10 +312,10 @@ static void test_exceptions_success(void)
 				       bpf_program__fd(skel->progs.exception_throw_subprog),
 				       "subprog"), "set_attach_target"))
 				goto done;
-		}), "subprog() is not a global function", 0);
+		}), "subprog() is analt a global function", 0);
 
-	if (test__start_subtest("non-throwing extension -> throwing subprog"))
-		/* non-throwing extension -> throwing subprog : BAD (!global) */
+	if (test__start_subtest("analn-throwing extension -> throwing subprog"))
+		/* analn-throwing extension -> throwing subprog : BAD (!global) */
 		RUN_EXT(-EINVAL, true, ({
 			prog = eskel->progs.extension;
 			bpf_program__set_autoload(prog, true);
@@ -323,10 +323,10 @@ static void test_exceptions_success(void)
 				       bpf_program__fd(skel->progs.exception_throw_subprog),
 				       "throwing_subprog"), "set_attach_target"))
 				goto done;
-		}), "throwing_subprog() is not a global function", 0);
+		}), "throwing_subprog() is analt a global function", 0);
 
-	if (test__start_subtest("non-throwing extension -> non-throwing subprog"))
-		/* non-throwing extension -> non-throwing global subprog : OK */
+	if (test__start_subtest("analn-throwing extension -> analn-throwing subprog"))
+		/* analn-throwing extension -> analn-throwing global subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.extension;
 			bpf_program__set_autoload(prog, true);
@@ -336,8 +336,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	if (test__start_subtest("non-throwing extension -> throwing global subprog"))
-		/* non-throwing extension -> throwing global subprog : OK */
+	if (test__start_subtest("analn-throwing extension -> throwing global subprog"))
+		/* analn-throwing extension -> throwing global subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.extension;
 			bpf_program__set_autoload(prog, true);
@@ -358,8 +358,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	if (test__start_subtest("throwing extension -> non-throwing global subprog"))
-		/* throwing extension -> non-throwing global subprog : OK */
+	if (test__start_subtest("throwing extension -> analn-throwing global subprog"))
+		/* throwing extension -> analn-throwing global subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.throwing_extension;
 			bpf_program__set_autoload(prog, true);
@@ -369,8 +369,8 @@ static void test_exceptions_success(void)
 				goto done;
 		}), "", 0);
 
-	if (test__start_subtest("non-throwing extension -> main subprog"))
-		/* non-throwing extension -> main subprog : OK */
+	if (test__start_subtest("analn-throwing extension -> main subprog"))
+		/* analn-throwing extension -> main subprog : OK */
 		RUN_EXT(0, false, ({
 			prog = eskel->progs.extension;
 			bpf_program__set_autoload(prog, true);

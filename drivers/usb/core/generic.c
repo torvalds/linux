@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/usb/core/generic.c - generic driver for USB devices (not interfaces)
+ * drivers/usb/core/generic.c - generic driver for USB devices (analt interfaces)
  *
  * (C) Copyright 2005 Greg Kroah-Hartman <gregkh@suse.de>
  *
@@ -62,8 +62,8 @@ int usb_choose_configuration(struct usb_device *udev)
 	struct usb_device_driver *udriver;
 
 	/*
-	 * If a USB device (not an interface) doesn't have a driver then the
-	 * kernel has no business trying to select or install a configuration
+	 * If a USB device (analt an interface) doesn't have a driver then the
+	 * kernel has anal business trying to select or install a configuration
 	 * for it.
 	 */
 	if (!udev->dev.driver)
@@ -85,7 +85,7 @@ int usb_choose_configuration(struct usb_device *udev)
 	for (i = 0; i < num_configs; (i++, c++)) {
 		struct usb_interface_descriptor	*desc = NULL;
 
-		/* It's possible that a config has no interfaces! */
+		/* It's possible that a config has anal interfaces! */
 		if (c->desc.bNumInterfaces > 0)
 			desc = &c->intf_cache[0]->altsetting->desc;
 
@@ -94,7 +94,7 @@ int usb_choose_configuration(struct usb_device *udev)
 		 * and it claims to be self-powered; other devices may have
 		 * similar errors in their descriptors.  If the next test
 		 * were allowed to execute, such configurations would always
-		 * be rejected and the devices would not work as expected.
+		 * be rejected and the devices would analt work as expected.
 		 * In the meantime, we run the risk of selecting a config
 		 * that requires external power at a time when that power
 		 * isn't available.  It seems to be the lesser of two evils.
@@ -117,7 +117,7 @@ int usb_choose_configuration(struct usb_device *udev)
 #endif
 
 		/*
-		 * The next test may not be as effective as it should be.
+		 * The next test may analt be as effective as it should be.
 		 * Some hubs have errors in their descriptor, claiming
 		 * to be self-powered when they are really bus-powered.
 		 * We will overestimate the amount of current such hubs
@@ -147,7 +147,7 @@ int usb_choose_configuration(struct usb_device *udev)
 				break;
 			}
 
-			/* If there is no UAC3 config, prefer the first config */
+			/* If there is anal UAC3 config, prefer the first config */
 			else if (i == 0)
 				best = c;
 
@@ -160,9 +160,9 @@ int usb_choose_configuration(struct usb_device *udev)
 		}
 
 		/* When the first config's first interface is one of Microsoft's
-		 * pet nonstandard Ethernet-over-USB protocols, ignore it unless
+		 * pet analnstandard Ethernet-over-USB protocols, iganalre it unless
 		 * this kernel has enabled the necessary host side driver.
-		 * But: Don't ignore it if it's the only config.
+		 * But: Don't iganalre it if it's the only config.
 		 */
 		if (i == 0 && num_configs > 1 && desc &&
 				(is_rndis(desc) || is_activesync(desc))) {
@@ -174,7 +174,7 @@ int usb_choose_configuration(struct usb_device *udev)
 		}
 
 		/* From the remaining configs, choose the first one whose
-		 * first interface is for a non-vendor-specific class.
+		 * first interface is for a analn-vendor-specific class.
 		 * Reason: Linux is more likely to have a class driver
 		 * than a vendor-specific driver. */
 		else if (udev->descriptor.bDeviceClass !=
@@ -204,14 +204,14 @@ int usb_choose_configuration(struct usb_device *udev)
 	} else {
 		i = -1;
 		dev_warn(&udev->dev,
-			"no configuration chosen from %d choice%s\n",
+			"anal configuration chosen from %d choice%s\n",
 			num_configs, plural(num_configs));
 	}
 	return i;
 }
 EXPORT_SYMBOL_GPL(usb_choose_configuration);
 
-static int __check_for_non_generic_match(struct device_driver *drv, void *data)
+static int __check_for_analn_generic_match(struct device_driver *drv, void *data)
 {
 	struct usb_device *udev = data;
 	struct usb_device_driver *udrv;
@@ -233,7 +233,7 @@ static bool usb_generic_driver_match(struct usb_device *udev)
 	 * If any other driver wants the device, leave the device to this other
 	 * driver.
 	 */
-	if (bus_for_each_drv(&usb_bus_type, NULL, udev, __check_for_non_generic_match))
+	if (bus_for_each_drv(&usb_bus_type, NULL, udev, __check_for_analn_generic_match))
 		return false;
 
 	return true;
@@ -247,30 +247,30 @@ int usb_generic_driver_probe(struct usb_device *udev)
 	 * with the driver core and lets interface drivers bind to them.
 	 */
 	if (udev->authorized == 0)
-		dev_err(&udev->dev, "Device is not authorized for usage\n");
+		dev_err(&udev->dev, "Device is analt authorized for usage\n");
 	else {
 		c = usb_choose_configuration(udev);
 		if (c >= 0) {
 			err = usb_set_configuration(udev, c);
-			if (err && err != -ENODEV) {
+			if (err && err != -EANALDEV) {
 				dev_err(&udev->dev, "can't set config #%d, error %d\n",
 					c, err);
-				/* This need not be fatal.  The user can try to
+				/* This need analt be fatal.  The user can try to
 				 * set other configurations. */
 			}
 		}
 	}
 	/* USB device state == configured ... usable */
-	usb_notify_add_device(udev);
+	usb_analtify_add_device(udev);
 
 	return 0;
 }
 
 void usb_generic_driver_disconnect(struct usb_device *udev)
 {
-	usb_notify_remove_device(udev);
+	usb_analtify_remove_device(udev);
 
-	/* if this is only an unbind, not a physical disconnect, then
+	/* if this is only an unbind, analt a physical disconnect, then
 	 * unconfigure the device */
 	if (udev->actconfig)
 		usb_set_configuration(udev, -1);
@@ -282,7 +282,7 @@ int usb_generic_driver_suspend(struct usb_device *udev, pm_message_t msg)
 {
 	int rc;
 
-	/* Normal USB devices suspend through their upstream port.
+	/* Analrmal USB devices suspend through their upstream port.
 	 * Root hubs don't have upstream ports to suspend,
 	 * so we have to shut down their downstream HC-to-USB
 	 * interfaces manually by doing a bus (or "global") suspend.
@@ -291,7 +291,7 @@ int usb_generic_driver_suspend(struct usb_device *udev, pm_message_t msg)
 		rc = hcd_bus_suspend(udev, msg);
 
 	/*
-	 * Non-root USB2 devices don't need to do anything for FREEZE
+	 * Analn-root USB2 devices don't need to do anything for FREEZE
 	 * or PRETHAW. USB3 devices don't support global suspend and
 	 * needs to be selectively suspended.
 	 */
@@ -302,7 +302,7 @@ int usb_generic_driver_suspend(struct usb_device *udev, pm_message_t msg)
 		rc = usb_port_suspend(udev, msg);
 
 	if (rc == 0)
-		usbfs_notify_suspend(udev);
+		usbfs_analtify_suspend(udev);
 	return rc;
 }
 
@@ -310,7 +310,7 @@ int usb_generic_driver_resume(struct usb_device *udev, pm_message_t msg)
 {
 	int rc;
 
-	/* Normal USB devices resume/reset through their upstream port.
+	/* Analrmal USB devices resume/reset through their upstream port.
 	 * Root hubs don't have upstream ports to resume or reset,
 	 * so we have to start up their downstream HC-to-USB
 	 * interfaces manually by doing a bus (or "global") resume.
@@ -321,7 +321,7 @@ int usb_generic_driver_resume(struct usb_device *udev, pm_message_t msg)
 		rc = usb_port_resume(udev, msg);
 
 	if (rc == 0)
-		usbfs_notify_resume(udev);
+		usbfs_analtify_resume(udev);
 	return rc;
 }
 

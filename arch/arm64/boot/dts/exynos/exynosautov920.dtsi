@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's ExynosAutov920 SoC device tree source
+ * Samsung's ExyanalsAutov920 SoC device tree source
  *
  * Copyright (c) 2023 Samsung Electronics Co., Ltd.
  *
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/soc/samsung,exynos-usi.h>
+#include <dt-bindings/soc/samsung,exyanals-usi.h>
 
 / {
-	compatible = "samsung,exynosautov920";
+	compatible = "samsung,exyanalsautov920";
 	#address-cells = <2>;
 	#size-cells = <1>;
 
@@ -177,8 +177,8 @@
 		ranges = <0x0 0x0 0x0 0x20000000>;
 
 		chipid@10000000 {
-			compatible = "samsung,exynosautov920-chipid",
-				     "samsung,exynos850-chipid";
+			compatible = "samsung,exyanalsautov920-chipid",
+				     "samsung,exyanals850-chipid";
 			reg = <0x10000000 0x24>;
 		};
 
@@ -193,20 +193,20 @@
 		};
 
 		syscon_peric0: syscon@10820000 {
-			compatible = "samsung,exynosautov920-peric0-sysreg",
+			compatible = "samsung,exyanalsautov920-peric0-sysreg",
 				     "syscon";
 			reg = <0x10820000 0x2000>;
 		};
 
 		pinctrl_peric0: pinctrl@10830000 {
-			compatible = "samsung,exynosautov920-pinctrl";
+			compatible = "samsung,exyanalsautov920-pinctrl";
 			reg = <0x10830000 0x10000>;
 			interrupts = <GIC_SPI 753 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		usi_0: usi@108800c0 {
-			compatible = "samsung,exynosautov920-usi",
-				     "samsung,exynos850-usi";
+			compatible = "samsung,exyanalsautov920-usi",
+				     "samsung,exyanals850-usi";
 			reg = <0x108800c0 0x20>;
 			samsung,sysreg = <&syscon_peric0 0x1000>;
 			samsung,mode = <USI_V2_UART>;
@@ -218,8 +218,8 @@
 			status = "disabled";
 
 			serial_0: serial@10880000 {
-				compatible = "samsung,exynosautov920-uart",
-					     "samsung,exynos850-uart";
+				compatible = "samsung,exyanalsautov920-uart",
+					     "samsung,exyanals850-uart";
 				reg = <0x10880000 0xc0>;
 				interrupts = <GIC_SPI 764 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-names = "default";
@@ -232,8 +232,8 @@
 		};
 
 		pwm: pwm@109b0000 {
-			compatible = "samsung,exynosautov920-pwm",
-				     "samsung,exynos4210-pwm";
+			compatible = "samsung,exyanalsautov920-pwm",
+				     "samsung,exyanals4210-pwm";
 			reg = <0x109b0000 0x100>;
 			samsung,pwm-outputs = <0>, <1>, <2>, <3>;
 			#pwm-cells = <3>;
@@ -243,58 +243,58 @@
 		};
 
 		syscon_peric1: syscon@10c20000 {
-			compatible = "samsung,exynosautov920-peric1-sysreg",
+			compatible = "samsung,exyanalsautov920-peric1-sysreg",
 				     "syscon";
 			reg = <0x10c20000 0x2000>;
 		};
 
 		pinctrl_peric1: pinctrl@10c30000 {
-			compatible = "samsung,exynosautov920-pinctrl";
+			compatible = "samsung,exyanalsautov920-pinctrl";
 			reg = <0x10c30000 0x10000>;
 			interrupts = <GIC_SPI 781 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_alive: pinctrl@11850000 {
-			compatible = "samsung,exynosautov920-pinctrl";
+			compatible = "samsung,exyanalsautov920-pinctrl";
 			reg = <0x11850000 0x10000>;
 
 			wakeup-interrupt-controller {
-				compatible = "samsung,exynosautov920-wakeup-eint";
+				compatible = "samsung,exyanalsautov920-wakeup-eint";
 			};
 		};
 
 		pmu_system_controller: system-controller@11860000 {
-			compatible = "samsung,exynosautov920-pmu",
-				     "samsung,exynos7-pmu","syscon";
+			compatible = "samsung,exyanalsautov920-pmu",
+				     "samsung,exyanals7-pmu","syscon";
 			reg = <0x11860000 0x10000>;
 		};
 
 		pinctrl_hsi0: pinctrl@16040000 {
-			compatible = "samsung,exynosautov920-pinctrl";
+			compatible = "samsung,exyanalsautov920-pinctrl";
 			reg = <0x16040000 0x10000>;
 			interrupts = <GIC_SPI 442 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_hsi1: pinctrl@16450000 {
-			compatible = "samsung,exynosautov920-pinctrl";
+			compatible = "samsung,exyanalsautov920-pinctrl";
 			reg = <0x16450000 0x10000>;
 			interrupts = <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_hsi2: pinctrl@16c10000 {
-			compatible = "samsung,exynosautov920-pinctrl";
+			compatible = "samsung,exyanalsautov920-pinctrl";
 			reg = <0x16c10000 0x10000>;
 			interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_hsi2ufs: pinctrl@16d20000 {
-			compatible = "samsung,exynosautov920-pinctrl";
+			compatible = "samsung,exyanalsautov920-pinctrl";
 			reg = <0x16d20000 0x10000>;
 			interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_aud: pinctrl@1a460000 {
-			compatible = "samsung,exynosautov920-pinctrl";
+			compatible = "samsung,exyanalsautov920-pinctrl";
 			reg = <0x1a460000 0x10000>;
 		};
 	};
@@ -309,4 +309,4 @@
 	};
 };
 
-#include "exynosautov920-pinctrl.dtsi"
+#include "exyanalsautov920-pinctrl.dtsi"

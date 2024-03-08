@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -225,17 +225,17 @@
 //VPEC_CONTEXT_SWITCH_THRESHOLD
 #define VPEC_CONTEXT_SWITCH_THRESHOLD__REALTIME_THRESHOLD__SHIFT                                              0x0
 #define VPEC_CONTEXT_SWITCH_THRESHOLD__FOCUS_THRESHOLD__SHIFT                                                 0x2
-#define VPEC_CONTEXT_SWITCH_THRESHOLD__NORMAL_THRESHOLD__SHIFT                                                0x4
+#define VPEC_CONTEXT_SWITCH_THRESHOLD__ANALRMAL_THRESHOLD__SHIFT                                                0x4
 #define VPEC_CONTEXT_SWITCH_THRESHOLD__IDLE_THRESHOLD__SHIFT                                                  0x6
 #define VPEC_CONTEXT_SWITCH_THRESHOLD__REALTIME_THRESHOLD_MASK                                                0x00000003L
 #define VPEC_CONTEXT_SWITCH_THRESHOLD__FOCUS_THRESHOLD_MASK                                                   0x0000000CL
-#define VPEC_CONTEXT_SWITCH_THRESHOLD__NORMAL_THRESHOLD_MASK                                                  0x00000030L
+#define VPEC_CONTEXT_SWITCH_THRESHOLD__ANALRMAL_THRESHOLD_MASK                                                  0x00000030L
 #define VPEC_CONTEXT_SWITCH_THRESHOLD__IDLE_THRESHOLD_MASK                                                    0x000000C0L
 //VPEC_GLOBAL_QUANTUM
 #define VPEC_GLOBAL_QUANTUM__GLOBAL_FOCUS_QUANTUM__SHIFT                                                      0x0
-#define VPEC_GLOBAL_QUANTUM__GLOBAL_NORMAL_QUANTUM__SHIFT                                                     0x8
+#define VPEC_GLOBAL_QUANTUM__GLOBAL_ANALRMAL_QUANTUM__SHIFT                                                     0x8
 #define VPEC_GLOBAL_QUANTUM__GLOBAL_FOCUS_QUANTUM_MASK                                                        0x000000FFL
-#define VPEC_GLOBAL_QUANTUM__GLOBAL_NORMAL_QUANTUM_MASK                                                       0x0000FF00L
+#define VPEC_GLOBAL_QUANTUM__GLOBAL_ANALRMAL_QUANTUM_MASK                                                       0x0000FF00L
 //VPEC_WATCHDOG_CNTL
 #define VPEC_WATCHDOG_CNTL__QUEUE_HANG_COUNT__SHIFT                                                           0x0
 #define VPEC_WATCHDOG_CNTL__CMD_TIMEOUT_COUNT__SHIFT                                                          0x8
@@ -818,9 +818,9 @@
 #define VPEC_QUEUE0_RB_AQL_CNTL__MIDCMD_PREEMPT_ENABLE_MASK                                                   0x00010000L
 #define VPEC_QUEUE0_RB_AQL_CNTL__MIDCMD_PREEMPT_DATA_RESTORE_MASK                                             0x00020000L
 #define VPEC_QUEUE0_RB_AQL_CNTL__OVERLAP_ENABLE_MASK                                                          0x00040000L
-//VPEC_QUEUE0_MINOR_PTR_UPDATE
-#define VPEC_QUEUE0_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
-#define VPEC_QUEUE0_MINOR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
+//VPEC_QUEUE0_MIANALR_PTR_UPDATE
+#define VPEC_QUEUE0_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
+#define VPEC_QUEUE0_MIANALR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
 //VPEC_QUEUE0_CD_INFO
 #define VPEC_QUEUE0_CD_INFO__CD_INFO__SHIFT                                                                   0x0
 #define VPEC_QUEUE0_CD_INFO__CD_INFO_MASK                                                                     0xFFFFFFFFL
@@ -1004,9 +1004,9 @@
 #define VPEC_QUEUE1_RB_AQL_CNTL__MIDCMD_PREEMPT_ENABLE_MASK                                                   0x00010000L
 #define VPEC_QUEUE1_RB_AQL_CNTL__MIDCMD_PREEMPT_DATA_RESTORE_MASK                                             0x00020000L
 #define VPEC_QUEUE1_RB_AQL_CNTL__OVERLAP_ENABLE_MASK                                                          0x00040000L
-//VPEC_QUEUE1_MINOR_PTR_UPDATE
-#define VPEC_QUEUE1_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
-#define VPEC_QUEUE1_MINOR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
+//VPEC_QUEUE1_MIANALR_PTR_UPDATE
+#define VPEC_QUEUE1_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
+#define VPEC_QUEUE1_MIANALR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
 //VPEC_QUEUE1_CD_INFO
 #define VPEC_QUEUE1_CD_INFO__CD_INFO__SHIFT                                                                   0x0
 #define VPEC_QUEUE1_CD_INFO__CD_INFO_MASK                                                                     0xFFFFFFFFL
@@ -1190,9 +1190,9 @@
 #define VPEC_QUEUE2_RB_AQL_CNTL__MIDCMD_PREEMPT_ENABLE_MASK                                                   0x00010000L
 #define VPEC_QUEUE2_RB_AQL_CNTL__MIDCMD_PREEMPT_DATA_RESTORE_MASK                                             0x00020000L
 #define VPEC_QUEUE2_RB_AQL_CNTL__OVERLAP_ENABLE_MASK                                                          0x00040000L
-//VPEC_QUEUE2_MINOR_PTR_UPDATE
-#define VPEC_QUEUE2_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
-#define VPEC_QUEUE2_MINOR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
+//VPEC_QUEUE2_MIANALR_PTR_UPDATE
+#define VPEC_QUEUE2_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
+#define VPEC_QUEUE2_MIANALR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
 //VPEC_QUEUE2_CD_INFO
 #define VPEC_QUEUE2_CD_INFO__CD_INFO__SHIFT                                                                   0x0
 #define VPEC_QUEUE2_CD_INFO__CD_INFO_MASK                                                                     0xFFFFFFFFL
@@ -1376,9 +1376,9 @@
 #define VPEC_QUEUE3_RB_AQL_CNTL__MIDCMD_PREEMPT_ENABLE_MASK                                                   0x00010000L
 #define VPEC_QUEUE3_RB_AQL_CNTL__MIDCMD_PREEMPT_DATA_RESTORE_MASK                                             0x00020000L
 #define VPEC_QUEUE3_RB_AQL_CNTL__OVERLAP_ENABLE_MASK                                                          0x00040000L
-//VPEC_QUEUE3_MINOR_PTR_UPDATE
-#define VPEC_QUEUE3_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
-#define VPEC_QUEUE3_MINOR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
+//VPEC_QUEUE3_MIANALR_PTR_UPDATE
+#define VPEC_QUEUE3_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
+#define VPEC_QUEUE3_MIANALR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
 //VPEC_QUEUE3_CD_INFO
 #define VPEC_QUEUE3_CD_INFO__CD_INFO__SHIFT                                                                   0x0
 #define VPEC_QUEUE3_CD_INFO__CD_INFO_MASK                                                                     0xFFFFFFFFL
@@ -1562,9 +1562,9 @@
 #define VPEC_QUEUE4_RB_AQL_CNTL__MIDCMD_PREEMPT_ENABLE_MASK                                                   0x00010000L
 #define VPEC_QUEUE4_RB_AQL_CNTL__MIDCMD_PREEMPT_DATA_RESTORE_MASK                                             0x00020000L
 #define VPEC_QUEUE4_RB_AQL_CNTL__OVERLAP_ENABLE_MASK                                                          0x00040000L
-//VPEC_QUEUE4_MINOR_PTR_UPDATE
-#define VPEC_QUEUE4_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
-#define VPEC_QUEUE4_MINOR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
+//VPEC_QUEUE4_MIANALR_PTR_UPDATE
+#define VPEC_QUEUE4_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
+#define VPEC_QUEUE4_MIANALR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
 //VPEC_QUEUE4_CD_INFO
 #define VPEC_QUEUE4_CD_INFO__CD_INFO__SHIFT                                                                   0x0
 #define VPEC_QUEUE4_CD_INFO__CD_INFO_MASK                                                                     0xFFFFFFFFL
@@ -1748,9 +1748,9 @@
 #define VPEC_QUEUE5_RB_AQL_CNTL__MIDCMD_PREEMPT_ENABLE_MASK                                                   0x00010000L
 #define VPEC_QUEUE5_RB_AQL_CNTL__MIDCMD_PREEMPT_DATA_RESTORE_MASK                                             0x00020000L
 #define VPEC_QUEUE5_RB_AQL_CNTL__OVERLAP_ENABLE_MASK                                                          0x00040000L
-//VPEC_QUEUE5_MINOR_PTR_UPDATE
-#define VPEC_QUEUE5_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
-#define VPEC_QUEUE5_MINOR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
+//VPEC_QUEUE5_MIANALR_PTR_UPDATE
+#define VPEC_QUEUE5_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
+#define VPEC_QUEUE5_MIANALR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
 //VPEC_QUEUE5_CD_INFO
 #define VPEC_QUEUE5_CD_INFO__CD_INFO__SHIFT                                                                   0x0
 #define VPEC_QUEUE5_CD_INFO__CD_INFO_MASK                                                                     0xFFFFFFFFL
@@ -1934,9 +1934,9 @@
 #define VPEC_QUEUE6_RB_AQL_CNTL__MIDCMD_PREEMPT_ENABLE_MASK                                                   0x00010000L
 #define VPEC_QUEUE6_RB_AQL_CNTL__MIDCMD_PREEMPT_DATA_RESTORE_MASK                                             0x00020000L
 #define VPEC_QUEUE6_RB_AQL_CNTL__OVERLAP_ENABLE_MASK                                                          0x00040000L
-//VPEC_QUEUE6_MINOR_PTR_UPDATE
-#define VPEC_QUEUE6_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
-#define VPEC_QUEUE6_MINOR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
+//VPEC_QUEUE6_MIANALR_PTR_UPDATE
+#define VPEC_QUEUE6_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
+#define VPEC_QUEUE6_MIANALR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
 //VPEC_QUEUE6_CD_INFO
 #define VPEC_QUEUE6_CD_INFO__CD_INFO__SHIFT                                                                   0x0
 #define VPEC_QUEUE6_CD_INFO__CD_INFO_MASK                                                                     0xFFFFFFFFL
@@ -2120,9 +2120,9 @@
 #define VPEC_QUEUE7_RB_AQL_CNTL__MIDCMD_PREEMPT_ENABLE_MASK                                                   0x00010000L
 #define VPEC_QUEUE7_RB_AQL_CNTL__MIDCMD_PREEMPT_DATA_RESTORE_MASK                                             0x00020000L
 #define VPEC_QUEUE7_RB_AQL_CNTL__OVERLAP_ENABLE_MASK                                                          0x00040000L
-//VPEC_QUEUE7_MINOR_PTR_UPDATE
-#define VPEC_QUEUE7_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
-#define VPEC_QUEUE7_MINOR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
+//VPEC_QUEUE7_MIANALR_PTR_UPDATE
+#define VPEC_QUEUE7_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                           0x0
+#define VPEC_QUEUE7_MIANALR_PTR_UPDATE__ENABLE_MASK                                                             0x00000001L
 //VPEC_QUEUE7_CD_INFO
 #define VPEC_QUEUE7_CD_INFO__CD_INFO__SHIFT                                                                   0x0
 #define VPEC_QUEUE7_CD_INFO__CD_INFO_MASK                                                                     0xFFFFFFFFL
@@ -3643,9 +3643,9 @@
 #define VPMPCC_MCM_3DLUT_READ_WRITE_CONTROL__VPMPCC_MCM_3DLUT_RAM_SEL_MASK                                    0x00000010L
 #define VPMPCC_MCM_3DLUT_READ_WRITE_CONTROL__VPMPCC_MCM_3DLUT_30BIT_EN_MASK                                   0x00000100L
 #define VPMPCC_MCM_3DLUT_READ_WRITE_CONTROL__VPMPCC_MCM_3DLUT_READ_SEL_MASK                                   0x00030000L
-//VPMPCC_MCM_3DLUT_OUT_NORM_FACTOR
-#define VPMPCC_MCM_3DLUT_OUT_NORM_FACTOR__VPMPCC_MCM_3DLUT_OUT_NORM_FACTOR__SHIFT                             0x0
-#define VPMPCC_MCM_3DLUT_OUT_NORM_FACTOR__VPMPCC_MCM_3DLUT_OUT_NORM_FACTOR_MASK                               0x0000FFFFL
+//VPMPCC_MCM_3DLUT_OUT_ANALRM_FACTOR
+#define VPMPCC_MCM_3DLUT_OUT_ANALRM_FACTOR__VPMPCC_MCM_3DLUT_OUT_ANALRM_FACTOR__SHIFT                             0x0
+#define VPMPCC_MCM_3DLUT_OUT_ANALRM_FACTOR__VPMPCC_MCM_3DLUT_OUT_ANALRM_FACTOR_MASK                               0x0000FFFFL
 //VPMPCC_MCM_3DLUT_OUT_OFFSET_R
 #define VPMPCC_MCM_3DLUT_OUT_OFFSET_R__VPMPCC_MCM_3DLUT_OUT_OFFSET_R__SHIFT                                   0x0
 #define VPMPCC_MCM_3DLUT_OUT_OFFSET_R__VPMPCC_MCM_3DLUT_OUT_SCALE_R__SHIFT                                    0x10
@@ -3948,23 +3948,23 @@
 //VPMPC_OUT0_FLOAT_CONTROL
 #define VPMPC_OUT0_FLOAT_CONTROL__VPMPC_OUT_FLOAT_EN__SHIFT                                                   0x0
 #define VPMPC_OUT0_FLOAT_CONTROL__VPMPC_OUT_FLOAT_EN_MASK                                                     0x00000001L
-//VPMPC_OUT0_DENORM_CONTROL
-#define VPMPC_OUT0_DENORM_CONTROL__VPMPC_OUT_DENORM_CLAMP_MIN_R_CR__SHIFT                                     0x0
-#define VPMPC_OUT0_DENORM_CONTROL__VPMPC_OUT_DENORM_CLAMP_MAX_R_CR__SHIFT                                     0xc
-#define VPMPC_OUT0_DENORM_CONTROL__VPMPC_OUT_DENORM_MODE__SHIFT                                               0x18
-#define VPMPC_OUT0_DENORM_CONTROL__VPMPC_OUT_DENORM_CLAMP_MIN_R_CR_MASK                                       0x00000FFFL
-#define VPMPC_OUT0_DENORM_CONTROL__VPMPC_OUT_DENORM_CLAMP_MAX_R_CR_MASK                                       0x00FFF000L
-#define VPMPC_OUT0_DENORM_CONTROL__VPMPC_OUT_DENORM_MODE_MASK                                                 0x07000000L
-//VPMPC_OUT0_DENORM_CLAMP_G_Y
-#define VPMPC_OUT0_DENORM_CLAMP_G_Y__VPMPC_OUT_DENORM_CLAMP_MIN_G_Y__SHIFT                                    0x0
-#define VPMPC_OUT0_DENORM_CLAMP_G_Y__VPMPC_OUT_DENORM_CLAMP_MAX_G_Y__SHIFT                                    0xc
-#define VPMPC_OUT0_DENORM_CLAMP_G_Y__VPMPC_OUT_DENORM_CLAMP_MIN_G_Y_MASK                                      0x00000FFFL
-#define VPMPC_OUT0_DENORM_CLAMP_G_Y__VPMPC_OUT_DENORM_CLAMP_MAX_G_Y_MASK                                      0x00FFF000L
-//VPMPC_OUT0_DENORM_CLAMP_B_CB
-#define VPMPC_OUT0_DENORM_CLAMP_B_CB__VPMPC_OUT_DENORM_CLAMP_MIN_B_CB__SHIFT                                  0x0
-#define VPMPC_OUT0_DENORM_CLAMP_B_CB__VPMPC_OUT_DENORM_CLAMP_MAX_B_CB__SHIFT                                  0xc
-#define VPMPC_OUT0_DENORM_CLAMP_B_CB__VPMPC_OUT_DENORM_CLAMP_MIN_B_CB_MASK                                    0x00000FFFL
-#define VPMPC_OUT0_DENORM_CLAMP_B_CB__VPMPC_OUT_DENORM_CLAMP_MAX_B_CB_MASK                                    0x00FFF000L
+//VPMPC_OUT0_DEANALRM_CONTROL
+#define VPMPC_OUT0_DEANALRM_CONTROL__VPMPC_OUT_DEANALRM_CLAMP_MIN_R_CR__SHIFT                                     0x0
+#define VPMPC_OUT0_DEANALRM_CONTROL__VPMPC_OUT_DEANALRM_CLAMP_MAX_R_CR__SHIFT                                     0xc
+#define VPMPC_OUT0_DEANALRM_CONTROL__VPMPC_OUT_DEANALRM_MODE__SHIFT                                               0x18
+#define VPMPC_OUT0_DEANALRM_CONTROL__VPMPC_OUT_DEANALRM_CLAMP_MIN_R_CR_MASK                                       0x00000FFFL
+#define VPMPC_OUT0_DEANALRM_CONTROL__VPMPC_OUT_DEANALRM_CLAMP_MAX_R_CR_MASK                                       0x00FFF000L
+#define VPMPC_OUT0_DEANALRM_CONTROL__VPMPC_OUT_DEANALRM_MODE_MASK                                                 0x07000000L
+//VPMPC_OUT0_DEANALRM_CLAMP_G_Y
+#define VPMPC_OUT0_DEANALRM_CLAMP_G_Y__VPMPC_OUT_DEANALRM_CLAMP_MIN_G_Y__SHIFT                                    0x0
+#define VPMPC_OUT0_DEANALRM_CLAMP_G_Y__VPMPC_OUT_DEANALRM_CLAMP_MAX_G_Y__SHIFT                                    0xc
+#define VPMPC_OUT0_DEANALRM_CLAMP_G_Y__VPMPC_OUT_DEANALRM_CLAMP_MIN_G_Y_MASK                                      0x00000FFFL
+#define VPMPC_OUT0_DEANALRM_CLAMP_G_Y__VPMPC_OUT_DEANALRM_CLAMP_MAX_G_Y_MASK                                      0x00FFF000L
+//VPMPC_OUT0_DEANALRM_CLAMP_B_CB
+#define VPMPC_OUT0_DEANALRM_CLAMP_B_CB__VPMPC_OUT_DEANALRM_CLAMP_MIN_B_CB__SHIFT                                  0x0
+#define VPMPC_OUT0_DEANALRM_CLAMP_B_CB__VPMPC_OUT_DEANALRM_CLAMP_MAX_B_CB__SHIFT                                  0xc
+#define VPMPC_OUT0_DEANALRM_CLAMP_B_CB__VPMPC_OUT_DEANALRM_CLAMP_MIN_B_CB_MASK                                    0x00000FFFL
+#define VPMPC_OUT0_DEANALRM_CLAMP_B_CB__VPMPC_OUT_DEANALRM_CLAMP_MAX_B_CB_MASK                                    0x00FFF000L
 //VPMPC_OUT_CSC_COEF_FORMAT
 #define VPMPC_OUT_CSC_COEF_FORMAT__VPMPC_OCSC0_COEF_FORMAT__SHIFT                                             0x0
 #define VPMPC_OUT_CSC_COEF_FORMAT__VPMPC_OCSC0_COEF_FORMAT_MASK                                               0x00000001L

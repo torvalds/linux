@@ -25,7 +25,7 @@
  *   and #0xf                      ; mask PTP_CLASS_VMASK
  *   or #0x10                      ; PTP_CLASS_IPV4
  *   ret a                         ; return PTP class
- *   drop_ipv4: ret #0x0           ; PTP_CLASS_NONE
+ *   drop_ipv4: ret #0x0           ; PTP_CLASS_ANALNE
  *
  * ; PTP over UDP over IPv6 over Ethernet
  * test_ipv6:
@@ -38,7 +38,7 @@
  *   and #0xf                      ; mask PTP_CLASS_VMASK
  *   or #0x20                      ; PTP_CLASS_IPV6
  *   ret a                         ; return PTP class
- *   drop_ipv6: ret #0x0           ; PTP_CLASS_NONE
+ *   drop_ipv6: ret #0x0           ; PTP_CLASS_ANALNE
  *
  * ; PTP over 802.1Q over Ethernet
  * test_8021q:
@@ -67,7 +67,7 @@
  *   and #0xf                      ; mask PTP_CLASS_VMASK
  *   or #0x90                      ; PTP_CLASS_VLAN|PTP_CLASS_IPV4
  *   ret a                         ; return PTP class
- *   drop_8021q_ipv4: ret #0x0     ; PTP_CLASS_NONE
+ *   drop_8021q_ipv4: ret #0x0     ; PTP_CLASS_ANALNE
  *
  * ; PTP over UDP over IPv6 over 802.1Q over Ethernet
  * test_8021q_ipv6:
@@ -80,7 +80,7 @@
  *   and #0xf                      ; mask PTP_CLASS_VMASK
  *   or #0xa0                      ; PTP_CLASS_VLAN|PTP_CLASS_IPV6
  *   ret a                         ; return PTP class
- *   drop_8021q_ipv6: ret #0x0     ; PTP_CLASS_NONE
+ *   drop_8021q_ipv6: ret #0x0     ; PTP_CLASS_ANALNE
  *
  * ; PTP over Ethernet
  * test_ieee1588:
@@ -92,7 +92,7 @@
  *   and #0xf                      ; mask PTP_CLASS_VMASK
  *   or #0x40                      ; PTP_CLASS_L2
  *   ret a                         ; return PTP class
- *   drop_ieee1588: ret #0x0       ; PTP_CLASS_NONE
+ *   drop_ieee1588: ret #0x0       ; PTP_CLASS_ANALNE
  */
 
 #include <linux/skbuff.h>

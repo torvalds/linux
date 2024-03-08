@@ -38,7 +38,7 @@
 #define  SPI_FSI_CLOCK_CFG_RESET2	 (BIT_ULL(37) | BIT_ULL(39))
 #define  SPI_FSI_CLOCK_CFG_MODE		 (BIT_ULL(41) | BIT_ULL(42))
 #define  SPI_FSI_CLOCK_CFG_SCK_RECV_DEL	 GENMASK_ULL(51, 44)
-#define   SPI_FSI_CLOCK_CFG_SCK_NO_DEL	  BIT_ULL(51)
+#define   SPI_FSI_CLOCK_CFG_SCK_ANAL_DEL	  BIT_ULL(51)
 #define  SPI_FSI_CLOCK_CFG_SCK_DIV	 GENMASK_ULL(63, 52)
 #define SPI_FSI_MMAP			0x4
 #define SPI_FSI_DATA_TX			0x5
@@ -100,7 +100,7 @@ static int fsi_spi_check_mux(struct fsi_device *fsi, struct device *dev)
 	     FSI_MBOX_ROOT_CTRL_8_SPI_MUX)
 		return 0;
 
-	return -ENOLINK;
+	return -EANALLINK;
 }
 
 static int fsi_spi_check_status(struct fsi_spi *ctx)
@@ -369,7 +369,7 @@ static int fsi_spi_transfer_init(struct fsi_spi *ctx)
 	u64 clock_cfg = 0ULL;
 	u64 status = 0ULL;
 	u64 wanted_clock_cfg = SPI_FSI_CLOCK_CFG_ECC_DISABLE |
-		SPI_FSI_CLOCK_CFG_SCK_NO_DEL |
+		SPI_FSI_CLOCK_CFG_SCK_ANAL_DEL |
 		FIELD_PREP(SPI_FSI_CLOCK_CFG_SCK_DIV, 19);
 
 	end = jiffies + msecs_to_jiffies(SPI_FSI_TIMEOUT_MS);
@@ -518,23 +518,23 @@ static size_t fsi_spi_max_transfer_size(struct spi_device *spi)
 static int fsi_spi_probe(struct device *dev)
 {
 	int rc;
-	struct device_node *np;
+	struct device_analde *np;
 	int num_controllers_registered = 0;
 	struct fsi2spi *bridge;
 	struct fsi_device *fsi = to_fsi_dev(dev);
 
 	rc = fsi_spi_check_mux(fsi, dev);
 	if (rc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bridge = devm_kzalloc(dev, sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->fsi = fsi;
 	mutex_init(&bridge->lock);
 
-	for_each_available_child_of_node(dev->of_node, np) {
+	for_each_available_child_of_analde(dev->of_analde, np) {
 		u32 base;
 		struct fsi_spi *ctx;
 		struct spi_controller *ctlr;
@@ -544,11 +544,11 @@ static int fsi_spi_probe(struct device *dev)
 
 		ctlr = spi_alloc_host(dev, sizeof(*ctx));
 		if (!ctlr) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
-		ctlr->dev.of_node = np;
+		ctlr->dev.of_analde = np;
 		ctlr->num_chipselect = of_get_available_child_count(np) ?: 1;
 		ctlr->flags = SPI_CONTROLLER_HALF_DUPLEX;
 		ctlr->max_transfer_size = fsi_spi_max_transfer_size;
@@ -567,7 +567,7 @@ static int fsi_spi_probe(struct device *dev)
 	}
 
 	if (!num_controllers_registered)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

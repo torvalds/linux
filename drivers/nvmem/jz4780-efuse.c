@@ -150,7 +150,7 @@ static int jz4780_efuse_probe(struct platform_device *pdev)
 
 	efuse = devm_kzalloc(dev, sizeof(*efuse), GFP_KERNEL);
 	if (!efuse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
@@ -196,7 +196,7 @@ static int jz4780_efuse_probe(struct platform_device *pdev)
 
 	if (rd_adj > EFUCFG_RD_ADJ_MASK ||
 	    rd_strobe > EFUCFG_RD_STR_MASK) {
-		dev_err(&pdev->dev, "Cannot set clock configuration\n");
+		dev_err(&pdev->dev, "Cananalt set clock configuration\n");
 		return -EINVAL;
 	}
 

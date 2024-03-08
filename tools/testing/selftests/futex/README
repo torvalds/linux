@@ -4,7 +4,7 @@ Futex Test is intended to thoroughly test the Linux kernel futex system call
 API.
 
 Functional tests shall test the documented behavior of the futex operation
-code under test. This includes checking for proper behavior under normal use,
+code under test. This includes checking for proper behavior under analrmal use,
 odd corner cases, regression tests, and abject abuse and misuse.
 
 Futextest will also provide example implementation of mutual exclusion

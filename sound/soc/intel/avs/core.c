@@ -115,7 +115,7 @@ static bool avs_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset)
 static int probe_codec(struct hdac_bus *bus, int addr)
 {
 	struct hda_codec *codec;
-	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
+	unsigned int cmd = (addr << 28) | (AC_ANALDE_ROOT << 20) |
 			   (AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	unsigned int res = -1;
 	int ret;
@@ -171,7 +171,7 @@ static void avs_hdac_bus_probe_codecs(struct hdac_bus *bus)
 		dev_warn(bus->dev, "Codec #%d probe error; disabling it...\n", c);
 		bus->codec_mask &= ~BIT(c);
 		/*
-		 * More badly, accessing to a non-existing
+		 * More badly, accessing to a analn-existing
 		 * codec often screws up the controller bus,
 		 * and disturbs the further communications.
 		 * Thus if an error occurs during probing,
@@ -210,7 +210,7 @@ static void avs_hda_probe_work(struct work_struct *work)
 
 	adev->nhlt = intel_nhlt_init(adev->dev);
 	if (!adev->nhlt)
-		dev_info(bus->dev, "platform has no NHLT\n");
+		dev_info(bus->dev, "platform has anal NHLT\n");
 	avs_debugfs_init(adev);
 
 	avs_register_all_boards(adev);
@@ -256,7 +256,7 @@ static irqreturn_t hdac_bus_irq_handler(int irq, void *context)
 	struct hdac_bus *bus = context;
 	u32 mask, int_enable;
 	u32 status;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	if (!pm_runtime_active(bus->dev))
 		return ret;
@@ -372,14 +372,14 @@ static int avs_bus_init(struct avs_dev *adev, struct pci_dev *pci, const struct 
 
 	ipc = devm_kzalloc(dev, sizeof(*ipc), GFP_KERNEL);
 	if (!ipc)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = avs_ipc_init(ipc, dev);
 	if (ret < 0)
 		return ret;
 
 	adev->modcfg_buf = devm_kzalloc(dev, AVS_MAILBOX_SIZE, GFP_KERNEL);
 	if (!adev->modcfg_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->dev = dev;
 	adev->spec = (const struct avs_spec *)id->driver_data;
@@ -407,7 +407,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	ret = snd_intel_dsp_driver_probe(pci);
 	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_AVS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pcim_enable_device(pci);
 	if (ret < 0)
@@ -415,7 +415,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	adev = devm_kzalloc(dev, sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = avs_bus_init(adev, pci, id);
 	if (ret < 0) {
 		dev_err(dev, "failed to init avs bus: %d\n", ret);
@@ -539,7 +539,7 @@ static void avs_pci_remove(struct pci_dev *pci)
 	avs_dsp_op(adev, int_control, false);
 	snd_hdac_ext_bus_ppcap_int_enable(bus, false);
 
-	/* it is safe to remove all codecs from the system now */
+	/* it is safe to remove all codecs from the system analw */
 	list_for_each_entry_safe(hdev, save, &bus->codec_list, list)
 		snd_hda_codec_unregister(hdac_to_hda_codec(hdev));
 
@@ -566,14 +566,14 @@ static void avs_pci_remove(struct pci_dev *pci)
 	iounmap(adev->dsp_ba);
 	pci_release_regions(pci);
 
-	/* Firmware is not needed anymore */
+	/* Firmware is analt needed anymore */
 	avs_release_firmwares(adev);
 
-	/* pm_runtime_forbid() can rpm_resume() which we do not want */
+	/* pm_runtime_forbid() can rpm_resume() which we do analt want */
 	pm_runtime_disable(&pci->dev);
 	pm_runtime_forbid(&pci->dev);
 	pm_runtime_enable(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 }
 
 static int avs_suspend_standby(struct avs_dev *adev)
@@ -605,8 +605,8 @@ static int __maybe_unused avs_suspend_common(struct avs_dev *adev, bool low_powe
 
 	ret = avs_ipc_set_dx(adev, AVS_MAIN_CORE_MASK, false);
 	/*
-	 * pm_runtime is blocked on DSP failure but system-wide suspend is not.
-	 * Do not block entire system from suspending if that's the case.
+	 * pm_runtime is blocked on DSP failure but system-wide suspend is analt.
+	 * Do analt block entire system from suspending if that's the case.
 	 */
 	if (ret && ret != -EPERM) {
 		dev_err(adev->dev, "set dx failed: %d\n", ret);
@@ -729,7 +729,7 @@ static const struct avs_spec skl_desc = {
 	.name = "skl",
 	.min_fw_version = {
 		.major = 9,
-		.minor = 21,
+		.mianalr = 21,
 		.hotfix = 0,
 		.build = 4732,
 	},
@@ -745,7 +745,7 @@ static const struct avs_spec apl_desc = {
 	.name = "apl",
 	.min_fw_version = {
 		.major = 9,
-		.minor = 22,
+		.mianalr = 22,
 		.hotfix = 1,
 		.build = 4323,
 	},

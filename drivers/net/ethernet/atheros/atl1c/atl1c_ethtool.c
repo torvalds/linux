@@ -42,8 +42,8 @@ static int atl1c_get_link_ksettings(struct net_device *netdev,
 		else
 			cmd->base.duplex = DUPLEX_HALF;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	cmd->base.autoneg = AUTONEG_ENABLE;
@@ -186,7 +186,7 @@ static int atl1c_get_eeprom(struct net_device *netdev,
 	if (eeprom->len == 0)
 		return -EINVAL;
 
-	if (!atl1c_check_eeprom_exist(hw)) /* not exist */
+	if (!atl1c_check_eeprom_exist(hw)) /* analt exist */
 		return -EINVAL;
 
 	eeprom->magic = adapter->pdev->vendor |
@@ -198,7 +198,7 @@ static int atl1c_get_eeprom(struct net_device *netdev,
 	eeprom_buff = kmalloc_array(last_dword - first_dword + 1, sizeof(u32),
 				    GFP_KERNEL);
 	if (eeprom_buff == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = first_dword; i < last_dword; i++) {
 		if (!atl1c_read_eeprom(hw, i * 4, &(eeprom_buff[i-first_dword]))) {
@@ -251,7 +251,7 @@ static int atl1c_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	if (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE |
 			    WAKE_UCAST | WAKE_BCAST | WAKE_MCAST))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* these settings will always override what we currently have */
 	adapter->wol = 0;
 

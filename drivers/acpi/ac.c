@@ -24,10 +24,10 @@
 #define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_AC_DEVICE_NAME		"AC Adapter"
 #define ACPI_AC_FILE_STATE		"state"
-#define ACPI_AC_NOTIFY_STATUS		0x80
+#define ACPI_AC_ANALTIFY_STATUS		0x80
 #define ACPI_AC_STATUS_OFFLINE		0x00
 #define ACPI_AC_STATUS_ONLINE		0x01
-#define ACPI_AC_STATUS_UNKNOWN		0xFF
+#define ACPI_AC_STATUS_UNKANALWN		0xFF
 
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI AC Adapter Driver");
@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL");
 static int acpi_ac_probe(struct platform_device *pdev);
 static void acpi_ac_remove(struct platform_device *pdev);
 
-static void acpi_ac_notify(acpi_handle handle, u32 event, void *data);
+static void acpi_ac_analtify(acpi_handle handle, u32 event, void *data);
 
 static const struct acpi_device_id ac_device_ids[] = {
 	{"ACPI0003", 0},
@@ -57,7 +57,7 @@ struct acpi_ac {
 	struct power_supply_desc charger_desc;
 	struct acpi_device *device;
 	unsigned long long state;
-	struct notifier_block battery_nb;
+	struct analtifier_block battery_nb;
 };
 
 #define to_acpi_ac(x) power_supply_get_drvdata(x)
@@ -81,8 +81,8 @@ static int acpi_ac_get_state(struct acpi_ac *ac)
 		acpi_handle_info(ac->device->handle,
 				"Error reading AC Adapter state: %s\n",
 				acpi_format_exception(status));
-		ac->state = ACPI_AC_STATUS_UNKNOWN;
-		return -ENODEV;
+		ac->state = ACPI_AC_STATUS_UNKANALWN;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -96,10 +96,10 @@ static int get_ac_property(struct power_supply *psy,
 	struct acpi_ac *ac = to_acpi_ac(psy);
 
 	if (!ac)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (acpi_ac_get_state(ac))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -117,7 +117,7 @@ static enum power_supply_property ac_props[] = {
 };
 
 /* Driver Model */
-static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_ac_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_ac *ac = data;
 	struct acpi_device *adev = ac->device;
@@ -127,11 +127,11 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 		acpi_handle_debug(adev->handle, "Unsupported event [0x%x]\n",
 				  event);
 		fallthrough;
-	case ACPI_AC_NOTIFY_STATUS:
-	case ACPI_NOTIFY_BUS_CHECK:
-	case ACPI_NOTIFY_DEVICE_CHECK:
+	case ACPI_AC_ANALTIFY_STATUS:
+	case ACPI_ANALTIFY_BUS_CHECK:
+	case ACPI_ANALTIFY_DEVICE_CHECK:
 		/*
-		 * A buggy BIOS may notify AC first and then sleep for
+		 * A buggy BIOS may analtify AC first and then sleep for
 		 * a specific time before doing actual operations in the
 		 * EC event handler (_Qxx). This will cause the AC state
 		 * reported by the ACPI event to be incorrect, so wait for a
@@ -144,29 +144,29 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 		acpi_bus_generate_netlink_event(adev->pnp.device_class,
 						  dev_name(&adev->dev), event,
 						  (u32) ac->state);
-		acpi_notifier_call_chain(adev, event, (u32) ac->state);
+		acpi_analtifier_call_chain(adev, event, (u32) ac->state);
 		kobject_uevent(&ac->charger->dev.kobj, KOBJ_CHANGE);
 	}
 }
 
-static int acpi_ac_battery_notify(struct notifier_block *nb,
+static int acpi_ac_battery_analtify(struct analtifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct acpi_ac *ac = container_of(nb, struct acpi_ac, battery_nb);
 	struct acpi_bus_event *event = (struct acpi_bus_event *)data;
 
 	/*
-	 * On HP Pavilion dv6-6179er AC status notifications aren't triggered
+	 * On HP Pavilion dv6-6179er AC status analtifications aren't triggered
 	 * when adapter is plugged/unplugged. However, battery status
-	 * notifications are triggered when battery starts charging or
-	 * discharging. Re-reading AC status triggers lost AC notifications,
+	 * analtifications are triggered when battery starts charging or
+	 * discharging. Re-reading AC status triggers lost AC analtifications,
 	 * if AC status has changed.
 	 */
 	if (strcmp(event->device_class, ACPI_BATTERY_CLASS) == 0 &&
-	    event->type == ACPI_BATTERY_NOTIFY_STATUS)
+	    event->type == ACPI_BATTERY_ANALTIFY_STATUS)
 		acpi_ac_get_state(ac);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int __init thinkpad_e530_quirk(const struct dmi_system_id *d)
@@ -191,10 +191,10 @@ static const struct dmi_system_id ac_dmi_table[]  __initconst = {
 		},
 	},
 	{
-		/* Lenovo Thinkpad e530, see comment in acpi_ac_notify() */
+		/* Leanalvo Thinkpad e530, see comment in acpi_ac_analtify() */
 		.callback = thinkpad_e530_quirk,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "32597CG"),
 		},
 	},
@@ -210,7 +210,7 @@ static int acpi_ac_probe(struct platform_device *pdev)
 
 	ac = kzalloc(sizeof(struct acpi_ac), GFP_KERNEL);
 	if (!ac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ac->device = adev;
 	strcpy(acpi_device_name(adev), ACPI_AC_DEVICE_NAME);
@@ -239,11 +239,11 @@ static int acpi_ac_probe(struct platform_device *pdev)
 	pr_info("%s [%s] (%s-line)\n", acpi_device_name(adev),
 		acpi_device_bid(adev), str_on_off(ac->state));
 
-	ac->battery_nb.notifier_call = acpi_ac_battery_notify;
-	register_acpi_notifier(&ac->battery_nb);
+	ac->battery_nb.analtifier_call = acpi_ac_battery_analtify;
+	register_acpi_analtifier(&ac->battery_nb);
 
-	result = acpi_dev_install_notify_handler(adev, ACPI_ALL_NOTIFY,
-						 acpi_ac_notify, ac);
+	result = acpi_dev_install_analtify_handler(adev, ACPI_ALL_ANALTIFY,
+						 acpi_ac_analtify, ac);
 	if (result)
 		goto err_unregister;
 
@@ -251,7 +251,7 @@ static int acpi_ac_probe(struct platform_device *pdev)
 
 err_unregister:
 	power_supply_unregister(ac->charger);
-	unregister_acpi_notifier(&ac->battery_nb);
+	unregister_acpi_analtifier(&ac->battery_nb);
 err_release_ac:
 	kfree(ac);
 
@@ -280,10 +280,10 @@ static void acpi_ac_remove(struct platform_device *pdev)
 {
 	struct acpi_ac *ac = platform_get_drvdata(pdev);
 
-	acpi_dev_remove_notify_handler(ac->device, ACPI_ALL_NOTIFY,
-				       acpi_ac_notify);
+	acpi_dev_remove_analtify_handler(ac->device, ACPI_ALL_ANALTIFY,
+				       acpi_ac_analtify);
 	power_supply_unregister(ac->charger);
-	unregister_acpi_notifier(&ac->battery_nb);
+	unregister_acpi_analtifier(&ac->battery_nb);
 
 	kfree(ac);
 }
@@ -303,16 +303,16 @@ static int __init acpi_ac_init(void)
 	int result;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (acpi_quirk_skip_acpi_ac_and_battery())
-		return -ENODEV;
+		return -EANALDEV;
 
 	dmi_check_system(ac_dmi_table);
 
 	result = platform_driver_register(&acpi_ac_driver);
 	if (result < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

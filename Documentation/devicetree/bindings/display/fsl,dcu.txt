@@ -15,7 +15,7 @@ Required properties:
 - port			Video port for the panel output
 
 Optional properties:
-- fsl,tcon:		The phandle to the timing controller node.
+- fsl,tcon:		The phandle to the timing controller analde.
 
 Examples:
 dcu: dcu@2ce0000 {

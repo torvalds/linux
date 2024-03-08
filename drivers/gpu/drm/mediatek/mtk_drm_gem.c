@@ -40,7 +40,7 @@ static struct mtk_drm_gem_obj *mtk_drm_gem_init(struct drm_device *dev,
 
 	mtk_gem_obj = kzalloc(sizeof(*mtk_gem_obj), GFP_KERNEL);
 	if (!mtk_gem_obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mtk_gem_obj->base.funcs = &mtk_drm_gem_object_funcs;
 
@@ -71,14 +71,14 @@ struct mtk_drm_gem_obj *mtk_drm_gem_create(struct drm_device *dev,
 	mtk_gem->dma_attrs = DMA_ATTR_WRITE_COMBINE;
 
 	if (!alloc_kmap)
-		mtk_gem->dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
+		mtk_gem->dma_attrs |= DMA_ATTR_ANAL_KERNEL_MAPPING;
 
 	mtk_gem->cookie = dma_alloc_attrs(priv->dma_dev, obj->size,
 					  &mtk_gem->dma_addr, GFP_KERNEL,
 					  mtk_gem->dma_attrs);
 	if (!mtk_gem->cookie) {
 		DRM_ERROR("failed to allocate %zx byte dma buffer", obj->size);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_gem_free;
 	}
 
@@ -142,7 +142,7 @@ int mtk_drm_gem_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	if (ret)
 		goto err_handle_create;
 
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it analw. */
 	drm_gem_object_put(&mtk_gem->base);
 
 	return 0;
@@ -182,7 +182,7 @@ static int mtk_drm_gem_object_mmap(struct drm_gem_object *obj,
 
 /*
  * Allocate a sg_table for this GEM object.
- * Note: Both the table's contents, and the sg_table itself must be freed by
+ * Analte: Both the table's contents, and the sg_table itself must be freed by
  *       the caller.
  * Returns a pointer to the newly allocated sg_table, or an ERR_PTR() error.
  */
@@ -195,7 +195,7 @@ struct sg_table *mtk_gem_prime_get_sg_table(struct drm_gem_object *obj)
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = dma_get_sgtable_attrs(priv->dma_dev, sgt, mtk_gem->cookie,
 				    mtk_gem->dma_addr, obj->size,
@@ -216,7 +216,7 @@ struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
 
 	/* check if the entries in the sg_table are contiguous */
 	if (drm_prime_get_contiguous_size(sg) < attach->dmabuf->size) {
-		DRM_ERROR("sg_table is not contiguous");
+		DRM_ERROR("sg_table is analt contiguous");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -248,7 +248,7 @@ int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 	if (!mtk_gem->pages) {
 		sg_free_table(sgt);
 		kfree(sgt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_prime_sg_to_page_array(sgt, mtk_gem->pages, npages);
@@ -259,7 +259,7 @@ int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 		sg_free_table(sgt);
 		kfree(sgt);
 		kfree(mtk_gem->pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	sg_free_table(sgt);
 	kfree(sgt);

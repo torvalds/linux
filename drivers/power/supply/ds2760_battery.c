@@ -6,7 +6,7 @@
  *	       2004 Szabolcs Gyurko
  *
  * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
+ * provided that this copyright analtice is
  * preserved in its entirety in all copies and derived works.
  *
  * Author:  Anton Vorontsov <cbou@mail.ru>
@@ -49,7 +49,7 @@ MODULE_PARM_DESC(current_accum, "current accumulator value");
 
 #define W1_FAMILY_DS2760		0x30
 
-/* Known commands to the DS2760 chip */
+/* Kanalwn commands to the DS2760 chip */
 #define W1_DS2760_SWAP			0xAA
 #define W1_DS2760_READ_DATA		0x69
 #define W1_DS2760_WRITE_DATA		0x6C
@@ -113,7 +113,7 @@ struct ds2760_device_info {
 	struct workqueue_struct *monitor_wqueue;
 	struct delayed_work monitor_work;
 	struct delayed_work set_charged_work;
-	struct notifier_block pm_notifier;
+	struct analtifier_block pm_analtifier;
 };
 
 static int w1_ds2760_io(struct device *dev, char *buf, int addr, size_t count,
@@ -142,7 +142,7 @@ static int w1_ds2760_io(struct device *dev, char *buf, int addr, size_t count,
 			w1_write_8(sl->master, W1_DS2760_WRITE_DATA);
 			w1_write_8(sl->master, addr);
 			w1_write_block(sl->master, buf, count);
-			/* XXX w1_write_block returns void, not n_written */
+			/* XXX w1_write_block returns void, analt n_written */
 		}
 	}
 
@@ -319,9 +319,9 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	di->full_active_uAh = di->raw[DS2760_ACTIVE_FULL] << 8 |
 			      di->raw[DS2760_ACTIVE_FULL + 1];
 
-	/* If the full_active_uAh value is not given, fall back to the rated
-	 * capacity. This is likely to happen when chips are not part of the
-	 * battery pack and is therefore not bootstrapped. */
+	/* If the full_active_uAh value is analt given, fall back to the rated
+	 * capacity. This is likely to happen when chips are analt part of the
+	 * battery pack and is therefore analt bootstrapped. */
 	if (di->full_active_uAh == 0)
 		di->full_active_uAh = di->rated_capacity / 1000L;
 
@@ -343,7 +343,7 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	if (di->full_active_uAh == di->empty_uAh)
 		di->rem_capacity = 0;
 	else
-		/* From Maxim Application Note 131: remaining capacity =
+		/* From Maxim Application Analte 131: remaining capacity =
 		 * ((ICA - Empty Value) / (Full Value - Empty Value)) x 100% */
 		di->rem_capacity = ((di->accum_current_uAh - di->empty_uAh) * 100L) /
 				    (di->full_active_uAh - di->empty_uAh);
@@ -384,7 +384,7 @@ static void ds2760_battery_update_status(struct ds2760_device_info *di)
 
 	ds2760_battery_read_status(di);
 
-	if (di->charge_status == POWER_SUPPLY_STATUS_UNKNOWN)
+	if (di->charge_status == POWER_SUPPLY_STATUS_UNKANALWN)
 		di->full_counter = 0;
 
 	if (power_supply_am_i_supplied(di->bat)) {
@@ -392,10 +392,10 @@ static void ds2760_battery_update_status(struct ds2760_device_info *di)
 			di->charge_status = POWER_SUPPLY_STATUS_CHARGING;
 			di->full_counter = 0;
 		} else if (di->current_uA < -5000) {
-			if (di->charge_status != POWER_SUPPLY_STATUS_NOT_CHARGING)
-				dev_notice(di->dev, "not enough power to "
+			if (di->charge_status != POWER_SUPPLY_STATUS_ANALT_CHARGING)
+				dev_analtice(di->dev, "analt eanalugh power to "
 					   "charge\n");
-			di->charge_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			di->charge_status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			di->full_counter = 0;
 		} else if (di->current_uA < 10000 &&
 			    di->charge_status != POWER_SUPPLY_STATUS_FULL) {
@@ -499,8 +499,8 @@ static void ds2760_battery_set_charged_work(struct work_struct *work)
 
 	ds2760_battery_read_status(di);
 
-	/* When we get notified by external circuitry that the battery is
-	 * considered fully charged now, we know that there is no current
+	/* When we get analtified by external circuitry that the battery is
+	 * considered fully charged analw, we kanalw that there is anal current
 	 * flow any more. However, the ds2760's internal current meter is
 	 * too inaccurate to rely on - spec say something ~15% failure.
 	 * Hence, we use the current offset bias register to compensate
@@ -550,10 +550,10 @@ static int ds2760_battery_get_property(struct power_supply *psy,
 	ds2760_battery_read_status(di);
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = di->voltage_uV;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		val->intval = di->current_uA;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
@@ -565,13 +565,13 @@ static int ds2760_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
 		val->intval = di->empty_uAh;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		val->intval = di->accum_current_uAh;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = di->temp_C;
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
 		val->intval = di->life_sec;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -596,7 +596,7 @@ static int ds2760_battery_set_property(struct power_supply *psy,
 		ds2760_battery_write_active_full(di, val->intval / 1000L);
 		break;
 
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		/* ds2760_battery_set_current_accum() does the conversion */
 		ds2760_battery_set_current_accum(di, val->intval);
 		break;
@@ -613,7 +613,7 @@ static int ds2760_battery_property_is_writeable(struct power_supply *psy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		return 1;
 
 	default:
@@ -625,34 +625,34 @@ static int ds2760_battery_property_is_writeable(struct power_supply *psy,
 
 static enum power_supply_property ds2760_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_EMPTY,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
-static int ds2760_pm_notifier(struct notifier_block *notifier,
+static int ds2760_pm_analtifier(struct analtifier_block *analtifier,
 			      unsigned long pm_event,
 			      void *unused)
 {
 	struct ds2760_device_info *di =
-		container_of(notifier, struct ds2760_device_info, pm_notifier);
+		container_of(analtifier, struct ds2760_device_info, pm_analtifier);
 
 	switch (pm_event) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		di->charge_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		di->charge_status = POWER_SUPPLY_STATUS_UNKANALWN;
 		break;
 
 	case PM_POST_RESTORE:
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
-		di->charge_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		di->charge_status = POWER_SUPPLY_STATUS_UNKANALWN;
 		power_supply_changed(di->bat);
 		mod_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ);
 
@@ -663,7 +663,7 @@ static int ds2760_pm_notifier(struct notifier_block *notifier,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int w1_ds2760_add_slave(struct w1_slave *sl)
@@ -677,7 +677,7 @@ static int w1_ds2760_add_slave(struct w1_slave *sl)
 
 	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto di_alloc_failed;
 	}
 
@@ -698,25 +698,25 @@ static int w1_ds2760_add_slave(struct w1_slave *sl)
 
 	psy_cfg.drv_data = di;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		u32 tmp;
 
-		psy_cfg.of_node = dev->of_node;
+		psy_cfg.of_analde = dev->of_analde;
 
-		if (!of_property_read_bool(dev->of_node, "maxim,pmod-enabled"))
+		if (!of_property_read_bool(dev->of_analde, "maxim,pmod-enabled"))
 			pmod_enabled = true;
 
-		if (!of_property_read_u32(dev->of_node,
+		if (!of_property_read_u32(dev->of_analde,
 					  "maxim,cache-time-ms", &tmp))
 			cache_time = tmp;
 
-		if (!of_property_read_u32(dev->of_node,
+		if (!of_property_read_u32(dev->of_analde,
 					  "rated-capacity-microamp-hours",
 					  &tmp))
 			rated_capacity = tmp / 10; /* property is in mAh */
 	}
 
-	di->charge_status = POWER_SUPPLY_STATUS_UNKNOWN;
+	di->charge_status = POWER_SUPPLY_STATUS_UNKANALWN;
 
 	sl->family_data = di;
 
@@ -756,8 +756,8 @@ static int w1_ds2760_add_slave(struct w1_slave *sl)
 	}
 	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ * 1);
 
-	di->pm_notifier.notifier_call = ds2760_pm_notifier;
-	register_pm_notifier(&di->pm_notifier);
+	di->pm_analtifier.analtifier_call = ds2760_pm_analtifier;
+	register_pm_analtifier(&di->pm_analtifier);
 
 	goto success;
 
@@ -773,7 +773,7 @@ static void w1_ds2760_remove_slave(struct w1_slave *sl)
 {
 	struct ds2760_device_info *di = sl->family_data;
 
-	unregister_pm_notifier(&di->pm_notifier);
+	unregister_pm_analtifier(&di->pm_analtifier);
 	cancel_delayed_work_sync(&di->monitor_work);
 	cancel_delayed_work_sync(&di->set_charged_work);
 	destroy_workqueue(di->monitor_wqueue);

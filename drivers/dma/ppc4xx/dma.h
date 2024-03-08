@@ -4,7 +4,7 @@
  *
  * 2006-2009 (C) DENX Software Engineering.
  *
- * Author: Yuri Tikhonov <yur@emcraft.com>
+ * Author: Yuri Tikhoanalv <yur@emcraft.com>
  */
 
 #ifndef	_PPC440SPE_DMA_H
@@ -57,12 +57,12 @@
 /* DMA CDB fields */
 #define DMA_CDB_MSK		(0xF)
 #define DMA_CDB_64B_ADDR	(1<<2)
-#define DMA_CDB_NO_INT		(1<<3)
+#define DMA_CDB_ANAL_INT		(1<<3)
 #define DMA_CDB_STATUS_MSK	(0x3)
 #define DMA_CDB_ADDR_MSK	(0xFFFFFFF0)
 
 /* DMA CDB OpCodes */
-#define DMA_CDB_OPC_NO_OP	(0x00)
+#define DMA_CDB_OPC_ANAL_OP	(0x00)
 #define DMA_CDB_OPC_MV_SG1_SG2	(0x01)
 #define DMA_CDB_OPC_MULTICAST	(0x05)
 #define DMA_CDB_OPC_DFILL128	(0x24)

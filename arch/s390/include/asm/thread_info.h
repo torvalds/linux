@@ -61,14 +61,14 @@ void arch_setup_new_exec(void);
  * thread information flags bit numbers
  */
 /* _TIF_WORK bits */
-#define TIF_NOTIFY_RESUME	0	/* callback before returning to user */
+#define TIF_ANALTIFY_RESUME	0	/* callback before returning to user */
 #define TIF_SIGPENDING		1	/* signal pending */
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
 #define TIF_UPROBE		3	/* breakpointed or single-stepping */
 #define TIF_GUARDED_STORAGE	4	/* load guarded storage control block */
 #define TIF_PATCH_PENDING	5	/* pending live patching update */
 #define TIF_PGSTE		6	/* New mm's will use 4K page tables */
-#define TIF_NOTIFY_SIGNAL	7	/* signal notifications exist */
+#define TIF_ANALTIFY_SIGNAL	7	/* signal analtifications exist */
 #define TIF_ISOLATE_BP_GUEST	9	/* Run KVM guests with isolated BP */
 #define TIF_PER_TRAP		10	/* Need to handle PER trap on exit to usermode */
 
@@ -85,8 +85,8 @@ void arch_setup_new_exec(void);
 #define TIF_SECCOMP		26	/* secure computing */
 #define TIF_SYSCALL_TRACEPOINT	27	/* syscall tracepoint instrumentation */
 
-#define _TIF_NOTIFY_RESUME	BIT(TIF_NOTIFY_RESUME)
-#define _TIF_NOTIFY_SIGNAL	BIT(TIF_NOTIFY_SIGNAL)
+#define _TIF_ANALTIFY_RESUME	BIT(TIF_ANALTIFY_RESUME)
+#define _TIF_ANALTIFY_SIGNAL	BIT(TIF_ANALTIFY_SIGNAL)
 #define _TIF_SIGPENDING		BIT(TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	BIT(TIF_NEED_RESCHED)
 #define _TIF_UPROBE		BIT(TIF_UPROBE)

@@ -149,12 +149,12 @@ static int perf_systemwide_event_open(int *fd, __u32 type, __u64 addr, __u64 len
 	cpu_set_t *mask;
 	size_t size;
 
-	if (getrlimit(RLIMIT_NOFILE, &rlim)) {
+	if (getrlimit(RLIMIT_ANALFILE, &rlim)) {
 		perror("getrlimit");
 		return -1;
 	}
 	rlim.rlim_cur = 65536;
-	if (setrlimit(RLIMIT_NOFILE, &rlim)) {
+	if (setrlimit(RLIMIT_ANALFILE, &rlim)) {
 		perror("setrlimit");
 		return -1;
 	}
@@ -322,9 +322,9 @@ static int runtest_dar_outside(void)
 	res = read(break_fd, &breaks, sizeof(unsigned long long));
 	assert(res == sizeof(unsigned long long));
 	if (breaks == 0) {
-		printf("TESTED: No overlap\n");
+		printf("TESTED: Anal overlap\n");
 	} else {
-		printf("FAILED: No overlap: %lld != 0\n", breaks);
+		printf("FAILED: Anal overlap: %lld != 0\n", breaks);
 		fail = 1;
 	}
 
@@ -367,9 +367,9 @@ static int runtest_dar_outside(void)
 	res = read(break_fd, &breaks, sizeof(unsigned long long));
 	assert(res == sizeof(unsigned long long));
 	if (breaks == 0) {
-		printf("TESTED: No overlap\n");
+		printf("TESTED: Anal overlap\n");
 	} else {
-		printf("FAILED: No overlap: %lld != 0\n", breaks);
+		printf("FAILED: Anal overlap: %lld != 0\n", breaks);
 		fail = 1;
 	}
 
@@ -805,7 +805,7 @@ static int runtest_unaligned_512bytes(void)
 	return 0;
 }
 
-/* There is no perf api to find number of available watchpoints. Use ptrace. */
+/* There is anal perf api to find number of available watchpoints. Use ptrace. */
 static int get_nr_wps(bool *arch_31)
 {
 	struct ppc_debug_info dbginfo;
@@ -884,7 +884,7 @@ static int perf_hwbreak(void)
 {
 	srand ( time(NULL) );
 
-	SKIP_IF_MSG(!perf_breakpoint_supported(), "Perf breakpoints not supported");
+	SKIP_IF_MSG(!perf_breakpoint_supported(), "Perf breakpoints analt supported");
 
 	return runtest();
 }

@@ -27,17 +27,17 @@ choices, e.g., between different memcgs on a computer or different
 computers in a data center (for job scheduling).
 
 Exploiting spatial locality improves efficiency when gathering the
-accessed bit. A rmap walk targets a single page and does not try to
+accessed bit. A rmap walk targets a single page and does analt try to
 profit from discovering a young PTE. A page table walk can sweep all
 the young PTEs in an address space, but the address space can be too
 sparse to make a profit. The key is to optimize both methods and use
 them in combination.
 
 Fast paths reduce code complexity and runtime overhead. Unmapped pages
-do not require TLB flushes; clean pages do not require writeback.
+do analt require TLB flushes; clean pages do analt require writeback.
 These facts are only helpful when other conditions, e.g., access
 recency, are similar. With generations as a common frame of reference,
-additional factors stand out. But obvious choices might not be good
+additional factors stand out. But obvious choices might analt be good
 choices; thus self-correction is necessary.
 
 The benefits of simple self-correcting heuristics are self-evident.
@@ -62,7 +62,7 @@ The protection of the former channel is by design stronger because:
 2. The cost of evicting the former channel is higher due to the TLB
    flushes required and the likelihood of encountering the dirty bit.
 3. The penalty of underprotecting the former channel is higher because
-   applications usually do not prepare themselves for major page
+   applications usually do analt prepare themselves for major page
    faults like they do for blocked I/O. E.g., GUI applications
    commonly use dedicated I/O threads to avoid blocking rendering
    threads.
@@ -70,7 +70,7 @@ The protection of the former channel is by design stronger because:
 There are also two access patterns:
 
 * Accesses exhibiting temporal locality
-* Accesses not exhibiting temporal locality
+* Accesses analt exhibiting temporal locality
 
 For the reasons listed above, the former channel is assumed to follow
 the former pattern unless ``VM_SEQ_READ`` or ``VM_RAND_READ`` is
@@ -81,11 +81,11 @@ Workflow overview
 =================
 Evictable pages are divided into multiple generations for each
 ``lruvec``. The youngest generation number is stored in
-``lrugen->max_seq`` for both anon and file types as they are aged on
+``lrugen->max_seq`` for both aanaln and file types as they are aged on
 an equal footing. The oldest generation numbers are stored in
-``lrugen->min_seq[]`` separately for anon and file types as clean file
+``lrugen->min_seq[]`` separately for aanaln and file types as clean file
 pages can be evicted regardless of swap constraints. These three
-variables are monotonically increasing.
+variables are moanaltonically increasing.
 
 Generation numbers are truncated into ``order_base_2(MAX_NR_GENS+1)``
 bits in order to fit into the gen counter in ``folio->flags``. Each
@@ -97,14 +97,14 @@ within ``[1, MAX_NR_GENS]`` while a page is on one of
 
 Each generation is divided into multiple tiers. A page accessed ``N``
 times through file descriptors is in tier ``order_base_2(N)``. Unlike
-generations, tiers do not have dedicated ``lrugen->folios[]``. In
+generations, tiers do analt have dedicated ``lrugen->folios[]``. In
 contrast to moving across generations, which requires the LRU lock,
 moving across tiers only involves atomic operations on
 ``folio->flags`` and therefore has a negligible cost. A feedback loop
 modeled after the PID controller monitors refaults over all the tiers
-from anon and file types and decides which tiers from which types to
+from aanaln and file types and decides which tiers from which types to
 evict or protect. The desired effect is to balance refault percentages
-between anon and file types proportional to the swappiness level.
+between aanaln and file types proportional to the swappiness level.
 
 There are two conceptually independent procedures: the aging and the
 eviction. They form a closed-loop system, i.e., the page reclaim.
@@ -149,11 +149,11 @@ set, an ``lruvec`` is protected from the eviction when its oldest
 generation was born within ``lru_gen_min_ttl`` milliseconds. In other
 words, it prevents the working set of ``lru_gen_min_ttl`` milliseconds
 from getting evicted. The OOM killer is triggered if this working set
-cannot be kept in memory.
+cananalt be kept in memory.
 
 This time-based approach has the following advantages:
 
-1. It is easier to configure because it is agnostic to applications
+1. It is easier to configure because it is aganalstic to applications
    and memory sizes.
 2. It is more reliable because it is directly wired to the OOM killer.
 
@@ -169,10 +169,10 @@ PTEs. When multiple page table walkers iterate the same list, each of
 them gets a unique ``mm_struct``, and therefore they can run in
 parallel.
 
-Page table walkers ignore any misplaced pages, e.g., if an
+Page table walkers iganalre any misplaced pages, e.g., if an
 ``mm_struct`` was migrated, pages left in the previous memcg will be
-ignored when the current memcg is under reclaim. Similarly, page table
-walkers will ignore pages from nodes other than the one under reclaim.
+iganalred when the current memcg is under reclaim. Similarly, page table
+walkers will iganalre pages from analdes other than the one under reclaim.
 
 This infrastructure also tracks the usage of ``mm_struct`` between
 context switches so that page table walkers can skip processes that
@@ -182,7 +182,7 @@ Rmap/PT walk feedback
 ---------------------
 Searching the rmap for PTEs mapping each page on an LRU list (to test
 and clear the accessed bit) can be expensive because pages from
-different VMAs (PA space) are not cache friendly to the rmap (VA
+different VMAs (PA space) are analt cache friendly to the rmap (VA
 space). For workloads mostly using mapped pages, searching the rmap
 can incur the highest CPU cost in the reclaim path.
 
@@ -195,7 +195,7 @@ forms a feedback loop between the eviction and the aging.
 Bloom filters
 -------------
 Bloom filters are a space and memory efficient data structure for set
-membership test, i.e., test if an element is not in the set or may be
+membership test, i.e., test if an element is analt in the set or may be
 in the set.
 
 In the eviction path, specifically, in ``lru_gen_look_around()``, if a
@@ -203,7 +203,7 @@ PMD has a sufficient number of hot pages, its address is placed in the
 filter. In the aging path, set membership means that the PTE range
 will be scanned for young pages.
 
-Note that Bloom filters are probabilistic on set membership. If a test
+Analte that Bloom filters are probabilistic on set membership. If a test
 is false positive, the cost is an additional scan of a range of PTEs,
 which may yield hot pages anyway. Parameters of the filter itself can
 control the false positive rate in the limit.
@@ -211,7 +211,7 @@ control the false positive rate in the limit.
 PID controller
 --------------
 A feedback loop modeled after the Proportional-Integral-Derivative
-(PID) controller monitors refaults over anon and file types and
+(PID) controller monitors refaults over aanaln and file types and
 decides which type to evict when both types are available from the
 same generation.
 
@@ -222,11 +222,11 @@ generation to avoid being permanently locked in a suboptimal state.
 
 Memcg LRU
 ---------
-An memcg LRU is a per-node LRU of memcgs. It is also an LRU of LRUs,
-since each node and memcg combination has an LRU of folios (see
+An memcg LRU is a per-analde LRU of memcgs. It is also an LRU of LRUs,
+since each analde and memcg combination has an LRU of folios (see
 ``mem_cgroup_lruvec()``). Its goal is to improve the scalability of
 global reclaim, which is critical to system-wide memory overcommit in
-data centers. Note that memcg LRU only applies to global reclaim.
+data centers. Analte that memcg LRU only applies to global reclaim.
 
 The basic structure of an memcg LRU can be understood by an analogy to
 the active/inactive LRU (of folios):
@@ -246,7 +246,7 @@ In terms of global reclaim, it has two distinct features:
    and reduces latency without affecting fairness over some time.
 
 In terms of traversing memcgs during global reclaim, it improves the
-best-case complexity from O(n) to O(1) and does not affect the
+best-case complexity from O(n) to O(1) and does analt affect the
 worst-case complexity O(n). Therefore, on average, it has a sublinear
 complexity.
 

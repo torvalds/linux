@@ -21,7 +21,7 @@
 #include "rkisp1-common.h"
 
 /*
- * NOTE: There are two capture video devices in rkisp1, selfpath and mainpath.
+ * ANALTE: There are two capture video devices in rkisp1, selfpath and mainpath.
  *
  * differences between selfpath and mainpath
  * available mp sink input: isp
@@ -85,7 +85,7 @@ struct rkisp1_capture_config {
 };
 
 /*
- * The supported pixel formats for mainpath. NOTE, pixel formats with identical 'mbus'
+ * The supported pixel formats for mainpath. ANALTE, pixel formats with identical 'mbus'
  * are grouped together. This is assumed and used by the function rkisp1_cap_enum_mbus_codes
  */
 static const struct rkisp1_capture_fmt_cfg rkisp1_mp_fmts[] = {
@@ -218,7 +218,7 @@ static const struct rkisp1_capture_fmt_cfg rkisp1_mp_fmts[] = {
 };
 
 /*
- * The supported pixel formats for selfpath. NOTE, pixel formats with identical 'mbus'
+ * The supported pixel formats for selfpath. ANALTE, pixel formats with identical 'mbus'
  * are grouped together. This is assumed and used by the function rkisp1_cap_enum_mbus_codes
  */
 static const struct rkisp1_capture_fmt_cfg rkisp1_sp_fmts[] = {
@@ -358,10 +358,10 @@ static const struct rkisp1_capture_config rkisp1_capture_config_sp = {
 	},
 };
 
-static inline struct rkisp1_vdev_node *
-rkisp1_vdev_to_node(struct video_device *vdev)
+static inline struct rkisp1_vdev_analde *
+rkisp1_vdev_to_analde(struct video_device *vdev)
 {
-	return container_of(vdev, struct rkisp1_vdev_node, vdev);
+	return container_of(vdev, struct rkisp1_vdev_analde, vdev);
 }
 
 int rkisp1_cap_enum_mbus_codes(struct rkisp1_capture *cap,
@@ -369,7 +369,7 @@ int rkisp1_cap_enum_mbus_codes(struct rkisp1_capture *cap,
 {
 	const struct rkisp1_capture_fmt_cfg *fmts = cap->config->fmts;
 	/*
-	 * initialize curr_mbus to non existing mbus code 0 to ensure it is
+	 * initialize curr_mbus to analn existing mbus code 0 to ensure it is
 	 * different from fmts[0].mbus
 	 */
 	u32 curr_mbus = 0;
@@ -619,14 +619,14 @@ static int rkisp1_dummy_buf_create(struct rkisp1_capture *cap)
 			       rkisp1_pixfmt_comp_size(pixm, RKISP1_PLANE_CB),
 			       rkisp1_pixfmt_comp_size(pixm, RKISP1_PLANE_CR));
 
-	/* The driver never access vaddr, no mapping is required */
+	/* The driver never access vaddr, anal mapping is required */
 	dummy_buf->vaddr = dma_alloc_attrs(cap->rkisp1->dev,
 					   dummy_buf->size,
 					   &dummy_buf->dma_addr,
 					   GFP_KERNEL,
-					   DMA_ATTR_NO_KERNEL_MAPPING);
+					   DMA_ATTR_ANAL_KERNEL_MAPPING);
 	if (!dummy_buf->vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -635,7 +635,7 @@ static void rkisp1_dummy_buf_destroy(struct rkisp1_capture *cap)
 {
 	dma_free_attrs(cap->rkisp1->dev,
 		       cap->buf.dummy.size, cap->buf.dummy.vaddr,
-		       cap->buf.dummy.dma_addr, DMA_ATTR_NO_KERNEL_MAPPING);
+		       cap->buf.dummy.dma_addr, DMA_ATTR_ANAL_KERNEL_MAPPING);
 }
 
 static void rkisp1_set_next_buf(struct rkisp1_capture *cap)
@@ -676,7 +676,7 @@ static void rkisp1_set_next_buf(struct rkisp1_capture *cap)
 	} else {
 		/*
 		 * Use the dummy space allocated by dma_alloc_coherent to
-		 * throw data if there is no available buffer.
+		 * throw data if there is anal available buffer.
 		 */
 		rkisp1_write(cap->rkisp1, cap->config->mi.y_base_ad_init,
 			     cap->buf.dummy.dma_addr);
@@ -708,7 +708,7 @@ static void rkisp1_handle_buffer(struct rkisp1_capture *cap)
 	if (curr_buf) {
 		curr_buf->vb.sequence = isp->frame_sequence;
 		curr_buf->vb.vb2_buf.timestamp = ktime_get_boottime_ns();
-		curr_buf->vb.field = V4L2_FIELD_NONE;
+		curr_buf->vb.field = V4L2_FIELD_ANALNE;
 		vb2_buffer_done(&curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	} else {
 		cap->rkisp1->debug.frame_drop[cap->id]++;
@@ -726,11 +726,11 @@ irqreturn_t rkisp1_capture_isr(int irq, void *ctx)
 	u32 status;
 
 	if (!rkisp1->irqs_enabled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = rkisp1_read(rkisp1, RKISP1_CIF_MI_MIS);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rkisp1_write(rkisp1, RKISP1_CIF_MI_ICR, status);
 
@@ -806,7 +806,7 @@ static int rkisp1_vb2_buf_init(struct vb2_buffer *vb)
 	for (i = 0; i < pixm->num_planes; i++)
 		ispbuf->buff_addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
 
-	/* Convert to non-MPLANE */
+	/* Convert to analn-MPLANE */
 	if (pixm->num_planes == 1) {
 		ispbuf->buff_addr[RKISP1_PLANE_CB] =
 			ispbuf->buff_addr[RKISP1_PLANE_Y] +
@@ -883,7 +883,7 @@ static void rkisp1_return_all_buffers(struct rkisp1_capture *cap,
 
 /*
  * Most registers inside the rockchip ISP1 have shadow register since
- * they must not be changed while processing a frame.
+ * they must analt be changed while processing a frame.
  * Usually, each sub-module updates its shadow register after
  * processing the last pixel of a frame.
  */
@@ -900,11 +900,11 @@ static void rkisp1_cap_stream_enable(struct rkisp1_capture *cap)
 	rkisp1_set_next_buf(cap);
 	cap->ops->enable(cap);
 	/* It's safe to configure ACTIVE and SHADOW registers for the
-	 * first stream. While when the second is starting, do NOT
+	 * first stream. While when the second is starting, do ANALT
 	 * force update because it also updates the first one.
 	 *
 	 * The latter case would drop one more buffer(that is 2) since
-	 * there's no buffer in a shadow register when the second FE received.
+	 * there's anal buffer in a shadow register when the second FE received.
 	 * This's also required because the second FE maybe corrupt
 	 * especially when run at 120fps.
 	 */
@@ -936,7 +936,7 @@ static void rkisp1_cap_stream_disable(struct rkisp1_capture *cap)
 }
 
 /*
- * rkisp1_pipeline_stream_disable - disable nodes in the pipeline
+ * rkisp1_pipeline_stream_disable - disable analdes in the pipeline
  *
  * Call s_stream(false) in the reverse order from
  * rkisp1_pipeline_stream_enable() and disable the DMA engine.
@@ -950,7 +950,7 @@ static void rkisp1_pipeline_stream_disable(struct rkisp1_capture *cap)
 	rkisp1_cap_stream_disable(cap);
 
 	/*
-	 * If the other capture is streaming, isp and sensor nodes shouldn't
+	 * If the other capture is streaming, isp and sensor analdes shouldn't
 	 * be disabled, skip them.
 	 */
 	if (rkisp1->pipe.start_count < 2)
@@ -961,7 +961,7 @@ static void rkisp1_pipeline_stream_disable(struct rkisp1_capture *cap)
 }
 
 /*
- * rkisp1_pipeline_stream_enable - enable nodes in the pipeline
+ * rkisp1_pipeline_stream_enable - enable analdes in the pipeline
  *
  * Enable the DMA Engine and call s_stream(true) through the pipeline.
  * Should be called after video_device_pipeline_start()
@@ -980,7 +980,7 @@ static int rkisp1_pipeline_stream_enable(struct rkisp1_capture *cap)
 		goto err_disable_cap;
 
 	/*
-	 * If the other capture is streaming, isp and sensor nodes are already
+	 * If the other capture is streaming, isp and sensor analdes are already
 	 * enabled, skip them.
 	 */
 	if (rkisp1->pipe.start_count > 1)
@@ -1004,7 +1004,7 @@ err_disable_cap:
 static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
 {
 	struct rkisp1_capture *cap = queue->drv_priv;
-	struct rkisp1_vdev_node *node = &cap->vnode;
+	struct rkisp1_vdev_analde *analde = &cap->vanalde;
 	struct rkisp1_device *rkisp1 = cap->rkisp1;
 	int ret;
 
@@ -1014,14 +1014,14 @@ static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
 
 	rkisp1_return_all_buffers(cap, VB2_BUF_STATE_ERROR);
 
-	v4l2_pipeline_pm_put(&node->vdev.entity);
+	v4l2_pipeline_pm_put(&analde->vdev.entity);
 	ret = pm_runtime_put(rkisp1->dev);
 	if (ret < 0)
 		dev_err(rkisp1->dev, "power down failed error:%d\n", ret);
 
 	rkisp1_dummy_buf_destroy(cap);
 
-	video_device_pipeline_stop(&node->vdev);
+	video_device_pipeline_stop(&analde->vdev);
 
 	mutex_unlock(&cap->rkisp1->stream_lock);
 }
@@ -1030,12 +1030,12 @@ static int
 rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 {
 	struct rkisp1_capture *cap = queue->drv_priv;
-	struct media_entity *entity = &cap->vnode.vdev.entity;
+	struct media_entity *entity = &cap->vanalde.vdev.entity;
 	int ret;
 
 	mutex_lock(&cap->rkisp1->stream_lock);
 
-	ret = video_device_pipeline_start(&cap->vnode.vdev, &cap->rkisp1->pipe);
+	ret = video_device_pipeline_start(&cap->vanalde.vdev, &cap->rkisp1->pipe);
 	if (ret) {
 		dev_err(cap->rkisp1->dev, "start pipeline failed %d\n", ret);
 		goto err_ret_buffers;
@@ -1071,7 +1071,7 @@ err_pipe_pm_put:
 err_destroy_dummy:
 	rkisp1_dummy_buf_destroy(cap);
 err_pipeline_stop:
-	video_device_pipeline_stop(&cap->vnode.vdev);
+	video_device_pipeline_stop(&cap->vanalde.vdev);
 err_ret_buffers:
 	rkisp1_return_all_buffers(cap, VB2_BUF_STATE_QUEUED);
 	mutex_unlock(&cap->rkisp1->stream_lock);
@@ -1133,7 +1133,7 @@ rkisp1_fill_pixfmt(struct v4l2_pix_format_mplane *pixm,
 
 	/*
 	 * If pixfmt is packed, then plane_fmt[0] should contain the total size
-	 * considering all components. plane_fmt[i] for i > 0 should be ignored
+	 * considering all components. plane_fmt[i] for i > 0 should be iganalred
 	 * by userspace as mem_planes == 1, but we are keeping information there
 	 * for convenience.
 	 */
@@ -1182,7 +1182,7 @@ static void rkisp1_try_fmt(const struct rkisp1_capture *cap,
 	pixm->height = clamp_t(u32, pixm->height,
 			       RKISP1_RSZ_SRC_MIN_HEIGHT, max_heights[cap->id]);
 
-	pixm->field = V4L2_FIELD_NONE;
+	pixm->field = V4L2_FIELD_ANALNE;
 	pixm->colorspace = V4L2_COLORSPACE_DEFAULT;
 	pixm->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -1278,10 +1278,10 @@ static int rkisp1_s_fmt_vid_cap_mplane(struct file *file,
 				       void *priv, struct v4l2_format *f)
 {
 	struct rkisp1_capture *cap = video_drvdata(file);
-	struct rkisp1_vdev_node *node =
-				rkisp1_vdev_to_node(&cap->vnode.vdev);
+	struct rkisp1_vdev_analde *analde =
+				rkisp1_vdev_to_analde(&cap->vanalde.vdev);
 
-	if (vb2_is_busy(&node->buf_queue))
+	if (vb2_is_busy(&analde->buf_queue))
 		return -EBUSY;
 
 	rkisp1_set_fmt(cap, &f->fmt.pix_mp);
@@ -1352,7 +1352,7 @@ static int rkisp1_capture_link_validate(struct media_link *link)
 	    sd_fmt.format.width != cap->pix.fmt.width ||
 	    sd_fmt.format.code != fmt->mbus) {
 		dev_dbg(cap->rkisp1->dev,
-			"link '%s':%u -> '%s':%u not valid: 0x%04x/%ux%u != 0x%04x/%ux%u\n",
+			"link '%s':%u -> '%s':%u analt valid: 0x%04x/%ux%u != 0x%04x/%ux%u\n",
 			link->source->entity->name, link->source->index,
 			link->sink->entity->name, link->sink->index,
 			sd_fmt.format.code, sd_fmt.format.width,
@@ -1382,12 +1382,12 @@ static const struct v4l2_file_operations rkisp1_fops = {
 
 static void rkisp1_unregister_capture(struct rkisp1_capture *cap)
 {
-	if (!video_is_registered(&cap->vnode.vdev))
+	if (!video_is_registered(&cap->vanalde.vdev))
 		return;
 
-	media_entity_cleanup(&cap->vnode.vdev.entity);
-	vb2_video_unregister_device(&cap->vnode.vdev);
-	mutex_destroy(&cap->vnode.vlock);
+	media_entity_cleanup(&cap->vanalde.vdev.entity);
+	vb2_video_unregister_device(&cap->vanalde.vdev);
+	mutex_destroy(&cap->vanalde.vlock);
 }
 
 void rkisp1_capture_devs_unregister(struct rkisp1_device *rkisp1)
@@ -1405,29 +1405,29 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
 		RKISP1_MP_DEV_NAME, RKISP1_SP_DEV_NAME
 	};
 	struct v4l2_device *v4l2_dev = &cap->rkisp1->v4l2_dev;
-	struct video_device *vdev = &cap->vnode.vdev;
-	struct rkisp1_vdev_node *node;
+	struct video_device *vdev = &cap->vanalde.vdev;
+	struct rkisp1_vdev_analde *analde;
 	struct vb2_queue *q;
 	int ret;
 
 	strscpy(vdev->name, dev_names[cap->id], sizeof(vdev->name));
-	node = rkisp1_vdev_to_node(vdev);
-	mutex_init(&node->vlock);
+	analde = rkisp1_vdev_to_analde(vdev);
+	mutex_init(&analde->vlock);
 
 	vdev->ioctl_ops = &rkisp1_v4l2_ioctl_ops;
 	vdev->release = video_device_release_empty;
 	vdev->fops = &rkisp1_fops;
-	vdev->minor = -1;
+	vdev->mianalr = -1;
 	vdev->v4l2_dev = v4l2_dev;
-	vdev->lock = &node->vlock;
+	vdev->lock = &analde->vlock;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE |
 			    V4L2_CAP_STREAMING | V4L2_CAP_IO_MC;
 	vdev->entity.ops = &rkisp1_media_ops;
 	video_set_drvdata(vdev, cap);
 	vdev->vfl_dir = VFL_DIR_RX;
-	node->pad.flags = MEDIA_PAD_FL_SINK;
+	analde->pad.flags = MEDIA_PAD_FL_SINK;
 
-	q = &node->buf_queue;
+	q = &analde->buf_queue;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = cap;
@@ -1435,8 +1435,8 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
 	q->min_queued_buffers = RKISP1_MIN_BUFFERS_NEEDED;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &node->vlock;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
+	q->lock = &analde->vlock;
 	q->dev = cap->rkisp1->dev;
 	ret = vb2_queue_init(q);
 	if (ret) {
@@ -1447,7 +1447,7 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
 
 	vdev->queue = q;
 
-	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
+	ret = media_entity_pads_init(&vdev->entity, 1, &analde->pad);
 	if (ret)
 		goto error;
 
@@ -1465,7 +1465,7 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
 
 error:
 	media_entity_cleanup(&vdev->entity);
-	mutex_destroy(&node->vlock);
+	mutex_destroy(&analde->vlock);
 	return ret;
 }
 

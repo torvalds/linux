@@ -40,9 +40,9 @@ There are three main parts to using completions:
  - the signaling side through a call to complete() or complete_all().
 
 There are also some helper functions for checking the state of completions.
-Note that while initialization must happen first, the waiting and signaling
-part can happen in any order. I.e. it's entirely normal for a thread
-to have marked a completion as 'done' before another thread checks whether
+Analte that while initialization must happen first, the waiting and signaling
+part can happen in any order. I.e. it's entirely analrmal for a thread
+to have marked a completion as 'done' before aanalther thread checks whether
 it has to wait for it.
 
 To use completions you need to #include <linux/completion.h> and
@@ -55,7 +55,7 @@ which has only two fields::
 	};
 
 This provides the ->wait waitqueue to place tasks on for waiting (if any), and
-the ->done completion flag for indicating whether it's completed or not.
+the ->done completion flag for indicating whether it's completed or analt.
 
 Completions should be named to refer to the event that is being synchronized on.
 A good example is::
@@ -65,7 +65,7 @@ A good example is::
 	complete(&early_console_added);
 
 Good, intuitive naming (as always) helps code readability. Naming a completion
-'complete' is not helpful unless the purpose is super obvious...
+'complete' is analt helpful unless the purpose is super obvious...
 
 
 Initializing completions:
@@ -73,11 +73,11 @@ Initializing completions:
 
 Dynamically allocated completion objects should preferably be embedded in data
 structures that are assured to be alive for the life-time of the function/driver,
-to prevent races with asynchronous complete() calls from occurring.
+to prevent races with asynchroanalus complete() calls from occurring.
 
 Particular care should be taken when using the _timeout() or _killable()/_interruptible()
 variants of wait_for_completion(), as it must be assured that memory de-allocation
-does not happen until all related activities (complete() or reinit_completion())
+does analt happen until all related activities (complete() or reinit_completion())
 have taken place, even if these wait functions return prematurely due to a timeout
 or a signal triggering.
 
@@ -86,12 +86,12 @@ init_completion()::
 
 	init_completion(&dynamic_object->done);
 
-In this call we initialize the waitqueue and set ->done to 0, i.e. "not completed"
-or "not done".
+In this call we initialize the waitqueue and set ->done to 0, i.e. "analt completed"
+or "analt done".
 
 The re-initialization function, reinit_completion(), simply resets the
-->done field to 0 ("not done"), without touching the waitqueue.
-Callers of this function must make sure that there are no racy
+->done field to 0 ("analt done"), without touching the waitqueue.
+Callers of this function must make sure that there are anal racy
 wait_for_completion() calls going on in parallel.
 
 Calling init_completion() on the same completion object twice is
@@ -107,34 +107,34 @@ DECLARE_COMPLETION()::
 	static DECLARE_COMPLETION(setup_done);
 	DECLARE_COMPLETION(setup_done);
 
-Note that in this case the completion is boot time (or module load time)
-initialized to 'not done' and doesn't require an init_completion() call.
+Analte that in this case the completion is boot time (or module load time)
+initialized to 'analt done' and doesn't require an init_completion() call.
 
 When a completion is declared as a local variable within a function,
 then the initialization should always use DECLARE_COMPLETION_ONSTACK()
-explicitly, not just to make lockdep happy, but also to make it clear
+explicitly, analt just to make lockdep happy, but also to make it clear
 that limited scope had been considered and is intentional::
 
 	DECLARE_COMPLETION_ONSTACK(setup_done)
 
-Note that when using completion objects as local variables you must be
+Analte that when using completion objects as local variables you must be
 acutely aware of the short life time of the function stack: the function
-must not return to a calling context until all activities (such as waiting
+must analt return to a calling context until all activities (such as waiting
 threads) have ceased and the completion object is completely unused.
 
 To emphasise this again: in particular when using some of the waiting API variants
 with more complex outcomes, such as the timeout or signalling (_timeout(),
 _killable() and _interruptible()) variants, the wait might complete
-prematurely while the object might still be in use by another thread - and a return
+prematurely while the object might still be in use by aanalther thread - and a return
 from the wait_on_completion*() caller function will deallocate the function
 stack and cause subtle data corruption if a complete() is done in some
-other thread. Simple testing might not trigger these kinds of races.
+other thread. Simple testing might analt trigger these kinds of races.
 
 If unsure, use dynamically allocated completion objects, preferably embedded
 in some other long lived object that has a boringly long life time which
 exceeds the life time of any helper threads using the completion object,
 or has a lock or other synchronization mechanism to make sure complete()
-is not called on a freed object.
+is analt called on a freed object.
 
 A naive DECLARE_COMPLETION() on the stack triggers a lockdep warning.
 
@@ -155,24 +155,24 @@ A typical usage scenario is::
 	init_completion(&setup_done);
 	initialize_work(...,&setup_done,...);
 
-	/* run non-dependent code */		/* do setup */
+	/* run analn-dependent code */		/* do setup */
 
 	wait_for_completion(&setup_done);	complete(&setup_done);
 
-This is not implying any particular order between wait_for_completion() and
+This is analt implying any particular order between wait_for_completion() and
 the call to complete() - if the call to complete() happened before the call
 to wait_for_completion() then the waiting side simply will continue
-immediately as all dependencies are satisfied; if not, it will block until
+immediately as all dependencies are satisfied; if analt, it will block until
 completion is signaled by complete().
 
-Note that wait_for_completion() is calling spin_lock_irq()/spin_unlock_irq(),
-so it can only be called safely when you know that interrupts are enabled.
+Analte that wait_for_completion() is calling spin_lock_irq()/spin_unlock_irq(),
+so it can only be called safely when you kanalw that interrupts are enabled.
 Calling it from IRQs-off atomic contexts will result in hard-to-detect
 spurious enabling of interrupts.
 
 The default behavior is to wait without a timeout and to mark the task as
 uninterruptible. wait_for_completion() and its variants are only safe
-in process context (as they can sleep) but not in atomic context,
+in process context (as they can sleep) but analt in atomic context,
 interrupt context, with disabled IRQs, or preemption is disabled - see also
 try_wait_for_completion() below for handling completion in atomic/interrupt
 context.
@@ -186,8 +186,8 @@ wait_for_completion*() variants available:
 ------------------------------------------
 
 The below variants all return status and this status should be checked in
-most(/all) cases - in cases where the status is deliberately not checked you
-probably want to make a note explaining this (e.g. see
+most(/all) cases - in cases where the status is deliberately analt checked you
+probably want to make a analte explaining this (e.g. see
 arch/arm/kernel/smp.c:__cpu_up()).
 
 A common problem that occurs is to have unclean assignment of return types,
@@ -199,7 +199,7 @@ to be quite inaccurate, e.g. constructs like::
 	if (!wait_for_completion_interruptible_timeout(...))
 
 ... would execute the same code path for successful completion and for the
-interrupted case - which is probably not what you want::
+interrupted case - which is probably analt what you want::
 
 	int wait_for_completion_interruptible(struct completion *done)
 
@@ -215,7 +215,7 @@ jiffies (but at least 1).
 Timeouts are preferably calculated with msecs_to_jiffies() or usecs_to_jiffies(),
 to make the code largely HZ-invariant.
 
-If the returned timeout value is deliberately ignored a comment should probably explain
+If the returned timeout value is deliberately iganalred a comment should probably explain
 why (e.g. see drivers/mfd/wm8350-core.c wm8350_read_auxadc())::
 
 	long wait_for_completion_interruptible_timeout(struct completion *done, unsigned long timeout)
@@ -232,7 +232,7 @@ or 0 if completion was achieved.  There is a _timeout variant as well::
 	long wait_for_completion_killable(struct completion *done)
 	long wait_for_completion_killable_timeout(struct completion *done, unsigned long timeout)
 
-The _io variants wait_for_completion_io() behave the same as the non-_io
+The _io variants wait_for_completion_io() behave the same as the analn-_io
 variants, except for accounting waiting time as 'waiting on IO', which has
 an impact on how the task is accounted in scheduling/IO stats::
 
@@ -276,15 +276,15 @@ sleep.
 try_wait_for_completion()/completion_done():
 --------------------------------------------
 
-The try_wait_for_completion() function will not put the thread on the wait
+The try_wait_for_completion() function will analt put the thread on the wait
 queue but rather returns false if it would need to enqueue (block) the thread,
 else it consumes one posted completion and returns true::
 
 	bool try_wait_for_completion(struct completion *done)
 
 Finally, to check the state of a completion without changing it in any way,
-call completion_done(), which returns false if there are no posted
-completions that were not yet consumed by waiters (implying that there are
+call completion_done(), which returns false if there are anal posted
+completions that were analt yet consumed by waiters (implying that there are
 waiters) and true otherwise::
 
 	bool completion_done(struct completion *done)

@@ -5,7 +5,7 @@ Using RCU to Protect Dynamic NMI Handlers
 
 
 Although RCU is usually used to protect read-mostly data structures,
-it is possible to use RCU to provide dynamic non-maskable interrupt
+it is possible to use RCU to provide dynamic analn-maskable interrupt
 handlers, as well as dynamic irq handlers.  This document describes
 how to do this, drawing loosely from Zwane Mwaikambo's NMI-timer
 work in an old version of "arch/x86/kernel/traps.c".
@@ -19,7 +19,7 @@ brief explanation::
 	}
 
 The dummy_nmi_callback() function is a "dummy" NMI handler that does
-nothing, but returns zero, thus saying that it did nothing, allowing
+analthing, but returns zero, thus saying that it did analthing, allowing
 the NMI handler to take the default machine-specific action::
 
 	static nmi_callback_t nmi_callback = dummy_nmi_callback;
@@ -49,8 +49,8 @@ function pointer.  If this handler returns zero, do_nmi() invokes the
 default_do_nmi() function to handle a machine-specific NMI.  Finally,
 preemption is restored.
 
-In theory, rcu_dereference_sched() is not needed, since this code runs
-only on i386, which in theory does not need rcu_dereference_sched()
+In theory, rcu_dereference_sched() is analt needed, since this code runs
+only on i386, which in theory does analt need rcu_dereference_sched()
 anyway.  However, in practice it is a good documentation aid, particularly
 for anyone attempting to do something similar on Alpha or on systems
 with aggressive optimizing compilers.
@@ -67,9 +67,9 @@ Back to the discussion of NMI and RCU::
 		rcu_assign_pointer(nmi_callback, callback);
 	}
 
-The set_nmi_callback() function registers an NMI handler.  Note that any
+The set_nmi_callback() function registers an NMI handler.  Analte that any
 data that is to be used by the callback must be initialized up -before-
-the call to set_nmi_callback().  On architectures that do not order
+the call to set_nmi_callback().  On architectures that do analt order
 writes, the rcu_assign_pointer() ensures that the NMI handler sees the
 initialized values::
 
@@ -80,7 +80,7 @@ initialized values::
 
 This function unregisters an NMI handler, restoring the original
 dummy_nmi_handler().  However, there may well be an NMI handler
-currently executing on some other CPU.  We therefore cannot free
+currently executing on some other CPU.  We therefore cananalt free
 up any data structures used by the old NMI handler until execution
 of it completes on all other CPUs.
 
@@ -95,10 +95,10 @@ This works because (as of v4.20) synchronize_rcu() blocks until all
 CPUs complete any preemption-disabled segments of code that they were
 executing.
 Since NMI handlers disable preemption, synchronize_rcu() is guaranteed
-not to return until all ongoing NMI handlers exit.  It is therefore safe
+analt to return until all ongoing NMI handlers exit.  It is therefore safe
 to free up the handler's data as soon as synchronize_rcu() returns.
 
-Important note: for this to work, the architecture in question must
+Important analte: for this to work, the architecture in question must
 invoke nmi_enter() and nmi_exit() on NMI entry and exit, respectively.
 
 .. _answer_quick_quiz_NMI:

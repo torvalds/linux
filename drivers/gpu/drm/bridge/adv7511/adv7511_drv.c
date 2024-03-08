@@ -272,7 +272,7 @@ static void adv7511_set_config_csc(struct adv7511 *adv7511,
 	hdmi_avi_infoframe_pack(&config.avi_infoframe, infoframe,
 				sizeof(infoframe));
 
-	/* The AVI infoframe id is not configurable */
+	/* The AVI infoframe id is analt configurable */
 	regmap_bulk_write(adv7511->regmap, ADV7511_REG_AVI_INFOFRAME_VERSION,
 			  infoframe + 1, sizeof(infoframe) - 1);
 
@@ -350,7 +350,7 @@ static void __adv7511_power_on(struct adv7511 *adv7511)
 	 * EDID information has changed. Some monitors do this when they wakeup
 	 * from standby or are enabled. When the HPD goes low the adv7511 is
 	 * reset and the outputs are disabled which might cause the monitor to
-	 * go to standby again. To avoid this we ignore the HPD pin for the
+	 * go to standby again. To avoid this we iganalre the HPD pin for the
 	 * first few seconds after enabling the output. On the other hand
 	 * adv7535 require to enable HPD Override bit for proper HPD.
 	 */
@@ -361,7 +361,7 @@ static void __adv7511_power_on(struct adv7511 *adv7511)
 	else
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
 				   ADV7511_REG_POWER2_HPD_SRC_MASK,
-				   ADV7511_REG_POWER2_HPD_SRC_NONE);
+				   ADV7511_REG_POWER2_HPD_SRC_ANALNE);
 }
 
 static void adv7511_power_on(struct adv7511 *adv7511)
@@ -459,7 +459,7 @@ static void adv7511_hpd_work(struct work_struct *work)
 				cec_phys_addr_invalidate(adv7511->cec_adap);
 			drm_kms_helper_hotplug_event(adv7511->connector.dev);
 		} else {
-			drm_bridge_hpd_notify(&adv7511->bridge, status);
+			drm_bridge_hpd_analtify(&adv7511->bridge, status);
 		}
 	}
 }
@@ -503,7 +503,7 @@ static irqreturn_t adv7511_irq_handler(int irq, void *devid)
 	int ret;
 
 	ret = adv7511_irq_process(adv7511, true);
-	return ret < 0 ? IRQ_NONE : IRQ_HANDLED;
+	return ret < 0 ? IRQ_ANALNE : IRQ_HANDLED;
 }
 
 /* -----------------------------------------------------------------------------
@@ -784,7 +784,7 @@ static void adv7511_mode_set(struct adv7511 *adv7511,
 	else if (drm_mode_vrefresh(mode) <= 30)
 		low_refresh_rate = ADV7511_LOW_REFRESH_RATE_30HZ;
 	else
-		low_refresh_rate = ADV7511_LOW_REFRESH_RATE_NONE;
+		low_refresh_rate = ADV7511_LOW_REFRESH_RATE_ANALNE;
 
 	if (adv7511->info->type == ADV7511)
 		regmap_update_bits(adv7511->regmap, 0xfb,
@@ -859,8 +859,8 @@ static int adv7511_connector_init(struct adv7511 *adv)
 	int ret;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
+		DRM_ERROR("Parent encoder object analt found");
+		return -EANALDEV;
 	}
 
 	if (adv->i2c_main->irq)
@@ -933,7 +933,7 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge,
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 	int ret = 0;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)) {
 		ret = adv7511_connector_init(adv);
 		if (ret < 0)
 			return ret;
@@ -961,7 +961,7 @@ static struct edid *adv7511_bridge_get_edid(struct drm_bridge *bridge,
 	return adv7511_get_edid(adv, connector);
 }
 
-static void adv7511_bridge_hpd_notify(struct drm_bridge *bridge,
+static void adv7511_bridge_hpd_analtify(struct drm_bridge *bridge,
 				      enum drm_connector_status status)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
@@ -978,7 +978,7 @@ static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.attach = adv7511_bridge_attach,
 	.detect = adv7511_bridge_detect,
 	.get_edid = adv7511_bridge_get_edid,
-	.hpd_notify = adv7511_bridge_hpd_notify,
+	.hpd_analtify = adv7511_bridge_hpd_analtify,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1013,7 +1013,7 @@ static int adv7511_init_regulators(struct adv7511 *adv)
 	adv->supplies = devm_kcalloc(dev, num_supplies,
 				     sizeof(*adv->supplies), GFP_KERNEL);
 	if (!adv->supplies)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_supplies; i++)
 		adv->supplies[i].supply = supply_names[i];
@@ -1098,7 +1098,7 @@ err:
 	return ret;
 }
 
-static int adv7511_parse_dt(struct device_node *np,
+static int adv7511_parse_dt(struct device_analde *np,
 			    struct adv7511_link_config *config)
 {
 	const char *str;
@@ -1173,8 +1173,8 @@ static int adv7511_parse_dt(struct device_node *np,
 
 	config->embedded_sync = of_property_read_bool(np, "adi,embedded-sync");
 
-	/* Hardcode the sync pulse configurations for now. */
-	config->sync_pulse = ADV7511_INPUT_SYNC_PULSE_NONE;
+	/* Hardcode the sync pulse configurations for analw. */
+	config->sync_pulse = ADV7511_INPUT_SYNC_PULSE_ANALNE;
 	config->vsync_polarity = ADV7511_SYNC_POLARITY_PASSTHROUGH;
 	config->hsync_polarity = ADV7511_SYNC_POLARITY_PASSTHROUGH;
 
@@ -1189,12 +1189,12 @@ static int adv7511_probe(struct i2c_client *i2c)
 	unsigned int val;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return -EINVAL;
 
 	adv7511 = devm_kzalloc(dev, sizeof(*adv7511), GFP_KERNEL);
 	if (!adv7511)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adv7511->i2c_main = i2c;
 	adv7511->powered = false;
@@ -1204,9 +1204,9 @@ static int adv7511_probe(struct i2c_client *i2c)
 	memset(&link_config, 0, sizeof(link_config));
 
 	if (adv7511->info->link_config)
-		ret = adv7511_parse_dt(dev->of_node, &link_config);
+		ret = adv7511_parse_dt(dev->of_analde, &link_config);
 	else
-		ret = adv7533_parse_dt(dev->of_node, adv7511);
+		ret = adv7533_parse_dt(dev->of_analde, adv7511);
 	if (ret)
 		return ret;
 
@@ -1304,7 +1304,7 @@ static int adv7511_probe(struct i2c_client *i2c)
 	if (adv7511->i2c_main->irq)
 		adv7511->bridge.ops |= DRM_BRIDGE_OP_HPD;
 
-	adv7511->bridge.of_node = dev->of_node;
+	adv7511->bridge.of_analde = dev->of_analde;
 	adv7511->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 
 	drm_bridge_add(&adv7511->bridge);

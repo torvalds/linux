@@ -32,7 +32,7 @@ LIBPERF_API struct perf_cpu_map *perf_cpu_map__new_any_cpu(void);
  */
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__new_online_cpus(void);
 /**
- * perf_cpu_map__new - create a map from the given cpu_list such as "0-7". If no
+ * perf_cpu_map__new - create a map from the given cpu_list such as "0-7". If anal
  *                     cpu_list argument is provided then
  *                     perf_cpu_map__new_online_cpus is returned.
  */

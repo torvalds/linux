@@ -41,9 +41,9 @@
 
 #define PSIL_WORD_SIZE_BYTES		16
 /*
- * There are no hard limits on the width or height. The DMA engine can handle
+ * There are anal hard limits on the width or height. The DMA engine can handle
  * all sizes. The max width and height are arbitrary numbers for this driver.
- * Use 16K * 16K as the arbitrary limit. It is large enough that it is unlikely
+ * Use 16K * 16K as the arbitrary limit. It is large eanalugh that it is unlikely
  * the limit will be hit in practice.
  */
 #define MAX_WIDTH_BYTES			SZ_16K
@@ -68,8 +68,8 @@ struct ti_csi2rx_buffer {
 };
 
 enum ti_csi2rx_dma_state {
-	TI_CSI2RX_DMA_STOPPED,	/* Streaming not started yet. */
-	TI_CSI2RX_DMA_IDLE,	/* Streaming but no pending DMA operation. */
+	TI_CSI2RX_DMA_STOPPED,	/* Streaming analt started yet. */
+	TI_CSI2RX_DMA_IDLE,	/* Streaming but anal pending DMA operation. */
 	TI_CSI2RX_DMA_ACTIVE,	/* Streaming and pending DMA operation. */
 };
 
@@ -100,7 +100,7 @@ struct ti_csi2rx_dev {
 	struct media_device		mdev;
 	struct media_pipeline		pipe;
 	struct media_pad		pad;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 	struct v4l2_subdev		*source;
 	struct vb2_queue		vidq;
 	struct mutex			mutex; /* To serialize ioctls. */
@@ -184,7 +184,7 @@ static const struct ti_csi2rx_fmt ti_csi2rx_formats[] = {
 		.size			= SHIM_DMACNTX_SIZE_16,
 	},
 
-	/* More formats can be supported but they are not listed for now. */
+	/* More formats can be supported but they are analt listed for analw. */
 };
 
 /* Forward declaration needed by ti_csi2rx_dma_callback. */
@@ -298,8 +298,8 @@ static int ti_csi2rx_try_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		fmt = &ti_csi2rx_formats[0];
 
-	/* Interlaced formats are not supported. */
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	/* Interlaced formats are analt supported. */
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 
 	ti_csi2rx_fill_fmt(fmt, f);
 
@@ -381,20 +381,20 @@ static const struct v4l2_file_operations csi_fops = {
 	.mmap = vb2_fop_mmap,
 };
 
-static int csi_async_notifier_bound(struct v4l2_async_notifier *notifier,
+static int csi_async_analtifier_bound(struct v4l2_async_analtifier *analtifier,
 				    struct v4l2_subdev *subdev,
 				    struct v4l2_async_connection *asc)
 {
-	struct ti_csi2rx_dev *csi = dev_get_drvdata(notifier->v4l2_dev->dev);
+	struct ti_csi2rx_dev *csi = dev_get_drvdata(analtifier->v4l2_dev->dev);
 
 	csi->source = subdev;
 
 	return 0;
 }
 
-static int csi_async_notifier_complete(struct v4l2_async_notifier *notifier)
+static int csi_async_analtifier_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct ti_csi2rx_dev *csi = dev_get_drvdata(notifier->v4l2_dev->dev);
+	struct ti_csi2rx_dev *csi = dev_get_drvdata(analtifier->v4l2_dev->dev);
 	struct video_device *vdev = &csi->vdev;
 	int ret;
 
@@ -402,7 +402,7 @@ static int csi_async_notifier_complete(struct v4l2_async_notifier *notifier)
 	if (ret)
 		return ret;
 
-	ret = v4l2_create_fwnode_links_to_pad(csi->source, &csi->pad,
+	ret = v4l2_create_fwanalde_links_to_pad(csi->source, &csi->pad,
 					      MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 
 	if (ret) {
@@ -410,49 +410,49 @@ static int csi_async_notifier_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 	}
 
-	ret = v4l2_device_register_subdev_nodes(&csi->v4l2_dev);
+	ret = v4l2_device_register_subdev_analdes(&csi->v4l2_dev);
 	if (ret)
 		video_unregister_device(vdev);
 
 	return ret;
 }
 
-static const struct v4l2_async_notifier_operations csi_async_notifier_ops = {
-	.bound = csi_async_notifier_bound,
-	.complete = csi_async_notifier_complete,
+static const struct v4l2_async_analtifier_operations csi_async_analtifier_ops = {
+	.bound = csi_async_analtifier_bound,
+	.complete = csi_async_analtifier_complete,
 };
 
-static int ti_csi2rx_notifier_register(struct ti_csi2rx_dev *csi)
+static int ti_csi2rx_analtifier_register(struct ti_csi2rx_dev *csi)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct v4l2_async_connection *asc;
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret;
 
-	node = of_get_child_by_name(csi->dev->of_node, "csi-bridge");
-	if (!node)
+	analde = of_get_child_by_name(csi->dev->of_analde, "csi-bridge");
+	if (!analde)
 		return -EINVAL;
 
-	fwnode = of_fwnode_handle(node);
-	if (!fwnode) {
-		of_node_put(node);
+	fwanalde = of_fwanalde_handle(analde);
+	if (!fwanalde) {
+		of_analde_put(analde);
 		return -EINVAL;
 	}
 
-	v4l2_async_nf_init(&csi->notifier, &csi->v4l2_dev);
-	csi->notifier.ops = &csi_async_notifier_ops;
+	v4l2_async_nf_init(&csi->analtifier, &csi->v4l2_dev);
+	csi->analtifier.ops = &csi_async_analtifier_ops;
 
-	asc = v4l2_async_nf_add_fwnode(&csi->notifier, fwnode,
+	asc = v4l2_async_nf_add_fwanalde(&csi->analtifier, fwanalde,
 				       struct v4l2_async_connection);
-	of_node_put(node);
+	of_analde_put(analde);
 	if (IS_ERR(asc)) {
-		v4l2_async_nf_cleanup(&csi->notifier);
+		v4l2_async_nf_cleanup(&csi->analtifier);
 		return PTR_ERR(asc);
 	}
 
-	ret = v4l2_async_nf_register(&csi->notifier);
+	ret = v4l2_async_nf_register(&csi->analtifier);
 	if (ret) {
-		v4l2_async_nf_cleanup(&csi->notifier);
+		v4l2_async_nf_cleanup(&csi->analtifier);
 		return ret;
 	}
 
@@ -488,7 +488,7 @@ static void ti_csi2rx_setup_shim(struct ti_csi2rx_dev *csi)
 	 * [ U0 ][ Y1 ][ V0 ][ Y0 ]	MODE 00
 	 *
 	 * We don't have any requirement to change pixelformat from what is
-	 * coming from the source, so we keep it in MODE 11, which does not
+	 * coming from the source, so we keep it in MODE 11, which does analt
 	 * swap any bytes when storing in memory.
 	 */
 	switch (fmt->fourcc) {
@@ -500,7 +500,7 @@ static void ti_csi2rx_setup_shim(struct ti_csi2rx_dev *csi)
 				  SHIM_DMACNTX_YUV422_MODE_11);
 		break;
 	default:
-		/* Ignore if not YUV 4:2:2 */
+		/* Iganalre if analt YUV 4:2:2 */
 		break;
 	}
 
@@ -523,10 +523,10 @@ static void ti_csi2rx_drain_callback(void *param)
 /*
  * Drain the stale data left at the PSI-L endpoint.
  *
- * This might happen if no buffers are queued in time but source is still
+ * This might happen if anal buffers are queued in time but source is still
  * streaming. In multi-stream scenarios this can happen when one stream is
  * stopped but other is still streaming, and thus module-level pixel reset is
- * not asserted.
+ * analt asserted.
  *
  * To prevent that stale data corrupting the subsequent transactions, it is
  * required to issue DMA requests to drain it out.
@@ -650,9 +650,9 @@ static void ti_csi2rx_stop_dma(struct ti_csi2rx_dev *csi)
 
 	if (state != TI_CSI2RX_DMA_STOPPED) {
 		/*
-		 * Normal DMA termination does not clean up pending data on
+		 * Analrmal DMA termination does analt clean up pending data on
 		 * the endpoint if multiple streams are running and only one
-		 * is stopped, as the module-level pixel reset cannot be
+		 * is stopped, as the module-level pixel reset cananalt be
 		 * enforced before terminating DMA.
 		 */
 		ret = ti_csi2rx_drain_dma(csi);
@@ -710,7 +710,7 @@ static int ti_csi2rx_buffer_prepare(struct vb2_buffer *vb)
 	unsigned long size = csi->v_fmt.fmt.pix.sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dev_err(csi->dev, "Data will not fit into plane\n");
+		dev_err(csi->dev, "Data will analt fit into plane\n");
 		return -EINVAL;
 	}
 
@@ -733,14 +733,14 @@ static void ti_csi2rx_buffer_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&dma->lock, flags);
 	/*
 	 * Usually the DMA callback takes care of queueing the pending buffers.
-	 * But if DMA has stalled due to lack of buffers, restart it now.
+	 * But if DMA has stalled due to lack of buffers, restart it analw.
 	 */
 	if (dma->state == TI_CSI2RX_DMA_IDLE) {
 		/*
-		 * Do not restart DMA with the lock held because
+		 * Do analt restart DMA with the lock held because
 		 * ti_csi2rx_drain_dma() might block for completion.
 		 * There won't be a race on queueing DMA anyway since the
-		 * callback is not being fired.
+		 * callback is analt being fired.
 		 */
 		restart_dma = true;
 		dma->state = TI_CSI2RX_DMA_ACTIVE;
@@ -753,7 +753,7 @@ static void ti_csi2rx_buffer_queue(struct vb2_buffer *vb)
 		/*
 		 * Once frames start dropping, some data gets stuck in the DMA
 		 * pipeline somewhere. So the first DMA transfer after frame
-		 * drops gives a partial frame. This is obviously not useful to
+		 * drops gives a partial frame. This is obviously analt useful to
 		 * the application and will only confuse it. Issue a DMA
 		 * transaction to drain that up.
 		 */
@@ -870,7 +870,7 @@ static int ti_csi2rx_init_vb2q(struct ti_csi2rx_dev *csi)
 	q->buf_struct_size = sizeof(struct ti_csi2rx_buffer);
 	q->ops = &csi_vb2_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->dev = dmaengine_get_dma_device(csi->dma.chan);
 	q->lock = &csi->mutex;
 	q->min_queued_buffers = 1;
@@ -903,34 +903,34 @@ static int ti_csi2rx_link_validate(struct media_link *link)
 		return ret;
 
 	if (source_fmt.format.width != csi_fmt->width) {
-		dev_dbg(csi->dev, "Width does not match (source %u, sink %u)\n",
+		dev_dbg(csi->dev, "Width does analt match (source %u, sink %u)\n",
 			source_fmt.format.width, csi_fmt->width);
 		return -EPIPE;
 	}
 
 	if (source_fmt.format.height != csi_fmt->height) {
-		dev_dbg(csi->dev, "Height does not match (source %u, sink %u)\n",
+		dev_dbg(csi->dev, "Height does analt match (source %u, sink %u)\n",
 			source_fmt.format.height, csi_fmt->height);
 		return -EPIPE;
 	}
 
 	if (source_fmt.format.field != csi_fmt->field &&
-	    csi_fmt->field != V4L2_FIELD_NONE) {
-		dev_dbg(csi->dev, "Field does not match (source %u, sink %u)\n",
+	    csi_fmt->field != V4L2_FIELD_ANALNE) {
+		dev_dbg(csi->dev, "Field does analt match (source %u, sink %u)\n",
 			source_fmt.format.field, csi_fmt->field);
 		return -EPIPE;
 	}
 
 	ti_fmt = find_format_by_code(source_fmt.format.code);
 	if (!ti_fmt) {
-		dev_dbg(csi->dev, "Media bus format 0x%x not supported\n",
+		dev_dbg(csi->dev, "Media bus format 0x%x analt supported\n",
 			source_fmt.format.code);
 		return -EPIPE;
 	}
 
 	if (ti_fmt->fourcc != csi_fmt->pixelformat) {
 		dev_dbg(csi->dev,
-			"Cannot transform source fmt 0x%x to sink fmt 0x%x\n",
+			"Cananalt transform source fmt 0x%x to sink fmt 0x%x\n",
 			ti_fmt->fourcc, csi_fmt->pixelformat);
 		return -EPIPE;
 	}
@@ -970,7 +970,7 @@ static int ti_csi2rx_init_dma(struct ti_csi2rx_dev *csi)
 						  &csi->dma.drain.paddr,
 						  GFP_KERNEL);
 	if (!csi->dma.drain.vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -989,7 +989,7 @@ static int ti_csi2rx_v4l2_init(struct ti_csi2rx_dev *csi)
 
 	pix_fmt->width = 640;
 	pix_fmt->height = 480;
-	pix_fmt->field = V4L2_FIELD_NONE;
+	pix_fmt->field = V4L2_FIELD_ANALNE;
 	pix_fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	pix_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601,
 	pix_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE,
@@ -1053,8 +1053,8 @@ static void ti_csi2rx_cleanup_v4l2(struct ti_csi2rx_dev *csi)
 
 static void ti_csi2rx_cleanup_subdev(struct ti_csi2rx_dev *csi)
 {
-	v4l2_async_nf_unregister(&csi->notifier);
-	v4l2_async_nf_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->analtifier);
+	v4l2_async_nf_cleanup(&csi->analtifier);
 }
 
 static void ti_csi2rx_cleanup_vb2q(struct ti_csi2rx_dev *csi)
@@ -1070,7 +1070,7 @@ static int ti_csi2rx_probe(struct platform_device *pdev)
 
 	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi->dev = &pdev->dev;
 	platform_set_drvdata(pdev, csi);
@@ -1096,11 +1096,11 @@ static int ti_csi2rx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_v4l2;
 
-	ret = ti_csi2rx_notifier_register(csi);
+	ret = ti_csi2rx_analtifier_register(csi);
 	if (ret)
 		goto err_vb2q;
 
-	ret = of_platform_populate(csi->dev->of_node, NULL, NULL, csi->dev);
+	ret = of_platform_populate(csi->dev->of_analde, NULL, NULL, csi->dev);
 	if (ret) {
 		dev_err(csi->dev, "Failed to create children: %d\n", ret);
 		goto err_subdev;

@@ -4,9 +4,9 @@
 #ifndef _VNIC_VIC_H_
 #define _VNIC_VIC_H_
 
-/* Note: All integer fields in NETWORK byte order */
+/* Analte: All integer fields in NETWORK byte order */
 
-/* Note: String field lengths include null char */
+/* Analte: String field lengths include null char */
 
 #define VIC_PROVINFO_CISCO_OUI		{ 0x00, 0x00, 0x0c }
 #define VIC_PROVINFO_GENERIC_TYPE		0x4
@@ -28,7 +28,7 @@ enum vic_generic_prov_tlv_type {
 };
 
 enum vic_generic_prov_os_type {
-	VIC_GENERIC_PROV_OS_TYPE_UNKNOWN = 0,
+	VIC_GENERIC_PROV_OS_TYPE_UNKANALWN = 0,
 	VIC_GENERIC_PROV_OS_TYPE_ESX = 1,
 	VIC_GENERIC_PROV_OS_TYPE_LINUX = 2,
 	VIC_GENERIC_PROV_OS_TYPE_WINDOWS = 3,

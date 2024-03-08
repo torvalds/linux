@@ -3,7 +3,7 @@
  * This file contains hardware tag-based KASAN specific error reporting code.
  *
  * Copyright (c) 2020 Google, Inc.
- * Author: Andrey Konovalov <andreyknvl@google.com>
+ * Author: Andrey Koanalvalov <andreyknvl@google.com>
  */
 
 #include <linux/kasan.h>
@@ -18,7 +18,7 @@
 const void *kasan_find_first_bad_addr(const void *addr, size_t size)
 {
 	/*
-	 * Hardware Tag-Based KASAN only calls this function for normal memory
+	 * Hardware Tag-Based KASAN only calls this function for analrmal memory
 	 * accesses, and thus addr points precisely to the first bad address
 	 * with an invalid (and present) memory tag. Therefore:
 	 * 1. Return the address as is without walking memory tags.
@@ -39,7 +39,7 @@ size_t kasan_get_alloc_size(void *object, struct kmem_cache *cache)
 	 */
 
 	/*
-	 * The loop below returns 0 for freed objects, for which KASAN cannot
+	 * The loop below returns 0 for freed objects, for which KASAN cananalt
 	 * calculate the allocation size based on the metadata.
 	 */
 	while (size < cache->object_size) {

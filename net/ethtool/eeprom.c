@@ -70,7 +70,7 @@ static int eeprom_fallback(struct eeprom_req_info *request,
 
 	data = kmalloc(eeprom.len, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = ethtool_get_module_eeprom_call(dev, &eeprom, data);
 	if (err < 0)
 		goto err_out;
@@ -97,7 +97,7 @@ static int get_module_eeprom_by_page(struct net_device *dev,
 	if (ops->get_module_eeprom_by_page)
 		return ops->get_module_eeprom_by_page(dev, page_data, extack);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int eeprom_prepare_data(const struct ethnl_req_info *req_base,
@@ -117,7 +117,7 @@ static int eeprom_prepare_data(const struct ethnl_req_info *req_base,
 	page_data.bank = request->bank;
 	page_data.data = kmalloc(page_data.length, GFP_KERNEL);
 	if (!page_data.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ethnl_ops_begin(dev);
 	if (ret)
@@ -138,7 +138,7 @@ err_ops:
 err_free:
 	kfree(page_data.data);
 
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return eeprom_fallback(request, reply);
 	return ret;
 }

@@ -16,8 +16,8 @@ struct tp_mib_statistics {
 	u32 ipInHdrErrors_lo;
 	u32 ipInAddrErrors_hi;
 	u32 ipInAddrErrors_lo;
-	u32 ipInUnknownProtos_hi;
-	u32 ipInUnknownProtos_lo;
+	u32 ipInUnkanalwnProtos_hi;
+	u32 ipInUnkanalwnProtos_lo;
 	u32 ipInDiscards_hi;
 	u32 ipInDiscards_lo;
 	u32 ipInDelivers_hi;
@@ -26,8 +26,8 @@ struct tp_mib_statistics {
 	u32 ipOutRequests_lo;
 	u32 ipOutDiscards_hi;
 	u32 ipOutDiscards_lo;
-	u32 ipOutNoRoutes_hi;
-	u32 ipOutNoRoutes_lo;
+	u32 ipOutAnalRoutes_hi;
+	u32 ipOutAnalRoutes_lo;
 	u32 ipReasmTimeout;
 	u32 ipReasmReqds;
 	u32 ipReasmOKs;

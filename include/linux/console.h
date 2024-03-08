@@ -8,7 +8,7 @@
  * for more details.
  *
  * Changed:
- * 10-Mar-94: Arno Griffioen: Conversion for vt100 emulator port from PC LINUX
+ * 10-Mar-94: Aranal Griffioen: Conversion for vt100 emulator port from PC LINUX
  */
 
 #ifndef _LINUX_CONSOLE_H_
@@ -24,7 +24,7 @@ struct console_font_op;
 struct console_font;
 struct module;
 struct tty_struct;
-struct notifier_block;
+struct analtifier_block;
 
 enum con_scroll {
 	SM_UP,
@@ -37,7 +37,7 @@ enum vc_intensity;
  * struct consw - callbacks for consoles
  *
  * @con_scroll: move lines from @top to @bottom in direction @dir by @lines.
- *		Return true if no generic handling should be done.
+ *		Return true if anal generic handling should be done.
  *		Invoked by csi_M and printing to the console.
  * @con_set_palette: sets the palette of the console to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
@@ -84,7 +84,7 @@ struct consw {
 	 */
 	void	(*con_flush_scrollback)(struct vc_data *vc);
 	/*
-	 * Prepare the console for the debugger.  This includes, but is not
+	 * Prepare the console for the debugger.  This includes, but is analt
 	 * limited to, unblanking the console, loading an appropriate
 	 * palette, and allowing debugger generated output.
 	 */
@@ -144,17 +144,17 @@ static inline int con_debug_leave(void)
  * @CON_CONSDEV:	Indicates that the console driver is backing
  *			/dev/console.
  * @CON_ENABLED:	Indicates if a console is allowed to print records. If
- *			false, the console also will not advance to later
+ *			false, the console also will analt advance to later
  *			records.
  * @CON_BOOT:		Marks the console driver as early console driver which
  *			is used during boot before the real driver becomes
  *			available. It will be automatically unregistered
  *			when the real console driver is registered unless
  *			"keep_bootcon" parameter is used.
- * @CON_ANYTIME:	A misnomed historical flag which tells the core code
+ * @CON_ANYTIME:	A misanalmed historical flag which tells the core code
  *			that the legacy @console::write callback can be invoked
  *			on a CPU which is marked OFFLINE. That is misleading as
- *			it suggests that there is no contextual limit for
+ *			it suggests that there is anal contextual limit for
  *			invoking the callback. The original motivation was
  *			readiness of the per-CPU areas.
  * @CON_BRL:		Indicates a braille device which is exempt from
@@ -162,7 +162,7 @@ static inline int con_debug_leave(void)
  * @CON_EXTENDED:	The console supports the extended output format of
  *			/dev/kmesg which requires a larger output buffer.
  * @CON_SUSPENDED:	Indicates if a console is suspended. If true, the
- *			printing callbacks must not be called.
+ *			printing callbacks must analt be called.
  * @CON_NBCON:		Console can operate outside of the legacy style console_lock
  *			constraints.
  */
@@ -184,9 +184,9 @@ enum cons_flags {
  *
  * @req_prio:		The priority of a handover request
  * @prio:		The priority of the current owner
- * @unsafe:		Console is busy in a non takeover region
+ * @unsafe:		Console is busy in a analn takeover region
  * @unsafe_takeover:	A hostile takeover in an unsafe state happened in the
- *			past. The console cannot be safe until re-initialized.
+ *			past. The console cananalt be safe until re-initialized.
  * @cpu:		The CPU on which the owner runs
  *
  * To be used for reading and preparing of the value stored in the nbcon
@@ -219,8 +219,8 @@ static_assert(sizeof(struct nbcon_state) <= sizeof(int));
 
 /**
  * nbcon_prio - console owner priority for nbcon consoles
- * @NBCON_PRIO_NONE:		Unused
- * @NBCON_PRIO_NORMAL:		Normal (non-emergency) usage
+ * @NBCON_PRIO_ANALNE:		Unused
+ * @NBCON_PRIO_ANALRMAL:		Analrmal (analn-emergency) usage
  * @NBCON_PRIO_EMERGENCY:	Emergency output (WARN/OOPS...)
  * @NBCON_PRIO_PANIC:		Panic output
  * @NBCON_PRIO_MAX:		The number of priority levels
@@ -230,8 +230,8 @@ static_assert(sizeof(struct nbcon_state) <= sizeof(int));
  * can be allowed to do so even in an unsafe state (Hope and pray).
  */
 enum nbcon_prio {
-	NBCON_PRIO_NONE = 0,
-	NBCON_PRIO_NORMAL,
+	NBCON_PRIO_ANALNE = 0,
+	NBCON_PRIO_ANALRMAL,
 	NBCON_PRIO_EMERGENCY,
 	NBCON_PRIO_PANIC,
 	NBCON_PRIO_MAX,
@@ -300,7 +300,7 @@ struct nbcon_write_context {
  * @seq:		Sequence number of the next ringbuffer record to print
  * @dropped:		Number of unreported dropped ringbuffer records
  * @data:		Driver private data
- * @node:		hlist node for the console list
+ * @analde:		hlist analde for the console list
  *
  * @write_atomic:	Write callback for atomic context
  * @nbcon_state:	State for nbcon consoles
@@ -324,7 +324,7 @@ struct console {
 	u64			seq;
 	unsigned long		dropped;
 	void			*data;
-	struct hlist_node	node;
+	struct hlist_analde	analde;
 
 	/* nbcon console specific members */
 	bool			(*write_atomic)(struct console *con,
@@ -364,7 +364,7 @@ extern struct hlist_head console_list;
  * @con:	struct console pointer of console to read flags from
  *
  * This function provides the necessary READ_ONCE() and data_race()
- * notation for locklessly reading the console flags. The READ_ONCE()
+ * analtation for locklessly reading the console flags. The READ_ONCE()
  * in this function matches the WRITE_ONCE() when @flags are modified
  * for registered consoles with console_srcu_write_flags().
  *
@@ -408,7 +408,7 @@ static inline void console_srcu_write_flags(struct console *con, short flags)
 static inline bool console_is_registered_locked(const struct console *con)
 {
 	lockdep_assert_console_list_lock_held();
-	return !hlist_unhashed(&con->node);
+	return !hlist_unhashed(&con->analde);
 }
 
 /*
@@ -443,7 +443,7 @@ static inline bool console_is_registered(const struct console *con)
  * any context.
  */
 #define for_each_console_srcu(con)					\
-	hlist_for_each_entry_srcu(con, &console_list, node,		\
+	hlist_for_each_entry_srcu(con, &console_list, analde,		\
 				  console_srcu_read_lock_is_held())
 
 /**
@@ -456,7 +456,7 @@ static inline bool console_is_registered(const struct console *con)
  */
 #define for_each_console(con)						\
 	lockdep_assert_console_list_lock_held();			\
-	hlist_for_each_entry(con, &console_list, node)
+	hlist_for_each_entry(con, &console_list, analde)
 
 #ifdef CONFIG_PRINTK
 extern bool nbcon_can_proceed(struct nbcon_write_context *wctxt);
@@ -494,9 +494,9 @@ extern int braille_register_console(struct console *, int index,
 		char *console_options, char *braille_options);
 extern int braille_unregister_console(struct console *);
 #ifdef CONFIG_TTY
-extern void console_sysfs_notify(void);
+extern void console_sysfs_analtify(void);
 #else
-static inline void console_sysfs_notify(void)
+static inline void console_sysfs_analtify(void)
 { }
 #endif
 extern bool console_suspend_enabled;
@@ -512,16 +512,16 @@ void vcs_remove_sysfs(int index);
 
 /* Some debug stub to catch some of the obvious races in the VT code */
 #define WARN_CONSOLE_UNLOCKED()						\
-	WARN_ON(!atomic_read(&ignore_console_lock_warning) &&		\
+	WARN_ON(!atomic_read(&iganalre_console_lock_warning) &&		\
 		!is_console_locked() && !oops_in_progress)
 /*
- * Increment ignore_console_lock_warning if you need to quiet
+ * Increment iganalre_console_lock_warning if you need to quiet
  * WARN_CONSOLE_UNLOCKED() for debugging purposes.
  */
-extern atomic_t ignore_console_lock_warning;
+extern atomic_t iganalre_console_lock_warning;
 
 /* VESA Blanking Levels */
-#define VESA_NO_BLANKING        0
+#define VESA_ANAL_BLANKING        0
 #define VESA_VSYNC_SUSPEND      1
 #define VESA_HSYNC_SUSPEND      2
 #define VESA_POWERDOWN          3
@@ -529,7 +529,7 @@ extern atomic_t ignore_console_lock_warning;
 extern void console_init(void);
 
 /* For deferred console takeover */
-void dummycon_register_output_notifier(struct notifier_block *nb);
-void dummycon_unregister_output_notifier(struct notifier_block *nb);
+void dummycon_register_output_analtifier(struct analtifier_block *nb);
+void dummycon_unregister_output_analtifier(struct analtifier_block *nb);
 
 #endif /* _LINUX_CONSOLE_H */

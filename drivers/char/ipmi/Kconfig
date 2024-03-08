@@ -45,7 +45,7 @@ config IPMI_PANIC_STRING
 	  by default, generate IPMI OEM type f0 events holding the IPMB
 	  address of the panic generator (byte 4 of the event), a sequence
 	  number for the string (byte 5 of the event) and part of the
-	  string (the rest of the event).  Bytes 1, 2, and 3 are the normal
+	  string (the rest of the event).  Bytes 1, 2, and 3 are the analrmal
 	  usage for an OEM event.  You can fetch these events and use the
 	  sequence numbers to piece the string together.  This config
 	  parameter sets the default value to generate these events,
@@ -80,7 +80,7 @@ config IPMI_IPMB
 	depends on I2C && I2C_SLAVE
 	help
 	  Provides a driver for a system running right on the IPMB bus.
-	  It supports normal system interface messages to a BMC on the IPMB
+	  It supports analrmal system interface messages to a BMC on the IPMB
 	  bus, and it also supports direct messaging on the bus using
 	  IPMB direct messages.  This module requires I2C support.
 
@@ -140,7 +140,7 @@ config IPMI_KCS_BMC_CDEV_IPMI
 	  Provides a BMC-side character device implementing IPMI
 	  semantics for KCS IPMI devices.
 
-	  Say YES if you wish to expose KCS devices on the BMC for IPMI
+	  Say ANAL if you wish to expose KCS devices on the BMC for IPMI
 	  purposes.
 
 	  This support is also available as a module. The module will be
@@ -154,7 +154,7 @@ config IPMI_KCS_BMC_SERIO
 	  to take advantage of userspace interfaces provided by SerIO where
 	  appropriate.
 
-	  Say YES if you wish to expose KCS devices on the BMC via SerIO
+	  Say ANAL if you wish to expose KCS devices on the BMC via SerIO
 	  interfaces.
 
 	  This support is also available as a module. The module will be

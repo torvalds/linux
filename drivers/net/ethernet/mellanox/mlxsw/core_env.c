@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/err.h>
@@ -298,14 +298,14 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 	int err;
 
 	if (!mlxsw_env_linecard_is_active(mlxsw_env, slot_index)) {
-		netdev_err(netdev, "Cannot read EEPROM of module on an inactive line card\n");
+		netdev_err(netdev, "Cananalt read EEPROM of module on an inactive line card\n");
 		return -EIO;
 	}
 
 	err = mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
 		netdev_err(netdev,
-			   "EEPROM is not equipped on port module type");
+			   "EEPROM is analt equipped on port module type");
 		return err;
 	}
 
@@ -339,7 +339,7 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 		}
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
-		/* Verify if transceiver provides diagnostic monitoring page */
+		/* Verify if transceiver provides diaganalstic monitoring page */
 		err = mlxsw_env_query_module_eeprom(mlxsw_core, slot_index,
 						    module, SFP_DIAGMON, 1,
 						    &diag_mon, false,
@@ -365,7 +365,7 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 		/* Verify if module EEPROM is a flat memory. In case of flat
 		 * memory only page 00h (0-255 bytes) can be read. Otherwise
 		 * upper pages 01h and 02h can also be read. Upper pages 10h
-		 * and 11h are currently not supported by the driver.
+		 * and 11h are currently analt supported by the driver.
 		 */
 		if (module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_TYPE_ID] &
 		    MLXSW_REG_MCIA_EEPROM_CMIS_FLAT_MEMORY)
@@ -397,7 +397,7 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 		return -EINVAL;
 
 	if (!mlxsw_env_linecard_is_active(mlxsw_env, slot_index)) {
-		netdev_err(netdev, "Cannot read EEPROM of module on an inactive line card\n");
+		netdev_err(netdev, "Cananalt read EEPROM of module on an inactive line card\n");
 		return -EIO;
 	}
 
@@ -434,14 +434,14 @@ static int mlxsw_env_mcia_status_process(const char *mcia_pl,
 	switch (status) {
 	case MLXSW_REG_MCIA_STATUS_GOOD:
 		return 0;
-	case MLXSW_REG_MCIA_STATUS_NO_EEPROM_MODULE:
-		NL_SET_ERR_MSG_MOD(extack, "No response from module's EEPROM");
+	case MLXSW_REG_MCIA_STATUS_ANAL_EEPROM_MODULE:
+		NL_SET_ERR_MSG_MOD(extack, "Anal response from module's EEPROM");
 		return -EIO;
-	case MLXSW_REG_MCIA_STATUS_MODULE_NOT_SUPPORTED:
-		NL_SET_ERR_MSG_MOD(extack, "Module type not supported by the device");
-		return -EOPNOTSUPP;
-	case MLXSW_REG_MCIA_STATUS_MODULE_NOT_CONNECTED:
-		NL_SET_ERR_MSG_MOD(extack, "No module present indication");
+	case MLXSW_REG_MCIA_STATUS_MODULE_ANALT_SUPPORTED:
+		NL_SET_ERR_MSG_MOD(extack, "Module type analt supported by the device");
+		return -EOPANALTSUPP;
+	case MLXSW_REG_MCIA_STATUS_MODULE_ANALT_CONNECTED:
+		NL_SET_ERR_MSG_MOD(extack, "Anal module present indication");
 		return -EIO;
 	case MLXSW_REG_MCIA_STATUS_I2C_ERROR:
 		NL_SET_ERR_MSG_MOD(extack, "Error occurred while trying to access module's EEPROM using I2C");
@@ -450,7 +450,7 @@ static int mlxsw_env_mcia_status_process(const char *mcia_pl,
 		NL_SET_ERR_MSG_MOD(extack, "Module is disabled");
 		return -EIO;
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "Unknown error");
+		NL_SET_ERR_MSG_MOD(extack, "Unkanalwn error");
 		return -EIO;
 	}
 }
@@ -468,17 +468,17 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core,
 
 	if (!mlxsw_env_linecard_is_active(mlxsw_env, slot_index)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot read EEPROM of module on an inactive line card");
+				   "Cananalt read EEPROM of module on an inactive line card");
 		return -EIO;
 	}
 
 	err = mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "EEPROM is not equipped on port module type");
+		NL_SET_ERR_MSG_MOD(extack, "EEPROM is analt equipped on port module type");
 		return err;
 	}
 
-	/* Offset cannot be larger than 2 * ETH_MODULE_EEPROM_PAGE_LEN */
+	/* Offset cananalt be larger than 2 * ETH_MODULE_EEPROM_PAGE_LEN */
 	device_addr = page->offset;
 
 	while (bytes_read < page->length) {
@@ -538,7 +538,7 @@ int mlxsw_env_reset_module(struct net_device *netdev,
 		return 0;
 
 	if (!mlxsw_env_linecard_is_active(mlxsw_env, slot_index)) {
-		netdev_err(netdev, "Cannot reset module on an inactive line card\n");
+		netdev_err(netdev, "Cananalt reset module on an inactive line card\n");
 		return -EIO;
 	}
 
@@ -546,20 +546,20 @@ int mlxsw_env_reset_module(struct net_device *netdev,
 
 	err = __mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
-		netdev_err(netdev, "Reset module is not supported on port module type\n");
+		netdev_err(netdev, "Reset module is analt supported on port module type\n");
 		goto out;
 	}
 
 	module_info = mlxsw_env_module_info_get(mlxsw_core, slot_index, module);
 	if (module_info->num_ports_up) {
-		netdev_err(netdev, "Cannot reset module when ports using it are administratively up\n");
+		netdev_err(netdev, "Cananalt reset module when ports using it are administratively up\n");
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (module_info->num_ports_mapped > 1 &&
 	    !(req & (ETH_RESET_PHY << ETH_RESET_SHARED_SHIFT))) {
-		netdev_err(netdev, "Cannot reset module without \"phy-shared\" flag when shared by multiple ports\n");
+		netdev_err(netdev, "Cananalt reset module without \"phy-shared\" flag when shared by multiple ports\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -594,7 +594,7 @@ mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
 
 	err = __mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Power mode is not supported on port module type");
+		NL_SET_ERR_MSG_MOD(extack, "Power mode is analt supported on port module type");
 		goto out;
 	}
 
@@ -718,7 +718,7 @@ mlxsw_env_set_module_power_mode_apply(struct mlxsw_core *mlxsw_core,
 	err = __mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Power mode set is not supported on port module type");
+				   "Power mode set is analt supported on port module type");
 		goto out;
 	}
 
@@ -754,7 +754,7 @@ mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
 	if (policy != ETHTOOL_MODULE_POWER_MODE_POLICY_HIGH &&
 	    policy != ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported power mode policy");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&mlxsw_env->line_cards_lock);
@@ -784,8 +784,8 @@ static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
 
 	switch (temp) {
 	case MLXSW_REG_MTBR_BAD_SENS_INFO:
-	case MLXSW_REG_MTBR_NO_CONN:
-	case MLXSW_REG_MTBR_NO_TEMP_SENS:
+	case MLXSW_REG_MTBR_ANAL_CONN:
+	case MLXSW_REG_MTBR_ANAL_TEMP_SENS:
 	case MLXSW_REG_MTBR_INDEX_NA:
 		*p_has_temp_sensor = false;
 		break;
@@ -816,7 +816,7 @@ mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core, u8 slot_index,
 							   MLXSW_REG_MTMP_MODULE_INDEX_MIN,
 							   SFP_TEMP_HIGH_WARN,
 							   &threshold_hi);
-		/* In case it is not possible to query the module's threshold,
+		/* In case it is analt possible to query the module's threshold,
 		 * use the default value.
 		 */
 		if (err)
@@ -833,7 +833,7 @@ mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core, u8 slot_index,
 		mlxsw_reg_mtmp_temperature_threshold_lo_set(mtmp_pl, threshold_hi -
 							    MLXSW_REG_MTMP_HYSTERESIS_TEMP);
 	}
-	tee = enable ? MLXSW_REG_MTMP_TEE_GENERATE_EVENT : MLXSW_REG_MTMP_TEE_NO_EVENT;
+	tee = enable ? MLXSW_REG_MTMP_TEE_GENERATE_EVENT : MLXSW_REG_MTMP_TEE_ANAL_EVENT;
 	mlxsw_reg_mtmp_tee_set(mtmp_pl, tee);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtmp), mtmp_pl);
 }
@@ -898,18 +898,18 @@ static void mlxsw_env_mtwe_event_work(struct work_struct *work)
 		if ((is_overheat && sensor_warning) ||
 		    (!is_overheat && !sensor_warning)) {
 			/* Current state is "warning" and MTWE still reports
-			 * warning OR current state in "no warning" and MTWE
-			 * does not report warning.
+			 * warning OR current state in "anal warning" and MTWE
+			 * does analt report warning.
 			 */
 			mutex_unlock(&mlxsw_env->line_cards_lock);
 			continue;
 		} else if (is_overheat && !sensor_warning) {
-			/* MTWE reports "no warning", turn is_overheat off.
+			/* MTWE reports "anal warning", turn is_overheat off.
 			 */
 			module_info->is_overheat = false;
 			mutex_unlock(&mlxsw_env->line_cards_lock);
 		} else {
-			/* Current state is "no warning" and MTWE reports
+			/* Current state is "anal warning" and MTWE reports
 			 * "warning", increase the counter and turn is_overheat
 			 * on.
 			 */
@@ -988,7 +988,7 @@ static void mlxsw_env_pmpe_event_work(struct work_struct *work)
 					       event->slot_index,
 					       event->module,
 					       &has_temp_sensor);
-	/* Do not disable events on modules without sensors or faulty sensors
+	/* Do analt disable events on modules without sensors or faulty sensors
 	 * because FW returns errors.
 	 */
 	if (err)
@@ -1208,7 +1208,7 @@ static int mlxsw_env_line_cards_alloc(struct mlxsw_env *env)
 kzalloc_err:
 	for (i--; i >= 0; i--)
 		kfree(env->line_cards[i]);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mlxsw_env_line_cards_free(struct mlxsw_env *env)
@@ -1403,7 +1403,7 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
 	env = kzalloc(struct_size(env, line_cards, num_of_slots + 1),
 		      GFP_KERNEL);
 	if (!env)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	env->core = mlxsw_core;
 	env->bus_info = bus_info;
@@ -1435,7 +1435,7 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
 	env->line_cards[0]->module_count = num_of_slots ? 0 : module_count;
 	/* Enable events only for main board. Line card events are to be
 	 * configured only after line card is activated. Before that, access to
-	 * modules on line cards is not allowed.
+	 * modules on line cards is analt allowed.
 	 */
 	err = mlxsw_env_module_event_enable(env, 0);
 	if (err)
@@ -1476,7 +1476,7 @@ void mlxsw_env_fini(struct mlxsw_env *env)
 	env->line_cards[0]->active = false;
 	mlxsw_env_module_event_disable(env, 0);
 	mlxsw_env_module_plug_event_unregister(env);
-	/* Make sure there is no more event work scheduled. */
+	/* Make sure there is anal more event work scheduled. */
 	mlxsw_core_flush_owq();
 	mlxsw_env_temp_warn_event_unregister(env);
 	mlxsw_linecards_event_ops_unregister(env->core,

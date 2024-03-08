@@ -117,17 +117,17 @@ static const struct fsl_soc_die_attr *fsl_soc_die_match(
 
 static u64 fsl_guts_get_soc_uid(const char *compat, unsigned int offset)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *sfp_base;
 	u64 uid;
 
-	np = of_find_compatible_node(NULL, NULL, compat);
+	np = of_find_compatible_analde(NULL, NULL, compat);
 	if (!np)
 		return 0;
 
 	sfp_base = of_iomap(np, 0);
 	if (!sfp_base) {
-		of_node_put(np);
+		of_analde_put(np);
 		return 0;
 	}
 
@@ -136,7 +136,7 @@ static u64 fsl_guts_get_soc_uid(const char *compat, unsigned int offset)
 	uid |= ioread32(sfp_base + offset + 4);
 
 	iounmap(sfp_base);
-	of_node_put(np);
+	of_analde_put(np);
 
 	return uid;
 }
@@ -148,7 +148,7 @@ static const struct fsl_soc_data ls1028a_data = {
 
 /*
  * Table for matching compatible strings, for device tree
- * guts node, for Freescale QorIQ SOCs.
+ * guts analde, for Freescale QorIQ SOCs.
  */
 static const struct of_device_id fsl_guts_of_match[] = {
 	{ .compatible = "fsl,qoriq-device-config-1.0", },
@@ -187,21 +187,21 @@ static int __init fsl_guts_init(void)
 	const struct of_device_id *match;
 	struct ccsr_guts __iomem *regs;
 	const char *machine = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 	bool little_endian;
 	u64 soc_uid = 0;
 	u32 svr;
 	int ret;
 
-	np = of_find_matching_node_and_match(NULL, fsl_guts_of_match, &match);
+	np = of_find_matching_analde_and_match(NULL, fsl_guts_of_match, &match);
 	if (!np)
 		return 0;
 	soc_data = match->data;
 
 	regs = of_iomap(np, 0);
 	if (!regs) {
-		of_node_put(np);
-		return -ENOMEM;
+		of_analde_put(np);
+		return -EANALMEM;
 	}
 
 	little_endian = of_property_read_bool(np, "little-endian");
@@ -210,19 +210,19 @@ static int __init fsl_guts_init(void)
 	else
 		svr = ioread32be(&regs->svr);
 	iounmap(regs);
-	of_node_put(np);
+	of_analde_put(np);
 
 	/* Register soc device */
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_property_read_string(of_root, "model", &machine))
 		of_property_read_string_index(of_root, "compatible", 0, &machine);
 	if (machine) {
 		soc_dev_attr->machine = kstrdup(machine, GFP_KERNEL);
 		if (!soc_dev_attr->machine)
-			goto err_nomem;
+			goto err_analmem;
 	}
 
 	soc_die = fsl_soc_die_match(svr, fsl_soc_die);
@@ -233,16 +233,16 @@ static int __init fsl_guts_init(void)
 		soc_dev_attr->family = kasprintf(GFP_KERNEL, "QorIQ");
 	}
 	if (!soc_dev_attr->family)
-		goto err_nomem;
+		goto err_analmem;
 
 	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "svr:0x%08x", svr);
 	if (!soc_dev_attr->soc_id)
-		goto err_nomem;
+		goto err_analmem;
 
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d.%d",
 					   (svr >>  4) & 0xf, svr & 0xf);
 	if (!soc_dev_attr->revision)
-		goto err_nomem;
+		goto err_analmem;
 
 	if (soc_data)
 		soc_uid = fsl_guts_get_soc_uid(soc_data->sfp_compat,
@@ -264,8 +264,8 @@ static int __init fsl_guts_init(void)
 
 	return 0;
 
-err_nomem:
-	ret = -ENOMEM;
+err_analmem:
+	ret = -EANALMEM;
 err:
 	kfree(soc_dev_attr->machine);
 	kfree(soc_dev_attr->family);

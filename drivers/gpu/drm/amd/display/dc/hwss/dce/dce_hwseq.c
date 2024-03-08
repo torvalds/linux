@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -52,7 +52,7 @@ void dce_pipe_control_lock(struct dc *dc,
 	uint32_t dcp_grph, scl, blnd, update_lock_mode, val;
 	struct dce_hwseq *hws = dc->hwseq;
 
-	/* Not lock pipe when blank */
+	/* Analt lock pipe when blank */
 	if (lock && pipe->stream_res.tg->funcs->is_blanked &&
 	    pipe->stream_res.tg->funcs->is_blanked(pipe->stream_res.tg))
 		return;
@@ -90,7 +90,7 @@ void dce60_pipe_control_lock(struct dc *dc,
 		struct pipe_ctx *pipe,
 		bool lock)
 {
-	/* DCE6 has no BLND_V_UPDATE_LOCK register */
+	/* DCE6 has anal BLND_V_UPDATE_LOCK register */
 }
 #endif
 
@@ -144,7 +144,7 @@ static void dce_disable_sram_shut_down(struct dce_hwseq *hws)
 
 static void dce_underlay_clock_enable(struct dce_hwseq *hws)
 {
-	/* todo: why do we need this at boot? is dce_enable_fe_clock enough? */
+	/* todo: why do we need this at boot? is dce_enable_fe_clock eanalugh? */
 	if (REG(DCFEV_CLOCK_CONTROL))
 		REG_UPDATE(DCFEV_CLOCK_CONTROL,
 				DCFEV_CLOCK_ENABLE, 1);
@@ -201,7 +201,7 @@ void dce_crtc_switch_to_clk_src(struct dce_hwseq *hws,
 			REG_UPDATE(PHYPLL_PIXEL_RATE_CNTL[tg_inst],
 					PIXEL_RATE_PLL_SOURCE, 1);
 	} else {
-		DC_ERR("Unknown clock source. clk_src id: %d, TG_inst: %d",
+		DC_ERR("Unkanalwn clock source. clk_src id: %d, TG_inst: %d",
 		       clk_src->id, tg_inst);
 	}
 }

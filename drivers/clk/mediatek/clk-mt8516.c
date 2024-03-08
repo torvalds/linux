@@ -241,7 +241,7 @@ static const char * const usb_78m_parents[] __initconst = {
 	"mainpll_d20"
 };
 
-static const char * const spinor_parents[] __initconst = {
+static const char * const spianalr_parents[] __initconst = {
 	"clk26m_d2",
 	"clk26m_ck",
 	"mainpll_d40",
@@ -386,7 +386,7 @@ static struct mtk_composite top_muxes[] __initdata = {
 	MUX(CLK_TOP_USB_78M_SEL, "usb_78m_sel", usb_78m_parents,
 		0x004, 20, 3),
 	/* CLK_MUX_SEL8 */
-	MUX(CLK_TOP_SPINOR_SEL, "spinor_sel", spinor_parents,
+	MUX(CLK_TOP_SPIANALR_SEL, "spianalr_sel", spianalr_parents,
 		0x040, 0, 3),
 	MUX(CLK_TOP_MSDC2_SEL, "msdc2_sel", msdc2_parents,
 		0x040, 3, 3),
@@ -606,7 +606,7 @@ static const struct mtk_gate top_clks[] __initconst = {
 	GATE_TOP2_I(CLK_TOP_MSDC2_INFRA, "msdc2_infra", "rg_msdc2", 30),
 	GATE_TOP2(CLK_TOP_USB_78M, "usb_78m", "usb_78m_sel", 31),
 	/* TOP3 */
-	GATE_TOP3(CLK_TOP_RG_SPINOR, "rg_spinor", "spinor_sel", 0),
+	GATE_TOP3(CLK_TOP_RG_SPIANALR, "rg_spianalr", "spianalr_sel", 0),
 	GATE_TOP3(CLK_TOP_RG_MSDC2, "rg_msdc2", "msdc2_sel", 1),
 	GATE_TOP3(CLK_TOP_RG_ETH, "rg_eth", "eth_sel", 2),
 	GATE_TOP3(CLK_TOP_RG_AUD1, "rg_aud1", "aud1_sel", 8),

@@ -333,8 +333,8 @@ enum enetc_flags_bit {
 /* interrupt coalescing modes */
 enum enetc_ic_mode {
 	/* one interrupt per frame */
-	ENETC_IC_NONE = 0,
-	/* activated when int coalescing time is set to a non-0 value */
+	ENETC_IC_ANALNE = 0,
+	/* activated when int coalescing time is set to a analn-0 value */
 	ENETC_IC_RX_MANUAL = BIT(0),
 	ENETC_IC_TX_MANUAL = BIT(1),
 	/* use dynamic interrupt moderation */
@@ -562,12 +562,12 @@ static inline int enetc_psfp_disable(struct enetc_ndev_priv *priv)
 }
 
 #else
-#define enetc_qos_query_caps(ndev, type_data) -EOPNOTSUPP
-#define enetc_setup_tc_taprio(ndev, type_data) -EOPNOTSUPP
+#define enetc_qos_query_caps(ndev, type_data) -EOPANALTSUPP
+#define enetc_setup_tc_taprio(ndev, type_data) -EOPANALTSUPP
 #define enetc_sched_speed_set(priv, speed) (void)0
-#define enetc_setup_tc_cbs(ndev, type_data) -EOPNOTSUPP
-#define enetc_setup_tc_txtime(ndev, type_data) -EOPNOTSUPP
-#define enetc_setup_tc_psfp(ndev, type_data) -EOPNOTSUPP
+#define enetc_setup_tc_cbs(ndev, type_data) -EOPANALTSUPP
+#define enetc_setup_tc_txtime(ndev, type_data) -EOPANALTSUPP
+#define enetc_setup_tc_psfp(ndev, type_data) -EOPANALTSUPP
 #define enetc_setup_tc_block_cb NULL
 
 #define enetc_get_max_cap(p)		\

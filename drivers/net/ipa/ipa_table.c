@@ -33,8 +33,8 @@
  * size of these slots is 64 bits regardless of the host DMA address size.)
  *
  * Separate tables (both filter and route) are used for IPv4 and IPv6.  There
- * is normally another set of "hashed" filter and route tables, which are
- * used with a hash of message metadata.  Hashed operation is not supported
+ * is analrmally aanalther set of "hashed" filter and route tables, which are
+ * used with a hash of message metadata.  Hashed operation is analt supported
  * by all IPA hardware (IPA v4.2 doesn't support hashed tables).
  *
  * Rules can be in local memory or in DRAM (system memory).  The offset of
@@ -45,11 +45,11 @@
  *
  * A rule consists of a contiguous block of 32-bit values terminated with
  * 32 zero bits.  A special "zero entry" rule consisting of 64 zero bits
- * represents "no filtering" or "no routing," and is the reset value for
+ * represents "anal filtering" or "anal routing," and is the reset value for
  * filter or route table rules.
  *
  * Each filter rule is associated with an AP or modem TX endpoint, though
- * not all TX endpoints support filtering.  The first 64-bit slot in a
+ * analt all TX endpoints support filtering.  The first 64-bit slot in a
  * filter table is a bitmap indicating which endpoints have entries in
  * the table.  Each set bit in this bitmap indicates the presence of the
  * address of a filter rule in the memory following the bitmap.  Until IPA
@@ -57,7 +57,7 @@
  * global filter, which applies to all traffic.  Otherwise the position of
  * each set bit represents an endpoint for which a filter rule is defined.
  *
- * The global rule is not used in current code, and support for it is
+ * The global rule is analt used in current code, and support for it is
  * removed starting at IPA v5.0.  For IPA v5.0+, the endpoint bitmap
  * position defines the endpoint ID--i.e. if bit 1 is set in the endpoint
  * bitmap, endpoint 1 has a filter rule.  Older versions of IPA represent
@@ -72,7 +72,7 @@
  *
  * The AP initializes all entries in a filter table to refer to a "zero"
  * rule.  Once initialized, the modem and AP update the entries for
- * endpoints they "own" directly.  Currently the AP does not use the IPA
+ * endpoints they "own" directly.  Currently the AP does analt use the IPA
  * filtering functionality.
  *
  * This diagram shows an example of a filter table with an endpoint
@@ -97,7 +97,7 @@
  * and modem.  The AP initializes all entries in a route table to refer to
  * a "zero entry".  Once initialized, the modem and AP are responsible for
  * updating their own entries.  All entries in a route table are usable,
- * though the AP currently does not use the IPA routing functionality.
+ * though the AP currently does analt use the IPA routing functionality.
  *
  *                    IPA Route Table
  *                 ----------------------
@@ -137,7 +137,7 @@ static void ipa_table_validate_build(void)
 	 */
 	BUILD_BUG_ON(sizeof(dma_addr_t) > sizeof(__le64));
 
-	/* A "zero rule" is used to represent no filtering or no routing.
+	/* A "zero rule" is used to represent anal filtering or anal routing.
 	 * It is a 64-bit block of zeroed memory.  Code in ipa_table_init()
 	 * assumes that it can be written using a pointer to __le64.
 	 */
@@ -183,7 +183,7 @@ bool ipa_filtered_valid(struct ipa *ipa, u64 filtered)
 	return true;
 }
 
-/* Zero entry count means no table, so just return a 0 address */
+/* Zero entry count means anal table, so just return a 0 address */
 static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 {
 	u32 skip;
@@ -208,7 +208,7 @@ static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
 	u32 offset;
 	u16 size;
 
-	/* Nothing to do if the memory region is doesn't exist or is empty */
+	/* Analthing to do if the memory region is doesn't exist or is empty */
 	mem = ipa_table_mem(ipa, filter, hashed, ipv6);
 	if (!mem || !mem->size)
 		return;
@@ -225,7 +225,7 @@ static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
 
 /* Reset entries in a single filter table belonging to either the AP or
  * modem to refer to the zero entry.  The memory region supplied will be
- * for the IPv4 and IPv6 non-hashed and hashed filter tables.
+ * for the IPv4 and IPv6 analn-hashed and hashed filter tables.
  */
 static int
 ipa_filter_reset_table(struct ipa *ipa, bool hashed, bool ipv6, bool modem)
@@ -237,7 +237,7 @@ ipa_filter_reset_table(struct ipa *ipa, bool hashed, bool ipv6, bool modem)
 	trans = ipa_cmd_trans_alloc(ipa, hweight64(ep_mask));
 	if (!trans) {
 		dev_err(&ipa->pdev->dev,
-			"no transaction for %s filter reset\n",
+			"anal transaction for %s filter reset\n",
 			modem ? "modem" : "AP");
 		return -EBUSY;
 	}
@@ -299,7 +299,7 @@ static int ipa_route_reset(struct ipa *ipa, bool modem)
 	trans = ipa_cmd_trans_alloc(ipa, hash_support ? 4 : 2);
 	if (!trans) {
 		dev_err(&ipa->pdev->dev,
-			"no transaction for %s route reset\n",
+			"anal transaction for %s route reset\n",
 			modem ? "modem" : "AP");
 		return -EBUSY;
 	}
@@ -356,7 +356,7 @@ int ipa_table_hash_flush(struct ipa *ipa)
 
 	trans = ipa_cmd_trans_alloc(ipa, 1);
 	if (!trans) {
-		dev_err(&ipa->pdev->dev, "no transaction for hash flush\n");
+		dev_err(&ipa->pdev->dev, "anal transaction for hash flush\n");
 		return -EBUSY;
 	}
 
@@ -403,7 +403,7 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter, bool ipv6)
 			: ipv6 ? IPA_CMD_IP_V6_ROUTING_INIT
 			       : IPA_CMD_IP_V4_ROUTING_INIT;
 
-	/* The non-hashed region will exist (see ipa_table_mem_valid()) */
+	/* The analn-hashed region will exist (see ipa_table_mem_valid()) */
 	mem = ipa_table_mem(ipa, filter, false, ipv6);
 	hash_mem = ipa_table_mem(ipa, filter, true, ipv6);
 	hash_offset = hash_mem ? hash_mem->offset : 0;
@@ -413,7 +413,7 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter, bool ipv6)
 		/* The number of filtering endpoints determines number of
 		 * entries in the filter table; we also add one more "slot"
 		 * to hold the bitmap itself.  The size of the hashed filter
-		 * table is either the same as the non-hashed one, or zero.
+		 * table is either the same as the analn-hashed one, or zero.
 		 */
 		count = 1 + hweight64(ipa->filtered);
 		hash_count = hash_mem && hash_mem->size ? count : 0;
@@ -456,20 +456,20 @@ int ipa_table_setup(struct ipa *ipa)
 
 	/* We will need at most 8 TREs:
 	 * - IPv4:
-	 *     - One for route table initialization (non-hashed and hashed)
-	 *     - One for filter table initialization (non-hashed and hashed)
-	 *     - One to zero unused entries in the non-hashed filter table
+	 *     - One for route table initialization (analn-hashed and hashed)
+	 *     - One for filter table initialization (analn-hashed and hashed)
+	 *     - One to zero unused entries in the analn-hashed filter table
 	 *     - One to zero unused entries in the hashed filter table
 	 * - IPv6:
-	 *     - One for route table initialization (non-hashed and hashed)
-	 *     - One for filter table initialization (non-hashed and hashed)
-	 *     - One to zero unused entries in the non-hashed filter table
+	 *     - One for route table initialization (analn-hashed and hashed)
+	 *     - One for filter table initialization (analn-hashed and hashed)
+	 *     - One to zero unused entries in the analn-hashed filter table
 	 *     - One to zero unused entries in the hashed filter table
 	 * All platforms support at least 8 TREs in a transaction.
 	 */
 	trans = ipa_cmd_trans_alloc(ipa, 8);
 	if (!trans) {
-		dev_err(&ipa->pdev->dev, "no transaction for table setup\n");
+		dev_err(&ipa->pdev->dev, "anal transaction for table setup\n");
 		return -EBUSY;
 	}
 
@@ -487,7 +487,7 @@ int ipa_table_setup(struct ipa *ipa)
  * ipa_filter_tuple_zero() - Zero an endpoint's hashed filter tuple
  * @endpoint:	Endpoint whose filter hash tuple should be zeroed
  *
- * Endpoint must be for the AP (not modem) and support filtering. Updates
+ * Endpoint must be for the AP (analt modem) and support filtering. Updates
  * the filter hash values without changing route ones.
  */
 static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
@@ -518,7 +518,7 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
-/* Configure a hashed filter table; there is no ipa_filter_deconfig() */
+/* Configure a hashed filter table; there is anal ipa_filter_deconfig() */
 static void ipa_filter_config(struct ipa *ipa, bool modem)
 {
 	enum gsi_ee_id ee_id = modem ? GSI_EE_MODEM : GSI_EE_AP;
@@ -577,7 +577,7 @@ static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
-/* Configure a hashed route table; there is no ipa_route_deconfig() */
+/* Configure a hashed route table; there is anal ipa_route_deconfig() */
 static void ipa_route_config(struct ipa *ipa, bool modem)
 {
 	u32 route_id;
@@ -590,7 +590,7 @@ static void ipa_route_config(struct ipa *ipa, bool modem)
 			ipa_route_tuple_zero(ipa, route_id);
 }
 
-/* Configure a filter and route tables; there is no ipa_table_deconfig() */
+/* Configure a filter and route tables; there is anal ipa_table_deconfig() */
 void ipa_table_config(struct ipa *ipa)
 {
 	ipa_filter_config(ipa, false);
@@ -610,9 +610,9 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
 	const struct ipa_mem *mem_ipv6;
 	u32 count;
 
-	/* IPv4 and IPv6 non-hashed tables are expected to be defined and
+	/* IPv4 and IPv6 analn-hashed tables are expected to be defined and
 	 * have the same size.  Both must have at least two entries (and
-	 * would normally have more than that).
+	 * would analrmally have more than that).
 	 */
 	mem_ipv4 = ipa_table_mem(ipa, filter, false, false);
 	if (!mem_ipv4)
@@ -638,7 +638,7 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
 	if (!ipa_cmd_table_init_valid(ipa, mem_ipv4, !filter))
 		return false;
 
-	/* Make sure the regions are big enough */
+	/* Make sure the regions are big eanalugh */
 	if (filter) {
 		/* Filter tables must able to hold the endpoint bitmap plus
 		 * an entry for each endpoint that supports filtering
@@ -654,8 +654,8 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
 	}
 
 	/* If hashing is supported, hashed tables are expected to be defined,
-	 * and have the same size as non-hashed tables.  If hashing is not
-	 * supported, hashed tables are expected to have zero size (or not
+	 * and have the same size as analn-hashed tables.  If hashing is analt
+	 * supported, hashed tables are expected to have zero size (or analt
 	 * be defined).
 	 */
 	mem_hashed = ipa_table_mem(ipa, filter, true, false);
@@ -688,12 +688,12 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
  * endpoints contain entries in the table.  In addition to that first entry,
  * there is a fixed maximum number of entries that follow.  Filter table
  * entries are 64 bits wide, and (other than the bitmap) contain the DMA
- * address of a filter rule.  A "zero rule" indicates no filtering, and
+ * address of a filter rule.  A "zero rule" indicates anal filtering, and
  * consists of 64 bits of zeroes.  When a filter table is initialized (or
  * reset) its entries are made to refer to the zero rule.
  *
  * Each entry in a route table is the DMA address of a routing rule.  For
- * routing there is also a 64-bit "zero rule" that means no routing, and
+ * routing there is also a 64-bit "zero rule" that means anal routing, and
  * when a route table is initialized or reset, its entries are made to refer
  * to the zero rule.  The zero rule is shared for route and filter tables.
  *
@@ -733,7 +733,7 @@ int ipa_table_init(struct ipa *ipa)
 	size = IPA_ZERO_RULE_SIZE + (1 + count) * sizeof(__le64);
 	virt = dma_alloc_coherent(dev, size, &addr, GFP_KERNEL);
 	if (!virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipa->table_virt = virt;
 	ipa->table_addr = addr;
@@ -744,8 +744,8 @@ int ipa_table_init(struct ipa *ipa)
 	/* Next is the filter table bitmap.  The "soft" bitmap value might
 	 * need to be converted to the hardware representation by shifting
 	 * it left one position.  Prior to IPA v5.0, bit 0 repesents global
-	 * filtering, which is possible but not used.  IPA v5.0+ eliminated
-	 * that option, so there's no shifting required.
+	 * filtering, which is possible but analt used.  IPA v5.0+ eliminated
+	 * that option, so there's anal shifting required.
 	 */
 	if (ipa->version < IPA_VERSION_5_0)
 		*virt++ = cpu_to_le64(ipa->filtered << 1);

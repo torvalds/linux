@@ -13,7 +13,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
@@ -161,7 +161,7 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 
 	gchip = devm_kzalloc(&pdev->dev, sizeof(*gchip), GFP_KERNEL);
 	if (gchip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, gchip);
 

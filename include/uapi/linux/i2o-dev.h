@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * I2O user space accessible structures/APIs
  *
@@ -130,7 +130,7 @@ typedef struct i2o_sg_io_hdr {
 #define I2O_BUS_PCMCIA	5
 #define I2O_BUS_NUBUS	6
 #define I2O_BUS_CARDBUS 7
-#define I2O_BUS_UNKNOWN 0x80
+#define I2O_BUS_UNKANALWN 0x80
 
 typedef struct _i2o_pci_bus {
 	__u8 PciFunctionNumber;
@@ -286,16 +286,16 @@ typedef struct _i2o_status_block {
 #define I2O_EVT_IND_BSA_SCSI_SMART		0x00000010
 
 /* Event data for generic events */
-#define I2O_EVT_STATE_CHANGE_NORMAL		0x00
+#define I2O_EVT_STATE_CHANGE_ANALRMAL		0x00
 #define I2O_EVT_STATE_CHANGE_SUSPENDED		0x01
 #define I2O_EVT_STATE_CHANGE_RESTART		0x02
 #define I2O_EVT_STATE_CHANGE_NA_RECOVER 	0x03
-#define I2O_EVT_STATE_CHANGE_NA_NO_RECOVER	0x04
+#define I2O_EVT_STATE_CHANGE_NA_ANAL_RECOVER	0x04
 #define I2O_EVT_STATE_CHANGE_QUIESCE_REQUEST	0x05
 #define I2O_EVT_STATE_CHANGE_FAILED		0x10
 #define I2O_EVT_STATE_CHANGE_FAULTED		0x11
 
-#define I2O_EVT_GEN_WARNING_NORMAL		0x00
+#define I2O_EVT_GEN_WARNING_ANALRMAL		0x00
 #define I2O_EVT_GEN_WARNING_ERROR_THRESHOLD	0x01
 #define I2O_EVT_GEN_WARNING_MEDIA_FAULT 	0x02
 
@@ -368,7 +368,7 @@ typedef struct _i2o_status_block {
  * (circa v1.5)
  */
 
-#define I2O_SNFORMAT_UNKNOWN			0
+#define I2O_SNFORMAT_UNKANALWN			0
 #define I2O_SNFORMAT_BINARY			1
 #define I2O_SNFORMAT_ASCII			2
 #define I2O_SNFORMAT_UNICODE			3
@@ -383,7 +383,7 @@ typedef struct _i2o_status_block {
 #define I2O_SNFORMAT_DDM			7
 #define I2O_SNFORMAT_IEEE_REG64 		8
 #define I2O_SNFORMAT_IEEE_REG128		9
-#define I2O_SNFORMAT_UNKNOWN2			0xff
+#define I2O_SNFORMAT_UNKANALWN2			0xff
 
 /*
  *	I2O Get Status State values

@@ -14,7 +14,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <inttypes.h>
 
@@ -40,10 +40,10 @@ extern int minsize;		/* Minimum blob size */
 extern int padsize;		/* Additional padding to blob */
 extern int alignsize;		/* Additional padding to blob accroding to the alignsize */
 extern int phandle_format;	/* Use linux,phandle or phandle properties */
-extern int generate_symbols;	/* generate symbols for nodes with labels */
+extern int generate_symbols;	/* generate symbols for analdes with labels */
 extern int generate_fixups;	/* generate fixups */
 extern int auto_label_aliases;	/* auto generate labels -> aliases */
-extern int annotate;		/* annotate .dts with input source location */
+extern int ananaltate;		/* ananaltate .dts with input source location */
 
 #define PHANDLE_LEGACY	0x1
 #define PHANDLE_EPAPR	0x2
@@ -106,7 +106,7 @@ static inline bool strends(const char *str, const char *suffix)
 
 /* Data blobs */
 enum markertype {
-	TYPE_NONE,
+	TYPE_ANALNE,
 	REF_PHANDLE,
 	REF_PATH,
 	LABEL,
@@ -190,7 +190,7 @@ bool data_is_one_string(struct data d);
 /* DT constraints */
 
 #define MAX_PROPNAME_LEN	31
-#define MAX_NODENAME_LEN	31
+#define MAX_ANALDENAME_LEN	31
 
 /* Live trees */
 struct label {
@@ -214,14 +214,14 @@ struct property {
 	struct srcpos *srcpos;
 };
 
-struct node {
+struct analde {
 	bool deleted;
 	char *name;
 	struct property *proplist;
-	struct node *children;
+	struct analde *children;
 
-	struct node *parent;
-	struct node *next_sibling;
+	struct analde *parent;
+	struct analde *next_sibling;
 
 	char *fullpath;
 	int basenamelen;
@@ -266,42 +266,42 @@ struct property *build_property_delete(char *name);
 struct property *chain_property(struct property *first, struct property *list);
 struct property *reverse_properties(struct property *first);
 
-struct node *build_node(struct property *proplist, struct node *children,
+struct analde *build_analde(struct property *proplist, struct analde *children,
 			struct srcpos *srcpos);
-struct node *build_node_delete(struct srcpos *srcpos);
-struct node *name_node(struct node *node, char *name);
-struct node *omit_node_if_unused(struct node *node);
-struct node *reference_node(struct node *node);
-struct node *chain_node(struct node *first, struct node *list);
-struct node *merge_nodes(struct node *old_node, struct node *new_node);
-struct node *add_orphan_node(struct node *old_node, struct node *new_node, char *ref);
+struct analde *build_analde_delete(struct srcpos *srcpos);
+struct analde *name_analde(struct analde *analde, char *name);
+struct analde *omit_analde_if_unused(struct analde *analde);
+struct analde *reference_analde(struct analde *analde);
+struct analde *chain_analde(struct analde *first, struct analde *list);
+struct analde *merge_analdes(struct analde *old_analde, struct analde *new_analde);
+struct analde *add_orphan_analde(struct analde *old_analde, struct analde *new_analde, char *ref);
 
-void add_property(struct node *node, struct property *prop);
-void delete_property_by_name(struct node *node, char *name);
+void add_property(struct analde *analde, struct property *prop);
+void delete_property_by_name(struct analde *analde, char *name);
 void delete_property(struct property *prop);
-void add_child(struct node *parent, struct node *child);
-void delete_node_by_name(struct node *parent, char *name);
-void delete_node(struct node *node);
-void append_to_property(struct node *node,
+void add_child(struct analde *parent, struct analde *child);
+void delete_analde_by_name(struct analde *parent, char *name);
+void delete_analde(struct analde *analde);
+void append_to_property(struct analde *analde,
 			char *name, const void *data, int len,
 			enum markertype type);
 
-const char *get_unitname(struct node *node);
-struct property *get_property(struct node *node, const char *propname);
+const char *get_unitname(struct analde *analde);
+struct property *get_property(struct analde *analde, const char *propname);
 cell_t propval_cell(struct property *prop);
 cell_t propval_cell_n(struct property *prop, unsigned int n);
-struct property *get_property_by_label(struct node *tree, const char *label,
-				       struct node **node);
-struct marker *get_marker_label(struct node *tree, const char *label,
-				struct node **node, struct property **prop);
-struct node *get_subnode(struct node *node, const char *nodename);
-struct node *get_node_by_path(struct node *tree, const char *path);
-struct node *get_node_by_label(struct node *tree, const char *label);
-struct node *get_node_by_phandle(struct node *tree, cell_t phandle);
-struct node *get_node_by_ref(struct node *tree, const char *ref);
-cell_t get_node_phandle(struct node *root, struct node *node);
+struct property *get_property_by_label(struct analde *tree, const char *label,
+				       struct analde **analde);
+struct marker *get_marker_label(struct analde *tree, const char *label,
+				struct analde **analde, struct property **prop);
+struct analde *get_subanalde(struct analde *analde, const char *analdename);
+struct analde *get_analde_by_path(struct analde *tree, const char *path);
+struct analde *get_analde_by_label(struct analde *tree, const char *label);
+struct analde *get_analde_by_phandle(struct analde *tree, cell_t phandle);
+struct analde *get_analde_by_ref(struct analde *tree, const char *ref);
+cell_t get_analde_phandle(struct analde *root, struct analde *analde);
 
-uint32_t guess_boot_cpuid(struct node *tree);
+uint32_t guess_boot_cpuid(struct analde *tree);
 
 /* Boot info (tree plus memreserve information */
 
@@ -324,7 +324,7 @@ struct dt_info {
 	unsigned int dtsflags;
 	struct reserve_info *reservelist;
 	uint32_t boot_cpuid_phys;
-	struct node *dt;		/* the device tree */
+	struct analde *dt;		/* the device tree */
 	const char *outname;		/* filename being written to, "-" for stdout */
 };
 
@@ -334,7 +334,7 @@ struct dt_info {
 
 struct dt_info *build_dt_info(unsigned int dtsflags,
 			      struct reserve_info *reservelist,
-			      struct node *tree, uint32_t boot_cpuid_phys);
+			      struct analde *tree, uint32_t boot_cpuid_phys);
 void sort_tree(struct dt_info *dti);
 void generate_label_tree(struct dt_info *dti, char *name, bool allocph);
 void generate_fixups_tree(struct dt_info *dti, char *name);

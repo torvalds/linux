@@ -36,8 +36,8 @@
 #define FM3130_RTC_CONTROL_BIT_POR (1 << 4) /* Power on reset */
 #define FM3130_RTC_CONTROL_BIT_AEN (1 << 3) /* Alarm enable */
 #define FM3130_RTC_CONTROL_BIT_CAL (1 << 2) /* Calibration mode */
-#define FM3130_RTC_CONTROL_BIT_WRITE (1 << 1) /* W=1 -> write mode W=0 normal */
-#define FM3130_RTC_CONTROL_BIT_READ (1 << 0) /* R=1 -> read mode R=0 normal */
+#define FM3130_RTC_CONTROL_BIT_WRITE (1 << 1) /* W=1 -> write mode W=0 analrmal */
+#define FM3130_RTC_CONTROL_BIT_READ (1 << 0) /* R=1 -> read mode R=0 analrmal */
 
 #define FM3130_CLOCK_REGS 7
 #define FM3130_ALARM_REGS 5
@@ -58,7 +58,7 @@ static const struct i2c_device_id fm3130_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, fm3130_id);
 
-#define FM3130_MODE_NORMAL		0
+#define FM3130_MODE_ANALRMAL		0
 #define FM3130_MODE_WRITE		1
 #define FM3130_MODE_READ		2
 
@@ -69,7 +69,7 @@ static void fm3130_rtc_mode(struct device *dev, int mode)
 	fm3130->regs[FM3130_RTC_CONTROL] =
 		i2c_smbus_read_byte_data(fm3130->client, FM3130_RTC_CONTROL);
 	switch (mode) {
-	case FM3130_MODE_NORMAL:
+	case FM3130_MODE_ANALRMAL:
 		fm3130->regs[FM3130_RTC_CONTROL] &=
 			~(FM3130_RTC_CONTROL_BIT_WRITE |
 			FM3130_RTC_CONTROL_BIT_READ);
@@ -97,7 +97,7 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 	if (!fm3130->data_valid) {
 		/* We have invalid data in RTC, probably due
 		to battery faults or other problems. Return EIO
-		for now, it will allow us to set data later instead
+		for analw, it will allow us to set data later instead
 		of error during probing which disables device */
 		return -EIO;
 	}
@@ -110,7 +110,7 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 		return -EIO;
 	}
 
-	fm3130_rtc_mode(dev, FM3130_MODE_NORMAL);
+	fm3130_rtc_mode(dev, FM3130_MODE_ANALRMAL);
 
 	dev_dbg(dev, "%s: %15ph\n", "read", fm3130->regs);
 
@@ -123,7 +123,7 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 	tmp = fm3130->regs[FM3130_RTC_MONTHS] & 0x1f;
 	t->tm_mon = bcd2bin(tmp) - 1;
 
-	/* assume 20YY not 19YY, and ignore CF bit */
+	/* assume 20YY analt 19YY, and iganalre CF bit */
 	t->tm_year = bcd2bin(fm3130->regs[FM3130_RTC_YEARS]) + 100;
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
@@ -156,7 +156,7 @@ static int fm3130_set_time(struct device *dev, struct rtc_time *t)
 	buf[FM3130_RTC_DATE] = bin2bcd(t->tm_mday);
 	buf[FM3130_RTC_MONTHS] = bin2bcd(t->tm_mon + 1);
 
-	/* assume 20YY not 19YY */
+	/* assume 20YY analt 19YY */
 	tmp = t->tm_year - 100;
 	buf[FM3130_RTC_YEARS] = bin2bcd(tmp);
 
@@ -171,7 +171,7 @@ static int fm3130_set_time(struct device *dev, struct rtc_time *t)
 					fm3130->regs[FM3130_RTC_SECONDS + i]);
 	}
 
-	fm3130_rtc_mode(dev, FM3130_MODE_NORMAL);
+	fm3130_rtc_mode(dev, FM3130_MODE_ANALRMAL);
 
 	/* We assume here that data are valid once written */
 	if (!fm3130->data_valid)
@@ -188,7 +188,7 @@ static int fm3130_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (!fm3130->alarm_valid) {
 		/*
 		 * We have invalid alarm in RTC, probably due to battery faults
-		 * or other problems. Return EIO for now, it will allow us to
+		 * or other problems. Return EIO for analw, it will allow us to
 		 * set alarm value later instead of error during probing which
 		 * disables device
 		 */
@@ -343,7 +343,7 @@ static struct i2c_driver fm3130_driver;
 static int fm3130_probe(struct i2c_client *client)
 {
 	struct fm3130		*fm3130;
-	int			err = -ENODEV;
+	int			err = -EANALDEV;
 	int			tmp;
 	struct i2c_adapter	*adapter = client->adapter;
 
@@ -354,7 +354,7 @@ static int fm3130_probe(struct i2c_client *client)
 	fm3130 = devm_kzalloc(&client->dev, sizeof(struct fm3130), GFP_KERNEL);
 
 	if (!fm3130)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fm3130->client = client;
 	i2c_set_clientdata(client, fm3130);

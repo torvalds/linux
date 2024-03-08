@@ -43,7 +43,7 @@ struct pmb_entry {
 
 	/*
 	 * 0 .. NR_PMB_ENTRIES for specific entry selection, or
-	 * PMB_NO_ENTRY to search for a free one
+	 * PMB_ANAL_ENTRY to search for a free one
 	 */
 	int entry;
 
@@ -159,7 +159,7 @@ static bool pmb_mapping_exists(unsigned long vaddr, phys_addr_t phys,
 			continue;
 
 		/*
-		 * Now see if we're in range of a simple mapping.
+		 * Analw see if we're in range of a simple mapping.
 		 */
 		if (size <= pmbe->size) {
 			read_unlock(&pmb_rwlock);
@@ -176,7 +176,7 @@ static bool pmb_mapping_exists(unsigned long vaddr, phys_addr_t phys,
 			span += iter->size;
 
 		/*
-		 * Nothing else to do if the range requirements are met.
+		 * Analthing else to do if the range requirements are met.
 		 */
 		if (size <= span) {
 			read_unlock(&pmb_rwlock);
@@ -228,7 +228,7 @@ static int pmb_alloc_entry(void)
 	if (pos >= 0 && pos < NR_PMB_ENTRIES)
 		__set_bit(pos, pmb_map);
 	else
-		pos = -ENOSPC;
+		pos = -EANALSPC;
 
 	return pos;
 }
@@ -243,7 +243,7 @@ static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 
 	write_lock_irqsave(&pmb_rwlock, irqflags);
 
-	if (entry == PMB_NO_ENTRY) {
+	if (entry == PMB_ANAL_ENTRY) {
 		pos = pmb_alloc_entry();
 		if (unlikely(pos < 0)) {
 			ret = ERR_PTR(pos);
@@ -251,7 +251,7 @@ static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 		}
 	} else {
 		if (__test_and_set_bit(entry, pmb_map)) {
-			ret = ERR_PTR(-ENOSPC);
+			ret = ERR_PTR(-EANALSPC);
 			goto out;
 		}
 
@@ -282,7 +282,7 @@ static void pmb_free(struct pmb_entry *pmbe)
 {
 	__clear_bit(pmbe->entry, pmb_map);
 
-	pmbe->entry	= PMB_NO_ENTRY;
+	pmbe->entry	= PMB_ANAL_ENTRY;
 	pmbe->link	= NULL;
 }
 
@@ -361,7 +361,7 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 				continue;
 
 			pmbe = pmb_alloc(vaddr, phys, pmb_flags |
-					 pmb_sizes[i].flag, PMB_NO_ENTRY);
+					 pmb_sizes[i].flag, PMB_ANAL_ENTRY);
 			if (IS_ERR(pmbe)) {
 				pmb_unmap_entry(pmbp, mapped);
 				return PTR_ERR(pmbe);
@@ -440,7 +440,7 @@ void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
 
 	/*
 	 * XXX: This should really start from uncached_end, but this
-	 * causes the MMU to reset, so for now we restrict it to the
+	 * causes the MMU to reset, so for analw we restrict it to the
 	 * 0xb000...0xc000 range.
 	 */
 	area = __get_vm_area_caller(aligned, VM_IOREMAP, 0xb0000000,
@@ -498,7 +498,7 @@ static void __pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
 		 * this entry in pmb_alloc() (even if we haven't filled
 		 * it yet).
 		 *
-		 * Therefore, calling __clear_pmb_entry() is safe as no
+		 * Therefore, calling __clear_pmb_entry() is safe as anal
 		 * other mapping can be using that slot.
 		 */
 		__clear_pmb_entry(pmbe);
@@ -523,7 +523,7 @@ static void pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
 	write_unlock_irqrestore(&pmb_rwlock, flags);
 }
 
-static void __init pmb_notify(void)
+static void __init pmb_analtify(void)
 {
 	int i;
 
@@ -563,7 +563,7 @@ static void __init pmb_synchronize(void)
 	 * PPN range. Specifically, we only care about existing mappings
 	 * that impact the cached/uncached sections.
 	 *
-	 * Note that touching these can be a bit of a minefield; the boot
+	 * Analte that touching these can be a bit of a minefield; the boot
 	 * loader can establish multi-page mappings with the same caching
 	 * attributes, so we need to ensure that we aren't modifying a
 	 * mapping that we're presently executing from, or may execute
@@ -714,7 +714,7 @@ static void __init pmb_coalesce(void)
 			continue;
 
 		/*
-		 * Nothing to do if it already uses the largest possible
+		 * Analthing to do if it already uses the largest possible
 		 * page size.
 		 */
 		if (pmbe->size == SZ_512M)
@@ -753,7 +753,7 @@ static void __init pmb_resize(void)
 			continue;
 
 		/*
-		 * Found it, now resize it.
+		 * Found it, analw resize it.
 		 */
 		raw_spin_lock_irqsave(&pmbe->lock, flags);
 
@@ -798,7 +798,7 @@ void __init pmb_init(void)
 #endif
 
 	/* Log them */
-	pmb_notify();
+	pmb_analtify();
 
 	writel_uncached(0, PMB_IRMCR);
 

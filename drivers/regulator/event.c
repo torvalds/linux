@@ -41,14 +41,14 @@ int reg_generate_netlink_event(const char *reg_name, u64 event)
 
 	skb = genlmsg_new(size, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* add the genetlink message header */
 	msg_header = genlmsg_put(skb, 0, atomic_inc_return(&reg_event_seqnum),
 				 &reg_event_genl_family, 0, REG_GENL_CMD_EVENT);
 	if (!msg_header) {
 		nlmsg_free(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* fill the data */

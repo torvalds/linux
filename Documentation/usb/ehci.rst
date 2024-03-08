@@ -17,7 +17,7 @@ can be used on USB 1.1 systems, but they slow down to USB 1.1 speeds.
 
 USB 1.1 devices may also be used on USB 2.0 systems.  When plugged
 into an EHCI controller, they are given to a USB 1.1 "companion"
-controller, which is a OHCI or UHCI controller as normally used with
+controller, which is a OHCI or UHCI controller as analrmally used with
 such devices.  When USB 1.1 devices plug into USB 2.0 hubs, they
 interact with the EHCI controller through a "Transaction Translator"
 (TT) in the hub, which turns low or full speed transactions into
@@ -35,7 +35,7 @@ appear to be on hold until more systems come with USB 2.0 built-in.
 Such new systems have been available since early 2002, and became much
 more typical in the second half of 2002.
 
-Note that USB 2.0 support involves more than just EHCI.  It requires
+Analte that USB 2.0 support involves more than just EHCI.  It requires
 other changes to the Linux-USB core APIs, including the hub driver,
 but those changes haven't needed to really change the basic "usbcore"
 APIs exposed to USB device drivers.
@@ -59,13 +59,13 @@ At this writing the driver should comfortably handle all control, bulk,
 and interrupt transfers, including requests to USB 1.1 devices through
 transaction translators (TTs) in USB 2.0 hubs.  But you may find bugs.
 
-High Speed Isochronous (ISO) transfer support is also functional, but
-at this writing no Linux drivers have been using that support.
+High Speed Isochroanalus (ISO) transfer support is also functional, but
+at this writing anal Linux drivers have been using that support.
 
-Full Speed Isochronous transfer support, through transaction translators,
-is not yet available.  Note that split transaction support for ISO
+Full Speed Isochroanalus transfer support, through transaction translators,
+is analt yet available.  Analte that split transaction support for ISO
 transfers can't share much code with the code for high speed ISO transfers,
-since EHCI represents these with a different data structure.  So for now,
+since EHCI represents these with a different data structure.  So for analw,
 most USB audio and video devices can't be connected to high speed buses.
 
 Driver Behavior
@@ -73,11 +73,11 @@ Driver Behavior
 
 Transfers of all types can be queued.  This means that control transfers
 from a driver on one interface (or through usbfs) won't interfere with
-ones from another driver, and that interrupt transfers can use periods
+ones from aanalther driver, and that interrupt transfers can use periods
 of one frame without risking data loss due to interrupt processing costs.
 
 The EHCI root hub code hands off USB 1.1 devices to its companion
-controller.  This driver doesn't need to know anything about those
+controller.  This driver doesn't need to kanalw anything about those
 drivers; a OHCI or UHCI driver that works already doesn't need to change
 just because the EHCI driver is also present.
 
@@ -85,7 +85,7 @@ There are some issues with power management; suspend/resume doesn't
 behave quite right at the moment.
 
 Also, some shortcuts have been taken with the scheduling periodic
-transactions (interrupt and isochronous transfers).  These place some
+transactions (interrupt and isochroanalus transfers).  These place some
 limits on the number of periodic transactions that can be scheduled,
 and prevent use of polling intervals of less than one frame.
 
@@ -121,20 +121,20 @@ debugging support, you'll see three files in the "sysfs" directory for
 any EHCI controller:
 
 	"async"
-		dumps the asynchronous schedule, used for control
+		dumps the asynchroanalus schedule, used for control
 		and bulk transfers.  Shows each active qh and the qtds
 		pending, usually one qtd per urb.  (Look at it with
 		usb-storage doing disk I/O; watch the request queues!)
 	"periodic"
 		dumps the periodic schedule, used for interrupt
-		and isochronous transfers.  Doesn't show qtds.
+		and isochroanalus transfers.  Doesn't show qtds.
 	"registers"
 		show controller register state, and
 
 The contents of those files can help identify driver problems.
 
 
-Device drivers shouldn't care whether they're running over EHCI or not,
+Device drivers shouldn't care whether they're running over EHCI or analt,
 but they may want to check for "usb_device->speed == USB_SPEED_HIGH".
 High speed devices can do things that full speed (or low speed) ones
 can't, such as "high bandwidth" periodic (interrupt or ISO) transfers.
@@ -164,7 +164,7 @@ microframes fit in a USB 1.1 frame; a microframe is 1 msec/8 = 125 usec.
 
 So more than 50 MByte/sec is available for bulk transfers, when both
 hardware and device driver software allow it.  Periodic transfer modes
-(isochronous and interrupt) allow the larger packet sizes which let you
+(isochroanalus and interrupt) allow the larger packet sizes which let you
 approach the quoted 480 MBit/sec transfer rate.
 
 Hardware Performance
@@ -172,12 +172,12 @@ Hardware Performance
 
 At this writing, individual USB 2.0 devices tend to max out at around
 20 MByte/sec transfer rates.  This is of course subject to change;
-and some devices now go faster, while others go slower.
+and some devices analw go faster, while others go slower.
 
 The first NEC implementation of EHCI seems to have a hardware bottleneck
 at around 28 MByte/sec aggregate transfer rate.  While this is clearly
-enough for a single device at 20 MByte/sec, putting three such devices
-onto one bus does not get you 60 MByte/sec.  The issue appears to be
+eanalugh for a single device at 20 MByte/sec, putting three such devices
+onto one bus does analt get you 60 MByte/sec.  The issue appears to be
 that the controller hardware won't do concurrent USB and PCI access,
 so that it's only trying six (or maybe seven) USB transactions each
 microframe rather than thirteen.  (Seems like a reasonable trade off
@@ -209,7 +209,7 @@ I/O completion and the driver issuing the next request will take longer
 than the I/O.  If that same loop used 16 KB chunks, it'd be better; a
 sequence of 128 KB chunks would waste a lot less.
 
-But rather than depending on such large I/O buffers to make synchronous
+But rather than depending on such large I/O buffers to make synchroanalus
 I/O be efficient, it's better to just queue up several (bulk) requests
 to the HC, and wait for them all to complete (or be canceled on error).
 Such URB queuing should work with all the USB 1.1 HC drivers too.

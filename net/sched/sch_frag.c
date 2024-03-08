@@ -26,7 +26,7 @@ static int sch_frag_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	if (skb_cow_head(skb, data->l2_len) < 0) {
 		kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	__skb_dst_copy(skb, data->dst);
@@ -97,11 +97,11 @@ static int sch_fragment(struct net *net, struct sk_buff *skb,
 
 		sch_frag_prepare_frag(skb, xmit);
 		dst_init(&sch_frag_rt.dst, &sch_frag_dst_ops, NULL,
-			 DST_OBSOLETE_NONE, DST_NOCOUNT);
+			 DST_OBSOLETE_ANALNE, DST_ANALCOUNT);
 		sch_frag_rt.dst.dev = skb->dev;
 
 		orig_dst = skb->_skb_refdst;
-		skb_dst_set_noref(skb, &sch_frag_rt.dst);
+		skb_dst_set_analref(skb, &sch_frag_rt.dst);
 		IPCB(skb)->frag_max_size = mru;
 
 		ret = ip_do_fragment(net, skb->sk, skb, sch_frag_xmit);
@@ -113,11 +113,11 @@ static int sch_fragment(struct net *net, struct sk_buff *skb,
 		sch_frag_prepare_frag(skb, xmit);
 		memset(&sch_frag_rt, 0, sizeof(sch_frag_rt));
 		dst_init(&sch_frag_rt.dst, &sch_frag_dst_ops, NULL,
-			 DST_OBSOLETE_NONE, DST_NOCOUNT);
+			 DST_OBSOLETE_ANALNE, DST_ANALCOUNT);
 		sch_frag_rt.dst.dev = skb->dev;
 
 		orig_dst = skb->_skb_refdst;
-		skb_dst_set_noref(skb, &sch_frag_rt.dst);
+		skb_dst_set_analref(skb, &sch_frag_rt.dst);
 		IP6CB(skb)->frag_max_size = mru;
 
 		ret = ipv6_stub->ipv6_fragment(net, skb->sk, skb,

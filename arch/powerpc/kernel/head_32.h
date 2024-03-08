@@ -10,10 +10,10 @@
  * We assume sprg3 has the physical address of the current
  * task's thread_struct.
  */
-.macro EXCEPTION_PROLOG		trapno name handle_dar_dsisr=0
+.macro EXCEPTION_PROLOG		trapanal name handle_dar_dsisr=0
 	EXCEPTION_PROLOG_0	handle_dar_dsisr=\handle_dar_dsisr
 	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2	\trapno \name handle_dar_dsisr=\handle_dar_dsisr
+	EXCEPTION_PROLOG_2	\trapanal \name handle_dar_dsisr=\handle_dar_dsisr
 .endm
 
 .macro EXCEPTION_PROLOG_0 handle_dar_dsisr=0
@@ -56,7 +56,7 @@
 #endif
 .endm
 
-.macro EXCEPTION_PROLOG_2 trapno name handle_dar_dsisr=0
+.macro EXCEPTION_PROLOG_2 trapanal name handle_dar_dsisr=0
 #ifdef CONFIG_PPC_8xx
 	.if	\handle_dar_dsisr
 	li	r11, RPN_PATTERN
@@ -104,16 +104,16 @@
 	li	r10, MSR_KERNEL		/* can take exceptions */
 	mtmsr	r10			/* (except for mach check in rtas) */
 #endif
-	COMMON_EXCEPTION_PROLOG_END \trapno
-_ASM_NOKPROBE_SYMBOL(\name\()_virt)
+	COMMON_EXCEPTION_PROLOG_END \trapanal
+_ASM_ANALKPROBE_SYMBOL(\name\()_virt)
 .endm
 
-.macro COMMON_EXCEPTION_PROLOG_END trapno
+.macro COMMON_EXCEPTION_PROLOG_END trapanal
 	stw	r0,GPR0(r1)
 	lis	r10,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
 	addi	r10,r10,STACK_FRAME_REGS_MARKER@l
 	stw	r10,STACK_INT_FRAME_MARKER(r1)
-	li	r10, \trapno
+	li	r10, \trapanal
 	stw	r10,_TRAP(r1)
 	SAVE_GPRS(3, 8, r1)
 	SAVE_NVGPRS(r1)
@@ -145,7 +145,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 #endif
 .endm
 
-.macro SYSCALL_ENTRY trapno
+.macro SYSCALL_ENTRY trapanal
 	mfspr	r9, SPRN_SRR1
 	mfspr	r12, SPRN_SRR0
 	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL)		/* can take exceptions */
@@ -168,10 +168,10 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 .endm
 
 /*
- * Note: code which follows this uses cr0.eq (set if from kernel),
+ * Analte: code which follows this uses cr0.eq (set if from kernel),
  * r11, r12 (SRR0), and r9 (SRR1).
  *
- * Note2: once we have set r1 we are in a position to take exceptions
+ * Analte2: once we have set r1 we are in a position to take exceptions
  * again, and we could thus set MSR:RI at that point.
  */
 

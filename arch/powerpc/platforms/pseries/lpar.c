@@ -56,7 +56,7 @@
 /* in hvCall.S */
 EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall9);
-EXPORT_SYMBOL(plpar_hcall_norets);
+EXPORT_SYMBOL(plpar_hcall_analrets);
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
 /*
@@ -161,7 +161,7 @@ struct vcpu_dispatch_data {
 };
 
 /*
- * This represents the number of cpus in the hypervisor. Since there is no
+ * This represents the number of cpus in the hypervisor. Since there is anal
  * architected way to discover the number of processors in the host, we
  * provision for dealing with NR_CPUS. This is currently 2048 by default, and
  * is sufficient for our purposes. This will need to be tweaked if
@@ -213,7 +213,7 @@ static int init_cpu_associativity(void)
 
 	if (!vcpu_associativity || !pcpu_associativity) {
 		pr_err("error allocating memory for associativity information\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -267,7 +267,7 @@ static int cpu_relative_dispatch_distance(int last_disp_cpu, int cur_disp_cpu)
 	return cpu_relative_distance(last_disp_cpu_assoc, cur_disp_cpu_assoc);
 }
 
-static int cpu_home_node_dispatch_distance(int disp_cpu)
+static int cpu_home_analde_dispatch_distance(int disp_cpu)
 {
 	__be32 *disp_cpu_assoc, *vcpu_assoc;
 	int vcpu_id = smp_processor_id();
@@ -331,7 +331,7 @@ static void update_vcpu_disp_stat(int disp_cpu)
 		}
 	}
 
-	distance = cpu_home_node_dispatch_distance(disp_cpu);
+	distance = cpu_home_analde_dispatch_distance(disp_cpu);
 	if (distance < 0)
 		pr_debug_ratelimited("vcpudispatch_stats: cpu %d: error determining associativity\n",
 				smp_processor_id());
@@ -583,7 +583,7 @@ static int vcpudispatch_stats_display(struct seq_file *p, void *v)
 	return 0;
 }
 
-static int vcpudispatch_stats_open(struct inode *inode, struct file *file)
+static int vcpudispatch_stats_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, vcpudispatch_stats_display, NULL);
 }
@@ -627,7 +627,7 @@ static int vcpudispatch_stats_freq_display(struct seq_file *p, void *v)
 	return 0;
 }
 
-static int vcpudispatch_stats_freq_open(struct inode *inode, struct file *file)
+static int vcpudispatch_stats_freq_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, vcpudispatch_stats_freq_display, NULL);
 }
@@ -738,7 +738,7 @@ static int __init pseries_lpar_register_process_table(unsigned long base,
 	} else
 		flags |= PROC_TABLE_HPT_SLB;
 	for (;;) {
-		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,
+		rc = plpar_hcall_analrets(H_REGISTER_PROC_TBL, flags, base,
 					page_size, table_size);
 		if (!H_IS_LONG_BUSY(rc))
 			break;
@@ -774,7 +774,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	if (!(vflags & HPTE_V_BOLTED))
 		pr_devel(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
 
-	/* Now fill in the actual HPTE */
+	/* Analw fill in the actual HPTE */
 	/* Set CEC cookie to 0         */
 	/* Zero page = 0               */
 	/* I-cache Invalidate = 0      */
@@ -834,7 +834,7 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 		 * ANDCOND test.  H_RESOURCE may be returned, so we need to
 		 * check for that as well.
 		 */
-		BUG_ON(lpar_rc != H_NOT_FOUND && lpar_rc != H_RESOURCE);
+		BUG_ON(lpar_rc != H_ANALT_FOUND && lpar_rc != H_RESOURCE);
 
 		slot_offset++;
 		slot_offset &= 0x7;
@@ -844,7 +844,7 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 }
 
 /* Called during kexec sequence with MMU off */
-static notrace void manual_hpte_clear_all(void)
+static analtrace void manual_hpte_clear_all(void)
 {
 	unsigned long size_bytes = 1UL << ppc64_pft_size;
 	unsigned long hpte_count = size_bytes >> 4;
@@ -856,7 +856,7 @@ static notrace void manual_hpte_clear_all(void)
 	unsigned long i, j;
 
 	/* Read in batches of 4,
-	 * invalidate only valid entries not in the VRMA
+	 * invalidate only valid entries analt in the VRMA
 	 * hpte_count will be a multiple of 4
          */
 	for (i = 0; i < hpte_count; i += 4) {
@@ -878,19 +878,19 @@ static notrace void manual_hpte_clear_all(void)
 }
 
 /* Called during kexec sequence with MMU off */
-static notrace int hcall_hpte_clear_all(void)
+static analtrace int hcall_hpte_clear_all(void)
 {
 	int rc;
 
 	do {
-		rc = plpar_hcall_norets(H_CLEAR_HPT);
+		rc = plpar_hcall_analrets(H_CLEAR_HPT);
 	} while (rc == H_CONTINUE);
 
 	return rc;
 }
 
 /* Called during kexec sequence with MMU off */
-static notrace void pseries_hpte_clear_all(void)
+static analtrace void pseries_hpte_clear_all(void)
 {
 	int rc;
 
@@ -907,7 +907,7 @@ static notrace void pseries_hpte_clear_all(void)
 	 * to do it.
 	 *
 	 * This is also called on boot when a fadump happens. In that case we
-	 * must not change the exception endian mode.
+	 * must analt change the exception endian mode.
 	 */
 	if (firmware_has_feature(FW_FEATURE_SET_MODE) && !is_fadump_active())
 		pseries_big_endian_exceptions();
@@ -915,10 +915,10 @@ static notrace void pseries_hpte_clear_all(void)
 }
 
 /*
- * NOTE: for updatepp ops we are fortunate that the linux "newpp" bits and
- * the low 3 bits of flags happen to line up.  So no transform is needed.
+ * ANALTE: for updatepp ops we are fortunate that the linux "newpp" bits and
+ * the low 3 bits of flags happen to line up.  So anal transform is needed.
  * We can probably optimize here and assume the high bits of newpp are
- * already zero.  For now I am paranoid.
+ * already zero.  For analw I am paraanalid.
  */
 static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
@@ -943,8 +943,8 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 
 	lpar_rc = plpar_pte_protect(flags, slot, want_v);
 
-	if (lpar_rc == H_NOT_FOUND) {
-		pr_devel("not found !\n");
+	if (lpar_rc == H_ANALT_FOUND) {
+		pr_devel("analt found !\n");
 		return -1;
 	}
 
@@ -1047,7 +1047,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
 
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 	lpar_rc = plpar_pte_remove(H_AVPN, slot, want_v, &dummy1, &dummy2);
-	if (lpar_rc == H_NOT_FOUND)
+	if (lpar_rc == H_ANALT_FOUND)
 		return;
 
 	BUG_ON(lpar_rc != H_SUCCESS);
@@ -1062,7 +1062,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
 #define HBLKR_AVPN		0x0100000000000000UL
 #define HBLKR_CTRL_MASK		0xf800000000000000UL
 #define HBLKR_CTRL_SUCCESS	0x8000000000000000UL
-#define HBLKR_CTRL_ERRNOTFOUND	0x8800000000000000UL
+#define HBLKR_CTRL_ERRANALTFOUND	0x8800000000000000UL
 #define HBLKR_CTRL_ERRBUSY	0xa000000000000000UL
 
 /*
@@ -1079,7 +1079,7 @@ static inline bool is_supported_hlbkrm(int bpsize, int psize)
 /**
  * H_BLOCK_REMOVE caller.
  * @idx should point to the latest @param entry set with a PTEX.
- * If PTE cannot be processed because another CPUs has already locked that
+ * If PTE cananalt be processed because aanalther CPUs has already locked that
  * group, those entries are put back in @param starting at index 1.
  * If entries has to be retried and @retry_busy is set to true, these entries
  * are retried until success. If @retry_busy is set to false, the returned
@@ -1112,7 +1112,7 @@ again:
 
 	BUG_ON(rc != H_PARTIAL);
 
-	/* Check that the unprocessed entries were 'not found' or 'busy' */
+	/* Check that the unprocessed entries were 'analt found' or 'busy' */
 	for (i = 0; i < idx-1; i++) {
 		unsigned long ctrl = retbuf[i] & HBLKR_CTRL_MASK;
 
@@ -1122,7 +1122,7 @@ again:
 		}
 
 		BUG_ON(ctrl != HBLKR_CTRL_SUCCESS
-		       && ctrl != HBLKR_CTRL_ERRNOTFOUND);
+		       && ctrl != HBLKR_CTRL_ERRANALTFOUND);
 	}
 
 	/*
@@ -1280,7 +1280,7 @@ static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
 		vpn_array[index] = vpn;
 		if (index == PPC64_HUGE_HPTE_BATCH - 1) {
 			/*
-			 * Now do a bluk invalidate
+			 * Analw do a bluk invalidate
 			 */
 			__pSeries_lpar_hugepage_invalidate(slot_array,
 							   vpn_array,
@@ -1315,7 +1315,7 @@ static int pSeries_lpar_hpte_removebolted(unsigned long ea,
 
 	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	if (slot == -1)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * lpar doesn't use the passed actual page size
@@ -1450,7 +1450,7 @@ static inline void __init check_lp_set_hblkrm(unsigned int lp,
 {
 	unsigned int bpsize, psize;
 
-	/* First, check the L bit, if not set, this means 4K */
+	/* First, check the L bit, if analt set, this means 4K */
 	if ((lp & HBLKRM_L_MASK) == 0) {
 		set_hblkrm_bloc_size(MMU_PAGE_4K, MMU_PAGE_4K, block_size);
 		return;
@@ -1637,7 +1637,7 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 	might_sleep();
 
 	if (!firmware_has_feature(FW_FEATURE_HPT_RESIZE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Attempting to resize HPT to shift %lu\n", shift);
 
@@ -1668,7 +1668,7 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 		pr_warn("Invalid argument from H_RESIZE_HPT_PREPARE\n");
 		return -EINVAL;
 	case H_RESOURCE:
-		pr_warn("Operation not permitted from H_RESIZE_HPT_PREPARE\n");
+		pr_warn("Operation analt permitted from H_RESIZE_HPT_PREPARE\n");
 		return -EPERM;
 	default:
 		pr_warn("Unexpected error %d from H_RESIZE_HPT_PREPARE\n", rc);
@@ -1685,7 +1685,7 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 	if (rc != 0) {
 		switch (state.commit_rc) {
 		case H_PTEG_FULL:
-			return -ENOSPC;
+			return -EANALSPC;
 
 		default:
 			pr_warn("Unexpected error %d from H_RESIZE_HPT_COMMIT\n",
@@ -1744,8 +1744,8 @@ static int __init cmo_free_hint(char *str)
 	char *parm;
 	parm = strstrip(str);
 
-	if (strcasecmp(parm, "no") == 0 || strcasecmp(parm, "off") == 0) {
-		pr_info("%s: CMO free page hinting is not active.\n", __func__);
+	if (strcasecmp(parm, "anal") == 0 || strcasecmp(parm, "off") == 0) {
+		pr_info("%s: CMO free page hinting is analt active.\n", __func__);
 		cmo_free_hint_flag = 0;
 		return 1;
 	}
@@ -1753,7 +1753,7 @@ static int __init cmo_free_hint(char *str)
 	cmo_free_hint_flag = 1;
 	pr_info("%s: CMO free page hinting is active.\n", __func__);
 
-	if (strcasecmp(parm, "yes") == 0 || strcasecmp(parm, "on") == 0)
+	if (strcasecmp(parm, "anal") == 0 || strcasecmp(parm, "on") == 0)
 		return 1;
 
 	return 0;
@@ -1772,7 +1772,7 @@ static void pSeries_set_page_state(struct page *page, int order,
 
 	for (i = 0; i < (1 << order); i++, addr += PAGE_SIZE) {
 		for (j = 0; j < PAGE_SIZE; j += cmo_page_sz)
-			plpar_hcall_norets(H_PAGE_INIT, state, addr + j, 0);
+			plpar_hcall_analrets(H_PAGE_INIT, state, addr + j, 0);
 	}
 }
 
@@ -1828,18 +1828,18 @@ void hcall_tracepoint_unregfunc(void)
 
 /*
  * Keep track of hcall tracing depth and prevent recursion. Warn if any is
- * detected because it may indicate a problem. This will not catch all
+ * detected because it may indicate a problem. This will analt catch all
  * problems with tracing code making hcalls, because the tracing might have
- * been invoked from a non-hcall, so the first hcall could recurse into it
- * without warning here, but this better than nothing.
+ * been invoked from a analn-hcall, so the first hcall could recurse into it
+ * without warning here, but this better than analthing.
  *
- * Hcalls with specific problems being traced should use the _notrace
+ * Hcalls with specific problems being traced should use the _analtrace
  * plpar_hcall variants.
  */
 static DEFINE_PER_CPU(unsigned int, hcall_trace_depth);
 
 
-notrace void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
+analtrace void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 {
 	unsigned long flags;
 	unsigned int *depth;
@@ -1860,7 +1860,7 @@ out:
 	local_irq_restore(flags);
 }
 
-notrace void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf)
+analtrace void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf)
 {
 	unsigned long flags;
 	unsigned int *depth;
@@ -1976,8 +1976,8 @@ static int __init reserve_vrma_context_id(void)
 	unsigned long protovsid;
 
 	/*
-	 * Reserve context ids which map to reserved virtual addresses. For now
-	 * we only reserve the context id which maps to the VRMA VSID. We ignore
+	 * Reserve context ids which map to reserved virtual addresses. For analw
+	 * we only reserve the context id which maps to the VRMA VSID. We iganalre
 	 * the addresses in "ibm,adjunct-virtual-addresses" because we don't
 	 * enable adjunct support via the "ibm,client-architecture-support"
 	 * interface.

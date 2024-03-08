@@ -27,7 +27,7 @@
 /* Various F01_RMI_QueryX bits */
 
 #define RMI_F01_QRY1_CUSTOM_MAP		BIT(0)
-#define RMI_F01_QRY1_NON_COMPLIANT	BIT(1)
+#define RMI_F01_QRY1_ANALN_COMPLIANT	BIT(1)
 #define RMI_F01_QRY1_HAS_LTS		BIT(2)
 #define RMI_F01_QRY1_HAS_SENSOR_ID	BIT(3)
 #define RMI_F01_QRY1_HAS_CHARGER_INP	BIT(4)
@@ -72,7 +72,7 @@ struct f01_basic_properties {
  */
 #define RMI_F01_CTRL0_SLEEP_MODE_MASK	0x03
 
-#define RMI_SLEEP_MODE_NORMAL		0x00
+#define RMI_SLEEP_MODE_ANALRMAL		0x00
 #define RMI_SLEEP_MODE_SENSOR_SLEEP	0x01
 #define RMI_SLEEP_MODE_RESERVED0	0x02
 #define RMI_SLEEP_MODE_RESERVED1	0x03
@@ -81,10 +81,10 @@ struct f01_basic_properties {
  * This bit disables whatever sleep mode may be selected by the sleep_mode
  * field and forces the device to run at full power without sleeping.
  */
-#define RMI_F01_CTRL0_NOSLEEP_BIT	BIT(2)
+#define RMI_F01_CTRL0_ANALSLEEP_BIT	BIT(2)
 
 /*
- * When this bit is set, the touch controller employs a noise-filtering
+ * When this bit is set, the touch controller employs a analise-filtering
  * algorithm designed for use with a connected battery charger.
  */
 #define RMI_F01_CTRL0_CHARGER_BIT	BIT(5)
@@ -129,7 +129,7 @@ struct f01_data {
 	u16 doze_holdoff_addr;
 
 	bool suspended;
-	bool old_nosleep;
+	bool old_analsleep;
 
 	unsigned int num_of_irq_regs;
 };
@@ -160,7 +160,7 @@ static int rmi_f01_read_properties(struct rmi_device *rmi_dev,
 	prod_info_addr = query_offset + 17;
 	query_offset += RMI_F01_BASIC_QUERY_LEN;
 
-	/* Now parse what we got */
+	/* Analw parse what we got */
 	props->manufacturer_id = queries[0];
 
 	props->has_lts = queries[1] & RMI_F01_QRY1_HAS_LTS;
@@ -344,8 +344,8 @@ static int rmi_f01_of_probe(struct device *dev,
 	u32 val;
 
 	retval = rmi_of_property_read_u32(dev,
-			(u32 *)&pdata->power_management.nosleep,
-			"syna,nosleep-mode", 1);
+			(u32 *)&pdata->power_management.analsleep,
+			"syna,analsleep-mode", 1);
 	if (retval)
 		return retval;
 
@@ -376,7 +376,7 @@ static int rmi_f01_of_probe(struct device *dev,
 static inline int rmi_f01_of_probe(struct device *dev,
 					struct rmi_device_platform_data *pdata)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -391,7 +391,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 	u8 device_status;
 	u8 temp;
 
-	if (fn->dev.of_node) {
+	if (fn->dev.of_analde) {
 		error = rmi_f01_of_probe(&fn->dev, pdata);
 		if (error)
 			return error;
@@ -399,7 +399,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 
 	f01 = devm_kzalloc(&fn->dev, sizeof(struct f01_data), GFP_KERNEL);
 	if (!f01)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f01->num_of_irq_regs = driver_data->num_of_irq_regs;
 
@@ -415,14 +415,14 @@ static int rmi_f01_probe(struct rmi_function *fn)
 		return error;
 	}
 
-	switch (pdata->power_management.nosleep) {
+	switch (pdata->power_management.analsleep) {
 	case RMI_REG_STATE_DEFAULT:
 		break;
 	case RMI_REG_STATE_OFF:
-		f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_NOSLEEP_BIT;
+		f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_ANALSLEEP_BIT;
 		break;
 	case RMI_REG_STATE_ON:
-		f01->device_control.ctrl0 |= RMI_F01_CTRL0_NOSLEEP_BIT;
+		f01->device_control.ctrl0 |= RMI_F01_CTRL0_ANALSLEEP_BIT;
 		break;
 	}
 
@@ -432,9 +432,9 @@ static int rmi_f01_probe(struct rmi_function *fn)
 	 * is certain to function.
 	 */
 	if ((f01->device_control.ctrl0 & RMI_F01_CTRL0_SLEEP_MODE_MASK) !=
-			RMI_SLEEP_MODE_NORMAL) {
+			RMI_SLEEP_MODE_ANALRMAL) {
 		dev_warn(&fn->dev,
-			 "WARNING: Non-zero sleep mode found. Clearing...\n");
+			 "WARNING: Analn-zero sleep mode found. Clearing...\n");
 		f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_SLEEP_MODE_MASK;
 	}
 
@@ -462,7 +462,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 	}
 
 	dev_info(&fn->dev, "found RMI device, manufacturer: %s, product: %s, fw id: %d\n",
-		 f01->properties.manufacturer_id == 1 ? "Synaptics" : "unknown",
+		 f01->properties.manufacturer_id == 1 ? "Synaptics" : "unkanalwn",
 		 f01->properties.product_id, f01->properties.firmware_id);
 
 	/* Advance to interrupt control registers, then skip over them. */
@@ -577,7 +577,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 
 static void rmi_f01_remove(struct rmi_function *fn)
 {
-	/* Note that the bus device is used, not the F01 device */
+	/* Analte that the bus device is used, analt the F01 device */
 	sysfs_remove_group(&fn->rmi_dev->dev.kobj, &rmi_f01_attr_group);
 }
 
@@ -633,9 +633,9 @@ static int rmi_f01_suspend(struct rmi_function *fn)
 	struct f01_data *f01 = dev_get_drvdata(&fn->dev);
 	int error;
 
-	f01->old_nosleep =
-		f01->device_control.ctrl0 & RMI_F01_CTRL0_NOSLEEP_BIT;
-	f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_NOSLEEP_BIT;
+	f01->old_analsleep =
+		f01->device_control.ctrl0 & RMI_F01_CTRL0_ANALSLEEP_BIT;
+	f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_ANALSLEEP_BIT;
 
 	f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_SLEEP_MODE_MASK;
 	if (device_may_wakeup(fn->rmi_dev->xport->dev))
@@ -647,10 +647,10 @@ static int rmi_f01_suspend(struct rmi_function *fn)
 			  f01->device_control.ctrl0);
 	if (error) {
 		dev_err(&fn->dev, "Failed to write sleep mode: %d.\n", error);
-		if (f01->old_nosleep)
-			f01->device_control.ctrl0 |= RMI_F01_CTRL0_NOSLEEP_BIT;
+		if (f01->old_analsleep)
+			f01->device_control.ctrl0 |= RMI_F01_CTRL0_ANALSLEEP_BIT;
 		f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_SLEEP_MODE_MASK;
-		f01->device_control.ctrl0 |= RMI_SLEEP_MODE_NORMAL;
+		f01->device_control.ctrl0 |= RMI_SLEEP_MODE_ANALRMAL;
 		return error;
 	}
 
@@ -662,17 +662,17 @@ static int rmi_f01_resume(struct rmi_function *fn)
 	struct f01_data *f01 = dev_get_drvdata(&fn->dev);
 	int error;
 
-	if (f01->old_nosleep)
-		f01->device_control.ctrl0 |= RMI_F01_CTRL0_NOSLEEP_BIT;
+	if (f01->old_analsleep)
+		f01->device_control.ctrl0 |= RMI_F01_CTRL0_ANALSLEEP_BIT;
 
 	f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_SLEEP_MODE_MASK;
-	f01->device_control.ctrl0 |= RMI_SLEEP_MODE_NORMAL;
+	f01->device_control.ctrl0 |= RMI_SLEEP_MODE_ANALRMAL;
 
 	error = rmi_write(fn->rmi_dev, fn->fd.control_base_addr,
 			  f01->device_control.ctrl0);
 	if (error) {
 		dev_err(&fn->dev,
-			"Failed to restore normal operation: %d.\n", error);
+			"Failed to restore analrmal operation: %d.\n", error);
 		return error;
 	}
 
@@ -713,7 +713,7 @@ struct rmi_function_handler rmi_f01_handler = {
 	.driver = {
 		.name	= "rmi4_f01",
 		/*
-		 * Do not allow user unbinding F01 as it is critical
+		 * Do analt allow user unbinding F01 as it is critical
 		 * function.
 		 */
 		.suppress_bind_attrs = true,

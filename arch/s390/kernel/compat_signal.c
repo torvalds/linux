@@ -16,7 +16,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -39,9 +39,9 @@ typedef struct
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE32];
 	struct sigcontext32 sc;
 	_sigregs32 sregs;
-	int signo;
+	int siganal;
 	_sigregs_ext32 sregs_ext;
-	__u16 svc_insn;		/* Offset of svc_insn is NOT fixed! */
+	__u16 svc_insn;		/* Offset of svc_insn is ANALT fixed! */
 } sigframe32;
 
 typedef struct 
@@ -91,7 +91,7 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	int i;
 
 	/* Always make any pending restarted system call return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	if (__copy_from_user(&user_sregs, &sregs->regs, sizeof(user_sregs)))
 		return -EFAULT;
@@ -115,7 +115,7 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	       sizeof(current->thread.acrs));
 	fpregs_load((_s390_fp_regs *) &user_sregs.fpregs, &current->thread.fpu);
 
-	clear_pt_regs_flag(regs, PIF_SYSCALL); /* No longer in a system call */
+	clear_pt_regs_flag(regs, PIF_SYSCALL); /* Anal longer in a system call */
 	return 0;
 }
 
@@ -232,7 +232,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 {
 	unsigned long sp;
 
-	/* Default to using normal stack */
+	/* Default to using analrmal stack */
 	sp = (unsigned long) A(regs->gprs[15]);
 
 	/* Overflow on alternate signal stack gives SIGSEGV. */
@@ -288,7 +288,7 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 		return -EFAULT;
 
 	/* Place signal number on stack to allow backtrace from handler.  */
-	if (__put_user(regs->gprs[2], (int __force __user *) &frame->signo))
+	if (__put_user(regs->gprs[2], (int __force __user *) &frame->siganal))
 		return -EFAULT;
 
 	/* Create _sigregs_ext32 on the signal stack */
@@ -320,7 +320,7 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 	   To avoid breaking binary compatibility, they are passed as args. */
 	if (sig == SIGSEGV || sig == SIGBUS || sig == SIGILL ||
 	    sig == SIGTRAP || sig == SIGFPE) {
-		/* set extra registers only for synchronous signals */
+		/* set extra registers only for synchroanalus signals */
 		regs->gprs[4] = regs->int_code & 127;
 		regs->gprs[5] = regs->int_parm_long;
 		regs->gprs[6] = current->thread.last_break;

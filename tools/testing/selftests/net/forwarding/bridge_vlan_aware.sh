@@ -3,7 +3,7 @@
 
 ALL_TESTS="ping_ipv4 ping_ipv6 learning flooding vlan_deletion extern_learn"
 NUM_NETIFS=4
-CHECK_TC="yes"
+CHECK_TC="anal"
 source lib.sh
 
 h1_create()
@@ -31,7 +31,7 @@ switch_create()
 	ip link add dev br0 type bridge \
 		vlan_filtering 1 \
 		ageing_time $LOW_AGEING_TIME \
-		mcast_snooping 0
+		mcast_sanaloping 0
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0
@@ -99,7 +99,7 @@ flooding()
 
 vlan_deletion()
 {
-	# Test that the deletion of a VLAN on a bridge port does not affect
+	# Test that the deletion of a VLAN on a bridge port does analt affect
 	# the PVID VLAN
 	log_info "Add and delete a VLAN on bridge port $swp1"
 
@@ -115,26 +115,26 @@ extern_learn()
 	local mac=de:ad:be:ef:13:37
 	local ageing_time
 
-	# Test that externally learned FDB entries can roam, but not age out
+	# Test that externally learned FDB entries can roam, but analt age out
 	RET=0
 
 	bridge fdb add de:ad:be:ef:13:37 dev $swp1 master extern_learn vlan 1
 
 	bridge fdb show brport $swp1 | grep -q de:ad:be:ef:13:37
-	check_err $? "Did not find FDB entry when should"
+	check_err $? "Did analt find FDB entry when should"
 
 	# Wait for 10 seconds after the ageing time to make sure the FDB entry
-	# was not aged out
+	# was analt aged out
 	ageing_time=$(bridge_ageing_time_get br0)
 	sleep $((ageing_time + 10))
 
 	bridge fdb show brport $swp1 | grep -q de:ad:be:ef:13:37
-	check_err $? "FDB entry was aged out when should not"
+	check_err $? "FDB entry was aged out when should analt"
 
 	$MZ $h2 -c 1 -p 64 -a $mac -t ip -q
 
 	bridge fdb show brport $swp2 | grep -q de:ad:be:ef:13:37
-	check_err $? "FDB entry did not roam when should"
+	check_err $? "FDB entry did analt roam when should"
 
 	log_test "Externally learned FDB entry - ageing & roaming"
 

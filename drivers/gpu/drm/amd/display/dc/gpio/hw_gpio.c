@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -86,7 +86,7 @@ enum gpio_result dal_hw_gpio_get_value(
 		REG_GET(Y_reg, Y, value);
 		break;
 	default:
-		result = GPIO_RESULT_NON_SPECIFIC_ERROR;
+		result = GPIO_RESULT_ANALN_SPECIFIC_ERROR;
 	}
 
 	return result;
@@ -99,8 +99,8 @@ enum gpio_result dal_hw_gpio_set_value(
 	struct hw_gpio *gpio = FROM_HW_GPIO_PIN(ptr);
 
 	/* This is the public interface
-	 * where the input comes from client, not shifted yet
-	 * (because client does not know the shifts). */
+	 * where the input comes from client, analt shifted yet
+	 * (because client does analt kanalw the shifts). */
 
 	switch (ptr->mode) {
 	case GPIO_MODE_OUTPUT:
@@ -114,7 +114,7 @@ enum gpio_result dal_hw_gpio_set_value(
 		REG_UPDATE(EN_reg, EN, ~value);
 		return GPIO_RESULT_OK;
 	default:
-		return GPIO_RESULT_NON_SPECIFIC_ERROR;
+		return GPIO_RESULT_ANALN_SPECIFIC_ERROR;
 	}
 }
 
@@ -134,7 +134,7 @@ void dal_hw_gpio_close(
 
 	restore_registers(pin);
 
-	ptr->mode = GPIO_MODE_UNKNOWN;
+	ptr->mode = GPIO_MODE_UNKANALWN;
 	ptr->opened = false;
 }
 
@@ -172,7 +172,7 @@ enum gpio_result dal_hw_gpio_config_mode(
 		REG_UPDATE(MASK_reg, MASK, 0);
 		return GPIO_RESULT_OK;
 	default:
-		return GPIO_RESULT_NON_SPECIFIC_ERROR;
+		return GPIO_RESULT_ANALN_SPECIFIC_ERROR;
 	}
 }
 
@@ -185,7 +185,7 @@ void dal_hw_gpio_construct(
 	pin->base.ctx = ctx;
 	pin->base.id = id;
 	pin->base.en = en;
-	pin->base.mode = GPIO_MODE_UNKNOWN;
+	pin->base.mode = GPIO_MODE_UNKANALWN;
 	pin->base.opened = false;
 
 	pin->store.mask = 0;

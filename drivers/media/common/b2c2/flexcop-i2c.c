@@ -23,7 +23,7 @@ static int flexcop_i2c_operation(struct flexcop_device *fc,
 	for (i = 0; i < FC_MAX_I2C_RETRIES; i++) {
 		r = fc->read_ibi_reg(fc, tw_sm_c_100);
 
-		if (!r.tw_sm_c_100.no_base_addr_ack_error) {
+		if (!r.tw_sm_c_100.anal_base_addr_ack_error) {
 			if (r.tw_sm_c_100.st_done) {
 				*r100 = r;
 				deb_i2c("i2c success\n");
@@ -52,17 +52,17 @@ static int flexcop_i2c_read4(struct flexcop_i2c_adapter *i2c,
 	 *
 	 * the ITD1000 is behind an i2c-gate which closes automatically
 	 * after an i2c-transaction the STV0297 needs 2 consecutive reads
-	 * one with no_base_addr = 0 and one with 1
+	 * one with anal_base_addr = 0 and one with 1
 	 *
 	 * those two work-arounds are conflictin: we check for the card
 	 * type, it is set when probing the ITD1000 */
 	if (i2c->fc->dev_type == FC_SKY_REV27)
-		r100.tw_sm_c_100.no_base_addr_ack_error = i2c->no_base_addr;
+		r100.tw_sm_c_100.anal_base_addr_ack_error = i2c->anal_base_addr;
 
 	ret = flexcop_i2c_operation(i2c->fc, &r100);
 	if (ret != 0) {
 		deb_i2c("Retrying operation\n");
-		r100.tw_sm_c_100.no_base_addr_ack_error = i2c->no_base_addr;
+		r100.tw_sm_c_100.anal_base_addr_ack_error = i2c->anal_base_addr;
 		ret = flexcop_i2c_operation(i2c->fc, &r100);
 	}
 	if (ret != 0) {
@@ -128,7 +128,7 @@ int flexcop_i2c_request(struct flexcop_i2c_adapter *i2c,
 	/* in that case addr is the only value ->
 	 * we write it twice as baseaddr and val0
 	 * BBTI is doing it like that for ISL6421 at least */
-	if (i2c->no_base_addr && len == 0 && op == FC_WRITE) {
+	if (i2c->anal_base_addr && len == 0 && op == FC_WRITE) {
 		buf = &start_addr;
 		len = 1;
 	}

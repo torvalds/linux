@@ -60,7 +60,7 @@
 #define CDC_WSA_TX0_SPKR_PROT_PATH_CTL		(0x0244)
 #define CDC_WSA_TX_SPKR_PROT_RESET_MASK		BIT(5)
 #define CDC_WSA_TX_SPKR_PROT_RESET		BIT(5)
-#define CDC_WSA_TX_SPKR_PROT_NO_RESET		0
+#define CDC_WSA_TX_SPKR_PROT_ANAL_RESET		0
 #define CDC_WSA_TX_SPKR_PROT_CLK_EN_MASK	BIT(4)
 #define CDC_WSA_TX_SPKR_PROT_CLK_ENABLE		BIT(4)
 #define CDC_WSA_TX_SPKR_PROT_CLK_DISABLE	0
@@ -407,7 +407,7 @@ static const struct soc_enum rx0_mix_chain_enum =
 		0, 5, rx_mix_text);
 
 static const struct soc_enum rx0_sidetone_mix_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 2, rx_sidetone_mix_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0, 2, rx_sidetone_mix_text);
 
 static const struct snd_kcontrol_new rx0_prim_inp0_mux =
 	SOC_DAPM_ENUM("WSA_RX0 INP0 Mux", rx0_prim_inp0_chain_enum);
@@ -981,7 +981,7 @@ static int wsa_macro_hw_params(struct snd_pcm_substream *substream,
 		ret = wsa_macro_set_interpolator_rate(dai, params_rate(params));
 		if (ret) {
 			dev_err(component->dev,
-				"%s: cannot set sample rate: %u\n",
+				"%s: cananalt set sample rate: %u\n",
 				__func__, params_rate(params));
 			return ret;
 		}
@@ -1191,10 +1191,10 @@ static int wsa_macro_enable_vi_feedback(struct snd_soc_dapm_widget *w,
 					      CDC_WSA_TX_SPKR_PROT_CLK_ENABLE);
 		snd_soc_component_update_bits(component, tx_reg0,
 					      CDC_WSA_TX_SPKR_PROT_RESET_MASK,
-					      CDC_WSA_TX_SPKR_PROT_NO_RESET);
+					      CDC_WSA_TX_SPKR_PROT_ANAL_RESET);
 		snd_soc_component_update_bits(component, tx_reg1,
 					      CDC_WSA_TX_SPKR_PROT_RESET_MASK,
-					      CDC_WSA_TX_SPKR_PROT_NO_RESET);
+					      CDC_WSA_TX_SPKR_PROT_ANAL_RESET);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		/* Disable V&I sensing */
@@ -1563,7 +1563,7 @@ static int wsa_macro_config_ear_spkr_gain(struct snd_soc_component *component,
 	case SND_SOC_DAPM_POST_PMD:
 		/*
 		 * Reset RX0 volume to 0 dB if compander is enabled and
-		 * ear_spkr_gain is non-zero.
+		 * ear_spkr_gain is analn-zero.
 		 */
 		if (wsa->comp_enabled[WSA_MACRO_COMP1] &&
 		    (gain_reg == CDC_WSA_RX0_RX_VOL_CTL) &&
@@ -1919,11 +1919,11 @@ static const struct snd_kcontrol_new wsa_macro_snd_controls[] = {
 	SOC_ENUM_EXT("EAR SPKR PA Gain", wsa_macro_ear_spkr_pa_gain_enum,
 		     wsa_macro_ear_spkr_pa_gain_get,
 		     wsa_macro_ear_spkr_pa_gain_put),
-	SOC_SINGLE_EXT("WSA_Softclip0 Enable", SND_SOC_NOPM,
+	SOC_SINGLE_EXT("WSA_Softclip0 Enable", SND_SOC_ANALPM,
 			WSA_MACRO_SOFTCLIP0, 1, 0,
 			wsa_macro_soft_clip_enable_get,
 			wsa_macro_soft_clip_enable_put),
-	SOC_SINGLE_EXT("WSA_Softclip1 Enable", SND_SOC_NOPM,
+	SOC_SINGLE_EXT("WSA_Softclip1 Enable", SND_SOC_ANALPM,
 			WSA_MACRO_SOFTCLIP1, 1, 0,
 			wsa_macro_soft_clip_enable_get,
 			wsa_macro_soft_clip_enable_put),
@@ -1939,13 +1939,13 @@ static const struct snd_kcontrol_new wsa_macro_snd_controls[] = {
 		   1, 0),
 	SOC_SINGLE("WSA_RX1_MIX Digital Mute", CDC_WSA_RX1_RX_PATH_MIX_CTL, 4,
 		   1, 0),
-	SOC_SINGLE_EXT("WSA_COMP1 Switch", SND_SOC_NOPM, WSA_MACRO_COMP1, 1, 0,
+	SOC_SINGLE_EXT("WSA_COMP1 Switch", SND_SOC_ANALPM, WSA_MACRO_COMP1, 1, 0,
 		       wsa_macro_get_compander, wsa_macro_set_compander),
-	SOC_SINGLE_EXT("WSA_COMP2 Switch", SND_SOC_NOPM, WSA_MACRO_COMP2, 1, 0,
+	SOC_SINGLE_EXT("WSA_COMP2 Switch", SND_SOC_ANALPM, WSA_MACRO_COMP2, 1, 0,
 		       wsa_macro_get_compander, wsa_macro_set_compander),
-	SOC_SINGLE_EXT("WSA_RX0 EC_HQ Switch", SND_SOC_NOPM, WSA_MACRO_RX0, 1, 0,
+	SOC_SINGLE_EXT("WSA_RX0 EC_HQ Switch", SND_SOC_ANALPM, WSA_MACRO_RX0, 1, 0,
 		       wsa_macro_get_ec_hq, wsa_macro_set_ec_hq),
-	SOC_SINGLE_EXT("WSA_RX1 EC_HQ Switch", SND_SOC_NOPM, WSA_MACRO_RX1, 1, 0,
+	SOC_SINGLE_EXT("WSA_RX1 EC_HQ Switch", SND_SOC_ANALPM, WSA_MACRO_RX1, 1, 0,
 		       wsa_macro_get_ec_hq, wsa_macro_set_ec_hq),
 };
 
@@ -2028,72 +2028,72 @@ static int wsa_macro_vi_feed_mixer_put(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new aif_vi_mixer[] = {
-	SOC_SINGLE_EXT("WSA_SPKR_VI_1", SND_SOC_NOPM, WSA_MACRO_TX0, 1, 0,
+	SOC_SINGLE_EXT("WSA_SPKR_VI_1", SND_SOC_ANALPM, WSA_MACRO_TX0, 1, 0,
 			wsa_macro_vi_feed_mixer_get,
 			wsa_macro_vi_feed_mixer_put),
-	SOC_SINGLE_EXT("WSA_SPKR_VI_2", SND_SOC_NOPM, WSA_MACRO_TX1, 1, 0,
+	SOC_SINGLE_EXT("WSA_SPKR_VI_2", SND_SOC_ANALPM, WSA_MACRO_TX1, 1, 0,
 			wsa_macro_vi_feed_mixer_get,
 			wsa_macro_vi_feed_mixer_put),
 };
 
 static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("WSA AIF1 PB", "WSA_AIF1 Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("WSA AIF_MIX1 PB", "WSA_AIF_MIX1 Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_AIF_OUT_E("WSA AIF_VI", "WSA_AIF_VI Capture", 0,
-			       SND_SOC_NOPM, WSA_MACRO_AIF_VI, 0,
+			       SND_SOC_ANALPM, WSA_MACRO_AIF_VI, 0,
 			       wsa_macro_enable_vi_feedback,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_AIF_OUT("WSA AIF_ECHO", "WSA_AIF_ECHO Capture", 0,
-			     SND_SOC_NOPM, 0, 0),
+			     SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_MIXER("WSA_AIF_VI Mixer", SND_SOC_NOPM, WSA_MACRO_AIF_VI,
+	SND_SOC_DAPM_MIXER("WSA_AIF_VI Mixer", SND_SOC_ANALPM, WSA_MACRO_AIF_VI,
 			   0, aif_vi_mixer, ARRAY_SIZE(aif_vi_mixer)),
-	SND_SOC_DAPM_MUX_E("WSA RX_MIX EC0_MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("WSA RX_MIX EC0_MUX", SND_SOC_ANALPM,
 			   WSA_MACRO_EC0_MUX, 0,
 			   &rx_mix_ec0_mux, wsa_macro_enable_echo,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("WSA RX_MIX EC1_MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("WSA RX_MIX EC1_MUX", SND_SOC_ANALPM,
 			   WSA_MACRO_EC1_MUX, 0,
 			   &rx_mix_ec1_mux, wsa_macro_enable_echo,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("WSA RX0 MUX", SND_SOC_NOPM, WSA_MACRO_RX0, 0,
+	SND_SOC_DAPM_MUX("WSA RX0 MUX", SND_SOC_ANALPM, WSA_MACRO_RX0, 0,
 			 &rx_mux[WSA_MACRO_RX0]),
-	SND_SOC_DAPM_MUX("WSA RX1 MUX", SND_SOC_NOPM, WSA_MACRO_RX1, 0,
+	SND_SOC_DAPM_MUX("WSA RX1 MUX", SND_SOC_ANALPM, WSA_MACRO_RX1, 0,
 			 &rx_mux[WSA_MACRO_RX1]),
-	SND_SOC_DAPM_MUX("WSA RX_MIX0 MUX", SND_SOC_NOPM, WSA_MACRO_RX_MIX0, 0,
+	SND_SOC_DAPM_MUX("WSA RX_MIX0 MUX", SND_SOC_ANALPM, WSA_MACRO_RX_MIX0, 0,
 			 &rx_mux[WSA_MACRO_RX_MIX0]),
-	SND_SOC_DAPM_MUX("WSA RX_MIX1 MUX", SND_SOC_NOPM, WSA_MACRO_RX_MIX1, 0,
+	SND_SOC_DAPM_MUX("WSA RX_MIX1 MUX", SND_SOC_ANALPM, WSA_MACRO_RX_MIX1, 0,
 			 &rx_mux[WSA_MACRO_RX_MIX1]),
 
-	SND_SOC_DAPM_MIXER("WSA RX0", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("WSA RX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("WSA RX_MIX0", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("WSA RX_MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("WSA RX0", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("WSA RX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("WSA RX_MIX0", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("WSA RX_MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("WSA_RX0 INP0", SND_SOC_NOPM, 0, 0, &rx0_prim_inp0_mux),
-	SND_SOC_DAPM_MUX("WSA_RX0 INP1", SND_SOC_NOPM, 0, 0, &rx0_prim_inp1_mux),
-	SND_SOC_DAPM_MUX("WSA_RX0 INP2", SND_SOC_NOPM, 0, 0, &rx0_prim_inp2_mux),
-	SND_SOC_DAPM_MUX_E("WSA_RX0 MIX INP", SND_SOC_NOPM, WSA_MACRO_RX_MIX0,
+	SND_SOC_DAPM_MUX("WSA_RX0 INP0", SND_SOC_ANALPM, 0, 0, &rx0_prim_inp0_mux),
+	SND_SOC_DAPM_MUX("WSA_RX0 INP1", SND_SOC_ANALPM, 0, 0, &rx0_prim_inp1_mux),
+	SND_SOC_DAPM_MUX("WSA_RX0 INP2", SND_SOC_ANALPM, 0, 0, &rx0_prim_inp2_mux),
+	SND_SOC_DAPM_MUX_E("WSA_RX0 MIX INP", SND_SOC_ANALPM, WSA_MACRO_RX_MIX0,
 			   0, &rx0_mix_mux, wsa_macro_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX("WSA_RX1 INP0", SND_SOC_NOPM, 0, 0, &rx1_prim_inp0_mux),
-	SND_SOC_DAPM_MUX("WSA_RX1 INP1", SND_SOC_NOPM, 0, 0, &rx1_prim_inp1_mux),
-	SND_SOC_DAPM_MUX("WSA_RX1 INP2", SND_SOC_NOPM, 0, 0, &rx1_prim_inp2_mux),
-	SND_SOC_DAPM_MUX_E("WSA_RX1 MIX INP", SND_SOC_NOPM, WSA_MACRO_RX_MIX1,
+	SND_SOC_DAPM_MUX("WSA_RX1 INP0", SND_SOC_ANALPM, 0, 0, &rx1_prim_inp0_mux),
+	SND_SOC_DAPM_MUX("WSA_RX1 INP1", SND_SOC_ANALPM, 0, 0, &rx1_prim_inp1_mux),
+	SND_SOC_DAPM_MUX("WSA_RX1 INP2", SND_SOC_ANALPM, 0, 0, &rx1_prim_inp2_mux),
+	SND_SOC_DAPM_MUX_E("WSA_RX1 MIX INP", SND_SOC_ANALPM, WSA_MACRO_RX_MIX1,
 			   0, &rx1_mix_mux, wsa_macro_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT0 MIX", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_MIXER_E("WSA_RX INT0 MIX", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			     wsa_macro_enable_main_path, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT1 MIX", SND_SOC_NOPM, 1, 0, NULL, 0,
+	SND_SOC_DAPM_MIXER_E("WSA_RX INT1 MIX", SND_SOC_ANALPM, 1, 0, NULL, 0,
 			     wsa_macro_enable_main_path, SND_SOC_DAPM_PRE_PMU),
 
-	SND_SOC_DAPM_MIXER("WSA_RX INT0 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("WSA_RX INT1 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("WSA_RX INT0 SEC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("WSA_RX INT1 SEC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MUX("WSA_RX0 INT0 SIDETONE MIX", CDC_WSA_RX0_RX_PATH_CFG1,
 			 4, 0, &rx0_sidetone_mix_mux),
@@ -2102,24 +2102,24 @@ static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("WSA_TX DEC0_INP"),
 	SND_SOC_DAPM_INPUT("WSA_TX DEC1_INP"),
 
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT0 INTERP", SND_SOC_NOPM,
+	SND_SOC_DAPM_MIXER_E("WSA_RX INT0 INTERP", SND_SOC_ANALPM,
 			     WSA_MACRO_COMP1, 0, NULL, 0,
 			     wsa_macro_enable_interpolator,
 			     SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			     SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT1 INTERP", SND_SOC_NOPM,
+	SND_SOC_DAPM_MIXER_E("WSA_RX INT1 INTERP", SND_SOC_ANALPM,
 			     WSA_MACRO_COMP2, 0, NULL, 0,
 			     wsa_macro_enable_interpolator,
 			     SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			     SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT0 CHAIN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER_E("WSA_RX INT0 CHAIN", SND_SOC_ANALPM, 0, 0,
 			     NULL, 0, wsa_macro_spk_boost_event,
 			     SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			     SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT1 CHAIN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER_E("WSA_RX INT1 CHAIN", SND_SOC_ANALPM, 0, 0,
 			     NULL, 0, wsa_macro_spk_boost_event,
 			     SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			     SND_SOC_DAPM_POST_PMD),
@@ -2132,7 +2132,7 @@ static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("WSA_RX1_CLK", CDC_WSA_RX1_RX_PATH_CTL, 5, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("WSA_RX_MIX0_CLK", CDC_WSA_RX0_RX_PATH_MIX_CTL, 5, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("WSA_RX_MIX1_CLK", CDC_WSA_RX1_RX_PATH_MIX_CTL, 5, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("WSA_MCLK", 0, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("WSA_MCLK", 0, SND_SOC_ANALPM, 0, 0,
 			      wsa_macro_mclk_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
@@ -2350,7 +2350,7 @@ static int wsa_macro_register_mclk_output(struct wsa_macro *wsa)
 		parent_clk_name = __clk_get_name(wsa->mclk);
 
 	init.name = "mclk";
-	of_property_read_string(dev_of_node(dev), "clock-output-names",
+	of_property_read_string(dev_of_analde(dev), "clock-output-names",
 				&init.name);
 	init.ops = &swclk_gate_ops;
 	init.flags = 0;
@@ -2388,7 +2388,7 @@ static int wsa_macro_probe(struct platform_device *pdev)
 
 	wsa = devm_kzalloc(dev, sizeof(*wsa), GFP_KERNEL);
 	if (!wsa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wsa->macro = devm_clk_get_optional(dev, "macro");
 	if (IS_ERR(wsa->macro))

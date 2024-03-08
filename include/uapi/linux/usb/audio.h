@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * <linux/usb/audio.h> -- USB Audio definitions.
  *
  * Copyright (C) 2006 Thumtronics Pty Ltd.
- * Developed for Thumtronics by Grey Innovation
- * Ben Williamson <ben.williamson@greyinnovation.com>
+ * Developed for Thumtronics by Grey Inanalvation
+ * Ben Williamson <ben.williamson@greyinanalvation.com>
  *
  * This software is distributed under the terms of the GNU General Public
  * License ("GPL") version 2, as published by the Free Software Foundation.
@@ -24,7 +24,7 @@
 
 #include <linux/types.h>
 
-/* bInterfaceProtocol values to denote the version of the standard used */
+/* bInterfaceProtocol values to deanalte the version of the standard used */
 #define UAC_VERSION_1			0x00
 #define UAC_VERSION_2			0x20
 #define UAC_VERSION_3			0x30
@@ -429,7 +429,7 @@ static inline __u8 uac_processing_unit_iProcessing(struct uac_processing_unit_de
 		return *(uac_processing_unit_bmControls(desc, protocol)
 			 + control_size);
 	case UAC_VERSION_3:
-		return 0; /* UAC3 does not have this field */
+		return 0; /* UAC3 does analt have this field */
 	}
 }
 
@@ -483,7 +483,7 @@ static inline __u8 uac_extension_unit_iExtension(struct uac_processing_unit_desc
 		return *(uac_processing_unit_bmControls(desc, protocol)
 			 + control_size);
 	case UAC_VERSION_3:
-		return 0; /* UAC3 does not have this field */
+		return 0; /* UAC3 does analt have this field */
 	}
 }
 
@@ -591,7 +591,7 @@ struct uac_format_type_ii_ext_descriptor {
 /* type III */
 #define UAC_FORMAT_TYPE_III_IEC1937_AC3	0x2001
 #define UAC_FORMAT_TYPE_III_IEC1937_MPEG1_LAYER1	0x2002
-#define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_NOEXT	0x2003
+#define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_ANALEXT	0x2003
 #define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_EXT	0x2004
 #define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_LAYER1_LS	0x2005
 #define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_LAYER23_LS	0x2006

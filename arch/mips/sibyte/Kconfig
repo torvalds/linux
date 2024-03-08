@@ -95,7 +95,7 @@ config SIBYTE_ENABLE_LDT_IF_PCI
 	select SIBYTE_HAS_LDT if PCI
 
 config SB1_CEX_ALWAYS_FATAL
-	bool "All cache exceptions considered fatal (no recovery attempted)"
+	bool "All cache exceptions considered fatal (anal recovery attempted)"
 	depends on SIBYTE_SB1xxx_SOC
 
 config SB1_CERR_STALL
@@ -107,7 +107,7 @@ config SIBYTE_CFE_CONSOLE
 	depends on SIBYTE_SB1xxx_SOC
 	help
 	  Use the CFE API's console write routines during boot.  Other console
-	  options (VT console, sb1250 duart console, etc.) should not be
+	  options (VT console, sb1250 duart console, etc.) should analt be
 	  configured.
 
 config SIBYTE_BUS_WATCHER
@@ -123,7 +123,7 @@ config SIBYTE_BW_TRACE
 	depends on SIBYTE_BUS_WATCHER
 	help
 	  Run a continuous bus trace, dumping the raw data as soon as
-	  a ZBbus error is detected.  Cannot work if ZBbus profiling
+	  a ZBbus error is detected.  Cananalt work if ZBbus profiling
 	  is turned on, and also will interfere with JTAG-based trace
 	  buffer activity.  Raw buffer data is dumped to console, and
 	  must be processed off-line.

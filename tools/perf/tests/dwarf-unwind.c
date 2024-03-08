@@ -28,13 +28,13 @@
  */
 #ifdef __has_attribute
 #if __has_attribute(disable_tail_calls)
-#define NO_TAIL_CALL_ATTRIBUTE __attribute__((disable_tail_calls))
-#define NO_TAIL_CALL_BARRIER
+#define ANAL_TAIL_CALL_ATTRIBUTE __attribute__((disable_tail_calls))
+#define ANAL_TAIL_CALL_BARRIER
 #endif
 #endif
-#ifndef NO_TAIL_CALL_ATTRIBUTE
-#define NO_TAIL_CALL_ATTRIBUTE
-#define NO_TAIL_CALL_BARRIER __asm__ __volatile__("" : : : "memory");
+#ifndef ANAL_TAIL_CALL_ATTRIBUTE
+#define ANAL_TAIL_CALL_ATTRIBUTE
+#define ANAL_TAIL_CALL_BARRIER __asm__ __volatile__("" : : : "memory");
 #endif
 
 static int mmap_handler(struct perf_tool *tool __maybe_unused,
@@ -109,7 +109,7 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	return strcmp((const char *) symbol, funcs[idx]);
 }
 
-NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__thread(struct thread *thread)
+ANAL_TAIL_CALL_ATTRIBUTE analinline int test_dwarf_unwind__thread(struct thread *thread)
 {
 	struct perf_sample sample;
 	unsigned long cnt = 0;
@@ -140,7 +140,7 @@ NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__thread(struct thread *thr
 
 static int global_unwind_retval = -INT_MAX;
 
-NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__compare(void *p1, void *p2)
+ANAL_TAIL_CALL_ATTRIBUTE analinline int test_dwarf_unwind__compare(void *p1, void *p2)
 {
 	/* Any possible value should be 'thread' */
 	struct thread *thread = *(struct thread **)p1;
@@ -159,7 +159,7 @@ NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__compare(void *p1, void *p
 	return p1 - p2;
 }
 
-NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__krava_3(struct thread *thread)
+ANAL_TAIL_CALL_ATTRIBUTE analinline int test_dwarf_unwind__krava_3(struct thread *thread)
 {
 	struct thread *array[2] = {thread, thread};
 	void *fp = &bsearch;
@@ -178,25 +178,25 @@ NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__krava_3(struct thread *th
 	return global_unwind_retval;
 }
 
-NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__krava_2(struct thread *thread)
+ANAL_TAIL_CALL_ATTRIBUTE analinline int test_dwarf_unwind__krava_2(struct thread *thread)
 {
 	int ret;
 
 	ret =  test_dwarf_unwind__krava_3(thread);
-	NO_TAIL_CALL_BARRIER;
+	ANAL_TAIL_CALL_BARRIER;
 	return ret;
 }
 
-NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__krava_1(struct thread *thread)
+ANAL_TAIL_CALL_ATTRIBUTE analinline int test_dwarf_unwind__krava_1(struct thread *thread)
 {
 	int ret;
 
 	ret =  test_dwarf_unwind__krava_2(thread);
-	NO_TAIL_CALL_BARRIER;
+	ANAL_TAIL_CALL_BARRIER;
 	return ret;
 }
 
-noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
+analinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 				int subtest __maybe_unused)
 {
 	struct machine *machine;
@@ -205,7 +205,7 @@ noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 
 	machine = machine__new_host();
 	if (!machine) {
-		pr_err("Could not get machine\n");
+		pr_err("Could analt get machine\n");
 		return -1;
 	}
 
@@ -218,7 +218,7 @@ noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 	dwarf_callchain_users = true;
 
 	if (init_live_machine(machine)) {
-		pr_err("Could not init machine\n");
+		pr_err("Could analt init machine\n");
 		goto out;
 	}
 
@@ -227,7 +227,7 @@ noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 
 	thread = machine__find_thread(machine, getpid(), getpid());
 	if (!thread) {
-		pr_err("Could not get thread\n");
+		pr_err("Could analt get thread\n");
 		goto out;
 	}
 

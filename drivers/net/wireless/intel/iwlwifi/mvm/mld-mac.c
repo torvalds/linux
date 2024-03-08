@@ -36,7 +36,7 @@ static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	/* should be set by specific context type handler */
 	cmd->filter_flags = 0;
 
-	cmd->nic_not_ack_enabled =
+	cmd->nic_analt_ack_enabled =
 		cpu_to_le32(!iwl_mvm_is_nic_ack_enabled(mvm, vif));
 
 	if (iwlwifi_mod_params.disable_11ax)
@@ -65,8 +65,8 @@ static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		if (link_conf->he_support)
 			iwl_mvm_mld_set_he_support(mvm, vif, cmd);
 
-		/* it's not reasonable to have EHT without HE and FW API doesn't
-		 * support it. Ignore EHT in this case.
+		/* it's analt reasonable to have EHT without HE and FW API doesn't
+		 * support it. Iganalre EHT in this case.
 		 */
 		if (!link_conf->he_support && link_conf->eht_support)
 			continue;
@@ -104,7 +104,7 @@ static int iwl_mvm_mld_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	iwl_mvm_mld_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
 	/*
-	 * We always want to hear MCAST frames, if we're not authorized yet,
+	 * We always want to hear MCAST frames, if we're analt authorized yet,
 	 * we'll drop them.
 	 */
 	cmd.filter_flags |= cpu_to_le32(MAC_CFG_FILTER_ACCEPT_GRP);
@@ -127,8 +127,8 @@ static int iwl_mvm_mld_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	} else {
 		cmd.client.is_assoc = 0;
 
-		/* Allow beacons to pass through as long as we are not
-		 * associated, or we do not have dtim period information.
+		/* Allow beacons to pass through as long as we are analt
+		 * associated, or we do analt have dtim period information.
 		 */
 		cmd.filter_flags |= cpu_to_le32(MAC_CFG_FILTER_ACCEPT_BEACON);
 	}
@@ -251,7 +251,7 @@ static int iwl_mvm_mld_mac_ctx_send(struct iwl_mvm *mvm,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int iwl_mvm_mld_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -260,7 +260,7 @@ int iwl_mvm_mld_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	int ret;
 
 	if (WARN_ON_ONCE(vif->type == NL80211_IFTYPE_NAN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (WARN_ONCE(mvmvif->uploaded, "Adding active MAC %pM/%d\n",
 		      vif->addr, ieee80211_vif_type_p2p(vif)))
@@ -272,7 +272,7 @@ int iwl_mvm_mld_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return ret;
 
 	/* will only do anything at resume from D3 time */
-	iwl_mvm_set_last_nonqos_seq(mvm, vif);
+	iwl_mvm_set_last_analnqos_seq(mvm, vif);
 
 	mvmvif->uploaded = true;
 	return 0;
@@ -285,7 +285,7 @@ int iwl_mvm_mld_mac_ctxt_changed(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (WARN_ON_ONCE(vif->type == NL80211_IFTYPE_NAN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (WARN_ONCE(!mvmvif->uploaded, "Changing inactive MAC %pM/%d\n",
 		      vif->addr, ieee80211_vif_type_p2p(vif)))
@@ -305,7 +305,7 @@ int iwl_mvm_mld_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	int ret;
 
 	if (WARN_ON_ONCE(vif->type == NL80211_IFTYPE_NAN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (WARN_ONCE(!mvmvif->uploaded, "Removing inactive MAC %pM/%d\n",
 		      vif->addr, ieee80211_vif_type_p2p(vif)))

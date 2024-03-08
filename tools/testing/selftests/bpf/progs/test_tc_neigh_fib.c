@@ -107,14 +107,14 @@ static __always_inline int tc_redir(struct __sk_buff *skb)
 		return TC_ACT_OK;
 
 	ret = bpf_fib_lookup(skb, &fib_params, sizeof(fib_params), 0);
-	if (ret == BPF_FIB_LKUP_RET_NOT_FWDED || ret < 0)
+	if (ret == BPF_FIB_LKUP_RET_ANALT_FWDED || ret < 0)
 		return TC_ACT_OK;
 
 	__builtin_memset(&zero, 0, sizeof(zero));
 	if (bpf_skb_store_bytes(skb, 0, &zero, sizeof(zero), 0) < 0)
 		return TC_ACT_SHOT;
 
-	if (ret == BPF_FIB_LKUP_RET_NO_NEIGH) {
+	if (ret == BPF_FIB_LKUP_RET_ANAL_NEIGH) {
 		struct bpf_redir_neigh nh_params = {};
 
 		nh_params.nh_family = fib_params.family;

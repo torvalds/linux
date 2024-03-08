@@ -2,7 +2,7 @@
 /*
  * ATMEL I2C TPM AT97SC3204T
  *
- * Copyright (C) 2012 V Lab Technologies
+ * Copyright (C) 2012 V Lab Techanallogies
  *  Teddy Reed <teddy@prosauce.org>
  * Copyright (C) 2013, Obsidian Research Corp.
  *  Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
@@ -12,7 +12,7 @@
  * devices the raw TCG formatted TPM command data is written via I2C and then
  * raw TCG formatted TPM command data is returned via I2C.
  *
- * TGC status/locality/etc functions seen in the LPC implementation do not
+ * TGC status/locality/etc functions seen in the LPC implementation do analt
  * seem to be present.
  */
 #include <linux/init.h>
@@ -57,7 +57,7 @@ static int i2c_atmel_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	if (status < 0)
 		return status;
 
-	/* The upper layer does not support incomplete sends. */
+	/* The upper layer does analt support incomplete sends. */
 	if (status != len)
 		return -E2BIG;
 
@@ -80,7 +80,7 @@ static int i2c_atmel_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	 * message. */
 	expected_len = be32_to_cpu(hdr->length);
 	if (expected_len > count)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (priv->len >= expected_len) {
 		dev_dbg(&chip->dev,
@@ -101,7 +101,7 @@ static int i2c_atmel_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static void i2c_atmel_cancel(struct tpm_chip *chip)
 {
-	dev_err(&chip->dev, "TPM operation cancellation was requested, but is not supported");
+	dev_err(&chip->dev, "TPM operation cancellation was requested, but is analt supported");
 }
 
 static u8 i2c_atmel_read_status(struct tpm_chip *chip)
@@ -118,7 +118,7 @@ static u8 i2c_atmel_read_status(struct tpm_chip *chip)
 
 
 	/* Once the TPM has completed the command the command remains readable
-	 * until another command is issued. */
+	 * until aanalther command is issued. */
 	rc = i2c_master_recv(client, priv->buffer, sizeof(priv->buffer));
 	dev_dbg(&chip->dev,
 		"%s: sts=%d", __func__, rc);
@@ -153,7 +153,7 @@ static int i2c_atmel_probe(struct i2c_client *client)
 	struct priv_data *priv;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip = tpmm_chip_alloc(dev, &i2c_atmel);
 	if (IS_ERR(chip))
@@ -161,7 +161,7 @@ static int i2c_atmel_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(struct priv_data), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Default timeouts */
 	chip->timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
@@ -171,7 +171,7 @@ static int i2c_atmel_probe(struct i2c_client *client)
 
 	dev_set_drvdata(&chip->dev, priv);
 
-	/* There is no known way to probe for this device, and all version
+	/* There is anal kanalwn way to probe for this device, and all version
 	 * information seems to be read via TPM commands. Thus we rely on the
 	 * TPM startup process in the common code to detect the device. */
 

@@ -63,19 +63,19 @@ enum lgm_clk_type {
 	CLK_TYPE_DIVIDER,
 	CLK_TYPE_FIXED_FACTOR,
 	CLK_TYPE_GATE,
-	CLK_TYPE_NONE,
+	CLK_TYPE_ANALNE,
 };
 
 /**
  * struct lgm_clk_provider
  * @membase: IO mem base address for CGU.
- * @np: device node
+ * @np: device analde
  * @dev: device
  * @clk_data: array of hw clocks and clk number.
  */
 struct lgm_clk_provider {
 	struct regmap *membase;
-	struct device_node *np;
+	struct device_analde *np;
 	struct device *dev;
 	struct clk_hw_onecell_data clk_data;
 };
@@ -83,7 +83,7 @@ struct lgm_clk_provider {
 enum pll_type {
 	TYPE_ROPLL,
 	TYPE_LJPLL,
-	TYPE_NONE,
+	TYPE_ANALNE,
 };
 
 struct lgm_clk_pll {
@@ -198,7 +198,7 @@ struct lgm_clk_branch {
 #define CLOCK_FLAG_VAL_INIT	BIT(16)
 #define MUX_CLK_SW		BIT(17)
 #define GATE_CLK_HW		BIT(18)
-#define DIV_CLK_NO_MASK		BIT(19)
+#define DIV_CLK_ANAL_MASK		BIT(19)
 
 #define LGM_MUX(_id, _name, _pdata, _f, _reg,		\
 		_shift, _width, _cf, _v)		\

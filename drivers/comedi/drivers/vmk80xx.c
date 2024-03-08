@@ -30,7 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -69,18 +69,18 @@ enum {
 #define VMK8055_CMD_WRT_AD	0x05
 
 #define VMK8061_CMD_RD_AI	0x00
-#define VMK8061_CMR_RD_ALL_AI	0x01	/* !non-active! */
+#define VMK8061_CMR_RD_ALL_AI	0x01	/* !analn-active! */
 #define VMK8061_CMD_SET_AO	0x02
-#define VMK8061_CMD_SET_ALL_AO	0x03	/* !non-active! */
+#define VMK8061_CMD_SET_ALL_AO	0x03	/* !analn-active! */
 #define VMK8061_CMD_OUT_PWM	0x04
 #define VMK8061_CMD_RD_DI	0x05
-#define VMK8061_CMD_DO		0x06	/* !non-active! */
+#define VMK8061_CMD_DO		0x06	/* !analn-active! */
 #define VMK8061_CMD_CLR_DO	0x07
 #define VMK8061_CMD_SET_DO	0x08
 #define VMK8061_CMD_RD_CNT	0x09	/* TODO: completely pointless? */
 #define VMK8061_CMD_RST_CNT	0x0a	/* TODO: completely pointless? */
 #define VMK8061_CMD_RD_VERSION	0x0b	/* internal usage */
-#define VMK8061_CMD_RD_JMP_STAT	0x0c	/* TODO: not implemented yet */
+#define VMK8061_CMD_RD_JMP_STAT	0x0c	/* TODO: analt implemented yet */
 #define VMK8061_CMD_RD_PWR_STAT	0x0d	/* internal usage */
 #define VMK8061_CMD_RD_DO	0x0e
 #define VMK8061_CMD_RD_AO	0x0f
@@ -136,7 +136,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ai_maxdata	= 0x03ff,
 		.ao_nchans	= 8,
 		.di_nchans	= 8,
-		.cnt_maxdata	= 0,	/* unknown, device is not writeable */
+		.cnt_maxdata	= 0,	/* unkanalwn, device is analt writeable */
 		.pwm_nchans	= 1,
 		.pwm_maxdata	= 0x03ff,
 	},
@@ -227,7 +227,7 @@ static int vmk80xx_reset_device(struct comedi_device *dev)
 	retval = vmk80xx_write_packet(dev, VMK8055_CMD_RST);
 	if (retval)
 		return retval;
-	/* set outputs to known state as we cannot read them */
+	/* set outputs to kanalwn state as we cananalt read them */
 	return vmk80xx_write_packet(dev, VMK8055_CMD_WRT_AD);
 }
 
@@ -301,7 +301,7 @@ static int vmk80xx_ao_insn_write(struct comedi_device *dev,
 		else
 			reg = VMK8055_AO2_REG;
 		break;
-	default:		/* NOTE: avoid compiler warnings */
+	default:		/* ANALTE: avoid compiler warnings */
 		cmd = VMK8061_CMD_SET_AO;
 		reg = VMK8061_AO_REG;
 		devpriv->usb_tx_buf[VMK8061_CH_REG] = chan;
@@ -645,7 +645,7 @@ static int vmk80xx_find_usb_endpoints(struct comedi_device *dev)
 	int i;
 
 	if (iface_desc->desc.bNumEndpoints != 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		ep_desc = &iface_desc->endpoint[i].desc;
@@ -666,7 +666,7 @@ static int vmk80xx_find_usb_endpoints(struct comedi_device *dev)
 	}
 
 	if (!devpriv->ep_rx || !devpriv->ep_tx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!usb_endpoint_maxp(devpriv->ep_rx) || !usb_endpoint_maxp(devpriv->ep_tx))
 		return -EINVAL;
@@ -682,12 +682,12 @@ static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 	size = max(usb_endpoint_maxp(devpriv->ep_rx), MIN_BUF_SIZE);
 	devpriv->usb_rx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = max(usb_endpoint_maxp(devpriv->ep_tx), MIN_BUF_SIZE);
 	devpriv->usb_tx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -792,13 +792,13 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(vmk80xx_boardinfo))
 		board = &vmk80xx_boardinfo[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devpriv->model = board->model;
 

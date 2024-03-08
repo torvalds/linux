@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -31,7 +31,7 @@ static ssize_t manager_display_show(struct omap_overlay_manager *mgr, char *buf)
 	struct omap_dss_device *dssdev = mgr->get_device(mgr);
 
 	return sysfs_emit(buf, "%s\n", dssdev ?
-			dssdev->name : "<none>");
+			dssdev->name : "<analne>");
 }
 
 static int manager_display_match(struct omap_dss_device *dssdev, void *data)
@@ -69,7 +69,7 @@ static ssize_t manager_display_store(struct omap_overlay_manager *mgr,
 		}
 
 		if (omapdss_device_is_enabled(dssdev)) {
-			DSSERR("new display is not disabled\n");
+			DSSERR("new display is analt disabled\n");
 			r = -EINVAL;
 			goto put_device;
 		}
@@ -78,7 +78,7 @@ static ssize_t manager_display_store(struct omap_overlay_manager *mgr,
 	old_dssdev = mgr->get_device(mgr);
 	if (old_dssdev) {
 		if (omapdss_device_is_enabled(old_dssdev)) {
-			DSSERR("old display is not disabled\n");
+			DSSERR("old display is analt disabled\n");
 			r = -EINVAL;
 			goto put_device;
 		}
@@ -272,7 +272,7 @@ static ssize_t manager_alpha_blending_enabled_show(
 	struct omap_overlay_manager_info info;
 
 	if(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mgr->get_manager_info(mgr, &info);
 
@@ -289,7 +289,7 @@ static ssize_t manager_alpha_blending_enabled_store(
 	int r;
 
 	if(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = kstrtobool(buf, &enable);
 	if (r)
@@ -328,7 +328,7 @@ static ssize_t manager_cpr_enable_store(struct omap_overlay_manager *mgr,
 	bool enable;
 
 	if (!dss_has_feature(FEAT_CPR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = kstrtobool(buf, &enable);
 	if (r)
@@ -381,7 +381,7 @@ static ssize_t manager_cpr_coef_store(struct omap_overlay_manager *mgr,
 	s16 *arr;
 
 	if (!dss_has_feature(FEAT_CPR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (sscanf(buf, "%hd %hd %hd %hd %hd %hd %hd %hd %hd",
 				&coefs.rr, &coefs.rg, &coefs.rb,
@@ -470,7 +470,7 @@ static ssize_t manager_attr_show(struct kobject *kobj, struct attribute *attr,
 	manager_attr = container_of(attr, struct manager_attribute, attr);
 
 	if (!manager_attr->show)
-		return -ENOENT;
+		return -EANALENT;
 
 	return manager_attr->show(manager, buf);
 }
@@ -485,7 +485,7 @@ static ssize_t manager_attr_store(struct kobject *kobj, struct attribute *attr,
 	manager_attr = container_of(attr, struct manager_attribute, attr);
 
 	if (!manager_attr->store)
-		return -ENOENT;
+		return -EANALENT;
 
 	return manager_attr->store(manager, buf, size);
 }

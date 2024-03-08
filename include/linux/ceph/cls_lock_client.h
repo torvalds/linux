@@ -5,7 +5,7 @@
 #include <linux/ceph/osd_client.h>
 
 enum ceph_cls_lock_type {
-	CEPH_CLS_LOCK_NONE = 0,
+	CEPH_CLS_LOCK_ANALNE = 0,
 	CEPH_CLS_LOCK_EXCLUSIVE = 1,
 	CEPH_CLS_LOCK_SHARED = 2,
 };

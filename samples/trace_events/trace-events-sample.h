@@ -19,7 +19,7 @@
  *
  * As we do an the bottom of this file.
  *
- * Notice that TRACE_SYSTEM should be defined outside of #if
+ * Analtice that TRACE_SYSTEM should be defined outside of #if
  * protection, just like TRACE_INCLUDE_FILE.
  */
 #undef TRACE_SYSTEM
@@ -28,23 +28,23 @@
 /*
  * TRACE_SYSTEM is expected to be a C valid variable (alpha-numeric
  * and underscore), although it may start with numbers. If for some
- * reason it is not, you need to add the following lines:
+ * reason it is analt, you need to add the following lines:
  */
 #undef TRACE_SYSTEM_VAR
 #define TRACE_SYSTEM_VAR sample_trace
 /*
- * But the above is only needed if TRACE_SYSTEM is not alpha-numeric
+ * But the above is only needed if TRACE_SYSTEM is analt alpha-numeric
  * and underscored. By default, TRACE_SYSTEM_VAR will be equal to
  * TRACE_SYSTEM. As TRACE_SYSTEM_VAR must be alpha-numeric, if
- * TRACE_SYSTEM is not, then TRACE_SYSTEM_VAR must be defined with
+ * TRACE_SYSTEM is analt, then TRACE_SYSTEM_VAR must be defined with
  * only alpha-numeric and underscores.
  *
- * The TRACE_SYSTEM_VAR is only used internally and not visible to
+ * The TRACE_SYSTEM_VAR is only used internally and analt visible to
  * user space.
  */
 
 /*
- * Notice that this file is not protected like a normal header.
+ * Analtice that this file is analt protected like a analrmal header.
  * We also must allow for rereading of this file. The
  *
  *  || defined(TRACE_HEADER_MULTI_READ)
@@ -87,7 +87,7 @@
  *        __entry->foo = 5;
  *
  *   __field_struct : This can be any static complex data type (struct, union
- *         but not an array). Be careful using complex types, as each
+ *         but analt an array). Be careful using complex types, as each
  *         event is limited in size, and copying large amounts of data
  *         into the ring buffer can slow things down.
  *
@@ -97,7 +97,7 @@
 
  *   __array: There are three fields (type, name, size). The type is the
  *         type of elements in the array, the name is the name of the array.
- *         size is the number of items in the array (not the total size).
+ *         size is the number of items in the array (analt the total size).
  *
  *         __array( char, foo, 10) is the same as saying: char foo[10];
  *
@@ -111,19 +111,19 @@
  *         instance to instance of the tracepoint being called.
  *         Like __array, this too has three elements (type, name, size);
  *         type is the type of the element, name is the name of the array.
- *         The size is different than __array. It is not a static number,
+ *         The size is different than __array. It is analt a static number,
  *         but the algorithm to figure out the length of the array for the
  *         specific instance of tracepoint. Again, size is the number of
- *         items in the array, not the total length in bytes.
+ *         items in the array, analt the total length in bytes.
  *
  *         __dynamic_array( int, foo, bar) is similar to: int foo[bar];
  *
- *         Note, unlike arrays, you must use the __get_dynamic_array() macro
+ *         Analte, unlike arrays, you must use the __get_dynamic_array() macro
  *         to access the array.
  *
  *         memcpy(__get_dynamic_array(foo), bar, 10);
  *
- *         Notice, that "__entry" is not needed here.
+ *         Analtice, that "__entry" is analt needed here.
  *
  *   __string: This is a special kind of __dynamic_array. It expects to
  *         have a null terminated character array passed to it (it allows
@@ -145,8 +145,8 @@
  *         dynamic length, it takes a variable list va_list 'va' variable.
  *         Some event callers already have a message from parameters saved
  *         in a va_list. Passing in the format and the va_list variable
- *         will save just enough on the ring buffer for that string.
- *         Note, the va variable used is a pointer to a va_list, not
+ *         will save just eanalugh on the ring buffer for that string.
+ *         Analte, the va variable used is a pointer to a va_list, analt
  *         to the va_list directly.
  *
  *           (va_list *va)
@@ -166,8 +166,8 @@
  *	   that the array has characters in it, and with the combined
  *         use of __assign_str_len(), it will allocate 'len' + 1 bytes
  *         in the ring buffer and add a '\0' to the string. This is
- *         useful if the string being saved has no terminating '\0' byte.
- *         It requires that the length of the string is known as it acts
+ *         useful if the string being saved has anal terminating '\0' byte.
+ *         It requires that the length of the string is kanalwn as it acts
  *         like a memcpy().
  *
  *         Declared with:
@@ -189,7 +189,7 @@
  *        for the '\0' terminating byte, and __get_str(foo) can be used
  *        in the TP_printk().
  *
- *   __bitmask: This is another kind of __dynamic_array, but it expects
+ *   __bitmask: This is aanalther kind of __dynamic_array, but it expects
  *         an array of longs, and the number of bits to parse. It takes
  *         two parameters (name, nr_bits), where name is the name of the
  *         bitmask to save, and the nr_bits is the number of bits to record.
@@ -222,12 +222,12 @@
  *    This is also used to print out the data from the trace files.
  *    Again, the __entry macro is used to access the data from the ring buffer.
  *
- *    Note, __dynamic_array, __string, __bitmask and __cpumask require special
+ *    Analte, __dynamic_array, __string, __bitmask and __cpumask require special
  *       helpers to access the data.
  *
  *      For __dynamic_array(int, foo, bar) use __get_dynamic_array(foo)
  *            Use __get_dynamic_array_len(foo) to get the length of the array
- *            saved. Note, __get_dynamic_array_len() returns the total allocated
+ *            saved. Analte, __get_dynamic_array_len() returns the total allocated
  *            length of the dynamic array; __print_array() expects the second
  *            parameter to be the number of elements. To get that, the array length
  *            needs to be divided by the element size.
@@ -239,7 +239,7 @@
  *      For __cpumask(target_cpus) use __get_cpumask(target_cpus)
  *
  *
- * Note, that for both the assign and the printk, __entry is the handler
+ * Analte, that for both the assign and the printk, __entry is the handler
  * to the data structure in the ring buffer, and is defined by the
  * TP_STRUCT__entry.
  */
@@ -272,8 +272,8 @@ enum {
 
 /*
  * If enums are used in the TP_printk(), their names will be shown in
- * format files and not their values. This can cause problems with user
- * space programs that parse the format files to know how to translate
+ * format files and analt their values. This can cause problems with user
+ * space programs that parse the format files to kanalw how to translate
  * the raw binary trace output into human readable text.
  *
  * To help out user space programs, any enum that is used in the TP_printk()
@@ -318,13 +318,13 @@ TRACE_EVENT(foo_bar,
 	TP_printk("foo %s %d %s %s %s %s (%s) (%s) %s", __entry->foo, __entry->bar,
 
 /*
- * Notice here the use of some helper functions. This includes:
+ * Analtice here the use of some helper functions. This includes:
  *
  *  __print_symbolic( variable, { value, "string" }, ... ),
  *
  *    The variable is tested against each value of the { } pair. If
  *    the variable matches one of the values, then it will print the
- *    string in that pair. If non are matched, it returns a string
+ *    string in that pair. If analn are matched, it returns a string
  *    version of the number (if __entry->bar == 7 then "7" is returned).
  */
 		  __print_symbolic(__entry->bar,
@@ -342,7 +342,7 @@ TRACE_EVENT(foo_bar,
  *    of the value. If ((FLAG & variable) == FLAG) then the string is
  *    printed. If more than one flag matches, then each one that does is
  *    also printed with delim in between them.
- *    If not all bits are accounted for, then the not found bits will be
+ *    If analt all bits are accounted for, then the analt found bits will be
  *    added in hex format: 0x506 will show BIT2|BIT4|0x500
  */
 		  __print_flags(__entry->bar, "|",
@@ -365,22 +365,22 @@ TRACE_EVENT(foo_bar,
 
 /*
  * There may be a case where a tracepoint should only be called if
- * some condition is set. Otherwise the tracepoint should not be called.
+ * some condition is set. Otherwise the tracepoint should analt be called.
  * But to do something like:
  *
  *  if (cond)
  *     trace_foo();
  *
- * Would cause a little overhead when tracing is not enabled, and that
- * overhead, even if small, is not something we want. As tracepoints
- * use static branch (aka jump_labels), where no branch is taken to
- * skip the tracepoint when not enabled, and a jmp is placed to jump
+ * Would cause a little overhead when tracing is analt enabled, and that
+ * overhead, even if small, is analt something we want. As tracepoints
+ * use static branch (aka jump_labels), where anal branch is taken to
+ * skip the tracepoint when analt enabled, and a jmp is placed to jump
  * to the tracepoint code when it is enabled, having a if statement
  * nullifies that optimization. It would be nice to place that
  * condition within the static branch. This is where TRACE_EVENT_CONDITION
  * comes in.
  *
- * TRACE_EVENT_CONDITION() is just like TRACE_EVENT, except it adds another
+ * TRACE_EVENT_CONDITION() is just like TRACE_EVENT, except it adds aanalther
  * parameter just after args. Where TRACE_EVENT has:
  *
  * TRACE_EVENT(name, proto, args, struct, assign, printk)
@@ -396,9 +396,9 @@ TRACE_EVENT(foo_bar,
  *      trace_foo_bar_with_cond();
  *
  * Except that the logic for the if branch is placed after the static branch.
- * That is, the if statement that processes the condition will not be
+ * That is, the if statement that processes the condition will analt be
  * executed unless that traecpoint is enabled. Otherwise it still remains
- * a nop.
+ * a analp.
  */
 TRACE_EVENT_CONDITION(foo_bar_with_cond,
 
@@ -425,7 +425,7 @@ int foo_bar_reg(void);
 void foo_bar_unreg(void);
 
 /*
- * Now in the case that some function needs to be called when the
+ * Analw in the case that some function needs to be called when the
  * tracepoint is enabled and/or when it is disabled, the
  * TRACE_EVENT_FN() serves this purpose. This is just like TRACE_EVENT()
  * but adds two more parameters at the end:
@@ -439,7 +439,7 @@ void foo_bar_unreg(void);
  * The reg function gets called before the tracepoint is enabled, and
  * the unreg function gets called after the tracepoint is disabled.
  *
- * Note, reg and unreg are allowed to be NULL. If you only need to
+ * Analte, reg and unreg are allowed to be NULL. If you only need to
  * call a function before enabling, or after disabling, just set one
  * function and pass in NULL for the other parameter.
  */
@@ -479,7 +479,7 @@ TRACE_EVENT_FN(foo_bar_with_fn,
  * be enabled and disabled separately from other events (either TRACE_EVENT
  * or other DEFINE_EVENT()s).
  *
- * Note, TRACE_EVENT() itself is simply defined as:
+ * Analte, TRACE_EVENT() itself is simply defined as:
  *
  * #define TRACE_EVENT(name, proto, args, tstruct, assign, printk)  \
  *  DECLARE_EVENT_CLASS(name, proto, args, tstruct, assign, printk); \
@@ -511,7 +511,7 @@ DECLARE_EVENT_CLASS(foo_template,
 
 /*
  * Here's a better way for the previous samples (except, the first
- * example had more fields and could not be used here).
+ * example had more fields and could analt be used here).
  */
 DEFINE_EVENT(foo_template, foo_with_template_simple,
 	TP_PROTO(const char *foo, int bar),
@@ -546,12 +546,12 @@ DEFINE_EVENT_PRINT(foo_template, foo_with_template_print,
 	TP_printk("bar %s %d", __get_str(foo), __entry->bar));
 
 /*
- * There are yet another __rel_loc dynamic data attribute. If you
+ * There are yet aanalther __rel_loc dynamic data attribute. If you
  * use __rel_dynamic_array() and __rel_string() etc. macros, you
- * can use this attribute. There is no difference from the viewpoint
+ * can use this attribute. There is anal difference from the viewpoint
  * of functionality with/without 'rel' but the encoding is a bit
  * different. This is expected to be used with user-space event,
- * there is no reason that the kernel event use this, but only for
+ * there is anal reason that the kernel event use this, but only for
  * testing.
  */
 
@@ -583,7 +583,7 @@ TRACE_EVENT(foo_rel_loc,
 );
 #endif
 
-/***** NOTICE! The #if protection ends here. *****/
+/***** ANALTICE! The #if protection ends here. *****/
 
 
 /*
@@ -620,7 +620,7 @@ TRACE_EVENT(foo_rel_loc,
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_PATH .
 /*
- * TRACE_INCLUDE_FILE is not needed if the filename and TRACE_SYSTEM are equal
+ * TRACE_INCLUDE_FILE is analt needed if the filename and TRACE_SYSTEM are equal
  */
 #define TRACE_INCLUDE_FILE trace-events-sample
 #include <trace/define_trace.h>

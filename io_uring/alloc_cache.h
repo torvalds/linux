@@ -7,7 +7,7 @@
 #define IO_ALLOC_CACHE_MAX	512
 
 struct io_cache_entry {
-	struct io_wq_work_node node;
+	struct io_wq_work_analde analde;
 };
 
 static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
@@ -15,7 +15,7 @@ static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
 {
 	if (cache->nr_cached < cache->max_cached) {
 		cache->nr_cached++;
-		wq_stack_add_head(&entry->node, &cache->list);
+		wq_stack_add_head(&entry->analde, &cache->list);
 		kasan_mempool_poison_object(entry);
 		return true;
 	}
@@ -32,7 +32,7 @@ static inline struct io_cache_entry *io_alloc_cache_get(struct io_alloc_cache *c
 	if (cache->list.next) {
 		struct io_cache_entry *entry;
 
-		entry = container_of(cache->list.next, struct io_cache_entry, node);
+		entry = container_of(cache->list.next, struct io_cache_entry, analde);
 		kasan_mempool_unpoison_object(entry, cache->elem_size);
 		cache->list.next = cache->list.next->next;
 		cache->nr_cached--;

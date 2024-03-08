@@ -38,7 +38,7 @@ int linksys_ns_partitions_post_parse(struct mtd_info *mtd,
 	int i;
 
 	for (i = 0; i < nr_parts; i++) {
-		if (of_device_is_compatible(parts[i].of_node, "linksys,ns-firmware")) {
+		if (of_device_is_compatible(parts[i].of_analde, "linksys,ns-firmware")) {
 			if (trx_idx++ == bootpartition)
 				parts[i].name = "firmware";
 			else

@@ -5,12 +5,12 @@
  * Copyright (C) 2020 Yu-Tung Chang <mtwget@gmail.com>
 */
 
-#include "sun8i-h3-nanopi.dtsi"
+#include "sun8i-h3-naanalpi.dtsi"
 #include <dt-bindings/leds/common.h>
 
 / {
-	model = "FriendlyARM NanoPi R1";
-	compatible = "friendlyarm,nanopi-r1", "allwinner,sun8i-h3";
+	model = "FriendlyARM NaanalPi R1";
+	compatible = "friendlyarm,naanalpi-r1", "allwinner,sun8i-h3";
 
 	aliases {
 		serial1 = &uart1;
@@ -46,7 +46,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "ext_clock";
 	};
 
@@ -98,7 +98,7 @@
 	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	wifi: wifi@1 {
@@ -116,7 +116,7 @@
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc3v3>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -147,7 +147,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_vcc3v3>;
 		vddio-supply = <&reg_vcc3v3>;

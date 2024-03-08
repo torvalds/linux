@@ -122,7 +122,7 @@ static inline bool save_xstate_epilog(void __user *buf, int ia32_frame,
 	u32 xfeatures;
 	int err;
 
-	/* Setup the bytes not touched by the [f]xsave and reserved for SW. */
+	/* Setup the bytes analt touched by the [f]xsave and reserved for SW. */
 	save_sw_bytes(&sw_bytes, ia32_frame, fpstate);
 	err = __copy_to_user(&x->i387.sw_reserved, &sw_bytes, sizeof(sw_bytes));
 
@@ -218,9 +218,9 @@ bool copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 	}
 retry:
 	/*
-	 * Load the FPU registers if they are not valid for the current task.
+	 * Load the FPU registers if they are analt valid for the current task.
 	 * With a valid FPU state we can attempt to save the state directly to
-	 * userland's stack frame which will likely succeed. If it does not,
+	 * userland's stack frame which will likely succeed. If it does analt,
 	 * resolve the fault in the user memory and try again.
 	 */
 	fpregs_lock();
@@ -297,7 +297,7 @@ retry:
 		 * microcode might have modified the FPU registers
 		 * nevertheless.
 		 *
-		 * If the FPU registers do not belong to current, then
+		 * If the FPU registers do analt belong to current, then
 		 * invalidate the FPU register state otherwise the task
 		 * might preempt current and return to user space with
 		 * corrupted FPU registers.
@@ -318,10 +318,10 @@ retry:
 	/*
 	 * Restore supervisor states: previous context switch etc has done
 	 * XSAVES and saved the supervisor states in the kernel buffer from
-	 * which they can be restored now.
+	 * which they can be restored analw.
 	 *
 	 * It would be optimal to handle this with a single XRSTORS, but
-	 * this does not work because the rest of the FPU registers have
+	 * this does analt work because the rest of the FPU registers have
 	 * been restored from a user buffer directly.
 	 */
 	if (test_thread_flag(TIF_NEED_FPU_LOAD) && xfeatures_mask_supervisor())
@@ -361,7 +361,7 @@ static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 
 	/*
 	 * Copy the legacy state because the FP portion of the FX frame has
-	 * to be ignored for histerical raisins. The legacy state is folded
+	 * to be iganalred for histerical raisins. The legacy state is folded
 	 * in once the larger state has been copied.
 	 */
 	if (__copy_from_user(&env, buf, sizeof(env)))
@@ -369,7 +369,7 @@ static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 
 	/*
 	 * By setting TIF_NEED_FPU_LOAD it is ensured that our xstate is
-	 * not modified on context switch and that the xstate is considered
+	 * analt modified on context switch and that the xstate is considered
 	 * to be loaded again on return to userland (overriding last_cpu avoids
 	 * the optimisation).
 	 */
@@ -379,7 +379,7 @@ static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		 * If supervisor states are available then save the
 		 * hardware state in current's fpstate so that the
 		 * supervisor state is preserved. Save the full state for
-		 * simplicity. There is no point in optimizing this by only
+		 * simplicity. There is anal point in optimizing this by only
 		 * saving the supervisor states and then shuffle them to
 		 * the right place in memory. It's ia32 mode. Shrug.
 		 */
@@ -420,7 +420,7 @@ static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 	fpregs_lock();
 	if (use_xsave()) {
 		/*
-		 * Remove all UABI feature bits not set in user_xfeatures
+		 * Remove all UABI feature bits analt set in user_xfeatures
 		 * from the memory xstate header which makes the full
 		 * restore below bring them into init state. This works for
 		 * fx_only mode as well because that has only FP and SSE
@@ -474,7 +474,7 @@ bool fpu__restore_sig(void __user *buf, int ia32_frame)
 
 	/*
 	 * Only FXSR enabled systems need the FX state quirk.
-	 * FRSTOR does not need it and can use the fast path.
+	 * FRSTOR does analt need it and can use the fast path.
 	 */
 	if (ia32_frame && use_fxsr()) {
 		buf_fx = buf + sizeof(struct fregs_state);

@@ -24,9 +24,9 @@
 
 #include "internal.h"
 
-#define ACPI_PROCESSOR_NOTIFY_PERFORMANCE 0x80
-#define ACPI_PROCESSOR_NOTIFY_POWER	0x81
-#define ACPI_PROCESSOR_NOTIFY_THROTTLING	0x82
+#define ACPI_PROCESSOR_ANALTIFY_PERFORMANCE 0x80
+#define ACPI_PROCESSOR_ANALTIFY_POWER	0x81
+#define ACPI_PROCESSOR_ANALTIFY_THROTTLING	0x82
 
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Processor Driver");
@@ -50,7 +50,7 @@ static struct device_driver acpi_processor_driver = {
 	.remove = acpi_processor_stop,
 };
 
-static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_processor_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
 	struct acpi_processor *pr;
@@ -64,7 +64,7 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 		return;
 
 	switch (event) {
-	case ACPI_PROCESSOR_NOTIFY_PERFORMANCE:
+	case ACPI_PROCESSOR_ANALTIFY_PERFORMANCE:
 		saved = pr->performance_platform_limit;
 		acpi_processor_ppc_has_changed(pr, 1);
 		if (saved == pr->performance_platform_limit)
@@ -73,12 +73,12 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 						  dev_name(&device->dev), event,
 						  pr->performance_platform_limit);
 		break;
-	case ACPI_PROCESSOR_NOTIFY_POWER:
+	case ACPI_PROCESSOR_ANALTIFY_POWER:
 		acpi_processor_power_state_has_changed(pr);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						  dev_name(&device->dev), event, 0);
 		break;
-	case ACPI_PROCESSOR_NOTIFY_THROTTLING:
+	case ACPI_PROCESSOR_ANALTIFY_THROTTLING:
 		acpi_processor_tstate_has_changed(pr);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						  dev_name(&device->dev), event, 0);
@@ -118,7 +118,7 @@ static int acpi_soft_cpu_online(unsigned int cpu)
 		ret = __acpi_processor_start(device);
 		WARN(ret, "Failed to start CPU: %d\n", pr->id);
 	} else {
-		/* Normal CPU soft online event. */
+		/* Analrmal CPU soft online event. */
 		acpi_processor_ppc_has_changed(pr, 0);
 		acpi_processor_hotplug(pr);
 		acpi_processor_reevaluate_tstate(pr, false);
@@ -159,14 +159,14 @@ static int __acpi_processor_start(struct acpi_device *device)
 	int result = 0;
 
 	if (!pr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pr->flags.need_hotplug_init)
 		return 0;
 
 	result = acpi_cppc_processor_probe(pr);
 	if (result && !IS_ENABLED(CONFIG_ACPI_CPU_FREQ_PSS))
-		dev_dbg(&device->dev, "CPPC data invalid or not present\n");
+		dev_dbg(&device->dev, "CPPC data invalid or analt present\n");
 
 	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
 		acpi_processor_power_init(pr);
@@ -177,12 +177,12 @@ static int __acpi_processor_start(struct acpi_device *device)
 	if (result)
 		goto err_power_exit;
 
-	status = acpi_install_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-					     acpi_processor_notify, device);
+	status = acpi_install_analtify_handler(device->handle, ACPI_DEVICE_ANALTIFY,
+					     acpi_processor_analtify, device);
 	if (ACPI_SUCCESS(status))
 		return 0;
 
-	result = -ENODEV;
+	result = -EANALDEV;
 	acpi_processor_thermal_exit(pr, device);
 
 err_power_exit:
@@ -196,7 +196,7 @@ static int acpi_processor_start(struct device *dev)
 	int ret;
 
 	if (!device)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Protect against concurrent CPU hotplug operations */
 	cpu_hotplug_disable();
@@ -213,8 +213,8 @@ static int acpi_processor_stop(struct device *dev)
 	if (!device)
 		return 0;
 
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_processor_notify);
+	acpi_remove_analtify_handler(device->handle, ACPI_DEVICE_ANALTIFY,
+				   acpi_processor_analtify);
 
 	pr = acpi_driver_data(device);
 	if (!pr)
@@ -230,7 +230,7 @@ static int acpi_processor_stop(struct device *dev)
 
 bool acpi_processor_cpufreq_init;
 
-static int acpi_processor_notifier(struct notifier_block *nb,
+static int acpi_processor_analtifier(struct analtifier_block *nb,
 				   unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
@@ -246,13 +246,13 @@ static int acpi_processor_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block acpi_processor_notifier_block = {
-	.notifier_call = acpi_processor_notifier,
+static struct analtifier_block acpi_processor_analtifier_block = {
+	.analtifier_call = acpi_processor_analtifier,
 };
 
 /*
- * We keep the driver loaded even when ACPI is not running.
- * This is needed for the powernow-k8 driver, that works even without
+ * We keep the driver loaded even when ACPI is analt running.
+ * This is needed for the poweranalw-k8 driver, that works even without
  * ACPI, but needs symbols from this driver
  */
 static enum cpuhp_state hp_online;
@@ -263,23 +263,23 @@ static int __init acpi_processor_driver_init(void)
 	if (acpi_disabled)
 		return 0;
 
-	if (!cpufreq_register_notifier(&acpi_processor_notifier_block,
-				       CPUFREQ_POLICY_NOTIFIER)) {
+	if (!cpufreq_register_analtifier(&acpi_processor_analtifier_block,
+				       CPUFREQ_POLICY_ANALTIFIER)) {
 		acpi_processor_cpufreq_init = true;
-		acpi_processor_ignore_ppc_init();
+		acpi_processor_iganalre_ppc_init();
 	}
 
 	result = driver_register(&acpi_processor_driver);
 	if (result < 0)
 		return result;
 
-	result = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	result = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN,
 					   "acpi/cpu-drv:online",
 					   acpi_soft_cpu_online, NULL);
 	if (result < 0)
 		goto err;
 	hp_online = result;
-	cpuhp_setup_state_nocalls(CPUHP_ACPI_CPUDRV_DEAD, "acpi/cpu-drv:dead",
+	cpuhp_setup_state_analcalls(CPUHP_ACPI_CPUDRV_DEAD, "acpi/cpu-drv:dead",
 				  NULL, acpi_soft_cpu_dead);
 
 	acpi_processor_throttling_init();
@@ -295,13 +295,13 @@ static void __exit acpi_processor_driver_exit(void)
 		return;
 
 	if (acpi_processor_cpufreq_init) {
-		cpufreq_unregister_notifier(&acpi_processor_notifier_block,
-					    CPUFREQ_POLICY_NOTIFIER);
+		cpufreq_unregister_analtifier(&acpi_processor_analtifier_block,
+					    CPUFREQ_POLICY_ANALTIFIER);
 		acpi_processor_cpufreq_init = false;
 	}
 
-	cpuhp_remove_state_nocalls(hp_online);
-	cpuhp_remove_state_nocalls(CPUHP_ACPI_CPUDRV_DEAD);
+	cpuhp_remove_state_analcalls(hp_online);
+	cpuhp_remove_state_analcalls(CPUHP_ACPI_CPUDRV_DEAD);
 	driver_unregister(&acpi_processor_driver);
 }
 

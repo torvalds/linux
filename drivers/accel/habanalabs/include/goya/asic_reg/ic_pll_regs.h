@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_IC_PLL_REGS_H_
@@ -97,7 +97,7 @@
 
 #define mmIC_PLL_REF_HIGH_THRESHOLD                                  0x4A3420
 
-#define mmIC_PLL_PLL_NOT_STABLE                                      0x4A3430
+#define mmIC_PLL_PLL_ANALT_STABLE                                      0x4A3430
 
 #define mmIC_PLL_FREQ_CALC_EN                                        0x4A3440
 

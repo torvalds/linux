@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef _ASM_POWERPC_SIGCONTEXT_H
 #define _ASM_POWERPC_SIGCONTEXT_H
 
@@ -37,7 +37,7 @@ struct sigcontext {
  * allows the array of vector registers to be quadword aligned independent of
  * the alignment of the containing sigcontext or ucontext. It is the
  * responsibility of the code setting the sigcontext to set this pointer to
- * either NULL (if this processor does not support the VMX feature) or the
+ * either NULL (if this processor does analt support the VMX feature) or the
  * address of the first quadword within the allocated (vmx_reserve) area.
  *
  * The pointer (v_regs) of vector type (elf_vrreg_t) is type compatible with

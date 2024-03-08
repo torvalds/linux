@@ -45,7 +45,7 @@ void test_bpf_syscall_macro(void)
 #endif
 	ASSERT_EQ(skel->bss->arg2, exp_arg2, "syscall_arg2");
 	ASSERT_EQ(skel->bss->arg3, exp_arg3, "syscall_arg3");
-	/* it cannot copy arg4 when uses PT_REGS_PARM4 on x86_64 */
+	/* it cananalt copy arg4 when uses PT_REGS_PARM4 on x86_64 */
 #ifdef __x86_64__
 	ASSERT_NEQ(skel->bss->arg4_cx, exp_arg4, "syscall_arg4_from_cx");
 #else
@@ -58,7 +58,7 @@ void test_bpf_syscall_macro(void)
 	ASSERT_EQ(skel->bss->arg1_core, exp_arg1, "syscall_arg1_core_variant");
 	ASSERT_EQ(skel->bss->arg2_core, exp_arg2, "syscall_arg2_core_variant");
 	ASSERT_EQ(skel->bss->arg3_core, exp_arg3, "syscall_arg3_core_variant");
-	/* it cannot copy arg4 when uses PT_REGS_PARM4_CORE on x86_64 */
+	/* it cananalt copy arg4 when uses PT_REGS_PARM4_CORE on x86_64 */
 #ifdef __x86_64__
 	ASSERT_NEQ(skel->bss->arg4_core_cx, exp_arg4, "syscall_arg4_from_cx_core_variant");
 #else
@@ -73,8 +73,8 @@ void test_bpf_syscall_macro(void)
 	ASSERT_EQ(skel->bss->arg4_syscall, exp_arg4, "BPF_KPROBE_SYSCALL_arg4");
 	ASSERT_EQ(skel->bss->arg5_syscall, exp_arg5, "BPF_KPROBE_SYSCALL_arg5");
 
-	r = splice(-42, &off_in, 42, &off_out, 0x12340000, SPLICE_F_NONBLOCK);
-	err = -errno;
+	r = splice(-42, &off_in, 42, &off_out, 0x12340000, SPLICE_F_ANALNBLOCK);
+	err = -erranal;
 	ASSERT_EQ(r, -1, "splice_res");
 	ASSERT_EQ(err, -EBADF, "splice_err");
 
@@ -83,7 +83,7 @@ void test_bpf_syscall_macro(void)
 	ASSERT_EQ(skel->bss->splice_fd_out, 42, "splice_arg3");
 	ASSERT_EQ(skel->bss->splice_off_out, (__u64)&off_out, "splice_arg4");
 	ASSERT_EQ(skel->bss->splice_len, 0x12340000, "splice_arg5");
-	ASSERT_EQ(skel->bss->splice_flags, SPLICE_F_NONBLOCK, "splice_arg6");
+	ASSERT_EQ(skel->bss->splice_flags, SPLICE_F_ANALNBLOCK, "splice_arg6");
 
 cleanup:
 	bpf_syscall_macro__destroy(skel);

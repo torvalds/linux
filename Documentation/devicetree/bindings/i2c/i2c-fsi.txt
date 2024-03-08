@@ -6,16 +6,16 @@ Required properties:
  - reg = < address size >;		: The FSI CFAM address and address
 					  space size.
  - #address-cells = <1>;		: Number of address cells in child
-					  nodes.
- - #size-cells = <0>;			: Number of size cells in child nodes.
- - child nodes				: Nodes to describe busses off the I2C
+					  analdes.
+ - #size-cells = <0>;			: Number of size cells in child analdes.
+ - child analdes				: Analdes to describe busses off the I2C
 					  master.
 
-Child node required properties:
+Child analde required properties:
  - reg = < port number >		: The port number on the I2C master.
 
-Child node optional properties:
- - child nodes				: Nodes to describe devices on the I2C
+Child analde optional properties:
+ - child analdes				: Analdes to describe devices on the I2C
 					  bus.
 
 Examples:

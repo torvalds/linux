@@ -16,7 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -40,7 +40,7 @@
 static const struct usb_gadget_ops bdc_gadget_ops;
 
 static const char * const conn_speed_str[] =  {
-	"Not connected",
+	"Analt connected",
 	"Full Speed",
 	"Low Speed",
 	"High Speed",
@@ -115,7 +115,7 @@ static void bdc_uspc_connected(struct bdc *bdc)
 		return;
 	}
 	dev_dbg(bdc->dev, "connected at %s\n", conn_speed_str[speed]);
-	/* Now we know the speed, configure ep0 */
+	/* Analw we kanalw the speed, configure ep0 */
 	bdc->bdc_ep_array[1]->desc = &bdc_gadget_ep0_desc;
 	ret = bdc_config_ep(bdc, bdc->bdc_ep_array[1]);
 	if (ret)
@@ -145,19 +145,19 @@ static void bdc_uspc_disconnected(struct bdc *bdc, bool reinit)
 		bdc->gadget_driver->disconnect(&bdc->gadget);
 		spin_lock(&bdc->lock);
 	}
-	/* Set Unknown speed */
-	bdc->gadget.speed = USB_SPEED_UNKNOWN;
+	/* Set Unkanalwn speed */
+	bdc->gadget.speed = USB_SPEED_UNKANALWN;
 	bdc->devstatus &= DEVSTATUS_CLEAR;
 	bdc->delayed_status = false;
 	bdc->reinit = reinit;
 	bdc->test_mode = false;
-	usb_gadget_set_state(&bdc->gadget, USB_STATE_NOTATTACHED);
+	usb_gadget_set_state(&bdc->gadget, USB_STATE_ANALTATTACHED);
 }
 
-/* TNotify wkaeup timer */
+/* TAnaltify wkaeup timer */
 static void bdc_func_wake_timer(struct work_struct *work)
 {
-	struct bdc *bdc = container_of(work, struct bdc, func_wake_notify.work);
+	struct bdc *bdc = container_of(work, struct bdc, func_wake_analtify.work);
 	unsigned long flags;
 
 	dev_dbg(bdc->dev, "%s\n", __func__);
@@ -170,8 +170,8 @@ static void bdc_func_wake_timer(struct work_struct *work)
 		dev_dbg(bdc->dev, "FUNC_WAKE_ISSUED FLAG IS STILL SET\n");
 		/* flag is still set, so again send func wake */
 		bdc_function_wake_fh(bdc, 0);
-		schedule_delayed_work(&bdc->func_wake_notify,
-						msecs_to_jiffies(BDC_TNOTIFY));
+		schedule_delayed_work(&bdc->func_wake_analtify,
+						msecs_to_jiffies(BDC_TANALTIFY));
 	}
 	spin_unlock_irqrestore(&bdc->lock, flags);
 }
@@ -185,7 +185,7 @@ static void handle_link_state_change(struct bdc *bdc, u32 uspc)
 	link_state = BDC_PST(uspc);
 	switch (link_state) {
 	case BDC_LINK_STATE_U3:
-		if ((bdc->gadget.speed != USB_SPEED_UNKNOWN) &&
+		if ((bdc->gadget.speed != USB_SPEED_UNKANALWN) &&
 						bdc->gadget_driver->suspend) {
 			dev_dbg(bdc->dev, "Entered Suspend mode\n");
 			spin_unlock(&bdc->lock);
@@ -201,16 +201,16 @@ static void handle_link_state_change(struct bdc *bdc, u32 uspc)
 				bdc_function_wake_fh(bdc, 0);
 				bdc->devstatus |= FUNC_WAKE_ISSUED;
 				/*
-				 * Start a Notification timer and check if the
+				 * Start a Analtification timer and check if the
 				 * Host transferred anything on any of the EPs,
-				 * if not then send function wake again every
-				 * TNotification secs until host initiates
+				 * if analt then send function wake again every
+				 * TAnaltification secs until host initiates
 				 * transfer to BDC, USB3 spec Table 8.13
 				 */
 				schedule_delayed_work(
-						&bdc->func_wake_notify,
-						msecs_to_jiffies(BDC_TNOTIFY));
-				dev_dbg(bdc->dev, "sched func_wake_notify\n");
+						&bdc->func_wake_analtify,
+						msecs_to_jiffies(BDC_TANALTIFY));
+				dev_dbg(bdc->dev, "sched func_wake_analtify\n");
 			}
 		}
 		break;
@@ -240,7 +240,7 @@ void bdc_sr_uspc(struct bdc *bdc, struct bdc_sr *sreport)
 
 	/* Port connect changed */
 	if (uspc & BDC_PCC) {
-		/* Vbus not present, and not connected to Downstream port */
+		/* Vbus analt present, and analt connected to Downstream port */
 		if ((uspc & BDC_VBC) && !(uspc & BDC_VBS) && !(uspc & BDC_PCS))
 			disconn = true;
 		else if ((uspc & BDC_PCS) && !BDC_PST(uspc))
@@ -269,7 +269,7 @@ void bdc_sr_uspc(struct bdc *bdc, struct bdc_sr *sreport)
 	}
 
 	/*
-	 * In SS we might not have PRC bit set before connection, but in 2.0
+	 * In SS we might analt have PRC bit set before connection, but in 2.0
 	 * the PRC bit is set before connection, so moving this condition out
 	 * of bus reset to handle both SS/2.0 speeds.
 	 */
@@ -298,14 +298,14 @@ static irqreturn_t bdc_udc_interrupt(int irq, void *_bdc)
 	status = bdc_readl(bdc->regs, BDC_BDCSC);
 	if (!(status & BDC_GIP)) {
 		spin_unlock(&bdc->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	srr_int = bdc_readl(bdc->regs, BDC_SRRINT(0));
 	/* Check if the SRR IP bit it set? */
 	if (!(srr_int & BDC_SRR_IP)) {
 		dev_warn(bdc->dev, "Global irq pending but SRR IP is 0\n");
 		spin_unlock(&bdc->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	eqp_index = BDC_SRR_EPI(srr_int);
 	dqp_index = BDC_SRR_DPI(srr_int);
@@ -335,7 +335,7 @@ static irqreturn_t bdc_udc_interrupt(int irq, void *_bdc)
 			bdc->sr_handler[1](bdc, sreport);
 			break;
 		default:
-			dev_warn(bdc->dev, "SR:%d not handled\n", sr_type);
+			dev_warn(bdc->dev, "SR:%d analt handled\n", sr_type);
 		}
 		/* Advance the srr dqp index */
 		srr_dqp_index_advc(bdc, 0);
@@ -432,7 +432,7 @@ static int bdc_udc_pullup(struct usb_gadget *gadget, int is_on)
 		bdc->pullup = true;
 		/*
 		 * Check if BDC is already connected to Host i.e Vbus=1,
-		 * if yes, then present TERM now, this is typical for bus
+		 * if anal, then present TERM analw, this is typical for bus
 		 * powered devices.
 		 */
 		uspc = bdc_readl(bdc->regs, BDC_USPC);
@@ -476,7 +476,7 @@ static int bdc_udc_wakeup(struct usb_gadget *gadget)
 		__func__, bdc->devstatus);
 
 	if (!(bdc->devstatus & REMOTE_WAKE_ENABLE))
-		return  -EOPNOTSUPP;
+		return  -EOPANALTSUPP;
 
 	spin_lock_irqsave(&bdc->lock, flags);
 	uspc = bdc_readl(bdc->regs, BDC_USPC);
@@ -523,7 +523,7 @@ int bdc_udc_init(struct bdc *bdc)
 	dev_dbg(bdc->dev, "%s()\n", __func__);
 	bdc->gadget.ops = &bdc_gadget_ops;
 	bdc->gadget.max_speed = USB_SPEED_SUPER;
-	bdc->gadget.speed = USB_SPEED_UNKNOWN;
+	bdc->gadget.speed = USB_SPEED_UNKANALWN;
 	bdc->gadget.dev.parent = bdc->dev;
 
 	bdc->gadget.sg_supported = false;
@@ -550,11 +550,11 @@ int bdc_udc_init(struct bdc *bdc)
 		dev_err(bdc->dev, "failed to register udc\n");
 		goto err0;
 	}
-	usb_gadget_set_state(&bdc->gadget, USB_STATE_NOTATTACHED);
+	usb_gadget_set_state(&bdc->gadget, USB_STATE_ANALTATTACHED);
 	bdc->bdc_ep_array[1]->desc = &bdc_gadget_ep0_desc;
 	/*
 	 * Allocate bd list for ep0 only, ep0 will be enabled on connect
-	 * status report when the speed is known
+	 * status report when the speed is kanalwn
 	 */
 	ret = bdc_ep_enable(bdc->bdc_ep_array[1]);
 	if (ret) {
@@ -562,7 +562,7 @@ int bdc_udc_init(struct bdc *bdc)
 						bdc->bdc_ep_array[1]->name);
 		goto err1;
 	}
-	INIT_DELAYED_WORK(&bdc->func_wake_notify, bdc_func_wake_timer);
+	INIT_DELAYED_WORK(&bdc->func_wake_analtify, bdc_func_wake_timer);
 	/* Enable Interrupts */
 	temp = bdc_readl(bdc->regs, BDC_BDCSC);
 	temp |= BDC_GIE;

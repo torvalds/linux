@@ -22,7 +22,7 @@ struct gssp_upcall_data {
 	struct svc_cred creds;
 	int found_creds;
 	int major_status;
-	int minor_status;
+	int mianalr_status;
 };
 
 int gssp_accept_sec_context_upcall(struct net *net,

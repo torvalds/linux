@@ -35,14 +35,14 @@ u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq)
 }
 EXPORT_SYMBOL(xfrm_replay_seqhi);
 
-static void xfrm_replay_notify_bmp(struct xfrm_state *x, int event);
-static void xfrm_replay_notify_esn(struct xfrm_state *x, int event);
+static void xfrm_replay_analtify_bmp(struct xfrm_state *x, int event);
+static void xfrm_replay_analtify_esn(struct xfrm_state *x, int event);
 
-void xfrm_replay_notify(struct xfrm_state *x, int event)
+void xfrm_replay_analtify(struct xfrm_state *x, int event)
 {
 	struct km_event c;
-	/* we send notify messages in case
-	 *  1. we updated on of the sequence numbers, and the seqno difference
+	/* we send analtify messages in case
+	 *  1. we updated on of the sequence numbers, and the seqanal difference
 	 *     is at least x->replay_maxdiff, in this case we also update the
 	 *     timeout of our timer function
 	 *  2. if x->replay_maxage has elapsed since last update,
@@ -55,10 +55,10 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 	case XFRM_REPLAY_MODE_LEGACY:
 		break;
 	case XFRM_REPLAY_MODE_BMP:
-		xfrm_replay_notify_bmp(x, event);
+		xfrm_replay_analtify_bmp(x, event);
 		return;
 	case XFRM_REPLAY_MODE_ESN:
-		xfrm_replay_notify_esn(x, event);
+		xfrm_replay_analtify_esn(x, event);
 		return;
 	}
 
@@ -88,7 +88,7 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 	memcpy(&x->preplay, &x->replay, sizeof(struct xfrm_replay_state));
 	c.event = XFRM_MSG_NEWAE;
 	c.data.aevent = event;
-	km_state_notify(x, &c);
+	km_state_analtify(x, &c);
 
 	if (x->replay_maxage &&
 	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
@@ -112,7 +112,7 @@ static int __xfrm_replay_overflow(struct xfrm_state *x, struct sk_buff *skb)
 			return err;
 		}
 		if (xfrm_aevent_is_on(net))
-			xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+			xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 	}
 
 	return err;
@@ -183,7 +183,7 @@ void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 	}
 
 	if (xfrm_aevent_is_on(xs_net(x)))
-		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+		xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 }
 
 static int xfrm_replay_overflow_bmp(struct xfrm_state *x, struct sk_buff *skb)
@@ -204,7 +204,7 @@ static int xfrm_replay_overflow_bmp(struct xfrm_state *x, struct sk_buff *skb)
 			return err;
 		}
 		if (xfrm_aevent_is_on(net))
-			xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+			xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 	}
 
 	return err;
@@ -299,17 +299,17 @@ static void xfrm_replay_advance_bmp(struct xfrm_state *x, __be32 net_seq)
 	replay_esn->bmp[nr] |= (1U << bitnr);
 
 	if (xfrm_aevent_is_on(xs_net(x)))
-		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+		xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 }
 
-static void xfrm_replay_notify_bmp(struct xfrm_state *x, int event)
+static void xfrm_replay_analtify_bmp(struct xfrm_state *x, int event)
 {
 	struct km_event c;
 	struct xfrm_replay_state_esn *replay_esn = x->replay_esn;
 	struct xfrm_replay_state_esn *preplay_esn = x->preplay_esn;
 
-	/* we send notify messages in case
-	 *  1. we updated on of the sequence numbers, and the seqno difference
+	/* we send analtify messages in case
+	 *  1. we updated on of the sequence numbers, and the seqanal difference
 	 *     is at least x->replay_maxdiff, in this case we also update the
 	 *     timeout of our timer function
 	 *  2. if x->replay_maxage has elapsed since last update,
@@ -346,22 +346,22 @@ static void xfrm_replay_notify_bmp(struct xfrm_state *x, int event)
 	       xfrm_replay_state_esn_len(replay_esn));
 	c.event = XFRM_MSG_NEWAE;
 	c.data.aevent = event;
-	km_state_notify(x, &c);
+	km_state_analtify(x, &c);
 
 	if (x->replay_maxage &&
 	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
 		x->xflags &= ~XFRM_TIME_DEFER;
 }
 
-static void xfrm_replay_notify_esn(struct xfrm_state *x, int event)
+static void xfrm_replay_analtify_esn(struct xfrm_state *x, int event)
 {
 	u32 seq_diff, oseq_diff;
 	struct km_event c;
 	struct xfrm_replay_state_esn *replay_esn = x->replay_esn;
 	struct xfrm_replay_state_esn *preplay_esn = x->preplay_esn;
 
-	/* we send notify messages in case
-	 *  1. we updated on of the sequence numbers, and the seqno difference
+	/* we send analtify messages in case
+	 *  1. we updated on of the sequence numbers, and the seqanal difference
 	 *     is at least x->replay_maxdiff, in this case we also update the
 	 *     timeout of our timer function
 	 *  2. if x->replay_maxage has elapsed since last update,
@@ -412,7 +412,7 @@ static void xfrm_replay_notify_esn(struct xfrm_state *x, int event)
 	       xfrm_replay_state_esn_len(replay_esn));
 	c.event = XFRM_MSG_NEWAE;
 	c.data.aevent = event;
-	km_state_notify(x, &c);
+	km_state_analtify(x, &c);
 
 	if (x->replay_maxage &&
 	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
@@ -442,7 +442,7 @@ static int xfrm_replay_overflow_esn(struct xfrm_state *x, struct sk_buff *skb)
 			}
 		}
 		if (xfrm_aevent_is_on(net))
-			xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+			xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 	}
 
 	return err;
@@ -541,7 +541,7 @@ int xfrm_replay_recheck(struct xfrm_state *x,
 	case XFRM_REPLAY_MODE_LEGACY:
 		break;
 	case XFRM_REPLAY_MODE_BMP:
-		/* no special recheck treatment */
+		/* anal special recheck treatment */
 		return xfrm_replay_check_bmp(x, skb, net_seq);
 	case XFRM_REPLAY_MODE_ESN:
 		return xfrm_replay_recheck_esn(x, skb, net_seq);
@@ -605,7 +605,7 @@ static void xfrm_replay_advance_esn(struct xfrm_state *x, __be32 net_seq)
 	replay_esn->bmp[nr] |= (1U << bitnr);
 
 	if (xfrm_aevent_is_on(xs_net(x)))
-		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+		xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 }
 
 #ifdef CONFIG_XFRM_OFFLOAD
@@ -642,7 +642,7 @@ static int xfrm_replay_overflow_offload(struct xfrm_state *x, struct sk_buff *sk
 		x->replay.oseq = oseq;
 
 		if (xfrm_aevent_is_on(net))
-			xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+			xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 	}
 
 	return err;
@@ -682,7 +682,7 @@ static int xfrm_replay_overflow_offload_bmp(struct xfrm_state *x, struct sk_buff
 		}
 
 		if (xfrm_aevent_is_on(net))
-			xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+			xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 	}
 
 	return err;
@@ -731,7 +731,7 @@ static int xfrm_replay_overflow_offload_esn(struct xfrm_state *x, struct sk_buff
 		replay_esn->oseq = oseq;
 
 		if (xfrm_aevent_is_on(net))
-			xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+			xfrm_replay_analtify(x, XFRM_REPLAY_UPDATE);
 	}
 
 	return err;

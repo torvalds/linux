@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor resource limits function definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #ifndef __AA_RESOURCE_H
@@ -41,7 +41,7 @@ void __aa_transition_rlimits(struct aa_label *old, struct aa_label *new);
 
 static inline void aa_free_rlimit_rules(struct aa_rlimit *rlims)
 {
-	/* NOP */
+	/* ANALP */
 }
 
 #endif /* __AA_RESOURCE_H */

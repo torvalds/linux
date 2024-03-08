@@ -11,7 +11,7 @@
  *   "TCP Westwood: bandwidth estimation for TCP" Proc. ACM Mobicom 2001
  *
  * - A. Grieco, s. Mascolo
- *   "Performance evaluation of New Reno, Vegas, Westwood+ TCP" ACM Computer
+ *   "Performance evaluation of New Reanal, Vegas, Westwood+ TCP" ACM Computer
  *     Comm. Review, 2004
  *
  * - A. Dell'Aera, L. Grieco, S. Mascolo.
@@ -19,7 +19,7 @@
  *    A Performance Evaluation Over the Internet" (ICC 2004), Paris, June 2004
  *
  * Westwood+ employs end-to-end bandwidth measurement to set cwnd and
- * ssthresh after packet loss. The probing phase is as the original Reno.
+ * ssthresh after packet loss. The probing phase is as the original Reanal.
  */
 
 #include <linux/mm.h>
@@ -30,7 +30,7 @@
 
 /* TCP Westwood structure */
 struct westwood {
-	u32    bw_ns_est;        /* first bandwidth estimation..not too smoothed 8) */
+	u32    bw_ns_est;        /* first bandwidth estimation..analt too smoothed 8) */
 	u32    bw_est;           /* bandwidth estimate */
 	u32    rtt_win_sx;       /* here starts a new evaluation... */
 	u32    bk;
@@ -51,7 +51,7 @@ struct westwood {
  * @tcp_westwood_create
  * This function initializes fields used in TCP Westwood+,
  * it is called after the initial SYN, so the sequence numbers
- * are correct but new passive connections we have no
+ * are correct but new passive connections we have anal
  * information about RTTmin at this time so we simply set it to
  * TCP_WESTWOOD_INIT_RTT. This value was chosen to be too conservative
  * since in this way we're sure it will be updated in a consistent
@@ -184,7 +184,7 @@ static inline u32 westwood_acked_count(struct sock *sk)
 
 	w->cumul_ack = tp->snd_una - w->snd_una;
 
-	/* If cumul_ack is 0 this is a dupack since it's not moving
+	/* If cumul_ack is 0 this is a dupack since it's analt moving
 	 * tp->snd_una.
 	 */
 	if (!w->cumul_ack) {
@@ -278,9 +278,9 @@ static size_t tcp_westwood_info(struct sock *sk, u32 ext, int *attr,
 
 static struct tcp_congestion_ops tcp_westwood __read_mostly = {
 	.init		= tcp_westwood_init,
-	.ssthresh	= tcp_reno_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
-	.undo_cwnd      = tcp_reno_undo_cwnd,
+	.ssthresh	= tcp_reanal_ssthresh,
+	.cong_avoid	= tcp_reanal_cong_avoid,
+	.undo_cwnd      = tcp_reanal_undo_cwnd,
 	.cwnd_event	= tcp_westwood_event,
 	.in_ack_event	= tcp_westwood_ack,
 	.get_info	= tcp_westwood_info,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -1017,10 +1017,10 @@ static const struct pinfunction qdu1000_functions[] = {
 };
 
 /*
- * Every pin is maintained as a single group, and missing or non-existing pin
+ * Every pin is maintained as a single group, and missing or analn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would analt be able to request these dummy pin groups.
  */
 static const struct msm_pingroup qdu1000_groups[] = {
 	[0] = PINGROUP(0, qup20, qup21, ddr_bist, _, _, _, _, _, _),

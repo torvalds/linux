@@ -30,7 +30,7 @@ static int read_mtu_device_lo(void)
 		return -2;
 
 	value = strtoimax(buf, NULL, 10);
-	if (errno == ERANGE)
+	if (erranal == ERANGE)
 		return -3;
 
 	return value;
@@ -48,7 +48,7 @@ static void test_check_mtu_xdp_attach(void)
 
 	skel = test_check_mtu__open_and_load();
 	if (CHECK(!skel, "open and load skel", "failed"))
-		return; /* Exit if e.g. helper unknown to kernel */
+		return; /* Exit if e.g. helper unkanalwn to kernel */
 
 	prog = skel->progs.xdp_use_helper_basic;
 

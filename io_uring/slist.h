@@ -18,43 +18,43 @@
 	(list)->first = NULL;					\
 } while (0)
 
-static inline void wq_list_add_after(struct io_wq_work_node *node,
-				     struct io_wq_work_node *pos,
+static inline void wq_list_add_after(struct io_wq_work_analde *analde,
+				     struct io_wq_work_analde *pos,
 				     struct io_wq_work_list *list)
 {
-	struct io_wq_work_node *next = pos->next;
+	struct io_wq_work_analde *next = pos->next;
 
-	pos->next = node;
-	node->next = next;
+	pos->next = analde;
+	analde->next = next;
 	if (!next)
-		list->last = node;
+		list->last = analde;
 }
 
-static inline void wq_list_add_tail(struct io_wq_work_node *node,
+static inline void wq_list_add_tail(struct io_wq_work_analde *analde,
 				    struct io_wq_work_list *list)
 {
-	node->next = NULL;
+	analde->next = NULL;
 	if (!list->first) {
-		list->last = node;
-		WRITE_ONCE(list->first, node);
+		list->last = analde;
+		WRITE_ONCE(list->first, analde);
 	} else {
-		list->last->next = node;
-		list->last = node;
+		list->last->next = analde;
+		list->last = analde;
 	}
 }
 
-static inline void wq_list_add_head(struct io_wq_work_node *node,
+static inline void wq_list_add_head(struct io_wq_work_analde *analde,
 				    struct io_wq_work_list *list)
 {
-	node->next = list->first;
-	if (!node->next)
-		list->last = node;
-	WRITE_ONCE(list->first, node);
+	analde->next = list->first;
+	if (!analde->next)
+		list->last = analde;
+	WRITE_ONCE(list->first, analde);
 }
 
 static inline void wq_list_cut(struct io_wq_work_list *list,
-			       struct io_wq_work_node *last,
-			       struct io_wq_work_node *prev)
+			       struct io_wq_work_analde *last,
+			       struct io_wq_work_analde *prev)
 {
 	/* first in the list, if prev==NULL */
 	if (!prev)
@@ -68,7 +68,7 @@ static inline void wq_list_cut(struct io_wq_work_list *list,
 }
 
 static inline void __wq_list_splice(struct io_wq_work_list *list,
-				    struct io_wq_work_node *to)
+				    struct io_wq_work_analde *to)
 {
 	list->last->next = to->next;
 	to->next = list->first;
@@ -76,7 +76,7 @@ static inline void __wq_list_splice(struct io_wq_work_list *list,
 }
 
 static inline bool wq_list_splice(struct io_wq_work_list *list,
-				  struct io_wq_work_node *to)
+				  struct io_wq_work_analde *to)
 {
 	if (!wq_list_empty(list)) {
 		__wq_list_splice(list, to);
@@ -85,27 +85,27 @@ static inline bool wq_list_splice(struct io_wq_work_list *list,
 	return false;
 }
 
-static inline void wq_stack_add_head(struct io_wq_work_node *node,
-				     struct io_wq_work_node *stack)
+static inline void wq_stack_add_head(struct io_wq_work_analde *analde,
+				     struct io_wq_work_analde *stack)
 {
-	node->next = stack->next;
-	stack->next = node;
+	analde->next = stack->next;
+	stack->next = analde;
 }
 
 static inline void wq_list_del(struct io_wq_work_list *list,
-			       struct io_wq_work_node *node,
-			       struct io_wq_work_node *prev)
+			       struct io_wq_work_analde *analde,
+			       struct io_wq_work_analde *prev)
 {
-	wq_list_cut(list, node, prev);
+	wq_list_cut(list, analde, prev);
 }
 
 static inline
-struct io_wq_work_node *wq_stack_extract(struct io_wq_work_node *stack)
+struct io_wq_work_analde *wq_stack_extract(struct io_wq_work_analde *stack)
 {
-	struct io_wq_work_node *node = stack->next;
+	struct io_wq_work_analde *analde = stack->next;
 
-	stack->next = node->next;
-	return node;
+	stack->next = analde->next;
+	return analde;
 }
 
 static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)

@@ -407,7 +407,7 @@ static void rzg2l_mipi_dsi_set_display_timing(struct rzg2l_mipi_dsi *dsi,
 		delay[1] = 212;
 	}
 
-	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+	if (dsi->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS)
 		index = 0;
 	else
 		index = 1;
@@ -423,12 +423,12 @@ static int rzg2l_mipi_dsi_start_hs_clock(struct rzg2l_mipi_dsi *dsi)
 	u32 status;
 	int ret;
 
-	is_clk_cont = !(dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS);
+	is_clk_cont = !(dsi->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS);
 
 	/* Start HS clock */
 	hsclksetr = HSCLKSETR_HSCLKRUN_HS | (is_clk_cont ?
 					     HSCLKSETR_HSCLKMODE_CONT :
-					     HSCLKSETR_HSCLKMODE_NON_CONT);
+					     HSCLKSETR_HSCLKMODE_ANALN_CONT);
 	rzg2l_mipi_dsi_link_write(dsi, HSCLKSETR, hsclksetr);
 
 	if (is_clk_cont) {
@@ -442,7 +442,7 @@ static int rzg2l_mipi_dsi_start_hs_clock(struct rzg2l_mipi_dsi *dsi)
 	}
 
 	dev_dbg(dsi->dev, "Start High Speed Clock with %s clock mode",
-		is_clk_cont ? "continuous" : "non-continuous");
+		is_clk_cont ? "continuous" : "analn-continuous");
 
 	return 0;
 }
@@ -453,12 +453,12 @@ static int rzg2l_mipi_dsi_stop_hs_clock(struct rzg2l_mipi_dsi *dsi)
 	u32 status;
 	int ret;
 
-	is_clk_cont = !(dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS);
+	is_clk_cont = !(dsi->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS);
 
 	/* Stop HS clock */
 	rzg2l_mipi_dsi_link_write(dsi, HSCLKSETR,
 				  is_clk_cont ? HSCLKSETR_HSCLKMODE_CONT :
-				  HSCLKSETR_HSCLKMODE_NON_CONT);
+				  HSCLKSETR_HSCLKMODE_ANALN_CONT);
 
 	if (is_clk_cont) {
 		ret = read_poll_timeout(rzg2l_mipi_dsi_link_read, status,
@@ -480,8 +480,8 @@ static int rzg2l_mipi_dsi_start_video(struct rzg2l_mipi_dsi *dsi)
 	int ret;
 
 	/* Configuration for Blanking sequence and start video input*/
-	vich1set0r = VICH1SET0R_HFPNOLP | VICH1SET0R_HBPNOLP |
-		     VICH1SET0R_HSANOLP | VICH1SET0R_VSTART;
+	vich1set0r = VICH1SET0R_HFPANALLP | VICH1SET0R_HBPANALLP |
+		     VICH1SET0R_HSAANALLP | VICH1SET0R_VSTART;
 	rzg2l_mipi_dsi_link_write(dsi, VICH1SET0R, vich1set0r);
 
 	ret = read_poll_timeout(rzg2l_mipi_dsi_link_read, status,
@@ -628,7 +628,7 @@ static int rzg2l_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
 
-	dsi->next_bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_node,
+	dsi->next_bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_analde,
 						  1, 0);
 	if (IS_ERR(dsi->next_bridge)) {
 		ret = PTR_ERR(dsi->next_bridge);
@@ -703,12 +703,12 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dsi);
 	dsi->dev = &pdev->dev;
 
-	ret = drm_of_get_data_lanes_count_ep(dsi->dev->of_node, 1, 0, 1, 4);
+	ret = drm_of_get_data_lanes_count_ep(dsi->dev->of_analde, 1, 0, 1, 4);
 	if (ret < 0)
 		return dev_err_probe(dsi->dev, ret,
 				     "missing or invalid data-lanes property\n");
@@ -748,7 +748,7 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 
 	/*
 	 * TXSETR register can be read only after DPHY init. But during probe
-	 * mode->clock and format are not available. So initialize DPHY with
+	 * mode->clock and format are analt available. So initialize DPHY with
 	 * timing parameters for 80Mbps.
 	 */
 	ret = rzg2l_mipi_dsi_dphy_init(dsi, 80000);
@@ -762,7 +762,7 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 
 	/* Initialize the DRM bridge. */
 	dsi->bridge.funcs = &rzg2l_mipi_dsi_bridge_ops;
-	dsi->bridge.of_node = dsi->dev->of_node;
+	dsi->bridge.of_analde = dsi->dev->of_analde;
 
 	/* Init host device */
 	dsi->host.dev = dsi->dev;

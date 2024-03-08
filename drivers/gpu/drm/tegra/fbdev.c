@@ -127,7 +127,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 				 pgprot_writecombine(PAGE_KERNEL));
 		if (!bo->vaddr) {
 			dev_err(drm->dev, "failed to vmap() framebuffer\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto destroy;
 		}
 	}
@@ -214,7 +214,7 @@ void tegra_fbdev_setup(struct drm_device *dev)
 	struct drm_fb_helper *helper;
 	int ret;
 
-	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, !dev->registered, "Device has analt been registered.\n");
 	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
 	helper = kzalloc(sizeof(*helper), GFP_KERNEL);

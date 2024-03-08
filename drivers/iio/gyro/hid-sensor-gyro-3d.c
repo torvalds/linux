@@ -287,7 +287,7 @@ static int hid_gyro_3d_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*gyro_state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, indio_dev);
 
 	gyro_state = iio_priv(indio_dev);
@@ -308,7 +308,7 @@ static int hid_gyro_3d_probe(struct platform_device *pdev)
 					   sizeof(gyro_3d_channels), GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = gyro_3d_parse_report(pdev, hsdev,

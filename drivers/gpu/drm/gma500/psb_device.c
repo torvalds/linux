@@ -50,8 +50,8 @@ static int psb_backlight_setup(struct drm_device *dev)
 
 	/* get bl_max_freq and pol from dev_priv*/
 	if (!dev_priv->lvds_bl) {
-		dev_err(dev->dev, "Has no valid LVDS backlight info\n");
-		return -ENOENT;
+		dev_err(dev->dev, "Has anal valid LVDS backlight info\n");
+		return -EANALENT;
 	}
 	bl_max_freq = dev_priv->lvds_bl->freq;
 	blc_pwm_precision_factor = PSB_BLC_PWM_PRECISION_FACTOR;
@@ -216,7 +216,7 @@ static const struct psb_offset psb_regmap[2] = {
 		.surf = DSPASURF,
 		.addr = DSPABASE,
 		.status = PIPEASTAT,
-		.linoff = DSPALINOFF,
+		.lianalff = DSPALIANALFF,
 		.tileoff = DSPATILEOFF,
 		.palette = PALETTE_A,
 	},
@@ -240,7 +240,7 @@ static const struct psb_offset psb_regmap[2] = {
 		.surf = DSPBSURF,
 		.addr = DSPBBASE,
 		.status = PIPEBSTAT,
-		.linoff = DSPBLINOFF,
+		.lianalff = DSPBLIANALFF,
 		.tileoff = DSPBTILEOFF,
 		.palette = PALETTE_B,
 	}

@@ -51,7 +51,7 @@ static int mdev_device_remove_cb(struct device *dev, void *data)
  * @nr_types: Number of entries in @types
  *
  * Registers the @parent stucture as a parent for mdev types and thus mdev
- * devices.  The caller needs to hold a reference on @dev that must not be
+ * devices.  The caller needs to hold a reference on @dev that must analt be
  * released until after the call to mdev_unregister_parent().
  *
  * Returns a negative value on error, otherwise 0.
@@ -144,7 +144,7 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 
 	if (!drv->get_available) {
 		/*
-		 * Note: that non-atomic read and dec is fine here because
+		 * Analte: that analn-atomic read and dec is fine here because
 		 * all modifications are under mdev_list_lock.
 		 */
 		if (!atomic_read(&parent->available_instances)) {
@@ -157,7 +157,7 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
 		mutex_unlock(&mdev_list_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	device_initialize(&mdev->dev);
@@ -179,7 +179,7 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 
 	/* Check if parent unregistration has started */
 	if (!down_read_trylock(&parent->unreg_sem)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_put_device;
 	}
 
@@ -223,7 +223,7 @@ int mdev_device_remove(struct mdev_device *mdev)
 
 	if (tmp != mdev) {
 		mutex_unlock(&mdev_list_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!mdev->active) {
@@ -236,7 +236,7 @@ int mdev_device_remove(struct mdev_device *mdev)
 
 	/* Check if parent unregistration has started */
 	if (!down_read_trylock(&parent->unreg_sem))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mdev_device_remove_common(mdev);
 	up_read(&parent->unreg_sem);
@@ -254,7 +254,7 @@ static int __init mdev_init(void)
 	mdev_bus_compat_class = class_compat_register("mdev_bus");
 	if (!mdev_bus_compat_class) {
 		bus_unregister(&mdev_bus_type);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

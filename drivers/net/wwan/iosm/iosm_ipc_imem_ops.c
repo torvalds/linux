@@ -84,7 +84,7 @@ int ipc_imem_wwan_channel_init(struct iosm_imem *ipc_imem,
 
 	ipc_imem->cp_version = ipc_mmio_get_cp_version(ipc_imem->mmio);
 
-	/* If modem version is invalid (0xffffffff), do not initialize WWAN. */
+	/* If modem version is invalid (0xffffffff), do analt initialize WWAN. */
 	if (ipc_imem->cp_version == -1) {
 		dev_err(ipc_imem->dev, "invalid CP version");
 		return -EIO;
@@ -107,7 +107,7 @@ int ipc_imem_wwan_channel_init(struct iosm_imem *ipc_imem,
 	if (!ipc_imem->wwan) {
 		dev_err(ipc_imem->dev,
 			"failed to register the ipc_wwan interfaces");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -169,7 +169,7 @@ static bool ipc_imem_is_channel_active(struct iosm_imem *ipc_imem,
 		goto channel_available;
 
 	default:
-		/* Ignore uplink actions in all other phases. */
+		/* Iganalre uplink actions in all other phases. */
 		dev_err(ipc_imem->dev, "ch[%d]: confused phase %d",
 			channel->channel_id, phase);
 		goto channel_unavailable;
@@ -203,11 +203,11 @@ void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
 	curr_phase = ipc_imem->phase;
 
 	/* If current phase is IPC_P_OFF or SIO ID is -ve then
-	 * channel is already freed. Nothing to do.
+	 * channel is already freed. Analthing to do.
 	 */
 	if (curr_phase == IPC_P_OFF) {
 		dev_err(ipc_imem->dev,
-			"nothing to do. Current Phase: %s",
+			"analthing to do. Current Phase: %s",
 			ipc_imem_phase_get_string(curr_phase));
 		return;
 	}
@@ -222,7 +222,7 @@ void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
 	 * closing pipe.
 	 */
 	if (channel->ul_pipe.old_tail != channel->ul_pipe.old_head) {
-		ipc_imem->app_notify_ul_pend = 1;
+		ipc_imem->app_analtify_ul_pend = 1;
 
 		/* Suspend the user app and wait a certain time for processing
 		 * UL Data.
@@ -238,7 +238,7 @@ void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
 				channel->ul_pipe.old_tail);
 		}
 
-		ipc_imem->app_notify_ul_pend = 0;
+		ipc_imem->app_analtify_ul_pend = 0;
 	}
 
 	/* If there are any pending TDs then wait for Timeout/Completion before
@@ -248,7 +248,7 @@ void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
 					 &channel->dl_pipe, NULL, &tail);
 
 	if (tail != channel->dl_pipe.old_tail) {
-		ipc_imem->app_notify_dl_pend = 1;
+		ipc_imem->app_analtify_dl_pend = 1;
 
 		/* Suspend the user app and wait a certain time for processing
 		 * DL Data.
@@ -264,7 +264,7 @@ void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
 				channel->dl_pipe.old_tail);
 		}
 
-		ipc_imem->app_notify_dl_pend = 0;
+		ipc_imem->app_analtify_dl_pend = 0;
 	}
 
 	/* Due to wait for completion in messages, there is a small window
@@ -462,7 +462,7 @@ void ipc_imem_sys_devlink_close(struct iosm_devlink *ipc_devlink)
 	ipc_imem->nr_of_channels--;
 }
 
-void ipc_imem_sys_devlink_notify_rx(struct iosm_devlink *ipc_devlink,
+void ipc_imem_sys_devlink_analtify_rx(struct iosm_devlink *ipc_devlink,
 				    struct sk_buff *skb)
 {
 	skb_queue_tail(&ipc_devlink->devlink_sio.rx_list, skb);
@@ -524,7 +524,7 @@ static int ipc_imem_sys_psi_transfer(struct iosm_imem *ipc_imem,
 	} while (psi_start_timeout > 0);
 
 	if (exec_stage != IPC_MEM_EXEC_STAGE_PSI)
-		goto psi_transfer_fail; /* Unknown status of CP PSI process. */
+		goto psi_transfer_fail; /* Unkanalwn status of CP PSI process. */
 
 	ipc_imem->phase = IPC_P_PSI;
 
@@ -547,7 +547,7 @@ static int ipc_imem_sys_psi_transfer(struct iosm_imem *ipc_imem,
 	if (ipc_mmio_get_ipc_state(ipc_imem->mmio) !=
 			IPC_MEM_DEVICE_IPC_RUNNING) {
 		dev_err(ipc_imem->dev,
-			"ch[%d] %s: unexpected CP IPC state %d, not RUNNING",
+			"ch[%d] %s: unexpected CP IPC state %d, analt RUNNING",
 			channel->channel_id,
 			ipc_imem_phase_get_string(ipc_imem->phase),
 			ipc_mmio_get_ipc_state(ipc_imem->mmio));
@@ -598,7 +598,7 @@ int ipc_imem_sys_devlink_write(struct iosm_devlink *ipc_devlink,
 	skb = ipc_pcie_alloc_skb(ipc_devlink->pcie, count, GFP_KERNEL, &mapping,
 				 DMA_TO_DEVICE, 0);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -615,7 +615,7 @@ int ipc_imem_sys_devlink_write(struct iosm_devlink *ipc_devlink,
 
 		if (ret < 0) {
 			dev_err(ipc_imem->dev,
-				"ch[%d] no CP confirmation, status = %d",
+				"ch[%d] anal CP confirmation, status = %d",
 				channel->channel_id, ret);
 			ipc_pcie_kfree_skb(ipc_devlink->pcie, skb);
 			goto out;

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -123,10 +123,10 @@ static void ath_dynack_set_timeout(struct ath_hw *ah, int to)
 static void ath_dynack_compute_ackto(struct ath_hw *ah)
 {
 	struct ath_dynack *da = &ah->dynack;
-	struct ath_node *an;
+	struct ath_analde *an;
 	int to = 0;
 
-	list_for_each_entry(an, &da->nodes, list)
+	list_for_each_entry(an, &da->analdes, list)
 		if (an->ackto > to)
 			to = an->ackto;
 
@@ -148,7 +148,7 @@ static void ath_dynack_compute_to(struct ath_hw *ah)
 	u32 ackto, ack_ts, max_to;
 	struct ieee80211_sta *sta;
 	struct ts_info *st_ts;
-	struct ath_node *an;
+	struct ath_analde *an;
 	u8 *dst, *src;
 
 	rcu_read_lock();
@@ -173,7 +173,7 @@ static void ath_dynack_compute_to(struct ath_hw *ah)
 				sta = ieee80211_find_sta_by_ifaddr(ah->hw, dst,
 								   src);
 				if (sta) {
-					an = (struct ath_node *)sta->drv_priv;
+					an = (struct ath_analde *)sta->drv_priv;
 					an->ackto = ath_dynack_ewma(an->ackto,
 								    ackto);
 					ath_dbg(ath9k_hw_common(ah), DYNACK,
@@ -214,7 +214,7 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 	u32 dur = ts->duration;
 	u8 ridx;
 
-	if (!da->enabled || (info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!da->enabled || (info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 		return;
 
 	spin_lock_bh(&da->qlock);
@@ -231,9 +231,9 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 			ath_dbg(common, DYNACK, "late ack\n");
 			ath_dynack_set_timeout(ah, max_to);
 			if (sta) {
-				struct ath_node *an;
+				struct ath_analde *an;
 
-				an = (struct ath_node *)sta->drv_priv;
+				an = (struct ath_analde *)sta->drv_priv;
 				an->ackto = -1;
 			}
 			da->lto = jiffies + LATEACK_DELAY;
@@ -317,30 +317,30 @@ void ath_dynack_sample_ack_ts(struct ath_hw *ah, struct sk_buff *skb,
 EXPORT_SYMBOL(ath_dynack_sample_ack_ts);
 
 /**
- * ath_dynack_node_init - init ath_node related info
+ * ath_dynack_analde_init - init ath_analde related info
  * @ah: ath hw
- * @an: ath node
+ * @an: ath analde
  *
  */
-void ath_dynack_node_init(struct ath_hw *ah, struct ath_node *an)
+void ath_dynack_analde_init(struct ath_hw *ah, struct ath_analde *an)
 {
 	struct ath_dynack *da = &ah->dynack;
 
 	an->ackto = da->ackto;
 
 	spin_lock_bh(&da->qlock);
-	list_add_tail(&an->list, &da->nodes);
+	list_add_tail(&an->list, &da->analdes);
 	spin_unlock_bh(&da->qlock);
 }
-EXPORT_SYMBOL(ath_dynack_node_init);
+EXPORT_SYMBOL(ath_dynack_analde_init);
 
 /**
- * ath_dynack_node_deinit - deinit ath_node related info
+ * ath_dynack_analde_deinit - deinit ath_analde related info
  * @ah: ath hw
- * @an: ath node
+ * @an: ath analde
  *
  */
-void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an)
+void ath_dynack_analde_deinit(struct ath_hw *ah, struct ath_analde *an)
 {
 	struct ath_dynack *da = &ah->dynack;
 
@@ -348,7 +348,7 @@ void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an)
 	list_del(&an->list);
 	spin_unlock_bh(&da->qlock);
 }
-EXPORT_SYMBOL(ath_dynack_node_deinit);
+EXPORT_SYMBOL(ath_dynack_analde_deinit);
 
 /**
  * ath_dynack_reset - reset dynack processing
@@ -358,7 +358,7 @@ EXPORT_SYMBOL(ath_dynack_node_deinit);
 void ath_dynack_reset(struct ath_hw *ah)
 {
 	struct ath_dynack *da = &ah->dynack;
-	struct ath_node *an;
+	struct ath_analde *an;
 
 	spin_lock_bh(&da->qlock);
 
@@ -370,7 +370,7 @@ void ath_dynack_reset(struct ath_hw *ah)
 	da->ack_rbf.h_rb = 0;
 
 	da->ackto = ath_dynack_get_max_to(ah);
-	list_for_each_entry(an, &da->nodes, list)
+	list_for_each_entry(an, &da->analdes, list)
 		an->ackto = da->ackto;
 
 	/* init acktimeout */
@@ -392,7 +392,7 @@ void ath_dynack_init(struct ath_hw *ah)
 	memset(da, 0, sizeof(struct ath_dynack));
 
 	spin_lock_init(&da->qlock);
-	INIT_LIST_HEAD(&da->nodes);
+	INIT_LIST_HEAD(&da->analdes);
 	/* ackto = slottime + sifs + air delay */
 	da->ackto = 9 + 16 + 64;
 

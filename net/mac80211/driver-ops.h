@@ -365,7 +365,7 @@ static inline void drv_sw_scan_complete(struct ieee80211_local *local,
 static inline int drv_get_stats(struct ieee80211_local *local,
 				struct ieee80211_low_level_stats *stats)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -427,24 +427,24 @@ static inline int drv_set_coverage_class(struct ieee80211_local *local,
 	if (local->ops->set_coverage_class)
 		local->ops->set_coverage_class(&local->hw, value);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 	trace_drv_return_int(local, ret);
 	return ret;
 }
 
-static inline void drv_sta_notify(struct ieee80211_local *local,
+static inline void drv_sta_analtify(struct ieee80211_local *local,
 				  struct ieee80211_sub_if_data *sdata,
-				  enum sta_notify_cmd cmd,
+				  enum sta_analtify_cmd cmd,
 				  struct ieee80211_sta *sta)
 {
 	sdata = get_bss_sdata(sdata);
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_sta_notify(local, sdata, cmd, sta);
-	if (local->ops->sta_notify)
-		local->ops->sta_notify(&local->hw, &sdata->vif, cmd, sta);
+	trace_drv_sta_analtify(local, sdata, cmd, sta);
+	if (local->ops->sta_analtify)
+		local->ops->sta_analtify(&local->hw, &sdata->vif, cmd, sta);
 	trace_drv_return_void(local);
 }
 
@@ -667,7 +667,7 @@ int drv_ampdu_action(struct ieee80211_local *local,
 static inline int drv_get_survey(struct ieee80211_local *local, int idx,
 				struct survey_info *survey)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -746,7 +746,7 @@ static inline void drv_channel_switch(struct ieee80211_local *local,
 static inline int drv_set_antenna(struct ieee80211_local *local,
 				  u32 tx_ant, u32 rx_ant)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
 	if (local->ops->set_antenna)
@@ -758,7 +758,7 @@ static inline int drv_set_antenna(struct ieee80211_local *local,
 static inline int drv_get_antenna(struct ieee80211_local *local,
 				  u32 *tx_ant, u32 *rx_ant)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
 	if (local->ops->get_antenna)
@@ -805,7 +805,7 @@ drv_cancel_remain_on_channel(struct ieee80211_local *local,
 static inline int drv_set_ringparam(struct ieee80211_local *local,
 				    u32 tx, u32 rx)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -849,7 +849,7 @@ static inline int drv_set_bitrate_mask(struct ieee80211_local *local,
 				       struct ieee80211_sub_if_data *sdata,
 				       const struct cfg80211_bitrate_mask *mask)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -983,7 +983,7 @@ drv_mgd_protect_tdls_discover(struct ieee80211_local *local,
 static inline int drv_add_chanctx(struct ieee80211_local *local,
 				  struct ieee80211_chanctx *ctx)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -1267,7 +1267,7 @@ static inline int drv_get_txpower(struct ieee80211_local *local,
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!local->ops->get_txpower)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = local->ops->get_txpower(&local->hw, &sdata->vif, dbm);
 	trace_drv_get_txpower(local, sdata, *dbm, ret);
@@ -1290,7 +1290,7 @@ drv_tdls_channel_switch(struct ieee80211_local *local,
 		return -EIO;
 
 	if (!local->ops->tdls_channel_switch)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_drv_tdls_channel_switch(local, sdata, sta, oper_class, chandef);
 	ret = local->ops->tdls_channel_switch(&local->hw, &sdata->vif, sta,
@@ -1335,7 +1335,7 @@ static inline void drv_wake_tx_queue(struct ieee80211_local *local,
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(txq->txq.vif);
 
-	/* In reconfig don't transmit now, but mark for waking later */
+	/* In reconfig don't transmit analw, but mark for waking later */
 	if (local->in_reconfig) {
 		set_bit(IEEE80211_TXQ_DIRTY, &txq->flags);
 		return;
@@ -1370,7 +1370,7 @@ drv_get_ftm_responder_stats(struct ieee80211_local *local,
 			    struct ieee80211_sub_if_data *sdata,
 			    struct cfg80211_ftm_responder_stats *ftm_stats)
 {
-	u32 ret = -EOPNOTSUPP;
+	u32 ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -1390,7 +1390,7 @@ static inline int drv_start_pmsr(struct ieee80211_local *local,
 				 struct ieee80211_sub_if_data *sdata,
 				 struct cfg80211_pmsr_request *request)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -1462,7 +1462,7 @@ static inline int drv_nan_change_conf(struct ieee80211_local *local,
 	check_sdata_in_driver(sdata);
 
 	if (!local->ops->nan_change_conf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_drv_nan_change_conf(local, sdata, conf, changes);
 	ret = local->ops->nan_change_conf(&local->hw, &sdata->vif, conf,
@@ -1483,7 +1483,7 @@ static inline int drv_add_nan_func(struct ieee80211_local *local,
 	check_sdata_in_driver(sdata);
 
 	if (!local->ops->add_nan_func)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_drv_add_nan_func(local, sdata, nan_func);
 	ret = local->ops->add_nan_func(&local->hw, &sdata->vif, nan_func);
@@ -1631,7 +1631,7 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
 					    struct net_device_path_ctx *ctx,
 					    struct net_device_path *path)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	sdata = get_bss_sdata(sdata);
 	if (!check_sdata_in_driver(sdata))
@@ -1652,7 +1652,7 @@ static inline int drv_net_setup_tc(struct ieee80211_local *local,
 				   struct net_device *dev,
 				   enum tc_setup_type type, void *type_data)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 

@@ -37,15 +37,15 @@ static const struct fb_videomode modedb[] = {
 
 	/* 640x400 @ 70 Hz, 31.5 kHz hsync */
 	{ NULL, 70, 640, 400, 39721, 40, 24, 39, 9, 96, 2, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 640x480 @ 60 Hz, 31.5 kHz hsync */
 	{ NULL, 60, 640, 480, 39721, 40, 24, 32, 11, 96, 2,	0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 800x600 @ 56 Hz, 35.15 kHz hsync */
 	{ NULL, 56, 800, 600, 27777, 128, 24, 22, 1, 72, 2,	0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1024x768 @ 87 Hz interlaced, 35.5 kHz hsync */
 	{ NULL, 87, 1024, 768, 22271, 56, 24, 33, 8, 160, 8, 0,
@@ -53,24 +53,24 @@ static const struct fb_videomode modedb[] = {
 
 	/* 640x400 @ 85 Hz, 37.86 kHz hsync */
 	{ NULL, 85, 640, 400, 31746, 96, 32, 41, 1, 64, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED },
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED },
 
 	/* 640x480 @ 72 Hz, 36.5 kHz hsync */
 	{ NULL, 72, 640, 480, 31746, 144, 40, 30, 8, 40, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 640x480 @ 75 Hz, 37.50 kHz hsync */
 	{ NULL, 75, 640, 480, 31746, 120, 16, 16, 1, 64, 3,	0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 800x600 @ 60 Hz, 37.8 kHz hsync */
 	{ NULL, 60, 800, 600, 25000, 88, 40, 23, 1, 128, 4,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 640x480 @ 85 Hz, 43.27 kHz hsync */
 	{ NULL, 85, 640, 480, 27777, 80, 56, 25, 1, 56, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1152x864 @ 89 Hz interlaced, 44 kHz hsync */
 	{ NULL, 89, 1152, 864, 15384, 96, 16, 110, 1, 216, 10, 0,
@@ -78,27 +78,27 @@ static const struct fb_videomode modedb[] = {
 	/* 800x600 @ 72 Hz, 48.0 kHz hsync */
 	{ NULL, 72, 800, 600, 20000, 64, 56, 23, 37, 120, 6,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1024x768 @ 60 Hz, 48.4 kHz hsync */
 	{ NULL, 60, 1024, 768, 15384, 168, 8, 29, 3, 144, 6, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 640x480 @ 100 Hz, 53.01 kHz hsync */
 	{ NULL, 100, 640, 480, 21834, 96, 32, 36, 8, 96, 6,	0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1152x864 @ 60 Hz, 53.5 kHz hsync */
 	{ NULL, 60, 1152, 864, 11123, 208, 64, 16, 4, 256, 8, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 800x600 @ 85 Hz, 55.84 kHz hsync */
 	{ NULL, 85, 800, 600, 16460, 160, 64, 36, 16, 64, 5, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1024x768 @ 70 Hz, 56.5 kHz hsync */
 	{ NULL, 70, 1024, 768, 13333, 144, 24, 29, 3, 136, 6, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1280x1024 @ 87 Hz interlaced, 51 kHz hsync */
 	{ NULL, 87, 1280, 1024, 12500, 56, 16, 128, 1, 216, 12,	0,
@@ -106,116 +106,116 @@ static const struct fb_videomode modedb[] = {
 
 	/* 800x600 @ 100 Hz, 64.02 kHz hsync */
 	{ NULL, 100, 800, 600, 14357, 160, 64, 30, 4, 64, 6, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1024x768 @ 76 Hz, 62.5 kHz hsync */
 	{ NULL, 76, 1024, 768, 11764, 208, 8, 36, 16, 120, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1152x864 @ 70 Hz, 62.4 kHz hsync */
 	{ NULL, 70, 1152, 864, 10869, 106, 56, 20, 1, 160, 10, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1280x1024 @ 61 Hz, 64.2 kHz hsync */
 	{ NULL, 61, 1280, 1024, 9090, 200, 48, 26, 1, 184, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1400x1050 @ 60Hz, 63.9 kHz hsync */
 	{ NULL, 60, 1400, 1050, 9259, 136, 40, 13, 1, 112, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1400x1050 @ 75,107 Hz, 82,392 kHz +hsync +vsync*/
 	{ NULL, 75, 1400, 1050, 7190, 120, 56, 23, 10, 112, 13,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1400x1050 @ 60 Hz, ? kHz +hsync +vsync*/
 	{ NULL, 60, 1400, 1050, 9259, 128, 40, 12, 0, 112, 3,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1024x768 @ 85 Hz, 70.24 kHz hsync */
 	{ NULL, 85, 1024, 768, 10111, 192, 32, 34, 14, 160, 6, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1152x864 @ 78 Hz, 70.8 kHz hsync */
 	{ NULL, 78, 1152, 864, 9090, 228, 88, 32, 0, 84, 12, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1280x1024 @ 70 Hz, 74.59 kHz hsync */
 	{ NULL, 70, 1280, 1024, 7905, 224, 32, 28, 8, 160, 8, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1600x1200 @ 60Hz, 75.00 kHz hsync */
 	{ NULL, 60, 1600, 1200, 6172, 304, 64, 46, 1, 192, 3,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1152x864 @ 84 Hz, 76.0 kHz hsync */
 	{ NULL, 84, 1152, 864, 7407, 184, 312, 32, 0, 128, 12, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1280x1024 @ 74 Hz, 78.85 kHz hsync */
 	{ NULL, 74, 1280, 1024, 7407, 256, 32, 34, 3, 144, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1024x768 @ 100Hz, 80.21 kHz hsync */
 	{ NULL, 100, 1024, 768, 8658, 192, 32, 21, 3, 192, 10, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1280x1024 @ 76 Hz, 81.13 kHz hsync */
 	{ NULL, 76, 1280, 1024, 7407, 248, 32, 34, 3, 104, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1600x1200 @ 70 Hz, 87.50 kHz hsync */
 	{ NULL, 70, 1600, 1200, 5291, 304, 64, 46, 1, 192, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1152x864 @ 100 Hz, 89.62 kHz hsync */
 	{ NULL, 100, 1152, 864, 7264, 224, 32, 17, 2, 128, 19, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1280x1024 @ 85 Hz, 91.15 kHz hsync */
 	{ NULL, 85, 1280, 1024, 6349, 224, 64, 44, 1, 160, 3,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1600x1200 @ 75 Hz, 93.75 kHz hsync */
 	{ NULL, 75, 1600, 1200, 4938, 304, 64, 46, 1, 192, 3,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1680x1050 @ 60 Hz, 65.191 kHz hsync */
 	{ NULL, 60, 1680, 1050, 6848, 280, 104, 30, 3, 176, 6,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1600x1200 @ 85 Hz, 105.77 kHz hsync */
 	{ NULL, 85, 1600, 1200, 4545, 272, 16, 37, 4, 192, 3,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1280x1024 @ 100 Hz, 107.16 kHz hsync */
 	{ NULL, 100, 1280, 1024, 5502, 256, 32, 26, 7, 128, 15, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1800x1440 @ 64Hz, 96.15 kHz hsync  */
 	{ NULL, 64, 1800, 1440, 4347, 304, 96, 46, 1, 192, 3,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1800x1440 @ 70Hz, 104.52 kHz hsync  */
 	{ NULL, 70, 1800, 1440, 4000, 304, 96, 46, 1, 192, 3,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 512x384 @ 78 Hz, 31.50 kHz hsync */
 	{ NULL, 78, 512, 384, 49603, 48, 16, 16, 1, 64, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 512x384 @ 85 Hz, 34.38 kHz hsync */
 	{ NULL, 85, 512, 384, 45454, 48, 16, 16, 1, 64, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 320x200 @ 70 Hz, 31.5 kHz hsync, 8:5 aspect ratio */
 	{ NULL, 70, 320, 200, 79440, 16, 16, 20, 4, 48, 1, 0,
@@ -260,25 +260,25 @@ static const struct fb_videomode modedb[] = {
 	/* 1920x1080 @ 60 Hz, 67.3 kHz hsync */
 	{ NULL, 60, 1920, 1080, 6734, 148, 88, 36, 4, 44, 5, 0,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1920x1200 @ 60 Hz, 74.5 Khz hsync */
 	{ NULL, 60, 1920, 1200, 5177, 128, 336, 1, 38, 208, 3,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1152x768, 60 Hz, PowerBook G4 Titanium I and II */
 	{ NULL, 60, 1152, 768, 14047, 158, 26, 29, 3, 136, 6,
 		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1366x768, 60 Hz, 47.403 kHz hsync, WXGA 16:9 aspect ratio */
 	{ NULL, 60, 1366, 768, 13806, 120, 10, 14, 3, 32, 5, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 1280x800, 60 Hz, 47.403 kHz hsync, WXGA 16:10 aspect ratio */
 	{ NULL, 60, 1280, 800, 12048, 200, 64, 24, 1, 136, 3, 0,
-		FB_VMODE_NONINTERLACED },
+		FB_VMODE_ANALNINTERLACED },
 
 	/* 720x576i @ 50 Hz, 15.625 kHz hsync (PAL RGB) */
 	{ NULL, 50, 720, 576, 74074, 64, 16, 39, 5, 64, 5, 0,
@@ -290,159 +290,159 @@ static const struct fb_videomode modedb[] = {
 
 	/* 864x480 @ 60 Hz, 35.15 kHz hsync */
 	{ NULL, 60, 864, 480, 27777, 1, 1, 1, 1, 0, 0,
-		0, FB_VMODE_NONINTERLACED },
+		0, FB_VMODE_ANALNINTERLACED },
 };
 
 #ifdef CONFIG_FB_MODE_HELPERS
 const struct fb_videomode vesa_modes[] = {
 	/* 0 640x350-85 VESA */
 	{ NULL, 85, 640, 350, 31746,  96, 32, 60, 32, 64, 3,
-	  FB_SYNC_HOR_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA},
+	  FB_SYNC_HOR_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA},
 	/* 1 640x400-85 VESA */
 	{ NULL, 85, 640, 400, 31746,  96, 32, 41, 01, 64, 3,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 2 720x400-85 VESA */
 	{ NULL, 85, 721, 400, 28169, 108, 36, 42, 01, 72, 3,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 3 640x480-60 VESA */
 	{ NULL, 60, 640, 480, 39682,  48, 16, 33, 10, 96, 2,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 4 640x480-72 VESA */
 	{ NULL, 72, 640, 480, 31746, 128, 24, 29, 9, 40, 2,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 5 640x480-75 VESA */
 	{ NULL, 75, 640, 480, 31746, 120, 16, 16, 01, 64, 3,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 6 640x480-85 VESA */
 	{ NULL, 85, 640, 480, 27777, 80, 56, 25, 01, 56, 3,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 7 800x600-56 VESA */
 	{ NULL, 56, 800, 600, 27777, 128, 24, 22, 01, 72, 2,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 8 800x600-60 VESA */
 	{ NULL, 60, 800, 600, 25000, 88, 40, 23, 01, 128, 4,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 9 800x600-72 VESA */
 	{ NULL, 72, 800, 600, 20000, 64, 56, 23, 37, 120, 6,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 10 800x600-75 VESA */
 	{ NULL, 75, 800, 600, 20202, 160, 16, 21, 01, 80, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 11 800x600-85 VESA */
 	{ NULL, 85, 800, 600, 17761, 152, 32, 27, 01, 64, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
         /* 12 1024x768i-43 VESA */
 	{ NULL, 43, 1024, 768, 22271, 56, 8, 41, 0, 176, 8,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	  FB_VMODE_INTERLACED, FB_MODE_IS_VESA },
 	/* 13 1024x768-60 VESA */
 	{ NULL, 60, 1024, 768, 15384, 160, 24, 29, 3, 136, 6,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 14 1024x768-70 VESA */
 	{ NULL, 70, 1024, 768, 13333, 144, 24, 29, 3, 136, 6,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 15 1024x768-75 VESA */
 	{ NULL, 75, 1024, 768, 12690, 176, 16, 28, 1, 96, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 16 1024x768-85 VESA */
 	{ NULL, 85, 1024, 768, 10582, 208, 48, 36, 1, 96, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 17 1152x864-75 VESA */
 	{ NULL, 75, 1152, 864, 9259, 256, 64, 32, 1, 128, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 18 1280x960-60 VESA */
 	{ NULL, 60, 1280, 960, 9259, 312, 96, 36, 1, 112, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 19 1280x960-85 VESA */
 	{ NULL, 85, 1280, 960, 6734, 224, 64, 47, 1, 160, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 20 1280x1024-60 VESA */
 	{ NULL, 60, 1280, 1024, 9259, 248, 48, 38, 1, 112, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 21 1280x1024-75 VESA */
 	{ NULL, 75, 1280, 1024, 7407, 248, 16, 38, 1, 144, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 22 1280x1024-85 VESA */
 	{ NULL, 85, 1280, 1024, 6349, 224, 64, 44, 1, 160, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 23 1600x1200-60 VESA */
 	{ NULL, 60, 1600, 1200, 6172, 304, 64, 46, 1, 192, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 24 1600x1200-65 VESA */
 	{ NULL, 65, 1600, 1200, 5698, 304,  64, 46, 1, 192, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 25 1600x1200-70 VESA */
 	{ NULL, 70, 1600, 1200, 5291, 304, 64, 46, 1, 192, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 26 1600x1200-75 VESA */
 	{ NULL, 75, 1600, 1200, 4938, 304, 64, 46, 1, 192, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 27 1600x1200-85 VESA */
 	{ NULL, 85, 1600, 1200, 4357, 304, 64, 46, 1, 192, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 28 1792x1344-60 VESA */
 	{ NULL, 60, 1792, 1344, 4882, 328, 128, 46, 1, 200, 3,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 29 1792x1344-75 VESA */
 	{ NULL, 75, 1792, 1344, 3831, 352, 96, 69, 1, 216, 3,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 30 1856x1392-60 VESA */
 	{ NULL, 60, 1856, 1392, 4580, 352, 96, 43, 1, 224, 3,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 31 1856x1392-75 VESA */
 	{ NULL, 75, 1856, 1392, 3472, 352, 128, 104, 1, 224, 3,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 32 1920x1440-60 VESA */
 	{ NULL, 60, 1920, 1440, 4273, 344, 128, 56, 1, 200, 3,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 33 1920x1440-75 VESA */
 	{ NULL, 75, 1920, 1440, 3367, 352, 144, 56, 1, 224, 3,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 34 1920x1200-60 RB VESA */
 	{ NULL, 60, 1920, 1200, 6493, 80, 48, 26, 3, 32, 6,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 35 1920x1200-60 VESA */
 	{ NULL, 60, 1920, 1200, 5174, 336, 136, 36, 3, 200, 6,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 36 1920x1200-75 VESA */
 	{ NULL, 75, 1920, 1200, 4077, 344, 136, 46, 3, 208, 6,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 37 1920x1200-85 VESA */
 	{ NULL, 85, 1920, 1200, 3555, 352, 144, 53, 3, 208, 6,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 38 2560x1600-60 RB VESA */
 	{ NULL, 60, 2560, 1600, 3724, 80, 48, 37, 3, 32, 6,
-	  FB_SYNC_HOR_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_HOR_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 39 2560x1600-60 VESA */
 	{ NULL, 60, 2560, 1600, 2869, 472, 192, 49, 3, 280, 6,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 40 2560x1600-75 VESA */
 	{ NULL, 75, 2560, 1600, 2256, 488, 208, 63, 3, 280, 6,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 41 2560x1600-85 VESA */
 	{ NULL, 85, 2560, 1600, 1979, 488, 208, 73, 3, 280, 6,
-	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 42 2560x1600-120 RB VESA */
 	{ NULL, 120, 2560, 1600, 1809, 80, 48, 85, 3, 32, 6,
-	  FB_SYNC_HOR_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_SYNC_HOR_HIGH_ACT, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 };
 EXPORT_SYMBOL(vesa_modes);
 
@@ -550,7 +550,7 @@ static int fb_try_mode(struct fb_var_screeninfo *var, struct fb_info *info,
 	int err = 0;
 
 	DPRINTK("Trying mode %s %dx%d-%d@%d\n",
-		mode->name ? mode->name : "noname",
+		mode->name ? mode->name : "analname",
 		mode->xres, mode->yres, bpp, mode->refresh);
 	var->xres = mode->xres;
 	var->yres = mode->yres;
@@ -611,11 +611,11 @@ static int fb_try_mode(struct fb_var_screeninfo *var, struct fb_info *info,
  *
  *     1024x768MR-8@60m - Reduced blank with margins at 60Hz.
  *
- * NOTE: The passed struct @var is _not_ cleared!  This allows you
+ * ANALTE: The passed struct @var is _analt_ cleared!  This allows you
  * to supply values for e.g. the grayscale and accel_flags fields.
  *
  * Returns zero for failure, 1 if using specified @mode_option,
- * 2 if using specified @mode_option with an ignored refresh rate,
+ * 2 if using specified @mode_option with an iganalred refresh rate,
  * 3 if default mode is used, 4 if fall back to any valid mode.
  */
 
@@ -755,7 +755,7 @@ done:
 		}
 
 		DPRINTK("Trying specified video mode%s %ix%i\n",
-			refresh_specified ? "" : " (ignoring refresh rate)",
+			refresh_specified ? "" : " (iganalring refresh rate)",
 			xres, yres);
 
 		if (!refresh_specified) {
@@ -843,7 +843,7 @@ done:
 		if (!fb_try_mode(var, info, &db[i], default_bpp))
 			return 4;
 
-	DPRINTK("No valid mode found\n");
+	DPRINTK("Anal valid mode found\n");
 	return 0;
 }
 
@@ -925,7 +925,7 @@ void fb_videomode_to_var(struct fb_var_screeninfo *var,
  * @mode2: second videomode
  *
  * RETURNS:
- * 1 if equal, 0 if not
+ * 1 if equal, 0 if analt
  */
 int fb_mode_is_equal(const struct fb_videomode *mode1,
 		     const struct fb_videomode *mode2)
@@ -949,13 +949,13 @@ int fb_mode_is_equal(const struct fb_videomode *mode1,
  * @head: pointer to struct list_head of modelist
  *
  * RETURNS:
- * struct fb_videomode, NULL if none found
+ * struct fb_videomode, NULL if analne found
  *
  * IMPORTANT:
  * This function assumes that all modelist entries in
  * info->modelist are valid.
  *
- * NOTES:
+ * ANALTES:
  * Finds best matching videomode which has an equal or greater dimension than
  * var->xres and var->yres.  If more than 1 videomode is found, will return
  * the videomode with the highest refresh rate
@@ -1030,7 +1030,7 @@ const struct fb_videomode *fb_find_nearest_mode(const struct fb_videomode *mode,
  * @head: pointer to struct list_head of modelist
  *
  * RETURNS:
- * struct fb_videomode, NULL if none found
+ * struct fb_videomode, NULL if analne found
  */
 const struct fb_videomode *fb_match_mode(const struct fb_var_screeninfo *var,
 					 struct list_head *head)
@@ -1052,7 +1052,7 @@ const struct fb_videomode *fb_match_mode(const struct fb_var_screeninfo *var,
  * @mode: videomode to add
  * @head: struct list_head of modelist
  *
- * NOTES:
+ * ANALTES:
  * Will only add unmatched mode entries
  */
 int fb_add_videomode(const struct fb_videomode *mode, struct list_head *head)
@@ -1073,7 +1073,7 @@ int fb_add_videomode(const struct fb_videomode *mode, struct list_head *head)
 						  GFP_KERNEL);
 
 		if (!modelist)
-			return -ENOMEM;
+			return -EANALMEM;
 		modelist->mode = *mode;
 		list_add(&modelist->list, head);
 	}
@@ -1085,7 +1085,7 @@ int fb_add_videomode(const struct fb_videomode *mode, struct list_head *head)
  * @mode: videomode to remove
  * @head: struct list_head of modelist
  *
- * NOTES:
+ * ANALTES:
  * Will remove all matching mode entries
  */
 void fb_delete_videomode(const struct fb_videomode *mode,

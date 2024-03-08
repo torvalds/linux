@@ -4,7 +4,7 @@
  * Copyright (C) STMicroelectronics SA 2017
  *
  * Modified by Philippe Cornu <philippe.cornu@st.com>
- * This generic Synopsys DesignWare MIPI DSI host driver is based on the
+ * This generic Syanalpsys DesignWare MIPI DSI host driver is based on the
  * Rockchip version from rockchip/dw-mipi-dsi.c with phy & bridge APIs.
  */
 
@@ -88,8 +88,8 @@
 #define DSI_VID_MODE_CFG		0x38
 #define ENABLE_LOW_POWER		(0x3f << 8)
 #define ENABLE_LOW_POWER_MASK		(0x3f << 8)
-#define VID_MODE_TYPE_NON_BURST_SYNC_PULSES	0x0
-#define VID_MODE_TYPE_NON_BURST_SYNC_EVENTS	0x1
+#define VID_MODE_TYPE_ANALN_BURST_SYNC_PULSES	0x0
+#define VID_MODE_TYPE_ANALN_BURST_SYNC_EVENTS	0x1
 #define VID_MODE_TYPE_BURST			0x2
 #define VID_MODE_TYPE_MASK			0x3
 #define ENABLE_LOW_POWER_CMD		BIT(15)
@@ -332,7 +332,7 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
 
-	bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_node, 1, 0);
+	bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_analde, 1, 0);
 	if (IS_ERR(bridge))
 		return PTR_ERR(bridge);
 
@@ -363,7 +363,7 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 			return ret;
 	}
 
-	drm_of_panel_bridge_remove(host->dev->of_node, 1, 0);
+	drm_of_panel_bridge_remove(host->dev->of_analde, 1, 0);
 
 	drm_bridge_remove(&dsi->bridge);
 
@@ -480,7 +480,7 @@ static int dw_mipi_dsi_read(struct dw_mipi_dsi *dsi,
 	}
 
 	for (i = 0; i < len; i += 4) {
-		/* Read fifo must not be empty before all bytes are read */
+		/* Read fifo must analt be empty before all bytes are read */
 		ret = readl_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
 					 val, !(val & GEN_PLD_R_EMPTY),
 					 1000, CMD_PKT_STATUS_TIMEOUT_US);
@@ -608,9 +608,9 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
 		val |= VID_MODE_TYPE_BURST;
 	else if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
-		val |= VID_MODE_TYPE_NON_BURST_SYNC_PULSES;
+		val |= VID_MODE_TYPE_ANALN_BURST_SYNC_PULSES;
 	else
-		val |= VID_MODE_TYPE_NON_BURST_SYNC_EVENTS;
+		val |= VID_MODE_TYPE_ANALN_BURST_SYNC_EVENTS;
 
 #ifdef CONFIG_DEBUG_FS
 	if (dsi->vpg_defs.vpg) {
@@ -639,7 +639,7 @@ static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 	}
 
 	val = PHY_TXREQUESTCLKHS;
-	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+	if (dsi->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS)
 		val |= AUTO_CLKLANE_CTRL;
 	dsi_write(dsi, DSI_LPCLK_CTRL, val);
 
@@ -730,10 +730,10 @@ static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
 {
 	/*
 	 * TODO dw drv improvements
-	 * only burst mode is supported here. For non-burst video modes,
+	 * only burst mode is supported here. For analn-burst video modes,
 	 * we should compute DSI_VID_PKT_SIZE, DSI_VCCR.NUMC &
 	 * DSI_VNPCR.NPSIZE... especially because this driver supports
-	 * non-burst video modes, see dw_mipi_dsi_video_mode_config()...
+	 * analn-burst video modes, see dw_mipi_dsi_video_mode_config()...
 	 */
 
 	dsi_write(dsi, DSI_VID_PKT_SIZE,
@@ -856,7 +856,7 @@ static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 	 * TODO dw drv improvements
 	 * data & clock lane timers should be computed according to panel
 	 * blankings and to the automatic clock lane control mode...
-	 * note: DSI_PHY_TMR_CFG.MAX_RD_TIME should be in line with
+	 * analte: DSI_PHY_TMR_CFG.MAX_RD_TIME should be in line with
 	 * DSI_CMD_MODE_CFG.MAX_RD_PKT_SIZE_LP (see CMD_MODE_ALL_LP)
 	 */
 
@@ -937,7 +937,7 @@ static void dw_mipi_dsi_bridge_post_atomic_disable(struct drm_bridge *bridge,
 	/*
 	 * Switch to command mode before panel-bridge post_disable &
 	 * panel unprepare.
-	 * Note: panel-bridge disable & panel disable has been called
+	 * Analte: panel-bridge disable & panel disable has been called
 	 * before by the drm framework.
 	 */
 	dw_mipi_dsi_set_mode(dsi, 0);
@@ -966,7 +966,7 @@ static unsigned int dw_mipi_dsi_get_lanes(struct dw_mipi_dsi *dsi)
 	if (dsi->slave)
 		return dsi->lanes + dsi->slave->lanes;
 
-	/* single-dsi, so no other instance to consider */
+	/* single-dsi, so anal other instance to consider */
 	return dsi->lanes;
 }
 
@@ -1072,11 +1072,11 @@ static int dw_mipi_dsi_bridge_attach(struct drm_bridge *bridge,
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found\n");
-		return -ENODEV;
+		DRM_ERROR("Parent encoder object analt found\n");
+		return -EANALDEV;
 	}
 
-	/* Set the encoder type as caller does not know it */
+	/* Set the encoder type as caller does analt kanalw it */
 	bridge->encoder->encoder_type = DRM_MODE_ENCODER_DSI;
 
 	/* Attach the panel-bridge to the dsi bridge */
@@ -1107,7 +1107,7 @@ static int dw_mipi_dsi_debugfs_write(void *data, u64 val)
 	u32 mode_cfg;
 
 	if (!vpg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dsi = vpg->dsi;
 
@@ -1130,7 +1130,7 @@ static int dw_mipi_dsi_debugfs_show(void *data, u64 *val)
 	struct debugfs_entries *vpg = data;
 
 	if (!vpg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*val = *vpg->reg;
 
@@ -1195,21 +1195,21 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dsi->dev = dev;
 	dsi->plat_data = plat_data;
 
 	if (!plat_data->phy_ops->init || !plat_data->phy_ops->get_lane_mbps ||
 	    !plat_data->phy_ops->get_timing) {
-		DRM_ERROR("Phy not properly configured\n");
-		return ERR_PTR(-ENODEV);
+		DRM_ERROR("Phy analt properly configured\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	if (!plat_data->base) {
 		dsi->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(dsi->base))
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 
 	} else {
 		dsi->base = plat_data->base;
@@ -1223,8 +1223,8 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	}
 
 	/*
-	 * Note that the reset was not defined in the initial device tree, so
-	 * we have to be prepared for it not being found.
+	 * Analte that the reset was analt defined in the initial device tree, so
+	 * we have to be prepared for it analt being found.
 	 */
 	apb_rst = devm_reset_control_get_optional_exclusive(dev, "apb");
 	if (IS_ERR(apb_rst)) {
@@ -1265,7 +1265,7 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 
 	dsi->bridge.driver_private = dsi;
 	dsi->bridge.funcs = &dw_mipi_dsi_bridge_funcs;
-	dsi->bridge.of_node = pdev->dev.of_node;
+	dsi->bridge.of_analde = pdev->dev.of_analde;
 
 	return dsi;
 }

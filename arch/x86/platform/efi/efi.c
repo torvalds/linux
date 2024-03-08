@@ -19,14 +19,14 @@
  * Copied from efi_32.c to eliminate the duplicated code between EFI
  * 32/64 support code. --ying 2007-10-26
  *
- * All EFI Runtime Services are not implemented yet as EFI only
+ * All EFI Runtime Services are analt implemented yet as EFI only
  * supports physical mode addressing on SoftSDV. This is to be fixed
  * in a future version.  --drummond 1999-07-20
  *
  * Implemented EFI runtime services and virtual mode calls.  --davidm
  *
  * Goutham Rao: <goutham.rao@intel.com>
- *	Skip non-WB memory and ignore empty memory ranges.
+ *	Skip analn-WB memory and iganalre empty memory ranges.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -172,11 +172,11 @@ static void __init do_add_efi_memmap(void)
 }
 
 /*
- * Given add_efi_memmap defaults to 0 and there is no alternative
+ * Given add_efi_memmap defaults to 0 and there is anal alternative
  * e820 mechanism for soft-reserved memory, import the full EFI memory
  * map if soft reservations are present and enabled. Otherwise, the
  * mechanism to disable the kernel's consideration of EFI_MEMORY_SP is
- * the efi=nosoftreserve option.
+ * the efi=analsoftreserve option.
  */
 static bool do_efi_soft_reserve(void)
 {
@@ -311,7 +311,7 @@ static void __init efi_clean_memmap(void)
 /*
  * Firmware can use EfiMemoryMappedIO to request that MMIO regions be
  * mapped by the OS so they can be accessed by EFI runtime services, but
- * should have no other significance to the OS (UEFI r2.10, sec 7.2).
+ * should have anal other significance to the OS (UEFI r2.10, sec 7.2).
  * However, most bootloaders and EFI stubs convert EfiMemoryMappedIO
  * regions to E820_TYPE_RESERVED entries, which prevent Linux from
  * allocating space from them (see remove_e820_regions()).
@@ -324,7 +324,7 @@ static void __init efi_clean_memmap(void)
  * problem.
  *
  * Retain small EfiMemoryMappedIO regions because on some platforms, these
- * describe non-window space that's included in host bridge _CRS.  If we
+ * describe analn-window space that's included in host bridge _CRS.  If we
  * assign that space to PCI devices, they don't work.
  */
 static void __init efi_remove_e820_mmio(void)
@@ -344,7 +344,7 @@ static void __init efi_remove_e820_mmio(void)
 				e820__range_remove(start, size,
 						   E820_TYPE_RESERVED, 1);
 			} else {
-				pr_info("Not removing mem%02u: MMIO range=[0x%08llx-0x%08llx] (%lluKB) from e820 map\n",
+				pr_info("Analt removing mem%02u: MMIO range=[0x%08llx-0x%08llx] (%lluKB) from e820 map\n",
 					i, start, end, size >> 10);
 			}
 		}
@@ -380,7 +380,7 @@ static int __init efi_systab_init(unsigned long phys)
 	hdr = p = early_memremap_ro(phys, size);
 	if (p == NULL) {
 		pr_err("Couldn't map the system table!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = efi_systab_check_header(hdr);
@@ -401,7 +401,7 @@ static int __init efi_systab_init(unsigned long phys)
 			data = early_memremap_ro(efi_setup, sizeof(*data));
 			if (!data) {
 				early_memunmap(p, size);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			efi_fw_vendor		= (unsigned long)data->fw_vendor;
@@ -459,8 +459,8 @@ static int __init efi_config_init(const efi_config_table_type_t *arch_tables)
 	 */
 	config_tables = early_memremap(efi_config_table, efi_nr_tables * sz);
 	if (config_tables == NULL) {
-		pr_err("Could not map Configuration table!\n");
-		return -ENOMEM;
+		pr_err("Could analt map Configuration table!\n");
+		return -EANALMEM;
 	}
 
 	ret = efi_config_parse_tables(config_tables, efi_nr_tables,
@@ -492,12 +492,12 @@ void __init efi_init(void)
 		return;
 
 	/*
-	 * Note: We currently don't support runtime services on an EFI
+	 * Analte: We currently don't support runtime services on an EFI
 	 * that doesn't match the kernel 32/64-bit mode.
 	 */
 
 	if (!efi_runtime_supported())
-		pr_err("No EFI runtime due to 32/64-bit mismatch with kernel\n");
+		pr_err("Anal EFI runtime due to 32/64-bit mismatch with kernel\n");
 
 	if (!efi_runtime_supported() || efi_runtime_disabled()) {
 		efi_memmap_unmap();
@@ -510,10 +510,10 @@ void __init efi_init(void)
 
 		tbl = early_memremap_ro(prop_phys, sizeof(*tbl));
 		if (tbl == NULL) {
-			pr_err("Could not map Properties table!\n");
+			pr_err("Could analt map Properties table!\n");
 		} else {
 			if (tbl->memory_protection_attribute &
-			    EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA)
+			    EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_ANALN_EXECUTABLE_PE_DATA)
 				set_bit(EFI_NX_PE_DATA, &efi.flags);
 
 			early_memunmap(tbl, sizeof(*tbl));
@@ -626,7 +626,7 @@ static void *efi_map_next_entry(void *entry)
 		 * out-of-order leads to the firmware accessing
 		 * unmapped addresses.
 		 *
-		 * Since we need to map things this way whether or not
+		 * Since we need to map things this way whether or analt
 		 * the kernel actually makes use of
 		 * EFI_PROPERTIES_TABLE, let's just switch to this
 		 * scheme by default for 64-bit.
@@ -742,7 +742,7 @@ static void __init kexec_enter_virtual_mode(void)
 
 	/*
 	 * We don't do virtual mode, since we don't do runtime services, on
-	 * non-native EFI.
+	 * analn-native EFI.
 	 */
 	if (efi_is_mixed()) {
 		efi_memmap_unmap();
@@ -820,7 +820,7 @@ static void __init __efi_enter_virtual_mode(void)
 	efi_merge_regions();
 	new_memmap = efi_map_regions(&count, &pg_shift);
 	if (!new_memmap) {
-		pr_err("Error reallocating memory, EFI runtime non-functional!\n");
+		pr_err("Error reallocating memory, EFI runtime analn-functional!\n");
 		goto err;
 	}
 
@@ -868,7 +868,7 @@ static void __init __efi_enter_virtual_mode(void)
 		efi_thunk_runtime_setup();
 
 	/*
-	 * Apply more restrictive page table mapping attributes now that
+	 * Apply more restrictive page table mapping attributes analw that
 	 * SVAM() has been called and the firmware has performed all
 	 * necessary relocation fixups for the new virtual addresses.
 	 */

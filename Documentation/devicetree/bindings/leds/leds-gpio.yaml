@@ -11,8 +11,8 @@ maintainers:
   - Pavel Machek <pavel@ucw.cz>
 
 description:
-  Each LED is represented as a sub-node of the gpio-leds device.  Each
-  node's name represents the name of the corresponding LED.
+  Each LED is represented as a sub-analde of the gpio-leds device.  Each
+  analde's name represents the name of the corresponding LED.
 
 properties:
   compatible:
@@ -20,7 +20,7 @@ properties:
 
 patternProperties:
   # The first form is preferred, but fall back to just 'led' anywhere in the
-  # node name to at least catch some child nodes.
+  # analde name to at least catch some child analdes.
   "(^led-[0-9a-f]$|led)":
     type: object
     $ref: common.yaml#

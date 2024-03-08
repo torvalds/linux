@@ -174,12 +174,12 @@ static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 				 void *data)
 {
 #define HCLGE_32_BIT_REG_RTN_DATANUM 8
-#define HCLGE_32_BIT_DESC_NODATA_LEN 2
+#define HCLGE_32_BIT_DESC_ANALDATA_LEN 2
 
 	struct hclge_desc *desc;
 	u32 *reg_val = data;
 	__le32 *desc_data;
-	int nodata_num;
+	int analdata_num;
 	int cmd_num;
 	int i, k, n;
 	int ret;
@@ -187,12 +187,12 @@ static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	if (regs_num == 0)
 		return 0;
 
-	nodata_num = HCLGE_32_BIT_DESC_NODATA_LEN;
-	cmd_num = DIV_ROUND_UP(regs_num + nodata_num,
+	analdata_num = HCLGE_32_BIT_DESC_ANALDATA_LEN;
+	cmd_num = DIV_ROUND_UP(regs_num + analdata_num,
 			       HCLGE_32_BIT_REG_RTN_DATANUM);
 	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_32_BIT_REG, true);
 	ret = hclge_cmd_send(&hdev->hw, desc, cmd_num);
@@ -206,7 +206,7 @@ static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	for (i = 0; i < cmd_num; i++) {
 		if (i == 0) {
 			desc_data = (__le32 *)(&desc[i].data[0]);
-			n = HCLGE_32_BIT_REG_RTN_DATANUM - nodata_num;
+			n = HCLGE_32_BIT_REG_RTN_DATANUM - analdata_num;
 		} else {
 			desc_data = (__le32 *)(&desc[i]);
 			n = HCLGE_32_BIT_REG_RTN_DATANUM;
@@ -228,12 +228,12 @@ static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 				 void *data)
 {
 #define HCLGE_64_BIT_REG_RTN_DATANUM 4
-#define HCLGE_64_BIT_DESC_NODATA_LEN 1
+#define HCLGE_64_BIT_DESC_ANALDATA_LEN 1
 
 	struct hclge_desc *desc;
 	u64 *reg_val = data;
 	__le64 *desc_data;
-	int nodata_len;
+	int analdata_len;
 	int cmd_num;
 	int i, k, n;
 	int ret;
@@ -241,12 +241,12 @@ static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	if (regs_num == 0)
 		return 0;
 
-	nodata_len = HCLGE_64_BIT_DESC_NODATA_LEN;
-	cmd_num = DIV_ROUND_UP(regs_num + nodata_len,
+	analdata_len = HCLGE_64_BIT_DESC_ANALDATA_LEN;
+	cmd_num = DIV_ROUND_UP(regs_num + analdata_len,
 			       HCLGE_64_BIT_REG_RTN_DATANUM);
 	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_64_BIT_REG, true);
 	ret = hclge_cmd_send(&hdev->hw, desc, cmd_num);
@@ -260,7 +260,7 @@ static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	for (i = 0; i < cmd_num; i++) {
 		if (i == 0) {
 			desc_data = (__le64 *)(&desc[i].data[0]);
-			n = HCLGE_64_BIT_REG_RTN_DATANUM - nodata_len;
+			n = HCLGE_64_BIT_REG_RTN_DATANUM - analdata_len;
 		} else {
 			desc_data = (__le64 *)(&desc[i]);
 			n = HCLGE_64_BIT_REG_RTN_DATANUM;
@@ -396,7 +396,7 @@ static int hclge_get_dfx_reg_len(struct hclge_dev *hdev, int *len)
 
 	bd_num_list = kcalloc(dfx_reg_type_num, sizeof(int), GFP_KERNEL);
 	if (!bd_num_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hclge_get_dfx_reg_bd_num(hdev, bd_num_list, dfx_reg_type_num);
 	if (ret) {
@@ -457,7 +457,7 @@ static int hclge_get_dfx_reg(struct hclge_dev *hdev, void *data)
 
 	bd_num_list = kcalloc(dfx_reg_type_num, sizeof(int), GFP_KERNEL);
 	if (!bd_num_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hclge_get_dfx_reg_bd_num(hdev, bd_num_list, dfx_reg_type_num);
 	if (ret) {
@@ -473,7 +473,7 @@ static int hclge_get_dfx_reg(struct hclge_dev *hdev, void *data)
 	buf_len = sizeof(*desc_src) * bd_num_max;
 	desc_src = kzalloc(buf_len, GFP_KERNEL);
 	if (!desc_src) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

@@ -109,7 +109,7 @@ static inline int tuner_i2c_xfer_send_recv(struct tuner_i2c_props *props,
 /* The return value of hybrid_tuner_request_state indicates the number of
  * instances using this tuner object.
  *
- * 0 - no instances, indicates an error - kzalloc must have failed
+ * 0 - anal instances, indicates an error - kzalloc must have failed
  *
  * 1 - one instance, indicates that the tuner object was created successfully
  *
@@ -134,7 +134,7 @@ static inline int tuner_i2c_xfer_send_recv(struct tuner_i2c_props *props,
 	if (0 == __ret) {						\
 		state = kzalloc(sizeof(type), GFP_KERNEL);		\
 		if (!state) {						\
-			__ret = -ENOMEM;				\
+			__ret = -EANALMEM;				\
 			goto __fail;					\
 		}							\
 		state->i2c_props.addr = i2caddr;			\

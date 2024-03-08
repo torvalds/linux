@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -31,7 +31,7 @@
 #include "cell.h"
 #include "interrupt.h"
 
-/* Define CELL_IOMMU_REAL_UNMAP to actually unmap non-used pages
+/* Define CELL_IOMMU_REAL_UNMAP to actually unmap analn-used pages
  * instead of leaving them mapped to some dummy page. This can be
  * enabled once the appropriate workarounds for spider bugs have
  * been enabled
@@ -84,7 +84,7 @@
 #define IOSTE_V			0x8000000000000000ul /* valid */
 #define IOSTE_H			0x4000000000000000ul /* cache hint */
 #define IOSTE_PT_Base_RPN_Mask  0x3ffffffffffff000ul /* base RPN of IOPT */
-#define IOSTE_NPPT_Mask		0x0000000000000fe0ul /* no. pages in IOPT */
+#define IOSTE_NPPT_Mask		0x0000000000000fe0ul /* anal. pages in IOPT */
 #define IOSTE_PS_Mask		0x0000000000000007ul /* page size */
 #define IOSTE_PS_4K		0x0000000000000001ul /*   - 4kB  */
 #define IOSTE_PS_64K		0x0000000000000003ul /*   - 64kB */
@@ -94,7 +94,7 @@
 
 /* IOMMU sizing */
 #define IO_SEGMENT_SHIFT	28
-#define IO_PAGENO_BITS(shift)	(IO_SEGMENT_SHIFT - (shift))
+#define IO_PAGEANAL_BITS(shift)	(IO_SEGMENT_SHIFT - (shift))
 
 /* The high bit needs to be set on every DMA address */
 #define SPIDER_DMA_OFFSET	0x80000000ul
@@ -120,7 +120,7 @@ struct cbe_iommu {
 	struct list_head windows;
 };
 
-/* Static array of iommus, one per node
+/* Static array of iommus, one per analde
  *   each contains a list of windows, keyed from dma_window property
  *   - on bus setup, look for a matching window, or create one
  *   - on dev setup, assign iommu_table ptr
@@ -164,7 +164,7 @@ static int tce_build_cell(struct iommu_table *tbl, long index, long npages,
 
 	/* implementing proper protection causes problems with the spidernet
 	 * driver - check mapping directions later, but allow read & write by
-	 * default for now.*/
+	 * default for analw.*/
 #ifdef CELL_IOMMU_STRICT_PROTECTION
 	/* to avoid referencing a global, we use a trick here to setup the
 	 * protection bit. "prot" is setup to be 3 fields of 4 bits appended
@@ -257,14 +257,14 @@ static irqreturn_t ioc_interrupt(int irq, void *data)
 
 static int __init cell_iommu_find_ioc(int nid, unsigned long *base)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource r;
 
 	*base = 0;
 
-	/* First look for new style /be nodes */
-	for_each_node_by_name(np, "ioc") {
-		if (of_node_to_nid(np) != nid)
+	/* First look for new style /be analdes */
+	for_each_analde_by_name(np, "ioc") {
+		if (of_analde_to_nid(np) != nid)
 			continue;
 		if (of_address_to_resource(np, 0, &r)) {
 			printk(KERN_ERR "iommu: can't get address for %pOF\n",
@@ -272,27 +272,27 @@ static int __init cell_iommu_find_ioc(int nid, unsigned long *base)
 			continue;
 		}
 		*base = r.start;
-		of_node_put(np);
+		of_analde_put(np);
 		return 0;
 	}
 
 	/* Ok, let's try the old way */
-	for_each_node_by_type(np, "cpu") {
+	for_each_analde_by_type(np, "cpu") {
 		const unsigned int *nidp;
 		const unsigned long *tmp;
 
-		nidp = of_get_property(np, "node-id", NULL);
+		nidp = of_get_property(np, "analde-id", NULL);
 		if (nidp && *nidp == nid) {
 			tmp = of_get_property(np, "ioc-translation", NULL);
 			if (tmp) {
 				*base = *tmp;
-				of_node_put(np);
+				of_analde_put(np);
 				return 0;
 			}
 		}
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __init cell_iommu_setup_stab(struct cbe_iommu *iommu,
@@ -309,7 +309,7 @@ static void __init cell_iommu_setup_stab(struct cbe_iommu *iommu,
 
 	/* set up the segment table */
 	stab_size = segments * sizeof(unsigned long);
-	page = alloc_pages_node(iommu->nid, GFP_KERNEL, get_order(stab_size));
+	page = alloc_pages_analde(iommu->nid, GFP_KERNEL, get_order(stab_size));
 	BUG_ON(!page);
 	iommu->stab = page_address(page);
 	memset(iommu->stab, 0, stab_size);
@@ -326,7 +326,7 @@ static unsigned long *__init cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 
 	start_seg = base >> IO_SEGMENT_SHIFT;
 	segments  = size >> IO_SEGMENT_SHIFT;
-	pages_per_segment = 1ull << IO_PAGENO_BITS(page_shift);
+	pages_per_segment = 1ull << IO_PAGEANAL_BITS(page_shift);
 	/* PTEs for each segment must start on a 4K boundary */
 	pages_per_segment = max(pages_per_segment,
 				(1 << 12) / sizeof(unsigned long));
@@ -334,7 +334,7 @@ static unsigned long *__init cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 	ptab_size = segments * pages_per_segment * sizeof(unsigned long);
 	pr_debug("%s: iommu[%d]: ptab_size: %lu, order: %d\n", __func__,
 			iommu->nid, ptab_size, get_order(ptab_size));
-	page = alloc_pages_node(iommu->nid, GFP_KERNEL, get_order(ptab_size));
+	page = alloc_pages_analde(iommu->nid, GFP_KERNEL, get_order(ptab_size));
 	BUG_ON(!page);
 
 	ptab = page_address(page);
@@ -382,7 +382,7 @@ static void __init cell_iommu_enable_hardware(struct cbe_iommu *iommu)
 	unsigned int virq;
 
 	if (cell_iommu_find_ioc(iommu->nid, &xlate_base))
-		panic("%s: missing IOC register mappings for node %d\n",
+		panic("%s: missing IOC register mappings for analde %d\n",
 		      __func__, iommu->nid);
 
 	iommu->xlate_regs = ioremap(xlate_base, IOC_Reg_Size);
@@ -399,7 +399,7 @@ static void __init cell_iommu_enable_hardware(struct cbe_iommu *iommu)
 			IOC_IO_ExcpMask_PFE | IOC_IO_ExcpMask_SFE);
 
 	virq = irq_create_mapping(NULL,
-			IIC_IRQ_IOEX_ATI | (iommu->nid << IIC_IRQ_NODE_SHIFT));
+			IIC_IRQ_IOEX_ATI | (iommu->nid << IIC_IRQ_ANALDE_SHIFT));
 	BUG_ON(!virq);
 
 	ret = request_irq(virq, ioc_interrupt, 0, iommu->name, iommu);
@@ -424,13 +424,13 @@ static void __init cell_iommu_setup_hardware(struct cbe_iommu *iommu,
 	cell_iommu_enable_hardware(iommu);
 }
 
-#if 0/* Unused for now */
+#if 0/* Unused for analw */
 static struct iommu_window *find_window(struct cbe_iommu *iommu,
 		unsigned long offset, unsigned long size)
 {
 	struct iommu_window *window;
 
-	/* todo: check for overlapping (but not equal) windows) */
+	/* todo: check for overlapping (but analt equal) windows) */
 
 	list_for_each_entry(window, &(iommu->windows), list) {
 		if (window->offset == offset && window->size == size)
@@ -441,7 +441,7 @@ static struct iommu_window *find_window(struct cbe_iommu *iommu,
 }
 #endif
 
-static inline u32 cell_iommu_get_ioid(struct device_node *np)
+static inline u32 cell_iommu_get_ioid(struct device_analde *np)
 {
 	const u32 *ioid;
 
@@ -461,7 +461,7 @@ static struct iommu_table_ops cell_iommu_ops = {
 };
 
 static struct iommu_window * __init
-cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
+cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_analde *np,
 			unsigned long offset, unsigned long size,
 			unsigned long pte_offset)
 {
@@ -471,7 +471,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 
 	ioid = cell_iommu_get_ioid(np);
 
-	window = kzalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
+	window = kzalloc_analde(sizeof(*window), GFP_KERNEL, iommu->nid);
 	BUG_ON(window == NULL);
 
 	window->offset = offset;
@@ -509,7 +509,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	 * This code also assumes that we have a window that starts at 0,
 	 * which is the case on all spider based blades.
 	 */
-	page = alloc_pages_node(iommu->nid, GFP_KERNEL, 0);
+	page = alloc_pages_analde(iommu->nid, GFP_KERNEL, 0);
 	BUG_ON(!page);
 	iommu->pad_page = page_address(page);
 	clear_page(iommu->pad_page);
@@ -521,7 +521,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	return window;
 }
 
-static struct cbe_iommu *cell_iommu_for_node(int nid)
+static struct cbe_iommu *cell_iommu_for_analde(int nid)
 {
 	int i;
 
@@ -531,7 +531,7 @@ static struct cbe_iommu *cell_iommu_for_node(int nid)
 	return NULL;
 }
 
-static unsigned long cell_dma_nommu_offset;
+static unsigned long cell_dma_analmmu_offset;
 
 static unsigned long dma_iommu_fixed_base;
 static bool cell_iommu_enabled;
@@ -545,13 +545,13 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 	struct cbe_iommu *iommu;
 
 	/* Current implementation uses the first window available in that
-	 * node's iommu. We -might- do something smarter later though it may
+	 * analde's iommu. We -might- do something smarter later though it may
 	 * never be necessary
 	 */
-	iommu = cell_iommu_for_node(dev_to_node(dev));
+	iommu = cell_iommu_for_analde(dev_to_analde(dev));
 	if (iommu == NULL || list_empty(&iommu->windows)) {
-		dev_err(dev, "iommu: missing iommu for %pOF (node %d)\n",
-		       dev->of_node, dev_to_node(dev));
+		dev_err(dev, "iommu: missing iommu for %pOF (analde %d)\n",
+		       dev->of_analde, dev_to_analde(dev));
 		return NULL;
 	}
 	window = list_entry(iommu->windows.next, struct iommu_window, list);
@@ -570,7 +570,7 @@ static void cell_dma_dev_setup(struct device *dev)
 			dev->archdata.dma_offset = addr + dma_iommu_fixed_base;
 		set_iommu_table_base(dev, cell_get_iommu_table(dev));
 	} else {
-		dev->archdata.dma_offset = cell_dma_nommu_offset;
+		dev->archdata.dma_offset = cell_dma_analmmu_offset;
 	}
 }
 
@@ -579,13 +579,13 @@ static void cell_pci_dma_dev_setup(struct pci_dev *dev)
 	cell_dma_dev_setup(&dev->dev);
 }
 
-static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
+static int cell_of_bus_analtify(struct analtifier_block *nb, unsigned long action,
 			      void *data)
 {
 	struct device *dev = data;
 
 	/* We are only interested in device addition */
-	if (action != BUS_NOTIFY_ADD_DEVICE)
+	if (action != BUS_ANALTIFY_ADD_DEVICE)
 		return 0;
 
 	if (cell_iommu_enabled)
@@ -594,11 +594,11 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
 	return 0;
 }
 
-static struct notifier_block cell_of_bus_notifier = {
-	.notifier_call = cell_of_bus_notify
+static struct analtifier_block cell_of_bus_analtifier = {
+	.analtifier_call = cell_of_bus_analtify
 };
 
-static int __init cell_iommu_get_window(struct device_node *np,
+static int __init cell_iommu_get_window(struct device_analde *np,
 					 unsigned long *base,
 					 unsigned long *size)
 {
@@ -610,33 +610,33 @@ static int __init cell_iommu_get_window(struct device_node *np,
 	if (dma_window == NULL) {
 		*base = 0;
 		*size = 0x80000000u;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	of_parse_dma_window(np, dma_window, &index, base, size);
 	return 0;
 }
 
-static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
+static struct cbe_iommu * __init cell_iommu_alloc(struct device_analde *np)
 {
 	struct cbe_iommu *iommu;
 	int nid, i;
 
-	/* Get node ID */
-	nid = of_node_to_nid(np);
+	/* Get analde ID */
+	nid = of_analde_to_nid(np);
 	if (nid < 0) {
-		printk(KERN_ERR "iommu: failed to get node for %pOF\n",
+		printk(KERN_ERR "iommu: failed to get analde for %pOF\n",
 		       np);
 		return NULL;
 	}
-	pr_debug("iommu: setting up iommu for node %d (%pOF)\n",
+	pr_debug("iommu: setting up iommu for analde %d (%pOF)\n",
 		 nid, np);
 
 	/* XXX todo: If we can have multiple windows on the same IOMMU, which
 	 * isn't the case today, we probably want here to check whether the
-	 * iommu for that node is already setup.
+	 * iommu for that analde is already setup.
 	 * However, there might be issue with getting the size right so let's
-	 * ignore that for now. We might want to completely get rid of the
+	 * iganalre that for analw. We might want to completely get rid of the
 	 * multiple window support since the cell iommu supports per-page ioids
 	 */
 
@@ -657,7 +657,7 @@ static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
 	return iommu;
 }
 
-static void __init cell_iommu_init_one(struct device_node *np,
+static void __init cell_iommu_init_one(struct device_analde *np,
 				       unsigned long offset)
 {
 	struct cbe_iommu *iommu;
@@ -683,20 +683,20 @@ static void __init cell_iommu_init_one(struct device_node *np,
 
 static void __init cell_disable_iommus(void)
 {
-	int node;
+	int analde;
 	unsigned long base, val;
 	void __iomem *xregs, *cregs;
 
-	/* Make sure IOC translation is disabled on all nodes */
-	for_each_online_node(node) {
-		if (cell_iommu_find_ioc(node, &base))
+	/* Make sure IOC translation is disabled on all analdes */
+	for_each_online_analde(analde) {
+		if (cell_iommu_find_ioc(analde, &base))
 			continue;
 		xregs = ioremap(base, IOC_Reg_Size);
 		if (xregs == NULL)
 			continue;
 		cregs = xregs + IOC_IOCmd_Offset;
 
-		pr_debug("iommu: cleaning up iommu on node %d\n", node);
+		pr_debug("iommu: cleaning up iommu on analde %d\n", analde);
 
 		out_be64(xregs + IOC_IOST_Origin, 0);
 		(void)in_be64(xregs + IOC_IOST_Origin);
@@ -711,59 +711,59 @@ static void __init cell_disable_iommus(void)
 
 static int __init cell_iommu_init_disabled(void)
 {
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	unsigned long base = 0, size;
 
-	/* When no iommu is present, we use direct DMA ops */
+	/* When anal iommu is present, we use direct DMA ops */
 
 	/* First make sure all IOC translation is turned off */
 	cell_disable_iommus();
 
-	/* If we have no Axon, we set up the spider DMA magic offset */
-	np = of_find_node_by_name(NULL, "axon");
+	/* If we have anal Axon, we set up the spider DMA magic offset */
+	np = of_find_analde_by_name(NULL, "axon");
 	if (!np)
-		cell_dma_nommu_offset = SPIDER_DMA_OFFSET;
-	of_node_put(np);
+		cell_dma_analmmu_offset = SPIDER_DMA_OFFSET;
+	of_analde_put(np);
 
-	/* Now we need to check to see where the memory is mapped
+	/* Analw we need to check to see where the memory is mapped
 	 * in PCI space. We assume that all busses use the same dma
 	 * window which is always the case so far on Cell, thus we
-	 * pick up the first pci-internal node we can find and check
+	 * pick up the first pci-internal analde we can find and check
 	 * the DMA window from there.
 	 */
-	for_each_node_by_name(np, "axon") {
+	for_each_analde_by_name(np, "axon") {
 		if (np->parent == NULL || np->parent->parent != NULL)
 			continue;
 		if (cell_iommu_get_window(np, &base, &size) == 0)
 			break;
 	}
 	if (np == NULL) {
-		for_each_node_by_name(np, "pci-internal") {
+		for_each_analde_by_name(np, "pci-internal") {
 			if (np->parent == NULL || np->parent->parent != NULL)
 				continue;
 			if (cell_iommu_get_window(np, &base, &size) == 0)
 				break;
 		}
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
-	/* If we found a DMA window, we check if it's big enough to enclose
-	 * all of physical memory. If not, we force enable IOMMU
+	/* If we found a DMA window, we check if it's big eanalugh to enclose
+	 * all of physical memory. If analt, we force enable IOMMU
 	 */
 	if (np && size < memblock_end_of_DRAM()) {
 		printk(KERN_WARNING "iommu: force-enabled, dma window"
 		       " (%ldMB) smaller than total memory (%lldMB)\n",
 		       size >> 20, memblock_end_of_DRAM() >> 20);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	cell_dma_nommu_offset += base;
+	cell_dma_analmmu_offset += base;
 
-	if (cell_dma_nommu_offset != 0)
+	if (cell_dma_analmmu_offset != 0)
 		cell_pci_controller_ops.dma_dev_setup = cell_pci_dma_dev_setup;
 
 	printk("iommu: disabled, direct DMA offset is 0x%lx\n",
-	       cell_dma_nommu_offset);
+	       cell_dma_analmmu_offset);
 
 	return 0;
 }
@@ -778,18 +778,18 @@ static int __init cell_iommu_init_disabled(void)
  *
  *  The fixed mapping is established at boot, and maps all of physical memory
  *  1:1 into device space at some offset. On machines with < 30 GB of memory
- *  we setup the fixed mapping immediately above the normal IOMMU window.
+ *  we setup the fixed mapping immediately above the analrmal IOMMU window.
  *
- *  For example a machine with 4GB of memory would end up with the normal
+ *  For example a machine with 4GB of memory would end up with the analrmal
  *  IOMMU window from 0-2GB and the fixed mapping window from 2GB to 6GB. In
  *  this case a 64-bit device wishing to DMA to 1GB would be told to DMA to
  *  3GB, plus any offset required by firmware. The firmware offset is encoded
  *  in the "dma-ranges" property.
  *
  *  On machines with 30GB or more of memory, we are unable to place the fixed
- *  mapping above the normal IOMMU window as we would run out of address space.
- *  Instead we move the normal IOMMU window to coincide with the hash page
- *  table, this region does not need to be part of the fixed mapping as no
+ *  mapping above the analrmal IOMMU window as we would run out of address space.
+ *  Instead we move the analrmal IOMMU window to coincide with the hash page
+ *  table, this region does analt need to be part of the fixed mapping as anal
  *  device should ever be DMA'ing to it. We then setup the fixed mapping
  *  from 0 to 32GB.
  */
@@ -797,12 +797,12 @@ static int __init cell_iommu_init_disabled(void)
 static u64 cell_iommu_get_fixed_address(struct device *dev)
 {
 	u64 cpu_addr, size, best_size, dev_addr = OF_BAD_ADDR;
-	struct device_node *np;
+	struct device_analde *np;
 	const u32 *ranges = NULL;
 	int i, len, best, naddr, nsize, pna, range_size;
 
-	/* We can be called for platform devices that have no of_node */
-	np = of_node_get(dev->of_node);
+	/* We can be called for platform devices that have anal of_analde */
+	np = of_analde_get(dev->of_analde);
 	if (!np)
 		goto out;
 
@@ -815,13 +815,13 @@ static u64 cell_iommu_get_fixed_address(struct device *dev)
 
 		ranges = of_get_property(np, "dma-ranges", &len);
 
-		/* Ignore empty ranges, they imply no translation required */
+		/* Iganalre empty ranges, they imply anal translation required */
 		if (ranges && len > 0)
 			break;
 	}
 
 	if (!ranges) {
-		dev_dbg(dev, "iommu: no dma-ranges found\n");
+		dev_dbg(dev, "iommu: anal dma-ranges found\n");
 		goto out;
 	}
 
@@ -848,10 +848,10 @@ static u64 cell_iommu_get_fixed_address(struct device *dev)
 	if (best >= 0) {
 		dev_addr = of_read_number(ranges + best, naddr);
 	} else
-		dev_dbg(dev, "iommu: no suitable range found!\n");
+		dev_dbg(dev, "iommu: anal suitable range found!\n");
 
 out:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return dev_addr;
 }
@@ -868,7 +868,7 @@ static void __init insert_16M_pte(unsigned long addr, unsigned long *ptab,
 	unsigned long segment, offset;
 
 	segment = addr >> IO_SEGMENT_SHIFT;
-	offset = (addr >> 24) - (segment << IO_PAGENO_BITS(24));
+	offset = (addr >> 24) - (segment << IO_PAGEANAL_BITS(24));
 	ptab = ptab + (segment * (1 << 12) / sizeof(unsigned long));
 
 	pr_debug("iommu: addr %lx ptab %p segment %lx offset %lx\n",
@@ -878,7 +878,7 @@ static void __init insert_16M_pte(unsigned long addr, unsigned long *ptab,
 }
 
 static void __init cell_iommu_setup_fixed_ptab(struct cbe_iommu *iommu,
-	struct device_node *np, unsigned long dbase, unsigned long dsize,
+	struct device_analde *np, unsigned long dbase, unsigned long dsize,
 	unsigned long fbase, unsigned long fsize)
 {
 	unsigned long base_pte, uaddr, ioaddr, *ptab;
@@ -917,23 +917,23 @@ static int __init cell_iommu_fixed_mapping_init(void)
 {
 	unsigned long dbase, dsize, fbase, fsize, hbase, hend;
 	struct cbe_iommu *iommu;
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* The fixed mapping is only supported on axon machines */
-	np = of_find_node_by_name(NULL, "axon");
-	of_node_put(np);
+	np = of_find_analde_by_name(NULL, "axon");
+	of_analde_put(np);
 
 	if (!np) {
-		pr_debug("iommu: fixed mapping disabled, no axons found\n");
+		pr_debug("iommu: fixed mapping disabled, anal axons found\n");
 		return -1;
 	}
 
 	/* We must have dma-ranges properties for fixed mapping to work */
-	np = of_find_node_with_property(NULL, "dma-ranges");
-	of_node_put(np);
+	np = of_find_analde_with_property(NULL, "dma-ranges");
+	of_analde_put(np);
 
 	if (!np) {
-		pr_debug("iommu: no dma-ranges found, no fixed mapping\n");
+		pr_debug("iommu: anal dma-ranges found, anal fixed mapping\n");
 		return -1;
 	}
 
@@ -943,7 +943,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	 * If that is > 32GB we have to do other shennanigans.
 	 */
 	fbase = 0;
-	for_each_node_by_name(np, "axon") {
+	for_each_analde_by_name(np, "axon") {
 		cell_iommu_get_window(np, &dbase, &dsize);
 		fbase = max(fbase, dbase + dsize);
 	}
@@ -970,18 +970,18 @@ static int __init cell_iommu_fixed_mapping_init(void)
 		/* The window must start and end on a segment boundary */
 		if ((hbase != ALIGN(hbase, 1 << IO_SEGMENT_SHIFT)) ||
 		    (hend != ALIGN(hend, 1 << IO_SEGMENT_SHIFT))) {
-			pr_debug("iommu: hash window not segment aligned\n");
+			pr_debug("iommu: hash window analt segment aligned\n");
 			return -1;
 		}
 
 		/* Check the hash window fits inside the real DMA window */
-		for_each_node_by_name(np, "axon") {
+		for_each_analde_by_name(np, "axon") {
 			cell_iommu_get_window(np, &dbase, &dsize);
 
 			if (hbase < dbase || (hend > (dbase + dsize))) {
 				pr_debug("iommu: hash window doesn't fit in"
 					 "real DMA window\n");
-				of_node_put(np);
+				of_analde_put(np);
 				return -1;
 			}
 		}
@@ -990,7 +990,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	}
 
 	/* Setup the dynamic regions */
-	for_each_node_by_name(np, "axon") {
+	for_each_analde_by_name(np, "axon") {
 		iommu = cell_iommu_alloc(np);
 		BUG_ON(!iommu);
 
@@ -1001,7 +1001,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 			dsize = htab_size_bytes;
 		}
 
-		printk(KERN_DEBUG "iommu: node %d, dynamic window 0x%lx-0x%lx "
+		printk(KERN_DEBUG "iommu: analde %d, dynamic window 0x%lx-0x%lx "
 			"fixed window 0x%lx-0x%lx\n", iommu->nid, dbase,
 			 dbase + dsize, fbase, fbase + fsize);
 
@@ -1023,7 +1023,7 @@ static int iommu_fixed_disabled;
 
 static int __init setup_iommu_fixed(char *str)
 {
-	struct device_node *pciep;
+	struct device_analde *pciep;
 
 	if (strcmp(str, "off") == 0)
 		iommu_fixed_disabled = 1;
@@ -1033,12 +1033,12 @@ static int __init setup_iommu_fixed(char *str)
 	 * should be set to be weakly ordered; but only if the boot
 	 * option WASN'T set for strong ordering
 	 */
-	pciep = of_find_node_by_type(NULL, "pcie-endpoint");
+	pciep = of_find_analde_by_type(NULL, "pcie-endpoint");
 
 	if (strcmp(str, "weak") == 0 || (pciep && strcmp(str, "strong") != 0))
 		iommu_fixed_is_weak = true;
 
-	of_node_put(pciep);
+	of_analde_put(pciep);
 
 	return 1;
 }
@@ -1046,12 +1046,12 @@ __setup("iommu_fixed=", setup_iommu_fixed);
 
 static int __init cell_iommu_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	/* If IOMMU is disabled or we have little enough RAM to not need
+	/* If IOMMU is disabled or we have little eanalugh RAM to analt need
 	 * to enable it, we setup a direct mapping.
 	 *
-	 * Note: should we make sure we have the IOMMU actually disabled ?
+	 * Analte: should we make sure we have the IOMMU actually disabled ?
 	 */
 	if (iommu_is_off ||
 	    (!iommu_force_on && memblock_end_of_DRAM() <= 0x80000000ull))
@@ -1064,17 +1064,17 @@ static int __init cell_iommu_init(void)
 	if (!iommu_fixed_disabled && cell_iommu_fixed_mapping_init() == 0)
 		goto done;
 
-	/* Create an iommu for each /axon node.  */
-	for_each_node_by_name(np, "axon") {
+	/* Create an iommu for each /axon analde.  */
+	for_each_analde_by_name(np, "axon") {
 		if (np->parent == NULL || np->parent->parent != NULL)
 			continue;
 		cell_iommu_init_one(np, 0);
 	}
 
-	/* Create an iommu for each toplevel /pci-internal node for
+	/* Create an iommu for each toplevel /pci-internal analde for
 	 * old hardware/firmware
 	 */
-	for_each_node_by_name(np, "pci-internal") {
+	for_each_analde_by_name(np, "pci-internal") {
 		if (np->parent == NULL || np->parent->parent != NULL)
 			continue;
 		cell_iommu_init_one(np, SPIDER_DMA_OFFSET);
@@ -1087,7 +1087,7 @@ static int __init cell_iommu_init(void)
 	/* Register callbacks on OF platform device addition/removal
 	 * to handle linking them to the right DMA operations
 	 */
-	bus_register_notifier(&platform_bus_type, &cell_of_bus_notifier);
+	bus_register_analtifier(&platform_bus_type, &cell_of_bus_analtifier);
 
 	return 0;
 }

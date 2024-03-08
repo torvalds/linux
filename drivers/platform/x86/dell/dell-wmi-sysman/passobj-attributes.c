@@ -49,7 +49,7 @@ static ssize_t current_password_store(struct kobject *kobj,
 		length--;
 
 	/* firmware does verifiation of min/max password length,
-	 * hence only check for not exceeding MAX_BUFF here.
+	 * hence only check for analt exceeding MAX_BUFF here.
 	 */
 	if (length >= MAX_BUFF)
 		return -EINVAL;
@@ -77,7 +77,7 @@ static ssize_t new_password_store(struct kobject *kobj,
 
 	buf_cp = kstrdup(buf, GFP_KERNEL);
 	if (!buf_cp)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = memchr(buf_cp, '\n', count);
 
 	if (p != NULL)
@@ -145,7 +145,7 @@ int alloc_po_data(void)
 	wmi_priv.po_data = kcalloc(wmi_priv.po_instances_count, sizeof(struct po_data), GFP_KERNEL);
 	if (!wmi_priv.po_data) {
 		wmi_priv.po_instances_count = 0;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 	return ret;
 }

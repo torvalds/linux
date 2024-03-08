@@ -40,7 +40,7 @@ static struct atm_dev *__alloc_atm_dev(const char *type)
 	if (!dev)
 		return NULL;
 	dev->type = type;
-	dev->signal = ATM_PHY_SIG_UNKNOWN;
+	dev->signal = ATM_PHY_SIG_UNKANALWN;
 	dev->link_rate = ATM_OC3_PCR;
 	spin_lock_init(&dev->lock);
 	INIT_LIST_HEAD(&dev->local);
@@ -81,7 +81,7 @@ struct atm_dev *atm_dev_register(const char *type, struct device *parent,
 
 	dev = __alloc_atm_dev(type);
 	if (!dev) {
-		pr_err("no space for dev %s\n", type);
+		pr_err("anal space for dev %s\n", type);
 		return NULL;
 	}
 	mutex_lock(&atm_dev_mutex);
@@ -210,7 +210,7 @@ int atm_getnames(void __user *buf, int __user *iobuf_len)
 	tmp_buf = kmalloc(size, GFP_ATOMIC);
 	if (!tmp_buf) {
 		mutex_unlock(&atm_dev_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	tmp_p = tmp_buf;
 	list_for_each_entry(dev, &atm_devs, dev_list) {
@@ -236,7 +236,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 	dev = try_then_request_module(atm_dev_lookup(number), "atm-device-%d",
 				      number);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	case ATM_GETTYPE:
@@ -386,7 +386,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 			size = dev->ops->ioctl(dev, cmd, buf);
 		}
 		if (size < 0) {
-			error = (size == -ENOIOCTLCMD ? -ENOTTY : size);
+			error = (size == -EANALIOCTLCMD ? -EANALTTY : size);
 			goto done;
 		}
 	}

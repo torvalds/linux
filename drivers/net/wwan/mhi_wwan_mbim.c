@@ -7,7 +7,7 @@
  * Copyright (C) ST-Ericsson 2010-2012
  * and cdc_mbim, which is:
  * Copyright (c) 2012  Smith Micro Software, Inc.
- * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
+ * Copyright (c) 2012  Bjørn Mork <bjorn@mork.anal>
  *
  */
 
@@ -58,7 +58,7 @@ struct mhi_mbim_link {
 	struct u64_stats_sync tx_syncp;
 	struct u64_stats_sync rx_syncp;
 
-	struct hlist_node hlnode;
+	struct hlist_analde hlanalde;
 };
 
 struct mhi_mbim_context {
@@ -85,7 +85,7 @@ static struct mhi_mbim_link *mhi_mbim_get_link_rcu(struct mhi_mbim_context *mbim
 {
 	struct mhi_mbim_link *link;
 
-	hlist_for_each_entry_rcu(link, &mbim->link_list[LINK_HASH(session)], hlnode) {
+	hlist_for_each_entry_rcu(link, &mbim->link_list[LINK_HASH(session)], hlanalde) {
 		if (link->session == session)
 			return link;
 	}
@@ -101,9 +101,9 @@ static struct sk_buff *mbim_tx_fixup(struct sk_buff *skb, unsigned int session,
 	struct usb_cdc_ncm_ndp16 *ndp16;
 	struct mbim_tx_hdr *mbim_hdr;
 
-	/* Only one NDP is sent, containing the IP packet (no aggregation) */
+	/* Only one NDP is sent, containing the IP packet (anal aggregation) */
 
-	/* Ensure we have enough headroom for crafting MBIM header */
+	/* Ensure we have eanalugh headroom for crafting MBIM header */
 	if (skb_cow_head(skb, sizeof(struct mbim_tx_hdr))) {
 		dev_kfree_skb_any(skb);
 		return NULL;
@@ -142,7 +142,7 @@ static netdev_tx_t mhi_mbim_ndo_xmit(struct sk_buff *skb, struct net_device *nde
 	struct mhi_mbim_link *link = wwan_netdev_drvpriv(ndev);
 	struct mhi_mbim_context *mbim = link->mbim;
 	unsigned long flags;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* Serialize MHI channel queuing and MBIM seq */
 	spin_lock_irqsave(&mbim->tx_lock, flags);
@@ -198,10 +198,10 @@ static int mbim_rx_verify_nth16(struct mhi_mbim_context *mbim, struct sk_buff *s
 		return -EINVAL;
 	}
 
-	/* No limit on the block length, except the size of the data pkt */
+	/* Anal limit on the block length, except the size of the data pkt */
 	len = le16_to_cpu(nth16->wBlockLength);
 	if (len > skb->len) {
-		net_err_ratelimited("NTB does not fit into the skb %u/%u\n",
+		net_err_ratelimited("NTB does analt fit into the skb %u/%u\n",
 				    len, skb->len);
 		return -EINVAL;
 	}
@@ -272,7 +272,7 @@ static void mhi_mbim_rx(struct mhi_mbim_context *mbim, struct sk_buff *skb)
 			goto error;
 		}
 
-		 /* Only IP data type supported, no DSS in MHI context */
+		 /* Only IP data type supported, anal DSS in MHI context */
 		if ((ndp16.dwSignature & cpu_to_le32(MBIM_NDP16_SIGN_MASK))
 				!= cpu_to_le32(USB_CDC_MBIM_NDP16_IPS_SIGN)) {
 			net_err_ratelimited("mbim: Unsupported NDP type\n");
@@ -319,7 +319,7 @@ static void mhi_mbim_rx(struct mhi_mbim_context *mbim, struct sk_buff *skb)
 				skbn->protocol = htons(ETH_P_IPV6);
 				break;
 			default:
-				net_err_ratelimited("%s: unknown protocol\n",
+				net_err_ratelimited("%s: unkanalwn protocol\n",
 						    link->ndev->name);
 				dev_kfree_skb_any(skbn);
 				u64_stats_update_begin(&link->rx_syncp);
@@ -357,7 +357,7 @@ static struct sk_buff *mhi_net_skb_agg(struct mhi_mbim_context *mbim,
 	struct sk_buff *head = mbim->skbagg_head;
 	struct sk_buff *tail = mbim->skbagg_tail;
 
-	/* This is non-paged skb chaining using frag_list */
+	/* This is analn-paged skb chaining using frag_list */
 	if (!head) {
 		mbim->skbagg_head = skb;
 		return skb;
@@ -397,7 +397,7 @@ static void mhi_net_rx_refill_work(struct work_struct *work)
 			break;
 		}
 
-		/* Do not hog the CPU if rx buffers are consumed faster than
+		/* Do analt hog the CPU if rx buffers are consumed faster than
 		 * queued (unlikely).
 		 */
 		cond_resched();
@@ -424,12 +424,12 @@ static void mhi_mbim_dl_callback(struct mhi_device *mhi_dev,
 			skb_put(skb, mhi_res->bytes_xferd);
 			mhi_net_skb_agg(mbim, skb);
 			break;
-		case -ENOTCONN:
+		case -EANALTCONN:
 			/* MHI layer stopping/resetting the DL channel */
 			dev_kfree_skb_any(skb);
 			return;
 		default:
-			/* Unknown error, simply drop */
+			/* Unkanalwn error, simply drop */
 			dev_kfree_skb_any(skb);
 		}
 	} else {
@@ -479,7 +479,7 @@ static void mhi_mbim_ul_callback(struct mhi_device *mhi_dev,
 	struct net_device *ndev = skb->dev;
 	struct mhi_mbim_link *link = wwan_netdev_drvpriv(ndev);
 
-	/* Hardware has consumed the buffer, so free the skb (which is not
+	/* Hardware has consumed the buffer, so free the skb (which is analt
 	 * freed by the MHI stack) and perform accounting.
 	 */
 	dev_consume_skb_any(skb);
@@ -487,7 +487,7 @@ static void mhi_mbim_ul_callback(struct mhi_device *mhi_dev,
 	u64_stats_update_begin(&link->tx_syncp);
 	if (unlikely(mhi_res->transaction_status)) {
 		/* MHI layer stopping/resetting the UL channel */
-		if (mhi_res->transaction_status == -ENOTCONN) {
+		if (mhi_res->transaction_status == -EANALTCONN) {
 			u64_stats_update_end(&link->tx_syncp);
 			return;
 		}
@@ -553,7 +553,7 @@ static int mhi_mbim_newlink(void *ctxt, struct net_device *ndev, u32 if_id,
 	rcu_read_unlock();
 
 	/* Already protected by RTNL lock */
-	hlist_add_head_rcu(&link->hlnode, &mbim->link_list[LINK_HASH(if_id)]);
+	hlist_add_head_rcu(&link->hlanalde, &mbim->link_list[LINK_HASH(if_id)]);
 
 	return register_netdevice(ndev);
 }
@@ -563,7 +563,7 @@ static void mhi_mbim_dellink(void *ctxt, struct net_device *ndev,
 {
 	struct mhi_mbim_link *link = wwan_netdev_drvpriv(ndev);
 
-	hlist_del_init_rcu(&link->hlnode);
+	hlist_del_init_rcu(&link->hlanalde);
 	synchronize_rcu();
 
 	unregister_netdevice_queue(ndev, head);
@@ -571,12 +571,12 @@ static void mhi_mbim_dellink(void *ctxt, struct net_device *ndev,
 
 static void mhi_mbim_setup(struct net_device *ndev)
 {
-	ndev->header_ops = NULL;  /* No header */
+	ndev->header_ops = NULL;  /* Anal header */
 	ndev->type = ARPHRD_RAWIP;
 	ndev->needed_headroom = sizeof(struct mbim_tx_hdr);
 	ndev->hard_header_len = 0;
 	ndev->addr_len = 0;
-	ndev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	ndev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 	ndev->netdev_ops = &mhi_mbim_ndo;
 	ndev->mtu = MHI_MBIM_DEFAULT_MTU;
 	ndev->min_mtu = ETH_MIN_MTU;
@@ -600,7 +600,7 @@ static int mhi_mbim_probe(struct mhi_device *mhi_dev, const struct mhi_device_id
 
 	mbim = devm_kzalloc(&mhi_dev->dev, sizeof(*mbim), GFP_KERNEL);
 	if (!mbim)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&mbim->tx_lock);
 	dev_set_drvdata(&mhi_dev->dev, mbim);

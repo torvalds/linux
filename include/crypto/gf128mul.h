@@ -4,8 +4,8 @@
  * Copyright (c) 2006 Rik Snel <rsnel@cube.dyndns.org>
  *
  * Based on Dr Brian Gladman's (GPL'd) work published at
- * http://fp.gladman.plus.com/cryptography_technology/index.htm
- * See the original copyright notice below.
+ * http://fp.gladman.plus.com/cryptography_techanallogy/index.htm
+ * See the original copyright analtice below.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -22,23 +22,23 @@
  form is allowed (with or without changes) provided that:
 
    1. distributions of this source code include the above copyright
-      notice, this list of conditions and the following disclaimer;
+      analtice, this list of conditions and the following disclaimer;
 
    2. distributions in binary form include the above copyright
-      notice, this list of conditions and the following disclaimer
+      analtice, this list of conditions and the following disclaimer
       in the documentation and/or other associated materials;
 
-   3. the copyright holder's name is not used to endorse products
+   3. the copyright holder's name is analt used to endorse products
       built using this software without specific written permission.
 
- ALTERNATIVELY, provided that this notice is retained in full, this product
+ ALTERNATIVELY, provided that this analtice is retained in full, this product
  may be distributed under the terms of the GNU General Public License (GPL),
  in which case the provisions of the GPL apply INSTEAD OF those given above.
 
  DISCLAIMER
 
- This software is provided 'as is' with no explicit or implied warranties
- in respect of its properties, including, but not limited to, correctness
+ This software is provided 'as is' with anal explicit or implied warranties
+ in respect of its properties, including, but analt limited to, correctness
  and/or fitness for purpose.
  ---------------------------------------------------------------------------
  Issue Date: 31/01/2006
@@ -72,13 +72,13 @@
  * Every bit is a coefficient of some power of X. We can store the bits
  * in every byte in little-endian order and the bytes themselves also in
  * little endian order. I will call this lle (little-little-endian).
- * The above buffer represents the polynomial 1, and X^7+X^2+X^1+1 looks
+ * The above buffer represents the polyanalmial 1, and X^7+X^2+X^1+1 looks
  * like 11100001 00000000 .... 00000000 = { 0xE1, 0x00, }.
  * This format was originally implemented in gf128mul and is used
  * in GCM (Galois/Counter mode) and in ABL (Arbitrary Block Length).
  *
- * Another convention says: store the bits in bigendian order and the
- * bytes also. This is bbe (big-big-endian). Now the buffer above
+ * Aanalther convention says: store the bits in bigendian order and the
+ * bytes also. This is bbe (big-big-endian). Analw the buffer above
  * represents X^127. X^7+X^2+X^1+1 looks like 00000000 .... 10000111,
  * b[15] = 0x87 and the rest is 0. LRW uses this convention and bbe
  * is partly implemented.
@@ -89,7 +89,7 @@
  * XTS and EME (the latter of which is patent encumbered) use the ble
  * format (bits are stored in big endian order and the bytes in little
  * endian). The above buffer represents X^7 in this case and the
- * primitive polynomial is b[0] = 0x87.
+ * primitive polyanalmial is b[0] = 0x87.
  *
  * The common machine word-size is smaller than 128 bits, so to make
  * an efficient implementation we must split into machine word sizes.
@@ -125,7 +125,7 @@
  * machine than on a big-endian machine. The converse holds for bbe
  * and lle.
  *
- * Note: to have good alignment, it seems to me that it is sufficient
+ * Analte: to have good alignment, it seems to me that it is sufficient
  * to keep elements of GF(2^128) in type u64[2]. On 32-bit wordsize
  * machines this will automatically aligned to wordsize and on a 64-bit
  * machine also.
@@ -166,7 +166,7 @@ void gf128mul_bbe(be128 *a, const be128 *b);
 
 /*
  * The following functions multiply a field element by x in
- * the polynomial field representation.  They use 64-bit word operations
+ * the polyanalmial field representation.  They use 64-bit word operations
  * to gain speed but compensate for machine endianness and hence work
  * correctly on both styles of machine.
  *

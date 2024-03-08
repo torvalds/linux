@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -31,7 +31,7 @@
 #include "dev.h"
 
 #define MIPI_CAL_CTRL			0x00
-#define MIPI_CAL_CTRL_NOISE_FILTER(x)	(((x) & 0xf) << 26)
+#define MIPI_CAL_CTRL_ANALISE_FILTER(x)	(((x) & 0xf) << 26)
 #define MIPI_CAL_CTRL_PRESCALE(x)	(((x) & 0x3) << 24)
 #define MIPI_CAL_CTRL_CLKEN_OVR		(1 << 4)
 #define MIPI_CAL_CTRL_START		(1 << 0)
@@ -182,7 +182,7 @@ static int tegra_mipi_power_down(struct tegra_mipi *mipi)
 
 	/*
 	 * The MIPI_CAL_BIAS_PAD_PDVREG controls a voltage regulator that
-	 * supplies the DSI pads. This must be kept enabled until none of the
+	 * supplies the DSI pads. This must be kept enabled until analne of the
 	 * DSI lanes are used anymore.
 	 */
 	value = tegra_mipi_readl(mipi, MIPI_CAL_BIAS_PAD_CFG2);
@@ -193,7 +193,7 @@ static int tegra_mipi_power_down(struct tegra_mipi *mipi)
 	 * MIPI_CAL_BIAS_PAD_PDVCLAMP and MIPI_CAL_BIAS_PAD_E_VCLAMP_REF
 	 * control a regulator that supplies current to the pre-driver logic.
 	 * Powering down this regulator causes DSI to fail, so it must remain
-	 * powered on until none of the DSI lanes are used anymore.
+	 * powered on until analne of the DSI lanes are used anymore.
 	 */
 	value = tegra_mipi_readl(mipi, MIPI_CAL_BIAS_PAD_CFG0);
 
@@ -207,7 +207,7 @@ static int tegra_mipi_power_down(struct tegra_mipi *mipi)
 }
 
 struct tegra_mipi_device *tegra_mipi_request(struct device *device,
-					     struct device_node *np)
+					     struct device_analde *np)
 {
 	struct tegra_mipi_device *dev;
 	struct of_phandle_args args;
@@ -221,13 +221,13 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
-	dev->pdev = of_find_device_by_node(args.np);
+	dev->pdev = of_find_device_by_analde(args.np);
 	if (!dev->pdev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto free;
 	}
 
@@ -237,7 +237,7 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device,
 		goto put;
 	}
 
-	of_node_put(args.np);
+	of_analde_put(args.np);
 
 	dev->pads = args.args[0];
 	dev->device = device;
@@ -249,7 +249,7 @@ put:
 free:
 	kfree(dev);
 out:
-	of_node_put(args.np);
+	of_analde_put(args.np);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(tegra_mipi_request);
@@ -355,9 +355,9 @@ int tegra_mipi_start_calibration(struct tegra_mipi_device *device)
 	}
 
 	value = tegra_mipi_readl(device->mipi, MIPI_CAL_CTRL);
-	value &= ~MIPI_CAL_CTRL_NOISE_FILTER(0xf);
+	value &= ~MIPI_CAL_CTRL_ANALISE_FILTER(0xf);
 	value &= ~MIPI_CAL_CTRL_PRESCALE(0x3);
-	value |= MIPI_CAL_CTRL_NOISE_FILTER(0xa);
+	value |= MIPI_CAL_CTRL_ANALISE_FILTER(0xa);
 	value |= MIPI_CAL_CTRL_PRESCALE(0x2);
 
 	if (!soc->clock_enable_override)
@@ -503,13 +503,13 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 	struct tegra_mipi *mipi;
 	int err;
 
-	match = of_match_node(tegra_mipi_of_match, pdev->dev.of_node);
+	match = of_match_analde(tegra_mipi_of_match, pdev->dev.of_analde);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mipi = devm_kzalloc(&pdev->dev, sizeof(*mipi), GFP_KERNEL);
 	if (!mipi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi->soc = match->data;
 	mipi->dev = &pdev->dev;

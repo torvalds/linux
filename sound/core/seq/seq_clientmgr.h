@@ -85,7 +85,7 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid);
 int snd_seq_dispatch_event(struct snd_seq_event_cell *cell, int atomic, int hop);
 
 int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table *wait);
-int snd_seq_client_notify_subscription(int client, int port,
+int snd_seq_client_analtify_subscription(int client, int port,
 				       struct snd_seq_port_subscribe *info, int evtype);
 
 int __snd_seq_deliver_single_event(struct snd_seq_client *dest,

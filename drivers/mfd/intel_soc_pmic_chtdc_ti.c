@@ -25,10 +25,10 @@ enum {
 	CHTDC_TI_PWRBTN = 0,	/* power button */
 	CHTDC_TI_DIETMPWARN,	/* thermal */
 	CHTDC_TI_ADCCMPL,	/* ADC */
-	/* No IRQ 3 */
+	/* Anal IRQ 3 */
 	CHTDC_TI_VBATLOW = 4,	/* battery */
 	CHTDC_TI_VBUSDET,	/* power source */
-	/* No IRQ 6 */
+	/* Anal IRQ 6 */
 	CHTDC_TI_CCEOCAL = 7,	/* battery */
 };
 
@@ -82,7 +82,7 @@ static const struct regmap_config chtdc_ti_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 128,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct regmap_irq chtdc_ti_irqs[] = {
@@ -112,7 +112,7 @@ static int chtdc_ti_probe(struct i2c_client *i2c)
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, pmic);
 
@@ -128,7 +128,7 @@ static int chtdc_ti_probe(struct i2c_client *i2c)
 	if (ret)
 		return ret;
 
-	return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE, chtdc_ti_dev,
+	return devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE, chtdc_ti_dev,
 				    ARRAY_SIZE(chtdc_ti_dev), NULL, 0,
 				    regmap_irq_get_domain(pmic->irq_chip_data));
 }

@@ -12,7 +12,7 @@ snd-acp-legacy-common-objs   := acp-legacy-common.o
 snd-acp-pci-objs     := acp-pci.o
 
 #platform specific driver
-snd-acp-renoir-objs     := acp-renoir.o
+snd-acp-reanalir-objs     := acp-reanalir.o
 snd-acp-rembrandt-objs  := acp-rembrandt.o
 snd-acp63-objs := acp63.o
 snd-acp70-objs := acp70.o
@@ -28,7 +28,7 @@ obj-$(CONFIG_SND_SOC_AMD_ACP_PDM) += snd-acp-pdm.o
 obj-$(CONFIG_SND_SOC_AMD_ACP_LEGACY_COMMON) += snd-acp-legacy-common.o
 obj-$(CONFIG_SND_SOC_AMD_ACP_PCI) += snd-acp-pci.o
 
-obj-$(CONFIG_SND_AMD_ASOC_RENOIR) += snd-acp-renoir.o
+obj-$(CONFIG_SND_AMD_ASOC_REANALIR) += snd-acp-reanalir.o
 obj-$(CONFIG_SND_AMD_ASOC_REMBRANDT) += snd-acp-rembrandt.o
 obj-$(CONFIG_SND_AMD_ASOC_ACP63) += snd-acp63.o
 obj-$(CONFIG_SND_AMD_ASOC_ACP70) += snd-acp70.o

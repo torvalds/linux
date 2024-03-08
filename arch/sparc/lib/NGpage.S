@@ -11,7 +11,7 @@
 	.align	32
 
 	/* This is heavily simplified from the sun4u variants
-	 * because Niagara does not have any D-cache aliasing issues
+	 * because Niagara does analt have any D-cache aliasing issues
 	 * and also we don't need to use the FPU in order to implement
 	 * an optimal page copy/clear.
 	 */
@@ -106,10 +106,10 @@ NGclear_user_page:	/* %o0=dest, %o1=vaddr */
 	wr		%g3, 0x0, %asi
 	membar		#Sync
 	retl
-	 nop
+	 analp
 
 #define BRANCH_ALWAYS	0x10680000
-#define NOP		0x01000000
+#define ANALP		0x01000000
 #define NG_DO_PATCH(OLD, NEW)	\
 	sethi	%hi(NEW), %g1; \
 	or	%g1, %lo(NEW), %g1; \
@@ -122,8 +122,8 @@ NGclear_user_page:	/* %o0=dest, %o1=vaddr */
 	or	%g3, %lo(BRANCH_ALWAYS), %g3; \
 	or	%g3, %g1, %g3; \
 	stw	%g3, [%g2]; \
-	sethi	%hi(NOP), %g3; \
-	or	%g3, %lo(NOP), %g3; \
+	sethi	%hi(ANALP), %g3; \
+	or	%g3, %lo(ANALP), %g3; \
 	stw	%g3, [%g2 + 0x4]; \
 	flush	%g2;
 
@@ -134,5 +134,5 @@ niagara_patch_pageops:
 	NG_DO_PATCH(_clear_page, NGclear_page)
 	NG_DO_PATCH(clear_user_page, NGclear_user_page)
 	retl
-	 nop
+	 analp
 	.size	niagara_patch_pageops,.-niagara_patch_pageops

@@ -308,7 +308,7 @@ static const struct s6d7aa0_panel_desc s6d7aa0_lsl080al02_desc = {
 	.init_func = s6d7aa0_lsl080al02_init,
 	.off_func = s6d7aa0_lsl080al02_off,
 	.drm_mode = &s6d7aa0_lsl080al02_mode,
-	.mode_flags = MIPI_DSI_MODE_VSYNC_FLUSH | MIPI_DSI_MODE_VIDEO_NO_HFP,
+	.mode_flags = MIPI_DSI_MODE_VSYNC_FLUSH | MIPI_DSI_MODE_VIDEO_ANAL_HFP,
 	.bus_flags = 0,
 
 	.has_backlight = false,
@@ -411,7 +411,7 @@ static const struct s6d7aa0_panel_desc s6d7aa0_lsl080al03_desc = {
 	.init_func = s6d7aa0_lsl080al03_init,
 	.off_func = s6d7aa0_lsl080al03_off,
 	.drm_mode = &s6d7aa0_lsl080al03_mode,
-	.mode_flags = MIPI_DSI_MODE_NO_EOT_PACKET,
+	.mode_flags = MIPI_DSI_MODE_ANAL_EOT_PACKET,
 	.bus_flags = 0,
 
 	.has_backlight = true,
@@ -439,7 +439,7 @@ static const struct s6d7aa0_panel_desc s6d7aa0_ltl101at01_desc = {
 	.init_func = s6d7aa0_lsl080al03_init, /* Similar init to LSL080AL03 */
 	.off_func = s6d7aa0_lsl080al03_off,
 	.drm_mode = &s6d7aa0_ltl101at01_mode,
-	.mode_flags = MIPI_DSI_MODE_NO_EOT_PACKET,
+	.mode_flags = MIPI_DSI_MODE_ANAL_EOT_PACKET,
 	.bus_flags = 0,
 
 	.has_backlight = true,
@@ -458,7 +458,7 @@ static int s6d7aa0_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, ctx->desc->drm_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -486,11 +486,11 @@ static int s6d7aa0_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->desc = of_device_get_match_data(dev);
 	if (!ctx->desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctx->supplies[0].supply = "power";
 	ctx->supplies[1].supply = "vmipi";

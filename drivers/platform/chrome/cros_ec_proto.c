@@ -16,15 +16,15 @@
 #define EC_COMMAND_RETRIES	50
 
 static const int cros_ec_error_map[] = {
-	[EC_RES_INVALID_COMMAND] = -EOPNOTSUPP,
+	[EC_RES_INVALID_COMMAND] = -EOPANALTSUPP,
 	[EC_RES_ERROR] = -EIO,
 	[EC_RES_INVALID_PARAM] = -EINVAL,
 	[EC_RES_ACCESS_DENIED] = -EACCES,
 	[EC_RES_INVALID_RESPONSE] = -EPROTO,
-	[EC_RES_INVALID_VERSION] = -ENOPROTOOPT,
+	[EC_RES_INVALID_VERSION] = -EANALPROTOOPT,
 	[EC_RES_INVALID_CHECKSUM] = -EBADMSG,
 	[EC_RES_IN_PROGRESS] = -EINPROGRESS,
-	[EC_RES_UNAVAILABLE] = -ENODATA,
+	[EC_RES_UNAVAILABLE] = -EANALDATA,
 	[EC_RES_TIMEOUT] = -ETIMEDOUT,
 	[EC_RES_OVERFLOW] = -EOVERFLOW,
 	[EC_RES_INVALID_HEADER] = -EBADR,
@@ -35,7 +35,7 @@ static const int cros_ec_error_map[] = {
 	[EC_RES_INVALID_HEADER_VERSION] = -EBADMSG,
 	[EC_RES_INVALID_HEADER_CRC] = -EBADMSG,
 	[EC_RES_INVALID_DATA_CRC] = -EBADMSG,
-	[EC_RES_DUP_UNAVAILABLE] = -ENODATA,
+	[EC_RES_DUP_UNAVAILABLE] = -EANALDATA,
 };
 
 static int cros_ec_map_error(uint32_t result)
@@ -121,9 +121,9 @@ static int cros_ec_xfer_command(struct cros_ec_device *ec_dev, struct cros_ec_co
 		/*
 		 * This error can happen if a communication error happened and
 		 * the EC is trying to use protocol v2, on an underlying
-		 * communication mechanism that does not support v2.
+		 * communication mechanism that does analt support v2.
 		 */
-		dev_err_once(ec_dev->dev, "missing EC transfer API, cannot send command\n");
+		dev_err_once(ec_dev->dev, "missing EC transfer API, cananalt send command\n");
 		return -EIO;
 	}
 
@@ -149,7 +149,7 @@ static int cros_ec_wait_until_complete(struct cros_ec_device *ec_dev, uint32_t *
 	msg->insize = sizeof(*status);
 	msg->outsize = 0;
 
-	/* Query the EC's status until it's no longer busy or we encounter an error. */
+	/* Query the EC's status until it's anal longer busy or we encounter an error. */
 	for (i = 0; i < EC_COMMAND_RETRIES; ++i) {
 		usleep_range(10000, 11000);
 
@@ -216,7 +216,7 @@ EXPORT_SYMBOL(cros_ec_prepare_tx);
  * This is used by ChromeOS EC drivers to check the ec_msg->result for
  * EC_RES_IN_PROGRESS and to warn about them.
  *
- * The function should not check for furthermore error codes.  Otherwise,
+ * The function should analt check for furthermore error codes.  Otherwise,
  * it would break the ABI.
  *
  * Return: -EAGAIN if ec_msg->result == EC_RES_IN_PROGRESS.  Otherwise, 0.
@@ -249,8 +249,8 @@ EXPORT_SYMBOL(cros_ec_check_result);
  * @mask: result when function returns 0.
  *
  * LOCKING:
- * the caller has ec_dev->lock mutex, or the caller knows there is
- * no other command in progress.
+ * the caller has ec_dev->lock mutex, or the caller kanalws there is
+ * anal other command in progress.
  */
 static int cros_ec_get_host_event_wake_mask(struct cros_ec_device *ec_dev, uint32_t *mask)
 {
@@ -260,7 +260,7 @@ static int cros_ec_get_host_event_wake_mask(struct cros_ec_device *ec_dev, uint3
 
 	msg = kzalloc(sizeof(*msg) + sizeof(*r), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->command = EC_CMD_HOST_EVENT_GET_WAKE_MASK;
 	msg->insize = sizeof(*r);
@@ -300,7 +300,7 @@ static int cros_ec_get_proto_info(struct cros_ec_device *ec_dev, int devidx)
 
 	msg = kzalloc(sizeof(*msg) + sizeof(*info), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->command = EC_CMD_PASSTHRU_OFFSET(devidx) | EC_CMD_GET_PROTOCOL_INFO;
 	msg->insize = sizeof(*info);
@@ -310,7 +310,7 @@ static int cros_ec_get_proto_info(struct cros_ec_device *ec_dev, int devidx)
 	 * Send command once again when timeout occurred.
 	 * Fingerprint MCU (FPMCU) is restarted during system boot which
 	 * introduces small window in which FPMCU won't respond for any
-	 * messages sent by kernel. There is no need to wait before next
+	 * messages sent by kernel. There is anal need to wait before next
 	 * attempt because we waited at least EC_MSG_DEADLINE_MS.
 	 */
 	if (ret == -ETIMEDOUT)
@@ -356,7 +356,7 @@ static int cros_ec_get_proto_info(struct cros_ec_device *ec_dev, int devidx)
 		dev_dbg(ec_dev->dev, "found PD chip\n");
 		break;
 	default:
-		dev_dbg(ec_dev->dev, "unknown passthru index: %d\n", devidx);
+		dev_dbg(ec_dev->dev, "unkanalwn passthru index: %d\n", devidx);
 		break;
 	}
 
@@ -377,7 +377,7 @@ static int cros_ec_get_proto_info_legacy(struct cros_ec_device *ec_dev)
 
 	msg = kzalloc(sizeof(*msg) + max(sizeof(*params), sizeof(*response)), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->command = EC_CMD_HELLO;
 	msg->insize = sizeof(*response);
@@ -440,8 +440,8 @@ exit:
  * @return 0 on success, error code otherwise
  *
  * LOCKING:
- * the caller has ec_dev->lock mutex or the caller knows there is
- * no other command in progress.
+ * the caller has ec_dev->lock mutex or the caller kanalws there is
+ * anal other command in progress.
  */
 static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev, u16 cmd, u32 *mask)
 {
@@ -453,7 +453,7 @@ static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev, 
 	msg = kmalloc(sizeof(*msg) + max(sizeof(*rver), sizeof(*pver)),
 		      GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->version = 0;
 	msg->command = EC_CMD_GET_CMD_VERSIONS;
@@ -512,7 +512,7 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 			 * the EC isn't listening. If this happens, we'll
 			 * test later when the first command is run.
 			 */
-			ec_dev->proto_version = EC_PROTO_VERSION_UNKNOWN;
+			ec_dev->proto_version = EC_PROTO_VERSION_UNKANALWN;
 			dev_dbg(ec_dev->dev, "EC query failed: %d\n", ret);
 			return ret;
 		}
@@ -523,14 +523,14 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 
 	ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
 	if (!ec_dev->din) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
 	ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
 	if (!ec_dev->dout) {
 		devm_kfree(dev, ec_dev->din);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -553,12 +553,12 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 	if (ret < 0) {
 		/*
 		 * If the EC doesn't support EC_CMD_HOST_EVENT_GET_WAKE_MASK,
-		 * use a reasonable default. Note that we ignore various
+		 * use a reasonable default. Analte that we iganalre various
 		 * battery, AC status, and power-state events, because (a)
 		 * those can be quite common (e.g., when sitting at full
-		 * charge, on AC) and (b) these are not actionable wake events;
+		 * charge, on AC) and (b) these are analt actionable wake events;
 		 * if anything, we'd like to continue suspending (to save
-		 * power), not wake up.
+		 * power), analt wake up.
 		 */
 		ec_dev->host_event_wake_mask = U32_MAX &
 			~(EC_HOST_EVENT_MASK(EC_HOST_EVENT_LID_CLOSED) |
@@ -569,10 +569,10 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_PD_MCU) |
 			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_BATTERY_STATUS));
 		/*
-		 * Old ECs may not support this command. Complain about all
+		 * Old ECs may analt support this command. Complain about all
 		 * other errors.
 		 */
-		if (ret != -EOPNOTSUPP)
+		if (ret != -EOPANALTSUPP)
 			dev_err(ec_dev->dev,
 				"failed to retrieve wake mask: %d\n", ret);
 	}
@@ -590,7 +590,7 @@ EXPORT_SYMBOL(cros_ec_query_all);
  * @msg: Message to write.
  *
  * Call this to send a command to the ChromeOS EC. This should be used instead
- * of calling the EC's cmd_xfer() callback directly. This function does not
+ * of calling the EC's cmd_xfer() callback directly. This function does analt
  * convert EC command execution error codes to Linux error codes. Most
  * in-kernel users will want to use cros_ec_cmd_xfer_status() instead since
  * that function implements the conversion.
@@ -609,11 +609,11 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev, struct cros_ec_command *msg)
 	int ret;
 
 	mutex_lock(&ec_dev->lock);
-	if (ec_dev->proto_version == EC_PROTO_VERSION_UNKNOWN) {
+	if (ec_dev->proto_version == EC_PROTO_VERSION_UNKANALWN) {
 		ret = cros_ec_query_all(ec_dev);
 		if (ret) {
 			dev_err(ec_dev->dev,
-				"EC version unknown and query failed; aborting command\n");
+				"EC version unkanalwn and query failed; aborting command\n");
 			mutex_unlock(&ec_dev->lock);
 			return ret;
 		}
@@ -752,17 +752,17 @@ static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
  * cros_ec_get_next_event() - Fetch next event from the ChromeOS EC.
  * @ec_dev: Device to fetch event from.
  * @wake_event: Pointer to a bool set to true upon return if the event might be
- *              treated as a wake event. Ignored if null.
+ *              treated as a wake event. Iganalred if null.
  * @has_more_events: Pointer to bool set to true if more than one event is
  *              pending.
  *              Some EC will set this flag to indicate cros_ec_get_next_event()
  *              can be called multiple times in a row.
  *              It is an optimization to prevent issuing a EC command for
- *              nothing or wait for another interrupt from the EC to process
+ *              analthing or wait for aanalther interrupt from the EC to process
  *              the next message.
- *              Ignored if null.
+ *              Iganalred if null.
  *
- * Return: negative error code on errors; 0 for no data; or else number of
+ * Return: negative error code on errors; 0 for anal data; or else number of
  * bytes received (i.e., an event was retrieved successfully). Event types are
  * written out to @ec_dev->event_data.event_type on success.
  */
@@ -785,7 +785,7 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
 
 	/*
 	 * Default value for has_more_events.
-	 * EC will raise another interrupt if AP does not process all events
+	 * EC will raise aanalther interrupt if AP does analt process all events
 	 * anyway.
 	 */
 	if (has_more_events)
@@ -796,13 +796,13 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
 
 	ret = get_next_event(ec_dev);
 	/*
-	 * -ENOPROTOOPT is returned when EC returns EC_RES_INVALID_VERSION.
+	 * -EANALPROTOOPT is returned when EC returns EC_RES_INVALID_VERSION.
 	 * This can occur when EC based device (e.g. Fingerprint MCU) jumps to
 	 * the RO image which doesn't support newer version of the command. In
 	 * this case we will attempt to update maximum supported version of the
 	 * EC_CMD_GET_NEXT_EVENT.
 	 */
-	if (ret == -ENOPROTOOPT) {
+	if (ret == -EANALPROTOOPT) {
 		dev_dbg(ec_dev->dev,
 			"GET_NEXT_EVENT returned invalid version error.\n");
 		ret = cros_ec_get_host_command_version_mask(ec_dev,
@@ -810,13 +810,13 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
 							&ver_mask);
 		if (ret < 0 || ver_mask == 0)
 			/*
-			 * Do not change the MKBP supported version if we can't
-			 * obtain supported version correctly. Please note that
+			 * Do analt change the MKBP supported version if we can't
+			 * obtain supported version correctly. Please analte that
 			 * calling EC_CMD_GET_NEXT_EVENT returned
 			 * EC_RES_INVALID_VERSION which means that the command
 			 * is present.
 			 */
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 
 		ec_dev->mkbp_event_supported = fls(ver_mask);
 		dev_dbg(ec_dev->dev, "MKBP support version changed to %u\n",
@@ -848,7 +848,7 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
 			/* rtc_update_irq() already handles wakeup events. */
 			if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_RTC))
 				*wake_event = false;
-			/* Masked host-events should not count as wake events. */
+			/* Masked host-events should analt count as wake events. */
 			if (!(host_event & ec_dev->host_event_wake_mask))
 				*wake_event = false;
 		}
@@ -863,10 +863,10 @@ EXPORT_SYMBOL(cros_ec_get_next_event);
  * @ec_dev: Device to fetch event from.
  *
  * When MKBP is supported, when the EC raises an interrupt, we collect the
- * events raised and call the functions in the ec notifier. This function
- * is a helper to know which events are raised.
+ * events raised and call the functions in the ec analtifier. This function
+ * is a helper to kanalw which events are raised.
  *
- * Return: 0 on error or non-zero bitmask of one or more EC_HOST_EVENT_*.
+ * Return: 0 on error or analn-zero bitmask of one or more EC_HOST_EVENT_*.
  */
 u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev)
 {
@@ -892,13 +892,13 @@ EXPORT_SYMBOL(cros_ec_get_host_event);
 /**
  * cros_ec_check_features() - Test for the presence of EC features
  *
- * @ec: EC device, does not have to be connected directly to the AP,
- *      can be daisy chained through another device.
+ * @ec: EC device, does analt have to be connected directly to the AP,
+ *      can be daisy chained through aanalther device.
  * @feature: One of ec_feature_code bit.
  *
  * Call this function to test whether the ChromeOS EC supports a feature.
  *
- * Return: true if supported, false if not (or if an error was encountered).
+ * Return: true if supported, false if analt (or if an error was encountered).
  */
 bool cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 {
@@ -906,11 +906,11 @@ bool cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 	int ret;
 
 	if (features->flags[0] == -1U && features->flags[1] == -1U) {
-		/* features bitmap not read yet */
+		/* features bitmap analt read yet */
 		ret = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_GET_FEATURES + ec->cmd_offset,
 				  NULL, 0, features, sizeof(*features));
 		if (ret < 0) {
-			dev_warn(ec->dev, "cannot get EC features: %d\n", ret);
+			dev_warn(ec->dev, "cananalt get EC features: %d\n", ret);
 			memset(features, 0, sizeof(*features));
 		}
 
@@ -925,15 +925,15 @@ EXPORT_SYMBOL_GPL(cros_ec_check_features);
 /**
  * cros_ec_get_sensor_count() - Return the number of MEMS sensors supported.
  *
- * @ec: EC device, does not have to be connected directly to the AP,
- *      can be daisy chained through another device.
+ * @ec: EC device, does analt have to be connected directly to the AP,
+ *      can be daisy chained through aanalther device.
  * Return: < 0 in case of error.
  */
 int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 {
 	/*
 	 * Issue a command to get the number of sensor reported.
-	 * If not supported, check for legacy mode.
+	 * If analt supported, check for legacy mode.
 	 */
 	int ret, sensor_count;
 	struct ec_params_motion_sense *params;
@@ -945,7 +945,7 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 	msg = kzalloc(sizeof(*msg) + max(sizeof(*params), sizeof(*resp)),
 		      GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->version = 1;
 	msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
@@ -979,7 +979,7 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 			sensor_count = 2;
 		} else {
 			/*
-			 * EC uses LPC interface and no sensors are presented.
+			 * EC uses LPC interface and anal sensors are presented.
 			 */
 			sensor_count = 0;
 		}
@@ -1014,7 +1014,7 @@ int cros_ec_cmd(struct cros_ec_device *ec_dev,
 
 	msg = kzalloc(sizeof(*msg) + max(insize, outsize), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->version = version;
 	msg->command = command;

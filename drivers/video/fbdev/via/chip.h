@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -65,7 +65,7 @@
 /**************************************************/
 
 /* Definition TMDS Trasmitter Index */
-#define     NON_TMDS_TRANSMITTER    0x00
+#define     ANALN_TMDS_TRANSMITTER    0x00
 #define     VT1632_TMDS             0x01
 #define     INTEGRATED_TMDS         0x42
 
@@ -77,7 +77,7 @@
 /**************************************************/
 
 /* Definition LVDS Trasmitter Index */
-#define     NON_LVDS_TRANSMITTER    0x00
+#define     ANALN_LVDS_TRANSMITTER    0x00
 #define     VT1631_LVDS             0x01
 #define     VT1636_LVDS             0x0E
 #define     INTEGRATED_LVDS         0x41

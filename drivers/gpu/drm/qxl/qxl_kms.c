@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -125,7 +125,7 @@ int qxl_device_init(struct qxl_device *qdev,
 	qdev->vram_mapping = io_mapping_create_wc(qdev->vram_base, pci_resource_len(pdev, 0));
 	if (!qdev->vram_mapping) {
 		pr_err("Unable to create vram_mapping");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (pci_resource_len(pdev, 4) > 0) {
@@ -138,7 +138,7 @@ int qxl_device_init(struct qxl_device *qdev,
 					     qdev->surfaceram_size);
 	}
 	if (qdev->surface_mapping == NULL) {
-		/* 64bit surface bar not present (or mapping failed) */
+		/* 64bit surface bar analt present (or mapping failed) */
 		sb = 1;
 		qdev->surfaceram_base = pci_resource_start(pdev, sb);
 		qdev->surfaceram_size = pci_resource_len(pdev, sb);
@@ -147,7 +147,7 @@ int qxl_device_init(struct qxl_device *qdev,
 					     qdev->surfaceram_size);
 		if (!qdev->surface_mapping) {
 			pr_err("Unable to create surface_mapping");
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto vram_mapping_free;
 		}
 	}
@@ -166,12 +166,12 @@ int qxl_device_init(struct qxl_device *qdev,
 	qdev->rom = ioremap_wc(qdev->rom_base, qdev->rom_size);
 	if (!qdev->rom) {
 		pr_err("Unable to ioremap ROM\n");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto surface_mapping_free;
 	}
 
 	if (!qxl_check_device(qdev)) {
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto rom_unmap;
 	}
 
@@ -186,18 +186,18 @@ int qxl_device_init(struct qxl_device *qdev,
 				   sizeof(*qdev->ram_header));
 	if (!qdev->ram_header) {
 		DRM_ERROR("Unable to ioremap RAM header\n");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto bo_fini;
 	}
 
 	qdev->command_ring = qxl_ring_create(&(qdev->ram_header->cmd_ring_hdr),
 					     sizeof(struct qxl_command),
 					     QXL_COMMAND_RING_SIZE,
-					     qdev->io_base + QXL_IO_NOTIFY_CMD,
+					     qdev->io_base + QXL_IO_ANALTIFY_CMD,
 					     &qdev->display_event);
 	if (!qdev->command_ring) {
 		DRM_ERROR("Unable to create command ring\n");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto ram_header_unmap;
 	}
 
@@ -205,12 +205,12 @@ int qxl_device_init(struct qxl_device *qdev,
 				&(qdev->ram_header->cursor_ring_hdr),
 				sizeof(struct qxl_command),
 				QXL_CURSOR_RING_SIZE,
-				qdev->io_base + QXL_IO_NOTIFY_CURSOR,
+				qdev->io_base + QXL_IO_ANALTIFY_CURSOR,
 				&qdev->cursor_event);
 
 	if (!qdev->cursor_ring) {
 		DRM_ERROR("Unable to create cursor ring\n");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto command_ring_free;
 	}
 
@@ -222,7 +222,7 @@ int qxl_device_init(struct qxl_device *qdev,
 
 	if (!qdev->release_ring) {
 		DRM_ERROR("Unable to create release ring\n");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto cursor_ring_free;
 	}
 
@@ -235,8 +235,8 @@ int qxl_device_init(struct qxl_device *qdev,
 
 	mutex_init(&qdev->async_io_mutex);
 
-	/* reset the device into a known state - no memslots, no primary
-	 * created, no surfaces. */
+	/* reset the device into a kanalwn state - anal memslots, anal primary
+	 * created, anal surfaces. */
 	qxl_io_reset(qdev);
 
 	/* must initialize irq before first async io - slot creation */
@@ -247,7 +247,7 @@ int qxl_device_init(struct qxl_device *qdev,
 	}
 
 	/*
-	 * Note that virtual is surface0. We rely on the single ioremap done
+	 * Analte that virtual is surface0. We rely on the single ioremap done
 	 * before.
 	 */
 	setup_slot(qdev, &qdev->main_slot, 0, "main",
@@ -301,7 +301,7 @@ void qxl_device_fini(struct qxl_device *qdev)
 	 * Ask host to release resources (+fill release ring),
 	 * then wait for the release actually happening.
 	 */
-	qxl_io_notify_oom(qdev);
+	qxl_io_analtify_oom(qdev);
 	wait_event_timeout(qdev->release_event,
 			   atomic_read(&qdev->release_count) == 0,
 			   HZ);

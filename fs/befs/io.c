@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001 Will Dyson <will_dyson@pobox.com
  *
- * Based on portions of file.c and inode.c
+ * Based on portions of file.c and ianalde.c
  * by Makoto Kato (m_kato@ga2.so-net.ne.jp)
  *
  * Many thanks to Dominic Giampaolo, author of Practical File System
@@ -18,13 +18,13 @@
 #include "io.h"
 
 /*
- * Converts befs notion of disk addr to a disk offset and uses
+ * Converts befs analtion of disk addr to a disk offset and uses
  * linux kernel function sb_bread() to get the buffer containing
  * the offset.
  */
 
 struct buffer_head *
-befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
+befs_bread_iaddr(struct super_block *sb, befs_ianalde_addr iaddr)
 {
 	struct buffer_head *bh;
 	befs_blocknr_t block;
@@ -40,7 +40,7 @@ befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 		goto error;
 	}
 
-	block = iaddr2blockno(sb, &iaddr);
+	block = iaddr2blockanal(sb, &iaddr);
 
 	befs_debug(sb, "%s: offset = %lu", __func__, (unsigned long)block);
 

@@ -8,4 +8,4 @@ config MLX5_VFIO_PCI
 	  This provides migration support for MLX5 devices using the VFIO
 	  framework.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.

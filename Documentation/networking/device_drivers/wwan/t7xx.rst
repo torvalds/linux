@@ -18,7 +18,7 @@ Basic usage
 ===========
 MBIM & AT functions are inactive when unmanaged. The t7xx driver provides
 WWAN port userspace interfaces representing MBIM & AT control channels and does
-not play any role in managing their functionality. It is the job of a userspace
+analt play any role in managing their functionality. It is the job of a userspace
 application to detect port enumeration and enable MBIM & AT functionalities.
 
 Examples of few such userspace applications are:
@@ -61,7 +61,7 @@ and defragmentation as per MBIM specification.
 
 /dev/wwan0mbim0 write()
 ~~~~~~~~~~~~~~~~~~~~~~~
-The MBIM control messages from the management application must not exceed the
+The MBIM control messages from the management application must analt exceed the
 negotiated control message size.
 
 /dev/wwan0mbim0 read()

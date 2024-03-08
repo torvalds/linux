@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel Platform Monitory Technology Telemetry driver
+ * Intel Platform Monitory Techanallogy Telemetry driver
  *
  * Copyright (c) 2020, Intel Corporation.
  * All Rights Reserved.
@@ -9,7 +9,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
@@ -110,7 +110,7 @@ intel_pmt_mmap(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 	}
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	if (io_remap_pfn_range(vma, vma->vm_start, pfn,
 		vsize, vma->vm_page_prot))
 		return -EAGAIN;
@@ -170,13 +170,13 @@ static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
 	/*
 	 * The base offset should always be 8 byte aligned.
 	 *
-	 * For non-local access types the lower 3 bits of base offset
+	 * For analn-local access types the lower 3 bits of base offset
 	 * contains the index of the base address register where the
 	 * telemetry can be found.
 	 */
 	bir = GET_BIR(header->base_offset);
 
-	/* Local access and BARID only for now */
+	/* Local access and BARID only for analw */
 	switch (header->access_type) {
 	case ACCESS_LOCAL:
 		if (bir) {
@@ -196,7 +196,7 @@ static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
 		 * when access_type == ACCESS_LOCAL. On the these systems
 		 * ACCCESS_LOCAL refers to an address in the same BAR as the
 		 * header but at a fixed offset. But as the header address was
-		 * supplied to the driver, we don't know which BAR it was in.
+		 * supplied to the driver, we don't kanalw which BAR it was in.
 		 * So search for the bar whose range includes the header address.
 		 */
 		if (intel_pmt_is_early_client_hw(dev)) {
@@ -224,7 +224,7 @@ static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
 		}
 
 		/*
-		 * If another BAR was specified then the base offset
+		 * If aanalther BAR was specified then the base offset
 		 * represents the offset within that BAR. SO retrieve the
 		 * address from the parent PCI device and add offset.
 		 */
@@ -260,7 +260,7 @@ static int intel_pmt_dev_register(struct intel_pmt_entry *entry,
 			    "%s%d", ns->name, entry->devid);
 
 	if (IS_ERR(dev)) {
-		dev_err(parent, "Could not create %s%d device node\n",
+		dev_err(parent, "Could analt create %s%d device analde\n",
 			ns->name, entry->devid);
 		ret = PTR_ERR(dev);
 		goto fail_dev_create;
@@ -274,7 +274,7 @@ static int intel_pmt_dev_register(struct intel_pmt_entry *entry,
 			goto fail_sysfs_create_group;
 	}
 
-	/* if size is 0 assume no data buffer, so no file needed */
+	/* if size is 0 assume anal data buffer, so anal file needed */
 	if (!entry->size)
 		return 0;
 

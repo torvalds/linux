@@ -12,7 +12,7 @@
 
 #define CRC907D_MAX_ENTRIES 255
 
-struct crc907d_notifier {
+struct crc907d_analtifier {
 	u32 status;
 	u32 :32; /* reserved */
 	struct crc907d_entry {
@@ -24,15 +24,15 @@ struct crc907d_notifier {
 
 static int
 crc907d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source,
-		struct nv50_crc_notifier_ctx *ctx)
+		struct nv50_crc_analtifier_ctx *ctx)
 {
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
 	u32 crc_args = NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CONTROLLING_CHANNEL, CORE) |
 		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, EXPECT_BUFFER_COLLAPSE, FALSE) |
 		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, TIMESTAMP_MODE, FALSE) |
-		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, SECONDARY_OUTPUT, NONE) |
-		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CRC_DURING_SNOOZE, DISABLE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, SECONDARY_OUTPUT, ANALNE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CRC_DURING_SANALOZE, DISABLE) |
 		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, WIDE_PIPE_CRC, ENABLE);
 	int ret;
 
@@ -52,8 +52,8 @@ crc907d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source
 	case NV50_CRC_SOURCE_TYPE_SF:
 		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, SF(i));
 		break;
-	case NV50_CRC_SOURCE_NONE:
-		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, NONE);
+	case NV50_CRC_SOURCE_ANALNE:
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, ANALNE);
 		break;
 	}
 
@@ -72,7 +72,7 @@ crc907d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source
 }
 
 static int
-crc907d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
+crc907d_set_ctx(struct nv50_head *head, struct nv50_crc_analtifier_ctx *ctx)
 {
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
@@ -86,20 +86,20 @@ crc907d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 }
 
 static u32 crc907d_get_entry(struct nv50_head *head,
-			     struct nv50_crc_notifier_ctx *ctx,
+			     struct nv50_crc_analtifier_ctx *ctx,
 			     enum nv50_crc_source source, int idx)
 {
-	struct crc907d_notifier __iomem *notifier = ctx->mem.object.map.ptr;
+	struct crc907d_analtifier __iomem *analtifier = ctx->mem.object.map.ptr;
 
-	return ioread32_native(&notifier->entries[idx].output_crc[0]);
+	return ioread32_native(&analtifier->entries[idx].output_crc[0]);
 }
 
 static bool crc907d_ctx_finished(struct nv50_head *head,
-				 struct nv50_crc_notifier_ctx *ctx)
+				 struct nv50_crc_analtifier_ctx *ctx)
 {
-	struct nouveau_drm *drm = nouveau_drm(head->base.base.dev);
-	struct crc907d_notifier __iomem *notifier = ctx->mem.object.map.ptr;
-	const u32 status = ioread32_native(&notifier->status);
+	struct analuveau_drm *drm = analuveau_drm(head->base.base.dev);
+	struct crc907d_analtifier __iomem *analtifier = ctx->mem.object.map.ptr;
+	const u32 status = ioread32_native(&analtifier->status);
 	const u32 overflow = status & 0x0000003e;
 
 	if (!(status & 0x00000001))
@@ -117,11 +117,11 @@ static bool crc907d_ctx_finished(struct nv50_head *head,
 
 		if (engine)
 			NV_ERROR(drm,
-				 "CRC notifier context for head %d overflowed on %s: %x\n",
+				 "CRC analtifier context for head %d overflowed on %s: %x\n",
 				 head->base.index, engine, status);
 		else
 			NV_ERROR(drm,
-				 "CRC notifier context for head %d overflowed: %x\n",
+				 "CRC analtifier context for head %d overflowed: %x\n",
 				 head->base.index, status);
 	}
 
@@ -138,5 +138,5 @@ const struct nv50_crc_func crc907d = {
 	.ctx_finished = crc907d_ctx_finished,
 	.flip_threshold = CRC907D_MAX_ENTRIES - 10,
 	.num_entries = CRC907D_MAX_ENTRIES,
-	.notifier_len = sizeof(struct crc907d_notifier),
+	.analtifier_len = sizeof(struct crc907d_analtifier),
 };

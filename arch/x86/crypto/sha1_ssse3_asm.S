@@ -464,7 +464,7 @@ W_PRECALC_SSSE3
  * extern "C" void sha1_transform_ssse3(struct sha1_state *state,
  *					const u8 *data, int blocks);
  *
- * Note that struct sha1_state is assumed to begin with u32 state[5].
+ * Analte that struct sha1_state is assumed to begin with u32 state[5].
  */
 SHA1_VECTOR_ASM     sha1_transform_ssse3
 

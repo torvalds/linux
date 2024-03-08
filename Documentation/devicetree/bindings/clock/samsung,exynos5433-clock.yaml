@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/samsung,exynos5433-clock.yaml#
+$id: http://devicetree.org/schemas/clock/samsung,exyanals5433-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos5433 SoC clock controller
+title: Samsung Exyanals5433 SoC clock controller
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
@@ -18,7 +18,7 @@ description: |
     - "oscclk" - PLL input clock from XXTI
 
   All available clocks are defined as preprocessor macros in
-  include/dt-bindings/clock/exynos5433.h header.
+  include/dt-bindings/clock/exyanals5433.h header.
 
 properties:
   compatible:
@@ -26,47 +26,47 @@ properties:
         # CMU_TOP which generates clocks for
         # IMEM/FSYS/G3D/GSCL/HEVC/MSCL/G2D/MFC/PERIC/PERIS domains and bus
         # clocks
-      - samsung,exynos5433-cmu-top
+      - samsung,exyanals5433-cmu-top
         # CMU_CPIF which generates clocks for LLI (Low Latency Interface) IP
-      - samsung,exynos5433-cmu-cpif
+      - samsung,exyanals5433-cmu-cpif
         # CMU_MIF which generates clocks for DRAM Memory Controller domain
-      - samsung,exynos5433-cmu-mif
+      - samsung,exyanals5433-cmu-mif
         # CMU_PERIC which generates clocks for
         # UART/I2C/SPI/I2S/PCM/SPDIF/PWM/SLIMBUS IPs
-      - samsung,exynos5433-cmu-peric
+      - samsung,exyanals5433-cmu-peric
         # CMU_PERIS which generates clocks for PMU/TMU/MCT/WDT/RTC/SECKEY/TZPC IPs
-      - samsung,exynos5433-cmu-peris
+      - samsung,exyanals5433-cmu-peris
         # CMU_FSYS which generates clocks for USB/UFS/SDMMC/TSI/PDMA IPs
-      - samsung,exynos5433-cmu-fsys
-      - samsung,exynos5433-cmu-g2d
+      - samsung,exyanals5433-cmu-fsys
+      - samsung,exyanals5433-cmu-g2d
         # CMU_DISP which generates clocks for Display (DECON/HDMI/DSIM/MIXER) IPs
-      - samsung,exynos5433-cmu-disp
-      - samsung,exynos5433-cmu-aud
-      - samsung,exynos5433-cmu-bus0
-      - samsung,exynos5433-cmu-bus1
-      - samsung,exynos5433-cmu-bus2
-      - samsung,exynos5433-cmu-g3d
-      - samsung,exynos5433-cmu-gscl
-      - samsung,exynos5433-cmu-apollo
+      - samsung,exyanals5433-cmu-disp
+      - samsung,exyanals5433-cmu-aud
+      - samsung,exyanals5433-cmu-bus0
+      - samsung,exyanals5433-cmu-bus1
+      - samsung,exyanals5433-cmu-bus2
+      - samsung,exyanals5433-cmu-g3d
+      - samsung,exyanals5433-cmu-gscl
+      - samsung,exyanals5433-cmu-apollo
         # CMU_ATLAS which generates clocks for Cortex-A57 Quad-core processor,
         # CoreSight and  L2 cache controller
-      - samsung,exynos5433-cmu-atlas
+      - samsung,exyanals5433-cmu-atlas
         # CMU_MSCL which generates clocks for M2M (Memory to Memory) scaler and
         # JPEG IPs
-      - samsung,exynos5433-cmu-mscl
-      - samsung,exynos5433-cmu-mfc
-      - samsung,exynos5433-cmu-hevc
+      - samsung,exyanals5433-cmu-mscl
+      - samsung,exyanals5433-cmu-mfc
+      - samsung,exyanals5433-cmu-hevc
         # CMU_ISP which generates clocks for FIMC-ISP/DRC/SCLC/DIS/3DNR IPs
-      - samsung,exynos5433-cmu-isp
+      - samsung,exyanals5433-cmu-isp
         # CMU_CAM0 which generates clocks for
         # MIPI_CSIS{0|1}/FIMC_LITE_{A|B|D}/FIMC_3AA{0|1} IPs
-      - samsung,exynos5433-cmu-cam0
+      - samsung,exyanals5433-cmu-cam0
         # CMU_CAM1 which generates clocks for
         # Cortex-A5/MIPI_CSIS2/FIMC-LITE_C/FIMC-FD IPs
-      - samsung,exynos5433-cmu-cam1
+      - samsung,exyanals5433-cmu-cam1
         # CMU_IMEM which generates clocks for SSS (Security SubSystem) and
         # SlimSSS IPs
-      - samsung,exynos5433-cmu-imem
+      - samsung,exyanals5433-cmu-imem
 
   clocks:
     minItems: 1
@@ -95,7 +95,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-top
+            const: samsung,exyanals5433-cmu-top
     then:
       properties:
         clocks:
@@ -115,7 +115,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-cpif
+            const: samsung,exyanals5433-cmu-cpif
     then:
       properties:
         clocks:
@@ -132,7 +132,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-mif
+            const: samsung,exyanals5433-cmu-mif
     then:
       properties:
         clocks:
@@ -150,7 +150,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-fsys
+            const: samsung,exyanals5433-cmu-fsys
     then:
       properties:
         clocks:
@@ -176,7 +176,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-g2d
+            const: samsung,exyanals5433-cmu-g2d
     then:
       properties:
         clocks:
@@ -195,7 +195,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-disp
+            const: samsung,exyanals5433-cmu-disp
     then:
       properties:
         clocks:
@@ -220,7 +220,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-aud
+            const: samsung,exyanals5433-cmu-aud
     then:
       properties:
         clocks:
@@ -238,7 +238,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-bus0
+            const: samsung,exyanals5433-cmu-bus0
     then:
       properties:
         clocks:
@@ -255,7 +255,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-bus1
+            const: samsung,exyanals5433-cmu-bus1
     then:
       properties:
         clocks:
@@ -272,7 +272,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-bus2
+            const: samsung,exyanals5433-cmu-bus2
     then:
       properties:
         clocks:
@@ -290,7 +290,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-g3d
+            const: samsung,exyanals5433-cmu-g3d
     then:
       properties:
         clocks:
@@ -308,7 +308,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-gscl
+            const: samsung,exyanals5433-cmu-gscl
     then:
       properties:
         clocks:
@@ -327,7 +327,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-apollo
+            const: samsung,exyanals5433-cmu-apollo
     then:
       properties:
         clocks:
@@ -345,7 +345,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-atlas
+            const: samsung,exyanals5433-cmu-atlas
     then:
       properties:
         clocks:
@@ -363,7 +363,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-mscl
+            const: samsung,exyanals5433-cmu-mscl
     then:
       properties:
         clocks:
@@ -382,7 +382,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-mfc
+            const: samsung,exyanals5433-cmu-mfc
     then:
       properties:
         clocks:
@@ -400,7 +400,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-hevc
+            const: samsung,exyanals5433-cmu-hevc
     then:
       properties:
         clocks:
@@ -418,7 +418,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-isp
+            const: samsung,exyanals5433-cmu-isp
     then:
       properties:
         clocks:
@@ -437,7 +437,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-cam0
+            const: samsung,exyanals5433-cmu-cam0
     then:
       properties:
         clocks:
@@ -457,7 +457,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-cam1
+            const: samsung,exyanals5433-cmu-cam1
     then:
       properties:
         clocks:
@@ -480,7 +480,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-cmu-imem
+            const: samsung,exyanals5433-cmu-imem
     then:
       properties:
         clocks:
@@ -500,7 +500,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5433.h>
+    #include <dt-bindings/clock/exyanals5433.h>
     xxti: clock {
         compatible = "fixed-clock";
         clock-output-names = "oscclk";
@@ -509,7 +509,7 @@ examples:
     };
 
     clock-controller@10030000 {
-        compatible = "samsung,exynos5433-cmu-top";
+        compatible = "samsung,exyanals5433-cmu-top";
         reg = <0x10030000 0x1000>;
         #clock-cells = <1>;
 

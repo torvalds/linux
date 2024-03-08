@@ -15,7 +15,7 @@
 static const struct regmap_config adxl372_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.readable_noinc_reg = adxl372_readable_noinc_reg,
+	.readable_analinc_reg = adxl372_readable_analinc_reg,
 };
 
 static int adxl372_i2c_probe(struct i2c_client *client)
@@ -36,7 +36,7 @@ static int adxl372_i2c_probe(struct i2c_client *client)
 	/* Starting with the 3rd revision an I2C chip bug was fixed */
 	if (regval < 3)
 		dev_warn(&client->dev,
-		"I2C might not work properly with other devices on the bus");
+		"I2C might analt work properly with other devices on the bus");
 
 	return adxl372_probe(&client->dev, regmap, client->irq, id->name);
 }

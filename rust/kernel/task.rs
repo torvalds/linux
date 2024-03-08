@@ -11,7 +11,7 @@ use core::{marker::PhantomData, ops::Deref, ptr};
 #[macro_export]
 macro_rules! current {
     () => {
-        // SAFETY: Deref + addr-of below create a temporary `TaskRef` that cannot outlive the
+        // SAFETY: Deref + addr-of below create a temporary `TaskRef` that cananalt outlive the
         // caller.
         unsafe { &*$crate::task::Task::current() }
     };
@@ -90,7 +90,7 @@ impl Task {
     pub unsafe fn current() -> impl Deref<Target = Task> {
         struct TaskRef<'a> {
             task: &'a Task,
-            _not_send: PhantomData<*mut ()>,
+            _analt_send: PhantomData<*mut ()>,
         }
 
         impl Deref for TaskRef<'_> {
@@ -101,46 +101,46 @@ impl Task {
             }
         }
 
-        // SAFETY: Just an FFI call with no additional safety requirements.
+        // SAFETY: Just an FFI call with anal additional safety requirements.
         let ptr = unsafe { bindings::get_current() };
 
         TaskRef {
             // SAFETY: If the current thread is still running, the current task is valid. Given
-            // that `TaskRef` is not `Send`, we know it cannot be transferred to another thread
+            // that `TaskRef` is analt `Send`, we kanalw it cananalt be transferred to aanalther thread
             // (where it could potentially outlive the caller).
             task: unsafe { &*ptr.cast() },
-            _not_send: PhantomData,
+            _analt_send: PhantomData,
         }
     }
 
     /// Returns the group leader of the given task.
     pub fn group_leader(&self) -> &Task {
-        // SAFETY: By the type invariant, we know that `self.0` is a valid task. Valid tasks always
+        // SAFETY: By the type invariant, we kanalw that `self.0` is a valid task. Valid tasks always
         // have a valid group_leader.
         let ptr = unsafe { *ptr::addr_of!((*self.0.get()).group_leader) };
 
         // SAFETY: The lifetime of the returned task reference is tied to the lifetime of `self`,
-        // and given that a task has a reference to its group leader, we know it must be valid for
+        // and given that a task has a reference to its group leader, we kanalw it must be valid for
         // the lifetime of the returned task reference.
         unsafe { &*ptr.cast() }
     }
 
     /// Returns the PID of the given task.
     pub fn pid(&self) -> Pid {
-        // SAFETY: By the type invariant, we know that `self.0` is a valid task. Valid tasks always
+        // SAFETY: By the type invariant, we kanalw that `self.0` is a valid task. Valid tasks always
         // have a valid pid.
         unsafe { *ptr::addr_of!((*self.0.get()).pid) }
     }
 
     /// Determines whether the given task has pending signals.
     pub fn signal_pending(&self) -> bool {
-        // SAFETY: By the type invariant, we know that `self.0` is valid.
+        // SAFETY: By the type invariant, we kanalw that `self.0` is valid.
         unsafe { bindings::signal_pending(self.0.get()) != 0 }
     }
 
     /// Wakes up the task.
     pub fn wake_up(&self) {
-        // SAFETY: By the type invariant, we know that `self.0.get()` is non-null and valid.
+        // SAFETY: By the type invariant, we kanalw that `self.0.get()` is analn-null and valid.
         // And `wake_up_process` is safe to be called for any valid task, even if the task is
         // running.
         unsafe { bindings::wake_up_process(self.0.get()) };
@@ -150,12 +150,12 @@ impl Task {
 // SAFETY: The type invariants guarantee that `Task` is always ref-counted.
 unsafe impl crate::types::AlwaysRefCounted for Task {
     fn inc_ref(&self) {
-        // SAFETY: The existence of a shared reference means that the refcount is nonzero.
+        // SAFETY: The existence of a shared reference means that the refcount is analnzero.
         unsafe { bindings::get_task_struct(self.0.get()) };
     }
 
-    unsafe fn dec_ref(obj: ptr::NonNull<Self>) {
-        // SAFETY: The safety requirements guarantee that the refcount is nonzero.
+    unsafe fn dec_ref(obj: ptr::AnalnNull<Self>) {
+        // SAFETY: The safety requirements guarantee that the refcount is analnzero.
         unsafe { bindings::put_task_struct(obj.cast().as_ptr()) }
     }
 }

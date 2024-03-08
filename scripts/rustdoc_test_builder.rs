@@ -9,7 +9,7 @@
 //! `...path_rust_kernel_sync_arc_rs_42_0`. `number` is the "test number", needed in cases like
 //! a macro that expands into items with doctests is invoked several times within the same line.
 //!
-//! However, since these names are used for bisection in CI, the line number makes it not stable
+//! However, since these names are used for bisection in CI, the line number makes it analt stable
 //! at all. In the future, we would like `rustdoc` to give us the Rust item path associated with
 //! the test, plus a "test number" (for cases with several examples per item) and generate a name
 //! from that. For the moment, we generate ourselves a new name, `{file}_{number}` instead, in
@@ -27,8 +27,8 @@ fn main() {
     // The line we are looking for looks like one of the following:
     //
     // ```
-    // fn main() { #[allow(non_snake_case)] fn _doctest_main_rust_kernel_file_rs_28_0() {
-    // fn main() { #[allow(non_snake_case)] fn _doctest_main_rust_kernel_file_rs_37_0() -> Result<(), impl core::fmt::Debug> {
+    // fn main() { #[allow(analn_snake_case)] fn _doctest_main_rust_kernel_file_rs_28_0() {
+    // fn main() { #[allow(analn_snake_case)] fn _doctest_main_rust_kernel_file_rs_37_0() -> Result<(), impl core::fmt::Debug> {
     // ```
     //
     // It should be unlikely that doctest code matches such lines (when code is formatted properly).
@@ -45,7 +45,7 @@ fn main() {
             )
             .filter(|x| x.chars().all(|c| c.is_alphanumeric() || c == '_'))
         })
-        .expect("No test function found in `rustdoc`'s output.");
+        .expect("Anal test function found in `rustdoc`'s output.");
 
     // Qualify `Result` to avoid the collision with our own `Result` coming from the prelude.
     let body = body.replace(
@@ -54,8 +54,8 @@ fn main() {
     );
 
     // For tests that get generated with `Result`, like above, `rustdoc` generates an `unwrap()` on
-    // the return value to check there were no returned errors. Instead, we use our assert macro
-    // since we want to just fail the test, not panic the kernel.
+    // the return value to check there were anal returned errors. Instead, we use our assert macro
+    // since we want to just fail the test, analt panic the kernel.
     //
     // We save the result in a variable so that the failed assertion message looks nicer.
     let body = body.replace(

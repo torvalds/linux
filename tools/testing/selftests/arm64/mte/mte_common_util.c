@@ -56,11 +56,11 @@ void mte_default_handler(int signum, siginfo_t *si, void *uc)
 				/* Adjust the pc by 4 */
 				((ucontext_t *)uc)->uc_mcontext.pc += 4;
 			} else {
-				ksft_print_msg("Invalid MTE synchronous exception caught!\n");
+				ksft_print_msg("Invalid MTE synchroanalus exception caught!\n");
 				exit(1);
 			}
 		} else {
-			ksft_print_msg("Unknown SIGSEGV exception caught!\n");
+			ksft_print_msg("Unkanalwn SIGSEGV exception caught!\n");
 			exit(1);
 		}
 	} else if (signum == SIGBUS) {
@@ -145,7 +145,7 @@ static void *__mte_allocate_memory_range(size_t size, int mem_type, int mapping,
 
 	map_flag = mapping;
 	if (fd == -1)
-		map_flag = MAP_ANONYMOUS | map_flag;
+		map_flag = MAP_AANALNYMOUS | map_flag;
 	if (!(mapping & MAP_SHARED))
 		map_flag |= MAP_PRIVATE;
 	ptr = mmap(NULL, entire_size, prot_flag, map_flag, fd, 0);
@@ -277,7 +277,7 @@ int mte_switch_mode(int mte_option, unsigned long incl_mask)
 	unsigned long en = 0;
 
 	switch (mte_option) {
-	case MTE_NONE_ERR:
+	case MTE_ANALNE_ERR:
 	case MTE_SYNC_ERR:
 	case MTE_ASYNC_ERR:
 		break;
@@ -299,8 +299,8 @@ int mte_switch_mode(int mte_option, unsigned long incl_mask)
 	case MTE_ASYNC_ERR:
 		en |= PR_MTE_TCF_ASYNC;
 		break;
-	case MTE_NONE_ERR:
-		en |= PR_MTE_TCF_NONE;
+	case MTE_ANALNE_ERR:
+		en |= PR_MTE_TCF_ANALNE;
 		break;
 	}
 
@@ -333,8 +333,8 @@ int mte_default_setup(void)
 		mte_cur_mode = MTE_SYNC_ERR;
 	else if (ret & PR_MTE_TCF_ASYNC)
 		mte_cur_mode = MTE_ASYNC_ERR;
-	else if (ret & PR_MTE_TCF_NONE)
-		mte_cur_mode = MTE_NONE_ERR;
+	else if (ret & PR_MTE_TCF_ANALNE)
+		mte_cur_mode = MTE_ANALNE_ERR;
 
 	mte_cur_pstate_tco = mte_get_pstate_tco();
 	/* Disable PSTATE.TCO */
@@ -344,7 +344,7 @@ int mte_default_setup(void)
 
 void mte_restore_setup(void)
 {
-	mte_switch_mode(mte_cur_mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mte_cur_mode, MTE_ALLOW_ANALN_ZERO_TAG);
 	if (mte_cur_pstate_tco == MT_PSTATE_TCO_EN)
 		mte_enable_pstate_tco();
 	else if (mte_cur_pstate_tco == MT_PSTATE_TCO_DIS)

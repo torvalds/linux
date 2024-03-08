@@ -26,7 +26,7 @@
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 			operating-points = <
-				/* kHz    ignored */
+				/* kHz    iganalred */
 				 1300000  1000000
 				 1200000  1000000
 				 1100000  1000000
@@ -45,7 +45,7 @@
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 			operating-points = <
-				/* kHz    ignored */
+				/* kHz    iganalred */
 				 1300000  1000000
 				 1200000  1000000
 				 1100000  1000000
@@ -64,7 +64,7 @@
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 			operating-points = <
-				/* kHz    ignored */
+				/* kHz    iganalred */
 				 1300000  1000000
 				 1200000  1000000
 				 1100000  1000000
@@ -83,7 +83,7 @@
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 			operating-points = <
-				/* kHz    ignored */
+				/* kHz    iganalred */
 				 1300000  1000000
 				 1200000  1000000
 				 1100000  1000000

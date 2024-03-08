@@ -20,7 +20,7 @@ static int guc_info_show(struct seq_file *m, void *data)
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	if (!intel_guc_is_supported(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	intel_guc_load_status(guc, &p);
 	drm_puts(&p, "\n");
@@ -43,7 +43,7 @@ static int guc_registered_contexts_show(struct seq_file *m, void *data)
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	if (!intel_guc_submission_is_used(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	intel_guc_submission_print_context_info(guc, &p);
 
@@ -58,7 +58,7 @@ static int guc_slpc_info_show(struct seq_file *m, void *unused)
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	if (!intel_guc_slpc_is_used(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return intel_guc_slpc_print_info(slpc, &p);
 }
@@ -76,7 +76,7 @@ static int guc_sched_disable_delay_ms_get(void *data, u64 *val)
 	struct intel_guc *guc = data;
 
 	if (!intel_guc_submission_is_used(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	*val = (u64)guc->submission_state.sched_disable_delay_ms;
 
@@ -88,7 +88,7 @@ static int guc_sched_disable_delay_ms_set(void *data, u64 val)
 	struct intel_guc *guc = data;
 
 	if (!intel_guc_submission_is_used(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* clamp to a practical limit, 1 minute is reasonable for a longest delay */
 	guc->submission_state.sched_disable_delay_ms = min_t(u64, val, 60000);
@@ -104,7 +104,7 @@ static int guc_sched_disable_gucid_threshold_get(void *data, u64 *val)
 	struct intel_guc *guc = data;
 
 	if (!intel_guc_submission_is_used(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	*val = guc->submission_state.sched_disable_gucid_threshold;
 	return 0;
@@ -115,7 +115,7 @@ static int guc_sched_disable_gucid_threshold_set(void *data, u64 val)
 	struct intel_guc *guc = data;
 
 	if (!intel_guc_submission_is_used(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (val > intel_guc_sched_disable_gucid_threshold_max(guc))
 		guc->submission_state.sched_disable_gucid_threshold =

@@ -115,7 +115,7 @@
 struct kmx61_data {
 	struct i2c_client *client;
 
-	/* serialize access to non-atomic ops, e.g set_mode */
+	/* serialize access to analn-atomic ops, e.g set_mode */
 	struct mutex lock;
 
 	/* standby state */
@@ -318,7 +318,7 @@ static int kmx61_convert_wake_up_odr_to_bit(int val, int val2)
  * @update: update stby bits stored in device's private  @data
  *
  * For each sensor (accelerometer/magnetometer) there are two operating modes
- * STANDBY and OPERATION. Neither accel nor magn can be disabled independently
+ * STANDBY and OPERATION. Neither accel analr magn can be disabled independently
  * if they are both enabled. Internal sensors state is saved in acc_stby and
  * mag_stby members of driver's private @data.
  */
@@ -722,8 +722,8 @@ static int kmx61_setup_any_motion_interrupt(struct kmx61_data *data,
  * @on: power state to be set for @device
  * @device: bitmask indicating device for which @on state needs to be set
  *
- * Notice that when ACC power state needs to be set to ON and MAG is in
- * OPERATION then we know that kmx61_runtime_resume was already called
+ * Analtice that when ACC power state needs to be set to ON and MAG is in
+ * OPERATION then we kanalw that kmx61_runtime_resume was already called
  * so we must set ACC OPERATION mode here. The same happens when MAG power
  * state needs to be set to ON and ACC is in OPERATION.
  */
@@ -1213,7 +1213,7 @@ static irqreturn_t kmx61_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers(indio_dev, buffer);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1238,7 +1238,7 @@ static struct iio_dev *kmx61_indiodev_setup(struct kmx61_data *data,
 
 	indio_dev = devm_iio_device_alloc(&data->client->dev, sizeof(data));
 	if (!indio_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kmx61_set_data(indio_dev, data);
 
@@ -1264,7 +1264,7 @@ static struct iio_trigger *kmx61_trigger_setup(struct kmx61_data *data,
 				      tag,
 				      iio_device_id(indio_dev));
 	if (!trig)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	trig->ops = &kmx61_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
@@ -1285,7 +1285,7 @@ static int kmx61_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
@@ -1297,7 +1297,7 @@ static int kmx61_probe(struct i2c_client *client)
 	else if (ACPI_HANDLE(&client->dev))
 		name = kmx61_match_acpi_device(&client->dev);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	data->acc_indio_dev =
 		kmx61_indiodev_setup(data, &kmx61_acc_info,

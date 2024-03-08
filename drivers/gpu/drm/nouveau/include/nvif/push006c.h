@@ -61,7 +61,7 @@
 
 #define PUSH_MTHD_HDR(p,c,m,n) PUSH_HDR(p, METHOD, "incr", PUSH006C_SUBC_##c, m, n)
 #define PUSH_MTHD_INC 4:4
-#define PUSH_NINC_HDR(p,c,m,n) PUSH_HDR(p, NONINC_METHOD, "ninc", PUSH006C_SUBC_##c, m, n)
+#define PUSH_NINC_HDR(p,c,m,n) PUSH_HDR(p, ANALNINC_METHOD, "ninc", PUSH006C_SUBC_##c, m, n)
 #define PUSH_NINC_INC 0:0
 
 #define PUSH_JUMP(p,o) do {                                         \

@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -64,8 +64,8 @@ static const struct cxgb4_natmode_config cxgb4_natmode_config_array[] = {
 	/* Default supported NAT modes */
 	{
 		.chip = CHELSIO_T5,
-		.flags = CXGB4_ACTION_NATMODE_NONE,
-		.natmode = NAT_MODE_NONE,
+		.flags = CXGB4_ACTION_NATMODE_ANALNE,
+		.natmode = NAT_MODE_ANALNE,
 	},
 	{
 		.chip = CHELSIO_T5,
@@ -107,7 +107,7 @@ static const struct cxgb4_natmode_config cxgb4_natmode_config_array[] = {
 			 CXGB4_ACTION_NATMODE_SPORT,
 		.natmode = NAT_MODE_ALL,
 	},
-	/* T6+ can ignore L4 ports when they're disabled. */
+	/* T6+ can iganalre L4 ports when they're disabled. */
 	{
 		.chip = CHELSIO_T6,
 		.flags = CXGB4_ACTION_NATMODE_SIP,
@@ -133,7 +133,7 @@ static void cxgb4_action_natmode_tweak(struct ch_filter_specification *fs,
 	/* Translate the enabled NAT 4-tuple fields to one of the
 	 * hardware supported NAT mode configurations. This ensures
 	 * that we pick a valid combination, where the disabled fields
-	 * do not get overwritten to 0.
+	 * do analt get overwritten to 0.
 	 */
 	for (i = 0; i < ARRAY_SIZE(cxgb4_natmode_config_array); i++) {
 		if (cxgb4_natmode_config_array[i].flags == natmode_flags) {
@@ -323,7 +323,7 @@ static int cxgb4_validate_flow_match(struct net_device *dev,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IP))) {
 		netdev_warn(dev, "Unsupported key used: 0x%llx\n",
 			    dissector->used_keys);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -346,7 +346,7 @@ static int cxgb4_validate_flow_match(struct net_device *dev,
 		flow_rule_match_ip(rule, &match);
 		if (match.mask->ttl) {
 			netdev_warn(dev, "ttl match unsupported for offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -485,7 +485,7 @@ static int cxgb4_action_natmode_validate(struct adapter *adap, u8 natmode_flags,
 			return 0;
 	}
 	NL_SET_ERR_MSG_MOD(extack, "Unsupported NAT mode 4-tuple combination");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 void cxgb4_process_flow_actions(struct net_device *in,
@@ -568,7 +568,7 @@ static bool valid_l4_mask(u32 mask)
 	u16 hi, lo;
 
 	/* Either the upper 16-bits (SPORT) OR the lower
-	 * 16-bits (DPORT) can be set, but NOT BOTH.
+	 * 16-bits (DPORT) can be set, but ANALT BOTH.
 	 */
 	hi = (mask >> 16) & 0xFFFF;
 	lo = mask & 0xFFFF;
@@ -693,13 +693,13 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 	int i;
 
 	if (!flow_action_basic_hw_stats_check(actions, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flow_action_for_each(i, act, actions) {
 		switch (act->id) {
 		case FLOW_ACTION_ACCEPT:
 		case FLOW_ACTION_DROP:
-			/* Do nothing */
+			/* Do analthing */
 			break;
 		case FLOW_ACTION_MIRRED:
 		case FLOW_ACTION_REDIRECT: {
@@ -711,7 +711,7 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 			    !matchall_filter) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Egress mirror action is only supported for tc-matchall");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			target_dev = act->dev;
@@ -724,7 +724,7 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 			}
 
 			/* If interface doesn't belong to our hw, then
-			 * the provided output port is not valid
+			 * the provided output port is analt valid
 			 */
 			if (!found) {
 				netdev_err(dev, "%s: Out port invalid\n",
@@ -747,13 +747,13 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 				if (proto != ETH_P_8021Q) {
 					netdev_err(dev, "%s: Unsupported vlan proto\n",
 						   __func__);
-					return -EOPNOTSUPP;
+					return -EOPANALTSUPP;
 				}
 				break;
 			default:
 				netdev_err(dev, "%s: Unsupported vlan action\n",
 					   __func__);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			act_vlan = true;
 			}
@@ -763,16 +763,16 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 							      &natmode_flags);
 
 			if (!pedit_valid)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			act_pedit = true;
 			}
 			break;
 		case FLOW_ACTION_QUEUE:
-			/* Do nothing. cxgb4_set_filter will validate */
+			/* Do analthing. cxgb4_set_filter will validate */
 			break;
 		default:
 			netdev_err(dev, "%s: Unsupported action\n", __func__);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -810,7 +810,7 @@ static void cxgb4_tc_flower_hash_prio_del(struct adapter *adap, u32 tc_prio)
 	u32 found = 0;
 
 	spin_lock_bh(&t->ftid_lock);
-	/* Bail if the current rule is not the one with the max
+	/* Bail if the current rule is analt the one with the max
 	 * prio.
 	 */
 	if (t->tc_hash_tids_max_prio != tc_prio)
@@ -830,7 +830,7 @@ static void cxgb4_tc_flower_hash_prio_del(struct adapter *adap, u32 tc_prio)
 				t->tc_hash_tids_max_prio = fe->fs.tc_prio;
 				found++;
 
-				/* Bail if we found another rule
+				/* Bail if we found aanalther rule
 				 * having the same prio as the
 				 * current max one.
 				 */
@@ -862,10 +862,10 @@ int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
 	int fidx, ret;
 
 	if (cxgb4_validate_flow_actions(dev, &rule->action, extack, 0))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cxgb4_validate_flow_match(dev, rule))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cxgb4_process_flow_match(dev, rule, fs);
 	cxgb4_process_flow_actions(dev, &rule->action, fs);
@@ -881,8 +881,8 @@ int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
 				   tc_prio);
 	if (fidx < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "No free LETCAM index available");
-		return -ENOMEM;
+				   "Anal free LETCAM index available");
+		return -EANALMEM;
 	}
 
 	if (fidx < adap->tids.nhpftids) {
@@ -890,8 +890,8 @@ int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
 		fs->hash = 0;
 	}
 
-	/* If the rule can be inserted into HASH region, then ignore
-	 * the index to normal FILTER region.
+	/* If the rule can be inserted into HASH region, then iganalre
+	 * the index to analrmal FILTER region.
 	 */
 	if (fs->hash)
 		fidx = 0;
@@ -936,7 +936,7 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	ch_flower = allocate_flower_entry();
 	if (!ch_flower) {
 		netdev_err(dev, "%s: ch_flower alloc failed.\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fs = &ch_flower->fs;
@@ -949,7 +949,7 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 		goto free_entry;
 
 	ch_flower->tc_flower_cookie = cls->cookie;
-	ret = rhashtable_insert_fast(&adap->flower_tbl, &ch_flower->node,
+	ret = rhashtable_insert_fast(&adap->flower_tbl, &ch_flower->analde,
 				     adap->flower_ht_params);
 	if (ret)
 		goto del_filter;
@@ -995,9 +995,9 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 
 	ch_flower = ch_flower_lookup(adap, cls->cookie);
 	if (!ch_flower)
-		return -ENOENT;
+		return -EANALENT;
 
-	rhashtable_remove_fast(&adap->flower_tbl, &ch_flower->node,
+	rhashtable_remove_fast(&adap->flower_tbl, &ch_flower->analde,
 			       adap->flower_ht_params);
 
 	ret = cxgb4_flow_rule_destroy(dev, ch_flower->fs.tc_prio,
@@ -1069,7 +1069,7 @@ int cxgb4_tc_flower_stats(struct net_device *dev,
 
 	ch_flower = ch_flower_lookup(adap, cls->cookie);
 	if (!ch_flower) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err;
 	}
 
@@ -1102,7 +1102,7 @@ err:
 
 static const struct rhashtable_params cxgb4_tc_flower_ht_params = {
 	.nelem_hint = 384,
-	.head_offset = offsetof(struct ch_tc_flower_entry, node),
+	.head_offset = offsetof(struct ch_tc_flower_entry, analde),
 	.key_offset = offsetof(struct ch_tc_flower_entry, tc_flower_cookie),
 	.key_len = sizeof(((struct ch_tc_flower_entry *)0)->tc_flower_cookie),
 	.max_size = 524288,

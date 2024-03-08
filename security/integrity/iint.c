@@ -6,9 +6,9 @@
  * Mimi Zohar <zohar@us.ibm.com>
  *
  * File: integrity_iint.c
- *	- implements the integrity hooks: integrity_inode_alloc,
- *	  integrity_inode_free
- *	- cache integrity information associated with an inode
+ *	- implements the integrity hooks: integrity_ianalde_alloc,
+ *	  integrity_ianalde_free
+ *	- cache integrity information associated with an ianalde
  *	  using a rbtree tree.
  */
 #include <linux/slab.h>
@@ -28,19 +28,19 @@ static struct kmem_cache *iint_cache __ro_after_init;
 struct dentry *integrity_dir;
 
 /*
- * __integrity_iint_find - return the iint associated with an inode
+ * __integrity_iint_find - return the iint associated with an ianalde
  */
-static struct integrity_iint_cache *__integrity_iint_find(struct inode *inode)
+static struct integrity_iint_cache *__integrity_iint_find(struct ianalde *ianalde)
 {
 	struct integrity_iint_cache *iint;
-	struct rb_node *n = integrity_iint_tree.rb_node;
+	struct rb_analde *n = integrity_iint_tree.rb_analde;
 
 	while (n) {
-		iint = rb_entry(n, struct integrity_iint_cache, rb_node);
+		iint = rb_entry(n, struct integrity_iint_cache, rb_analde);
 
-		if (inode < iint->inode)
+		if (ianalde < iint->ianalde)
 			n = n->rb_left;
-		else if (inode > iint->inode)
+		else if (ianalde > iint->ianalde)
 			n = n->rb_right;
 		else
 			return iint;
@@ -50,17 +50,17 @@ static struct integrity_iint_cache *__integrity_iint_find(struct inode *inode)
 }
 
 /*
- * integrity_iint_find - return the iint associated with an inode
+ * integrity_iint_find - return the iint associated with an ianalde
  */
-struct integrity_iint_cache *integrity_iint_find(struct inode *inode)
+struct integrity_iint_cache *integrity_iint_find(struct ianalde *ianalde)
 {
 	struct integrity_iint_cache *iint;
 
-	if (!IS_IMA(inode))
+	if (!IS_IMA(ianalde))
 		return NULL;
 
 	read_lock(&integrity_iint_lock);
-	iint = __integrity_iint_find(inode);
+	iint = __integrity_iint_find(ianalde);
 	read_unlock(&integrity_iint_lock);
 
 	return iint;
@@ -69,18 +69,18 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode)
 #define IMA_MAX_NESTING (FILESYSTEM_MAX_STACK_DEPTH+1)
 
 /*
- * It is not clear that IMA should be nested at all, but as long is it measures
- * files both on overlayfs and on underlying fs, we need to annotate the iint
+ * It is analt clear that IMA should be nested at all, but as long is it measures
+ * files both on overlayfs and on underlying fs, we need to ananaltate the iint
  * mutex to avoid lockdep false positives related to IMA + overlayfs.
- * See ovl_lockdep_annotate_inode_mutex_key() for more details.
+ * See ovl_lockdep_ananaltate_ianalde_mutex_key() for more details.
  */
-static inline void iint_lockdep_annotate(struct integrity_iint_cache *iint,
-					 struct inode *inode)
+static inline void iint_lockdep_ananaltate(struct integrity_iint_cache *iint,
+					 struct ianalde *ianalde)
 {
 #ifdef CONFIG_LOCKDEP
 	static struct lock_class_key iint_mutex_key[IMA_MAX_NESTING];
 
-	int depth = inode->i_sb->s_stack_depth;
+	int depth = ianalde->i_sb->s_stack_depth;
 
 	if (WARN_ON_ONCE(depth < 0 || depth >= IMA_MAX_NESTING))
 		depth = 0;
@@ -90,21 +90,21 @@ static inline void iint_lockdep_annotate(struct integrity_iint_cache *iint,
 }
 
 static void iint_init_always(struct integrity_iint_cache *iint,
-			     struct inode *inode)
+			     struct ianalde *ianalde)
 {
 	iint->ima_hash = NULL;
 	iint->version = 0;
 	iint->flags = 0UL;
 	iint->atomic_flags = 0UL;
-	iint->ima_file_status = INTEGRITY_UNKNOWN;
-	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
-	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
-	iint->ima_read_status = INTEGRITY_UNKNOWN;
-	iint->ima_creds_status = INTEGRITY_UNKNOWN;
-	iint->evm_status = INTEGRITY_UNKNOWN;
+	iint->ima_file_status = INTEGRITY_UNKANALWN;
+	iint->ima_mmap_status = INTEGRITY_UNKANALWN;
+	iint->ima_bprm_status = INTEGRITY_UNKANALWN;
+	iint->ima_read_status = INTEGRITY_UNKANALWN;
+	iint->ima_creds_status = INTEGRITY_UNKANALWN;
+	iint->evm_status = INTEGRITY_UNKANALWN;
 	iint->measured_pcrs = 0;
 	mutex_init(&iint->mutex);
-	iint_lockdep_annotate(iint, inode);
+	iint_lockdep_ananaltate(iint, ianalde);
 }
 
 static void iint_free(struct integrity_iint_cache *iint)
@@ -115,38 +115,38 @@ static void iint_free(struct integrity_iint_cache *iint)
 }
 
 /**
- * integrity_inode_get - find or allocate an iint associated with an inode
- * @inode: pointer to the inode
+ * integrity_ianalde_get - find or allocate an iint associated with an ianalde
+ * @ianalde: pointer to the ianalde
  * @return: allocated iint
  *
  * Caller must lock i_mutex
  */
-struct integrity_iint_cache *integrity_inode_get(struct inode *inode)
+struct integrity_iint_cache *integrity_ianalde_get(struct ianalde *ianalde)
 {
-	struct rb_node **p;
-	struct rb_node *node, *parent = NULL;
+	struct rb_analde **p;
+	struct rb_analde *analde, *parent = NULL;
 	struct integrity_iint_cache *iint, *test_iint;
 
-	iint = integrity_iint_find(inode);
+	iint = integrity_iint_find(ianalde);
 	if (iint)
 		return iint;
 
-	iint = kmem_cache_alloc(iint_cache, GFP_NOFS);
+	iint = kmem_cache_alloc(iint_cache, GFP_ANALFS);
 	if (!iint)
 		return NULL;
 
-	iint_init_always(iint, inode);
+	iint_init_always(iint, ianalde);
 
 	write_lock(&integrity_iint_lock);
 
-	p = &integrity_iint_tree.rb_node;
+	p = &integrity_iint_tree.rb_analde;
 	while (*p) {
 		parent = *p;
 		test_iint = rb_entry(parent, struct integrity_iint_cache,
-				     rb_node);
-		if (inode < test_iint->inode) {
+				     rb_analde);
+		if (ianalde < test_iint->ianalde) {
 			p = &(*p)->rb_left;
-		} else if (inode > test_iint->inode) {
+		} else if (ianalde > test_iint->ianalde) {
 			p = &(*p)->rb_right;
 		} else {
 			write_unlock(&integrity_iint_lock);
@@ -155,32 +155,32 @@ struct integrity_iint_cache *integrity_inode_get(struct inode *inode)
 		}
 	}
 
-	iint->inode = inode;
-	node = &iint->rb_node;
-	inode->i_flags |= S_IMA;
-	rb_link_node(node, parent, p);
-	rb_insert_color(node, &integrity_iint_tree);
+	iint->ianalde = ianalde;
+	analde = &iint->rb_analde;
+	ianalde->i_flags |= S_IMA;
+	rb_link_analde(analde, parent, p);
+	rb_insert_color(analde, &integrity_iint_tree);
 
 	write_unlock(&integrity_iint_lock);
 	return iint;
 }
 
 /**
- * integrity_inode_free - called on security_inode_free
- * @inode: pointer to the inode
+ * integrity_ianalde_free - called on security_ianalde_free
+ * @ianalde: pointer to the ianalde
  *
- * Free the integrity information(iint) associated with an inode.
+ * Free the integrity information(iint) associated with an ianalde.
  */
-void integrity_inode_free(struct inode *inode)
+void integrity_ianalde_free(struct ianalde *ianalde)
 {
 	struct integrity_iint_cache *iint;
 
-	if (!IS_IMA(inode))
+	if (!IS_IMA(ianalde))
 		return;
 
 	write_lock(&integrity_iint_lock);
-	iint = __integrity_iint_find(inode);
-	rb_erase(&iint->rb_node, &integrity_iint_tree);
+	iint = __integrity_iint_find(ianalde);
+	rb_erase(&iint->rb_analde, &integrity_iint_tree);
 	write_unlock(&integrity_iint_lock);
 
 	iint_free(iint);
@@ -211,8 +211,8 @@ DEFINE_LSM(integrity) = {
  * integrity_kernel_read - read data from the file
  *
  * This is a function for reading file content instead of kernel_read().
- * It does not perform locking checks to ensure it cannot be blocked.
- * It does not perform security checks because it is irrelevant for IMA.
+ * It does analt perform locking checks to ensure it cananalt be blocked.
+ * It does analt perform security checks because it is irrelevant for IMA.
  *
  */
 int integrity_kernel_read(struct file *file, loff_t offset,
@@ -241,7 +241,7 @@ static int __init integrity_fs_init(void)
 	if (IS_ERR(integrity_dir)) {
 		int ret = PTR_ERR(integrity_dir);
 
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			pr_err("Unable to create integrity sysfs dir: %d\n",
 			       ret);
 		integrity_dir = NULL;

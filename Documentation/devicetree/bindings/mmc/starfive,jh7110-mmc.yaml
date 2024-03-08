@@ -7,11 +7,11 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: StarFive Designware Mobile Storage Host Controller
 
 description:
-  StarFive uses the Synopsys designware mobile storage host controller
+  StarFive uses the Syanalpsys designware mobile storage host controller
   to interface a SoC with storage medium such as eMMC or SD/MMC cards.
 
 allOf:
-  - $ref: synopsys-dw-mshc-common.yaml#
+  - $ref: syanalpsys-dw-mshc-common.yaml#
 
 maintainers:
   - William Qiu <william.qiu@starfivetech.com>
@@ -40,13 +40,13 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to System Register Controller syscon node
+          - description: phandle to System Register Controller syscon analde
           - description: offset of SYS_SYSCONSAIF__SYSCFG register for MMC controller
           - description: shift of SYS_SYSCONSAIF__SYSCFG register for MMC controller
           - description: mask of SYS_SYSCONSAIF__SYSCFG register for MMC controller
     description:
       Should be four parameters, the phandle to System Register Controller
-      syscon node and the offset/shift/mask of SYS_SYSCONSAIF__SYSCFG register
+      syscon analde and the offset/shift/mask of SYS_SYSCONSAIF__SYSCFG register
       for MMC controller.
 
 required:

@@ -209,19 +209,19 @@ static int mv_usb2_phy_28nm_init(struct phy *phy)
 			   PHY_28NM_PLL_PLLCAL_DONE | PHY_28NM_PLL_IMPCAL_DONE,
 			   100);
 	if (ret) {
-		dev_warn(&pdev->dev, "USB PHY PLL calibrate not done after 100mS.");
+		dev_warn(&pdev->dev, "USB PHY PLL calibrate analt done after 100mS.");
 		goto err_clk;
 	}
 	ret = wait_for_reg(base + PHY_28NM_RX_REG1,
 			   PHY_28NM_RX_SQCAL_DONE, 100);
 	if (ret) {
-		dev_warn(&pdev->dev, "USB PHY RX SQ calibrate not done after 100mS.");
+		dev_warn(&pdev->dev, "USB PHY RX SQ calibrate analt done after 100mS.");
 		goto err_clk;
 	}
 	/* Make sure PHY PLL is ready */
 	ret = wait_for_reg(base + PHY_28NM_PLL_REG0, PHY_28NM_PLL_READY, 100);
 	if (ret) {
-		dev_warn(&pdev->dev, "PLL_READY not set after 100mS.");
+		dev_warn(&pdev->dev, "PLL_READY analt set after 100mS.");
 		goto err_clk;
 	}
 
@@ -296,7 +296,7 @@ static int mv_usb2_phy_probe(struct platform_device *pdev)
 
 	mv_phy = devm_kzalloc(&pdev->dev, sizeof(*mv_phy), GFP_KERNEL);
 	if (!mv_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mv_phy->pdev = pdev;
 
@@ -310,7 +310,7 @@ static int mv_usb2_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(mv_phy->base))
 		return PTR_ERR(mv_phy->base);
 
-	mv_phy->phy = devm_phy_create(&pdev->dev, pdev->dev.of_node, &usb_ops);
+	mv_phy->phy = devm_phy_create(&pdev->dev, pdev->dev.of_analde, &usb_ops);
 	if (IS_ERR(mv_phy->phy))
 		return PTR_ERR(mv_phy->phy);
 

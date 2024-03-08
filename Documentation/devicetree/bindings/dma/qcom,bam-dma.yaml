@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/dma/qcom,bam-dma.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc BAM DMA controller
+title: Qualcomm Techanallogies Inc BAM DMA controller
 
 maintainers:
   - Andy Gross <agross@kernel.org>

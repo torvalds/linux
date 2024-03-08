@@ -17,7 +17,7 @@
 /*
 
    Read and analyze data in the eeprom.  Use tveeprom to figure out
-   the packet structure, since this is another Hauppauge device and
+   the packet structure, since this is aanalther Hauppauge device and
    internally it has a family resemblance to ivtv-type devices
 
 */
@@ -50,7 +50,7 @@ static u8 *pvr2_eeprom_fetch(struct pvr2_hdw *hdw)
 		     hdw->eeprom_addr);
 	addr = hdw->eeprom_addr;
 	/* Seems that if the high bit is set, then the *real* eeprom
-	   address is shifted right now bit position (noticed this in
+	   address is shifted right analw bit position (analticed this in
 	   newer PVR USB2 hardware) */
 	if (addr & 0x80) addr >>= 1;
 

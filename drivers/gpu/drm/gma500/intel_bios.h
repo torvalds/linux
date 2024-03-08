@@ -39,7 +39,7 @@ struct vbios_data {
 	u8 tv_present:1;
 	u8 rsvd2:6; /* finish byte */
 	u8 rsvd3[4];
-	u8 signon[155];
+	u8 siganaln[155];
 	u8 copyright[61];
 	u16 code_segment;
 	u8 dos_boot_mode;
@@ -52,7 +52,7 @@ struct vbios_data {
 /*
  * There are several types of BIOS data blocks (BDBs), each block has
  * an ID and size in the first 3 bytes (ID in first, size in next 2).
- * Known types are listed below.
+ * Kanalwn types are listed below.
  */
 #define BDB_GENERAL_FEATURES	  1
 #define BDB_GENERAL_DEFINITIONS	  2
@@ -86,7 +86,7 @@ struct vbios_data {
 #define BDB_LVDS_LFP_DATA	 42
 #define BDB_LVDS_BACKLIGHT	 43
 #define BDB_LVDS_POWER		 44
-#define BDB_SKIP		254 /* VBIOS private block, ignore */
+#define BDB_SKIP		254 /* VBIOS private block, iganalre */
 
 struct bdb_general_features {
 	/* bits 1 */
@@ -128,7 +128,7 @@ struct bdb_general_features {
 #define GPIO_PIN_ADD_DDC_I2C	0x06 /* "ADDCARD DDC/I2C GPIO pins" */
 
 /* Pre 915 */
-#define DEVICE_TYPE_NONE	0x00
+#define DEVICE_TYPE_ANALNE	0x00
 #define DEVICE_TYPE_CRT		0x01
 #define DEVICE_TYPE_TV		0x09
 #define DEVICE_TYPE_EFP		0x12
@@ -155,7 +155,7 @@ struct bdb_general_features {
 #define DEVICE_TYPE_LFP_LVDS_DUAL	0x5162
 #define DEVICE_TYPE_LFP_LVDS_DUAL_HDCP	0x51e2
 
-#define DEVICE_CFG_NONE		0x00
+#define DEVICE_CFG_ANALNE		0x00
 #define DEVICE_CFG_12BIT_DVOB	0x01
 #define DEVICE_CFG_12BIT_DVOC	0x02
 #define DEVICE_CFG_24BIT_DVOBC	0x09
@@ -166,7 +166,7 @@ struct bdb_general_features {
 #define DEVICE_CFG_DUAL_LINK_DVOBC	0x19
 #define DEVICE_CFG_DUAL_LINK_DVOCB	0x1a
 
-#define DEVICE_WIRE_NONE	0x00
+#define DEVICE_WIRE_ANALNE	0x00
 #define DEVICE_WIRE_DVOB	0x01
 #define DEVICE_WIRE_DVOC	0x02
 #define DEVICE_WIRE_DVOBC	0x03
@@ -175,7 +175,7 @@ struct bdb_general_features {
 #define DEVICE_WIRE_DVOB_MASTER 0x0d
 #define DEVICE_WIRE_DVOC_MASTER 0x0e
 
-#define DEVICE_PORT_DVOA	0x00 /* none on 845+ */
+#define DEVICE_PORT_DVOA	0x00 /* analne on 845+ */
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 
@@ -379,7 +379,7 @@ struct bdb_sdvo_lvds_options {
 	u8 panel_misc_bits_4;
 } __packed;
 
-#define BDB_DRIVER_FEATURE_NO_LVDS		0
+#define BDB_DRIVER_FEATURE_ANAL_LVDS		0
 #define BDB_DRIVER_FEATURE_INT_LVDS		1
 #define BDB_DRIVER_FEATURE_SDVO_LVDS		2
 #define BDB_DRIVER_FEATURE_EDP			3
@@ -432,7 +432,7 @@ struct bdb_driver_features {
 #define EDP_LANE_1	0
 #define EDP_LANE_2	1
 #define EDP_LANE_4	3
-#define EDP_PREEMPHASIS_NONE	0
+#define EDP_PREEMPHASIS_ANALNE	0
 #define EDP_PREEMPHASIS_3_5dB	1
 #define EDP_PREEMPHASIS_6dB	2
 #define EDP_PREEMPHASIS_9_5dB	3
@@ -474,7 +474,7 @@ extern void psb_intel_destroy_bios(struct drm_device *dev);
 /* GR18 bits are set on display switch and hotkey events */
 #define GR18_DRIVER_SWITCH_EN	(1<<7) /* 0: VBIOS control, 1: driver control */
 #define GR18_HOTKEY_MASK	0x78 /* See also SWF4 15:0 */
-#define   GR18_HK_NONE		(0x0<<3)
+#define   GR18_HK_ANALNE		(0x0<<3)
 #define   GR18_HK_LFP_STRETCH	(0x1<<3)
 #define   GR18_HK_TOGGLE_DISP	(0x2<<3)
 #define   GR18_HK_DISP_SWITCH	(0x4<<3) /* see SWF14 15:0 for what to enable */

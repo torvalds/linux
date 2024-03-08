@@ -6,7 +6,7 @@
 #include <linux/init.h>
 #include <linux/bits.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/ptrace.h>
 #include <asm/trapnr.h>
 #include <asm/shared/tdx.h>
@@ -28,7 +28,7 @@
  * TDX module SEAMCALL leaf function error codes
  */
 #define TDX_SUCCESS		0ULL
-#define TDX_RND_NO_ENTROPY	0x8000020300000000ULL
+#define TDX_RND_ANAL_ENTROPY	0x8000020300000000ULL
 
 #ifndef __ASSEMBLY__
 
@@ -37,7 +37,7 @@
 /*
  * Used by the #VE exception handler to gather the #VE exception
  * info from the TDX module. This is a software only structure
- * and not part of the TDX module/VMM ABI.
+ * and analt part of the TDX module/VMM ABI.
  */
 struct ve_info {
 	u64 exit_reason;
@@ -83,7 +83,7 @@ static inline long tdx_kvm_hypercall(unsigned int nr, unsigned long p1,
 				     unsigned long p2, unsigned long p3,
 				     unsigned long p4)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_INTEL_TDX_GUEST && CONFIG_KVM_GUEST */
 
@@ -105,7 +105,7 @@ static inline u64 sc_retry(sc_func_t func, u64 fn,
 
 	do {
 		ret = func(fn, args);
-	} while (ret == TDX_RND_NO_ENTROPY && --retry);
+	} while (ret == TDX_RND_ANAL_ENTROPY && --retry);
 
 	return ret;
 }
@@ -118,8 +118,8 @@ int tdx_enable(void);
 const char *tdx_dump_mce_info(struct mce *m);
 #else
 static inline void tdx_init(void) { }
-static inline int tdx_cpu_enable(void) { return -ENODEV; }
-static inline int tdx_enable(void)  { return -ENODEV; }
+static inline int tdx_cpu_enable(void) { return -EANALDEV; }
+static inline int tdx_enable(void)  { return -EANALDEV; }
 static inline const char *tdx_dump_mce_info(struct mce *m) { return NULL; }
 #endif	/* CONFIG_INTEL_TDX_HOST */
 

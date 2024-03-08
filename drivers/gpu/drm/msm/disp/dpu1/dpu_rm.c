@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"[drm:%s] " fmt, __func__
@@ -173,7 +173,7 @@ int dpu_rm_init(struct drm_device *dev,
 			DPU_ERROR("failed sspp object creation: err %d\n", rc);
 			goto fail;
 		}
-		rm->hw_sspp[sspp->id - SSPP_NONE] = hw;
+		rm->hw_sspp[sspp->id - SSPP_ANALNE] = hw;
 	}
 
 	if (cat->cdm) {
@@ -319,7 +319,7 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm,
 		if (lm_count < reqs->topology.num_lm) {
 			int j = _dpu_rm_get_lm_peer(rm, i);
 
-			/* ignore the peer if there is an error or if the peer was already processed */
+			/* iganalre the peer if there is an error or if the peer was already processed */
 			if (j < 0 || j < i)
 				continue;
 
@@ -417,10 +417,10 @@ static int _dpu_rm_reserve_dsc(struct dpu_rm *rm,
 	int num_dsc = top->num_dsc;
 	int i;
 
-	/* check if DSC required are allocated or not */
+	/* check if DSC required are allocated or analt */
 	for (i = 0; i < num_dsc; i++) {
 		if (!rm->dsc_blks[i]) {
-			DPU_ERROR("DSC %d does not exist\n", i);
+			DPU_ERROR("DSC %d does analt exist\n", i);
 			return -EIO;
 		}
 
@@ -442,7 +442,7 @@ static int _dpu_rm_reserve_cdm(struct dpu_rm *rm,
 {
 	/* try allocating only one CDM block */
 	if (!rm->cdm_blk) {
-		DPU_ERROR("CDM block does not exist\n");
+		DPU_ERROR("CDM block does analt exist\n");
 		return -EIO;
 	}
 
@@ -610,7 +610,7 @@ int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
 		max_blks = 1;
 		break;
 	default:
-		DPU_ERROR("blk type %d not managed by rm\n", type);
+		DPU_ERROR("blk type %d analt managed by rm\n", type);
 		return 0;
 	}
 

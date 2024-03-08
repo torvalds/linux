@@ -13,7 +13,7 @@
 struct bbuf {
 	void		*b;
 	enum {
-		BB_NONE,
+		BB_ANALNE,
 		BB_VMAP,
 		BB_KMALLOC,
 		BB_MEMPOOL,
@@ -27,11 +27,11 @@ static struct bbuf __bounce_alloc(struct bch_fs *c, unsigned size, int rw)
 
 	BUG_ON(size > c->opts.encoded_extent_max);
 
-	b = kmalloc(size, GFP_NOFS|__GFP_NOWARN);
+	b = kmalloc(size, GFP_ANALFS|__GFP_ANALWARN);
 	if (b)
 		return (struct bbuf) { .b = b, .type = BB_KMALLOC, .rw = rw };
 
-	b = mempool_alloc(&c->compression_bounce[rw], GFP_NOFS);
+	b = mempool_alloc(&c->compression_bounce[rw], GFP_ANALFS);
 	if (b)
 		return (struct bbuf) { .b = b, .type = BB_MEMPOOL, .rw = rw };
 
@@ -74,7 +74,7 @@ static struct bbuf __bio_map_or_bounce(struct bch_fs *c, struct bio *bio,
 		return (struct bbuf) {
 			.b = page_address(bio_iter_page(bio, start)) +
 				bio_iter_offset(bio, start),
-			.type = BB_NONE, .rw = rw
+			.type = BB_ANALNE, .rw = rw
 		};
 
 	/* check if we can map the pages contiguously: */
@@ -93,7 +93,7 @@ static struct bbuf __bio_map_or_bounce(struct bch_fs *c, struct bio *bio,
 	BUG_ON(DIV_ROUND_UP(start.bi_size, PAGE_SIZE) > nr_pages);
 
 	pages = nr_pages > ARRAY_SIZE(stack_pages)
-		? kmalloc_array(nr_pages, sizeof(struct page *), GFP_NOFS)
+		? kmalloc_array(nr_pages, sizeof(struct page *), GFP_ANALFS)
 		: stack_pages;
 	if (!pages)
 		goto bounce;
@@ -128,7 +128,7 @@ static struct bbuf bio_map_or_bounce(struct bch_fs *c, struct bio *bio, int rw)
 static void bio_unmap_or_unbounce(struct bch_fs *c, struct bbuf buf)
 {
 	switch (buf.type) {
-	case BB_NONE:
+	case BB_ANALNE:
 		break;
 	case BB_VMAP:
 		vunmap((void *) ((unsigned long) buf.b & PAGE_MASK));
@@ -176,7 +176,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 			.avail_out	= dst_len,
 		};
 
-		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOFS);
+		workspace = mempool_alloc(&c->decompress_workspace, GFP_ANALFS);
 
 		zlib_set_workspace(&strm, workspace);
 		zlib_inflateInit2(&strm, -MAX_WBITS);
@@ -195,7 +195,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		if (real_src_len > src_len - 4)
 			goto err;
 
-		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOFS);
+		workspace = mempool_alloc(&c->decompress_workspace, GFP_ANALFS);
 		ctx = zstd_init_dctx(workspace, zstd_dctx_workspace_bound());
 
 		ret = zstd_decompress_dctx(ctx,
@@ -239,7 +239,7 @@ int bch2_bio_uncompress_inplace(struct bch_fs *c, struct bio *bio,
 	data = __bounce_alloc(c, dst_len, WRITE);
 
 	if (__bio_uncompress(c, bio, data.b, *crc)) {
-		if (!c->opts.no_data_io)
+		if (!c->opts.anal_data_io)
 			bch_err(c, "error rewriting existing data: decompression error");
 		bio_unmap_or_unbounce(c, data);
 		return -EIO;
@@ -247,7 +247,7 @@ int bch2_bio_uncompress_inplace(struct bch_fs *c, struct bio *bio,
 
 	/*
 	 * XXX: don't have a good way to assert that the bio was allocated with
-	 * enough space, we depend on bch2_move_extent doing the right thing
+	 * eanalugh space, we depend on bch2_move_extent doing the right thing
 	 */
 	bio->bi_iter.bi_size = crc->live_size << 9;
 
@@ -284,7 +284,7 @@ int bch2_bio_uncompress(struct bch_fs *c, struct bio *src,
 	if (ret)
 		goto err;
 
-	if (dst_data.type != BB_NONE &&
+	if (dst_data.type != BB_ANALNE &&
 	    dst_data.type != BB_VMAP)
 		memcpy_to_bio(dst, dst_iter, dst_data.b + (crc.offset << 9));
 err:
@@ -404,7 +404,7 @@ static unsigned __bio_compress(struct bch_fs *c,
 	dst_data = bio_map_or_bounce(c, dst, WRITE);
 	src_data = bio_map_or_bounce(c, src, READ);
 
-	workspace = mempool_alloc(&c->compress_workspace[compression_type], GFP_NOFS);
+	workspace = mempool_alloc(&c->compress_workspace[compression_type], GFP_ANALFS);
 
 	*src_len = src->bi_iter.bi_size;
 	*dst_len = dst->bi_iter.bi_size;
@@ -461,7 +461,7 @@ static unsigned __bio_compress(struct bch_fs *c,
 	memset(dst_data.b + *dst_len, 0, pad);
 	*dst_len += pad;
 
-	if (dst_data.type != BB_NONE &&
+	if (dst_data.type != BB_ANALNE &&
 	    dst_data.type != BB_VMAP)
 		memcpy_to_bio(dst, dst->bi_iter, dst_data.b);
 
@@ -505,7 +505,7 @@ unsigned bch2_bio_compress(struct bch_fs *c,
 
 static int __bch2_fs_compress_init(struct bch_fs *, u64);
 
-#define BCH_FEATURE_none	0
+#define BCH_FEATURE_analne	0
 
 static const unsigned bch2_compression_opt_to_feature[] = {
 #define x(t, n) [BCH_COMPRESSION_OPT_##t] = BCH_FEATURE_##t,
@@ -513,7 +513,7 @@ static const unsigned bch2_compression_opt_to_feature[] = {
 #undef x
 };
 
-#undef BCH_FEATURE_none
+#undef BCH_FEATURE_analne
 
 static int __bch2_check_set_has_compressed_data(struct bch_fs *c, u64 f)
 {
@@ -603,12 +603,12 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 	if (!mempool_initialized(&c->compression_bounce[READ]) &&
 	    mempool_init_kvpmalloc_pool(&c->compression_bounce[READ],
 					1, c->opts.encoded_extent_max))
-		return -BCH_ERR_ENOMEM_compression_bounce_read_init;
+		return -BCH_ERR_EANALMEM_compression_bounce_read_init;
 
 	if (!mempool_initialized(&c->compression_bounce[WRITE]) &&
 	    mempool_init_kvpmalloc_pool(&c->compression_bounce[WRITE],
 					1, c->opts.encoded_extent_max))
-		return -BCH_ERR_ENOMEM_compression_bounce_write_init;
+		return -BCH_ERR_EANALMEM_compression_bounce_write_init;
 
 	for (i = compression_types;
 	     i < compression_types + ARRAY_SIZE(compression_types);
@@ -625,13 +625,13 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 		if (mempool_init_kvpmalloc_pool(
 				&c->compress_workspace[i->type],
 				1, i->compress_workspace))
-			return -BCH_ERR_ENOMEM_compression_workspace_init;
+			return -BCH_ERR_EANALMEM_compression_workspace_init;
 	}
 
 	if (!mempool_initialized(&c->decompress_workspace) &&
 	    mempool_init_kvpmalloc_pool(&c->decompress_workspace,
 					1, decompress_workspace_size))
-		return -BCH_ERR_ENOMEM_decompression_workspace_init;
+		return -BCH_ERR_EANALMEM_decompression_workspace_init;
 
 	return 0;
 }
@@ -662,7 +662,7 @@ int bch2_opt_compression_parse(struct bch_fs *c, const char *_val, u64 *res,
 	int ret;
 
 	if (!val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	type_str = strsep(&p, ":");
 	level_str = p;
@@ -704,7 +704,7 @@ void bch2_compression_opt_to_text(struct printbuf *out, u64 v)
 	if (opt.type < BCH_COMPRESSION_OPT_NR)
 		prt_str(out, bch2_compression_opts[opt.type]);
 	else
-		prt_printf(out, "(unknown compression opt %u)", opt.type);
+		prt_printf(out, "(unkanalwn compression opt %u)", opt.type);
 	if (opt.level)
 		prt_printf(out, ":%u", opt.level);
 }

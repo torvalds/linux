@@ -89,7 +89,7 @@ do {								\
 #define TLB_INTR_B		44
 
 #define IP27_INTR_0		45	/* Reserved for PROM use */
-#define IP27_INTR_1		46	/* do not use in Kernel */
+#define IP27_INTR_1		46	/* do analt use in Kernel */
 #define IP27_INTR_2		47
 #define IP27_INTR_3		48
 #define IP27_INTR_4		49

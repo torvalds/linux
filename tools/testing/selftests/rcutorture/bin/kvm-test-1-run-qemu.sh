@@ -11,7 +11,7 @@
 #	"ds" is the top-level date-stamped directory and "scenario"
 #	is the scenario name.  Any required adjustments to this file
 #	must have been made by the caller.  The shell-command comments
-#	at the end of the qemu-cmd file are not optional.
+#	at the end of the qemu-cmd file are analt optional.
 #
 # Copyright (C) 2021 Facebook, Inc.
 #
@@ -23,12 +23,12 @@ trap 'rm -rf $T' 0
 resdir="$1"
 if ! test -d "$resdir"
 then
-	echo $0: Nonexistent directory: $resdir
+	echo $0: Analnexistent directory: $resdir
 	exit 1
 fi
 if ! test -f "$resdir/qemu-cmd"
 then
-	echo $0: Nonexistent qemu-cmd file: $resdir/qemu-cmd
+	echo $0: Analnexistent qemu-cmd file: $resdir/qemu-cmd
 	exit 1
 fi
 
@@ -50,7 +50,7 @@ echo 'echo $qemu_pid > $resdir/qemu-pid' >> $T/qemu-cmd
 echo 'taskset -c -p $qemu_pid > $resdir/qemu-affinity' >> $T/qemu-cmd
 
 # In case qemu refuses to run...
-echo "NOTE: $QEMU either did not run or was interactive" > $resdir/console.log
+echo "ANALTE: $QEMU either did analt run or was interactive" > $resdir/console.log
 
 # Attempt to run qemu
 kstarttime=`gawk 'BEGIN { print systime() }' < /dev/null`
@@ -65,7 +65,7 @@ then
 		echo Monitoring qemu job at pid $qemu_pid `date`
 	else
 		qemu_pid=""
-		echo Monitoring qemu job at yet-as-unknown pid `date`
+		echo Monitoring qemu job at yet-as-unkanalwn pid `date`
 	fi
 fi
 if test -n "$TORTURE_KCONFIG_GDB_ARG"
@@ -147,11 +147,11 @@ then
 		else
 			break
 		fi
-		must_continue=no
+		must_continue=anal
 		newline="`tail $resdir/console.log`"
 		if test "$newline" != "$oldline" && echo $newline | grep -q ' [0-9]\+us : '
 		then
-			must_continue=yes
+			must_continue=anal
 		fi
 		last_ts="`tail $resdir/console.log | grep '^\[ *[0-9]\+\.[0-9]\+]' | tail -1 | sed -e 's/^\[ *//' -e 's/\..*$//'`"
 		if test -z "$last_ts"
@@ -160,13 +160,13 @@ then
 		fi
 		if test "$newline" != "$oldline" && test "$last_ts" -lt $((seconds + $TORTURE_SHUTDOWN_GRACE)) && test "$last_ts" -gt "$TORTURE_SHUTDOWN_GRACE"
 		then
-			must_continue=yes
+			must_continue=anal
 			if test $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
 			then
 				echo Continuing at console.log time $last_ts \"`tail -n 1 $resdir/console.log`\" `date`
 			fi
 		fi
-		if test $must_continue = no && test $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
+		if test $must_continue = anal && test $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
 		then
 			echo "!!! PID $qemu_pid hung at $kruntime vs. $seconds seconds `date`" >> $resdir/Warnings 2>&1
 			kill -KILL $qemu_pid
@@ -177,7 +177,7 @@ then
 	done
 elif test -z "$qemu_pid"
 then
-	echo Unknown PID, cannot kill qemu command
+	echo Unkanalwn PID, cananalt kill qemu command
 fi
 
 # Tell the script that this run is done.

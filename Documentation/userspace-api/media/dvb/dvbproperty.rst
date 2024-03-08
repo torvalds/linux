@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _frontend-properties:
 
@@ -8,7 +8,7 @@ Property types
 
 Tuning into a Digital TV physical channel and starting decoding it
 requires changing a set of parameters, in order to control the tuner,
-the demodulator, the Linear Low-noise Amplifier (LNA) and to set the
+the demodulator, the Linear Low-analise Amplifier (LNA) and to set the
 antenna subsystem via Satellite Equipment Control - SEC (on satellite
 systems). The actual parameters are specific to each particular digital
 TV standards, and may change as the digital TV specs evolves.
@@ -16,8 +16,8 @@ TV standards, and may change as the digital TV specs evolves.
 In the past (up to DVB API version 3 - DVBv3), the strategy used was to have a
 union with the parameters needed to tune for DVB-S, DVB-C, DVB-T and
 ATSC delivery systems grouped there. The problem is that, as the second
-generation standards appeared, the size of such union was not big
-enough to group the structs that would be required for those new
+generation standards appeared, the size of such union was analt big
+eanalugh to group the structs that would be required for those new
 standards. Also, extending it would break userspace.
 
 So, the legacy union/struct based approach was deprecated, in favor
@@ -31,16 +31,16 @@ With one single ioctl, is possible to get/set up to 64 properties.
 This section describes the new and recommended way to set the frontend,
 with supports all digital TV delivery systems.
 
-.. note::
+.. analte::
 
    1. On Linux DVB API version 3, setting a frontend was done via
       struct :c:type:`dvb_frontend_parameters`.
 
    2. Don't use DVB API version 3 calls on hardware with supports
-      newer standards. Such API provides no support or a very limited
+      newer standards. Such API provides anal support or a very limited
       support to new standards and/or new hardware.
 
-   3. Nowadays, most frontends support multiple delivery systems.
+   3. Analwadays, most frontends support multiple delivery systems.
       Only with DVB API version 5 calls it is possible to switch between
       the multiple delivery systems supported by a frontend.
 

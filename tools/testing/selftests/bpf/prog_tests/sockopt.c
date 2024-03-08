@@ -14,7 +14,7 @@ enum sockopt_test_error {
 	OK = 0,
 	DENY_LOAD,
 	DENY_ATTACH,
-	EOPNOTSUPP_GETSOCKOPT,
+	EOPANALTSUPP_GETSOCKOPT,
 	EPERM_GETSOCKOPT,
 	EFAULT_GETSOCKOPT,
 	EPERM_SETSOCKOPT,
@@ -45,7 +45,7 @@ static struct sockopt_test {
 	/* ==================== getsockopt ====================  */
 
 	{
-		.descr = "getsockopt: no expected_attach_type",
+		.descr = "getsockopt: anal expected_attach_type",
 		.insns = {
 			/* return 1 */
 			BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -106,7 +106,7 @@ static struct sockopt_test {
 		.error = EPERM_GETSOCKOPT,
 	},
 	{
-		.descr = "getsockopt: no optval bounds check, deny loading",
+		.descr = "getsockopt: anal optval bounds check, deny loading",
 		.insns = {
 			/* r6 = ctx->optval */
 			BPF_LDX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1,
@@ -283,7 +283,7 @@ static struct sockopt_test {
 		.io_uring_support = true,
 	},
 	{
-		.descr = "getsockopt: ignore >PAGE_SIZE optlen",
+		.descr = "getsockopt: iganalre >PAGE_SIZE optlen",
 		.insns = {
 			/* write 0xFF to the first optval byte */
 
@@ -305,7 +305,7 @@ static struct sockopt_test {
 			BPF_ST_MEM(BPF_B, BPF_REG_2, 0, 0xFF),
 			/* } */
 
-			/* retval changes are ignored */
+			/* retval changes are iganalred */
 			/* ctx->retval = 5 */
 			BPF_MOV64_IMM(BPF_REG_0, 5),
 			BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_0,
@@ -320,9 +320,9 @@ static struct sockopt_test {
 
 		.get_level = 1234,
 		.get_optname = 5678,
-		.get_optval = {}, /* the changes are ignored */
+		.get_optval = {}, /* the changes are iganalred */
 		.get_optlen = PAGE_SIZE + 1,
-		.error = EOPNOTSUPP_GETSOCKOPT,
+		.error = EOPANALTSUPP_GETSOCKOPT,
 		.io_uring_support = true,
 	},
 	{
@@ -419,7 +419,7 @@ static struct sockopt_test {
 	/* ==================== setsockopt ====================  */
 
 	{
-		.descr = "setsockopt: no expected_attach_type",
+		.descr = "setsockopt: anal expected_attach_type",
 		.insns = {
 			/* return 1 */
 			BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -481,7 +481,7 @@ static struct sockopt_test {
 		.error = EPERM_SETSOCKOPT,
 	},
 	{
-		.descr = "setsockopt: no optval bounds check, deny loading",
+		.descr = "setsockopt: anal optval bounds check, deny loading",
 		.insns = {
 			/* r6 = ctx->optval */
 			BPF_LDX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1,
@@ -691,7 +691,7 @@ static struct sockopt_test {
 		.io_uring_support = true,
 	},
 	{
-		.descr = "setsockopt: ignore >PAGE_SIZE optlen",
+		.descr = "setsockopt: iganalre >PAGE_SIZE optlen",
 		.insns = {
 			/* write 0xFF to the first optval byte */
 
@@ -726,7 +726,7 @@ static struct sockopt_test {
 
 		.get_level = SOL_IP,
 		.get_optname = IP_TOS,
-		.get_optval = {}, /* the changes are ignored */
+		.get_optval = {}, /* the changes are iganalred */
 		.get_optlen = 4,
 	},
 	{
@@ -1080,9 +1080,9 @@ static int run_test(int cgroup_fd, struct sockopt_test *test, bool use_io_uring)
 				      test->set_optname, test->set_optval,
 				      test->set_optlen);
 		if (err) {
-			if (errno == EPERM && test->error == EPERM_SETSOCKOPT)
+			if (erranal == EPERM && test->error == EPERM_SETSOCKOPT)
 				goto close_sock_fd;
-			if (errno == EFAULT && test->error == EFAULT_SETSOCKOPT)
+			if (erranal == EFAULT && test->error == EFAULT_SETSOCKOPT)
 				goto free_optval;
 
 			log_err("Failed to call setsockopt");
@@ -1108,11 +1108,11 @@ static int run_test(int cgroup_fd, struct sockopt_test *test, bool use_io_uring)
 		err = call_getsockopt(use_io_uring, sock_fd, test->get_level,
 				      test->get_optname, optval, &optlen);
 		if (err) {
-			if (errno == EOPNOTSUPP && test->error == EOPNOTSUPP_GETSOCKOPT)
+			if (erranal == EOPANALTSUPP && test->error == EOPANALTSUPP_GETSOCKOPT)
 				goto free_optval;
-			if (errno == EPERM && test->error == EPERM_GETSOCKOPT)
+			if (erranal == EPERM && test->error == EPERM_GETSOCKOPT)
 				goto free_optval;
-			if (errno == EFAULT && test->error == EFAULT_GETSOCKOPT)
+			if (erranal == EFAULT && test->error == EFAULT_GETSOCKOPT)
 				goto free_optval;
 
 			log_err("Failed to call getsockopt");
@@ -1121,14 +1121,14 @@ static int run_test(int cgroup_fd, struct sockopt_test *test, bool use_io_uring)
 		}
 
 		if (optlen != expected_get_optlen) {
-			errno = 0;
+			erranal = 0;
 			log_err("getsockopt returned unexpected optlen");
 			ret = -1;
 			goto free_optval;
 		}
 
 		if (memcmp(optval, test->get_optval, optlen) != 0) {
-			errno = 0;
+			erranal = 0;
 			log_err("getsockopt returned unexpected optval");
 			ret = -1;
 			goto free_optval;

@@ -4,7 +4,7 @@ eBPF sample programs
 This directory contains a test stubs, verifier test-suite and examples
 for using eBPF. The examples use libbpf from tools/lib/bpf.
 
-Note that the XDP-specific samples have been removed from this directory and
+Analte that the XDP-specific samples have been removed from this directory and
 moved to the xdp-tools repository: https://github.com/xdp-project/xdp-tools
 See the commit messages removing each tool from this directory for how to
 convert specific command invocations between the old samples and the utilities
@@ -19,7 +19,7 @@ Compiling requires having installed:
  * pahole
 
 Consult :ref:`Documentation/process/changes.rst <changes>` for the minimum
-version numbers required and how to update them. Note that LLVM's tool
+version numbers required and how to update them. Analte that LLVM's tool
 'llc' must support target 'bpf', list version and supported targets with
 command: ``llc --version``
 
@@ -42,7 +42,7 @@ Kernel headers
 --------------
 
 There are usually dependencies to header files of the current kernel.
-To avoid installing devel kernel headers system wide, as a normal
+To avoid installing devel kernel headers system wide, as a analrmal
 user, simply call::
 
  make headers_install
@@ -67,7 +67,7 @@ Manually compiling LLVM with 'bpf' support
 Since version 3.7.0, LLVM adds a proper LLVM backend target for the
 BPF bytecode architecture.
 
-By default llvm will build all non-experimental backends including bpf.
+By default llvm will build all analn-experimental backends including bpf.
 To generate a smaller llc binary one can use::
 
  -DLLVM_TARGETS_TO_BUILD="BPF"
@@ -104,11 +104,11 @@ build samples for the cross target::
  export CROSS_COMPILE="aarch64-linux-gnu-"
 
 Headers can be also installed on RFS of target board if need to keep them in
-sync (not necessarily and it creates a local "usr/include" directory also)::
+sync (analt necessarily and it creates a local "usr/include" directory also)::
 
  make INSTALL_HDR_PATH=~/some_sysroot/usr headers_install
 
-Pointing LLC and CLANG is not necessarily if it's installed on HOST and have
+Pointing LLC and CLANG is analt necessarily if it's installed on HOST and have
 in its targets appropriate arm64 arch (usually it has several arches).
 Build samples::
 

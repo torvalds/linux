@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #include "main.h"
 
@@ -93,7 +93,7 @@ static unsigned int nfp_fl_get_next_pkt_number(struct nfp_fl_lag *lag)
 
 static void nfp_fl_increment_version(struct nfp_fl_lag *lag)
 {
-	/* LSB is not considered by firmware so add 2 for each increment. */
+	/* LSB is analt considered by firmware so add 2 for each increment. */
 	lag->batch_ver += 2;
 	lag->batch_ver &= NFP_FL_LAG_VERSION_MASK;
 
@@ -115,14 +115,14 @@ nfp_fl_lag_group_create(struct nfp_fl_lag *lag, struct net_device *master)
 			     NFP_FL_LAG_GROUP_MAX, GFP_KERNEL);
 	if (id < 0) {
 		nfp_flower_cmsg_warn(priv->app,
-				     "No more bonding groups available\n");
+				     "Anal more bonding groups available\n");
 		return ERR_PTR(id);
 	}
 
 	group = kmalloc(sizeof(*group), GFP_KERNEL);
 	if (!group) {
 		ida_free(&lag->ida_handle, id);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	group->group_id = id;
@@ -169,7 +169,7 @@ static int nfp_fl_lag_get_group_info(struct nfp_app *app,
 							  netdev);
 	if (!group) {
 		mutex_unlock(&priv->nfp_lag.lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (group_id)
@@ -197,8 +197,8 @@ int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 	if (nfp_fl_lag_get_group_info(app, master, &pre_act->group_id,
 				      pre_act->lag_version,
 				      &pre_act->instance)) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: group does not exist for LAG action");
-		return -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: group does analt exist for LAG action");
+		return -EANALENT;
 	}
 
 	return 0;
@@ -216,7 +216,7 @@ int nfp_flower_lag_get_output_id(struct nfp_app *app, struct net_device *master)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_lag_group *group = NULL;
-	int group_id = -ENOENT;
+	int group_id = -EANALENT;
 
 	mutex_lock(&priv->nfp_lag.lock);
 	group = nfp_fl_lag_find_group_for_master_with_lag(&priv->nfp_lag,
@@ -245,7 +245,7 @@ nfp_fl_lag_config_group(struct nfp_fl_lag *lag, struct nfp_fl_lag_group *group,
 				    NFP_FLOWER_CMSG_TYPE_LAG_CONFIG,
 				    GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmsg_payload = nfp_flower_cmsg_get_data(skb);
 	flags = 0;
@@ -339,10 +339,10 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 					     sizeof(*acti_netdevs), GFP_KERNEL);
 
 		/* Include sanity check in the loop. It may be that a bond has
-		 * changed between processing the last notification and the
+		 * changed between processing the last analtification and the
 		 * work queue triggering. If the number of slaves has changed
-		 * or it now contains netdevs that cannot be offloaded, ignore
-		 * the group until pending notifications are processed.
+		 * or it analw contains netdevs that cananalt be offloaded, iganalre
+		 * the group until pending analtifications are processed.
 		 */
 		rcu_read_lock();
 		for_each_netdev_in_bond_rcu(entry->master_ndev, iter_netdev) {
@@ -418,11 +418,11 @@ nfp_fl_lag_put_unprocessed(struct nfp_fl_lag *lag, struct sk_buff *skb)
 		return -EINVAL;
 
 	/* Drop cmsg retrans if storage limit is exceeded to prevent
-	 * overloading. If the fw notices that expected messages have not been
+	 * overloading. If the fw analtices that expected messages have analt been
 	 * received in a given time block, it will request a full resync.
 	 */
 	if (skb_queue_len(&lag->retrans_skbs) >= NFP_FL_LAG_RETRANS_LIMIT)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	__skb_queue_tail(&lag->retrans_skbs, skb);
 
@@ -452,7 +452,7 @@ bool nfp_flower_lag_unprocessed_msg(struct nfp_app *app, struct sk_buff *skb)
 	cmsg_payload = nfp_flower_cmsg_get_data(skb);
 	flags = cmsg_payload->ctrl_flags;
 
-	/* Note the intentional fall through below. If DATA and XON are both
+	/* Analte the intentional fall through below. If DATA and XON are both
 	 * set, the message will stored and sent again with the rest of the
 	 * unprocessed messages list.
 	 */
@@ -533,7 +533,7 @@ nfp_fl_lag_schedule_group_delete(struct nfp_fl_lag *lag,
 
 static int
 nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
-			     struct netdev_notifier_changeupper_info *info)
+			     struct netdev_analtifier_changeupper_info *info)
 {
 	struct net_device *upper = info->upper_dev, *iter_netdev;
 	struct netdev_lag_upper_info *lag_upper_info;
@@ -574,7 +574,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	    (lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH ||
 	     (lag_upper_info->hash_type != NETDEV_LAG_HASH_L34 &&
 	      lag_upper_info->hash_type != NETDEV_LAG_HASH_E34 &&
-	      lag_upper_info->hash_type != NETDEV_LAG_HASH_UNKNOWN))) {
+	      lag_upper_info->hash_type != NETDEV_LAG_HASH_UNKANALWN))) {
 		can_offload = false;
 		nfp_flower_cmsg_warn(priv->app,
 				     "Unable to offload tx_type %u hash %u\n",
@@ -586,7 +586,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	group = nfp_fl_lag_find_group_for_master_with_lag(lag, upper);
 
 	if (slave_count == 0 || !can_offload) {
-		/* Cannot offload the group - remove if previously offloaded. */
+		/* Cananalt offload the group - remove if previously offloaded. */
 		if (group && group->offloaded)
 			nfp_fl_lag_schedule_group_remove(lag, group);
 
@@ -605,7 +605,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	group->dirty = true;
 	group->slave_cnt = slave_count;
 
-	/* Group may have been on queue for removal but is now offloadable. */
+	/* Group may have been on queue for removal but is analw offloadable. */
 	group->to_remove = false;
 	mutex_unlock(&lag->lock);
 
@@ -615,7 +615,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 
 static void
 nfp_fl_lag_changels_event(struct nfp_fl_lag *lag, struct net_device *netdev,
-			  struct netdev_notifier_changelowerstate_info *info)
+			  struct netdev_analtifier_changelowerstate_info *info)
 {
 	struct netdev_lag_lower_state_info *lag_lower_info;
 	struct nfp_flower_repr_priv *repr_priv;
@@ -668,17 +668,17 @@ int nfp_flower_lag_netdev_event(struct nfp_flower_priv *priv,
 	case NETDEV_CHANGEUPPER:
 		err = nfp_fl_lag_changeupper_event(lag, ptr);
 		if (err)
-			return NOTIFY_BAD;
-		return NOTIFY_OK;
+			return ANALTIFY_BAD;
+		return ANALTIFY_OK;
 	case NETDEV_CHANGELOWERSTATE:
 		nfp_fl_lag_changels_event(lag, netdev, ptr);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	case NETDEV_UNREGISTER:
 		nfp_fl_lag_schedule_group_delete(lag, netdev);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 int nfp_flower_lag_reset(struct nfp_fl_lag *lag)

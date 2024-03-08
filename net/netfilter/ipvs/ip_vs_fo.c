@@ -46,7 +46,7 @@ ip_vs_fo_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		return hweight;
 	}
 
-	ip_vs_scheduler_err(svc, "no destination available");
+	ip_vs_scheduler_err(svc, "anal destination available");
 	return NULL;
 }
 

@@ -79,7 +79,7 @@ static inline bool mei_me_hw_use_polling(const struct mei_me_hw *hw)
 /**
  * enum mei_cfg_idx - indices to platform specific configurations.
  *
- * Note: has to be synchronized with mei_cfg_list[]
+ * Analte: has to be synchronized with mei_cfg_list[]
  *
  * @MEI_ME_UNDEF_CFG:      Lower sentinel.
  * @MEI_ME_ICH_CFG:        I/O Controller Hub legacy devices.
@@ -87,7 +87,7 @@ static inline bool mei_me_hw_use_polling(const struct mei_me_hw *hw)
  * @MEI_ME_PCH6_CFG:       Platform Controller Hub platforms (Gen6).
  * @MEI_ME_PCH7_CFG:       Platform Controller Hub platforms (Gen7).
  * @MEI_ME_PCH_CPT_PBG_CFG:Platform Controller Hub workstations
- *                         with quirk for Node Manager exclusion.
+ *                         with quirk for Analde Manager exclusion.
  * @MEI_ME_PCH8_CFG:       Platform Controller Hub Gen8 and newer
  *                         client platforms.
  * @MEI_ME_PCH8_ITOUCH_CFG:Platform Controller Hub Gen8 and newer

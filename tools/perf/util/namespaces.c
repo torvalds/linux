@@ -33,7 +33,7 @@ static const char *perf_ns__names[] = {
 const char *perf_ns__name(unsigned int id)
 {
 	if (id >= ARRAY_SIZE(perf_ns__names))
-		return "UNKNOWN";
+		return "UNKANALWN";
 	return perf_ns__names[id];
 }
 
@@ -72,7 +72,7 @@ static int nsinfo__get_nspid(pid_t *tgid, pid_t *nstgid, bool *in_pidns, const c
 		return -1;
 
 	while (getline(&statln, &linesz, f) != -1) {
-		/* Use tgid if CONFIG_PID_NS is not defined. */
+		/* Use tgid if CONFIG_PID_NS is analt defined. */
 		if (strstr(statln, "Tgid:") != NULL) {
 			*tgid = (pid_t)strtol(strrchr(statln, '\t'), NULL, 10);
 			*nstgid = *tgid;
@@ -82,7 +82,7 @@ static int nsinfo__get_nspid(pid_t *tgid, pid_t *nstgid, bool *in_pidns, const c
 			nspid = strrchr(statln, '\t');
 			*nstgid = (pid_t)strtol(nspid, NULL, 10);
 			/*
-			 * If innermost tgid is not the first, process is in a different
+			 * If innermost tgid is analt the first, process is in a different
 			 * PID namespace.
 			 */
 			*in_pidns = (statln + sizeof("NStgid:") - 1) != nspid;
@@ -119,7 +119,7 @@ int nsinfo__init(struct nsinfo *nsi)
 	/* Check if the mount namespaces differ, if so then indicate that we
 	 * want to switch as part of looking up dso/map data.
 	 */
-	if (old_stat.st_ino != new_stat.st_ino) {
+	if (old_stat.st_ianal != new_stat.st_ianal) {
 		RC_CHK_ACCESS(nsi)->need_setns = true;
 		RC_CHK_ACCESS(nsi)->mntns_path = newns;
 		newns = NULL;

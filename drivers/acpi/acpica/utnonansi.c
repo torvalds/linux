@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: utnonansi - Non-ansi C library functions
+ * Module Name: utanalnansi - Analn-ansi C library functions
  *
  ******************************************************************************/
 
@@ -9,10 +9,10 @@
 #include "accommon.h"
 
 #define _COMPONENT          ACPI_UTILITIES
-ACPI_MODULE_NAME("utnonansi")
+ACPI_MODULE_NAME("utanalnansi")
 
 /*
- * Non-ANSI C library functions - strlwr, strupr, stricmp, and "safe"
+ * Analn-ANSI C library functions - strlwr, strupr, stricmp, and "safe"
  * string functions.
  */
 /*******************************************************************************
@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("utnonansi")
  *
  * PARAMETERS:  src_string      - The source string to convert
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Convert a string to lowercase
  *
@@ -49,7 +49,7 @@ void acpi_ut_strlwr(char *src_string)
  *
  * PARAMETERS:  src_string      - The source string to convert
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Convert a string to uppercase
  *
@@ -83,7 +83,7 @@ void acpi_ut_strupr(char *src_string)
  *              are equal.
  *
  * DESCRIPTION: Case-insensitive string compare. Implementation of the
- *              non-ANSI stricmp function.
+ *              analn-ANSI stricmp function.
  *
  ******************************************************************************/
 
@@ -115,10 +115,10 @@ int acpi_ut_stricmp(char *string1, char *string2)
  * RETURN:      TRUE if the operation would overflow the destination buffer.
  *
  * DESCRIPTION: Safe versions of standard Clib string functions. Ensure that
- *              the result of the operation will not overflow the output string
+ *              the result of the operation will analt overflow the output string
  *              buffer.
  *
- * NOTE:        These functions are typically only helpful for processing
+ * ANALTE:        These functions are typically only helpful for processing
  *              user input and command lines. For most ACPICA code, the
  *              required buffer length is precisely calculated before buffer
  *              allocation, so the use of these functions is unnecessary.

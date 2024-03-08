@@ -27,7 +27,7 @@
 #define CIFS_XATTR_CREATETIME "cifs.creationtime"  /* user.cifs.creationtime */
 /*
  * Although these three are just aliases for the above, need to move away from
- * confusing users and using the 20+ year old term 'cifs' when it is no longer
+ * confusing users and using the 20+ year old term 'cifs' when it is anal longer
  * secure, replaced by SMB2 (then even more highly secure SMB3) many years ago
  */
 #define SMB3_XATTR_CIFS_ACL "system.smb3_acl" /* DACL only */
@@ -41,10 +41,10 @@ enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT,
 	XATTR_CIFS_NTSD, XATTR_CIFS_NTSD_FULL };
 
 static int cifs_attrib_set(unsigned int xid, struct cifs_tcon *pTcon,
-			   struct inode *inode, const char *full_path,
+			   struct ianalde *ianalde, const char *full_path,
 			   const void *value, size_t size)
 {
-	ssize_t rc = -EOPNOTSUPP;
+	ssize_t rc = -EOPANALTSUPP;
 	__u32 *pattrib = (__u32 *)value;
 	__u32 attrib;
 	FILE_BASIC_INFO info_buf;
@@ -56,19 +56,19 @@ static int cifs_attrib_set(unsigned int xid, struct cifs_tcon *pTcon,
 	attrib = *pattrib;
 	info_buf.Attributes = cpu_to_le32(attrib);
 	if (pTcon->ses->server->ops->set_file_info)
-		rc = pTcon->ses->server->ops->set_file_info(inode, full_path,
+		rc = pTcon->ses->server->ops->set_file_info(ianalde, full_path,
 				&info_buf, xid);
 	if (rc == 0)
-		CIFS_I(inode)->cifsAttrs = attrib;
+		CIFS_I(ianalde)->cifsAttrs = attrib;
 
 	return rc;
 }
 
 static int cifs_creation_time_set(unsigned int xid, struct cifs_tcon *pTcon,
-				  struct inode *inode, const char *full_path,
+				  struct ianalde *ianalde, const char *full_path,
 				  const void *value, size_t size)
 {
-	ssize_t rc = -EOPNOTSUPP;
+	ssize_t rc = -EOPANALTSUPP;
 	__u64 *pcreation_time = (__u64 *)value;
 	__u64 creation_time;
 	FILE_BASIC_INFO info_buf;
@@ -80,21 +80,21 @@ static int cifs_creation_time_set(unsigned int xid, struct cifs_tcon *pTcon,
 	creation_time = *pcreation_time;
 	info_buf.CreationTime = cpu_to_le64(creation_time);
 	if (pTcon->ses->server->ops->set_file_info)
-		rc = pTcon->ses->server->ops->set_file_info(inode, full_path,
+		rc = pTcon->ses->server->ops->set_file_info(ianalde, full_path,
 				&info_buf, xid);
 	if (rc == 0)
-		CIFS_I(inode)->createtime = creation_time;
+		CIFS_I(ianalde)->createtime = creation_time;
 
 	return rc;
 }
 
 static int cifs_xattr_set(const struct xattr_handler *handler,
 			  struct mnt_idmap *idmap,
-			  struct dentry *dentry, struct inode *inode,
+			  struct dentry *dentry, struct ianalde *ianalde,
 			  const char *name, const void *value,
 			  size_t size, int flags)
 {
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 	unsigned int xid;
 	struct super_block *sb = dentry->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -124,7 +124,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 		returns as xattrs */
 	if (size > MAX_EA_VALUE_SIZE) {
 		cifs_dbg(FYI, "size of EA value too large\n");
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -133,21 +133,21 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 		cifs_dbg(FYI, "%s:setting user xattr %s\n", __func__, name);
 		if ((strcmp(name, CIFS_XATTR_ATTRIB) == 0) ||
 		    (strcmp(name, SMB3_XATTR_ATTRIB) == 0)) {
-			rc = cifs_attrib_set(xid, pTcon, inode, full_path,
+			rc = cifs_attrib_set(xid, pTcon, ianalde, full_path,
 					value, size);
-			if (rc == 0) /* force revalidate of the inode */
-				CIFS_I(inode)->time = 0;
+			if (rc == 0) /* force revalidate of the ianalde */
+				CIFS_I(ianalde)->time = 0;
 			break;
 		} else if ((strcmp(name, CIFS_XATTR_CREATETIME) == 0) ||
 			   (strcmp(name, SMB3_XATTR_CREATETIME) == 0)) {
-			rc = cifs_creation_time_set(xid, pTcon, inode,
+			rc = cifs_creation_time_set(xid, pTcon, ianalde,
 					full_path, value, size);
-			if (rc == 0) /* force revalidate of the inode */
-				CIFS_I(inode)->time = 0;
+			if (rc == 0) /* force revalidate of the ianalde */
+				CIFS_I(ianalde)->time = 0;
 			break;
 		}
 
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_ANAL_XATTR)
 			goto out;
 
 		if (pTcon->ses->server->ops->set_EA) {
@@ -155,7 +155,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 				full_path, name, value, (__u16)size,
 				cifs_sb->local_nls, cifs_sb);
 			if (rc == 0)
-				inode_set_ctime_current(inode);
+				ianalde_set_ctime_current(ianalde);
 		}
 		break;
 
@@ -168,7 +168,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 			goto out;
 		pacl = kmalloc(size, GFP_KERNEL);
 		if (!pacl) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 		} else {
 			memcpy(pacl, value, size);
 			if (pTcon->ses->server->ops->set_acl) {
@@ -193,12 +193,12 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 				}
 
 				rc = pTcon->ses->server->ops->set_acl(pacl,
-					size, inode, full_path, aclflags);
+					size, ianalde, full_path, aclflags);
 			} else {
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 			}
-			if (rc == 0) /* force revalidate of the inode */
-				CIFS_I(inode)->time = 0;
+			if (rc == 0) /* force revalidate of the ianalde */
+				CIFS_I(ianalde)->time = 0;
 			kfree(pacl);
 		}
 		break;
@@ -213,7 +213,7 @@ out:
 }
 
 static int cifs_attrib_get(struct dentry *dentry,
-			   struct inode *inode, void *value,
+			   struct ianalde *ianalde, void *value,
 			   size_t size)
 {
 	ssize_t rc;
@@ -231,12 +231,12 @@ static int cifs_attrib_get(struct dentry *dentry,
 
 	/* return dos attributes as pseudo xattr */
 	pattribute = (__u32 *)value;
-	*pattribute = CIFS_I(inode)->cifsAttrs;
+	*pattribute = CIFS_I(ianalde)->cifsAttrs;
 
 	return sizeof(__u32);
 }
 
-static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
+static int cifs_creation_time_get(struct dentry *dentry, struct ianalde *ianalde,
 				  void *value, size_t size)
 {
 	ssize_t rc;
@@ -253,16 +253,16 @@ static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
 
 	/* return dos attributes as pseudo xattr */
 	pcreatetime = (__u64 *)value;
-	*pcreatetime = CIFS_I(inode)->createtime;
+	*pcreatetime = CIFS_I(ianalde)->createtime;
 	return sizeof(__u64);
 }
 
 
 static int cifs_xattr_get(const struct xattr_handler *handler,
-			  struct dentry *dentry, struct inode *inode,
+			  struct dentry *dentry, struct ianalde *ianalde,
 			  const char *name, void *value, size_t size)
 {
-	ssize_t rc = -EOPNOTSUPP;
+	ssize_t rc = -EOPANALTSUPP;
 	unsigned int xid;
 	struct super_block *sb = dentry->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -291,15 +291,15 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		cifs_dbg(FYI, "%s:querying user xattr %s\n", __func__, name);
 		if ((strcmp(name, CIFS_XATTR_ATTRIB) == 0) ||
 		    (strcmp(name, SMB3_XATTR_ATTRIB) == 0)) {
-			rc = cifs_attrib_get(dentry, inode, value, size);
+			rc = cifs_attrib_get(dentry, ianalde, value, size);
 			break;
 		} else if ((strcmp(name, CIFS_XATTR_CREATETIME) == 0) ||
 		    (strcmp(name, SMB3_XATTR_CREATETIME) == 0)) {
-			rc = cifs_creation_time_get(dentry, inode, value, size);
+			rc = cifs_creation_time_get(dentry, ianalde, value, size);
 			break;
 		}
 
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_ANAL_XATTR)
 			goto out;
 
 		if (pTcon->ses->server->ops->query_all_EAs)
@@ -318,7 +318,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		struct cifs_ntsd *pacl;
 
 		if (pTcon->ses->server->ops->get_acl == NULL)
-			goto out; /* rc already EOPNOTSUPP */
+			goto out; /* rc already EOPANALTSUPP */
 
 		if (handler->flags == XATTR_CIFS_NTSD_FULL) {
 			extra_info = SACL_SECINFO;
@@ -326,7 +326,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 			extra_info = 0;
 		}
 		pacl = pTcon->ses->server->ops->get_acl(cifs_sb,
-				inode, full_path, &acllen, extra_info);
+				ianalde, full_path, &acllen, extra_info);
 		if (IS_ERR(pacl)) {
 			rc = PTR_ERR(pacl);
 			cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
@@ -351,7 +351,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		returns as xattrs */
 
 	if (rc == -EINVAL)
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 
 out:
 	free_dentry_path(page);
@@ -362,7 +362,7 @@ out:
 
 ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 {
-	ssize_t rc = -EOPNOTSUPP;
+	ssize_t rc = -EOPANALTSUPP;
 	unsigned int xid;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct tcon_link *tlink;
@@ -373,8 +373,8 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
 		return -EIO;
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
-		return -EOPNOTSUPP;
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_ANAL_XATTR)
+		return -EOPANALTSUPP;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -430,7 +430,7 @@ static const struct xattr_handler cifs_cifs_acl_xattr_handler = {
 
 /*
  * Although this is just an alias for the above, need to move away from
- * confusing users and using the 20 year old term 'cifs' when it is no
+ * confusing users and using the 20 year old term 'cifs' when it is anal
  * longer secure and was replaced by SMB2/SMB3 a long time ago, and
  * SMB3 and later are highly secure.
  */
@@ -450,7 +450,7 @@ static const struct xattr_handler cifs_cifs_ntsd_xattr_handler = {
 
 /*
  * Although this is just an alias for the above, need to move away from
- * confusing users and using the 20 year old term 'cifs' when it is no
+ * confusing users and using the 20 year old term 'cifs' when it is anal
  * longer secure and was replaced by SMB2/SMB3 a long time ago, and
  * SMB3 and later are highly secure.
  */
@@ -470,7 +470,7 @@ static const struct xattr_handler cifs_cifs_ntsd_full_xattr_handler = {
 
 /*
  * Although this is just an alias for the above, need to move away from
- * confusing users and using the 20 year old term 'cifs' when it is no
+ * confusing users and using the 20 year old term 'cifs' when it is anal
  * longer secure and was replaced by SMB2/SMB3 a long time ago, and
  * SMB3 and later are highly secure.
  */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016-2017 Micron Technology, Inc.
+ * Copyright (C) 2016-2017 Micron Techanallogy, Inc.
  *
  * Authors:
  *	Peter Pan <peterpandong@micron.com>
@@ -110,7 +110,7 @@ int spinand_upd_cfg(struct spinand_device *spinand, u8 mask, u8 val)
  * @spinand: the spinand device
  * @target: the target/die to select
  *
- * Select a new target/die. If chip only has one die, this function is a NOOP.
+ * Select a new target/die. If chip only has one die, this function is a ANALOP.
  *
  * Return: 0 on success, a negative error code otherwise.
  */
@@ -172,7 +172,7 @@ static int spinand_init_cfg_cache(struct spinand_device *spinand)
 					  sizeof(*spinand->cfg_cache),
 					  GFP_KERNEL);
 	if (!spinand->cfg_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -208,12 +208,12 @@ static int spinand_check_ecc_status(struct spinand_device *spinand, u8 status)
 		return spinand->eccinfo.get_status(spinand, status);
 
 	switch (status & STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case STATUS_ECC_HAS_BITFLIPS:
 		/*
-		 * We have no way to know exactly how many bitflips have been
+		 * We have anal way to kanalw exactly how many bitflips have been
 		 * fixed, so let's return the maximum possible value so that
 		 * wear-leveling layers move the data immediately.
 		 */
@@ -229,13 +229,13 @@ static int spinand_check_ecc_status(struct spinand_device *spinand, u8 status)
 	return -EINVAL;
 }
 
-static int spinand_noecc_ooblayout_ecc(struct mtd_info *mtd, int section,
+static int spinand_analecc_ooblayout_ecc(struct mtd_info *mtd, int section,
 				       struct mtd_oob_region *region)
 {
 	return -ERANGE;
 }
 
-static int spinand_noecc_ooblayout_free(struct mtd_info *mtd, int section,
+static int spinand_analecc_ooblayout_free(struct mtd_info *mtd, int section,
 					struct mtd_oob_region *region)
 {
 	if (section)
@@ -248,9 +248,9 @@ static int spinand_noecc_ooblayout_free(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-static const struct mtd_ooblayout_ops spinand_noecc_ooblayout = {
-	.ecc = spinand_noecc_ooblayout_ecc,
-	.free = spinand_noecc_ooblayout_free,
+static const struct mtd_ooblayout_ops spinand_analecc_ooblayout = {
+	.ecc = spinand_analecc_ooblayout_ecc,
+	.free = spinand_analecc_ooblayout_free,
 };
 
 static int spinand_ondie_ecc_init_ctx(struct nand_device *nand)
@@ -265,14 +265,14 @@ static int spinand_ondie_ecc_init_ctx(struct nand_device *nand)
 
 	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
 	if (!engine_conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand->ecc.ctx.priv = engine_conf;
 
 	if (spinand->eccinfo.ooblayout)
 		mtd_set_ooblayout(mtd, spinand->eccinfo.ooblayout);
 	else
-		mtd_set_ooblayout(mtd, &spinand_noecc_ooblayout);
+		mtd_set_ooblayout(mtd, &spinand_analecc_ooblayout);
 
 	return 0;
 }
@@ -305,7 +305,7 @@ static int spinand_ondie_ecc_finish_io_req(struct nand_device *nand,
 	if (req->mode == MTD_OPS_RAW)
 		return 0;
 
-	/* Nothing to do when finishing a page write */
+	/* Analthing to do when finishing a page write */
 	if (req->type == NAND_PAGE_WRITE)
 		return 0;
 
@@ -428,7 +428,7 @@ static int spinand_write_to_cache_op(struct spinand_device *spinand,
 	ssize_t ret;
 
 	/*
-	 * Looks like PROGRAM LOAD (AKA write cache) does not necessarily reset
+	 * Looks like PROGRAM LOAD (AKA write cache) does analt necessarily reset
 	 * the cache content to 0xFF (depends on vendor implementation), so we
 	 * must fill the page cache entirely even if we only want to program
 	 * the data portion of the page, otherwise we might corrupt the BBM or
@@ -919,7 +919,7 @@ static int spinand_create_dirmaps(struct spinand_device *spinand)
 					nand->memorg.planes_per_lun,
 					GFP_KERNEL);
 	if (!spinand->dirmaps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nand->memorg.planes_per_lun; i++) {
 		ret = spinand_create_dirmap(spinand, i);
@@ -974,7 +974,7 @@ static int spinand_manufacturer_match(struct spinand_device *spinand,
 		spinand->manufacturer = manufacturer;
 		return 0;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int spinand_id_detect(struct spinand_device *spinand)
@@ -1028,7 +1028,7 @@ spinand_select_op_variant(struct spinand_device *spinand,
 	struct nand_device *nand = spinand_to_nand(spinand);
 	unsigned int i;
 
-	for (i = 0; i < variants->nops; i++) {
+	for (i = 0; i < variants->analps; i++) {
 		struct spi_mem_op op = variants->ops[i];
 		unsigned int nbytes;
 		int ret;
@@ -1099,14 +1099,14 @@ int spinand_match_and_init(struct spinand_device *spinand,
 		op = spinand_select_op_variant(spinand,
 					       info->op_variants.read_cache);
 		if (!op)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		spinand->op_templates.read_cache = op;
 
 		op = spinand_select_op_variant(spinand,
 					       info->op_variants.write_cache);
 		if (!op)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		spinand->op_templates.write_cache = op;
 
@@ -1117,7 +1117,7 @@ int spinand_match_and_init(struct spinand_device *spinand,
 		return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int spinand_detect(struct spinand_device *spinand)
@@ -1132,7 +1132,7 @@ static int spinand_detect(struct spinand_device *spinand)
 
 	ret = spinand_id_detect(spinand);
 	if (ret) {
-		dev_err(dev, "unknown raw ID %*phN\n", SPINAND_MAX_ID_LEN,
+		dev_err(dev, "unkanalwn raw ID %*phN\n", SPINAND_MAX_ID_LEN,
 			spinand->id.data);
 		return ret;
 	}
@@ -1225,7 +1225,7 @@ static int spinand_init(struct spinand_device *spinand)
 	 */
 	spinand->scratchbuf = kzalloc(SPINAND_MAX_ID_LEN, GFP_KERNEL);
 	if (!spinand->scratchbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = spinand_detect(spinand);
 	if (ret)
@@ -1234,13 +1234,13 @@ static int spinand_init(struct spinand_device *spinand)
 	/*
 	 * Use kzalloc() instead of devm_kzalloc() here, because some drivers
 	 * may use this buffer for DMA access.
-	 * Memory allocated by devm_ does not guarantee DMA-safe alignment.
+	 * Memory allocated by devm_ does analt guarantee DMA-safe alignment.
 	 */
 	spinand->databuf = kzalloc(nanddev_page_size(nand) +
 			       nanddev_per_page_oobsize(nand),
 			       GFP_KERNEL);
 	if (!spinand->databuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_bufs;
 	}
 
@@ -1332,11 +1332,11 @@ static int spinand_probe(struct spi_mem *mem)
 	spinand = devm_kzalloc(&mem->spi->dev, sizeof(*spinand),
 			       GFP_KERNEL);
 	if (!spinand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spinand->spimem = mem;
 	spi_mem_set_drvdata(mem, spinand);
-	spinand_set_of_node(spinand, mem->spi->dev.of_node);
+	spinand_set_of_analde(spinand, mem->spi->dev.of_analde);
 	mutex_init(&spinand->lock);
 	mtd = spinand_to_mtd(spinand);
 	mtd->dev.parent = &mem->spi->dev;

@@ -14,7 +14,7 @@ static inline void arch_accept_memory(phys_addr_t start, phys_addr_t end)
 	} else if (cc_platform_has(CC_ATTR_GUEST_SEV_SNP)) {
 		snp_accept_memory(start, end);
 	} else {
-		panic("Cannot accept memory: unknown platform\n");
+		panic("Cananalt accept memory: unkanalwn platform\n");
 	}
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: driver entry for initial, open, close, tx and rx.
@@ -49,7 +49,7 @@
 /*
  * Define module options
  */
-MODULE_AUTHOR("VIA Networking Technologies, Inc., <lyndonchen@vntek.com.tw>");
+MODULE_AUTHOR("VIA Networking Techanallogies, Inc., <lyndonchen@vntek.com.tw>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver");
 
@@ -277,7 +277,7 @@ static void device_init_registers(struct vnt_private *priv)
 	/* Only used in 11g type, sync with ERP IE */
 	priv->bProtectMode = false;
 
-	priv->bNonERPPresent = false;
+	priv->bAnalnERPPresent = false;
 	priv->bBarkerPreambleMd = false;
 	priv->wCurrentRate = RATE_1M;
 	priv->byTopOFDMBasicRate = RATE_24M;
@@ -307,7 +307,7 @@ static void device_init_registers(struct vnt_private *priv)
 		priv->bTxRxAntInv = false;
 
 	byValue &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
-	/* if not set default is All */
+	/* if analt set default is All */
 	if (byValue == 0)
 		byValue = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
@@ -409,7 +409,7 @@ static void device_init_registers(struct vnt_private *priv)
 
 	/* use relative tx timeout and 802.11i D4 */
 	vt6655_mac_word_reg_bits_on(priv->port_offset, MAC_REG_CFG,
-				    (CFG_TKIPOPT | CFG_NOTXTIMEOUT));
+				    (CFG_TKIPOPT | CFG_ANALTXTIMEOUT));
 
 	/* set performance parameter by registry */
 	vt6655_mac_set_short_retry_limit(priv, priv->byShortRetryLimit);
@@ -607,13 +607,13 @@ static int device_init_rd0_ring(struct vnt_private *priv)
 		desc = &priv->aRD0Ring[i];
 		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_KERNEL);
 		if (!desc->rd_info) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_desc;
 		}
 
 		if (!device_alloc_rx_buf(priv, desc)) {
-			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
-			ret = -ENOMEM;
+			dev_err(&priv->pcid->dev, "can analt alloc rx bufs\n");
+			ret = -EANALMEM;
 			goto err_free_rd;
 		}
 
@@ -653,13 +653,13 @@ static int device_init_rd1_ring(struct vnt_private *priv)
 		desc = &priv->aRD1Ring[i];
 		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_KERNEL);
 		if (!desc->rd_info) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_desc;
 		}
 
 		if (!device_alloc_rx_buf(priv, desc)) {
-			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
-			ret = -ENOMEM;
+			dev_err(&priv->pcid->dev, "can analt alloc rx bufs\n");
+			ret = -EANALMEM;
 			goto err_free_rd;
 		}
 
@@ -723,7 +723,7 @@ static int device_init_td0_ring(struct vnt_private *priv)
 		desc = &priv->apTD0Rings[i];
 		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
 		if (!desc->td_info) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_desc;
 		}
 
@@ -764,7 +764,7 @@ static int device_init_td1_ring(struct vnt_private *priv)
 		desc = &priv->apTD1Rings[i];
 		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
 		if (!desc->td_info) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_desc;
 		}
 
@@ -835,7 +835,7 @@ static int device_rx_srv(struct vnt_private *priv, unsigned int idx)
 		if (vnt_receive_frame(priv, rd)) {
 			if (!device_alloc_rx_buf(priv, rd)) {
 				dev_err(&priv->pcid->dev,
-					"can not allocate rx buf\n");
+					"can analt allocate rx buf\n");
 				break;
 			}
 		}
@@ -913,7 +913,7 @@ static int vnt_int_report_rate(struct vnt_private *priv,
 	s8 idx;
 
 	if (!context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!context->skb)
 		return -EINVAL;
@@ -953,8 +953,8 @@ static int vnt_int_report_rate(struct vnt_private *priv,
 	if (!(tsr1 & TSR1_TERR)) {
 		info->status.rates[0].idx = idx;
 
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-			info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+			info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 		else
 			info->flags |= IEEE80211_TX_STAT_ACK;
 	}
@@ -1232,7 +1232,7 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (AVAIL_TD(priv, dma_idx) < 1) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		ieee80211_stop_queues(priv->hw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	head_td = priv->apCurrTD[dma_idx];
@@ -1294,7 +1294,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	priv->rx_buf_sz = PKT_BUF_SZ;
 	if (!device_init_rings(priv))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_irq(priv->pcid->irq, vnt_interrupt,
 			  IRQF_SHARED, "vt6655", priv);
@@ -1382,7 +1382,7 @@ static int vnt_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->op_mode = vif->type;
@@ -1634,7 +1634,7 @@ static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	switch (cmd) {
 	case SET_KEY:
 		if (vnt_set_keys(hw, sta, vif, key))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		break;
 	case DISABLE_KEY:
 		if (test_bit(key->hw_key_idx, &priv->key_entry_inuse))
@@ -1708,7 +1708,7 @@ static int vnt_init(struct vnt_private *priv)
 	vnt_init_bands(priv);
 
 	if (ieee80211_register_hw(priv->hw))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->mac_hw = true;
 
@@ -1725,16 +1725,16 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	struct wiphy *wiphy;
 	int         rc;
 
-	dev_notice(&pcid->dev,
+	dev_analtice(&pcid->dev,
 		   "%s Ver. %s\n", DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
 
-	dev_notice(&pcid->dev,
-		   "Copyright (c) 2003 VIA Networking Technologies, Inc.\n");
+	dev_analtice(&pcid->dev,
+		   "Copyright (c) 2003 VIA Networking Techanallogies, Inc.\n");
 
 	hw = ieee80211_alloc_hw(sizeof(*priv), &vnt_mac_ops);
 	if (!hw) {
-		dev_err(&pcid->dev, "could not register ieee80211_hw\n");
-		return -ENOMEM;
+		dev_err(&pcid->dev, "could analt register ieee80211_hw\n");
+		return -EANALMEM;
 	}
 
 	priv = hw->priv;
@@ -1748,7 +1748,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 	if (pci_enable_device(pcid)) {
 		device_free_info(priv);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(&pcid->dev,
@@ -1763,20 +1763,20 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	if (!priv->port_offset) {
 		dev_err(&pcid->dev, ": Failed to IO remapping ..\n");
 		device_free_info(priv);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = pci_request_regions(pcid, DEVICE_NAME);
 	if (rc) {
 		dev_err(&pcid->dev, ": Failed to find PCI device\n");
 		device_free_info(priv);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dma_set_mask(&pcid->dev, DMA_BIT_MASK(32))) {
 		dev_err(&pcid->dev, ": Failed to set dma 32 bit mask\n");
 		device_free_info(priv);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	INIT_WORK(&priv->interrupt_work, vnt_interrupt_work);
@@ -1785,7 +1785,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	if (!MACbSoftwareReset(priv)) {
 		dev_err(&pcid->dev, ": Failed to access MAC hardware..\n");
 		device_free_info(priv);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* initial to reload eeprom */
 	MACvInitialize(priv);
@@ -1817,7 +1817,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 	if (vnt_init(priv)) {
 		device_free_info(priv);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	device_print_info(priv);

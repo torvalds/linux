@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -187,8 +187,8 @@ static int qed_mfw_get_tlv_group(u8 tlv_type, u8 *tlv_group)
 	case DRV_TLV_LUN_RESETS_ISSUED:
 	case DRV_TLV_ABORT_TASK_SETS_ISSUED:
 	case DRV_TLV_TPRLOS_SENT:
-	case DRV_TLV_NOS_SENT_COUNT:
-	case DRV_TLV_NOS_RECEIVED_COUNT:
+	case DRV_TLV_ANALS_SENT_COUNT:
+	case DRV_TLV_ANALS_RECEIVED_COUNT:
 	case DRV_TLV_OLS_COUNT:
 	case DRV_TLV_LR_COUNT:
 	case DRV_TLV_LRR_COUNT:
@@ -241,7 +241,7 @@ static int qed_mfw_get_tlv_group(u8 tlv_type, u8 *tlv_group)
 	return 0;
 }
 
-/* Returns size of the data buffer or, -1 in case TLV data is not available. */
+/* Returns size of the data buffer or, -1 in case TLV data is analt available. */
 static int
 qed_mfw_get_gen_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 			  struct qed_mfw_tlv_generic *p_drv_buf,
@@ -936,16 +936,16 @@ qed_mfw_get_fcoe_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 			return sizeof(p_drv_buf->tx_tprlos);
 		}
 		break;
-	case DRV_TLV_NOS_SENT_COUNT:
-		if (p_drv_buf->tx_nos_set) {
-			p_buf->p_val = &p_drv_buf->tx_nos;
-			return sizeof(p_drv_buf->tx_nos);
+	case DRV_TLV_ANALS_SENT_COUNT:
+		if (p_drv_buf->tx_anals_set) {
+			p_buf->p_val = &p_drv_buf->tx_anals;
+			return sizeof(p_drv_buf->tx_anals);
 		}
 		break;
-	case DRV_TLV_NOS_RECEIVED_COUNT:
-		if (p_drv_buf->rx_nos_set) {
-			p_buf->p_val = &p_drv_buf->rx_nos;
-			return sizeof(p_drv_buf->rx_nos);
+	case DRV_TLV_ANALS_RECEIVED_COUNT:
+		if (p_drv_buf->rx_anals_set) {
+			p_buf->p_val = &p_drv_buf->rx_anals;
+			return sizeof(p_drv_buf->rx_anals);
 		}
 		break;
 	case DRV_TLV_OLS_COUNT:
@@ -1188,7 +1188,7 @@ static int qed_mfw_update_tlvs(struct qed_hwfn *p_hwfn,
 
 	p_tlv_data = vzalloc(sizeof(*p_tlv_data));
 	if (!p_tlv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (qed_mfw_fill_tlv_data(p_hwfn, tlv_group, p_tlv_data)) {
 		vfree(p_tlv_data);
@@ -1258,13 +1258,13 @@ int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		      offsetof(struct public_global, data_size));
 
 	if (!size) {
-		DP_NOTICE(p_hwfn, "Invalid TLV req size = %d\n", size);
+		DP_ANALTICE(p_hwfn, "Invalid TLV req size = %d\n", size);
 		goto drv_done;
 	}
 
 	p_mfw_buf = vzalloc(size);
 	if (!p_mfw_buf) {
-		DP_NOTICE(p_hwfn, "Failed allocate memory for p_mfw_buf\n");
+		DP_ANALTICE(p_hwfn, "Failed allocate memory for p_mfw_buf\n");
 		goto drv_done;
 	}
 
@@ -1294,14 +1294,14 @@ int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	/* Sanitize the TLV groups according to personality */
 	if ((tlv_group & QED_MFW_TLV_ETH) && !QED_IS_L2_PERSONALITY(p_hwfn)) {
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
-			   "Skipping L2 TLVs for non-L2 function\n");
+			   "Skipping L2 TLVs for analn-L2 function\n");
 		tlv_group &= ~QED_MFW_TLV_ETH;
 	}
 
 	if ((tlv_group & QED_MFW_TLV_FCOE) &&
 	    p_hwfn->hw_info.personality != QED_PCI_FCOE) {
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
-			   "Skipping FCoE TLVs for non-FCoE function\n");
+			   "Skipping FCoE TLVs for analn-FCoE function\n");
 		tlv_group &= ~QED_MFW_TLV_FCOE;
 	}
 
@@ -1309,7 +1309,7 @@ int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	    p_hwfn->hw_info.personality != QED_PCI_ISCSI &&
 		p_hwfn->hw_info.personality != QED_PCI_NVMETCP) {
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
-			   "Skipping iSCSI TLVs for non-iSCSI function\n");
+			   "Skipping iSCSI TLVs for analn-iSCSI function\n");
 		tlv_group &= ~QED_MFW_TLV_ISCSI;
 	}
 

@@ -84,7 +84,7 @@ int on_ib_umad_read_recv(struct ib_umad_rw_args *ctx)
 
 	val = bpf_map_lookup_elem(&read_count, &class);
 	if (!val) {
-		bpf_map_update_elem(&read_count, &class, &zero, BPF_NOEXIST);
+		bpf_map_update_elem(&read_count, &class, &zero, BPF_ANALEXIST);
 		val = bpf_map_lookup_elem(&read_count, &class);
 		if (!val)
 			return 0;
@@ -104,7 +104,7 @@ int on_ib_umad_read_send(struct ib_umad_rw_args *ctx)
 
 	val = bpf_map_lookup_elem(&read_count, &class);
 	if (!val) {
-		bpf_map_update_elem(&read_count, &class, &zero, BPF_NOEXIST);
+		bpf_map_update_elem(&read_count, &class, &zero, BPF_ANALEXIST);
 		val = bpf_map_lookup_elem(&read_count, &class);
 		if (!val)
 			return 0;
@@ -124,7 +124,7 @@ int on_ib_umad_write(struct ib_umad_rw_args *ctx)
 
 	val = bpf_map_lookup_elem(&write_count, &class);
 	if (!val) {
-		bpf_map_update_elem(&write_count, &class, &zero, BPF_NOEXIST);
+		bpf_map_update_elem(&write_count, &class, &zero, BPF_ANALEXIST);
 		val = bpf_map_lookup_elem(&write_count, &class);
 		if (!val)
 			return 0;

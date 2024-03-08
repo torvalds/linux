@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_DCCP_H
 #define _UAPI_LINUX_DCCP_H
 
@@ -65,7 +65,7 @@ struct dccp_hdr_request {
 	__be32	dccph_req_service;
 };
 /**
- * struct dccp_hdr_ack_bits - acknowledgment bits common to most packets
+ * struct dccp_hdr_ack_bits - ackanalwledgment bits common to most packets
  *
  * @dccph_resp_ack_nr_high - 48 bit ack number high order bits, contains GSR
  * @dccph_resp_ack_nr_low - 48 bit ack number low order bits, contains GSR
@@ -78,7 +78,7 @@ struct dccp_hdr_ack_bits {
 /**
  * struct dccp_hdr_response - Connection initiation response header
  *
- * @dccph_resp_ack - 48 bit Acknowledgment Number Subheader (5.3)
+ * @dccph_resp_ack - 48 bit Ackanalwledgment Number Subheader (5.3)
  * @dccph_resp_service - Echoes the Service Code on a received DCCP-Request
  */
 struct dccp_hdr_response {
@@ -89,7 +89,7 @@ struct dccp_hdr_response {
 /**
  * struct dccp_hdr_reset - Unconditionally shut down a connection
  *
- * @dccph_reset_ack - 48 bit Acknowledgment Number Subheader (5.6)
+ * @dccph_reset_ack - 48 bit Ackanalwledgment Number Subheader (5.6)
  * @dccph_reset_code - one of %dccp_reset_codes
  * @dccph_reset_data - the Data 1 ... Data 3 fields from 5.6
  */
@@ -136,7 +136,7 @@ enum dccp_reset_codes {
 	DCCP_RESET_CODE_UNSPECIFIED = 0,
 	DCCP_RESET_CODE_CLOSED,
 	DCCP_RESET_CODE_ABORTED,
-	DCCP_RESET_CODE_NO_CONNECTION,
+	DCCP_RESET_CODE_ANAL_CONNECTION,
 	DCCP_RESET_CODE_PACKET_ERROR,
 	DCCP_RESET_CODE_OPTION_ERROR,
 	DCCP_RESET_CODE_MANDATORY_ERROR,
@@ -184,7 +184,7 @@ enum {
 enum dccp_feature_numbers {
 	DCCPF_RESERVED = 0,
 	DCCPF_CCID = 1,
-	DCCPF_SHORT_SEQNOS = 2,
+	DCCPF_SHORT_SEQANALS = 2,
 	DCCPF_SEQUENCE_WINDOW = 3,
 	DCCPF_ECN_INCAPABLE = 4,
 	DCCPF_ACK_RATIO = 5,

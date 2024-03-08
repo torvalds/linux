@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/crypto/qcom,inline-crypto-engine.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. (QTI) Inline Crypto Engine
+title: Qualcomm Techanallogies, Inc. (QTI) Inline Crypto Engine
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>

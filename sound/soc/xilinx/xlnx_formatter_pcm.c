@@ -65,7 +65,7 @@
 #define PERIODS_MAX		6
 #define PERIOD_BYTES_MIN	192
 #define PERIOD_BYTES_MAX	(50 * 1024)
-#define XLNX_PARAM_UNKNOWN	0
+#define XLNX_PARAM_UNKANALWN	0
 
 enum bit_depth {
 	BIT_DEPTH_8,
@@ -147,14 +147,14 @@ static void xlnx_parse_aes_params(u32 chsts_reg1_val, u32 chsts_reg2_val,
 		case IEC958_AES0_PRO_FS_32000:
 			srate = 32000;
 			break;
-		case IEC958_AES0_PRO_FS_NOTID:
+		case IEC958_AES0_PRO_FS_ANALTID:
 		default:
-			srate = XLNX_PARAM_UNKNOWN;
+			srate = XLNX_PARAM_UNKANALWN;
 			break;
 		}
 
 		switch (status[1] & IEC958_AES2_PRO_SBITS) {
-		case IEC958_AES2_PRO_WORDLEN_NOTID:
+		case IEC958_AES2_PRO_WORDLEN_ANALTID:
 		case IEC958_AES2_PRO_SBITS_20:
 			padded = 0;
 			break;
@@ -162,7 +162,7 @@ static void xlnx_parse_aes_params(u32 chsts_reg1_val, u32 chsts_reg2_val,
 			padded = 4;
 			break;
 		default:
-			bit_depth = XLNX_PARAM_UNKNOWN;
+			bit_depth = XLNX_PARAM_UNKANALWN;
 			goto log_params;
 		}
 
@@ -179,9 +179,9 @@ static void xlnx_parse_aes_params(u32 chsts_reg1_val, u32 chsts_reg2_val,
 		case IEC958_AES2_PRO_WORDLEN_24_20:
 			bit_depth = 20 + padded;
 			break;
-		case IEC958_AES2_PRO_WORDLEN_NOTID:
+		case IEC958_AES2_PRO_WORDLEN_ANALTID:
 		default:
-			bit_depth = XLNX_PARAM_UNKNOWN;
+			bit_depth = XLNX_PARAM_UNKANALWN;
 			break;
 		}
 
@@ -200,7 +200,7 @@ static void xlnx_parse_aes_params(u32 chsts_reg1_val, u32 chsts_reg2_val,
 			srate = 32000;
 			break;
 		default:
-			srate = XLNX_PARAM_UNKNOWN;
+			srate = XLNX_PARAM_UNKANALWN;
 			break;
 		}
 
@@ -225,23 +225,23 @@ static void xlnx_parse_aes_params(u32 chsts_reg1_val, u32 chsts_reg2_val,
 		case IEC958_AES4_CON_WORDLEN_21_17:
 			bit_depth = 17 + padded;
 			break;
-		case IEC958_AES4_CON_WORDLEN_NOTID:
+		case IEC958_AES4_CON_WORDLEN_ANALTID:
 		default:
-			bit_depth = XLNX_PARAM_UNKNOWN;
+			bit_depth = XLNX_PARAM_UNKANALWN;
 			break;
 		}
 	}
 
 log_params:
-	if (srate != XLNX_PARAM_UNKNOWN)
+	if (srate != XLNX_PARAM_UNKANALWN)
 		dev_info(dev, "sample rate = %d\n", srate);
 	else
-		dev_info(dev, "sample rate = unknown\n");
+		dev_info(dev, "sample rate = unkanalwn\n");
 
-	if (bit_depth != XLNX_PARAM_UNKNOWN)
+	if (bit_depth != XLNX_PARAM_UNKANALWN)
 		dev_info(dev, "bit_depth = %d\n", bit_depth);
 	else
-		dev_info(dev, "bit_depth = unknown\n");
+		dev_info(dev, "bit_depth = unkanalwn\n");
 }
 
 static int xlnx_formatter_pcm_reset(void __iomem *mmio_base)
@@ -260,7 +260,7 @@ static int xlnx_formatter_pcm_reset(void __iomem *mmio_base)
 		val = readl(mmio_base + XLNX_AUD_CTRL);
 	}
 	if (val & AUD_CTRL_RESET_MASK)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -293,7 +293,7 @@ static irqreturn_t xlnx_mm2s_irq_handler(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t xlnx_s2mm_irq_handler(int irq, void *arg)
@@ -312,7 +312,7 @@ static irqreturn_t xlnx_s2mm_irq_handler(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int xlnx_formatter_set_sysclk(struct snd_soc_component *component,
@@ -336,14 +336,14 @@ static int xlnx_formatter_pcm_open(struct snd_soc_component *component,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    !adata->mm2s_presence)
-		return -ENODEV;
+		return -EANALDEV;
 	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 		 !adata->s2mm_presence)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stream_data = kzalloc(sizeof(*stream_data), GFP_KERNEL);
 	if (!stream_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ch_count_mask = CFG_MM2S_CH_MASK;
@@ -471,7 +471,7 @@ static int xlnx_formatter_pcm_hw_params(struct snd_soc_component *component,
 		unsigned int mclk_fs = adata->sysclk / params_rate(params);
 
 		if (adata->sysclk % params_rate(params) != 0) {
-			dev_warn(component->dev, "sysclk %u not divisible by rate %u\n",
+			dev_warn(component->dev, "sysclk %u analt divisible by rate %u\n",
 				 adata->sysclk, params_rate(params));
 			return -EINVAL;
 		}
@@ -594,7 +594,7 @@ static int xlnx_formatter_pcm_probe(struct platform_device *pdev)
 
 	aud_drv_data = devm_kzalloc(dev, sizeof(*aud_drv_data), GFP_KERNEL);
 	if (!aud_drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aud_drv_data->axi_clk = devm_clk_get(dev, "s_axi_lite_aclk");
 	if (IS_ERR(aud_drv_data->axi_clk)) {

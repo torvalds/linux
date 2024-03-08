@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /*
  * Device tree for AXC001 770D/EM6/AS221 CPU card
- * Note that this file only supports the 770D CPU
+ * Analte that this file only supports the 770D CPU
  */
 
 /include/ "skeleton.dtsi"
@@ -113,14 +113,14 @@
 		/*
 		 * We just move frame buffer area to the very end of
 		 * available DDR. And even though in case of ARC770 there's
-		 * no strict requirement for a frame-buffer to be in any
+		 * anal strict requirement for a frame-buffer to be in any
 		 * particular location it allows us to use the same
-		 * base board's DT node for ARC PGU as for ARc HS38.
+		 * base board's DT analde for ARC PGU as for ARc HS38.
 		 */
 		frame_buffer: frame_buffer@9e000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x9e000000 0x0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 	};
 };

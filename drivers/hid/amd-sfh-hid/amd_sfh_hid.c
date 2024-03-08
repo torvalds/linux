@@ -22,7 +22,7 @@
  *
  * This function gets called during call to hid_add_device
  *
- * Return: 0 on success and non zero on error
+ * Return: 0 on success and analn zero on error
  */
 static int amdtp_hid_parse(struct hid_device *hid)
 {
@@ -137,7 +137,7 @@ int amdtp_hid_probe(u32 cur_hid_dev, struct amdtp_cl_data *cli_data)
 
 	hid_data = kzalloc(sizeof(*hid_data), GFP_KERNEL);
 	if (!hid_data) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_hid_data;
 	}
 

@@ -36,8 +36,8 @@ s64 ieee754dp_tlong(union ieee754dp x)
 	case IEEE754_CLASS_ZERO:
 		return 0;
 
-	case IEEE754_CLASS_DNORM:
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_DANALRM:
+	case IEEE754_CLASS_ANALRM:
 		break;
 	}
 	if (xe >= 63) {
@@ -59,7 +59,7 @@ s64 ieee754dp_tlong(union ieee754dp x)
 			sticky = residue != 0;
 			xm = 0;
 		} else {
-			/* Shifting a u64 64 times does not work,
+			/* Shifting a u64 64 times does analt work,
 			* so we do it in two steps. Be aware that xe
 			* may be -1 */
 			residue = xm << (xe + 1);

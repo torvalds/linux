@@ -15,7 +15,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
@@ -255,9 +255,9 @@ static void vt8623_set_pixclock(struct fb_info *info, u32 pixclock)
 	u8 regval;
 	int rv;
 
-	rv = svga_compute_pll(&vt8623_pll, 1000000000 / pixclock, &m, &n, &r, info->node);
+	rv = svga_compute_pll(&vt8623_pll, 1000000000 / pixclock, &m, &n, &r, info->analde);
 	if (rv < 0) {
-		fb_err(info, "cannot set requested pixclock, keeping old value\n");
+		fb_err(info, "cananalt set requested pixclock, keeping old value\n");
 		return;
 	}
 
@@ -333,7 +333,7 @@ static int vt8623fb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 		return rv;
 	}
 
-	/* Do not allow to have real resoulution larger than virtual */
+	/* Do analt allow to have real resoulution larger than virtual */
 	if (var->xres > var->xres_virtual)
 		var->xres_virtual = var->xres;
 
@@ -344,11 +344,11 @@ static int vt8623fb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	step = vt8623fb_formats[rv].xresstep - 1;
 	var->xres_virtual = (var->xres_virtual+step) & ~step;
 
-	/* Check whether have enough memory */
+	/* Check whether have eanalugh memory */
 	mem = ((var->bits_per_pixel * var->xres_virtual) >> 3) * var->yres_virtual;
 	if (mem > info->screen_size)
 	{
-		fb_err(info, "not enough framebuffer memory (%d kB requested, %d kB available)\n",
+		fb_err(info, "analt eanalugh framebuffer memory (%d kB requested, %d kB available)\n",
 		       mem >> 10, (unsigned int) (info->screen_size >> 10));
 		return -EINVAL;
 	}
@@ -361,14 +361,14 @@ static int vt8623fb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 		return -EINVAL;
 	}
 
-	rv = svga_check_timings (&vt8623_timing_regs, var, info->node);
+	rv = svga_check_timings (&vt8623_timing_regs, var, info->analde);
 	if (rv < 0)
 	{
 		fb_err(info, "invalid timings requested\n");
 		return rv;
 	}
 
-	/* Interlaced mode not supported */
+	/* Interlaced mode analt supported */
 	if (var->vmode & FB_VMODE_INTERLACED)
 		return -EINVAL;
 
@@ -418,7 +418,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 
 	info->var.xoffset = 0;
 	info->var.yoffset = 0;
-	info->var.activate = FB_ACTIVATE_NOW;
+	info->var.activate = FB_ACTIVATE_ANALW;
 
 	/* Unlock registers */
 	svga_wseq_mask(par->state.vgabase, 0x10, 0x01, 0x01);
@@ -506,7 +506,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 	vt8623_set_pixclock(info, info->var.pixclock);
 	svga_set_timings(par->state.vgabase, &vt8623_timing_regs, &(info->var), 1, 1,
 			 (info->var.vmode & FB_VMODE_DOUBLE) ? 2 : 1, 1,
-			 1, info->node);
+			 1, info->analde);
 
 	if (screen_size > info->screen_size)
 		screen_size = info->screen_size;
@@ -521,51 +521,51 @@ static int vt8623fb_set_par(struct fb_info *info)
 }
 
 
-static int vt8623fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int vt8623fb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 				u_int transp, struct fb_info *fb)
 {
 	switch (fb->var.bits_per_pixel) {
 	case 0:
 	case 4:
-		if (regno >= 16)
+		if (reganal >= 16)
 			return -EINVAL;
 
 		outb(0x0F, VGA_PEL_MSK);
-		outb(regno, VGA_PEL_IW);
+		outb(reganal, VGA_PEL_IW);
 		outb(red >> 10, VGA_PEL_D);
 		outb(green >> 10, VGA_PEL_D);
 		outb(blue >> 10, VGA_PEL_D);
 		break;
 	case 8:
-		if (regno >= 256)
+		if (reganal >= 256)
 			return -EINVAL;
 
 		outb(0xFF, VGA_PEL_MSK);
-		outb(regno, VGA_PEL_IW);
+		outb(reganal, VGA_PEL_IW);
 		outb(red >> 10, VGA_PEL_D);
 		outb(green >> 10, VGA_PEL_D);
 		outb(blue >> 10, VGA_PEL_D);
 		break;
 	case 16:
-		if (regno >= 16)
+		if (reganal >= 16)
 			return 0;
 
 		if (fb->var.green.length == 5)
-			((u32*)fb->pseudo_palette)[regno] = ((red & 0xF800) >> 1) |
+			((u32*)fb->pseudo_palette)[reganal] = ((red & 0xF800) >> 1) |
 				((green & 0xF800) >> 6) | ((blue & 0xF800) >> 11);
 		else if (fb->var.green.length == 6)
-			((u32*)fb->pseudo_palette)[regno] = (red & 0xF800) |
+			((u32*)fb->pseudo_palette)[reganal] = (red & 0xF800) |
 				((green & 0xFC00) >> 5) | ((blue & 0xF800) >> 11);
 		else
 			return -EINVAL;
 		break;
 	case 24:
 	case 32:
-		if (regno >= 16)
+		if (reganal >= 16)
 			return 0;
 
 		/* ((transp & 0xFF00) << 16) */
-		((u32*)fb->pseudo_palette)[regno] = ((red & 0xFF00) << 8) |
+		((u32*)fb->pseudo_palette)[reganal] = ((red & 0xFF00) << 8) |
 			(green & 0xFF00) | ((blue & 0xFF00) >> 8);
 		break;
 	default:
@@ -586,7 +586,7 @@ static int vt8623fb_blank(int blank_mode, struct fb_info *info)
 		svga_wcrt_mask(par->state.vgabase, 0x36, 0x00, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		fb_dbg(info, "blank\n");
 		svga_wcrt_mask(par->state.vgabase, 0x36, 0x00, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
@@ -602,7 +602,7 @@ static int vt8623fb_blank(int blank_mode, struct fb_info *info)
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_POWERDOWN:
-		fb_dbg(info, "DPMS off (no sync)\n");
+		fb_dbg(info, "DPMS off (anal sync)\n");
 		svga_wcrt_mask(par->state.vgabase, 0x36, 0x30, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
@@ -669,10 +669,10 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	unsigned int memsize1, memsize2;
 	int rc;
 
-	/* Ignore secondary VGA device because there is no VGA arbitration */
+	/* Iganalre secondary VGA device because there is anal VGA arbitration */
 	if (! svga_primary_device(dev)) {
-		dev_info(&(dev->dev), "ignoring secondary device\n");
-		return -ENODEV;
+		dev_info(&(dev->dev), "iganalring secondary device\n");
+		return -EANALDEV;
 	}
 
 	rc = aperture_remove_conflicting_pci_devices(dev, "vt8623fb");
@@ -682,7 +682,7 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Allocate and fill driver data structure */
 	info = framebuffer_alloc(sizeof(struct vt8623fb_info), &(dev->dev));
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	mutex_init(&par->open_lock);
@@ -694,13 +694,13 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	rc = pci_enable_device(dev);
 	if (rc < 0) {
-		dev_err(info->device, "cannot enable PCI device\n");
+		dev_err(info->device, "cananalt enable PCI device\n");
 		goto err_enable_device;
 	}
 
 	rc = pci_request_regions(dev, "vt8623fb");
 	if (rc < 0) {
-		dev_err(info->device, "cannot reserve framebuffer region\n");
+		dev_err(info->device, "cananalt reserve framebuffer region\n");
 		goto err_request_regions;
 	}
 
@@ -712,14 +712,14 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Map physical IO memory address into kernel space */
 	info->screen_base = pci_iomap_wc(dev, 0, 0);
 	if (! info->screen_base) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		dev_err(info->device, "iomap for framebuffer failed\n");
 		goto err_iomap_1;
 	}
 
 	par->mmio_base = pci_iomap(dev, 1, 0);
 	if (! par->mmio_base) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		dev_err(info->device, "iomap for MMIO failed\n");
 		goto err_iomap_2;
 	}
@@ -749,7 +749,7 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
 	info->fix.ypanstep = 0;
-	info->fix.accel = FB_ACCEL_NONE;
+	info->fix.accel = FB_ACCEL_ANALNE;
 	info->pseudo_palette = (void*)par->pseudo_palette;
 
 	/* Prepare startup mode */
@@ -759,19 +759,19 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	kernel_param_unlock(THIS_MODULE);
 	if (! ((rc == 1) || (rc == 2))) {
 		rc = -EINVAL;
-		dev_err(info->device, "mode %s not found\n", mode_option);
+		dev_err(info->device, "mode %s analt found\n", mode_option);
 		goto err_find_mode;
 	}
 
 	rc = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (rc < 0) {
-		dev_err(info->device, "cannot allocate colormap\n");
+		dev_err(info->device, "cananalt allocate colormap\n");
 		goto err_alloc_cmap;
 	}
 
 	rc = register_framebuffer(info);
 	if (rc < 0) {
-		dev_err(info->device, "cannot register framebuffer\n");
+		dev_err(info->device, "cananalt register framebuffer\n");
 		goto err_reg_fb;
 	}
 
@@ -925,11 +925,11 @@ static int __init vt8623fb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("vt8623fb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("vt8623fb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (option && *option)
 		mode_option = option;

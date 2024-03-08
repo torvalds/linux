@@ -12,11 +12,11 @@ maintainers:
 
 description: |
   This binding file is a collection of the DSI panels that
-  are usually driven in command mode. If no backlight is
+  are usually driven in command mode. If anal backlight is
   referenced via the optional backlight property, the DSI
   panel is assumed to have native backlight support.
   The panel may use an OF graph binding for the association
-  to the display, or it may be a direct child node of the
+  to the display, or it may be a direct child analde of the
   display.
 
 allOf:
@@ -28,7 +28,7 @@ properties:
     items:
       - enum:
           - motorola,droid4-panel        # Panel from Motorola Droid4 phone
-          - nokia,himalaya               # Panel from Nokia N950 phone
+          - analkia,himalaya               # Panel from Analkia N950 phone
           - tpo,taal                     # Panel from OMAP4 SDP board
       - const: panel-dsi-cm              # Generic DSI command mode panel compatible fallback
 

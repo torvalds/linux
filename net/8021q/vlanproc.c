@@ -17,7 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/proc_fs.h>
@@ -60,7 +60,7 @@ static const char name_conf[]	 = "config";
  */
 
 /*
- *	Generic /proc/net/vlan/<file> file and inode operations
+ *	Generic /proc/net/vlan/<file> file and ianalde operations
  */
 
 static const struct seq_operations vlan_seq_ops = {
@@ -77,8 +77,8 @@ static const struct seq_operations vlan_seq_ops = {
 /* Strings */
 static const char *const vlan_name_type_str[VLAN_NAME_TYPE_HIGHEST] = {
     [VLAN_NAME_TYPE_RAW_PLUS_VID]        = "VLAN_NAME_TYPE_RAW_PLUS_VID",
-    [VLAN_NAME_TYPE_PLUS_VID_NO_PAD]	 = "VLAN_NAME_TYPE_PLUS_VID_NO_PAD",
-    [VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD] = "VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD",
+    [VLAN_NAME_TYPE_PLUS_VID_ANAL_PAD]	 = "VLAN_NAME_TYPE_PLUS_VID_ANAL_PAD",
+    [VLAN_NAME_TYPE_RAW_PLUS_VID_ANAL_PAD] = "VLAN_NAME_TYPE_RAW_PLUS_VID_ANAL_PAD",
     [VLAN_NAME_TYPE_PLUS_VID]		 = "VLAN_NAME_TYPE_PLUS_VID",
 };
 /*
@@ -100,7 +100,7 @@ void vlan_proc_cleanup(struct net *net)
 		remove_proc_entry(name_root, net->proc_net);
 
 	/* Dynamically added entries should be cleaned up as their vlan_device
-	 * is removed, so we should not have to take care of it here...
+	 * is removed, so we should analt have to take care of it here...
 	 */
 }
 
@@ -126,7 +126,7 @@ int __net_init vlan_proc_init(struct net *net)
 err:
 	pr_err("can't create entry in proc filesystem!\n");
 	vlan_proc_cleanup(net);
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 /*
@@ -143,7 +143,7 @@ int vlan_proc_add_dev(struct net_device *vlandev)
 	vlan->dent = proc_create_single_data(vlandev->name, S_IFREG | 0600,
 			vn->proc_vlan_dir, vlandev_seq_show, vlandev);
 	if (!vlan->dent)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	return 0;
 }
 
@@ -152,7 +152,7 @@ int vlan_proc_add_dev(struct net_device *vlandev)
  */
 void vlan_proc_rem_dev(struct net_device *vlandev)
 {
-	/** NOTE:  This will consume the memory pointed to by dent, it seems. */
+	/** ANALTE:  This will consume the memory pointed to by dent, it seems. */
 	proc_remove(vlan_dev_priv(vlandev)->dent);
 	vlan_dev_priv(vlandev)->dent = NULL;
 }
@@ -227,7 +227,7 @@ static int vlan_seq_show(struct seq_file *seq, void *v)
 		    nmtype =  vlan_name_type_str[vn->name_type];
 
 		seq_printf(seq, "Name-Type: %s\n",
-			   nmtype ? nmtype :  "UNKNOWN");
+			   nmtype ? nmtype :  "UNKANALWN");
 	} else {
 		const struct net_device *vlandev = v;
 		const struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
@@ -263,7 +263,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, fmt64, "total frames transmitted", stats->tx_packets);
 	seq_printf(seq, fmt64, "total bytes transmitted", stats->tx_bytes);
 	seq_printf(seq, "Device: %s", vlan->real_dev->name);
-	/* now show all PRIORITY mappings relating to this VLAN */
+	/* analw show all PRIORITY mappings relating to this VLAN */
 	seq_printf(seq, "\nINGRESS priority mappings: "
 			"0:%u  1:%u  2:%u  3:%u  4:%u  5:%u  6:%u 7:%u\n",
 		   vlan->ingress_priority_map[0],

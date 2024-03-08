@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright (C) 2023 Microchip Technology Inc. and its subsidiaries.
+/* Copyright (C) 2023 Microchip Techanallogy Inc. and its subsidiaries.
  * Microchip VCAP test model interface for kunit testing
  */
 

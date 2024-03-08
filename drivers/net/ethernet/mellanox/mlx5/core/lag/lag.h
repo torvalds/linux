@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5_LAG_H__
 #define __MLX5_LAG_H__
@@ -28,7 +28,7 @@ enum {
 };
 
 enum mlx5_lag_mode {
-	MLX5_LAG_MODE_NONE,
+	MLX5_LAG_MODE_ANALNE,
 	MLX5_LAG_MODE_ROCE,
 	MLX5_LAG_MODE_SRIOV,
 	MLX5_LAG_MODE_MULTIPATH,
@@ -66,7 +66,7 @@ struct mlx5_lag {
 	struct lag_tracker        tracker;
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
-	struct notifier_block     nb;
+	struct analtifier_block     nb;
 	struct lag_mp             lag_mp;
 	struct mlx5_lag_port_sel  port_sel;
 	/* Protect lag fields/state changes */
@@ -83,7 +83,7 @@ mlx5_lag_dev(struct mlx5_core_dev *dev)
 static inline bool
 __mlx5_lag_is_active(struct mlx5_lag *ldev)
 {
-	return ldev->mode != MLX5_LAG_MODE_NONE;
+	return ldev->mode != MLX5_LAG_MODE_ANALNE;
 }
 
 static inline bool

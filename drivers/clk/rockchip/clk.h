@@ -301,21 +301,21 @@ enum rockchip_pll_type {
 	.frac = _frac,						\
 }
 
-#define RK3066_PLL_RATE(_rate, _nr, _nf, _no)	\
+#define RK3066_PLL_RATE(_rate, _nr, _nf, _anal)	\
 {						\
 	.rate	= _rate##U,			\
 	.nr = _nr,				\
 	.nf = _nf,				\
-	.no = _no,				\
+	.anal = _anal,				\
 	.nb = ((_nf) < 2) ? 1 : (_nf) >> 1,	\
 }
 
-#define RK3066_PLL_RATE_NB(_rate, _nr, _nf, _no, _nb)		\
+#define RK3066_PLL_RATE_NB(_rate, _nr, _nf, _anal, _nb)		\
 {								\
 	.rate	= _rate##U,					\
 	.nr = _nr,						\
 	.nf = _nf,						\
-	.no = _no,						\
+	.anal = _anal,						\
 	.nb = _nb,						\
 }
 
@@ -332,14 +332,14 @@ enum rockchip_pll_type {
  * struct rockchip_clk_provider - information about clock provider
  * @reg_base: virtual address for the register base.
  * @clk_data: holds clock related data like clk* and number of clocks.
- * @cru_node: device-node of the clock-provider
+ * @cru_analde: device-analde of the clock-provider
  * @grf: regmap of the general-register-files syscon
  * @lock: maintains exclusion between callbacks for a given clock-provider.
  */
 struct rockchip_clk_provider {
 	void __iomem *reg_base;
 	struct clk_onecell_data clk_data;
-	struct device_node *cru_node;
+	struct device_analde *cru_analde;
 	struct regmap *grf;
 	spinlock_t lock;
 };
@@ -351,7 +351,7 @@ struct rockchip_pll_rate_table {
 			/* for RK3066 */
 			unsigned int nr;
 			unsigned int nf;
-			unsigned int no;
+			unsigned int anal;
 			unsigned int nb;
 		};
 		struct {
@@ -417,7 +417,7 @@ struct rockchip_pll_clock {
 		.name		= _name,				\
 		.parent_names	= _pnames,				\
 		.num_parents	= ARRAY_SIZE(_pnames),			\
-		.flags		= CLK_GET_RATE_NOCACHE | _flags,	\
+		.flags		= CLK_GET_RATE_ANALCACHE | _flags,	\
 		.con_offset	= _con,					\
 		.mode_offset	= _mode,				\
 		.mode_shift	= _mshift,				\
@@ -590,7 +590,7 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
-#define COMPOSITE_NOMUX(_id, cname, pname, f, mo, ds, dw, df,	\
+#define COMPOSITE_ANALMUX(_id, cname, pname, f, mo, ds, dw, df,	\
 			go, gs, gf)				\
 	{							\
 		.id		= _id,				\
@@ -608,7 +608,7 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
-#define COMPOSITE_NOMUX_DIVTBL(_id, cname, pname, f, mo, ds, dw,\
+#define COMPOSITE_ANALMUX_DIVTBL(_id, cname, pname, f, mo, ds, dw,\
 			       df, dt, go, gs, gf)		\
 	{							\
 		.id		= _id,				\
@@ -627,7 +627,7 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
-#define COMPOSITE_NODIV(_id, cname, pnames, f, mo, ms, mw, mf,	\
+#define COMPOSITE_ANALDIV(_id, cname, pnames, f, mo, ms, mw, mf,	\
 			go, gs, gf)				\
 	{							\
 		.id		= _id,				\
@@ -645,7 +645,7 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
-#define COMPOSITE_NOGATE(_id, cname, pnames, f, mo, ms, mw, mf,	\
+#define COMPOSITE_ANALGATE(_id, cname, pnames, f, mo, ms, mw, mf,	\
 			 ds, dw, df)				\
 	{							\
 		.id		= _id,				\
@@ -664,7 +664,7 @@ struct rockchip_clk_branch {
 		.gate_offset	= -1,				\
 	}
 
-#define COMPOSITE_NOGATE_DIVTBL(_id, cname, pnames, f, mo, ms,	\
+#define COMPOSITE_ANALGATE_DIVTBL(_id, cname, pnames, f, mo, ms,	\
 				mw, mf, ds, dw, df, dt)		\
 	{							\
 		.id		= _id,				\
@@ -719,7 +719,7 @@ struct rockchip_clk_branch {
 		.child		= ch,				\
 	}
 
-#define COMPOSITE_FRACMUX_NOGATE(_id, cname, pname, f, mo, df, ch) \
+#define COMPOSITE_FRACMUX_ANALGATE(_id, cname, pname, f, mo, df, ch) \
 	{							\
 		.id		= _id,				\
 		.branch_type	= branch_fraction_divider,	\
@@ -913,7 +913,7 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
-#define COMPOSITE_NOGATE_HALFDIV(_id, cname, pnames, f, mo, ms, mw, mf,	\
+#define COMPOSITE_ANALGATE_HALFDIV(_id, cname, pnames, f, mo, ms, mw, mf,	\
 				 ds, dw, df)				\
 	{							\
 		.id		= _id,				\
@@ -932,7 +932,7 @@ struct rockchip_clk_branch {
 		.gate_offset	= -1,				\
 	}
 
-#define COMPOSITE_NOMUX_HALFDIV(_id, cname, pname, f, mo, ds, dw, df,	\
+#define COMPOSITE_ANALMUX_HALFDIV(_id, cname, pname, f, mo, ds, dw, df,	\
 			go, gs, gf)				\
 	{							\
 		.id		= _id,				\
@@ -965,13 +965,13 @@ struct rockchip_clk_branch {
 		.gate_offset	= -1,				\
 	}
 
-/* SGRF clocks are only accessible from secure mode, so not controllable */
+/* SGRF clocks are only accessible from secure mode, so analt controllable */
 #define SGRF_GATE(_id, cname, pname)				\
 		FACTOR(_id, cname, pname, 0, 1, 1)
 
-struct rockchip_clk_provider *rockchip_clk_init(struct device_node *np,
+struct rockchip_clk_provider *rockchip_clk_init(struct device_analde *np,
 			void __iomem *base, unsigned long nr_clks);
-void rockchip_clk_of_add_provider(struct device_node *np,
+void rockchip_clk_of_add_provider(struct device_analde *np,
 				struct rockchip_clk_provider *ctx);
 void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 				    struct rockchip_clk_branch *list,
@@ -986,7 +986,7 @@ void rockchip_clk_register_armclk(struct rockchip_clk_provider *ctx,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates);
 void rockchip_clk_protect_critical(const char *const clocks[], int nclocks);
-void rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
+void rockchip_register_restart_analtifier(struct rockchip_clk_provider *ctx,
 					unsigned int reg, void (*cb)(void));
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
@@ -1003,12 +1003,12 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 					  spinlock_t *lock);
 
 #ifdef CONFIG_RESET_CONTROLLER
-void rockchip_register_softrst_lut(struct device_node *np,
+void rockchip_register_softrst_lut(struct device_analde *np,
 				   const int *lookup_table,
 				   unsigned int num_regs,
 				   void __iomem *base, u8 flags);
 #else
-static inline void rockchip_register_softrst_lut(struct device_node *np,
+static inline void rockchip_register_softrst_lut(struct device_analde *np,
 				   const int *lookup_table,
 				   unsigned int num_regs,
 				   void __iomem *base, u8 flags)
@@ -1016,13 +1016,13 @@ static inline void rockchip_register_softrst_lut(struct device_node *np,
 }
 #endif
 
-static inline void rockchip_register_softrst(struct device_node *np,
+static inline void rockchip_register_softrst(struct device_analde *np,
 					     unsigned int num_regs,
 					     void __iomem *base, u8 flags)
 {
 	return rockchip_register_softrst_lut(np, NULL, num_regs, base, flags);
 }
 
-void rk3588_rst_init(struct device_node *np, void __iomem *reg_base);
+void rk3588_rst_init(struct device_analde *np, void __iomem *reg_base);
 
 #endif

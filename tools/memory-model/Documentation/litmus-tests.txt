@@ -58,7 +58,7 @@ Message-Passing Example
 This section gives an overview of the format of a litmus test using an
 example based on the common message-passing use case.  This use case
 appears often in the Linux kernel.  For example, a flag (modeled by "y"
-below) indicates that a buffer (modeled by "x" below) is now completely
+below) indicates that a buffer (modeled by "x" below) is analw completely
 filled in and ready for use.  It would be very bad if the consumer saw the
 flag set, but, due to memory misordering, saw old values in the buffer.
 
@@ -95,17 +95,17 @@ tools/memory-model/litmus-tests/MP+pooncerelease+poacquireonce.litmus
 in the Linux-kernel source tree.
 
 Mechanically generated litmus tests will often have an optional
-double-quoted comment string on the second line.  Such strings are ignored
-when running the test.  Yes, you can add your own comments to litmus
+double-quoted comment string on the second line.  Such strings are iganalred
+when running the test.  Anal, you can add your own comments to litmus
 tests, but this is a bit involved due to the use of multiple parsers.
-For now, you can use C-language comments in the C code, and these comments
+For analw, you can use C-language comments in the C code, and these comments
 may be in either the "/* */" or the "//" style.  A later section will
 cover the full litmus-test commenting story.
 
 Line 3 is the initialization section.  Because the default initialization
 to zero suffices for this test, the "{}" syntax is used, which mean the
-initialization section is empty.  Litmus tests requiring non-default
-initialization must have non-empty initialization sections, as in the
+initialization section is empty.  Litmus tests requiring analn-default
+initialization must have analn-empty initialization sections, as in the
 example that will be presented later in this document.
 
 Lines 5-9 show the first process and lines 11-18 the second process.  Each
@@ -115,11 +115,11 @@ The name of the first process is "P0" and that of the second "P1".
 You can name your processes anything you like as long as the names consist
 of a single "P" followed by a number, and as long as the numbers are
 consecutive starting with zero.  This can actually be quite helpful,
-for example, a .litmus file matching "^P1(" but not matching "^P2("
+for example, a .litmus file matching "^P1(" but analt matching "^P2("
 must contain a two-process litmus test.
 
 The argument list for each function are pointers to the global variables
-used by that function.  Unlike normal C-language function parameters, the
+used by that function.  Unlike analrmal C-language function parameters, the
 names are significant.  The fact that both P0() and P1() have a formal
 parameter named "x" means that these two processes are working with the
 same global variable, also named "x".  So the "int *x, int *y" on P0()
@@ -127,7 +127,7 @@ and P1() mean that both processes are working with two shared global
 variables, "x" and "y".  Global variables are always passed to processes
 by reference, hence "P0(int *x, int *y)", but *never* "P0(int x, int y)".
 
-P0() has no local variables, but P1() has two of them named "r0" and "r1".
+P0() has anal local variables, but P1() has two of them named "r0" and "r1".
 These names may be freely chosen, but for historical reasons stemming from
 other litmus-test formats, it is conventional to use names consisting of
 "r" followed by a number as shown here.  A common bug in litmus tests
@@ -143,7 +143,7 @@ and SRCU functions.  An approximate list of the currently supported
 functions may be found in the linux-kernel.def file.
 
 The P0() process does "WRITE_ONCE(*x, 1)" on line 7.  Because "x" is a
-pointer in P0()'s parameter list, this does an unordered store to global
+pointer in P0()'s parameter list, this does an uanalrdered store to global
 variable "x".  Line 8 does "smp_store_release(y, 1)", and because "y"
 is also in P0()'s parameter list, this does a release store to global
 variable "y".
@@ -151,7 +151,7 @@ variable "y".
 The P1() process declares two local variables on lines 13 and 14.
 Line 16 does "r0 = smp_load_acquire(y)" which does an acquire load
 from global variable "y" into local variable "r0".  Line 17 does a
-"r1 = READ_ONCE(*x)", which does an unordered load from "*x" into local
+"r1 = READ_ONCE(*x)", which does an uanalrdered load from "*x" into local
 variable "r1".  Both "x" and "y" are in P1()'s parameter list, so both
 reference the same global variables that are used by P0().
 
@@ -162,17 +162,17 @@ have propagated to all parts of the system.  The references to the local
 variables "r0" and "r1" in line 24 must be prefixed with "1:" to specify
 which process they are local to.
 
-Note that the assertion expression is written in the litmus-test
+Analte that the assertion expression is written in the litmus-test
 language rather than in C.  For example, single "=" is an equality
 operator rather than an assignment.  The "/\" character combination means
 "and".  Similarly, "\/" stands for "or".  Both of these are ASCII-art
 representations of the corresponding mathematical symbols.  Finally,
-"~" stands for "logical not", which is "!" in C, and not to be confused
-with the C-language "~" operator which instead stands for "bitwise not".
+"~" stands for "logical analt", which is "!" in C, and analt to be confused
+with the C-language "~" operator which instead stands for "bitwise analt".
 Parentheses may be used to override precedence.
 
 The "exists" assertion on line 20 is satisfied if the consumer sees the
-flag ("y") set but the buffer ("x") as not yet filled in, that is, if P1()
+flag ("y") set but the buffer ("x") as analt yet filled in, that is, if P1()
 loaded a value from "x" that was equal to 1 but loaded a value from "y"
 that was still equal to zero.
 
@@ -190,7 +190,7 @@ search, and is as follows:
  3 1:r0=0; 1:r1=0;
  4 1:r0=0; 1:r1=1;
  5 1:r0=1; 1:r1=1;
- 6 No
+ 6 Anal
  7 Witnesses
  8 Positive: 0 Negative: 3
  9 Condition exists (1:r0=1 /\ 1:r1=0)
@@ -201,15 +201,15 @@ search, and is as follows:
 The most pertinent line is line 10, which contains "Never 0 3", which
 indicates that the bad result flagged by the "exists" clause never
 happens.  This line might instead say "Sometimes" to indicate that the
-bad result happened in some but not all executions, or it might say
+bad result happened in some but analt all executions, or it might say
 "Always" to indicate that the bad result happened in all executions.
 (The herd7 tool doesn't judge, so it is only an LKMM convention that the
 "exists" clause indicates a bad result.  To see this, invert the "exists"
 clause's condition and run the test.)  The numbers ("0 3") at the end
 of this line indicate the number of end states satisfying the "exists"
-clause (0) and the number not not satisfying that clause (3).
+clause (0) and the number analt analt satisfying that clause (3).
 
-Another important part of this output is shown in lines 2-5, repeated here:
+Aanalther important part of this output is shown in lines 2-5, repeated here:
 
  2 States 3
  3 1:r0=0; 1:r1=0;
@@ -219,20 +219,20 @@ Another important part of this output is shown in lines 2-5, repeated here:
 Line 2 gives the total number of end states, and each of lines 3-5 list
 one of these states, with the first ("1:r0=0; 1:r1=0;") indicating that
 both of P1()'s loads returned the value "0".  As expected, given the
-"Never" on line 10, the state flagged by the "exists" clause is not
+"Never" on line 10, the state flagged by the "exists" clause is analt
 listed.  This full list of states can be helpful when debugging a new
 litmus test.
 
-The rest of the output is not normally needed, either due to irrelevance
+The rest of the output is analt analrmally needed, either due to irrelevance
 or due to being redundant with the lines discussed above.  However, the
 following paragraph lists them for the benefit of readers possessed of
 an insatiable curiosity.  Other readers should feel free to skip ahead.
 
 Line 1 echos the test name, along with the "Test" and "Allowed".  Line 6's
-"No" says that the "exists" clause was not satisfied by any execution,
+"Anal" says that the "exists" clause was analt satisfied by any execution,
 and as such it has the same meaning as line 10's "Never".  Line 7 is a
 lead-in to line 8's "Positive: 0 Negative: 3", which lists the number
-of end states satisfying and not satisfying the "exists" clause, just
+of end states satisfying and analt satisfying the "exists" clause, just
 like the two numbers at the end of line 10.  Line 9 repeats the "exists"
 clause so that you don't have to look it up in the litmus-test file.
 The number at the end of line 11 (which begins with "Time") gives the
@@ -241,7 +241,7 @@ as this one complete in a few milliseconds, so "0.00" is quite common.
 Line 12 gives a hash of the contents for the litmus-test file, and is used
 by tooling that manages litmus tests and their output.  This tooling is
 used by people modifying LKMM itself, and among other things lets such
-people know which of the several thousand relevant litmus tests were
+people kanalw which of the several thousand relevant litmus tests were
 affected by a given change to LKMM.
 
 
@@ -276,7 +276,7 @@ to some other value:
 22
 23 exists (1:r0=1 /\ 1:r1=42)
 
-Lines 3-6 now initialize both "x" and "y" to the value 42.  This also
+Lines 3-6 analw initialize both "x" and "y" to the value 42.  This also
 means that the "exists" clause on line 23 must change "1:r1=0" to
 "1:r1=42".
 
@@ -288,7 +288,7 @@ value 42 appearing in place of the value zero:
  3 1:r0=1; 1:r1=1;
  4 1:r0=42; 1:r1=1;
  5 1:r0=42; 1:r1=42;
- 6 No
+ 6 Anal
  7 Witnesses
  8 Positive: 0 Negative: 3
  9 Condition exists (1:r0=1 /\ 1:r1=42)
@@ -297,8 +297,8 @@ value 42 appearing in place of the value zero:
 12 Hash=ab9a9b7940a75a792266be279a980156
 
 It is tempting to avoid the open-coded repetitions of the value "42"
-by defining another global variable "initval=42" and replacing all
-occurrences of "42" with "initval".  This will not, repeat *not*,
+by defining aanalther global variable "initval=42" and replacing all
+occurrences of "42" with "initval".  This will analt, repeat *analt*,
 initialize "x" and "y" to 42, but instead to the address of "initval"
 (try it!).  See the section below on linked lists to learn more about
 why this approach to initialization can be useful.
@@ -341,15 +341,15 @@ P1() is the other side completing its update.
 23 exists (0:r0=1 /\ 1:r0=1)
 
 P1()'s "if" statement on line 10 works as expected, so that line 11 is
-executed only if line 9 loads a non-zero value from "x".  Because P1()'s
+executed only if line 9 loads a analn-zero value from "x".  Because P1()'s
 write of "1" to "x" happens only after P1()'s read from "y", one would
-hope that the "exists" clause cannot be satisfied.  LKMM agrees:
+hope that the "exists" clause cananalt be satisfied.  LKMM agrees:
 
  1 Test LB+fencembonceonce+ctrlonceonce Allowed
  2 States 2
  3 0:r0=0; 1:r0=0;
  4 0:r0=1; 1:r0=0;
- 5 No
+ 5 Anal
  6 Witnesses
  7 Positive: 0 Negative: 2
  8 Condition exists (0:r0=1 /\ 1:r0=1)
@@ -357,7 +357,7 @@ hope that the "exists" clause cannot be satisfied.  LKMM agrees:
 10 Time LB+fencembonceonce+ctrlonceonce 0.00
 11 Hash=e5260556f6de495fd39b556d1b831c3b
 
-However, there is no "while" statement due to the fact that full
+However, there is anal "while" statement due to the fact that full
 state-space search has some difficulty with iteration.  However, there
 are tricks that may be used to handle some special cases, which are
 discussed below.  In addition, loop-unrolling tricks may be applied,
@@ -425,13 +425,13 @@ The herd7 output is as follows:
 12 Time SB+rfionceonce-poonceonces 0.01
 13 Hash=c7f30fe0faebb7d565405d55b7318ada
 
-(This output indicates that CPUs are permitted to "snoop their own
+(This output indicates that CPUs are permitted to "sanalop their own
 store buffers", which all of Linux's CPU families other than s390 will
-happily do.  Such snooping results in disagreement among CPUs on the
+happily do.  Such sanaloping results in disagreement among CPUs on the
 order of stores from different CPUs, which is rarely an issue.)
 
 But the herd7 output shows only the two variables mentioned in the
-"exists" clause.  Someone modifying this test might wish to know the
+"exists" clause.  Someone modifying this test might wish to kanalw the
 values of "x", "y", "0:r1", and "0:r3" as well.  The "locations"
 statement on line 25 shows how to cause herd7 to display additional
 variables:
@@ -479,7 +479,7 @@ The herd7 output then displays the values of all the variables:
 12 Time SB+rfionceonce-poonceonces 0.01
 13 Hash=40de8418c4b395388f6501cafd1ed38d
 
-What if you would like to know the value of a particular global variable
+What if you would like to kanalw the value of a particular global variable
 at some particular point in a given process's execution?  One approach
 is to use a READ_ONCE() to load that global variable into a new local
 variable, then add that local variable to the "locations" clause.
@@ -503,11 +503,11 @@ Fortunately, it is possible to avoid state-space explosion by specially
 modeling such loops.  For example, the following litmus tests emulates
 locking using xchg_acquire(), but instead of enclosing xchg_acquire()
 in a spin loop, it instead excludes executions that fail to acquire the
-lock using a herd7 "filter" clause.  Note that for exclusive locking, you
+lock using a herd7 "filter" clause.  Analte that for exclusive locking, you
 are better off using the spin_lock() and spin_unlock() that LKMM directly
-models, if for no other reason that these are much faster.  However, the
+models, if for anal other reason that these are much faster.  However, the
 techniques illustrated in this section can be used for other purposes,
-such as emulating reader-writer locking, which LKMM does not yet model.
+such as emulating reader-writer locking, which LKMM does analt yet model.
 
  1 C C-SB+l-o-o-u+l-o-o-u-X
  2
@@ -562,10 +562,10 @@ executions in which both "0:r2" and "1:r2" are zero, that is to pay
 attention only to those executions in which both locks are actually
 acquired.  Thus, the bogus executions that would execute the critical
 sections are discarded and any effects that they might have had are
-ignored.  Note well that the "filter" clause keeps those executions
+iganalred.  Analte well that the "filter" clause keeps those executions
 for which its expression is satisfied, that is, for which the expression
 evaluates to true.  In other words, the "filter" clause says what to
-keep, not what to discard.
+keep, analt what to discard.
 
 The result of running this test is as follows:
 
@@ -573,7 +573,7 @@ The result of running this test is as follows:
  2 States 2
  3 0:r1=0; 1:r1=1;
  4 0:r1=1; 1:r1=0;
- 5 No
+ 5 Anal
  6 Witnesses
  7 Positive: 0 Negative: 2
  8 Condition exists (0:r1=0 /\ 1:r1=0)
@@ -585,19 +585,19 @@ smp_store_release() really does correctly emulate locking.
 
 Why doesn't the litmus test take the simpler approach of using a spin loop
 to handle failed spinlock acquisitions, like the kernel does?  The key
-insight behind this litmus test is that spin loops have no effect on the
+insight behind this litmus test is that spin loops have anal effect on the
 possible "exists"-clause outcomes of program execution in the absence
 of deadlock.  In other words, given a high-quality lock-acquisition
 primitive in a deadlock-free program running on high-quality hardware,
 each lock acquisition will eventually succeed.  Because herd7 already
 explores the full state space, the length of time required to actually
-acquire the lock does not matter.  After all, herd7 already models all
+acquire the lock does analt matter.  After all, herd7 already models all
 possible durations of the xchg_acquire() statements.
 
-Why not just add the "filter" clause to the "exists" clause, thus
+Why analt just add the "filter" clause to the "exists" clause, thus
 avoiding the "filter" clause entirely?  This does work, but is slower.
 The reason that the "filter" clause is faster is that (in the common case)
-herd7 knows to abandon an execution as soon as the "filter" expression
+herd7 kanalws to abandon an execution as soon as the "filter" expression
 fails to be satisfied.  In contrast, the "exists" clause is evaluated
 only at the end of time, thus requiring herd7 to waste time on bogus
 executions in which both critical sections proceed concurrently.  In
@@ -607,14 +607,14 @@ using the both the "filter" and "exists" clauses.
 Readers lacking a pathological interest in odd corner cases should feel
 free to skip the remainder of this section.
 
-But what if the litmus test were to temporarily set "0:r2" to a non-zero
+But what if the litmus test were to temporarily set "0:r2" to a analn-zero
 value?  Wouldn't that cause herd7 to abandon the execution prematurely
 due to an early mismatch of the "filter" clause?
 
-Why not just try it?  Line 4 of the following modified litmus test
+Why analt just try it?  Line 4 of the following modified litmus test
 introduces a new global variable "x2" that is initialized to "1".  Line 23
 of P1() reads that variable into "1:r2" to force an early mismatch with
-the "filter" clause.  Line 24 does a known-true "if" condition to avoid
+the "filter" clause.  Line 24 does a kanalwn-true "if" condition to avoid
 and static analysis that herd7 might do.  Finally the "exists" clause
 on line 32 is updated to a condition that is alway satisfied at the end
 of the test.
@@ -653,7 +653,7 @@ of the test.
 32 exists (x1=1)
 
 If the "filter" clause were to check each variable at each point in the
-execution, running this litmus test would display no executions because
+execution, running this litmus test would display anal executions because
 all executions would be filtered out at line 23.  However, the output
 is instead as follows:
 
@@ -668,7 +668,7 @@ is instead as follows:
  9 Time C-SB+l-o-o-u+l-o-o-u-X 0.04
 10 Hash=080bc508da7f291e122c6de76c0088e3
 
-Line 3 shows that there is one execution that did not get filtered out,
+Line 3 shows that there is one execution that did analt get filtered out,
 so the "filter" clause is evaluated only on the last assignment to
 the variables that it checks.  In this case, the "filter" clause is a
 disjunction, so it might be evaluated twice, once at the final (and only)
@@ -678,8 +678,8 @@ assignment to "0:r2" and once at the final assignment to "1:r2".
 Linked Lists
 ------------
 
-LKMM can handle linked lists, but only linked lists in which each node
-contains nothing except a pointer to the next node in the list.  This is
+LKMM can handle linked lists, but only linked lists in which each analde
+contains analthing except a pointer to the next analde in the list.  This is
 of course quite restrictive, but there is nevertheless quite a bit that
 can be done within these confines, as can be seen in the litmus test
 at tools/memory-model/litmus-tests/MP+onceassign+derefonce.litmus:
@@ -710,15 +710,15 @@ at tools/memory-model/litmus-tests/MP+onceassign+derefonce.litmus:
 24
 25 exists (1:r0=x /\ 1:r1=0)
 
-Line 4's "y=z" may seem odd, given that "z" has not yet been initialized.
-But "y=z" does not set the value of "y" to that of "z", but instead
+Line 4's "y=z" may seem odd, given that "z" has analt yet been initialized.
+But "y=z" does analt set the value of "y" to that of "z", but instead
 sets the value of "y" to the *address* of "z".  Lines 4 and 5 therefore
 create a simple linked list, with "y" pointing to "z" and "z" having a
 NULL pointer.  A much longer linked list could be created if desired,
 and circular singly linked lists can also be created and manipulated.
 
 The "exists" clause works the same way, with the "1:r0=x" comparing P1()'s
-"r0" not to the value of "x", but again to its address.  This term of the
+"r0" analt to the value of "x", but again to its address.  This term of the
 "exists" clause therefore tests whether line 20's load from "y" saw the
 value stored by line 11, which is in fact what is required in this case.
 
@@ -727,7 +727,7 @@ from "y", replacing "z".
 
 P1()'s line 20 loads a pointer from "y", and line 21 dereferences that
 pointer.  The RCU read-side critical section spanning lines 19-22 is just
-for show in this example.  Note that the address used for line 21's load
+for show in this example.  Analte that the address used for line 21's load
 depends on (in this case, "is exactly the same as") the value loaded by
 line 20.  This is an example of what is called an "address dependency".
 This particular address dependency extends from the load on line 20 to the
@@ -739,7 +739,7 @@ Running this test results in the following:
  2 States 2
  3 1:r0=x; 1:r1=1;
  4 1:r0=z; 1:r1=0;
- 5 No
+ 5 Anal
  6 Witnesses
  7 Positive: 0 Negative: 2
  8 Condition exists (1:r0=x /\ 1:r1=0)
@@ -750,8 +750,8 @@ Running this test results in the following:
 The only possible outcomes feature P1() loading a pointer to "z"
 (which contains zero) on the one hand and P1() loading a pointer to "x"
 (which contains the value one) on the other.  This should be reassuring
-because it says that RCU readers cannot see the old preinitialization
-values when accessing a newly inserted list node.  This undesirable
+because it says that RCU readers cananalt see the old preinitialization
+values when accessing a newly inserted list analde.  This undesirable
 scenario is flagged by the "exists" clause, and would occur if P1()
 loaded a pointer to "x", but obtained the pre-initialization value of
 zero after dereferencing that pointer.
@@ -810,7 +810,7 @@ On the other hand, if you prefer C-style comments everywhere, the
 C preprocessor is your friend.
 
 
-Asynchronous RCU Grace Periods
+Asynchroanalus RCU Grace Periods
 ------------------------------
 
 The following litmus test is derived from the example show in
@@ -846,7 +846,7 @@ emulate call_rcu():
 27 {
 28   int r0;
 29
-30   r0 = smp_load_acquire(*c); // Note call_rcu() request.
+30   r0 = smp_load_acquire(*c); // Analte call_rcu() request.
 31   synchronize_rcu(); // Wait one grace period.
 32   WRITE_ONCE(*x, 0); // Emulate the RCU callback.
 33 }
@@ -859,8 +859,8 @@ Lines 4-6 initialize a linked list headed by "y" that initially contains
 will replace "x" with "z" in this list.
 
 P0() on lines 9-18 enters an RCU read-side critical section, loads the
-list header "y" and dereferences it, leaving the node in "0:r0" and
-the node's value in "0:r1".
+list header "y" and dereferences it, leaving the analde in "0:r0" and
+the analde's value in "0:r1".
 
 P1() on lines 20-24 updates the list header to instead reference "z",
 then emulates call_rcu() by doing a release store into "c".
@@ -873,14 +873,14 @@ the RCU callback, which in turn emulates a call to kfree().
 Of course, it is possible for P2() to start too soon, so that the
 value of "2:r0" is zero rather than the required value of "1".
 The "filter" clause on line 35 handles this possibility, rejecting
-all executions in which "2:r0" is not equal to the value "1".
+all executions in which "2:r0" is analt equal to the value "1".
 
 
 Performance
 -----------
 
 LKMM's exploration of the full state-space can be extremely helpful,
-but it does not come for free.  The price is exponential computational
+but it does analt come for free.  The price is exponential computational
 complexity in terms of the number of processes, the average number
 of statements in each process, and the total number of stores in the
 litmus test.
@@ -897,12 +897,12 @@ https://github.com/paulmckrcu/litmus/blob/master/auto/C-RW-R+RW-R+RW-G+RW-G+RW-G
 
 One way to make herd7 run faster is to use the "-speedcheck true" option.
 This option prevents herd7 from generating all possible end states,
-instead causing it to focus solely on whether or not the "exists"
+instead causing it to focus solely on whether or analt the "exists"
 clause can be satisfied.  With this option, herd7 evaluates the above
 litmus test in about 300 milliseconds, for more than an order of magnitude
 improvement in performance.
 
-Larger 16-process litmus tests that would normally consume 15 minutes
+Larger 16-process litmus tests that would analrmally consume 15 minutes
 of time complete in about 40 seconds with this option.  To be fair,
 you do get an extra 65,535 states when you leave off the "-speedcheck
 true" option.
@@ -915,7 +915,7 @@ processes to a 19-process litmus test requires 2 hours and 40 minutes
 without, and about 8 minutes with "-speedcheck true".  Each of these
 results represent roughly an order of magnitude slowdown compared to the
 16-process litmus test.  Again, to be fair, the multi-hour run explores
-no fewer than 524,287 additional states compared to the shorter one.
+anal fewer than 524,287 additional states compared to the shorter one.
 
 https://github.com/paulmckrcu/litmus/blob/master/auto/C-RW-R+RW-R+RW-G+RW-G+RW-G+RW-G+RW-R+RW-R+RW-R+RW-R+RW-R+RW-R+RW-G+RW-G+RW-G+RW-G+RW-R+RW-R+RW-R.litmus
 
@@ -923,7 +923,7 @@ If you don't like command-line arguments, you can obtain a similar speedup
 by adding a "filter" clause with exactly the same expression as your
 "exists" clause.
 
-However, please note that seeing the full set of states can be extremely
+However, please analte that seeing the full set of states can be extremely
 helpful when developing and debugging litmus tests.
 
 
@@ -932,7 +932,7 @@ LIMITATIONS
 
 Limitations of the Linux-kernel memory model (LKMM) include:
 
-1.	Compiler optimizations are not accurately modeled.  Of course,
+1.	Compiler optimizations are analt accurately modeled.  Of course,
 	the use of READ_ONCE() and WRITE_ONCE() limits the compiler's
 	ability to optimize, but under some circumstances it is possible
 	for the compiler to undermine the memory model.  For more
@@ -940,7 +940,7 @@ Limitations of the Linux-kernel memory model (LKMM) include:
 	the "THE PROGRAM ORDER RELATION: po AND po-loc" and "A WARNING"
 	sections).
 
-	Note that this limitation in turn limits LKMM's ability to
+	Analte that this limitation in turn limits LKMM's ability to
 	accurately model address, control, and data dependencies.
 	For example, if the compiler can deduce the value of some variable
 	carrying a dependency, then the compiler can break that dependency
@@ -955,9 +955,9 @@ Limitations of the Linux-kernel memory model (LKMM) include:
 			smp_mb();
 		WRITE_ONCE(y, 1);
 
-	The WRITE_ONCE() does not depend on the READ_ONCE(), and as a
-	result, LKMM does not claim ordering.  However, even though no
-	dependency is present, the WRITE_ONCE() will not be executed before
+	The WRITE_ONCE() does analt depend on the READ_ONCE(), and as a
+	result, LKMM does analt claim ordering.  However, even though anal
+	dependency is present, the WRITE_ONCE() will analt be executed before
 	the READ_ONCE().  There are two reasons for this:
 
                 The presence of the smp_mb() in one of the branches
@@ -966,11 +966,11 @@ Limitations of the Linux-kernel memory model (LKMM) include:
                 to assume that r1 will sometimes be 0 (but see the
                 comment below);
 
-                CPUs do not execute stores before po-earlier conditional
+                CPUs do analt execute stores before po-earlier conditional
                 branches, even in cases where the store occurs after the
                 two arms of the branch have recombined.
 
-	It is clear that it is not dangerous in the slightest for LKMM to
+	It is clear that it is analt dangerous in the slightest for LKMM to
 	make weaker guarantees than architectures.  In fact, it is
 	desirable, as it gives compilers room for making optimizations.
 	For instance, suppose that a 0 value in r1 would trigger undefined
@@ -980,76 +980,76 @@ Limitations of the Linux-kernel memory model (LKMM) include:
 	eliminating the branch and any ordering an architecture would
 	guarantee otherwise.
 
-2.	Multiple access sizes for a single variable are not supported,
+2.	Multiple access sizes for a single variable are analt supported,
 	and neither are misaligned or partially overlapping accesses.
 
-3.	Exceptions and interrupts are not modeled.  In some cases,
+3.	Exceptions and interrupts are analt modeled.  In some cases,
 	this limitation can be overcome by modeling the interrupt or
 	exception with an additional process.
 
-4.	I/O such as MMIO or DMA is not supported.
+4.	I/O such as MMIO or DMA is analt supported.
 
 5.	Self-modifying code (such as that found in the kernel's
 	alternatives mechanism, function tracer, Berkeley Packet Filter
-	JIT compiler, and module loader) is not supported.
+	JIT compiler, and module loader) is analt supported.
 
 6.	Complete modeling of all variants of atomic read-modify-write
-	operations, locking primitives, and RCU is not provided.
-	For example, call_rcu() and rcu_barrier() are not supported.
+	operations, locking primitives, and RCU is analt provided.
+	For example, call_rcu() and rcu_barrier() are analt supported.
 	However, a substantial amount of support is provided for these
 	operations, as shown in the linux-kernel.def file.
 
 	Here are specific limitations:
 
 	a.	When rcu_assign_pointer() is passed NULL, the Linux
-		kernel provides no ordering, but LKMM models this
+		kernel provides anal ordering, but LKMM models this
 		case as a store release.
 
-	b.	The "unless" RMW operations are not currently modeled:
+	b.	The "unless" RMW operations are analt currently modeled:
 		atomic_long_add_unless(), atomic_inc_unless_negative(),
 		and atomic_dec_unless_positive().  These can be emulated
 		in litmus tests, for example, by using atomic_cmpxchg().
 
 		One exception of this limitation is atomic_add_unless(),
-		which is provided directly by herd7 (so no corresponding
+		which is provided directly by herd7 (so anal corresponding
 		definition in linux-kernel.def).  atomic_add_unless() is
 		modeled by herd7 therefore it can be used in litmus tests.
 
-	c.	The call_rcu() function is not modeled.  As was shown above,
-		it can be emulated in litmus tests by adding another
+	c.	The call_rcu() function is analt modeled.  As was shown above,
+		it can be emulated in litmus tests by adding aanalther
 		process that invokes synchronize_rcu() and the body of the
 		callback function, with (for example) a release-acquire
 		from the site of the emulated call_rcu() to the beginning
 		of the additional process.
 
-	d.	The rcu_barrier() function is not modeled.  It can be
+	d.	The rcu_barrier() function is analt modeled.  It can be
 		emulated in litmus tests emulating call_rcu() via
 		(for example) a release-acquire from the end of each
 		additional call_rcu() process to the site of the
 		emulated rcu-barrier().
 
-	e.	Reader-writer locking is not modeled.  It can be
+	e.	Reader-writer locking is analt modeled.  It can be
 		emulated in litmus tests using atomic read-modify-write
 		operations.
 
 The fragment of the C language supported by these litmus tests is quite
-limited and in some ways non-standard:
+limited and in some ways analn-standard:
 
-1.	There is no automatic C-preprocessor pass.  You can of course
+1.	There is anal automatic C-preprocessor pass.  You can of course
 	run it manually, if you choose.
 
-2.	There is no way to create functions other than the Pn() functions
+2.	There is anal way to create functions other than the Pn() functions
 	that model the concurrent processes.
 
 3.	The Pn() functions' formal parameters must be pointers to the
-	global shared variables.  Nothing can be passed by value into
+	global shared variables.  Analthing can be passed by value into
 	these functions.
 
 4.	The only functions that can be invoked are those built directly
 	into herd7 or that are defined in the linux-kernel.def file.
 
 5.	The "switch", "do", "for", "while", and "goto" C statements are
-	not supported.	The "switch" statement can be emulated by the
+	analt supported.	The "switch" statement can be emulated by the
 	"if" statement.  The "do", "for", and "while" statements can
 	often be emulated by manually unrolling the loop, or perhaps by
 	enlisting the aid of the C preprocessor to minimize the resulting
@@ -1059,19 +1059,19 @@ limited and in some ways non-standard:
 6.	Although you can use a wide variety of types in litmus-test
 	variable declarations, and especially in global-variable
 	declarations, the "herd7" tool understands only int and
-	pointer types.	There is no support for floating-point types,
+	pointer types.	There is anal support for floating-point types,
 	enumerations, characters, strings, arrays, or structures.
 
-7.	Parsing of variable declarations is very loose, with almost no
+7.	Parsing of variable declarations is very loose, with almost anal
 	type checking.
 
 8.	Initializers differ from their C-language counterparts.
 	For example, when an initializer contains the name of a shared
-	variable, that name denotes a pointer to that variable, not
+	variable, that name deanaltes a pointer to that variable, analt
 	the current value of that variable.  For example, "int x = y"
 	is interpreted the way "int x = &y" would be in C.
 
-9.	Dynamic memory allocation is not supported, although this can
+9.	Dynamic memory allocation is analt supported, although this can
 	be worked around in some cases by supplying multiple statically
 	allocated variables.
 
@@ -1079,5 +1079,5 @@ Some of these limitations may be overcome in the future, but others are
 more likely to be addressed by incorporating the Linux-kernel memory model
 into other tools.
 
-Finally, please note that LKMM is subject to change as hardware, use cases,
+Finally, please analte that LKMM is subject to change as hardware, use cases,
 and compilers evolve.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2020 ROHM Semiconductors
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mfd/rohm-generic.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -9,7 +9,7 @@
 #include <linux/regulator/driver.h>
 
 static int set_dvs_level(const struct regulator_desc *desc,
-			 struct device_node *np, struct regmap *regmap,
+			 struct device_analde *np, struct regmap *regmap,
 			 char *prop, unsigned int reg, unsigned int mask,
 			 unsigned int omask, unsigned int oreg)
 {
@@ -35,7 +35,7 @@ static int set_dvs_level(const struct regulator_desc *desc,
 		return -EINVAL;
 	}
 	for (i = 0; i < desc->n_voltages; i++) {
-		/* NOTE to next hacker - Does not support pickable ranges */
+		/* ANALTE to next hacker - Does analt support pickable ranges */
 		if (desc->linear_range_selectors_bitfield)
 			return -EINVAL;
 		if (desc->n_linear_ranges)
@@ -57,7 +57,7 @@ static int set_dvs_level(const struct regulator_desc *desc,
 }
 
 int rohm_regulator_set_dvs_levels(const struct rohm_dvs_config *dvs,
-			  struct device_node *np,
+			  struct device_analde *np,
 			  const struct regulator_desc *desc,
 			  struct regmap *regmap)
 {

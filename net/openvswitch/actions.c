@@ -121,7 +121,7 @@ static struct deferred_action *action_fifo_put(struct action_fifo *fifo)
 	return &fifo->fifo[fifo->head++];
 }
 
-/* Return true if fifo is not full */
+/* Return true if fifo is analt full */
 static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 				    const struct sw_flow_key *key,
 				    const struct nlattr *actions,
@@ -172,7 +172,7 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 		return err;
 
 	if (!mac_len)
-		key->mac_proto = MAC_PROTO_NONE;
+		key->mac_proto = MAC_PROTO_ANALNE;
 
 	invalidate_flow_key(key);
 	return 0;
@@ -203,7 +203,7 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	int err;
 
 	if (!pskb_may_pull(skb, skb_network_offset(skb) + MPLS_HLEN))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stack = mpls_hdr(skb);
 	lse = OVS_MASKED(stack->label_stack_entry, *mpls_lse, *mask);
@@ -278,7 +278,7 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-/* pop_eth does not support VLAN packets as this action is never called
+/* pop_eth does analt support VLAN packets as this action is never called
  * for them.
  */
 static int pop_eth(struct sk_buff *skb, struct sw_flow_key *key)
@@ -290,7 +290,7 @@ static int pop_eth(struct sk_buff *skb, struct sw_flow_key *key)
 		return err;
 
 	/* safe right before invalidate_flow_key */
-	key->mac_proto = MAC_PROTO_NONE;
+	key->mac_proto = MAC_PROTO_ANALNE;
 	invalidate_flow_key(key);
 	return 0;
 }
@@ -311,7 +311,7 @@ static int push_eth(struct sk_buff *skb, struct sw_flow_key *key,
 	return 0;
 }
 
-static noinline_for_stack int push_nsh(struct sk_buff *skb,
+static analinline_for_stack int push_nsh(struct sk_buff *skb,
 				       struct sw_flow_key *key,
 				       const struct nlattr *a)
 {
@@ -328,7 +328,7 @@ static noinline_for_stack int push_nsh(struct sk_buff *skb,
 		return err;
 
 	/* safe right before invalidate_flow_key */
-	key->mac_proto = MAC_PROTO_NONE;
+	key->mac_proto = MAC_PROTO_ANALNE;
 	invalidate_flow_key(key);
 	return 0;
 }
@@ -345,7 +345,7 @@ static int pop_nsh(struct sk_buff *skb, struct sw_flow_key *key)
 	if (skb->protocol == htons(ETH_P_TEB))
 		key->mac_proto = MAC_PROTO_ETHERNET;
 	else
-		key->mac_proto = MAC_PROTO_NONE;
+		key->mac_proto = MAC_PROTO_ANALNE;
 	invalidate_flow_key(key);
 	return 0;
 }
@@ -529,7 +529,7 @@ static int set_ipv4(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static bool is_ipv6_mask_nonzero(const __be32 addr[4])
+static bool is_ipv6_mask_analnzero(const __be32 addr[4])
 {
 	return !!(addr[0] | addr[1] | addr[2] | addr[3]);
 }
@@ -552,7 +552,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	 * matching on them in the current userspace implementation, so it
 	 * makes sense to check if the value actually changed.
 	 */
-	if (is_ipv6_mask_nonzero(mask->ipv6_src)) {
+	if (is_ipv6_mask_analnzero(mask->ipv6_src)) {
 		__be32 *saddr = (__be32 *)&nh->saddr;
 		__be32 masked[4];
 
@@ -565,7 +565,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 			       sizeof(flow_key->ipv6.addr.src));
 		}
 	}
-	if (is_ipv6_mask_nonzero(mask->ipv6_dst)) {
+	if (is_ipv6_mask_analnzero(mask->ipv6_dst)) {
 		unsigned int offset = 0;
 		int flags = IP6_FH_F_SKIP_RH;
 		bool recalc_csum = true;
@@ -623,7 +623,7 @@ static int set_nsh(struct sk_buff *skb, struct sw_flow_key *flow_key,
 
 	/* Make sure the NSH base header is there */
 	if (!pskb_may_pull(skb, skb_network_offset(skb) + NSH_BASE_HDR_LEN))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nh = nsh_hdr(skb);
 	length = nsh_hdr_len(nh);
@@ -690,7 +690,7 @@ static int set_udp(struct sk_buff *skb, struct sw_flow_key *flow_key,
 		return err;
 
 	uh = udp_hdr(skb);
-	/* Either of the masks is non-zero, so do not bother checking them. */
+	/* Either of the masks is analn-zero, so do analt bother checking them. */
 	src = OVS_MASKED(uh->source, key->udp_src, mask->udp_src);
 	dst = OVS_MASKED(uh->dest, key->udp_dst, mask->udp_dst);
 
@@ -789,8 +789,8 @@ static int ovs_vport_output(struct net *net, struct sock *sk,
 	struct vport *vport = data->vport;
 
 	if (skb_cow_head(skb, data->l2_len) < 0) {
-		kfree_skb_reason(skb, SKB_DROP_REASON_NOMEM);
-		return -ENOMEM;
+		kfree_skb_reason(skb, SKB_DROP_REASON_ANALMEM);
+		return -EANALMEM;
 	}
 
 	__skb_dst_copy(skb, data->dst);
@@ -881,11 +881,11 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		prepare_frag(vport, skb, orig_network_offset,
 			     ovs_key_mac_proto(key));
 		dst_init(&ovs_rt.dst, &ovs_dst_ops, NULL,
-			 DST_OBSOLETE_NONE, DST_NOCOUNT);
+			 DST_OBSOLETE_ANALNE, DST_ANALCOUNT);
 		ovs_rt.dst.dev = vport->dev;
 
 		orig_dst = skb->_skb_refdst;
-		skb_dst_set_noref(skb, &ovs_rt.dst);
+		skb_dst_set_analref(skb, &ovs_rt.dst);
 		IPCB(skb)->frag_max_size = mru;
 
 		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
@@ -898,11 +898,11 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 			     ovs_key_mac_proto(key));
 		memset(&ovs_rt, 0, sizeof(ovs_rt));
 		dst_init(&ovs_rt.dst, &ovs_dst_ops, NULL,
-			 DST_OBSOLETE_NONE, DST_NOCOUNT);
+			 DST_OBSOLETE_ANALNE, DST_ANALCOUNT);
 		ovs_rt.dst.dev = vport->dev;
 
 		orig_dst = skb->_skb_refdst;
-		skb_dst_set_noref(skb, &ovs_rt.dst);
+		skb_dst_set_analref(skb, &ovs_rt.dst);
 		IP6CB(skb)->frag_max_size = mru;
 
 		ipv6_stub->ipv6_fragment(net, skb->sk, skb, ovs_vport_output);
@@ -1088,7 +1088,7 @@ static void execute_hash(struct sk_buff *skb, struct sw_flow_key *key,
 		/* OVS_HASH_ALG_L4 hasing type. */
 		hash = skb_get_hash(skb);
 	} else if (hash_act->hash_alg == OVS_HASH_ALG_SYM_L4) {
-		/* OVS_HASH_ALG_SYM_L4 hashing type.  NOTE: this doesn't
+		/* OVS_HASH_ALG_SYM_L4 hashing type.  ANALTE: this doesn't
 		 * extend past an encapsulated header.
 		 */
 		hash = __skb_get_hash_symmetric(skb);
@@ -1140,7 +1140,7 @@ static int execute_masked_set_action(struct sk_buff *skb,
 		break;
 
 	case OVS_KEY_ATTR_TUNNEL_INFO:
-		/* Masked data not supported for tunnel. */
+		/* Masked data analt supported for tunnel. */
 		err = -EINVAL;
 		break;
 
@@ -1509,9 +1509,9 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 }
 
 /* Execute the actions on the clone of the packet. The effect of the
- * execution does not affect the original 'skb' nor the original 'key'.
+ * execution does analt affect the original 'skb' analr the original 'key'.
  *
- * The execution may be deferred in case the actions can not be executed
+ * The execution may be deferred in case the actions can analt be executed
  * immediately.
  */
 static int clone_execute(struct datapath *dp, struct sk_buff *skb,
@@ -1529,7 +1529,7 @@ static int clone_execute(struct datapath *dp, struct sk_buff *skb,
 		return 0;
 	}
 
-	/* When clone_flow_key is false, the 'key' will not be change
+	/* When clone_flow_key is false, the 'key' will analt be change
 	 * by the actions, then the 'key' can be used directly.
 	 * Otherwise, try to clone key from the next recursion level of
 	 * 'flow_keys'. If clone is successful, execute the actions
@@ -1585,7 +1585,7 @@ static void process_deferred_actions(struct datapath *dp)
 {
 	struct action_fifo *fifo = this_cpu_ptr(action_fifos);
 
-	/* Do not touch the FIFO in case there is no deferred actions. */
+	/* Do analt touch the FIFO in case there is anal deferred actions. */
 	if (action_fifo_is_empty(fifo))
 		return;
 
@@ -1639,12 +1639,12 @@ int action_fifos_init(void)
 {
 	action_fifos = alloc_percpu(struct action_fifo);
 	if (!action_fifos)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_keys = alloc_percpu(struct action_flow_keys);
 	if (!flow_keys) {
 		free_percpu(action_fifos);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

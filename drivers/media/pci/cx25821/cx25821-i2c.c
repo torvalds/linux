@@ -31,7 +31,7 @@ do {									\
 #define I2C_WAIT_RETRY 64
 
 #define I2C_EXTEND  (1 << 3)
-#define I2C_NOSTOP  (1 << 4)
+#define I2C_ANALSTOP  (1 << 4)
 
 static inline int i2c_slave_did_ack(struct i2c_adapter *i2c_adap)
 {
@@ -99,9 +99,9 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	ctrl = bus->i2c_period | (1 << 12) | (1 << 2);
 
 	if (msg->len > 1)
-		ctrl |= I2C_NOSTOP | I2C_EXTEND;
+		ctrl |= I2C_ANALSTOP | I2C_EXTEND;
 	else if (joined_rlen)
-		ctrl |= I2C_NOSTOP;
+		ctrl |= I2C_ANALSTOP;
 
 	cx_write(bus->reg_addr, addr);
 	cx_write(bus->reg_wdata, wdata);
@@ -115,7 +115,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		goto eio;
 
 	if (i2c_debug) {
-		if (!(ctrl & I2C_NOSTOP))
+		if (!(ctrl & I2C_ANALSTOP))
 			printk(" >\n");
 	}
 
@@ -125,9 +125,9 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		ctrl = bus->i2c_period | (1 << 12) | (1 << 2);
 
 		if (cnt < msg->len - 1)
-			ctrl |= I2C_NOSTOP | I2C_EXTEND;
+			ctrl |= I2C_ANALSTOP | I2C_EXTEND;
 		else if (joined_rlen)
-			ctrl |= I2C_NOSTOP;
+			ctrl |= I2C_ANALSTOP;
 
 		cx_write(bus->reg_addr, addr);
 		cx_write(bus->reg_wdata, wdata);
@@ -142,7 +142,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 		if (i2c_debug) {
 			dprintk(1, " %02x", msg->buf[cnt]);
-			if (!(ctrl & I2C_NOSTOP))
+			if (!(ctrl & I2C_ANALSTOP))
 				dprintk(1, " >\n");
 		}
 	}
@@ -193,7 +193,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		ctrl = bus->i2c_period | (1 << 12) | (1 << 2) | 1;
 
 		if (cnt < msg->len - 1)
-			ctrl |= I2C_NOSTOP | I2C_EXTEND;
+			ctrl |= I2C_ANALSTOP | I2C_EXTEND;
 
 		cx_write(bus->reg_addr, msg->addr << 25);
 		cx_write(bus->reg_ctrl, ctrl);
@@ -207,7 +207,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 
 		if (i2c_debug) {
 			dprintk(1, " %02x", msg->buf[cnt]);
-			if (!(ctrl & I2C_NOSTOP))
+			if (!(ctrl & I2C_ANALSTOP))
 				dprintk(1, " >\n");
 		}
 	}

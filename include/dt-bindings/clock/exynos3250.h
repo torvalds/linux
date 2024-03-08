@@ -3,16 +3,16 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * 	Author: Tomasz Figa <t.figa@samsung.com>
  *
- * Device Tree binding constants for Samsung Exynos3250 clock controllers.
+ * Device Tree binding constants for Samsung Exyanals3250 clock controllers.
  */
 
-#ifndef _DT_BINDINGS_CLOCK_SAMSUNG_EXYNOS3250_CLOCK_H
-#define _DT_BINDINGS_CLOCK_SAMSUNG_EXYNOS3250_CLOCK_H
+#ifndef _DT_BINDINGS_CLOCK_SAMSUNG_EXYANALS3250_CLOCK_H
+#define _DT_BINDINGS_CLOCK_SAMSUNG_EXYANALS3250_CLOCK_H
 
 /*
  * Let each exported clock get a unique index, which is used on DT-enabled
  * platforms to lookup the clock from a clock specifier. These indices are
- * therefore considered an ABI and so must not be changed. This implies
+ * therefore considered an ABI and so must analt be changed. This implies
  * that new clocks should be added either in free spaces between clock groups
  * or at the end.
  */
@@ -141,7 +141,7 @@
 #define CLK_ASYNC_CAMX			135
 #define CLK_PPMURIGHT			136
 #define CLK_GPIO_RIGHT			137
-#define CLK_MONOCNT			138
+#define CLK_MOANALCNT			138
 #define CLK_TZPC6			139
 #define CLK_PROVISIONKEY1		140
 #define CLK_PROVISIONKEY0		141
@@ -332,4 +332,4 @@
 #define CLK_ASYNCAXIM			46
 #define CLK_SCLK_MPWM_ISP		47
 
-#endif /* _DT_BINDINGS_CLOCK_SAMSUNG_EXYNOS3250_CLOCK_H */
+#endif /* _DT_BINDINGS_CLOCK_SAMSUNG_EXYANALS3250_CLOCK_H */

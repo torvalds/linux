@@ -17,13 +17,13 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/mm.h>
 #include <linux/of_fdt.h>
 #include <linux/dma-map-ops.h>
@@ -50,7 +50,7 @@ void __init bootmem_init(void)
 	early_init_fdt_scan_reserved_mem();
 
 	if (!memblock_phys_mem_size())
-		panic("No memory found!\n");
+		panic("Anal memory found!\n");
 
 	min_low_pfn = PFN_UP(memblock_start_of_DRAM());
 	min_low_pfn = max(min_low_pfn, PFN_UP(PHYS_OFFSET));
@@ -71,7 +71,7 @@ void __init zones_init(void)
 {
 	/* All pages are DMA-able, so we put them all in the DMA zone. */
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = {
-		[ZONE_NORMAL] = max_low_pfn,
+		[ZONE_ANALRMAL] = max_low_pfn,
 #ifdef CONFIG_HIGHMEM
 		[ZONE_HIGHMEM] = max_pfn,
 #endif
@@ -87,12 +87,12 @@ static void __init free_highpages(void)
 	u64 i;
 
 	/* set highmem page free */
-	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE,
+	for_each_free_mem_range(i, NUMA_ANAL_ANALDE, MEMBLOCK_ANALNE,
 				&range_start, &range_end, NULL) {
 		unsigned long start = PFN_UP(range_start);
 		unsigned long end = PFN_DOWN(range_end);
 
-		/* Ignore complete lowmem entries */
+		/* Iganalre complete lowmem entries */
 		if (end <= max_low)
 			continue;
 
@@ -219,7 +219,7 @@ early_param("memmap", parse_memmap_opt);
 
 #ifdef CONFIG_MMU
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
@@ -227,7 +227,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_READONLY_EXEC,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY_EXEC,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_EXEC,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,

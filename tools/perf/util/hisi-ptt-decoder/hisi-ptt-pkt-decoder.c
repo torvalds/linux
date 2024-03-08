@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * HiSilicon PCIe Trace and Tuning (PTT) support
- * Copyright (c) 2022 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2022 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <stdlib.h>
@@ -106,7 +106,7 @@ static int hisi_ptt_8dw_kpt_desc(const unsigned char *buf, int pos)
 	int i;
 
 	for (i = 0; i < HISI_PTT_8DW_TYPE_MAX; i++) {
-		/* Do not show 8DW check field and reserved fields */
+		/* Do analt show 8DW check field and reserved fields */
 		if (i == HISI_PTT_8DW_CHK_AND_RSV0 || i == HISI_PTT_8DW_RSV1) {
 			pos += HISI_PTT_FIELD_LENTH;
 			continue;

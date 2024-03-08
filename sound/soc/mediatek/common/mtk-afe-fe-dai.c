@@ -56,7 +56,7 @@ int mtk_afe_fe_startup(struct snd_pcm_substream *substream,
 	snd_soc_set_runtime_hwparams(substream, mtk_afe_hardware);
 
 	/*
-	 * Capture cannot use ping-pong buffer since hw_ptr at IRQ may be
+	 * Capture cananalt use ping-pong buffer since hw_ptr at IRQ may be
 	 * smaller than period_size due to AFE's internal buffer.
 	 * This easily leads to overrun when avail_min is period_size.
 	 * One more period can hold the possible unread buffer.
@@ -86,7 +86,7 @@ int mtk_afe_fe_startup(struct snd_pcm_substream *substream,
 			/* link */
 			memif->irq_usage = irq_id;
 		} else {
-			dev_err(afe->dev, "%s() error: no more asys irq\n",
+			dev_err(afe->dev, "%s() error: anal more asys irq\n",
 				__func__);
 			ret = -EBUSY;
 		}
@@ -358,7 +358,7 @@ int mtk_afe_resume(struct snd_soc_component *component)
 	afe->runtime_resume(dev);
 
 	if (!afe->reg_back_up) {
-		dev_dbg(dev, "%s no reg_backup\n", __func__);
+		dev_dbg(dev, "%s anal reg_backup\n", __func__);
 	} else {
 		for (i = 0; i < afe->reg_back_up_list_num; i++)
 			mtk_regmap_write(regmap, afe->reg_back_up_list[i],
@@ -457,9 +457,9 @@ int mtk_memif_set_channel(struct mtk_base_afe *afe,
 			  int id, unsigned int channel)
 {
 	struct mtk_base_afe_memif *memif = &afe->memif[id];
-	unsigned int mono;
+	unsigned int moanal;
 
-	if (memif->data->mono_shift < 0)
+	if (memif->data->moanal_shift < 0)
 		return 0;
 
 	if (memif->data->quad_ch_mask) {
@@ -470,20 +470,20 @@ int mtk_memif_set_channel(struct mtk_base_afe *afe,
 				       quad_ch, memif->data->quad_ch_shift);
 	}
 
-	if (memif->data->mono_invert)
-		mono = (channel == 1) ? 0 : 1;
+	if (memif->data->moanal_invert)
+		moanal = (channel == 1) ? 0 : 1;
 	else
-		mono = (channel == 1) ? 1 : 0;
+		moanal = (channel == 1) ? 1 : 0;
 
-	/* for specific configuration of memif mono mode */
+	/* for specific configuration of memif moanal mode */
 	if (memif->data->int_odd_flag_reg)
 		mtk_regmap_update_bits(afe->regmap,
 				       memif->data->int_odd_flag_reg,
-				       1, mono,
+				       1, moanal,
 				       memif->data->int_odd_flag_shift);
 
-	return mtk_regmap_update_bits(afe->regmap, memif->data->mono_reg,
-				      1, mono, memif->data->mono_shift);
+	return mtk_regmap_update_bits(afe->regmap, memif->data->moanal_reg,
+				      1, moanal, memif->data->moanal_shift);
 }
 EXPORT_SYMBOL_GPL(mtk_memif_set_channel);
 

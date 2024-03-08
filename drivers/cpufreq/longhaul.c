@@ -55,7 +55,7 @@
 
 /* Flags */
 #define USE_ACPI_C3		(1 << 1)
-#define USE_NORTHBRIDGE		(1 << 2)
+#define USE_ANALRTHBRIDGE		(1 << 2)
 
 static int cpu_model;
 static unsigned int numscales = 16;
@@ -283,7 +283,7 @@ retry_loop:
 	outb(0xFE, 0x21);	/* TMR0 only */
 
 	/* Wait while PCI bus is busy. */
-	if (acpi_regs_addr && (longhaul_flags & USE_NORTHBRIDGE
+	if (acpi_regs_addr && (longhaul_flags & USE_ANALRTHBRIDGE
 	    || ((pr != NULL) && pr->flags.bm_control))) {
 		bm_status = inw(acpi_regs_addr);
 		bm_status &= 1 << 4;
@@ -295,7 +295,7 @@ retry_loop:
 		}
 	}
 
-	if (longhaul_flags & USE_NORTHBRIDGE) {
+	if (longhaul_flags & USE_ANALRTHBRIDGE) {
 		/* Disable AGP and PCI arbiters */
 		outb(3, 0x22);
 	} else if ((pr != NULL) && pr->flags.bm_control) {
@@ -331,7 +331,7 @@ retry_loop:
 		break;
 	}
 
-	if (longhaul_flags & USE_NORTHBRIDGE) {
+	if (longhaul_flags & USE_ANALRTHBRIDGE) {
 		/* Enable arbiters */
 		outb(0, 0x22);
 	} else if ((pr != NULL) && pr->flags.bm_control) {
@@ -350,10 +350,10 @@ retry_loop:
 		pr_info("Failed to set requested frequency!\n");
 		/* Revision ID = 1 but processor is expecting revision key
 		 * equal to 0. Jumpers at the bottom of processor will change
-		 * multiplier and FSB, but will not change bits in Longhaul
-		 * MSR nor enable voltage scaling. */
+		 * multiplier and FSB, but will analt change bits in Longhaul
+		 * MSR analr enable voltage scaling. */
 		if (!revid_errata) {
-			pr_info("Enabling \"Ignore Revision ID\" option\n");
+			pr_info("Enabling \"Iganalre Revision ID\" option\n");
 			revid_errata = 1;
 			msleep(200);
 			goto retry_loop;
@@ -361,18 +361,18 @@ retry_loop:
 		/* Why ACPI C3 sometimes doesn't work is a mystery for me.
 		 * But it does happen. Processor is entering ACPI C3 state,
 		 * but it doesn't change frequency. I tried poking various
-		 * bits in northbridge registers, but without success. */
+		 * bits in analrthbridge registers, but without success. */
 		if (longhaul_flags & USE_ACPI_C3) {
 			pr_info("Disabling ACPI C3 support\n");
 			longhaul_flags &= ~USE_ACPI_C3;
 			if (revid_errata) {
-				pr_info("Disabling \"Ignore Revision ID\" option\n");
+				pr_info("Disabling \"Iganalre Revision ID\" option\n");
 				revid_errata = 0;
 			}
 			msleep(200);
 			goto retry_loop;
 		}
-		/* This shouldn't happen. Longhaul ver. 2 was reported not
+		/* This shouldn't happen. Longhaul ver. 2 was reported analt
 		 * working on processors without voltage scaling, but with
 		 * RevID = 1. RevID errata will make things right. Just
 		 * to be 100% sure. */
@@ -398,7 +398,7 @@ retry_loop:
  * Samuel2 and above have to try and guess what the FSB is.
  * We do this by assuming we booted at maximum multiplier, and interpolate
  * between that value multiplied by possible FSBs and cpu_mhz which
- * was calculated at boot time. Really ugly, but no other way to do this.
+ * was calculated at boot time. Really ugly, but anal other way to do this.
  */
 
 #define ROUNDING	0xf
@@ -469,7 +469,7 @@ static int longhaul_get_ranges(void)
 		return -EINVAL;
 	}
 	if (lowest_speed > highest_speed) {
-		pr_info("nonsense! lowest (%d > %d) !\n",
+		pr_info("analnsense! lowest (%d > %d) !\n",
 			lowest_speed, highest_speed);
 		return -EINVAL;
 	}
@@ -477,7 +477,7 @@ static int longhaul_get_ranges(void)
 	longhaul_table = kcalloc(numscales + 1, sizeof(*longhaul_table),
 				 GFP_KERNEL);
 	if (!longhaul_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (j = 0; j < numscales; j++) {
 		ratio = mults[j];
@@ -491,7 +491,7 @@ static int longhaul_get_ranges(void)
 	}
 	if (k <= 1) {
 		kfree(longhaul_table);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* Sort */
 	for (j = 0; j < k - 1; j++) {
@@ -535,7 +535,7 @@ static void longhaul_setup_voltagescaling(void)
 
 	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
 	if (!(longhaul.bits.RevisionID & 1)) {
-		pr_info("Voltage scaling not supported by CPU\n");
+		pr_info("Voltage scaling analt supported by CPU\n");
 		return;
 	}
 
@@ -779,7 +779,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 			longhaul_version = TYPE_LONGHAUL_V1;
 			cpu_model = CPU_SAMUEL2;
 			cpuname = "C3 'Samuel 2' [C5B]";
-			/* Note, this is not a typo, early Samuel2's had
+			/* Analte, this is analt a typo, early Samuel2's had
 			 * Samuel1 ratios. */
 			memcpy(mults, samuel1_mults, sizeof(samuel1_mults));
 			memcpy(eblcr, samuel2_eblcr, sizeof(samuel2_eblcr));
@@ -830,7 +830,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 
 	default:
-		cpuname = "Unknown";
+		cpuname = "Unkanalwn";
 		break;
 	}
 	/* Check Longhaul ver. 2 */
@@ -869,20 +869,20 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 	/* Disable if it isn't working */
 	if (disable_acpi_c3)
 		longhaul_flags &= ~USE_ACPI_C3;
-	/* Check if northbridge is friendly */
+	/* Check if analrthbridge is friendly */
 	if (enable_arbiter_disable())
-		longhaul_flags |= USE_NORTHBRIDGE;
+		longhaul_flags |= USE_ANALRTHBRIDGE;
 
 	/* Check ACPI support for bus master arbiter disable */
 	if (!(longhaul_flags & USE_ACPI_C3
-	     || longhaul_flags & USE_NORTHBRIDGE)
+	     || longhaul_flags & USE_ANALRTHBRIDGE)
 	    && ((pr == NULL) || !(pr->flags.bm_control))) {
-		pr_err("No ACPI support: Unsupported northbridge\n");
-		return -ENODEV;
+		pr_err("Anal ACPI support: Unsupported analrthbridge\n");
+		return -EANALDEV;
 	}
 
-	if (longhaul_flags & USE_NORTHBRIDGE)
-		pr_info("Using northbridge support\n");
+	if (longhaul_flags & USE_ANALRTHBRIDGE)
+		pr_info("Using analrthbridge support\n");
 	if (longhaul_flags & USE_ACPI_C3)
 		pr_info("Using ACPI support\n");
 
@@ -919,22 +919,22 @@ static int __init longhaul_init(void)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	if (!x86_match_cpu(longhaul_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!enable) {
-		pr_err("Option \"enable\" not set - Aborting\n");
-		return -ENODEV;
+		pr_err("Option \"enable\" analt set - Aborting\n");
+		return -EANALDEV;
 	}
 #ifdef CONFIG_SMP
 	if (num_online_cpus() > 1) {
 		pr_err("More than 1 CPU detected, longhaul disabled\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 #endif
 #ifdef CONFIG_X86_IO_APIC
 	if (boot_cpu_has(X86_FEATURE_APIC)) {
 		pr_err("APIC detected. Longhaul is currently broken in this configuration.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 #endif
 	switch (c->x86_model) {
@@ -944,7 +944,7 @@ static int __init longhaul_init(void)
 		pr_err("Use acpi-cpufreq driver for VIA C7\n");
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 
@@ -986,7 +986,7 @@ MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
  * support voltage scaling, but are introducing itself as
  * such. */
 module_param(revid_errata, int, 0644);
-MODULE_PARM_DESC(revid_errata, "Ignore CPU Revision ID");
+MODULE_PARM_DESC(revid_errata, "Iganalre CPU Revision ID");
 /* By default driver is disabled to prevent incompatible
  * system freeze. */
 module_param(enable, int, 0644);

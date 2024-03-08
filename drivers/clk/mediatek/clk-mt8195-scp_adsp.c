@@ -17,7 +17,7 @@ static const struct mtk_gate_regs scp_adsp_cg_regs = {
 };
 
 #define GATE_SCP_ADSP(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &scp_adsp_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &scp_adsp_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate scp_adsp_clks[] = {
 	GATE_SCP_ADSP(CLK_SCP_ADSP_AUDIODSP, "scp_adsp_audiodsp", "top_adsp", 0),

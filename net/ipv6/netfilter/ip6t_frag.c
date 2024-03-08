@@ -42,7 +42,7 @@ frag_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 
 	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_FRAGMENT, NULL, NULL);
 	if (err < 0) {
-		if (err != -ENOENT)
+		if (err != -EANALENT)
 			par->hotdrop = true;
 		return false;
 	}
@@ -103,7 +103,7 @@ static int frag_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_frag *fraginfo = par->matchinfo;
 
 	if (fraginfo->invflags & ~IP6T_FRAG_INV_MASK) {
-		pr_debug("unknown flags %X\n", fraginfo->invflags);
+		pr_debug("unkanalwn flags %X\n", fraginfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

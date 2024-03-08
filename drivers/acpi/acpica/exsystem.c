@@ -24,7 +24,7 @@ ACPI_MODULE_NAME("exsystem")
  * RETURN:      Status
  *
  * DESCRIPTION: Implements a semaphore wait with a check to see if the
- *              semaphore is available immediately. If it is not, the
+ *              semaphore is available immediately. If it is analt, the
  *              interpreter is released before waiting.
  *
  ******************************************************************************/
@@ -34,7 +34,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 
 	ACPI_FUNCTION_TRACE(ex_system_wait_semaphore);
 
-	status = acpi_os_wait_semaphore(semaphore, 1, ACPI_DO_NOT_WAIT);
+	status = acpi_os_wait_semaphore(semaphore, 1, ACPI_DO_ANALT_WAIT);
 	if (ACPI_SUCCESS(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -68,7 +68,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
  * RETURN:      Status
  *
  * DESCRIPTION: Implements a mutex wait with a check to see if the
- *              mutex is available immediately. If it is not, the
+ *              mutex is available immediately. If it is analt, the
  *              interpreter is released before waiting.
  *
  ******************************************************************************/
@@ -79,7 +79,7 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 
 	ACPI_FUNCTION_TRACE(ex_system_wait_mutex);
 
-	status = acpi_os_acquire_mutex(mutex, ACPI_DO_NOT_WAIT);
+	status = acpi_os_acquire_mutex(mutex, ACPI_DO_ANALT_WAIT);
 	if (ACPI_SUCCESS(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -113,7 +113,7 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
  * RETURN:      Status
  *
  * DESCRIPTION: Suspend running thread for specified amount of time.
- *              Note: ACPI specification requires that Stall() does not
+ *              Analte: ACPI specification requires that Stall() does analt
  *              relinquish the processor, and delays longer than 100 usec
  *              should use Sleep() instead. We allow stalls up to 255 usec
  *              for compatibility with other interpreters and existing BIOSs.
@@ -155,7 +155,7 @@ acpi_status acpi_ex_system_do_stall(u32 how_long_us)
  * PARAMETERS:  how_long_ms     - The amount of time to sleep,
  *                                in milliseconds
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Sleep the running thread for specified amount of time.
  *
@@ -179,7 +179,7 @@ acpi_status acpi_ex_system_do_sleep(u64 how_long_ms)
 
 	acpi_os_sleep(how_long_ms);
 
-	/* And now we must get the interpreter again */
+	/* And analw we must get the interpreter again */
 
 	acpi_ex_enter_interpreter();
 	return (AE_OK);
@@ -253,7 +253,7 @@ acpi_ex_system_wait_event(union acpi_operand_object *time_desc,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Reset an event to a known state.
+ * DESCRIPTION: Reset an event to a kanalwn state.
  *
  ******************************************************************************/
 
@@ -269,7 +269,7 @@ acpi_status acpi_ex_system_reset_event(union acpi_operand_object *obj_desc)
 	 * create a new one!
 	 */
 	status =
-	    acpi_os_create_semaphore(ACPI_NO_UNIT_LIMIT, 0, &temp_semaphore);
+	    acpi_os_create_semaphore(ACPI_ANAL_UNIT_LIMIT, 0, &temp_semaphore);
 	if (ACPI_SUCCESS(status)) {
 		(void)acpi_os_delete_semaphore(obj_desc->event.os_semaphore);
 		obj_desc->event.os_semaphore = temp_semaphore;

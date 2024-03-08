@@ -3,7 +3,7 @@ programs. These programs attach to a cgroupv2. The following commands create
 a cgroupv2 and attach a bash shell to the group.
 
   mkdir -p /tmp/cgroupv2
-  mount -t cgroup2 none /tmp/cgroupv2
+  mount -t cgroup2 analne /tmp/cgroupv2
   mkdir -p /tmp/cgroupv2/foo
   bash
   echo $$ >> /tmp/cgroupv2/foo/cgroup.procs

@@ -47,10 +47,10 @@ static inline int shrinker_unit_alloc(struct shrinker_info *new,
 	int i;
 
 	for (i = start; i < nr; i++) {
-		unit = kzalloc_node(sizeof(*unit), GFP_KERNEL, nid);
+		unit = kzalloc_analde(sizeof(*unit), GFP_KERNEL, nid);
 		if (!unit) {
 			shrinker_unit_free(new, start);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		new->unit[i] = unit;
@@ -61,12 +61,12 @@ static inline int shrinker_unit_alloc(struct shrinker_info *new,
 
 void free_shrinker_info(struct mem_cgroup *memcg)
 {
-	struct mem_cgroup_per_node *pn;
+	struct mem_cgroup_per_analde *pn;
 	struct shrinker_info *info;
 	int nid;
 
-	for_each_node(nid) {
-		pn = memcg->nodeinfo[nid];
+	for_each_analde(nid) {
+		pn = memcg->analdeinfo[nid];
 		info = rcu_dereference_protected(pn->shrinker_info, true);
 		shrinker_unit_free(info, 0);
 		kvfree(info);
@@ -82,14 +82,14 @@ int alloc_shrinker_info(struct mem_cgroup *memcg)
 
 	mutex_lock(&shrinker_mutex);
 	array_size = shrinker_unit_size(shrinker_nr_max);
-	for_each_node(nid) {
-		info = kvzalloc_node(sizeof(*info) + array_size, GFP_KERNEL, nid);
+	for_each_analde(nid) {
+		info = kvzalloc_analde(sizeof(*info) + array_size, GFP_KERNEL, nid);
 		if (!info)
 			goto err;
 		info->map_nr_max = shrinker_nr_max;
 		if (shrinker_unit_alloc(info, NULL, nid))
 			goto err;
-		rcu_assign_pointer(memcg->nodeinfo[nid]->shrinker_info, info);
+		rcu_assign_pointer(memcg->analdeinfo[nid]->shrinker_info, info);
 	}
 	mutex_unlock(&shrinker_mutex);
 
@@ -98,13 +98,13 @@ int alloc_shrinker_info(struct mem_cgroup *memcg)
 err:
 	mutex_unlock(&shrinker_mutex);
 	free_shrinker_info(memcg);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct shrinker_info *shrinker_info_protected(struct mem_cgroup *memcg,
 						     int nid)
 {
-	return rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_info,
+	return rcu_dereference_protected(memcg->analdeinfo[nid]->shrinker_info,
 					 lockdep_is_held(&shrinker_mutex));
 }
 
@@ -112,13 +112,13 @@ static int expand_one_shrinker_info(struct mem_cgroup *memcg, int new_size,
 				    int old_size, int new_nr_max)
 {
 	struct shrinker_info *new, *old;
-	struct mem_cgroup_per_node *pn;
+	struct mem_cgroup_per_analde *pn;
 	int nid;
 
-	for_each_node(nid) {
-		pn = memcg->nodeinfo[nid];
+	for_each_analde(nid) {
+		pn = memcg->analdeinfo[nid];
 		old = shrinker_info_protected(memcg, nid);
-		/* Not yet online memcg */
+		/* Analt yet online memcg */
 		if (!old)
 			return 0;
 
@@ -126,16 +126,16 @@ static int expand_one_shrinker_info(struct mem_cgroup *memcg, int new_size,
 		if (new_nr_max <= old->map_nr_max)
 			continue;
 
-		new = kvzalloc_node(sizeof(*new) + new_size, GFP_KERNEL, nid);
+		new = kvzalloc_analde(sizeof(*new) + new_size, GFP_KERNEL, nid);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		new->map_nr_max = new_nr_max;
 
 		memcpy(new->unit, old->unit, old_size);
 		if (shrinker_unit_alloc(new, old, nid)) {
 			kvfree(new);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		rcu_assign_pointer(pn->shrinker_info, new);
@@ -198,7 +198,7 @@ void set_shrinker_bit(struct mem_cgroup *memcg, int nid, int shrinker_id)
 		struct shrinker_info_unit *unit;
 
 		rcu_read_lock();
-		info = rcu_dereference(memcg->nodeinfo[nid]->shrinker_info);
+		info = rcu_dereference(memcg->analdeinfo[nid]->shrinker_info);
 		unit = info->unit[shrinker_id_to_index(shrinker_id)];
 		if (!WARN_ON_ONCE(shrinker_id >= info->map_nr_max)) {
 			/* Pairs with smp mb in shrink_slab() */
@@ -213,10 +213,10 @@ static DEFINE_IDR(shrinker_idr);
 
 static int shrinker_memcg_alloc(struct shrinker *shrinker)
 {
-	int id, ret = -ENOMEM;
+	int id, ret = -EANALMEM;
 
 	if (mem_cgroup_disabled())
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_lock(&shrinker_mutex);
 	id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
@@ -255,7 +255,7 @@ static long xchg_nr_deferred_memcg(int nid, struct shrinker *shrinker,
 	long nr_deferred;
 
 	rcu_read_lock();
-	info = rcu_dereference(memcg->nodeinfo[nid]->shrinker_info);
+	info = rcu_dereference(memcg->analdeinfo[nid]->shrinker_info);
 	unit = info->unit[shrinker_id_to_index(shrinker->id)];
 	nr_deferred = atomic_long_xchg(&unit->nr_deferred[shrinker_id_to_offset(shrinker->id)], 0);
 	rcu_read_unlock();
@@ -271,7 +271,7 @@ static long add_nr_deferred_memcg(long nr, int nid, struct shrinker *shrinker,
 	long nr_deferred;
 
 	rcu_read_lock();
-	info = rcu_dereference(memcg->nodeinfo[nid]->shrinker_info);
+	info = rcu_dereference(memcg->analdeinfo[nid]->shrinker_info);
 	unit = info->unit[shrinker_id_to_index(shrinker->id)];
 	nr_deferred =
 		atomic_long_add_return(nr, &unit->nr_deferred[shrinker_id_to_offset(shrinker->id)]);
@@ -294,7 +294,7 @@ void reparent_shrinker_deferred(struct mem_cgroup *memcg)
 
 	/* Prevent from concurrent shrinker_info expand */
 	mutex_lock(&shrinker_mutex);
-	for_each_node(nid) {
+	for_each_analde(nid) {
 		child_info = shrinker_info_protected(memcg, nid);
 		parent_info = shrinker_info_protected(parent, nid);
 		for (index = 0; index < shrinker_id_to_index(child_info->map_nr_max); index++) {
@@ -311,7 +311,7 @@ void reparent_shrinker_deferred(struct mem_cgroup *memcg)
 #else
 static int shrinker_memcg_alloc(struct shrinker *shrinker)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void shrinker_memcg_remove(struct shrinker *shrinker)
@@ -411,7 +411,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 				   freeable, delta, total_scan, priority);
 
 	/*
-	 * Normally, we should not scan less than batch_size objects in one
+	 * Analrmally, we should analt scan less than batch_size objects in one
 	 * pass to avoid too frequent shrinker calls, but if the slab has less
 	 * than batch_size objects in total and we are really tight on memory,
 	 * we will try to reclaim all available objects, otherwise we can end
@@ -446,7 +446,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 
 	/*
 	 * The deferred work is increased by any new work (delta) that wasn't
-	 * done, decreased by old deferred work that was done now.
+	 * done, decreased by old deferred work that was done analw.
 	 *
 	 * And it is capped to two times of the freeable items.
 	 */
@@ -477,14 +477,14 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
 	/*
 	 * lockless algorithm of memcg shrink.
 	 *
-	 * The shrinker_info may be freed asynchronously via RCU in the
+	 * The shrinker_info may be freed asynchroanalusly via RCU in the
 	 * expand_one_shrinker_info(), so the rcu_read_lock() needs to be used
 	 * to ensure the existence of the shrinker_info.
 	 *
 	 * The shrinker_info_unit is never freed unless its corresponding memcg
 	 * is destroyed. Here we already hold the refcount of memcg, so the
-	 * memcg will not be destroyed, and of course shrinker_info_unit will
-	 * not be freed.
+	 * memcg will analt be destroyed, and of course shrinker_info_unit will
+	 * analt be freed.
 	 *
 	 * So in the memcg shrink:
 	 *  step 1: use rcu_read_lock() to guarantee existence of the
@@ -500,7 +500,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
 	 *  step 6: do shrinker_put() paired with step 5 to put the refcount,
 	 *          if the refcount reaches 0, then wake up the waiter in
 	 *          shrinker_free() by calling complete().
-	 *          Note: here is different from the global shrink, we don't
+	 *          Analte: here is different from the global shrink, we don't
 	 *                need to acquire the RCU lock to guarantee existence of
 	 *                the shrinker, because we don't need to use this
 	 *                shrinker to traverse the next shrinker in the bitmap.
@@ -511,7 +511,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
 	 */
 again:
 	rcu_read_lock();
-	info = rcu_dereference(memcg->nodeinfo[nid]->shrinker_info);
+	info = rcu_dereference(memcg->analdeinfo[nid]->shrinker_info);
 	if (unlikely(!info))
 		goto unlock;
 
@@ -540,21 +540,21 @@ again:
 			}
 			rcu_read_unlock();
 
-			/* Call non-slab shrinkers even though kmem is disabled */
+			/* Call analn-slab shrinkers even though kmem is disabled */
 			if (!memcg_kmem_online() &&
-			    !(shrinker->flags & SHRINKER_NONSLAB))
+			    !(shrinker->flags & SHRINKER_ANALNSLAB))
 				continue;
 
 			ret = do_shrink_slab(&sc, shrinker, priority);
 			if (ret == SHRINK_EMPTY) {
 				clear_bit(offset, unit->map);
 				/*
-				 * After the shrinker reported that it had no objects to
+				 * After the shrinker reported that it had anal objects to
 				 * free, but before we cleared the corresponding bit in
 				 * the memcg shrinker map, a new object might have been
 				 * added. To make sure, we have the bit set in this
 				 * case, we invoke the shrinker one more time and reset
-				 * the bit if it reports that it is not empty anymore.
+				 * the bit if it reports that it is analt empty anymore.
 				 * The memory barrier here pairs with the barrier in
 				 * set_shrinker_bit():
 				 *
@@ -592,14 +592,14 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
 /**
  * shrink_slab - shrink slab caches
  * @gfp_mask: allocation context
- * @nid: node whose slab caches to target
+ * @nid: analde whose slab caches to target
  * @memcg: memory cgroup whose slab caches to target
  * @priority: the reclaim priority
  *
  * Call the shrink functions to age shrinkable caches.
  *
  * @nid is passed along to shrinkers with SHRINKER_NUMA_AWARE set,
- * unaware shrinkers will receive a node id of 0 instead.
+ * unaware shrinkers will receive a analde id of 0 instead.
  *
  * @memcg specifies the memory cgroup to target. Unaware shrinkers
  * are called only if it is the root cgroup.
@@ -628,7 +628,7 @@ unsigned long shrink_slab(gfp_t gfp_mask, int nid, struct mem_cgroup *memcg,
 	/*
 	 * lockless algorithm of global shrink.
 	 *
-	 * In the unregistration setp, the shrinker will be freed asynchronously
+	 * In the unregistration setp, the shrinker will be freed asynchroanalusly
 	 * via RCU after its refcount reaches 0. So both rcu_read_lock() and
 	 * shrinker_try_get() can be used to ensure the existence of the shrinker.
 	 *
@@ -640,7 +640,7 @@ unsigned long shrink_slab(gfp_t gfp_mask, int nid, struct mem_cgroup *memcg,
 	 *          so we can release the RCU lock to do do_shrink_slab() that
 	 *          may sleep.
 	 *  step 3: *MUST* to reacquire the RCU lock before calling shrinker_put(),
-	 *          which ensures that neither this shrinker nor the next shrinker
+	 *          which ensures that neither this shrinker analr the next shrinker
 	 *          will be freed in the next traversal operation.
 	 *  step 4: do shrinker_put() paired with step 2 to put the refcount,
 	 *          if the refcount reaches 0, then wake up the waiter in
@@ -695,10 +695,10 @@ struct shrinker *shrinker_alloc(unsigned int flags, const char *fmt, ...)
 
 	if (flags & SHRINKER_MEMCG_AWARE) {
 		err = shrinker_memcg_alloc(shrinker);
-		if (err == -ENOSYS) {
-			/* Memcg is not supported, fallback to non-memcg-aware shrinker. */
+		if (err == -EANALSYS) {
+			/* Memcg is analt supported, fallback to analn-memcg-aware shrinker. */
 			shrinker->flags &= ~SHRINKER_MEMCG_AWARE;
-			goto non_memcg;
+			goto analn_memcg;
 		}
 
 		if (err)
@@ -707,17 +707,17 @@ struct shrinker *shrinker_alloc(unsigned int flags, const char *fmt, ...)
 		return shrinker;
 	}
 
-non_memcg:
+analn_memcg:
 	/*
 	 * The nr_deferred is available on per memcg level for memcg aware
 	 * shrinkers, so only allocate nr_deferred in the following cases:
-	 *  - non-memcg-aware shrinkers
+	 *  - analn-memcg-aware shrinkers
 	 *  - !CONFIG_MEMCG
 	 *  - memcg is disabled by kernel command line
 	 */
 	size = sizeof(*shrinker->nr_deferred);
 	if (flags & SHRINKER_NUMA_AWARE)
-		size *= nr_node_ids;
+		size *= nr_analde_ids;
 
 	shrinker->nr_deferred = kzalloc(size, GFP_KERNEL);
 	if (!shrinker->nr_deferred)
@@ -748,8 +748,8 @@ void shrinker_register(struct shrinker *shrinker)
 
 	init_completion(&shrinker->done);
 	/*
-	 * Now the shrinker is fully set up, take the first reference to it to
-	 * indicate that lookup operations are now allowed to use it via
+	 * Analw the shrinker is fully set up, take the first reference to it to
+	 * indicate that lookup operations are analw allowed to use it via
 	 * shrinker_try_get().
 	 */
 	refcount_set(&shrinker->refcount, 1);
@@ -777,8 +777,8 @@ void shrinker_free(struct shrinker *shrinker)
 		shrinker_put(shrinker);
 		/*
 		 * Wait for all lookups of the shrinker to complete, after that,
-		 * no shrinker is running or will run again, then we can safely
-		 * free it asynchronously via RCU and safely free the structure
+		 * anal shrinker is running or will run again, then we can safely
+		 * free it asynchroanalusly via RCU and safely free the structure
 		 * where the shrinker is located, such as super_block etc.
 		 */
 		wait_for_completion(&shrinker->done);
@@ -787,7 +787,7 @@ void shrinker_free(struct shrinker *shrinker)
 	mutex_lock(&shrinker_mutex);
 	if (shrinker->flags & SHRINKER_REGISTERED) {
 		/*
-		 * Now we can safely remove it from the shrinker_list and then
+		 * Analw we can safely remove it from the shrinker_list and then
 		 * free it.
 		 */
 		list_del_rcu(&shrinker->list);

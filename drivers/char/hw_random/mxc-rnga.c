@@ -110,7 +110,7 @@ static int mxc_rnga_init(struct hwrng *rng)
 	osc = __raw_readl(mxc_rng->mem + RNGA_STATUS);
 	if (osc & RNGA_STATUS_OSC_DEAD) {
 		dev_err(mxc_rng->dev, "RNGA Oscillator is dead!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* go running */
@@ -138,7 +138,7 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 
 	mxc_rng = devm_kzalloc(&pdev->dev, sizeof(*mxc_rng), GFP_KERNEL);
 	if (!mxc_rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mxc_rng->dev = &pdev->dev;
 	mxc_rng->rng.name = "mxc-rnga";
@@ -149,7 +149,7 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 
 	mxc_rng->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mxc_rng->clk)) {
-		dev_err(&pdev->dev, "Could not get rng_clk!\n");
+		dev_err(&pdev->dev, "Could analt get rng_clk!\n");
 		return PTR_ERR(mxc_rng->clk);
 	}
 

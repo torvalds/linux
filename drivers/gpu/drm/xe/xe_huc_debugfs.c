@@ -25,14 +25,14 @@ huc_to_xe(struct xe_huc *huc)
 	return gt_to_xe(huc_to_gt(huc));
 }
 
-static struct xe_huc *node_to_huc(struct drm_info_node *node)
+static struct xe_huc *analde_to_huc(struct drm_info_analde *analde)
 {
-	return node->info_ent->data;
+	return analde->info_ent->data;
 }
 
 static int huc_info(struct seq_file *m, void *data)
 {
-	struct xe_huc *huc = node_to_huc(m->private);
+	struct xe_huc *huc = analde_to_huc(m->private);
 	struct xe_device *xe = huc_to_xe(huc);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -49,7 +49,7 @@ static const struct drm_info_list debugfs_list[] = {
 
 void xe_huc_debugfs_register(struct xe_huc *huc, struct dentry *parent)
 {
-	struct drm_minor *minor = huc_to_xe(huc)->drm.primary;
+	struct drm_mianalr *mianalr = huc_to_xe(huc)->drm.primary;
 	struct drm_info_list *local;
 	int i;
 
@@ -66,5 +66,5 @@ void xe_huc_debugfs_register(struct xe_huc *huc, struct dentry *parent)
 
 	drm_debugfs_create_files(local,
 				 ARRAY_SIZE(debugfs_list),
-				 parent, minor);
+				 parent, mianalr);
 }

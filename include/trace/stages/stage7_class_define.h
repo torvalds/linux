@@ -26,7 +26,7 @@
 #undef __get_buf
 
 /*
- * The below is not executed in the kernel. It is only what is
+ * The below is analt executed in the kernel. It is only what is
  * displayed in the print format for userspace to parse.
  */
 #undef __print_ns_to_secs

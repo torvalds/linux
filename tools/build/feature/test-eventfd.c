@@ -5,5 +5,5 @@
 
 int main(void)
 {
-	return eventfd(0, EFD_NONBLOCK);
+	return eventfd(0, EFD_ANALNBLOCK);
 }

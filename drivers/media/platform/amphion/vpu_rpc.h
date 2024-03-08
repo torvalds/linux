@@ -205,7 +205,7 @@ static inline int vpu_iface_init(struct vpu_core *core,
 	core->iface = shared;
 	shared->core = core;
 	if (rpc->bytesused > rpc->length)
-		return -ENOSPC;
+		return -EANALSPC;
 	return 0;
 }
 

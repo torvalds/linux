@@ -173,7 +173,7 @@ static void sru_try_format(struct vsp1_sru *sru,
 
 	switch (pad) {
 	case SRU_PAD_SINK:
-		/* Default to YUV if the requested format is not supported. */
+		/* Default to YUV if the requested format is analt supported. */
 		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
 			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
@@ -189,7 +189,7 @@ static void sru_try_format(struct vsp1_sru *sru,
 		fmt->code = format->code;
 
 		/*
-		 * We can upscale by 2 in both direction, but not independently.
+		 * We can upscale by 2 in both direction, but analt independently.
 		 * Compare the input and output rectangles areas (avoiding
 		 * integer overflows on the output): if the requested output
 		 * area is larger than 1.5^2 the input area upscale by two,
@@ -211,7 +211,7 @@ static void sru_try_format(struct vsp1_sru *sru,
 		break;
 	}
 
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
@@ -364,7 +364,7 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 
 	sru = devm_kzalloc(vsp1->dev, sizeof(*sru), GFP_KERNEL);
 	if (sru == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sru->entity.ops = &sru_entity_ops;
 	sru->entity.type = VSP1_ENTITY_SRU;

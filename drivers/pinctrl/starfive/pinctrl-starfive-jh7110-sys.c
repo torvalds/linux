@@ -3,7 +3,7 @@
  * Pinctrl / GPIO driver for StarFive JH7110 SoC sys controller
  *
  * Copyright (C) 2022 Emil Renner Berthing <kernel@esmil.dk>
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/bits.h>

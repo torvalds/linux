@@ -88,7 +88,7 @@ struct onenand_chip {
 	unsigned int		chipsize;
 	unsigned int		device_id;
 	unsigned int		version_id;
-	unsigned int		technology;
+	unsigned int		techanallogy;
 	unsigned int		density_mask;
 	unsigned int		options;
 	unsigned int		badblockpos;
@@ -168,7 +168,7 @@ struct onenand_chip {
 	(this->device_id & ONENAND_DEVICE_IS_DDP)
 
 #define ONENAND_IS_MLC(this)						\
-	(this->technology & ONENAND_TECHNOLOGY_IS_MLC)
+	(this->techanallogy & ONENAND_TECHANALLOGY_IS_MLC)
 
 #ifdef CONFIG_MTD_ONENAND_2X_PROGRAM
 #define ONENAND_IS_2PLANE(this)						\
@@ -180,8 +180,8 @@ struct onenand_chip {
 #define ONENAND_IS_CACHE_PROGRAM(this)					\
 	(this->options & ONENAND_HAS_CACHE_PROGRAM)
 
-#define ONENAND_IS_NOP_1(this)						\
-	(this->options & ONENAND_HAS_NOP_1)
+#define ONENAND_IS_ANALP_1(this)						\
+	(this->options & ONENAND_HAS_ANALP_1)
 
 /* Check byte access in OneNAND */
 #define ONENAND_CHECK_BYTE_ACCESS(addr)		(addr & 0x1)
@@ -196,7 +196,7 @@ struct onenand_chip {
 #define ONENAND_HAS_2PLANE		(0x0004)
 #define ONENAND_HAS_4KB_PAGE		(0x0008)
 #define ONENAND_HAS_CACHE_PROGRAM	(0x0010)
-#define ONENAND_HAS_NOP_1		(0x0020)
+#define ONENAND_HAS_ANALP_1		(0x0020)
 #define ONENAND_SKIP_UNLOCK_CHECK	(0x0100)
 #define ONENAND_PAGEBUF_ALLOC		(0x1000)
 #define ONENAND_OOBBUF_ALLOC		(0x2000)

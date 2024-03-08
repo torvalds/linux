@@ -154,7 +154,7 @@ static int __init bcm63xx_register_pcie(void)
 	/* enable clock */
 	pcie_clk = clk_get(NULL, "pcie");
 	if (IS_ERR_OR_NULL(pcie_clk))
-		return -ENODEV;
+		return -EANALDEV;
 
 	clk_prepare_enable(pcie_clk);
 
@@ -179,14 +179,14 @@ static int __init bcm63xx_register_pcie(void)
 	val |= OPT2_UBUS_UR_DECODE_DIS;
 
 	/* set device bus/func for the pcie device */
-	val |= (PCIE_BUS_DEVICE << OPT2_CFG_TYPE1_BUS_NO_SHIFT);
+	val |= (PCIE_BUS_DEVICE << OPT2_CFG_TYPE1_BUS_ANAL_SHIFT);
 	val |= OPT2_CFG_TYPE1_BD_SEL;
 	bcm_pcie_writel(val, PCIE_BRIDGE_OPT2_REG);
 
 	/* setup class code as bridge */
 	val = bcm_pcie_readl(PCIE_IDVAL3_REG);
 	val &= ~IDVAL3_CLASS_CODE_MASK;
-	val |= PCI_CLASS_BRIDGE_PCI_NORMAL;
+	val |= PCI_CLASS_BRIDGE_PCI_ANALRMAL;
 	bcm_pcie_writel(val, PCIE_IDVAL3_REG);
 
 	/* disable bar1 size */
@@ -216,14 +216,14 @@ static int __init bcm63xx_register_pci(void)
 	 * configuration  access are  done through  IO space,  remap 4
 	 * first bytes to access it from CPU.
 	 *
-	 * this means that  no io access from CPU  should happen while
-	 * we do a configuration cycle,	 but there's no way we can add
+	 * this means that  anal io access from CPU  should happen while
+	 * we do a configuration cycle,	 but there's anal way we can add
 	 * a spinlock for each io access, so this is currently kind of
 	 * broken on SMP.
 	 */
 	pci_iospace_start = ioremap(BCM_PCI_IO_BASE_PA, 4);
 	if (!pci_iospace_start)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* setup local bus to PCI access (PCI memory) */
 	val = BCM_PCI_MEM_BASE_PA & MPI_L2P_BASE_MASK;
@@ -251,8 +251,8 @@ static int __init bcm63xx_register_pci(void)
 #endif
 
 	/* setup local bus  to PCI access (IO memory),	we have only 1
-	 * IO window  for both PCI  and cardbus, but it	 cannot handle
-	 * both	 at the	 same time,  assume standard  PCI for  now, if
+	 * IO window  for both PCI  and cardbus, but it	 cananalt handle
+	 * both	 at the	 same time,  assume standard  PCI for  analw, if
 	 * cardbus card has  IO zone, PCI fixup will  change window to
 	 * cardbus */
 	val = BCM_PCI_IO_BASE_PA & MPI_L2P_BASE_MASK;
@@ -282,7 +282,7 @@ static int __init bcm63xx_register_pci(void)
 	if (BCMCPU_IS_6348() && (bcm63xx_get_cpu_rev() & 0xf0) == 0xa0) {
 		if (mem_size > (16 * 1024 * 1024))
 			printk(KERN_WARNING "bcm63xx: this CPU "
-			       "revision cannot handle more than 16MB "
+			       "revision cananalt handle more than 16MB "
 			       "of RAM for PCI bus mastering\n");
 	} else {
 		/* setup sp0 range to local RAM size */
@@ -305,8 +305,8 @@ static int __init bcm63xx_register_pci(void)
 	/* enable read prefetching & disable byte swapping for bus
 	 * mastering transfers */
 	val = bcm_mpi_readl(MPI_PCIMODESEL_REG);
-	val &= ~MPI_PCIMODESEL_BAR1_NOSWAP_MASK;
-	val &= ~MPI_PCIMODESEL_BAR2_NOSWAP_MASK;
+	val &= ~MPI_PCIMODESEL_BAR1_ANALSWAP_MASK;
+	val &= ~MPI_PCIMODESEL_BAR2_ANALSWAP_MASK;
 	val &= ~MPI_PCIMODESEL_PREFETCH_MASK;
 	val |= (8 << MPI_PCIMODESEL_PREFETCH_SHIFT);
 	bcm_mpi_writel(val, MPI_PCIMODESEL_REG);
@@ -332,7 +332,7 @@ static int __init bcm63xx_register_pci(void)
 static int __init bcm63xx_pci_init(void)
 {
 	if (!bcm63xx_pci_enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (bcm63xx_get_cpu_id()) {
 	case BCM6328_CPU_ID:
@@ -344,7 +344,7 @@ static int __init bcm63xx_pci_init(void)
 	case BCM6368_CPU_ID:
 		return bcm63xx_register_pci();
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 

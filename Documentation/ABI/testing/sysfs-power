@@ -7,7 +7,7 @@ Description:
 		subsystem.
 
 What:		/sys/power/state
-Date:		November 2016
+Date:		Analvember 2016
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/state file controls system sleep states.
@@ -22,7 +22,7 @@ Description:
 		information.
 
 What:		/sys/power/mem_sleep
-Date:		November 2016
+Date:		Analvember 2016
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/mem_sleep file controls the operating mode of
@@ -66,12 +66,12 @@ Description:
 		two testing modes of the suspend-to-disk mechanism: 'testproc'
 		or 'test'.  If the suspend-to-disk mechanism is in the
 		'testproc' mode, writing 'disk' to /sys/power/state will cause
-		the kernel to disable nonboot CPUs and freeze tasks, wait for 5
-		seconds, unfreeze tasks and enable nonboot CPUs.  If it is in
+		the kernel to disable analnboot CPUs and freeze tasks, wait for 5
+		seconds, unfreeze tasks and enable analnboot CPUs.  If it is in
 		the 'test' mode, writing 'disk' to /sys/power/state will cause
-		the kernel to disable nonboot CPUs and freeze tasks, shrink
+		the kernel to disable analnboot CPUs and freeze tasks, shrink
 		memory, suspend devices, wait for 5 seconds, resume devices,
-		unfreeze tasks and enable nonboot CPUs.  Then, we are able to
+		unfreeze tasks and enable analnboot CPUs.  Then, we are able to
 		look in the log messages and work out, for example, which code
 		is being slow and which device drivers are misbehaving.
 
@@ -94,10 +94,10 @@ Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/image_size file controls the size of the image
 		created by the suspend-to-disk mechanism.  It can be written a
-		string representing a non-negative integer that will be used
+		string representing a analn-negative integer that will be used
 		as an upper limit of the image size, in bytes.  The kernel's
 		suspend-to-disk code will do its best to ensure the image size
-		will not exceed this number.  However, if it turns out to be
+		will analt exceed this number.  However, if it turns out to be
 		impossible, the kernel will try to suspend anyway using the
 		smallest image possible.  In particular, if "0" is written to
 		this file, the suspend image will be as small as possible.
@@ -115,14 +115,14 @@ Description:
 		commonly, during resume).  Namely, the RTC is only used to save
 		the last PM event point if this file contains '1'.  Initially
 		it contains '0' which may be changed to '1' by writing a
-		string representing a nonzero integer into it.
+		string representing a analnzero integer into it.
 
 		To use this debugging feature you should attempt to suspend
 		the machine, then reboot it and run::
 
 		  dmesg -s 1000000 | grep 'hash matches'
 
-		If you do not get any matches (or they appear to be false
+		If you do analt get any matches (or they appear to be false
 		positives), it is possible that the last PM event point
 		referred to a device created by a loadable kernel module.  In
 		this case cat /sys/power/pm_trace_dev_match (see below) after
@@ -150,8 +150,8 @@ Description:
 		Due to the small hash size necessary to fit in the RTC, it is
 		possible that more than one device matches the hash, in which
 		case further investigation is required to determine which
-		device is causing the problem.  Note that genuine RTC clock
-		values (such as when pm_trace has not been used), can still
+		device is causing the problem.  Analte that genuine RTC clock
+		values (such as when pm_trace has analt been used), can still
 		match a device and output its name here.
 
 What:		/sys/power/pm_async
@@ -159,13 +159,13 @@ Date:		January 2009
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/pm_async file controls the switch allowing the
-		user space to enable or disable asynchronous suspend and resume
+		user space to enable or disable asynchroanalus suspend and resume
 		of devices.  If enabled, this feature will cause some device
 		drivers' suspend and resume callbacks to be executed in parallel
 		with each other and with the main suspend thread.  It is enabled
 		if this file contains "1", which is the default.  It may be
 		disabled by writing "0" to this file, in which case all devices
-		will be suspended and resumed synchronously.
+		will be suspended and resumed synchroanalusly.
 
 What:		/sys/power/wakeup_count
 Date:		July 2010
@@ -189,7 +189,7 @@ Description:
 		The /sys/power/reserved_size file allows user space to control
 		the amount of memory reserved for allocations made by device
 		drivers during the "device freeze" stage of hibernation.  It can
-		be written a string representing a non-negative integer that
+		be written a string representing a analn-negative integer that
 		will be used as the amount of memory to reserve for allocations
 		made by device drivers' "freeze" callbacks, in bytes.
 
@@ -204,9 +204,9 @@ Description:
 		returned by reads from /sys/power/state.  If that happens, a
 		work item attempting to trigger a transition of the system to
 		the sleep state represented by that string is queued up.  This
-		attempt will only succeed if there are no active wakeup sources
+		attempt will only succeed if there are anal active wakeup sources
 		in the system at that time.  After every execution, regardless
-		of whether or not the attempt to put the system to sleep has
+		of whether or analt the attempt to put the system to sleep has
 		succeeded, the work item requeues itself until user space
 		writes "off" to /sys/power/autosleep.
 
@@ -230,7 +230,7 @@ Description:
 		space, the part of the string preceding the white space will be
 		regarded as a wakeup source name and handled as descrived above.
 		The other part of the string will be regarded as a timeout (in
-		nanoseconds) such that the wakeup source will be automatically
+		naanalseconds) such that the wakeup source will be automatically
 		deactivated after it has expired.  The timeout, if present, is
 		set regardless of the current state of the wakeup source object
 		in question.
@@ -278,7 +278,7 @@ Description:
 		interrupt from an IRQ line armed for system wakeup) seen by the
 		kernel during the most recent system suspend/resume cycle.
 
-		This output is useful for system wakeup diagnostics of spurious
+		This output is useful for system wakeup diaganalstics of spurious
 		wakeup interrupts.
 
 What:		/sys/power/pm_debug_messages
@@ -340,7 +340,7 @@ Date:		July 2019
 Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
 Description:
 		The /sys/power/suspend_stats/failed_prepare file contains the
-		number of times preparing all non-sysdev devices for
+		number of times preparing all analn-sysdev devices for
 		a system PM transition failed.
 
 What:		/sys/power/suspend_stats/failed_resume
@@ -349,7 +349,7 @@ Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
 Description:
 		The /sys/power/suspend_stats/failed_resume file contains the
 		number of times executing "resume" callbacks of
-		non-sysdev devices failed.
+		analn-sysdev devices failed.
 
 What:		/sys/power/suspend_stats/failed_resume_early
 Date:		July 2019
@@ -359,12 +359,12 @@ Description:
 		the number of times executing "early resume" callbacks
 		of devices failed.
 
-What:		/sys/power/suspend_stats/failed_resume_noirq
+What:		/sys/power/suspend_stats/failed_resume_analirq
 Date:		July 2019
 Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
 Description:
-		The /sys/power/suspend_stats/failed_resume_noirq file contains
-		the number of times executing "noirq resume" callbacks
+		The /sys/power/suspend_stats/failed_resume_analirq file contains
+		the number of times executing "analirq resume" callbacks
 		of devices failed.
 
 What:		/sys/power/suspend_stats/failed_suspend
@@ -373,7 +373,7 @@ Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
 Description:
 		The /sys/power/suspend_stats/failed_suspend file contains
 		the number of times executing "suspend" callbacks
-		of all non-sysdev devices failed.
+		of all analn-sysdev devices failed.
 
 What:		/sys/power/suspend_stats/failed_suspend_late
 Date:		July 2019
@@ -383,12 +383,12 @@ Description:
 		the number of times executing "late suspend" callbacks
 		of all devices failed.
 
-What:		/sys/power/suspend_stats/failed_suspend_noirq
+What:		/sys/power/suspend_stats/failed_suspend_analirq
 Date:		July 2019
 Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
 Description:
-		The /sys/power/suspend_stats/failed_suspend_noirq file contains
-		the number of times executing "noirq suspend" callbacks
+		The /sys/power/suspend_stats/failed_suspend_analirq file contains
+		the number of times executing "analirq suspend" callbacks
 		of all devices failed.
 
 What:		/sys/power/suspend_stats/last_failed_dev
@@ -398,12 +398,12 @@ Description:
 		The /sys/power/suspend_stats/last_failed_dev file contains
 		the last device for which a suspend/resume callback failed.
 
-What:		/sys/power/suspend_stats/last_failed_errno
+What:		/sys/power/suspend_stats/last_failed_erranal
 Date:		July 2019
 Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
 Description:
-		The /sys/power/suspend_stats/last_failed_errno file contains
-		the errno of the last failed attempt at entering
+		The /sys/power/suspend_stats/last_failed_erranal file contains
+		the erranal of the last failed attempt at entering
 		system sleep state.
 
 What:		/sys/power/suspend_stats/last_failed_step
@@ -439,14 +439,14 @@ Description:
 		contains the maximum amount of time that the hardware can
 		report for time spent in a hardware sleep state. When sleep
 		cycles are longer than this time, the values for
-		'total_hw_sleep' and 'last_hw_sleep' may not be accurate.
+		'total_hw_sleep' and 'last_hw_sleep' may analt be accurate.
 		This number is measured in microseconds.
 
 What:		/sys/power/sync_on_suspend
 Date:		October 2019
 Contact:	Jonas Meurer <jonas@freesources.org>
 Description:
-		This file controls whether or not the kernel will sync()
+		This file controls whether or analt the kernel will sync()
 		filesystems during system suspend (after freezing user space
 		and before suspending devices).
 

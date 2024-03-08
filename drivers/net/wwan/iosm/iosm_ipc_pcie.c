@@ -44,7 +44,7 @@ static void ipc_pcie_cleanup(struct iosm_pcie *ipc_pcie)
 
 	ipc_pcie_resources_release(ipc_pcie);
 
-	/* Signal to the system that the PCI device is not in use. */
+	/* Signal to the system that the PCI device is analt in use. */
 	pci_disable_device(ipc_pcie->pci);
 }
 
@@ -164,7 +164,7 @@ bool ipc_pcie_check_data_link_active(struct iosm_pcie *ipc_pcie)
 	u16 link_status = 0;
 
 	if (!ipc_pcie->pci->bus || !ipc_pcie->pci->bus->self) {
-		dev_err(ipc_pcie->dev, "root port not found");
+		dev_err(ipc_pcie->dev, "root port analt found");
 		return false;
 	}
 
@@ -190,7 +190,7 @@ static bool ipc_pcie_check_aspm_supported(struct iosm_pcie *ipc_pcie,
 	pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &cap);
 	support = u32_get_bits(cap, PCI_EXP_LNKCAP_ASPMS);
 	if (support < PCI_EXP_LNKCTL_ASPM_L1) {
-		dev_dbg(ipc_pcie->dev, "ASPM L1 not supported: 0x%04X",
+		dev_dbg(ipc_pcie->dev, "ASPM L1 analt supported: 0x%04X",
 			pdev->device);
 		return false;
 	}
@@ -238,7 +238,7 @@ static enum ipc_pcie_sleep_state ipc_pcie_read_bios_cfg(struct device *dev)
 
 	handle_acpi = ACPI_HANDLE(dev);
 	if (!handle_acpi) {
-		pr_debug("pci device is NOT ACPI supporting device\n");
+		pr_debug("pci device is ANALT ACPI supporting device\n");
 		goto default_ret;
 	}
 
@@ -294,7 +294,7 @@ static int ipc_pcie_probe(struct pci_dev *pci,
 
 	ret = dma_set_mask(ipc_pcie->dev, DMA_BIT_MASK(64));
 	if (ret) {
-		dev_err(ipc_pcie->dev, "Could not set PCI DMA mask: %d", ret);
+		dev_err(ipc_pcie->dev, "Could analt set PCI DMA mask: %d", ret);
 		goto set_mask_fail;
 	}
 

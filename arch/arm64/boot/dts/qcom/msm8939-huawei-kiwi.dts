@@ -6,7 +6,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Huawei Honor 5X / GR5 (2016)";
+	model = "Huawei Hoanalr 5X / GR5 (2016)";
 	compatible = "huawei,kiwi", "qcom,msm8939";
 	chassis-type = "handset";
 
@@ -23,7 +23,7 @@
 	reserved-memory {
 		qseecom_mem: qseecom@84a00000 {
 			reg = <0x0 0x84a00000 0x0 0x1600000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -114,7 +114,7 @@
 		reset-gpios = <&tlmm 12 GPIO_ACTIVE_LOW>;
 
 		/*
-		 * NOTE: vdd is not directly supplied by pm8916_l16, it seems to be a
+		 * ANALTE: vdd is analt directly supplied by pm8916_l16, it seems to be a
 		 * fixed regulator that is automatically enabled by pm8916_l16.
 		 */
 		vdd-supply = <&pm8916_l16>;

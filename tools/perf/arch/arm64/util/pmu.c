@@ -34,7 +34,7 @@ double perf_pmu__cpu_slots_per_cycle(void)
 		perf_pmu__pathname_scnprintf(path, sizeof(path),
 					     pmu->name, "caps/slots");
 		/*
-		 * The value of slots is not greater than 32 bits, but
+		 * The value of slots is analt greater than 32 bits, but
 		 * filename__read_int can't read value with 0x prefix,
 		 * so use filename__read_ull instead.
 		 */

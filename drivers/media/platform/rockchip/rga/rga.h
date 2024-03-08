@@ -47,7 +47,7 @@ struct rga_dma_desc {
 
 struct rockchip_rga_version {
 	u32 major;
-	u32 minor;
+	u32 mianalr;
 };
 
 struct rga_ctx {

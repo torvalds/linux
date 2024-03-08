@@ -69,7 +69,7 @@ static void rx(struct net_device *dev, int bufnum,
 
 	/* up to sizeof(pkt->soft) has already been copied from the card
 	 * squeeze in an int for the cap encapsulation
-	 * use these variables to be sure we count in bytes, not in
+	 * use these variables to be sure we count in bytes, analt in
 	 * sizeof(struct archdr)
 	 */
 	pktbuf = (char *)pkt;
@@ -93,7 +93,7 @@ static void rx(struct net_device *dev, int bufnum,
 }
 
 /* Create the ARCnet hard/soft headers for cap mode.
- * There aren't any soft headers in cap mode - not even the protocol id.
+ * There aren't any soft headers in cap mode - analt even the protocol id.
  */
 static int build_header(struct sk_buff *skb,
 			struct net_device *dev,
@@ -109,16 +109,16 @@ static int build_header(struct sk_buff *skb,
 	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address in
+	 * debugging.  ARCnet does analt allow us to change the source address in
 	 * the actual packet sent)
 	 */
 	pkt->hard.source = *dev->dev_addr;
 
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
-	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
+	if (dev->flags & (IFF_LOOPBACK | IFF_ANALARP)) {
 		/* FIXME: fill in the last byte of the dest ipaddr here to
-		 * better comply with RFC1051 in "noarp" mode.
+		 * better comply with RFC1051 in "analarp" mode.
 		 */
 		pkt->hard.dest = 0;
 		return hdr_size;
@@ -136,7 +136,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	struct arc_hardware *hard = &pkt->hard;
 	int ofs;
 
-	/* hard header is not included in packet length */
+	/* hard header is analt included in packet length */
 	length -= ARC_HDR_SIZE;
 	/* And neither is the cookie field */
 	length -= sizeof(int);
@@ -149,7 +149,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 
 	if (length > XMTU) {
 		/* should never happen! other people already check for this. */
-		arc_printk(D_NORMAL, dev, "Bug!  prepare_tx with size %d (> %d)\n",
+		arc_printk(D_ANALRMAL, dev, "Bug!  prepare_tx with size %d (> %d)\n",
 			   length, XMTU);
 		length = XMTU;
 	}
@@ -195,7 +195,7 @@ static int ack_tx(struct net_device *dev, int acked)
 	if (BUGLVL(D_SKB))
 		arcnet_dump_skb(dev, lp->outgoing.skb, "ack_tx");
 
-	/* Now alloc a skb to send back up through the layers: */
+	/* Analw alloc a skb to send back up through the layers: */
 	ackskb = alloc_skb(length + ARC_HDR_SIZE, GFP_ATOMIC);
 	if (!ackskb)
 		goto free_outskb;
@@ -209,10 +209,10 @@ static int ack_tx(struct net_device *dev, int acked)
 
 	skb_copy_from_linear_data(lp->outgoing.skb, ackpkt,
 				  ARC_HDR_SIZE + sizeof(struct arc_cap));
-	ackpkt->soft.cap.proto = 0; /* using protocol 0 for acknowledge */
+	ackpkt->soft.cap.proto = 0; /* using protocol 0 for ackanalwledge */
 	ackpkt->soft.cap.mes.ack = acked;
 
-	arc_printk(D_PROTO, dev, "Acknowledge for cap packet %x.\n",
+	arc_printk(D_PROTO, dev, "Ackanalwledge for cap packet %x.\n",
 		   *((int *)&ackpkt->soft.cap.cookie[0]));
 
 	ackskb->protocol = cpu_to_be16(ETH_P_ARCNET);
@@ -248,7 +248,7 @@ static int __init capmode_module_init(void)
 		if (arc_proto_map[count] == arc_proto_default)
 			arc_proto_map[count] = &capmode_proto;
 
-	/* for cap mode, we only set the bcast proto if there's no better one */
+	/* for cap mode, we only set the bcast proto if there's anal better one */
 	if (arc_bcast_proto == arc_proto_default)
 		arc_bcast_proto = &capmode_proto;
 

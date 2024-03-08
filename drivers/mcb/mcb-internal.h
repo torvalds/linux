@@ -29,7 +29,7 @@ enum chameleon_bus_type {
  *
  * @revision:	Revison of Chameleon table in FPGA
  * @model:	Chameleon table model ASCII char
- * @minor:	Revision minor
+ * @mianalr:	Revision mianalr
  * @bus_type:	Bus type (usually %CHAMELEON_BUS_WISHBONE)
  * @magic:	Chameleon header magic number (0xabce for version 2)
  * @reserved:	Reserved
@@ -38,11 +38,11 @@ enum chameleon_bus_type {
 struct chameleon_fpga_header {
 	u8 revision;
 	char model;
-	u8 minor;
+	u8 mianalr;
 	u8 bus_type;
 	u16 magic;
 	u16 reserved;
-	/* This one has no '\0' at the end!!! */
+	/* This one has anal '\0' at the end!!! */
 	char filename[CHAMELEON_FILENAME_LEN];
 } __packed;
 #define HEADER_MAGIC_OFFSET 0x4
@@ -57,7 +57,7 @@ struct chameleon_fpga_header {
  * @dtype:	device descriptor type
  * @bar:	BAR offset that must be added to module offset
  * @inst:	the instance number of the device, 0 is first instance
- * @group:	the group the device belongs to (0 = no group)
+ * @group:	the group the device belongs to (0 = anal group)
  * @reserved:	reserved
  * @offset:	beginning of the address window of desired module
  * @size:	size of the module's address window

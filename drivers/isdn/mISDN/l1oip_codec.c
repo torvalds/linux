@@ -6,7 +6,7 @@
  *  -> conversion from u-Law to a-Law
  *  -> compression by reducing the number of sample resolution to 4
  *
- * NOTE: It is not compatible with any standard codec like ADPCM.
+ * ANALTE: It is analt compatible with any standard codec like ADPCM.
  *
  * Author	Andreas Eversberg (jolly@eversberg.eu)
  *
@@ -30,7 +30,7 @@
   - 16 bits index for two samples (law encoded) with 8 bit compressed result.
   - 8 bits index for one compressed data with 16 bits decompressed result.
 
-  NOTE: The bytes are handled as they are law-encoded.
+  ANALTE: The bytes are handled as they are law-encoded.
 
 */
 
@@ -320,7 +320,7 @@ l1oip_4bit_alloc(int ulaw)
 	table_dec = vzalloc(512);
 	if (!table_com || !table_dec) {
 		l1oip_4bit_free();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* generate compression table */
 	i1 = 0;

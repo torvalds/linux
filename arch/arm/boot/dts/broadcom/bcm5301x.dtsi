@@ -122,8 +122,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		spi_nor: flash@0 {
-			compatible = "jedec,spi-nor";
+		spi_analr: flash@0 {
+			compatible = "jedec,spi-analr";
 			reg = <0>;
 			spi-max-frequency = <20000000>;
 			status = "disabled";

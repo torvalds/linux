@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/resume_user_mode.h>
@@ -262,13 +262,13 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	synchronize_user_stack ();
 	sf = (struct rt_signal_frame __user *)
 		(regs->u_regs [UREG_FP] + STACK_BIAS);
 
-	/* 1. Make sure we are not getting garbage from the user */
+	/* 1. Make sure we are analt getting garbage from the user */
 	if (invalid_frame_pointer(sf))
 		goto segv;
 
@@ -337,9 +337,9 @@ static inline void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *re
 	sp = sigsp(sp, ksig) - framesize;
 
 	/* Always align the stack frame.  This handles two cases.  First,
-	 * sigaltstack need not be mindful of platform specific stack
+	 * sigaltstack need analt be mindful of platform specific stack
 	 * alignment.  Second, if we took this signal because the stack
-	 * is not aligned properly, we'd like to take the signal cleanly
+	 * is analt aligned properly, we'd like to take the signal cleanly
 	 * and report that.
 	 */
 	sp &= ~15UL;
@@ -419,8 +419,8 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 		err |= copy_siginfo_to_user(&sf->info, &ksig->info);
 	else {
-		err |= __put_user(ksig->sig, &sf->info.si_signo);
-		err |= __put_user(SI_NOINFO, &sf->info.si_code);
+		err |= __put_user(ksig->sig, &sf->info.si_siganal);
+		err |= __put_user(SI_ANALINFO, &sf->info.si_code);
 	}
 	if (err)
 		return err;
@@ -453,24 +453,24 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
 {
 	switch (regs->u_regs[UREG_I0]) {
 	case ERESTART_RESTARTBLOCK:
-	case ERESTARTNOHAND:
-	no_system_call_restart:
+	case ERESTARTANALHAND:
+	anal_system_call_restart:
 		regs->u_regs[UREG_I0] = EINTR;
 		regs->tstate |= (TSTATE_ICARRY|TSTATE_XCARRY);
 		break;
 	case ERESTARTSYS:
 		if (!(sa->sa_flags & SA_RESTART))
-			goto no_system_call_restart;
+			goto anal_system_call_restart;
 		fallthrough;
-	case ERESTARTNOINTR:
+	case ERESTARTANALINTR:
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
 }
 
-/* Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+/* Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  */
 static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
@@ -492,7 +492,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	 * preserved across a system call trap by various pieces of
 	 * code in glibc.
 	 *
-	 * %g7 is used as the "thread register".   %g6 is not used in
+	 * %g7 is used as the "thread register".   %g6 is analt used in
 	 * any fixed manner.  %g6 is used as a scratch register and
 	 * a compiler temporary, but it's value is never used across
 	 * a system call.  Therefore %g6 is usable for orig_i0 storage.
@@ -524,9 +524,9 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	} else {
 		if (restart_syscall) {
 			switch (regs->u_regs[UREG_I0]) {
-			case ERESTARTNOHAND:
+			case ERESTARTANALHAND:
 	     		case ERESTARTSYS:
-			case ERESTARTNOINTR:
+			case ERESTARTANALINTR:
 				/* replay the system call when we are done */
 				regs->u_regs[UREG_I0] = orig_i0;
 				regs->tpc -= 4;
@@ -544,14 +544,14 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	}
 }
 
-void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long thread_info_flags)
+void do_analtify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long thread_info_flags)
 {
 	user_exit();
 	if (thread_info_flags & _TIF_UPROBE)
-		uprobe_notify_resume(regs);
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+		uprobe_analtify_resume(regs);
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL))
 		do_signal(regs, orig_i0);
-	if (thread_info_flags & _TIF_NOTIFY_RESUME)
+	if (thread_info_flags & _TIF_ANALTIFY_RESUME)
 		resume_user_mode_work(regs);
 	user_enter();
 }
@@ -568,9 +568,9 @@ static_assert(NSIGTRAP	== 6);
 static_assert(NSIGCHLD	== 6);
 static_assert(NSIGSYS	== 2);
 static_assert(sizeof(siginfo_t) == 128);
-static_assert(__alignof__(siginfo_t) == 8);
-static_assert(offsetof(siginfo_t, si_signo)	== 0x00);
-static_assert(offsetof(siginfo_t, si_errno)	== 0x04);
+static_assert(__aliganalf__(siginfo_t) == 8);
+static_assert(offsetof(siginfo_t, si_siganal)	== 0x00);
+static_assert(offsetof(siginfo_t, si_erranal)	== 0x04);
 static_assert(offsetof(siginfo_t, si_code)	== 0x08);
 static_assert(offsetof(siginfo_t, si_pid)	== 0x10);
 static_assert(offsetof(siginfo_t, si_uid)	== 0x14);
@@ -583,7 +583,7 @@ static_assert(offsetof(siginfo_t, si_value)	== 0x18);
 static_assert(offsetof(siginfo_t, si_int)	== 0x18);
 static_assert(offsetof(siginfo_t, si_ptr)	== 0x18);
 static_assert(offsetof(siginfo_t, si_addr)	== 0x10);
-static_assert(offsetof(siginfo_t, si_trapno)	== 0x18);
+static_assert(offsetof(siginfo_t, si_trapanal)	== 0x18);
 static_assert(offsetof(siginfo_t, si_addr_lsb)	== 0x18);
 static_assert(offsetof(siginfo_t, si_lower)	== 0x20);
 static_assert(offsetof(siginfo_t, si_upper)	== 0x28);

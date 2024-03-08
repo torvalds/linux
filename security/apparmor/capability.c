@@ -4,12 +4,12 @@
  *
  * This file contains AppArmor capability mediation functions
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/security.h>
 
@@ -38,8 +38,8 @@ static DEFINE_PER_CPU(struct audit_cache, audit_cache);
 
 /**
  * audit_cb - call back for capability components of audit struct
- * @ab: audit buffer   (NOT NULL)
- * @va: audit struct to audit data from  (NOT NULL)
+ * @ab: audit buffer   (ANALT NULL)
+ * @va: audit struct to audit data from  (ANALT NULL)
  */
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
@@ -52,7 +52,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 /**
  * audit_caps - audit a capability
  * @ad: audit data
- * @profile: profile being tested for confinement (NOT NULL)
+ * @profile: profile being tested for confinement (ANALT NULL)
  * @cap: capability tested
  * @error: error code returned by test
  *
@@ -81,7 +81,7 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 		   cap_raised(rules->caps.kill, cap)) {
 		type = AUDIT_APPARMOR_KILL;
 	} else if (cap_raised(rules->caps.quiet, cap) &&
-		   AUDIT_MODE(profile) != AUDIT_NOQUIET &&
+		   AUDIT_MODE(profile) != AUDIT_ANALQUIET &&
 		   AUDIT_MODE(profile) != AUDIT_ALL) {
 		/* quiet auditing */
 		return error;
@@ -106,10 +106,10 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 
 /**
  * profile_capable - test if profile allows use of capability @cap
- * @profile: profile being enforced    (NOT NULL, NOT unconfined)
+ * @profile: profile being enforced    (ANALT NULL, ANALT unconfined)
  * @cap: capability to test if allowed
- * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
- * @ad: audit data (MAY BE NULL indicating no auditing)
+ * @opts: CAP_OPT_ANALAUDIT bit determines whether audit record is generated
+ * @ad: audit data (MAY BE NULL indicating anal auditing)
  *
  * Returns: 0 if allowed else -EPERM
  */
@@ -126,13 +126,13 @@ static int profile_capable(struct aa_profile *profile, int cap,
 	else
 		error = -EPERM;
 
-	if (opts & CAP_OPT_NOAUDIT) {
+	if (opts & CAP_OPT_ANALAUDIT) {
 		if (!COMPLAIN_MODE(profile))
 			return error;
-		/* audit the cap request in complain mode but note that it
+		/* audit the cap request in complain mode but analte that it
 		 * should be optional.
 		 */
-		ad->info = "optional: no audit";
+		ad->info = "optional: anal audit";
 	}
 
 	return audit_caps(ad, profile, cap, error);
@@ -141,9 +141,9 @@ static int profile_capable(struct aa_profile *profile, int cap,
 /**
  * aa_capable - test permission to use capability
  * @subj_cred: cred we are testing capability against
- * @label: label being tested for capability (NOT NULL)
+ * @label: label being tested for capability (ANALT NULL)
  * @cap: capability to be tested
- * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
+ * @opts: CAP_OPT_ANALAUDIT bit determines whether audit record is generated
  *
  * Look up capability in profile capability set.
  *

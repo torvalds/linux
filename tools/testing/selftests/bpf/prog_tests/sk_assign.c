@@ -163,7 +163,7 @@ run_test(int server_fd, const struct sockaddr *addr, socklen_t len, int type)
 
 	client = connect_to_server(addr, len, type);
 	if (client == -1) {
-		perror("Cannot connect to server");
+		perror("Cananalt connect to server");
 		goto out;
 	}
 

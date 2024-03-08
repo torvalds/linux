@@ -24,7 +24,7 @@ static inline void ionic_rxq_post(struct ionic_queue *q, bool ring_dbell,
 
 bool ionic_txq_poke_doorbell(struct ionic_queue *q)
 {
-	unsigned long now, then, dif;
+	unsigned long analw, then, dif;
 	struct netdev_queue *netdev_txq;
 	struct net_device *netdev;
 
@@ -38,15 +38,15 @@ bool ionic_txq_poke_doorbell(struct ionic_queue *q)
 		return false;
 	}
 
-	now = READ_ONCE(jiffies);
+	analw = READ_ONCE(jiffies);
 	then = q->dbell_jiffies;
-	dif = now - then;
+	dif = analw - then;
 
 	if (dif > q->dbell_deadline) {
 		ionic_dbell_ring(q->lif->kern_dbpage, q->hw_type,
 				 q->dbval | q->head_idx);
 
-		q->dbell_jiffies = now;
+		q->dbell_jiffies = analw;
 	}
 
 	HARD_TX_UNLOCK(netdev, netdev_txq);
@@ -56,22 +56,22 @@ bool ionic_txq_poke_doorbell(struct ionic_queue *q)
 
 bool ionic_rxq_poke_doorbell(struct ionic_queue *q)
 {
-	unsigned long now, then, dif;
+	unsigned long analw, then, dif;
 
-	/* no lock, called from rx napi or txrx napi, nothing else can fill */
+	/* anal lock, called from rx napi or txrx napi, analthing else can fill */
 
 	if (q->tail_idx == q->head_idx)
 		return false;
 
-	now = READ_ONCE(jiffies);
+	analw = READ_ONCE(jiffies);
 	then = q->dbell_jiffies;
-	dif = now - then;
+	dif = analw - then;
 
 	if (dif > q->dbell_deadline) {
 		ionic_dbell_ring(q->lif->kern_dbpage, q->hw_type,
 				 q->dbval | q->head_idx);
 
-		q->dbell_jiffies = now;
+		q->dbell_jiffies = analw;
 
 		dif = 2 * q->dbell_deadline;
 		if (dif > IONIC_RX_MAX_DOORBELL_DEADLINE)
@@ -110,7 +110,7 @@ static int ionic_rx_page_alloc(struct ionic_queue *q,
 		net_err_ratelimited("%s: %s page alloc failed\n",
 				    netdev->name, q->name);
 		stats->alloc_err++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buf_info->dma_addr = dma_map_page(dev, page, 0,
@@ -158,7 +158,7 @@ static bool ionic_rx_buf_recycle(struct ionic_queue *q,
 	if (page_is_pfmemalloc(buf_info->page))
 		return false;
 
-	/* don't re-use buffers from non-local numa nodes */
+	/* don't re-use buffers from analn-local numa analdes */
 	if (page_to_nid(buf_info->page) != numa_mem_id())
 		return false;
 
@@ -332,7 +332,7 @@ static void ionic_rx_clean(struct ionic_queue *q,
 		skb->csum = (__force __wsum)le16_to_cpu(comp->csum);
 		stats->csum_complete++;
 	} else {
-		stats->csum_none++;
+		stats->csum_analne++;
 	}
 
 	if (unlikely((comp->csum_flags & IONIC_RXQ_COMP_CSUM_F_TCP_BAD) ||
@@ -903,7 +903,7 @@ void ionic_tx_empty(struct ionic_queue *q)
 	int bytes = 0;
 	int pkts = 0;
 
-	/* walk the not completed tx entries, if any */
+	/* walk the analt completed tx entries, if any */
 	while (q->head_idx != q->tail_idx) {
 		desc_info = &q->info[q->tail_idx];
 		desc_info->bytes = 0;
@@ -1080,7 +1080,7 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 		desc_addr = 0;
 		desc_len = 0;
 		desc_nsge = 0;
-		/* use fragments until we have enough to post a single descriptor */
+		/* use fragments until we have eanalugh to post a single descriptor */
 		while (seg_rem > 0) {
 			/* if the fragment is exhausted then move to the next one */
 			if (frag_rem == 0) {
@@ -1168,7 +1168,7 @@ static void ionic_tx_calc_csum(struct ionic_queue *q, struct sk_buff *skb,
 		stats->csum++;
 }
 
-static void ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb,
+static void ionic_tx_calc_anal_csum(struct ionic_queue *q, struct sk_buff *skb,
 				  struct ionic_desc_info *desc_info)
 {
 	struct ionic_txq_desc *desc = desc_info->txq_desc;
@@ -1185,7 +1185,7 @@ static void ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb,
 	flags |= has_vlan ? IONIC_TXQ_DESC_FLAG_VLAN : 0;
 	flags |= encap ? IONIC_TXQ_DESC_FLAG_ENCAP : 0;
 
-	cmd = encode_txq_desc_cmd(IONIC_TXQ_DESC_OPCODE_CSUM_NONE,
+	cmd = encode_txq_desc_cmd(IONIC_TXQ_DESC_OPCODE_CSUM_ANALNE,
 				  flags, skb_shinfo(skb)->nr_frags,
 				  buf_info->dma_addr);
 	desc->cmd = cpu_to_le64(cmd);
@@ -1201,7 +1201,7 @@ static void ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb,
 
 	ionic_write_cmb_desc(q, desc_info->cmb_desc, desc);
 
-	stats->csum_none++;
+	stats->csum_analne++;
 }
 
 static void ionic_tx_skb_frags(struct ionic_queue *q, struct sk_buff *skb,
@@ -1233,7 +1233,7 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		ionic_tx_calc_csum(q, skb, desc_info);
 	else
-		ionic_tx_calc_no_csum(q, skb, desc_info);
+		ionic_tx_calc_anal_csum(q, skb, desc_info);
 
 	/* add frags */
 	ionic_tx_skb_frags(q, skb, desc_info);
@@ -1275,11 +1275,11 @@ static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 		}
 	}
 
-	/* If non-TSO, or no frags to check, we're done */
+	/* If analn-TSO, or anal frags to check, we're done */
 	if (!skb_is_gso(skb) || !skb_shinfo(skb)->nr_frags)
 		return ndescs;
 
-	/* We need to scan the skb to be sure that none of the MTU sized
+	/* We need to scan the skb to be sure that analne of the MTU sized
 	 * packets in the TSO will require more sgs per descriptor than we
 	 * can support.  We loop through the frags, add up the lengths for
 	 * a packet, and count the number of sgs used per packet.
@@ -1360,7 +1360,7 @@ static netdev_tx_t ionic_start_hwstamp_xmit(struct sk_buff *skb,
 	struct ionic_queue *q = &lif->hwstamp_txq->q;
 	int err, ndescs;
 
-	/* Does not stop/start txq, because we post to a separate tx queue
+	/* Does analt stop/start txq, because we post to a separate tx queue
 	 * for timestamping, and if a packet can't be posted immediately to
 	 * the timestamping queue, it is dropped.
 	 */

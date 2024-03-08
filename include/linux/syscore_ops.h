@@ -2,7 +2,7 @@
 /*
  *  syscore_ops.h - System core operations.
  *
- *  Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ *  Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Analvell Inc.
  */
 
 #ifndef _LINUX_SYSCORE_OPS_H
@@ -11,7 +11,7 @@
 #include <linux/list.h>
 
 struct syscore_ops {
-	struct list_head node;
+	struct list_head analde;
 	int (*suspend)(void);
 	void (*resume)(void);
 	void (*shutdown)(void);

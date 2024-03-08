@@ -34,7 +34,7 @@ Description:
 				- length of table in bytes, including the header
 
 		revision
-				- ACPI Specification minor version number
+				- ACPI Specification mianalr version number
 
 		oem_id
 				- ASCII OEM identification

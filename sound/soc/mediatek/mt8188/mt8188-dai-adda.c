@@ -292,20 +292,20 @@ static const char * const adda_dlgain_mux_map[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(adda_dlgain_mux_map_enum,
-			    SND_SOC_NOPM, 0,
+			    SND_SOC_ANALPM, 0,
 			    adda_dlgain_mux_map);
 
 static const struct snd_kcontrol_new adda_dlgain_mux_control =
 	SOC_DAPM_ENUM("DL_GAIN_MUX", adda_dlgain_mux_map_enum);
 
 static const struct snd_soc_dapm_widget mtk_dai_adda_widgets[] = {
-	SND_SOC_DAPM_MIXER("I168", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I169", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I168", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I169", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("O176", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O176", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_adda_o176_mix,
 			   ARRAY_SIZE(mtk_dai_adda_o176_mix)),
-	SND_SOC_DAPM_MIXER("O177", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O177", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_adda_o177_mix,
 			   ARRAY_SIZE(mtk_dai_adda_o177_mix)),
 
@@ -328,12 +328,12 @@ static const struct snd_soc_dapm_widget mtk_dai_adda_widgets[] = {
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_SUPPLY_S("ADDA_MTKAIF_CFG", SUPPLY_SEQ_ADDA_MTKAIF_CFG,
-			      SND_SOC_NOPM,
+			      SND_SOC_ANALPM,
 			      0, 0,
 			      mtk_adda_mtkaif_cfg_event,
 			      SND_SOC_DAPM_PRE_PMU),
 
-	SND_SOC_DAPM_MUX("DL_GAIN_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DL_GAIN_MUX", SND_SOC_ANALPM, 0, 0,
 			 &adda_dlgain_mux_control),
 
 	SND_SOC_DAPM_PGA("DL_GAIN", AFE_ADDA_DL_SRC2_CON0,
@@ -564,7 +564,7 @@ static int init_adda_priv_data(struct mtk_base_afe *afe)
 					 sizeof(struct mtk_dai_adda_priv),
 					 GFP_KERNEL);
 		if (!adda_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		afe_priv->dai_priv[adda_dai_list[i]] = adda_priv;
 	}
@@ -578,7 +578,7 @@ int mt8188_dai_adda_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

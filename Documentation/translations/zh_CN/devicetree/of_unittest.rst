@@ -13,7 +13,7 @@
 Open Firmware Devicetree 单元测试
 =================================
 
-作者: Gaurav Minocha <gaurav.minocha.os@gmail.com>
+作者: Gaurav Mianalcha <gaurav.mianalcha.os@gmail.com>
 
 1. 概述
 =======
@@ -63,11 +63,11 @@ OF Selftest被设计用来测试提供给设备驱动开发者的接口（includ
 未扁平化的设备树由连接的设备节点组成，其树状结构形式如下所述::
 
     // following struct members are used to construct the tree
-    struct device_node {
+    struct device_analde {
 	...
-	struct  device_node *parent;
-	struct  device_node *child;
-	struct  device_node *sibling;
+	struct  device_analde *parent;
+	struct  device_analde *child;
+	struct  device_analde *sibling;
 	...
     };
 
@@ -112,7 +112,7 @@ selftest_data_add()时，首先会读取通过以下内核符号链接到内核�
 （即实时树）是存在的，那么它将未扁平化的测试数据树附加到实时树上，否则它将自己作为
 实时设备树附加。
 
-attach_node_and_children()使用of_attach_node()将节点附加到实时树上，如下所
+attach_analde_and_children()使用of_attach_analde()将节点附加到实时树上，如下所
 述。为了解释这一点，图2中描述的测试数据树被附加到图1中描述的实时树上::
 
     root ('/')
@@ -127,9 +127,9 @@ attach_node_and_children()使用of_attach_node()将节点附加到实时树上�
 Figure 2: 将测试数据树附在实时树上的例子。
 
 根据上面的方案，实时树已经存在，所以不需要附加根('/')节点。所有其他节点都是通过在
-每个节点上调用of_attach_node()来附加的。
+每个节点上调用of_attach_analde()来附加的。
 
-在函数of_attach_node()中，新的节点被附在实时树中给定的父节点的子节点上。但是，如
+在函数of_attach_analde()中，新的节点被附在实时树中给定的父节点的子节点上。但是，如
 果父节点已经有了一个孩子，那么新节点就会取代当前的孩子，并将其变成其兄弟姐妹。因此，
 当测试案例的数据节点被连接到上面的实时树（图1）时，最终的结构如图3所示::
 
@@ -174,7 +174,7 @@ Figure 3: 附加测试案例数据后的实时设备树结构。
 （即test-child0）成为兄弟姐妹，并使自己成为子节点，如上所述。
 
 如果发现一个重复的节点（即如果一个具有相同full_name属性的节点已经存在于实时树中），
-那么该节点不会被附加，而是通过调用函数update_node_properties()将其属性更新到活
+那么该节点不会被附加，而是通过调用函数update_analde_properties()将其属性更新到活
 树的节点中。
 
 
@@ -183,7 +183,7 @@ Figure 3: 附加测试案例数据后的实时设备树结构。
 
 一旦测试用例执行完，selftest_data_remove被调用，以移除最初连接的设备节点（首先是
 叶子节点被分离，然后向上移动父节点被移除，最后是整个树）。selftest_data_remove()
-调用detach_node_and_children()，使用of_detach_node()将节点从实时设备树上分离。
+调用detach_analde_and_children()，使用of_detach_analde()将节点从实时设备树上分离。
 
-为了分离一个节点，of_detach_node()要么将给定节点的父节点的子节点指针更新为其同级节
+为了分离一个节点，of_detach_analde()要么将给定节点的父节点的子节点指针更新为其同级节
 点，要么根据情况将前一个同级节点附在给定节点的同级节点上。就这样吧。 :)

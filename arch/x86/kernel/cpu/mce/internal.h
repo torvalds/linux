@@ -9,7 +9,7 @@
 #include <asm/mce.h>
 
 enum severity_level {
-	MCE_NO_SEVERITY,
+	MCE_ANAL_SEVERITY,
 	MCE_DEFERRED_SEVERITY,
 	MCE_UCNA_SEVERITY = MCE_DEFERRED_SEVERITY,
 	MCE_KEEP_SEVERITY,
@@ -20,12 +20,12 @@ enum severity_level {
 	MCE_PANIC_SEVERITY,
 };
 
-extern struct blocking_notifier_head x86_mce_decoder_chain;
+extern struct blocking_analtifier_head x86_mce_decoder_chain;
 
 #define INITIAL_CHECK_INTERVAL	5 * 60 /* 5 minutes */
 
 struct mce_evt_llist {
-	struct llist_node llnode;
+	struct llist_analde llanalde;
 	struct mce mce;
 };
 
@@ -33,7 +33,7 @@ void mce_gen_pool_process(struct work_struct *__unused);
 bool mce_gen_pool_empty(void);
 int mce_gen_pool_add(struct mce *mce);
 int mce_gen_pool_init(void);
-struct llist_node *mce_gen_pool_prepare_records(void);
+struct llist_analde *mce_gen_pool_prepare_records(void);
 
 int mce_severity(struct mce *a, struct pt_regs *regs, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
@@ -82,7 +82,7 @@ static inline void mce_set_storm_mode(bool storm) {}
  *
  * timestamp:		Last time (in jiffies) that the bank was polled.
  * in_storm_mode:	Is this bank in storm mode?
- * poll_only:		Bank does not support CMCI, skip storm tracking.
+ * poll_only:		Bank does analt support CMCI, skip storm tracking.
  */
 struct storm_bank {
 	u64 history;
@@ -144,7 +144,7 @@ static inline int apei_clear_mce(u64 record_id)
  * We consider records to be equivalent if bank+status+addr+misc all match.
  * This is only used when the system is going down because of a fatal error
  * to avoid cluttering the console log with essentially repeated information.
- * In normal processing all errors seen are logged.
+ * In analrmal processing all errors seen are logged.
  */
 static inline bool mce_cmp(struct mce *m1, struct mce *m2)
 {
@@ -158,12 +158,12 @@ extern struct device_attribute dev_attr_trigger;
 
 #ifdef CONFIG_X86_MCELOG_LEGACY
 void mce_work_trigger(void);
-void mce_register_injector_chain(struct notifier_block *nb);
-void mce_unregister_injector_chain(struct notifier_block *nb);
+void mce_register_injector_chain(struct analtifier_block *nb);
+void mce_unregister_injector_chain(struct analtifier_block *nb);
 #else
 static inline void mce_work_trigger(void)	{ }
-static inline void mce_register_injector_chain(struct notifier_block *nb)	{ }
-static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
+static inline void mce_register_injector_chain(struct analtifier_block *nb)	{ }
+static inline void mce_unregister_injector_chain(struct analtifier_block *nb)	{ }
 #endif
 
 struct mca_config {
@@ -178,7 +178,7 @@ struct mca_config {
 
 	bool dont_log_ce;
 	bool cmci_disabled;
-	bool ignore_ce;
+	bool iganalre_ce;
 	bool print_all;
 
 	int monarch_timeout;
@@ -192,7 +192,7 @@ DECLARE_PER_CPU_READ_MOSTLY(unsigned int, mce_num_banks);
 
 struct mce_vendor_flags {
 	/*
-	 * Indicates that overflow conditions are not fatal, when set.
+	 * Indicates that overflow conditions are analt fatal, when set.
 	 */
 	__u64 overflow_recov	: 1,
 
@@ -243,7 +243,7 @@ struct mce_bank {
 
 	/*
 	 * (AMD) MCA_CONFIG[McaLsbInStatusSupported]: When set, this bit indicates
-	 * the LSB field is found in MCA_STATUS and not in MCA_ADDR.
+	 * the LSB field is found in MCA_STATUS and analt in MCA_ADDR.
 	 */
 	lsb_in_status		: 1,
 
@@ -299,8 +299,8 @@ static inline void smca_extract_err_addr(struct mce *m) { }
 #ifdef CONFIG_X86_ANCIENT_MCE
 void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
 void winchip_mcheck_init(struct cpuinfo_x86 *c);
-noinstr void pentium_machine_check(struct pt_regs *regs);
-noinstr void winchip_machine_check(struct pt_regs *regs);
+analinstr void pentium_machine_check(struct pt_regs *regs);
+analinstr void winchip_machine_check(struct pt_regs *regs);
 static inline void enable_p5_mce(void) { mce_p5_enabled = 1; }
 #else
 static __always_inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
@@ -310,7 +310,7 @@ static __always_inline void pentium_machine_check(struct pt_regs *regs) {}
 static __always_inline void winchip_machine_check(struct pt_regs *regs) {}
 #endif
 
-noinstr u64 mce_rdmsrl(u32 msr);
+analinstr u64 mce_rdmsrl(u32 msr);
 
 static __always_inline u32 mca_msr_reg(int bank, enum mca_msr reg)
 {

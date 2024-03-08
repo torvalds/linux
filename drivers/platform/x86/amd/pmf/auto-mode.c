@@ -295,7 +295,7 @@ static const char *state_as_str(unsigned int state)
 	case AUTO_PERFORMANCE:
 		return "PERFORMANCE";
 	default:
-		return "Unknown Auto Mode State";
+		return "Unkanalwn Auto Mode State";
 	}
 }
 

@@ -10,7 +10,7 @@
 #include <linux/percpu-defs.h>
 
 /*
- * Addresses within the CPU entry area (including e.g. exception stacks) do not
+ * Addresses within the CPU entry area (including e.g. exception stacks) do analt
  * have struct page entries corresponding to them, so they need separate
  * handling.
  * arch_kmsan_get_meta_or_null() (declared in the header) maps the addresses in

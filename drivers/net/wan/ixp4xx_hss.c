@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Intel IXP4xx HSS (synchronous serial port) driver for Linux
+ * Intel IXP4xx HSS (synchroanalus serial port) driver for Linux
  *
  * Copyright (C) 2007-2008 Krzysztof Hałasa <khc@pm.waw.pl>
  */
@@ -27,7 +27,7 @@
 #include <linux/soc/ixp4xx/qmgr.h>
 #include <linux/soc/ixp4xx/cpu.h>
 
-/* This is what all IXP4xx platforms we know uses, if more frequencies
+/* This is what all IXP4xx platforms we kanalw uses, if more frequencies
  * are needed, we need to migrate to the clock framework.
  */
 #define IXP4XX_TIMER_FREQ	66666000
@@ -113,17 +113,17 @@
  /* Data rate is full (default) or half the configured clk speed */
 #define PCR_HALF_CLK_RATE		0x00200000
 
-/* Invert data between NPE and HSS FIFOs? (default = no) */
+/* Invert data between NPE and HSS FIFOs? (default = anal) */
 #define PCR_DATA_POLARITY_INVERT	0x00100000
 
 /* TX/RX endianness, default = LSB */
 #define PCR_MSB_ENDIAN			0x00080000
 
-/* Normal (default) / open drain mode (TX only) */
+/* Analrmal (default) / open drain mode (TX only) */
 #define PCR_TX_PINS_OPEN_DRAIN		0x00040000
 
-/* No framing bit transmitted and expected on RX? (default = framing bit) */
-#define PCR_SOF_NO_FBIT			0x00020000
+/* Anal framing bit transmitted and expected on RX? (default = framing bit) */
+#define PCR_SOF_ANAL_FBIT			0x00020000
 
 /* Drive data pins? */
 #define PCR_TX_DATA_ENABLE		0x00010000
@@ -150,13 +150,13 @@
 #define CCR_NPE_HFIFO_2_HDLC		0x04000000
 #define CCR_NPE_HFIFO_3_OR_4HDLC	0x08000000
 
-/* default = no loopback */
+/* default = anal loopback */
 #define CCR_LOOPBACK			0x02000000
 
 /* HSS number, default = 0 (first) */
 #define CCR_SECOND_HSS			0x01000000
 
-/* hss_config, clkCR: main:10, num:10, denom:12 */
+/* hss_config, clkCR: main:10, num:10, deanalm:12 */
 #define CLK42X_SPEED_EXP	((0x3FF << 22) | (2 << 12) |   15) /*65 KHz*/
 
 #define CLK42X_SPEED_512KHZ	((130 << 22) | (2 << 12) |   15)
@@ -404,7 +404,7 @@ static void hss_config(struct port *port)
 	msg.hss_port = port->id;
 	msg.index = HSS_CONFIG_TX_PCR;
 	msg.data32 = PCR_FRM_PULSE_DISABLED | PCR_MSB_ENDIAN |
-		PCR_TX_DATA_ENABLE | PCR_SOF_NO_FBIT;
+		PCR_TX_DATA_ENABLE | PCR_SOF_ANAL_FBIT;
 	if (port->clock_type == CLOCK_INT)
 		msg.data32 |= PCR_SYNC_CLK_DIR_OUTPUT;
 	hss_npe_send(port, &msg, "HSS_SET_TX_PCR");
@@ -789,9 +789,9 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 		received++;
 	}
 #if DEBUG_RX
-	printk(KERN_DEBUG "hss_hdlc_poll: end, not all work done\n");
+	printk(KERN_DEBUG "hss_hdlc_poll: end, analt all work done\n");
 #endif
-	return received;	/* not all work done */
+	return received;	/* analt all work done */
 }
 
 static void hss_hdlc_txdone_irq(void *pdev)
@@ -857,7 +857,7 @@ static int hss_hdlc_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb->len;
 #ifdef __ARMEB__
-	offset = 0; /* no need to keep alignment */
+	offset = 0; /* anal need to keep alignment */
 	bytes = len;
 	mem = skb->data;
 #else
@@ -980,13 +980,13 @@ static int init_hdlc_queues(struct port *port)
 		dma_pool = dma_pool_create(DRV_NAME, &port->netdev->dev,
 					   POOL_ALLOC_SIZE, 32, 0);
 		if (!dma_pool)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	port->desc_tab = dma_pool_zalloc(dma_pool, GFP_KERNEL,
 					&port->desc_tab_phys);
 	if (!port->desc_tab)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(port->rx_buff_tab, 0, sizeof(port->rx_buff_tab)); /* tables */
 	memset(port->tx_buff_tab, 0, sizeof(port->tx_buff_tab));
 
@@ -998,12 +998,12 @@ static int init_hdlc_queues(struct port *port)
 #ifdef __ARMEB__
 		buff = netdev_alloc_skb(port->netdev, RX_SIZE);
 		if (!buff)
-			return -ENOMEM;
+			return -EANALMEM;
 		data = buff->data;
 #else
 		buff = kmalloc(RX_SIZE, GFP_KERNEL);
 		if (!buff)
-			return -ENOMEM;
+			return -EANALMEM;
 		data = buff;
 #endif
 		desc->buf_len = RX_SIZE;
@@ -1110,7 +1110,7 @@ static int hss_hdlc_open(struct net_device *dev)
 
 	spin_unlock_irqrestore(&npe_lock, flags);
 
-	/* Populate queues with buffers, no failure after this point */
+	/* Populate queues with buffers, anal failure after this point */
 	for (i = 0; i < TX_DESCS; i++)
 		queue_put_desc(port->txreadyq,
 			       tx_desc_phys(port, i), tx_desc_ptr(port, i));
@@ -1122,10 +1122,10 @@ static int hss_hdlc_open(struct net_device *dev)
 	napi_enable(&port->napi);
 	netif_start_queue(dev);
 
-	qmgr_set_irq(port->rxq, QUEUE_IRQ_SRC_NOT_EMPTY,
+	qmgr_set_irq(port->rxq, QUEUE_IRQ_SRC_ANALT_EMPTY,
 		     hss_hdlc_rx_irq, dev);
 
-	qmgr_set_irq(port->txdoneq, QUEUE_IRQ_SRC_NOT_EMPTY,
+	qmgr_set_irq(port->txdoneq, QUEUE_IRQ_SRC_ANALT_EMPTY,
 		     hss_hdlc_txdone_irq, dev);
 	qmgr_enable_irq(port->txdoneq);
 
@@ -1272,7 +1272,7 @@ static void find_best_clock(u32 timer_freq, u32 rate, u32 *best, u32 *reg)
 
 		do_div(c, timer_freq - rate * a);
 		c--;
-		if (c >= 0xFFF) { /* 12-bit - no need to check more 'b's */
+		if (c >= 0xFFF) { /* 12-bit - anal need to check more 'b's */
 			if (b == 0 && /* also try a bit higher rate */
 			    !check_clock(timer_freq, rate, a - 1, 1, 1, best,
 					 &diff, reg))
@@ -1318,7 +1318,7 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct if_settings *ifs)
 		ifs->type = IF_IFACE_V35;
 		if (ifs->size < size) {
 			ifs->size = size; /* data size wanted */
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		memset(&new_line, 0, sizeof(new_line));
 		new_line.clock_type = port->clock_type;
@@ -1339,7 +1339,7 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct if_settings *ifs)
 		hss_hdlc_set_clock(port, clk);
 
 		if (clk != CLOCK_EXT && clk != CLOCK_INT)
-			return -EINVAL;	/* No such clock setting */
+			return -EINVAL;	/* Anal such clock setting */
 
 		if (new_line.loopback != 0 && new_line.loopback != 1)
 			return -EINVAL;
@@ -1390,7 +1390,7 @@ static int ixp4xx_hss_probe(struct platform_device *pdev)
 	struct of_phandle_args npe_spec;
 	struct device *dev = &pdev->dev;
 	struct net_device *ndev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *rmap;
 	struct port *port;
 	hdlc_device *hdlc;
@@ -1399,7 +1399,7 @@ static int ixp4xx_hss_probe(struct platform_device *pdev)
 
 	/*
 	 * Go into the syscon and check if we have the HSS and HDLC
-	 * features available, else this will not work.
+	 * features available, else this will analt work.
 	 */
 	rmap = syscon_regmap_lookup_by_compatible("syscon");
 	if (IS_ERR(rmap))
@@ -1411,61 +1411,61 @@ static int ixp4xx_hss_probe(struct platform_device *pdev)
 	if ((val & (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS)) !=
 	    (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS)) {
 		dev_err(dev, "HDLC and HSS feature unavailable in platform\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = of_parse_phandle_with_fixed_args(np, "intel,npe-handle", 1, 0,
 					       &npe_spec);
 	if (err)
-		return dev_err_probe(dev, err, "no NPE engine specified\n");
+		return dev_err_probe(dev, err, "anal NPE engine specified\n");
 	/* NPE ID 0x00, 0x10, 0x20... */
 	port->npe = npe_request(npe_spec.args[0] << 4);
 	if (!port->npe) {
 		dev_err(dev, "unable to obtain NPE instance\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Get the TX ready queue as resource from queue manager */
 	err = of_parse_phandle_with_fixed_args(np, "intek,queue-chl-txready", 1, 0,
 					       &queue_spec);
 	if (err)
-		return dev_err_probe(dev, err, "no txready queue phandle\n");
+		return dev_err_probe(dev, err, "anal txready queue phandle\n");
 	port->txreadyq = queue_spec.args[0];
 	/* Get the RX trig queue as resource from queue manager */
 	err = of_parse_phandle_with_fixed_args(np, "intek,queue-chl-rxtrig", 1, 0,
 					       &queue_spec);
 	if (err)
-		return dev_err_probe(dev, err, "no rxtrig queue phandle\n");
+		return dev_err_probe(dev, err, "anal rxtrig queue phandle\n");
 	port->rxtrigq = queue_spec.args[0];
 	/* Get the RX queue as resource from queue manager */
 	err = of_parse_phandle_with_fixed_args(np, "intek,queue-pkt-rx", 1, 0,
 					       &queue_spec);
 	if (err)
-		return dev_err_probe(dev, err, "no RX queue phandle\n");
+		return dev_err_probe(dev, err, "anal RX queue phandle\n");
 	port->rxq = queue_spec.args[0];
 	/* Get the TX queue as resource from queue manager */
 	err = of_parse_phandle_with_fixed_args(np, "intek,queue-pkt-tx", 1, 0,
 					       &queue_spec);
 	if (err)
-		return dev_err_probe(dev, err, "no RX queue phandle\n");
+		return dev_err_probe(dev, err, "anal RX queue phandle\n");
 	port->txq = queue_spec.args[0];
 	/* Get the RX free queue as resource from queue manager */
 	err = of_parse_phandle_with_fixed_args(np, "intek,queue-pkt-rxfree", 1, 0,
 					       &queue_spec);
 	if (err)
-		return dev_err_probe(dev, err, "no RX free queue phandle\n");
+		return dev_err_probe(dev, err, "anal RX free queue phandle\n");
 	port->rxfreeq = queue_spec.args[0];
 	/* Get the TX done queue as resource from queue manager */
 	err = of_parse_phandle_with_fixed_args(np, "intek,queue-pkt-txdone", 1, 0,
 					       &queue_spec);
 	if (err)
-		return dev_err_probe(dev, err, "no TX done queue phandle\n");
+		return dev_err_probe(dev, err, "anal TX done queue phandle\n");
 	port->txdoneq = queue_spec.args[0];
 
 	/* Obtain all the line control GPIOs */
@@ -1489,7 +1489,7 @@ static int ixp4xx_hss_probe(struct platform_device *pdev)
 	ndev = alloc_hdlcdev(port);
 	port->netdev = alloc_hdlcdev(port);
 	if (!port->netdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_plat;
 	}
 

@@ -27,20 +27,20 @@
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkanalwn";
 
 	switch (status) {
-	case -ENOENT:
-		errmsg = "unlinked synchronously";
+	case -EANALENT:
+		errmsg = "unlinked synchroanalusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroanalusly";
 		break;
-	case -ENOSR:
+	case -EANALSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device analt responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -52,7 +52,7 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does analt respond";
 		break;
 	}
 	if (packet < 0) {
@@ -84,7 +84,7 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 
 	if (urb->status < 0) {
 		print_err_status(dev, -1, urb->status);
-		if (urb->status == -ENOENT)
+		if (urb->status == -EANALENT)
 			return 0;
 	}
 
@@ -118,7 +118,7 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 				buffer_size - bytes_parsed);   /* buffer size */
 		}
 
-		/* Now parse data that is completely in this buffer */
+		/* Analw parse data that is completely in this buffer */
 		dma_q->is_partial_line = 0;
 
 		while (bytes_parsed < buffer_size) {
@@ -160,7 +160,7 @@ static int vbi_queue_setup(struct vb2_queue *vq,
 	struct cx231xx *dev = vb2_get_drv_priv(vq);
 	u32 height = 0;
 
-	height = ((dev->norm & V4L2_STD_625_50) ?
+	height = ((dev->analrm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
 
 	*nplanes = 1;
@@ -175,7 +175,7 @@ static int vbi_buf_prepare(struct vb2_buffer *vb)
 	u32 height = 0;
 	u32 size;
 
-	height = ((dev->norm & V4L2_STD_625_50) ?
+	height = ((dev->analrm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
 	size = ((dev->width << 1) * height * 2);
 
@@ -202,12 +202,12 @@ static void return_all_buffers(struct cx231xx *dev,
 			       enum vb2_buffer_state state)
 {
 	struct cx231xx_dmaqueue *vidq = &dev->vbi_mode.vidq;
-	struct cx231xx_buffer *buf, *node;
+	struct cx231xx_buffer *buf, *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->vbi_mode.slock, flags);
 	dev->vbi_mode.bulk_ctl.buf = NULL;
-	list_for_each_entry_safe(buf, node, &vidq->active, list) {
+	list_for_each_entry_safe(buf, analde, &vidq->active, list) {
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
@@ -267,7 +267,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 	case -ETIMEDOUT:	/* NAK */
 		break;
 	case -ECONNRESET:	/* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:		/* error */
@@ -365,7 +365,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	dma_q->last_sav = 0;
 	dma_q->current_field = -1;
 	dma_q->bytes_left_in_line = dev->width << 1;
-	dma_q->lines_per_field = ((dev->norm & V4L2_STD_625_50) ?
+	dma_q->lines_per_field = ((dev->analrm & V4L2_STD_625_50) ?
 				  PAL_VBI_LINES : NTSC_VBI_LINES);
 	dma_q->lines_completed = 0;
 	for (i = 0; i < 8; i++)
@@ -375,17 +375,17 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 					     GFP_KERNEL);
 	if (!dev->vbi_mode.bulk_ctl.urb) {
 		dev_err(dev->dev,
-			"cannot alloc memory for usb buffers\n");
-		return -ENOMEM;
+			"cananalt alloc memory for usb buffers\n");
+		return -EANALMEM;
 	}
 
 	dev->vbi_mode.bulk_ctl.transfer_buffer =
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->vbi_mode.bulk_ctl.transfer_buffer) {
 		dev_err(dev->dev,
-			"cannot allocate memory for usbtransfer\n");
+			"cananalt allocate memory for usbtransfer\n");
 		kfree(dev->vbi_mode.bulk_ctl.urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->vbi_mode.bulk_ctl.max_pkt_size = max_pkt_size;
@@ -399,7 +399,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
 			cx231xx_uninit_vbi_isoc(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dev->vbi_mode.bulk_ctl.urb[i] = urb;
 		urb->transfer_flags = 0;
@@ -411,7 +411,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 				"unable to allocate %i bytes for transfer buffer %i\n",
 				sb_size, i);
 			cx231xx_uninit_vbi_isoc(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		pipe = usb_rcvbulkpipe(dev->udev, dev->vbi_mode.end_point_addr);
@@ -471,7 +471,7 @@ u32 cx231xx_get_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 }
 
 /*
- * Announces that a buffer were filled and request the next
+ * Ananalunces that a buffer were filled and request the next
  */
 static inline void vbi_buffer_filled(struct cx231xx *dev,
 				     struct cx231xx_dmaqueue *dma_q,
@@ -569,7 +569,7 @@ static inline void get_next_vbi_buf(struct cx231xx_dmaqueue *dma_q,
 	char *outp;
 
 	if (list_empty(&dma_q->active)) {
-		dev_err(dev->dev, "No active queue to serve\n");
+		dev_err(dev->dev, "Anal active queue to serve\n");
 		dev->vbi_mode.bulk_ctl.buf = NULL;
 		*buf = NULL;
 		return;
@@ -652,7 +652,7 @@ u8 cx231xx_is_vbi_buffer_done(struct cx231xx *dev,
 {
 	u32 height = 0;
 
-	height = ((dev->norm & V4L2_STD_625_50) ?
+	height = ((dev->analrm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
 	if (dma_q->lines_completed == height && dma_q->current_field == 2)
 		return 1;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _M68K_PAGE_NO_H
-#define _M68K_PAGE_NO_H
+#ifndef _M68K_PAGE_ANAL_H
+#define _M68K_PAGE_ANAL_H
 
 #ifndef __ASSEMBLY__
  
@@ -39,4 +39,4 @@ static inline void *pfn_to_virt(unsigned long pfn)
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _M68K_PAGE_NO_H */
+#endif /* _M68K_PAGE_ANAL_H */

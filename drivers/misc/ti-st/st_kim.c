@@ -24,7 +24,7 @@
 #include <linux/ti_wilink_st.h>
 #include <linux/module.h>
 
-#define MAX_ST_DEVICES	3	/* Imagine 1 on each UART for now */
+#define MAX_ST_DEVICES	3	/* Imagine 1 on each UART for analw */
 static struct platform_device *st_kim_devices[MAX_ST_DEVICES];
 
 /**********************************************************************/
@@ -33,7 +33,7 @@ static struct platform_device *st_kim_devices[MAX_ST_DEVICES];
 /*
  * st_get_plat_device -
  *	function which returns the reference to the platform device
- *	requested by id. As of now only 1 such device exists (id=0)
+ *	requested by id. As of analw only 1 such device exists (id=0)
  *	the context requesting for reference can get the id to be
  *	requested by a. The protocol driver which is registering or
  *	b. the tty device which is opened.
@@ -70,7 +70,7 @@ static void validate_firmware_response(struct kim_data_s *kim_gdata)
 		kim_gdata->rx_skb = NULL;
 		kim_gdata->rx_count = 0;
 	} else if (unlikely(skb->data[5] != 0)) {
-		pr_err("no proper response during fw download");
+		pr_err("anal proper response during fw download");
 		pr_err("data6 %x", skb->data[5]);
 		kfree_skb(skb);
 		return;		/* keep waiting for the proper response */
@@ -102,8 +102,8 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
 		kfree_skb(kim_gdata->rx_skb);
 	} else {
 		/*
-		 * Packet header has non-zero payload length and
-		 * we have enough space in created skb. Lets read
+		 * Packet header has analn-zero payload length and
+		 * we have eanalugh space in created skb. Lets read
 		 * payload data */
 		kim_gdata->rx_state = ST_W4_DATA;
 		kim_gdata->rx_count = len;
@@ -171,7 +171,7 @@ static void kim_int_recv(struct kim_data_s *kim_gdata, const u8 *ptr,
 			kim_gdata->rx_count = 2;
 			break;
 		default:
-			pr_info("unknown packet");
+			pr_info("unkanalwn packet");
 			ptr++;
 			count--;
 			continue;
@@ -217,7 +217,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	reinit_completion(&kim_gdata->kim_rcvd);
 	/*
 	 * the positions 12 & 13 in the response buffer provide with the
-	 * chip, major & minor numbers
+	 * chip, major & mianalr numbers
 	 */
 
 	version =
@@ -258,7 +258,7 @@ static void skip_change_remote_baud(unsigned char **ptr, long *len)
 			((struct bts_action *)cur_action)->size;
 		*len = *len - (sizeof(struct bts_action) +
 				((struct bts_action *)cur_action)->size);
-		/* warn user on not commenting these in firmware */
+		/* warn user on analt commenting these in firmware */
 		pr_warn("skipping the wait event of change remote baud");
 	}
 }
@@ -266,7 +266,7 @@ static void skip_change_remote_baud(unsigned char **ptr, long *len)
 /*
  * download_firmware -
  *	internal function which parses through the .bts firmware
- *	script file intreprets SEND, DELAY actions only as of now
+ *	script file intreprets SEND, DELAY actions only as of analw
  */
 static long download_firmware(struct kim_data_s *kim_gdata)
 {
@@ -289,7 +289,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 			     &kim_gdata->kim_pdev->dev);
 	if (unlikely((err != 0) || (kim_gdata->fw_entry->data == NULL) ||
 		     (kim_gdata->fw_entry->size == 0))) {
-		pr_err(" request_firmware failed(errno %ld) for %s", err,
+		pr_err(" request_firmware failed(erranal %ld) for %s", err,
 			   bts_scr_name);
 		return -EINVAL;
 	}
@@ -315,7 +315,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 			    (((struct hci_command *)action_ptr)->opcode ==
 			     0xFF36)) {
 				/*
-				 * ignore remote change
+				 * iganalre remote change
 				 * baud rate HCI VS command
 				 */
 				pr_warn("change remote baud"
@@ -324,7 +324,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 				break;
 			}
 			/*
-			 * Make sure we have enough free space in uart
+			 * Make sure we have eanalugh free space in uart
 			 * tx buffer to write current firmware command
 			 */
 			cmd_size = ((struct bts_action *)ptr)->size;
@@ -373,7 +373,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 			 */
 			if (err != cmd_size) {
 				pr_err("Number of bytes written to uart "
-						"tx buffer are not matching with "
+						"tx buffer are analt matching with "
 						"requested cmd write size");
 				release_firmware(kim_gdata->fw_entry);
 				return -EIO;
@@ -469,10 +469,10 @@ long st_kim_start(void *kim_data)
 		mdelay(100);
 		/* re-initialize the completion */
 		reinit_completion(&kim_gdata->ldisc_installed);
-		/* send notification to UIM */
+		/* send analtification to UIM */
 		kim_gdata->ldisc_install = 1;
 		pr_info("ldisc_install = 1");
-		sysfs_notify(&kim_gdata->kim_pdev->dev.kobj,
+		sysfs_analtify(&kim_gdata->kim_pdev->dev.kobj,
 				NULL, "install");
 		/* wait for ldisc to be installed */
 		err = wait_for_completion_interruptible_timeout(
@@ -486,7 +486,7 @@ long st_kim_start(void *kim_data)
 			err = st_kim_stop(kim_gdata);
 			continue;
 		} else {
-			/* ldisc installed now */
+			/* ldisc installed analw */
 			pr_info("line discipline installed");
 			err = download_firmware(kim_gdata);
 			if (err != 0) {
@@ -508,9 +508,9 @@ long st_kim_start(void *kim_data)
 /*
  * st_kim_stop - stop communication with chip.
  *	This can be called from ST Core/KIM, on the-
- *	(a) last un-register when chip need not be powered there-after,
+ *	(a) last un-register when chip need analt be powered there-after,
  *	(b) upon failure to either install ldisc or download firmware.
- *	The function is responsible to (a) notify UIM about un-installation,
+ *	The function is responsible to (a) analtify UIM about un-installation,
  *	(b) flush UART if the ldisc was installed.
  *	(c) reset BT_EN - pull down nshutdown at the end.
  *	(d) invoke platform's chip disabling routine.
@@ -531,10 +531,10 @@ long st_kim_stop(void *kim_data)
 		tty_driver_flush_buffer(tty);
 	}
 
-	/* send uninstall notification to UIM */
+	/* send uninstall analtification to UIM */
 	pr_info("ldisc_install = 0");
 	kim_gdata->ldisc_install = 0;
-	sysfs_notify(&kim_gdata->kim_pdev->dev.kobj, NULL, "install");
+	sysfs_analtify(&kim_gdata->kim_pdev->dev.kobj, NULL, "install");
 
 	/* wait for ldisc to be un-installed */
 	err = wait_for_completion_interruptible_timeout(
@@ -711,8 +711,8 @@ static int kim_probe(struct platform_device *pdev)
 
 	kim_gdata = kzalloc(sizeof(struct kim_data_s), GFP_KERNEL);
 	if (!kim_gdata) {
-		pr_err("no mem to allocate");
-		return -ENOMEM;
+		pr_err("anal mem to allocate");
+		return -EANALMEM;
 	}
 	platform_set_drvdata(pdev, kim_gdata);
 

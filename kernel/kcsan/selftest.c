@@ -90,7 +90,7 @@ static bool __init test_matching_access(void)
 		return false;
 
 	/*
-	 * An access of size 0 could match another access, as demonstrated here.
+	 * An access of size 0 could match aanalther access, as demonstrated here.
 	 * Rather than add more comparisons to 'matching_access()', which would
 	 * end up in the fast-path for *all* checks, check_access() simply
 	 * returns for all accesses of size 0.
@@ -136,7 +136,7 @@ static bool __init test_barrier(void)
 #define KCSAN_CHECK_WRITE_BARRIER(b) __KCSAN_CHECK_BARRIER(KCSAN_ACCESS_WRITE, b, #b)
 #define KCSAN_CHECK_RW_BARRIER(b)    __KCSAN_CHECK_BARRIER(KCSAN_ACCESS_WRITE | KCSAN_ACCESS_COMPOUND, b, #b)
 
-	kcsan_nestable_atomic_begin(); /* No watchpoints in called functions. */
+	kcsan_nestable_atomic_begin(); /* Anal watchpoints in called functions. */
 
 	KCSAN_CHECK_READ_BARRIER(mb());
 	KCSAN_CHECK_READ_BARRIER(rmb());

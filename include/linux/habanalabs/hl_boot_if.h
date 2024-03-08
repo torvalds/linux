@@ -8,7 +8,7 @@
 #ifndef HL_BOOT_IF_H
 #define HL_BOOT_IF_H
 
-#define LKD_HARD_RESET_MAGIC		0xED7BD694 /* deprecated - do not use */
+#define LKD_HARD_RESET_MAGIC		0xED7BD694 /* deprecated - do analt use */
 #define HL_POWER9_HOST_MAGIC		0x1DA30009
 
 #define BOOT_FIT_SRAM_OFFSET		0x200000
@@ -21,9 +21,9 @@ enum cpu_boot_err {
 	CPU_BOOT_ERR_TS_INIT_FAIL = 2,
 	CPU_BOOT_ERR_DRAM_SKIPPED = 3,
 	CPU_BOOT_ERR_BMC_WAIT_SKIPPED = 4,
-	CPU_BOOT_ERR_NIC_DATA_NOT_RDY = 5,
+	CPU_BOOT_ERR_NIC_DATA_ANALT_RDY = 5,
 	CPU_BOOT_ERR_NIC_FW_FAIL = 6,
-	CPU_BOOT_ERR_SECURITY_NOT_RDY = 7,
+	CPU_BOOT_ERR_SECURITY_ANALT_RDY = 7,
 	CPU_BOOT_ERR_SECURITY_FAIL = 8,
 	CPU_BOOT_ERR_EFUSE_FAIL = 9,
 	CPU_BOOT_ERR_PRI_IMG_VER_FAIL = 10,
@@ -44,7 +44,7 @@ enum cpu_boot_err {
 /*
  * Mask for fatal failures
  * This mask contains all possible fatal failures, and a dynamic code
- * will clear the non-relevant ones.
+ * will clear the analn-relevant ones.
  */
 #define CPU_BOOT_ERR_FATAL_MASK					\
 		((1 << CPU_BOOT_ERR_DRAM_INIT_FAIL) |		\
@@ -59,7 +59,7 @@ enum cpu_boot_err {
  * CPU error bits in BOOT_ERROR registers
  *
  * CPU_BOOT_ERR0_DRAM_INIT_FAIL		DRAM initialization failed.
- *					DRAM is not reliable to use.
+ *					DRAM is analt reliable to use.
  *
  * CPU_BOOT_ERR0_FIT_CORRUPTED		FIT data integrity verification of the
  *					image provided by the host has failed.
@@ -75,20 +75,20 @@ enum cpu_boot_err {
  *					Host can initialize the DRAM.
  *
  * CPU_BOOT_ERR0_BMC_WAIT_SKIPPED	Waiting for BMC data will be skipped.
- *					Meaning the BMC data might not be
+ *					Meaning the BMC data might analt be
  *					available until reset.
  *
- * CPU_BOOT_ERR0_NIC_DATA_NOT_RDY	NIC data from BMC is not ready.
- *					BMC has not provided the NIC data yet.
+ * CPU_BOOT_ERR0_NIC_DATA_ANALT_RDY	NIC data from BMC is analt ready.
+ *					BMC has analt provided the NIC data yet.
  *					Once provided this bit will be cleared.
  *
  * CPU_BOOT_ERR0_NIC_FW_FAIL		NIC FW loading failed.
  *					The NIC FW loading and initialization
- *					failed. This means NICs are not usable.
+ *					failed. This means NICs are analt usable.
  *
- * CPU_BOOT_ERR0_SECURITY_NOT_RDY	Chip security initialization has been
- *					started, but is not ready yet - chip
- *					cannot be accessed.
+ * CPU_BOOT_ERR0_SECURITY_ANALT_RDY	Chip security initialization has been
+ *					started, but is analt ready yet - chip
+ *					cananalt be accessed.
  *
  * CPU_BOOT_ERR0_SECURITY_FAIL		Security related tasks have failed.
  *					The tasks are security init (root of
@@ -141,16 +141,16 @@ enum cpu_boot_err {
  *					This is a main indication that the
  *					running FW populates the error
  *					registers. Meaning the error bits are
- *					not garbage, but actual error statuses.
+ *					analt garbage, but actual error statuses.
  */
 #define CPU_BOOT_ERR0_DRAM_INIT_FAIL		(1 << CPU_BOOT_ERR_DRAM_INIT_FAIL)
 #define CPU_BOOT_ERR0_FIT_CORRUPTED		(1 << CPU_BOOT_ERR_FIT_CORRUPTED)
 #define CPU_BOOT_ERR0_TS_INIT_FAIL		(1 << CPU_BOOT_ERR_TS_INIT_FAIL)
 #define CPU_BOOT_ERR0_DRAM_SKIPPED		(1 << CPU_BOOT_ERR_DRAM_SKIPPED)
 #define CPU_BOOT_ERR0_BMC_WAIT_SKIPPED		(1 << CPU_BOOT_ERR_BMC_WAIT_SKIPPED)
-#define CPU_BOOT_ERR0_NIC_DATA_NOT_RDY		(1 << CPU_BOOT_ERR_NIC_DATA_NOT_RDY)
+#define CPU_BOOT_ERR0_NIC_DATA_ANALT_RDY		(1 << CPU_BOOT_ERR_NIC_DATA_ANALT_RDY)
 #define CPU_BOOT_ERR0_NIC_FW_FAIL		(1 << CPU_BOOT_ERR_NIC_FW_FAIL)
-#define CPU_BOOT_ERR0_SECURITY_NOT_RDY		(1 << CPU_BOOT_ERR_SECURITY_NOT_RDY)
+#define CPU_BOOT_ERR0_SECURITY_ANALT_RDY		(1 << CPU_BOOT_ERR_SECURITY_ANALT_RDY)
 #define CPU_BOOT_ERR0_SECURITY_FAIL		(1 << CPU_BOOT_ERR_SECURITY_FAIL)
 #define CPU_BOOT_ERR0_EFUSE_FAIL		(1 << CPU_BOOT_ERR_EFUSE_FAIL)
 #define CPU_BOOT_ERR0_PRI_IMG_VER_FAIL		(1 << CPU_BOOT_ERR_PRI_IMG_VER_FAIL)
@@ -296,7 +296,7 @@ enum cpu_boot_dev_sts {
  * CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN	GIC access permission only from
  *					previleged entity. FW sets this status
  *					bit for host. If this bit is set then
- *					GIC can not be accessed from host.
+ *					GIC can analt be accessed from host.
  *					Initialized in: linux
  *
  * CPU_BOOT_DEV_STS0_EQ_INDEX_EN	Event Queue (EQ) index is a running
@@ -304,7 +304,7 @@ enum cpu_boot_dev_sts {
  *					This is used as a method in host to
  *					identify that the waiting event in
  *					queue is actually a new event which
- *					was not served before.
+ *					was analt served before.
  *					Initialized in: linux
  *
  * CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN	Use multiple scratchpad interfaces to
@@ -323,7 +323,7 @@ enum cpu_boot_dev_sts {
  * CPU_BOOT_DEV_STS0_IS_IDLE_CHECK_EN
  *					F/W checks if the device is idle by reading defined set
  *					of registers. It returns a bitmask of all the engines,
- *					where a bit is set if the engine is not idle.
+ *					where a bit is set if the engine is analt idle.
  *					Initialized in: linux
  *
  * CPU_BOOT_DEV_STS0_MAP_HWMON_EN
@@ -335,7 +335,7 @@ enum cpu_boot_dev_sts {
  *					This is a main indication that the
  *					running FW populates the device status
  *					register. Meaning the device status
- *					bits are not garbage, but actual
+ *					bits are analt garbage, but actual
  *					statuses.
  *					Initialized in: preboot
  *
@@ -377,12 +377,12 @@ enum cpu_boot_status {
 	CPU_BOOT_STATUS_SRAM_AVAIL = 3,
 	CPU_BOOT_STATUS_IN_BTL = 4,	/* BTL is H/W FSM */
 	CPU_BOOT_STATUS_IN_PREBOOT = 5,
-	CPU_BOOT_STATUS_IN_SPL,		/* deprecated - not reported */
+	CPU_BOOT_STATUS_IN_SPL,		/* deprecated - analt reported */
 	CPU_BOOT_STATUS_IN_UBOOT = 7,
 	CPU_BOOT_STATUS_DRAM_INIT_FAIL,	/* deprecated - will be removed */
 	CPU_BOOT_STATUS_FIT_CORRUPTED,	/* deprecated - will be removed */
-	/* U-Boot console prompt activated, commands are not processed */
-	CPU_BOOT_STATUS_UBOOT_NOT_READY = 10,
+	/* U-Boot console prompt activated, commands are analt processed */
+	CPU_BOOT_STATUS_UBOOT_ANALT_READY = 10,
 	/* Finished NICs init, reported after DRAM and NICs */
 	CPU_BOOT_STATUS_NIC_FW_RDY = 11,
 	CPU_BOOT_STATUS_TS_INIT_FAIL,	/* deprecated - will be removed */
@@ -394,7 +394,7 @@ enum cpu_boot_status {
 	CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT = 16,
 	/* Internal Security has been initialized, device can be accessed */
 	CPU_BOOT_STATUS_SECURITY_READY = 17,
-	/* FW component is preparing to shutdown and communication with host is not available */
+	/* FW component is preparing to shutdown and communication with host is analt available */
 	CPU_BOOT_STATUS_FW_SHUTDOWN_PREP = 18,
 };
 
@@ -577,7 +577,7 @@ struct lkd_fw_comms_desc {
 };
 
 enum comms_reset_cause {
-	HL_RESET_CAUSE_UNKNOWN = 0,
+	HL_RESET_CAUSE_UNKANALWN = 0,
 	HL_RESET_CAUSE_HEARTBEAT = 1,
 	HL_RESET_CAUSE_TDR = 2,
 };
@@ -617,7 +617,7 @@ struct lkd_fw_comms_msg {
 /*
  * LKD commands:
  *
- * COMMS_NOOP			Used to clear the command register and no actual
+ * COMMS_ANALOP			Used to clear the command register and anal actual
  *				command is send.
  *
  * COMMS_CLR_STS		Clear status command - FW should clear the
@@ -648,11 +648,11 @@ struct lkd_fw_comms_msg {
  *
  * COMMS_RST_DEV		Reset the device.
  *
- * COMMS_GOTO_WFE		Execute WFE command. Allowed only on non-secure
+ * COMMS_GOTO_WFE		Execute WFE command. Allowed only on analn-secure
  *				devices.
  *
  * COMMS_SKIP_BMC		Perform actions required for BMC-less servers.
- *				Do not wait for BMC response.
+ *				Do analt wait for BMC response.
  *
  * COMMS_PREP_DESC_ELBI		Same as COMMS_PREP_DESC only that the memory
  *				space is allocated in a ELBI access only
@@ -660,7 +660,7 @@ struct lkd_fw_comms_msg {
  *
  */
 enum comms_cmd {
-	COMMS_NOOP = 0,
+	COMMS_ANALOP = 0,
 	COMMS_CLR_STS = 1,
 	COMMS_RST_STATE = 2,
 	COMMS_PREP_DESC = 3,
@@ -697,7 +697,7 @@ struct comms_command {
 /*
  * FW status
  *
- * COMMS_STS_NOOP		Used to clear the status register and no actual
+ * COMMS_STS_ANALOP		Used to clear the status register and anal actual
  *				status is provided.
  *
  * COMMS_STS_ACK		Command has been received and recognized.
@@ -712,7 +712,7 @@ struct comms_command {
  * COMMS_STS_TIMEOUT_ERR	Command execution has timed out.
  */
 enum comms_sts {
-	COMMS_STS_NOOP = 0,
+	COMMS_STS_ANALOP = 0,
 	COMMS_STS_ACK = 1,
 	COMMS_STS_OK = 2,
 	COMMS_STS_ERR = 3,

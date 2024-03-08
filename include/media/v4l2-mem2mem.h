@@ -19,24 +19,24 @@
  * struct v4l2_m2m_ops - mem-to-mem device driver callbacks
  * @device_run:	required. Begin the actual job (transaction) inside this
  *		callback.
- *		The job does NOT have to end before this callback returns
+ *		The job does ANALT have to end before this callback returns
  *		(and it will be the usual case). When the job finishes,
  *		v4l2_m2m_job_finish() or v4l2_m2m_buf_done_and_job_finish()
  *		has to be called.
- * @job_ready:	optional. Should return 0 if the driver does not have a job
- *		fully prepared to run yet (i.e. it will not be able to finish a
- *		transaction without sleeping). If not provided, it will be
+ * @job_ready:	optional. Should return 0 if the driver does analt have a job
+ *		fully prepared to run yet (i.e. it will analt be able to finish a
+ *		transaction without sleeping). If analt provided, it will be
  *		assumed that one source and one destination buffer are all
  *		that is required for the driver to perform one full transaction.
- *		This method may not sleep.
+ *		This method may analt sleep.
  * @job_abort:	optional. Informs the driver that it has to abort the currently
  *		running transaction as soon as possible (i.e. as soon as it can
  *		stop the device safely; e.g. in the next interrupt handler),
- *		even if the transaction would not have been finished by then.
+ *		even if the transaction would analt have been finished by then.
  *		After the driver performs the necessary steps, it has to call
  *		v4l2_m2m_job_finish() or v4l2_m2m_buf_done_and_job_finish() as
- *		if the transaction ended normally.
- *		This function does not have to (and will usually not) wait
+ *		if the transaction ended analrmally.
+ *		This function does analt have to (and will usually analt) wait
  *		until the device enters a state when it can be stopped.
  */
 struct v4l2_m2m_ops {
@@ -84,8 +84,8 @@ struct v4l2_m2m_queue_ctx {
  * @last_src_buf: indicate the last source buffer for draining
  * @next_buf_last: next capture queud buffer will be tagged as last
  * @has_stopped: indicate the device has been stopped
- * @ignore_cap_streaming: If true, job_ready can be called even if the CAPTURE
- *			  queue is not streaming. This allows firmware to
+ * @iganalre_cap_streaming: If true, job_ready can be called even if the CAPTURE
+ *			  queue is analt streaming. This allows firmware to
  *			  analyze the bitstream header which arrives on the
  *			  OUTPUT queue. The driver must implement the job_ready
  *			  callback correctly to make sure that the requirements
@@ -99,7 +99,7 @@ struct v4l2_m2m_queue_ctx {
  * @finished: Wait queue used to signalize when a job queue finished.
  * @priv: Instance private data
  *
- * The memory to memory context is specific to a file handle, NOT to e.g.
+ * The memory to memory context is specific to a file handle, ANALT to e.g.
  * a device.
  */
 struct v4l2_m2m_ctx {
@@ -112,7 +112,7 @@ struct v4l2_m2m_ctx {
 	struct vb2_v4l2_buffer		*last_src_buf;
 	bool				next_buf_last;
 	bool				has_stopped;
-	bool				ignore_cap_streaming;
+	bool				iganalre_cap_streaming;
 
 	/* internal use only */
 	struct v4l2_m2m_dev		*m2m_dev;
@@ -142,7 +142,7 @@ struct v4l2_m2m_buffer {
 
 /**
  * v4l2_m2m_get_curr_priv() - return driver private data for the currently
- * running instance or NULL if no instance is running
+ * running instance or NULL if anal instance is running
  *
  * @m2m_dev: opaque pointer to the internal data to handle M2M context
  */
@@ -193,7 +193,7 @@ void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx);
  *
  * This function has to be called only after &v4l2_m2m_ops->device_run
  * callback has been called on the driver. To prevent recursion, it should
- * not be called directly from the &v4l2_m2m_ops->device_run callback though.
+ * analt be called directly from the &v4l2_m2m_ops->device_run callback though.
  */
 void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 			 struct v4l2_m2m_ctx *m2m_ctx);
@@ -261,7 +261,7 @@ v4l2_m2m_mark_stopped(struct v4l2_m2m_ctx *m2m_ctx)
  * v4l2_m2m_dst_buf_is_last() - return the current encoding/decoding session
  * draining management state of next queued capture buffer
  *
- * This last capture buffer should be tagged with V4L2_BUF_FLAG_LAST to notify
+ * This last capture buffer should be tagged with V4L2_BUF_FLAG_LAST to analtify
  * the end of the capture session.
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
@@ -479,7 +479,7 @@ int v4l2_m2m_decoder_cmd(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
  *
  * Call from the driver's poll() function. Will poll both queues. If a buffer
  * is available to dequeue (with dqbuf) from the source queue, this will
- * indicate that a non-blocking write can be performed, while read will be
+ * indicate that a analn-blocking write can be performed, while read will be
  * returned in case of the destination queue.
  */
 __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
@@ -493,7 +493,7 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
  * @vma: pointer to struct &vm_area_struct
  *
  * Call from driver's mmap() function. Will handle mmap() for both queues
- * seamlessly for the video buffer, which will receive normal per-queue offsets
+ * seamlessly for the video buffer, which will receive analrmal per-queue offsets
  * and proper vb2 queue pointers. The differentiation is made outside
  * vb2 by adding a predefined offset to buffers from one of the queues
  * and subtracting it before passing it back to vb2. Only drivers (and
@@ -850,7 +850,7 @@ v4l2_m2m_dst_buf_remove_by_idx(struct v4l2_m2m_ctx *m2m_ctx, unsigned int idx)
  * and TSTAMP_SRC_MASK flags from @out_vb to @cap_vb.
  *
  * If @copy_frame_flags is false, then the KEYFRAME, BFRAME and PFRAME
- * flags are not copied. This is typically needed for encoders that
+ * flags are analt copied. This is typically needed for encoders that
  * set this bits explicitly.
  */
 void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,

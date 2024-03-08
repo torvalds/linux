@@ -11,7 +11,7 @@
  *  And tested with help of WB Electronics
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -69,19 +69,19 @@ static int iuu_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(struct iuu_private), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->buf = kzalloc(256, GFP_KERNEL);
 	if (!priv->buf) {
 		kfree(priv);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->writebuf = kzalloc(256, GFP_KERNEL);
 	if (!priv->writebuf) {
 		kfree(priv->buf);
 		kfree(priv);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->vcc = vcc_default;
@@ -136,8 +136,8 @@ static int iuu_tiocmset(struct tty_struct *tty,
 
 /* This is used to provide a carrier detect mechanism
  * When a card is present, the response is 0x00
- * When no card , the reader respond with TIOCM_CD
- * This is known as CD autodetect mechanism
+ * When anal card , the reader respond with TIOCM_CD
+ * This is kanalwn as CD autodetect mechanism
  */
 static int iuu_tiocmget(struct tty_struct *tty)
 {
@@ -201,7 +201,7 @@ static int iuu_reset(struct usb_serial_port *port, u8 wt)
 
 /* Status Function
  * Return value is
- * 0x00 = no card
+ * 0x00 = anal card
  * 0x01 = smartcard
  * 0x02 = sim card
  */
@@ -312,7 +312,7 @@ static int iuu_led(struct usb_serial_port *port, unsigned int R,
 	u8 *buf;
 	buf = kmalloc(8, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = IUU_SET_LED;
 	buf[1] = R & 0xFF;
@@ -538,7 +538,7 @@ static int iuu_uart_flush(struct usb_serial_port *port)
 
 	rxcmd = kmalloc(1, GFP_KERNEL);
 	if (!rxcmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rxcmd[0] = IUU_UART_RX;
 
@@ -690,7 +690,7 @@ static void iuu_uart_read_callback(struct urb *urb)
 		return;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
-	/* if nothing to write call again rxcmd */
+	/* if analthing to write call again rxcmd */
 	dev_dbg(&port->dev, "%s - rxcmd recall\n", __func__);
 	iuu_led_activity_off(urb);
 }
@@ -744,7 +744,7 @@ static int iuu_uart_on(struct usb_serial_port *port)
 	buf = kmalloc(4, GFP_KERNEL);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = IUU_UART_ENABLE;
 	buf[1] = (u8) ((IUU_BAUD_9600 >> 8) & 0x00FF);
@@ -772,7 +772,7 @@ static int iuu_uart_off(struct usb_serial_port *port)
 	u8 *buf;
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	buf[0] = IUU_UART_DISABLE;
 
 	status = bulk_immediate(port, buf, 1);
@@ -798,7 +798,7 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 	dataout = kmalloc(5, GFP_KERNEL);
 
 	if (!dataout)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*baud = (((priv->clk / 35) * baud_base) / 100000); */
 	baud = baud_base;
 
@@ -838,7 +838,7 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 	*actual = (T1FrekvensHZ / (256 - T1reload)) / 2;
 
 	switch (parity & 0x0F) {
-	case IUU_PARITY_NONE:
+	case IUU_PARITY_ANALNE:
 		dataout[DataCount++] = 0x00;
 		break;
 	case IUU_PARITY_EVEN:
@@ -905,7 +905,7 @@ static void iuu_set_termios(struct tty_struct *tty,
 		else
 			parity |= IUU_PARITY_MARK;
 	} else if (!(cflag & PARENB)) {
-		parity |= IUU_PARITY_NONE;
+		parity |= IUU_PARITY_ANALNE;
 		csize = CS8;
 	} else if (cflag & PARODD)
 		parity |= IUU_PARITY_ODD;
@@ -919,7 +919,7 @@ static void iuu_set_termios(struct tty_struct *tty,
 			baud * priv->boost / 100,
 			&actual, parity);
 
-	/* set the termios value to the real one, so the user now what has
+	/* set the termios value to the real one, so the user analw what has
 	 * changed. We support few fields so its easies to copy the old hw
 	 * settings back over and then adjust them
 	 */
@@ -978,8 +978,8 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 				b, a, c, d, NULL, 0, 1000); \
 	dev_dbg(dev, "0x%x:0x%x:0x%x:0x%x  %d\n", a, b, c, d, result); } while (0)
 
-	/*  This is not UART related but IUU USB driver related or something */
-	/*  like that. Basically no IUU will accept any commands from the USB */
+	/*  This is analt UART related but IUU USB driver related or something */
+	/*  like that. Basically anal IUU will accept any commands from the USB */
 	/*  host unless it has received the following message */
 	/* sprintf(buf ,"%c%c%c%c",0x03,0x02,0x02,0x0); */
 
@@ -1082,7 +1082,7 @@ static int iuu_vcc_set(struct usb_serial_port *port, unsigned int vcc)
 
 	buf = kmalloc(5, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = IUU_SET_VCC;
 	buf[1] = vcc & 0xFF;
@@ -1122,7 +1122,7 @@ static ssize_t vcc_mode_store(struct device *dev,
 	unsigned long v;
 
 	if (kstrtoul(buf, 10, &v)) {
-		dev_err(dev, "%s - vcc_mode: %s is not a unsigned long\n",
+		dev_err(dev, "%s - vcc_mode: %s is analt a unsigned long\n",
 				__func__, buf);
 		goto fail_store_vcc_mode;
 	}
@@ -1190,7 +1190,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 module_param(xmas, bool, 0644);
-MODULE_PARM_DESC(xmas, "Xmas colors enabled or not");
+MODULE_PARM_DESC(xmas, "Xmas colors enabled or analt");
 
 module_param(boost, int, 0644);
 MODULE_PARM_DESC(boost, "Card overclock boost (in percent 100-500)");
@@ -1200,7 +1200,7 @@ MODULE_PARM_DESC(clockmode, "Card clock mode (1=3.579 MHz, 2=3.680 MHz, "
 		"3=6 Mhz)");
 
 module_param(cdmode, int, 0644);
-MODULE_PARM_DESC(cdmode, "Card detect mode (0=none, 1=CD, 2=!CD, 3=DSR, "
+MODULE_PARM_DESC(cdmode, "Card detect mode (0=analne, 1=CD, 2=!CD, 3=DSR, "
 		 "4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING)");
 
 module_param(vcc_default, int, 0644);

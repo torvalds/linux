@@ -20,7 +20,7 @@
 /*********************** SB_Input Variable Values ***********************/
 /*	 may be needed when ever the SBA state machine is called	*/
 
-#define UNKNOWN_SYNC_SOURCE	0x0001
+#define UNKANALWN_SYNC_SOURCE	0x0001
 #define REQ_ALLOCATION		0x0002
 #define REPORT_RESP		0x0003
 #define CHANGE_RESP		0x0004
@@ -50,10 +50,10 @@
 #define FIFTY_BYTES		50
 #define SBA_DENIED		0x0000000D
 #define I_NEED_ONE		0x00000000
-#define MAX_NODES		50
+#define MAX_ANALDES		50
 /*#define T_REPORT		0x59682F00L*/	/* 120s/80ns in Hex */
 #define	TWO_MIN			120		/* seconds */
-#define SBA_ST_UNKNOWN		0x00000002
+#define SBA_ST_UNKANALWN		0x00000002
 #define SBA_ST_ACTIVE		0x00000001
 #define S_CLEAR			0x00000000L
 #define ZERO			0x00000000
@@ -61,12 +61,12 @@
 #define S_SET			0x00000001L
 #define LOW_PRIO		0x02		/* ??????? */
 #define OK			0x01		/* ??????? */
-#define NOT_OK			0x00		/* ??????? */
+#define ANALT_OK			0x00		/* ??????? */
 
 /****************************************/
 /* deallocate_status[ni][si] values	*/
 /****************************************/
 #define TX_CHANGE		0X00000001L
 #define PENDING			0x00000002L
-#define NONE			0X00000000L
+#define ANALNE			0X00000000L
 #endif

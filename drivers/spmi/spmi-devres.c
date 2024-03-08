@@ -17,7 +17,7 @@ struct spmi_controller *devm_spmi_controller_alloc(struct device *parent, size_t
 
 	ptr = devres_alloc(devm_spmi_controller_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctrl = spmi_controller_alloc(parent, size);
 	if (IS_ERR(ctrl)) {
@@ -44,7 +44,7 @@ int devm_spmi_controller_add(struct device *parent, struct spmi_controller *ctrl
 
 	ptr = devres_alloc(devm_spmi_controller_remove, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = spmi_controller_add(ctrl);
 	if (ret) {

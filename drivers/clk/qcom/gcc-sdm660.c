@@ -1464,14 +1464,14 @@ static struct clk_branch gcc_boot_rom_ahb_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb2_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb2_axi_clk = {
 	.halt_reg = 0x5058,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x5058,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb2_axi_clk",
+			.name = "gcc_cfg_analc_usb2_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&usb20_master_clk_src.clkr.hw,
 			},
@@ -1481,14 +1481,14 @@ static struct clk_branch gcc_cfg_noc_usb2_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_axi_clk = {
 	.halt_reg = 0x5018,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x5018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb3_axi_clk",
+			.name = "gcc_cfg_analc_usb3_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&usb30_master_clk_src.clkr.hw,
 			},
@@ -1634,7 +1634,7 @@ static struct clk_branch gcc_hmss_dvm_bus_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_hmss_dvm_bus_clk",
 			.ops = &clk_branch2_ops,
-			.flags = CLK_IGNORE_UNUSED,
+			.flags = CLK_IGANALRE_UNUSED,
 		},
 	},
 };
@@ -1691,33 +1691,33 @@ static struct clk_branch gcc_mmss_gpll0_div_clk = {
 	},
 };
 
-static struct clk_branch gcc_mmss_noc_cfg_ahb_clk = {
+static struct clk_branch gcc_mmss_analc_cfg_ahb_clk = {
 	.halt_reg = 0x9004,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x9004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mmss_noc_cfg_ahb_clk",
+			.name = "gcc_mmss_analc_cfg_ahb_clk",
 			.ops = &clk_branch2_ops,
 			/*
 			 * Any access to mmss depends on this clock.
 			 * Gating this clock has been shown to crash the system
-			 * when mmssnoc_axi_rpm_clk is inited in rpmcc.
+			 * when mmssanalc_axi_rpm_clk is inited in rpmcc.
 			 */
 			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
 
-static struct clk_branch gcc_mmss_sys_noc_axi_clk = {
+static struct clk_branch gcc_mmss_sys_analc_axi_clk = {
 	.halt_reg = 0x9000,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x9000,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mmss_sys_noc_axi_clk",
+			.name = "gcc_mmss_sys_analc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1735,7 +1735,7 @@ static struct clk_branch gcc_mss_cfg_ahb_clk = {
 	},
 };
 
-static struct clk_branch gcc_mss_mnoc_bimc_axi_clk = {
+static struct clk_branch gcc_mss_manalc_bimc_axi_clk = {
 	.halt_reg = 0x8a004,
 	.halt_check = BRANCH_HALT,
 	.hwcg_reg = 0x8a004,
@@ -1744,7 +1744,7 @@ static struct clk_branch gcc_mss_mnoc_bimc_axi_clk = {
 		.enable_reg = 0x8a004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mss_mnoc_bimc_axi_clk",
+			.name = "gcc_mss_manalc_bimc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1762,13 +1762,13 @@ static struct clk_branch gcc_mss_q6_bimc_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_mss_snoc_axi_clk = {
+static struct clk_branch gcc_mss_sanalc_axi_clk = {
 	.halt_reg = 0x8a03c,
 	.clkr = {
 		.enable_reg = 0x8a03c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mss_snoc_axi_clk",
+			.name = "gcc_mss_sanalc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2332,8 +2332,8 @@ static struct clk_regmap *gcc_sdm660_clocks[] = {
 	[GCC_BLSP2_UART1_APPS_CLK] = &gcc_blsp2_uart1_apps_clk.clkr,
 	[GCC_BLSP2_UART2_APPS_CLK] = &gcc_blsp2_uart2_apps_clk.clkr,
 	[GCC_BOOT_ROM_AHB_CLK] = &gcc_boot_rom_ahb_clk.clkr,
-	[GCC_CFG_NOC_USB2_AXI_CLK] = &gcc_cfg_noc_usb2_axi_clk.clkr,
-	[GCC_CFG_NOC_USB3_AXI_CLK] = &gcc_cfg_noc_usb3_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB2_AXI_CLK] = &gcc_cfg_analc_usb2_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_AXI_CLK] = &gcc_cfg_analc_usb3_axi_clk.clkr,
 	[GCC_DCC_AHB_CLK] = &gcc_dcc_ahb_clk.clkr,
 	[GCC_GP1_CLK] = &gcc_gp1_clk.clkr,
 	[GCC_GP2_CLK] = &gcc_gp2_clk.clkr,
@@ -2346,12 +2346,12 @@ static struct clk_regmap *gcc_sdm660_clocks[] = {
 	[GCC_HMSS_RBCPR_CLK] = &gcc_hmss_rbcpr_clk.clkr,
 	[GCC_MMSS_GPLL0_CLK] = &gcc_mmss_gpll0_clk.clkr,
 	[GCC_MMSS_GPLL0_DIV_CLK] = &gcc_mmss_gpll0_div_clk.clkr,
-	[GCC_MMSS_NOC_CFG_AHB_CLK] = &gcc_mmss_noc_cfg_ahb_clk.clkr,
-	[GCC_MMSS_SYS_NOC_AXI_CLK] = &gcc_mmss_sys_noc_axi_clk.clkr,
+	[GCC_MMSS_ANALC_CFG_AHB_CLK] = &gcc_mmss_analc_cfg_ahb_clk.clkr,
+	[GCC_MMSS_SYS_ANALC_AXI_CLK] = &gcc_mmss_sys_analc_axi_clk.clkr,
 	[GCC_MSS_CFG_AHB_CLK] = &gcc_mss_cfg_ahb_clk.clkr,
-	[GCC_MSS_MNOC_BIMC_AXI_CLK] = &gcc_mss_mnoc_bimc_axi_clk.clkr,
+	[GCC_MSS_MANALC_BIMC_AXI_CLK] = &gcc_mss_manalc_bimc_axi_clk.clkr,
 	[GCC_MSS_Q6_BIMC_AXI_CLK] = &gcc_mss_q6_bimc_axi_clk.clkr,
-	[GCC_MSS_SNOC_AXI_CLK] = &gcc_mss_snoc_axi_clk.clkr,
+	[GCC_MSS_SANALC_AXI_CLK] = &gcc_mss_sanalc_axi_clk.clkr,
 	[GCC_PDM2_CLK] = &gcc_pdm2_clk.clkr,
 	[GCC_PDM_AHB_CLK] = &gcc_pdm_ahb_clk.clkr,
 	[GCC_PRNG_AHB_CLK] = &gcc_prng_ahb_clk.clkr,

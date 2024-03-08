@@ -41,7 +41,7 @@ static int alloc_urb_from_cmd(struct urb **urbp,
 		goto free_buffer;
 
 	/*
-	 * FIXME - we only setup pipe enough for usbip functions
+	 * FIXME - we only setup pipe eanalugh for usbip functions
 	 * to behave nicely
 	 */
 	urb->pipe |= pdu->base.direction == USBIP_DIR_IN ?
@@ -56,7 +56,7 @@ free_buffer:
 free_urb:
 	usb_free_urb(urb);
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int v_recv_cmd_unlink(struct vudc *udc,
@@ -75,7 +75,7 @@ static int v_recv_cmd_unlink(struct vudc *udc,
 		spin_unlock_irqrestore(&udc->lock, flags);
 		return 0;
 	}
-	/* Not found, completed / not queued */
+	/* Analt found, completed / analt queued */
 	spin_lock(&udc->lock_tx);
 	v_enqueue_ret_unlink(udc, pdu->base.seqnum, 0);
 	wake_up(&udc->tx_waitq);
@@ -96,7 +96,7 @@ static int v_recv_cmd_submit(struct vudc *udc,
 	urb_p = alloc_urbp();
 	if (!urb_p) {
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_MALLOC);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* base.ep is pipeendpoint(pipe) */
@@ -107,8 +107,8 @@ static int v_recv_cmd_submit(struct vudc *udc,
 	spin_lock_irqsave(&udc->lock, flags);
 	urb_p->ep = vudc_find_endpoint(udc, address);
 	if (!urb_p->ep) {
-		/* we don't know the type, there may be isoc data! */
-		dev_err(&udc->pdev->dev, "request to nonexistent endpoint");
+		/* we don't kanalw the type, there may be isoc data! */
+		dev_err(&udc->pdev->dev, "request to analnexistent endpoint");
 		spin_unlock_irqrestore(&udc->lock, flags);
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_TCP);
 		ret = -EPIPE;
@@ -142,7 +142,7 @@ static int v_recv_cmd_submit(struct vudc *udc,
 	ret = alloc_urb_from_cmd(&urb_p->urb, pdu, urb_p->ep->type);
 	if (ret) {
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_MALLOC);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_urbp;
 	}
 
@@ -163,7 +163,7 @@ static int v_recv_cmd_submit(struct vudc *udc,
 		urb_p->urb->pipe |= (PIPE_CONTROL << 30);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		urb_p->urb->pipe |= (PIPE_ISOCHRONOUS << 30);
+		urb_p->urb->pipe |= (PIPE_ISOCHROANALUS << 30);
 		break;
 	}
 	ret = usbip_recv_xbuff(&udc->ud, urb_p->urb);
@@ -219,7 +219,7 @@ static int v_rx_pdu(struct usbip_device *ud)
 		break;
 	default:
 		ret = -EPIPE;
-		pr_err("rx: unknown command");
+		pr_err("rx: unkanalwn command");
 		break;
 	}
 	return ret;

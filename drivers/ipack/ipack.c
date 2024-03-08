@@ -81,14 +81,14 @@ static int ipack_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	const struct ipack_device *idev;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	idev = to_ipack_dev(dev);
 
 	if (add_uevent_var(env,
 			   "MODALIAS=ipack:f%02Xv%08Xd%08X", idev->id_format,
 			   idev->id_vendor, idev->id_device))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -273,7 +273,7 @@ static u16 ipack_crc_byte(u16 crc, u8 c)
 }
 
 /*
- * The algorithm in lib/crc-ccitt.c does not seem to apply since it uses the
+ * The algorithm in lib/crc-ccitt.c does analt seem to apply since it uses the
  * opposite bit ordering.
  */
 static u8 ipack_calc_crc1(struct ipack_device *dev)
@@ -352,7 +352,7 @@ static int ipack_device_read_id(struct ipack_device *dev)
 			dev->region[IPACK_ID_SPACE].size);
 	if (!idmem) {
 		dev_err(&dev->dev, "error mapping memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Determine ID PROM Data Format.  If we find the ids "IPAC" or "IPAH"
@@ -388,7 +388,7 @@ static int ipack_device_read_id(struct ipack_device *dev)
 	}
 
 	if (!dev->id_avail) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -396,7 +396,7 @@ static int ipack_device_read_id(struct ipack_device *dev)
 	 * ID ROM contents */
 	dev->id = kmalloc(dev->id_avail, GFP_KERNEL);
 	if (!dev->id) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	for (i = 0; i < dev->id_avail; i++) {
@@ -406,7 +406,7 @@ static int ipack_device_read_id(struct ipack_device *dev)
 			dev->id[i] = ioread8(idmem + i);
 	}
 
-	/* now we can finally work with the copy */
+	/* analw we can finally work with the copy */
 	switch (dev->id_format) {
 	case IPACK_ID_VERSION_1:
 		ipack_parse_id1(dev);

@@ -33,42 +33,42 @@
 static struct s5p_mfc_fmt formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_NV12MT_16X16,
-		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.codec_mode	= S5P_MFC_CODEC_ANALNE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
 		.versions	= MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.fourcc		= V4L2_PIX_FMT_NV12MT,
-		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.codec_mode	= S5P_MFC_CODEC_ANALNE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
 		.versions	= MFC_V5_BIT,
 	},
 	{
 		.fourcc		= V4L2_PIX_FMT_NV12M,
-		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.codec_mode	= S5P_MFC_CODEC_ANALNE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
 		.fourcc		= V4L2_PIX_FMT_NV21M,
-		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.codec_mode	= S5P_MFC_CODEC_ANALNE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
 		.versions	= MFC_V6PLUS_BITS,
 	},
 	{
 		.fourcc         = V4L2_PIX_FMT_YUV420M,
-		.codec_mode     = S5P_MFC_CODEC_NONE,
+		.codec_mode     = S5P_MFC_CODEC_ANALNE,
 		.type           = MFC_FMT_RAW,
 		.num_planes     = 3,
 		.versions       = MFC_V12_BIT,
 	},
 	{
 		.fourcc         = V4L2_PIX_FMT_YVU420M,
-		.codec_mode     = S5P_MFC_CODEC_NONE,
+		.codec_mode     = S5P_MFC_CODEC_ANALNE,
 		.type           = MFC_FMT_RAW,
 		.num_planes     = 3,
 		.versions       = MFC_V12_BIT,
@@ -212,7 +212,7 @@ static struct mfc_control controls[] = {
 		.type = V4L2_CTRL_TYPE_MENU,
 		.name = "Force frame type",
 		.minimum = V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_DISABLED,
-		.maximum = V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_NOT_CODED,
+		.maximum = V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_ANALT_CODED,
 		.default_value = V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_DISABLED,
 		.menu_skip_mask = 0,
 	},
@@ -800,10 +800,10 @@ static struct mfc_control controls[] = {
 	{
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_TYPE,
 		.type = V4L2_CTRL_TYPE_MENU,
-		.minimum = V4L2_MPEG_VIDEO_HEVC_REFRESH_NONE,
+		.minimum = V4L2_MPEG_VIDEO_HEVC_REFRESH_ANALNE,
 		.maximum = V4L2_MPEG_VIDEO_HEVC_REFRESH_IDR,
 		.step = 1,
-		.default_value = V4L2_MPEG_VIDEO_HEVC_REFRESH_NONE,
+		.default_value = V4L2_MPEG_VIDEO_HEVC_REFRESH_ANALNE,
 	},
 	{
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_CONST_INTRA_PRED,
@@ -1093,7 +1093,7 @@ static const char * const *mfc51_get_menu(u32 id)
 	static const char * const mfc51_video_force_frame[] = {
 		"Disabled",
 		"I Frame",
-		"Not Coded",
+		"Analt Coded",
 		NULL,
 	};
 	switch (id) {
@@ -1121,7 +1121,7 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 	if (ctx->state == MFCINST_FINISHING &&
 		ctx->dst_queue_cnt >= 1)
 		return 1;
-	mfc_debug(2, "ctx is not ready\n");
+	mfc_debug(2, "ctx is analt ready\n");
 	return 0;
 }
 
@@ -1397,7 +1397,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		/* This is run on output (encoder dest) */
 		pix_fmt_mp->width = 0;
 		pix_fmt_mp->height = 0;
-		pix_fmt_mp->field = V4L2_FIELD_NONE;
+		pix_fmt_mp->field = V4L2_FIELD_ANALNE;
 		pix_fmt_mp->pixelformat = ctx->dst_fmt->fourcc;
 		pix_fmt_mp->num_planes = ctx->dst_fmt->num_planes;
 
@@ -1408,7 +1408,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		pix_fmt_mp->width = ctx->img_width;
 		pix_fmt_mp->height = ctx->img_height;
 
-		pix_fmt_mp->field = V4L2_FIELD_NONE;
+		pix_fmt_mp->field = V4L2_FIELD_ANALNE;
 		pix_fmt_mp->pixelformat = ctx->src_fmt->fourcc;
 		pix_fmt_mp->num_planes = ctx->src_fmt->num_planes;
 
@@ -1534,7 +1534,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	int ret = 0;
 
-	/* if memory is not mmp or userptr or dmabuf return error */
+	/* if memory is analt mmp or userptr or dmabuf return error */
 	if ((reqbufs->memory != V4L2_MEMORY_MMAP) &&
 		(reqbufs->memory != V4L2_MEMORY_USERPTR) &&
 		(reqbufs->memory != V4L2_MEMORY_DMABUF))
@@ -1604,7 +1604,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	int ret = 0;
 
-	/* if memory is not mmp or userptr or dmabuf return error */
+	/* if memory is analt mmp or userptr or dmabuf return error */
 	if ((buf->memory != V4L2_MEMORY_MMAP) &&
 		(buf->memory != V4L2_MEMORY_USERPTR) &&
 		(buf->memory != V4L2_MEMORY_DMABUF))
@@ -1668,9 +1668,9 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return -EIO;
 	}
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		ret = vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_NONBLOCK);
+		ret = vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_ANALNBLOCK);
 	} else if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_NONBLOCK);
+		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_ANALNBLOCK);
 		if (ret == 0 && ctx->state == MFCINST_FINISHED
 					&& list_empty(&ctx->vq_dst.done_list))
 			v4l2_event_queue_fh(&ctx->fh, &ev);
@@ -2221,7 +2221,7 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		p->codec.hevc.max_num_merge_mv = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_WITHOUT_STARTCODE:
-		p->codec.hevc.encoding_nostartcode_enable = ctrl->val;
+		p->codec.hevc.encoding_analstartcode_enable = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_PERIOD:
 		p->codec.hevc.refreshperiod = ctrl->val;
@@ -2258,7 +2258,7 @@ static int s5p_mfc_enc_g_v_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val = ctx->pb_count;
 			break;
 		} else if (ctx->state != MFCINST_INIT) {
-			v4l2_err(&dev->v4l2_dev, "Encoding not initialised\n");
+			v4l2_err(&dev->v4l2_dev, "Encoding analt initialised\n");
 			return -EINVAL;
 		}
 		/* Should wait for the header to be produced */
@@ -2268,7 +2268,7 @@ static int s5p_mfc_enc_g_v_ctrl(struct v4l2_ctrl *ctrl)
 		    ctx->state < MFCINST_ABORT) {
 			ctrl->val = ctx->pb_count;
 		} else {
-			v4l2_err(&dev->v4l2_dev, "Encoding not initialised\n");
+			v4l2_err(&dev->v4l2_dev, "Encoding analt initialised\n");
 			return -EINVAL;
 		}
 		break;
@@ -2288,8 +2288,8 @@ static int vidioc_s_parm(struct file *file, void *priv,
 
 	if (a->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		ctx->enc_params.rc_framerate_num =
-					a->parm.output.timeperframe.denominator;
-		ctx->enc_params.rc_framerate_denom =
+					a->parm.output.timeperframe.deanalminator;
+		ctx->enc_params.rc_framerate_deanalm =
 					a->parm.output.timeperframe.numerator;
 	} else {
 		mfc_err("Setting FPS is only possible for the output queue\n");
@@ -2304,10 +2304,10 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 
 	if (a->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		a->parm.output.timeperframe.denominator =
+		a->parm.output.timeperframe.deanalminator =
 					ctx->enc_params.rc_framerate_num;
 		a->parm.output.timeperframe.numerator =
-					ctx->enc_params.rc_framerate_denom;
+					ctx->enc_params.rc_framerate_deanalm;
 	} else {
 		mfc_err("Setting FPS is only possible for the output queue\n");
 		return -EINVAL;
@@ -2572,7 +2572,7 @@ static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 		if (q->memory != V4L2_MEMORY_DMABUF) {
 			if (ctx->src_bufs_cnt < ctx->pb_count) {
 				mfc_err("Need minimum %d OUTPUT buffers\n", ctx->pb_count);
-				return -ENOBUFS;
+				return -EANALBUFS;
 			}
 		}
 	}

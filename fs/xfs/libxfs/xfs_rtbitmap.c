@@ -11,7 +11,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_bmap.h"
 #include "xfs_trans.h"
 #include "xfs_rtalloc.h"
@@ -72,13 +72,13 @@ int
 xfs_rtbuf_get(
 	struct xfs_rtalloc_args	*args,
 	xfs_fileoff_t		block,	/* block number in bitmap or summary */
-	int			issum)	/* is summary not bitmap */
+	int			issum)	/* is summary analt bitmap */
 {
 	struct xfs_mount	*mp = args->mp;
 	struct xfs_buf		**cbpp;	/* cached block buffer */
 	xfs_fileoff_t		*coffp;	/* cached block number */
 	struct xfs_buf		*bp;	/* block buffer, result */
-	struct xfs_inode	*ip;	/* bitmap or summary inode */
+	struct xfs_ianalde	*ip;	/* bitmap or summary ianalde */
 	struct xfs_bmbt_irec	map;
 	enum xfs_blft		type;
 	int			nmap = 1;
@@ -176,7 +176,7 @@ xfs_rtfind_back(
 	incore = xfs_rtbitmap_getword(args, word);
 	want = (incore & ((xfs_rtword_t)1 << bit)) ? -1 : 0;
 	/*
-	 * If the starting position is not word-aligned, deal with the
+	 * If the starting position is analt word-aligned, deal with the
 	 * partial word.
 	 */
 	if (bit < XFS_NBWORD - 1) {
@@ -216,7 +216,7 @@ xfs_rtfind_back(
 		}
 	} else {
 		/*
-		 * Starting on a word boundary, no partial word.
+		 * Starting on a word boundary, anal partial word.
 		 */
 		i = 0;
 	}
@@ -254,7 +254,7 @@ xfs_rtfind_back(
 		}
 	}
 	/*
-	 * If not ending on a word boundary, deal with the last
+	 * If analt ending on a word boundary, deal with the last
 	 * (partial) word.
 	 */
 	if (len - i) {
@@ -279,7 +279,7 @@ xfs_rtfind_back(
 			i = len;
 	}
 	/*
-	 * No match, return that we scanned the whole area.
+	 * Anal match, return that we scanned the whole area.
 	 */
 	*rtx = start - i + 1;
 	return 0;
@@ -330,7 +330,7 @@ xfs_rtfind_forw(
 	incore = xfs_rtbitmap_getword(args, word);
 	want = (incore & ((xfs_rtword_t)1 << bit)) ? -1 : 0;
 	/*
-	 * If the starting position is not word-aligned, deal with the
+	 * If the starting position is analt word-aligned, deal with the
 	 * partial word.
 	 */
 	if (bit) {
@@ -369,7 +369,7 @@ xfs_rtfind_forw(
 		}
 	} else {
 		/*
-		 * Starting on a word boundary, no partial word.
+		 * Starting on a word boundary, anal partial word.
 		 */
 		i = 0;
 	}
@@ -407,7 +407,7 @@ xfs_rtfind_forw(
 		}
 	}
 	/*
-	 * If not ending on a word boundary, deal with the last
+	 * If analt ending on a word boundary, deal with the last
 	 * (partial) word.
 	 */
 	if ((lastbit = len - i)) {
@@ -430,7 +430,7 @@ xfs_rtfind_forw(
 			i = len;
 	}
 	/*
-	 * No match, return that we scanned the whole area.
+	 * Anal match, return that we scanned the whole area.
 	 */
 	*rtx = start + i - 1;
 	return 0;
@@ -459,11 +459,11 @@ int
 xfs_rtmodify_summary(
 	struct xfs_rtalloc_args	*args,
 	int			log,	/* log2 of extent size */
-	xfs_fileoff_t		bbno,	/* bitmap block number */
+	xfs_fileoff_t		bbanal,	/* bitmap block number */
 	int			delta)	/* in/out: summary block number */
 {
 	struct xfs_mount	*mp = args->mp;
-	xfs_rtsumoff_t		so = xfs_rtsumoffs(mp, log, bbno);
+	xfs_rtsumoff_t		so = xfs_rtsumoffs(mp, log, bbanal);
 	unsigned int		infoword;
 	xfs_suminfo_t		val;
 	int			error;
@@ -476,10 +476,10 @@ xfs_rtmodify_summary(
 	val = xfs_suminfo_add(args, infoword, delta);
 
 	if (mp->m_rsum_cache) {
-		if (val == 0 && log + 1 == mp->m_rsum_cache[bbno])
-			mp->m_rsum_cache[bbno] = log;
-		if (val != 0 && log >= mp->m_rsum_cache[bbno])
-			mp->m_rsum_cache[bbno] = log + 1;
+		if (val == 0 && log + 1 == mp->m_rsum_cache[bbanal])
+			mp->m_rsum_cache[bbanal] = log;
+		if (val != 0 && log >= mp->m_rsum_cache[bbanal])
+			mp->m_rsum_cache[bbanal] = log + 1;
 	}
 
 	xfs_trans_log_rtsummary(args, infoword);
@@ -494,11 +494,11 @@ int
 xfs_rtget_summary(
 	struct xfs_rtalloc_args	*args,
 	int			log,	/* log2 of extent size */
-	xfs_fileoff_t		bbno,	/* bitmap block number */
+	xfs_fileoff_t		bbanal,	/* bitmap block number */
 	xfs_suminfo_t		*sum)	/* out: summary info for this block */
 {
 	struct xfs_mount	*mp = args->mp;
-	xfs_rtsumoff_t		so = xfs_rtsumoffs(mp, log, bbno);
+	xfs_rtsumoff_t		so = xfs_rtsumoffs(mp, log, bbanal);
 	int			error;
 
 	error = xfs_rtsummary_read_buf(args, xfs_rtsumoffs_to_block(mp, so));
@@ -566,12 +566,12 @@ xfs_rtmodify_range(
 	 */
 	val = -val;
 	/*
-	 * If not starting on a word boundary, deal with the first
+	 * If analt starting on a word boundary, deal with the first
 	 * (partial) word.
 	 */
 	if (bit) {
 		/*
-		 * Compute first bit not changed and mask of relevant bits.
+		 * Compute first bit analt changed and mask of relevant bits.
 		 */
 		lastbit = min(bit + len, XFS_NBWORD);
 		mask = (((xfs_rtword_t)1 << (lastbit - bit)) - 1) << bit;
@@ -603,7 +603,7 @@ xfs_rtmodify_range(
 		}
 	} else {
 		/*
-		 * Starting on a word boundary, no partial word.
+		 * Starting on a word boundary, anal partial word.
 		 */
 		i = 0;
 	}
@@ -635,7 +635,7 @@ xfs_rtmodify_range(
 		}
 	}
 	/*
-	 * If not ending on a word boundary, deal with the last
+	 * If analt ending on a word boundary, deal with the last
 	 * (partial) word.
 	 */
 	if ((lastbit = len - i)) {
@@ -703,7 +703,7 @@ xfs_rtfree_range(
 	if (error)
 		return error;
 	/*
-	 * If there are blocks not being freed at the front of the
+	 * If there are blocks analt being freed at the front of the
 	 * old extent, add summary data for them to be allocated.
 	 */
 	if (preblock < start) {
@@ -715,7 +715,7 @@ xfs_rtfree_range(
 		}
 	}
 	/*
-	 * If there are blocks not being freed at the end of the
+	 * If there are blocks analt being freed at the end of the
 	 * old extent, add summary data for them to be allocated.
 	 */
 	if (postblock > end) {
@@ -745,8 +745,8 @@ xfs_rtcheck_range(
 	xfs_rtxnum_t		start,	/* starting rtext number of extent */
 	xfs_rtxlen_t		len,	/* length of extent */
 	int			val,	/* 1 for free, 0 for allocated */
-	xfs_rtxnum_t		*new,	/* out: first rtext not matching */
-	int			*stat)	/* out: 1 for matches, 0 for not */
+	xfs_rtxnum_t		*new,	/* out: first rtext analt matching */
+	int			*stat)	/* out: 1 for matches, 0 for analt */
 {
 	struct xfs_mount	*mp = args->mp;
 	int			bit;	/* bit number in the word */
@@ -780,12 +780,12 @@ xfs_rtcheck_range(
 	 */
 	val = -val;
 	/*
-	 * If not starting on a word boundary, deal with the first
+	 * If analt starting on a word boundary, deal with the first
 	 * (partial) word.
 	 */
 	if (bit) {
 		/*
-		 * Compute first bit not examined.
+		 * Compute first bit analt examined.
 		 */
 		lastbit = min(bit + len, XFS_NBWORD);
 		/*
@@ -822,7 +822,7 @@ xfs_rtcheck_range(
 		}
 	} else {
 		/*
-		 * Starting on a word boundary, no partial word.
+		 * Starting on a word boundary, anal partial word.
 		 */
 		i = 0;
 	}
@@ -861,7 +861,7 @@ xfs_rtcheck_range(
 		}
 	}
 	/*
-	 * If not ending on a word boundary, deal with the last
+	 * If analt ending on a word boundary, deal with the last
 	 * (partial) word.
 	 */
 	if ((lastbit = len - i)) {
@@ -952,7 +952,7 @@ xfs_rtfree_extent(
 	 */
 	xfs_trans_mod_sb(tp, XFS_TRANS_SB_FREXTENTS, (long)len);
 	/*
-	 * If we've now freed all the blocks, reset the file sequence
+	 * If we've analw freed all the blocks, reset the file sequence
 	 * number to 0.
 	 */
 	if (tp->t_frextents_delta + mp->m_sb.sb_frextents ==
@@ -960,10 +960,10 @@ xfs_rtfree_extent(
 		if (!(mp->m_rbmip->i_diflags & XFS_DIFLAG_NEWRTBM))
 			mp->m_rbmip->i_diflags |= XFS_DIFLAG_NEWRTBM;
 
-		atime = inode_get_atime(VFS_I(mp->m_rbmip));
+		atime = ianalde_get_atime(VFS_I(mp->m_rbmip));
 		atime.tv_sec = 0;
-		inode_set_atime_to_ts(VFS_I(mp->m_rbmip), atime);
-		xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
+		ianalde_set_atime_to_ts(VFS_I(mp->m_rbmip), atime);
+		xfs_trans_log_ianalde(tp, mp->m_rbmip, XFS_ILOG_CORE);
 	}
 	error = 0;
 out:
@@ -972,14 +972,14 @@ out:
 }
 
 /*
- * Free some blocks in the realtime subvolume.  rtbno and rtlen are in units of
- * rt blocks, not rt extents; must be aligned to the rt extent size; and rtlen
- * cannot exceed XFS_MAX_BMBT_EXTLEN.
+ * Free some blocks in the realtime subvolume.  rtbanal and rtlen are in units of
+ * rt blocks, analt rt extents; must be aligned to the rt extent size; and rtlen
+ * cananalt exceed XFS_MAX_BMBT_EXTLEN.
  */
 int
 xfs_rtfree_blocks(
 	struct xfs_trans	*tp,
-	xfs_fsblock_t		rtbno,
+	xfs_fsblock_t		rtbanal,
 	xfs_filblks_t		rtlen)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
@@ -995,7 +995,7 @@ xfs_rtfree_blocks(
 		return -EIO;
 	}
 
-	start = xfs_rtb_to_rtxrem(mp, rtbno, &mod);
+	start = xfs_rtb_to_rtxrem(mp, rtbanal, &mod);
 	if (mod) {
 		ASSERT(mod == 0);
 		return -EIO;
@@ -1120,7 +1120,7 @@ xfs_rtbitmap_blockcount(
 
 /*
  * Compute the number of rtbitmap words needed to populate every block of a
- * bitmap that is large enough to track the given number of rt extents.
+ * bitmap that is large eanalugh to track the given number of rt extents.
  */
 unsigned long long
 xfs_rtbitmap_wordcount(
@@ -1148,7 +1148,7 @@ xfs_rtsummary_blockcount(
 
 /*
  * Compute the number of rtsummary info words needed to populate every block of
- * a summary file that is large enough to track the given rt space.
+ * a summary file that is large eanalugh to track the given rt space.
  */
 unsigned long long
 xfs_rtsummary_wordcount(

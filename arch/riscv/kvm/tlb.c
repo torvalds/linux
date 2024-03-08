@@ -5,7 +5,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/cpumask.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/smp.h>
@@ -256,7 +256,7 @@ void kvm_riscv_hfence_process(struct kvm_vcpu *vcpu)
 
 	while (vcpu_hfence_dequeue(vcpu, &d)) {
 		switch (d.type) {
-		case KVM_RISCV_HFENCE_UNKNOWN:
+		case KVM_RISCV_HFENCE_UNKANALWN:
 			break;
 		case KVM_RISCV_HFENCE_GVMA_VMID_GPA:
 			kvm_riscv_local_hfence_gvma_vmid_gpa(

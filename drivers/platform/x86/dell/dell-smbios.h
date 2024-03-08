@@ -37,7 +37,7 @@
 #define GLOBAL_MUTE_ENABLE	0x058C
 #define GLOBAL_MUTE_DISABLE	0x058D
 
-struct notifier_block;
+struct analtifier_block;
 
 struct calling_interface_token {
 	u16 tokenID;
@@ -66,13 +66,13 @@ int dell_smbios_call(struct calling_interface_buffer *buffer);
 
 struct calling_interface_token *dell_smbios_find_token(int tokenid);
 
-enum dell_laptop_notifier_actions {
+enum dell_laptop_analtifier_actions {
 	DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED,
 };
 
-int dell_laptop_register_notifier(struct notifier_block *nb);
-int dell_laptop_unregister_notifier(struct notifier_block *nb);
-void dell_laptop_call_notifier(unsigned long action, void *data);
+int dell_laptop_register_analtifier(struct analtifier_block *nb);
+int dell_laptop_unregister_analtifier(struct analtifier_block *nb);
+void dell_laptop_call_analtifier(unsigned long action, void *data);
 
 /* for the supported backends */
 #ifdef CONFIG_DELL_SMBIOS_WMI
@@ -81,7 +81,7 @@ void exit_dell_smbios_wmi(void);
 #else /* CONFIG_DELL_SMBIOS_WMI */
 static inline int init_dell_smbios_wmi(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void exit_dell_smbios_wmi(void)
 {}
@@ -93,7 +93,7 @@ void exit_dell_smbios_smm(void);
 #else /* CONFIG_DELL_SMBIOS_SMM */
 static inline int init_dell_smbios_smm(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void exit_dell_smbios_smm(void)
 {}

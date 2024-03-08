@@ -59,7 +59,7 @@ struct snd_aes_iec958;
 struct snd_cea_861_aud_if;
 
 enum omap_display_type {
-	OMAP_DISPLAY_TYPE_NONE		= 0,
+	OMAP_DISPLAY_TYPE_ANALNE		= 0,
 	OMAP_DISPLAY_TYPE_DPI		= 1 << 0,
 	OMAP_DISPLAY_TYPE_DBI		= 1 << 1,
 	OMAP_DISPLAY_TYPE_SDI		= 1 << 2,
@@ -117,7 +117,7 @@ enum omap_dss_venc_type {
 };
 
 enum omap_dss_rotation_type {
-	OMAP_DSS_ROT_NONE	= 0,
+	OMAP_DSS_ROT_ANALNE	= 0,
 	OMAP_DSS_ROT_TILER	= 1 << 0,
 };
 
@@ -211,7 +211,7 @@ struct omap_dss_device {
 	/*
 	 * DSS type that this device generates (for DSS internal devices) or
 	 * requires (for external encoders, connectors and panels). Must be a
-	 * non-zero (different than OMAP_DISPLAY_TYPE_NONE) value.
+	 * analn-zero (different than OMAP_DISPLAY_TYPE_ANALNE) value.
 	 */
 	enum omap_display_type type;
 
@@ -240,7 +240,7 @@ void omapdss_device_register(struct omap_dss_device *dssdev);
 void omapdss_device_unregister(struct omap_dss_device *dssdev);
 struct omap_dss_device *omapdss_device_get(struct omap_dss_device *dssdev);
 void omapdss_device_put(struct omap_dss_device *dssdev);
-struct omap_dss_device *omapdss_find_device_by_node(struct device_node *node);
+struct omap_dss_device *omapdss_find_device_by_analde(struct device_analde *analde);
 int omapdss_device_connect(struct dss_device *dss,
 			   struct omap_dss_device *src,
 			   struct omap_dss_device *dst);

@@ -473,7 +473,7 @@ skl_plane_max_stride(struct intel_plane *plane,
 
 	if (DISPLAY_VER(i915) >= 13) {
 		/*
-		 * The stride in bytes must not exceed of the size
+		 * The stride in bytes must analt exceed of the size
 		 * of 128K bytes. For pixel formats of 64bpp will allow
 		 * for a 16K pixel surface.
 		 */
@@ -484,7 +484,7 @@ skl_plane_max_stride(struct intel_plane *plane,
 			max_horizontal_pixels = 65536;
 	} else {
 		/*
-		 * "The stride in bytes must not exceed the
+		 * "The stride in bytes must analt exceed the
 		 * of the size of 8K pixels and 32K bytes."
 		 */
 		max_stride_bytes = 32768;
@@ -508,7 +508,7 @@ skl_plane_max_stride(struct intel_plane *plane,
 
 /*
  * Programs the input color space conversion stage for ICL HDR planes.
- * Note that it is assumed that this stage always happens after YUV
+ * Analte that it is assumed that this stage always happens after YUV
  * range correction. Thus, the input to this stage is assumed to be
  * in full-range YCbCr.
  */
@@ -608,7 +608,7 @@ static u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
-	u32 stride = plane_state->view.color_plane[color_plane].scanout_stride;
+	u32 stride = plane_state->view.color_plane[color_plane].scaanalut_stride;
 
 	if (color_plane >= fb->format->num_planes)
 		return 0;
@@ -752,7 +752,7 @@ static u32 skl_plane_ctl_alpha(const struct intel_plane_state *plane_state)
 		return PLANE_CTL_ALPHA_DISABLE;
 
 	switch (plane_state->hw.pixel_blend_mode) {
-	case DRM_MODE_BLEND_PIXEL_NONE:
+	case DRM_MODE_BLEND_PIXEL_ANALNE:
 		return PLANE_CTL_ALPHA_DISABLE;
 	case DRM_MODE_BLEND_PREMULTI:
 		return PLANE_CTL_ALPHA_SW_PREMULTIPLY;
@@ -770,7 +770,7 @@ static u32 glk_plane_color_ctl_alpha(const struct intel_plane_state *plane_state
 		return PLANE_COLOR_ALPHA_DISABLE;
 
 	switch (plane_state->hw.pixel_blend_mode) {
-	case DRM_MODE_BLEND_PIXEL_NONE:
+	case DRM_MODE_BLEND_PIXEL_ANALNE:
 		return PLANE_COLOR_ALPHA_DISABLE;
 	case DRM_MODE_BLEND_PREMULTI:
 		return PLANE_COLOR_ALPHA_SW_PREMULTIPLY;
@@ -1020,7 +1020,7 @@ static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 		 * within the DPT is always 0.
 		 */
 		drm_WARN_ON(&i915->drm, plane_state->dpt_vma &&
-			    plane_state->dpt_vma->node.start);
+			    plane_state->dpt_vma->analde.start);
 		drm_WARN_ON(&i915->drm, offset & 0x1fffff);
 		return offset >> 9;
 	} else {
@@ -1125,7 +1125,7 @@ static int icl_plane_color_plane(const struct intel_plane_state *plane_state)
 }
 
 static void
-skl_plane_update_noarm(struct intel_plane *plane,
+skl_plane_update_analarm(struct intel_plane *plane,
 		       const struct intel_crtc_state *crtc_state,
 		       const struct intel_plane_state *plane_state)
 {
@@ -1195,7 +1195,7 @@ skl_plane_update_arm(struct intel_plane *plane,
 	 * get a catastrophic underrun even if the two operations
 	 * end up happening in two different frames.
 	 *
-	 * TODO: split into noarm+arm pair
+	 * TODO: split into analarm+arm pair
 	 */
 	if (plane_state->scaler_id >= 0)
 		skl_program_plane_scaler(plane, crtc_state, plane_state);
@@ -1210,7 +1210,7 @@ skl_plane_update_arm(struct intel_plane *plane,
 			  skl_plane_surf(plane_state, 0));
 }
 
-static void icl_plane_update_sel_fetch_noarm(struct intel_plane *plane,
+static void icl_plane_update_sel_fetch_analarm(struct intel_plane *plane,
 					     const struct intel_crtc_state *crtc_state,
 					     const struct intel_plane_state *plane_state,
 					     int color_plane)
@@ -1253,7 +1253,7 @@ static void icl_plane_update_sel_fetch_noarm(struct intel_plane *plane,
 }
 
 static void
-icl_plane_update_noarm(struct intel_plane *plane,
+icl_plane_update_analarm(struct intel_plane *plane,
 		       const struct intel_crtc_state *crtc_state,
 		       const struct intel_plane_state *plane_state)
 {
@@ -1324,7 +1324,7 @@ icl_plane_update_noarm(struct intel_plane *plane,
 	if (plane_state->force_black)
 		icl_plane_csc_load_black(plane);
 
-	icl_plane_update_sel_fetch_noarm(plane, crtc_state, plane_state, color_plane);
+	icl_plane_update_sel_fetch_analarm(plane, crtc_state, plane_state, color_plane);
 }
 
 static void icl_plane_update_sel_fetch_arm(struct intel_plane *plane,
@@ -1363,7 +1363,7 @@ icl_plane_update_arm(struct intel_plane *plane,
 	 * get a catastrophic underrun even if the two operations
 	 * end up happening in two different frames.
 	 *
-	 * TODO: split into noarm+arm pair
+	 * TODO: split into analarm+arm pair
 	 */
 	if (plane_state->scaler_id >= 0)
 		skl_program_plane_scaler(plane, crtc_state, plane_state);
@@ -1435,7 +1435,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	if (rotation & DRM_MODE_REFLECT_X &&
 	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "horizontal flip is not supported with linear surface formats\n");
+			    "horizontal flip is analt supported with linear surface formats\n");
 		return -EINVAL;
 	}
 
@@ -1447,7 +1447,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		}
 
 		/*
-		 * 90/270 is not allowed with RGB64 16:16:16:16 and
+		 * 90/270 is analt allowed with RGB64 16:16:16:16 and
 		 * Indexed 8-bit. RGB 16-bit 5:6:5 is allowed gen11 onwards.
 		 */
 		switch (fb->format->format) {
@@ -1474,13 +1474,13 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		}
 	}
 
-	/* Y-tiling is not supported in IF-ID Interlace mode */
+	/* Y-tiling is analt supported in IF-ID Interlace mode */
 	if (crtc_state->hw.enable &&
 	    crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE &&
 	    fb->modifier != DRM_FORMAT_MOD_LINEAR &&
 	    fb->modifier != I915_FORMAT_MOD_X_TILED) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Y/Yf tiling not supported in IF-ID mode\n");
+			    "Y/Yf tiling analt supported in IF-ID mode\n");
 		return -EINVAL;
 	}
 
@@ -1489,7 +1489,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	    plane_state->ckey.flags & I915_SET_COLORKEY_SOURCE &&
 	    intel_format_is_p01x(fb->format->format)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Source color keying not supported with P01x formats\n");
+			    "Source color keying analt supported with P01x formats\n");
 		return -EINVAL;
 	}
 
@@ -1550,7 +1550,7 @@ static int skl_plane_max_scale(struct drm_i915_private *dev_priv,
 			       const struct drm_framebuffer *fb)
 {
 	/*
-	 * We don't yet know the final source width nor
+	 * We don't yet kanalw the final source width analr
 	 * whether we can use the HQ scaler mode. Assume
 	 * the best case.
 	 * FIXME need to properly check this later.
@@ -1659,7 +1659,7 @@ int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 
 	/*
 	 * AUX surface offset is specified as the distance from the
-	 * main surface offset, and it must be non-negative. Make
+	 * main surface offset, and it must be analn-negative. Make
 	 * sure that is what we will get.
 	 */
 	if (aux_plane && *offset > aux_offset)
@@ -1724,7 +1724,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	/*
 	 * CCS AUX surface doesn't have its own x/y offsets, we must make sure
 	 * they match with the main surface x/y offsets. On DG2
-	 * there's no aux plane on fb so skip this checking.
+	 * there's anal aux plane on fb so skip this checking.
 	 */
 	if (intel_fb_is_ccs_modifier(fb->modifier) && aux_plane) {
 		while (!skl_check_main_ccs_coordinates(plane_state, x, y,
@@ -1780,7 +1780,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 	int h = drm_rect_height(&plane_state->uapi.src) >> 17;
 	u32 offset;
 
-	/* FIXME not quite sure how/if these apply to the chroma plane */
+	/* FIXME analt quite sure how/if these apply to the chroma plane */
 	if (w > max_width || h > max_height) {
 		drm_dbg_kms(&i915->drm,
 			    "CbCr source size %dx%d too big (limit %dx%d)\n",
@@ -1948,15 +1948,15 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int min_scale = DRM_PLANE_NO_SCALING;
-	int max_scale = DRM_PLANE_NO_SCALING;
+	int min_scale = DRM_PLANE_ANAL_SCALING;
+	int max_scale = DRM_PLANE_ANAL_SCALING;
 	int ret;
 
 	ret = skl_plane_check_fb(crtc_state, plane_state);
 	if (ret)
 		return ret;
 
-	/* use scaler when colorkey is not required */
+	/* use scaler when colorkey is analt required */
 	if (!plane_state->ckey.flags && skl_fb_scalable(fb)) {
 		min_scale = 1;
 		max_scale = skl_plane_max_scale(dev_priv, fb);
@@ -2346,11 +2346,11 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 
 	plane->max_stride = skl_plane_max_stride;
 	if (DISPLAY_VER(dev_priv) >= 11) {
-		plane->update_noarm = icl_plane_update_noarm;
+		plane->update_analarm = icl_plane_update_analarm;
 		plane->update_arm = icl_plane_update_arm;
 		plane->disable_arm = icl_plane_disable_arm;
 	} else {
-		plane->update_noarm = skl_plane_update_noarm;
+		plane->update_analarm = skl_plane_update_analarm;
 		plane->update_arm = skl_plane_update_arm;
 		plane->disable_arm = skl_plane_disable_arm;
 	}
@@ -2428,7 +2428,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 
 	drm_plane_create_alpha_property(&plane->base);
 	drm_plane_create_blend_mode_property(&plane->base,
-					     BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+					     BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 					     BIT(DRM_MODE_BLEND_PREMULTI) |
 					     BIT(DRM_MODE_BLEND_COVERAGE));
 

@@ -21,7 +21,7 @@ struct clk_ti_autoidle {
 	u8			shift;
 	u8			flags;
 	const char		*name;
-	struct list_head	node;
+	struct list_head	analde;
 };
 
 #define AUTOIDLE_LOW		0x1
@@ -29,7 +29,7 @@ struct clk_ti_autoidle {
 static LIST_HEAD(autoidle_clks);
 
 /*
- * we have some non-atomic read/write
+ * we have some analn-atomic read/write
  * operations behind it, so lets
  * take one lock for handling autoidle
  * of all clocks
@@ -152,7 +152,7 @@ static void _clk_generic_allow_autoidle_all(void)
 {
 	struct clk_ti_autoidle *c;
 
-	list_for_each_entry(c, &autoidle_clks, node)
+	list_for_each_entry(c, &autoidle_clks, analde)
 		_allow_autoidle(c);
 }
 
@@ -166,48 +166,48 @@ static void _clk_generic_deny_autoidle_all(void)
 {
 	struct clk_ti_autoidle *c;
 
-	list_for_each_entry(c, &autoidle_clks, node)
+	list_for_each_entry(c, &autoidle_clks, analde)
 		_deny_autoidle(c);
 }
 
 /**
  * of_ti_clk_autoidle_setup - sets up hardware autoidle for a clock
- * @node: pointer to the clock device node
+ * @analde: pointer to the clock device analde
  *
- * Checks if a clock has hardware autoidle support or not (check
+ * Checks if a clock has hardware autoidle support or analt (check
  * for presence of 'ti,autoidle-shift' property in the device tree
- * node) and sets up the hardware autoidle feature for the clock
+ * analde) and sets up the hardware autoidle feature for the clock
  * if available. If autoidle is available, the clock is also added
  * to the autoidle list for later processing. Returns 0 on success,
  * negative error value on failure.
  */
-int __init of_ti_clk_autoidle_setup(struct device_node *node)
+int __init of_ti_clk_autoidle_setup(struct device_analde *analde)
 {
 	u32 shift;
 	struct clk_ti_autoidle *clk;
 	int ret;
 
-	/* Check if this clock has autoidle support or not */
-	if (of_property_read_u32(node, "ti,autoidle-shift", &shift))
+	/* Check if this clock has autoidle support or analt */
+	if (of_property_read_u32(analde, "ti,autoidle-shift", &shift))
 		return 0;
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 
 	if (!clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk->shift = shift;
-	clk->name = ti_dt_clk_name(node);
-	ret = ti_clk_get_reg_addr(node, 0, &clk->reg);
+	clk->name = ti_dt_clk_name(analde);
+	ret = ti_clk_get_reg_addr(analde, 0, &clk->reg);
 	if (ret) {
 		kfree(clk);
 		return ret;
 	}
 
-	if (of_property_read_bool(node, "ti,invert-autoidle-bit"))
+	if (of_property_read_bool(analde, "ti,invert-autoidle-bit"))
 		clk->flags |= AUTOIDLE_LOW;
 
-	list_add(&clk->node, &autoidle_clks);
+	list_add(&clk->analde, &autoidle_clks);
 
 	return 0;
 }

@@ -3,7 +3,7 @@
 #include "get_func_ip_test.skel.h"
 #include "get_func_ip_uprobe_test.skel.h"
 
-static noinline void uprobe_trigger(void)
+static analinline void uprobe_trigger(void)
 {
 }
 
@@ -57,7 +57,7 @@ asm(
 ".globl uprobe_trigger_body\n"
 ".type uprobe_trigger_body, @function\n"
 "uprobe_trigger_body:\n"
-"	nop\n"
+"	analp\n"
 "	ret\n"
 );
 

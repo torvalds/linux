@@ -72,7 +72,7 @@ typedef u16 u16_le;
 
 
 /*******************/
-/* normal register */
+/* analrmal register */
 /*******************/
 /*
  * Don't access below register with Double Word:
@@ -116,7 +116,7 @@ typedef u16 u16_le;
 # define BM_TEST             BIT(2)
 # define BM_TEST_DIR         BIT(3)
 # define DUAL_EDGE_ENABLE    BIT(4)
-# define NO_TRANSFER_TO_HOST BIT(5)
+# define ANAL_TRANSFER_TO_HOST BIT(5)
 # define TRANSFER_GO         BIT(7)
 # define BLIEND_MODE         BIT(8)
 # define BM_START            BIT(9)
@@ -190,7 +190,7 @@ typedef u16 u16_le;
 # define PARITY_ERROR_CLEAR  BIT(1)
 #define PARITY_STATUS		0x16	/* BASE+16, B, R */
 //# define PARITY_CHECK_ENABLE BIT(0)
-# define PARITY_ERROR_NORMAL BIT(1)
+# define PARITY_ERROR_ANALRMAL BIT(1)
 # define PARITY_ERROR_LSB    BIT(1)
 # define PARITY_ERROR_MSB    BIT(2)
 
@@ -359,7 +359,7 @@ typedef u16 u16_le;
 # define BMREQ_NEGATE_TIMING_SEL        BIT(5)
 # define AUTOSEL_TIMING_SEL             BIT(6)
 # define MISC_MABORT_MASK		BIT(7)
-# define BMSTOP_CHANGE2_NONDATA_PHASE	BIT(8)
+# define BMSTOP_CHANGE2_ANALNDATA_PHASE	BIT(8)
 
 #define BM_CYCLE		0x0d	/* BASE+08, IDX+0d, B, R/W */
 # define BM_CYCLE0		 BIT(0)
@@ -396,17 +396,17 @@ typedef u16 u16_le;
 #define FIFO_HST_POINTER	0x16	/* BASE+08, IDX+16, B, R/W */
 #define SREQ_DELAY		0x17	/* BASE+08, IDX+17, B, R/W */
 #define SACK_DELAY		0x18	/* BASE+08, IDX+18, B, R/W */
-#define SREQ_NOISE_CANCEL	0x19	/* BASE+08, IDX+19, B, R/W */
-#define SDP_NOISE_CANCEL	0x1a	/* BASE+08, IDX+1a, B, R/W */
+#define SREQ_ANALISE_CANCEL	0x19	/* BASE+08, IDX+19, B, R/W */
+#define SDP_ANALISE_CANCEL	0x1a	/* BASE+08, IDX+1a, B, R/W */
 #define DELAY_TEST		0x1b	/* BASE+08, IDX+1b, B, R/W */
-#define SD0_NOISE_CANCEL	0x20	/* BASE+08, IDX+20, B, R/W */
-#define SD1_NOISE_CANCEL	0x21	/* BASE+08, IDX+21, B, R/W */
-#define SD2_NOISE_CANCEL	0x22	/* BASE+08, IDX+22, B, R/W */
-#define SD3_NOISE_CANCEL	0x23	/* BASE+08, IDX+23, B, R/W */
-#define SD4_NOISE_CANCEL	0x24	/* BASE+08, IDX+24, B, R/W */
-#define SD5_NOISE_CANCEL	0x25	/* BASE+08, IDX+25, B, R/W */
-#define SD6_NOISE_CANCEL	0x26	/* BASE+08, IDX+26, B, R/W */
-#define SD7_NOISE_CANCEL	0x27	/* BASE+08, IDX+27, B, R/W */
+#define SD0_ANALISE_CANCEL	0x20	/* BASE+08, IDX+20, B, R/W */
+#define SD1_ANALISE_CANCEL	0x21	/* BASE+08, IDX+21, B, R/W */
+#define SD2_ANALISE_CANCEL	0x22	/* BASE+08, IDX+22, B, R/W */
+#define SD3_ANALISE_CANCEL	0x23	/* BASE+08, IDX+23, B, R/W */
+#define SD4_ANALISE_CANCEL	0x24	/* BASE+08, IDX+24, B, R/W */
+#define SD5_ANALISE_CANCEL	0x25	/* BASE+08, IDX+25, B, R/W */
+#define SD6_ANALISE_CANCEL	0x26	/* BASE+08, IDX+26, B, R/W */
+#define SD7_ANALISE_CANCEL	0x27	/* BASE+08, IDX+27, B, R/W */
 
 
 /*
@@ -471,14 +471,14 @@ typedef struct _nsp32_autoparam {
 
 /* flag for trans_method */
 #define NSP32_TRANSFER_BUSMASTER	BIT(0)
-#define NSP32_TRANSFER_MMIO		BIT(1)	/* Not supported yet */
-#define NSP32_TRANSFER_PIO		BIT(2)	/* Not supported yet */
+#define NSP32_TRANSFER_MMIO		BIT(1)	/* Analt supported yet */
+#define NSP32_TRANSFER_PIO		BIT(2)	/* Analt supported yet */
 
 
 /*
  * structure for connected LUN dynamic data
  *
- * Note: Currently tagged queuing is disabled, each nsp32_lunt holds
+ * Analte: Currently tagged queuing is disabled, each nsp32_lunt holds
  *       one SCSI command and one state.
  */
 #define DISCPRIV_OK		BIT(0)		/* DISCPRIV Enable mode */
@@ -520,14 +520,14 @@ typedef struct _nsp32_sync_table {
 #define SDTR_TARGET	  BIT(1)    /* sending SDTR from target           */
 #define SDTR_DONE	  BIT(2)    /* exchanging SDTR has been processed */
 
-/* syncronous period value for nsp32_target.config_max */
+/* syncroanalus period value for nsp32_target.config_max */
 #define FAST5M			0x32
 #define FAST10M			0x19
 #define ULTRA20M		0x0c
 
 /* flag for nsp32_target.{sync_offset}, period */
-#define ASYNC_OFFSET		0	/* asynchronous transfer           */
-#define SYNC_OFFSET		0xf	/* synchronous transfer max offset */
+#define ASYNC_OFFSET		0	/* asynchroanalus transfer           */
+#define SYNC_OFFSET		0xf	/* synchroanalus transfer max offset */
 
 /* syncreg:
   bit:07 06 05 04 03 02 01 00

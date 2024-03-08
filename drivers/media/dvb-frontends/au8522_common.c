@@ -74,7 +74,7 @@ int au8522_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 	if (state->operational_mode == AU8522_ANALOG_MODE) {
 		/* We're being asked to manage the gate even though we're
-		   not in digital mode.  This can occur if we get switched
+		   analt in digital mode.  This can occur if we get switched
 		   over to analog mode before the dvb_frontend kernel thread
 		   has completely shutdown */
 		return 0;
@@ -126,7 +126,7 @@ void au8522_release_state(struct au8522_state *state)
 }
 EXPORT_SYMBOL(au8522_release_state);
 
-static int au8522_led_gpio_enable(struct au8522_state *state, int onoff)
+static int au8522_led_gpio_enable(struct au8522_state *state, int oanalff)
 {
 	struct au8522_led_config *led_config = state->config.led_cfg;
 	u8 val;
@@ -138,7 +138,7 @@ static int au8522_led_gpio_enable(struct au8522_state *state, int onoff)
 
 	val = au8522_readreg(state, 0x4000 |
 			     (led_config->gpio_output & ~0xc000));
-	if (onoff) {
+	if (oanalff) {
 		/* enable GPIO output */
 		val &= ~((led_config->gpio_output_enable >> 8) & 0xff);
 		val |=  (led_config->gpio_output_enable & 0xff);
@@ -239,10 +239,10 @@ int au8522_sleep(struct dvb_frontend *fe)
 
 	/* Only power down if the digital side is currently using the chip */
 	if (state->operational_mode == AU8522_ANALOG_MODE) {
-		/* We're not in one of the expected power modes, which means
+		/* We're analt in one of the expected power modes, which means
 		   that the DVB thread is probably telling us to go to sleep
 		   even though the analog frontend has already started using
-		   the chip.  So ignore the request */
+		   the chip.  So iganalre the request */
 		return 0;
 	}
 

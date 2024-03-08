@@ -149,7 +149,7 @@ static struct max77650_regulator_desc max77650_LDO_desc = {
 	.desc = {
 		.name			= "ldo",
 		.of_match		= of_match_ptr("ldo"),
-		.regulators_node	= of_match_ptr("regulators"),
+		.regulators_analde	= of_match_ptr("regulators"),
 		.supply_name		= "in-ldo",
 		.id			= MAX77650_REGULATOR_ID_LDO,
 		.ops			= &max77650_regulator_LDO_ops,
@@ -175,7 +175,7 @@ static struct max77650_regulator_desc max77650_SBB0_desc = {
 	.desc = {
 		.name			= "sbb0",
 		.of_match		= of_match_ptr("sbb0"),
-		.regulators_node	= of_match_ptr("regulators"),
+		.regulators_analde	= of_match_ptr("regulators"),
 		.supply_name		= "in-sbb0",
 		.id			= MAX77650_REGULATOR_ID_SBB0,
 		.ops			= &max77650_regulator_SBB_ops,
@@ -205,7 +205,7 @@ static struct max77650_regulator_desc max77650_SBB1_desc = {
 	.desc = {
 		.name			= "sbb1",
 		.of_match		= of_match_ptr("sbb1"),
-		.regulators_node	= of_match_ptr("regulators"),
+		.regulators_analde	= of_match_ptr("regulators"),
 		.supply_name		= "in-sbb1",
 		.id			= MAX77650_REGULATOR_ID_SBB1,
 		.ops			= &max77650_regulator_SBB_ops,
@@ -235,7 +235,7 @@ static struct max77650_regulator_desc max77651_SBB1_desc = {
 	.desc = {
 		.name			= "sbb1",
 		.of_match		= of_match_ptr("sbb1"),
-		.regulators_node	= of_match_ptr("regulators"),
+		.regulators_analde	= of_match_ptr("regulators"),
 		.supply_name		= "in-sbb1",
 		.id			= MAX77650_REGULATOR_ID_SBB1,
 		.ops			= &max77651_SBB1_regulator_ops,
@@ -268,7 +268,7 @@ static struct max77650_regulator_desc max77650_SBB2_desc = {
 	.desc = {
 		.name			= "sbb2",
 		.of_match		= of_match_ptr("sbb2"),
-		.regulators_node	= of_match_ptr("regulators"),
+		.regulators_analde	= of_match_ptr("regulators"),
 		.supply_name		= "in-sbb0",
 		.id			= MAX77650_REGULATOR_ID_SBB2,
 		.ops			= &max77650_regulator_SBB_ops,
@@ -298,7 +298,7 @@ static struct max77650_regulator_desc max77651_SBB2_desc = {
 	.desc = {
 		.name			= "sbb2",
 		.of_match		= of_match_ptr("sbb2"),
-		.regulators_node	= of_match_ptr("regulators"),
+		.regulators_analde	= of_match_ptr("regulators"),
 		.supply_name		= "in-sbb0",
 		.id			= MAX77650_REGULATOR_ID_SBB2,
 		.ops			= &max77650_regulator_SBB_ops,
@@ -338,17 +338,17 @@ static int max77650_regulator_probe(struct platform_device *pdev)
 	dev = &pdev->dev;
 	parent = dev->parent;
 
-	if (!dev->of_node)
-		dev->of_node = parent->of_node;
+	if (!dev->of_analde)
+		dev->of_analde = parent->of_analde;
 
 	rdescs = devm_kcalloc(dev, MAX77650_REGULATOR_NUM_REGULATORS,
 			      sizeof(*rdescs), GFP_KERNEL);
 	if (!rdescs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map = dev_get_regmap(parent, NULL);
 	if (!map)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rv = regmap_read(map, MAX77650_REG_CID, &val);
 	if (rv)
@@ -369,7 +369,7 @@ static int max77650_regulator_probe(struct platform_device *pdev)
 		rdescs[MAX77650_REGULATOR_ID_SBB2] = &max77651_SBB2_desc;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	config.dev = parent;
@@ -395,7 +395,7 @@ MODULE_DEVICE_TABLE(of, max77650_regulator_of_match);
 static struct platform_driver max77650_regulator_driver = {
 	.driver = {
 		.name = "max77650-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = max77650_regulator_of_match,
 	},
 	.probe = max77650_regulator_probe,

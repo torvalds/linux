@@ -105,7 +105,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_touchscreen>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <8 IRQ_TYPE_NONE>;
+		interrupts = <8 IRQ_TYPE_ANALNE>;
 		irq-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 	};
@@ -123,7 +123,7 @@
 	assigned-clock-parents = <&clk IMX8MM_AUDIO_PLL1_OUT>;
 	assigned-clock-rates = <12288000>;
 	fsl,sai-mclk-direction-output;
-	fsl,sai-asynchronous;
+	fsl,sai-asynchroanalus;
 	status = "okay";
 };
 
@@ -164,9 +164,9 @@
 	assigned-clocks = <&clk IMX8MM_CLK_USDHC3_ROOT>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
-	non-removable;
-	no-sdio;
-	no-sd;
+	analn-removable;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 

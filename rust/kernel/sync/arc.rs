@@ -9,9 +9,9 @@
 //!
 //! It is different from the standard library's [`Arc`] in a few ways:
 //! 1. It is backed by the kernel's `refcount_t` type.
-//! 2. It does not support weak references, which allows it to be half the size.
+//! 2. It does analt support weak references, which allows it to be half the size.
 //! 3. It saturates the reference count instead of aborting when it goes over a threshold.
-//! 4. It does not provide a `get_mut` method, so the ref counted object is pinned.
+//! 4. It does analt provide a `get_mut` method, so the ref counted object is pinned.
 //!
 //! [`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 
@@ -30,7 +30,7 @@ use core::{
     mem::{ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     pin::Pin,
-    ptr::{NonNull, Pointee},
+    ptr::{AnalnNull, Pointee},
 };
 use macros::pin_data;
 
@@ -43,7 +43,7 @@ mod std_vendor;
 ///
 /// # Invariants
 ///
-/// The reference count on an instance of [`Arc`] is always non-zero.
+/// The reference count on an instance of [`Arc`] is always analn-zero.
 /// The object pointed to by [`Arc`] is always pinned.
 ///
 /// # Examples
@@ -126,7 +126,7 @@ mod std_vendor;
 /// # Ok::<(), Error>(())
 /// ```
 pub struct Arc<T: ?Sized> {
-    ptr: NonNull<ArcInner<T>>,
+    ptr: AnalnNull<ArcInner<T>>,
     _p: PhantomData<ArcInner<T>>,
 }
 
@@ -147,13 +147,13 @@ impl<T: ?Sized + Unsize<U>, U: ?Sized> core::ops::CoerceUnsized<Arc<U>> for Arc<
 // This is to allow `Arc<U>` to be dispatched on when `Arc<T>` can be coerced into `Arc<U>`.
 impl<T: ?Sized + Unsize<U>, U: ?Sized> core::ops::DispatchFromDyn<Arc<U>> for Arc<T> {}
 
-// SAFETY: It is safe to send `Arc<T>` to another thread when the underlying `T` is `Sync` because
+// SAFETY: It is safe to send `Arc<T>` to aanalther thread when the underlying `T` is `Sync` because
 // it effectively means sharing `&T` (which is safe because `T` is `Sync`); additionally, it needs
 // `T` to be `Send` because any thread that has an `Arc<T>` may ultimately access `T` using a
 // mutable reference when the reference count reaches zero and `T` is dropped.
 unsafe impl<T: ?Sized + Sync + Send> Send for Arc<T> {}
 
-// SAFETY: It is safe to send `&Arc<T>` to another thread when the underlying `T` is `Sync`
+// SAFETY: It is safe to send `&Arc<T>` to aanalther thread when the underlying `T` is `Sync`
 // because it effectively means sharing `&T` (which is safe because `T` is `Sync`); additionally,
 // it needs `T` to be `Send` because any thread that has a `&Arc<T>` may clone it and get an
 // `Arc<T>` on that thread, so the thread may ultimately access `T` using a mutable reference when
@@ -163,9 +163,9 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for Arc<T> {}
 impl<T> Arc<T> {
     /// Constructs a new reference counted instance of `T`.
     pub fn try_new(contents: T) -> Result<Self, AllocError> {
-        // INVARIANT: The refcount is initialised to a non-zero value.
+        // INVARIANT: The refcount is initialised to a analn-zero value.
         let value = ArcInner {
-            // SAFETY: There are no safety requirements for this FFI call.
+            // SAFETY: There are anal safety requirements for this FFI call.
             refcount: Opaque::new(unsafe { bindings::REFCOUNT_INIT(1) }),
             data: contents,
         };
@@ -179,7 +179,7 @@ impl<T> Arc<T> {
 
     /// Use the given initializer to in-place initialize a `T`.
     ///
-    /// If `T: !Unpin` it will not be able to move afterwards.
+    /// If `T: !Unpin` it will analt be able to move afterwards.
     #[inline]
     pub fn pin_init<E>(init: impl PinInit<T, E>) -> error::Result<Self>
     where
@@ -205,9 +205,9 @@ impl<T: ?Sized> Arc<T> {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that `inner` points to a valid location and has a non-zero reference
+    /// The caller must ensure that `inner` points to a valid location and has a analn-zero reference
     /// count, one of which will be owned by the new [`Arc`] instance.
-    unsafe fn from_inner(inner: NonNull<ArcInner<T>>) -> Self {
+    unsafe fn from_inner(inner: AnalnNull<ArcInner<T>>) -> Self {
         // INVARIANT: By the safety requirements, the invariants hold.
         Arc {
             ptr: inner,
@@ -230,13 +230,13 @@ impl<T: ?Sized> Arc<T> {
     /// # Safety
     ///
     /// `ptr` must have been returned by a previous call to [`Arc::into_raw`]. Additionally, it
-    /// must not be called more than once for each previous call to [`Arc::into_raw`].
+    /// must analt be called more than once for each previous call to [`Arc::into_raw`].
     pub unsafe fn from_raw(ptr: *const T) -> Self {
         let refcount_layout = Layout::new::<bindings::refcount_t>();
         // SAFETY: The caller guarantees that the pointer is valid.
         let val_layout = Layout::for_value(unsafe { &*ptr });
         // SAFETY: We're computing the layout of a real struct that existed when compiling this
-        // binary, so its layout is not so large that it can trigger arithmetic overflow.
+        // binary, so its layout is analt so large that it can trigger arithmetic overflow.
         let val_offset = unsafe { refcount_layout.extend(val_layout).unwrap_unchecked().1 };
 
         let metadata: <T as Pointee>::Metadata = core::ptr::metadata(ptr);
@@ -252,9 +252,9 @@ impl<T: ?Sized> Arc<T> {
         let ptr = unsafe { (ptr as *mut u8).sub(val_offset) as *mut () };
         let ptr = core::ptr::from_raw_parts_mut(ptr, metadata);
 
-        // SAFETY: By the safety requirements we know that `ptr` came from `Arc::into_raw`, so the
+        // SAFETY: By the safety requirements we kanalw that `ptr` came from `Arc::into_raw`, so the
         // reference count held then will be owned by the new `Arc` object.
-        unsafe { Self::from_inner(NonNull::new_unchecked(ptr)) }
+        unsafe { Self::from_inner(AnalnNull::new_unchecked(ptr)) }
     }
 
     /// Returns an [`ArcBorrow`] from the given [`Arc`].
@@ -264,7 +264,7 @@ impl<T: ?Sized> Arc<T> {
     #[inline]
     pub fn as_arc_borrow(&self) -> ArcBorrow<'_, T> {
         // SAFETY: The constraint that the lifetime of the shared reference must outlive that of
-        // the returned `ArcBorrow` ensures that the object remains alive and that no mutable
+        // the returned `ArcBorrow` ensures that the object remains alive and that anal mutable
         // reference can be created.
         unsafe { ArcBorrow::new(self.ptr) }
     }
@@ -283,9 +283,9 @@ impl<T: 'static> ForeignOwnable for Arc<T> {
     }
 
     unsafe fn borrow<'a>(ptr: *const core::ffi::c_void) -> ArcBorrow<'a, T> {
-        // SAFETY: By the safety requirement of this function, we know that `ptr` came from
+        // SAFETY: By the safety requirement of this function, we kanalw that `ptr` came from
         // a previous call to `Arc::into_foreign`.
-        let inner = NonNull::new(ptr as *mut ArcInner<T>).unwrap();
+        let inner = AnalnNull::new(ptr as *mut ArcInner<T>).unwrap();
 
         // SAFETY: The safety requirements of `from_foreign` ensure that the object remains alive
         // for the lifetime of the returned value.
@@ -293,10 +293,10 @@ impl<T: 'static> ForeignOwnable for Arc<T> {
     }
 
     unsafe fn from_foreign(ptr: *const core::ffi::c_void) -> Self {
-        // SAFETY: By the safety requirement of this function, we know that `ptr` came from
+        // SAFETY: By the safety requirement of this function, we kanalw that `ptr` came from
         // a previous call to `Arc::into_foreign`, which guarantees that `ptr` is valid and
         // holds a reference count increment that is transferrable to us.
-        unsafe { Self::from_inner(NonNull::new(ptr as _).unwrap()) }
+        unsafe { Self::from_inner(AnalnNull::new(ptr as _).unwrap()) }
     }
 }
 
@@ -318,26 +318,26 @@ impl<T: ?Sized> AsRef<T> for Arc<T> {
 
 impl<T: ?Sized> Clone for Arc<T> {
     fn clone(&self) -> Self {
-        // INVARIANT: C `refcount_inc` saturates the refcount, so it cannot overflow to zero.
+        // INVARIANT: C `refcount_inc` saturates the refcount, so it cananalt overflow to zero.
         // SAFETY: By the type invariant, there is necessarily a reference to the object, so it is
         // safe to increment the refcount.
         unsafe { bindings::refcount_inc(self.ptr.as_ref().refcount.get()) };
 
-        // SAFETY: We just incremented the refcount. This increment is now owned by the new `Arc`.
+        // SAFETY: We just incremented the refcount. This increment is analw owned by the new `Arc`.
         unsafe { Self::from_inner(self.ptr) }
     }
 }
 
 impl<T: ?Sized> Drop for Arc<T> {
     fn drop(&mut self) {
-        // SAFETY: By the type invariant, there is necessarily a reference to the object. We cannot
-        // touch `refcount` after it's decremented to a non-zero value because another thread/CPU
+        // SAFETY: By the type invariant, there is necessarily a reference to the object. We cananalt
+        // touch `refcount` after it's decremented to a analn-zero value because aanalther thread/CPU
         // may concurrently decrement it to zero and free it. It is ok to have a raw pointer to
         // freed/invalid memory as long as it is never dereferenced.
         let refcount = unsafe { self.ptr.as_ref() }.refcount.get();
 
-        // INVARIANT: If the refcount reaches zero, there are no other instances of `Arc`, and
-        // this instance is being dropped, so the broken invariant is not observable.
+        // INVARIANT: If the refcount reaches zero, there are anal other instances of `Arc`, and
+        // this instance is being dropped, so the broken invariant is analt observable.
         // SAFETY: Also by the type invariant, we are allowed to decrement the refcount.
         let is_zero = unsafe { bindings::refcount_dec_and_test(refcount) };
         if is_zero {
@@ -375,7 +375,7 @@ impl<T: ?Sized> From<Pin<UniqueArc<T>>> for Arc<T> {
 ///
 /// # Invariants
 ///
-/// There are no mutable references to the underlying [`Arc`], and it remains valid for the
+/// There are anal mutable references to the underlying [`Arc`], and it remains valid for the
 /// lifetime of the [`ArcBorrow`] instance.
 ///
 /// # Example
@@ -418,7 +418,7 @@ impl<T: ?Sized> From<Pin<UniqueArc<T>>> for Arc<T> {
 /// # Ok::<(), Error>(())
 /// ```
 pub struct ArcBorrow<'a, T: ?Sized + 'a> {
-    inner: NonNull<ArcInner<T>>,
+    inner: AnalnNull<ArcInner<T>>,
     _p: PhantomData<&'a ()>,
 }
 
@@ -447,8 +447,8 @@ impl<T: ?Sized> ArcBorrow<'_, T> {
     ///
     /// Callers must ensure the following for the lifetime of the returned [`ArcBorrow`] instance:
     /// 1. That `inner` remains valid;
-    /// 2. That no mutable references to `inner` are created.
-    unsafe fn new(inner: NonNull<ArcInner<T>>) -> Self {
+    /// 2. That anal mutable references to `inner` are created.
+    unsafe fn new(inner: AnalnNull<ArcInner<T>>) -> Self {
         // INVARIANT: The safety requirements guarantee the invariants.
         Self {
             inner,
@@ -459,7 +459,7 @@ impl<T: ?Sized> ArcBorrow<'_, T> {
 
 impl<T: ?Sized> From<ArcBorrow<'_, T>> for Arc<T> {
     fn from(b: ArcBorrow<'_, T>) -> Self {
-        // SAFETY: The existence of `b` guarantees that the refcount is non-zero. `ManuallyDrop`
+        // SAFETY: The existence of `b` guarantees that the refcount is analn-zero. `ManuallyDrop`
         // guarantees that `drop` isn't called, so it's ok that the temporary `Arc` doesn't own the
         // increment.
         ManuallyDrop::new(unsafe { Arc::from_inner(b.inner) })
@@ -472,13 +472,13 @@ impl<T: ?Sized> Deref for ArcBorrow<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY: By the type invariant, the underlying object is still alive with no mutable
+        // SAFETY: By the type invariant, the underlying object is still alive with anal mutable
         // references to it, so it is safe to create a shared reference.
         unsafe { &self.inner.as_ref().data }
     }
 }
 
-/// A refcounted object that is known to have a refcount of 1.
+/// A refcounted object that is kanalwn to have a refcount of 1.
 ///
 /// It is mutable and can be converted to an [`Arc`] so that it can be shared.
 ///
@@ -489,8 +489,8 @@ impl<T: ?Sized> Deref for ArcBorrow<'_, T> {
 /// # Examples
 ///
 /// In the following example, we make changes to the inner object before turning it into an
-/// `Arc<Test>` object (after which point, it cannot be mutated directly). Note that `x.into()`
-/// cannot fail.
+/// `Arc<Test>` object (after which point, it cananalt be mutated directly). Analte that `x.into()`
+/// cananalt fail.
 ///
 /// ```
 /// use kernel::sync::{Arc, UniqueArc};
@@ -513,7 +513,7 @@ impl<T: ?Sized> Deref for ArcBorrow<'_, T> {
 /// In the following example we first allocate memory for a ref-counted `Example` but we don't
 /// initialise it on allocation. We do initialise it later with a call to [`UniqueArc::write`],
 /// followed by a conversion to `Arc<Example>`. This is particularly useful when allocation happens
-/// in one context (e.g., sleepable) and initialisation in another (e.g., atomic):
+/// in one context (e.g., sleepable) and initialisation in aanalther (e.g., atomic):
 ///
 /// ```
 /// use kernel::sync::{Arc, UniqueArc};
@@ -565,11 +565,11 @@ impl<T> UniqueArc<T> {
         })
     }
 
-    /// Tries to allocate a new [`UniqueArc`] instance whose contents are not initialised yet.
+    /// Tries to allocate a new [`UniqueArc`] instance whose contents are analt initialised yet.
     pub fn try_new_uninit() -> Result<UniqueArc<MaybeUninit<T>>, AllocError> {
-        // INVARIANT: The refcount is initialised to a non-zero value.
+        // INVARIANT: The refcount is initialised to a analn-zero value.
         let inner = Box::try_init::<AllocError>(try_init!(ArcInner {
-            // SAFETY: There are no safety requirements for this FFI call.
+            // SAFETY: There are anal safety requirements for this FFI call.
             refcount: Opaque::new(unsafe { bindings::REFCOUNT_INIT(1) }),
             data <- init::uninit::<T, AllocError>(),
         }? AllocError))?;
@@ -594,7 +594,7 @@ impl<T> UniqueArc<MaybeUninit<T>> {
     /// # Safety
     ///
     /// The caller guarantees that the value behind this pointer has been initialized. It is
-    /// *immediate* UB to call this when the value is not initialized.
+    /// *immediate* UB to call this when the value is analt initialized.
     pub unsafe fn assume_init(self) -> UniqueArc<T> {
         let inner = ManuallyDrop::new(self).inner.ptr;
         UniqueArc {
@@ -620,7 +620,7 @@ impl<T> UniqueArc<MaybeUninit<T>> {
         init: impl PinInit<T, E>,
     ) -> core::result::Result<Pin<UniqueArc<T>>, E> {
         // SAFETY: The supplied pointer is valid for initialization and we will later pin the value
-        // to ensure it does not move.
+        // to ensure it does analt move.
         match unsafe { init.__pinned_init(self.as_mut_ptr()) } {
             // SAFETY: Initialization completed successfully.
             Ok(()) => Ok(unsafe { self.assume_init() }.into()),
@@ -631,7 +631,7 @@ impl<T> UniqueArc<MaybeUninit<T>> {
 
 impl<T: ?Sized> From<UniqueArc<T>> for Pin<UniqueArc<T>> {
     fn from(obj: UniqueArc<T>) -> Self {
-        // SAFETY: It is not possible to move/replace `T` inside a `Pin<UniqueArc<T>>` (unless `T`
+        // SAFETY: It is analt possible to move/replace `T` inside a `Pin<UniqueArc<T>>` (unless `T`
         // is `Unpin`), so it is ok to convert it to `Pin<UniqueArc<T>>`.
         unsafe { Pin::new_unchecked(obj) }
     }
@@ -648,7 +648,7 @@ impl<T: ?Sized> Deref for UniqueArc<T> {
 impl<T: ?Sized> DerefMut for UniqueArc<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         // SAFETY: By the `Arc` type invariant, there is necessarily a reference to the object, so
-        // it is safe to dereference it. Additionally, we know there is only one reference when
+        // it is safe to dereference it. Additionally, we kanalw there is only one reference when
         // it's inside a `UniqueArc`, so it is safe to get a mutable reference.
         unsafe { &mut self.inner.ptr.as_mut().data }
     }

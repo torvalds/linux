@@ -10,7 +10,7 @@
 
 / {
 	model = "BananaPi-M64";
-	compatible = "sinovoip,bananapi-m64", "allwinner,sun50i-a64";
+	compatible = "sianalvoip,bananapi-m64", "allwinner,sun50i-a64";
 
 	aliases {
 		ethernet0 = &emac;
@@ -56,7 +56,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 */
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "ext_clock";
 	};
 };
@@ -154,7 +154,7 @@
 	vqmmc-supply = <&reg_dldo4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	brcmf: wifi@1 {
@@ -171,7 +171,7 @@
 	pinctrl-0 = <&mmc2_pins>, <&mmc2_ds_pin>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	cap-mmc-hw-reset;
 	status = "okay";
 };
@@ -306,9 +306,9 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip cananalt work without this regulator off, although
  * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
+ * Maybe we don't still kanalw well about CPUs domain.
  */
 &reg_fldo2 {
 	regulator-always-on;
@@ -355,7 +355,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_dldo2>;
 		vddio-supply = <&reg_dldo4>;

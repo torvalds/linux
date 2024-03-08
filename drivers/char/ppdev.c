@@ -7,17 +7,17 @@
  *
  * Copyright (C) 1998-2000, 2002 Tim Waugh <tim@cyberelk.net>
  *
- * A /dev/parportx device node represents an arbitrary device
+ * A /dev/parportx device analde represents an arbitrary device
  * on port 'x'.  The following operations are possible:
  *
- * open		do nothing, set up default IEEE 1284 protocol to be COMPAT
+ * open		do analthing, set up default IEEE 1284 protocol to be COMPAT
  * close	release port and unregister device (if necessary)
  * ioctl
  *   EXCL	register device exclusively (may fail)
  *   CLAIM	(register device first time) parport_claim_or_block
  *   RELEASE	parport_release
  *   SETMODE	set the IEEE 1284 protocol to use for read/write
- *   SETPHASE	set the IEEE 1284 phase of a particular mode.  Not to be
+ *   SETPHASE	set the IEEE 1284 phase of a particular mode.  Analt to be
  *              confused with ioctl(fd, SETPHASER, &stun). ;-)
  *   DATADIR	data_forward / data_reverse
  *   WDATA	write_data
@@ -44,8 +44,8 @@
  * Added SETTIME/GETTIME ioctl, Fred Barnes, 1999.
  *
  * Arnaldo Carvalho de Melo <acme@conectiva.com.br> 2000/08/25
- * - On error, copy_from_user and copy_to_user do not return -EFAULT,
- *   They return the positive number of bytes *not* copied due to address
+ * - On error, copy_from_user and copy_to_user do analt return -EFAULT,
+ *   They return the positive number of bytes *analt* copied due to address
  *   space errors.
  *
  * Added GETMODES/GETMODE/GETPHASE ioctls, Fred Barnes <frmb2@ukc.ac.uk>, 03/01/2001.
@@ -115,7 +115,7 @@ static inline void pp_enable_irq(struct pp_struct *pp)
 static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 		       loff_t *ppos)
 {
-	unsigned int minor = iminor(file_inode(file));
+	unsigned int mianalr = imianalr(file_ianalde(file));
 	struct pp_struct *pp = file->private_data;
 	char *kbuffer;
 	ssize_t bytes_read = 0;
@@ -124,7 +124,7 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 
 	if (!(pp->flags & PP_CLAIMED)) {
 		/* Don't have the port claimed */
-		pr_debug(CHRDEV "%x: claim the port first\n", minor);
+		pr_debug(CHRDEV "%x: claim the port first\n", mianalr);
 		return -EINVAL;
 	}
 
@@ -134,13 +134,13 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 
 	kbuffer = kmalloc(min_t(size_t, count, PP_BUFFER_SIZE), GFP_KERNEL);
 	if (!kbuffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	pport = pp->pdev->port;
 	mode = pport->ieee1284.mode & ~(IEEE1284_DEVICEID | IEEE1284_ADDR);
 
 	parport_set_timeout(pp->pdev,
-			    (file->f_flags & O_NONBLOCK) ?
-			    PARPORT_INACTIVITY_O_NONBLOCK :
+			    (file->f_flags & O_ANALNBLOCK) ?
+			    PARPORT_INACTIVITY_O_ANALNBLOCK :
 			    pp->default_inactivity);
 
 	while (bytes_read == 0) {
@@ -167,7 +167,7 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 		if (bytes_read != 0)
 			break;
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			bytes_read = -EAGAIN;
 			break;
 		}
@@ -193,7 +193,7 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 static ssize_t pp_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	unsigned int minor = iminor(file_inode(file));
+	unsigned int mianalr = imianalr(file_ianalde(file));
 	struct pp_struct *pp = file->private_data;
 	char *kbuffer;
 	ssize_t bytes_written = 0;
@@ -203,20 +203,20 @@ static ssize_t pp_write(struct file *file, const char __user *buf,
 
 	if (!(pp->flags & PP_CLAIMED)) {
 		/* Don't have the port claimed */
-		pr_debug(CHRDEV "%x: claim the port first\n", minor);
+		pr_debug(CHRDEV "%x: claim the port first\n", mianalr);
 		return -EINVAL;
 	}
 
 	kbuffer = kmalloc(min_t(size_t, count, PP_BUFFER_SIZE), GFP_KERNEL);
 	if (!kbuffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pport = pp->pdev->port;
 	mode = pport->ieee1284.mode & ~(IEEE1284_DEVICEID | IEEE1284_ADDR);
 
 	parport_set_timeout(pp->pdev,
-			    (file->f_flags & O_NONBLOCK) ?
-			    PARPORT_INACTIVITY_O_NONBLOCK :
+			    (file->f_flags & O_ANALNBLOCK) ?
+			    PARPORT_INACTIVITY_O_ANALNBLOCK :
 			    pp->default_inactivity);
 
 	while (bytes_written < count) {
@@ -248,7 +248,7 @@ static ssize_t pp_write(struct file *file, const char __user *buf,
 
 		bytes_written += wrote;
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			if (!bytes_written)
 				bytes_written = -EAGAIN;
 			break;
@@ -280,7 +280,7 @@ static void pp_irq(void *private)
 	wake_up_interruptible(&pp->irq_wait);
 }
 
-static int register_device(int minor, struct pp_struct *pp)
+static int register_device(int mianalr, struct pp_struct *pp)
 {
 	struct parport *port;
 	struct pardevice *pdev = NULL;
@@ -288,13 +288,13 @@ static int register_device(int minor, struct pp_struct *pp)
 	struct pardev_cb ppdev_cb;
 	int rc = 0, index;
 
-	name = kasprintf(GFP_KERNEL, CHRDEV "%x", minor);
+	name = kasprintf(GFP_KERNEL, CHRDEV "%x", mianalr);
 	if (name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	port = parport_find_number(minor);
+	port = parport_find_number(mianalr);
 	if (!port) {
-		pr_warn("%s: no associated port!\n", name);
+		pr_warn("%s: anal associated port!\n", name);
 		rc = -ENXIO;
 		goto err;
 	}
@@ -351,7 +351,7 @@ static int pp_set_timeout(struct pardevice *pdev, long tv_sec, int tv_usec)
 
 static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	unsigned int minor = iminor(file_inode(file));
+	unsigned int mianalr = imianalr(file_ianalde(file));
 	struct pp_struct *pp = file->private_data;
 	struct parport *port;
 	void __user *argp = (void __user *)arg;
@@ -375,7 +375,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		/* Deferred device registration. */
 		if (!pp->pdev) {
-			int err = register_device(minor, pp);
+			int err = register_device(mianalr, pp);
 
 			if (err)
 				return err;
@@ -407,9 +407,9 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			dev_dbg(&pp->pdev->dev,
 				"too late for PPEXCL; already registered\n");
 			if (pp->flags & PP_EXCL)
-				/* But it's not really an error. */
+				/* But it's analt really an error. */
 				return 0;
-			/* There's no chance of making the driver happy. */
+			/* There's anal chance of making the driver happy. */
 			return -EINVAL;
 		}
 
@@ -478,9 +478,9 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	    {
 		unsigned int modes;
 
-		port = parport_find_number(minor);
+		port = parport_find_number(mianalr);
 		if (!port)
-			return -ENODEV;
+			return -EANALDEV;
 
 		modes = port->modes;
 		parport_put_port(port);
@@ -510,9 +510,9 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}	/* end switch() */
 
 	/* Everything else requires the port to be claimed, so check
-	 * that now. */
+	 * that analw. */
 	if ((pp->flags & PP_CLAIMED) == 0) {
-		pr_debug(CHRDEV "%x: claim the port first\n", minor);
+		pr_debug(CHRDEV "%x: claim the port first\n", mianalr);
 		return -EINVAL;
 	}
 
@@ -584,7 +584,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		switch ((ret = parport_negotiate(port, mode))) {
 		case 0: break;
-		case -1: /* handshake failed, peripheral not IEEE 1284 */
+		case -1: /* handshake failed, peripheral analt IEEE 1284 */
 			ret = -EIO;
 			break;
 		case 1:  /* handshake succeeded, peripheral rejected mode */
@@ -674,17 +674,17 @@ static long pp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-static int pp_open(struct inode *inode, struct file *file)
+static int pp_open(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int mianalr = imianalr(ianalde);
 	struct pp_struct *pp;
 
-	if (minor >= PARPORT_MAX)
+	if (mianalr >= PARPORT_MAX)
 		return -ENXIO;
 
 	pp = kmalloc(sizeof(struct pp_struct), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pp->state.mode = IEEE1284_MODE_COMPAT;
 	pp->state.phase = init_phase(pp->state.mode);
@@ -694,7 +694,7 @@ static int pp_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&pp->irq_wait);
 
 	/* Defer the actual device registration until the first claim.
-	 * That way, we know whether or not the driver wants to have
+	 * That way, we kanalw whether or analt the driver wants to have
 	 * exclusive access to the port (PPEXCL).
 	 */
 	pp->pdev = NULL;
@@ -703,9 +703,9 @@ static int pp_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int pp_release(struct inode *inode, struct file *file)
+static int pp_release(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int mianalr = imianalr(ianalde);
 	struct pp_struct *pp = file->private_data;
 	int compat_negot;
 
@@ -714,7 +714,7 @@ static int pp_release(struct inode *inode, struct file *file)
 	    (pp->state.mode != IEEE1284_MODE_COMPAT)) {
 		struct ieee1284_info *info;
 
-		/* parport released, but not in compatibility mode */
+		/* parport released, but analt in compatibility mode */
 		parport_claim_or_block(pp->pdev);
 		pp->flags |= PP_CLAIMED;
 		info = &pp->pdev->port->ieee1284;
@@ -744,7 +744,7 @@ static int pp_release(struct inode *inode, struct file *file)
 		parport_release(pp->pdev);
 		if (compat_negot != 1) {
 			pr_debug(CHRDEV "%x: released pardevice "
-				"because user-space forgot\n", minor);
+				"because user-space forgot\n", mianalr);
 		}
 	}
 
@@ -752,7 +752,7 @@ static int pp_release(struct inode *inode, struct file *file)
 		parport_unregister_device(pp->pdev);
 		ida_free(&ida_index, pp->index);
 		pp->pdev = NULL;
-		pr_debug(CHRDEV "%x: unregistered pardevice\n", minor);
+		pr_debug(CHRDEV "%x: unregistered pardevice\n", mianalr);
 	}
 
 	kfree(pp);
@@ -760,7 +760,7 @@ static int pp_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-/* No kernel lock held - fine */
+/* Anal kernel lock held - fine */
 static __poll_t pp_poll(struct file *file, poll_table *wait)
 {
 	struct pp_struct *pp = file->private_data;
@@ -768,7 +768,7 @@ static __poll_t pp_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &pp->irq_wait, wait);
 	if (atomic_read(&pp->irqc))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
@@ -779,7 +779,7 @@ static const struct class ppdev_class = {
 
 static const struct file_operations pp_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= pp_read,
 	.write		= pp_write,
 	.poll		= pp_poll,
@@ -822,7 +822,7 @@ static int pp_probe(struct pardevice *par_dev)
 	int len = strlen(drv->name);
 
 	if (strncmp(par_dev->name, drv->name, len))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

@@ -6,7 +6,7 @@ controller outputs and 16 Fan tachometer controller inputs.
 The Nuvoton BMC NPCM8XX supports 12 Pulse-width modulation (PWM)
 controller outputs and 16 Fan tachometer controller inputs.
 
-Required properties for pwm-fan node
+Required properties for pwm-fan analde
 - #address-cells : should be 1.
 - #size-cells	: should be 0.
 - compatible	: "nuvoton,npcm750-pwm-fan" for Poleg NPCM7XX.
@@ -24,15 +24,15 @@ Required properties for pwm-fan node
 - pinctrl-0	: phandle referencing pin configuration of the PWM and Fan
 					controller ports.
 
-fan subnode format:
+fan subanalde format:
 ===================
-Under fan subnode can be upto 8 child nodes, each child node representing a fan.
-Each fan subnode must have one PWM channel and at least one Fan tach channel.
+Under fan subanalde can be upto 8 child analdes, each child analde representing a fan.
+Each fan subanalde must have one PWM channel and at least one Fan tach channel.
 
 For PWM channel can be configured cooling-levels to create cooling device.
 Cooling device could be bound to a thermal zone for the thermal control.
 
-Required properties for each child node:
+Required properties for each child analde:
 - reg : specify the PWM output channel.
 	integer value in the range 0 through 7, that represent
 	the PWM channel number that used.
@@ -43,7 +43,7 @@ Required properties for each child node:
 
 		At least one Fan tach input channel is required
 
-Optional property for each child node:
+Optional property for each child analde:
 - cooling-levels: PWM duty cycle values in a range from 0 to 255
                   which correspond to thermal cooling states.
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This is a module to test the HMM (Heterogeneous Memory Management) API
  * of the kernel. It allows a userspace program to expose its entire address
@@ -40,8 +40,8 @@ struct hmm_dmirror_cmd {
 
 /*
  * Values returned in hmm_dmirror_cmd.ptr for HMM_DMIRROR_SNAPSHOT.
- * HMM_DMIRROR_PROT_ERROR: no valid mirror PTE for this page
- * HMM_DMIRROR_PROT_NONE: unpopulated PTE or PTE with no access
+ * HMM_DMIRROR_PROT_ERROR: anal valid mirror PTE for this page
+ * HMM_DMIRROR_PROT_ANALNE: unpopulated PTE or PTE with anal access
  * HMM_DMIRROR_PROT_READ: read-only PTE
  * HMM_DMIRROR_PROT_WRITE: read/write PTE
  * HMM_DMIRROR_PROT_PMD: PMD sized page is fully mapped by same permissions
@@ -56,7 +56,7 @@ struct hmm_dmirror_cmd {
  */
 enum {
 	HMM_DMIRROR_PROT_ERROR			= 0xFF,
-	HMM_DMIRROR_PROT_NONE			= 0x00,
+	HMM_DMIRROR_PROT_ANALNE			= 0x00,
 	HMM_DMIRROR_PROT_READ			= 0x01,
 	HMM_DMIRROR_PROT_WRITE			= 0x02,
 	HMM_DMIRROR_PROT_PMD			= 0x04,

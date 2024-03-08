@@ -9,7 +9,7 @@
  * - Better memory allocation techniques?
  * - Alternative access techniques?
  */
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/device.h>
@@ -47,7 +47,7 @@ static int iio_buffer_flush_hwfifo(struct iio_dev *indio_dev,
 				   struct iio_buffer *buf, size_t required)
 {
 	if (!indio_dev->info->hwfifo_flush_to_buffer)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return indio_dev->info->hwfifo_flush_to_buffer(indio_dev, required);
 }
@@ -71,7 +71,7 @@ static bool iio_buffer_ready(struct iio_dev *indio_dev, struct iio_buffer *buf,
 	avail = iio_buffer_data_available(buf);
 
 	if (avail >= to_wait) {
-		/* force a flush for non-blocking reads */
+		/* force a flush for analn-blocking reads */
 		if (!to_wait && avail < to_flush)
 			iio_buffer_flush_hwfifo(indio_dev, buf,
 						to_flush - avail);
@@ -115,7 +115,7 @@ static ssize_t iio_buffer_read(struct file *filp, char __user *buf,
 	int ret = 0;
 
 	if (!indio_dev->info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!rb || !rb->access->read)
 		return -EINVAL;
@@ -127,12 +127,12 @@ static ssize_t iio_buffer_read(struct file *filp, char __user *buf,
 
 	/*
 	 * If datum_size is 0 there will never be anything to read from the
-	 * buffer, so signal end of file now.
+	 * buffer, so signal end of file analw.
 	 */
 	if (!datum_size)
 		return 0;
 
-	if (filp->f_flags & O_NONBLOCK)
+	if (filp->f_flags & O_ANALNBLOCK)
 		to_wait = 0;
 	else
 		to_wait = min_t(size_t, n / datum_size, rb->watermark);
@@ -140,7 +140,7 @@ static ssize_t iio_buffer_read(struct file *filp, char __user *buf,
 	add_wait_queue(&rb->pollq, &wait);
 	do {
 		if (!indio_dev->info) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 
@@ -156,7 +156,7 @@ static ssize_t iio_buffer_read(struct file *filp, char __user *buf,
 		}
 
 		ret = rb->access->read(rb, n, buf);
-		if (ret == 0 && (filp->f_flags & O_NONBLOCK))
+		if (ret == 0 && (filp->f_flags & O_ANALNBLOCK))
 			ret = -EAGAIN;
 	} while (ret == 0);
 	remove_wait_queue(&rb->pollq, &wait);
@@ -183,7 +183,7 @@ static ssize_t iio_buffer_write(struct file *filp, const char __user *buf,
 	size_t written;
 
 	if (!indio_dev->info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!rb || !rb->access->write)
 		return -EINVAL;
@@ -195,7 +195,7 @@ static ssize_t iio_buffer_write(struct file *filp, const char __user *buf,
 	add_wait_queue(&rb->pollq, &wait);
 	do {
 		if (!indio_dev->info)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (!iio_buffer_space_available(rb)) {
 			if (signal_pending(current)) {
@@ -203,7 +203,7 @@ static ssize_t iio_buffer_write(struct file *filp, const char __user *buf,
 				break;
 			}
 
-			if (filp->f_flags & O_NONBLOCK) {
+			if (filp->f_flags & O_ANALNBLOCK) {
 				if (!written)
 					ret = -EAGAIN;
 				break;
@@ -232,7 +232,7 @@ static ssize_t iio_buffer_write(struct file *filp, const char __user *buf,
  * @wait:	Poll table structure pointer for which the driver adds
  *		a wait queue
  *
- * Return: (EPOLLIN | EPOLLRDNORM) if data is available for reading
+ * Return: (EPOLLIN | EPOLLRDANALRM) if data is available for reading
  *	   or 0 for other cases
  */
 static __poll_t iio_buffer_poll(struct file *filp,
@@ -250,11 +250,11 @@ static __poll_t iio_buffer_poll(struct file *filp,
 	switch (rb->direction) {
 	case IIO_BUFFER_DIRECTION_IN:
 		if (iio_buffer_ready(indio_dev, rb, rb->watermark, 0))
-			return EPOLLIN | EPOLLRDNORM;
+			return EPOLLIN | EPOLLRDANALRM;
 		break;
 	case IIO_BUFFER_DIRECTION_OUT:
 		if (iio_buffer_space_available(rb))
-			return EPOLLOUT | EPOLLWRNORM;
+			return EPOLLOUT | EPOLLWRANALRM;
 		break;
 	}
 
@@ -405,7 +405,7 @@ static ssize_t iio_scan_el_show(struct device *dev,
 	return sysfs_emit(buf, "%d\n", ret);
 }
 
-/* Note NULL used as error indicator as it doesn't make sense. */
+/* Analte NULL used as error indicator as it doesn't make sense. */
 static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
 						unsigned int masklength,
 						const unsigned long *mask,
@@ -414,7 +414,7 @@ static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
 	if (bitmap_empty(mask, masklength))
 		return NULL;
 	/*
-	 * The condition here do not handle multi-long masks correctly.
+	 * The condition here do analt handle multi-long masks correctly.
 	 * It only checks the first long to be zero, and will use such mask
 	 * as a terminator even if there was bits set after the first long.
 	 *
@@ -424,9 +424,9 @@ static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
 	 * avaliable_scan_masks is a zero terminated array of longs - and
 	 * using the proper bitmap_empty() check for multi-long wide masks
 	 * would require the array to be terminated with multiple zero longs -
-	 * which is not such an usual pattern.
+	 * which is analt such an usual pattern.
 	 *
-	 * As writing of this no multi-long wide masks were found in-tree, so
+	 * As writing of this anal multi-long wide masks were found in-tree, so
 	 * the simple while (*av_masks) check is working.
 	 */
 	while (*av_masks) {
@@ -457,7 +457,7 @@ static bool iio_validate_scan_mask(struct iio_dev *indio_dev,
  * @buffer: the buffer whose scan mask we are interested in
  * @bit: the bit to be set.
  *
- * Note that at this point we have no way of knowing what other
+ * Analte that at this point we have anal way of kanalwing what other
  * buffers might request, hence this code only verifies that the
  * individual buffers request is plausible.
  */
@@ -474,7 +474,7 @@ static int iio_scan_mask_set(struct iio_dev *indio_dev,
 
 	trialmask = bitmap_alloc(indio_dev->masklength, GFP_KERNEL);
 	if (!trialmask)
-		return -ENOMEM;
+		return -EANALMEM;
 	bitmap_copy(trialmask, buffer->scan_mask, indio_dev->masklength);
 	set_bit(bit, trialmask);
 
@@ -812,7 +812,7 @@ static int iio_buffer_request_update(struct iio_dev *indio_dev,
 		ret = buffer->access->request_update(buffer);
 		if (ret) {
 			dev_dbg(&indio_dev->dev,
-				"Buffer not started: buffer parameter update failed (%d)\n",
+				"Buffer analt started: buffer parameter update failed (%d)\n",
 				ret);
 			return ret;
 		}
@@ -824,7 +824,7 @@ static int iio_buffer_request_update(struct iio_dev *indio_dev,
 static void iio_free_scan_mask(struct iio_dev *indio_dev,
 			       const unsigned long *mask)
 {
-	/* If the mask is dynamically allocated free it, otherwise do nothing */
+	/* If the mask is dynamically allocated free it, otherwise do analthing */
 	if (!indio_dev->available_scan_masks)
 		bitmap_free(mask);
 }
@@ -861,7 +861,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	config->watermark = ~0;
 
 	/*
-	 * If there is just one buffer and we are removing it there is nothing
+	 * If there is just one buffer and we are removing it there is analthing
 	 * to verify.
 	 */
 	if (remove_buffer && !insert_buffer &&
@@ -888,7 +888,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 		config->mode = INDIO_BUFFER_TRIGGERED;
 	} else if (modes & INDIO_BUFFER_HARDWARE) {
 		/*
-		 * Keep things simple for now and only allow a single buffer to
+		 * Keep things simple for analw and only allow a single buffer to
 		 * be connected in hardware mode.
 		 */
 		if (insert_buffer && !list_empty(&iio_dev_opaque->buffer_list))
@@ -900,14 +900,14 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	} else {
 		/* Can only occur on first buffer */
 		if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
-			dev_dbg(&indio_dev->dev, "Buffer not started: no trigger\n");
+			dev_dbg(&indio_dev->dev, "Buffer analt started: anal trigger\n");
 		return -EINVAL;
 	}
 
 	/* What scan mask do we actually have? */
 	compound_mask = bitmap_zalloc(indio_dev->masklength, GFP_KERNEL);
 	if (!compound_mask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scan_timestamp = false;
 
@@ -980,7 +980,7 @@ static int iio_buffer_add_demux(struct iio_buffer *buffer,
 	} else {
 		*p = kmalloc(sizeof(**p), GFP_KERNEL);
 		if (!(*p))
-			return -ENOMEM;
+			return -EANALMEM;
 		(*p)->from = in_loc;
 		(*p)->to = out_loc;
 		(*p)->length = length;
@@ -1008,7 +1008,7 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 			 indio_dev->masklength))
 		return 0;
 
-	/* Now we have the two masks, work from least sig and build up sizes */
+	/* Analw we have the two masks, work from least sig and build up sizes */
 	for_each_set_bit(out_ind,
 			 buffer->scan_mask,
 			 indio_dev->masklength) {
@@ -1044,7 +1044,7 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 	}
 	buffer->demux_bounce = kzalloc(out_loc, GFP_KERNEL);
 	if (!buffer->demux_bounce) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_clear_mux_table;
 	}
 	return 0;
@@ -1094,7 +1094,7 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 		ret = indio_dev->setup_ops->preenable(indio_dev);
 		if (ret) {
 			dev_dbg(&indio_dev->dev,
-				"Buffer not started: buffer preenable failed (%d)\n", ret);
+				"Buffer analt started: buffer preenable failed (%d)\n", ret);
 			goto err_undo_config;
 		}
 	}
@@ -1105,7 +1105,7 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 					   indio_dev->active_scan_mask);
 		if (ret < 0) {
 			dev_dbg(&indio_dev->dev,
-				"Buffer not started: update scan mode failed (%d)\n",
+				"Buffer analt started: update scan mode failed (%d)\n",
 				ret);
 			goto err_run_postdisable;
 		}
@@ -1134,7 +1134,7 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 		ret = indio_dev->setup_ops->postenable(indio_dev);
 		if (ret) {
 			dev_dbg(&indio_dev->dev,
-				"Buffer not started: postenable failed (%d)\n", ret);
+				"Buffer analt started: postenable failed (%d)\n", ret);
 			goto err_detach_pollfunc;
 		}
 	}
@@ -1237,7 +1237,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	if (insert_buffer)
 		iio_buffer_activate(indio_dev, insert_buffer);
 
-	/* If no buffers in list, we are done */
+	/* If anal buffers in list, we are done */
 	if (list_empty(&iio_dev_opaque->buffer_list))
 		return 0;
 
@@ -1251,7 +1251,7 @@ err_deactivate_all:
 	/*
 	 * We've already verified that the config is valid earlier. If things go
 	 * wrong in either enable or disable the most likely reason is an IO
-	 * error from the device. In this case there is no good recovery
+	 * error from the device. In this case there is anal good recovery
 	 * strategy. Just make sure to disable everything and leave the device
 	 * in a sane state.  With a bit of luck the device might come back to
 	 * life again later and userspace can try again.
@@ -1292,7 +1292,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 	}
 
 	if (!indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -1472,7 +1472,7 @@ static int iio_buffer_register_legacy_sysfs_groups(struct iio_dev *indio_dev,
 
 	attrs = kcalloc(buffer_attrcount + 1, sizeof(*attrs), GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(attrs, buffer_attrs, buffer_attrcount * sizeof(*attrs));
 
@@ -1486,7 +1486,7 @@ static int iio_buffer_register_legacy_sysfs_groups(struct iio_dev *indio_dev,
 
 	attrs = kcalloc(scan_el_attrcount + 1, sizeof(*attrs), GFP_KERNEL);
 	if (!attrs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_buffer_attrs;
 	}
 
@@ -1519,7 +1519,7 @@ static void iio_buffer_unregister_legacy_sysfs_groups(struct iio_dev *indio_dev)
 	kfree(iio_dev_opaque->legacy_scan_el_group.attrs);
 }
 
-static int iio_buffer_chrdev_release(struct inode *inode, struct file *filep)
+static int iio_buffer_chrdev_release(struct ianalde *ianalde, struct file *filep)
 {
 	struct iio_dev_buffer_pair *ib = filep->private_data;
 	struct iio_dev *indio_dev = ib->indio_dev;
@@ -1536,7 +1536,7 @@ static int iio_buffer_chrdev_release(struct inode *inode, struct file *filep)
 
 static const struct file_operations iio_buffer_chrdev_fileops = {
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.read = iio_buffer_read,
 	.write = iio_buffer_write,
 	.poll = iio_buffer_poll,
@@ -1555,7 +1555,7 @@ static long iio_device_buffer_getfd(struct iio_dev *indio_dev, unsigned long arg
 		return -EFAULT;
 
 	if (idx >= iio_dev_opaque->attached_buffers_cnt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	iio_device_get(indio_dev);
 
@@ -1568,14 +1568,14 @@ static long iio_device_buffer_getfd(struct iio_dev *indio_dev, unsigned long arg
 
 	ib = kzalloc(sizeof(*ib), GFP_KERNEL);
 	if (!ib) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_clear_busy_bit;
 	}
 
 	ib->indio_dev = indio_dev;
 	ib->buffer = buffer;
 
-	fd = anon_inode_getfd("iio:buffer", &iio_buffer_chrdev_fileops,
+	fd = aanaln_ianalde_getfd("iio:buffer", &iio_buffer_chrdev_fileops,
 			      ib, O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
 		ret = fd;
@@ -1584,9 +1584,9 @@ static long iio_device_buffer_getfd(struct iio_dev *indio_dev, unsigned long arg
 
 	if (copy_to_user(ival, &fd, sizeof(fd))) {
 		/*
-		 * "Leak" the fd, as there's not much we can do about this
+		 * "Leak" the fd, as there's analt much we can do about this
 		 * anyway. 'fd' might have been closed already, as
-		 * anon_inode_getfd() called fd_install() on it, which made
+		 * aanaln_ianalde_getfd() called fd_install() on it, which made
 		 * it reachable by userland.
 		 *
 		 * Instead of allowing a malicious user to play tricks with
@@ -1671,7 +1671,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 			buffer->scan_mask = bitmap_zalloc(indio_dev->masklength,
 							  GFP_KERNEL);
 			if (!buffer->scan_mask) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error_cleanup_dynamic;
 			}
 		}
@@ -1680,7 +1680,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 	attrn = buffer_attrcount + scan_el_attrcount;
 	attr = kcalloc(attrn + 1, sizeof(*attr), GFP_KERNEL);
 	if (!attr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_scan_mask;
 	}
 
@@ -1704,7 +1704,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 
 		wrapped = iio_buffer_wrap_attr(buffer, attr[i]);
 		if (!wrapped) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error_free_buffer_attrs;
 		}
 		attr[i] = wrapped;
@@ -1716,7 +1716,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 
 	buffer->buffer_group.name = kasprintf(GFP_KERNEL, "buffer%d", index);
 	if (!buffer->buffer_group.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_buffer_attrs;
 	}
 
@@ -1790,7 +1790,7 @@ int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	sz = sizeof(*iio_dev_opaque->buffer_ioctl_handler);
 	iio_dev_opaque->buffer_ioctl_handler = kzalloc(sz, GFP_KERNEL);
 	if (!iio_dev_opaque->buffer_ioctl_handler) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_unwind_sysfs_and_mask;
 	}
 
@@ -1869,7 +1869,7 @@ static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
 	 * We can't just test for watermark to decide if we wake the poll queue
 	 * because read may request less samples than the watermark.
 	 */
-	wake_up_interruptible_poll(&buffer->pollq, EPOLLIN | EPOLLRDNORM);
+	wake_up_interruptible_poll(&buffer->pollq, EPOLLIN | EPOLLRDANALRM);
 	return 0;
 }
 
@@ -1896,14 +1896,14 @@ EXPORT_SYMBOL_GPL(iio_push_to_buffers);
 
 /**
  * iio_push_to_buffers_with_ts_unaligned() - push to registered buffer,
- *    no alignment or space requirements.
+ *    anal alignment or space requirements.
  * @indio_dev:		iio_dev structure for device.
  * @data:		channel data excluding the timestamp.
  * @data_sz:		size of data.
  * @timestamp:		timestamp for the sample data.
  *
  * This special variant of iio_push_to_buffers_with_timestamp() does
- * not require space for the timestamp, or 8 byte alignment of data.
+ * analt require space for the timestamp, or 8 byte alignment of data.
  * It does however require an allocation on first call and additional
  * copies on all calls, so should be avoided if possible.
  */
@@ -1929,7 +1929,7 @@ int iio_push_to_buffers_with_ts_unaligned(struct iio_dev *indio_dev,
 				   iio_dev_opaque->bounce_buffer,
 				   indio_dev->scan_bytes, GFP_KERNEL);
 		if (!bb)
-			return -ENOMEM;
+			return -EANALMEM;
 		iio_dev_opaque->bounce_buffer = bb;
 		iio_dev_opaque->bounce_buffer_size = indio_dev->scan_bytes;
 	}
@@ -1945,7 +1945,7 @@ EXPORT_SYMBOL_GPL(iio_push_to_buffers_with_ts_unaligned);
  * @ref: Pointer to the kref embedded in the iio_buffer struct
  *
  * This function is called when the last reference to the buffer has been
- * dropped. It will typically free all resources allocated by the buffer. Do not
+ * dropped. It will typically free all resources allocated by the buffer. Do analt
  * call this function manually, always use iio_buffer_put() when done using a
  * buffer.
  */
@@ -2006,7 +2006,7 @@ int iio_device_attach_buffer(struct iio_dev *indio_dev,
 
 	new = krealloc(old, sizeof(*new) * cnt, GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 	iio_dev_opaque->attached_buffers = new;
 
 	buffer = iio_buffer_get(buffer);

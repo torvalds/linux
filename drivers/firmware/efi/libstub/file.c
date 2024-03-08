@@ -20,10 +20,10 @@
  *
  * Unfortunately, reading files in chunks triggers *other* bugs on some
  * platforms, so we provide a way to disable this workaround, which can
- * be done by passing "efi=nochunk" on the EFI boot stub command line.
+ * be done by passing "efi=analchunk" on the EFI boot stub command line.
  *
  * If you experience issues with initrd images being corrupt it's worth
- * trying efi=nochunk, but chunking is enabled by default on x86 because
+ * trying efi=analchunk, but chunking is enabled by default on x86 because
  * there are far more machines that require the workaround than those that
  * break with it enabled.
  */
@@ -152,12 +152,12 @@ static efi_status_t efi_open_device_path(efi_file_protocol_t **volume,
 	if ((efi_bs_call(locate_device_path, &fs_proto, &initrd_dp, &handle) ?:
 	     efi_bs_call(handle_protocol, handle, &fs_proto, (void **)&io))
 	    != EFI_SUCCESS)
-		return EFI_NOT_FOUND;
+		return EFI_ANALT_FOUND;
 
 	/* Check whether the remaining device path is a file device path */
 	if (initrd_dp->type != EFI_DEV_MEDIA ||
 	    initrd_dp->sub_type != EFI_DEV_MEDIA_FILE) {
-		efi_warn("Unexpected device path node type: (%x, %x)\n",
+		efi_warn("Unexpected device path analde type: (%x, %x)\n",
 			 initrd_dp->type, initrd_dp->sub_type);
 		return EFI_LOAD_ERROR;
 	}
@@ -205,7 +205,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 	efi_apply_loadoptions_quirk((const void **)&cmdline, &cmdline_len);
 	cmdline_len /= sizeof(*cmdline);
 
-	if (IS_ENABLED(CONFIG_X86) && !efi_nochunk)
+	if (IS_ENABLED(CONFIG_X86) && !efi_analchunk)
 		efi_chunk_size = EFI_READ_CHUNK_SIZE;
 
 	alloc_addr = alloc_size = 0;
@@ -225,7 +225,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 		cmdline_len -= offset;
 
 		status = efi_open_device_path(&volume, &fi);
-		if (status == EFI_UNSUPPORTED || status == EFI_NOT_FOUND)
+		if (status == EFI_UNSUPPORTED || status == EFI_ANALT_FOUND)
 			/* try the volume that holds the kernel itself */
 			status = efi_open_volume(image, &volume);
 
@@ -262,7 +262,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 
 			if (old_addr != 0) {
 				/*
-				 * This is not the first time we've gone
+				 * This is analt the first time we've gone
 				 * around this loop, and so we are loading
 				 * multiple files that need to be concatenated
 				 * and returned in a single buffer.
@@ -294,7 +294,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 	*load_size = alloc_size;
 
 	if (*load_size == 0)
-		return EFI_NOT_READY;
+		return EFI_ANALT_READY;
 	return EFI_SUCCESS;
 
 err_close_file:

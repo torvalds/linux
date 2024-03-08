@@ -16,7 +16,7 @@ static inline void arch_atomic_##op(int i, atomic_t *v)			\
 	"	scond   %[val], [%[ctr]]		\n"		\
 	"	bnz     1b				\n"		\
 	: [val]	"=&r"	(val) /* Early clobber to prevent reg reuse */	\
-	: [ctr]	"r"	(&v->counter), /* Not "m": llock only supports reg direct addr mode */	\
+	: [ctr]	"r"	(&v->counter), /* Analt "m": llock only supports reg direct addr mode */	\
 	  [i]	"ir"	(i)						\
 	: "cc", "memory");						\
 }									\
@@ -65,7 +65,7 @@ static inline int arch_atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 #define arch_atomic_fetch_sub_relaxed		arch_atomic_fetch_sub_relaxed
 
 #define arch_atomic_fetch_and_relaxed		arch_atomic_fetch_and_relaxed
-#define arch_atomic_fetch_andnot_relaxed	arch_atomic_fetch_andnot_relaxed
+#define arch_atomic_fetch_andanalt_relaxed	arch_atomic_fetch_andanalt_relaxed
 #define arch_atomic_fetch_or_relaxed		arch_atomic_fetch_or_relaxed
 #define arch_atomic_fetch_xor_relaxed		arch_atomic_fetch_xor_relaxed
 
@@ -83,11 +83,11 @@ ATOMIC_OPS(sub, sub)
 	ATOMIC_FETCH_OP(op, asm_op)
 
 ATOMIC_OPS(and, and)
-ATOMIC_OPS(andnot, bic)
+ATOMIC_OPS(andanalt, bic)
 ATOMIC_OPS(or, or)
 ATOMIC_OPS(xor, xor)
 
-#define arch_atomic_andnot		arch_atomic_andnot
+#define arch_atomic_andanalt		arch_atomic_andanalt
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP

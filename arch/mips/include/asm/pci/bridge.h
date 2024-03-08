@@ -225,7 +225,7 @@ struct bridge_regs {
 
 	char	_pad_029000[0x007000];			/* 0x029000-0x030000 */
 
-	/* PCI Interrupt Acknowledge Cycle 0x030000 */
+	/* PCI Interrupt Ackanalwledge Cycle 0x030000 */
 	union {
 		u8	c[8 / 1];
 		u16	s[8 / 2];
@@ -399,7 +399,7 @@ struct bridge_err_cmdword {
 #define BRIDGE_WIDGET_MFGR_NUM		0x036
 #define XBRIDGE_WIDGET_MFGR_NUM		0x024
 
-/* Revision numbers for known Bridge revisions */
+/* Revision numbers for kanalwn Bridge revisions */
 #define BRIDGE_REV_A			0x1
 #define BRIDGE_REV_B			0x2
 #define BRIDGE_REV_C			0x3

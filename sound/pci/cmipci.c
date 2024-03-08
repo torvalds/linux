@@ -4,7 +4,7 @@
  * Copyright (c) 2000 by Takashi Iwai <tiwai@suse.de>
  */
  
-/* Does not work. Warning may block system in capture mode */
+/* Does analt work. Warning may block system in capture mode */
 /* #define USE_VAR48KRATE */
 
 #include <linux/io.h>
@@ -151,7 +151,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_CHIP_055		0x08000000
 #define CM_CHIP_039		0x04000000
 #define CM_CHIP_039_6CH		0x01000000
-#define CM_UNKNOWN_INT_EN	0x00080000	/* ? */
+#define CM_UNKANALWN_INT_EN	0x00080000	/* ? */
 #define CM_TDMA_INT_EN		0x00040000
 #define CM_CH1_INT_EN		0x00020000
 #define CM_CH0_INT_EN		0x00010000
@@ -234,7 +234,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_MUTECH1		0x00000040	/* mute PCI ch1 to DAC */
 #define CM_FLINKOFF		0x00000020	/* force modem link detection off, model 037 */
 #define CM_MIDSMP		0x00000010	/* 1/2 interpolation at front end DAC */
-#define CM_UPDDMA_MASK		0x0000000C	/* TDMA position update notification */
+#define CM_UPDDMA_MASK		0x0000000C	/* TDMA position update analtification */
 #define CM_UPDDMA_2048		0x00000000
 #define CM_UPDDMA_1024		0x00000004
 #define CM_UPDDMA_512		0x00000008
@@ -253,7 +253,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_REG_DEV		0x20		/* read: hardware device version */
 
 #define CM_REG_MIXER21		0x21
-#define CM_UNKNOWN_21_MASK	0x78		/* ? */
+#define CM_UNKANALWN_21_MASK	0x78		/* ? */
 #define CM_X_ADPCM		0x04		/* SB16 ADPCM enable */
 #define CM_PROINV		0x02		/* SBPro left/right channel switching */
 #define CM_X_SB16		0x01		/* SB16 compatible */
@@ -262,9 +262,9 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_REG_SB16_ADDR	0x23
 
 #define CM_REFFREQ_XIN		(315*1000*1000)/22	/* 14.31818 Mhz reference clock frequency pin XIN */
-#define CM_ADCMULT_XIN		512			/* Guessed (487 best for 44.1kHz, not for 88/176kHz) */
+#define CM_ADCMULT_XIN		512			/* Guessed (487 best for 44.1kHz, analt for 88/176kHz) */
 #define CM_TOLERANCE_RATE	0.001			/* Tolerance sample rate pitch (1000ppm) */
-#define CM_MAXIMUM_RATE		80000000		/* Note more than 80MHz */
+#define CM_MAXIMUM_RATE		80000000		/* Analte more than 80MHz */
 
 #define CM_REG_MIXER1		0x24
 #define CM_FMMUTE		0x80	/* mute FM */
@@ -303,7 +303,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_VAUXR_MASK		0x0f
 
 #define CM_REG_MISC		0x27
-#define CM_UNKNOWN_27_MASK	0xd8	/* ? */
+#define CM_UNKANALWN_27_MASK	0xd8	/* ? */
 #define CM_XGPO1		0x20
 // #define CM_XGPBIO		0x04
 #define CM_MIC_CENTER_LFE	0x04	/* mic as center/lfe out? (model 039 or later?) */
@@ -341,7 +341,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_VADMIC3		0x01	/* Mic record boost */
 
 /*
- * CMI-8338 spec ver 0.5 (this is not valid for CMI-8738):
+ * CMI-8338 spec ver 0.5 (this is analt valid for CMI-8738):
  * the 8 registers 0xf8 - 0xff are used for programming m/n counter by the PLL
  * unit (readonly?).
  */
@@ -363,7 +363,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_SHAREADC		0x00040000	/* DAC in ADC as Center/LFE */
 #define CM_REALTCMP		0x00020000	/* monitor the CMPL/CMPR of ADC */
 #define CM_INVLRCK		0x00010000	/* invert ZVPORT's LRCK */
-#define CM_UNKNOWN_90_MASK	0x0000FFFF	/* ? */
+#define CM_UNKANALWN_90_MASK	0x0000FFFF	/* ? */
 
 /*
  * size of i/o region
@@ -382,7 +382,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 /*
  * flags to check device open/close
  */
-#define CM_OPEN_NONE	0
+#define CM_OPEN_ANALNE	0
 #define CM_OPEN_CH_MASK	0x01
 #define CM_OPEN_DAC	0x10
 #define CM_OPEN_ADC	0x20
@@ -432,7 +432,7 @@ static const struct cmipci_mixer_auto_switches cm_saved_mixer[] = {
 	{"PCM Playback Switch", 0},
 	{"IEC958 Output Switch", 1},
 	{"IEC958 Mix Analog", 0},
-	// {"IEC958 Out To DAC", 1}, // no longer used
+	// {"IEC958 Out To DAC", 1}, // anal longer used
 	{"IEC958 Loop", 0},
 };
 #define CM_SAVED_MIXERS		ARRAY_SIZE(cm_saved_mixer)
@@ -598,7 +598,7 @@ static unsigned int snd_cmipci_rate_freq(unsigned int rate)
 #ifdef USE_VAR48KRATE
 /*
  * Determine PLL values for frequency setup, maybe the CMI8338 (CMI8738???)
- * does it this way .. maybe not.  Never get any information from C-Media about
+ * does it this way .. maybe analt.  Never get any information from C-Media about
  * that <werner@suse.de>.
  */
 static int snd_cmipci_pll_rmn(unsigned int rate, unsigned int adcmult, int *r, int *m, int *n)
@@ -767,7 +767,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	if (runtime->channels > 1)
 		rec->fmt |= 0x01;
 	if (rec->is_dac && set_dac_channels(cm, rec, runtime->channels) < 0) {
-		dev_dbg(cm->card->dev, "cannot set dac channels\n");
+		dev_dbg(cm->card->dev, "cananalt set dac channels\n");
 		return -EINVAL;
 	}
 
@@ -1112,7 +1112,7 @@ static int save_mixer_state(struct cmipci *cm)
 
 		val = kmalloc(sizeof(*val), GFP_KERNEL);
 		if (!val)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (i = 0; i < CM_SAVED_MIXERS; i++) {
 			struct snd_kcontrol *ctl = cm->mixer_res_ctl[i];
 			if (ctl) {
@@ -1127,7 +1127,7 @@ static int save_mixer_state(struct cmipci *cm)
 					event |= SNDRV_CTL_EVENT_MASK_VALUE;
 				}
 				ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-				snd_ctl_notify(cm->card, event, &ctl->id);
+				snd_ctl_analtify(cm->card, event, &ctl->id);
 			}
 		}
 		kfree(val);
@@ -1148,7 +1148,7 @@ static void restore_mixer_state(struct cmipci *cm)
 		if (!val)
 			return;
 		cm->mixer_insensitive = 0; /* at first clear this;
-					      otherwise the changes will be ignored */
+					      otherwise the changes will be iganalred */
 		for (i = 0; i < CM_SAVED_MIXERS; i++) {
 			struct snd_kcontrol *ctl = cm->mixer_res_ctl[i];
 			if (ctl) {
@@ -1163,7 +1163,7 @@ static void restore_mixer_state(struct cmipci *cm)
 					ctl->put(ctl, val);
 					event |= SNDRV_CTL_EVENT_MASK_VALUE;
 				}
-				snd_ctl_notify(cm->card, event, &ctl->id);
+				snd_ctl_analtify(cm->card, event, &ctl->id);
 			}
 		}
 		kfree(val);
@@ -1181,7 +1181,7 @@ static void setup_ac3(struct cmipci *cm, struct snd_pcm_substream *subs, int do_
 	
 		if (cm->can_ac3_hw) {
 			/* SPD24SEL for 037, 0x02 */
-			/* SPD24SEL for 039, 0x20, but cannot be set */
+			/* SPD24SEL for 039, 0x20, but cananalt be set */
 			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_SPD24SEL);
 			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_SPD32SEL);
 		} else { /* can_ac3_sw */
@@ -1276,7 +1276,7 @@ static int snd_cmipci_playback_prepare(struct snd_pcm_substream *substream)
 		    substream->runtime->format == SNDRV_PCM_FORMAT_S16_LE &&
 		    substream->runtime->channels == 2);
 	if (do_spdif && cm->can_ac3_hw) 
-		do_ac3 = cm->dig_pcm_status & IEC958_AES0_NONAUDIO;
+		do_ac3 = cm->dig_pcm_status & IEC958_AES0_ANALNAUDIO;
 	err = setup_spdif_playback(cm, substream, do_spdif, do_ac3);
 	if (err < 0)
 		return err;
@@ -1290,7 +1290,7 @@ static int snd_cmipci_playback_spdif_prepare(struct snd_pcm_substream *substream
 	int err, do_ac3;
 
 	if (cm->can_ac3_hw) 
-		do_ac3 = cm->dig_pcm_status & IEC958_AES0_NONAUDIO;
+		do_ac3 = cm->dig_pcm_status & IEC958_AES0_ANALNAUDIO;
 	else
 		do_ac3 = 1; /* doesn't matter */
 	err = setup_spdif_playback(cm, substream, 1, do_ac3);
@@ -1423,9 +1423,9 @@ static irqreturn_t snd_cmipci_interrupt(int irq, void *dev_id)
 	/* fastpath out, to ease interrupt sharing */
 	status = snd_cmipci_read(cm, CM_REG_INT_STATUS);
 	if (!(status & CM_INTR))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* acknowledge interrupt */
+	/* ackanalwledge interrupt */
 	spin_lock(&cm->reg_lock);
 	if (status & CM_CHINT0)
 		mask |= CM_CH0_INT_EN;
@@ -1590,7 +1590,7 @@ static int open_device_check(struct cmipci *cm, int mode, struct snd_pcm_substre
 	/* FIXME: a file should wait until the device becomes free
 	 * when it's opened on blocking mode.  however, since the current
 	 * pcm framework doesn't pass file pointer before actually opened,
-	 * we can't know whether blocking mode or not in open callback..
+	 * we can't kanalw whether blocking mode or analt in open callback..
 	 */
 	mutex_lock(&cm->open_mutex);
 	if (cm->opened[ch]) {
@@ -1655,7 +1655,7 @@ static int snd_cmipci_playback_open(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
 		if (err < 0)
 			return err;
-		runtime->hw.rates |= SNDRV_PCM_RATE_KNOT;
+		runtime->hw.rates |= SNDRV_PCM_RATE_KANALT;
 		runtime->hw.rate_max = 128000;
 	}
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
@@ -1681,7 +1681,7 @@ static int snd_cmipci_capture_open(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
 		if (err < 0)
 			return err;
-		runtime->hw.rates |= SNDRV_PCM_RATE_KNOT;
+		runtime->hw.rates |= SNDRV_PCM_RATE_KANALT;
 		runtime->hw.rate_max = 128000;
 	}
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
@@ -1721,7 +1721,7 @@ static int snd_cmipci_playback2_open(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
 		if (err < 0)
 			return err;
-		runtime->hw.rates |= SNDRV_PCM_RATE_KNOT;
+		runtime->hw.rates |= SNDRV_PCM_RATE_KANALT;
 		runtime->hw.rate_max = 128000;
 	}
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
@@ -1990,9 +1990,9 @@ struct cmipci_sb_reg {
 }
 
 #define CMIPCI_SB_VOL_STEREO(xname,reg,shift,mask) CMIPCI_DOUBLE(xname, reg, reg+1, shift, shift, mask, 0, 1)
-#define CMIPCI_SB_VOL_MONO(xname,reg,shift,mask) CMIPCI_DOUBLE(xname, reg, reg, shift, shift, mask, 0, 0)
+#define CMIPCI_SB_VOL_MOANAL(xname,reg,shift,mask) CMIPCI_DOUBLE(xname, reg, reg, shift, shift, mask, 0, 0)
 #define CMIPCI_SB_SW_STEREO(xname,lshift,rshift) CMIPCI_DOUBLE(xname, SB_DSP4_OUTPUT_SW, SB_DSP4_OUTPUT_SW, lshift, rshift, 1, 0, 1)
-#define CMIPCI_SB_SW_MONO(xname,shift) CMIPCI_DOUBLE(xname, SB_DSP4_OUTPUT_SW, SB_DSP4_OUTPUT_SW, shift, shift, 1, 0, 0)
+#define CMIPCI_SB_SW_MOANAL(xname,shift) CMIPCI_DOUBLE(xname, SB_DSP4_OUTPUT_SW, SB_DSP4_OUTPUT_SW, shift, shift, 1, 0, 0)
 
 static void cmipci_sb_reg_decode(struct cmipci_sb_reg *r, unsigned long val)
 {
@@ -2155,7 +2155,7 @@ static int snd_cmipci_put_input_sw(struct snd_kcontrol *kcontrol,
   .private_value = COMPOSE_SB_REG(reg, reg, lshift, rshift, 1, invert, 1), \
 }
 
-#define CMIPCI_MIXER_SW_MONO(xname, reg, shift, invert) \
+#define CMIPCI_MIXER_SW_MOANAL(xname, reg, shift, invert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
   .info = snd_cmipci_info_native_mixer, \
   .get = snd_cmipci_get_native_mixer, .put = snd_cmipci_put_native_mixer, \
@@ -2169,7 +2169,7 @@ static int snd_cmipci_put_input_sw(struct snd_kcontrol *kcontrol,
   .private_value = COMPOSE_SB_REG(reg, reg, lshift, rshift, mask, 0, 1), \
 }
 
-#define CMIPCI_MIXER_VOL_MONO(xname, reg, shift, mask) \
+#define CMIPCI_MIXER_VOL_MOANAL(xname, reg, shift, mask) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
   .info = snd_cmipci_info_native_mixer, \
   .get = snd_cmipci_get_native_mixer, .put = snd_cmipci_put_native_mixer, \
@@ -2256,7 +2256,7 @@ static int snd_cmipci_put_native_mixer_sensitive(struct snd_kcontrol *kcontrol,
 {
 	struct cmipci *cm = snd_kcontrol_chip(kcontrol);
 	if (cm->mixer_insensitive) {
-		/* ignored */
+		/* iganalred */
 		return 0;
 	}
 	return snd_cmipci_put_native_mixer(kcontrol, ucontrol);
@@ -2265,9 +2265,9 @@ static int snd_cmipci_put_native_mixer_sensitive(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new snd_cmipci_mixers[] = {
 	CMIPCI_SB_VOL_STEREO("Master Playback Volume", SB_DSP4_MASTER_DEV, 3, 31),
-	CMIPCI_MIXER_SW_MONO("3D Control - Switch", CM_REG_MIXER1, CM_X3DEN_SHIFT, 0),
+	CMIPCI_MIXER_SW_MOANAL("3D Control - Switch", CM_REG_MIXER1, CM_X3DEN_SHIFT, 0),
 	CMIPCI_SB_VOL_STEREO("PCM Playback Volume", SB_DSP4_PCM_DEV, 3, 31),
-	//CMIPCI_MIXER_SW_MONO("PCM Playback Switch", CM_REG_MIXER1, CM_WSMUTE_SHIFT, 1),
+	//CMIPCI_MIXER_SW_MOANAL("PCM Playback Switch", CM_REG_MIXER1, CM_WSMUTE_SHIFT, 1),
 	{ /* switch with sensitivity */
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Switch",
@@ -2278,7 +2278,7 @@ static const struct snd_kcontrol_new snd_cmipci_mixers[] = {
 	},
 	CMIPCI_MIXER_SW_STEREO("PCM Capture Switch", CM_REG_MIXER1, CM_WAVEINL_SHIFT, CM_WAVEINR_SHIFT, 0),
 	CMIPCI_SB_VOL_STEREO("Synth Playback Volume", SB_DSP4_SYNTH_DEV, 3, 31),
-	CMIPCI_MIXER_SW_MONO("Synth Playback Switch", CM_REG_MIXER1, CM_FMMUTE_SHIFT, 1),
+	CMIPCI_MIXER_SW_MOANAL("Synth Playback Switch", CM_REG_MIXER1, CM_FMMUTE_SHIFT, 1),
 	CMIPCI_SB_INPUT_SW("Synth Capture Route", 6, 5),
 	CMIPCI_SB_VOL_STEREO("CD Playback Volume", SB_DSP4_CD_DEV, 3, 31),
 	CMIPCI_SB_SW_STEREO("CD Playback Switch", 2, 1),
@@ -2286,16 +2286,16 @@ static const struct snd_kcontrol_new snd_cmipci_mixers[] = {
 	CMIPCI_SB_VOL_STEREO("Line Playback Volume", SB_DSP4_LINE_DEV, 3, 31),
 	CMIPCI_SB_SW_STEREO("Line Playback Switch", 4, 3),
 	CMIPCI_SB_INPUT_SW("Line Capture Route", 4, 3),
-	CMIPCI_SB_VOL_MONO("Mic Playback Volume", SB_DSP4_MIC_DEV, 3, 31),
-	CMIPCI_SB_SW_MONO("Mic Playback Switch", 0),
+	CMIPCI_SB_VOL_MOANAL("Mic Playback Volume", SB_DSP4_MIC_DEV, 3, 31),
+	CMIPCI_SB_SW_MOANAL("Mic Playback Switch", 0),
 	CMIPCI_DOUBLE("Mic Capture Switch", SB_DSP4_INPUT_LEFT, SB_DSP4_INPUT_RIGHT, 0, 0, 1, 0, 0),
-	CMIPCI_SB_VOL_MONO("Beep Playback Volume", SB_DSP4_SPEAKER_DEV, 6, 3),
+	CMIPCI_SB_VOL_MOANAL("Beep Playback Volume", SB_DSP4_SPEAKER_DEV, 6, 3),
 	CMIPCI_MIXER_VOL_STEREO("Aux Playback Volume", CM_REG_AUX_VOL, 4, 0, 15),
 	CMIPCI_MIXER_SW_STEREO("Aux Playback Switch", CM_REG_MIXER2, CM_VAUXLM_SHIFT, CM_VAUXRM_SHIFT, 0),
 	CMIPCI_MIXER_SW_STEREO("Aux Capture Switch", CM_REG_MIXER2, CM_RAUXLEN_SHIFT, CM_RAUXREN_SHIFT, 0),
-	CMIPCI_MIXER_SW_MONO("Mic Boost Playback Switch", CM_REG_MIXER2, CM_MICGAINZ_SHIFT, 1),
-	CMIPCI_MIXER_VOL_MONO("Mic Capture Volume", CM_REG_MIXER2, CM_VADMIC_SHIFT, 7),
-	CMIPCI_SB_VOL_MONO("Phone Playback Volume", CM_REG_EXTENT_IND, 5, 7),
+	CMIPCI_MIXER_SW_MOANAL("Mic Boost Playback Switch", CM_REG_MIXER2, CM_MICGAINZ_SHIFT, 1),
+	CMIPCI_MIXER_VOL_MOANAL("Mic Capture Volume", CM_REG_MIXER2, CM_VADMIC_SHIFT, 7),
+	CMIPCI_SB_VOL_MOANAL("Phone Playback Volume", CM_REG_EXTENT_IND, 5, 7),
 	CMIPCI_DOUBLE("Phone Playback Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 4, 4, 1, 0, 0),
 	CMIPCI_DOUBLE("Beep Playback Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 3, 3, 1, 0, 0),
 	CMIPCI_DOUBLE("Mic Boost Capture Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 0, 0, 1, 0, 0),
@@ -2311,11 +2311,11 @@ struct cmipci_switch_args {
 	unsigned int mask_on;	/* mask bits to turn on */
 	unsigned int is_byte: 1;		/* byte access? */
 	unsigned int ac3_sensitive: 1;	/* access forbidden during
-					 * non-audio operation?
+					 * analn-audio operation?
 					 */
 };
 
-#define snd_cmipci_uswitch_info		snd_ctl_boolean_mono_info
+#define snd_cmipci_uswitch_info		snd_ctl_boolean_moanal_info
 
 static int _snd_cmipci_uswitch_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol,
@@ -2359,7 +2359,7 @@ static int _snd_cmipci_uswitch_put(struct snd_kcontrol *kcontrol,
 
 	spin_lock_irq(&cm->reg_lock);
 	if (args->ac3_sensitive && cm->mixer_insensitive) {
-		/* ignored */
+		/* iganalred */
 		spin_unlock_irq(&cm->reg_lock);
 		return 0;
 	}
@@ -2432,7 +2432,7 @@ DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, CM_XCHGDAC, 0, 0);
 DEFINE_BIT_SWITCH_ARG(fourch, CM_REG_MISC_CTRL, CM_N4SPK3D, 0, 0);
 // DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_REAR2LIN, 1, 0);
 // DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_CENTR2LIN|CM_BASE2LIN, 0, 0);
-// DEFINE_BIT_SWITCH_ARG(joystick, CM_REG_FUNCTRL1, CM_JYSTK_EN, 0, 0); /* now module option */
+// DEFINE_BIT_SWITCH_ARG(joystick, CM_REG_FUNCTRL1, CM_JYSTK_EN, 0, 0); /* analw module option */
 DEFINE_SWITCH_ARG(modem, CM_REG_MISC_CTRL, CM_FLINKON|CM_FLINKOFF, CM_FLINKON, 0, 0);
 
 #define DEFINE_SWITCH(sname, stype, sarg) \
@@ -2585,8 +2585,8 @@ static const struct snd_kcontrol_new snd_cmipci_mixer_switches[] = {
 	},
 };
 
-/* for non-multichannel chips */
-static const struct snd_kcontrol_new snd_cmipci_nomulti_switch =
+/* for analn-multichannel chips */
+static const struct snd_kcontrol_new snd_cmipci_analmulti_switch =
 DEFINE_MIXER_SWITCH("Exchange DAC", exchange_dac);
 
 /* only for CM8738 */
@@ -2656,7 +2656,7 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 	spin_unlock_irq(&cm->reg_lock);
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_cmipci_mixers); idx++) {
-		if (cm->chip_version == 68) {	// 8768 has no PCM volume
+		if (cm->chip_version == 68) {	// 8768 has anal PCM volume
 			if (!strcmp(snd_cmipci_mixers[idx].name,
 				"PCM Playback Volume"))
 				continue;
@@ -2674,7 +2674,7 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 			return err;
 	}
 	if (! cm->can_multi_ch) {
-		err = snd_ctl_add(cm->card, snd_ctl_new1(&snd_cmipci_nomulti_switch, cm));
+		err = snd_ctl_add(cm->card, snd_ctl_new1(&snd_cmipci_analmulti_switch, cm));
 		if (err < 0)
 			return err;
 	}
@@ -2724,7 +2724,7 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 	/* card switches */
 	/*
 	 * newer chips don't have the register bits to force modem link
-	 * detection; the bit that was FLINKON now mutes CH1
+	 * detection; the bit that was FLINKON analw mutes CH1
 	 */
 	if (cm->chip_version < 39) {
 		err = snd_ctl_add(cm->card,
@@ -2842,7 +2842,7 @@ static int snd_cmipci_create_gameport(struct cmipci *cm, int dev)
 	int i, io_port = 0;
 
 	if (joystick_port[dev] == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (joystick_port[dev] == 1) { /* auto-detect */
 		for (i = 0; ports[i]; i++) {
@@ -2859,14 +2859,14 @@ static int snd_cmipci_create_gameport(struct cmipci *cm, int dev)
 	}
 
 	if (!r) {
-		dev_warn(cm->card->dev, "cannot reserve joystick ports\n");
+		dev_warn(cm->card->dev, "cananalt reserve joystick ports\n");
 		return -EBUSY;
 	}
 
 	cm->gameport = gp = gameport_allocate_port();
 	if (!gp) {
-		dev_err(cm->card->dev, "cannot allocate memory for gameport\n");
-		return -ENOMEM;
+		dev_err(cm->card->dev, "cananalt allocate memory for gameport\n");
+		return -EANALMEM;
 	}
 	gameport_set_name(gp, "C-Media Gameport");
 	gameport_set_phys(gp, "pci%s/gameport0", pci_name(cm->pci));
@@ -2890,7 +2890,7 @@ static void snd_cmipci_free_gameport(struct cmipci *cm)
 	}
 }
 #else
-static inline int snd_cmipci_create_gameport(struct cmipci *cm, int dev) { return -ENOSYS; }
+static inline int snd_cmipci_create_gameport(struct cmipci *cm, int dev) { return -EANALSYS; }
 static inline void snd_cmipci_free_gameport(struct cmipci *cm) { }
 #endif
 
@@ -2949,14 +2949,14 @@ static int snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 		if (snd_opl3_create(cm->card, iosynth, iosynth + 2,
 				    OPL3_HW_OPL3, 0, &opl3) < 0) {
 			dev_err(cm->card->dev,
-				"no OPL device at %#lx, skipping...\n",
+				"anal OPL device at %#lx, skipping...\n",
 				iosynth);
 			goto disable_fm;
 		}
 	}
 	err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 	if (err < 0) {
-		dev_err(cm->card->dev, "cannot create OPL3 hwdep\n");
+		dev_err(cm->card->dev, "cananalt create OPL3 hwdep\n");
 		return err;
 	}
 	return 0;
@@ -3135,7 +3135,7 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 			snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_UART_EN);
 			if (inb(iomidi + 1) == 0xff) {
 				dev_err(cm->card->dev,
-					"cannot enable MPU-401 port at %#lx\n",
+					"cananalt enable MPU-401 port at %#lx\n",
 					iomidi);
 				snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1,
 						     CM_UART_EN);
@@ -3186,7 +3186,7 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 					  -1, &cm->rmidi);
 		if (err < 0)
 			dev_err(cm->card->dev,
-				"no UART401 device at 0x%lx\n", iomidi);
+				"anal UART401 device at 0x%lx\n", iomidi);
 	}
 
 #ifdef USE_VAR48KRATE
@@ -3218,10 +3218,10 @@ static int snd_cmipci_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (! enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

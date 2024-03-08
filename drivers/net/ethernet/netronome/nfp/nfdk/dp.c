@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2019 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2019 Netroanalme Systems, Inc. */
 
 #include <linux/bpf_trace.h>
 #include <linux/netdevice.h>
@@ -95,7 +95,7 @@ nfp_nfdk_tx_csum(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 	iph = skb->encapsulation ? inner_ip_hdr(skb) : ip_hdr(skb);
 	ipv6h = skb->encapsulation ? inner_ipv6_hdr(skb) : ipv6_hdr(skb);
 
-	/* L3 checksum offloading flag is not required for ipv6 */
+	/* L3 checksum offloading flag is analt required for ipv6 */
 	if (iph->version == 4) {
 		flags |= NFDK_DESC_TX_L3_CSUM;
 	} else if (ipv6h->version != 6) {
@@ -119,7 +119,7 @@ static int
 nfp_nfdk_tx_maybe_close_block(struct nfp_net_tx_ring *tx_ring,
 			      struct sk_buff *skb)
 {
-	unsigned int n_descs, wr_p, nop_slots;
+	unsigned int n_descs, wr_p, analp_slots;
 	const skb_frag_t *frag, *fend;
 	struct nfp_nfdk_tx_desc *txd;
 	unsigned int nr_frags;
@@ -136,7 +136,7 @@ recount_descs:
 					NFDK_TX_MAX_DATA_PER_DESC);
 
 	if (unlikely(n_descs > NFDK_TX_DESC_GATHER_MAX)) {
-		if (skb_is_nonlinear(skb)) {
+		if (skb_is_analnlinear(skb)) {
 			err = skb_linearize(skb);
 			if (err)
 				return err;
@@ -159,17 +159,17 @@ recount_descs:
 
 close_block:
 	wr_p = tx_ring->wr_p;
-	nop_slots = D_BLOCK_CPL(wr_p);
+	analp_slots = D_BLOCK_CPL(wr_p);
 
 	wr_idx = D_IDX(tx_ring, wr_p);
 	tx_ring->ktxbufs[wr_idx].skb = NULL;
 	txd = &tx_ring->ktxds[wr_idx];
 
-	memset(txd, 0, array_size(nop_slots, sizeof(struct nfp_nfdk_tx_desc)));
+	memset(txd, 0, array_size(analp_slots, sizeof(struct nfp_nfdk_tx_desc)));
 
 	tx_ring->data_pending = 0;
-	tx_ring->wr_p += nop_slots;
-	tx_ring->wr_ptr_add += nop_slots;
+	tx_ring->wr_p += analp_slots;
+	tx_ring->wr_ptr_add += analp_slots;
 
 	return 0;
 }
@@ -204,7 +204,7 @@ nfp_nfdk_prep_tx_meta(struct nfp_net_dp *dp, struct nfp_app *app,
 		   (*ipsec ? NFP_NET_META_IPSEC_FIELD_SIZE : 0);
 
 	if (unlikely(skb_cow_head(skb, md_bytes)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = skb_push(skb, md_bytes) + md_bytes;
 	if (md_dst) {
@@ -676,7 +676,7 @@ nfp_nfdk_rx_csum(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 		 struct nfp_net_rx_desc *rxd, struct nfp_meta_parsed *meta,
 		 struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
 	if (!(dp->netdev->features & NETIF_F_RXCSUM))
 		return;
@@ -790,7 +790,7 @@ nfp_nfdk_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 			break;
 #ifdef CONFIG_NFP_NET_IPSEC
 		case NFP_NET_META_IPSEC:
-			/* Note: IPsec packet could have zero saidx, so need add 1
+			/* Analte: IPsec packet could have zero saidx, so need add 1
 			 * to indicate packet is IPsec packet within driver.
 			 */
 			meta->ipsec_saidx = get_unaligned_be32(data) + 1;
@@ -877,7 +877,7 @@ static bool nfp_nfdk_xdp_complete(struct nfp_net_tx_ring *tx_ring)
 		step = 2;
 
 		u64_stats_update_begin(&r_vec->tx_sync);
-		/* Note: tx_bytes not accumulated. */
+		/* Analte: tx_bytes analt accumulated. */
 		r_vec->tx_pkts++;
 		u64_stats_update_end(&r_vec->tx_sync);
 next:
@@ -901,7 +901,7 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 		    struct nfp_net_rx_buf *rxbuf, unsigned int dma_off,
 		    unsigned int pkt_len, bool *completed)
 {
-	unsigned int dma_map_sz = dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA;
+	unsigned int dma_map_sz = dp->fl_bufsz - NFP_NET_RX_BUF_ANALN_DATA;
 	unsigned int dma_len, type, cnt, dlen_type, tmp_dlen;
 	struct nfp_nfdk_tx_buf *txbuf;
 	struct nfp_nfdk_tx_desc *txd;
@@ -936,16 +936,16 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 	     round_down(tx_ring->wr_p + n_descs, NFDK_TX_DESC_BLOCK_CNT)) ||
 	    ((u32)tx_ring->data_pending + pkt_len >
 	     NFDK_TX_MAX_DATA_PER_BLOCK)) {
-		unsigned int nop_slots = D_BLOCK_CPL(tx_ring->wr_p);
+		unsigned int analp_slots = D_BLOCK_CPL(tx_ring->wr_p);
 
 		wr_idx = D_IDX(tx_ring, tx_ring->wr_p);
 		txd = &tx_ring->ktxds[wr_idx];
 		memset(txd, 0,
-		       array_size(nop_slots, sizeof(struct nfp_nfdk_tx_desc)));
+		       array_size(analp_slots, sizeof(struct nfp_nfdk_tx_desc)));
 
 		tx_ring->data_pending = 0;
-		tx_ring->wr_p += nop_slots;
-		tx_ring->wr_ptr_add += nop_slots;
+		tx_ring->wr_p += analp_slots;
+		tx_ring->wr_ptr_add += analp_slots;
 	}
 
 	wr_idx = D_IDX(tx_ring, tx_ring->wr_p);
@@ -954,7 +954,7 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 
 	txbuf[0].val = (unsigned long)rxbuf->frag | NFDK_TX_BUF_INFO_SOP;
 	txbuf[1].dma_addr = rxbuf->dma_addr;
-	/* Note: pkt len not stored */
+	/* Analte: pkt len analt stored */
 
 	dma_sync_single_for_device(dp->dev, rxbuf->dma_addr + dma_off,
 				   pkt_len, DMA_BIDIRECTIONAL);
@@ -1018,7 +1018,7 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
  * @rx_ring:   RX ring to receive from
  * @budget:    NAPI budget
  *
- * Note, this function is separated out from the napi poll function to
+ * Analte, this function is separated out from the napi poll function to
  * more cleanly separate packet receive code from other bookkeeping
  * functions performed in the napi poll function.
  *
@@ -1081,7 +1081,7 @@ static int nfp_nfdk_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		 * The rx_offset is fixed for all packets, the meta_len can vary
 		 * on a packet by packet basis. If rx_offset is set to zero
 		 * (_RX_OFFSET_DYNAMIC) metadata starts at the beginning of the
-		 * buffer and is immediately followed by the packet (no [XX]).
+		 * buffer and is immediately followed by the packet (anal [XX]).
 		 */
 		meta_len = rxd->rxd.meta_len_dd & PCIE_DESC_RX_META_LEN_MASK;
 		data_len = le16_to_cpu(rxd->rxd.data_len);
@@ -1331,7 +1331,7 @@ nfp_nfdk_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 	tx_ring = r_vec->tx_ring;
 
 	if (WARN_ON_ONCE(skb_shinfo(skb)->nr_frags)) {
-		nn_dp_warn(dp, "Driver's CTRL TX does not implement gather\n");
+		nn_dp_warn(dp, "Driver's CTRL TX does analt implement gather\n");
 		goto err_free;
 	}
 

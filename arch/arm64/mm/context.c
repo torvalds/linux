@@ -47,7 +47,7 @@ static u32 get_cpu_asid_bits(void)
 
 	switch (fld) {
 	default:
-		pr_warn("CPU%d: Unknown ASID size (%d); assuming 8-bit\n",
+		pr_warn("CPU%d: Unkanalwn ASID size (%d); assuming 8-bit\n",
 					smp_processor_id(),  fld);
 		fallthrough;
 	case ID_AA64MMFR0_EL1_ASIDBITS_8:
@@ -67,7 +67,7 @@ void verify_cpu_asid_bits(void)
 
 	if (asid < asid_bits) {
 		/*
-		 * We cannot decrease the ASID size at runtime, so panic if we support
+		 * We cananalt decrease the ASID size at runtime, so panic if we support
 		 * fewer ASID bits than the boot CPU.
 		 */
 		pr_crit("CPU%d: smaller ASID size(%u) than boot CPU (%u)\n",
@@ -113,7 +113,7 @@ static void flush_context(void)
 		asid = atomic64_xchg_relaxed(&per_cpu(active_asids, i), 0);
 		/*
 		 * If this CPU has already been through a
-		 * rollover, but hasn't run another task in
+		 * rollover, but hasn't run aanalther task in
 		 * the meantime, we must preserve its reserved
 		 * ASID, as this is the only trace we have of
 		 * the process it is still running.
@@ -172,7 +172,7 @@ static u64 new_context(struct mm_struct *mm)
 			return newasid;
 
 		/*
-		 * If it is pinned, we can keep using it. Note that reserved
+		 * If it is pinned, we can keep using it. Analte that reserved
 		 * takes priority, because even if it is also pinned, we need to
 		 * update the generation into the reserved_asids.
 		 */
@@ -188,7 +188,7 @@ static u64 new_context(struct mm_struct *mm)
 	}
 
 	/*
-	 * Allocate a free ASID. If we can't find one, take a note of the
+	 * Allocate a free ASID. If we can't find one, take a analte of the
 	 * currently active ASIDs and mark the TLBs as requiring flushes.  We
 	 * always count from ASID #2 (index 1), as we use ASID #0 when setting
 	 * a reserved TTBR0 for the init_mm and we allocate ASIDs in even/odd
@@ -225,7 +225,7 @@ void check_and_switch_context(struct mm_struct *mm)
 
 	/*
 	 * The memory ordering here is subtle.
-	 * If our active_asids is non-zero and the ASID matches the current
+	 * If our active_asids is analn-zero and the ASID matches the current
 	 * generation, then we update the active_asids entry with a relaxed
 	 * cmpxchg. Racing with a concurrent rollover means that either:
 	 *
@@ -282,7 +282,7 @@ unsigned long arm64_mm_context_get(struct mm_struct *mm)
 
 	asid = atomic64_read(&mm->context.id);
 
-	if (refcount_inc_not_zero(&mm->context.pinned))
+	if (refcount_inc_analt_zero(&mm->context.pinned))
 		goto out_unlock;
 
 	if (nr_pinned_asids >= max_pinned_asids) {
@@ -341,7 +341,7 @@ asmlinkage void post_ttbr_update_workaround(void)
 	if (!IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456))
 		return;
 
-	asm(ALTERNATIVE("nop; nop; nop",
+	asm(ALTERNATIVE("analp; analp; analp",
 			"ic iallu; dsb nsh; isb",
 			ARM64_WORKAROUND_CAVIUM_27456));
 }
@@ -364,7 +364,7 @@ void cpu_do_switch_mm(phys_addr_t pgd_phys, struct mm_struct *mm)
 	ttbr1 &= ~TTBR_ASID_MASK;
 	ttbr1 |= FIELD_PREP(TTBR_ASID_MASK, asid);
 
-	cpu_set_reserved_ttbr0_nosync();
+	cpu_set_reserved_ttbr0_analsync();
 	write_sysreg(ttbr1, ttbr1_el1);
 	write_sysreg(ttbr0, ttbr0_el1);
 	isb();
@@ -411,8 +411,8 @@ static int asids_init(void)
 	nr_pinned_asids = 0;
 
 	/*
-	 * We cannot call set_reserved_asid_bits() here because CPU
-	 * caps are not finalized yet, so it is safer to assume KPTI
+	 * We cananalt call set_reserved_asid_bits() here because CPU
+	 * caps are analt finalized yet, so it is safer to assume KPTI
 	 * and reserve kernel ASID's from beginning.
 	 */
 	if (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0))

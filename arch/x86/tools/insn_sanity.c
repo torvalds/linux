@@ -20,12 +20,12 @@
 
 /*
  * Test of instruction analysis against tampering.
- * Feed random binary to instruction decoder and ensure not to
+ * Feed random binary to instruction decoder and ensure analt to
  * access out-of-instruction-buffer.
  */
 
 #define DEFAULT_MAX_ITER	10000
-#define INSN_NOP 0x90
+#define INSN_ANALP 0x90
 
 static const char	*prog;		/* Program name */
 static int		verbose;	/* Verbosity */
@@ -39,7 +39,7 @@ static void usage(const char *err)
 {
 	if (err)
 		fprintf(stderr, "%s: Error: %s\n\n", prog, err);
-	fprintf(stderr, "Usage: %s [-y|-n|-v] [-s seed[,no]] [-m max] [-i input]\n", prog);
+	fprintf(stderr, "Usage: %s [-y|-n|-v] [-s seed[,anal]] [-m max] [-i input]\n", prog);
 	fprintf(stderr, "\t-y	64bit mode\n");
 	fprintf(stderr, "\t-n	32bit mode\n");
 	fprintf(stderr, "\t-v	Verbosity(-vv dumps any decoded result)\n");
@@ -210,7 +210,7 @@ static void parse_args(int argc, char **argv)
 
 	/* Initialize random seed */
 	if (!input_file) {
-		if (!set_seed)	/* No seed is given */
+		if (!set_seed)	/* Anal seed is given */
 			init_random_seed();
 		srand(seed);
 	}
@@ -226,8 +226,8 @@ int main(int argc, char **argv)
 
 	parse_args(argc, argv);
 
-	/* Prepare stop bytes with NOPs */
-	memset(insn_buff + MAX_INSN_SIZE, INSN_NOP, MAX_INSN_SIZE);
+	/* Prepare stop bytes with ANALPs */
+	memset(insn_buff + MAX_INSN_SIZE, INSN_ANALP, MAX_INSN_SIZE);
 
 	for (i = 0; i < iter_end; i++) {
 		if (generate_insn(insn_buff) <= 0)

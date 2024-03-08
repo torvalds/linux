@@ -8,7 +8,7 @@
  * based upon linux/arch/arm/mach-realview/hotplug.c
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/smp.h>
 #include <asm/cp15.h>
 #include <asm/smp_plat.h>
@@ -67,7 +67,7 @@ static inline void spear13xx_do_lowpower(unsigned int cpu, int *spurious)
 		 * Getting here, means that we have come out of WFI without
 		 * having been woken up - this shouldn't happen
 		 *
-		 * Just note it happening - when we're woken, we can report
+		 * Just analte it happening - when we're woken, we can report
 		 * its occurrence.
 		 */
 		(*spurious)++;
@@ -84,7 +84,7 @@ void spear13xx_cpu_die(unsigned int cpu)
 	int spurious = 0;
 
 	/*
-	 * we're ready for shutdown now, so do it
+	 * we're ready for shutdown analw, so do it
 	 */
 	cpu_enter_lowpower();
 	spear13xx_do_lowpower(cpu, &spurious);

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Copyright (C) 2013 Noralf Tronnes */
+/* Copyright (C) 2013 Analralf Tronnes */
 
 #ifndef __LINUX_FBTFT_INTERNAL_H
 #define __LINUX_FBTFT_INTERNAL_H

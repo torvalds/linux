@@ -30,12 +30,12 @@ struct edif_sa_ctl {
 	struct qla_sa_update_frame sa_frame;
 };
 
-enum enode_flags_t {
-	ENODE_ACTIVE = 0x1,
+enum eanalde_flags_t {
+	EANALDE_ACTIVE = 0x1,
 };
 
 struct pur_core {
-	enum enode_flags_t	enode_flags;
+	enum eanalde_flags_t	eanalde_flags;
 	spinlock_t		pur_lock;
 	struct  list_head	head;
 };
@@ -69,7 +69,7 @@ struct sa_update_28xx {
 		__le16 comp_sts;              /* out: completion status */
 #define CS_PORT_EDIF_UNAVAIL	0x28
 #define CS_PORT_EDIF_LOGOUT	0x29
-#define CS_PORT_EDIF_SUPP_NOT_RDY 0x64
+#define CS_PORT_EDIF_SUPP_ANALT_RDY 0x64
 #define CS_PORT_EDIF_INV_REQ      0x66
 	} u;
 	uint8_t vp_index;
@@ -100,7 +100,7 @@ struct sa_update_28xx {
 #define        PUR_GET         1
 
 struct dinfo {
-	int		nodecnt;
+	int		analdecnt;
 	int		lstate;
 };
 
@@ -121,7 +121,7 @@ struct purexevent {
 
 #define	N_UNDEF		0
 #define	N_PUREX		1
-struct enode {
+struct eanalde {
 	struct list_head	list;
 	struct dinfo		dinfo;
 	uint32_t		ntype;
@@ -130,7 +130,7 @@ struct enode {
 	} u;
 };
 
-#define RX_ELS_SIZE (roundup(sizeof(struct enode) + ELS_MAX_PAYLOAD, SMP_CACHE_BYTES))
+#define RX_ELS_SIZE (roundup(sizeof(struct eanalde) + ELS_MAX_PAYLOAD, SMP_CACHE_BYTES))
 
 #define EDIF_SESSION_DOWN(_s) \
 	(qla_ini_mode_enabled(_s->vha) && (_s->disc_state == DSC_DELETE_PEND || \

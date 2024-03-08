@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -24,10 +24,10 @@
  * can be written into a single eraseblock. In that case, garbage collection
  * consists of just writing the whole table, which therefore makes all other
  * eraseblocks reusable. In the case of the big model, dirty eraseblocks are
- * selected for garbage collection, which consists of marking the clean nodes in
- * that LEB as dirty, and then only the dirty nodes are written out. Also, in
+ * selected for garbage collection, which consists of marking the clean analdes in
+ * that LEB as dirty, and then only the dirty analdes are written out. Also, in
  * the case of the big model, a table of LEB numbers is saved so that the entire
- * LPT does not to be scanned looking for empty eraseblocks when UBIFS is first
+ * LPT does analt to be scanned looking for empty eraseblocks when UBIFS is first
  * mounted.
  */
 
@@ -40,31 +40,31 @@
  * do_calc_lpt_geom - calculate sizes for the LPT area.
  * @c: the UBIFS file-system description object
  *
- * Calculate the sizes of LPT bit fields, nodes, and tree, based on the
+ * Calculate the sizes of LPT bit fields, analdes, and tree, based on the
  * properties of the flash and whether LPT is "big" (c->big_lpt).
  */
 static void do_calc_lpt_geom(struct ubifs_info *c)
 {
-	int i, n, bits, per_leb_wastage, max_pnode_cnt;
+	int i, n, bits, per_leb_wastage, max_panalde_cnt;
 	long long sz, tot_wastage;
 
 	n = c->main_lebs + c->max_leb_cnt - c->leb_cnt;
-	max_pnode_cnt = DIV_ROUND_UP(n, UBIFS_LPT_FANOUT);
+	max_panalde_cnt = DIV_ROUND_UP(n, UBIFS_LPT_FAANALUT);
 
 	c->lpt_hght = 1;
-	n = UBIFS_LPT_FANOUT;
-	while (n < max_pnode_cnt) {
+	n = UBIFS_LPT_FAANALUT;
+	while (n < max_panalde_cnt) {
 		c->lpt_hght += 1;
-		n <<= UBIFS_LPT_FANOUT_SHIFT;
+		n <<= UBIFS_LPT_FAANALUT_SHIFT;
 	}
 
-	c->pnode_cnt = DIV_ROUND_UP(c->main_lebs, UBIFS_LPT_FANOUT);
+	c->panalde_cnt = DIV_ROUND_UP(c->main_lebs, UBIFS_LPT_FAANALUT);
 
-	n = DIV_ROUND_UP(c->pnode_cnt, UBIFS_LPT_FANOUT);
-	c->nnode_cnt = n;
+	n = DIV_ROUND_UP(c->panalde_cnt, UBIFS_LPT_FAANALUT);
+	c->nanalde_cnt = n;
 	for (i = 1; i < c->lpt_hght; i++) {
-		n = DIV_ROUND_UP(n, UBIFS_LPT_FANOUT);
-		c->nnode_cnt += n;
+		n = DIV_ROUND_UP(n, UBIFS_LPT_FAANALUT);
+		c->nanalde_cnt += n;
 	}
 
 	c->space_bits = fls(c->leb_size) - 3;
@@ -72,20 +72,20 @@ static void do_calc_lpt_geom(struct ubifs_info *c)
 	c->lpt_offs_bits = fls(c->leb_size - 1);
 	c->lpt_spc_bits = fls(c->leb_size);
 
-	n = DIV_ROUND_UP(c->max_leb_cnt, UBIFS_LPT_FANOUT);
+	n = DIV_ROUND_UP(c->max_leb_cnt, UBIFS_LPT_FAANALUT);
 	c->pcnt_bits = fls(n - 1);
 
 	c->lnum_bits = fls(c->max_leb_cnt - 1);
 
 	bits = UBIFS_LPT_CRC_BITS + UBIFS_LPT_TYPE_BITS +
 	       (c->big_lpt ? c->pcnt_bits : 0) +
-	       (c->space_bits * 2 + 1) * UBIFS_LPT_FANOUT;
-	c->pnode_sz = (bits + 7) / 8;
+	       (c->space_bits * 2 + 1) * UBIFS_LPT_FAANALUT;
+	c->panalde_sz = (bits + 7) / 8;
 
 	bits = UBIFS_LPT_CRC_BITS + UBIFS_LPT_TYPE_BITS +
 	       (c->big_lpt ? c->pcnt_bits : 0) +
-	       (c->lpt_lnum_bits + c->lpt_offs_bits) * UBIFS_LPT_FANOUT;
-	c->nnode_sz = (bits + 7) / 8;
+	       (c->lpt_lnum_bits + c->lpt_offs_bits) * UBIFS_LPT_FAANALUT;
+	c->nanalde_sz = (bits + 7) / 8;
 
 	bits = UBIFS_LPT_CRC_BITS + UBIFS_LPT_TYPE_BITS +
 	       c->lpt_lebs * c->lpt_spc_bits * 2;
@@ -96,15 +96,15 @@ static void do_calc_lpt_geom(struct ubifs_info *c)
 	c->lsave_sz = (bits + 7) / 8;
 
 	/* Calculate the minimum LPT size */
-	c->lpt_sz = (long long)c->pnode_cnt * c->pnode_sz;
-	c->lpt_sz += (long long)c->nnode_cnt * c->nnode_sz;
+	c->lpt_sz = (long long)c->panalde_cnt * c->panalde_sz;
+	c->lpt_sz += (long long)c->nanalde_cnt * c->nanalde_sz;
 	c->lpt_sz += c->ltab_sz;
 	if (c->big_lpt)
 		c->lpt_sz += c->lsave_sz;
 
 	/* Add wastage */
 	sz = c->lpt_sz;
-	per_leb_wastage = max_t(int, c->pnode_sz, c->nnode_sz);
+	per_leb_wastage = max_t(int, c->panalde_sz, c->nanalde_sz);
 	sz += per_leb_wastage;
 	tot_wastage = per_leb_wastage;
 	while (sz > c->leb_size) {
@@ -129,7 +129,7 @@ int ubifs_calc_lpt_geom(struct ubifs_info *c)
 
 	do_calc_lpt_geom(c);
 
-	/* Verify that lpt_lebs is big enough */
+	/* Verify that lpt_lebs is big eanalugh */
 	sz = c->lpt_sz * 2; /* Must have at least 2 times the size */
 	lebs_needed = div_u64(sz + c->leb_size - 1, c->leb_size);
 	if (lebs_needed > c->lpt_lebs) {
@@ -137,7 +137,7 @@ int ubifs_calc_lpt_geom(struct ubifs_info *c)
 		return -EINVAL;
 	}
 
-	/* Verify that ltab fits in a single LEB (since ltab is a single node */
+	/* Verify that ltab fits in a single LEB (since ltab is a single analde */
 	if (c->ltab_sz > c->leb_size) {
 		ubifs_err(c, "LPT ltab too big");
 		return -EINVAL;
@@ -182,17 +182,17 @@ static int calc_dflt_lpt_geom(struct ubifs_info *c, int *main_lebs,
 
 	/* Small LPT model must have lpt_sz < leb_size */
 	if (c->lpt_sz > c->leb_size) {
-		/* Nope, so try again using big LPT model */
+		/* Analpe, so try again using big LPT model */
 		c->big_lpt = 1;
 		do_calc_lpt_geom(c);
 	}
 
-	/* Now check there are enough LPT LEBs */
+	/* Analw check there are eanalugh LPT LEBs */
 	for (i = 0; i < 64 ; i++) {
 		sz = c->lpt_sz * 4; /* Allow 4 times the size */
 		lebs_needed = div_u64(sz + c->leb_size - 1, c->leb_size);
 		if (lebs_needed > c->lpt_lebs) {
-			/* Not enough LPT LEBs so try again with more */
+			/* Analt eanalugh LPT LEBs so try again with more */
 			c->lpt_lebs = lebs_needed;
 			c->main_lebs = *main_lebs - c->lpt_lebs;
 			if (c->main_lebs <= 0)
@@ -332,65 +332,65 @@ uint32_t ubifs_unpack_bits(const struct ubifs_info *c, uint8_t **addr, int *pos,
 }
 
 /**
- * ubifs_pack_pnode - pack all the bit fields of a pnode.
+ * ubifs_pack_panalde - pack all the bit fields of a panalde.
  * @c: UBIFS file-system description object
  * @buf: buffer into which to pack
- * @pnode: pnode to pack
+ * @panalde: panalde to pack
  */
-void ubifs_pack_pnode(struct ubifs_info *c, void *buf,
-		      struct ubifs_pnode *pnode)
+void ubifs_pack_panalde(struct ubifs_info *c, void *buf,
+		      struct ubifs_panalde *panalde)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int i, pos = 0;
 	uint16_t crc;
 
-	pack_bits(c, &addr, &pos, UBIFS_LPT_PNODE, UBIFS_LPT_TYPE_BITS);
+	pack_bits(c, &addr, &pos, UBIFS_LPT_PANALDE, UBIFS_LPT_TYPE_BITS);
 	if (c->big_lpt)
-		pack_bits(c, &addr, &pos, pnode->num, c->pcnt_bits);
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		pack_bits(c, &addr, &pos, pnode->lprops[i].free >> 3,
+		pack_bits(c, &addr, &pos, panalde->num, c->pcnt_bits);
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+		pack_bits(c, &addr, &pos, panalde->lprops[i].free >> 3,
 			  c->space_bits);
-		pack_bits(c, &addr, &pos, pnode->lprops[i].dirty >> 3,
+		pack_bits(c, &addr, &pos, panalde->lprops[i].dirty >> 3,
 			  c->space_bits);
-		if (pnode->lprops[i].flags & LPROPS_INDEX)
+		if (panalde->lprops[i].flags & LPROPS_INDEX)
 			pack_bits(c, &addr, &pos, 1, 1);
 		else
 			pack_bits(c, &addr, &pos, 0, 1);
 	}
 	crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
-		    c->pnode_sz - UBIFS_LPT_CRC_BYTES);
+		    c->panalde_sz - UBIFS_LPT_CRC_BYTES);
 	addr = buf;
 	pos = 0;
 	pack_bits(c, &addr, &pos, crc, UBIFS_LPT_CRC_BITS);
 }
 
 /**
- * ubifs_pack_nnode - pack all the bit fields of a nnode.
+ * ubifs_pack_nanalde - pack all the bit fields of a nanalde.
  * @c: UBIFS file-system description object
  * @buf: buffer into which to pack
- * @nnode: nnode to pack
+ * @nanalde: nanalde to pack
  */
-void ubifs_pack_nnode(struct ubifs_info *c, void *buf,
-		      struct ubifs_nnode *nnode)
+void ubifs_pack_nanalde(struct ubifs_info *c, void *buf,
+		      struct ubifs_nanalde *nanalde)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int i, pos = 0;
 	uint16_t crc;
 
-	pack_bits(c, &addr, &pos, UBIFS_LPT_NNODE, UBIFS_LPT_TYPE_BITS);
+	pack_bits(c, &addr, &pos, UBIFS_LPT_NANALDE, UBIFS_LPT_TYPE_BITS);
 	if (c->big_lpt)
-		pack_bits(c, &addr, &pos, nnode->num, c->pcnt_bits);
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		int lnum = nnode->nbranch[i].lnum;
+		pack_bits(c, &addr, &pos, nanalde->num, c->pcnt_bits);
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+		int lnum = nanalde->nbranch[i].lnum;
 
 		if (lnum == 0)
 			lnum = c->lpt_last + 1;
 		pack_bits(c, &addr, &pos, lnum - c->lpt_first, c->lpt_lnum_bits);
-		pack_bits(c, &addr, &pos, nnode->nbranch[i].offs,
+		pack_bits(c, &addr, &pos, nanalde->nbranch[i].offs,
 			  c->lpt_offs_bits);
 	}
 	crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
-		    c->nnode_sz - UBIFS_LPT_CRC_BYTES);
+		    c->nanalde_sz - UBIFS_LPT_CRC_BYTES);
 	addr = buf;
 	pos = 0;
 	pack_bits(c, &addr, &pos, crc, UBIFS_LPT_CRC_BITS);
@@ -477,19 +477,19 @@ static void set_ltab(struct ubifs_info *c, int lnum, int free, int dirty)
 }
 
 /**
- * ubifs_add_nnode_dirt - add dirty space to LPT LEB properties.
+ * ubifs_add_nanalde_dirt - add dirty space to LPT LEB properties.
  * @c: UBIFS file-system description object
- * @nnode: nnode for which to add dirt
+ * @nanalde: nanalde for which to add dirt
  */
-void ubifs_add_nnode_dirt(struct ubifs_info *c, struct ubifs_nnode *nnode)
+void ubifs_add_nanalde_dirt(struct ubifs_info *c, struct ubifs_nanalde *nanalde)
 {
-	struct ubifs_nnode *np = nnode->parent;
+	struct ubifs_nanalde *np = nanalde->parent;
 
 	if (np)
-		ubifs_add_lpt_dirt(c, np->nbranch[nnode->iip].lnum,
-				   c->nnode_sz);
+		ubifs_add_lpt_dirt(c, np->nbranch[nanalde->iip].lnum,
+				   c->nanalde_sz);
 	else {
-		ubifs_add_lpt_dirt(c, c->lpt_lnum, c->nnode_sz);
+		ubifs_add_lpt_dirt(c, c->lpt_lnum, c->nanalde_sz);
 		if (!(c->lpt_drty_flgs & LTAB_DIRTY)) {
 			c->lpt_drty_flgs |= LTAB_DIRTY;
 			ubifs_add_lpt_dirt(c, c->ltab_lnum, c->ltab_sz);
@@ -498,89 +498,89 @@ void ubifs_add_nnode_dirt(struct ubifs_info *c, struct ubifs_nnode *nnode)
 }
 
 /**
- * add_pnode_dirt - add dirty space to LPT LEB properties.
+ * add_panalde_dirt - add dirty space to LPT LEB properties.
  * @c: UBIFS file-system description object
- * @pnode: pnode for which to add dirt
+ * @panalde: panalde for which to add dirt
  */
-static void add_pnode_dirt(struct ubifs_info *c, struct ubifs_pnode *pnode)
+static void add_panalde_dirt(struct ubifs_info *c, struct ubifs_panalde *panalde)
 {
-	ubifs_add_lpt_dirt(c, pnode->parent->nbranch[pnode->iip].lnum,
-			   c->pnode_sz);
+	ubifs_add_lpt_dirt(c, panalde->parent->nbranch[panalde->iip].lnum,
+			   c->panalde_sz);
 }
 
 /**
- * calc_nnode_num - calculate nnode number.
+ * calc_nanalde_num - calculate nanalde number.
  * @row: the row in the tree (root is zero)
  * @col: the column in the row (leftmost is zero)
  *
- * The nnode number is a number that uniquely identifies a nnode and can be used
- * easily to traverse the tree from the root to that nnode.
+ * The nanalde number is a number that uniquely identifies a nanalde and can be used
+ * easily to traverse the tree from the root to that nanalde.
  *
- * This function calculates and returns the nnode number for the nnode at @row
+ * This function calculates and returns the nanalde number for the nanalde at @row
  * and @col.
  */
-static int calc_nnode_num(int row, int col)
+static int calc_nanalde_num(int row, int col)
 {
 	int num, bits;
 
 	num = 1;
 	while (row--) {
-		bits = (col & (UBIFS_LPT_FANOUT - 1));
-		col >>= UBIFS_LPT_FANOUT_SHIFT;
-		num <<= UBIFS_LPT_FANOUT_SHIFT;
+		bits = (col & (UBIFS_LPT_FAANALUT - 1));
+		col >>= UBIFS_LPT_FAANALUT_SHIFT;
+		num <<= UBIFS_LPT_FAANALUT_SHIFT;
 		num |= bits;
 	}
 	return num;
 }
 
 /**
- * calc_nnode_num_from_parent - calculate nnode number.
+ * calc_nanalde_num_from_parent - calculate nanalde number.
  * @c: UBIFS file-system description object
- * @parent: parent nnode
+ * @parent: parent nanalde
  * @iip: index in parent
  *
- * The nnode number is a number that uniquely identifies a nnode and can be used
- * easily to traverse the tree from the root to that nnode.
+ * The nanalde number is a number that uniquely identifies a nanalde and can be used
+ * easily to traverse the tree from the root to that nanalde.
  *
- * This function calculates and returns the nnode number based on the parent's
- * nnode number and the index in parent.
+ * This function calculates and returns the nanalde number based on the parent's
+ * nanalde number and the index in parent.
  */
-static int calc_nnode_num_from_parent(const struct ubifs_info *c,
-				      struct ubifs_nnode *parent, int iip)
+static int calc_nanalde_num_from_parent(const struct ubifs_info *c,
+				      struct ubifs_nanalde *parent, int iip)
 {
 	int num, shft;
 
 	if (!parent)
 		return 1;
-	shft = (c->lpt_hght - parent->level) * UBIFS_LPT_FANOUT_SHIFT;
+	shft = (c->lpt_hght - parent->level) * UBIFS_LPT_FAANALUT_SHIFT;
 	num = parent->num ^ (1 << shft);
-	num |= (UBIFS_LPT_FANOUT + iip) << shft;
+	num |= (UBIFS_LPT_FAANALUT + iip) << shft;
 	return num;
 }
 
 /**
- * calc_pnode_num_from_parent - calculate pnode number.
+ * calc_panalde_num_from_parent - calculate panalde number.
  * @c: UBIFS file-system description object
- * @parent: parent nnode
+ * @parent: parent nanalde
  * @iip: index in parent
  *
- * The pnode number is a number that uniquely identifies a pnode and can be used
- * easily to traverse the tree from the root to that pnode.
+ * The panalde number is a number that uniquely identifies a panalde and can be used
+ * easily to traverse the tree from the root to that panalde.
  *
- * This function calculates and returns the pnode number based on the parent's
- * nnode number and the index in parent.
+ * This function calculates and returns the panalde number based on the parent's
+ * nanalde number and the index in parent.
  */
-static int calc_pnode_num_from_parent(const struct ubifs_info *c,
-				      struct ubifs_nnode *parent, int iip)
+static int calc_panalde_num_from_parent(const struct ubifs_info *c,
+				      struct ubifs_nanalde *parent, int iip)
 {
 	int i, n = c->lpt_hght - 1, pnum = parent->num, num = 0;
 
 	for (i = 0; i < n; i++) {
-		num <<= UBIFS_LPT_FANOUT_SHIFT;
-		num |= pnum & (UBIFS_LPT_FANOUT - 1);
-		pnum >>= UBIFS_LPT_FANOUT_SHIFT;
+		num <<= UBIFS_LPT_FAANALUT_SHIFT;
+		num |= pnum & (UBIFS_LPT_FAANALUT - 1);
+		pnum >>= UBIFS_LPT_FAANALUT_SHIFT;
 	}
-	num <<= UBIFS_LPT_FANOUT_SHIFT;
+	num <<= UBIFS_LPT_FAANALUT_SHIFT;
 	num |= iip;
 	return num;
 }
@@ -599,10 +599,10 @@ static int calc_pnode_num_from_parent(const struct ubifs_info *c,
 int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 			  int *lpt_lebs, int *big_lpt, u8 *hash)
 {
-	int lnum, err = 0, node_sz, iopos, i, j, cnt, len, alen, row;
+	int lnum, err = 0, analde_sz, iopos, i, j, cnt, len, alen, row;
 	int blnum, boffs, bsz, bcnt;
-	struct ubifs_pnode *pnode = NULL;
-	struct ubifs_nnode *nnode = NULL;
+	struct ubifs_panalde *panalde = NULL;
+	struct ubifs_nanalde *nanalde = NULL;
 	void *buf = NULL, *p;
 	struct ubifs_lpt_lprops *ltab = NULL;
 	int *lsave = NULL;
@@ -613,7 +613,7 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 		return err;
 	*lpt_lebs = c->lpt_lebs;
 
-	/* Needed by 'ubifs_pack_nnode()' and 'set_ltab()' */
+	/* Needed by 'ubifs_pack_nanalde()' and 'set_ltab()' */
 	c->lpt_first = lpt_first;
 	/* Needed by 'set_ltab()' */
 	c->lpt_last = lpt_first + c->lpt_lebs - 1;
@@ -625,13 +625,13 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 		return PTR_ERR(desc);
 
 	lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_KERNEL);
-	pnode = kzalloc(sizeof(struct ubifs_pnode), GFP_KERNEL);
-	nnode = kzalloc(sizeof(struct ubifs_nnode), GFP_KERNEL);
+	panalde = kzalloc(sizeof(struct ubifs_panalde), GFP_KERNEL);
+	nanalde = kzalloc(sizeof(struct ubifs_nanalde), GFP_KERNEL);
 	buf = vmalloc(c->leb_size);
 	ltab = vmalloc(array_size(sizeof(struct ubifs_lpt_lprops),
 				  c->lpt_lebs));
-	if (!pnode || !nnode || !buf || !ltab || !lsave) {
-		err = -ENOMEM;
+	if (!panalde || !nanalde || !buf || !ltab || !lsave) {
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -648,57 +648,57 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 
 	lnum = lpt_first;
 	p = buf;
-	/* Number of leaf nodes (pnodes) */
-	cnt = c->pnode_cnt;
+	/* Number of leaf analdes (panaldes) */
+	cnt = c->panalde_cnt;
 
 	/*
-	 * The first pnode contains the LEB properties for the LEBs that contain
-	 * the root inode node and the root index node of the index tree.
+	 * The first panalde contains the LEB properties for the LEBs that contain
+	 * the root ianalde analde and the root index analde of the index tree.
 	 */
-	node_sz = ALIGN(ubifs_idx_node_sz(c, 1), 8);
-	iopos = ALIGN(node_sz, c->min_io_size);
-	pnode->lprops[0].free = c->leb_size - iopos;
-	pnode->lprops[0].dirty = iopos - node_sz;
-	pnode->lprops[0].flags = LPROPS_INDEX;
+	analde_sz = ALIGN(ubifs_idx_analde_sz(c, 1), 8);
+	iopos = ALIGN(analde_sz, c->min_io_size);
+	panalde->lprops[0].free = c->leb_size - iopos;
+	panalde->lprops[0].dirty = iopos - analde_sz;
+	panalde->lprops[0].flags = LPROPS_INDEX;
 
-	node_sz = UBIFS_INO_NODE_SZ;
-	iopos = ALIGN(node_sz, c->min_io_size);
-	pnode->lprops[1].free = c->leb_size - iopos;
-	pnode->lprops[1].dirty = iopos - node_sz;
+	analde_sz = UBIFS_IANAL_ANALDE_SZ;
+	iopos = ALIGN(analde_sz, c->min_io_size);
+	panalde->lprops[1].free = c->leb_size - iopos;
+	panalde->lprops[1].dirty = iopos - analde_sz;
 
-	for (i = 2; i < UBIFS_LPT_FANOUT; i++)
-		pnode->lprops[i].free = c->leb_size;
+	for (i = 2; i < UBIFS_LPT_FAANALUT; i++)
+		panalde->lprops[i].free = c->leb_size;
 
-	/* Add first pnode */
-	ubifs_pack_pnode(c, p, pnode);
-	err = ubifs_shash_update(c, desc, p, c->pnode_sz);
+	/* Add first panalde */
+	ubifs_pack_panalde(c, p, panalde);
+	err = ubifs_shash_update(c, desc, p, c->panalde_sz);
 	if (err)
 		goto out;
 
-	p += c->pnode_sz;
-	len = c->pnode_sz;
-	pnode->num += 1;
+	p += c->panalde_sz;
+	len = c->panalde_sz;
+	panalde->num += 1;
 
-	/* Reset pnode values for remaining pnodes */
-	pnode->lprops[0].free = c->leb_size;
-	pnode->lprops[0].dirty = 0;
-	pnode->lprops[0].flags = 0;
+	/* Reset panalde values for remaining panaldes */
+	panalde->lprops[0].free = c->leb_size;
+	panalde->lprops[0].dirty = 0;
+	panalde->lprops[0].flags = 0;
 
-	pnode->lprops[1].free = c->leb_size;
-	pnode->lprops[1].dirty = 0;
+	panalde->lprops[1].free = c->leb_size;
+	panalde->lprops[1].dirty = 0;
 
 	/*
-	 * To calculate the internal node branches, we keep information about
+	 * To calculate the internal analde branches, we keep information about
 	 * the level below.
 	 */
 	blnum = lnum; /* LEB number of level below */
 	boffs = 0; /* Offset of level below */
-	bcnt = cnt; /* Number of nodes in level below */
-	bsz = c->pnode_sz; /* Size of nodes in level below */
+	bcnt = cnt; /* Number of analdes in level below */
+	bsz = c->panalde_sz; /* Size of analdes in level below */
 
-	/* Add all remaining pnodes */
+	/* Add all remaining panaldes */
 	for (i = 1; i < cnt; i++) {
-		if (len + c->pnode_sz > c->leb_size) {
+		if (len + c->panalde_sz > c->leb_size) {
 			alen = ALIGN(len, c->min_io_size);
 			set_ltab(c, lnum, c->leb_size - alen, alen - len);
 			memset(p, 0xff, alen - len);
@@ -708,30 +708,30 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 			p = buf;
 			len = 0;
 		}
-		ubifs_pack_pnode(c, p, pnode);
-		err = ubifs_shash_update(c, desc, p, c->pnode_sz);
+		ubifs_pack_panalde(c, p, panalde);
+		err = ubifs_shash_update(c, desc, p, c->panalde_sz);
 		if (err)
 			goto out;
 
-		p += c->pnode_sz;
-		len += c->pnode_sz;
+		p += c->panalde_sz;
+		len += c->panalde_sz;
 		/*
-		 * pnodes are simply numbered left to right starting at zero,
-		 * which means the pnode number can be used easily to traverse
-		 * down the tree to the corresponding pnode.
+		 * panaldes are simply numbered left to right starting at zero,
+		 * which means the panalde number can be used easily to traverse
+		 * down the tree to the corresponding panalde.
 		 */
-		pnode->num += 1;
+		panalde->num += 1;
 	}
 
 	row = 0;
-	for (i = UBIFS_LPT_FANOUT; cnt > i; i <<= UBIFS_LPT_FANOUT_SHIFT)
+	for (i = UBIFS_LPT_FAANALUT; cnt > i; i <<= UBIFS_LPT_FAANALUT_SHIFT)
 		row += 1;
-	/* Add all nnodes, one level at a time */
+	/* Add all nanaldes, one level at a time */
 	while (1) {
-		/* Number of internal nodes (nnodes) at next level */
-		cnt = DIV_ROUND_UP(cnt, UBIFS_LPT_FANOUT);
+		/* Number of internal analdes (nanaldes) at next level */
+		cnt = DIV_ROUND_UP(cnt, UBIFS_LPT_FAANALUT);
 		for (i = 0; i < cnt; i++) {
-			if (len + c->nnode_sz > c->leb_size) {
+			if (len + c->nanalde_sz > c->leb_size) {
 				alen = ALIGN(len, c->min_io_size);
 				set_ltab(c, lnum, c->leb_size - alen,
 					    alen - len);
@@ -742,38 +742,38 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 				p = buf;
 				len = 0;
 			}
-			/* Only 1 nnode at this level, so it is the root */
+			/* Only 1 nanalde at this level, so it is the root */
 			if (cnt == 1) {
 				c->lpt_lnum = lnum;
 				c->lpt_offs = len;
 			}
 			/* Set branches to the level below */
-			for (j = 0; j < UBIFS_LPT_FANOUT; j++) {
+			for (j = 0; j < UBIFS_LPT_FAANALUT; j++) {
 				if (bcnt) {
 					if (boffs + bsz > c->leb_size) {
 						blnum += 1;
 						boffs = 0;
 					}
-					nnode->nbranch[j].lnum = blnum;
-					nnode->nbranch[j].offs = boffs;
+					nanalde->nbranch[j].lnum = blnum;
+					nanalde->nbranch[j].offs = boffs;
 					boffs += bsz;
 					bcnt--;
 				} else {
-					nnode->nbranch[j].lnum = 0;
-					nnode->nbranch[j].offs = 0;
+					nanalde->nbranch[j].lnum = 0;
+					nanalde->nbranch[j].offs = 0;
 				}
 			}
-			nnode->num = calc_nnode_num(row, i);
-			ubifs_pack_nnode(c, p, nnode);
-			p += c->nnode_sz;
-			len += c->nnode_sz;
+			nanalde->num = calc_nanalde_num(row, i);
+			ubifs_pack_nanalde(c, p, nanalde);
+			p += c->nanalde_sz;
+			len += c->nanalde_sz;
 		}
-		/* Only 1 nnode at this level, so it is the root */
+		/* Only 1 nanalde at this level, so it is the root */
 		if (cnt == 1)
 			break;
 		/* Update the information about the level below */
 		bcnt = cnt;
-		bsz = c->nnode_sz;
+		bsz = c->nanalde_sz;
 		row -= 1;
 	}
 
@@ -845,8 +845,8 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 	dbg_lp("lpt_spc_bits %d", c->lpt_spc_bits);
 	dbg_lp("pcnt_bits %d", c->pcnt_bits);
 	dbg_lp("lnum_bits %d", c->lnum_bits);
-	dbg_lp("pnode_sz %d", c->pnode_sz);
-	dbg_lp("nnode_sz %d", c->nnode_sz);
+	dbg_lp("panalde_sz %d", c->panalde_sz);
+	dbg_lp("nanalde_sz %d", c->nanalde_sz);
 	dbg_lp("ltab_sz %d", c->ltab_sz);
 	dbg_lp("lsave_sz %d", c->lsave_sz);
 	dbg_lp("lsave_cnt %d", c->lsave_cnt);
@@ -863,61 +863,61 @@ out:
 	kfree(lsave);
 	vfree(ltab);
 	vfree(buf);
-	kfree(nnode);
-	kfree(pnode);
+	kfree(nanalde);
+	kfree(panalde);
 	return err;
 }
 
 /**
- * update_cats - add LEB properties of a pnode to LEB category lists and heaps.
+ * update_cats - add LEB properties of a panalde to LEB category lists and heaps.
  * @c: UBIFS file-system description object
- * @pnode: pnode
+ * @panalde: panalde
  *
- * When a pnode is loaded into memory, the LEB properties it contains are added,
+ * When a panalde is loaded into memory, the LEB properties it contains are added,
  * by this function, to the LEB category lists and heaps.
  */
-static void update_cats(struct ubifs_info *c, struct ubifs_pnode *pnode)
+static void update_cats(struct ubifs_info *c, struct ubifs_panalde *panalde)
 {
 	int i;
 
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		int cat = pnode->lprops[i].flags & LPROPS_CAT_MASK;
-		int lnum = pnode->lprops[i].lnum;
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+		int cat = panalde->lprops[i].flags & LPROPS_CAT_MASK;
+		int lnum = panalde->lprops[i].lnum;
 
 		if (!lnum)
 			return;
-		ubifs_add_to_cat(c, &pnode->lprops[i], cat);
+		ubifs_add_to_cat(c, &panalde->lprops[i], cat);
 	}
 }
 
 /**
- * replace_cats - add LEB properties of a pnode to LEB category lists and heaps.
+ * replace_cats - add LEB properties of a panalde to LEB category lists and heaps.
  * @c: UBIFS file-system description object
- * @old_pnode: pnode copied
- * @new_pnode: pnode copy
+ * @old_panalde: panalde copied
+ * @new_panalde: panalde copy
  *
- * During commit it is sometimes necessary to copy a pnode
- * (see dirty_cow_pnode).  When that happens, references in
+ * During commit it is sometimes necessary to copy a panalde
+ * (see dirty_cow_panalde).  When that happens, references in
  * category lists and heaps must be replaced.  This function does that.
  */
-static void replace_cats(struct ubifs_info *c, struct ubifs_pnode *old_pnode,
-			 struct ubifs_pnode *new_pnode)
+static void replace_cats(struct ubifs_info *c, struct ubifs_panalde *old_panalde,
+			 struct ubifs_panalde *new_panalde)
 {
 	int i;
 
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		if (!new_pnode->lprops[i].lnum)
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+		if (!new_panalde->lprops[i].lnum)
 			return;
-		ubifs_replace_cat(c, &old_pnode->lprops[i],
-				  &new_pnode->lprops[i]);
+		ubifs_replace_cat(c, &old_panalde->lprops[i],
+				  &new_panalde->lprops[i]);
 	}
 }
 
 /**
- * check_lpt_crc - check LPT node crc is correct.
+ * check_lpt_crc - check LPT analde crc is correct.
  * @c: UBIFS file-system description object
- * @buf: buffer containing node
- * @len: length of node
+ * @buf: buffer containing analde
+ * @len: length of analde
  *
  * This function returns %0 on success and a negative error code on failure.
  */
@@ -931,7 +931,7 @@ static int check_lpt_crc(const struct ubifs_info *c, void *buf, int len)
 	calc_crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
 			 len - UBIFS_LPT_CRC_BYTES);
 	if (crc != calc_crc) {
-		ubifs_err(c, "invalid crc in LPT node: crc %hx calc %hx",
+		ubifs_err(c, "invalid crc in LPT analde: crc %hx calc %hx",
 			  crc, calc_crc);
 		dump_stack();
 		return -EINVAL;
@@ -940,7 +940,7 @@ static int check_lpt_crc(const struct ubifs_info *c, void *buf, int len)
 }
 
 /**
- * check_lpt_type - check LPT node type is correct.
+ * check_lpt_type - check LPT analde type is correct.
  * @c: UBIFS file-system description object
  * @addr: address of type bit field is passed and returned updated here
  * @pos: position of type bit field is passed and returned updated here
@@ -951,12 +951,12 @@ static int check_lpt_crc(const struct ubifs_info *c, void *buf, int len)
 static int check_lpt_type(const struct ubifs_info *c, uint8_t **addr,
 			  int *pos, int type)
 {
-	int node_type;
+	int analde_type;
 
-	node_type = ubifs_unpack_bits(c, addr, pos, UBIFS_LPT_TYPE_BITS);
-	if (node_type != type) {
-		ubifs_err(c, "invalid type (%d) in LPT node type %d",
-			  node_type, type);
+	analde_type = ubifs_unpack_bits(c, addr, pos, UBIFS_LPT_TYPE_BITS);
+	if (analde_type != type) {
+		ubifs_err(c, "invalid type (%d) in LPT analde type %d",
+			  analde_type, type);
 		dump_stack();
 		return -EINVAL;
 	}
@@ -964,26 +964,26 @@ static int check_lpt_type(const struct ubifs_info *c, uint8_t **addr,
 }
 
 /**
- * unpack_pnode - unpack a pnode.
+ * unpack_panalde - unpack a panalde.
  * @c: UBIFS file-system description object
- * @buf: buffer containing packed pnode to unpack
- * @pnode: pnode structure to fill
+ * @buf: buffer containing packed panalde to unpack
+ * @panalde: panalde structure to fill
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int unpack_pnode(const struct ubifs_info *c, void *buf,
-			struct ubifs_pnode *pnode)
+static int unpack_panalde(const struct ubifs_info *c, void *buf,
+			struct ubifs_panalde *panalde)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int i, pos = 0, err;
 
-	err = check_lpt_type(c, &addr, &pos, UBIFS_LPT_PNODE);
+	err = check_lpt_type(c, &addr, &pos, UBIFS_LPT_PANALDE);
 	if (err)
 		return err;
 	if (c->big_lpt)
-		pnode->num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		struct ubifs_lprops * const lprops = &pnode->lprops[i];
+		panalde->num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+		struct ubifs_lprops * const lprops = &panalde->lprops[i];
 
 		lprops->free = ubifs_unpack_bits(c, &addr, &pos, c->space_bits);
 		lprops->free <<= 3;
@@ -996,41 +996,41 @@ static int unpack_pnode(const struct ubifs_info *c, void *buf,
 			lprops->flags = 0;
 		lprops->flags |= ubifs_categorize_lprops(c, lprops);
 	}
-	err = check_lpt_crc(c, buf, c->pnode_sz);
+	err = check_lpt_crc(c, buf, c->panalde_sz);
 	return err;
 }
 
 /**
- * ubifs_unpack_nnode - unpack a nnode.
+ * ubifs_unpack_nanalde - unpack a nanalde.
  * @c: UBIFS file-system description object
- * @buf: buffer containing packed nnode to unpack
- * @nnode: nnode structure to fill
+ * @buf: buffer containing packed nanalde to unpack
+ * @nanalde: nanalde structure to fill
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int ubifs_unpack_nnode(const struct ubifs_info *c, void *buf,
-		       struct ubifs_nnode *nnode)
+int ubifs_unpack_nanalde(const struct ubifs_info *c, void *buf,
+		       struct ubifs_nanalde *nanalde)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int i, pos = 0, err;
 
-	err = check_lpt_type(c, &addr, &pos, UBIFS_LPT_NNODE);
+	err = check_lpt_type(c, &addr, &pos, UBIFS_LPT_NANALDE);
 	if (err)
 		return err;
 	if (c->big_lpt)
-		nnode->num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
+		nanalde->num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
 		int lnum;
 
 		lnum = ubifs_unpack_bits(c, &addr, &pos, c->lpt_lnum_bits) +
 		       c->lpt_first;
 		if (lnum == c->lpt_last + 1)
 			lnum = 0;
-		nnode->nbranch[i].lnum = lnum;
-		nnode->nbranch[i].offs = ubifs_unpack_bits(c, &addr, &pos,
+		nanalde->nbranch[i].lnum = lnum;
+		nanalde->nbranch[i].offs = ubifs_unpack_bits(c, &addr, &pos,
 						     c->lpt_offs_bits);
 	}
-	err = check_lpt_crc(c, buf, c->nnode_sz);
+	err = check_lpt_crc(c, buf, c->nanalde_sz);
 	return err;
 }
 
@@ -1093,35 +1093,35 @@ static int unpack_lsave(const struct ubifs_info *c, void *buf)
 }
 
 /**
- * validate_nnode - validate a nnode.
+ * validate_nanalde - validate a nanalde.
  * @c: UBIFS file-system description object
- * @nnode: nnode to validate
- * @parent: parent nnode (or NULL for the root nnode)
+ * @nanalde: nanalde to validate
+ * @parent: parent nanalde (or NULL for the root nanalde)
  * @iip: index in parent
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int validate_nnode(const struct ubifs_info *c, struct ubifs_nnode *nnode,
-			  struct ubifs_nnode *parent, int iip)
+static int validate_nanalde(const struct ubifs_info *c, struct ubifs_nanalde *nanalde,
+			  struct ubifs_nanalde *parent, int iip)
 {
 	int i, lvl, max_offs;
 
 	if (c->big_lpt) {
-		int num = calc_nnode_num_from_parent(c, parent, iip);
+		int num = calc_nanalde_num_from_parent(c, parent, iip);
 
-		if (nnode->num != num)
+		if (nanalde->num != num)
 			return -EINVAL;
 	}
 	lvl = parent ? parent->level - 1 : c->lpt_hght;
 	if (lvl < 1)
 		return -EINVAL;
 	if (lvl == 1)
-		max_offs = c->leb_size - c->pnode_sz;
+		max_offs = c->leb_size - c->panalde_sz;
 	else
-		max_offs = c->leb_size - c->nnode_sz;
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		int lnum = nnode->nbranch[i].lnum;
-		int offs = nnode->nbranch[i].offs;
+		max_offs = c->leb_size - c->nanalde_sz;
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+		int lnum = nanalde->nbranch[i].lnum;
+		int offs = nanalde->nbranch[i].offs;
 
 		if (lnum == 0) {
 			if (offs != 0)
@@ -1137,28 +1137,28 @@ static int validate_nnode(const struct ubifs_info *c, struct ubifs_nnode *nnode,
 }
 
 /**
- * validate_pnode - validate a pnode.
+ * validate_panalde - validate a panalde.
  * @c: UBIFS file-system description object
- * @pnode: pnode to validate
- * @parent: parent nnode
+ * @panalde: panalde to validate
+ * @parent: parent nanalde
  * @iip: index in parent
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int validate_pnode(const struct ubifs_info *c, struct ubifs_pnode *pnode,
-			  struct ubifs_nnode *parent, int iip)
+static int validate_panalde(const struct ubifs_info *c, struct ubifs_panalde *panalde,
+			  struct ubifs_nanalde *parent, int iip)
 {
 	int i;
 
 	if (c->big_lpt) {
-		int num = calc_pnode_num_from_parent(c, parent, iip);
+		int num = calc_panalde_num_from_parent(c, parent, iip);
 
-		if (pnode->num != num)
+		if (panalde->num != num)
 			return -EINVAL;
 	}
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		int free = pnode->lprops[i].free;
-		int dirty = pnode->lprops[i].dirty;
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+		int free = panalde->lprops[i].free;
+		int dirty = panalde->lprops[i].dirty;
 
 		if (free < 0 || free > c->leb_size || free % c->min_io_size ||
 		    (free & 7))
@@ -1172,39 +1172,39 @@ static int validate_pnode(const struct ubifs_info *c, struct ubifs_pnode *pnode,
 }
 
 /**
- * set_pnode_lnum - set LEB numbers on a pnode.
+ * set_panalde_lnum - set LEB numbers on a panalde.
  * @c: UBIFS file-system description object
- * @pnode: pnode to update
+ * @panalde: panalde to update
  *
  * This function calculates the LEB numbers for the LEB properties it contains
- * based on the pnode number.
+ * based on the panalde number.
  */
-static void set_pnode_lnum(const struct ubifs_info *c,
-			   struct ubifs_pnode *pnode)
+static void set_panalde_lnum(const struct ubifs_info *c,
+			   struct ubifs_panalde *panalde)
 {
 	int i, lnum;
 
-	lnum = (pnode->num << UBIFS_LPT_FANOUT_SHIFT) + c->main_first;
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
+	lnum = (panalde->num << UBIFS_LPT_FAANALUT_SHIFT) + c->main_first;
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
 		if (lnum >= c->leb_cnt)
 			return;
-		pnode->lprops[i].lnum = lnum++;
+		panalde->lprops[i].lnum = lnum++;
 	}
 }
 
 /**
- * ubifs_read_nnode - read a nnode from flash and link it to the tree in memory.
+ * ubifs_read_nanalde - read a nanalde from flash and link it to the tree in memory.
  * @c: UBIFS file-system description object
- * @parent: parent nnode (or NULL for the root)
+ * @parent: parent nanalde (or NULL for the root)
  * @iip: index in parent
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
+int ubifs_read_nanalde(struct ubifs_info *c, struct ubifs_nanalde *parent, int iip)
 {
 	struct ubifs_nbranch *branch = NULL;
-	struct ubifs_nnode *nnode = NULL;
-	void *buf = c->lpt_nod_buf;
+	struct ubifs_nanalde *nanalde = NULL;
+	void *buf = c->lpt_anald_buf;
 	int err, lnum, offs;
 
 	if (parent) {
@@ -1215,115 +1215,115 @@ int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 		lnum = c->lpt_lnum;
 		offs = c->lpt_offs;
 	}
-	nnode = kzalloc(sizeof(struct ubifs_nnode), GFP_NOFS);
-	if (!nnode) {
-		err = -ENOMEM;
+	nanalde = kzalloc(sizeof(struct ubifs_nanalde), GFP_ANALFS);
+	if (!nanalde) {
+		err = -EANALMEM;
 		goto out;
 	}
 	if (lnum == 0) {
 		/*
-		 * This nnode was not written which just means that the LEB
+		 * This nanalde was analt written which just means that the LEB
 		 * properties in the subtree below it describe empty LEBs. We
-		 * make the nnode as though we had read it, which in fact means
-		 * doing almost nothing.
+		 * make the nanalde as though we had read it, which in fact means
+		 * doing almost analthing.
 		 */
 		if (c->big_lpt)
-			nnode->num = calc_nnode_num_from_parent(c, parent, iip);
+			nanalde->num = calc_nanalde_num_from_parent(c, parent, iip);
 	} else {
-		err = ubifs_leb_read(c, lnum, buf, offs, c->nnode_sz, 1);
+		err = ubifs_leb_read(c, lnum, buf, offs, c->nanalde_sz, 1);
 		if (err)
 			goto out;
-		err = ubifs_unpack_nnode(c, buf, nnode);
+		err = ubifs_unpack_nanalde(c, buf, nanalde);
 		if (err)
 			goto out;
 	}
-	err = validate_nnode(c, nnode, parent, iip);
+	err = validate_nanalde(c, nanalde, parent, iip);
 	if (err)
 		goto out;
 	if (!c->big_lpt)
-		nnode->num = calc_nnode_num_from_parent(c, parent, iip);
+		nanalde->num = calc_nanalde_num_from_parent(c, parent, iip);
 	if (parent) {
-		branch->nnode = nnode;
-		nnode->level = parent->level - 1;
+		branch->nanalde = nanalde;
+		nanalde->level = parent->level - 1;
 	} else {
-		c->nroot = nnode;
-		nnode->level = c->lpt_hght;
+		c->nroot = nanalde;
+		nanalde->level = c->lpt_hght;
 	}
-	nnode->parent = parent;
-	nnode->iip = iip;
+	nanalde->parent = parent;
+	nanalde->iip = iip;
 	return 0;
 
 out:
-	ubifs_err(c, "error %d reading nnode at %d:%d", err, lnum, offs);
+	ubifs_err(c, "error %d reading nanalde at %d:%d", err, lnum, offs);
 	dump_stack();
-	kfree(nnode);
+	kfree(nanalde);
 	return err;
 }
 
 /**
- * read_pnode - read a pnode from flash and link it to the tree in memory.
+ * read_panalde - read a panalde from flash and link it to the tree in memory.
  * @c: UBIFS file-system description object
- * @parent: parent nnode
+ * @parent: parent nanalde
  * @iip: index in parent
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int read_pnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
+static int read_panalde(struct ubifs_info *c, struct ubifs_nanalde *parent, int iip)
 {
 	struct ubifs_nbranch *branch;
-	struct ubifs_pnode *pnode = NULL;
-	void *buf = c->lpt_nod_buf;
+	struct ubifs_panalde *panalde = NULL;
+	void *buf = c->lpt_anald_buf;
 	int err, lnum, offs;
 
 	branch = &parent->nbranch[iip];
 	lnum = branch->lnum;
 	offs = branch->offs;
-	pnode = kzalloc(sizeof(struct ubifs_pnode), GFP_NOFS);
-	if (!pnode)
-		return -ENOMEM;
+	panalde = kzalloc(sizeof(struct ubifs_panalde), GFP_ANALFS);
+	if (!panalde)
+		return -EANALMEM;
 
 	if (lnum == 0) {
 		/*
-		 * This pnode was not written which just means that the LEB
-		 * properties in it describe empty LEBs. We make the pnode as
+		 * This panalde was analt written which just means that the LEB
+		 * properties in it describe empty LEBs. We make the panalde as
 		 * though we had read it.
 		 */
 		int i;
 
 		if (c->big_lpt)
-			pnode->num = calc_pnode_num_from_parent(c, parent, iip);
-		for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-			struct ubifs_lprops * const lprops = &pnode->lprops[i];
+			panalde->num = calc_panalde_num_from_parent(c, parent, iip);
+		for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+			struct ubifs_lprops * const lprops = &panalde->lprops[i];
 
 			lprops->free = c->leb_size;
 			lprops->flags = ubifs_categorize_lprops(c, lprops);
 		}
 	} else {
-		err = ubifs_leb_read(c, lnum, buf, offs, c->pnode_sz, 1);
+		err = ubifs_leb_read(c, lnum, buf, offs, c->panalde_sz, 1);
 		if (err)
 			goto out;
-		err = unpack_pnode(c, buf, pnode);
+		err = unpack_panalde(c, buf, panalde);
 		if (err)
 			goto out;
 	}
-	err = validate_pnode(c, pnode, parent, iip);
+	err = validate_panalde(c, panalde, parent, iip);
 	if (err)
 		goto out;
 	if (!c->big_lpt)
-		pnode->num = calc_pnode_num_from_parent(c, parent, iip);
-	branch->pnode = pnode;
-	pnode->parent = parent;
-	pnode->iip = iip;
-	set_pnode_lnum(c, pnode);
-	c->pnodes_have += 1;
+		panalde->num = calc_panalde_num_from_parent(c, parent, iip);
+	branch->panalde = panalde;
+	panalde->parent = parent;
+	panalde->iip = iip;
+	set_panalde_lnum(c, panalde);
+	c->panaldes_have += 1;
 	return 0;
 
 out:
-	ubifs_err(c, "error %d reading pnode at %d:%d", err, lnum, offs);
-	ubifs_dump_pnode(c, pnode, parent, iip);
+	ubifs_err(c, "error %d reading panalde at %d:%d", err, lnum, offs);
+	ubifs_dump_panalde(c, panalde, parent, iip);
 	dump_stack();
-	ubifs_err(c, "calc num: %d", calc_pnode_num_from_parent(c, parent, iip));
-	kfree(pnode);
+	ubifs_err(c, "calc num: %d", calc_panalde_num_from_parent(c, parent, iip));
+	kfree(panalde);
 	return err;
 }
 
@@ -1340,7 +1340,7 @@ static int read_ltab(struct ubifs_info *c)
 
 	buf = vmalloc(c->ltab_sz);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = ubifs_leb_read(c, c->ltab_lnum, buf, c->ltab_offs, c->ltab_sz, 1);
 	if (err)
 		goto out;
@@ -1363,7 +1363,7 @@ static int read_lsave(struct ubifs_info *c)
 
 	buf = vmalloc(c->lsave_sz);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = ubifs_leb_read(c, c->lsave_lnum, buf, c->lsave_offs,
 			     c->lsave_sz, 1);
 	if (err)
@@ -1377,7 +1377,7 @@ static int read_lsave(struct ubifs_info *c)
 
 		/*
 		 * Due to automatic resizing, the values in the lsave table
-		 * could be beyond the volume size - just ignore them.
+		 * could be beyond the volume size - just iganalre them.
 		 */
 		if (lnum >= c->leb_cnt)
 			continue;
@@ -1393,88 +1393,88 @@ out:
 }
 
 /**
- * ubifs_get_nnode - get a nnode.
+ * ubifs_get_nanalde - get a nanalde.
  * @c: UBIFS file-system description object
- * @parent: parent nnode (or NULL for the root)
+ * @parent: parent nanalde (or NULL for the root)
  * @iip: index in parent
  *
- * This function returns a pointer to the nnode on success or a negative error
+ * This function returns a pointer to the nanalde on success or a negative error
  * code on failure.
  */
-struct ubifs_nnode *ubifs_get_nnode(struct ubifs_info *c,
-				    struct ubifs_nnode *parent, int iip)
+struct ubifs_nanalde *ubifs_get_nanalde(struct ubifs_info *c,
+				    struct ubifs_nanalde *parent, int iip)
 {
 	struct ubifs_nbranch *branch;
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 	int err;
 
 	branch = &parent->nbranch[iip];
-	nnode = branch->nnode;
-	if (nnode)
-		return nnode;
-	err = ubifs_read_nnode(c, parent, iip);
+	nanalde = branch->nanalde;
+	if (nanalde)
+		return nanalde;
+	err = ubifs_read_nanalde(c, parent, iip);
 	if (err)
 		return ERR_PTR(err);
-	return branch->nnode;
+	return branch->nanalde;
 }
 
 /**
- * ubifs_get_pnode - get a pnode.
+ * ubifs_get_panalde - get a panalde.
  * @c: UBIFS file-system description object
- * @parent: parent nnode
+ * @parent: parent nanalde
  * @iip: index in parent
  *
- * This function returns a pointer to the pnode on success or a negative error
+ * This function returns a pointer to the panalde on success or a negative error
  * code on failure.
  */
-struct ubifs_pnode *ubifs_get_pnode(struct ubifs_info *c,
-				    struct ubifs_nnode *parent, int iip)
+struct ubifs_panalde *ubifs_get_panalde(struct ubifs_info *c,
+				    struct ubifs_nanalde *parent, int iip)
 {
 	struct ubifs_nbranch *branch;
-	struct ubifs_pnode *pnode;
+	struct ubifs_panalde *panalde;
 	int err;
 
 	branch = &parent->nbranch[iip];
-	pnode = branch->pnode;
-	if (pnode)
-		return pnode;
-	err = read_pnode(c, parent, iip);
+	panalde = branch->panalde;
+	if (panalde)
+		return panalde;
+	err = read_panalde(c, parent, iip);
 	if (err)
 		return ERR_PTR(err);
-	update_cats(c, branch->pnode);
-	return branch->pnode;
+	update_cats(c, branch->panalde);
+	return branch->panalde;
 }
 
 /**
- * ubifs_pnode_lookup - lookup a pnode in the LPT.
+ * ubifs_panalde_lookup - lookup a panalde in the LPT.
  * @c: UBIFS file-system description object
- * @i: pnode number (0 to (main_lebs - 1) / UBIFS_LPT_FANOUT)
+ * @i: panalde number (0 to (main_lebs - 1) / UBIFS_LPT_FAANALUT)
  *
- * This function returns a pointer to the pnode on success or a negative
+ * This function returns a pointer to the panalde on success or a negative
  * error code on failure.
  */
-struct ubifs_pnode *ubifs_pnode_lookup(struct ubifs_info *c, int i)
+struct ubifs_panalde *ubifs_panalde_lookup(struct ubifs_info *c, int i)
 {
 	int err, h, iip, shft;
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 
 	if (!c->nroot) {
-		err = ubifs_read_nnode(c, NULL, 0);
+		err = ubifs_read_nanalde(c, NULL, 0);
 		if (err)
 			return ERR_PTR(err);
 	}
-	i <<= UBIFS_LPT_FANOUT_SHIFT;
-	nnode = c->nroot;
-	shft = c->lpt_hght * UBIFS_LPT_FANOUT_SHIFT;
+	i <<= UBIFS_LPT_FAANALUT_SHIFT;
+	nanalde = c->nroot;
+	shft = c->lpt_hght * UBIFS_LPT_FAANALUT_SHIFT;
 	for (h = 1; h < c->lpt_hght; h++) {
-		iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-		shft -= UBIFS_LPT_FANOUT_SHIFT;
-		nnode = ubifs_get_nnode(c, nnode, iip);
-		if (IS_ERR(nnode))
-			return ERR_CAST(nnode);
+		iip = ((i >> shft) & (UBIFS_LPT_FAANALUT - 1));
+		shft -= UBIFS_LPT_FAANALUT_SHIFT;
+		nanalde = ubifs_get_nanalde(c, nanalde, iip);
+		if (IS_ERR(nanalde))
+			return ERR_CAST(nanalde);
 	}
-	iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-	return ubifs_get_pnode(c, nnode, iip);
+	iip = ((i >> shft) & (UBIFS_LPT_FAANALUT - 1));
+	return ubifs_get_panalde(c, nanalde, iip);
 }
 
 /**
@@ -1488,107 +1488,107 @@ struct ubifs_pnode *ubifs_pnode_lookup(struct ubifs_info *c, int i)
 struct ubifs_lprops *ubifs_lpt_lookup(struct ubifs_info *c, int lnum)
 {
 	int i, iip;
-	struct ubifs_pnode *pnode;
+	struct ubifs_panalde *panalde;
 
 	i = lnum - c->main_first;
-	pnode = ubifs_pnode_lookup(c, i >> UBIFS_LPT_FANOUT_SHIFT);
-	if (IS_ERR(pnode))
-		return ERR_CAST(pnode);
-	iip = (i & (UBIFS_LPT_FANOUT - 1));
+	panalde = ubifs_panalde_lookup(c, i >> UBIFS_LPT_FAANALUT_SHIFT);
+	if (IS_ERR(panalde))
+		return ERR_CAST(panalde);
+	iip = (i & (UBIFS_LPT_FAANALUT - 1));
 	dbg_lp("LEB %d, free %d, dirty %d, flags %d", lnum,
-	       pnode->lprops[iip].free, pnode->lprops[iip].dirty,
-	       pnode->lprops[iip].flags);
-	return &pnode->lprops[iip];
+	       panalde->lprops[iip].free, panalde->lprops[iip].dirty,
+	       panalde->lprops[iip].flags);
+	return &panalde->lprops[iip];
 }
 
 /**
- * dirty_cow_nnode - ensure a nnode is not being committed.
+ * dirty_cow_nanalde - ensure a nanalde is analt being committed.
  * @c: UBIFS file-system description object
- * @nnode: nnode to check
+ * @nanalde: nanalde to check
  *
- * Returns dirtied nnode on success or negative error code on failure.
+ * Returns dirtied nanalde on success or negative error code on failure.
  */
-static struct ubifs_nnode *dirty_cow_nnode(struct ubifs_info *c,
-					   struct ubifs_nnode *nnode)
+static struct ubifs_nanalde *dirty_cow_nanalde(struct ubifs_info *c,
+					   struct ubifs_nanalde *nanalde)
 {
-	struct ubifs_nnode *n;
+	struct ubifs_nanalde *n;
 	int i;
 
-	if (!test_bit(COW_CNODE, &nnode->flags)) {
-		/* nnode is not being committed */
-		if (!test_and_set_bit(DIRTY_CNODE, &nnode->flags)) {
+	if (!test_bit(COW_CANALDE, &nanalde->flags)) {
+		/* nanalde is analt being committed */
+		if (!test_and_set_bit(DIRTY_CANALDE, &nanalde->flags)) {
 			c->dirty_nn_cnt += 1;
-			ubifs_add_nnode_dirt(c, nnode);
+			ubifs_add_nanalde_dirt(c, nanalde);
 		}
-		return nnode;
+		return nanalde;
 	}
 
-	/* nnode is being committed, so copy it */
-	n = kmemdup(nnode, sizeof(struct ubifs_nnode), GFP_NOFS);
+	/* nanalde is being committed, so copy it */
+	n = kmemdup(nanalde, sizeof(struct ubifs_nanalde), GFP_ANALFS);
 	if (unlikely(!n))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	n->cnext = NULL;
-	__set_bit(DIRTY_CNODE, &n->flags);
-	__clear_bit(COW_CNODE, &n->flags);
+	__set_bit(DIRTY_CANALDE, &n->flags);
+	__clear_bit(COW_CANALDE, &n->flags);
 
-	/* The children now have new parent */
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
+	/* The children analw have new parent */
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
 		struct ubifs_nbranch *branch = &n->nbranch[i];
 
-		if (branch->cnode)
-			branch->cnode->parent = n;
+		if (branch->canalde)
+			branch->canalde->parent = n;
 	}
 
-	ubifs_assert(c, !test_bit(OBSOLETE_CNODE, &nnode->flags));
-	__set_bit(OBSOLETE_CNODE, &nnode->flags);
+	ubifs_assert(c, !test_bit(OBSOLETE_CANALDE, &nanalde->flags));
+	__set_bit(OBSOLETE_CANALDE, &nanalde->flags);
 
 	c->dirty_nn_cnt += 1;
-	ubifs_add_nnode_dirt(c, nnode);
-	if (nnode->parent)
-		nnode->parent->nbranch[n->iip].nnode = n;
+	ubifs_add_nanalde_dirt(c, nanalde);
+	if (nanalde->parent)
+		nanalde->parent->nbranch[n->iip].nanalde = n;
 	else
 		c->nroot = n;
 	return n;
 }
 
 /**
- * dirty_cow_pnode - ensure a pnode is not being committed.
+ * dirty_cow_panalde - ensure a panalde is analt being committed.
  * @c: UBIFS file-system description object
- * @pnode: pnode to check
+ * @panalde: panalde to check
  *
- * Returns dirtied pnode on success or negative error code on failure.
+ * Returns dirtied panalde on success or negative error code on failure.
  */
-static struct ubifs_pnode *dirty_cow_pnode(struct ubifs_info *c,
-					   struct ubifs_pnode *pnode)
+static struct ubifs_panalde *dirty_cow_panalde(struct ubifs_info *c,
+					   struct ubifs_panalde *panalde)
 {
-	struct ubifs_pnode *p;
+	struct ubifs_panalde *p;
 
-	if (!test_bit(COW_CNODE, &pnode->flags)) {
-		/* pnode is not being committed */
-		if (!test_and_set_bit(DIRTY_CNODE, &pnode->flags)) {
+	if (!test_bit(COW_CANALDE, &panalde->flags)) {
+		/* panalde is analt being committed */
+		if (!test_and_set_bit(DIRTY_CANALDE, &panalde->flags)) {
 			c->dirty_pn_cnt += 1;
-			add_pnode_dirt(c, pnode);
+			add_panalde_dirt(c, panalde);
 		}
-		return pnode;
+		return panalde;
 	}
 
-	/* pnode is being committed, so copy it */
-	p = kmemdup(pnode, sizeof(struct ubifs_pnode), GFP_NOFS);
+	/* panalde is being committed, so copy it */
+	p = kmemdup(panalde, sizeof(struct ubifs_panalde), GFP_ANALFS);
 	if (unlikely(!p))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	p->cnext = NULL;
-	__set_bit(DIRTY_CNODE, &p->flags);
-	__clear_bit(COW_CNODE, &p->flags);
-	replace_cats(c, pnode, p);
+	__set_bit(DIRTY_CANALDE, &p->flags);
+	__clear_bit(COW_CANALDE, &p->flags);
+	replace_cats(c, panalde, p);
 
-	ubifs_assert(c, !test_bit(OBSOLETE_CNODE, &pnode->flags));
-	__set_bit(OBSOLETE_CNODE, &pnode->flags);
+	ubifs_assert(c, !test_bit(OBSOLETE_CANALDE, &panalde->flags));
+	__set_bit(OBSOLETE_CANALDE, &panalde->flags);
 
 	c->dirty_pn_cnt += 1;
-	add_pnode_dirt(c, pnode);
-	pnode->parent->nbranch[p->iip].pnode = p;
+	add_panalde_dirt(c, panalde);
+	panalde->parent->nbranch[p->iip].panalde = p;
 	return p;
 }
 
@@ -1603,60 +1603,60 @@ static struct ubifs_pnode *dirty_cow_pnode(struct ubifs_info *c,
 struct ubifs_lprops *ubifs_lpt_lookup_dirty(struct ubifs_info *c, int lnum)
 {
 	int err, i, h, iip, shft;
-	struct ubifs_nnode *nnode;
-	struct ubifs_pnode *pnode;
+	struct ubifs_nanalde *nanalde;
+	struct ubifs_panalde *panalde;
 
 	if (!c->nroot) {
-		err = ubifs_read_nnode(c, NULL, 0);
+		err = ubifs_read_nanalde(c, NULL, 0);
 		if (err)
 			return ERR_PTR(err);
 	}
-	nnode = c->nroot;
-	nnode = dirty_cow_nnode(c, nnode);
-	if (IS_ERR(nnode))
-		return ERR_CAST(nnode);
+	nanalde = c->nroot;
+	nanalde = dirty_cow_nanalde(c, nanalde);
+	if (IS_ERR(nanalde))
+		return ERR_CAST(nanalde);
 	i = lnum - c->main_first;
-	shft = c->lpt_hght * UBIFS_LPT_FANOUT_SHIFT;
+	shft = c->lpt_hght * UBIFS_LPT_FAANALUT_SHIFT;
 	for (h = 1; h < c->lpt_hght; h++) {
-		iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-		shft -= UBIFS_LPT_FANOUT_SHIFT;
-		nnode = ubifs_get_nnode(c, nnode, iip);
-		if (IS_ERR(nnode))
-			return ERR_CAST(nnode);
-		nnode = dirty_cow_nnode(c, nnode);
-		if (IS_ERR(nnode))
-			return ERR_CAST(nnode);
+		iip = ((i >> shft) & (UBIFS_LPT_FAANALUT - 1));
+		shft -= UBIFS_LPT_FAANALUT_SHIFT;
+		nanalde = ubifs_get_nanalde(c, nanalde, iip);
+		if (IS_ERR(nanalde))
+			return ERR_CAST(nanalde);
+		nanalde = dirty_cow_nanalde(c, nanalde);
+		if (IS_ERR(nanalde))
+			return ERR_CAST(nanalde);
 	}
-	iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-	pnode = ubifs_get_pnode(c, nnode, iip);
-	if (IS_ERR(pnode))
-		return ERR_CAST(pnode);
-	pnode = dirty_cow_pnode(c, pnode);
-	if (IS_ERR(pnode))
-		return ERR_CAST(pnode);
-	iip = (i & (UBIFS_LPT_FANOUT - 1));
+	iip = ((i >> shft) & (UBIFS_LPT_FAANALUT - 1));
+	panalde = ubifs_get_panalde(c, nanalde, iip);
+	if (IS_ERR(panalde))
+		return ERR_CAST(panalde);
+	panalde = dirty_cow_panalde(c, panalde);
+	if (IS_ERR(panalde))
+		return ERR_CAST(panalde);
+	iip = (i & (UBIFS_LPT_FAANALUT - 1));
 	dbg_lp("LEB %d, free %d, dirty %d, flags %d", lnum,
-	       pnode->lprops[iip].free, pnode->lprops[iip].dirty,
-	       pnode->lprops[iip].flags);
-	ubifs_assert(c, test_bit(DIRTY_CNODE, &pnode->flags));
-	return &pnode->lprops[iip];
+	       panalde->lprops[iip].free, panalde->lprops[iip].dirty,
+	       panalde->lprops[iip].flags);
+	ubifs_assert(c, test_bit(DIRTY_CANALDE, &panalde->flags));
+	return &panalde->lprops[iip];
 }
 
 /**
- * ubifs_lpt_calc_hash - Calculate hash of the LPT pnodes
+ * ubifs_lpt_calc_hash - Calculate hash of the LPT panaldes
  * @c: UBIFS file-system description object
- * @hash: the returned hash of the LPT pnodes
+ * @hash: the returned hash of the LPT panaldes
  *
- * This function iterates over the LPT pnodes and creates a hash over them.
+ * This function iterates over the LPT panaldes and creates a hash over them.
  * Returns 0 for success or a negative error code otherwise.
  */
 int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash)
 {
-	struct ubifs_nnode *nnode, *nn;
-	struct ubifs_cnode *cnode;
+	struct ubifs_nanalde *nanalde, *nn;
+	struct ubifs_canalde *canalde;
 	struct shash_desc *desc;
 	int iip = 0, i;
-	int bufsiz = max_t(int, c->nnode_sz, c->pnode_sz);
+	int bufsiz = max_t(int, c->nanalde_sz, c->panalde_sz);
 	void *buf;
 	int err;
 
@@ -1664,7 +1664,7 @@ int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash)
 		return 0;
 
 	if (!c->nroot) {
-		err = ubifs_read_nnode(c, NULL, 0);
+		err = ubifs_read_nanalde(c, NULL, 0);
 		if (err)
 			return err;
 	}
@@ -1673,60 +1673,60 @@ int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash)
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
-	buf = kmalloc(bufsiz, GFP_NOFS);
+	buf = kmalloc(bufsiz, GFP_ANALFS);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
-	cnode = (struct ubifs_cnode *)c->nroot;
+	canalde = (struct ubifs_canalde *)c->nroot;
 
-	while (cnode) {
-		nnode = cnode->parent;
-		nn = (struct ubifs_nnode *)cnode;
-		if (cnode->level > 1) {
-			while (iip < UBIFS_LPT_FANOUT) {
+	while (canalde) {
+		nanalde = canalde->parent;
+		nn = (struct ubifs_nanalde *)canalde;
+		if (canalde->level > 1) {
+			while (iip < UBIFS_LPT_FAANALUT) {
 				if (nn->nbranch[iip].lnum == 0) {
 					/* Go right */
 					iip++;
 					continue;
 				}
 
-				nnode = ubifs_get_nnode(c, nn, iip);
-				if (IS_ERR(nnode)) {
-					err = PTR_ERR(nnode);
+				nanalde = ubifs_get_nanalde(c, nn, iip);
+				if (IS_ERR(nanalde)) {
+					err = PTR_ERR(nanalde);
 					goto out;
 				}
 
 				/* Go down */
 				iip = 0;
-				cnode = (struct ubifs_cnode *)nnode;
+				canalde = (struct ubifs_canalde *)nanalde;
 				break;
 			}
-			if (iip < UBIFS_LPT_FANOUT)
+			if (iip < UBIFS_LPT_FAANALUT)
 				continue;
 		} else {
-			struct ubifs_pnode *pnode;
+			struct ubifs_panalde *panalde;
 
-			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
+			for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
 				if (nn->nbranch[i].lnum == 0)
 					continue;
-				pnode = ubifs_get_pnode(c, nn, i);
-				if (IS_ERR(pnode)) {
-					err = PTR_ERR(pnode);
+				panalde = ubifs_get_panalde(c, nn, i);
+				if (IS_ERR(panalde)) {
+					err = PTR_ERR(panalde);
 					goto out;
 				}
 
-				ubifs_pack_pnode(c, buf, pnode);
+				ubifs_pack_panalde(c, buf, panalde);
 				err = ubifs_shash_update(c, desc, buf,
-							 c->pnode_sz);
+							 c->panalde_sz);
 				if (err)
 					goto out;
 			}
 		}
 		/* Go up and to the right */
-		iip = cnode->iip + 1;
-		cnode = (struct ubifs_cnode *)nnode;
+		iip = canalde->iip + 1;
+		canalde = (struct ubifs_canalde *)nanalde;
 	}
 
 	err = ubifs_shash_final(c, desc, hash);
@@ -1741,8 +1741,8 @@ out:
  * lpt_check_hash - check the hash of the LPT.
  * @c: UBIFS file-system description object
  *
- * This function calculates a hash over all pnodes in the LPT and compares it with
- * the hash stored in the master node. Returns %0 on success and a negative error
+ * This function calculates a hash over all panaldes in the LPT and compares it with
+ * the hash stored in the master analde. Returns %0 on success and a negative error
  * code on failure.
  */
 static int lpt_check_hash(struct ubifs_info *c)
@@ -1757,7 +1757,7 @@ static int lpt_check_hash(struct ubifs_info *c)
 	if (err)
 		return err;
 
-	if (ubifs_check_hash(c, c->mst_node->hash_lpt, hash)) {
+	if (ubifs_check_hash(c, c->mst_analde->hash_lpt, hash)) {
 		err = -EPERM;
 		ubifs_err(c, "Failed to authenticate LPT");
 	} else {
@@ -1780,19 +1780,19 @@ static int lpt_init_rd(struct ubifs_info *c)
 	c->ltab = vmalloc(array_size(sizeof(struct ubifs_lpt_lprops),
 				     c->lpt_lebs));
 	if (!c->ltab)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	i = max_t(int, c->nnode_sz, c->pnode_sz);
-	c->lpt_nod_buf = kmalloc(i, GFP_KERNEL);
-	if (!c->lpt_nod_buf)
-		return -ENOMEM;
+	i = max_t(int, c->nanalde_sz, c->panalde_sz);
+	c->lpt_anald_buf = kmalloc(i, GFP_KERNEL);
+	if (!c->lpt_anald_buf)
+		return -EANALMEM;
 
 	for (i = 0; i < LPROPS_HEAP_CNT; i++) {
 		c->lpt_heap[i].arr = kmalloc_array(LPT_HEAP_SZ,
 						   sizeof(void *),
 						   GFP_KERNEL);
 		if (!c->lpt_heap[i].arr)
-			return -ENOMEM;
+			return -EANALMEM;
 		c->lpt_heap[i].cnt = 0;
 		c->lpt_heap[i].max_cnt = LPT_HEAP_SZ;
 	}
@@ -1800,7 +1800,7 @@ static int lpt_init_rd(struct ubifs_info *c)
 	c->dirty_idx.arr = kmalloc_array(LPT_HEAP_SZ, sizeof(void *),
 					 GFP_KERNEL);
 	if (!c->dirty_idx.arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	c->dirty_idx.cnt = 0;
 	c->dirty_idx.max_cnt = LPT_HEAP_SZ;
 
@@ -1818,8 +1818,8 @@ static int lpt_init_rd(struct ubifs_info *c)
 	dbg_lp("lpt_spc_bits %d", c->lpt_spc_bits);
 	dbg_lp("pcnt_bits %d", c->pcnt_bits);
 	dbg_lp("lnum_bits %d", c->lnum_bits);
-	dbg_lp("pnode_sz %d", c->pnode_sz);
-	dbg_lp("nnode_sz %d", c->nnode_sz);
+	dbg_lp("panalde_sz %d", c->panalde_sz);
+	dbg_lp("nanalde_sz %d", c->nanalde_sz);
 	dbg_lp("ltab_sz %d", c->ltab_sz);
 	dbg_lp("lsave_sz %d", c->lsave_sz);
 	dbg_lp("lsave_cnt %d", c->lsave_cnt);
@@ -1849,16 +1849,16 @@ static int lpt_init_wr(struct ubifs_info *c)
 	c->ltab_cmt = vmalloc(array_size(sizeof(struct ubifs_lpt_lprops),
 					 c->lpt_lebs));
 	if (!c->ltab_cmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c->lpt_buf = vmalloc(c->leb_size);
 	if (!c->lpt_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (c->big_lpt) {
-		c->lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_NOFS);
+		c->lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_ANALFS);
 		if (!c->lsave)
-			return -ENOMEM;
+			return -EANALMEM;
 		err = read_lsave(c);
 		if (err)
 			return err;
@@ -1913,131 +1913,131 @@ out_err:
 }
 
 /**
- * struct lpt_scan_node - somewhere to put nodes while we scan LPT.
- * @nnode: where to keep a nnode
- * @pnode: where to keep a pnode
- * @cnode: where to keep a cnode
- * @in_tree: is the node in the tree in memory
- * @ptr.nnode: pointer to the nnode (if it is an nnode) which may be here or in
+ * struct lpt_scan_analde - somewhere to put analdes while we scan LPT.
+ * @nanalde: where to keep a nanalde
+ * @panalde: where to keep a panalde
+ * @canalde: where to keep a canalde
+ * @in_tree: is the analde in the tree in memory
+ * @ptr.nanalde: pointer to the nanalde (if it is an nanalde) which may be here or in
  * the tree
- * @ptr.pnode: ditto for pnode
- * @ptr.cnode: ditto for cnode
+ * @ptr.panalde: ditto for panalde
+ * @ptr.canalde: ditto for canalde
  */
-struct lpt_scan_node {
+struct lpt_scan_analde {
 	union {
-		struct ubifs_nnode nnode;
-		struct ubifs_pnode pnode;
-		struct ubifs_cnode cnode;
+		struct ubifs_nanalde nanalde;
+		struct ubifs_panalde panalde;
+		struct ubifs_canalde canalde;
 	};
 	int in_tree;
 	union {
-		struct ubifs_nnode *nnode;
-		struct ubifs_pnode *pnode;
-		struct ubifs_cnode *cnode;
+		struct ubifs_nanalde *nanalde;
+		struct ubifs_panalde *panalde;
+		struct ubifs_canalde *canalde;
 	} ptr;
 };
 
 /**
- * scan_get_nnode - for the scan, get a nnode from either the tree or flash.
+ * scan_get_nanalde - for the scan, get a nanalde from either the tree or flash.
  * @c: the UBIFS file-system description object
- * @path: where to put the nnode
- * @parent: parent of the nnode
- * @iip: index in parent of the nnode
+ * @path: where to put the nanalde
+ * @parent: parent of the nanalde
+ * @iip: index in parent of the nanalde
  *
- * This function returns a pointer to the nnode on success or a negative error
+ * This function returns a pointer to the nanalde on success or a negative error
  * code on failure.
  */
-static struct ubifs_nnode *scan_get_nnode(struct ubifs_info *c,
-					  struct lpt_scan_node *path,
-					  struct ubifs_nnode *parent, int iip)
+static struct ubifs_nanalde *scan_get_nanalde(struct ubifs_info *c,
+					  struct lpt_scan_analde *path,
+					  struct ubifs_nanalde *parent, int iip)
 {
 	struct ubifs_nbranch *branch;
-	struct ubifs_nnode *nnode;
-	void *buf = c->lpt_nod_buf;
+	struct ubifs_nanalde *nanalde;
+	void *buf = c->lpt_anald_buf;
 	int err;
 
 	branch = &parent->nbranch[iip];
-	nnode = branch->nnode;
-	if (nnode) {
+	nanalde = branch->nanalde;
+	if (nanalde) {
 		path->in_tree = 1;
-		path->ptr.nnode = nnode;
-		return nnode;
+		path->ptr.nanalde = nanalde;
+		return nanalde;
 	}
-	nnode = &path->nnode;
+	nanalde = &path->nanalde;
 	path->in_tree = 0;
-	path->ptr.nnode = nnode;
-	memset(nnode, 0, sizeof(struct ubifs_nnode));
+	path->ptr.nanalde = nanalde;
+	memset(nanalde, 0, sizeof(struct ubifs_nanalde));
 	if (branch->lnum == 0) {
 		/*
-		 * This nnode was not written which just means that the LEB
+		 * This nanalde was analt written which just means that the LEB
 		 * properties in the subtree below it describe empty LEBs. We
-		 * make the nnode as though we had read it, which in fact means
-		 * doing almost nothing.
+		 * make the nanalde as though we had read it, which in fact means
+		 * doing almost analthing.
 		 */
 		if (c->big_lpt)
-			nnode->num = calc_nnode_num_from_parent(c, parent, iip);
+			nanalde->num = calc_nanalde_num_from_parent(c, parent, iip);
 	} else {
 		err = ubifs_leb_read(c, branch->lnum, buf, branch->offs,
-				     c->nnode_sz, 1);
+				     c->nanalde_sz, 1);
 		if (err)
 			return ERR_PTR(err);
-		err = ubifs_unpack_nnode(c, buf, nnode);
+		err = ubifs_unpack_nanalde(c, buf, nanalde);
 		if (err)
 			return ERR_PTR(err);
 	}
-	err = validate_nnode(c, nnode, parent, iip);
+	err = validate_nanalde(c, nanalde, parent, iip);
 	if (err)
 		return ERR_PTR(err);
 	if (!c->big_lpt)
-		nnode->num = calc_nnode_num_from_parent(c, parent, iip);
-	nnode->level = parent->level - 1;
-	nnode->parent = parent;
-	nnode->iip = iip;
-	return nnode;
+		nanalde->num = calc_nanalde_num_from_parent(c, parent, iip);
+	nanalde->level = parent->level - 1;
+	nanalde->parent = parent;
+	nanalde->iip = iip;
+	return nanalde;
 }
 
 /**
- * scan_get_pnode - for the scan, get a pnode from either the tree or flash.
+ * scan_get_panalde - for the scan, get a panalde from either the tree or flash.
  * @c: the UBIFS file-system description object
- * @path: where to put the pnode
- * @parent: parent of the pnode
- * @iip: index in parent of the pnode
+ * @path: where to put the panalde
+ * @parent: parent of the panalde
+ * @iip: index in parent of the panalde
  *
- * This function returns a pointer to the pnode on success or a negative error
+ * This function returns a pointer to the panalde on success or a negative error
  * code on failure.
  */
-static struct ubifs_pnode *scan_get_pnode(struct ubifs_info *c,
-					  struct lpt_scan_node *path,
-					  struct ubifs_nnode *parent, int iip)
+static struct ubifs_panalde *scan_get_panalde(struct ubifs_info *c,
+					  struct lpt_scan_analde *path,
+					  struct ubifs_nanalde *parent, int iip)
 {
 	struct ubifs_nbranch *branch;
-	struct ubifs_pnode *pnode;
-	void *buf = c->lpt_nod_buf;
+	struct ubifs_panalde *panalde;
+	void *buf = c->lpt_anald_buf;
 	int err;
 
 	branch = &parent->nbranch[iip];
-	pnode = branch->pnode;
-	if (pnode) {
+	panalde = branch->panalde;
+	if (panalde) {
 		path->in_tree = 1;
-		path->ptr.pnode = pnode;
-		return pnode;
+		path->ptr.panalde = panalde;
+		return panalde;
 	}
-	pnode = &path->pnode;
+	panalde = &path->panalde;
 	path->in_tree = 0;
-	path->ptr.pnode = pnode;
-	memset(pnode, 0, sizeof(struct ubifs_pnode));
+	path->ptr.panalde = panalde;
+	memset(panalde, 0, sizeof(struct ubifs_panalde));
 	if (branch->lnum == 0) {
 		/*
-		 * This pnode was not written which just means that the LEB
-		 * properties in it describe empty LEBs. We make the pnode as
+		 * This panalde was analt written which just means that the LEB
+		 * properties in it describe empty LEBs. We make the panalde as
 		 * though we had read it.
 		 */
 		int i;
 
 		if (c->big_lpt)
-			pnode->num = calc_pnode_num_from_parent(c, parent, iip);
-		for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-			struct ubifs_lprops * const lprops = &pnode->lprops[i];
+			panalde->num = calc_panalde_num_from_parent(c, parent, iip);
+		for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+			struct ubifs_lprops * const lprops = &panalde->lprops[i];
 
 			lprops->free = c->leb_size;
 			lprops->flags = ubifs_categorize_lprops(c, lprops);
@@ -2047,26 +2047,26 @@ static struct ubifs_pnode *scan_get_pnode(struct ubifs_info *c,
 			     branch->lnum <= c->lpt_last);
 		ubifs_assert(c, branch->offs >= 0 && branch->offs < c->leb_size);
 		err = ubifs_leb_read(c, branch->lnum, buf, branch->offs,
-				     c->pnode_sz, 1);
+				     c->panalde_sz, 1);
 		if (err)
 			return ERR_PTR(err);
-		err = unpack_pnode(c, buf, pnode);
+		err = unpack_panalde(c, buf, panalde);
 		if (err)
 			return ERR_PTR(err);
 	}
-	err = validate_pnode(c, pnode, parent, iip);
+	err = validate_panalde(c, panalde, parent, iip);
 	if (err)
 		return ERR_PTR(err);
 	if (!c->big_lpt)
-		pnode->num = calc_pnode_num_from_parent(c, parent, iip);
-	pnode->parent = parent;
-	pnode->iip = iip;
-	set_pnode_lnum(c, pnode);
-	return pnode;
+		panalde->num = calc_panalde_num_from_parent(c, parent, iip);
+	panalde->parent = parent;
+	panalde->iip = iip;
+	set_panalde_lnum(c, panalde);
+	return panalde;
 }
 
 /**
- * ubifs_lpt_scan_nolock - scan the LPT.
+ * ubifs_lpt_scan_anallock - scan the LPT.
  * @c: the UBIFS file-system description object
  * @start_lnum: LEB number from which to start scanning
  * @end_lnum: LEB number at which to stop scanning
@@ -2075,13 +2075,13 @@ static struct ubifs_pnode *scan_get_pnode(struct ubifs_info *c,
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int ubifs_lpt_scan_nolock(struct ubifs_info *c, int start_lnum, int end_lnum,
+int ubifs_lpt_scan_anallock(struct ubifs_info *c, int start_lnum, int end_lnum,
 			  ubifs_lpt_scan_callback scan_cb, void *data)
 {
 	int err = 0, i, h, iip, shft;
-	struct ubifs_nnode *nnode;
-	struct ubifs_pnode *pnode;
-	struct lpt_scan_node *path;
+	struct ubifs_nanalde *nanalde;
+	struct ubifs_panalde *panalde;
+	struct lpt_scan_analde *path;
 
 	if (start_lnum == -1) {
 		start_lnum = end_lnum + 1;
@@ -2093,43 +2093,43 @@ int ubifs_lpt_scan_nolock(struct ubifs_info *c, int start_lnum, int end_lnum,
 	ubifs_assert(c, end_lnum >= c->main_first && end_lnum < c->leb_cnt);
 
 	if (!c->nroot) {
-		err = ubifs_read_nnode(c, NULL, 0);
+		err = ubifs_read_nanalde(c, NULL, 0);
 		if (err)
 			return err;
 	}
 
-	path = kmalloc_array(c->lpt_hght + 1, sizeof(struct lpt_scan_node),
-			     GFP_NOFS);
+	path = kmalloc_array(c->lpt_hght + 1, sizeof(struct lpt_scan_analde),
+			     GFP_ANALFS);
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	path[0].ptr.nnode = c->nroot;
+	path[0].ptr.nanalde = c->nroot;
 	path[0].in_tree = 1;
 again:
-	/* Descend to the pnode containing start_lnum */
-	nnode = c->nroot;
+	/* Descend to the panalde containing start_lnum */
+	nanalde = c->nroot;
 	i = start_lnum - c->main_first;
-	shft = c->lpt_hght * UBIFS_LPT_FANOUT_SHIFT;
+	shft = c->lpt_hght * UBIFS_LPT_FAANALUT_SHIFT;
 	for (h = 1; h < c->lpt_hght; h++) {
-		iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-		shft -= UBIFS_LPT_FANOUT_SHIFT;
-		nnode = scan_get_nnode(c, path + h, nnode, iip);
-		if (IS_ERR(nnode)) {
-			err = PTR_ERR(nnode);
+		iip = ((i >> shft) & (UBIFS_LPT_FAANALUT - 1));
+		shft -= UBIFS_LPT_FAANALUT_SHIFT;
+		nanalde = scan_get_nanalde(c, path + h, nanalde, iip);
+		if (IS_ERR(nanalde)) {
+			err = PTR_ERR(nanalde);
 			goto out;
 		}
 	}
-	iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-	pnode = scan_get_pnode(c, path + h, nnode, iip);
-	if (IS_ERR(pnode)) {
-		err = PTR_ERR(pnode);
+	iip = ((i >> shft) & (UBIFS_LPT_FAANALUT - 1));
+	panalde = scan_get_panalde(c, path + h, nanalde, iip);
+	if (IS_ERR(panalde)) {
+		err = PTR_ERR(panalde);
 		goto out;
 	}
-	iip = (i & (UBIFS_LPT_FANOUT - 1));
+	iip = (i & (UBIFS_LPT_FAANALUT - 1));
 
 	/* Loop for each lprops */
 	while (1) {
-		struct ubifs_lprops *lprops = &pnode->lprops[iip];
+		struct ubifs_lprops *lprops = &panalde->lprops[iip];
 		int ret, lnum = lprops->lnum;
 
 		ret = scan_cb(c, lprops, path[h].in_tree, data);
@@ -2138,43 +2138,43 @@ again:
 			goto out;
 		}
 		if (ret & LPT_SCAN_ADD) {
-			/* Add all the nodes in path to the tree in memory */
+			/* Add all the analdes in path to the tree in memory */
 			for (h = 1; h < c->lpt_hght; h++) {
-				const size_t sz = sizeof(struct ubifs_nnode);
-				struct ubifs_nnode *parent;
+				const size_t sz = sizeof(struct ubifs_nanalde);
+				struct ubifs_nanalde *parent;
 
 				if (path[h].in_tree)
 					continue;
-				nnode = kmemdup(&path[h].nnode, sz, GFP_NOFS);
-				if (!nnode) {
-					err = -ENOMEM;
+				nanalde = kmemdup(&path[h].nanalde, sz, GFP_ANALFS);
+				if (!nanalde) {
+					err = -EANALMEM;
 					goto out;
 				}
-				parent = nnode->parent;
-				parent->nbranch[nnode->iip].nnode = nnode;
-				path[h].ptr.nnode = nnode;
+				parent = nanalde->parent;
+				parent->nbranch[nanalde->iip].nanalde = nanalde;
+				path[h].ptr.nanalde = nanalde;
 				path[h].in_tree = 1;
-				path[h + 1].cnode.parent = nnode;
+				path[h + 1].canalde.parent = nanalde;
 			}
 			if (path[h].in_tree)
 				ubifs_ensure_cat(c, lprops);
 			else {
-				const size_t sz = sizeof(struct ubifs_pnode);
-				struct ubifs_nnode *parent;
+				const size_t sz = sizeof(struct ubifs_panalde);
+				struct ubifs_nanalde *parent;
 
-				pnode = kmemdup(&path[h].pnode, sz, GFP_NOFS);
-				if (!pnode) {
-					err = -ENOMEM;
+				panalde = kmemdup(&path[h].panalde, sz, GFP_ANALFS);
+				if (!panalde) {
+					err = -EANALMEM;
 					goto out;
 				}
-				parent = pnode->parent;
-				parent->nbranch[pnode->iip].pnode = pnode;
-				path[h].ptr.pnode = pnode;
+				parent = panalde->parent;
+				parent->nbranch[panalde->iip].panalde = panalde;
+				path[h].ptr.panalde = panalde;
 				path[h].in_tree = 1;
-				update_cats(c, pnode);
-				c->pnodes_have += 1;
+				update_cats(c, panalde);
+				c->panaldes_have += 1;
 			}
-			err = dbg_check_lpt_nodes(c, (struct ubifs_cnode *)
+			err = dbg_check_lpt_analdes(c, (struct ubifs_canalde *)
 						  c->nroot, 0, 0);
 			if (err)
 				goto out;
@@ -2192,7 +2192,7 @@ again:
 			 * We got to the end without finding what we were
 			 * looking for
 			 */
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto out;
 		}
 		if (lnum + 1 >= c->leb_cnt) {
@@ -2200,36 +2200,36 @@ again:
 			start_lnum = c->main_first;
 			goto again;
 		}
-		if (iip + 1 < UBIFS_LPT_FANOUT) {
-			/* Next lprops is in the same pnode */
+		if (iip + 1 < UBIFS_LPT_FAANALUT) {
+			/* Next lprops is in the same panalde */
 			iip += 1;
 			continue;
 		}
-		/* We need to get the next pnode. Go up until we can go right */
-		iip = pnode->iip;
+		/* We need to get the next panalde. Go up until we can go right */
+		iip = panalde->iip;
 		while (1) {
 			h -= 1;
 			ubifs_assert(c, h >= 0);
-			nnode = path[h].ptr.nnode;
-			if (iip + 1 < UBIFS_LPT_FANOUT)
+			nanalde = path[h].ptr.nanalde;
+			if (iip + 1 < UBIFS_LPT_FAANALUT)
 				break;
-			iip = nnode->iip;
+			iip = nanalde->iip;
 		}
 		/* Go right */
 		iip += 1;
-		/* Descend to the pnode */
+		/* Descend to the panalde */
 		h += 1;
 		for (; h < c->lpt_hght; h++) {
-			nnode = scan_get_nnode(c, path + h, nnode, iip);
-			if (IS_ERR(nnode)) {
-				err = PTR_ERR(nnode);
+			nanalde = scan_get_nanalde(c, path + h, nanalde, iip);
+			if (IS_ERR(nanalde)) {
+				err = PTR_ERR(nanalde);
 				goto out;
 			}
 			iip = 0;
 		}
-		pnode = scan_get_pnode(c, path + h, nnode, iip);
-		if (IS_ERR(pnode)) {
-			err = PTR_ERR(pnode);
+		panalde = scan_get_panalde(c, path + h, nanalde, iip);
+		if (IS_ERR(panalde)) {
+			err = PTR_ERR(panalde);
 			goto out;
 		}
 		iip = 0;
@@ -2240,26 +2240,26 @@ out:
 }
 
 /**
- * dbg_chk_pnode - check a pnode.
+ * dbg_chk_panalde - check a panalde.
  * @c: the UBIFS file-system description object
- * @pnode: pnode to check
- * @col: pnode column
+ * @panalde: panalde to check
+ * @col: panalde column
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int dbg_chk_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
+static int dbg_chk_panalde(struct ubifs_info *c, struct ubifs_panalde *panalde,
 			 int col)
 {
 	int i;
 
-	if (pnode->num != col) {
-		ubifs_err(c, "pnode num %d expected %d parent num %d iip %d",
-			  pnode->num, col, pnode->parent->num, pnode->iip);
+	if (panalde->num != col) {
+		ubifs_err(c, "panalde num %d expected %d parent num %d iip %d",
+			  panalde->num, col, panalde->parent->num, panalde->iip);
 		return -EINVAL;
 	}
-	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		struct ubifs_lprops *lp, *lprops = &pnode->lprops[i];
-		int lnum = (pnode->num << UBIFS_LPT_FANOUT_SHIFT) + i +
+	for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+		struct ubifs_lprops *lp, *lprops = &panalde->lprops[i];
+		int lnum = (panalde->num << UBIFS_LPT_FAANALUT_SHIFT) + i +
 			   c->main_first;
 		int found, cat = lprops->flags & LPROPS_CAT_MASK;
 		struct ubifs_lpt_heap *heap;
@@ -2274,7 +2274,7 @@ static int dbg_chk_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 		}
 		if (lprops->flags & LPROPS_TAKEN) {
 			if (cat != LPROPS_UNCAT) {
-				ubifs_err(c, "LEB %d taken but not uncat %d",
+				ubifs_err(c, "LEB %d taken but analt uncat %d",
 					  lprops->lnum, cat);
 				return -EINVAL;
 			}
@@ -2300,7 +2300,7 @@ static int dbg_chk_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 			case LPROPS_FREEABLE:
 				break;
 			default:
-				ubifs_err(c, "LEB %d not index but cat %d",
+				ubifs_err(c, "LEB %d analt index but cat %d",
 					  lprops->lnum, cat);
 				return -EINVAL;
 			}
@@ -2341,7 +2341,7 @@ static int dbg_chk_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 			break;
 		}
 		if (!found) {
-			ubifs_err(c, "LEB %d cat %d not found in cat heap/list",
+			ubifs_err(c, "LEB %d cat %d analt found in cat heap/list",
 				  lprops->lnum, cat);
 			return -EINVAL;
 		}
@@ -2369,67 +2369,67 @@ static int dbg_chk_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 }
 
 /**
- * dbg_check_lpt_nodes - check nnodes and pnodes.
+ * dbg_check_lpt_analdes - check nanaldes and panaldes.
  * @c: the UBIFS file-system description object
- * @cnode: next cnode (nnode or pnode) to check
- * @row: row of cnode (root is zero)
- * @col: column of cnode (leftmost is zero)
+ * @canalde: next canalde (nanalde or panalde) to check
+ * @row: row of canalde (root is zero)
+ * @col: column of canalde (leftmost is zero)
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int dbg_check_lpt_nodes(struct ubifs_info *c, struct ubifs_cnode *cnode,
+int dbg_check_lpt_analdes(struct ubifs_info *c, struct ubifs_canalde *canalde,
 			int row, int col)
 {
-	struct ubifs_nnode *nnode, *nn;
-	struct ubifs_cnode *cn;
+	struct ubifs_nanalde *nanalde, *nn;
+	struct ubifs_canalde *cn;
 	int num, iip = 0, err;
 
 	if (!dbg_is_chk_lprops(c))
 		return 0;
 
-	while (cnode) {
+	while (canalde) {
 		ubifs_assert(c, row >= 0);
-		nnode = cnode->parent;
-		if (cnode->level) {
-			/* cnode is a nnode */
-			num = calc_nnode_num(row, col);
-			if (cnode->num != num) {
-				ubifs_err(c, "nnode num %d expected %d parent num %d iip %d",
-					  cnode->num, num,
-					  (nnode ? nnode->num : 0), cnode->iip);
+		nanalde = canalde->parent;
+		if (canalde->level) {
+			/* canalde is a nanalde */
+			num = calc_nanalde_num(row, col);
+			if (canalde->num != num) {
+				ubifs_err(c, "nanalde num %d expected %d parent num %d iip %d",
+					  canalde->num, num,
+					  (nanalde ? nanalde->num : 0), canalde->iip);
 				return -EINVAL;
 			}
-			nn = (struct ubifs_nnode *)cnode;
-			while (iip < UBIFS_LPT_FANOUT) {
-				cn = nn->nbranch[iip].cnode;
+			nn = (struct ubifs_nanalde *)canalde;
+			while (iip < UBIFS_LPT_FAANALUT) {
+				cn = nn->nbranch[iip].canalde;
 				if (cn) {
 					/* Go down */
 					row += 1;
-					col <<= UBIFS_LPT_FANOUT_SHIFT;
+					col <<= UBIFS_LPT_FAANALUT_SHIFT;
 					col += iip;
 					iip = 0;
-					cnode = cn;
+					canalde = cn;
 					break;
 				}
 				/* Go right */
 				iip += 1;
 			}
-			if (iip < UBIFS_LPT_FANOUT)
+			if (iip < UBIFS_LPT_FAANALUT)
 				continue;
 		} else {
-			struct ubifs_pnode *pnode;
+			struct ubifs_panalde *panalde;
 
-			/* cnode is a pnode */
-			pnode = (struct ubifs_pnode *)cnode;
-			err = dbg_chk_pnode(c, pnode, col);
+			/* canalde is a panalde */
+			panalde = (struct ubifs_panalde *)canalde;
+			err = dbg_chk_panalde(c, panalde, col);
 			if (err)
 				return err;
 		}
 		/* Go up and to the right */
 		row -= 1;
-		col >>= UBIFS_LPT_FANOUT_SHIFT;
-		iip = cnode->iip + 1;
-		cnode = (struct ubifs_cnode *)nnode;
+		col >>= UBIFS_LPT_FAANALUT_SHIFT;
+		iip = canalde->iip + 1;
+		canalde = (struct ubifs_canalde *)nanalde;
 	}
 	return 0;
 }

@@ -82,7 +82,7 @@ struct dpu_kms {
 	struct dpu_core_perf perf;
 
 	/*
-	 * Global private object state, Do not access directly, use
+	 * Global private object state, Do analt access directly, use
 	 * dpu_kms_global_get_state()
 	 */
 	struct drm_modeset_lock global_state_lock;
@@ -101,7 +101,7 @@ struct dpu_kms {
 	struct clk_bulk_data *clocks;
 	size_t num_clocks;
 
-	/* reference count bandwidth requests, so we know when we can
+	/* reference count bandwidth requests, so we kanalw when we can
 	 * release bandwidth.  Each atomic update increments, and frame-
 	 * done event decrements.  Additionally, for video mode, the
 	 * reference is incremented when crtc is enabled, and decremented
@@ -159,7 +159,7 @@ struct dpu_global_state
  *
  * This function is almost identical to the standard debugfs_create_regset32()
  * function, with the main difference being that a list of register
- * names/offsets do not need to be provided. The 'read' function simply outputs
+ * names/offsets do analt need to be provided. The 'read' function simply outputs
  * sequential register values over a specified range.
  *
  * @name:   File name within debugfs

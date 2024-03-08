@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/manager.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -203,7 +203,7 @@ static int dss_mgr_check_lcd_config(struct omap_overlay_manager *mgr,
 
 	/*
 	 * io pad mode can be only checked by using dssdev connected to the
-	 * manager. Ignore checking these for now, add checks when manager
+	 * manager. Iganalre checking these for analw, add checks when manager
 	 * is capable of holding information related to the connected interface
 	 */
 

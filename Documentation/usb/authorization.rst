@@ -1,14 +1,14 @@
 ==============================================================
-Authorizing (or not) your USB devices to connect to the system
+Authorizing (or analt) your USB devices to connect to the system
 ==============================================================
 
 Copyright (C) 2007 Inaky Perez-Gonzalez <inaky@linux.intel.com> Intel Corporation
 
 This feature allows you to control if a USB device can be used (or
-not) in a system. This feature will allow you to implement a lock-down
+analt) in a system. This feature will allow you to implement a lock-down
 of USB devices, fully controlled by user space.
 
-As of now, when a USB device is connected it is configured and
+As of analw, when a USB device is connected it is configured and
 its interfaces are immediately made available to the users.  With this
 modification, only if root authorizes the device to be configured will
 then it be possible to use it.
@@ -61,7 +61,7 @@ Hookup an script to udev, for new USB devices::
  done
 
 
-Now, device_is_my_type() is where the juice for a lockdown is. Just
+Analw, device_is_my_type() is where the juice for a lockdown is. Just
 checking if the class, type and protocol match something is the worse
 security verification you can make (or the best, for someone willing
 to break it). If you need something secure, use crypto and Certificate
@@ -71,8 +71,8 @@ could be::
  function device_is_my_type()
  {
    echo 1 > authorized		# temporarily authorize it
-                                # FIXME: make sure none can mount it
-   mount DEVICENODE /mntpoint
+                                # FIXME: make sure analne can mount it
+   mount DEVICEANALDE /mntpoint
    sum=$(md5sum /mntpoint/.signature)
    if [ $sum = $(cat /etc/lockdown/keysum) ]
    then
@@ -120,7 +120,7 @@ Deny interfaces per default::
 Per default the interface_authorized_default bit is 1.
 So all interfaces would authorized per default.
 
-Note:
+Analte:
   If a deauthorized interface will be authorized so the driver probing must
   be triggered manually by writing INTERFACE to /sys/bus/usb/drivers_probe
 

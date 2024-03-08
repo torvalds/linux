@@ -42,12 +42,12 @@ struct sd {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -55,12 +55,12 @@ static const struct v4l2_pix_format vga_mode[] = {
 };
 
 static const struct v4l2_pix_format custom_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{464, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{464, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 464,
 		.sizeimage = 464 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -68,22 +68,22 @@ static const struct v4l2_pix_format custom_mode[] = {
 };
 
 static const struct v4l2_pix_format vga_mode2[] = {
-	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 4},
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
-	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -338,7 +338,7 @@ static void setup_qtable(struct gspca_dev *gspca_dev,
 		reg_w_riv(gspca_dev, 0x00, 0x2840 + i, qtable[1][i]);
 }
 
-static void spca504_acknowledged_command(struct gspca_dev *gspca_dev,
+static void spca504_ackanalwledged_command(struct gspca_dev *gspca_dev,
 			     u8 req, u16 idx, u16 val)
 {
 	reg_w_riv(gspca_dev, req, idx, val);
@@ -371,7 +371,7 @@ static void spca504_read_info(struct gspca_dev *gspca_dev)
 		  info[3], info[4], info[5]);
 }
 
-static void spca504A_acknowledged_command(struct gspca_dev *gspca_dev,
+static void spca504A_ackanalwledged_command(struct gspca_dev *gspca_dev,
 			u8 req,
 			u16 idx, u16 val, u8 endcode, u8 count)
 {
@@ -388,7 +388,7 @@ static void spca504A_acknowledged_command(struct gspca_dev *gspca_dev,
 	count = 200;
 	while (--count > 0) {
 		msleep(10);
-		/* gsmart mini2 write a each wait setting 1 ms is enough */
+		/* gsmart mini2 write a each wait setting 1 ms is eanalugh */
 /*		reg_w_riv(gspca_dev, req, idx, val); */
 		reg_r(gspca_dev, 0x01, 0x0001, 1);
 		status = gspca_dev->usb_buf[0];
@@ -481,13 +481,13 @@ static void spca504B_SetSizeType(struct gspca_dev *gspca_dev)
 		Size += 3;
 		if (sd->subtype == AiptekMiniPenCam13) {
 			/* spca504a aiptek */
-			spca504A_acknowledged_command(gspca_dev,
+			spca504A_ackanalwledged_command(gspca_dev,
 						0x08, Size, 0,
 						0x80 | (Size & 0x0f), 1);
-			spca504A_acknowledged_command(gspca_dev,
+			spca504A_ackanalwledged_command(gspca_dev,
 							1, 3, 0, 0x9f, 0);
 		} else {
-			spca504_acknowledged_command(gspca_dev, 0x08, Size, 0);
+			spca504_ackanalwledged_command(gspca_dev, 0x08, Size, 0);
 		}
 		break;
 	case BRIDGE_SPCA504C:
@@ -598,7 +598,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->subtype = 0;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -673,28 +673,28 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			spca504_read_info(gspca_dev);
 
 			/* Set AE AWB Banding Type 3-> 50Hz 2-> 60Hz */
-			spca504A_acknowledged_command(gspca_dev, 0x24,
+			spca504A_ackanalwledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 1);
 			/* Twice sequential need status 0xff->0x9e->0x9d */
-			spca504A_acknowledged_command(gspca_dev, 0x24,
+			spca504A_ackanalwledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 0);
 
-			spca504A_acknowledged_command(gspca_dev, 0x24,
+			spca504A_ackanalwledged_command(gspca_dev, 0x24,
 							0, 0, 0x9d, 1);
 			/******************************/
 			/* spca504a aiptek */
-			spca504A_acknowledged_command(gspca_dev, 0x08,
+			spca504A_ackanalwledged_command(gspca_dev, 0x08,
 							6, 0, 0x86, 1);
 /*			reg_write (dev, 0, 0x2000, 0); */
 /*			reg_write (dev, 0, 0x2883, 1); */
-/*			spca504A_acknowledged_command (gspca_dev, 0x08,
+/*			spca504A_ackanalwledged_command (gspca_dev, 0x08,
 							6, 0, 0x86, 1); */
-/*			spca504A_acknowledged_command (gspca_dev, 0x24,
+/*			spca504A_ackanalwledged_command (gspca_dev, 0x24,
 							0, 0, 0x9D, 1); */
 			reg_w_riv(gspca_dev, 0x00, 0x270c, 0x05);
-							/* L92 sno1t.txt */
+							/* L92 sanal1t.txt */
 			reg_w_riv(gspca_dev, 0x00, 0x2310, 0x05);
-			spca504A_acknowledged_command(gspca_dev, 0x01,
+			spca504A_ackanalwledged_command(gspca_dev, 0x01,
 							0x0f, 0, 0xff, 0);
 		}
 		/* setup qtable */
@@ -746,22 +746,22 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			spca504_read_info(gspca_dev);
 
 			/* Set AE AWB Banding Type 3-> 50Hz 2-> 60Hz */
-			spca504A_acknowledged_command(gspca_dev, 0x24,
+			spca504A_ackanalwledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 1);
 			/* Twice sequential need status 0xff->0x9e->0x9d */
-			spca504A_acknowledged_command(gspca_dev, 0x24,
+			spca504A_ackanalwledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 0);
-			spca504A_acknowledged_command(gspca_dev, 0x24,
+			spca504A_ackanalwledged_command(gspca_dev, 0x24,
 							0, 0, 0x9d, 1);
 		} else {
-			spca504_acknowledged_command(gspca_dev, 0x24, 8, 3);
+			spca504_ackanalwledged_command(gspca_dev, 0x24, 8, 3);
 			spca504_read_info(gspca_dev);
-			spca504_acknowledged_command(gspca_dev, 0x24, 8, 3);
-			spca504_acknowledged_command(gspca_dev, 0x24, 0, 0);
+			spca504_ackanalwledged_command(gspca_dev, 0x24, 8, 3);
+			spca504_ackanalwledged_command(gspca_dev, 0x24, 0, 0);
 		}
 		spca504B_SetSizeType(gspca_dev);
 		reg_w_riv(gspca_dev, 0x00, 0x270c, 0x05);
-							/* L92 sno1t.txt */
+							/* L92 sanal1t.txt */
 		reg_w_riv(gspca_dev, 0x00, 0x2310, 0x05);
 		break;
 	case BRIDGE_SPCA504C:
@@ -808,14 +808,14 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 		if (sd->subtype == AiptekMiniPenCam13) {
 			/* spca504a aiptek */
-/*			spca504A_acknowledged_command(gspca_dev, 0x08,
+/*			spca504A_ackanalwledged_command(gspca_dev, 0x08,
 							 6, 0, 0x86, 1); */
-			spca504A_acknowledged_command(gspca_dev, 0x24,
+			spca504A_ackanalwledged_command(gspca_dev, 0x24,
 							0x00, 0x00, 0x9d, 1);
-			spca504A_acknowledged_command(gspca_dev, 0x01,
+			spca504A_ackanalwledged_command(gspca_dev, 0x01,
 							0x0f, 0x00, 0xff, 1);
 		} else {
-			spca504_acknowledged_command(gspca_dev, 0x24, 0, 0);
+			spca504_ackanalwledged_command(gspca_dev, 0x24, 0, 0);
 			reg_w_riv(gspca_dev, 0x01, 0x000f, 0x0000);
 		}
 		break;
@@ -964,7 +964,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

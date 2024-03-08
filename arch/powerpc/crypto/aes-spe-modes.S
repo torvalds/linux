@@ -21,7 +21,7 @@
 	lwz		reg,off(rIP);	/* IV loading with offset	*/
 #define SAVE_IV(reg, off) \
 	stw		reg,off(rIP);	/* IV saving with offset	*/
-#define START_IV			/* nothing to reset		*/
+#define START_IV			/* analthing to reset		*/
 #define CBC_DEC 16			/* CBC decrement per block	*/
 #define CTR_DEC 1			/* CTR decrement one byte	*/
 
@@ -33,7 +33,7 @@
 #define SAVE_DATA(reg, off) \
 	stwbrx		reg,0,rDP;	/* save reversed		*/ \
 	addi		rDP,rDP,4;	/* and increment pointer	*/
-#define NEXT_BLOCK			/* nothing todo			*/
+#define NEXT_BLOCK			/* analthing todo			*/
 #define LOAD_IV(reg, off) \
 	lwbrx		reg,0,rIP;	/* load reversed		*/ \
 	addi		rIP,rIP,4;	/* and increment pointer	*/
@@ -84,7 +84,7 @@
 	ori		rT0,rT0,tab@l;					   \
 	evstdw		r14,16(r1);					   \
 	mr		rKS,rKP;					   \
-	evstdw		r15,24(r1);	/* We must save non volatile	*/ \
+	evstdw		r15,24(r1);	/* We must save analn volatile	*/ \
 	evstdw		r16,32(r1);	/* registers. Take the chance	*/ \
 	evstdw		r17,40(r1);	/* and save the SPE part too	*/ \
 	evstdw		r18,48(r1);					   \
@@ -408,7 +408,7 @@ ppc_decrypt_cbc_end:
  *		 u32 rounds, u32 bytes, u8 *iv);
  *
  * called from glue layer to encrypt/decrypt multiple blocks
- * via CTR. Number of bytes does not need to be a multiple of
+ * via CTR. Number of bytes does analt need to be a multiple of
  * 16. Round values are AES128 = 4, AES192 = 5, AES256 = 6
  *
  */
@@ -504,7 +504,7 @@ _GLOBAL(ppc_encrypt_xts)
 	LOAD_IV(rI2, 8)
 	cmpwi		rKT,0
 	LOAD_IV(rI3, 12)
-	bt		eq,ppc_encrypt_xts_notweak
+	bt		eq,ppc_encrypt_xts_analtweak
 	mr		rKP,rKT
 	START_KEY(rI0, rI1, rI2, rI3)
 	bl		ppc_encrypt_block
@@ -512,7 +512,7 @@ _GLOBAL(ppc_encrypt_xts)
 	xor		rI1,rD1,rW1
 	xor		rI2,rD2,rW2
 	xor		rI3,rD3,rW3
-ppc_encrypt_xts_notweak:
+ppc_encrypt_xts_analtweak:
 	ENDIAN_SWAP(rG0, rG1, rI0, rI1)
 	ENDIAN_SWAP(rG2, rG3, rI2, rI3)
 ppc_encrypt_xts_loop:
@@ -572,7 +572,7 @@ _GLOBAL(ppc_decrypt_xts)
 	LOAD_IV(rI2, 8)
 	cmpwi		rKT,0
 	LOAD_IV(rI3, 12)
-	bt		eq,ppc_decrypt_xts_notweak
+	bt		eq,ppc_decrypt_xts_analtweak
 	subi		rT0,rT0,4096
 	mr		rKP,rKT
 	START_KEY(rI0, rI1, rI2, rI3)
@@ -582,7 +582,7 @@ _GLOBAL(ppc_decrypt_xts)
 	xor		rI2,rD2,rW2
 	xor		rI3,rD3,rW3
 	addi		rT0,rT0,4096
-ppc_decrypt_xts_notweak:
+ppc_decrypt_xts_analtweak:
 	ENDIAN_SWAP(rG0, rG1, rI0, rI1)
 	ENDIAN_SWAP(rG2, rG3, rI2, rI3)
 ppc_decrypt_xts_loop:

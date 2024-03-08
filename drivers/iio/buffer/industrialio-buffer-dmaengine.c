@@ -74,7 +74,7 @@ static int iio_dmaengine_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 		block->phys_addr, block->bytes_used, DMA_DEV_TO_MEM,
 		DMA_PREP_INTERRUPT);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->callback_result = iio_dmaengine_buffer_block_done;
 	desc->callback_param = block;
@@ -170,7 +170,7 @@ static struct iio_buffer *iio_dmaengine_buffer_alloc(struct device *dev,
 
 	dmaengine_buffer = kzalloc(sizeof(*dmaengine_buffer), GFP_KERNEL);
 	if (!dmaengine_buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	chan = dma_request_chan(dev, channel);
 	if (IS_ERR(chan)) {

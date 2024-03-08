@@ -76,7 +76,7 @@ acpi_processor_eval_pdc(acpi_handle handle, struct acpi_object_list *pdc_in)
 
 	if (ACPI_FAILURE(status))
 		acpi_handle_debug(handle,
-		    "Could not evaluate _PDC, using legacy perf control\n");
+		    "Could analt evaluate _PDC, using legacy perf control\n");
 
 	return status;
 }

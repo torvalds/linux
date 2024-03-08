@@ -26,7 +26,7 @@ properties:
     maxItems: 1
 
   '#iommu-cells':
-    description: Required when the node corresponds to a virtio-iommu device.
+    description: Required when the analde corresponds to a virtio-iommu device.
     const: 1
 
   iommus:

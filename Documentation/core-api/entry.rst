@@ -15,7 +15,7 @@ The update order depends on the transition type and is explained below in
 the transition type sections: `Syscalls`_, `KVM`_, `Interrupts and regular
 exceptions`_, `NMI and NMI-like exceptions`_.
 
-Non-instrumentable code - noinstr
+Analn-instrumentable code - analinstr
 ---------------------------------
 
 Most instrumentation facilities depend on RCU, so intrumentation is prohibited
@@ -24,17 +24,17 @@ watching. In addition, many architectures must save and restore register state,
 which means that (for example) a breakpoint in the breakpoint entry code would
 overwrite the debug registers of the initial breakpoint.
 
-Such code must be marked with the 'noinstr' attribute, placing that code into a
+Such code must be marked with the 'analinstr' attribute, placing that code into a
 special section inaccessible to instrumentation and debug facilities. Some
 functions are partially instrumentable, which is handled by marking them
-noinstr and using instrumentation_begin() and instrumentation_end() to flag the
+analinstr and using instrumentation_begin() and instrumentation_end() to flag the
 instrumentable ranges of code:
 
 .. code-block:: c
 
-  noinstr void entry(void)
+  analinstr void entry(void)
   {
-  	handle_entry();     // <-- must be 'noinstr' or '__always_inline'
+  	handle_entry();     // <-- must be 'analinstr' or '__always_inline'
 	...
 
 	instrumentation_begin();
@@ -42,17 +42,17 @@ instrumentable ranges of code:
 	instrumentation_end();
 
 	...
-	handle_exit();      // <-- must be 'noinstr' or '__always_inline'
+	handle_exit();      // <-- must be 'analinstr' or '__always_inline'
   }
 
-This allows verification of the 'noinstr' restrictions via objtool on
+This allows verification of the 'analinstr' restrictions via objtool on
 supported architectures.
 
-Invoking non-instrumentable functions from instrumentable context has no
+Invoking analn-instrumentable functions from instrumentable context has anal
 restrictions and is useful to protect e.g. state switching which would
 cause malfunction if instrumented.
 
-All non-instrumentable entry/exit code sections before and after the RCU
+All analn-instrumentable entry/exit code sections before and after the RCU
 state transitions must run with interrupts disabled.
 
 Syscalls
@@ -60,12 +60,12 @@ Syscalls
 
 Syscall-entry code starts in assembly code and calls out into low-level C code
 after establishing low-level architecture-specific state and stack frames. This
-low-level C code must not be instrumented. A typical syscall handling function
+low-level C code must analt be instrumented. A typical syscall handling function
 invoked from low-level assembly code looks like this:
 
 .. code-block:: c
 
-  noinstr void syscall(struct pt_regs *regs, int nr)
+  analinstr void syscall(struct pt_regs *regs, int nr)
   {
 	arch_syscall_enter(regs);
 	nr = syscall_enter_from_user_mode(regs, nr);
@@ -105,7 +105,7 @@ has to do extra work between the various steps. In such cases it has to
 ensure that enter_from_user_mode() is called first on entry and
 exit_to_user_mode() is called last on exit.
 
-Do not nest syscalls. Nested systcalls will cause RCU and/or context tracking
+Do analt nest syscalls. Nested systcalls will cause RCU and/or context tracking
 to print a warning.
 
 KVM
@@ -123,7 +123,7 @@ Task work handling is done separately for guest at the boundary of the
 vcpu_run() loop via xfer_to_guest_mode_handle_work() which is a subset of
 the work handled on return to user space.
 
-Do not nest KVM entry/exit transitions because doing so is nonsensical.
+Do analt nest KVM entry/exit transitions because doing so is analnsensical.
 
 Interrupts and regular exceptions
 ---------------------------------
@@ -145,7 +145,7 @@ The architecture-specific part looks similar to syscall handling:
 
 .. code-block:: c
 
-  noinstr void interrupt(struct pt_regs *regs, int nr)
+  analinstr void interrupt(struct pt_regs *regs, int nr)
   {
 	arch_interrupt_enter(regs);
 	state = irqentry_enter(regs);
@@ -161,25 +161,25 @@ The architecture-specific part looks similar to syscall handling:
 	irqentry_exit(regs, state);
   }
 
-Note that the invocation of the actual interrupt handler is within a
+Analte that the invocation of the actual interrupt handler is within a
 irq_enter_rcu() and irq_exit_rcu() pair.
 
 irq_enter_rcu() updates the preemption count which makes in_hardirq()
-return true, handles NOHZ tick state and interrupt time accounting. This
+return true, handles ANALHZ tick state and interrupt time accounting. This
 means that up to the point where irq_enter_rcu() is invoked in_hardirq()
 returns false.
 
 irq_exit_rcu() handles interrupt time accounting, undoes the preemption
-count update and eventually handles soft interrupts and NOHZ tick state.
+count update and eventually handles soft interrupts and ANALHZ tick state.
 
 In theory, the preemption count could be updated in irqentry_enter(). In
 practice, deferring this update to irq_enter_rcu() allows the preemption-count
 code to be traced, while also maintaining symmetry with irq_exit_rcu() and
 irqentry_exit(), which are described in the next paragraph. The only downside
 is that the early entry code up to irq_enter_rcu() must be aware that the
-preemption count has not yet been updated with the HARDIRQ_OFFSET state.
+preemption count has analt yet been updated with the HARDIRQ_OFFSET state.
 
-Note that irq_exit_rcu() must remove HARDIRQ_OFFSET from the preemption count
+Analte that irq_exit_rcu() must remove HARDIRQ_OFFSET from the preemption count
 before it handles soft interrupts, whose handlers must run in BH context rather
 than irq-disabled context. In addition, irqentry_exit() might schedule, which
 also requires that HARDIRQ_OFFSET has been removed from the preemption count.
@@ -187,7 +187,7 @@ also requires that HARDIRQ_OFFSET has been removed from the preemption count.
 Even though interrupt handlers are expected to run with local interrupts
 disabled, interrupt nesting is common from an entry/exit perspective. For
 example, softirq handling happens within an irqentry_{enter,exit}() block with
-local interrupts enabled. Also, although uncommon, nothing prevents an
+local interrupts enabled. Also, although uncommon, analthing prevents an
 interrupt handler from re-enabling interrupts.
 
 Interrupt entry/exit code doesn't strictly need to handle reentrancy, since it
@@ -220,17 +220,17 @@ state in the following order:
 The exit counterpart irqentry_nmi_exit() does the reverse operation in the
 reverse order.
 
-Note that the update of the preemption counter has to be the first
+Analte that the update of the preemption counter has to be the first
 operation on enter and the last operation on exit. The reason is that both
 lockdep and RCU rely on in_nmi() returning true in this case. The
-preemption count modification in the NMI entry/exit case must not be
+preemption count modification in the NMI entry/exit case must analt be
 traced.
 
 Architecture-specific code looks like this:
 
 .. code-block:: c
 
-  noinstr void nmi(struct pt_regs *regs)
+  analinstr void nmi(struct pt_regs *regs)
   {
 	arch_nmi_enter(regs);
 	state = irqentry_nmi_enter(regs);
@@ -246,7 +246,7 @@ and for e.g. a debug exception it can look like this:
 
 .. code-block:: c
 
-  noinstr void debug(struct pt_regs *regs)
+  analinstr void debug(struct pt_regs *regs)
   {
 	arch_nmi_enter(regs);
 
@@ -271,8 +271,8 @@ and for e.g. a debug exception it can look like this:
 	}
   }
 
-There is no combined irqentry_nmi_if_kernel() function available as the
-above cannot be handled in an exception-agnostic way.
+There is anal combined irqentry_nmi_if_kernel() function available as the
+above cananalt be handled in an exception-aganalstic way.
 
 NMIs can happen in any context. For example, an NMI-like exception triggered
 while handling an NMI. So NMI entry code has to be reentrant and state updates

@@ -24,7 +24,7 @@ static void test_split_simple() {
 	VALIDATE_RAW_BTF(
 		btf1,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=1",
+		"[2] PTR '(aanaln)' type_id=1",
 		"[3] STRUCT 's1' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0");
 
@@ -41,7 +41,7 @@ struct s1 {\n\
 	ASSERT_EQ(btf__pointer_size(btf2), 8, "inherit_ptr_sz");
 
 	str_off = btf__find_str(btf2, "int");
-	ASSERT_NEQ(str_off, -ENOENT, "str_int_missing");
+	ASSERT_NEQ(str_off, -EANALENT, "str_int_missing");
 
 	t = btf__type_by_id(btf2, 1);
 	if (!ASSERT_OK_PTR(t, "int_type"))
@@ -66,7 +66,7 @@ struct s1 {\n\
 	VALIDATE_RAW_BTF(
 		btf2,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=1",
+		"[2] PTR '(aanaln)' type_id=1",
 		"[3] STRUCT 's1' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0",
 		"[4] STRUCT 's2' size=16 vlen=3\n"
@@ -99,7 +99,7 @@ struct s2 {\n\
 	VALIDATE_RAW_BTF(
 		btf2,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=1",
+		"[2] PTR '(aanaln)' type_id=1",
 		"[3] STRUCT 's1' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0",
 		"[4] STRUCT 's2' size=16 vlen=3\n"
@@ -143,7 +143,7 @@ static void test_split_fwd_resolve() {
 	btf__add_struct(btf1, "s2", 4);			/* [5] struct s2 { */
 	btf__add_field(btf1, "f1", 1, 0, 0);		/*      int f1; */
 							/* } */
-	/* keep this not a part of type the graph to test btf_dedup_resolve_fwds */
+	/* keep this analt a part of type the graph to test btf_dedup_resolve_fwds */
 	btf__add_struct(btf1, "s3", 4);                 /* [6] struct s3 { */
 	btf__add_field(btf1, "f1", 1, 0, 0);		/*      int f1; */
 							/* } */
@@ -151,8 +151,8 @@ static void test_split_fwd_resolve() {
 	VALIDATE_RAW_BTF(
 		btf1,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=4",
-		"[3] PTR '(anon)' type_id=5",
+		"[2] PTR '(aanaln)' type_id=4",
+		"[3] PTR '(aanaln)' type_id=5",
 		"[4] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=2 bits_offset=0\n"
 		"\t'f2' type_id=3 bits_offset=64",
@@ -179,8 +179,8 @@ static void test_split_fwd_resolve() {
 	VALIDATE_RAW_BTF(
 		btf2,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=4",
-		"[3] PTR '(anon)' type_id=5",
+		"[2] PTR '(aanaln)' type_id=4",
+		"[3] PTR '(aanaln)' type_id=5",
 		"[4] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=2 bits_offset=0\n"
 		"\t'f2' type_id=3 bits_offset=64",
@@ -189,14 +189,14 @@ static void test_split_fwd_resolve() {
 		"[6] STRUCT 's3' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0",
 		"[7] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[8] PTR '(anon)' type_id=11",
+		"[8] PTR '(aanaln)' type_id=11",
 		"[9] FWD 's2' fwd_kind=struct",
-		"[10] PTR '(anon)' type_id=9",
+		"[10] PTR '(aanaln)' type_id=9",
 		"[11] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=8 bits_offset=0\n"
 		"\t'f2' type_id=10 bits_offset=64",
 		"[12] FWD 's3' fwd_kind=struct",
-		"[13] PTR '(anon)' type_id=12");
+		"[13] PTR '(aanaln)' type_id=12");
 
 	err = btf__dedup(btf2, NULL);
 	if (!ASSERT_OK(err, "btf_dedup"))
@@ -205,8 +205,8 @@ static void test_split_fwd_resolve() {
 	VALIDATE_RAW_BTF(
 		btf2,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=4",
-		"[3] PTR '(anon)' type_id=5",
+		"[2] PTR '(aanaln)' type_id=4",
+		"[3] PTR '(aanaln)' type_id=5",
 		"[4] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=2 bits_offset=0\n"
 		"\t'f2' type_id=3 bits_offset=64",
@@ -214,7 +214,7 @@ static void test_split_fwd_resolve() {
 		"\t'f1' type_id=1 bits_offset=0",
 		"[6] STRUCT 's3' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0",
-		"[7] PTR '(anon)' type_id=6");
+		"[7] PTR '(aanaln)' type_id=6");
 
 cleanup:
 	btf__free(btf2);
@@ -243,9 +243,9 @@ static void test_split_struct_duped() {
 	VALIDATE_RAW_BTF(
 		btf1,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=5",
+		"[2] PTR '(aanaln)' type_id=5",
 		"[3] FWD 's2' fwd_kind=struct",
-		"[4] PTR '(anon)' type_id=3",
+		"[4] PTR '(aanaln)' type_id=3",
 		"[5] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=2 bits_offset=0\n"
 		"\t'f2' type_id=4 bits_offset=64");
@@ -276,16 +276,16 @@ static void test_split_struct_duped() {
 	VALIDATE_RAW_BTF(
 		btf2,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=5",
+		"[2] PTR '(aanaln)' type_id=5",
 		"[3] FWD 's2' fwd_kind=struct",
-		"[4] PTR '(anon)' type_id=3",
+		"[4] PTR '(aanaln)' type_id=3",
 		"[5] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=2 bits_offset=0\n"
 		"\t'f2' type_id=4 bits_offset=64",
 		"[6] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[7] PTR '(anon)' type_id=10",
+		"[7] PTR '(aanaln)' type_id=10",
 		"[8] FWD 's2' fwd_kind=struct",
-		"[9] PTR '(anon)' type_id=11",
+		"[9] PTR '(aanaln)' type_id=11",
 		"[10] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=7 bits_offset=0\n"
 		"\t'f2' type_id=9 bits_offset=64",
@@ -294,7 +294,7 @@ static void test_split_struct_duped() {
 		"\t'f2' type_id=9 bits_offset=64\n"
 		"\t'f3' type_id=6 bits_offset=128\n"
 		"\t'f4' type_id=10 bits_offset=192",
-		"[12] PTR '(anon)' type_id=8",
+		"[12] PTR '(aanaln)' type_id=8",
 		"[13] STRUCT 's3' size=8 vlen=1\n"
 		"\t'f1' type_id=12 bits_offset=0");
 
@@ -305,14 +305,14 @@ static void test_split_struct_duped() {
 	VALIDATE_RAW_BTF(
 		btf2,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=5",
+		"[2] PTR '(aanaln)' type_id=5",
 		"[3] FWD 's2' fwd_kind=struct",
-		"[4] PTR '(anon)' type_id=3",
+		"[4] PTR '(aanaln)' type_id=3",
 		"[5] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=2 bits_offset=0\n"
 		"\t'f2' type_id=4 bits_offset=64",
-		"[6] PTR '(anon)' type_id=8",
-		"[7] PTR '(anon)' type_id=9",
+		"[6] PTR '(aanaln)' type_id=8",
+		"[7] PTR '(aanaln)' type_id=9",
 		"[8] STRUCT 's1' size=16 vlen=2\n"
 		"\t'f1' type_id=6 bits_offset=0\n"
 		"\t'f2' type_id=7 bits_offset=64",
@@ -337,16 +337,16 @@ static void btf_add_dup_struct_in_cu(struct btf *btf, int start_id)
 	btf__add_int(btf, "int", 4, BTF_INT_SIGNED);    /* [1] int */
 
 	btf__add_struct(btf, "s", 8);                   /* [2] struct s { */
-	btf__add_field(btf, "a", ID(3), 0, 0);          /*      struct anon a; */
-	btf__add_field(btf, "b", ID(4), 0, 0);          /*      struct anon b; */
+	btf__add_field(btf, "a", ID(3), 0, 0);          /*      struct aanaln a; */
+	btf__add_field(btf, "b", ID(4), 0, 0);          /*      struct aanaln b; */
 							/* } */
 
-	btf__add_struct(btf, "(anon)", 8);              /* [3] struct anon { */
+	btf__add_struct(btf, "(aanaln)", 8);              /* [3] struct aanaln { */
 	btf__add_field(btf, "f1", ID(1), 0, 0);         /*      int f1; */
 	btf__add_field(btf, "f2", ID(1), 32, 0);        /*      int f2; */
 							/* } */
 
-	btf__add_struct(btf, "(anon)", 8);              /* [4] struct anon { */
+	btf__add_struct(btf, "(aanaln)", 8);              /* [4] struct aanaln { */
 	btf__add_field(btf, "f1", ID(1), 0, 0);         /*      int f1; */
 	btf__add_field(btf, "f2", ID(1), 32, 0);        /*      int f2; */
 							/* } */
@@ -371,10 +371,10 @@ static void test_split_dup_struct_in_cu()
 			"[2] STRUCT 's' size=8 vlen=2\n"
 			"\t'a' type_id=3 bits_offset=0\n"
 			"\t'b' type_id=4 bits_offset=0",
-			"[3] STRUCT '(anon)' size=8 vlen=2\n"
+			"[3] STRUCT '(aanaln)' size=8 vlen=2\n"
 			"\t'f1' type_id=1 bits_offset=0\n"
 			"\t'f2' type_id=1 bits_offset=32",
-			"[4] STRUCT '(anon)' size=8 vlen=2\n"
+			"[4] STRUCT '(aanaln)' size=8 vlen=2\n"
 			"\t'f1' type_id=1 bits_offset=0\n"
 			"\t'f2' type_id=1 bits_offset=32");
 
@@ -389,7 +389,7 @@ static void test_split_dup_struct_in_cu()
 			"[2] STRUCT 's' size=8 vlen=2\n"
 			"\t'a' type_id=3 bits_offset=0\n"
 			"\t'b' type_id=3 bits_offset=0",
-			"[3] STRUCT '(anon)' size=8 vlen=2\n"
+			"[3] STRUCT '(aanaln)' size=8 vlen=2\n"
 			"\t'f1' type_id=1 bits_offset=0\n"
 			"\t'f2' type_id=1 bits_offset=32");
 
@@ -406,17 +406,17 @@ static void test_split_dup_struct_in_cu()
 			"[2] STRUCT 's' size=8 vlen=2\n"
 			"\t'a' type_id=3 bits_offset=0\n"
 			"\t'b' type_id=3 bits_offset=0",
-			"[3] STRUCT '(anon)' size=8 vlen=2\n"
+			"[3] STRUCT '(aanaln)' size=8 vlen=2\n"
 			"\t'f1' type_id=1 bits_offset=0\n"
 			"\t'f2' type_id=1 bits_offset=32",
 			"[4] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
 			"[5] STRUCT 's' size=8 vlen=2\n"
 			"\t'a' type_id=6 bits_offset=0\n"
 			"\t'b' type_id=7 bits_offset=0",
-			"[6] STRUCT '(anon)' size=8 vlen=2\n"
+			"[6] STRUCT '(aanaln)' size=8 vlen=2\n"
 			"\t'f1' type_id=4 bits_offset=0\n"
 			"\t'f2' type_id=4 bits_offset=32",
-			"[7] STRUCT '(anon)' size=8 vlen=2\n"
+			"[7] STRUCT '(aanaln)' size=8 vlen=2\n"
 			"\t'f1' type_id=4 bits_offset=0\n"
 			"\t'f2' type_id=4 bits_offset=32");
 
@@ -431,7 +431,7 @@ static void test_split_dup_struct_in_cu()
 			"[2] STRUCT 's' size=8 vlen=2\n"
 			"\t'a' type_id=3 bits_offset=0\n"
 			"\t'b' type_id=3 bits_offset=0",
-			"[3] STRUCT '(anon)' size=8 vlen=2\n"
+			"[3] STRUCT '(aanaln)' size=8 vlen=2\n"
 			"\t'f1' type_id=1 bits_offset=0\n"
 			"\t'f2' type_id=1 bits_offset=32");
 

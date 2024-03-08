@@ -9,7 +9,7 @@
 
 /*
  * For sending our feature buffer - controlling serial communication states.
- * Linux HID has no support for serial devices so we do this through the driver
+ * Linux HID has anal support for serial devices so we do this through the driver
  */
 #define HID_REQ_GET_REPORT	0x01
 #define HID_REQ_SET_REPORT	0x09
@@ -36,7 +36,7 @@
 #define VENDOR_ID_POWERCOM		0x0d9f
 #define PRODUCT_ID_UPS			0x0002
 
-/* Nokia CA-42 USB to serial cable */
+/* Analkia CA-42 USB to serial cable */
 #define VENDOR_ID_DAZZLE		0x07d0
 #define PRODUCT_ID_CA42			0x4101
 /* End of device listing */
@@ -63,7 +63,7 @@
  * RS-232 serial data communication protocol definitions.
  *
  * These are sent / read at byte 0 of the input/output hid reports.
- * You can find these values defined in the CY4601 USB to Serial design notes.
+ * You can find these values defined in the CY4601 USB to Serial design analtes.
  */
 
 #define CONTROL_DTR	0x20	/* data terminal ready */

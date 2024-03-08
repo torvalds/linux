@@ -35,7 +35,7 @@ static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 		requesttype = (USB_TYPE_VENDOR | USB_DIR_OUT);
 		break;
 	default:
-		dev_err(&d->udev->dev, "%s: unknown command=%02x\n",
+		dev_err(&d->udev->dev, "%s: unkanalwn command=%02x\n",
 				KBUILD_MODNAME, req->cmd);
 		ret = -EINVAL;
 		goto error;
@@ -43,7 +43,7 @@ static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 
 	buf = kmalloc(req->data_len, GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -90,7 +90,7 @@ static int ce6230_i2c_master_xfer(struct i2c_adapter *adap,
 	struct usb_req req;
 
 	if (num > 2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&req, 0, sizeof(req));
 
@@ -102,7 +102,7 @@ static int ce6230_i2c_master_xfer(struct i2c_adapter *adap,
 			if (msg[i].addr ==
 				ce6230_zl10353_config.demod_address) {
 				if (msg[i].len < 1) {
-					i = -EOPNOTSUPP;
+					i = -EOPANALTSUPP;
 					break;
 				}
 				req.cmd = DEMOD_READ;
@@ -112,17 +112,17 @@ static int ce6230_i2c_master_xfer(struct i2c_adapter *adap,
 				req.data = &msg[i+1].buf[0];
 				ret = ce6230_ctrl_msg(d, &req);
 			} else {
-				dev_err(&d->udev->dev, "%s: I2C read not " \
+				dev_err(&d->udev->dev, "%s: I2C read analt " \
 						"implemented\n",
 						KBUILD_MODNAME);
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 			}
 			i += 2;
 		} else {
 			if (msg[i].addr ==
 				ce6230_zl10353_config.demod_address) {
 				if (msg[i].len < 1) {
-					i = -EOPNOTSUPP;
+					i = -EOPANALTSUPP;
 					break;
 				}
 				req.cmd = DEMOD_WRITE;
@@ -164,7 +164,7 @@ static struct zl10353_config ce6230_zl10353_config = {
 	.demod_address = 0x1e,
 	.adc_clock = 450000,
 	.if2 = 45700,
-	.no_tuner = 1,
+	.anal_tuner = 1,
 	.parallel_ts = 1,
 	.clock_ctl_1 = 0x34,
 	.pll_0 = 0x0e,
@@ -179,7 +179,7 @@ static int ce6230_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 	adap->fe[0] = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
 			&d->i2c_adap);
 	if (adap->fe[0] == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -209,19 +209,19 @@ static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	ret = dvb_attach(mxl5005s_attach, adap->fe[0], &d->i2c_adap,
-			&ce6230_mxl5003s_config) == NULL ? -ENODEV : 0;
+			&ce6230_mxl5003s_config) == NULL ? -EANALDEV : 0;
 	return ret;
 }
 
-static int ce6230_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int ce6230_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
 	int ret;
 
-	dev_dbg(&d->udev->dev, "%s: onoff=%d\n", __func__, onoff);
+	dev_dbg(&d->udev->dev, "%s: oanalff=%d\n", __func__, oanalff);
 
 	/* InterfaceNumber 1 / AlternateSetting 0     idle
 	   InterfaceNumber 1 / AlternateSetting 1     streaming */
-	ret = usb_set_interface(d->udev, 1, onoff);
+	ret = usb_set_interface(d->udev, 1, oanalff);
 	if (ret)
 		dev_err(&d->udev->dev, "%s: usb_set_interface() failed=%d\n",
 				KBUILD_MODNAME, ret);
@@ -275,7 +275,7 @@ static struct usb_driver ce6230_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

@@ -11,7 +11,7 @@
  * Based on code:
  *
  * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden).
+ * (Royal Institute of Techanallogy, Stockholm, Sweden).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,22 +19,22 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -293,7 +293,7 @@ static void fcrypt_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 
 /*
  * Generate a key schedule from key, the least significant bit in each key byte
- * is parity and shall be ignored. This leaves 56 significant bits in the key
+ * is parity and shall be iganalred. This leaves 56 significant bits in the key
  * to scatter over the 16 key schedules. For each schedule extract the low
  * order 32 bits and use as schedule, then rotate right by 11 bits.
  */
@@ -305,7 +305,7 @@ static int fcrypt_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int key
 			  * kernels - it seems to be faster but the code is
 			  * larger */
 
-	u64 k;	/* k holds all 56 non-parity bits */
+	u64 k;	/* k holds all 56 analn-parity bits */
 
 	/* discard the parity bits */
 	k = (*key++) >> 1;

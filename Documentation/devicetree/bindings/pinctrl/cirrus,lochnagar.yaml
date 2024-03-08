@@ -57,12 +57,12 @@ properties:
       '-pins$':
         description:
           The pin configurations are defined as a child of the pinctrl
-          states node, see [2]. Each sub-node can have the following
+          states analde, see [2]. Each sub-analde can have the following
           properties.
         type: object
         allOf:
-          - $ref: pincfg-node.yaml#
-          - $ref: pinmux-node.yaml#
+          - $ref: pincfg-analde.yaml#
+          - $ref: pinmux-analde.yaml#
 
         properties:
           groups:

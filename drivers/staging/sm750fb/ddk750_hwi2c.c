@@ -92,7 +92,7 @@ static unsigned int hw_i2c_write_data(unsigned char addr,
 
 	/*
 	 * Write data.
-	 * Note:
+	 * Analte:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
 	do {
@@ -157,7 +157,7 @@ static unsigned int hw_i2c_read_data(unsigned char addr,
 
 	/*
 	 * Read data and save them to the buffer.
-	 * Note:
+	 * Analte:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
 	do {

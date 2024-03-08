@@ -108,7 +108,7 @@ static int rmnet_vnd_init(struct net_device *dev)
 
 	priv->pcpu_stats = alloc_percpu(struct rmnet_pcpu_stats);
 	if (!priv->pcpu_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = gro_cells_init(&priv->gro_cells, dev);
 	if (err) {
@@ -172,7 +172,7 @@ static const struct net_device_ops rmnet_vnd_ops = {
 static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"Checksum ok",
 	"Bad IPv4 header checksum",
-	"Checksum valid bit not set",
+	"Checksum valid bit analt set",
 	"Checksum validation failed",
 	"Checksum error bad buffer",
 	"Checksum error bad ip version",
@@ -199,7 +199,7 @@ static int rmnet_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(rmnet_gstrings_stats);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -278,7 +278,7 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 	rmnet_dev->tx_queue_len = RMNET_TX_QUEUE_LEN;
 
 	/* Raw IP mode */
-	rmnet_dev->header_ops = NULL;  /* No header */
+	rmnet_dev->header_ops = NULL;  /* Anal header */
 	rmnet_dev->type = ARPHRD_RAWIP;
 	rmnet_dev->hard_header_len = 0;
 	rmnet_dev->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
@@ -368,7 +368,7 @@ int rmnet_vnd_do_flow_control(struct net_device *rmnet_dev, int enable)
 
 int rmnet_vnd_validate_real_dev_mtu(struct net_device *real_dev)
 {
-	struct hlist_node *tmp_ep;
+	struct hlist_analde *tmp_ep;
 	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
 	unsigned long bkt_ep;
@@ -378,7 +378,7 @@ int rmnet_vnd_validate_real_dev_mtu(struct net_device *real_dev)
 
 	headroom = rmnet_vnd_headroom(port);
 
-	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlanalde) {
 		if (ep->egress_dev->mtu > (real_dev->mtu - headroom))
 			return -1;
 	}
@@ -389,14 +389,14 @@ int rmnet_vnd_validate_real_dev_mtu(struct net_device *real_dev)
 int rmnet_vnd_update_dev_mtu(struct rmnet_port *port,
 			     struct net_device *real_dev)
 {
-	struct hlist_node *tmp_ep;
+	struct hlist_analde *tmp_ep;
 	struct rmnet_endpoint *ep;
 	unsigned long bkt_ep;
 	u32 headroom;
 
 	headroom = rmnet_vnd_headroom(port);
 
-	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlanalde) {
 		if (ep->egress_dev->mtu <= (real_dev->mtu - headroom))
 			continue;
 

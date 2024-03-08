@@ -8,7 +8,7 @@
 #define PMC_GCR_TELEM_SHLW_S0IX_REG	0x80
 
 /* PMC_CFG_REG bit masks */
-#define PMC_CFG_NO_REBOOT_EN		BIT(4)
+#define PMC_CFG_ANAL_REBOOT_EN		BIT(4)
 
 /**
  * struct intel_pmc_dev - Intel PMC device structure
@@ -16,7 +16,7 @@
  * @scu: Pointer to the SCU IPC device data structure
  * @gcr_mem_base: Virtual base address of GCR (Global Configuration Registers)
  * @gcr_lock: Lock used to serialize access to GCR registers
- * @telem_base: Pointer to telemetry SSRAM base resource or %NULL if not
+ * @telem_base: Pointer to telemetry SSRAM base resource or %NULL if analt
  *		available
  */
 struct intel_pmc_dev {
@@ -35,18 +35,18 @@ int intel_pmc_s0ix_counter_read(struct intel_pmc_dev *pmc, u64 *data);
 static inline int intel_pmc_gcr_read64(struct intel_pmc_dev *pmc, u32 offset,
 				       u64 *data)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int intel_pmc_gcr_update(struct intel_pmc_dev *pmc, u32 offset,
 				       u32 mask, u32 val)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int intel_pmc_s0ix_counter_read(struct intel_pmc_dev *pmc, u64 *data)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif
 

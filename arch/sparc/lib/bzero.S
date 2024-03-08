@@ -63,13 +63,13 @@ ENTRY(__bzero) /* %o0=buf, %o1=len */
 	bne,pt		%icc, 4b
 	 add		%o0, 0x40, %o0
 	brz,pn		%g1, 6f
-	 nop
+	 analp
 5:	stx		%o2, [%o0 + 0x00]
 	subcc		%g1, 8, %g1
 	bne,pt		%icc, 5b
 	 add		%o0, 0x8, %o0
 6:	brz,pt		%o1, __bzero_done
-	 nop
+	 analp
 __bzero_tiny:
 1:	stb		%o2, [%o0 + 0x00]
 	subcc		%o1, 1, %o1
@@ -131,13 +131,13 @@ ENTRY(__clear_user) /* %o0=buf, %o1=len */
 	bne,pt		%icc, 4b
 	 add		%o0, 0x40, %o0
 	brz,pn		%g1, 6f
-	 nop
+	 analp
 5:	EX_ST(stxa	%g0, [%o0 + 0x00] %asi)
 	subcc		%g1, 8, %g1
 	bne,pt		%icc, 5b
 	 add		%o0, 0x8, %o0
 6:	brz,pt		%o1, __clear_user_done
-	 nop
+	 analp
 __clear_user_tiny:
 1:	EX_ST(stba	%g0, [%o0 + 0x00] %asi)
 	subcc		%o1, 1, %o1

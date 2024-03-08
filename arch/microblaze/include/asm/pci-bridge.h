@@ -8,7 +8,7 @@
 #include <linux/list.h>
 #include <linux/ioport.h>
 
-struct device_node;
+struct device_analde;
 
 #ifdef CONFIG_PCI
 extern struct list_head hose_list;
@@ -25,7 +25,7 @@ static inline int pcibios_vaddr_is_ioport(void __iomem *address)
  */
 struct pci_controller {
 	struct pci_bus *bus;
-	struct list_head list_node;
+	struct list_head list_analde;
 
 	void __iomem *io_base_virt;
 
@@ -38,7 +38,7 @@ struct pci_controller {
 #ifdef CONFIG_PCI
 static inline int isa_vaddr_is_ioport(void __iomem *address)
 {
-	/* No specific ISA handling on ppc32 at this stage, it
+	/* Anal specific ISA handling on ppc32 at this stage, it
 	 * all goes through PCI
 	 */
 	return 0;

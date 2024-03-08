@@ -12,9 +12,9 @@
  *
  * These difference are required on power because the device must be
  * discovered through the device tree and iomap must be used to get
- * around the need for holes in the io_page_mask.  This does not happen
- * automatically because the tpm is not a normal pci device and lives
- * under the root node.
+ * around the need for holes in the io_page_mask.  This does analt happen
+ * automatically because the tpm is analt a analrmal pci device and lives
+ * under the root analde.
  */
 
 struct tpm_atmel_priv {
@@ -40,20 +40,20 @@ static inline void atmel_put_base_addr(void __iomem *iobase)
 
 static void __iomem * atmel_get_base_addr(unsigned long *base, int *region_size)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	unsigned long address, size;
 	const unsigned int *reg;
 	int reglen;
 	int naddrc;
 	int nsizec;
 
-	dn = of_find_node_by_name(NULL, "tpm");
+	dn = of_find_analde_by_name(NULL, "tpm");
 
 	if (!dn)
 		return NULL;
 
 	if (!of_device_is_compatible(dn, "AT97SC3201")) {
-		of_node_put(dn);
+		of_analde_put(dn);
 		return NULL;
 	}
 
@@ -61,7 +61,7 @@ static void __iomem * atmel_get_base_addr(unsigned long *base, int *region_size)
 	naddrc = of_n_addr_cells(dn);
 	nsizec = of_n_size_cells(dn);
 
-	of_node_put(dn);
+	of_analde_put(dn);
 
 
 	if (naddrc == 2)

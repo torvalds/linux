@@ -17,13 +17,13 @@ struct ps2dev;
 
 /**
  * enum ps2_disposition - indicates how received byte should be handled
- * @PS2_PROCESS: pass to the main protocol handler, process normally
- * @PS2_IGNORE: skip the byte
- * @PS2_ERROR: do not process the byte, abort command in progress
+ * @PS2_PROCESS: pass to the main protocol handler, process analrmally
+ * @PS2_IGANALRE: skip the byte
+ * @PS2_ERROR: do analt process the byte, abort command in progress
  */
 enum ps2_disposition {
 	PS2_PROCESS,
-	PS2_IGNORE,
+	PS2_IGANALRE,
 	PS2_ERROR,
 };
 

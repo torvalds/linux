@@ -26,11 +26,11 @@
 #define _CACHE_CACHED		_PAGE_CACHE
 #define _CACHE_UNCACHED		_PAGE_UNCACHE
 
-#define _PAGE_PROT_NONE		_PAGE_READ
+#define _PAGE_PROT_ANALNE		_PAGE_READ
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTE:
  *     bit          0:    _PAGE_PRESENT (zero)

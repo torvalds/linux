@@ -17,7 +17,7 @@ ACPI_MODULE_NAME("utxferror")
  * This module is used for the in-kernel ACPICA as well as the ACPICA
  * tools/applications.
  */
-#ifndef ACPI_NO_ERROR_MESSAGES	/* Entire module */
+#ifndef ACPI_ANAL_ERROR_MESSAGES	/* Entire module */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_error
@@ -26,7 +26,7 @@ ACPI_MODULE_NAME("utxferror")
  *              line_number         - Caller's line number (for error output)
  *              format              - Printf format string + additional args
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print "ACPI Error" message with module/line/version info
  *
@@ -58,7 +58,7 @@ ACPI_EXPORT_SYMBOL(acpi_error)
  *              status              - Status value to be decoded/formatted
  *              format              - Printf format string + additional args
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print an "ACPI Error" message with module/line/version
  *              info as well as decoded acpi_status.
@@ -100,7 +100,7 @@ ACPI_EXPORT_SYMBOL(acpi_exception)
  *              line_number         - Caller's line number (for warning output)
  *              format              - Printf format string + additional args
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print "ACPI Warning" message with module/line/version info
  *
@@ -129,9 +129,9 @@ ACPI_EXPORT_SYMBOL(acpi_warning)
  *
  * PARAMETERS:  format              - Printf format string + additional args
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Print generic "ACPI:" information message. There is no
+ * DESCRIPTION: Print generic "ACPI:" information message. There is anal
  *              module/line/version info in order to keep the message simple.
  *
  ******************************************************************************/
@@ -160,7 +160,7 @@ ACPI_EXPORT_SYMBOL(acpi_info)
  *              line_number         - Caller's line number (for error output)
  *              format              - Printf format string + additional args
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print "ACPI Firmware Error" message with module/line/version
  *              info
@@ -194,7 +194,7 @@ ACPI_EXPORT_SYMBOL(acpi_bios_error)
  *              status              - Status value to be decoded/formatted
  *              format              - Printf format string + additional args
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print an "ACPI Firmware Error" message with module/line/version
  *              info as well as decoded acpi_status.
@@ -237,7 +237,7 @@ ACPI_EXPORT_SYMBOL(acpi_bios_exception)
  *              line_number         - Caller's line number (for warning output)
  *              format              - Printf format string + additional args
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print "ACPI Firmware Warning" message with module/line/version
  *              info
@@ -261,4 +261,4 @@ acpi_bios_warning(const char *module_name,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_bios_warning)
-#endif				/* ACPI_NO_ERROR_MESSAGES */
+#endif				/* ACPI_ANAL_ERROR_MESSAGES */

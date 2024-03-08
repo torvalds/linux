@@ -39,7 +39,7 @@
 #define     DIR_SHIFT 0xd
 #define		FMT_MASK 0x0003c000
 #define		FMT_SHIFT 0xe
-// The masks and shift also work for the wtdma, if not specified otherwise.
+// The masks and shift also work for the wtdma, if analt specified otherwise.
 #define VORTEX_ADBDMA_BUFCFG0 0x10400
 #define VORTEX_ADBDMA_BUFCFG1 0x10404
 #define VORTEX_ADBDMA_BUFBASE 0x10200
@@ -68,7 +68,7 @@
 #define		OFFSET_SPORTIN	0x50	/* source */
 #define		OFFSET_EFXOUT	0x50	/* sink */
 #define		OFFSET_EFXIN	0x40	/* source */
-#define		OFFSET_A3DOUT	0x00	/* This card has no HRTF :( */
+#define		OFFSET_A3DOUT	0x00	/* This card has anal HRTF :( */
 #define		OFFSET_A3DIN	0x00
 #define		OFFSET_WTOUT	0x58	/*  */
 
@@ -114,7 +114,7 @@
 #define VORTEX_MIX_VOL_B 0x8800
 
 #define 	VOL_MIN 0x80	/* Input volume when muted. */
-#define		VOL_MAX 0x7f	/* FIXME: Not confirmed! Just guessed. */
+#define		VOL_MAX 0x7f	/* FIXME: Analt confirmed! Just guessed. */
 
 //#define MIX_OUTL    0xe
 //#define MIX_OUTR    0xf
@@ -148,7 +148,7 @@
 #define		FIFO_CTRL	0x00000002	/* Allow ctrl. ? */
 #define		FIFO_VALID	0x00000010
 #define 	FIFO_EMPTY	0x00000020
-#define		FIFO_U0		0x00001000	/* Unknown. */
+#define		FIFO_U0		0x00001000	/* Unkanalwn. */
 #define		FIFO_U1		0x00010000
 #define		FIFO_SIZE_BITS 5
 #define		FIFO_SIZE	(1<<FIFO_SIZE_BITS)	// 0x20

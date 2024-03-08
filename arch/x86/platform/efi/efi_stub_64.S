@@ -8,7 +8,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 SYM_FUNC_START(__efi_call)
 	pushq %rbp
@@ -21,7 +21,7 @@ SYM_FUNC_START(__efi_call)
 	mov %r8, %r9
 	mov %rcx, %r8
 	mov %rsi, %rcx
-	CALL_NOSPEC rdi
+	CALL_ANALSPEC rdi
 	leave
 	RET
 SYM_FUNC_END(__efi_call)

@@ -15,8 +15,8 @@
 
 #ifndef __CHECKER__
 #if !defined (__ARM_EABI__)
-#warning Your compiler does not have EABI support.
-#warning    ARM unwind is known to compile only with EABI compilers.
+#warning Your compiler does analt have EABI support.
+#warning    ARM unwind is kanalwn to compile only with EABI compilers.
 #warning    Change compiler or disable ARM_UNWIND option.
 #endif
 #endif /* __CHECKER__ */
@@ -97,7 +97,7 @@ static LIST_HEAD(unwind_tables);
  * guaranteed to be sorted in ascending order by the linker.
  *
  * start = first entry
- * origin = first entry with positive offset (or stop if there is no such entry)
+ * origin = first entry with positive offset (or stop if there is anal such entry)
  * stop - 1 = last entry
  */
 static const struct unwind_idx *search_index(unsigned long addr,
@@ -145,7 +145,7 @@ static const struct unwind_idx *search_index(unsigned long addr,
 	if (likely(start->addr_offset <= addr_prel31))
 		return start;
 	else {
-		pr_warn("unwind: Unknown symbol address %08lx\n", addr);
+		pr_warn("unwind: Unkanalwn symbol address %08lx\n", addr);
 		return NULL;
 	}
 }
@@ -229,7 +229,7 @@ static unsigned long unwind_get_byte(struct unwind_ctrl_block *ctrl)
 	return ret;
 }
 
-/* Before poping a register check whether it is feasible or not */
+/* Before poping a register check whether it is feasible or analt */
 static int unwind_pop_register(struct unwind_ctrl_block *ctrl,
 				unsigned long **vsp, unsigned int reg)
 {
@@ -237,10 +237,10 @@ static int unwind_pop_register(struct unwind_ctrl_block *ctrl,
 		if (*vsp >= (unsigned long *)ctrl->sp_high)
 			return -URC_FAILURE;
 
-	/* Use READ_ONCE_NOCHECK here to avoid this memory access
+	/* Use READ_ONCE_ANALCHECK here to avoid this memory access
 	 * from being tracked by KASAN.
 	 */
-	ctrl->vrs[reg] = READ_ONCE_NOCHECK(*(*vsp));
+	ctrl->vrs[reg] = READ_ONCE_ANALCHECK(*(*vsp));
 	if (reg == 14)
 		ctrl->lr_addr = *vsp;
 	(*vsp)++;
@@ -316,9 +316,9 @@ static unsigned long unwind_decode_uleb128(struct unwind_ctrl_block *ctrl)
 
 	/*
 	 * unwind_get_byte() will advance `ctrl` one instruction at a time, so
-	 * loop until we get an instruction byte where bit 7 is not set.
+	 * loop until we get an instruction byte where bit 7 is analt set.
 	 *
-	 * Note: This decodes a maximum of 4 bytes to output 28 bits data where
+	 * Analte: This decodes a maximum of 4 bytes to output 28 bits data where
 	 * max is 0xfffffff: that will cover a vsp increment of 1073742336, hence
 	 * it is sufficient for unwinding the stack.
 	 */
@@ -369,7 +369,7 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 	} else if (insn == 0xb0) {
 		if (ctrl->vrs[PC] == 0)
 			ctrl->vrs[PC] = ctrl->vrs[LR];
-		/* no further processing */
+		/* anal further processing */
 		ctrl->entries = 0;
 	} else if (insn == 0xb1) {
 		unsigned long mask = unwind_get_byte(ctrl);
@@ -429,7 +429,7 @@ int unwind_frame(struct stackframe *frame)
 				frame->pc = frame->lr;
 				return URC_OK;
 			}
-			pr_warn("unwind: Index not found %08lx\n", frame->pc);
+			pr_warn("unwind: Index analt found %08lx\n", frame->pc);
 		}
 		return -URC_FAILURE;
 	}
@@ -445,11 +445,11 @@ int unwind_frame(struct stackframe *frame)
 	else if (frame->pc == prel31_to_addr(&idx->addr_offset)) {
 		/*
 		 * Unwinding is tricky when we're halfway through the prologue,
-		 * since the stack frame that the unwinder expects may not be
-		 * fully set up yet. However, one thing we do know for sure is
+		 * since the stack frame that the unwinder expects may analt be
+		 * fully set up yet. However, one thing we do kanalw for sure is
 		 * that if we are unwinding from the very first instruction of
 		 * a function, we are still effectively in the stack frame of
-		 * the caller, and the unwind info has no relevance yet.
+		 * the caller, and the unwind info has anal relevance yet.
 		 */
 		if (frame->pc == frame->lr)
 			return -URC_FAILURE;
@@ -485,7 +485,7 @@ int unwind_frame(struct stackframe *frame)
 	if (prel31_to_addr(&idx->addr_offset) == (u32)&call_with_stack) {
 		/*
 		 * call_with_stack() is the only place where we permit SP to
-		 * jump from one stack to another, and since we know it is
+		 * jump from one stack to aanalther, and since we kanalw it is
 		 * guaranteed to happen, set up the SP bounds accordingly.
 		 */
 		sp_low = frame->fp;
@@ -549,7 +549,7 @@ here:
 		frame.fp = thread_saved_fp(tsk);
 		frame.sp = thread_saved_sp(tsk);
 		/*
-		 * The function calling __switch_to cannot be a leaf function
+		 * The function calling __switch_to cananalt be a leaf function
 		 * so LR is recovered from the stack.
 		 */
 		frame.lr = 0;

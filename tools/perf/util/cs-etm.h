@@ -111,10 +111,10 @@ enum {
 /*
  * ETMv3 exception encoding number:
  * See Embedded Trace Macrocell specification (ARM IHI 0014Q)
- * table 7-12 Encoding of Exception[3:0] for non-ARMv7-M processors.
+ * table 7-12 Encoding of Exception[3:0] for analn-ARMv7-M processors.
  */
 enum {
-	CS_ETMV3_EXC_NONE = 0,
+	CS_ETMV3_EXC_ANALNE = 0,
 	CS_ETMV3_EXC_DEBUG_HALT = 1,
 	CS_ETMV3_EXC_SMC = 2,
 	CS_ETMV3_EXC_HYP = 3,
@@ -161,7 +161,7 @@ enum cs_etm_sample_type {
 };
 
 enum cs_etm_isa {
-	CS_ETM_ISA_UNKNOWN,
+	CS_ETM_ISA_UNKANALWN,
 	CS_ETM_ISA_A64,
 	CS_ETM_ISA_A32,
 	CS_ETM_ISA_T32,
@@ -245,7 +245,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 void cs_etm_get_default_config(const struct perf_pmu *pmu, struct perf_event_attr *attr);
 
 enum cs_etm_pid_fmt {
-	CS_ETM_PIDFMT_NONE,
+	CS_ETM_PIDFMT_ANALNE,
 	CS_ETM_PIDFMT_CTXTID,
 	CS_ETM_PIDFMT_CTXTID2
 };
@@ -269,7 +269,7 @@ static inline int
 cs_etm__process_auxtrace_info_full(union perf_event *event __maybe_unused,
 				   struct perf_session *session __maybe_unused)
 {
-	pr_err("\nCS ETM Trace: OpenCSD is not linked in, please recompile with CORESIGHT=1\n");
+	pr_err("\nCS ETM Trace: OpenCSD is analt linked in, please recompile with CORESIGHT=1\n");
 	return -1;
 }
 #endif

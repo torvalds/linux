@@ -2,7 +2,7 @@
 #ifndef __RAS_H__
 #define __RAS_H__
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <linux/uuid.h>
 #include <linux/cper.h>
 
@@ -21,13 +21,13 @@ int __init parse_cec_param(char *str);
 #endif
 
 #ifdef CONFIG_RAS
-void log_non_standard_event(const guid_t *sec_type,
+void log_analn_standard_event(const guid_t *sec_type,
 			    const guid_t *fru_id, const char *fru_text,
 			    const u8 sev, const u8 *err, const u32 len);
 void log_arm_hw_error(struct cper_sec_proc_arm *err);
 #else
 static inline void
-log_non_standard_event(const guid_t *sec_type,
+log_analn_standard_event(const guid_t *sec_type,
 		       const guid_t *fru_id, const char *fru_text,
 		       const u8 sev, const u8 *err, const u32 len)
 { return; }

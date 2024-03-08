@@ -10,10 +10,10 @@
  * host processor system (HPS).
  *
  * The bridge contains 4 read ports, 4 write ports, and 6 command ports.
- * Reconfiguring these ports requires that no SDRAM transactions occur during
- * reconfiguration.  The code reconfiguring the ports cannot run out of SDRAM
- * nor can the FPGA access the SDRAM during reconfiguration.  This driver does
- * not support reconfiguring the ports.  The ports are configured by code
+ * Reconfiguring these ports requires that anal SDRAM transactions occur during
+ * reconfiguration.  The code reconfiguring the ports cananalt run out of SDRAM
+ * analr can the FPGA access the SDRAM during reconfiguration.  This driver does
+ * analt support reconfiguring the ports.  The ports are configured by code
  * running out of on chip ram before Linux is started and the configuration
  * is passed in a handoff register in the system manager.
  *
@@ -40,7 +40,7 @@
  * From the Cyclone V HPS Memory Map document:
  *   These registers are used to store handoff information between the
  *   preloader and the OS. These 8 registers can be used to store any
- *   information. The contents of these registers have no impact on
+ *   information. The contents of these registers have anal impact on
  *   the state of the HPS hardware.
  */
 #define SYSMGR_ISWGRP_HANDOFF3          (0x8C)
@@ -102,7 +102,7 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 
@@ -130,7 +130,7 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 
 	dev_info(dev, "driver initialized with handoff %08x\n", priv->mask);
 
-	if (!of_property_read_u32(dev->of_node, "bridge-enable", &enable)) {
+	if (!of_property_read_u32(dev->of_analde, "bridge-enable", &enable)) {
 		if (enable > 1) {
 			dev_warn(dev, "invalid bridge-enable %u > 1\n", enable);
 		} else {

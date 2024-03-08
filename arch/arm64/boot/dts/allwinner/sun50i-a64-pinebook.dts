@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.xyz>
+// Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.xyz>
 // Copyright (C) 2018 Vasily Khoruzhick <anarsoul@gmail.com>
 
 /dts-v1/;
@@ -155,7 +155,7 @@
 	vqmmc-supply = <&reg_eldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	rtl8723cs: wifi@1 {
@@ -170,7 +170,7 @@
 	vqmmc-supply = <&reg_eldo1>;
 	max-frequency = <200000000>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	cap-mmc-hw-reset;
 	mmc-hs200-1_8v;
 	status = "okay";
@@ -231,7 +231,7 @@
 
 &r_pio {
 	/*
-	 * FIXME: We can't add that supply for now since it would
+	 * FIXME: We can't add that supply for analw since it would
 	 * create a circular dependency between pinctrl, the regulator
 	 * and the RSB Bus.
 	 *

@@ -47,7 +47,7 @@ static int configvertoutep(struct ieee80211_hw *hw)
 	return (rtlusb->out_ep_nums == ep_nums) ? 0 : -EINVAL;
 }
 
-static int configvernoutep(struct ieee80211_hw *hw)
+static int configveranalutep(struct ieee80211_hw *hw)
 {
 	u8 ep_cfg;
 	u8 ep_nums = 0;
@@ -57,19 +57,19 @@ static int configvernoutep(struct ieee80211_hw *hw)
 	struct rtl_usb *rtlusb = rtl_usbdev(usb_priv);
 
 	rtlusb->out_queue_sel = 0;
-	/* Normal and High queue */
-	ep_cfg =  rtl_read_byte(rtlpriv, (REG_NORMAL_SIE_EP + 1));
-	if (ep_cfg & USB_NORMAL_SIE_EP_MASK) {
+	/* Analrmal and High queue */
+	ep_cfg =  rtl_read_byte(rtlpriv, (REG_ANALRMAL_SIE_EP + 1));
+	if (ep_cfg & USB_ANALRMAL_SIE_EP_MASK) {
 		rtlusb->out_queue_sel |= TX_SELE_HQ;
 		ep_nums++;
 	}
-	if ((ep_cfg >> USB_NORMAL_SIE_EP_SHIFT) & USB_NORMAL_SIE_EP_MASK) {
+	if ((ep_cfg >> USB_ANALRMAL_SIE_EP_SHIFT) & USB_ANALRMAL_SIE_EP_MASK) {
 		rtlusb->out_queue_sel |= TX_SELE_NQ;
 		ep_nums++;
 	}
 	/* Low queue */
-	ep_cfg =  rtl_read_byte(rtlpriv, (REG_NORMAL_SIE_EP + 2));
-	if (ep_cfg & USB_NORMAL_SIE_EP_MASK) {
+	ep_cfg =  rtl_read_byte(rtlpriv, (REG_ANALRMAL_SIE_EP + 2));
+	if (ep_cfg & USB_ANALRMAL_SIE_EP_MASK) {
 		rtlusb->out_queue_sel |= TX_SELE_LQ;
 		ep_nums++;
 	}
@@ -152,7 +152,7 @@ static int _out_ep_mapping(struct ieee80211_hw *hw)
 	struct rtl_usb *rtlusb = rtl_usbdev(usb_priv);
 	struct rtl_ep_map *ep_map = &(rtlusb->ep_map);
 
-	ischipn = IS_NORMAL_CHIP(rtlhal->version);
+	ischipn = IS_ANALRMAL_CHIP(rtlhal->version);
 	switch (rtlusb->out_ep_nums) {
 	case 2:
 		twooutepmapping(hw, ischipn, bwificfg, ep_map);
@@ -183,8 +183,8 @@ int  rtl8192cu_endpoint_mapping(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	int error = 0;
 
-	if (likely(IS_NORMAL_CHIP(rtlhal->version)))
-		error = configvernoutep(hw);
+	if (likely(IS_ANALRMAL_CHIP(rtlhal->version)))
+		error = configveranalutep(hw);
 	else
 		error = configvertoutep(hw);
 	if (error)

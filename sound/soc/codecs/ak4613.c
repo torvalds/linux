@@ -3,9 +3,9 @@
 // ak4613.c  --  Asahi Kasei ALSA Soc Audio driver
 //
 // Copyright (C) 2015 Renesas Electronics Corporation
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
-// Based on ak4642.c by Kuninori Morimoto
+// Based on ak4642.c by Kunianalri Morimoto
 // Based on wm8731.c by Richard Purdie
 // Based on ak4535.c by Richard Purdie
 // Based on wm8753.c by Liam Girdwood
@@ -58,7 +58,7 @@
  *	Capture   4ch : SDTO1
  *
  *
- * !!! NOTE !!!
+ * !!! ANALTE !!!
  *
  * Renesas is the only user of ak4613 on upstream so far,
  * but the chip connection is like below.
@@ -149,12 +149,12 @@
 #define DIF2		BIT(5)
 #define TDM0		BIT(6)
 #define TDM1		BIT(7)
-#define NO_FMT		(0xff)
+#define ANAL_FMT		(0xff)
 #define FMT_MASK	(0xf8)
 
 /* CTRL2 */
 #define DFS_MASK		(3 << 2)
-#define DFS_NORMAL_SPEED	(0 << 2)
+#define DFS_ANALRMAL_SPEED	(0 << 2)
 #define DFS_DOUBLE_SPEED	(1 << 2)
 #define DFS_QUAD_SPEED		(2 << 2)
 
@@ -189,7 +189,7 @@
  * AK4613_CONFIG_MODE_x
  *
  * Same as Ctrl1 :: TDM1/TDM0
- * No shift is requested
+ * Anal shift is requested
  * see
  *	AK4613_CTRL1_TO_MODE()
  *	Table 11/12/13/14
@@ -413,7 +413,7 @@ static void ak4613_hw_constraints(struct ak4613_priv *priv,
 #define AK4613_CHANNEL_4	 1
 #define AK4613_CHANNEL_8	 2
 #define AK4613_CHANNEL_12	 3
-#define AK4613_CHANNEL_NONE	-1
+#define AK4613_CHANNEL_ANALNE	-1
 	static const unsigned int ak4613_channels[] = {
 		[AK4613_CHANNEL_2]  =  2,
 		[AK4613_CHANNEL_4]  =  4,
@@ -445,12 +445,12 @@ static void ak4613_hw_constraints(struct ak4613_priv *priv,
 
 	/*
 	 * Slave Mode
-	 *	Normal: [32kHz, 48kHz] : 256fs,384fs or 512fs
+	 *	Analrmal: [32kHz, 48kHz] : 256fs,384fs or 512fs
 	 *	Double: [64kHz, 96kHz] : 256fs
 	 *	Quad  : [128kHz,192kHz]: 128fs
 	 *
 	 * Master mode
-	 *	Normal: [32kHz, 48kHz] : 256fs or 512fs
+	 *	Analrmal: [32kHz, 48kHz] : 256fs or 512fs
 	 *	Double: [64kHz, 96kHz] : 256fs
 	 *	Quad  : [128kHz,192kHz]: 128fs
 	*/
@@ -476,10 +476,10 @@ static void ak4613_hw_constraints(struct ak4613_priv *priv,
 		 * the constraint is same as working mode.
 		 */
 		mode = AK4613_CTRL1_TO_MODE(priv);
-		mask = 0; /* no default */
+		mask = 0; /* anal default */
 	} else {
 		/*
-		 * It is not yet working,
+		 * It is analt yet working,
 		 * the constraint is based on board configs.
 		 * STEREO mask is default
 		 */
@@ -550,7 +550,7 @@ static int ak4613_dai_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 		/*
 		 * SUPPORTME
 		 *
-		 * "clock provider" is not yet supperted
+		 * "clock provider" is analt yet supperted
 		 */
 		return -EINVAL;
 	}
@@ -576,7 +576,7 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	case 32000:
 	case 44100:
 	case 48000:
-		ctrl2 = DFS_NORMAL_SPEED;
+		ctrl2 = DFS_ANALRMAL_SPEED;
 		break;
 	case 64000:
 	case 88200:
@@ -607,7 +607,7 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 		ret = 0;
 	} else {
 		/*
-		 * It is not yet working,
+		 * It is analt yet working,
 		 */
 		unsigned int channel = params_channels(params);
 		u8 tdm;
@@ -689,7 +689,7 @@ static void ak4613_dummy_write(struct work_struct *work)
 	/*
 	 * PW_MGMT1 / PW_MGMT3 needs dummy write at least after 5 LR clocks
 	 *
-	 * Note
+	 * Analte
 	 *
 	 * To avoid extra delay, we want to avoid preemption here,
 	 * but we can't. Because it uses I2C access which is using IRQ
@@ -723,10 +723,10 @@ static int ak4613_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	 *
 	 * But, unfortunately, we can't "write" here because here is atomic
 	 * context (It uses I2C access for writing).
-	 * Thus, use schedule_work() to switching to normal context
+	 * Thus, use schedule_work() to switching to analrmal context
 	 * immediately.
 	 *
-	 * Note
+	 * Analte
 	 *
 	 * Calling ak4613_dummy_write() function might be delayed.
 	 * In such case, ak4613 volume might be temporarily 0dB when
@@ -749,7 +749,7 @@ static int ak4613_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 }
 
 /*
- * Select below from Sound Card, not Auto
+ * Select below from Sound Card, analt Auto
  *	SND_SOC_DAIFMT_CBC_CFC
  *	SND_SOC_DAIFMT_CBP_CFP
  */
@@ -832,7 +832,7 @@ static const struct snd_soc_component_driver soc_component_dev_ak4613 = {
 static void ak4613_parse_of(struct ak4613_priv *priv,
 			    struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	char prop[32];
 	int sdti_num;
 	int i;
@@ -858,7 +858,7 @@ static void ak4613_parse_of(struct ak4613_priv *priv,
 	 *
 	 * It should be configured by DT or other way
 	 * if it was full supported.
-	 * But it is using ifdef style for now for test
+	 * But it is using ifdef style for analw for test
 	 * purpose.
 	 */
 #if defined(AK4613_ENABLE_TDM_TEST)
@@ -868,7 +868,7 @@ static void ak4613_parse_of(struct ak4613_priv *priv,
 	/*
 	 * connected STDI
 	 * TDM support is assuming it is probed via Audio-Graph-Card style here.
-	 * Default is SDTIx1 if it was probed via Simple-Audio-Card for now.
+	 * Default is SDTIx1 if it was probed via Simple-Audio-Card for analw.
 	 */
 	sdti_num = of_graph_get_endpoint_count(np);
 	if ((sdti_num >= SDTx_MAX) || (sdti_num < 1))
@@ -890,7 +890,7 @@ static int ak4613_i2c_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak4613_parse_of(priv, dev);
 
@@ -923,5 +923,5 @@ static struct i2c_driver ak4613_i2c_driver = {
 module_i2c_driver(ak4613_i2c_driver);
 
 MODULE_DESCRIPTION("Soc AK4613 driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");
 MODULE_LICENSE("GPL v2");

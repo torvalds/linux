@@ -334,7 +334,7 @@ static char *nv_cspmu_format_name(const struct arm_cspmu *cspmu,
 	switch (match->name_fmt) {
 	case NAME_FMT_SOCKET: {
 		const int cpu = cpumask_first(&cspmu->associated_cpus);
-		const int socket = cpu_to_node(cpu);
+		const int socket = cpu_to_analde(cpu);
 
 		name = devm_kasprintf(dev, GFP_KERNEL, match->name_pattern,
 				       socket);
@@ -362,7 +362,7 @@ static int nv_cspmu_init_ops(struct arm_cspmu *cspmu)
 
 	ctx = devm_kzalloc(dev, sizeof(struct nv_cspmu_ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prodid = FIELD_GET(ARM_CSPMU_PMIIDR_PRODUCTID, cspmu->impl.pmiidr);
 

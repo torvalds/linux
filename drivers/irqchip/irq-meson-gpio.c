@@ -30,7 +30,7 @@
 #define REG_EDGE_POL_S4	0x1c
 
 /*
- * Note: The S905X3 datasheet reports that BOTH_EDGE is controlled by
+ * Analte: The S905X3 datasheet reports that BOTH_EDGE is controlled by
  * bits 24 to 31. Tests on the actual HW show that these bits are
  * stuck at 0. Bits 8 to 15 are responsive and have the expected
  * effect.
@@ -245,8 +245,8 @@ meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 	idx = find_first_zero_bit(ctl->channel_map, ctl->params->nr_channels);
 	if (idx >= ctl->params->nr_channels) {
 		spin_unlock_irqrestore(&ctl->lock, flags);
-		pr_err("No channel available\n");
-		return -ENOSPC;
+		pr_err("Anal channel available\n");
+		return -EANALSPC;
 	}
 
 	/* Mark the channel as used */
@@ -304,7 +304,7 @@ static int meson8_gpio_irq_set_type(struct meson_gpio_irq_controller *ctl,
 	/*
 	 * The controller has a filter block to operate in either LEVEL or
 	 * EDGE mode, then signal is sent to the GIC. To enable LEVEL_LOW and
-	 * EDGE_FALLING support (which the GIC does not support), the filter
+	 * EDGE_FALLING support (which the GIC does analt support), the filter
 	 * block is also able to invert the input signal it gets before
 	 * providing it to the GIC.
 	 */
@@ -428,7 +428,7 @@ static int meson_gpio_irq_domain_translate(struct irq_domain *domain,
 					   unsigned long *hwirq,
 					   unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode) && fwspec->param_count == 2) {
+	if (is_of_analde(fwspec->fwanalde) && fwspec->param_count == 2) {
 		*hwirq	= fwspec->param[0];
 		*type	= fwspec->param[1];
 		return 0;
@@ -444,7 +444,7 @@ static int meson_gpio_irq_allocate_gic_irq(struct irq_domain *domain,
 {
 	struct irq_fwspec fwspec;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwanalde = domain->parent->fwanalde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = 0;	/* SPI */
 	fwspec.param[1] = hwirq;
@@ -515,18 +515,18 @@ static const struct irq_domain_ops meson_gpio_irq_domain_ops = {
 	.translate	= meson_gpio_irq_domain_translate,
 };
 
-static int meson_gpio_irq_parse_dt(struct device_node *node, struct meson_gpio_irq_controller *ctl)
+static int meson_gpio_irq_parse_dt(struct device_analde *analde, struct meson_gpio_irq_controller *ctl)
 {
 	const struct of_device_id *match;
 	int ret;
 
-	match = of_match_node(meson_irq_gpio_matches, node);
+	match = of_match_analde(meson_irq_gpio_matches, analde);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctl->params = match->data;
 
-	ret = of_property_read_variable_u32_array(node,
+	ret = of_property_read_variable_u32_array(analde,
 						  "amlogic,channel-interrupts",
 						  ctl->channel_irqs,
 						  ctl->params->nr_channels,
@@ -541,15 +541,15 @@ static int meson_gpio_irq_parse_dt(struct device_node *node, struct meson_gpio_i
 	return 0;
 }
 
-static int meson_gpio_irq_of_init(struct device_node *node, struct device_node *parent)
+static int meson_gpio_irq_of_init(struct device_analde *analde, struct device_analde *parent)
 {
 	struct irq_domain *domain, *parent_domain;
 	struct meson_gpio_irq_controller *ctl;
 	int ret;
 
 	if (!parent) {
-		pr_err("missing parent interrupt node\n");
-		return -ENODEV;
+		pr_err("missing parent interrupt analde\n");
+		return -EANALDEV;
 	}
 
 	parent_domain = irq_find_host(parent);
@@ -560,28 +560,28 @@ static int meson_gpio_irq_of_init(struct device_node *node, struct device_node *
 
 	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ctl->lock);
 
-	ctl->base = of_iomap(node, 0);
+	ctl->base = of_iomap(analde, 0);
 	if (!ctl->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_ctl;
 	}
 
-	ret = meson_gpio_irq_parse_dt(node, ctl);
+	ret = meson_gpio_irq_parse_dt(analde, ctl);
 	if (ret)
 		goto free_channel_irqs;
 
 	domain = irq_domain_create_hierarchy(parent_domain, 0,
 					     ctl->params->nr_hwirq,
-					     of_node_to_fwnode(node),
+					     of_analde_to_fwanalde(analde),
 					     &meson_gpio_irq_domain_ops,
 					     ctl);
 	if (!domain) {
 		pr_err("failed to add domain\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_channel_irqs;
 	}
 

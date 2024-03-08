@@ -13,12 +13,12 @@ static int ravb_ptp_tcr_request(struct ravb_private *priv, u32 request)
 	struct net_device *ndev = priv->ndev;
 	int error;
 
-	error = ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_NOREQ);
+	error = ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_ANALREQ);
 	if (error)
 		return error;
 
 	ravb_modify(ndev, GCCR, request, request);
-	return ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_NOREQ);
+	return ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_ANALREQ);
 }
 
 /* Caller must hold the lock */
@@ -68,7 +68,7 @@ static int ravb_ptp_update_compare(struct ravb_private *priv, u32 ns)
 	/* When the comparison value (GPTC.PTCV) is in range of
 	 * [x-1 to x+1] (x is the configured increment value in
 	 * GTI.TIV), it may happen that a comparison match is
-	 * not detected when the timer wraps around.
+	 * analt detected when the timer wraps around.
 	 */
 	u32 gti_ns_plus_1 = (priv->ptp.current_addend >> 20) + 1;
 	u32 gccr;
@@ -128,9 +128,9 @@ static int ravb_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	spin_lock_irqsave(&priv->lock, flags);
 	error = ravb_ptp_time_read(priv, &ts);
 	if (!error) {
-		u64 now = ktime_to_ns(timespec64_to_ktime(ts));
+		u64 analw = ktime_to_ns(timespec64_to_ktime(ts));
 
-		ts = ns_to_timespec64(now + delta);
+		ts = ns_to_timespec64(analw + delta);
 		error = ravb_ptp_time_write(priv, &ts);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -181,7 +181,7 @@ static int ravb_ptp_extts(struct ptp_clock_info *ptp,
 			   PTP_RISING_EDGE |
 			   PTP_FALLING_EDGE |
 			   PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (req->index)
 		return -EINVAL;
@@ -215,7 +215,7 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 
 	/* Reject requests with unsupported flags */
 	if (req->flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (req->index)
 		return -EINVAL;
@@ -278,7 +278,7 @@ static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PEROUT:
 		return ravb_ptp_perout(ptp, &req->perout, on);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -333,7 +333,7 @@ void ravb_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 	priv->ptp.current_addend = priv->ptp.default_addend;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_NOREQ);
+	ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_ANALREQ);
 	ravb_modify(ndev, GCCR, GCCR_TCSS, GCCR_TCSS_ADJGPTP);
 	spin_unlock_irqrestore(&priv->lock, flags);
 

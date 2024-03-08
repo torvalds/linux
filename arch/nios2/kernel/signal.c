@@ -10,7 +10,7 @@
  */
 
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
@@ -43,7 +43,7 @@ static inline int rt_restore_ucontext(struct pt_regs *regs,
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	err = __get_user(temp, &uc->uc_mcontext.version);
 	if (temp != MCONTEXT_VERSION)
@@ -78,7 +78,7 @@ static inline int rt_restore_ucontext(struct pt_regs *regs,
 	err |= __get_user(sw->gp, &gregs[25]);  /* Verify, should this be
 							settable */
 
-	err |= __get_user(temp, &gregs[26]);  /* Not really necessary no user
+	err |= __get_user(temp, &gregs[26]);  /* Analt really necessary anal user
 							settable bits */
 	err |= __get_user(regs->ea, &gregs[27]);
 
@@ -169,7 +169,7 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 {
 	unsigned long usp;
 
-	/* Default to using normal stack.  */
+	/* Default to using analrmal stack.  */
 	usp = regs->sp;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
@@ -255,9 +255,9 @@ static int do_signal(struct pt_regs *regs)
 		case ERESTART_RESTARTBLOCK:
 			restart = -2;
 			fallthrough;
-		case ERESTARTNOHAND:
+		case ERESTARTANALHAND:
 		case ERESTARTSYS:
-		case ERESTARTNOINTR:
+		case ERESTARTANALINTR:
 			restart++;
 			regs->r2 = regs->orig_r2;
 			regs->r7 = regs->orig_r7;
@@ -270,7 +270,7 @@ static int do_signal(struct pt_regs *regs)
 	if (get_signal(&ksig)) {
 		/* handler */
 		if (unlikely(restart && regs->ea == restart_addr)) {
-			if (retval == ERESTARTNOHAND ||
+			if (retval == ERESTARTANALHAND ||
 			    retval == ERESTART_RESTARTBLOCK ||
 			     (retval == ERESTARTSYS
 				&& !(ksig.ka.sa.sa_flags & SA_RESTART))) {
@@ -284,7 +284,7 @@ static int do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * No handler present
+	 * Anal handler present
 	 */
 	if (unlikely(restart) && regs->ea == restart_addr) {
 		regs->ea = continue_addr;
@@ -292,14 +292,14 @@ static int do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	* If there's no signal to deliver, we just put the saved sigmask back.
+	* If there's anal signal to deliver, we just put the saved sigmask back.
 	*/
 	restore_saved_sigmask();
 
 	return restart;
 }
 
-asmlinkage int do_notify_resume(struct pt_regs *regs)
+asmlinkage int do_analtify_resume(struct pt_regs *regs)
 {
 	/*
 	 * We want the common case to go fast, which is why we may in certain
@@ -310,7 +310,7 @@ asmlinkage int do_notify_resume(struct pt_regs *regs)
 		return 0;
 
 	if (test_thread_flag(TIF_SIGPENDING) ||
-	    test_thread_flag(TIF_NOTIFY_SIGNAL)) {
+	    test_thread_flag(TIF_ANALTIFY_SIGNAL)) {
 		int restart = do_signal(regs);
 
 		if (unlikely(restart)) {
@@ -321,7 +321,7 @@ asmlinkage int do_notify_resume(struct pt_regs *regs)
 			 */
 			return restart;
 		}
-	} else if (test_thread_flag(TIF_NOTIFY_RESUME))
+	} else if (test_thread_flag(TIF_ANALTIFY_RESUME))
 		resume_user_mode_work(regs);
 
 	return 0;

@@ -81,22 +81,22 @@ static const struct irq_domain_ops rda_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static int __init rda8810_intc_init(struct device_node *node,
-				    struct device_node *parent)
+static int __init rda8810_intc_init(struct device_analde *analde,
+				    struct device_analde *parent)
 {
-	rda_intc_base = of_io_request_and_map(node, 0, "rda-intc");
+	rda_intc_base = of_io_request_and_map(analde, 0, "rda-intc");
 	if (IS_ERR(rda_intc_base))
 		return PTR_ERR(rda_intc_base);
 
 	/* Mask all interrupt sources */
 	writel_relaxed(RDA_IRQ_MASK_ALL, rda_intc_base + RDA_INTC_MASK_CLR);
 
-	rda_irq_domain = irq_domain_create_linear(&node->fwnode, RDA_NR_IRQS,
+	rda_irq_domain = irq_domain_create_linear(&analde->fwanalde, RDA_NR_IRQS,
 						  &rda_irq_domain_ops,
 						  rda_intc_base);
 	if (!rda_irq_domain) {
 		iounmap(rda_intc_base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	set_handle_irq(rda_handle_irq);

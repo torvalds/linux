@@ -2,7 +2,7 @@
 Kernel driver scx200_acb
 ========================
 
-Author: Christer Weinigel <wingel@nano-system.com>
+Author: Christer Weinigel <wingel@naanal-system.com>
 
 The driver supersedes the older, never merged driver named i2c-nscacb.
 
@@ -22,10 +22,10 @@ Description
 Enable the use of the ACCESS.bus controller on the Geode SCx200 and
 SC1100 processors and the CS5535 and CS5536 Geode companion devices.
 
-Device-specific notes
+Device-specific analtes
 ---------------------
 
-The SC1100 WRAP boards are known to use base addresses 0x810 and 0x820.
+The SC1100 WRAP boards are kanalwn to use base addresses 0x810 and 0x820.
 If the scx200_acb driver is built into the kernel, add the following
 parameter to your boot command line::
 

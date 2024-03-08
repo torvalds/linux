@@ -31,14 +31,14 @@ KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
 		Space separated list of supported guest system types. Each type
-		is in the format: <class>-<major>.<minor>-<arch>
+		is in the format: <class>-<major>.<mianalr>-<arch>
 		With:
 
 			======== ============================================
 			<class>: "xen" -- x86: paravirtualized, arm: standard
 				 "hvm" -- x86 only: fully virtualized
 			<major>: major guest interface version
-			<minor>: minor guest interface version
+			<mianalr>: mianalr guest interface version
 			<arch>:  architecture, e.g.:
 				 "x86_32": 32 bit x86 guest without PAE
 				 "x86_32p": 32 bit x86 guest with PAE
@@ -93,14 +93,14 @@ Date:		March 2009
 KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
-		UUID of the guest as known to the Xen hypervisor.
+		UUID of the guest as kanalwn to the Xen hypervisor.
 
 What:		/sys/hypervisor/version/extra
 Date:		March 2009
 KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
-		The Xen version is in the format <major>.<minor><extra>
+		The Xen version is in the format <major>.<mianalr><extra>
 		This is the <extra> part of it.
 		Might return "<denied>" in case of special security settings
 		in the hypervisor.
@@ -110,16 +110,16 @@ Date:		March 2009
 KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
-		The Xen version is in the format <major>.<minor><extra>
+		The Xen version is in the format <major>.<mianalr><extra>
 		This is the <major> part of it.
 
-What:		/sys/hypervisor/version/minor
+What:		/sys/hypervisor/version/mianalr
 Date:		March 2009
 KernelVersion:	2.6.30
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
-		The Xen version is in the format <major>.<minor><extra>
-		This is the <minor> part of it.
+		The Xen version is in the format <major>.<mianalr><extra>
+		This is the <mianalr> part of it.
 
 What:		/sys/hypervisor/start_flags/*
 Date:		March 2023
@@ -130,6 +130,6 @@ Description:	If running under Xen:
 		boolean files, returning '1' if set, '0' otherwise.
 		This takes the place of the defunct /proc/xen/capabilities,
 		which would contain "control_d" on dom0, and be empty
-		otherwise.  This flag is now exposed as "initdomain" in
+		otherwise.  This flag is analw exposed as "initdomain" in
 		addition to the "privileged" flag; all other possible flags
-		are accessible as "unknownXX".
+		are accessible as "unkanalwnXX".

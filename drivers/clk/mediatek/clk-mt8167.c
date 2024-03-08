@@ -362,7 +362,7 @@ static const char * const scam_mm_parents[] = {
 	"mainpll_d12"
 };
 
-static const char * const spinor_parents[] = {
+static const char * const spianalr_parents[] = {
 	"clk26m_d2",
 	"clk26m_ck",
 	"mainpll_d40",
@@ -565,7 +565,7 @@ static struct mtk_composite top_muxes[] __initdata = {
 	MUX(CLK_TOP_SCAM_MM_SEL, "scam_mm_sel", scam_mm_parents,
 		0x004, 23, 3),
 	/* CLK_MUX_SEL8 */
-	MUX(CLK_TOP_SPINOR_SEL, "spinor_sel", spinor_parents,
+	MUX(CLK_TOP_SPIANALR_SEL, "spianalr_sel", spianalr_parents,
 		0x040, 0, 3),
 	MUX(CLK_TOP_MSDC2_SEL, "msdc2_sel", msdc2_parents,
 		0x040, 3, 3),
@@ -743,7 +743,7 @@ static const struct mtk_gate_regs top5_cg_regs = {
 	GATE_MTK(_id, _name, _parent, &top4_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)
 
 #define GATE_TOP5(_id, _name, _parent, _shift) \
-	GATE_MTK(_id, _name, _parent, &top5_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &top5_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate top_clks[] = {
 	/* TOP0 */
@@ -819,7 +819,7 @@ static const struct mtk_gate top_clks[] = {
 	GATE_TOP2_I(CLK_TOP_MSDC2_INFRA, "msdc2_infra", "rg_msdc2", 30),
 	GATE_TOP2(CLK_TOP_USB_78M, "usb_78m", "usb_78m_sel", 31),
 	/* TOP3 */
-	GATE_TOP3(CLK_TOP_RG_SPINOR, "rg_spinor", "spinor_sel", 0),
+	GATE_TOP3(CLK_TOP_RG_SPIANALR, "rg_spianalr", "spianalr_sel", 0),
 	GATE_TOP3(CLK_TOP_RG_MSDC2, "rg_msdc2", "msdc2_sel", 1),
 	GATE_TOP3(CLK_TOP_RG_ETH, "rg_eth", "eth_sel", 2),
 	GATE_TOP3(CLK_TOP_RG_VDEC, "rg_vdec", "vdec_mm_sel", 3),

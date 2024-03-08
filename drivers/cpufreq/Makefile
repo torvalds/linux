@@ -5,14 +5,14 @@ obj-$(CONFIG_CPU_FREQ)			+= cpufreq.o freq_table.o
 # CPUfreq stats
 obj-$(CONFIG_CPU_FREQ_STAT)             += cpufreq_stats.o
 
-# CPUfreq governors 
+# CPUfreq goveranalrs 
 obj-$(CONFIG_CPU_FREQ_GOV_PERFORMANCE)	+= cpufreq_performance.o
 obj-$(CONFIG_CPU_FREQ_GOV_POWERSAVE)	+= cpufreq_powersave.o
 obj-$(CONFIG_CPU_FREQ_GOV_USERSPACE)	+= cpufreq_userspace.o
 obj-$(CONFIG_CPU_FREQ_GOV_ONDEMAND)	+= cpufreq_ondemand.o
 obj-$(CONFIG_CPU_FREQ_GOV_CONSERVATIVE)	+= cpufreq_conservative.o
-obj-$(CONFIG_CPU_FREQ_GOV_COMMON)		+= cpufreq_governor.o
-obj-$(CONFIG_CPU_FREQ_GOV_ATTR_SET)	+= cpufreq_governor_attr_set.o
+obj-$(CONFIG_CPU_FREQ_GOV_COMMON)		+= cpufreq_goveranalr.o
+obj-$(CONFIG_CPU_FREQ_GOV_ATTR_SET)	+= cpufreq_goveranalr_attr_set.o
 
 obj-$(CONFIG_CPUFREQ_DT)		+= cpufreq-dt.o
 obj-$(CONFIG_CPUFREQ_DT_PLATDEV)	+= cpufreq-dt-platdev.o
@@ -25,16 +25,16 @@ amd_pstate-y				:= amd-pstate.o amd-pstate-trace.o
 # x86 drivers.
 # Link order matters. K8 is preferred to ACPI because of firmware bugs in early
 # K8 systems. This is still the case but acpi-cpufreq errors out so that
-# powernow-k8 can load then. ACPI is preferred to all other hardware-specific drivers.
+# poweranalw-k8 can load then. ACPI is preferred to all other hardware-specific drivers.
 # speedstep-* is preferred over p4-clockmod.
 
 obj-$(CONFIG_X86_ACPI_CPUFREQ)		+= acpi-cpufreq.o
 obj-$(CONFIG_X86_AMD_PSTATE)		+= amd_pstate.o
 obj-$(CONFIG_X86_AMD_PSTATE_UT)		+= amd-pstate-ut.o
-obj-$(CONFIG_X86_POWERNOW_K8)		+= powernow-k8.o
+obj-$(CONFIG_X86_POWERANALW_K8)		+= poweranalw-k8.o
 obj-$(CONFIG_X86_PCC_CPUFREQ)		+= pcc-cpufreq.o
-obj-$(CONFIG_X86_POWERNOW_K6)		+= powernow-k6.o
-obj-$(CONFIG_X86_POWERNOW_K7)		+= powernow-k7.o
+obj-$(CONFIG_X86_POWERANALW_K6)		+= poweranalw-k6.o
+obj-$(CONFIG_X86_POWERANALW_K7)		+= poweranalw-k7.o
 obj-$(CONFIG_X86_LONGHAUL)		+= longhaul.o
 obj-$(CONFIG_X86_E_POWERSAVER)		+= e_powersaver.o
 obj-$(CONFIG_ELAN_CPUFREQ)		+= elanfreq.o
@@ -44,7 +44,7 @@ obj-$(CONFIG_X86_GX_SUSPMOD)		+= gx-suspmod.o
 obj-$(CONFIG_X86_SPEEDSTEP_ICH)		+= speedstep-ich.o
 obj-$(CONFIG_X86_SPEEDSTEP_LIB)		+= speedstep-lib.o
 obj-$(CONFIG_X86_SPEEDSTEP_SMI)		+= speedstep-smi.o
-obj-$(CONFIG_X86_SPEEDSTEP_CENTRINO)	+= speedstep-centrino.o
+obj-$(CONFIG_X86_SPEEDSTEP_CENTRIANAL)	+= speedstep-centrianal.o
 obj-$(CONFIG_X86_P4_CLOCKMOD)		+= p4-clockmod.o
 obj-$(CONFIG_X86_CPUFREQ_NFORCE2)	+= cpufreq-nforce2.o
 obj-$(CONFIG_X86_INTEL_PSTATE)		+= intel_pstate.o

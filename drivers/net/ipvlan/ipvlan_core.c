@@ -78,7 +78,7 @@ static struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
 
 	hash = is_v6 ? ipvlan_get_v6_hash(iaddr) :
 	       ipvlan_get_v4_hash(iaddr);
-	hlist_for_each_entry_rcu(addr, &port->hlhead[hash], hlnode)
+	hlist_for_each_entry_rcu(addr, &port->hlhead[hash], hlanalde)
 		if (addr_equal(is_v6, addr, iaddr))
 			return addr;
 	return NULL;
@@ -92,13 +92,13 @@ void ipvlan_ht_addr_add(struct ipvl_dev *ipvlan, struct ipvl_addr *addr)
 	hash = (addr->atype == IPVL_IPV6) ?
 	       ipvlan_get_v6_hash(&addr->ip6addr) :
 	       ipvlan_get_v4_hash(&addr->ip4addr);
-	if (hlist_unhashed(&addr->hlnode))
-		hlist_add_head_rcu(&addr->hlnode, &port->hlhead[hash]);
+	if (hlist_unhashed(&addr->hlanalde))
+		hlist_add_head_rcu(&addr->hlanalde, &port->hlhead[hash]);
 }
 
 void ipvlan_ht_addr_del(struct ipvl_addr *addr)
 {
-	hlist_del_init_rcu(&addr->hlnode);
+	hlist_del_init_rcu(&addr->hlanalde);
 }
 
 struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
@@ -107,7 +107,7 @@ struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
 	struct ipvl_addr *addr, *ret = NULL;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(addr, &ipvlan->addrs, anode) {
+	list_for_each_entry_rcu(addr, &ipvlan->addrs, aanalde) {
 		if (addr_equal(is_v6, addr, iaddr)) {
 			ret = addr;
 			break;
@@ -123,7 +123,7 @@ bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6)
 	bool ret = false;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(ipvlan, &port->ipvlans, pnode) {
+	list_for_each_entry_rcu(ipvlan, &port->ipvlans, panalde) {
 		if (ipvlan_find_addr(ipvlan, iaddr, is_v6)) {
 			ret = true;
 			break;
@@ -255,7 +255,7 @@ void ipvlan_process_multicast(struct work_struct *work)
 			pkt_type = PACKET_MULTICAST;
 
 		rcu_read_lock();
-		list_for_each_entry_rcu(ipvlan, &port->ipvlans, pnode) {
+		list_for_each_entry_rcu(ipvlan, &port->ipvlans, panalde) {
 			if (tx_pkt && (ipvlan->dev == skb->dev))
 				continue;
 			if (!test_bit(mac_hash, ipvlan->mac_filters))
@@ -341,7 +341,7 @@ static int ipvlan_rcv_frame(struct ipvl_addr *addr, struct sk_buff **pskb,
 			success = true;
 	} else {
 		skb->dev = dev;
-		ret = RX_HANDLER_ANOTHER;
+		ret = RX_HANDLER_AANALTHER;
 		success = true;
 	}
 
@@ -411,7 +411,7 @@ struct ipvl_addr *ipvlan_addr_lookup(struct ipvl_port *port, void *lyr3h,
 	return addr;
 }
 
-static noinline_for_stack int ipvlan_process_v4_outbound(struct sk_buff *skb)
+static analinline_for_stack int ipvlan_process_v4_outbound(struct sk_buff *skb)
 {
 	const struct iphdr *ip4h = ip_hdr(skb);
 	struct net_device *dev = skb->dev;
@@ -454,7 +454,7 @@ out:
 
 #if IS_ENABLED(CONFIG_IPV6)
 
-static noinline_for_stack int
+static analinline_for_stack int
 ipvlan_route_v6_outbound(struct net_device *dev, struct sk_buff *skb)
 {
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -628,7 +628,7 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 		if (!skb)
 			return NET_XMIT_DROP;
 
-		/* Packet definitely does not belong to any of the
+		/* Packet definitely does analt belong to any of the
 		 * virtual devices, but the dest is local. So forward
 		 * the skb for the main-dev. At the RX side we just return
 		 * RX_PASS for it to be processed further on the stack.
@@ -668,7 +668,7 @@ int ipvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 		return ipvlan_xmit_mode_l3(skb, dev);
 	}
 
-	/* Should not reach here */
+	/* Should analt reach here */
 	WARN_ONCE(true, "%s called for mode = [%x]\n", __func__, port->mode);
 out:
 	kfree_skb(skb);
@@ -739,7 +739,7 @@ static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 			}
 		}
 	} else {
-		/* Perform like l3 mode for non-multicast packet */
+		/* Perform like l3 mode for analn-multicast packet */
 		ret = ipvlan_handle_mode_l3(pskb, port);
 	}
 
@@ -765,7 +765,7 @@ rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb)
 #endif
 	}
 
-	/* Should not reach here */
+	/* Should analt reach here */
 	WARN_ONCE(true, "%s called for mode = [%x]\n", __func__, port->mode);
 	kfree_skb(skb);
 	return RX_HANDLER_CONSUMED;

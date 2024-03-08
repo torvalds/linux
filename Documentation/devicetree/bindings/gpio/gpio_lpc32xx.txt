@@ -3,7 +3,7 @@ NXP LPC32xx SoC GPIO controller
 Required properties:
 - compatible: must be "nxp,lpc3220-gpio"
 - reg: Physical base address and length of the controller's registers.
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device analde as a GPIO controller.
 - #gpio-cells: Should be 3:
    1) bank:
       0: GPIO P0
@@ -14,7 +14,7 @@ Required properties:
       5: GPO P3
    2) pin number
    3) optional parameters:
-      - bit 0 specifies polarity (0 for normal, 1 for inverted)
+      - bit 0 specifies polarity (0 for analrmal, 1 for inverted)
 - reg: Index of the GPIO group
 
 Example:

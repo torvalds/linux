@@ -51,8 +51,8 @@
 #define SUN4I_TVE_DAC0_INTERNAL_DAC_37_5_OHMS	SUN4I_TVE_DAC0_INTERNAL_DAC(3)
 #define SUN4I_TVE_DAC0_DAC_EN(dac)		BIT(dac)
 
-#define SUN4I_TVE_NOTCH_REG		0x00c
-#define SUN4I_TVE_NOTCH_DAC0_TO_DAC_DLY(dac, x)	((4 - (x)) << (dac * 3))
+#define SUN4I_TVE_ANALTCH_REG		0x00c
+#define SUN4I_TVE_ANALTCH_DAC0_TO_DAC_DLY(dac, x)	((4 - (x)) << (dac * 3))
 
 #define SUN4I_TVE_CHROMA_FREQ_REG	0x010
 
@@ -105,7 +105,7 @@
 #define SUN4I_TVE_CHROMA_COMP_GAIN_50		SUN4I_TVE_CHROMA_COMP_GAIN(2)
 
 #define SUN4I_TVE_12C_REG		0x12c
-#define SUN4I_TVE_12C_NOTCH_WIDTH_WIDE		BIT(8)
+#define SUN4I_TVE_12C_ANALTCH_WIDTH_WIDE		BIT(8)
 #define SUN4I_TVE_12C_COMP_YUV_EN		BIT(0)
 
 #define SUN4I_TVE_RESYNC_REG		0x130
@@ -320,9 +320,9 @@ static void sun4i_tv_enable(struct drm_encoder *encoder,
 		     BIT(30));
 
 	/* Configure the sample delay between DAC0 and the other DAC */
-	regmap_write(tv->regs, SUN4I_TVE_NOTCH_REG,
-		     SUN4I_TVE_NOTCH_DAC0_TO_DAC_DLY(1, 0) |
-		     SUN4I_TVE_NOTCH_DAC0_TO_DAC_DLY(2, 0));
+	regmap_write(tv->regs, SUN4I_TVE_ANALTCH_REG,
+		     SUN4I_TVE_ANALTCH_DAC0_TO_DAC_DLY(1, 0) |
+		     SUN4I_TVE_ANALTCH_DAC0_TO_DAC_DLY(2, 0));
 
 	regmap_write(tv->regs, SUN4I_TVE_CHROMA_FREQ_REG,
 		     tv_mode->chroma_freq);
@@ -374,7 +374,7 @@ static void sun4i_tv_enable(struct drm_encoder *encoder,
 
 	regmap_write(tv->regs, SUN4I_TVE_12C_REG,
 		     SUN4I_TVE_12C_COMP_YUV_EN |
-		     SUN4I_TVE_12C_NOTCH_WIDTH_WIDE);
+		     SUN4I_TVE_12C_ANALTCH_WIDTH_WIDE);
 
 	regmap_write(tv->regs, SUN4I_TVE_RESYNC_REG,
 		     SUN4I_TVE_RESYNC_PIXEL(tv_mode->resync_params->pixel) |
@@ -435,7 +435,7 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 
 	tv = devm_kzalloc(dev, sizeof(*tv), GFP_KERNEL);
 	if (!tv)
-		return -ENOMEM;
+		return -EANALMEM;
 	tv->drv = drv;
 	dev_set_drvdata(dev, tv);
 
@@ -482,7 +482,7 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 	}
 
 	tv->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
-								dev->of_node);
+								dev->of_analde);
 	if (!tv->encoder.possible_crtcs) {
 		ret = -EPROBE_DEFER;
 		goto err_disable_clk;

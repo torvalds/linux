@@ -13,11 +13,11 @@ maintainers:
 
 description: |+
   Tegra194 SOC has homogeneous architecture where each cluster has two
-  symmetric cores. Compatible string in "cpus" node represents the CPU
+  symmetric cores. Compatible string in "cpus" analde represents the CPU
   Complex having all clusters.
 
 properties:
-  $nodename:
+  $analdename:
     const: cpus
 
   compatible:
@@ -27,7 +27,7 @@ properties:
   nvidia,bpmp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      Specifies the bpmp node that needs to be queried to get
+      Specifies the bpmp analde that needs to be queried to get
       operating point data for all CPUs.
 
 additionalProperties: true

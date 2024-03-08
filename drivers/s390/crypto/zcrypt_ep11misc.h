@@ -12,7 +12,7 @@
 #include <asm/zcrypt.h>
 #include <asm/pkey.h>
 
-#define EP11_API_V1 1  /* min EP11 API, default if no higher api required */
+#define EP11_API_V1 1  /* min EP11 API, default if anal higher api required */
 #define EP11_API_V4 4  /* supported EP11 API for the ep11misc cprbs */
 #define EP11_API_V6 6  /* min EP11 API for some cprbs in SE environment */
 #define EP11_STRUCT_MAGIC 0x1234
@@ -60,7 +60,7 @@ const u8 *ep11_kb_wkvp(const u8 *kblob, size_t kbloblen);
  * Simple check if the key blob is a valid EP11 AES key blob with header.
  * If checkcpacfexport is enabled, the key is also checked for the
  * attributes needed to export this key for CPACF use.
- * Returns 0 on success or errno value on failure.
+ * Returns 0 on success or erranal value on failure.
  */
 int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
 				const u8 *key, size_t keylen, int checkcpacfexp);
@@ -69,7 +69,7 @@ int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
  * Simple check if the key blob is a valid EP11 ECC key blob with header.
  * If checkcpacfexport is enabled, the key is also checked for the
  * attributes needed to export this key for CPACF use.
- * Returns 0 on success or errno value on failure.
+ * Returns 0 on success or erranal value on failure.
  */
 int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
 				const u8 *key, size_t keylen, int checkcpacfexp);
@@ -79,7 +79,7 @@ int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
  * the header in the session field (old style EP11 AES key).
  * If checkcpacfexport is enabled, the key is also checked for the
  * attributes needed to export this key for CPACF use.
- * Returns 0 on success or errno value on failure.
+ * Returns 0 on success or erranal value on failure.
  */
 int ep11_check_aes_key(debug_info_t *dbg, int dbflvl,
 		       const u8 *key, size_t keylen, int checkcpacfexp);
@@ -87,8 +87,8 @@ int ep11_check_aes_key(debug_info_t *dbg, int dbflvl,
 /* EP11 card info struct */
 struct ep11_card_info {
 	u32  API_ord_nr;    /* API ordinal number */
-	u16  FW_version;    /* Firmware major and minor version */
-	char serial[16];    /* serial number string (16 ascii, no 0x00 !) */
+	u16  FW_version;    /* Firmware major and mianalr version */
+	char serial[16];    /* serial number string (16 ascii, anal 0x00 !) */
 	u64  op_mode;	    /* card operational mode(s) */
 };
 
@@ -127,8 +127,8 @@ int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 /*
  * Build a list of ep11 apqns meeting the following constrains:
  * - apqn is online and is in fact an EP11 apqn
- * - if cardnr is not FFFF only apqns with this cardnr
- * - if domain is not FFFF only apqns with this domainnr
+ * - if cardnr is analt FFFF only apqns with this cardnr
+ * - if domain is analt FFFF only apqns with this domainnr
  * - if minhwtype > 0 only apqns with hwtype >= minhwtype
  * - if minapi > 0 only apqns with API_ord_nr >= minapi
  * - if wkvp != NULL only apqns where the wkvp (EP11_WKVPLEN bytes) matches
@@ -140,8 +140,8 @@ int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
  * the number of apqns stored into the list is returned in *nr_apqns. One apqn
  * entry is simple a 32 bit value with 16 bit cardnr and 16 bit domain nr and
  * may be casted to struct pkey_apqn. The return value is either 0 for success
- * or a negative errno value. If no apqn meeting the criteria is found,
- * -ENODEV is returned.
+ * or a negative erranal value. If anal apqn meeting the criteria is found,
+ * -EANALDEV is returned.
  */
 int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 		   int minhwtype, int minapi, const u8 *wkvp);

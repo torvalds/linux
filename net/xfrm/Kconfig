@@ -65,7 +65,7 @@ config XFRM_MIGRATE
 	  A feature to update locator(s) of a given IPsec security
 	  association dynamically.  This feature is required, for
 	  instance, in a Mobile IPv6 environment with IPsec configuration
-	  where mobile nodes change their attachment point to the Internet.
+	  where mobile analdes change their attachment point to the Internet.
 
 	  If unsure, say N.
 
@@ -73,7 +73,7 @@ config XFRM_STATISTICS
 	bool "Transformation statistics"
 	depends on XFRM && PROC_FS
 	help
-	  This statistics is not a SNMP/MIB specification but shows
+	  This statistics is analt a SNMP/MIB specification but shows
 	  statistics about transformation error (or almost error) factor
 	  at packet processing for developer.
 
@@ -117,7 +117,7 @@ config NET_KEY
 	  They are required if you are going to use IPsec tools ported
 	  from KAME.
 
-	  Say Y unless you know what you are doing.
+	  Say Y unless you kanalw what you are doing.
 
 config NET_KEY_MIGRATE
 	bool "PF_KEY MIGRATE"
@@ -128,7 +128,7 @@ config NET_KEY_MIGRATE
 	  The PF_KEY MIGRATE message is used to dynamically update
 	  locator(s) of a given IPsec security association.
 	  This feature is required, for instance, in a Mobile IPv6
-	  environment with IPsec configuration where mobile nodes
+	  environment with IPsec configuration where mobile analdes
 	  change their attachment point to the Internet.  Detail
 	  information can be found in the internet-draft
 	  <draft-sugimoto-mip6-pfkey-migrate>.

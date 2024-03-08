@@ -196,7 +196,7 @@ static inline void mt7621_control_deassert(struct mt7621_pcie_port *port)
 }
 
 static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
-				  struct device_node *node,
+				  struct device_analde *analde,
 				  int slot)
 {
 	struct mt7621_pcie_port *port;
@@ -207,26 +207,26 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->base = devm_platform_ioremap_resource(pdev, slot + 1);
 	if (IS_ERR(port->base))
 		return PTR_ERR(port->base);
 
-	port->clk = devm_get_clk_from_child(dev, node, NULL);
+	port->clk = devm_get_clk_from_child(dev, analde, NULL);
 	if (IS_ERR(port->clk)) {
 		dev_err(dev, "failed to get pcie%d clock\n", slot);
 		return PTR_ERR(port->clk);
 	}
 
-	port->pcie_rst = of_reset_control_get_exclusive(node, NULL);
+	port->pcie_rst = of_reset_control_get_exclusive(analde, NULL);
 	if (PTR_ERR(port->pcie_rst) == -EPROBE_DEFER) {
 		dev_err(dev, "failed to get pcie%d reset control\n", slot);
 		return PTR_ERR(port->pcie_rst);
 	}
 
 	snprintf(name, sizeof(name), "pcie-phy%d", slot);
-	port->phy = devm_of_phy_get(dev, node, name);
+	port->phy = devm_of_phy_get(dev, analde, name);
 	if (IS_ERR(port->phy)) {
 		dev_err(dev, "failed to get pcie-phy%d\n", slot);
 		err = PTR_ERR(port->phy);
@@ -258,19 +258,19 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *node = dev->of_node, *child;
+	struct device_analde *analde = dev->of_analde, *child;
 	int err;
 
 	pcie->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_analde(analde, child) {
 		int slot;
 
 		err = of_pci_get_devfn(child);
 		if (err < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			dev_err(dev, "failed to parse devfn: %d\n", err);
 			return err;
 		}
@@ -279,7 +279,7 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 
 		err = mt7621_pcie_parse_port(pcie, child, slot);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 	}
@@ -378,7 +378,7 @@ static int mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 		u32 slot = port->slot;
 
 		if (!mt7621_pcie_port_is_linkup(port)) {
-			dev_info(dev, "pcie%d no card, disable it (RST & CLK)\n",
+			dev_info(dev, "pcie%d anal card, disable it (RST & CLK)\n",
 				 slot);
 			mt7621_control_assert(port);
 			port->enabled = false;
@@ -394,7 +394,7 @@ static int mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 		}
 	}
 
-	return (num_disabled != PCIE_PORT_CNT) ? 0 : -ENODEV;
+	return (num_disabled != PCIE_PORT_CNT) ? 0 : -EANALDEV;
 }
 
 static void mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
@@ -433,7 +433,7 @@ static int mt7621_pcie_enable_ports(struct pci_host_bridge *host)
 
 	entry = resource_list_first_type(&host->windows, IORESOURCE_IO);
 	if (!entry) {
-		dev_err(dev, "cannot get io resource\n");
+		dev_err(dev, "cananalt get io resource\n");
 		return -EINVAL;
 	}
 
@@ -481,12 +481,12 @@ static int mt7621_pcie_probe(struct platform_device *pdev)
 	struct pci_host_bridge *bridge;
 	int err;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = pci_host_bridge_priv(bridge);
 	pcie->dev = dev;
@@ -505,7 +505,7 @@ static int mt7621_pcie_probe(struct platform_device *pdev)
 
 	err = mt7621_pcie_init_ports(pcie);
 	if (err) {
-		dev_err(dev, "nothing connected in virtual bridges\n");
+		dev_err(dev, "analthing connected in virtual bridges\n");
 		return 0;
 	}
 

@@ -13,10 +13,10 @@ endif
 
 INCLUDES := -I$(top_srcdir)/tools/include
 HOST_CFLAGS := -Wall -Werror -g $(INCLUDES) -fPIC
-HOST_LDFLAGS := -z noexecstack -lcrypto
-ENCL_CFLAGS += -Wall -Werror -static-pie -nostdlib -ffreestanding -fPIE \
-	       -fno-stack-protector -mrdrnd $(INCLUDES)
-ENCL_LDFLAGS := -Wl,-T,test_encl.lds,--build-id=none
+HOST_LDFLAGS := -z analexecstack -lcrypto
+ENCL_CFLAGS += -Wall -Werror -static-pie -analstdlib -ffreestanding -fPIE \
+	       -fanal-stack-protector -mrdrnd $(INCLUDES)
+ENCL_LDFLAGS := -Wl,-T,test_encl.lds,--build-id=analne
 
 ifeq ($(CAN_BUILD_X86_64), 1)
 TEST_CUSTOM_PROGS := $(OUTPUT)/test_sgx

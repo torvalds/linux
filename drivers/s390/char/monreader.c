@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -272,7 +272,7 @@ static struct iucv_handler monreader_iucv_handler = {
 /******************************************************************************
  *                               file operations                              *
  *****************************************************************************/
-static int mon_open(struct inode *inode, struct file *filp)
+static int mon_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct mon_private *monpriv;
 	int rc;
@@ -284,7 +284,7 @@ static int mon_open(struct inode *inode, struct file *filp)
 	if (test_and_set_bit(MON_IN_USE, &mon_in_use))
 		goto out;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	monpriv = mon_alloc_mem();
 	if (!monpriv)
 		goto out_use;
@@ -316,7 +316,7 @@ static int mon_open(struct inode *inode, struct file *filp)
 		goto out_path;
 	}
 	filp->private_data = monpriv;
-	return nonseekable_open(inode, filp);
+	return analnseekable_open(ianalde, filp);
 
 out_path:
 	iucv_path_free(monpriv->path);
@@ -328,7 +328,7 @@ out:
 	return rc;
 }
 
-static int mon_close(struct inode *inode, struct file *filp)
+static int mon_close(struct ianalde *ianalde, struct file *filp)
 {
 	int rc, i;
 	struct mon_private *monpriv = filp->private_data;
@@ -371,7 +371,7 @@ static ssize_t mon_read(struct file *filp, char __user *data,
 		return PTR_ERR(monmsg);
 
 	if (!monmsg) {
-		if (filp->f_flags & O_NONBLOCK)
+		if (filp->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 		ret = wait_event_interruptible(mon_read_wait_queue,
 					atomic_read(&monpriv->read_ready) ||
@@ -430,7 +430,7 @@ static __poll_t mon_poll(struct file *filp, struct poll_table_struct *p)
 	if (unlikely(atomic_read(&monpriv->iucv_severed)))
 		return EPOLLERR;
 	if (atomic_read(&monpriv->read_ready))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -440,13 +440,13 @@ static const struct file_operations mon_fops = {
 	.release = &mon_close,
 	.read    = &mon_read,
 	.poll    = &mon_poll,
-	.llseek  = noop_llseek,
+	.llseek  = analop_llseek,
 };
 
 static struct miscdevice mon_dev = {
 	.name       = "monreader",
 	.fops       = &mon_fops,
-	.minor      = MISC_DYNAMIC_MINOR,
+	.mianalr      = MISC_DYNAMIC_MIANALR,
 };
 
 /******************************************************************************
@@ -457,9 +457,9 @@ static int __init mon_init(void)
 	int rc;
 
 	if (!MACHINE_IS_VM) {
-		pr_err("The z/VM *MONITOR record device driver cannot be "
+		pr_err("The z/VM *MONITOR record device driver cananalt be "
 		       "loaded without z/VM\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -478,7 +478,7 @@ static int __init mon_init(void)
 		goto out_iucv;
 	}
 	if (rc != SEG_TYPE_SC) {
-		pr_err("The specified *MONITOR DCSS %s does not have the "
+		pr_err("The specified *MONITOR DCSS %s does analt have the "
 		       "required type SC\n", mon_dcss_name);
 		rc = -EINVAL;
 		goto out_iucv;

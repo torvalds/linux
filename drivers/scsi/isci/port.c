@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -122,8 +122,8 @@ static u32 sci_port_get_phys(struct isci_port *iport)
  *
  * Indicate if the user specified a valid port. SCI_SUCCESS This value is
  * returned if the specified port was valid. SCI_FAILURE_INVALID_PORT This
- * value is returned if the specified port is not valid.  When this value is
- * returned, no data is copied to the properties output parameter.
+ * value is returned if the specified port is analt valid.  When this value is
+ * returned, anal data is copied to the properties output parameter.
  */
 enum sci_status sci_port_get_properties(struct isci_port *iport,
 						struct sci_port_properties *prop)
@@ -164,7 +164,7 @@ static void isci_port_bc_change_received(struct isci_host *ihost,
 		"%s: isci_phy = %p, sas_phy = %p\n",
 		__func__, iphy, &iphy->sas_phy);
 
-	sas_notify_port_event(&iphy->sas_phy,
+	sas_analtify_port_event(&iphy->sas_phy,
 			      PORTE_BROADCAST_RCVD, GFP_ATOMIC);
 	sci_port_bcn_enable(iport);
 }
@@ -195,7 +195,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 		 * For direct-attached SATA devices, the SCI core will
 		 * automagically assign a SAS address to the end device
 		 * for the purpose of creating a port. This SAS address
-		 * will not be the same as assigned to the PHY and needs
+		 * will analt be the same as assigned to the PHY and needs
 		 * to be obtained from struct sci_port_properties properties.
 		 */
 		attached_sas_address = properties.remote.sas_address.high;
@@ -213,7 +213,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 		memcpy(iphy->sas_phy.attached_sas_addr,
 		       iphy->frame_rcvd.iaf.sas_addr, SAS_ADDR_SIZE);
 	} else {
-		dev_err(&isci_host->pdev->dev, "%s: unknown target\n", __func__);
+		dev_err(&isci_host->pdev->dev, "%s: unkanalwn target\n", __func__);
 		success = false;
 	}
 
@@ -221,10 +221,10 @@ static void isci_port_link_up(struct isci_host *isci_host,
 
 	spin_unlock_irqrestore(&iphy->sas_phy.frame_rcvd_lock, flags);
 
-	/* Notify libsas that we have an address frame, if indeed
+	/* Analtify libsas that we have an address frame, if indeed
 	 * we've found an SSP, SMP, or STP target */
 	if (success)
-		sas_notify_port_event(&iphy->sas_phy,
+		sas_analtify_port_event(&iphy->sas_phy,
 				      PORTE_BYTES_DMAED, GFP_ATOMIC);
 }
 
@@ -258,7 +258,7 @@ static void isci_port_link_down(struct isci_host *isci_host,
 			*/
 			list_for_each_entry(isci_device,
 					    &isci_port->remote_dev_list,
-					    node) {
+					    analde) {
 				dev_dbg(&isci_host->pdev->dev,
 					"%s: isci_device = %p\n",
 					__func__, isci_device);
@@ -267,11 +267,11 @@ static void isci_port_link_down(struct isci_host *isci_host,
 		}
 	}
 
-	/* Notify libsas of the borken link, this will trigger calls to our
+	/* Analtify libsas of the borken link, this will trigger calls to our
 	 * isci_port_deformed and isci_dev_gone functions.
 	 */
 	sas_phy_disconnected(&isci_phy->sas_phy);
-	sas_notify_phy_event(&isci_phy->sas_phy,
+	sas_analtify_phy_event(&isci_phy->sas_phy,
 			     PHYE_LOSS_OF_SIGNAL, GFP_ATOMIC);
 
 	dev_dbg(&isci_host->pdev->dev,
@@ -307,7 +307,7 @@ static void port_state_machine_change(struct isci_port *iport,
 
 /**
  * isci_port_hard_reset_complete() - This function is called by the sci core
- *    when the hard reset complete notification has been received.
+ *    when the hard reset complete analtification has been received.
  * @isci_port: This parameter specifies the sci port with the active link.
  * @completion_status: This parameter specifies the core status for the reset
  *    process.
@@ -327,19 +327,19 @@ static void isci_port_hard_reset_complete(struct isci_port *isci_port,
 
 	if (completion_status != SCI_SUCCESS) {
 
-		/* The reset failed.  The port state is now SCI_PORT_FAILED. */
+		/* The reset failed.  The port state is analw SCI_PORT_FAILED. */
 		if (isci_port->active_phy_mask == 0) {
 			int phy_idx = isci_port->last_active_phy;
 			struct isci_phy *iphy = &ihost->phys[phy_idx];
 
-			/* Generate the link down now to the host, since it
+			/* Generate the link down analw to the host, since it
 			 * was intercepted by the hard reset state machine when
 			 * it really happened.
 			 */
 			isci_port_link_down(ihost, iphy, isci_port);
 		}
 		/* Advance the port state so that link state changes will be
-		 * noticed.
+		 * analticed.
 		 */
 		port_state_machine_change(isci_port, SCI_PORT_SUB_WAITING);
 
@@ -354,10 +354,10 @@ static void isci_port_hard_reset_complete(struct isci_port *isci_port,
  * Port 0 - 3 2 1 0 - Port 1 -     1 - Port 2 - 3 2 - Port 3 - 3 This method
  * doesn't preclude all configurations.  It merely ensures that a phy is part
  * of the allowable set of phy identifiers for that port.  For example, one
- * could assign phy 3 to port 0 and no other phys.  Please refer to
+ * could assign phy 3 to port 0 and anal other phys.  Please refer to
  * sci_port_is_phy_mask_valid() for information regarding whether the
  * phy_mask for a port can be supported. bool true if this is a valid phy
- * assignment for the port false if this is not a valid phy assignment for the
+ * assignment for the port false if this is analt a valid phy assignment for the
  * port
  */
 bool sci_port_is_valid_phy_assignment(struct isci_port *iport, u32 phy_index)
@@ -405,7 +405,7 @@ bool sci_port_is_valid_phy_assignment(struct isci_port *iport, u32 phy_index)
  * each port: - Port 0 - [[3  2] 1] 0 - Port 1 -        [1] - Port 2 - [[3] 2]
  * - Port 3 -  [3] This method returns a boolean indication specifying if the
  * phy mask can be supported. true if this is a valid phy assignment for the
- * port false if this is not a valid phy assignment for the port
+ * port false if this is analt a valid phy assignment for the port
  */
 static bool sci_port_is_phy_mask_valid(
 	struct isci_port *iport,
@@ -439,7 +439,7 @@ static bool sci_port_is_phy_mask_valid(
  * This method retrieves a currently active (i.e. connected) phy contained in
  * the port.  Currently, the lowest order phy that is connected is returned.
  * This method returns a pointer to a SCIS_SDS_PHY object. NULL This value is
- * returned if there are no currently active (i.e. connected to a remote end
+ * returned if there are anal currently active (i.e. connected to a remote end
  * point) phys contained in the port. All other values specify a struct sci_phy
  * object that is active in the port.
  */
@@ -463,11 +463,11 @@ static struct isci_phy *sci_port_get_a_connected_phy(struct isci_port *iport)
 static enum sci_status sci_port_set_phy(struct isci_port *iport, struct isci_phy *iphy)
 {
 	/* Check to see if we can add this phy to a port
-	 * that means that the phy is not part of a port and that the port does
-	 * not already have a phy assinged to the phy index.
+	 * that means that the phy is analt part of a port and that the port does
+	 * analt already have a phy assinged to the phy index.
 	 */
 	if (!iport->phy_table[iphy->phy_index] &&
-	    !phy_get_non_dummy_port(iphy) &&
+	    !phy_get_analn_dummy_port(iphy) &&
 	    sci_port_is_valid_phy_assignment(iport, iphy->phy_index)) {
 		/* Phy is being added in the stopped state so we are in MPC mode
 		 * make logical port index = physical port index
@@ -486,7 +486,7 @@ static enum sci_status sci_port_clear_phy(struct isci_port *iport, struct isci_p
 {
 	/* Make sure that this phy is part of this port */
 	if (iport->phy_table[iphy->phy_index] == iphy &&
-	    phy_get_non_dummy_port(iphy) == iport) {
+	    phy_get_analn_dummy_port(iphy) == iport) {
 		struct isci_host *ihost = iport->owning_controller;
 
 		/* Yep it is assigned to this port so remove it */
@@ -534,32 +534,32 @@ void sci_port_get_attached_sas_address(struct isci_port *iport, struct sci_sas_a
 /**
  * sci_port_construct_dummy_rnc() - create dummy rnc for si workaround
  *
- * @iport: logical port on which we need to create the remote node context
- * @rni: remote node index for this remote node context.
+ * @iport: logical port on which we need to create the remote analde context
+ * @rni: remote analde index for this remote analde context.
  *
- * This routine will construct a dummy remote node context data structure
+ * This routine will construct a dummy remote analde context data structure
  * This structure will be posted to the hardware to work around a scheduler
  * error in the hardware.
  */
 static void sci_port_construct_dummy_rnc(struct isci_port *iport, u16 rni)
 {
-	union scu_remote_node_context *rnc;
+	union scu_remote_analde_context *rnc;
 
-	rnc = &iport->owning_controller->remote_node_context_table[rni];
+	rnc = &iport->owning_controller->remote_analde_context_table[rni];
 
-	memset(rnc, 0, sizeof(union scu_remote_node_context));
+	memset(rnc, 0, sizeof(union scu_remote_analde_context));
 
 	rnc->ssp.remote_sas_address_hi = 0;
 	rnc->ssp.remote_sas_address_lo = 0;
 
-	rnc->ssp.remote_node_index = rni;
-	rnc->ssp.remote_node_port_width = 1;
+	rnc->ssp.remote_analde_index = rni;
+	rnc->ssp.remote_analde_port_width = 1;
 	rnc->ssp.logical_port_index = iport->physical_port_index;
 
 	rnc->ssp.nexus_loss_timer_enable = false;
 	rnc->ssp.check_bit = false;
 	rnc->ssp.is_valid = true;
-	rnc->ssp.is_remote_node_context = true;
+	rnc->ssp.is_remote_analde_context = true;
 	rnc->ssp.function_number = 0;
 	rnc->ssp.arbitration_wait_time = 0;
 }
@@ -584,8 +584,8 @@ static void sci_port_construct_dummy_task(struct isci_port *iport, u16 tag)
 	task_context->task_index = ISCI_TAG_TCI(tag);
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
-	task_context->remote_node_index = iport->reserved_rni;
-	task_context->do_not_dma_ssp_good_response = 1;
+	task_context->remote_analde_index = iport->reserved_rni;
+	task_context->do_analt_dma_ssp_good_response = 1;
 	task_context->task_phase = 0x01;
 }
 
@@ -597,7 +597,7 @@ static void sci_port_destroy_dummy_resources(struct isci_port *iport)
 		isci_free_tag(ihost, iport->reserved_tag);
 
 	if (iport->reserved_rni != SCU_DUMMY_INDEX)
-		sci_remote_node_table_release_remote_node_index(&ihost->available_remote_nodes,
+		sci_remote_analde_table_release_remote_analde_index(&ihost->available_remote_analdes,
 								     1, iport->reserved_rni);
 
 	iport->reserved_rni = SCU_DUMMY_INDEX;
@@ -633,12 +633,12 @@ static void sci_port_activate_phy(struct isci_port *iport,
 
 	sci_controller_clear_invalid_phy(ihost, iphy);
 
-	if (flags & PF_NOTIFY)
+	if (flags & PF_ANALTIFY)
 		isci_port_link_up(ihost, iport, iphy);
 }
 
 void sci_port_deactivate_phy(struct isci_port *iport, struct isci_phy *iphy,
-			     bool do_notify_user)
+			     bool do_analtify_user)
 {
 	struct isci_host *ihost = iport->owning_controller;
 
@@ -647,7 +647,7 @@ void sci_port_deactivate_phy(struct isci_port *iport, struct isci_phy *iphy,
 	if (!iport->active_phy_mask)
 		iport->last_active_phy = iphy->phy_index;
 
-	iphy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
+	iphy->max_negotiated_speed = SAS_LINK_RATE_UNKANALWN;
 
 	/* Re-assign the phy back to the LP as if it were a narrow port for APC
 	 * mode. For MPC mode, the phy will remain in the port.
@@ -657,7 +657,7 @@ void sci_port_deactivate_phy(struct isci_port *iport, struct isci_phy *iphy,
 		writel(iphy->phy_index,
 			&iport->port_pe_configuration_register[iphy->phy_index]);
 
-	if (do_notify_user == true)
+	if (do_analtify_user == true)
 		isci_port_link_down(ihost, iphy, iport);
 }
 
@@ -667,7 +667,7 @@ static void sci_port_invalid_link_up(struct isci_port *iport, struct isci_phy *i
 
 	/*
 	 * Check to see if we have alreay reported this link as bad and if
-	 * not go ahead and tell the SCI_USER that we have discovered an
+	 * analt go ahead and tell the SCI_USER that we have discovered an
 	 * invalid link.
 	 */
 	if ((ihost->invalid_phy_mask & (1 << iphy->phy_index)) == 0) {
@@ -680,10 +680,10 @@ static void sci_port_invalid_link_up(struct isci_port *iport, struct isci_phy *i
  * sci_port_general_link_up_handler - phy can be assigned to port?
  * @iport: sci_port object for which has a phy that has gone link up.
  * @iphy: This is the struct isci_phy object that has gone link up.
- * @flags: PF_RESUME, PF_NOTIFY to sci_port_activate_phy
+ * @flags: PF_RESUME, PF_ANALTIFY to sci_port_activate_phy
  *
  * Determine if this phy can be assigned to this port . If the phy is
- * not a valid PHY for this port then the function will notify the user.
+ * analt a valid PHY for this port then the function will analtify the user.
  * A PHY can only be part of a port if it's attached SAS ADDRESS is the
  * same as all other PHYs in the same port.
  */
@@ -719,7 +719,7 @@ static void sci_port_general_link_up_handler(struct isci_port *iport,
 /**
  * sci_port_is_wide()
  * This method returns false if the port only has a single phy object assigned.
- *     If there are no phys or more than one phy then the method will return
+ *     If there are anal phys or more than one phy then the method will return
  *    true.
  * @iport: The port for which the wide port condition is to be checked.
  *
@@ -751,8 +751,8 @@ static bool sci_port_is_wide(struct isci_port *iport)
  *
  * true if the phy object can continue to the link up condition. true Is
  * returned if this phy can continue to the ready state. false Is returned if
- * can not continue on to the ready state. This notification is in place for
- * wide ports and direct attached phys.  Since there are no wide ported SATA
+ * can analt continue on to the ready state. This analtification is in place for
+ * wide ports and direct attached phys.  Since there are anal wide ported SATA
  * devices this could become an invalid port configuration.
  */
 bool sci_port_link_detected(struct isci_port *iport, struct isci_phy *iphy)
@@ -807,7 +807,7 @@ static void port_timeout(struct timer_list *t)
 			__func__, iport->physical_port_index);
 	} else {
 		/* The port is in the ready state and we have a timer
-		 * reporting a timeout this should not happen.
+		 * reporting a timeout this should analt happen.
 		 */
 		dev_err(sciport_to_dev(iport),
 			"%s: SCIC Port 0x%p is processing a timeout operation "
@@ -834,7 +834,7 @@ static void sci_port_update_viit_entry(struct isci_port *iport)
 	writel(sas_address.low,
 		&iport->viit_registers->initiator_sas_address_lo);
 
-	/* This value get cleared just in case its not already cleared */
+	/* This value get cleared just in case its analt already cleared */
 	writel(0, &iport->viit_registers->reserved);
 
 	/* We are required to update the status register last */
@@ -928,7 +928,7 @@ static void sci_port_abort_dummy_request(struct isci_port *iport)
  * sci_port_resume_port_task_scheduler()
  * @iport: This is the struct isci_port object to resume.
  *
- * This method will resume the port task scheduler for this port object. none
+ * This method will resume the port task scheduler for this port object. analne
  */
 static void
 sci_port_resume_port_task_scheduler(struct isci_port *iport)
@@ -946,7 +946,7 @@ static void sci_port_ready_substate_waiting_enter(struct sci_base_state_machine 
 
 	sci_port_suspend_port_task_scheduler(iport);
 
-	iport->not_ready_reason = SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS;
+	iport->analt_ready_reason = SCIC_PORT_ANALT_READY_ANAL_ACTIVE_PHYS;
 
 	if (iport->active_phy_mask != 0) {
 		/* At least one of the phys on the port is ready */
@@ -990,15 +990,15 @@ static void sci_port_ready_substate_operational_enter(struct sci_base_state_mach
 	sci_port_post_dummy_request(iport);
 }
 
-static void sci_port_invalidate_dummy_remote_node(struct isci_port *iport)
+static void sci_port_invalidate_dummy_remote_analde(struct isci_port *iport)
 {
 	struct isci_host *ihost = iport->owning_controller;
 	u8 phys_index = iport->physical_port_index;
-	union scu_remote_node_context *rnc;
+	union scu_remote_analde_context *rnc;
 	u16 rni = iport->reserved_rni;
 	u32 command;
 
-	rnc = &ihost->remote_node_context_table[rni];
+	rnc = &ihost->remote_analde_context_table[rni];
 
 	rnc->ssp.is_valid = false;
 
@@ -1021,7 +1021,7 @@ static void sci_port_invalidate_dummy_remote_node(struct isci_port *iport)
  *
  * This method will perform the actions required by the struct isci_port on
  * exiting the SCI_PORT_SUB_OPERATIONAL. This function reports
- * the port not ready and suspends the port task scheduler. none
+ * the port analt ready and suspends the port task scheduler. analne
  */
 static void sci_port_ready_substate_operational_exit(struct sci_base_state_machine *sm)
 {
@@ -1029,8 +1029,8 @@ static void sci_port_ready_substate_operational_exit(struct sci_base_state_machi
 	struct isci_host *ihost = iport->owning_controller;
 
 	/*
-	 * Kill the dummy task for this port if it has not yet posted
-	 * the hardware will treat this as a NOP and just return abort
+	 * Kill the dummy task for this port if it has analt yet posted
+	 * the hardware will treat this as a ANALP and just return abort
 	 * complete.
 	 */
 	sci_port_abort_dummy_request(iport);
@@ -1039,7 +1039,7 @@ static void sci_port_ready_substate_operational_exit(struct sci_base_state_machi
 		__func__, iport->physical_port_index);
 
 	if (iport->ready_exit)
-		sci_port_invalidate_dummy_remote_node(iport);
+		sci_port_invalidate_dummy_remote_analde(iport);
 }
 
 static void sci_port_ready_substate_configuring_enter(struct sci_base_state_machine *sm)
@@ -1073,15 +1073,15 @@ enum sci_status sci_port_start(struct isci_port *iport)
 	if (iport->assigned_device_count > 0) {
 		/* TODO This is a start failure operation because
 		 * there are still devices assigned to this port.
-		 * There must be no devices assigned to a port on a
+		 * There must be anal devices assigned to a port on a
 		 * start operation.
 		 */
 		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
 	}
 
 	if (iport->reserved_rni == SCU_DUMMY_INDEX) {
-		u16 rni = sci_remote_node_table_allocate_remote_node(
-				&ihost->available_remote_nodes, 1);
+		u16 rni = sci_remote_analde_table_allocate_remote_analde(
+				&ihost->available_remote_analdes, 1);
 
 		if (rni != SCU_DUMMY_INDEX)
 			sci_port_construct_dummy_rnc(iport, rni);
@@ -1165,7 +1165,7 @@ static enum sci_status sci_port_hard_reset(struct isci_port *iport, u32 timeout)
 		iphy = iport->phy_table[phy_index];
 		if (iphy && !sci_port_active_phy(iport, iphy)) {
 			/*
-			 * We found a phy but it is not ready select
+			 * We found a phy but it is analt ready select
 			 * different phy
 			 */
 			iphy = NULL;
@@ -1181,7 +1181,7 @@ static enum sci_status sci_port_hard_reset(struct isci_port *iport, u32 timeout)
 		return status;
 
 	sci_mod_timer(&iport->timer, timeout);
-	iport->not_ready_reason = SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED;
+	iport->analt_ready_reason = SCIC_PORT_ANALT_READY_HARD_RESET_REQUESTED;
 
 	port_state_machine_change(iport, SCI_PORT_RESETTING);
 	return SCI_SUCCESS;
@@ -1233,8 +1233,8 @@ enum sci_status sci_port_add_phy(struct isci_port *iport,
 		if (status != SCI_SUCCESS)
 			return status;
 
-		sci_port_general_link_up_handler(iport, iphy, PF_NOTIFY|PF_RESUME);
-		iport->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
+		sci_port_general_link_up_handler(iport, iphy, PF_ANALTIFY|PF_RESUME);
+		iport->analt_ready_reason = SCIC_PORT_ANALT_READY_RECONFIGURING;
 		port_state_machine_change(iport, SCI_PORT_SUB_CONFIGURING);
 
 		return status;
@@ -1243,7 +1243,7 @@ enum sci_status sci_port_add_phy(struct isci_port *iport,
 
 		if (status != SCI_SUCCESS)
 			return status;
-		sci_port_general_link_up_handler(iport, iphy, PF_NOTIFY);
+		sci_port_general_link_up_handler(iport, iphy, PF_ANALTIFY);
 
 		/* Re-enter the configuring state since this may be the last phy in
 		 * the port.
@@ -1284,7 +1284,7 @@ enum sci_status sci_port_remove_phy(struct isci_port *iport,
 			return status;
 
 		sci_port_deactivate_phy(iport, iphy, true);
-		iport->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
+		iport->analt_ready_reason = SCIC_PORT_ANALT_READY_RECONFIGURING;
 		port_state_machine_change(iport,
 					  SCI_PORT_SUB_CONFIGURING);
 		return SCI_SUCCESS;
@@ -1319,18 +1319,18 @@ enum sci_status sci_port_link_up(struct isci_port *iport,
 		/* Since this is the first phy going link up for the port we
 		 * can just enable it and continue
 		 */
-		sci_port_activate_phy(iport, iphy, PF_NOTIFY|PF_RESUME);
+		sci_port_activate_phy(iport, iphy, PF_ANALTIFY|PF_RESUME);
 
 		port_state_machine_change(iport,
 					  SCI_PORT_SUB_OPERATIONAL);
 		return SCI_SUCCESS;
 	case SCI_PORT_SUB_OPERATIONAL:
-		sci_port_general_link_up_handler(iport, iphy, PF_NOTIFY|PF_RESUME);
+		sci_port_general_link_up_handler(iport, iphy, PF_ANALTIFY|PF_RESUME);
 		return SCI_SUCCESS;
 	case SCI_PORT_RESETTING:
 		/* TODO We should  make  sure  that  the phy  that  has gone
 		 * link up is the same one on which we sent the reset.  It is
-		 * possible that the phy on which we sent  the reset is not the
+		 * possible that the phy on which we sent  the reset is analt the
 		 * one that has  gone  link up  and we  want to make sure that
 		 * phy being reset  comes  back.  Consider the case where a
 		 * reset is sent but before the hardware processes the reset it
@@ -1339,8 +1339,8 @@ enum sci_status sci_port_link_up(struct isci_port *iport,
 		 * almost immediately.
 		 */
 
-		/* In the resetting state we don't notify the user regarding
-		 * link up and link down notifications.
+		/* In the resetting state we don't analtify the user regarding
+		 * link up and link down analtifications.
 		 */
 		sci_port_general_link_up_handler(iport, iphy, PF_RESUME);
 		return SCI_SUCCESS;
@@ -1361,7 +1361,7 @@ enum sci_status sci_port_link_down(struct isci_port *iport,
 	case SCI_PORT_SUB_OPERATIONAL:
 		sci_port_deactivate_phy(iport, iphy, true);
 
-		/* If there are no active phys left in the port, then
+		/* If there are anal active phys left in the port, then
 		 * transition the port to the WAITING state until such time
 		 * as a phy goes link up
 		 */
@@ -1370,8 +1370,8 @@ enum sci_status sci_port_link_down(struct isci_port *iport,
 						  SCI_PORT_SUB_WAITING);
 		return SCI_SUCCESS;
 	case SCI_PORT_RESETTING:
-		/* In the resetting state we don't notify the user regarding
-		 * link up and link down notifications. */
+		/* In the resetting state we don't analtify the user regarding
+		 * link up and link down analtifications. */
 		sci_port_deactivate_phy(iport, iphy, false);
 		return SCI_SUCCESS;
 	default:
@@ -1458,15 +1458,15 @@ static void sci_port_disable_port_task_scheduler(struct isci_port *iport)
 	writel(pts_control_value, &iport->port_task_scheduler_registers->control);
 }
 
-static void sci_port_post_dummy_remote_node(struct isci_port *iport)
+static void sci_port_post_dummy_remote_analde(struct isci_port *iport)
 {
 	struct isci_host *ihost = iport->owning_controller;
 	u8 phys_index = iport->physical_port_index;
-	union scu_remote_node_context *rnc;
+	union scu_remote_analde_context *rnc;
 	u16 rni = iport->reserved_rni;
 	u32 command;
 
-	rnc = &ihost->remote_node_context_table[rni];
+	rnc = &ihost->remote_analde_context_table[rni];
 	rnc->ssp.is_valid = true;
 
 	command = SCU_CONTEXT_COMMAND_POST_RNC_32 |
@@ -1520,8 +1520,8 @@ static void sci_port_ready_state_enter(struct sci_base_state_machine *sm)
 		dev_dbg(&ihost->pdev->dev, "%s: port%d !ready\n",
 			__func__, iport->physical_port_index);
 
-	/* Post and suspend the dummy remote node context for this port. */
-	sci_port_post_dummy_remote_node(iport);
+	/* Post and suspend the dummy remote analde context for this port. */
+	sci_port_post_dummy_remote_analde(iport);
 
 	/* Start the ready substate machine */
 	port_state_machine_change(iport,
@@ -1639,7 +1639,7 @@ void sci_port_broadcast_change_received(struct isci_port *iport, struct isci_phy
 {
 	struct isci_host *ihost = iport->owning_controller;
 
-	/* notify the user. */
+	/* analtify the user. */
 	isci_port_bc_change_received(ihost, iport, iphy);
 }
 
@@ -1726,8 +1726,8 @@ void isci_port_deformed(struct asd_sas_phy *phy)
 	unsigned long flags;
 	int i;
 
-	/* we got a port notification on a port that was subsequently
-	 * torn down and libsas is just now catching up
+	/* we got a port analtification on a port that was subsequently
+	 * torn down and libsas is just analw catching up
 	 */
 	if (!iport)
 		return;

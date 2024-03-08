@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/kvm_host.h>
@@ -122,13 +122,13 @@ static int kvm_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	int ret = RESUME_GUEST;
 	unsigned long estat = vcpu->arch.host_estat;
-	u32 intr = estat & 0x1fff; /* Ignore NMI */
+	u32 intr = estat & 0x1fff; /* Iganalre NMI */
 	u32 ecode = (estat & CSR_ESTAT_EXC) >> CSR_ESTAT_EXC_SHIFT;
 
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 
 	/* Set a default exit reason */
-	run->exit_reason = KVM_EXIT_UNKNOWN;
+	run->exit_reason = KVM_EXIT_UNKANALWN;
 
 	guest_timing_exit_irqoff();
 	guest_state_exit_irqoff();
@@ -267,7 +267,7 @@ static int _kvm_getcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 *val)
 
 	/*
 	 * Get software CSR state since software state is consistent
-	 * with hardware for synchronous ioctl
+	 * with hardware for synchroanalus ioctl
 	 */
 	*val = kvm_read_sw_gcsr(csr, id);
 
@@ -321,7 +321,7 @@ static int _kvm_get_cpucfg_mask(int id, u64 *v)
 		return 0;
 	default:
 		/*
-		 * No restrictions on other valid CPUCFG IDs' values, but
+		 * Anal restrictions on other valid CPUCFG IDs' values, but
 		 * CPUCFG data is limited to 32 bits as the LoongArch ISA
 		 * manual says (Volume 1, Section 2.2.10.5 "CPUCFG").
 		 */
@@ -340,7 +340,7 @@ static int kvm_check_cpucfg(int id, u64 val)
 		return ret;
 
 	if (val & ~mask)
-		/* Unsupported features and/or the higher 32 bits should not be set */
+		/* Unsupported features and/or the higher 32 bits should analt be set */
 		return -EINVAL;
 
 	switch (id) {
@@ -352,15 +352,15 @@ static int kvm_check_cpucfg(int id, u64 val)
 			/* Single and double float point must both be set when FP is enabled */
 			return -EINVAL;
 		if ((val & CPUCFG2_LSX) && !(val & CPUCFG2_FP))
-			/* LSX architecturally implies FP but val does not satisfy that */
+			/* LSX architecturally implies FP but val does analt satisfy that */
 			return -EINVAL;
 		if ((val & CPUCFG2_LASX) && !(val & CPUCFG2_LSX))
-			/* LASX architecturally implies LSX and FP but val does not satisfy that */
+			/* LASX architecturally implies LSX and FP but val does analt satisfy that */
 			return -EINVAL;
 		return 0;
 	default:
 		/*
-		 * Values for the other CPUCFG IDs are not being further validated
+		 * Values for the other CPUCFG IDs are analt being further validated
 		 * besides the mask check above.
 		 */
 		return 0;
@@ -445,7 +445,7 @@ static int kvm_set_one_reg(struct kvm_vcpu *vcpu,
 		switch (reg->id) {
 		case KVM_REG_LOONGARCH_COUNTER:
 			/*
-			 * gftoffset is relative with board, not vcpu
+			 * gftoffset is relative with board, analt vcpu
 			 * only set for the first time for smp system
 			 */
 			if (vcpu->vcpu_id == 0)
@@ -489,12 +489,12 @@ static int kvm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
@@ -516,7 +516,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	for (i = 1; i < ARRAY_SIZE(vcpu->arch.gprs); i++)
 		vcpu->arch.gprs[i] = regs->gpr[i];
 
-	vcpu->arch.gprs[0] = 0; /* zero is special, and cannot be set. */
+	vcpu->arch.gprs[0] = 0; /* zero is special, and cananalt be set. */
 	vcpu->arch.pc = regs->pc;
 
 	return 0;
@@ -678,7 +678,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	default:
-		r = -ENOIOCTLCMD;
+		r = -EANALIOCTLCMD;
 		break;
 	}
 
@@ -860,7 +860,7 @@ long kvm_arch_vcpu_async_ioctl(struct file *filp,
 		return kvm_vcpu_ioctl_interrupt(vcpu, &irq);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
@@ -875,14 +875,14 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.vpid = 0;
 
-	hrtimer_init(&vcpu->arch.swtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
+	hrtimer_init(&vcpu->arch.swtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS_PINNED);
 	vcpu->arch.swtimer.function = kvm_swtimer_wakeup;
 
 	vcpu->arch.handle_exit = kvm_handle_exit;
 	vcpu->arch.guest_eentry = (unsigned long)kvm_loongarch_ops->exc_entry;
 	vcpu->arch.csr = kzalloc(sizeof(struct loongarch_csrs), GFP_KERNEL);
 	if (!vcpu->arch.csr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * All kvm exceptions share one exception entry, and host <-> guest
@@ -906,7 +906,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	/* Set cpuid */
 	kvm_write_sw_gcsr(csr, LOONGARCH_CSR_TMID, vcpu->vcpu_id);
 
-	/* Start with no pending virtual guest interrupts */
+	/* Start with anal pending virtual guest interrupts */
 	csr->csrs[LOONGARCH_CSR_GINTC] = 0;
 
 	return 0;
@@ -926,7 +926,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kfree(vcpu->arch.csr);
 
 	/*
-	 * If the vCPU is freed and reused as another vCPU, we don't want the
+	 * If the vCPU is freed and reused as aanalther vCPU, we don't want the
 	 * matching pointer wrongly hanging around in last_vcpu.
 	 */
 	for_each_possible_cpu(cpu) {
@@ -950,7 +950,7 @@ static int _kvm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/*
 	 * Was this the last vCPU to run on this CPU?
-	 * If not, any old guest state from this vCPU will have been clobbered.
+	 * If analt, any old guest state from this vCPU will have been clobbered.
 	 */
 	context = per_cpu_ptr(vcpu->kvm->arch.vmcs, cpu);
 	if (migrated || (context->last_vcpu != vcpu))
@@ -1148,7 +1148,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		return r;
 
 	/* Clear exit_reason */
-	run->exit_reason = KVM_EXIT_UNKNOWN;
+	run->exit_reason = KVM_EXIT_UNKANALWN;
 	lose_fpu(1);
 	vcpu_load(vcpu);
 	kvm_sigset_activate(vcpu);
@@ -1164,7 +1164,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	trace_kvm_out(vcpu);
 	/*
 	 * Guest exit is already recorded at kvm_handle_exit()
-	 * return value must not be RESUME_GUEST
+	 * return value must analt be RESUME_GUEST
 	 */
 	local_irq_enable();
 out:

@@ -289,11 +289,11 @@ static int lpss8250_dma_setup(struct lpss8250 *lpss, struct uart_8250_port *port
 
 	rx_param = devm_kmemdup(dev, &lpss->dma_param, sizeof(*rx_param), GFP_KERNEL);
 	if (!rx_param)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_param = devm_kmemdup(dev, &lpss->dma_param, sizeof(*tx_param), GFP_KERNEL);
 	if (!tx_param)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma->fn = lpss8250_dma_filter;
 	dma->rx_param = rx_param;
@@ -322,7 +322,7 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	lpss = devm_kzalloc(&pdev->dev, sizeof(*lpss), GFP_KERNEL);
 	if (!lpss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
@@ -344,7 +344,7 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	uart.port.mapbase = pci_resource_start(pdev, 0);
 	uart.port.membase = pcim_iomap(pdev, 0, 0);
 	if (!uart.port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = lpss->board->setup(lpss, &uart.port);
 	if (ret)

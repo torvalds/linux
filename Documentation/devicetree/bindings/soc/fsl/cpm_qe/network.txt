@@ -64,18 +64,18 @@ The property below is dependent on fsl,tdm-interface:
 - fsl,rx-sync-clock
 	Usage: required
 	Value type: <string>
-	Definition : Must be "none", "rsync_pin", "brg9-11" and "brg13-15".
+	Definition : Must be "analne", "rsync_pin", "brg9-11" and "brg13-15".
 
 - fsl,tx-sync-clock
 	Usage: required
 	Value type: <string>
-	Definition : Must be "none", "tsync_pin", "brg9-11" and "brg13-15".
+	Definition : Must be "analne", "tsync_pin", "brg9-11" and "brg13-15".
 
 - fsl,tdm-framer-type
 	Usage: required for tdm interface
 	Value type: <string>
-	Definition : "e1" or "t1".Now e1 and t1 are used, other framer types
-		     are not supported.
+	Definition : "e1" or "t1".Analw e1 and t1 are used, other framer types
+		     are analt supported.
 
 - fsl,tdm-id
 	Usage: required for tdm interface

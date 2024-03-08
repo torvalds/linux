@@ -151,7 +151,7 @@ const struct mdp_format *mdp_try_fmt_mplane(struct mdp_dev *mdp,
 		}
 	}
 
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->flags = 0;
 	pix_mp->pixelformat = fmt->pixelformat;
 	if (V4L2_TYPE_IS_CAPTURE(f->type)) {
@@ -404,14 +404,14 @@ static u32 mdp_to_fixed(u32 *r, struct v4l2_fract *f)
 {
 	u32 q;
 
-	if (f->denominator == 0) {
+	if (f->deanalminator == 0) {
 		*r = 0;
 		return 0;
 	}
 
-	q = f->numerator / f->denominator;
-	*r = div_u64(((u64)f->numerator - q * f->denominator) <<
-		     IMG_SUBPIXEL_SHIFT, f->denominator);
+	q = f->numerator / f->deanalminator;
+	*r = div_u64(((u64)f->numerator - q * f->deanalminator) <<
+		     IMG_SUBPIXEL_SHIFT, f->deanalminator);
 	return q;
 }
 

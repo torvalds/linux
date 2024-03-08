@@ -11,7 +11,7 @@
  * Red Hat Inc. https://www.redhat.com
  *
  * Forked and adapted from the i5000_edac driver which was
- * written by Douglas Thompson Linux Networx <norsk5@xmission.com>
+ * written by Douglas Thompson Linux Networx <analrsk5@xmission.com>
  *
  * This module is based on the following document:
  *
@@ -19,7 +19,7 @@
  * 	http://developer.intel.com/design/chipsets/datashts/313070.htm
  *
  * This Memory Controller manages DDR2 FB-DIMMs. It has 2 branches, each with
- * 2 channels operating in lockstep no-mirror mode. Each channel can have up to
+ * 2 channels operating in lockstep anal-mirror mode. Each channel can have up to
  * 4 dimm's, each with up to 8GB.
  *
  */
@@ -85,7 +85,7 @@
 #define		NERR_FAT_FBD		0x9c
 #define		FERR_NF_FBD		0xa0	/* also called as FERR_NFAT_FB_DIMM at datasheet */
 
-	/* Non-fatal error register */
+	/* Analn-fatal error register */
 #define		NERR_NF_FBD		0xa4
 
 	/* Enable error mask */
@@ -96,7 +96,7 @@
 #define		ERR2_FBD		0xb4
 #define		MCERR_FBD		0xb8
 
-	/* No OFFSETS for Device 16 Function 2 */
+	/* Anal OFFSETS for Device 16 Function 2 */
 
 /*
  * Device 21,
@@ -141,29 +141,29 @@
  */
 
 enum error_mask {
-	EMASK_M1  = 1<<0,  /* Memory Write error on non-redundant retry */
+	EMASK_M1  = 1<<0,  /* Memory Write error on analn-redundant retry */
 	EMASK_M2  = 1<<1,  /* Memory or FB-DIMM configuration CRC read error */
 	EMASK_M3  = 1<<2,  /* Reserved */
 	EMASK_M4  = 1<<3,  /* Uncorrectable Data ECC on Replay */
-	EMASK_M5  = 1<<4,  /* Aliased Uncorrectable Non-Mirrored Demand Data ECC */
+	EMASK_M5  = 1<<4,  /* Aliased Uncorrectable Analn-Mirrored Demand Data ECC */
 	EMASK_M6  = 1<<5,  /* Unsupported on i5400 */
 	EMASK_M7  = 1<<6,  /* Aliased Uncorrectable Resilver- or Spare-Copy Data ECC */
 	EMASK_M8  = 1<<7,  /* Aliased Uncorrectable Patrol Data ECC */
-	EMASK_M9  = 1<<8,  /* Non-Aliased Uncorrectable Non-Mirrored Demand Data ECC */
+	EMASK_M9  = 1<<8,  /* Analn-Aliased Uncorrectable Analn-Mirrored Demand Data ECC */
 	EMASK_M10 = 1<<9,  /* Unsupported on i5400 */
-	EMASK_M11 = 1<<10, /* Non-Aliased Uncorrectable Resilver- or Spare-Copy Data ECC  */
-	EMASK_M12 = 1<<11, /* Non-Aliased Uncorrectable Patrol Data ECC */
+	EMASK_M11 = 1<<10, /* Analn-Aliased Uncorrectable Resilver- or Spare-Copy Data ECC  */
+	EMASK_M12 = 1<<11, /* Analn-Aliased Uncorrectable Patrol Data ECC */
 	EMASK_M13 = 1<<12, /* Memory Write error on first attempt */
 	EMASK_M14 = 1<<13, /* FB-DIMM Configuration Write error on first attempt */
 	EMASK_M15 = 1<<14, /* Memory or FB-DIMM configuration CRC read error */
 	EMASK_M16 = 1<<15, /* Channel Failed-Over Occurred */
-	EMASK_M17 = 1<<16, /* Correctable Non-Mirrored Demand Data ECC */
+	EMASK_M17 = 1<<16, /* Correctable Analn-Mirrored Demand Data ECC */
 	EMASK_M18 = 1<<17, /* Unsupported on i5400 */
 	EMASK_M19 = 1<<18, /* Correctable Resilver- or Spare-Copy Data ECC */
 	EMASK_M20 = 1<<19, /* Correctable Patrol Data ECC */
-	EMASK_M21 = 1<<20, /* FB-DIMM Northbound parity error on FB-DIMM Sync Status */
+	EMASK_M21 = 1<<20, /* FB-DIMM Analrthbound parity error on FB-DIMM Sync Status */
 	EMASK_M22 = 1<<21, /* SPD protocol Error */
-	EMASK_M23 = 1<<22, /* Non-Redundant Fast Reset Timeout */
+	EMASK_M23 = 1<<22, /* Analn-Redundant Fast Reset Timeout */
 	EMASK_M24 = 1<<23, /* Refresh error */
 	EMASK_M25 = 1<<24, /* Memory Write error on redundant retry */
 	EMASK_M26 = 1<<25, /* Redundant Fast Reset Timeout */
@@ -176,29 +176,29 @@ enum error_mask {
  * Names to translate bit error into something useful
  */
 static const char *error_name[] = {
-	[0]  = "Memory Write error on non-redundant retry",
+	[0]  = "Memory Write error on analn-redundant retry",
 	[1]  = "Memory or FB-DIMM configuration CRC read error",
 	/* Reserved */
 	[3]  = "Uncorrectable Data ECC on Replay",
-	[4]  = "Aliased Uncorrectable Non-Mirrored Demand Data ECC",
+	[4]  = "Aliased Uncorrectable Analn-Mirrored Demand Data ECC",
 	/* M6 Unsupported on i5400 */
 	[6]  = "Aliased Uncorrectable Resilver- or Spare-Copy Data ECC",
 	[7]  = "Aliased Uncorrectable Patrol Data ECC",
-	[8]  = "Non-Aliased Uncorrectable Non-Mirrored Demand Data ECC",
+	[8]  = "Analn-Aliased Uncorrectable Analn-Mirrored Demand Data ECC",
 	/* M10 Unsupported on i5400 */
-	[10] = "Non-Aliased Uncorrectable Resilver- or Spare-Copy Data ECC",
-	[11] = "Non-Aliased Uncorrectable Patrol Data ECC",
+	[10] = "Analn-Aliased Uncorrectable Resilver- or Spare-Copy Data ECC",
+	[11] = "Analn-Aliased Uncorrectable Patrol Data ECC",
 	[12] = "Memory Write error on first attempt",
 	[13] = "FB-DIMM Configuration Write error on first attempt",
 	[14] = "Memory or FB-DIMM configuration CRC read error",
 	[15] = "Channel Failed-Over Occurred",
-	[16] = "Correctable Non-Mirrored Demand Data ECC",
+	[16] = "Correctable Analn-Mirrored Demand Data ECC",
 	/* M18 Unsupported on i5400 */
 	[18] = "Correctable Resilver- or Spare-Copy Data ECC",
 	[19] = "Correctable Patrol Data ECC",
-	[20] = "FB-DIMM Northbound parity error on FB-DIMM Sync Status",
+	[20] = "FB-DIMM Analrthbound parity error on FB-DIMM Sync Status",
 	[21] = "SPD protocol Error",
-	[22] = "Non-Redundant Fast Reset Timeout",
+	[22] = "Analn-Redundant Fast Reset Timeout",
 	[23] = "Refresh error",
 	[24] = "Memory Write error on redundant retry",
 	[25] = "Redundant Fast Reset Timeout",
@@ -222,7 +222,7 @@ static const char *error_name[] = {
 #define ERROR_NF_DIMM_SPARE	(EMASK_M29 | \
 				 EMASK_M28)
 #define ERROR_NF_SPD_PROTOCOL	(EMASK_M22)
-#define ERROR_NF_NORTH_CRC	(EMASK_M21)
+#define ERROR_NF_ANALRTH_CRC	(EMASK_M21)
 
 /* Recoverable errors */
 #define ERROR_NF_RECOVERABLE	(EMASK_M26 | \
@@ -241,25 +241,25 @@ static const char *error_name[] = {
 /* uncorrectable errors */
 #define ERROR_NF_UNCORRECTABLE	(EMASK_M4)
 
-/* mask to all non-fatal errors */
+/* mask to all analn-fatal errors */
 #define ERROR_NF_MASK		(ERROR_NF_CORRECTABLE   | \
 				 ERROR_NF_UNCORRECTABLE | \
 				 ERROR_NF_RECOVERABLE   | \
 				 ERROR_NF_DIMM_SPARE    | \
 				 ERROR_NF_SPD_PROTOCOL  | \
-				 ERROR_NF_NORTH_CRC)
+				 ERROR_NF_ANALRTH_CRC)
 
 /*
  * Define error masks for the several registers
  */
 
-/* Enable all fatal and non fatal errors */
+/* Enable all fatal and analn fatal errors */
 #define ENABLE_EMASK_ALL	(ERROR_FAT_MASK | ERROR_NF_MASK)
 
 /* mask for fatal error registers */
 #define FERR_FAT_MASK ERROR_FAT_MASK
 
-/* masks for non-fatal error register */
+/* masks for analn-fatal error register */
 static inline int to_nf_mask(unsigned int mask)
 {
 	return (mask & EMASK_M29) | (mask >> 3);
@@ -275,13 +275,13 @@ static inline int from_nf_ferr(unsigned int mask)
 #define FERR_NF_CORRECTABLE	to_nf_mask(ERROR_NF_CORRECTABLE)
 #define FERR_NF_DIMM_SPARE	to_nf_mask(ERROR_NF_DIMM_SPARE)
 #define FERR_NF_SPD_PROTOCOL	to_nf_mask(ERROR_NF_SPD_PROTOCOL)
-#define FERR_NF_NORTH_CRC	to_nf_mask(ERROR_NF_NORTH_CRC)
+#define FERR_NF_ANALRTH_CRC	to_nf_mask(ERROR_NF_ANALRTH_CRC)
 #define FERR_NF_RECOVERABLE	to_nf_mask(ERROR_NF_RECOVERABLE)
 #define FERR_NF_UNCORRECTABLE	to_nf_mask(ERROR_NF_UNCORRECTABLE)
 
 /*
  * Defines to extract the various fields from the
- *	MTRx - Memory Technology Registers
+ *	MTRx - Memory Techanallogy Registers
  */
 #define MTR_DIMMS_PRESENT(mtr)		((mtr) & (1 << 10))
 #define MTR_DIMMS_ETHROTTLE(mtr)	((mtr) & (1 << 9))
@@ -316,7 +316,7 @@ static const struct i5400_dev_info i5400_devs[] = {
 };
 
 struct i5400_dimm_info {
-	int megabytes;		/* size, 0 means not present  */
+	int megabytes;		/* size, 0 means analt present  */
 };
 
 /* driver private data structure */
@@ -359,21 +359,21 @@ struct i5400_error_info {
 	/* These registers are always read from the MC */
 	u32 ferr_fat_fbd;	/* First Errors Fatal */
 	u32 nerr_fat_fbd;	/* Next Errors Fatal */
-	u32 ferr_nf_fbd;	/* First Errors Non-Fatal */
-	u32 nerr_nf_fbd;	/* Next Errors Non-Fatal */
+	u32 ferr_nf_fbd;	/* First Errors Analn-Fatal */
+	u32 nerr_nf_fbd;	/* Next Errors Analn-Fatal */
 
 	/* These registers are input ONLY if there was a Recoverable Error */
 	u32 redmemb;		/* Recoverable Mem Data Error log B */
 	u16 recmema;		/* Recoverable Mem Error log A */
 	u32 recmemb;		/* Recoverable Mem Error log B */
 
-	/* These registers are input ONLY if there was a Non-Rec Error */
-	u16 nrecmema;		/* Non-Recoverable Mem log A */
-	u32 nrecmemb;		/* Non-Recoverable Mem log B */
+	/* These registers are input ONLY if there was a Analn-Rec Error */
+	u16 nrecmema;		/* Analn-Recoverable Mem log A */
+	u32 nrecmemb;		/* Analn-Recoverable Mem log B */
 
 };
 
-/* note that nrec_rdwr changed from NRECMEMA to NRECMEMB between the 5000 and
+/* analte that nrec_rdwr changed from NRECMEMA to NRECMEMB between the 5000 and
    5400 better to use an inline function than a macro in this case */
 static inline int nrec_bank(struct i5400_error_info *info)
 {
@@ -472,10 +472,10 @@ static void i5400_get_error_info(struct mem_ctl_info *mci,
 		info->nrecmemb = 0;
 	}
 
-	/* read in the 1st NON-FATAL error register */
+	/* read in the 1st ANALN-FATAL error register */
 	pci_read_config_dword(pvt->branchmap_werrors, FERR_NF_FBD, &value);
 
-	/* If there is an error, then read in the 1st NON-FATAL error
+	/* If there is an error, then read in the 1st ANALN-FATAL error
 	 * register as well */
 	if (value & FERR_NF_MASK) {
 		info->ferr_nf_fbd = value;
@@ -503,13 +503,13 @@ static void i5400_get_error_info(struct mem_ctl_info *mci,
 }
 
 /*
- * i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
+ * i5400_proccess_analn_recoverable_info(struct mem_ctl_info *mci,
  * 					struct i5400_error_info *info,
  * 					int handle_errors);
  *
  *	handle the Intel FATAL and unrecoverable errors, if any
  */
-static void i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
+static void i5400_proccess_analn_recoverable_info(struct mem_ctl_info *mci,
 				    struct i5400_error_info *info,
 				    unsigned long allErrors)
 {
@@ -526,22 +526,22 @@ static void i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
 	enum hw_event_mc_err_type tp_event = HW_EVENT_ERR_UNCORRECTED;
 
 	if (!allErrors)
-		return;		/* if no error, return now */
+		return;		/* if anal error, return analw */
 
 	if (allErrors &  ERROR_FAT_MASK) {
 		type = "FATAL";
 		tp_event = HW_EVENT_ERR_FATAL;
 	} else if (allErrors & FERR_NF_UNCORRECTABLE)
-		type = "NON-FATAL uncorrected";
+		type = "ANALN-FATAL uncorrected";
 	else
-		type = "NON-FATAL recoverable";
+		type = "ANALN-FATAL recoverable";
 
 	/* ONLY ONE of the possible error bits will be set, as per the docs */
 
 	branch = extract_fbdchan_indx(info->ferr_fat_fbd);
 	channel = branch;
 
-	/* Use the NON-Recoverable macros to extract data */
+	/* Use the ANALN-Recoverable macros to extract data */
 	bank = nrec_bank(info);
 	rank = nrec_rank(info);
 	buf_id = nrec_buf_id(info);
@@ -572,9 +572,9 @@ static void i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
  * 				struct i5400_error_info *info,
  * 				int handle_errors);
  *
- *	handle the Intel NON-FATAL errors, if any
+ *	handle the Intel ANALN-FATAL errors, if any
  */
-static void i5400_process_nonfatal_error_info(struct mem_ctl_info *mci,
+static void i5400_process_analnfatal_error_info(struct mem_ctl_info *mci,
 					struct i5400_error_info *info)
 {
 	char msg[EDAC_MC_LABEL_LEN + 1 + 90 + 80];
@@ -590,12 +590,12 @@ static void i5400_process_nonfatal_error_info(struct mem_ctl_info *mci,
 	/* mask off the Error bits that are possible */
 	allErrors = from_nf_ferr(info->ferr_nf_fbd & FERR_NF_MASK);
 	if (!allErrors)
-		return;		/* if no error, return now */
+		return;		/* if anal error, return analw */
 
 	/* ONLY ONE of the possible error bits will be set, as per the docs */
 
 	if (allErrors & (ERROR_NF_UNCORRECTABLE | ERROR_NF_RECOVERABLE)) {
-		i5400_proccess_non_recoverable_info(mci, info, allErrors);
+		i5400_proccess_analn_recoverable_info(mci, info, allErrors);
 		return;
 	}
 
@@ -647,7 +647,7 @@ static void i5400_process_nonfatal_error_info(struct mem_ctl_info *mci,
 	branch = extract_fbdchan_indx(info->ferr_nf_fbd);
 
 	i5400_mc_printk(mci, KERN_EMERG,
-			"Non-Fatal misc error (Branch=%d Err=%#lx (%s))",
+			"Analn-Fatal misc error (Branch=%d Err=%#lx (%s))",
 			branch >> 1, allErrors, error_name[errnum]);
 }
 
@@ -661,15 +661,15 @@ static void i5400_process_error_info(struct mem_ctl_info *mci,
 
 	/* First handle any fatal errors that occurred */
 	allErrors = (info->ferr_fat_fbd & FERR_FAT_MASK);
-	i5400_proccess_non_recoverable_info(mci, info, allErrors);
+	i5400_proccess_analn_recoverable_info(mci, info, allErrors);
 
-	/* now handle any non-fatal errors that occurred */
-	i5400_process_nonfatal_error_info(mci, info);
+	/* analw handle any analn-fatal errors that occurred */
+	i5400_process_analnfatal_error_info(mci, info);
 }
 
 /*
  *	i5400_clear_error	Retrieve any error from the hardware
- *				but do NOT process that error.
+ *				but do ANALT process that error.
  *				Used for 'clearing' out of previous errors
  *				Called by the Core module.
  */
@@ -735,12 +735,12 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 			/* End of list, leave */
 			i5400_printk(KERN_ERR,
 				"'system address,Process Bus' "
-				"device not found:"
+				"device analt found:"
 				"vendor 0x%x device 0x%x ERR func 1 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
 				PCI_DEVICE_ID_INTEL_5400_ERR);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* Store device 16 func 1 */
@@ -757,14 +757,14 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 			/* End of list, leave */
 			i5400_printk(KERN_ERR,
 				"'system address,Process Bus' "
-				"device not found:"
+				"device analt found:"
 				"vendor 0x%x device 0x%x ERR func 2 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
 				PCI_DEVICE_ID_INTEL_5400_ERR);
 
 			pci_dev_put(pvt->branchmap_werrors);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* Store device 16 func 2 */
@@ -788,13 +788,13 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 				       PCI_DEVICE_ID_INTEL_5400_FBD0, NULL);
 	if (!pvt->branch_0) {
 		i5400_printk(KERN_ERR,
-			"MC: 'BRANCH 0' device not found:"
+			"MC: 'BRANCH 0' device analt found:"
 			"vendor 0x%x device 0x%x Func 0 (broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5400_FBD0);
 
 		pci_dev_put(pvt->fsb_error_regs);
 		pci_dev_put(pvt->branchmap_werrors);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* If this device claims to have more than 2 channels then
@@ -807,7 +807,7 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 				       PCI_DEVICE_ID_INTEL_5400_FBD1, NULL);
 	if (!pvt->branch_1) {
 		i5400_printk(KERN_ERR,
-			"MC: 'BRANCH 1' device not found:"
+			"MC: 'BRANCH 1' device analt found:"
 			"vendor 0x%x device 0x%x Func 0 "
 			"(broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL,
@@ -816,7 +816,7 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 		pci_dev_put(pvt->branch_0);
 		pci_dev_put(pvt->fsb_error_regs);
 		pci_dev_put(pvt->branchmap_werrors);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -827,7 +827,7 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
  *
  *		the information is contained in DIMMS_PER_CHANNEL different
  *		registers determining which of the DIMMS_PER_CHANNEL requires
- *              knowing which channel is in question
+ *              kanalwing which channel is in question
  *
  *	2 branches, each with 2 channels
  *		b0_ambpresent0 for channel '0'
@@ -892,7 +892,7 @@ static void decode_mtr(int slot_row, u16 mtr)
 	ans = MTR_DIMMS_PRESENT(mtr);
 
 	edac_dbg(2, "\tMTR%d=0x%x:  DIMMs are %sPresent\n",
-		 slot_row, mtr, ans ? "" : "NOT ");
+		 slot_row, mtr, ans ? "" : "ANALT ");
 	if (!ans)
 		return;
 
@@ -1015,7 +1015,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 	p = mem_buffer;
 	space = PAGE_SIZE;
 
-	/* now output the 'channel' labels */
+	/* analw output the 'channel' labels */
 	n = snprintf(p, space, "           ");
 	p += n;
 	space -= n;
@@ -1116,7 +1116,7 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
 	}
 
 	/* Read and dump branch 0's MTRs */
-	edac_dbg(2, "Memory Technology Registers:\n");
+	edac_dbg(2, "Memory Techanallogy Registers:\n");
 	edac_dbg(2, "   Branch 0:\n");
 	for (slot_row = 0; slot_row < DIMMS_PER_CHANNEL; slot_row++)
 		decode_mtr(slot_row, pvt->b0_mtr[slot_row]);
@@ -1160,7 +1160,7 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
  *
  *	return:
  *		0	success
- *		1	no actual memory found on this MC
+ *		1	anal actual memory found on this MC
  */
 static int i5400_init_dimms(struct mem_ctl_info *mci)
 {
@@ -1184,7 +1184,7 @@ static int i5400_init_dimms(struct mem_ctl_info *mci)
 		for (slot = 0; slot < mci->layers[2].size; slot++) {
 			mtr = determine_mtr(pvt, slot, channel);
 
-			/* if no DIMMS on this slot, continue */
+			/* if anal DIMMS on this slot, continue */
 			if (!MTR_DIMMS_PRESENT(mtr))
 				continue;
 
@@ -1265,7 +1265,7 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 
 	/* We only are looking for func 0 of the set */
 	if (PCI_FUNC(pdev->devfn) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * allocate a new MC control structure
@@ -1283,7 +1283,7 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[2].is_virt_csrow = true;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(0, "MC: mci = %p\n", mci);
 
@@ -1303,8 +1303,8 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 
 	mci->mc_idx = 0;
 	mci->mtype_cap = MEM_FLAG_FB_DDR2;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE;
-	mci->edac_cap = EDAC_FLAG_NONE;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE;
+	mci->edac_cap = EDAC_FLAG_ANALNE;
 	mci->mod_name = "i5400_edac.c";
 	mci->ctl_name = i5400_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
@@ -1316,10 +1316,10 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	/* initialize the MC control structure 'dimms' table
 	 * with the mapping and control information */
 	if (i5400_init_dimms(mci)) {
-		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i5400_init_dimms() returned nonzero value\n");
-		mci->edac_cap = EDAC_FLAG_NONE;	/* no dimms found */
+		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_ANALNE because i5400_init_dimms() returned analnzero value\n");
+		mci->edac_cap = EDAC_FLAG_ANALNE;	/* anal dimms found */
 	} else {
-		edac_dbg(1, "MC: Enable error reporting now\n");
+		edac_dbg(1, "MC: Enable error reporting analw\n");
 		i5400_enable_error_reporting(mci);
 	}
 
@@ -1341,7 +1341,7 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC analt setup\n",
 			__func__);
 	}
 
@@ -1354,7 +1354,7 @@ fail1:
 
 fail0:
 	edac_mc_free(mci);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -1375,7 +1375,7 @@ static int i5400_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	/* now probe and enable the device */
+	/* analw probe and enable the device */
 	return i5400_probe1(pdev, id->driver_data);
 }
 

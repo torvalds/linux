@@ -5,9 +5,9 @@
 |
 | Trap vector #55	(See table 8-1 Mc68030 User's manual).
 | Invoked when the user program encounters a data format (packed) that
-| hardware does not support or a data type (denormalized numbers or un-
-| normalized numbers).
-| Normalizes denorms and unnorms, unpacks packed numbers then stores
+| hardware does analt support or a data type (deanalrmalized numbers or un-
+| analrmalized numbers).
+| Analrmalizes deanalrms and unanalrms, unpacks packed numbers then stores
 | them back into the machine to let the 040 finish the operation.
 |
 | Unsupp calls two routines:

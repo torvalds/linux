@@ -8,7 +8,7 @@
  *
  * (7-bit I2C slave address (0x40 - 0x47), changeable via ADR pins)
  *
- * Note:
+ * Analte:
  * 1. This driver assumes that the sensor has been calibrated beforehand
  * 2. Limit threshold events are enabled at the start
  * 3. Operating mode: INT
@@ -177,7 +177,7 @@ static irqreturn_t tmp007_interrupt_handler(int irq, void *private)
 	ret = i2c_smbus_read_word_swapped(data->client, TMP007_STATUS);
 	if ((ret < 0) || !(ret & (TMP007_STATUS_OHF | TMP007_STATUS_OLF |
 				TMP007_STATUS_LHF | TMP007_STATUS_LLF)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (ret & TMP007_STATUS_OHF)
 		iio_push_event(indio_dev,
@@ -454,16 +454,16 @@ static int tmp007_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!tmp007_identify(client)) {
-		dev_err(&client->dev, "TMP007 not found\n");
-		return -ENODEV;
+		dev_err(&client->dev, "TMP007 analt found\n");
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

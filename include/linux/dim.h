@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #ifndef DIM_H
 #define DIM_H
@@ -135,7 +135,7 @@ enum dim_cq_period_mode {
  * @DIM_START_MEASURE: This is the first iteration (also after applying a new profile)
  * @DIM_MEASURE_IN_PROGRESS: Algorithm is already in progress - check if
  * need to perform an action
- * @DIM_APPLY_NEW_PROFILE: DIM consumer is currently applying a profile - no need to measure
+ * @DIM_APPLY_NEW_PROFILE: DIM consumer is currently applying a profile - anal need to measure
  */
 enum dim_state {
 	DIM_START_MEASURE,
@@ -206,7 +206,7 @@ bool dim_on_top(struct dim *dim);
  *	@dim: DIM context
  *
  * Go left if we were going right and vice-versa.
- * Do nothing if currently parking.
+ * Do analthing if currently parking.
  */
 void dim_turn(struct dim *dim);
 
@@ -329,7 +329,7 @@ void net_dim(struct dim *dim, struct dim_sample end_sample);
  *
  * Each call to rdma_dim takes the latest amount of completions that
  * have been collected and counts them as a new event.
- * Once enough events have been collected the algorithm decides a new
+ * Once eanalugh events have been collected the algorithm decides a new
  * moderation level.
  */
 void rdma_dim(struct dim *dim, u64 completions);

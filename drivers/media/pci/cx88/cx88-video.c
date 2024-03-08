@@ -4,7 +4,7 @@
  * device driver for Conexant 2388x based TV cards
  * video4linux video interface
  *
- * (c) 2003-04 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2003-04 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
  *
  * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@kernel.org>
  *	- Multituner support
@@ -32,7 +32,7 @@
 #include <media/i2c/wm8775.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(CX88_VERSION);
 
@@ -203,7 +203,7 @@ static const struct cx88_ctrl cx8800_vid_ctls[] = {
 		.default_value = 0x0,
 		.off           = 0,
 		/*
-		 * NOTE: the value is converted and written to both even
+		 * ANALTE: the value is converted and written to both even
 		 * and odd registers in the code
 		 */
 		.reg           = MO_FILTER_ODD,
@@ -334,7 +334,7 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 			core->tvaudio = WW_I2SADC;
 			cx88_set_tvaudio(core);
 		} else {
-			/* Normal mode */
+			/* Analrmal mode */
 			cx_write(AUD_I2SCNTL, 0x0);
 			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
 		}
@@ -618,7 +618,7 @@ static int cx8800_s_vid_ctrl(struct v4l2_ctrl *ctrl)
 
 		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
 
-		if (core->tvnorm & V4L2_STD_SECAM) {
+		if (core->tvanalrm & V4L2_STD_SECAM) {
 			/* For SECAM, both U and V sat should be equal */
 			value = value << 8 | value;
 		} else {
@@ -734,8 +734,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	maxw = norm_maxw(core->tvnorm);
-	maxh = norm_maxh(core->tvnorm);
+	maxw = analrm_maxw(core->tvanalrm);
+	maxh = analrm_maxh(core->tvanalrm);
 
 	field = f->fmt.pix.field;
 
@@ -823,21 +823,21 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvanalrm)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	*tvnorm = core->tvnorm;
+	*tvanalrm = core->tvanalrm;
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvanalrms)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	return cx88_set_tvnorm(core, tvnorms);
+	return cx88_set_tvanalrm(core, tvanalrms);
 }
 
 /* only one input in this sample driver */
@@ -866,7 +866,7 @@ int cx88_enum_input(struct cx88_core  *core, struct v4l2_input *i)
 	    (INPUT(n).type == CX88_VMUX_CABLE))
 		i->type = V4L2_INPUT_TYPE_TUNER;
 
-	i->std = CX88_NORMS;
+	i->std = CX88_ANALRMS;
 	return 0;
 }
 EXPORT_SYMBOL(cx88_enum_input);
@@ -917,7 +917,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	strscpy(t->name, "Television", sizeof(t->name));
-	t->capability = V4L2_TUNER_CAP_NORM;
+	t->capability = V4L2_TUNER_CAP_ANALRM;
 	t->rangehigh  = 0xffffffffUL;
 	call_all(core, tuner, g_tuner, t);
 
@@ -1173,7 +1173,7 @@ static const struct video_device cx8800_video_template = {
 	.name                 = "cx8800-video",
 	.fops                 = &video_fops,
 	.ioctl_ops	      = &video_ioctl_ops,
-	.tvnorms              = CX88_NORMS,
+	.tvanalrms              = CX88_ANALRMS,
 };
 
 static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
@@ -1206,7 +1206,7 @@ static const struct video_device cx8800_vbi_template = {
 	.name                 = "cx8800-vbi",
 	.fops                 = &video_fops,
 	.ioctl_ops	      = &vbi_ioctl_ops,
-	.tvnorms              = CX88_NORMS,
+	.tvanalrms              = CX88_ANALRMS,
 };
 
 static const struct v4l2_file_operations radio_fops = {
@@ -1265,7 +1265,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* pci init */
 	dev->pci = pci_dev;
@@ -1291,7 +1291,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		pr_err("Oops: no 32bit PCI DMA ???\n");
+		pr_err("Oops: anal 32bit PCI DMA ???\n");
 		goto fail_core;
 	}
 
@@ -1354,10 +1354,10 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		};
 		struct v4l2_subdev *sd;
 
-		if (core->boardnr == CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1)
-			core->wm8775_data.is_nova_s = true;
+		if (core->boardnr == CX88_BOARD_HAUPPAUGE_ANALVASPLUS_S1)
+			core->wm8775_data.is_analva_s = true;
 		else
-			core->wm8775_data.is_nova_s = false;
+			core->wm8775_data.is_analva_s = false;
 
 		sd = v4l2_i2c_new_subdev_board(&core->v4l2_dev, &core->i2c_adap,
 					       &wm8775_info, NULL);
@@ -1387,8 +1387,8 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		core->i2c_rtc = i2c_new_client_device(&core->i2c_adap, &rtc_info);
 	}
 		fallthrough;
-	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
-	case CX88_BOARD_NOTONLYTV_LV3H:
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NAANAL:
+	case CX88_BOARD_ANALTONLYTV_LV3H:
 		request_module("ir-kbd-i2c");
 	}
 
@@ -1402,7 +1402,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initial device configuration */
 	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core, V4L2_STD_NTSC_M);
+	cx88_set_tvanalrm(core, V4L2_STD_NTSC_M);
 	v4l2_ctrl_handler_setup(&core->video_hdl);
 	v4l2_ctrl_handler_setup(&core->audio_hdl);
 	cx88_video_mux(core, 0);
@@ -1416,7 +1416,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	q->buf_struct_size = sizeof(struct cx88_buffer);
 	q->ops = &cx8800_video_qops;
 	q->mem_ops = &vb2_dma_sg_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->lock = &core->lock;
 	q->dev = &dev->pci->dev;
 
@@ -1433,7 +1433,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	q->buf_struct_size = sizeof(struct cx88_buffer);
 	q->ops = &cx8800_vbi_qops;
 	q->mem_ops = &vb2_dma_sg_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->lock = &core->lock;
 	q->dev = &dev->pci->dev;
 
@@ -1458,7 +1458,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 	}
 	pr_info("registered device %s [v4l2]\n",
-		video_device_node_name(&dev->video_dev));
+		video_device_analde_name(&dev->video_dev));
 
 	cx88_vdev_init(core, dev->pci, &dev->vbi_dev,
 		       &cx8800_vbi_template, "vbi");
@@ -1475,7 +1475,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 	}
 	pr_info("registered device %s\n",
-		video_device_node_name(&dev->vbi_dev));
+		video_device_analde_name(&dev->vbi_dev));
 
 	if (core->board.radio.type == CX88_RADIO) {
 		cx88_vdev_init(core, dev->pci, &dev->radio_dev,
@@ -1490,7 +1490,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 			goto fail_unreg;
 		}
 		pr_info("registered device %s\n",
-			video_device_node_name(&dev->radio_dev));
+			video_device_analde_name(&dev->radio_dev));
 	}
 
 	/* start tvaudio thread */

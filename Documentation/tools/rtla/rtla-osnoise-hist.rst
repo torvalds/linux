@@ -1,28 +1,28 @@
 ===================
-rtla-osnoise-hist
+rtla-osanalise-hist
 ===================
 ------------------------------------------------------
-Display a histogram of the osnoise tracer samples
+Display a histogram of the osanalise tracer samples
 ------------------------------------------------------
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
-**rtla osnoise hist** [*OPTIONS*]
+**rtla osanalise hist** [*OPTIONS*]
 
 DESCRIPTION
 ===========
-.. include:: common_osnoise_description.rst
+.. include:: common_osanalise_description.rst
 
-The **rtla osnoise hist** tool collects all **osnoise:sample_threshold**
+The **rtla osanalise hist** tool collects all **osanalise:sample_threshold**
 occurrence in a histogram, displaying the results in a user-friendly way.
-The tool also allows many configurations of the *osnoise* tracer and the
+The tool also allows many configurations of the *osanalise* tracer and the
 collection of the tracer output.
 
 OPTIONS
 =======
-.. include:: common_osnoise_options.rst
+.. include:: common_osanalise_options.rst
 
 .. include:: common_hist_options.rst
 
@@ -30,14 +30,14 @@ OPTIONS
 
 EXAMPLE
 =======
-In the example below, *osnoise* tracer threads are set to run with real-time
+In the example below, *osanalise* tracer threads are set to run with real-time
 priority *FIFO:1*, on CPUs *0-11*, for *900ms* at each period (*1s* by
 default). The reason for reducing the runtime is to avoid starving the
 **rtla** tool. The tool is also set to run for *one minute*. The output
 histogram is set to group outputs in buckets of *10us* and *25* entries::
 
-  [root@f34 ~/]# rtla osnoise hist -P F:1 -c 0-11 -r 900000 -d 1M -b 10 -E 25
-  # RTLA osnoise histogram
+  [root@f34 ~/]# rtla osanalise hist -P F:1 -c 0-11 -r 900000 -d 1M -b 10 -E 25
+  # RTLA osanalise histogram
   # Time unit is microseconds (us)
   # Duration:   0 00:01:00
   Index   CPU-000   CPU-001   CPU-002   CPU-003   CPU-004   CPU-005   CPU-006   CPU-007   CPU-008   CPU-009   CPU-010   CPU-011
@@ -55,9 +55,9 @@ histogram is set to group outputs in buckets of *10us* and *25* entries::
 
 SEE ALSO
 ========
-**rtla-osnoise**\(1), **rtla-osnoise-top**\(1)
+**rtla-osanalise**\(1), **rtla-osanalise-top**\(1)
 
-*osnoise* tracer documentation: <https://www.kernel.org/doc/html/latest/trace/osnoise-tracer.html>
+*osanalise* tracer documentation: <https://www.kernel.org/doc/html/latest/trace/osanalise-tracer.html>
 
 AUTHOR
 ======

@@ -3,7 +3,7 @@
  * soc-link.h
  *
  * Copyright (C) 2019 Renesas Electronics Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #ifndef __SOC_LINK_H
 #define __SOC_LINK_H

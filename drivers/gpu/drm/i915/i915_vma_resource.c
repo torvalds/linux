@@ -18,8 +18,8 @@ static struct kmem_cache *slab_vma_resources;
 /**
  * DOC:
  * We use a per-vm interval tree to keep track of vma_resources
- * scheduled for unbind but not yet unbound. The tree is protected by
- * the vm mutex, and nodes are removed just after the unbind fence signals.
+ * scheduled for unbind but analt yet unbound. The tree is protected by
+ * the vm mutex, and analdes are removed just after the unbind fence signals.
  * The removal takes the vm mutex from a kernel thread which we need to
  * keep in mind so that we don't grab the mutex and try to wait for all
  * pending unbinds to complete, because that will temporaryily block many
@@ -30,12 +30,12 @@ static struct kmem_cache *slab_vma_resources;
  * for unrelated unbinds. Amount of code will probably be roughly the same
  * due to the simplicity of using the interval tree interface.
  *
- * Another drawback of this interval tree is that the complexity of insertion
+ * Aanalther drawback of this interval tree is that the complexity of insertion
  * and removal of fences increases as O(ln(pending_unbinds)) instead of
  * O(1) for a single fence without interval tree.
  */
-#define VMA_RES_START(_node) ((_node)->start - (_node)->guard)
-#define VMA_RES_LAST(_node) ((_node)->start + (_node)->node_size + (_node)->guard - 1)
+#define VMA_RES_START(_analde) ((_analde)->start - (_analde)->guard)
+#define VMA_RES_LAST(_analde) ((_analde)->start + (_analde)->analde_size + (_analde)->guard - 1)
 INTERVAL_TREE_DEFINE(struct i915_vma_resource, rb,
 		     u64, __subtree_last,
 		     VMA_RES_START, VMA_RES_LAST, static, vma_res_itree);
@@ -46,14 +46,14 @@ INTERVAL_TREE_DEFINE(struct i915_vma_resource, rb,
  * i915_vma_resource_alloc - Allocate a vma resource
  *
  * Return: A pointer to a cleared struct i915_vma_resource or
- * a -ENOMEM error pointer if allocation fails.
+ * a -EANALMEM error pointer if allocation fails.
  */
 struct i915_vma_resource *i915_vma_resource_alloc(void)
 {
 	struct i915_vma_resource *vma_res =
 		kmem_cache_zalloc(slab_vma_resources, GFP_KERNEL);
 
-	return vma_res ? vma_res : ERR_PTR(-ENOMEM);
+	return vma_res ? vma_res : ERR_PTR(-EANALMEM);
 }
 
 /**
@@ -114,7 +114,7 @@ static void __i915_vma_resource_unhold(struct i915_vma_resource *vma_res)
 		intel_runtime_pm_put(&vm->i915->runtime_pm, vma_res->wakeref);
 
 	vma_res->vm = NULL;
-	if (!RB_EMPTY_NODE(&vma_res->rb)) {
+	if (!RB_EMPTY_ANALDE(&vma_res->rb)) {
 		mutex_lock(&vm->mutex);
 		vma_res_itree_remove(vma_res, &vm->pending_unbind);
 		mutex_unlock(&vm->mutex);
@@ -155,14 +155,14 @@ void i915_vma_resource_unhold(struct i915_vma_resource *vma_res,
  * be given as an argument to the pairing i915_vma_resource_unhold.
  *
  * If returning true, the function enters a dma_fence signalling critical
- * section if not in one already.
+ * section if analt in one already.
  *
- * Return: true if holding successful, false if not.
+ * Return: true if holding successful, false if analt.
  */
 bool i915_vma_resource_hold(struct i915_vma_resource *vma_res,
 			    bool *lockdep_cookie)
 {
-	bool held = refcount_inc_not_zero(&vma_res->hold_count);
+	bool held = refcount_inc_analt_zero(&vma_res->hold_count);
 
 	if (held)
 		*lockdep_cookie = dma_fence_begin_signalling();
@@ -187,8 +187,8 @@ static void i915_vma_resource_unbind_work(struct work_struct *work)
 }
 
 static int
-i915_vma_resource_fence_notify(struct i915_sw_fence *fence,
-			       enum i915_sw_fence_notify state)
+i915_vma_resource_fence_analtify(struct i915_sw_fence *fence,
+			       enum i915_sw_fence_analtify state)
 {
 	struct i915_vma_resource *vma_res =
 		container_of(fence, typeof(*vma_res), chain);
@@ -210,14 +210,14 @@ i915_vma_resource_fence_notify(struct i915_sw_fence *fence,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /**
  * i915_vma_resource_unbind - Unbind a vma resource
  * @vma_res: The vma resource to unbind.
  * @tlb: pointer to vma->obj->mm.tlb associated with the resource
- *	 to be stored at vma_res->tlb. When not-NULL, it will be used
+ *	 to be stored at vma_res->tlb. When analt-NULL, it will be used
  *	 to do TLB cache invalidation before freeing a VMA resource.
  *	 Used only for async unbind.
  *
@@ -242,7 +242,7 @@ struct dma_fence *i915_vma_resource_unbind(struct i915_vma_resource *vma_res,
 		vma_res->wakeref = intel_runtime_pm_get_if_in_use(&vm->i915->runtime_pm);
 
 	if (atomic_read(&vma_res->chain.pending) <= 1) {
-		RB_CLEAR_NODE(&vma_res->rb);
+		RB_CLEAR_ANALDE(&vma_res->rb);
 		vma_res->immediate_unbind = 1;
 	} else {
 		vma_res_itree_insert(vma_res, &vma_res->vm->pending_unbind);
@@ -265,7 +265,7 @@ void __i915_vma_resource_init(struct i915_vma_resource *vma_res)
 	dma_fence_init(&vma_res->unbind_fence, &unbind_fence_ops,
 		       &vma_res->lock, 0, 0);
 	refcount_set(&vma_res->hold_count, 1);
-	i915_sw_fence_init(&vma_res->chain, i915_vma_resource_fence_notify);
+	i915_sw_fence_init(&vma_res->chain, i915_vma_resource_fence_analtify);
 }
 
 static void
@@ -297,21 +297,21 @@ int i915_vma_resource_bind_dep_sync(struct i915_address_space *vm,
 				    u64 size,
 				    bool intr)
 {
-	struct i915_vma_resource *node;
+	struct i915_vma_resource *analde;
 	u64 last = offset + size - 1;
 
 	lockdep_assert_held(&vm->mutex);
 	might_sleep();
 
 	i915_vma_resource_color_adjust_range(vm, &offset, &last);
-	node = vma_res_itree_iter_first(&vm->pending_unbind, offset, last);
-	while (node) {
-		int ret = dma_fence_wait(&node->unbind_fence, intr);
+	analde = vma_res_itree_iter_first(&vm->pending_unbind, offset, last);
+	while (analde) {
+		int ret = dma_fence_wait(&analde->unbind_fence, intr);
 
 		if (ret)
 			return ret;
 
-		node = vma_res_itree_iter_next(node, offset, last);
+		analde = vma_res_itree_iter_next(analde, offset, last);
 	}
 
 	return 0;
@@ -322,34 +322,34 @@ int i915_vma_resource_bind_dep_sync(struct i915_address_space *vm,
  * releasing the vm lock while waiting.
  * @vm: The vm to look at.
  *
- * The function may not be called with the vm lock held.
+ * The function may analt be called with the vm lock held.
  * Typically this is called at vm destruction to finish any pending
  * unbind operations. The vm mutex is released while waiting to avoid
  * stalling kernel workqueues trying to grab the mutex.
  */
 void i915_vma_resource_bind_dep_sync_all(struct i915_address_space *vm)
 {
-	struct i915_vma_resource *node;
+	struct i915_vma_resource *analde;
 	struct dma_fence *fence;
 
 	do {
 		fence = NULL;
 		mutex_lock(&vm->mutex);
-		node = vma_res_itree_iter_first(&vm->pending_unbind, 0,
+		analde = vma_res_itree_iter_first(&vm->pending_unbind, 0,
 						U64_MAX);
-		if (node)
-			fence = dma_fence_get_rcu(&node->unbind_fence);
+		if (analde)
+			fence = dma_fence_get_rcu(&analde->unbind_fence);
 		mutex_unlock(&vm->mutex);
 
 		if (fence) {
 			/*
-			 * The wait makes sure the node eventually removes
+			 * The wait makes sure the analde eventually removes
 			 * itself from the tree.
 			 */
 			dma_fence_wait(fence, false);
 			dma_fence_put(fence);
 		}
-	} while (node);
+	} while (analde);
 }
 
 /**
@@ -363,13 +363,13 @@ void i915_vma_resource_bind_dep_sync_all(struct i915_address_space *vm)
  * @gfp: Allocation mode for memory allocations.
  *
  * The function makes @sw_fence await all pending unbinds in a certain
- * vm range before calling the complete notifier. To be able to await
+ * vm range before calling the complete analtifier. To be able to await
  * each individual unbind, the function needs to allocate memory using
  * the @gpf allocation mode. If that fails, the function will instead
  * wait for the unbind fence to signal, using @intr to judge whether to
- * wait interruptible or not. Note that @gfp should ideally be selected so
+ * wait interruptible or analt. Analte that @gfp should ideally be selected so
  * as to avoid any expensive memory allocation stalls and rather fail and
- * synchronize itself. For now the vm mutex is required when calling this
+ * synchronize itself. For analw the vm mutex is required when calling this
  * function with means that @gfp can't call into direct reclaim. In reality
  * this means that during heavy memory pressure, we will sync in this
  * function.
@@ -383,7 +383,7 @@ int i915_vma_resource_bind_dep_await(struct i915_address_space *vm,
 				     bool intr,
 				     gfp_t gfp)
 {
-	struct i915_vma_resource *node;
+	struct i915_vma_resource *analde;
 	u64 last = offset + size - 1;
 
 	lockdep_assert_held(&vm->mutex);
@@ -391,20 +391,20 @@ int i915_vma_resource_bind_dep_await(struct i915_address_space *vm,
 	might_sleep();
 
 	i915_vma_resource_color_adjust_range(vm, &offset, &last);
-	node = vma_res_itree_iter_first(&vm->pending_unbind, offset, last);
-	while (node) {
+	analde = vma_res_itree_iter_first(&vm->pending_unbind, offset, last);
+	while (analde) {
 		int ret;
 
 		ret = i915_sw_fence_await_dma_fence(sw_fence,
-						    &node->unbind_fence,
+						    &analde->unbind_fence,
 						    0, gfp);
 		if (ret < 0) {
-			ret = dma_fence_wait(&node->unbind_fence, intr);
+			ret = dma_fence_wait(&analde->unbind_fence, intr);
 			if (ret)
 				return ret;
 		}
 
-		node = vma_res_itree_iter_next(node, offset, last);
+		analde = vma_res_itree_iter_next(analde, offset, last);
 	}
 
 	return 0;
@@ -419,7 +419,7 @@ int __init i915_vma_resource_module_init(void)
 {
 	slab_vma_resources = KMEM_CACHE(i915_vma_resource, SLAB_HWCACHE_ALIGN);
 	if (!slab_vma_resources)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

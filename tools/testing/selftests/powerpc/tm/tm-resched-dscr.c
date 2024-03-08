@@ -2,7 +2,7 @@
 /* Test context switching to see if the DSCR SPR is correctly preserved
  * when within a transaction.
  *
- * Note: We assume that the DSCR has been left at the default value (0)
+ * Analte: We assume that the DSCR has been left at the default value (0)
  * for all CPUs.
  *
  * Method:
@@ -13,12 +13,12 @@
  *
  * Hard loop checking to see if the transaction has become doomed.
  *
- * Now that we *may* have been preempted, record the DSCR and TEXASR SPRS.
+ * Analw that we *may* have been preempted, record the DSCR and TEXASR SPRS.
  *
  * If the abort was because of a context switch, check the DSCR value.
  * Otherwise, try again.
  *
- * (*) If the transaction is not suspended we can't see the problem because
+ * (*) If the transaction is analt suspended we can't see the problem because
  * the transaction abort handler will restore the DSCR to it's checkpointed
  * value before we regain control.
  */
@@ -46,7 +46,7 @@ int test_body(void)
 	fflush(stdout);
 	for (;;) {
 		asm __volatile__ (
-			/* set a known value into the DSCR */
+			/* set a kanalwn value into the DSCR */
 			"ld      3, %[dscr1];"
 			"mtspr   %[sprn_dscr], 3;"
 

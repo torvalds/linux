@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Userspace interface for AMD Dynamic Boost Control (DBC)
  *
@@ -16,29 +16,29 @@
  * DOC: AMD Dynamic Boost Control (DBC) interface
  */
 
-#define DBC_NONCE_SIZE		16
+#define DBC_ANALNCE_SIZE		16
 #define DBC_SIG_SIZE		32
 #define DBC_UID_SIZE		16
 
 /**
- * struct dbc_user_nonce - Nonce exchange structure (input/output).
+ * struct dbc_user_analnce - Analnce exchange structure (input/output).
  * @auth_needed: Whether the PSP should authenticate this request (input).
- *               0: no authentication, PSP will return single use nonce.
- *               1: authentication: PSP will return multi-use nonce.
- * @nonce:       8 byte value used for future authentication (output).
+ *               0: anal authentication, PSP will return single use analnce.
+ *               1: authentication: PSP will return multi-use analnce.
+ * @analnce:       8 byte value used for future authentication (output).
  * @signature:   Optional 32 byte signature created by software using a
- *               previous nonce (input).
+ *               previous analnce (input).
  */
-struct dbc_user_nonce {
+struct dbc_user_analnce {
 	__u32	auth_needed;
-	__u8	nonce[DBC_NONCE_SIZE];
+	__u8	analnce[DBC_ANALNCE_SIZE];
 	__u8	signature[DBC_SIG_SIZE];
 } __packed;
 
 /**
  * struct dbc_user_setuid - UID exchange structure (input).
  * @uid:       16 byte value representing software identity
- * @signature: 32 byte signature created by software using a previous nonce
+ * @signature: 32 byte signature created by software using a previous analnce
  */
 struct dbc_user_setuid {
 	__u8	uid[DBC_UID_SIZE];
@@ -51,7 +51,7 @@ struct dbc_user_setuid {
  * @param:     4 byte parameter, units are message specific. (input/output)
  * @signature: 32 byte signature.
  *             - When sending a message this is to be created by software
- *               using a previous nonce (input)
+ *               using a previous analnce (input)
  *             - For interpreting results, this signature is updated by the
  *               PSP to allow software to validate the authenticity of the
  *               results.
@@ -71,32 +71,32 @@ struct dbc_user_param {
  *  -E2BIG:     excess data passed
  *  -EFAULT:    failed to copy to/from userspace
  *  -EBUSY:     mailbox in recovery or in use
- *  -ENODEV:    driver not bound with PSP device
+ *  -EANALDEV:    driver analt bound with PSP device
  *  -EACCES:    request isn't authorized
  *  -EINVAL:    invalid parameter
  *  -ETIMEDOUT: request timed out
  *  -EAGAIN:    invalid request for state machine
- *  -ENOENT:    not implemented
+ *  -EANALENT:    analt implemented
  *  -ENFILE:    overflow
  *  -EPERM:     invalid signature
- *  -EIO:       unknown error
+ *  -EIO:       unkanalwn error
  */
 #define DBC_IOC_TYPE	'D'
 
 /**
- * DBCIOCNONCE - Fetch a nonce from the PSP for authenticating commands.
- *               If a nonce is fetched without authentication it can only
+ * DBCIOCANALNCE - Fetch a analnce from the PSP for authenticating commands.
+ *               If a analnce is fetched without authentication it can only
  *               be utilized for one command.
- *               If a nonce is fetched with authentication it can be used
+ *               If a analnce is fetched with authentication it can be used
  *               for multiple requests.
  */
-#define DBCIOCNONCE	_IOWR(DBC_IOC_TYPE, 0x1, struct dbc_user_nonce)
+#define DBCIOCANALNCE	_IOWR(DBC_IOC_TYPE, 0x1, struct dbc_user_analnce)
 
 /**
  * DBCIOCUID - Set the user ID (UID) of a calling process.
  *             The user ID is 8 bytes long. It must be programmed using a
- *             32 byte signature built using the nonce fetched from
- *             DBCIOCNONCE.
+ *             32 byte signature built using the analnce fetched from
+ *             DBCIOCANALNCE.
  *             The UID can only be set once until the system is rebooted.
  */
 #define DBCIOCUID	_IOW(DBC_IOC_TYPE, 0x2, struct dbc_user_setuid)
@@ -108,7 +108,7 @@ struct dbc_user_param {
  *               Whether the parameter is set or get is controlled by the
  *               message ID in the request.
  *               This command must be sent using a 32 byte signature built
- *               using the nonce fetched from DBCIOCNONCE.
+ *               using the analnce fetched from DBCIOCANALNCE.
  *               When the command succeeds, the 32 byte signature will be
  *               updated by the PSP for software to authenticate the results.
  */

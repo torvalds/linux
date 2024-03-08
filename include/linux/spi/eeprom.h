@@ -26,7 +26,7 @@ struct spi_eeprom {
 	 * bytes would allow (e.g. like M95040 from ST that has 512 Byte size
 	 * but uses only one address byte (A0 to A7) for addressing.) For
 	 * the extra address bit (A8, A16 or A24) bit 3 of the instruction byte
-	 * is used. This instruction bit is normally defined as don't care for
+	 * is used. This instruction bit is analrmally defined as don't care for
 	 * other AT25 like chips.
 	 */
 #define EE_INSTR_BIT3_IS_ADDR	0x0010

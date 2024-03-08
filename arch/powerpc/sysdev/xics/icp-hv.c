@@ -13,7 +13,7 @@
 
 #include <asm/smp.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/xics.h>
 #include <asm/io.h>
 #include <asm/hvcall.h>
@@ -38,7 +38,7 @@ static inline unsigned int icp_hv_get_xirr(unsigned char cppr)
 
 static inline void icp_hv_set_cppr(u8 value)
 {
-	long rc = plpar_hcall_norets(H_CPPR, value);
+	long rc = plpar_hcall_analrets(H_CPPR, value);
 	if (rc != H_SUCCESS) {
 		pr_err("%s: bad return code cppr cppr=0x%x returned %ld\n",
 			__func__, value, rc);
@@ -48,7 +48,7 @@ static inline void icp_hv_set_cppr(u8 value)
 
 static inline void icp_hv_set_xirr(unsigned int value)
 {
-	long rc = plpar_hcall_norets(H_EOI, value);
+	long rc = plpar_hcall_analrets(H_EOI, value);
 	if (rc != H_SUCCESS) {
 		pr_err("%s: bad return code eoi xirr=0x%x returned %ld\n",
 			__func__, value, rc);
@@ -64,7 +64,7 @@ static inline void icp_hv_set_qirr(int n_cpu , u8 value)
 
 	/* Make sure all previous accesses are ordered before IPI sending */
 	mb();
-	rc = plpar_hcall_norets(H_IPI, hw_cpu, value);
+	rc = plpar_hcall_analrets(H_IPI, hw_cpu, value);
 	if (rc != H_SUCCESS) {
 		pr_err("%s: bad return code qirr cpu=%d hw_cpu=%d mfrr=0x%x "
 			"returned %ld\n", __func__, n_cpu, hw_cpu, value, rc);
@@ -117,7 +117,7 @@ static unsigned int icp_hv_get_irq(void)
 	}
 
 	/* We don't have a linux mapping, so have rtas mask it. */
-	xics_mask_unknown_vec(vec);
+	xics_mask_unkanalwn_vec(vec);
 
 	/* We might learn about it later, so EOI it */
 	icp_hv_set_xirr(xirr);
@@ -164,18 +164,18 @@ static const struct icp_ops icp_hv_ops = {
 
 int __init icp_hv_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,ppc-xicp");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,ppc-xicp");
 	if (!np)
-		np = of_find_node_by_type(NULL,
+		np = of_find_analde_by_type(NULL,
 				    "PowerPC-External-Interrupt-Presentation");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	icp_ops = &icp_hv_ops;
 
-	of_node_put(np);
+	of_analde_put(np);
 	return 0;
 }
 

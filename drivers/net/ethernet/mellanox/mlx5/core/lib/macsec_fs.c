@@ -273,13 +273,13 @@ static int macsec_fs_tx_create_crypto_table_groups(struct mlx5_macsec_flow_table
 
 	ft->g = kcalloc(TX_CRYPTO_TABLE_NUM_GROUPS, sizeof(*ft->g), GFP_KERNEL);
 	if (!ft->g)
-		return -ENOMEM;
+		return -EANALMEM;
 	in = kvzalloc(inlen, GFP_KERNEL);
 
 	if (!in) {
 		kfree(ft->g);
 		ft->g = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
@@ -366,13 +366,13 @@ static int macsec_fs_tx_roce_create(struct mlx5_macsec_fs *macsec_fs)
 	int err;
 
 	if (!mlx5_is_macsec_roce_supported(mdev)) {
-		mlx5_core_dbg(mdev, "Failed to init RoCE MACsec, capabilities not supported\n");
+		mlx5_core_dbg(mdev, "Failed to init RoCE MACsec, capabilities analt supported\n");
 		return 0;
 	}
 
 	ns = mlx5_get_flow_namespace(mdev, MLX5_FLOW_NAMESPACE_RDMA_TX_MACSEC);
 	if (!ns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Tx RoCE crypto table  */
 	ft = macsec_fs_auto_group_table_create(ns, 0, RDMA_TX_MACSEC_LEVEL, CRYPTO_NUM_MAXSEC_FTE);
@@ -406,15 +406,15 @@ static int macsec_fs_tx_create(struct mlx5_macsec_fs *macsec_fs)
 
 	ns = mlx5_get_flow_namespace(mdev, MLX5_FLOW_NAMESPACE_EGRESS_MACSEC);
 	if (!ns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_spec;
 	}
 
@@ -516,7 +516,7 @@ static int macsec_fs_tx_create(struct mlx5_macsec_fs *macsec_fs)
 	MLX5_SET(fte_match_param, spec->match_value, misc_parameters_2.metadata_reg_c_4, 0);
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
 
-	flow_act.flags = FLOW_ACT_NO_APPEND;
+	flow_act.flags = FLOW_ACT_ANAL_APPEND;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW | MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 	dest.counter_id = mlx5_fc_id(tx_tables->check_rule_counter);
@@ -719,7 +719,7 @@ static int macsec_fs_id_add(struct list_head *macsec_devices_list, u32 fs_id,
 
 	fs_id_iter = kzalloc(sizeof(*fs_id_iter), GFP_KERNEL);
 	if (!fs_id_iter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_for_each_entry(iter, macsec_devices_list, macsec_devices_list_entry) {
 		if (iter->macdev == macdev) {
@@ -731,7 +731,7 @@ static int macsec_fs_id_add(struct list_head *macsec_devices_list, u32 fs_id,
 	if (!macsec_device) { /* first time adding a SA to that device */
 		macsec_device = kzalloc(sizeof(*macsec_device), GFP_KERNEL);
 		if (!macsec_device) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_alloc_dev;
 		}
 		macsec_device->macdev = macdev;
@@ -937,7 +937,7 @@ static int macsec_fs_tx_init(struct mlx5_macsec_fs *macsec_fs)
 
 	tx_fs = kzalloc(sizeof(*tx_fs), GFP_KERNEL);
 	if (!tx_fs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_tables = &tx_fs->tables;
 
@@ -1061,12 +1061,12 @@ static int macsec_fs_rx_create_crypto_table_groups(struct mlx5_macsec_flow_table
 
 	ft->g = kcalloc(RX_CRYPTO_TABLE_NUM_GROUPS, sizeof(*ft->g), GFP_KERNEL);
 	if (!ft->g)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		kfree(ft->g);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
@@ -1186,7 +1186,7 @@ static int macsec_fs_rx_create_check_decap_rule(struct mlx5_macsec_fs *macsec_fs
 			 MLX5_MACSEC_SECTAG_TCI_SC_FIELD_BIT <<
 			 MLX5_MACSEC_SECTAG_TCI_AN_FIELD_OFFSET);
 
-	flow_act->flags = FLOW_ACT_NO_APPEND;
+	flow_act->flags = FLOW_ACT_ANAL_APPEND;
 
 	if (rx_fs->roce.ft) {
 		flow_act->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
@@ -1225,9 +1225,9 @@ static int macsec_fs_rx_roce_miss_create(struct mlx5_core_dev *mdev,
 
 	flow_group_in = kvzalloc(MLX5_ST_SZ_BYTES(create_flow_group_in), GFP_KERNEL);
 	if (!flow_group_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* IP check ft has no miss rule since we use default miss action which is go to next PRIO */
+	/* IP check ft has anal miss rule since we use default miss action which is go to next PRIO */
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index,
 		 roce->ft_macsec_op_check->max_fte - 1);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index,
@@ -1276,7 +1276,7 @@ static int macsec_fs_rx_roce_jump_to_rdma_groups_create(struct mlx5_core_dev *md
 
 	in = kvzalloc(MLX5_ST_SZ_BYTES(create_flow_group_in), GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
 	outer_headers_c = MLX5_ADDR_OF(fte_match_param, mc, outer_headers);
@@ -1333,7 +1333,7 @@ static int macsec_fs_rx_roce_jump_to_rdma_rules_create(struct mlx5_macsec_fs *ma
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.ip_protocol);
@@ -1425,13 +1425,13 @@ static int macsec_fs_rx_roce_create(struct mlx5_macsec_fs *macsec_fs)
 	int err = 0;
 
 	if (!mlx5_is_macsec_roce_supported(macsec_fs->mdev)) {
-		mlx5_core_dbg(mdev, "Failed to init RoCE MACsec, capabilities not supported\n");
+		mlx5_core_dbg(mdev, "Failed to init RoCE MACsec, capabilities analt supported\n");
 		return 0;
 	}
 
 	ns = mlx5_get_flow_namespace(macsec_fs->mdev, MLX5_FLOW_NAMESPACE_RDMA_RX_MACSEC);
 	if (!ns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ft = macsec_fs_auto_group_table_create(ns, 0, RDMA_RX_ROCE_IP_TABLE_LEVEL,
 					       CRYPTO_NUM_MAXSEC_FTE);
@@ -1460,7 +1460,7 @@ static int macsec_fs_rx_roce_create(struct mlx5_macsec_fs *macsec_fs)
 
 	ns = mlx5_get_flow_namespace(macsec_fs->mdev, MLX5_FLOW_NAMESPACE_KERNEL_RX_MACSEC);
 	if (!ns) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_ns;
 	}
 
@@ -1512,15 +1512,15 @@ static int macsec_fs_rx_create(struct mlx5_macsec_fs *macsec_fs)
 
 	ns = mlx5_get_flow_namespace(mdev, MLX5_FLOW_NAMESPACE_KERNEL_RX_MACSEC);
 	if (!ns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_spec;
 	}
 
@@ -1853,7 +1853,7 @@ static int macsec_fs_rx_init(struct mlx5_macsec_fs *macsec_fs)
 
 	rx_fs =	kzalloc(sizeof(*rx_fs), GFP_KERNEL);
 	if (!rx_fs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_counter = mlx5_fc_create(mdev, false);
 	if (IS_ERR(flow_counter)) {
@@ -2098,7 +2098,7 @@ mlx5_macsec_fs_add_rule(struct mlx5_macsec_fs *macsec_fs,
 
 	data.fs_id = (data.is_tx) ? tx_new_fs_id : *sa_fs_id;
 	if (macsec_rule)
-		blocking_notifier_call_chain(&macsec_fs->mdev->macsec_nh,
+		blocking_analtifier_call_chain(&macsec_fs->mdev->macsec_nh,
 					     MLX5_DRIVER_EVENT_MACSEC_SA_ADDED,
 					     &data);
 
@@ -2115,7 +2115,7 @@ void mlx5_macsec_fs_del_rule(struct mlx5_macsec_fs *macsec_fs,
 	};
 
 	data.fs_id = (data.is_tx) ? macsec_rule->tx_rule.fs_id : sa_fs_id;
-	blocking_notifier_call_chain(&macsec_fs->mdev->macsec_nh,
+	blocking_analtifier_call_chain(&macsec_fs->mdev->macsec_nh,
 				     MLX5_DRIVER_EVENT_MACSEC_SA_DELETED,
 				     &data);
 
@@ -2138,11 +2138,11 @@ static int mlx5_macsec_fs_add_roce_rule_rx(struct mlx5_macsec_fs *macsec_fs, u32
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_rule = kzalloc(sizeof(*rx_rule), GFP_KERNEL);
 	if (!rx_rule) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2207,11 +2207,11 @@ static int mlx5_macsec_fs_add_roce_rule_tx(struct mlx5_macsec_fs *macsec_fs, u32
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_rule = kzalloc(sizeof(*tx_rule), GFP_KERNEL);
 	if (!tx_rule) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2395,7 +2395,7 @@ mlx5_macsec_fs_init(struct mlx5_core_dev *mdev)
 		goto tx_cleanup;
 	}
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&mdev->macsec_nh);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&mdev->macsec_nh);
 
 	return macsec_fs;
 

@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -34,13 +34,13 @@ unsigned long os_process_pc(int pid)
 	fd = open(proc_stat, O_RDONLY, 0);
 	if (fd < 0) {
 		printk(UM_KERN_ERR "os_process_pc - couldn't open '%s', "
-		       "errno = %d\n", proc_stat, errno);
+		       "erranal = %d\n", proc_stat, erranal);
 		goto out;
 	}
 	CATCH_EINTR(err = read(fd, buf, sizeof(buf)));
 	if (err < 0) {
 		printk(UM_KERN_ERR "os_process_pc - couldn't read '%s', "
-		       "err = %d\n", proc_stat, errno);
+		       "err = %d\n", proc_stat, erranal);
 		goto out_close;
 	}
 	os_close_file(fd);
@@ -68,8 +68,8 @@ int os_process_parent(int pid)
 	snprintf(stat, sizeof(stat), "/proc/%d/stat", pid);
 	fd = open(stat, O_RDONLY, 0);
 	if (fd < 0) {
-		printk(UM_KERN_ERR "Couldn't open '%s', errno = %d\n", stat,
-		       errno);
+		printk(UM_KERN_ERR "Couldn't open '%s', erranal = %d\n", stat,
+		       erranal);
 		return parent;
 	}
 
@@ -77,8 +77,8 @@ int os_process_parent(int pid)
 	close(fd);
 
 	if (n < 0) {
-		printk(UM_KERN_ERR "Couldn't read '%s', errno = %d\n", stat,
-		       errno);
+		printk(UM_KERN_ERR "Couldn't read '%s', erranal = %d\n", stat,
+		       erranal);
 		return parent;
 	}
 
@@ -107,7 +107,7 @@ void os_kill_process(int pid, int reap_child)
 		CATCH_EINTR(waitpid(pid, NULL, __WALL));
 }
 
-/* Kill off a ptraced child by all means available.  kill it normally first,
+/* Kill off a ptraced child by all means available.  kill it analrmally first,
  * then PTRACE_KILL it, then PTRACE_CONT it in case it's in a run state from
  * which it can't exit directly.
  */
@@ -122,7 +122,7 @@ void os_kill_ptraced_process(int pid, int reap_child)
 }
 
 /* Don't use the glibc version, which caches the result in TLS. It misses some
- * syscalls, and also breaks with clone(), which does not unshare the TLS.
+ * syscalls, and also breaks with clone(), which does analt unshare the TLS.
  */
 
 int os_getpid(void)
@@ -147,7 +147,7 @@ int os_map_memory(void *virt, int fd, unsigned long long off, unsigned long len,
 	loc = mmap64((void *) virt, len, prot, MAP_SHARED | MAP_FIXED,
 		     fd, off);
 	if (loc == MAP_FAILED)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -157,7 +157,7 @@ int os_protect_memory(void *addr, unsigned long len, int r, int w, int x)
 		    (x ? PROT_EXEC : 0));
 
 	if (mprotect(addr, len, prot) < 0)
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
@@ -168,7 +168,7 @@ int os_unmap_memory(void *addr, int len)
 
 	err = munmap(addr, len);
 	if (err < 0)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -182,7 +182,7 @@ int os_drop_memory(void *addr, int length)
 
 	err = madvise(addr, length, MADV_REMOVE);
 	if (err < 0)
-		err = -errno;
+		err = -erranal;
 	return err;
 }
 
@@ -203,12 +203,12 @@ int __init can_drop_memory(void)
 		      MAP_SHARED, fd, 0);
 	if (addr == MAP_FAILED) {
 		printk(UM_KERN_ERR "Mapping test memory file failed, "
-		       "err = %d\n", -errno);
+		       "err = %d\n", -erranal);
 		goto out_close;
 	}
 
 	if (madvise(addr, UM_KERN_PAGE_SIZE, MADV_REMOVE) != 0) {
-		printk(UM_KERN_ERR "MADV_REMOVE failed, err = %d\n", -errno);
+		printk(UM_KERN_ERR "MADV_REMOVE failed, err = %d\n", -erranal);
 		goto out_unmap;
 	}
 
@@ -230,10 +230,10 @@ static int os_page_mincore(void *addr)
 
 	ret = mincore(addr, UM_KERN_PAGE_SIZE, vec);
 	if (ret < 0) {
-		if (errno == ENOMEM || errno == EINVAL)
+		if (erranal == EANALMEM || erranal == EINVAL)
 			return 0;
 		else
-			return -errno;
+			return -erranal;
 	}
 
 	return vec[0] & 1;
@@ -249,14 +249,14 @@ int os_mincore(void *addr, unsigned long len)
 
 	vec = calloc(1, (len + UM_KERN_PAGE_SIZE - 1) / UM_KERN_PAGE_SIZE);
 	if (!vec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mincore(addr, UM_KERN_PAGE_SIZE, vec);
 	if (ret < 0) {
-		if (errno == ENOMEM || errno == EINVAL)
+		if (erranal == EANALMEM || erranal == EINVAL)
 			ret = 0;
 		else
-			ret = -errno;
+			ret = -erranal;
 
 		goto out;
 	}

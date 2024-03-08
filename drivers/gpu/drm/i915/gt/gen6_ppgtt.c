@@ -94,8 +94,8 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 			ppgtt->scan_for_unused_pt = true;
 
 		/*
-		 * Note that the hw doesn't support removing PDE on the fly
-		 * (they are cached inside the context with no means to
+		 * Analte that the hw doesn't support removing PDE on the fly
+		 * (they are cached inside the context with anal means to
 		 * invalidate the cache), so we can only reset the PTE
 		 * entries back to scratch.
 		 */
@@ -228,7 +228,7 @@ static int gen6_ppgtt_init_scratch(struct gen6_ppgtt *ppgtt)
 	vm->scratch[0]->encode =
 		vm->pte_encode(px_dma(vm->scratch[0]),
 			       i915_gem_get_pat_index(vm->i915,
-						      I915_CACHE_NONE),
+						      I915_CACHE_ANALNE),
 			       PTE_READ_ONLY);
 
 	vm->scratch[1] = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
@@ -304,7 +304,7 @@ static void pd_vma_unbind(struct i915_address_space *vm,
 	if (!ppgtt->scan_for_unused_pt)
 		return;
 
-	/* Free all no longer used page tables */
+	/* Free all anal longer used page tables */
 	gen6_for_all_pdes(pt, ppgtt->base.pd, pde) {
 		if (!pt || atomic_read(&pt->used))
 			continue;
@@ -385,7 +385,7 @@ gen6_alloc_top_pd(struct gen6_ppgtt *ppgtt)
 
 	pd = __alloc_pd(I915_PDES);
 	if (unlikely(!pd))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pd->pt.base = __i915_gem_object_create_internal(ppgtt->base.vm.gt->i915,
 							&pd_dummy_obj_ops,
@@ -433,7 +433,7 @@ struct i915_ppgtt *gen6_ppgtt_create(struct intel_gt *gt)
 
 	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
 	if (!ppgtt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&ppgtt->flush);
 

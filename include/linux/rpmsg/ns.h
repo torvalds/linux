@@ -9,12 +9,12 @@
 #include <linux/types.h>
 
 /**
- * struct rpmsg_ns_msg - dynamic name service announcement message
+ * struct rpmsg_ns_msg - dynamic name service ananaluncement message
  * @name: name of remote service that is published
  * @addr: address of remote service that is published
  * @flags: indicates whether service is created or destroyed
  *
- * This message is sent across to publish a new service, or announce
+ * This message is sent across to publish a new service, or ananalunce
  * about its removal. When we receive these messages, an appropriate
  * rpmsg channel (i.e device) is created/destroyed. In turn, the ->probe()
  * or ->remove() handler of the appropriate rpmsg driver will be invoked
@@ -27,10 +27,10 @@ struct rpmsg_ns_msg {
 } __packed;
 
 /**
- * enum rpmsg_ns_flags - dynamic name service announcement flags
+ * enum rpmsg_ns_flags - dynamic name service ananaluncement flags
  *
  * @RPMSG_NS_CREATE: a new remote service was just created
- * @RPMSG_NS_DESTROY: a known remote service was just destroyed
+ * @RPMSG_NS_DESTROY: a kanalwn remote service was just destroyed
  */
 enum rpmsg_ns_flags {
 	RPMSG_NS_CREATE		= 0,

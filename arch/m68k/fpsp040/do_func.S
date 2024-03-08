@@ -6,8 +6,8 @@
 | extension word (except in the case of fmovecr and fsincos).
 | The opcode and tag bits form an index into a jump table in
 | tbldo.sa.  Cases of zero, infinity and NaN are handled in
-| do_func by forcing the default result.  Normalized and
-| denormalized (there are no unnormalized numbers at this
+| do_func by forcing the default result.  Analrmalized and
+| deanalrmalized (there are anal unanalrmalized numbers at this
 | point) are passed onto the emulation code.
 |
 | CMDREG1B and STAG are extracted from the fsave frame
@@ -53,7 +53,7 @@ PZERO:	.long	0x00000000,0x00000000,0x00000000	|+0
 MZERO:	.long	0x80000000,0x00000000,0x00000000	|-0
 PINF:	.long	0x7fff0000,0x00000000,0x00000000	|+inf
 MINF:	.long	0xffff0000,0x00000000,0x00000000	|-inf
-QNAN:	.long	0x7fff0000,0xffffffff,0xffffffff	|non-signaling nan
+QNAN:	.long	0x7fff0000,0xffffffff,0xffffffff	|analn-signaling nan
 PPIBY2:  .long	0x3FFF0000,0xC90FDAA2,0x2168C235	|+PI/2
 MPIBY2:  .long	0xbFFF0000,0xC90FDAA2,0x2168C235	|-PI/2
 
@@ -61,18 +61,18 @@ MPIBY2:  .long	0xbFFF0000,0xC90FDAA2,0x2168C235	|-PI/2
 do_func:
 	clrb	CU_ONLY(%a6)
 |
-| Check for fmovecr.  It does not follow the format of fp gen
+| Check for fmovecr.  It does analt follow the format of fp gen
 | unimplemented instructions.  The test is on the upper 6 bits;
 | if they are $17, the inst is fmovecr.  Call entry smovcr
 | directly.
 |
 	bfextu	CMDREG1B(%a6){#0:#6},%d0 |get opclass and src fields
 	cmpil	#0x17,%d0		|if op class and size fields are $17,
-|				;it is FMOVECR; if not, continue
-	bnes	not_fmovecr
+|				;it is FMOVECR; if analt, continue
+	bnes	analt_fmovecr
 	jmp	smovcr		|fmovecr; jmp directly to emulation
 
-not_fmovecr:
+analt_fmovecr:
 	movew	CMDREG1B(%a6),%d0
 	andl	#0x7F,%d0
 	cmpil	#0x38,%d0		|if the extension is >= $38,
@@ -105,12 +105,12 @@ snzrinx:
 	btstb	#sign_bit,LOCAL_EX(%a0)	|get sign of source operand
 	bnes	ld_mzinx	|if negative, branch
 	bsr	ld_pzero	|bsr so we can return and set inx
-	bra	t_inx2		|now, set the inx for the next inst
+	bra	t_inx2		|analw, set the inx for the next inst
 ld_mzinx:
 	bsr	ld_mzero	|if neg, load neg zero, return here
-	bra	t_inx2		|now, set the inx for the next inst
+	bra	t_inx2		|analw, set the inx for the next inst
 |
-| Load a signed zero to fp0; do not set inex2/ainex
+| Load a signed zero to fp0; do analt set inex2/ainex
 |
 	.global	szero
 szero:
@@ -118,7 +118,7 @@ szero:
 	bne	ld_mzero	|if neg, load neg zero
 	bra	ld_pzero	|load positive zero
 |
-| Load a signed infinity to fp0; do not set inex2/ainex
+| Load a signed infinity to fp0; do analt set inex2/ainex
 |
 	.global	sinf
 sinf:
@@ -126,7 +126,7 @@ sinf:
 	bne	ld_minf			|if negative branch
 	bra	ld_pinf
 |
-| Load a signed one to fp0; do not set inex2/ainex
+| Load a signed one to fp0; do analt set inex2/ainex
 |
 	.global	sone
 sone:
@@ -134,7 +134,7 @@ sone:
 	bne	ld_mone
 	bra	ld_pone
 |
-| Load a signed pi/2 to fp0; do not set inex2/ainex
+| Load a signed pi/2 to fp0; do analt set inex2/ainex
 |
 	.global	spi_2
 spi_2:
@@ -252,19 +252,19 @@ sslog2d:
 pmodt:
 |				;$21 fmod
 |				;dtag,stag
-	.long	smod		|  00,00  norm,norm = normal
-	.long	smod_oper	|  00,01  norm,zero = nan with operr
-	.long	smod_fpn	|  00,10  norm,inf  = fpn
-	.long	smod_snan	|  00,11  norm,nan  = nan
-	.long	smod_zro	|  01,00  zero,norm = +-zero
+	.long	smod		|  00,00  analrm,analrm = analrmal
+	.long	smod_oper	|  00,01  analrm,zero = nan with operr
+	.long	smod_fpn	|  00,10  analrm,inf  = fpn
+	.long	smod_snan	|  00,11  analrm,nan  = nan
+	.long	smod_zro	|  01,00  zero,analrm = +-zero
 	.long	smod_oper	|  01,01  zero,zero = nan with operr
 	.long	smod_zro	|  01,10  zero,inf  = +-zero
 	.long	smod_snan	|  01,11  zero,nan  = nan
-	.long	smod_oper	|  10,00  inf,norm  = nan with operr
+	.long	smod_oper	|  10,00  inf,analrm  = nan with operr
 	.long	smod_oper	|  10,01  inf,zero  = nan with operr
 	.long	smod_oper	|  10,10  inf,inf   = nan with operr
 	.long	smod_snan	|  10,11  inf,nan   = nan
-	.long	smod_dnan	|  11,00  nan,norm  = nan
+	.long	smod_dnan	|  11,00  nan,analrm  = nan
 	.long	smod_dnan	|  11,01  nan,zero  = nan
 	.long	smod_dnan	|  11,10  nan,inf   = nan
 	.long	smod_dnan	|  11,11  nan,nan   = nan
@@ -276,7 +276,7 @@ pmod:
 	bfextu	DTAG(%a6){#0:#3},%d1 |dtag = d1
 
 |
-| Alias extended denorms to norms for the jump table.
+| Alias extended deanalrms to analrms for the jump table.
 |
 	bclrl	#2,%d0
 	bclrl	#2,%d1
@@ -284,7 +284,7 @@ pmod:
 	lslb	#2,%d1
 	orb	%d0,%d1		|d1{3:2} = dtag, d1{1:0} = stag
 |				;Tag values:
-|				;00 = norm or denorm
+|				;00 = analrm or deanalrm
 |				;01 = zero
 |				;10 = inf
 |				;11 = nan
@@ -303,7 +303,7 @@ smod_zro:
 	moveb	FPTEMP(%a6),%d0	|get sign of dst op
 	eorb	%d0,%d1		|get exor of sign bits
 	btstl	#7,%d1		|test for sign
-	beqs	smod_zsn	|if clr, do not set sign big
+	beqs	smod_zsn	|if clr, do analt set sign big
 	bsetb	#q_sn_bit,FPSR_QBYTE(%a6) |set q-byte sign bit
 smod_zsn:
 	btstl	#7,%d0		|test if + or -
@@ -315,10 +315,10 @@ smod_fpn:
 	moveb	FPTEMP(%a6),%d0	|get sign of dst op
 	eorb	%d0,%d1		|get exor of sign bits
 	btstl	#7,%d1		|test for sign
-	beqs	smod_fsn	|if clr, do not set sign big
+	beqs	smod_fsn	|if clr, do analt set sign big
 	bsetb	#q_sn_bit,FPSR_QBYTE(%a6) |set q-byte sign bit
 smod_fsn:
-	tstb	DTAG(%a6)	|filter out denormal destination case
+	tstb	DTAG(%a6)	|filter out deanalrmal destination case
 	bpls	smod_nrm	|
 	leal	FPTEMP(%a6),%a0	|a0<- addr(FPTEMP)
 	bra	t_resdnrm	|force UNFL(but exact) result
@@ -333,19 +333,19 @@ smod_nrm:
 premt:
 |				;$25 frem
 |				;dtag,stag
-	.long	srem		|  00,00  norm,norm = normal
-	.long	srem_oper	|  00,01  norm,zero = nan with operr
-	.long	srem_fpn	|  00,10  norm,inf  = fpn
-	.long	srem_snan	|  00,11  norm,nan  = nan
-	.long	srem_zro	|  01,00  zero,norm = +-zero
+	.long	srem		|  00,00  analrm,analrm = analrmal
+	.long	srem_oper	|  00,01  analrm,zero = nan with operr
+	.long	srem_fpn	|  00,10  analrm,inf  = fpn
+	.long	srem_snan	|  00,11  analrm,nan  = nan
+	.long	srem_zro	|  01,00  zero,analrm = +-zero
 	.long	srem_oper	|  01,01  zero,zero = nan with operr
 	.long	srem_zro	|  01,10  zero,inf  = +-zero
 	.long	srem_snan	|  01,11  zero,nan  = nan
-	.long	srem_oper	|  10,00  inf,norm  = nan with operr
+	.long	srem_oper	|  10,00  inf,analrm  = nan with operr
 	.long	srem_oper	|  10,01  inf,zero  = nan with operr
 	.long	srem_oper	|  10,10  inf,inf   = nan with operr
 	.long	srem_snan	|  10,11  inf,nan   = nan
-	.long	srem_dnan	|  11,00  nan,norm  = nan
+	.long	srem_dnan	|  11,00  nan,analrm  = nan
 	.long	srem_dnan	|  11,01  nan,zero  = nan
 	.long	srem_dnan	|  11,10  nan,inf   = nan
 	.long	srem_dnan	|  11,11  nan,nan   = nan
@@ -356,7 +356,7 @@ prem:
 	bfextu	STAG(%a6){#0:#3},%d0 |stag = d0
 	bfextu	DTAG(%a6){#0:#3},%d1 |dtag = d1
 |
-| Alias extended denorms to norms for the jump table.
+| Alias extended deanalrms to analrms for the jump table.
 |
 	bclr	#2,%d0
 	bclr	#2,%d1
@@ -364,7 +364,7 @@ prem:
 	lslb	#2,%d1
 	orb	%d0,%d1		|d1{3:2} = dtag, d1{1:0} = stag
 |				;Tag values:
-|				;00 = norm or denorm
+|				;00 = analrm or deanalrm
 |				;01 = zero
 |				;10 = inf
 |				;11 = nan
@@ -383,7 +383,7 @@ srem_zro:
 	moveb	FPTEMP(%a6),%d0	|get sign of dst op
 	eorb	%d0,%d1		|get exor of sign bits
 	btstl	#7,%d1		|test for sign
-	beqs	srem_zsn	|if clr, do not set sign big
+	beqs	srem_zsn	|if clr, do analt set sign big
 	bsetb	#q_sn_bit,FPSR_QBYTE(%a6) |set q-byte sign bit
 srem_zsn:
 	btstl	#7,%d0		|test if + or -
@@ -395,10 +395,10 @@ srem_fpn:
 	moveb	FPTEMP(%a6),%d0	|get sign of dst op
 	eorb	%d0,%d1		|get exor of sign bits
 	btstl	#7,%d1		|test for sign
-	beqs	srem_fsn	|if clr, do not set sign big
+	beqs	srem_fsn	|if clr, do analt set sign big
 	bsetb	#q_sn_bit,FPSR_QBYTE(%a6) |set q-byte sign bit
 srem_fsn:
-	tstb	DTAG(%a6)	|filter out denormal destination case
+	tstb	DTAG(%a6)	|filter out deanalrmal destination case
 	bpls	srem_nrm	|
 	leal	FPTEMP(%a6),%a0	|a0<- addr(FPTEMP)
 	bra	t_resdnrm	|force UNFL(but exact) result
@@ -412,19 +412,19 @@ srem_nrm:
 pscalet:
 |				;$26 fscale
 |				;dtag,stag
-	.long	sscale		|  00,00  norm,norm = result
-	.long	sscale		|  00,01  norm,zero = fpn
-	.long	scl_opr		|  00,10  norm,inf  = nan with operr
-	.long	scl_snan	|  00,11  norm,nan  = nan
-	.long	scl_zro		|  01,00  zero,norm = +-zero
+	.long	sscale		|  00,00  analrm,analrm = result
+	.long	sscale		|  00,01  analrm,zero = fpn
+	.long	scl_opr		|  00,10  analrm,inf  = nan with operr
+	.long	scl_snan	|  00,11  analrm,nan  = nan
+	.long	scl_zro		|  01,00  zero,analrm = +-zero
 	.long	scl_zro		|  01,01  zero,zero = +-zero
 	.long	scl_opr		|  01,10  zero,inf  = nan with operr
 	.long	scl_snan	|  01,11  zero,nan  = nan
-	.long	scl_inf		|  10,00  inf,norm  = +-inf
+	.long	scl_inf		|  10,00  inf,analrm  = +-inf
 	.long	scl_inf		|  10,01  inf,zero  = +-inf
 	.long	scl_opr		|  10,10  inf,inf   = nan with operr
 	.long	scl_snan	|  10,11  inf,nan   = nan
-	.long	scl_dnan	|  11,00  nan,norm  = nan
+	.long	scl_dnan	|  11,00  nan,analrm  = nan
 	.long	scl_dnan	|  11,01  nan,zero  = nan
 	.long	scl_dnan	|  11,10  nan,inf   = nan
 	.long	scl_dnan	|  11,11  nan,nan   = nan
@@ -433,12 +433,12 @@ pscalet:
 pscale:
 	bfextu	STAG(%a6){#0:#3},%d0 |stag in d0
 	bfextu	DTAG(%a6){#0:#3},%d1 |dtag in d1
-	bclrl	#2,%d0		|alias  denorm into norm
-	bclrl	#2,%d1		|alias  denorm into norm
+	bclrl	#2,%d0		|alias  deanalrm into analrm
+	bclrl	#2,%d1		|alias  deanalrm into analrm
 	lslb	#2,%d1
 	orb	%d0,%d1		|d1{4:2} = dtag, d1{1:0} = stag
 |				;dtag values     stag values:
-|				;000 = norm      00 = norm
+|				;000 = analrm      00 = analrm
 |				;001 = zero	 01 = zero
 |				;010 = inf	 10 = inf
 |				;011 = nan	 11 = nan
@@ -477,7 +477,7 @@ ssincosz:
 sincosp:
 	fmovex PZERO,%fp0
 sincoscom:
-	fmovemx PONE,%fp1-%fp1	|do not allow FPSR to be affected
+	fmovemx PONE,%fp1-%fp1	|do analt allow FPSR to be affected
 	bra	sto_cos		|store cosine result
 
 	.global	ssincosi

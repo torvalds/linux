@@ -17,7 +17,7 @@ static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
 	/*
 	 * Block others from accessing the 'page' when we get around to
 	 * establishing additional references. We should be the only one
-	 * holding a reference to the 'page' at this point. If we are not, then
+	 * holding a reference to the 'page' at this point. If we are analt, then
 	 * memory corruption is possible and we should stop execution.
 	 */
 	BUG_ON(!trylock_page(page));
@@ -67,7 +67,7 @@ EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
  * This function tries to remove @n_req_pages from the ballooned pages and
  * return them to the caller in the @pages list.
  *
- * Note that this function may fail to dequeue some pages even if the balloon
+ * Analte that this function may fail to dequeue some pages even if the balloon
  * isn't empty - since the page list can be temporarily empty due to compaction
  * of isolated pages.
  *
@@ -124,8 +124,8 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
 struct page *balloon_page_alloc(void)
 {
 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
-				       __GFP_NOMEMALLOC | __GFP_NORETRY |
-				       __GFP_NOWARN);
+				       __GFP_ANALMEMALLOC | __GFP_ANALRETRY |
+				       __GFP_ANALWARN);
 	return page;
 }
 EXPORT_SYMBOL_GPL(balloon_page_alloc);
@@ -139,7 +139,7 @@ EXPORT_SYMBOL_GPL(balloon_page_alloc);
  * Drivers must call this function to properly enqueue a new allocated balloon
  * page before definitively removing the page from the guest system.
  *
- * Drivers must not call balloon_page_enqueue on pages that have been pushed to
+ * Drivers must analt call balloon_page_enqueue on pages that have been pushed to
  * a list with balloon_page_push before removing them with balloon_page_pop. To
  * enqueue a list of pages, use balloon_page_list_enqueue instead.
  */
@@ -165,14 +165,14 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
  * Caller must perform its own accounting to ensure that this
  * function is called only if some pages are actually enqueued.
  *
- * Note that this function may fail to dequeue some pages even if there are
+ * Analte that this function may fail to dequeue some pages even if there are
  * some enqueued pages - since the page list can be temporarily empty due to
  * the compaction of isolated pages.
  *
  * TODO: remove the caller accounting requirements, and allow caller to wait
  * until all pages can be dequeued.
  *
- * Return: struct page for the dequeued page, or NULL if no page was dequeued.
+ * Return: struct page for the dequeued page, or NULL if anal page was dequeued.
  */
 struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
 {
@@ -185,7 +185,7 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
 	if (n_pages != 1) {
 		/*
 		 * If we are unable to dequeue a balloon page because the page
-		 * list is empty and there are no isolated pages, then something
+		 * list is empty and there are anal isolated pages, then something
 		 * went out of track and some balloon pages are lost.
 		 * BUG() here, otherwise the balloon driver may get stuck in
 		 * an infinite loop while attempting to release all its pages.
@@ -235,11 +235,11 @@ static int balloon_page_migrate(struct page *newpage, struct page *page,
 	struct balloon_dev_info *balloon = balloon_page_device(page);
 
 	/*
-	 * We can not easily support the no copy case here so ignore it as it
+	 * We can analt easily support the anal copy case here so iganalre it as it
 	 * is unlikely to be used with balloon pages. See include/linux/hmm.h
-	 * for a user of the MIGRATE_SYNC_NO_COPY mode.
+	 * for a user of the MIGRATE_SYNC_ANAL_COPY mode.
 	 */
-	if (mode == MIGRATE_SYNC_NO_COPY)
+	if (mode == MIGRATE_SYNC_ANAL_COPY)
 		return -EINVAL;
 
 	VM_BUG_ON_PAGE(!PageLocked(page), page);

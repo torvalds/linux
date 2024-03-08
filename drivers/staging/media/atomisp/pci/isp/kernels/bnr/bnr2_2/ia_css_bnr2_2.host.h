@@ -26,7 +26,7 @@ ia_css_bnr2_2_encode(
     const struct ia_css_bnr2_2_config *from,
     size_t size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_bnr2_2_debug_dtrace(
     const struct ia_css_bnr2_2_config *config,

@@ -13,7 +13,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
@@ -73,7 +73,7 @@ unsigned long get_min_sigframe_size_64(void)
 
 /*
  * This computes a quad word aligned pointer inside the vmx_reserve array
- * element. For historical reasons sigcontext might not be quad word aligned,
+ * element. For historical reasons sigcontext might analt be quad word aligned,
  * but the location we write the VMX regs to must be. See the comment in
  * sigcontext for more detail.
  */
@@ -111,7 +111,7 @@ do {											\
 	if (__unsafe_setup_sigcontext(sc, tsk, signr, set, handler, ctx_has_vsx_region))\
 		goto label;								\
 } while (0)
-static long notrace __unsafe_setup_sigcontext(struct sigcontext __user *sc,
+static long analtrace __unsafe_setup_sigcontext(struct sigcontext __user *sc,
 					struct task_struct *tsk, int signr, sigset_t *set,
 					unsigned long handler, int ctx_has_vsx_region)
 {
@@ -120,8 +120,8 @@ static long notrace __unsafe_setup_sigcontext(struct sigcontext __user *sc,
 	 * the context). This is very important because we must ensure we
 	 * don't lose the VRSAVE content that may have been set prior to
 	 * the process doing its first vector operation
-	 * Userland shall check AT_HWCAP to know whether it can rely on the
-	 * v_regs pointer or not
+	 * Userland shall check AT_HWCAP to kanalw whether it can rely on the
+	 * v_regs pointer or analt
 	 */
 #ifdef CONFIG_ALTIVEC
 	elf_vrreg_t __user *v_regs = sigcontext_vmx_regs(sc);
@@ -157,7 +157,7 @@ static long notrace __unsafe_setup_sigcontext(struct sigcontext __user *sc,
 	unsafe_copy_fpr_to_user(&sc->fp_regs, tsk, efault_out);
 
 	/*
-	 * Clear the MSR VSX bit to indicate there is no valid state attached
+	 * Clear the MSR VSX bit to indicate there is anal valid state attached
 	 * to this context, except in the specific case below where we set it.
 	 */
 	msr &= ~MSR_VSX;
@@ -197,7 +197,7 @@ efault_out:
  * containing checkpointed and transactional register states.
  *
  * To do this, we treclaim (done before entering here) to gather both sets of
- * registers and set up the 'normal' sigcontext registers with rolled-back
+ * registers and set up the 'analrmal' sigcontext registers with rolled-back
  * register values such that a simple signal handler sees a correct
  * checkpointed register state.  If interested, a TM-aware sighandler can
  * examine the transactional registers in the 2nd sigcontext to determine the
@@ -214,8 +214,8 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	 * the context). This is very important because we must ensure we
 	 * don't lose the VRSAVE content that may have been set prior to
 	 * the process doing its first vector operation
-	 * Userland shall check AT_HWCAP to know wether it can rely on the
-	 * v_regs pointer or not.
+	 * Userland shall check AT_HWCAP to kanalw wether it can rely on the
+	 * v_regs pointer or analt.
 	 */
 #ifdef CONFIG_ALTIVEC
 	elf_vrreg_t __user *v_regs = sigcontext_vmx_regs(sc);
@@ -334,7 +334,7 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	if (__unsafe_restore_sigcontext(tsk, set, sig, sc))		\
 		goto label;						\
 } while (0)
-static long notrace __unsafe_restore_sigcontext(struct task_struct *tsk, sigset_t *set,
+static long analtrace __unsafe_restore_sigcontext(struct task_struct *tsk, sigset_t *set,
 						int sig, struct sigcontext __user *sc)
 {
 #ifdef CONFIG_ALTIVEC
@@ -349,7 +349,7 @@ static long notrace __unsafe_restore_sigcontext(struct task_struct *tsk, sigset_
 
 	BUG_ON(tsk != current);
 
-	/* If this is not a signal return, we preserve the TLS in r13 */
+	/* If this is analt a signal return, we preserve the TLS in r13 */
 	if (!sig)
 		save_r13 = regs->gpr[13];
 
@@ -366,7 +366,7 @@ static long notrace __unsafe_restore_sigcontext(struct task_struct *tsk, sigset_
 	unsafe_get_user(regs->xer, &sc->gp_regs[PT_XER], efault_out);
 	unsafe_get_user(regs->ccr, &sc->gp_regs[PT_CCR], efault_out);
 	/* Don't allow userspace to set SOFTE */
-	set_trap_norestart(regs);
+	set_trap_analrestart(regs);
 	unsafe_get_user(regs->dar, &sc->gp_regs[PT_DAR], efault_out);
 	unsafe_get_user(regs->dsisr, &sc->gp_regs[PT_DSISR], efault_out);
 	unsafe_get_user(regs->result, &sc->gp_regs[PT_RESULT], efault_out);
@@ -379,7 +379,7 @@ static long notrace __unsafe_restore_sigcontext(struct task_struct *tsk, sigset_
 	/*
 	 * Force reload of FP/VEC/VSX so userspace sees any changes.
 	 * Clear these bits from the user process' MSR before copying into the
-	 * thread struct. If we are rescheduled or preempted and another task
+	 * thread struct. If we are rescheduled or preempted and aanalther task
 	 * uses FP/VEC/VSX, and this process has the MSR bits set, then the
 	 * context switch code will save the current CPU state into the
 	 * thread_struct - possibly overwriting the data we are updating here.
@@ -478,7 +478,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	/* pull in MSR LE from user context */
 	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (msr & MSR_LE));
 
-	/* The following non-GPR non-FPR non-VR state is also checkpointed: */
+	/* The following analn-GPR analn-FPR analn-VR state is also checkpointed: */
 	err |= __get_user(regs->ctr, &tm_sc->gp_regs[PT_CTR]);
 	err |= __get_user(regs->link, &tm_sc->gp_regs[PT_LNK]);
 	err |= __get_user(regs->xer, &tm_sc->gp_regs[PT_XER]);
@@ -492,8 +492,8 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	err |= __get_user(tsk->thread.ckpt_regs.ccr,
 			  &sc->gp_regs[PT_CCR]);
 	/* Don't allow userspace to set SOFTE */
-	set_trap_norestart(regs);
-	/* These regs are not checkpointed; they can go in 'regs'. */
+	set_trap_analrestart(regs);
+	/* These regs are analt checkpointed; they can go in 'regs'. */
 	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
 	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);
 	err |= __get_user(regs->result, &sc->gp_regs[PT_RESULT]);
@@ -586,7 +586,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	 *
 	 * CAUTION:
 	 * After regs->MSR[TS] being updated, make sure that get_user(),
-	 * put_user() or similar functions are *not* called. These
+	 * put_user() or similar functions are *analt* called. These
 	 * functions can generate page faults which will cause the process
 	 * to be de-scheduled with MSR[TS] set but without calling
 	 * tm_recheckpoint(). This can cause a bug.
@@ -665,7 +665,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	    get_user(new_msr, &new_ctx->uc_mcontext.gp_regs[PT_MSR]))
 		return -EFAULT;
 	/*
-	 * Check that the context is not smaller than the original
+	 * Check that the context is analt smaller than the original
 	 * size (with VMX but without VSX)
 	 */
 	if (ctx_size < UCONTEXTSIZEWITHOUTVSX)
@@ -677,7 +677,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	if ((ctx_size < sizeof(struct ucontext)) &&
 	    (new_msr & MSR_VSX))
 		return -EINVAL;
-	/* Does the context have enough room to store VSX data? */
+	/* Does the context have eanalugh room to store VSX data? */
 	if (ctx_size >= sizeof(struct ucontext))
 		ctx_has_vsx_region = 1;
 
@@ -703,11 +703,11 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	 * If we get a fault copying the context into the kernel's
 	 * image of the user's registers, we can't just return -EFAULT
 	 * because the user's registers will be corrupted.  For instance
-	 * the NIP value may have been updated but not some of the
+	 * the NIP value may have been updated but analt some of the
 	 * other registers.  Given that we have done the access_ok
 	 * and successfully read the first and last bytes of the region
 	 * above, this should only happen in an out-of-memory situation
-	 * or if another thread unmaps the region containing the context.
+	 * or if aanalther thread unmaps the region containing the context.
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 
@@ -749,7 +749,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	unsigned long msr;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	if (!access_ok(uc, sizeof(*uc)))
 		goto badframe;
@@ -764,10 +764,10 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 * The purpose of a sigreturn is to destroy all traces of the
 		 * signal frame, this includes any transactional state created
 		 * within in. We only check for suspended as we can never be
-		 * active in the kernel, we are active, there is nothing better to
+		 * active in the kernel, we are active, there is analthing better to
 		 * do than go ahead and Bad Thing later.
-		 * The cause is not important as there will never be a
-		 * recheckpoint so it's not user visible.
+		 * The cause is analt important as there will never be a
+		 * recheckpoint so it's analt user visible.
 		 */
 		if (MSR_TM_SUSPENDED(mfmsr()))
 			tm_reclaim_current(0);
@@ -775,7 +775,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		/*
 		 * Disable MSR[TS] bit also, so, if there is an exception in the
 		 * code below (as a page fault in copy_ckvsx_to_user()), it does
-		 * not recheckpoint this task if there was a context switch inside
+		 * analt recheckpoint this task if there was a context switch inside
 		 * the exception.
 		 *
 		 * A major page fault can indirectly call schedule(). A reschedule
@@ -791,7 +791,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 *
 		 * Clearing MSR[TS] state here will avoid a recheckpoint if there
 		 * is any process reschedule in kernel space. The MSR[TS] state
-		 * does not need to be saved also, since it will be replaced with
+		 * does analt need to be saved also, since it will be replaced with
 		 * the MSR[TS] that came from user context later, at
 		 * restore_tm_sigcontexts.
 		 */
@@ -805,7 +805,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		/* We recheckpoint on return. */
 		struct ucontext __user *uc_transact;
 
-		/* Trying to start TM on non TM system */
+		/* Trying to start TM on analn TM system */
 		if (!cpu_has_feature(CPU_FTR_TM))
 			goto badframe;
 
@@ -816,14 +816,14 @@ SYSCALL_DEFINE0(rt_sigreturn)
 			goto badframe;
 	} else {
 		/*
-		 * Fall through, for non-TM restore
+		 * Fall through, for analn-TM restore
 		 *
 		 * Unset MSR[TS] on the thread regs since MSR from user
-		 * context does not have MSR active, and recheckpoint was
-		 * not called since restore_tm_sigcontexts() was not called
+		 * context does analt have MSR active, and recheckpoint was
+		 * analt called since restore_tm_sigcontexts() was analt called
 		 * also.
 		 *
-		 * If not unsetting it, the code can RFID to userspace with
+		 * If analt unsetting it, the code can RFID to userspace with
 		 * MSR[TS] set, but without CPU in the proper state,
 		 * causing a TM bad thing.
 		 */

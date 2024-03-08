@@ -18,10 +18,10 @@ into the kernel with CONFIG_EXTRA_FIRMWARE:
 * Firmware is needed for accessing the boot device, and the user doesn't
   want to stuff the firmware into the boot initramfs.
 
-Even if you have these needs there are a few reasons why you may not be
+Even if you have these needs there are a few reasons why you may analt be
 able to make use of built-in firmware:
 
-* Legalese - firmware is non-GPL compatible
+* Legalese - firmware is analn-GPL compatible
 * Some firmware may be optional
 * Firmware upgrades are possible, therefore a new firmware would implicate
   a complete kernel rebuild.

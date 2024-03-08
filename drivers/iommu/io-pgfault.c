@@ -113,11 +113,11 @@ static void iopf_handler(struct work_struct *work)
  * PASID stop request) by some PCI devices.
  *
  * The PASID stop request is issued by the device driver before unbind(). Once
- * it completes, no page request is generated for this PASID anymore and
+ * it completes, anal page request is generated for this PASID anymore and
  * outstanding ones have been pushed to the IOMMU (as per PCIe 4.0r1.0 - 6.20.1
  * and 10.4.1.2 - Managing PASID TLP Prefix Usage). Some PCI devices will wait
  * for all outstanding page requests to come back with a response before
- * completing the PASID stop request. Others do not wait for page responses, and
+ * completing the PASID stop request. Others do analt wait for page responses, and
  * instead issue this Stop Marker that tells us when the PASID can be
  * reallocated.
  *
@@ -153,25 +153,25 @@ int iommu_queue_iopf(struct iommu_fault *fault, void *cookie)
 	lockdep_assert_held(&param->lock);
 
 	if (fault->type != IOMMU_FAULT_PAGE_REQ)
-		/* Not a recoverable page fault */
-		return -EOPNOTSUPP;
+		/* Analt a recoverable page fault */
+		return -EOPANALTSUPP;
 
 	/*
 	 * As long as we're holding param->lock, the queue can't be unlinked
-	 * from the device and therefore cannot disappear.
+	 * from the device and therefore cananalt disappear.
 	 */
 	iopf_param = param->iopf_param;
 	if (!iopf_param)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE)) {
 		iopf = kzalloc(sizeof(*iopf), GFP_KERNEL);
 		if (!iopf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		iopf->fault = *fault;
 
-		/* Non-last request of a group. Postpone until the last one */
+		/* Analn-last request of a group. Postpone until the last one */
 		list_add(&iopf->list, &iopf_param->partial);
 
 		return 0;
@@ -184,7 +184,7 @@ int iommu_queue_iopf(struct iommu_fault *fault, void *cookie)
 		 * need to clean up before leaving, otherwise partial faults
 		 * will be stuck.
 		 */
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_partial;
 	}
 
@@ -222,7 +222,7 @@ EXPORT_SYMBOL_GPL(iommu_queue_iopf);
  * The IOMMU driver calls this before releasing a PASID, to ensure that all
  * pending faults for this PASID have been handled, and won't hit the address
  * space of the next process that uses this PASID. The driver must make sure
- * that no new fault is added to the queue. In particular it must flush its
+ * that anal new fault is added to the queue. In particular it must flush its
  * low-level queue before calling this function.
  *
  * Return: 0 on success and <0 on error.
@@ -234,14 +234,14 @@ int iopf_queue_flush_dev(struct device *dev)
 	struct dev_iommu *param = dev->iommu;
 
 	if (!param)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&param->lock);
 	iopf_param = param->iopf_param;
 	if (iopf_param)
 		flush_workqueue(iopf_param->queue->wq);
 	else
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	mutex_unlock(&param->lock);
 
 	return ret;
@@ -293,11 +293,11 @@ int iopf_queue_add_device(struct iopf_queue *queue, struct device *dev)
 	struct dev_iommu *param = dev->iommu;
 
 	if (!param)
-		return -ENODEV;
+		return -EANALDEV;
 
 	iopf_param = kzalloc(sizeof(*iopf_param), GFP_KERNEL);
 	if (!iopf_param)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&iopf_param->partial);
 	iopf_param->queue = queue;
@@ -325,7 +325,7 @@ EXPORT_SYMBOL_GPL(iopf_queue_add_device);
  * @queue: IOPF queue
  * @dev: device to remove
  *
- * Caller makes sure that no more faults are reported for this device.
+ * Caller makes sure that anal more faults are reported for this device.
  *
  * Return: 0 on success and <0 on error.
  */
@@ -377,7 +377,7 @@ struct iopf_queue *iopf_queue_alloc(const char *name)
 		return NULL;
 
 	/*
-	 * The WQ is unordered because the low-level handler enqueues faults by
+	 * The WQ is uanalrdered because the low-level handler enqueues faults by
 	 * group. PRI requests within a group have to be ordered, but once
 	 * that's dealt with, the high-level function can handle groups out of
 	 * order.
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(iopf_queue_alloc);
  * iopf_queue_free - Free IOPF queue
  * @queue: queue to free
  *
- * Counterpart to iopf_queue_alloc(). The driver must not be queuing faults or
+ * Counterpart to iopf_queue_alloc(). The driver must analt be queuing faults or
  * adding/removing devices on this queue anymore.
  */
 void iopf_queue_free(struct iopf_queue *queue)

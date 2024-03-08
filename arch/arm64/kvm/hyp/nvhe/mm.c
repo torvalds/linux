@@ -58,7 +58,7 @@ static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
 
 	/* Are we overflowing on the vmemmap ? */
 	if (cur > __hyp_vmemmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__io_map_base = cur;
 
@@ -252,7 +252,7 @@ static void fixmap_clear_slot(struct hyp_fixmap_slot *slot)
 
 	/*
 	 * Irritatingly, the architecture requires that we use inner-shareable
-	 * broadcast TLB invalidation here in case another CPU speculates
+	 * broadcast TLB invalidation here in case aanalther CPU speculates
 	 * through our fixmap and decides to create an "amalagamation of the
 	 * values held in the TLB" due to the apparent lack of a
 	 * break-before-make sequence.
@@ -339,7 +339,7 @@ int hyp_create_idmap(u32 hyp_va_bits)
 	 * One half of the VA space is reserved to linearly map portions of
 	 * memory -- see va_layout.c for more details. The other half of the VA
 	 * space contains the trampoline page, and needs some care. Split that
-	 * second half in two and find the quarter of VA space not conflicting
+	 * second half in two and find the quarter of VA space analt conflicting
 	 * with the idmap to place the IOs and the vmemmap. IOs use the lower
 	 * half of the quarter and the vmemmap the upper half.
 	 */
@@ -373,7 +373,7 @@ int pkvm_create_stack(phys_addr_t phys, unsigned long *haddr)
 		 * at the higher address and leave the lower guard page
 		 * unbacked.
 		 *
-		 * Any valid stack address now has the PAGE_SHIFT bit as 1
+		 * Any valid stack address analw has the PAGE_SHIFT bit as 1
 		 * and addresses corresponding to the guard page have the
 		 * PAGE_SHIFT bit as 0 - this is used for overflow detection.
 		 */

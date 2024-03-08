@@ -28,7 +28,7 @@ struct sgx_va_page *sgx_encl_grow(struct sgx_encl *encl, bool reclaim)
 	if (!(encl->page_cnt % SGX_VA_SLOT_COUNT)) {
 		va_page = kzalloc(sizeof(*va_page), GFP_KERNEL);
 		if (!va_page)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		va_page->epc_page = sgx_alloc_va_page(reclaim);
 		if (IS_ERR(va_page->epc_page)) {
@@ -75,7 +75,7 @@ static int sgx_encl_create(struct sgx_encl *encl, struct sgx_secs *secs)
 	encl_size = secs->size + PAGE_SIZE;
 
 	backing = shmem_file_setup("SGX backing", encl_size + (encl_size >> 5),
-				   VM_NORESERVE);
+				   VM_ANALRESERVE);
 	if (IS_ERR(backing)) {
 		ret = PTR_ERR(backing);
 		goto err_out_shrink;
@@ -113,7 +113,7 @@ static int sgx_encl_create(struct sgx_encl *encl, struct sgx_secs *secs)
 	encl->attributes = secs->attributes;
 	encl->attributes_mask = SGX_ATTR_UNPRIV_MASK;
 
-	/* Set only after completion, as encl->lock has not been taken. */
+	/* Set only after completion, as encl->lock has analt been taken. */
 	set_bit(SGX_ENCL_CREATED, &encl->flags);
 
 	return 0;
@@ -142,7 +142,7 @@ err_out_shrink:
  * Return:
  * - 0:		Success.
  * - -EIO:	ECREATE failed.
- * - -errno:	POSIX error.
+ * - -erranal:	POSIX error.
  */
 static long sgx_ioc_enclave_create(struct sgx_encl *encl, void __user *arg)
 {
@@ -158,7 +158,7 @@ static long sgx_ioc_enclave_create(struct sgx_encl *encl, void __user *arg)
 
 	secs = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!secs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(secs, (void __user *)create_arg.src, PAGE_SIZE))
 		ret = -EFAULT;
@@ -206,7 +206,7 @@ static int __sgx_encl_add_page(struct sgx_encl *encl,
 	struct page *src_page;
 	int ret;
 
-	/* Deny noexec. */
+	/* Deny analexec. */
 	vma = find_vma(current->mm, src);
 	if (!vma)
 		return -EFAULT;
@@ -385,7 +385,7 @@ static int sgx_validate_offset_length(struct sgx_encl *encl,
  * 1. A regular page: PROT_R, PROT_W and PROT_X match the SECINFO permissions.
  * 2. A TCS page: PROT_R | PROT_W.
  *
- * mmap() is not allowed to surpass the minimum of the maximum protection bits
+ * mmap() is analt allowed to surpass the minimum of the maximum protection bits
  * within the given address range.
  *
  * The function deinitializes kernel data structures for enclave and returns
@@ -397,12 +397,12 @@ static int sgx_validate_offset_length(struct sgx_encl *encl,
  *
  * Return:
  * - 0:		Success.
- * - -EACCES:	The source page is located in a noexec partition.
- * - -ENOMEM:	Out of EPC pages.
+ * - -EACCES:	The source page is located in a analexec partition.
+ * - -EANALMEM:	Out of EPC pages.
  * - -EINTR:	The call was interrupted before data was processed.
  * - -EIO:	Either EADD or EEXTEND failed because invalid source address
  *		or power cycle.
- * - -errno:	POSIX error.
+ * - -erranal:	POSIX error.
  */
 static long sgx_ioc_enclave_add_pages(struct sgx_encl *encl, void __user *arg)
 {
@@ -491,17 +491,17 @@ static int sgx_encl_init(struct sgx_encl *encl, struct sgx_sigstruct *sigstruct,
 
 	/*
 	 * Deny initializing enclaves with attributes (namely provisioning)
-	 * that have not been explicitly allowed.
+	 * that have analt been explicitly allowed.
 	 */
 	if (encl->attributes & ~encl->attributes_mask)
 		return -EACCES;
 
 	/*
-	 * Attributes should not be enforced *only* against what's available on
+	 * Attributes should analt be enforced *only* against what's available on
 	 * platform (done in sgx_encl_create) but checked and enforced against
 	 * the mask for enforcement in sigstruct. For example an enclave could
 	 * opt to sign with AVX bit in xfrm, but still be loadable on a platform
-	 * without it if the sigstruct->body.attributes_mask does not turn that
+	 * without it if the sigstruct->body.attributes_mask does analt turn that
 	 * bit on.
 	 */
 	if (sigstruct->body.attributes & sigstruct->body.attributes_mask &
@@ -587,7 +587,7 @@ err_out:
  * - 0:		Success.
  * - -EPERM:	Invalid SIGSTRUCT.
  * - -EIO:	EINIT failed because of a power cycle.
- * - -errno:	POSIX error.
+ * - -erranal:	POSIX error.
  */
 static long sgx_ioc_enclave_init(struct sgx_encl *encl, void __user *arg)
 {
@@ -610,7 +610,7 @@ static long sgx_ioc_enclave_init(struct sgx_encl *encl, void __user *arg)
 	 */
 	sigstruct = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!sigstruct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	token = (void *)((unsigned long)sigstruct + PAGE_SIZE / 2);
 	memset(token, 0, SGX_LAUNCH_TOKEN_SIZE);
@@ -624,7 +624,7 @@ static long sgx_ioc_enclave_init(struct sgx_encl *encl, void __user *arg)
 	/*
 	 * A legacy field used with Intel signed enclaves. These used to mean
 	 * regular and architectural enclaves. The CPU only accepts these values
-	 * but they do not have any other meaning.
+	 * but they do analt have any other meaning.
 	 *
 	 * Thus, reject any other values.
 	 */
@@ -651,7 +651,7 @@ out:
  *
  * Return:
  * - 0:		Success.
- * - -errno:	Otherwise.
+ * - -erranal:	Otherwise.
  */
 static long sgx_ioc_enclave_provision(struct sgx_encl *encl, void __user *arg)
 {
@@ -671,7 +671,7 @@ static long sgx_ioc_enclave_provision(struct sgx_encl *encl, void __user *arg)
 static int sgx_ioc_sgx2_ready(struct sgx_encl *encl)
 {
 	if (!(cpu_feature_enabled(X86_FEATURE_SGX2)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!test_bit(SGX_ENCL_INITIALIZED, &encl->flags))
 		return -EINVAL;
@@ -680,14 +680,14 @@ static int sgx_ioc_sgx2_ready(struct sgx_encl *encl)
 }
 
 /*
- * Some SGX functions require that no cached linear-to-physical address
+ * Some SGX functions require that anal cached linear-to-physical address
  * mappings are present before they can succeed. Collaborate with
  * hardware via ENCLS[ETRACK] to ensure that all cached
  * linear-to-physical address mappings belonging to all threads of
  * the enclave are cleared. See sgx_encl_cpumask() for details.
  *
  * Must be called with enclave's mutex held from the time the
- * SGX function requiring that no cached linear-to-physical mappings
+ * SGX function requiring that anal cached linear-to-physical mappings
  * are present is executed until this ETRACK flow is complete.
  */
 static int sgx_enclave_etrack(struct sgx_encl *encl)
@@ -729,7 +729,7 @@ static int sgx_enclave_etrack(struct sgx_encl *encl)
  *
  * Return:
  * - 0:		Success.
- * - -errno:	Otherwise.
+ * - -erranal:	Otherwise.
  */
 static long
 sgx_enclave_restrict_permissions(struct sgx_encl *encl,
@@ -769,11 +769,11 @@ sgx_enclave_restrict_permissions(struct sgx_encl *encl,
 		}
 
 		/*
-		 * Apart from ensuring that read-access remains, do not verify
-		 * the permission bits requested. Kernel has no control over
+		 * Apart from ensuring that read-access remains, do analt verify
+		 * the permission bits requested. Kernel has anal control over
 		 * how EPCM permissions can be relaxed from within the enclave.
 		 * ENCLS[EMODPR] can only remove existing EPCM permissions,
-		 * attempting to set new permissions will be ignored by the
+		 * attempting to set new permissions will be iganalred by the
 		 * hardware.
 		 */
 
@@ -784,7 +784,7 @@ sgx_enclave_restrict_permissions(struct sgx_encl *encl,
 			/*
 			 * All possible faults should be avoidable:
 			 * parameters have been checked, will only change
-			 * permissions of a regular page, and no concurrent
+			 * permissions of a regular page, and anal concurrent
 			 * SGX1/SGX2 ENCLS instructions since these
 			 * are protected with mutex.
 			 */
@@ -830,14 +830,14 @@ out:
  * permissions maintained by the hardware (EPCM permissions) of pages
  * belonging to an initialized enclave (after SGX_IOC_ENCLAVE_INIT).
  *
- * EPCM permissions cannot be restricted from within the enclave, the enclave
+ * EPCM permissions cananalt be restricted from within the enclave, the enclave
  * requires the kernel to run the privileged level 0 instructions ENCLS[EMODPR]
  * and ENCLS[ETRACK]. An attempt to relax EPCM permissions with this call
- * will be ignored by the hardware.
+ * will be iganalred by the hardware.
  *
  * Return:
  * - 0:		Success
- * - -errno:	Otherwise
+ * - -erranal:	Otherwise
  */
 static long sgx_ioc_enclave_restrict_permissions(struct sgx_encl *encl,
 						 void __user *arg)
@@ -885,7 +885,7 @@ static long sgx_ioc_enclave_restrict_permissions(struct sgx_encl *encl,
  *
  * Return:
  * - 0:		Success
- * - -errno:	Otherwise
+ * - -erranal:	Otherwise
  */
 static long sgx_enclave_modify_types(struct sgx_encl *encl,
 				     struct sgx_enclave_modify_types *modt)
@@ -929,7 +929,7 @@ static long sgx_enclave_modify_types(struct sgx_encl *encl,
 		 * Borrow the logic from the Intel SDM. Regular pages
 		 * (SGX_PAGE_TYPE_REG) can change type to SGX_PAGE_TYPE_TCS
 		 * or SGX_PAGE_TYPE_TRIM but TCS pages can only be trimmed.
-		 * CET pages not supported yet.
+		 * CET pages analt supported yet.
 		 */
 		if (!(entry->type == SGX_PAGE_TYPE_REG ||
 		      (entry->type == SGX_PAGE_TYPE_TCS &&
@@ -941,7 +941,7 @@ static long sgx_enclave_modify_types(struct sgx_encl *encl,
 		max_prot_restore = entry->vm_max_prot_bits;
 
 		/*
-		 * Once a regular page becomes a TCS page it cannot be
+		 * Once a regular page becomes a TCS page it cananalt be
 		 * changed back. So the maximum allowed protection reflects
 		 * the TCS page that is always RW from kernel perspective but
 		 * will be inaccessible from within enclave. Before doing
@@ -967,7 +967,7 @@ static long sgx_enclave_modify_types(struct sgx_encl *encl,
 			}
 
 			/*
-			 * Do not keep encl->lock because of dependency on
+			 * Do analt keep encl->lock because of dependency on
 			 * mmap_lock acquired in sgx_zap_enclave_ptes().
 			 */
 			mutex_unlock(&encl->lock);
@@ -986,7 +986,7 @@ static long sgx_enclave_modify_types(struct sgx_encl *encl,
 			/*
 			 * All possible faults should be avoidable:
 			 * parameters have been checked, will only change
-			 * valid page types, and no concurrent
+			 * valid page types, and anal concurrent
 			 * SGX1/SGX2 ENCLS instructions since these are
 			 * protected with mutex.
 			 */
@@ -1046,7 +1046,7 @@ out:
  *
  * Return:
  * - 0:		Success
- * - -errno:	Otherwise
+ * - -erranal:	Otherwise
  */
 static long sgx_ioc_enclave_modify_types(struct sgx_encl *encl,
 					 void __user *arg)
@@ -1085,7 +1085,7 @@ static long sgx_ioc_enclave_modify_types(struct sgx_encl *encl,
  *
  * Return:
  * - 0:		Success.
- * - -errno:	Otherwise.
+ * - -erranal:	Otherwise.
  */
 static long sgx_encl_remove_pages(struct sgx_encl *encl,
 				  struct sgx_enclave_remove_pages *params)
@@ -1119,11 +1119,11 @@ static long sgx_encl_remove_pages(struct sgx_encl *encl,
 		}
 
 		/*
-		 * ENCLS[EMODPR] is a no-op instruction used to inform if
+		 * ENCLS[EMODPR] is a anal-op instruction used to inform if
 		 * ENCLU[EACCEPT] was run from within the enclave. If
 		 * ENCLS[EMODPR] is run with RWX on a trimmed page that is
-		 * not yet accepted then it will return
-		 * %SGX_PAGE_NOT_MODIFIABLE, after the trimmed page is
+		 * analt yet accepted then it will return
+		 * %SGX_PAGE_ANALT_MODIFIABLE, after the trimmed page is
 		 * accepted the instruction will encounter a page fault.
 		 */
 		epc_virt = sgx_get_epc_virt_addr(entry->epc_page);
@@ -1139,7 +1139,7 @@ static long sgx_encl_remove_pages(struct sgx_encl *encl,
 		}
 
 		/*
-		 * Do not keep encl->lock because of dependency on
+		 * Do analt keep encl->lock because of dependency on
 		 * mmap_lock acquired in sgx_zap_enclave_ptes().
 		 */
 		mutex_unlock(&encl->lock);
@@ -1187,13 +1187,13 @@ out:
  * First remove any page table entries pointing to the page and then proceed
  * with the actual removal of the enclave page and data in support of it.
  *
- * VA pages are not affected by this removal. It is thus possible that the
+ * VA pages are analt affected by this removal. It is thus possible that the
  * enclave may end up with more VA pages than needed to support all its
  * pages.
  *
  * Return:
  * - 0:		Success
- * - -errno:	Otherwise
+ * - -erranal:	Otherwise
  */
 static long sgx_ioc_enclave_remove_pages(struct sgx_encl *encl,
 					 void __user *arg)
@@ -1254,7 +1254,7 @@ long sgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		ret = sgx_ioc_enclave_remove_pages(encl, (void __user *)arg);
 		break;
 	default:
-		ret = -ENOIOCTLCMD;
+		ret = -EANALIOCTLCMD;
 		break;
 	}
 

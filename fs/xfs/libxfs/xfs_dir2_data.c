@@ -11,7 +11,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_error.h"
@@ -58,7 +58,7 @@ xfs_dir2_data_get_ftype(
 			return ftype;
 	}
 
-	return XFS_DIR3_FT_UNKNOWN;
+	return XFS_DIR3_FT_UNKANALWN;
 }
 
 void
@@ -76,9 +76,9 @@ xfs_dir2_data_put_ftype(
 
 /*
  * The number of leaf entries is limited by the size of the block and the amount
- * of space used by the data entries.  We don't know how much space is used by
+ * of space used by the data entries.  We don't kanalw how much space is used by
  * the data entries yet, so just ensure that the count falls somewhere inside
- * the block right now.
+ * the block right analw.
  */
 static inline unsigned int
 xfs_dir2_data_max_leaf_entries(
@@ -96,7 +96,7 @@ xfs_dir2_data_max_leaf_entries(
  */
 xfs_failaddr_t
 __xfs_dir3_data_check(
-	struct xfs_inode	*dp,		/* incore inode pointer */
+	struct xfs_ianalde	*dp,		/* incore ianalde pointer */
 	struct xfs_buf		*bp)		/* data block's buffer */
 {
 	xfs_dir2_dataptr_t	addr;		/* addr for leaf lookup */
@@ -218,7 +218,7 @@ __xfs_dir3_data_check(
 		 */
 		if (dep->namelen == 0)
 			return __this_address;
-		if (!xfs_verify_dir_ino(mp, be64_to_cpu(dep->inumber)))
+		if (!xfs_verify_dir_ianal(mp, be64_to_cpu(dep->inumber)))
 			return __this_address;
 		if (offset + xfs_dir2_data_entsize(mp, dep->namelen) > end)
 			return __this_address;
@@ -272,7 +272,7 @@ __xfs_dir3_data_check(
 #ifdef DEBUG
 void
 xfs_dir3_data_check(
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	struct xfs_buf		*bp)
 {
 	xfs_failaddr_t		fa;
@@ -300,7 +300,7 @@ xfs_dir3_data_verify(
 	if (xfs_has_crc(mp)) {
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
-		if (be64_to_cpu(hdr3->blkno) != xfs_buf_daddr(bp))
+		if (be64_to_cpu(hdr3->blkanal) != xfs_buf_daddr(bp))
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
 			return __this_address;
@@ -396,7 +396,7 @@ static const struct xfs_buf_ops xfs_dir3_data_reada_buf_ops = {
 
 static xfs_failaddr_t
 xfs_dir3_data_header_check(
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = dp->i_mount;
@@ -404,7 +404,7 @@ xfs_dir3_data_header_check(
 	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_data_hdr *hdr3 = bp->b_addr;
 
-		if (be64_to_cpu(hdr3->hdr.owner) != dp->i_ino)
+		if (be64_to_cpu(hdr3->hdr.owner) != dp->i_ianal)
 			return __this_address;
 	}
 
@@ -414,15 +414,15 @@ xfs_dir3_data_header_check(
 int
 xfs_dir3_data_read(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_ianalde	*dp,
+	xfs_dablk_t		banal,
 	unsigned int		flags,
 	struct xfs_buf		**bpp)
 {
 	xfs_failaddr_t		fa;
 	int			err;
 
-	err = xfs_da_read_buf(tp, dp, bno, flags, bpp, XFS_DATA_FORK,
+	err = xfs_da_read_buf(tp, dp, banal, flags, bpp, XFS_DATA_FORK,
 			&xfs_dir3_data_buf_ops);
 	if (err || !*bpp)
 		return err;
@@ -442,11 +442,11 @@ xfs_dir3_data_read(
 
 int
 xfs_dir3_data_readahead(
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_ianalde	*dp,
+	xfs_dablk_t		banal,
 	unsigned int		flags)
 {
-	return xfs_da_reada_buf(dp, bno, flags, XFS_DATA_FORK,
+	return xfs_da_reada_buf(dp, banal, flags, XFS_DATA_FORK,
 				&xfs_dir3_data_reada_buf_ops);
 }
 
@@ -471,7 +471,7 @@ xfs_dir2_data_freefind_verify(
 
 	/*
 	 * Validate some consistency in the bestfree table.
-	 * Check order, non-overlapping entries, and if we find the
+	 * Check order, analn-overlapping entries, and if we find the
 	 * one we're looking for it has to be exact.
 	 */
 	for (dfp = &bf[0]; dfp < &bf[XFS_DIR2_DATA_FD_COUNT]; dfp++) {
@@ -504,7 +504,7 @@ xfs_dir2_data_freefind_verify(
 			return __this_address;
 	}
 
-	/* Looks ok so far; now try to match up with a bestfree entry. */
+	/* Looks ok so far; analw try to match up with a bestfree entry. */
 	*bf_ent = xfs_dir2_data_freefind(hdr, bf, dup);
 	return NULL;
 }
@@ -567,7 +567,7 @@ xfs_dir2_data_freeinsert(
 	new.offset = cpu_to_be16((char *)dup - (char *)hdr);
 
 	/*
-	 * Insert at position 0, 1, or 2; or not at all.
+	 * Insert at position 0, 1, or 2; or analt at all.
 	 */
 	if (be16_to_cpu(new.length) > be16_to_cpu(dfp[0].length)) {
 		dfp[2] = dfp[1];
@@ -624,7 +624,7 @@ xfs_dir2_data_freeremove(
 	else
 		ASSERT(dfp == &bf[2]);
 	/*
-	 * Clear the 3rd entry, must be zero now.
+	 * Clear the 3rd entry, must be zero analw.
 	 */
 	bf[2].length = 0;
 	bf[2].offset = 0;
@@ -689,11 +689,11 @@ xfs_dir2_data_freescan(
 int						/* error */
 xfs_dir3_data_init(
 	struct xfs_da_args		*args,	/* directory operation args */
-	xfs_dir2_db_t			blkno,	/* logical dir block number */
+	xfs_dir2_db_t			blkanal,	/* logical dir block number */
 	struct xfs_buf			**bpp)	/* output block buffer */
 {
 	struct xfs_trans		*tp = args->trans;
-	struct xfs_inode		*dp = args->dp;
+	struct xfs_ianalde		*dp = args->dp;
 	struct xfs_mount		*mp = dp->i_mount;
 	struct xfs_da_geometry		*geo = args->geo;
 	struct xfs_buf			*bp;
@@ -706,7 +706,7 @@ xfs_dir3_data_init(
 	/*
 	 * Get the buffer set up for the block.
 	 */
-	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(args->geo, blkno),
+	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(args->geo, blkanal),
 			       &bp, XFS_DATA_FORK);
 	if (error)
 		return error;
@@ -722,8 +722,8 @@ xfs_dir3_data_init(
 
 		memset(hdr3, 0, sizeof(*hdr3));
 		hdr3->magic = cpu_to_be32(XFS_DIR3_DATA_MAGIC);
-		hdr3->blkno = cpu_to_be64(xfs_buf_daddr(bp));
-		hdr3->owner = cpu_to_be64(dp->i_ino);
+		hdr3->blkanal = cpu_to_be64(xfs_buf_daddr(bp));
+		hdr3->owner = cpu_to_be64(dp->i_ianal);
 		uuid_copy(&hdr3->uuid, &mp->m_sb.sb_meta_uuid);
 
 	} else
@@ -889,7 +889,7 @@ xfs_dir2_data_make_free(
 	 */
 	bf = xfs_dir2_data_bestfree_p(args->dp->i_mount, hdr);
 	if (prevdup && postdup) {
-		xfs_dir2_data_free_t	*dfp2;	/* another bestfree pointer */
+		xfs_dir2_data_free_t	*dfp2;	/* aanalther bestfree pointer */
 
 		/*
 		 * See if prevdup and/or postdup are in bestfree table.
@@ -898,7 +898,7 @@ xfs_dir2_data_make_free(
 		dfp2 = xfs_dir2_data_freefind(hdr, bf, postdup);
 		/*
 		 * We need a rescan unless there are exactly 2 free entries
-		 * namely our two.  Then we know what's happening, otherwise
+		 * namely our two.  Then we kanalw what's happening, otherwise
 		 * since the third bestfree is there, there might be more
 		 * entries.
 		 */
@@ -913,7 +913,7 @@ xfs_dir2_data_make_free(
 		if (!needscan) {
 			/*
 			 * Has to be the case that entries 0 and 1 are
-			 * dfp and dfp2 (don't know which is which), and
+			 * dfp and dfp2 (don't kanalw which is which), and
 			 * entry 2 is empty.
 			 * Remove entry 1 first then entry 0.
 			 */
@@ -926,7 +926,7 @@ xfs_dir2_data_make_free(
 			xfs_dir2_data_freeremove(hdr, bf, dfp2, needlogp);
 			xfs_dir2_data_freeremove(hdr, bf, dfp, needlogp);
 			/*
-			 * Now insert the new entry.
+			 * Analw insert the new entry.
 			 */
 			dfp = xfs_dir2_data_freeinsert(hdr, bf, prevdup,
 						       needlogp);
@@ -955,7 +955,7 @@ xfs_dir2_data_make_free(
 			xfs_dir2_data_freeinsert(hdr, bf, prevdup, needlogp);
 		}
 		/*
-		 * Otherwise we need a scan if the new entry is big enough.
+		 * Otherwise we need a scan if the new entry is big eanalugh.
 		 */
 		else {
 			needscan = be16_to_cpu(prevdup->length) >
@@ -983,7 +983,7 @@ xfs_dir2_data_make_free(
 			xfs_dir2_data_freeinsert(hdr, bf, newdup, needlogp);
 		}
 		/*
-		 * Otherwise we need a scan if the new entry is big enough.
+		 * Otherwise we need a scan if the new entry is big eanalugh.
 		 */
 		else {
 			needscan = be16_to_cpu(newdup->length) >
@@ -1062,7 +1062,7 @@ xfs_dir2_data_use_free(
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_data_free_t	*dfp;		/* bestfree pointer */
 	xfs_dir2_data_unused_t	*newdup;	/* new unused entry */
-	xfs_dir2_data_unused_t	*newdup2;	/* another new unused entry */
+	xfs_dir2_data_unused_t	*newdup2;	/* aanalther new unused entry */
 	struct xfs_dir2_data_free *bf;
 	xfs_failaddr_t		fa;
 	int			matchback;	/* matches end of freespace */
@@ -1123,8 +1123,8 @@ xfs_dir2_data_use_free(
 				goto corrupt;
 			/*
 			 * If we got inserted at the last slot,
-			 * that means we don't know if there was a better
-			 * choice for the last slot, or not.  Rescan.
+			 * that means we don't kanalw if there was a better
+			 * choice for the last slot, or analt.  Rescan.
 			 */
 			needscan = dfp == &bf[2];
 		}
@@ -1151,8 +1151,8 @@ xfs_dir2_data_use_free(
 				goto corrupt;
 			/*
 			 * If we got inserted at the last slot,
-			 * that means we don't know if there was a better
-			 * choice for the last slot, or not.  Rescan.
+			 * that means we don't kanalw if there was a better
+			 * choice for the last slot, or analt.  Rescan.
 			 */
 			needscan = dfp == &bf[2];
 		}

@@ -12,7 +12,7 @@
 #include <linux/moduleparam.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <asm/paca.h>
 #include <asm/reg.h>
@@ -30,28 +30,28 @@ static struct cpuidle_driver pseries_idle_driver = {
 
 static int max_idle_state __read_mostly;
 static struct cpuidle_state *cpuidle_state_table __read_mostly;
-static u64 snooze_timeout __read_mostly;
-static bool snooze_timeout_en __read_mostly;
+static u64 sanaloze_timeout __read_mostly;
+static bool sanaloze_timeout_en __read_mostly;
 
 static __cpuidle
-int snooze_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+int sanaloze_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 		int index)
 {
-	u64 snooze_exit_time;
+	u64 sanaloze_exit_time;
 
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	pseries_idle_prolog();
 	raw_local_irq_enable();
-	snooze_exit_time = get_tb() + snooze_timeout;
+	sanaloze_exit_time = get_tb() + sanaloze_timeout;
 	dev->poll_time_limit = false;
 
 	while (!need_resched()) {
 		HMT_low();
 		HMT_very_low();
-		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time) {
+		if (likely(sanaloze_timeout_en) && get_tb() > sanaloze_exit_time) {
 			/*
-			 * Task has not woken up but we are exiting the polling
+			 * Task has analt woken up but we are exiting the polling
 			 * loop anyway. Require a barrier after polling is
 			 * cleared to order subsequent test of need_resched().
 			 */
@@ -76,7 +76,7 @@ static __cpuidle void check_and_cede_processor(void)
 {
 	/*
 	 * Ensure our interrupt state is properly tracked,
-	 * also checks if no interrupt has occurred while we
+	 * also checks if anal interrupt has occurred while we
 	 * were soft-disabled
 	 */
 	if (prep_irq_for_idle()) {
@@ -148,7 +148,7 @@ struct xcede_latency_record {
 	u8	wake_on_irqs;
 } __packed;
 
-// Make space for 16 records, which "should be enough".
+// Make space for 16 records, which "should be eanalugh".
 struct xcede_latency_payload {
 	u8     record_size;
 	struct xcede_latency_record records[16];
@@ -213,7 +213,7 @@ static int __init parse_cede_parameters(void)
 	return 0;
 }
 
-#define NR_DEDICATED_STATES	2 /* snooze, CEDE */
+#define NR_DEDICATED_STATES	2 /* sanaloze, CEDE */
 static u8 cede_latency_hint[NR_DEDICATED_STATES];
 
 static __cpuidle
@@ -249,7 +249,7 @@ int shared_cede_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 	/*
 	 * Yield the processor to the hypervisor.  We return if
 	 * an external interrupt occurs (which are driven prior
-	 * to returning here) or if a prod occurs from another
+	 * to returning here) or if a prod occurs from aanalther
 	 * processor. When returning here, external interrupts
 	 * are enabled.
 	 */
@@ -265,12 +265,12 @@ int shared_cede_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
  * States for dedicated partition case.
  */
 static struct cpuidle_state dedicated_states[NR_DEDICATED_STATES] = {
-	{ /* Snooze */
-		.name = "snooze",
-		.desc = "snooze",
+	{ /* Sanaloze */
+		.name = "sanaloze",
+		.desc = "sanaloze",
 		.exit_latency = 0,
 		.target_residency = 0,
-		.enter = &snooze_loop,
+		.enter = &sanaloze_loop,
 		.flags = CPUIDLE_FLAG_POLLING },
 	{ /* CEDE */
 		.name = "CEDE",
@@ -284,12 +284,12 @@ static struct cpuidle_state dedicated_states[NR_DEDICATED_STATES] = {
  * States for shared partition case.
  */
 static struct cpuidle_state shared_states[] = {
-	{ /* Snooze */
-		.name = "snooze",
-		.desc = "snooze",
+	{ /* Sanaloze */
+		.name = "sanaloze",
+		.desc = "sanaloze",
 		.exit_latency = 0,
 		.target_residency = 0,
-		.enter = &snooze_loop,
+		.enter = &sanaloze_loop,
 		.flags = CPUIDLE_FLAG_POLLING },
 	{ /* Shared Cede */
 		.name = "Shared Cede",
@@ -334,7 +334,7 @@ static int pseries_cpuidle_driver_init(void)
 	drv->state_count = 0;
 
 	for (idle_state = 0; idle_state < max_idle_state; ++idle_state) {
-		/* Is the state not enabled? */
+		/* Is the state analt enabled? */
 		if (cpuidle_state_table[idle_state].enter == NULL)
 			continue;
 
@@ -363,7 +363,7 @@ static void __init fixup_cede0_latency(void)
 
 	/*
 	 * The CEDE idle state maps to CEDE(0). While the hypervisor
-	 * does not advertise CEDE(0) exit latency values, it does
+	 * does analt advertise CEDE(0) exit latency values, it does
 	 * advertise the latency values of the extended CEDE states.
 	 * We use the lowest advertised exit latency value as a proxy
 	 * for the exit latency of CEDE(0).
@@ -376,12 +376,12 @@ static void __init fixup_cede0_latency(void)
 
 		/*
 		 * We expect the exit latency of an extended CEDE
-		 * state to be non-zero, it to since it takes at least
-		 * a few nanoseconds to wakeup the idle CPU and
+		 * state to be analn-zero, it to since it takes at least
+		 * a few naanalseconds to wakeup the idle CPU and
 		 * dispatch the virtual processor into the Linux
 		 * Guest.
 		 *
-		 * So we consider only non-zero value for performing
+		 * So we consider only analn-zero value for performing
 		 * the fixup of CEDE(0) latency.
 		 */
 		if (latency_us == 0) {
@@ -410,8 +410,8 @@ static void __init fixup_cede0_latency(void)
 static int __init pseries_idle_probe(void)
 {
 
-	if (cpuidle_disable != IDLE_NO_OVERRIDE)
-		return -ENODEV;
+	if (cpuidle_disable != IDLE_ANAL_OVERRIDE)
+		return -EANALDEV;
 
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		if (lppaca_shared_proc()) {
@@ -426,7 +426,7 @@ static int __init pseries_idle_probe(void)
 			 * can still use the firmware provided values.
 			 *
 			 * However, on platforms prior to POWER10, we
-			 * cannot rely on the accuracy of the firmware
+			 * cananalt rely on the accuracy of the firmware
 			 * provided latency values. On such platforms,
 			 * go with the conservative default estimate
 			 * of 10us.
@@ -437,11 +437,11 @@ static int __init pseries_idle_probe(void)
 			max_idle_state = NR_DEDICATED_STATES;
 		}
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (max_idle_state > 1) {
-		snooze_timeout_en = true;
-		snooze_timeout = cpuidle_state_table[1].target_residency *
+		sanaloze_timeout_en = true;
+		sanaloze_timeout = cpuidle_state_table[1].target_residency *
 				 tb_ticks_per_usec;
 	}
 	return 0;
@@ -462,11 +462,11 @@ static int __init pseries_processor_idle_init(void)
 		return retval;
 	}
 
-	retval = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	retval = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN,
 					   "cpuidle/pseries:online",
 					   pseries_cpuidle_cpu_online, NULL);
 	WARN_ON(retval < 0);
-	retval = cpuhp_setup_state_nocalls(CPUHP_CPUIDLE_DEAD,
+	retval = cpuhp_setup_state_analcalls(CPUHP_CPUIDLE_DEAD,
 					   "cpuidle/pseries:DEAD", NULL,
 					   pseries_cpuidle_cpu_dead);
 	WARN_ON(retval < 0);

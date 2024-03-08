@@ -5,7 +5,7 @@
 
 obj-$(CONFIG_EXT2_FS) += ext2.o
 
-ext2-y := balloc.o dir.o file.o ialloc.o inode.o \
+ext2-y := balloc.o dir.o file.o ialloc.o ianalde.o \
 	  ioctl.o namei.o super.o symlink.o trace.o
 
 # For tracepoints to include our trace.h from tracepoint infrastructure

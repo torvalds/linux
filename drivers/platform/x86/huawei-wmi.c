@@ -82,10 +82,10 @@ static const struct key_entry huawei_wmi_keymap[] = {
 	// Huawei |M| key
 	{ KE_KEY,    0x28a, { KEY_CONFIG } },
 	// Keyboard backlit
-	{ KE_IGNORE, 0x293, { KEY_KBDILLUMTOGGLE } },
-	{ KE_IGNORE, 0x294, { KEY_KBDILLUMUP } },
-	{ KE_IGNORE, 0x295, { KEY_KBDILLUMUP } },
-	// Ignore Ambient Light Sensoring
+	{ KE_IGANALRE, 0x293, { KEY_KBDILLUMTOGGLE } },
+	{ KE_IGANALRE, 0x294, { KEY_KBDILLUMUP } },
+	{ KE_IGANALRE, 0x295, { KEY_KBDILLUMUP } },
+	// Iganalre Ambient Light Sensoring
 	{ KE_KEY,    0x2c1, { KEY_RESERVED } },
 	{ KE_END,	 0 }
 };
@@ -108,7 +108,7 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct quirk_entry quirk_unknown = {
+static struct quirk_entry quirk_unkanalwn = {
 };
 
 static struct quirk_entry quirk_battery_reset = {
@@ -154,7 +154,7 @@ static int huawei_wmi_call(struct huawei_wmi *huawei,
 	mutex_unlock(&huawei->wmi_lock);
 	if (ACPI_FAILURE(status)) {
 		dev_err(huawei->dev, "Failed to evaluate wmi method\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -162,10 +162,10 @@ static int huawei_wmi_call(struct huawei_wmi *huawei,
 
 /* HWMI takes a 64 bit input and returns either a package with 2 buffers, one of
  * 4 bytes and the other of 256 bytes, or one buffer of size 0x104 (260) bytes.
- * The first 4 bytes are ignored, we ignore the first 4 bytes buffer if we got a
+ * The first 4 bytes are iganalred, we iganalre the first 4 bytes buffer if we got a
  * package, or skip the first 4 if a buffer of 0x104 is used. The first byte of
  * the remaining 0x100 sized buffer has the return status of every call. In case
- * the return status is non-zero, we return -ENODEV but still copy the returned
+ * the return status is analn-zero, we return -EANALDEV but still copy the returned
  * buffer to the given buffer parameter (buf).
  */
 static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
@@ -181,7 +181,7 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 	in.pointer = &arg;
 
 	/* Some models require calling HWMI twice to execute a command. We evaluate
-	 * HWMI and if we get a non-zero return status we evaluate it again.
+	 * HWMI and if we get a analn-zero return status we evaluate it again.
 	 */
 	for (i = 0; i < 2; i++) {
 		err = huawei_wmi_call(huawei, &in, &out);
@@ -240,7 +240,7 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 			break;
 	}
 
-	err = (*obj->buffer.pointer) ? -ENODEV : 0;
+	err = (*obj->buffer.pointer) ? -EANALDEV : 0;
 
 	if (buf) {
 		len = min(buflen, len);
@@ -270,7 +270,7 @@ static int huawei_wmi_micmute_led_set(struct led_classdev *led_cdev,
 
 		handle = ec_get_handle();
 		if (!handle)
-			return -ENODEV;
+			return -EANALDEV;
 
 		args[0].type = args[1].type = args[2].type = ACPI_TYPE_INTEGER;
 		args[1].integer.value = 0x04;
@@ -284,12 +284,12 @@ static int huawei_wmi_micmute_led_set(struct led_classdev *led_cdev,
 			args[0].integer.value = 1;
 			args[2].integer.value = brightness ? 0 : 1;
 		} else {
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		status = acpi_evaluate_object(handle, acpi_method, &arg_list, NULL);
 		if (ACPI_FAILURE(status))
-			return -ENODEV;
+			return -EANALDEV;
 
 		return 0;
 	} else {
@@ -328,7 +328,7 @@ static int huawei_wmi_battery_get(int *start, int *end)
 	if (err)
 		return err;
 
-	/* Find the last two non-zero values. Return status is ignored. */
+	/* Find the last two analn-zero values. Return status is iganalred. */
 	i = ARRAY_SIZE(ret) - 1;
 	do {
 		if (start)
@@ -533,7 +533,7 @@ static int huawei_wmi_fn_lock_get(int *on)
 	if (err)
 		return err;
 
-	/* Find the first non-zero value. Return status is ignored. */
+	/* Find the first analn-zero value. Return status is iganalred. */
 	i = 1;
 	do {
 		if (on)
@@ -723,7 +723,7 @@ static void huawei_wmi_process_key(struct input_dev *idev, int code)
 
 	key = sparse_keymap_entry_from_scancode(idev, code);
 	if (!key) {
-		dev_info(&idev->dev, "Unknown key pressed, code: 0x%04x\n", code);
+		dev_info(&idev->dev, "Unkanalwn key pressed, code: 0x%04x\n", code);
 		return;
 	}
 
@@ -735,7 +735,7 @@ static void huawei_wmi_process_key(struct input_dev *idev, int code)
 	sparse_keymap_report_entry(idev, key, 1, true);
 }
 
-static void huawei_wmi_input_notify(u32 value, void *context)
+static void huawei_wmi_input_analtify(u32 value, void *context)
 {
 	struct input_dev *idev = (struct input_dev *)context;
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -765,7 +765,7 @@ static int huawei_wmi_input_setup(struct device *dev, const char *guid)
 
 	idev = devm_input_allocate_device(dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->name = "Huawei WMI hotkeys";
 	idev->phys = "wmi/input0";
@@ -780,7 +780,7 @@ static int huawei_wmi_input_setup(struct device *dev, const char *guid)
 	if (err)
 		return err;
 
-	status = wmi_install_notify_handler(guid, huawei_wmi_input_notify, idev);
+	status = wmi_install_analtify_handler(guid, huawei_wmi_input_analtify, idev);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
@@ -789,7 +789,7 @@ static int huawei_wmi_input_setup(struct device *dev, const char *guid)
 
 static void huawei_wmi_input_exit(struct device *dev, const char *guid)
 {
-	wmi_remove_notify_handler(guid);
+	wmi_remove_analtify_handler(guid);
 }
 
 /* Huawei driver */
@@ -865,9 +865,9 @@ static __init int huawei_wmi_init(void)
 
 	huawei_wmi = kzalloc(sizeof(struct huawei_wmi), GFP_KERNEL);
 	if (!huawei_wmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	quirks = &quirk_unknown;
+	quirks = &quirk_unkanalwn;
 	dmi_check_system(huawei_quirks);
 	if (battery_reset != -1)
 		quirks->battery_reset = battery_reset;
@@ -878,7 +878,7 @@ static __init int huawei_wmi_init(void)
 	if (err)
 		goto pdrv_err;
 
-	pdev = platform_device_register_simple("huawei-wmi", PLATFORM_DEVID_NONE, NULL, 0);
+	pdev = platform_device_register_simple("huawei-wmi", PLATFORM_DEVID_ANALNE, NULL, 0);
 	if (IS_ERR(pdev)) {
 		err = PTR_ERR(pdev);
 		goto pdev_err;

@@ -71,7 +71,7 @@ static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 		return false;
 	} else if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
 		   ehdr->e_version != EV_CURRENT) {
-		pr_debug("Unknown ELF version.\n");
+		pr_debug("Unkanalwn ELF version.\n");
 		return false;
 	}
 
@@ -80,7 +80,7 @@ static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 
 		/*
 		 * e_phnum is at most 65535 so calculating the size of the
-		 * program header cannot overflow.
+		 * program header cananalt overflow.
 		 */
 		phdr_size = sizeof(struct elf_phdr) * ehdr->e_phnum;
 
@@ -99,7 +99,7 @@ static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 
 		/*
 		 * e_shnum is at most 65536 so calculating
-		 * the size of the section header cannot overflow.
+		 * the size of the section header cananalt overflow.
 		 */
 		shdr_size = sizeof(struct elf_shdr) * ehdr->e_shnum;
 
@@ -122,29 +122,29 @@ static int elf_read_ehdr(const char *buf, size_t len, struct elfhdr *ehdr)
 
 	if (len < sizeof(*buf_ehdr)) {
 		pr_debug("Buffer is too small to hold ELF header.\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	memset(ehdr, 0, sizeof(*ehdr));
 	memcpy(ehdr->e_ident, buf, sizeof(ehdr->e_ident));
 	if (!elf_is_elf_file(ehdr)) {
-		pr_debug("No ELF header magic.\n");
-		return -ENOEXEC;
+		pr_debug("Anal ELF header magic.\n");
+		return -EANALEXEC;
 	}
 
 	if (ehdr->e_ident[EI_CLASS] != ELF_CLASS) {
-		pr_debug("Not a supported ELF class.\n");
-		return -ENOEXEC;
+		pr_debug("Analt a supported ELF class.\n");
+		return -EANALEXEC;
 	} else  if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB &&
 		ehdr->e_ident[EI_DATA] != ELFDATA2MSB) {
-		pr_debug("Not a supported ELF data format.\n");
-		return -ENOEXEC;
+		pr_debug("Analt a supported ELF data format.\n");
+		return -EANALEXEC;
 	}
 
 	buf_ehdr = (struct elfhdr *) buf;
 	if (elf16_to_cpu(ehdr, buf_ehdr->e_ehsize) != sizeof(*buf_ehdr)) {
 		pr_debug("Bad ELF header size.\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	ehdr->e_type      = elf16_to_cpu(ehdr, buf_ehdr->e_type);
@@ -171,11 +171,11 @@ static int elf_read_ehdr(const char *buf, size_t len, struct elfhdr *ehdr)
 		break;
 
 	default:
-		pr_debug("Unknown ELF class.\n");
+		pr_debug("Unkanalwn ELF class.\n");
 		return -EINVAL;
 	}
 
-	return elf_is_ehdr_sane(ehdr, len) ? 0 : -ENOEXEC;
+	return elf_is_ehdr_sane(ehdr, len) ? 0 : -EANALEXEC;
 }
 
 /**
@@ -189,7 +189,7 @@ static bool elf_is_phdr_sane(const struct elf_phdr *phdr, size_t buf_len)
 		pr_debug("ELF segment location wraps around.\n");
 		return false;
 	} else if (phdr->p_offset + phdr->p_filesz > buf_len) {
-		pr_debug("ELF segment not in file.\n");
+		pr_debug("ELF segment analt in file.\n");
 		return false;
 	} else if (phdr->p_paddr + phdr->p_memsz < phdr->p_paddr) {
 		pr_debug("ELF segment address wraps around.\n");
@@ -235,11 +235,11 @@ static int elf_read_phdr(const char *buf, size_t len,
 		break;
 
 	default:
-		pr_debug("Unknown ELF class.\n");
+		pr_debug("Unkanalwn ELF class.\n");
 		return -EINVAL;
 	}
 
-	return elf_is_phdr_sane(phdr, len) ? 0 : -ENOEXEC;
+	return elf_is_phdr_sane(phdr, len) ? 0 : -EANALEXEC;
 }
 
 /**
@@ -256,13 +256,13 @@ static int elf_read_phdrs(const char *buf, size_t len,
 
 	/*
 	 * e_phnum is at most 65535 so calculating the size of the
-	 * program header cannot overflow.
+	 * program header cananalt overflow.
 	 */
 	phdr_size = sizeof(struct elf_phdr) * ehdr->e_phnum;
 
 	elf_info->proghdrs = kzalloc(phdr_size, GFP_KERNEL);
 	if (!elf_info->proghdrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		int ret;
@@ -336,16 +336,16 @@ int kexec_build_elf_info(const char *buf, size_t len, struct elfhdr *ehdr,
 
 	/* Big endian vmlinux has type ET_DYN. */
 	if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN) {
-		pr_err("Not an ELF executable.\n");
+		pr_err("Analt an ELF executable.\n");
 		goto error;
 	} else if (!elf_info->proghdrs) {
-		pr_err("No ELF program header.\n");
+		pr_err("Anal ELF program header.\n");
 		goto error;
 	}
 
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		/*
-		 * Kexec does not support loading interpreters.
+		 * Kexec does analt support loading interpreters.
 		 * In addition this check keeps us from attempting
 		 * to kexec ordinay executables.
 		 */
@@ -358,7 +358,7 @@ int kexec_build_elf_info(const char *buf, size_t len, struct elfhdr *ehdr,
 	return 0;
 error:
 	kexec_free_elf_info(elf_info);
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 
 
@@ -374,7 +374,7 @@ int kexec_elf_probe(const char *buf, unsigned long len)
 
 	kexec_free_elf_info(&elf_info);
 
-	return elf_check_arch(&ehdr) ? 0 : -ENOEXEC;
+	return elf_check_arch(&ehdr) ? 0 : -EANALEXEC;
 }
 
 /**
@@ -413,7 +413,7 @@ int kexec_elf_load(struct kimage *image, struct elfhdr *ehdr,
 		kbuf->memsz = phdr->p_memsz;
 		kbuf->buf_align = phdr->p_align;
 		kbuf->buf_min = phdr->p_paddr;
-		kbuf->mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf->mem = KEXEC_BUF_MEM_UNKANALWN;
 		ret = kexec_add_buffer(kbuf);
 		if (ret)
 			goto out;

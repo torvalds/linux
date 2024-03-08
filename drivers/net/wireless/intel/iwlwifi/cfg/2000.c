@@ -9,7 +9,7 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-agn-hw.h"
-#include "dvm/commands.h" /* needed for BT for now */
+#include "dvm/commands.h" /* needed for BT for analw */
 
 /* Highest firmware API version supported */
 #define IWL2030_UCODE_API_MAX 6
@@ -81,7 +81,7 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 		EEPROM_REG_BAND_4_CHANNELS,
 		EEPROM_REG_BAND_5_CHANNELS,
 		EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
-		EEPROM_REGULATORY_BAND_NO_HT40,
+		EEPROM_REGULATORY_BAND_ANAL_HT40,
 	},
 	.enhanced_txpower = true,
 };
@@ -101,13 +101,13 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 
 
 const struct iwl_cfg iwl2000_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2200 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 2200 BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
 };
 
 const struct iwl_cfg iwl2000_2bgn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2200D BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 2200D BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -126,7 +126,7 @@ const struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl2030_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2230 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 2230 BGN",
 	IWL_DEVICE_2030,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -146,13 +146,13 @@ const struct iwl_cfg iwl2030_2bgn_cfg = {
 	.rx_with_siso_diversity = true
 
 const struct iwl_cfg iwl105_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 105 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 105 BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
 
 const struct iwl_cfg iwl105_bgn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 105D BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 105D BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -172,7 +172,7 @@ const struct iwl_cfg iwl105_bgn_d_cfg = {
 	.rx_with_siso_diversity = true
 
 const struct iwl_cfg iwl135_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 135 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 135 BGN",
 	IWL_DEVICE_135,
 	.ht_params = &iwl2000_ht_params,
 };

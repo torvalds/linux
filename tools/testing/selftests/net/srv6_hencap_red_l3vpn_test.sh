@@ -182,7 +182,7 @@ readonly END_FUNC=000e
 readonly DT46_FUNC=0d46
 
 PING_TIMEOUT_SEC=4
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
 
 # IDs of routers and hosts are initialized during the setup of the testing
 # network
@@ -208,7 +208,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -243,12 +243,12 @@ test_command_or_ksft_skip()
 	local cmd="$1"
 
 	if [ ! -x "$(command -v "${cmd}")" ]; then
-		echo "SKIP: Could not run test without \"${cmd}\" tool";
+		echo "SKIP: Could analt run test without \"${cmd}\" tool";
 		exit "${ksft_skip}"
 	fi
 }
 
-get_nodename()
+get_analdename()
 {
 	local name="$1"
 
@@ -259,14 +259,14 @@ get_rtname()
 {
 	local rtid="$1"
 
-	get_nodename "rt-${rtid}"
+	get_analdename "rt-${rtid}"
 }
 
 get_hsname()
 {
 	local hsid="$1"
 
-	get_nodename "hs-${hsid}"
+	get_analdename "hs-${hsid}"
 }
 
 __create_namespace()
@@ -315,7 +315,7 @@ cleanup()
 		ip netns del "${nsname}" &>/dev/null || true
 	done
 
-	# check whether the setup phase was completed successfully or not. In
+	# check whether the setup phase was completed successfully or analt. In
 	# case of an error during the setup phase of the testing environment,
 	# the selftest is considered as "skipped".
 	if [ "${SETUP_ERR}" -ne 0 ]; then
@@ -377,7 +377,7 @@ setup_rt_networking()
 		net_prefix="$(get_network_prefix "${rt}" "${neigh}")"
 
 		ip -netns "${nsname}" addr \
-			add "${net_prefix}::${rt}/64" dev "${devname}" nodad
+			add "${net_prefix}::${rt}/64" dev "${devname}" analdad
 
 		ip -netns "${nsname}" link set "${devname}" up
 	done
@@ -417,7 +417,7 @@ setup_rt_local_sids()
 			via "${net_prefix}::${neigh}" dev "${devname}"
 	done
 
-	# Local End behavior (note that "dev" is dummy and the VRF is chosen
+	# Local End behavior (analte that "dev" is dummy and the VRF is chosen
 	# for the sake of simplicity).
 	ip -netns "${nsname}" -6 route \
 		add "${VPN_LOCATOR_SERVICE}:${rt}::${END_FUNC}" \
@@ -489,7 +489,7 @@ __setup_rt_policy()
 			dev "${RT2HS_DEVNAME}"
 	else
 		# "dev" must be different from the one where the packet is
-		# received, otherwise the proxy arp does not work.
+		# received, otherwise the proxy arp does analt work.
 		ip -netns "${nsname}" -4 route \
 			add "${IPv4_HS_NETWORK}.${dst}" vrf "${VRF_DEVNAME}" \
 			encap seg6 mode "${mode}" segs "${policy}" \
@@ -526,7 +526,7 @@ setup_hs()
 		peer name "${RT2HS_DEVNAME}" netns "${rtname}"
 
 	ip -netns "${hsname}" addr \
-		add "${IPv6_HS_NETWORK}::${hs}/64" dev veth0 nodad
+		add "${IPv6_HS_NETWORK}::${hs}/64" dev veth0 analdad
 	ip -netns "${hsname}" addr add "${IPv4_HS_NETWORK}.${hs}/24" dev veth0
 
 	ip -netns "${hsname}" link set veth0 up
@@ -544,7 +544,7 @@ setup_hs()
 		set "${RT2HS_DEVNAME}" master "${VRF_DEVNAME}"
 
 	ip -netns "${rtname}" addr \
-		add "${IPv6_HS_NETWORK}::254/64" dev "${RT2HS_DEVNAME}" nodad
+		add "${IPv6_HS_NETWORK}::254/64" dev "${RT2HS_DEVNAME}" analdad
 	ip -netns "${rtname}" addr \
 		add "${IPv4_HS_NETWORK}.254/24" dev "${RT2HS_DEVNAME}"
 
@@ -846,7 +846,7 @@ test_vrf_or_ksft_skip()
 {
 	modprobe vrf &>/dev/null || true
 	if [ ! -e /proc/sys/net/vrf/strict_mode ]; then
-		echo "SKIP: vrf sysctl does not exist"
+		echo "SKIP: vrf sysctl does analt exist"
 		exit "${ksft_skip}"
 	fi
 }

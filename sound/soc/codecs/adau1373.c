@@ -335,7 +335,7 @@ static const DECLARE_TLV_DB_SCALE(adau1373_gain_boost_tlv, 0, 600, 0);
 static const DECLARE_TLV_DB_SCALE(adau1373_speaker_boost_tlv, 1200, 600, 0);
 
 static const char *adau1373_fdsp_sel_text[] = {
-	"None",
+	"Analne",
 	"Channel 1",
 	"Channel 2",
 	"Channel 3",
@@ -402,7 +402,7 @@ static const char *adau1373_3d_level_text[] = {
 };
 
 static const char *adau1373_3d_cutoff_text[] = {
-	"No 3D", "0.03125 fs", "0.04583 fs", "0.075 fs", "0.11458 fs",
+	"Anal 3D", "0.03125 fs", "0.04583 fs", "0.075 fs", "0.11458 fs",
 	"0.16875 fs", "0.27083 fs"
 };
 
@@ -689,7 +689,7 @@ static const struct snd_soc_dapm_widget adau1373_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("DMIC1", NULL, ADAU1373_DIGMICCTRL, 0, 0),
 	SND_SOC_DAPM_ADC("DMIC2", NULL, ADAU1373_DIGMICCTRL, 2, 0),
 
-	SND_SOC_DAPM_MUX("Decimator Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Decimator Mux", SND_SOC_ANALPM, 0, 0,
 		&adau1373_decimator_mux),
 
 	SND_SOC_DAPM_SUPPLY("MICBIAS2", ADAU1373_PWDN_CTRL1, 5, 0, NULL, 0),
@@ -705,9 +705,9 @@ static const struct snd_soc_dapm_widget adau1373_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Left DAC1", NULL, ADAU1373_PWDN_CTRL2, 5, 0),
 	SND_SOC_DAPM_DAC("Right DAC1", NULL, ADAU1373_PWDN_CTRL2, 4, 0),
 
-	SOC_MIXER_ARRAY("Left ADC Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("Left ADC Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_left_adc_mixer_controls),
-	SOC_MIXER_ARRAY("Right ADC Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("Right ADC Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_right_adc_mixer_controls),
 
 	SOC_MIXER_ARRAY("Left Lineout2 Mixer", ADAU1373_PWDN_CTRL2, 3, 0,
@@ -725,9 +725,9 @@ static const struct snd_soc_dapm_widget adau1373_dapm_widgets[] = {
 		adau1373_left_spk_mixer_controls),
 	SOC_MIXER_ARRAY("Right Speaker Mixer", ADAU1373_PWDN_CTRL3, 2, 0,
 		adau1373_right_spk_mixer_controls),
-	SOC_MIXER_ARRAY("Left Headphone Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("Left Headphone Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_left_hp_mixer_controls),
-	SOC_MIXER_ARRAY("Right Headphone Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("Right Headphone Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_right_hp_mixer_controls),
 	SND_SOC_DAPM_SUPPLY("Headphone Enable", ADAU1373_PWDN_CTRL3, 1, 0,
 		NULL, 0),
@@ -751,33 +751,33 @@ static const struct snd_soc_dapm_widget adau1373_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("AIF3 OUT SRC", ADAU1373_SRC_DAI_CTRL(2), 1, 0,
 	    NULL, 0),
 
-	SND_SOC_DAPM_AIF_IN("AIF1 IN", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF1 OUT", "AIF1 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIF2 IN", "AIF2 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF2 OUT", "AIF2 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIF3 IN", "AIF3 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF3 OUT", "AIF3 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1 IN", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF1 OUT", "AIF1 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF2 IN", "AIF2 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF2 OUT", "AIF2 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF3 IN", "AIF3 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF3 OUT", "AIF3 Capture", 0, SND_SOC_ANALPM, 0, 0),
 
-	SOC_MIXER_ARRAY("DSP Channel1 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DSP Channel1 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_dsp_channel1_mixer_controls),
-	SOC_MIXER_ARRAY("DSP Channel2 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DSP Channel2 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_dsp_channel2_mixer_controls),
-	SOC_MIXER_ARRAY("DSP Channel3 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DSP Channel3 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_dsp_channel3_mixer_controls),
-	SOC_MIXER_ARRAY("DSP Channel4 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DSP Channel4 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_dsp_channel4_mixer_controls),
-	SOC_MIXER_ARRAY("DSP Channel5 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DSP Channel5 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_dsp_channel5_mixer_controls),
 
-	SOC_MIXER_ARRAY("AIF1 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("AIF1 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_aif1_mixer_controls),
-	SOC_MIXER_ARRAY("AIF2 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("AIF2 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_aif2_mixer_controls),
-	SOC_MIXER_ARRAY("AIF3 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("AIF3 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_aif3_mixer_controls),
-	SOC_MIXER_ARRAY("DAC1 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DAC1 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_dac1_mixer_controls),
-	SOC_MIXER_ARRAY("DAC2 Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DAC2 Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1373_dac2_mixer_controls),
 
 	SND_SOC_DAPM_SUPPLY("DSP", ADAU1373_DIGEN, 4, 0, NULL, 0),
@@ -786,9 +786,9 @@ static const struct snd_soc_dapm_widget adau1373_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Playback Engine B", ADAU1373_DIGEN, 1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("Playback Engine A", ADAU1373_DIGEN, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_SUPPLY("PLL1", SND_SOC_NOPM, 0, 0, adau1373_pll_event,
+	SND_SOC_DAPM_SUPPLY("PLL1", SND_SOC_ANALPM, 0, 0, adau1373_pll_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("PLL2", SND_SOC_NOPM, 0, 0, adau1373_pll_event,
+	SND_SOC_DAPM_SUPPLY("PLL2", SND_SOC_ANALPM, 0, 0, adau1373_pll_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("SYSCLK1", ADAU1373_CLK_SRC_DIV(0), 7, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("SYSCLK2", ADAU1373_CLK_SRC_DIV(1), 7, 0, NULL, 0),
@@ -1478,7 +1478,7 @@ static int adau1373_i2c_probe(struct i2c_client *client)
 
 	adau1373 = devm_kzalloc(&client->dev, sizeof(*adau1373), GFP_KERNEL);
 	if (!adau1373)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adau1373->regmap = devm_regmap_init_i2c(client,
 		&adau1373_regmap_config);

@@ -17,10 +17,10 @@
  * Memory entry used for the DEBUG_LL UART configuration, relative to
  * start of RAM. See also uncompress.h and debug-macro.S.
  *
- * Note that using a memory location for storing the UART configuration
+ * Analte that using a memory location for storing the UART configuration
  * has at least two limitations:
  *
- * 1. Kernel uncompress code cannot overlap OMAP_UART_INFO as the
+ * 1. Kernel uncompress code cananalt overlap OMAP_UART_INFO as the
  *    uncompress code could then partially overwrite itself
  * 2. We assume printascii is called at least once before paging_init,
  *    and addruart has a chance to read OMAP_UART_INFO

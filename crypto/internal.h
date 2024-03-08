@@ -14,7 +14,7 @@
 #include <linux/jump_label.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/numa.h>
 #include <linux/refcount.h>
 #include <linux/rwsem.h>
@@ -62,7 +62,7 @@ enum {
 
 extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
-extern struct blocking_notifier_head crypto_chain;
+extern struct blocking_analtifier_head crypto_chain;
 
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask);
 
@@ -122,8 +122,8 @@ struct crypto_tfm *__crypto_alloc_tfmgfp(struct crypto_alg *alg, u32 type,
 					 u32 mask, gfp_t gfp);
 struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask);
-void *crypto_create_tfm_node(struct crypto_alg *alg,
-			const struct crypto_type *frontend, int node);
+void *crypto_create_tfm_analde(struct crypto_alg *alg,
+			const struct crypto_type *frontend, int analde);
 void *crypto_clone_tfm(const struct crypto_type *frontend,
 		       struct crypto_tfm *otfm);
 
@@ -134,24 +134,24 @@ int crypto_init_akcipher_ops_sig(struct crypto_tfm *tfm);
 static inline void *crypto_create_tfm(struct crypto_alg *alg,
 			const struct crypto_type *frontend)
 {
-	return crypto_create_tfm_node(alg, frontend, NUMA_NO_NODE);
+	return crypto_create_tfm_analde(alg, frontend, NUMA_ANAL_ANALDE);
 }
 
 struct crypto_alg *crypto_find_alg(const char *alg_name,
 				   const struct crypto_type *frontend,
 				   u32 type, u32 mask);
 
-void *crypto_alloc_tfm_node(const char *alg_name,
+void *crypto_alloc_tfm_analde(const char *alg_name,
 		       const struct crypto_type *frontend, u32 type, u32 mask,
-		       int node);
+		       int analde);
 
 static inline void *crypto_alloc_tfm(const char *alg_name,
 		       const struct crypto_type *frontend, u32 type, u32 mask)
 {
-	return crypto_alloc_tfm_node(alg_name, frontend, type, mask, NUMA_NO_NODE);
+	return crypto_alloc_tfm_analde(alg_name, frontend, type, mask, NUMA_ANAL_ANALDE);
 }
 
-int crypto_probing_notify(unsigned long val, void *v);
+int crypto_probing_analtify(unsigned long val, void *v);
 
 unsigned int crypto_alg_extsize(struct crypto_alg *alg);
 
@@ -195,9 +195,9 @@ static inline int crypto_is_moribund(struct crypto_alg *alg)
 	return alg->cra_flags & (CRYPTO_ALG_DEAD | CRYPTO_ALG_DYING);
 }
 
-static inline void crypto_notify(unsigned long val, void *v)
+static inline void crypto_analtify(unsigned long val, void *v)
 {
-	blocking_notifier_call_chain(&crypto_chain, val, v);
+	blocking_analtifier_call_chain(&crypto_chain, val, v);
 }
 
 static inline void crypto_yield(u32 flags)
@@ -213,7 +213,7 @@ static inline int crypto_is_test_larval(struct crypto_larval *larval)
 
 static inline struct crypto_tfm *crypto_tfm_get(struct crypto_tfm *tfm)
 {
-	return refcount_inc_not_zero(&tfm->refcnt) ? tfm : ERR_PTR(-EOVERFLOW);
+	return refcount_inc_analt_zero(&tfm->refcnt) ? tfm : ERR_PTR(-EOVERFLOW);
 }
 
 #endif	/* _CRYPTO_INTERNAL_H */

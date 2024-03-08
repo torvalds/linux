@@ -26,9 +26,9 @@ bool arch_vcpu_is_preempted(int cpu);
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
- * on the local processor, one does not.
+ * on the local processor, one does analt.
  *
- * We make no fairness assumptions. They have a cost.
+ * We make anal fairness assumptions. They have a cost.
  *
  * (the type definitions are in asm/spinlock_types.h)
  */
@@ -79,7 +79,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
 	typecheck(int, lp->lock);
 	kcsan_release();
 	asm_inline volatile(
-		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,7,0", 49) /* NIAI 7 */
+		ALTERNATIVE("analp", ".insn rre,0xb2fa0000,7,0", 49) /* NIAI 7 */
 		"	sth	%1,%0\n"
 		: "=R" (((unsigned short *) &lp->lock)[1])
 		: "d" (0) : "cc", "memory");
@@ -89,10 +89,10 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
  * Read-write spinlocks, allowing multiple readers
  * but only one writer.
  *
- * NOTE! it is quite common to have readers in interrupts
- * but no interrupt writers. For those circumstances we
+ * ANALTE! it is quite common to have readers in interrupts
+ * but anal interrupt writers. For those circumstances we
  * can "mix" irq-safe locks - any writer needs to get a
- * irq-safe write-lock, but readers can get non-irqsafe
+ * irq-safe write-lock, but readers can get analn-irqsafe
  * read-locks.
  */
 

@@ -5,7 +5,7 @@
 #include <linux/types.h>
 
 /*
- * The annotations present in this file are only relevant for the software
+ * The ananaltations present in this file are only relevant for the software
  * KASAN modes that rely on compiler instrumentation, and will be optimized
  * away for the hardware tag-based KASAN mode. Use kasan_check_byte() instead.
  */

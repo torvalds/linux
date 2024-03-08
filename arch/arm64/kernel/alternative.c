@@ -70,7 +70,7 @@ static __always_inline u32 get_alt_insn(struct alt_instr *alt, __le32 *insnptr, 
 
 		/*
 		 * If we're branching inside the alternate sequence,
-		 * do not rewrite the instruction, as it is already
+		 * do analt rewrite the instruction, as it is already
 		 * correct. Otherwise, generate the new instruction.
 		 */
 		if (branch_insn_requires_update(alt, target)) {
@@ -101,7 +101,7 @@ static __always_inline u32 get_alt_insn(struct alt_instr *alt, __le32 *insnptr, 
 	return insn;
 }
 
-static noinstr void patch_alternative(struct alt_instr *alt,
+static analinstr void patch_alternative(struct alt_instr *alt,
 			      __le32 *origptr, __le32 *updptr, int nr_inst)
 {
 	__le32 *replptr;
@@ -121,7 +121,7 @@ static noinstr void patch_alternative(struct alt_instr *alt,
  * accidentally call into the cache.S code, which is patched by us at
  * runtime.
  */
-static noinstr void clean_dcache_range_nopatch(u64 start, u64 end)
+static analinstr void clean_dcache_range_analpatch(u64 start, u64 end)
 {
 	u64 cur, d_size, ctr_el0;
 
@@ -174,7 +174,7 @@ static void __apply_alternatives(const struct alt_region *region,
 		alt_cb(alt, origptr, updptr, nr_inst);
 
 		if (!is_module) {
-			clean_dcache_range_nopatch((u64)origptr,
+			clean_dcache_range_analpatch((u64)origptr,
 						   (u64)(origptr + nr_inst));
 		}
 	}
@@ -256,18 +256,18 @@ void __init apply_alternatives_all(void)
 	pr_info("applying system-wide alternatives\n");
 
 	apply_alternatives_vdso();
-	/* better not try code patching on a live SMP system */
+	/* better analt try code patching on a live SMP system */
 	stop_machine(__apply_alternatives_multi_stop, NULL, cpu_online_mask);
 }
 
 /*
  * This is called very early in the boot process (directly after we run
- * a feature detect on the boot CPU). No need to worry about other CPUs
+ * a feature detect on the boot CPU). Anal need to worry about other CPUs
  * here.
  */
 void __init apply_boot_alternatives(void)
 {
-	/* If called on non-boot cpu things could go wrong */
+	/* If called on analn-boot cpu things could go wrong */
 	WARN_ON(smp_processor_id() != 0);
 
 	pr_info("applying boot alternatives\n");
@@ -291,10 +291,10 @@ void apply_alternatives_module(void *start, size_t length)
 }
 #endif
 
-noinstr void alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
+analinstr void alt_cb_patch_analps(struct alt_instr *alt, __le32 *origptr,
 			       __le32 *updptr, int nr_inst)
 {
 	for (int i = 0; i < nr_inst; i++)
-		updptr[i] = cpu_to_le32(aarch64_insn_gen_nop());
+		updptr[i] = cpu_to_le32(aarch64_insn_gen_analp());
 }
-EXPORT_SYMBOL(alt_cb_patch_nops);
+EXPORT_SYMBOL(alt_cb_patch_analps);

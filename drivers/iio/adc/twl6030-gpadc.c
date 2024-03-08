@@ -11,8 +11,8 @@
  * Oleksandr Kozaruk <oleksandr.kozaruk@ti.com
  *
  * Based on twl4030-madc.c
- * Copyright (C) 2008 Nokia Corporation
- * Mikko Ylinen <mikko.k.ylinen@nokia.com>
+ * Copyright (C) 2008 Analkia Corporation
+ * Mikko Ylinen <mikko.k.ylinen@analkia.com>
  */
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -28,8 +28,8 @@
 
 /*
  * twl6030 per TRM has 17 channels, and twl6032 has 19 channels
- * 2 test network channels are not used,
- * 2 die temperature channels are not used either, as it is not
+ * 2 test network channels are analt used,
+ * 2 die temperature channels are analt used either, as it is analt
  * defined how to convert ADC value to temperature
  */
 #define TWL6030_GPADC_USED_CHANNELS		13
@@ -140,7 +140,7 @@ struct twl6030_gpadc_data {
 };
 
 /*
- * channels 11, 12, 13, 15 and 16 have no calibration data
+ * channels 11, 12, 13, 15 and 16 have anal calibration data
  * calibration offset is same for channels 1, 3, 4, 5
  *
  * The data is taken from GPADC_TRIM registers description.
@@ -441,7 +441,7 @@ static int twl6030_channel_calibrated(const struct twl6030_gpadc_platform_data
 	int i;
 
 	i = twl6030_gpadc_lookup(ideal, channel, pdata->nchannels);
-	/* not calibrated channels have 0 in all structure members */
+	/* analt calibrated channels have 0 in all structure members */
 	return pdata->ideal[i].code2;
 }
 
@@ -561,8 +561,8 @@ err:
 
 /*
  * The GPADC channels are calibrated using a two point calibration method.
- * The channels measured with two known values: volt1 and volt2, and
- * ideal corresponding output codes are known: code1, code2.
+ * The channels measured with two kanalwn values: volt1 and volt2, and
+ * ideal corresponding output codes are kanalwn: code1, code2.
  * The difference(d1, d2) between ideal and measured codes stored in trim
  * registers.
  * The goal is to find offset and gain of the real curve for each calibrated
@@ -607,7 +607,7 @@ static void twl6030_calibrate_channel(struct twl6030_gpadc_data *gpadc,
 static inline int twl6030_gpadc_get_trim_offset(s8 d)
 {
 	/*
-	 * XXX NOTE!
+	 * XXX ANALTE!
 	 * bit 0 - sign, bit 7 - reserved, 6..1 - trim value
 	 * though, the documentation states that trim value
 	 * is absolute value, the correct conversion results are
@@ -720,7 +720,7 @@ static int twl6032_calibration(struct twl6030_gpadc_data *gpadc)
 
 	/*
 	 * Loop to calculate the value needed for returning voltages from
-	 * GPADC not values.
+	 * GPADC analt values.
 	 *
 	 * gain is calculated to 3 decimal places fixed point.
 	 */
@@ -789,7 +789,7 @@ static int twl6032_calibration(struct twl6030_gpadc_data *gpadc)
 			d2 += temp;
 			break;
 		default:
-			/* No data for other channels */
+			/* Anal data for other channels */
 			continue;
 		}
 
@@ -890,7 +890,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*gpadc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpadc = iio_priv(indio_dev);
 
@@ -899,7 +899,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 					sizeof(*gpadc->twl6030_cal_tbl),
 					GFP_KERNEL);
 	if (!gpadc->twl6030_cal_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpadc->dev = dev;
 	gpadc->pdata = pdata;

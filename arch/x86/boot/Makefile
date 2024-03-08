@@ -9,25 +9,25 @@
 # Changed by many, many contributors over the years.
 #
 
-# Sanitizer runtimes are unavailable and cannot be linked for early boot code.
+# Sanitizer runtimes are unavailable and cananalt be linked for early boot code.
 KASAN_SANITIZE			:= n
 KCSAN_SANITIZE			:= n
 KMSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
+OBJECT_FILES_ANALN_STANDARD	:= y
 
-# Kernel does not boot with kcov instrumentation here.
+# Kernel does analt boot with kcov instrumentation here.
 # One of the problems observed was insertion of __sanitizer_cov_trace_pc()
 # callback into middle of per-cpu data enabling code. Thus the callback observed
 # inconsistent state and crashed. We are interested mostly in syscall coverage,
-# so boot code is not interesting anyway.
+# so boot code is analt interesting anyway.
 KCOV_INSTRUMENT		:= n
 
 # If you want to preset the SVGA mode, uncomment the next line and
 # set SVGA_MODE to whatever number you want.
-# Set it to -DSVGA_MODE=NORMAL_VGA if you just want the EGA/VGA mode.
+# Set it to -DSVGA_MODE=ANALRMAL_VGA if you just want the EGA/VGA mode.
 # The number is the same as you would ordinarily press at bootup.
 
-SVGA_MODE	:= -DSVGA_MODE=NORMAL_VGA
+SVGA_MODE	:= -DSVGA_MODE=ANALRMAL_VGA
 
 targets		:= vmlinux.bin setup.bin setup.elf bzImage
 targets		+= fdimage fdimage144 fdimage288 image.iso hdimage
@@ -68,7 +68,7 @@ targets += cpustr.h
 KBUILD_CFLAGS	:= $(REALMODE_CFLAGS) -D_SETUP
 KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
 KBUILD_CFLAGS	+= $(call cc-option,-fmacro-prefix-map=$(srctree)/=)
-KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS	+= -fanal-asynchroanalus-unwind-tables
 GCOV_PROFILE := n
 UBSAN_SANITIZE := n
 
@@ -83,7 +83,7 @@ $(obj)/bzImage: $(obj)/setup.bin $(obj)/vmlinux.bin $(obj)/tools/build FORCE
 	$(call if_changed,image)
 	@$(kecho) 'Kernel: $@ is ready' ' (#'$(or $(KBUILD_BUILD_VERSION),`cat .version`)')'
 
-OBJCOPYFLAGS_vmlinux.bin := -O binary -R .note -R .comment -S
+OBJCOPYFLAGS_vmlinux.bin := -O binary -R .analte -R .comment -S
 $(obj)/vmlinux.bin: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
 
@@ -102,7 +102,7 @@ $(obj)/zoffset.h: $(obj)/compressed/vmlinux FORCE
 AFLAGS_header.o += -I$(objtree)/$(obj)
 $(obj)/header.o: $(obj)/zoffset.h
 
-LDFLAGS_setup.elf	:= -m elf_i386 -z noexecstack -T
+LDFLAGS_setup.elf	:= -m elf_i386 -z analexecstack -T
 $(obj)/setup.elf: $(src)/setup.ld $(SETUP_OBJS) FORCE
 	$(call if_changed,ld)
 

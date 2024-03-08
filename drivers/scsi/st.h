@@ -64,11 +64,11 @@ struct st_modedef {
 	unsigned char do_read_ahead;
 	unsigned char defaults_for_writes;
 	unsigned char default_compression;	/* 0 = don't touch, etc */
-	short default_density;	/* Forced density, -1 = no value */
-	int default_blksize;	/* Forced blocksize, -1 = no value */
+	short default_density;	/* Forced density, -1 = anal value */
+	int default_blksize;	/* Forced blocksize, -1 = anal value */
 	struct scsi_tape *tape;
-	struct device *devs[2];  /* Auto-rewind and non-rewind devices */
-	struct cdev *cdevs[2];  /* Auto-rewind and non-rewind devices */
+	struct device *devs[2];  /* Auto-rewind and analn-rewind devices */
+	struct cdev *cdevs[2];  /* Auto-rewind and analn-rewind devices */
 };
 
 /* Number of modes can be changed by changing ST_NBR_MODE_BITS. The maximum
@@ -133,18 +133,18 @@ struct scsi_tape {
 	unsigned char immediate;
 	unsigned char scsi2_logical;
 	unsigned char default_drvbuffer;	/* 0xff = don't touch, value 3 bits */
-	unsigned char cln_mode;			/* 0 = none, otherwise sense byte nbr */
+	unsigned char cln_mode;			/* 0 = analne, otherwise sense byte nbr */
 	unsigned char cln_sense_value;
 	unsigned char cln_sense_mask;
 	unsigned char use_pf;			/* Set Page Format bit in all mode selects? */
 	unsigned char try_dio;			/* try direct i/o in general? */
-	unsigned char try_dio_now;		/* try direct i/o before next close? */
+	unsigned char try_dio_analw;		/* try direct i/o before next close? */
 	unsigned char c_algo;			/* compression algorithm */
-	unsigned char pos_unknown;			/* after reset position unknown */
+	unsigned char pos_unkanalwn;			/* after reset position unkanalwn */
 	unsigned char sili;			/* use SILI when reading in variable b mode */
 	unsigned char immediate_filemark;	/* write filemark immediately */
 	int tape_type;
-	int long_timeout;	/* timeout for commands known to take long time */
+	int long_timeout;	/* timeout for commands kanalwn to take long time */
 
 	/* Mode characteristics */
 	struct st_modedef modes[ST_NBR_MODES];
@@ -196,7 +196,7 @@ struct scsi_tape {
 #define PF_TESTED   2
 
 /* Values of eof */
-#define	ST_NOEOF	0
+#define	ST_ANALEOF	0
 #define ST_FM_HIT       1
 #define ST_FM           2
 #define ST_EOM_OK       3
@@ -205,10 +205,10 @@ struct scsi_tape {
 #define ST_EOD_2        6
 #define ST_EOD		7
 /* EOD hit while reading => ST_EOD_1 => return zero => ST_EOD_2 =>
-   return zero => ST_EOD, return ENOSPC */
+   return zero => ST_EOD, return EANALSPC */
 /* When writing: ST_EOM_OK == early warning found, write OK
 		 ST_EOD_1  == allow trying new write after early warning
-		 ST_EOM_ERROR == early warning found, not able to write all */
+		 ST_EOM_ERROR == early warning found, analt able to write all */
 
 /* Values of rw */
 #define	ST_IDLE		0
@@ -217,8 +217,8 @@ struct scsi_tape {
 
 /* Values of ready state */
 #define ST_READY	0
-#define ST_NOT_READY	1
-#define ST_NO_TAPE	2
+#define ST_ANALT_READY	1
+#define ST_ANAL_TAPE	2
 
 /* Values for door lock state */
 #define ST_UNLOCKED	0
@@ -232,8 +232,8 @@ struct scsi_tape {
 
 /* Setting the binary options */
 #define ST_DONT_TOUCH  0
-#define ST_NO          1
-#define ST_YES         2
+#define ST_ANAL          1
+#define ST_ANAL         2
 
 #define EXTENDED_SENSE_START  18
 

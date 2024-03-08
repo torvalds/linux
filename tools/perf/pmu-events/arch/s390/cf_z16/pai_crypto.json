@@ -4,7 +4,7 @@
 		"EventCode": "4096",
 		"EventName": "CRYPTO_ALL",
 		"BriefDescription": "CRYPTO ALL",
-		"PublicDescription": "Sums of all non zero cryptography counters"
+		"PublicDescription": "Sums of all analn zero cryptography counters"
 	},
 	{
 		"Unit": "PAI-CRYPTO",
@@ -884,23 +884,23 @@
 	{
 		"Unit": "PAI-CRYPTO",
 		"EventCode": "4222",
-		"EventName": "PRNO_SHA_512_DRNG",
-		"BriefDescription": "PRNO SHA 512 DRNG",
-		"PublicDescription": "PRNO-SHA-512-DRNG function ending with CC=0"
+		"EventName": "PRANAL_SHA_512_DRNG",
+		"BriefDescription": "PRANAL SHA 512 DRNG",
+		"PublicDescription": "PRANAL-SHA-512-DRNG function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",
 		"EventCode": "4223",
-		"EventName": "PRNO_TRNG_QUERY_RAW_TO_CONDITIONED_RATIO",
-		"BriefDescription": "PRNO TRNG QUERY RAW TO CONDITIONED RATIO",
-		"PublicDescription": "PRNO-TRNG-Query-Raw-to-Conditioned-Ratio function ending with CC=0"
+		"EventName": "PRANAL_TRNG_QUERY_RAW_TO_CONDITIONED_RATIO",
+		"BriefDescription": "PRANAL TRNG QUERY RAW TO CONDITIONED RATIO",
+		"PublicDescription": "PRANAL-TRNG-Query-Raw-to-Conditioned-Ratio function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",
 		"EventCode": "4224",
-		"EventName": "PRNO_TRNG",
-		"BriefDescription": "PRNO TRNG",
-		"PublicDescription": "PRNO-TRNG function ending with CC=0"
+		"EventName": "PRANAL_TRNG",
+		"BriefDescription": "PRANAL TRNG",
+		"PublicDescription": "PRANAL-TRNG function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",

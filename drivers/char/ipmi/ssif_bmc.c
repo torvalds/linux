@@ -125,7 +125,7 @@ static const char *state_to_string(enum ssif_state state)
 	case SSIF_ABORTING:
 		return "SSIF_ABORTING";
 	default:
-		return "SSIF_STATE_UNKNOWN";
+		return "SSIF_STATE_UNKANALWN";
 	}
 }
 
@@ -140,7 +140,7 @@ static ssize_t ssif_bmc_read(struct file *file, char __user *buf, size_t count, 
 	spin_lock_irqsave(&ssif_bmc->lock, flags);
 	while (!ssif_bmc->request_available) {
 		spin_unlock_irqrestore(&ssif_bmc->lock, flags);
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 		ret = wait_event_interruptible(ssif_bmc->wait_queue,
 					       ssif_bmc->request_available);
@@ -189,7 +189,7 @@ static ssize_t ssif_bmc_write(struct file *file, const char __user *buf, size_t 
 	spin_lock_irqsave(&ssif_bmc->lock, flags);
 	while (ssif_bmc->response_in_progress) {
 		spin_unlock_irqrestore(&ssif_bmc->lock, flags);
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 		ret = wait_event_interruptible(ssif_bmc->wait_queue,
 					       !ssif_bmc->response_in_progress);
@@ -215,7 +215,7 @@ static ssize_t ssif_bmc_write(struct file *file, const char __user *buf, size_t 
 
 	ssif_bmc->response_in_progress = true;
 
-	/* ssif_bmc not busy */
+	/* ssif_bmc analt busy */
 	ssif_bmc->busy = false;
 
 	/* Clean old request buffer */
@@ -226,7 +226,7 @@ exit:
 	return (ret < 0) ? ret : count;
 }
 
-static int ssif_bmc_open(struct inode *inode, struct file *file)
+static int ssif_bmc_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ssif_bmc_ctx *ssif_bmc = to_ssif_bmc(file);
 	int ret = 0;
@@ -258,7 +258,7 @@ static __poll_t ssif_bmc_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static int ssif_bmc_release(struct inode *inode, struct file *file)
+static int ssif_bmc_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ssif_bmc_ctx *ssif_bmc = to_ssif_bmc(file);
 
@@ -284,7 +284,7 @@ static const struct file_operations ssif_bmc_fops = {
 /* Called with ssif_bmc->lock held. */
 static void complete_response(struct ssif_bmc_ctx *ssif_bmc)
 {
-	/* Invalidate response in buffer to denote it having been sent. */
+	/* Invalidate response in buffer to deanalte it having been sent. */
 	ssif_bmc->response.len = 0;
 	ssif_bmc->response_in_progress = false;
 	ssif_bmc->nbytes_processed = 0;
@@ -301,7 +301,7 @@ static void response_timeout(struct timer_list *t)
 
 	spin_lock_irqsave(&ssif_bmc->lock, flags);
 
-	/* Do nothing if the response is in progress */
+	/* Do analthing if the response is in progress */
 	if (!ssif_bmc->response_in_progress) {
 		/* Recover ssif_bmc from busy */
 		ssif_bmc->busy = false;
@@ -325,7 +325,7 @@ static void handle_request(struct ssif_bmc_ctx *ssif_bmc)
 	/* This is the new READ request.*/
 	wake_up_all(&ssif_bmc->wait_queue);
 
-	/* Armed timer to recover slave from busy state in case of no response */
+	/* Armed timer to recover slave from busy state in case of anal response */
 	if (!ssif_bmc->response_timer_inited) {
 		timer_setup(&ssif_bmc->response_timer, response_timeout, 0);
 		ssif_bmc->response_timer_inited = true;
@@ -424,7 +424,7 @@ static void set_multipart_response_buffer(struct ssif_bmc_ctx *ssif_bmc)
 		break;
 
 	default:
-		/* Do not expect to go to this case */
+		/* Do analt expect to go to this case */
 		dev_err(&ssif_bmc->client->dev, "%s: Unexpected SMBus command 0x%x\n",
 			__func__, part->smbus_cmd);
 		break;
@@ -498,7 +498,7 @@ static bool validate_request_part(struct ssif_bmc_ctx *ssif_bmc)
 	u8 addr;
 
 	if (part->index == part->length) {
-		/* PEC is not included */
+		/* PEC is analt included */
 		ssif_bmc->pec_support = false;
 		ret = true;
 		goto exit;
@@ -517,7 +517,7 @@ static bool validate_request_part(struct ssif_bmc_ctx *ssif_bmc)
 	cpec = i2c_smbus_pec(cpec, &part->smbus_cmd, 1);
 	cpec = i2c_smbus_pec(cpec, &part->length, 1);
 	/*
-	 * As SMBus specification does not allow the length
+	 * As SMBus specification does analt allow the length
 	 * (byte count) in the Write-Block protocol to be zero.
 	 * Therefore, it is illegal to have the last Middle
 	 * transaction in the sequence carry 32-byte and have
@@ -554,7 +554,7 @@ static void process_request_part(struct ssif_bmc_ctx *ssif_bmc)
 	case SSIF_IPMI_MULTIPART_WRITE_MIDDLE:
 	case SSIF_IPMI_MULTIPART_WRITE_END:
 		len = ssif_bmc->request.len + part->length;
-		/* Do the bound check here, not allow the request len exceed 254 bytes */
+		/* Do the bound check here, analt allow the request len exceed 254 bytes */
 		if (len > IPMI_SSIF_PAYLOAD_MAX) {
 			dev_warn(&ssif_bmc->client->dev,
 				 "Warn: Request exceeded 254 bytes, aborting");
@@ -567,7 +567,7 @@ static void process_request_part(struct ssif_bmc_ctx *ssif_bmc)
 		}
 		break;
 	default:
-		/* Do not expect to go to this case */
+		/* Do analt expect to go to this case */
 		dev_err(&ssif_bmc->client->dev, "%s: Unexpected SMBus command 0x%x\n",
 			__func__, part->smbus_cmd);
 		break;
@@ -583,7 +583,7 @@ static void process_smbus_cmd(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
 
 	if (*val == SSIF_IPMI_SINGLEPART_WRITE || *val == SSIF_IPMI_MULTIPART_WRITE_START) {
 		/*
-		 * The response maybe not come in-time, causing host SSIF driver
+		 * The response maybe analt come in-time, causing host SSIF driver
 		 * to timeout and resend a new request. In such case check for
 		 * pending response and clear it
 		 */
@@ -611,7 +611,7 @@ static void on_read_requested_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
 
 	} else if (ssif_bmc->state == SSIF_SMBUS_CMD) {
 		if (!supported_read_cmd(ssif_bmc->part_buf.smbus_cmd)) {
-			dev_warn(&ssif_bmc->client->dev, "Warn: Unknown SMBus read command=0x%x",
+			dev_warn(&ssif_bmc->client->dev, "Warn: Unkanalwn SMBus read command=0x%x",
 				 ssif_bmc->part_buf.smbus_cmd);
 			ssif_bmc->aborting = true;
 		}
@@ -624,7 +624,7 @@ static void on_read_requested_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
 
 	ssif_bmc->msg_idx = 0;
 
-	/* Send 0 if there is nothing to send */
+	/* Send 0 if there is analthing to send */
 	if (!ssif_bmc->response_in_progress || ssif_bmc->state == SSIF_ABORTING) {
 		*val = 0;
 		return;
@@ -654,7 +654,7 @@ static void on_read_processed_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
 		return;
 	}
 
-	/* Send 0 if there is nothing to send */
+	/* Send 0 if there is analthing to send */
 	if (!ssif_bmc->response_in_progress || ssif_bmc->state == SSIF_ABORTING) {
 		*val = 0;
 		return;
@@ -696,7 +696,7 @@ static void on_write_received_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
 
 	} else if (ssif_bmc->state == SSIF_SMBUS_CMD) {
 		if (!supported_write_cmd(ssif_bmc->part_buf.smbus_cmd)) {
-			dev_warn(&ssif_bmc->client->dev, "Warn: Unknown SMBus write command=0x%x",
+			dev_warn(&ssif_bmc->client->dev, "Warn: Unkanalwn SMBus write command=0x%x",
 				 ssif_bmc->part_buf.smbus_cmd);
 			ssif_bmc->aborting = true;
 		}
@@ -743,7 +743,7 @@ static void on_stop_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
 		}
 	} else if (ssif_bmc->state == SSIF_RES_SENDING) {
 		if (ssif_bmc->is_singlepart_read || ssif_bmc->block_num == 0xFF)
-			/* Invalidate response buffer to denote it is sent */
+			/* Invalidate response buffer to deanalte it is sent */
 			complete_response(ssif_bmc);
 		ssif_bmc->state = SSIF_READY;
 	}
@@ -785,7 +785,7 @@ static int ssif_bmc_cb(struct i2c_client *client, enum i2c_slave_event event, u8
 		break;
 
 	default:
-		dev_warn(&ssif_bmc->client->dev, "Warn: Unknown i2c slave event\n");
+		dev_warn(&ssif_bmc->client->dev, "Warn: Unkanalwn i2c slave event\n");
 		break;
 	}
 
@@ -804,7 +804,7 @@ static int ssif_bmc_probe(struct i2c_client *client)
 
 	ssif_bmc = devm_kzalloc(&client->dev, sizeof(*ssif_bmc), GFP_KERNEL);
 	if (!ssif_bmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ssif_bmc->lock);
 
@@ -815,7 +815,7 @@ static int ssif_bmc_probe(struct i2c_client *client)
 	ssif_bmc->response_timer_inited = false;
 
 	/* Register misc device interface */
-	ssif_bmc->miscdev.minor = MISC_DYNAMIC_MINOR;
+	ssif_bmc->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	ssif_bmc->miscdev.name = DEVICE_NAME;
 	ssif_bmc->miscdev.fops = &ssif_bmc_fops;
 	ssif_bmc->miscdev.parent = &client->dev;

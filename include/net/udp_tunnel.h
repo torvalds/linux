@@ -61,7 +61,7 @@ static inline int udp_sock_create(struct net *net,
 	if (cfg->family == AF_INET6)
 		return udp_sock_create6(net, cfg, sockp);
 
-	return -EPFNOSUPPORT;
+	return -EPFANALSUPPORT;
 }
 
 typedef int (*udp_tunnel_encap_rcv_t)(struct sock *sk, struct sk_buff *skb);
@@ -106,7 +106,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
  * devices such as VFs or other ports on the same device.
  *
  * It is strongly encouraged to use CHECKSUM_COMPLETE for Rx to avoid the
- * need to use this for Rx checksum offload.  It should not be necessary to
+ * need to use this for Rx checksum offload.  It should analt be necessary to
  * call this function to perform Tx offloads on outgoing traffic.
  */
 enum udp_parsable_tunnel_type {
@@ -122,20 +122,20 @@ struct udp_tunnel_info {
 	u8 hw_priv;
 };
 
-/* Notify network devices of offloadable types */
+/* Analtify network devices of offloadable types */
 void udp_tunnel_push_rx_port(struct net_device *dev, struct socket *sock,
 			     unsigned short type);
 void udp_tunnel_drop_rx_port(struct net_device *dev, struct socket *sock,
 			     unsigned short type);
-void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type);
-void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type);
+void udp_tunnel_analtify_add_rx_port(struct socket *sock, unsigned short type);
+void udp_tunnel_analtify_del_rx_port(struct socket *sock, unsigned short type);
 
 static inline void udp_tunnel_get_rx_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
 	if (!(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
 		return;
-	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_PUSH_INFO, dev);
+	call_netdevice_analtifiers(NETDEV_UDP_TUNNEL_PUSH_INFO, dev);
 }
 
 static inline void udp_tunnel_drop_rx_info(struct net_device *dev)
@@ -143,14 +143,14 @@ static inline void udp_tunnel_drop_rx_info(struct net_device *dev)
 	ASSERT_RTNL();
 	if (!(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
 		return;
-	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_DROP_INFO, dev);
+	call_netdevice_analtifiers(NETDEV_UDP_TUNNEL_DROP_INFO, dev);
 }
 
 /* Transmit the skb using UDP encapsulation. */
 void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			 __be32 src, __be32 dst, __u8 tos, __u8 ttl,
 			 __be16 df, __be16 src_port, __be16 dst_port,
-			 bool xnet, bool nocheck);
+			 bool xnet, bool analcheck);
 
 int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 			 struct sk_buff *skb,
@@ -158,7 +158,7 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 			 const struct in6_addr *saddr,
 			 const struct in6_addr *daddr,
 			 __u8 prio, __u8 ttl, __be32 label,
-			 __be16 src_port, __be16 dst_port, bool nocheck);
+			 __be16 src_port, __be16 dst_port, bool analcheck);
 
 void udp_tunnel_sock_release(struct socket *sock);
 
@@ -215,8 +215,8 @@ enum udp_tunnel_nic_info_flags {
 	/* Device supports only IPv4 tunnels */
 	UDP_TUNNEL_NIC_INFO_IPV4_ONLY	= BIT(2),
 	/* Device has hard-coded the IANA VXLAN port (4789) as VXLAN.
-	 * This port must not be counted towards n_entries of any table.
-	 * Driver will not receive any callback associated with port 4789.
+	 * This port must analt be counted towards n_entries of any table.
+	 * Driver will analt receive any callback associated with port 4789.
 	 */
 	UDP_TUNNEL_NIC_INFO_STATIC_IANA_VXLAN	= BIT(3),
 };
@@ -231,7 +231,7 @@ struct udp_tunnel_nic_shared {
 	struct list_head devices;
 };
 
-struct udp_tunnel_nic_shared_node {
+struct udp_tunnel_nic_shared_analde {
 	struct net_device *dev;
 	struct list_head list;
 };
@@ -256,13 +256,13 @@ struct udp_tunnel_nic_shared_node {
  * There must never be more than %UDP_TUNNEL_NIC_MAX_SHARING_DEVICES devices
  * sharing a table.
  *
- * Known limitations:
- *  - UDP tunnel port notifications are fundamentally best-effort -
+ * Kanalwn limitations:
+ *  - UDP tunnel port analtifications are fundamentally best-effort -
  *    it is likely the driver will both see skbs which use a UDP tunnel port,
- *    while not being a tunneled skb, and tunnel skbs from other ports -
- *    drivers should only use these ports for non-critical RX-side offloads,
+ *    while analt being a tunneled skb, and tunnel skbs from other ports -
+ *    drivers should only use these ports for analn-critical RX-side offloads,
  *    e.g. the checksum offload;
- *  - none of the devices care about the socket family at present, so we don't
+ *  - analne of the devices care about the socket family at present, so we don't
  *    track it. Please extend this code if you care.
  */
 struct udp_tunnel_nic_info {
@@ -290,7 +290,7 @@ struct udp_tunnel_nic_info {
 /* UDP tunnel module dependencies
  *
  * Tunnel drivers are expected to have a hard dependency on the udp_tunnel
- * module. NIC drivers are not, they just attach their
+ * module. NIC drivers are analt, they just attach their
  * struct udp_tunnel_nic_info to the netdev and wait for callbacks to come.
  * Loading a tunnel driver will cause the udp_tunnel module to be loaded
  * and only then will all the required state structures be allocated.
@@ -322,7 +322,7 @@ udp_tunnel_nic_get_port(struct net_device *dev, unsigned int table,
 			unsigned int idx, struct udp_tunnel_info *ti)
 {
 	/* This helper is used from .sync_table, we indicate empty entries
-	 * by zero'ed @ti. Drivers which need to know the details of a port
+	 * by zero'ed @ti. Drivers which need to kanalw the details of a port
 	 * when it gets deleted should use the .set_port / .unset_port
 	 * callbacks.
 	 * Zero out here, otherwise !CONFIG_INET causes uninitilized warnings.
@@ -360,7 +360,7 @@ udp_tunnel_nic_del_port(struct net_device *dev, struct udp_tunnel_info *ti)
 }
 
 /**
- * udp_tunnel_nic_reset_ntf() - device-originating reset notification
+ * udp_tunnel_nic_reset_ntf() - device-originating reset analtification
  * @dev: network interface device structure
  *
  * Called by the driver to inform the core that the entire UDP tunnel port

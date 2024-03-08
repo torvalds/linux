@@ -5,7 +5,7 @@
  * Copyright (c) 2010-2013 Kontron Europe GmbH
  * Author: Michael Brunner <michael.brunner@kontron.com>
  *
- * Note: From the PLD watchdog point of view timeout and pretimeout are
+ * Analte: From the PLD watchdog point of view timeout and pretimeout are
  *       defined differently than in the kernel.
  *       First the pretimeout stage runs out before the timeout stage gets
  *       active.
@@ -39,7 +39,7 @@
 #define KEMPLD_WDT_CFG_GLOBAL_LOCK	0x80
 
 enum {
-	ACTION_NONE = 0,
+	ACTION_ANALNE = 0,
 	ACTION_RESET,
 	ACTION_NMI,
 	ACTION_SMI,
@@ -93,11 +93,11 @@ MODULE_PARM_DESC(pretimeout,
 	"Watchdog pretimeout in seconds. (>=0, default="
 	__MODULE_STRING(DEFAULT_PRETIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+	__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int kempld_wdt_set_stage_action(struct kempld_wdt_data *wdt_data,
 					struct kempld_wdt_stage *stage,
@@ -226,7 +226,7 @@ static int kempld_wdt_set_pretimeout(struct watchdog_device *wdd,
 {
 	struct kempld_wdt_data *wdt_data = watchdog_get_drvdata(wdd);
 	struct kempld_wdt_stage *pretimeout_stage;
-	u8 action = ACTION_NONE;
+	u8 action = ACTION_ANALNE;
 	int ret;
 
 	pretimeout_stage = &wdt_data->stage[STAGE_PRETIMEOUT];
@@ -338,7 +338,7 @@ static long kempld_wdt_ioctl(struct watchdog_device *wdd, unsigned int cmd,
 {
 	struct kempld_wdt_data *wdt_data = watchdog_get_drvdata(wdd);
 	void __user *argp = (void __user *)arg;
-	int ret = -ENOIOCTLCMD;
+	int ret = -EANALIOCTLCMD;
 	int __user *p = argp;
 	int new_value;
 
@@ -409,7 +409,7 @@ static int kempld_wdt_probe_stages(struct watchdog_device *wdd)
 	}
 
 	if (!timeout_stage->mask)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -442,7 +442,7 @@ static int kempld_wdt_probe(struct platform_device *pdev)
 
 	wdt_data = devm_kzalloc(dev, sizeof(*wdt_data), GFP_KERNEL);
 	if (!wdt_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt_data->pld = pld;
 	wdd = &wdt_data->wdd;
@@ -452,20 +452,20 @@ static int kempld_wdt_probe(struct platform_device *pdev)
 	status = kempld_read8(pld, KEMPLD_WDT_CFG);
 	kempld_release_mutex(pld);
 
-	/* Enable nowayout if watchdog is already locked */
+	/* Enable analwayout if watchdog is already locked */
 	if (status & (KEMPLD_WDT_CFG_ENABLE_LOCK |
 			KEMPLD_WDT_CFG_GLOBAL_LOCK)) {
-		if (!nowayout)
+		if (!analwayout)
 			dev_warn(dev,
-				 "Forcing nowayout - watchdog lock enabled!\n");
-		nowayout = true;
+				 "Forcing analwayout - watchdog lock enabled!\n");
+		analwayout = true;
 	}
 
 	wdd->info = &kempld_wdt_info;
 	wdd->ops = &kempld_wdt_ops;
 
 	watchdog_set_drvdata(wdd, wdt_data);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 
 	ret = kempld_wdt_probe_stages(wdd);
 	if (ret)

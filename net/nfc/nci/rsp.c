@@ -7,7 +7,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on hci_event.c, which was written
  *  by Maxim Krasnyansky.
  */
@@ -299,7 +299,7 @@ static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
 		conn_info->dest_params->protocol = ndev->cur_params.protocol;
 		conn_info->conn_id = rsp->conn_id;
 
-		/* Note: data_exchange_cb and data_exchange_cb_context need to
+		/* Analte: data_exchange_cb and data_exchange_cb_context need to
 		 * be specify out of nci_core_conn_create_rsp_packet
 		 */
 
@@ -359,7 +359,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	skb_pull(skb, NCI_CTRL_HDR_SIZE);
 
 	if (nci_opcode_gid(rsp_opcode) == NCI_GID_PROPRIETARY) {
-		if (nci_prop_rsp_packet(ndev, rsp_opcode, skb) == -ENOTSUPP) {
+		if (nci_prop_rsp_packet(ndev, rsp_opcode, skb) == -EANALTSUPP) {
 			pr_err("unsupported rsp opcode 0x%x\n",
 			       rsp_opcode);
 		}
@@ -413,7 +413,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 
 	default:
-		pr_err("unknown rsp opcode 0x%x\n", rsp_opcode);
+		pr_err("unkanalwn rsp opcode 0x%x\n", rsp_opcode);
 		break;
 	}
 

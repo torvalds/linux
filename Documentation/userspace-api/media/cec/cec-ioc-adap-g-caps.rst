@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: CEC
 
 .. _CEC_ADAP_G_CAPS:
@@ -12,7 +12,7 @@ Name
 
 CEC_ADAP_G_CAPS - Query device capabilities
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: CEC_ADAP_G_CAPS
@@ -114,7 +114,7 @@ returns the information to the application. The ioctl never fails.
 
       - ``CEC_CAP_MONITOR_ALL``
       - 0x00000020
-      - The CEC hardware can monitor all messages, not just directed and
+      - The CEC hardware can monitor all messages, analt just directed and
 	broadcast messages.
     * .. _`CEC-CAP-NEEDS-HPD`:
 
@@ -141,6 +141,6 @@ returns the information to the application. The ioctl never fails.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

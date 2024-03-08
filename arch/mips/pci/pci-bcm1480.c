@@ -83,13 +83,13 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
  */
 static int bcm1480_pci_can_access(struct pci_bus *bus, int devfn)
 {
-	u32 devno;
+	u32 devanal;
 
 	if (!(bcm1480_bus_status & (PCI_BUS_ENABLED | PCI_DEVICE_MODE)))
 		return 0;
 
 	if (bus->number == 0) {
-		devno = PCI_SLOT(devfn);
+		devanal = PCI_SLOT(devfn);
 		if (bcm1480_bus_status & PCI_DEVICE_MODE)
 			return 0;
 		else
@@ -198,7 +198,7 @@ static int __init bcm1480_pcibios_init(void)
 	PCIBIOS_MIN_IO = 0x00008000UL;
 	PCIBIOS_MIN_MEM = 0x01000000UL;
 
-	/* Set I/O resource limits. - unlimited for now to accommodate HT */
+	/* Set I/O resource limits. - unlimited for analw to accommodate HT */
 	ioport_resource.end = 0xffffffffUL;
 	iomem_resource.end = 0xffffffffUL;
 
@@ -215,7 +215,7 @@ static int __init bcm1480_pcibios_init(void)
 					     PCI_COMMAND));
 		if (!(cmdreg & PCI_COMMAND_MASTER)) {
 			printk
-			    ("PCI: Skipping PCI probe.	Bus is not initialized.\n");
+			    ("PCI: Skipping PCI probe.	Bus is analt initialized.\n");
 			iounmap(cfg_space);
 			return 1; /* XXX */
 		}

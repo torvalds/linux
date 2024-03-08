@@ -4,7 +4,7 @@ Summary of CDROM ioctl calls
 
 - Edward A. Falk <efalk@google.com>
 
-November, 2004
+Analvember, 2004
 
 This document attempts to describe the ioctl(2) calls supported by
 the CDROM layer.  These are by-and-large implemented (as of Linux 2.6)
@@ -81,14 +81,14 @@ code.  It is likely that some corrections will be made over time.
 General:
 
 	Unless otherwise specified, all ioctl calls return 0 on success
-	and -1 with errno set to an appropriate value on error.  (Some
-	ioctls return non-negative data values.)
+	and -1 with erranal set to an appropriate value on error.  (Some
+	ioctls return analn-negative data values.)
 
 	Unless otherwise specified, all ioctl calls return -1 and set
-	errno to EFAULT on a failed attempt to copy data to or from user
+	erranal to EFAULT on a failed attempt to copy data to or from user
 	address space.
 
-	Individual drivers may return error codes not listed here.
+	Individual drivers may return error codes analt listed here.
 
 	Unless otherwise specified, all data structures and constants
 	are defined in <linux/cdrom.h>
@@ -106,15 +106,15 @@ CDROMPAUSE
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
 
 CDROMRESUME
@@ -127,15 +127,15 @@ CDROMRESUME
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
 
 CDROMPLAYMSF
@@ -155,13 +155,13 @@ CDROMPLAYMSF
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
-	notes:
+	analtes:
 		- MSF stands for minutes-seconds-frames
 		- LBA stands for logical block address
 		- Segment is described as start and end times, where each time
@@ -186,13 +186,13 @@ CDROMPLAYTRKIND
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
-	notes:
+	analtes:
 		- Segment is described as start and end times, where each time
 		  is described as a track and an index.
 
@@ -219,7 +219,7 @@ CDROMREADTOCHDR
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
 
 
@@ -244,12 +244,12 @@ CDROMREADTOCENTRY
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
-	  - EINVAL	entry.cdte_format not CDROM_MSF or CDROM_LBA
+	  - EANALSYS	cd drive analt audio-capable.
+	  - EINVAL	entry.cdte_format analt CDROM_MSF or CDROM_LBA
 	  - EINVAL	requested track out of bounds
 	  - EIO		I/O error reading TOC
 
-	notes:
+	analtes:
 		- TOC stands for Table Of Contents
 		- MSF stands for minutes-seconds-frames
 		- LBA stands for logical block address
@@ -266,17 +266,17 @@ CDROMSTOP
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
-	notes:
+	analtes:
 	  - Exact interpretation of this ioctl depends on the device,
 	    but most seem to spin the drive down.
 
@@ -291,20 +291,20 @@ CDROMSTART
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
-	notes:
+	analtes:
 	  - Exact interpretation of this ioctl depends on the device,
 	    but most seem to spin the drive up and/or close the tray.
-	    Other devices ignore the ioctl completely.
+	    Other devices iganalre the ioctl completely.
 
 
 CDROMEJECT
@@ -317,18 +317,18 @@ CDROMEJECT
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
-		none
+		analne
 
 
 	error returns:
-	  - ENOSYS	cd drive not capable of ejecting
+	  - EANALSYS	cd drive analt capable of ejecting
 	  - EBUSY	other processes are accessing drive, or door is locked
 
-	notes:
+	analtes:
 		- See CDROM_LOCKDOOR, below.
 
 
@@ -344,18 +344,18 @@ CDROMCLOSETRAY
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
-		none
+		analne
 
 
 	error returns:
-	  - ENOSYS	cd drive not capable of closing the tray
+	  - EANALSYS	cd drive analt capable of closing the tray
 	  - EBUSY	other processes are accessing drive, or door is locked
 
-	notes:
+	analtes:
 		- See CDROM_LOCKDOOR, below.
 
 
@@ -376,11 +376,11 @@ CDROMVOLCTRL
 		channels.
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
 
 
@@ -397,7 +397,7 @@ CDROMVOLREAD
 	  ioctl(fd, CDROMVOLREAD, &volume);
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
@@ -405,7 +405,7 @@ CDROMVOLREAD
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - EANALSYS	cd drive analt audio-capable.
 
 
 
@@ -430,10 +430,10 @@ CDROMSUBCHNL
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
-	  - EINVAL	format not CDROM_MSF or CDROM_LBA
+	  - EANALSYS	cd drive analt audio-capable.
+	  - EINVAL	format analt CDROM_MSF or CDROM_LBA
 
-	notes:
+	analtes:
 		- Format is converted to CDROM_MSF or CDROM_LBA
 		  as per user request on return
 
@@ -464,9 +464,9 @@ CDROMREADRAW
 
 	error return:
 	  - EINVAL	address less than 0, or msf less than 0:2:0
-	  - ENOMEM	out of memory
+	  - EANALMEM	out of memory
 
-	notes:
+	analtes:
 		- As of 2.6.8.1, comments in <linux/cdrom.h> indicate that this
 		  ioctl accepts a cdrom_read structure, but actual source code
 		  reads a cdrom_msf structure and writes a buffer of data to
@@ -484,7 +484,7 @@ CDROMREADMODE1
 
 	(struct cdrom_read)
 
-	notes:
+	analtes:
 		Identical to CDROMREADRAW except that block size is
 		CD_FRAMESIZE (2048) bytes
 
@@ -495,7 +495,7 @@ CDROMREADMODE2
 
 	(struct cdrom_read)
 
-	notes:
+	analtes:
 		Identical to CDROMREADRAW except that block size is
 		CD_FRAMESIZE_RAW0 (2336) bytes
 
@@ -519,10 +519,10 @@ CDROMREADAUDIO
 
 
 	error return:
-	  - EINVAL	format not CDROM_MSF or CDROM_LBA
-	  - EINVAL	nframes not in range [1 75]
-	  - ENXIO	drive has no queue (probably means invalid fd)
-	  - ENOMEM	out of memory
+	  - EINVAL	format analt CDROM_MSF or CDROM_LBA
+	  - EINVAL	nframes analt in range [1 75]
+	  - ENXIO	drive has anal queue (probably means invalid fd)
+	  - EANALMEM	out of memory
 
 
 CDROMEJECT_SW
@@ -540,11 +540,11 @@ CDROMEJECT_SW
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	Drive is not capable of ejecting.
+	  - EANALSYS	Drive is analt capable of ejecting.
 	  - EBUSY	Door is locked
 
 
@@ -571,7 +571,7 @@ CDROMMULTISESSION
 		information.
 
 	error return:
-	  - EINVAL	format not CDROM_MSF or CDROM_LBA
+	  - EINVAL	format analt CDROM_MSF or CDROM_LBA
 
 
 CDROM_GET_MCN
@@ -588,7 +588,7 @@ CDROM_GET_MCN
 	  ioctl(fd, CDROM_GET_MCN, &mcn);
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
@@ -596,15 +596,15 @@ CDROM_GET_MCN
 
 
 	error return:
-	  - ENOSYS	Drive is not capable of reading MCN data.
+	  - EANALSYS	Drive is analt capable of reading MCN data.
 
-	notes:
+	analtes:
 		- Source code comments state::
 
 		    The following function is implemented, although very few
 		    audio discs give Universal Product Code information, which
-		    should just be the Medium Catalog Number on the box.  Note,
-		    that the way the code is written on the CD is /not/ uniform
+		    should just be the Medium Catalog Number on the box.  Analte,
+		    that the way the code is written on the CD is /analt/ uniform
 		    across all discs!
 
 
@@ -614,7 +614,7 @@ CDROM_GET_UPC
 	CDROM_GET_MCN  (deprecated)
 
 
-	Not implemented, as of 2.6.8.1
+	Analt implemented, as of 2.6.8.1
 
 
 
@@ -628,16 +628,16 @@ CDROMRESET
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
-	  - ENOSYS	Drive is not capable of resetting.
+	  - EANALSYS	Drive is analt capable of resetting.
 
 
 
@@ -653,15 +653,15 @@ CDROMREADCOOKED
 	  ioctl(fd, CDROMREADCOOKED, buffer);
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
 		2048 bytes of data, "cooked" mode.
 
 
-	notes:
-		Not implemented on all drives.
+	analtes:
+		Analt implemented on all drives.
 
 
 
@@ -690,7 +690,7 @@ CDROMSEEK
 
 
 	outputs:
-		none
+		analne
 
 
 
@@ -712,7 +712,7 @@ CDROMPLAYBLK
 
 
 	outputs:
-		none
+		analne
 
 
 
@@ -728,7 +728,7 @@ CDROMGETSPINDOWN
 	  ioctl(fd, CDROMGETSPINDOWN, &spindown);
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
@@ -753,7 +753,7 @@ CDROMSETSPINDOWN
 
 
 	outputs:
-		none
+		analne
 
 
 
@@ -776,7 +776,7 @@ CDROM_SET_OPTIONS
 	    ==============      ==================================
 	    CDO_AUTO_CLOSE	close tray on first open(2)
 	    CDO_AUTO_EJECT	open tray on last release
-	    CDO_USE_FFLAGS	use O_NONBLOCK information on open
+	    CDO_USE_FFLAGS	use O_ANALNBLOCK information on open
 	    CDO_LOCK		lock tray on open files
 	    CDO_CHECK_TYPE	check type on open for data
 	    ==============      ==================================
@@ -786,7 +786,7 @@ CDROM_SET_OPTIONS
 		ioctl return value.  Returns -1 on error.
 
 	error return:
-	  - ENOSYS	selected option(s) not supported by drive.
+	  - EANALSYS	selected option(s) analt supported by drive.
 
 
 
@@ -815,11 +815,11 @@ CDROM_SELECT_SPEED
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
-	  - ENOSYS	speed selection not supported by drive.
+	  - EANALSYS	speed selection analt supported by drive.
 
 
 
@@ -838,7 +838,7 @@ CDROM_SELECT_DISC
 
 
 	outputs:
-		none
+		analne
 
 
 	error return:
@@ -859,7 +859,7 @@ CDROM_MEDIA_CHANGED
 	inputs:
 		Slot number to be tested, always zero except for jukeboxes.
 
-		May also be special values CDSL_NONE or CDSL_CURRENT
+		May also be special values CDSL_ANALNE or CDSL_CURRENT
 
 	outputs:
 		Ioctl return value is 0 or 1 depending on whether the media
@@ -867,9 +867,9 @@ CDROM_MEDIA_CHANGED
 	  has been changed, or -1 on error.
 
 	error returns:
-	  - ENOSYS	Drive can't detect media change
+	  - EANALSYS	Drive can't detect media change
 	  - EINVAL	Slot number beyond capacity of drive
-	  - ENOMEM	Out of memory
+	  - EANALMEM	Out of memory
 
 
 
@@ -886,7 +886,7 @@ CDROM_DRIVE_STATUS
 	inputs:
 		Slot number to be tested, always zero except for jukeboxes.
 
-		May also be special values CDSL_NONE or CDSL_CURRENT
+		May also be special values CDSL_ANALNE or CDSL_CURRENT
 
 	outputs:
 		Ioctl return value will be one of the following values
@@ -894,18 +894,18 @@ CDROM_DRIVE_STATUS
 	  from <linux/cdrom.h>:
 
 	    =================== ==========================
-	    CDS_NO_INFO		Information not available.
-	    CDS_NO_DISC
+	    CDS_ANAL_INFO		Information analt available.
+	    CDS_ANAL_DISC
 	    CDS_TRAY_OPEN
-	    CDS_DRIVE_NOT_READY
+	    CDS_DRIVE_ANALT_READY
 	    CDS_DISC_OK
 	    -1			error
 	    =================== ==========================
 
 	error returns:
-	  - ENOSYS	Drive can't detect drive status
+	  - EANALSYS	Drive can't detect drive status
 	  - EINVAL	Slot number beyond capacity of drive
-	  - ENOMEM	Out of memory
+	  - EANALMEM	Out of memory
 
 
 
@@ -920,7 +920,7 @@ CDROM_DISC_STATUS
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
@@ -928,7 +928,7 @@ CDROM_DISC_STATUS
 
 	  from <linux/cdrom.h>:
 
-	    - CDS_NO_INFO
+	    - CDS_ANAL_INFO
 	    - CDS_AUDIO
 	    - CDS_MIXED
 	    - CDS_XA_2_2
@@ -936,9 +936,9 @@ CDROM_DISC_STATUS
 	    - CDS_DATA_1
 
 	error returns:
-		none at present
+		analne at present
 
-	notes:
+	analtes:
 	    - Source code comments state::
 
 
@@ -950,14 +950,14 @@ CDROM_DISC_STATUS
 		tracks with audio.	Just because I feel like it, I declare
 		the following to be the best way to cope.  If the CD has
 		ANY data tracks on it, it will be returned as a data CD.
-		If it has any XA tracks, I will return it as that.	Now I
+		If it has any XA tracks, I will return it as that.	Analw I
 		could simplify this interface by combining these returns with
 		the above, but this more clearly demonstrates the problem
 		with the current interface.  Too bad this wasn't designed
 		to use bitmasks...	       -Erik
 
-		Well, now we have the option CDS_MIXED: a mixed-type CD.
-		User level programmers might feel the ioctl is not very
+		Well, analw we have the option CDS_MIXED: a mixed-type CD.
+		User level programmers might feel the ioctl is analt very
 		useful.
 				---david
 
@@ -974,15 +974,15 @@ CDROM_CHANGER_NSLOTS
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
 		The ioctl return value will be the number of slots in a
-		CD changer.  Typically 1 for non-multi-disk devices.
+		CD changer.  Typically 1 for analn-multi-disk devices.
 
 	error returns:
-		none
+		analne
 
 
 
@@ -1001,25 +1001,25 @@ CDROM_LOCKDOOR
 
 
 	outputs:
-		none
+		analne
 
 
 	error returns:
 	  - EDRIVE_CANT_DO_THIS
 
-				Door lock function not supported.
+				Door lock function analt supported.
 	  - EBUSY
 
 				Attempt to unlock when multiple users
-				have the drive open and not CAP_SYS_ADMIN
+				have the drive open and analt CAP_SYS_ADMIN
 
-	notes:
+	analtes:
 		As of 2.6.8.1, the lock flag is a global lock, meaning that
 		all CD drives will be locked or unlocked together.  This is
 		probably a bug.
 
 		The EDRIVE_CANT_DO_THIS value is defined in <linux/cdrom.h>
-		and is currently (2.6.8.1) the same as EOPNOTSUPP
+		and is currently (2.6.8.1) the same as EOPANALTSUPP
 
 
 
@@ -1056,7 +1056,7 @@ CDROM_GET_CAPABILITY
 
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
@@ -1084,10 +1084,10 @@ CDROMAUDIOBUFSIZ
 		on error.
 
 	error return:
-	  - ENOSYS	Not supported by this driver.
+	  - EANALSYS	Analt supported by this driver.
 
-	notes:
-		Not supported by all drivers.
+	analtes:
+		Analt supported by all drivers.
 
 
 
@@ -1132,7 +1132,7 @@ DVD_READ_STRUCT			Read structure
 
 DVD_WRITE_STRUCT		Write structure
 
-	Not implemented, as of 2.6.8.1
+	Analt implemented, as of 2.6.8.1
 
 
 
@@ -1153,7 +1153,7 @@ DVD_AUTH			Authentication
 
 
 	error return:
-	  - ENOTTY	ai.type not recognized.
+	  - EANALTTY	ai.type analt recognized.
 
 
 
@@ -1172,7 +1172,7 @@ CDROM_SEND_PACKET
 
 
 	outputs:
-		none
+		analne
 
 	  cdrom_generic_command structure containing results.
 
@@ -1182,13 +1182,13 @@ CDROM_SEND_PACKET
 			command failed.
 	  - EPERM
 
-			Operation not permitted, either because a
+			Operation analt permitted, either because a
 			write command was attempted on a drive which
 			is opened read-only, or because the command
 			requires CAP_SYS_RAWIO
 	  - EINVAL
 
-			cgc.data_direction not set
+			cgc.data_direction analt set
 
 
 
@@ -1203,15 +1203,15 @@ CDROM_NEXT_WRITABLE
 	  ioctl(fd, CDROM_NEXT_WRITABLE, &next);
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
 		The next writable block.
 
 
-	notes:
-		If the device does not support this ioctl directly, the
+	analtes:
+		If the device does analt support this ioctl directly, the
 
 	  ioctl will return CDROM_LAST_WRITTEN + 7.
 
@@ -1228,15 +1228,15 @@ CDROM_LAST_WRITTEN
 	  ioctl(fd, CDROM_LAST_WRITTEN, &last);
 
 	inputs:
-		none
+		analne
 
 
 	outputs:
 		The last block written on disc
 
 
-	notes:
-		If the device does not support this ioctl directly, the
+	analtes:
+		If the device does analt support this ioctl directly, the
 		result is derived from the disc's table of contents.  If the
 		table of contents can't be read, this ioctl returns an
 		error.

@@ -6,7 +6,7 @@ Description:
 
   As a Kconfig option, individual GPIO signals may be accessed from
   userspace.  GPIOs are only made available to userspace by an explicit
-  "export" operation.  If a given GPIO is not claimed for use by
+  "export" operation.  If a given GPIO is analt claimed for use by
   kernel code, it may be exported by userspace (and unexported later).
   Kernel code may export it for complete or partial access.
 
@@ -22,10 +22,10 @@ Description:
 	/<LINE-NAME> ... for a properly named GPIO line
 	    /value ... always readable, writes fail for input GPIOs
 	    /direction ... r/w as: in, out (default low); write: high, low
-	    /edge ... r/w as: none, falling, rising, both
+	    /edge ... r/w as: analne, falling, rising, both
 	/gpiochipN ... for each gpiochip; #N is its first GPIO
 	    /base ... (r/o) same as N
-	    /label ... (r/o) descriptive, not necessarily unique
+	    /label ... (r/o) descriptive, analt necessarily unique
 	    /ngpio ... (r/o) number of GPIOs; numbered N to N + (ngpio - 1)
 
   This ABI is deprecated and will be removed after 2020. It is

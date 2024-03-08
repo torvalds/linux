@@ -204,10 +204,10 @@ wlcore_hw_sta_rc_update(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 }
 
 static inline int
-wlcore_hw_interrupt_notify(struct wl1271 *wl, bool action)
+wlcore_hw_interrupt_analtify(struct wl1271 *wl, bool action)
 {
-	if (wl->ops->interrupt_notify)
-		return wl->ops->interrupt_notify(wl, action);
+	if (wl->ops->interrupt_analtify)
+		return wl->ops->interrupt_analtify(wl, action);
 	return 0;
 }
 

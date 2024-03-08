@@ -10,7 +10,7 @@
 #define pr_fmt(fmt)	"efi: " fmt
 
 #include <linux/efi.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/mm_types.h>
@@ -44,7 +44,7 @@ static phys_addr_t __init efi_to_phys(unsigned long addr)
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 		if (md->virt_addr == 0)
-			/* no virtual mapping has been installed by the stub */
+			/* anal virtual mapping has been installed by the stub */
 			break;
 		if (md->virt_addr <= addr &&
 		    (addr - md->virt_addr) < (md->num_pages << EFI_PAGE_SHIFT))
@@ -71,7 +71,7 @@ static void __init init_screen_info(void)
 	if (screen_info_table != EFI_INVALID_TABLE_ADDR) {
 		si = early_memremap(screen_info_table, sizeof(*si));
 		if (!si) {
-			pr_err("Could not map screen_info config table\n");
+			pr_err("Could analt map screen_info config table\n");
 			return;
 		}
 		screen_info = *si;
@@ -79,7 +79,7 @@ static void __init init_screen_info(void)
 		early_memunmap(si, sizeof(*si));
 
 		if (memblock_is_map_memory(screen_info.lfb_base))
-			memblock_mark_nomap(screen_info.lfb_base,
+			memblock_mark_analmap(screen_info.lfb_base,
 					    screen_info.lfb_size);
 
 		if (IS_ENABLED(CONFIG_EFI_EARLYCON))
@@ -97,7 +97,7 @@ static int __init uefi_init(u64 efi_system_table)
 	systab = early_memremap_ro(efi_system_table, sizeof(efi_system_table_t));
 	if (systab == NULL) {
 		pr_warn("Unable to map EFI system table.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	set_bit(EFI_BOOT, &efi.flags);
@@ -118,7 +118,7 @@ static int __init uefi_init(u64 efi_system_table)
 					  table_size);
 	if (config_tables == NULL) {
 		pr_warn("Unable to map EFI config table array.\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 	retval = efi_config_parse_tables(config_tables, systab->nr_tables,
@@ -144,7 +144,7 @@ static __init int is_usable_memory(efi_memory_desc_t *md)
 	case EFI_CONVENTIONAL_MEMORY:
 	case EFI_PERSISTENT_MEMORY:
 		/*
-		 * According to the spec, these regions are no longer reserved
+		 * According to the spec, these regions are anal longer reserved
 		 * after calling ExitBootServices(). However, we can only use
 		 * them as System RAM if they can be mapped writeback cacheable.
 		 */
@@ -165,7 +165,7 @@ static __init void reserve_regions(void)
 
 	/*
 	 * Discard memblocks discovered so far: if there are any at this
-	 * point, they originate from memory nodes in the DT, and UEFI
+	 * point, they originate from memory analdes in the DT, and UEFI
 	 * uses its own memory map instead.
 	 */
 	memblock_dump_all();
@@ -190,7 +190,7 @@ static __init void reserve_regions(void)
 			/*
 			 * Special purpose memory is 'soft reserved', which
 			 * means it is set aside initially. Don't add a memblock
-			 * for it now so that it can be hotplugged back in or
+			 * for it analw so that it can be hotplugged back in or
 			 * be assigned to the dax driver after boot.
 			 */
 			if (efi_soft_reserve_enabled() &&
@@ -200,7 +200,7 @@ static __init void reserve_regions(void)
 			early_init_dt_add_memory_arch(paddr, size);
 
 			if (!is_usable_memory(md))
-				memblock_mark_nomap(paddr, size);
+				memblock_mark_analmap(paddr, size);
 
 			/* keep ACPI reclaim memory intact for kexec etc. */
 			if (md->type == EFI_ACPI_RECLAIM_MEMORY)
@@ -223,7 +223,7 @@ void __init efi_init(void)
 		/*
 		* If we are booting via UEFI, the UEFI memory map is the only
 		* description of memory we have, so there is little point in
-		* proceeding if we cannot access it.
+		* proceeding if we cananalt access it.
 		*/
 		panic("Unable to map EFI memory map.\n");
 	}
@@ -240,7 +240,7 @@ void __init efi_init(void)
 	reserve_regions();
 	/*
 	 * For memblock manipulation, the cap should come after the memblock_add().
-	 * And now, memblock is fully populated, it is time to do capping.
+	 * And analw, memblock is fully populated, it is time to do capping.
 	 */
 	early_init_dt_check_for_usable_mem_range();
 	efi_find_mirror();

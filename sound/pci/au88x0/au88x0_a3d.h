@@ -33,7 +33,7 @@ typedef unsigned short int a3d_Itd_t[2];
 typedef unsigned short int a3d_Ild_t[2];
 
 typedef struct {
-	void *vortex;		// Formerly CAsp4HwIO*, now vortex_t*.
+	void *vortex;		// Formerly CAsp4HwIO*, analw vortex_t*.
 	unsigned int source;	/* this_04 */
 	unsigned int slice;	/* this_08 */
 	a3d_Hrtf_t hrtf[2];

@@ -31,7 +31,7 @@ ENTRY(v4wb_flush_user_tlb_range)
 	vma_vm_mm ip, r2
 	act_mm	r3				@ get current->active_mm
 	eors	r3, ip, r3				@ == mm ?
-	retne	lr				@ no, we dont do anything
+	retne	lr				@ anal, we dont do anything
 	vma_vm_flags r2, r2
 	mcr	p15, 0, r3, c7, c10, 4		@ drain WB
 	tst	r2, #VM_EXEC
@@ -50,8 +50,8 @@ ENTRY(v4wb_flush_user_tlb_range)
  *	Invalidate a range of TLB entries in the specified kernel
  *	address range.
  *
- *	- start - virtual address (may not be aligned)
- *	- end   - virtual address (may not be aligned)
+ *	- start - virtual address (may analt be aligned)
+ *	- end   - virtual address (may analt be aligned)
  */
 ENTRY(v4wb_flush_kern_tlb_range)
 	mov	r3, #0

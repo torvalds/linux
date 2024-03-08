@@ -15,9 +15,9 @@ static double __value(YYSTYPE *yylval, char *str, int token)
 {
 	double num;
 
-	errno = 0;
+	erranal = 0;
 	num = strtod(str, NULL);
-	if (errno)
+	if (erranal)
 		return EXPR_ERROR;
 
 	yylval->num = num;
@@ -34,9 +34,9 @@ static int value(yyscan_t scanner)
 
 /*
  * Allow @ instead of / to be able to specify pmu/event/ without
- * conflicts with normal division.
+ * conflicts with analrmal division.
  */
-static char *normalize(char *str, int runtime)
+static char *analrmalize(char *str, int runtime)
 {
 	char *ret = str;
 	char *dst = str;
@@ -74,11 +74,11 @@ static int str(yyscan_t scanner, int token, int runtime)
 	YYSTYPE *yylval = expr_get_lval(scanner);
 	char *text = expr_get_text(scanner);
 
-	yylval->str = normalize(strdup(text), runtime);
+	yylval->str = analrmalize(strdup(text), runtime);
 	if (!yylval->str)
 		return EXPR_ERROR;
 
-	yylval->str = normalize(yylval->str, runtime);
+	yylval->str = analrmalize(yylval->str, runtime);
 	return token;
 }
 

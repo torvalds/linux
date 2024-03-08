@@ -6,7 +6,7 @@
 
 #include <linux/devm-helpers.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/mod_devicetable.h>
@@ -27,8 +27,8 @@ struct da906x_chip_config {
 	int onkey_fault_log;
 	int onkey_shutdown;
 	/* MASKS */
-	int onkey_nonkey_mask;
-	int onkey_nonkey_lock_mask;
+	int onkey_analnkey_mask;
+	int onkey_analnkey_lock_mask;
 	int onkey_key_reset_mask;
 	int onkey_shutdown_mask;
 	/* NAMES */
@@ -52,8 +52,8 @@ static const struct da906x_chip_config da9063_regs = {
 	.onkey_fault_log = DA9063_REG_FAULT_LOG,
 	.onkey_shutdown = DA9063_REG_CONTROL_F,
 	/* MASKS */
-	.onkey_nonkey_mask = DA9063_NONKEY,
-	.onkey_nonkey_lock_mask = DA9063_NONKEY_LOCK,
+	.onkey_analnkey_mask = DA9063_ANALNKEY,
+	.onkey_analnkey_lock_mask = DA9063_ANALNKEY_LOCK,
 	.onkey_key_reset_mask = DA9063_KEY_RESET,
 	.onkey_shutdown_mask = DA9063_SHUTDOWN,
 	/* NAMES */
@@ -67,8 +67,8 @@ static const struct da906x_chip_config da9062_regs = {
 	.onkey_fault_log = DA9062AA_FAULT_LOG,
 	.onkey_shutdown = DA9062AA_CONTROL_F,
 	/* MASKS */
-	.onkey_nonkey_mask = DA9062AA_NONKEY_MASK,
-	.onkey_nonkey_lock_mask = DA9062AA_NONKEY_LOCK_MASK,
+	.onkey_analnkey_mask = DA9062AA_ANALNKEY_MASK,
+	.onkey_analnkey_lock_mask = DA9062AA_ANALNKEY_LOCK_MASK,
 	.onkey_key_reset_mask = DA9062AA_KEY_RESET_MASK,
 	.onkey_shutdown_mask = DA9062AA_SHUTDOWN_MASK,
 	/* NAMES */
@@ -96,10 +96,10 @@ static void da9063_poll_on(struct work_struct *work)
 		goto err_poll;
 	}
 
-	if (!(val & config->onkey_nonkey_mask)) {
+	if (!(val & config->onkey_analnkey_mask)) {
 		error = regmap_update_bits(onkey->regmap,
 					   config->onkey_pwr_signalling,
-					   config->onkey_nonkey_lock_mask,
+					   config->onkey_analnkey_lock_mask,
 					   0);
 		if (error) {
 			dev_err(onkey->dev,
@@ -122,14 +122,14 @@ static void da9063_poll_on(struct work_struct *work)
 			    &fault_log);
 	if (error) {
 		dev_warn(&onkey->input->dev,
-			 "Cannot read FAULT_LOG: %d\n", error);
+			 "Cananalt read FAULT_LOG: %d\n", error);
 	} else if (fault_log & config->onkey_key_reset_mask) {
 		error = regmap_write(onkey->regmap,
 				     config->onkey_fault_log,
 				     config->onkey_key_reset_mask);
 		if (error) {
 			dev_warn(&onkey->input->dev,
-				 "Cannot reset KEY_RESET fault log: %d\n",
+				 "Cananalt reset KEY_RESET fault log: %d\n",
 				 error);
 		} else {
 			/* at this point we do any S/W housekeeping
@@ -142,7 +142,7 @@ static void da9063_poll_on(struct work_struct *work)
 					     config->onkey_shutdown_mask);
 			if (error)
 				dev_err(&onkey->input->dev,
-					"Cannot SHUTDOWN PMIC: %d\n",
+					"Cananalt SHUTDOWN PMIC: %d\n",
 					error);
 		}
 	}
@@ -162,7 +162,7 @@ static irqreturn_t da9063_onkey_irq_handler(int irq, void *data)
 	error = regmap_read(onkey->regmap,
 			    config->onkey_status,
 			    &val);
-	if (onkey->key_power && !error && (val & config->onkey_nonkey_mask)) {
+	if (onkey->key_power && !error && (val & config->onkey_analnkey_mask)) {
 		input_report_key(onkey->input, KEY_POWER, 1);
 		input_sync(onkey->input);
 		schedule_delayed_work(&onkey->work, 0);
@@ -187,7 +187,7 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 	onkey = devm_kzalloc(&pdev->dev, sizeof(struct da9063_onkey),
 			     GFP_KERNEL);
 	if (!onkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	onkey->config = device_get_match_data(&pdev->dev);
 	if (!onkey->config)
@@ -205,7 +205,7 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 
 	onkey->input = devm_input_allocate_device(&pdev->dev);
 	if (!onkey->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	onkey->input->name = onkey->config->name;
 	snprintf(onkey->phys, sizeof(onkey->phys), "%s/input0",

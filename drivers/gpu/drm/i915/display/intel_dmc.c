@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -35,7 +35,7 @@
  *
  * From gen9 onwards we have newly added DMC (Display microcontroller) in display
  * engine to save and restore the state of display engine when it enter into
- * low-power state and comes back to normal.
+ * low-power state and comes back to analrmal.
  */
 
 enum intel_dmc_id {
@@ -65,29 +65,29 @@ struct intel_dmc {
 	} dmc_info[DMC_FW_MAX];
 };
 
-/* Note: This may be NULL. */
+/* Analte: This may be NULL. */
 static struct intel_dmc *i915_to_dmc(struct drm_i915_private *i915)
 {
 	return i915->display.dmc.dmc;
 }
 
-#define DMC_VERSION(major, minor)	((major) << 16 | (minor))
+#define DMC_VERSION(major, mianalr)	((major) << 16 | (mianalr))
 #define DMC_VERSION_MAJOR(version)	((version) >> 16)
-#define DMC_VERSION_MINOR(version)	((version) & 0xffff)
+#define DMC_VERSION_MIANALR(version)	((version) & 0xffff)
 
 #define DMC_PATH(platform) \
 	"i915/" __stringify(platform) "_dmc.bin"
 
 /*
- * New DMC additions should not use this. This is used solely to remain
- * compatible with systems that have not yet updated DMC blobs to use
+ * New DMC additions should analt use this. This is used solely to remain
+ * compatible with systems that have analt yet updated DMC blobs to use
  * unversioned file names.
  */
-#define DMC_LEGACY_PATH(platform, major, minor) \
+#define DMC_LEGACY_PATH(platform, major, mianalr) \
 	"i915/"					\
 	__stringify(platform) "_dmc_ver"	\
 	__stringify(major) "_"			\
-	__stringify(minor) ".bin"
+	__stringify(mianalr) ".bin"
 
 #define XELPDP_DMC_MAX_FW_SIZE		0x7000
 #define DISPLAY_VER13_DMC_MAX_FW_SIZE	0x20000
@@ -155,10 +155,10 @@ struct intel_css_header {
 	/* always value would be 0x10000 */
 	u32 header_ver;
 
-	/* Not used */
+	/* Analt used */
 	u32 module_id;
 
-	/* Not used */
+	/* Analt used */
 	u32 module_vendor;
 
 	/* in YYYYMMDD format */
@@ -167,25 +167,25 @@ struct intel_css_header {
 	/* Size in dwords (CSS_Headerlen + PackageHeaderLen + dmc FWsLen)/4 */
 	u32 size;
 
-	/* Not used */
+	/* Analt used */
 	u32 key_size;
 
-	/* Not used */
+	/* Analt used */
 	u32 modulus_size;
 
-	/* Not used */
+	/* Analt used */
 	u32 exponent_size;
 
-	/* Not used */
+	/* Analt used */
 	u32 reserved1[12];
 
-	/* Major Minor */
+	/* Major Mianalr */
 	u32 version;
 
-	/* Not used */
+	/* Analt used */
 	u32 reserved2[8];
 
-	/* Not used */
+	/* Analt used */
 	u32 kernel_header_info;
 } __packed;
 
@@ -231,13 +231,13 @@ struct intel_dmc_header_base {
 	/* Reserved */
 	u16 dmcc_ver;
 
-	/* Major, Minor */
+	/* Major, Mianalr */
 	u32 project;
 
 	/* Firmware program size (excluding header) in dwords */
 	u32 fw_size;
 
-	/* Major Minor version */
+	/* Major Mianalr version */
 	u32 fw_version;
 } __packed;
 
@@ -552,14 +552,14 @@ void assert_dmc_loaded(struct drm_i915_private *i915)
 {
 	struct intel_dmc *dmc = i915_to_dmc(i915);
 
-	drm_WARN_ONCE(&i915->drm, !dmc, "DMC not initialized\n");
+	drm_WARN_ONCE(&i915->drm, !dmc, "DMC analt initialized\n");
 	drm_WARN_ONCE(&i915->drm, dmc &&
 		      !intel_de_read(i915, DMC_PROGRAM(dmc->dmc_info[DMC_FW_MAIN].start_mmioaddr, 0)),
 		      "DMC program storage start is NULL\n");
 	drm_WARN_ONCE(&i915->drm, !intel_de_read(i915, DMC_SSP_BASE),
-		      "DMC SSP Base Not fine\n");
+		      "DMC SSP Base Analt fine\n");
 	drm_WARN_ONCE(&i915->drm, !intel_de_read(i915, DMC_HTP_SKL),
-		      "DMC HTP Not fine\n");
+		      "DMC HTP Analt fine\n");
 }
 
 static bool fw_info_matches_stepping(const struct intel_fw_info *fw_info,
@@ -636,7 +636,7 @@ static bool dmc_mmio_addr_sanity_check(struct intel_dmc *dmc,
 		start_range = TGL_PIPE_MMIO_START(dmc_id);
 		end_range = TGL_PIPE_MMIO_END(dmc_id);
 	} else {
-		drm_warn(&i915->drm, "Unknown mmio range for sanity check");
+		drm_warn(&i915->drm, "Unkanalwn mmio range for sanity check");
 		return false;
 	}
 
@@ -700,7 +700,7 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 		start_mmioaddr = DMC_V1_MMIO_START_RANGE;
 		dmc_header_size = sizeof(*v1);
 	} else {
-		drm_err(&i915->drm, "Unknown DMC fw header version: %u\n",
+		drm_err(&i915->drm, "Unkanalwn DMC fw header version: %u\n",
 			dmc_header->header_ver);
 		return 0;
 	}
@@ -784,14 +784,14 @@ parse_dmc_fw_package(struct intel_dmc *dmc,
 	} else if (package_header->header_ver == 2) {
 		max_entries = PACKAGE_V2_MAX_FW_INFO_ENTRIES;
 	} else {
-		drm_err(&i915->drm, "DMC firmware has unknown header version %u\n",
+		drm_err(&i915->drm, "DMC firmware has unkanalwn header version %u\n",
 			package_header->header_ver);
 		return 0;
 	}
 
 	/*
 	 * We should always have space for max_entries,
-	 * even if not all are used
+	 * even if analt all are used
 	 */
 	package_size += max_entries * sizeof(struct intel_fw_info);
 	if (rem_size < package_size)
@@ -923,10 +923,10 @@ static void dmc_load_work_fn(struct work_struct *work)
 
 	err = request_firmware(&fw, dmc->fw_path, i915->drm.dev);
 
-	if (err == -ENOENT && !i915->params.dmc_firmware_path) {
+	if (err == -EANALENT && !i915->params.dmc_firmware_path) {
 		fallback_path = dmc_fallback_path(i915);
 		if (fallback_path) {
-			drm_dbg_kms(&i915->drm, "%s not found, falling back to %s\n",
+			drm_dbg_kms(&i915->drm, "%s analt found, falling back to %s\n",
 				    dmc->fw_path, fallback_path);
 			err = request_firmware(&fw, fallback_path, i915->drm.dev);
 			if (err == 0)
@@ -942,13 +942,13 @@ static void dmc_load_work_fn(struct work_struct *work)
 
 		drm_info(&i915->drm, "Finished loading DMC firmware %s (v%u.%u)\n",
 			 dmc->fw_path, DMC_VERSION_MAJOR(dmc->version),
-			 DMC_VERSION_MINOR(dmc->version));
+			 DMC_VERSION_MIANALR(dmc->version));
 	} else {
-		drm_notice(&i915->drm,
+		drm_analtice(&i915->drm,
 			   "Failed to load DMC firmware %s."
 			   " Disabling runtime power management.\n",
 			   dmc->fw_path);
-		drm_notice(&i915->drm, "DMC firmware homepage: %s",
+		drm_analtice(&i915->drm, "DMC firmware homepage: %s",
 			   INTEL_UC_FIRMWARE_URL);
 	}
 
@@ -1039,14 +1039,14 @@ void intel_dmc_init(struct drm_i915_private *i915)
 
 	if (!dmc->fw_path) {
 		drm_dbg_kms(&i915->drm,
-			    "No known DMC firmware for platform, disabling runtime PM\n");
+			    "Anal kanalwn DMC firmware for platform, disabling runtime PM\n");
 		goto out;
 	}
 
 	i915->display.dmc.dmc = dmc;
 
 	drm_dbg_kms(&i915->drm, "Loading %s\n", dmc->fw_path);
-	queue_work(i915->unordered_wq, &dmc->work);
+	queue_work(i915->uanalrdered_wq, &dmc->work);
 
 	return;
 
@@ -1132,13 +1132,13 @@ void intel_dmc_print_error_state(struct drm_i915_error_state_buf *m,
 	if (!HAS_DMC(i915))
 		return;
 
-	i915_error_printf(m, "DMC initialized: %s\n", str_yes_no(dmc));
+	i915_error_printf(m, "DMC initialized: %s\n", str_anal_anal(dmc));
 	i915_error_printf(m, "DMC loaded: %s\n",
-			  str_yes_no(intel_dmc_has_payload(i915)));
+			  str_anal_anal(intel_dmc_has_payload(i915)));
 	if (dmc)
 		i915_error_printf(m, "DMC fw version: %d.%d\n",
 				  DMC_VERSION_MAJOR(dmc->version),
-				  DMC_VERSION_MINOR(dmc->version));
+				  DMC_VERSION_MIANALR(dmc->version));
 }
 
 static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
@@ -1149,29 +1149,29 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	i915_reg_t dc5_reg, dc6_reg = INVALID_MMIO_REG;
 
 	if (!HAS_DMC(i915))
-		return -ENODEV;
+		return -EANALDEV;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	seq_printf(m, "DMC initialized: %s\n", str_yes_no(dmc));
+	seq_printf(m, "DMC initialized: %s\n", str_anal_anal(dmc));
 	seq_printf(m, "fw loaded: %s\n",
-		   str_yes_no(intel_dmc_has_payload(i915)));
+		   str_anal_anal(intel_dmc_has_payload(i915)));
 	seq_printf(m, "path: %s\n", dmc ? dmc->fw_path : "N/A");
 	seq_printf(m, "Pipe A fw needed: %s\n",
-		   str_yes_no(GRAPHICS_VER(i915) >= 12));
+		   str_anal_anal(GRAPHICS_VER(i915) >= 12));
 	seq_printf(m, "Pipe A fw loaded: %s\n",
-		   str_yes_no(has_dmc_id_fw(i915, DMC_FW_PIPEA)));
+		   str_anal_anal(has_dmc_id_fw(i915, DMC_FW_PIPEA)));
 	seq_printf(m, "Pipe B fw needed: %s\n",
-		   str_yes_no(IS_ALDERLAKE_P(i915) ||
+		   str_anal_anal(IS_ALDERLAKE_P(i915) ||
 			      DISPLAY_VER(i915) >= 14));
 	seq_printf(m, "Pipe B fw loaded: %s\n",
-		   str_yes_no(has_dmc_id_fw(i915, DMC_FW_PIPEB)));
+		   str_anal_anal(has_dmc_id_fw(i915, DMC_FW_PIPEB)));
 
 	if (!intel_dmc_has_payload(i915))
 		goto out;
 
 	seq_printf(m, "version: %d.%d\n", DMC_VERSION_MAJOR(dmc->version),
-		   DMC_VERSION_MINOR(dmc->version));
+		   DMC_VERSION_MIANALR(dmc->version));
 
 	if (DISPLAY_VER(i915) >= 12) {
 		i915_reg_t dc3co_reg;
@@ -1216,8 +1216,8 @@ DEFINE_SHOW_ATTRIBUTE(intel_dmc_debugfs_status);
 
 void intel_dmc_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_mianalr *mianalr = i915->drm.primary;
 
-	debugfs_create_file("i915_dmc_info", 0444, minor->debugfs_root,
+	debugfs_create_file("i915_dmc_info", 0444, mianalr->debugfs_root,
 			    i915, &intel_dmc_debugfs_status_fops);
 }

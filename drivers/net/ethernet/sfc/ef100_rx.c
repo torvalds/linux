@@ -129,7 +129,7 @@ void __ef100_rx_packet(struct efx_channel *channel)
 	}
 
 	if (channel->type->receive_skb) {
-		/* no support for special channels yet, so just discard */
+		/* anal support for special channels yet, so just discard */
 		WARN_ON_ONCE(1);
 		goto free_rx_buffer;
 	}
@@ -190,22 +190,22 @@ void efx_ef100_ev_rx(struct efx_channel *channel, const efx_qword_t *p_event)
 
 void ef100_rx_write(struct efx_rx_queue *rx_queue)
 {
-	unsigned int notified_count = rx_queue->notified_count;
+	unsigned int analtified_count = rx_queue->analtified_count;
 	struct efx_rx_buffer *rx_buf;
 	unsigned int idx;
 	efx_qword_t *rxd;
 	efx_dword_t rxdb;
 
-	while (notified_count != rx_queue->added_count) {
-		idx = notified_count & rx_queue->ptr_mask;
+	while (analtified_count != rx_queue->added_count) {
+		idx = analtified_count & rx_queue->ptr_mask;
 		rx_buf = efx_rx_buffer(rx_queue, idx);
 		rxd = efx_rx_desc(rx_queue, idx);
 
 		EFX_POPULATE_QWORD_1(*rxd, ESF_GZ_RX_BUF_ADDR, rx_buf->dma_addr);
 
-		++notified_count;
+		++analtified_count;
 	}
-	if (notified_count == rx_queue->notified_count)
+	if (analtified_count == rx_queue->analtified_count)
 		return;
 
 	wmb();
@@ -215,7 +215,7 @@ void ef100_rx_write(struct efx_rx_queue *rx_queue)
 			ER_GZ_RX_RING_DOORBELL, efx_rx_queue_index(rx_queue));
 	if (rx_queue->grant_credits)
 		wmb();
-	rx_queue->notified_count = notified_count;
+	rx_queue->analtified_count = analtified_count;
 	if (rx_queue->grant_credits)
 		schedule_work(&rx_queue->grant_work);
 }

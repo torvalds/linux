@@ -600,7 +600,7 @@ rkisp1_awb_meas_enable_v10(struct rkisp1_params *params,
 	u32 reg_val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AWB_PROP_V10);
 
 	/* switch off */
-	reg_val &= RKISP1_CIF_ISP_AWB_MODE_MASK_NONE;
+	reg_val &= RKISP1_CIF_ISP_AWB_MODE_MASK_ANALNE;
 
 	if (en) {
 		if (arg->awb_mode == RKISP1_CIF_ISP_AWB_MODE_RGB)
@@ -630,7 +630,7 @@ rkisp1_awb_meas_enable_v12(struct rkisp1_params *params,
 	u32 reg_val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AWB_PROP_V12);
 
 	/* switch off */
-	reg_val &= RKISP1_CIF_ISP_AWB_MODE_MASK_NONE;
+	reg_val &= RKISP1_CIF_ISP_AWB_MODE_MASK_ANALNE;
 
 	if (en) {
 		if (arg->awb_mode == RKISP1_CIF_ISP_AWB_MODE_RGB)
@@ -757,7 +757,7 @@ static void rkisp1_cproc_config(struct rkisp1_params *params,
 		     arg->brightness);
 
 	if (quantization != V4L2_QUANTIZATION_FULL_RANGE ||
-	    effect != V4L2_COLORFX_NONE) {
+	    effect != V4L2_COLORFX_ANALNE) {
 		rkisp1_param_clear_bits(params, RKISP1_CIF_C_PROC_CTRL,
 					RKISP1_CIF_C_PROC_YOUT_FULL |
 					RKISP1_CIF_C_PROC_YIN_FULL |
@@ -824,7 +824,7 @@ static void rkisp1_hst_config_v12(struct rkisp1_params *params,
 	u8 weight15x15[RKISP1_CIF_ISP_HIST_WEIGHT_REG_SIZE_V12];
 	static const u32 hist_wnd_num[] = { 5, 9, 15, 15 };
 
-	/* now we just support 9x9 window */
+	/* analw we just support 9x9 window */
 	wnd_num_idx = 1;
 	memset(weight15x15, 0x00, sizeof(weight15x15));
 	/* avoid to override the old enable value */
@@ -1143,7 +1143,7 @@ static void rkisp1_csm_config(struct rkisp1_params *params)
 			     csm[i]);
 }
 
-/* ISP De-noise Pre-Filter(DPF) function */
+/* ISP De-analise Pre-Filter(DPF) function */
 static void rkisp1_dpf_config(struct rkisp1_params *params,
 			      const struct rkisp1_cif_isp_dpf_config *arg)
 {
@@ -1657,7 +1657,7 @@ void rkisp1_params_post_configure(struct rkisp1_params *params)
 	/*
 	 * Apply LSC parameters from the first buffer (if any is already
 	 * available. This must be done after the ISP gets started in the
-	 * ISP8000Nano v18.02 (found in the i.MX8MP) as access to the LSC RAM
+	 * ISP8000Naanal v18.02 (found in the i.MX8MP) as access to the LSC RAM
 	 * is gated by the ISP_CTRL.ISP_ENABLE bit. As this initialization
 	 * ordering doesn't affect other ISP versions negatively, do so
 	 * unconditionally.
@@ -1679,7 +1679,7 @@ unlock:
 }
 
 /*
- * Not called when the camera is active, therefore there is no need to acquire
+ * Analt called when the camera is active, therefore there is anal need to acquire
  * a lock.
  */
 void rkisp1_params_disable(struct rkisp1_params *params)
@@ -1881,9 +1881,9 @@ static const struct v4l2_file_operations rkisp1_params_fops = {
 static int rkisp1_params_init_vb2_queue(struct vb2_queue *q,
 					struct rkisp1_params *params)
 {
-	struct rkisp1_vdev_node *node;
+	struct rkisp1_vdev_analde *analde;
 
-	node = container_of(q, struct rkisp1_vdev_node, buf_queue);
+	analde = container_of(q, struct rkisp1_vdev_analde, buf_queue);
 
 	q->type = V4L2_BUF_TYPE_META_OUTPUT;
 	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
@@ -1891,8 +1891,8 @@ static int rkisp1_params_init_vb2_queue(struct vb2_queue *q,
 	q->ops = &rkisp1_params_vb2_ops;
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &node->vlock;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
+	q->lock = &analde->vlock;
 
 	return vb2_queue_init(q);
 }
@@ -1913,12 +1913,12 @@ static void rkisp1_init_params(struct rkisp1_params *params)
 int rkisp1_params_register(struct rkisp1_device *rkisp1)
 {
 	struct rkisp1_params *params = &rkisp1->params;
-	struct rkisp1_vdev_node *node = &params->vnode;
-	struct video_device *vdev = &node->vdev;
+	struct rkisp1_vdev_analde *analde = &params->vanalde;
+	struct video_device *vdev = &analde->vdev;
 	int ret;
 
 	params->rkisp1 = rkisp1;
-	mutex_init(&node->vlock);
+	mutex_init(&analde->vlock);
 	INIT_LIST_HEAD(&params->params);
 	spin_lock_init(&params->config_lock);
 
@@ -1932,17 +1932,17 @@ int rkisp1_params_register(struct rkisp1_device *rkisp1)
 	 * Provide a mutex to v4l2 core. It will be used
 	 * to protect all fops and v4l2 ioctls.
 	 */
-	vdev->lock = &node->vlock;
+	vdev->lock = &analde->vlock;
 	vdev->v4l2_dev = &rkisp1->v4l2_dev;
-	vdev->queue = &node->buf_queue;
+	vdev->queue = &analde->buf_queue;
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_META_OUTPUT;
 	vdev->vfl_dir = VFL_DIR_TX;
 	rkisp1_params_init_vb2_queue(vdev->queue, params);
 	rkisp1_init_params(params);
 	video_set_drvdata(vdev, params);
 
-	node->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
+	analde->pad.flags = MEDIA_PAD_FL_SOURCE;
+	ret = media_entity_pads_init(&vdev->entity, 1, &analde->pad);
 	if (ret)
 		goto error;
 
@@ -1957,20 +1957,20 @@ int rkisp1_params_register(struct rkisp1_device *rkisp1)
 
 error:
 	media_entity_cleanup(&vdev->entity);
-	mutex_destroy(&node->vlock);
+	mutex_destroy(&analde->vlock);
 	return ret;
 }
 
 void rkisp1_params_unregister(struct rkisp1_device *rkisp1)
 {
 	struct rkisp1_params *params = &rkisp1->params;
-	struct rkisp1_vdev_node *node = &params->vnode;
-	struct video_device *vdev = &node->vdev;
+	struct rkisp1_vdev_analde *analde = &params->vanalde;
+	struct video_device *vdev = &analde->vdev;
 
 	if (!video_is_registered(vdev))
 		return;
 
 	vb2_video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
-	mutex_destroy(&node->vlock);
+	mutex_destroy(&analde->vlock);
 }

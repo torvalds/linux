@@ -8,7 +8,7 @@
 #include "reg.h"
 
 
-/* Non volatile GPR - unsigned long buf[18] */
+/* Analn volatile GPR - unsigned long buf[18] */
 FUNC_START(load_gpr)
 	ld	14, 0*8(3)
 	ld	15, 1*8(3)

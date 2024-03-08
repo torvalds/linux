@@ -30,7 +30,7 @@ The following are mandatory properties for OMAP, AM33xx and AM43xx SoCs only:
 - ti,hwmods:	Name of the hwmods associated to the eDMA CC.
 
 The following are mandatory properties for 66AK2G SoCs only:
-- power-domains:Should contain a phandle to a PM domain provider node
+- power-domains:Should contain a phandle to a PM domain provider analde
 		and an args specifier containing the device id
 		value. This property is as per the binding,
 		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
@@ -39,7 +39,7 @@ Optional properties:
 -------------------
 - ti,edma-memcpy-channels: List of channels allocated to be used for memcpy, iow
 		these channels will be SW triggered channels. See example.
-- ti,edma-reserved-slot-ranges: PaRAM slot ranges which should not be used by
+- ti,edma-reserved-slot-ranges: PaRAM slot ranges which should analt be used by
 		the driver, they are allocated to be used by for example the
 		DSP. See example.
 - dma-channel-mask: Mask of usable channels.
@@ -67,7 +67,7 @@ The following are mandatory properties for OMAP, AM33xx and AM43xx SoCs only:
 - ti,hwmods:	Name of the hwmods associated to the eDMA TC.
 
 The following are mandatory properties for 66AK2G SoCs only:
-- power-domains:Should contain a phandle to a PM domain provider node
+- power-domains:Should contain a phandle to a PM domain provider analde
 		and an args specifier containing the device id
 		value. This property is as per the binding,
 		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
@@ -193,7 +193,7 @@ mmc0: mmc@23000000 {
 	dma-names = "tx", "rx";
 	bus-width = <4>;
 	ti,needs-special-reset;
-	no-1-8-v;
+	anal-1-8-v;
 	max-frequency = <96000000>;
 	power-domains = <&k2g_pds 0xb>;
 	clocks = <&k2g_clks 0xb 1>, <&k2g_clks 0xb 2>;

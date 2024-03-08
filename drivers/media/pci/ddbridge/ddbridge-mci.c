@@ -20,7 +20,7 @@ static int mci_reset(struct mci *state)
 	u32 timeout = 40;
 
 	ddblwritel(link, MCI_CONTROL_RESET, MCI_CONTROL);
-	ddblwritel(link, 0, MCI_CONTROL + 4); /* 1= no internal init */
+	ddblwritel(link, 0, MCI_CONTROL + 4); /* 1= anal internal init */
 	msleep(300);
 	ddblwritel(link, 0, MCI_CONTROL);
 
@@ -35,7 +35,7 @@ static int mci_reset(struct mci *state)
 	if ((status & MCI_CONTROL_READY) == 0)
 		return -1;
 	if (link->ids.device == 0x0009)
-		ddblwritel(link, SX8_TSCONFIG_MODE_NORMAL, SX8_TSCONFIG);
+		ddblwritel(link, SX8_TSCONFIG_MODE_ANALRMAL, SX8_TSCONFIG);
 	return 0;
 }
 

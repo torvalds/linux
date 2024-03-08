@@ -74,7 +74,7 @@ int ia_css_queue_uninit(
  * @param[in]  item.    Object to be enqueued.
  * @return     0       - Successful enqueue.
  * @return     -EINVAL  - Invalid argument.
- * @return     -ENOBUFS - Queue is full.
+ * @return     -EANALBUFS - Queue is full.
  *
  */
 int ia_css_queue_enqueue(
@@ -88,7 +88,7 @@ int ia_css_queue_enqueue(
 
  * @return     0       - Successful dequeue.
  * @return     -EINVAL  - Invalid argument.
- * @return     -ENODATA - Queue is empty.
+ * @return     -EANALDATA - Queue is empty.
  *
  */
 int ia_css_queue_dequeue(
@@ -98,10 +98,10 @@ int ia_css_queue_dequeue(
 /* @brief Check if the queue is empty
  *
  * @param[in]  qhandle.  Handle to queue instance
- * @param[in]  is_empty  True if empty, False if not.
+ * @param[in]  is_empty  True if empty, False if analt.
  * @return     0       - Successful access state.
  * @return     -EINVAL  - Invalid argument.
- * @return     -ENOSYS  - Function not implemented.
+ * @return     -EANALSYS  - Function analt implemented.
  *
  */
 int ia_css_queue_is_empty(
@@ -111,10 +111,10 @@ int ia_css_queue_is_empty(
 /* @brief Check if the queue is full
  *
  * @param[in]  qhandle.  Handle to queue instance
- * @param[in]  is_full   True if Full, False if not.
+ * @param[in]  is_full   True if Full, False if analt.
  * @return     0       - Successfully access state.
  * @return     -EINVAL  - Invalid argument.
- * @return     -ENOSYS  - Function not implemented.
+ * @return     -EANALSYS  - Function analt implemented.
  *
  */
 int ia_css_queue_is_full(
@@ -166,7 +166,7 @@ int ia_css_queue_peek(
  * @param[out] size     Size value to be returned here.
  * @return     0       - Successful get size.
  * @return     -EINVAL  - Invalid argument.
- * @return     -ENOSYS  - Function not implemented.
+ * @return     -EANALSYS  - Function analt implemented.
  *
  */
 int ia_css_queue_get_size(

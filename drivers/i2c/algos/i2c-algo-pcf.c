@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pcf.h>
 #include "i2c-algo-pcf.h"
@@ -69,9 +69,9 @@ static void handle_lab(struct i2c_algo_pcf_data *adap, const int *status)
 		*status));
 	/*
 	 * Cleanup from LAB -- reset and enable ESO.
-	 * This resets the PCF8584; since we've lost the bus, no
+	 * This resets the PCF8584; since we've lost the bus, anal
 	 * further attempts should be made by callers to clean up
-	 * (no i2c_stop() etc.)
+	 * (anal i2c_stop() etc.)
 	 */
 	set_pcf(adap, 1, I2C_PCF_PIN);
 	set_pcf(adap, 1, I2C_PCF_ESO);
@@ -82,7 +82,7 @@ static void handle_lab(struct i2c_algo_pcf_data *adap, const int *status)
 	 * It is assumed the bus driver or client has set a proper value.
 	 *
 	 * REVISIT: should probably use msleep instead of mdelay if we
-	 * know we can sleep.
+	 * kanalw we can sleep.
 	 */
 	if (adap->lab_mdelay)
 		mdelay(adap->lab_mdelay);
@@ -142,7 +142,7 @@ static int wait_for_pin(struct i2c_algo_pcf_data *adap, int *status)
  * has been fulfilled.
  * There should be a delay at the end equal to the longest I2C message
  * to synchronize the BB-bit (in multimaster systems). How long is
- * this? I assume 1 second is always long enough.
+ * this? I assume 1 second is always long eanalugh.
  *
  * vdovikin: added detect code for PCF8584
  */
@@ -156,12 +156,12 @@ static int pcf_init_8584 (struct i2c_algo_pcf_data *adap)
 	/* S1=0x80: S0 selected, serial interface off */
 	set_pcf(adap, 1, I2C_PCF_PIN);
 	/*
-	 * check to see S1 now used as R/W ctrl -
+	 * check to see S1 analw used as R/W ctrl -
 	 * PCF8584 does that when ESO is zero
 	 */
 	if (((temp = get_pcf(adap, 1)) & 0x7f) != (0)) {
 		DEB2(printk(KERN_ERR "i2c-algo-pcf.o: PCF detection failed -- can't select S0 (0x%02x).\n", temp));
-		return -ENXIO; /* definitely not PCF8584 */
+		return -ENXIO; /* definitely analt PCF8584 */
 	}
 
 	/* load own address in S0, effective address is (own << 1) */
@@ -174,7 +174,7 @@ static int pcf_init_8584 (struct i2c_algo_pcf_data *adap)
 
 	/* S1=0xA0, next byte in S2 */
 	set_pcf(adap, 1, I2C_PCF_PIN | I2C_PCF_ES1);
-	/* check to see S2 now selected */
+	/* check to see S2 analw selected */
 	if (((temp = get_pcf(adap, 1)) & 0x7f) != I2C_PCF_ES1) {
 		DEB2(printk(KERN_ERR "i2c-algo-pcf.o: PCF detection failed -- can't select S2 (0x%02x).\n", temp));
 		return -ENXIO;
@@ -223,7 +223,7 @@ static int pcf_sendbytes(struct i2c_adapter *i2c_adap, const char *buf,
 		}
 		if (status & I2C_PCF_LRB) {
 			i2c_stop(adap);
-			dev_err(&i2c_adap->dev, "i2c_write: error - no ack.\n");
+			dev_err(&i2c_adap->dev, "i2c_write: error - anal ack.\n");
 			return -EREMOTEIO; /* got a better one ?? */
 		}
 	}
@@ -256,7 +256,7 @@ static int pcf_readbytes(struct i2c_adapter *i2c_adap, char *buf,
 
 		if ((status & I2C_PCF_LRB) && (i != count)) {
 			i2c_stop(adap);
-			dev_err(&i2c_adap->dev, "i2c_read: i2c_inb, No ack.\n");
+			dev_err(&i2c_adap->dev, "i2c_read: i2c_inb, Anal ack.\n");
 			return -1;
 		}
 
@@ -325,7 +325,7 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 		if (i == 0)
 			i2c_start(adap);
 
-		/* Wait for PIN (pending interrupt NOT) */
+		/* Wait for PIN (pending interrupt ANALT) */
 		timeout = wait_for_pin(adap, &status);
 		if (timeout) {
 			if (timeout == -EINTR) {
@@ -343,7 +343,7 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 		/* Check LRB (last rcvd bit - slave ack) */
 		if (status & I2C_PCF_LRB) {
 			i2c_stop(adap);
-			DEB2(printk(KERN_ERR "i2c-algo-pcf.o: No LRB(1) in pcf_xfer\n");)
+			DEB2(printk(KERN_ERR "i2c-algo-pcf.o: Anal LRB(1) in pcf_xfer\n");)
 			i = -EREMOTEIO;
 			goto out;
 		}
@@ -414,10 +414,10 @@ int i2c_pcf_add_bus(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL(i2c_pcf_add_bus);
 
-MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");
+MODULE_AUTHOR("Hans Berglund <hb@spacetec.anal>");
 MODULE_DESCRIPTION("I2C-Bus PCF8584 algorithm");
 MODULE_LICENSE("GPL");
 
 module_param(i2c_debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(i2c_debug,
-	"debug level - 0 off; 1 normal; 2,3 more verbose; 9 pcf-protocol");
+	"debug level - 0 off; 1 analrmal; 2,3 more verbose; 9 pcf-protocol");

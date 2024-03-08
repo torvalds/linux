@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,7 +48,7 @@
 #include "amdgpu_ras.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -139,7 +139,7 @@ static struct cmn2asic_msg_mapping smu_v13_0_7_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,                       0),
 	MSG_MAP(AllowGpo,			PPSMC_MSG_SetGpoAllow,           0),
 	MSG_MAP(GetPptLimit,			PPSMC_MSG_GetPptLimit,                 0),
-	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource,           0),
+	MSG_MAP(AnaltifyPowerSource,		PPSMC_MSG_AnaltifyPowerSource,           0),
 	MSG_MAP(EnableUCLKShadow,		PPSMC_MSG_EnableUCLKShadow,            0),
 };
 
@@ -460,7 +460,7 @@ static int smu_v13_0_7_setup_pptable(struct smu_context *smu)
 	int ret = 0;
 
 	/*
-	 * With SCPM enabled, the pptable used will be signed. It cannot
+	 * With SCPM enabled, the pptable used will be signed. It cananalt
 	 * be used directly by driver. To get the raw pptable, we need to
 	 * rely on the combo pptable(and its revelant SMU message).
 	 */
@@ -539,7 +539,7 @@ err2_out:
 err1_out:
 	kfree(smu_table->metrics_table);
 err0_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int smu_v13_0_7_allocate_dpm_context(struct smu_context *smu)
@@ -549,7 +549,7 @@ static int smu_v13_0_7_allocate_dpm_context(struct smu_context *smu)
 	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_13_0_dpm_context),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smu_dpm->dpm_context_size = sizeof(struct smu_13_0_dpm_context);
 
@@ -1008,7 +1008,7 @@ static int smu_v13_0_7_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1258,7 +1258,7 @@ static int smu_v13_0_7_print_clk_levels(struct smu_context *smu,
 			 *   - level 0 -> min clock freq
 			 *   - level 1 -> max clock freq
 			 * And the current clock frequency can be any value between them.
-			 * So, if the current clock frequency is not at level 0 or level 1,
+			 * So, if the current clock frequency is analt at level 0 or level 1,
 			 * we will fake it as three dpm levels:
 			 *   - level 0 -> min clock freq
 			 *   - level 1 -> current actual clock freq
@@ -1573,8 +1573,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (!smu_v13_0_7_is_od_feature_supported(smu, PP_OD_FEATURE_GFXCLK_BIT)) {
-			dev_warn(adev->dev, "GFXCLK_LIMITS setting not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(adev->dev, "GFXCLK_LIMITS setting analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		for (i = 0; i < size; i += 2) {
@@ -1634,8 +1634,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
 		if (!smu_v13_0_7_is_od_feature_supported(smu, PP_OD_FEATURE_UCLK_BIT)) {
-			dev_warn(adev->dev, "UCLK_LIMITS setting not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(adev->dev, "UCLK_LIMITS setting analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		for (i = 0; i < size; i += 2) {
@@ -1695,8 +1695,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_VDDGFX_OFFSET:
 		if (!smu_v13_0_7_is_od_feature_supported(smu, PP_OD_FEATURE_GFX_VF_CURVE_BIT)) {
-			dev_warn(adev->dev, "Gfx offset setting not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(adev->dev, "Gfx offset setting analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		smu_v13_0_7_get_od_setting_limits(smu,
@@ -1717,8 +1717,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_FAN_CURVE:
 		if (!smu_v13_0_7_is_od_feature_supported(smu, PP_OD_FEATURE_FAN_CURVE_BIT)) {
-			dev_warn(adev->dev, "Fan curve setting not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(adev->dev, "Fan curve setting analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		if (input[0] >= NUM_OD_FAN_MAX_POINTS - 1 ||
@@ -1755,8 +1755,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_ACOUSTIC_LIMIT:
 		if (!smu_v13_0_7_is_od_feature_supported(smu, PP_OD_FEATURE_FAN_CURVE_BIT)) {
-			dev_warn(adev->dev, "Fan curve setting not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(adev->dev, "Fan curve setting analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		smu_v13_0_7_get_od_setting_limits(smu,
@@ -1777,8 +1777,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_ACOUSTIC_TARGET:
 		if (!smu_v13_0_7_is_od_feature_supported(smu, PP_OD_FEATURE_FAN_CURVE_BIT)) {
-			dev_warn(adev->dev, "Fan curve setting not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(adev->dev, "Fan curve setting analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		smu_v13_0_7_get_od_setting_limits(smu,
@@ -1799,8 +1799,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_FAN_TARGET_TEMPERATURE:
 		if (!smu_v13_0_7_is_od_feature_supported(smu, PP_OD_FEATURE_FAN_CURVE_BIT)) {
-			dev_warn(adev->dev, "Fan curve setting not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(adev->dev, "Fan curve setting analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		smu_v13_0_7_get_od_setting_limits(smu,
@@ -1821,8 +1821,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_FAN_MINIMUM_PWM:
 		if (!smu_v13_0_7_is_od_feature_supported(smu, PP_OD_FEATURE_FAN_CURVE_BIT)) {
-			dev_warn(adev->dev, "Fan curve setting not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(adev->dev, "Fan curve setting analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		smu_v13_0_7_get_od_setting_limits(smu,
@@ -1860,8 +1860,8 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 		 * The member below instructs PMFW the settings focused in
 		 * this single operation.
 		 * `uint32_t FeatureCtrlMask;`
-		 * It does not contain actual informations about user's custom
-		 * settings. Thus we do not cache it.
+		 * It does analt contain actual informations about user's custom
+		 * settings. Thus we do analt cache it.
 		 */
 		offset_of_voltageoffset = offsetof(OverDriveTable_t, VoltageOffsetPerZoneBoundary);
 		if (memcmp((u8 *)od_table + offset_of_voltageoffset,
@@ -1890,7 +1890,7 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 		break;
 
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return ret;
@@ -2006,7 +2006,7 @@ static int smu_v13_0_7_get_thermal_temperature_range(struct smu_context *smu,
 	range->mem_emergency_max = (pptable->SkuTable.TemperatureLimit[TEMP_MEM] + CTF_OFFSET_MEM)*
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	range->software_shutdown_temp = powerplay_table->software_shutdown_temp;
-	range->software_shutdown_temp_offset = pptable->SkuTable.FanAbnormalTempLimitOffset;
+	range->software_shutdown_temp_offset = pptable->SkuTable.FanAbanalrmalTempLimitOffset;
 
 	return 0;
 }
@@ -2298,7 +2298,7 @@ static int smu_v13_0_7_enable_mgpu_fan_boost(struct smu_context *smu)
 
 	/*
 	 * Skip the MGpuFanBoost setting for those ASICs
-	 * which do not support it
+	 * which do analt support it
 	 */
 	if (skutable->MGpuAcousticLimitRpmThreshold == 0)
 		return 0;
@@ -2370,7 +2370,7 @@ static int smu_v13_0_7_get_power_profile_mode(struct smu_context *smu, char *buf
 					    sizeof(*activity_monitor_external),
 					    GFP_KERNEL);
 	if (!activity_monitor_external)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size += sysfs_emit_at(buf, size, "                              ");
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_WINDOW3D; i++)
@@ -2384,7 +2384,7 @@ static int smu_v13_0_7_get_power_profile_mode(struct smu_context *smu, char *buf
 		workload_type = smu_cmn_to_asic_specific_index(smu,
 							       CMN2ASIC_MAPPING_WORKLOAD,
 							       i);
-		if (workload_type == -ENOTSUPP)
+		if (workload_type == -EANALTSUPP)
 			continue;
 		else if (workload_type < 0) {
 			result = -EINVAL;
@@ -2507,7 +2507,7 @@ static int smu_v13_0_7_set_mp1_state(struct smu_context *smu,
 		ret = smu_cmn_set_mp1_state(smu, mp1_state);
 		break;
 	default:
-		/* Ignore others */
+		/* Iganalre others */
 		ret = 0;
 	}
 
@@ -2518,7 +2518,7 @@ static bool smu_v13_0_7_is_mode1_reset_supported(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	/* SRIOV does not support SMU mode1 reset */
+	/* SRIOV does analt support SMU mode1 reset */
 	if (amdgpu_sriov_vf(adev))
 		return false;
 
@@ -2623,7 +2623,7 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.register_irq_handler = smu_v13_0_register_irq_handler,
 	.enable_thermal_alert = smu_v13_0_enable_thermal_alert,
 	.disable_thermal_alert = smu_v13_0_disable_thermal_alert,
-	.notify_memory_pool_location = smu_v13_0_notify_memory_pool_location,
+	.analtify_memory_pool_location = smu_v13_0_analtify_memory_pool_location,
 	.get_gpu_metrics = smu_v13_0_7_get_gpu_metrics,
 	.set_soft_freq_limited_range = smu_v13_0_set_soft_freq_limited_range,
 	.set_default_od_settings = smu_v13_0_7_set_default_od_settings,

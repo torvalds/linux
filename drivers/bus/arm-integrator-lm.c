@@ -30,20 +30,20 @@
 
 static int integrator_lm_populate(int num, struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	u32 base;
 	int ret;
 
 	base = INTEGRATOR_AP_EXP_BASE + (num * INTEGRATOR_AP_EXP_STRIDE);
 
-	/* Walk over the child nodes and see what chipselects we use */
-	for_each_available_child_of_node(np, child) {
+	/* Walk over the child analdes and see what chipselects we use */
+	for_each_available_child_of_analde(np, child) {
 		struct resource res;
 
 		ret = of_address_to_resource(child, 0, &res);
 		if (ret) {
-			dev_info(dev, "no valid address on child\n");
+			dev_info(dev, "anal valid address on child\n");
 			continue;
 		}
 
@@ -54,7 +54,7 @@ static int integrator_lm_populate(int num, struct device *dev)
 			ret = of_platform_default_populate(child, NULL, dev);
 			if (ret) {
 				dev_err(dev, "failed to populate module\n");
-				of_node_put(child);
+				of_analde_put(child);
 				return ret;
 			}
 		}
@@ -71,29 +71,29 @@ static const struct of_device_id integrator_ap_syscon_match[] = {
 static int integrator_ap_lm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *syscon;
+	struct device_analde *syscon;
 	static struct regmap *map;
 	u32 val;
 	int ret;
 	int i;
 
 	/* Look up the system controller */
-	syscon = of_find_matching_node(NULL, integrator_ap_syscon_match);
+	syscon = of_find_matching_analde(NULL, integrator_ap_syscon_match);
 	if (!syscon) {
 		dev_err(dev,
-			"could not find Integrator/AP system controller\n");
-		return -ENODEV;
+			"could analt find Integrator/AP system controller\n");
+		return -EANALDEV;
 	}
-	map = syscon_node_to_regmap(syscon);
+	map = syscon_analde_to_regmap(syscon);
 	if (IS_ERR(map)) {
 		dev_err(dev,
-			"could not find Integrator/AP system controller\n");
+			"could analt find Integrator/AP system controller\n");
 		return PTR_ERR(map);
 	}
 
 	ret = regmap_read(map, INTEGRATOR_SC_DEC_OFFSET, &val);
 	if (ret) {
-		dev_err(dev, "could not read from Integrator/AP syscon\n");
+		dev_err(dev, "could analt read from Integrator/AP syscon\n");
 		return ret;
 	}
 

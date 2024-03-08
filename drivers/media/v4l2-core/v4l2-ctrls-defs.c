@@ -12,7 +12,7 @@
  * Returns NULL or a character pointer array containing the menu for
  * the given control ID. The pointer array ends with a NULL pointer.
  * An empty string signifies a menu entry that is invalid. This allows
- * drivers to disable certain options if it is not supported.
+ * drivers to disable certain options if it is analt supported.
  */
 const char * const *v4l2_ctrl_get_menu(u32 id)
 {
@@ -107,7 +107,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Stereo",
 		"Joint Stereo",
 		"Dual",
-		"Mono",
+		"Moanal",
 		NULL
 	};
 	static const char * const mpeg_audio_mode_extension[] = {
@@ -118,13 +118,13 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL
 	};
 	static const char * const mpeg_audio_emphasis[] = {
-		"No Emphasis",
+		"Anal Emphasis",
 		"50/15 us",
 		"CCITT J17",
 		NULL
 	};
 	static const char * const mpeg_audio_crc[] = {
-		"No CRC",
+		"Anal CRC",
 		"16-bit CRC",
 		NULL
 	};
@@ -133,7 +133,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Stereo",
 		"Left",
 		"Right",
-		"Mono",
+		"Moanal",
 		"Swapped Stereo",
 		NULL
 	};
@@ -166,7 +166,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL
 	};
 	static const char * const mpeg_stream_vbi_fmt[] = {
-		"No VBI",
+		"Anal VBI",
 		"Private Packet, IVTV Format",
 		NULL
 	};
@@ -193,13 +193,13 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	};
 	static const char * const camera_auto_focus_range[] = {
 		"Auto",
-		"Normal",
+		"Analrmal",
 		"Macro",
 		"Infinity",
 		NULL
 	};
 	static const char * const colorfx[] = {
-		"None",
+		"Analne",
 		"Black & White",
 		"Sepia",
 		"Negative",
@@ -236,9 +236,9 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL
 	};
 	static const char * const scene_mode[] = {
-		"None",
+		"Analne",
 		"Backlight",
-		"Beach/Snow",
+		"Beach/Sanalw",
 		"Candle Light",
 		"Dusk/Dawn",
 		"Fall Colors",
@@ -253,7 +253,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL
 	};
 	static const char * const tune_emphasis[] = {
-		"None",
+		"Analne",
 		"50 Microseconds",
 		"75 Microseconds",
 		NULL,
@@ -370,7 +370,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL,
 	};
 	static const char * const h264_start_code[] = {
-		"No Start Code",
+		"Anal Start Code",
 		"Annex B Start Code",
 		NULL,
 	};
@@ -488,7 +488,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Photo",
 		"Cinema",
 		"Game",
-		"No IT Content",
+		"Anal IT Content",
 		NULL,
 	};
 	static const char * const detect_md_mode[] = {
@@ -561,7 +561,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL,
 	};
 	static const char * const hevc_refresh_type[] = {
-		"None",
+		"Analne",
 		"CRA",
 		"IDR",
 		NULL,
@@ -590,7 +590,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL,
 	};
 	static const char * const hevc_start_code[] = {
-		"No Start Code",
+		"Anal Start Code",
 		"Annex B Start Code",
 		NULL,
 	};
@@ -920,7 +920,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_H264_FMO_SLICE_GROUP:		return "H264 FMO Number of Slice Groups";
 	case V4L2_CID_MPEG_VIDEO_H264_FMO_CHANGE_DIRECTION:	return "H264 FMO Direction of Change";
 	case V4L2_CID_MPEG_VIDEO_H264_FMO_CHANGE_RATE:		return "H264 FMO Size of 1st Slice Grp";
-	case V4L2_CID_MPEG_VIDEO_H264_FMO_RUN_LENGTH:		return "H264 FMO No. of Consecutive MBs";
+	case V4L2_CID_MPEG_VIDEO_H264_FMO_RUN_LENGTH:		return "H264 FMO Anal. of Consecutive MBs";
 	case V4L2_CID_MPEG_VIDEO_H264_ASO:			return "H264 Arbitrary Slice Ordering";
 	case V4L2_CID_MPEG_VIDEO_H264_ASO_SLICE_ORDER:		return "H264 ASO Slice Order";
 	case V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING:	return "Enable H264 Hierarchical Coding";
@@ -976,7 +976,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	/* VPX controls */
 	case V4L2_CID_MPEG_VIDEO_VPX_NUM_PARTITIONS:		return "VPX Number of Partitions";
 	case V4L2_CID_MPEG_VIDEO_VPX_IMD_DISABLE_4X4:		return "VPX Intra Mode Decision Disable";
-	case V4L2_CID_MPEG_VIDEO_VPX_NUM_REF_FRAMES:		return "VPX No. of Refs for P Frame";
+	case V4L2_CID_MPEG_VIDEO_VPX_NUM_REF_FRAMES:		return "VPX Anal. of Refs for P Frame";
 	case V4L2_CID_MPEG_VIDEO_VPX_FILTER_LEVEL:		return "VPX Loop Filter Level Range";
 	case V4L2_CID_MPEG_VIDEO_VPX_FILTER_SHARPNESS:		return "VPX Deblocking Effect Control";
 	case V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD:	return "VPX Golden Frame Refresh Period";
@@ -1095,11 +1095,11 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_RDS_TX_PTY:		return "RDS Program Type";
 	case V4L2_CID_RDS_TX_PS_NAME:		return "RDS PS Name";
 	case V4L2_CID_RDS_TX_RADIO_TEXT:	return "RDS Radio Text";
-	case V4L2_CID_RDS_TX_MONO_STEREO:	return "RDS Stereo";
+	case V4L2_CID_RDS_TX_MOANAL_STEREO:	return "RDS Stereo";
 	case V4L2_CID_RDS_TX_ARTIFICIAL_HEAD:	return "RDS Artificial Head";
 	case V4L2_CID_RDS_TX_COMPRESSED:	return "RDS Compressed";
 	case V4L2_CID_RDS_TX_DYNAMIC_PTY:	return "RDS Dynamic PTY";
-	case V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT: return "RDS Traffic Announcement";
+	case V4L2_CID_RDS_TX_TRAFFIC_ANANALUNCEMENT: return "RDS Traffic Ananaluncement";
 	case V4L2_CID_RDS_TX_TRAFFIC_PROGRAM:	return "RDS Traffic Program";
 	case V4L2_CID_RDS_TX_MUSIC_SPEECH:	return "RDS Music";
 	case V4L2_CID_RDS_TX_ALT_FREQS_ENABLE:	return "RDS Enable Alt Frequencies";
@@ -1153,7 +1153,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_TEST_PATTERN_GREENR:	return "Green (Red) Pixel Value";
 	case V4L2_CID_TEST_PATTERN_BLUE:	return "Blue Pixel Value";
 	case V4L2_CID_TEST_PATTERN_GREENB:	return "Green (Blue) Pixel Value";
-	case V4L2_CID_NOTIFY_GAINS:		return "Notify Gains";
+	case V4L2_CID_ANALTIFY_GAINS:		return "Analtify Gains";
 
 	/* Image processing controls */
 	/* Keep the order of the 'case's the same as in v4l2-controls.h! */
@@ -1194,7 +1194,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_RDS_RX_PTY:		return "RDS Program Type";
 	case V4L2_CID_RDS_RX_PS_NAME:		return "RDS PS Name";
 	case V4L2_CID_RDS_RX_RADIO_TEXT:	return "RDS Radio Text";
-	case V4L2_CID_RDS_RX_TRAFFIC_ANNOUNCEMENT: return "RDS Traffic Announcement";
+	case V4L2_CID_RDS_RX_TRAFFIC_ANANALUNCEMENT: return "RDS Traffic Ananaluncement";
 	case V4L2_CID_RDS_RX_TRAFFIC_PROGRAM:	return "RDS Traffic Program";
 	case V4L2_CID_RDS_RX_MUSIC_SPEECH:	return "RDS Music";
 
@@ -1298,15 +1298,15 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_RF_TUNER_IF_GAIN_AUTO:
 	case V4L2_CID_RF_TUNER_BANDWIDTH_AUTO:
 	case V4L2_CID_RF_TUNER_PLL_LOCK:
-	case V4L2_CID_RDS_TX_MONO_STEREO:
+	case V4L2_CID_RDS_TX_MOANAL_STEREO:
 	case V4L2_CID_RDS_TX_ARTIFICIAL_HEAD:
 	case V4L2_CID_RDS_TX_COMPRESSED:
 	case V4L2_CID_RDS_TX_DYNAMIC_PTY:
-	case V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT:
+	case V4L2_CID_RDS_TX_TRAFFIC_ANANALUNCEMENT:
 	case V4L2_CID_RDS_TX_TRAFFIC_PROGRAM:
 	case V4L2_CID_RDS_TX_MUSIC_SPEECH:
 	case V4L2_CID_RDS_TX_ALT_FREQS_ENABLE:
-	case V4L2_CID_RDS_RX_TRAFFIC_ANNOUNCEMENT:
+	case V4L2_CID_RDS_RX_TRAFFIC_ANANALUNCEMENT:
 	case V4L2_CID_RDS_RX_TRAFFIC_PROGRAM:
 	case V4L2_CID_RDS_RX_MUSIC_SPEECH:
 		*type = V4L2_CTRL_TYPE_BOOLEAN;
@@ -1452,7 +1452,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_CODEC_STATELESS_CLASS:
 	case V4L2_CID_COLORIMETRY_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
-		/* You can neither read nor write these */
+		/* You can neither read analr write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
 		*min = *max = *step = *def = 0;
 		break;
@@ -1665,7 +1665,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_RDS_RX_PTY:
 	case V4L2_CID_RDS_RX_PS_NAME:
 	case V4L2_CID_RDS_RX_RADIO_TEXT:
-	case V4L2_CID_RDS_RX_TRAFFIC_ANNOUNCEMENT:
+	case V4L2_CID_RDS_RX_TRAFFIC_ANANALUNCEMENT:
 	case V4L2_CID_RDS_RX_TRAFFIC_PROGRAM:
 	case V4L2_CID_RDS_RX_MUSIC_SPEECH:
 	case V4L2_CID_CAMERA_ORIENTATION:

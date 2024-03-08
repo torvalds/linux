@@ -35,7 +35,7 @@ static inline bool is_kernel_exittext(uintptr_t addr)
 }
 
 /*
- * The fix_to_virt(, idx) needs a const value (not a dynamic variable of
+ * The fix_to_virt(, idx) needs a const value (analt a dynamic variable of
  * reg-a0) or BUILD_BUG_ON failed with "idx >= __end_of_fixed_addresses".
  * So use '__always_inline' and 'const unsigned int fixmap' here.
  */
@@ -61,7 +61,7 @@ static void patch_unmap(int fixmap)
 {
 	clear_fixmap(fixmap);
 }
-NOKPROBE_SYMBOL(patch_unmap);
+ANALKPROBE_SYMBOL(patch_unmap);
 
 static int __patch_insn_set(void *addr, u8 c, size_t len)
 {
@@ -75,7 +75,7 @@ static int __patch_insn_set(void *addr, u8 c, size_t len)
 		return -EINVAL;
 	/*
 	 * Before reaching here, it was expected to lock the text_mutex
-	 * already, so we don't need to give another lock here and could
+	 * already, so we don't need to give aanalther lock here and could
 	 * ensure that it was safe between each cores.
 	 */
 	lockdep_assert_held(&text_mutex);
@@ -94,7 +94,7 @@ static int __patch_insn_set(void *addr, u8 c, size_t len)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(__patch_insn_set);
+ANALKPROBE_SYMBOL(__patch_insn_set);
 
 static int __patch_insn_write(void *addr, const void *insn, size_t len)
 {
@@ -110,12 +110,12 @@ static int __patch_insn_write(void *addr, const void *insn, size_t len)
 
 	/*
 	 * Before reaching here, it was expected to lock the text_mutex
-	 * already, so we don't need to give another lock here and could
+	 * already, so we don't need to give aanalther lock here and could
 	 * ensure that it was safe between each cores.
 	 *
 	 * We're currently using stop_machine() for ftrace & kprobes, and while
 	 * that ensures text_mutex is held before installing the mappings it
-	 * does not ensure text_mutex is held by the calling thread.  That's
+	 * does analt ensure text_mutex is held by the calling thread.  That's
 	 * safe but triggers a lockdep failure, so just elide it for that
 	 * specific case.
 	 */
@@ -127,7 +127,7 @@ static int __patch_insn_write(void *addr, const void *insn, size_t len)
 
 	waddr = patch_map(addr, FIX_TEXT_POKE0);
 
-	ret = copy_to_kernel_nofault(waddr, insn, len);
+	ret = copy_to_kernel_analfault(waddr, insn, len);
 
 	patch_unmap(FIX_TEXT_POKE0);
 
@@ -136,7 +136,7 @@ static int __patch_insn_write(void *addr, const void *insn, size_t len)
 
 	return ret;
 }
-NOKPROBE_SYMBOL(__patch_insn_write);
+ANALKPROBE_SYMBOL(__patch_insn_write);
 #else
 static int __patch_insn_set(void *addr, u8 c, size_t len)
 {
@@ -144,13 +144,13 @@ static int __patch_insn_set(void *addr, u8 c, size_t len)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(__patch_insn_set);
+ANALKPROBE_SYMBOL(__patch_insn_set);
 
 static int __patch_insn_write(void *addr, const void *insn, size_t len)
 {
-	return copy_to_kernel_nofault(addr, insn, len);
+	return copy_to_kernel_analfault(addr, insn, len);
 }
-NOKPROBE_SYMBOL(__patch_insn_write);
+ANALKPROBE_SYMBOL(__patch_insn_write);
 #endif /* CONFIG_MMU */
 
 static int patch_insn_set(void *addr, u8 c, size_t len)
@@ -172,9 +172,9 @@ static int patch_insn_set(void *addr, u8 c, size_t len)
 
 	return ret;
 }
-NOKPROBE_SYMBOL(patch_insn_set);
+ANALKPROBE_SYMBOL(patch_insn_set);
 
-int patch_text_set_nosync(void *addr, u8 c, size_t len)
+int patch_text_set_analsync(void *addr, u8 c, size_t len)
 {
 	u32 *tp = addr;
 	int ret;
@@ -186,7 +186,7 @@ int patch_text_set_nosync(void *addr, u8 c, size_t len)
 
 	return ret;
 }
-NOKPROBE_SYMBOL(patch_text_set_nosync);
+ANALKPROBE_SYMBOL(patch_text_set_analsync);
 
 static int patch_insn_write(void *addr, const void *insn, size_t len)
 {
@@ -207,9 +207,9 @@ static int patch_insn_write(void *addr, const void *insn, size_t len)
 
 	return ret;
 }
-NOKPROBE_SYMBOL(patch_insn_write);
+ANALKPROBE_SYMBOL(patch_insn_write);
 
-int patch_text_nosync(void *addr, const void *insns, size_t len)
+int patch_text_analsync(void *addr, const void *insns, size_t len)
 {
 	u32 *tp = addr;
 	int ret;
@@ -221,7 +221,7 @@ int patch_text_nosync(void *addr, const void *insns, size_t len)
 
 	return ret;
 }
-NOKPROBE_SYMBOL(patch_text_nosync);
+ANALKPROBE_SYMBOL(patch_text_analsync);
 
 static int patch_text_cb(void *data)
 {
@@ -232,7 +232,7 @@ static int patch_text_cb(void *data)
 	if (atomic_inc_return(&patch->cpu_count) == num_online_cpus()) {
 		for (i = 0; ret == 0 && i < patch->ninsns; i++) {
 			len = GET_INSN_LENGTH(patch->insns[i]);
-			ret = patch_text_nosync(patch->addr + i * len,
+			ret = patch_text_analsync(patch->addr + i * len,
 						&patch->insns[i], len);
 		}
 		atomic_inc(&patch->cpu_count);
@@ -244,7 +244,7 @@ static int patch_text_cb(void *data)
 
 	return ret;
 }
-NOKPROBE_SYMBOL(patch_text_cb);
+ANALKPROBE_SYMBOL(patch_text_cb);
 
 int patch_text(void *addr, u32 *insns, int ninsns)
 {
@@ -270,4 +270,4 @@ int patch_text(void *addr, u32 *insns, int ninsns)
 	riscv_patch_in_stop_machine = false;
 	return ret;
 }
-NOKPROBE_SYMBOL(patch_text);
+ANALKPROBE_SYMBOL(patch_text);

@@ -170,7 +170,7 @@ static int ltc2309_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*ltc2309));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ltc2309 = iio_priv(indio_dev);
 	ltc2309->dev = &indio_dev->dev;
@@ -186,7 +186,7 @@ static int ltc2309_probe(struct i2c_client *client)
 	ltc2309->vref = devm_regulator_get_optional(&client->dev, "vref");
 	if (IS_ERR(ltc2309->vref)) {
 		ret = PTR_ERR(ltc2309->vref);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			ltc2309->vref = NULL;
 		else
 			return ret;
@@ -242,5 +242,5 @@ static struct i2c_driver ltc2309_driver = {
 module_i2c_driver(ltc2309_driver);
 
 MODULE_AUTHOR("Liam Beguin <liambeguin@gmail.com>");
-MODULE_DESCRIPTION("Linear Technology LTC2309 ADC");
+MODULE_DESCRIPTION("Linear Techanallogy LTC2309 ADC");
 MODULE_LICENSE("GPL v2");

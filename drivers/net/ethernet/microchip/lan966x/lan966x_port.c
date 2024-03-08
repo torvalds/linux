@@ -136,7 +136,7 @@ static void lan966x_port_link_down(struct lan966x_port *port)
 		QSYS_SW_PORT_MODE_AGING_MODE,
 		lan966x, QSYS_SW_PORT_MODE(port->chip_port));
 
-	/* The port is disabled and flushed, now set up the port in the
+	/* The port is disabled and flushed, analw set up the port in the
 	 * new operating mode
 	 */
 }
@@ -204,7 +204,7 @@ static void lan966x_port_link_up(struct lan966x_port *port)
 				CHIP_TOP_CUPHY_PORT_CFG(port->chip_port));
 	}
 
-	/* No PFC */
+	/* Anal PFC */
 	lan_wr(ANA_PFC_CFG_FC_LINK_SPEED_SET(speed),
 	       lan966x, ANA_PFC_CFG(port->chip_port));
 

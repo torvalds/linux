@@ -79,7 +79,7 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 	/* set N=1, get RIRB response interrupt for new entry */
 	snd_hdac_chip_writew(bus, RINTCNT, 1);
 	/* enable rirb dma and response irq */
-	if (bus->not_use_interrupts)
+	if (bus->analt_use_interrupts)
 		snd_hdac_chip_writeb(bus, RIRBCTL, AZX_RBCTL_DMA_EN);
 	else
 		snd_hdac_chip_writeb(bus, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
@@ -237,7 +237,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_update_rirb);
  * snd_hdac_bus_get_response - receive a response via RIRB
  * @bus: HD-audio core bus
  * @addr: codec address
- * @res: pointer to store the value, NULL when not needed
+ * @res: pointer to store the value, NULL when analt needed
  *
  * Returns zero if a value is read, or a negative error code.
  */
@@ -355,7 +355,7 @@ int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus)
 			break;
 
 		default:
-			dev_err(bus->dev, "Unknown capability %d\n", cur_cap);
+			dev_err(bus->dev, "Unkanalwn capability %d\n", cur_cap);
 			cur_cap = 0;
 			break;
 		}
@@ -424,7 +424,7 @@ int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
 	if (!full_reset)
 		goto skip_reset;
 
-	/* clear STATESTS if not in reset */
+	/* clear STATESTS if analt in reset */
 	if (snd_hdac_chip_readb(bus, GCTL) & AZX_GCTL_RESET)
 		snd_hdac_chip_writew(bus, STATESTS, STATESTS_INT_MASK);
 
@@ -445,7 +445,7 @@ int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
  skip_reset:
 	/* check to see if controller is ready */
 	if (!snd_hdac_chip_readb(bus, GCTL)) {
-		dev_dbg(bus->dev, "controller not ready!\n");
+		dev_dbg(bus->dev, "controller analt ready!\n");
 		return -EBUSY;
 	}
 
@@ -566,7 +566,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_stop_chip);
  * @status: INTSTS register value
  * @ack: callback to be called for woken streams
  *
- * Returns the bits of handled streams, or zero if no stream is handled.
+ * Returns the bits of handled streams, or zero if anal stream is handled.
  */
 int snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 				    void (*ack)(struct hdac_bus *,
@@ -612,7 +612,7 @@ int snd_hdac_bus_alloc_stream_pages(struct hdac_bus *bus)
 					  BDL_SIZE, &s->bdl);
 		num_streams++;
 		if (err < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (WARN_ON(!num_streams))
@@ -621,7 +621,7 @@ int snd_hdac_bus_alloc_stream_pages(struct hdac_bus *bus)
 	err = snd_dma_alloc_pages(dma_type, bus->dev,
 				  num_streams * 8, &bus->posbuf);
 	if (err < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	list_for_each_entry(s, &bus->stream_list, list)
 		s->posbuf = (__le32 *)(bus->posbuf.area + s->index * 8);
 

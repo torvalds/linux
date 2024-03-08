@@ -49,7 +49,7 @@ static int msm_gpu_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static int msm_gpu_release(struct inode *inode, struct file *file)
+static int msm_gpu_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	struct msm_gpu_show_priv *show_priv = m->private;
@@ -62,23 +62,23 @@ static int msm_gpu_release(struct inode *inode, struct file *file)
 
 	kfree(show_priv);
 
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
-static int msm_gpu_open(struct inode *inode, struct file *file)
+static int msm_gpu_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_device *dev = inode->i_private;
+	struct drm_device *dev = ianalde->i_private;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gpu *gpu = priv->gpu;
 	struct msm_gpu_show_priv *show_priv;
 	int ret;
 
 	if (!gpu || !gpu->funcs->gpu_state_get)
-		return -ENODEV;
+		return -EANALDEV;
 
 	show_priv = kmalloc(sizeof(*show_priv), GFP_KERNEL);
 	if (!show_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mutex_lock_interruptible(&gpu->lock);
 	if (ret)
@@ -131,25 +131,25 @@ static int msm_kms_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static int msm_kms_release(struct inode *inode, struct file *file)
+static int msm_kms_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	struct msm_disp_state *state = m->private;
 
 	msm_disp_state_free(state);
 
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
-static int msm_kms_open(struct inode *inode, struct file *file)
+static int msm_kms_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_device *dev = inode->i_private;
+	struct drm_device *dev = ianalde->i_private;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_disp_state *state;
 	int ret;
 
 	if (!priv->kms)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = mutex_lock_interruptible(&priv->kms->dump_mutex);
 	if (ret)
@@ -211,8 +211,8 @@ DEFINE_DEBUGFS_ATTRIBUTE(shrink_fops,
 
 static int msm_gem_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
 
@@ -229,8 +229,8 @@ static int msm_gem_show(struct seq_file *m, void *arg)
 
 static int msm_mm_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
@@ -240,8 +240,8 @@ static int msm_mm_show(struct seq_file *m, void *arg)
 
 static int msm_fb_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct drm_framebuffer *fb, *fbdev_fb = NULL;
 
 	if (dev->fb_helper && dev->fb_helper->fb) {
@@ -272,22 +272,22 @@ static struct drm_info_list msm_kms_debugfs_list[] = {
 		{ "fb", msm_fb_show },
 };
 
-static int late_init_minor(struct drm_minor *minor)
+static int late_init_mianalr(struct drm_mianalr *mianalr)
 {
 	int ret;
 
-	if (!minor)
+	if (!mianalr)
 		return 0;
 
-	ret = msm_rd_debugfs_init(minor);
+	ret = msm_rd_debugfs_init(mianalr);
 	if (ret) {
-		DRM_DEV_ERROR(minor->dev->dev, "could not install rd debugfs\n");
+		DRM_DEV_ERROR(mianalr->dev->dev, "could analt install rd debugfs\n");
 		return ret;
 	}
 
-	ret = msm_perf_debugfs_init(minor);
+	ret = msm_perf_debugfs_init(mianalr);
 	if (ret) {
-		DRM_DEV_ERROR(minor->dev->dev, "could not install perf debugfs\n");
+		DRM_DEV_ERROR(mianalr->dev->dev, "could analt install perf debugfs\n");
 		return ret;
 	}
 
@@ -297,29 +297,29 @@ static int late_init_minor(struct drm_minor *minor)
 int msm_debugfs_late_init(struct drm_device *dev)
 {
 	int ret;
-	ret = late_init_minor(dev->primary);
+	ret = late_init_mianalr(dev->primary);
 	if (ret)
 		return ret;
-	ret = late_init_minor(dev->render);
+	ret = late_init_mianalr(dev->render);
 	return ret;
 }
 
-static void msm_debugfs_gpu_init(struct drm_minor *minor)
+static void msm_debugfs_gpu_init(struct drm_mianalr *mianalr)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev = mianalr->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct dentry *gpu_devfreq;
 
-	debugfs_create_file("gpu", S_IRUSR, minor->debugfs_root,
+	debugfs_create_file("gpu", S_IRUSR, mianalr->debugfs_root,
 		dev, &msm_gpu_fops);
 
-	debugfs_create_u32("hangcheck_period_ms", 0600, minor->debugfs_root,
+	debugfs_create_u32("hangcheck_period_ms", 0600, mianalr->debugfs_root,
 		&priv->hangcheck_period);
 
-	debugfs_create_bool("disable_err_irq", 0600, minor->debugfs_root,
+	debugfs_create_bool("disable_err_irq", 0600, mianalr->debugfs_root,
 		&priv->disable_err_irq);
 
-	gpu_devfreq = debugfs_create_dir("devfreq", minor->debugfs_root);
+	gpu_devfreq = debugfs_create_dir("devfreq", mianalr->debugfs_root);
 
 	debugfs_create_bool("idle_clamp",0600, gpu_devfreq,
 			    &priv->gpu_clamp_to_idle);
@@ -331,36 +331,36 @@ static void msm_debugfs_gpu_init(struct drm_minor *minor)
 			   &priv->gpu_devfreq_config.downdifferential);
 }
 
-void msm_debugfs_init(struct drm_minor *minor)
+void msm_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev = mianalr->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 
 	drm_debugfs_create_files(msm_debugfs_list,
 				 ARRAY_SIZE(msm_debugfs_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 
 	if (priv->gpu_pdev)
-		msm_debugfs_gpu_init(minor);
+		msm_debugfs_gpu_init(mianalr);
 
 	if (priv->kms) {
 		drm_debugfs_create_files(msm_kms_debugfs_list,
 					 ARRAY_SIZE(msm_kms_debugfs_list),
-					 minor->debugfs_root, minor);
-		debugfs_create_file("kms", S_IRUSR, minor->debugfs_root,
+					 mianalr->debugfs_root, mianalr);
+		debugfs_create_file("kms", S_IRUSR, mianalr->debugfs_root,
 				    dev, &msm_kms_fops);
 	}
 
-	debugfs_create_file("shrink", S_IRWXU, minor->debugfs_root,
+	debugfs_create_file("shrink", S_IRWXU, mianalr->debugfs_root,
 		dev, &shrink_fops);
 
 	if (priv->kms && priv->kms->funcs->debugfs_init)
-		priv->kms->funcs->debugfs_init(priv->kms, minor);
+		priv->kms->funcs->debugfs_init(priv->kms, mianalr);
 
 #ifdef CONFIG_FAULT_INJECTION
-	fault_create_debugfs_attr("fail_gem_alloc", minor->debugfs_root,
+	fault_create_debugfs_attr("fail_gem_alloc", mianalr->debugfs_root,
 				  &fail_gem_alloc);
-	fault_create_debugfs_attr("fail_gem_iova", minor->debugfs_root,
+	fault_create_debugfs_attr("fail_gem_iova", mianalr->debugfs_root,
 				  &fail_gem_iova);
 #endif
 }

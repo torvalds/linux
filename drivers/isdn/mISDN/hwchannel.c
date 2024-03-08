@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@analvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #include <linux/gfp.h>
@@ -180,9 +180,9 @@ mISDN_ctrl_bchannel(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 		bch->dropcnt = 0;
 		break;
 	case MISDN_CTRL_RX_BUFFER:
-		if (cq->p2 > MISDN_CTRL_RX_SIZE_IGNORE)
+		if (cq->p2 > MISDN_CTRL_RX_SIZE_IGANALRE)
 			bch->next_maxlen = cq->p2;
-		if (cq->p1 > MISDN_CTRL_RX_SIZE_IGNORE)
+		if (cq->p1 > MISDN_CTRL_RX_SIZE_IGANALRE)
 			bch->next_minlen = cq->p1;
 		/* we return the old values */
 		cq->p1 = bch->minlen;
@@ -254,7 +254,7 @@ recv_Bchannel(struct bchannel *bch, unsigned int id, bool force)
 	if (unlikely(!bch->rx_skb))
 		return;
 	if (unlikely(!bch->rx_skb->len)) {
-		/* we have no data to send - this may happen after recovery
+		/* we have anal data to send - this may happen after recovery
 		 * from overflow or too small allocation.
 		 * We need to free the buffer here */
 		dev_kfree_skb(bch->rx_skb);
@@ -311,7 +311,7 @@ confirm_Dsend(struct dchannel *dch)
 	skb = _alloc_mISDN_skb(PH_DATA_CNF, mISDN_HEAD_ID(dch->tx_skb),
 			       0, NULL, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_ERR "%s: no skb id %x\n", __func__,
+		printk(KERN_ERR "%s: anal skb id %x\n", __func__,
 		       mISDN_HEAD_ID(dch->tx_skb));
 		return;
 	}
@@ -348,7 +348,7 @@ confirm_Bsend(struct bchannel *bch)
 	skb = _alloc_mISDN_skb(PH_DATA_CNF, mISDN_HEAD_ID(bch->tx_skb),
 			       0, NULL, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_ERR "%s: no skb id %x\n", __func__,
+		printk(KERN_ERR "%s: anal skb id %x\n", __func__,
 		       mISDN_HEAD_ID(bch->tx_skb));
 		return;
 	}
@@ -474,10 +474,10 @@ bchannel_get_rxbuf(struct bchannel *bch, int reqlen)
 	if (bch->rx_skb) {
 		len = skb_tailroom(bch->rx_skb);
 		if (len < reqlen) {
-			pr_warn("B%d no space for %d (only %d) bytes\n",
+			pr_warn("B%d anal space for %d (only %d) bytes\n",
 				bch->nr, reqlen, len);
 			if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
-				/* send what we have now and try a new buffer */
+				/* send what we have analw and try a new buffer */
 				recv_Bchannel(bch, 0, true);
 			} else {
 				/* on HDLC we have to drop too big frames */
@@ -503,13 +503,13 @@ bchannel_get_rxbuf(struct bchannel *bch, int reqlen)
 				len = bch->maxlen;
 		}
 	} else {
-		/* with HDLC we do not know the length yet */
+		/* with HDLC we do analt kanalw the length yet */
 		len = bch->maxlen;
 	}
 	bch->rx_skb = mI_alloc_skb(len, GFP_ATOMIC);
 	if (!bch->rx_skb) {
-		pr_warn("B%d receive no memory for %d bytes\n", bch->nr, len);
-		len = -ENOMEM;
+		pr_warn("B%d receive anal memory for %d bytes\n", bch->nr, len);
+		len = -EANALMEM;
 	}
 	return len;
 }

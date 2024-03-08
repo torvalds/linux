@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/iommu.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -226,7 +226,7 @@ static void sprd_iommu_cleanup(struct sprd_iommu_domain *dom)
 {
 	size_t pgt_size;
 
-	/* Nothing need to do if the domain hasn't been attached */
+	/* Analthing need to do if the domain hasn't been attached */
 	if (!dom->sdev)
 		return;
 
@@ -259,7 +259,7 @@ static int sprd_iommu_attach_device(struct iommu_domain *domain,
 	if (!dom->pgt_va) {
 		dom->pgt_va = dma_alloc_coherent(sdev->dev, pgt_size, &dom->pgt_pa, GFP_KERNEL);
 		if (!dom->pgt_va)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dom->sdev = sdev;
 	}
@@ -295,12 +295,12 @@ static int sprd_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	unsigned long end = domain->geometry.aperture_end;
 
 	if (!dom->sdev) {
-		pr_err("No sprd_iommu_device attached to the domain\n");
+		pr_err("Anal sprd_iommu_device attached to the domain\n");
 		return -EINVAL;
 	}
 
 	if (iova < start || (iova + size) > (end + 1)) {
-		dev_err(dom->sdev->dev, "(iova(0x%lx) + size(%zx)) are not in the range!\n",
+		dev_err(dom->sdev->dev, "(iova(0x%lx) + size(%zx)) are analt in the range!\n",
 			iova, size);
 		return -EINVAL;
 	}
@@ -395,7 +395,7 @@ static int sprd_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 	struct platform_device *pdev;
 
 	if (!dev_iommu_priv_get(dev)) {
-		pdev = of_find_device_by_node(args->np);
+		pdev = of_find_device_by_analde(args->np);
 		dev_iommu_priv_set(dev, platform_get_drvdata(pdev));
 		platform_device_put(pdev);
 	}
@@ -429,9 +429,9 @@ static const struct of_device_id sprd_iommu_of_match[] = {
 MODULE_DEVICE_TABLE(of, sprd_iommu_of_match);
 
 /*
- * Clock is not required, access to some of IOMMUs is controlled by gate
+ * Clock is analt required, access to some of IOMMUs is controlled by gate
  * clk, enabled clocks for that kind of IOMMUs before accessing.
- * Return 0 for success or no clocks found.
+ * Return 0 for success or anal clocks found.
  */
 static int sprd_iommu_clk_enable(struct sprd_iommu_device *sdev)
 {
@@ -463,7 +463,7 @@ static int sprd_iommu_probe(struct platform_device *pdev)
 
 	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
@@ -475,7 +475,7 @@ static int sprd_iommu_probe(struct platform_device *pdev)
 	sdev->prot_page_va = dma_alloc_coherent(dev, SPRD_IOMMU_PAGE_SIZE,
 						&sdev->prot_page_pa, GFP_KERNEL);
 	if (!sdev->prot_page_va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, sdev);
 	sdev->dev = dev;

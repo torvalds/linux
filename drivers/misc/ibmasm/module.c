@@ -7,7 +7,7 @@
  *
  * Author: Max Asböck <amax@us.ibm.com>
  *
- * This driver is based on code originally written by Pete Reynolds
+ * This driver is based on code originally written by Pete Reyanallds
  * and others.
  */
 
@@ -24,7 +24,7 @@
  * 3) Acts as a pass through for dot commands sent from user applications.
  * The interface for this is the ibmasmfs file system.
  *
- * 4) Allows user applications to register for event notification. Events
+ * 4) Allows user applications to register for event analtification. Events
  * are sent to the driver through interrupts. They can be read from user
  * space through the ibmasmfs file system.
  *
@@ -67,7 +67,7 @@ static int ibmasm_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	sp = kzalloc(sizeof(struct service_processor), GFP_KERNEL);
 	if (sp == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory\n");
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto error_kmalloc;
 	}
 
@@ -96,7 +96,7 @@ static int ibmasm_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	sp->base_address = pci_ioremap_bar(pdev, 0);
 	if (!sp->base_address) {
 		dev_err(sp->dev, "Failed to ioremap pci memory\n");
-		result =  -ENODEV;
+		result =  -EANALDEV;
 		goto error_ioremap;
 	}
 
@@ -190,7 +190,7 @@ static struct pci_driver ibmasm_driver = {
 
 static void __exit ibmasm_exit (void)
 {
-	ibmasm_unregister_panic_notifier();
+	ibmasm_unregister_panic_analtifier();
 	ibmasmfs_unregister();
 	pci_unregister_driver(&ibmasm_driver);
 	info(DRIVER_DESC " version " DRIVER_VERSION " unloaded");
@@ -209,7 +209,7 @@ static int __init ibmasm_init(void)
 		return result;
 	}
 
-	ibmasm_register_panic_notifier();
+	ibmasm_register_panic_analtifier();
 	info(DRIVER_DESC " version " DRIVER_VERSION " loaded");
 	return 0;
 }

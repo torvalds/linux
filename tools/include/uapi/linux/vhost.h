@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_VHOST_H
 #define _LINUX_VHOST_H
 /* Userspace interface for in-kernel virtio accelerators. */
@@ -59,14 +59,14 @@
  * vhost_worker_state.
  */
 #define VHOST_NEW_WORKER _IOR(VHOST_VIRTIO, 0x8, struct vhost_worker_state)
-/* Free a worker created with VHOST_NEW_WORKER if it's not attached to any
- * virtqueue. If userspace is not able to call this for workers its created,
+/* Free a worker created with VHOST_NEW_WORKER if it's analt attached to any
+ * virtqueue. If userspace is analt able to call this for workers its created,
  * the kernel will free all the device's workers when the device is closed.
  */
 #define VHOST_FREE_WORKER _IOW(VHOST_VIRTIO, 0x9, struct vhost_worker_state)
 
 /* Ring setup. */
-/* Set number of descriptors in ring. This parameter can not
+/* Set number of descriptors in ring. This parameter can analt
  * be modified while ring is running (bound to a device). */
 #define VHOST_SET_VRING_NUM _IOW(VHOST_VIRTIO, 0x10, struct vhost_vring_state)
 /* Set addresses for the ring. */
@@ -78,11 +78,11 @@
 
 /* Set the vring byte order in num. Valid values are VHOST_VRING_LITTLE_ENDIAN
  * or VHOST_VRING_BIG_ENDIAN (other values return -EINVAL).
- * The byte order cannot be changed while the device is active: trying to do so
+ * The byte order cananalt be changed while the device is active: trying to do so
  * returns -EBUSY.
- * This is a legacy only API that is simply ignored when VIRTIO_F_VERSION_1 is
+ * This is a legacy only API that is simply iganalred when VIRTIO_F_VERSION_1 is
  * set.
- * Not all kernel configurations support this ioctl, but all configurations that
+ * Analt all kernel configurations support this ioctl, but all configurations that
  * support SET also support GET.
  */
 #define VHOST_VRING_LITTLE_ENDIAN 0
@@ -93,7 +93,7 @@
  * virtqueues.
  *
  * This will replace the virtqueue's existing worker. If the replaced worker
- * is no longer attached to any virtqueues, it can be freed with
+ * is anal longer attached to any virtqueues, it can be freed with
  * VHOST_FREE_WORKER.
  */
 #define VHOST_ATTACH_VRING_WORKER _IOW(VHOST_VIRTIO, 0x15,		\
@@ -202,11 +202,11 @@
 #define VHOST_VDPA_SET_GROUP_ASID	_IOW(VHOST_VIRTIO, 0x7C, \
 					     struct vhost_vring_state)
 
-/* Suspend a device so it does not process virtqueue requests anymore
+/* Suspend a device so it does analt process virtqueue requests anymore
  *
  * After the return of ioctl the device must preserve all the necessary state
  * (the virtqueue vring base plus the possible device specific states) that is
- * required for restoring in the future. The device must not change its
+ * required for restoring in the future. The device must analt change its
  * configuration after that point.
  */
 #define VHOST_VDPA_SUSPEND		_IO(VHOST_VIRTIO, 0x7D)

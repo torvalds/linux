@@ -31,7 +31,7 @@ properties:
     maximum: 32
 
   xlnx,num-transfer-bits:
-    description: Number of bits per transfer. This will be 8 if not specified.
+    description: Number of bits per transfer. This will be 8 if analt specified.
     enum: [8, 16, 32]
     default: 8
 

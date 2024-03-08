@@ -13,12 +13,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@
 struct videomode;
 
 /*
- * Note on terminology:  here, for brevity and convenience, we refer to connector
+ * Analte on termianallogy:  here, for brevity and convenience, we refer to connector
  * control chips as 'CRTCs'.  They can control any type of connector, VGA, LVDS,
  * DVI, etc.  And 'screen' refers to the whole of the visible display, which
  * may span multiple monitors (and therefore multiple CRTC and connector
@@ -50,15 +50,15 @@ struct videomode;
  * @MODE_H_ILLEGAL: mode has illegal horizontal timings
  * @MODE_V_ILLEGAL: mode has illegal vertical timings
  * @MODE_BAD_WIDTH: requires an unsupported linepitch
- * @MODE_NOMODE: no mode with a matching name
- * @MODE_NO_INTERLACE: interlaced mode not supported
- * @MODE_NO_DBLESCAN: doublescan mode not supported
- * @MODE_NO_VSCAN: multiscan mode not supported
+ * @MODE_ANALMODE: anal mode with a matching name
+ * @MODE_ANAL_INTERLACE: interlaced mode analt supported
+ * @MODE_ANAL_DBLESCAN: doublescan mode analt supported
+ * @MODE_ANAL_VSCAN: multiscan mode analt supported
  * @MODE_MEM: insufficient video memory
  * @MODE_VIRTUAL_X: mode width too large for specified virtual size
  * @MODE_VIRTUAL_Y: mode height too large for specified virtual size
  * @MODE_MEM_VIRT: insufficient video memory given virtual size
- * @MODE_NOCLOCK: no fixed clock available
+ * @MODE_ANALCLOCK: anal fixed clock available
  * @MODE_CLOCK_HIGH: clock required is too high
  * @MODE_CLOCK_LOW: clock required is too low
  * @MODE_CLOCK_RANGE: clock/mode isn't in a ClockRange
@@ -78,14 +78,14 @@ struct videomode;
  * @MODE_ONE_WIDTH: only one width is supported
  * @MODE_ONE_HEIGHT: only one height is supported
  * @MODE_ONE_SIZE: only one resolution is supported
- * @MODE_NO_REDUCED: monitor doesn't accept reduced blanking
- * @MODE_NO_STEREO: stereo modes not supported
- * @MODE_NO_420: ycbcr 420 modes not supported
+ * @MODE_ANAL_REDUCED: monitor doesn't accept reduced blanking
+ * @MODE_ANAL_STEREO: stereo modes analt supported
+ * @MODE_ANAL_420: ycbcr 420 modes analt supported
  * @MODE_STALE: mode has become stale
  * @MODE_BAD: unspecified reason
  * @MODE_ERROR: error condition
  *
- * This enum is used to filter out modes not supported by the driver/hardware
+ * This enum is used to filter out modes analt supported by the driver/hardware
  * combination.
  */
 enum drm_mode_status {
@@ -95,15 +95,15 @@ enum drm_mode_status {
 	MODE_H_ILLEGAL,
 	MODE_V_ILLEGAL,
 	MODE_BAD_WIDTH,
-	MODE_NOMODE,
-	MODE_NO_INTERLACE,
-	MODE_NO_DBLESCAN,
-	MODE_NO_VSCAN,
+	MODE_ANALMODE,
+	MODE_ANAL_INTERLACE,
+	MODE_ANAL_DBLESCAN,
+	MODE_ANAL_VSCAN,
 	MODE_MEM,
 	MODE_VIRTUAL_X,
 	MODE_VIRTUAL_Y,
 	MODE_MEM_VIRT,
-	MODE_NOCLOCK,
+	MODE_ANALCLOCK,
 	MODE_CLOCK_HIGH,
 	MODE_CLOCK_LOW,
 	MODE_CLOCK_RANGE,
@@ -123,9 +123,9 @@ enum drm_mode_status {
 	MODE_ONE_WIDTH,
 	MODE_ONE_HEIGHT,
 	MODE_ONE_SIZE,
-	MODE_NO_REDUCED,
-	MODE_NO_STEREO,
-	MODE_NO_420,
+	MODE_ANAL_REDUCED,
+	MODE_ANAL_STEREO,
+	MODE_ANAL_420,
 	MODE_STALE = -3,
 	MODE_BAD = -2,
 	MODE_ERROR = -1
@@ -182,9 +182,9 @@ enum drm_mode_status {
 
 #define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
 #define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
-#define CRTC_NO_DBLSCAN		(1 << 2) /* don't adjust doublescan */
-#define CRTC_NO_VSCAN		(1 << 3) /* don't adjust doublescan */
-#define CRTC_STEREO_DOUBLE_ONLY	(CRTC_STEREO_DOUBLE | CRTC_NO_DBLSCAN | CRTC_NO_VSCAN)
+#define CRTC_ANAL_DBLSCAN		(1 << 2) /* don't adjust doublescan */
+#define CRTC_ANAL_VSCAN		(1 << 3) /* don't adjust doublescan */
+#define CRTC_STEREO_DOUBLE_ONLY	(CRTC_STEREO_DOUBLE | CRTC_ANAL_DBLSCAN | CRTC_ANAL_VSCAN)
 
 #define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
 
@@ -241,7 +241,7 @@ enum drm_mode_status {
  *     <-------------------------------- [hv]total ----------------------------->*
  *
  * This structure contains two copies of timings. First are the plain timings,
- * which specify the logical mode, as it would be for a progressive 1:1 scanout
+ * which specify the logical mode, as it would be for a progressive 1:1 scaanalut
  * at the refresh rate userspace can observe through vblank timestamps. Then
  * there's the hardware timings, which are corrected for interlacing,
  * double-clocking and similar things. They are provided as a convenience, and
@@ -280,7 +280,7 @@ struct drm_display_mode {
 	 *  - DRM_MODE_FLAG_CSYNC: mode uses composite sync.
 	 *  - DRM_MODE_FLAG_PCSYNC: composite sync is active high.
 	 *  - DRM_MODE_FLAG_NCSYNC: composite sync is active low.
-	 *  - DRM_MODE_FLAG_HSKEW: hskew provided (not used?).
+	 *  - DRM_MODE_FLAG_HSKEW: hskew provided (analt used?).
 	 *  - DRM_MODE_FLAG_BCAST: <deprecated>
 	 *  - DRM_MODE_FLAG_PIXMUX: <deprecated>
 	 *  - DRM_MODE_FLAG_DBLCLK: double-clocked mode.
@@ -288,7 +288,7 @@ struct drm_display_mode {
 	 *
 	 * Additionally there's flags to specify how 3D modes are packed:
 	 *
-	 *  - DRM_MODE_FLAG_3D_NONE: normal, non-3D mode.
+	 *  - DRM_MODE_FLAG_3D_ANALNE: analrmal, analn-3D mode.
 	 *  - DRM_MODE_FLAG_3D_FRAME_PACKING: 2 full frames for left and right.
 	 *  - DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE: interleaved like fields.
 	 *  - DRM_MODE_FLAG_3D_LINE_ALTERNATIVE: interleaved lines.
@@ -312,7 +312,7 @@ struct drm_display_mode {
 	 *
 	 * This is again in kHz.
 	 *
-	 * Note that with digital outputs like HDMI or DP there's usually a
+	 * Analte that with digital outputs like HDMI or DP there's usually a
 	 * massive confusion between the dot clock and the signal clock at the
 	 * bit encoding level. Especially when a 8b/10b encoding is used and the
 	 * difference is exactly a factor of 10.
@@ -365,14 +365,14 @@ struct drm_display_mode {
 	 *
 	 * Plus a big list of flags which shouldn't be used at all, but are
 	 * still around since these flags are also used in the userspace ABI.
-	 * We no longer accept modes with these types though:
+	 * We anal longer accept modes with these types though:
 	 *
 	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
 	 *    Use DRM_MODE_TYPE_DRIVER instead.
 	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
 	 *    DRM_MODE_TYPE_PREFERRED instead.
 	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
-	 *    which are stuck around for hysterical raisins only. No one has an
+	 *    which are stuck around for hysterical raisins only. Anal one has an
 	 *    idea what they were meant for. Don't use.
 	 */
 	u8 type;
@@ -383,7 +383,7 @@ struct drm_display_mode {
 	 * Indicates whether the mode is to be exposed to the userspace.
 	 * This is to maintain a set of exposed modes while preparing
 	 * user-mode's list in drm_mode_getconnector ioctl. The purpose of
-	 * this only lies in the ioctl function, and is not to be used
+	 * this only lies in the ioctl function, and is analt to be used
 	 * outside the function.
 	 */
 	bool expose_to_userspace;
@@ -405,7 +405,7 @@ struct drm_display_mode {
 	/**
 	 * @status:
 	 *
-	 * Status of the mode, used to filter out modes not supported by the
+	 * Status of the mode, used to filter out modes analt supported by the
 	 * hardware. See enum &drm_mode_status.
 	 */
 	enum drm_mode_status status;
@@ -442,7 +442,7 @@ struct drm_display_mode {
  *
  * Returns:
  * True if the mode is one of the stereo modes (like side-by-side), false if
- * not.
+ * analt.
  */
 static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
 {
@@ -505,20 +505,20 @@ void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
 void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags);
 
 #if defined(CONFIG_OF)
-int of_get_drm_display_mode(struct device_node *np,
+int of_get_drm_display_mode(struct device_analde *np,
 			    struct drm_display_mode *dmode, u32 *bus_flags,
 			    int index);
-int of_get_drm_panel_display_mode(struct device_node *np,
+int of_get_drm_panel_display_mode(struct device_analde *np,
 				  struct drm_display_mode *dmode, u32 *bus_flags);
 #else
-static inline int of_get_drm_display_mode(struct device_node *np,
+static inline int of_get_drm_display_mode(struct device_analde *np,
 					  struct drm_display_mode *dmode,
 					  u32 *bus_flags, int index)
 {
 	return -EINVAL;
 }
 
-static inline int of_get_drm_panel_display_mode(struct device_node *np,
+static inline int of_get_drm_panel_display_mode(struct device_analde *np,
 						struct drm_display_mode *dmode, u32 *bus_flags)
 {
 	return -EINVAL;
@@ -543,9 +543,9 @@ bool drm_mode_match(const struct drm_display_mode *mode1,
 		    unsigned int match_flags);
 bool drm_mode_equal(const struct drm_display_mode *mode1,
 		    const struct drm_display_mode *mode2);
-bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,
+bool drm_mode_equal_anal_clocks(const struct drm_display_mode *mode1,
 			      const struct drm_display_mode *mode2);
-bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
+bool drm_mode_equal_anal_clocks_anal_stereo(const struct drm_display_mode *mode1,
 					const struct drm_display_mode *mode2);
 
 /* for use by the crtc helper probe functions */

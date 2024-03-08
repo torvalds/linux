@@ -1,28 +1,28 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Synopsys network device configuration
+# Syanalpsys network device configuration
 #
 
-config NET_VENDOR_SYNOPSYS
-	bool "Synopsys devices"
+config NET_VENDOR_SYANALPSYS
+	bool "Syanalpsys devices"
 	default y
 	help
 	  If you have a network (Ethernet) device belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about Synopsys devices. If you say Y, you will be asked
+	  the questions about Syanalpsys devices. If you say Y, you will be asked
 	  for your specific device in the following questions.
 
-if NET_VENDOR_SYNOPSYS
+if NET_VENDOR_SYANALPSYS
 
 config DWC_XLGMAC
-	tristate "Synopsys DWC Enterprise Ethernet (XLGMAC) driver support"
+	tristate "Syanalpsys DWC Enterprise Ethernet (XLGMAC) driver support"
 	depends on HAS_IOMEM && HAS_DMA
 	select BITREVERSE
 	select CRC32
 	help
-	  This driver supports the Synopsys DesignWare Cores Enterprise
+	  This driver supports the Syanalpsys DesignWare Cores Enterprise
 	  Ethernet (dwc-xlgmac).
 
 if DWC_XLGMAC
@@ -32,11 +32,11 @@ config DWC_XLGMAC_PCI
 	depends on DWC_XLGMAC && PCI
 	help
 	  This selects the pci bus support for the dwc-xlgmac driver.
-	  This driver was tested on Synopsys XLGMAC IP Prototyping Kit.
+	  This driver was tested on Syanalpsys XLGMAC IP Prototyping Kit.
 
 	  If you have a controller with this interface, say Y or M here.
 	  If unsure, say N.
 
 endif # DWC_XLGMAC
 
-endif # NET_VENDOR_SYNOPSYS
+endif # NET_VENDOR_SYANALPSYS

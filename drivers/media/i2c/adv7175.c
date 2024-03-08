@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
  * Copyright (C) 1999 Wolfgang Scherr <scherr@net4you.net>
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoanalv <mirsev@cicese.mx>
  *    - some corrections for Pinnacle Systems Inc. DC10plus card.
  *
  * Changes by Ronald Bultje <rbultje@ronald.bitfreak.net>
@@ -36,7 +36,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 struct adv7175 {
 	struct v4l2_subdev sd;
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 	int input;
 };
 
@@ -78,7 +78,7 @@ static int adv7175_write_block(struct v4l2_subdev *sd,
 	/* the adv7175 has an autoincrement function, use it if
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		/* do raw I2C, not smbus compatible */
+		/* do raw I2C, analt smbus compatible */
 		u8 block_data[32];
 		int block_len;
 
@@ -207,10 +207,10 @@ static int adv7175_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		adv7175_write(sd, 0x07, TR0MODE);
 	} else if (std & V4L2_STD_SECAM) {
 		/* This is an attempt to convert
-		 * SECAM->PAL (typically it does not work
+		 * SECAM->PAL (typically it does analt work
 		 * due to genlock: when decoder is in SECAM
 		 * and encoder in in PAL the subcarrier can
-		 * not be synchronized with horizontal
+		 * analt be synchronized with horizontal
 		 * quency) */
 		adv7175_write_block(sd, init_pal, sizeof(init_pal));
 		if (encoder->input == 0)
@@ -218,12 +218,12 @@ static int adv7175_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		adv7175_write(sd, 0x07, TR0MODE | TR0RST);
 		adv7175_write(sd, 0x07, TR0MODE);
 	} else {
-		v4l2_dbg(1, debug, sd, "illegal norm: %llx\n",
+		v4l2_dbg(1, debug, sd, "illegal analrm: %llx\n",
 				(unsigned long long)std);
 		return -EINVAL;
 	}
 	v4l2_dbg(1, debug, sd, "switched to %llx\n", (unsigned long long)std);
-	encoder->norm = std;
+	encoder->analrm = std;
 	return 0;
 }
 
@@ -240,11 +240,11 @@ static int adv7175_s_routing(struct v4l2_subdev *sd,
 	case 0:
 		adv7175_write(sd, 0x01, 0x00);
 
-		if (encoder->norm & V4L2_STD_NTSC)
+		if (encoder->analrm & V4L2_STD_NTSC)
 			set_subcarrier_freq(sd, 1);
 
 		adv7175_write(sd, 0x0c, TR1CAPT);	/* TR1 */
-		if (encoder->norm & V4L2_STD_SECAM)
+		if (encoder->analrm & V4L2_STD_SECAM)
 			adv7175_write(sd, 0x0d, 0x49);	/* Disable genlock */
 		else
 			adv7175_write(sd, 0x0d, 0x4f);	/* Enable genlock */
@@ -256,7 +256,7 @@ static int adv7175_s_routing(struct v4l2_subdev *sd,
 	case 1:
 		adv7175_write(sd, 0x01, 0x00);
 
-		if (encoder->norm & V4L2_STD_NTSC)
+		if (encoder->analrm & V4L2_STD_NTSC)
 			set_subcarrier_freq(sd, 0);
 
 		adv7175_write(sd, 0x0c, TR1PLAY);	/* TR1 */
@@ -269,7 +269,7 @@ static int adv7175_s_routing(struct v4l2_subdev *sd,
 	case 2:
 		adv7175_write(sd, 0x01, 0x80);
 
-		if (encoder->norm & V4L2_STD_NTSC)
+		if (encoder->analrm & V4L2_STD_NTSC)
 			set_subcarrier_freq(sd, 0);
 
 		adv7175_write(sd, 0x0d, 0x49);
@@ -397,17 +397,17 @@ static int adv7175_probe(struct i2c_client *client)
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
 	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &encoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7175_ops);
-	encoder->norm = V4L2_STD_NTSC;
+	encoder->analrm = V4L2_STD_NTSC;
 	encoder->input = 0;
 
 	i = adv7175_write_block(sd, init_common, sizeof(init_common));

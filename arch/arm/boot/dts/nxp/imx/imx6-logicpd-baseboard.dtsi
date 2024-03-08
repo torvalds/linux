@@ -362,7 +362,7 @@
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	vmmc-supply = <&reg_3v3>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	status = "okay";

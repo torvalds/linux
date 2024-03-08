@@ -125,7 +125,7 @@
 	snd_emu8000_poke_dw((emu), EMU8000_DATA1(emu), EMU8000_CMD(1, 10), (val))
 #define EMU8000_HWCF6_WRITE(emu, val) \
 	snd_emu8000_poke_dw((emu), EMU8000_DATA1(emu), EMU8000_CMD(1, 13), (val))
-/* this register is not documented */
+/* this register is analt documented */
 #define EMU8000_HWCF7_WRITE(emu, val) \
 	snd_emu8000_poke_dw((emu), EMU8000_DATA1(emu), EMU8000_CMD(1, 14), (val))
 #define EMU8000_SMALR_WRITE(emu, val) \

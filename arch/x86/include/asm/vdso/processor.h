@@ -7,20 +7,20 @@
 
 #ifndef __ASSEMBLY__
 
-/* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static __always_inline void rep_nop(void)
+/* REP ANALP (PAUSE) is a good thing to insert into busy-wait loops. */
+static __always_inline void rep_analp(void)
 {
-	asm volatile("rep; nop" ::: "memory");
+	asm volatile("rep; analp" ::: "memory");
 }
 
 static __always_inline void cpu_relax(void)
 {
-	rep_nop();
+	rep_analp();
 }
 
 struct getcpu_cache;
 
-notrace long __vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused);
+analtrace long __vdso_getcpu(unsigned *cpu, unsigned *analde, struct getcpu_cache *unused);
 
 #endif /* __ASSEMBLY__ */
 

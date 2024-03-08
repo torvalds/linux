@@ -39,7 +39,7 @@ struct DCTL_data {
  * DASD_3990_ERP_CLEANUP
  *
  * DESCRIPTION
- *   Removes the already build but not necessary ERP request and sets
+ *   Removes the already build but analt necessary ERP request and sets
  *   the status of the original cqr / erp to the given (final) status
  *
  *  PARAMETER
@@ -92,7 +92,7 @@ static void dasd_3990_erp_block_queue(struct dasd_ccw_req *erp, int expires)
  *
  * DESCRIPTION
  *   Handles 'Intervention Required' error.
- *   This means either device offline or not installed.
+ *   This means either device offline or analt installed.
  *
  * PARAMETER
  *   erp		current erp
@@ -117,7 +117,7 @@ dasd_3990_erp_int_req(struct dasd_ccw_req * erp)
 
 		/* issue a message and wait for 'device ready' interrupt */
 		dev_err(&device->cdev->dev,
-			    "is offline or not installed - "
+			    "is offline or analt installed - "
 			    "INTERVENTION REQUIRED!!\n");
 
 		dasd_3990_erp_block_queue(erp, 60*HZ);
@@ -169,7 +169,7 @@ dasd_3990_erp_alternate_path(struct dasd_ccw_req * erp)
 		erp->retries = 10;
 	} else {
 		dev_err(&device->cdev->dev,
-			"The DASD cannot be reached on any path (lpum=%x"
+			"The DASD cananalt be reached on any path (lpum=%x"
 			"/opm=%x)\n", erp->irb.esw.esw0.sublog.lpum, opm);
 
 		/* post request with permanent error */
@@ -181,7 +181,7 @@ dasd_3990_erp_alternate_path(struct dasd_ccw_req * erp)
  * DASD_3990_ERP_DCTL
  *
  * DESCRIPTION
- *   Setup cqr to do the Diagnostic Control (DCTL) command with an
+ *   Setup cqr to do the Diaganalstic Control (DCTL) command with an
  *   Inhibit Write subcommand (0x20) and the given modifier.
  *
  *  PARAMETER
@@ -332,7 +332,7 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 				    erp->retries);
                         dasd_3990_erp_block_queue(erp, HZ);
 		} else {
-			/* no state change pending - retry */
+			/* anal state change pending - retry */
 			DBF_DEV_EVENT(DBF_INFO, device,
 				     "redriving request immediately, "
 				     "%d retries left",
@@ -356,7 +356,7 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
  *
  * DESCRIPTION
  *   Setup ERP to do the ERP action 5 (see Reference manual).
- *   NOTE: Further handling is done in xxx_further_erp after the retries.
+ *   ANALTE: Further handling is done in xxx_further_erp after the retries.
  *
  *  PARAMETER
  *   erp		pointer to the current ERP
@@ -397,7 +397,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 
 	struct dasd_device *device = erp->startdev;
 	char msg_format = (sense[7] & 0xF0);
-	char msg_no = (sense[7] & 0x0F);
+	char msg_anal = (sense[7] & 0x0F);
 	char errorstring[ERRORLENGTH];
 
 	switch (msg_format) {
@@ -405,8 +405,8 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 
 		if (sense[1] & 0x10) {	/* check message to operator bit */
 
-			switch (msg_no) {
-			case 0x00:	/* No Message */
+			switch (msg_anal) {
+			case 0x00:	/* Anal Message */
 				break;
 			case 0x01:
 				dev_warn(&device->cdev->dev,
@@ -428,7 +428,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 				break;
 			case 0x05:
 				dev_warn(&device->cdev->dev,
-					    "FORMAT 0 - Diagnostic of Special"
+					    "FORMAT 0 - Diaganalstic of Special"
 					    " Command Violates File Mask\n");
 				break;
 			case 0x07:
@@ -438,7 +438,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 				break;
 			case 0x08:
 				dev_warn(&device->cdev->dev,
-					    "FORMAT 0 - Reset Notification\n");
+					    "FORMAT 0 - Reset Analtification\n");
 				break;
 			case 0x09:
 				dev_warn(&device->cdev->dev,
@@ -466,7 +466,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 				break;
 			case 0x0F:
 				dev_warn(&device->cdev->dev,
-					    "FORMAT 0 - Status Not As "
+					    "FORMAT 0 - Status Analt As "
 					    "Required: reason %02x\n",
 					 sense[8]);
 				break;
@@ -475,8 +475,8 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 					    "FORMAT 0 - Reserved\n");
 			}
 		} else {
-			switch (msg_no) {
-			case 0x00:	/* No Message */
+			switch (msg_anal) {
+			case 0x00:	/* Anal Message */
 				break;
 			case 0x01:
 				dev_warn(&device->cdev->dev,
@@ -505,12 +505,12 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x10:		/* Format 1 - Device Equipment Checks */
-		switch (msg_no) {
-		case 0x00:	/* No Message */
+		switch (msg_anal) {
+		case 0x00:	/* Anal Message */
 			break;
 		case 0x01:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 1 - Device Status 1 not as "
+				    "FORMAT 1 - Device Status 1 analt as "
 				    "expected\n");
 			break;
 		case 0x03:
@@ -519,36 +519,36 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x04:
 			dev_warn(&device->cdev->dev,
-				 "FORMAT 1 - Interruption cannot be "
+				 "FORMAT 1 - Interruption cananalt be "
 				 "reset\n");
 			break;
 		case 0x05:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 1 - Device did not respond to "
+				    "FORMAT 1 - Device did analt respond to "
 				    "selection\n");
 			break;
 		case 0x06:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 1 - Device check-2 error or Set "
-				    "Sector is not complete\n");
+				    "Sector is analt complete\n");
 			break;
 		case 0x07:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 1 - Head address does not "
+				    "FORMAT 1 - Head address does analt "
 				    "compare\n");
 			break;
 		case 0x08:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 1 - Device status 1 not valid\n");
+				    "FORMAT 1 - Device status 1 analt valid\n");
 			break;
 		case 0x09:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 1 - Device not ready\n");
+				    "FORMAT 1 - Device analt ready\n");
 			break;
 		case 0x0A:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 1 - Track physical address did "
-				    "not compare\n");
+				    "analt compare\n");
 			break;
 		case 0x0B:
 			dev_warn(&device->cdev->dev,
@@ -564,12 +564,12 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0E:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 1 - Cylinder address did not "
+				    "FORMAT 1 - Cylinder address did analt "
 				    "compare\n");
 			break;
 		case 0x0F:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 1 - Offset active cannot be "
+				    "FORMAT 1 - Offset active cananalt be "
 				    "reset\n");
 			break;
 		default:
@@ -579,7 +579,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x20:		/* Format 2 - 3990 Equipment Checks */
-		switch (msg_no) {
+		switch (msg_anal) {
 		case 0x08:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 2 - 3990 check-2 error\n");
@@ -601,7 +601,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x30:		/* Format 3 - 3990 Control Checks */
-		switch (msg_no) {
+		switch (msg_anal) {
 		case 0x0F:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 3 - Allegiance terminated\n");
@@ -613,7 +613,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x40:		/* Format 4 - Data Checks */
-		switch (msg_no) {
+		switch (msg_anal) {
 		case 0x00:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 4 - Home address area error\n");
@@ -632,21 +632,21 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x04:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No sync byte in home address "
+				    "FORMAT 4 - Anal sync byte in home address "
 				    "area\n");
 			break;
 		case 0x05:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No sync byte in count address "
+				    "FORMAT 4 - Anal sync byte in count address "
 				    "area\n");
 			break;
 		case 0x06:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No sync byte in key area\n");
+				    "FORMAT 4 - Anal sync byte in key area\n");
 			break;
 		case 0x07:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No sync byte in data area\n");
+				    "FORMAT 4 - Anal sync byte in data area\n");
 			break;
 		case 0x08:
 			dev_warn(&device->cdev->dev,
@@ -670,22 +670,22 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0C:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No sync byte in home "
+				    "FORMAT 4 - Anal sync byte in home "
 				    "address area; offset active\n");
 			break;
 		case 0x0D:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No sync byte in count "
+				    "FORMAT 4 - Anal sync byte in count "
 				    "address area; offset active\n");
 			break;
 		case 0x0E:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No sync byte in key area; "
+				    "FORMAT 4 - Anal sync byte in key area; "
 				    "offset active\n");
 			break;
 		case 0x0F:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No sync byte in data area; "
+				    "FORMAT 4 - Anal sync byte in data area; "
 				    "offset active\n");
 			break;
 		default:
@@ -695,7 +695,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x50:  /* Format 5 - Data Check with displacement information */
-		switch (msg_no) {
+		switch (msg_anal) {
 		case 0x00:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 5 - Data Check in the "
@@ -742,7 +742,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x60:  /* Format 6 - Usage Statistics/Overrun Errors */
-		switch (msg_no) {
+		switch (msg_anal) {
 		case 0x00:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 6 - Overrun on channel A\n");
@@ -782,7 +782,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x70:  /* Format 7 - Device Connection Control Checks */
-		switch (msg_no) {
+		switch (msg_anal) {
 		case 0x00:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 7 - RCC initiated by a connection "
@@ -790,12 +790,12 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x01:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 7 - RCC 1 sequence not "
+				    "FORMAT 7 - RCC 1 sequence analt "
 				    "successful\n");
 			break;
 		case 0x02:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 7 - RCC 1 and RCC 2 sequences not "
+				    "FORMAT 7 - RCC 1 and RCC 2 sequences analt "
 				    "successful\n");
 			break;
 		case 0x03:
@@ -839,17 +839,17 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0B:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 7 - No response to selection "
+				    "FORMAT 7 - Anal response to selection "
 				    "after a poll interruption\n");
 			break;
 		case 0x0C:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 7 - Permanent path error (DASD "
-				    "controller not available)\n");
+				    "controller analt available)\n");
 			break;
 		case 0x0D:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 7 - DASD controller not available"
+				    "FORMAT 7 - DASD controller analt available"
 				    " on disconnected command chain\n");
 			break;
 		default:
@@ -859,8 +859,8 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x80:  /* Format 8 - Additional Device Equipment Checks */
-		switch (msg_no) {
-		case 0x00:	/* No Message */
+		switch (msg_anal) {
+		case 0x00:	/* Anal Message */
 		case 0x01:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 8 - Error correction code "
@@ -874,7 +874,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		case 0x04:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 8 - End operation with transfer "
-				    "count not zero\n");
+				    "count analt zero\n");
 			break;
 		case 0x05:
 			dev_warn(&device->cdev->dev,
@@ -888,7 +888,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x07:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 8 - DPS cannot be filled\n");
+				    "FORMAT 8 - DPS cananalt be filled\n");
 			break;
 		case 0x08:
 			dev_warn(&device->cdev->dev,
@@ -902,7 +902,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0A:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 8 - No interruption from device "
+				    "FORMAT 8 - Anal interruption from device "
 				    "during a command chain\n");
 			break;
 		default:
@@ -912,26 +912,26 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0x90:  /* Format 9 - Device Read, Write, and Seek Checks */
-		switch (msg_no) {
+		switch (msg_anal) {
 		case 0x00:
-			break;	/* No Message */
+			break;	/* Anal Message */
 		case 0x06:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 9 - Device check-2 error\n");
 			break;
 		case 0x07:
 			dev_warn(&device->cdev->dev,
-				 "FORMAT 9 - Head address did not "
+				 "FORMAT 9 - Head address did analt "
 				 "compare\n");
 			break;
 		case 0x0A:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT 9 - Track physical address did "
-				    "not compare while oriented\n");
+				    "analt compare while oriented\n");
 			break;
 		case 0x0E:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 9 - Cylinder address did not "
+				    "FORMAT 9 - Cylinder address did analt "
 				    "compare\n");
 			break;
 		default:
@@ -941,7 +941,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	case 0xF0:		/* Format F - Cache Storage Checks */
-		switch (msg_no) {
+		switch (msg_anal) {
 		case 0x00:
 			dev_warn(&device->cdev->dev,
 				    "FORMAT F - Operation Terminated\n");
@@ -952,7 +952,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x02:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT F - Cache or nonvolatile storage "
+				    "FORMAT F - Cache or analnvolatile storage "
 				    "equipment failure\n");
 			break;
 		case 0x04:
@@ -961,7 +961,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x06:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT F - Cache fast write access not "
+				    "FORMAT F - Cache fast write access analt "
 				    "authorized\n");
 			break;
 		case 0x07:
@@ -974,7 +974,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0A:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT F - Nonvolatile storage "
+				    "FORMAT F - Analnvolatile storage "
 				    "terminated\n");
 			break;
 		case 0x0B:
@@ -986,7 +986,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0C:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT F - Subsystem status cannot be "
+				    "FORMAT F - Subsystem status cananalt be "
 				    "determined\n");
 			break;
 		case 0x0D:
@@ -1004,8 +1004,8 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		}
 		break;
 
-	default:	/* unknown message format - should not happen
-			   internal error 03 - unknown message format */
+	default:	/* unkanalwn message format - should analt happen
+			   internal error 03 - unkanalwn message format */
 		snprintf(errorstring, ERRORLENGTH, "03 %x02", msg_format);
 		dev_err(&device->cdev->dev,
 			 "An error occurred in the DASD device driver, "
@@ -1193,8 +1193,8 @@ dasd_3990_erp_data_check(struct dasd_ccw_req * erp, char *sense)
 			    "Data recovered during retry with PCI "
 			    "fetch mode active\n");
 
-		/* not possible to handle this situation in Linux */
-		panic("No way to inform application about the possibly "
+		/* analt possible to handle this situation in Linux */
+		panic("Anal way to inform application about the possibly "
 		      "incorrect data");
 
 	} else if (sense[2] & SNS2_ENV_DATA_PRESENT) {
@@ -1285,7 +1285,7 @@ dasd_3990_erp_inv_format(struct dasd_ccw_req * erp, char *sense)
 		erp = dasd_3990_erp_action_4(erp, sense);
 
 	} else {
-		/* internal error 06 - The track format is not valid*/
+		/* internal error 06 - The track format is analt valid*/
 		dev_err(&device->cdev->dev,
 			"An error occurred in the DASD device driver, "
 			"reason=%s\n", "06");
@@ -1357,10 +1357,10 @@ dasd_3990_erp_env_data(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_env_data */
 
 /*
- * DASD_3990_ERP_NO_REC
+ * DASD_3990_ERP_ANAL_REC
  *
  * DESCRIPTION
- *   Handles 24 byte 'No Record Found' error.
+ *   Handles 24 byte 'Anal Record Found' error.
  *
  * PARAMETER
  *   erp		already added default ERP
@@ -1369,30 +1369,30 @@ dasd_3990_erp_env_data(struct dasd_ccw_req * erp, char *sense)
  *   erp		new erp_head - pointer to new ERP
  */
 static struct dasd_ccw_req *
-dasd_3990_erp_no_rec(struct dasd_ccw_req * default_erp, char *sense)
+dasd_3990_erp_anal_rec(struct dasd_ccw_req * default_erp, char *sense)
 {
 
 	struct dasd_device *device = default_erp->startdev;
 
 	/*
-	 * In some cases the 'No Record Found' error might be expected and
+	 * In some cases the 'Anal Record Found' error might be expected and
 	 * log messages shouldn't be written then.
 	 * Check if the according suppress bit is set.
 	 */
 	if (!test_bit(DASD_CQR_SUPPRESS_NRF, &default_erp->flags))
 		dev_err(&device->cdev->dev,
-			"The specified record was not found\n");
+			"The specified record was analt found\n");
 
 	return dasd_3990_erp_cleanup(default_erp, DASD_CQR_FAILED);
 
-}				/* end dasd_3990_erp_no_rec */
+}				/* end dasd_3990_erp_anal_rec */
 
 /*
  * DASD_3990_ERP_FILE_PROT
  *
  * DESCRIPTION
  *   Handles 24 byte 'File Protected' error.
- *   Note: Seek related recovery is not implemented because
+ *   Analte: Seek related recovery is analt implemented because
  *	   wee don't use the seek command yet.
  *
  * PARAMETER
@@ -1424,7 +1424,7 @@ dasd_3990_erp_file_prot(struct dasd_ccw_req * erp)
  *
  * DESCRIPTION
  *   Checks if the original request was started on an alias device.
- *   If yes, it modifies the original and the erp request so that
+ *   If anal, it modifies the original and the erp request so that
  *   the erp request can be started on a base device.
  *
  * PARAMETER
@@ -1533,15 +1533,15 @@ dasd_3990_erp_inspect_24(struct dasd_ccw_req * erp, char *sense)
 	if ((erp_filled == NULL) && (sense[2] & SNS2_ENV_DATA_PRESENT)) {
 		erp_filled = dasd_3990_erp_env_data(erp, sense);
 	}
-	/* 'No Record Found'	   */
-	if ((erp_filled == NULL) && (sense[1] & SNS1_NO_REC_FOUND)) {
-		erp_filled = dasd_3990_erp_no_rec(erp, sense);
+	/* 'Anal Record Found'	   */
+	if ((erp_filled == NULL) && (sense[1] & SNS1_ANAL_REC_FOUND)) {
+		erp_filled = dasd_3990_erp_anal_rec(erp, sense);
 	}
 	/* 'File Protected'	   */
 	if ((erp_filled == NULL) && (sense[1] & SNS1_FILE_PROTECTED)) {
 		erp_filled = dasd_3990_erp_file_prot(erp);
 	}
-	/* other (unknown) error - do default ERP */
+	/* other (unkanalwn) error - do default ERP */
 	if (erp_filled == NULL) {
 
 		erp_filled = erp;
@@ -1590,11 +1590,11 @@ dasd_3990_erp_action_10_32(struct dasd_ccw_req * erp, char *sense)
  *
  * DESCRIPTION
  *   Handles 32 byte 'Action 1B' of Single Program Action Codes.
- *   A write operation could not be finished because of an unexpected
+ *   A write operation could analt be finished because of an unexpected
  *   condition.
  *   The already created 'default erp' is used to get the link to
- *   the erp chain, but it can not be used for this recovery
- *   action because it contains no DE/LO data space.
+ *   the erp chain, but it can analt be used for this recovery
+ *   action because it contains anal DE/LO data space.
  *
  * PARAMETER
  *   default_erp	already added default erp.
@@ -1618,7 +1618,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 	struct ccw1 *ccw, *oldccw;
 
 	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-		    "Write not finished because of unexpected condition");
+		    "Write analt finished because of unexpected condition");
 
 	default_erp->function = dasd_3990_erp_action_1B_32;
 
@@ -1631,7 +1631,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 
 	if (scsw_is_tm(&cqr->irb.scsw)) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			      "32 bit sense, action 1B is not defined"
+			      "32 bit sense, action 1B is analt defined"
 			      " in transport mode - just retry");
 		return default_erp;
 	}
@@ -1645,7 +1645,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 	}
 
 	/* determine the address of the CCW to be restarted */
-	/* Imprecise ending is not set -> addr from IRB-SCSW */
+	/* Imprecise ending is analt set -> addr from IRB-SCSW */
 	cpa = default_erp->refers->irb.scsw.cmd.cpa;
 
 	if (cpa == 0) {
@@ -1683,7 +1683,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 	LO_data = erp->data + sizeof(struct DE_eckd_data);
 
 	if ((sense[3] == 0x01) && (LO_data[1] & 0x01)) {
-		/* should not */
+		/* should analt */
 		return dasd_3990_erp_cleanup(default_erp, DASD_CQR_FAILED);
 	}
 
@@ -1753,8 +1753,8 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
  *
  * DESCRIPTION
  *   Handles the update to the 32 byte 'Action 1B' of Single Program
- *   Action Codes in case the first action was not successful.
- *   The already created 'previous_erp' is the currently not successful
+ *   Action Codes in case the first action was analt successful.
+ *   The already created 'previous_erp' is the currently analt successful
  *   ERP.
  *
  * PARAMETER
@@ -1775,7 +1775,7 @@ dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
 	struct ccw1 *ccw;
 
 	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-		    "Write not finished because of unexpected condition"
+		    "Write analt finished because of unexpected condition"
 		    " - follow on");
 
 	/* determine the original cqr */
@@ -1803,7 +1803,7 @@ dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
 	}
 
 	/* determine the address of the CCW to be restarted */
-	/* Imprecise ending is not set -> addr from IRB-SCSW */
+	/* Imprecise ending is analt set -> addr from IRB-SCSW */
 	cpa = previous_erp->irb.scsw.cmd.cpa;
 
 	if (cpa == 0) {
@@ -1823,7 +1823,7 @@ dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
 	LO_data = erp->data + sizeof(struct DE_eckd_data);
 
 	if ((sense[3] == 0x01) && (LO_data[1] & 0x01)) {
-		/* should not happen */
+		/* should analt happen */
 		previous_erp->status = DASD_CQR_FAILED;
 
 		return previous_erp;
@@ -1867,7 +1867,7 @@ dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
  *
  * DESCRIPTION
  *   Handles the compound ERP action retry code.
- *   NOTE: At least one retry is done even if zero is specified
+ *   ANALTE: At least one retry is done even if zero is specified
  *	   by the sense data. This makes enqueueing of the request
  *	   easier.
  *
@@ -1884,7 +1884,7 @@ dasd_3990_erp_compound_retry(struct dasd_ccw_req * erp, char *sense)
 {
 
 	switch (sense[25] & 0x03) {
-	case 0x00:		/* no not retry */
+	case 0x00:		/* anal analt retry */
 		erp->retries = 1;
 		break;
 
@@ -1964,7 +1964,7 @@ dasd_3990_erp_compound_code(struct dasd_ccw_req * erp, char *sense)
 
 		switch (sense[28]) {
 		case 0x17:
-			/* issue a Diagnostic Control command with an
+			/* issue a Diaganalstic Control command with an
 			 * Inhibit Write subcommand and controller modifier */
 			erp = dasd_3990_erp_DCTL(erp, 0x20);
 			break;
@@ -1977,7 +1977,7 @@ dasd_3990_erp_compound_code(struct dasd_ccw_req * erp, char *sense)
 			break;
 
 		default:
-			/* should not happen - continue */
+			/* should analt happen - continue */
 			break;
 		}
 	}
@@ -1994,7 +1994,7 @@ dasd_3990_erp_compound_code(struct dasd_ccw_req * erp, char *sense)
  * DESCRIPTION
  *   Handles the compound ERP action for configuration
  *   dependent error.
- *   Note: duplex handling is not implemented (yet).
+ *   Analte: duplex handling is analt implemented (yet).
  *
  * PARAMETER
  *   sense		sense data of the actual error
@@ -2029,7 +2029,7 @@ dasd_3990_erp_compound_config(struct dasd_ccw_req * erp, char *sense)
  *
  * DESCRIPTION
  *   Does the further compound program action if
- *   compound retry was not successful.
+ *   compound retry was analt successful.
  *
  * PARAMETER
  *   sense		sense data of the actual error
@@ -2061,7 +2061,7 @@ dasd_3990_erp_compound(struct dasd_ccw_req * erp, char *sense)
 		dasd_3990_erp_compound_config(erp, sense);
 	}
 
-	/* if no compound action ERP specified, the request failed */
+	/* if anal compound action ERP specified, the request failed */
 	if (erp->status == DASD_CQR_NEED_ERP)
 		erp->status = DASD_CQR_FAILED;
 
@@ -2079,7 +2079,7 @@ dasd_3990_erp_compound(struct dasd_ccw_req * erp, char *sense)
  *   sense	   sense data of the actual error
  *
  * RETURN VALUES
- *   none
+ *   analne
  */
 void
 dasd_3990_erp_handle_sim(struct dasd_device *device, char *sense)
@@ -2166,7 +2166,7 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 			break;
 
 		case 0x15:	/* next track outside defined extend
-				   internal error 07 - The next track is not
+				   internal error 07 - The next track is analt
 				   within the defined storage extent */
 			dev_err(&device->cdev->dev,
 				"An error occurred in the DASD device driver, "
@@ -2185,9 +2185,9 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 				    "Data recovered during retry with PCI "
 				    "fetch mode active\n");
 
-			/* not possible to handle this situation in Linux */
+			/* analt possible to handle this situation in Linux */
 			panic
-			    ("Invalid data - No way to inform application "
+			    ("Invalid data - Anal way to inform application "
 			     "about the possibly incorrect data");
 			break;
 
@@ -2226,7 +2226,7 @@ static void dasd_3990_erp_disable_path(struct dasd_device *device, __u8 lpum)
 		goto out;
 	}
 
-	/* no remaining path, cannot disable */
+	/* anal remaining path, cananalt disable */
 	if (!(dasd_path_get_opm(device) & ~lpum)) {
 		dev_err(&device->cdev->dev,
 			"Last path %x.%02x (pathmask %02x) is operational despite excessive IFCCs\n",
@@ -2365,7 +2365,7 @@ dasd_3990_erp_inspect(struct dasd_ccw_req *erp)
  *   (retry TIC).
  *   For transport mode we make a copy of the original TCW (points to
  *   the original TCCB, TIDALs, etc.) but give it a fresh
- *   TSB so the original sense data will not be changed.
+ *   TSB so the original sense data will analt be changed.
  *
  * PARAMETER
  *   cqr		head of the current ERP-chain (or single cqr if
@@ -2385,7 +2385,7 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 
 	if (cqr->cpmode == 1) {
 		cplength = 0;
-		/* TCW needs to be 64 byte aligned, so leave enough room */
+		/* TCW needs to be 64 byte aligned, so leave eanalugh room */
 		datasize = 64 + sizeof(struct tcw) + sizeof(struct tsb);
 	} else {
 		cplength = 2;
@@ -2421,12 +2421,12 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 		*tcw = *((struct tcw *)cqr->cpaddr);
 		tcw->tsb = virt_to_phys(tsb);
 	} else if (ccw->cmd_code == DASD_ECKD_CCW_PSF) {
-		/* PSF cannot be chained from NOOP/TIC */
+		/* PSF cananalt be chained from ANALOP/TIC */
 		erp->cpaddr = cqr->cpaddr;
 	} else {
 		/* initialize request with default TIC to current ERP/CQR */
 		ccw = erp->cpaddr;
-		ccw->cmd_code = CCW_CMD_NOOP;
+		ccw->cmd_code = CCW_CMD_ANALOP;
 		ccw->flags = CCW_FLAG_CC;
 		ccw++;
 		ccw->cmd_code = CCW_CMD_TIC;
@@ -2514,10 +2514,10 @@ static int dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1,
 	sense1 = dasd_get_sense(&cqr1->irb);
 	sense2 = dasd_get_sense(&cqr2->irb);
 
-	/* one request has sense data, the other not -> no match, return 0 */
+	/* one request has sense data, the other analt -> anal match, return 0 */
 	if (!sense1 != !sense2)
 		return 0;
-	/* no sense data in both cases -> check cstat for IFCC */
+	/* anal sense data in both cases -> check cstat for IFCC */
 	if (!sense1 && !sense2)	{
 		if ((scsw_cstat(&cqr1->irb.scsw) & (SCHN_STAT_INTF_CTRL_CHK |
 						    SCHN_STAT_CHN_CTRL_CHK)) ==
@@ -2543,7 +2543,7 @@ static int dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1,
  *
  * DESCRIPTION
  *   check if the current error already happened before.
- *   quick exit if current cqr is not an ERP (cqr->refers=NULL)
+ *   quick exit if current cqr is analt an ERP (cqr->refers=NULL)
  *
  * PARAMETER
  *   cqr		failed cqr (either original cqr or already an erp)
@@ -2561,7 +2561,7 @@ dasd_3990_erp_in_erp(struct dasd_ccw_req *cqr)
 	*erp_match = NULL;	/* save erp chain head */
 	int match = 0;		/* 'boolean' for matching error found */
 
-	if (cqr->refers == NULL) {	/* return if not in erp */
+	if (cqr->refers == NULL) {	/* return if analt in erp */
 		return NULL;
 	}
 
@@ -2574,7 +2574,7 @@ dasd_3990_erp_in_erp(struct dasd_ccw_req *cqr)
 	} while ((cqr->refers != NULL) && (!match));
 
 	if (!match) {
-		return NULL;	/* no match was found */
+		return NULL;	/* anal match was found */
 	}
 
 	return erp_match;	/* return address of matching erp */
@@ -2585,14 +2585,14 @@ dasd_3990_erp_in_erp(struct dasd_ccw_req *cqr)
  * DASD_3990_ERP_FURTHER_ERP (24 & 32 byte sense)
  *
  * DESCRIPTION
- *   No retry is left for the current ERP. Check what has to be done
+ *   Anal retry is left for the current ERP. Check what has to be done
  *   with the ERP.
  *     - do further defined ERP action or
  *     - wait for interrupt or
  *     - exit with permanent error
  *
  * PARAMETER
- *   erp		ERP which is in progress with no retry left
+ *   erp		ERP which is in progress with anal retry left
  *
  * RETURN VALUES
  *   erp		modified/additional ERP
@@ -2615,13 +2615,13 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 		erp = dasd_3990_erp_action_1_sec(erp);
 	} else if (erp->function == dasd_3990_erp_action_5) {
 
-		/* retries have not been successful */
+		/* retries have analt been successful */
 		/* prepare erp for retry on different channel path */
 		erp = dasd_3990_erp_action_1(erp);
 
 		if (sense && !(sense[2] & DASD_SENSE_BIT_0)) {
 
-			/* issue a Diagnostic Control command with an
+			/* issue a Diaganalstic Control command with an
 			 * Inhibit Write subcommand */
 
 			switch (sense[25]) {
@@ -2643,7 +2643,7 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 			default:
 				DBF_DEV_EVENT(DBF_WARNING, device,
 					    "invalid subcommand modifier 0x%x "
-					    "for Diagnostic Control Command",
+					    "for Diaganalstic Control Command",
 					    sense[25]);
 			}
 		}
@@ -2659,7 +2659,7 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 
 	} else {
 		/*
-		 * No retry left and no additional special handling
+		 * Anal retry left and anal additional special handling
 		 * necessary
 		 */
 		dev_err(&device->cdev->dev,
@@ -2747,8 +2747,8 @@ dasd_3990_erp_handle_match_erp(struct dasd_ccw_req *erp_head,
 		}
 
 	} else {
-		/* no retry left - check for further necessary action	 */
-		/* if no further actions, handle rest as permanent error */
+		/* anal retry left - check for further necessary action	 */
+		/* if anal further actions, handle rest as permanent error */
 		erp = dasd_3990_erp_further_erp(erp);
 	}
 
@@ -2801,7 +2801,7 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 
 		DBF_DEV_EVENT(DBF_DEBUG, device,
 			    "ERP called for successful request %p"
-			    " - NO ERP necessary", cqr);
+			    " - ANAL ERP necessary", cqr);
 
 		cqr->status = DASD_CQR_DONE;
 
@@ -2812,7 +2812,7 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 	erp = dasd_3990_erp_in_erp(cqr);
 
 	if (erp == NULL) {
-		/* no matching erp found - set up erp */
+		/* anal matching erp found - set up erp */
 		erp = dasd_3990_erp_additional_erp(cqr);
 		if (IS_ERR(erp))
 			return erp;

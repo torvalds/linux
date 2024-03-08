@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_EMAD_H
 #define _MLXSW_EMAD_H
@@ -35,13 +35,13 @@ enum {
 enum mlxsw_emad_op_tlv_status {
 	MLXSW_EMAD_OP_TLV_STATUS_SUCCESS,
 	MLXSW_EMAD_OP_TLV_STATUS_BUSY,
-	MLXSW_EMAD_OP_TLV_STATUS_VERSION_NOT_SUPPORTED,
-	MLXSW_EMAD_OP_TLV_STATUS_UNKNOWN_TLV,
-	MLXSW_EMAD_OP_TLV_STATUS_REGISTER_NOT_SUPPORTED,
-	MLXSW_EMAD_OP_TLV_STATUS_CLASS_NOT_SUPPORTED,
-	MLXSW_EMAD_OP_TLV_STATUS_METHOD_NOT_SUPPORTED,
+	MLXSW_EMAD_OP_TLV_STATUS_VERSION_ANALT_SUPPORTED,
+	MLXSW_EMAD_OP_TLV_STATUS_UNKANALWN_TLV,
+	MLXSW_EMAD_OP_TLV_STATUS_REGISTER_ANALT_SUPPORTED,
+	MLXSW_EMAD_OP_TLV_STATUS_CLASS_ANALT_SUPPORTED,
+	MLXSW_EMAD_OP_TLV_STATUS_METHOD_ANALT_SUPPORTED,
 	MLXSW_EMAD_OP_TLV_STATUS_BAD_PARAMETER,
-	MLXSW_EMAD_OP_TLV_STATUS_RESOURCE_NOT_AVAILABLE,
+	MLXSW_EMAD_OP_TLV_STATUS_RESOURCE_ANALT_AVAILABLE,
 	MLXSW_EMAD_OP_TLV_STATUS_MESSAGE_RECEIPT_ACK,
 	MLXSW_EMAD_OP_TLV_STATUS_INTERNAL_ERROR = 0x70,
 };
@@ -53,26 +53,26 @@ static inline char *mlxsw_emad_op_tlv_status_str(u8 status)
 		return "operation performed";
 	case MLXSW_EMAD_OP_TLV_STATUS_BUSY:
 		return "device is busy";
-	case MLXSW_EMAD_OP_TLV_STATUS_VERSION_NOT_SUPPORTED:
-		return "version not supported";
-	case MLXSW_EMAD_OP_TLV_STATUS_UNKNOWN_TLV:
-		return "unknown TLV";
-	case MLXSW_EMAD_OP_TLV_STATUS_REGISTER_NOT_SUPPORTED:
-		return "register not supported";
-	case MLXSW_EMAD_OP_TLV_STATUS_CLASS_NOT_SUPPORTED:
-		return "class not supported";
-	case MLXSW_EMAD_OP_TLV_STATUS_METHOD_NOT_SUPPORTED:
-		return "method not supported";
+	case MLXSW_EMAD_OP_TLV_STATUS_VERSION_ANALT_SUPPORTED:
+		return "version analt supported";
+	case MLXSW_EMAD_OP_TLV_STATUS_UNKANALWN_TLV:
+		return "unkanalwn TLV";
+	case MLXSW_EMAD_OP_TLV_STATUS_REGISTER_ANALT_SUPPORTED:
+		return "register analt supported";
+	case MLXSW_EMAD_OP_TLV_STATUS_CLASS_ANALT_SUPPORTED:
+		return "class analt supported";
+	case MLXSW_EMAD_OP_TLV_STATUS_METHOD_ANALT_SUPPORTED:
+		return "method analt supported";
 	case MLXSW_EMAD_OP_TLV_STATUS_BAD_PARAMETER:
 		return "bad parameter";
-	case MLXSW_EMAD_OP_TLV_STATUS_RESOURCE_NOT_AVAILABLE:
-		return "resource not available";
+	case MLXSW_EMAD_OP_TLV_STATUS_RESOURCE_ANALT_AVAILABLE:
+		return "resource analt available";
 	case MLXSW_EMAD_OP_TLV_STATUS_MESSAGE_RECEIPT_ACK:
-		return "acknowledged. retransmit";
+		return "ackanalwledged. retransmit";
 	case MLXSW_EMAD_OP_TLV_STATUS_INTERNAL_ERROR:
 		return "internal error";
 	default:
-		return "*UNKNOWN*";
+		return "*UNKANALWN*";
 	}
 }
 

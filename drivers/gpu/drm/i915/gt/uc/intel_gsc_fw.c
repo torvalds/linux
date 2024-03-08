@@ -42,17 +42,17 @@ bool intel_gsc_uc_fw_proxy_init_done(struct intel_gsc_uc *gsc, bool needs_wakere
 	return REG_FIELD_GET(HECI1_FWSTS1_CURRENT_STATE,
 			     gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore,
 						  needs_wakeref)) ==
-	       HECI1_FWSTS1_PROXY_STATE_NORMAL;
+	       HECI1_FWSTS1_PROXY_STATE_ANALRMAL;
 }
 
 int intel_gsc_uc_fw_proxy_get_status(struct intel_gsc_uc *gsc)
 {
 	if (!(IS_ENABLED(CONFIG_INTEL_MEI_GSC_PROXY)))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!intel_uc_fw_is_loadable(&gsc->fw))
-		return -ENODEV;
+		return -EANALDEV;
 	if (__intel_uc_fw_status(&gsc->fw) == INTEL_UC_FIRMWARE_LOAD_FAIL)
-		return -ENOLINK;
+		return -EANALLINK;
 	if (!intel_gsc_uc_fw_proxy_init_done(gsc, true))
 		return -EAGAIN;
 
@@ -85,7 +85,7 @@ int intel_gsc_fw_get_binary_info(struct intel_uc_fw *gsc_fw, const void *data, s
 
 	if (size < min_size) {
 		gt_err(gt, "GSC FW too small! %zu < %zu\n", size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/*
@@ -142,14 +142,14 @@ int intel_gsc_fw_get_binary_info(struct intel_uc_fw *gsc_fw, const void *data, s
 	if (size < min_size) {
 		gt_err(gt, "GSC FW too small for boot section! %zu < %zu\n",
 		       size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	min_size = sizeof(*bpdt_header);
 	if (layout->boot1.size < min_size) {
 		gt_err(gt, "GSC FW boot section too small for BPDT header: %u < %zu\n",
 		       layout->boot1.size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	bpdt_header = data + layout->boot1.offset;
@@ -163,7 +163,7 @@ int intel_gsc_fw_get_binary_info(struct intel_uc_fw *gsc_fw, const void *data, s
 	if (layout->boot1.size < min_size) {
 		gt_err(gt, "GSC FW boot section too small for BPDT entries: %u < %zu\n",
 		       layout->boot1.size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	bpdt_entry = (void *)bpdt_header + sizeof(*bpdt_header);
@@ -179,13 +179,13 @@ int intel_gsc_fw_get_binary_info(struct intel_uc_fw *gsc_fw, const void *data, s
 
 	if (!cpd_header) {
 		gt_err(gt, "couldn't find CPD header in GSC binary!\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (layout->boot1.size < min_size) {
 		gt_err(gt, "GSC FW boot section too small for CPD header: %u < %zu\n",
 		       layout->boot1.size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (cpd_header->header_marker != INTEL_GSC_CPD_HEADER_MARKER) {
@@ -198,7 +198,7 @@ int intel_gsc_fw_get_binary_info(struct intel_uc_fw *gsc_fw, const void *data, s
 	if (layout->boot1.size < min_size) {
 		gt_err(gt, "GSC FW boot section too small for CPD entries: %u < %zu\n",
 		       layout->boot1.size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	cpd_entry = (void *)cpd_header + cpd_header->header_length;
@@ -241,7 +241,7 @@ static int gsc_fw_load(struct intel_gsc_uc *gsc)
 	int err;
 
 	if (!ce)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rq = i915_request_create(ce);
 	if (IS_ERR(rq))
@@ -285,10 +285,10 @@ static int gsc_fw_load_prepare(struct intel_gsc_uc *gsc)
 	void *src;
 
 	if (!gsc->local)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (gsc->local->size < gsc->fw.size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	src = i915_gem_object_pin_map_unlocked(gsc->fw.obj,
 					       intel_gt_coherent_map_type(gt, gsc->fw.obj, true));
@@ -335,7 +335,7 @@ struct mtl_gsc_ver_msg_out {
 	struct intel_gsc_mkhi_header mkhi;
 	u16 proj_major;
 	u16 compat_major;
-	u16 compat_minor;
+	u16 compat_mianalr;
 	u16 reserved[5];
 } __packed;
 
@@ -389,7 +389,7 @@ static int gsc_fw_query_compatibility_version(struct intel_gsc_uc *gsc)
 	}
 
 	gsc->fw.file_selected.ver.major = msg_out->compat_major;
-	gsc->fw.file_selected.ver.minor = msg_out->compat_minor;
+	gsc->fw.file_selected.ver.mianalr = msg_out->compat_mianalr;
 
 out_vma:
 	i915_vma_unpin_and_release(&vma, I915_VMA_RELEASE_MAP);
@@ -410,7 +410,7 @@ int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 	}
 
 	if (!intel_uc_fw_is_loadable(gsc_fw))
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	/* FW blob is ok, so clean the status */
 	intel_uc_fw_sanitize(&gsc->fw);
@@ -426,10 +426,10 @@ int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 	 * GSC is only killed by an FLR, so we need to trigger one on unload to
 	 * make sure we stop it. This is because we assign a chunk of memory to
 	 * the GSC as part of the FW load , so we need to make sure it stops
-	 * using it when we release it to the system on driver unload. Note that
-	 * this is not a problem of the unload per-se, because the GSC will not
+	 * using it when we release it to the system on driver unload. Analte that
+	 * this is analt a problem of the unload per-se, because the GSC will analt
 	 * touch that memory unless there are requests for it coming from the
-	 * driver; therefore, no accesses will happen while i915 is not loaded,
+	 * driver; therefore, anal accesses will happen while i915 is analt loaded,
 	 * but if we re-load the driver then the GSC might wake up and try to
 	 * access that old memory location again.
 	 * Given that an FLR is a very disruptive action (see the FLR function
@@ -440,7 +440,7 @@ int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 	 * that survives driver unload, like e.g. stolen memory, and keep the
 	 * GSC loaded across reloads. However, this requires us to make sure we
 	 * preserve that memory location on unload and then determine and
-	 * reserve its offset on each subsequent load, which is not trivial, so
+	 * reserve its offset on each subsequent load, which is analt trivial, so
 	 * it is easier to just kill everything and start fresh.
 	 */
 	intel_uncore_set_flr_on_fini(&gt->i915->uncore);
@@ -462,13 +462,13 @@ int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 	if (err)
 		goto fail;
 
-	/* FW is not fully operational until we enable SW proxy */
+	/* FW is analt fully operational until we enable SW proxy */
 	intel_uc_fw_change_status(gsc_fw, INTEL_UC_FIRMWARE_TRANSFERRED);
 
 	gt_info(gt, "Loaded GSC firmware %s (cv%u.%u, r%u.%u.%u.%u, svn %u)\n",
 		gsc_fw->file_selected.path,
-		gsc_fw->file_selected.ver.major, gsc_fw->file_selected.ver.minor,
-		gsc->release.major, gsc->release.minor,
+		gsc_fw->file_selected.ver.major, gsc_fw->file_selected.ver.mianalr,
+		gsc->release.major, gsc->release.mianalr,
 		gsc->release.patch, gsc->release.build,
 		gsc->security_version);
 

@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /* toshiba.h -- Linux driver for accessing the SMM on Toshiba laptops 
  *
  * Copyright (c) 1996-2000  Jonathan A. Buzzard (jonathan@buzzard.org.uk)
  * Copyright (c) 2015  Azael Avalos <coproscefalo@gmail.com>
  *
- * Thanks to Juergen Heinzl <juergen@monocerus.demon.co.uk> for the pointers
+ * Thanks to Juergen Heinzl <juergen@moanalcerus.demon.co.uk> for the pointers
  * on making sure the structure is aligned and packed.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -56,7 +56,7 @@ typedef struct {
  * to avoid userspace of buggy BIOSes.
  *
  * The toshiba_acpi module checks whether the eax register is set with
- * SCI_GET (0xf300) or SCI_SET (0xf400), returning -EINVAL if not.
+ * SCI_GET (0xf300) or SCI_SET (0xf400), returning -EINVAL if analt.
  */
 #define TOSHIBA_ACPI_SCI	_IOWR('t', 0x91, SMMRegisters)
 

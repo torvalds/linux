@@ -9,7 +9,7 @@
 #include "i40e_debug.h"
 #include "i40e_type.h"
 
-/* Prototypes for shared code functions that are not in
+/* Prototypes for shared code functions that are analt in
  * the standard function pointer structures.  These are
  * mostly because they are needed even before the init
  * has happened and will assist in the early SW and FW
@@ -78,9 +78,9 @@ int i40e_blink_phy_link_led(struct i40e_hw *hw,
 /* admin send queue commands */
 
 int i40e_aq_get_firmware_version(struct i40e_hw *hw,
-				 u16 *fw_major_version, u16 *fw_minor_version,
+				 u16 *fw_major_version, u16 *fw_mianalr_version,
 				 u32 *fw_build,
-				 u16 *api_major_version, u16 *api_minor_version,
+				 u16 *api_major_version, u16 *api_mianalr_version,
 				 struct i40e_asq_cmd_details *cmd_details);
 int i40e_aq_debug_write_register(struct i40e_hw *hw,
 				 u32 reg_addr, u64 reg_val,
@@ -363,7 +363,7 @@ int i40e_validate_nvm_checksum(struct i40e_hw *hw,
 			       u16 *checksum);
 int i40e_nvmupd_command(struct i40e_hw *hw,
 			struct i40e_nvm_access *cmd,
-			u8 *bytes, int *errno);
+			u8 *bytes, int *erranal);
 void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
 				  struct i40e_aq_desc *desc);
 void i40e_nvmupd_clear_wait_state(struct i40e_hw *hw);
@@ -385,7 +385,7 @@ static inline struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
  * Returns the link_speed in terms of the virtchnl interface, for use in
  * converting link_speed as reported by the AdminQ into the format used for
  * talking to virtchnl devices. If we can't represent the link speed properly,
- * report LINK_SPEED_UNKNOWN.
+ * report LINK_SPEED_UNKANALWN.
  **/
 static inline enum virtchnl_link_speed
 i40e_virtchnl_link_speed(enum i40e_aq_link_speed link_speed)
@@ -407,9 +407,9 @@ i40e_virtchnl_link_speed(enum i40e_aq_link_speed link_speed)
 		return VIRTCHNL_LINK_SPEED_20GB;
 	case I40E_LINK_SPEED_25GB:
 		return VIRTCHNL_LINK_SPEED_25GB;
-	case I40E_LINK_SPEED_UNKNOWN:
+	case I40E_LINK_SPEED_UNKANALWN:
 	default:
-		return VIRTCHNL_LINK_SPEED_UNKNOWN;
+		return VIRTCHNL_LINK_SPEED_UNKANALWN;
 	}
 }
 
@@ -507,7 +507,7 @@ int i40e_ddp_flash(struct net_device *netdev, struct ethtool_flash *flash);
  * i40e_is_aq_api_ver_ge
  * @hw: pointer to i40e_hw structure
  * @maj: API major value to compare
- * @min: API minor value to compare
+ * @min: API mianalr value to compare
  *
  * Assert whether current HW API version is greater/equal than provided.
  **/
@@ -521,7 +521,7 @@ static inline bool i40e_is_aq_api_ver_ge(struct i40e_hw *hw, u16 maj, u16 min)
  * i40e_is_aq_api_ver_lt
  * @hw: pointer to i40e_hw structure
  * @maj: API major value to compare
- * @min: API minor value to compare
+ * @min: API mianalr value to compare
  *
  * Assert whether current HW API version is less than provided.
  **/
@@ -534,7 +534,7 @@ static inline bool i40e_is_aq_api_ver_lt(struct i40e_hw *hw, u16 maj, u16 min)
  * i40e_is_fw_ver_ge
  * @hw: pointer to i40e_hw structure
  * @maj: API major value to compare
- * @min: API minor value to compare
+ * @min: API mianalr value to compare
  *
  * Assert whether current firmware version is greater/equal than provided.
  **/
@@ -548,7 +548,7 @@ static inline bool i40e_is_fw_ver_ge(struct i40e_hw *hw, u16 maj, u16 min)
  * i40e_is_fw_ver_lt
  * @hw: pointer to i40e_hw structure
  * @maj: API major value to compare
- * @min: API minor value to compare
+ * @min: API mianalr value to compare
  *
  * Assert whether current firmware version is less than provided.
  **/
@@ -561,7 +561,7 @@ static inline bool i40e_is_fw_ver_lt(struct i40e_hw *hw, u16 maj, u16 min)
  * i40e_is_fw_ver_eq
  * @hw: pointer to i40e_hw structure
  * @maj: API major value to compare
- * @min: API minor value to compare
+ * @min: API mianalr value to compare
  *
  * Assert whether current firmware version is equal to provided.
  **/

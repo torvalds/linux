@@ -27,7 +27,7 @@ MODULE_ALIAS("platform:pcspkr");
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static bool enable = SNDRV_DEFAULT_ENABLE1;	/* Enable this card */
-static bool nopcm;	/* Disable PCM capability of the driver */
+static bool analpcm;	/* Disable PCM capability of the driver */
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for pcsp soundcard.");
@@ -35,8 +35,8 @@ module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for pcsp soundcard.");
 module_param(enable, bool, 0444);
 MODULE_PARM_DESC(enable, "Enable PC-Speaker sound.");
-module_param(nopcm, bool, 0444);
-MODULE_PARM_DESC(nopcm, "Disable PC-Speaker PCM sound. Only beeps remain.");
+module_param(analpcm, bool, 0444);
+MODULE_PARM_DESC(analpcm, "Disable PC-Speaker PCM sound. Only beeps remain.");
 
 struct snd_pcsp pcsp_chip;
 
@@ -45,14 +45,14 @@ static int snd_pcsp_create(struct snd_card *card)
 	unsigned int resolution = hrtimer_resolution;
 	int div, min_div, order;
 
-	if (!nopcm) {
+	if (!analpcm) {
 		if (resolution > PCSP_MAX_PERIOD_NS) {
-			printk(KERN_ERR "PCSP: Timer resolution is not sufficient "
+			printk(KERN_ERR "PCSP: Timer resolution is analt sufficient "
 				"(%unS)\n", resolution);
 			printk(KERN_ERR "PCSP: Make sure you have HPET and ACPI "
 				"enabled.\n");
-			printk(KERN_ERR "PCSP: Turned into nopcm mode.\n");
-			nopcm = 1;
+			printk(KERN_ERR "PCSP: Turned into analpcm mode.\n");
+			analpcm = 1;
 		}
 	}
 
@@ -102,7 +102,7 @@ static int snd_card_pcsp_probe(int devnum, struct device *dev)
 	if (devnum != 0)
 		return -EINVAL;
 
-	hrtimer_init(&pcsp_chip.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&pcsp_chip.timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	pcsp_chip.timer.function = pcsp_do_timer;
 
 	err = snd_devm_card_new(dev, index, id, THIS_MODULE, 0, &card);
@@ -113,12 +113,12 @@ static int snd_card_pcsp_probe(int devnum, struct device *dev)
 	if (err < 0)
 		return err;
 
-	if (!nopcm) {
+	if (!analpcm) {
 		err = snd_pcsp_new_pcm(&pcsp_chip);
 		if (err < 0)
 			return err;
 	}
-	err = snd_pcsp_new_mixer(&pcsp_chip, nopcm);
+	err = snd_pcsp_new_mixer(&pcsp_chip, analpcm);
 	if (err < 0)
 		return err;
 
@@ -148,7 +148,7 @@ static int alsa_card_pcsp_init(struct device *dev)
 	/* Well, CONFIG_DEBUG_PAGEALLOC makes the sound horrible. Lets alert */
 	if (debug_pagealloc_enabled()) {
 		printk(KERN_WARNING "PCSP: CONFIG_DEBUG_PAGEALLOC is enabled, "
-		       "which may make the sound noisy.\n");
+		       "which may make the sound analisy.\n");
 	}
 
 	return 0;
@@ -208,7 +208,7 @@ static struct platform_driver pcsp_platform_driver = {
 static int __init pcsp_init(void)
 {
 	if (!enable)
-		return -ENODEV;
+		return -EANALDEV;
 	return platform_driver_register(&pcsp_platform_driver);
 }
 

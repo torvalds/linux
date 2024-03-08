@@ -9,8 +9,8 @@
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/topology.h>
-#include <linux/node.h>
-#include <linux/nodemask.h>
+#include <linux/analde.h>
+#include <linux/analdemask.h>
 #include <linux/export.h>
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
@@ -60,13 +60,13 @@ static int __init topology_init(void)
 #if defined(CONFIG_NUMA) && !defined(CONFIG_SMP)
 	/*
 	 * In the UP case, make sure the CPU association is still
-	 * registered under each node. Without this, sysfs fails
-	 * to make the connection between nodes other than node0
+	 * registered under each analde. Without this, sysfs fails
+	 * to make the connection between analdes other than analde0
 	 * and cpu0.
 	 */
-	for_each_online_node(i)
-		if (i != numa_node_id())
-			register_cpu_under_node(raw_smp_processor_id(), i);
+	for_each_online_analde(i)
+		if (i != numa_analde_id())
+			register_cpu_under_analde(raw_smp_processor_id(), i);
 #endif
 
 	return 0;

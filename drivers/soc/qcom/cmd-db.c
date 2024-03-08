@@ -42,7 +42,7 @@ struct entry_header {
  * @header_offset: entry's header at offset from the end of the cmd_db_header
  * @data_offset: entry's data at offset from the end of the cmd_db_header
  * @cnt: number of entries for HW type
- * @version: MSB is major, LSB is minor
+ * @version: MSB is major, LSB is mianalr
  * @reserved: reserved for future use.
  */
 struct rsc_hdr {
@@ -122,7 +122,7 @@ rsc_offset(const struct rsc_hdr *hdr, const struct entry_header *ent)
 /**
  * cmd_db_ready - Indicates if command DB is available
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 int cmd_db_ready(void)
 {
@@ -141,15 +141,15 @@ static int cmd_db_get_header(const char *id, const struct entry_header **eh,
 	const struct rsc_hdr *rsc_hdr;
 	const struct entry_header *ent;
 	int ret, i, j;
-	u8 query[sizeof(ent->id)] __nonstring;
+	u8 query[sizeof(ent->id)] __analnstring;
 
 	ret = cmd_db_ready();
 	if (ret)
 		return ret;
 
 	/*
-	 * Pad out query string to same length as in DB. NOTE: the output
-	 * query string is not necessarily '\0' terminated if it bumps up
+	 * Pad out query string to same length as in DB. ANALTE: the output
+	 * query string is analt necessarily '\0' terminated if it bumps up
 	 * against the max size. That's OK and expected.
 	 */
 	strncpy(query, id, sizeof(query));
@@ -171,7 +171,7 @@ static int cmd_db_get_header(const char *id, const struct entry_header **eh,
 		}
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -250,7 +250,7 @@ static int cmd_db_debugfs_dump(struct seq_file *seq, void *p)
 	const struct entry_header *ent;
 	const char *name;
 	u16 len, version;
-	u8 major, minor;
+	u8 major, mianalr;
 
 	seq_puts(seq, "Command DB DUMP\n");
 
@@ -270,15 +270,15 @@ static int cmd_db_debugfs_dump(struct seq_file *seq, void *p)
 			name = "BCM";
 			break;
 		default:
-			name = "Unknown";
+			name = "Unkanalwn";
 			break;
 		}
 
 		version = le16_to_cpu(rsc->version);
 		major = version >> 8;
-		minor = version;
+		mianalr = version;
 
-		seq_printf(seq, "Slave %s (v%u.%u)\n", name, major, minor);
+		seq_printf(seq, "Slave %s (v%u.%u)\n", name, major, mianalr);
 		seq_puts(seq, "-------------------------\n");
 
 		ent = rsc_to_entry_header(rsc);
@@ -298,9 +298,9 @@ static int cmd_db_debugfs_dump(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static int open_cmd_db_debugfs(struct inode *inode, struct file *file)
+static int open_cmd_db_debugfs(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, cmd_db_debugfs_dump, inode->i_private);
+	return single_open(file, cmd_db_debugfs_dump, ianalde->i_private);
 }
 #endif
 
@@ -318,7 +318,7 @@ static int cmd_db_dev_probe(struct platform_device *pdev)
 	struct reserved_mem *rmem;
 	int ret = 0;
 
-	rmem = of_reserved_mem_lookup(pdev->dev.of_node);
+	rmem = of_reserved_mem_lookup(pdev->dev.of_analde);
 	if (!rmem) {
 		dev_err(&pdev->dev, "failed to acquire memory region\n");
 		return -EINVAL;
@@ -326,7 +326,7 @@ static int cmd_db_dev_probe(struct platform_device *pdev)
 
 	cmd_db_header = memremap(rmem->base, rmem->size, MEMREMAP_WB);
 	if (!cmd_db_header) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		cmd_db_header = NULL;
 		return ret;
 	}
@@ -338,7 +338,7 @@ static int cmd_db_dev_probe(struct platform_device *pdev)
 
 	debugfs_create_file("cmd-db", 0400, NULL, NULL, &cmd_db_debugfs_ops);
 
-	device_set_pm_not_required(&pdev->dev);
+	device_set_pm_analt_required(&pdev->dev);
 
 	return 0;
 }
@@ -364,5 +364,5 @@ static int __init cmd_db_device_init(void)
 }
 arch_initcall(cmd_db_device_init);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Command DB Driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. Command DB Driver");
 MODULE_LICENSE("GPL v2");

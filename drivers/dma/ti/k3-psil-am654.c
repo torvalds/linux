@@ -44,7 +44,7 @@
 			.pkt_mode = 1,			\
 			.needs_epib = 1,		\
 			.psd_size = 64,			\
-			.notdpkt = tx,			\
+			.analtdpkt = tx,			\
 		},					\
 	}
 

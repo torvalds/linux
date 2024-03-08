@@ -21,7 +21,7 @@
 
 #define RUNTIME_DISCARD_EXIT
 
-#define EMITS_PT_NOTE
+#define EMITS_PT_ANALTE
 
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/vmlinux.lds.h>
@@ -34,7 +34,7 @@ jiffies = jiffies_64;
 PHDRS {
 	text PT_LOAD FLAGS(5);	/* R_E */
 	data PT_LOAD FLAGS(7);	/* RWE */
-	note PT_NOTE FLAGS(0);	/* ___ */
+	analte PT_ANALTE FLAGS(0);	/* ___ */
 }
 
 SECTIONS
@@ -98,7 +98,7 @@ SECTIONS
 	}
 
 	/*
-	 * .exit.text is discarded at runtime, not link time,
+	 * .exit.text is discarded at runtime, analt link time,
 	 * to deal with references from __bug_table
 	*/
 	.exit.text : {
@@ -113,7 +113,7 @@ SECTIONS
 	 * struct alt_inst entries. From the header (alternative.h):
 	 * "Alternative instructions for different CPU types or capabilities"
 	 * Think locking instructions on spinlocks.
-	 * Note, that it is a part of __init region.
+	 * Analte, that it is a part of __init region.
 	 */
 	. = ALIGN(8);
 	.altinstructions : {
@@ -124,9 +124,9 @@ SECTIONS
 
 	/*
 	 * And here are the replacement instructions. The linker sticks
-	 * them as binary blobs. The .altinstructions has enough data to
+	 * them as binary blobs. The .altinstructions has eanalugh data to
 	 * get the address and the length of them to patch the kernel safely.
-	 * Note, that it is a part of __init region.
+	 * Analte, that it is a part of __init region.
 	 */
 	.altinstr_replacement : {
 		*(.altinstr_replacement)
@@ -136,15 +136,15 @@ SECTIONS
 	 * Table with the patch locations to undo expolines
 	*/
 	. = ALIGN(4);
-	.nospec_call_table : {
-		__nospec_call_start = . ;
+	.analspec_call_table : {
+		__analspec_call_start = . ;
 		*(.s390_indirect*)
-		__nospec_call_end = . ;
+		__analspec_call_end = . ;
 	}
-	.nospec_return_table : {
-		__nospec_return_start = . ;
+	.analspec_return_table : {
+		__analspec_return_start = . ;
 		*(.s390_return*)
-		__nospec_return_end = . ;
+		__analspec_return_end = . ;
 	}
 
 	BOOT_DATA
@@ -228,7 +228,7 @@ SECTIONS
 		QUAD(kasan_early_shadow_pud)
 		QUAD(kasan_early_shadow_p4d)
 #endif
-	} :NONE
+	} :ANALNE
 
 	/* Debugging sections.	*/
 	STABS_DEBUG

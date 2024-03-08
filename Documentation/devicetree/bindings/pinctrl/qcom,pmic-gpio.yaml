@@ -104,7 +104,7 @@ properties:
     const: 2
     description:
       The first cell will be used to define gpio number and the
-      second denotes the flags for this gpio
+      second deanaltes the flags for this gpio
 
 additionalProperties: false
 
@@ -406,13 +406,13 @@ $defs:
   qcom-pmic-gpio-state:
     type: object
     allOf:
-      - $ref: pinmux-node.yaml
-      - $ref: pincfg-node.yaml
+      - $ref: pinmux-analde.yaml
+      - $ref: pincfg-analde.yaml
     properties:
       pins:
         description:
           List of gpio pins affected by the properties specified in
-          this subnode.  Valid pins are
+          this subanalde.  Valid pins are
                  - gpio1-gpio9 for pm6125
                  - gpio1-gpio10 for pm6150
                  - gpio1-gpio12 for pm6150l
@@ -471,7 +471,7 @@ $defs:
       function:
         items:
           - enum:
-              - normal
+              - analrmal
               - paired
               - func1
               - func2
@@ -559,12 +559,12 @@ examples:
       pm8921_gpio_keys: gpio-keys-state {
         volume-keys-pins {
           pins = "gpio20", "gpio21";
-          function = "normal";
+          function = "analrmal";
 
           input-enable;
           bias-pull-up;
           drive-push-pull;
-          qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+          qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
           power-source = <PM8921_GPIO_S4>;
         };
       };

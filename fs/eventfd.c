@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/syscalls.h>
 #include <linux/export.h>
 #include <linux/kref.h>
@@ -33,7 +33,7 @@ struct eventfd_ctx {
 	/*
 	 * Every time that a write(2) is performed on an eventfd, the
 	 * value of the __u64 being written is added to "count" and a
-	 * wakeup is performed on "wqh". If EFD_SEMAPHORE flag was not
+	 * wakeup is performed on "wqh". If EFD_SEMAPHORE flag was analt
 	 * specified, a read(2) will return the "count" value to userspace,
 	 * and will reset "count" to zero. The kernel side eventfd_signal()
 	 * also, adds to the "count" counter and issue a wakeup.
@@ -48,7 +48,7 @@ struct eventfd_ctx {
  * @ctx: [in] Pointer to the eventfd context.
  * @mask: [in] poll mask
  *
- * This function is supposed to be called by the kernel in paths that do not
+ * This function is supposed to be called by the kernel in paths that do analt
  * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
  * value, and we signal this as overflow condition by returning a EPOLLERR
  * to poll(2).
@@ -106,7 +106,7 @@ void eventfd_ctx_put(struct eventfd_ctx *ctx)
 }
 EXPORT_SYMBOL_GPL(eventfd_ctx_put);
 
-static int eventfd_release(struct inode *inode, struct file *file)
+static int eventfd_release(struct ianalde *ianalde, struct file *file)
 {
 	struct eventfd_ctx *ctx = file->private_data;
 
@@ -125,11 +125,11 @@ static __poll_t eventfd_poll(struct file *file, poll_table *wait)
 
 	/*
 	 * All writes to ctx->count occur within ctx->wqh.lock.  This read
-	 * can be done outside ctx->wqh.lock because we know that poll_wait
+	 * can be done outside ctx->wqh.lock because we kanalw that poll_wait
 	 * takes that lock (through add_wait_queue) if our caller will sleep.
 	 *
 	 * The read _can_ therefore seep into add_wait_queue's critical
-	 * section, but cannot move above it!  add_wait_queue's spin_lock acts
+	 * section, but cananalt move above it!  add_wait_queue's spin_lock acts
 	 * as an acquire barrier and ensures that the read be ordered properly
 	 * against the writes.  The following CAN happen and is safe:
 	 *
@@ -146,7 +146,7 @@ static __poll_t eventfd_poll(struct file *file, poll_table *wait)
 	 *                                        unlock ctx->qwh.lock
 	 *     eventfd_poll returns 0
 	 *
-	 * but the following, which would miss a wakeup, cannot happen:
+	 * but the following, which would miss a wakeup, cananalt happen:
 	 *
 	 *     poll                               write
 	 *     -----------------                  ------------
@@ -154,7 +154,7 @@ static __poll_t eventfd_poll(struct file *file, poll_table *wait)
 	 *                                        lock ctx->qwh.lock
 	 *                                        ctx->count += n
 	 *                                        **waitqueue_active is false**
-	 *                                        **no wake_up_locked_poll!**
+	 *                                        **anal wake_up_locked_poll!**
 	 *                                        unlock ctx->qwh.lock
 	 *     lock ctx->wqh.lock (in poll_wait)
 	 *     __add_wait_queue
@@ -221,8 +221,8 @@ static ssize_t eventfd_read(struct kiocb *iocb, struct iov_iter *to)
 		return -EINVAL;
 	spin_lock_irq(&ctx->wqh.lock);
 	if (!ctx->count) {
-		if ((file->f_flags & O_NONBLOCK) ||
-		    (iocb->ki_flags & IOCB_NOWAIT)) {
+		if ((file->f_flags & O_ANALNBLOCK) ||
+		    (iocb->ki_flags & IOCB_ANALWAIT)) {
 			spin_unlock_irq(&ctx->wqh.lock);
 			return -EAGAIN;
 		}
@@ -261,7 +261,7 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 	res = -EAGAIN;
 	if (ULLONG_MAX - ctx->count > ucnt)
 		res = sizeof(ucnt);
-	else if (!(file->f_flags & O_NONBLOCK)) {
+	else if (!(file->f_flags & O_ANALNBLOCK)) {
 		res = wait_event_interruptible_locked_irq(ctx->wqh,
 				ULLONG_MAX - ctx->count > ucnt);
 		if (!res)
@@ -302,7 +302,7 @@ static const struct file_operations eventfd_fops = {
 	.poll		= eventfd_poll,
 	.read_iter	= eventfd_read,
 	.write		= eventfd_write,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 /**
@@ -313,7 +313,7 @@ static const struct file_operations eventfd_fops = {
  * following error pointer:
  *
  * -EBADF    : Invalid @fd file descriptor.
- * -EINVAL   : The @fd file descriptor is not an eventfd file.
+ * -EINVAL   : The @fd file descriptor is analt an eventfd file.
  */
 struct file *eventfd_fget(int fd)
 {
@@ -359,7 +359,7 @@ EXPORT_SYMBOL_GPL(eventfd_ctx_fdget);
  * Returns a pointer to the internal eventfd context, otherwise the error
  * pointer:
  *
- * -EINVAL   : The @fd file descriptor is not an eventfd file.
+ * -EINVAL   : The @fd file descriptor is analt an eventfd file.
  */
 struct eventfd_ctx *eventfd_ctx_fileget(struct file *file)
 {
@@ -382,14 +382,14 @@ static int do_eventfd(unsigned int count, int flags)
 
 	/* Check the EFD_* constants for consistency.  */
 	BUILD_BUG_ON(EFD_CLOEXEC != O_CLOEXEC);
-	BUILD_BUG_ON(EFD_NONBLOCK != O_NONBLOCK);
+	BUILD_BUG_ON(EFD_ANALNBLOCK != O_ANALNBLOCK);
 
 	if (flags & ~EFD_FLAGS_SET)
 		return -EINVAL;
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&ctx->kref);
 	init_waitqueue_head(&ctx->wqh);
@@ -403,14 +403,14 @@ static int do_eventfd(unsigned int count, int flags)
 	if (fd < 0)
 		goto err;
 
-	file = anon_inode_getfile("[eventfd]", &eventfd_fops, ctx, flags);
+	file = aanaln_ianalde_getfile("[eventfd]", &eventfd_fops, ctx, flags);
 	if (IS_ERR(file)) {
 		put_unused_fd(fd);
 		fd = PTR_ERR(file);
 		goto err;
 	}
 
-	file->f_mode |= FMODE_NOWAIT;
+	file->f_mode |= FMODE_ANALWAIT;
 	fd_install(fd, file);
 	return fd;
 err:

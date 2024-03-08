@@ -9,10 +9,10 @@ Required properties:
 Optional properties:
 
 - interrupts : The interrupt number of the first timer.
-- reg : The interrupt acknowledgement registers
+- reg : The interrupt ackanalwledgement registers
 	(always after timer base address)
 
-If any of the optional properties are not given, the timer is added as a
+If any of the optional properties are analt given, the timer is added as a
 clock-source only.
 
 Example:
@@ -24,7 +24,7 @@ timer {
 	clocks = <&timer_clk>;
 };
 
-Example (no clock-events):
+Example (anal clock-events):
 
 timer {
 	compatible = "lsi,zevio-timer";

@@ -15,7 +15,7 @@
 /*
  * Test the implementation for software ECC
  *
- * No actual MTD device is needed, So we don't need to warry about losing
+ * Anal actual MTD device is needed, So we don't need to warry about losing
  * important data by human error.
  *
  * This covers possible patterns of corruption which can be reliably corrected
@@ -32,7 +32,7 @@ struct nand_ecc_test {
 
 /*
  * The reason for this __change_bit_le() instead of __change_bit() is to inject
- * bit error properly within the region which is not a multiple of
+ * bit error properly within the region which is analt a multiple of
  * sizeof(unsigned long) on big-endian systems
  */
 #ifdef __LITTLE_ENDIAN
@@ -41,7 +41,7 @@ struct nand_ecc_test {
 #define __change_bit_le(nr, addr) \
 		__change_bit((nr) ^ ((BITS_PER_LONG - 1) & ~0x7), addr)
 #else
-#error "Unknown byte order"
+#error "Unkanalwn byte order"
 #endif
 
 static void single_bit_error_data(void *error_data, void *correct_data,
@@ -109,14 +109,14 @@ static void double_bit_error_ecc(void *error_ecc, void *correct_ecc,
 	__change_bit_le(offset[1], error_ecc);
 }
 
-static void no_bit_error(void *error_data, void *error_ecc,
+static void anal_bit_error(void *error_data, void *error_ecc,
 		void *correct_data, void *correct_ecc, const size_t size)
 {
 	memcpy(error_data, correct_data, size);
 	memcpy(error_ecc, correct_ecc, 3);
 }
 
-static int no_bit_error_verify(void *error_data, void *error_ecc,
+static int anal_bit_error_verify(void *error_data, void *error_ecc,
 				void *correct_data, const size_t size)
 {
 	bool sm_order = IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING_SMC);
@@ -199,9 +199,9 @@ static int double_bit_error_detect(void *error_data, void *error_ecc,
 
 static const struct nand_ecc_test nand_ecc_test[] = {
 	{
-		.name = "no-bit-error",
-		.prepare = no_bit_error,
-		.verify = no_bit_error_verify,
+		.name = "anal-bit-error",
+		.prepare = anal_bit_error,
+		.verify = anal_bit_error_verify,
 	},
 	{
 		.name = "single-bit-error-in-data-correct",
@@ -237,13 +237,13 @@ static void dump_data_ecc(void *error_data, void *error_ecc, void *correct_data,
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 4,
 			error_data, size, false);
 	print_hex_dump(KERN_INFO, "hexdump of error ecc: ",
-			DUMP_PREFIX_NONE, 16, 1, error_ecc, 3, false);
+			DUMP_PREFIX_ANALNE, 16, 1, error_ecc, 3, false);
 
 	pr_info("hexdump of correct data:\n");
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 4,
 			correct_data, size, false);
 	print_hex_dump(KERN_INFO, "hexdump of correct ecc: ",
-			DUMP_PREFIX_NONE, 16, 1, correct_ecc, 3, false);
+			DUMP_PREFIX_ANALNE, 16, 1, correct_ecc, 3, false);
 }
 
 static int nand_ecc_test_run(const size_t size)
@@ -262,7 +262,7 @@ static int nand_ecc_test_run(const size_t size)
 	correct_ecc = kmalloc(3, GFP_KERNEL);
 
 	if (!error_data || !error_ecc || !correct_data || !correct_ecc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -275,7 +275,7 @@ static int nand_ecc_test_run(const size_t size)
 						correct_data, size);
 
 		if (err) {
-			pr_err("not ok - %s-%zd\n",
+			pr_err("analt ok - %s-%zd\n",
 				nand_ecc_test[i].name, size);
 			dump_data_ecc(error_data, error_ecc,
 				correct_data, correct_ecc, size);
@@ -325,5 +325,5 @@ module_init(ecc_test_init);
 module_exit(ecc_test_exit);
 
 MODULE_DESCRIPTION("NAND ECC function test module");
-MODULE_AUTHOR("Akinobu Mita");
+MODULE_AUTHOR("Akianalbu Mita");
 MODULE_LICENSE("GPL");

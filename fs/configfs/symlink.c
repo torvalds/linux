@@ -46,7 +46,7 @@ static void fill_item_path(struct config_item * item, char * buffer, int length)
 	for (p = item; p && !configfs_is_root(p); p = p->ci_parent) {
 		int cur = strlen(config_item_name(p));
 
-		/* back up enough to print this bus id with '/' */
+		/* back up eanalugh to print this bus id with '/' */
 		length -= cur;
 		memcpy(buffer + length, config_item_name(p), cur);
 		*(buffer + --length) = '/';
@@ -83,11 +83,11 @@ static int create_link(struct config_item *parent_item,
 	int ret;
 
 	if (!configfs_dirent_is_ready(target_sd))
-		return -ENOENT;
+		return -EANALENT;
 
 	body = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!body)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	configfs_get(target_sd);
 	spin_lock(&configfs_dirent_lock);
@@ -95,7 +95,7 @@ static int create_link(struct config_item *parent_item,
 		spin_unlock(&configfs_dirent_lock);
 		configfs_put(target_sd);
 		kfree(body);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	target_sd->s_links++;
 	spin_unlock(&configfs_dirent_lock);
@@ -124,7 +124,7 @@ static int get_target(const char *symname, struct path *path,
 		if (path->dentry->d_sb == sb) {
 			*target = configfs_get_config_item(path->dentry);
 			if (!*target) {
-				ret = -ENOENT;
+				ret = -EANALENT;
 				path_put(path);
 			}
 		} else {
@@ -137,7 +137,7 @@ static int get_target(const char *symname, struct path *path,
 }
 
 
-int configfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+int configfs_symlink(struct mnt_idmap *idmap, struct ianalde *dir,
 		     struct dentry *dentry, const char *symname)
 {
 	int ret;
@@ -153,7 +153,7 @@ int configfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	 * being attached
 	 */
 	if (!configfs_dirent_is_ready(sd))
-		return -ENOENT;
+		return -EANALENT;
 
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	type = parent_item->ci_type;
@@ -169,34 +169,34 @@ int configfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	 * at syscall time (as link(2) would've done), be a directory
 	 * (which link(2) would've refused to do) *AND* be a deep
 	 * fucking magic, making the target busy from rmdir POV.
-	 * symlink(2) is nothing of that sort, and the locking it
-	 * gets matches the normal symlink(2) semantics.  Without
+	 * symlink(2) is analthing of that sort, and the locking it
+	 * gets matches the analrmal symlink(2) semantics.  Without
 	 * attempts to resolve the target (which might very well
-	 * not even exist yet) done prior to locking the parent
+	 * analt even exist yet) done prior to locking the parent
 	 * directory.  This perversion, OTOH, needs to resolve
 	 * the target, which would lead to obvious deadlocks if
 	 * attempted with any directories locked.
 	 *
 	 * Unfortunately, that garbage is userland ABI and we should've
-	 * said "no" back in 2005.  Too late now, so we get to
+	 * said "anal" back in 2005.  Too late analw, so we get to
 	 * play very ugly games with locking.
 	 *
 	 * Try *ANYTHING* of that sort in new code, and you will
 	 * really regret it.  Just ask yourself - what could a BOFH
 	 * do to me and do I want to find it out first-hand?
 	 *
-	 *  AV, a thoroughly annoyed bastard.
+	 *  AV, a thoroughly ananalyed bastard.
 	 */
-	inode_unlock(dir);
+	ianalde_unlock(dir);
 	ret = get_target(symname, &path, &target_item, dentry->d_sb);
-	inode_lock(dir);
+	ianalde_lock(dir);
 	if (ret)
 		goto out_put;
 
-	if (dentry->d_inode || d_unhashed(dentry))
+	if (dentry->d_ianalde || d_unhashed(dentry))
 		ret = -EEXIST;
 	else
-		ret = inode_permission(&nop_mnt_idmap, dir,
+		ret = ianalde_permission(&analp_mnt_idmap, dir,
 				       MAY_WRITE | MAY_EXEC);
 	if (!ret)
 		ret = type->ct_item_ops->allow_link(parent_item, target_item);
@@ -217,7 +217,7 @@ out_put:
 	return ret;
 }
 
-int configfs_unlink(struct inode *dir, struct dentry *dentry)
+int configfs_unlink(struct ianalde *dir, struct dentry *dentry)
 {
 	struct configfs_dirent *sd = dentry->d_fsdata, *target_sd;
 	struct config_item *parent_item;
@@ -263,7 +263,7 @@ out:
 	return ret;
 }
 
-const struct inode_operations configfs_symlink_inode_operations = {
+const struct ianalde_operations configfs_symlink_ianalde_operations = {
 	.get_link = simple_get_link,
 	.setattr = configfs_setattr,
 };

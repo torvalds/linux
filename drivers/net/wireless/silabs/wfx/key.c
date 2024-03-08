@@ -192,12 +192,12 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	} else {
 		dev_warn(wdev->dev, "unsupported key type %d\n", key->cipher);
 		wfx_free_key(wdev, idx);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	ret = wfx_hif_add_key(wdev, &k);
 	if (ret) {
 		wfx_free_key(wdev, idx);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE | IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
 	key->hw_key_idx = idx;
@@ -214,7 +214,7 @@ static int wfx_remove_key(struct wfx_vif *wvif, struct ieee80211_key_conf *key)
 int wfx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta, struct ieee80211_key_conf *key)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	mutex_lock(&wvif->wdev->conf_mutex);

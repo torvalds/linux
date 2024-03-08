@@ -31,13 +31,13 @@ enum gb_operation_result {
 	GB_OP_SUCCESS		= 0x00,
 	GB_OP_INTERRUPTED	= 0x01,
 	GB_OP_TIMEOUT		= 0x02,
-	GB_OP_NO_MEMORY		= 0x03,
+	GB_OP_ANAL_MEMORY		= 0x03,
 	GB_OP_PROTOCOL_BAD	= 0x04,
 	GB_OP_OVERFLOW		= 0x05,
 	GB_OP_INVALID		= 0x06,
 	GB_OP_RETRY		= 0x07,
-	GB_OP_NONEXISTENT	= 0x08,
-	GB_OP_UNKNOWN_ERROR	= 0xfe,
+	GB_OP_ANALNEXISTENT	= 0x08,
+	GB_OP_UNKANALWN_ERROR	= 0xfe,
 	GB_OP_MALFUNCTION	= 0xff,
 };
 
@@ -81,10 +81,10 @@ struct gb_message {
  * Only four things in an operation structure are intended to be
  * directly usable by protocol handlers:  the operation's connection
  * pointer; the operation type; the request message payload (and
- * size); and the response message payload (and size).  Note that a
+ * size); and the response message payload (and size).  Analte that a
  * message with a 0-byte payload has a null message payload pointer.
  *
- * In addition, every operation has a result, which is an errno
+ * In addition, every operation has a result, which is an erranal
  * value.  Protocol handlers access the operation result using
  * gb_operation_result().
  */
@@ -97,7 +97,7 @@ struct gb_operation {
 	unsigned long		flags;
 	u8			type;
 	u16			id;
-	int			errno;		/* Operation result */
+	int			erranal;		/* Operation result */
 
 	struct work_struct	work;
 	gb_operation_callback	callback;
@@ -182,8 +182,8 @@ gb_operation_request_send_sync(struct gb_operation *operation)
 			GB_OPERATION_TIMEOUT_DEFAULT);
 }
 
-void gb_operation_cancel(struct gb_operation *operation, int errno);
-void gb_operation_cancel_incoming(struct gb_operation *operation, int errno);
+void gb_operation_cancel(struct gb_operation *operation, int erranal);
+void gb_operation_cancel_incoming(struct gb_operation *operation, int erranal);
 
 void greybus_message_sent(struct gb_host_device *hd,
 				struct gb_message *message, int status);

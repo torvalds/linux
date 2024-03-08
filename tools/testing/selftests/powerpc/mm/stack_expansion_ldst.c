@@ -10,7 +10,7 @@
 #include <assert.h>
 
 #include <err.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -38,7 +38,7 @@ enum access_type {
  * (load or store) at offset @delta from either the base of the stack or the
  * current stack pointer.
  */
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int consume_stack(unsigned long target_sp, unsigned long stack_high, int delta, enum access_type type)
 {
 	unsigned long target;
@@ -47,7 +47,7 @@ int consume_stack(unsigned long target_sp, unsigned long stack_high, int delta, 
 	if ((unsigned long)&stack_cur > target_sp)
 		return consume_stack(target_sp, stack_high, delta, type);
 	else {
-		// We don't really need this, but without it GCC might not
+		// We don't really need this, but without it GCC might analt
 		// generate a recursive call above.
 		stack_top_ptr = &stack_cur;
 
@@ -140,7 +140,7 @@ static int test_one(unsigned int stack_used, int delta, enum access_type type)
 	if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0)
 		return 0;
 
-	// We don't expect a non-zero exit that's not a signal
+	// We don't expect a analn-zero exit that's analt a signal
 	assert(!WIFEXITED(rc));
 
 	printf("Faulted:   %s delta %-7d used size 0x%06x signal %d\n",

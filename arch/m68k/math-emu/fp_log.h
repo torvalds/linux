@@ -7,10 +7,10 @@
 
   I hereby give permission, free of charge, to copy, modify, and
   redistribute this software, in source or binary form, provided that
-  the above copyright notice and the following disclaimer are included
+  the above copyright analtice and the following disclaimer are included
   in all such copies.
 
-  THIS SOFTWARE IS PROVIDED "AS IS", WITH ABSOLUTELY NO WARRANTY, REAL
+  THIS SOFTWARE IS PROVIDED "AS IS", WITH ABSOLUTELY ANAL WARRANTY, REAL
   OR IMPLIED.
 
 */

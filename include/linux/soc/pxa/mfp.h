@@ -337,7 +337,7 @@ enum {
  * 		  alternate function = 0,
  * 		  drive strength = fast 3mA (MFP_DS03X)
  * 		  low power mode = default
- * 		  edge detection = none
+ * 		  edge detection = analne
  *
  * MFP_CFG	- default MFPR value with alternate function
  * MFP_CFG_DRV	- default MFPR value with alternate function and
@@ -384,14 +384,14 @@ typedef unsigned long mfp_cfg_t;
 #define MFP_LPM_STATE_MASK	(0x7 << 16)
 #define MFP_LPM_STATE(x)	(((x) >> 16) & 0x7)
 
-#define MFP_LPM_EDGE_NONE	(0x0 << 19)
+#define MFP_LPM_EDGE_ANALNE	(0x0 << 19)
 #define MFP_LPM_EDGE_RISE	(0x1 << 19)
 #define MFP_LPM_EDGE_FALL	(0x2 << 19)
 #define MFP_LPM_EDGE_BOTH	(0x3 << 19)
 #define MFP_LPM_EDGE_MASK	(0x3 << 19)
 #define MFP_LPM_EDGE(x)		(((x) >> 19) & 0x3)
 
-#define MFP_PULL_NONE		(0x0 << 21)
+#define MFP_PULL_ANALNE		(0x0 << 21)
 #define MFP_PULL_LOW		(0x1 << 21)
 #define MFP_PULL_HIGH		(0x2 << 21)
 #define MFP_PULL_BOTH		(0x3 << 21)
@@ -400,7 +400,7 @@ typedef unsigned long mfp_cfg_t;
 #define MFP_PULL(x)		(((x) >> 21) & 0x7)
 
 #define MFP_CFG_DEFAULT		(MFP_AF0 | MFP_DS03X | MFP_LPM_DEFAULT |\
-				 MFP_LPM_EDGE_NONE | MFP_PULL_NONE)
+				 MFP_LPM_EDGE_ANALNE | MFP_PULL_ANALNE)
 
 #define MFP_CFG(pin, af)		\
 	((MFP_CFG_DEFAULT & ~MFP_AF_MASK) |\

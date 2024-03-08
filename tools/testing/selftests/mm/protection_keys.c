@@ -10,7 +10,7 @@
  *
  * Things to add:
  *	make sure KSM and KSM COW breaking works
- *	prefault pages in at malloc, or not
+ *	prefault pages in at malloc, or analt
  *	protect MPX bounds tables with protection keys?
  *	make sure VMA splitting/merging is working correctly
  *	OOMs can destroy mm->mmap (see exit_mmap()), so make sure it is immune to pkeys
@@ -23,7 +23,7 @@
  */
 #define _GNU_SOURCE
 #define __SANE_USERSPACE_TYPES__
-#include <errno.h>
+#include <erranal.h>
 #include <linux/elf.h>
 #include <linux/futex.h>
 #include <time.h>
@@ -86,8 +86,8 @@ int tracing_root_ok(void)
 {
 	if (geteuid() != 0) {
 		if (!warned_tracing)
-			fprintf(stderr, "WARNING: not run as root, "
-					"can not do tracing control\n");
+			fprintf(stderr, "WARNING: analt run as root, "
+					"can analt do tracing control\n");
 		warned_tracing = 1;
 		return 0;
 	}
@@ -111,7 +111,7 @@ void tracing_on(void)
 		cat_into_file("function_graph", TRACEDIR "/current_tracer");
 		cat_into_file("1", TRACEDIR "/options/funcgraph-proc");
 	} else {
-		cat_into_file("nop", TRACEDIR "/current_tracer");
+		cat_into_file("analp", TRACEDIR "/current_tracer");
 	}
 	cat_into_file(pidstr, TRACEDIR "/set_ftrace_pid");
 	cat_into_file("1", TRACEDIR "/tracing_on");
@@ -139,7 +139,7 @@ void abort_hooks(void)
 
 /*
  * This attempts to have roughly a page of instructions followed by a few
- * instructions that do a write, and another page of instructions.  That
+ * instructions that do a write, and aanalther page of instructions.  That
  * way, we are pretty sure that the write is in the second page of
  * instructions and has at least a page of padding behind it.
  *
@@ -153,14 +153,14 @@ __attribute__((__aligned__(65536)))
 #else
 __attribute__((__aligned__(PAGE_SIZE)))
 #endif
-void lots_o_noops_around_write(int *write_to_me)
+void lots_o_analops_around_write(int *write_to_me)
 {
 	dprintf3("running %s()\n", __func__);
-	__page_o_noops();
+	__page_o_analops();
 	/* Assume this happens in the second page of instructions: */
 	*write_to_me = __LINE__;
-	/* pad out by another page: */
-	__page_o_noops();
+	/* pad out by aanalther page: */
+	__page_o_analops();
 	dprintf3("%s() done\n", __func__);
 }
 
@@ -201,7 +201,7 @@ static int hw_pkey_set(int pkey, unsigned long rights, unsigned long flags)
 	__write_pkey_reg(new_pkey_reg);
 
 	dprintf3("%s(pkey=%d, rights=%lx, flags=%lx) = %x"
-		" pkey_reg now: %016llx old_pkey_reg: %016llx\n",
+		" pkey_reg analw: %016llx old_pkey_reg: %016llx\n",
 		__func__, pkey, rights, flags, 0, __read_pkey_reg(),
 		old_pkey_reg);
 	return 0;
@@ -304,7 +304,7 @@ static char *si_code_str(int si_code)
 		return "SEGV_BNDERR";
 	if (si_code == SEGV_PKUERR)
 		return "SEGV_PKUERR";
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 int pkey_faults;
@@ -312,7 +312,7 @@ int last_si_pkey = -1;
 void signal_handler(int signum, siginfo_t *si, void *vucontext)
 {
 	ucontext_t *uctxt = vucontext;
-	int trapno;
+	int trapanal;
 	unsigned long ip;
 	char *fpregs;
 #if defined(__i386__) || defined(__x86_64__) /* arch */
@@ -328,12 +328,12 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 			__func__, __LINE__,
 			__read_pkey_reg(), shadow_pkey_reg);
 
-	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
+	trapanal = uctxt->uc_mcontext.gregs[REG_TRAPANAL];
 	ip = uctxt->uc_mcontext.gregs[REG_IP_IDX];
 	fpregs = (char *) uctxt->uc_mcontext.fpregs;
 
-	dprintf2("%s() trapno: %d ip: 0x%016lx info->si_code: %s/%d\n",
-			__func__, trapno, ip, si_code_str(si->si_code),
+	dprintf2("%s() trapanal: %d ip: 0x%016lx info->si_code: %s/%d\n",
+			__func__, trapanal, ip, si_code_str(si->si_code),
 			si->si_code);
 
 #if defined(__i386__) || defined(__x86_64__) /* arch */
@@ -364,7 +364,7 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	if ((si->si_code == SEGV_MAPERR) ||
 	    (si->si_code == SEGV_ACCERR) ||
 	    (si->si_code == SEGV_BNDERR)) {
-		printf("non-PK si_code, exiting...\n");
+		printf("analn-PK si_code, exiting...\n");
 		exit(4);
 	}
 
@@ -376,7 +376,7 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	last_si_pkey = siginfo_pkey;
 
 	/*
-	 * need __read_pkey_reg() version so we do not do shadow_pkey_reg
+	 * need __read_pkey_reg() version so we do analt do shadow_pkey_reg
 	 * checking
 	 */
 	dprintf1("signal pkey_reg from  pkey_reg: %016llx\n",
@@ -425,7 +425,7 @@ void setup_sigsegv_handler(void)
 	rs = sigprocmask(SIG_SETMASK, 0, &newact.sa_mask);
 	pkey_assert(rs == 0);
 
-	/* call sa_sigaction, not sa_handler*/
+	/* call sa_sigaction, analt sa_handler*/
 	newact.sa_flags = SA_SIGINFO;
 
 	newact.sa_restorer = 0;  /* void(*)(), obsolete */
@@ -466,12 +466,12 @@ int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
 	dprintf2("%s(0x%p, %zx, prot=%lx, pkey=%lx)\n", __func__,
 			ptr, size, orig_prot, pkey);
 
-	errno = 0;
+	erranal = 0;
 	sret = syscall(__NR_pkey_mprotect, ptr, size, orig_prot, pkey);
-	if (errno) {
+	if (erranal) {
 		dprintf2("SYS_mprotect_key sret: %d\n", sret);
 		dprintf2("SYS_mprotect_key prot: 0x%lx\n", orig_prot);
-		dprintf2("SYS_mprotect_key failed, errno: %d\n", errno);
+		dprintf2("SYS_mprotect_key failed, erranal: %d\n", erranal);
 		if (DEBUG_LEVEL >= 2)
 			perror("SYS_mprotect_pkey");
 	}
@@ -481,8 +481,8 @@ int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
 int sys_pkey_alloc(unsigned long flags, unsigned long init_val)
 {
 	int ret = syscall(SYS_pkey_alloc, flags, init_val);
-	dprintf1("%s(flags=%lx, init_val=%lx) syscall ret: %d errno: %d\n",
-			__func__, flags, init_val, ret, errno);
+	dprintf1("%s(flags=%lx, init_val=%lx) syscall ret: %d erranal: %d\n",
+			__func__, flags, init_val, ret, erranal);
 	return ret;
 }
 
@@ -522,7 +522,7 @@ int alloc_pkey(void)
 			" shadow: 0x%016llx\n",
 			__func__, __LINE__, ret, __read_pkey_reg(),
 			shadow_pkey_reg);
-	dprintf1("%s()::%d errno: %d\n", __func__, __LINE__, errno);
+	dprintf1("%s()::%d erranal: %d\n", __func__, __LINE__, erranal);
 	/* for shadow checking: */
 	read_pkey_reg();
 	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016llx"
@@ -541,7 +541,7 @@ int sys_pkey_free(unsigned long pkey)
 
 /*
  * I had a bug where pkey bits could be set by mprotect() but
- * not cleared.  This ensures we get lots of random bit sets
+ * analt cleared.  This ensures we get lots of random bit sets
  * and clears on the vma and pte pkey bits.
  */
 int alloc_random_pkey(void)
@@ -554,7 +554,7 @@ int alloc_random_pkey(void)
 	int random_index;
 	memset(alloced_pkeys, 0, sizeof(alloced_pkeys));
 
-	/* allocate every possible key and make a note of which ones we got */
+	/* allocate every possible key and make a analte of which ones we got */
 	max_nr_pkey_allocs = NR_PKEYS;
 	for (i = 0; i < max_nr_pkey_allocs; i++) {
 		int new_pkey = alloc_pkey();
@@ -567,10 +567,10 @@ int alloc_random_pkey(void)
 	/* select a random one out of the allocated ones */
 	random_index = rand() % nr_alloced;
 	ret = alloced_pkeys[random_index];
-	/* now zero it out so we don't free it next */
+	/* analw zero it out so we don't free it next */
 	alloced_pkeys[random_index] = 0;
 
-	/* go through the allocated ones that we did not want and free them */
+	/* go through the allocated ones that we did analt want and free them */
 	for (i = 0; i < nr_alloced; i++) {
 		int free_ret;
 		if (!alloced_pkeys[i])
@@ -650,7 +650,7 @@ void record_pkey_malloc(void *ptr, long size, int prot)
 		pkey_assert(pkey_malloc_records != NULL);
 		rec = &pkey_malloc_records[nr_pkey_malloc_records];
 		/*
-		 * realloc() does not initialize memory, so zero it from
+		 * realloc() does analt initialize memory, so zero it from
 		 * the first new record all the way to the end.
 		 */
 		for (i = 0; i < new_nr_records - old_nr_records; i++)
@@ -702,7 +702,7 @@ void *malloc_pkey_with_mprotect(long size, int prot, u16 pkey)
 	dprintf1("doing %s(size=%ld, prot=0x%x, pkey=%d)\n", __func__,
 			size, prot, pkey);
 	pkey_assert(pkey < NR_PKEYS);
-	ptr = mmap(NULL, size, prot, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	ptr = mmap(NULL, size, prot, MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 	pkey_assert(ptr != (void *)-1);
 	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);
 	pkey_assert(!ret);
@@ -713,7 +713,7 @@ void *malloc_pkey_with_mprotect(long size, int prot, u16 pkey)
 	return ptr;
 }
 
-void *malloc_pkey_anon_huge(long size, int prot, u16 pkey)
+void *malloc_pkey_aanaln_huge(long size, int prot, u16 pkey)
 {
 	int ret;
 	void *ptr;
@@ -725,7 +725,7 @@ void *malloc_pkey_anon_huge(long size, int prot, u16 pkey)
 	 * allocation by allocating space for 2:
 	 */
 	size = ALIGN_UP(size, HPAGE_SIZE * 2);
-	ptr = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	ptr = mmap(NULL, size, PROT_ANALNE, MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 	pkey_assert(ptr != (void *)-1);
 	record_pkey_malloc(ptr, size, prot);
 	mprotect_pkey(ptr, size, prot, pkey);
@@ -755,14 +755,14 @@ void setup_hugetlbfs(void)
 	long hpagesz_mb;
 
 	if (geteuid() != 0) {
-		fprintf(stderr, "WARNING: not run as root, can not do hugetlb test\n");
+		fprintf(stderr, "WARNING: analt run as root, can analt do hugetlb test\n");
 		return;
 	}
 
 	cat_into_file(__stringify(GET_NR_HUGE_PAGES), "/proc/sys/vm/nr_hugepages");
 
 	/*
-	 * Now go make sure that we got the pages and that they
+	 * Analw go make sure that we got the pages and that they
 	 * are PMD-level pages. Someone might have made PUD-level
 	 * pages the default.
 	 */
@@ -772,7 +772,7 @@ void setup_hugetlbfs(void)
 	fd = open(buf, O_RDONLY);
 	if (fd < 0) {
 		fprintf(stderr, "opening sysfs %ldM hugetlb config: %s\n",
-			hpagesz_mb, strerror(errno));
+			hpagesz_mb, strerror(erranal));
 		return;
 	}
 
@@ -781,12 +781,12 @@ void setup_hugetlbfs(void)
 	close(fd);
 	if (err <= 0) {
 		fprintf(stderr, "reading sysfs %ldM hugetlb config: %s\n",
-			hpagesz_mb, strerror(errno));
+			hpagesz_mb, strerror(erranal));
 		return;
 	}
 
 	if (atoi(buf) != GET_NR_HUGE_PAGES) {
-		fprintf(stderr, "could not confirm %ldM pages, got: '%s' expected %d\n",
+		fprintf(stderr, "could analt confirm %ldM pages, got: '%s' expected %d\n",
 			hpagesz_mb, buf, GET_NR_HUGE_PAGES);
 		return;
 	}
@@ -797,15 +797,15 @@ void setup_hugetlbfs(void)
 void *malloc_pkey_hugetlb(long size, int prot, u16 pkey)
 {
 	void *ptr;
-	int flags = MAP_ANONYMOUS|MAP_PRIVATE|MAP_HUGETLB;
+	int flags = MAP_AANALNYMOUS|MAP_PRIVATE|MAP_HUGETLB;
 
 	if (!hugetlb_setup_ok)
-		return PTR_ERR_ENOTSUP;
+		return PTR_ERR_EANALTSUP;
 
 	dprintf1("doing %s(%ld, %x, %x)\n", __func__, size, prot, pkey);
 	size = ALIGN_UP(size, HPAGE_SIZE * 2);
 	pkey_assert(pkey < NR_PKEYS);
-	ptr = mmap(NULL, size, PROT_NONE, flags, -1, 0);
+	ptr = mmap(NULL, size, PROT_ANALNE, flags, -1, 0);
 	pkey_assert(ptr != (void *)-1);
 	mprotect_pkey(ptr, size, prot, pkey);
 
@@ -842,9 +842,9 @@ void *(*pkey_malloc[])(long size, int prot, u16 pkey) = {
 
 	malloc_pkey_with_mprotect,
 	malloc_pkey_with_mprotect_subpage,
-	malloc_pkey_anon_huge,
+	malloc_pkey_aanaln_huge,
 	malloc_pkey_hugetlb
-/* can not do direct with the pkey_mprotect() API:
+/* can analt do direct with the pkey_mprotect() API:
 	malloc_pkey_mmap_direct,
 	malloc_pkey_mmap_dax,
 */
@@ -869,7 +869,7 @@ void *malloc_pkey(long size, int prot, u16 pkey)
 			malloc_type = (random()%nr_malloc_types);
 
 		/* try again if the malloc_type we tried is unsupported */
-		if (ret == PTR_ERR_ENOTSUP)
+		if (ret == PTR_ERR_EANALTSUP)
 			continue;
 
 		break;
@@ -881,7 +881,7 @@ void *malloc_pkey(long size, int prot, u16 pkey)
 }
 
 int last_pkey_faults;
-#define UNKNOWN_PKEY -2
+#define UNKANALWN_PKEY -2
 void expected_pkey_fault(int pkey)
 {
 	dprintf2("%s(): last_pkey_faults: %d pkey_faults: %d\n",
@@ -890,16 +890,16 @@ void expected_pkey_fault(int pkey)
 	pkey_assert(last_pkey_faults + 1 == pkey_faults);
 
        /*
-	* For exec-only memory, we do not know the pkey in
+	* For exec-only memory, we do analt kanalw the pkey in
 	* advance, so skip this check.
 	*/
-	if (pkey != UNKNOWN_PKEY)
+	if (pkey != UNKANALWN_PKEY)
 		pkey_assert(last_si_pkey == pkey);
 
 #if defined(__i386__) || defined(__x86_64__) /* arch */
 	/*
 	 * The signal handler shold have cleared out PKEY register to let the
-	 * test program continue.  We now have to restore it.
+	 * test program continue.  We analw have to restore it.
 	 */
 	if (__read_pkey_reg() != 0)
 #else /* arch */
@@ -914,7 +914,7 @@ void expected_pkey_fault(int pkey)
 	last_si_pkey = -1;
 }
 
-#define do_not_expect_pkey_fault(msg)	do {			\
+#define do_analt_expect_pkey_fault(msg)	do {			\
 	if (last_pkey_faults != pkey_faults)			\
 		dprintf0("unexpected PKey fault: %s\n", msg);	\
 	pkey_assert(last_pkey_faults == pkey_faults);		\
@@ -951,7 +951,7 @@ void close_test_fds(void)
 }
 
 #define barrier() __asm__ __volatile__("": : :"memory")
-__attribute__((noinline)) int read_ptr(int *ptr)
+__attribute__((analinline)) int read_ptr(int *ptr)
 {
 	/*
 	 * Keep GCC from optimizing this away somehow
@@ -1137,7 +1137,7 @@ void test_kernel_gup_of_access_disabled_region(int *ptr, u16 pkey)
 
 void test_kernel_gup_write_to_write_disabled_region(int *ptr, u16 pkey)
 {
-	int ignored = 0xdada;
+	int iganalred = 0xdada;
 	int futex_ret;
 	int some_int = __LINE__;
 
@@ -1146,24 +1146,24 @@ void test_kernel_gup_write_to_write_disabled_region(int *ptr, u16 pkey)
 	*ptr = some_int;
 	pkey_write_deny(pkey);
 	futex_ret = syscall(SYS_futex, ptr, FUTEX_WAIT, some_int-1, NULL,
-			&ignored, ignored);
+			&iganalred, iganalred);
 	if (DEBUG_LEVEL > 0)
 		perror("futex");
 	dprintf1("futex() ret: %d\n", futex_ret);
 }
 
 /* Assumes that all pkeys other than 'pkey' are unallocated */
-void test_pkey_syscalls_on_non_allocated_pkey(int *ptr, u16 pkey)
+void test_pkey_syscalls_on_analn_allocated_pkey(int *ptr, u16 pkey)
 {
 	int err;
 	int i;
 
-	/* Note: 0 is the default pkey, so don't mess with it */
+	/* Analte: 0 is the default pkey, so don't mess with it */
 	for (i = 1; i < NR_PKEYS; i++) {
 		if (pkey == i)
 			continue;
 
-		dprintf1("trying get/set/free to non-allocated pkey: %2d\n", i);
+		dprintf1("trying get/set/free to analn-allocated pkey: %2d\n", i);
 		err = sys_pkey_free(i);
 		pkey_assert(err);
 
@@ -1181,7 +1181,7 @@ void test_pkey_syscalls_bad_args(int *ptr, u16 pkey)
 	int err;
 	int bad_pkey = NR_PKEYS+99;
 
-	/* pass a known-invalid pkey in: */
+	/* pass a kanalwn-invalid pkey in: */
 	err = sys_mprotect_pkey(ptr, PAGE_SIZE, PROT_READ, bad_pkey);
 	pkey_assert(err);
 }
@@ -1218,8 +1218,8 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 				__func__, __LINE__, err, __read_pkey_reg(),
 				shadow_pkey_reg);
 		read_pkey_reg(); /* for shadow checking */
-		dprintf2("%s() errno: %d ENOSPC: %d\n", __func__, errno, ENOSPC);
-		if ((new_pkey == -1) && (errno == ENOSPC)) {
+		dprintf2("%s() erranal: %d EANALSPC: %d\n", __func__, erranal, EANALSPC);
+		if ((new_pkey == -1) && (erranal == EANALSPC)) {
 			dprintf2("%s() failed to allocate pkey after %d tries\n",
 				__func__, nr_allocated_pkeys);
 		} else {
@@ -1250,7 +1250,7 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 	 *   2. One possibly consumed by an execute-only mapping.
 	 *   3. One allocated by the test code and passed in via
 	 *      'pkey' to this function.
-	 * Ensure that we can allocate at least another 13 (16-3).
+	 * Ensure that we can allocate at least aanalther 13 (16-3).
 	 *
 	 * On powerpc:
 	 * There are either 5, 28, 29 or 32 pkeys supported in
@@ -1276,7 +1276,7 @@ void arch_force_pkey_reg_init(void)
 
 	/*
 	 * All keys should be allocated and set to allow reads and
-	 * writes, so the register should be all 0.  If not, just
+	 * writes, so the register should be all 0.  If analt, just
 	 * skip the test.
 	 */
 	if (read_pkey_reg())
@@ -1286,7 +1286,7 @@ void arch_force_pkey_reg_init(void)
 	 * Just allocate an absurd about of memory rather than
 	 * doing the XSAVE size enumeration dance.
 	 */
-	buf = mmap(NULL, 1*MB, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	buf = mmap(NULL, 1*MB, PROT_READ|PROT_WRITE, MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 
 	/* These __builtins require compiling with -mxsave */
 
@@ -1303,7 +1303,7 @@ void arch_force_pkey_reg_init(void)
 
 
 /*
- * This is mostly useless on ppc for now.  But it will not
+ * This is mostly useless on ppc for analw.  But it will analt
  * hurt anything and should give some better coverage as
  * a long-running test that continually checks the pkey
  * register.
@@ -1342,7 +1342,7 @@ void test_pkey_init_state(int *ptr, u16 pkey)
 }
 
 /*
- * pkey 0 is special.  It is allocated by default, so you do not
+ * pkey 0 is special.  It is allocated by default, so you do analt
  * have to call pkey_alloc() to use it first.  Make sure that it
  * is usable.
  */
@@ -1374,7 +1374,7 @@ void test_ptrace_of_child(int *ptr, u16 pkey)
 {
 	__attribute__((__unused__)) int peek_result;
 	pid_t child_pid;
-	void *ignored = 0;
+	void *iganalred = 0;
 	long ret;
 	int status;
 	/*
@@ -1392,7 +1392,7 @@ void test_ptrace_of_child(int *ptr, u16 pkey)
 	child_pid = fork_lazy_child();
 	dprintf1("[%d] child pid: %d\n", getpid(), child_pid);
 
-	ret = ptrace(PTRACE_ATTACH, child_pid, ignored, ignored);
+	ret = ptrace(PTRACE_ATTACH, child_pid, iganalred, iganalred);
 	if (ret)
 		perror("attach");
 	dprintf1("[%d] attach ret: %ld %d\n", getpid(), ret, __LINE__);
@@ -1409,7 +1409,7 @@ void test_ptrace_of_child(int *ptr, u16 pkey)
 	pkey_access_deny(pkey);
 	pkey_write_deny(pkey);
 
-	/* Write access, untested for now:
+	/* Write access, untested for analw:
 	ret = ptrace(PTRACE_POKEDATA, child_pid, peek_at, data);
 	pkey_assert(ret != -1);
 	dprintf1("poke at %p: %ld\n", peek_at, ret);
@@ -1418,24 +1418,24 @@ void test_ptrace_of_child(int *ptr, u16 pkey)
 	/*
 	 * Try to access the pkey-protected "ptr" via ptrace:
 	 */
-	ret = ptrace(PTRACE_PEEKDATA, child_pid, ptr, ignored);
+	ret = ptrace(PTRACE_PEEKDATA, child_pid, ptr, iganalred);
 	/* expect it to work, without an error: */
 	pkey_assert(ret != -1);
-	/* Now access from the current task, and expect an exception: */
+	/* Analw access from the current task, and expect an exception: */
 	peek_result = read_ptr(ptr);
 	expected_pkey_fault(pkey);
 
 	/*
-	 * Try to access the NON-pkey-protected "plain_ptr" via ptrace:
+	 * Try to access the ANALN-pkey-protected "plain_ptr" via ptrace:
 	 */
-	ret = ptrace(PTRACE_PEEKDATA, child_pid, plain_ptr, ignored);
+	ret = ptrace(PTRACE_PEEKDATA, child_pid, plain_ptr, iganalred);
 	/* expect it to work, without an error: */
 	pkey_assert(ret != -1);
-	/* Now access from the current task, and expect NO exception: */
+	/* Analw access from the current task, and expect ANAL exception: */
 	peek_result = read_ptr(plain_ptr);
-	do_not_expect_pkey_fault("read plain pointer after ptrace");
+	do_analt_expect_pkey_fault("read plain pointer after ptrace");
 
-	ret = ptrace(PTRACE_DETACH, child_pid, ignored, 0);
+	ret = ptrace(PTRACE_DETACH, child_pid, iganalred, 0);
 	pkey_assert(ret != -1);
 
 	ret = kill(child_pid, SIGKILL);
@@ -1450,10 +1450,10 @@ void *get_pointer_to_instructions(void)
 {
 	void *p1;
 
-	p1 = ALIGN_PTR_UP(&lots_o_noops_around_write, PAGE_SIZE);
-	dprintf3("&lots_o_noops: %p\n", &lots_o_noops_around_write);
-	/* lots_o_noops_around_write should be page-aligned already */
-	assert(p1 == &lots_o_noops_around_write);
+	p1 = ALIGN_PTR_UP(&lots_o_analops_around_write, PAGE_SIZE);
+	dprintf3("&lots_o_analops: %p\n", &lots_o_analops_around_write);
+	/* lots_o_analops_around_write should be page-aligned already */
+	assert(p1 == &lots_o_analops_around_write);
 
 	/* Point 'p1' at the *second* page of the function: */
 	p1 += PAGE_SIZE;
@@ -1475,7 +1475,7 @@ void test_executing_on_unreadable_memory(int *ptr, u16 pkey)
 	int ret;
 
 	p1 = get_pointer_to_instructions();
-	lots_o_noops_around_write(&scratch);
+	lots_o_analops_around_write(&scratch);
 	ptr_contents = read_ptr(p1);
 	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
 
@@ -1489,8 +1489,8 @@ void test_executing_on_unreadable_memory(int *ptr, u16 pkey)
 	 * Make sure this is an *instruction* fault
 	 */
 	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
-	lots_o_noops_around_write(&scratch);
-	do_not_expect_pkey_fault("executing on PROT_EXEC memory");
+	lots_o_analops_around_write(&scratch);
+	do_analt_expect_pkey_fault("executing on PROT_EXEC memory");
 	expect_fault_on_read_execonly_key(p1, pkey);
 }
 
@@ -1504,18 +1504,18 @@ void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
 	dprintf1("%s() start\n", __func__);
 
 	p1 = get_pointer_to_instructions();
-	lots_o_noops_around_write(&scratch);
+	lots_o_analops_around_write(&scratch);
 	ptr_contents = read_ptr(p1);
 	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
 
-	/* Use a *normal* mprotect(), not mprotect_pkey(): */
+	/* Use a *analrmal* mprotect(), analt mprotect_pkey(): */
 	ret = mprotect(p1, PAGE_SIZE, PROT_EXEC);
 	pkey_assert(!ret);
 
 	/*
 	 * Reset the shadow, assuming that the above mprotect()
-	 * correctly changed PKRU, but to an unknown value since
-	 * the actual allocated pkey is unknown.
+	 * correctly changed PKRU, but to an unkanalwn value since
+	 * the actual allocated pkey is unkanalwn.
 	 */
 	shadow_pkey_reg = __read_pkey_reg();
 
@@ -1523,23 +1523,23 @@ void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
 
 	/* Make sure this is an *instruction* fault */
 	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
-	lots_o_noops_around_write(&scratch);
-	do_not_expect_pkey_fault("executing on PROT_EXEC memory");
-	expect_fault_on_read_execonly_key(p1, UNKNOWN_PKEY);
+	lots_o_analops_around_write(&scratch);
+	do_analt_expect_pkey_fault("executing on PROT_EXEC memory");
+	expect_fault_on_read_execonly_key(p1, UNKANALWN_PKEY);
 
 	/*
-	 * Put the memory back to non-PROT_EXEC.  Should clear the
+	 * Put the memory back to analn-PROT_EXEC.  Should clear the
 	 * exec-only pkey off the VMA and allow it to be readable
-	 * again.  Go to PROT_NONE first to check for a kernel bug
-	 * that did not clear the pkey when doing PROT_NONE.
+	 * again.  Go to PROT_ANALNE first to check for a kernel bug
+	 * that did analt clear the pkey when doing PROT_ANALNE.
 	 */
-	ret = mprotect(p1, PAGE_SIZE, PROT_NONE);
+	ret = mprotect(p1, PAGE_SIZE, PROT_ANALNE);
 	pkey_assert(!ret);
 
 	ret = mprotect(p1, PAGE_SIZE, PROT_READ|PROT_EXEC);
 	pkey_assert(!ret);
 	ptr_contents = read_ptr(p1);
-	do_not_expect_pkey_fault("plain read on recently PROT_EXEC area");
+	do_analt_expect_pkey_fault("plain read on recently PROT_EXEC area");
 }
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -1568,7 +1568,7 @@ void test_ptrace_modifies_pkru(int *ptr, u16 pkey)
 		raise(SIGSTOP);
 
 		/*
-		 * need __read_pkey_reg() version so we do not do shadow_pkey_reg
+		 * need __read_pkey_reg() version so we do analt do shadow_pkey_reg
 		 * checking
 		 */
 		if (__read_pkey_reg() != new_pkru)
@@ -1671,7 +1671,7 @@ void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
 	int sret;
 
 	if (cpu_has_pkeys()) {
-		dprintf1("SKIP: %s: no CPU support\n", __func__);
+		dprintf1("SKIP: %s: anal CPU support\n", __func__);
 		return;
 	}
 
@@ -1696,7 +1696,7 @@ void (*pkey_tests[])(int *ptr, u16 pkey) = {
 	test_mprotect_with_pkey_0,
 	test_ptrace_of_child,
 	test_pkey_init_state,
-	test_pkey_syscalls_on_non_allocated_pkey,
+	test_pkey_syscalls_on_analn_allocated_pkey,
 	test_pkey_syscalls_bad_args,
 	test_pkey_alloc_exhaust,
 	test_pkey_alloc_free_attach_pkey0,
@@ -1761,7 +1761,7 @@ int main(void)
 
 		printf("running PKEY tests for unsupported CPU/OS\n");
 
-		ptr  = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+		ptr  = mmap(NULL, size, PROT_ANALNE, MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 		assert(ptr != (void *)-1);
 		test_mprotect_pkey_on_unsupported_cpu(ptr, 1);
 		exit(0);

@@ -48,7 +48,7 @@
 		};
 
 		/* led-3 and led-4 are internally connected antiparallel to one
-		 * another inside the ethernet jack like this:
+		 * aanalther inside the ethernet jack like this:
 		 * GPIOA14 ---+---|led-3|>--+--- GPIOD15
 		 *            +--<|led-4|---+
 		 * E.g. only one of the LEDs can be illuminated at a time while
@@ -397,10 +397,10 @@ baseboard_eeprom: &sip_eeprom {
 
 	bus-width = <8>;
 	mmc-ddr-3_3v;
-	no-1-8-v;
-	non-removable;
-	no-sd;
-	no-sdio;
+	anal-1-8-v;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	st,neg-edge;
 
 	status = "okay";

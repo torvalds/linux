@@ -22,13 +22,13 @@
 
 /* These enum are option of low power mode */
 enum {
-	ROCKCHIP_ARM_OFF_LOGIC_NORMAL = 0,
+	ROCKCHIP_ARM_OFF_LOGIC_ANALRMAL = 0,
 	ROCKCHIP_ARM_OFF_LOGIC_DEEP = 1,
 };
 
 struct rockchip_pm_data {
 	const struct platform_suspend_ops *ops;
-	int (*init)(struct device_node *np);
+	int (*init)(struct device_analde *np);
 };
 
 static void __iomem *rk3288_bootram_base;
@@ -72,8 +72,8 @@ static bool rk3288_slp_disable_osc(void)
 
 	/*
 	 * if any usb phy is still on(GRF_SIDDQ==0), that means we need the
-	 * function of usb wakeup, so do not switch to 32khz, since the usb phy
-	 * clk does not connect to 32khz osc
+	 * function of usb wakeup, so do analt switch to 32khz, since the usb phy
+	 * clk does analt connect to 32khz osc
 	 */
 	for (i = 0; i < ARRAY_SIZE(reg_offset); i++) {
 		regmap_read(grf_regmap, reg_offset[i], &reg);
@@ -104,7 +104,7 @@ static void rk3288_slp_mode_set(int level)
 		     | SGRF_PCLK_WDT_GATE_WRITE | SGRF_FAST_BOOT_EN_WRITE);
 
 	/*
-	 * The dapswjdp can not auto reset before resume, that cause it may
+	 * The dapswjdp can analt auto reset before resume, that cause it may
 	 * access some illegal address during resume. Let's disable it before
 	 * suspend, and the MASKROM will enable it back.
 	 */
@@ -151,8 +151,8 @@ static void rk3288_slp_mode_set(int level)
 					 osc_disable ? 32 * 30 : 0);
 	} else {
 		/*
-		 * arm off, logic normal
-		 * if pmu_clk_core_src_gate_en is not set,
+		 * arm off, logic analrmal
+		 * if pmu_clk_core_src_gate_en is analt set,
 		 * wakeup will be error
 		 */
 		mode_set |= BIT(PMU_CLK_CORE_SRC_GATE_EN);
@@ -163,7 +163,7 @@ static void rk3288_slp_mode_set(int level)
 		/* 30ms on a 24MHz clock for pmic stabilization */
 		regmap_write(pmu_regmap, RK3288_PMU_STABL_CNT, 24000 * 30);
 
-		/* oscillator is still running, so no need to wait */
+		/* oscillator is still running, so anal need to wait */
 		regmap_write(pmu_regmap, RK3288_PMU_OSC_CNT, 0);
 	}
 
@@ -199,7 +199,7 @@ static int rk3288_suspend_enter(suspend_state_t state)
 {
 	local_fiq_disable();
 
-	rk3288_slp_mode_set(ROCKCHIP_ARM_OFF_LOGIC_NORMAL);
+	rk3288_slp_mode_set(ROCKCHIP_ARM_OFF_LOGIC_ANALRMAL);
 
 	cpu_suspend(0, rockchip_lpmode_enter);
 
@@ -221,55 +221,55 @@ static void rk3288_suspend_finish(void)
 		pr_err("%s: Suspend finish failed\n", __func__);
 }
 
-static int __init rk3288_suspend_init(struct device_node *np)
+static int __init rk3288_suspend_init(struct device_analde *np)
 {
-	struct device_node *sram_np;
+	struct device_analde *sram_np;
 	struct resource res;
 	int ret;
 
-	pmu_regmap = syscon_node_to_regmap(np);
+	pmu_regmap = syscon_analde_to_regmap(np);
 	if (IS_ERR(pmu_regmap)) {
-		pr_err("%s: could not find pmu regmap\n", __func__);
+		pr_err("%s: could analt find pmu regmap\n", __func__);
 		return PTR_ERR(pmu_regmap);
 	}
 
 	sgrf_regmap = syscon_regmap_lookup_by_compatible(
 				"rockchip,rk3288-sgrf");
 	if (IS_ERR(sgrf_regmap)) {
-		pr_err("%s: could not find sgrf regmap\n", __func__);
+		pr_err("%s: could analt find sgrf regmap\n", __func__);
 		return PTR_ERR(sgrf_regmap);
 	}
 
 	grf_regmap = syscon_regmap_lookup_by_compatible(
 				"rockchip,rk3288-grf");
 	if (IS_ERR(grf_regmap)) {
-		pr_err("%s: could not find grf regmap\n", __func__);
+		pr_err("%s: could analt find grf regmap\n", __func__);
 		return PTR_ERR(grf_regmap);
 	}
 
-	sram_np = of_find_compatible_node(NULL, NULL,
+	sram_np = of_find_compatible_analde(NULL, NULL,
 					  "rockchip,rk3288-pmu-sram");
 	if (!sram_np) {
-		pr_err("%s: could not find bootram dt node\n", __func__);
-		return -ENODEV;
+		pr_err("%s: could analt find bootram dt analde\n", __func__);
+		return -EANALDEV;
 	}
 
 	rk3288_bootram_base = of_iomap(sram_np, 0);
 	if (!rk3288_bootram_base) {
-		pr_err("%s: could not map bootram base\n", __func__);
-		of_node_put(sram_np);
-		return -ENOMEM;
+		pr_err("%s: could analt map bootram base\n", __func__);
+		of_analde_put(sram_np);
+		return -EANALMEM;
 	}
 
 	ret = of_address_to_resource(sram_np, 0, &res);
 	if (ret) {
-		pr_err("%s: could not get bootram phy addr\n", __func__);
-		of_node_put(sram_np);
+		pr_err("%s: could analt get bootram phy addr\n", __func__);
+		of_analde_put(sram_np);
 		return ret;
 	}
 	rk3288_bootram_phy = res.start;
 
-	of_node_put(sram_np);
+	of_analde_put(sram_np);
 
 	rk3288_config_bootdata();
 
@@ -304,13 +304,13 @@ void __init rockchip_suspend_init(void)
 {
 	const struct rockchip_pm_data *pm_data;
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	np = of_find_matching_node_and_match(NULL, rockchip_pmu_of_device_ids,
+	np = of_find_matching_analde_and_match(NULL, rockchip_pmu_of_device_ids,
 					     &match);
 	if (!match) {
-		pr_err("Failed to find PMU node\n");
+		pr_err("Failed to find PMU analde\n");
 		goto out_put;
 	}
 	pm_data = (struct rockchip_pm_data *) match->data;
@@ -327,5 +327,5 @@ void __init rockchip_suspend_init(void)
 	suspend_set_ops(pm_data->ops);
 
 out_put:
-	of_node_put(np);
+	of_analde_put(np);
 }

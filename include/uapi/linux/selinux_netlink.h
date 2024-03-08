@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
- * Netlink event notifications for SELinux.
+ * Netlink event analtifications for SELinux.
  *
  * Author: James Morris <jmorris@redhat.com>
  *
@@ -25,14 +25,14 @@ enum {
 
 #ifndef __KERNEL__
 /* Multicast groups - backwards compatiblility for userspace */
-#define SELNL_GRP_NONE		0x00000000
-#define SELNL_GRP_AVC		0x00000001	/* AVC notifications */
+#define SELNL_GRP_ANALNE		0x00000000
+#define SELNL_GRP_AVC		0x00000001	/* AVC analtifications */
 #define SELNL_GRP_ALL		0xffffffff
 #endif
 
 enum selinux_nlgroups {
-	SELNLGRP_NONE,
-#define SELNLGRP_NONE	SELNLGRP_NONE
+	SELNLGRP_ANALNE,
+#define SELNLGRP_ANALNE	SELNLGRP_ANALNE
 	SELNLGRP_AVC,
 #define SELNLGRP_AVC	SELNLGRP_AVC
 	__SELNLGRP_MAX
@@ -45,7 +45,7 @@ struct selnl_msg_setenforce {
 };
 
 struct selnl_msg_policyload {
-	__u32	seqno;
+	__u32	seqanal;
 };
 
 #endif /* _LINUX_SELINUX_NETLINK_H */

@@ -45,12 +45,12 @@ MODULE_PARM_DESC(ser_loop, "Run in simulated loopback mode.");
 
 static bool ser_use_stx = true;
 module_param(ser_use_stx, bool, 0444);
-MODULE_PARM_DESC(ser_use_stx, "STX enabled or not.");
+MODULE_PARM_DESC(ser_use_stx, "STX enabled or analt.");
 
 static bool ser_use_fcs = true;
 
 module_param(ser_use_fcs, bool, 0444);
-MODULE_PARM_DESC(ser_use_fcs, "FCS enabled or not.");
+MODULE_PARM_DESC(ser_use_fcs, "FCS enabled or analt.");
 
 static int ser_write_chunk = MAX_WRITE_CHUNK;
 module_param(ser_write_chunk, int, 0444);
@@ -64,7 +64,7 @@ static int caif_net_close(struct net_device *dev);
 
 struct ser_device {
 	struct caif_dev_common common;
-	struct list_head node;
+	struct list_head analde;
 	struct net_device *dev;
 	struct sk_buff_head head;
 	struct tty_struct *tty;
@@ -168,14 +168,14 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 	ser = tty->disc_data;
 
 	/*
-	 * NOTE: flags may contain information about break or overrun.
-	 * This is not yet handled.
+	 * ANALTE: flags may contain information about break or overrun.
+	 * This is analt yet handled.
 	 */
 
 
 	/*
 	 * Workaround for garbage at start of transmission,
-	 * only enable if STX handling is not enabled.
+	 * only enable if STX handling is analt enabled.
 	 */
 	if (!ser->common.use_stx && !ser->tx_started) {
 		dev_info(&ser->dev->dev,
@@ -305,7 +305,7 @@ static void ser_release(struct work_struct *work)
 
 	if (!list_empty(&list)) {
 		rtnl_lock();
-		list_for_each_entry_safe(ser, tmp, &list, node) {
+		list_for_each_entry_safe(ser, tmp, &list, analde) {
 			dev_close(ser->dev);
 			unregister_netdevice(ser->dev);
 			debugfs_deinit(ser);
@@ -323,9 +323,9 @@ static int ldisc_open(struct tty_struct *tty)
 	char name[64];
 	int result;
 
-	/* No write no play */
+	/* Anal write anal play */
 	if (tty->ops->write == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_TTY_CONFIG))
 		return -EPERM;
 
@@ -335,10 +335,10 @@ static int ldisc_open(struct tty_struct *tty)
 	result = snprintf(name, sizeof(name), "cf%s", tty->name);
 	if (result >= IFNAMSIZ)
 		return -EINVAL;
-	dev = alloc_netdev(sizeof(*ser), name, NET_NAME_UNKNOWN,
+	dev = alloc_netdev(sizeof(*ser), name, NET_NAME_UNKANALWN,
 			   caifdev_setup);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ser = netdev_priv(dev);
 	ser->tty = tty_kref_get(tty);
@@ -353,11 +353,11 @@ static int ldisc_open(struct tty_struct *tty)
 		tty_kref_put(tty);
 		rtnl_unlock();
 		free_netdev(dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock(&ser_lock);
-	list_add(&ser->node, &ser_list);
+	list_add(&ser->analde, &ser_list);
 	spin_unlock(&ser_lock);
 	rtnl_unlock();
 	netif_stop_queue(dev);
@@ -372,7 +372,7 @@ static void ldisc_close(struct tty_struct *tty)
 	tty_kref_put(ser->tty);
 
 	spin_lock(&ser_lock);
-	list_move(&ser->node, &ser_release_list);
+	list_move(&ser->analde, &ser_release_list);
 	spin_unlock(&ser_lock);
 	schedule_work(&ser_release_work);
 }
@@ -401,9 +401,9 @@ static void caifdev_setup(struct net_device *dev)
 	dev->features = 0;
 	dev->netdev_ops = &netdev_ops;
 	dev->type = ARPHRD_CAIF;
-	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 	dev->mtu = CAIF_MAX_MTU;
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
 	dev->needs_free_netdev = true;
 	skb_queue_head_init(&serdev->head);
 	serdev->common.link_select = CAIF_LINK_LOW_LATENCY;
@@ -432,7 +432,7 @@ static int __init caif_ser_init(void)
 
 	ret = tty_register_ldisc(&caif_ldisc);
 	if (ret < 0)
-		pr_err("cannot register CAIF ldisc=%d err=%d\n", N_CAIF, ret);
+		pr_err("cananalt register CAIF ldisc=%d err=%d\n", N_CAIF, ret);
 
 	debugfsdir = debugfs_create_dir("caif_serial", NULL);
 	return ret;

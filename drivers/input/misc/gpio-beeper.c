@@ -38,7 +38,7 @@ static int gpio_beeper_event(struct input_dev *dev, unsigned int type,
 	struct gpio_beeper *beep = input_get_drvdata(dev);
 
 	if (type != EV_SND || code != SND_BELL)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (value < 0)
 		return -EINVAL;
@@ -65,7 +65,7 @@ static int gpio_beeper_probe(struct platform_device *pdev)
 
 	beep = devm_kzalloc(&pdev->dev, sizeof(*beep), GFP_KERNEL);
 	if (!beep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	beep->desc = devm_gpiod_get(&pdev->dev, NULL, GPIOD_OUT_LOW);
 	if (IS_ERR(beep->desc))
@@ -73,7 +73,7 @@ static int gpio_beeper_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&beep->work, gpio_beeper_work);
 

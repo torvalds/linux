@@ -25,7 +25,7 @@
 int addr2line_timeout_ms = 1 * 1000;
 bool srcline_full_filename;
 
-char *srcline__unknown = (char *)"??:0";
+char *srcline__unkanalwn = (char *)"??:0";
 
 static const char *dso__name(struct dso *dso)
 {
@@ -46,7 +46,7 @@ static const char *dso__name(struct dso *dso)
 }
 
 static int inline_list__append(struct symbol *symbol, char *srcline,
-			       struct inline_node *node)
+			       struct inline_analde *analde)
 {
 	struct inline_list *ilist;
 
@@ -58,9 +58,9 @@ static int inline_list__append(struct symbol *symbol, char *srcline,
 	ilist->srcline = srcline;
 
 	if (callchain_param.order == ORDER_CALLEE)
-		list_add_tail(&ilist->list, &node->val);
+		list_add_tail(&ilist->list, &analde->val);
 	else
-		list_add(&ilist->list, &node->val);
+		list_add(&ilist->list, &analde->val);
 
 	return 0;
 }
@@ -109,7 +109,7 @@ static struct symbol *new_inline_sym(struct dso *dso,
 		/* reuse the real, existing symbol */
 		inline_sym = base_sym;
 		/* ensure that we don't alias an inlined symbol, which could
-		 * lead to double frees in inline_node__delete
+		 * lead to double frees in inline_analde__delete
 		 */
 		assert(!base_sym->inlined);
 	} else {
@@ -186,9 +186,9 @@ static int slurp_symtab(bfd *abfd, struct a2l_data *a2l)
 
 	syms = malloc(storage);
 	if (dynamic)
-		symcount = bfd_canonicalize_dynamic_symtab(abfd, syms);
+		symcount = bfd_caanalnicalize_dynamic_symtab(abfd, syms);
 	else
-		symcount = bfd_canonicalize_symtab(abfd, syms);
+		symcount = bfd_caanalnicalize_symtab(abfd, syms);
 
 	if (symcount < 0) {
 		free(syms);
@@ -285,7 +285,7 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 }
 
 static int inline_list__append_dso_a2l(struct dso *dso,
-				       struct inline_node *node,
+				       struct inline_analde *analde,
 				       struct symbol *sym)
 {
 	struct a2l_data *a2l = dso->a2l;
@@ -295,12 +295,12 @@ static int inline_list__append_dso_a2l(struct dso *dso,
 	if (a2l->filename)
 		srcline = srcline_from_fileline(a2l->filename, a2l->line);
 
-	return inline_list__append(inline_sym, srcline, node);
+	return inline_list__append(inline_sym, srcline, analde);
 }
 
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line, struct dso *dso,
-		     bool unwind_inlines, struct inline_node *node,
+		     bool unwind_inlines, struct inline_analde *analde,
 		     struct symbol *sym)
 {
 	int ret = 0;
@@ -328,7 +328,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	if (unwind_inlines) {
 		int cnt = 0;
 
-		if (node && inline_list__append_dso_a2l(dso, node, sym))
+		if (analde && inline_list__append_dso_a2l(dso, analde, sym))
 			return 0;
 
 		while (bfd_find_inliner_info(a2l->abfd, &a2l->filename,
@@ -338,8 +338,8 @@ static int addr2line(const char *dso_name, u64 addr,
 			if (a2l->filename && !strlen(a2l->filename))
 				a2l->filename = NULL;
 
-			if (node != NULL) {
-				if (inline_list__append_dso_a2l(dso, node, sym))
+			if (analde != NULL) {
+				if (inline_list__append_dso_a2l(dso, analde, sym))
 					return 0;
 				// found at least one inline frame
 				ret = 1;
@@ -397,7 +397,7 @@ static void addr2line_subprocess_cleanup(struct child_process *a2l)
 {
 	if (a2l->pid != -1) {
 		kill(a2l->pid, SIGKILL);
-		finish_command(a2l); /* ignore result, we don't care */
+		finish_command(a2l); /* iganalre result, we don't care */
 		a2l->pid = -1;
 	}
 
@@ -423,14 +423,14 @@ static struct child_process *addr2line_subprocess_init(const char *addr2line_pat
 	a2l->pid = -1;
 	a2l->in = -1;
 	a2l->out = -1;
-	a2l->no_stderr = 1;
+	a2l->anal_stderr = 1;
 
 	a2l->argv = argv;
 	start_command_status = start_command(a2l);
-	a2l->argv = NULL; /* it's not used after start_command; avoid dangling pointers */
+	a2l->argv = NULL; /* it's analt used after start_command; avoid dangling pointers */
 
 	if (start_command_status != 0) {
-		pr_warning("could not start addr2line (%s) for %s: start_command return code %d\n",
+		pr_warning("could analt start addr2line (%s) for %s: start_command return code %d\n",
 			addr2line_path, binary_path, start_command_status);
 		addr2line_subprocess_cleanup(a2l);
 		return NULL;
@@ -481,7 +481,7 @@ static enum a2l_style addr2line_configure(struct child_process *a2l, const char 
 					   __func__, dso_name);
 				pr_warning("\t%c%s", ch, output);
 			}
-			pr_debug("Unknown/broken addr2line style\n");
+			pr_debug("Unkanalwn/broken addr2line style\n");
 			return BROKEN;
 		}
 		while (lines) {
@@ -491,7 +491,7 @@ static enum a2l_style addr2line_configure(struct child_process *a2l, const char 
 			if (ch == '\n')
 				lines--;
 		}
-		/* Ignore SIGPIPE in the event addr2line exits. */
+		/* Iganalre SIGPIPE in the event addr2line exits. */
 		signal(SIGPIPE, SIG_IGN);
 	}
 	return style;
@@ -542,9 +542,9 @@ static int read_addr2line_record(struct io *io,
 		zfree(&line);
 		return 0;
 	} else if (style == GNU_BINUTILS && (!first || addr != 0)) {
-		int zero_count = 0, non_zero_count = 0;
+		int zero_count = 0, analn_zero_count = 0;
 		/*
-		 * Check for binutils sentinel ignoring it for the case the
+		 * Check for binutils sentinel iganalring it for the case the
 		 * requested address is 0.
 		 */
 
@@ -554,9 +554,9 @@ static int read_addr2line_record(struct io *io,
 				if (line[i] == '0')
 					zero_count++;
 				else if (line[i] != '\n')
-					non_zero_count++;
+					analn_zero_count++;
 			}
-			if (!non_zero_count) {
+			if (!analn_zero_count) {
 				int ch;
 
 				if (first && !zero_count) {
@@ -618,7 +618,7 @@ error:
 }
 
 static int inline_list__append_record(struct dso *dso,
-				      struct inline_node *node,
+				      struct inline_analde *analde,
 				      struct symbol *sym,
 				      const char *function,
 				      const char *filename,
@@ -626,14 +626,14 @@ static int inline_list__append_record(struct dso *dso,
 {
 	struct symbol *inline_sym = new_inline_sym(dso, sym, function);
 
-	return inline_list__append(inline_sym, srcline_from_fileline(filename, line_nr), node);
+	return inline_list__append(inline_sym, srcline_from_fileline(filename, line_nr), analde);
 }
 
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line_nr,
 		     struct dso *dso,
 		     bool unwind_inlines,
-		     struct inline_node *node,
+		     struct inline_analde *analde,
 		     struct symbol *sym __maybe_unused)
 {
 	struct child_process *a2l = dso->a2l;
@@ -670,7 +670,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	 * Send our request and then *deliberately* send something that can't be
 	 * interpreted as a valid address to ask addr2line about (namely,
 	 * ","). This causes addr2line to first write out the answer to our
-	 * request, in an unbounded/unknown number of records, and then to write
+	 * request, in an unbounded/unkanalwn number of records, and then to write
 	 * out the lines "0x0...0", "??" and "??:0", for GNU binutils, or ","
 	 * for llvm-addr2line, so that we can detect when it has finished giving
 	 * us anything useful.
@@ -679,7 +679,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	written = len > 0 ? write(a2l->in, buf, len) : -1;
 	if (written != len) {
 		if (!symbol_conf.disable_add2line_warn)
-			pr_warning("%s %s: could not send request\n", __func__, dso_name);
+			pr_warning("%s %s: could analt send request\n", __func__, dso_name);
 		goto out;
 	}
 	io__init(&io, a2l->out, buf, sizeof(buf));
@@ -688,15 +688,15 @@ static int addr2line(const char *dso_name, u64 addr,
 				      &record_function, &record_filename, &record_line_nr)) {
 	case -1:
 		if (!symbol_conf.disable_add2line_warn)
-			pr_warning("%s %s: could not read first record\n", __func__, dso_name);
+			pr_warning("%s %s: could analt read first record\n", __func__, dso_name);
 		goto out;
 	case 0:
 		/*
 		 * The first record was invalid, so return failure, but first
-		 * read another record, since we sent a sentinel ',' for the
+		 * read aanalther record, since we sent a sentinel ',' for the
 		 * sake of detected the last inlined function. Treat this as the
 		 * first of a record as the ',' generates a new start with GNU
-		 * binutils, also force a non-zero address as we're no longer
+		 * binutils, also force a analn-zero address as we're anal longer
 		 * reading that record.
 		 */
 		switch (read_addr2line_record(&io, a2l_style, dso_name,
@@ -704,7 +704,7 @@ static int addr2line(const char *dso_name, u64 addr,
 					      NULL, NULL, NULL)) {
 		case -1:
 			if (!symbol_conf.disable_add2line_warn)
-				pr_warning("%s %s: could not read sentinel record\n",
+				pr_warning("%s %s: could analt read sentinel record\n",
 					   __func__, dso_name);
 			break;
 		case 0:
@@ -730,7 +730,7 @@ static int addr2line(const char *dso_name, u64 addr,
 		*line_nr = record_line_nr;
 
 	if (unwind_inlines) {
-		if (node && inline_list__append_record(dso, node, sym,
+		if (analde && inline_list__append_record(dso, analde, sym,
 						       record_function,
 						       record_filename,
 						       record_line_nr)) {
@@ -741,7 +741,7 @@ static int addr2line(const char *dso_name, u64 addr,
 
 	/*
 	 * We have to read the records even if we don't care about the inline
-	 * info. This isn't the first record and force the address to non-zero
+	 * info. This isn't the first record and force the address to analn-zero
 	 * as we're reading records beyond the first.
 	 */
 	while ((record_status = read_addr2line_record(&io,
@@ -752,8 +752,8 @@ static int addr2line(const char *dso_name, u64 addr,
 						      &record_function,
 						      &record_filename,
 						      &record_line_nr)) == 1) {
-		if (unwind_inlines && node && inline_count++ < MAX_INLINE_NEST) {
-			if (inline_list__append_record(dso, node, sym,
+		if (unwind_inlines && analde && inline_count++ < MAX_INLINE_NEST) {
+			if (inline_list__append_record(dso, analde, sym,
 						       record_function,
 						       record_filename,
 						       record_line_nr)) {
@@ -788,22 +788,22 @@ void dso__free_a2l(struct dso *dso)
 
 #endif /* HAVE_LIBBFD_SUPPORT */
 
-static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
+static struct inline_analde *addr2inlines(const char *dso_name, u64 addr,
 					struct dso *dso, struct symbol *sym)
 {
-	struct inline_node *node;
+	struct inline_analde *analde;
 
-	node = zalloc(sizeof(*node));
-	if (node == NULL) {
-		perror("not enough memory for the inline node");
+	analde = zalloc(sizeof(*analde));
+	if (analde == NULL) {
+		perror("analt eanalugh memory for the inline analde");
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&node->val);
-	node->addr = addr;
+	INIT_LIST_HEAD(&analde->val);
+	analde->addr = addr;
 
-	addr2line(dso_name, addr, NULL, NULL, dso, true, node, sym);
-	return node;
+	addr2line(dso_name, addr, NULL, NULL, dso, true, analde, sym);
+	return analde;
 }
 
 /*
@@ -850,14 +850,14 @@ out:
 
 	if (!show_addr)
 		return (show_sym && sym) ?
-			    strndup(sym->name, sym->namelen) : SRCLINE_UNKNOWN;
+			    strndup(sym->name, sym->namelen) : SRCLINE_UNKANALWN;
 
 	if (sym) {
 		if (asprintf(&srcline, "%s+%" PRIu64, show_sym ? sym->name : "",
 					ip - sym->start) < 0)
-			return SRCLINE_UNKNOWN;
+			return SRCLINE_UNKANALWN;
 	} else if (asprintf(&srcline, "%s[%" PRIx64 "]", dso->short_name, addr) < 0)
-		return SRCLINE_UNKNOWN;
+		return SRCLINE_UNKANALWN;
 	return srcline;
 }
 
@@ -894,7 +894,7 @@ void zfree_srcline(char **srcline)
 	if (*srcline == NULL)
 		return;
 
-	if (*srcline != SRCLINE_UNKNOWN)
+	if (*srcline != SRCLINE_UNKANALWN)
 		free(*srcline);
 
 	*srcline = NULL;
@@ -906,31 +906,31 @@ char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 	return __get_srcline(dso, addr, sym, show_sym, show_addr, false, ip);
 }
 
-struct srcline_node {
+struct srcline_analde {
 	u64			addr;
 	char			*srcline;
-	struct rb_node		rb_node;
+	struct rb_analde		rb_analde;
 };
 
 void srcline__tree_insert(struct rb_root_cached *tree, u64 addr, char *srcline)
 {
-	struct rb_node **p = &tree->rb_root.rb_node;
-	struct rb_node *parent = NULL;
-	struct srcline_node *i, *node;
+	struct rb_analde **p = &tree->rb_root.rb_analde;
+	struct rb_analde *parent = NULL;
+	struct srcline_analde *i, *analde;
 	bool leftmost = true;
 
-	node = zalloc(sizeof(struct srcline_node));
-	if (!node) {
-		perror("not enough memory for the srcline node");
+	analde = zalloc(sizeof(struct srcline_analde));
+	if (!analde) {
+		perror("analt eanalugh memory for the srcline analde");
 		return;
 	}
 
-	node->addr = addr;
-	node->srcline = srcline;
+	analde->addr = addr;
+	analde->srcline = srcline;
 
 	while (*p != NULL) {
 		parent = *p;
-		i = rb_entry(parent, struct srcline_node, rb_node);
+		i = rb_entry(parent, struct srcline_analde, rb_analde);
 		if (addr < i->addr)
 			p = &(*p)->rb_left;
 		else {
@@ -938,17 +938,17 @@ void srcline__tree_insert(struct rb_root_cached *tree, u64 addr, char *srcline)
 			leftmost = false;
 		}
 	}
-	rb_link_node(&node->rb_node, parent, p);
-	rb_insert_color_cached(&node->rb_node, tree, leftmost);
+	rb_link_analde(&analde->rb_analde, parent, p);
+	rb_insert_color_cached(&analde->rb_analde, tree, leftmost);
 }
 
 char *srcline__tree_find(struct rb_root_cached *tree, u64 addr)
 {
-	struct rb_node *n = tree->rb_root.rb_node;
+	struct rb_analde *n = tree->rb_root.rb_analde;
 
 	while (n) {
-		struct srcline_node *i = rb_entry(n, struct srcline_node,
-						  rb_node);
+		struct srcline_analde *i = rb_entry(n, struct srcline_analde,
+						  rb_analde);
 
 		if (addr < i->addr)
 			n = n->rb_left;
@@ -963,19 +963,19 @@ char *srcline__tree_find(struct rb_root_cached *tree, u64 addr)
 
 void srcline__tree_delete(struct rb_root_cached *tree)
 {
-	struct srcline_node *pos;
-	struct rb_node *next = rb_first_cached(tree);
+	struct srcline_analde *pos;
+	struct rb_analde *next = rb_first_cached(tree);
 
 	while (next) {
-		pos = rb_entry(next, struct srcline_node, rb_node);
-		next = rb_next(&pos->rb_node);
-		rb_erase_cached(&pos->rb_node, tree);
+		pos = rb_entry(next, struct srcline_analde, rb_analde);
+		next = rb_next(&pos->rb_analde);
+		rb_erase_cached(&pos->rb_analde, tree);
 		zfree_srcline(&pos->srcline);
 		zfree(&pos);
 	}
 }
 
-struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
+struct inline_analde *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 					    struct symbol *sym)
 {
 	const char *dso_name;
@@ -987,11 +987,11 @@ struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 	return addr2inlines(dso_name, addr, dso, sym);
 }
 
-void inline_node__delete(struct inline_node *node)
+void inline_analde__delete(struct inline_analde *analde)
 {
 	struct inline_list *ilist, *tmp;
 
-	list_for_each_entry_safe(ilist, tmp, &node->val, list) {
+	list_for_each_entry_safe(ilist, tmp, &analde->val, list) {
 		list_del_init(&ilist->list);
 		zfree_srcline(&ilist->srcline);
 		/* only the inlined symbols are owned by the list */
@@ -1000,21 +1000,21 @@ void inline_node__delete(struct inline_node *node)
 		free(ilist);
 	}
 
-	free(node);
+	free(analde);
 }
 
 void inlines__tree_insert(struct rb_root_cached *tree,
-			  struct inline_node *inlines)
+			  struct inline_analde *inlines)
 {
-	struct rb_node **p = &tree->rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &tree->rb_root.rb_analde;
+	struct rb_analde *parent = NULL;
 	const u64 addr = inlines->addr;
-	struct inline_node *i;
+	struct inline_analde *i;
 	bool leftmost = true;
 
 	while (*p != NULL) {
 		parent = *p;
-		i = rb_entry(parent, struct inline_node, rb_node);
+		i = rb_entry(parent, struct inline_analde, rb_analde);
 		if (addr < i->addr)
 			p = &(*p)->rb_left;
 		else {
@@ -1022,17 +1022,17 @@ void inlines__tree_insert(struct rb_root_cached *tree,
 			leftmost = false;
 		}
 	}
-	rb_link_node(&inlines->rb_node, parent, p);
-	rb_insert_color_cached(&inlines->rb_node, tree, leftmost);
+	rb_link_analde(&inlines->rb_analde, parent, p);
+	rb_insert_color_cached(&inlines->rb_analde, tree, leftmost);
 }
 
-struct inline_node *inlines__tree_find(struct rb_root_cached *tree, u64 addr)
+struct inline_analde *inlines__tree_find(struct rb_root_cached *tree, u64 addr)
 {
-	struct rb_node *n = tree->rb_root.rb_node;
+	struct rb_analde *n = tree->rb_root.rb_analde;
 
 	while (n) {
-		struct inline_node *i = rb_entry(n, struct inline_node,
-						 rb_node);
+		struct inline_analde *i = rb_entry(n, struct inline_analde,
+						 rb_analde);
 
 		if (addr < i->addr)
 			n = n->rb_left;
@@ -1047,13 +1047,13 @@ struct inline_node *inlines__tree_find(struct rb_root_cached *tree, u64 addr)
 
 void inlines__tree_delete(struct rb_root_cached *tree)
 {
-	struct inline_node *pos;
-	struct rb_node *next = rb_first_cached(tree);
+	struct inline_analde *pos;
+	struct rb_analde *next = rb_first_cached(tree);
 
 	while (next) {
-		pos = rb_entry(next, struct inline_node, rb_node);
-		next = rb_next(&pos->rb_node);
-		rb_erase_cached(&pos->rb_node, tree);
-		inline_node__delete(pos);
+		pos = rb_entry(next, struct inline_analde, rb_analde);
+		next = rb_next(&pos->rb_analde);
+		rb_erase_cached(&pos->rb_analde, tree);
+		inline_analde__delete(pos);
 	}
 }

@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_FALLOC_H_
 #define _UAPI_FALLOC_H_
 
 #define FALLOC_FL_KEEP_SIZE	0x01 /* default is extend size */
 #define FALLOC_FL_PUNCH_HOLE	0x02 /* de-allocates range */
-#define FALLOC_FL_NO_HIDE_STALE	0x04 /* reserved codepoint */
+#define FALLOC_FL_ANAL_HIDE_STALE	0x04 /* reserved codepoint */
 
 /*
  * FALLOC_FL_COLLAPSE_RANGE is used to remove a range of a file
@@ -37,7 +37,7 @@
  * while the range remains allocated for the file.
  *
  * This can be also used to preallocate blocks past EOF in the same way as
- * with fallocate. Flag FALLOC_FL_KEEP_SIZE should cause the inode
+ * with fallocate. Flag FALLOC_FL_KEEP_SIZE should cause the ianalde
  * size to remain the same.
  */
 #define FALLOC_FL_ZERO_RANGE		0x10
@@ -72,7 +72,7 @@
  * or file.
  *
  * This flag can only be used with allocate-mode fallocate, which is
- * to say that it cannot be used with the punch, zero, collapse, or
+ * to say that it cananalt be used with the punch, zero, collapse, or
  * insert range modes.
  */
 #define FALLOC_FL_UNSHARE_RANGE		0x40

@@ -45,17 +45,17 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	si_swapinfo(&i);
 	committed = vm_memory_committed();
 
-	cached = global_node_page_state(NR_FILE_PAGES) -
+	cached = global_analde_page_state(NR_FILE_PAGES) -
 			total_swapcache_pages() - i.bufferram;
 	if (cached < 0)
 		cached = 0;
 
 	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
-		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
+		pages[lru] = global_analde_page_state(NR_LRU_BASE + lru);
 
 	available = si_mem_available();
-	sreclaimable = global_node_page_state_pages(NR_SLAB_RECLAIMABLE_B);
-	sunreclaim = global_node_page_state_pages(NR_SLAB_UNRECLAIMABLE_B);
+	sreclaimable = global_analde_page_state_pages(NR_SLAB_RECLAIMABLE_B);
+	sunreclaim = global_analde_page_state_pages(NR_SLAB_UNRECLAIMABLE_B);
 
 	show_val_kb(m, "MemTotal:       ", i.totalram);
 	show_val_kb(m, "MemFree:        ", i.freeram);
@@ -63,12 +63,12 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	show_val_kb(m, "Buffers:        ", i.bufferram);
 	show_val_kb(m, "Cached:         ", cached);
 	show_val_kb(m, "SwapCached:     ", total_swapcache_pages());
-	show_val_kb(m, "Active:         ", pages[LRU_ACTIVE_ANON] +
+	show_val_kb(m, "Active:         ", pages[LRU_ACTIVE_AANALN] +
 					   pages[LRU_ACTIVE_FILE]);
-	show_val_kb(m, "Inactive:       ", pages[LRU_INACTIVE_ANON] +
+	show_val_kb(m, "Inactive:       ", pages[LRU_INACTIVE_AANALN] +
 					   pages[LRU_INACTIVE_FILE]);
-	show_val_kb(m, "Active(anon):   ", pages[LRU_ACTIVE_ANON]);
-	show_val_kb(m, "Inactive(anon): ", pages[LRU_INACTIVE_ANON]);
+	show_val_kb(m, "Active(aanaln):   ", pages[LRU_ACTIVE_AANALN]);
+	show_val_kb(m, "Inactive(aanaln): ", pages[LRU_INACTIVE_AANALN]);
 	show_val_kb(m, "Active(file):   ", pages[LRU_ACTIVE_FILE]);
 	show_val_kb(m, "Inactive(file): ", pages[LRU_INACTIVE_FILE]);
 	show_val_kb(m, "Unevictable:    ", pages[LRU_UNEVICTABLE]);
@@ -96,35 +96,35 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		   (PAGE_SHIFT - 10));
 #endif
 	show_val_kb(m, "Dirty:          ",
-		    global_node_page_state(NR_FILE_DIRTY));
+		    global_analde_page_state(NR_FILE_DIRTY));
 	show_val_kb(m, "Writeback:      ",
-		    global_node_page_state(NR_WRITEBACK));
-	show_val_kb(m, "AnonPages:      ",
-		    global_node_page_state(NR_ANON_MAPPED));
+		    global_analde_page_state(NR_WRITEBACK));
+	show_val_kb(m, "AanalnPages:      ",
+		    global_analde_page_state(NR_AANALN_MAPPED));
 	show_val_kb(m, "Mapped:         ",
-		    global_node_page_state(NR_FILE_MAPPED));
+		    global_analde_page_state(NR_FILE_MAPPED));
 	show_val_kb(m, "Shmem:          ", i.sharedram);
 	show_val_kb(m, "KReclaimable:   ", sreclaimable +
-		    global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE));
+		    global_analde_page_state(NR_KERNEL_MISC_RECLAIMABLE));
 	show_val_kb(m, "Slab:           ", sreclaimable + sunreclaim);
 	show_val_kb(m, "SReclaimable:   ", sreclaimable);
 	show_val_kb(m, "SUnreclaim:     ", sunreclaim);
 	seq_printf(m, "KernelStack:    %8lu kB\n",
-		   global_node_page_state(NR_KERNEL_STACK_KB));
+		   global_analde_page_state(NR_KERNEL_STACK_KB));
 #ifdef CONFIG_SHADOW_CALL_STACK
 	seq_printf(m, "ShadowCallStack:%8lu kB\n",
-		   global_node_page_state(NR_KERNEL_SCS_KB));
+		   global_analde_page_state(NR_KERNEL_SCS_KB));
 #endif
 	show_val_kb(m, "PageTables:     ",
-		    global_node_page_state(NR_PAGETABLE));
+		    global_analde_page_state(NR_PAGETABLE));
 	show_val_kb(m, "SecPageTables:  ",
-		    global_node_page_state(NR_SECONDARY_PAGETABLE));
+		    global_analde_page_state(NR_SECONDARY_PAGETABLE));
 
 	show_val_kb(m, "NFS_Unstable:   ", 0);
 	show_val_kb(m, "Bounce:         ",
 		    global_zone_page_state(NR_BOUNCE));
 	show_val_kb(m, "WritebackTmp:   ",
-		    global_node_page_state(NR_WRITEBACK_TEMP));
+		    global_analde_page_state(NR_WRITEBACK_TEMP));
 	show_val_kb(m, "CommitLimit:    ", vm_commit_limit());
 	show_val_kb(m, "Committed_AS:   ", committed);
 	seq_printf(m, "VmallocTotal:   %8lu kB\n",
@@ -141,16 +141,16 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 #endif
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	show_val_kb(m, "AnonHugePages:  ",
-		    global_node_page_state(NR_ANON_THPS));
+	show_val_kb(m, "AanalnHugePages:  ",
+		    global_analde_page_state(NR_AANALN_THPS));
 	show_val_kb(m, "ShmemHugePages: ",
-		    global_node_page_state(NR_SHMEM_THPS));
+		    global_analde_page_state(NR_SHMEM_THPS));
 	show_val_kb(m, "ShmemPmdMapped: ",
-		    global_node_page_state(NR_SHMEM_PMDMAPPED));
+		    global_analde_page_state(NR_SHMEM_PMDMAPPED));
 	show_val_kb(m, "FileHugePages:  ",
-		    global_node_page_state(NR_FILE_THPS));
+		    global_analde_page_state(NR_FILE_THPS));
 	show_val_kb(m, "FilePmdMapped:  ",
-		    global_node_page_state(NR_FILE_PMDMAPPED));
+		    global_analde_page_state(NR_FILE_PMDMAPPED));
 #endif
 
 #ifdef CONFIG_CMA

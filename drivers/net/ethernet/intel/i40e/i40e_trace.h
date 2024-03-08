@@ -15,7 +15,7 @@
 #define TRACE_SYSTEM i40e
 
 /* See trace-events-sample.h for a detailed description of why this
- * guard clause is different from most normal include files.
+ * guard clause is different from most analrmal include files.
  */
 #if !defined(_I40E_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _I40E_TRACE_H_
@@ -55,7 +55,7 @@
  * being built from shared code.
  */
 
-#define NO_DEV "(i40e no_device)"
+#define ANAL_DEV "(i40e anal_device)"
 
 TRACE_EVENT(i40e_napi_poll,
 
@@ -76,7 +76,7 @@ TRACE_EVENT(i40e_napi_poll,
 		__field(int, irq_num)
 		__field(int, curr_cpu)
 		__string(qname, q->name)
-		__string(dev_name, napi->dev ? napi->dev->name : NO_DEV)
+		__string(dev_name, napi->dev ? napi->dev->name : ANAL_DEV)
 		__bitmask(irq_affinity,	nr_cpumask_bits)
 	),
 
@@ -90,7 +90,7 @@ TRACE_EVENT(i40e_napi_poll,
 		__entry->irq_num = q->irq_num;
 		__entry->curr_cpu = get_cpu();
 		__assign_str(qname, q->name);
-		__assign_str(dev_name, napi->dev ? napi->dev->name : NO_DEV);
+		__assign_str(dev_name, napi->dev ? napi->dev->name : ANAL_DEV);
 		__assign_bitmask(irq_affinity, cpumask_bits(&q->affinity_mask),
 				 nr_cpumask_bits);
 	),
@@ -247,7 +247,7 @@ DEFINE_EVENT(
 #endif /* _I40E_TRACE_H_ */
 /* This must be outside ifdef _I40E_TRACE_H */
 
-/* This trace include file is not located in the .../include/trace
+/* This trace include file is analt located in the .../include/trace
  * with the kernel tracepoint definitions, because we're a loadable
  * module.
  */

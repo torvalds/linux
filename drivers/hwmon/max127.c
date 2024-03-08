@@ -230,7 +230,7 @@ static int max127_read(struct device *dev, enum hwmon_sensor_types type,
 	struct max127_data *data = dev_get_drvdata(dev);
 
 	if (type != hwmon_in)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_in_input:
@@ -246,7 +246,7 @@ static int max127_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 
 	default:
-		status = -EOPNOTSUPP;
+		status = -EOPANALTSUPP;
 		break;
 	}
 
@@ -260,7 +260,7 @@ static int max127_write(struct device *dev, enum hwmon_sensor_types type,
 	struct max127_data *data = dev_get_drvdata(dev);
 
 	if (type != hwmon_in)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_in_min:
@@ -272,7 +272,7 @@ static int max127_write(struct device *dev, enum hwmon_sensor_types type,
 		break;
 
 	default:
-		status = -EOPNOTSUPP;
+		status = -EOPANALTSUPP;
 		break;
 	}
 
@@ -312,7 +312,7 @@ static int max127_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->lock);

@@ -10,7 +10,7 @@ msgstr ""
 "POT-Creation-Date: 2011-03-08 17:03+0100\n"
 "PO-Revision-Date: 2019-06-02 15:23+0200\n"
 "Last-Translator: Benjamin Weis <benjamin.weis@gmx.com>\n"
-"Language-Team: NONE\n"
+"Language-Team: ANALNE\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -54,11 +54,11 @@ msgid "Processor Package C1"
 msgstr "Prozessorpaket C1"
 
 #: utils/idle_monitor/amd_fam14h_idle.c:77
-msgid "North Bridge P1 boolean counter (returns 0 or 1)"
-msgstr "North Bridge P1 boolescher Zähler (gibt 0 oder 1 zurück)"
+msgid "Analrth Bridge P1 boolean counter (returns 0 or 1)"
+msgstr "Analrth Bridge P1 boolescher Zähler (gibt 0 oder 1 zurück)"
 
 #: utils/idle_monitor/mperf_monitor.c:35
-msgid "Processor Core not idle"
+msgid "Processor Core analt idle"
 msgstr "Prozessorkern ist nicht im Leerlauf"
 
 #: utils/idle_monitor/mperf_monitor.c:42
@@ -123,7 +123,7 @@ msgstr ""
 #, c-format
 msgid ""
 "only one of: -t, -l, -m are allowed\n"
-"If none of them is passed,"
+"If analne of them is passed,"
 msgstr ""
 "nur einer von: -t, -l, -m ist erlaubt\n"
 "Wenn keiner von ihnen übergeben wird,"
@@ -135,7 +135,7 @@ msgstr " werden alle unterstützten Wächter angezeigt\n"
 
 #: utils/idle_monitor/cpupower-monitor.c:197
 #, c-format
-msgid "Monitor %s, Counter %s has no count function. Implementation error\n"
+msgid "Monitor %s, Counter %s has anal count function. Implementation error\n"
 msgstr "Wächter %s, Zähler %s hat keine Zählfunktion. Implementierungsfehler\n"
 
 #: utils/idle_monitor/cpupower-monitor.c:207
@@ -150,7 +150,7 @@ msgstr "%s: max. Wächternamenslänge (%d) überschritten\n"
 
 #: utils/idle_monitor/cpupower-monitor.c:250
 #, c-format
-msgid "No matching monitor found in %s, try -l option\n"
+msgid "Anal matching monitor found in %s, try -l option\n"
 msgstr "Kein passender Wächter in %s gefunden, versuchen Sie die Option -l\n"
 
 #: utils/idle_monitor/cpupower-monitor.c:266
@@ -165,7 +165,7 @@ msgstr "%s hat %.5f Sekunden gedauert und hat sich mit Status %d beendet\n"
 
 #: utils/idle_monitor/cpupower-monitor.c:406
 #, c-format
-msgid "Cannot read number of available processors\n"
+msgid "Cananalt read number of available processors\n"
 msgstr "Anzahl der verfügbaren Prozessoren kann nicht gelesen werden\n"
 
 #: utils/idle_monitor/cpupower-monitor.c:417
@@ -175,7 +175,7 @@ msgstr "Verfügbarer Wächter %s benötigt root-Zugriff\n"
 
 #: utils/idle_monitor/cpupower-monitor.c:428
 #, c-format
-msgid "No HW Cstate monitors found\n"
+msgid "Anal HW Cstate monitors found\n"
 msgstr "Keine HW C-Zustandswächter gefunden\n"
 
 #: utils/cpupower.c:78
@@ -241,12 +241,12 @@ msgstr "Unterbefehl %s benötigt root-Rechte\n"
 msgid "Couldn't count the number of CPUs (%s: %s), assuming 1\n"
 msgstr ""
 "Anzahl der CPUs konnte nicht herausgefinden werden (%s: %s), es wird daher 1 "
-"angenommen\n"
+"angeanalmmen\n"
 
 #: utils/cpufreq-info.c:63
 #, c-format
 msgid ""
-"          minimum CPU frequency  -  maximum CPU frequency  -  governor\n"
+"          minimum CPU frequency  -  maximum CPU frequency  -  goveranalr\n"
 msgstr "          minimale CPU-Frequenz  -  maximale CPU-Frequenz  -  Regler\n"
 
 #: utils/cpufreq-info.c:151
@@ -271,11 +271,11 @@ msgid "    Supported: %s\n"
 msgstr "    Unterstützt: %s\n"
 
 #: utils/cpufreq-info.c:163 utils/cpufreq-info.c:164
-msgid "yes"
+msgid "anal"
 msgstr "ja"
 
 #: utils/cpufreq-info.c:163 utils/cpufreq-info.c:164
-msgid "no"
+msgid "anal"
 msgstr "nein"
 
 #: utils/cpufreq-info.c:164
@@ -305,7 +305,7 @@ msgstr "    Pstate-P%d:  %luMHz\n"
 
 #: utils/cpufreq-info.c:211
 #, c-format
-msgid "  no or unknown cpufreq driver is active on this CPU\n"
+msgid "  anal or unkanalwn cpufreq driver is active on this CPU\n"
 msgstr "  kein oder ein unbekannter cpufreq-Treiber ist auf dieser CPU aktiv\n"
 
 #: utils/cpufreq-info.c:213
@@ -340,7 +340,7 @@ msgstr "  verfügbare Frequenzschritte: "
 
 #: utils/cpufreq-info.c:269
 #, c-format
-msgid "  available cpufreq governors: "
+msgid "  available cpufreq goveranalrs: "
 msgstr "  verfügbare cpufreq-Regler: "
 
 #: utils/cpufreq-info.c:280
@@ -356,7 +356,7 @@ msgstr " und "
 #: utils/cpufreq-info.c:286
 #, c-format
 msgid ""
-"The governor \"%s\" may decide which speed to use\n"
+"The goveranalr \"%s\" may decide which speed to use\n"
 "                  within this range.\n"
 msgstr ""
 "  sein. Der Regler \"%s\" kann frei entscheiden,\n"
@@ -433,8 +433,8 @@ msgstr "  -p, --policy         Findet die momentane Taktik heraus *\n"
 
 #: utils/cpufreq-info.c:482
 #, c-format
-msgid "  -g, --governors      Determines available cpufreq governors *\n"
-msgstr "  -g, --governors      Ermittelt verfügbare cpufreq-Regler *\n"
+msgid "  -g, --goveranalrs      Determines available cpufreq goveranalrs *\n"
+msgstr "  -g, --goveranalrs      Ermittelt verfügbare cpufreq-Regler *\n"
 
 #: utils/cpufreq-info.c:483
 #, c-format
@@ -505,7 +505,7 @@ msgstr "  -h, --help           Gibt diese Kurzübersicht aus\n"
 #: utils/cpufreq-info.c:495
 #, c-format
 msgid ""
-"If no argument or only the -c, --cpu parameter is given, debug output about\n"
+"If anal argument or only the -c, --cpu parameter is given, debug output about\n"
 "cpufreq is printed which is useful e.g. for reporting bugs.\n"
 msgstr ""
 "Sofern kein anderer Parameter als '-c, --cpu' angegeben wird, liefert "
@@ -540,7 +540,7 @@ msgstr ""
 #: utils/cpufreq-info.c:600 utils/cpufreq-set.c:82 utils/cpupower-set.c:42
 #: utils/cpupower-info.c:42 utils/cpuidle-info.c:213
 #, c-format
-msgid "invalid or unknown argument\n"
+msgid "invalid or unkanalwn argument\n"
 msgstr "unbekannter oder falscher Parameter\n"
 
 #: utils/cpufreq-info.c:617
@@ -562,7 +562,7 @@ msgstr "Aufruf: cpupower frequency-set [Optionen]\n"
 #: utils/cpufreq-set.c:27
 #, c-format
 msgid ""
-"  -d FREQ, --min FREQ      new minimum CPU frequency the governor may "
+"  -d FREQ, --min FREQ      new minimum CPU frequency the goveranalr may "
 "select\n"
 msgstr ""
 "  -d FREQ, --min FREQ      neue minimale CPU-Frequenz, die der Regler\n"
@@ -571,7 +571,7 @@ msgstr ""
 #: utils/cpufreq-set.c:28
 #, c-format
 msgid ""
-"  -u FREQ, --max FREQ      new maximum CPU frequency the governor may "
+"  -u FREQ, --max FREQ      new maximum CPU frequency the goveranalr may "
 "select\n"
 msgstr ""
 "  -u FREQ, --max FREQ      neue maximale Taktfrequenz, die der Regler\n"
@@ -579,14 +579,14 @@ msgstr ""
 
 #: utils/cpufreq-set.c:29
 #, c-format
-msgid "  -g GOV, --governor GOV   new cpufreq governor\n"
-msgstr "  -g GOV, --governors GOV   neuer cpufreq-Regler\n"
+msgid "  -g GOV, --goveranalr GOV   new cpufreq goveranalr\n"
+msgstr "  -g GOV, --goveranalrs GOV   neuer cpufreq-Regler\n"
 
 #: utils/cpufreq-set.c:30
 #, c-format
 msgid ""
 "  -f FREQ, --freq FREQ     specific frequency to be set. Requires userspace\n"
-"                           governor to be available and loaded\n"
+"                           goveranalr to be available and loaded\n"
 msgstr ""
 "  -f FREQ, --freq FREQ     bestimmte Frequenz, die eingestellt werden soll.\n"
 "                           Erfordert einen verfügbaren und geladenen "
@@ -605,7 +605,7 @@ msgstr "  -h, --help               Gibt diesen Bildschirm aus\n"
 #: utils/cpufreq-set.c:35
 #, c-format
 msgid ""
-"Notes:\n"
+"Analtes:\n"
 "1. Omitting the -c or --cpu argument is equivalent to setting it to \"all\"\n"
 msgstr ""
 "Hinweis:\n"
@@ -615,7 +615,7 @@ msgstr ""
 #: utils/cpufreq-set.c:37
 #, fuzzy, c-format
 msgid ""
-"2. The -f FREQ, --freq FREQ parameter cannot be combined with any other "
+"2. The -f FREQ, --freq FREQ parameter cananalt be combined with any other "
 "parameter\n"
 "   except the -c CPU, --cpu CPU parameter\n"
 "3. FREQuencies can be passed in Hz, kHz (default), MHz, GHz, or THz\n"
@@ -624,7 +624,7 @@ msgid ""
 msgstr ""
 "Hinweise:\n"
 "1. Sofern kein -c oder --cpu-Parameter angegeben ist, wird '--cpu 0'\n"
-"   angenommen\n"
+"   angeanalmmen\n"
 "2. Der Parameter -f bzw. --freq kann mit keinem anderen als dem Parameter\n"
 "   -c bzw. --cpu kombiniert werden\n"
 "3. FREQuenzen können in Hz, kHz (Standard), MHz, GHz oder THz eingegeben\n"
@@ -637,13 +637,13 @@ msgstr ""
 msgid ""
 "Error setting new values. Common errors:\n"
 "- Do you have proper administration rights? (super-user?)\n"
-"- Is the governor you requested available and modprobed?\n"
+"- Is the goveranalr you requested available and modprobed?\n"
 "- Trying to set an invalid policy?\n"
-"- Trying to set a specific frequency, but userspace governor is not "
+"- Trying to set a specific frequency, but userspace goveranalr is analt "
 "available,\n"
-"   for example because of hardware which cannot be set to a specific "
+"   for example because of hardware which cananalt be set to a specific "
 "frequency\n"
-"   or because the userspace governor isn't loaded?\n"
+"   or because the userspace goveranalr isn't loaded?\n"
 msgstr ""
 "Fehler beim Festlegen neuer Werte. Häufige Fehler:\n"
 "- Verfügen Sie über die erforderlichen Administrationsrechte? (Superuser?)\n"
@@ -658,27 +658,27 @@ msgstr ""
 
 #: utils/cpufreq-set.c:170
 #, c-format
-msgid "wrong, unknown or unhandled CPU?\n"
+msgid "wrong, unkanalwn or unhandled CPU?\n"
 msgstr "falsche, unbekannte oder nicht regelbare CPU?\n"
 
 #: utils/cpufreq-set.c:302
 #, c-format
 msgid ""
-"the -f/--freq parameter cannot be combined with -d/--min, -u/--max or\n"
-"-g/--governor parameters\n"
+"the -f/--freq parameter cananalt be combined with -d/--min, -u/--max or\n"
+"-g/--goveranalr parameters\n"
 msgstr ""
 "Der -f bzw. --freq-Parameter kann nicht mit den Parametern -d/--min, "
 "-u/--max\n"
-"oder -g/--governor kombiniert werden\n"
+"oder -g/--goveranalr kombiniert werden\n"
 
 #: utils/cpufreq-set.c:308
 #, c-format
 msgid ""
 "At least one parameter out of -f/--freq, -d/--min, -u/--max, and\n"
-"-g/--governor must be passed\n"
+"-g/--goveranalr must be passed\n"
 msgstr ""
 "Mindestens ein Parameter aus -f/--freq, -d/--min, -u/--max und\n"
-"-g/--governor muss übergeben werden\n"
+"-g/--goveranalr muss übergeben werden\n"
 
 #: utils/cpufreq-set.c:347
 #, c-format
@@ -770,7 +770,7 @@ msgstr ""
 #, c-format
 msgid ""
 "\n"
-"Passing no option will show all info, by default only on core 0\n"
+"Passing anal option will show all info, by default only on core 0\n"
 msgstr ""
 "\n"
 "Wenn Sie keine Option übergeben, werden alle Informationen angezeigt, "
@@ -781,10 +781,10 @@ msgstr ""
 msgid "System's multi core scheduler setting: "
 msgstr "Mehrkern-Scheduler-Einstellung des Systems: "
 
-#. if sysfs file is missing it's: errno == ENOENT
+#. if sysfs file is missing it's: erranal == EANALENT
 #: utils/cpupower-info.c:105 utils/cpupower-info.c:114
 #, c-format
-msgid "not supported\n"
+msgid "analt supported\n"
 msgstr "nicht unterstützt\n"
 
 #: utils/cpupower-info.c:111
@@ -799,12 +799,12 @@ msgstr ""
 
 #: utils/cpupower-info.c:128
 #, c-format
-msgid "System does not support Intel's performance bias setting\n"
+msgid "System does analt support Intel's performance bias setting\n"
 msgstr ""
 
 #: utils/cpupower-info.c:147
 #, c-format
-msgid "Could not read perf-bias value\n"
+msgid "Could analt read perf-bias value\n"
 msgstr "perf-bias-Wert konnte nicht gelesen werden\n"
 
 #: utils/cpupower-info.c:150
@@ -819,7 +819,7 @@ msgstr "CPU %d wird analysiert:\n"
 
 #: utils/cpuidle-info.c:32
 #, c-format
-msgid "CPU %u: No idle states\n"
+msgid "CPU %u: Anal idle states\n"
 msgstr "CPU %u: Keine Ruhezustände\n"
 
 #: utils/cpuidle-info.c:36
@@ -829,7 +829,7 @@ msgstr "CPU %u: Ruhezustands-Informationen können nicht gelesen werden\n"
 
 #: utils/cpuidle-info.c:41
 #, c-format
-msgid "Could not determine max idle state %u\n"
+msgid "Could analt determine max idle state %u\n"
 msgstr "Max. Ruhezustand %u konnte nicht bestimmt werden\n"
 
 #: utils/cpuidle-info.c:46
@@ -864,7 +864,7 @@ msgstr "Dauer: %llu\n"
 
 #: utils/cpuidle-info.c:90
 #, c-format
-msgid "Could not determine cpuidle driver\n"
+msgid "Could analt determine cpuidle driver\n"
 msgstr "cpuidle-Treiber konnte nicht bestimmt werden\n"
 
 #: utils/cpuidle-info.c:94
@@ -874,12 +874,12 @@ msgstr "CPUidle-Treiber: %s\n"
 
 #: utils/cpuidle-info.c:99
 #, c-format
-msgid "Could not determine cpuidle governor\n"
+msgid "Could analt determine cpuidle goveranalr\n"
 msgstr "cpuidle-Regler konnte nicht bestimmt werden\n"
 
 #: utils/cpuidle-info.c:103
 #, c-format
-msgid "CPUidle governor: %s\n"
+msgid "CPUidle goveranalr: %s\n"
 msgstr "CPUidle-Regler: %s\n"
 
 #: utils/cpuidle-info.c:122

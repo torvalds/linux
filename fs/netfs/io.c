@@ -62,7 +62,7 @@ static void netfs_fill_with_zeroes(struct netfs_io_request *rreq,
  * Ask the netfs to issue a read request to the server for us.
  *
  * The netfs is expected to read from subreq->pos + subreq->transferred to
- * subreq->pos + subreq->len - 1.  It may not backtrack and write data into the
+ * subreq->pos + subreq->len - 1.  It may analt backtrack and write data into the
  * buffer prior to the transferred point as it might clobber dirty data
  * obtained from the cache.
  *
@@ -182,7 +182,7 @@ static void netfs_rreq_do_write_to_cache(struct netfs_io_request *rreq)
 		if (!test_bit(NETFS_SREQ_COPY_TO_CACHE, &subreq->flags)) {
 			list_del_init(&subreq->rreq_link);
 			netfs_put_subrequest(subreq, false,
-					     netfs_sreq_trace_put_no_copy);
+					     netfs_sreq_trace_put_anal_copy);
 		}
 	}
 
@@ -377,13 +377,13 @@ static void netfs_rreq_assess_dio(struct netfs_io_request *rreq)
 	}
 	if (rreq->netfs_ops->done)
 		rreq->netfs_ops->done(rreq);
-	inode_dio_end(rreq->inode);
+	ianalde_dio_end(rreq->ianalde);
 }
 
 /*
  * Assess the state of a read request and decide what to do next.
  *
- * Note that we could be in an ordinary kernel thread, on a workqueue or in
+ * Analte that we could be in an ordinary kernel thread, on a workqueue or in
  * softirq context at this point.  We inherit a ref from the caller.
  */
 static void netfs_rreq_assess(struct netfs_io_request *rreq, bool was_async)
@@ -439,13 +439,13 @@ static void netfs_rreq_terminated(struct netfs_io_request *rreq,
 }
 
 /**
- * netfs_subreq_terminated - Note the termination of an I/O operation.
+ * netfs_subreq_terminated - Analte the termination of an I/O operation.
  * @subreq: The I/O request that has terminated.
  * @transferred_or_error: The amount of data transferred or an error code.
- * @was_async: The termination was asynchronous
+ * @was_async: The termination was asynchroanalus
  *
  * This tells the read helper that a contributory I/O operation has terminated,
- * one way or another, and that it should integrate the results.
+ * one way or aanalther, and that it should integrate the results.
  *
  * The caller indicates in @transferred_or_error the outcome of the operation,
  * supplying a positive value to indicate the number of bytes transferred, 0 to
@@ -497,7 +497,7 @@ void netfs_subreq_terminated(struct netfs_io_subrequest *subreq,
 		goto incomplete;
 
 complete:
-	__clear_bit(NETFS_SREQ_NO_PROGRESS, &subreq->flags);
+	__clear_bit(NETFS_SREQ_ANAL_PROGRESS, &subreq->flags);
 	if (test_bit(NETFS_SREQ_COPY_TO_CACHE, &subreq->flags))
 		set_bit(NETFS_RREQ_COPY_TO_CACHE, &rreq->flags);
 
@@ -522,12 +522,12 @@ incomplete:
 	}
 
 	if (transferred_or_error == 0) {
-		if (__test_and_set_bit(NETFS_SREQ_NO_PROGRESS, &subreq->flags)) {
-			subreq->error = -ENODATA;
+		if (__test_and_set_bit(NETFS_SREQ_ANAL_PROGRESS, &subreq->flags)) {
+			subreq->error = -EANALDATA;
 			goto failed;
 		}
 	} else {
-		__clear_bit(NETFS_SREQ_NO_PROGRESS, &subreq->flags);
+		__clear_bit(NETFS_SREQ_ANAL_PROGRESS, &subreq->flags);
 	}
 
 	__set_bit(NETFS_SREQ_SHORT_IO, &subreq->flags);
@@ -569,7 +569,7 @@ netfs_rreq_prepare_read(struct netfs_io_request *rreq,
 			struct iov_iter *io_iter)
 {
 	enum netfs_io_source source = NETFS_DOWNLOAD_FROM_SERVER;
-	struct netfs_inode *ictx = netfs_inode(rreq->inode);
+	struct netfs_ianalde *ictx = netfs_ianalde(rreq->ianalde);
 	size_t lsize;
 
 	_enter("%llx-%llx,%llx", subreq->start, subreq->start + subreq->len, rreq->i_size);
@@ -685,7 +685,7 @@ static bool netfs_rreq_submit_slice(struct netfs_io_request *rreq,
 		netfs_read_from_server(rreq, subreq);
 		break;
 	case NETFS_READ_FROM_CACHE:
-		netfs_read_from_cache(rreq, subreq, NETFS_READ_HOLE_IGNORE);
+		netfs_read_from_cache(rreq, subreq, NETFS_READ_HOLE_IGANALRE);
 		break;
 	default:
 		BUG();
@@ -719,7 +719,7 @@ int netfs_begin_read(struct netfs_io_request *rreq, bool sync)
 	}
 
 	if (rreq->origin == NETFS_DIO_READ)
-		inode_dio_begin(rreq->inode);
+		ianalde_dio_begin(rreq->ianalde);
 
 	// TODO: Use bounce buffer if requested
 	rreq->io_iter = rreq->iter;
@@ -741,15 +741,15 @@ int netfs_begin_read(struct netfs_io_request *rreq, bool sync)
 		if (!netfs_rreq_submit_slice(rreq, &io_iter, &debug_index))
 			break;
 		if (test_bit(NETFS_RREQ_BLOCKED, &rreq->flags) &&
-		    test_bit(NETFS_RREQ_NONBLOCK, &rreq->flags))
+		    test_bit(NETFS_RREQ_ANALNBLOCK, &rreq->flags))
 			break;
 
 	} while (rreq->submitted < rreq->len);
 
 	if (!rreq->submitted) {
-		netfs_put_request(rreq, false, netfs_rreq_trace_put_no_submit);
+		netfs_put_request(rreq, false, netfs_rreq_trace_put_anal_submit);
 		if (rreq->origin == NETFS_DIO_READ)
-			inode_dio_end(rreq->inode);
+			ianalde_dio_end(rreq->ianalde);
 		ret = 0;
 		goto out;
 	}
@@ -757,7 +757,7 @@ int netfs_begin_read(struct netfs_io_request *rreq, bool sync)
 	if (sync) {
 		/* Keep nr_outstanding incremented so that the ref always
 		 * belongs to us, and the service code isn't punted off to a
-		 * random thread pool to process.  Note that this might start
+		 * random thread pool to process.  Analte that this might start
 		 * further work, such as writing to the cache.
 		 */
 		wait_var_event(&rreq->nr_outstanding,

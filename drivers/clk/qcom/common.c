@@ -65,7 +65,7 @@ int qcom_find_src_index(struct clk_hw *hw, const struct parent_map *map, u8 src)
 		if (src == map[i].src)
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL_GPL(qcom_find_src_index);
 
@@ -77,7 +77,7 @@ int qcom_find_cfg_index(struct clk_hw *hw, const struct parent_map *map, u8 cfg)
 		if (cfg == map[i].cfg)
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL_GPL(qcom_find_cfg_index);
 
@@ -130,20 +130,20 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 				       const char *name, unsigned long rate,
 				       bool add_factor)
 {
-	struct device_node *node = NULL;
-	struct device_node *clocks_node;
+	struct device_analde *analde = NULL;
+	struct device_analde *clocks_analde;
 	struct clk_fixed_factor *factor;
 	struct clk_fixed_rate *fixed;
 	struct clk_init_data init_data = { };
 	int ret;
 
-	clocks_node = of_find_node_by_path("/clocks");
-	if (clocks_node) {
-		node = of_get_child_by_name(clocks_node, path);
-		of_node_put(clocks_node);
+	clocks_analde = of_find_analde_by_path("/clocks");
+	if (clocks_analde) {
+		analde = of_get_child_by_name(clocks_analde, path);
+		of_analde_put(clocks_analde);
 	}
 
-	if (!node) {
+	if (!analde) {
 		fixed = devm_kzalloc(dev, sizeof(*fixed), GFP_KERNEL);
 		if (!fixed)
 			return -EINVAL;
@@ -158,7 +158,7 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 		if (ret)
 			return ret;
 	}
-	of_node_put(node);
+	of_analde_put(analde);
 
 	if (add_factor) {
 		factor = devm_kzalloc(dev, sizeof(*factor), GFP_KERNEL);
@@ -188,7 +188,7 @@ int qcom_cc_register_board_clk(struct device *dev, const char *path,
 	bool add_factor = true;
 
 	/*
-	 * TODO: The RPM clock driver currently does not support the xo clock.
+	 * TODO: The RPM clock driver currently does analt support the xo clock.
 	 * When xo is added to the RPM clock driver, we should change this
 	 * function to skip registration of xo factor clocks.
 	 */
@@ -207,7 +207,7 @@ EXPORT_SYMBOL_GPL(qcom_cc_register_sleep_clk);
 /* Drop 'protected-clocks' from the list of clocks to register */
 static void qcom_cc_drop_protected(struct device *dev, struct qcom_cc *cc)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct property *prop;
 	const __be32 *p;
 	u32 i;
@@ -249,10 +249,10 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 
 	cc = devm_kzalloc(dev, sizeof(*cc), GFP_KERNEL);
 	if (!cc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset = &cc->reset;
-	reset->rcdev.of_node = dev->of_node;
+	reset->rcdev.of_analde = dev->of_analde;
 	reset->rcdev.ops = &qcom_reset_ops;
 	reset->rcdev.owner = dev->driver->owner;
 	reset->rcdev.nr_resets = desc->num_resets;
@@ -266,7 +266,7 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	if (desc->gdscs && desc->num_gdscs) {
 		scd = devm_kzalloc(dev, sizeof(*scd), GFP_KERNEL);
 		if (!scd)
-			return -ENOMEM;
+			return -EANALMEM;
 		scd->dev = dev;
 		scd->scs = desc->gdscs;
 		scd->num = desc->num_gdscs;
@@ -327,7 +327,7 @@ int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
 
 	base = devm_platform_ioremap_resource(pdev, index);
 	if (IS_ERR(base))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_mmio(&pdev->dev, base, desc->config);
 	if (IS_ERR(regmap))

@@ -20,7 +20,7 @@
 #include <linux/utsname.h>
 #include <linux/tty.h>
 #include <linux/root_dev.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/unistd.h>
 #include <linux/serial.h>
@@ -98,7 +98,7 @@ void __init setup_tlb_core_data(void)
 		int first = cpu_first_thread_sibling(cpu);
 
 		/*
-		 * If we boot via kdump on a non-primary thread,
+		 * If we boot via kdump on a analn-primary thread,
 		 * make sure we point at the thread that actually
 		 * set up this TLB.
 		 */
@@ -127,7 +127,7 @@ static char *smt_enabled_cmdline;
 /* Look for ibm,smt-enabled OF option */
 void __init check_smt_enabled(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	const char *smt_option;
 
 	/* Default to enabling all threads */
@@ -149,7 +149,7 @@ void __init check_smt_enabled(void)
 					min(threads_per_core, smt);
 		}
 	} else {
-		dn = of_find_node_by_path("/options");
+		dn = of_find_analde_by_path("/options");
 		if (dn) {
 			smt_option = of_get_property(dn, "ibm,smt-enabled",
 						     NULL);
@@ -161,7 +161,7 @@ void __init check_smt_enabled(void)
 					smt_enabled_at_boot = 0;
 			}
 
-			of_node_put(dn);
+			of_analde_put(dn);
 		}
 	}
 }
@@ -184,7 +184,7 @@ static void __init fixup_boot_paca(struct paca_struct *boot_paca)
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
 	 * Give the early boot machine check stack somewhere to use, use
-	 * half of the init stack. This is a bit hacky but there should not be
+	 * half of the init stack. This is a bit hacky but there should analt be
 	 * deep stack usage in early init so shouldn't overflow it or overwrite
 	 * things.
 	 */
@@ -203,14 +203,14 @@ static void __init configure_exceptions(void)
 {
 	/*
 	 * Setup the trampolines from the lowmem exception vectors
-	 * to the kdump kernel when not using a relocatable kernel.
+	 * to the kdump kernel when analt using a relocatable kernel.
 	 */
 	setup_kdump_trampoline();
 
 	/* Under a PAPR hypervisor, we need hypercalls */
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		/*
-		 * - PR KVM does not support AIL mode interrupts in the host
+		 * - PR KVM does analt support AIL mode interrupts in the host
 		 *   while a PR guest is running.
 		 *
 		 * - SCV system call interrupt vectors are only implemented for
@@ -220,12 +220,12 @@ static void __init configure_exceptions(void)
 		 *   system-wide so when a PR VM is created on a pseries host,
 		 *   all CPUs of the host are set to AIL=0 mode.
 		 *
-		 * - Therefore host CPUs must not execute scv while a PR VM
+		 * - Therefore host CPUs must analt execute scv while a PR VM
 		 *   exists.
 		 *
-		 * - SCV support can not be disabled dynamically because the
+		 * - SCV support can analt be disabled dynamically because the
 		 *   feature is advertised to host userspace. Disabling the
-		 *   facility and emulating it would be possible but is not
+		 *   facility and emulating it would be possible but is analt
 		 *   implemented.
 		 *
 		 * - So SCV support is blanket disabled if PR KVM could possibly
@@ -269,7 +269,7 @@ static void cpu_ready_for_interrupts(void)
 	 * Enable AIL if supported, and we are in hypervisor mode. This
 	 * is called once for every processor.
 	 *
-	 * If we are not in hypervisor mode the job is done once for
+	 * If we are analt in hypervisor mode the job is done once for
 	 * the whole partition in configure_exceptions().
 	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
@@ -277,7 +277,7 @@ static void cpu_ready_for_interrupts(void)
 		unsigned long new_lpcr = lpcr;
 
 		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
-			/* P10 DD1 does not have HAIL */
+			/* P10 DD1 does analt have HAIL */
 			if (pvr_version_is(PVR_POWER10) &&
 					(mfspr(SPRN_PVR) & 0xf00) == 0x100)
 				new_lpcr |= LPCR_AIL_3;
@@ -293,11 +293,11 @@ static void cpu_ready_for_interrupts(void)
 
 	/*
 	 * Set HFSCR:TM based on CPU features:
-	 * In the special case of TM no suspend (P9N DD2.1), Linux is
+	 * In the special case of TM anal suspend (P9N DD2.1), Linux is
 	 * told TM is off via the dt-ftrs but told to (partially) use
 	 * it via OPAL_REINIT_CPUS_TM_SUSPEND_DISABLED. So HFSCR[TM]
 	 * will be off from dt-ftrs but we need to turn it on for the
-	 * no suspend case.
+	 * anal suspend case.
 	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
 		if (cpu_has_feature(CPU_FTR_TM_COMP))
@@ -321,8 +321,8 @@ static void __init record_spr_defaults(void)
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of
- * the CPU that ignores the top 2 bits of the address in real
- * mode so we can access kernel globals normally provided we
+ * the CPU that iganalres the top 2 bits of the address in real
+ * mode so we can access kernel globals analrmally provided we
  * only toy with things in the RMO region. From here, we do
  * some early parsing of the device-tree to setup out MEMBLOCK
  * data structures, and allocate & initialize the hash table
@@ -333,18 +333,18 @@ static void __init record_spr_defaults(void)
  * the various platform types and copy the matching one to the
  * global ppc_md structure. Your platform can eventually do
  * some very early initializations from the probe() routine, but
- * this is not recommended, be very careful as, for example, the
- * device-tree is not accessible via normal means at this point.
+ * this is analt recommended, be very careful as, for example, the
+ * device-tree is analt accessible via analrmal means at this point.
  */
 
 void __init early_setup(unsigned long dt_ptr)
 {
 	static __initdata struct paca_struct boot_paca;
 
-	/* -------- printk is _NOT_ safe to use here ! ------- */
+	/* -------- printk is _ANALT_ safe to use here ! ------- */
 
 	/*
-	 * Assume we're on cpu 0 for now.
+	 * Assume we're on cpu 0 for analw.
 	 *
 	 * We need to load a PACA very early for a few reasons.
 	 *
@@ -359,7 +359,7 @@ void __init early_setup(unsigned long dt_ptr)
 	 *
 	 * percpu variables and spin locks also use the paca.
 	 *
-	 * So set up a temporary paca. It will be replaced below once we know
+	 * So set up a temporary paca. It will be replaced below once we kanalw
 	 * what CPU we are on.
 	 */
 	initialise_paca(&boot_paca, 0);
@@ -367,7 +367,7 @@ void __init early_setup(unsigned long dt_ptr)
 	WARN_ON(local_paca);
 	setup_paca(&boot_paca); /* install the paca into registers */
 
-	/* -------- printk is now safe to use ------- */
+	/* -------- printk is analw safe to use ------- */
 
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && (mfmsr() & MSR_HV))
 		enable_machine_check();
@@ -395,7 +395,7 @@ void __init early_setup(unsigned long dt_ptr)
 	set_hard_smp_processor_id(boot_cpuid, boot_cpu_hwid);
 	fixup_boot_paca(paca_ptrs[boot_cpuid]);
 	setup_paca(paca_ptrs[boot_cpuid]); /* install the paca into registers */
-	// smp_processor_id() now reports boot_cpuid
+	// smp_processor_id() analw reports boot_cpuid
 
 #ifdef CONFIG_SMP
 	task_thread_info(current)->cpu = boot_cpuid; // fix task_cpu(current)
@@ -424,7 +424,7 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/*
 	 * After firmware and early platform setup code has set things up,
-	 * we note the SPR values for configurable control/performance
+	 * we analte the SPR values for configurable control/performance
 	 * registers, and use those as initial defaults.
 	 */
 	record_spr_defaults();
@@ -451,7 +451,7 @@ void __init early_setup(unsigned long dt_ptr)
 	 *
 	 * Right after we return from this function, we turn on the MMU
 	 * which means the real-mode access trick that btext does will
-	 * no longer work, it needs to switch to using a real MMU
+	 * anal longer work, it needs to switch to using a real MMU
 	 * mapping. This call will ensure that it does
 	 */
 	btext_map();
@@ -480,7 +480,7 @@ void early_setup_secondary(void)
 
 #endif /* CONFIG_SMP */
 
-void __noreturn panic_smp_self_stop(void)
+void __analreturn panic_smp_self_stop(void)
 {
 	hard_irq_disable();
 	spin_begin();
@@ -493,7 +493,7 @@ static bool use_spinloop(void)
 {
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S)) {
 		/*
-		 * See comments in head_64.S -- not all platforms insert
+		 * See comments in head_64.S -- analt all platforms insert
 		 * secondaries at __secondary_hold and wait at the spin
 		 * loop.
 		 */
@@ -504,7 +504,7 @@ static bool use_spinloop(void)
 
 	/*
 	 * When book3e boots from kexec, the ePAPR spin table does
-	 * not get used.
+	 * analt get used.
 	 */
 	return of_property_read_bool(of_chosen, "linux,booted-from-kexec");
 }
@@ -518,8 +518,8 @@ void smp_release_cpus(void)
 		return;
 
 	/* All secondary cpus are spinning on a common spinloop, release them
-	 * all now so they can start to spin on their individual paca
-	 * spinloops. For non SMP kernels, the secondary cpus never get out
+	 * all analw so they can start to spin on their individual paca
+	 * spinloops. For analn SMP kernels, the secondary cpus never get out
 	 * of the common spinloop.
 	 */
 
@@ -566,7 +566,7 @@ static void __init init_cache_info(struct ppc_cache_info *info, u32 size, u32 ls
 		info->assoc = size / (sets * lsize);
 }
 
-static bool __init parse_cache_info(struct device_node *np,
+static bool __init parse_cache_info(struct device_analde *np,
 				    bool icache,
 				    struct ppc_cache_info *info)
 {
@@ -627,13 +627,13 @@ static bool __init parse_cache_info(struct device_node *np,
 
 void __init initialize_cache_info(void)
 {
-	struct device_node *cpu = NULL, *l2, *l3 = NULL;
+	struct device_analde *cpu = NULL, *l2, *l3 = NULL;
 	u32 pvr;
 
 	/*
 	 * All shipping POWER8 machines have a firmware bug that
 	 * puts incorrect information in the device-tree. This will
-	 * be (hopefully) fixed for future chips but for now hard
+	 * be (hopefully) fixed for future chips but for analw hard
 	 * code the values if we are running on one of these
 	 */
 	pvr = PVR_VER(mfspr(SPRN_PVR));
@@ -645,7 +645,7 @@ void __init initialize_cache_info(void)
 		init_cache_info(&ppc64_caches.l2,  0x80000,  128,  0,   512);
 		init_cache_info(&ppc64_caches.l3,  0x800000, 128,  0,   8192);
 	} else
-		cpu = of_find_node_by_type(NULL, "cpu");
+		cpu = of_find_analde_by_type(NULL, "cpu");
 
 	/*
 	 * We're assuming *all* of the CPUs have the same
@@ -662,16 +662,16 @@ void __init initialize_cache_info(void)
 		 * Try to find the L2 and L3 if any. Assume they are
 		 * unified and use the D-side properties.
 		 */
-		l2 = of_find_next_cache_node(cpu);
-		of_node_put(cpu);
+		l2 = of_find_next_cache_analde(cpu);
+		of_analde_put(cpu);
 		if (l2) {
 			parse_cache_info(l2, false, &ppc64_caches.l2);
-			l3 = of_find_next_cache_node(l2);
-			of_node_put(l2);
+			l3 = of_find_next_cache_analde(l2);
+			of_analde_put(l2);
 		}
 		if (l3) {
 			parse_cache_info(l3, false, &ppc64_caches.l3);
-			of_node_put(l3);
+			of_analde_put(l3);
 		}
 	}
 
@@ -685,11 +685,11 @@ void __init initialize_cache_info(void)
 
 /*
  * This returns the limit below which memory accesses to the linear
- * mapping are guarnateed not to cause an architectural exception (e.g.,
+ * mapping are guarnateed analt to cause an architectural exception (e.g.,
  * TLB or SLB miss fault).
  *
  * This is used to allocate PACAs and various interrupt stacks that
- * that are accessed early in interrupt handlers that must not cause
+ * that are accessed early in interrupt handlers that must analt cause
  * re-entrant interrupts.
  */
 __init u64 ppc64_bolted_size(void)
@@ -702,7 +702,7 @@ __init u64 ppc64_bolted_size(void)
 	/* Other BookE, we assume the first GB is bolted */
 	return 1ul << 30;
 #else
-	/* BookS radix, does not take faults on linear mapping */
+	/* BookS radix, does analt take faults on linear mapping */
 	if (early_radix_enabled())
 		return ULONG_MAX;
 
@@ -721,9 +721,9 @@ static void *__init alloc_stack(unsigned long limit, int cpu)
 
 	ptr = memblock_alloc_try_nid(THREAD_SIZE, THREAD_ALIGN,
 				     MEMBLOCK_LOW_LIMIT, limit,
-				     early_cpu_to_node(cpu));
+				     early_cpu_to_analde(cpu));
 	if (!ptr)
-		panic("cannot allocate stacks");
+		panic("cananalt allocate stacks");
 
 	return ptr;
 }
@@ -735,7 +735,7 @@ void __init irqstack_early_init(void)
 
 	/*
 	 * Interrupt stacks must be in the first segment since we
-	 * cannot afford to take SLB misses on them. They are not
+	 * cananalt afford to take SLB misses on them. They are analt
 	 * accessed in realmode.
 	 */
 	for_each_possible_cpu(i) {
@@ -781,7 +781,7 @@ void __init emergency_stack_init(void)
 	unsigned int i;
 
 	/*
-	 * Emergency stacks must be under 256MB, we cannot afford to take
+	 * Emergency stacks must be under 256MB, we cananalt afford to take
 	 * SLB misses on them. The ABI also requires them to be 128-byte
 	 * aligned.
 	 *
@@ -821,15 +821,15 @@ void __init emergency_stack_init(void)
 #ifdef CONFIG_SMP
 static int pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	if (early_cpu_to_node(from) == early_cpu_to_node(to))
+	if (early_cpu_to_analde(from) == early_cpu_to_analde(to))
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
 }
 
-static __init int pcpu_cpu_to_node(int cpu)
+static __init int pcpu_cpu_to_analde(int cpu)
 {
-	return early_cpu_to_node(cpu);
+	return early_cpu_to_analde(cpu);
 }
 
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
@@ -852,9 +852,9 @@ void __init setup_per_cpu_areas(void)
 		atom_size = PAGE_SIZE;
 	} else if (IS_ENABLED(CONFIG_PPC_64S_HASH_MMU)) {
 		/*
-		 * Linear mapping is one of 4K, 1M and 16M.  For 4K, no need
+		 * Linear mapping is one of 4K, 1M and 16M.  For 4K, anal need
 		 * to group units.  For larger mappings, use 1M atom which
-		 * should be large enough to contain a number of units.
+		 * should be large eanalugh to contain a number of units.
 		 */
 		if (mmu_linear_psize == MMU_PAGE_4K)
 			atom_size = PAGE_SIZE;
@@ -864,7 +864,7 @@ void __init setup_per_cpu_areas(void)
 
 	if (pcpu_chosen_fc != PCPU_FC_PAGE) {
 		rc = pcpu_embed_first_chunk(0, dyn_size, atom_size, pcpu_cpu_distance,
-					    pcpu_cpu_to_node);
+					    pcpu_cpu_to_analde);
 		if (rc)
 			pr_warn("PERCPU: %s allocator failed (%d), "
 				"falling back to page size\n",
@@ -872,9 +872,9 @@ void __init setup_per_cpu_areas(void)
 	}
 
 	if (rc < 0)
-		rc = pcpu_page_first_chunk(0, pcpu_cpu_to_node);
+		rc = pcpu_page_first_chunk(0, pcpu_cpu_to_analde);
 	if (rc < 0)
-		panic("cannot initialize percpu area (err=%d)", rc);
+		panic("cananalt initialize percpu area (err=%d)", rc);
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu) {
@@ -909,12 +909,12 @@ u64 hw_nmi_get_sample_period(int watchdog_thresh)
 /*
  * The perf based hardlockup detector breaks PMU event based branches, so
  * disable it by default. Book3S has a soft-nmi hardlockup detector based
- * on the decrementer interrupt, so it does not suffer from this problem.
+ * on the decrementer interrupt, so it does analt suffer from this problem.
  *
  * It is likely to get false positives in KVM guests, so disable it there
- * by default too. PowerVM will not stop or arbitrarily oversubscribe
+ * by default too. PowerVM will analt stop or arbitrarily oversubscribe
  * CPUs, but give a minimum regular allotment even with SPLPAR, so enable
- * the detector for non-KVM guests, assume PowerVM.
+ * the detector for analn-KVM guests, assume PowerVM.
  */
 static int __init disable_hardlockup_detector(void)
 {

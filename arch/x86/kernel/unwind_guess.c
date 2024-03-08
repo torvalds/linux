@@ -13,7 +13,7 @@ unsigned long unwind_get_return_address(struct unwind_state *state)
 	if (unwind_done(state))
 		return 0;
 
-	addr = READ_ONCE_NOCHECK(*state->sp);
+	addr = READ_ONCE_ANALCHECK(*state->sp);
 
 	return unwind_recover_ret_addr(state, addr, state->sp);
 }
@@ -33,7 +33,7 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	do {
 		for (state->sp++; state->sp < info->end; state->sp++) {
-			unsigned long addr = READ_ONCE_NOCHECK(*state->sp);
+			unsigned long addr = READ_ONCE_ANALCHECK(*state->sp);
 
 			if (__kernel_text_address(addr))
 				return true;

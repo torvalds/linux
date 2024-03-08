@@ -30,7 +30,7 @@
 #define TUSB320_REG8_CURRENT_MODE_DETECT_ACC	0x2
 #define TUSB320_REG8_CURRENT_MODE_DETECT_HI	0x3
 #define TUSB320_REG8_ACCESSORY_CONNECTED	GENMASK(3, 1)
-#define TUSB320_REG8_ACCESSORY_CONNECTED_NONE	0x0
+#define TUSB320_REG8_ACCESSORY_CONNECTED_ANALNE	0x0
 #define TUSB320_REG8_ACCESSORY_CONNECTED_AUDIO	0x4
 #define TUSB320_REG8_ACCESSORY_CONNECTED_ACHRG	0x5
 #define TUSB320_REG8_ACCESSORY_CONNECTED_DBGDFP	0x6
@@ -51,7 +51,7 @@
 #define TUSB320L_REGA0_REVISION			0xa0
 
 enum tusb320_attached_state {
-	TUSB320_ATTACHED_STATE_NONE,
+	TUSB320_ATTACHED_STATE_ANALNE,
 	TUSB320_ATTACHED_STATE_DFP,
 	TUSB320_ATTACHED_STATE_UFP,
 	TUSB320_ATTACHED_STATE_ACC,
@@ -81,12 +81,12 @@ struct tusb320_priv {
 	struct typec_capability	cap;
 	enum typec_port_type port_type;
 	enum typec_pwr_opmode pwr_opmode;
-	struct fwnode_handle *connector_fwnode;
+	struct fwanalde_handle *connector_fwanalde;
 	struct usb_role_switch *role_sw;
 };
 
 static const char * const tusb_attached_states[] = {
-	[TUSB320_ATTACHED_STATE_NONE] = "not attached",
+	[TUSB320_ATTACHED_STATE_ANALNE] = "analt attached",
 	[TUSB320_ATTACHED_STATE_DFP]  = "downstream facing port",
 	[TUSB320_ATTACHED_STATE_UFP]  = "upstream facing port",
 	[TUSB320_ATTACHED_STATE_ACC]  = "accessory",
@@ -95,7 +95,7 @@ static const char * const tusb_attached_states[] = {
 static const unsigned int tusb320_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static int tusb320_check_signature(struct tusb320_priv *priv)
@@ -110,7 +110,7 @@ static int tusb320_check_signature(struct tusb320_priv *priv)
 			return ret;
 		if (val != sig[i]) {
 			dev_err(priv->dev, "signature mismatch!\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -121,8 +121,8 @@ static int tusb320_set_mode(struct tusb320_priv *priv, enum tusb320_mode mode)
 {
 	int ret;
 
-	/* Mode cannot be changed while cable is attached */
-	if (priv->state != TUSB320_ATTACHED_STATE_NONE)
+	/* Mode cananalt be changed while cable is attached */
+	if (priv->state != TUSB320_ATTACHED_STATE_ANALNE)
 		return -EBUSY;
 
 	/* Write mode */
@@ -222,7 +222,7 @@ static int tusb320_set_adv_pwr_mode(struct tusb320_priv *priv)
 		mode = TUSB320_REG8_CURRENT_MODE_ADVERTISE_15A;
 	else if (priv->pwr_opmode == TYPEC_PWR_MODE_3_0A)
 		mode = TUSB320_REG8_CURRENT_MODE_ADVERTISE_30A;
-	else	/* No other mode is supported. */
+	else	/* Anal other mode is supported. */
 		return -EINVAL;
 
 	return regmap_write_bits(priv->regmap, TUSB320_REG8,
@@ -296,7 +296,7 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 
 	ori = reg9 & TUSB320_REG9_CABLE_DIRECTION;
 	typec_set_orientation(port, ori ? TYPEC_ORIENTATION_REVERSE :
-					  TYPEC_ORIENTATION_NORMAL);
+					  TYPEC_ORIENTATION_ANALRMAL);
 
 	state = FIELD_GET(TUSB320_REG9_ATTACHED_STATE, reg9);
 	accessory = FIELD_GET(TUSB320_REG8_ACCESSORY_CONNECTED, reg8);
@@ -322,7 +322,7 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 		if (accessory == TUSB320_REG8_ACCESSORY_CONNECTED_AUDIO ||
 		    accessory == TUSB320_REG8_ACCESSORY_CONNECTED_ACHRG) {
 			typec_mode = TYPEC_MODE_AUDIO;
-			usb_role = USB_ROLE_NONE;
+			usb_role = USB_ROLE_ANALNE;
 			pwr_role = TYPEC_SINK;
 			data_role = TYPEC_DEVICE;
 			break;
@@ -348,7 +348,7 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 		fallthrough;
 	default:
 		typec_mode = TYPEC_MODE_USB2;
-		usb_role = USB_ROLE_NONE;
+		usb_role = USB_ROLE_ANALNE;
 		pwr_role = TYPEC_SINK;
 		data_role = TYPEC_DEVICE;
 		break;
@@ -378,11 +378,11 @@ static irqreturn_t tusb320_state_update_handler(struct tusb320_priv *priv,
 
 	if (regmap_read(priv->regmap, TUSB320_REG9, &reg)) {
 		dev_err(priv->dev, "error during i2c read!\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!force_update && !(reg & TUSB320_REG9_INTERRUPT_STATUS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	tusb320_extcon_irq_handler(priv, reg);
 
@@ -437,12 +437,12 @@ static int tusb320_extcon_probe(struct tusb320_priv *priv)
 static int tusb320_typec_probe(struct i2c_client *client,
 			       struct tusb320_priv *priv)
 {
-	struct fwnode_handle *connector;
+	struct fwanalde_handle *connector;
 	const char *cap_str;
 	int ret;
 
 	/* The Type-C connector is optional, for backward compatibility. */
-	connector = device_get_named_child_node(&client->dev, "connector");
+	connector = device_get_named_child_analde(&client->dev, "connector");
 	if (!connector)
 		return 0;
 
@@ -454,7 +454,7 @@ static int tusb320_typec_probe(struct i2c_client *client,
 	priv->port_type = priv->cap.type;
 
 	/* This goes into register 0x8 field CURRENT_MODE_ADVERTISE */
-	ret = fwnode_property_read_string(connector, "typec-power-opmode", &cap_str);
+	ret = fwanalde_property_read_string(connector, "typec-power-opmode", &cap_str);
 	if (ret)
 		goto err_put;
 
@@ -475,7 +475,7 @@ static int tusb320_typec_probe(struct i2c_client *client,
 	priv->cap.orientation_aware	= true;
 	priv->cap.driver_data		= priv;
 	priv->cap.ops			= &tusb320_typec_ops;
-	priv->cap.fwnode		= connector;
+	priv->cap.fwanalde		= connector;
 
 	priv->port = typec_register_port(&client->dev, &priv->cap);
 	if (IS_ERR(priv->port)) {
@@ -484,13 +484,13 @@ static int tusb320_typec_probe(struct i2c_client *client,
 	}
 
 	/* Find any optional USB role switch that needs reporting to */
-	priv->role_sw = fwnode_usb_role_switch_get(connector);
+	priv->role_sw = fwanalde_usb_role_switch_get(connector);
 	if (IS_ERR(priv->role_sw)) {
 		ret = PTR_ERR(priv->role_sw);
 		goto err_unreg;
 	}
 
-	priv->connector_fwnode = connector;
+	priv->connector_fwanalde = connector;
 
 	return 0;
 
@@ -498,7 +498,7 @@ err_unreg:
 	typec_unregister_port(priv->port);
 
 err_put:
-	fwnode_handle_put(connector);
+	fwanalde_handle_put(connector);
 
 	return ret;
 }
@@ -507,7 +507,7 @@ static void tusb320_typec_remove(struct tusb320_priv *priv)
 {
 	usb_role_switch_put(priv->role_sw);
 	typec_unregister_port(priv->port);
-	fwnode_handle_put(priv->connector_fwnode);
+	fwanalde_handle_put(priv->connector_fwanalde);
 }
 
 static int tusb320_probe(struct i2c_client *client)
@@ -521,7 +521,7 @@ static int tusb320_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &client->dev;
 	i2c_set_clientdata(client, priv);

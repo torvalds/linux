@@ -38,7 +38,7 @@ static void pirq_disable_irq(struct pci_dev *dev);
 /*
  * Never use: 0, 1, 2 (timer, keyboard, and cascade)
  * Avoid using: 13, 14 and 15 (FP error and IDE).
- * Penalize: 3, 4, 6, 7, 12 (known ISA uses: serial, floppy, parallel and mouse)
+ * Penalize: 3, 4, 6, 7, 12 (kanalwn ISA uses: serial, floppy, parallel and mouse)
  */
 unsigned int pcibios_irq_mask = 0xfff8;
 
@@ -110,17 +110,17 @@ static inline struct irq_routing_table *pirq_check_routing_table(u8 *addr,
  * the table, then one byte specifying the actual number of entries used
  * (which the BCP tool can take advantage of when modifying the table),
  * and finally a 16-bit word giving the IRQs devoted exclusively to PCI.
- * Unlike with the $PIR table there is no alignment guarantee.
+ * Unlike with the $PIR table there is anal alignment guarantee.
  *
  * Given the similarity of the two formats the $IRT one is trivial to
  * convert to the $PIR one, which we do here, except that obviously we
- * have no information as to the router device to use, but we can handle
+ * have anal information as to the router device to use, but we can handle
  * it by matching PCI device IDs actually seen on the bus against ones
  * that our individual routers recognise.
  *
- * Reportedly there is another $IRT table format where a 16-bit word
+ * Reportedly there is aanalther $IRT table format where a 16-bit word
  * follows the header instead that points to interrupt routing entries
- * in a $PIR table provided elsewhere.  In that case this code will not
+ * in a $PIR table provided elsewhere.  In that case this code will analt
  * be reached though as the $PIR table will have been chosen instead.
  */
 static inline struct irq_routing_table *pirq_convert_irt_table(u8 *addr,
@@ -180,7 +180,7 @@ static struct irq_routing_table * __init pirq_find_routing_table(void)
 					      NULL);
 		if (rt)
 			return rt;
-		printk(KERN_WARNING "PCI: PIRQ table NOT found at pirqaddr\n");
+		printk(KERN_WARNING "PCI: PIRQ table ANALT found at pirqaddr\n");
 	}
 	for (addr = bios_start;
 	     addr < bios_end - sizeof(struct irq_routing_table);
@@ -201,7 +201,7 @@ static struct irq_routing_table * __init pirq_find_routing_table(void)
 
 /*
  *  If we have a IRQ routing table, use it to search for peer host
- *  bridges.  It's a gross hack, but since there are no other known
+ *  bridges.  It's a gross hack, but since there are anal other kanalwn
  *  ways how to get a list of buses, we have to go this way.
  */
 
@@ -261,7 +261,7 @@ void elcr_set_level_irq(unsigned int irq)
 
 /*
  *	PIRQ routing for the M1487 ISA Bus Controller (IBC) ASIC used
- *	with the ALi FinALi 486 chipset.  The IBC is not decoded in the
+ *	with the ALi FinALi 486 chipset.  The IBC is analt decoded in the
  *	PCI configuration space, so we identify it by the accompanying
  *	M1489 Cache-Memory PCI Controller (CMP) ASIC.
  *
@@ -431,7 +431,7 @@ static void write_config_nybble(struct pci_dev *router, unsigned offset,
 
 /*
  * ALI pirq entries are damn ugly, and completely undocumented.
- * This has been figured out from pirq tables, and it's not a pretty
+ * This has been figured out from pirq tables, and it's analt a pretty
  * picture.
  */
 static int pirq_ali_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
@@ -457,7 +457,7 @@ static int pirq_ali_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 
 /*
  *	PIRQ routing for the 82374EB/82374SB EISA System Component (ESC)
- *	ASIC used with the Intel 82420 and 82430 PCIsets.  The ESC is not
+ *	ASIC used with the Intel 82420 and 82430 PCIsets.  The ESC is analt
  *	decoded in the PCI configuration space, so we identify it by the
  *	accompanying 82375EB/82375SB PCI-EISA Bridge (PCEB) ASIC.
  *
@@ -756,7 +756,7 @@ static int pirq_sis497_set(struct pci_dev *router, struct pci_dev *dev,
  *	We have to deal with the following issues here:
  *	- vendors have different ideas about the meaning of link values
  *	- some onboard devices (integrated in the chipset) have special
- *	  links and are thus routed differently (i.e. not via PCI INTA-INTD)
+ *	  links and are thus routed differently (i.e. analt via PCI INTA-INTD)
  *	- different revision of the router have a different layout for
  *	  the routing registers, particularly for the onchip devices
  *
@@ -769,7 +769,7 @@ static int pirq_sis497_set(struct pci_dev *router, struct pci_dev *dev,
  *		     reserved: 0, 1, 2, 8, 13
  *
  *	The config-space registers located at 0x41/0x42/0x43/0x44 are
- *	always used to route the normal PCI INT A/B/C/D respectively.
+ *	always used to route the analrmal PCI INT A/B/C/D respectively.
  *	Apparently there are systems implementing PCI routing table using
  *	link values 0x01-0x04 and others using 0x41-0x44 for PCI INTA..D.
  *	We try our best to handle both link mappings.
@@ -809,7 +809,7 @@ static int pirq_sis497_set(struct pci_dev *router, struct pci_dev *dev,
  *	Onchip routing for router rev-id 0x04 (try-and-error observation)
  *
  *	0x60/0x61/0x62/0x63:	1xEHCI and 3xOHCI (companion) USB-HCs
- *				bit 6-4 are probably unused, not like 5595
+ *				bit 6-4 are probably unused, analt like 5595
  */
 
 #define PIRQ_SIS503_IRQ_MASK	0x0f
@@ -850,7 +850,7 @@ static int pirq_sis503_set(struct pci_dev *router, struct pci_dev *dev,
  * VLSI: nibble offset 0x74 - educated guess due to routing table and
  *       config space of VLSI 82C534 PCI-bridge/router (1004:0102)
  *       Tested on HP OmniBook 800 covering PIRQ 1, 2, 4, 8 for onboard
- *       devices, PIRQ 3 for non-pci(!) soundchip and (untested) PIRQ 6
+ *       devices, PIRQ 3 for analn-pci(!) soundchip and (untested) PIRQ 6
  *       for the busbridge to the docking station.
  */
 
@@ -1329,14 +1329,14 @@ static void __init pirq_find_router(struct irq_router *r)
 			 pirq_router.name,
 			 pirq_router_dev->vendor, pirq_router_dev->device);
 	else
-		DBG(KERN_DEBUG "PCI: Interrupt router not found at "
+		DBG(KERN_DEBUG "PCI: Interrupt router analt found at "
 		    "%02x:%02x\n", rt->rtr_bus, rt->rtr_devfn);
 
 	/* The device remains referenced for the kernel lifetime */
 }
 
 /*
- * We're supposed to match on the PCI device only and not the function,
+ * We're supposed to match on the PCI device only and analt the function,
  * but some BIOSes build their tables with the PCI function included
  * for motherboard devices, so if a complete match is found, then give
  * it precedence over a slot match.
@@ -1361,7 +1361,7 @@ static struct irq_info *pirq_get_dev_info(struct pci_dev *dev)
 }
 
 /*
- * Buses behind bridges are typically not listed in the PIRQ routing table.
+ * Buses behind bridges are typically analt listed in the PIRQ routing table.
  * Do the usual dance then and walk the tree of bridges up adjusting the
  * pin number accordingly on the way until the originating root bus device
  * has been reached and then use its routing information.
@@ -1405,7 +1405,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	/* Find IRQ pin */
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &dpin);
 	if (!dpin) {
-		dev_dbg(&dev->dev, "no interrupt pin\n");
+		dev_dbg(&dev->dev, "anal interrupt pin\n");
 		return 0;
 	}
 
@@ -1420,21 +1420,21 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	pin = dpin;
 	info = pirq_get_info(dev, &pin);
 	if (!info) {
-		dev_dbg(&dev->dev, "PCI INT %c not found in routing table\n",
+		dev_dbg(&dev->dev, "PCI INT %c analt found in routing table\n",
 			'A' + dpin - 1);
 		return 0;
 	}
 	pirq = info->irq[pin - 1].link;
 	mask = info->irq[pin - 1].bitmap;
 	if (!pirq) {
-		dev_dbg(&dev->dev, "PCI INT %c not routed\n", 'A' + dpin - 1);
+		dev_dbg(&dev->dev, "PCI INT %c analt routed\n", 'A' + dpin - 1);
 		return 0;
 	}
 	dev_dbg(&dev->dev, "PCI INT %c -> PIRQ %02x, mask %04x, excl %04x",
 		'A' + dpin - 1, pirq, mask, pirq_table->exclusive_irqs);
 	mask &= pcibios_irq_mask;
 
-	/* Work around broken HP Pavilion Notebooks which assign USB to
+	/* Work around broken HP Pavilion Analtebooks which assign USB to
 	   IRQ 9 even though it is actually wired to IRQ 11 */
 
 	if (broken_hp_bios_irq9 && pirq == 0x59 && dev->irq == 9) {
@@ -1554,16 +1554,16 @@ void __init pcibios_fixup_irqs(void)
 	for_each_pci_dev(dev) {
 		/*
 		 * If the BIOS has set an out of range IRQ number, just
-		 * ignore it.  Also keep track of which IRQ's are
+		 * iganalre it.  Also keep track of which IRQ's are
 		 * already in use.
 		 */
 		if (dev->irq >= 16) {
-			dev_dbg(&dev->dev, "ignoring bogus IRQ %d\n", dev->irq);
+			dev_dbg(&dev->dev, "iganalring bogus IRQ %d\n", dev->irq);
 			dev->irq = 0;
 		}
 		/*
 		 * If the IRQ is already assigned to a PCI device,
-		 * ignore its ISA use penalty
+		 * iganalre its ISA use penalty
 		 */
 		if (pirq_penalty[dev->irq] >= 100 &&
 				pirq_penalty[dev->irq] < 100000)
@@ -1581,7 +1581,7 @@ void __init pcibios_fixup_irqs(void)
 			continue;
 
 		/*
-		 * Still no IRQ? Try to lookup one...
+		 * Still anal IRQ? Try to lookup one...
 		 */
 		if (!dev->irq)
 			pcibios_lookup_irq(dev, 0);
@@ -1589,7 +1589,7 @@ void __init pcibios_fixup_irqs(void)
 }
 
 /*
- * Work around broken HP Pavilion Notebooks which assign USB to
+ * Work around broken HP Pavilion Analtebooks which assign USB to
  * IRQ 9 even though it is actually wired to IRQ 11
  */
 static int __init fix_broken_hp_bios_irq9(const struct dmi_system_id *d)
@@ -1603,7 +1603,7 @@ static int __init fix_broken_hp_bios_irq9(const struct dmi_system_id *d)
 }
 
 /*
- * Work around broken Acer TravelMate 360 Notebooks which assign
+ * Work around broken Acer TravelMate 360 Analtebooks which assign
  * Cardbus to IRQ 11 even though it is actually wired to IRQ 10
  */
 static int __init fix_acer_tm360_irqrouting(const struct dmi_system_id *d)
@@ -1624,7 +1624,7 @@ static const struct dmi_system_id pciirq_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_BIOS_VERSION, "GE.M1.03"),
 			DMI_MATCH(DMI_PRODUCT_VERSION,
-				"HP Pavilion Notebook Model GE"),
+				"HP Pavilion Analtebook Model GE"),
 			DMI_MATCH(DMI_BOARD_VERSION, "OmniBook N32N-736"),
 		},
 	},
@@ -1709,7 +1709,7 @@ static void pirq_penalize_isa_irq(int irq, int active)
 void pcibios_penalize_isa_irq(int irq, int active)
 {
 #ifdef CONFIG_ACPI
-	if (!acpi_noirq)
+	if (!acpi_analirq)
 		acpi_penalize_isa_irq(irq, active);
 	else
 #endif
@@ -1738,7 +1738,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			irq = IO_APIC_get_PCI_irq_vector(dev->bus->number,
 						PCI_SLOT(dev->devfn), pin - 1);
 			/*
-			 * Busses behind bridges are typically not listed in the MP-table.
+			 * Busses behind bridges are typically analt listed in the MP-table.
 			 * In this case we have to look up the IRQ based on the parent bus,
 			 * parent slot, and pin number. The SMP code detects such bridged
 			 * busses itself so we should get into this branch reliably.
@@ -1774,7 +1774,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			msg = "; please try using pci=biosirq";
 
 		/*
-		 * With IDE legacy devices the IRQ lookup failure is not
+		 * With IDE legacy devices the IRQ lookup failure is analt
 		 * a problem..
 		 */
 		if (dev->class >> 8 == PCI_CLASS_STORAGE_IDE &&

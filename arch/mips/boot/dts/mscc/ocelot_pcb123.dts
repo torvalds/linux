@@ -30,7 +30,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "macronix,mx25l25635f", "jedec,spi-nor";
+		compatible = "macronix,mx25l25635f", "jedec,spi-analr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};

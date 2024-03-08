@@ -59,7 +59,7 @@ match_TLB:
 	isync
 skpinv:	addi	r6,r6,1				/* Increment */
 	cmpw	r6,r9				/* Are we done? */
-	bne	1b				/* If not, repeat */
+	bne	1b				/* If analt, repeat */
 
 	/* Invalidate TLB0 */
 	li	r6,0x04
@@ -71,7 +71,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	TLBSYNC
 
 /* 3. Setup a temp mapping and jump to it */
-	andi.	r5, r3, 0x1	/* Find an entry not used and is non-zero */
+	andi.	r5, r3, 0x1	/* Find an entry analt used and is analn-zero */
 	addi	r5, r5, 0x1
 	lis	r7,0x1000	/* Set MAS0(TLBSEL) = 1 */
 	rlwimi	r7,r3,16,4,15	/* Setup MAS0 = TLBSEL | ESEL(r3) */
@@ -202,7 +202,7 @@ next_tlb_setup:
 /* 7. Jump to our 1:1 mapping */
 	mr	r6, r25
 #else
-	#error You need to specify the mapping or not use this at all.
+	#error You need to specify the mapping or analt use this at all.
 #endif
 
 	lis	r7,MSR_KERNEL@h

@@ -13,7 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <net/mac80211.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
@@ -384,10 +384,10 @@ static int ieee80211_set_smps(struct ieee80211_link_data *link,
 	struct ieee80211_local *local = sdata->local;
 
 	/* The driver indicated that EML is enabled for the interface, thus do
-	 * not allow to override the SMPS state.
+	 * analt allow to override the SMPS state.
 	 */
 	if (sdata->vif.driver_flags & IEEE80211_VIF_EML_ACTIVE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!(local->hw.wiphy->features & NL80211_FEATURE_STATIC_SMPS) &&
 	    smps_mode == IEEE80211_SMPS_STATIC)
@@ -400,7 +400,7 @@ static int ieee80211_set_smps(struct ieee80211_link_data *link,
 		return -EINVAL;
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return __ieee80211_request_smps_mgd(link->sdata, link, smps_mode);
 }
@@ -453,11 +453,11 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 		return -EINVAL;
 
 	if (!ieee80211_sdata_running(sdata))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24 + 100);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
 	hdr = skb_put_zero(skb, 24);
@@ -476,7 +476,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 		/* BSSID SA DA */
 		if (!sdata->u.mgd.associated) {
 			dev_kfree_skb(skb);
-			return -ENOTCONN;
+			return -EANALTCONN;
 		}
 		memcpy(hdr->addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
@@ -484,13 +484,13 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 		break;
 	default:
 		dev_kfree_skb(skb);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	hdr->frame_control = fc;
 
 	/*
 	 * Add some length to the test frame to make it look bit more valid.
-	 * The exact contents does not matter since the recipient is required
+	 * The exact contents does analt matter since the recipient is required
 	 * to drop this because of the Michael MIC failure.
 	 */
 	skb_put_zero(skb, 50);
@@ -507,7 +507,7 @@ static ssize_t ieee80211_if_parse_beacon_loss(
 	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
 {
 	if (!ieee80211_sdata_running(sdata) || !sdata->vif.cfg.assoc)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	ieee80211_beacon_loss(&sdata->vif);
 
@@ -745,8 +745,8 @@ IEEE80211_IF_FILE(fwded_mcast, u.mesh.mshstats.fwded_mcast, DEC);
 IEEE80211_IF_FILE(fwded_unicast, u.mesh.mshstats.fwded_unicast, DEC);
 IEEE80211_IF_FILE(fwded_frames, u.mesh.mshstats.fwded_frames, DEC);
 IEEE80211_IF_FILE(dropped_frames_ttl, u.mesh.mshstats.dropped_frames_ttl, DEC);
-IEEE80211_IF_FILE(dropped_frames_no_route,
-		  u.mesh.mshstats.dropped_frames_no_route, DEC);
+IEEE80211_IF_FILE(dropped_frames_anal_route,
+		  u.mesh.mshstats.dropped_frames_anal_route, DEC);
 
 /* Mesh parameters */
 IEEE80211_IF_FILE(dot11MeshMaxRetries,
@@ -778,8 +778,8 @@ IEEE80211_IF_FILE(min_discovery_timeout,
 		  u.mesh.mshcfg.min_discovery_timeout, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
 		  u.mesh.mshcfg.dot11MeshHWMPRootMode, DEC);
-IEEE80211_IF_FILE(dot11MeshGateAnnouncementProtocol,
-		  u.mesh.mshcfg.dot11MeshGateAnnouncementProtocol, DEC);
+IEEE80211_IF_FILE(dot11MeshGateAnanaluncementProtocol,
+		  u.mesh.mshcfg.dot11MeshGateAnanaluncementProtocol, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPRannInterval,
 		  u.mesh.mshcfg.dot11MeshHWMPRannInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshForwarding, u.mesh.mshcfg.dot11MeshForwarding, DEC);
@@ -796,7 +796,7 @@ IEEE80211_IF_FILE(dot11MeshAwakeWindowDuration,
 		  u.mesh.mshcfg.dot11MeshAwakeWindowDuration, DEC);
 IEEE80211_IF_FILE(dot11MeshConnectedToMeshGate,
 		  u.mesh.mshcfg.dot11MeshConnectedToMeshGate, DEC);
-IEEE80211_IF_FILE(dot11MeshNolearn, u.mesh.mshcfg.dot11MeshNolearn, DEC);
+IEEE80211_IF_FILE(dot11MeshAnallearn, u.mesh.mshcfg.dot11MeshAnallearn, DEC);
 IEEE80211_IF_FILE(dot11MeshConnectedToAuthServer,
 		  u.mesh.mshcfg.dot11MeshConnectedToAuthServer, DEC);
 #endif
@@ -891,7 +891,7 @@ static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 	MESHSTATS_ADD(fwded_unicast);
 	MESHSTATS_ADD(fwded_frames);
 	MESHSTATS_ADD(dropped_frames_ttl);
-	MESHSTATS_ADD(dropped_frames_no_route);
+	MESHSTATS_ADD(dropped_frames_anal_route);
 #undef MESHSTATS_ADD
 }
 
@@ -921,7 +921,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshHWMPRootMode);
 	MESHPARAMS_ADD(dot11MeshHWMPRannInterval);
 	MESHPARAMS_ADD(dot11MeshForwarding);
-	MESHPARAMS_ADD(dot11MeshGateAnnouncementProtocol);
+	MESHPARAMS_ADD(dot11MeshGateAnanaluncementProtocol);
 	MESHPARAMS_ADD(rssi_threshold);
 	MESHPARAMS_ADD(ht_opmode);
 	MESHPARAMS_ADD(dot11MeshHWMPactivePathToRootTimeout);
@@ -930,7 +930,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(power_mode);
 	MESHPARAMS_ADD(dot11MeshAwakeWindowDuration);
 	MESHPARAMS_ADD(dot11MeshConnectedToMeshGate);
-	MESHPARAMS_ADD(dot11MeshNolearn);
+	MESHPARAMS_ADD(dot11MeshAnallearn);
 	MESHPARAMS_ADD(dot11MeshConnectedToAuthServer);
 #undef MESHPARAMS_ADD
 }
@@ -1058,7 +1058,7 @@ void ieee80211_link_debugfs_add(struct ieee80211_link_data *link)
 	if (WARN_ON(!link->sdata->vif.debugfs_dir || link->debugfs_dir))
 		return;
 
-	/* For now, this should not be called for non-MLO capable drivers */
+	/* For analw, this should analt be called for analn-MLO capable drivers */
 	if (WARN_ON(!(link->sdata->local->hw.wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO)))
 		return;
 

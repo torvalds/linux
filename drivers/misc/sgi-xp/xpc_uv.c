@@ -37,15 +37,15 @@ static struct xpc_heartbeat_uv *xpc_heartbeat_uv;
 					 XPC_ACTIVATE_MSG_SIZE_UV)
 #define XPC_ACTIVATE_IRQ_NAME		"xpc_activate"
 
-#define XPC_NOTIFY_MSG_SIZE_UV		(2 * GRU_CACHE_LINE_BYTES)
-#define XPC_NOTIFY_MQ_SIZE_UV		(4 * XP_MAX_NPARTITIONS_UV * \
-					 XPC_NOTIFY_MSG_SIZE_UV)
-#define XPC_NOTIFY_IRQ_NAME		"xpc_notify"
+#define XPC_ANALTIFY_MSG_SIZE_UV		(2 * GRU_CACHE_LINE_BYTES)
+#define XPC_ANALTIFY_MQ_SIZE_UV		(4 * XP_MAX_NPARTITIONS_UV * \
+					 XPC_ANALTIFY_MSG_SIZE_UV)
+#define XPC_ANALTIFY_IRQ_NAME		"xpc_analtify"
 
-static int xpc_mq_node = NUMA_NO_NODE;
+static int xpc_mq_analde = NUMA_ANAL_ANALDE;
 
 static struct xpc_gru_mq_uv *xpc_activate_mq_uv;
-static struct xpc_gru_mq_uv *xpc_notify_mq_uv;
+static struct xpc_gru_mq_uv *xpc_analtify_mq_uv;
 
 static int
 xpc_setup_partitions_uv(void)
@@ -89,14 +89,14 @@ xpc_teardown_partitions_uv(void)
 static int
 xpc_get_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq, int cpu, char *irq_name)
 {
-	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
+	int mmr_panalde = uv_blade_to_panalde(mq->mmr_blade);
 
 	mq->irq = uv_setup_irq(irq_name, cpu, mq->mmr_blade, mq->mmr_offset,
 			UV_AFFINITY_CPU);
 	if (mq->irq < 0)
 		return mq->irq;
 
-	mq->mmr_value = uv_read_global_mmr64(mmr_pnode, mq->mmr_offset);
+	mq->mmr_value = uv_read_global_mmr64(mmr_panalde, mq->mmr_offset);
 
 	return 0;
 }
@@ -128,9 +128,9 @@ static void
 xpc_gru_mq_watchlist_free_uv(struct xpc_gru_mq_uv *mq)
 {
 	int ret;
-	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
+	int mmr_panalde = uv_blade_to_panalde(mq->mmr_blade);
 
-	ret = uv_bios_mq_watchlist_free(mmr_pnode, mq->watchlist_num);
+	ret = uv_bios_mq_watchlist_free(mmr_panalde, mq->watchlist_num);
 	BUG_ON(ret != BIOS_STATUS_SUCCESS);
 }
 
@@ -151,7 +151,7 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 	if (mq == NULL) {
 		dev_err(xpc_part, "xpc_create_gru_mq_uv() failed to kmalloc() "
 			"a xpc_gru_mq_uv structure\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_0;
 	}
 
@@ -160,7 +160,7 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 	if (mq->gru_mq_desc == NULL) {
 		dev_err(xpc_part, "xpc_create_gru_mq_uv() failed to kmalloc() "
 			"a gru_message_queue_desc structure\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_1;
 	}
 
@@ -170,14 +170,14 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 
 	mq->mmr_blade = uv_cpu_to_blade_id(cpu);
 
-	nid = cpu_to_node(cpu);
-	page = __alloc_pages_node(nid,
-				      GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
+	nid = cpu_to_analde(cpu);
+	page = __alloc_pages_analde(nid,
+				      GFP_KERNEL | __GFP_ZERO | __GFP_THISANALDE,
 				      pg_order);
 	if (page == NULL) {
 		dev_err(xpc_part, "xpc_create_gru_mq_uv() failed to alloc %d "
 			"bytes of memory on nid=%d for GRU mq\n", mq_size, nid);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_2;
 	}
 	mq->address = page_address(page);
@@ -198,7 +198,7 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 		goto out_5;
 	}
 
-	nasid = UV_PNODE_TO_NASID(uv_cpu_to_pnode(cpu));
+	nasid = UV_PANALDE_TO_NASID(uv_cpu_to_panalde(cpu));
 
 	mmr_value = (struct uv_IO_APIC_route_entry *)&mq->mmr_value;
 	ret = gru_create_message_queue(mq->gru_mq_desc, mq->address, mq_size,
@@ -480,7 +480,7 @@ xpc_handle_activate_mq_msg_uv(struct xpc_partition *part,
 		args = &part->remote_openclose_args[msg->ch_number];
 		args->remote_nentries = msg->remote_nentries;
 		args->local_nentries = msg->local_nentries;
-		args->local_msgqueue_pa = msg->notify_gru_mq_desc_gpa;
+		args->local_msgqueue_pa = msg->analtify_gru_mq_desc_gpa;
 
 		spin_lock_irqsave(&part->chctl_lock, irq_flags);
 		part->chctl.flags[msg->ch_number] |= XPC_CHCTL_OPENREPLY;
@@ -517,7 +517,7 @@ xpc_handle_activate_mq_msg_uv(struct xpc_partition *part,
 		break;
 
 	default:
-		dev_err(xpc_part, "received unknown activate_mq msg type=%d "
+		dev_err(xpc_part, "received unkanalwn activate_mq msg type=%d "
 			"from partition=%d\n", msg_hdr->type, XPC_PARTID(part));
 
 		/* get hb checker to deactivate from the remote partition */
@@ -627,7 +627,7 @@ again:
 					      gru_message_queue_desc),
 					      GFP_ATOMIC);
 			if (gru_mq_desc == NULL) {
-				ret = xpNoMemory;
+				ret = xpAnalMemory;
 				goto done;
 			}
 			part_uv->cached_activate_gru_mq_desc = gru_mq_desc;
@@ -801,7 +801,7 @@ xpc_get_remote_heartbeat_uv(struct xpc_partition *part)
 	if (part_uv->cached_heartbeat.value == part->last_heartbeat &&
 	    !part_uv->cached_heartbeat.offline) {
 
-		ret = xpNoHeartbeat;
+		ret = xpAnalHeartbeat;
 	} else {
 		part->last_heartbeat = part_uv->cached_heartbeat.value;
 	}
@@ -866,7 +866,7 @@ xpc_request_partition_deactivation_uv(struct xpc_partition *part)
 static void
 xpc_cancel_partition_deactivation_request_uv(struct xpc_partition *part)
 {
-	/* nothing needs to be done */
+	/* analthing needs to be done */
 	return;
 }
 
@@ -949,7 +949,7 @@ xpc_setup_ch_structures_uv(struct xpc_partition *part)
 static void
 xpc_teardown_ch_structures_uv(struct xpc_partition *part)
 {
-	/* nothing needs to be done */
+	/* analthing needs to be done */
 	return;
 }
 
@@ -1028,14 +1028,14 @@ xpc_allocate_send_msg_slot_uv(struct xpc_channel *ch)
 		return xpSuccess;
 	}
 
-	return xpNoMemory;
+	return xpAnalMemory;
 }
 
 static enum xp_retval
 xpc_allocate_recv_msg_slot_uv(struct xpc_channel *ch)
 {
 	struct xpc_channel_uv *ch_uv = &ch->sn.uv;
-	struct xpc_notify_mq_msg_uv *msg_slot;
+	struct xpc_analtify_mq_msg_uv *msg_slot;
 	unsigned long irq_flags;
 	int nentries;
 	int entry;
@@ -1061,7 +1061,7 @@ xpc_allocate_recv_msg_slot_uv(struct xpc_channel *ch)
 		return xpSuccess;
 	}
 
-	return xpNoMemory;
+	return xpAnalMemory;
 }
 
 /*
@@ -1075,11 +1075,11 @@ xpc_setup_msg_structures_uv(struct xpc_channel *ch)
 
 	DBUG_ON(ch->flags & XPC_C_SETUP);
 
-	ch_uv->cached_notify_gru_mq_desc = kmalloc(sizeof(struct
+	ch_uv->cached_analtify_gru_mq_desc = kmalloc(sizeof(struct
 						   gru_message_queue_desc),
 						   GFP_KERNEL);
-	if (ch_uv->cached_notify_gru_mq_desc == NULL)
-		return xpNoMemory;
+	if (ch_uv->cached_analtify_gru_mq_desc == NULL)
+		return xpAnalMemory;
 
 	ret = xpc_allocate_send_msg_slot_uv(ch);
 	if (ret == xpSuccess) {
@@ -1104,8 +1104,8 @@ xpc_teardown_msg_structures_uv(struct xpc_channel *ch)
 
 	lockdep_assert_held(&ch->lock);
 
-	kfree(ch_uv->cached_notify_gru_mq_desc);
-	ch_uv->cached_notify_gru_mq_desc = NULL;
+	kfree(ch_uv->cached_analtify_gru_mq_desc);
+	ch_uv->cached_analtify_gru_mq_desc = NULL;
 
 	if (ch->flags & XPC_C_SETUP) {
 		xpc_init_fifo_uv(&ch_uv->msg_slot_free_list);
@@ -1156,7 +1156,7 @@ xpc_send_chctl_openreply_uv(struct xpc_channel *ch, unsigned long *irq_flags)
 	msg.ch_number = ch->number;
 	msg.local_nentries = ch->local_nentries;
 	msg.remote_nentries = ch->remote_nentries;
-	msg.notify_gru_mq_desc_gpa = uv_gpa(xpc_notify_mq_uv->gru_mq_desc);
+	msg.analtify_gru_mq_desc_gpa = uv_gpa(xpc_analtify_mq_uv->gru_mq_desc);
 	xpc_send_activate_IRQ_ch_uv(ch, irq_flags, &msg, sizeof(msg),
 				    XPC_ACTIVATE_MQ_MSG_CHCTL_OPENREPLY_UV);
 }
@@ -1189,8 +1189,8 @@ xpc_save_remote_msgqueue_pa_uv(struct xpc_channel *ch,
 {
 	struct xpc_channel_uv *ch_uv = &ch->sn.uv;
 
-	DBUG_ON(ch_uv->cached_notify_gru_mq_desc == NULL);
-	return xpc_cache_remote_gru_mq_desc_uv(ch_uv->cached_notify_gru_mq_desc,
+	DBUG_ON(ch_uv->cached_analtify_gru_mq_desc == NULL);
+	return xpc_cache_remote_gru_mq_desc_uv(ch_uv->cached_analtify_gru_mq_desc,
 					       gru_mq_desc_gpa);
 }
 
@@ -1256,8 +1256,8 @@ xpc_allocate_msg_slot_uv(struct xpc_channel *ch, u32 flags,
 		if (entry != NULL)
 			break;
 
-		if (flags & XPC_NOWAIT)
-			return xpNoWait;
+		if (flags & XPC_ANALWAIT)
+			return xpAnalWait;
 
 		ret = xpc_allocate_msg_wait(ch);
 		if (ret != xpInterrupted && ret != xpTimeout)
@@ -1281,15 +1281,15 @@ xpc_free_msg_slot_uv(struct xpc_channel *ch,
 }
 
 static void
-xpc_notify_sender_uv(struct xpc_channel *ch,
+xpc_analtify_sender_uv(struct xpc_channel *ch,
 		     struct xpc_send_msg_slot_uv *msg_slot,
 		     enum xp_retval reason)
 {
-	xpc_notify_func func = msg_slot->func;
+	xpc_analtify_func func = msg_slot->func;
 
 	if (func != NULL && cmpxchg(&msg_slot->func, func, NULL) == func) {
 
-		atomic_dec(&ch->n_to_notify);
+		atomic_dec(&ch->n_to_analtify);
 
 		dev_dbg(xpc_chan, "msg_slot->func() called, msg_slot=0x%p "
 			"msg_slot_number=%d partid=%d channel=%d\n", msg_slot,
@@ -1304,8 +1304,8 @@ xpc_notify_sender_uv(struct xpc_channel *ch,
 }
 
 static void
-xpc_handle_notify_mq_ack_uv(struct xpc_channel *ch,
-			    struct xpc_notify_mq_msg_uv *msg)
+xpc_handle_analtify_mq_ack_uv(struct xpc_channel *ch,
+			    struct xpc_analtify_mq_msg_uv *msg)
 {
 	struct xpc_send_msg_slot_uv *msg_slot;
 	int entry = msg->hdr.msg_slot_number % ch->local_nentries;
@@ -1316,24 +1316,24 @@ xpc_handle_notify_mq_ack_uv(struct xpc_channel *ch,
 	msg_slot->msg_slot_number += ch->local_nentries;
 
 	if (msg_slot->func != NULL)
-		xpc_notify_sender_uv(ch, msg_slot, xpMsgDelivered);
+		xpc_analtify_sender_uv(ch, msg_slot, xpMsgDelivered);
 
 	xpc_free_msg_slot_uv(ch, msg_slot);
 }
 
 static void
-xpc_handle_notify_mq_msg_uv(struct xpc_partition *part,
-			    struct xpc_notify_mq_msg_uv *msg)
+xpc_handle_analtify_mq_msg_uv(struct xpc_partition *part,
+			    struct xpc_analtify_mq_msg_uv *msg)
 {
 	struct xpc_partition_uv *part_uv = &part->sn.uv;
 	struct xpc_channel *ch;
 	struct xpc_channel_uv *ch_uv;
-	struct xpc_notify_mq_msg_uv *msg_slot;
+	struct xpc_analtify_mq_msg_uv *msg_slot;
 	unsigned long irq_flags;
 	int ch_number = msg->hdr.ch_number;
 
 	if (unlikely(ch_number >= part->nchannels)) {
-		dev_err(xpc_part, "xpc_handle_notify_IRQ_uv() received invalid "
+		dev_err(xpc_part, "xpc_handle_analtify_IRQ_uv() received invalid "
 			"channel number=0x%x in message from partid=%d\n",
 			ch_number, XPC_PARTID(part));
 
@@ -1359,12 +1359,12 @@ xpc_handle_notify_mq_msg_uv(struct xpc_partition *part,
 
 	/* see if we're really dealing with an ACK for a previously sent msg */
 	if (msg->hdr.size == 0) {
-		xpc_handle_notify_mq_ack_uv(ch, msg);
+		xpc_handle_analtify_mq_ack_uv(ch, msg);
 		xpc_msgqueue_deref(ch);
 		return;
 	}
 
-	/* we're dealing with a normal message sent via the notify_mq */
+	/* we're dealing with a analrmal message sent via the analtify_mq */
 	ch_uv = &ch->sn.uv;
 
 	msg_slot = ch_uv->recv_msg_slots +
@@ -1391,29 +1391,29 @@ xpc_handle_notify_mq_msg_uv(struct xpc_partition *part,
 }
 
 static irqreturn_t
-xpc_handle_notify_IRQ_uv(int irq, void *dev_id)
+xpc_handle_analtify_IRQ_uv(int irq, void *dev_id)
 {
-	struct xpc_notify_mq_msg_uv *msg;
+	struct xpc_analtify_mq_msg_uv *msg;
 	short partid;
 	struct xpc_partition *part;
 
-	while ((msg = gru_get_next_message(xpc_notify_mq_uv->gru_mq_desc)) !=
+	while ((msg = gru_get_next_message(xpc_analtify_mq_uv->gru_mq_desc)) !=
 	       NULL) {
 
 		partid = msg->hdr.partid;
 		if (partid < 0 || partid >= XP_MAX_NPARTITIONS_UV) {
-			dev_err(xpc_part, "xpc_handle_notify_IRQ_uv() received "
+			dev_err(xpc_part, "xpc_handle_analtify_IRQ_uv() received "
 				"invalid partid=0x%x in message\n", partid);
 		} else {
 			part = &xpc_partitions[partid];
 
 			if (xpc_part_ref(part)) {
-				xpc_handle_notify_mq_msg_uv(part, msg);
+				xpc_handle_analtify_mq_msg_uv(part, msg);
 				xpc_part_deref(part);
 			}
 		}
 
-		gru_free_message(xpc_notify_mq_uv->gru_mq_desc, msg);
+		gru_free_message(xpc_analtify_mq_uv->gru_mq_desc, msg);
 	}
 
 	return IRQ_HANDLED;
@@ -1447,18 +1447,18 @@ xpc_process_msg_chctl_flags_uv(struct xpc_partition *part, int ch_number)
 
 static enum xp_retval
 xpc_send_payload_uv(struct xpc_channel *ch, u32 flags, void *payload,
-		    u16 payload_size, u8 notify_type, xpc_notify_func func,
+		    u16 payload_size, u8 analtify_type, xpc_analtify_func func,
 		    void *key)
 {
 	enum xp_retval ret = xpSuccess;
 	struct xpc_send_msg_slot_uv *msg_slot = NULL;
-	struct xpc_notify_mq_msg_uv *msg;
-	u8 msg_buffer[XPC_NOTIFY_MSG_SIZE_UV];
+	struct xpc_analtify_mq_msg_uv *msg;
+	u8 msg_buffer[XPC_ANALTIFY_MSG_SIZE_UV];
 	size_t msg_size;
 
-	DBUG_ON(notify_type != XPC_N_CALL);
+	DBUG_ON(analtify_type != XPC_N_CALL);
 
-	msg_size = sizeof(struct xpc_notify_mq_msghdr_uv) + payload_size;
+	msg_size = sizeof(struct xpc_analtify_mq_msghdr_uv) + payload_size;
 	if (msg_size > ch->entry_size)
 		return xpPayloadTooBig;
 
@@ -1469,7 +1469,7 @@ xpc_send_payload_uv(struct xpc_channel *ch, u32 flags, void *payload,
 		goto out_1;
 	}
 	if (!(ch->flags & XPC_C_CONNECTED)) {
-		ret = xpNotConnected;
+		ret = xpAnaltConnected;
 		goto out_1;
 	}
 
@@ -1478,10 +1478,10 @@ xpc_send_payload_uv(struct xpc_channel *ch, u32 flags, void *payload,
 		goto out_1;
 
 	if (func != NULL) {
-		atomic_inc(&ch->n_to_notify);
+		atomic_inc(&ch->n_to_analtify);
 
 		msg_slot->key = key;
-		smp_wmb(); /* a non-NULL func must hit memory after the key */
+		smp_wmb(); /* a analn-NULL func must hit memory after the key */
 		msg_slot->func = func;
 
 		if (ch->flags & XPC_C_DISCONNECTING) {
@@ -1490,14 +1490,14 @@ xpc_send_payload_uv(struct xpc_channel *ch, u32 flags, void *payload,
 		}
 	}
 
-	msg = (struct xpc_notify_mq_msg_uv *)&msg_buffer;
+	msg = (struct xpc_analtify_mq_msg_uv *)&msg_buffer;
 	msg->hdr.partid = xp_partition_id;
 	msg->hdr.ch_number = ch->number;
 	msg->hdr.size = msg_size;
 	msg->hdr.msg_slot_number = msg_slot->msg_slot_number;
 	memcpy(&msg->payload, payload, payload_size);
 
-	ret = xpc_send_gru_msg(ch->sn.uv.cached_notify_gru_mq_desc, msg,
+	ret = xpc_send_gru_msg(ch->sn.uv.cached_analtify_gru_mq_desc, msg,
 			       msg_size);
 	if (ret == xpSuccess)
 		goto out_1;
@@ -1507,10 +1507,10 @@ out_2:
 	if (func != NULL) {
 		/*
 		 * Try to NULL the msg_slot's func field. If we fail, then
-		 * xpc_notify_senders_of_disconnect_uv() beat us to it, in which
+		 * xpc_analtify_senders_of_disconnect_uv() beat us to it, in which
 		 * case we need to pretend we succeeded to send the message
 		 * since the user will get a callout for the disconnect error
-		 * by xpc_notify_senders_of_disconnect_uv(), and to also get an
+		 * by xpc_analtify_senders_of_disconnect_uv(), and to also get an
 		 * error returned here will confuse them. Additionally, since
 		 * in this case the channel is being disconnected we don't need
 		 * to put the msg_slot back on the free list.
@@ -1521,7 +1521,7 @@ out_2:
 		}
 
 		msg_slot->key = NULL;
-		atomic_dec(&ch->n_to_notify);
+		atomic_dec(&ch->n_to_analtify);
 	}
 	xpc_free_msg_slot_uv(ch, msg_slot);
 out_1:
@@ -1530,14 +1530,14 @@ out_1:
 }
 
 /*
- * Tell the callers of xpc_send_notify() that the status of their payloads
- * is unknown because the channel is now disconnecting.
+ * Tell the callers of xpc_send_analtify() that the status of their payloads
+ * is unkanalwn because the channel is analw disconnecting.
  *
  * We don't worry about putting these msg_slots on the free list since the
  * msg_slots themselves are about to be kfree'd.
  */
 static void
-xpc_notify_senders_of_disconnect_uv(struct xpc_channel *ch)
+xpc_analtify_senders_of_disconnect_uv(struct xpc_channel *ch)
 {
 	struct xpc_send_msg_slot_uv *msg_slot;
 	int entry;
@@ -1546,12 +1546,12 @@ xpc_notify_senders_of_disconnect_uv(struct xpc_channel *ch)
 
 	for (entry = 0; entry < ch->local_nentries; entry++) {
 
-		if (atomic_read(&ch->n_to_notify) == 0)
+		if (atomic_read(&ch->n_to_analtify) == 0)
 			break;
 
 		msg_slot = &ch->sn.uv.send_msg_slots[entry];
 		if (msg_slot->func != NULL)
-			xpc_notify_sender_uv(ch, msg_slot, ch->reason);
+			xpc_analtify_sender_uv(ch, msg_slot, ch->reason);
 	}
 }
 
@@ -1562,13 +1562,13 @@ static void *
 xpc_get_deliverable_payload_uv(struct xpc_channel *ch)
 {
 	struct xpc_fifo_entry_uv *entry;
-	struct xpc_notify_mq_msg_uv *msg;
+	struct xpc_analtify_mq_msg_uv *msg;
 	void *payload = NULL;
 
 	if (!(ch->flags & XPC_C_DISCONNECTING)) {
 		entry = xpc_get_fifo_entry_uv(&ch->sn.uv.recv_msg_list);
 		if (entry != NULL) {
-			msg = container_of(entry, struct xpc_notify_mq_msg_uv,
+			msg = container_of(entry, struct xpc_analtify_mq_msg_uv,
 					   hdr.u.next);
 			payload = &msg->payload;
 		}
@@ -1579,18 +1579,18 @@ xpc_get_deliverable_payload_uv(struct xpc_channel *ch)
 static void
 xpc_received_payload_uv(struct xpc_channel *ch, void *payload)
 {
-	struct xpc_notify_mq_msg_uv *msg;
+	struct xpc_analtify_mq_msg_uv *msg;
 	enum xp_retval ret;
 
-	msg = container_of(payload, struct xpc_notify_mq_msg_uv, payload);
+	msg = container_of(payload, struct xpc_analtify_mq_msg_uv, payload);
 
 	/* return an ACK to the sender of this message */
 
 	msg->hdr.partid = xp_partition_id;
 	msg->hdr.size = 0;	/* size of zero indicates this is an ACK */
 
-	ret = xpc_send_gru_msg(ch->sn.uv.cached_notify_gru_mq_desc, msg,
-			       sizeof(struct xpc_notify_mq_msghdr_uv));
+	ret = xpc_send_gru_msg(ch->sn.uv.cached_analtify_gru_mq_desc, msg,
+			       sizeof(struct xpc_analtify_mq_msghdr_uv));
 	if (ret != xpSuccess)
 		XPC_DEACTIVATE_PARTITION(&xpc_partitions[ch->partid], ret);
 }
@@ -1649,17 +1649,17 @@ static const struct xpc_arch_operations xpc_arch_ops_uv = {
 	.send_payload = xpc_send_payload_uv,
 	.get_deliverable_payload = xpc_get_deliverable_payload_uv,
 	.received_payload = xpc_received_payload_uv,
-	.notify_senders_of_disconnect = xpc_notify_senders_of_disconnect_uv,
+	.analtify_senders_of_disconnect = xpc_analtify_senders_of_disconnect_uv,
 };
 
 static int
-xpc_init_mq_node(int nid)
+xpc_init_mq_analde(int nid)
 {
 	int cpu;
 
 	cpus_read_lock();
 
-	for_each_cpu(cpu, cpumask_of_node(nid)) {
+	for_each_cpu(cpu, cpumask_of_analde(nid)) {
 		xpc_activate_mq_uv =
 			xpc_create_gru_mq_uv(XPC_ACTIVATE_MQ_SIZE_UV, nid,
 					     XPC_ACTIVATE_IRQ_NAME,
@@ -1672,18 +1672,18 @@ xpc_init_mq_node(int nid)
 		return PTR_ERR(xpc_activate_mq_uv);
 	}
 
-	for_each_cpu(cpu, cpumask_of_node(nid)) {
-		xpc_notify_mq_uv =
-			xpc_create_gru_mq_uv(XPC_NOTIFY_MQ_SIZE_UV, nid,
-					     XPC_NOTIFY_IRQ_NAME,
-					     xpc_handle_notify_IRQ_uv);
-		if (!IS_ERR(xpc_notify_mq_uv))
+	for_each_cpu(cpu, cpumask_of_analde(nid)) {
+		xpc_analtify_mq_uv =
+			xpc_create_gru_mq_uv(XPC_ANALTIFY_MQ_SIZE_UV, nid,
+					     XPC_ANALTIFY_IRQ_NAME,
+					     xpc_handle_analtify_IRQ_uv);
+		if (!IS_ERR(xpc_analtify_mq_uv))
 			break;
 	}
-	if (IS_ERR(xpc_notify_mq_uv)) {
+	if (IS_ERR(xpc_analtify_mq_uv)) {
 		xpc_destroy_gru_mq_uv(xpc_activate_mq_uv);
 		cpus_read_unlock();
-		return PTR_ERR(xpc_notify_mq_uv);
+		return PTR_ERR(xpc_analtify_mq_uv);
 	}
 
 	cpus_read_unlock();
@@ -1698,24 +1698,24 @@ xpc_init_uv(void)
 
 	xpc_arch_ops = xpc_arch_ops_uv;
 
-	if (sizeof(struct xpc_notify_mq_msghdr_uv) > XPC_MSG_HDR_MAX_SIZE) {
-		dev_err(xpc_part, "xpc_notify_mq_msghdr_uv is larger than %d\n",
+	if (sizeof(struct xpc_analtify_mq_msghdr_uv) > XPC_MSG_HDR_MAX_SIZE) {
+		dev_err(xpc_part, "xpc_analtify_mq_msghdr_uv is larger than %d\n",
 			XPC_MSG_HDR_MAX_SIZE);
 		return -E2BIG;
 	}
 
-	if (xpc_mq_node < 0)
-		for_each_online_node(nid) {
-			ret = xpc_init_mq_node(nid);
+	if (xpc_mq_analde < 0)
+		for_each_online_analde(nid) {
+			ret = xpc_init_mq_analde(nid);
 
 			if (!ret)
 				break;
 		}
 	else
-		ret = xpc_init_mq_node(xpc_mq_node);
+		ret = xpc_init_mq_analde(xpc_mq_analde);
 
 	if (ret < 0)
-		dev_err(xpc_part, "xpc_init_mq_node() returned error=%d\n",
+		dev_err(xpc_part, "xpc_init_mq_analde() returned error=%d\n",
 			-ret);
 
 	return ret;
@@ -1724,9 +1724,9 @@ xpc_init_uv(void)
 void
 xpc_exit_uv(void)
 {
-	xpc_destroy_gru_mq_uv(xpc_notify_mq_uv);
+	xpc_destroy_gru_mq_uv(xpc_analtify_mq_uv);
 	xpc_destroy_gru_mq_uv(xpc_activate_mq_uv);
 }
 
-module_param(xpc_mq_node, int, 0);
-MODULE_PARM_DESC(xpc_mq_node, "Node number on which to allocate message queues.");
+module_param(xpc_mq_analde, int, 0);
+MODULE_PARM_DESC(xpc_mq_analde, "Analde number on which to allocate message queues.");

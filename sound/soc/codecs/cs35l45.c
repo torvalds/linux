@@ -24,8 +24,8 @@ static bool cs35l45_check_cspl_mbox_sts(const enum cs35l45_cspl_mboxcmd cmd,
 					enum cs35l45_cspl_mboxstate sts)
 {
 	switch (cmd) {
-	case CSPL_MBOX_CMD_NONE:
-	case CSPL_MBOX_CMD_UNKNOWN_CMD:
+	case CSPL_MBOX_CMD_ANALNE:
+	case CSPL_MBOX_CMD_UNKANALWN_CMD:
 		return true;
 	case CSPL_MBOX_CMD_PAUSE:
 	case CSPL_MBOX_CMD_OUT_OF_HIBERNATE:
@@ -51,7 +51,7 @@ static int cs35l45_set_cspl_mbox_cmd(struct cs35l45_private *cs35l45,
 	int ret;
 
 	if (!cs35l45->dsp.cs_dsp.running) {
-		dev_err(cs35l45->dev, "DSP not running\n");
+		dev_err(cs35l45->dev, "DSP analt running\n");
 		return -EPERM;
 	}
 
@@ -82,7 +82,7 @@ static int cs35l45_set_cspl_mbox_cmd(struct cs35l45_private *cs35l45,
 	if (cmd != CSPL_MBOX_CMD_OUT_OF_HIBERNATE)
 		dev_err(cs35l45->dev, "Failed to set mailbox cmd %u (status %u)\n", cmd, sts);
 
-	return -ENOMSG;
+	return -EANALMSG;
 }
 
 static int cs35l45_global_en_ev(struct snd_soc_dapm_widget *w,
@@ -197,7 +197,7 @@ static int cs35l45_activate_ctl(struct snd_soc_component *component,
 	else
 		vd->access &= ~SNDRV_CTL_ELEM_ACCESS_WRITE;
 
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, &kcontrol->id);
+	snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_INFO, &kcontrol->id);
 
 	return 0;
 }
@@ -418,17 +418,17 @@ static const struct snd_kcontrol_new cs35l45_dac_muxes[] = {
 	SOC_DAPM_ENUM("DACPCM Source", cs35l45_dacpcm_enums[0]),
 };
 static const struct snd_kcontrol_new amp_en_ctl =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+	SOC_DAPM_SINGLE("Switch", SND_SOC_ANALPM, 0, 1, 0);
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
-	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_ANALPM, 0, 0,
 				cs35l45_dsp_preload_ev,
 				SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_ANALPM, 0, 0, NULL, 0,
 				cs35l45_dsp_audio_ev,
 				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("GLOBAL_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("GLOBAL_EN", SND_SOC_ANALPM, 0, 0,
 			    cs35l45_global_en_ev,
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SUPPLY("ASP_EN", CS35L45_BLOCK_ENABLES2, CS35L45_ASP_EN_SHIFT, 0, NULL, 0),
@@ -448,11 +448,11 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("VDD_BATTMON_EN", CS35L45_BLOCK_ENABLES, CS35L45_VDD_BATTMON_EN_SHIFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("VDD_BSTMON_EN", CS35L45_BLOCK_ENABLES, CS35L45_VDD_BSTMON_EN_SHIFT, 0, NULL, 0),
 
-	SND_SOC_DAPM_ADC("VMON", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("IMON", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("TEMPMON", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("VDD_BATTMON", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("VDD_BSTMON", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("VMON", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("IMON", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("TEMPMON", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("VDD_BATTMON", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("VDD_BSTMON", NULL, SND_SOC_ANALPM, 0, 0),
 
 
 	SND_SOC_DAPM_AIF_IN("ASP_RX1", NULL, 0, CS35L45_ASP_ENABLES1, CS35L45_ASP_RX1_EN_SHIFT, 0),
@@ -464,26 +464,26 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("ASP_TX4", NULL, 3, CS35L45_ASP_ENABLES1, CS35L45_ASP_TX4_EN_SHIFT, 0),
 	SND_SOC_DAPM_AIF_OUT("ASP_TX5", NULL, 3, CS35L45_ASP_ENABLES1, CS35L45_ASP_TX5_EN_SHIFT, 0),
 
-	SND_SOC_DAPM_MUX("ASP_TX1 Source", SND_SOC_NOPM, 0, 0, &cs35l45_asp_muxes[0]),
-	SND_SOC_DAPM_MUX("ASP_TX2 Source", SND_SOC_NOPM, 0, 0, &cs35l45_asp_muxes[1]),
-	SND_SOC_DAPM_MUX("ASP_TX3 Source", SND_SOC_NOPM, 0, 0, &cs35l45_asp_muxes[2]),
-	SND_SOC_DAPM_MUX("ASP_TX4 Source", SND_SOC_NOPM, 0, 0, &cs35l45_asp_muxes[3]),
-	SND_SOC_DAPM_MUX("ASP_TX5 Source", SND_SOC_NOPM, 0, 0, &cs35l45_asp_muxes[4]),
+	SND_SOC_DAPM_MUX("ASP_TX1 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_asp_muxes[0]),
+	SND_SOC_DAPM_MUX("ASP_TX2 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_asp_muxes[1]),
+	SND_SOC_DAPM_MUX("ASP_TX3 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_asp_muxes[2]),
+	SND_SOC_DAPM_MUX("ASP_TX4 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_asp_muxes[3]),
+	SND_SOC_DAPM_MUX("ASP_TX5 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_asp_muxes[4]),
 
-	SND_SOC_DAPM_MUX("DSP_RX1 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[0]),
-	SND_SOC_DAPM_MUX("DSP_RX2 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[1]),
-	SND_SOC_DAPM_MUX("DSP_RX3 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[2]),
-	SND_SOC_DAPM_MUX("DSP_RX4 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[3]),
-	SND_SOC_DAPM_MUX("DSP_RX5 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[4]),
-	SND_SOC_DAPM_MUX("DSP_RX6 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[5]),
-	SND_SOC_DAPM_MUX("DSP_RX7 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[6]),
-	SND_SOC_DAPM_MUX("DSP_RX8 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[7]),
+	SND_SOC_DAPM_MUX("DSP_RX1 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dsp_muxes[0]),
+	SND_SOC_DAPM_MUX("DSP_RX2 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dsp_muxes[1]),
+	SND_SOC_DAPM_MUX("DSP_RX3 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dsp_muxes[2]),
+	SND_SOC_DAPM_MUX("DSP_RX4 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dsp_muxes[3]),
+	SND_SOC_DAPM_MUX("DSP_RX5 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dsp_muxes[4]),
+	SND_SOC_DAPM_MUX("DSP_RX6 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dsp_muxes[5]),
+	SND_SOC_DAPM_MUX("DSP_RX7 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dsp_muxes[6]),
+	SND_SOC_DAPM_MUX("DSP_RX8 Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dsp_muxes[7]),
 
-	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &cs35l45_dac_muxes[0]),
+	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_ANALPM, 0, 0, &cs35l45_dac_muxes[0]),
 
-	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
+	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_ANALPM, 0, 0, &amp_en_ctl),
 
-	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("SPK"),
 };
@@ -595,7 +595,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 };
 
 static const char * const amplifier_mode_texts[] = {"SPK", "RCV"};
-static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_ANALPM, 0,
 			    amplifier_mode_texts);
 static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 1000, 300, 0);
 static const DECLARE_TLV_DB_SCALE(cs35l45_dig_pcm_vol_tlv, -10225, 25, true);
@@ -607,7 +607,7 @@ static const struct snd_kcontrol_new cs35l45_controls[] = {
 			CS35L45_AMP_GAIN_PCM_SHIFT,
 			CS35L45_AMP_GAIN_PCM_MASK >> CS35L45_AMP_GAIN_PCM_SHIFT,
 			0, amp_gain_tlv),
-	/* Ignore bit 0: it is beyond the resolution of TLV_DB_SCALE */
+	/* Iganalre bit 0: it is beyond the resolution of TLV_DB_SCALE */
 	SOC_SINGLE_S_TLV("Digital PCM Volume",
 			 CS35L45_AMP_PCM_CONTROL,
 			 CS35L45_AMP_VOL_PCM_SHIFT + 1,
@@ -1040,7 +1040,7 @@ static int cs35l45_sys_suspend(struct device *dev)
 	return 0;
 }
 
-static int cs35l45_sys_suspend_noirq(struct device *dev)
+static int cs35l45_sys_suspend_analirq(struct device *dev)
 {
 	struct cs35l45_private *cs35l45 = dev_get_drvdata(dev);
 
@@ -1050,7 +1050,7 @@ static int cs35l45_sys_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int cs35l45_sys_resume_noirq(struct device *dev)
+static int cs35l45_sys_resume_analirq(struct device *dev)
 {
 	struct cs35l45_private *cs35l45 = dev_get_drvdata(dev);
 
@@ -1072,22 +1072,22 @@ static int cs35l45_sys_resume(struct device *dev)
 
 static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 {
-	struct device_node *node = cs35l45->dev->of_node;
+	struct device_analde *analde = cs35l45->dev->of_analde;
 	unsigned int gpio_regs[] = {CS35L45_GPIO1_CTRL1, CS35L45_GPIO2_CTRL1,
 				    CS35L45_GPIO3_CTRL1};
 	unsigned int pad_regs[] = {CS35L45_SYNC_GPIO1,
 				   CS35L45_INTB_GPIO2_MCLK_REF, CS35L45_GPIO3};
-	struct device_node *child;
+	struct device_analde *child;
 	unsigned int val;
 	char of_name[32];
 	int ret, i;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
 	for (i = 0; i < CS35L45_NUM_GPIOS; i++) {
 		sprintf(of_name, "cirrus,gpio-ctrl%d", i + 1);
-		child = of_get_child_by_name(node, of_name);
+		child = of_get_child_by_name(analde, of_name);
 		if (!child)
 			continue;
 
@@ -1130,7 +1130,7 @@ static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 				cs35l45->irq_invert = val;
 		}
 
-		of_node_put(child);
+		of_analde_put(child);
 	}
 
 	if (device_property_read_u32(cs35l45->dev,
@@ -1147,7 +1147,7 @@ static int cs35l45_dsp_virt2_mbox3_irq_handle(struct cs35l45_private *cs35l45,
 					      const unsigned int cmd,
 					      unsigned int data)
 {
-	static char *speak_status = "Unknown";
+	static char *speak_status = "Unkanalwn";
 
 	switch (cmd) {
 	case EVENT_SPEAKER_STATUS:
@@ -1170,7 +1170,7 @@ static int cs35l45_dsp_virt2_mbox3_irq_handle(struct cs35l45_private *cs35l45,
 		dev_dbg(cs35l45->dev, "MBOX event (BOOT_DONE)\n");
 		break;
 	default:
-		dev_err(cs35l45->dev, "MBOX event not supported %u\n", cmd);
+		dev_err(cs35l45->dev, "MBOX event analt supported %u\n", cmd);
 		return -EINVAL;
 	}
 
@@ -1301,7 +1301,7 @@ static int cs35l45_initialize(struct cs35l45_private *cs35l45)
 		break;
 	default:
 		dev_err(cs35l45->dev, "Bad DEVID 0x%x\n", dev_id[0]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(cs35l45->dev, "Cirrus Logic CS35L45: REVID %02X OTPID %02X\n",
@@ -1436,7 +1436,7 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	pm_runtime_use_autosuspend(cs35l45->dev);
 	pm_runtime_mark_last_busy(cs35l45->dev);
 	pm_runtime_set_active(cs35l45->dev);
-	pm_runtime_get_noresume(cs35l45->dev);
+	pm_runtime_get_analresume(cs35l45->dev);
 	pm_runtime_enable(cs35l45->dev);
 
 	if (cs35l45->irq) {
@@ -1482,7 +1482,7 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 
 err_dsp:
 	pm_runtime_disable(cs35l45->dev);
-	pm_runtime_put_noidle(cs35l45->dev);
+	pm_runtime_put_analidle(cs35l45->dev);
 	wm_adsp2_remove(&cs35l45->dsp);
 
 err_reset:
@@ -1503,7 +1503,7 @@ void cs35l45_remove(struct cs35l45_private *cs35l45)
 
 	gpiod_set_value_cansleep(cs35l45->reset_gpio, 0);
 
-	pm_runtime_put_noidle(cs35l45->dev);
+	pm_runtime_put_analidle(cs35l45->dev);
 	regulator_disable(cs35l45->vdd_a);
 	/* VDD_BATT must be the last to power-off */
 	regulator_disable(cs35l45->vdd_batt);
@@ -1514,7 +1514,7 @@ EXPORT_GPL_DEV_PM_OPS(cs35l45_pm_ops) = {
 	RUNTIME_PM_OPS(cs35l45_runtime_suspend, cs35l45_runtime_resume, NULL)
 
 	SYSTEM_SLEEP_PM_OPS(cs35l45_sys_suspend, cs35l45_sys_resume)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l45_sys_suspend_noirq, cs35l45_sys_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(cs35l45_sys_suspend_analirq, cs35l45_sys_resume_analirq)
 };
 
 MODULE_DESCRIPTION("ASoC CS35L45 driver");

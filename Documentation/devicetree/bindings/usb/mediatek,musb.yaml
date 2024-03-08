@@ -11,7 +11,7 @@ maintainers:
   - Min Guo <min.guo@mediatek.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^usb@[0-9a-f]+$'
 
   compatible:
@@ -59,7 +59,7 @@ properties:
       - peripheral
 
   power-domains:
-    description: A phandle to USB power domain node to control USB's MTCMOS
+    description: A phandle to USB power domain analde to control USB's MTCMOS
     maxItems: 1
 
   connector:

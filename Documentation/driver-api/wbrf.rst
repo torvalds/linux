@@ -13,11 +13,11 @@ To mitigate possible RFI interference producers can advertise the
 frequencies in use and consumers can use this information to avoid using
 these frequencies for sensitive features.
 
-When a platform is known to have this issue with any contained devices,
+When a platform is kanalwn to have this issue with any contained devices,
 the platform designer will advertise the availability of this feature via
 ACPI devices with a device specific method (_DSM).
 * Producers with this _DSM will be able to advertise the frequencies in use.
-* Consumers with this _DSM will be able to register for notifications of
+* Consumers with this _DSM will be able to register for analtifications of
 frequencies in use.
 
 Some general terms
@@ -28,7 +28,7 @@ Consumer: such component who can adjust its in-use frequency in
 response to the radio frequencies of other components to mitigate the
 possible RFI.
 
-To make the mechanism function, those producers should notify active use
+To make the mechanism function, those producers should analtify active use
 of their particular frequencies so that other consumers can make relative
 internal adjustments as necessary to avoid this resonance.
 
@@ -59,20 +59,20 @@ The expected flow for the producers:
 1. During probe, call `acpi_amd_wbrf_supported_producer` to check if WBRF
 can be enabled for the device.
 2. On using some frequency band, call `acpi_amd_wbrf_add_remove` with 'add'
-param to get other consumers properly notified.
+param to get other consumers properly analtified.
 3. Or on stopping using some frequency band, call
-`acpi_amd_wbrf_add_remove` with 'remove' param to get other consumers notified.
+`acpi_amd_wbrf_add_remove` with 'remove' param to get other consumers analtified.
 
 The expected flow for the consumers:
 1. During probe, call `acpi_amd_wbrf_supported_consumer` to check if WBRF
 can be enabled for the device.
-2. Call `amd_wbrf_register_notifier` to register for notification
+2. Call `amd_wbrf_register_analtifier` to register for analtification
 of frequency band change(add or remove) from other producers.
 3. Call the `amd_wbrf_retrieve_freq_band` initally to retrieve
 current active frequency bands considering some producers may broadcast
 such information before the consumer is up.
-4. On receiving a notification for frequency band change, run
+4. On receiving a analtification for frequency band change, run
 `amd_wbrf_retrieve_freq_band` again to retrieve the latest
 active frequency bands.
-5. During driver cleanup, call `amd_wbrf_unregister_notifier` to
-unregister the notifier.
+5. During driver cleanup, call `amd_wbrf_unregister_analtifier` to
+unregister the analtifier.

@@ -88,22 +88,22 @@ void ieee80211_apply_vhtcap_overrides(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < 8; i++) {
 		u8 m, n, c;
 
-		m = (rxmcs_mask >> 2*i) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
-		n = (rxmcs_n >> 2*i) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
-		c = (rxmcs_cap >> 2*i) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		m = (rxmcs_mask >> 2*i) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
+		n = (rxmcs_n >> 2*i) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
+		c = (rxmcs_cap >> 2*i) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 
-		if (m && ((c != IEEE80211_VHT_MCS_NOT_SUPPORTED && n < c) ||
-			  n == IEEE80211_VHT_MCS_NOT_SUPPORTED)) {
+		if (m && ((c != IEEE80211_VHT_MCS_ANALT_SUPPORTED && n < c) ||
+			  n == IEEE80211_VHT_MCS_ANALT_SUPPORTED)) {
 			rxmcs_cap &= ~(3 << 2*i);
 			rxmcs_cap |= (rxmcs_n & (3 << 2*i));
 		}
 
-		m = (txmcs_mask >> 2*i) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
-		n = (txmcs_n >> 2*i) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
-		c = (txmcs_cap >> 2*i) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		m = (txmcs_mask >> 2*i) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
+		n = (txmcs_n >> 2*i) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
+		c = (txmcs_cap >> 2*i) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 
-		if (m && ((c != IEEE80211_VHT_MCS_NOT_SUPPORTED && n < c) ||
-			  n == IEEE80211_VHT_MCS_NOT_SUPPORTED)) {
+		if (m && ((c != IEEE80211_VHT_MCS_ANALT_SUPPORTED && n < c) ||
+			  n == IEEE80211_VHT_MCS_ANALT_SUPPORTED)) {
 			txmcs_cap &= ~(3 << 2*i);
 			txmcs_cap |= (txmcs_n & (3 << 2*i));
 		}
@@ -137,7 +137,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	have_80mhz = false;
 	for (i = 0; i < sband->n_channels; i++) {
 		if (sband->channels[i].flags & (IEEE80211_CHAN_DISABLED |
-						IEEE80211_CHAN_NO_80MHZ))
+						IEEE80211_CHAN_ANAL_80MHZ))
 			continue;
 
 		have_80mhz = true;
@@ -193,7 +193,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 		break;
 	default:
-		/* nothing */
+		/* analthing */
 		break;
 	}
 
@@ -243,37 +243,37 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 		u16 own_rx, own_tx, peer_rx, peer_tx;
 
 		own_rx = le16_to_cpu(own_cap.vht_mcs.rx_mcs_map);
-		own_rx = (own_rx >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		own_rx = (own_rx >> i * 2) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 
 		own_tx = le16_to_cpu(own_cap.vht_mcs.tx_mcs_map);
-		own_tx = (own_tx >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		own_tx = (own_tx >> i * 2) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 
 		peer_rx = le16_to_cpu(vht_cap->vht_mcs.rx_mcs_map);
-		peer_rx = (peer_rx >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		peer_rx = (peer_rx >> i * 2) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 
 		peer_tx = le16_to_cpu(vht_cap->vht_mcs.tx_mcs_map);
-		peer_tx = (peer_tx >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		peer_tx = (peer_tx >> i * 2) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 
-		if (peer_tx != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
-			if (own_rx == IEEE80211_VHT_MCS_NOT_SUPPORTED)
-				peer_tx = IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		if (peer_tx != IEEE80211_VHT_MCS_ANALT_SUPPORTED) {
+			if (own_rx == IEEE80211_VHT_MCS_ANALT_SUPPORTED)
+				peer_tx = IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 			else if (own_rx < peer_tx)
 				peer_tx = own_rx;
 		}
 
-		if (peer_rx != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
-			if (own_tx == IEEE80211_VHT_MCS_NOT_SUPPORTED)
-				peer_rx = IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		if (peer_rx != IEEE80211_VHT_MCS_ANALT_SUPPORTED) {
+			if (own_tx == IEEE80211_VHT_MCS_ANALT_SUPPORTED)
+				peer_rx = IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 			else if (own_tx < peer_rx)
 				peer_rx = own_tx;
 		}
 
 		vht_cap->vht_mcs.rx_mcs_map &=
-			~cpu_to_le16(IEEE80211_VHT_MCS_NOT_SUPPORTED << i * 2);
+			~cpu_to_le16(IEEE80211_VHT_MCS_ANALT_SUPPORTED << i * 2);
 		vht_cap->vht_mcs.rx_mcs_map |= cpu_to_le16(peer_rx << i * 2);
 
 		vht_cap->vht_mcs.tx_mcs_map &=
-			~cpu_to_le16(IEEE80211_VHT_MCS_NOT_SUPPORTED << i * 2);
+			~cpu_to_le16(IEEE80211_VHT_MCS_ANALT_SUPPORTED << i * 2);
 		vht_cap->vht_mcs.tx_mcs_map |= cpu_to_le16(peer_tx << i * 2);
 	}
 
@@ -289,7 +289,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	if (vht_cap->vht_mcs.rx_mcs_map == cpu_to_le16(0xFFFF)) {
 		vht_cap->vht_supported = false;
 		sdata_info(sdata,
-			   "Ignoring VHT IE from %pM (link:%pM) due to invalid rx_mcs_map\n",
+			   "Iganalring VHT IE from %pM (link:%pM) due to invalid rx_mcs_map\n",
 			   link_sta->sta->addr, link_sta->addr);
 		return;
 	}
@@ -308,7 +308,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 			break;
 
 		/*
-		 * If this is non-zero, then it does support 160 MHz after all,
+		 * If this is analn-zero, then it does support 160 MHz after all,
 		 * in one form or the other. We don't distinguish here (or even
 		 * above) between 160 and 80+80 yet.
 		 */
@@ -349,7 +349,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_recalc_aggregates(&link_sta->sta->sta);
 }
 
-/* FIXME: move this to some better location - parses HE/EHT now */
+/* FIXME: move this to some better location - parses HE/EHT analw */
 enum ieee80211_sta_rx_bandwidth
 ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
 {
@@ -413,7 +413,7 @@ out:
 		return IEEE80211_STA_RX_BW_160;
 
 	/*
-	 * If this is non-zero, then it does support 160 MHz after all,
+	 * If this is analn-zero, then it does support 160 MHz after all,
 	 * in one form or the other. We don't distinguish here (or even
 	 * above) between 160 and 80+80 yet.
 	 */
@@ -431,7 +431,7 @@ ieee80211_sta_cap_chan_bw(struct link_sta_info *link_sta)
 
 	if (!vht_cap->vht_supported) {
 		if (!link_sta->pub->ht_cap.ht_supported)
-			return NL80211_CHAN_WIDTH_20_NOHT;
+			return NL80211_CHAN_WIDTH_20_ANALHT;
 
 		return link_sta->pub->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				NL80211_CHAN_WIDTH_40 : NL80211_CHAN_WIDTH_20;
@@ -459,7 +459,7 @@ ieee80211_sta_rx_bw_to_chan_width(struct link_sta_info *link_sta)
 	switch (cur_bw) {
 	case IEEE80211_STA_RX_BW_20:
 		if (!link_sta->pub->ht_cap.ht_supported)
-			return NL80211_CHAN_WIDTH_20_NOHT;
+			return NL80211_CHAN_WIDTH_20_ANALHT;
 		else
 			return NL80211_CHAN_WIDTH_20;
 	case IEEE80211_STA_RX_BW_40:
@@ -483,7 +483,7 @@ enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 {
 	switch (width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_20:
 		return IEEE80211_STA_RX_BW_20;
 	case NL80211_CHAN_WIDTH_40:
@@ -501,7 +501,7 @@ ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 	}
 }
 
-/* FIXME: rename/move - this deals with everything not just VHT */
+/* FIXME: rename/move - this deals with everything analt just VHT */
 enum ieee80211_sta_rx_bandwidth
 ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta)
 {
@@ -513,7 +513,7 @@ ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta)
 	rcu_read_lock();
 	link_conf = rcu_dereference(sta->sdata->vif.link_conf[link_sta->link_id]);
 	if (WARN_ON(!link_conf))
-		bss_width = NL80211_CHAN_WIDTH_20_NOHT;
+		bss_width = NL80211_CHAN_WIDTH_20_ANALHT;
 	else
 		bss_width = link_conf->chandef.width;
 	rcu_read_unlock();
@@ -546,7 +546,7 @@ void ieee80211_sta_set_rx_nss(struct link_sta_info *link_sta)
 	u8 ht_rx_nss = 0, vht_rx_nss = 0, he_rx_nss = 0, eht_rx_nss = 0, rx_nss;
 	bool support_160;
 
-	/* if we received a notification already don't overwrite it */
+	/* if we received a analtification already don't overwrite it */
 	if (link_sta->pub->rx_nss)
 		return;
 
@@ -572,7 +572,7 @@ void ieee80211_sta_set_rx_nss(struct link_sta_info *link_sta)
 		for (i = 7; i >= 0; i--) {
 			u8 mcs_160 = (mcs_160_map >> (2 * i)) & 3;
 
-			if (mcs_160 != IEEE80211_HE_MCS_NOT_SUPPORTED) {
+			if (mcs_160 != IEEE80211_HE_MCS_ANALT_SUPPORTED) {
 				rx_mcs_160 = i + 1;
 				break;
 			}
@@ -580,7 +580,7 @@ void ieee80211_sta_set_rx_nss(struct link_sta_info *link_sta)
 		for (i = 7; i >= 0; i--) {
 			u8 mcs_80 = (mcs_80_map >> (2 * i)) & 3;
 
-			if (mcs_80 != IEEE80211_HE_MCS_NOT_SUPPORTED) {
+			if (mcs_80 != IEEE80211_HE_MCS_ANALT_SUPPORTED) {
 				rx_mcs_80 = i + 1;
 				break;
 			}
@@ -616,7 +616,7 @@ void ieee80211_sta_set_rx_nss(struct link_sta_info *link_sta)
 		for (i = 7; i >= 0; i--) {
 			u8 mcs = (rx_mcs_map >> (2 * i)) & 3;
 
-			if (mcs != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+			if (mcs != IEEE80211_VHT_MCS_ANALT_SUPPORTED) {
 				vht_rx_nss = i + 1;
 				break;
 			}
@@ -639,12 +639,12 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 	u32 changed = 0;
 	u8 nss, cur_nss;
 
-	/* ignore - no support for BF yet */
-	if (opmode & IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF)
+	/* iganalre - anal support for BF yet */
+	if (opmode & IEEE80211_OPMODE_ANALTIF_RX_NSS_TYPE_BF)
 		return 0;
 
-	nss = opmode & IEEE80211_OPMODE_NOTIF_RX_NSS_MASK;
-	nss >>= IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
+	nss = opmode & IEEE80211_OPMODE_ANALTIF_RX_NSS_MASK;
+	nss >>= IEEE80211_OPMODE_ANALTIF_RX_NSS_SHIFT;
 	nss += 1;
 
 	if (link_sta->pub->rx_nss != nss) {
@@ -654,7 +654,7 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 		 */
 		link_sta->pub->rx_nss = 0;
 		ieee80211_sta_set_rx_nss(link_sta);
-		/* Do not allow an nss change to rx_nss greater than max_nss
+		/* Do analt allow an nss change to rx_nss greater than max_nss
 		 * negotiated and capped to APs capability during association.
 		 */
 		if (nss <= link_sta->pub->rx_nss) {
@@ -664,28 +664,28 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 			sta_opmode.changed |= STA_OPMODE_N_SS_CHANGED;
 		} else {
 			link_sta->pub->rx_nss = cur_nss;
-			pr_warn_ratelimited("Ignoring NSS change in VHT Operating Mode Notification from %pM with invalid nss %d",
+			pr_warn_ratelimited("Iganalring NSS change in VHT Operating Mode Analtification from %pM with invalid nss %d",
 					    link_sta->pub->addr, nss);
 		}
 	}
 
-	switch (opmode & IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK) {
-	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ:
-		/* ignore IEEE80211_OPMODE_NOTIF_BW_160_80P80 must not be set */
+	switch (opmode & IEEE80211_OPMODE_ANALTIF_CHANWIDTH_MASK) {
+	case IEEE80211_OPMODE_ANALTIF_CHANWIDTH_20MHZ:
+		/* iganalre IEEE80211_OPMODE_ANALTIF_BW_160_80P80 must analt be set */
 		link_sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_20;
 		break;
-	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ:
-		/* ignore IEEE80211_OPMODE_NOTIF_BW_160_80P80 must not be set */
+	case IEEE80211_OPMODE_ANALTIF_CHANWIDTH_40MHZ:
+		/* iganalre IEEE80211_OPMODE_ANALTIF_BW_160_80P80 must analt be set */
 		link_sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_40;
 		break;
-	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_80MHZ:
-		if (opmode & IEEE80211_OPMODE_NOTIF_BW_160_80P80)
+	case IEEE80211_OPMODE_ANALTIF_CHANWIDTH_80MHZ:
+		if (opmode & IEEE80211_OPMODE_ANALTIF_BW_160_80P80)
 			link_sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
 		else
 			link_sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
 		break;
-	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_160MHZ:
-		/* legacy only, no longer used by newer spec */
+	case IEEE80211_OPMODE_ANALTIF_CHANWIDTH_160MHZ:
+		/* legacy only, anal longer used by newer spec */
 		link_sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
 		break;
 	}
@@ -699,7 +699,7 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sta_opmode.changed)
-		cfg80211_sta_opmode_change_notify(sdata->dev, link_sta->addr,
+		cfg80211_sta_opmode_change_analtify(sdata->dev, link_sta->addr,
 						  &sta_opmode, GFP_KERNEL);
 
 	return changed;
@@ -714,20 +714,20 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 	if (!link_conf->mu_mimo_owner)
 		return;
 
-	if (!memcmp(mgmt->u.action.u.vht_group_notif.position,
+	if (!memcmp(mgmt->u.action.u.vht_group_analtif.position,
 		    link_conf->mu_group.position, WLAN_USER_POSITION_LEN) &&
-	    !memcmp(mgmt->u.action.u.vht_group_notif.membership,
+	    !memcmp(mgmt->u.action.u.vht_group_analtif.membership,
 		    link_conf->mu_group.membership, WLAN_MEMBERSHIP_LEN))
 		return;
 
 	memcpy(link_conf->mu_group.membership,
-	       mgmt->u.action.u.vht_group_notif.membership,
+	       mgmt->u.action.u.vht_group_analtif.membership,
 	       WLAN_MEMBERSHIP_LEN);
 	memcpy(link_conf->mu_group.position,
-	       mgmt->u.action.u.vht_group_notif.position,
+	       mgmt->u.action.u.vht_group_analtif.position,
 	       WLAN_USER_POSITION_LEN);
 
-	ieee80211_link_info_change_notify(sdata, link,
+	ieee80211_link_info_change_analtify(sdata, link,
 					  BSS_CHANGED_MU_GROUPS);
 }
 
@@ -773,7 +773,7 @@ void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
 	u16 mask, cap = le16_to_cpu(vht_cap);
 
 	for (i = 0; i < NL80211_VHT_NSS_MAX; i++) {
-		mask = (cap >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		mask = (cap >> i * 2) & IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 		switch (mask) {
 		case IEEE80211_VHT_MCS_SUPPORT_0_7:
 			vht_mask[i] = 0x00FF;
@@ -784,7 +784,7 @@ void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
 		case IEEE80211_VHT_MCS_SUPPORT_0_9:
 			vht_mask[i] = 0x03FF;
 			break;
-		case IEEE80211_VHT_MCS_NOT_SUPPORTED:
+		case IEEE80211_VHT_MCS_ANALT_SUPPORTED:
 		default:
 			vht_mask[i] = 0;
 			break;

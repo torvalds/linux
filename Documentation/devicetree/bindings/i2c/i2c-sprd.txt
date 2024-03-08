@@ -12,10 +12,10 @@ Required properties:
 - clocks: Should contain a clock specifier for each entry in clock-names.
 - clock-frequency: Contains desired I2C bus clock frequency in Hz.
 - #address-cells: Should be 1 to describe address cells for I2C device address.
-- #size-cells: Should be 0 means no size cell for I2C device address.
+- #size-cells: Should be 0 means anal size cell for I2C device address.
 
 Optional properties:
-- Child nodes conforming to I2C bus binding
+- Child analdes conforming to I2C bus binding
 
 Examples:
 i2c0: i2c@70500000 {

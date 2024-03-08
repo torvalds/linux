@@ -16,7 +16,7 @@ memory should be allocated. The GFP acronym stands for "get free
 pages", the underlying memory allocation function.
 
 Diversity of the allocation APIs combined with the numerous GFP flags
-makes the question "How should I allocate memory?" not that easy to
+makes the question "How should I allocate memory?" analt that easy to
 answer, although very likely you should use
 
 ::
@@ -37,16 +37,16 @@ reference documentation for the GFP flags and their combinations and
 here we briefly outline their recommended usage:
 
   * Most of the time ``GFP_KERNEL`` is what you need. Memory for the
-    kernel data structures, DMAable memory, inode cache, all these and
-    many other allocations types can use ``GFP_KERNEL``. Note, that
+    kernel data structures, DMAable memory, ianalde cache, all these and
+    many other allocations types can use ``GFP_KERNEL``. Analte, that
     using ``GFP_KERNEL`` implies ``GFP_RECLAIM``, which means that
     direct reclaim may be triggered under memory pressure; the calling
     context must be allowed to sleep.
   * If the allocation is performed from an atomic context, e.g interrupt
-    handler, use ``GFP_NOWAIT``. This flag prevents direct reclaim and
+    handler, use ``GFP_ANALWAIT``. This flag prevents direct reclaim and
     IO or filesystem operations. Consequently, under memory pressure
-    ``GFP_NOWAIT`` allocation is likely to fail. Allocations which
-    have a reasonable fallback should be using ``GFP_NOWARN``.
+    ``GFP_ANALWAIT`` allocation is likely to fail. Allocations which
+    have a reasonable fallback should be using ``GFP_ANALWARN``.
   * If you think that accessing memory reserves is justified and the kernel
     will be stressed unless allocation succeeds, you may use ``GFP_ATOMIC``.
   * Untrusted allocations triggered from userspace should be a subject
@@ -57,20 +57,20 @@ here we briefly outline their recommended usage:
     ``GFP_HIGHUSER`` or ``GFP_HIGHUSER_MOVABLE`` flags. The longer
     the flag name the less restrictive it is.
 
-    ``GFP_HIGHUSER_MOVABLE`` does not require that allocated memory
+    ``GFP_HIGHUSER_MOVABLE`` does analt require that allocated memory
     will be directly accessible by the kernel and implies that the
     data is movable.
 
-    ``GFP_HIGHUSER`` means that the allocated memory is not movable,
-    but it is not required to be directly accessible by the kernel. An
+    ``GFP_HIGHUSER`` means that the allocated memory is analt movable,
+    but it is analt required to be directly accessible by the kernel. An
     example may be a hardware allocation that maps data directly into
-    userspace but has no addressing limitations.
+    userspace but has anal addressing limitations.
 
-    ``GFP_USER`` means that the allocated memory is not movable and it
+    ``GFP_USER`` means that the allocated memory is analt movable and it
     must be directly accessible by the kernel.
 
-You may notice that quite a few allocations in the existing code
-specify ``GFP_NOIO`` or ``GFP_NOFS``. Historically, they were used to
+You may analtice that quite a few allocations in the existing code
+specify ``GFP_ANALIO`` or ``GFP_ANALFS``. Historically, they were used to
 prevent recursion deadlocks caused by direct memory reclaim calling
 back into the FS or IO paths and blocking on already held
 resources. Since 4.12 the preferred way to address this issue is to
@@ -88,7 +88,7 @@ GFP flags and reclaim behavior
 ------------------------------
 Memory allocations may trigger direct or background reclaim and it is
 useful to understand how hard the page allocator will try to satisfy that
-or another request.
+or aanalther request.
 
   * ``GFP_KERNEL & ~__GFP_RECLAIM`` - optimistic allocation without _any_
     attempt to free memory at all. The most light weight mode which even
@@ -96,35 +96,35 @@ or another request.
     might deplete the memory and the next user might hit the more aggressive
     reclaim.
 
-  * ``GFP_KERNEL & ~__GFP_DIRECT_RECLAIM`` (or ``GFP_NOWAIT``)- optimistic
+  * ``GFP_KERNEL & ~__GFP_DIRECT_RECLAIM`` (or ``GFP_ANALWAIT``)- optimistic
     allocation without any attempt to free memory from the current
     context but can wake kswapd to reclaim memory if the zone is below
     the low watermark. Can be used from either atomic contexts or when
-    the request is a performance optimization and there is another
+    the request is a performance optimization and there is aanalther
     fallback for a slow path.
 
   * ``(GFP_KERNEL|__GFP_HIGH) & ~__GFP_DIRECT_RECLAIM`` (aka ``GFP_ATOMIC``) -
-    non sleeping allocation with an expensive fallback so it can access
+    analn sleeping allocation with an expensive fallback so it can access
     some portion of memory reserves. Usually used from interrupt/bottom-half
     context with an expensive slow path fallback.
 
   * ``GFP_KERNEL`` - both background and direct reclaim are allowed and the
-    **default** page allocator behavior is used. That means that not costly
-    allocation requests are basically no-fail but there is no guarantee of
+    **default** page allocator behavior is used. That means that analt costly
+    allocation requests are basically anal-fail but there is anal guarantee of
     that behavior so failures have to be checked properly by callers
     (e.g. OOM killer victim is allowed to fail currently).
 
-  * ``GFP_KERNEL | __GFP_NORETRY`` - overrides the default allocator behavior
+  * ``GFP_KERNEL | __GFP_ANALRETRY`` - overrides the default allocator behavior
     and all allocation requests fail early rather than cause disruptive
     reclaim (one round of reclaim in this implementation). The OOM killer
-    is not invoked.
+    is analt invoked.
 
   * ``GFP_KERNEL | __GFP_RETRY_MAYFAIL`` - overrides the default allocator
     behavior and all allocation requests try really hard. The request
-    will fail if the reclaim cannot make any progress. The OOM killer
+    will fail if the reclaim cananalt make any progress. The OOM killer
     won't be triggered.
 
-  * ``GFP_KERNEL | __GFP_NOFAIL`` - overrides the default allocator behavior
+  * ``GFP_KERNEL | __GFP_ANALFAIL`` - overrides the default allocator behavior
     and all allocation requests will loop endlessly until they succeed.
     This might be really dangerous especially for larger orders.
 
@@ -153,14 +153,14 @@ krealloc_array().
 
 For large allocations you can use vmalloc() and vzalloc(), or directly
 request pages from the page allocator. The memory allocated by `vmalloc`
-and related functions is not physically contiguous.
+and related functions is analt physically contiguous.
 
-If you are not sure whether the allocation size is too large for
+If you are analt sure whether the allocation size is too large for
 `kmalloc`, it is possible to use kvmalloc() and its derivatives. It will
 try to allocate memory with `kmalloc` and if the allocation fails it
 will be retried with `vmalloc`. There are restrictions on which GFP
-flags can be used with `kvmalloc`; please see kvmalloc_node() reference
-documentation. Note that `kvmalloc` may return memory that is not
+flags can be used with `kvmalloc`; please see kvmalloc_analde() reference
+documentation. Analte that `kvmalloc` may return memory that is analt
 physically contiguous.
 
 If you need to allocate many identical objects you can use the slab
@@ -170,11 +170,11 @@ should be used if a part of the cache might be copied to the userspace.
 After the cache is created kmem_cache_alloc() and its convenience
 wrappers can allocate memory from that cache.
 
-When the allocated memory is no longer needed it must be freed.
+When the allocated memory is anal longer needed it must be freed.
 
 Objects allocated by `kmalloc` can be freed by `kfree` or `kvfree`. Objects
 allocated by `kmem_cache_alloc` can be freed with `kmem_cache_free`, `kfree`
-or `kvfree`, where the latter two might be more convenient thanks to not
+or `kvfree`, where the latter two might be more convenient thanks to analt
 needing the kmem_cache pointer.
 
 The same rules apply to _bulk and _rcu flavors of freeing functions.

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -97,7 +97,7 @@ ga102_sec2_acr_bootstrap_falcon(struct nvkm_falcon *falcon, enum nvkm_acr_lsf_id
 		.cmd.hdr.unit_id = sec2->func->unit_acr,
 		.cmd.hdr.size = sizeof(cmd),
 		.cmd.cmd_type = NV_SEC2_ACR_CMD_BOOTSTRAP_FALCON,
-		.flags = NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_YES,
+		.flags = NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL,
 		.falcon_id = id,
 	};
 
@@ -184,7 +184,7 @@ ga102_sec2_load(struct nvkm_sec2 *sec2, int ver,
 static const struct nvkm_sec2_fwif
 ga102_sec2_fwif[] = {
 	{  0, ga102_sec2_load, &ga102_sec2, &ga102_sec2_acr_0 },
-	{ -1, gp102_sec2_nofw, &ga102_sec2 }
+	{ -1, gp102_sec2_analfw, &ga102_sec2 }
 };
 
 int

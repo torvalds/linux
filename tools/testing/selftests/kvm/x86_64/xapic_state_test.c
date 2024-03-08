@@ -56,7 +56,7 @@ static void ____test_icr(struct xapic_vcpu *x, uint64_t val)
 
 	/*
 	 * Tell the guest what ICR value to write.  Use the IRR to pass info,
-	 * all bits are valid and should not be modified by KVM (ignoring the
+	 * all bits are valid and should analt be modified by KVM (iganalring the
 	 * fact that vectors 0-15 are technically illegal).
 	 */
 	vcpu_ioctl(vcpu, KVM_GET_LAPIC, &xapic);
@@ -110,8 +110,8 @@ static void test_icr(struct xapic_vcpu *x)
 		__test_icr(x, icr | i);
 
 	/*
-	 * Send all flavors of IPIs to non-existent vCPUs.  TODO: use number of
-	 * vCPUs, not vcpu.id + 1.  Arbitrarily use vector 0xff.
+	 * Send all flavors of IPIs to analn-existent vCPUs.  TODO: use number of
+	 * vCPUs, analt vcpu.id + 1.  Arbitrarily use vector 0xff.
 	 */
 	icr = APIC_INT_ASSERT | 0xff;
 	for (i = 0; i < 0xff; i++) {
@@ -145,7 +145,7 @@ static void __test_apic_id(struct kvm_vcpu *vcpu, uint64_t apic_base)
 	apic_id = *((u32 *)&xapic.regs[APIC_ID]);
 
 	TEST_ASSERT(apic_id == expected,
-		    "APIC_ID not set back to %s format; wanted = %x, got = %x",
+		    "APIC_ID analt set back to %s format; wanted = %x, got = %x",
 		    (apic_base & X2APIC_ENABLE) ? "x2APIC" : "xAPIC",
 		    expected, apic_id);
 }
@@ -173,9 +173,9 @@ static void test_apic_id(void)
 		apic_base = vcpu_get_msr(vcpus[i], MSR_IA32_APICBASE);
 
 		TEST_ASSERT(apic_base & MSR_IA32_APICBASE_ENABLE,
-			    "APIC not in ENABLED state at vCPU RESET");
+			    "APIC analt in ENABLED state at vCPU RESET");
 		TEST_ASSERT(!(apic_base & X2APIC_ENABLE),
-			    "APIC not in xAPIC mode at vCPU RESET");
+			    "APIC analt in xAPIC mode at vCPU RESET");
 
 		__test_apic_id(vcpus[i], apic_base);
 		__test_apic_id(vcpus[i], apic_base | X2APIC_ENABLE);

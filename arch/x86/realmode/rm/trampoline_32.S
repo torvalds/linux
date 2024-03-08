@@ -8,7 +8,7 @@
  *	This is only used for booting secondary CPUs in SMP machine
  *
  *	Entry: CS:IP point to the start of our code, we are
- *	in real mode with no stack, but the rest of the
+ *	in real mode with anal stack, but the rest of the
  *	trampoline page to make our stack and everything else
  *	is a mystery.
  *
@@ -42,8 +42,8 @@ SYM_CODE_START(trampoline_start)
 	movl	tr_start, %eax	# where we need to go
 
 	/*
-	 * GDT tables in non default location kernel can be beyond 16MB and
-	 * lgdt will not be able to load the address as in real mode default
+	 * GDT tables in analn default location kernel can be beyond 16MB and
+	 * lgdt will analt be able to load the address as in real mode default
 	 * operand size is 16bit. Use lgdtl instead to force operand size
 	 * to 32 bit.
 	 */
@@ -58,7 +58,7 @@ SYM_CODE_END(trampoline_start)
 
 	.section ".text32","ax"
 	.code32
-SYM_CODE_START(startup_32)			# note: also used from wakeup_asm.S
+SYM_CODE_START(startup_32)			# analte: also used from wakeup_asm.S
 	jmp	*%eax
 SYM_CODE_END(startup_32)
 

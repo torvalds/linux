@@ -9,12 +9,12 @@
  * Copyright (C) 2003-2004 Amit S. Kale <amitkale@linsyssoft.com>
  * Copyright (C) 2004 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2004-2006 Tom Rini <trini@kernel.crashing.org>
- * Copyright (C) 2004-2006 LinSysSoft Technologies Pvt. Ltd.
+ * Copyright (C) 2004-2006 LinSysSoft Techanallogies Pvt. Ltd.
  * Copyright (C) 2005-2009 Wind River Systems, Inc.
  * Copyright (C) 2007 MontaVista Software, Inc.
  * Copyright (C) 2008 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  *
- * Contributors at various stages not listed above:
+ * Contributors at various stages analt listed above:
  *  Jason Wessel ( jason.wessel@windriver.com )
  *  George Anzinger <george@mvista.com>
  *  Anurekh Saxena (anurekh.saxena@timesys.com)
@@ -79,7 +79,7 @@ static int gdbstub_read_wait(void)
 static int gdbstub_read_wait(void)
 {
 	int ret = dbg_io_ops->read_char();
-	while (ret == NO_POLL_CHAR)
+	while (ret == ANAL_POLL_CHAR)
 		ret = dbg_io_ops->read_char();
 	return ret;
 }
@@ -94,11 +94,11 @@ static void get_packet(char *buffer)
 
 	do {
 		/*
-		 * Spin and wait around for the start character, ignore all
+		 * Spin and wait around for the start character, iganalre all
 		 * other characters:
 		 */
 		while ((ch = (gdbstub_read_wait())) != '$')
-			/* nothing */;
+			/* analthing */;
 
 		kgdb_connected = 1;
 		checksum = 0;
@@ -107,7 +107,7 @@ static void get_packet(char *buffer)
 		count = 0;
 
 		/*
-		 * now, read until a # or end of buffer is found:
+		 * analw, read until a # or end of buffer is found:
 		 */
 		while (count < (BUFMAX - 1)) {
 			ch = gdbstub_read_wait();
@@ -165,7 +165,7 @@ static void put_packet(char *buffer)
 		if (dbg_io_ops->flush)
 			dbg_io_ops->flush();
 
-		/* Now see what we get in reply. */
+		/* Analw see what we get in reply. */
 		ch = gdbstub_read_wait();
 
 		if (ch == 3)
@@ -176,7 +176,7 @@ static void put_packet(char *buffer)
 			return;
 
 		/*
-		 * If we get the start of another packet, this means
+		 * If we get the start of aanalther packet, this means
 		 * that GDB is attempting to reconnect.  We will NAK
 		 * the packet being sent, and stop trying to send this
 		 * packet.
@@ -244,7 +244,7 @@ char *kgdb_mem2hex(char *mem, char *buf, int count)
 	 */
 	tmp = buf + count;
 
-	err = copy_from_kernel_nofault(tmp, mem, count);
+	err = copy_from_kernel_analfault(tmp, mem, count);
 	if (err)
 		return NULL;
 	while (count > 0) {
@@ -280,7 +280,7 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
 		*tmp_raw |= hex_to_bin(*tmp_hex--) << 4;
 	}
 
-	return copy_to_kernel_nofault(mem, tmp_raw, count);
+	return copy_to_kernel_analfault(mem, tmp_raw, count);
 }
 
 /*
@@ -332,7 +332,7 @@ static int kgdb_ebin2mem(char *buf, char *mem, int count)
 		size++;
 	}
 
-	return copy_to_kernel_nofault(mem, c, size);
+	return copy_to_kernel_analfault(mem, c, size);
 }
 
 #if DBG_MAX_REG_NUM > 0
@@ -430,7 +430,7 @@ static void int_to_threadref(unsigned char *id, int value)
 static struct task_struct *getthread(struct pt_regs *regs, int tid)
 {
 	/*
-	 * Non-positive TIDs are remapped to the cpu shadow information
+	 * Analn-positive TIDs are remapped to the cpu shadow information
 	 */
 	if (tid == 0 || tid == -1)
 		tid = -atomic_read(&kgdb_active) - 2;
@@ -447,7 +447,7 @@ static struct task_struct *getthread(struct pt_regs *regs, int tid)
 	}
 
 	/*
-	 * find_task_by_pid_ns() does not take the tasklist lock anymore
+	 * find_task_by_pid_ns() does analt take the tasklist lock anymore
 	 * but is nicely RCU locked - hence is a pretty resilient
 	 * thing to use:
 	 */
@@ -456,7 +456,7 @@ static struct task_struct *getthread(struct pt_regs *regs, int tid)
 
 
 /*
- * Remap normal tasks to their real PID,
+ * Remap analrmal tasks to their real PID,
  * CPU shadow threads are mapped to -CPU - 2
  */
 static inline int shadow_pid(int realpid)
@@ -477,15 +477,15 @@ static inline int shadow_pid(int realpid)
 static void gdb_cmd_status(struct kgdb_state *ks)
 {
 	/*
-	 * We know that this packet is only sent
+	 * We kanalw that this packet is only sent
 	 * during initial connect.  So to be safe,
-	 * we clear out our breakpoints now in case
+	 * we clear out our breakpoints analw in case
 	 * GDB is reconnecting.
 	 */
 	dbg_remove_all_break();
 
 	remcom_out_buffer[0] = 'S';
-	hex_byte_pack(&remcom_out_buffer[1], ks->signo);
+	hex_byte_pack(&remcom_out_buffer[1], ks->siganal);
 }
 
 static void gdb_get_regs_helper(struct kgdb_state *ks)
@@ -503,7 +503,7 @@ static void gdb_get_regs_helper(struct kgdb_state *ks)
 		for_each_online_cpu(i) {
 			/*
 			 * Try to find the task on some other
-			 * or possibly this node if we do not
+			 * or possibly this analde if we do analt
 			 * find the matching task then we try
 			 * to approximate the results.
 			 */
@@ -521,11 +521,11 @@ static void gdb_get_regs_helper(struct kgdb_state *ks)
 		pt_regs_to_gdb_regs(gdb_regs, local_debuggerinfo);
 	} else {
 		/*
-		 * Pull stuff saved during switch_to; nothing
+		 * Pull stuff saved during switch_to; analthing
 		 * else is accessible (or even particularly
 		 * relevant).
 		 *
-		 * This should be enough for a stack trace.
+		 * This should be eanalugh for a stack trace.
 		 */
 		sleeping_thread_to_gdb_regs(gdb_regs, thread);
 	}
@@ -662,7 +662,7 @@ static void gdb_cmd_detachkill(struct kgdb_state *ks)
 		put_packet(remcom_out_buffer);
 	} else {
 		/*
-		 * Assume the kill case, with no exit code checking,
+		 * Assume the kill case, with anal exit code checking,
 		 * trying to force detach the debugger:
 		 */
 		dbg_remove_all_break();
@@ -673,14 +673,14 @@ static void gdb_cmd_detachkill(struct kgdb_state *ks)
 /* Handle the 'R' reboot packets */
 static int gdb_cmd_reboot(struct kgdb_state *ks)
 {
-	/* For now, only honor R0 */
+	/* For analw, only hoanalr R0 */
 	if (strcmp(remcom_in_buffer, "R0") == 0) {
 		printk(KERN_CRIT "Executing emergency reboot\n");
 		strcpy(remcom_out_buffer, "OK");
 		put_packet(remcom_out_buffer);
 
 		/*
-		 * Execution should not return from
+		 * Execution should analt return from
 		 * machine_emergency_restart()
 		 */
 		machine_emergency_restart();
@@ -938,7 +938,7 @@ static int gdb_cmd_exception_pass(struct kgdb_state *ks)
 		return 1;
 
 	} else {
-		gdbstub_msg_write("KGDB only knows signal 9 (pass)"
+		gdbstub_msg_write("KGDB only kanalws signal 9 (pass)"
 			" and 15 (pass and disconnect)\n"
 			"Executing a continue without signal passing\n", 0);
 		remcom_in_buffer[0] = 'c';
@@ -969,7 +969,7 @@ int gdb_serial_stub(struct kgdb_state *ks)
 		/* Reply to host that an exception has occurred */
 		ptr = remcom_out_buffer;
 		*ptr++ = 'T';
-		ptr = hex_byte_pack(ptr, ks->signo);
+		ptr = hex_byte_pack(ptr, ks->siganal);
 		ptr += strlen(strcpy(ptr, "thread:"));
 		int_to_threadref(thref, shadow_pid(current->pid));
 		ptr = pack_threadid(ptr, thref);
@@ -1062,7 +1062,7 @@ int gdb_serial_stub(struct kgdb_state *ks)
 		default:
 default_handle:
 			error = kgdb_arch_handle_exception(ks->ex_vector,
-						ks->signo,
+						ks->siganal,
 						ks->err_code,
 						remcom_in_buffer,
 						remcom_out_buffer,
@@ -1096,7 +1096,7 @@ int gdbstub_state(struct kgdb_state *ks, char *cmd)
 	switch (cmd[0]) {
 	case 'e':
 		error = kgdb_arch_handle_exception(ks->ex_vector,
-						   ks->signo,
+						   ks->siganal,
 						   ks->err_code,
 						   remcom_in_buffer,
 						   remcom_out_buffer,

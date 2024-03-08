@@ -2,7 +2,7 @@
 /*
  * dlmast.c
  *
- * AST and BAST functionality for local and remote nodes
+ * AST and BAST functionality for local and remote analdes
  *
  * Copyright (C) 2004 Oracle.  All rights reserved.
  */
@@ -22,7 +22,7 @@
 
 
 #include "../cluster/heartbeat.h"
-#include "../cluster/nodemanager.h"
+#include "../cluster/analdemanager.h"
 #include "../cluster/tcp.h"
 
 #include "dlmapi.h"
@@ -38,12 +38,12 @@ static int dlm_should_cancel_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 /* Should be called as an ast gets queued to see if the new
  * lock level will obsolete a pending bast.
  * For example, if dlm_thread queued a bast for an EX lock that
- * was blocking another EX, but before sending the bast the
- * lock owner downconverted to NL, the bast is now obsolete.
+ * was blocking aanalther EX, but before sending the bast the
+ * lock owner downconverted to NL, the bast is analw obsolete.
  * Only the ast should be sent.
  * This is needed because the lock and convert paths can queue
- * asts out-of-band (not waiting for dlm_thread) in order to
- * allow for LKM_NOQUEUE to get immediate responses. */
+ * asts out-of-band (analt waiting for dlm_thread) in order to
+ * allow for LKM_ANALQUEUE to get immediate responses. */
 static int dlm_should_cancel_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 {
 	assert_spin_locked(&dlm->ast_lock);
@@ -62,7 +62,7 @@ static int dlm_should_cancel_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 		/* EX blocks anything left, any bast still valid */
 		return 0;
 	else if (lock->ml.type == LKM_NLMODE)
-		/* NL blocks nothing, no reason to send any bast, cancel it */
+		/* NL blocks analthing, anal reason to send any bast, cancel it */
 		return 1;
 	else if (lock->ml.highest_blocked != LKM_EXMODE)
 		/* PR only blocks EX */
@@ -84,9 +84,9 @@ void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 
 	if (!list_empty(&lock->ast_list)) {
 		mlog(ML_ERROR, "%s: res %.*s, lock %u:%llu, "
-		     "AST list not empty, pending %d, newlevel %d\n",
+		     "AST list analt empty, pending %d, newlevel %d\n",
 		     dlm->name, res->lockname.len, res->lockname.name,
-		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ast_pending, lock->ml.type);
 		BUG();
@@ -94,7 +94,7 @@ void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 	if (lock->ast_pending)
 		mlog(0, "%s: res %.*s, lock %u:%llu, AST getting flushed\n",
 		     dlm->name, res->lockname.len, res->lockname.name,
-		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)));
 
 	/* putting lock on list, add a ref */
@@ -105,19 +105,19 @@ void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 	if (dlm_should_cancel_bast(dlm, lock)) {
 		mlog(0, "%s: res %.*s, lock %u:%llu, Cancelling BAST\n",
 		     dlm->name, res->lockname.len, res->lockname.name,
-		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)));
 		lock->bast_pending = 0;
 		list_del_init(&lock->bast_list);
 		lock->ml.highest_blocked = LKM_IVMODE;
 		/* removing lock from list, remove a ref.  guaranteed
 		 * this won't be the last ref because of the get above,
-		 * so res->spinlock will not be taken here */
+		 * so res->spinlock will analt be taken here */
 		dlm_lock_put(lock);
 		/* free up the reserved bast that we are cancelling.
-		 * guaranteed that this will not be the last reserved
+		 * guaranteed that this will analt be the last reserved
 		 * ast because *both* an ast and a bast were reserved
-		 * to get to this point.  the res->spinlock will not be
+		 * to get to this point.  the res->spinlock will analt be
 		 * taken here */
 		dlm_lockres_release_ast(dlm, res);
 	}
@@ -152,7 +152,7 @@ void __dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 	if (lock->bast_pending)
 		mlog(0, "%s: res %.*s, lock %u:%llu, BAST getting flushed\n",
 		     dlm->name, res->lockname.len, res->lockname.name,
-		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)));
 
 	/* putting lock on list, add a ref */
@@ -169,17 +169,17 @@ static void dlm_update_lvb(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	struct dlm_lockstatus *lksb = lock->lksb;
 	BUG_ON(!lksb);
 
-	/* only updates if this node masters the lockres */
+	/* only updates if this analde masters the lockres */
 	spin_lock(&res->spinlock);
-	if (res->owner == dlm->node_num) {
+	if (res->owner == dlm->analde_num) {
 		/* check the lksb flags for the direction */
 		if (lksb->flags & DLM_LKSB_GET_LVB) {
-			mlog(0, "getting lvb from lockres for %s node\n",
-				  lock->ml.node == dlm->node_num ? "master" :
+			mlog(0, "getting lvb from lockres for %s analde\n",
+				  lock->ml.analde == dlm->analde_num ? "master" :
 				  "remote");
 			memcpy(lksb->lvb, res->lvb, DLM_LVB_LEN);
 		}
-		/* Do nothing for lvb put requests - they should be done in
+		/* Do analthing for lvb put requests - they should be done in
  		 * place when the lock is downconverted - otherwise we risk
  		 * racing gets and puts which could result in old lvb data
  		 * being propagated. We leave the put flag set and clear it
@@ -200,11 +200,11 @@ void dlm_do_local_ast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 
 	mlog(0, "%s: res %.*s, lock %u:%llu, Local AST\n", dlm->name,
 	     res->lockname.len, res->lockname.name,
-	     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+	     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 	     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)));
 
 	fn = lock->ast;
-	BUG_ON(lock->ml.node != dlm->node_num);
+	BUG_ON(lock->ml.analde != dlm->analde_num);
 
 	dlm_update_lvb(dlm, res, lock);
 	(*fn)(lock->astdata);
@@ -220,16 +220,16 @@ int dlm_do_remote_ast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 
 	mlog(0, "%s: res %.*s, lock %u:%llu, Remote AST\n", dlm->name,
 	     res->lockname.len, res->lockname.name,
-	     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+	     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 	     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)));
 
 	lksb = lock->lksb;
-	BUG_ON(lock->ml.node == dlm->node_num);
+	BUG_ON(lock->ml.analde == dlm->analde_num);
 
 	lksbflags = lksb->flags;
 	dlm_update_lvb(dlm, res, lock);
 
-	/* lock request came from another node
+	/* lock request came from aanalther analde
 	 * go do the ast over there */
 	ret = dlm_send_proxy_ast(dlm, res, lock, lksbflags);
 	return ret;
@@ -240,11 +240,11 @@ void dlm_do_local_bast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 {
 	dlm_bastlockfunc_t *fn = lock->bast;
 
-	BUG_ON(lock->ml.node != dlm->node_num);
+	BUG_ON(lock->ml.analde != dlm->analde_num);
 
 	mlog(0, "%s: res %.*s, lock %u:%llu, Local BAST, blocked %d\n",
 	     dlm->name, res->lockname.len, res->lockname.name,
-	     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+	     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 	     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 	     blocked_type);
 
@@ -266,7 +266,7 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 	struct list_head *head = NULL;
 	__be64 cookie;
 	u32 flags;
-	u8 node;
+	u8 analde;
 
 	if (!dlm_grab(dlm)) {
 		dlm_error(DLM_REJECTED);
@@ -274,13 +274,13 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	mlog_bug_on_msg(!dlm_domain_fully_joined(dlm),
-			"Domain %s not fully joined!\n", dlm->name);
+			"Domain %s analt fully joined!\n", dlm->name);
 
 	name = past->name;
 	locklen = past->namelen;
 	cookie = past->cookie;
 	flags = be32_to_cpu(past->flags);
-	node = past->node_idx;
+	analde = past->analde_idx;
 
 	if (locklen > DLM_LOCKID_NAME_MAX) {
 		ret = DLM_IVBUFLEN;
@@ -298,34 +298,34 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	mlog(0, "lvb: %s\n", flags & LKM_PUT_LVB ? "put lvb" :
-		  (flags & LKM_GET_LVB ? "get lvb" : "none"));
+		  (flags & LKM_GET_LVB ? "get lvb" : "analne"));
 
 	mlog(0, "type=%d, blocked_type=%d\n", past->type, past->blocked_type);
 
 	if (past->type != DLM_AST &&
 	    past->type != DLM_BAST) {
-		mlog(ML_ERROR, "Unknown ast type! %d, cookie=%u:%llu"
-		     "name=%.*s, node=%u\n", past->type,
-		     dlm_get_lock_cookie_node(be64_to_cpu(cookie)),
+		mlog(ML_ERROR, "Unkanalwn ast type! %d, cookie=%u:%llu"
+		     "name=%.*s, analde=%u\n", past->type,
+		     dlm_get_lock_cookie_analde(be64_to_cpu(cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(cookie)),
-		     locklen, name, node);
+		     locklen, name, analde);
 		ret = DLM_IVLOCKID;
 		goto leave;
 	}
 
 	res = dlm_lookup_lockres(dlm, name, locklen);
 	if (!res) {
-		mlog(0, "Got %sast for unknown lockres! cookie=%u:%llu, "
-		     "name=%.*s, node=%u\n", (past->type == DLM_AST ? "" : "b"),
-		     dlm_get_lock_cookie_node(be64_to_cpu(cookie)),
+		mlog(0, "Got %sast for unkanalwn lockres! cookie=%u:%llu, "
+		     "name=%.*s, analde=%u\n", (past->type == DLM_AST ? "" : "b"),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(cookie)),
-		     locklen, name, node);
+		     locklen, name, analde);
 		ret = DLM_IVLOCKID;
 		goto leave;
 	}
 
-	/* cannot get a proxy ast message if this node owns it */
-	BUG_ON(res->owner == dlm->node_num);
+	/* cananalt get a proxy ast message if this analde owns it */
+	BUG_ON(res->owner == dlm->analde_num);
 
 	mlog(0, "%s: res %.*s\n", dlm->name, res->lockname.len,
 	     res->lockname.name);
@@ -349,14 +349,14 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 			goto do_ast;
 	}
 
-	/* if not on convert, try blocked for ast, granted for bast */
+	/* if analt on convert, try blocked for ast, granted for bast */
 	if (past->type == DLM_AST)
 		head = &res->blocked;
 	else
 		head = &res->granted;
 
 	list_for_each_entry(lock, head, list) {
-		/* if lock is found but unlock is pending ignore the bast */
+		/* if lock is found but unlock is pending iganalre the bast */
 		if (lock->ml.cookie == cookie) {
 			if (lock->unlock_pending)
 				break;
@@ -364,25 +364,25 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 		}
 	}
 
-	mlog(0, "Got %sast for unknown lock! cookie=%u:%llu, name=%.*s, "
-	     "node=%u\n", past->type == DLM_AST ? "" : "b",
-	     dlm_get_lock_cookie_node(be64_to_cpu(cookie)),
+	mlog(0, "Got %sast for unkanalwn lock! cookie=%u:%llu, name=%.*s, "
+	     "analde=%u\n", past->type == DLM_AST ? "" : "b",
+	     dlm_get_lock_cookie_analde(be64_to_cpu(cookie)),
 	     dlm_get_lock_cookie_seq(be64_to_cpu(cookie)),
-	     locklen, name, node);
+	     locklen, name, analde);
 
-	ret = DLM_NORMAL;
+	ret = DLM_ANALRMAL;
 unlock_out:
 	spin_unlock(&res->spinlock);
 	goto leave;
 
 do_ast:
-	ret = DLM_NORMAL;
+	ret = DLM_ANALRMAL;
 	if (past->type == DLM_AST) {
-		/* do not alter lock refcount.  switching lists. */
+		/* do analt alter lock refcount.  switching lists. */
 		list_move_tail(&lock->list, &res->granted);
 		mlog(0, "%s: res %.*s, lock %u:%llu, Granted type %d => %d\n",
 		     dlm->name, res->lockname.len, res->lockname.name,
-		     dlm_get_lock_cookie_node(be64_to_cpu(cookie)),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(cookie)),
 		     lock->ml.type, lock->ml.convert_type);
 
@@ -393,9 +393,9 @@ do_ast:
 			// should already be there....
 		}
 
-		lock->lksb->status = DLM_NORMAL;
+		lock->lksb->status = DLM_ANALRMAL;
 
-		/* if we requested the lvb, fetch it into our lksb now */
+		/* if we requested the lvb, fetch it into our lksb analw */
 		if (flags & LKM_GET_LVB) {
 			BUG_ON(!(lock->lksb->flags & DLM_LKSB_GET_LVB));
 			memcpy(lock->lksb->lvb, past->lvb, DLM_LVB_LEN);
@@ -429,11 +429,11 @@ int dlm_send_proxy_ast_msg(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	int status;
 
 	mlog(0, "%s: res %.*s, to %u, type %d, blocked_type %d\n", dlm->name,
-	     res->lockname.len, res->lockname.name, lock->ml.node, msg_type,
+	     res->lockname.len, res->lockname.name, lock->ml.analde, msg_type,
 	     blocked_type);
 
 	memset(&past, 0, sizeof(struct dlm_proxy_ast));
-	past.node_idx = dlm->node_num;
+	past.analde_idx = dlm->analde_num;
 	past.type = msg_type;
 	past.blocked_type = blocked_type;
 	past.namelen = res->lockname.len;
@@ -450,24 +450,24 @@ int dlm_send_proxy_ast_msg(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	}
 
 	ret = o2net_send_message_vec(DLM_PROXY_AST_MSG, dlm->key, vec, veclen,
-				     lock->ml.node, &status);
+				     lock->ml.analde, &status);
 	if (ret < 0)
-		mlog(ML_ERROR, "%s: res %.*s, error %d send AST to node %u\n",
+		mlog(ML_ERROR, "%s: res %.*s, error %d send AST to analde %u\n",
 		     dlm->name, res->lockname.len, res->lockname.name, ret,
-		     lock->ml.node);
+		     lock->ml.analde);
 	else {
 		if (status == DLM_RECOVERING) {
-			mlog(ML_ERROR, "sent AST to node %u, it thinks this "
-			     "node is dead!\n", lock->ml.node);
+			mlog(ML_ERROR, "sent AST to analde %u, it thinks this "
+			     "analde is dead!\n", lock->ml.analde);
 			BUG();
 		} else if (status == DLM_MIGRATING) {
-			mlog(ML_ERROR, "sent AST to node %u, it returned "
-			     "DLM_MIGRATING!\n", lock->ml.node);
+			mlog(ML_ERROR, "sent AST to analde %u, it returned "
+			     "DLM_MIGRATING!\n", lock->ml.analde);
 			BUG();
-		} else if (status != DLM_NORMAL && status != DLM_IVLOCKID) {
-			mlog(ML_ERROR, "AST to node %u returned %d!\n",
-			     lock->ml.node, status);
-			/* ignore it */
+		} else if (status != DLM_ANALRMAL && status != DLM_IVLOCKID) {
+			mlog(ML_ERROR, "AST to analde %u returned %d!\n",
+			     lock->ml.analde, status);
+			/* iganalre it */
 		}
 		ret = 0;
 	}

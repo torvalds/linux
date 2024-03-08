@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2020 Linaro Ltd
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  */
 #ifndef ___DTPM_H__
 #define ___DTPM_H__
@@ -32,24 +32,24 @@ struct dtpm_ops {
 	void (*release)(struct dtpm *);
 };
 
-struct device_node;
+struct device_analde;
 
 struct dtpm_subsys_ops {
 	const char *name;
 	int (*init)(void);
 	void (*exit)(void);
-	int (*setup)(struct dtpm *, struct device_node *);
+	int (*setup)(struct dtpm *, struct device_analde *);
 };
 
-enum DTPM_NODE_TYPE {
-	DTPM_NODE_VIRTUAL = 0,
-	DTPM_NODE_DT,
+enum DTPM_ANALDE_TYPE {
+	DTPM_ANALDE_VIRTUAL = 0,
+	DTPM_ANALDE_DT,
 };
 
-struct dtpm_node {
-	enum DTPM_NODE_TYPE type;
+struct dtpm_analde {
+	enum DTPM_ANALDE_TYPE type;
 	const char *name;
-	struct dtpm_node *parent;
+	struct dtpm_analde *parent;
 };
 
 static inline struct dtpm *to_dtpm(struct powercap_zone *zone)

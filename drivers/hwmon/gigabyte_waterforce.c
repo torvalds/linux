@@ -183,11 +183,11 @@ static int waterforce_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = DIV_ROUND_CLOSEST(priv->duty_input[channel] * 255, 100);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;	/* unreachable */
+		return -EOPANALTSUPP;	/* unreachable */
 	}
 
 	return 0;
@@ -204,7 +204,7 @@ static int waterforce_read_string(struct device *dev, enum hwmon_sensor_types ty
 		*str = waterforce_speed_label[channel];
 		break;
 	default:
-		return -EOPNOTSUPP;	/* unreachable */
+		return -EOPANALTSUPP;	/* unreachable */
 	}
 
 	return 0;
@@ -301,7 +301,7 @@ static void waterforce_debugfs_init(struct waterforce_data *priv)
 	char name[64];
 
 	if (!priv->firmware_version)
-		return;	/* There's nothing to show in debugfs */
+		return;	/* There's analthing to show in debugfs */
 
 	scnprintf(name, sizeof(name), "%s-%s", DRIVER_NAME, dev_name(&priv->hdev->dev));
 
@@ -316,7 +316,7 @@ static int waterforce_probe(struct hid_device *hdev, const struct hid_device_id 
 
 	priv = devm_kzalloc(&hdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->hdev = hdev;
 	hid_set_drvdata(hdev, priv);
@@ -351,7 +351,7 @@ static int waterforce_probe(struct hid_device *hdev, const struct hid_device_id 
 
 	priv->buffer = devm_kzalloc(&hdev->dev, MAX_REPORT_LENGTH, GFP_KERNEL);
 	if (!priv->buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_and_close;
 	}
 

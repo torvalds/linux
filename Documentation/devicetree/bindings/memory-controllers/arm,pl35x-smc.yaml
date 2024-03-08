@@ -12,12 +12,12 @@ maintainers:
 description: |
   The PL35x Static Memory Controller is a bus where you can connect two kinds
   of memory interfaces, which are NAND and memory mapped interfaces (such as
-  SRAM or NOR) depending on the specific configuration.
+  SRAM or ANALR) depending on the specific configuration.
 
   The TRM is available here:
   https://documentation-service.arm.com/static/5e8e2524fd977155116a58aa
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -29,7 +29,7 @@ select:
     - compatible
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^memory-controller@[0-9a-f]+$"
 
   compatible:
@@ -74,9 +74,9 @@ patternProperties:
     type: object
     additionalProperties: true
     description: |
-      The child device node represents the controller connected to the SMC
+      The child device analde represents the controller connected to the SMC
       bus. The controller can be a NAND controller or a pair of any memory
-      mapped controllers such as NOR and SRAM controllers.
+      mapped controllers such as ANALR and SRAM controllers.
 
     properties:
       compatible:
@@ -142,8 +142,8 @@ examples:
       clock-names = "memclk", "apb_pclk";
       clocks = <&clkc 11>, <&clkc 44>;
       ranges = <0x0 0x0 0xe1000000 0x1000000 /* Nand CS region */
-                0x1 0x0 0xe2000000 0x2000000 /* SRAM/NOR CS0 region */
-                0x2 0x0 0xe4000000 0x2000000>; /* SRAM/NOR CS1 region */
+                0x1 0x0 0xe2000000 0x2000000 /* SRAM/ANALR CS0 region */
+                0x2 0x0 0xe4000000 0x2000000>; /* SRAM/ANALR CS1 region */
       #address-cells = <2>;
       #size-cells = <1>;
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -43,8 +43,8 @@
 
 int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 {
-	u32 max_num_physical_nodes;
-	u32 max_physical_node_id;
+	u32 max_num_physical_analdes;
+	u32 max_physical_analde_id;
 	u32 xgmi_lfb_cntl;
 	u32 max_region;
 	u64 seg_size;
@@ -69,16 +69,16 @@ int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		max_num_physical_nodes   = 4;
-		max_physical_node_id     = 3;
+		max_num_physical_analdes   = 4;
+		max_physical_analde_id     = 3;
 		break;
 	case CHIP_ARCTURUS:
-		max_num_physical_nodes   = 8;
-		max_physical_node_id     = 7;
+		max_num_physical_analdes   = 8;
+		max_physical_analde_id     = 7;
 		break;
 	case CHIP_ALDEBARAN:
-		max_num_physical_nodes   = 16;
-		max_physical_node_id     = 15;
+		max_num_physical_analdes   = 16;
+		max_physical_analde_id     = 15;
 		break;
 	default:
 		return -EINVAL;
@@ -86,25 +86,25 @@ int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 
 	/* PF_MAX_REGION=0 means xgmi is disabled */
 	if (max_region || adev->gmc.xgmi.connected_to_cpu) {
-		adev->gmc.xgmi.num_physical_nodes = max_region + 1;
+		adev->gmc.xgmi.num_physical_analdes = max_region + 1;
 
-		if (adev->gmc.xgmi.num_physical_nodes > max_num_physical_nodes)
+		if (adev->gmc.xgmi.num_physical_analdes > max_num_physical_analdes)
 			return -EINVAL;
 
 		if (adev->asic_type == CHIP_ALDEBARAN) {
-			adev->gmc.xgmi.physical_node_id =
+			adev->gmc.xgmi.physical_analde_id =
 				REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL_ALDE,
 						PF_LFB_REGION);
 		} else {
-			adev->gmc.xgmi.physical_node_id =
+			adev->gmc.xgmi.physical_analde_id =
 				REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL,
 						PF_LFB_REGION);
 		}
 
-		if (adev->gmc.xgmi.physical_node_id > max_physical_node_id)
+		if (adev->gmc.xgmi.physical_analde_id > max_physical_analde_id)
 			return -EINVAL;
 
-		adev->gmc.xgmi.node_segment_size = seg_size;
+		adev->gmc.xgmi.analde_segment_size = seg_size;
 	}
 
 	return 0;

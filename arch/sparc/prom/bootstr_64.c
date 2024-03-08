@@ -10,8 +10,8 @@
 #include <linux/init.h>
 #include <asm/oplib.h>
 
-/* WARNING: The boot loader knows that these next three variables come one right
- *          after another in the .data section.  Do not move this stuff into
+/* WARNING: The boot loader kanalws that these next three variables come one right
+ *          after aanalther in the .data section.  Do analt move this stuff into
  *          the .bss section or it will break things.
  */
 
@@ -37,7 +37,7 @@ prom_getbootargs(void)
 	/* This check saves us from a panic when bootfd patches args. */
 	if (bootstr_info.bootstr_valid)
 		return bootstr_info.bootstr_buf;
-	prom_getstring(prom_chosen_node, "bootargs",
+	prom_getstring(prom_chosen_analde, "bootargs",
 		       bootstr_info.bootstr_buf, BARG_LEN);
 	bootstr_info.bootstr_valid = 1;
 	return bootstr_info.bootstr_buf;

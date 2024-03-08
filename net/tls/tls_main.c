@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017, Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -47,7 +47,7 @@
 
 #include "tls.h"
 
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_AUTHOR("Mellaanalx Techanallogies");
 MODULE_DESCRIPTION("Transport Layer Security Support");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS_TCP_ULP("tls");
@@ -76,7 +76,7 @@ enum {
 	.crypto_info = sizeof(struct ci)
 
 #define CIPHER_DESC(cipher,ci,algname,_offloadable) [cipher - TLS_CIPHER_MIN] = {	\
-	.nonce = cipher ## _IV_SIZE, \
+	.analnce = cipher ## _IV_SIZE, \
 	.iv = cipher ## _IV_SIZE, \
 	.key = cipher ## _KEY_SIZE, \
 	.salt = cipher ## _SALT_SIZE, \
@@ -87,8 +87,8 @@ enum {
 	__CIPHER_DESC(ci), \
 }
 
-#define CIPHER_DESC_NONCE0(cipher,ci,algname,_offloadable) [cipher - TLS_CIPHER_MIN] = { \
-	.nonce = 0, \
+#define CIPHER_DESC_ANALNCE0(cipher,ci,algname,_offloadable) [cipher - TLS_CIPHER_MIN] = { \
+	.analnce = 0, \
 	.iv = cipher ## _IV_SIZE, \
 	.key = cipher ## _KEY_SIZE, \
 	.salt = cipher ## _SALT_SIZE, \
@@ -103,7 +103,7 @@ const struct tls_cipher_desc tls_cipher_desc[TLS_CIPHER_MAX + 1 - TLS_CIPHER_MIN
 	CIPHER_DESC(TLS_CIPHER_AES_GCM_128, tls12_crypto_info_aes_gcm_128, "gcm(aes)", true),
 	CIPHER_DESC(TLS_CIPHER_AES_GCM_256, tls12_crypto_info_aes_gcm_256, "gcm(aes)", true),
 	CIPHER_DESC(TLS_CIPHER_AES_CCM_128, tls12_crypto_info_aes_ccm_128, "ccm(aes)", false),
-	CIPHER_DESC_NONCE0(TLS_CIPHER_CHACHA20_POLY1305, tls12_crypto_info_chacha20_poly1305, "rfc7539(chacha20,poly1305)", false),
+	CIPHER_DESC_ANALNCE0(TLS_CIPHER_CHACHA20_POLY1305, tls12_crypto_info_chacha20_poly1305, "rfc7539(chacha20,poly1305)", false),
 	CIPHER_DESC(TLS_CIPHER_SM4_GCM, tls12_crypto_info_sm4_gcm, "gcm(sm4)", false),
 	CIPHER_DESC(TLS_CIPHER_SM4_CCM, tls12_crypto_info_sm4_ccm, "ccm(sm4)", false),
 	CIPHER_DESC(TLS_CIPHER_ARIA_GCM_128, tls12_crypto_info_aria_gcm_128, "gcm(aria)", false),
@@ -151,7 +151,7 @@ int wait_on_pending_writer(struct sock *sk, long *timeo)
 		}
 
 		if (signal_pending(current)) {
-			rc = sock_intr_errno(*timeo);
+			rc = sock_intr_erranal(*timeo);
 			break;
 		}
 
@@ -323,7 +323,7 @@ static void tls_write_space(struct sock *sk)
  * @ctx: TLS context structure
  *
  * Free TLS context. If @sk is %NULL caller guarantees that the socket
- * to which @ctx was attached has no outstanding references.
+ * to which @ctx was attached has anal outstanding references.
  */
 void tls_ctx_free(struct sock *sk, struct tls_context *ctx)
 {
@@ -426,7 +426,7 @@ static __poll_t tls_sk_poll(struct file *file, struct socket *sock,
 	if (skb_queue_empty_lockless(&ctx->rx_list) &&
 	    !tls_strp_msg_ready(ctx) &&
 	    sk_psock_queue_empty(psock))
-		mask &= ~(EPOLLIN | EPOLLRDNORM);
+		mask &= ~(EPOLLIN | EPOLLRDANALRM);
 
 	if (psock)
 		sk_psock_put(sk, psock);
@@ -515,7 +515,7 @@ static int do_tls_getsockopt_tx_zc(struct sock *sk, char __user *optval,
 	return 0;
 }
 
-static int do_tls_getsockopt_no_pad(struct sock *sk, char __user *optval,
+static int do_tls_getsockopt_anal_pad(struct sock *sk, char __user *optval,
 				    int __user *optlen)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
@@ -531,7 +531,7 @@ static int do_tls_getsockopt_no_pad(struct sock *sk, char __user *optval,
 
 	value = -EINVAL;
 	if (ctx->rx_conf == TLS_SW || ctx->rx_conf == TLS_HW)
-		value = ctx->rx_no_pad;
+		value = ctx->rx_anal_pad;
 	if (value < 0)
 		return value;
 
@@ -559,11 +559,11 @@ static int do_tls_getsockopt(struct sock *sk, int optname,
 	case TLS_TX_ZEROCOPY_RO:
 		rc = do_tls_getsockopt_tx_zc(sk, optval, optlen);
 		break;
-	case TLS_RX_EXPECT_NO_PAD:
-		rc = do_tls_getsockopt_no_pad(sk, optval, optlen);
+	case TLS_RX_EXPECT_ANAL_PAD:
+		rc = do_tls_getsockopt_anal_pad(sk, optval, optlen);
 		break;
 	default:
-		rc = -ENOPROTOOPT;
+		rc = -EANALPROTOOPT;
 		break;
 	}
 
@@ -734,7 +734,7 @@ static int do_tls_setsockopt_tx_zc(struct sock *sk, sockptr_t optval,
 	return 0;
 }
 
-static int do_tls_setsockopt_no_pad(struct sock *sk, sockptr_t optval,
+static int do_tls_setsockopt_anal_pad(struct sock *sk, sockptr_t optval,
 				    unsigned int optlen)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
@@ -757,7 +757,7 @@ static int do_tls_setsockopt_no_pad(struct sock *sk, sockptr_t optval,
 	lock_sock(sk);
 	rc = -EINVAL;
 	if (ctx->rx_conf == TLS_SW || ctx->rx_conf == TLS_HW) {
-		ctx->rx_no_pad = val;
+		ctx->rx_anal_pad = val;
 		tls_update_rx_zc_capable(ctx);
 		rc = 0;
 	}
@@ -784,11 +784,11 @@ static int do_tls_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 		rc = do_tls_setsockopt_tx_zc(sk, optval, optlen);
 		release_sock(sk);
 		break;
-	case TLS_RX_EXPECT_NO_PAD:
-		rc = do_tls_setsockopt_no_pad(sk, optval, optlen);
+	case TLS_RX_EXPECT_ANAL_PAD:
+		rc = do_tls_setsockopt_anal_pad(sk, optval, optlen);
 		break;
 	default:
-		rc = -ENOPROTOOPT;
+		rc = -EANALPROTOOPT;
 		break;
 	}
 	return rc;
@@ -950,13 +950,13 @@ static int tls_init(struct sock *sk)
 	 * share the ulp context.
 	 */
 	if (sk->sk_state != TCP_ESTABLISHED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	/* allocate tls context */
 	write_lock_bh(&sk->sk_callback_lock);
 	ctx = tls_ctx_create(sk);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -1010,7 +1010,7 @@ static int tls_get_info(struct sock *sk, struct sk_buff *skb)
 	struct nlattr *start;
 	int err;
 
-	start = nla_nest_start_noflag(skb, INET_ULP_INFO_TLS);
+	start = nla_nest_start_analflag(skb, INET_ULP_INFO_TLS);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -1045,8 +1045,8 @@ static int tls_get_info(struct sock *sk, struct sk_buff *skb)
 		if (err)
 			goto nla_failure;
 	}
-	if (ctx->rx_no_pad) {
-		err = nla_put_flag(skb, TLS_INFO_RX_NO_PAD);
+	if (ctx->rx_anal_pad) {
+		err = nla_put_flag(skb, TLS_INFO_RX_ANAL_PAD);
 		if (err)
 			goto nla_failure;
 	}
@@ -1071,7 +1071,7 @@ static size_t tls_get_info_size(const struct sock *sk)
 		nla_total_size(sizeof(u16)) +	/* TLS_INFO_RXCONF */
 		nla_total_size(sizeof(u16)) +	/* TLS_INFO_TXCONF */
 		nla_total_size(0) +		/* TLS_INFO_ZC_RO_TX */
-		nla_total_size(0) +		/* TLS_INFO_RX_NO_PAD */
+		nla_total_size(0) +		/* TLS_INFO_RX_ANAL_PAD */
 		0;
 
 	return size;
@@ -1083,7 +1083,7 @@ static int __net_init tls_init_net(struct net *net)
 
 	net->mib.tls_statistics = alloc_percpu(struct linux_tls_mib);
 	if (!net->mib.tls_statistics)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = tls_proc_init(net);
 	if (err)

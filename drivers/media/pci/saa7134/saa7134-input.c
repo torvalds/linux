@@ -74,7 +74,7 @@ static int build_key(struct saa7134_dev *dev)
 		if (data == ir->mask_keycode)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_analtimeout(ir->dev, RC_PROTO_UNKANALWN, data,
 					     0);
 		return 0;
 	}
@@ -82,7 +82,7 @@ static int build_key(struct saa7134_dev *dev)
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_analtimeout(ir->dev, RC_PROTO_UNKANALWN, data,
 					     0);
 		} else {
 			rc_keyup(ir->dev);
@@ -91,7 +91,7 @@ static int build_key(struct saa7134_dev *dev)
 	else {	/* IRQ driven mode - handle key press and release in one go */
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_analtimeout(ir->dev, RC_PROTO_UNKANALWN, data,
 					     0);
 			rc_keyup(ir->dev);
 		}
@@ -124,7 +124,7 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_proto *protocol,
 	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
 
 	if (0x40000 & ~gpio)
-		return 0; /* No button press */
+		return 0; /* Anal button press */
 
 	/* poll IR chip */
 	/* weak up the IR chip */
@@ -134,7 +134,7 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_proto *protocol,
 		if ((attempt++) < 10) {
 			/*
 			 * wait a bit for next attempt -
-			 * I don't know how make it better
+			 * I don't kanalw how make it better
 			 */
 			msleep(10);
 			continue;
@@ -151,7 +151,7 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_proto *protocol,
 		return -EIO;
 	}
 
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
@@ -179,10 +179,10 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir,
 	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
 
 	/* GPIO&0x40 is pulsed low when a button is pressed. Don't do
-	   I2C receive if gpio&0x40 is not low. */
+	   I2C receive if gpio&0x40 is analt low. */
 
 	if (gpio & 0x40)
-		return 0;       /* No button press */
+		return 0;       /* Anal button press */
 
 	/* GPIO says there is a button press. Get it. */
 
@@ -194,7 +194,7 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir,
 		return -EIO;
 	}
 
-	/* No button press */
+	/* Anal button press */
 
 	if (b == 0xff)
 		return 0;
@@ -202,7 +202,7 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir,
 	/* Button pressed */
 
 	input_dbg("get_key_msi_tvanywhere_plus: Key = 0x%02X\n", b);
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
@@ -231,10 +231,10 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
 	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
 
 	/* GPIO&0x100 is pulsed low when a button is pressed. Don't do
-	   I2C receive if gpio&0x100 is not low. */
+	   I2C receive if gpio&0x100 is analt low. */
 
 	if (gpio & 0x100)
-		return 0;       /* No button press */
+		return 0;       /* Anal button press */
 
 	/* GPIO says there is a button press. Get it. */
 
@@ -246,7 +246,7 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
 		return -EIO;
 	}
 
-	/* No button press */
+	/* Anal button press */
 
 	if (b == 0xff)
 		return 0;
@@ -254,7 +254,7 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
 	/* Button pressed */
 
 	input_dbg("get_key_kworld_pc150u: Key = 0x%02X\n", b);
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
@@ -275,7 +275,7 @@ static int get_key_purpletv(struct IR_i2c *ir, enum rc_proto *protocol,
 		return -EIO;
 	}
 
-	/* no button press */
+	/* anal button press */
 	if (b==0)
 		return 0;
 
@@ -283,7 +283,7 @@ static int get_key_purpletv(struct IR_i2c *ir, enum rc_proto *protocol,
 	if (b & 0x80)
 		return 1;
 
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
@@ -305,7 +305,7 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_proto *protocol,
 	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
 
 	if (0x400000 & ~gpio)
-		return 0; /* No button press */
+		return 0; /* Anal button press */
 
 	ir->c->addr = 0x5a >> 1;
 
@@ -370,7 +370,7 @@ static int get_key_pinnacle(struct IR_i2c *ir, enum rc_proto *protocol,
 
 	code %= code_modulo;
 
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = code;
 	*toggle = 0;
 
@@ -381,8 +381,8 @@ static int get_key_pinnacle(struct IR_i2c *ir, enum rc_proto *protocol,
 /* The grey pinnacle PCTV remote
  *
  *  There are one issue with this remote:
- *   - I2c packet does not change when the same key is pressed quickly. The workaround
- *     is to hold down each key for about half a second, so that another code is generated
+ *   - I2c packet does analt change when the same key is pressed quickly. The workaround
+ *     is to hold down each key for about half a second, so that aanalther code is generated
  *     in the i2c packet, and the function can distinguish key presses.
  *
  * Sylvain Pasche <sylvain.pasche@gmail.com>
@@ -444,7 +444,7 @@ int saa7134_ir_open(struct rc_dev *rc)
 	struct saa7134_card_ir *ir = dev->remote;
 
 	/* Moved here from saa7134_input_init1() because the latter
-	 * is not called on device resume */
+	 * is analt called on device resume */
 	switch (dev->board) {
 	case SAA7134_BOARD_MD2819:
 	case SAA7134_BOARD_KWORLD_VSTREAM_XPERT:
@@ -514,9 +514,9 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	int err;
 
 	if (dev->has_remote != SAA7134_REMOTE_GPIO)
-		return -ENODEV;
+		return -EANALDEV;
 	if (disable_ir)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* detect & configure */
 	switch (dev->board) {
@@ -765,13 +765,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 	if (NULL == ir_codes) {
 		pr_err("Oops: IR config error [card=%d]\n", dev->board);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ir || !rc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free;
 	}
 
@@ -850,7 +850,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	int rc;
 
 	if (disable_ir) {
-		input_dbg("IR has been disabled, not probing for i2c remote\n");
+		input_dbg("IR has been disabled, analt probing for i2c remote\n");
 		return;
 	}
 
@@ -891,11 +891,11 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from
 		   an existing device. Weird...
-		   REVISIT: might no longer be needed */
+		   REVISIT: might anal longer be needed */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
 		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
-			(1 == rc) ? "yes" : "no");
+			(1 == rc) ? "anal" : "anal");
 		break;
 	case SAA7134_BOARD_SNAZIO_TVPVR_PRO:
 		dev->init_data.name = "SnaZio* TVPVR PRO";
@@ -911,12 +911,12 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		 * MSI TV@nywhere Plus controller doesn't seem to
 		 *  respond to probes unless we read something from
 		 *  an existing device. Weird...
-		 * REVISIT: might no longer be needed
+		 * REVISIT: might anal longer be needed
 		 */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
 		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
-			(rc == 1) ? "yes" : "no");
+			(rc == 1) ? "anal" : "anal");
 		break;
 	case SAA7134_BOARD_KWORLD_PC150U:
 		/* copied and modified from MSI TV@nywhere Plus */
@@ -927,11 +927,11 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from
 		   an existing device. Weird...
-		   REVISIT: might no longer be needed */
+		   REVISIT: might anal longer be needed */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
 		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
-			(1 == rc) ? "yes" : "no");
+			(1 == rc) ? "anal" : "anal");
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		dev->init_data.name = saa7134_boards[dev->board].name;
@@ -976,7 +976,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		info.addr = 0x0b;
 		break;
 	default:
-		input_dbg("No I2C IR support for board %x\n", dev->board);
+		input_dbg("Anal I2C IR support for board %x\n", dev->board);
 		return;
 	}
 

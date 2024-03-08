@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
  * Copyright (c) 2020, Konrad Dybcio <konrad.dybcio@somainline.org>
- * Copyright (c) 2020, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2020, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  */
 
 #include "pm660.dtsi"
@@ -135,12 +135,12 @@
 
 		debug@ffb00000 {
 			reg = <0x00 0xffb00000 0x00 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: splash@9d400000 {
 			reg = <0 0x9d400000 0 (1920 * 1080 * 4)>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -176,7 +176,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f11@11 {
@@ -317,7 +317,7 @@
 			 * This regulator supports 1.648 - 3.104V on this board
 			 * but we set a max voltage of anything less than 2.7V
 			 * to satisfy a condition in sdhci.c that will disable
-			 * 3.3V SDHCI signaling, which happens to be not really
+			 * 3.3V SDHCI signaling, which happens to be analt really
 			 * supported on the Xperia Nile/Ganges platform.
 			 */
 			regulator-min-microvolt = <1648000>;

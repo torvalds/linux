@@ -239,7 +239,7 @@ u32 mtk_jpeg_dec_enum_result(u32 irq_result)
 	if (irq_result & BIT_INQST_MASK_ERROR_BS)
 		return MTK_JPEG_DEC_RESULT_ERROR_BS;
 
-	return MTK_JPEG_DEC_RESULT_ERROR_UNKNOWN;
+	return MTK_JPEG_DEC_RESULT_ERROR_UNKANALWN;
 }
 EXPORT_SYMBOL_GPL(mtk_jpeg_dec_enum_result);
 
@@ -533,7 +533,7 @@ static irqreturn_t mtk_jpegdec_hw_irq_handler(int irq, void *priv)
 		mtk_jpeg_dec_reset(jpeg->reg_base);
 
 	if (dec_irq_ret != MTK_JPEG_DEC_RESULT_EOF_DONE)
-		dev_warn(jpeg->dev, "Jpg Dec occurs unknown Err.");
+		dev_warn(jpeg->dev, "Jpg Dec occurs unkanalwn Err.");
 
 	jpeg_src_buf =
 		container_of(src_buf, struct mtk_jpeg_src_buf, b);
@@ -601,7 +601,7 @@ static int mtk_jpegdec_hw_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->plat_dev = pdev;
 	dev->dev = &pdev->dev;

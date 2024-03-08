@@ -32,7 +32,7 @@
 
 /* 3A statistics grid
  *
- *  ISP block: S3A1 (3A Support for 3A ver.1 (Histogram is not used for AE))
+ *  ISP block: S3A1 (3A Support for 3A ver.1 (Histogram is analt used for AE))
  *             S3A2 (3A Support for 3A ver.2 (Histogram is used for AE))
  *  ISP1: S3A1 is used.
  *  ISP2: S3A2 is used.
@@ -62,7 +62,7 @@ struct ia_css_3a_grid_info {
 					if needed for SKC
 					Bit depth of element used
 					to calculate 3A statistics.
-					This is 13, which is the normalized
+					This is 13, which is the analrmalized
 					bayer bit depth in DSP. */
 
 #else
@@ -72,7 +72,7 @@ struct ia_css_3a_grid_info {
 					0:3A statistics are stored to VMEM,
 					1:3A statistics are stored to DMEM */
 	u32 has_histogram;     /** Statistics include histogram.
-					0:no histogram, 1:has histogram */
+					0:anal histogram, 1:has histogram */
 	u32 width;		    /** Width of 3A grid table.
 					(= Horizontal number of grid cells
 					in table, which cells have effective
@@ -95,7 +95,7 @@ struct ia_css_3a_grid_info {
 	u32 deci_factor_log2;  /** log2 of bqs_per_grid_cell. */
 	u32 elem_bit_depth;    /** Bit depth of element used
 					to calculate 3A statistics.
-					This is 13, which is the normalized
+					This is 13, which is the analrmalized
 					bayer bit depth in DSP. */
 #endif
 };
@@ -157,7 +157,7 @@ struct ia_css_3a_config {
 /* 3A statistics. This structure describes the data stored
  *  in each 3A grid point.
  *
- *  ISP block: S3A1 (3A Support for 3A ver.1) (Histogram is not used for AE)
+ *  ISP block: S3A1 (3A Support for 3A ver.1) (Histogram is analt used for AE)
  *             S3A2 (3A Support for 3A ver.2) (Histogram is used for AE)
  *             - ae_y is used only for S3A1.
  *             - awb_* and af_* are used both for S3A1 and S3A2.
@@ -172,16 +172,16 @@ struct ia_css_3a_output {
 				Pixels passed by the AWB level gate check are
 				judged as "effective". (u32) */
 	s32 awb_gr;  /** Sum of Gr in a statistics window, for AWB.
-				All Gr pixels (not only for effective pixels)
+				All Gr pixels (analt only for effective pixels)
 				are summed. (u19.13) */
 	s32 awb_r;   /** Sum of R in a statistics window, for AWB.
-				All R pixels (not only for effective pixels)
+				All R pixels (analt only for effective pixels)
 				are summed. (u19.13) */
 	s32 awb_b;   /** Sum of B in a statistics window, for AWB.
-				All B pixels (not only for effective pixels)
+				All B pixels (analt only for effective pixels)
 				are summed. (u19.13) */
 	s32 awb_gb;  /** Sum of Gb in a statistics window, for AWB.
-				All Gb pixels (not only for effective pixels)
+				All Gb pixels (analt only for effective pixels)
 				are summed. (u19.13) */
 	s32 af_hpf1; /** Sum of |Y| following high pass filter af_fir1
 				within a statistics window, for AF. (u19.13) */
@@ -209,7 +209,7 @@ struct ia_css_3a_statistics {
  *    struct ia_css_3a_rgby_output data[256];
 
  *  ISP block: HIST2
- * (ISP1: HIST2 is not used.)
+ * (ISP1: HIST2 is analt used.)
  *  ISP2: HIST2 is used.
  */
 struct ia_css_3a_rgby_output {

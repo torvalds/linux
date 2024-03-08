@@ -2,7 +2,7 @@
 /*
  * RTC subsystem, dev interface
  *
- * Copyright (C) 2005 Tower Technologies
+ * Copyright (C) 2005 Tower Techanallogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * based on arch/arm/common/rtctime.c
@@ -18,11 +18,11 @@
 
 static dev_t rtc_devt;
 
-#define RTC_DEV_MAX 16 /* 16 RTCs should be enough for everyone... */
+#define RTC_DEV_MAX 16 /* 16 RTCs should be eanalugh for everyone... */
 
-static int rtc_dev_open(struct inode *inode, struct file *file)
+static int rtc_dev_open(struct ianalde *ianalde, struct file *file)
 {
-	struct rtc_device *rtc = container_of(inode->i_cdev,
+	struct rtc_device *rtc = container_of(ianalde->i_cdev,
 					struct rtc_device, char_dev);
 
 	if (test_and_set_bit_lock(RTC_DEV_BUSY, &rtc->flags))
@@ -163,7 +163,7 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			ret = 0;
 			break;
 		}
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -197,7 +197,7 @@ static __poll_t rtc_dev_poll(struct file *file, poll_table *wait)
 
 	data = rtc->irq_data;
 
-	return (data != 0) ? (EPOLLIN | EPOLLRDNORM) : 0;
+	return (data != 0) ? (EPOLLIN | EPOLLRDANALRM) : 0;
 }
 
 static long rtc_dev_ioctl(struct file *file,
@@ -243,7 +243,7 @@ static long rtc_dev_ioctl(struct file *file,
 		goto done;
 
 	/*
-	 * Drivers *SHOULD NOT* provide ioctl implementations
+	 * Drivers *SHOULD ANALT* provide ioctl implementations
 	 * for these requests.  Instead, provide methods to
 	 * support the following code, so that the RTC's main
 	 * features are accessible without using ioctls.
@@ -282,21 +282,21 @@ static long rtc_dev_ioctl(struct file *file,
 		 * for day/month/year fields, just force the alarm to have
 		 * the right values for those fields.
 		 *
-		 * RTC_WKALM_SET should be used instead.  Not only does it
+		 * RTC_WKALM_SET should be used instead.  Analt only does it
 		 * eliminate the need for a separate RTC_AIE_ON call, it
 		 * doesn't have the "alarm 23:59:59 in the future" race.
 		 *
-		 * NOTE:  some legacy code may have used invalid fields as
+		 * ANALTE:  some legacy code may have used invalid fields as
 		 * wildcards, exposing hardware "periodic alarm" capabilities.
-		 * Not supported here.
+		 * Analt supported here.
 		 */
 		{
-			time64_t now, then;
+			time64_t analw, then;
 
 			err = rtc_read_time(rtc, &tm);
 			if (err < 0)
 				return err;
-			now = rtc_tm_to_time64(&tm);
+			analw = rtc_tm_to_time64(&tm);
 
 			alarm.time.tm_mday = tm.tm_mday;
 			alarm.time.tm_mon = tm.tm_mon;
@@ -307,8 +307,8 @@ static long rtc_dev_ioctl(struct file *file,
 			then = rtc_tm_to_time64(&alarm.time);
 
 			/* alarm may need to wrap into tomorrow */
-			if (then < now) {
-				rtc_time64_to_tm(now + 24 * 60 * 60, &tm);
+			if (then < analw) {
+				rtc_time64_to_tm(analw + 24 * 60 * 60, &tm);
 				alarm.time.tm_mday = tm.tm_mday;
 				alarm.time.tm_mon = tm.tm_mon;
 				alarm.time.tm_year = tm.tm_year;
@@ -451,10 +451,10 @@ static long rtc_dev_ioctl(struct file *file,
 		/* Finally try the driver's ioctl interface */
 		if (ops->ioctl) {
 			err = ops->ioctl(rtc->dev.parent, cmd, arg);
-			if (err == -ENOIOCTLCMD)
-				err = -ENOTTY;
+			if (err == -EANALIOCTLCMD)
+				err = -EANALTTY;
 		} else {
-			err = -ENOTTY;
+			err = -EANALTTY;
 		}
 		break;
 	}
@@ -480,11 +480,11 @@ static long rtc_dev_compat_ioctl(struct file *file,
 		return put_user(rtc->irq_freq, (__u32 __user *)uarg);
 
 	case RTC_IRQP_SET32:
-		/* arg is a plain integer, not pointer */
+		/* arg is a plain integer, analt pointer */
 		return rtc_dev_ioctl(file, RTC_IRQP_SET, arg);
 
 	case RTC_EPOCH_SET32:
-		/* arg is a plain integer, not pointer */
+		/* arg is a plain integer, analt pointer */
 		return rtc_dev_ioctl(file, RTC_EPOCH_SET, arg);
 	}
 
@@ -499,12 +499,12 @@ static int rtc_dev_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &rtc->async_queue);
 }
 
-static int rtc_dev_release(struct inode *inode, struct file *file)
+static int rtc_dev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct rtc_device *rtc = file->private_data;
 
 	/* We shut down the repeating IRQs that userspace enabled,
-	 * since nothing is listening to them.
+	 * since analthing is listening to them.
 	 *  - Update (UIE) ... currently only managed through ioctls
 	 *  - Periodic (PIE) ... also used through rtc_*() interface calls
 	 *
@@ -523,7 +523,7 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 
 static const struct file_operations rtc_dev_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= rtc_dev_read,
 	.poll		= rtc_dev_poll,
 	.unlocked_ioctl	= rtc_dev_ioctl,

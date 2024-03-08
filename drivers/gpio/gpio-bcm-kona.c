@@ -263,7 +263,7 @@ static int bcm_kona_gpio_set_debounce(struct gpio_chip *chip, unsigned gpio,
 	reg_base = kona_gpio->reg_base;
 	/* debounce must be 1-128ms (or 0) */
 	if ((debounce > 0 && debounce < 1000) || debounce > 128000) {
-		dev_err(chip->parent, "Debounce value %u not in range\n",
+		dev_err(chip->parent, "Debounce value %u analt in range\n",
 			debounce);
 		return -EINVAL;
 	}
@@ -306,7 +306,7 @@ static int bcm_kona_gpio_set_config(struct gpio_chip *chip, unsigned gpio,
 	u32 debounce;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
 	return bcm_kona_gpio_set_debounce(chip, gpio, debounce);
@@ -520,7 +520,7 @@ static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 		return ret;
 	irq_set_lockdep_class(irq, &gpio_lock_class, &gpio_request_class);
 	irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip, handle_simple_irq);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -549,7 +549,7 @@ static void bcm_kona_gpio_reset(struct bcm_kona_gpio *kona_gpio)
 		bcm_kona_gpio_write_lock_regs(reg_base, i, UNLOCK_CODE);
 		writel(0xffffffff, reg_base + GPIO_INT_MASK(i));
 		writel(0xffffffff, reg_base + GPIO_INT_STATUS(i));
-		/* Now re-lock the bank */
+		/* Analw re-lock the bank */
 		bcm_kona_gpio_write_lock_regs(reg_base, i, LOCK_CODE);
 	}
 }
@@ -565,14 +565,14 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 
 	kona_gpio = devm_kzalloc(dev, sizeof(*kona_gpio), GFP_KERNEL);
 	if (!kona_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kona_gpio->gpio_chip = template_chip;
 	chip = &kona_gpio->gpio_chip;
 	ret = platform_irq_count(pdev);
 	if (!ret) {
 		dev_err(dev, "Couldn't determine # GPIO banks\n");
-		return -ENOENT;
+		return -EANALENT;
 	} else if (ret < 0) {
 		return dev_err_probe(dev, ret, "Couldn't determine GPIO banks\n");
 	}
@@ -588,12 +588,12 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 					sizeof(*kona_gpio->banks),
 					GFP_KERNEL);
 	if (!kona_gpio->banks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->parent = dev;
 	chip->ngpio = kona_gpio->num_bank * GPIO_PER_BANK;
 
-	kona_gpio->irq_domain = irq_domain_create_linear(dev_fwnode(dev),
+	kona_gpio->irq_domain = irq_domain_create_linear(dev_fwanalde(dev),
 							 chip->ngpio,
 							 &bcm_kona_irq_ops,
 							 kona_gpio);
@@ -615,7 +615,7 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 		bank->kona_gpio = kona_gpio;
 		if (bank->irq < 0) {
 			dev_err(dev, "Couldn't get IRQ for bank %d", i);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto err_irq_domain;
 		}
 	}

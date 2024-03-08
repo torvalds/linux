@@ -221,13 +221,13 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 
 	mvif->mt76.idx = __ffs64(~dev->mt76.vif_mask);
 	if (mvif->mt76.idx >= (MT7915_MAX_INTERFACES << dev->dbdc_support)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
 	idx = get_omac_idx(vif->type, phy->omac_mask);
 	if (idx < 0) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 	mvif->mt76.omac_idx = idx;
@@ -344,7 +344,7 @@ int mt7915_set_channel(struct mt7915_phy *phy)
 	mt7915_mac_cca_stats_reset(phy);
 
 	mt7915_mac_reset_counters(phy);
-	phy->noise = 0;
+	phy->analise = 0;
 
 out:
 	clear_bit(MT76_RESET, &phy->mt76->state);
@@ -374,7 +374,7 @@ static int mt7915_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int idx = key->keyidx;
 	int err = 0;
 
-	/* The hardware does not support per-STA RX GTK, fallback
+	/* The hardware does analt support per-STA RX GTK, fallback
 	 * to software mode for these.
 	 */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -382,7 +382,7 @@ static int mt7915_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* fall back to sw encryption for unsupported ciphers */
 	switch (key->cipher) {
@@ -400,7 +400,7 @@ static int mt7915_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&dev->mt76.mutex);
@@ -513,7 +513,7 @@ mt7915_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 
-	/* no need to update right away, we'll get BSS_CHANGED_QOS */
+	/* anal need to update right away, we'll get BSS_CHANGED_QOS */
 	queue = mt76_connac_lmac_mapping(queue);
 	mvif->queue_params[queue] = *params;
 
@@ -747,7 +747,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
 	if (idx < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	INIT_LIST_HEAD(&msta->rc_list);
 	INIT_LIST_HEAD(&msta->wcid.poll_list);
@@ -895,16 +895,16 @@ static int
 mt7915_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       struct ieee80211_sta *sta)
 {
-	return mt76_sta_state(hw, vif, sta, IEEE80211_STA_NOTEXIST,
-			      IEEE80211_STA_NONE);
+	return mt76_sta_state(hw, vif, sta, IEEE80211_STA_ANALTEXIST,
+			      IEEE80211_STA_ANALNE);
 }
 
 static int
 mt7915_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  struct ieee80211_sta *sta)
 {
-	return mt76_sta_state(hw, vif, sta, IEEE80211_STA_NONE,
-			      IEEE80211_STA_NOTEXIST);
+	return mt76_sta_state(hw, vif, sta, IEEE80211_STA_ANALNE,
+			      IEEE80211_STA_ANALTEXIST);
 }
 
 static int
@@ -1181,8 +1181,8 @@ mt7915_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	 * the below exception cases.
 	 * - single rate : if a rate is passed along with different preambles,
 	 * we select the highest one as fixed rate. i.e VHT MCS for VHT peers.
-	 * - multiple rates: if it's not in range format i.e 0-{7,8,9} for VHT
-	 * then multiple MCS setting (MCS 4,5,6) is not supported.
+	 * - multiple rates: if it's analt in range format i.e 0-{7,8,9} for VHT
+	 * then multiple MCS setting (MCS 4,5,6) is analt supported.
 	 */
 	ieee80211_iterate_stations_atomic(hw, mt7915_sta_rc_work, &changed);
 	ieee80211_queue_work(hw, &dev->rc_work);
@@ -1236,7 +1236,7 @@ static int mt7915_sta_set_txpwr(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	/* NOTE: temporarily use 0 as minimum limit, which is a
+	/* ANALTE: temporarily use 0 as minimum limit, which is a
 	 * global setting and will be applied to all stations.
 	 */
 	ret = mt7915_mcu_set_txpower_frame_min(phy, 0);
@@ -1638,7 +1638,7 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
 	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 
 	if (!mtk_wed_device_active(wed))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (msta->wcid.idx > 0xff)
 		return -EIO;

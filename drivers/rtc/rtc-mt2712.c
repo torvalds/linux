@@ -132,7 +132,7 @@ static irqreturn_t rtc_irq_handler_thread(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void __mt2712_rtc_read_time(struct mt2712_rtc *mt2712_rtc,
@@ -287,12 +287,12 @@ static void mt2712_rtc_hw_init(struct mt2712_rtc *mt2712_rtc)
 	if (p1 != MT2712_POWERKEY1_KEY || p2 != MT2712_POWERKEY2_KEY) {
 		mt2712_rtc->powerlost = true;
 		dev_dbg(&mt2712_rtc->rtc->dev,
-			"powerkey not set (lost power)\n");
+			"powerkey analt set (lost power)\n");
 	} else {
 		mt2712_rtc->powerlost = false;
 	}
 
-	/* RTC need POWERKEY1/2 match, then goto normal work mode */
+	/* RTC need POWERKEY1/2 match, then goto analrmal work mode */
 	mt2712_writel(mt2712_rtc, MT2712_POWERKEY1, MT2712_POWERKEY1_KEY);
 	mt2712_writel(mt2712_rtc, MT2712_POWERKEY2, MT2712_POWERKEY2_KEY);
 	mt2712_rtc_write_trigger(mt2712_rtc);
@@ -316,7 +316,7 @@ static int mt2712_rtc_probe(struct platform_device *pdev)
 	mt2712_rtc = devm_kzalloc(&pdev->dev,
 				  sizeof(struct mt2712_rtc), GFP_KERNEL);
 	if (!mt2712_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mt2712_rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mt2712_rtc->base))

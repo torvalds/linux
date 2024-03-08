@@ -6,7 +6,7 @@
 
 #include "qos.h"
 
-#define MLX5E_QOS_MAX_LEAF_NODES 256
+#define MLX5E_QOS_MAX_LEAF_ANALDES 256
 
 struct mlx5e_selq;
 struct mlx5e_htb;
@@ -14,7 +14,7 @@ struct mlx5e_htb;
 typedef int (*mlx5e_fp_htb_enumerate)(void *data, u16 qid, u32 hw_id);
 int mlx5e_htb_enumerate_leaves(struct mlx5e_htb *htb, mlx5e_fp_htb_enumerate callback, void *data);
 
-int mlx5e_htb_cur_leaf_nodes(struct mlx5e_htb *htb);
+int mlx5e_htb_cur_leaf_analdes(struct mlx5e_htb *htb);
 
 /* TX datapath API */
 int mlx5e_htb_get_txq_by_classid(struct mlx5e_htb *htb, u16 classid);
@@ -34,7 +34,7 @@ int
 mlx5e_htb_leaf_del_last(struct mlx5e_htb *htb, u16 classid, bool force,
 			struct netlink_ext_ack *extack);
 int
-mlx5e_htb_node_modify(struct mlx5e_htb *htb, u16 classid, u64 rate, u64 ceil,
+mlx5e_htb_analde_modify(struct mlx5e_htb *htb, u16 classid, u64 rate, u64 ceil,
 		      struct netlink_ext_ack *extack);
 struct mlx5e_htb *mlx5e_htb_alloc(void);
 void mlx5e_htb_free(struct mlx5e_htb *htb);

@@ -8,7 +8,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license analtice.  This file is analt
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -118,7 +118,7 @@ MODULE_PARM_DESC (rx_copybreak, "de2104x Breakpoint at which Rx packets are copi
 #define DE_AUI_BNC		(SUPPORTED_AUI | SUPPORTED_BNC)
 
 #define DE_TIMER_LINK		(60 * HZ)
-#define DE_TIMER_NO_LINK	(5 * HZ)
+#define DE_TIMER_ANAL_LINK	(5 * HZ)
 
 #define DE_NUM_REGS		16
 #define DE_REGS_SIZE		(DE_NUM_REGS * sizeof(u32))
@@ -129,7 +129,7 @@ MODULE_PARM_DESC (rx_copybreak, "de2104x Breakpoint at which Rx packets are copi
 
 /* This is a mysterious value that can be written to CSR11 in the 21040 (only)
    to support a pre-NWay full-duplex signaling mechanism using short frames.
-   No one knows what it should be, but if left at its default value some
+   Anal one kanalws what it should be, but if left at its default value some
    10base2(!) packets trigger a full-duplex-request interrupt. */
 #define FULL_DUPLEX_MAGIC	0x6969
 
@@ -159,8 +159,8 @@ enum {
 	DescSkipLen		= (DSL << 2),
 
 	/* Rx/TxPoll bits */
-	NormalTxPoll		= (1 << 0),
-	NormalRxPoll		= (1 << 0),
+	AnalrmalTxPoll		= (1 << 0),
+	AnalrmalRxPoll		= (1 << 0),
 
 	/* Tx/Rx descriptor status bits */
 	DescOwn			= (1 << 31),
@@ -231,13 +231,13 @@ enum {
 
 	/* PCIPM bits */
 	PM_Sleep		= (1 << 31),
-	PM_Snooze		= (1 << 30),
-	PM_Mask			= PM_Sleep | PM_Snooze,
+	PM_Sanaloze		= (1 << 30),
+	PM_Mask			= PM_Sleep | PM_Sanaloze,
 
 	/* SIAStatus bits */
 	NWayState		= (1 << 14) | (1 << 13) | (1 << 12),
 	NWayRestart		= (1 << 12),
-	NonselPortActive	= (1 << 9),
+	AnalnselPortActive	= (1 << 9),
 	SelPortActive		= (1 << 8),
 	LinkFailStatus		= (1 << 2),
 	NetCxnErr		= (1 << 1),
@@ -499,7 +499,7 @@ static irqreturn_t de_interrupt (int irq, void *dev_instance)
 
 	status = dr32(MacStatus);
 	if ((!(status & (IntrOK|IntrErr))) || (status == 0xFFFF))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	netif_dbg(de, intr, dev, "intr, status %08x mode %08x desc %u/%u/%u\n",
 		  status, dr32(MacMode),
@@ -510,7 +510,7 @@ static irqreturn_t de_interrupt (int irq, void *dev_instance)
 	if (status & (RxIntr | RxEmpty)) {
 		de_rx(de);
 		if (status & RxEmpty)
-			dw32(RxPoll, NormalRxPoll);
+			dw32(RxPoll, AnalrmalRxPoll);
 	}
 
 	spin_lock(&de->lock);
@@ -651,14 +651,14 @@ static netdev_tx_t de_start_xmit (struct sk_buff *skb,
 	spin_unlock_irq(&de->lock);
 
 	/* Trigger an immediate transmit demand. */
-	dw32(TxPoll, NormalTxPoll);
+	dw32(TxPoll, AnalrmalTxPoll);
 
 	return NETDEV_TX_OK;
 }
 
 /* Set or clear the multicast filter for this adaptor.
-   Note that we only use exclusion around actually queueing the
-   new frame, not around filling de->setup_frame.  This is non-deterministic
+   Analte that we only use exclusion around actually queueing the
+   new frame, analt around filling de->setup_frame.  This is analn-deterministic
    when re-entered but still correct. */
 
 static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
@@ -739,7 +739,7 @@ static void __de_set_rx_mode (struct net_device *dev)
 		goto out;
 	}
 
-	/* Note that only the low-address shortword of setup_frame is valid!
+	/* Analte that only the low-address shortword of setup_frame is valid!
 	   The values are doubled for big-endian architectures. */
 	if (netdev_mc_count(dev) > 14)	/* Must use a multicast hash table. */
 		build_setup_frame_hash (de->setup_frame, dev);
@@ -747,7 +747,7 @@ static void __de_set_rx_mode (struct net_device *dev)
 		build_setup_frame_perfect (de->setup_frame, dev);
 
 	/*
-	 * Now add this frame to the Tx list.
+	 * Analw add this frame to the Tx list.
 	 */
 
 	entry = de->tx_head;
@@ -794,7 +794,7 @@ static void __de_set_rx_mode (struct net_device *dev)
 		netif_stop_queue(dev);
 
 	/* Trigger an immediate transmit demand. */
-	dw32(TxPoll, NormalTxPoll);
+	dw32(TxPoll, AnalrmalTxPoll);
 
 out:
 	if (macmode != dr32(MacMode))
@@ -973,7 +973,7 @@ static void de21040_media_timer (struct timer_list *t)
 
 	if (carrier) {
 		if (de->media_type != DE_MEDIA_AUI && (status & LinkFailStatus))
-			goto no_link_yet;
+			goto anal_link_yet;
 
 		de->media_timer.expires = jiffies + DE_TIMER_LINK;
 		add_timer(&de->media_timer);
@@ -1004,11 +1004,11 @@ static void de21040_media_timer (struct timer_list *t)
 	de_set_media(de);
 	de_start_rxtx(de);
 
-no_link_yet:
-	de->media_timer.expires = jiffies + DE_TIMER_NO_LINK;
+anal_link_yet:
+	de->media_timer.expires = jiffies + DE_TIMER_ANAL_LINK;
 	add_timer(&de->media_timer);
 
-	netif_info(de, timer, dev, "no link, trying media %s, status %x\n",
+	netif_info(de, timer, dev, "anal link, trying media %s, status %x\n",
 		   media_name[de->media_type], status);
 }
 
@@ -1051,7 +1051,7 @@ static void de21041_media_timer (struct timer_list *t)
 	unsigned long flags;
 
 	/* clear port active bits */
-	dw32(SIAStatus, NonselPortActive | SelPortActive);
+	dw32(SIAStatus, AnalnselPortActive | SelPortActive);
 
 	carrier = (status & NetCxnErr) ? 0 : 1;
 
@@ -1060,7 +1060,7 @@ static void de21041_media_timer (struct timer_list *t)
 		     de->media_type == DE_MEDIA_TP ||
 		     de->media_type == DE_MEDIA_TP_FD) &&
 		    (status & LinkFailStatus))
-			goto no_link_yet;
+			goto anal_link_yet;
 
 		de->media_timer.expires = jiffies + DE_TIMER_LINK;
 		add_timer(&de->media_timer);
@@ -1081,7 +1081,7 @@ static void de21041_media_timer (struct timer_list *t)
 		goto set_media;
 
 	/* if activity detected, use that as hint for new media type */
-	if (status & NonselPortActive) {
+	if (status & AnalnselPortActive) {
 		unsigned int have_media = 1;
 
 		/* if AUI/BNC selected, then activity is on TP port */
@@ -1103,7 +1103,7 @@ static void de21041_media_timer (struct timer_list *t)
 			 de_ok_to_advertise(de, DE_MEDIA_AUI))
 			de->media_type = DE_MEDIA_AUI;
 
-		/* otherwise, ignore the hint */
+		/* otherwise, iganalre the hint */
 		else
 			have_media = 0;
 
@@ -1140,24 +1140,24 @@ set_media:
 	de_set_media(de);
 	de_start_rxtx(de);
 
-no_link_yet:
-	de->media_timer.expires = jiffies + DE_TIMER_NO_LINK;
+anal_link_yet:
+	de->media_timer.expires = jiffies + DE_TIMER_ANAL_LINK;
 	add_timer(&de->media_timer);
 
-	netif_info(de, timer, dev, "no link, trying media %s, status %x\n",
+	netif_info(de, timer, dev, "anal link, trying media %s, status %x\n",
 		   media_name[de->media_type], status);
 }
 
 static void de_media_interrupt (struct de_private *de, u32 status)
 {
 	if (status & LinkPass) {
-		/* Ignore if current media is AUI or BNC and we can't use TP */
+		/* Iganalre if current media is AUI or BNC and we can't use TP */
 		if ((de->media_type == DE_MEDIA_AUI ||
 		     de->media_type == DE_MEDIA_BNC) &&
 		    (de->media_lock ||
 		     !de_ok_to_advertise(de, DE_MEDIA_TP_AUTO)))
 			return;
-		/* If current media is not TP, change it to TP */
+		/* If current media is analt TP, change it to TP */
 		if ((de->media_type == DE_MEDIA_AUI ||
 		     de->media_type == DE_MEDIA_BNC)) {
 			de->media_type = DE_MEDIA_TP_AUTO;
@@ -1175,7 +1175,7 @@ static void de_media_interrupt (struct de_private *de, u32 status)
 	if (netif_carrier_ok(de->dev) && de->media_type != DE_MEDIA_AUI &&
 	    de->media_type != DE_MEDIA_BNC) {
 		de_link_down(de);
-		mod_timer(&de->media_timer, jiffies + DE_TIMER_NO_LINK);
+		mod_timer(&de->media_timer, jiffies + DE_TIMER_ANAL_LINK);
 	}
 }
 
@@ -1209,7 +1209,7 @@ static int de_reset_mac (struct de_private *de)
 	if (status & (RxState | TxState))
 		return -EBUSY;
 	if (status == 0xffffffff)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -1304,7 +1304,7 @@ static int de_refill_rx (struct de_private *de)
 
 err_out:
 	de_clean_rings(de);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int de_init_rings (struct de_private *de)
@@ -1323,7 +1323,7 @@ static int de_alloc_rings (struct de_private *de)
 	de->rx_ring = dma_alloc_coherent(&de->pdev->dev, DE_RING_BYTES,
 					 &de->ring_dma, GFP_KERNEL);
 	if (!de->rx_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 	de->tx_ring = &de->rx_ring[DE_RX_RING_SIZE];
 	return de_init_rings(de);
 }
@@ -1410,7 +1410,7 @@ static int de_open (struct net_device *dev)
 	}
 
 	netif_start_queue(dev);
-	mod_timer(&de->media_timer, jiffies + DE_TIMER_NO_LINK);
+	mod_timer(&de->media_timer, jiffies + DE_TIMER_ANAL_LINK);
 
 	return 0;
 
@@ -1523,7 +1523,7 @@ static void __de_get_link_ksettings(struct de_private *de,
 	else
 		cmd->base.autoneg = AUTONEG_ENABLE;
 
-	/* ignore maxtxpkt, maxrxpkt for now */
+	/* iganalre maxtxpkt, maxrxpkt for analw */
 }
 
 static int __de_set_link_ksettings(struct de_private *de,
@@ -1586,10 +1586,10 @@ static int __de_set_link_ksettings(struct de_private *de,
 	if ((new_media == de->media_type) &&
 	    (media_lock == de->media_lock) &&
 	    (advertising == de->media_advertise))
-		return 0; /* nothing to change */
+		return 0; /* analthing to change */
 
 	de_link_down(de);
-	mod_timer(&de->media_timer, jiffies + DE_TIMER_NO_LINK);
+	mod_timer(&de->media_timer, jiffies + DE_TIMER_ANAL_LINK);
 	de_stop_rxtx(de);
 
 	de->media_type = new_media;
@@ -1660,7 +1660,7 @@ static int de_get_eeprom(struct net_device *dev,
 	struct de_private *de = netdev_priv(dev);
 
 	if (!de->ee_data)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if ((eeprom->offset != 0) || (eeprom->magic != 0) ||
 	    (eeprom->len != DE_EEPROM_SIZE))
 		return -EINVAL;
@@ -1760,7 +1760,7 @@ static void de21040_get_media_info(struct de_private *de)
 	}
 }
 
-/* Note: this routine returns extra data bits for size detection. */
+/* Analte: this routine returns extra data bits for size detection. */
 static unsigned tulip_read_eeprom(void __iomem *regs, int location,
 				  int addr_len)
 {
@@ -1810,7 +1810,7 @@ static void de21041_get_srom_info(struct de_private *de)
 		((__le16 *)ee_data)[i] =
 			cpu_to_le16(tulip_read_eeprom(de->regs, i, ee_addr_size));
 
-	/* DEC now has a specification but early board makers
+	/* DEC analw has a specification but early board makers
 	   just put the address in the first EEPROM locations. */
 	/* This does  memcmp(eedata, eedata+16, 8) */
 
@@ -1825,7 +1825,7 @@ static void de21041_get_srom_info(struct de_private *de)
 	/* store MAC address */
 	eth_hw_addr_set(de->dev, &ee_data[sa_offset]);
 
-	/* get offset of controller 0 info leaf.  ignore 2nd byte. */
+	/* get offset of controller 0 info leaf.  iganalre 2nd byte. */
 	ofs = ee_data[SROMC0InfoLeaf];
 	if (ofs >= (sizeof(ee_data) - sizeof(struct de_srom_info_leaf) - sizeof(struct de_srom_media_block)))
 		goto bad_srom;
@@ -1833,7 +1833,7 @@ static void de21041_get_srom_info(struct de_private *de)
 	/* get pointer to info leaf */
 	il = (struct de_srom_info_leaf *) &ee_data[ofs];
 
-	/* paranoia checks */
+	/* paraanalia checks */
 	if (il->n_blocks == 0)
 		goto bad_srom;
 	if ((sizeof(ee_data) - ofs) <
@@ -1928,13 +1928,13 @@ static void de21041_get_srom_info(struct de_private *de)
 	de->media_advertise = de->media_supported;
 
 fill_defaults:
-	/* fill in defaults, for cases where custom CSRs not used */
+	/* fill in defaults, for cases where custom CSRs analt used */
 	for (i = 0; i < DE_MAX_MEDIA; i++) {
 		if (de->media[i].csr13 == 0xffff)
 			de->media[i].csr13 = t21041_csr13[i];
 		if (de->media[i].csr14 == 0xffff) {
 			/* autonegotiation is broken at least on some chip
-			   revisions - rev. 0x21 works, 0x11 does not */
+			   revisions - rev. 0x21 works, 0x11 does analt */
 			if (de->pdev->revision < 0x20)
 				de->media[i].csr14 = t21041_csr14_brk[i];
 			else
@@ -1987,7 +1987,7 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* allocate a new ethernet device structure, and fill in defaults */
 	dev = alloc_etherdev(sizeof(struct de_private));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->netdev_ops = &de_netdev_ops;
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -2029,7 +2029,7 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pciaddr = pci_resource_start(pdev, 1);
 	if (!pciaddr) {
 		rc = -EIO;
-		pr_err("no MMIO resource for pci dev %s\n", pci_name(pdev));
+		pr_err("anal MMIO resource for pci dev %s\n", pci_name(pdev));
 		goto err_out_res;
 	}
 	if (pci_resource_len(pdev, 1) < DE_REGS_SIZE) {
@@ -2044,7 +2044,7 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	regs = ioremap(pciaddr, DE_REGS_SIZE);
 	if (!regs) {
 		rc = -EIO;
-		pr_err("Cannot map PCI MMIO (%llx@%lx) on pci dev %s\n",
+		pr_err("Cananalt map PCI MMIO (%llx@%lx) on pci dev %s\n",
 		       (unsigned long long)pci_resource_len(pdev, 1),
 		       pciaddr, pci_name(pdev));
 		goto err_out_res;
@@ -2053,10 +2053,10 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	de_adapter_wake(de);
 
-	/* make sure hardware is not running */
+	/* make sure hardware is analt running */
 	rc = de_reset_mac(de);
 	if (rc) {
-		pr_err("Cannot reset MAC, pci dev %s\n", pci_name(pdev));
+		pr_err("Cananalt reset MAC, pci dev %s\n", pci_name(pdev));
 		goto err_out_iomap;
 	}
 

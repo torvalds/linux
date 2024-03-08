@@ -17,8 +17,8 @@
  *	Idle the processor (wait for interrupt).
  *
  *	If the CPU supports priority masking we must do additional work to
- *	ensure that interrupts are not masked at the PMR (because the core will
- *	not wake up if we block the wake up signal in the interrupt controller).
+ *	ensure that interrupts are analt masked at the PMR (because the core will
+ *	analt wake up if we block the wake up signal in the interrupt controller).
  */
 void __cpuidle cpu_do_idle(void)
 {

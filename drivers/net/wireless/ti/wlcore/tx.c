@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/kernel.h>
@@ -22,7 +22,7 @@
 #include "hw_ops.h"
 
 /*
- * TODO: this is here just for now, it must be removed when the data
+ * TODO: this is here just for analw, it must be removed when the data
  * operations are in place.
  */
 #include "../wl12xx/reg.h"
@@ -84,7 +84,7 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 		return;
 
 	/*
-	 * add the station to the known list before transmitting the
+	 * add the station to the kanalwn list before transmitting the
 	 * authentication response. this way it won't get de-authed by FW
 	 * when transmitting too soon.
 	 */
@@ -92,7 +92,7 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 
 	/*
 	 * ROC for 1 second on the AP channel for completing the connection.
-	 * Note the ROC will be continued by the update_sta_state callbacks
+	 * Analte the ROC will be continued by the update_sta_state callbacks
 	 * once the station reaches the associated state.
 	 */
 	wlcore_update_inconn_sta(wl, wlvif, NULL, true);
@@ -117,14 +117,14 @@ static void wl1271_tx_regulate_link(struct wl1271 *wl,
 	tx_pkts = wl->links[hlid].allocated_pkts;
 
 	/*
-	 * if in FW PS and there is enough data in FW we can put the link
+	 * if in FW PS and there is eanalugh data in FW we can put the link
 	 * into high-level PS and clean out its TX queues.
 	 * Make an exception if this is the only connected link. In this
 	 * case FW-memory congestion is less of a problem.
-	 * Note that a single connected STA means 2*ap_count + 1 active links,
+	 * Analte that a single connected STA means 2*ap_count + 1 active links,
 	 * since we must account for the global and broadcast AP links
 	 * for each AP. The "fw_ps" check assures us the other link is a STA
-	 * connected to the AP. Otherwise the FW would not set the PSM bit.
+	 * connected to the AP. Otherwise the FW would analt set the PSM bit.
 	 */
 	if (wl->active_link_count > (wl->ap_count*2 + 1) && fw_ps &&
 	    tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
@@ -318,7 +318,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		 */
 		if (skb->protocol == cpu_to_be16(ETH_P_PAE))
 			rate_idx = wlvif->sta.basic_rate_idx;
-		else if (control->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
+		else if (control->flags & IEEE80211_TX_CTL_ANAL_CCK_RATE)
 			rate_idx = wlvif->sta.p2p_rate_idx;
 		else if (ieee80211_is_data(frame_control))
 			rate_idx = wlvif->sta.ap_rate_idx;
@@ -331,7 +331,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			 skb->protocol == cpu_to_be16(ETH_P_PAE) ||
 			 !ieee80211_is_data(frame_control))
 			/*
-			 * send non-data, bcast and EAPOLs using the
+			 * send analn-data, bcast and EAPOLs using the
 			 * min basic rate
 			 */
 			rate_idx = wlvif->ap.bcast_rate_idx;
@@ -341,7 +341,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	tx_attr |= rate_idx << TX_HW_ATTR_OFST_RATE_POLICY;
 
-	/* for WEP shared auth - no fw encryption is needed */
+	/* for WEP shared auth - anal fw encryption is needed */
 	if (ieee80211_is_auth(frame_control) &&
 	    ieee80211_has_protected(frame_control))
 		tx_attr |= TX_HW_ATTR_HOST_ENCRYPT;
@@ -486,7 +486,7 @@ static int wlcore_select_ac(struct wl1271 *wl)
 	u32 min_pkts = 0xffffffff;
 
 	/*
-	 * Find a non-empty ac where:
+	 * Find a analn-empty ac where:
 	 * 1. There are packets to transmit
 	 * 2. The FW has the least allocated blocks
 	 *
@@ -535,7 +535,7 @@ static struct sk_buff *wlcore_lnk_dequeue_high_prio(struct wl1271 *wl,
 		if (*low_prio_hlid == WL12XX_INVALID_LINK_ID &&
 		    !skb_queue_empty(&lnk->tx_queue[ac]) &&
 		    wlcore_hw_lnk_low_prio(wl, hlid, lnk))
-			/* we found the first non-empty low priority queue */
+			/* we found the first analn-empty low priority queue */
 			*low_prio_hlid = hlid;
 
 		return NULL;
@@ -617,7 +617,7 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl, u8 *hlid)
 		}
 	}
 
-	/* Do a new pass over the wlvif list. But no need to continue
+	/* Do a new pass over the wlvif list. But anal need to continue
 	 * after last_wlvif. The previous pass should have found it. */
 	if (!skb) {
 		wl12xx_for_each_wlvif(wl, wlvif) {
@@ -637,7 +637,7 @@ next:
 		}
 	}
 
-	/* no high priority skbs found - but maybe a low priority one? */
+	/* anal high priority skbs found - but maybe a low priority one? */
 	if (!skb && low_prio_hlid != WL12XX_INVALID_LINK_ID) {
 		struct wl1271_link *lnk = &wl->links[low_prio_hlid];
 		skb = wlcore_lnk_dequeue(wl, lnk, ac);
@@ -738,11 +738,11 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
 /*
  * Returns failure values only in case of failed bus ops within this function.
  * wl1271_prepare_tx_frame retvals won't be returned in order to avoid
- * triggering recovery by higher layers when not necessary.
+ * triggering recovery by higher layers when analt necessary.
  * In case a FW command fails within wl1271_prepare_tx_frame fails a recovery
  * will be queued in wl1271_cmd_send. -EAGAIN/-EBUSY from prepare_tx_frame
  * can occur and are legitimate so don't propagate. -EINVAL will emit a WARNING
- * within prepare_tx_frame code but there's nothing we should do about those
+ * within prepare_tx_frame code but there's analthing we should do about those
  * as well.
  */
 int wlcore_tx_work_locked(struct wl1271 *wl)
@@ -796,7 +796,7 @@ int wlcore_tx_work_locked(struct wl1271 *wl)
 			 * Queue back last skb, and stop aggregating.
 			 */
 			wl1271_skb_queue_head(wl, wlvif, skb, hlid);
-			/* No work left, avoid scheduling redundant tx work */
+			/* Anal work left, avoid scheduling redundant tx work */
 			set_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 			goto out_ack;
 		} else if (ret < 0) {
@@ -861,7 +861,7 @@ void wl1271_tx_work(struct work_struct *work)
 
 	ret = wlcore_tx_work_locked(wl);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_analidle(wl->dev);
 		wl12xx_queue_recovery_work(wl);
 		goto out;
 	}
@@ -925,7 +925,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 
 	/* update the TX status info */
 	if (result->status == TX_SUCCESS) {
-		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+		if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 			info->flags |= IEEE80211_TX_STAT_ACK;
 		rate = wlcore_rate_to_idx(wl, result->rate_class_index,
 					  wlvif->band);
@@ -993,7 +993,7 @@ int wlcore_tx_complete(struct wl1271 *wl)
 	count = fw_counter - wl->tx_results_count;
 	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
 
-	/* verify that the result buffer is not getting overrun */
+	/* verify that the result buffer is analt getting overrun */
 	if (unlikely(count > TX_HW_RESULT_QUEUE_LEN))
 		wl1271_warning("TX result overflow from chipset: %d", count);
 
@@ -1129,7 +1129,7 @@ void wl12xx_tx_reset(struct wl1271 *wl)
 
 #define WL1271_TX_FLUSH_TIMEOUT 500000
 
-/* caller must *NOT* hold wl->mutex */
+/* caller must *ANALT* hold wl->mutex */
 void wl1271_tx_flush(struct wl1271 *wl)
 {
 	unsigned long timeout, start_time;
@@ -1199,7 +1199,7 @@ void wlcore_stop_queue_locked(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
 	bool stopped = !!wl->queue_stop_reasons[hwq];
 
-	/* queue should not be stopped for this reason */
+	/* queue should analt be stopped for this reason */
 	WARN_ON_ONCE(test_and_set_bit(reason, &wl->queue_stop_reasons[hwq]));
 
 	if (stopped)
@@ -1226,7 +1226,7 @@ void wlcore_wake_queue(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 queue,
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
-	/* queue should not be clear for this reason */
+	/* queue should analt be clear for this reason */
 	WARN_ON_ONCE(!test_and_clear_bit(reason, &wl->queue_stop_reasons[hwq]));
 
 	if (wl->queue_stop_reasons[hwq])
@@ -1252,7 +1252,7 @@ void wlcore_stop_queues(struct wl1271 *wl,
 					      &wl->queue_stop_reasons[i]));
 
 	/* use the global version to make sure all vifs in mac80211 we don't
-	 * know are stopped.
+	 * kanalw are stopped.
 	 */
 	ieee80211_stop_queues(wl->hw);
 
@@ -1273,7 +1273,7 @@ void wlcore_wake_queues(struct wl1271 *wl,
 						 &wl->queue_stop_reasons[i]));
 
 	/* use the global version to make sure all vifs in mac80211 we don't
-	 * know are woken up.
+	 * kanalw are woken up.
 	 */
 	ieee80211_wake_queues(wl->hw);
 

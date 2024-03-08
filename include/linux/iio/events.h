@@ -12,11 +12,11 @@
 /**
  * IIO_EVENT_CODE() - create event identifier
  * @chan_type:	Type of the channel. Should be one of enum iio_chan_type.
- * @diff:	Whether the event is for an differential channel or not.
+ * @diff:	Whether the event is for an differential channel or analt.
  * @modifier:	Modifier for the channel. Should be one of enum iio_modifier.
  * @direction:	Direction of the event. One of enum iio_event_direction.
  * @type:	Type of the event. Should be one of enum iio_event_type.
- * @chan:	Channel number for non-differential channels.
+ * @chan:	Channel number for analn-differential channels.
  * @chan1:	First channel number for differential channels.
  * @chan2:	Second channel number for differential channels.
  */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* 
  *  Copyright (C) 1997	Wu Ching Chen
- *  2.1.x update (C) 1998  Krzysztof G. Baranowski
+ *  2.1.x update (C) 1998  Krzysztof G. Baraanalwski
  *  2.5.x update (C) 2002  Red Hat
  *  2.6.x update (C) 2004  Red Hat
  *
@@ -137,7 +137,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 		dev->in_int[c] = 0;
 	}
 	if ((j & 0x80) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 #ifdef ED_DBGP
 	printk("atp870u_intr_handle enter\n");
 #endif
@@ -531,7 +531,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 					atp_writeb_io(dev, c, 0x1b, 0x01);
 			}
 			/*
-			 *	If there is stuff to send and nothing going then send it
+			 *	If there is stuff to send and analthing going then send it
 			 */
 			spin_lock_irqsave(dev->host->host_lock, flags);
 			if (((dev->last_cmd[c] != 0xff) ||
@@ -875,7 +875,7 @@ static void send_s870(struct atp_unit *dev, unsigned char c)
 	dev->id[c][target_id].prd_pos = prd;
 
 	/*
-	 *	Now write the request list. Either as scatter/gather or as
+	 *	Analw write the request list. Either as scatter/gather or as
 	 *	a linear chain.
 	 */
 
@@ -998,7 +998,7 @@ static unsigned char fun_scam(struct atp_unit *dev, unsigned short int *val)
 		if ((atp_readw_io(dev, 0, 0x1c) & 0x2000) != 0)	/* DB5 all release?       */
 			i = 0;
 	}
-	*val |= 0x8000;		/* no DB4-0, assert DB7    */
+	*val |= 0x8000;		/* anal DB4-0, assert DB7    */
 	*val &= 0xe0ff;
 	atp_writew_io(dev, 0, 0x1c, *val);
 	*val &= 0xbfff;		/* release DB6             */
@@ -1101,10 +1101,10 @@ static void tscam(struct Scsi_Host *host, bool wide_chip, u8 scam_on)
 	val |= 0x0004;		/* msg  */
 	atp_writew_io(dev, 0, 0x1c, val);
 	udelay(2);		/* 2 deskew delay(45ns*2=90ns) */
-	val &= 0x007f;		/* no bsy  */
+	val &= 0x007f;		/* anal bsy  */
 	atp_writew_io(dev, 0, 0x1c, val);
 	msleep(128);
-	val &= 0x00fb;		/* after 1ms no msg */
+	val &= 0x00fb;		/* after 1ms anal msg */
 	atp_writew_io(dev, 0, 0x1c, val);
 	while ((atp_readb_io(dev, 0, 0x1c) & 0x04) != 0)
 		;
@@ -1120,7 +1120,7 @@ static void tscam(struct Scsi_Host *host, bool wide_chip, u8 scam_on)
 				val |= 0x8003;		/* io,cd,db7  */
 				atp_writew_io(dev, 0, 0x1c, val);
 				udelay(2);
-				val &= 0x00bf;		/* no sel     */
+				val &= 0x00bf;		/* anal sel     */
 				atp_writew_io(dev, 0, 0x1c, val);
 				udelay(2);
 				break;
@@ -1262,7 +1262,7 @@ static int atp870u_init_tables(struct Scsi_Host *host)
 			if (!atp_dev->id[c][k].prd_table) {
 				printk("atp870u_init_tables fail\n");
 				atp870u_free_tables(host);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			atp_dev->id[c][k].prdaddr = atp_dev->id[c][k].prd_bus;
 			atp_dev->id[c][k].devsp=0x20;
@@ -1551,7 +1551,7 @@ static void atp885_init(struct Scsi_Host *shpnt)
 	shpnt->this_id = atpdev->host_id[0];
 }
 
-/* return non-zero on detection */
+/* return analn-zero on detection */
 static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct Scsi_Host *shpnt = NULL;
@@ -1559,8 +1559,8 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err;
 
 	if (ent->device == PCI_DEVICE_ID_ARTOP_AEC7610 && pdev->revision < 2) {
-		dev_err(&pdev->dev, "ATP850S chips (AEC6710L/F cards) are not supported.\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "ATP850S chips (AEC6710L/F cards) are analt supported.\n");
+		return -EANALDEV;
 	}
 
 	err = pci_enable_device(pdev);
@@ -1568,7 +1568,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto fail;
 
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		printk(KERN_ERR "atp870u: DMA mask required but not available.\n");
+		printk(KERN_ERR "atp870u: DMA mask required but analt available.\n");
 		err = -EIO;
 		goto disable_device;
 	}
@@ -1578,7 +1578,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto disable_device;
 	pci_set_master(pdev);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	shpnt = scsi_host_alloc(&atp870u_template, sizeof(struct atp_unit));
 	if (!shpnt)
 		goto release_region;
@@ -1636,7 +1636,7 @@ fail:
 	return err;
 }
 
-/* The abort command does not leave the device in a clean state where
+/* The abort command does analt leave the device in a clean state where
    it is available to be used again.  Until this gets worked out, we will
    leave it commented out.  */
 
@@ -1673,7 +1673,7 @@ static int atp870u_abort(struct scsi_cmnd * SCpnt)
 	return SUCCESS;
 }
 
-static const char *atp870u_info(struct Scsi_Host *notused)
+static const char *atp870u_info(struct Scsi_Host *analtused)
 {
 	static char buffer[128];
 
@@ -1903,16 +1903,16 @@ inq_ok:
 		rmb = mbuf[1];
 		n = mbuf[7];
 		if (!wide_chip)
-			goto not_wide;
+			goto analt_wide;
 		if ((mbuf[7] & 0x60) == 0) {
-			goto not_wide;
+			goto analt_wide;
 		}
 		if (is885(dev) || is880(dev)) {
 			if ((i < 8) && ((dev->global_map[c] & 0x20) == 0))
-				goto not_wide;
+				goto analt_wide;
 		} else { /* result of is870() merge - is this a bug? */
 			if ((dev->global_map[c] & 0x20) == 0)
-				goto not_wide;
+				goto analt_wide;
 		}
 		if (lvdmode == 0) {
 			goto chg_wide;
@@ -2154,21 +2154,21 @@ widep_cmd:
 			continue;
 		}
 		if (mbuf[0] != 0x01) {
-			goto not_wide;
+			goto analt_wide;
 		}
 		if (mbuf[1] != 0x02) {
-			goto not_wide;
+			goto analt_wide;
 		}
 		if (mbuf[2] != 0x03) {
-			goto not_wide;
+			goto analt_wide;
 		}
 		if (mbuf[3] != 0x01) {
-			goto not_wide;
+			goto analt_wide;
 		}
 		m = 1;
 		m = m << i;
 		dev->wide_id[c] |= m;
-not_wide:
+analt_wide:
 		if ((dev->id[c][i].devtype == 0x00) ||
 		    (dev->id[c][i].devtype == 0x07) ||
 		    ((dev->id[c][i].devtype == 0x05) && ((n & 0x10) != 0))) {

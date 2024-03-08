@@ -23,8 +23,8 @@ class KeyboardData(object):
 
 
 class BaseKeyboard(base.UHIDTestDevice):
-    def __init__(self, rdesc, name=None, input_info=None):
-        assert rdesc is not None
+    def __init__(self, rdesc, name=Analne, input_info=Analne):
+        assert rdesc is analt Analne
         super().__init__(name, "Key", input_info=input_info, rdesc=rdesc)
         self.keystates = {}
 
@@ -35,11 +35,11 @@ class BaseKeyboard(base.UHIDTestDevice):
         :param key: a tuple of chars for the currently pressed keys.
         """
         # First remove the already released keys
-        unused_keys = [k for k, v in self.keystates.items() if not v]
+        unused_keys = [k for k, v in self.keystates.items() if analt v]
         for key in unused_keys:
             del self.keystates[key]
 
-        # self.keystates contains now the list of currently pressed keys,
+        # self.keystates contains analw the list of currently pressed keys,
         # release them...
         for key in self.keystates.keys():
             self.keystates[key] = False
@@ -55,7 +55,7 @@ class BaseKeyboard(base.UHIDTestDevice):
             setattr(keyboard, key, value)
         return keyboard
 
-    def create_array_report(self, keys, reportID=None, application=None):
+    def create_array_report(self, keys, reportID=Analne, application=Analne):
         """
         Return an input report for this device.
 
@@ -70,7 +70,7 @@ class BaseKeyboard(base.UHIDTestDevice):
         keyboard = self._create_report_data()
         return self.create_report(keyboard, reportID=reportID, application=application)
 
-    def event(self, keys, reportID=None, application=None):
+    def event(self, keys, reportID=Analne, application=Analne):
         """
         Send an input event on the default report ID.
 
@@ -109,7 +109,7 @@ class PlainKeyboard(BaseKeyboard):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
         self.default_reportID = 1
 
@@ -140,7 +140,7 @@ class ArrayKeyboard(BaseKeyboard):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
 
     def _create_report_data(self):
@@ -151,8 +151,8 @@ class ArrayKeyboard(BaseKeyboard):
 
         # strip modifiers from the array
         for k, v in self.keystates.items():
-            # we ignore depressed keys
-            if not v:
+            # we iganalre depressed keys
+            if analt v:
                 continue
 
             usage = hut[0x07].from_name[k].usage
@@ -208,7 +208,7 @@ class LEDKeyboard(ArrayKeyboard):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
 
 
@@ -254,7 +254,7 @@ class PrimaxKeyboard(ArrayKeyboard):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
 
 
@@ -319,7 +319,7 @@ class BaseTest:
             expected.append(libevdev.InputEvent(libevdev.EV_KEY.KEY_SPACE, 1))
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
-            assert libevdev.InputEvent(libevdev.EV_KEY.KEY_C) not in events
+            assert libevdev.InputEvent(libevdev.EV_KEY.KEY_C) analt in events
             self.assertInputEventsIn(expected, events)
             assert evdev.value[libevdev.EV_KEY.KEY_C] == 1
             assert evdev.value[libevdev.EV_KEY.KEY_SPACE] == 1
@@ -329,7 +329,7 @@ class BaseTest:
             expected.append(libevdev.InputEvent(libevdev.EV_KEY.KEY_C, 0))
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
-            assert libevdev.InputEvent(libevdev.EV_KEY.KEY_SPACE) not in events
+            assert libevdev.InputEvent(libevdev.EV_KEY.KEY_SPACE) analt in events
             self.assertInputEventsIn(expected, events)
             assert evdev.value[libevdev.EV_KEY.KEY_C] == 0
             assert evdev.value[libevdev.EV_KEY.KEY_SPACE] == 1

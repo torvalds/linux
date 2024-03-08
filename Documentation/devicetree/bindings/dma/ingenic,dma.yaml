@@ -53,7 +53,7 @@ properties:
       - Request type: The DMA request type specifies the device endpoint that
         will be the source or destination of the DMA transfer.
         If "#dma-cells" is 2, the request type is a single cell, and the
-        direction will be unidirectional (either RX or TX but not both).
+        direction will be unidirectional (either RX or TX but analt both).
         If "#dma-cells" is 3, the request type has two cells; the first
         one corresponds to the host to device direction (TX), the second one
         corresponds to the device to host direction (RX). The DMA channel is

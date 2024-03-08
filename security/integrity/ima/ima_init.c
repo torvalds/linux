@@ -28,12 +28,12 @@ struct tpm_chip *ima_tpm_chip;
  * the PCR register.
  *
  * Calculate the boot aggregate, a hash over tpm registers 0-7,
- * assuming a TPM chip exists, and zeroes if the TPM chip does not
+ * assuming a TPM chip exists, and zeroes if the TPM chip does analt
  * exist.  Add the boot aggregate measurement to the measurement
  * list and extend the PCR register.
  *
- * If a tpm chip does not exist, indicate the core root of trust is
- * not hardware based by invalidating the aggregate PCR value.
+ * If a tpm chip does analt exist, indicate the core root of trust is
+ * analt hardware based by invalidating the aggregate PCR value.
  * (The aggregate PCR value is invalidated by adding one value to
  * the measurement list and extending the aggregate PCR value with
  * a different value.) Violations add a zero entry to the measurement
@@ -42,13 +42,13 @@ struct tpm_chip *ima_tpm_chip;
 static int __init ima_add_boot_aggregate(void)
 {
 	static const char op[] = "add_boot_aggregate";
-	const char *audit_cause = "ENOMEM";
+	const char *audit_cause = "EANALMEM";
 	struct ima_template_entry *entry;
 	struct integrity_iint_cache tmp_iint, *iint = &tmp_iint;
 	struct ima_event_data event_data = { .iint = iint,
 					     .filename = boot_aggregate_name };
 	struct ima_max_digest_data hash;
-	int result = -ENOMEM;
+	int result = -EANALMEM;
 	int violation = 0;
 
 	memset(iint, 0, sizeof(*iint));
@@ -60,14 +60,14 @@ static int __init ima_add_boot_aggregate(void)
 	/*
 	 * With TPM 2.0 hash agility, TPM chips could support multiple TPM
 	 * PCR banks, allowing firmware to configure and enable different
-	 * banks.  The SHA1 bank is not necessarily enabled.
+	 * banks.  The SHA1 bank is analt necessarily enabled.
 	 *
 	 * Use the same hash algorithm for reading the TPM PCRs as for
 	 * calculating the boot aggregate digest.  Preference is given to
 	 * the configured IMA default hash algorithm.  Otherwise, use the
 	 * TCG required banks - SHA256 for TPM 2.0, SHA1 for TPM 1.2.
 	 * Ultimately select SHA1 also for TPM 2.0 if the SHA256 PCR bank
-	 * is not found.
+	 * is analt found.
 	 */
 	if (ima_tpm_chip) {
 		result = ima_calc_boot_aggregate(&hash.hdr);
@@ -119,7 +119,7 @@ int __init ima_init(void)
 
 	ima_tpm_chip = tpm_default_chip();
 	if (!ima_tpm_chip)
-		pr_info("No TPM chip found, activating TPM-bypass!\n");
+		pr_info("Anal TPM chip found, activating TPM-bypass!\n");
 
 	rc = integrity_init_keyring(INTEGRITY_KEYRING_IMA);
 	if (rc)
@@ -132,7 +132,7 @@ int __init ima_init(void)
 	if (rc != 0)
 		return rc;
 
-	/* It can be called before ima_init_digests(), it does not use TPM. */
+	/* It can be called before ima_init_digests(), it does analt use TPM. */
 	ima_load_kexec_buffer();
 
 	rc = ima_init_digests();

@@ -53,7 +53,7 @@
  *     GND   25      -       GND  7
  *    Select 13     <--      SI/O 1
  *
- * Note that parport pin 13 actually gets inverted by the transistor
+ * Analte that parport pin 13 actually gets inverted by the transistor
  * arrangement which lets either the parport or the LM70 drive the
  * SI/SO signal (see the schematic for details).
  */
@@ -88,7 +88,7 @@ static inline struct spi_lm70llp *spidev_to_pp(struct spi_device *spi)
 
 /*---------------------- LM70 LLP eval board-specific inlines follow */
 
-/* NOTE:  we don't actually need to reread the output values, since they'll
+/* ANALTE:  we don't actually need to reread the output values, since they'll
  * still be what we wrote before.  Plus, going through parport builds in
  * a ~1ms/operation delay; these SPI transfers could easily be faster.
  */
@@ -198,13 +198,13 @@ static void spi_lm70llp_attach(struct parport *p)
 		return;
 	}
 
-	/* TODO:  this just _assumes_ a lm70 is there ... no probe;
+	/* TODO:  this just _assumes_ a lm70 is there ... anal probe;
 	 * the lm70 driver could verify it, reading the manf ID.
 	 */
 
 	host = spi_alloc_host(p->physport->dev, sizeof(*pp));
 	if (!host) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto out_fail;
 	}
 	pp = spi_controller_get_devdata(host);
@@ -227,7 +227,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	pd = parport_register_dev_model(p, DRVNAME, &lm70llp_cb, 0);
 
 	if (!pd) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto out_free_host;
 	}
 	pp->pd = pd;
@@ -270,7 +270,7 @@ static void spi_lm70llp_attach(struct parport *p)
 			dev_name(&pp->spidev_lm70->dev));
 	else {
 		dev_warn(&pd->dev, "spi_new_device failed\n");
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto out_bitbang_stop;
 	}
 	pp->spidev_lm70->bits_per_word = 8;

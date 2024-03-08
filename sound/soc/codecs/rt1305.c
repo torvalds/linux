@@ -331,7 +331,7 @@ static bool rt1305_readable_register(struct device *dev, unsigned int reg)
 	case RT1305_SPDIF_OUT_SET_3:
 	case RT1305_I2S_SET_1:
 	case RT1305_I2S_SET_2:
-	case RT1305_PBTL_MONO_MODE_SRC:
+	case RT1305_PBTL_MOANAL_MODE_SRC:
 	case RT1305_MANUALLY_I2C_DEVICE:
 	case RT1305_POWER_STATUS:
 	case RT1305_POWER_CTRL_1:
@@ -533,19 +533,19 @@ static const struct snd_soc_dapm_widget rt1305_dapm_widgets[] = {
 
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Digital Interface */
 	SND_SOC_DAPM_SUPPLY("DAC L Power", RT1305_POWER_CTRL_2,
 		RT1305_POW_DAC1_L_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DAC R Power", RT1305_POWER_CTRL_2,
 		RT1305_POW_DAC1_R_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_SWITCH("DAC L", SND_SOC_NOPM, 0, 0, &rt1305_sto_dac_l),
-	SND_SOC_DAPM_SWITCH("DAC R", SND_SOC_NOPM, 0, 0, &rt1305_sto_dac_r),
+	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_SWITCH("DAC L", SND_SOC_ANALPM, 0, 0, &rt1305_sto_dac_l),
+	SND_SOC_DAPM_SWITCH("DAC R", SND_SOC_ANALPM, 0, 0, &rt1305_sto_dac_r),
 
 	/* Output Lines */
-	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		rt1305_classd_event,
 		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPOL"),
@@ -833,7 +833,7 @@ static int rt1305_set_component_pll(struct snd_soc_component *component,
 		freq_in = 98304000;
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL Source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1123,7 +1123,7 @@ static int rt1305_i2c_probe(struct i2c_client *i2c)
 	rt1305 = devm_kzalloc(&i2c->dev, sizeof(struct rt1305_priv),
 				GFP_KERNEL);
 	if (rt1305 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt1305);
 
@@ -1138,8 +1138,8 @@ static int rt1305_i2c_probe(struct i2c_client *i2c)
 	regmap_read(rt1305->regmap, RT1305_DEVICE_ID, &val);
 	if (val != RT1305_DEVICE_ID_NUM) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt1305\n", val);
-		return -ENODEV;
+			"Device with ID register %x is analt rt1305\n", val);
+		return -EANALDEV;
 	}
 
 	rt1305_reset(rt1305->regmap);

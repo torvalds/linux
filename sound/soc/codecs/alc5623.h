@@ -19,7 +19,7 @@
 /* HP output vol		   4    0    4  */
 #define ALC5623_SPK_OUT_VOL			0x02
 #define ALC5623_HP_OUT_VOL			0x04
-#define ALC5623_MONO_AUX_OUT_VOL		0x06
+#define ALC5623_MOANAL_AUX_OUT_VOL		0x06
 #define ALC5623_AUXIN_VOL			0x08
 #define ALC5623_LINE_IN_VOL			0x0A
 #define ALC5623_STEREO_DAC_VOL			0x0C
@@ -80,7 +80,7 @@
 #define ALC5623_PWR_ADD2_L_HP_MIXER		(1 <<  5)
 #define ALC5623_PWR_ADD2_R_HP_MIXER		(1 <<  4)
 #define ALC5623_PWR_ADD2_SPK_MIXER		(1 <<  3)
-#define ALC5623_PWR_ADD2_MONO_MIXER		(1 <<  2)
+#define ALC5623_PWR_ADD2_MOANAL_MIXER		(1 <<  2)
 #define ALC5623_PWR_ADD2_L_ADC_REC_MIXER	(1 <<  1)
 #define ALC5623_PWR_ADD2_R_ADC_REC_MIXER	(1 <<  0)
 

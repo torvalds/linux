@@ -10,12 +10,12 @@
 #include <sound/hdaudio.h>
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
-#include <video/nomodeset.h>
+#include <video/analmodeset.h>
 
 static int gpu_bind = -1;
 module_param(gpu_bind, int, 0644);
 MODULE_PARM_DESC(gpu_bind, "Whether to bind sound component to GPU "
-			   "(1=always, 0=never, -1=on nomodeset(default))");
+			   "(1=always, 0=never, -1=on analmodeset(default))");
 
 /**
  * snd_hdac_i915_set_bclk - Reprogram BCLK for HSW/BDW
@@ -26,10 +26,10 @@ MODULE_PARM_DESC(gpu_bind, "Whether to bind sound component to GPU "
  * are used to convert CDClk (Core Display Clock) to 24MHz BCLK:
  * BCLK = CDCLK * M / N
  * The values will be lost when the display power well is disabled and need to
- * be restored to avoid abnormal playback speed.
+ * be restored to avoid abanalrmal playback speed.
  *
  * Call this function at initializing and changing power well, as well as
- * at ELD notifier for the hotplug.
+ * at ELD analtifier for the hotplug.
  */
 void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 {
@@ -162,7 +162,7 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 	int err;
 
 	if (!i915_gfx_present(to_pci_dev(bus->dev)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = snd_hdac_acomp_init(bus, NULL,
 				  i915_component_master_match,
@@ -171,7 +171,7 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 		return err;
 	acomp = bus->audio_component;
 	if (!acomp)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!acomp->ops) {
 		snd_hdac_acomp_exit(bus);
 		return dev_err_probe(bus->dev, -EPROBE_DEFER,

@@ -6,7 +6,7 @@
  *
  * The ISP hardware is capable of more than just channel selection, features
  * such as demosaicing, white balance control and color space conversion are
- * also possible. These more advanced features are not supported by the driver
+ * also possible. These more advanced features are analt supported by the driver
  * due to lack of documentation.
  */
 
@@ -119,7 +119,7 @@ struct rcar_isp {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[RCAR_ISP_NUM_PADS];
 
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *remote;
 
 	struct mutex lock; /* Protects mf and stream_count. */
@@ -132,9 +132,9 @@ static inline struct rcar_isp *sd_to_isp(struct v4l2_subdev *sd)
 	return container_of(sd, struct rcar_isp, subdev);
 }
 
-static inline struct rcar_isp *notifier_to_isp(struct v4l2_async_notifier *n)
+static inline struct rcar_isp *analtifier_to_isp(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct rcar_isp, notifier);
+	return container_of(n, struct rcar_isp, analtifier);
 }
 
 static void risp_write(struct rcar_isp *isp, u32 offset, u32 value)
@@ -244,7 +244,7 @@ static int risp_s_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&isp->lock);
 
 	if (!isp->remote) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -324,14 +324,14 @@ static const struct v4l2_subdev_ops rcar_isp_subdev_ops = {
  * Async handling and registration of subdevices and links
  */
 
-static int risp_notify_bound(struct v4l2_async_notifier *notifier,
+static int risp_analtify_bound(struct v4l2_async_analtifier *analtifier,
 			     struct v4l2_subdev *subdev,
 			     struct v4l2_async_connection *asd)
 {
-	struct rcar_isp *isp = notifier_to_isp(notifier);
+	struct rcar_isp *isp = analtifier_to_isp(analtifier);
 	int pad;
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
+	pad = media_entity_get_fwanalde_pad(&subdev->entity, asd->match.fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
 		dev_err(isp->dev, "Failed to find pad for %s\n", subdev->name);
@@ -348,62 +348,62 @@ static int risp_notify_bound(struct v4l2_async_notifier *notifier,
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static void risp_notify_unbind(struct v4l2_async_notifier *notifier,
+static void risp_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 			       struct v4l2_subdev *subdev,
 			       struct v4l2_async_connection *asd)
 {
-	struct rcar_isp *isp = notifier_to_isp(notifier);
+	struct rcar_isp *isp = analtifier_to_isp(analtifier);
 
 	isp->remote = NULL;
 
 	dev_dbg(isp->dev, "Unbind %s\n", subdev->name);
 }
 
-static const struct v4l2_async_notifier_operations risp_notify_ops = {
-	.bound = risp_notify_bound,
-	.unbind = risp_notify_unbind,
+static const struct v4l2_async_analtifier_operations risp_analtify_ops = {
+	.bound = risp_analtify_bound,
+	.unbind = risp_analtify_unbind,
 };
 
 static int risp_parse_dt(struct rcar_isp *isp)
 {
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *fwnode;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *fwanalde;
+	struct fwanalde_handle *ep;
 	unsigned int id;
 	int ret;
 
 	for (id = 0; id < 2; id++) {
-		ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(isp->dev),
+		ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(isp->dev),
 						     0, id, 0);
 		if (ep)
 			break;
 	}
 
 	if (!ep) {
-		dev_err(isp->dev, "Not connected to subdevice\n");
+		dev_err(isp->dev, "Analt connected to subdevice\n");
 		return -EINVAL;
 	}
 
 	if (id == 1)
 		isp->csi_input = RISP_CSI_INPUT1;
 
-	fwnode = fwnode_graph_get_remote_endpoint(ep);
-	fwnode_handle_put(ep);
+	fwanalde = fwanalde_graph_get_remote_endpoint(ep);
+	fwanalde_handle_put(ep);
 
-	dev_dbg(isp->dev, "Found '%pOF'\n", to_of_node(fwnode));
+	dev_dbg(isp->dev, "Found '%pOF'\n", to_of_analde(fwanalde));
 
-	v4l2_async_subdev_nf_init(&isp->notifier, &isp->subdev);
-	isp->notifier.ops = &risp_notify_ops;
+	v4l2_async_subdev_nf_init(&isp->analtifier, &isp->subdev);
+	isp->analtifier.ops = &risp_analtify_ops;
 
-	asd = v4l2_async_nf_add_fwnode(&isp->notifier, fwnode,
+	asd = v4l2_async_nf_add_fwanalde(&isp->analtifier, fwanalde,
 				       struct v4l2_async_connection);
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);
 
-	ret = v4l2_async_nf_register(&isp->notifier);
+	ret = v4l2_async_nf_register(&isp->analtifier);
 	if (ret)
-		v4l2_async_nf_cleanup(&isp->notifier);
+		v4l2_async_nf_cleanup(&isp->analtifier);
 
 	return ret;
 }
@@ -443,7 +443,7 @@ static int risp_probe(struct platform_device *pdev)
 
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isp->dev = &pdev->dev;
 
@@ -469,7 +469,7 @@ static int risp_probe(struct platform_device *pdev)
 	v4l2_set_subdevdata(&isp->subdev, &pdev->dev);
 	snprintf(isp->subdev.name, sizeof(isp->subdev.name), "%s %s",
 		 KBUILD_MODNAME, dev_name(&pdev->dev));
-	isp->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	isp->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	isp->subdev.entity.function = MEDIA_ENT_F_VID_MUX;
 	isp->subdev.entity.ops = &risp_entity_ops;
@@ -481,18 +481,18 @@ static int risp_probe(struct platform_device *pdev)
 	ret = media_entity_pads_init(&isp->subdev.entity, RCAR_ISP_NUM_PADS,
 				     isp->pads);
 	if (ret)
-		goto error_notifier;
+		goto error_analtifier;
 
 	ret = v4l2_async_register_subdev(&isp->subdev);
 	if (ret < 0)
-		goto error_notifier;
+		goto error_analtifier;
 
 	dev_info(isp->dev, "Using CSI-2 input: %u\n", isp->csi_input);
 
 	return 0;
-error_notifier:
-	v4l2_async_nf_unregister(&isp->notifier);
-	v4l2_async_nf_cleanup(&isp->notifier);
+error_analtifier:
+	v4l2_async_nf_unregister(&isp->analtifier);
+	v4l2_async_nf_cleanup(&isp->analtifier);
 error_pm:
 	pm_runtime_disable(&pdev->dev);
 error_mutex:
@@ -505,8 +505,8 @@ static void risp_remove(struct platform_device *pdev)
 {
 	struct rcar_isp *isp = platform_get_drvdata(pdev);
 
-	v4l2_async_nf_unregister(&isp->notifier);
-	v4l2_async_nf_cleanup(&isp->notifier);
+	v4l2_async_nf_unregister(&isp->analtifier);
+	v4l2_async_nf_cleanup(&isp->analtifier);
 
 	v4l2_async_unregister_subdev(&isp->subdev);
 

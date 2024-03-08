@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder setup for JVC protocol.
  *
- * Copyright 2012-2014 Imagination Technologies Ltd.
+ * Copyright 2012-2014 Imagination Techanallogies Ltd.
  */
 
 #include "img-ir-hw.h"
@@ -44,7 +44,7 @@ static int img_ir_jvc_filter(const struct rc_scancode_filter *in,
 
 /*
  * JVC decoder
- * See also http://www.sbprojects.com/knowledge/ir/jvc.php
+ * See also http://www.sbprojects.com/kanalwledge/ir/jvc.php
  *          http://support.jvc.com/consumer/support/documents/RemoteCodes.pdf
  */
 struct img_ir_decoder img_ir_jvc = {

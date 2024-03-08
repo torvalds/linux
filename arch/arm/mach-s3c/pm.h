@@ -77,7 +77,7 @@ extern void s3c_pm_configure_extint(void);
  * samsung_pm_restore_gpios() - restore the state of the gpios after sleep.
  *
  * Restore the state of the GPIO pins after sleep, which may involve ensuring
- * that we do not glitch the state of the pins from that the bootloader's
+ * that we do analt glitch the state of the pins from that the bootloader's
  * resume code has done.
 */
 extern void samsung_pm_restore_gpios(void);

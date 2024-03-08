@@ -66,16 +66,16 @@
 #define SAI_XCR1_SYNCEN_MASK	GENMASK(11, SAI_XCR1_SYNCEN_SHIFT)
 #define SAI_XCR1_SYNCEN_SET(x)	((x) << SAI_XCR1_SYNCEN_SHIFT)
 
-#define SAI_XCR1_MONO_SHIFT	12
-#define SAI_XCR1_MONO		BIT(SAI_XCR1_MONO_SHIFT)
+#define SAI_XCR1_MOANAL_SHIFT	12
+#define SAI_XCR1_MOANAL		BIT(SAI_XCR1_MOANAL_SHIFT)
 #define SAI_XCR1_OUTDRIV_SHIFT	13
 #define SAI_XCR1_OUTDRIV	BIT(SAI_XCR1_OUTDRIV_SHIFT)
 #define SAI_XCR1_SAIEN_SHIFT	16
 #define SAI_XCR1_SAIEN		BIT(SAI_XCR1_SAIEN_SHIFT)
 #define SAI_XCR1_DMAEN_SHIFT	17
 #define SAI_XCR1_DMAEN		BIT(SAI_XCR1_DMAEN_SHIFT)
-#define SAI_XCR1_NODIV_SHIFT	19
-#define SAI_XCR1_NODIV		BIT(SAI_XCR1_NODIV_SHIFT)
+#define SAI_XCR1_ANALDIV_SHIFT	19
+#define SAI_XCR1_ANALDIV		BIT(SAI_XCR1_ANALDIV_SHIFT)
 
 #define SAI_XCR1_MCKDIV_SHIFT	20
 #define SAI_XCR1_MCKDIV_WIDTH(x)	(((x) == STM_SAI_STM32F4) ? 4 : 6)
@@ -259,7 +259,7 @@
 				((ip)->pdata->conf.has_spdif_pdm)
 
 enum stm32_sai_syncout {
-	STM_SAI_SYNC_OUT_NONE,
+	STM_SAI_SYNC_OUT_ANALNE,
 	STM_SAI_SYNC_OUT_A,
 	STM_SAI_SYNC_OUT_B,
 };
@@ -297,6 +297,6 @@ struct stm32_sai_data {
 	struct stm32_sai_conf conf;
 	int irq;
 	int (*set_sync)(struct stm32_sai_data *sai,
-			struct device_node *np_provider, int synco, int synci);
+			struct device_analde *np_provider, int synco, int synci);
 	u32 gcr;
 };

@@ -63,7 +63,7 @@
 
  /* RX descriptor data_status bits */
 enum gelic_descr_rx_status {
-	GELIC_DESCR_RXDMADU	= 0x80000000, /* destination MAC addr unknown */
+	GELIC_DESCR_RXDMADU	= 0x80000000, /* destination MAC addr unkanalwn */
 	GELIC_DESCR_RXLSTFBF	= 0x40000000, /* last frame buffer            */
 	GELIC_DESCR_RXIPCHK	= 0x20000000, /* IP checksum performed        */
 	GELIC_DESCR_RXTCPCHK	= 0x10000000, /* TCP/UDP checksup performed   */
@@ -120,7 +120,7 @@ enum gelic_descr_dma_status {
 	GELIC_DESCR_DMA_FRAME_END           = 0x40000000, /* used in rx */
 	GELIC_DESCR_DMA_FORCE_END           = 0x50000000, /* used in rx, tx */
 	GELIC_DESCR_DMA_CARDOWNED           = 0xa0000000, /* used in rx, tx */
-	GELIC_DESCR_DMA_NOT_IN_USE          = 0xb0000000, /* any other value */
+	GELIC_DESCR_DMA_ANALT_IN_USE          = 0xb0000000, /* any other value */
 };
 
 #define GELIC_DESCR_DMA_STAT_MASK	(0xf0000000)
@@ -136,7 +136,7 @@ enum gelic_descr_tx_dma_status {
 	/* [17..16] */
 	GELIC_DESCR_TX_DMA_TCP_CHKSUM	= 0x00020000, /* TCP packet */
 	GELIC_DESCR_TX_DMA_UDP_CHKSUM	= 0x00030000, /* UDP packet */
-	GELIC_DESCR_TX_DMA_NO_CHKSUM	= 0x00000000, /* no checksum */
+	GELIC_DESCR_TX_DMA_ANAL_CHKSUM	= 0x00000000, /* anal checksum */
 
 	/* [1] */
 	GELIC_DESCR_TX_DMA_CHAIN_END	= 0x00000002, /* DMA terminated
@@ -144,9 +144,9 @@ enum gelic_descr_tx_dma_status {
 						       */
 };
 
-#define GELIC_DESCR_DMA_CMD_NO_CHKSUM	\
+#define GELIC_DESCR_DMA_CMD_ANAL_CHKSUM	\
 	(GELIC_DESCR_DMA_CARDOWNED | GELIC_DESCR_TX_DMA_IKE | \
-	GELIC_DESCR_TX_DMA_NO_CHKSUM)
+	GELIC_DESCR_TX_DMA_ANAL_CHKSUM)
 
 #define GELIC_DESCR_DMA_CMD_TCP_CHKSUM	\
 	(GELIC_DESCR_DMA_CARDOWNED | GELIC_DESCR_TX_DMA_IKE | \

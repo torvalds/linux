@@ -16,7 +16,7 @@ static int hci_codec_list_add(struct list_head *list,
 
 	entry = kzalloc(sizeof(*entry) + len, GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->id = sent->id;
 	if (sent->id == 0xFF) {
@@ -61,7 +61,7 @@ static void hci_read_codec_capabilities(struct hci_dev *hdev, __u8 transport,
 
 			cmd->transport = i;
 
-			/* If Read_Codec_Capabilities command is not supported
+			/* If Read_Codec_Capabilities command is analt supported
 			 * then just add codec to the list without caps
 			 */
 			if (!(hdev->commands[45] & 0x08)) {

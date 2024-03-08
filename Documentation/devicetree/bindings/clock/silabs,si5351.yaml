@@ -75,10 +75,10 @@ properties:
             Reset mode for the PLL. Mode can be one of:
 
                 0 - reset whenever PLL rate is adjusted (default mode)
-                1 - do not reset when PLL rate is adjusted
+                1 - do analt reset when PLL rate is adjusted
 
             In mode 1, the PLL is only reset if the silabs,pll-reset is
-            specified in one of the clock output child nodes that also sources
+            specified in one of the clock output child analdes that also sources
             the PLL. This mode may be preferable if output clocks are expected
             to be adjusted without glitches.
           enum: [ 0, 1 ]

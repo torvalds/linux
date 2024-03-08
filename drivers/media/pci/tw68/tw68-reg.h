@@ -4,9 +4,9 @@
  *
  *  Much of this code is derived from the cx88 and sa7134 drivers, which
  *  were in turn derived from the bt87x driver.  The original work was by
- *  Gerd Knorr; more recently the code was enhanced by Mauro Carvalho Chehab,
+ *  Gerd Kanalrr; more recently the code was enhanced by Mauro Carvalho Chehab,
  *  Hans Verkuil, Andy Walls and many others.  Their work is gratefully
- *  acknowledged.  Full credit goes to them - any problems within this code
+ *  ackanalwledged.  Full credit goes to them - any problems within this code
  *  are mine.
  *
  *  Copyright (C) William M. Brack

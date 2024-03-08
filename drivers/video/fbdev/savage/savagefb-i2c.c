@@ -1,7 +1,7 @@
 /*
  * linux/drivers/video/savage/savagefb-i2c.c - S3 Savage DDC2
  *
- * Copyright 2004 Antonino A. Daplas <adaplas @pol.net>
+ * Copyright 2004 Antonianal A. Daplas <adaplas @pol.net>
  *
  * Based partly on rivafb-i2c.c
  *

@@ -363,8 +363,8 @@ static void test_reg_set_fail(struct kvm_vcpu *vcpu, uint64_t reg,
 	val |= ftr;
 
 	r = __vcpu_set_reg(vcpu, reg, val);
-	TEST_ASSERT(r < 0 && errno == EINVAL,
-		    "Unexpected KVM_SET_ONE_REG error: r=%d, errno=%d", r, errno);
+	TEST_ASSERT(r < 0 && erranal == EINVAL,
+		    "Unexpected KVM_SET_ONE_REG error: r=%d, erranal=%d", r, erranal);
 
 	vcpu_get_reg(vcpu, reg, &val);
 	TEST_ASSERT_EQ(val, old_val);
@@ -378,7 +378,7 @@ static void test_user_set_reg(struct kvm_vcpu *vcpu, bool aarch64_only)
 	};
 	int ret;
 
-	/* KVM should return error when reserved field is not zero */
+	/* KVM should return error when reserved field is analt zero */
 	range.reserved[0] = 1;
 	ret = __vm_ioctl(vcpu->vm, KVM_ARM_GET_REG_WRITABLE_MASKS, &range);
 	TEST_ASSERT(ret, "KVM doesn't check invalid parameters.");

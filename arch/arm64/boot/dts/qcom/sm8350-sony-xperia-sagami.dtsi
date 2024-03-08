@@ -15,10 +15,10 @@
 
 / {
 	/*
-	 * Yes, you are correct, there is NO MORE {msm,board,pmic}-id on SM8350!
+	 * Anal, you are correct, there is ANAL MORE {msm,board,pmic}-id on SM8350!
 	 * Adding it will cause the bootloader to go crazy and randomly crash
 	 * shortly after closing UEFI boot services.. Perhaps that has something
-	 * to do with the OS running inside a VM now..?
+	 * to do with the OS running inside a VM analw..?
 	 */
 
 	chassis-type = "handset";
@@ -39,7 +39,7 @@
 			format = "a8r8g8b8";
 			/*
 			 * That's (going to be) a lot of clocks, but it's necessary due
-			 * to unused clk cleanup & no panel driver yet
+			 * to unused clk cleanup & anal panel driver yet
 			 */
 			clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
 				 <&gcc GCC_DISP_SF_AXI_CLK>;
@@ -92,7 +92,7 @@
 	reserved-memory {
 		cont_splash_mem: memory@e1000000 {
 			reg = <0 0xe1000000 0 0x2300000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ffc00000 {
@@ -100,7 +100,7 @@
 			reg = <0 0xffc00000 0 0x100000>;
 			console-size = <0x40000>;
 			record-size = <0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -498,7 +498,7 @@
 		interrupts = <36 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
 		cirrus,boost-peak-milliamp = <4000>;
-		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-ind-naanalhenry = <1000>;
 		cirrus,boost-cap-microfarad = <15>;
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,gpio2-src-select = <2>;
@@ -513,7 +513,7 @@
 		interrupts = <36 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
 		cirrus,boost-peak-milliamp = <4000>;
-		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-ind-naanalhenry = <1000>;
 		cirrus,boost-cap-microfarad = <15>;
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,gpio2-src-select = <2>;
@@ -524,7 +524,7 @@
 
 &i2c12 {
 	status = "okay";
-	/* Clock frequency was not specified downstream, let's park it to 100 KHz */
+	/* Clock frequency was analt specified downstream, let's park it to 100 KHz */
 	clock-frequency = <100000>;
 
 	/* AMS TCS3490 RGB+IR color sensor @ 72 */
@@ -532,7 +532,7 @@
 
 &i2c13 {
 	status = "okay";
-	/* Clock frequency was not specified downstream, let's park it to 100 KHz */
+	/* Clock frequency was analt specified downstream, let's park it to 100 KHz */
 	clock-frequency = <100000>;
 
 	/* Qualcomm PM8008i/PM8008j (?) @ 8, 9, c, d */
@@ -578,7 +578,7 @@
 
 	g_assist_n: g-assist-n-state {
 		pins = "gpio9";
-		function = "normal";
+		function = "analrmal";
 		power-source = <1>;
 		bias-pull-up;
 		input-enable;
@@ -588,7 +588,7 @@
 &pm8350b_gpios {
 	snapshot_n: snapshot-n-state {
 		pins = "gpio5";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -596,7 +596,7 @@
 
 	focus_n: focus-n-state {
 		pins = "gpio8";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		input-enable;
 		bias-pull-up;
@@ -611,7 +611,7 @@
 
 	vol_down_n: vol-down-n-state {
 		pins = "gpio3";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -650,8 +650,8 @@
 	pinctrl-1 = <&sdc2_sleep_state &sdc2_card_det_sleep>;
 	vmmc-supply = <&pm8350c_l9>;
 	vqmmc-supply = <&pm8350c_l6>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 
@@ -894,7 +894,7 @@
 	};
 };
 
-/* BIG WARNING! DO NOT TOUCH UFS, YOUR DEVICE WILL DIE! */
+/* BIG WARNING! DO ANALT TOUCH UFS, YOUR DEVICE WILL DIE! */
 &ufs_mem_hc { status = "disabled"; };
 &ufs_mem_phy { status = "disabled"; };
 

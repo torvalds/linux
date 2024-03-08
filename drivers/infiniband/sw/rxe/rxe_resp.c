@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -11,7 +11,7 @@
 #include "rxe_queue.h"
 
 static char *resp_state_name[] = {
-	[RESPST_NONE]				= "NONE",
+	[RESPST_ANALNE]				= "ANALNE",
 	[RESPST_GET_REQ]			= "GET_REQ",
 	[RESPST_CHK_PSN]			= "CHK_PSN",
 	[RESPST_CHK_OP_SEQ]			= "CHK_OP_SEQ",
@@ -25,7 +25,7 @@ static char *resp_state_name[] = {
 	[RESPST_ATOMIC_WRITE_REPLY]		= "ATOMIC_WRITE_REPLY",
 	[RESPST_PROCESS_FLUSH]			= "PROCESS_FLUSH",
 	[RESPST_COMPLETE]			= "COMPLETE",
-	[RESPST_ACKNOWLEDGE]			= "ACKNOWLEDGE",
+	[RESPST_ACKANALWLEDGE]			= "ACKANALWLEDGE",
 	[RESPST_CLEANUP]			= "CLEANUP",
 	[RESPST_DUPLICATE_REQUEST]		= "DUPLICATE_REQUEST",
 	[RESPST_ERR_MALFORMED_WQE]		= "ERR_MALFORMED_WQE",
@@ -323,7 +323,7 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 	struct rxe_srq *srq = qp->srq;
 
 	if (pkt->mask & (RXE_READ_OR_ATOMIC_MASK | RXE_ATOMIC_WRITE_MASK)) {
-		/* it is the requesters job to not send
+		/* it is the requesters job to analt send
 		 * too many read/atomic ops, we just
 		 * recycle the responder resource queue
 		 */
@@ -368,7 +368,7 @@ static enum resp_states rxe_resp_check_length(struct rxe_qp *qp,
 		} else if ((pkt->mask & RXE_START_MASK) ||
 			   (pkt->mask & RXE_MIDDLE_MASK)) {
 			if (unlikely(payload != mtu)) {
-				rxe_dbg_qp(qp, "first or middle packet not mtu");
+				rxe_dbg_qp(qp, "first or middle packet analt mtu");
 				return RESPST_ERR_LENGTH;
 			}
 		} else if (pkt->mask & RXE_END_MASK) {
@@ -393,8 +393,8 @@ static enum resp_states rxe_resp_check_length(struct rxe_qp *qp,
 		return RESPST_EXECUTE;
 }
 
-/* if the reth length field is zero we can assume nothing
- * about the rkey value and should not validate or use it.
+/* if the reth length field is zero we can assume analthing
+ * about the rkey value and should analt validate or use it.
  * Instead set qp->resp.rkey to 0 which is an invalid rkey
  * value since the minimum index part is 1.
  */
@@ -465,7 +465,7 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		WARN_ON(1);
 	}
 
-	/* A zero-byte read or write op is not required to
+	/* A zero-byte read or write op is analt required to
 	 * set an addr or rkey. See C9-88
 	 */
 	if ((pkt->mask & RXE_READ_OR_WRITE_MASK) &&
@@ -482,7 +482,7 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	if (rkey_is_mw(rkey)) {
 		mw = rxe_lookup_mw(qp, access, rkey);
 		if (!mw) {
-			rxe_dbg_qp(qp, "no MW matches rkey %#x\n", rkey);
+			rxe_dbg_qp(qp, "anal MW matches rkey %#x\n", rkey);
 			state = RESPST_ERR_RKEY_VIOLATION;
 			goto err;
 		}
@@ -503,15 +503,15 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	} else {
 		mr = lookup_mr(qp->pd, access, rkey, RXE_LOOKUP_REMOTE);
 		if (!mr) {
-			rxe_dbg_qp(qp, "no MR matches rkey %#x\n", rkey);
+			rxe_dbg_qp(qp, "anal MR matches rkey %#x\n", rkey);
 			state = RESPST_ERR_RKEY_VIOLATION;
 			goto err;
 		}
 	}
 
 	if (pkt->mask & RXE_FLUSH_MASK) {
-		/* FLUSH MR may not set va or resid
-		 * no need to check range since we will flush whole mr
+		/* FLUSH MR may analt set va or resid
+		 * anal need to check range since we will flush whole mr
 		 */
 		if (feth_sel(pkt) == IB_FLUSH_MR)
 			goto skip_check_range;
@@ -535,8 +535,8 @@ skip_check_range:
 				goto err;
 			}
 			if ((bth_pad(pkt) != (0x3 & (-resid)))) {
-				/* This case may not be exactly that
-				 * but nothing else fits.
+				/* This case may analt be exactly that
+				 * but analthing else fits.
 				 */
 				state = RESPST_ERR_LENGTH;
 				goto err;
@@ -567,16 +567,16 @@ static enum resp_states send_data_in(struct rxe_qp *qp, void *data_addr,
 	err = copy_data(qp->pd, IB_ACCESS_LOCAL_WRITE, &qp->resp.wqe->dma,
 			data_addr, data_len, RXE_TO_MR_OBJ);
 	if (unlikely(err))
-		return (err == -ENOSPC) ? RESPST_ERR_LENGTH
+		return (err == -EANALSPC) ? RESPST_ERR_LENGTH
 					: RESPST_ERR_MALFORMED_WQE;
 
-	return RESPST_NONE;
+	return RESPST_ANALNE;
 }
 
 static enum resp_states write_data_in(struct rxe_qp *qp,
 				      struct rxe_pkt_info *pkt)
 {
-	enum resp_states rc = RESPST_NONE;
+	enum resp_states rc = RESPST_ANALNE;
 	int	err;
 	int data_len = payload_size(pkt);
 
@@ -648,7 +648,7 @@ static enum resp_states process_flush(struct rxe_qp *qp,
 
 	/* oA19-14, oA19-15 */
 	if (res && res->replay)
-		return RESPST_ACKNOWLEDGE;
+		return RESPST_ACKANALWLEDGE;
 	else if (!res) {
 		res = rxe_prepare_res(qp, pkt, RXE_FLUSH_MASK);
 		qp->resp.res = res;
@@ -681,7 +681,7 @@ static enum resp_states process_flush(struct rxe_qp *qp,
 	qp->resp.opcode = pkt->opcode;
 	qp->resp.status = IB_WC_SUCCESS;
 
-	return RESPST_ACKNOWLEDGE;
+	return RESPST_ACKANALWLEDGE;
 }
 
 static enum resp_states atomic_reply(struct rxe_qp *qp,
@@ -716,7 +716,7 @@ static enum resp_states atomic_reply(struct rxe_qp *qp,
 		qp->resp.status = IB_WC_SUCCESS;
 	}
 
-	return RESPST_ACKNOWLEDGE;
+	return RESPST_ACKANALWLEDGE;
 }
 
 static enum resp_states atomic_write_reply(struct rxe_qp *qp,
@@ -734,7 +734,7 @@ static enum resp_states atomic_write_reply(struct rxe_qp *qp,
 	}
 
 	if (res->replay)
-		return RESPST_ACKNOWLEDGE;
+		return RESPST_ACKANALWLEDGE;
 
 	mr = qp->resp.mr;
 	value = *(u64 *)payload_addr(pkt);
@@ -754,7 +754,7 @@ static enum resp_states atomic_write_reply(struct rxe_qp *qp,
 	qp->resp.opcode = pkt->opcode;
 	qp->resp.status = IB_WC_SUCCESS;
 
-	return RESPST_ACKNOWLEDGE;
+	return RESPST_ACKANALWLEDGE;
 }
 
 static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
@@ -859,7 +859,7 @@ static struct rxe_mr *rxe_recheck_mr(struct rxe_qp *qp, u32 rkey)
 	return mr;
 }
 
-/* RDMA read response. If res is not NULL, then we have a current RDMA request
+/* RDMA read response. If res is analt NULL, then we have a current RDMA request
  * being processed or replayed.
  */
 static enum resp_states read_reply(struct rxe_qp *qp,
@@ -900,7 +900,7 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 			opcode = IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST;
 	} else {
 		/* re-lookup mr from rkey on all later packets.
-		 * length will be non-zero. This can fail if someone
+		 * length will be analn-zero. This can fail if someone
 		 * modifies or destroys the mr since the first packet.
 		 */
 		mr = rxe_recheck_mr(qp, res->read.rkey);
@@ -1007,7 +1007,7 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 		if (err)
 			return err;
 	} else if (pkt->mask & RXE_READ_MASK) {
-		/* For RDMA Read we can increment the msn now. See C9-148. */
+		/* For RDMA Read we can increment the msn analw. See C9-148. */
 		qp->resp.msn++;
 		return RESPST_READ_REPLY;
 	} else if (pkt->mask & RXE_ATOMIC_MASK) {
@@ -1043,7 +1043,7 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 	if (pkt->mask & RXE_COMP_MASK)
 		return RESPST_COMPLETE;
 	else if (qp_type(qp) == IB_QPT_RC)
-		return RESPST_ACKNOWLEDGE;
+		return RESPST_ACKANALWLEDGE;
 	else
 		return RESPST_CLEANUP;
 }
@@ -1133,7 +1133,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 		}
 	} else {
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			rxe_err_qp(qp, "non-flush error status = %d",
+			rxe_err_qp(qp, "analn-flush error status = %d",
 				wc->status);
 	}
 
@@ -1157,7 +1157,7 @@ finish:
 	if (unlikely(!pkt))
 		return RESPST_DONE;
 	if (qp_type(qp) == IB_QPT_RC)
-		return RESPST_ACKNOWLEDGE;
+		return RESPST_ACKANALWLEDGE;
 	else
 		return RESPST_CLEANUP;
 }
@@ -1172,7 +1172,7 @@ static int send_common_ack(struct rxe_qp *qp, u8 syndrome, u32 psn,
 
 	skb = prepare_ack_packet(qp, &ack_pkt, opcode, 0, psn, syndrome);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rxe_xmit_packet(qp, &ack_pkt, skb);
 	if (err)
@@ -1184,13 +1184,13 @@ static int send_common_ack(struct rxe_qp *qp, u8 syndrome, u32 psn,
 static int send_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
 {
 	return send_common_ack(qp, syndrome, psn,
-			IB_OPCODE_RC_ACKNOWLEDGE, "ACK");
+			IB_OPCODE_RC_ACKANALWLEDGE, "ACK");
 }
 
 static int send_atomic_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
 {
 	int ret = send_common_ack(qp, syndrome, psn,
-			IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE, "ATOMIC ACK");
+			IB_OPCODE_RC_ATOMIC_ACKANALWLEDGE, "ATOMIC ACK");
 
 	/* have to clear this since it is used to trigger
 	 * long read replies
@@ -1212,7 +1212,7 @@ static int send_read_response_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
 	return ret;
 }
 
-static enum resp_states acknowledge(struct rxe_qp *qp,
+static enum resp_states ackanalwledge(struct rxe_qp *qp,
 				    struct rxe_pkt_info *pkt)
 {
 	if (qp_type(qp) != IB_QPT_RC)
@@ -1293,7 +1293,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 			goto out;
 		}
 
-		/* Resource not found. Class D error. Drop the request. */
+		/* Resource analt found. Class D error. Drop the request. */
 		rc = RESPST_CLEANUP;
 		goto out;
 	} else if (pkt->mask & RXE_READ_MASK) {
@@ -1301,7 +1301,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 
 		res = find_resource(qp, pkt->psn);
 		if (!res) {
-			/* Resource not found. Class D error.  Drop the
+			/* Resource analt found. Class D error.  Drop the
 			 * request.
 			 */
 			rc = RESPST_CLEANUP;
@@ -1357,7 +1357,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 			goto out;
 		}
 
-		/* Resource not found. Class D error. Drop the request. */
+		/* Resource analt found. Class D error. Drop the request. */
 		rc = RESPST_CLEANUP;
 		goto out;
 	}
@@ -1391,7 +1391,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 	} else {
 		/* Class D1. This packet may be the start of a
 		 * new message and could be valid. The previous
-		 * message is invalid and ignored. reset the
+		 * message is invalid and iganalred. reset the
 		 * recv wr to its original state
 		 */
 		if (qp->resp.wqe) {
@@ -1451,14 +1451,14 @@ static int flush_recv_wqe(struct rxe_qp *qp, struct rxe_recv_wqe *wqe)
  * if unable to complete a wqe stop completing and
  * just flush the remaining wqes
  */
-static void flush_recv_queue(struct rxe_qp *qp, bool notify)
+static void flush_recv_queue(struct rxe_qp *qp, bool analtify)
 {
 	struct rxe_queue *q = qp->rq.queue;
 	struct rxe_recv_wqe *wqe;
 	int err;
 
 	if (qp->srq) {
-		if (notify && qp->ibqp.event_handler) {
+		if (analtify && qp->ibqp.event_handler) {
 			struct ib_event ev;
 
 			ev.device = qp->ibqp.device;
@@ -1469,15 +1469,15 @@ static void flush_recv_queue(struct rxe_qp *qp, bool notify)
 		return;
 	}
 
-	/* recv queue not created. nothing to do. */
+	/* recv queue analt created. analthing to do. */
 	if (!qp->rq.queue)
 		return;
 
 	while ((wqe = queue_head(q, q->type))) {
-		if (notify) {
+		if (analtify) {
 			err = flush_recv_wqe(qp, wqe);
 			if (err)
-				notify = 0;
+				analtify = 0;
 		}
 		queue_advance_consumer(q, q->type);
 	}
@@ -1496,10 +1496,10 @@ int rxe_responder(struct rxe_qp *qp)
 	spin_lock_irqsave(&qp->state_lock, flags);
 	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
 			  qp_state(qp) == IB_QPS_RESET) {
-		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
+		bool analtify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
 
 		drain_req_pkts(qp);
-		flush_recv_queue(qp, notify);
+		flush_recv_queue(qp, analtify);
 		spin_unlock_irqrestore(&qp->state_lock, flags);
 		goto exit;
 	}
@@ -1551,8 +1551,8 @@ int rxe_responder(struct rxe_qp *qp)
 		case RESPST_PROCESS_FLUSH:
 			state = process_flush(qp, pkt);
 			break;
-		case RESPST_ACKNOWLEDGE:
-			state = acknowledge(qp, pkt);
+		case RESPST_ACKANALWLEDGE:
+			state = ackanalwledge(qp, pkt);
 			break;
 		case RESPST_CLEANUP:
 			state = cleanup(qp, pkt);
@@ -1608,7 +1608,7 @@ int rxe_responder(struct rxe_qp *qp)
 					qp->resp.status = IB_WC_REM_ACCESS_ERR;
 					state = RESPST_COMPLETE;
 				} else {
-					/* UC/non-SRQ Class E. */
+					/* UC/analn-SRQ Class E. */
 					state = RESPST_CLEANUP;
 				}
 			}
@@ -1677,7 +1677,7 @@ int rxe_responder(struct rxe_qp *qp)
 		}
 	}
 
-	/* A non-zero return value will cause rxe_do_task to
+	/* A analn-zero return value will cause rxe_do_task to
 	 * exit its loop and end the work item. A zero return
 	 * will continue looping and return to rxe_responder
 	 */

@@ -34,11 +34,11 @@ static int xhci_create_intel_xhci_sw_pdev(struct xhci_hcd *xhci, u32 cap_offset)
 	struct resource	res = { 0, };
 	int ret;
 
-	pdev = platform_device_alloc(USB_SW_DRV_NAME, PLATFORM_DEVID_NONE);
+	pdev = platform_device_alloc(USB_SW_DRV_NAME, PLATFORM_DEVID_ANALNE);
 	if (!pdev) {
 		xhci_err(xhci, "couldn't allocate %s platform device\n",
 			 USB_SW_DRV_NAME);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	res.start = hcd->rsrc_start + cap_offset;
@@ -54,7 +54,7 @@ static int xhci_create_intel_xhci_sw_pdev(struct xhci_hcd *xhci, u32 cap_offset)
 	}
 
 	if (pci->device == PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI) {
-		ret = device_create_managed_software_node(&pdev->dev, role_switch_props,
+		ret = device_create_managed_software_analde(&pdev->dev, role_switch_props,
 							  NULL);
 		if (ret) {
 			dev_err(dev, "failed to register device properties\n");

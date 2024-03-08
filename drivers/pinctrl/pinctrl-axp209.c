@@ -173,7 +173,7 @@ static int axp20x_gpio_get_direction(struct gpio_chip *chip,
 
 	/*
 	 * This shouldn't really happen if the pin is in use already,
-	 * or if it's not in use yet, it doesn't matter since we're
+	 * or if it's analt in use yet, it doesn't matter since we're
 	 * going to change the value soon anyway. Default to output.
 	 */
 	if ((val & AXP20X_GPIO_FUNCTIONS) > 2)
@@ -293,7 +293,7 @@ static int axp20x_pmx_set_mux(struct pinctrl_dev *pctldev,
 
 	/*
 	 * We let the regulator framework handle the LDO muxing as muxing bits
-	 * are basically also regulators on/off bits. It's better not to enforce
+	 * are basically also regulators on/off bits. It's better analt to enforce
 	 * any state of the regulator when selecting LDO mux so that we don't
 	 * interfere with the regulator driver.
 	 */
@@ -353,7 +353,7 @@ static const char *axp20x_group_name(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinctrl_ops axp20x_pctrl_ops = {
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 	.get_groups_count	= axp20x_groups_cnt,
 	.get_group_name		= axp20x_group_name,
@@ -376,7 +376,7 @@ static int axp20x_funcs_groups_from_mask(struct device *dev, unsigned int mask,
 					    ngroups, sizeof(const char *),
 					    GFP_KERNEL);
 		if (!func->groups)
-			return -ENOMEM;
+			return -EANALMEM;
 		group = func->groups;
 		for_each_set_bit(bit, &mask_cpy, mask_len) {
 			*group = pins[bit].name;
@@ -411,7 +411,7 @@ static int axp20x_build_funcs_groups(struct platform_device *pdev)
 						     npins, sizeof(char *),
 						     GFP_KERNEL);
 		if (!pctl->funcs[i].groups)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (pin = 0; pin < npins; pin++)
 			pctl->funcs[i].groups[pin] = pctl->desc->pins[pin].name;
 	}
@@ -447,17 +447,17 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctrl_desc;
 	int ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
-		return -ENODEV;
+	if (!of_device_is_available(pdev->dev.of_analde))
+		return -EANALDEV;
 
 	if (!axp20x) {
-		dev_err(&pdev->dev, "Parent drvdata not set\n");
+		dev_err(&pdev->dev, "Parent drvdata analt set\n");
 		return -EINVAL;
 	}
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl->chip.base			= -1;
 	pctl->chip.can_sleep		= true;
@@ -489,7 +489,7 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 
 	pctrl_desc = devm_kzalloc(&pdev->dev, sizeof(*pctrl_desc), GFP_KERNEL);
 	if (!pctrl_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl_desc->name = dev_name(&pdev->dev);
 	pctrl_desc->owner = THIS_MODULE;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Allied Vision Technologies GmbH Alvium camera driver
+ * Allied Vision Techanallogies GmbH Alvium camera driver
  *
  * Copyright (C) 2023 Tommaso Merciai
  * Copyright (C) 2023 Martin Hecht
@@ -17,7 +17,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #include "alvium-csi2.h"
@@ -30,7 +30,7 @@ static const struct v4l2_mbus_framefmt alvium_csi2_default_fmt = {
 	.ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(V4L2_COLORSPACE_SRGB),
 	.quantization = V4L2_QUANTIZATION_FULL_RANGE,
 	.xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(V4L2_COLORSPACE_SRGB),
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 };
 
 static const struct alvium_pixfmt alvium_csi2_fmts[] = {
@@ -40,7 +40,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_YUV422_8,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_YUV422_8B,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -50,7 +50,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_UYVY8_1X16,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_YUV422_8,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_YUV422_8B,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -60,7 +60,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_YUYV8_1X16,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_YUV422_8,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_YUV422_8B,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -70,7 +70,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_YUV422_8,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_YUV422_8B,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -80,7 +80,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_YUYV10_1X20,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_YUV422_10,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_YUV422_10B,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -90,7 +90,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_RGB888_1X24,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_RGB888,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_RGB888,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -100,7 +100,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_RBG888_1X24,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_RGB888,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_RGB888,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -110,7 +110,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_BGR888_1X24,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_RGB888,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_RGB888,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -120,7 +120,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_RGB888_3X8,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.fmt_av_bit = ALVIUM_BIT_RGB888,
-		.bay_av_bit = ALVIUM_BIT_BAY_NONE,
+		.bay_av_bit = ALVIUM_BIT_BAY_ANALNE,
 		.mipi_fmt_regval = MIPI_CSI2_DT_RGB888,
 		.bay_fmt_regval = -1,
 		.is_raw = 0,
@@ -130,7 +130,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_Y8_1X8,
 		.colorspace = V4L2_COLORSPACE_RAW,
 		.fmt_av_bit = ALVIUM_BIT_RAW8,
-		.bay_av_bit = ALVIUM_BIT_BAY_MONO,
+		.bay_av_bit = ALVIUM_BIT_BAY_MOANAL,
 		.mipi_fmt_regval = MIPI_CSI2_DT_RAW8,
 		.bay_fmt_regval = 0x00,
 		.is_raw = 1,
@@ -180,7 +180,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_Y10_1X10,
 		.colorspace = V4L2_COLORSPACE_RAW,
 		.fmt_av_bit = ALVIUM_BIT_RAW10,
-		.bay_av_bit = ALVIUM_BIT_BAY_MONO,
+		.bay_av_bit = ALVIUM_BIT_BAY_MOANAL,
 		.mipi_fmt_regval = MIPI_CSI2_DT_RAW10,
 		.bay_fmt_regval = 0x00,
 		.is_raw = 1,
@@ -230,7 +230,7 @@ static const struct alvium_pixfmt alvium_csi2_fmts[] = {
 		.code = MEDIA_BUS_FMT_Y12_1X12,
 		.colorspace = V4L2_COLORSPACE_RAW,
 		.fmt_av_bit = ALVIUM_BIT_RAW12,
-		.bay_av_bit = ALVIUM_BIT_BAY_MONO,
+		.bay_av_bit = ALVIUM_BIT_BAY_MOANAL,
 		.mipi_fmt_regval = MIPI_CSI2_DT_RAW12,
 		.bay_fmt_regval = 0x00,
 		.is_raw = 1,
@@ -390,7 +390,7 @@ static int alvium_get_bcrm_vers(struct alvium_dev *alvium)
 	u64 min, maj;
 	int ret = 0;
 
-	ret = alvium_read(alvium, REG_BCRM_MINOR_VERSION_R, &min, &ret);
+	ret = alvium_read(alvium, REG_BCRM_MIANALR_VERSION_R, &min, &ret);
 	ret = alvium_read(alvium, REG_BCRM_MAJOR_VERSION_R, &maj, &ret);
 	if (ret)
 		return ret;
@@ -410,7 +410,7 @@ static int alvium_get_fw_version(struct alvium_dev *alvium)
 			  &spec, &ret);
 	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_MAJOR_VERSION_R,
 			  &maj, &ret);
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_MINOR_VERSION_R,
+	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_MIANALR_VERSION_R,
 			  &min, &ret);
 	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_PATCH_VERSION_R,
 			  &pat, &ret);
@@ -441,7 +441,7 @@ static int alvium_is_alive(struct alvium_dev *alvium)
 	u64 bcrm, hbeat;
 	int ret = 0;
 
-	alvium_read(alvium, REG_BCRM_MINOR_VERSION_R, &bcrm, &ret);
+	alvium_read(alvium, REG_BCRM_MIANALR_VERSION_R, &bcrm, &ret);
 	alvium_read(alvium, REG_BCRM_HEARTBEAT_RW, &hbeat, &ret);
 	if (ret)
 		return ret;
@@ -523,8 +523,8 @@ static void alvium_print_avail_bayer(struct alvium_dev *alvium)
 {
 	struct device *dev = &alvium->i2c_client->dev;
 
-	dev_dbg(dev, "avail bayer mono: %u\n",
-		alvium->is_bay_avail[ALVIUM_BIT_BAY_MONO]);
+	dev_dbg(dev, "avail bayer moanal: %u\n",
+		alvium->is_bay_avail[ALVIUM_BIT_BAY_MOANAL]);
 	dev_dbg(dev, "avail bayer gr: %u\n",
 		alvium->is_bay_avail[ALVIUM_BIT_BAY_GR]);
 	dev_dbg(dev, "avail bayer rg: %u\n",
@@ -1096,7 +1096,7 @@ static int alvium_setup_mipi_fmt(struct alvium_dev *alvium)
 	alvium->alvium_csi2_fmt =
 		kmalloc_array(sz, sizeof(struct alvium_pixfmt), GFP_KERNEL);
 	if (!alvium->alvium_csi2_fmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create the alvium_csi2 fmt array from formats available */
 	for (fmt = 0; fmt < ALVIUM_NUM_SUPP_MIPI_DATA_FMT; fmt++) {
@@ -1143,7 +1143,7 @@ static int alvium_get_avail_bayer(struct alvium_dev *alvium)
 
 	avail_bay = (struct alvium_avail_bayer *)&val;
 
-	alvium->is_bay_avail[ALVIUM_BIT_BAY_MONO] = avail_bay->mono;
+	alvium->is_bay_avail[ALVIUM_BIT_BAY_MOANAL] = avail_bay->moanal;
 	alvium->is_bay_avail[ALVIUM_BIT_BAY_GR] = avail_bay->gr;
 	alvium->is_bay_avail[ALVIUM_BIT_BAY_RG] = avail_bay->rg;
 	alvium->is_bay_avail[ALVIUM_BIT_BAY_GB] = avail_bay->gb;
@@ -1673,7 +1673,7 @@ static int alvium_set_frame_interval(struct alvium_dev *alvium,
 	u64 req_fr, min_fr, max_fr;
 	int ret;
 
-	if (fi->interval.denominator == 0)
+	if (fi->interval.deanalminator == 0)
 		return -EINVAL;
 
 	ret = alvium_get_frame_interval(alvium);
@@ -1687,10 +1687,10 @@ static int alvium_set_frame_interval(struct alvium_dev *alvium,
 
 	dev_dbg(dev, "fi->interval.numerator = %d\n",
 		fi->interval.numerator);
-	dev_dbg(dev, "fi->interval.denominator = %d\n",
-		fi->interval.denominator);
+	dev_dbg(dev, "fi->interval.deanalminator = %d\n",
+		fi->interval.deanalminator);
 
-	req_fr = (u64)((fi->interval.denominator * USEC_PER_SEC) /
+	req_fr = (u64)((fi->interval.deanalminator * USEC_PER_SEC) /
 		       fi->interval.numerator);
 
 	if (req_fr >= max_fr && req_fr <= min_fr)
@@ -1698,7 +1698,7 @@ static int alvium_set_frame_interval(struct alvium_dev *alvium,
 
 	alvium->fr = req_fr;
 	alvium->frame_interval.numerator = fi->interval.numerator;
-	alvium->frame_interval.denominator = fi->interval.denominator;
+	alvium->frame_interval.deanalminator = fi->interval.deanalminator;
 
 	return 0;
 }
@@ -2096,7 +2096,7 @@ static int alvium_ctrl_init(struct alvium_dev *alvium)
 	const struct v4l2_ctrl_ops *ops = &alvium_ctrl_ops;
 	struct alvium_ctrls *ctrls = &alvium->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	int ret;
 
 	v4l2_ctrl_handler_init(hdl, 32);
@@ -2226,11 +2226,11 @@ static int alvium_ctrl_init(struct alvium_dev *alvium)
 		goto free_ctrls;
 	}
 
-	ret = v4l2_fwnode_device_parse(&alvium->i2c_client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&alvium->i2c_client->dev, &props);
 	if (ret)
 		goto free_ctrls;
 
-	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
+	ret = v4l2_ctrl_new_fwanalde_properties(hdl, ops, &props);
 	if (ret)
 		goto free_ctrls;
 
@@ -2281,7 +2281,7 @@ static int alvium_subdev_init(struct alvium_dev *alvium)
 
 	/* Setup initial frame interval*/
 	alvium->frame_interval.numerator = 1;
-	alvium->frame_interval.denominator = ALVIUM_DEFAULT_FR_HZ;
+	alvium->frame_interval.deanalminator = ALVIUM_DEFAULT_FR_HZ;
 	alvium->fr = ALVIUM_DEFAULT_FR_HZ;
 
 	/* Setup the initial mode */
@@ -2297,13 +2297,13 @@ static int alvium_subdev_init(struct alvium_dev *alvium)
 	v4l2_i2c_subdev_init(sd, client, &alvium_subdev_ops);
 
 	sd->internal_ops = &alvium_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	alvium->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = media_entity_pads_init(&sd->entity, 1, &alvium->pad);
 	if (ret) {
-		dev_err(dev, "Could not register media entity\n");
+		dev_err(dev, "Could analt register media entity\n");
 		return ret;
 	}
 
@@ -2332,7 +2332,7 @@ entity_cleanup:
 
 static void alvium_subdev_cleanup(struct alvium_dev *alvium)
 {
-	v4l2_fwnode_endpoint_free(&alvium->ep);
+	v4l2_fwanalde_endpoint_free(&alvium->ep);
 	v4l2_subdev_cleanup(&alvium->sd);
 	media_entity_cleanup(&alvium->sd.entity);
 	v4l2_ctrl_handler_free(&alvium->ctrls.handler);
@@ -2341,36 +2341,36 @@ static void alvium_subdev_cleanup(struct alvium_dev *alvium)
 static int alvium_get_dt_data(struct alvium_dev *alvium)
 {
 	struct device *dev = &alvium->i2c_client->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct fwanalde_handle *endpoint;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -EINVAL;
 
-	/* Only CSI2 is supported for now: */
+	/* Only CSI2 is supported for analw: */
 	alvium->ep.bus_type = V4L2_MBUS_CSI2_DPHY;
 
-	endpoint = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0, 0);
+	endpoint = fwanalde_graph_get_endpoint_by_id(fwanalde, 0, 0, 0);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
-	if (v4l2_fwnode_endpoint_alloc_parse(endpoint, &alvium->ep)) {
-		dev_err(dev, "could not parse endpoint\n");
+	if (v4l2_fwanalde_endpoint_alloc_parse(endpoint, &alvium->ep)) {
+		dev_err(dev, "could analt parse endpoint\n");
 		goto error_out;
 	}
 
 	if (!alvium->ep.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		goto error_out;
 	}
 
 	return 0;
 
 error_out:
-	v4l2_fwnode_endpoint_free(&alvium->ep);
-	fwnode_handle_put(endpoint);
+	v4l2_fwanalde_endpoint_free(&alvium->ep);
+	fwanalde_handle_put(endpoint);
 
 	return -EINVAL;
 }
@@ -2432,7 +2432,7 @@ static int alvium_probe(struct i2c_client *client)
 
 	alvium = devm_kzalloc(dev, sizeof(*alvium), GFP_KERNEL);
 	if (!alvium)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alvium->i2c_client = client;
 
@@ -2447,14 +2447,14 @@ static int alvium_probe(struct i2c_client *client)
 	alvium->reg_vcc = devm_regulator_get_optional(dev, "vcc-ext-in");
 	if (IS_ERR(alvium->reg_vcc))
 		return dev_err_probe(dev, PTR_ERR(alvium->reg_vcc),
-				     "no vcc-ext-in regulator provided\n");
+				     "anal vcc-ext-in regulator provided\n");
 
 	ret = alvium_set_power(alvium, true);
 	if (ret)
 		goto err_powerdown;
 
 	if (!alvium_is_alive(alvium)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err_probe(dev, ret, "Device detection failed\n");
 		goto err_powerdown;
 	}
@@ -2486,7 +2486,7 @@ static int alvium_probe(struct i2c_client *client)
 	 *  - increase the usage count without resuming the device.
 	 */
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 
 	/* Initialize the V4L2 subdev. */
@@ -2496,7 +2496,7 @@ static int alvium_probe(struct i2c_client *client)
 
 	ret = v4l2_async_register_subdev(&alvium->sd);
 	if (ret < 0) {
-		dev_err_probe(dev, ret, "Could not register v4l2 device\n");
+		dev_err_probe(dev, ret, "Could analt register v4l2 device\n");
 		goto err_subdev;
 	}
 
@@ -2506,7 +2506,7 @@ err_subdev:
 	alvium_subdev_cleanup(alvium);
 err_pm:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	kfree(alvium->alvium_csi2_fmt);
 err_powerdown:
 	alvium_set_power(alvium, false);

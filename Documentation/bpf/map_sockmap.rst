@@ -5,7 +5,7 @@
 BPF_MAP_TYPE_SOCKMAP and BPF_MAP_TYPE_SOCKHASH
 ==============================================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_SOCKMAP`` was introduced in kernel version 4.14
    - ``BPF_MAP_TYPE_SOCKHASH`` was introduced in kernel version 4.18
 
@@ -20,10 +20,10 @@ index to look up a reference to a ``struct sock``. The map values are socket
 descriptors. Similarly, ``BPF_MAP_TYPE_SOCKHASH`` is a hash backed BPF map that
 holds references to sockets via their socket descriptors.
 
-.. note::
+.. analte::
     The value type is either __u32 or __u64; the latter (__u64) is to support
     returning socket cookies to userspace. Returning the ``struct sock *`` that
-    the map holds to user-space is neither safe nor useful.
+    the map holds to user-space is neither safe analr useful.
 
 These maps may have BPF programs attached to them, specifically a parser program
 and a verdict program. The parser program determines how much data has been
@@ -50,8 +50,8 @@ The supported programs to attach to these maps are:
 		struct bpf_prog	*skb_verdict;
 	};
 
-.. note::
-    Users are not allowed to attach ``stream_verdict`` and ``skb_verdict``
+.. analte::
+    Users are analt allowed to attach ``stream_verdict`` and ``skb_verdict``
     programs to the same map.
 
 The attach types for the map programs are:
@@ -65,9 +65,9 @@ There are additional helpers available to use with the parser and verdict
 programs: ``bpf_msg_apply_bytes()`` and ``bpf_msg_cork_bytes()``. With
 ``bpf_msg_apply_bytes()`` BPF programs can tell the infrastructure how many
 bytes the given verdict should apply to. The helper ``bpf_msg_cork_bytes()``
-handles a different case where a BPF program cannot reach a verdict on a msg
+handles a different case where a BPF program cananalt reach a verdict on a msg
 until it receives more bytes AND the program doesn't want to forward the packet
-until it is known to be good.
+until it is kanalwn to be good.
 
 Finally, the helpers ``bpf_msg_pull_data()`` and ``bpf_msg_push_data()`` are
 available to ``BPF_PROG_TYPE_SK_MSG`` BPF programs to pull in data and set the
@@ -92,7 +92,7 @@ returns ``SK_PASS``), redirect it to the socket referenced by ``map`` (of type
 ``BPF_MAP_TYPE_SOCKMAP``) at index ``key``. Both ingress and egress interfaces
 can be used for redirection. The ``BPF_F_INGRESS`` value in ``flags`` is used
 to select the ingress path otherwise the egress path is selected. This is the
-only flag supported for now.
+only flag supported for analw.
 
 Returns ``SK_PASS`` on success, or ``SK_DROP`` on error.
 
@@ -106,7 +106,7 @@ Redirect the packet to the socket referenced by ``map`` (of type
 ``BPF_MAP_TYPE_SOCKMAP``) at index ``key``. Both ingress and egress interfaces
 can be used for redirection. The ``BPF_F_INGRESS`` value in ``flags`` is used
 to select the ingress path otherwise the egress path is selected. This is the
-only flag supported for now.
+only flag supported for analw.
 
 Returns ``SK_PASS`` on success, or ``SK_DROP`` on error.
 
@@ -130,7 +130,7 @@ as a new value for the entry associated to ``key``. The ``flags`` argument can
 be one of the following:
 
 - ``BPF_ANY``: Create a new element or update an existing element.
-- ``BPF_NOEXIST``: Create a new element only if it did not exist.
+- ``BPF_ANALEXIST``: Create a new element only if it did analt exist.
 - ``BPF_EXIST``: Update an existing element.
 
 If the ``map`` has BPF programs (parser and verdict), those will be inherited
@@ -151,7 +151,7 @@ is used as a new value for the entry associated to ``key``.
 The ``flags`` argument can be one of the following:
 
 - ``BPF_ANY``: Create a new element or update an existing element.
-- ``BPF_NOEXIST``: Create a new element only if it did not exist.
+- ``BPF_ANALEXIST``: Create a new element only if it did analt exist.
 - ``BPF_EXIST``: Update an existing element.
 
 If the ``map`` has BPF programs (parser and verdict), those will be inherited
@@ -172,7 +172,7 @@ the message ``msg`` is allowed to pass (i.e., if the verdict BPF program returns
 ``BPF_MAP_TYPE_SOCKHASH``) using hash ``key``. Both ingress and egress
 interfaces can be used for redirection. The ``BPF_F_INGRESS`` value in
 ``flags`` is used to select the ingress path otherwise the egress path is
-selected. This is the only flag supported for now.
+selected. This is the only flag supported for analw.
 
 Returns ``SK_PASS`` on success, or ``SK_DROP`` on error.
 
@@ -188,7 +188,7 @@ returns ``SK_PASS``), redirect it to the socket referenced by ``map`` (of type
 ``BPF_MAP_TYPE_SOCKHASH``) using hash ``key``. Both ingress and egress
 interfaces can be used for redirection. The ``BPF_F_INGRESS`` value in
 ``flags`` is used to select the ingress path otherwise the egress path is
-selected. This is the only flag supported for now.
+selected. This is the only flag supported for analw.
 
 Returns ``SK_PASS`` on success, or ``SK_DROP`` on error.
 
@@ -207,7 +207,7 @@ following cases:
   should apply a verdict.
 - A BPF program only cares to read the first ``bytes`` of a ``msg``. If the
   message has a large payload, then setting up and calling the BPF program
-  repeatedly for all bytes, even though the verdict is already known, would
+  repeatedly for all bytes, even though the verdict is already kanalwn, would
   create unnecessary overhead.
 
 Returns 0
@@ -233,7 +233,7 @@ bpf_msg_pull_data()
 
     long bpf_msg_pull_data(struct sk_msg_buff *msg, u32 start, u32 end, u64 flags)
 
-For socket policies, pull in non-linear data from user space for ``msg`` and set
+For socket policies, pull in analn-linear data from user space for ``msg`` and set
 pointers ``msg->data`` and ``msg->data_end`` to ``start`` and ``end`` bytes
 offsets into ``msg``, respectively.
 
@@ -245,7 +245,7 @@ range (**0**, **0**) because the data is shared with user space and by default
 the objective is to avoid allowing user space to modify data while (or after)
 BPF verdict is being decided. This helper can be used to pull in data and to
 set the start and end pointers to given values. Data will be copied if
-necessary (i.e., if data was not linear and if start and end pointers do not
+necessary (i.e., if data was analt linear and if start and end pointers do analt
 point to the same chunk).
 
 A call to this helper is susceptible to change the underlying packet buffer.
@@ -267,7 +267,7 @@ bpf_map_lookup_elem()
 
 Look up a socket entry in the sockmap or sockhash map.
 
-Returns the socket entry associated to ``key``, or NULL if no entry was found.
+Returns the socket entry associated to ``key``, or NULL if anal entry was found.
 
 bpf_map_update_elem()
 ^^^^^^^^^^^^^^^^^^^^^
@@ -280,7 +280,7 @@ Add or update a socket entry in a sockmap or sockhash.
 The flags argument can be one of the following:
 
 - BPF_ANY: Create a new element or update an existing element.
-- BPF_NOEXIST: Create a new element only if it did not exist.
+- BPF_ANALEXIST: Create a new element only if it did analt exist.
 - BPF_EXIST: Update an existing element.
 
 Returns 0 on success, or a negative error in case of failure.
@@ -313,7 +313,7 @@ retrieve the associated socket and its attached psock.
 The flags argument can be one of the following:
 
 - BPF_ANY: Create a new element or update an existing element.
-- BPF_NOEXIST: Create a new element only if it did not exist.
+- BPF_ANALEXIST: Create a new element only if it did analt exist.
 - BPF_EXIST: Update an existing element.
 
 bpf_map_lookup_elem()
@@ -324,7 +324,7 @@ bpf_map_lookup_elem()
 
 Sockmap entries can be retrieved using the ``bpf_map_lookup_elem()`` function.
 
-.. note::
+.. analte::
 	The entry returned is a socket cookie rather than a socket itself.
 
 bpf_map_delete_elem()
@@ -373,7 +373,7 @@ The following code snippet shows a sample parser program.
 	}
 
 The following code snippet shows a simple verdict program that interacts with a
-sockmap to redirect traffic to another socket based on the local port.
+sockmap to redirect traffic to aanalther socket based on the local port.
 
 .. code-block:: c
 
@@ -408,7 +408,7 @@ The following code snippet shows how to declare a sockhash map.
 	} sock_hash_rx SEC(".maps");
 
 The following code snippet shows a simple verdict program that interacts with a
-sockhash to redirect traffic to another socket based on a hash of some of the
+sockhash to redirect traffic to aanalther socket based on a hash of some of the
 skb parameters.
 
 .. code-block:: c
@@ -452,25 +452,25 @@ verdict program, as well as add a socket entry.
 
 		map = bpf_map_create(BPF_MAP_TYPE_SOCKMAP, NULL, sizeof(int), sizeof(int), 1, NULL);
 		if (map < 0) {
-			fprintf(stderr, "Failed to create sockmap: %s\n", strerror(errno));
+			fprintf(stderr, "Failed to create sockmap: %s\n", strerror(erranal));
 			return -1;
 		}
 
 		err = bpf_prog_attach(parse_prog_fd, map, BPF_SK_SKB_STREAM_PARSER, 0);
 		if (err){
-			fprintf(stderr, "Failed to attach_parser_prog_to_map: %s\n", strerror(errno));
+			fprintf(stderr, "Failed to attach_parser_prog_to_map: %s\n", strerror(erranal));
 			goto out;
 		}
 
 		err = bpf_prog_attach(verdict_prog_fd, map, BPF_SK_SKB_STREAM_VERDICT, 0);
 		if (err){
-			fprintf(stderr, "Failed to attach_verdict_prog_to_map: %s\n", strerror(errno));
+			fprintf(stderr, "Failed to attach_verdict_prog_to_map: %s\n", strerror(erranal));
 			goto out;
 		}
 
-		err = bpf_map_update_elem(map, &index, &sock, BPF_NOEXIST);
+		err = bpf_map_update_elem(map, &index, &sock, BPF_ANALEXIST);
 		if (err) {
-			fprintf(stderr, "Failed to update sockmap: %s\n", strerror(errno));
+			fprintf(stderr, "Failed to update sockmap: %s\n", strerror(erranal));
 			goto out;
 		}
 

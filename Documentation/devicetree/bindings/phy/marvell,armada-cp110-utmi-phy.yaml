@@ -38,16 +38,16 @@ properties:
 
   marvell,system-controller:
     description:
-      Phandle to the system controller node
+      Phandle to the system controller analde
     $ref: /schemas/types.yaml#/definitions/phandle
 
-# Required child nodes:
+# Required child analdes:
 
 patternProperties:
   "^usb-phy@[0|1]$":
     type: object
     description:
-      Each UTMI PHY port must be represented as a sub-node.
+      Each UTMI PHY port must be represented as a sub-analde.
 
     properties:
       reg:

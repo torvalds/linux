@@ -14,7 +14,7 @@
 static const struct hantro_fmt sama5d4_vdec_postproc_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_YUYV,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.postprocessed = true,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
@@ -30,7 +30,7 @@ static const struct hantro_fmt sama5d4_vdec_postproc_fmts[] = {
 static const struct hantro_fmt sama5d4_vdec_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
 			.max_width = FMT_HD_WIDTH,

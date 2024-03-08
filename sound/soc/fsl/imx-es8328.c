@@ -87,8 +87,8 @@ static const struct snd_kcontrol_new imx_es8328_controls[] = {
 
 static int imx_es8328_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ssi_np = NULL, *codec_np = NULL;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *ssi_np = NULL, *codec_np = NULL;
 	struct platform_device *ssi_pdev;
 	struct imx_es8328_data *data;
 	struct snd_soc_dai_link_component *comp;
@@ -145,15 +145,15 @@ static int imx_es8328_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ssi_np = of_parse_phandle(pdev->dev.of_node, "ssi-controller", 0);
-	codec_np = of_parse_phandle(pdev->dev.of_node, "audio-codec", 0);
+	ssi_np = of_parse_phandle(pdev->dev.of_analde, "ssi-controller", 0);
+	codec_np = of_parse_phandle(pdev->dev.of_analde, "audio-codec", 0);
 	if (!ssi_np || !codec_np) {
 		dev_err(dev, "phandle missing or invalid\n");
 		ret = -EINVAL;
 		goto fail;
 	}
 
-	ssi_pdev = of_find_device_by_node(ssi_np);
+	ssi_pdev = of_find_device_by_analde(ssi_np);
 	if (!ssi_pdev) {
 		dev_err(dev, "failed to find SSI platform device\n");
 		ret = -EINVAL;
@@ -162,19 +162,19 @@ static int imx_es8328_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_device;
 	}
 
 	comp = devm_kzalloc(dev, 2 * sizeof(*comp), GFP_KERNEL);
 	if (!comp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_device;
 	}
 
 	data->dev = dev;
 
-	data->jack_gpio = of_get_named_gpio(pdev->dev.of_node, "jack-gpio", 0);
+	data->jack_gpio = of_get_named_gpio(pdev->dev.of_analde, "jack-gpio", 0);
 
 	/*
 	 * CPU == Platform
@@ -191,8 +191,8 @@ static int imx_es8328_probe(struct platform_device *pdev)
 	data->dai.name = "hifi";
 	data->dai.stream_name = "hifi";
 	data->dai.codecs->dai_name = "es8328-hifi-analog";
-	data->dai.codecs->of_node = codec_np;
-	data->dai.cpus->of_node = ssi_np;
+	data->dai.codecs->of_analde = codec_np;
+	data->dai.cpus->of_analde = ssi_np;
 	data->dai.init = &imx_es8328_dai_init;
 	data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			    SND_SOC_DAIFMT_CBP_CFP;
@@ -226,8 +226,8 @@ static int imx_es8328_probe(struct platform_device *pdev)
 put_device:
 	put_device(&ssi_pdev->dev);
 fail:
-	of_node_put(ssi_np);
-	of_node_put(codec_np);
+	of_analde_put(ssi_np);
+	of_analde_put(codec_np);
 
 	return ret;
 }

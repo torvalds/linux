@@ -619,7 +619,7 @@ struct audio_hw_clk_rel_cfg {
 #define PARAM_ID_HW_EP_POWER_MODE_CFG	0x8001176
 #define AR_HW_EP_POWER_MODE_0	0 /* default */
 #define AR_HW_EP_POWER_MODE_1	1 /* XO Shutdown allowed */
-#define AR_HW_EP_POWER_MODE_2	2 /* XO Shutdown not allowed */
+#define AR_HW_EP_POWER_MODE_2	2 /* XO Shutdown analt allowed */
 
 struct param_id_hw_ep_power_mode_cfg {
 	uint32_t power_mode;
@@ -659,7 +659,7 @@ struct audioreach_connection {
 	uint32_t src_mod_op_port_id;
 	uint32_t dst_mod_inst_id;
 	uint32_t dst_mod_ip_port_id;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct audioreach_graph_info {
@@ -678,7 +678,7 @@ struct audioreach_sub_graph {
 	uint32_t perf_mode;
 	uint32_t direction;
 	uint32_t scenario_id;
-	struct list_head node;
+	struct list_head analde;
 
 	struct audioreach_graph_info *info;
 	uint32_t num_containers;
@@ -691,7 +691,7 @@ struct audioreach_container {
 	uint32_t graph_pos;
 	uint32_t stack_size;
 	uint32_t proc_domain;
-	struct list_head node;
+	struct list_head analde;
 
 	uint32_t num_modules;
 	struct list_head modules_list;
@@ -742,7 +742,7 @@ struct audioreach_module {
 	uint32_t log_mode;
 
 	/* bookkeeping */
-	struct list_head node;
+	struct list_head analde;
 	struct audioreach_container *container;
 	struct snd_soc_dapm_widget *widget;
 };

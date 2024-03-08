@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-CFLAGS += -Wall -O2 -Wno-unused-function
+CFLAGS += -Wall -O2 -Wanal-unused-function
 CFLAGS += -D_GNU_SOURCE
 LDFLAGS += -pthread
 

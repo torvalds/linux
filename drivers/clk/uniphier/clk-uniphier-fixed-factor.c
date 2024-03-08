@@ -19,7 +19,7 @@ struct clk_hw *uniphier_clk_register_fixed_factor(struct device *dev,
 
 	fix = devm_kzalloc(dev, sizeof(*fix), GFP_KERNEL);
 	if (!fix)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_fixed_factor_ops;

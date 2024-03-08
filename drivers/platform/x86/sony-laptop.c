@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ACPI Sony Notebook Control Driver (SNC and SPIC)
+ * ACPI Sony Analtebook Control Driver (SNC and SPIC)
  *
  * Copyright (C) 2004-2005 Stelian Pop <stelian@popies.net>
  * Copyright (C) 2007-2009 Mattia Dongili <malattia@linux.it>
@@ -65,7 +65,7 @@ do {						\
 
 #define SONY_NC_CLASS		"sony-nc"
 #define SONY_NC_HID		"SNY5001"
-#define SONY_NC_DRIVER_NAME	"Sony Notebook Control Driver"
+#define SONY_NC_DRIVER_NAME	"Sony Analtebook Control Driver"
 
 #define SONY_PIC_CLASS		"sony-pic"
 #define SONY_PIC_HID		"SNY6001"
@@ -80,9 +80,9 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "set this to 1 (and RTFM) if you want to help "
 		 "the development of this driver");
 
-static int no_spic;		/* = 0 */
-module_param(no_spic, int, 0444);
-MODULE_PARM_DESC(no_spic,
+static int anal_spic;		/* = 0 */
+module_param(anal_spic, int, 0444);
+MODULE_PARM_DESC(anal_spic,
 		 "set this if you don't want to enable the SPIC device");
 
 static int compat;		/* = 0 */
@@ -102,10 +102,10 @@ MODULE_PARM_DESC(camera,
 		 "(only use it if you have a C1VE or C1VN model)");
 
 #ifdef CONFIG_SONYPI_COMPAT
-static int minor = -1;
-module_param(minor, int, 0);
-MODULE_PARM_DESC(minor,
-		 "minor number of the misc device for the SPIC compatibility code, "
+static int mianalr = -1;
+module_param(mianalr, int, 0);
+MODULE_PARM_DESC(mianalr,
+		 "mianalr number of the misc device for the SPIC compatibility code, "
 		 "default is -1 (automatic)");
 #endif
 
@@ -114,13 +114,13 @@ module_param(kbd_backlight, int, 0444);
 MODULE_PARM_DESC(kbd_backlight,
 		 "set this to 0 to disable keyboard backlight, "
 		 "1 to enable it with automatic control and 2 to have it always "
-		 "on (default: no change from current value)");
+		 "on (default: anal change from current value)");
 
 static int kbd_backlight_timeout = -1;
 module_param(kbd_backlight_timeout, int, 0444);
 MODULE_PARM_DESC(kbd_backlight_timeout,
 		 "meaningful values vary from 0 to 3 and their meaning depends "
-		 "on the model (default: no change from current value)");
+		 "on the model (default: anal change from current value)");
 
 #ifdef CONFIG_PM_SLEEP
 static void sony_nc_thermal_resume(void);
@@ -209,7 +209,7 @@ struct sony_laptop_keypress {
  * and input layer indexes in the keymap
  */
 static const int sony_laptop_input_index[] = {
-	-1,	/*  0 no event */
+	-1,	/*  0 anal event */
 	-1,	/*  1 SONYPI_EVENT_JOGDIAL_DOWN */
 	-1,	/*  2 SONYPI_EVENT_JOGDIAL_UP */
 	-1,	/*  3 SONYPI_EVENT_JOGDIAL_DOWN_PRESSED */
@@ -380,7 +380,7 @@ static void sony_laptop_report_input_event(u8 event)
 
 	if (event == SONYPI_EVENT_FNKEY_RELEASED ||
 			event == SONYPI_EVENT_ANYBUTTON_RELEASED) {
-		/* Nothing, not all VAIOs generate this event */
+		/* Analthing, analt all VAIOs generate this event */
 		return;
 	}
 
@@ -407,12 +407,12 @@ static void sony_laptop_report_input_event(u8 event)
 
 	default:
 		if (event >= ARRAY_SIZE(sony_laptop_input_index)) {
-			dprintk("sony_laptop_report_input_event, event not known: %d\n", event);
+			dprintk("sony_laptop_report_input_event, event analt kanalwn: %d\n", event);
 			break;
 		}
 		if ((scancode = sony_laptop_input_index[event]) != -1) {
 			kp.key = sony_laptop_input_keycode_map[scancode];
-			if (kp.key != KEY_UNKNOWN)
+			if (kp.key != KEY_UNKANALWN)
 				kp.dev = key_dev;
 		}
 		break;
@@ -433,7 +433,7 @@ static void sony_laptop_report_input_event(u8 event)
 		mod_timer(&sony_laptop_input.release_key_timer,
 			  jiffies + msecs_to_jiffies(10));
 	} else
-		dprintk("unknown input event %.2x\n", event);
+		dprintk("unkanalwn input event %.2x\n", event);
 }
 
 static int sony_laptop_setup_input(struct acpi_device *acpi_device)
@@ -462,7 +462,7 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 	/* input keys */
 	key_dev = input_allocate_device();
 	if (!key_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_kfifo;
 	}
 
@@ -491,7 +491,7 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 	/* jogdial */
 	jog_dev = input_allocate_device();
 	if (!jog_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_unregister_keydev;
 	}
 
@@ -541,8 +541,8 @@ static void sony_laptop_remove_input(void)
 	del_timer_sync(&sony_laptop_input.release_key_timer);
 
 	/*
-	 * Generate key-up events for remaining keys. Note that we don't
-	 * need locking since nobody is adding new events to the kfifo.
+	 * Generate key-up events for remaining keys. Analte that we don't
+	 * need locking since analbody is adding new events to the kfifo.
 	 */
 	while (kfifo_out(&sony_laptop_input.fifo,
 			 (unsigned char *)&kp, sizeof(kp)) == sizeof(kp)) {
@@ -584,9 +584,9 @@ static int sony_pf_add(void)
 	if (ret)
 		goto out;
 
-	sony_pf_device = platform_device_alloc("sony-laptop", PLATFORM_DEVID_NONE);
+	sony_pf_device = platform_device_alloc("sony-laptop", PLATFORM_DEVID_ANALNE);
 	if (!sony_pf_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_platform_registered;
 	}
 
@@ -706,7 +706,7 @@ static struct sony_nc_value sony_nc_values[] = {
 			boolean_validate, 0),
 	SNC_HANDLE(gainbass, snc_gainbass_get, snc_gainbass_set,
 			boolean_validate, 0),
-	/* unknown methods */
+	/* unkanalwn methods */
 	SNC_HANDLE(PID, snc_PID_get, NULL, NULL, 1),
 	SNC_HANDLE(CTR, snc_CTR_get, snc_CTR_set, NULL, 1),
 	SNC_HANDLE(PCR, snc_PCR_get, snc_PCR_set, NULL, 1),
@@ -752,7 +752,7 @@ static union acpi_object *__call_snc_method(acpi_handle handle, char *method,
 
 	result = (union acpi_object *) output.pointer;
 	if (!result)
-		dprintk("No return object [%s]\n", method);
+		dprintk("Anal return object [%s]\n", method);
 
 	return result;
 }
@@ -769,7 +769,7 @@ static int sony_nc_buffer_call(acpi_handle handle, char *name, u64 *value,
 		return -EINVAL;
 
 	if (!buffer) {
-		/* do nothing */
+		/* do analthing */
 	} else if (object->type == ACPI_TYPE_BUFFER) {
 		len = MIN(buflen, object->buffer.length);
 		memset(buffer, 0, buflen);
@@ -833,7 +833,7 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 
 	handles = kzalloc(sizeof(*handles), GFP_KERNEL);
 	if (!handles)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(handles->cap); i++) {
 		arg = i + 0x20;
@@ -878,7 +878,7 @@ static int sony_find_snc_handle(int handle)
 {
 	int i;
 
-	/* not initialized yet, return early */
+	/* analt initialized yet, return early */
 	if (!handles || !handle)
 		return -EINVAL;
 
@@ -889,7 +889,7 @@ static int sony_find_snc_handle(int handle)
 			return i;
 		}
 	}
-	dprintk("handle 0x%.4x not found\n", handle);
+	dprintk("handle 0x%.4x analt found\n", handle);
 	return -EINVAL;
 }
 
@@ -1066,7 +1066,7 @@ static const struct backlight_ops sony_backlight_ng_ops = {
 };
 
 /*
- * New SNC-only Vaios event mapping to driver known keys
+ * New SNC-only Vaios event mapping to driver kanalwn keys
  */
 struct sony_nc_event {
 	u8	data;
@@ -1164,7 +1164,7 @@ static int sony_nc_hotkeys_decode(u32 event, unsigned int handle)
 	}
 
 	if (!key_event->data)
-		pr_info("Unknown hotkey 0x%.2x/0x%.2x (handle 0x%.2x)\n",
+		pr_info("Unkanalwn hotkey 0x%.2x/0x%.2x (handle 0x%.2x)\n",
 				event, result, handle);
 
 	return ret;
@@ -1178,13 +1178,13 @@ enum event_types {
 	KILLSWITCH,
 	GFX_SWITCH
 };
-static void sony_nc_notify(struct acpi_device *device, u32 event)
+static void sony_nc_analtify(struct acpi_device *device, u32 event)
 {
 	u32 real_ev = event;
 	u8 ev_type = 0;
 	int ret;
 
-	dprintk("sony_nc_notify, event: 0x%.2x\n", event);
+	dprintk("sony_nc_analtify, event: 0x%.2x\n", event);
 
 	if (event >= 0x90) {
 		unsigned int result = 0;
@@ -1199,7 +1199,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 		}
 		handle = handles->cap[offset];
 
-		/* list of handles known for generating events */
+		/* list of handles kanalwn for generating events */
 		switch (handle) {
 		/* hotkey event */
 		case 0x0100:
@@ -1219,7 +1219,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 		case 0x0135:
 			/* events on this handle are reported when the
 			 * switch changes position or for battery
-			 * events. We'll notify both of them but only
+			 * events. We'll analtify both of them but only
 			 * update the rfkill device status when the
 			 * switch is moved.
 			 */
@@ -1253,7 +1253,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 			real_ev = __sony_nc_gfx_switch_status_get();
 			break;
 		default:
-			dprintk("Unknown event 0x%x for handle 0x%x\n",
+			dprintk("Unkanalwn event 0x%x for handle 0x%x\n",
 					event, handle);
 			break;
 		}
@@ -1636,7 +1636,7 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	rfk = rfkill_alloc(name, &device->dev, type,
 			   &sony_rfkill_ops, (void *)nc_type);
 	if (!rfk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = sony_call_snc_handle(sony_rfkill_handle, 0x200, &result);
 	if (err < 0) {
@@ -1683,7 +1683,7 @@ static void sony_nc_rfkill_update(void)
 
 		if (hwblock) {
 			if (rfkill_set_hw_state(sony_rfkill_devices[i], true)) {
-				/* we already know we're blocked */
+				/* we already kanalw we're blocked */
 			}
 			continue;
 		}
@@ -1711,21 +1711,21 @@ static int sony_nc_rfkill_setup(struct acpi_device *device,
 
 	/* The buffer is filled with magic numbers describing the devices
 	 * available, 0xff terminates the enumeration.
-	 * Known codes:
+	 * Kanalwn codes:
 	 *	0x00 WLAN
 	 *	0x10 BLUETOOTH
 	 *	0x20 WWAN GPRS-EDGE
 	 *	0x21 WWAN HSDPA
 	 *	0x22 WWAN EV-DO
 	 *	0x23 WWAN GPS
-	 *	0x25 Gobi WWAN no GPS
+	 *	0x25 Gobi WWAN anal GPS
 	 *	0x26 Gobi WWAN + GPS
-	 *	0x28 Gobi WWAN no GPS
+	 *	0x28 Gobi WWAN anal GPS
 	 *	0x29 Gobi WWAN + GPS
 	 *	0x30 WIMAX
-	 *	0x50 Gobi WWAN no GPS
+	 *	0x50 Gobi WWAN anal GPS
 	 *	0x51 Gobi WWAN + GPS
-	 *	0x70 no SIM card slot
+	 *	0x70 anal SIM card slot
 	 *	0x71 SIM card slot
 	 */
 	for (i = 0; i < ARRAY_SIZE(buffer); i++) {
@@ -1869,7 +1869,7 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 		return -EBUSY;
 	}
 
-	/* verify the kbd backlight presence, some of these handles are not used
+	/* verify the kbd backlight presence, some of these handles are analt used
 	 * for keyboard backlight only
 	 */
 	switch (handle) {
@@ -1899,20 +1899,20 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 
 		if ((handle == 0x0137 && !(result & 0x02)) ||
 				!(result & 0x01)) {
-			dprintk("no backlight keyboard found\n");
+			dprintk("anal backlight keyboard found\n");
 			return 0;
 		}
 	}
 
 	kbdbl_ctl = kzalloc(sizeof(*kbdbl_ctl), GFP_KERNEL);
 	if (!kbdbl_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kbdbl_ctl->mode = kbd_backlight;
 	kbdbl_ctl->timeout = kbd_backlight_timeout;
 	kbdbl_ctl->handle = handle;
 	kbdbl_ctl->base = ctl_base;
-	/* Some models do not allow timeout control */
+	/* Some models do analt allow timeout control */
 	kbdbl_ctl->has_timeout = handle != 0x0153;
 
 	sysfs_attr_init(&kbdbl_ctl->mode_attr.attr);
@@ -1986,7 +1986,7 @@ static ssize_t sony_nc_battery_care_limit_store(struct device *dev,
 		return -EINVAL;
 
 	/*  limit values (2 bits):
-	 *  00 - none
+	 *  00 - analne
 	 *  01 - 80%
 	 *  10 - 50%
 	 *  11 - 100%
@@ -2015,7 +2015,7 @@ static ssize_t sony_nc_battery_care_limit_store(struct device *dev,
 		/*
 		 * handle 0x0115 should allow storing on battery too;
 		 * handle 0x0136 same as 0x0115 + health status;
-		 * handle 0x013f, same as 0x0136 but no storing on the battery
+		 * handle 0x013f, same as 0x0136 but anal storing on the battery
 		 */
 		if (bcare_ctl->handle != 0x013f)
 			cmd = cmd | (cmd << 2);
@@ -2074,7 +2074,7 @@ static int sony_nc_battery_care_setup(struct platform_device *pd,
 
 	bcare_ctl = kzalloc(sizeof(struct battery_care_control), GFP_KERNEL);
 	if (!bcare_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bcare_ctl->handle = handle;
 
@@ -2088,7 +2088,7 @@ static int sony_nc_battery_care_setup(struct platform_device *pd,
 	if (ret)
 		goto outkzalloc;
 
-	/* 0x0115 is for models with no health reporting capability */
+	/* 0x0115 is for models with anal health reporting capability */
 	if (handle == 0x0115)
 		return 0;
 
@@ -2147,7 +2147,7 @@ static int sony_nc_thermal_mode_set(unsigned short mode)
 	/* the thermal profile seems to be a two bit bitmask:
 	 * lsb -> silent
 	 * msb -> performance
-	 * no bit set is the normal operation and is always valid
+	 * anal bit set is the analrmal operation and is always valid
 	 * Some vaio models only have "balanced" and "performance"
 	 */
 	if ((mode && !(th_handle->profiles & mode)) || mode >= THM_PROFILE_MAX)
@@ -2226,7 +2226,7 @@ static int sony_nc_thermal_setup(struct platform_device *pd)
 	int ret = 0;
 	th_handle = kzalloc(sizeof(struct snc_thermal_ctrl), GFP_KERNEL);
 	if (!th_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sony_call_snc_handle(0x0122, 0x0000, &th_handle->profiles);
 	if (ret) {
@@ -2374,7 +2374,7 @@ static int sony_nc_lid_resume_setup(struct platform_device *pd,
 
 	lid_ctl = kzalloc(sizeof(struct snc_lid_resume_control), GFP_KERNEL);
 	if (!lid_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lid_ctl->status = result & 0x7;
 	lid_ctl->handle = handle;
@@ -2468,7 +2468,7 @@ static int __sony_nc_gfx_switch_status_get(void)
 		 */
 		return result & 0x1 ? STAMINA : SPEED;
 	case 0x0128:
-		/* it's a more elaborated bitmask, for now:
+		/* it's a more elaborated bitmask, for analw:
 		 * 2: integrated GFX (stamina)
 		 * 0: discrete GFX (speed)
 		 */
@@ -2491,7 +2491,7 @@ static ssize_t sony_nc_gfx_switch_status_show(struct device *dev,
 	return sysfs_emit(buffer, "%s\n",
 					pos == SPEED ? "speed" :
 					pos == STAMINA ? "stamina" :
-					pos == AUTO ? "auto" : "unknown");
+					pos == AUTO ? "auto" : "unkanalwn");
 }
 
 static int sony_nc_gfx_switch_setup(struct platform_device *pd,
@@ -2501,7 +2501,7 @@ static int sony_nc_gfx_switch_setup(struct platform_device *pd,
 
 	gfxs_ctl = kzalloc(sizeof(struct snc_gfx_switch_control), GFP_KERNEL);
 	if (!gfxs_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gfxs_ctl->handle = handle;
 
@@ -2571,16 +2571,16 @@ static int sony_nc_highspeed_charging_setup(struct platform_device *pd)
 	unsigned int result;
 
 	if (sony_call_snc_handle(0x0131, 0x0000, &result) || !(result & 0x01)) {
-		/* some models advertise the handle but have no implementation
+		/* some models advertise the handle but have anal implementation
 		 * for it
 		 */
-		pr_info("No High Speed Charging capability found\n");
+		pr_info("Anal High Speed Charging capability found\n");
 		return 0;
 	}
 
 	hsc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
 	if (!hsc_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysfs_attr_init(&hsc_handle->attr);
 	hsc_handle->attr.name = "battery_highspeed_charging";
@@ -2646,7 +2646,7 @@ static int sony_nc_lowbatt_setup(struct platform_device *pd)
 
 	lowbatt_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
 	if (!lowbatt_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysfs_attr_init(&lowbatt_handle->attr);
 	lowbatt_handle->attr.name = "lowbatt_hibernate";
@@ -2723,11 +2723,11 @@ static int sony_nc_fanspeed_setup(struct platform_device *pd)
 
 	fan_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
 	if (!fan_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsf_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
 	if (!hsf_handle) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto out_hsf_handle_alloc;
 	}
 
@@ -2818,16 +2818,16 @@ static int sony_nc_usb_charge_setup(struct platform_device *pd)
 	unsigned int result;
 
 	if (sony_call_snc_handle(0x0155, 0x0000, &result) || !(result & 0x01)) {
-		/* some models advertise the handle but have no implementation
+		/* some models advertise the handle but have anal implementation
 		 * for it
 		 */
-		pr_info("No USB Charge capability found\n");
+		pr_info("Anal USB Charge capability found\n");
 		return 0;
 	}
 
 	uc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
 	if (!uc_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysfs_attr_init(&uc_handle->attr);
 	uc_handle->attr.name = "usb_charge";
@@ -2874,7 +2874,7 @@ static int sony_nc_panelid_setup(struct platform_device *pd)
 
 	panel_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
 	if (!panel_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysfs_attr_init(&panel_handle->attr);
 	panel_handle->attr.name = "panel_id";
@@ -2929,7 +2929,7 @@ static int sony_nc_smart_conn_setup(struct platform_device *pd)
 
 	sc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
 	if (!sc_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysfs_attr_init(&sc_handle->attr);
 	sc_handle->attr.name = "smart_connect";
@@ -3003,7 +3003,7 @@ static int sony_nc_touchpad_setup(struct platform_device *pd,
 
 	tp_ctl = kzalloc(sizeof(struct touchpad_control), GFP_KERNEL);
 	if (!tp_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tp_ctl->handle = handle;
 
@@ -3164,10 +3164,10 @@ static int sony_nc_add(struct acpi_device *device)
 
 	/* read device status */
 	result = acpi_bus_get_status(device);
-	/* bail IFF the above call was successful and the device is not present */
+	/* bail IFF the above call was successful and the device is analt present */
 	if (!result && !device->status.present) {
-		dprintk("Device not present\n");
-		result = -ENODEV;
+		dprintk("Device analt present\n");
+		result = -EANALDEV;
 		goto outwalk;
 	}
 
@@ -3181,7 +3181,7 @@ static int sony_nc_add(struct acpi_device *device)
 				NULL, NULL, NULL);
 		if (ACPI_FAILURE(status)) {
 			pr_warn("unable to walk acpi resources\n");
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto outpresent;
 		}
 	}
@@ -3307,7 +3307,7 @@ static struct acpi_driver sony_nc_driver = {
 	.ops = {
 		.add = sony_nc_add,
 		.remove = sony_nc_remove,
-		.notify = sony_nc_notify,
+		.analtify = sony_nc_analtify,
 		},
 	.drv.pm = &sony_nc_pm,
 };
@@ -3462,8 +3462,8 @@ static struct sonypi_event sonypi_blueev[] = {
 
 /* The set of possible wireless events */
 static struct sonypi_event sonypi_wlessev[] = {
-	{ 0x59, SONYPI_EVENT_IGNORE },
-	{ 0x5a, SONYPI_EVENT_IGNORE },
+	{ 0x59, SONYPI_EVENT_IGANALRE },
+	{ 0x5a, SONYPI_EVENT_IGANALRE },
 	{ 0, 0 }
 };
 
@@ -3739,7 +3739,7 @@ out:
 #define SONYPI_CAMERA_PICTURE_MODE_MASK		0x30
 #define SONYPI_CAMERA_MUTE_MASK			0x40
 
-/* the rest don't need a loop until not 0xff */
+/* the rest don't need a loop until analt 0xff */
 #define SONYPI_CAMERA_AGC			6
 #define SONYPI_CAMERA_AGC_MASK			0x30
 #define SONYPI_CAMERA_SHUTTER_MASK 		0x7
@@ -3767,8 +3767,8 @@ static int __sony_pic_camera_ready(void)
 static int __sony_pic_camera_off(void)
 {
 	if (!camera) {
-		pr_warn("camera control not enabled\n");
-		return -ENODEV;
+		pr_warn("camera control analt enabled\n");
+		return -EANALDEV;
 	}
 
 	wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_PICTURE,
@@ -3787,8 +3787,8 @@ static int __sony_pic_camera_on(void)
 	int i, j, x;
 
 	if (!camera) {
-		pr_warn("camera control not enabled\n");
-		return -ENODEV;
+		pr_warn("camera control analt enabled\n");
+		return -EANALDEV;
 	}
 
 	if (spic_dev.camera_power)
@@ -3811,7 +3811,7 @@ static int __sony_pic_camera_on(void)
 
 	if (j == 0) {
 		pr_warn("failed to power on camera\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_CONTROL,
@@ -4046,13 +4046,13 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 	return fasync_helper(fd, filp, on, &sonypi_compat.fifo_async);
 }
 
-static int sonypi_misc_release(struct inode *inode, struct file *file)
+static int sonypi_misc_release(struct ianalde *ianalde, struct file *file)
 {
 	atomic_dec(&sonypi_compat.open_count);
 	return 0;
 }
 
-static int sonypi_misc_open(struct inode *inode, struct file *file)
+static int sonypi_misc_open(struct ianalde *ianalde, struct file *file)
 {
 	/* Flush input queue on first open */
 	unsigned long flags;
@@ -4074,7 +4074,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	unsigned char c;
 
 	if ((kfifo_len(&sonypi_compat.fifo) == 0) &&
-	    (file->f_flags & O_NONBLOCK))
+	    (file->f_flags & O_ANALNBLOCK))
 		return -EAGAIN;
 
 	ret = wait_event_interruptible(sonypi_compat.fifo_proc_list,
@@ -4091,8 +4091,8 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	}
 
 	if (ret > 0) {
-		struct inode *inode = file_inode(file);
-		inode_set_atime_to_ts(inode, current_time(inode));
+		struct ianalde *ianalde = file_ianalde(file);
+		ianalde_set_atime_to_ts(ianalde, current_time(ianalde));
 	}
 
 	return ret;
@@ -4102,7 +4102,7 @@ static __poll_t sonypi_misc_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &sonypi_compat.fifo_proc_list, wait);
 	if (kfifo_len(&sonypi_compat.fifo))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -4255,11 +4255,11 @@ static const struct file_operations sonypi_misc_fops = {
 	.release	= sonypi_misc_release,
 	.fasync		= sonypi_misc_fasync,
 	.unlocked_ioctl	= sonypi_misc_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice sonypi_misc_device = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "sonypi",
 	.fops		= &sonypi_misc_fops,
 };
@@ -4286,16 +4286,16 @@ static int sonypi_compat_init(void)
 
 	init_waitqueue_head(&sonypi_compat.fifo_proc_list);
 
-	if (minor != -1)
-		sonypi_misc_device.minor = minor;
+	if (mianalr != -1)
+		sonypi_misc_device.mianalr = mianalr;
 	error = misc_register(&sonypi_misc_device);
 	if (error) {
 		pr_err("misc_register failed\n");
 		goto err_free_kfifo;
 	}
-	if (minor == -1)
-		pr_info("device allocated minor is %d\n",
-			sonypi_misc_device.minor);
+	if (mianalr == -1)
+		pr_info("device allocated mianalr is %d\n",
+			sonypi_misc_device.mianalr);
 
 	return 0;
 
@@ -4346,7 +4346,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 			struct sony_pic_irq *interrupt = NULL;
 			if (!p->interrupt_count) {
 				/*
-				 * IRQ descriptors may have no IRQ# bits set,
+				 * IRQ descriptors may have anal IRQ# bits set,
 				 * particularly those those w/ _STA disabled
 				 */
 				dprintk("Blank IRQ resource\n");
@@ -4388,7 +4388,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 						ioport->io2.address_length);
 			}
 			else {
-				pr_err("Unknown SPIC Type, more than 2 IO Ports\n");
+				pr_err("Unkanalwn SPIC Type, more than 2 IO Ports\n");
 				return AE_ERROR;
 			}
 			return AE_OK;
@@ -4398,7 +4398,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 		return AE_OK;
 
 	default:
-		dprintk("Resource %d isn't an IRQ nor an IO port\n",
+		dprintk("Resource %d isn't an IRQ analr an IO port\n",
 			resource->type);
 		return AE_CTRL_TERMINATE;
 
@@ -4435,7 +4435,7 @@ static int sony_pic_possible_resources(struct acpi_device *device)
 			sony_pic_read_possible_resource, &spic_dev);
 	if (ACPI_FAILURE(status)) {
 		pr_warn("Failure evaluating %s\n", METHOD_NAME__PRS);
-		result = -ENODEV;
+		result = -EANALDEV;
 	}
 end:
 	return result;
@@ -4449,7 +4449,7 @@ static int sony_pic_disable(struct acpi_device *device)
 	acpi_status ret = acpi_evaluate_object(device->handle, "_DIS", NULL,
 					       NULL);
 
-	if (ACPI_FAILURE(ret) && ret != AE_NOT_FOUND)
+	if (ACPI_FAILURE(ret) && ret != AE_ANALT_FOUND)
 		return -ENXIO;
 
 	dprintk("Device disabled\n");
@@ -4470,12 +4470,12 @@ static int sony_pic_enable(struct acpi_device *device,
 	/* Type 1 resource layout is:
 	 *    IO
 	 *    IO
-	 *    IRQNoFlags
+	 *    IRQAnalFlags
 	 *    End
 	 *
 	 * Type 2 and 3 resource layout is:
 	 *    IO
-	 *    IRQNoFlags
+	 *    IRQAnalFlags
 	 *    End
 	 */
 	struct {
@@ -4492,7 +4492,7 @@ static int sony_pic_enable(struct acpi_device *device,
 	/* init acpi_buffer */
 	resource = kzalloc(sizeof(*resource) + 1, GFP_KERNEL);
 	if (!resource)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer.length = sizeof(*resource) + 1;
 	buffer.pointer = resource;
@@ -4549,7 +4549,7 @@ static int sony_pic_enable(struct acpi_device *device,
 	/* check for total failure */
 	if (ACPI_FAILURE(status)) {
 		pr_err("Error evaluating _SRS\n");
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto end;
 	}
 
@@ -4604,20 +4604,20 @@ static irqreturn_t sony_pic_irq(int irq, void *dev_id)
 			if (ev == dev->event_types[i].events[j].data) {
 				device_event =
 					dev->event_types[i].events[j].event;
-				/* some events may require ignoring */
+				/* some events may require iganalring */
 				if (!device_event)
 					return IRQ_HANDLED;
 				goto found;
 			}
 		}
 	}
-	/* Still not able to decode the event try to pass
+	/* Still analt able to decode the event try to pass
 	 * it over to the minidriver
 	 */
 	if (dev->handle_irq && dev->handle_irq(data_mask, ev) == 0)
 		return IRQ_HANDLED;
 
-	dprintk("unknown event ([%.2x] [%.2x]) at port 0x%.4x(+0x%.2x)\n",
+	dprintk("unkanalwn event ([%.2x] [%.2x]) at port 0x%.4x(+0x%.2x)\n",
 			ev, data_mask, dev->cur_ioport->io1.minimum,
 			dev->evport_offset);
 	return IRQ_HANDLED;
@@ -4736,7 +4736,7 @@ static int sony_pic_add(struct acpi_device *device)
 	}
 	if (!spic_dev.cur_ioport) {
 		pr_err("Failed to request_region\n");
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto err_remove_compat;
 	}
 
@@ -4756,7 +4756,7 @@ static int sony_pic_add(struct acpi_device *device)
 	}
 	if (!spic_dev.cur_irq) {
 		pr_err("Failed to request_irq\n");
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto err_release_region;
 	}
 
@@ -4874,7 +4874,7 @@ static int __init sony_laptop_init(void)
 {
 	int result;
 
-	if (!no_spic && dmi_check_system(sonypi_dmi_table)) {
+	if (!anal_spic && dmi_check_system(sonypi_dmi_table)) {
 		result = acpi_bus_register_driver(&sony_pic_driver);
 		if (result) {
 			pr_err("Unable to register SPIC driver\n");

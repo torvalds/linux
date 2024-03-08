@@ -122,12 +122,12 @@ static int irq_sim_domain_map(struct irq_domain *domain,
 
 	irq_ctx = kzalloc(sizeof(*irq_ctx), GFP_KERNEL);
 	if (!irq_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_set_chip(virq, &irq_sim_irqchip);
 	irq_set_chip_data(virq, irq_ctx);
 	irq_set_handler(virq, handle_simple_irq);
-	irq_modify_status(virq, IRQ_NOREQUEST | IRQ_NOAUTOEN, IRQ_NOPROBE);
+	irq_modify_status(virq, IRQ_ANALREQUEST | IRQ_ANALAUTOEN, IRQ_ANALPROBE);
 	irq_ctx->work_ctx = work_ctx;
 
 	return 0;
@@ -155,13 +155,13 @@ static const struct irq_domain_ops irq_sim_domain_ops = {
  * irq_domain_create_sim - Create a new interrupt simulator irq_domain and
  *                         allocate a range of dummy interrupts.
  *
- * @fwnode:     struct fwnode_handle to be associated with this domain.
+ * @fwanalde:     struct fwanalde_handle to be associated with this domain.
  * @num_irqs:   Number of interrupts to allocate.
  *
  * On success: return a new irq_domain object.
- * On failure: a negative errno wrapped with ERR_PTR().
+ * On failure: a negative erranal wrapped with ERR_PTR().
  */
-struct irq_domain *irq_domain_create_sim(struct fwnode_handle *fwnode,
+struct irq_domain *irq_domain_create_sim(struct fwanalde_handle *fwanalde,
 					 unsigned int num_irqs)
 {
 	struct irq_sim_work_ctx *work_ctx;
@@ -174,7 +174,7 @@ struct irq_domain *irq_domain_create_sim(struct fwnode_handle *fwnode,
 	if (!work_ctx->pending)
 		goto err_free_work_ctx;
 
-	work_ctx->domain = irq_domain_create_linear(fwnode, num_irqs,
+	work_ctx->domain = irq_domain_create_linear(fwanalde, num_irqs,
 						    &irq_sim_domain_ops,
 						    work_ctx);
 	if (!work_ctx->domain)
@@ -190,7 +190,7 @@ err_free_bitmap:
 err_free_work_ctx:
 	kfree(work_ctx);
 err_out:
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 EXPORT_SYMBOL_GPL(irq_domain_create_sim);
 
@@ -224,20 +224,20 @@ static void devm_irq_domain_remove_sim(void *data)
  *                              a managed device.
  *
  * @dev:        Device to initialize the simulator object for.
- * @fwnode:     struct fwnode_handle to be associated with this domain.
+ * @fwanalde:     struct fwanalde_handle to be associated with this domain.
  * @num_irqs:   Number of interrupts to allocate
  *
  * On success: return a new irq_domain object.
- * On failure: a negative errno wrapped with ERR_PTR().
+ * On failure: a negative erranal wrapped with ERR_PTR().
  */
 struct irq_domain *devm_irq_domain_create_sim(struct device *dev,
-					      struct fwnode_handle *fwnode,
+					      struct fwanalde_handle *fwanalde,
 					      unsigned int num_irqs)
 {
 	struct irq_domain *domain;
 	int ret;
 
-	domain = irq_domain_create_sim(fwnode, num_irqs);
+	domain = irq_domain_create_sim(fwanalde, num_irqs);
 	if (IS_ERR(domain))
 		return domain;
 

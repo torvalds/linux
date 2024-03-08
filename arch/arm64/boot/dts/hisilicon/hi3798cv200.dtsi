@@ -2,7 +2,7 @@
 /*
  * DTS File for HiSilicon Hi3798cv200 SoC.
  *
- * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016-2017 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <dt-bindings/clock/histb-clock.h>
@@ -92,8 +92,8 @@
 				compatible = "ti,syscon-reset";
 				#reset-cells = <1>;
 				ti,reset-bits = <
-					0xcc 12 0xcc 12 0 0 (ASSERT_CLEAR | DEASSERT_SET | STATUS_NONE)
-					0xcc 13 0xcc 13 0 0 (ASSERT_CLEAR | DEASSERT_SET | STATUS_NONE)
+					0xcc 12 0xcc 12 0 0 (ASSERT_CLEAR | DEASSERT_SET | STATUS_ANALNE)
+					0xcc 13 0xcc 13 0 0 (ASSERT_CLEAR | DEASSERT_SET | STATUS_ANALNE)
 				>;
 			};
 		};

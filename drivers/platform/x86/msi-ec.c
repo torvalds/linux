@@ -76,7 +76,7 @@ static struct msi_ec_conf CONF0 __initdata = {
 		},
 	},
 	.super_battery = {
-		.address = MSI_EC_ADDR_UNKNOWN, // 0xd5 needs testing
+		.address = MSI_EC_ADDR_UNKANALWN, // 0xd5 needs testing
 	},
 	.fan_mode = {
 		.address = 0xf4,
@@ -157,7 +157,7 @@ static struct msi_ec_conf CONF1 __initdata = {
 		},
 	},
 	.super_battery = {
-		.address = MSI_EC_ADDR_UNKNOWN,
+		.address = MSI_EC_ADDR_UNKANALWN,
 	},
 	.fan_mode = {
 		.address = 0xf4,
@@ -372,7 +372,7 @@ static struct msi_ec_conf CONF4 __initdata = {
 		.bit           = 1,
 	},
 	.fn_win_swap = {
-		.address = MSI_EC_ADDR_UNKNOWN, // supported, but unknown
+		.address = MSI_EC_ADDR_UNKANALWN, // supported, but unkanalwn
 		.bit     = 4,
 	},
 	.cooler_boost = {
@@ -388,8 +388,8 @@ static struct msi_ec_conf CONF4 __initdata = {
 			MSI_EC_MODE_NULL
 		},
 	},
-	.super_battery = { // may be supported, but address is unknown
-		.address = MSI_EC_ADDR_UNKNOWN,
+	.super_battery = { // may be supported, but address is unkanalwn
+		.address = MSI_EC_ADDR_UNKANALWN,
 		.mask    = 0x0f,
 	},
 	.fan_mode = {
@@ -406,24 +406,24 @@ static struct msi_ec_conf CONF4 __initdata = {
 		.rt_fan_speed_address  = 0x71, // needs testing
 		.rt_fan_speed_base_min = 0x19,
 		.rt_fan_speed_base_max = 0x37,
-		.bs_fan_speed_address  = MSI_EC_ADDR_UNKNOWN,
+		.bs_fan_speed_address  = MSI_EC_ADDR_UNKANALWN,
 		.bs_fan_speed_base_min = 0x00,
 		.bs_fan_speed_base_max = 0x0f,
 	},
 	.gpu = {
 		.rt_temp_address      = 0x80,
-		.rt_fan_speed_address = MSI_EC_ADDR_UNKNOWN,
+		.rt_fan_speed_address = MSI_EC_ADDR_UNKANALWN,
 	},
 	.leds = {
-		.micmute_led_address = MSI_EC_ADDR_UNKNOWN,
-		.mute_led_address    = MSI_EC_ADDR_UNKNOWN,
+		.micmute_led_address = MSI_EC_ADDR_UNKANALWN,
+		.mute_led_address    = MSI_EC_ADDR_UNKANALWN,
 		.bit                 = 1,
 	},
 	.kbd_bl = {
-		.bl_mode_address  = MSI_EC_ADDR_UNKNOWN, // ?
+		.bl_mode_address  = MSI_EC_ADDR_UNKANALWN, // ?
 		.bl_modes         = { 0x00, 0x08 }, // ?
 		.max_mode         = 1, // ?
-		.bl_state_address = MSI_EC_ADDR_UNSUPP, // 0xd3, not functional
+		.bl_state_address = MSI_EC_ADDR_UNSUPP, // 0xd3, analt functional
 		.state_base_value = 0x80,
 		.max_state        = 3,
 	},
@@ -468,7 +468,7 @@ static struct msi_ec_conf CONF5 __initdata = {
 		},
 	},
 	.super_battery = { // unsupported?
-		.address = MSI_EC_ADDR_UNKNOWN,
+		.address = MSI_EC_ADDR_UNKANALWN,
 		.mask    = 0x0f,
 	},
 	.fan_mode = {
@@ -490,8 +490,8 @@ static struct msi_ec_conf CONF5 __initdata = {
 		.bs_fan_speed_base_max = 0x0f,
 	},
 	.gpu = {
-		.rt_temp_address      = MSI_EC_ADDR_UNKNOWN,
-		.rt_fan_speed_address = MSI_EC_ADDR_UNKNOWN,
+		.rt_temp_address      = MSI_EC_ADDR_UNKANALWN,
+		.rt_fan_speed_address = MSI_EC_ADDR_UNKANALWN,
 	},
 	.leds = {
 		.micmute_led_address = 0x2b,
@@ -499,10 +499,10 @@ static struct msi_ec_conf CONF5 __initdata = {
 		.bit                 = 2,
 	},
 	.kbd_bl = {
-		.bl_mode_address  = MSI_EC_ADDR_UNKNOWN, // ?
+		.bl_mode_address  = MSI_EC_ADDR_UNKANALWN, // ?
 		.bl_modes         = { 0x00, 0x08 }, // ?
 		.max_mode         = 1, // ?
-		.bl_state_address = MSI_EC_ADDR_UNSUPP, // 0xf3, not functional
+		.bl_state_address = MSI_EC_ADDR_UNSUPP, // 0xf3, analt functional
 		.state_base_value = 0x80,
 		.max_state        = 3,
 	},
@@ -570,7 +570,7 @@ static struct msi_ec_conf CONF6 __initdata = {
 	},
 	.gpu = {
 		.rt_temp_address      = 0x80,
-		.rt_fan_speed_address = MSI_EC_ADDR_UNKNOWN,
+		.rt_fan_speed_address = MSI_EC_ADDR_UNKANALWN,
 	},
 	.leds = {
 		.micmute_led_address = MSI_EC_ADDR_UNSUPP,
@@ -578,10 +578,10 @@ static struct msi_ec_conf CONF6 __initdata = {
 		.bit                 = 2,
 	},
 	.kbd_bl = {
-		.bl_mode_address  = MSI_EC_ADDR_UNKNOWN, // ?
+		.bl_mode_address  = MSI_EC_ADDR_UNKANALWN, // ?
 		.bl_modes         = { 0x00, 0x08 }, // ?
 		.max_mode         = 1, // ?
-		.bl_state_address = MSI_EC_ADDR_UNSUPP, // 0xf3, not functional
+		.bl_state_address = MSI_EC_ADDR_UNSUPP, // 0xf3, analt functional
 		.state_base_value = 0x80,
 		.max_state        = 3,
 	},
@@ -627,13 +627,13 @@ static struct msi_ec_conf CONF7 __initdata = {
 		},
 	},
 	.super_battery = {
-		.address = MSI_EC_ADDR_UNKNOWN, // 0xd5 but has its own wet of modes
+		.address = MSI_EC_ADDR_UNKANALWN, // 0xd5 but has its own wet of modes
 		.mask    = 0x0f,
 	},
 	.fan_mode = {
 		.address = 0xf4,
 		.modes = {
-			{ FM_AUTO_NAME,     0x0d }, // d may not be relevant
+			{ FM_AUTO_NAME,     0x0d }, // d may analt be relevant
 			{ FM_SILENT_NAME,   0x1d },
 			{ FM_ADVANCED_NAME, 0x8d },
 			MSI_EC_MODE_NULL
@@ -649,8 +649,8 @@ static struct msi_ec_conf CONF7 __initdata = {
 		.bs_fan_speed_base_max = 0x0f,
 	},
 	.gpu = {
-		.rt_temp_address      = MSI_EC_ADDR_UNKNOWN,
-		.rt_fan_speed_address = MSI_EC_ADDR_UNKNOWN,
+		.rt_temp_address      = MSI_EC_ADDR_UNKANALWN,
+		.rt_fan_speed_address = MSI_EC_ADDR_UNKANALWN,
 	},
 	.leds = {
 		.micmute_led_address = MSI_EC_ADDR_UNSUPP,
@@ -658,7 +658,7 @@ static struct msi_ec_conf CONF7 __initdata = {
 		.bit                 = 2,
 	},
 	.kbd_bl = {
-		.bl_mode_address  = MSI_EC_ADDR_UNKNOWN, // ?
+		.bl_mode_address  = MSI_EC_ADDR_UNKANALWN, // ?
 		.bl_modes         = { 0x00, 0x08 }, // ?
 		.max_mode         = 1, // ?
 		.bl_state_address = 0xf3,
@@ -726,8 +726,8 @@ static struct msi_ec_conf CONF8 __initdata = {
 		.bs_fan_speed_base_max = 0x0f,
 	},
 	.gpu = {
-		.rt_temp_address      = MSI_EC_ADDR_UNKNOWN,
-		.rt_fan_speed_address = MSI_EC_ADDR_UNKNOWN,
+		.rt_temp_address      = MSI_EC_ADDR_UNKANALWN,
+		.rt_fan_speed_address = MSI_EC_ADDR_UNKANALWN,
 	},
 	.leds = {
 		.micmute_led_address = MSI_EC_ADDR_UNSUPP,
@@ -735,10 +735,10 @@ static struct msi_ec_conf CONF8 __initdata = {
 		.bit                 = 1,
 	},
 	.kbd_bl = {
-		.bl_mode_address  = MSI_EC_ADDR_UNKNOWN, // ?
+		.bl_mode_address  = MSI_EC_ADDR_UNKANALWN, // ?
 		.bl_modes         = { 0x00, 0x08 }, // ?
 		.max_mode         = 1, // ?
-		.bl_state_address = MSI_EC_ADDR_UNSUPP, // not functional
+		.bl_state_address = MSI_EC_ADDR_UNSUPP, // analt functional
 		.state_base_value = 0x80,
 		.max_state        = 3,
 	},
@@ -812,7 +812,7 @@ static struct msi_ec_conf CONF9 __initdata = {
 		.bit                 = 2,
 	},
 	.kbd_bl = {
-		.bl_mode_address  = MSI_EC_ADDR_UNSUPP, // not presented in MSI app
+		.bl_mode_address  = MSI_EC_ADDR_UNSUPP, // analt presented in MSI app
 		.bl_modes         = { 0x00, 0x08 },
 		.max_mode         = 1,
 		.bl_state_address = 0xf3,
@@ -876,7 +876,7 @@ static struct msi_ec_conf CONF10 __initdata = {
 		.rt_fan_speed_address  = 0x71, // ?
 		.rt_fan_speed_base_min = 0x19,
 		.rt_fan_speed_base_max = 0x37,
-		.bs_fan_speed_address  = MSI_EC_ADDR_UNKNOWN, // ?
+		.bs_fan_speed_address  = MSI_EC_ADDR_UNKANALWN, // ?
 		.bs_fan_speed_base_min = 0x00,
 		.bs_fan_speed_base_max = 0x0f,
 	},
@@ -916,7 +916,7 @@ static struct msi_ec_conf CONF11 __initdata = {
 	},
 	.webcam = {
 		.address       = 0x2e,
-		.block_address = MSI_EC_ADDR_UNKNOWN,
+		.block_address = MSI_EC_ADDR_UNKANALWN,
 		.bit           = 1,
 	},
 	.fn_win_swap = {
@@ -964,7 +964,7 @@ static struct msi_ec_conf CONF11 __initdata = {
 		.bit                 = 1,
 	},
 	.kbd_bl = {
-		.bl_mode_address  = MSI_EC_ADDR_UNKNOWN,
+		.bl_mode_address  = MSI_EC_ADDR_UNKANALWN,
 		.bl_modes         = {}, // ?
 		.max_mode         = 1, // ?
 		.bl_state_address = 0xd3,
@@ -1042,7 +1042,7 @@ static struct msi_ec_conf CONF12 __initdata = {
 		.bit                 = 1,
 	},
 	.kbd_bl = {
-		.bl_mode_address  = MSI_EC_ADDR_UNKNOWN,
+		.bl_mode_address  = MSI_EC_ADDR_UNKANALWN,
 		.bl_modes         = { 0x00, 0x08 },
 		.max_mode         = 1,
 		.bl_state_address = 0xd3,
@@ -1323,17 +1323,17 @@ static int __init load_configuration(void)
 		}
 	}
 
-	/* config not found */
+	/* config analt found */
 
 	for (int i = 0; i < MSI_EC_FW_VERSION_LENGTH; i++) {
 		if (!isgraph(fw_version[i])) {
 			pr_warn("Unable to find a valid firmware version!\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
-	pr_warn("Firmware version is not supported: '%s'\n", fw_version);
-	return -EOPNOTSUPP;
+	pr_warn("Firmware version is analt supported: '%s'\n", fw_version);
+	return -EOPANALTSUPP;
 }
 
 static int __init msi_ec_init(void)

@@ -3,8 +3,8 @@
  * f_midi.c -- USB MIDI class function driver
  *
  * Copyright (C) 2006 Thumtronics Pty Ltd.
- * Developed for Thumtronics by Grey Innovation
- * Ben Williamson <ben.williamson@greyinnovation.com>
+ * Developed for Thumtronics by Grey Inanalvation
+ * Ben Williamson <ben.williamson@greyinanalvation.com>
  *
  * Rewritten for the composite framework
  *   Copyright (C) 2011 Daniel Mack <zonque@gmail.com>
@@ -15,7 +15,7 @@
  *
  * and drivers/usb/gadget/midi.c,
  *   Copyright (C) 2006 Thumtronics Pty Ltd.
- *   Ben Williamson <ben.williamson@greyinnovation.com>
+ *   Ben Williamson <ben.williamson@greyinanalvation.com>
  */
 
 #include <linux/kernel.h>
@@ -244,7 +244,7 @@ static void f_midi_read_data(struct usb_ep *ep, int cable,
 	struct snd_rawmidi_substream *substream = midi->out_substream[cable];
 
 	if (!substream)
-		/* Nobody is listening - throw it on the floor. */
+		/* Analbody is listening - throw it on the floor. */
 		return;
 
 	if (!test_bit(cable, &midi->out_triggered))
@@ -274,7 +274,7 @@ f_midi_complete(struct usb_ep *ep, struct usb_request *req)
 	int status = req->status;
 
 	switch (status) {
-	case 0:			 /* normal completion */
+	case 0:			 /* analrmal completion */
 		if (ep == midi->out_ep) {
 			/* We received stuff. req is queued again, below */
 			f_midi_handle_out_data(ep, req);
@@ -287,7 +287,7 @@ f_midi_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 		break;
 
-	/* this endpoint is normally active while we're configured */
+	/* this endpoint is analrmally active while we're configured */
 	case -ECONNABORTED:	/* hardware forced ep reset */
 	case -ECONNRESET:	/* request dequeued */
 	case -ESHUTDOWN:	/* disconnect from host */
@@ -302,7 +302,7 @@ f_midi_complete(struct usb_ep *ep, struct usb_request *req)
 		return;
 
 	case -EOVERFLOW:	/* buffer overrun on read means that
-				 * we didn't provide a big enough buffer.
+				 * we didn't provide a big eanalugh buffer.
 				 */
 	default:
 		DBG(cdev, "%s complete --> %d, %d/%d\n", ep->name,
@@ -384,7 +384,7 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			midi_alloc_ep_req(midi->in_ep, midi->buflen);
 
 		if (req == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		req->length = 0;
 		req->complete = f_midi_complete;
@@ -398,7 +398,7 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			midi_alloc_ep_req(midi->out_ep, midi->buflen);
 
 		if (req == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		req->complete = f_midi_complete;
 		err = usb_ep_queue(midi->out_ep, req, GFP_ATOMIC);
@@ -481,7 +481,7 @@ static void f_midi_transmit_byte(struct usb_request *req,
 			next_state = STATE_FINISHED;
 			break;
 		default:
-			/* Ignore byte */
+			/* Iganalre byte */
 			next_state = port->state;
 			port->state = STATE_INITIAL;
 		}
@@ -621,7 +621,7 @@ static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 	}
 
 	/*
-	 * If buffer overrun, then we ignore this transmission.
+	 * If buffer overrun, then we iganalre this transmission.
 	 * IMPORTANT: This will cause the user-space rawmidi device to block
 	 * until a) usb requests have been completed or b) snd_rawmidi_write()
 	 * times out.
@@ -841,7 +841,7 @@ static int f_midi_register_card(struct f_midi *midi)
 	midi->free_ref++;
 
 	/*
-	 * Yes, rawmidi OUTPUT = USB IN, and rawmidi INPUT = USB OUT.
+	 * Anal, rawmidi OUTPUT = USB IN, and rawmidi INPUT = USB OUT.
 	 * It's an upside-down world being a gadget.
 	 */
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &gmidi_in_ops);
@@ -904,7 +904,7 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 	ac_header_desc.baInterfaceNr[0] = status;
 	midi->ms_id = status;
 
-	status = -ENODEV;
+	status = -EANALDEV;
 
 	/* allocate instance-specific endpoints */
 	midi->in_ep = usb_ep_autoconfig(cdev->gadget, &bulk_in_desc);
@@ -919,7 +919,7 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 	midi_function = kcalloc((MAX_PORTS * 4) + 11, sizeof(*midi_function),
 				GFP_KERNEL);
 	if (!midi_function) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail;
 	}
 
@@ -1207,7 +1207,7 @@ static ssize_t f_midi_opts_id_store(struct config_item *item,
 
 	c = kstrndup(page, len, GFP_KERNEL);
 	if (!c) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto end;
 	}
 	if (opts->id_allocated)
@@ -1264,7 +1264,7 @@ static struct usb_function_instance *f_midi_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = f_midi_free_inst;
@@ -1346,7 +1346,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	midi = kzalloc(struct_size(midi, in_ports_array, opts->in_ports),
 		       GFP_KERNEL);
 	if (!midi) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto setup_fail;
 	}
 	midi->in_ports = opts->in_ports;
@@ -1357,7 +1357,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	/* set up ALSA midi devices */
 	midi->id = kstrdup(opts->id, GFP_KERNEL);
 	if (opts->id && !midi->id) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto midi_free;
 	}
 	midi->out_ports = opts->out_ports;

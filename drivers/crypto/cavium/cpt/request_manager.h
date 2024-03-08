@@ -38,7 +38,7 @@ union opcode_info {
 	u16 flags;
 	struct {
 		u8 major;
-		u8 minor;
+		u8 mianalr;
 	} s;
 };
 
@@ -141,6 +141,6 @@ struct cpt_vq_command {
 	union vq_cmd_word3 cptr;
 };
 
-void vq_post_process(struct cpt_vf *cptvf, u32 qno);
+void vq_post_process(struct cpt_vf *cptvf, u32 qanal);
 int process_request(struct cpt_vf *cptvf, struct cpt_request_info *req);
 #endif /* __REQUEST_MANAGER_H */

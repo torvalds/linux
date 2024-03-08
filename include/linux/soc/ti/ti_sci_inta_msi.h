@@ -13,7 +13,7 @@
 #include <linux/soc/ti/ti_sci_protocol.h>
 
 struct irq_domain
-*ti_sci_inta_msi_create_irq_domain(struct fwnode_handle *fwnode,
+*ti_sci_inta_msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 				   struct msi_domain_info *info,
 				   struct irq_domain *parent);
 int ti_sci_inta_msi_domain_alloc_irqs(struct device *dev,

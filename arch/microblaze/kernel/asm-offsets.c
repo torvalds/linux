@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2007-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 	DEFINE(CC_R16, offsetof(struct cpu_context, r16));
 	DEFINE(CC_R17, offsetof(struct cpu_context, r17));
 	DEFINE(CC_R18, offsetof(struct cpu_context, r18));
-	/* non-volatile registers */
+	/* analn-volatile registers */
 	DEFINE(CC_R19, offsetof(struct cpu_context, r19));
 	DEFINE(CC_R20, offsetof(struct cpu_context, r20));
 	DEFINE(CC_R21, offsetof(struct cpu_context, r21));

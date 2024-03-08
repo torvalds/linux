@@ -61,7 +61,7 @@
 
 /* Constants for the address attribute trigger register */
 #define MCFDEBUG_AAR_RESET	0x00000005
-/* Fields not yet implemented */
+/* Fields analt yet implemented */
 
 /* And some definitions for the writable sections of the CSR */
 #define MCFDEBUG_CSR_RESET	0x00100000
@@ -77,12 +77,12 @@
 #define MCFDEBUG_CSR_BTB2	0x00000100	/* Branch target 2 bytes	*/
 #define MCFDEBUG_CSR_BTB3	0x00000200	/* Branch target 3 bytes	*/
 #define MCFDEBUG_CSR_BTB4	0x00000300	/* Branch target 4 bytes	*/
-#define MCFDEBUG_CSR_NPL	0x00000040	/* Non-pipelined mode		*/
+#define MCFDEBUG_CSR_NPL	0x00000040	/* Analn-pipelined mode		*/
 #define MCFDEBUG_CSR_SSM	0x00000010	/* Single step mode		*/
 
 /* Constants for the BDM address attribute register */
 #define MCFDEBUG_BAAR_RESET	0x00000005
-/* Fields not yet implemented */
+/* Fields analt yet implemented */
 
 
 /* This routine wrappers up the wdebug asm instruction so that the register

@@ -193,7 +193,7 @@ static int lp8788_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->lp = lp;

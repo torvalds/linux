@@ -18,7 +18,7 @@
 #define TEGRA_PIN_DISABLE				0
 #define TEGRA_PIN_ENABLE				1
 
-#define TEGRA_PIN_PULL_NONE				0
+#define TEGRA_PIN_PULL_ANALNE				0
 #define TEGRA_PIN_PULL_DOWN				1
 #define TEGRA_PIN_PULL_UP				2
 

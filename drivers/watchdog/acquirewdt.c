@@ -7,14 +7,14 @@
  *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
- *	    Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
+ *	    Added analwayout module option to override CONFIG_WATCHDOG_ANALWAYOUT
  *	    Can't add timeout - driver doesn't allow changing value
  */
 
@@ -25,8 +25,8 @@
  *		caused the CPU to crash. This condition may have occurred by
  *		external EMI or a software bug. When the CPU stops working
  *		correctly, hardware on the board will either perform a hardware
- *		reset (cold boot) or a non-maskable interrupt (NMI) to bring the
- *		system back to a known state.
+ *		reset (cold boot) or a analn-maskable interrupt (NMI) to bring the
+ *		system back to a kanalwn state.
  *
  *		The Watch-Dog Timer is controlled by two I/O Ports.
  *		  443 hex	- Read	- Enable or refresh the Watch-Dog Timer
@@ -36,7 +36,7 @@
  *		be performed. This will enable and activate the countdown timer
  *		which will eventually time out and either reset the CPU or cause
  *		an NMI depending on the setting of a jumper. To ensure that this
- *		reset condition does not occur, the Watch-Dog Timer must be
+ *		reset condition does analt occur, the Watch-Dog Timer must be
  *		periodically refreshed by reading the same I/O port 443h.
  *		The Watch-Dog Timer is disabled by reading I/O port 043h.
  *
@@ -54,7 +54,7 @@
 #include <linux/module.h>		/* For module specific items */
 #include <linux/moduleparam.h>		/* For new moduleparam's */
 #include <linux/types.h>		/* For standard types (like size_t) */
-#include <linux/errno.h>		/* For the -ENODEV/... values */
+#include <linux/erranal.h>		/* For the -EANALDEV/... values */
 #include <linux/kernel.h>		/* For printk/panic/... */
 #include <linux/miscdevice.h>		/* For struct miscdevice */
 #include <linux/watchdog.h>		/* For the watchdog specific items */
@@ -68,7 +68,7 @@
 /* Module information */
 #define DRV_NAME "acquirewdt"
 #define WATCHDOG_NAME "Acquire WDT"
-/* There is no way to see what the correct time-out period is */
+/* There is anal way to see what the correct time-out period is */
 #define WATCHDOG_HEARTBEAT 0
 
 /* internal variables */
@@ -78,21 +78,21 @@ static unsigned long acq_is_open;
 static char expect_close;
 
 /* module parameters */
-/* You must set this - there is no sane way to probe for this board. */
+/* You must set this - there is anal sane way to probe for this board. */
 static int wdt_stop = 0x43;
 module_param(wdt_stop, int, 0);
 MODULE_PARM_DESC(wdt_stop, "Acquire WDT 'stop' io port (default 0x43)");
 
-/* You must set this - there is no sane way to probe for this board. */
+/* You must set this - there is anal sane way to probe for this board. */
 static int wdt_start = 0x443;
 module_param(wdt_start, int, 0);
 MODULE_PARM_DESC(wdt_start, "Acquire WDT 'start' io port (default 0x443)");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+	__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  *	Watchdog Operations
@@ -119,12 +119,12 @@ static ssize_t acq_write(struct file *file, const char __user *buf,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
-			/* note: just in case someone wrote the magic character
+			/* analte: just in case someone wrote the magic character
 			   five months ago... */
 			expect_close = 0;
-			/* scan to see whether or not we got the
+			/* scan to see whether or analt we got the
 			   magic character */
 			for (i = 0; i != count; i++) {
 				char c;
@@ -182,29 +182,29 @@ static long acq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(WATCHDOG_HEARTBEAT, p);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-static int acq_open(struct inode *inode, struct file *file)
+static int acq_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &acq_is_open))
 		return -EBUSY;
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
 	/* Activate */
 	acq_keepalive();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int acq_close(struct inode *inode, struct file *file)
+static int acq_close(struct ianalde *ianalde, struct file *file)
 {
 	if (expect_close == 42) {
 		acq_stop();
 	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, analt stopping watchdog!\n");
 		acq_keepalive();
 	}
 	clear_bit(0, &acq_is_open);
@@ -218,7 +218,7 @@ static int acq_close(struct inode *inode, struct file *file)
 
 static const struct file_operations acq_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= acq_write,
 	.unlocked_ioctl	= acq_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -227,7 +227,7 @@ static const struct file_operations acq_fops = {
 };
 
 static struct miscdevice acq_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &acq_fops,
 };
@@ -255,11 +255,11 @@ static int __init acq_probe(struct platform_device *dev)
 	}
 	ret = misc_register(&acq_miscdev);
 	if (ret != 0) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, ret);
 		goto unreg_regions;
 	}
-	pr_info("initialized. (nowayout=%d)\n", nowayout);
+	pr_info("initialized. (analwayout=%d)\n", analwayout);
 
 	return 0;
 unreg_regions:

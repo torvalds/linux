@@ -6,7 +6,7 @@
  * by converting/mapping older policy formats into the newer internal
  * formats.
  *
- * Copyright 2022 Canonical Ltd.
+ * Copyright 2022 Caanalnical Ltd.
  */
 
 #ifndef __POLICY_COMPAT_H

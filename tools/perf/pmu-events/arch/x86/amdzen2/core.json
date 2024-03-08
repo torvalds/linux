@@ -20,7 +20,7 @@
     "EventName": "ex_ret_brn_misp",
     "EventCode": "0xc3",
     "BriefDescription": "Retired Branch Instructions Mispredicted.",
-    "PublicDescription": "The number of branch instructions retired, of any type, that were not correctly predicted. This includes those for which prediction is not attempted (far control transfers, exceptions and interrupts)."
+    "PublicDescription": "The number of branch instructions retired, of any type, that were analt correctly predicted. This includes those for which prediction is analt attempted (far control transfers, exceptions and interrupts)."
   },
   {
     "EventName": "ex_ret_brn_tkn",
@@ -38,7 +38,7 @@
     "EventName": "ex_ret_brn_far",
     "EventCode": "0xc6",
     "BriefDescription": "Retired Far Control Transfers.",
-    "PublicDescription": "The number of far control transfers retired including far call/jump/return, IRET, SYSCALL and SYSRET, plus exceptions and interrupts. Far control transfers are not subject to branch prediction."
+    "PublicDescription": "The number of far control transfers retired including far call/jump/return, IRET, SYSCALL and SYSRET, plus exceptions and interrupts. Far control transfers are analt subject to branch prediction."
   },
   {
     "EventName": "ex_ret_brn_resync",
@@ -56,7 +56,7 @@
     "EventName": "ex_ret_near_ret_mispred",
     "EventCode": "0xc9",
     "BriefDescription": "Retired Near Returns Mispredicted.",
-    "PublicDescription": "The number of near returns retired that were not correctly predicted by the return address predictor. Each such mispredict incurs the same penalty as a mispredicted conditional branch instruction."
+    "PublicDescription": "The number of near returns retired that were analt correctly predicted by the return address predictor. Each such mispredict incurs the same penalty as a mispredicted conditional branch instruction."
   },
   {
     "EventName": "ex_ret_brn_ind_misp",
@@ -67,21 +67,21 @@
     "EventName": "ex_ret_mmx_fp_instr.sse_instr",
     "EventCode": "0xcb",
     "BriefDescription": "SSE instructions (SSE, SSE2, SSE3, SSSE3, SSE4A, SSE41, SSE42, AVX).",
-    "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes non-numeric instructions it is not suitable for measuring MFLOPS. SSE instructions (SSE, SSE2, SSE3, SSSE3, SSE4A, SSE41, SSE42, AVX).",
+    "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes analn-numeric instructions it is analt suitable for measuring MFLOPS. SSE instructions (SSE, SSE2, SSE3, SSSE3, SSE4A, SSE41, SSE42, AVX).",
     "UMask": "0x04"
   },
   {
     "EventName": "ex_ret_mmx_fp_instr.mmx_instr",
     "EventCode": "0xcb",
     "BriefDescription": "MMX instructions.",
-    "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes non-numeric instructions it is not suitable for measuring MFLOPS. MMX instructions.",
+    "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes analn-numeric instructions it is analt suitable for measuring MFLOPS. MMX instructions.",
     "UMask": "0x02"
   },
   {
     "EventName": "ex_ret_mmx_fp_instr.x87_instr",
     "EventCode": "0xcb",
     "BriefDescription": "x87 instructions.",
-    "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes non-numeric instructions it is not suitable for measuring MFLOPS. x87 instructions.",
+    "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes analn-numeric instructions it is analt suitable for measuring MFLOPS. x87 instructions.",
     "UMask": "0x01"
   },
   {
@@ -107,7 +107,7 @@
   {
     "EventName": "ex_tagged_ibs_ops.ibs_count_rollover",
     "EventCode": "0x1cf",
-    "BriefDescription": "Tagged IBS Ops. Number of times an op could not be tagged by IBS because of a previous tagged op that has not retired.",
+    "BriefDescription": "Tagged IBS Ops. Number of times an op could analt be tagged by IBS because of a previous tagged op that has analt retired.",
     "UMask": "0x04"
   },
   {

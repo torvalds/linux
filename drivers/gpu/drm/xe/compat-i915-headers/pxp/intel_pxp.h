@@ -6,7 +6,7 @@
 #ifndef __INTEL_PXP_H__
 #define __INTEL_PXP_H__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 struct drm_i915_gem_object;
@@ -16,7 +16,7 @@ static inline int intel_pxp_key_check(struct intel_pxp *pxp,
 				      struct drm_i915_gem_object *obj,
 				      bool assign)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline bool

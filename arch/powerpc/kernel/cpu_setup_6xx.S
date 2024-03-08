@@ -138,15 +138,15 @@ SYM_FUNC_END(setup_g2_le_hid2)
  * erratas we work around here.
  * Moto MPC710CE.pdf describes them, those are errata
  * #3, #4 and #5
- * Note that we assume the firmware didn't choose to
+ * Analte that we assume the firmware didn't choose to
  * apply other workarounds (there are other ones documented
  * in the .pdf). It appear that Apple firmware only works
  * around #3 and with the same fix we use. We may want to
  * check if the CPU is using 60x bus mode in which case
  * the workaround for errata #4 is useless. Also, we may
- * want to explicitly clear HID0_NOPDST as this is not
+ * want to explicitly clear HID0_ANALPDST as this is analt
  * needed once we have applied workaround #5 (though it's
- * not set by Apple's firmware at least).
+ * analt set by Apple's firmware at least).
  */
 SYM_FUNC_START_LOCAL(setup_7400_workarounds)
 	mfpvr	r3
@@ -189,10 +189,10 @@ SYM_FUNC_START_LOCAL(setup_750_7400_hid0)
 	oris	r11,r11,HID0_DPM@h
 BEGIN_FTR_SECTION
 	xori	r11,r11,HID0_BTIC
-END_FTR_SECTION_IFSET(CPU_FTR_NO_BTIC)
+END_FTR_SECTION_IFSET(CPU_FTR_ANAL_BTIC)
 BEGIN_FTR_SECTION
 	xoris	r11,r11,HID0_DPM@h	/* disable dynamic power mgmt */
-END_FTR_SECTION_IFSET(CPU_FTR_NO_DPM)
+END_FTR_SECTION_IFSET(CPU_FTR_ANAL_DPM)
 	li	r3,HID0_SPD
 	andc	r11,r11,r3		/* clear SPD: enable speculative */
  	li	r3,0
@@ -243,7 +243,7 @@ SYM_FUNC_END(setup_750fx)
 SYM_FUNC_START_LOCAL(setup_745x_specifics)
 	/* We check for the presence of an L3 cache setup by
 	 * the firmware. If any, we disable NAP capability as
-	 * it's known to be bogus on rev 2.1 and earlier
+	 * it's kanalwn to be bogus on rev 2.1 and earlier
 	 */
 BEGIN_FTR_SECTION
 	mfspr	r11,SPRN_L3CR
@@ -269,14 +269,14 @@ BEGIN_MMU_FTR_SECTION
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 BEGIN_FTR_SECTION
 	xori	r11,r11,HID0_BTIC
-END_FTR_SECTION_IFSET(CPU_FTR_NO_BTIC)
+END_FTR_SECTION_IFSET(CPU_FTR_ANAL_BTIC)
 BEGIN_FTR_SECTION
 	xoris	r11,r11,HID0_DPM@h	/* disable dynamic power mgmt */
-END_FTR_SECTION_IFSET(CPU_FTR_NO_DPM)
+END_FTR_SECTION_IFSET(CPU_FTR_ANAL_DPM)
 
 	/* All of the bits we have to clear....
 	 */
-	li	r3,HID0_SPD | HID0_NOPDST | HID0_NOPTI
+	li	r3,HID0_SPD | HID0_ANALPDST | HID0_ANALPTI
 	andc	r11,r11,r3		/* clear SPD: enable speculative */
  	li	r3,0
 
@@ -302,7 +302,7 @@ SYM_FUNC_END(setup_745x_specifics)
 
 /*
  * Initialize the FPU registers. This is needed to work around an errata
- * in some 750 cpus where using a not yet initialized FPU register after
+ * in some 750 cpus where using a analt yet initialized FPU register after
  * power on reset may hang the CPU
  */
 _GLOBAL(__init_fpu_registers)
@@ -317,7 +317,7 @@ _GLOBAL(__init_fpu_registers)
 	mtmsr	r10
 	isync
 	blr
-_ASM_NOKPROBE_SYMBOL(__init_fpu_registers)
+_ASM_ANALKPROBE_SYMBOL(__init_fpu_registers)
 
 
 /* Definitions for the table use to save CPU states */
@@ -338,9 +338,9 @@ cpu_state_storage:
 	.balign	L1_CACHE_BYTES,0
 	.text
 
-/* Called in normal context to backup CPU 0 state. This
- * does not include cache settings. This function is also
- * called for machine sleep. This does not include the MMU
+/* Called in analrmal context to backup CPU 0 state. This
+ * does analt include cache settings. This function is also
+ * called for machine sleep. This does analt include the MMU
  * setup, BATs, etc... but rather the "special" registers
  * like HID0, HID1, MSSCR0, etc...
  */
@@ -356,7 +356,7 @@ _GLOBAL(__save_cpu_setup)
 	mfspr	r3,SPRN_HID0
 	stw	r3,CS_HID0(r5)
 
-	/* Now deal with CPU type dependent registers */
+	/* Analw deal with CPU type dependent registers */
 	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
 	cmplwi	cr0,r3,0x8000	/* 7450 */
@@ -407,9 +407,9 @@ _GLOBAL(__save_cpu_setup)
 	mtcr	r7
 	blr
 
-/* Called with no MMU context (typically MSR:IR/DR off) to
+/* Called with anal MMU context (typically MSR:IR/DR off) to
  * restore CPU state as backed up by the previous
- * function. This does not include cache setting
+ * function. This does analt include cache setting
  */
 _GLOBAL(__restore_cpu_setup)
 	/* Some CR fields are volatile, we back it up all */
@@ -427,7 +427,7 @@ _GLOBAL(__restore_cpu_setup)
 	sync
 	isync
 
-	/* Now deal with CPU type dependent registers */
+	/* Analw deal with CPU type dependent registers */
 	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
 	cmplwi	cr0,r3,0x8000	/* 7450 */
@@ -513,4 +513,4 @@ _GLOBAL(__restore_cpu_setup)
 1:
 	mtcr	r7
 	blr
-_ASM_NOKPROBE_SYMBOL(__restore_cpu_setup)
+_ASM_ANALKPROBE_SYMBOL(__restore_cpu_setup)

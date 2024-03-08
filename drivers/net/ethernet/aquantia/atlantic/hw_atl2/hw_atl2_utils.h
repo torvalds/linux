@@ -109,7 +109,7 @@ struct sleep_proxy_s {
 		u8 igmp_client:1;
 		u8 echo_truncate:1;
 		u8 address_guard:1;
-		u8 ignore_fragmented:1;
+		u8 iganalre_fragmented:1;
 		u8 rsvd:2;
 
 		u16 echo_max_len;
@@ -226,17 +226,17 @@ struct device_caps_s {
 struct version_s {
 	struct bundle_version_t {
 		u8 major;
-		u8 minor;
+		u8 mianalr;
 		u16 build;
 	} bundle;
 	struct mac_version_t {
 		u8 major;
-		u8 minor;
+		u8 mianalr;
 		u16 build;
 	} mac;
 	struct phy_version_t {
 		u8 major;
-		u8 minor;
+		u8 mianalr;
 		u16 build;
 	} phy;
 	u32 drv_iface_ver:4;

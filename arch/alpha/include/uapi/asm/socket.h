@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_SOCKET_H
 #define _UAPI_ASM_SOCKET_H
 
@@ -7,8 +7,8 @@
 
 /* For setsockopt(2) */
 /*
- * Note: we only bother about making the SOL_SOCKET options
- * same as OSF/1, as that's all that "normal" programs are
+ * Analte: we only bother about making the SOL_SOCKET options
+ * same as OSF/1, as that's all that "analrmal" programs are
  * likely to set.  We don't necessarily want to be binary
  * compatible with _everything_. 
  */
@@ -38,7 +38,7 @@
 #define SO_DOMAIN	0x1029
 
 /* linux-specific, might as well be the same as on i386 */
-#define SO_NO_CHECK	11
+#define SO_ANAL_CHECK	11
 #define SO_PRIORITY	12
 #define SO_BSDCOMPAT	14
 
@@ -70,7 +70,7 @@
 #define SO_PEEK_OFF		42
 
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
-#define SO_NOFCS		43
+#define SO_ANALFCS		43
 
 #define SO_LOCK_FILTER		44
 

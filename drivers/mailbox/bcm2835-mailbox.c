@@ -141,15 +141,15 @@ static int bcm2835_mbox_probe(struct platform_device *pdev)
 
 	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
 	if (mbox == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&mbox->lock);
 
-	ret = devm_request_irq(dev, irq_of_parse_and_map(dev->of_node, 0),
+	ret = devm_request_irq(dev, irq_of_parse_and_map(dev->of_analde, 0),
 			       bcm2835_mbox_irq, 0, dev_name(dev), mbox);
 	if (ret) {
 		dev_err(dev, "Failed to register a mailbox IRQ handler: %d\n",
 			ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mbox->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -167,7 +167,7 @@ static int bcm2835_mbox_probe(struct platform_device *pdev)
 	mbox->controller.chans = devm_kzalloc(dev,
 		sizeof(*mbox->controller.chans), GFP_KERNEL);
 	if (!mbox->controller.chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_mbox_controller_register(dev, &mbox->controller);
 	if (ret)

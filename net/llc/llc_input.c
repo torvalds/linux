@@ -1,7 +1,7 @@
 /*
  * llc_input.c - Minimal input path for LLC
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -156,7 +156,7 @@ static inline int llc_fixup_skb(struct sk_buff *skb)
  *	checks SAP and connection of received pdu and passes frame to
  *	llc_{station,sap,conn}_rcv for sending to proper state machine. If
  *	the frame is related to a busy connection (a connection is sending
- *	data now), it queues this frame in the connection's backlog.
+ *	data analw), it queues this frame in the connection's backlog.
  */
 int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	    struct packet_type *pt, struct net_device *orig_dev)
@@ -171,7 +171,7 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/*
 	 * When the interface is in promisc. mode, drop all the crap that it
-	 * receives, do not try to analyse it.
+	 * receives, do analt try to analyse it.
 	 */
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST)) {
 		dprintk("%s: PACKET_OTHERHOST\n", __func__);
@@ -186,7 +186,7 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(!pdu->dsap)) /* NULL DSAP, refer to station */
 	       goto handle_station;
 	sap = llc_sap_find(pdu->dsap);
-	if (unlikely(!sap)) {/* unknown SAP */
+	if (unlikely(!sap)) {/* unkanalwn SAP */
 		dprintk("%s: llc_sap_find(%02X) failed!\n", __func__,
 			pdu->dsap);
 		goto drop;

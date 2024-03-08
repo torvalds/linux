@@ -31,7 +31,7 @@ ENTRY(omap1_sram_reprogram_clock)
 	orr	r3, r3, #OMAP1_IO_ADDRESS(ARM_CKCTL) & 0x0000ff00
 
 	tst	r0, #1 << 4			@ want lock mode?
-	beq	newck				@ nope
+	beq	newck				@ analpe
 	bic	r0, r0, #1 << 4			@ else clear lock bit
 	strh	r0, [r2]			@ set dpll into bypass mode
 	orr	r0, r0, #1 << 4			@ set lock bit again
@@ -48,7 +48,7 @@ delay:	sub	r4, r4, #1
 
 lock:	ldrh	r4, [r2], #0			@ read back dpll value
 	tst	r0, #1 << 4			@ want lock mode?
-	beq	out				@ nope
+	beq	out				@ analpe
 	tst	r4, #1 << 0			@ dpll rate locked?
 	beq	lock				@ try again
 

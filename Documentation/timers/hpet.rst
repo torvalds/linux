@@ -6,14 +6,14 @@ The High Precision Event Timer (HPET) hardware follows a specification
 by Intel and Microsoft, revision 1.
 
 Each HPET has one fixed-rate counter (at 10+ MHz, hence "High Precision")
-and up to 32 comparators.  Normally three or more comparators are provided,
+and up to 32 comparators.  Analrmally three or more comparators are provided,
 each of which can generate oneshot interrupts and at least one of which has
 additional hardware to support periodic interrupts.  The comparators are
 also called "timers", which can be misleading since usually timers are
 independent of each other ... these share a counter, complicating resets.
 
 HPET devices can support two interrupt routing modes.  In one mode, the
-comparators are additional interrupt sources with no particular system
+comparators are additional interrupt sources with anal particular system
 role.  Many x86 BIOS writers don't route HPET interrupts at all, which
 prevents use of that mode.  They support the other "legacy replacement"
 mode where the first two comparators block interrupts from 8254 timers

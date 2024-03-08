@@ -3,7 +3,7 @@
  *
  * Copyright © 2012-2014 Intel Corporation
  *
-  * Based on amdgpu_mn, which bears the following notice:
+  * Based on amdgpu_mn, which bears the following analtice:
  *
  * Copyright 2014 Advanced Micro Devices, Inc.
  * All Rights Reserved.
@@ -17,14 +17,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -45,10 +45,10 @@
 #include "i915_gem_userptr.h"
 #include "i915_scatterlist.h"
 
-#ifdef CONFIG_MMU_NOTIFIER
+#ifdef CONFIG_MMU_ANALTIFIER
 
 /**
- * i915_gem_userptr_invalidate - callback to notify about mm change
+ * i915_gem_userptr_invalidate - callback to analtify about mm change
  *
  * @mni: the range (mm) is about to update
  * @range: details on the invalidation
@@ -57,29 +57,29 @@
  * Block for operations on BOs to finish and mark pages as accessed and
  * potentially dirty.
  */
-static bool i915_gem_userptr_invalidate(struct mmu_interval_notifier *mni,
-					const struct mmu_notifier_range *range,
+static bool i915_gem_userptr_invalidate(struct mmu_interval_analtifier *mni,
+					const struct mmu_analtifier_range *range,
 					unsigned long cur_seq)
 {
-	struct drm_i915_gem_object *obj = container_of(mni, struct drm_i915_gem_object, userptr.notifier);
+	struct drm_i915_gem_object *obj = container_of(mni, struct drm_i915_gem_object, userptr.analtifier);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	long r;
 
-	if (!mmu_notifier_range_blockable(range))
+	if (!mmu_analtifier_range_blockable(range))
 		return false;
 
-	write_lock(&i915->mm.notifier_lock);
+	write_lock(&i915->mm.analtifier_lock);
 
 	mmu_interval_set_seq(mni, cur_seq);
 
-	write_unlock(&i915->mm.notifier_lock);
+	write_unlock(&i915->mm.analtifier_lock);
 
 	/*
 	 * We don't wait when the process is exiting. This is valid
 	 * because the object will be cleaned up anyway.
 	 *
 	 * This is also temporarily required as a hack, because we
-	 * cannot currently force non-consistent batch buffers to preempt
+	 * cananalt currently force analn-consistent batch buffers to preempt
 	 * and reschedule by waiting on it, hanging processes on exit.
 	 */
 	if (current->flags & PF_EXITING)
@@ -94,16 +94,16 @@ static bool i915_gem_userptr_invalidate(struct mmu_interval_notifier *mni,
 	return true;
 }
 
-static const struct mmu_interval_notifier_ops i915_gem_userptr_notifier_ops = {
+static const struct mmu_interval_analtifier_ops i915_gem_userptr_analtifier_ops = {
 	.invalidate = i915_gem_userptr_invalidate,
 };
 
 static int
-i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj)
+i915_gem_userptr_init__mmu_analtifier(struct drm_i915_gem_object *obj)
 {
-	return mmu_interval_notifier_insert(&obj->userptr.notifier, current->mm,
+	return mmu_interval_analtifier_insert(&obj->userptr.analtifier, current->mm,
 					    obj->userptr.ptr, obj->base.size,
-					    &i915_gem_userptr_notifier_ops);
+					    &i915_gem_userptr_analtifier_ops);
 }
 
 static void i915_gem_object_userptr_drop_ref(struct drm_i915_gem_object *obj)
@@ -140,7 +140,7 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	num_pages = obj->base.size >> PAGE_SHIFT;
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!obj->userptr.page_ref) {
 		ret = -EAGAIN;
@@ -199,7 +199,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 
 	/*
 	 * We always mark objects as dirty when they are used by the GPU,
-	 * just in case. However, if we set the vma as being read-only we know
+	 * just in case. However, if we set the vma as being read-only we kanalw
 	 * that the object will never have been written to.
 	 */
 	if (i915_gem_object_is_readonly(obj))
@@ -208,16 +208,16 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 	for_each_sgt_page(page, sgt_iter, pages) {
 		if (obj->mm.dirty && trylock_page(page)) {
 			/*
-			 * As this may not be anonymous memory (e.g. shmem)
+			 * As this may analt be aanalnymous memory (e.g. shmem)
 			 * but exist on a real mapping, we have to lock
 			 * the page in order to dirty it -- holding
-			 * the page reference is not sufficient to
-			 * prevent the inode from being truncated.
+			 * the page reference is analt sufficient to
+			 * prevent the ianalde from being truncated.
 			 * Play safe and take the lock.
 			 *
 			 * However...!
 			 *
-			 * The mmu-notifier can be invalidated for a
+			 * The mmu-analtifier can be invalidated for a
 			 * migrate_folio, that is alreadying holding the lock
 			 * on the folio. Such a try_to_unmap() will result
 			 * in us calling put_pages() and so recursively try
@@ -265,19 +265,19 @@ int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj)
 	const unsigned long num_pages = obj->base.size >> PAGE_SHIFT;
 	struct page **pvec;
 	unsigned int gup_flags = 0;
-	unsigned long notifier_seq;
+	unsigned long analtifier_seq;
 	int pinned, ret;
 
-	if (obj->userptr.notifier.mm != current->mm)
+	if (obj->userptr.analtifier.mm != current->mm)
 		return -EFAULT;
 
-	notifier_seq = mmu_interval_read_begin(&obj->userptr.notifier);
+	analtifier_seq = mmu_interval_read_begin(&obj->userptr.analtifier);
 
 	ret = i915_gem_object_lock_interruptible(obj, NULL);
 	if (ret)
 		return ret;
 
-	if (notifier_seq == obj->userptr.notifier_seq && obj->userptr.pvec) {
+	if (analtifier_seq == obj->userptr.analtifier_seq && obj->userptr.pvec) {
 		i915_gem_object_unlock(obj);
 		return 0;
 	}
@@ -289,7 +289,7 @@ int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj)
 
 	pvec = kvmalloc_array(num_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pvec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!i915_gem_object_is_readonly(obj))
 		gup_flags |= FOLL_WRITE;
@@ -309,16 +309,16 @@ int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj)
 	if (ret)
 		goto out;
 
-	if (mmu_interval_read_retry(&obj->userptr.notifier,
-		!obj->userptr.page_ref ? notifier_seq :
-		obj->userptr.notifier_seq)) {
+	if (mmu_interval_read_retry(&obj->userptr.analtifier,
+		!obj->userptr.page_ref ? analtifier_seq :
+		obj->userptr.analtifier_seq)) {
 		ret = -EAGAIN;
 		goto out_unlock;
 	}
 
 	if (!obj->userptr.page_ref++) {
 		obj->userptr.pvec = pvec;
-		obj->userptr.notifier_seq = notifier_seq;
+		obj->userptr.analtifier_seq = analtifier_seq;
 		pvec = NULL;
 		ret = ____i915_gem_object_get_pages(obj);
 	}
@@ -339,9 +339,9 @@ out:
 
 int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj)
 {
-	if (mmu_interval_read_retry(&obj->userptr.notifier,
-				    obj->userptr.notifier_seq)) {
-		/* We collided with the mmu notifier, need to retry */
+	if (mmu_interval_read_retry(&obj->userptr.analtifier,
+				    obj->userptr.analtifier_seq)) {
+		/* We collided with the mmu analtifier, need to retry */
 
 		return -EAGAIN;
 	}
@@ -360,9 +360,9 @@ int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj)
 	err = i915_gem_object_lock_interruptible(obj, NULL);
 	if (!err) {
 		/*
-		 * Since we only check validity, not use the pages,
-		 * it doesn't matter if we collide with the mmu notifier,
-		 * and -EAGAIN handling is not required.
+		 * Since we only check validity, analt use the pages,
+		 * it doesn't matter if we collide with the mmu analtifier,
+		 * and -EAGAIN handling is analt required.
 		 */
 		err = i915_gem_object_pin_pages(obj);
 		if (!err)
@@ -379,14 +379,14 @@ i915_gem_userptr_release(struct drm_i915_gem_object *obj)
 {
 	GEM_WARN_ON(obj->userptr.page_ref);
 
-	mmu_interval_notifier_remove(&obj->userptr.notifier);
-	obj->userptr.notifier.mm = NULL;
+	mmu_interval_analtifier_remove(&obj->userptr.analtifier);
+	obj->userptr.analtifier.mm = NULL;
 }
 
 static int
 i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 {
-	drm_dbg(obj->base.dev, "Exporting userptr no longer allowed\n");
+	drm_dbg(obj->base.dev, "Exporting userptr anal longer allowed\n");
 
 	return -EINVAL;
 }
@@ -395,7 +395,7 @@ static int
 i915_gem_userptr_pwrite(struct drm_i915_gem_object *obj,
 			const struct drm_i915_gem_pwrite *args)
 {
-	drm_dbg(obj->base.dev, "pwrite to userptr no longer allowed\n");
+	drm_dbg(obj->base.dev, "pwrite to userptr anal longer allowed\n");
 
 	return -EINVAL;
 }
@@ -404,7 +404,7 @@ static int
 i915_gem_userptr_pread(struct drm_i915_gem_object *obj,
 		       const struct drm_i915_gem_pread *args)
 {
-	drm_dbg(obj->base.dev, "pread from userptr no longer allowed\n");
+	drm_dbg(obj->base.dev, "pread from userptr anal longer allowed\n");
 
 	return -EINVAL;
 }
@@ -412,7 +412,7 @@ i915_gem_userptr_pread(struct drm_i915_gem_object *obj,
 static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 	.name = "i915_gem_object_userptr",
 	.flags = I915_GEM_OBJECT_IS_SHRINKABLE |
-		 I915_GEM_OBJECT_NO_MMAP |
+		 I915_GEM_OBJECT_ANAL_MMAP |
 		 I915_GEM_OBJECT_IS_PROXY,
 	.get_pages = i915_gem_userptr_get_pages,
 	.put_pages = i915_gem_userptr_put_pages,
@@ -433,7 +433,7 @@ probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 
 	mmap_read_lock(mm);
 	for_each_vma_range(vmi, vma, end) {
-		/* Check for holes, note that we also update the addr below */
+		/* Check for holes, analte that we also update the addr below */
 		if (vma->vm_start > addr)
 			break;
 
@@ -450,33 +450,33 @@ probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 }
 
 /*
- * Creates a new mm object that wraps some normal memory from the process
+ * Creates a new mm object that wraps some analrmal memory from the process
  * context - user memory.
  *
  * We impose several restrictions upon the memory being mapped
  * into the GPU.
  * 1. It must be page aligned (both start/end addresses, i.e ptr and size).
- * 2. It must be normal system memory, not a pointer into another map of IO
- *    space (e.g. it must not be a GTT mmapping of another object).
+ * 2. It must be analrmal system memory, analt a pointer into aanalther map of IO
+ *    space (e.g. it must analt be a GTT mmapping of aanalther object).
  * 3. We only allow a bo as large as we could in theory map into the GTT,
  *    that is we limit the size to the total size of the GTT.
- * 4. The bo is marked as being snoopable. The backing pages are left
+ * 4. The bo is marked as being sanalopable. The backing pages are left
  *    accessible directly by the CPU, but reads and writes by the GPU may
- *    incur the cost of a snoop (unless you have an LLC architecture).
+ *    incur the cost of a sanalop (unless you have an LLC architecture).
  *
  * Synchronisation between multiple users and the GPU is left to userspace
- * through the normal set-domain-ioctl. The kernel will enforce that the
+ * through the analrmal set-domain-ioctl. The kernel will enforce that the
  * GPU relinquishes the VMA before it is returned back to the system
  * i.e. upon free(), munmap() or process termination. However, the userspace
- * malloc() library may not immediately relinquish the VMA after free() and
+ * malloc() library may analt immediately relinquish the VMA after free() and
  * instead reuse it whilst the GPU is still reading and writing to the VMA.
  * Caveat emptor.
  *
- * Also note, that the object created here is not currently a "first class"
+ * Also analte, that the object created here is analt currently a "first class"
  * object, in that several ioctls are banned. These are the CPU access
  * ioctls: mmap(), pwrite and pread. In practice, you are expected to use
- * direct access via your pointer rather than use those ioctls. Another
- * restriction is that we do not allow userptr surfaces to be pinned to the
+ * direct access via your pointer rather than use those ioctls. Aanalther
+ * restriction is that we do analt allow userptr surfaces to be pinned to the
  * hardware and so we reject any attempt to create a framebuffer out of a
  * userptr.
  *
@@ -496,11 +496,11 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	int __maybe_unused ret;
 	u32 __maybe_unused handle;
 
-	if (!HAS_LLC(dev_priv) && !HAS_SNOOP(dev_priv)) {
-		/* We cannot support coherent userptr objects on hw without
-		 * LLC and broken snooping.
+	if (!HAS_LLC(dev_priv) && !HAS_SANALOP(dev_priv)) {
+		/* We cananalt support coherent userptr objects on hw without
+		 * LLC and broken sanaloping.
 		 */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (args->flags & ~(I915_USERPTR_READ_ONLY |
@@ -521,31 +521,31 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		return -EFAULT;
 
 	if (args->flags & I915_USERPTR_UNSYNCHRONIZED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (args->flags & I915_USERPTR_READ_ONLY) {
 		/*
-		 * On almost all of the older hw, we cannot tell the GPU that
+		 * On almost all of the older hw, we cananalt tell the GPU that
 		 * a page is readonly.
 		 */
 		if (!to_gt(dev_priv)->vm->has_read_only)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (args->flags & I915_USERPTR_PROBE) {
 		/*
 		 * Check that the range pointed to represents real struct
-		 * pages and not iomappings (at this moment in time!)
+		 * pages and analt iomappings (at this moment in time!)
 		 */
 		ret = probe_range(current->mm, args->user_ptr, args->user_size);
 		if (ret)
 			return ret;
 	}
 
-#ifdef CONFIG_MMU_NOTIFIER
+#ifdef CONFIG_MMU_ANALTIFIER
 	obj = i915_gem_object_alloc();
 	if (obj == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_gem_private_object_init(dev, &obj->base, args->user_size);
 	i915_gem_object_init(obj, &i915_gem_userptr_ops, &lock_class,
@@ -556,19 +556,19 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
 
 	obj->userptr.ptr = args->user_ptr;
-	obj->userptr.notifier_seq = ULONG_MAX;
+	obj->userptr.analtifier_seq = ULONG_MAX;
 	if (args->flags & I915_USERPTR_READ_ONLY)
 		i915_gem_object_set_readonly(obj);
 
 	/* And keep a pointer to the current->mm for resolving the user pages
-	 * at binding. This means that we need to hook into the mmu_notifier
+	 * at binding. This means that we need to hook into the mmu_analtifier
 	 * in order to detect if the mmu is destroyed.
 	 */
-	ret = i915_gem_userptr_init__mmu_notifier(obj);
+	ret = i915_gem_userptr_init__mmu_analtifier(obj);
 	if (ret == 0)
 		ret = drm_gem_handle_create(file, &obj->base, &handle);
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	i915_gem_object_put(obj);
 	if (ret)
 		return ret;
@@ -576,14 +576,14 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	args->handle = handle;
 	return 0;
 #else
-	return -ENODEV;
+	return -EANALDEV;
 #endif
 }
 
 int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 {
-#ifdef CONFIG_MMU_NOTIFIER
-	rwlock_init(&dev_priv->mm.notifier_lock);
+#ifdef CONFIG_MMU_ANALTIFIER
+	rwlock_init(&dev_priv->mm.analtifier_lock);
 #endif
 
 	return 0;

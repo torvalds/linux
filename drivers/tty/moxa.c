@@ -3,7 +3,7 @@
 /*
  *           moxa.c  -- MOXA Intellio family multiport serial driver.
  *
- *      Copyright (C) 1999-2000  Moxa Technologies (support@moxa.com).
+ *      Copyright (C) 1999-2000  Moxa Techanallogies (support@moxa.com).
  *      Copyright (c) 2007 Jiri Slaby <jirislaby@gmail.com>
  *
  *      This code is loosely based on the Linux serial driver, written by
@@ -21,7 +21,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -64,7 +64,7 @@
  */
 #define C218_ConfBase	0x800
 #define C218_status	(C218_ConfBase + 0)	/* BIOS running status    */
-#define C218_diag	(C218_ConfBase + 2)	/* diagnostic status      */
+#define C218_diag	(C218_ConfBase + 2)	/* diaganalstic status      */
 #define C218_key	(C218_ConfBase + 4)	/* WORD (0x218 for C218) */
 #define C218DLoad_len	(C218_ConfBase + 6)	/* WORD           */
 #define C218check_sum	(C218_ConfBase + 8)	/* BYTE           */
@@ -86,13 +86,13 @@
 #define STS_init	0x05	/* for C320_status        */
 
 #define C320_status	C320_ConfBase + 0	/* BIOS running status    */
-#define C320_diag	C320_ConfBase + 2	/* diagnostic status      */
+#define C320_diag	C320_ConfBase + 2	/* diaganalstic status      */
 #define C320_key	C320_ConfBase + 4	/* WORD (0320H for C320) */
 #define C320DLoad_len	C320_ConfBase + 6	/* WORD           */
 #define C320check_sum	C320_ConfBase + 8	/* WORD           */
 #define C320chksum_ok	C320_ConfBase + 0x0a	/* WORD (1:ok)            */
 #define C320bapi_len	C320_ConfBase + 0x0c	/* WORD           */
-#define C320UART_no	C320_ConfBase + 0x0e	/* WORD           */
+#define C320UART_anal	C320_ConfBase + 0x0e	/* WORD           */
 
 #define C320_KeyCode	0x320
 
@@ -106,7 +106,7 @@
  *    Function Codes
  */
 #define FC_CardReset	0x80
-#define FC_ChannelReset 1	/* C320 firmware not supported */
+#define FC_ChannelReset 1	/* C320 firmware analt supported */
 #define FC_EnableCH	2
 #define FC_DisableCH	3
 #define FC_SetParam	4
@@ -122,8 +122,8 @@
 #define FC_LoopbackOFF	14
 #define FC_ClrIrqTable	15
 #define FC_SendXon	16
-#define FC_SetTermIrq	17	/* C320 firmware not supported */
-#define FC_SetCntIrq	18	/* C320 firmware not supported */
+#define FC_SetTermIrq	17	/* C320 firmware analt supported */
+#define FC_SetCntIrq	18	/* C320 firmware analt supported */
 #define FC_SetBreakIrq	19
 #define FC_SetLineIrq	20
 #define FC_SetFlowCtl	21
@@ -184,11 +184,11 @@
 #define IntrRxTrigger	0x100	/* rx data count reach trigger value */
 #define IntrTxTrigger	0x200	/* tx data count below trigger value */
 
-#define Magic_no	(Config_base + 0)
-#define Card_model_no	(Config_base + 2)
+#define Magic_anal	(Config_base + 0)
+#define Card_model_anal	(Config_base + 2)
 #define Total_ports	(Config_base + 4)
 #define Module_cnt	(Config_base + 8)
-#define Module_no	(Config_base + 10)
+#define Module_anal	(Config_base + 10)
 #define Timer_10ms	(Config_base + 14)
 #define Disable_IRQ	(Config_base + 20)
 #define TMS320_PORT1	(Config_base + 22)
@@ -215,7 +215,7 @@
 				/*              |  +------ TX Xon/Xoff */
 				/*              +--------- RX Xon/Xoff */
 #define Break_cnt	0x0E	/* received break count   */
-#define CD180TXirq	0x10	/* if non-0: enable TX irq        */
+#define CD180TXirq	0x10	/* if analn-0: enable TX irq        */
 #define RX_mask		0x12
 #define TX_mask		0x14
 #define Ofs_rxb		0x16
@@ -265,32 +265,32 @@
 #define Page_mask	(Page_size - 1)
 #define C218rx_spage	3
 #define C218tx_spage	4
-#define C218rx_pageno	1
-#define C218tx_pageno	4
-#define C218buf_pageno	5
+#define C218rx_pageanal	1
+#define C218tx_pageanal	4
+#define C218buf_pageanal	5
 
 #define C320p8rx_spage	3
 #define C320p8tx_spage	4
-#define C320p8rx_pgno	1
-#define C320p8tx_pgno	4
-#define C320p8buf_pgno	5
+#define C320p8rx_pganal	1
+#define C320p8tx_pganal	4
+#define C320p8buf_pganal	5
 
 #define C320p16rx_spage 3
 #define C320p16tx_spage 4
-#define C320p16rx_pgno	1
-#define C320p16tx_pgno	2
-#define C320p16buf_pgno 3
+#define C320p16rx_pganal	1
+#define C320p16tx_pganal	2
+#define C320p16buf_pganal 3
 
 #define C320p24rx_spage 3
 #define C320p24tx_spage 4
-#define C320p24rx_pgno	1
-#define C320p24tx_pgno	1
-#define C320p24buf_pgno 2
+#define C320p24rx_pganal	1
+#define C320p24tx_pganal	1
+#define C320p24buf_pganal 2
 
 #define C320p32rx_spage 3
 #define C320p32tx_ofs	C320p32rx_size
 #define C320p32tx_spage 3
-#define C320p32buf_pgno 1
+#define C320p32buf_pganal 1
 
 /*
  *    Host Status
@@ -341,7 +341,7 @@
 #define	MX_STOP15	0x04
 #define	MX_STOP2	0x08
 
-#define	MX_PARNONE	0x00
+#define	MX_PARANALNE	0x00
 #define	MX_PAREVEN	0x40
 #define	MX_PARODD	0xC0
 #define	MX_PARMARK	0xA0
@@ -478,7 +478,7 @@ MODULE_PARM_DESC(type, "card type: C218=2, C320=4");
 module_param_hw_array(baseaddr, ulong, ioport, NULL, 0);
 MODULE_PARM_DESC(baseaddr, "base address");
 module_param_array(numports, uint, NULL, 0);
-MODULE_PARM_DESC(numports, "numports (ignored for C218)");
+MODULE_PARM_DESC(numports, "numports (iganalred for C218)");
 
 module_param(ttymajor, int, 0);
 
@@ -595,7 +595,7 @@ static int moxa_ioctl(struct tty_struct *tty,
 				cmd != MOXA_GETMSTATUS)
 			return -EINVAL;
 	} else if (!ch)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	case MOXA_GETDATACOUNT:
@@ -676,7 +676,7 @@ copy:
 		break;
 	}
 	default:
-		ret = -ENOIOCTLCMD;
+		ret = -EANALIOCTLCMD;
 	}
 	return ret;
 }
@@ -787,7 +787,7 @@ static int moxa_load_bios(struct moxa_board_conf *brd, const u8 *buf,
 		tmp = readw(baseAddr + C320_status);
 		if (tmp != STS_init) {
 			printk(KERN_ERR "MOXA: bios upload failed -- CPU/Basic "
-					"module not found\n");
+					"module analt found\n");
 			return -EIO;
 		}
 		break;
@@ -795,7 +795,7 @@ static int moxa_load_bios(struct moxa_board_conf *brd, const u8 *buf,
 
 	return 0;
 err:
-	printk(KERN_ERR "MOXA: bios upload failed -- board not found\n");
+	printk(KERN_ERR "MOXA: bios upload failed -- board analt found\n");
 	return -EIO;
 }
 
@@ -890,11 +890,11 @@ static int moxa_real_load_code(struct moxa_board_conf *brd, const void *ptr,
 
 	writew(0, baseAddr + key);
 	for (i = 0; i < 600; i++) {
-		if (readw(baseAddr + Magic_no) == Magic_code)
+		if (readw(baseAddr + Magic_anal) == Magic_code)
 			break;
 		msleep(10);
 	}
-	if (readw(baseAddr + Magic_no) != Magic_code)
+	if (readw(baseAddr + Magic_anal) != Magic_code)
 		return -EIO;
 
 	if (MOXA_IS_320(brd)) {
@@ -909,13 +909,13 @@ static int moxa_real_load_code(struct moxa_board_conf *brd, const void *ptr,
 		}
 	}
 	writew(1, baseAddr + Disable_IRQ);
-	writew(0, baseAddr + Magic_no);
+	writew(0, baseAddr + Magic_anal);
 	for (i = 0; i < 500; i++) {
-		if (readw(baseAddr + Magic_no) == Magic_code)
+		if (readw(baseAddr + Magic_anal) == Magic_code)
 			break;
 		msleep(10);
 	}
-	if (readw(baseAddr + Magic_no) != Magic_code)
+	if (readw(baseAddr + Magic_anal) != Magic_code)
 		return -EIO;
 
 	if (MOXA_IS_320(brd)) {
@@ -923,14 +923,14 @@ static int moxa_real_load_code(struct moxa_board_conf *brd, const void *ptr,
 		if (j <= 0)
 			return -EIO;
 		brd->numPorts = j * 8;
-		writew(j, baseAddr + Module_no);
-		writew(0, baseAddr + Magic_no);
+		writew(j, baseAddr + Module_anal);
+		writew(0, baseAddr + Magic_anal);
 		for (i = 0; i < 600; i++) {
-			if (readw(baseAddr + Magic_no) == Magic_code)
+			if (readw(baseAddr + Magic_anal) == Magic_code)
 				break;
 			msleep(10);
 		}
-		if (readw(baseAddr + Magic_no) != Magic_code)
+		if (readw(baseAddr + Magic_anal) != Magic_code)
 			return -EIO;
 	}
 	brd->intNdx = baseAddr + IRQindex;
@@ -948,7 +948,7 @@ static int moxa_load_code(struct moxa_board_conf *brd, const void *ptr,
 	int retval, i;
 
 	if (len % 2) {
-		printk(KERN_ERR "MOXA: bios length is not even\n");
+		printk(KERN_ERR "MOXA: bios length is analt even\n");
 		return -EINVAL;
 	}
 
@@ -969,11 +969,11 @@ static int moxa_load_code(struct moxa_board_conf *brd, const void *ptr,
 			ofsAddr = port->tableAddr;
 			writew(C218rx_mask, ofsAddr + RX_mask);
 			writew(C218tx_mask, ofsAddr + TX_mask);
-			writew(C218rx_spage + i * C218buf_pageno, ofsAddr + Page_rxb);
-			writew(readw(ofsAddr + Page_rxb) + C218rx_pageno, ofsAddr + EndPage_rxb);
+			writew(C218rx_spage + i * C218buf_pageanal, ofsAddr + Page_rxb);
+			writew(readw(ofsAddr + Page_rxb) + C218rx_pageanal, ofsAddr + EndPage_rxb);
 
-			writew(C218tx_spage + i * C218buf_pageno, ofsAddr + Page_txb);
-			writew(readw(ofsAddr + Page_txb) + C218tx_pageno, ofsAddr + EndPage_txb);
+			writew(C218tx_spage + i * C218buf_pageanal, ofsAddr + Page_txb);
+			writew(readw(ofsAddr + Page_txb) + C218tx_pageanal, ofsAddr + EndPage_txb);
 
 		}
 		break;
@@ -989,36 +989,36 @@ static int moxa_load_code(struct moxa_board_conf *brd, const void *ptr,
 			case 8:
 				writew(C320p8rx_mask, ofsAddr + RX_mask);
 				writew(C320p8tx_mask, ofsAddr + TX_mask);
-				writew(C320p8rx_spage + i * C320p8buf_pgno, ofsAddr + Page_rxb);
-				writew(readw(ofsAddr + Page_rxb) + C320p8rx_pgno, ofsAddr + EndPage_rxb);
-				writew(C320p8tx_spage + i * C320p8buf_pgno, ofsAddr + Page_txb);
-				writew(readw(ofsAddr + Page_txb) + C320p8tx_pgno, ofsAddr + EndPage_txb);
+				writew(C320p8rx_spage + i * C320p8buf_pganal, ofsAddr + Page_rxb);
+				writew(readw(ofsAddr + Page_rxb) + C320p8rx_pganal, ofsAddr + EndPage_rxb);
+				writew(C320p8tx_spage + i * C320p8buf_pganal, ofsAddr + Page_txb);
+				writew(readw(ofsAddr + Page_txb) + C320p8tx_pganal, ofsAddr + EndPage_txb);
 
 				break;
 			case 16:
 				writew(C320p16rx_mask, ofsAddr + RX_mask);
 				writew(C320p16tx_mask, ofsAddr + TX_mask);
-				writew(C320p16rx_spage + i * C320p16buf_pgno, ofsAddr + Page_rxb);
-				writew(readw(ofsAddr + Page_rxb) + C320p16rx_pgno, ofsAddr + EndPage_rxb);
-				writew(C320p16tx_spage + i * C320p16buf_pgno, ofsAddr + Page_txb);
-				writew(readw(ofsAddr + Page_txb) + C320p16tx_pgno, ofsAddr + EndPage_txb);
+				writew(C320p16rx_spage + i * C320p16buf_pganal, ofsAddr + Page_rxb);
+				writew(readw(ofsAddr + Page_rxb) + C320p16rx_pganal, ofsAddr + EndPage_rxb);
+				writew(C320p16tx_spage + i * C320p16buf_pganal, ofsAddr + Page_txb);
+				writew(readw(ofsAddr + Page_txb) + C320p16tx_pganal, ofsAddr + EndPage_txb);
 				break;
 
 			case 24:
 				writew(C320p24rx_mask, ofsAddr + RX_mask);
 				writew(C320p24tx_mask, ofsAddr + TX_mask);
-				writew(C320p24rx_spage + i * C320p24buf_pgno, ofsAddr + Page_rxb);
-				writew(readw(ofsAddr + Page_rxb) + C320p24rx_pgno, ofsAddr + EndPage_rxb);
-				writew(C320p24tx_spage + i * C320p24buf_pgno, ofsAddr + Page_txb);
+				writew(C320p24rx_spage + i * C320p24buf_pganal, ofsAddr + Page_rxb);
+				writew(readw(ofsAddr + Page_rxb) + C320p24rx_pganal, ofsAddr + EndPage_rxb);
+				writew(C320p24tx_spage + i * C320p24buf_pganal, ofsAddr + Page_txb);
 				writew(readw(ofsAddr + Page_txb), ofsAddr + EndPage_txb);
 				break;
 			case 32:
 				writew(C320p32rx_mask, ofsAddr + RX_mask);
 				writew(C320p32tx_mask, ofsAddr + TX_mask);
 				writew(C320p32tx_ofs, ofsAddr + Ofs_txb);
-				writew(C320p32rx_spage + i * C320p32buf_pgno, ofsAddr + Page_rxb);
+				writew(C320p32rx_spage + i * C320p32buf_pganal, ofsAddr + Page_rxb);
 				writew(readb(ofsAddr + Page_rxb), ofsAddr + EndPage_rxb);
-				writew(C320p32tx_spage + i * C320p32buf_pgno, ofsAddr + Page_txb);
+				writew(C320p32tx_spage + i * C320p32buf_pganal, ofsAddr + Page_txb);
 				writew(readw(ofsAddr + Page_txb), ofsAddr + EndPage_txb);
 				break;
 			}
@@ -1056,11 +1056,11 @@ static int moxa_load_fw(struct moxa_board_conf *brd, const struct firmware *fw)
 		goto err;
 	}
 	if (hdr->type != 3) {
-		sprintf(rsn, "not for linux, type is %u", hdr->type);
+		sprintf(rsn, "analt for linux, type is %u", hdr->type);
 		goto err;
 	}
 	if (moxa_check_fw_model(brd, hdr->model)) {
-		sprintf(rsn, "not for this card, model is %u", hdr->model);
+		sprintf(rsn, "analt for this card, model is %u", hdr->model);
 		goto err;
 	}
 
@@ -1102,7 +1102,7 @@ static int moxa_load_fw(struct moxa_board_conf *brd, const struct firmware *fw)
 		ret = moxa_load_320b(brd, ptr, lens[lenp]);
 		if (ret)
 			goto err;
-		/* skip another tty */
+		/* skip aanalther tty */
 		ptr += lens[lenp] + lens[lenp + 1];
 		lenp += 2;
 	}
@@ -1128,8 +1128,8 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 	brd->ports = kcalloc(MAX_PORTS_PER_BOARD, sizeof(*brd->ports),
 			GFP_KERNEL);
 	if (brd->ports == NULL) {
-		printk(KERN_ERR "cannot allocate memory for ports\n");
-		ret = -ENOMEM;
+		printk(KERN_ERR "cananalt allocate memory for ports\n");
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1246,10 +1246,10 @@ static int moxa_pci_probe(struct pci_dev *pdev,
 		if (moxa_boards[i].basemem == NULL)
 			break;
 
-	retval = -ENODEV;
+	retval = -EANALDEV;
 	if (i >= MAX_BOARDS) {
 		dev_warn(&pdev->dev, "more than %u MOXA Intellio family boards "
-				"found. Board is ignored.\n", MAX_BOARDS);
+				"found. Board is iganalred.\n", MAX_BOARDS);
 		goto err;
 	}
 
@@ -1264,7 +1264,7 @@ static int moxa_pci_probe(struct pci_dev *pdev,
 	board->basemem = ioremap(pci_resource_start(pdev, 2), 0x4000);
 	if (board->basemem == NULL) {
 		dev_err(&pdev->dev, "can't remap io space 2\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_reg;
 	}
 
@@ -1340,9 +1340,9 @@ static int __init moxa_init(void)
 
 	moxaDriver->name = "ttyMX";
 	moxaDriver->major = ttymajor;
-	moxaDriver->minor_start = 0;
+	moxaDriver->mianalr_start = 0;
 	moxaDriver->type = TTY_DRIVER_TYPE_SERIAL;
-	moxaDriver->subtype = SERIAL_TYPE_NORMAL;
+	moxaDriver->subtype = SERIAL_TYPE_ANALRMAL;
 	moxaDriver->init_termios = tty_std_termios;
 	moxaDriver->init_termios.c_cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 	moxaDriver->init_termios.c_ispeed = 9600;
@@ -1465,12 +1465,12 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 	brd = &moxa_boards[port / MAX_PORTS_PER_BOARD];
 	if (!brd->ready) {
 		mutex_unlock(&moxa_openlock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (port % MAX_PORTS_PER_BOARD >= brd->numPorts) {
 		mutex_unlock(&moxa_openlock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ch = &brd->ports[port % MAX_PORTS_PER_BOARD];
@@ -1691,7 +1691,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 		MoxaPortFlushData(p, 0); /* flush RX */
 	}
 
-	if (!handle) /* nothing else to do */
+	if (!handle) /* analthing else to do */
 		goto put;
 
 	intr = readw(ip); /* port irq status */
@@ -1783,7 +1783,7 @@ static void moxa_set_tty_param(struct tty_struct *tty,
 	baud = MoxaPortSetTermio(ch, ts, tty_get_baud_rate(tty));
 	if (baud == -1)
 		baud = tty_termios_baud_rate(old_termios);
-	/* Not put the baud rate into the termios data */
+	/* Analt put the baud rate into the termios data */
 	tty_encode_baud_rate(tty, baud, baud);
 }
 
@@ -1837,7 +1837,7 @@ static void MoxaPortFlushData(struct moxa_port *port, int mode)
  *
  *           return:    0  (OK)
  *                      -EINVAL
- *                      -ENOIOCTLCMD
+ *                      -EANALIOCTLCMD
  *
  *
  *      Function 6:     Enable this port to start Tx/Rx data.
@@ -1881,10 +1881,10 @@ static void MoxaPortFlushData(struct moxa_port *port, int mode)
  *      int  MoxaPortGetLineOut(int port, bool *dtrState, bool *rtsState);
  *           int port           : port number (0 - 127)
  *           bool * dtr_active  : pointer to bool to receive the current DTR
- *                                state. (if NULL, this function will not
+ *                                state. (if NULL, this function will analt
  *                                write to this address)
  *           bool * rts_active  : pointer to bool to receive the current RTS
- *                                state. (if NULL, this function will not
+ *                                state. (if NULL, this function will analt
  *                                write to this address)
  *
  *           return:    -1      : this port is invalid
@@ -1904,11 +1904,11 @@ static void MoxaPortFlushData(struct moxa_port *port, int mode)
  *      void MoxaPortFlowCtrl(int port, int rtsFlow, int ctsFlow, int rxFlow,
  *                            int txFlow,int xany);
  *           int port           : port number (0 - 127)
- *           int rtsFlow        : H/W RTS flow control (0: no, 1: yes)
- *           int ctsFlow        : H/W CTS flow control (0: no, 1: yes)
- *           int rxFlow         : S/W Rx XON/XOFF flow control (0: no, 1: yes)
- *           int txFlow         : S/W Tx XON/XOFF flow control (0: no, 1: yes)
- *           int xany           : S/W XANY flow control (0: no, 1: yes)
+ *           int rtsFlow        : H/W RTS flow control (0: anal, 1: anal)
+ *           int ctsFlow        : H/W CTS flow control (0: anal, 1: anal)
+ *           int rxFlow         : S/W Rx XON/XOFF flow control (0: anal, 1: anal)
+ *           int txFlow         : S/W Tx XON/XOFF flow control (0: anal, 1: anal)
+ *           int xany           : S/W XANY flow control (0: anal, 1: anal)
  *
  *
  *      Function 16:    Get ths line status of this port
@@ -2083,7 +2083,7 @@ static int MoxaPortSetTermio(struct moxa_port *port, struct ktermios *termio,
 				mode |= MX_PAREVEN;
 		}
 	} else
-		mode |= MX_PARNONE;
+		mode |= MX_PARANALNE;
 
 	moxafunc(ofsAddr, FC_SetDataMode, (u16)mode);
 
@@ -2170,7 +2170,7 @@ static ssize_t MoxaPortWriteData(struct tty_struct *tty, const u8 *buffer,
 	void __iomem *baseAddr, *ofsAddr, *ofs;
 	size_t c, total;
 	u16 head, tail, tx_mask, spage, epage;
-	u16 pageno, pageofs, bufhead;
+	u16 pageanal, pageofs, bufhead;
 
 	ofsAddr = port->tableAddr;
 	baseAddr = port->board->basemem;
@@ -2200,18 +2200,18 @@ static ssize_t MoxaPortWriteData(struct tty_struct *tty, const u8 *buffer,
 			c -= len;
 		}
 	} else {
-		pageno = spage + (tail >> 13);
+		pageanal = spage + (tail >> 13);
 		pageofs = tail & Page_mask;
 		while (c > 0) {
 			len = Page_size - pageofs;
 			if (len > c)
 				len = c;
-			writeb(pageno, baseAddr + Control_reg);
+			writeb(pageanal, baseAddr + Control_reg);
 			ofs = baseAddr + DynPage_addr + pageofs;
 			memcpy_toio(ofs, buffer, len);
 			buffer += len;
-			if (++pageno == epage)
-				pageno = spage;
+			if (++pageanal == epage)
+				pageanal = spage;
 			pageofs = 0;
 			c -= len;
 		}
@@ -2229,7 +2229,7 @@ static int MoxaPortReadData(struct moxa_port *port)
 	u8 *dst;
 	unsigned int count, len, total;
 	u16 tail, rx_mask, spage, epage;
-	u16 pageno, pageofs, bufhead, head;
+	u16 pageanal, pageofs, bufhead, head;
 
 	ofsAddr = port->tableAddr;
 	baseAddr = port->board->basemem;
@@ -2258,10 +2258,10 @@ static int MoxaPortReadData(struct moxa_port *port)
 			count -= len;
 		}
 	} else {
-		pageno = spage + (head >> 13);
+		pageanal = spage + (head >> 13);
 		pageofs = head & Page_mask;
 		while (count > 0) {
-			writew(pageno, baseAddr + Control_reg);
+			writew(pageanal, baseAddr + Control_reg);
 			ofs = baseAddr + DynPage_addr + pageofs;
 			len = tty_prepare_flip_string(&port->port, &dst,
 					min(Page_size - pageofs, count));
@@ -2269,8 +2269,8 @@ static int MoxaPortReadData(struct moxa_port *port)
 
 			count -= len;
 			pageofs = (pageofs + len) & Page_mask;
-			if (pageofs == 0 && ++pageno == epage)
-				pageno = spage;
+			if (pageofs == 0 && ++pageanal == epage)
+				pageanal = spage;
 		}
 		head = (head + total) & rx_mask;
 	}
@@ -2334,7 +2334,7 @@ static int moxa_get_serial_info(struct tty_struct *tty,
 	if (tty->index == MAX_PORTS)
 		return -EINVAL;
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 	mutex_lock(&info->port.mutex);
 	ss->type = info->type;
 	ss->line = info->port.tty->index;
@@ -2355,7 +2355,7 @@ static int moxa_set_serial_info(struct tty_struct *tty,
 	if (tty->index == MAX_PORTS)
 		return -EINVAL;
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	close_delay = msecs_to_jiffies(ss->close_delay * 10);
 

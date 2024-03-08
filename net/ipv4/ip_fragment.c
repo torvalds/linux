@@ -51,9 +51,9 @@
 #include <net/inet_ecn.h>
 #include <net/l3mdev.h>
 
-/* NOTE. Logic of IP defragmentation is parallel to corresponding IPv6
- * code now. If you change something here, _PLEASE_ update ipv6/reassembly.c
- * as well. Or notify me, at least. --ANK
+/* ANALTE. Logic of IP defragmentation is parallel to corresponding IPv6
+ * code analw. If you change something here, _PLEASE_ update ipv6/reassembly.c
+ * as well. Or analtify me, at least. --ANK
  */
 static const char ip_frag_cache_name[] = "ip4-frags";
 
@@ -110,7 +110,7 @@ static void ipq_put(struct ipq *ipq)
 	inet_frag_put(&ipq->q);
 }
 
-/* Kill ipq entry. It is not destroyed immediately,
+/* Kill ipq entry. It is analt destroyed immediately,
  * because caller (and someone more) holds reference count.
  */
 static void ipq_kill(struct ipq *ipq)
@@ -161,7 +161,7 @@ static void ip_expire(struct timer_list *t)
 	if (!(qp->q.flags & INET_FRAG_FIRST_IN))
 		goto out;
 
-	/* sk_buff::dev and sk_buff::rbnode are unionized. So we
+	/* sk_buff::dev and sk_buff::rbanalde are unionized. So we
 	 * pull the head out of the tree in order to be able to
 	 * deal with head->dev.
 	 */
@@ -173,9 +173,9 @@ static void ip_expire(struct timer_list *t)
 		goto out;
 
 
-	/* skb has no dst, perform route lookup again */
+	/* skb has anal dst, perform route lookup again */
 	iph = ip_hdr(head);
-	err = ip_route_input_noref(head, iph->daddr, iph->saddr,
+	err = ip_route_input_analref(head, iph->daddr, iph->saddr,
 					   iph->tos, head->dev);
 	if (err)
 		goto out;
@@ -200,7 +200,7 @@ out_rcu_unlock:
 }
 
 /* Find the correct entry in the "incomplete datagrams" queue for
- * this IP datagram, and create new one, if nothing is found.
+ * this IP datagram, and create new one, if analthing is found.
  */
 static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 			   u32 user, int vif)
@@ -279,7 +279,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	struct sk_buff *prev_tail;
 	struct net_device *dev;
 	unsigned int fragsize;
-	int err = -ENOENT;
+	int err = -EANALENT;
 	SKB_DR(reason);
 	u8 ecn;
 
@@ -321,7 +321,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		if (end&7) {
 			end &= ~7;
 			if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-				skb->ip_summed = CHECKSUM_NONE;
+				skb->ip_summed = CHECKSUM_ANALNE;
 		}
 		if (end > qp->q.len) {
 			/* Some bits beyond end -> corruption. */
@@ -333,7 +333,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	if (end == offset)
 		goto discard_qp;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!pskb_pull(skb, skb_network_offset(skb) + ihl))
 		goto discard_qp;
 
@@ -341,7 +341,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	if (err)
 		goto discard_qp;
 
-	/* Note : skb->rbnode and skb->dev share the same location. */
+	/* Analte : skb->rbanalde and skb->dev share the same location. */
 	dev = skb->dev;
 	/* Makes sure compiler wont do silly aliasing games */
 	barrier();
@@ -355,7 +355,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		qp->iif = dev->ifindex;
 
 	qp->q.stamp = skb->tstamp;
-	qp->q.mono_delivery_time = skb->mono_delivery_time;
+	qp->q.moanal_delivery_time = skb->moanal_delivery_time;
 	qp->q.meat += skb->len;
 	qp->ecn |= ecn;
 	add_frag_mem_limit(qp->q.fqdir, skb->truesize);
@@ -428,7 +428,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	/* Make the one we just received the head. */
 	reasm_data = inet_frag_reasm_prepare(&qp->q, skb, prev_tail);
 	if (!reasm_data)
-		goto out_nomem;
+		goto out_analmem;
 
 	len = ip_hdrlen(skb) + qp->q.len;
 	err = -E2BIG;
@@ -451,7 +451,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	 *
 	 * We only set DF/IPSKB_FRAG_PMTU if such DF fragment was the largest
 	 * frag seen to avoid sending tiny DF-fragments in case skb was built
-	 * from one very small df-fragment and one large non-df frag.
+	 * from one very small df-fragment and one large analn-df frag.
 	 */
 	if (qp->max_df_size == qp->q.max_size) {
 		IPCB(skb)->flags |= IPSKB_FRAG_PMTU;
@@ -468,9 +468,9 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	qp->q.last_run_head = NULL;
 	return 0;
 
-out_nomem:
-	net_dbg_ratelimited("queue_glue: no memory for gluing queue %p\n", qp);
-	err = -ENOMEM;
+out_analmem:
+	net_dbg_ratelimited("queue_glue: anal memory for gluing queue %p\n", qp);
+	err = -EANALMEM;
 	goto out_fail;
 out_oversize:
 	net_info_ratelimited("Oversized IP packet from %pI4\n", &qp->q.key.v4.saddr);
@@ -505,7 +505,7 @@ int ip_defrag(struct net *net, struct sk_buff *skb, u32 user)
 
 	__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 	kfree_skb(skb);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(ip_defrag);
 
@@ -627,7 +627,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __net_exit ip4_frags_ns_ctl_unregister(struct net *net)
@@ -682,7 +682,7 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 	net->ipv4.fqdir->high_thresh = 4 * 1024 * 1024;
 	net->ipv4.fqdir->low_thresh  = 3 * 1024 * 1024;
 	/*
-	 * Important NOTE! Fragment queue must be destroyed before MSL expires.
+	 * Important ANALTE! Fragment queue must be destroyed before MSL expires.
 	 * RFC791 is wrong proposing to prolongate timer each fragment arrival
 	 * by TTL.
 	 */
@@ -737,7 +737,7 @@ static int ip4_obj_cmpfn(struct rhashtable_compare_arg *arg, const void *ptr)
 }
 
 static const struct rhashtable_params ip4_rhash_params = {
-	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.head_offset		= offsetof(struct inet_frag_queue, analde),
 	.key_offset		= offsetof(struct inet_frag_queue, key),
 	.key_len		= sizeof(struct frag_v4_compare_key),
 	.hashfn			= ip4_key_hashfn,

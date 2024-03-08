@@ -89,7 +89,7 @@ out:
 
 static bool dma_filter(struct dma_chan *chan, void *filter_param)
 {
-	struct device_node *np = chan->device->dev->of_node;
+	struct device_analde *np = chan->device->dev->of_analde;
 
 	return of_device_is_compatible(np, "nvidia,tegra20-apbdma");
 }
@@ -133,7 +133,7 @@ static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 					       &fuse->apbdma.phys,
 					       GFP_KERNEL);
 	if (!fuse->apbdma.virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devm_add_action_or_reset(fuse->dev, tegra20_fuse_free_coherent,
 				       fuse);

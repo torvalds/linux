@@ -21,7 +21,7 @@
 #include "incore.h"
 #include "glock.h"
 #include "glops.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "log.h"
 #include "lops.h"
 #include "meta_io.h"
@@ -46,13 +46,13 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 		if (!buffer_mapped(bh))
 			continue;
 		/*
-		 * If it's a fully non-blocking write attempt and we cannot
-		 * lock the buffer then redirty the page.  Note that this can
+		 * If it's a fully analn-blocking write attempt and we cananalt
+		 * lock the buffer then redirty the page.  Analte that this can
 		 * potentially cause a busy-wait loop from flusher thread and kswapd
 		 * activity, but those code paths have their own higher-level
 		 * throttling.
 		 */
-		if (wbc->sync_mode != WB_SYNC_NONE) {
+		if (wbc->sync_mode != WB_SYNC_ANALNE) {
 			lock_buffer(bh);
 		} else if (!trylock_buffer(bh)) {
 			redirty_page_for_writepage(wbc, page);
@@ -105,13 +105,13 @@ const struct address_space_operations gfs2_rgrp_aops = {
 /**
  * gfs2_getbuf - Get a buffer with a given address space
  * @gl: the glock
- * @blkno: the block number (filesystem scope)
+ * @blkanal: the block number (filesystem scope)
  * @create: 1 if the buffer should be created
  *
  * Returns: the buffer
  */
 
-struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
+struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkanal, int create)
 {
 	struct address_space *mapping = gfs2_glock2aspace(gl);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
@@ -125,13 +125,13 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 		mapping = &sdp->sd_aspace;
 
 	shift = PAGE_SHIFT - sdp->sd_sb.sb_bsize_shift;
-	index = blkno >> shift;             /* convert block to page */
-	bufnum = blkno - (index << shift);  /* block buf index within page */
+	index = blkanal >> shift;             /* convert block to page */
+	bufnum = blkanal - (index << shift);  /* block buf index within page */
 
 	if (create) {
 		folio = __filemap_get_folio(mapping, index,
 				FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
-				mapping_gfp_mask(mapping) | __GFP_NOFAIL);
+				mapping_gfp_mask(mapping) | __GFP_ANALFAIL);
 		bh = folio_buffers(folio);
 		if (!bh)
 			bh = create_empty_buffers(folio,
@@ -149,7 +149,7 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 
 	bh = get_nth_bh(bh, bufnum);
 	if (!buffer_mapped(bh))
-		map_bh(bh, sdp->sd_vfs, blkno);
+		map_bh(bh, sdp->sd_vfs, blkanal);
 
 out_unlock:
 	folio_unlock(folio);
@@ -173,15 +173,15 @@ static void meta_prep_new(struct buffer_head *bh)
 /**
  * gfs2_meta_new - Get a block
  * @gl: The glock associated with this block
- * @blkno: The block number
+ * @blkanal: The block number
  *
  * Returns: The buffer
  */
 
-struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
+struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkanal)
 {
 	struct buffer_head *bh;
-	bh = gfs2_getbuf(gl, blkno, CREATE);
+	bh = gfs2_getbuf(gl, blkanal, CREATE);
 	meta_prep_new(bh);
 	return bh;
 }
@@ -218,7 +218,7 @@ static void gfs2_submit_bhs(blk_opf_t opf, struct buffer_head *bhs[], int num)
 		struct buffer_head *bh = *bhs;
 		struct bio *bio;
 
-		bio = bio_alloc(bh->b_bdev, num, opf, GFP_NOIO);
+		bio = bio_alloc(bh->b_bdev, num, opf, GFP_ANALIO);
 		bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 		while (num > 0) {
 			bh = *bhs;
@@ -237,15 +237,15 @@ static void gfs2_submit_bhs(blk_opf_t opf, struct buffer_head *bhs[], int num)
 /**
  * gfs2_meta_read - Read a block from disk
  * @gl: The glock covering the block
- * @blkno: The block number
+ * @blkanal: The block number
  * @flags: flags
  * @rahead: Do read-ahead
  * @bhp: the place where the buffer is returned (NULL on failure)
  *
- * Returns: errno
+ * Returns: erranal
  */
 
-int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
+int gfs2_meta_read(struct gfs2_glock *gl, u64 blkanal, int flags,
 		   int rahead, struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
@@ -258,7 +258,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		return -EIO;
 	}
 
-	*bhp = bh = gfs2_getbuf(gl, blkno, CREATE);
+	*bhp = bh = gfs2_getbuf(gl, blkanal, CREATE);
 
 	lock_buffer(bh);
 	if (buffer_uptodate(bh)) {
@@ -271,7 +271,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	}
 
 	if (rahead) {
-		bh = gfs2_getbuf(gl, blkno + 1, CREATE);
+		bh = gfs2_getbuf(gl, blkanal + 1, CREATE);
 
 		lock_buffer(bh);
 		if (buffer_uptodate(bh)) {
@@ -306,7 +306,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
  * @sdp: the filesystem
  * @bh: The block to wait for
  *
- * Returns: errno
+ * Returns: erranal
  */
 
 int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
@@ -399,15 +399,15 @@ static void gfs2_ail1_wipe(struct gfs2_sbd *sdp, u64 bstart, u32 blen)
 	gfs2_log_unlock(sdp);
 }
 
-static struct buffer_head *gfs2_getjdatabuf(struct gfs2_inode *ip, u64 blkno)
+static struct buffer_head *gfs2_getjdatabuf(struct gfs2_ianalde *ip, u64 blkanal)
 {
-	struct address_space *mapping = ip->i_inode.i_mapping;
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct address_space *mapping = ip->i_ianalde.i_mapping;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_ianalde);
 	struct folio *folio;
 	struct buffer_head *bh;
 	unsigned int shift = PAGE_SHIFT - sdp->sd_sb.sb_bsize_shift;
-	unsigned long index = blkno >> shift; /* convert block to page */
-	unsigned int bufnum = blkno - (index << shift);
+	unsigned long index = blkanal >> shift; /* convert block to page */
+	unsigned int bufnum = blkanal - (index << shift);
 
 	folio = __filemap_get_folio(mapping, index, FGP_LOCK | FGP_ACCESSED, 0);
 	if (IS_ERR(folio))
@@ -421,21 +421,21 @@ static struct buffer_head *gfs2_getjdatabuf(struct gfs2_inode *ip, u64 blkno)
 }
 
 /**
- * gfs2_journal_wipe - make inode's buffers so they aren't dirty/pinned anymore
- * @ip: the inode who owns the buffers
+ * gfs2_journal_wipe - make ianalde's buffers so they aren't dirty/pinned anymore
+ * @ip: the ianalde who owns the buffers
  * @bstart: the first buffer in the run
  * @blen: the number of buffers in the run
  *
  */
 
-void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
+void gfs2_journal_wipe(struct gfs2_ianalde *ip, u64 bstart, u32 blen)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_ianalde);
 	struct buffer_head *bh;
 	int ty;
 
 	if (!ip->i_gl) {
-		/* This can only happen during incomplete inode creation. */
+		/* This can only happen during incomplete ianalde creation. */
 		BUG_ON(!test_bit(GIF_ALLOC_FAILED, &ip->i_flags));
 		return;
 	}
@@ -443,7 +443,7 @@ void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	gfs2_ail1_wipe(sdp, bstart, blen);
 	while (blen) {
 		ty = REMOVE_META;
-		bh = gfs2_getbuf(ip->i_gl, bstart, NO_CREATE);
+		bh = gfs2_getbuf(ip->i_gl, bstart, ANAL_CREATE);
 		if (!bh && gfs2_is_jdata(ip)) {
 			bh = gfs2_getjdatabuf(ip, bstart);
 			ty = REMOVE_JDATA;
@@ -466,24 +466,24 @@ void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 
 /**
  * gfs2_meta_buffer - Get a metadata buffer
- * @ip: The GFS2 inode
+ * @ip: The GFS2 ianalde
  * @mtype: The block type (GFS2_METATYPE_*)
  * @num: The block number (device relative) of the buffer
  * @bhp: the buffer is returned here
  *
- * Returns: errno
+ * Returns: erranal
  */
 
-int gfs2_meta_buffer(struct gfs2_inode *ip, u32 mtype, u64 num,
+int gfs2_meta_buffer(struct gfs2_ianalde *ip, u32 mtype, u64 num,
 		     struct buffer_head **bhp)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_ianalde);
 	struct gfs2_glock *gl = ip->i_gl;
 	struct buffer_head *bh;
 	int ret = 0;
 	int rahead = 0;
 
-	if (num == ip->i_no_addr)
+	if (num == ip->i_anal_addr)
 		rahead = ip->i_rahead;
 
 	ret = gfs2_meta_read(gl, num, DIO_WAIT, rahead, &bh);
@@ -523,7 +523,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 
 	if (buffer_uptodate(first_bh))
 		goto out;
-	bh_read_nowait(first_bh, REQ_META | REQ_PRIO);
+	bh_read_analwait(first_bh, REQ_META | REQ_PRIO);
 
 	dblock++;
 	extlen--;

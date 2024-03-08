@@ -52,11 +52,11 @@ MODULE_PARM_DESC(timeout,
 		__MODULE_STRING(DEFAULT_TIME) "s)."
 		"The range is from 1 to 600");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+		__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static u8 resetmode = 0x10;
 module_param(resetmode, byte, 0);
@@ -104,7 +104,7 @@ static int ie6xx_wdt_set_timeout(struct watchdog_device *wdd, unsigned int t)
 	preload = (t * clock) >> 15;
 	/*
 	 * Manual states preload must be one less.
-	 * Does not wrap as t is at least 1
+	 * Does analt wrap as t is at least 1
 	 */
 	preload -= 1;
 
@@ -229,7 +229,7 @@ static int ie6xx_wdt_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_region(res->start, resource_size(res), pdev->name)) {
 		dev_err(&pdev->dev, "Watchdog region 0x%llx already in use!\n",
@@ -241,7 +241,7 @@ static int ie6xx_wdt_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "WDT = 0x%X\n", ie6xx_wdt_data.sch_wdtba);
 
 	ie6xx_wdt_dev.timeout = timeout;
-	watchdog_set_nowayout(&ie6xx_wdt_dev, nowayout);
+	watchdog_set_analwayout(&ie6xx_wdt_dev, analwayout);
 	ie6xx_wdt_dev.parent = &pdev->dev;
 
 	spin_lock_init(&ie6xx_wdt_data.unlock_sequence);

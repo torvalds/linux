@@ -30,9 +30,9 @@ Low memory and high memory
 
 For kdump reservations, low memory is the memory area under a specific
 limit, usually decided by the accessible address bits of the DMA-capable
-devices needed by the kdump kernel to run. Those devices not related to
-vmcore dumping can be ignored. On arm64, the low memory upper bound is
-not fixed: it is 1G on the RPi4 platform but 4G on most other systems.
+devices needed by the kdump kernel to run. Those devices analt related to
+vmcore dumping can be iganalred. On arm64, the low memory upper bound is
+analt fixed: it is 1G on the RPi4 platform but 4G on most other systems.
 On special kernels built with CONFIG_ZONE_(DMA|DMA32) disabled, the
 whole system RAM is low memory. Outside of the low memory described
 above, the rest of system RAM is considered high memory.
@@ -62,8 +62,8 @@ the reservation in high memory succeeds, a default size reservation in
 the low memory will be done. Currently the default size is 128M,
 sufficient for the low memory needs of the kdump kernel.
 
-Note: crashkernel=size is the recommended option for crashkernel kernel
-reservations. The user would not need to know the system memory layout
+Analte: crashkernel=size is the recommended option for crashkernel kernel
+reservations. The user would analt need to kanalw the system memory layout
 for a specific platform.
 
 3) crashkernel=size,high crashkernel=size,low
@@ -81,11 +81,11 @@ low memory reservation will be done subsequently.
 
 If reservation from the high memory failed, the kernel falls back to
 searching the low memory with the specified size in crashkernel=,high.
-If it succeeds, no further reservation for low memory is needed.
+If it succeeds, anal further reservation for low memory is needed.
 
-Notes:
+Analtes:
 
-- If crashkernel=,low is not specified, the default low memory
+- If crashkernel=,low is analt specified, the default low memory
   reservation will be done automatically.
 
 - if crashkernel=0,low is specified, it means that the low memory

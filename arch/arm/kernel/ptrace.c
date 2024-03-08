@@ -33,7 +33,7 @@
 #define REG_PC	15
 #define REG_PSR	16
 /*
- * does not yet catch signals sent when the child dies.
+ * does analt yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -125,7 +125,7 @@ const char *regs_query_register_name(unsigned int offset)
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If analt, returns false.
  */
 bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
 {
@@ -139,7 +139,7 @@ bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
  * @n:		stack entry number.
  *
  * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * is specified by @regs. If the @n th entry is ANALT in the kernel stack,
  * this returns 0.
  */
 unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
@@ -191,7 +191,7 @@ put_user_reg(struct task_struct *task, int offset, long data)
  */
 void ptrace_disable(struct task_struct *child)
 {
-	/* Nothing to do. */
+	/* Analthing to do. */
 }
 
 /*
@@ -296,7 +296,7 @@ static int ptrace_getwmmxregs(struct task_struct *tsk, void __user *ufp)
 	struct thread_info *thread = task_thread_info(tsk);
 
 	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
-		return -ENODATA;
+		return -EANALDATA;
 	iwmmxt_task_disable(thread);  /* force it to ram */
 	return copy_to_user(ufp, &thread->fpstate.iwmmxt, IWMMXT_SIZE)
 		? -EFAULT : 0;
@@ -361,7 +361,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 
 	num = (i == ARM_MAX_HBP_SLOTS) ? 0 : ptrace_hbp_idx_to_num(i);
 
-	force_sig_ptrace_errno_trap((int)num, (void __user *)(bkpt->trigger));
+	force_sig_ptrace_erranal_trap((int)num, (void __user *)(bkpt->trigger));
 }
 
 /*
@@ -604,7 +604,7 @@ static int fpa_set(struct task_struct *target,
  *	the kernel doesn't have them all.
  *
  *	vfp_get() reads this chunk as zero where applicable
- *	vfp_set() ignores this chunk
+ *	vfp_set() iganalres this chunk
  *
  * 1 word for the FPSCR
  */
@@ -649,7 +649,7 @@ static int vfp_set(struct task_struct *target,
 	if (ret)
 		return ret;
 
-	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 				  user_fpregs_offset + sizeof(new_vfp.fpregs),
 				  user_fpscr_offset);
 
@@ -677,7 +677,7 @@ enum arm_regset {
 
 static const struct user_regset arm_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = ELF_NGREG,
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -689,7 +689,7 @@ static const struct user_regset arm_regsets[] = {
 		 * For the FPA regs in fpstate, the real fields are a mixture
 		 * of sizes, so pretend that the registers are word-sized:
 		 */
-		.core_note_type = NT_PRFPREG,
+		.core_analte_type = NT_PRFPREG,
 		.n = sizeof(struct user_fp) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -702,7 +702,7 @@ static const struct user_regset arm_regsets[] = {
 		 * Pretend that the VFP regs are word-sized, since the FPSCR is
 		 * a single word dangling at the end of struct user_vfp:
 		 */
-		.core_note_type = NT_ARM_VFP,
+		.core_analte_type = NT_ARM_VFP,
 		.n = ARM_VFPREGS_SIZE / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -832,7 +832,7 @@ static void report_syscall(struct pt_regs *regs, enum ptrace_syscall_dir dir)
 	unsigned long ip;
 
 	/*
-	 * IP is used to denote syscall entry/exit:
+	 * IP is used to deanalte syscall entry/exit:
 	 * IP = 0 -> entry, =1 -> exit
 	 */
 	ip = regs->ARM_ip;
@@ -848,7 +848,7 @@ static void report_syscall(struct pt_regs *regs, enum ptrace_syscall_dir dir)
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
-	int scno;
+	int scanal;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		report_syscall(regs, PTRACE_SYSCALL_ENTER);
@@ -863,15 +863,15 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 #endif
 
 	/* Tracer or seccomp may have changed syscall. */
-	scno = syscall_get_nr(current, regs);
+	scanal = syscall_get_nr(current, regs);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_enter(regs, scno);
+		trace_sys_enter(regs, scanal);
 
-	audit_syscall_entry(scno, regs->ARM_r0, regs->ARM_r1, regs->ARM_r2,
+	audit_syscall_entry(scanal, regs->ARM_r0, regs->ARM_r1, regs->ARM_r2,
 			    regs->ARM_r3);
 
-	return scno;
+	return scanal;
 }
 
 asmlinkage void syscall_trace_exit(struct pt_regs *regs)
@@ -883,7 +883,7 @@ asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 	audit_syscall_exit(regs);
 
 	/*
-	 * Note that we haven't updated the ->syscall field for the
+	 * Analte that we haven't updated the ->syscall field for the
 	 * current thread. This isn't a problem because it will have
 	 * been set on syscall entry and there hasn't been an opportunity
 	 * for a PTRACE_SET_SYSCALL since then.

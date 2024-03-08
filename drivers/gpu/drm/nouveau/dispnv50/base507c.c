@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 
-#include "nouveau_bo.h"
+#include "analuveau_bo.h"
 
 int
 base507c_update(struct nv50_wndw *wndw, u32 *interlock)
@@ -55,7 +55,7 @@ base507c_image_clr(struct nv50_wndw *wndw)
 		return ret;
 
 	PUSH_MTHD(push, NV507C, SET_PRESENT_CONTROL,
-		  NVDEF(NV507C, SET_PRESENT_CONTROL, BEGIN_MODE, NON_TEARING) |
+		  NVDEF(NV507C, SET_PRESENT_CONTROL, BEGIN_MODE, ANALN_TEARING) |
 		  NVVAL(NV507C, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, 0));
 
 	PUSH_MTHD(push, NV507C, SET_CONTEXT_DMA_ISO, 0x00000000);
@@ -144,11 +144,11 @@ base507c_xlut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 }
 
 int
-base507c_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
+base507c_ntfy_wait_begun(struct analuveau_bo *bo, u32 offset,
 			 struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		if (NVBO_TD32(bo, offset, NV_DISP_BASE_NOTIFIER_1, _0, STATUS, ==, BEGUN))
+		if (NVBO_TD32(bo, offset, NV_DISP_BASE_ANALTIFIER_1, _0, STATUS, ==, BEGUN))
 			break;
 		usleep_range(1, 2);
 	);
@@ -164,7 +164,7 @@ base507c_ntfy_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_MTHD(push, NV507C, SET_CONTEXT_DMA_NOTIFIER, 0x00000000);
+	PUSH_MTHD(push, NV507C, SET_CONTEXT_DMA_ANALTIFIER, 0x00000000);
 	return 0;
 }
 
@@ -177,19 +177,19 @@ base507c_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 3)))
 		return ret;
 
-	PUSH_MTHD(push, NV507C, SET_NOTIFIER_CONTROL,
-		  NVVAL(NV507C, SET_NOTIFIER_CONTROL, MODE, asyw->ntfy.awaken) |
-		  NVVAL(NV507C, SET_NOTIFIER_CONTROL, OFFSET, asyw->ntfy.offset >> 2),
+	PUSH_MTHD(push, NV507C, SET_ANALTIFIER_CONTROL,
+		  NVVAL(NV507C, SET_ANALTIFIER_CONTROL, MODE, asyw->ntfy.awaken) |
+		  NVVAL(NV507C, SET_ANALTIFIER_CONTROL, OFFSET, asyw->ntfy.offset >> 2),
 
-				SET_CONTEXT_DMA_NOTIFIER, asyw->ntfy.handle);
+				SET_CONTEXT_DMA_ANALTIFIER, asyw->ntfy.handle);
 	return 0;
 }
 
 void
-base507c_ntfy_reset(struct nouveau_bo *bo, u32 offset)
+base507c_ntfy_reset(struct analuveau_bo *bo, u32 offset)
 {
-	NVBO_WR32(bo, offset, NV_DISP_BASE_NOTIFIER_1, _0,
-			NVDEF(NV_DISP_BASE_NOTIFIER_1, _0, STATUS, NOT_BEGUN));
+	NVBO_WR32(bo, offset, NV_DISP_BASE_ANALTIFIER_1, _0,
+			NVDEF(NV_DISP_BASE_ANALTIFIER_1, _0, STATUS, ANALT_BEGUN));
 }
 
 int
@@ -236,8 +236,8 @@ base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	int ret;
 
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, true);
 	if (ret)
 		return ret;
@@ -255,7 +255,7 @@ base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	asyh->base.h = asyw->state.fb->height;
 
 	/* Some newer formats, esp FP16 ones, don't have a
-	 * "depth". There's nothing that really makes sense there
+	 * "depth". There's analthing that really makes sense there
 	 * either, so just set it to the implicit bit count.
 	 */
 	if (!asyh->base.depth)
@@ -301,13 +301,13 @@ base507c = {
 
 int
 base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
-	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
+	      struct analuveau_drm *drm, int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
 	struct nvif_disp_chan_v0 args = {
 		.id = head,
 	};
-	struct nouveau_display *disp = nouveau_display(drm->dev);
+	struct analuveau_display *disp = analuveau_display(drm->dev);
 	struct nv50_disp *disp50 = nv50_disp(drm->dev);
 	struct nv50_wndw *wndw;
 	int ret;
@@ -333,7 +333,7 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 }
 
 int
-base507c_new(struct nouveau_drm *drm, int head, s32 oclass,
+base507c_new(struct analuveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
 	return base507c_new_(&base507c, base507c_format, drm, head, oclass,

@@ -379,7 +379,7 @@
 &pinctrl {
 	gpio-leds {
 		status_led_pin: status-led-pin {
-			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -397,7 +397,7 @@
 
 	usb {
 		vcc5v0_usb_otg_en: vcc5v0-usb-otg-en {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

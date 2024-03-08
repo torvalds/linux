@@ -30,7 +30,7 @@ static void mtl_ipc_host_done(struct snd_sof_dev *sdev)
 {
 	/*
 	 * clear busy interrupt to tell dsp controller this interrupt has been accepted,
-	 * not trigger it again
+	 * analt trigger it again
 	 */
 	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDR,
 				       MTL_DSP_REG_HFIPCXTDR_BUSY, MTL_DSP_REG_HFIPCXTDR_BUSY);
@@ -272,7 +272,7 @@ int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		dev_err(sdev->dev, "failed to power up gated DSP domain\n");
 
-	/* if SoundWire is used, make sure it is not power-gated */
+	/* if SoundWire is used, make sure it is analt power-gated */
 	if (hdev->info.handle && hdev->info.link_mask > 0)
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFPWRCTL,
 					MTL_HfPWRCTL_WPIOXPG(1), MTL_HfPWRCTL_WPIOXPG(1));
@@ -289,12 +289,12 @@ int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 
 		ret = hda_sdw_startup(sdev);
 		if (ret < 0) {
-			dev_err(sdev->dev, "could not startup SoundWire links\n");
+			dev_err(sdev->dev, "could analt startup SoundWire links\n");
 			return ret;
 		}
 
 		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT))
+		if (!sof_debug_check_flag(SOF_DBG_IGANALRE_D3_PERSISTENT))
 			hdev->imrboot_supported = true;
 	}
 
@@ -320,7 +320,7 @@ void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 		romdbgerr);
 	romdbgsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFFLGPXQWY + 0x8 * 3);
 	dev_printk(level, sdev->dev, "ROM feature bit%s enabled\n",
-		   romdbgsts & BIT(24) ? "" : " not");
+		   romdbgsts & BIT(24) ? "" : " analt");
 
 	sof_ipc4_intel_dump_telemetry_state(sdev, flags);
 }
@@ -487,7 +487,7 @@ int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 
 	/*
 	 * ACE workaround: don't wait for ROM INIT.
-	 * The platform cannot catch ROM_INIT_DONE because of a very short
+	 * The platform cananalt catch ROM_INIT_DONE because of a very short
 	 * timing window. Follow the recommendations and skip this part.
 	 */
 
@@ -511,7 +511,7 @@ err:
 
 irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 {
-	struct sof_ipc4_msg notification_data = {{ 0 }};
+	struct sof_ipc4_msg analtification_data = {{ 0 }};
 	struct snd_sof_dev *sdev = context;
 	bool ack_received = false;
 	bool ipc_irq = false;
@@ -534,13 +534,13 @@ irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 	}
 
 	if (hipctdr & MTL_DSP_REG_HFIPCXTDR_BUSY) {
-		/* Message from DSP (reply or notification) */
+		/* Message from DSP (reply or analtification) */
 		u32 extension = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDDY);
 		u32 primary = hipctdr & MTL_DSP_REG_HFIPCXTDR_MSG_MASK;
 
 		/*
 		 * ACE fw sends a new fw ipc message to host to
-		 * notify the status of the last host ipc message
+		 * analtify the status of the last host ipc message
 		 */
 		if (primary & SOF_IPC4_MSG_DIR_MASK) {
 			/* Reply received */
@@ -563,11 +563,11 @@ irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 						    primary, extension);
 			}
 		} else {
-			/* Notification received */
-			notification_data.primary = primary;
-			notification_data.extension = extension;
+			/* Analtification received */
+			analtification_data.primary = primary;
+			analtification_data.extension = extension;
 
-			sdev->ipc->msg.rx_data = &notification_data;
+			sdev->ipc->msg.rx_data = &analtification_data;
 			snd_sof_ipc_msgs_rx(sdev);
 			sdev->ipc->msg.rx_data = NULL;
 
@@ -578,8 +578,8 @@ irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 	}
 
 	if (!ipc_irq) {
-		/* This interrupt is not shared so no need to return IRQ_NONE. */
-		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
+		/* This interrupt is analt shared so anal need to return IRQ_ANALNE. */
+		dev_dbg_ratelimited(sdev->dev, "analthing to do in IPC IRQ thread\n");
 	}
 
 	if (ack_received) {
@@ -711,7 +711,7 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 
 	sdev->private = kzalloc(sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
 	if (!sdev->private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipc4_data = sdev->private;
 	ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;

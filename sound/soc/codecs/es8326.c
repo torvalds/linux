@@ -149,7 +149,7 @@ static const char *const winsize[] = {
 };
 
 static const char *const dacpol_txt[] =	{
-	"Normal", "R Invert", "L Invert", "L + R Invert" };
+	"Analrmal", "R Invert", "L Invert", "L + R Invert" };
 
 static const struct soc_enum dacpol =
 	SOC_ENUM_SINGLE(ES8326_DAC_DSM, 4, 4, dacpol_txt);
@@ -178,9 +178,9 @@ static const struct snd_kcontrol_new es8326_snd_controls[] = {
 	SOC_SINGLE_TLV("ALC Capture Target Level", ES8326_ALC_LEVEL,
 			0, 0x0f, 0, drc_target_tlv),
 
-	SOC_SINGLE_EXT("CROSSTALK1", SND_SOC_NOPM, 0, 31, 0,
+	SOC_SINGLE_EXT("CROSSTALK1", SND_SOC_ANALPM, 0, 31, 0,
 			es8326_crosstalk1_get, es8326_crosstalk1_set),
-	SOC_SINGLE_EXT("CROSSTALK2", SND_SOC_NOPM, 0, 31, 0,
+	SOC_SINGLE_EXT("CROSSTALK2", SND_SOC_ANALPM, 0, 31, 0,
 			es8326_crosstalk2_get, es8326_crosstalk2_set),
 };
 
@@ -190,12 +190,12 @@ static const struct snd_soc_dapm_widget es8326_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC3"),
 	SND_SOC_DAPM_INPUT("MIC4"),
 
-	SND_SOC_DAPM_ADC("ADC L", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC R", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC L", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC R", NULL, SND_SOC_ANALPM, 0, 0),
 
 	/* Digital Interface */
-	SND_SOC_DAPM_AIF_OUT("I2S OUT", "I2S1 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("I2S IN", "I2S1 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S OUT", "I2S1 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S IN", "I2S1 Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Analog Power Supply*/
 	SND_SOC_DAPM_DAC("Right DAC", NULL, ES8326_ANA_PDN, 0, 1),
@@ -416,7 +416,7 @@ static int es8326_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_I2S:
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		dev_err(component->dev, "Codec driver does not support right justified\n");
+		dev_err(component->dev, "Codec driver does analt support right justified\n");
 		return -EINVAL;
 	case SND_SOC_DAIFMT_LEFT_J:
 		iface |= ES8326_DAIFMT_LEFT_J;
@@ -496,7 +496,7 @@ static int es8326_pcm_hw_params(struct snd_pcm_substream *substream,
 		regmap_write(es8326->regmap,  ES8326_CLK_DAC_OSR,
 			     coeff_div[coeff].regb);
 	} else {
-		dev_warn(component->dev, "Clock coefficients do not match");
+		dev_warn(component->dev, "Clock coefficients do analt match");
 	}
 
 	return 0;
@@ -566,8 +566,8 @@ static int es8326_set_bias_level(struct snd_soc_component *codec,
 		regmap_update_bits(es8326->regmap, ES8326_RESET, 0x02, 0x02);
 		usleep_range(5000, 10000);
 		regmap_write(es8326->regmap, ES8326_INTOUT_IO, es8326->interrupt_clk);
-		regmap_write(es8326->regmap, ES8326_SDINOUT1_IO,
-			    (ES8326_IO_DMIC_CLK << ES8326_SDINOUT1_SHIFT));
+		regmap_write(es8326->regmap, ES8326_SDIANALUT1_IO,
+			    (ES8326_IO_DMIC_CLK << ES8326_SDIANALUT1_SHIFT));
 		regmap_write(es8326->regmap, ES8326_PGA_PDN, 0x40);
 		regmap_write(es8326->regmap, ES8326_ANA_PDN, 0x00);
 		regmap_update_bits(es8326->regmap,  ES8326_CLK_CTL, 0x20, 0x20);
@@ -578,7 +578,7 @@ static int es8326_set_bias_level(struct snd_soc_component *codec,
 	case SND_SOC_BIAS_STANDBY:
 		regmap_write(es8326->regmap, ES8326_ANA_PDN, 0x3b);
 		regmap_update_bits(es8326->regmap, ES8326_CLK_CTL, 0x20, 0x00);
-		regmap_write(es8326->regmap, ES8326_SDINOUT1_IO, ES8326_IO_INPUT);
+		regmap_write(es8326->regmap, ES8326_SDIANALUT1_IO, ES8326_IO_INPUT);
 		break;
 	case SND_SOC_BIAS_OFF:
 		clk_disable_unprepare(es8326->mclk);
@@ -596,7 +596,7 @@ static const struct snd_soc_dai_ops es8326_ops = {
 	.set_fmt = es8326_set_dai_fmt,
 	.set_sysclk = es8326_set_dai_sysclk,
 	.mute_stream = es8326_mute,
-	.no_capture_mute = 0,
+	.anal_capture_mute = 0,
 };
 
 static struct snd_soc_dai_driver es8326_dai = {
@@ -677,7 +677,7 @@ static void es8326_jack_button_handler(struct work_struct *work)
 		break;
 	case 0x1e:
 	case 0xe2:
-		/* button released or not pressed */
+		/* button released or analt pressed */
 		cur_button = 0;
 		break;
 	default:
@@ -701,7 +701,7 @@ static void es8326_jack_button_handler(struct work_struct *work)
 		queue_delayed_work(system_wq, &es8326->button_press_work,
 				   msecs_to_jiffies(35));
 	} else {
-		/* released or no pressed */
+		/* released or anal pressed */
 		if (button_to_report != 0) {
 			snd_soc_jack_report(es8326->jack, button_to_report,
 				    SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2);
@@ -730,7 +730,7 @@ static void es8326_jack_detect_handler(struct work_struct *work)
 		else
 			es8326->jack_remove_retry = 0;
 
-		dev_dbg(comp->dev, "remove event check, set HPJACK_POL normal, cnt = %d\n",
+		dev_dbg(comp->dev, "remove event check, set HPJACK_POL analrmal, cnt = %d\n",
 				es8326->jack_remove_retry);
 		/*
 		 * Inverted HPJACK_POL bit to trigger one IRQ to double check HP Removal event
@@ -743,7 +743,7 @@ static void es8326_jack_detect_handler(struct work_struct *work)
 
 	if ((iface & ES8326_HPINSERT_FLAG) == 0) {
 		/* Jack unplugged or spurious IRQ */
-		dev_dbg(comp->dev, "No headset detected\n");
+		dev_dbg(comp->dev, "Anal headset detected\n");
 		es8326_disable_micbias(es8326->component);
 		if (es8326->jack->status & SND_JACK_HEADPHONE) {
 			dev_dbg(comp->dev, "Report hp remove event\n");
@@ -956,9 +956,9 @@ static int es8326_resume(struct snd_soc_component *component)
 		    (ES8326_INT_SRC_PIN9 | ES8326_INT_SRC_BUTTON));
 	regmap_write(es8326->regmap, ES8326_INTOUT_IO,
 		     es8326->interrupt_clk);
-	regmap_write(es8326->regmap, ES8326_SDINOUT1_IO,
-		    (ES8326_IO_DMIC_CLK << ES8326_SDINOUT1_SHIFT));
-	regmap_write(es8326->regmap, ES8326_SDINOUT23_IO, ES8326_IO_INPUT);
+	regmap_write(es8326->regmap, ES8326_SDIANALUT1_IO,
+		    (ES8326_IO_DMIC_CLK << ES8326_SDIANALUT1_SHIFT));
+	regmap_write(es8326->regmap, ES8326_SDIANALUT23_IO, ES8326_IO_INPUT);
 
 	regmap_write(es8326->regmap, ES8326_ANA_PDN, 0x00);
 	regmap_write(es8326->regmap, ES8326_RESET, ES8326_CSM_ON);
@@ -1117,7 +1117,7 @@ static int es8326_i2c_probe(struct i2c_client *i2c)
 
 	es8326 = devm_kzalloc(&i2c->dev, sizeof(struct es8326_priv), GFP_KERNEL);
 	if (!es8326)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, es8326);
 	es8326->i2c = i2c;

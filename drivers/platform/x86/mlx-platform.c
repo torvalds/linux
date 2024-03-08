@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*
- * Mellanox platform driver
+ * Mellaanalx platform driver
  *
- * Copyright (C) 2016-2018 Mellanox Technologies
- * Copyright (C) 2016-2018 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (C) 2016-2018 Mellaanalx Techanallogies
+ * Copyright (C) 2016-2018 Vadim Pasternak <vadimp@mellaanalx.com>
  */
 
 #include <linux/device.h>
@@ -294,7 +294,7 @@
 #define MLXPLAT_CPLD_LPC_MUX_DEVS		4
 
 /* Hotplug devices adapter numbers */
-#define MLXPLAT_CPLD_NR_NONE			-1
+#define MLXPLAT_CPLD_NR_ANALNE			-1
 #define MLXPLAT_CPLD_PSU_DEFAULT_NR		10
 #define MLXPLAT_CPLD_PSU_MSNXXXX_NR		4
 #define MLXPLAT_CPLD_FAN1_DEFAULT_NR		11
@@ -329,7 +329,7 @@
 /* Default value for PWM control register for rack switch system */
 #define MLXPLAT_REGMAP_NVSWITCH_PWM_DEFAULT 0xf4
 
-#define MLXPLAT_I2C_MAIN_BUS_NOTIFIED		0x01
+#define MLXPLAT_I2C_MAIN_BUS_ANALTIFIED		0x01
 #define MLXPLAT_I2C_MAIN_BUS_HANDLE_CREATED	0x02
 
 /* Lattice FPGA PCI configuration */
@@ -368,7 +368,7 @@ struct mlxplat_priv {
 };
 
 static struct platform_device *mlxplat_dev;
-static int mlxplat_i2c_main_completion_notify(void *handle, int id);
+static int mlxplat_i2c_main_completion_analtify(void *handle, int id);
 static void __iomem *i2c_bridge_addr, *jtag_bridge_addr;
 
 /* Regions for LPC I2C controller and LPC base register space */
@@ -384,7 +384,7 @@ static const struct resource mlxplat_lpc_resources[] = {
 
 /* Platform systems default i2c data */
 static struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_i2c_default_data = {
-	.completion_notify = mlxplat_i2c_main_completion_notify,
+	.completion_analtify = mlxplat_i2c_main_completion_analtify,
 };
 
 /* Platform i2c next generation systems data */
@@ -409,7 +409,7 @@ static struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_i2c_ng_data = {
 	.mask = MLXPLAT_CPLD_AGGR_MASK_COMEX,
 	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGRCO_OFFSET,
 	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_I2C,
-	.completion_notify = mlxplat_i2c_main_completion_notify,
+	.completion_analtify = mlxplat_i2c_main_completion_analtify,
 };
 
 /* Platform default channels */
@@ -454,7 +454,7 @@ static struct i2c_mux_reg_platform_data mlxplat_default_mux_data[] = {
 static int mlxplat_max_adap_num;
 static int mlxplat_mux_num;
 static struct i2c_mux_reg_platform_data *mlxplat_mux_data;
-static struct notifier_block *mlxplat_reboot_nb;
+static struct analtifier_block *mlxplat_reboot_nb;
 
 /* Platform extended mux data */
 static struct i2c_mux_reg_platform_data mlxplat_extended_mux_data[] = {
@@ -647,13 +647,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_comex_psu_items_data[] = {
 		.label = "psu1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "psu2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -663,13 +663,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_psu_items_data[] = {
 		.label = "psu1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "psu2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -695,13 +695,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_pwr_wc_items_data[] = {
 		.label = "pwr1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "pwr2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -758,7 +758,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_asic_items_data[] = {
 		.label = "asic1",
 		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
 		.mask = MLXPLAT_CPLD_ASIC_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -767,7 +767,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_asic2_items_data[] = {
 		.label = "asic2",
 		.reg = MLXPLAT_CPLD_LPC_REG_ASIC2_HEALTH_OFFSET,
 		.mask = MLXPLAT_CPLD_ASIC_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -914,13 +914,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_pwr_items_data[] = {
 		.label = "pwr1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "pwr2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -962,13 +962,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_msn274x_psu_items_data[] = {
 		.label = "psu1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "psu2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -994,25 +994,25 @@ static struct mlxreg_core_data mlxplat_mlxcpld_msn274x_fan_items_data[] = {
 		.label = "fan1",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan2",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan3",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
 		.mask = BIT(2),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan4",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
 		.mask = BIT(3),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -1071,13 +1071,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_msn201x_pwr_items_data[] = {
 		.label = "pwr1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "pwr2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -1118,13 +1118,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_psu_items_data[] = {
 		.label = "psu1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "psu2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -1135,7 +1135,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_fan_items_data[] = {
 		.mask = BIT(0),
 		.capability = MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET,
 		.bit = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan2",
@@ -1143,7 +1143,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_fan_items_data[] = {
 		.mask = BIT(1),
 		.capability = MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET,
 		.bit = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan3",
@@ -1151,7 +1151,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_fan_items_data[] = {
 		.mask = BIT(2),
 		.capability = MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET,
 		.bit = BIT(2),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan4",
@@ -1159,7 +1159,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_fan_items_data[] = {
 		.mask = BIT(3),
 		.capability = MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET,
 		.bit = BIT(3),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan5",
@@ -1167,7 +1167,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_fan_items_data[] = {
 		.mask = BIT(4),
 		.capability = MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET,
 		.bit = BIT(4),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan6",
@@ -1175,7 +1175,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_fan_items_data[] = {
 		.mask = BIT(5),
 		.capability = MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET,
 		.bit = BIT(5),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "fan7",
@@ -1183,7 +1183,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_fan_items_data[] = {
 		.mask = BIT(6),
 		.capability = MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET,
 		.bit = BIT(6),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -1242,25 +1242,25 @@ static struct mlxreg_core_data mlxplat_mlxcpld_ext_psu_items_data[] = {
 		.label = "psu1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "psu2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "psu3",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(2),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "psu4",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(3),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -1447,7 +1447,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_asic_items_data[] = {
 		.label = "asic1",
 		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
 		.mask = MLXPLAT_CPLD_ASIC_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -1486,7 +1486,7 @@ static struct i2c_board_info mlxplat_mlxcpld_lc_i2c_dev[] = {
 	},
 };
 
-static struct mlxreg_core_hotplug_notifier mlxplat_mlxcpld_modular_lc_notifier[] = {
+static struct mlxreg_core_hotplug_analtifier mlxplat_mlxcpld_modular_lc_analtifier[] = {
 	{
 		.identity = "lc1",
 	},
@@ -1520,8 +1520,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[0],
 		.slot = 1,
 	},
 	{
@@ -1530,8 +1530,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[1],
 		.slot = 2,
 	},
 	{
@@ -1540,8 +1540,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.mask = BIT(2),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[2],
 		.slot = 3,
 	},
 	{
@@ -1550,8 +1550,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.mask = BIT(3),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[3],
 		.slot = 4,
 	},
 	{
@@ -1560,8 +1560,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.mask = BIT(4),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[4],
 		.slot = 5,
 	},
 	{
@@ -1570,8 +1570,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.mask = BIT(5),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[5],
 		.slot = 6,
 	},
 	{
@@ -1580,8 +1580,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.mask = BIT(6),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[6],
 		.slot = 7,
 	},
 	{
@@ -1590,8 +1590,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.mask = BIT(7),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[7],
 		.slot = 8,
 	},
 };
@@ -1608,7 +1608,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[0],
 		.slot = 1,
 	},
 	{
@@ -1622,7 +1622,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[1],
 		.slot = 2,
 	},
 	{
@@ -1636,7 +1636,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[2],
 		.slot = 3,
 	},
 	{
@@ -1650,7 +1650,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[3],
 		.slot = 4,
 	},
 	{
@@ -1664,7 +1664,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[4],
 		.slot = 5,
 	},
 	{
@@ -1678,7 +1678,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[5],
 		.slot = 6,
 	},
 	{
@@ -1692,7 +1692,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[6],
 		.slot = 7,
 	},
 	{
@@ -1706,7 +1706,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[7],
 		.slot = 8,
 	},
 };
@@ -1718,8 +1718,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[0],
 		.slot = 1,
 	},
 	{
@@ -1728,8 +1728,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[1],
 		.slot = 2,
 	},
 	{
@@ -1738,8 +1738,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.mask = BIT(2),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[2],
 		.slot = 3,
 	},
 	{
@@ -1748,8 +1748,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.mask = BIT(3),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[3],
 		.slot = 4,
 	},
 	{
@@ -1758,8 +1758,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.mask = BIT(4),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[4],
 		.slot = 5,
 	},
 	{
@@ -1768,8 +1768,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.mask = BIT(5),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[5],
 		.slot = 6,
 	},
 	{
@@ -1778,8 +1778,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.mask = BIT(6),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[6],
 		.slot = 7,
 	},
 	{
@@ -1788,8 +1788,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.mask = BIT(7),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[7],
 		.slot = 8,
 	},
 };
@@ -1801,8 +1801,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[0],
 		.slot = 1,
 	},
 	{
@@ -1811,8 +1811,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[1],
 		.slot = 2,
 	},
 	{
@@ -1821,8 +1821,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.mask = BIT(2),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[2],
 		.slot = 3,
 	},
 	{
@@ -1831,8 +1831,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.mask = BIT(3),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[3],
 		.slot = 4,
 	},
 	{
@@ -1841,8 +1841,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.mask = BIT(4),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[4],
 		.slot = 5,
 	},
 	{
@@ -1851,8 +1851,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.mask = BIT(5),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[5],
 		.slot = 6,
 	},
 	{
@@ -1861,8 +1861,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.mask = BIT(6),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[6],
 		.slot = 7,
 	},
 	{
@@ -1871,8 +1871,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.mask = BIT(7),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[7],
 		.slot = 8,
 	},
 };
@@ -1884,8 +1884,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[0],
 		.slot = 1,
 	},
 	{
@@ -1894,8 +1894,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[1],
 		.slot = 2,
 	},
 	{
@@ -1904,8 +1904,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.mask = BIT(2),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[2],
 		.slot = 3,
 	},
 	{
@@ -1914,8 +1914,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.mask = BIT(3),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[3],
 		.slot = 4,
 	},
 	{
@@ -1924,8 +1924,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.mask = BIT(4),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[4],
 		.slot = 5,
 	},
 	{
@@ -1934,8 +1934,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.mask = BIT(5),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[5],
 		.slot = 6,
 	},
 	{
@@ -1944,8 +1944,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.mask = BIT(6),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[6],
 		.slot = 7,
 	},
 	{
@@ -1954,8 +1954,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.mask = BIT(7),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[7],
 		.slot = 8,
 	},
 };
@@ -1967,8 +1967,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[0],
 		.slot = 1,
 	},
 	{
@@ -1977,8 +1977,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[1],
 		.slot = 2,
 	},
 	{
@@ -1987,8 +1987,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.mask = BIT(2),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[2],
 		.slot = 3,
 	},
 	{
@@ -1997,8 +1997,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.mask = BIT(3),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[3],
 		.slot = 4,
 	},
 	{
@@ -2007,8 +2007,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.mask = BIT(4),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[4],
 		.slot = 5,
 	},
 	{
@@ -2017,8 +2017,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.mask = BIT(5),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[5],
 		.slot = 6,
 	},
 	{
@@ -2027,8 +2027,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.mask = BIT(6),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[6],
 		.slot = 7,
 	},
 	{
@@ -2037,8 +2037,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.mask = BIT(7),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[7],
 		.slot = 8,
 	},
 };
@@ -2050,8 +2050,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[0],
 		.slot = 1,
 	},
 	{
@@ -2060,8 +2060,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[1],
 		.slot = 2,
 	},
 	{
@@ -2070,8 +2070,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.mask = BIT(2),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[2],
 		.slot = 3,
 	},
 	{
@@ -2080,8 +2080,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.mask = BIT(3),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[3],
 		.slot = 4,
 	},
 	{
@@ -2090,8 +2090,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.mask = BIT(4),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[4],
 		.slot = 5,
 	},
 	{
@@ -2100,8 +2100,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.mask = BIT(5),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[5],
 		.slot = 6,
 	},
 	{
@@ -2110,8 +2110,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.mask = BIT(6),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[6],
 		.slot = 7,
 	},
 	{
@@ -2120,8 +2120,8 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.mask = BIT(7),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_modular_lc_analtifier[7],
 		.slot = 8,
 	},
 };
@@ -2253,7 +2253,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_global_wp_items_data[] = {
 		.label = "global_wp_grant",
 		.reg = MLXPLAT_CPLD_LPC_REG_GWP_OFFSET,
 		.mask = MLXPLAT_CPLD_GWP_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -2285,13 +2285,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_erot_ap_items_data[] = {
 		.label = "erot1_ap",
 		.reg = MLXPLAT_CPLD_LPC_REG_EROT_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "erot2_ap",
 		.reg = MLXPLAT_CPLD_LPC_REG_EROT_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -2300,13 +2300,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_erot_error_items_data[] = {
 		.label = "erot1_error",
 		.reg = MLXPLAT_CPLD_LPC_REG_EROTE_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "erot2_error",
 		.reg = MLXPLAT_CPLD_LPC_REG_EROTE_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -2370,7 +2370,7 @@ struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_rack_switch_data = {
 	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
 };
 
-/* Callback performs graceful shutdown after notification about power button event */
+/* Callback performs graceful shutdown after analtification about power button event */
 static int
 mlxplat_mlxcpld_l1_switch_pwr_events_handler(void *handle, enum mlxreg_hotplug_kind kind,
 					     u8 action)
@@ -2383,7 +2383,7 @@ mlxplat_mlxcpld_l1_switch_pwr_events_handler(void *handle, enum mlxreg_hotplug_k
 	return 0;
 }
 
-static struct mlxreg_core_hotplug_notifier mlxplat_mlxcpld_l1_switch_pwr_events_notifier = {
+static struct mlxreg_core_hotplug_analtifier mlxplat_mlxcpld_l1_switch_pwr_events_analtifier = {
 	.user_handler = mlxplat_mlxcpld_l1_switch_pwr_events_handler,
 };
 
@@ -2393,13 +2393,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_l1_switch_pwr_events_items_data[]
 		.label = "power_button",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWRB_OFFSET,
 		.mask = MLXPLAT_CPLD_PWR_BUTTON_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_l1_switch_pwr_events_notifier,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_l1_switch_pwr_events_analtifier,
 	},
 };
 
-/* Callback activates latch reset flow after notification about intrusion event */
+/* Callback activates latch reset flow after analtification about intrusion event */
 static int
 mlxplat_mlxcpld_l1_switch_intrusion_events_handler(void *handle, enum mlxreg_hotplug_kind kind,
 						   u8 action)
@@ -2433,7 +2433,7 @@ fail_regmap_write:
 	return err;
 }
 
-static struct mlxreg_core_hotplug_notifier mlxplat_mlxcpld_l1_switch_intrusion_events_notifier = {
+static struct mlxreg_core_hotplug_analtifier mlxplat_mlxcpld_l1_switch_intrusion_events_analtifier = {
 	.user_handler = mlxplat_mlxcpld_l1_switch_intrusion_events_handler,
 };
 
@@ -2442,27 +2442,27 @@ static struct mlxreg_core_data mlxplat_mlxcpld_l1_switch_health_events_items_dat
 		.label = "thermal1_pdb",
 		.reg = MLXPLAT_CPLD_LPC_REG_BRD_OFFSET,
 		.mask = MLXPLAT_CPLD_THERMAL1_PDB_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "thermal2_pdb",
 		.reg = MLXPLAT_CPLD_LPC_REG_BRD_OFFSET,
 		.mask = MLXPLAT_CPLD_THERMAL2_PDB_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 	{
 		.label = "intrusion",
 		.reg = MLXPLAT_CPLD_LPC_REG_BRD_OFFSET,
 		.mask = MLXPLAT_CPLD_INTRUSION_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
-		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
-		.hpdev.notifier = &mlxplat_mlxcpld_l1_switch_intrusion_events_notifier,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_ANAL_ACTION,
+		.hpdev.analtifier = &mlxplat_mlxcpld_l1_switch_intrusion_events_analtifier,
 	},
 	{
 		.label = "pwm_pg",
 		.reg = MLXPLAT_CPLD_LPC_REG_BRD_OFFSET,
 		.mask = MLXPLAT_CPLD_PWM_PG_MASK,
-		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.nr = MLXPLAT_CPLD_NR_ANALNE,
 	},
 };
 
@@ -5557,7 +5557,7 @@ static struct pci_dev *i2c_bridge;
 static struct pci_dev *jtag_bridge;
 
 /* Platform default reset function */
-static int mlxplat_reboot_notifier(struct notifier_block *nb, unsigned long action, void *unused)
+static int mlxplat_reboot_analtifier(struct analtifier_block *nb, unsigned long action, void *unused)
 {
 	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
 	u32 regval;
@@ -5569,11 +5569,11 @@ static int mlxplat_reboot_notifier(struct notifier_block *nb, unsigned long acti
 		regmap_write(priv->regmap, MLXPLAT_CPLD_LPC_REG_RESET_GP1_OFFSET,
 			     MLXPLAT_CPLD_RESET_MASK);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block mlxplat_reboot_default_nb = {
-	.notifier_call = mlxplat_reboot_notifier,
+static struct analtifier_block mlxplat_reboot_default_nb = {
+	.analtifier_call = mlxplat_reboot_analtifier,
 };
 
 /* Platform default poweroff function */
@@ -5582,7 +5582,7 @@ static void mlxplat_poweroff(void)
 	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
 
 	if (mlxplat_reboot_nb)
-		unregister_reboot_notifier(mlxplat_reboot_nb);
+		unregister_reboot_analtifier(mlxplat_reboot_nb);
 	regmap_write(priv->regmap, MLXPLAT_CPLD_LPC_REG_GP1_OFFSET, MLXPLAT_CPLD_HALT_MASK);
 	kernel_halt();
 }
@@ -6019,77 +6019,77 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 	{
 		.callback = mlxplat_dmi_msn274x_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN274"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN24"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN27"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSB"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSX"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_msn21xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN21"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_msn201x_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN201"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MQM87"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN37"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN34"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellaanalx Techanallogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN38"),
 		},
 	},
@@ -6119,11 +6119,11 @@ static int mlxplat_mlxcpld_verify_bus_topology(int *nr)
 		break;
 	}
 
-	/* Return with error if free id for adapter is not found. */
+	/* Return with error if free id for adapter is analt found. */
 	if (i == mlxplat_max_adap_num)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Shift adapter ids, since expected parent adapter is not free. */
+	/* Shift adapter ids, since expected parent adapter is analt free. */
 	*nr = i;
 	for (i = 0; i < mlxplat_mux_num; i++) {
 		shift = *nr - mlxplat_mux_data[i].parent;
@@ -6166,7 +6166,7 @@ static int mlxplat_lpc_cpld_device_init(struct resource **hotplug_resources,
 	mlxplat_mlxcpld_regmap_ctx.base = devm_ioport_map(&mlxplat_dev->dev,
 							  mlxplat_lpc_resources[1].start, 1);
 	if (!mlxplat_mlxcpld_regmap_ctx.base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_devm_ioport_map;
 	}
 
@@ -6193,7 +6193,7 @@ mlxplat_pci_fpga_device_init(unsigned int device, const char *res_name, struct p
 
 	pci_dev = pci_get_device(PCI_VENDOR_ID_LATTICE, device, NULL);
 	if (!pci_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = pci_enable_device(pci_dev);
 	if (err) {
@@ -6296,7 +6296,7 @@ mlxplat_logicdev_init(struct resource **hotplug_resources, unsigned int *hotplug
 	int err;
 
 	err = mlxplat_pci_fpga_devices_init(hotplug_resources, hotplug_resources_size);
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		return mlxplat_lpc_cpld_device_init(hotplug_resources, hotplug_resources_size);
 
 	return err;
@@ -6321,7 +6321,7 @@ static int mlxplat_platdevs_init(struct mlxplat_priv *priv)
 			mlxplat_hotplug->irq = priv->irq_fpga;
 		priv->pdev_hotplug =
 		platform_device_register_resndata(&mlxplat_dev->dev,
-						  "mlxreg-hotplug", PLATFORM_DEVID_NONE,
+						  "mlxreg-hotplug", PLATFORM_DEVID_ANALNE,
 						  priv->hotplug_resources,
 						  priv->hotplug_resources_size,
 						  mlxplat_hotplug, sizeof(*mlxplat_hotplug));
@@ -6336,7 +6336,7 @@ static int mlxplat_platdevs_init(struct mlxplat_priv *priv)
 		mlxplat_led->regmap = priv->regmap;
 		priv->pdev_led =
 		platform_device_register_resndata(&mlxplat_dev->dev, "leds-mlxreg",
-						  PLATFORM_DEVID_NONE, NULL, 0, mlxplat_led,
+						  PLATFORM_DEVID_ANALNE, NULL, 0, mlxplat_led,
 						  sizeof(*mlxplat_led));
 		if (IS_ERR(priv->pdev_led)) {
 			err = PTR_ERR(priv->pdev_led);
@@ -6349,7 +6349,7 @@ static int mlxplat_platdevs_init(struct mlxplat_priv *priv)
 		mlxplat_regs_io->regmap = priv->regmap;
 		priv->pdev_io_regs = platform_device_register_resndata(&mlxplat_dev->dev,
 								       "mlxreg-io",
-								       PLATFORM_DEVID_NONE, NULL,
+								       PLATFORM_DEVID_ANALNE, NULL,
 								       0, mlxplat_regs_io,
 								       sizeof(*mlxplat_regs_io));
 		if (IS_ERR(priv->pdev_io_regs)) {
@@ -6362,7 +6362,7 @@ static int mlxplat_platdevs_init(struct mlxplat_priv *priv)
 	if (mlxplat_fan) {
 		mlxplat_fan->regmap = priv->regmap;
 		priv->pdev_fan = platform_device_register_resndata(&mlxplat_dev->dev, "mlxreg-fan",
-								   PLATFORM_DEVID_NONE, NULL, 0,
+								   PLATFORM_DEVID_ANALNE, NULL, 0,
 								   mlxplat_fan,
 								   sizeof(*mlxplat_fan));
 		if (IS_ERR(priv->pdev_fan)) {
@@ -6424,7 +6424,7 @@ static void mlxplat_platdevs_exit(struct mlxplat_priv *priv)
 }
 
 static int
-mlxplat_i2c_mux_complition_notify(void *handle, struct i2c_adapter *parent,
+mlxplat_i2c_mux_complition_analtify(void *handle, struct i2c_adapter *parent,
 				  struct i2c_adapter *adapters[])
 {
 	struct mlxplat_priv *priv = handle;
@@ -6437,7 +6437,7 @@ static int mlxplat_i2c_mux_topology_init(struct mlxplat_priv *priv)
 	int i, err;
 
 	if (!priv->pdev_i2c) {
-		priv->i2c_main_init_status = MLXPLAT_I2C_MAIN_BUS_NOTIFIED;
+		priv->i2c_main_init_status = MLXPLAT_I2C_MAIN_BUS_ANALTIFIED;
 		return 0;
 	}
 
@@ -6453,7 +6453,7 @@ static int mlxplat_i2c_mux_topology_init(struct mlxplat_priv *priv)
 		}
 	}
 
-	return mlxplat_i2c_mux_complition_notify(priv, NULL, NULL);
+	return mlxplat_i2c_mux_complition_analtify(priv, NULL, NULL);
 
 fail_platform_mux_register:
 	while (--i >= 0)
@@ -6471,7 +6471,7 @@ static void mlxplat_i2c_mux_topology_exit(struct mlxplat_priv *priv)
 	}
 }
 
-static int mlxplat_i2c_main_completion_notify(void *handle, int id)
+static int mlxplat_i2c_main_completion_analtify(void *handle, int id)
 {
 	struct mlxplat_priv *priv = handle;
 
@@ -6505,7 +6505,7 @@ static int mlxplat_i2c_main_init(struct mlxplat_priv *priv)
 		goto fail_platform_i2c_register;
 	}
 
-	if (priv->i2c_main_init_status == MLXPLAT_I2C_MAIN_BUS_NOTIFIED) {
+	if (priv->i2c_main_init_status == MLXPLAT_I2C_MAIN_BUS_ANALTIFIED) {
 		err = mlxplat_i2c_mux_topology_init(priv);
 		if (err)
 			goto fail_mlxplat_i2c_mux_topology_init;
@@ -6540,7 +6540,7 @@ static int mlxplat_probe(struct platform_device *pdev)
 	if (acpi_dev) {
 		irq_fpga = acpi_dev_gpio_irq_get(acpi_dev, 0);
 		if (irq_fpga < 0)
-			return -ENODEV;
+			return -EANALDEV;
 		mlxplat_dev = pdev;
 	}
 
@@ -6551,7 +6551,7 @@ static int mlxplat_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&mlxplat_dev->dev, sizeof(struct mlxplat_priv),
 			    GFP_KERNEL);
 	if (!priv) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_alloc;
 	}
 	platform_set_drvdata(mlxplat_dev, priv);
@@ -6590,14 +6590,14 @@ static int mlxplat_probe(struct platform_device *pdev)
 		goto fail_regcache_sync;
 
 	if (mlxplat_reboot_nb) {
-		err = register_reboot_notifier(mlxplat_reboot_nb);
+		err = register_reboot_analtifier(mlxplat_reboot_nb);
 		if (err)
-			goto fail_register_reboot_notifier;
+			goto fail_register_reboot_analtifier;
 	}
 
 	return 0;
 
-fail_register_reboot_notifier:
+fail_register_reboot_analtifier:
 fail_regcache_sync:
 	mlxplat_i2c_main_exit(priv);
 fail_mlxplat_i2c_main_init:
@@ -6615,7 +6615,7 @@ static void mlxplat_remove(struct platform_device *pdev)
 	if (pm_power_off)
 		pm_power_off = NULL;
 	if (mlxplat_reboot_nb)
-		unregister_reboot_notifier(mlxplat_reboot_nb);
+		unregister_reboot_analtifier(mlxplat_reboot_nb);
 	mlxplat_i2c_main_exit(priv);
 	mlxplat_logicdev_exit();
 }
@@ -6630,7 +6630,7 @@ static struct platform_driver mlxplat_driver = {
 	.driver		= {
 		.name	= "mlxplat",
 		.acpi_match_table = mlxplat_acpi_table,
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 	.probe		= mlxplat_probe,
 	.remove_new	= mlxplat_remove,
@@ -6641,7 +6641,7 @@ static int __init mlxplat_init(void)
 	int err;
 
 	if (!dmi_check_system(mlxplat_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = platform_driver_register(&mlxplat_driver);
 	if (err)
@@ -6659,6 +6659,6 @@ static void __exit mlxplat_exit(void)
 }
 module_exit(mlxplat_exit);
 
-MODULE_AUTHOR("Vadim Pasternak (vadimp@mellanox.com)");
-MODULE_DESCRIPTION("Mellanox platform driver");
+MODULE_AUTHOR("Vadim Pasternak (vadimp@mellaanalx.com)");
+MODULE_DESCRIPTION("Mellaanalx platform driver");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _dvb_introdution:
 
@@ -9,13 +9,13 @@ Introduction
 
 .. _requisites:
 
-What you need to know
+What you need to kanalw
 =====================
 
-The reader of this document is required to have some knowledge in the
+The reader of this document is required to have some kanalwledge in the
 area of digital video broadcasting (Digital TV) and should be familiar with
 part I of the MPEG2 specification ISO/IEC 13818 (aka ITU-T H.222), i.e
-you should know what a program/transport stream (PS/TS) is and what is
+you should kanalw what a program/transport stream (PS/TS) is and what is
 meant by a packetized elementary stream (PES) or an I-frame.
 
 Various Digital TV standards documents are available for download at:
@@ -24,8 +24,8 @@ Various Digital TV standards documents are available for download at:
 - American standards (ATSC): https://www.atsc.org/standards/
 - Japanese standards (ISDB): http://www.dibeg.org/
 
-It is also necessary to know how to access Linux devices and how to
-use ioctl calls. This also includes the knowledge of C or C++.
+It is also necessary to kanalw how to access Linux devices and how to
+use ioctl calls. This also includes the kanalwledge of C or C++.
 
 
 .. _history:
@@ -35,20 +35,20 @@ History
 
 The first API for Digital TV cards we used at Convergence in late 1999 was an
 extension of the Video4Linux API which was primarily developed for frame
-grabber cards. As such it was not really well suited to be used for Digital
+grabber cards. As such it was analt really well suited to be used for Digital
 TV cards and their new features like recording MPEG streams and filtering
 several section and PES data streams at the same time.
 
-In early 2000, Convergence was approached by Nokia with a proposal for a new
+In early 2000, Convergence was approached by Analkia with a proposal for a new
 standard Linux Digital TV API. As a commitment to the development of terminals
-based on open standards, Nokia and Convergence made it available to all
+based on open standards, Analkia and Convergence made it available to all
 Linux developers and published it on https://linuxtv.org in September
 2000. With the Linux driver for the Siemens/Hauppauge DVB PCI card,
 Convergence provided a first implementation of the Linux Digital TV API.
 Convergence was the maintainer of the Linux Digital TV API in the early
 days.
 
-Now, the API is maintained by the LinuxTV community (i.e. you, the reader
+Analw, the API is maintained by the LinuxTV community (i.e. you, the reader
 of this document). The Linux  Digital TV API is constantly reviewed and
 improved together with the improvements at the subsystem's core at the
 Kernel.
@@ -84,9 +84,9 @@ Conditional Access (CA) hardware like CI adapters and smartcard slots
    the user has access (controlled by the smart card) are decoded in
    real time and re-inserted into the TS.
 
-   .. note::
+   .. analte::
 
-      Not every digital TV hardware provides conditional access hardware.
+      Analt every digital TV hardware provides conditional access hardware.
 
 Demultiplexer which filters the incoming Digital TV MPEG-TS stream
    The demultiplexer splits the TS into its components like audio and
@@ -99,14 +99,14 @@ Audio and video decoder
    decoders. After decoding, they pass on the uncompressed audio and
    video to the computer screen or to a TV set.
 
-   .. note::
+   .. analte::
 
       Modern hardware usually doesn't have a separate decoder hardware, as
       such functionality can be provided by the main CPU, by the graphics
       adapter of the system or by a signal processing hardware embedded on
       a Systems on a Chip (SoC) integrated circuit.
 
-      It may also not be needed for certain usages (e.g. for data-only
+      It may also analt be needed for certain usages (e.g. for data-only
       uses like "internet over satellite").
 
 :ref:`stb_components` shows a crude schematic of the control and data
@@ -124,7 +124,7 @@ currently six Unix-style character devices for video, audio, frontend,
 demux, CA and IP-over-DVB networking. The video and audio devices
 control the MPEG2 decoder hardware, the frontend device the tuner and
 the Digital TV demodulator. The demux device gives you control over the PES
-and section filters of the hardware. If the hardware does not support
+and section filters of the hardware. If the hardware does analt support
 filtering these filters can be implemented in software. Finally, the CA
 device controls all the conditional access capabilities of the hardware.
 It can depend on the individual security requirements of the platform,

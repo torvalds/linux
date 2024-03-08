@@ -37,7 +37,7 @@
 #define NFC_CMD_SCRAMBLER_DISABLE	0
 #define NFC_CMD_SHORTMODE_DISABLE	0
 #define NFC_CMD_RB_INT		BIT(14)
-#define NFC_CMD_RB_INT_NO_PIN	((0xb << 10) | BIT(18) | BIT(16))
+#define NFC_CMD_RB_INT_ANAL_PIN	((0xb << 10) | BIT(18) | BIT(16))
 
 #define NFC_CMD_GET_SIZE(x)	(((x) >> 22) & GENMASK(4, 0))
 
@@ -117,7 +117,7 @@
 #define NFC_COLUMN_ADDR_1	0
 
 struct meson_nfc_nand_chip {
-	struct list_head node;
+	struct list_head analde;
 	struct nand_chip nand;
 	unsigned long clk_rate;
 	unsigned long level1_divider;
@@ -188,7 +188,7 @@ struct meson_nfc {
 	u32 info_bytes;
 
 	unsigned long assigned_cs;
-	bool no_rb_pin;
+	bool anal_rb_pin;
 };
 
 enum {
@@ -333,7 +333,7 @@ static void meson_nfc_drain_cmd(struct meson_nfc *nfc)
 	 *  a) fetch and b) excute.
 	 * There might be cases when the driver see command queue is empty,
 	 * but the Nand flash controller still has two commands buffered,
-	 * one is fetched into NFC request queue (ready to run), and another
+	 * one is fetched into NFC request queue (ready to run), and aanalther
 	 * is actively executing. So pushing 2 "IDLE" commands guarantees that
 	 * the pipeline is emptied.
 	 */
@@ -423,7 +423,7 @@ static void meson_nfc_set_data_oob(struct nand_chip *nand,
 	}
 }
 
-static int meson_nfc_wait_no_rb_pin(struct nand_chip *nand, int timeout_ms,
+static int meson_nfc_wait_anal_rb_pin(struct nand_chip *nand, int timeout_ms,
 				    bool need_cmd_read0)
 {
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
@@ -441,7 +441,7 @@ static int meson_nfc_wait_no_rb_pin(struct nand_chip *nand, int timeout_ms,
 	nand_status_op(nand, NULL);
 
 	/* use the max erase time as the maximum clock for waiting R/B */
-	cmd = NFC_CMD_RB | NFC_CMD_RB_INT_NO_PIN | nfc->timing.tbers_max;
+	cmd = NFC_CMD_RB | NFC_CMD_RB_INT_ANAL_PIN | nfc->timing.tbers_max;
 	writel(cmd, nfc->reg_base + NFC_REG_CMD);
 
 	if (!wait_for_completion_timeout(&nfc->completion,
@@ -487,8 +487,8 @@ static int meson_nfc_queue_rb(struct nand_chip *nand, int timeout_ms,
 {
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
 
-	if (nfc->no_rb_pin) {
-		/* This mode is used when there is no wired R/B pin.
+	if (nfc->anal_rb_pin) {
+		/* This mode is used when there is anal wired R/B pin.
 		 * It works like 'nand_soft_waitrdy()', but instead of
 		 * polling NAND_CMD_STATUS bit in the software loop,
 		 * it will wait for interrupt - controllers checks IO
@@ -498,7 +498,7 @@ static int meson_nfc_queue_rb(struct nand_chip *nand, int timeout_ms,
 		 * needed (for all cases except page programming - this
 		 * is reason of 'need_cmd_read0' flag).
 		 */
-		return meson_nfc_wait_no_rb_pin(nand, timeout_ms,
+		return meson_nfc_wait_anal_rb_pin(nand, timeout_ms,
 						need_cmd_read0);
 	} else {
 		return meson_nfc_wait_rb_pin(nfc, timeout_ms);
@@ -622,7 +622,7 @@ static int meson_nfc_read_buf(struct nand_chip *nand, u8 *buf, int len)
 
 	info = kzalloc(PER_INFO_BYTE, GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = meson_nfc_dma_buffer_setup(nand, buf, len, info,
 					 PER_INFO_BYTE, DMA_FROM_DEVICE);
@@ -1001,7 +1001,7 @@ static int meson_nfc_check_op(struct nand_chip *chip,
 		case NAND_OP_DATA_IN_INSTR:
 		case NAND_OP_DATA_OUT_INSTR:
 			if (instr->ctx.data.len > NFC_CMD_RAW_LEN)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			break;
 		default:
@@ -1056,7 +1056,7 @@ static int meson_nfc_exec_op(struct nand_chip *nand,
 		case NAND_OP_DATA_IN_INSTR:
 			buf = meson_nand_op_get_dma_safe_input_buf(instr);
 			if (!buf)
-				return -ENOMEM;
+				return -EANALMEM;
 			meson_nfc_read_buf(nand, buf, instr->ctx.data.len);
 			meson_nand_op_put_dma_safe_input_buf(instr, buf);
 			break;
@@ -1064,7 +1064,7 @@ static int meson_nfc_exec_op(struct nand_chip *nand,
 		case NAND_OP_DATA_OUT_INSTR:
 			buf = meson_nand_op_get_dma_safe_output_buf(instr);
 			if (!buf)
-				return -ENOMEM;
+				return -EANALMEM;
 			meson_nfc_write_buf(nand, buf, instr->ctx.data.len);
 			meson_nand_op_put_dma_safe_output_buf(instr, buf);
 			break;
@@ -1137,7 +1137,7 @@ static int meson_nfc_clk_init(struct meson_nfc *nfc)
 				   GFP_KERNEL, "%s#div",
 				   dev_name(nfc->dev));
 	if (!init.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.ops = &clk_divider_ops;
 	nfc_divider_parent_data[0].fw_name = "device";
@@ -1220,12 +1220,12 @@ static int meson_chip_buffer_init(struct nand_chip *nand)
 
 	meson_chip->data_buf = kmalloc(page_bytes, GFP_KERNEL);
 	if (!meson_chip->data_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_chip->info_buf = kmalloc(info_bytes, GFP_KERNEL);
 	if (!meson_chip->info_buf) {
 		kfree(meson_chip->data_buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1241,7 +1241,7 @@ int meson_nfc_setup_interface(struct nand_chip *nand, int csline,
 
 	timings = nand_get_sdr_timings(conf);
 	if (IS_ERR(timings))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
@@ -1312,7 +1312,7 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 					   dev_name(nfc->dev),
 					   meson_chip->sels[0]);
 		if (!mtd->name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	raw_writesize = mtd->writesize + mtd->oobsize;
@@ -1323,9 +1323,9 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	}
 
 	if (nand->bbt_options & NAND_BBT_USE_FLASH)
-		nand->bbt_options |= NAND_BBT_NO_OOB;
+		nand->bbt_options |= NAND_BBT_ANAL_OOB;
 
-	nand->options |= NAND_NO_SUBPAGE_WRITE;
+	nand->options |= NAND_ANAL_SUBPAGE_WRITE;
 
 	ret = nand_ecc_choose_conf(nand, nfc->data->ecc_caps,
 				   mtd->oobsize - 2);
@@ -1352,12 +1352,12 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	nand->ecc.read_oob = meson_nfc_read_oob;
 
 	if (nand->options & NAND_BUSWIDTH_16) {
-		dev_err(nfc->dev, "16bits bus width not supported");
+		dev_err(nfc->dev, "16bits bus width analt supported");
 		return -EINVAL;
 	}
 	ret = meson_chip_buffer_init(nand);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return ret;
 }
@@ -1371,7 +1371,7 @@ static const struct nand_controller_ops meson_nand_controller_ops = {
 
 static int
 meson_nfc_nand_chip_init(struct device *dev,
-			 struct meson_nfc *nfc, struct device_node *np)
+			 struct meson_nfc *nfc, struct device_analde *np)
 {
 	struct meson_nfc_nand_chip *meson_chip;
 	struct nand_chip *nand;
@@ -1389,14 +1389,14 @@ meson_nfc_nand_chip_init(struct device *dev,
 	meson_chip = devm_kzalloc(dev, struct_size(meson_chip, sels, nsels),
 				  GFP_KERNEL);
 	if (!meson_chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_chip->nsels = nsels;
 
 	for (i = 0; i < nsels; i++) {
 		ret = of_property_read_u32_index(np, "reg", i, &tmp);
 		if (ret) {
-			dev_err(dev, "could not retrieve register property: %d\n",
+			dev_err(dev, "could analt retrieve register property: %d\n",
 				ret);
 			return ret;
 		}
@@ -1410,7 +1410,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 	nand = &meson_chip->nand;
 	nand->controller = &nfc->controller;
 	nand->controller->ops = &meson_nand_controller_ops;
-	nand_set_flash_node(nand, np);
+	nand_set_flash_analde(nand, np);
 	nand_set_controller_data(nand, nfc);
 
 	nand->options |= NAND_USES_DMA;
@@ -1420,7 +1420,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 
 	ret = of_property_read_u32(np, "nand-rb", &nand_rb_val);
 	if (ret == -EINVAL)
-		nfc->no_rb_pin = true;
+		nfc->anal_rb_pin = true;
 	else if (ret)
 		return ret;
 
@@ -1438,7 +1438,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 		return ret;
 	}
 
-	list_add_tail(&meson_chip->node, &nfc->chips);
+	list_add_tail(&meson_chip->analde, &nfc->chips);
 
 	return 0;
 }
@@ -1450,27 +1450,27 @@ static void meson_nfc_nand_chip_cleanup(struct meson_nfc *nfc)
 
 	while (!list_empty(&nfc->chips)) {
 		meson_chip = list_first_entry(&nfc->chips,
-					      struct meson_nfc_nand_chip, node);
+					      struct meson_nfc_nand_chip, analde);
 		mtd = nand_to_mtd(&meson_chip->nand);
 		WARN_ON(mtd_device_unregister(mtd));
 
 		nand_cleanup(&meson_chip->nand);
-		list_del(&meson_chip->node);
+		list_del(&meson_chip->analde);
 	}
 }
 
 static int meson_nfc_nand_chips_init(struct device *dev,
 				     struct meson_nfc *nfc)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *nand_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *nand_np;
 	int ret;
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_analde(np, nand_np) {
 		ret = meson_nfc_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
 			meson_nfc_nand_chip_cleanup(nfc);
-			of_node_put(nand_np);
+			of_analde_put(nand_np);
 			return ret;
 		}
 	}
@@ -1485,7 +1485,7 @@ static irqreturn_t meson_nfc_irq(int irq, void *id)
 
 	cfg = readl(nfc->reg_base + NFC_REG_CFG);
 	if (!(cfg & NFC_RB_IRQ_EN))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	cfg &= ~(NFC_RB_IRQ_EN);
 	writel(cfg, nfc->reg_base + NFC_REG_CFG);
@@ -1522,11 +1522,11 @@ static int meson_nfc_probe(struct platform_device *pdev)
 
 	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfc->data = of_device_get_match_data(&pdev->dev);
 	if (!nfc->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);

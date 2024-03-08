@@ -381,17 +381,17 @@ struct wm8995_priv {
 	int aifclk[2];
 	struct fll_config fll[2], fll_suspend[2];
 	struct regulator_bulk_data supplies[WM8995_NUM_SUPPLIES];
-	struct notifier_block disable_nb[WM8995_NUM_SUPPLIES];
+	struct analtifier_block disable_nb[WM8995_NUM_SUPPLIES];
 	struct snd_soc_component *component;
 };
 
 /*
- * We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+ * We can't use the same analtifier block for more than one supply and
+ * there's anal way I can see to get from a callback to the caller
  * except container_of().
  */
 #define WM8995_REGULATOR_EVENT(n) \
-static int wm8995_regulator_event_##n(struct notifier_block *nb, \
+static int wm8995_regulator_event_##n(struct analtifier_block *nb, \
 				      unsigned long event, void *data)    \
 { \
 	struct wm8995_priv *wm8995 = container_of(nb, struct wm8995_priv, \
@@ -913,9 +913,9 @@ static const struct snd_soc_dapm_widget wm8995_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN1L"),
 	SND_SOC_DAPM_INPUT("IN1R"),
 
-	SND_SOC_DAPM_MIXER("IN1L PGA", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("IN1L PGA", SND_SOC_ANALPM, 0, 0,
 		&in1l_pga, 1),
-	SND_SOC_DAPM_MIXER("IN1R PGA", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("IN1R PGA", SND_SOC_ANALPM, 0, 0,
 		&in1r_pga, 1),
 
 	SND_SOC_DAPM_SUPPLY("MICBIAS1", WM8995_POWER_MANAGEMENT_1, 8, 0,
@@ -928,7 +928,7 @@ static const struct snd_soc_dapm_widget wm8995_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("DSP1CLK", WM8995_CLOCKING_1, 3, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DSP2CLK", WM8995_CLOCKING_1, 2, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("SYSDSPCLK", WM8995_CLOCKING_1, 1, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_NOPM, 0, 0, clk_sys_event,
+	SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_ANALPM, 0, 0, clk_sys_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_AIF_OUT("AIF1ADC1L", "AIF1 Capture", 0,
@@ -936,14 +936,14 @@ static const struct snd_soc_dapm_widget wm8995_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("AIF1ADC1R", "AIF1 Capture", 0,
 		WM8995_POWER_MANAGEMENT_3, 8, 0),
 	SND_SOC_DAPM_AIF_OUT("AIF1ADCDAT", "AIF1 Capture", 0,
-	SND_SOC_NOPM, 0, 0),
+	SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AIF1ADC2L", "AIF1 Capture",
 		0, WM8995_POWER_MANAGEMENT_3, 11, 0),
 	SND_SOC_DAPM_AIF_OUT("AIF1ADC2R", "AIF1 Capture",
 		0, WM8995_POWER_MANAGEMENT_3, 10, 0),
 
-	SND_SOC_DAPM_MUX("ADCL Mux", SND_SOC_NOPM, 1, 0, &adcl_mux),
-	SND_SOC_DAPM_MUX("ADCR Mux", SND_SOC_NOPM, 0, 0, &adcr_mux),
+	SND_SOC_DAPM_MUX("ADCL Mux", SND_SOC_ANALPM, 1, 0, &adcl_mux),
+	SND_SOC_DAPM_MUX("ADCR Mux", SND_SOC_ANALPM, 0, 0, &adcr_mux),
 
 	SND_SOC_DAPM_ADC("DMIC2L", NULL, WM8995_POWER_MANAGEMENT_3, 5, 0),
 	SND_SOC_DAPM_ADC("DMIC2R", NULL, WM8995_POWER_MANAGEMENT_3, 4, 0),
@@ -953,20 +953,20 @@ static const struct snd_soc_dapm_widget wm8995_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADCL", NULL, WM8995_POWER_MANAGEMENT_3, 1, 0),
 	SND_SOC_DAPM_ADC("ADCR", NULL, WM8995_POWER_MANAGEMENT_3, 0, 0),
 
-	SND_SOC_DAPM_MIXER("AIF1ADC1L Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("AIF1ADC1L Mixer", SND_SOC_ANALPM, 0, 0,
 		aif1adc1l_mix, ARRAY_SIZE(aif1adc1l_mix)),
-	SND_SOC_DAPM_MIXER("AIF1ADC1R Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("AIF1ADC1R Mixer", SND_SOC_ANALPM, 0, 0,
 		aif1adc1r_mix, ARRAY_SIZE(aif1adc1r_mix)),
-	SND_SOC_DAPM_MIXER("AIF1ADC2L Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("AIF1ADC2L Mixer", SND_SOC_ANALPM, 0, 0,
 		aif1adc2l_mix, ARRAY_SIZE(aif1adc2l_mix)),
-	SND_SOC_DAPM_MIXER("AIF1ADC2R Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("AIF1ADC2R Mixer", SND_SOC_ANALPM, 0, 0,
 		aif1adc2r_mix, ARRAY_SIZE(aif1adc2r_mix)),
 
 	SND_SOC_DAPM_AIF_IN("AIF1DAC1L", NULL, 0, WM8995_POWER_MANAGEMENT_4,
 		9, 0),
 	SND_SOC_DAPM_AIF_IN("AIF1DAC1R", NULL, 0, WM8995_POWER_MANAGEMENT_4,
 		8, 0),
-	SND_SOC_DAPM_AIF_IN("AIF1DACDAT", "AIF1 Playback", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_IN("AIF1DACDAT", "AIF1 Playback", 0, SND_SOC_ANALPM,
 		0, 0),
 
 	SND_SOC_DAPM_AIF_IN("AIF1DAC2L", NULL, 0, WM8995_POWER_MANAGEMENT_4,
@@ -974,9 +974,9 @@ static const struct snd_soc_dapm_widget wm8995_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("AIF1DAC2R", NULL, 0, WM8995_POWER_MANAGEMENT_4,
 		10, 0),
 
-	SND_SOC_DAPM_MIXER("AIF2DAC2L Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("AIF2DAC2L Mixer", SND_SOC_ANALPM, 0, 0,
 		aif2dac2l_mix, ARRAY_SIZE(aif2dac2l_mix)),
-	SND_SOC_DAPM_MIXER("AIF2DAC2R Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("AIF2DAC2R Mixer", SND_SOC_ANALPM, 0, 0,
 		aif2dac2r_mix, ARRAY_SIZE(aif2dac2r_mix)),
 
 	SND_SOC_DAPM_DAC("DAC2L", NULL, WM8995_POWER_MANAGEMENT_4, 3, 0),
@@ -984,18 +984,18 @@ static const struct snd_soc_dapm_widget wm8995_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC1L", NULL, WM8995_POWER_MANAGEMENT_4, 1, 0),
 	SND_SOC_DAPM_DAC("DAC1R", NULL, WM8995_POWER_MANAGEMENT_4, 0, 0),
 
-	SND_SOC_DAPM_MIXER("DAC1L Mixer", SND_SOC_NOPM, 0, 0, dac1l_mix,
+	SND_SOC_DAPM_MIXER("DAC1L Mixer", SND_SOC_ANALPM, 0, 0, dac1l_mix,
 		ARRAY_SIZE(dac1l_mix)),
-	SND_SOC_DAPM_MIXER("DAC1R Mixer", SND_SOC_NOPM, 0, 0, dac1r_mix,
+	SND_SOC_DAPM_MIXER("DAC1R Mixer", SND_SOC_ANALPM, 0, 0, dac1r_mix,
 		ARRAY_SIZE(dac1r_mix)),
 
-	SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_NOPM, 0, 0, &sidetone1_mux),
-	SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_NOPM, 0, 0, &sidetone2_mux),
+	SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_ANALPM, 0, 0, &sidetone1_mux),
+	SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_ANALPM, 0, 0, &sidetone2_mux),
 
-	SND_SOC_DAPM_PGA_E("Headphone PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("Headphone PGA", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		hp_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_SUPPLY("Headphone Supply", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Headphone Supply", SND_SOC_ANALPM, 0, 0,
 		hp_supply_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_MUX("SPK1L Driver", WM8995_LEFT_PDM_SPEAKER_1,
@@ -1454,7 +1454,7 @@ static int wm8995_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		master = WM8995_AIF1_MSTR;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown master/slave configuration\n");
+		dev_err(dai->dev, "Unkanalwn master/slave configuration\n");
 		return -EINVAL;
 	}
 
@@ -1475,14 +1475,14 @@ static int wm8995_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		aif |= (0x1 << WM8995_AIF1_FMT_SHIFT);
 		break;
 	default:
-		dev_err(dai->dev, "Unknown dai format\n");
+		dev_err(dai->dev, "Unkanalwn dai format\n");
 		return -EINVAL;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1615,7 +1615,7 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 		if (srs[i] == params_rate(params))
 			break;
 	if (i == ARRAY_SIZE(srs)) {
-		dev_err(dai->dev, "Sample rate %d is not supported\n",
+		dev_err(dai->dev, "Sample rate %d is analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -1643,9 +1643,9 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 		dai->id + 1, fs_ratios[best]);
 
 	/*
-	 * We may not get quite the right frequency if using
+	 * We may analt get quite the right frequency if using
 	 * approximate clocks so look for the closest match that is
-	 * higher than the target (we need to ensure that there enough
+	 * higher than the target (we need to ensure that there eanalugh
 	 * BCLKs to clock out the samples).
 	 */
 	best = 0;
@@ -1766,7 +1766,7 @@ static int wm8995_get_fll_config(struct fll_div *fll,
 	}
 	pr_debug("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
 
-	/* Now, calculate N.K */
+	/* Analw, calculate N.K */
 	Ndiv = freq_out / freq_in;
 
 	fll->n = Ndiv;
@@ -1783,7 +1783,7 @@ static int wm8995_get_fll_config(struct fll_div *fll,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	fll->k = K / 10;
 
 	pr_debug("N=%x K=%x\n", fll->n, fll->k);
@@ -1825,7 +1825,7 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 
 	switch (src) {
 	case 0:
-		/* Allow no source specification when stopping */
+		/* Allow anal source specification when stopping */
 		if (freq_out)
 			return -EINVAL;
 		break;
@@ -1843,7 +1843,7 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 	    wm8995->fll[id].in == freq_in && wm8995->fll[id].out == freq_out)
 		return 0;
 
-	/* If we're stopping the FLL redo the old config - no
+	/* If we're stopping the FLL redo the old config - anal
 	 * registers will actually be written but we avoid GCC flow
 	 * analysis bugs spewing warnings.
 	 */
@@ -1943,7 +1943,7 @@ static int wm8995_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case WM8995_SYSCLK_OPCLK:
 	default:
-		dev_err(dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(dai->dev, "Unkanalwn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -2012,23 +2012,23 @@ static int wm8995_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	wm8995->disable_nb[0].notifier_call = wm8995_regulator_event_0;
-	wm8995->disable_nb[1].notifier_call = wm8995_regulator_event_1;
-	wm8995->disable_nb[2].notifier_call = wm8995_regulator_event_2;
-	wm8995->disable_nb[3].notifier_call = wm8995_regulator_event_3;
-	wm8995->disable_nb[4].notifier_call = wm8995_regulator_event_4;
-	wm8995->disable_nb[5].notifier_call = wm8995_regulator_event_5;
-	wm8995->disable_nb[6].notifier_call = wm8995_regulator_event_6;
-	wm8995->disable_nb[7].notifier_call = wm8995_regulator_event_7;
+	wm8995->disable_nb[0].analtifier_call = wm8995_regulator_event_0;
+	wm8995->disable_nb[1].analtifier_call = wm8995_regulator_event_1;
+	wm8995->disable_nb[2].analtifier_call = wm8995_regulator_event_2;
+	wm8995->disable_nb[3].analtifier_call = wm8995_regulator_event_3;
+	wm8995->disable_nb[4].analtifier_call = wm8995_regulator_event_4;
+	wm8995->disable_nb[5].analtifier_call = wm8995_regulator_event_5;
+	wm8995->disable_nb[6].analtifier_call = wm8995_regulator_event_6;
+	wm8995->disable_nb[7].analtifier_call = wm8995_regulator_event_7;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); i++) {
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_analtifier(
 						wm8995->supplies[i].consumer,
 						&wm8995->disable_nb[i]);
 		if (ret) {
 			dev_err(component->dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator analtifier: %d\n",
 				ret);
 		}
 	}
@@ -2097,7 +2097,7 @@ static const struct snd_soc_dai_ops wm8995_aif1_dai_ops = {
 	.mute_stream = wm8995_aif_mute,
 	.set_pll = wm8995_set_fll,
 	.set_tristate = wm8995_set_tristate,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8995_aif2_dai_ops = {
@@ -2107,7 +2107,7 @@ static const struct snd_soc_dai_ops wm8995_aif2_dai_ops = {
 	.mute_stream = wm8995_aif_mute,
 	.set_pll = wm8995_set_fll,
 	.set_tristate = wm8995_set_tristate,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8995_aif3_dai_ops = {
@@ -2204,7 +2204,7 @@ static int wm8995_spi_probe(struct spi_device *spi)
 
 	wm8995 = devm_kzalloc(&spi->dev, sizeof(*wm8995), GFP_KERNEL);
 	if (!wm8995)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, wm8995);
 
@@ -2237,7 +2237,7 @@ static int wm8995_i2c_probe(struct i2c_client *i2c)
 
 	wm8995 = devm_kzalloc(&i2c->dev, sizeof(*wm8995), GFP_KERNEL);
 	if (!wm8995)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, wm8995);
 

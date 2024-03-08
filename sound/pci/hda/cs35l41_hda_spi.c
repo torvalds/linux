@@ -17,13 +17,13 @@ static int cs35l41_hda_spi_probe(struct spi_device *spi)
 	const char *device_name;
 
 	/*
-	 * Compare against the device name so it works for SPI, normal ACPI
+	 * Compare against the device name so it works for SPI, analrmal ACPI
 	 * and for ACPI by serial-multi-instantiate matching cases.
 	 */
 	if (strstr(dev_name(&spi->dev), "CSC3551"))
 		device_name = "CSC3551";
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cs35l41_hda_probe(&spi->dev, device_name, spi_get_chipselect(spi, 0), spi->irq,
 				 devm_regmap_init_spi(spi, &cs35l41_regmap_spi), SPI);

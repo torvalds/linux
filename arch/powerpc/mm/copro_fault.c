@@ -46,8 +46,8 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto out_unlock;
 		/*
-		 * PROT_NONE is covered by the VMA check above.
-		 * and hash should get a NOHPTE fault instead of
+		 * PROT_ANALNE is covered by the VMA check above.
+		 * and hash should get a ANALHPTE fault instead of
 		 * a PROTFAULT in case fixup is needed for things
 		 * like autonuma.
 		 */
@@ -64,7 +64,7 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
 
 	if (unlikely(*flt & VM_FAULT_ERROR)) {
 		if (*flt & VM_FAULT_OOM) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_unlock;
 		} else if (*flt & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV)) {
 			ret = -EFAULT;

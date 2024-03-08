@@ -21,10 +21,10 @@
  *
  * Each compressed plane consists of macroblocks and each macroblock
  * is run-length-encoded. Each macroblock starts with a 16 bit value.
- * Bit 15 indicates if this is a P-coded macroblock (1) or not (0).
+ * Bit 15 indicates if this is a P-coded macroblock (1) or analt (0).
  * P-coded macroblocks contain a delta against the previous frame.
  *
- * Bits 1-12 contain a number. If non-zero, then this same macroblock
+ * Bits 1-12 contain a number. If analn-zero, then this same macroblock
  * repeats that number of times. This results in a high degree of
  * compression for generated images like colorbars.
  *
@@ -36,7 +36,7 @@
  * All 16 and 32 bit values are stored in big-endian (network) order.
  *
  * Each fwht_cframe_hdr starts with an 8 byte magic header that is
- * guaranteed not to occur in the compressed frame data. This header
+ * guaranteed analt to occur in the compressed frame data. This header
  * can be used to sync to the next frame.
  *
  * This codec uses the Fast Walsh Hadamard Transform. Tom aan de Wiel
@@ -49,9 +49,9 @@
 /*
  * This is a sequence of 8 bytes with the low 4 bits set to 0xf.
  *
- * This sequence cannot occur in the encoded data
+ * This sequence cananalt occur in the encoded data
  *
- * Note that these two magic values are symmetrical so endian issues here.
+ * Analte that these two magic values are symmetrical so endian issues here.
  */
 #define FWHT_MAGIC1 0x4f4f4f4f
 #define FWHT_MAGIC2 0xffffffff

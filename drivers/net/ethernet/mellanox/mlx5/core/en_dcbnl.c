@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -53,8 +53,8 @@ enum {
 
 enum {
 	MLX5_DCB_CHG_RESET,
-	MLX5_DCB_NO_CHG,
-	MLX5_DCB_CHG_NO_RESET,
+	MLX5_DCB_ANAL_CHG,
+	MLX5_DCB_CHG_ANAL_RESET,
 };
 
 #define MLX5_DSCP_SUPPORTED(mdev) (MLX5_CAP_GEN(mdev, qcam_reg)  && \
@@ -64,7 +64,7 @@ enum {
 static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state);
 static int mlx5e_set_dscp2prio(struct mlx5e_priv *priv, u8 dscp, u8 prio);
 
-/* If dcbx mode is non-host set the dcbx mode to host.
+/* If dcbx mode is analn-host set the dcbx mode to host.
  */
 static int mlx5e_dcbnl_set_dcbx_mode(struct mlx5e_priv *priv,
 				     enum mlx5_dcbx_oper_mode mode)
@@ -115,7 +115,7 @@ static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 	int i;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		err = mlx5_query_port_prio_tc(mdev, i, &ets->prio_tc[i]);
@@ -242,7 +242,7 @@ static void mlx5e_build_tc_tx_bw(struct ieee_ets *ets, u8 *tc_tx_bw,
 }
 
 /* If there are ETS BW 0,
- *   Set ETS group # to 1 for all ETS non zero BW tcs. Their sum must be 100%.
+ *   Set ETS group # to 1 for all ETS analn zero BW tcs. Their sum must be 100%.
  *   Set group #0 to all the ETS BW 0 tcs and
  *     equally splits the 100% BW between them
  *   Report both group #0 and #1 as ETS type.
@@ -326,7 +326,7 @@ static int mlx5e_dcbnl_ieee_setets(struct net_device *netdev,
 	int err;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = mlx5e_dbcnl_validate_ets(netdev, ets, false);
 	if (err)
@@ -455,7 +455,7 @@ static int mlx5e_dcbnl_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 
 	if (!MLX5_CAP_GEN(priv->mdev, vport_group_manager) ||
 	    !MLX5_DSCP_SUPPORTED(priv->mdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((app->selector != IEEE_8021QAZ_APP_SEL_DSCP) ||
 	    (app->protocol >= MLX5E_MAX_DSCP))
@@ -508,19 +508,19 @@ static int mlx5e_dcbnl_ieee_delapp(struct net_device *dev, struct dcb_app *app)
 
 	if  (!MLX5_CAP_GEN(priv->mdev, vport_group_manager) ||
 	     !MLX5_DSCP_SUPPORTED(priv->mdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((app->selector != IEEE_8021QAZ_APP_SEL_DSCP) ||
 	    (app->protocol >= MLX5E_MAX_DSCP))
 		return -EINVAL;
 
-	/* Skip if no dscp app entry */
+	/* Skip if anal dscp app entry */
 	if (!priv->dcbx.dscp_app_cnt)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Check if the entry matches fw setting */
 	if (app->priority != priv->dcbx_dp.dscp2prio[app->protocol])
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Delete the app entry */
 	err = dcb_ieee_delapp(dev, app);
@@ -569,10 +569,10 @@ static int mlx5e_dcbnl_ieee_getmaxrate(struct net_device *netdev,
 		case MLX5_GBPS_UNIT:
 			maxrate->tc_maxrate[i] = max_bw_value[i] * MLX5E_1GB;
 			break;
-		case MLX5_BW_NO_LIMIT:
+		case MLX5_BW_ANAL_LIMIT:
 			break;
 		default:
-			WARN(true, "non-supported BW unit");
+			WARN(true, "analn-supported BW unit");
 			break;
 		}
 	}
@@ -595,7 +595,7 @@ static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
 
 	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
 		if (!maxrate->tc_maxrate[i]) {
-			max_bw_unit[i]  = MLX5_BW_NO_LIMIT;
+			max_bw_unit[i]  = MLX5_BW_ANAL_LIMIT;
 			continue;
 		}
 		if (maxrate->tc_maxrate[i] < upper_limit_mbps) {
@@ -625,7 +625,7 @@ static u8 mlx5e_dcbnl_setall(struct net_device *netdev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct ieee_ets ets;
 	struct ieee_pfc pfc;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	int i;
 
 	if (!MLX5_CAP_GEN(mdev, ets))
@@ -672,7 +672,7 @@ static u8 mlx5e_dcbnl_setall(struct net_device *netdev)
 		goto out;
 	}
 out:
-	return err ? MLX5_DCB_NO_CHG : MLX5_DCB_CHG_RESET;
+	return err ? MLX5_DCB_ANAL_CHG : MLX5_DCB_CHG_RESET;
 }
 
 static u8 mlx5e_dcbnl_getstate(struct net_device *netdev)
@@ -738,7 +738,7 @@ static void mlx5e_dcbnl_getpgtccfgtx(struct net_device *netdev,
 	struct mlx5_core_dev *mdev = priv->mdev;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets)) {
-		netdev_err(netdev, "%s, ets is not supported\n", __func__);
+		netdev_err(netdev, "%s, ets is analt supported\n", __func__);
 		return;
 	}
 
@@ -913,7 +913,7 @@ static int mlx5e_dcbnl_getbuffer(struct net_device *dev,
 	int i, err;
 
 	if (!MLX5_BUFFER_SUPPORTED(mdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = mlx5e_port_query_priority2buffer(mdev, buffer);
 	if (err)
@@ -947,7 +947,7 @@ static int mlx5e_dcbnl_setbuffer(struct net_device *dev,
 	int i, err;
 
 	if (!MLX5_BUFFER_SUPPORTED(mdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < DCBX_MAX_BUFFERS; i++)
 		mlx5_core_dbg(mdev, "buffer[%d]=%d\n", i, dcb_buffer->buffer_size[i]);
@@ -1040,7 +1040,7 @@ static void mlx5e_dcbnl_query_dcbx_mode(struct mlx5e_priv *priv,
 		*mode = MLX5_GET(dcbx_param, out, version_oper);
 
 	/* From driver's point of view, we only care if the mode
-	 * is host (HOST) or non-host (AUTO)
+	 * is host (HOST) or analn-host (AUTO)
 	 */
 	if (*mode != MLX5E_DCBX_PARAM_VER_OPER_HOST)
 		*mode = MLX5E_DCBX_PARAM_VER_OPER_AUTO;
@@ -1091,7 +1091,7 @@ static void mlx5e_dcbnl_dscp_app(struct mlx5e_priv *priv, int action)
 	if (!MLX5_DSCP_SUPPORTED(priv->mdev))
 		return;
 
-	/* No SEL_DSCP entry in non DSCP state */
+	/* Anal SEL_DSCP entry in analn DSCP state */
 	if (priv->dcbx_dp.trust_state != MLX5_QPTS_TRUST_DSCP)
 		return;
 

@@ -106,7 +106,7 @@ pte_t *pte_fragment_alloc(struct mm_struct *mm, int kernel)
 	return __alloc_for_ptecache(mm, kernel);
 }
 
-static void pte_free_now(struct rcu_head *head)
+static void pte_free_analw(struct rcu_head *head)
 {
 	struct ptdesc *ptdesc;
 
@@ -127,9 +127,9 @@ void pte_fragment_free(unsigned long *table, int kernel)
 		if (kernel)
 			pagetable_free(ptdesc);
 		else if (folio_test_clear_active(ptdesc_folio(ptdesc)))
-			call_rcu(&ptdesc->pt_rcu_head, pte_free_now);
+			call_rcu(&ptdesc->pt_rcu_head, pte_free_analw);
 		else
-			pte_free_now(&ptdesc->pt_rcu_head);
+			pte_free_analw(&ptdesc->pt_rcu_head);
 	}
 }
 

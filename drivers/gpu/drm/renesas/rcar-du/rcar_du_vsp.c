@@ -185,7 +185,7 @@ static u32 rcar_du_vsp_state_get_format(struct rcar_du_vsp_plane_state *state)
 {
 	u32 fourcc = state->format->fourcc;
 
-	if (state->state.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE) {
+	if (state->state.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_ANALNE) {
 		switch (fourcc) {
 		case DRM_FORMAT_ARGB1555:
 			fourcc = DRM_FORMAT_XRGB1555;
@@ -272,8 +272,8 @@ int rcar_du_vsp_map_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
 
 			/*
 			 * If the GEM buffer has a scatter gather table, it has
-			 * been imported from a dma-buf and has no physical
-			 * address as it might not be physically contiguous.
+			 * been imported from a dma-buf and has anal physical
+			 * address as it might analt be physically contiguous.
 			 * Copy the original scatter gather table to map it to
 			 * the VSP.
 			 */
@@ -325,8 +325,8 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 	int ret;
 
 	/*
-	 * There's no need to prepare (and unprepare) the framebuffer when the
-	 * plane is not visible, as it will not be displayed.
+	 * There's anal need to prepare (and unprepare) the framebuffer when the
+	 * plane is analt visible, as it will analt be displayed.
 	 */
 	if (!state->visible)
 		return 0;
@@ -461,7 +461,7 @@ static void rcar_du_vsp_cleanup(struct drm_device *dev, void *res)
 	put_device(vsp->vsp);
 }
 
-int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
+int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_analde *np,
 		     unsigned int crtcs)
 {
 	struct rcar_du_device *rcdu = vsp->dev;
@@ -472,7 +472,7 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 	int ret;
 
 	/* Find the VSP device and initialize it. */
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev)
 		return -ENXIO;
 
@@ -490,7 +490,7 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 
 	vsp->planes = kcalloc(num_planes, sizeof(*vsp->planes), GFP_KERNEL);
 	if (!vsp->planes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_planes; ++i) {
 		enum drm_plane_type type = i < num_crtcs
@@ -526,7 +526,7 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 					       num_planes - 1);
 
 		drm_plane_create_blend_mode_property(&plane->plane,
-					BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+					BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 					BIT(DRM_MODE_BLEND_PREMULTI) |
 					BIT(DRM_MODE_BLEND_COVERAGE));
 

@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  arch/arm/include/asm/page-nommu.h
+ *  arch/arm/include/asm/page-analmmu.h
  *
  *  Copyright (C) 2004 Hyok S. Choi
  */
 
-#ifndef _ASMARM_PAGE_NOMMU_H
-#define _ASMARM_PAGE_NOMMU_H
+#ifndef _ASMARM_PAGE_ANALMMU_H
+#define _ASMARM_PAGE_ANALMMU_H
 
 #define clear_page(page)	memset((page), 0, PAGE_SIZE)
 #define copy_page(to,from)	memcpy((to), (from), PAGE_SIZE)

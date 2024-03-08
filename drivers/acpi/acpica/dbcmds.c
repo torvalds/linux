@@ -24,7 +24,7 @@ acpi_dm_compare_aml_resources(u8 *aml1_buffer,
 			      acpi_rsdesc_size aml2_buffer_length);
 
 static acpi_status
-acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name);
+acpi_dm_test_resource_conversion(struct acpi_namespace_analde *analde, char *name);
 
 static acpi_status
 acpi_db_resource_callback(struct acpi_resource *resource, void *context);
@@ -39,20 +39,20 @@ static char *acpi_db_trace_method_name = NULL;
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_convert_to_node
+ * FUNCTION:    acpi_db_convert_to_analde
  *
  * PARAMETERS:  in_string           - String to convert
  *
- * RETURN:      Pointer to a NS node
+ * RETURN:      Pointer to a NS analde
  *
  * DESCRIPTION: Convert a string to a valid NS pointer. Handles numeric or
  *              alphanumeric strings.
  *
  ******************************************************************************/
 
-struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string)
+struct acpi_namespace_analde *acpi_db_convert_to_analde(char *in_string)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_size address;
 
 	if ((*in_string >= 0x30) && (*in_string <= 0x39)) {
@@ -60,18 +60,18 @@ struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string)
 		/* Numeric argument, convert */
 
 		address = strtoul(in_string, NULL, 16);
-		node = ACPI_TO_POINTER(address);
-		if (!acpi_os_readable(node, sizeof(struct acpi_namespace_node))) {
-			acpi_os_printf("Address %p is invalid", node);
+		analde = ACPI_TO_POINTER(address);
+		if (!acpi_os_readable(analde, sizeof(struct acpi_namespace_analde))) {
+			acpi_os_printf("Address %p is invalid", analde);
 			return (NULL);
 		}
 
-		/* Make sure pointer is valid NS node */
+		/* Make sure pointer is valid NS analde */
 
-		if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+		if (ACPI_GET_DESCRIPTOR_TYPE(analde) != ACPI_DESC_TYPE_NAMED) {
 			acpi_os_printf
-			    ("Address %p is not a valid namespace node [%s]\n",
-			     node, acpi_ut_get_descriptor_name(node));
+			    ("Address %p is analt a valid namespace analde [%s]\n",
+			     analde, acpi_ut_get_descriptor_name(analde));
 			return (NULL);
 		}
 	} else {
@@ -79,16 +79,16 @@ struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string)
 		 * Alpha argument: The parameter is a name string that must be
 		 * resolved to a Namespace object.
 		 */
-		node = acpi_db_local_ns_lookup(in_string);
-		if (!node) {
+		analde = acpi_db_local_ns_lookup(in_string);
+		if (!analde) {
 			acpi_os_printf
-			    ("Could not find [%s] in namespace, defaulting to root node\n",
+			    ("Could analt find [%s] in namespace, defaulting to root analde\n",
 			     in_string);
-			node = acpi_gbl_root_node;
+			analde = acpi_gbl_root_analde;
 		}
 	}
 
-	return (node);
+	return (analde);
 }
 
 /*******************************************************************************
@@ -111,7 +111,7 @@ acpi_status acpi_db_sleep(char *object_arg)
 
 	ACPI_FUNCTION_TRACE(acpi_db_sleep);
 
-	/* Null input (no arguments) means to invoke all sleep states */
+	/* Null input (anal arguments) means to invoke all sleep states */
 
 	if (!object_arg) {
 		acpi_os_printf("Invoking all possible sleep states, 0-%d\n",
@@ -137,7 +137,7 @@ acpi_status acpi_db_sleep(char *object_arg)
  *
  * PARAMETERS:  sleep_state         - Desired sleep state (0-5)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Simulate a sleep/wake sequence
  *
@@ -165,7 +165,7 @@ static void acpi_db_do_one_sleep_state(u8 sleep_state)
 	status =
 	    acpi_get_sleep_type_data(sleep_state, &sleep_type_a, &sleep_type_b);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not evaluate [%s] method, %s\n",
+		acpi_os_printf("Could analt evaluate [%s] method, %s\n",
 			       acpi_gbl_sleep_state_names[sleep_state],
 			       acpi_format_exception(status));
 		return;
@@ -215,9 +215,9 @@ error_exit:
  *
  * FUNCTION:    acpi_db_display_locks
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display information about internal mutexes.
  *
@@ -230,7 +230,7 @@ void acpi_db_display_locks(void)
 	for (i = 0; i < ACPI_MAX_MUTEX; i++) {
 		acpi_os_printf("%26s : %s\n", acpi_ut_get_mutex_name(i),
 			       acpi_gbl_mutex_info[i].thread_id ==
-			       ACPI_MUTEX_NOT_ACQUIRED ? "Locked" : "Unlocked");
+			       ACPI_MUTEX_ANALT_ACQUIRED ? "Locked" : "Unlocked");
 	}
 }
 
@@ -240,7 +240,7 @@ void acpi_db_display_locks(void)
  *
  * PARAMETERS:  table_arg           - Name of table to be displayed
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display information about loaded tables. Current
  *              implementation displays all loaded tables.
@@ -270,7 +270,7 @@ void acpi_db_display_table_info(char *table_arg)
 		/* Decode the table flags */
 
 		if (!(table_desc->flags & ACPI_TABLE_IS_LOADED)) {
-			acpi_os_printf("NotLoaded ");
+			acpi_os_printf("AnaltLoaded ");
 		} else {
 			acpi_os_printf(" Loaded ");
 		}
@@ -325,29 +325,29 @@ void acpi_db_display_table_info(char *table_arg)
  * PARAMETERS:  object_name         - Namespace pathname for an object that
  *                                    is owned by the table to be unloaded
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Unload an ACPI table, via any namespace node that is owned
+ * DESCRIPTION: Unload an ACPI table, via any namespace analde that is owned
  *              by the table.
  *
  ******************************************************************************/
 
 void acpi_db_unload_acpi_table(char *object_name)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	/* Translate name to an Named object */
 
-	node = acpi_db_convert_to_node(object_name);
-	if (!node) {
+	analde = acpi_db_convert_to_analde(object_name);
+	if (!analde) {
 		return;
 	}
 
-	status = acpi_unload_parent_table(ACPI_CAST_PTR(acpi_handle, node));
+	status = acpi_unload_parent_table(ACPI_CAST_PTR(acpi_handle, analde));
 	if (ACPI_SUCCESS(status)) {
 		acpi_os_printf("Parent of [%s] (%p) unloaded and uninstalled\n",
-			       object_name, node);
+			       object_name, analde);
 	} else {
 		acpi_os_printf("%s, while unloading parent table of [%s]\n",
 			       acpi_format_exception(status), object_name);
@@ -356,42 +356,42 @@ void acpi_db_unload_acpi_table(char *object_name)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_send_notify
+ * FUNCTION:    acpi_db_send_analtify
  *
- * PARAMETERS:  name                - Name of ACPI object where to send notify
- *              value               - Value of the notify to send.
+ * PARAMETERS:  name                - Name of ACPI object where to send analtify
+ *              value               - Value of the analtify to send.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Send an ACPI notification. The value specified is sent to the
- *              named object as an ACPI notify.
+ * DESCRIPTION: Send an ACPI analtification. The value specified is sent to the
+ *              named object as an ACPI analtify.
  *
  ******************************************************************************/
 
-void acpi_db_send_notify(char *name, u32 value)
+void acpi_db_send_analtify(char *name, u32 value)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	/* Translate name to an Named object */
 
-	node = acpi_db_convert_to_node(name);
-	if (!node) {
+	analde = acpi_db_convert_to_analde(name);
+	if (!analde) {
 		return;
 	}
 
-	/* Dispatch the notify if legal */
+	/* Dispatch the analtify if legal */
 
-	if (acpi_ev_is_notify_object(node)) {
-		status = acpi_ev_queue_notify_request(node, value);
+	if (acpi_ev_is_analtify_object(analde)) {
+		status = acpi_ev_queue_analtify_request(analde, value);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not queue notify\n");
+			acpi_os_printf("Could analt queue analtify\n");
 		}
 	} else {
 		acpi_os_printf("Named object [%4.4s] Type %s, "
 			       "must be Device/Thermal/Processor type\n",
-			       acpi_ut_get_node_name(node),
-			       acpi_ut_get_type_name(node->type));
+			       acpi_ut_get_analde_name(analde),
+			       acpi_ut_get_type_name(analde->type));
 	}
 }
 
@@ -402,7 +402,7 @@ void acpi_db_send_notify(char *name, u32 value)
  * PARAMETERS:  action_arg          - Null, "install", or "remove"
  *              interface_name_arg  - Name for install/remove options
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display or modify the global _OSI interface list
  *
@@ -414,7 +414,7 @@ void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg)
 	char *sub_string;
 	acpi_status status;
 
-	/* If no arguments, just display current interface list */
+	/* If anal arguments, just display current interface list */
 
 	if (!action_arg) {
 		(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex,
@@ -482,7 +482,7 @@ void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg)
  *
  * PARAMETERS:  buffer_arg          - Buffer name or address
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump a buffer that contains a resource template
  *
@@ -490,23 +490,23 @@ void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg)
 
 void acpi_db_display_template(char *buffer_arg)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 	struct acpi_buffer return_buffer;
 
 	/* Translate buffer_arg to an Named object */
 
-	node = acpi_db_convert_to_node(buffer_arg);
-	if (!node || (node == acpi_gbl_root_node)) {
+	analde = acpi_db_convert_to_analde(buffer_arg);
+	if (!analde || (analde == acpi_gbl_root_analde)) {
 		acpi_os_printf("Invalid argument: %s\n", buffer_arg);
 		return;
 	}
 
 	/* We must have a buffer object */
 
-	if (node->type != ACPI_TYPE_BUFFER) {
+	if (analde->type != ACPI_TYPE_BUFFER) {
 		acpi_os_printf
-		    ("Not a Buffer object, cannot be a template: %s\n",
+		    ("Analt a Buffer object, cananalt be a template: %s\n",
 		     buffer_arg);
 		return;
 	}
@@ -516,27 +516,27 @@ void acpi_db_display_template(char *buffer_arg)
 
 	/* Attempt to convert the raw buffer to a resource list */
 
-	status = acpi_rs_create_resource_list(node->object, &return_buffer);
+	status = acpi_rs_create_resource_list(analde->object, &return_buffer);
 
 	acpi_db_set_output_destination(ACPI_DB_REDIRECTABLE_OUTPUT);
 	acpi_dbg_level |= ACPI_LV_RESOURCES;
 
 	if (ACPI_FAILURE(status)) {
 		acpi_os_printf
-		    ("Could not convert Buffer to a resource list: %s, %s\n",
+		    ("Could analt convert Buffer to a resource list: %s, %s\n",
 		     buffer_arg, acpi_format_exception(status));
 		goto dump_buffer;
 	}
 
-	/* Now we can dump the resource list */
+	/* Analw we can dump the resource list */
 
 	acpi_rs_dump_resource_list(ACPI_CAST_PTR(struct acpi_resource,
 						 return_buffer.pointer));
 
 dump_buffer:
 	acpi_os_printf("\nRaw data buffer:\n");
-	acpi_ut_debug_dump_buffer((u8 *)node->object->buffer.pointer,
-				  node->object->buffer.length,
+	acpi_ut_debug_dump_buffer((u8 *)analde->object->buffer.pointer,
+				  analde->object->buffer.length,
 				  DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
 
 	acpi_db_set_output_destination(ACPI_DB_CONSOLE_OUTPUT);
@@ -552,7 +552,7 @@ dump_buffer:
  *              aml2_buffer         - Contains second resource list
  *              aml2_buffer_length  - Length of second resource list
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Compare two AML resource lists, descriptor by descriptor (in
  *              order to isolate a miscompare to an individual resource)
@@ -645,7 +645,7 @@ acpi_dm_compare_aml_resources(u8 *aml1_buffer,
  *
  * FUNCTION:    acpi_dm_test_resource_conversion
  *
- * PARAMETERS:  node                - Parent device node
+ * PARAMETERS:  analde                - Parent device analde
  *              name                - resource method name (_CRS)
  *
  * RETURN:      Status
@@ -656,7 +656,7 @@ acpi_dm_compare_aml_resources(u8 *aml1_buffer,
  ******************************************************************************/
 
 static acpi_status
-acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name)
+acpi_dm_test_resource_conversion(struct acpi_namespace_analde *analde, char *name)
 {
 	acpi_status status;
 	struct acpi_buffer return_buffer;
@@ -672,16 +672,16 @@ acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name)
 
 	/* Get the original _CRS AML resource template */
 
-	status = acpi_evaluate_object(node, name, NULL, &return_buffer);
+	status = acpi_evaluate_object(analde, name, NULL, &return_buffer);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not obtain %s: %s\n",
+		acpi_os_printf("Could analt obtain %s: %s\n",
 			       name, acpi_format_exception(status));
 		return (status);
 	}
 
 	/* Get the AML resource template, converted to internal resource structs */
 
-	status = acpi_get_current_resources(node, &resource_buffer);
+	status = acpi_get_current_resources(analde, &resource_buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_os_printf("AcpiGetCurrentResources failed: %s\n",
 			       acpi_format_exception(status));
@@ -752,34 +752,34 @@ static acpi_status
 acpi_db_device_resources(acpi_handle obj_handle,
 			 u32 nesting_level, void *context, void **return_value)
 {
-	struct acpi_namespace_node *node;
-	struct acpi_namespace_node *prt_node = NULL;
-	struct acpi_namespace_node *crs_node = NULL;
-	struct acpi_namespace_node *prs_node = NULL;
-	struct acpi_namespace_node *aei_node = NULL;
+	struct acpi_namespace_analde *analde;
+	struct acpi_namespace_analde *prt_analde = NULL;
+	struct acpi_namespace_analde *crs_analde = NULL;
+	struct acpi_namespace_analde *prs_analde = NULL;
+	struct acpi_namespace_analde *aei_analde = NULL;
 	char *parent_path;
 	struct acpi_buffer return_buffer;
 	acpi_status status;
 
-	node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
-	parent_path = acpi_ns_get_normalized_pathname(node, TRUE);
+	analde = ACPI_CAST_PTR(struct acpi_namespace_analde, obj_handle);
+	parent_path = acpi_ns_get_analrmalized_pathname(analde, TRUE);
 	if (!parent_path) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Get handles to the resource methods for this device */
 
-	(void)acpi_get_handle(node, METHOD_NAME__PRT,
-			      ACPI_CAST_PTR(acpi_handle, &prt_node));
-	(void)acpi_get_handle(node, METHOD_NAME__CRS,
-			      ACPI_CAST_PTR(acpi_handle, &crs_node));
-	(void)acpi_get_handle(node, METHOD_NAME__PRS,
-			      ACPI_CAST_PTR(acpi_handle, &prs_node));
-	(void)acpi_get_handle(node, METHOD_NAME__AEI,
-			      ACPI_CAST_PTR(acpi_handle, &aei_node));
+	(void)acpi_get_handle(analde, METHOD_NAME__PRT,
+			      ACPI_CAST_PTR(acpi_handle, &prt_analde));
+	(void)acpi_get_handle(analde, METHOD_NAME__CRS,
+			      ACPI_CAST_PTR(acpi_handle, &crs_analde));
+	(void)acpi_get_handle(analde, METHOD_NAME__PRS,
+			      ACPI_CAST_PTR(acpi_handle, &prs_analde));
+	(void)acpi_get_handle(analde, METHOD_NAME__AEI,
+			      ACPI_CAST_PTR(acpi_handle, &aei_analde));
 
-	if (!prt_node && !crs_node && !prs_node && !aei_node) {
-		goto cleanup;	/* Nothing to do */
+	if (!prt_analde && !crs_analde && !prs_analde && !aei_analde) {
+		goto cleanup;	/* Analthing to do */
 	}
 
 	acpi_os_printf("\nDevice: %s\n", parent_path);
@@ -791,13 +791,13 @@ acpi_db_device_resources(acpi_handle obj_handle,
 
 	/* _PRT */
 
-	if (prt_node) {
+	if (prt_analde) {
 		acpi_os_printf("Evaluating _PRT\n");
 
 		status =
-		    acpi_evaluate_object(prt_node, NULL, NULL, &return_buffer);
+		    acpi_evaluate_object(prt_analde, NULL, NULL, &return_buffer);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not evaluate _PRT: %s\n",
+			acpi_os_printf("Could analt evaluate _PRT: %s\n",
 				       acpi_format_exception(status));
 			goto get_crs;
 		}
@@ -805,7 +805,7 @@ acpi_db_device_resources(acpi_handle obj_handle,
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
-		status = acpi_get_irq_routing_table(node, &return_buffer);
+		status = acpi_get_irq_routing_table(analde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("GetIrqRoutingTable failed: %s\n",
 				       acpi_format_exception(status));
@@ -818,23 +818,23 @@ acpi_db_device_resources(acpi_handle obj_handle,
 	/* _CRS */
 
 get_crs:
-	if (crs_node) {
+	if (crs_analde) {
 		acpi_os_printf("Evaluating _CRS\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
 		status =
-		    acpi_evaluate_object(crs_node, NULL, NULL, &return_buffer);
+		    acpi_evaluate_object(crs_analde, NULL, NULL, &return_buffer);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not evaluate _CRS: %s\n",
+			acpi_os_printf("Could analt evaluate _CRS: %s\n",
 				       acpi_format_exception(status));
 			goto get_prs;
 		}
 
 		/* This code exercises the acpi_walk_resources interface */
 
-		status = acpi_walk_resources(node, METHOD_NAME__CRS,
+		status = acpi_walk_resources(analde, METHOD_NAME__CRS,
 					     acpi_db_resource_callback, NULL);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiWalkResources failed: %s\n",
@@ -847,7 +847,7 @@ get_crs:
 		return_buffer.pointer = NULL;
 		return_buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-		status = acpi_get_current_resources(node, &return_buffer);
+		status = acpi_get_current_resources(analde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiGetCurrentResources failed: %s\n",
 				       acpi_format_exception(status));
@@ -876,13 +876,13 @@ get_crs:
 		 * tests both the AML->Resource conversion and the Resource->AML
 		 * conversion.
 		 */
-		(void)acpi_dm_test_resource_conversion(node, METHOD_NAME__CRS);
+		(void)acpi_dm_test_resource_conversion(analde, METHOD_NAME__CRS);
 
 		/* Execute _SRS with the resource list */
 
 		acpi_os_printf("Evaluating _SRS\n");
 
-		status = acpi_set_current_resources(node, &return_buffer);
+		status = acpi_set_current_resources(analde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiSetCurrentResources failed: %s\n",
 				       acpi_format_exception(status));
@@ -896,16 +896,16 @@ end_crs:
 	/* _PRS */
 
 get_prs:
-	if (prs_node) {
+	if (prs_analde) {
 		acpi_os_printf("Evaluating _PRS\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
 		status =
-		    acpi_evaluate_object(prs_node, NULL, NULL, &return_buffer);
+		    acpi_evaluate_object(prs_analde, NULL, NULL, &return_buffer);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not evaluate _PRS: %s\n",
+			acpi_os_printf("Could analt evaluate _PRS: %s\n",
 				       acpi_format_exception(status));
 			goto get_aei;
 		}
@@ -913,7 +913,7 @@ get_prs:
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
-		status = acpi_get_possible_resources(node, &return_buffer);
+		status = acpi_get_possible_resources(analde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiGetPossibleResources failed: %s\n",
 				       acpi_format_exception(status));
@@ -928,16 +928,16 @@ get_prs:
 	/* _AEI */
 
 get_aei:
-	if (aei_node) {
+	if (aei_analde) {
 		acpi_os_printf("Evaluating _AEI\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
 		status =
-		    acpi_evaluate_object(aei_node, NULL, NULL, &return_buffer);
+		    acpi_evaluate_object(aei_analde, NULL, NULL, &return_buffer);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not evaluate _AEI: %s\n",
+			acpi_os_printf("Could analt evaluate _AEI: %s\n",
 				       acpi_format_exception(status));
 			goto cleanup;
 		}
@@ -945,7 +945,7 @@ get_aei:
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
-		status = acpi_get_event_resources(node, &return_buffer);
+		status = acpi_get_event_resources(analde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiGetEventResources failed: %s\n",
 				       acpi_format_exception(status));
@@ -970,7 +970,7 @@ cleanup:
  *                                    NULL or "*" means "display resources for
  *                                    all devices"
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display the resource objects associated with a device.
  *
@@ -978,7 +978,7 @@ cleanup:
 
 void acpi_db_display_resources(char *object_arg)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	acpi_db_set_output_destination(ACPI_DB_REDIRECTABLE_OUTPUT);
 	acpi_dbg_level |= ACPI_LV_RESOURCES;
@@ -993,15 +993,15 @@ void acpi_db_display_resources(char *object_arg)
 	} else {
 		/* Convert string to object pointer */
 
-		node = acpi_db_convert_to_node(object_arg);
-		if (node) {
-			if (node->type != ACPI_TYPE_DEVICE) {
+		analde = acpi_db_convert_to_analde(object_arg);
+		if (analde) {
+			if (analde->type != ACPI_TYPE_DEVICE) {
 				acpi_os_printf
-				    ("%4.4s: Name is not a device object (%s)\n",
-				     node->name.ascii,
-				     acpi_ut_get_type_name(node->type));
+				    ("%4.4s: Name is analt a device object (%s)\n",
+				     analde->name.ascii,
+				     acpi_ut_get_type_name(analde->type));
 			} else {
-				(void)acpi_db_device_resources(node, 0, NULL,
+				(void)acpi_db_device_resources(analde, 0, NULL,
 							       NULL);
 			}
 		}
@@ -1016,7 +1016,7 @@ void acpi_db_display_resources(char *object_arg)
  *
  * PARAMETERS:  ged_arg             - Raw GED number, ascii string
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Simulate firing of a GED
  *
@@ -1028,7 +1028,7 @@ void acpi_db_generate_interrupt(char *gsiv_arg)
 	struct acpi_ged_handler_info *ged_info = acpi_gbl_ged_handler_list;
 
 	if (!ged_info) {
-		acpi_os_printf("No GED handling present\n");
+		acpi_os_printf("Anal GED handling present\n");
 	}
 
 	gsiv_number = strtoul(gsiv_arg, NULL, 0);
@@ -1059,7 +1059,7 @@ void acpi_db_generate_interrupt(char *gsiv_arg)
 			    acpi_evaluate_object(evt_handle, NULL, &arg_list,
 						 NULL);
 			if (ACPI_FAILURE(status)) {
-				acpi_os_printf("Could not evaluate _EVT\n");
+				acpi_os_printf("Could analt evaluate _EVT\n");
 				return;
 			}
 
@@ -1077,7 +1077,7 @@ void acpi_db_generate_interrupt(char *gsiv_arg)
  *              block_arg           - GPE block number, ascii string
  *                                    0 or 1 for FADT GPE blocks
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Simulate firing of a GPE
  *
@@ -1092,7 +1092,7 @@ void acpi_db_generate_gpe(char *gpe_arg, char *block_arg)
 	gpe_number = strtoul(gpe_arg, NULL, 0);
 
 	/*
-	 * If no block arg, or block arg == 0 or 1, use the FADT-defined
+	 * If anal block arg, or block arg == 0 or 1, use the FADT-defined
 	 * GPE blocks.
 	 */
 	if (block_arg) {
@@ -1117,9 +1117,9 @@ void acpi_db_generate_gpe(char *gpe_arg, char *block_arg)
  *
  * FUNCTION:    acpi_db_generate_sci
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Simulate an SCI -- just call the SCI dispatch.
  *
@@ -1141,7 +1141,7 @@ void acpi_db_generate_sci(void)
  *              method_arg          - Method to trace
  *              once_arg            - Whether trace once
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Control method tracing facility
  *

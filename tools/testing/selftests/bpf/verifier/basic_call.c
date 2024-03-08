@@ -4,7 +4,7 @@
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL | BPF_X, 0, 0, 0, 0),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "unknown opcode 8d",
+	.errstr = "unkanalwn opcode 8d",
 	.result = REJECT,
 },
 {
@@ -22,7 +22,7 @@
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, 1234567),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "invalid func unknown#1234567",
+	.errstr = "invalid func unkanalwn#1234567",
 	.result = REJECT,
 },
 {
@@ -37,7 +37,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
-	"non-invalid argument register",
+	"analn-invalid argument register",
 	.insns = {
 	BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_1),
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_cgroup_classid),

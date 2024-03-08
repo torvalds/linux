@@ -25,8 +25,8 @@ enum bnxt_nvm_directory_type {
 	BNX_DIR_TYPE_APE_PATCH = 11,
 	BNX_DIR_TYPE_KONG_FW = 12,
 	BNX_DIR_TYPE_KONG_PATCH = 13,
-	BNX_DIR_TYPE_BONO_FW = 14,
-	BNX_DIR_TYPE_BONO_PATCH = 15,
+	BNX_DIR_TYPE_BOANAL_FW = 14,
+	BNX_DIR_TYPE_BOANAL_PATCH = 15,
 	BNX_DIR_TYPE_TANG_FW = 16,
 	BNX_DIR_TYPE_TANG_PATCH = 17,
 	BNX_DIR_TYPE_BOOTCODE_2 = 18,
@@ -51,12 +51,12 @@ enum bnxt_nvm_directory_type {
 
 #define BNX_DIR_ORDINAL_FIRST			0
 
-#define BNX_DIR_EXT_NONE			0
+#define BNX_DIR_EXT_ANALNE			0
 #define BNX_DIR_EXT_INACTIVE			(1 << 0)
 #define BNX_DIR_EXT_UPDATE			(1 << 1)
 
-#define BNX_DIR_ATTR_NONE			0
-#define BNX_DIR_ATTR_NO_CHKSUM			(1 << 0)
+#define BNX_DIR_ATTR_ANALNE			0
+#define BNX_DIR_ATTR_ANAL_CHKSUM			(1 << 0)
 #define BNX_DIR_ATTR_PROP_STREAM		(1 << 1)
 
 enum bnxnvm_pkglog_field_index {

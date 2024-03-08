@@ -150,7 +150,7 @@ enum iwl_nvm_info_general_flags {
 
 /**
  * struct iwl_nvm_get_info_general - general NVM data
- * @flags: bit 0: 1 - empty, 0 - non-empty
+ * @flags: bit 0: 1 - empty, 0 - analn-empty
  * @nvm_version: nvm version
  * @board_type: board type
  * @n_hw_addrs: number of reserved MAC addresses
@@ -294,12 +294,12 @@ struct iwl_mcc_update_cmd {
 
 /**
  * enum iwl_geo_information - geographic information.
- * @GEO_NO_INFO: no special info for this geo profile.
+ * @GEO_ANAL_INFO: anal special info for this geo profile.
  * @GEO_WMM_ETSI_5GHZ_INFO: this geo profile limits the WMM params
  *	for the 5 GHz band.
  */
 enum iwl_geo_information {
-	GEO_NO_INFO =			0,
+	GEO_ANAL_INFO =			0,
 	GEO_WMM_ETSI_5GHZ_INFO =	BIT(0),
 };
 
@@ -391,11 +391,11 @@ struct iwl_mcc_update_resp_v8 {
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_8 */
 
 /**
- * struct iwl_mcc_chub_notif - chub notifies of mcc change
+ * struct iwl_mcc_chub_analtif - chub analtifies of mcc change
  * (MCC_CHUB_UPDATE_CMD = 0xc9)
  * The Chub (Communication Hub, CommsHUB) is a HW component that connects to
  * the cellular and connectivity cores that gets updates of the mcc, and
- * notifies the ucode directly of any mcc change.
+ * analtifies the ucode directly of any mcc change.
  * The ucode requests the driver to request the device to update geographic
  * regulatory  profile according to the given MCC (Mobile Country Code).
  * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
@@ -405,11 +405,11 @@ struct iwl_mcc_update_resp_v8 {
  * @source_id: identity of the change originator, see iwl_mcc_source
  * @reserved1: reserved for alignment
  */
-struct iwl_mcc_chub_notif {
+struct iwl_mcc_chub_analtif {
 	__le16 mcc;
 	u8 source_id;
 	u8 reserved1;
-} __packed; /* LAR_MCC_NOTIFY_S */
+} __packed; /* LAR_MCC_ANALTIFY_S */
 
 enum iwl_mcc_update_status {
 	MCC_RESP_NEW_CHAN_PROFILE,
@@ -419,7 +419,7 @@ enum iwl_mcc_update_status {
 	MCC_RESP_ILLEGAL,
 	MCC_RESP_LOW_PRIORITY,
 	MCC_RESP_TEST_MODE_ACTIVE,
-	MCC_RESP_TEST_MODE_NOT_ACTIVE,
+	MCC_RESP_TEST_MODE_ANALT_ACTIVE,
 	MCC_RESP_TEST_MODE_DENIAL_OF_SERVICE,
 };
 

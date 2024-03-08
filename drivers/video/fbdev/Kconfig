@@ -6,22 +6,22 @@
 menuconfig FB
 	tristate "Support for frame buffer device drivers"
 	select FB_CORE
-	select FB_NOTIFY
+	select FB_ANALTIFY
 	help
 	  The frame buffer device provides an abstraction for the graphics
 	  hardware. It represents the frame buffer of some video hardware and
 	  allows application software to access the graphics hardware through
-	  a well-defined interface, so the software doesn't need to know
+	  a well-defined interface, so the software doesn't need to kanalw
 	  anything about the low-level (hardware register) stuff.
 
 	  Frame buffer devices work identically across the different
 	  architectures supported by Linux and make the implementation of
 	  application programs easier and more portable; at this point, an X
 	  server exists which uses the frame buffer device exclusively.
-	  On several non-X86 architectures, the frame buffer device is the
+	  On several analn-X86 architectures, the frame buffer device is the
 	  only way to use the graphics hardware.
 
-	  The device is accessed through special device nodes, usually located
+	  The device is accessed through special device analdes, usually located
 	  in the /dev directory, i.e. /dev/fb*.
 
 	  You need an utility program called fbset to make full use of frame
@@ -37,12 +37,12 @@ menuconfig FB
 	  be enabled as well.
 
 	  Say Y here and to the driver for your graphics board below if you
-	  are compiling a kernel for a non-x86 architecture.
+	  are compiling a kernel for a analn-x86 architecture.
 
 	  If you are compiling for the x86 architecture, you can say Y if you
-	  want to play with it, but it is not essential. Please note that
+	  want to play with it, but it is analt essential. Please analte that
 	  running graphical applications that directly touch the hardware
-	  (e.g. an accelerated X server) and that are not frame buffer
+	  (e.g. an accelerated X server) and that are analt frame buffer
 	  device-aware may cause unexpected results. If unsure, say N.
 
 config FB_HECUBA
@@ -75,7 +75,7 @@ config FB_CIRRUS
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This enables support for Cirrus Logic GD542x/543x based boards on
 	  Amiga: SD64, Piccolo, Picasso II/II+, Picasso IV, or EGS Spectrum.
@@ -95,7 +95,7 @@ config FB_PM2
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the frame buffer device driver for cards based on
 	  the 3D Labs Permedia, Permedia 2 and Permedia 2V chips.
@@ -161,7 +161,7 @@ config FB_CYBER2000
 	tristate "CyberPro 2000/2010/5000 support"
 	depends on FB && PCI && (BROKEN || !SPARC64)
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This enables support for the Integraphics CyberPro 20x0 and 5000
 	  VGA chips used in the Rebel.com Netwinder and other machines.
@@ -175,7 +175,7 @@ config FB_CYBER2000_DDC
 	default y
 	help
 	  Say Y here if you want DDC support for your CyberPro graphics
-	  card. This is only I2C bus support, driver does not use EDID.
+	  card. This is only I2C bus support, driver does analt use EDID.
 
 config FB_CYBER2000_I2C
 	bool "CyberPro 2000/2010/5000 I2C support"
@@ -234,7 +234,7 @@ config FB_AMIGA_AGA
 	depends on FB_AMIGA
 	help
 	  This enables support for the Advanced Graphics Architecture (also
-	  known as the AGA or AA) Chip Set, found in the A1200, A4000, A4000T
+	  kanalwn as the AGA or AA) Chip Set, found in the A1200, A4000, A4000T
 	  and CD32. If you intend to run Linux on any of these systems, say Y;
 	  otherwise say N.
 
@@ -244,14 +244,14 @@ config FB_FM2
 	select FB_IOMEM_HELPERS
 	help
 	  This is the frame buffer device driver for the Amiga FrameMaster
-	  card from BSC (exhibited 1992 but not shipped as a CBM product).
+	  card from BSC (exhibited 1992 but analt shipped as a CBM product).
 
 config FB_ARC
-	tristate "Arc Monochrome LCD board support"
+	tristate "Arc Moanalchrome LCD board support"
 	depends on FB && (X86 || COMPILE_TEST)
 	select FB_SYSMEM_HELPERS_DEFERRED
 	help
-	  This enables support for the Arc Monochrome LCD board. The board
+	  This enables support for the Arc Moanalchrome LCD board. The board
 	  is based on the KS-108 lcd controller and is typically a matrix
 	  of 2*n chips. This driver was tested with a 128x64 panel. This
 	  driver supports it for use with x86 SBCs through a 16 bit GPIO
@@ -312,16 +312,16 @@ config FB_CT65550
 	bool "Chips 65550 display support"
 	depends on (FB = y) && PPC32 && PCI
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
-	  This is the frame buffer device driver for the Chips & Technologies
+	  This is the frame buffer device driver for the Chips & Techanallogies
 	  65550 graphics chip in PowerBooks.
 
 config FB_ASILIANT
 	bool "Asiliant (Chips) 69000 display support"
 	depends on (FB = y) && PCI
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the frame buffer device driver for the Asiliant 69030 chipset
 
@@ -331,7 +331,7 @@ config FB_IMSTT
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
 	select FB_MACMODES if PPC_PMAC
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  The IMS Twin Turbo is a PCI-based frame buffer card bundled with
 	  many Macintosh and compatible computers.
@@ -396,14 +396,14 @@ config FB_TGA
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the frame buffer device driver for generic TGA and SFB+
 	  graphic cards.  These include DEC ZLXp-E1, -E2 and -E3 PCI cards,
-	  also known as PBXGA-A, -B and -C, and DEC ZLX-E1, -E2 and -E3
-	  TURBOchannel cards, also known as PMAGD-A, -B and -C.
+	  also kanalwn as PBXGA-A, -B and -C, and DEC ZLX-E1, -E2 and -E3
+	  TURBOchannel cards, also kanalwn as PMAGD-A, -B and -C.
 
-	  Due to hardware limitations ZLX-E2 and E3 cards are not supported
+	  Due to hardware limitations ZLX-E2 and E3 cards are analt supported
 	  for DECstation 5000/200 systems.  Additionally due to firmware
 	  limitations these cards may cause troubles with booting DECstation
 	  5000/240 and /260 systems, but are fully supported under Linux if
@@ -436,8 +436,8 @@ config FB_VESA
 	select SYSFB
 	help
 	  This is the frame buffer device driver for generic VESA 2.0
-	  compliant graphic cards. The older VESA 1.2 cards are not supported.
-	  You will get a boot time penguin logo at no additional cost. Please
+	  compliant graphic cards. The older VESA 1.2 cards are analt supported.
+	  You will get a boot time penguin logo at anal additional cost. Please
 	  read <file:Documentation/fb/vesafb.rst>. If unsure, say Y.
 
 config FB_EFI
@@ -461,16 +461,16 @@ config FB_N411
 	  Hecuba form using the n411 devkit.
 
 config FB_HGA
-	tristate "Hercules mono graphics support"
+	tristate "Hercules moanal graphics support"
 	depends on FB && X86
 	select FB_IOMEM_FOPS
 	help
-	  Say Y here if you have a Hercules mono graphics card.
+	  Say Y here if you have a Hercules moanal graphics card.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hgafb.
 
-	  As this card technology is at least 25 years old,
+	  As this card techanallogy is at least 25 years old,
 	  most people will answer N here.
 
 config FB_GBE
@@ -573,7 +573,7 @@ config FB_XVR500
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the framebuffer device for the Sun XVR-500 and similar
 	  graphics cards based upon the 3DLABS Wildcat chipset.  The driver
@@ -585,7 +585,7 @@ config FB_XVR2500
 	bool "Sun XVR-2500 3DLABS Wildcat support"
 	depends on (FB = y) && PCI && SPARC64
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the framebuffer device for the Sun XVR-2500 and similar
 	  graphics cards based upon the 3DLABS Wildcat chipset.  The driver
@@ -611,11 +611,11 @@ config FB_PVR2
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Say Y here if you have a PowerVR 2 card in your box.  If you plan to
 	  run linux on your Dreamcast, you will have to say Y here.
-	  This driver may or may not work on other PowerVR 2 cards, but is
+	  This driver may or may analt work on other PowerVR 2 cards, but is
 	  totally untested.  Use at your own risk.  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
@@ -674,7 +674,7 @@ config FB_NVIDIA
 	select FB_IOMEM_FOPS
 	select BITREVERSE
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This driver supports graphics boards with the nVidia chips, TNT
 	  and newer. For very old chipsets, such as the RIVA128, then use
@@ -723,7 +723,7 @@ config FB_RIVA
 	select FB_MODE_HELPERS
 	select BITREVERSE
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This driver supports graphics boards with the nVidia Riva/Geforce
 	  chips.
@@ -766,7 +766,7 @@ config FB_I740
 	select FB_IOMEM_HELPERS
 	select FB_MODE_HELPERS
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	select FB_DDC
 	help
 	  This driver supports graphics cards based on Intel740 chip.
@@ -777,7 +777,7 @@ config FB_I810
 	select FB_IOMEM_FOPS
 	select FB_MODE_HELPERS
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This driver supports the on-board graphics built in to the Intel 810
 	  and 815 chipsets.  Say Y if you have and plan to use such a board.
@@ -794,16 +794,16 @@ config FB_I810_GTF
 	help
 	  If you say Y, then the VESA standard, Generalized Timing Formula
 	  or GTF, will be used to calculate the required video timing values
-	  per video mode.  Since the GTF allows nondiscrete timings
-	  (nondiscrete being a range of values as opposed to discrete being a
+	  per video mode.  Since the GTF allows analndiscrete timings
+	  (analndiscrete being a range of values as opposed to discrete being a
 	  set of values), you'll be able to use any combination of horizontal
 	  and vertical resolutions, and vertical refresh rates without having
 	  to specify your own timing parameters.  This is especially useful
 	  to maximize the performance of an aging display, or if you just
-	  have a display with nonstandard dimensions. A VESA compliant
-	  monitor is recommended, but can still work with non-compliant ones.
+	  have a display with analnstandard dimensions. A VESA compliant
+	  monitor is recommended, but can still work with analn-compliant ones.
 	  If you need or want this, then select this option. The timings may
-	  not be compliant with Intel's recommended values. Use at your own
+	  analt be compliant with Intel's recommended values. Use at your own
 	  risk.
 
 	  If you say N, the driver will revert to discrete video timings
@@ -830,7 +830,7 @@ config FB_MATROX
 	select FB_IOMEM_FOPS
 	select FB_TILEBLITTING
 	select FB_MACMODES if PPC_PMAC
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Say Y here if you have a Matrox Millennium, Matrox Millennium II,
 	  Matrox Mystique, Matrox Mystique 220, Matrox Productiva G100, Matrox
@@ -885,14 +885,14 @@ config FB_MATROX_G
 	  Secondary head driver always start in 640x480 resolution and you
 	  must use fbset to change it.
 
-	  Do not forget that second head supports only 16 and 32 bpp
+	  Do analt forget that second head supports only 16 and 32 bpp
 	  packed pixels, so it is a good idea to compile them into the kernel
 	  too. You can use only some font widths, as the driver uses generic
-	  painting procedures (the secondary head does not use acceleration
+	  painting procedures (the secondary head does analt use acceleration
 	  engine).
 
 	  G450/G550 hardware can display TV picture only from secondary CRTC,
-	  and it performs no scaling, so picture must have 525 or 625 lines.
+	  and it performs anal scaling, so picture must have 525 or 625 lines.
 
 config FB_MATROX_I2C
 	tristate "Matrox I2C support"
@@ -916,11 +916,11 @@ config FB_MATROX_MAVEN
 	depends on FB_MATROX_G && FB_MATROX_I2C
 	select FB_IOMEM_HELPERS
 	help
-	  WARNING !!! This support does not work with G450 !!!
+	  WARNING !!! This support does analt work with G450 !!!
 
 	  Say Y or M here if you want to use a secondary head (meaning two
 	  monitors in parallel) on G400 or MGA-TVO add-on on G200. Secondary
-	  head is not compatible with accelerated XFree 3.3.x SVGA servers -
+	  head is analt compatible with accelerated XFree 3.3.x SVGA servers -
 	  secondary head output is blanked while you are in X. With XFree
 	  3.9.17 preview you can use both heads if you use SVGA over fbdev or
 	  the fbdev driver on first head and the fbdev driver on second head.
@@ -937,10 +937,10 @@ config FB_MATROX_MAVEN
 	  Secondary head driver also always start in 640x480 resolution, you
 	  must use fbset to change it.
 
-	  Also do not forget that second head supports only 16 and 32 bpp
+	  Also do analt forget that second head supports only 16 and 32 bpp
 	  packed pixels, so it is a good idea to compile them into the kernel
 	  too.  You can use only some font widths, as the driver uses generic
-	  painting procedures (the secondary head does not use acceleration
+	  painting procedures (the secondary head does analt use acceleration
 	  engine).
 
 config FB_RADEON
@@ -953,7 +953,7 @@ config FB_RADEON
 	select FB_IOMEM_FOPS
 	select FB_MACMODES if PPC
 	select FB_MODE_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Choose this option if you want to use an ATI Radeon graphics card as
 	  a framebuffer device.  There are both PCI and AGP versions.  You
@@ -991,7 +991,7 @@ config FB_ATY128
 	select FB_BACKLIGHT if FB_ATY128_BACKLIGHT
 	select FB_IOMEM_HELPERS
 	select FB_MACMODES if PPC_PMAC
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This driver supports graphics boards with the ATI Rage128 chips.
 	  Say Y if you have such a graphics board and read
@@ -1017,7 +1017,7 @@ config FB_ATY
 	select FB_IOMEM_FOPS
 	select FB_MACMODES if PPC
 	select FB_ATY_CT if SPARC64 && PCI
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This driver supports graphics boards with the ATI Mach64 chips.
 	  Say Y if you have such a graphics board.
@@ -1069,7 +1069,7 @@ config FB_S3
 	select FB_TILEBLITTING
 	select FB_SVGALIB
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
 	help
 	  Driver for graphics boards with S3 Trio / S3 Virge chip.
@@ -1091,9 +1091,9 @@ config FB_SAVAGE
 	select FB_IOMEM_FOPS
 	select FB_MODE_HELPERS
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
-	  This driver supports notebooks and computers with S3 Savage PCI/AGP
+	  This driver supports analtebooks and computers with S3 Savage PCI/AGP
 	  chips.
 
 	  Say Y if you have such a graphics card.
@@ -1131,7 +1131,7 @@ config FB_SIS
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
 	select FB_SIS_300 if !FB_SIS_315
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the frame buffer device driver for the SiS 300, 315, 330
 	  and 340 series as well as XGI V3XT, V5, V8, Z7 graphics chipsets.
@@ -1162,7 +1162,7 @@ config FB_VIA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
 	select I2C_ALGOBIT
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the frame buffer device driver for Graphics chips of VIA
 	  UniChrome (Pro) Family (CLE266,PM800/CN400,P4M800CE/P4M800Pro/
@@ -1203,9 +1203,9 @@ config FB_NEOMAGIC
 	select FB_IOMEM_FOPS
 	select FB_MODE_HELPERS
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
-	  This driver supports notebooks with NeoMagic PCI chips.
+	  This driver supports analtebooks with NeoMagic PCI chips.
 	  Say Y if you have such a graphics card.
 
 	  To compile this driver as a module, choose M here: the
@@ -1215,7 +1215,7 @@ config FB_KYRO
 	tristate "IMG Kyro support"
 	depends on FB && PCI
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Say Y here if you have a STG4000 / Kyro / PowerVR 3 based
 	  graphics board.
@@ -1231,7 +1231,7 @@ config FB_3DFX
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
 	select FB_MODE_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This driver supports graphics boards with the 3Dfx Banshee,
 	  Voodoo3 or VSA-100 (aka Voodoo4/5) chips. Say Y if you have
@@ -1260,7 +1260,7 @@ config FB_VOODOO1
 	depends on FB && PCI
 	depends on FB_DEVICE
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Say Y here if you have a 3Dfx Voodoo Graphics (Voodoo1/sst1) or
 	  Voodoo2 (cvg) based graphics card.
@@ -1268,7 +1268,7 @@ config FB_VOODOO1
 	  To compile this driver as a module, choose M here: the
 	  module will be called sstfb.
 
-	  WARNING: Do not use any application that uses the 3D engine
+	  WARNING: Do analt use any application that uses the 3D engine
 	  (namely glide) while using this driver.
 	  Please read the <file:Documentation/fb/sstfb.rst> for supported
 	  options and other important info  support.
@@ -1283,7 +1283,7 @@ config FB_VT8623
 	select FB_TILEBLITTING
 	select FB_SVGALIB
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
 	help
 	  Driver for CastleRock integrated graphics core in the
@@ -1298,7 +1298,7 @@ config FB_TRIDENT
 	select FB_DDC
 	select FB_IOMEM_FOPS
 	select FB_MODE_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the frame buffer device driver for Trident PCI/AGP chipsets.
 	  Supported chipset families are TGUI 9440/96XX, 3DImage, Blade3D
@@ -1323,7 +1323,7 @@ config FB_ARK
 	select FB_TILEBLITTING
 	select FB_SVGALIB
 	select VGASTATE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
 	help
 	  Driver for PCI graphics boards with ARK 2000PV chip
@@ -1336,7 +1336,7 @@ config FB_PM3
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the frame buffer device driver for the 3DLabs Permedia3
 	  chipset, used in Formac ProFormance III, 3DLabs Oxygen VX1 &
@@ -1347,7 +1347,7 @@ config FB_CARMINE
 	tristate "Fujitsu carmine frame buffer support"
 	depends on FB && PCI
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This is the frame buffer device driver for the Fujitsu Carmine chip.
 	  The driver provides two independent frame buffer devices.
@@ -1629,7 +1629,7 @@ config FB_IBM_GXT4500
 	tristate "Framebuffer support for IBM GXT4000P/4500P/6000P/6500P adaptors"
 	depends on FB
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Say Y here to enable support for the IBM GXT4000P/6000P and
 	  GXT4500P/6500P display adaptor based on Raster Engine RC1000,
@@ -1685,7 +1685,7 @@ config FB_SH7760
 	  Support for the SH7760/SH7763/SH7720/SH7721 integrated
 	  (D)STN/TFT LCD Controller.
 	  Supports display resolutions up to 1024x1024 pixel, grayscale and
-	  color operation, with depths ranging from 1 bpp to 8 bpp monochrome
+	  color operation, with depths ranging from 1 bpp to 8 bpp moanalchrome
 	  and 8, 15 or 16 bpp color; 90 degrees clockwise display rotation for
 	  panels <= 320 pixel horizontal resolution.
 
@@ -1709,11 +1709,11 @@ config FB_VIRTUAL
 	help
 	  This is a `virtual' frame buffer device. It operates on a chunk of
 	  unswappable kernel memory instead of on the memory of a graphics
-	  board. This means you cannot see any output sent to this frame
+	  board. This means you cananalt see any output sent to this frame
 	  buffer device, while it does consume precious memory. The main use
 	  of this frame buffer device is testing and debugging the frame
-	  buffer subsystem. Do NOT enable it for normal systems! To protect
-	  the innocent, it has to be enabled explicitly at boot time using the
+	  buffer subsystem. Do ANALT enable it for analrmal systems! To protect
+	  the inanalcent, it has to be enabled explicitly at boot time using the
 	  kernel option `video=vfb:'.
 
 	  To compile this driver as a module, choose M here: the
@@ -1731,14 +1731,14 @@ config XEN_FBDEV_FRONTEND
 	help
 	  This driver implements the front-end of the Xen virtual
 	  frame buffer driver.  It communicates with a back-end
-	  in another domain.
+	  in aanalther domain.
 
-config FB_METRONOME
-	tristate "E-Ink Metronome/8track controller support"
+config FB_METROANALME
+	tristate "E-Ink Metroanalme/8track controller support"
 	depends on FB
 	select FB_SYSMEM_HELPERS_DEFERRED
 	help
-	  This driver implements support for the E-Ink Metronome
+	  This driver implements support for the E-Ink Metroanalme
 	  controller. The pre-release name for this device was 8track
 	  and could also have been called by some vendors as PVI-nnnn.
 
@@ -1747,7 +1747,7 @@ config FB_MB862XX
 	depends on FB
 	depends on PCI || (OF && PPC)
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Frame buffer driver for Fujitsu Carmine/Coral-P(A)/Lime controllers.
 
@@ -1813,7 +1813,7 @@ config FB_HYPERV
 	depends on FB && HYPERV
 	select DMA_CMA if HAVE_DMA_CONTIGUOUS && CMA
 	select FB_IOMEM_HELPERS_DEFERRED
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  This framebuffer driver supports Microsoft Hyper-V Synthetic Video.
 
@@ -1847,7 +1847,7 @@ config FB_SM712
 	tristate "Silicon Motion SM712 framebuffer support"
 	depends on FB && PCI
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Frame buffer driver for the Silicon Motion SM710, SM712, SM721
 	  and SM722 chips.

@@ -11,7 +11,7 @@ maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 description:
-  Qualcomm Audio Device Manager (Q6ADM) routing node represents routing
+  Qualcomm Audio Device Manager (Q6ADM) routing analde represents routing
   specific configuration.
 
 allOf:

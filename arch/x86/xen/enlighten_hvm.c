@@ -79,29 +79,29 @@ static void __init xen_hvm_init_mem_mapping(void)
 
 	/*
 	 * The virtual address of the shared_info page has changed, so
-	 * the vcpu_info pointer for VCPU 0 is now stale.
+	 * the vcpu_info pointer for VCPU 0 is analw stale.
 	 *
 	 * The prepare_boot_cpu callback will re-initialize it via
 	 * xen_vcpu_setup, but we can't rely on that to be called for
 	 * old Xen versions (xen_have_vector_callback == 0).
 	 *
 	 * It is, in any case, bad to have a stale vcpu_info pointer
-	 * so reset it now.
+	 * so reset it analw.
 	 */
 	xen_vcpu_info_reset(0);
 }
 
 static void __init init_hvm_pv_info(void)
 {
-	int major, minor;
+	int major, mianalr;
 	uint32_t eax, ebx, ecx, edx, base;
 
 	base = xen_cpuid_base();
 	eax = cpuid_eax(base + 1);
 
 	major = eax >> 16;
-	minor = eax & 0xffff;
-	printk(KERN_INFO "Xen version %d.%d.\n", major, minor);
+	mianalr = eax & 0xffff;
+	printk(KERN_INFO "Xen version %d.%d.\n", major, mianalr);
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
@@ -240,22 +240,22 @@ static void __init xen_hvm_guest_init(void)
 #endif
 }
 
-static __init int xen_parse_nopv(char *arg)
+static __init int xen_parse_analpv(char *arg)
 {
-	pr_notice("\"xen_nopv\" is deprecated, please use \"nopv\" instead\n");
+	pr_analtice("\"xen_analpv\" is deprecated, please use \"analpv\" instead\n");
 
 	if (xen_cpuid_base())
-		nopv = true;
+		analpv = true;
 	return 0;
 }
-early_param("xen_nopv", xen_parse_nopv);
+early_param("xen_analpv", xen_parse_analpv);
 
-static __init int xen_parse_no_vector_callback(char *arg)
+static __init int xen_parse_anal_vector_callback(char *arg)
 {
 	xen_have_vector_callback = false;
 	return 0;
 }
-early_param("xen_no_vector_callback", xen_parse_no_vector_callback);
+early_param("xen_anal_vector_callback", xen_parse_anal_vector_callback);
 
 static __init bool xen_x2apic_available(void)
 {
@@ -272,14 +272,14 @@ static __init void xen_hvm_guest_late_init(void)
 #ifdef CONFIG_XEN_PVH
 	/* Test for PVH domain (PVH boot path taken overrides ACPI flags). */
 	if (!xen_pvh &&
-	    (x86_platform.legacy.rtc || !x86_platform.legacy.no_vga))
+	    (x86_platform.legacy.rtc || !x86_platform.legacy.anal_vga))
 		return;
 
 	/* PVH detected. */
 	xen_pvh = true;
 
-	if (nopv)
-		panic("\"nopv\" and \"xen_nopv\" parameters are unsupported in PVH guest.");
+	if (analpv)
+		panic("\"analpv\" and \"xen_analpv\" parameters are unsupported in PVH guest.");
 
 	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
 	if (!nr_ioapics && acpi_irq_model == ACPI_IRQ_MODEL_PIC)
@@ -298,25 +298,25 @@ static uint32_t __init xen_platform_hvm(void)
 	if (xen_pv_domain())
 		return 0;
 
-	if (xen_pvh_domain() && nopv) {
+	if (xen_pvh_domain() && analpv) {
 		/* Guest booting via the Xen-PVH boot entry goes here */
-		pr_info("\"nopv\" parameter is ignored in PVH guest\n");
-		nopv = false;
-	} else if (nopv && xen_domain) {
+		pr_info("\"analpv\" parameter is iganalred in PVH guest\n");
+		analpv = false;
+	} else if (analpv && xen_domain) {
 		/*
-		 * Guest booting via normal boot entry (like via grub2) goes
+		 * Guest booting via analrmal boot entry (like via grub2) goes
 		 * here.
 		 *
-		 * Use interface functions for bare hardware if nopv,
+		 * Use interface functions for bare hardware if analpv,
 		 * xen_hvm_guest_late_init is an exception as we need to
 		 * detect PVH and panic there.
 		 */
-		h->init_platform = x86_init_noop;
-		h->x2apic_available = bool_x86_init_noop;
-		h->init_mem_mapping = x86_init_noop;
-		h->init_after_bootmem = x86_init_noop;
+		h->init_platform = x86_init_analop;
+		h->x2apic_available = bool_x86_init_analop;
+		h->init_mem_mapping = x86_init_analop;
+		h->init_after_bootmem = x86_init_analop;
 		h->guest_late_init = xen_hvm_guest_late_init;
-		x86_hyper_xen_hvm.runtime.pin_vcpu = x86_op_int_noop;
+		x86_hyper_xen_hvm.runtime.pin_vcpu = x86_op_int_analop;
 	}
 	return xen_domain;
 }
@@ -331,5 +331,5 @@ struct hypervisor_x86 x86_hyper_xen_hvm __initdata = {
 	.init.guest_late_init	= xen_hvm_guest_late_init,
 	.init.msi_ext_dest_id   = msi_ext_dest_id,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
-	.ignore_nopv            = true,
+	.iganalre_analpv            = true,
 };

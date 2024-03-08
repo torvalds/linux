@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 /* For the CPU_* macros */
 #include <sched.h>
@@ -47,7 +47,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 
 	evsel = evsel__newtp("syscalls", "sys_enter_openat");
 	if (IS_ERR(evsel)) {
-		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
+		tracing_path__strerror_open_tp(erranal, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
 		pr_debug("%s\n", errbuf);
 		err = TEST_SKIP;
 		goto out_cpu_map_delete;
@@ -55,8 +55,8 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 
 	if (evsel__open(evsel, cpus, threads) < 0) {
 		pr_debug("failed to open counter: %s, "
-			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 "tweak /proc/sys/kernel/perf_event_paraanalid?\n",
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		err = TEST_SKIP;
 		goto out_evsel_delete;
 	}
@@ -70,7 +70,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 		 * a reasonable upper limit tho :-)
 		 */
 		if (cpu.cpu >= CPU_SETSIZE) {
-			pr_debug("Ignoring CPU %d\n", cpu.cpu);
+			pr_debug("Iganalring CPU %d\n", cpu.cpu);
 			continue;
 		}
 
@@ -78,7 +78,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 		if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
 			pr_debug("sched_setaffinity() failed on CPU %d: %s ",
 				 cpu.cpu,
-				 str_error_r(errno, sbuf, sizeof(sbuf)));
+				 str_error_r(erranal, sbuf, sizeof(sbuf)));
 			goto out_close_fd;
 		}
 		for (i = 0; i < ncalls; ++i) {

@@ -29,7 +29,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -50,12 +50,12 @@
 static const struct fb_fix_screeninfo hecubafb_fix = {
 	.id =		"hecubafb",
 	.type =		FB_TYPE_PACKED_PIXELS,
-	.visual =	FB_VISUAL_MONO01,
+	.visual =	FB_VISUAL_MOANAL01,
 	.xpanstep =	0,
 	.ypanstep =	0,
 	.ywrapstep =	0,
 	.line_length =	DPY_W,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo hecubafb_var = {
@@ -64,7 +64,7 @@ static const struct fb_var_screeninfo hecubafb_var = {
 	.xres_virtual	= DPY_W,
 	.yres_virtual	= DPY_H,
 	.bits_per_pixel	= 1,
-	.nonstd		= 1,
+	.analnstd		= 1,
 };
 
 /* main hecubafb functions */
@@ -153,7 +153,7 @@ static int hecubafb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	struct hecuba_board *board;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	int videomemorysize;
 	unsigned char *videomemory;
 	struct hecubafb_par *par;
@@ -165,7 +165,7 @@ static int hecubafb_probe(struct platform_device *dev)
 
 	/* try to count device specific driver, if can't, platform recalls */
 	if (!try_module_get(board->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	videomemorysize = (DPY_W*DPY_H)/8;
 

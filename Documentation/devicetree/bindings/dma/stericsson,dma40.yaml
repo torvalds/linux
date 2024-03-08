@@ -17,7 +17,7 @@ properties:
     const: 3
     description: |
       The first cell is the unique device channel number as indicated by this
-      table for DB8500 which is the only ASIC known to use DMA40:
+      table for DB8500 which is the only ASIC kanalwn to use DMA40:
 
       0:  SPI controller 0
       1:  SD/MMC controller 0 (unused)
@@ -27,8 +27,8 @@ properties:
       5:  I2C port 3
       6:  I2C port 2
       7:  I2C port 4
-      8:  Synchronous Serial Port SSP0
-      9:  Synchronous Serial Port SSP1
+      8:  Synchroanalus Serial Port SSP0
+      9:  Synchroanalus Serial Port SSP1
       10: Multi-Channel Display Engine MCDE RX
       11: UART port 2
       12: UART port 1
@@ -103,7 +103,7 @@ properties:
         Use automatic channel selection when unset
         Use DMA request line number when set
       0x00000010 (bit 4) - set channel as high priority:
-        Normal priority when unset
+        Analrmal priority when unset
         High priority when set
 
   compatible:
@@ -138,7 +138,7 @@ properties:
 
   sram:
     $ref: /schemas/types.yaml#/definitions/phandle-array
-    description: A phandle array with inner size 1 (no arg cells).
+    description: A phandle array with inner size 1 (anal arg cells).
       First phandle is the LCPA (Logical Channel Parameter Address) memory.
       Second phandle is the  LCLA (Logical Channel Link base Address) memory.
     maxItems: 2

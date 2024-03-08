@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012 Hans-Frieder Vogt <hfvogt@gmx.net>
  * partially based on driver code from Fitipower
- * Copyright (C) 2010 Fitipower Integrated Technology Inc
+ * Copyright (C) 2010 Fitipower Integrated Techanallogy Inc
  */
 
 #include "fc0013.h"
@@ -63,7 +63,7 @@ static int fc0013_init(struct dvb_frontend *fe)
 		0xb8,	/* reg. 0x0a: Disable LO Test Buffer */
 		0x82,	/* reg. 0x0b: CHECK */
 		0xfc,	/* reg. 0x0c: depending on AGC Up-Down mode, may need 0xf8 */
-		0x01,	/* reg. 0x0d: AGC Not Forcing & LNA Forcing, may need 0x02 */
+		0x01,	/* reg. 0x0d: AGC Analt Forcing & LNA Forcing, may need 0x02 */
 		0x00,	/* reg. 0x0e */
 		0x00,	/* reg. 0x0f */
 		0x00,	/* reg. 0x10 */
@@ -108,7 +108,7 @@ static int fc0013_init(struct dvb_frontend *fe)
 
 static int fc0013_sleep(struct dvb_frontend *fe)
 {
-	/* nothing to do here */
+	/* analthing to do here */
 	return 0;
 }
 
@@ -399,7 +399,7 @@ static int fc0013_set_params(struct dvb_frontend *fe)
 			break;
 		}
 	} else {
-		err("%s: modulation type not supported!", __func__);
+		err("%s: modulation type analt supported!", __func__);
 		return -EINVAL;
 	}
 

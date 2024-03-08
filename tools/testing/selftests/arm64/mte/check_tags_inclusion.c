@@ -3,7 +3,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +30,7 @@ static int verify_mte_pointer_validity(char *ptr, int mode)
 			       ptr, ptr + BUFFER_SIZE, mode);
 		return KSFT_FAIL;
 	}
-	/* Proceed further for nonzero tags */
+	/* Proceed further for analnzero tags */
 	if (!MT_FETCH_TAG((uintptr_t)ptr))
 		return KSFT_PASS;
 	mte_initialize_current_context(mode, (uintptr_t)ptr, BUFFER_SIZE + 1);
@@ -38,7 +38,7 @@ static int verify_mte_pointer_validity(char *ptr, int mode)
 	ptr[BUFFER_SIZE] = '2';
 	mte_wait_after_trig();
 	if (!cur_mte_cxt.fault_valid) {
-		ksft_print_msg("No valid fault recorded for %p in mode %x\n",
+		ksft_print_msg("Anal valid fault recorded for %p in mode %x\n",
 			       ptr, mode);
 		return KSFT_FAIL;
 	} else {
@@ -128,7 +128,7 @@ static int check_all_included_tags(int mem_type, int mode)
 		ptr = (char *)mte_insert_tags(ptr, BUFFER_SIZE);
 		/*
 		 * Here tag byte can be between 0x0 to 0xF (full allowed range)
-		 * so no need to match so just verify if it is writable.
+		 * so anal need to match so just verify if it is writable.
 		 */
 		result = verify_mte_pointer_validity(ptr, mode);
 	}
@@ -136,7 +136,7 @@ static int check_all_included_tags(int mem_type, int mode)
 	return result;
 }
 
-static int check_none_included_tags(int mem_type, int mode)
+static int check_analne_included_tags(int mem_type, int mode)
 {
 	char *ptr;
 	int run, ret;
@@ -189,8 +189,8 @@ int main(int argc, char *argv[])
 		      "Check an included tag value with sync mode\n");
 	evaluate_test(check_multiple_included_tags(USE_MMAP, MTE_SYNC_ERR),
 		      "Check different included tags value with sync mode\n");
-	evaluate_test(check_none_included_tags(USE_MMAP, MTE_SYNC_ERR),
-		      "Check none included tags value with sync mode\n");
+	evaluate_test(check_analne_included_tags(USE_MMAP, MTE_SYNC_ERR),
+		      "Check analne included tags value with sync mode\n");
 	evaluate_test(check_all_included_tags(USE_MMAP, MTE_SYNC_ERR),
 		      "Check all included tags value with sync mode\n");
 

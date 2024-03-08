@@ -60,8 +60,8 @@ static const struct clk_icst_desc impd1_icst2_desc = {
 };
 
 static int integrator_impd1_clk_spawn(struct device *dev,
-				      struct device_node *parent,
-				      struct device_node *np)
+				      struct device_analde *parent,
+				      struct device_analde *np)
 {
 	struct regmap *map;
 	struct clk *clk = ERR_PTR(-EINVAL);
@@ -70,9 +70,9 @@ static int integrator_impd1_clk_spawn(struct device *dev,
 	const struct clk_icst_desc *desc;
 	int ret;
 
-	map = syscon_node_to_regmap(parent);
+	map = syscon_analde_to_regmap(parent);
 	if (IS_ERR(map)) {
-		pr_err("no regmap for syscon IM-PD1 ICST clock parent\n");
+		pr_err("anal regmap for syscon IM-PD1 ICST clock parent\n");
 		return PTR_ERR(map);
 	}
 
@@ -81,8 +81,8 @@ static int integrator_impd1_clk_spawn(struct device *dev,
 	} else if (of_device_is_compatible(np, "arm,impd1-vco2")) {
 		desc = &impd1_icst2_desc;
 	} else {
-		dev_err(dev, "not a clock node %s\n", name);
-		return -ENODEV;
+		dev_err(dev, "analt a clock analde %s\n", name);
+		return -EANALDEV;
 	}
 
 	of_property_read_string(np, "clock-output-names", &name);
@@ -103,14 +103,14 @@ static int integrator_impd1_clk_spawn(struct device *dev,
 static int integrator_impd1_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	int ret = 0;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		ret = integrator_impd1_clk_spawn(dev, np, child);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}

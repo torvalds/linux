@@ -64,7 +64,7 @@ static int rtl8366_obtain_mc(struct realtek_priv *priv, int vid,
 			return i;
 	}
 
-	/* We have no MC entry for this VID, try to find an empty one */
+	/* We have anal MC entry for this VID, try to find an empty one */
 	for (i = 0; i < priv->num_vlan_mc; i++) {
 		ret = priv->ops->get_vlan_mc(priv, i, vlanmc);
 		if (ret) {
@@ -130,7 +130,7 @@ static int rtl8366_obtain_mc(struct realtek_priv *priv, int vid,
 	}
 
 	dev_err(priv->dev, "all VLAN member configurations are in use\n");
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 int rtl8366_set_vlan(struct realtek_priv *priv, int vid, u32 member,
@@ -304,7 +304,7 @@ int rtl8366_vlan_add(struct dsa_switch *ds, int port,
 	int ret;
 
 	if (!priv->ops->is_vlan_valid(priv, vlan->vid)) {
-		NL_SET_ERR_MSG_MOD(extack, "VLAN ID not valid");
+		NL_SET_ERR_MSG_MOD(extack, "VLAN ID analt valid");
 		return -EINVAL;
 	}
 
@@ -320,7 +320,7 @@ int rtl8366_vlan_add(struct dsa_switch *ds, int port,
 
 	dev_dbg(priv->dev, "add VLAN %d on port %d, %s, %s\n",
 		vlan->vid, port, untagged ? "untagged" : "tagged",
-		pvid ? "PVID" : "no PVID");
+		pvid ? "PVID" : "anal PVID");
 
 	member |= BIT(port);
 
@@ -367,7 +367,7 @@ int rtl8366_vlan_del(struct dsa_switch *ds, int port,
 			vlanmc.member &= ~BIT(port);
 			vlanmc.untag &= ~BIT(port);
 			/*
-			 * If no ports are members of this VLAN
+			 * If anal ports are members of this VLAN
 			 * anymore then clear the whole member
 			 * config so it can be reused.
 			 */

@@ -60,14 +60,14 @@ properties:
 
   mediatek,smi:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: a phandle to the smi_common node.
+    description: a phandle to the smi_common analde.
 
   mediatek,larb-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 31
     description: the hardware id of this larb. It's only required when this
-      hardware id is not consecutive from its M4U point of view.
+      hardware id is analt consecutive from its M4U point of view.
 
 required:
   - compatible

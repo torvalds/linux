@@ -129,13 +129,13 @@ config TOUCHSCREEN_ATMEL_MXT
 	  module will be called atmel_mxt_ts.
 
 config TOUCHSCREEN_ATMEL_MXT_T37
-	bool "Support T37 Diagnostic Data"
+	bool "Support T37 Diaganalstic Data"
 	depends on TOUCHSCREEN_ATMEL_MXT
 	depends on VIDEO_DEV=y || (TOUCHSCREEN_ATMEL_MXT=m && VIDEO_DEV=m)
 	select VIDEOBUF2_VMALLOC
 	help
 	  Say Y here if you want support to output data from the T37
-	  Diagnostic Data object using a V4L device.
+	  Diaganalstic Data object using a V4L device.
 
 config TOUCHSCREEN_AUO_PIXCIR
 	tristate "AUO in-cell touchscreen using Pixcir ICs"
@@ -203,7 +203,7 @@ config TOUCHSCREEN_CY8CTMA140
 	depends on I2C
 	help
 	  Say Y here if you have a Cypress CY8CTMA140 capacitive
-	  touchscreen also just known as "TMA140"
+	  touchscreen also just kanalwn as "TMA140"
 
 	  If unsure, say N.
 
@@ -654,15 +654,15 @@ config TOUCHSCREEN_MTOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtouch.
 
-config TOUCHSCREEN_NOVATEK_NVT_TS
-	tristate "Novatek NT11205 touchscreen support"
+config TOUCHSCREEN_ANALVATEK_NVT_TS
+	tristate "Analvatek NT11205 touchscreen support"
 	depends on I2C
 	help
-	  Say Y here if you have a Novatek NT11205 touchscreen.
+	  Say Y here if you have a Analvatek NT11205 touchscreen.
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called novatek-nvt-ts.
+	  module will be called analvatek-nvt-ts.
 
 config TOUCHSCREEN_IMAGIS
 	tristate "Imagis touchscreen support"
@@ -746,7 +746,7 @@ config TOUCHSCREEN_HTCPEN
 	tristate "HTC Shift X9500 touchscreen"
 	depends on ISA
 	help
-	  Say Y here if you have an HTC Shift UMPC also known as HTC X9500
+	  Say Y here if you have an HTC Shift UMPC also kanalwn as HTC X9500
 	  Clio / Shangrila and want to support the built-in touchscreen.
 
 	  If unsure, say N.
@@ -878,7 +878,7 @@ config TOUCHSCREEN_WM97XX
 	depends on AC97_BUS || AC97_BUS_NEW
 	help
 	  Say Y here if you have a Wolfson Microelectronics WM97xx
-	  touchscreen connected to your system. Note that this option
+	  touchscreen connected to your system. Analte that this option
 	  only enables core driver, you will also need to select
 	  support for appropriate chip below.
 
@@ -1005,7 +1005,7 @@ config TOUCHSCREEN_USB_ITM
 
 config TOUCHSCREEN_USB_ETURBO
 	default y
-	bool "eTurboTouch (non-eGalax compatible) device support" if EXPERT
+	bool "eTurboTouch (analn-eGalax compatible) device support" if EXPERT
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
 config TOUCHSCREEN_USB_GUNZE
@@ -1095,7 +1095,7 @@ config TOUCHSCREEN_TS4800
 	help
 	  Say Y here if you have a touchscreen on a TS-4800 board.
 
-	  On TS-4800, the touchscreen is not handled directly by Linux but by
+	  On TS-4800, the touchscreen is analt handled directly by Linux but by
 	  a companion FPGA.
 
 	  If unsure, say N.
@@ -1266,7 +1266,7 @@ config TOUCHSCREEN_SUR40
 	select VIDEOBUF2_DMA_SG
 	help
 	  Say Y here if you want support for the Samsung SUR40 touchscreen
-	  (also known as Microsoft Surface 2.0 or Microsoft PixelSense).
+	  (also kanalwn as Microsoft Surface 2.0 or Microsoft PixelSense).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sur40.
@@ -1319,12 +1319,12 @@ config TOUCHSCREEN_ZET6223
 	  module will be called zet6223.
 
 config TOUCHSCREEN_ZFORCE
-	tristate "Neonode zForce infrared touchscreens"
+	tristate "Neoanalde zForce infrared touchscreens"
 	depends on I2C
 	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here if you have a touchscreen using the zforce
-	  infraread technology from Neonode.
+	  infraread techanallogy from Neoanalde.
 
 	  If unsure, say N.
 
@@ -1380,7 +1380,7 @@ config TOUCHSCREEN_ZINITIX
 	depends on I2C
 	help
 	  Say Y here if you have a touchscreen using Zinitix bt541,
-	  or something similar enough.
+	  or something similar eanalugh.
 
 	  If unsure, say N.
 

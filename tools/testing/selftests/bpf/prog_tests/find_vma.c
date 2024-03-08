@@ -35,7 +35,7 @@ static int open_pe(void)
 	attr.sample_freq = 1000;
 	pfd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
 
-	return pfd >= 0 ? pfd : -errno;
+	return pfd >= 0 ? pfd : -erranal;
 }
 
 static bool find_vma_pe_condition(struct find_vma *skel)
@@ -55,8 +55,8 @@ static void test_find_vma_pe(struct find_vma *skel)
 
 	pfd = open_pe();
 	if (pfd < 0) {
-		if (pfd == -ENOENT || pfd == -EOPNOTSUPP) {
-			printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n", __func__);
+		if (pfd == -EANALENT || pfd == -EOPANALTSUPP) {
+			printf("%s:SKIP:anal PERF_COUNT_HW_CPU_CYCLES\n", __func__);
 			test__skip();
 			goto cleanup;
 		}
@@ -86,7 +86,7 @@ static void test_find_vma_kprobe(struct find_vma *skel)
 		return;
 
 	getpgid(skel->bss->target_pid);
-	test_and_reset_skel(skel, -ENOENT /* could not find vma for ptr 0 */, true);
+	test_and_reset_skel(skel, -EANALENT /* could analt find vma for ptr 0 */, true);
 }
 
 static void test_illegal_write_vma(void)

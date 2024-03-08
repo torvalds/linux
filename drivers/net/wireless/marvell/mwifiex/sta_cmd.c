@@ -764,7 +764,7 @@ mwifiex_cmd_802_11_key_material_v2(struct mwifiex_private *priv,
 
 	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 		key_info |= KEY_DEFAULT;
-		/* Enable unicast bit for WPA-NONE/ADHOC_AES */
+		/* Enable unicast bit for WPA-ANALNE/ADHOC_AES */
 		if (!priv->sec_info.wpa2_enabled &&
 		    !is_broadcast_ether_addr(mac))
 			key_info |= KEY_UNICAST;
@@ -1022,10 +1022,10 @@ static int mwifiex_cmd_802_11d_domain_info(struct mwifiex_private *priv,
 		&cmd->params.domain_info;
 	struct mwifiex_ietypes_domain_param_set *domain =
 		&domain_info->domain;
-	u8 no_of_triplet = adapter->domain_reg.no_of_triplet;
+	u8 anal_of_triplet = adapter->domain_reg.anal_of_triplet;
 
 	mwifiex_dbg(adapter, INFO,
-		    "info: 11D: no_of_triplet=0x%x\n", no_of_triplet);
+		    "info: 11D: anal_of_triplet=0x%x\n", anal_of_triplet);
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_802_11D_DOMAIN_INFO);
 	domain_info->action = cpu_to_le16(cmd_action);
@@ -1040,13 +1040,13 @@ static int mwifiex_cmd_802_11d_domain_info(struct mwifiex_private *priv,
 	       sizeof(domain->country_code));
 
 	domain->header.len =
-		cpu_to_le16((no_of_triplet *
+		cpu_to_le16((anal_of_triplet *
 			     sizeof(struct ieee80211_country_ie_triplet))
 			    + sizeof(domain->country_code));
 
-	if (no_of_triplet) {
+	if (anal_of_triplet) {
 		memcpy(domain->triplet, adapter->domain_reg.triplet,
-		       no_of_triplet * sizeof(struct
+		       anal_of_triplet * sizeof(struct
 					      ieee80211_country_ie_triplet));
 
 		cmd->size = cpu_to_le16(sizeof(domain_info->action) +
@@ -1088,7 +1088,7 @@ static int mwifiex_cmd_ibss_coalescing_status(struct host_cmd_ds_command *cmd,
 			ibss_coal->enable = 0;
 		break;
 
-		/* In other case.. Nothing to do */
+		/* In other case.. Analthing to do */
 	case HostCmd_ACT_GEN_GET:
 	default:
 		break;
@@ -1292,7 +1292,7 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 	mwifiex_dbg(priv->adapter, CMD,
 		    "cmd: action: %d\n", subsc_evt_cfg->action);
 
-	/*For query requests, no configuration TLV structures are to be added.*/
+	/*For query requests, anal configuration TLV structures are to be added.*/
 	if (subsc_evt_cfg->action == HostCmd_ACT_GEN_GET)
 		return 0;
 
@@ -1306,14 +1306,14 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 	     (subsc_evt_cfg->action == HostCmd_ACT_BITWISE_SET)) &&
 	    (event_bitmap == 0)) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "Error: No event specified\t"
+			    "Error: Anal event specified\t"
 			    "for bitwise action type\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * Append TLV structures for each of the specified events for
-	 * subscribing or re-configuring. This is not required for
+	 * subscribing or re-configuring. This is analt required for
 	 * bitwise unsubscribing request.
 	 */
 	if (subsc_evt_cfg->action == HostCmd_ACT_BITWISE_CLR)
@@ -1471,7 +1471,7 @@ static u32 mwifiex_parse_cal_cfg(u8 *src, size_t len, u8 *dst)
 }
 
 int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
-			    struct device_node *node, const char *prefix)
+			    struct device_analde *analde, const char *prefix)
 {
 #ifdef CONFIG_OF
 	struct property *prop;
@@ -1479,7 +1479,7 @@ int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
 	int ret;
 
 	/* look for all matching property names */
-	for_each_property_of_node(node, prop) {
+	for_each_property_of_analde(analde, prop) {
 		if (len > strlen(prop->name) ||
 		    strncmp(prop->name, prefix, len))
 			continue;
@@ -1510,7 +1510,7 @@ static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
 
 	if (prop) {
 		len = prop->length;
-		ret = of_property_read_u8_array(adapter->dt_node, prop->name,
+		ret = of_property_read_u8_array(adapter->dt_analde, prop->name,
 						data, len);
 		if (ret)
 			return ret;
@@ -1715,8 +1715,8 @@ mwifiex_cmd_tdls_config(struct mwifiex_private *priv,
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "Unknown TDLS configuration\n");
-		return -EOPNOTSUPP;
+			    "Unkanalwn TDLS configuration\n");
+		return -EOPANALTSUPP;
 	}
 
 	le16_unaligned_add_cpu(&cmd->size, len);
@@ -1763,9 +1763,9 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 
 		if (!params) {
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "TDLS config params not available for %pM\n",
+				    "TDLS config params analt available for %pM\n",
 				    oper->peer_mac);
-			return -ENODATA;
+			return -EANALDATA;
 		}
 
 		put_unaligned_le16(params->capability, pos);
@@ -1843,8 +1843,8 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 
 		break;
 	default:
-		mwifiex_dbg(priv->adapter, ERROR, "Unknown TDLS operation\n");
-		return -EOPNOTSUPP;
+		mwifiex_dbg(priv->adapter, ERROR, "Unkanalwn TDLS operation\n");
+		return -EOPANALTSUPP;
 	}
 
 	le16_unaligned_add_cpu(&cmd->size, config_len);
@@ -1906,15 +1906,15 @@ static int mwifiex_cmd_get_chan_info(struct host_cmd_ds_command *cmd,
 }
 
 /* This function check if the command is supported by firmware */
-static int mwifiex_is_cmd_supported(struct mwifiex_private *priv, u16 cmd_no)
+static int mwifiex_is_cmd_supported(struct mwifiex_private *priv, u16 cmd_anal)
 {
 	if (!ISSUPP_ADHOC_ENABLED(priv->adapter->fw_cap_info)) {
-		switch (cmd_no) {
+		switch (cmd_anal) {
 		case HostCmd_CMD_802_11_IBSS_COALESCING_STATUS:
 		case HostCmd_CMD_802_11_AD_HOC_START:
 		case HostCmd_CMD_802_11_AD_HOC_JOIN:
 		case HostCmd_CMD_802_11_AD_HOC_STOP:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		default:
 			break;
 		}
@@ -1929,22 +1929,22 @@ static int mwifiex_is_cmd_supported(struct mwifiex_private *priv, u16 cmd_no)
  * This is a generic function which calls specific command preparation
  * routines based upon the command number.
  */
-int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
+int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_anal,
 			    u16 cmd_action, u32 cmd_oid,
 			    void *data_buf, void *cmd_buf)
 {
 	struct host_cmd_ds_command *cmd_ptr = cmd_buf;
 	int ret = 0;
 
-	if (mwifiex_is_cmd_supported(priv, cmd_no)) {
+	if (mwifiex_is_cmd_supported(priv, cmd_anal)) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "0x%x command not supported by firmware\n",
-			    cmd_no);
-		return -EOPNOTSUPP;
+			    "0x%x command analt supported by firmware\n",
+			    cmd_anal);
+		return -EOPANALTSUPP;
 	}
 
 	/* Prepare command */
-	switch (cmd_no) {
+	switch (cmd_anal) {
 	case HostCmd_CMD_GET_HW_SPEC:
 		ret = mwifiex_cmd_get_hw_spec(priv, cmd_ptr);
 		break;
@@ -2035,7 +2035,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = 0;
 		break;
 	case HostCmd_CMD_VERSION_EXT:
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		cmd_ptr->params.verext.version_str_sel =
 			(u8)(get_unaligned((u32 *)data_buf));
 		memcpy(&cmd_ptr->params, data_buf,
@@ -2046,7 +2046,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = 0;
 		break;
 	case HostCmd_CMD_MGMT_FRAME_REG:
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		cmd_ptr->params.reg_mask.action = cpu_to_le16(cmd_action);
 		cmd_ptr->params.reg_mask.mask = cpu_to_le32(
 						get_unaligned((u32 *)data_buf));
@@ -2056,7 +2056,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = 0;
 		break;
 	case HostCmd_CMD_REMAIN_ON_CHAN:
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		memcpy(&cmd_ptr->params, data_buf,
 		       sizeof(struct host_cmd_ds_remain_on_chan));
 		cmd_ptr->size =
@@ -2067,7 +2067,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_11ac_cfg(priv, cmd_ptr, cmd_action, data_buf);
 		break;
 	case HostCmd_CMD_PACKET_AGGR_CTRL:
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		cmd_ptr->params.pkt_aggr_ctrl.action = cpu_to_le16(cmd_action);
 		cmd_ptr->params.pkt_aggr_ctrl.enable =
 						cpu_to_le16(*(u16 *)data_buf);
@@ -2076,7 +2076,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 				    S_DS_GEN);
 		break;
 	case HostCmd_CMD_P2P_MODE_CFG:
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		cmd_ptr->params.mode_cfg.action = cpu_to_le16(cmd_action);
 		cmd_ptr->params.mode_cfg.mode = cpu_to_le16(
 						get_unaligned((u16 *)data_buf));
@@ -2087,12 +2087,12 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_FUNC_INIT:
 		if (priv->adapter->hw_status == MWIFIEX_HW_STATUS_RESET)
 			priv->adapter->hw_status = MWIFIEX_HW_STATUS_READY;
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		cmd_ptr->size = cpu_to_le16(S_DS_GEN);
 		break;
 	case HostCmd_CMD_FUNC_SHUTDOWN:
 		priv->adapter->hw_status = MWIFIEX_HW_STATUS_RESET;
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		cmd_ptr->size = cpu_to_le16(S_DS_GEN);
 		break;
 	case HostCmd_CMD_11N_ADDBA_REQ:
@@ -2152,7 +2152,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_reg_access(cmd_ptr, cmd_action, data_buf);
 		break;
 	case HostCmd_CMD_SET_BSS_MODE:
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		if (priv->bss_mode == NL80211_IFTYPE_ADHOC)
 			cmd_ptr->params.bss_mode.con_type =
 				CONNECTION_TYPE_ADHOC;
@@ -2214,7 +2214,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_chan_region_cfg(priv, cmd_ptr, cmd_action);
 		break;
 	case HostCmd_CMD_FW_DUMP_EVENT:
-		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->command = cpu_to_le16(cmd_anal);
 		cmd_ptr->size = cpu_to_le16(S_DS_GEN);
 		break;
 	case HostCmd_CMD_STA_CONFIGURE:
@@ -2222,7 +2222,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "PREP_CMD: unknown cmd- %#x\n", cmd_no);
+			    "PREP_CMD: unkanalwn cmd- %#x\n", cmd_anal);
 		ret = -1;
 		break;
 	}
@@ -2281,15 +2281,15 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 		 * The cal-data can be read from device tree and/or
 		 * a configuration file and downloaded to firmware.
 		 */
-		if (adapter->dt_node) {
-			if (of_property_read_u32(adapter->dt_node,
+		if (adapter->dt_analde) {
+			if (of_property_read_u32(adapter->dt_analde,
 						 "marvell,wakeup-pin",
 						 &data) == 0) {
 				pr_debug("Wakeup pin = 0x%x\n", data);
 				adapter->hs_cfg.gpio = data;
 			}
 
-			mwifiex_dnld_dt_cfgdata(priv, adapter->dt_node,
+			mwifiex_dnld_dt_cfgdata(priv, adapter->dt_analde,
 						"marvell,caldata");
 		}
 

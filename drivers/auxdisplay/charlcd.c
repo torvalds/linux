@@ -11,7 +11,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -54,7 +54,7 @@ struct charlcd_priv {
 static atomic_t charlcd_available = ATOMIC_INIT(1);
 
 /* turn the backlight on or off */
-void charlcd_backlight(struct charlcd *lcd, enum charlcd_onoff on)
+void charlcd_backlight(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
 
@@ -368,7 +368,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 
 	/* first, we'll test if we're in escape mode */
 	if ((c != '\n') && priv->esc_seq.len >= 0) {
-		/* yes, let's add this char to the buffer */
+		/* anal, let's add this char to the buffer */
 		priv->esc_seq.buf[priv->esc_seq.len++] = c;
 		priv->esc_seq.buf[priv->esc_seq.len] = '\0';
 	} else {
@@ -429,7 +429,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 	}
 
 	/*
-	 * now we'll see if we're in an escape mode and if the current
+	 * analw we'll see if we're in an escape mode and if the current
 	 * escape sequence can be understood.
 	 */
 	if (priv->esc_seq.len >= 2) {
@@ -488,7 +488,7 @@ static ssize_t charlcd_write(struct file *file, const char __user *buf,
 	return tmp - buf;
 }
 
-static int charlcd_open(struct inode *inode, struct file *file)
+static int charlcd_open(struct ianalde *ianalde, struct file *file)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(the_charlcd);
 	int ret;
@@ -507,14 +507,14 @@ static int charlcd_open(struct inode *inode, struct file *file)
 		priv->lcd.addr.x = 0;
 		priv->lcd.addr.y = 0;
 	}
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 
  fail:
 	atomic_inc(&charlcd_available);
 	return ret;
 }
 
-static int charlcd_release(struct inode *inode, struct file *file)
+static int charlcd_release(struct ianalde *ianalde, struct file *file)
 {
 	atomic_inc(&charlcd_available);
 	return 0;
@@ -524,11 +524,11 @@ static const struct file_operations charlcd_fops = {
 	.write   = charlcd_write,
 	.open    = charlcd_open,
 	.release = charlcd_release,
-	.llseek  = no_llseek,
+	.llseek  = anal_llseek,
 };
 
 static struct miscdevice charlcd_dev = {
-	.minor	= LCD_MINOR,
+	.mianalr	= LCD_MIANALR,
 	.name	= "lcd",
 	.fops	= &charlcd_fops,
 };
@@ -574,7 +574,7 @@ static int charlcd_init(struct charlcd *lcd)
 	}
 
 	/*
-	 * before this line, we must NOT send anything to the display.
+	 * before this line, we must ANALT send anything to the display.
 	 * Since charlcd_init_display() needs to write data, we have to
 	 * enable mark the LCD initialized just before.
 	 */
@@ -617,7 +617,7 @@ void charlcd_free(struct charlcd *lcd)
 }
 EXPORT_SYMBOL_GPL(charlcd_free);
 
-static int panel_notify_sys(struct notifier_block *this, unsigned long code,
+static int panel_analtify_sys(struct analtifier_block *this, unsigned long code,
 			    void *unused)
 {
 	struct charlcd *lcd = the_charlcd;
@@ -636,11 +636,11 @@ static int panel_notify_sys(struct notifier_block *this, unsigned long code,
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block panel_notifier = {
-	.notifier_call = panel_notify_sys,
+static struct analtifier_block panel_analtifier = {
+	.analtifier_call = panel_analtify_sys,
 };
 
 int charlcd_register(struct charlcd *lcd)
@@ -656,7 +656,7 @@ int charlcd_register(struct charlcd *lcd)
 		return ret;
 
 	the_charlcd = lcd;
-	register_reboot_notifier(&panel_notifier);
+	register_reboot_analtifier(&panel_analtifier);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(charlcd_register);
@@ -665,7 +665,7 @@ int charlcd_unregister(struct charlcd *lcd)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
 
-	unregister_reboot_notifier(&panel_notifier);
+	unregister_reboot_analtifier(&panel_analtifier);
 	charlcd_puts(lcd, "\x0cLCD driver unloaded.\x1b[Lc\x1b[Lb\x1b[L-");
 	misc_deregister(&charlcd_dev);
 	the_charlcd = NULL;

@@ -241,7 +241,7 @@ static void s3c2410_nand_clk_set_state(struct s3c2410_nand_info *info,
 
 /**
  * s3c_nand_calc_rate - calculate timing data.
- * @wanted: The cycle time in nanoseconds.
+ * @wanted: The cycle time in naanalseconds.
  * @clk: The clock rate in kHz.
  * @max: The maximum divider value.
  *
@@ -305,7 +305,7 @@ static int s3c2410_nand_setrate(struct s3c2410_nand_info *info)
 	}
 
 	if (tacls < 0 || twrph0 < 0 || twrph1 < 0) {
-		dev_err(info->device, "cannot get suitable timings\n");
+		dev_err(info->device, "cananalt get suitable timings\n");
 		return -EINVAL;
 	}
 
@@ -443,7 +443,7 @@ static void s3c2410_nand_hwcontrol(struct nand_chip *chip, int cmd,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (ctrl & NAND_CLE)
@@ -460,7 +460,7 @@ static void s3c2440_nand_hwcontrol(struct nand_chip *chip, int cmd,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (ctrl & NAND_CLE)
@@ -518,16 +518,16 @@ static int s3c2410_nand_correct_data(struct nand_chip *chip, u_char *dat,
 	if (diff0 == 0 && diff1 == 0 && diff2 == 0)
 		return 0;		/* ECC is ok */
 
-	/* sometimes people do not think about using the ECC, so check
-	 * to see if we have an 0xff,0xff,0xff read ECC and then ignore
+	/* sometimes people do analt think about using the ECC, so check
+	 * to see if we have an 0xff,0xff,0xff read ECC and then iganalre
 	 * the error, on the assumption that this is an un-eccd page.
 	 */
 	if (read_ecc[0] == 0xff && read_ecc[1] == 0xff && read_ecc[2] == 0xff
-	    && info->platform->ignore_unset_ecc)
+	    && info->platform->iganalre_unset_ecc)
 		return 0;
 
 	/* Can we correct this ECC (ie, one row and column change).
-	 * Note, this is similar to the 256 error code on smartmedia */
+	 * Analte, this is similar to the 256 error code on smartmedia */
 
 	if (((diff0 ^ (diff0 >> 1)) & 0x55) == 0x55 &&
 	    ((diff1 ^ (diff1 >> 1)) & 0x55) == 0x55 &&
@@ -719,10 +719,10 @@ static void s3c24xx_nand_remove(struct platform_device *pdev)
 
 	if (info->mtds != NULL) {
 		struct s3c2410_nand_mtd *ptr = info->mtds;
-		int mtdno;
+		int mtdanal;
 
-		for (mtdno = 0; mtdno < info->mtd_count; mtdno++, ptr++) {
-			pr_debug("releasing mtd %d (%p)\n", mtdno, ptr);
+		for (mtdanal = 0; mtdanal < info->mtd_count; mtdanal++, ptr++) {
+			pr_debug("releasing mtd %d (%p)\n", mtdanal, ptr);
 			WARN_ON(mtd_device_unregister(nand_to_mtd(&ptr->chip)));
 			nand_cleanup(&ptr->chip);
 		}
@@ -747,7 +747,7 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 					   set->nr_partitions);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int s3c2410_nand_setup_interface(struct nand_chip *chip, int csline,
@@ -761,7 +761,7 @@ static int s3c2410_nand_setup_interface(struct nand_chip *chip, int csline,
 
 	timings = nand_get_sdr_timings(conf);
 	if (IS_ERR(timings))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	tacls = timings->tCLS_min - timings->tWP_min;
 	if (tacls < 0)
@@ -788,11 +788,11 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 				   struct s3c2410_nand_mtd *nmtd,
 				   struct s3c2410_nand_set *set)
 {
-	struct device_node *np = info->device->of_node;
+	struct device_analde *np = info->device->of_analde;
 	struct nand_chip *chip = &nmtd->chip;
 	void __iomem *regs = info->regs;
 
-	nand_set_flash_node(chip, set->of_node);
+	nand_set_flash_analde(chip, set->of_analde);
 
 	chip->legacy.write_buf    = s3c2410_nand_write_buf;
 	chip->legacy.read_buf     = s3c2410_nand_read_buf;
@@ -873,7 +873,7 @@ static int s3c2410_nand_attach_chip(struct nand_chip *chip)
 
 	switch (chip->ecc.engine_type) {
 
-	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_ANALNE:
 		dev_info(info->device, "ECC disabled\n");
 		break;
 
@@ -965,18 +965,18 @@ static int s3c24xx_nand_probe_dt(struct platform_device *pdev)
 	const struct s3c24XX_nand_devtype_data *devtype_data;
 	struct s3c2410_platform_nand *pdata;
 	struct s3c2410_nand_info *info = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node, *child;
+	struct device_analde *np = pdev->dev.of_analde, *child;
 	struct s3c2410_nand_set *sets;
 
 	devtype_data = of_device_get_match_data(&pdev->dev);
 	if (!devtype_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info->cpu_type = devtype_data->type;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev->dev.platform_data = pdata;
 
@@ -987,16 +987,16 @@ static int s3c24xx_nand_probe_dt(struct platform_device *pdev)
 	sets = devm_kcalloc(&pdev->dev, pdata->nr_sets, sizeof(*sets),
 			    GFP_KERNEL);
 	if (!sets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->sets = sets;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		sets->name = (char *)child->name;
-		sets->of_node = child;
+		sets->of_analde = child;
 		sets->nr_chips = 1;
 
-		of_node_get(child);
+		of_analde_get(child);
 
 		sets++;
 	}
@@ -1030,11 +1030,11 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	int err = 0;
 	int size;
 	int nr_sets;
-	int setno;
+	int setanal;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_error;
 	}
 
@@ -1048,13 +1048,13 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	info->clk = devm_clk_get(&pdev->dev, "nand");
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
-		err = -ENOENT;
+		err = -EANALENT;
 		goto exit_error;
 	}
 
 	s3c2410_nand_clk_set_state(info, CLOCK_ENABLE);
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		err = s3c24xx_nand_probe_dt(pdev);
 	else
 		err = s3c24xx_nand_probe_pdata(pdev);
@@ -1096,7 +1096,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	size = nr_sets * sizeof(*info->mtds);
 	info->mtds = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (info->mtds == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_error;
 	}
 
@@ -1104,11 +1104,11 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	nmtd = info->mtds;
 
-	for (setno = 0; setno < nr_sets; setno++, nmtd++, sets++) {
+	for (setanal = 0; setanal < nr_sets; setanal++, nmtd++, sets++) {
 		struct mtd_info *mtd = nand_to_mtd(&nmtd->chip);
 
 		pr_debug("initialising set %d (%p, info %p)\n",
-			 setno, nmtd, info);
+			 setanal, nmtd, info);
 
 		mtd->dev.parent = &pdev->dev;
 		s3c2410_nand_init_chip(info, nmtd, sets);
@@ -1153,7 +1153,7 @@ static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
 		/* For the moment, we must ensure nFCE is high during
 		 * the time we are suspended. This really should be
 		 * handled by suspending the MTDs we are using, but
-		 * that is currently not the case. */
+		 * that is currently analt the case. */
 
 		writel(info->save_sel | info->sel_bit, info->sel_reg);
 

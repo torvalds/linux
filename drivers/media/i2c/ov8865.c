@@ -17,7 +17,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
 
@@ -70,7 +70,7 @@
 #define OV8865_PLL_CTRL1C_REG			0x31c
 
 #define OV8865_PLL_CTRL1E_REG			0x31e
-#define OV8865_PLL_CTRL1E_PLL1_NO_LAT		BIT(3)
+#define OV8865_PLL_CTRL1E_PLL1_ANAL_LAT		BIT(3)
 
 #define OV8865_PAD_OEN0_REG			0x3000
 
@@ -101,7 +101,7 @@
 #define OV8865_MIPI_SC_CTRL0_LANES(v)		((((v) - 1) << 5) & \
 						 GENMASK(7, 5))
 #define OV8865_MIPI_SC_CTRL0_MIPI_EN		BIT(4)
-#define OV8865_MIPI_SC_CTRL0_UNKNOWN		BIT(1)
+#define OV8865_MIPI_SC_CTRL0_UNKANALWN		BIT(1)
 #define OV8865_MIPI_SC_CTRL0_LANES_PD_MIPI	BIT(0)
 #define OV8865_MIPI_SC_CTRL1_REG		0x3019
 #define OV8865_CLK_RST0_REG			0x301a
@@ -125,14 +125,14 @@
 #define OV8865_CLK_SEL0_PLL1_SYS_SEL(v)		(((v) << 7) & BIT(7))
 #define OV8865_CLK_SEL1_REG			0x3033
 #define OV8865_CLK_SEL1_MIPI_EOF		BIT(5)
-#define OV8865_CLK_SEL1_UNKNOWN			BIT(2)
+#define OV8865_CLK_SEL1_UNKANALWN			BIT(2)
 #define OV8865_CLK_SEL1_PLL_SCLK_SEL_MASK	BIT(1)
 #define OV8865_CLK_SEL1_PLL_SCLK_SEL(v)		(((v) << 1) & BIT(1))
 
 #define OV8865_SCLK_CTRL_REG			0x3106
 #define OV8865_SCLK_CTRL_SCLK_DIV(v)		(((v) << 4) & GENMASK(7, 4))
 #define OV8865_SCLK_CTRL_SCLK_PRE_DIV(v)	(((v) << 2) & GENMASK(3, 2))
-#define OV8865_SCLK_CTRL_UNKNOWN		BIT(0)
+#define OV8865_SCLK_CTRL_UNKANALWN		BIT(0)
 
 /* Exposure/gain */
 
@@ -696,7 +696,7 @@ struct ov8865_sensor {
 	const struct ov8865_pll_configs *pll_configs;
 	struct clk *extclk;
 
-	struct v4l2_fwnode_endpoint endpoint;
+	struct v4l2_fwanalde_endpoint endpoint;
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
 
@@ -1479,7 +1479,7 @@ static int ov8865_mipi_configure(struct ov8865_sensor *sensor)
 	ret = ov8865_write(sensor, OV8865_MIPI_SC_CTRL0_REG,
 			   OV8865_MIPI_SC_CTRL0_LANES(lanes_count) |
 			   OV8865_MIPI_SC_CTRL0_MIPI_EN |
-			   OV8865_MIPI_SC_CTRL0_UNKNOWN);
+			   OV8865_MIPI_SC_CTRL0_UNKANALWN);
 	if (ret)
 		return ret;
 
@@ -1669,8 +1669,8 @@ static int ov8865_mode_pll1_configure(struct ov8865_sensor *sensor,
 		return ret;
 
 	return ov8865_update_bits(sensor, OV8865_PLL_CTRL1E_REG,
-				  OV8865_PLL_CTRL1E_PLL1_NO_LAT,
-				  OV8865_PLL_CTRL1E_PLL1_NO_LAT);
+				  OV8865_PLL_CTRL1E_PLL1_ANAL_LAT,
+				  OV8865_PLL_CTRL1E_PLL1_ANAL_LAT);
 }
 
 static int ov8865_mode_pll2_configure(struct ov8865_sensor *sensor,
@@ -1730,7 +1730,7 @@ static int ov8865_mode_sclk_configure(struct ov8865_sensor *sensor,
 		return ret;
 
 	return ov8865_write(sensor, OV8865_SCLK_CTRL_REG,
-			    OV8865_SCLK_CTRL_UNKNOWN |
+			    OV8865_SCLK_CTRL_UNKANALWN |
 			    OV8865_SCLK_CTRL_SCLK_DIV(config->sclk_div) |
 			    OV8865_SCLK_CTRL_SCLK_PRE_DIV(config->sclk_pre_div));
 }
@@ -1810,7 +1810,7 @@ static int ov8865_mode_black_level_configure(struct ov8865_sensor *sensor,
 {
 	int ret;
 
-	/* Note that a zero value for blc_col_shift_mask is the default 256. */
+	/* Analte that a zero value for blc_col_shift_mask is the default 256. */
 	ret = ov8865_write(sensor, OV8865_BLC_CTRL1_REG,
 			   mode->blc_col_shift_mask |
 			   OV8865_BLC_CTRL1_OFFSET_LIMIT_EN);
@@ -2520,7 +2520,7 @@ static int ov8865_ctrls_init(struct ov8865_sensor *sensor)
 	struct v4l2_ctrl_handler *handler = &ctrls->handler;
 	const struct v4l2_ctrl_ops *ops = &ov8865_ctrl_ops;
 	const struct ov8865_mode *mode = &ov8865_modes[0];
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	unsigned int vblank_max, vblank_def;
 	unsigned int hblank;
 	int ret;
@@ -2584,12 +2584,12 @@ static int ov8865_ctrls_init(struct ov8865_sensor *sensor)
 		v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE, 1,
 				  INT_MAX, 1, 1);
 
-	/* set properties from fwnode (e.g. rotation, orientation) */
-	ret = v4l2_fwnode_device_parse(sensor->dev, &props);
+	/* set properties from fwanalde (e.g. rotation, orientation) */
+	ret = v4l2_fwanalde_device_parse(sensor->dev, &props);
 	if (ret)
 		goto error_ctrls;
 
-	ret = v4l2_ctrl_new_fwnode_properties(handler, ops, &props);
+	ret = v4l2_ctrl_new_fwanalde_properties(handler, ops, &props);
 	if (ret)
 		goto error_ctrls;
 
@@ -2666,7 +2666,7 @@ static void ov8865_mbus_format_fill(struct v4l2_mbus_framefmt *mbus_format,
 	mbus_format->height = mode->output_size_y;
 	mbus_format->code = mbus_code;
 
-	mbus_format->field = V4L2_FIELD_NONE;
+	mbus_format->field = V4L2_FIELD_ANALNE;
 	mbus_format->colorspace = V4L2_COLORSPACE_RAW;
 	mbus_format->ycbcr_enc =
 		V4L2_MAP_YCBCR_ENC_DEFAULT(mbus_format->colorspace);
@@ -2861,7 +2861,7 @@ static int ov8865_get_frame_interval(struct v4l2_subdev *subdev,
 	fps = DIV_ROUND_CLOSEST(sensor->ctrls.pixel_rate->val, framesize);
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = fps;
+	interval->interval.deanalminator = fps;
 
 	mutex_unlock(&sensor->mutex);
 
@@ -2952,7 +2952,7 @@ complete:
 static int ov8865_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct fwnode_handle *handle;
+	struct fwanalde_handle *handle;
 	struct ov8865_sensor *sensor;
 	struct v4l2_subdev *subdev;
 	struct media_pad *pad;
@@ -2962,7 +2962,7 @@ static int ov8865_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->dev = dev;
 	sensor->i2c_client = client;
@@ -2973,32 +2973,32 @@ static int ov8865_probe(struct i2c_client *client)
 	sensor->dvdd = devm_regulator_get(dev, "dvdd");
 	if (IS_ERR(sensor->dvdd))
 		return dev_err_probe(dev, PTR_ERR(sensor->dvdd),
-				     "cannot get DVDD regulator\n");
+				     "cananalt get DVDD regulator\n");
 
 	/* DOVDD: digital I/O */
 	sensor->dovdd = devm_regulator_get(dev, "dovdd");
 	if (IS_ERR(sensor->dovdd))
 		return dev_err_probe(dev, PTR_ERR(sensor->dovdd),
-				     "cannot get DOVDD regulator\n");
+				     "cananalt get DOVDD regulator\n");
 
 	/* AVDD: analog */
 	sensor->avdd = devm_regulator_get(dev, "avdd");
 	if (IS_ERR(sensor->avdd))
 		return dev_err_probe(dev, PTR_ERR(sensor->avdd),
-				     "cannot get AVDD (analog) regulator\n");
+				     "cananalt get AVDD (analog) regulator\n");
 
 	/* Graph Endpoint */
 
-	handle = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	handle = fwanalde_graph_get_next_endpoint(dev_fwanalde(dev), NULL);
 	if (!handle)
 		return -EPROBE_DEFER;
 
 	sensor->endpoint.bus_type = V4L2_MBUS_CSI2_DPHY;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(handle, &sensor->endpoint);
-	fwnode_handle_put(handle);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(handle, &sensor->endpoint);
+	fwanalde_handle_put(handle);
 	if (ret) {
-		dev_err(dev, "failed to parse endpoint node\n");
+		dev_err(dev, "failed to parse endpoint analde\n");
 		return ret;
 	}
 
@@ -3020,8 +3020,8 @@ static int ov8865_probe(struct i2c_client *client)
 	/* External Clock */
 
 	sensor->extclk = devm_clk_get(dev, NULL);
-	if (PTR_ERR(sensor->extclk) == -ENOENT) {
-		dev_info(dev, "no external clock found, continuing...\n");
+	if (PTR_ERR(sensor->extclk) == -EANALENT) {
+		dev_info(dev, "anal external clock found, continuing...\n");
 		sensor->extclk = NULL;
 	} else if (IS_ERR(sensor->extclk)) {
 		dev_err(dev, "failed to get external clock\n");
@@ -3038,7 +3038,7 @@ static int ov8865_probe(struct i2c_client *client)
 	 * uses devicetree then the configured rate should already be set, so
 	 * we can just read it.
 	 */
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	ret = fwanalde_property_read_u32(dev_fwanalde(dev), "clock-frequency",
 				       &rate);
 	if (!ret && sensor->extclk) {
 		ret = clk_set_rate(sensor->extclk, rate);
@@ -3072,7 +3072,7 @@ static int ov8865_probe(struct i2c_client *client)
 	subdev = &sensor->subdev;
 	v4l2_i2c_subdev_init(subdev, client, &ov8865_subdev_ops);
 
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	subdev->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	pad = &sensor->pad;
@@ -3124,7 +3124,7 @@ error_entity:
 	media_entity_cleanup(&sensor->subdev.entity);
 
 error_endpoint:
-	v4l2_fwnode_endpoint_free(&sensor->endpoint);
+	v4l2_fwanalde_endpoint_free(&sensor->endpoint);
 
 	return ret;
 }
@@ -3140,7 +3140,7 @@ static void ov8865_remove(struct i2c_client *client)
 	mutex_destroy(&sensor->mutex);
 	media_entity_cleanup(&subdev->entity);
 
-	v4l2_fwnode_endpoint_free(&sensor->endpoint);
+	v4l2_fwanalde_endpoint_free(&sensor->endpoint);
 }
 
 static const struct dev_pm_ops ov8865_pm_ops = {

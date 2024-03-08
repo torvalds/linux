@@ -6,7 +6,7 @@
  * (C) Copyright 2005 Andi Kleen
  * (C) Copyright 2008 Glauber Costa
  *
- * These functions have a non-standard call interface
+ * These functions have a analn-standard call interface
  * to make them more efficient, especially as they
  * return an error value in addition to the "real"
  * return value.
@@ -22,20 +22,20 @@
  *		%ecx contains the high half for 32-bit __get_user_8
  *
  *
- * These functions should not modify any other registers,
+ * These functions should analt modify any other registers,
  * as they get called from within inline assembly.
  */
 
 #include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/page_types.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
 
-#define ASM_BARRIER_NOSPEC ALTERNATIVE "", "lfence", X86_FEATURE_LFENCE_RDTSC
+#define ASM_BARRIER_ANALSPEC ALTERNATIVE "", "lfence", X86_FEATURE_LFENCE_RDTSC
 
 .macro check_range size:req
 .if IS_ENABLED(CONFIG_X86_64)
@@ -45,7 +45,7 @@
 .else
 	cmp $TASK_SIZE_MAX-\size+1, %eax
 	jae .Lbad_get_user
-	sbb %edx, %edx		/* array_index_mask_nospec() */
+	sbb %edx, %edx		/* array_index_mask_analspec() */
 	and %edx, %eax
 .endif
 .endm
@@ -97,39 +97,39 @@ SYM_FUNC_END(__get_user_8)
 EXPORT_SYMBOL(__get_user_8)
 
 /* .. and the same for __get_user, just without the range checks */
-SYM_FUNC_START(__get_user_nocheck_1)
+SYM_FUNC_START(__get_user_analcheck_1)
 	ASM_STAC
-	ASM_BARRIER_NOSPEC
+	ASM_BARRIER_ANALSPEC
 6:	movzbl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
 	RET
-SYM_FUNC_END(__get_user_nocheck_1)
-EXPORT_SYMBOL(__get_user_nocheck_1)
+SYM_FUNC_END(__get_user_analcheck_1)
+EXPORT_SYMBOL(__get_user_analcheck_1)
 
-SYM_FUNC_START(__get_user_nocheck_2)
+SYM_FUNC_START(__get_user_analcheck_2)
 	ASM_STAC
-	ASM_BARRIER_NOSPEC
+	ASM_BARRIER_ANALSPEC
 7:	movzwl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
 	RET
-SYM_FUNC_END(__get_user_nocheck_2)
-EXPORT_SYMBOL(__get_user_nocheck_2)
+SYM_FUNC_END(__get_user_analcheck_2)
+EXPORT_SYMBOL(__get_user_analcheck_2)
 
-SYM_FUNC_START(__get_user_nocheck_4)
+SYM_FUNC_START(__get_user_analcheck_4)
 	ASM_STAC
-	ASM_BARRIER_NOSPEC
+	ASM_BARRIER_ANALSPEC
 8:	movl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
 	RET
-SYM_FUNC_END(__get_user_nocheck_4)
-EXPORT_SYMBOL(__get_user_nocheck_4)
+SYM_FUNC_END(__get_user_analcheck_4)
+EXPORT_SYMBOL(__get_user_analcheck_4)
 
-SYM_FUNC_START(__get_user_nocheck_8)
+SYM_FUNC_START(__get_user_analcheck_8)
 	ASM_STAC
-	ASM_BARRIER_NOSPEC
+	ASM_BARRIER_ANALSPEC
 #ifdef CONFIG_X86_64
 9:	movq (%_ASM_AX),%rdx
 #else
@@ -139,8 +139,8 @@ SYM_FUNC_START(__get_user_nocheck_8)
 	xor %eax,%eax
 	ASM_CLAC
 	RET
-SYM_FUNC_END(__get_user_nocheck_8)
-EXPORT_SYMBOL(__get_user_nocheck_8)
+SYM_FUNC_END(__get_user_analcheck_8)
+EXPORT_SYMBOL(__get_user_analcheck_8)
 
 
 SYM_CODE_START_LOCAL(__get_user_handle_exception)

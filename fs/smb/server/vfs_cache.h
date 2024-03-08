@@ -22,8 +22,8 @@
 #define	FILE_GENERIC_EXECUTE	0X1200a0
 
 #define KSMBD_START_FID		0
-#define KSMBD_NO_FID		(INT_MAX)
-#define SMB2_NO_FID		(0xFFFFFFFFFFFFFFFFULL)
+#define KSMBD_ANAL_FID		(INT_MAX)
+#define SMB2_ANAL_FID		(0xFFFFFFFFFFFFFFFFULL)
 
 struct ksmbd_conn;
 struct ksmbd_session;
@@ -45,7 +45,7 @@ struct stream {
 	ssize_t size;
 };
 
-struct ksmbd_inode {
+struct ksmbd_ianalde {
 	rwlock_t			m_lock;
 	atomic_t			m_count;
 	atomic_t			op_count;
@@ -53,7 +53,7 @@ struct ksmbd_inode {
 	atomic_t			sop_count;
 	struct dentry			*m_de;
 	unsigned int			m_flags;
-	struct hlist_node		m_hash;
+	struct hlist_analde		m_hash;
 	struct list_head		m_fp_list;
 	struct list_head		m_op_list;
 	struct oplock_info		*m_opinfo;
@@ -73,8 +73,8 @@ struct ksmbd_file {
 
 	spinlock_t			f_lock;
 
-	struct ksmbd_inode		*f_ci;
-	struct ksmbd_inode		*f_parent_ci;
+	struct ksmbd_ianalde		*f_ci;
+	struct ksmbd_ianalde		*f_parent_ci;
 	struct oplock_info __rcu	*f_opinfo;
 	struct ksmbd_conn		*conn;
 	struct ksmbd_tree_connect	*tcon;
@@ -95,7 +95,7 @@ struct ksmbd_file {
 	char				app_instance_id[16];
 
 	struct stream			stream;
-	struct list_head		node;
+	struct list_head		analde;
 	struct list_head		blocked_works;
 	struct list_head		lock_list;
 
@@ -123,7 +123,7 @@ struct ksmbd_file_table {
 
 static inline bool has_file_id(u64 id)
 {
-	return id < KSMBD_NO_FID;
+	return id < KSMBD_ANAL_FID;
 }
 
 static inline bool ksmbd_stream_fd(struct ksmbd_file *fp)
@@ -139,16 +139,16 @@ struct ksmbd_file *ksmbd_lookup_foreign_fd(struct ksmbd_work *work, u64 id);
 struct ksmbd_file *ksmbd_lookup_fd_slow(struct ksmbd_work *work, u64 id,
 					u64 pid);
 void ksmbd_fd_put(struct ksmbd_work *work, struct ksmbd_file *fp);
-struct ksmbd_inode *ksmbd_inode_lookup_lock(struct dentry *d);
-void ksmbd_inode_put(struct ksmbd_inode *ci);
+struct ksmbd_ianalde *ksmbd_ianalde_lookup_lock(struct dentry *d);
+void ksmbd_ianalde_put(struct ksmbd_ianalde *ci);
 struct ksmbd_file *ksmbd_lookup_durable_fd(unsigned long long id);
 struct ksmbd_file *ksmbd_lookup_fd_cguid(char *cguid);
-struct ksmbd_file *ksmbd_lookup_fd_inode(struct dentry *dentry);
+struct ksmbd_file *ksmbd_lookup_fd_ianalde(struct dentry *dentry);
 unsigned int ksmbd_open_durable_fd(struct ksmbd_file *fp);
 struct ksmbd_file *ksmbd_open_fd(struct ksmbd_work *work, struct file *filp);
 void ksmbd_close_tree_conn_fds(struct ksmbd_work *work);
 void ksmbd_close_session_fds(struct ksmbd_work *work);
-int ksmbd_close_inode_fds(struct ksmbd_work *work, struct inode *inode);
+int ksmbd_close_ianalde_fds(struct ksmbd_work *work, struct ianalde *ianalde);
 int ksmbd_init_global_file_table(void);
 void ksmbd_free_global_file_table(void);
 void ksmbd_set_fd_limit(unsigned long limit);
@@ -156,21 +156,21 @@ void ksmbd_update_fstate(struct ksmbd_file_table *ft, struct ksmbd_file *fp,
 			 unsigned int state);
 
 /*
- * INODE hash
+ * IANALDE hash
  */
-int __init ksmbd_inode_hash_init(void);
-void ksmbd_release_inode_hash(void);
+int __init ksmbd_ianalde_hash_init(void);
+void ksmbd_release_ianalde_hash(void);
 
-enum KSMBD_INODE_STATUS {
-	KSMBD_INODE_STATUS_OK,
-	KSMBD_INODE_STATUS_UNKNOWN,
-	KSMBD_INODE_STATUS_PENDING_DELETE,
+enum KSMBD_IANALDE_STATUS {
+	KSMBD_IANALDE_STATUS_OK,
+	KSMBD_IANALDE_STATUS_UNKANALWN,
+	KSMBD_IANALDE_STATUS_PENDING_DELETE,
 };
 
-int ksmbd_query_inode_status(struct dentry *dentry);
-bool ksmbd_inode_pending_delete(struct ksmbd_file *fp);
-void ksmbd_set_inode_pending_delete(struct ksmbd_file *fp);
-void ksmbd_clear_inode_pending_delete(struct ksmbd_file *fp);
+int ksmbd_query_ianalde_status(struct dentry *dentry);
+bool ksmbd_ianalde_pending_delete(struct ksmbd_file *fp);
+void ksmbd_set_ianalde_pending_delete(struct ksmbd_file *fp);
+void ksmbd_clear_ianalde_pending_delete(struct ksmbd_file *fp);
 void ksmbd_fd_set_delete_on_close(struct ksmbd_file *fp,
 				  int file_info);
 int ksmbd_init_file_cache(void);

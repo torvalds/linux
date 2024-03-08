@@ -253,7 +253,7 @@ bool is_bwd_ioat(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD1:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD3:
-	/* even though not Atom, BDX-DE has same DMA silicon */
+	/* even though analt Atom, BDX-DE has same DMA silicon */
 	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE0:
 	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE1:
 	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE2:
@@ -264,7 +264,7 @@ bool is_bwd_ioat(struct pci_dev *pdev)
 	}
 }
 
-static bool is_bwd_noraid(struct pci_dev *pdev)
+static bool is_bwd_analraid(struct pci_dev *pdev)
 {
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
@@ -314,11 +314,11 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 
 	src = kzalloc(IOAT_TEST_SIZE, GFP_KERNEL);
 	if (!src)
-		return -ENOMEM;
+		return -EANALMEM;
 	dest = kzalloc(IOAT_TEST_SIZE, GFP_KERNEL);
 	if (!dest) {
 		kfree(src);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Fill in src buffer */
@@ -327,23 +327,23 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 
 	/* Start copy, using first DMA channel */
 	dma_chan = container_of(dma->channels.next, struct dma_chan,
-				device_node);
+				device_analde);
 	if (dma->device_alloc_chan_resources(dma_chan) < 1) {
-		dev_err(dev, "selftest cannot allocate chan resource\n");
-		err = -ENODEV;
+		dev_err(dev, "selftest cananalt allocate chan resource\n");
+		err = -EANALDEV;
 		goto out;
 	}
 
 	dma_src = dma_map_single(dev, src, IOAT_TEST_SIZE, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma_src)) {
 		dev_err(dev, "mapping src buffer failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_resources;
 	}
 	dma_dest = dma_map_single(dev, dest, IOAT_TEST_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma_dest)) {
 		dev_err(dev, "mapping dest buffer failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unmap_src;
 	}
 	flags = DMA_PREP_INTERRUPT;
@@ -352,7 +352,7 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 						      flags);
 	if (!tx) {
 		dev_err(dev, "Self-test prep failed, disabling\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unmap_dma;
 	}
 
@@ -363,7 +363,7 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 	cookie = tx->tx_submit(tx);
 	if (cookie < 0) {
 		dev_err(dev, "Self-test setup failed, disabling\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unmap_dma;
 	}
 	dma->device_issue_pending(dma_chan);
@@ -374,12 +374,12 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 	    dma->device_tx_status(dma_chan, cookie, NULL)
 					!= DMA_COMPLETE) {
 		dev_err(dev, "Self-test copy timed out, disabling\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unmap_dma;
 	}
 	if (memcmp(src, dest, IOAT_TEST_SIZE)) {
 		dev_err(dev, "Self-test copy failed compare, disabling\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unmap_dma;
 	}
 
@@ -416,7 +416,7 @@ int ioat_dma_setup_interrupts(struct ioatdma_device *ioat_dma)
 	if (!strcmp(ioat_interrupt_style, "intx"))
 		goto intx;
 	dev_err(dev, "invalid ioat_interrupt_style %s\n", ioat_interrupt_style);
-	goto err_no_irq;
+	goto err_anal_irq;
 
 msix:
 	/* The number of MSI-X vectors should equal the number of channels */
@@ -465,7 +465,7 @@ intx:
 	err = devm_request_irq(dev, pdev->irq, ioat_dma_do_interrupt,
 			       IRQF_SHARED, "ioat-intx", ioat_dma);
 	if (err)
-		goto err_no_irq;
+		goto err_anal_irq;
 
 	ioat_dma->irq_mode = IOAT_INTX;
 done:
@@ -475,11 +475,11 @@ done:
 	writeb(intrctrl, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
 	return 0;
 
-err_no_irq:
+err_anal_irq:
 	/* Disable all interrupt generation */
 	writeb(0, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
-	ioat_dma->irq_mode = IOAT_NOIRQ;
-	dev_err(dev, "no usable interrupts\n");
+	ioat_dma->irq_mode = IOAT_ANALIRQ;
+	dev_err(dev, "anal usable interrupts\n");
 	return err;
 }
 
@@ -491,7 +491,7 @@ static void ioat_disable_interrupts(struct ioatdma_device *ioat_dma)
 
 static int ioat_probe(struct ioatdma_device *ioat_dma)
 {
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct dma_device *dma = &ioat_dma->dma_dev;
 	struct pci_dev *pdev = ioat_dma->pdev;
 	struct device *dev = &pdev->dev;
@@ -502,7 +502,7 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 						    SMP_CACHE_BYTES);
 
 	if (!ioat_dma->completion_pool) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -695,9 +695,9 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	/* doing 2 32bit writes to mmio since 1 64b write doesn't work */
 	ioat_chan->completion =
 		dma_pool_zalloc(ioat_chan->ioat_dma->completion_pool,
-				GFP_NOWAIT, &ioat_chan->completion_dma);
+				GFP_ANALWAIT, &ioat_chan->completion_dma);
 	if (!ioat_chan->completion)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	writel(((u64)ioat_chan->completion_dma) & 0x00000000FFFFFFFF,
 	       ioat_chan->reg_base + IOAT_CHANCMP_OFFSET_LOW);
@@ -705,9 +705,9 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	       ioat_chan->reg_base + IOAT_CHANCMP_OFFSET_HIGH);
 
 	order = IOAT_MAX_ORDER;
-	ring = ioat_alloc_ring(c, order, GFP_NOWAIT);
+	ring = ioat_alloc_ring(c, order, GFP_ANALWAIT);
 	if (!ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&ioat_chan->cleanup_lock);
 	spin_lock_bh(&ioat_chan->prep_lock);
@@ -773,7 +773,7 @@ ioat_init_channel(struct ioatdma_device *ioat_dma,
 	spin_lock_init(&ioat_chan->cleanup_lock);
 	ioat_chan->dma_chan.device = dma;
 	dma_cookie_init(&ioat_chan->dma_chan);
-	list_add_tail(&ioat_chan->dma_chan.device_node, &dma->channels);
+	list_add_tail(&ioat_chan->dma_chan.device_analde, &dma->channels);
 	ioat_dma->idx[idx] = ioat_chan;
 	timer_setup(&ioat_chan->timer, ioat_timer_event, 0);
 	tasklet_setup(&ioat_chan->cleanup_task, ioat_cleanup_event);
@@ -811,7 +811,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 		if (!xor_srcs[src_idx]) {
 			while (src_idx--)
 				__free_page(xor_srcs[src_idx]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -819,7 +819,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	if (!dest) {
 		while (src_idx--)
 			__free_page(xor_srcs[src_idx]);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Fill in src buffers */
@@ -839,9 +839,9 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	memset(page_address(dest), 0, PAGE_SIZE);
 
 	dma_chan = container_of(dma->channels.next, struct dma_chan,
-				device_node);
+				device_analde);
 	if (dma->device_alloc_chan_resources(dma_chan) < 1) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -850,7 +850,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	dest_dma = dma_map_page(dev, dest, 0, PAGE_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dest_dma)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_resources;
 	}
 
@@ -858,7 +858,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 		dma_srcs[i] = dma_map_page(dev, xor_srcs[i], 0, PAGE_SIZE,
 					   DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, dma_srcs[i])) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto dma_unmap;
 		}
 	}
@@ -868,7 +868,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	if (!tx) {
 		dev_err(dev, "Self-test xor prep failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 
@@ -879,7 +879,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	cookie = tx->tx_submit(tx);
 	if (cookie < 0) {
 		dev_err(dev, "Self-test xor setup failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 	dma->device_issue_pending(dma_chan);
@@ -889,7 +889,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	if (tmo == 0 ||
 	    dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test xor timed out\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 
@@ -902,7 +902,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 		if (ptr[i] != cmp_word) {
 			dev_err(dev, "Self-test xor failed compare\n");
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto free_resources;
 		}
 	}
@@ -910,7 +910,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	dma_unmap_page(dev, dest_dma, PAGE_SIZE, DMA_FROM_DEVICE);
 
-	/* skip validate if the capability is not present */
+	/* skip validate if the capability is analt present */
 	if (!dma_has_cap(DMA_XOR_VAL, dma_chan->device->cap_mask))
 		goto free_resources;
 
@@ -927,7 +927,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 		dma_srcs[i] = dma_map_page(dev, xor_val_srcs[i], 0, PAGE_SIZE,
 					   DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, dma_srcs[i])) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto dma_unmap;
 		}
 	}
@@ -936,7 +936,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 					  &xor_val_result, DMA_PREP_INTERRUPT);
 	if (!tx) {
 		dev_err(dev, "Self-test zero prep failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 
@@ -947,7 +947,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	cookie = tx->tx_submit(tx);
 	if (cookie < 0) {
 		dev_err(dev, "Self-test zero setup failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 	dma->device_issue_pending(dma_chan);
@@ -957,7 +957,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	if (tmo == 0 ||
 	    dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test validate timed out\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 
@@ -966,13 +966,13 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	if (xor_val_result != 0) {
 		dev_err(dev, "Self-test validate failed compare\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto free_resources;
 	}
 
 	memset(page_address(dest), 0, PAGE_SIZE);
 
-	/* test for non-zero parity sum */
+	/* test for analn-zero parity sum */
 	op = IOAT_OP_XOR_VAL;
 
 	xor_val_result = 0;
@@ -980,7 +980,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 		dma_srcs[i] = dma_map_page(dev, xor_val_srcs[i], 0, PAGE_SIZE,
 					   DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, dma_srcs[i])) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto dma_unmap;
 		}
 	}
@@ -989,7 +989,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 					  &xor_val_result, DMA_PREP_INTERRUPT);
 	if (!tx) {
 		dev_err(dev, "Self-test 2nd zero prep failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 
@@ -1000,7 +1000,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	cookie = tx->tx_submit(tx);
 	if (cookie < 0) {
 		dev_err(dev, "Self-test  2nd zero setup failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 	dma->device_issue_pending(dma_chan);
@@ -1010,13 +1010,13 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	if (tmo == 0 ||
 	    dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test 2nd validate timed out\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 
 	if (xor_val_result != SUM_CHECK_P_RESULT) {
 		dev_err(dev, "Self-test validate failed compare\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto dma_unmap;
 	}
 
@@ -1072,7 +1072,7 @@ static void ioat_intr_quirk(struct ioatdma_device *ioat_dma)
 	 * error interrupts
 	 */
 	if (ioat_dma->cap & IOAT_CAP_DWBES) {
-		list_for_each_entry(c, &dma->channels, device_node) {
+		list_for_each_entry(c, &dma->channels, device_analde) {
 			ioat_chan = to_ioat_chan(c);
 			errmask = readl(ioat_chan->reg_base +
 					IOAT_CHANERR_MASK_OFFSET);
@@ -1105,7 +1105,7 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 
 	ioat_dma->cap = readl(ioat_dma->reg_base + IOAT_DMA_CAP_OFFSET);
 
-	if (is_xeon_cb32(pdev) || is_bwd_noraid(pdev))
+	if (is_xeon_cb32(pdev) || is_bwd_analraid(pdev))
 		ioat_dma->cap &=
 			~(IOAT_CAP_XOR | IOAT_CAP_PQ | IOAT_CAP_RAID16SS);
 
@@ -1163,7 +1163,7 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 					&pdev->dev,
 					SED_SIZE * (i + 1), 64, 0);
 			if (!ioat_dma->sed_hw_pool[i])
-				return -ENOMEM;
+				return -EANALMEM;
 
 		}
 	}
@@ -1175,7 +1175,7 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	if (err)
 		return err;
 
-	list_for_each_entry(c, &dma->channels, device_node) {
+	list_for_each_entry(c, &dma->channels, device_analde) {
 		ioat_chan = to_ioat_chan(c);
 		writel(IOAT_DMA_DCA_ANY_CPU,
 		       ioat_chan->reg_base + IOAT_DCACTRL_OFFSET);
@@ -1193,13 +1193,13 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	/* disable relaxed ordering */
 	err = pcie_capability_read_word(pdev, PCI_EXP_DEVCTL, &val16);
 	if (err)
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 
 	/* clear relaxed ordering enable */
 	val16 &= ~PCI_EXP_DEVCTL_RELAX_EN;
 	err = pcie_capability_write_word(pdev, PCI_EXP_DEVCTL, val16);
 	if (err)
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 
 	if (ioat_dma->cap & IOAT_CAP_DPS)
 		writeb(ioat_pending_level + 1,
@@ -1227,9 +1227,9 @@ static void ioat_shutdown(struct pci_dev *pdev)
 		spin_unlock_bh(&ioat_chan->prep_lock);
 		/*
 		 * Synchronization rule for del_timer_sync():
-		 *  - The caller must not hold locks which would prevent
+		 *  - The caller must analt hold locks which would prevent
 		 *    completion of the timer's handler.
-		 * So prep_lock cannot be held before calling it.
+		 * So prep_lock cananalt be held before calling it.
 		 */
 		del_timer_sync(&ioat_chan->timer);
 
@@ -1258,7 +1258,7 @@ static void ioat_resume(struct ioatdma_device *ioat_dma)
 		chanerr = readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
 		writel(chanerr, ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
 
-		/* no need to reset as shutdown already did that */
+		/* anal need to reset as shutdown already did that */
 	}
 }
 
@@ -1361,7 +1361,7 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	iomap = pcim_iomap_table(pdev);
 	if (!iomap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err)
@@ -1369,7 +1369,7 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	device = alloc_ioatdma(pdev, iomap[IOAT_MMIO_BAR]);
 	if (!device)
-		return -ENOMEM;
+		return -EANALMEM;
 	pci_set_master(pdev);
 	pci_set_drvdata(pdev, device);
 
@@ -1381,11 +1381,11 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			device->version = IOAT_VER_3_2;
 		err = ioat3_dma_probe(device, ioat_dca_enabled);
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (err) {
 		dev_err(dev, "Intel(R) I/OAT DMA Engine init failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1412,15 +1412,15 @@ static void ioat_remove(struct pci_dev *pdev)
 
 static int __init ioat_init_module(void)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
-	pr_info("%s: Intel(R) QuickData Technology Driver %s\n",
+	pr_info("%s: Intel(R) QuickData Techanallogy Driver %s\n",
 		DRV_NAME, IOAT_DMA_VERSION);
 
 	ioat_cache = kmem_cache_create("ioat", sizeof(struct ioat_ring_ent),
 					0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!ioat_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ioat_sed_cache = KMEM_CACHE(ioat_sed_ent, 0);
 	if (!ioat_sed_cache)

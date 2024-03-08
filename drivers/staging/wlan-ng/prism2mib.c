@@ -251,9 +251,9 @@ int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp)
 	which = F_STA;
 
 	/*
-	 ** Find the MIB in the MIB table.  Note that a MIB may be in the
+	 ** Find the MIB in the MIB table.  Analte that a MIB may be in the
 	 ** table twice...once for an AP and once for a station.  Make sure
-	 ** to get the correct one.  Note that DID=0 marks the end of the
+	 ** to get the correct one.  Analte that DID=0 marks the end of the
 	 ** MIB table.
 	 */
 
@@ -264,7 +264,7 @@ int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp)
 			break;
 
 	if (mib->did == 0) {
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
+		msg->resultcode.data = P80211ENUM_resultcode_analt_supported;
 		goto done;
 	}
 
@@ -327,7 +327,7 @@ done:
  * MIB record parameters:
  *       parm1    Prism2 RID value.
  *       parm2    Number of bytes of RID data.
- *       parm3    Not used.
+ *       parm3    Analt used.
  *
  * Arguments:
  *       mib      MIB record.
@@ -376,8 +376,8 @@ static int prism2mib_bytearea2pstr(struct mibrec *mib,
  *
  * MIB record parameters:
  *       parm1    Prism2 RID value.
- *       parm2    Not used.
- *       parm3    Not used.
+ *       parm2    Analt used.
+ *       parm3    Analt used.
  *
  * Arguments:
  *       mib      MIB record.
@@ -424,7 +424,7 @@ static int prism2mib_uint32(struct mibrec *mib,
  * MIB record parameters:
  *       parm1    Prism2 RID value.
  *       parm2    Bit to get/set.
- *       parm3    Not used.
+ *       parm3    Analt used.
  *
  * Arguments:
  *       mib      MIB record.
@@ -481,7 +481,7 @@ static int prism2mib_flag(struct mibrec *mib,
  * MIB record parameters:
  *       parm1    Prism2 RID value.
  *       parm2    Number of bytes of RID data.
- *       parm3    Not used.
+ *       parm3    Analt used.
  *
  * Arguments:
  *       mib      MIB record.
@@ -531,7 +531,7 @@ static int prism2mib_wepdefaultkey(struct mibrec *mib,
  * MIB record parameters:
  *       parm1    Prism2 RID value.
  *       parm2    Bit value for PrivacyInvoked flag.
- *       parm3    Not used.
+ *       parm3    Analt used.
  *
  * Arguments:
  *       mib      MIB record.
@@ -572,8 +572,8 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
  *
  * MIB record parameters:
  *       parm1    Prism2 RID value.
- *       parm2    Not used.
- *       parm3    Not used.
+ *       parm2    Analt used.
+ *       parm3    Analt used.
  *
  * Arguments:
  *       mib      MIB record.
@@ -605,7 +605,7 @@ prism2mib_fragmentationthreshold(struct mibrec *mib,
 			netdev_warn(wlandev->netdev,
 				    "Attempt to set odd number FragmentationThreshold\n");
 			msg->resultcode.data =
-			    P80211ENUM_resultcode_not_supported;
+			    P80211ENUM_resultcode_analt_supported;
 			return 0;
 		}
 
@@ -618,9 +618,9 @@ prism2mib_fragmentationthreshold(struct mibrec *mib,
  * Get/set values in the "priv" data structure.
  *
  * MIB record parameters:
- *       parm1    Not used.
- *       parm2    Not used.
- *       parm3    Not used.
+ *       parm1    Analt used.
+ *       parm2    Analt used.
+ *       parm3    Analt used.
  *
  * Arguments:
  *       mib      MIB record.
@@ -649,7 +649,7 @@ static int prism2mib_priv(struct mibrec *mib,
 	case DIDMIB_LNX_CONFIGTABLE_RSNAIE: {
 		/*
 		 * This can never work: wpa is on the stack
-		 * and has no bytes allocated in wpa.data.
+		 * and has anal bytes allocated in wpa.data.
 		 */
 		struct hfa384x_wpa_data wpa;
 
@@ -687,7 +687,7 @@ static int prism2mib_priv(struct mibrec *mib,
  *	pstr		wlan message data
  *
  * Returns:
- *	Nothing
+ *	Analthing
  *
  */
 
@@ -709,7 +709,7 @@ void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
  *	msg		wlan message
  *
  * Returns:
- *	Nothing
+ *	Analthing
  *
  */
 
@@ -731,7 +731,7 @@ void prism2mgmt_bytestr2pstr(struct hfa384x_bytestr *bytestr,
  *	msg		wlan message
  *
  * Returns:
- *	Nothing
+ *	Analthing
  *
  */
 

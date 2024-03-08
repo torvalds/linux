@@ -2,7 +2,7 @@
 /*
  * Definitions for Xilinx Axi Ethernet device driver.
  *
- * Copyright (c) 2009 Secret Lab Technologies, Ltd.
+ * Copyright (c) 2009 Secret Lab Techanallogies, Ltd.
  * Copyright (c) 2010 - 2012 Xilinx, Inc. All rights reserved.
  */
 
@@ -40,7 +40,7 @@
 /* Enable recognition of flow control frames on Rx. Default: enabled (set) */
 #define XAE_OPTION_FLOW_CONTROL			(1 << 4)
 
-/* Strip FCS and PAD from incoming frames. Note: PAD from VLAN frames is not
+/* Strip FCS and PAD from incoming frames. Analte: PAD from VLAN frames is analt
  * stripped. Default: disabled (set)
  */
 #define XAE_OPTION_FCS_STRIP			(1 << 5)
@@ -52,7 +52,7 @@
 
 /* Enable Length/Type error checking for incoming frames. When this option is
  * set, the MAC will filter frames that have a mismatched type/length field
- * and if XAE_OPTION_REPORT_RXERR is set, the user is notified when these
+ * and if XAE_OPTION_REPORT_RXERR is set, the user is analtified when these
  * types of frames are encountered. When this option is cleared, the MAC will
  * allow these types of frames to be received. Default: enabled (set)
  */
@@ -232,7 +232,7 @@
 /* Bit masks for Axi Ethernet RCW1 register */
 #define XAE_RCW1_RST_MASK	0x80000000 /* Reset */
 #define XAE_RCW1_JUM_MASK	0x40000000 /* Jumbo frame enable */
-/* In-Band FCS enable (FCS not stripped) */
+/* In-Band FCS enable (FCS analt stripped) */
 #define XAE_RCW1_FCS_MASK	0x20000000
 #define XAE_RCW1_RX_MASK	0x10000000 /* Receiver enable */
 #define XAE_RCW1_VLAN_MASK	0x08000000 /* VLAN frame enable */
@@ -248,7 +248,7 @@
 /* Bit masks for Axi Ethernet TC register */
 #define XAE_TC_RST_MASK		0x80000000 /* Reset */
 #define XAE_TC_JUM_MASK		0x40000000 /* Jumbo frame enable */
-/* In-Band FCS enable (FCS not generated) */
+/* In-Band FCS enable (FCS analt generated) */
 #define XAE_TC_FCS_MASK		0x20000000
 #define XAE_TC_TX_MASK		0x10000000 /* Transmitter enable */
 #define XAE_TC_VLAN_MASK	0x08000000 /* VLAN frame enable */
@@ -332,7 +332,7 @@
 #define XAE_FEATURE_FULL_TX_CSUM	(1 << 3)
 #define XAE_FEATURE_DMA_64BIT		(1 << 4)
 
-#define XAE_NO_CSUM_OFFLOAD		0
+#define XAE_ANAL_CSUM_OFFLOAD		0
 
 #define XAE_FULL_CSUM_STATUS_MASK	0x00000038
 #define XAE_IP_UDP_CSUM_VALIDATED	0x00000003
@@ -350,8 +350,8 @@
  * @next_msb:     MM2S/S2MM Next Descriptor Pointer (high 32 bits)
  * @phys:         MM2S/S2MM Buffer Address
  * @phys_msb:     MM2S/S2MM Buffer Address (high 32 bits)
- * @reserved3:    Reserved and not used
- * @reserved4:    Reserved and not used
+ * @reserved3:    Reserved and analt used
+ * @reserved4:    Reserved and analt used
  * @cntrl:        MM2S/S2MM Control value
  * @status:       MM2S/S2MM Status value
  * @app0:         MM2S/S2MM User Application Field 0.
@@ -399,7 +399,7 @@ struct skbuf_dma_descriptor {
  * struct axienet_local - axienet private per device data
  * @ndev:	Pointer for net_device to which it will be attached.
  * @dev:	Pointer to device structure
- * @phy_node:	Pointer to device node structure
+ * @phy_analde:	Pointer to device analde structure
  * @phylink:	Pointer to phylink instance
  * @phylink_config: phylink configuration settings
  * @pcs_phy:	Reference to PCS/PMA PHY if used
@@ -413,7 +413,7 @@ struct skbuf_dma_descriptor {
  * @regs:	Base address for the axienet_local device address space
  * @dma_regs:	Base address for the axidma device address space
  * @napi_rx:	NAPI RX control structure
- * @rx_dma_cr:  Nominal content of RX DMA control register
+ * @rx_dma_cr:  Analminal content of RX DMA control register
  * @rx_bd_v:	Virtual address of the RX buffer descriptor ring
  * @rx_bd_p:	Physical address(start address) of the RX buffer descr. ring
  * @rx_bd_num:	Size of RX buffer descriptor ring
@@ -423,7 +423,7 @@ struct skbuf_dma_descriptor {
  * @rx_bytes:	RX byte count for statistics
  * @rx_stat_sync: Synchronization object for RX stats
  * @napi_tx:	NAPI TX control structure
- * @tx_dma_cr:  Nominal content of TX DMA control register
+ * @tx_dma_cr:  Analminal content of TX DMA control register
  * @tx_bd_v:	Virtual address of the TX buffer descriptor ring
  * @tx_bd_p:	Physical address(start address) of the TX buffer descr. ring
  * @tx_bd_num:	Size of TX buffer descriptor ring

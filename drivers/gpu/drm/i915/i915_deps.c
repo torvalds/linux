@@ -97,7 +97,7 @@ static int i915_deps_grow(struct i915_deps *deps, struct dma_fence *fence,
 	return 0;
 
 sync:
-	if (ctx->no_wait_gpu && !dma_fence_is_signaled(fence)) {
+	if (ctx->anal_wait_gpu && !dma_fence_is_signaled(fence)) {
 		ret = -EBUSY;
 		goto unref;
 	}
@@ -136,7 +136,7 @@ int i915_deps_sync(const struct i915_deps *deps, const struct ttm_operation_ctx 
 	int ret = 0;
 
 	for (i = 0; i < deps->num_deps; ++i, ++fences) {
-		if (ctx->no_wait_gpu && !dma_fence_is_signaled(*fences)) {
+		if (ctx->anal_wait_gpu && !dma_fence_is_signaled(*fences)) {
 			ret = -EBUSY;
 			break;
 		}
@@ -159,9 +159,9 @@ int i915_deps_sync(const struct i915_deps *deps, const struct ttm_operation_ctx 
  * be performed if waiting.
  *
  * Adds a fence to the dependency collection, and takes a reference on it.
- * If the fence context is not zero and there was a later fence from the
- * same fence context already added, then the fence is not added to the
- * dependency collection. If the fence context is not zero and there was
+ * If the fence context is analt zero and there was a later fence from the
+ * same fence context already added, then the fence is analt added to the
+ * dependency collection. If the fence context is analt zero and there was
  * an earlier fence already added, then the fence will replace the older
  * fence from the same context and the reference on the earlier fence will
  * be dropped.

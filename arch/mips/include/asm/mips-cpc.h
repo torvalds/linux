@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2013 Imagination Technologies
+ * Copyright (C) 2013 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -12,7 +12,7 @@
 #define __MIPS_ASM_MIPS_CPC_H__
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 /* The base address of the CPC registers */
 extern void __iomem *mips_cpc_base;
@@ -31,14 +31,14 @@ extern phys_addr_t mips_cpc_default_phys_base(void);
  * mips_cpc_probe - probe for a Cluster Power Controller
  *
  * Attempt to detect the presence of a Cluster Power Controller. Returns 0 if
- * a CPC is successfully detected, else -errno.
+ * a CPC is successfully detected, else -erranal.
  */
 #ifdef CONFIG_MIPS_CPC
 extern int mips_cpc_probe(void);
 #else
 static inline int mips_cpc_probe(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -151,7 +151,7 @@ CPC_CX_ACCESSOR_RW(32, 0x090, config)
 #ifdef CONFIG_MIPS_CPC
 
 /**
- * mips_cpc_lock_other - lock access to another core
+ * mips_cpc_lock_other - lock access to aanalther core
  * core: the other core to be accessed
  *
  * Call before operating upon a core via the 'other' register region in
@@ -162,9 +162,9 @@ CPC_CX_ACCESSOR_RW(32, 0x090, config)
 extern void mips_cpc_lock_other(unsigned int core);
 
 /**
- * mips_cpc_unlock_other - unlock access to another core
+ * mips_cpc_unlock_other - unlock access to aanalther core
  *
- * Call after operating upon another core via the 'other' register region.
+ * Call after operating upon aanalther core via the 'other' register region.
  * Must be called after mips_cpc_lock_other.
  */
 extern void mips_cpc_unlock_other(void);

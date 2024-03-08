@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology corporation.
+// Copyright (c) 2018 Nuvoton Techanallogy corporation.
 // Copyright 2018 Google, Inc.
 
 #include <linux/linkage.h>
@@ -9,7 +9,7 @@
 .arch armv7-a
 
 /*
- * The boot ROM does not start secondary CPUs in SVC mode, so we need to do that
+ * The boot ROM does analt start secondary CPUs in SVC mode, so we need to do that
  * here.
  */
 ENTRY(npcm7xx_secondary_startup)

@@ -2,14 +2,14 @@
 /*
  * bvec iterator
  *
- * Copyright (C) 2001 Ming Lei <ming.lei@canonical.com>
+ * Copyright (C) 2001 Ming Lei <ming.lei@caanalnical.com>
  */
 #ifndef __LINUX_BVEC_H
 #define __LINUX_BVEC_H
 
 #include <linux/highmem.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/limits.h>
 #include <linux/minmax.h>
 #include <linux/types.h>
@@ -92,7 +92,7 @@ struct bvec_iter_all {
 };
 
 /*
- * various member access, note that bio_data should of course not be used
+ * various member access, analte that bio_data should of course analt be used
  * on highmem page vectors
  */
 #define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])
@@ -162,7 +162,7 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
 }
 
 /*
- * A simpler version of bvec_iter_advance(), @bytes should not span
+ * A simpler version of bvec_iter_advance(), @bytes should analt span
  * across multiple bvec entries, i.e. bytes <= bv[i->bi_idx].bv_len
  */
 static inline void bvec_iter_advance_single(const struct bio_vec *bv,
@@ -272,7 +272,7 @@ static inline void memzero_bvec(struct bio_vec *bvec)
  * bvec_virt - return the virtual address for a bvec
  * @bvec: bvec to return the virtual address for
  *
- * Note: the caller must ensure that @bvec->bv_page is not a highmem page.
+ * Analte: the caller must ensure that @bvec->bv_page is analt a highmem page.
  */
 static inline void *bvec_virt(struct bio_vec *bvec)
 {

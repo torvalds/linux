@@ -18,7 +18,7 @@ The Corsair Commander Pro is a USB device with 6 fan connectors,
 4 temperature sensor connectors and 2 Corsair LED connectors.
 It can read the voltage levels on the SATA power connector.
 
-Usage Notes
+Usage Analtes
 -----------
 
 Since it is a USB device, hotswapping is possible. The device is autodetected.

@@ -54,13 +54,13 @@ static struct nx842_constraints nx842_pseries_constraints = {
 static int check_constraints(unsigned long buf, unsigned int *len, bool in)
 {
 	if (!IS_ALIGNED(buf, nx842_pseries_constraints.alignment)) {
-		pr_debug("%s buffer 0x%lx not aligned to 0x%x\n",
+		pr_debug("%s buffer 0x%lx analt aligned to 0x%x\n",
 			 in ? "input" : "output", buf,
 			 nx842_pseries_constraints.alignment);
 		return -EINVAL;
 	}
 	if (*len % nx842_pseries_constraints.multiple) {
-		pr_debug("%s buffer len 0x%x not multiple of 0x%x\n",
+		pr_debug("%s buffer len 0x%x analt multiple of 0x%x\n",
 			 in ? "input" : "output", *len,
 			 nx842_pseries_constraints.multiple);
 		if (in)
@@ -166,12 +166,12 @@ static void ibm_nx842_incr_hist(atomic64_t *times, unsigned int time)
 #define NX842_OP_COMPRESS_CRC   (NX842_OP_COMPRESS | NX842_OP_CRC)
 #define NX842_OP_DECOMPRESS_CRC (NX842_OP_DECOMPRESS | NX842_OP_CRC)
 #define NX842_OP_ASYNC		(1<<23)
-#define NX842_OP_NOTIFY		(1<<22)
-#define NX842_OP_NOTIFY_INT(x)	((x & 0xff)<<8)
+#define NX842_OP_ANALTIFY		(1<<22)
+#define NX842_OP_ANALTIFY_INT(x)	((x & 0xff)<<8)
 
 static unsigned long nx842_get_desired_dma(struct vio_dev *viodev)
 {
-	/* No use of DMA mappings within the driver. */
+	/* Anal use of DMA mappings within the driver. */
 	return 0;
 }
 
@@ -186,7 +186,7 @@ struct nx842_scatterlist {
 	struct nx842_slentry *entries; /* ptr to array of slentries */
 };
 
-/* Does not include sizeof(entry_nr) in the size */
+/* Does analt include sizeof(entry_nr) in the size */
 static inline unsigned long nx842_get_scatterlist_size(
 				struct nx842_scatterlist *sl)
 {
@@ -223,7 +223,7 @@ static int nx842_validate_result(struct device *dev,
 {
 	/* The csb must be valid after returning from vio_h_cop_sync */
 	if (!NX842_CSBCBP_VALID_CHK(csb->valid)) {
-		dev_err(dev, "%s: cspcbp not valid upon completion.\n",
+		dev_err(dev, "%s: cspcbp analt valid upon completion.\n",
 				__func__);
 		dev_dbg(dev, "valid:0x%02x cs:0x%02x cc:0x%02x ce:0x%02x\n",
 				csb->valid,
@@ -247,7 +247,7 @@ static int nx842_validate_result(struct device *dev,
 	case 13: /* Output buffer too small */
 		dev_dbg(dev, "%s: Out of space in output buffer\n",
 					__func__);
-		return -ENOSPC;
+		return -EANALSPC;
 	case 65: /* Calculated CRC doesn't match the passed value */
 		dev_dbg(dev, "%s: CRC mismatch for decompression\n",
 					__func__);
@@ -265,10 +265,10 @@ static int nx842_validate_result(struct device *dev,
 
 	/* Hardware sanity check */
 	if (!NX842_CSBCPB_CE2(csb->completion_extension)) {
-		dev_err(dev, "%s: No error returned by hardware, but "
+		dev_err(dev, "%s: Anal error returned by hardware, but "
 				"data returned is unusable, contact support.\n"
 				"(Additional info: csbcbp->processed bytes "
-				"does not specify processed bytes for the "
+				"does analt specify processed bytes for the "
 				"target buffer.)\n", __func__);
 		return -EIO;
 	}
@@ -296,10 +296,10 @@ static int nx842_validate_result(struct device *dev,
  *
  * Returns:
  *   0		Success, output of length @outlen stored in the buffer at @out
- *   -ENOMEM	Unable to allocate internal buffers
- *   -ENOSPC	Output buffer is to small
+ *   -EANALMEM	Unable to allocate internal buffers
+ *   -EANALSPC	Output buffer is to small
  *   -EIO	Internal error
- *   -ENODEV	Hardware unavailable
+ *   -EANALDEV	Hardware unavailable
  */
 static int nx842_pseries_compress(const unsigned char *in, unsigned int inlen,
 				  unsigned char *out, unsigned int *outlen,
@@ -331,7 +331,7 @@ static int nx842_pseries_compress(const unsigned char *in, unsigned int inlen,
 	local_devdata = rcu_dereference(devdata);
 	if (!local_devdata || !local_devdata->dev) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev = local_devdata->dev;
 
@@ -425,9 +425,9 @@ unlock:
  *
  * Returns:
  *   0		Success, output of length @outlen stored in the buffer at @out
- *   -ENODEV	Hardware decompression device is unavailable
- *   -ENOMEM	Unable to allocate internal buffers
- *   -ENOSPC	Output buffer is to small
+ *   -EANALDEV	Hardware decompression device is unavailable
+ *   -EANALMEM	Unable to allocate internal buffers
+ *   -EANALSPC	Output buffer is to small
  *   -EINVAL	Bad input data encountered when attempting decompress
  *   -EIO	Internal error
  */
@@ -462,7 +462,7 @@ static int nx842_pseries_decompress(const unsigned char *in, unsigned int inlen,
 	local_devdata = rcu_dereference(devdata);
 	if (!local_devdata || !local_devdata->dev) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev = local_devdata->dev;
 
@@ -544,7 +544,7 @@ unlock:
  *
  * Returns:
  *  0 on success
- *  -ENOENT if @devdata ptr is NULL
+ *  -EANALENT if @devdata ptr is NULL
  */
 static int nx842_OF_set_defaults(struct nx842_devdata *devdata)
 {
@@ -554,7 +554,7 @@ static int nx842_OF_set_defaults(struct nx842_devdata *devdata)
 		devdata->max_sg_len = 0;
 		return 0;
 	} else
-		return -ENOENT;
+		return -EANALENT;
 }
 
 /**
@@ -570,7 +570,7 @@ static int nx842_OF_set_defaults(struct nx842_devdata *devdata)
  *
  * Returns:
  *  0 - Device is available
- *  -ENODEV - Device is not available
+ *  -EANALDEV - Device is analt available
  */
 static int nx842_OF_upd_status(struct nx842_devdata *devdata,
 			       struct property *prop)
@@ -580,8 +580,8 @@ static int nx842_OF_upd_status(struct nx842_devdata *devdata,
 	if (!strncmp(status, "okay", (size_t)prop->length))
 		return 0;
 	if (!strncmp(status, "disabled", (size_t)prop->length))
-		return -ENODEV;
-	dev_info(devdata->dev, "%s: unknown status '%s'\n", __func__, status);
+		return -EANALDEV;
+	dev_info(devdata->dev, "%s: unkanalwn status '%s'\n", __func__, status);
 
 	return -EINVAL;
 }
@@ -630,8 +630,8 @@ static int nx842_OF_upd_maxsglen(struct nx842_devdata *devdata,
  *
  * Definition of the 'ibm,max-sync-cop' OF property:
  *  Two series of cells.  The first series of cells represents the maximums
- *  that can be synchronously compressed. The second series of cells
- *  represents the maximums that can be synchronously decompressed.
+ *  that can be synchroanalusly compressed. The second series of cells
+ *  represents the maximums that can be synchroanalusly decompressed.
  *  1. The first cell in each series contains the count of the number of
  *     data length, scatter list elements pairs that follow – each being
  *     of the form
@@ -684,7 +684,7 @@ static int nx842_OF_upd_maxsyncop(struct nx842_devdata *devdata,
 	decomp_sg_limit = be32_to_cpu(maxsynccop->decomp_sg_limit);
 
 	/* Use one limit rather than separate limits for compression and
-	 * decompression. Set a maximum for this so as not to exceed the
+	 * decompression. Set a maximum for this so as analt to exceed the
 	 * size that the header can support and round the value down to
 	 * the hardware page size (4K) */
 	devdata->max_sync_size = min(comp_data_limit, decomp_data_limit);
@@ -725,53 +725,53 @@ out:
  * The device will remain disabled until all values are valid, this function
  * will return an error for updates unless all values are valid.
  *
- * @new_prop: If not NULL, this property is being updated.  If NULL, update
+ * @new_prop: If analt NULL, this property is being updated.  If NULL, update
  *  all properties from the current values in the OF tree.
  *
  * Returns:
  *  0 - Success
- *  -ENOMEM - Could not allocate memory for new devdata structure
- *  -EINVAL - property value not found, new_prop is not a recognized
- *	property for the device or property value is not valid.
- *  -ENODEV - Device is not available
+ *  -EANALMEM - Could analt allocate memory for new devdata structure
+ *  -EINVAL - property value analt found, new_prop is analt a recognized
+ *	property for the device or property value is analt valid.
+ *  -EANALDEV - Device is analt available
  */
 static int nx842_OF_upd(struct property *new_prop)
 {
 	struct nx842_devdata *old_devdata = NULL;
 	struct nx842_devdata *new_devdata = NULL;
-	struct device_node *of_node = NULL;
+	struct device_analde *of_analde = NULL;
 	struct property *status = NULL;
 	struct property *maxsglen = NULL;
 	struct property *maxsyncop = NULL;
 	int ret = 0;
 	unsigned long flags;
 
-	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
+	new_devdata = kzalloc(sizeof(*new_devdata), GFP_ANALFS);
 	if (!new_devdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
 	if (old_devdata)
-		of_node = old_devdata->dev->of_node;
+		of_analde = old_devdata->dev->of_analde;
 
-	if (!old_devdata || !of_node) {
-		pr_err("%s: device is not available\n", __func__);
+	if (!old_devdata || !of_analde) {
+		pr_err("%s: device is analt available\n", __func__);
 		spin_unlock_irqrestore(&devdata_mutex, flags);
 		kfree(new_devdata);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	memcpy(new_devdata, old_devdata, sizeof(*old_devdata));
 	new_devdata->counters = old_devdata->counters;
 
 	/* Set ptrs for existing properties */
-	status = of_find_property(of_node, "status", NULL);
-	maxsglen = of_find_property(of_node, "ibm,max-sg-len", NULL);
-	maxsyncop = of_find_property(of_node, "ibm,max-sync-cop", NULL);
+	status = of_find_property(of_analde, "status", NULL);
+	maxsglen = of_find_property(of_analde, "ibm,max-sg-len", NULL);
+	maxsyncop = of_find_property(of_analde, "ibm,max-sync-cop", NULL);
 	if (!status || !maxsglen || !maxsyncop) {
-		dev_err(old_devdata->dev, "%s: Could not locate device properties\n", __func__);
+		dev_err(old_devdata->dev, "%s: Could analt locate device properties\n", __func__);
 		ret = -EINVAL;
 		goto error_out;
 	}
@@ -826,7 +826,7 @@ error_out:
 		dev_set_drvdata(new_devdata->dev, new_devdata);
 		kfree(old_devdata);
 	} else {
-		dev_err(old_devdata->dev, "%s: could not update driver from hardware\n", __func__);
+		dev_err(old_devdata->dev, "%s: could analt update driver from hardware\n", __func__);
 		spin_unlock_irqrestore(&devdata_mutex, flags);
 	}
 
@@ -836,42 +836,42 @@ error_out:
 }
 
 /**
- * nx842_OF_notifier - Process updates to OF properties for the device
+ * nx842_OF_analtifier - Process updates to OF properties for the device
  *
- * @np: notifier block
- * @action: notifier action
+ * @np: analtifier block
+ * @action: analtifier action
  * @data: struct of_reconfig_data pointer
  *
  * Returns:
- *	NOTIFY_OK on success
- *	NOTIFY_BAD encoded with error number on failure, use
- *		notifier_to_errno() to decode this value
+ *	ANALTIFY_OK on success
+ *	ANALTIFY_BAD encoded with error number on failure, use
+ *		analtifier_to_erranal() to decode this value
  */
-static int nx842_OF_notifier(struct notifier_block *np, unsigned long action,
+static int nx842_OF_analtifier(struct analtifier_block *np, unsigned long action,
 			     void *data)
 {
 	struct of_reconfig_data *upd = data;
 	struct nx842_devdata *local_devdata;
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 
 	rcu_read_lock();
 	local_devdata = rcu_dereference(devdata);
 	if (local_devdata)
-		node = local_devdata->dev->of_node;
+		analde = local_devdata->dev->of_analde;
 
 	if (local_devdata &&
 			action == OF_RECONFIG_UPDATE_PROPERTY &&
-			!strcmp(upd->dn->name, node->name)) {
+			!strcmp(upd->dn->name, analde->name)) {
 		rcu_read_unlock();
 		nx842_OF_upd(upd->prop);
 	} else
 		rcu_read_unlock();
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block nx842_of_nb = {
-	.notifier_call = nx842_OF_notifier,
+static struct analtifier_block nx842_of_nb = {
+	.analtifier_call = nx842_OF_analtifier,
 };
 
 #define nx842_counter_read(_name)					\
@@ -1034,15 +1034,15 @@ static int nx842_probe(struct vio_dev *viodev,
 	unsigned long flags;
 	int ret = 0;
 
-	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
+	new_devdata = kzalloc(sizeof(*new_devdata), GFP_ANALFS);
 	if (!new_devdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_devdata->counters = kzalloc(sizeof(*new_devdata->counters),
-			GFP_NOFS);
+			GFP_ANALFS);
 	if (!new_devdata->counters) {
 		kfree(new_devdata);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&devdata_mutex, flags);
@@ -1066,7 +1066,7 @@ static int nx842_probe(struct vio_dev *viodev,
 	synchronize_rcu();
 	kfree(old_devdata);
 
-	of_reconfig_notifier_register(&nx842_of_nb);
+	of_reconfig_analtifier_register(&nx842_of_nb);
 
 	ret = nx842_OF_upd(NULL);
 	if (ret)
@@ -1074,7 +1074,7 @@ static int nx842_probe(struct vio_dev *viodev,
 
 	ret = crypto_register_alg(&nx842_pseries_alg);
 	if (ret) {
-		dev_err(&viodev->dev, "could not register comp alg: %d\n", ret);
+		dev_err(&viodev->dev, "could analt register comp alg: %d\n", ret);
 		goto error;
 	}
 
@@ -1083,7 +1083,7 @@ static int nx842_probe(struct vio_dev *viodev,
 	rcu_read_unlock();
 
 	if (sysfs_create_group(&viodev->dev.kobj, &nx842_attribute_group)) {
-		dev_err(&viodev->dev, "could not create sysfs device attributes\n");
+		dev_err(&viodev->dev, "could analt create sysfs device attributes\n");
 		ret = -1;
 		goto error;
 	}
@@ -1092,7 +1092,7 @@ static int nx842_probe(struct vio_dev *viodev,
 		if (sysfs_create_group(&viodev->dev.kobj,
 					&nxcop_caps_attr_group)) {
 			dev_err(&viodev->dev,
-				"Could not create sysfs NX capability entries\n");
+				"Could analt create sysfs NX capability entries\n");
 			ret = -1;
 			goto error;
 		}
@@ -1125,7 +1125,7 @@ static void nx842_remove(struct vio_dev *viodev)
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
-	of_reconfig_notifier_unregister(&nx842_of_nb);
+	of_reconfig_analtifier_unregister(&nx842_of_nb);
 	RCU_INIT_POINTER(devdata, NULL);
 	spin_unlock_irqrestore(&devdata_mutex, flags);
 	synchronize_rcu();
@@ -1138,7 +1138,7 @@ static void nx842_remove(struct vio_dev *viodev)
 /*
  * Get NX capabilities from the hypervisor.
  * Only NXGZIP capabilities are provided by the hypersvisor right
- * now and these values are available to user space with sysfs.
+ * analw and these values are available to user space with sysfs.
  */
 static void __init nxcop_get_capabilities(void)
 {
@@ -1172,7 +1172,7 @@ static void __init nxcop_get_capabilities(void)
 						  VAS_NX_GZIP_FEAT,
 						  (u64)virt_to_phys(hv_nxc));
 	} else {
-		pr_err("NX-GZIP feature is not available\n");
+		pr_err("NX-GZIP feature is analt available\n");
 		rc = -EINVAL;
 	}
 
@@ -1210,18 +1210,18 @@ static struct vio_driver nx842_vio_driver = {
 static int __init nx842_pseries_init(void)
 {
 	struct nx842_devdata *new_devdata;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,compression");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,compression");
 	if (!np)
-		return -ENODEV;
-	of_node_put(np);
+		return -EANALDEV;
+	of_analde_put(np);
 
 	RCU_INIT_POINTER(devdata, NULL);
 	new_devdata = kzalloc(sizeof(*new_devdata), GFP_KERNEL);
 	if (!new_devdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	RCU_INIT_POINTER(devdata, new_devdata);
 	/*
@@ -1231,7 +1231,7 @@ static int __init nx842_pseries_init(void)
 
 	ret = vio_register_driver(&nx842_vio_driver);
 	if (ret) {
-		pr_err("Could not register VIO driver %d\n", ret);
+		pr_err("Could analt register VIO driver %d\n", ret);
 
 		kfree(new_devdata);
 		return ret;
@@ -1241,7 +1241,7 @@ static int __init nx842_pseries_init(void)
 				       "nx-gzip");
 
 	if (ret)
-		pr_err("NX-GZIP is not supported. Returned=%d\n", ret);
+		pr_err("NX-GZIP is analt supported. Returned=%d\n", ret);
 
 	return 0;
 }

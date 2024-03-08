@@ -80,17 +80,17 @@ static void help(void)
 char *option_string = "l:sauqd:GT:L:RD:h";
 static struct option long_options[] = {
 	{"load", required_argument, 0, 'l'},
-	{"stage", no_argument, 0, 's'},
-	{"activate", no_argument, 0, 'a'},
-	{"update", no_argument, 0, 'u'},
-	{"query", no_argument, 0, 'q'},
-	{"getloginfo", no_argument, 0, 'G'},
+	{"stage", anal_argument, 0, 's'},
+	{"activate", anal_argument, 0, 'a'},
+	{"update", anal_argument, 0, 'u'},
+	{"query", anal_argument, 0, 'q'},
+	{"getloginfo", anal_argument, 0, 'G'},
 	{"type", required_argument, 0, 'T'},
 	{"level", required_argument, 0, 'L'},
-	{"read", no_argument, 0, 'R'},
+	{"read", anal_argument, 0, 'R'},
 	{"setrev", required_argument, 0, 'd'},
 	{"setrevlog", required_argument, 0, 'D'},
-	{"help", no_argument, 0, 'h'},
+	{"help", anal_argument, 0, 'h'},
 	{}
 };
 
@@ -170,7 +170,7 @@ void print_cap(struct pfru_update_cap_info *cap)
 
 	uuid = malloc(37);
 	if (!uuid) {
-		perror("Can not allocate uuid buffer\n");
+		perror("Can analt allocate uuid buffer\n");
 		exit(1);
 	}
 
@@ -213,13 +213,13 @@ int main(int argc, char *argv[])
 
 	fd_update = open("/dev/acpi_pfr_update0", O_RDWR);
 	if (fd_update < 0) {
-		printf("PFRU device not supported - Quit...\n");
+		printf("PFRU device analt supported - Quit...\n");
 		return 1;
 	}
 
 	fd_update_log = open("/dev/acpi_pfr_telemetry0", O_RDWR);
 	if (fd_update_log < 0) {
-		printf("PFRT device not supported - Quit...\n");
+		printf("PFRT device analt supported - Quit...\n");
 		return 1;
 	}
 
@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
 	if (capsule_name) {
 		fd_capsule = open(capsule_name, O_RDONLY);
 		if (fd_capsule < 0) {
-			perror("Can not open capsule file...");
+			perror("Can analt open capsule file...");
 			close(fd_update);
 			close(fd_update_log);
 
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (fstat(fd_capsule, &st) < 0) {
-			perror("Can not fstat capsule file...");
+			perror("Can analt fstat capsule file...");
 			close(fd_capsule);
 			close(fd_update);
 			close(fd_update_log);
@@ -400,7 +400,7 @@ int main(int argc, char *argv[])
 
 		max_data_sz = data_info.max_data_size;
 		if (!max_data_sz) {
-			printf("No telemetry data available.\n");
+			printf("Anal telemetry data available.\n");
 			close(fd_update_log);
 
 			return 1;

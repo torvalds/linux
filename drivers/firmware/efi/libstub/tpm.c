@@ -36,11 +36,11 @@ void efi_enable_reset_attack_mitigation(void)
 	status = get_efi_var(efi_MemoryOverWriteRequest_name, &var_guid,
 			     NULL, &datasize, NULL);
 
-	if (status == EFI_NOT_FOUND)
+	if (status == EFI_ANALT_FOUND)
 		return;
 
 	set_efi_var(efi_MemoryOverWriteRequest_name, &var_guid,
-		    EFI_VARIABLE_NON_VOLATILE |
+		    EFI_VARIABLE_ANALN_VOLATILE |
 		    EFI_VARIABLE_BOOTSERVICE_ACCESS |
 		    EFI_VARIABLE_RUNTIME_ACCESS, sizeof(val), &val);
 }
@@ -100,7 +100,7 @@ void efi_retrieve_tpm2_eventlog(void)
 			 * and the information to decode the hash algorithms
 			 * back into a size is contained in the first entry -
 			 * pass a pointer to the final entry (to calculate its
-			 * size) and the first entry (so we know how long each
+			 * size) and the first entry (so we kanalw how long each
 			 * digest is)
 			 */
 			last_entry_size =

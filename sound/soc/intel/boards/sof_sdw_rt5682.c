@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
@@ -58,7 +58,7 @@ static int rt5682_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s hs:rt5682",
 					  card->components);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_add_card_controls(card, rt5682_controls,
 					ARRAY_SIZE(rt5682_controls));

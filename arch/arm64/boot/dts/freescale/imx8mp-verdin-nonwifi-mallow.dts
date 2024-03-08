@@ -6,13 +6,13 @@
 /dts-v1/;
 
 #include "imx8mp-verdin.dtsi"
-#include "imx8mp-verdin-nonwifi.dtsi"
+#include "imx8mp-verdin-analnwifi.dtsi"
 #include "imx8mp-verdin-mallow.dtsi"
 
 / {
 	model = "Toradex Verdin iMX8M Plus on Mallow Board";
-	compatible = "toradex,verdin-imx8mp-nonwifi-mallow",
-		     "toradex,verdin-imx8mp-nonwifi",
+	compatible = "toradex,verdin-imx8mp-analnwifi-mallow",
+		     "toradex,verdin-imx8mp-analnwifi",
 		     "toradex,verdin-imx8mp",
 		     "fsl,imx8mp";
 };

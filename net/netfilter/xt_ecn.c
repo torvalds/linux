@@ -19,7 +19,7 @@
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("Xtables: Explicit Congestion Notification (ECN) flag match");
+MODULE_DESCRIPTION("Xtables: Explicit Congestion Analtification (ECN) flag match");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_ecn");
 MODULE_ALIAS("ip6t_ecn");
@@ -94,7 +94,7 @@ static int ecn_mt_check4(const struct xt_mtchk_param *par)
 
 	if (info->operation & (XT_ECN_OP_MATCH_ECE | XT_ECN_OP_MATCH_CWR) &&
 	    (ip->proto != IPPROTO_TCP || ip->invflags & IPT_INV_PROTO)) {
-		pr_info_ratelimited("cannot match TCP bits for non-tcp packets\n");
+		pr_info_ratelimited("cananalt match TCP bits for analn-tcp packets\n");
 		return -EINVAL;
 	}
 
@@ -136,7 +136,7 @@ static int ecn_mt_check6(const struct xt_mtchk_param *par)
 
 	if (info->operation & (XT_ECN_OP_MATCH_ECE | XT_ECN_OP_MATCH_CWR) &&
 	    (ip->proto != IPPROTO_TCP || ip->invflags & IP6T_INV_PROTO)) {
-		pr_info_ratelimited("cannot match TCP bits for non-tcp packets\n");
+		pr_info_ratelimited("cananalt match TCP bits for analn-tcp packets\n");
 		return -EINVAL;
 	}
 

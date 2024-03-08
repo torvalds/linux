@@ -31,7 +31,7 @@ static DEFINE_SPINLOCK(i915_sw_fence_lock);
 
 enum {
 	DEBUG_FENCE_IDLE = 0,
-	DEBUG_FENCE_NOTIFY,
+	DEBUG_FENCE_ANALTIFY,
 };
 
 static void *i915_sw_fence_debug_hint(void *addr)
@@ -125,8 +125,8 @@ static inline void debug_fence_assert(struct i915_sw_fence *fence)
 
 #endif
 
-static int __i915_sw_fence_notify(struct i915_sw_fence *fence,
-				  enum i915_sw_fence_notify state)
+static int __i915_sw_fence_analtify(struct i915_sw_fence *fence,
+				  enum i915_sw_fence_analtify state)
 {
 	return fence->fn(fence, state);
 }
@@ -161,7 +161,7 @@ static void __i915_sw_fence_wake_up_all(struct i915_sw_fence *fence,
 			if (pos->flags & I915_SW_FENCE_FLAG_FENCE)
 				list_move_tail(&pos->entry, continuation);
 			else
-				pos->func(pos, TASK_NORMAL, 0, continuation);
+				pos->func(pos, TASK_ANALRMAL, 0, continuation);
 		}
 	} else {
 		LIST_HEAD(extra);
@@ -174,7 +174,7 @@ static void __i915_sw_fence_wake_up_all(struct i915_sw_fence *fence,
 				if (pos->flags & I915_SW_FENCE_FLAG_FENCE)
 					wake_flags = fence->error;
 
-				pos->func(pos, TASK_NORMAL, wake_flags, &extra);
+				pos->func(pos, TASK_ANALRMAL, wake_flags, &extra);
 			}
 
 			if (list_empty(&extra))
@@ -196,17 +196,17 @@ static void __i915_sw_fence_complete(struct i915_sw_fence *fence,
 	if (!atomic_dec_and_test(&fence->pending))
 		return;
 
-	debug_fence_set_state(fence, DEBUG_FENCE_IDLE, DEBUG_FENCE_NOTIFY);
+	debug_fence_set_state(fence, DEBUG_FENCE_IDLE, DEBUG_FENCE_ANALTIFY);
 
-	if (__i915_sw_fence_notify(fence, FENCE_COMPLETE) != NOTIFY_DONE)
+	if (__i915_sw_fence_analtify(fence, FENCE_COMPLETE) != ANALTIFY_DONE)
 		return;
 
-	debug_fence_set_state(fence, DEBUG_FENCE_NOTIFY, DEBUG_FENCE_IDLE);
+	debug_fence_set_state(fence, DEBUG_FENCE_ANALTIFY, DEBUG_FENCE_IDLE);
 
 	__i915_sw_fence_wake_up_all(fence, continuation);
 
 	debug_fence_destroy(fence);
-	__i915_sw_fence_notify(fence, FENCE_FREE);
+	__i915_sw_fence_analtify(fence, FENCE_FREE);
 }
 
 void i915_sw_fence_complete(struct i915_sw_fence *fence)
@@ -225,7 +225,7 @@ bool i915_sw_fence_await(struct i915_sw_fence *fence)
 
 	/*
 	 * It is only safe to add a new await to the fence while it has
-	 * not yet been signaled (i.e. there are still existing signalers).
+	 * analt yet been signaled (i.e. there are still existing signalers).
 	 */
 	pending = atomic_read(&fence->pending);
 	do {
@@ -237,7 +237,7 @@ bool i915_sw_fence_await(struct i915_sw_fence *fence)
 }
 
 void __i915_sw_fence_init(struct i915_sw_fence *fence,
-			  i915_sw_fence_notify_t fn,
+			  i915_sw_fence_analtify_t fn,
 			  const char *name,
 			  struct lock_class_key *key)
 {
@@ -363,7 +363,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 		wq = kmalloc(sizeof(*wq), gfp);
 		if (!wq) {
 			if (!gfpflags_allow_blocking(gfp))
-				return -ENOMEM;
+				return -EANALMEM;
 
 			i915_sw_fence_wait(signaler);
 			i915_sw_fence_set_error_once(fence, signaler->error);
@@ -434,10 +434,10 @@ static void timer_i915_sw_fence_wake(struct timer_list *t)
 	if (!fence)
 		return;
 
-	pr_notice("Asynchronous wait on fence %s:%s:%llx timed out (hint:%ps)\n",
+	pr_analtice("Asynchroanalus wait on fence %s:%s:%llx timed out (hint:%ps)\n",
 		  cb->dma->ops->get_driver_name(cb->dma),
 		  cb->dma->ops->get_timeline_name(cb->dma),
-		  cb->dma->seqno,
+		  cb->dma->seqanal,
 		  i915_sw_fence_debug_hint(fence));
 
 	i915_sw_fence_set_error_once(fence, -ETIMEDOUT);
@@ -494,7 +494,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 		     gfp);
 	if (!cb) {
 		if (!gfpflags_allow_blocking(gfp))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = dma_fence_wait(dma, false);
 		if (ret)
@@ -527,7 +527,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 		ret = 1;
 	} else {
 		func(dma, &cb->base);
-		if (ret == -ENOENT) /* fence already signaled */
+		if (ret == -EANALENT) /* fence already signaled */
 			ret = 0;
 	}
 

@@ -9,7 +9,7 @@
 
 /*
  * These procedures are used for tracking memory leaks in the subsystem, and
- * they get compiled out when the ACPI_DBG_TRACK_ALLOCATIONS is not set.
+ * they get compiled out when the ACPI_DBG_TRACK_ALLOCATIONS is analt set.
  *
  * Each memory allocation is tracked via a doubly linked list. Each
  * element contains the caller's component, module name, function name, and
@@ -63,7 +63,7 @@ acpi_ut_create_list(const char *list_name,
 
 	cache = acpi_os_allocate_zeroed(sizeof(struct acpi_memory_list));
 	if (!cache) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	cache->list_name = list_name;
@@ -109,7 +109,7 @@ void *acpi_ut_allocate_and_track(acpi_size size,
 		/* Report allocation error */
 
 		ACPI_WARNING((module, line,
-			      "Could not allocate size %u", (u32)size));
+			      "Could analt allocate size %u", (u32)size));
 
 		return (NULL);
 	}
@@ -173,7 +173,7 @@ void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
 		/* Report allocation error */
 
 		ACPI_ERROR((module, line,
-			    "Could not allocate size %u", (u32)size));
+			    "Could analt allocate size %u", (u32)size));
 		return (NULL);
 	}
 
@@ -207,7 +207,7 @@ void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
  *              module              - Source file name of caller
  *              line                - Line number of caller
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Frees the memory at Allocation
  *
@@ -238,7 +238,7 @@ acpi_ut_free_and_track(void *allocation,
 	status =
 	    acpi_ut_remove_allocation(debug_block, component, module, line);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Could not free memory"));
+		ACPI_EXCEPTION((AE_INFO, status, "Could analt free memory"));
 	}
 
 	acpi_os_free(debug_block);
@@ -256,14 +256,14 @@ acpi_ut_free_and_track(void *allocation,
  * RETURN:      Three cases:
  *              1) List is empty, NULL is returned.
  *              2) Element was found. Returns Allocation parameter.
- *              3) Element was not found. Returns position where it should be
+ *              3) Element was analt found. Returns position where it should be
  *                  inserted into the list.
  *
  * DESCRIPTION: Searches for an element in the global allocation tracking list.
- *              If the element is not found, returns the location within the
+ *              If the element is analt found, returns the location within the
  *              list where the element should be inserted.
  *
- *              Note: The list is ordered by larger-to-smaller addresses.
+ *              Analte: The list is ordered by larger-to-smaller addresses.
  *
  *              This global list is used to detect memory leaks in ACPICA as
  *              well as other issues such as an attempt to release the same
@@ -288,7 +288,7 @@ static struct acpi_debug_mem_block *acpi_ut_find_allocation(struct
 	/*
 	 * Search for the address.
 	 *
-	 * Note: List is ordered by larger-to-smaller addresses, on the
+	 * Analte: List is ordered by larger-to-smaller addresses, on the
 	 * assumption that a new allocation usually has a larger address
 	 * than previous allocations.
 	 */
@@ -350,7 +350,7 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 	}
 
 	/*
-	 * Search the global list for this address to make sure it is not
+	 * Search the global list for this address to make sure it is analt
 	 * already present. This will catch several kinds of problems.
 	 */
 	element = acpi_ut_find_allocation(allocation);
@@ -433,10 +433,10 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
 	mem_list = acpi_gbl_global_list;
 	if (NULL == mem_list->list_head) {
 
-		/* No allocations! */
+		/* Anal allocations! */
 
 		ACPI_ERROR((module, line,
-			    "Empty allocation list, nothing to free!"));
+			    "Empty allocation list, analthing to free!"));
 
 		return (AE_OK);
 	}
@@ -473,9 +473,9 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
  *
  * FUNCTION:    acpi_ut_dump_allocation_info
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print some info about the outstanding allocations.
  *
@@ -511,15 +511,15 @@ void acpi_ut_dump_allocation_info(void)
 		ROUND_UP_TO_1K (running_alloc_size)));
 
 	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-		("%30s: %4d (%3d Kb)\n", "Current Nodes",
-		acpi_gbl_current_node_count,
-		ROUND_UP_TO_1K (acpi_gbl_current_node_size)));
+		("%30s: %4d (%3d Kb)\n", "Current Analdes",
+		acpi_gbl_current_analde_count,
+		ROUND_UP_TO_1K (acpi_gbl_current_analde_size)));
 
 	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-		("%30s: %4d (%3d Kb)\n", "Max Nodes",
-		acpi_gbl_max_concurrent_node_count,
-		ROUND_UP_TO_1K ((acpi_gbl_max_concurrent_node_count *
-			sizeof (struct acpi_namespace_node)))));
+		("%30s: %4d (%3d Kb)\n", "Max Analdes",
+		acpi_gbl_max_concurrent_analde_count,
+		ROUND_UP_TO_1K ((acpi_gbl_max_concurrent_analde_count *
+			sizeof (struct acpi_namespace_analde)))));
 */
 	return_VOID;
 }
@@ -531,7 +531,7 @@ void acpi_ut_dump_allocation_info(void)
  * PARAMETERS:  component           - Component(s) to dump info for.
  *              module              - Module to dump info for. NULL means all.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print a list of all outstanding allocations.
  *
@@ -573,11 +573,11 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 			if (element->size <
 			    sizeof(struct acpi_common_descriptor)) {
 				acpi_os_printf("%p Length 0x%04X %9.9s-%4.4u "
-					       "[Not a Descriptor - too small]\n",
+					       "[Analt a Descriptor - too small]\n",
 					       descriptor, element->size,
 					       element->module, element->line);
 			} else {
-				/* Ignore allocated objects that are in a cache */
+				/* Iganalre allocated objects that are in a cache */
 
 				if (ACPI_GET_DESCRIPTOR_TYPE(descriptor) !=
 				    ACPI_DESC_TYPE_CACHED) {
@@ -602,7 +602,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 
 					/* Validate the descriptor type using Type field and length */
 
-					descriptor_type = 0;	/* Not a valid descriptor type */
+					descriptor_type = 0;	/* Analt a valid descriptor type */
 
 					switch (ACPI_GET_DESCRIPTOR_TYPE
 						(descriptor)) {
@@ -631,7 +631,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 
 						if (element->size ==
 						    sizeof(struct
-							   acpi_namespace_node))
+							   acpi_namespace_analde))
 						{
 							descriptor_type =
 							    ACPI_DESC_TYPE_NAMED;
@@ -668,9 +668,9 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 					case ACPI_DESC_TYPE_NAMED:
 
 						acpi_os_printf("%4.4s\n",
-							       acpi_ut_get_node_name
+							       acpi_ut_get_analde_name
 							       (&descriptor->
-								node));
+								analde));
 						break;
 
 					default:
@@ -693,7 +693,7 @@ exit:
 	/* Print summary */
 
 	if (!num_outstanding) {
-		ACPI_INFO(("No outstanding allocations"));
+		ACPI_INFO(("Anal outstanding allocations"));
 	} else {
 		ACPI_ERROR((AE_INFO, "%u (0x%X) Outstanding cache allocations",
 			    num_outstanding, num_outstanding));

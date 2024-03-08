@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@analvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #include <linux/mISDNif.h>
@@ -46,14 +46,14 @@ static void
 mISDN_sock_link(struct mISDN_sock_list *l, struct sock *sk)
 {
 	write_lock_bh(&l->lock);
-	sk_add_node(sk, &l->head);
+	sk_add_analde(sk, &l->head);
 	write_unlock_bh(&l->lock);
 }
 
 static void mISDN_sock_unlink(struct mISDN_sock_list *l, struct sock *sk)
 {
 	write_lock_bh(&l->lock);
-	sk_del_node_init(sk);
+	sk_del_analde_init(sk);
 	write_unlock_bh(&l->lock);
 }
 
@@ -116,7 +116,7 @@ mISDN_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		       __func__, (int)len, flags, _pms(sk)->ch.nr,
 		       sk->sk_protocol);
 	if (flags & (MSG_OOB))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (sk->sk_state == MISDN_CLOSED)
 		return 0;
@@ -149,7 +149,7 @@ mISDN_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			refcount_dec(&skb->users);
 		else
 			skb_queue_head(&sk->sk_receive_queue, skb);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	memcpy(skb_push(skb, MISDN_HEADER_LEN), mISDN_HEAD_P(skb),
 	       MISDN_HEADER_LEN);
@@ -168,7 +168,7 @@ mISDN_sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock		*sk = sock->sk;
 	struct sk_buff		*skb;
-	int			err = -ENOMEM;
+	int			err = -EANALMEM;
 
 	if (*debug & DEBUG_SOCKET)
 		printk(KERN_DEBUG "%s: len %d flags %x ch %d proto %x\n",
@@ -176,9 +176,9 @@ mISDN_sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		       sk->sk_protocol);
 
 	if (msg->msg_flags & MSG_OOB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_NOSIGNAL | MSG_ERRQUEUE))
+	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_ANALSIGNAL | MSG_ERRQUEUE))
 		return -EINVAL;
 
 	if (len < MISDN_HEADER_LEN)
@@ -215,7 +215,7 @@ mISDN_sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		printk(KERN_DEBUG "%s: ID:%x\n",
 		       __func__, mISDN_HEAD_ID(skb));
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!_pms(sk)->ch.peer)
 		goto done;
 	err = _pms(sk)->ch.recv(_pms(sk)->ch.peer, skb);
@@ -284,7 +284,7 @@ data_sock_ioctl_bound(struct sock *sk, unsigned int cmd, void __user *p)
 
 	lock_sock(sk);
 	if (!_pms(sk)->dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto done;
 	}
 	switch (cmd) {
@@ -357,7 +357,7 @@ data_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case IMGETVERSION:
 		ver.major = MISDN_MAJOR_VERSION;
-		ver.minor = MISDN_MINOR_VERSION;
+		ver.mianalr = MISDN_MIANALR_VERSION;
 		ver.release = MISDN_RELEASE;
 		if (copy_to_user((void __user *)arg, &ver, sizeof(ver)))
 			err = -EFAULT;
@@ -388,14 +388,14 @@ data_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			if (copy_to_user((void __user *)arg, &di, sizeof(di)))
 				err = -EFAULT;
 		} else
-			err = -ENODEV;
+			err = -EANALDEV;
 		break;
 	default:
 		if (sk->sk_state == MISDN_BOUND)
 			err = data_sock_ioctl_bound(sk, cmd,
 						    (void __user *)arg);
 		else
-			err = -ENOTCONN;
+			err = -EANALTCONN;
 	}
 	return err;
 }
@@ -425,7 +425,7 @@ static int data_sock_setsockopt(struct socket *sock, int level, int optname,
 			_pms(sk)->cmask &= ~MISDN_TIME_STAMP;
 		break;
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 	release_sock(sk);
@@ -455,7 +455,7 @@ static int data_sock_getsockopt(struct socket *sock, int level, int optname,
 			return -EFAULT;
 		break;
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	return 0;
@@ -484,7 +484,7 @@ data_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	}
 	_pms(sk)->dev = get_mdevice(maddr->dev);
 	if (!_pms(sk)->dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto done;
 	}
 
@@ -536,7 +536,7 @@ data_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 				     sk->sk_protocol, maddr);
 		break;
 	default:
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 	}
 	if (err)
 		goto done;
@@ -579,14 +579,14 @@ static const struct proto_ops data_sock_ops = {
 	.sendmsg	= mISDN_sock_sendmsg,
 	.recvmsg	= mISDN_sock_recvmsg,
 	.poll		= datagram_poll,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.listen		= sock_anal_listen,
+	.shutdown	= sock_anal_shutdown,
 	.setsockopt	= data_sock_setsockopt,
 	.getsockopt	= data_sock_getsockopt,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.mmap		= sock_no_mmap
+	.connect	= sock_anal_connect,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
+	.mmap		= sock_anal_mmap
 };
 
 static int
@@ -595,11 +595,11 @@ data_sock_create(struct net *net, struct socket *sock, int protocol, int kern)
 	struct sock *sk;
 
 	if (sock->type != SOCK_DGRAM)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	sk = sk_alloc(net, PF_ISDN, GFP_KERNEL, &mISDN_proto, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sock_init_data(sock, sk);
 
@@ -640,7 +640,7 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case IMGETVERSION:
 		ver.major = MISDN_MAJOR_VERSION;
-		ver.minor = MISDN_MINOR_VERSION;
+		ver.mianalr = MISDN_MIANALR_VERSION;
 		ver.release = MISDN_RELEASE;
 		if (copy_to_user((void __user *)arg, &ver, sizeof(ver)))
 			err = -EFAULT;
@@ -671,7 +671,7 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			if (copy_to_user((void __user *)arg, &di, sizeof(di)))
 				err = -EFAULT;
 		} else
-			err = -ENODEV;
+			err = -EANALDEV;
 		break;
 	case IMSETDEVNAME:
 	{
@@ -686,7 +686,7 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		if (dev)
 			err = device_rename(&dev->dev, dn.name);
 		else
-			err = -ENODEV;
+			err = -EANALDEV;
 	}
 	break;
 	default:
@@ -717,7 +717,7 @@ base_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 
 	_pms(sk)->dev = get_mdevice(maddr->dev);
 	if (!_pms(sk)->dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto done;
 	}
 	sk->sk_state = MISDN_BOUND;
@@ -733,15 +733,15 @@ static const struct proto_ops base_sock_ops = {
 	.release	= base_sock_release,
 	.ioctl		= base_sock_ioctl,
 	.bind		= base_sock_bind,
-	.getname	= sock_no_getname,
-	.sendmsg	= sock_no_sendmsg,
-	.recvmsg	= sock_no_recvmsg,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.mmap		= sock_no_mmap
+	.getname	= sock_anal_getname,
+	.sendmsg	= sock_anal_sendmsg,
+	.recvmsg	= sock_anal_recvmsg,
+	.listen		= sock_anal_listen,
+	.shutdown	= sock_anal_shutdown,
+	.connect	= sock_anal_connect,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
+	.mmap		= sock_anal_mmap
 };
 
 
@@ -751,13 +751,13 @@ base_sock_create(struct net *net, struct socket *sock, int protocol, int kern)
 	struct sock *sk;
 
 	if (sock->type != SOCK_RAW)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 	if (!capable(CAP_NET_RAW))
 		return -EPERM;
 
 	sk = sk_alloc(net, PF_ISDN, GFP_KERNEL, &mISDN_proto, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sock_init_data(sock, sk);
 	sock->ops = &base_sock_ops;
@@ -773,7 +773,7 @@ base_sock_create(struct net *net, struct socket *sock, int protocol, int kern)
 static int
 mISDN_sock_create(struct net *net, struct socket *sock, int proto, int kern)
 {
-	int err = -EPROTONOSUPPORT;
+	int err = -EPROTOANALSUPPORT;
 
 	switch (proto) {
 	case ISDN_P_BASE:

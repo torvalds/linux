@@ -2,7 +2,7 @@
 /*
  *  Gmux driver for Apple laptops
  *
- *  Copyright (C) Canonical Ltd. <seth.forshee@canonical.com>
+ *  Copyright (C) Caanalnical Ltd. <seth.forshee@caanalnical.com>
  *  Copyright (C) 2010-2012 Andreas Heider <andreas@meetr.de>
  *  Copyright (C) 2015 Lukas Wunner <lukas@wunner.de>
  *  Copyright (C) 2023 Orlando Chamberlain <orlandoch.dev@gmail.com>
@@ -38,7 +38,7 @@
  * gmux through MMIO, similar to how the main SMC interface is controlled.
  *
  * (The MacPro6,1 2013 also has a gmux, however it is unclear why since it has
- * dual GPUs but no built-in display.)
+ * dual GPUs but anal built-in display.)
  *
  * gmux is connected to the LPC bus of the southbridge. Its I/O ports are
  * accessed differently depending on the microcontroller: Driver functions
@@ -365,7 +365,7 @@ static const struct backlight_ops gmux_bl_ops = {
  * synchronize it with the GPU switched to. This allows for a flicker-free
  * switch that is imperceptible by the user (`US 8,687,007 B2`_).
  *
- * On retinas, muxing is no longer done by gmux itself, but by a separate
+ * On retinas, muxing is anal longer done by gmux itself, but by a separate
  * chip which is controlled by gmux. The chip is triple sourced, it is
  * either an `NXP CBTL06142`_, `TI HD3SS212`_ or `Pericom PI3VDP12412`_.
  * The panel is driven with eDP instead of LVDS since the pixel clock
@@ -377,7 +377,7 @@ static const struct backlight_ops gmux_bl_ops = {
  * the entire panel. Retinas lack this functionality as the chips used for
  * eDP muxing are incapable of switching the AUX channel separately (see
  * the linked data sheets, Pericom would be capable but this is unused).
- * However the retina panel has the NO_AUX_HANDSHAKE_LINK_TRAINING bit set
+ * However the retina panel has the ANAL_AUX_HANDSHAKE_LINK_TRAINING bit set
  * in its DPCD, allowing the inactive GPU to skip the AUX handshake and
  * set up the output with link parameters pre-calibrated by the active GPU.
  *
@@ -389,18 +389,18 @@ static const struct backlight_ops gmux_bl_ops = {
  * The following MacBook Pro generations replaced the external DP port with a
  * combined DP/Thunderbolt port and lost the ability to switch it between GPUs,
  * connecting it either to the discrete GPU or the Thunderbolt controller.
- * Oddly enough, while the full port is no longer switchable, AUX and HPD
+ * Oddly eanalugh, while the full port is anal longer switchable, AUX and HPD
  * are still switchable by way of an `NXP CBTL03062`_ (on pre-retinas
  * MBP8 2011 and MBP9 2012) or two `TI TS3DS10224`_ (on pre-t2 retinas) under
  * the control of gmux. Since the integrated GPU is missing the main link,
  * external displays appear to it as phantoms which fail to link-train.
  *
  * gmux receives the HPD signal of all display connectors and sends an
- * interrupt on hotplug. On generations which cannot switch external ports,
+ * interrupt on hotplug. On generations which cananalt switch external ports,
  * the discrete GPU can then be woken to drive the newly connected display.
  * The ability to switch AUX on these generations could be used to improve
  * reliability of hotplug detection by having the integrated GPU poll the
- * ports while the discrete GPU is asleep, but currently we do not make use
+ * ports while the discrete GPU is asleep, but currently we do analt make use
  * of this feature.
  *
  * Our switching policy for the external port is that on those generations
@@ -556,7 +556,7 @@ static enum vga_switcheroo_client_id gmux_get_client_id(struct pci_dev *pdev)
 		return VGA_SWITCHEROO_DIS;
 }
 
-static const struct vga_switcheroo_handler gmux_handler_no_ddc = {
+static const struct vga_switcheroo_handler gmux_handler_anal_ddc = {
 	.switchto = gmux_switchto,
 	.power_state = gmux_set_power_state,
 	.get_client_id = gmux_get_client_id,
@@ -586,7 +586,7 @@ static const struct apple_gmux_config apple_gmux_index = {
 	.write8 = &gmux_index_write8,
 	.read32 = &gmux_index_read32,
 	.write32 = &gmux_index_write32,
-	.gmux_handler = &gmux_handler_no_ddc,
+	.gmux_handler = &gmux_handler_anal_ddc,
 	.handler_flags = VGA_SWITCHEROO_NEEDS_EDP_CONFIG,
 	.resource_type = IORESOURCE_IO,
 	.read_version_as_u32 = true,
@@ -598,7 +598,7 @@ static const struct apple_gmux_config apple_gmux_mmio = {
 	.write8 = &gmux_mmio_write8,
 	.read32 = &gmux_mmio_read32,
 	.write32 = &gmux_mmio_write32,
-	.gmux_handler = &gmux_handler_no_ddc,
+	.gmux_handler = &gmux_handler_anal_ddc,
 	.handler_flags = VGA_SWITCHEROO_NEEDS_EDP_CONFIG,
 	.resource_type = IORESOURCE_MEM,
 	.read_version_as_u32 = true,
@@ -622,10 +622,10 @@ static const struct apple_gmux_config apple_gmux_mmio = {
  * while GMSP likely means "GMUX Set Polarity", and seems to write to the GPIO's
  * value. On newer Macbooks (This was introduced with or sometime before the
  * MacBookPro14,3), the ACPI GPE method differentiates between the OS type: On
- * Darwin, only a notification is signaled, whereas on other OSes, the GPIO's
+ * Darwin, only a analtification is signaled, whereas on other OSes, the GPIO's
  * value is read and then inverted.
  *
- * Because Linux masquerades as Darwin, it ends up in the notification-only code
+ * Because Linux masquerades as Darwin, it ends up in the analtification-only code
  * path. On MMIO gmux's, this seems to lead to us being unable to clear interrupts,
  * unless we call GMSP(0). Without this, there is a flood of status=0 interrupts
  * that can't be cleared. This issue seems to be unique to MMIO gmux's.
@@ -660,7 +660,7 @@ static void gmux_clear_interrupts(struct apple_gmux_data *gmux_data)
 		acpi_execute_simple_method(gmux_data->dhandle, "GMSP", 0);
 }
 
-static void gmux_notify_handler(acpi_handle device, u32 value, void *context)
+static void gmux_analtify_handler(acpi_handle device, u32 value, void *context)
 {
 	u8 status;
 	struct pnp_dev *pnp = (struct pnp_dev *)context;
@@ -668,7 +668,7 @@ static void gmux_notify_handler(acpi_handle device, u32 value, void *context)
 
 	status = gmux_interrupt_get_status(gmux_data);
 	gmux_disable_interrupts(gmux_data);
-	pr_debug("Notify handler called: status %d\n", status);
+	pr_debug("Analtify handler called: status %d\n", status);
 
 	gmux_clear_interrupts(gmux_data);
 	gmux_enable_interrupts(gmux_data);
@@ -783,7 +783,7 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	struct resource *res;
 	struct backlight_properties props;
 	struct backlight_device *bdev = NULL;
-	u8 ver_major, ver_minor, ver_release;
+	u8 ver_major, ver_mianalr, ver_release;
 	bool register_bdev = true;
 	int ret = -ENXIO;
 	acpi_status status;
@@ -795,13 +795,13 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		return -EBUSY;
 
 	if (!apple_gmux_detect(pnp, &type)) {
-		pr_info("gmux device not present\n");
-		return -ENODEV;
+		pr_info("gmux device analt present\n");
+		return -EANALDEV;
 	}
 
 	gmux_data = kzalloc(sizeof(*gmux_data), GFP_KERNEL);
 	if (!gmux_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	pnp_set_drvdata(pnp, gmux_data);
 
 	switch (type) {
@@ -847,14 +847,14 @@ get_version:
 	if (gmux_data->config->read_version_as_u32) {
 		version = gmux_read32(gmux_data, GMUX_PORT_VERSION_MAJOR);
 		ver_major = (version >> 24) & 0xff;
-		ver_minor = (version >> 16) & 0xff;
+		ver_mianalr = (version >> 16) & 0xff;
 		ver_release = (version >> 8) & 0xff;
 	} else {
 		ver_major = gmux_read8(gmux_data, GMUX_PORT_VERSION_MAJOR);
-		ver_minor = gmux_read8(gmux_data, GMUX_PORT_VERSION_MINOR);
+		ver_mianalr = gmux_read8(gmux_data, GMUX_PORT_VERSION_MIANALR);
 		ver_release = gmux_read8(gmux_data, GMUX_PORT_VERSION_RELEASE);
 	}
-	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
+	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_mianalr,
 		ver_release, gmux_data->config->name);
 
 	memset(&props, 0, sizeof(props));
@@ -900,39 +900,39 @@ get_version:
 
 	gmux_data->dhandle = ACPI_HANDLE(&pnp->dev);
 	if (!gmux_data->dhandle) {
-		pr_err("Cannot find acpi handle for pnp device %s\n",
+		pr_err("Cananalt find acpi handle for pnp device %s\n",
 		       dev_name(&pnp->dev));
-		ret = -ENODEV;
-		goto err_notify;
+		ret = -EANALDEV;
+		goto err_analtify;
 	}
 
 	status = acpi_evaluate_integer(gmux_data->dhandle, "GMGP", NULL, &gpe);
 	if (ACPI_SUCCESS(status)) {
 		gmux_data->gpe = (int)gpe;
 
-		status = acpi_install_notify_handler(gmux_data->dhandle,
-						     ACPI_DEVICE_NOTIFY,
-						     &gmux_notify_handler, pnp);
+		status = acpi_install_analtify_handler(gmux_data->dhandle,
+						     ACPI_DEVICE_ANALTIFY,
+						     &gmux_analtify_handler, pnp);
 		if (ACPI_FAILURE(status)) {
-			pr_err("Install notify handler failed: %s\n",
+			pr_err("Install analtify handler failed: %s\n",
 			       acpi_format_exception(status));
-			ret = -ENODEV;
-			goto err_notify;
+			ret = -EANALDEV;
+			goto err_analtify;
 		}
 
 		status = acpi_enable_gpe(NULL, gmux_data->gpe);
 		if (ACPI_FAILURE(status)) {
-			pr_err("Cannot enable gpe: %s\n",
+			pr_err("Cananalt enable gpe: %s\n",
 			       acpi_format_exception(status));
 			goto err_enable_gpe;
 		}
 	} else {
-		pr_warn("No GPE found for gmux\n");
+		pr_warn("Anal GPE found for gmux\n");
 		gmux_data->gpe = -1;
 	}
 
 	/*
-	 * If Thunderbolt is present, the external DP port is not fully
+	 * If Thunderbolt is present, the external DP port is analt fully
 	 * switchable. Force its AUX channel to the discrete GPU.
 	 */
 	gmux_data->external_switchable =
@@ -946,7 +946,7 @@ get_version:
 	gmux_read_switch_state(gmux_data);
 
 	/*
-	 * Retina MacBook Pros cannot switch the panel's AUX separately
+	 * Retina MacBook Pros cananalt switch the panel's AUX separately
 	 * and need eDP pre-calibration. They are distinguishable from
 	 * pre-retinas by having an "indexed" or "T2" gmux.
 	 *
@@ -969,10 +969,10 @@ err_register_handler:
 		acpi_disable_gpe(NULL, gmux_data->gpe);
 err_enable_gpe:
 	if (gmux_data->gpe >= 0)
-		acpi_remove_notify_handler(gmux_data->dhandle,
-					   ACPI_DEVICE_NOTIFY,
-					   &gmux_notify_handler);
-err_notify:
+		acpi_remove_analtify_handler(gmux_data->dhandle,
+					   ACPI_DEVICE_ANALTIFY,
+					   &gmux_analtify_handler);
+err_analtify:
 	backlight_device_unregister(bdev);
 err_unmap:
 	if (gmux_data->iomem_base)
@@ -996,9 +996,9 @@ static void gmux_remove(struct pnp_dev *pnp)
 	gmux_disable_interrupts(gmux_data);
 	if (gmux_data->gpe >= 0) {
 		acpi_disable_gpe(NULL, gmux_data->gpe);
-		acpi_remove_notify_handler(gmux_data->dhandle,
-					   ACPI_DEVICE_NOTIFY,
-					   &gmux_notify_handler);
+		acpi_remove_analtify_handler(gmux_data->dhandle,
+					   ACPI_DEVICE_ANALTIFY,
+					   &gmux_analtify_handler);
 	}
 
 	backlight_device_unregister(gmux_data->bdev);
@@ -1033,7 +1033,7 @@ static struct pnp_driver gmux_pnp_driver = {
 };
 
 module_pnp_driver(gmux_pnp_driver);
-MODULE_AUTHOR("Seth Forshee <seth.forshee@canonical.com>");
+MODULE_AUTHOR("Seth Forshee <seth.forshee@caanalnical.com>");
 MODULE_DESCRIPTION("Apple Gmux Driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pnp, gmux_device_ids);

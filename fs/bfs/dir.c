@@ -21,14 +21,14 @@
 #define dprintf(x...)
 #endif
 
-static int bfs_add_entry(struct inode *dir, const struct qstr *child, int ino);
-static struct buffer_head *bfs_find_entry(struct inode *dir,
+static int bfs_add_entry(struct ianalde *dir, const struct qstr *child, int ianal);
+static struct buffer_head *bfs_find_entry(struct ianalde *dir,
 				const struct qstr *child,
 				struct bfs_dirent **res_dir);
 
 static int bfs_readdir(struct file *f, struct dir_context *ctx)
 {
-	struct inode *dir = file_inode(f);
+	struct ianalde *dir = file_ianalde(f);
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
 	unsigned int offset;
@@ -37,7 +37,7 @@ static int bfs_readdir(struct file *f, struct dir_context *ctx)
 	if (ctx->pos & (BFS_DIRENT_SIZE - 1)) {
 		printf("Bad f_pos=%08lx for %s:%08lx\n",
 					(unsigned long)ctx->pos,
-					dir->i_sb->s_id, dir->i_ino);
+					dir->i_sb->s_id, dir->i_ianal);
 		return -EINVAL;
 	}
 
@@ -51,11 +51,11 @@ static int bfs_readdir(struct file *f, struct dir_context *ctx)
 		}
 		do {
 			de = (struct bfs_dirent *)(bh->b_data + offset);
-			if (de->ino) {
+			if (de->ianal) {
 				int size = strnlen(de->name, BFS_NAMELEN);
 				if (!dir_emit(ctx, de->name, size,
-						le16_to_cpu(de->ino),
-						DT_UNKNOWN)) {
+						le16_to_cpu(de->ianal),
+						DT_UNKANALWN)) {
 					brelse(bh);
 					return 0;
 				}
@@ -75,57 +75,57 @@ const struct file_operations bfs_dir_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static int bfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int bfs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 		      struct dentry *dentry, umode_t mode, bool excl)
 {
 	int err;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct super_block *s = dir->i_sb;
 	struct bfs_sb_info *info = BFS_SB(s);
-	unsigned long ino;
+	unsigned long ianal;
 
-	inode = new_inode(s);
-	if (!inode)
-		return -ENOMEM;
+	ianalde = new_ianalde(s);
+	if (!ianalde)
+		return -EANALMEM;
 	mutex_lock(&info->bfs_lock);
-	ino = find_first_zero_bit(info->si_imap, info->si_lasti + 1);
-	if (ino > info->si_lasti) {
+	ianal = find_first_zero_bit(info->si_imap, info->si_lasti + 1);
+	if (ianal > info->si_lasti) {
 		mutex_unlock(&info->bfs_lock);
-		iput(inode);
-		return -ENOSPC;
+		iput(ianalde);
+		return -EANALSPC;
 	}
-	set_bit(ino, info->si_imap);
+	set_bit(ianal, info->si_imap);
 	info->si_freei--;
-	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
-	simple_inode_init_ts(inode);
-	inode->i_blocks = 0;
-	inode->i_op = &bfs_file_inops;
-	inode->i_fop = &bfs_file_operations;
-	inode->i_mapping->a_ops = &bfs_aops;
-	inode->i_ino = ino;
-	BFS_I(inode)->i_dsk_ino = ino;
-	BFS_I(inode)->i_sblock = 0;
-	BFS_I(inode)->i_eblock = 0;
-	insert_inode_hash(inode);
-        mark_inode_dirty(inode);
+	ianalde_init_owner(&analp_mnt_idmap, ianalde, dir, mode);
+	simple_ianalde_init_ts(ianalde);
+	ianalde->i_blocks = 0;
+	ianalde->i_op = &bfs_file_ianalps;
+	ianalde->i_fop = &bfs_file_operations;
+	ianalde->i_mapping->a_ops = &bfs_aops;
+	ianalde->i_ianal = ianal;
+	BFS_I(ianalde)->i_dsk_ianal = ianal;
+	BFS_I(ianalde)->i_sblock = 0;
+	BFS_I(ianalde)->i_eblock = 0;
+	insert_ianalde_hash(ianalde);
+        mark_ianalde_dirty(ianalde);
 	bfs_dump_imap("create", s);
 
-	err = bfs_add_entry(dir, &dentry->d_name, inode->i_ino);
+	err = bfs_add_entry(dir, &dentry->d_name, ianalde->i_ianal);
 	if (err) {
-		inode_dec_link_count(inode);
+		ianalde_dec_link_count(ianalde);
 		mutex_unlock(&info->bfs_lock);
-		iput(inode);
+		iput(ianalde);
 		return err;
 	}
 	mutex_unlock(&info->bfs_lock);
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, ianalde);
 	return 0;
 }
 
-static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *bfs_lookup(struct ianalde *dir, struct dentry *dentry,
 						unsigned int flags)
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
 	struct bfs_sb_info *info = BFS_SB(dir->i_sb);
@@ -136,61 +136,61 @@ static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
 	mutex_lock(&info->bfs_lock);
 	bh = bfs_find_entry(dir, &dentry->d_name, &de);
 	if (bh) {
-		unsigned long ino = (unsigned long)le16_to_cpu(de->ino);
+		unsigned long ianal = (unsigned long)le16_to_cpu(de->ianal);
 		brelse(bh);
-		inode = bfs_iget(dir->i_sb, ino);
+		ianalde = bfs_iget(dir->i_sb, ianal);
 	}
 	mutex_unlock(&info->bfs_lock);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
-static int bfs_link(struct dentry *old, struct inode *dir,
+static int bfs_link(struct dentry *old, struct ianalde *dir,
 						struct dentry *new)
 {
-	struct inode *inode = d_inode(old);
-	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
+	struct ianalde *ianalde = d_ianalde(old);
+	struct bfs_sb_info *info = BFS_SB(ianalde->i_sb);
 	int err;
 
 	mutex_lock(&info->bfs_lock);
-	err = bfs_add_entry(dir, &new->d_name, inode->i_ino);
+	err = bfs_add_entry(dir, &new->d_name, ianalde->i_ianal);
 	if (err) {
 		mutex_unlock(&info->bfs_lock);
 		return err;
 	}
-	inc_nlink(inode);
-	inode_set_ctime_current(inode);
-	mark_inode_dirty(inode);
-	ihold(inode);
-	d_instantiate(new, inode);
+	inc_nlink(ianalde);
+	ianalde_set_ctime_current(ianalde);
+	mark_ianalde_dirty(ianalde);
+	ihold(ianalde);
+	d_instantiate(new, ianalde);
 	mutex_unlock(&info->bfs_lock);
 	return 0;
 }
 
-static int bfs_unlink(struct inode *dir, struct dentry *dentry)
+static int bfs_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	int error = -ENOENT;
-	struct inode *inode = d_inode(dentry);
+	int error = -EANALENT;
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
-	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
+	struct bfs_sb_info *info = BFS_SB(ianalde->i_sb);
 
 	mutex_lock(&info->bfs_lock);
 	bh = bfs_find_entry(dir, &dentry->d_name, &de);
-	if (!bh || (le16_to_cpu(de->ino) != inode->i_ino))
+	if (!bh || (le16_to_cpu(de->ianal) != ianalde->i_ianal))
 		goto out_brelse;
 
-	if (!inode->i_nlink) {
-		printf("unlinking non-existent file %s:%lu (nlink=%d)\n",
-					inode->i_sb->s_id, inode->i_ino,
-					inode->i_nlink);
-		set_nlink(inode, 1);
+	if (!ianalde->i_nlink) {
+		printf("unlinking analn-existent file %s:%lu (nlink=%d)\n",
+					ianalde->i_sb->s_id, ianalde->i_ianal,
+					ianalde->i_nlink);
+		set_nlink(ianalde, 1);
 	}
-	de->ino = 0;
-	mark_buffer_dirty_inode(bh, dir);
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-	mark_inode_dirty(dir);
-	inode_set_ctime_to_ts(inode, inode_get_ctime(dir));
-	inode_dec_link_count(inode);
+	de->ianal = 0;
+	mark_buffer_dirty_ianalde(bh, dir);
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
+	mark_ianalde_dirty(dir);
+	ianalde_set_ctime_to_ts(ianalde, ianalde_get_ctime(dir));
+	ianalde_dec_link_count(ianalde);
 	error = 0;
 
 out_brelse:
@@ -199,54 +199,54 @@ out_brelse:
 	return error;
 }
 
-static int bfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
-		      struct dentry *old_dentry, struct inode *new_dir,
+static int bfs_rename(struct mnt_idmap *idmap, struct ianalde *old_dir,
+		      struct dentry *old_dentry, struct ianalde *new_dir,
 		      struct dentry *new_dentry, unsigned int flags)
 {
-	struct inode *old_inode, *new_inode;
+	struct ianalde *old_ianalde, *new_ianalde;
 	struct buffer_head *old_bh, *new_bh;
 	struct bfs_dirent *old_de, *new_de;
 	struct bfs_sb_info *info;
-	int error = -ENOENT;
+	int error = -EANALENT;
 
-	if (flags & ~RENAME_NOREPLACE)
+	if (flags & ~RENAME_ANALREPLACE)
 		return -EINVAL;
 
 	old_bh = new_bh = NULL;
-	old_inode = d_inode(old_dentry);
-	if (S_ISDIR(old_inode->i_mode))
+	old_ianalde = d_ianalde(old_dentry);
+	if (S_ISDIR(old_ianalde->i_mode))
 		return -EINVAL;
 
-	info = BFS_SB(old_inode->i_sb);
+	info = BFS_SB(old_ianalde->i_sb);
 
 	mutex_lock(&info->bfs_lock);
 	old_bh = bfs_find_entry(old_dir, &old_dentry->d_name, &old_de);
 
-	if (!old_bh || (le16_to_cpu(old_de->ino) != old_inode->i_ino))
+	if (!old_bh || (le16_to_cpu(old_de->ianal) != old_ianalde->i_ianal))
 		goto end_rename;
 
 	error = -EPERM;
-	new_inode = d_inode(new_dentry);
+	new_ianalde = d_ianalde(new_dentry);
 	new_bh = bfs_find_entry(new_dir, &new_dentry->d_name, &new_de);
 
-	if (new_bh && !new_inode) {
+	if (new_bh && !new_ianalde) {
 		brelse(new_bh);
 		new_bh = NULL;
 	}
 	if (!new_bh) {
 		error = bfs_add_entry(new_dir, &new_dentry->d_name,
-					old_inode->i_ino);
+					old_ianalde->i_ianal);
 		if (error)
 			goto end_rename;
 	}
-	old_de->ino = 0;
-	inode_set_mtime_to_ts(old_dir, inode_set_ctime_current(old_dir));
-	mark_inode_dirty(old_dir);
-	if (new_inode) {
-		inode_set_ctime_current(new_inode);
-		inode_dec_link_count(new_inode);
+	old_de->ianal = 0;
+	ianalde_set_mtime_to_ts(old_dir, ianalde_set_ctime_current(old_dir));
+	mark_ianalde_dirty(old_dir);
+	if (new_ianalde) {
+		ianalde_set_ctime_current(new_ianalde);
+		ianalde_dec_link_count(new_ianalde);
 	}
-	mark_buffer_dirty_inode(old_bh, old_dir);
+	mark_buffer_dirty_ianalde(old_bh, old_dir);
 	error = 0;
 
 end_rename:
@@ -256,7 +256,7 @@ end_rename:
 	return error;
 }
 
-const struct inode_operations bfs_dir_inops = {
+const struct ianalde_operations bfs_dir_ianalps = {
 	.create			= bfs_create,
 	.lookup			= bfs_lookup,
 	.link			= bfs_link,
@@ -264,7 +264,7 @@ const struct inode_operations bfs_dir_inops = {
 	.rename			= bfs_rename,
 };
 
-static int bfs_add_entry(struct inode *dir, const struct qstr *child, int ino)
+static int bfs_add_entry(struct ianalde *dir, const struct qstr *child, int ianal)
 {
 	const unsigned char *name = child->name;
 	int namelen = child->len;
@@ -283,27 +283,27 @@ static int bfs_add_entry(struct inode *dir, const struct qstr *child, int ino)
 			return -EIO;
 		for (off = 0; off < BFS_BSIZE; off += BFS_DIRENT_SIZE) {
 			de = (struct bfs_dirent *)(bh->b_data + off);
-			if (!de->ino) {
+			if (!de->ianal) {
 				pos = (block - sblock) * BFS_BSIZE + off;
 				if (pos >= dir->i_size) {
 					dir->i_size += BFS_DIRENT_SIZE;
-					inode_set_ctime_current(dir);
+					ianalde_set_ctime_current(dir);
 				}
-				inode_set_mtime_to_ts(dir,
-						      inode_set_ctime_current(dir));
-				mark_inode_dirty(dir);
-				de->ino = cpu_to_le16((u16)ino);
+				ianalde_set_mtime_to_ts(dir,
+						      ianalde_set_ctime_current(dir));
+				mark_ianalde_dirty(dir);
+				de->ianal = cpu_to_le16((u16)ianal);
 				for (i = 0; i < BFS_NAMELEN; i++)
 					de->name[i] =
 						(i < namelen) ? name[i] : 0;
-				mark_buffer_dirty_inode(bh, dir);
+				mark_buffer_dirty_ianalde(bh, dir);
 				brelse(bh);
 				return 0;
 			}
 		}
 		brelse(bh);
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static inline int bfs_namecmp(int len, const unsigned char *name,
@@ -314,7 +314,7 @@ static inline int bfs_namecmp(int len, const unsigned char *name,
 	return !memcmp(name, buffer, len);
 }
 
-static struct buffer_head *bfs_find_entry(struct inode *dir,
+static struct buffer_head *bfs_find_entry(struct ianalde *dir,
 			const struct qstr *child,
 			struct bfs_dirent **res_dir)
 {
@@ -338,7 +338,7 @@ static struct buffer_head *bfs_find_entry(struct inode *dir,
 		}
 		de = (struct bfs_dirent *)(bh->b_data + offset);
 		offset += BFS_DIRENT_SIZE;
-		if (le16_to_cpu(de->ino) &&
+		if (le16_to_cpu(de->ianal) &&
 				bfs_namecmp(namelen, name, de->name)) {
 			*res_dir = de;
 			return bh;

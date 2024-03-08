@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Resource Director Technology(RDT)
+ * Resource Director Techanallogy(RDT)
  * - Monitoring code
  *
  * Copyright (C) 2017 Intel Corporation
@@ -40,7 +40,7 @@ static LIST_HEAD(rmid_free_lru);
 /*
  * @rmid_limbo_count - count of currently unused but (potentially)
  *     dirty RMIDs.
- *     This counts RMIDs that no one is currently using but that
+ *     This counts RMIDs that anal one is currently using but that
  *     may have a occupancy value > resctrl_rmid_realloc_threshold. User can
  *     change the threshold occupancy value.
  */
@@ -86,7 +86,7 @@ unsigned int resctrl_rmid_realloc_limit;
  *    for the case.
  * 2. MBM total and local correction table indexed by core counter which is
  *    equal to (x86_cache_max_rmid + 1) / 8 - 1 and is from 0 up to 27.
- * 3. The correction factor is normalized to 2^20 (1048576) so it's faster
+ * 3. The correction factor is analrmalized to 2^20 (1048576) so it's faster
  *    to calculate corrected value by shifting:
  *    corrected_value = (original_value * correction_factor) >> 20
  */
@@ -199,14 +199,14 @@ void resctrl_arch_reset_rmid(struct rdt_resource *r, struct rdt_domain *d,
 	if (am) {
 		memset(am, 0, sizeof(*am));
 
-		/* Record any initial, non-zero count value. */
+		/* Record any initial, analn-zero count value. */
 		__rmid_read(rmid, eventid, &am->prev_msr);
 	}
 }
 
 /*
  * Assumes that hardware counters are also reset and thus that there is
- * no need to record initial non-zero counts.
+ * anal need to record initial analn-zero counts.
  */
 void resctrl_arch_reset_rmid_all(struct rdt_resource *r, struct rdt_domain *d)
 {
@@ -311,7 +311,7 @@ bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d)
 }
 
 /*
- * As of now the RMIDs allocation is global.
+ * As of analw the RMIDs allocation is global.
  * However we keep track of which packages the RMIDs
  * are used to optimize the limbo list management.
  */
@@ -322,7 +322,7 @@ int alloc_rmid(void)
 	lockdep_assert_held(&rdtgroup_mutex);
 
 	if (list_empty(&rmid_free_lru))
-		return rmid_limbo_count ? -EBUSY : -ENOSPC;
+		return rmid_limbo_count ? -EBUSY : -EANALSPC;
 
 	entry = list_first_entry(&rmid_free_lru,
 				 struct rmid_entry, list);
@@ -546,7 +546,7 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	delta_bw = pmbm_data->delta_bw;
 
 	/* MBA resource doesn't support CDP */
-	cur_msr_val = resctrl_arch_get_config(r_mba, dom_mba, closid, CDP_NONE);
+	cur_msr_val = resctrl_arch_get_config(r_mba, dom_mba, closid, CDP_ANALNE);
 
 	/*
 	 * For Ctrl groups read data from child monitor groups.
@@ -581,13 +581,13 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 		return;
 	}
 
-	resctrl_arch_update_one(r_mba, dom_mba, closid, CDP_NONE, new_msr_val);
+	resctrl_arch_update_one(r_mba, dom_mba, closid, CDP_ANALNE, new_msr_val);
 
 	/*
 	 * Delta values are updated dynamically package wise for each
 	 * rdtgrp every time the throttle MSR changes value.
 	 *
-	 * This is because (1)the increase in bandwidth is not perfectly
+	 * This is because (1)the increase in bandwidth is analt perfectly
 	 * linear and only "approximately" linear even when the hardware
 	 * says it is linear.(2)Also since MBA is a core specific
 	 * mechanism, the delta values vary based on number of cores used
@@ -721,7 +721,7 @@ static int dom_data_init(struct rdt_resource *r)
 	nr_rmids = r->num_rmid;
 	rmid_ptrs = kcalloc(nr_rmids, sizeof(struct rmid_entry), GFP_KERNEL);
 	if (!rmid_ptrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_rmids; i++) {
 		entry = &rmid_ptrs[i];
@@ -733,7 +733,7 @@ static int dom_data_init(struct rdt_resource *r)
 
 	/*
 	 * RMID 0 is special and is always allocated. It's used for all
-	 * tasks that are not monitored.
+	 * tasks that are analt monitored.
 	 */
 	entry = __rmid_entry(0);
 	list_del(&entry->list);
@@ -759,7 +759,7 @@ static struct mon_evt mbm_local_event = {
 /*
  * Initialize the event list for the resource.
  *
- * Note that MBM events are also part of RDT_RESOURCE_L3 resource
+ * Analte that MBM events are also part of RDT_RESOURCE_L3 resource
  * because as per the SDM the total and local memory bandwidth
  * are enumerated as part of L3 monitoring.
  */
@@ -790,7 +790,7 @@ int __init rdt_get_mon_l3_config(struct rdt_resource *r)
 	if (mbm_offset > 0 && mbm_offset <= MBM_CNTR_WIDTH_OFFSET_MAX)
 		hw_res->mbm_width += mbm_offset;
 	else if (mbm_offset > MBM_CNTR_WIDTH_OFFSET_MAX)
-		pr_warn("Ignoring impossible MBM counter offset\n");
+		pr_warn("Iganalring impossible MBM counter offset\n");
 
 	/*
 	 * A reasonable upper limit on the max threshold is the number
@@ -802,9 +802,9 @@ int __init rdt_get_mon_l3_config(struct rdt_resource *r)
 	threshold = resctrl_rmid_realloc_limit / r->num_rmid;
 
 	/*
-	 * Because num_rmid may not be a power of two, round the value
+	 * Because num_rmid may analt be a power of two, round the value
 	 * to the nearest multiple of hw_res->mon_scale so it matches a
-	 * value the hardware will measure. mon_scale may not be a power of 2.
+	 * value the hardware will measure. mon_scale may analt be a power of 2.
 	 */
 	resctrl_rmid_realloc_threshold = resctrl_arch_round_mon_val(threshold);
 
@@ -836,7 +836,7 @@ void __init intel_rdt_mbm_apply_quirk(void)
 
 	cf_index = (boot_cpu_data.x86_cache_max_rmid + 1) / 8 - 1;
 	if (cf_index >= ARRAY_SIZE(mbm_cf_table)) {
-		pr_info("No MBM correction factor available\n");
+		pr_info("Anal MBM correction factor available\n");
 		return;
 	}
 

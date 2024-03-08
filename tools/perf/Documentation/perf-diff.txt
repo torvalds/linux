@@ -5,7 +5,7 @@ NAME
 ----
 perf-diff - Read perf.data files and display the differential profile
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf diff' [baseline file] [data file1] [[data file2] ... ]
@@ -15,12 +15,12 @@ DESCRIPTION
 This command displays the performance difference amongst two or more perf.data
 files captured via perf record.
 
-If no parameters are passed it will assume perf.data.old and perf.data.
+If anal parameters are passed it will assume perf.data.old and perf.data.
 
 The differential profile is displayed only for events matching both
 specified perf.data files.
 
-If no parameters are passed the samples will be sorted by dso and symbol.
+If anal parameters are passed the samples will be sorted by dso and symbol.
 As the perf.data files could come from different binaries, the symbols addresses
 could vary. So perf diff is based on the comparison of the files and
 symbols name.
@@ -66,7 +66,7 @@ OPTIONS
 
 	Use a special separator character and don't pad with spaces, replacing
 	all occurrences of this separator in symbol names (and other output)
-	with a '.' character, that thus it's the only non valid separator.
+	with a '.' character, that thus it's the only analn valid separator.
 
 -v::
 --verbose::
@@ -75,7 +75,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Do not show any warnings or messages.  (Suppress -v)
+	Do analt show any warnings or messages.  (Suppress -v)
 
 -f::
 --force::
@@ -97,8 +97,8 @@ OPTIONS
 
 --cycles-hist::
 	Report a histogram and the standard deviation for cycles data.
-	It can help us to judge if the reported cycles data is noisy or
-	not. This option should be used with '-c cycles'.
+	It can help us to judge if the reported cycles data is analisy or
+	analt. This option should be used with '-c cycles'.
 
 -p::
 --period::
@@ -113,7 +113,7 @@ OPTIONS
        Specify compute sorting column number.  0 means sorting by baseline
        overhead and 1 (default) means sorting by computed value of column 1
        (data from the first file other base baseline).  Values more than 1
-       can be used only if enough data files are provided.
+       can be used only if eanalugh data files are provided.
        The default value can be set using the diff.order config option.
 
 --percentage::
@@ -148,9 +148,9 @@ OPTIONS
 	  perf diff --time 0%-10%,30%-40%
 
 	It also supports analyzing samples within a given time window
-	<start>,<stop>. Times have the format seconds.nanoseconds. If 'start'
-	is not given (i.e. time string is ',x.y') then analysis starts at
-	the beginning of the file. If stop time is not given (i.e. time
+	<start>,<stop>. Times have the format seconds.naanalseconds. If 'start'
+	is analt given (i.e. time string is ',x.y') then analysis starts at
+	the beginning of the file. If stop time is analt given (i.e. time
 	string is 'x.y,') then analysis goes to the end of the file.
 	Multiple ranges can be separated by spaces, which requires the argument
 	to be quoted e.g. --time "1234.567,1234.789 1235,"
@@ -172,7 +172,7 @@ OPTIONS
 	timestamp 3971.150589 to the end of perf.data.
 
 --cpu:: Only diff samples for the list of CPUs provided. Multiple CPUs can
-	be provided as a comma-separated list with no space: 0,1. Ranges of
+	be provided as a comma-separated list with anal space: 0,1. Ranges of
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
 
@@ -193,7 +193,7 @@ file is iterated for samples. All other perf.data files specified on
 the command line are searched for the baseline sample pair. If the pair
 is found, specified computation is made and result is displayed.
 
-All samples from non-baseline perf.data files, that do not match any
+All samples from analn-baseline perf.data files, that do analt match any
 baseline entry, are displayed with empty space within baseline column
 and possible computation results (delta) in their related column.
 

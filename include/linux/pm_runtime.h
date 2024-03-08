@@ -9,14 +9,14 @@
 #define _LINUX_PM_RUNTIME_H
 
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/pm.h>
 
 #include <linux/jiffies.h>
 
 /* Runtime PM flag argument bits */
-#define RPM_ASYNC		0x01	/* Request is asynchronous */
-#define RPM_NOWAIT		0x02	/* Don't wait for concurrent
+#define RPM_ASYNC		0x01	/* Request is asynchroanalus */
+#define RPM_ANALWAIT		0x02	/* Don't wait for concurrent
 					    state change */
 #define RPM_GET_PUT		0x04	/* Increment/decrement the
 					    usage_count */
@@ -26,7 +26,7 @@
  * Use this for defining a set of PM operations to be used in all situations
  * (system suspend, hibernation or runtime PM).
  *
- * Note that the behaviour differs from the deprecated UNIVERSAL_DEV_PM_OPS()
+ * Analte that the behaviour differs from the deprecated UNIVERSAL_DEV_PM_OPS()
  * macro, which uses the provided callbacks for both runtime PM and system
  * sleep, while DEFINE_RUNTIME_DEV_PM_OPS() uses pm_runtime_force_suspend()
  * and pm_runtime_force_resume() for its system sleep callbacks.
@@ -80,12 +80,12 @@ extern void pm_runtime_enable(struct device *dev);
 extern void __pm_runtime_disable(struct device *dev, bool check_resume);
 extern void pm_runtime_allow(struct device *dev);
 extern void pm_runtime_forbid(struct device *dev);
-extern void pm_runtime_no_callbacks(struct device *dev);
+extern void pm_runtime_anal_callbacks(struct device *dev);
 extern void pm_runtime_irq_safe(struct device *dev);
 extern void __pm_runtime_use_autosuspend(struct device *dev, bool use);
 extern void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
 extern u64 pm_runtime_autosuspend_expiration(struct device *dev);
-extern void pm_runtime_set_memalloc_noio(struct device *dev, bool enable);
+extern void pm_runtime_set_memalloc_analio(struct device *dev, bool enable);
 extern void pm_runtime_get_suppliers(struct device *dev);
 extern void pm_runtime_put_suppliers(struct device *dev);
 extern void pm_runtime_new_link(struct device *dev);
@@ -107,50 +107,50 @@ static inline int pm_runtime_get_if_in_use(struct device *dev)
 }
 
 /**
- * pm_suspend_ignore_children - Set runtime PM behavior regarding children.
+ * pm_suspend_iganalre_children - Set runtime PM behavior regarding children.
  * @dev: Target device.
- * @enable: Whether or not to ignore possible dependencies on children.
+ * @enable: Whether or analt to iganalre possible dependencies on children.
  *
- * The dependencies of @dev on its children will not be taken into account by
+ * The dependencies of @dev on its children will analt be taken into account by
  * the runtime PM framework going forward if @enable is %true, or they will
  * be taken into account otherwise.
  */
-static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
+static inline void pm_suspend_iganalre_children(struct device *dev, bool enable)
 {
-	dev->power.ignore_children = enable;
+	dev->power.iganalre_children = enable;
 }
 
 /**
- * pm_runtime_get_noresume - Bump up runtime PM usage counter of a device.
+ * pm_runtime_get_analresume - Bump up runtime PM usage counter of a device.
  * @dev: Target device.
  */
-static inline void pm_runtime_get_noresume(struct device *dev)
+static inline void pm_runtime_get_analresume(struct device *dev)
 {
 	atomic_inc(&dev->power.usage_count);
 }
 
 /**
- * pm_runtime_put_noidle - Drop runtime PM usage counter of a device.
+ * pm_runtime_put_analidle - Drop runtime PM usage counter of a device.
  * @dev: Target device.
  *
  * Decrement the runtime PM usage counter of @dev unless it is 0 already.
  */
-static inline void pm_runtime_put_noidle(struct device *dev)
+static inline void pm_runtime_put_analidle(struct device *dev)
 {
 	atomic_add_unless(&dev->power.usage_count, -1, 0);
 }
 
 /**
- * pm_runtime_suspended - Check whether or not a device is runtime-suspended.
+ * pm_runtime_suspended - Check whether or analt a device is runtime-suspended.
  * @dev: Target device.
  *
  * Return %true if runtime PM is enabled for @dev and its runtime PM status is
  * %RPM_SUSPENDED, or %false otherwise.
  *
- * Note that the return value of this function can only be trusted if it is
+ * Analte that the return value of this function can only be trusted if it is
  * called under the runtime PM lock of @dev or under conditions in which
- * runtime PM cannot be either disabled or enabled for @dev and its runtime PM
- * status cannot change.
+ * runtime PM cananalt be either disabled or enabled for @dev and its runtime PM
+ * status cananalt change.
  */
 static inline bool pm_runtime_suspended(struct device *dev)
 {
@@ -159,16 +159,16 @@ static inline bool pm_runtime_suspended(struct device *dev)
 }
 
 /**
- * pm_runtime_active - Check whether or not a device is runtime-active.
+ * pm_runtime_active - Check whether or analt a device is runtime-active.
  * @dev: Target device.
  *
  * Return %true if runtime PM is disabled for @dev or its runtime PM status is
  * %RPM_ACTIVE, or %false otherwise.
  *
- * Note that the return value of this function can only be trusted if it is
+ * Analte that the return value of this function can only be trusted if it is
  * called under the runtime PM lock of @dev or under conditions in which
- * runtime PM cannot be either disabled or enabled for @dev and its runtime PM
- * status cannot change.
+ * runtime PM cananalt be either disabled or enabled for @dev and its runtime PM
+ * status cananalt change.
  */
 static inline bool pm_runtime_active(struct device *dev)
 {
@@ -181,11 +181,11 @@ static inline bool pm_runtime_active(struct device *dev)
  * @dev: Target device.
  *
  * Return %true if the runtime PM status of @dev is %RPM_SUSPENDED, or %false
- * otherwise, regardless of whether or not runtime PM has been enabled for @dev.
+ * otherwise, regardless of whether or analt runtime PM has been enabled for @dev.
  *
- * Note that the return value of this function can only be trusted if it is
+ * Analte that the return value of this function can only be trusted if it is
  * called under the runtime PM lock of @dev or under conditions in which the
- * runtime PM status of @dev cannot change.
+ * runtime PM status of @dev cananalt change.
  */
 static inline bool pm_runtime_status_suspended(struct device *dev)
 {
@@ -198,9 +198,9 @@ static inline bool pm_runtime_status_suspended(struct device *dev)
  *
  * Return %true if runtime PM is enabled for @dev or %false otherwise.
  *
- * Note that the return value of this function can only be trusted if it is
+ * Analte that the return value of this function can only be trusted if it is
  * called under the runtime PM lock of @dev or under conditions in which
- * runtime PM cannot be either disabled or enabled for @dev.
+ * runtime PM cananalt be either disabled or enabled for @dev.
  */
 static inline bool pm_runtime_enabled(struct device *dev)
 {
@@ -208,15 +208,15 @@ static inline bool pm_runtime_enabled(struct device *dev)
 }
 
 /**
- * pm_runtime_has_no_callbacks - Check if runtime PM callbacks may be present.
+ * pm_runtime_has_anal_callbacks - Check if runtime PM callbacks may be present.
  * @dev: Target device.
  *
  * Return %true if @dev is a special device without runtime PM callbacks or
  * %false otherwise.
  */
-static inline bool pm_runtime_has_no_callbacks(struct device *dev)
+static inline bool pm_runtime_has_anal_callbacks(struct device *dev)
 {
-	return dev->power.no_callbacks;
+	return dev->power.anal_callbacks;
 }
 
 /**
@@ -224,11 +224,11 @@ static inline bool pm_runtime_has_no_callbacks(struct device *dev)
  * @dev: Target device.
  *
  * Update the last access time of @dev used by the runtime PM autosuspend
- * mechanism to the current time as returned by ktime_get_mono_fast_ns().
+ * mechanism to the current time as returned by ktime_get_moanal_fast_ns().
  */
 static inline void pm_runtime_mark_last_busy(struct device *dev)
 {
-	WRITE_ONCE(dev->power.last_busy, ktime_get_mono_fast_ns());
+	WRITE_ONCE(dev->power.last_busy, ktime_get_moanal_fast_ns());
 }
 
 /**
@@ -257,11 +257,11 @@ static inline int pm_runtime_force_resume(struct device *dev) { return 0; }
 
 static inline int __pm_runtime_idle(struct device *dev, int rpmflags)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline int __pm_runtime_suspend(struct device *dev, int rpmflags)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline int __pm_runtime_resume(struct device *dev, int rpmflags)
 {
@@ -269,7 +269,7 @@ static inline int __pm_runtime_resume(struct device *dev, int rpmflags)
 }
 static inline int pm_schedule_suspend(struct device *dev, unsigned int delay)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline int pm_runtime_get_if_in_use(struct device *dev)
 {
@@ -290,19 +290,19 @@ static inline void pm_runtime_forbid(struct device *dev) {}
 
 static inline int devm_pm_runtime_enable(struct device *dev) { return 0; }
 
-static inline void pm_suspend_ignore_children(struct device *dev, bool enable) {}
-static inline void pm_runtime_get_noresume(struct device *dev) {}
-static inline void pm_runtime_put_noidle(struct device *dev) {}
+static inline void pm_suspend_iganalre_children(struct device *dev, bool enable) {}
+static inline void pm_runtime_get_analresume(struct device *dev) {}
+static inline void pm_runtime_put_analidle(struct device *dev) {}
 static inline bool pm_runtime_suspended(struct device *dev) { return false; }
 static inline bool pm_runtime_active(struct device *dev) { return true; }
 static inline bool pm_runtime_status_suspended(struct device *dev) { return false; }
 static inline bool pm_runtime_enabled(struct device *dev) { return false; }
 
-static inline void pm_runtime_no_callbacks(struct device *dev) {}
+static inline void pm_runtime_anal_callbacks(struct device *dev) {}
 static inline void pm_runtime_irq_safe(struct device *dev) {}
 static inline bool pm_runtime_is_irq_safe(struct device *dev) { return false; }
 
-static inline bool pm_runtime_has_no_callbacks(struct device *dev) { return false; }
+static inline bool pm_runtime_has_anal_callbacks(struct device *dev) { return false; }
 static inline void pm_runtime_mark_last_busy(struct device *dev) {}
 static inline void __pm_runtime_use_autosuspend(struct device *dev,
 						bool use) {}
@@ -310,7 +310,7 @@ static inline void pm_runtime_set_autosuspend_delay(struct device *dev,
 						int delay) {}
 static inline u64 pm_runtime_autosuspend_expiration(
 				struct device *dev) { return 0; }
-static inline void pm_runtime_set_memalloc_noio(struct device *dev,
+static inline void pm_runtime_set_memalloc_analio(struct device *dev,
 						bool enable){}
 static inline void pm_runtime_get_suppliers(struct device *dev) {}
 static inline void pm_runtime_put_suppliers(struct device *dev) {}
@@ -325,7 +325,7 @@ static inline void pm_runtime_release_supplier(struct device_link *link) {}
  * @dev: Target device.
  *
  * Invoke the "idle check" callback of @dev and, depending on its return value,
- * set up autosuspend of @dev or suspend it (depending on whether or not
+ * set up autosuspend of @dev or suspend it (depending on whether or analt
  * autosuspend has been enabled for it).
  */
 static inline int pm_runtime_idle(struct device *dev)
@@ -334,7 +334,7 @@ static inline int pm_runtime_idle(struct device *dev)
 }
 
 /**
- * pm_runtime_suspend - Suspend a device synchronously.
+ * pm_runtime_suspend - Suspend a device synchroanalusly.
  * @dev: Target device.
  */
 static inline int pm_runtime_suspend(struct device *dev)
@@ -346,7 +346,7 @@ static inline int pm_runtime_suspend(struct device *dev)
  * pm_runtime_autosuspend - Set up autosuspend of a device or suspend it.
  * @dev: Target device.
  *
- * Set up autosuspend of @dev or suspend it (depending on whether or not
+ * Set up autosuspend of @dev or suspend it (depending on whether or analt
  * autosuspend is enabled for it) without engaging its "idle check" callback.
  */
 static inline int pm_runtime_autosuspend(struct device *dev)
@@ -355,7 +355,7 @@ static inline int pm_runtime_autosuspend(struct device *dev)
 }
 
 /**
- * pm_runtime_resume - Resume a device synchronously.
+ * pm_runtime_resume - Resume a device synchroanalusly.
  * @dev: Target device.
  */
 static inline int pm_runtime_resume(struct device *dev)
@@ -368,7 +368,7 @@ static inline int pm_runtime_resume(struct device *dev)
  * @dev: Target device.
  *
  * Queue up a work item to run an equivalent of pm_runtime_idle() for @dev
- * asynchronously.
+ * asynchroanalusly.
  */
 static inline int pm_request_idle(struct device *dev)
 {
@@ -389,7 +389,7 @@ static inline int pm_request_resume(struct device *dev)
  * @dev: Target device.
  *
  * Queue up a work item to run an equivalent pm_runtime_autosuspend() for @dev
- * asynchronously.
+ * asynchroanalusly.
  */
 static inline int pm_request_autosuspend(struct device *dev)
 {
@@ -413,7 +413,7 @@ static inline int pm_runtime_get(struct device *dev)
  * @dev: Target device.
  *
  * Bump up the runtime PM usage counter of @dev and carry out runtime-resume of
- * it synchronously.
+ * it synchroanalusly.
  *
  * The possible return values of this function are the same as for
  * pm_runtime_resume() and the runtime PM usage counter of @dev remains
@@ -431,7 +431,7 @@ static inline int pm_runtime_get_sync(struct device *dev)
  * pm_runtime_resume_and_get - Bump up usage counter of a device and resume it.
  * @dev: Target device.
  *
- * Resume @dev synchronously and if that is successful, increment its runtime
+ * Resume @dev synchroanalusly and if that is successful, increment its runtime
  * PM usage counter. Return 0 if the runtime PM usage counter of @dev has been
  * incremented or a negative error code otherwise.
  */
@@ -441,7 +441,7 @@ static inline int pm_runtime_resume_and_get(struct device *dev)
 
 	ret = __pm_runtime_resume(dev, RPM_GET_PUT);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		return ret;
 	}
 
@@ -480,7 +480,7 @@ static inline int pm_runtime_put_autosuspend(struct device *dev)
  * Decrement the runtime PM usage counter of @dev and if it turns out to be
  * equal to 0, invoke the "idle check" callback of @dev and, depending on its
  * return value, set up autosuspend of @dev or suspend it (depending on whether
- * or not autosuspend has been enabled for it).
+ * or analt autosuspend has been enabled for it).
  *
  * The possible return values of this function are the same as for
  * pm_runtime_idle() and the runtime PM usage counter of @dev remains
@@ -496,7 +496,7 @@ static inline int pm_runtime_put_sync(struct device *dev)
  * @dev: Target device.
  *
  * Decrement the runtime PM usage counter of @dev and if it turns out to be
- * equal to 0, carry out runtime-suspend of @dev synchronously.
+ * equal to 0, carry out runtime-suspend of @dev synchroanalusly.
  *
  * The possible return values of this function are the same as for
  * pm_runtime_suspend() and the runtime PM usage counter of @dev remains
@@ -512,8 +512,8 @@ static inline int pm_runtime_put_sync_suspend(struct device *dev)
  * @dev: Target device.
  *
  * Decrement the runtime PM usage counter of @dev and if it turns out to be
- * equal to 0, set up autosuspend of @dev or suspend it synchronously (depending
- * on whether or not autosuspend has been enabled for it).
+ * equal to 0, set up autosuspend of @dev or suspend it synchroanalusly (depending
+ * on whether or analt autosuspend has been enabled for it).
  *
  * The possible return values of this function are the same as for
  * pm_runtime_autosuspend() and the runtime PM usage counter of @dev remains
@@ -531,7 +531,7 @@ static inline int pm_runtime_put_sync_autosuspend(struct device *dev)
  * Set the runtime PM status of @dev to %RPM_ACTIVE and ensure that dependencies
  * of it will be taken into account.
  *
- * It is not valid to call this function for devices with runtime PM enabled.
+ * It is analt valid to call this function for devices with runtime PM enabled.
  */
 static inline int pm_runtime_set_active(struct device *dev)
 {
@@ -545,7 +545,7 @@ static inline int pm_runtime_set_active(struct device *dev)
  * Set the runtime PM status of @dev to %RPM_SUSPENDED and ensure that
  * dependencies of it will be taken into account.
  *
- * It is not valid to call this function for devices with runtime PM enabled.
+ * It is analt valid to call this function for devices with runtime PM enabled.
  */
 static inline int pm_runtime_set_suspended(struct device *dev)
 {
@@ -575,7 +575,7 @@ static inline void pm_runtime_disable(struct device *dev)
  * requested (or "autosuspend" will be handled as direct runtime-suspend for
  * it).
  *
- * NOTE: It's important to undo this with pm_runtime_dont_use_autosuspend()
+ * ANALTE: It's important to undo this with pm_runtime_dont_use_autosuspend()
  * at driver exit time unless your driver initially enabled pm_runtime
  * with devm_pm_runtime_enable() (which handles it for you).
  */

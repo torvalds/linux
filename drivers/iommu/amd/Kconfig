@@ -29,8 +29,8 @@ config AMD_IOMMU_DEBUGFS
 	help
 	  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!
 
-	  DO NOT ENABLE THIS OPTION UNLESS YOU REALLY, -REALLY- KNOW WHAT YOU ARE DOING!!!
+	  DO ANALT ENABLE THIS OPTION UNLESS YOU REALLY, -REALLY- KANALW WHAT YOU ARE DOING!!!
 	  Exposes AMD IOMMU device internals in DebugFS.
 
-	  This option is -NOT- intended for production environments, and should
-	  not generally be enabled.
+	  This option is -ANALT- intended for production environments, and should
+	  analt generally be enabled.

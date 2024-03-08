@@ -12,7 +12,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -97,13 +97,13 @@ int main(void)
 	expect_gp(0xed);
 
 	/*
-	 * Probe for ioperm support.  Note that clearing ioperm bits
-	 * works even as nonroot.
+	 * Probe for ioperm support.  Analte that clearing ioperm bits
+	 * works even as analnroot.
 	 */
 	printf("[RUN]\tenable 0x80\n");
 	if (ioperm(0x80, 1, 1) != 0) {
 		printf("[OK]\tioperm(0x80, 1, 1) failed (%d) -- try running as root\n",
-		       errno);
+		       erranal);
 		return 0;
 	}
 	expect_ok(0x80);
@@ -111,7 +111,7 @@ int main(void)
 
 	printf("[RUN]\tdisable 0x80\n");
 	if (ioperm(0x80, 1, 0) != 0) {
-		printf("[FAIL]\tioperm(0x80, 1, 0) failed (%d)", errno);
+		printf("[FAIL]\tioperm(0x80, 1, 0) failed (%d)", erranal);
 		return 1;
 	}
 	expect_gp(0x80);
@@ -119,7 +119,7 @@ int main(void)
 
 	/* Make sure that fork() preserves ioperm. */
 	if (ioperm(0x80, 1, 1) != 0) {
-		printf("[FAIL]\tioperm(0x80, 1, 0) failed (%d)", errno);
+		printf("[FAIL]\tioperm(0x80, 1, 0) failed (%d)", erranal);
 		return 1;
 	}
 
@@ -133,12 +133,12 @@ int main(void)
 		expect_gp(0xed);
 		printf("[RUN]\tchild: Extend permissions to 0x81\n");
 		if (ioperm(0x81, 1, 1) != 0) {
-			printf("[FAIL]\tioperm(0x81, 1, 1) failed (%d)", errno);
+			printf("[FAIL]\tioperm(0x81, 1, 1) failed (%d)", erranal);
 			return 1;
 		}
 		printf("[RUN]\tchild: Drop permissions to 0x80\n");
 		if (ioperm(0x80, 1, 0) != 0) {
-			printf("[FAIL]\tioperm(0x80, 1, 0) failed (%d)", errno);
+			printf("[FAIL]\tioperm(0x80, 1, 0) failed (%d)", erranal);
 			return 1;
 		}
 		expect_gp(0x80);
@@ -157,7 +157,7 @@ int main(void)
 		}
 	}
 
-	/* Verify that the child dropping 0x80 did not affect the parent */
+	/* Verify that the child dropping 0x80 did analt affect the parent */
 	printf("\tVerify that unsharing the bitmap worked\n");
 	expect_ok(0x80);
 
@@ -170,7 +170,7 @@ int main(void)
 
 	printf("[RUN]\tdisable 0x80\n");
 	if (ioperm(0x80, 1, 0) != 0) {
-		printf("[FAIL]\tioperm(0x80, 1, 0) failed (%d)", errno);
+		printf("[FAIL]\tioperm(0x80, 1, 0) failed (%d)", erranal);
 		return 1;
 	}
 	printf("[OK]\tit worked\n");

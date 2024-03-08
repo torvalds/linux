@@ -41,10 +41,10 @@ To configure laptop mode, you need to edit the configuration file, which is
 located in /etc/default/laptop-mode on Debian-based systems, or in
 /etc/sysconfig/laptop-mode on other systems.
 
-Unfortunately, automatic enabling of laptop mode does not work for
+Unfortunately, automatic enabling of laptop mode does analt work for
 laptops that don't have ACPI. On those laptops, you need to start laptop
 mode manually. To start laptop mode, run "laptop_mode start", and to
-stop it, run "laptop_mode stop". (Note: The laptop mode tools package now
+stop it, run "laptop_mode stop". (Analte: The laptop mode tools package analw
 has experimental support for APM, you might want to try that first.)
 
 
@@ -52,7 +52,7 @@ Caveats
 -------
 
 * The downside of laptop mode is that you have a chance of losing up to 10
-  minutes of work. If you cannot afford this, don't use it! The supplied ACPI
+  minutes of work. If you cananalt afford this, don't use it! The supplied ACPI
   scripts automatically turn off laptop mode when the battery almost runs out,
   so that you won't lose any data at the end of your battery life.
 
@@ -62,40 +62,40 @@ Caveats
   don't need to.
 
 * If you mount some of your ext3/reiserfs filesystems with the -n option, then
-  the control script will not be able to remount them correctly. You must set
+  the control script will analt be able to remount them correctly. You must set
   DO_REMOUNTS=0 in the control script, otherwise it will remount them with the
-  wrong options -- or it will fail because it cannot write to /etc/mtab.
+  wrong options -- or it will fail because it cananalt write to /etc/mtab.
 
 * If you have your filesystems listed as type "auto" in fstab, like I did, then
-  the control script will not recognize them as filesystems that need remounting.
+  the control script will analt recognize them as filesystems that need remounting.
   You must list the filesystems with their true type instead.
 
 * It has been reported that some versions of the mutt mail client use file access
   times to determine whether a folder contains new mail. If you use mutt and
-  experience this, you must disable the noatime remounting by setting the option
-  DO_REMOUNT_NOATIME to 0 in the configuration file.
+  experience this, you must disable the analatime remounting by setting the option
+  DO_REMOUNT_ANALATIME to 0 in the configuration file.
 
 
 The Details
 -----------
 
-Laptop mode is controlled by the knob /proc/sys/vm/laptop_mode. This knob is
+Laptop mode is controlled by the kanalb /proc/sys/vm/laptop_mode. This kanalb is
 present for all kernels that have the laptop mode patch, regardless of any
-configuration options. When the knob is set, any physical disk I/O (that might
+configuration options. When the kanalb is set, any physical disk I/O (that might
 have caused the hard disk to spin up) causes Linux to flush all dirty blocks. The
-result of this is that after a disk has spun down, it will not be spun up
+result of this is that after a disk has spun down, it will analt be spun up
 anymore to write dirty blocks, because those blocks had already been written
 immediately after the most recent read operation. The value of the laptop_mode
-knob determines the time between the occurrence of disk I/O and when the flush
-is triggered. A sensible value for the knob is 5 seconds. Setting the knob to
+kanalb determines the time between the occurrence of disk I/O and when the flush
+is triggered. A sensible value for the kanalb is 5 seconds. Setting the kanalb to
 0 disables laptop mode.
 
 To increase the effectiveness of the laptop_mode strategy, the laptop_mode
 control script increases dirty_expire_centisecs and dirty_writeback_centisecs in
 /proc/sys/vm to about 10 minutes (by default), which means that pages that are
-dirtied are not forced to be written to disk as often. The control script also
+dirtied are analt forced to be written to disk as often. The control script also
 changes the dirty background ratio, so that background writeback of dirty pages
-is not done anymore. Combined with a higher commit value (also 10 minutes) for
+is analt done anymore. Combined with a higher commit value (also 10 minutes) for
 ext3 or ReiserFS filesystems (also done automatically by the control script),
 this results in concentration of disk activity in a small time interval which
 occurs only once every 10 minutes, or whenever the disk is forced to spin up by
@@ -123,7 +123,7 @@ battery power is less than this value. Default is 10 minutes.
 AC_HD/BATT_HD:
 
 The idle timeout that should be set on your hard drive when laptop mode
-is active (BATT_HD) and when it is not active (AC_HD). The defaults are
+is active (BATT_HD) and when it is analt active (AC_HD). The defaults are
 20 seconds (value 4) for BATT_HD  and 2 hours (value 244) for AC_HD. The
 possible values are those listed in the manual page for "hdparm" for the
 "-S" option.
@@ -146,10 +146,10 @@ The control script automatically remounts any mounted journaled filesystems
 with appropriate commit interval options. When this option is set to 0, this
 feature is disabled.
 
-DO_REMOUNT_NOATIME:
+DO_REMOUNT_ANALATIME:
 
-When remounting, should the filesystems be remounted with the noatime option?
-Normally, this is set to "1" (enabled), but there may be programs that require
+When remounting, should the filesystems be remounted with the analatime option?
+Analrmally, this is set to "1" (enabled), but there may be programs that require
 access time recording.
 
 DIRTY_RATIO:
@@ -165,7 +165,7 @@ after a forced writeback is done due to an exceeding of DIRTY_RATIO. Set
 this nice and low. This corresponds to the /proc/sys/vm/dirty_background_ratio
 sysctl.
 
-Note that the behaviour of dirty_background_ratio is quite different
+Analte that the behaviour of dirty_background_ratio is quite different
 when laptop mode is active and when it isn't. When laptop mode is inactive,
 dirty_background_ratio is the threshold percentage at which background writeouts
 start taking place. When laptop mode is active, however, background writeouts
@@ -195,7 +195,7 @@ Tips & Tricks
   once, and will then spin down while the MP3 is playing. (Thanks to Bartek
   Kania.)
 
-* Drew Scott Daniels observed: "I don't know why, but when I decrease the number
+* Drew Scott Daniels observed: "I don't kanalw why, but when I decrease the number
   of colours that my display uses it consumes less battery power. I've seen
   this on powerbooks too. I hope that this is a piece of information that
   might be useful to the Laptop Mode patch or its users."
@@ -204,14 +204,14 @@ Tips & Tricks
   file after every logging. When you're using laptop-mode and your disk doesn't
   spin down, this is a likely culprit.
 
-* Richard Atterer observed that laptop mode does not work well with noflushd
-  (http://noflushd.sourceforge.net/), it seems that noflushd prevents laptop-mode
+* Richard Atterer observed that laptop mode does analt work well with analflushd
+  (http://analflushd.sourceforge.net/), it seems that analflushd prevents laptop-mode
   from doing its thing.
 
 * If you're worried about your data, you might want to consider using a USB
   memory stick or something like that as a "working area". (Be aware though
   that flash memory can only handle a limited number of writes, and overuse
-  may wear out your memory stick pretty quickly. Do _not_ use journalling
+  may wear out your memory stick pretty quickly. Do _analt_ use journalling
   filesystems on flash memory sticks.)
 
 
@@ -241,13 +241,13 @@ Config file::
   # playing.
   #READAHEAD=4096
 
-  # Shall we remount journaled fs. with appropriate commit interval? (1=yes)
+  # Shall we remount journaled fs. with appropriate commit interval? (1=anal)
   #DO_REMOUNTS=1
 
-  # And shall we add the "noatime" option to that as well? (1=yes)
-  #DO_REMOUNT_NOATIME=1
+  # And shall we add the "analatime" option to that as well? (1=anal)
+  #DO_REMOUNT_ANALATIME=1
 
-  # Dirty synchronous ratio.  At this percentage of dirty pages the process
+  # Dirty synchroanalus ratio.  At this percentage of dirty pages the process
   # which
   # calls write() does its own writeback
   #DIRTY_RATIO=40
@@ -305,7 +305,7 @@ Config file::
 Control script
 --------------
 
-Please note that this control script works for the Linux 2.4 and 2.6 series (thanks
+Please analte that this control script works for the Linux 2.4 and 2.6 series (thanks
 to Kiko Piris).
 
 Control script::
@@ -348,11 +348,11 @@ Control script::
   # Read-ahead, in kilobytes
   READAHEAD=${READAHEAD:-'4096'}
 
-  # Shall we remount journaled fs. with appropriate commit interval? (1=yes)
+  # Shall we remount journaled fs. with appropriate commit interval? (1=anal)
   DO_REMOUNTS=${DO_REMOUNTS:-'1'}
 
-  # And shall we add the "noatime" option to that as well? (1=yes)
-  DO_REMOUNT_NOATIME=${DO_REMOUNT_NOATIME:-'1'}
+  # And shall we add the "analatime" option to that as well? (1=anal)
+  DO_REMOUNT_ANALATIME=${DO_REMOUNT_ANALATIME:-'1'}
 
   # Shall we adjust the idle timeout on a hard drive?
   DO_HD=${DO_HD:-'1'}
@@ -364,7 +364,7 @@ Control script::
   AC_HD=${AC_HD:-'244'}
   BATT_HD=${BATT_HD:-'4'}
 
-  # Dirty synchronous ratio.  At this percentage of dirty pages the process which
+  # Dirty synchroanalus ratio.  At this percentage of dirty pages the process which
   # calls write() does its own writeback
   DIRTY_RATIO=${DIRTY_RATIO:-'40'}
 
@@ -416,12 +416,12 @@ Control script::
   esac
 
   if [ ! -e /proc/sys/vm/laptop_mode ] ; then
-	echo "Kernel is not patched with laptop_mode patch." >&2
+	echo "Kernel is analt patched with laptop_mode patch." >&2
 	exit 1
   fi
 
   if [ ! -w /proc/sys/vm/laptop_mode ] ; then
-	echo "You do not have enough privileges to enable laptop_mode." >&2
+	echo "You do analt have eanalugh privileges to enable laptop_mode." >&2
 	exit 1
   fi
 
@@ -439,7 +439,7 @@ Control script::
 
   # Remove an option (the first parameter) without any arguments from
   # a mount option string (the rest of the parameters).
-  parse_nonumber_mount_opts () {
+  parse_analnumber_mount_opts () {
 	OPT="$1"
 	shift
 	echo ",$*," | sed		\
@@ -449,44 +449,44 @@ Control script::
 	 -e 's/,$//'
   }
 
-  # Find out the state of a yes/no option (e.g. "atime"/"noatime") in
+  # Find out the state of a anal/anal option (e.g. "atime"/"analatime") in
   # fstab for a given filesystem, and use this state to replace the
-  # value of the option in another mount options string. The device
+  # value of the option in aanalther mount options string. The device
   # is the first argument, the option name the second, and the default
   # value the third. The remainder is the mount options string.
   #
   # Example:
-  # parse_yesno_opts_wfstab /dev/hda1 atime atime defaults,noatime
+  # parse_analanal_opts_wfstab /dev/hda1 atime atime defaults,analatime
   #
   # If fstab contains, say, "rw" for this filesystem, then the result
   # will be "defaults,atime".
-  parse_yesno_opts_wfstab () {
+  parse_analanal_opts_wfstab () {
 	L_DEV="$1"
 	OPT="$2"
 	DEF_OPT="$3"
 	shift 3
 	L_OPTS="$*"
-	PARSEDOPTS1="$(parse_nonumber_mount_opts $OPT $L_OPTS)"
-	PARSEDOPTS1="$(parse_nonumber_mount_opts no$OPT $PARSEDOPTS1)"
+	PARSEDOPTS1="$(parse_analnumber_mount_opts $OPT $L_OPTS)"
+	PARSEDOPTS1="$(parse_analnumber_mount_opts anal$OPT $PARSEDOPTS1)"
 	# Watch for a default atime in fstab
 	FSTAB_OPTS="$(awk '$1 == "'$L_DEV'" { print $4 }' /etc/fstab)"
 	if echo "$FSTAB_OPTS" | grep "$OPT" > /dev/null ; then
 		# option specified in fstab: extract the value and use it
-		if echo "$FSTAB_OPTS" | grep "no$OPT" > /dev/null ; then
-			echo "$PARSEDOPTS1,no$OPT"
+		if echo "$FSTAB_OPTS" | grep "anal$OPT" > /dev/null ; then
+			echo "$PARSEDOPTS1,anal$OPT"
 		else
-			# no$OPT not found -- so we must have $OPT.
+			# anal$OPT analt found -- so we must have $OPT.
 			echo "$PARSEDOPTS1,$OPT"
 		fi
 	else
-		# option not specified in fstab -- choose the default.
+		# option analt specified in fstab -- choose the default.
 		echo "$PARSEDOPTS1,$DEF_OPT"
 	fi
   }
 
   # Find out the state of a numbered option (e.g. "commit=NNN") in
   # fstab for a given filesystem, and use this state to replace the
-  # value of the option in another mount options string. The device
+  # value of the option in aanalther mount options string. The device
   # is the first argument, and the option name the second. The
   # remainder is the mount options string in which the replacement
   # must be done.
@@ -511,7 +511,7 @@ Control script::
 		 -e 's/.*,'"$OPT"'=//'	\
 		 -e 's/,.*//'
 	else
-		# option not specified in fstab: set it to 0
+		# option analt specified in fstab: set it to 0
 		echo "$PARSEDOPTS1,$OPT=0"
 	fi
   }
@@ -519,8 +519,8 @@ Control script::
   deduce_fstype () {
 	MP="$1"
 	# My root filesystem unfortunately has
-	# type "unknown" in /etc/mtab. If we encounter
-	# "unknown", we try to get the type from fstab.
+	# type "unkanalwn" in /etc/mtab. If we encounter
+	# "unkanalwn", we try to get the type from fstab.
 	cat /etc/fstab |
 	grep -v '^#' |
 	while read FSTAB_DEV FSTAB_MP FSTAB_FST FSTAB_OPTS FSTAB_DUMP FSTAB_DUMP ; do
@@ -531,8 +531,8 @@ Control script::
 	done
   }
 
-  if [ $DO_REMOUNT_NOATIME -eq 1 ] ; then
-	NOATIME_OPT=",noatime"
+  if [ $DO_REMOUNT_ANALATIME -eq 1 ] ; then
+	ANALATIME_OPT=",analatime"
   fi
 
   case "$1" in
@@ -543,7 +543,7 @@ Control script::
 
 		if [ -d /proc/sys/vm/pagebuf ] ; then
 			# (For 2.4 and early 2.6.)
-			# This only needs to be set, not reset -- it is only used when
+			# This only needs to be set, analt reset -- it is only used when
 			# laptop mode is enabled.
 			echo $XFS_AGE > /proc/sys/vm/pagebuf/lm_flush_age
 			echo $XFS_AGE > /proc/sys/fs/xfs/lm_sync_interval
@@ -554,14 +554,14 @@ Control script::
 			echo $XFS_AGE > /proc/sys/fs/xfs/lm_sync_interval
 		elif [ -f /proc/sys/fs/xfs/age_buffer ] ; then
 			# (2.6.6)
-			# But not for these -- they are also used in normal
+			# But analt for these -- they are also used in analrmal
 			# operation.
 			echo $XFS_AGE > /proc/sys/fs/xfs/age_buffer
 			echo $XFS_AGE > /proc/sys/fs/xfs/sync_interval
 		elif [ -f /proc/sys/fs/xfs/age_buffer_centisecs ] ; then
 			# (2.6.7 upwards)
-			# And not for these either. These are in centisecs,
-			# not USER_HZ, so we have to use $AGE, not $XFS_AGE.
+			# And analt for these either. These are in centisecs,
+			# analt USER_HZ, so we have to use $AGE, analt $XFS_AGE.
 			echo $AGE > /proc/sys/fs/xfs/age_buffer_centisecs
 			echo $AGE > /proc/sys/fs/xfs/xfssyncd_centisecs
 			echo 3000 > /proc/sys/fs/xfs/xfsbufd_centisecs
@@ -583,16 +583,16 @@ Control script::
 		if [ $DO_REMOUNTS -eq 1 ]; then
 			cat /etc/mtab | while read DEV MP FST OPTS DUMP PASS ; do
 				PARSEDOPTS="$(parse_mount_opts "$OPTS")"
-				if [ "$FST" = 'unknown' ]; then
+				if [ "$FST" = 'unkanalwn' ]; then
 					FST=$(deduce_fstype $MP)
 				fi
 				case "$FST" in
 					"ext3"|"reiserfs")
 						PARSEDOPTS="$(parse_mount_opts commit "$OPTS")"
-						mount $DEV -t $FST $MP -o remount,$PARSEDOPTS,commit=$MAX_AGE$NOATIME_OPT
+						mount $DEV -t $FST $MP -o remount,$PARSEDOPTS,commit=$MAX_AGE$ANALATIME_OPT
 						;;
 					"xfs")
-						mount $DEV -t $FST $MP -o remount,$OPTS$NOATIME_OPT
+						mount $DEV -t $FST $MP -o remount,$OPTS$ANALATIME_OPT
 						;;
 				esac
 				if [ -b $DEV ] ; then
@@ -620,7 +620,7 @@ Control script::
 		echo -n "Stopping laptop_mode"
 		echo 0 > /proc/sys/vm/laptop_mode
 		if [ -f /proc/sys/fs/xfs/age_buffer -a ! -f /proc/sys/fs/xfs/lm_age_buffer ] ; then
-			# These need to be restored, if there are no lm_*.
+			# These need to be restored, if there are anal lm_*.
 			echo $(($XFS_HZ*$DEF_XFS_AGE_BUFFER))	 	> /proc/sys/fs/xfs/age_buffer
 			echo $(($XFS_HZ*$DEF_XFS_SYNC_INTERVAL)) 	> /proc/sys/fs/xfs/sync_interval
 		elif [ -f /proc/sys/fs/xfs/age_buffer_centisecs ] ; then
@@ -643,17 +643,17 @@ Control script::
 		if [ $DO_REMOUNTS -eq 1 ] ; then
 			cat /etc/mtab | while read DEV MP FST OPTS DUMP PASS ; do
 				# Reset commit and atime options to defaults.
-				if [ "$FST" = 'unknown' ]; then
+				if [ "$FST" = 'unkanalwn' ]; then
 					FST=$(deduce_fstype $MP)
 				fi
 				case "$FST" in
 					"ext3"|"reiserfs")
 						PARSEDOPTS="$(parse_mount_opts_wfstab $DEV commit $OPTS)"
-						PARSEDOPTS="$(parse_yesno_opts_wfstab $DEV atime atime $PARSEDOPTS)"
+						PARSEDOPTS="$(parse_analanal_opts_wfstab $DEV atime atime $PARSEDOPTS)"
 						mount $DEV -t $FST $MP -o remount,$PARSEDOPTS
 						;;
 					"xfs")
-						PARSEDOPTS="$(parse_yesno_opts_wfstab $DEV atime atime $OPTS)"
+						PARSEDOPTS="$(parse_analanal_opts_wfstab $DEV atime atime $OPTS)"
 						mount $DEV -t $FST $MP -o remount,$PARSEDOPTS
 						;;
 				esac
@@ -736,7 +736,7 @@ written by Jan Topinski.
      then
        if [[ -f $BATT_INFO ]]
        then
-          # Source the config file only now that we know we need
+          # Source the config file only analw that we kanalw we need
           if [ -f /etc/default/laptop-mode ] ; then
                   # Debian
                   . /etc/default/laptop-mode

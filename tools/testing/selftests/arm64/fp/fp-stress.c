@@ -6,7 +6,7 @@
 #define _GNU_SOURCE
 #define _POSIX_C_SOURCE 199309L
 
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <poll.h>
 #include <signal.h>
@@ -65,12 +65,12 @@ static void child_start(struct child_data *child, const char *program)
 	ret = pipe(pipefd);
 	if (ret != 0)
 		ksft_exit_fail_msg("Failed to create stdout pipe: %s (%d)\n",
-				   strerror(errno), errno);
+				   strerror(erranal), erranal);
 
 	child->pid = fork();
 	if (child->pid == -1)
 		ksft_exit_fail_msg("fork() failed: %s (%d)\n",
-				   strerror(errno), errno);
+				   strerror(erranal), erranal);
 
 	if (!child->pid) {
 		/*
@@ -79,7 +79,7 @@ static void child_start(struct child_data *child, const char *program)
 		 */
 		ret = dup2(pipefd[1], 1);
 		if (ret == -1) {
-			fprintf(stderr, "dup2() %d\n", errno);
+			fprintf(stderr, "dup2() %d\n", erranal);
 			exit(EXIT_FAILURE);
 		}
 
@@ -89,7 +89,7 @@ static void child_start(struct child_data *child, const char *program)
 		 */
 		ret = dup2(startup_pipe[0], 3);
 		if (ret == -1) {
-			fprintf(stderr, "dup2() %d\n", errno);
+			fprintf(stderr, "dup2() %d\n", erranal);
 			exit(EXIT_FAILURE);
 		}
 
@@ -101,14 +101,14 @@ static void child_start(struct child_data *child, const char *program)
 			close(i);
 
 		/*
-		 * Read from the startup pipe, there should be no data
+		 * Read from the startup pipe, there should be anal data
 		 * and we should block until it is closed.  We just
 		 * carry on on error since this isn't super critical.
 		 */
 		ret = read(3, &i, sizeof(i));
 		if (ret < 0)
 			fprintf(stderr, "read(startp pipe) failed: %s (%d)\n",
-				strerror(errno), errno);
+				strerror(erranal), erranal);
 		if (ret > 0)
 			fprintf(stderr, "%d bytes of data on startup pipe\n",
 				ret);
@@ -116,7 +116,7 @@ static void child_start(struct child_data *child, const char *program)
 
 		ret = execl(program, program, NULL);
 		fprintf(stderr, "execl(%s) failed: %d (%s)\n",
-			program, errno, strerror(errno));
+			program, erranal, strerror(erranal));
 
 		exit(EXIT_FAILURE);
 	} else {
@@ -136,7 +136,7 @@ static void child_start(struct child_data *child, const char *program)
 		ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, child->stdout, &ev);
 		if (ret < 0) {
 			ksft_exit_fail_msg("%s EPOLL_CTL_ADD failed: %s (%d)\n",
-					   child->name, strerror(errno), errno);
+					   child->name, strerror(erranal), erranal);
 		}
 	}
 }
@@ -149,12 +149,12 @@ static bool child_output_read(struct child_data *child)
 
 	ret = read(child->stdout, read_data, sizeof(read_data));
 	if (ret < 0) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			return true;
 
 		ksft_print_msg("%s: read() failed: %s (%d)\n",
-			       child->name, strerror(errno),
-			       errno);
+			       child->name, strerror(erranal),
+			       erranal);
 		return false;
 	}
 	len = ret;
@@ -239,13 +239,13 @@ static void child_cleanup(struct child_data *child)
 	if (!child->exited) {
 		do {
 			ret = waitpid(child->pid, &status, 0);
-			if (ret == -1 && errno == EINTR)
+			if (ret == -1 && erranal == EINTR)
 				continue;
 
 			if (ret == -1) {
 				ksft_print_msg("waitpid(%d) failed: %s (%d)\n",
-					       child->pid, strerror(errno),
-					       errno);
+					       child->pid, strerror(erranal),
+					       erranal);
 				fail = true;
 				break;
 			}
@@ -254,7 +254,7 @@ static void child_cleanup(struct child_data *child)
 	}
 
 	if (!child->output_seen) {
-		ksft_print_msg("%s no output seen\n", child->name);
+		ksft_print_msg("%s anal output seen\n", child->name);
 		fail = true;
 	}
 
@@ -282,7 +282,7 @@ static void handle_child_signal(int sig, siginfo_t *info, void *context)
 	}
 
 	if (!found)
-		ksft_print_msg("SIGCHLD for unknown PID %d with status %d\n",
+		ksft_print_msg("SIGCHLD for unkanalwn PID %d with status %d\n",
 			       info->si_pid, info->si_status);
 }
 
@@ -394,7 +394,7 @@ static void probe_vls(int vls[], int *vl_count, int set_vl)
 		vl = prctl(set_vl, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("SET_VL failed: %s (%d)\n",
-					   strerror(errno), errno);
+					   strerror(erranal), erranal);
 
 		vl &= PR_SVE_VL_LEN_MASK;
 
@@ -417,10 +417,10 @@ static void drain_output(bool flush)
 	while (ret > 0) {
 		ret = epoll_wait(epoll_fd, evs, tests, 0);
 		if (ret < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			ksft_print_msg("epoll_wait() failed: %s (%d)\n",
-				       strerror(errno), errno);
+				       strerror(erranal), erranal);
 		}
 
 		for (i = 0; i < ret; i++)
@@ -454,7 +454,7 @@ int main(int argc, char **argv)
 						   optarg);
 			break;
 		default:
-			ksft_exit_fail_msg("Unknown argument\n");
+			ksft_exit_fail_msg("Unkanalwn argument\n");
 		}
 	}
 
@@ -508,14 +508,14 @@ int main(int argc, char **argv)
 	ret = epoll_create1(EPOLL_CLOEXEC);
 	if (ret < 0)
 		ksft_exit_fail_msg("epoll_create1() failed: %s (%d)\n",
-				   strerror(errno), ret);
+				   strerror(erranal), ret);
 	epoll_fd = ret;
 
 	/* Create a pipe which children will block on before execing */
 	ret = pipe(startup_pipe);
 	if (ret != 0)
 		ksft_exit_fail_msg("Failed to create startup pipe: %s (%d)\n",
-				   strerror(errno), errno);
+				   strerror(erranal), erranal);
 
 	/* Get signal handers ready before we start any children */
 	memset(&sa, 0, sizeof(sa));
@@ -525,16 +525,16 @@ int main(int argc, char **argv)
 	ret = sigaction(SIGINT, &sa, NULL);
 	if (ret < 0)
 		ksft_print_msg("Failed to install SIGINT handler: %s (%d)\n",
-			       strerror(errno), errno);
+			       strerror(erranal), erranal);
 	ret = sigaction(SIGTERM, &sa, NULL);
 	if (ret < 0)
 		ksft_print_msg("Failed to install SIGTERM handler: %s (%d)\n",
-			       strerror(errno), errno);
+			       strerror(erranal), erranal);
 	sa.sa_sigaction = handle_child_signal;
 	ret = sigaction(SIGCHLD, &sa, NULL);
 	if (ret < 0)
 		ksft_print_msg("Failed to install SIGCHLD handler: %s (%d)\n",
-			       strerror(errno), errno);
+			       strerror(erranal), erranal);
 
 	evs = calloc(tests, sizeof(*evs));
 	if (!evs)
@@ -570,19 +570,19 @@ int main(int argc, char **argv)
 			break;
 
 		/*
-		 * Timeout is counted in seconds with no output, the
+		 * Timeout is counted in seconds with anal output, the
 		 * tests print during startup then are silent when
-		 * running so this should ensure they all ran enough
+		 * running so this should ensure they all ran eanalugh
 		 * to install the signal handler, this is especially
 		 * useful in emulation where we will both be slow and
 		 * likely to have a large set of VLs.
 		 */
 		ret = epoll_wait(epoll_fd, evs, tests, 1000);
 		if (ret < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			ksft_exit_fail_msg("epoll_wait() failed: %s (%d)\n",
-					   strerror(errno), errno);
+					   strerror(erranal), erranal);
 		}
 
 		/* Output? */
@@ -597,7 +597,7 @@ int main(int argc, char **argv)
 		/* Otherwise epoll_wait() timed out */
 
 		/*
-		 * If the child processes have not produced output they
+		 * If the child processes have analt produced output they
 		 * aren't actually running the tests yet .
 		 */
 		if (!all_children_started) {

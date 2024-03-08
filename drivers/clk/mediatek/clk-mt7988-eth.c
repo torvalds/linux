@@ -29,7 +29,7 @@ static const struct mtk_gate_regs ethdma_cg_regs = {
 		.parent_name = _parent,				\
 		.regs = &ethdma_cg_regs,			\
 		.shift = _shift,				\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,		\
+		.ops = &mtk_clk_gate_ops_anal_setclr_inv,		\
 	}
 
 static const struct mtk_gate ethdma_clks[] = {
@@ -62,7 +62,7 @@ static const struct mtk_gate_regs sgmii_cg_regs = {
 		.parent_name = _parent,				\
 		.regs = &sgmii_cg_regs,				\
 		.shift = _shift,				\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,		\
+		.ops = &mtk_clk_gate_ops_anal_setclr_inv,		\
 	}
 
 static const struct mtk_gate sgmii0_clks[] = {
@@ -98,7 +98,7 @@ static const struct mtk_gate_regs ethwarp_cg_regs = {
 		.parent_name = _parent,				\
 		.regs = &ethwarp_cg_regs,			\
 		.shift = _shift,				\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,		\
+		.ops = &mtk_clk_gate_ops_anal_setclr_inv,		\
 	}
 
 static const struct mtk_gate ethwarp_clks[] = {

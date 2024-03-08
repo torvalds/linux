@@ -28,7 +28,7 @@
 #define QL_VND_SET_FLASH_UPDATE_CAPS    0x16
 #define QL_VND_GET_BBCR_DATA    0x17
 #define QL_VND_GET_PRIV_STATS	0x18
-#define QL_VND_DPORT_DIAGNOSTICS	0x19
+#define QL_VND_DPORT_DIAGANALSTICS	0x19
 #define QL_VND_GET_PRIV_STATS_EX	0x1A
 #define QL_VND_SS_GET_FLASH_IMAGE_STATUS	0x1E
 #define QL_VND_EDIF_MGMT                0X1F
@@ -37,7 +37,7 @@
 #define QL_VND_GET_TGT_STATS		0x25
 #define QL_VND_MANAGE_HOST_PORT		0x26
 #define QL_VND_MBX_PASSTHRU		0x2B
-#define QL_VND_DPORT_DIAGNOSTICS_V2	0x2C
+#define QL_VND_DPORT_DIAGANALSTICS_V2	0x2C
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -48,14 +48,14 @@
 #define EXT_STATUS_DATA_UNDERRUN	8
 #define EXT_STATUS_MAILBOX		11
 #define EXT_STATUS_BUFFER_TOO_SMALL	16
-#define EXT_STATUS_NO_MEMORY		17
+#define EXT_STATUS_ANAL_MEMORY		17
 #define EXT_STATUS_DEVICE_OFFLINE	22
 
 /*
  * To support bidirectional iocb
  * BSG Vendor specific returns
  */
-#define EXT_STATUS_NOT_SUPPORTED	27
+#define EXT_STATUS_ANALT_SUPPORTED	27
 #define EXT_STATUS_INVALID_CFG		28
 #define EXT_STATUS_DMA_ERR		29
 #define EXT_STATUS_TIMEOUT		30
@@ -63,7 +63,7 @@
 #define EXT_STATUS_DATA_CMP_FAILED	32
 #define EXT_STATUS_DPORT_DIAG_ERR	40
 #define EXT_STATUS_DPORT_DIAG_IN_PROCESS	41
-#define EXT_STATUS_DPORT_DIAG_NOT_RUNNING	42
+#define EXT_STATUS_DPORT_DIAG_ANALT_RUNNING	42
 
 /* BSG definations for interpreting CommandSent field */
 #define INT_DEF_LB_LOOPBACK_CMD         0
@@ -264,7 +264,7 @@ struct qla_flash_update_caps {
 /* BB_CR Status */
 #define QLA_BBCR_STATUS_DISABLED       0
 #define QLA_BBCR_STATUS_ENABLED        1
-#define QLA_BBCR_STATUS_UNKNOWN        2
+#define QLA_BBCR_STATUS_UNKANALWN        2
 
 /* BB_CR State */
 #define QLA_BBCR_STATE_OFFLINE         0

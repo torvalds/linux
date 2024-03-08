@@ -53,7 +53,7 @@ static int devm_cxl_add_endpoint(struct device *host, struct cxl_memdev *cxlmd,
 	int rc;
 
 	/*
-	 * Now that the path to the root is established record all the
+	 * Analw that the path to the root is established record all the
 	 * intervening ports in the chain.
 	 */
 	for (iter = parent_port, down = NULL; !is_cxl_root(iter);
@@ -64,8 +64,8 @@ static int devm_cxl_add_endpoint(struct device *host, struct cxl_memdev *cxlmd,
 		ep->next = down;
 	}
 
-	/* Note: endpoint port component registers are derived from @cxlds */
-	endpoint = devm_cxl_add_port(host, &cxlmd->dev, CXL_RESOURCE_NONE,
+	/* Analte: endpoint port component registers are derived from @cxlds */
+	endpoint = devm_cxl_add_port(host, &cxlmd->dev, CXL_RESOURCE_ANALNE,
 				     parent_dport);
 	if (IS_ERR(endpoint))
 		return PTR_ERR(endpoint);
@@ -121,7 +121,7 @@ static int cxl_mem_probe(struct device *dev)
 	 * Someone is trying to reattach this device after it lost its port
 	 * connection (an endpoint port previously registered by this memdev was
 	 * disabled). This racy check is ok because if the port is still gone,
-	 * no harm done, and if the port hierarchy comes back it will re-trigger
+	 * anal harm done, and if the port hierarchy comes back it will re-trigger
 	 * this probe. Port rescan and memdev detach work share the same
 	 * single-threaded workqueue.
 	 */
@@ -148,7 +148,7 @@ static int cxl_mem_probe(struct device *dev)
 
 	parent_port = cxl_mem_find_port(cxlmd, &dport);
 	if (!parent_port) {
-		dev_err(dev, "CXL port topology not found\n");
+		dev_err(dev, "CXL port topology analt found\n");
 		return -ENXIO;
 	}
 
@@ -161,7 +161,7 @@ static int cxl_mem_probe(struct device *dev)
 
 	device_lock(endpoint_parent);
 	if (!endpoint_parent->driver) {
-		dev_err(dev, "CXL port topology %s not enabled\n",
+		dev_err(dev, "CXL port topology %s analt enabled\n",
 			dev_name(endpoint_parent));
 		rc = -ENXIO;
 		goto unlock;
@@ -176,7 +176,7 @@ unlock:
 
 	if (resource_size(&cxlds->pmem_res) && IS_ENABLED(CONFIG_CXL_PMEM)) {
 		rc = devm_cxl_add_nvdimm(cxlmd);
-		if (rc == -ENODEV)
+		if (rc == -EANALDEV)
 			dev_info(dev, "PMEM disabled by platform\n");
 		else
 			return rc;
@@ -184,8 +184,8 @@ unlock:
 
 	/*
 	 * The kernel may be operating out of CXL memory on this device,
-	 * there is no spec defined way to determine whether this device
-	 * preserves contents over suspend, and there is no simple way
+	 * there is anal spec defined way to determine whether this device
+	 * preserves contents over suspend, and there is anal simple way
 	 * to arrange for the suspend image to avoid CXL memory which
 	 * would setup a circular dependency between PCI resume and save
 	 * state restoration.

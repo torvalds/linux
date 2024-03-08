@@ -23,14 +23,14 @@
 #include "xe_uc_debugfs.h"
 #include "xe_wa.h"
 
-static struct xe_gt *node_to_gt(struct drm_info_node *node)
+static struct xe_gt *analde_to_gt(struct drm_info_analde *analde)
 {
-	return node->info_ent->data;
+	return analde->info_ent->data;
 }
 
 static int hw_engines(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_gt *gt = analde_to_gt(m->private);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct drm_printer p = drm_seq_file_printer(m);
 	struct xe_hw_engine *hwe;
@@ -57,7 +57,7 @@ static int hw_engines(struct seq_file *m, void *data)
 
 static int force_reset(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_gt *gt = analde_to_gt(m->private);
 
 	xe_gt_reset_async(gt);
 
@@ -66,7 +66,7 @@ static int force_reset(struct seq_file *m, void *data)
 
 static int sa_info(struct seq_file *m, void *data)
 {
-	struct xe_tile *tile = gt_to_tile(node_to_gt(m->private));
+	struct xe_tile *tile = gt_to_tile(analde_to_gt(m->private));
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	drm_suballoc_dump_debug_info(&tile->mem.kernel_bb_pool->base, &p,
@@ -77,7 +77,7 @@ static int sa_info(struct seq_file *m, void *data)
 
 static int topology(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_gt *gt = analde_to_gt(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	xe_gt_topology_dump(gt, &p);
@@ -87,7 +87,7 @@ static int topology(struct seq_file *m, void *data)
 
 static int steering(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_gt *gt = analde_to_gt(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	xe_gt_mcr_steering_dump(gt, &p);
@@ -97,7 +97,7 @@ static int steering(struct seq_file *m, void *data)
 
 static int ggtt(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_gt *gt = analde_to_gt(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	return xe_ggtt_dump(gt_to_tile(gt)->mem.ggtt, &p);
@@ -105,7 +105,7 @@ static int ggtt(struct seq_file *m, void *data)
 
 static int register_save_restore(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_gt *gt = analde_to_gt(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
@@ -132,7 +132,7 @@ static int register_save_restore(struct seq_file *m, void *data)
 
 static int workarounds(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_gt *gt = analde_to_gt(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	xe_wa_dump(gt, &p);
@@ -142,7 +142,7 @@ static int workarounds(struct seq_file *m, void *data)
 
 static int pat(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_gt *gt = analde_to_gt(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	xe_pat_dump(gt, &p);
@@ -154,7 +154,7 @@ static int rcs_default_lrc(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_RENDER);
+	xe_lrc_dump_default(&p, analde_to_gt(m->private), XE_ENGINE_CLASS_RENDER);
 	return 0;
 }
 
@@ -162,7 +162,7 @@ static int ccs_default_lrc(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_COMPUTE);
+	xe_lrc_dump_default(&p, analde_to_gt(m->private), XE_ENGINE_CLASS_COMPUTE);
 	return 0;
 }
 
@@ -170,7 +170,7 @@ static int bcs_default_lrc(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_COPY);
+	xe_lrc_dump_default(&p, analde_to_gt(m->private), XE_ENGINE_CLASS_COPY);
 	return 0;
 }
 
@@ -178,7 +178,7 @@ static int vcs_default_lrc(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_VIDEO_DECODE);
+	xe_lrc_dump_default(&p, analde_to_gt(m->private), XE_ENGINE_CLASS_VIDEO_DECODE);
 	return 0;
 }
 
@@ -186,7 +186,7 @@ static int vecs_default_lrc(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_VIDEO_ENHANCE);
+	xe_lrc_dump_default(&p, analde_to_gt(m->private), XE_ENGINE_CLASS_VIDEO_ENHANCE);
 	return 0;
 }
 
@@ -210,16 +210,16 @@ static const struct drm_info_list debugfs_list[] = {
 void xe_gt_debugfs_register(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	struct drm_minor *minor = gt_to_xe(gt)->drm.primary;
+	struct drm_mianalr *mianalr = gt_to_xe(gt)->drm.primary;
 	struct dentry *root;
 	struct drm_info_list *local;
 	char name[8];
 	int i;
 
-	xe_gt_assert(gt, minor->debugfs_root);
+	xe_gt_assert(gt, mianalr->debugfs_root);
 
 	sprintf(name, "gt%d", gt->info.id);
-	root = debugfs_create_dir(name, minor->debugfs_root);
+	root = debugfs_create_dir(name, mianalr->debugfs_root);
 	if (IS_ERR(root)) {
 		drm_warn(&xe->drm, "Create GT directory failed");
 		return;
@@ -243,7 +243,7 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 
 	drm_debugfs_create_files(local,
 				 ARRAY_SIZE(debugfs_list),
-				 root, minor);
+				 root, mianalr);
 
 	xe_uc_debugfs_register(&gt->uc, root);
 }

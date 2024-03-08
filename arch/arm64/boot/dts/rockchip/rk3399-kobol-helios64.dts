@@ -238,21 +238,21 @@
  * frequencies until this problem is properly understood and resolved.
  */
 &cluster0_opp {
-	/delete-node/ opp00;
-	/delete-node/ opp01;
-	/delete-node/ opp02;
-	/delete-node/ opp03;
-	/delete-node/ opp04;
+	/delete-analde/ opp00;
+	/delete-analde/ opp01;
+	/delete-analde/ opp02;
+	/delete-analde/ opp03;
+	/delete-analde/ opp04;
 };
 
 &cluster1_opp {
-	/delete-node/ opp00;
-	/delete-node/ opp01;
-	/delete-node/ opp02;
-	/delete-node/ opp03;
-	/delete-node/ opp04;
-	/delete-node/ opp05;
-	/delete-node/ opp06;
+	/delete-analde/ opp00;
+	/delete-analde/ opp01;
+	/delete-analde/ opp02;
+	/delete-analde/ opp03;
+	/delete-analde/ opp04;
+	/delete-analde/ opp05;
+	/delete-analde/ opp06;
 };
 
 &cpu_b0 {
@@ -459,31 +459,31 @@
 	pcie {
 		pcie_pwr: pcie-pwr {
 			rockchip,pins =
-				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pmic {
 		pmic_int_l: pmic-int-l {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	power {
 		hdd_a_power_en: hdd-a-power-en {
-			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		hdd_b_power_en: hdd-b-power-en {
-			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_usb_en: vcc5v0-usb-en {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		usb_lan_en: usb-lan-en {
-			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -512,7 +512,7 @@
 &sdhci {
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	vqmmc-supply = <&vcc1v8_sys_s0>;
 	status = "okay";
 };
@@ -533,7 +533,7 @@
 	status = "okay";
 
 	spiflash: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-max-frequency = <25000000>;
 		status = "okay";

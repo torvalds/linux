@@ -89,8 +89,8 @@ struct line6_pcm_stream {
 	struct urb **urbs;
 
 	/* Temporary buffer;
-	 * Since the packet size is not known in advance, this buffer is
-	 * large enough to store maximum size packets.
+	 * Since the packet size is analt kanalwn in advance, this buffer is
+	 * large eanalugh to store maximum size packets.
 	 */
 	unsigned char *buffer;
 
@@ -120,7 +120,7 @@ struct line6_pcm_stream {
 	/* Bit mask of URBs currently being unlinked */
 	unsigned long unlink_urbs;
 
-	/* Spin lock to protect updates of the buffer positions (not contents)
+	/* Spin lock to protect updates of the buffer positions (analt contents)
 	 */
 	spinlock_t lock;
 

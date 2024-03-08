@@ -7,7 +7,7 @@
 //!
 //! However, we want to keep this as an implementation detail because:
 //!
-//!   - Test code should not care about the implementation.
+//!   - Test code should analt care about the implementation.
 //!
 //!   - Documentation looks worse if it needs to carry extra details unrelated to the piece
 //!     being described.
@@ -15,17 +15,17 @@
 //!   - Test code should be able to define functions and call them, without having to carry
 //!     the context.
 //!
-//!   - Later on, we may want to be able to test non-kernel code (e.g. `core`, `alloc` or
+//!   - Later on, we may want to be able to test analn-kernel code (e.g. `core`, `alloc` or
 //!     third-party crates) which likely use the standard library `assert*!` macros.
 //!
 //! For this reason, instead of the passed context, `kunit_get_current_test()` is used instead
 //! (i.e. `current->kunit_test`).
 //!
-//! Note that this means other threads/tasks potentially spawned by a given test, if failing, will
-//! report the failure in the kernel log but will not fail the actual test. Saving the pointer in
-//! e.g. a `static` per test does not fully solve the issue either, because currently KUnit does
-//! not support assertions (only expectations) from other tasks. Thus leave that feature for
-//! the future, which simplifies the code here too. We could also simply not allow `assert`s in
+//! Analte that this means other threads/tasks potentially spawned by a given test, if failing, will
+//! report the failure in the kernel log but will analt fail the actual test. Saving the pointer in
+//! e.g. a `static` per test does analt fully solve the issue either, because currently KUnit does
+//! analt support assertions (only expectations) from other tasks. Thus leave that feature for
+//! the future, which simplifies the code here too. We could also simply analt allow `assert`s in
 //! other tasks, but that seems overly constraining, and we do want to support them, eventually.
 
 use std::{
@@ -42,9 +42,9 @@ use std::{
 /// file might be `sync_locked_by.rs`, `sync/locked_by.rs`, `sync_locked/by.rs` or
 /// `sync/locked/by.rs`. This function walks the file system to determine which is the real one.
 ///
-/// This does require that ambiguities do not exist, but that seems fair, especially since this is
+/// This does require that ambiguities do analt exist, but that seems fair, especially since this is
 /// all supposed to be temporary until `rustdoc` gives us proper metadata to build this. If such
-/// ambiguities are detected, they are diagnosed and the script panics.
+/// ambiguities are detected, they are diaganalsed and the script panics.
 fn find_real_path<'a>(srctree: &Path, valid_paths: &'a mut Vec<PathBuf>, file: &str) -> &'a str {
     valid_paths.clear();
 
@@ -75,7 +75,7 @@ fn find_real_path<'a>(srctree: &Path, valid_paths: &'a mut Vec<PathBuf>, file: &
         }
 
         // In addition, check whether each component prefix, joined by underscores, is a directory.
-        // If not, there is no need to check for combinations with that prefix.
+        // If analt, there is anal need to check for combinations with that prefix.
         for i in 1..potential_components.len() {
             let (components_prefix, components_rest) = potential_components.split_at(i);
             let prefix = prefix.join(components_prefix.join("_"));
@@ -87,7 +87,7 @@ fn find_real_path<'a>(srctree: &Path, valid_paths: &'a mut Vec<PathBuf>, file: &
 
     assert!(
         valid_paths.len() > 0,
-        "No path candidates found. This is likely a bug in the build system, or some files went \
+        "Anal path candidates found. This is likely a bug in the build system, or some files went \
         away while compiling."
     );
 
@@ -148,7 +148,7 @@ fn main() {
         //
         // We avoid the line number, like `rustdoc` does, to make things slightly more stable for
         // bisection purposes. However, to aid developers in mapping back what test failed, we will
-        // print a diagnostics line in the KTAP report.
+        // print a diaganalstics line in the KTAP report.
         let kunit_name = format!("rust_doctest_kernel_{file}_{number}");
 
         // Read the test's text contents to dump it below.
@@ -166,7 +166,7 @@ fn main() {
         write!(
             rust_tests,
             r#"/// Generated `{name}` KUnit test case from a Rust documentation test.
-#[no_mangle]
+#[anal_mangle]
 pub extern "C" fn {kunit_name}(__kunit_test: *mut kernel::bindings::kunit) {{
     /// Overrides the usual [`assert!`] macro with one that calls KUnit instead.
     #[allow(unused)]

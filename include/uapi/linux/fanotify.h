@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef _UAPI_LINUX_FANOTIFY_H
-#define _UAPI_LINUX_FANOTIFY_H
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
+#ifndef _UAPI_LINUX_FAANALTIFY_H
+#define _UAPI_LINUX_FAANALTIFY_H
 
 #include <linux/types.h>
 
@@ -9,7 +9,7 @@
 #define FAN_MODIFY		0x00000002	/* File was modified */
 #define FAN_ATTRIB		0x00000004	/* Metadata changed */
 #define FAN_CLOSE_WRITE		0x00000008	/* Writtable file closed */
-#define FAN_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
+#define FAN_CLOSE_ANALWRITE	0x00000010	/* Unwrittable file closed */
 #define FAN_OPEN		0x00000020	/* File was opened */
 #define FAN_MOVED_FROM		0x00000040	/* File was moved from X */
 #define FAN_MOVED_TO		0x00000080	/* File was moved to Y */
@@ -33,27 +33,27 @@
 #define FAN_ONDIR		0x40000000	/* Event occurred against dir */
 
 /* helper events */
-#define FAN_CLOSE		(FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE) /* close */
+#define FAN_CLOSE		(FAN_CLOSE_WRITE | FAN_CLOSE_ANALWRITE) /* close */
 #define FAN_MOVE		(FAN_MOVED_FROM | FAN_MOVED_TO) /* moves */
 
-/* flags used for fanotify_init() */
+/* flags used for faanaltify_init() */
 #define FAN_CLOEXEC		0x00000001
-#define FAN_NONBLOCK		0x00000002
+#define FAN_ANALNBLOCK		0x00000002
 
-/* These are NOT bitwise flags.  Both bits are used together.  */
-#define FAN_CLASS_NOTIF		0x00000000
+/* These are ANALT bitwise flags.  Both bits are used together.  */
+#define FAN_CLASS_ANALTIF		0x00000000
 #define FAN_CLASS_CONTENT	0x00000004
 #define FAN_CLASS_PRE_CONTENT	0x00000008
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
-#define FAN_ALL_CLASS_BITS	(FAN_CLASS_NOTIF | FAN_CLASS_CONTENT | \
+/* Deprecated - do analt use this in programs and do analt add new flags here! */
+#define FAN_ALL_CLASS_BITS	(FAN_CLASS_ANALTIF | FAN_CLASS_CONTENT | \
 				 FAN_CLASS_PRE_CONTENT)
 
 #define FAN_UNLIMITED_QUEUE	0x00000010
 #define FAN_UNLIMITED_MARKS	0x00000020
 #define FAN_ENABLE_AUDIT	0x00000040
 
-/* Flags to determine fanotify event format */
+/* Flags to determine faanaltify event format */
 #define FAN_REPORT_PIDFD	0x00000080	/* Report pidfd for event->pid */
 #define FAN_REPORT_TID		0x00000100	/* event->pid is thread id */
 #define FAN_REPORT_FID		0x00000200	/* Report unique file id */
@@ -67,47 +67,47 @@
 #define FAN_REPORT_DFID_NAME_TARGET (FAN_REPORT_DFID_NAME | \
 				     FAN_REPORT_FID | FAN_REPORT_TARGET_FID)
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
-#define FAN_ALL_INIT_FLAGS	(FAN_CLOEXEC | FAN_NONBLOCK | \
+/* Deprecated - do analt use this in programs and do analt add new flags here! */
+#define FAN_ALL_INIT_FLAGS	(FAN_CLOEXEC | FAN_ANALNBLOCK | \
 				 FAN_ALL_CLASS_BITS | FAN_UNLIMITED_QUEUE |\
 				 FAN_UNLIMITED_MARKS)
 
-/* flags used for fanotify_modify_mark() */
+/* flags used for faanaltify_modify_mark() */
 #define FAN_MARK_ADD		0x00000001
 #define FAN_MARK_REMOVE		0x00000002
 #define FAN_MARK_DONT_FOLLOW	0x00000004
 #define FAN_MARK_ONLYDIR	0x00000008
 /* FAN_MARK_MOUNT is		0x00000010 */
-#define FAN_MARK_IGNORED_MASK	0x00000020
-#define FAN_MARK_IGNORED_SURV_MODIFY	0x00000040
+#define FAN_MARK_IGANALRED_MASK	0x00000020
+#define FAN_MARK_IGANALRED_SURV_MODIFY	0x00000040
 #define FAN_MARK_FLUSH		0x00000080
 /* FAN_MARK_FILESYSTEM is	0x00000100 */
 #define FAN_MARK_EVICTABLE	0x00000200
-/* This bit is mutually exclusive with FAN_MARK_IGNORED_MASK bit */
-#define FAN_MARK_IGNORE		0x00000400
+/* This bit is mutually exclusive with FAN_MARK_IGANALRED_MASK bit */
+#define FAN_MARK_IGANALRE		0x00000400
 
-/* These are NOT bitwise flags.  Both bits can be used togther.  */
-#define FAN_MARK_INODE		0x00000000
+/* These are ANALT bitwise flags.  Both bits can be used togther.  */
+#define FAN_MARK_IANALDE		0x00000000
 #define FAN_MARK_MOUNT		0x00000010
 #define FAN_MARK_FILESYSTEM	0x00000100
 
 /*
- * Convenience macro - FAN_MARK_IGNORE requires FAN_MARK_IGNORED_SURV_MODIFY
- * for non-inode mark types.
+ * Convenience macro - FAN_MARK_IGANALRE requires FAN_MARK_IGANALRED_SURV_MODIFY
+ * for analn-ianalde mark types.
  */
-#define FAN_MARK_IGNORE_SURV	(FAN_MARK_IGNORE | FAN_MARK_IGNORED_SURV_MODIFY)
+#define FAN_MARK_IGANALRE_SURV	(FAN_MARK_IGANALRE | FAN_MARK_IGANALRED_SURV_MODIFY)
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do analt use this in programs and do analt add new flags here! */
 #define FAN_ALL_MARK_FLAGS	(FAN_MARK_ADD |\
 				 FAN_MARK_REMOVE |\
 				 FAN_MARK_DONT_FOLLOW |\
 				 FAN_MARK_ONLYDIR |\
 				 FAN_MARK_MOUNT |\
-				 FAN_MARK_IGNORED_MASK |\
-				 FAN_MARK_IGNORED_SURV_MODIFY |\
+				 FAN_MARK_IGANALRED_MASK |\
+				 FAN_MARK_IGANALRED_SURV_MODIFY |\
 				 FAN_MARK_FLUSH)
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do analt use this in programs and do analt add new flags here! */
 #define FAN_ALL_EVENTS (FAN_ACCESS |\
 			FAN_MODIFY |\
 			FAN_CLOSE |\
@@ -116,18 +116,18 @@
 /*
  * All events which require a permission response from userspace
  */
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do analt use this in programs and do analt add new flags here! */
 #define FAN_ALL_PERM_EVENTS (FAN_OPEN_PERM |\
 			     FAN_ACCESS_PERM)
 
-/* Deprecated - do not use this in programs and do not add new flags here! */
+/* Deprecated - do analt use this in programs and do analt add new flags here! */
 #define FAN_ALL_OUTGOING_EVENTS	(FAN_ALL_EVENTS |\
 				 FAN_ALL_PERM_EVENTS |\
 				 FAN_Q_OVERFLOW)
 
-#define FANOTIFY_METADATA_VERSION	3
+#define FAANALTIFY_METADATA_VERSION	3
 
-struct fanotify_event_metadata {
+struct faanaltify_event_metadata {
 	__u32 event_len;
 	__u8 vers;
 	__u8 reserved;
@@ -150,7 +150,7 @@ struct fanotify_event_metadata {
 /* Reserved for FAN_EVENT_INFO_TYPE_NEW_DFID	13 */
 
 /* Variable length info record following event metadata */
-struct fanotify_event_info_header {
+struct faanaltify_event_info_header {
 	__u8 info_type;
 	__u8 pad;
 	__u16 len;
@@ -163,8 +163,8 @@ struct fanotify_event_info_header {
  * For FAN_EVENT_INFO_TYPE_DFID_NAME there is additionally a null terminated
  * name immediately after the file handle.
  */
-struct fanotify_event_info_fid {
-	struct fanotify_event_info_header hdr;
+struct faanaltify_event_info_fid {
+	struct faanaltify_event_info_header hdr;
 	__kernel_fsid_t fsid;
 	/*
 	 * Following is an opaque struct file_handle that can be passed as
@@ -177,13 +177,13 @@ struct fanotify_event_info_fid {
  * This structure is used for info records of type FAN_EVENT_INFO_TYPE_PIDFD.
  * It holds a pidfd for the pid that was responsible for generating an event.
  */
-struct fanotify_event_info_pidfd {
-	struct fanotify_event_info_header hdr;
+struct faanaltify_event_info_pidfd {
+	struct faanaltify_event_info_header hdr;
 	__s32 pidfd;
 };
 
-struct fanotify_event_info_error {
-	struct fanotify_event_info_header hdr;
+struct faanaltify_event_info_error {
+	struct faanaltify_event_info_header hdr;
 	__s32 error;
 	__u32 error_count;
 };
@@ -191,7 +191,7 @@ struct fanotify_event_info_error {
 /*
  * User space may need to record additional information about its decision.
  * The extra information type records what kind of information is included.
- * The default is none. We also define an extra information buffer whose
+ * The default is analne. We also define an extra information buffer whose
  * size is determined by the extra information type.
  *
  * If the information type is Audit Rule, then the information following
@@ -199,22 +199,22 @@ struct fanotify_event_info_error {
  * requires auditing.
  */
 
-#define FAN_RESPONSE_INFO_NONE		0
+#define FAN_RESPONSE_INFO_ANALNE		0
 #define FAN_RESPONSE_INFO_AUDIT_RULE	1
 
-struct fanotify_response {
+struct faanaltify_response {
 	__s32 fd;
 	__u32 response;
 };
 
-struct fanotify_response_info_header {
+struct faanaltify_response_info_header {
 	__u8 type;
 	__u8 pad;
 	__u16 len;
 };
 
-struct fanotify_response_info_audit_rule {
-	struct fanotify_response_info_header hdr;
+struct faanaltify_response_info_audit_rule {
+	struct faanaltify_response_info_header hdr;
 	__u32 rule_number;
 	__u32 subj_trust;
 	__u32 obj_trust;
@@ -226,20 +226,20 @@ struct fanotify_response_info_audit_rule {
 #define FAN_AUDIT	0x10	/* Bitmask to create audit record for result */
 #define FAN_INFO	0x20	/* Bitmask to indicate additional information */
 
-/* No fd set in event */
-#define FAN_NOFD	-1
-#define FAN_NOPIDFD	FAN_NOFD
+/* Anal fd set in event */
+#define FAN_ANALFD	-1
+#define FAN_ANALPIDFD	FAN_ANALFD
 #define FAN_EPIDFD	-2
 
-/* Helper functions to deal with fanotify_event_metadata buffers */
-#define FAN_EVENT_METADATA_LEN (sizeof(struct fanotify_event_metadata))
+/* Helper functions to deal with faanaltify_event_metadata buffers */
+#define FAN_EVENT_METADATA_LEN (sizeof(struct faanaltify_event_metadata))
 
 #define FAN_EVENT_NEXT(meta, len) ((len) -= (meta)->event_len, \
-				   (struct fanotify_event_metadata*)(((char *)(meta)) + \
+				   (struct faanaltify_event_metadata*)(((char *)(meta)) + \
 				   (meta)->event_len))
 
 #define FAN_EVENT_OK(meta, len)	((long)(len) >= (long)FAN_EVENT_METADATA_LEN && \
 				(long)(meta)->event_len >= (long)FAN_EVENT_METADATA_LEN && \
 				(long)(meta)->event_len <= (long)(len))
 
-#endif /* _UAPI_LINUX_FANOTIFY_H */
+#endif /* _UAPI_LINUX_FAANALTIFY_H */

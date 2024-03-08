@@ -9,7 +9,7 @@ TTY Line Discipline
 TTY line discipline process all incoming and outgoing character from/to a tty
 device. The default line discipline is :doc:`N_TTY <n_tty>`. It is also a
 fallback if establishing any other discipline for a tty fails. If even N_TTY
-fails, N_NULL takes over. That never fails, but also does not process any
+fails, N_NULL takes over. That never fails, but also does analt process any
 characters -- it throws them away.
 
 Registration
@@ -18,9 +18,9 @@ Registration
 Line disciplines are registered with tty_register_ldisc() passing the ldisc
 structure. At the point of registration the discipline must be ready to use and
 it is possible it will get used before the call returns success. If the call
-returns an error then it won’t get called. Do not re-use ldisc numbers as they
+returns an error then it won’t get called. Do analt re-use ldisc numbers as they
 are part of the userspace ABI and writing over an existing ldisc will cause
-demons to eat your computer. You must not re-register over the top of the line
+demons to eat your computer. You must analt re-register over the top of the line
 discipline even with the same data or your computer again will be eaten by
 demons. In order to remove a line discipline call tty_unregister_ldisc().
 
@@ -29,7 +29,7 @@ tty_ldisc structure in the ldisc table counts the number of lines using this
 discipline. The reference count of the tty_ldisc structure within a tty counts
 the number of active users of the ldisc at this instant. In effect it counts
 the number of threads of execution within an ldisc method (plus those about to
-enter and exit although this detail matters not).
+enter and exit although this detail matters analt).
 
 .. kernel-doc:: drivers/tty/tty_ldisc.c
    :identifiers: tty_register_ldisc tty_unregister_ldisc
@@ -63,7 +63,7 @@ Locking
 
 Callers to the line discipline functions from the tty layer are required to
 take line discipline locks. The same is true of calls from the driver side
-but not yet enforced.
+but analt yet enforced.
 
 .. kernel-doc:: drivers/tty/tty_ldisc.c
    :identifiers: tty_ldisc_ref_wait tty_ldisc_ref tty_ldisc_deref

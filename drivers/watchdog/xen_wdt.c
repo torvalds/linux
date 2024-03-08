@@ -2,13 +2,13 @@
 /*
  *	Xen Watchdog Driver
  *
- *	(c) Copyright 2010 Novell, Inc.
+ *	(c) Copyright 2010 Analvell, Inc.
  */
 
 #define DRV_NAME	"xen_wdt"
 
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/hrtimer.h>
 #include <linux/kernel.h>
@@ -32,10 +32,10 @@ module_param(timeout, uint, S_IRUGO);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds "
 	"(default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, S_IRUGO);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, S_IRUGO);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+	"(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static inline time64_t set_timeout(struct watchdog_device *wdd)
 {
@@ -122,18 +122,18 @@ static int xen_wdt_probe(struct platform_device *pdev)
 	struct sched_watchdog wd = { .id = ~0 };
 	int ret = HYPERVISOR_sched_op(SCHEDOP_watchdog, &wd);
 
-	if (ret == -ENOSYS) {
-		dev_err(dev, "watchdog not supported by hypervisor\n");
-		return -ENODEV;
+	if (ret == -EANALSYS) {
+		dev_err(dev, "watchdog analt supported by hypervisor\n");
+		return -EANALDEV;
 	}
 
 	if (ret != -EINVAL) {
 		dev_err(dev, "unexpected hypervisor error (%d)\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	watchdog_init_timeout(&xen_wdt_dev, timeout, NULL);
-	watchdog_set_nowayout(&xen_wdt_dev, nowayout);
+	watchdog_set_analwayout(&xen_wdt_dev, analwayout);
 	watchdog_stop_on_reboot(&xen_wdt_dev);
 	watchdog_stop_on_unregister(&xen_wdt_dev);
 
@@ -141,8 +141,8 @@ static int xen_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dev_info(dev, "initialized (timeout=%ds, nowayout=%d)\n",
-		 xen_wdt_dev.timeout, nowayout);
+	dev_info(dev, "initialized (timeout=%ds, analwayout=%d)\n",
+		 xen_wdt_dev.timeout, analwayout);
 
 	return 0;
 }
@@ -178,7 +178,7 @@ static int __init xen_wdt_init_module(void)
 	int err;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = platform_driver_register(&xen_wdt_driver);
 	if (err)
@@ -203,6 +203,6 @@ static void __exit xen_wdt_cleanup_module(void)
 module_init(xen_wdt_init_module);
 module_exit(xen_wdt_cleanup_module);
 
-MODULE_AUTHOR("Jan Beulich <jbeulich@novell.com>");
+MODULE_AUTHOR("Jan Beulich <jbeulich@analvell.com>");
 MODULE_DESCRIPTION("Xen WatchDog Timer Driver");
 MODULE_LICENSE("GPL");

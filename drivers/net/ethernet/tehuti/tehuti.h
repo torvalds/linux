@@ -110,7 +110,7 @@
 #define BDX_TXF_DESC_SZ    16
 #define BDX_MAX_TX_LEVEL   (priv->txd_fifo0.m.memsz - 16)
 #define BDX_MIN_TX_LEVEL   256
-#define BDX_NO_UPD_PACKETS 40
+#define BDX_ANAL_UPD_PACKETS 40
 
 struct pci_nic {
 	int port_num;
@@ -149,7 +149,7 @@ struct fifo {
 	u16 memsz;		/* memory size allocated for fifo */
 	u16 size_mask;
 	u16 pktsz;		/* skb packet size to allocate */
-	u16 rcvno;		/* number of buffers that come from this RXF */
+	u16 rcvanal;		/* number of buffers that come from this RXF */
 };
 
 struct txf_fifo {
@@ -258,7 +258,7 @@ struct bdx_priv {
 	int tx_level;
 #ifdef BDX_DELAY_WPTR
 	int tx_update_mark;
-	int tx_noupd;
+	int tx_analupd;
 #endif
 	spinlock_t tx_lock;	/* NETIF_F_LLTX mode */
 

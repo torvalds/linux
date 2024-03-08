@@ -8,7 +8,7 @@ obj-$(CONFIG_OPENVSWITCH) += openvswitch.o
 openvswitch-y := \
 	actions.o \
 	datapath.o \
-	dp_notify.o \
+	dp_analtify.o \
 	flow.o \
 	flow_netlink.o \
 	flow_table.o \

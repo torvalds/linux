@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -498,11 +498,11 @@
 #define mmSDMA1_RLC1_MIDCMD_DATA8                                               0x37c9
 #define mmSDMA1_RLC1_MIDCMD_CNTL                                                0x37ca
 #define mmHDP_HOST_PATH_CNTL                                                    0xb00
-#define mmHDP_NONSURFACE_BASE                                                   0xb01
-#define mmHDP_NONSURFACE_INFO                                                   0xb02
-#define mmHDP_NONSURFACE_SIZE                                                   0xb03
-#define mmHDP_NONSURF_FLAGS                                                     0xbc9
-#define mmHDP_NONSURF_FLAGS_CLR                                                 0xbca
+#define mmHDP_ANALNSURFACE_BASE                                                   0xb01
+#define mmHDP_ANALNSURFACE_INFO                                                   0xb02
+#define mmHDP_ANALNSURFACE_SIZE                                                   0xb03
+#define mmHDP_ANALNSURF_FLAGS                                                     0xbc9
+#define mmHDP_ANALNSURF_FLAGS_CLR                                                 0xbca
 #define mmHDP_SW_SEMAPHORE                                                      0xbcb
 #define mmHDP_DEBUG0                                                            0xbcc
 #define mmHDP_DEBUG1                                                            0xbcd
@@ -513,7 +513,7 @@
 #define mmHDP_ADDR_CONFIG                                                       0xbd2
 #define mmHDP_MISC_CNTL                                                         0xbd3
 #define mmHDP_MEM_POWER_LS                                                      0xbd4
-#define mmHDP_NONSURFACE_PREFETCH                                               0xbd5
+#define mmHDP_ANALNSURFACE_PREFETCH                                               0xbd5
 #define mmHDP_MEMIO_CNTL                                                        0xbf6
 #define mmHDP_MEMIO_ADDR                                                        0xbf7
 #define mmHDP_MEMIO_STATUS                                                      0xbf8

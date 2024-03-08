@@ -162,7 +162,7 @@ int ocelot_mact_lookup(struct ocelot *ocelot, int *dst_idx,
 	mutex_unlock(&ocelot->mact_lock);
 
 	if (!(val & ANA_TABLES_MACACCESS_VALID))
-		return -ENOENT;
+		return -EANALENT;
 
 	*dst_idx = ANA_TABLES_MACACCESS_DEST_IDX_X(val);
 	*type = ANA_TABLES_MACACCESS_ENTRYTYPE_X(val);
@@ -199,16 +199,16 @@ EXPORT_SYMBOL(ocelot_mact_learn_streamdata);
 static void ocelot_mact_init(struct ocelot *ocelot)
 {
 	/* Configure the learning mode entries attributes:
-	 * - Do not copy the frame to the CPU extraction queues.
+	 * - Do analt copy the frame to the CPU extraction queues.
 	 * - Use the vlan and mac_cpoy for dmac lookup.
 	 */
 	ocelot_rmw(ocelot, 0,
-		   ANA_AGENCTRL_LEARN_CPU_COPY | ANA_AGENCTRL_IGNORE_DMAC_FLAGS
+		   ANA_AGENCTRL_LEARN_CPU_COPY | ANA_AGENCTRL_IGANALRE_DMAC_FLAGS
 		   | ANA_AGENCTRL_LEARN_FWD_KILL
-		   | ANA_AGENCTRL_LEARN_IGNORE_VLAN,
+		   | ANA_AGENCTRL_LEARN_IGANALRE_VLAN,
 		   ANA_AGENCTRL);
 
-	/* Clear the MAC table. We are not concurrent with anyone, so
+	/* Clear the MAC table. We are analt concurrent with anyone, so
 	 * holding &ocelot->mact_lock is pointless.
 	 */
 	ocelot_write(ocelot, MACACCESS_CMD_INIT, ANA_TABLES_MACACCESS);
@@ -326,7 +326,7 @@ static int ocelot_port_num_untagged_vlans(struct ocelot *ocelot, int port)
 		if (!(vlan->portmask & BIT(port)))
 			continue;
 
-		/* Ignore the VLAN added by ocelot_add_vlan_unaware_pvid(),
+		/* Iganalre the VLAN added by ocelot_add_vlan_unaware_pvid(),
 		 * because this is never active in hardware at the same time as
 		 * the bridge VLANs, which only matter in VLAN-aware mode.
 		 */
@@ -407,9 +407,9 @@ static void ocelot_port_manage_port_tag(struct ocelot *ocelot, int port)
 	if (uses_native_vlan) {
 		struct ocelot_bridge_vlan *native_vlan;
 
-		/* Not having a native VLAN is impossible, because
+		/* Analt having a native VLAN is impossible, because
 		 * ocelot_port_num_untagged_vlans has returned 1.
-		 * So there is no use in checking for NULL here.
+		 * So there is anal use in checking for NULL here.
 		 */
 		native_vlan = ocelot_port_find_native_vlan(ocelot, port);
 
@@ -471,10 +471,10 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 		       ANA_PORT_VLAN_CFG_VLAN_VID_M,
 		       ANA_PORT_VLAN_CFG, port);
 
-	/* If there's no pvid, we should drop not only untagged traffic (which
+	/* If there's anal pvid, we should drop analt only untagged traffic (which
 	 * happens automatically), but also 802.1p traffic which gets
 	 * classified to VLAN 0, but that is always in our RX filter, so it
-	 * would get accepted were it not for this setting.
+	 * would get accepted were it analt for this setting.
 	 */
 	if (!pvid_vlan && ocelot_port->vlan_aware)
 		val = ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
@@ -527,7 +527,7 @@ static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid,
 
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
 	if (!vlan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	portmask = BIT(port);
 
@@ -601,7 +601,7 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 		if (filter->ingress_port_mask & BIT(port) &&
 		    filter->action.vid_replace_ena) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Cannot change VLAN state with vlan modify rules active");
+					   "Cananalt change VLAN state with vlan modify rules active");
 			return -EBUSY;
 		}
 	}
@@ -645,14 +645,14 @@ int ocelot_vlan_prepare(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 		/* We are adding an egress-tagged VLAN */
 		if (ocelot_port_uses_native_vlan(ocelot, port)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Port with egress-tagged VLANs cannot have more than one egress-untagged (native) VLAN");
+					   "Port with egress-tagged VLANs cananalt have more than one egress-untagged (native) VLAN");
 			return -EBUSY;
 		}
 	} else {
 		/* We are adding an egress-tagged VLAN */
 		if (ocelot_port_num_untagged_vlans(ocelot, port) > 1) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Port with more than one egress-untagged VLAN cannot have egress-tagged VLANs");
+					   "Port with more than one egress-untagged VLAN cananalt have egress-tagged VLANs");
 			return -EBUSY;
 		}
 	}
@@ -672,7 +672,7 @@ int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 {
 	int err;
 
-	/* Ignore VID 0 added to our RX filter by the 8021q module, since
+	/* Iganalre VID 0 added to our RX filter by the 8021q module, since
 	 * that collides with OCELOT_STANDALONE_PVID and changes it from
 	 * egress-untagged to egress-tagged.
 	 */
@@ -738,7 +738,7 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 
 	/* We need VID 0 to get traffic on standalone ports.
 	 * It is added automatically if the 8021q module is loaded, but we
-	 * can't rely on that since it might not be.
+	 * can't rely on that since it might analt be.
 	 */
 	ocelot_vlant_set_mask(ocelot, OCELOT_STANDALONE_PVID, all_ports);
 
@@ -812,7 +812,7 @@ static int ocelot_port_flush(struct ocelot *ocelot, int port)
 }
 
 int ocelot_port_configure_serdes(struct ocelot *ocelot, int port,
-				 struct device_node *portnp)
+				 struct device_analde *portnp)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct device *dev = ocelot->dev;
@@ -840,7 +840,7 @@ int ocelot_port_configure_serdes(struct ocelot *ocelot, int port,
 				       ocelot_port->phy_mode);
 		of_phy_put(serdes);
 		if (err) {
-			dev_err(dev, "Could not SerDes mode on port %d: %pe\n",
+			dev_err(dev, "Could analt SerDes mode on port %d: %pe\n",
 				port, ERR_PTR(err));
 			return err;
 		}
@@ -860,7 +860,7 @@ void ocelot_phylink_mac_config(struct ocelot *ocelot, int port,
 	ocelot_port_writel(ocelot_port, DEV_PORT_MISC_HDX_FAST_DIS,
 			   DEV_PORT_MISC);
 
-	/* SGMII only for now */
+	/* SGMII only for analw */
 	ocelot_port_writel(ocelot_port, PCS1G_MODE_CFG_SGMII_MODE_ENA,
 			   PCS1G_MODE_CFG);
 	ocelot_port_writel(ocelot_port, PCS1G_SD_CFG_SD_SEL, PCS1G_SD_CFG);
@@ -868,10 +868,10 @@ void ocelot_phylink_mac_config(struct ocelot *ocelot, int port,
 	/* Enable PCS */
 	ocelot_port_writel(ocelot_port, PCS1G_CFG_PCS_ENA, PCS1G_CFG);
 
-	/* No aneg on SGMII */
+	/* Anal aneg on SGMII */
 	ocelot_port_writel(ocelot_port, 0, PCS1G_ANEG_CFG);
 
-	/* No loopback */
+	/* Anal loopback */
 	ocelot_port_writel(ocelot_port, 0, PCS1G_LB_CFG);
 }
 EXPORT_SYMBOL_GPL(ocelot_phylink_mac_config);
@@ -884,7 +884,7 @@ void ocelot_phylink_mac_link_down(struct ocelot *ocelot, int port,
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int err;
 
-	ocelot_port->speed = SPEED_UNKNOWN;
+	ocelot_port->speed = SPEED_UNKANALWN;
 
 	ocelot_port_rmwl(ocelot_port, 0, DEV_MAC_ENA_CFG_RX_ENA,
 			 DEV_MAC_ENA_CFG);
@@ -1027,13 +1027,13 @@ static int ocelot_rx_frame_word(struct ocelot *ocelot, u8 grp, bool ifh,
 	u32 bytes_valid, val;
 
 	val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-	if (val == XTR_NOT_READY) {
+	if (val == XTR_ANALT_READY) {
 		if (ifh)
 			return -EIO;
 
 		do {
 			val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-		} while (val == XTR_NOT_READY);
+		} while (val == XTR_ANALT_READY);
 	}
 
 	switch (val) {
@@ -1127,7 +1127,7 @@ int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
 	skb = netdev_alloc_skb(dev, len);
 	if (unlikely(!skb)) {
 		netdev_err(dev, "Unable to allocate sk_buff\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buf_len = len - ETH_FCS_LEN;
@@ -1296,8 +1296,8 @@ static int ocelot_mact_read(struct ocelot *ocelot, int port, int row, int col,
 	if (!(val & ANA_TABLES_MACACCESS_VALID))
 		return -EINVAL;
 
-	/* If the entry read has another port configured as its destination,
-	 * do not report it.
+	/* If the entry read has aanalther port configured as its destination,
+	 * do analt report it.
 	 */
 	dst = (val & ANA_TABLES_MACACCESS_DEST_IDX_M) >> 3;
 	if (dst != port)
@@ -1419,7 +1419,7 @@ int ocelot_trap_add(struct ocelot *ocelot, int port,
 	if (!trap) {
 		trap = kzalloc(sizeof(*trap), GFP_KERNEL);
 		if (!trap)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		populate(trap);
 		trap->prio = 1;
@@ -1499,19 +1499,19 @@ int ocelot_bond_get_id(struct ocelot *ocelot, struct net_device *bond)
 	int bond_mask = ocelot_get_bond_mask(ocelot, bond);
 
 	if (!bond_mask)
-		return -ENOENT;
+		return -EANALENT;
 
 	return __ffs(bond_mask);
 }
 EXPORT_SYMBOL_GPL(ocelot_bond_get_id);
 
 /* Returns the mask of user ports assigned to this DSA tag_8021q CPU port.
- * Note that when CPU ports are in a LAG, the user ports are assigned to the
+ * Analte that when CPU ports are in a LAG, the user ports are assigned to the
  * 'primary' CPU port, the one whose physical port number gives the logical
  * port number of the LAG.
  *
  * We leave PGID_SRC poorly configured for the 'secondary' CPU port in the LAG
- * (to which no user port is assigned), but it appears that forwarding from
+ * (to which anal user port is assigned), but it appears that forwarding from
  * this secondary CPU port looks at the PGID_SRC associated with the logical
  * port ID that it's assigned to, which *is* configured properly.
  */
@@ -1639,7 +1639,7 @@ static void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 	/* If cut-through forwarding is supported and a port is leaving, there
 	 * is a chance that cut-through was disabled on the other ports due to
 	 * the port which is leaving (it has a higher link speed). We need to
-	 * update the cut-through masks of the remaining ports no earlier than
+	 * update the cut-through masks of the remaining ports anal earlier than
 	 * after the port has left, to prevent underruns from happening between
 	 * the cut-through update and the forwarding domain update.
 	 */
@@ -1648,11 +1648,11 @@ static void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 }
 
 /* Update PGID_CPU which is the destination port mask used for whitelisting
- * unicast addresses filtered towards the host. In the normal and NPI modes,
+ * unicast addresses filtered towards the host. In the analrmal and NPI modes,
  * this points to the analyzer entry for the CPU port module, while in DSA
  * tag_8021q mode, it is a bit mask of all active CPU ports.
  * PGID_SRC will take care of forwarding a packet from one user port to
- * no more than a single CPU port.
+ * anal more than a single CPU port.
  */
 static void ocelot_update_pgid_cpu(struct ocelot *ocelot)
 {
@@ -1762,7 +1762,7 @@ void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs)
 	unsigned int age_period = ANA_AUTOAGE_AGE_PERIOD(msecs / 2000);
 
 	/* Setting AGE_PERIOD to zero effectively disables automatic aging,
-	 * which is clearly not what our intention is. So avoid that.
+	 * which is clearly analt what our intention is. So avoid that.
 	 */
 	if (!age_period)
 		age_period = 1;
@@ -1801,7 +1801,7 @@ static struct ocelot_pgid *ocelot_pgid_alloc(struct ocelot *ocelot, int index,
 
 	pgid = kzalloc(sizeof(*pgid), GFP_KERNEL);
 	if (!pgid)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pgid->ports = ports;
 	pgid->index = index;
@@ -1836,7 +1836,7 @@ static struct ocelot_pgid *ocelot_mdb_get_pgid(struct ocelot *ocelot,
 		return ocelot_pgid_alloc(ocelot, 0, mc->ports);
 
 	list_for_each_entry(pgid, &ocelot->pgids, list) {
-		/* When searching for a nonreserved multicast PGID, ignore the
+		/* When searching for a analnreserved multicast PGID, iganalre the
 		 * dummy PGID of zero that we have for MACv4/MACv6 entries
 		 */
 		if (pgid->index && pgid->ports == mc->ports) {
@@ -1845,8 +1845,8 @@ static struct ocelot_pgid *ocelot_mdb_get_pgid(struct ocelot *ocelot,
 		}
 	}
 
-	/* Search for a free index in the nonreserved multicast PGID area */
-	for_each_nonreserved_multicast_dest_pgid(ocelot, index) {
+	/* Search for a free index in the analnreserved multicast PGID area */
+	for_each_analnreserved_multicast_dest_pgid(ocelot, index) {
 		bool used = false;
 
 		list_for_each_entry(pgid, &ocelot->pgids, list) {
@@ -1860,7 +1860,7 @@ static struct ocelot_pgid *ocelot_mdb_get_pgid(struct ocelot *ocelot,
 			return ocelot_pgid_alloc(ocelot, index, mc->ports);
 	}
 
-	return ERR_PTR(-ENOSPC);
+	return ERR_PTR(-EANALSPC);
 }
 
 static void ocelot_encode_ports_to_mdb(unsigned char *addr,
@@ -1895,7 +1895,7 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 		/* New entry */
 		mc = devm_kzalloc(ocelot->dev, sizeof(*mc), GFP_KERNEL);
 		if (!mc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mc->entry_type = ocelot_classify_mdb(mdb->addr);
 		ether_addr_copy(mc->addr, mdb->addr);
@@ -1904,7 +1904,7 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 		list_add_tail(&mc->list, &ocelot->multicast);
 	} else {
 		/* Existing entry. Clean up the current port mask from
-		 * hardware now, because we'll be modifying it.
+		 * hardware analw, because we'll be modifying it.
 		 */
 		ocelot_pgid_free(ocelot, mc->pgid);
 		ocelot_encode_ports_to_mdb(addr, mc);
@@ -1916,7 +1916,7 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 	pgid = ocelot_mdb_get_pgid(ocelot, mc);
 	if (IS_ERR(pgid)) {
 		dev_err(ocelot->dev,
-			"Cannot allocate PGID for mdb %pM vid %d\n",
+			"Cananalt allocate PGID for mdb %pM vid %d\n",
 			mc->addr, mc->vid);
 		devm_kfree(ocelot->dev, mc);
 		return PTR_ERR(pgid);
@@ -1949,7 +1949,7 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 
 	mc = ocelot_multicast_get(ocelot, mdb->addr, vid);
 	if (!mc)
-		return -ENOENT;
+		return -EANALENT;
 
 	ocelot_encode_ports_to_mdb(addr, mc);
 	ocelot_mact_forget(ocelot, addr, vid);
@@ -1962,7 +1962,7 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 		return 0;
 	}
 
-	/* We have a PGID with fewer ports now */
+	/* We have a PGID with fewer ports analw */
 	pgid = ocelot_mdb_get_pgid(ocelot, mc);
 	if (IS_ERR(pgid))
 		return PTR_ERR(pgid);
@@ -2043,7 +2043,7 @@ static void ocelot_set_aggr_pgids(struct ocelot *ocelot)
 
 	/* The visited ports bitmask holds the list of ports offloading any
 	 * bonding interface. Initially we mark all these ports as unvisited,
-	 * then every time we visit a port in this bitmask, we know that it is
+	 * then every time we visit a port in this bitmask, we kanalw that it is
 	 * the lowest numbered port, i.e. the one whose logical ID == physical
 	 * port ID == LAG ID. So we mark as visited all further ports in the
 	 * bitmask that are offloading the same bonding interface. This way,
@@ -2058,7 +2058,7 @@ static void ocelot_set_aggr_pgids(struct ocelot *ocelot)
 		visited &= ~BIT(port);
 	}
 
-	/* Now, set PGIDs for each active LAG */
+	/* Analw, set PGIDs for each active LAG */
 	for (lag = 0; lag < ocelot->num_phys_ports; lag++) {
 		struct net_device *bond = ocelot->ports[lag]->bond;
 		int num_active_ports = 0;
@@ -2086,7 +2086,7 @@ static void ocelot_set_aggr_pgids(struct ocelot *ocelot)
 
 			ac = ocelot_read_rix(ocelot, ANA_PGID_PGID, i);
 			ac &= ~bond_mask;
-			/* Don't do division by zero if there was no active
+			/* Don't do division by zero if there was anal active
 			 * port. Just make all aggregation codes zero.
 			 */
 			if (num_active_ports)
@@ -2166,7 +2166,7 @@ static int ocelot_migrate_mc(struct ocelot *ocelot, struct ocelot_multicast *mc,
 	pgid = ocelot_mdb_get_pgid(ocelot, mc);
 	if (IS_ERR(pgid)) {
 		dev_err(ocelot->dev,
-			"Cannot allocate PGID for mdb %pM vid %d\n",
+			"Cananalt allocate PGID for mdb %pM vid %d\n",
 			mc->addr, mc->vid);
 		devm_kfree(ocelot->dev, mc);
 		return PTR_ERR(pgid);
@@ -2204,11 +2204,11 @@ int ocelot_migrate_mdbs(struct ocelot *ocelot, unsigned long from_mask,
 EXPORT_SYMBOL_GPL(ocelot_migrate_mdbs);
 
 /* Documentation for PORTID_VAL says:
- *     Logical port number for front port. If port is not a member of a LLAG,
+ *     Logical port number for front port. If port is analt a member of a LLAG,
  *     then PORTID must be set to the physical port number.
  *     If port is a member of a LLAG, then PORTID must be set to the common
  *     PORTID_VAL used for all member ports of the LLAG.
- *     The value must not exceed the number of physical ports on the device.
+ *     The value must analt exceed the number of physical ports on the device.
  *
  * This means we have little choice but to migrate FDB entries pointing towards
  * a logical port when that changes.
@@ -2251,7 +2251,7 @@ int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only offload LAG using hash TX type");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&ocelot->fwd_domain_lock);
@@ -2316,7 +2316,7 @@ int ocelot_lag_fdb_add(struct ocelot *ocelot, struct net_device *bond,
 
 	fdb = kzalloc(sizeof(*fdb), GFP_KERNEL);
 	if (!fdb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ocelot->fwd_domain_lock);
 
@@ -2369,7 +2369,7 @@ int ocelot_lag_fdb_del(struct ocelot *ocelot, struct net_device *bond,
 
 	mutex_unlock(&ocelot->fwd_domain_lock);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL_GPL(ocelot_lag_fdb_del);
 
@@ -2543,7 +2543,7 @@ int ocelot_port_get_dscp_prio(struct ocelot *ocelot, int port, u8 dscp)
 
 	/* Return error if DSCP prioritization isn't enabled */
 	if (!(qos_cfg & ANA_PORT_QOS_CFG_QOS_DSCP_ENA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qos_cfg & ANA_PORT_QOS_CFG_DSCP_TRANSLATE_ENA) {
 		dscp = ANA_DSCP_CFG_DSCP_TRANSLATE_VAL_X(dscp_cfg);
@@ -2551,11 +2551,11 @@ int ocelot_port_get_dscp_prio(struct ocelot *ocelot, int port, u8 dscp)
 		dscp_cfg = ocelot_read_rix(ocelot, ANA_DSCP_CFG, dscp);
 	}
 
-	/* If the DSCP value is not trusted, the QoS classification falls back
+	/* If the DSCP value is analt trusted, the QoS classification falls back
 	 * to VLAN PCP or port-based default.
 	 */
 	if (!(dscp_cfg & ANA_DSCP_CFG_DSCP_TRUST_ENA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ANA_DSCP_CFG_QOS_DSCP_VAL_X(dscp_cfg);
 }
@@ -2599,7 +2599,7 @@ int ocelot_port_del_dscp_prio(struct ocelot *ocelot, int port, u8 dscp, u8 prio)
 	 * the app table entry for this DSCP value, we end up deleting the
 	 * entry with the new priority. Avoid that by checking whether user
 	 * space wants to delete the priority which is currently configured, or
-	 * something else which is no longer current.
+	 * something else which is anal longer current.
 	 */
 	if (ANA_DSCP_CFG_QOS_DSCP_VAL_X(dscp_cfg) != prio)
 		return 0;
@@ -2611,7 +2611,7 @@ int ocelot_port_del_dscp_prio(struct ocelot *ocelot, int port, u8 dscp, u8 prio)
 		int dscp_cfg = ocelot_read_rix(ocelot, ANA_DSCP_CFG, i);
 
 		/* There are still app table entries on the port, so we need to
-		 * keep DSCP enabled, nothing to do.
+		 * keep DSCP enabled, analthing to do.
 		 */
 		if (dscp_cfg & ANA_DSCP_CFG_DSCP_TRUST_ENA)
 			return 0;
@@ -2647,7 +2647,7 @@ struct ocelot_mirror *ocelot_mirror_get(struct ocelot *ocelot, int to,
 
 	m = kzalloc(sizeof(*m), GFP_KERNEL);
 	if (!m)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	m->to = to;
 	refcount_set(&m->refcount, 1);
@@ -2845,9 +2845,9 @@ static void ocelot_cpu_port_init(struct ocelot *ocelot)
 	ocelot_fields_write(ocelot, cpu, QSYS_SWITCH_PORT_MODE_PORT_ENA, 1);
 	/* CPU port Injection/Extraction configuration */
 	ocelot_fields_write(ocelot, cpu, SYS_PORT_MODE_INCL_XTR_HDR,
-			    OCELOT_TAG_PREFIX_NONE);
+			    OCELOT_TAG_PREFIX_ANALNE);
 	ocelot_fields_write(ocelot, cpu, SYS_PORT_MODE_INCL_INJ_HDR,
-			    OCELOT_TAG_PREFIX_NONE);
+			    OCELOT_TAG_PREFIX_ANALNE);
 
 	/* Configure the CPU port to be VLAN aware */
 	ocelot_write_gix(ocelot,
@@ -2862,7 +2862,7 @@ static void ocelot_detect_features(struct ocelot *ocelot)
 	int mmgt, eq_ctrl;
 
 	/* For Ocelot, Felix, Seville, Serval etc, SYS:MMGT:MMGT:FREECNT holds
-	 * the number of 240-byte free memory words (aka 4-cell chunks) and not
+	 * the number of 240-byte free memory words (aka 4-cell chunks) and analt
 	 * 192 bytes as the documentation incorrectly says.
 	 */
 	mmgt = ocelot_read(ocelot, SYS_MMGT);
@@ -2932,7 +2932,7 @@ int ocelot_init(struct ocelot *ocelot)
 
 	ocelot->owq = alloc_ordered_workqueue("ocelot-owq", 0);
 	if (!ocelot->owq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ocelot_stats_init(ocelot);
 	if (ret)
@@ -3005,7 +3005,7 @@ int ocelot_init(struct ocelot *ocelot)
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		/* Transmit the frame to the local port. */
 		ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, port);
-		/* Do not forward BPDU frames to the front ports. */
+		/* Do analt forward BPDU frames to the front ports. */
 		ocelot_write_gix(ocelot,
 				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0xffff),
 				 ANA_PORT_CPU_FWD_BPDU_CFG,
@@ -3014,7 +3014,7 @@ int ocelot_init(struct ocelot *ocelot)
 		ocelot_write_rix(ocelot, 0, ANA_PGID_PGID, PGID_SRC + port);
 	}
 
-	for_each_nonreserved_multicast_dest_pgid(ocelot, i) {
+	for_each_analnreserved_multicast_dest_pgid(ocelot, i) {
 		u32 val = ANA_PGID_PGID_PGID(GENMASK(ocelot->num_phys_ports - 1, 0));
 
 		ocelot_write_rix(ocelot, val, ANA_PGID_PGID, i);
@@ -3022,7 +3022,7 @@ int ocelot_init(struct ocelot *ocelot)
 
 	ocelot_write_rix(ocelot, 0, ANA_PGID_PGID, PGID_BLACKHOLE);
 
-	/* Allow broadcast and unknown L2 multicast to the CPU. */
+	/* Allow broadcast and unkanalwn L2 multicast to the CPU. */
 	ocelot_rmw_rix(ocelot, ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports)),
 		       ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports)),
 		       ANA_PGID_PGID, PGID_MC);

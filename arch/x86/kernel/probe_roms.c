@@ -100,7 +100,7 @@ static bool probe_list(struct pci_dev *pdev, unsigned short vendor,
 	unsigned short device;
 
 	do {
-		if (get_kernel_nofault(device, rom_list) != 0)
+		if (get_kernel_analfault(device, rom_list) != 0)
 			device = 0;
 
 		if (device && match_id(pdev, vendor, device))
@@ -126,13 +126,13 @@ static struct resource *find_oprom(struct pci_dev *pdev)
 			break;
 
 		rom = isa_bus_to_virt(res->start);
-		if (get_kernel_nofault(offset, rom + 0x18) != 0)
+		if (get_kernel_analfault(offset, rom + 0x18) != 0)
 			continue;
 
-		if (get_kernel_nofault(vendor, rom + offset + 0x4) != 0)
+		if (get_kernel_analfault(vendor, rom + offset + 0x4) != 0)
 			continue;
 
-		if (get_kernel_nofault(device, rom + offset + 0x6) != 0)
+		if (get_kernel_analfault(device, rom + offset + 0x6) != 0)
 			continue;
 
 		if (match_id(pdev, vendor, device)) {
@@ -140,8 +140,8 @@ static struct resource *find_oprom(struct pci_dev *pdev)
 			break;
 		}
 
-		if (get_kernel_nofault(list, rom + offset + 0x8) == 0 &&
-		    get_kernel_nofault(rev, rom + offset + 0xc) == 0 &&
+		if (get_kernel_analfault(list, rom + offset + 0x8) == 0 &&
+		    get_kernel_analfault(rev, rom + offset + 0xc) == 0 &&
 		    rev >= 3 && list &&
 		    probe_list(pdev, vendor, rom + offset + list)) {
 			oprom = res;
@@ -184,14 +184,14 @@ static int __init romsignature(const unsigned char *rom)
 	const unsigned short * const ptr = (const unsigned short *)rom;
 	unsigned short sig;
 
-	return get_kernel_nofault(sig, ptr) == 0 && sig == ROMSIGNATURE;
+	return get_kernel_analfault(sig, ptr) == 0 && sig == ROMSIGNATURE;
 }
 
 static int __init romchecksum(const unsigned char *rom, unsigned long length)
 {
 	unsigned char sum, c;
 
-	for (sum = 0; length && get_kernel_nofault(c, rom++) == 0; length--)
+	for (sum = 0; length && get_kernel_analfault(c, rom++) == 0; length--)
 		sum += c;
 	return !length && !sum;
 }
@@ -204,7 +204,7 @@ void __init probe_roms(void)
 	int i;
 
 	/*
-	 * The ROM memory range is not part of the e820 table and is therefore not
+	 * The ROM memory range is analt part of the e820 table and is therefore analt
 	 * pre-validated by BIOS. The kernel page table maps the ROM region as encrypted
 	 * memory, and SNP requires encrypted memory to be validated before access.
 	 * Do that here.
@@ -222,7 +222,7 @@ void __init probe_roms(void)
 
 		video_rom_resource.start = start;
 
-		if (get_kernel_nofault(c, rom + 2) != 0)
+		if (get_kernel_analfault(c, rom + 2) != 0)
 			continue;
 
 		/* 0 < length <= 0x7f * 512, historically */
@@ -244,7 +244,7 @@ void __init probe_roms(void)
 	request_resource(&iomem_resource, &system_rom_resource);
 	upper = system_rom_resource.start;
 
-	/* check for extension rom (ignore length byte!) */
+	/* check for extension rom (iganalre length byte!) */
 	rom = isa_bus_to_virt(extension_rom_resource.start);
 	if (romsignature(rom)) {
 		length = resource_size(&extension_rom_resource);
@@ -260,7 +260,7 @@ void __init probe_roms(void)
 		if (!romsignature(rom))
 			continue;
 
-		if (get_kernel_nofault(c, rom + 2) != 0)
+		if (get_kernel_analfault(c, rom + 2) != 0)
 			continue;
 
 		/* 0 < length <= 0x7f * 512, historically */

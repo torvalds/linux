@@ -2,8 +2,8 @@
 /*
  * Versatile board support using the device tree
  *
- *  Copyright (C) 2010 Secret Lab Technologies Ltd.
- *  Copyright (C) 2009 Jeremy Kerr <jeremy.kerr@canonical.com>
+ *  Copyright (C) 2010 Secret Lab Techanallogies Ltd.
+ *  Copyright (C) 2009 Jeremy Kerr <jeremy.kerr@caanalnical.com>
  *  Copyright (C) 2004 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
  */
@@ -79,7 +79,7 @@ static struct mmci_platform_data mmc1_plat_data = {
 /*
  * Lookup table for attaching a specific name and platform_data pointer to
  * devices as they get created by of_platform_populate().  Ideally this table
- * would not exist, but the current clock implementation depends on some devices
+ * would analt exist, but the current clock implementation depends on some devices
  * having a specific name.
  */
 struct of_dev_auxdata versatile_auxdata_lookup[] __initdata = {
@@ -123,10 +123,10 @@ static void __init versatile_init_early(void)
 static void __init versatile_dt_pci_init(void)
 {
 	u32 val;
-	struct device_node *np;
+	struct device_analde *np;
 	struct property *newprop;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,versatile-pci");
+	np = of_find_compatible_analde(NULL, NULL, "arm,versatile-pci");
 	if (!np)
 		return;
 
@@ -134,34 +134,34 @@ static void __init versatile_dt_pci_init(void)
 	val = readl(versatile_sys_base + VERSATILE_SYS_PCICTL_OFFSET);
 	if (val & 1) {
 		/*
-		 * Enable PCI accesses. Note that the documentaton is
-		 * inconsistent whether or not this is needed, but the old
+		 * Enable PCI accesses. Analte that the documentaton is
+		 * inconsistent whether or analt this is needed, but the old
 		 * driver had it so we will keep it.
 		 */
 		writel(1, versatile_sys_base + VERSATILE_SYS_PCICTL_OFFSET);
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	newprop = kzalloc(sizeof(*newprop), GFP_KERNEL);
 	if (!newprop)
-		goto out_put_node;
+		goto out_put_analde;
 
 	newprop->name = kstrdup("status", GFP_KERNEL);
 	newprop->value = kstrdup("disabled", GFP_KERNEL);
 	newprop->length = sizeof("disabled");
 	of_update_property(np, newprop);
 
-	pr_info("Not plugged into PCI backplane!\n");
+	pr_info("Analt plugged into PCI backplane!\n");
 
-out_put_node:
-	of_node_put(np);
+out_put_analde:
+	of_analde_put(np);
 }
 
 static void __init versatile_dt_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,core-module-versatile");
+	np = of_find_compatible_analde(NULL, NULL, "arm,core-module-versatile");
 	if (np)
 		versatile_sys_base = of_iomap(np, 0);
 	WARN_ON(!versatile_sys_base);

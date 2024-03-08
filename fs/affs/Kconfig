@@ -8,7 +8,7 @@ config AFFS_FS
 	  The Fast File System (FFS) is the common file system used on hard
 	  disks by Amiga(tm) systems since AmigaOS Version 1.3 (34.20).  Say Y
 	  if you want to be able to read and write files from and to an Amiga
-	  FFS partition on your hard drive.  Amiga floppies however cannot be
+	  FFS partition on your hard drive.  Amiga floppies however cananalt be
 	  read with this driver due to an incompatibility of the floppy
 	  controller used in an Amiga and the standard floppy controller in
 	  PCs and workstations. Read <file:Documentation/filesystems/affs.rst>

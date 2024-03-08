@@ -24,7 +24,7 @@ static unsigned int smack_ip_output(void *priv,
 {
 	struct sock *sk = skb_to_full_sk(skb);
 	struct socket_smack *ssp;
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 
 	if (sk && sk->sk_security) {
 		ssp = sk->sk_security;

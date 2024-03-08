@@ -4,7 +4,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -114,26 +114,26 @@ static int netlink_open(__u32 *nl_pid)
 
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0)
-		return -errno;
+		return -erranal;
 
 	if (setsockopt(sock, SOL_NETLINK, NETLINK_EXT_ACK,
 		       &one, sizeof(one)) < 0) {
-		p_err("Netlink error reporting not supported");
+		p_err("Netlink error reporting analt supported");
 	}
 
 	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
-		ret = -errno;
+		ret = -erranal;
 		goto cleanup;
 	}
 
 	addrlen = sizeof(sa);
 	if (getsockname(sock, (struct sockaddr *)&sa, &addrlen) < 0) {
-		ret = -errno;
+		ret = -erranal;
 		goto cleanup;
 	}
 
 	if (addrlen != sizeof(sa)) {
-		ret = -LIBBPF_ERRNO__INTERNAL;
+		ret = -LIBBPF_ERRANAL__INTERNAL;
 		goto cleanup;
 	}
 
@@ -159,7 +159,7 @@ static int netlink_recv(int sock, __u32 nl_pid, __u32 seq,
 		multipart = false;
 		len = recv(sock, buf, sizeof(buf), 0);
 		if (len < 0) {
-			ret = -errno;
+			ret = -erranal;
 			goto done;
 		}
 
@@ -169,11 +169,11 @@ static int netlink_recv(int sock, __u32 nl_pid, __u32 seq,
 		for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, (unsigned int)len);
 		     nh = NLMSG_NEXT(nh, len)) {
 			if (nh->nlmsg_pid != nl_pid) {
-				ret = -LIBBPF_ERRNO__WRNGPID;
+				ret = -LIBBPF_ERRANAL__WRNGPID;
 				goto done;
 			}
 			if (nh->nlmsg_seq != seq) {
-				ret = -LIBBPF_ERRNO__INVSEQ;
+				ret = -LIBBPF_ERRANAL__INVSEQ;
 				goto done;
 			}
 			if (nh->nlmsg_flags & NLM_F_MULTI)
@@ -214,7 +214,7 @@ static int __dump_class_nlmsg(struct nlmsghdr *nlh,
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
 	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	return dump_class_nlmsg(cookie, t, tb);
 }
@@ -236,7 +236,7 @@ static int netlink_get_class(int sock, unsigned int nl_pid, int ifindex,
 
 	req.nlh.nlmsg_seq = seq;
 	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
+		return -erranal;
 
 	return netlink_recv(sock, nl_pid, seq, __dump_class_nlmsg,
 			    dump_class_nlmsg, cookie);
@@ -253,7 +253,7 @@ static int __dump_qdisc_nlmsg(struct nlmsghdr *nlh,
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
 	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	return dump_qdisc_nlmsg(cookie, t, tb);
 }
@@ -275,7 +275,7 @@ static int netlink_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
 
 	req.nlh.nlmsg_seq = seq;
 	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
+		return -erranal;
 
 	return netlink_recv(sock, nl_pid, seq, __dump_qdisc_nlmsg,
 			    dump_qdisc_nlmsg, cookie);
@@ -292,7 +292,7 @@ static int __dump_filter_nlmsg(struct nlmsghdr *nlh,
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
 	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	return dump_filter_nlmsg(cookie, t, tb);
 }
@@ -315,7 +315,7 @@ static int netlink_get_filter(int sock, unsigned int nl_pid, int ifindex, int ha
 
 	req.nlh.nlmsg_seq = seq;
 	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
+		return -erranal;
 
 	return netlink_recv(sock, nl_pid, seq, __dump_filter_nlmsg,
 			    dump_filter_nlmsg, cookie);
@@ -331,7 +331,7 @@ static int __dump_link_nlmsg(struct nlmsghdr *nlh,
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifi));
 	attr = (struct nlattr *) ((void *) ifi + NLMSG_ALIGN(sizeof(*ifi)));
 	if (libbpf_nla_parse(tb, IFLA_MAX, attr, len, NULL) != 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	return dump_link_nlmsg(cookie, ifi, tb);
 }
@@ -352,7 +352,7 @@ static int netlink_get_link(int sock, unsigned int nl_pid,
 
 	req.nlh.nlmsg_seq = seq;
 	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
+		return -erranal;
 
 	return netlink_recv(sock, nl_pid, seq, __dump_link_nlmsg,
 			    dump_link_nlmsg, cookie);
@@ -371,7 +371,7 @@ static int dump_link_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 			(netinfo->array_len + 16) *
 			sizeof(struct ip_devname_ifindex));
 		if (!netinfo->devices)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		netinfo->array_len += 16;
 	}
@@ -405,7 +405,7 @@ static int dump_class_qdisc_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 		tcinfo->handle_array = realloc(tcinfo->handle_array,
 			(tcinfo->array_len + 16) * sizeof(struct tc_kind_handle));
 		if (!tcinfo->handle_array)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tcinfo->array_len += 16;
 	}
@@ -415,7 +415,7 @@ static int dump_class_qdisc_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 		 "%s",
 		 tb[TCA_KIND]
 			 ? libbpf_nla_getattr_str(tb[TCA_KIND])
-			 : "unknown");
+			 : "unkanalwn");
 	tcinfo->used_len++;
 
 	return 0;
@@ -441,7 +441,7 @@ static int __show_dev_tc_bpf_name(__u32 id, char *name, size_t len)
 	ret = bpf_obj_get_info_by_fd(fd, &info, &ilen);
 	if (ret < 0)
 		goto out;
-	ret = -ENOENT;
+	ret = -EANALENT;
 	if (info.name[0]) {
 		get_prog_full_name(&info, fd, name, len);
 		ret = 0;
@@ -585,7 +585,7 @@ static int query_flow_dissector(struct bpf_attach_info *attach_info)
 	fd = open("/proc/self/ns/net", O_RDONLY);
 	if (fd < 0) {
 		p_err("can't open /proc/self/ns/net: %s",
-		      strerror(errno));
+		      strerror(erranal));
 		return -1;
 	}
 	prog_cnt = ARRAY_SIZE(prog_ids);
@@ -593,14 +593,14 @@ static int query_flow_dissector(struct bpf_attach_info *attach_info)
 			     &attach_flags, prog_ids, &prog_cnt);
 	close(fd);
 	if (err) {
-		if (errno == EINVAL) {
+		if (erranal == EINVAL) {
 			/* Older kernel's don't support querying
 			 * flow dissector programs.
 			 */
-			errno = 0;
+			erranal = 0;
 			return 0;
 		}
-		p_err("can't query prog: %s", strerror(errno));
+		p_err("can't query prog: %s", strerror(erranal));
 		return -1;
 	}
 
@@ -636,7 +636,7 @@ static int do_attach_detach_xdp(int progfd, enum net_attach_type attach_type,
 	__u32 flags = 0;
 
 	if (!overwrite)
-		flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+		flags = XDP_FLAGS_UPDATE_IF_ANALEXIST;
 	if (attach_type == NET_ATTACH_TYPE_XDP_GENERIC)
 		flags |= XDP_FLAGS_SKB_MODE;
 	if (attach_type == NET_ATTACH_TYPE_XDP_DRIVER)
@@ -773,15 +773,15 @@ static void show_link_netfilter(void)
 
 		err = bpf_link_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				break;
-			p_err("can't get next link: %s (id %d)", strerror(errno), id);
+			p_err("can't get next link: %s (id %d)", strerror(erranal), id);
 			break;
 		}
 
 		fd = bpf_link_get_fd_by_id(id);
 		if (fd < 0) {
-			p_err("can't get link by id (%u): %s", id, strerror(errno));
+			p_err("can't get link by id (%u): %s", id, strerror(erranal));
 			continue;
 		}
 
@@ -793,7 +793,7 @@ static void show_link_netfilter(void)
 		close(fd);
 
 		if (err) {
-			p_err("can't get link info for fd %d: %s", fd, strerror(errno));
+			p_err("can't get link info for fd %d: %s", fd, strerror(erranal));
 			continue;
 		}
 
@@ -805,7 +805,7 @@ static void show_link_netfilter(void)
 			struct bpf_link_info *expand;
 
 			if (nf_link_count > max_link_count) {
-				p_err("cannot handle more than %u links\n", max_link_count);
+				p_err("cananalt handle more than %u links\n", max_link_count);
 				break;
 			}
 
@@ -813,7 +813,7 @@ static void show_link_netfilter(void)
 
 			expand = realloc(nf_link_info, nf_link_len * sizeof(info));
 			if (!expand) {
-				p_err("realloc: %s",  strerror(errno));
+				p_err("realloc: %s",  strerror(erranal));
 				break;
 			}
 
@@ -931,7 +931,7 @@ static int do_help(int argc, char **argv)
 		"       ATTACH_TYPE := { xdp | xdpgeneric | xdpdrv | xdpoffload }\n"
 		"       " HELP_SPEC_OPTIONS " }\n"
 		"\n"
-		"Note: Only xdp, tcx, tc, netkit, flow_dissector and netfilter attachments\n"
+		"Analte: Only xdp, tcx, tc, netkit, flow_dissector and netfilter attachments\n"
 		"      are currently supported.\n"
 		"      For progs attached to cgroups, use \"bpftool cgroup\"\n"
 		"      to dump program attachments. For program types\n"

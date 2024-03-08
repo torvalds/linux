@@ -3,14 +3,14 @@ TI LP873X PMIC MFD driver
 Required properties:
   - compatible:	"ti,lp8732", "ti,lp8733"
   - reg:		I2C slave address.
-  - gpio-controller:	Marks the device node as a GPIO Controller.
+  - gpio-controller:	Marks the device analde as a GPIO Controller.
   - #gpio-cells:	Should be two.  The first cell is the pin number and
 			the second cell is used to specify flags.
 			See ../gpio/gpio.txt for more information.
-  - xxx-in-supply:	Phandle to parent supply node of each regulator
-			populated under regulators node. xxx can be
+  - xxx-in-supply:	Phandle to parent supply analde of each regulator
+			populated under regulators analde. xxx can be
 			buck0, buck1, ldo0 or ldo1.
-  - regulators:	List of child nodes that specify the regulator
+  - regulators:	List of child analdes that specify the regulator
 			initialization data.
 Example:
 

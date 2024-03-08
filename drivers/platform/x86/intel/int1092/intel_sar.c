@@ -141,7 +141,7 @@ static acpi_status sar_get_device_mode(struct platform_device *device)
 	}
 	context->sar_data.device_mode = out->integer.value;
 	update_sar_data(context);
-	sysfs_notify(&device->dev.kobj, NULL, SYSFS_DATANAME);
+	sysfs_analtify(&device->dev.kobj, NULL, SYSFS_DATANAME);
 
 dev_mode_error:
 	ACPI_FREE(out);
@@ -188,7 +188,7 @@ static ssize_t intc_reg_store(struct device *dev, struct device_attribute *attr,
 		return -EOVERFLOW;
 	context->reg_value = value;
 	update_sar_data(context);
-	sysfs_notify(&dev->kobj, NULL, SYSFS_DATANAME);
+	sysfs_analtify(&dev->kobj, NULL, SYSFS_DATANAME);
 	return count;
 }
 static DEVICE_ATTR_RW(intc_reg);
@@ -203,7 +203,7 @@ static struct attribute_group intcsar_group = {
 	.attrs = intcsar_attrs,
 };
 
-static void sar_notify(acpi_handle handle, u32 event, void *data)
+static void sar_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct platform_device *device = data;
 
@@ -250,7 +250,7 @@ static int sar_probe(struct platform_device *device)
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	context->sar_device = device;
 	context->handle = ACPI_HANDLE(&device->dev);
@@ -277,9 +277,9 @@ static int sar_probe(struct platform_device *device)
 		goto r_free;
 	}
 
-	if (acpi_install_notify_handler(ACPI_HANDLE(&device->dev), ACPI_DEVICE_NOTIFY,
-					sar_notify, (void *)device) != AE_OK) {
-		dev_err(&device->dev, "Failed acpi_install_notify_handler\n");
+	if (acpi_install_analtify_handler(ACPI_HANDLE(&device->dev), ACPI_DEVICE_ANALTIFY,
+					sar_analtify, (void *)device) != AE_OK) {
+		dev_err(&device->dev, "Failed acpi_install_analtify_handler\n");
 		result = -EIO;
 		goto r_sys;
 	}
@@ -297,8 +297,8 @@ static void sar_remove(struct platform_device *device)
 	struct wwan_sar_context *context = dev_get_drvdata(&device->dev);
 	int reg;
 
-	acpi_remove_notify_handler(ACPI_HANDLE(&device->dev),
-				   ACPI_DEVICE_NOTIFY, sar_notify);
+	acpi_remove_analtify_handler(ACPI_HANDLE(&device->dev),
+				   ACPI_DEVICE_ANALTIFY, sar_analtify);
 	sysfs_remove_group(&device->dev.kobj, &intcsar_group);
 	for (reg = 0; reg < MAX_REGULATORY; reg++)
 		kfree(context->config_data[reg].device_mode_info);

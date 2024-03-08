@@ -22,7 +22,7 @@
 };
 
 /*
- * If your board is not using the I2C4 pins with twl4030, then don't include
+ * If your board is analt using the I2C4 pins with twl4030, then don't include
  * this file. For proper idle mode signaling with sys_clkreq and sys_off_mode
  * pins we need to configure I2C4, or else use the legacy sys_nvmode1 and
  * sys_nvmode2 signaling.

@@ -34,7 +34,7 @@ properties:
 
   adi,comp-int:
     description:
-      If present interrupt mode is used. If not present comparator mode is used
+      If present interrupt mode is used. If analt present comparator mode is used
       (default).
     type: boolean
 
@@ -57,7 +57,7 @@ properties:
   adi,timeout-enable:
     description:
       Enables timeout. Bus timeout resets the I2C-compatible interface when SCL
-      is low for more than 30ms (nominal).
+      is low for more than 30ms (analminal).
     type: boolean
 
 allOf:

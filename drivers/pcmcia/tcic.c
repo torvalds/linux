@@ -5,7 +5,7 @@
     tcic.c 1.111 2000/02/15 04:13:12
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may analt use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -22,10 +22,10 @@
     terms of the GNU General Public License version 2 (the "GPL"), in which
     case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and analt to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the analtice
+    and other provisions required by the GPL.  If you do analt delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
     
@@ -37,7 +37,7 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
@@ -62,8 +62,8 @@ MODULE_LICENSE("Dual MPL/GPL");
 /* The base port address of the TCIC-2 chip */
 static unsigned long tcic_base = TCIC_BASE;
 
-/* Specify a socket number to ignore */
-static int ignore = -1;
+/* Specify a socket number to iganalre */
+static int iganalre = -1;
 
 /* Probe for safe interrupts? */
 static int do_scan = 1;
@@ -82,11 +82,11 @@ static int poll_interval;
 /* Delay for card status double-checking */
 static int poll_quick = HZ/20;
 
-/* CCLK external clock time, in nanoseconds.  70 ns = 14.31818 MHz */
+/* CCLK external clock time, in naanalseconds.  70 ns = 14.31818 MHz */
 static int cycle_time = 70;
 
 module_param_hw(tcic_base, ulong, ioport, 0444);
-module_param(ignore, int, 0444);
+module_param(iganalre, int, 0444);
 module_param(do_scan, int, 0444);
 module_param_hw(irq_mask, int, other, 0444);
 module_param_hw_array(irq_list, int, irq, &irq_list_count, 0444);
@@ -285,7 +285,7 @@ static u_int __init irq_scan(u_int mask0)
 /*======================================================================
 
     See if a card is present, powered up, in IO mode, and already
-    bound to a (non-PCMCIA) Linux driver.
+    bound to a (analn-PCMCIA) Linux driver.
 
     We make an exception for cards that look like serial devices.
     
@@ -370,9 +370,9 @@ static int __init init_tcic(void)
     sock = 0;
 
     if (!request_region(tcic_base, 16, "tcic-2")) {
-	printk("could not allocate ports,\n ");
+	printk("could analt allocate ports,\n ");
 	platform_driver_unregister(&tcic_driver);
-	return -ENODEV;
+	return -EANALDEV;
     }
     else {
 	tcic_setw(TCIC_ADDR, 0);
@@ -392,21 +392,21 @@ static int __init init_tcic(void)
 	}
     }
     if (sock == 0) {
-	printk("not found.\n");
+	printk("analt found.\n");
 	release_region(tcic_base, 16);
 	platform_driver_unregister(&tcic_driver);
-	return -ENODEV;
+	return -EANALDEV;
     }
 
     sockets = 0;
     for (i = 0; i < sock; i++) {
-	if ((i == ignore) || is_active(i)) continue;
+	if ((i == iganalre) || is_active(i)) continue;
 	socket_table[sockets].psock = i;
 	socket_table[sockets].id = get_tcic_id();
 
 	socket_table[sockets].socket.owner = THIS_MODULE;
 	/* only 16-bit cards, memory windows must be size-aligned */
-	/* No PCI or CardBus support */
+	/* Anal PCI or CardBus support */
 	socket_table[sockets].socket.features = SS_CAP_PCCARD | SS_CAP_MEM_ALIGN;
 	/* irq 14, 11, 10, 7, 6, 5, 4, 3 */
 	socket_table[sockets].socket.irq_mask = 0x4cf8;
@@ -431,7 +431,7 @@ static int __init init_tcic(void)
     case TCIC_ID_DB86082B:
 	printk("DB86082B"); break;
     default:
-	printk("Unknown ID 0x%02x", socket_table[0].id);
+	printk("Unkanalwn ID 0x%02x", socket_table[0].id);
     }
     
     /* Set up polling */
@@ -490,7 +490,7 @@ static int __init init_tcic(void)
 
     for (i = 0; i < sockets; i++) {
 	    socket_table[i].socket.ops = &tcic_operations;
-	    socket_table[i].socket.resource_ops = &pccard_nonstatic_ops;
+	    socket_table[i].socket.resource_ops = &pccard_analnstatic_ops;
 	    socket_table[i].socket.dev.parent = &tcic_device.dev;
 	    ret = pcmcia_register_socket(&socket_table[i].socket);
 	    if (ret && i)
@@ -535,8 +535,8 @@ static irqreturn_t tcic_interrupt(int irq, void *dev)
     static volatile int active = 0;
 
     if (active) {
-	printk(KERN_NOTICE "tcic: reentered interrupt handler!\n");
-	return IRQ_NONE;
+	printk(KERN_ANALTICE "tcic: reentered interrupt handler!\n");
+	return IRQ_ANALNE;
     } else
 	active = 1;
 

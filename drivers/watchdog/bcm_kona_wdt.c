@@ -97,7 +97,7 @@ static int bcm_kona_show(struct seq_file *s, void *data)
 	struct bcm_kona_wdt *wdt = s->private;
 
 	if (!wdt) {
-		seq_puts(s, "No device pointer\n");
+		seq_puts(s, "Anal device pointer\n");
 		return 0;
 	}
 
@@ -273,7 +273,7 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&wdt->lock);
 

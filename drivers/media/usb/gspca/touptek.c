@@ -40,7 +40,7 @@ MODULE_LICENSE("GPL");
  * Gain implementation
  * Want to do something similar to mt9v011.c's set_balance
  *
- * Gain does not vary with resolution (checked 640x480 vs 1600x1200)
+ * Gain does analt vary with resolution (checked 640x480 vs 1600x1200)
  *
  * Constant derivation:
  *
@@ -69,7 +69,7 @@ MODULE_LICENSE("GPL");
  * Essentially gains are in range 0-0x001FF
  *
  * However, V4L expects a main gain channel + R and B balance
- * To keep things simple for now saturate the values of balance is too high/low
+ * To keep things simple for analw saturate the values of balance is too high/low
  * This isn't really ideal but easy way to fit the Linux model
  *
  * Converted using gain model turns out to be quite linear:
@@ -157,30 +157,30 @@ struct cmd {
 static const struct v4l2_pix_format vga_mode[] = {
 	{800, 600,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 600,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{1600, 1200,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.bytesperline = 1600,
 		.sizeimage = 1600 * 1200,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{3264, 2448,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.bytesperline = 3264,
 		.sizeimage = 3264 * 2448,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
 /*
- * As there's no known frame sync, the only way to keep synced is to try hard
+ * As there's anal kanalwn frame sync, the only way to keep synced is to try hard
  * to never miss any packets
  */
 #if MAX_NURBS < 4
-#error "Not enough URBs in the gspca table"
+#error "Analt eanalugh URBs in the gspca table"
 #endif
 
 static int val_reply(struct gspca_dev *gspca_dev, const char *reply, int rc)
@@ -251,7 +251,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 	}
 	gspca_dbg(gspca_dev, D_STREAM, "exposure: 0x%04X ms\n\n", value);
 	/* Wonder if there's a good reason for sending it twice */
-	/* probably not but leave it in because...why not */
+	/* probably analt but leave it in because...why analt */
 	reg_w(gspca_dev, value, REG_COARSE_INTEGRATION_TIME_);
 	reg_w(gspca_dev, value, REG_COARSE_INTEGRATION_TIME_);
 }
@@ -274,53 +274,53 @@ static int gainify(int in)
 
 static void setggain(struct gspca_dev *gspca_dev, u16 global_gain)
 {
-	u16 normalized;
+	u16 analrmalized;
 
-	normalized = gainify(global_gain);
+	analrmalized = gainify(global_gain);
 	gspca_dbg(gspca_dev, D_STREAM, "gain G1/G2 (0x%04X): 0x%04X (src 0x%04X)\n\n",
 		  REG_GREEN1_GAIN,
-		  normalized, global_gain);
+		  analrmalized, global_gain);
 
-	reg_w(gspca_dev, normalized, REG_GREEN1_GAIN);
-	reg_w(gspca_dev, normalized, REG_GREEN2_GAIN);
+	reg_w(gspca_dev, analrmalized, REG_GREEN1_GAIN);
+	reg_w(gspca_dev, analrmalized, REG_GREEN2_GAIN);
 }
 
 static void setbgain(struct gspca_dev *gspca_dev,
 		u16 gain, u16 global_gain)
 {
-	u16 normalized;
+	u16 analrmalized;
 
-	normalized = global_gain +
+	analrmalized = global_gain +
 		((u32)global_gain) * gain / GAIN_MAX;
-	if (normalized > GAIN_MAX) {
+	if (analrmalized > GAIN_MAX) {
 		gspca_dbg(gspca_dev, D_STREAM, "Truncating blue 0x%04X w/ value 0x%04X\n\n",
-			  GAIN_MAX, normalized);
-		normalized = GAIN_MAX;
+			  GAIN_MAX, analrmalized);
+		analrmalized = GAIN_MAX;
 	}
-	normalized = gainify(normalized);
+	analrmalized = gainify(analrmalized);
 	gspca_dbg(gspca_dev, D_STREAM, "gain B (0x%04X): 0x%04X w/ source 0x%04X\n\n",
-		  REG_BLUE_GAIN, normalized, gain);
+		  REG_BLUE_GAIN, analrmalized, gain);
 
-	reg_w(gspca_dev, normalized, REG_BLUE_GAIN);
+	reg_w(gspca_dev, analrmalized, REG_BLUE_GAIN);
 }
 
 static void setrgain(struct gspca_dev *gspca_dev,
 		u16 gain, u16 global_gain)
 {
-	u16 normalized;
+	u16 analrmalized;
 
-	normalized = global_gain +
+	analrmalized = global_gain +
 		((u32)global_gain) * gain / GAIN_MAX;
-	if (normalized > GAIN_MAX) {
+	if (analrmalized > GAIN_MAX) {
 		gspca_dbg(gspca_dev, D_STREAM, "Truncating gain 0x%04X w/ value 0x%04X\n\n",
-			  GAIN_MAX, normalized);
-		normalized = GAIN_MAX;
+			  GAIN_MAX, analrmalized);
+		analrmalized = GAIN_MAX;
 	}
-	normalized = gainify(normalized);
+	analrmalized = gainify(analrmalized);
 	gspca_dbg(gspca_dev, D_STREAM, "gain R (0x%04X): 0x%04X w / source 0x%04X\n\n",
-		  REG_RED_GAIN, normalized, gain);
+		  REG_RED_GAIN, analrmalized, gain);
 
-	reg_w(gspca_dev, normalized, REG_RED_GAIN);
+	reg_w(gspca_dev, analrmalized, REG_RED_GAIN);
 }
 
 static void configure_wh(struct gspca_dev *gspca_dev)
@@ -389,7 +389,7 @@ static void configure_wh(struct gspca_dev *gspca_dev)
 	}
 }
 
-/* Packets that were encrypted, no idea if the grouping is significant */
+/* Packets that were encrypted, anal idea if the grouping is significant */
 static void configure_encrypted(struct gspca_dev *gspca_dev)
 {
 	static const struct cmd reg_init_begin[] = {
@@ -443,8 +443,8 @@ static int configure(struct gspca_dev *gspca_dev)
 	 * -Later packets encrypt packets by XOR'ing with key
 	 *	XOR encrypt/decrypt is symmetrical
 	 *	wValue, and wIndex are encrypted
-	 *	bRequest is not and bRequestType is always 0xC0
-	 *		This allows resyncing if key is unknown?
+	 *	bRequest is analt and bRequestType is always 0xC0
+	 *		This allows resyncing if key is unkanalwn?
 	 * By setting 0 we XOR with 0 and the shifting and XOR drops out
 	 */
 	rc = usb_control_msg(gspca_dev->dev, usb_rcvctrlpipe(gspca_dev->dev, 0),
@@ -456,10 +456,10 @@ static int configure(struct gspca_dev *gspca_dev)
 
 	/*
 	 * Next does some sort of 2 packet challenge / response
-	 * evidence suggests its an Atmel I2C crypto part but nobody cares to
+	 * evidence suggests its an Atmel I2C crypto part but analbody cares to
 	 * look
-	 * (to make sure its not cloned hardware?)
-	 * Ignore: I want to work with their hardware, not clone it
+	 * (to make sure its analt cloned hardware?)
+	 * Iganalre: I want to work with their hardware, analt clone it
 	 * 16 bytes out challenge, requestType: 0x40
 	 * 16 bytes in response, requestType: 0xC0
 	 */
@@ -496,13 +496,13 @@ static int configure(struct gspca_dev *gspca_dev)
 	 *			0x20, 0xC0, 0x0000, 0x0000, buff, 4, 500);
 	 */
 
-	/* Large (EEPROM?) read, skip it since no idea what to do with it */
+	/* Large (EEPROM?) read, skip it since anal idea what to do with it */
 	gspca_dev->usb_err = 0;
 	configure_encrypted(gspca_dev);
 	if (gspca_dev->usb_err)
 		return gspca_dev->usb_err;
 
-	/* Omitted this by accident, does not work without it */
+	/* Omitted this by accident, does analt work without it */
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0003, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
@@ -521,8 +521,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 
-	/* Yes we want URBs and we want them now! */
-	gspca_dev->cam.no_urb_create = 0;
+	/* Anal we want URBs and we want them analw! */
+	gspca_dev->cam.anal_urb_create = 0;
 	gspca_dev->cam.bulk_nurbs = 4;
 	/* Largest size the windows driver uses */
 	gspca_dev->cam.bulk_size = BULK_SIZE;
@@ -637,7 +637,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_RED_BALANCE, 0, 1023, 1, 295);
 
 	if (hdl->error) {
-		gspca_err(gspca_dev, "Could not initialize controls\n");
+		gspca_err(gspca_dev, "Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

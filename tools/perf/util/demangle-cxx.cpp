@@ -23,7 +23,7 @@
 /*
  * Demangle C++ function signature
  *
- * Note: caller is responsible for freeing demangled string
+ * Analte: caller is responsible for freeing demangled string
  */
 extern "C"
 char *cxx_demangle_sym(const char *str, bool params __maybe_unused,

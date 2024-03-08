@@ -38,9 +38,9 @@
 
 #define ASIU_GATE_VAL(o, es) { .offset = o, .en_shift = es }
 
-static void __init cygnus_armpll_init(struct device_node *node)
+static void __init cygnus_armpll_init(struct device_analde *analde)
 {
-	iproc_armpll_setup(node);
+	iproc_armpll_setup(analde);
 }
 CLK_OF_DECLARE(cygnus_armpll, "brcm,cygnus-armpll", cygnus_armpll_init);
 
@@ -97,9 +97,9 @@ static const struct iproc_clk_ctrl genpll_clk[] = {
 	},
 };
 
-static void __init cygnus_genpll_clk_init(struct device_node *node)
+static void __init cygnus_genpll_clk_init(struct device_analde *analde)
 {
-	iproc_pll_clk_setup(node, &genpll, NULL, 0, genpll_clk,
+	iproc_pll_clk_setup(analde, &genpll, NULL, 0, genpll_clk,
 			    ARRAY_SIZE(genpll_clk));
 }
 CLK_OF_DECLARE(cygnus_genpll, "brcm,cygnus-genpll", cygnus_genpll_clk_init);
@@ -155,9 +155,9 @@ static const struct iproc_clk_ctrl lcpll0_clk[] = {
 	},
 };
 
-static void __init cygnus_lcpll0_clk_init(struct device_node *node)
+static void __init cygnus_lcpll0_clk_init(struct device_analde *analde)
 {
-	iproc_pll_clk_setup(node, &lcpll0, NULL, 0, lcpll0_clk,
+	iproc_pll_clk_setup(analde, &lcpll0, NULL, 0, lcpll0_clk,
 			    ARRAY_SIZE(lcpll0_clk));
 }
 CLK_OF_DECLARE(cygnus_lcpll0, "brcm,cygnus-lcpll0", cygnus_lcpll0_clk_init);
@@ -233,9 +233,9 @@ static const struct iproc_clk_ctrl mipipll_clk[] = {
 	},
 };
 
-static void __init cygnus_mipipll_clk_init(struct device_node *node)
+static void __init cygnus_mipipll_clk_init(struct device_analde *analde)
 {
-	iproc_pll_clk_setup(node, &mipipll, mipipll_vco_params,
+	iproc_pll_clk_setup(analde, &mipipll, mipipll_vco_params,
 			    ARRAY_SIZE(mipipll_vco_params), mipipll_clk,
 			    ARRAY_SIZE(mipipll_clk));
 }
@@ -253,9 +253,9 @@ static const struct iproc_asiu_gate asiu_gate[] = {
 	[BCM_CYGNUS_ASIU_PWM_CLK] = ASIU_GATE_VAL(IPROC_CLK_INVALID_OFFSET, 0),
 };
 
-static void __init cygnus_asiu_init(struct device_node *node)
+static void __init cygnus_asiu_init(struct device_analde *analde)
 {
-	iproc_asiu_setup(node, asiu_div, asiu_gate, ARRAY_SIZE(asiu_div));
+	iproc_asiu_setup(analde, asiu_div, asiu_gate, ARRAY_SIZE(asiu_div));
 }
 CLK_OF_DECLARE(cygnus_asiu_clk, "brcm,cygnus-asiu-clk", cygnus_asiu_init);
 
@@ -295,9 +295,9 @@ static const struct iproc_clk_ctrl audiopll_clk[] = {
 	},
 };
 
-static void __init cygnus_audiopll_clk_init(struct device_node *node)
+static void __init cygnus_audiopll_clk_init(struct device_analde *analde)
 {
-	iproc_pll_clk_setup(node, &audiopll, NULL, 0,
+	iproc_pll_clk_setup(analde, &audiopll, NULL, 0,
 			    audiopll_clk,  ARRAY_SIZE(audiopll_clk));
 }
 CLK_OF_DECLARE(cygnus_audiopll, "brcm,cygnus-audiopll",

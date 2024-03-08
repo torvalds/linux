@@ -45,7 +45,7 @@ static void __init ath79_detect_sys_type(void)
 	char *chip = "????";
 	u32 id;
 	u32 major;
-	u32 minor;
+	u32 mianalr;
 	u32 rev = 0;
 	u32 ver = 1;
 
@@ -54,21 +54,21 @@ static void __init ath79_detect_sys_type(void)
 
 	switch (major) {
 	case REV_ID_MAJOR_AR71XX:
-		minor = id & AR71XX_REV_ID_MINOR_MASK;
+		mianalr = id & AR71XX_REV_ID_MIANALR_MASK;
 		rev = id >> AR71XX_REV_ID_REVISION_SHIFT;
 		rev &= AR71XX_REV_ID_REVISION_MASK;
-		switch (minor) {
-		case AR71XX_REV_ID_MINOR_AR7130:
+		switch (mianalr) {
+		case AR71XX_REV_ID_MIANALR_AR7130:
 			ath79_soc = ATH79_SOC_AR7130;
 			chip = "7130";
 			break;
 
-		case AR71XX_REV_ID_MINOR_AR7141:
+		case AR71XX_REV_ID_MIANALR_AR7141:
 			ath79_soc = ATH79_SOC_AR7141;
 			chip = "7141";
 			break;
 
-		case AR71XX_REV_ID_MINOR_AR7161:
+		case AR71XX_REV_ID_MIANALR_AR7161:
 			ath79_soc = ATH79_SOC_AR7161;
 			chip = "7161";
 			break;
@@ -94,16 +94,16 @@ static void __init ath79_detect_sys_type(void)
 		break;
 
 	case REV_ID_MAJOR_AR913X:
-		minor = id & AR913X_REV_ID_MINOR_MASK;
+		mianalr = id & AR913X_REV_ID_MIANALR_MASK;
 		rev = id >> AR913X_REV_ID_REVISION_SHIFT;
 		rev &= AR913X_REV_ID_REVISION_MASK;
-		switch (minor) {
-		case AR913X_REV_ID_MINOR_AR9130:
+		switch (mianalr) {
+		case AR913X_REV_ID_MIANALR_AR9130:
 			ath79_soc = ATH79_SOC_AR9130;
 			chip = "9130";
 			break;
 
-		case AR913X_REV_ID_MINOR_AR9132:
+		case AR913X_REV_ID_MIANALR_AR9132:
 			ath79_soc = ATH79_SOC_AR9132;
 			chip = "9132";
 			break;
@@ -181,7 +181,7 @@ static void __init ath79_detect_sys_type(void)
 		break;
 
 	default:
-		panic("ath79: unknown SoC, id:0x%08x", id);
+		panic("ath79: unkanalwn SoC, id:0x%08x", id);
 	}
 
 	if (ver == 1)
@@ -237,15 +237,15 @@ void __init plat_mem_setup(void)
 
 void __init plat_time_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct clk *clk;
 	unsigned long cpu_clk_rate;
 
 	of_clk_init(NULL);
 
-	np = of_get_cpu_node(0, NULL);
+	np = of_get_cpu_analde(0, NULL);
 	if (!np) {
-		pr_err("Failed to get CPU node\n");
+		pr_err("Failed to get CPU analde\n");
 		return;
 	}
 

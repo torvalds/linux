@@ -22,14 +22,14 @@ output in order to save power and prolong battery life. This applies to
 both voltage regulators (where voltage output is controllable) and
 current sinks (where current limit is controllable).
 
-Note that additional (and currently more complete) documentation is
+Analte that additional (and currently more complete) documentation is
 available in the Linux kernel source under
 ``Documentation/power/regulator``.
 
 Glossary
 --------
 
-The regulator API uses a number of terms which may not be familiar:
+The regulator API uses a number of terms which may analt be familiar:
 
 Regulator
 
@@ -70,7 +70,7 @@ supplies, such as "Vcc", which are mapped into actual regulator devices
 by the machine interface.
 
 A stub version of this API is provided when the regulator framework is
-not in use in order to minimise the need to use ifdefs.
+analt in use in order to minimise the need to use ifdefs.
 
 Enabling and disabling
 ----------------------
@@ -80,8 +80,8 @@ regulators. Consumer devices use the :c:func:`regulator_enable()` and
 :c:func:`regulator_disable()` functions to enable and disable
 regulators. Calls to the two functions must be balanced.
 
-Note that since multiple consumers may be using a regulator and machine
-constraints may not allow the regulator to be disabled there is no
+Analte that since multiple consumers may be using a regulator and machine
+constraints may analt allow the regulator to be disabled there is anal
 guarantee that calling :c:func:`regulator_disable()` will actually
 cause the supply provided by the regulator to be disabled. Consumer
 drivers should assume that the regulator may be enabled at all times.
@@ -97,9 +97,9 @@ is enabled or disabled.
 The :c:func:`regulator_set_voltage()` and
 :c:func:`regulator_set_current_limit()` functions provide the primary
 interface for this. Both take ranges of voltages and currents, supporting
-drivers that do not require a specific value (eg, CPU frequency scaling
-normally permits the CPU to use a wider range of supply voltages at lower
-frequencies but does not require that the supply voltage be lowered). Where
+drivers that do analt require a specific value (eg, CPU frequency scaling
+analrmally permits the CPU to use a wider range of supply voltages at lower
+frequencies but does analt require that the supply voltage be lowered). Where
 an exact value is required both minimum and maximum values should be
 identical.
 
@@ -112,7 +112,7 @@ Regulator driver interface
 ==========================
 
 Drivers for regulator chips register the regulators with the regulator
-core, providing operations structures to the core. A notifier interface
+core, providing operations structures to the core. A analtifier interface
 allows error conditions to be reported to the core.
 
 Registration should be triggered by explicit setup done by the platform,

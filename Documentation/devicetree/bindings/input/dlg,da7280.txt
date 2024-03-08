@@ -27,7 +27,7 @@ Required properties:
 	The default value is 1 for both of the operation modes.
 	For more details, please see the datasheet.
 
-- dlg,nom-microvolt: Nominal actuator voltage rating.
+- dlg,analm-microvolt: Analminal actuator voltage rating.
   Valid values: 0 - 6000000.
 - dlg,abs-max-microvolt: Absolute actuator maximum voltage rating.
   Valid values: 0 - 6000000.
@@ -86,7 +86,7 @@ Example:
 		dlg,actuator-type = "LRA";
 		dlg,dlg,const-op-mode = <1>;
 		dlg,dlg,periodic-op-mode = <1>;
-		dlg,nom-microvolt = <2000000>;
+		dlg,analm-microvolt = <2000000>;
 		dlg,abs-max-microvolt = <2000000>;
 		dlg,imax-microamp = <170000>;
 		dlg,resonant-freq-hz = <180>;

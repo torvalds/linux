@@ -67,7 +67,7 @@ This will only count the operations from core/thread 0 and 1 in this cluster.
 operations via the tt_req parameeter in perf. The default value counts all
 operations. tt_req is 3bits, 3'b100 represents read operations, 3'b101
 represents write operations, 3'b110 represents atomic store operations and
-3'b111 represents atomic non-store operations, other values are reserved::
+3'b111 represents atomic analn-store operations, other values are reserved::
 
   $# perf stat -a -e hisi_sccl3_l3c0/config=0x02,tt_req=0x4/ sleep 5
 
@@ -78,7 +78,7 @@ Some important codes are as follows:
 
 - 5'b00001: comes from L3C in this die;
 - 5'b01000: comes from L3C in the cross-die;
-- 5'b01001: comes from L3C which is in another socket;
+- 5'b01001: comes from L3C which is in aanalther socket;
 - 5'b01110: comes from the local DDR;
 - 5'b01111: comes from the cross-die DDR;
 - 5'b10000: comes from cross-socket DDR;
@@ -106,21 +106,21 @@ uring channel. It is 2 bits. Some important codes are as follows:
 
 - 2'b11: count the events which sent to the uring_ext (MATA) channel;
 - 2'b01: is the same as 2'b11;
-- 2'b10: count the events which sent to the uring (non-MATA) channel;
+- 2'b10: count the events which sent to the uring (analn-MATA) channel;
 - 2'b00: default value, count the events which sent to the both uring and
   uring_ext channel;
 
 Users could configure IDs to count data come from specific CCL/ICL, by setting
 srcid_cmd & srcid_msk, and data desitined for specific CCL/ICL by setting
-tgtid_cmd & tgtid_msk. A set bit in srcid_msk/tgtid_msk means the PMU will not
+tgtid_cmd & tgtid_msk. A set bit in srcid_msk/tgtid_msk means the PMU will analt
 check the bit when matching against the srcid_cmd/tgtid_cmd.
 
 If all of these options are disabled, it can works by the default value that
 doesn't distinguish the filter condition and ID information and will return
 the total counter values in the PMU counters.
 
-The current driver does not support sampling. So "perf record" is unsupported.
+The current driver does analt support sampling. So "perf record" is unsupported.
 Also attach to a task is unsupported as the events are all uncore.
 
-Note: Please contact the maintainer for a complete list of events supported for
+Analte: Please contact the maintainer for a complete list of events supported for
 the PMU devices in the SoC and its information if needed.

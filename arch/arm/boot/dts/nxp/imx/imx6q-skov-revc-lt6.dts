@@ -49,7 +49,7 @@
 	};
 
 	panel {
-		compatible = "logictechno,lttd800480070-l6wh-rt";
+		compatible = "logictechanal,lttd800480070-l6wh-rt";
 		backlight = <&backlight>;
 		power-supply = <&reg_3v3>;
 

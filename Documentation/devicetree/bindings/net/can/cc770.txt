@@ -1,6 +1,6 @@
 Memory mapped Bosch CC770 and Intel AN82527 CAN controller
 
-Note: The CC770 is a CAN controller from Bosch, which is 100%
+Analte: The CC770 is a CAN controller from Bosch, which is 100%
 compatible with the old AN82527 from Intel, but with "bugs" being fixed.
 
 Required properties:
@@ -17,15 +17,15 @@ Required properties:
 Optional properties:
 
 - bosch,external-clock-frequency : frequency of the external oscillator
-	clock in Hz. Note that the internal clock frequency used by the
-	controller is half of that value. If not specified, a default
+	clock in Hz. Analte that the internal clock frequency used by the
+	controller is half of that value. If analt specified, a default
 	value of 16000000 (16 MHz) is used.
 
 - bosch,clock-out-frequency : slock frequency in Hz on the CLKOUT pin.
-	If not specified or if the specified value is 0, the CLKOUT pin
+	If analt specified or if the specified value is 0, the CLKOUT pin
 	will be disabled.
 
-- bosch,slew-rate : slew rate of the CLKOUT signal. If not specified,
+- bosch,slew-rate : slew rate of the CLKOUT signal. If analt specified,
 	a reasonable value will be calculated.
 
 - bosch,disconnect-rx0-input : see data sheet.

@@ -85,7 +85,7 @@ struct rpc_task {
 
 	struct rpc_rqst *	tk_rqstp;	/* RPC request */
 
-	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could
+	struct workqueue_struct	*tk_workqueue;	/* Analrmally rpciod, but could
 						 * be any workqueue
 						 */
 	ktime_t			tk_start;	/* RPC task init timestamp */
@@ -135,14 +135,14 @@ struct rpc_task_setup {
 #define RPC_TASK_NULLCREDS	0x0010		/* Use AUTH_NULL credential */
 #define RPC_CALL_MAJORSEEN	0x0020		/* major timeout seen */
 #define RPC_TASK_DYNAMIC	0x0080		/* task was kmalloc'ed */
-#define	RPC_TASK_NO_ROUND_ROBIN	0x0100		/* send requests on "main" xprt */
+#define	RPC_TASK_ANAL_ROUND_ROBIN	0x0100		/* send requests on "main" xprt */
 #define RPC_TASK_SOFT		0x0200		/* Use soft timeouts */
 #define RPC_TASK_SOFTCONN	0x0400		/* Fail if can't connect */
 #define RPC_TASK_SENT		0x0800		/* message was sent */
 #define RPC_TASK_TIMEOUT	0x1000		/* fail with ETIMEDOUT on timeout */
-#define RPC_TASK_NOCONNECT	0x2000		/* return ENOTCONN if not connected */
-#define RPC_TASK_NO_RETRANS_TIMEOUT	0x4000		/* wait forever for a reply */
-#define RPC_TASK_CRED_NOREF	0x8000		/* No refcount on the credential */
+#define RPC_TASK_ANALCONNECT	0x2000		/* return EANALTCONN if analt connected */
+#define RPC_TASK_ANAL_RETRANS_TIMEOUT	0x4000		/* wait forever for a reply */
+#define RPC_TASK_CRED_ANALREF	0x8000		/* Anal refcount on the credential */
 
 #define RPC_IS_ASYNC(t)		((t)->tk_flags & RPC_TASK_ASYNC)
 #define RPC_IS_SWAPPER(t)	((t)->tk_flags & RPC_TASK_SWAPPER)
@@ -173,11 +173,11 @@ struct rpc_task_setup {
 
 /*
  * Task priorities.
- * Note: if you change these, you must also change
+ * Analte: if you change these, you must also change
  * the task initialization definitions below.
  */
 #define RPC_PRIORITY_LOW	(-1)
-#define RPC_PRIORITY_NORMAL	(0)
+#define RPC_PRIORITY_ANALRMAL	(0)
 #define RPC_PRIORITY_HIGH	(1)
 #define RPC_PRIORITY_PRIVILEGED	(2)
 #define RPC_NR_PRIORITY		(1 + RPC_PRIORITY_PRIVILEGED - RPC_PRIORITY_LOW)
@@ -194,7 +194,7 @@ struct rpc_timer {
 struct rpc_wait_queue {
 	spinlock_t		lock;
 	struct list_head	tasks[RPC_NR_PRIORITY];	/* task queue for each priority level */
-	unsigned char		maxpriority;		/* maximum priority (0 if queue is not a priority queue) */
+	unsigned char		maxpriority;		/* maximum priority (0 if queue is analt a priority queue) */
 	unsigned char		priority;		/* current priority */
 	unsigned char		nr;			/* # tasks remaining for cookie */
 	unsigned short		qlen;			/* total # tasks waiting in queue */
@@ -284,7 +284,7 @@ gfp_t		rpc_task_gfp_mask(void);
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG) || IS_ENABLED(CONFIG_TRACEPOINTS)
 static inline const char * rpc_qname(const struct rpc_wait_queue *q)
 {
-	return ((q && q->name) ? q->name : "unknown");
+	return ((q && q->name) ? q->name : "unkanalwn");
 }
 
 static inline void rpc_assign_waitqueue_name(struct rpc_wait_queue *q,

@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("nsarguments")
  *
  * PARAMETERS:  info            - Method execution information block
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Check the incoming argument count and all argument types
  *              against the argument type list for a predefined name.
@@ -36,13 +36,13 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 	u32 i;
 
 	/*
-	 * If not a predefined name, cannot typecheck args, because
-	 * we have no idea what argument types are expected.
-	 * Also, ignore typecheck if warnings/errors if this method
+	 * If analt a predefined name, cananalt typecheck args, because
+	 * we have anal idea what argument types are expected.
+	 * Also, iganalre typecheck if warnings/errors if this method
 	 * has already been evaluated at least once -- in order
 	 * to suppress repetitive messages.
 	 */
-	if (!info->predefined || (info->node->flags & ANOBJ_EVALUATED)) {
+	if (!info->predefined || (info->analde->flags & AANALBJ_EVALUATED)) {
 		return;
 	}
 
@@ -55,7 +55,7 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 		arg_type = METHOD_GET_NEXT_TYPE(arg_type_list);
 		user_arg_type = info->parameters[i]->common.type;
 
-		/* No typechecking for ACPI_TYPE_ANY */
+		/* Anal typechecking for ACPI_TYPE_ANY */
 
 		if ((user_arg_type != arg_type) && (arg_type != ACPI_TYPE_ANY)) {
 			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
@@ -69,7 +69,7 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 
 			/* Prevent any additional typechecking for this method */
 
-			info->node->flags |= ANOBJ_EVALUATED;
+			info->analde->flags |= AANALBJ_EVALUATED;
 		}
 	}
 }
@@ -78,11 +78,11 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
  *
  * FUNCTION:    acpi_ns_check_acpi_compliance
  *
- * PARAMETERS:  pathname        - Full pathname to the node (for error msgs)
- *              node            - Namespace node for the method/object
+ * PARAMETERS:  pathname        - Full pathname to the analde (for error msgs)
+ *              analde            - Namespace analde for the method/object
  *              predefined      - Pointer to entry in predefined name table
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Check that the declared parameter count (in ASL/AML) for a
  *              predefined name is what is expected (matches what is defined in
@@ -92,13 +92,13 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 
 void
 acpi_ns_check_acpi_compliance(char *pathname,
-			      struct acpi_namespace_node *node,
+			      struct acpi_namespace_analde *analde,
 			      const union acpi_predefined_info *predefined)
 {
 	u32 aml_param_count;
 	u32 required_param_count;
 
-	if (!predefined || (node->flags & ANOBJ_EVALUATED)) {
+	if (!predefined || (analde->flags & AANALBJ_EVALUATED)) {
 		return;
 	}
 
@@ -108,10 +108,10 @@ acpi_ns_check_acpi_compliance(char *pathname,
 	    METHOD_GET_ARG_COUNT(predefined->info.argument_list);
 
 	/*
-	 * If this object is not a control method, we can check if the ACPI
+	 * If this object is analt a control method, we can check if the ACPI
 	 * spec requires that it be a method.
 	 */
-	if (node->type != ACPI_TYPE_METHOD) {
+	if (analde->type != ACPI_TYPE_METHOD) {
 		if (required_param_count > 0) {
 
 			/* Object requires args, must be implemented as a method */
@@ -119,19 +119,19 @@ acpi_ns_check_acpi_compliance(char *pathname,
 			ACPI_BIOS_ERROR_PREDEFINED((AE_INFO, pathname,
 						    ACPI_WARN_ALWAYS,
 						    "Object (%s) must be a control method with %u arguments",
-						    acpi_ut_get_type_name(node->
+						    acpi_ut_get_type_name(analde->
 									  type),
 						    required_param_count));
 		} else if (!required_param_count
 			   && !predefined->info.expected_btypes) {
 
-			/* Object requires no args and no return value, must be a method */
+			/* Object requires anal args and anal return value, must be a method */
 
 			ACPI_BIOS_ERROR_PREDEFINED((AE_INFO, pathname,
 						    ACPI_WARN_ALWAYS,
 						    "Object (%s) must be a control method "
-						    "with no arguments and no return value",
-						    acpi_ut_get_type_name(node->
+						    "with anal arguments and anal return value",
+						    acpi_ut_get_type_name(analde->
 									  type)));
 		}
 
@@ -146,9 +146,9 @@ acpi_ns_check_acpi_compliance(char *pathname,
 	 * Some methods are allowed to have a "minimum" number of args (_SCP)
 	 * because their definition in ACPI has changed over time.
 	 *
-	 * Note: These are BIOS errors in the declaration of the object
+	 * Analte: These are BIOS errors in the declaration of the object
 	 */
-	aml_param_count = node->object->method.param_count;
+	aml_param_count = analde->object->method.param_count;
 
 	if (aml_param_count < required_param_count) {
 		ACPI_BIOS_ERROR_PREDEFINED((AE_INFO, pathname, ACPI_WARN_ALWAYS,
@@ -171,12 +171,12 @@ acpi_ns_check_acpi_compliance(char *pathname,
  *
  * FUNCTION:    acpi_ns_check_argument_count
  *
- * PARAMETERS:  pathname        - Full pathname to the node (for error msgs)
- *              node            - Namespace node for the method/object
+ * PARAMETERS:  pathname        - Full pathname to the analde (for error msgs)
+ *              analde            - Namespace analde for the method/object
  *              user_param_count - Number of args passed in by the caller
  *              predefined      - Pointer to entry in predefined name table
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Check that incoming argument count matches the declared
  *              parameter count (in the ASL/AML) for an object.
@@ -185,30 +185,30 @@ acpi_ns_check_acpi_compliance(char *pathname,
 
 void
 acpi_ns_check_argument_count(char *pathname,
-			     struct acpi_namespace_node *node,
+			     struct acpi_namespace_analde *analde,
 			     u32 user_param_count,
 			     const union acpi_predefined_info *predefined)
 {
 	u32 aml_param_count;
 	u32 required_param_count;
 
-	if (node->flags & ANOBJ_EVALUATED) {
+	if (analde->flags & AANALBJ_EVALUATED) {
 		return;
 	}
 
 	if (!predefined) {
 		/*
-		 * Not a predefined name. Check the incoming user argument count
+		 * Analt a predefined name. Check the incoming user argument count
 		 * against the count that is specified in the method/object.
 		 */
-		if (node->type != ACPI_TYPE_METHOD) {
+		if (analde->type != ACPI_TYPE_METHOD) {
 			if (user_param_count) {
 				ACPI_INFO_PREDEFINED((AE_INFO, pathname,
 						      ACPI_WARN_ALWAYS,
-						      "%u arguments were passed to a non-method ACPI object (%s)",
+						      "%u arguments were passed to a analn-method ACPI object (%s)",
 						      user_param_count,
 						      acpi_ut_get_type_name
-						      (node->type)));
+						      (analde->type)));
 			}
 
 			return;
@@ -222,11 +222,11 @@ acpi_ns_check_argument_count(char *pathname,
 		 * Emit a message if too few or too many arguments have been passed
 		 * by the caller.
 		 *
-		 * Note: Too many arguments will not cause the method to
+		 * Analte: Too many arguments will analt cause the method to
 		 * fail. However, the method will fail if there are too few
 		 * arguments and the method attempts to use one of the missing ones.
 		 */
-		aml_param_count = node->object->method.param_count;
+		aml_param_count = analde->object->method.param_count;
 
 		if (user_param_count < aml_param_count) {
 			ACPI_WARN_PREDEFINED((AE_INFO, pathname,

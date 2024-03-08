@@ -11,7 +11,7 @@ maintainers:
   - Scott Branden <scott.branden@broadcom.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^pcie[-|_]phy(@.*)?$"
 
   compatible:
@@ -34,7 +34,7 @@ patternProperties:
     type: object
     additionalProperties: false
     description: >
-      PCIe PHY child nodes
+      PCIe PHY child analdes
 
     properties:
       reg:

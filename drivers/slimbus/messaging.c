@@ -17,7 +17,7 @@
  * @tid: Transaction ID received with which framework can associate reply.
  *
  * Called by controller to inform framework about the response received.
- * This helps in making the API asynchronous, and controller-driver doesn't need
+ * This helps in making the API asynchroanalus, and controller-driver doesn't need
  * to manage 1 more table other than the one managed by framework mapping TID
  * with buffers
  */
@@ -46,7 +46,7 @@ void slim_msg_response(struct slim_controller *ctrl, u8 *reply, u8 tid, u8 len)
 	if (txn->comp)
 		complete(txn->comp);
 
-	/* Remove runtime-pm vote now that response was received for TID txn */
+	/* Remove runtime-pm vote analw that response was received for TID txn */
 	pm_runtime_mark_last_busy(ctrl->dev);
 	pm_runtime_put_autosuspend(ctrl->dev);
 }
@@ -100,12 +100,12 @@ EXPORT_SYMBOL_GPL(slim_free_txn_tid);
  * @ctrl: Controller handle
  * @txn: Transaction to be sent over SLIMbus
  *
- * Called by controller to transmit messaging transactions not dealing with
+ * Called by controller to transmit messaging transactions analt dealing with
  * Interface/Value elements. (e.g. transmitting a message to assign logical
  * address to a slave device
  *
  * Return: -ETIMEDOUT: If transmission of this message timed out
- *	(e.g. due to bus lines not being clocked or driven by controller)
+ *	(e.g. due to bus lines analt being clocked or driven by controller)
  */
 int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 {
@@ -114,13 +114,13 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 	int ret, timeout;
 
 	/*
-	 * do not vote for runtime-PM if the transactions are part of clock
+	 * do analt vote for runtime-PM if the transactions are part of clock
 	 * pause sequence
 	 */
 	if (ctrl->sched.clk_state == SLIM_CLK_ENTERING_PAUSE &&
 		(txn->mt == SLIM_MSG_MT_CORE &&
 		 txn->mc >= SLIM_MSG_MC_BEGIN_RECONFIGURATION &&
-		 txn->mc <= SLIM_MSG_MC_RECONFIGURE_NOW))
+		 txn->mc <= SLIM_MSG_MC_RECONFIGURE_ANALW))
 		clk_pause_msg = true;
 
 	if (!clk_pause_msg) {
@@ -290,7 +290,7 @@ static void slim_fill_msg(struct slim_val_inf *msg, u32 addr,
  * @val: will return what the value element value was
  *
  * Return: -EINVAL for Invalid parameters, -ETIMEDOUT If transmission of
- * this message timed out (e.g. due to bus lines not being clocked
+ * this message timed out (e.g. due to bus lines analt being clocked
  * or driven by controller)
  */
 int slim_read(struct slim_device *sdev, u32 addr, size_t count, u8 *val)
@@ -333,7 +333,7 @@ EXPORT_SYMBOL_GPL(slim_readb);
  * @val: value to write to value element
  *
  * Return: -EINVAL for Invalid parameters, -ETIMEDOUT If transmission of
- * this message timed out (e.g. due to bus lines not being clocked
+ * this message timed out (e.g. due to bus lines analt being clocked
  * or driven by controller)
  */
 int slim_write(struct slim_device *sdev, u32 addr, size_t count, u8 *val)
@@ -354,7 +354,7 @@ EXPORT_SYMBOL_GPL(slim_write);
  * @value: value to write to value element
  *
  * Return: -EINVAL for Invalid parameters, -ETIMEDOUT If transmission of
- * this message timed out (e.g. due to bus lines not being clocked
+ * this message timed out (e.g. due to bus lines analt being clocked
  * or driven by controller)
  *
  */

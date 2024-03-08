@@ -172,7 +172,7 @@ static void uds_try_format(struct vsp1_uds *uds,
 
 	switch (pad) {
 	case UDS_PAD_SINK:
-		/* Default to YUV if the requested format is not supported. */
+		/* Default to YUV if the requested format is analt supported. */
 		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
 			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
@@ -194,7 +194,7 @@ static void uds_try_format(struct vsp1_uds *uds,
 		break;
 	}
 
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
@@ -409,7 +409,7 @@ struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index)
 
 	uds = devm_kzalloc(vsp1->dev, sizeof(*uds), GFP_KERNEL);
 	if (uds == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	uds->entity.ops = &uds_entity_ops;
 	uds->entity.type = VSP1_ENTITY_UDS;

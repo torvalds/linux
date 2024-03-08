@@ -66,7 +66,7 @@ static struct biovec_slab *biovec_slab(unsigned short nr_vecs)
 
 /*
  * fs_bio_set is the bio_set containing bio and iovec memory pools used by
- * IO code that does not need private memory pools.
+ * IO code that does analt need private memory pools.
  */
 struct bio_set fs_bio_set;
 EXPORT_SYMBOL(fs_bio_set);
@@ -177,7 +177,7 @@ void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs)
 static inline gfp_t bvec_alloc_gfp(gfp_t gfp)
 {
 	return (gfp & ~(__GFP_DIRECT_RECLAIM | __GFP_IO)) |
-		__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
+		__GFP_ANALMEMALLOC | __GFP_ANALRETRY | __GFP_ANALWARN;
 }
 
 struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
@@ -277,7 +277,7 @@ void bio_init(struct bio *bio, struct block_device *bdev, struct bio_vec *table,
 
 	atomic_set(&bio->__bi_remaining, 1);
 	atomic_set(&bio->__bi_cnt, 1);
-	bio->bi_cookie = BLK_QC_T_NONE;
+	bio->bi_cookie = BLK_QC_T_ANALNE;
 
 	bio->bi_max_vecs = max_vecs;
 	bio->bi_io_vec = table;
@@ -333,7 +333,7 @@ static void bio_chain_endio(struct bio *bio)
  * @parent's bi_end_io won't be called until both @parent and @bio have
  * completed; the chained bio will also be freed when it completes.
  *
- * The caller must not set bi_private or bi_end_io in @bio.
+ * The caller must analt set bi_private or bi_end_io in @bio.
  */
 void bio_chain(struct bio *bio, struct bio *parent)
 {
@@ -372,13 +372,13 @@ static void bio_alloc_rescue(struct work_struct *work)
 		if (!bio)
 			break;
 
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 	}
 }
 
 static void punt_bios_to_rescuer(struct bio_set *bs)
 {
-	struct bio_list punt, nopunt;
+	struct bio_list punt, analpunt;
 	struct bio *bio;
 
 	if (WARN_ON_ONCE(!bs->rescue_workqueue))
@@ -395,16 +395,16 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
 	 */
 
 	bio_list_init(&punt);
-	bio_list_init(&nopunt);
+	bio_list_init(&analpunt);
 
 	while ((bio = bio_list_pop(&current->bio_list[0])))
-		bio_list_add(bio->bi_pool == bs ? &punt : &nopunt, bio);
-	current->bio_list[0] = nopunt;
+		bio_list_add(bio->bi_pool == bs ? &punt : &analpunt, bio);
+	current->bio_list[0] = analpunt;
 
-	bio_list_init(&nopunt);
+	bio_list_init(&analpunt);
 	while ((bio = bio_list_pop(&current->bio_list[1])))
-		bio_list_add(bio->bi_pool == bs ? &punt : &nopunt, bio);
-	current->bio_list[1] = nopunt;
+		bio_list_add(bio->bi_pool == bs ? &punt : &analpunt, bio);
+	current->bio_list[1] = analpunt;
 
 	spin_lock(&bs->rescue_lock);
 	bio_list_merge(&bs->rescue_list, &punt);
@@ -472,19 +472,19 @@ static struct bio *bio_alloc_percpu_cache(struct block_device *bdev,
  * previously allocated bio for IO before attempting to allocate a new one.
  * Failure to do so can cause deadlocks under memory pressure.
  *
- * Note that when running under submit_bio_noacct() (i.e. any block driver),
- * bios are not submitted until after you return - see the code in
- * submit_bio_noacct() that converts recursion into iteration, to prevent
+ * Analte that when running under submit_bio_analacct() (i.e. any block driver),
+ * bios are analt submitted until after you return - see the code in
+ * submit_bio_analacct() that converts recursion into iteration, to prevent
  * stack overflows.
  *
- * This would normally mean allocating multiple bios under submit_bio_noacct()
+ * This would analrmally mean allocating multiple bios under submit_bio_analacct()
  * would be susceptible to deadlocks, but we have
  * deadlock avoidance code that resubmits any blocked bios from a rescuer
  * thread.
  *
- * However, we do not guarantee forward progress for allocations from other
+ * However, we do analt guarantee forward progress for allocations from other
  * mempools. Doing multiple allocations from the same mempool under
- * submit_bio_noacct() should be avoided - instead, use bio_set's front_pad
+ * submit_bio_analacct() should be avoided - instead, use bio_set's front_pad
  * for per bio allocations.
  *
  * Returns: Pointer to new bio on success, NULL on failure.
@@ -497,7 +497,7 @@ struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
 	struct bio *bio;
 	void *p;
 
-	/* should not use nobvec bioset for nr_vecs > 0 */
+	/* should analt use analbvec bioset for nr_vecs > 0 */
 	if (WARN_ON_ONCE(!mempool_initialized(&bs->bvec_pool) && nr_vecs > 0))
 		return NULL;
 
@@ -508,7 +508,7 @@ struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
 			if (bio)
 				return bio;
 			/*
-			 * No cached bio available, bio returned below marked with
+			 * Anal cached bio available, bio returned below marked with
 			 * REQ_ALLOC_CACHE to particpate in per-cpu alloc cache.
 			 */
 		} else {
@@ -517,12 +517,12 @@ struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
 	}
 
 	/*
-	 * submit_bio_noacct() converts recursion to iteration; this means if
-	 * we're running beneath it, any bios we allocate and submit will not be
+	 * submit_bio_analacct() converts recursion to iteration; this means if
+	 * we're running beneath it, any bios we allocate and submit will analt be
 	 * submitted (and thus freed) until after we return.
 	 *
 	 * This exposes us to a potential deadlock if we allocate multiple bios
-	 * from the same bio_set() while running underneath submit_bio_noacct().
+	 * from the same bio_set() while running underneath submit_bio_analacct().
 	 * If we were to allocate multiple bios (say a stacking block driver
 	 * that was splitting bios), we would deadlock if we exhausted the
 	 * mempool's reserve.
@@ -590,8 +590,8 @@ EXPORT_SYMBOL(bio_alloc_bioset);
  * kfree() after calling bio_uninit().  A bio returned from this function can
  * be reused by calling bio_uninit() before calling bio_init() again.
  *
- * Note that unlike bio_alloc() or bio_alloc_bioset() allocations from this
- * function are not backed by a mempool can fail.  Do not use this function
+ * Analte that unlike bio_alloc() or bio_alloc_bioset() allocations from this
+ * function are analt backed by a mempool can fail.  Do analt use this function
  * for allocations in the file system I/O path.
  *
  * Returns: Pointer to new bio on success, NULL on failure.
@@ -660,7 +660,7 @@ static void bio_truncate(struct bio *bio, unsigned new_size)
 	 * fs bio user has to retrieve all pages via bio_for_each_segment_all
 	 * in its .end_bio() callback.
 	 *
-	 * It is enough to truncate bio by updating .bi_size since we can make
+	 * It is eanalugh to truncate bio by updating .bi_size since we can make
 	 * correct bvec with the updated .bi_size for drivers.
 	 */
 	bio->bi_iter.bi_size = new_size;
@@ -726,11 +726,11 @@ static void bio_alloc_cache_prune(struct bio_alloc_cache *cache,
 	}
 }
 
-static int bio_cpu_dead(unsigned int cpu, struct hlist_node *node)
+static int bio_cpu_dead(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct bio_set *bs;
 
-	bs = hlist_entry_safe(node, struct bio_set, cpuhp_dead);
+	bs = hlist_entry_safe(analde, struct bio_set, cpuhp_dead);
 	if (bs->cache) {
 		struct bio_alloc_cache *cache = per_cpu_ptr(bs->cache, cpu);
 
@@ -746,7 +746,7 @@ static void bio_alloc_cache_destroy(struct bio_set *bs)
 	if (!bs->cache)
 		return;
 
-	cpuhp_state_remove_instance_nocalls(CPUHP_BIO_DEAD, &bs->cpuhp_dead);
+	cpuhp_state_remove_instance_analcalls(CPUHP_BIO_DEAD, &bs->cpuhp_dead);
 	for_each_possible_cpu(cpu) {
 		struct bio_alloc_cache *cache;
 
@@ -823,10 +823,10 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
 	}
 
 	if (bio_crypt_clone(bio, bio_src, gfp) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (bio_integrity(bio_src) &&
 	    bio_integrity_clone(bio, bio_src, gfp) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -838,9 +838,9 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
  * @bs: bio_set to allocate from
  *
  * Allocate a new bio that is a clone of @bio_src. The caller owns the returned
- * bio, but not the actual data it points to.
+ * bio, but analt the actual data it points to.
  *
- * The caller must ensure that the return bio is not freed before @bio_src.
+ * The caller must ensure that the return bio is analt freed before @bio_src.
  */
 struct bio *bio_alloc_clone(struct block_device *bdev, struct bio *bio_src,
 		gfp_t gfp, struct bio_set *bs)
@@ -869,9 +869,9 @@ EXPORT_SYMBOL(bio_alloc_clone);
  * @gfp: allocation priority
  *
  * Initialize a new bio in caller provided memory that is a clone of @bio_src.
- * The caller owns the returned bio, but not the actual data it points to.
+ * The caller owns the returned bio, but analt the actual data it points to.
  *
- * The caller must ensure that @bio_src is not freed before @bio.
+ * The caller must ensure that @bio_src is analt freed before @bio.
  */
 int bio_init_clone(struct block_device *bdev, struct bio *bio,
 		struct bio *bio_src, gfp_t gfp)
@@ -931,7 +931,7 @@ static bool bvec_try_merge_page(struct bio_vec *bv, struct page *page,
 
 /*
  * Try to merge a page into a segment, while obeying the hardware segment
- * size limit.  This is not for normal read/write bios, but for passthrough
+ * size limit.  This is analt for analrmal read/write bios, but for passthrough
  * or Zone Append operations that we can't split.
  */
 bool bvec_try_merge_hw_page(struct request_queue *q, struct bio_vec *bv,
@@ -1035,7 +1035,7 @@ EXPORT_SYMBOL(bio_add_pc_page);
  *
  * Attempt to add a page to the bio_vec maplist of a bio that will be submitted
  * for a zone-append request. This can fail for a number of reasons, such as the
- * bio being full or the target block device is not a zoned block device or
+ * bio being full or the target block device is analt a zoned block device or
  * other limitations of the target block device. The target block device must
  * allow bio's up to PAGE_SIZE, so it is always possible to add a single page
  * to an empty bio.
@@ -1067,7 +1067,7 @@ EXPORT_SYMBOL_GPL(bio_add_zone_append_page);
  * @off: offset of the data relative to @page, may cross pages
  *
  * Add the data at @page + @off to @bio as a new bvec.  The caller must ensure
- * that @bio has space for another bvec.
+ * that @bio has space for aanalther bvec.
  */
 void __bio_add_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int off)
@@ -1115,7 +1115,7 @@ int bio_add_page(struct bio *bio, struct page *page,
 }
 EXPORT_SYMBOL(bio_add_page);
 
-void bio_add_folio_nofail(struct bio *bio, struct folio *folio, size_t len,
+void bio_add_folio_analfail(struct bio *bio, struct folio *folio, size_t len,
 			  size_t off)
 {
 	WARN_ON_ONCE(len > UINT_MAX);
@@ -1133,7 +1133,7 @@ void bio_add_folio_nofail(struct bio *bio, struct folio *folio, size_t len,
  * Filesystems that use folios can call this function instead of calling
  * bio_add_page() for each page in the folio.  If @off is bigger than
  * PAGE_SIZE, this function can create a bio_vec that starts in a page
- * after the bv_page.  BIOs do not support folios that are 4GiB or larger.
+ * after the bv_page.  BIOs do analt support folios that are 4GiB or larger.
  *
  * Return: Whether the addition was successful.
  */
@@ -1232,7 +1232,7 @@ static int bio_iov_add_zone_append_page(struct bio *bio, struct page *page,
  * Extracts pages from *iter and appends them to @bio's bvec array.  The pages
  * will have to be cleaned up in the way indicated by the BIO_PAGE_PINNED flag.
  * For a multi-segment *iter, this function only adds pages from the next
- * non-empty segment of the iov iterator.
+ * analn-empty segment of the iov iterator.
  */
 static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
@@ -1259,7 +1259,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 
 	/*
 	 * Each segment in the iov is required to be a block size multiple.
-	 * However, we may not be able to get the entire segment if it spans
+	 * However, we may analt be able to get the entire segment if it spans
 	 * more pages than bi_max_vecs allows, so we have to ALIGN_DOWN the
 	 * result to ensure the bio's total size is correct. The remainder of
 	 * the iov data will be picked up in the next bio iteration.
@@ -1318,10 +1318,10 @@ out:
  * bvecs rather than copying them. Hence anyone issuing kiocb based IO needs
  * to ensure the bvecs and pages stay referenced until the submitted I/O is
  * completed by a call to ->ki_complete() or returns with an error other than
- * -EIOCBQUEUED. The caller needs to check if the bio is flagged BIO_NO_PAGE_REF
+ * -EIOCBQUEUED. The caller needs to check if the bio is flagged BIO_ANAL_PAGE_REF
  * on IO completion. If it isn't, then pages should be released.
  *
- * The function tries, but does not guarantee, to pin as many pages as
+ * The function tries, but does analt guarantee, to pin as many pages as
  * fit into the bio, or are requested in @iter, whatever is smaller. If
  * MM encounters an error pinning the requested pages, it stops. Error
  * is returned only if 0 pages could be pinned.
@@ -1361,7 +1361,7 @@ static void submit_bio_wait_endio(struct bio *bio)
  * Simple wrapper around submit_bio(). Returns 0 on success, or the error from
  * bio_endio() on failure.
  *
- * WARNING: Unlike to how submit_bio() is usually used, this function does not
+ * WARNING: Unlike to how submit_bio() is usually used, this function does analt
  * result in bio reference to be consumed. The caller must drop the reference
  * on his own.
  */
@@ -1385,7 +1385,7 @@ int submit_bio_wait(struct bio *bio)
 	else
 		wait_for_completion_io(&done);
 
-	return blk_status_to_errno(bio->bi_status);
+	return blk_status_to_erranal(bio->bi_status);
 }
 EXPORT_SYMBOL(submit_bio_wait);
 
@@ -1421,7 +1421,7 @@ void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
 EXPORT_SYMBOL(bio_copy_data_iter);
 
 /**
- * bio_copy_data - copy contents of data buffers from one bio to another
+ * bio_copy_data - copy contents of data buffers from one bio to aanalther
  * @src: source bio
  * @dst: destination bio
  *
@@ -1451,15 +1451,15 @@ EXPORT_SYMBOL(bio_free_pages);
  * bio_set_pages_dirty() and bio_check_pages_dirty() are support functions
  * for performing direct-IO in BIOs.
  *
- * The problem is that we cannot run folio_mark_dirty() from interrupt context
- * because the required locks are not interrupt-safe.  So what we can do is to
+ * The problem is that we cananalt run folio_mark_dirty() from interrupt context
+ * because the required locks are analt interrupt-safe.  So what we can do is to
  * mark the pages dirty _before_ performing IO.  And in interrupt context,
- * check that the pages are still dirty.   If so, fine.  If not, redirty them
+ * check that the pages are still dirty.   If so, fine.  If analt, redirty them
  * in process context.
  *
- * Note that this code is very hard to test under normal circumstances because
+ * Analte that this code is very hard to test under analrmal circumstances because
  * direct-io pins the pages with get_user_pages().  This makes
- * is_page_cache_freeable return false, and the VM will not clean the pages.
+ * is_page_cache_freeable return false, and the VM will analt clean the pages.
  * But other code (eg, flusher threads) could clean the pages if they are mapped
  * pagecache.
  *
@@ -1485,7 +1485,7 @@ EXPORT_SYMBOL_GPL(bio_set_pages_dirty);
 /*
  * bio_check_pages_dirty() will check that all the BIO's pages are still dirty.
  * If they are, then fine.  If, however, some pages are clean then they must
- * have been written out during the direct-IO read.  So we take another ref on
+ * have been written out during the direct-IO read.  So we take aanalther ref on
  * the BIO and re-dirty the pages in process context.
  *
  * It is expected that bio_check_pages_dirty() will wholly own the BIO from
@@ -1544,7 +1544,7 @@ EXPORT_SYMBOL_GPL(bio_check_pages_dirty);
 static inline bool bio_remaining_done(struct bio *bio)
 {
 	/*
-	 * If we're not chaining, then ->__bi_remaining is always 1 and
+	 * If we're analt chaining, then ->__bi_remaining is always 1 and
 	 * we always end io on the first invocation.
 	 */
 	if (!bio_flagged(bio, BIO_CHAIN))
@@ -1566,8 +1566,8 @@ static inline bool bio_remaining_done(struct bio *bio)
  *
  * Description:
  *   bio_endio() will end I/O on the whole bio. bio_endio() is the preferred
- *   way to end I/O on a bio. No one should call bi_end_io() directly on a
- *   bio unless they own it and thus know that it has an end_io function.
+ *   way to end I/O on a bio. Anal one should call bi_end_io() directly on a
+ *   bio unless they own it and thus kanalw that it has an end_io function.
  *
  *   bio_endio() can be called several times on a bio that has been chained
  *   using bio_chain().  The ->bi_end_io() function will only be called the
@@ -1621,7 +1621,7 @@ EXPORT_SYMBOL(bio_endio);
  *
  * Unless this is a discard request the newly allocated bio will point
  * to @bio's bi_io_vec. It is the caller's responsibility to ensure that
- * neither @bio nor @bs are freed before the split bio.
+ * neither @bio analr @bs are freed before the split bio.
  */
 struct bio *bio_split(struct bio *bio, int sectors,
 		      gfp_t gfp, struct bio_set *bs)
@@ -1631,7 +1631,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	BUG_ON(sectors <= 0);
 	BUG_ON(sectors >= bio_sectors(bio));
 
-	/* Zone append commands cannot be split */
+	/* Zone append commands cananalt be split */
 	if (WARN_ON_ONCE(bio_op(bio) == REQ_OP_ZONE_APPEND))
 		return NULL;
 
@@ -1726,11 +1726,11 @@ EXPORT_SYMBOL(bioset_exit);
  *    Set up a bio_set to be used with @bio_alloc_bioset. Allows the caller
  *    to ask for a number of bytes to be allocated in front of the bio.
  *    Front pad allocation is useful for embedding the bio inside
- *    another structure, to avoid allocating extra data to go with the bio.
- *    Note that the bio must be embedded at the END of that structure always,
+ *    aanalther structure, to avoid allocating extra data to go with the bio.
+ *    Analte that the bio must be embedded at the END of that structure always,
  *    or things will break badly.
  *    If %BIOSET_NEED_BVECS is set in @flags, a separate pool will be allocated
- *    for allocating iovecs.  This pool is not needed e.g. for bio_init_clone().
+ *    for allocating iovecs.  This pool is analt needed e.g. for bio_init_clone().
  *    If %BIOSET_NEED_RESCUER is set, a workqueue is created which can be used
  *    to dispatch queued requests when the mempool runs out of space.
  *
@@ -1752,7 +1752,7 @@ int bioset_init(struct bio_set *bs,
 
 	bs->bio_slab = bio_find_or_create_slab(bs);
 	if (!bs->bio_slab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mempool_init_slab_pool(&bs->bio_pool, pool_size, bs->bio_slab))
 		goto bad;
@@ -1771,13 +1771,13 @@ int bioset_init(struct bio_set *bs,
 		bs->cache = alloc_percpu(struct bio_alloc_cache);
 		if (!bs->cache)
 			goto bad;
-		cpuhp_state_add_instance_nocalls(CPUHP_BIO_DEAD, &bs->cpuhp_dead);
+		cpuhp_state_add_instance_analcalls(CPUHP_BIO_DEAD, &bs->cpuhp_dead);
 	}
 
 	return 0;
 bad:
 	bioset_exit(bs);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(bioset_init);
 

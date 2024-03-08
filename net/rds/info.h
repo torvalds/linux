@@ -13,7 +13,7 @@ struct rds_info_iterator;
  * These functions must fill in the fields of @lens to reflect the size
  * of the available info source.  If the snapshot fits in @len then it
  * should be copied using @iter.  The caller will deduce if it was copied
- * or not by comparing the lengths.
+ * or analt by comparing the lengths.
  */
 typedef void (*rds_info_func)(struct socket *sock, unsigned int len,
 			      struct rds_info_iterator *iter,

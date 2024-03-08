@@ -37,7 +37,7 @@ static bool probed;			/* Has PAMU been probed? */
 
 /*
  * Table for matching compatible strings, for device tree
- * guts node, for QorIQ SOCs.
+ * guts analde, for QorIQ SOCs.
  * "fsl,qoriq-device-config-2.0" corresponds to T4 & B4
  * SOCs. For the older SOCs "fsl,qoriq-device-config-1.0"
  * string would be used.
@@ -50,7 +50,7 @@ static const struct of_device_id guts_device_ids[] = {
 
 /*
  * Table for matching compatible strings, for device tree
- * L3 cache controller node.
+ * L3 cache controller analde.
  * "fsl,t4240-l3-cache-controller" corresponds to T4,
  * "fsl,b4860-l3-cache-controller" corresponds to B4 &
  * "fsl,p4080-l3-cache-controller" corresponds to other,
@@ -96,11 +96,11 @@ int pamu_enable_liodn(int liodn)
 	ppaace = pamu_get_ppaace(liodn);
 	if (!ppaace) {
 		pr_debug("Invalid primary paace entry\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!get_bf(ppaace->addr_bitfields, PPAACE_AF_WSE)) {
-		pr_debug("liodn %d not configured\n", liodn);
+		pr_debug("liodn %d analt configured\n", liodn);
 		return -EINVAL;
 	}
 
@@ -126,7 +126,7 @@ int pamu_disable_liodn(int liodn)
 	ppaace = pamu_get_ppaace(liodn);
 	if (!ppaace) {
 		pr_debug("Invalid primary paace entry\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	set_bf(ppaace->addr_bitfields, PAACE_AF_V, PAACE_V_INVALID);
@@ -138,7 +138,7 @@ int pamu_disable_liodn(int liodn)
 /* Derive the window size encoding for a particular PAACE entry */
 static unsigned int map_addrspace_size_to_wse(phys_addr_t addrspace_size)
 {
-	/* Bug if not a power of 2 */
+	/* Bug if analt a power of 2 */
 	BUG_ON(addrspace_size & (addrspace_size - 1));
 
 	/* window size is 2^(WSE+1) bytes */
@@ -168,7 +168,7 @@ int pamu_update_paace_stash(int liodn, u32 value)
 	paace = pamu_get_ppaace(liodn);
 	if (!paace) {
 		pr_debug("Invalid liodn entry\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	set_bf(paace->impl_attr, PAACE_IA_CID, value);
 
@@ -181,9 +181,9 @@ int pamu_update_paace_stash(int liodn, u32 value)
  * pamu_config_ppaace() - Sets up PPAACE entry for specified liodn
  *
  * @liodn: Logical IO device number
- * @omi: Operation mapping index -- if ~omi == 0 then omi not defined
+ * @omi: Operation mapping index -- if ~omi == 0 then omi analt defined
  * @stashid: cache stash id for associated cpu -- if ~stashid == 0 then
- *	     stashid not defined
+ *	     stashid analt defined
  * @prot: window permissions
  *
  * Returns 0 upon success else error code < 0 returned
@@ -194,7 +194,7 @@ int pamu_config_ppaace(int liodn, u32 omi, u32 stashid, int prot)
 
 	ppaace = pamu_get_ppaace(liodn);
 	if (!ppaace)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* window size is 2^(WSE+1) bytes */
 	set_bf(ppaace->addr_bitfields, PPAACE_AF_WSE,
@@ -211,7 +211,7 @@ int pamu_config_ppaace(int liodn, u32 omi, u32 stashid, int prot)
 		ppaace->op_encode.index_ot.omi = omi;
 	} else if (~omi != 0) {
 		pr_debug("bad operation mapping index: %d\n", omi);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* configure stash id */
@@ -238,9 +238,9 @@ int pamu_config_ppaace(int liodn, u32 omi, u32 stashid, int prot)
  */
 void get_ome_index(u32 *omi_index, struct device *dev)
 {
-	if (of_device_is_compatible(dev->of_node, "fsl,qman-portal"))
+	if (of_device_is_compatible(dev->of_analde, "fsl,qman-portal"))
 		*omi_index = OMI_QMAN;
-	if (of_device_is_compatible(dev->of_node, "fsl,qman"))
+	if (of_device_is_compatible(dev->of_analde, "fsl,qman"))
 		*omi_index = OMI_QMAN_PRIV;
 }
 
@@ -256,70 +256,70 @@ void get_ome_index(u32 *omi_index, struct device *dev)
 u32 get_stash_id(u32 stash_dest_hint, u32 vcpu)
 {
 	const u32 *prop;
-	struct device_node *node;
+	struct device_analde *analde;
 	u32 cache_level;
 	int len, found = 0;
 	int i;
 
 	/* Fastpath, exit early if L3/CPC cache is target for stashing */
 	if (stash_dest_hint == PAMU_ATTR_CACHE_L3) {
-		node = of_find_matching_node(NULL, l3_device_ids);
-		if (node) {
-			prop = of_get_property(node, "cache-stash-id", NULL);
+		analde = of_find_matching_analde(NULL, l3_device_ids);
+		if (analde) {
+			prop = of_get_property(analde, "cache-stash-id", NULL);
 			if (!prop) {
 				pr_debug("missing cache-stash-id at %pOF\n",
-					 node);
-				of_node_put(node);
+					 analde);
+				of_analde_put(analde);
 				return ~(u32)0;
 			}
-			of_node_put(node);
+			of_analde_put(analde);
 			return be32_to_cpup(prop);
 		}
 		return ~(u32)0;
 	}
 
-	for_each_of_cpu_node(node) {
-		prop = of_get_property(node, "reg", &len);
+	for_each_of_cpu_analde(analde) {
+		prop = of_get_property(analde, "reg", &len);
 		for (i = 0; i < len / sizeof(u32); i++) {
 			if (be32_to_cpup(&prop[i]) == vcpu) {
 				found = 1;
-				goto found_cpu_node;
+				goto found_cpu_analde;
 			}
 		}
 	}
-found_cpu_node:
+found_cpu_analde:
 
-	/* find the hwnode that represents the cache */
+	/* find the hwanalde that represents the cache */
 	for (cache_level = PAMU_ATTR_CACHE_L1; (cache_level < PAMU_ATTR_CACHE_L3) && found; cache_level++) {
 		if (stash_dest_hint == cache_level) {
-			prop = of_get_property(node, "cache-stash-id", NULL);
+			prop = of_get_property(analde, "cache-stash-id", NULL);
 			if (!prop) {
 				pr_debug("missing cache-stash-id at %pOF\n",
-					 node);
-				of_node_put(node);
+					 analde);
+				of_analde_put(analde);
 				return ~(u32)0;
 			}
-			of_node_put(node);
+			of_analde_put(analde);
 			return be32_to_cpup(prop);
 		}
 
-		prop = of_get_property(node, "next-level-cache", NULL);
+		prop = of_get_property(analde, "next-level-cache", NULL);
 		if (!prop) {
-			pr_debug("can't find next-level-cache at %pOF\n", node);
-			of_node_put(node);
+			pr_debug("can't find next-level-cache at %pOF\n", analde);
+			of_analde_put(analde);
 			return ~(u32)0;  /* can't traverse any further */
 		}
-		of_node_put(node);
+		of_analde_put(analde);
 
-		/* advance to next node in cache hierarchy */
-		node = of_find_node_by_phandle(*prop);
-		if (!node) {
-			pr_debug("Invalid node for cache hierarchy\n");
+		/* advance to next analde in cache hierarchy */
+		analde = of_find_analde_by_phandle(*prop);
+		if (!analde) {
+			pr_debug("Invalid analde for cache hierarchy\n");
 			return ~(u32)0;
 		}
 	}
 
-	pr_debug("stash dest not found for %d on vcpu %d\n",
+	pr_debug("stash dest analt found for %d on vcpu %d\n",
 		 stash_dest_hint, vcpu);
 	return ~(u32)0;
 }
@@ -331,7 +331,7 @@ found_cpu_node:
 
 /*
  * Setup operation mapping and stash destinations for QMAN and QMAN portal.
- * Memory accesses to QMAN and BMAN private memory need not be coherent, so
+ * Memory accesses to QMAN and BMAN private memory need analt be coherent, so
  * clear the PAACE entry coherency attribute for them.
  */
 static void setup_qbman_paace(struct paace *ppaace, int  paace_type)
@@ -459,11 +459,11 @@ static void setup_liodns(void)
 {
 	int i, len;
 	struct paace *ppaace;
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 	const u32 *prop;
 
-	for_each_node_with_property(node, "fsl,liodn") {
-		prop = of_get_property(node, "fsl,liodn", &len);
+	for_each_analde_with_property(analde, "fsl,liodn") {
+		prop = of_get_property(analde, "fsl,liodn", &len);
 		for (i = 0; i < len / sizeof(u32); i++) {
 			int liodn;
 
@@ -479,14 +479,14 @@ static void setup_liodns(void)
 			ppaace->wbah = 0;
 			set_bf(ppaace->addr_bitfields, PPAACE_AF_WBAL, 0);
 			set_bf(ppaace->impl_attr, PAACE_IA_ATM,
-			       PAACE_ATM_NO_XLATE);
+			       PAACE_ATM_ANAL_XLATE);
 			set_bf(ppaace->addr_bitfields, PAACE_AF_AP,
 			       PAACE_AP_PERMS_ALL);
-			if (of_device_is_compatible(node, "fsl,qman-portal"))
+			if (of_device_is_compatible(analde, "fsl,qman-portal"))
 				setup_qbman_paace(ppaace, QMAN_PORTAL_PAACE);
-			if (of_device_is_compatible(node, "fsl,qman"))
+			if (of_device_is_compatible(analde, "fsl,qman"))
 				setup_qbman_paace(ppaace, QMAN_PAACE);
-			if (of_device_is_compatible(node, "fsl,bman"))
+			if (of_device_is_compatible(analde, "fsl,bman"))
 				setup_qbman_paace(ppaace, BMAN_PAACE);
 			mb();
 			pamu_enable_liodn(liodn);
@@ -583,7 +583,7 @@ struct ccsr_law {
  */
 static int create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const __be32 *iprop;
 	void __iomem *lac = NULL;	/* Local Access Control registers */
 	struct ccsr_law __iomem *law;
@@ -594,61 +594,61 @@ static int create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
 	u32 csd_id = 0;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,corenet-law");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,corenet-law");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	iprop = of_get_property(np, "fsl,num-laws", NULL);
 	if (!iprop) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
 	num_laws = be32_to_cpup(iprop);
 	if (!num_laws) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
 	lac = of_iomap(np, 0);
 	if (!lac) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
 	/* LAW registers are at offset 0xC00 */
 	law = lac + 0xC00;
 
-	of_node_put(np);
+	of_analde_put(np);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,corenet-cf");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,corenet-cf");
 	if (!np) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
 	iprop = of_get_property(np, "fsl,ccf-num-csdids", NULL);
 	if (!iprop) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
 	num_csds = be32_to_cpup(iprop);
 	if (!num_csds) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
 	ccm = of_iomap(np, 0);
 	if (!ccm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	/* The undocumented CSDID registers are at offset 0x600 */
 	csdids = ccm + 0x600;
 
-	of_node_put(np);
+	of_analde_put(np);
 	np = NULL;
 
 	/* Find an unused coherence subdomain ID */
@@ -678,15 +678,15 @@ static int create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
 
 	if (i == 0 || i == num_laws) {
 		/* This should never happen */
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto error;
 	}
 
 	/* Find a free LAW entry */
 	while (law[--i].lawar & LAWAR_EN) {
 		if (i == 0) {
-			/* No higher priority LAW slots available */
-			ret = -ENOENT;
+			/* Anal higher priority LAW slots available */
+			ret = -EANALENT;
 			goto error;
 		}
 	}
@@ -706,18 +706,18 @@ error:
 		iounmap(lac);
 
 	if (np)
-		of_node_put(np);
+		of_analde_put(np);
 
 	return ret;
 }
 
 /*
  * Table of SVRs and the corresponding PORT_ID values. Port ID corresponds to a
- * bit map of snoopers for a given range of memory mapped by a LAW.
+ * bit map of sanalopers for a given range of memory mapped by a LAW.
  *
  * All future CoreNet-enabled SOCs will have this erratum(A-004510) fixed, so this
  * table should never need to be updated.  SVRs are guaranteed to be unique, so
- * there is no worry that a future SOC will inadvertently have one of these
+ * there is anal worry that a future SOC will inadvertently have one of these
  * values.
  */
 static const struct {
@@ -750,7 +750,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	unsigned long pamu_reg_off;
 	unsigned long pamu_reg_base;
 	struct pamu_isr_data *data = NULL;
-	struct device_node *guts_node;
+	struct device_analde *guts_analde;
 	u64 size;
 	struct page *p;
 	int ret = 0;
@@ -766,28 +766,28 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	/*
 	 * enumerate all PAMUs and allocate and setup PAMU tables
 	 * for each of them,
-	 * NOTE : All PAMUs share the same LIODN tables.
+	 * ANALTE : All PAMUs share the same LIODN tables.
 	 */
 
 	if (WARN_ON(probed))
 		return -EBUSY;
 
-	pamu_regs = of_iomap(dev->of_node, 0);
+	pamu_regs = of_iomap(dev->of_analde, 0);
 	if (!pamu_regs) {
-		dev_err(dev, "ioremap of PAMU node failed\n");
-		return -ENOMEM;
+		dev_err(dev, "ioremap of PAMU analde failed\n");
+		return -EANALMEM;
 	}
-	of_get_address(dev->of_node, 0, &size, NULL);
+	of_get_address(dev->of_analde, 0, &size, NULL);
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!irq) {
-		dev_warn(dev, "no interrupts listed in PAMU node\n");
+		dev_warn(dev, "anal interrupts listed in PAMU analde\n");
 		goto error;
 	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	data->pamu_reg_base = pamu_regs;
@@ -800,18 +800,18 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	guts_node = of_find_matching_node(NULL, guts_device_ids);
-	if (!guts_node) {
-		dev_err(dev, "could not find GUTS node %pOF\n", dev->of_node);
-		ret = -ENODEV;
+	guts_analde = of_find_matching_analde(NULL, guts_device_ids);
+	if (!guts_analde) {
+		dev_err(dev, "could analt find GUTS analde %pOF\n", dev->of_analde);
+		ret = -EANALDEV;
 		goto error;
 	}
 
-	guts_regs = of_iomap(guts_node, 0);
-	of_node_put(guts_node);
+	guts_regs = of_iomap(guts_analde, 0);
+	of_analde_put(guts_analde);
 	if (!guts_regs) {
-		dev_err(dev, "ioremap of GUTS node failed\n");
-		ret = -ENODEV;
+		dev_err(dev, "ioremap of GUTS analde failed\n");
+		ret = -EANALDEV;
 		goto error;
 	}
 
@@ -831,7 +831,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	p = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!p) {
 		dev_err(dev, "unable to allocate PAACT/SPAACT/OMT block\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -841,7 +841,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	/* Make sure the memory is naturally aligned */
 	if (ppaact_phys & ((PAGE_SIZE << order) - 1)) {
 		dev_err(dev, "PAACT/OMT block is unaligned\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -868,7 +868,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 
 		ret = create_csd(ppaact_phys, mem_size, csd_port_id);
 		if (ret) {
-			dev_err(dev, "could not create coherence subdomain\n");
+			dev_err(dev, "could analt create coherence subdomain\n");
 			goto error;
 		}
 	}
@@ -933,11 +933,11 @@ static struct platform_driver fsl_of_pamu_driver = {
 static __init int fsl_pamu_init(void)
 {
 	struct platform_device *pdev = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	/*
-	 * The normal OF process calls the probe function at some
+	 * The analrmal OF process calls the probe function at some
 	 * indeterminate later time, after most drivers have loaded.  This is
 	 * too late for us, because PAMU clients (like the Qman driver)
 	 * depend on PAMU being initialized early.
@@ -947,33 +947,33 @@ static __init int fsl_pamu_init(void)
 	 */
 
 	/*
-	 * We assume that there is only one PAMU node in the device tree.  A
-	 * single PAMU node represents all of the PAMU devices in the SOC
+	 * We assume that there is only one PAMU analde in the device tree.  A
+	 * single PAMU analde represents all of the PAMU devices in the SOC
 	 * already.   Everything else already makes that assumption, and the
-	 * binding for the PAMU nodes doesn't allow for any parent-child
+	 * binding for the PAMU analdes doesn't allow for any parent-child
 	 * relationships anyway.  In other words, support for more than one
-	 * PAMU node would require significant changes to a lot of code.
+	 * PAMU analde would require significant changes to a lot of code.
 	 */
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,pamu");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,pamu");
 	if (!np) {
-		pr_err("could not find a PAMU node\n");
-		return -ENODEV;
+		pr_err("could analt find a PAMU analde\n");
+		return -EANALDEV;
 	}
 
 	ret = platform_driver_register(&fsl_of_pamu_driver);
 	if (ret) {
-		pr_err("could not register driver (err=%i)\n", ret);
+		pr_err("could analt register driver (err=%i)\n", ret);
 		goto error_driver_register;
 	}
 
 	pdev = platform_device_alloc("fsl-of-pamu", 0);
 	if (!pdev) {
-		pr_err("could not allocate device %pOF\n", np);
-		ret = -ENOMEM;
+		pr_err("could analt allocate device %pOF\n", np);
+		ret = -EANALMEM;
 		goto error_device_alloc;
 	}
-	pdev->dev.of_node = of_node_get(np);
+	pdev->dev.of_analde = of_analde_get(np);
 
 	ret = pamu_domain_init();
 	if (ret)
@@ -981,15 +981,15 @@ static __init int fsl_pamu_init(void)
 
 	ret = platform_device_add(pdev);
 	if (ret) {
-		pr_err("could not add device %pOF (err=%i)\n", np, ret);
+		pr_err("could analt add device %pOF (err=%i)\n", np, ret);
 		goto error_device_add;
 	}
 
 	return 0;
 
 error_device_add:
-	of_node_put(pdev->dev.of_node);
-	pdev->dev.of_node = NULL;
+	of_analde_put(pdev->dev.of_analde);
+	pdev->dev.of_analde = NULL;
 
 	platform_device_put(pdev);
 
@@ -997,7 +997,7 @@ error_device_alloc:
 	platform_driver_unregister(&fsl_of_pamu_driver);
 
 error_driver_register:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return ret;
 }

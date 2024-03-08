@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Qualcomm Technologies HIDMA data structures
+ * Qualcomm Techanallogies HIDMA data structures
  *
  * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  */
@@ -69,15 +69,15 @@ struct hidma_lldev {
 	u32 evre_processed_off;		/* last processed EVRE		   */
 
 	u32 tre_write_offset;           /* TRE write location              */
-	struct tasklet_struct task;	/* task delivering notifications   */
+	struct tasklet_struct task;	/* task delivering analtifications   */
 	DECLARE_KFIFO_PTR(handoff_fifo,
 		struct hidma_tre *);    /* pending TREs FIFO               */
 };
 
 struct hidma_desc {
 	struct dma_async_tx_descriptor	desc;
-	/* link list node for this channel*/
-	struct list_head		node;
+	/* link list analde for this channel*/
+	struct list_head		analde;
 	u32				tre_ch;
 };
 
@@ -90,7 +90,7 @@ struct hidma_chan {
 
 	/*
 	 * active descriptor on this channel
-	 * It is used by the DMA complete notification to
+	 * It is used by the DMA complete analtification to
 	 * locate the descriptor that initiated the transfer.
 	 */
 	struct hidma_dev		*dmadev;

@@ -33,7 +33,7 @@ typedef struct xpaddr {
  * The pseudo-physical frame (pfn) used in all the helpers is always based
  * on Xen page granularity (i.e 4KB).
  *
- * A Linux page may be split across multiple non-contiguous Xen page so we
+ * A Linux page may be split across multiple analn-contiguous Xen page so we
  * have to keep track with frame based on 4KB page granularity.
  *
  * PV drivers should never make a direct usage of those helpers (particularly
@@ -59,7 +59,7 @@ static inline unsigned long pfn_to_bfn(unsigned long pfn)
 {
 	unsigned long mfn;
 
-	if (phys_to_mach.rb_node != NULL) {
+	if (phys_to_mach.rb_analde != NULL) {
 		mfn = __pfn_to_mfn(pfn);
 		if (mfn != INVALID_P2M_ENTRY)
 			return mfn;

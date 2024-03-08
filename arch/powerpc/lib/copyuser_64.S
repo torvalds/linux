@@ -47,7 +47,7 @@
 _GLOBAL_TOC(__copy_tofrom_user)
 #ifdef CONFIG_PPC_BOOK3S_64
 BEGIN_FTR_SECTION
-	nop
+	analp
 FTR_SECTION_ELSE
 	b	__copy_tofrom_user_power7
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
@@ -68,7 +68,7 @@ _GLOBAL(__copy_tofrom_user_base)
 	andi.	r6,r6,7
 	PPC_MTOCRF(0x01,r5)
 	blt	cr1,.Lshort_copy
-/* Below we want to nop out the bne if we're on a CPU that has the
+/* Below we want to analp out the bne if we're on a CPU that has the
  * CPU_FTR_UNALIGNED_LD_STD bit set and the CPU_FTR_CP_USE_DCBTZ bit
  * cleared.
  * At the time of writing the only CPU that has this combination of bits
@@ -76,7 +76,7 @@ _GLOBAL(__copy_tofrom_user_base)
  */
 test_feature = (SELFTEST_CASE == 1)
 BEGIN_FTR_SECTION
-	nop
+	analp
 FTR_SECTION_ELSE
 	bne	.Ldst_unaligned
 ALT_FTR_SECTION_END(CPU_FTR_UNALIGNED_LD_STD | CPU_FTR_CP_USE_DCBTZ, \
@@ -317,9 +317,9 @@ stex;	stb	r0,0(r3)
 
 /*
  * exception handlers follow
- * we have to return the number of bytes not copied
+ * we have to return the number of bytes analt copied
  * for an exception on a load, we set the rest of the destination to 0
- * Note that the number of bytes of instructions for adjusting r3 needs
+ * Analte that the number of bytes of instructions for adjusting r3 needs
  * to equal the amount of the adjustment, due to the trick of using
  * .Lld_exc - r3_offset as the handler address.
  */
@@ -330,13 +330,13 @@ stex;	stb	r0,0(r3)
 
 	/* adjust by 24 */
 	addi	r3,r3,8
-	nop
+	analp
 	/* adjust by 16 */
 	addi	r3,r3,8
-	nop
+	analp
 	/* adjust by 8 */
 	addi	r3,r3,8
-	nop
+	analp
 
 /*
  * Here we have had a fault on a load and r3 points to the first
@@ -354,7 +354,7 @@ stex;	stb	r0,0(r3)
 	subf	r5,r6,r5	/* #bytes left to go */
 
 /*
- * first see if we can copy any more bytes before hitting another exception
+ * first see if we can copy any more bytes before hitting aanalther exception
  */
 	mtctr	r5
 r3_offset = 0
@@ -377,7 +377,7 @@ stex;	stb	r0,0(r3)
 /*
  * exception handlers for stores: we need to work out how many bytes
  * weren't copied, and we may need to copy some more.
- * Note that the number of bytes of instructions for adjusting r3 needs
+ * Analte that the number of bytes of instructions for adjusting r3 needs
  * to equal the amount of the adjustment, due to the trick of using
  * .Lst_exc - r3_offset as the handler address.
  */
@@ -387,10 +387,10 @@ stex;	stb	r0,0(r3)
 
 	/* adjust by 24 */
 	addi	r3,r3,8
-	nop
+	analp
 	/* adjust by 16 */
 	addi	r3,r3,8
-	nop
+	analp
 	/* adjust by 8 */
 	addi	r3,r3,4
 	/* adjust by 4 */
@@ -416,7 +416,7 @@ stex;	stb	r0,0(r3)
 	addi	r3,r3,1
 	cmpld	r3,r7
 	blt	17b
-19:	subf	r3,r3,r7	/* #bytes not copied in r3 */
+19:	subf	r3,r3,r7	/* #bytes analt copied in r3 */
 	blr
 
 /*

@@ -4,8 +4,8 @@
  *
  * This driver adds support for uncore PMU based on ARM CoreSight Performance
  * Monitoring Unit Architecture. The PMU is accessible via MMIO registers and
- * like other uncore PMUs, it does not support process specific events and
- * cannot be used in sampling mode.
+ * like other uncore PMUs, it does analt support process specific events and
+ * cananalt be used in sampling mode.
  *
  * This code is based on other uncore PMUs like ARM DSU PMU. It provides a
  * generic implementation to operate the PMU according to CoreSight PMU
@@ -24,7 +24,7 @@
 #include <linux/cacheinfo.h>
 #include <linux/ctype.h>
 #include <linux/interrupt.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/perf_event.h>
@@ -119,18 +119,18 @@ static DEFINE_MUTEX(arm_cspmu_lock);
 static void arm_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
 				    struct hw_perf_event *hwc, u32 filter);
 
-static struct acpi_apmt_node *arm_cspmu_apmt_node(struct device *dev)
+static struct acpi_apmt_analde *arm_cspmu_apmt_analde(struct device *dev)
 {
-	return *(struct acpi_apmt_node **)dev_get_platdata(dev);
+	return *(struct acpi_apmt_analde **)dev_get_platdata(dev);
 }
 
 /*
  * In CoreSight PMU architecture, all of the MMIO registers are 32-bit except
  * counter register. The counter register can be implemented as 32-bit or 64-bit
  * register depending on the value of PMCFGR.SIZE field. For 64-bit access,
- * single-copy 64-bit atomic support is implementation defined. APMT node flag
+ * single-copy 64-bit atomic support is implementation defined. APMT analde flag
  * is used to identify if the PMU supports 64-bit single copy atomic. If 64-bit
- * single copy atomic is not supported, the driver treats the register as a pair
+ * single copy atomic is analt supported, the driver treats the register as a pair
  * of 32-bit register.
  */
 
@@ -219,7 +219,7 @@ arm_cspmu_event_attr_is_visible(struct kobject *kobj,
 
 	eattr = container_of(attr, typeof(*eattr), attr.attr);
 
-	/* Hide cycle event if not supported */
+	/* Hide cycle event if analt supported */
 	if (!supports_cycle_counter(cspmu) &&
 	    eattr->id == ARM_CSPMU_EVT_CYCLES_DEFAULT)
 		return 0;
@@ -298,7 +298,7 @@ static const char *arm_cspmu_get_identifier(const struct arm_cspmu *cspmu)
 	return identifier;
 }
 
-static const char *arm_cspmu_type_str[ACPI_APMT_NODE_TYPE_COUNT] = {
+static const char *arm_cspmu_type_str[ACPI_APMT_ANALDE_TYPE_COUNT] = {
 	"mc",
 	"smmu",
 	"pcie",
@@ -309,29 +309,29 @@ static const char *arm_cspmu_type_str[ACPI_APMT_NODE_TYPE_COUNT] = {
 static const char *arm_cspmu_get_name(const struct arm_cspmu *cspmu)
 {
 	struct device *dev;
-	struct acpi_apmt_node *apmt_node;
+	struct acpi_apmt_analde *apmt_analde;
 	u8 pmu_type;
 	char *name;
 	char acpi_hid_string[ACPI_ID_LEN] = { 0 };
-	static atomic_t pmu_idx[ACPI_APMT_NODE_TYPE_COUNT] = { 0 };
+	static atomic_t pmu_idx[ACPI_APMT_ANALDE_TYPE_COUNT] = { 0 };
 
 	dev = cspmu->dev;
-	apmt_node = arm_cspmu_apmt_node(dev);
-	pmu_type = apmt_node->type;
+	apmt_analde = arm_cspmu_apmt_analde(dev);
+	pmu_type = apmt_analde->type;
 
-	if (pmu_type >= ACPI_APMT_NODE_TYPE_COUNT) {
+	if (pmu_type >= ACPI_APMT_ANALDE_TYPE_COUNT) {
 		dev_err(dev, "unsupported PMU type-%u\n", pmu_type);
 		return NULL;
 	}
 
-	if (pmu_type == ACPI_APMT_NODE_TYPE_ACPI) {
+	if (pmu_type == ACPI_APMT_ANALDE_TYPE_ACPI) {
 		memcpy(acpi_hid_string,
-			&apmt_node->inst_primary,
-			sizeof(apmt_node->inst_primary));
+			&apmt_analde->inst_primary,
+			sizeof(apmt_analde->inst_primary));
 		name = devm_kasprintf(dev, GFP_KERNEL, "%s_%s_%s_%u", PMUNAME,
 				      arm_cspmu_type_str[pmu_type],
 				      acpi_hid_string,
-				      apmt_node->inst_secondary);
+				      apmt_analde->inst_secondary);
 	} else {
 		name = devm_kasprintf(dev, GFP_KERNEL, "%s_%s_%d", PMUNAME,
 				      arm_cspmu_type_str[pmu_type],
@@ -412,16 +412,16 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 {
 	int ret = 0;
 	struct arm_cspmu_impl_ops *impl_ops = &cspmu->impl.ops;
-	struct acpi_apmt_node *apmt_node = arm_cspmu_apmt_node(cspmu->dev);
+	struct acpi_apmt_analde *apmt_analde = arm_cspmu_apmt_analde(cspmu->dev);
 	struct arm_cspmu_impl_match *match;
 
 	/*
-	 * Get PMU implementer and product id from APMT node.
-	 * If APMT node doesn't have implementer/product id, try get it
+	 * Get PMU implementer and product id from APMT analde.
+	 * If APMT analde doesn't have implementer/product id, try get it
 	 * from PMIIDR.
 	 */
 	cspmu->impl.pmiidr =
-		(apmt_node->impl_id) ? apmt_node->impl_id :
+		(apmt_analde->impl_id) ? apmt_analde->impl_id :
 				       readl(cspmu->base0 + PMIIDR);
 
 	/* Find implementer specific attribute ops. */
@@ -445,7 +445,7 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 				ret = -EINVAL;
 			}
 		} else {
-			request_module_nowait(match->module_name);
+			request_module_analwait(match->module_name);
 			ret = -EPROBE_DEFER;
 		}
 
@@ -677,16 +677,16 @@ static int arm_cspmu_event_init(struct perf_event *event)
 	cspmu = to_arm_cspmu(event->pmu);
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
-	 * Following other "uncore" PMUs, we do not support sampling mode or
+	 * Following other "uncore" PMUs, we do analt support sampling mode or
 	 * attach to a task (per-process mode).
 	 */
 	if (is_sampling_event(event)) {
 		dev_dbg(cspmu->pmu.dev,
 			"Can't support sampling events\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (event->cpu < 0 || event->attach_state & PERF_ATTACH_TASK) {
@@ -701,7 +701,7 @@ static int arm_cspmu_event_init(struct perf_event *event)
 	 */
 	if (!cpumask_test_cpu(event->cpu, &cspmu->associated_cpus)) {
 		dev_dbg(cspmu->pmu.dev,
-			"Requested cpu is not associated with the PMU\n");
+			"Requested cpu is analt associated with the PMU\n");
 		return -EINVAL;
 	}
 
@@ -817,14 +817,14 @@ static void arm_cspmu_event_update(struct perf_event *event)
 {
 	struct arm_cspmu *cspmu = to_arm_cspmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
-	u64 delta, prev, now;
+	u64 delta, prev, analw;
 
 	do {
 		prev = local64_read(&hwc->prev_count);
-		now = arm_cspmu_read_counter(event);
-	} while (local64_cmpxchg(&hwc->prev_count, prev, now) != prev);
+		analw = arm_cspmu_read_counter(event);
+	} while (local64_cmpxchg(&hwc->prev_count, prev, analw) != prev);
 
-	delta = (now - prev) & counter_mask(cspmu);
+	delta = (analw - prev) & counter_mask(cspmu);
 	local64_add(delta, &event->count);
 }
 
@@ -907,7 +907,7 @@ static int arm_cspmu_add(struct perf_event *event, int flags)
 
 	if (WARN_ON_ONCE(!cpumask_test_cpu(smp_processor_id(),
 					   &cspmu->associated_cpus)))
-		return -ENOENT;
+		return -EANALENT;
 
 	idx = arm_cspmu_get_event_idx(hw_events, event);
 	if (idx < 0)
@@ -950,7 +950,7 @@ static void arm_cspmu_read(struct perf_event *event)
 
 static struct arm_cspmu *arm_cspmu_alloc(struct platform_device *pdev)
 {
-	struct acpi_apmt_node *apmt_node;
+	struct acpi_apmt_analde *apmt_analde;
 	struct arm_cspmu *cspmu;
 	struct device *dev = &pdev->dev;
 
@@ -961,8 +961,8 @@ static struct arm_cspmu *arm_cspmu_alloc(struct platform_device *pdev)
 	cspmu->dev = dev;
 	platform_set_drvdata(pdev, cspmu);
 
-	apmt_node = arm_cspmu_apmt_node(dev);
-	cspmu->has_atomic_dword = apmt_node->flags & ACPI_APMT_FLAGS_ATOMIC;
+	apmt_analde = arm_cspmu_apmt_analde(dev);
+	cspmu->has_atomic_dword = apmt_analde->flags & ACPI_APMT_FLAGS_ATOMIC;
 
 	return cspmu;
 }
@@ -1019,7 +1019,7 @@ static int arm_cspmu_init_mmio(struct arm_cspmu *cspmu)
 			     sizeof(*cspmu->hw_events.events), GFP_KERNEL);
 
 	if (!cspmu->hw_events.events)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1085,16 +1085,16 @@ static int arm_cspmu_request_irq(struct arm_cspmu *cspmu)
 	dev = cspmu->dev;
 	pdev = to_platform_device(dev);
 
-	/* Skip IRQ request if the PMU does not support overflow interrupt. */
+	/* Skip IRQ request if the PMU does analt support overflow interrupt. */
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq < 0)
 		return irq == -ENXIO ? 0 : irq;
 
 	ret = devm_request_irq(dev, irq, arm_cspmu_handle_irq,
-			       IRQF_NOBALANCING | IRQF_NO_THREAD, dev_name(dev),
+			       IRQF_ANALBALANCING | IRQF_ANAL_THREAD, dev_name(dev),
 			       cspmu);
 	if (ret) {
-		dev_err(dev, "Could not request IRQ %d\n", irq);
+		dev_err(dev, "Could analt request IRQ %d\n", irq);
 		return ret;
 	}
 
@@ -1113,7 +1113,7 @@ static inline int arm_cspmu_find_cpu_container(int cpu, u32 container_uid)
 
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	acpi_dev = ACPI_COMPANION(cpu_dev);
 	while (acpi_dev) {
@@ -1123,21 +1123,21 @@ static inline int arm_cspmu_find_cpu_container(int cpu, u32 container_uid)
 		acpi_dev = acpi_dev_parent(acpi_dev);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 {
-	struct acpi_apmt_node *apmt_node;
+	struct acpi_apmt_analde *apmt_analde;
 	int affinity_flag;
 	int cpu;
 
-	apmt_node = arm_cspmu_apmt_node(cspmu->dev);
-	affinity_flag = apmt_node->flags & ACPI_APMT_FLAGS_AFFINITY;
+	apmt_analde = arm_cspmu_apmt_analde(cspmu->dev);
+	affinity_flag = apmt_analde->flags & ACPI_APMT_FLAGS_AFFINITY;
 
 	if (affinity_flag == ACPI_APMT_FLAGS_AFFINITY_PROC) {
 		for_each_possible_cpu(cpu) {
-			if (apmt_node->proc_affinity ==
+			if (apmt_analde->proc_affinity ==
 			    get_acpi_id_for_cpu(cpu)) {
 				cpumask_set_cpu(cpu, &cspmu->associated_cpus);
 				break;
@@ -1146,7 +1146,7 @@ static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 	} else {
 		for_each_possible_cpu(cpu) {
 			if (arm_cspmu_find_cpu_container(
-				    cpu, apmt_node->proc_affinity))
+				    cpu, apmt_analde->proc_affinity))
 				continue;
 
 			cpumask_set_cpu(cpu, &cspmu->associated_cpus);
@@ -1154,8 +1154,8 @@ static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 	}
 
 	if (cpumask_empty(&cspmu->associated_cpus)) {
-		dev_dbg(cspmu->dev, "No cpu associated with the PMU\n");
-		return -ENODEV;
+		dev_dbg(cspmu->dev, "Anal cpu associated with the PMU\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1163,7 +1163,7 @@ static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 #else
 static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -1179,16 +1179,16 @@ static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
 
 	attr_groups = arm_cspmu_alloc_attr_group(cspmu);
 	if (!attr_groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpuhp_state_add_instance(arm_cspmu_cpuhp_state,
-				       &cspmu->cpuhp_node);
+				       &cspmu->cpuhp_analde);
 	if (ret)
 		return ret;
 
-	capabilities = PERF_PMU_CAP_NO_EXCLUDE;
+	capabilities = PERF_PMU_CAP_ANAL_EXCLUDE;
 	if (cspmu->irq == 0)
-		capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
+		capabilities |= PERF_PMU_CAP_ANAL_INTERRUPT;
 
 	cspmu->pmu = (struct pmu){
 		.task_ctx_nr	= perf_invalid_context,
@@ -1212,7 +1212,7 @@ static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
 	ret = perf_pmu_register(&cspmu->pmu, cspmu->name, -1);
 	if (ret) {
 		cpuhp_state_remove_instance(arm_cspmu_cpuhp_state,
-					    &cspmu->cpuhp_node);
+					    &cspmu->cpuhp_analde);
 	}
 
 	return ret;
@@ -1225,7 +1225,7 @@ static int arm_cspmu_device_probe(struct platform_device *pdev)
 
 	cspmu = arm_cspmu_alloc(pdev);
 	if (!cspmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = arm_cspmu_init_mmio(cspmu);
 	if (ret)
@@ -1257,7 +1257,7 @@ static int arm_cspmu_device_remove(struct platform_device *pdev)
 	struct arm_cspmu *cspmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&cspmu->pmu);
-	cpuhp_state_remove_instance(arm_cspmu_cpuhp_state, &cspmu->cpuhp_node);
+	cpuhp_state_remove_instance(arm_cspmu_cpuhp_state, &cspmu->cpuhp_analde);
 
 	return 0;
 }
@@ -1285,15 +1285,15 @@ static void arm_cspmu_set_active_cpu(int cpu, struct arm_cspmu *cspmu)
 		WARN_ON(irq_set_affinity(cspmu->irq, &cspmu->active_cpu));
 }
 
-static int arm_cspmu_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int arm_cspmu_cpu_online(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct arm_cspmu *cspmu =
-		hlist_entry_safe(node, struct arm_cspmu, cpuhp_node);
+		hlist_entry_safe(analde, struct arm_cspmu, cpuhp_analde);
 
 	if (!cpumask_test_cpu(cpu, &cspmu->associated_cpus))
 		return 0;
 
-	/* If the PMU is already managed, there is nothing to do */
+	/* If the PMU is already managed, there is analthing to do */
 	if (!cpumask_empty(&cspmu->active_cpu))
 		return 0;
 
@@ -1303,15 +1303,15 @@ static int arm_cspmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int arm_cspmu_cpu_teardown(unsigned int cpu, struct hlist_node *node)
+static int arm_cspmu_cpu_teardown(unsigned int cpu, struct hlist_analde *analde)
 {
 	int dst;
 	struct cpumask online_supported;
 
 	struct arm_cspmu *cspmu =
-		hlist_entry_safe(node, struct arm_cspmu, cpuhp_node);
+		hlist_entry_safe(analde, struct arm_cspmu, cpuhp_analde);
 
-	/* Nothing to do if this CPU doesn't own the PMU */
+	/* Analthing to do if this CPU doesn't own the PMU */
 	if (!cpumask_test_and_clear_cpu(cpu, &cspmu->active_cpu))
 		return 0;
 
@@ -1363,7 +1363,7 @@ int arm_cspmu_impl_register(const struct arm_cspmu_impl_match *impl_match)
 			match->module = impl_match->module;
 			match->impl_init_ops = impl_match->impl_init_ops;
 		} else {
-			/* Broken match table may contain non-unique entries */
+			/* Broken match table may contain analn-unique entries */
 			WARN(1, "arm_cspmu backend already registered for module: %s, pmiidr: 0x%x, mask: 0x%x\n",
 				match->module_name,
 				match->pmiidr_val,

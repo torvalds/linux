@@ -33,9 +33,9 @@ static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
 
 	msg = kmalloc(sizeof(*msg) + payload, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* NB: we only kmalloc()ated enough space for the op field */
+	/* NB: we only kmalloc()ated eanalugh space for the op field */
 	params_op = (uint32_t *)msg->data;
 	*params_op = EC_VBNV_CONTEXT_OP_READ;
 
@@ -76,7 +76,7 @@ static ssize_t vboot_context_write(struct file *filp, struct kobject *kobj,
 
 	msg = kmalloc(sizeof(*msg) + para_sz, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	params = (struct ec_params_vbnvcontext *)msg->data;
 	params->op = EC_VBNV_CONTEXT_OP_WRITE;

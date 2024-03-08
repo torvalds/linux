@@ -6,7 +6,7 @@
 
 #include <linux/cpumask.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irqchip/irq-bcm2836.h>
@@ -27,17 +27,17 @@
 /* Size of mapped Cortex A9 SCU address space */
 #define CORTEX_A9_SCU_SIZE	0x58
 
-#define SECONDARY_TIMEOUT_NS	NSEC_PER_MSEC	/* 1 msec (in nanoseconds) */
+#define SECONDARY_TIMEOUT_NS	NSEC_PER_MSEC	/* 1 msec (in naanalseconds) */
 #define BOOT_ADDR_CPUID_MASK	0x3
 
-/* Name of device node property defining secondary boot register location */
+/* Name of device analde property defining secondary boot register location */
 #define OF_SECONDARY_BOOT	"secondary-boot-reg"
 #define MPIDR_CPUID_BITMASK	0x3
 
 /*
- * Enable the Cortex A9 Snoop Control Unit
+ * Enable the Cortex A9 Sanalop Control Unit
  *
- * By the time this is called we already know there are multiple
+ * By the time this is called we already kanalw there are multiple
  * cores present.  We assume we're running on a Cortex A9 processor,
  * so any trouble getting the base address register or getting the
  * SCU base is a problem.
@@ -50,7 +50,7 @@ static int __init scu_a9_enable(void)
 	void __iomem *scu_base;
 
 	if (!scu_a9_has_base()) {
-		pr_err("no configuration base address register!\n");
+		pr_err("anal configuration base address register!\n");
 		return -ENXIO;
 	}
 
@@ -58,14 +58,14 @@ static int __init scu_a9_enable(void)
 	config_base = scu_a9_get_base();
 	if (!config_base) {
 		pr_err("hardware reports only one core\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	scu_base = ioremap((phys_addr_t)config_base, CORTEX_A9_SCU_SIZE);
 	if (!scu_base) {
 		pr_err("failed to remap config base (%lu/%u) for SCU\n",
 			config_base, CORTEX_A9_SCU_SIZE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	scu_enable(scu_base);
@@ -78,20 +78,20 @@ static int __init scu_a9_enable(void)
 static u32 secondary_boot_addr_for(unsigned int cpu)
 {
 	u32 secondary_boot_addr = 0;
-	struct device_node *cpu_node = of_get_cpu_node(cpu, NULL);
+	struct device_analde *cpu_analde = of_get_cpu_analde(cpu, NULL);
 
-        if (!cpu_node) {
-		pr_err("Failed to find device tree node for CPU%u\n", cpu);
+        if (!cpu_analde) {
+		pr_err("Failed to find device tree analde for CPU%u\n", cpu);
 		return 0;
 	}
 
-	if (of_property_read_u32(cpu_node,
+	if (of_property_read_u32(cpu_analde,
 				 OF_SECONDARY_BOOT,
 				 &secondary_boot_addr))
-		pr_err("required secondary boot register not specified for CPU%u\n",
+		pr_err("required secondary boot register analt specified for CPU%u\n",
 			cpu);
 
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 
 	return secondary_boot_addr;
 }
@@ -109,7 +109,7 @@ static int nsp_write_lut(unsigned int cpu)
 				      sizeof(phys_addr_t));
 	if (!sku_rom_lut) {
 		pr_warn("unable to ioremap SKU-ROM LUT register for cpu %u\n", cpu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	secondary_startup_phy = __pa_symbol(secondary_startup);
@@ -178,7 +178,7 @@ static int kona_boot_secondary(unsigned int cpu, struct task_struct *idle)
 				   sizeof(phys_addr_t));
 	if (!boot_reg) {
 		pr_err("unable to map boot register for cpu %u\n", cpu_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -223,26 +223,26 @@ static int kona_boot_secondary(unsigned int cpu, struct task_struct *idle)
 static int bcm23550_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	void __iomem *cdc_base;
-	struct device_node *dn;
+	struct device_analde *dn;
 	char *name;
 	int ret;
 
-	/* Make sure a CDC node exists before booting the
+	/* Make sure a CDC analde exists before booting the
 	 * secondary core.
 	 */
 	name = "brcm,bcm23550-cdc";
-	dn = of_find_compatible_node(NULL, NULL, name);
+	dn = of_find_compatible_analde(NULL, NULL, name);
 	if (!dn) {
-		pr_err("unable to find cdc node\n");
-		return -ENODEV;
+		pr_err("unable to find cdc analde\n");
+		return -EANALDEV;
 	}
 
 	cdc_base = of_iomap(dn, 0);
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	if (!cdc_base) {
 		pr_err("unable to remap cdc base register\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Boot the secondary core */
@@ -285,22 +285,22 @@ out:
 static int bcm2836_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	void __iomem *intc_base;
-	struct device_node *dn;
+	struct device_analde *dn;
 	char *name;
 
 	name = "brcm,bcm2836-l1-intc";
-	dn = of_find_compatible_node(NULL, NULL, name);
+	dn = of_find_compatible_analde(NULL, NULL, name);
 	if (!dn) {
-		pr_err("unable to find intc node\n");
-		return -ENODEV;
+		pr_err("unable to find intc analde\n");
+		return -EANALDEV;
 	}
 
 	intc_base = of_iomap(dn, 0);
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	if (!intc_base) {
 		pr_err("unable to remap intc base register\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	writel(virt_to_phys(secondary_startup),

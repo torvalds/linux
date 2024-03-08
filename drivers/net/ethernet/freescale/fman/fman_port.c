@@ -89,8 +89,8 @@
 #define BMI_RX_FIFO_PRI_ELEVATION_SHIFT	16
 #define BMI_RX_FIFO_THRESHOLD_ETHE		0x80000000
 
-#define BMI_FRAME_END_CS_IGNORE_SHIFT		24
-#define BMI_FRAME_END_CS_IGNORE_MASK		0x0000001f
+#define BMI_FRAME_END_CS_IGANALRE_SHIFT		24
+#define BMI_FRAME_END_CS_IGANALRE_MASK		0x0000001f
 
 #define BMI_RX_FRAME_END_CUT_SHIFT		16
 #define BMI_RX_FRAME_END_CUT_MASK		0x0000001f
@@ -145,7 +145,7 @@
 	FM_PORT_FRM_ERR_PHYSICAL		| \
 	FM_PORT_FRM_ERR_SIZE			| \
 	FM_PORT_FRM_ERR_EXTRACTION		| \
-	FM_PORT_FRM_ERR_NO_SCHEME		| \
+	FM_PORT_FRM_ERR_ANAL_SCHEME		| \
 	FM_PORT_FRM_ERR_PRS_TIMEOUT		| \
 	FM_PORT_FRM_ERR_PRS_ILL_INSTRUCT	| \
 	FM_PORT_FRM_ERR_BLOCK_LIMIT_EXCEEDED	| \
@@ -313,7 +313,7 @@ struct fman_port_hwp_regs {
 
 /* QMI dequeue prefetch modes */
 enum fman_port_deq_prefetch {
-	FMAN_PORT_DEQ_NO_PREFETCH, /* No prefetch mode */
+	FMAN_PORT_DEQ_ANAL_PREFETCH, /* Anal prefetch mode */
 	FMAN_PORT_DEQ_PART_PREFETCH, /* Partial prefetch mode */
 	FMAN_PORT_DEQ_FULL_PREFETCH /* Full prefetch mode */
 };
@@ -321,11 +321,11 @@ enum fman_port_deq_prefetch {
 /* A structure for defining FM port resources */
 struct fman_port_rsrc {
 	u32 num; /* Committed required resource */
-	u32 extra; /* Extra (not committed) required resource */
+	u32 extra; /* Extra (analt committed) required resource */
 };
 
 enum fman_port_dma_swap {
-	FMAN_PORT_DMA_NO_SWAP,	/* No swap, transfer data as is */
+	FMAN_PORT_DMA_ANAL_SWAP,	/* Anal swap, transfer data as is */
 	FMAN_PORT_DMA_SWAP_LE,
 	/* The transferred data should be swapped in PPC Little Endian mode */
 	FMAN_PORT_DMA_SWAP_BE
@@ -337,7 +337,7 @@ enum fman_port_color {
 	FMAN_PORT_COLOR_GREEN,	/* Default port color is green */
 	FMAN_PORT_COLOR_YELLOW,	/* Default port color is yellow */
 	FMAN_PORT_COLOR_RED,		/* Default port color is red */
-	FMAN_PORT_COLOR_OVERRIDE	/* Ignore color */
+	FMAN_PORT_COLOR_OVERRIDE	/* Iganalre color */
 };
 
 /* QMI dequeue from the SP channel - types */
@@ -346,7 +346,7 @@ enum fman_port_deq_type {
 	/* Priority precedence and Intra-Class scheduling */
 	FMAN_PORT_DEQ_ACTIVE_FQ,
 	/* Active FQ precedence and Intra-Class scheduling */
-	FMAN_PORT_DEQ_ACTIVE_FQ_NO_ICS
+	FMAN_PORT_DEQ_ACTIVE_FQ_ANAL_ICS
 	/* Active FQ precedence and override Intra-Class scheduling */
 };
 
@@ -381,7 +381,7 @@ struct fman_port_cfg {
 	enum fman_port_deq_type deq_type;
 	enum fman_port_deq_prefetch deq_prefetch_option;
 	u16 deq_byte_cnt;
-	u8 cheksum_last_bytes_ignore;
+	u8 cheksum_last_bytes_iganalre;
 	u8 rx_cut_end_bytes;
 	struct fman_buf_pool_depletion buf_pool_depletion;
 	struct fman_ext_pools ext_buf_pools;
@@ -417,7 +417,7 @@ struct fman_port_dts_params {
 	enum fman_port_type type;	/* Port type */
 	u16 speed;			/* Port speed */
 	u8 id;				/* HW Port Id */
-	u32 qman_channel_id;		/* QMan channel id (non RX only) */
+	u32 qman_channel_id;		/* QMan channel id (analn RX only) */
 	struct fman *fman;		/* FMan Handle */
 };
 
@@ -477,8 +477,8 @@ static int init_bmi_rx(struct fman_port *port)
 		iowrite32be(BMI_RX_FIFO_THRESHOLD_ETHE, &regs->fmbm_reth);
 
 	/* Frame end data */
-	tmp = (cfg->cheksum_last_bytes_ignore & BMI_FRAME_END_CS_IGNORE_MASK) <<
-		BMI_FRAME_END_CS_IGNORE_SHIFT;
+	tmp = (cfg->cheksum_last_bytes_iganalre & BMI_FRAME_END_CS_IGANALRE_MASK) <<
+		BMI_FRAME_END_CS_IGANALRE_SHIFT;
 	tmp |= (cfg->rx_cut_end_bytes & BMI_RX_FRAME_END_CUT_MASK) <<
 		BMI_RX_FRAME_END_CUT_SHIFT;
 	if (cfg->errata_A006320)
@@ -560,8 +560,8 @@ static int init_bmi_tx(struct fman_port *port)
 	iowrite32be(tmp, &regs->fmbm_tfp);
 
 	/* Frame end data */
-	tmp = (cfg->cheksum_last_bytes_ignore & BMI_FRAME_END_CS_IGNORE_MASK) <<
-		BMI_FRAME_END_CS_IGNORE_SHIFT;
+	tmp = (cfg->cheksum_last_bytes_iganalre & BMI_FRAME_END_CS_IGANALRE_MASK) <<
+		BMI_FRAME_END_CS_IGANALRE_SHIFT;
 	iowrite32be(tmp, &regs->fmbm_tfed);
 
 	/* Internal context parameters */
@@ -637,7 +637,7 @@ static int init_qmi(struct fman_port *port)
 	case FMAN_PORT_DEQ_ACTIVE_FQ:
 		tmp |= QMI_DEQ_CFG_TYPE2;
 		break;
-	case FMAN_PORT_DEQ_ACTIVE_FQ_NO_ICS:
+	case FMAN_PORT_DEQ_ACTIVE_FQ_ANAL_ICS:
 		tmp |= QMI_DEQ_CFG_TYPE3;
 		break;
 	default:
@@ -645,7 +645,7 @@ static int init_qmi(struct fman_port *port)
 	}
 
 	switch (cfg->deq_prefetch_option) {
-	case FMAN_PORT_DEQ_NO_PREFETCH:
+	case FMAN_PORT_DEQ_ANAL_PREFETCH:
 		break;
 	case FMAN_PORT_DEQ_PART_PREFETCH:
 		tmp |= QMI_DEQ_CFG_PREFETCH_PARTIAL;
@@ -839,7 +839,7 @@ static int verify_size_of_fifo(struct fman_port *port)
 
 		/* Add some margin for back-to-back capability to improve
 		 * performance, allows the hardware to pipeline new frame dma
-		 * while the previous frame not yet transmitted.
+		 * while the previous frame analt yet transmitted.
 		 */
 		if (port->port_speed == 10000)
 			opt_fifo_size_for_b2b += 3 * FMAN_BMI_FIFO_UNITS;
@@ -866,7 +866,7 @@ static int verify_size_of_fifo(struct fman_port *port)
 
 		/* Add some margin for back-to-back capability to improve
 		 * performance,allows the hardware to pipeline new frame dma
-		 * while the previous frame not yet transmitted.
+		 * while the previous frame analt yet transmitted.
 		 */
 		if (port->port_speed == 10000)
 			opt_fifo_size_for_b2b += 8 * FMAN_BMI_FIFO_UNITS;
@@ -984,15 +984,15 @@ static int init_low_level_driver(struct fman_port *port)
 	if (init(port) != 0) {
 		dev_err(port->dev, "%s: fman port initialization failed\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* The code bellow is a trick so the FM will not release the buffer
-	 * to BM nor will try to enqueue the frame to QM
+	/* The code bellow is a trick so the FM will analt release the buffer
+	 * to BM analr will try to enqueue the frame to QM
 	 */
 	if (port->port_type == FMAN_PORT_TYPE_TX) {
 		if (!cfg->dflt_fqid && cfg->dont_release_buf) {
-			/* override fmbm_tcfqid 0 with a false non-0 value.
+			/* override fmbm_tcfqid 0 with a false analn-0 value.
 			 * This will force FM to act according to tfene.
 			 * Otherwise, if fmbm_tcfqid is 0 the FM will release
 			 * buffers to BM regardless of fmbm_tfene
@@ -1210,7 +1210,7 @@ static void set_dflt_cfg(struct fman_port *port,
 {
 	struct fman_port_cfg *cfg = port->cfg;
 
-	cfg->dma_swap_data = FMAN_PORT_DMA_NO_SWAP;
+	cfg->dma_swap_data = FMAN_PORT_DMA_ANAL_SWAP;
 	cfg->color = FMAN_PORT_COLOR_GREEN;
 	cfg->rx_cut_end_bytes = DFLT_PORT_CUT_BYTES_FROM_END;
 	cfg->rx_pri_elevation = BMI_PRIORITY_ELEVATION_LEVEL;
@@ -1229,7 +1229,7 @@ static void set_dflt_cfg(struct fman_port *port,
 					    port->max_port_fifo_size);
 
 	if ((port->rev_info.major == 6) &&
-	    ((port->rev_info.minor == 0) || (port->rev_info.minor == 3)))
+	    ((port->rev_info.mianalr == 0) || (port->rev_info.mianalr == 3)))
 		cfg->errata_A006320 = true;
 
 	/* Excessive Threshold register - exists for pre-FMv3 chips only */
@@ -1269,11 +1269,11 @@ static void set_tx_dflt_cfg(struct fman_port *port,
 						 port->port_type,
 						 port->port_speed);
 	port->cfg->err_fqid =
-		port_params->specific_params.non_rx_params.err_fqid;
+		port_params->specific_params.analn_rx_params.err_fqid;
 	port->cfg->deq_sp =
 		(u8)(dts_params->qman_channel_id & QMI_DEQ_CFG_SUBPORTAL_MASK);
 	port->cfg->dflt_fqid =
-		port_params->specific_params.non_rx_params.dflt_fqid;
+		port_params->specific_params.analn_rx_params.dflt_fqid;
 	port->cfg->deq_high_priority = true;
 }
 
@@ -1286,7 +1286,7 @@ static void set_tx_dflt_cfg(struct fman_port *port,
  * The routine returns a pointer to the FM PORT object.
  * This descriptor must be passed as first parameter to all other FM PORT
  * function calls.
- * No actual initialization or configuration of FM hardware is done by this
+ * Anal actual initialization or configuration of FM hardware is done by this
  * routine.
  *
  * Return: 0 on success; Error code otherwise.
@@ -1357,7 +1357,7 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 	/* FM_HEAVY_TRAFFIC_SEQUENCER_HANG_ERRATA_FMAN_A006981 errata
 	 * workaround
 	 */
-	if ((port->rev_info.major == 6) && (port->rev_info.minor == 0) &&
+	if ((port->rev_info.major == 6) && (port->rev_info.mianalr == 0) &&
 	    (((port->port_type == FMAN_PORT_TYPE_TX) &&
 	    (port->port_speed == 1000)))) {
 		port->open_dmas.num = 16;
@@ -1441,7 +1441,7 @@ int fman_port_init(struct fman_port *port)
 		err = set_ext_buffer_pools(port);
 		if (err)
 			return err;
-		/* check if the largest external buffer pool is large enough */
+		/* check if the largest external buffer pool is large eanalugh */
 		if (cfg->buf_margins.start_margins + MIN_EXT_BUF_SIZE +
 		    cfg->buf_margins.end_margins >
 		    port->rx_pools_params.largest_buf_size) {
@@ -1534,7 +1534,7 @@ int fman_port_cfg_buf_prefix_content(struct fman_port *port,
 	memcpy(&port->cfg->buffer_prefix_content,
 	       buffer_prefix_content,
 	       sizeof(struct fman_buffer_prefix_content));
-	/* if data_align was not initialized by user,
+	/* if data_align was analt initialized by user,
 	 * we return to driver's default
 	 */
 	if (!port->cfg->buffer_prefix_content.data_align)
@@ -1549,11 +1549,11 @@ EXPORT_SYMBOL(fman_port_cfg_buf_prefix_content);
  * fman_port_disable
  * @port:	A pointer to a FM Port module.
  *
- * Gracefully disable an FM port. The port will not start new	tasks after all
+ * Gracefully disable an FM port. The port will analt start new	tasks after all
  * tasks associated with the port are terminated.
  *
  * This is a blocking routine, it returns after port is gracefully stopped,
- * i.e. the port will not except new frames, but it will finish all frames
+ * i.e. the port will analt except new frames, but it will finish all frames
  * or tasks which were already began.
  * Allowed only following fman_port_init().
  *
@@ -1743,7 +1743,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 {
 	struct fman_port *port;
 	struct fman *fman;
-	struct device_node *fm_node, *port_node;
+	struct device_analde *fm_analde, *port_analde;
 	struct platform_device *fm_pdev;
 	struct resource res;
 	struct resource *dev_res;
@@ -1755,22 +1755,22 @@ static int fman_port_probe(struct platform_device *of_dev)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->dev = &of_dev->dev;
 
-	port_node = of_node_get(of_dev->dev.of_node);
+	port_analde = of_analde_get(of_dev->dev.of_analde);
 
-	/* Get the FM node */
-	fm_node = of_get_parent(port_node);
-	if (!fm_node) {
+	/* Get the FM analde */
+	fm_analde = of_get_parent(port_analde);
+	if (!fm_analde) {
 		dev_err(port->dev, "%s: of_get_parent() failed\n", __func__);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto return_err;
 	}
 
-	fm_pdev = of_find_device_by_node(fm_node);
-	of_node_put(fm_node);
+	fm_pdev = of_find_device_by_analde(fm_analde);
+	of_analde_put(fm_analde);
 	if (!fm_pdev) {
 		err = -EINVAL;
 		goto return_err;
@@ -1782,36 +1782,36 @@ static int fman_port_probe(struct platform_device *of_dev)
 		goto put_device;
 	}
 
-	err = of_property_read_u32(port_node, "cell-index", &val);
+	err = of_property_read_u32(port_analde, "cell-index", &val);
 	if (err) {
 		dev_err(port->dev, "%s: reading cell-index for %pOF failed\n",
-			__func__, port_node);
+			__func__, port_analde);
 		err = -EINVAL;
 		goto put_device;
 	}
 	port_id = (u8)val;
 	port->dts_params.id = port_id;
 
-	if (of_device_is_compatible(port_node, "fsl,fman-v3-port-tx")) {
+	if (of_device_is_compatible(port_analde, "fsl,fman-v3-port-tx")) {
 		port_type = FMAN_PORT_TYPE_TX;
 		port_speed = 1000;
-		if (of_find_property(port_node, "fsl,fman-10g-port", &lenp))
+		if (of_find_property(port_analde, "fsl,fman-10g-port", &lenp))
 			port_speed = 10000;
 
-	} else if (of_device_is_compatible(port_node, "fsl,fman-v2-port-tx")) {
+	} else if (of_device_is_compatible(port_analde, "fsl,fman-v2-port-tx")) {
 		if (port_id >= TX_10G_PORT_BASE)
 			port_speed = 10000;
 		else
 			port_speed = 1000;
 		port_type = FMAN_PORT_TYPE_TX;
 
-	} else if (of_device_is_compatible(port_node, "fsl,fman-v3-port-rx")) {
+	} else if (of_device_is_compatible(port_analde, "fsl,fman-v3-port-rx")) {
 		port_type = FMAN_PORT_TYPE_RX;
 		port_speed = 1000;
-		if (of_find_property(port_node, "fsl,fman-10g-port", &lenp))
+		if (of_find_property(port_analde, "fsl,fman-10g-port", &lenp))
 			port_speed = 10000;
 
-	} else if (of_device_is_compatible(port_node, "fsl,fman-v2-port-rx")) {
+	} else if (of_device_is_compatible(port_analde, "fsl,fman-v2-port-rx")) {
 		if (port_id >= RX_10G_PORT_BASE)
 			port_speed = 10000;
 		else
@@ -1840,17 +1840,17 @@ static int fman_port_probe(struct platform_device *of_dev)
 		port->dts_params.qman_channel_id = qman_channel_id;
 	}
 
-	err = of_address_to_resource(port_node, 0, &res);
+	err = of_address_to_resource(port_analde, 0, &res);
 	if (err < 0) {
 		dev_err(port->dev, "%s: of_address_to_resource() failed\n",
 			__func__);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_device;
 	}
 
 	port->dts_params.fman = fman;
 
-	of_node_put(port_node);
+	of_analde_put(port_analde);
 
 	dev_res = __devm_request_region(port->dev, &res, res.start,
 					resource_size(&res), "fman-port");
@@ -1873,7 +1873,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 put_device:
 	put_device(&fm_pdev->dev);
 return_err:
-	of_node_put(port_node);
+	of_analde_put(port_analde);
 free_port:
 	kfree(port);
 	return err;

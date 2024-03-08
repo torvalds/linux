@@ -35,7 +35,7 @@ static int __init match_dev_by_uuid(struct device *dev, const void *data)
  * @devt:	dev_t result
  *
  * The function will return the first partition which contains a matching
- * UUID value in its partition_meta_info struct.  This does not search
+ * UUID value in its partition_meta_info struct.  This does analt search
  * by filesystem UUIDs.
  *
  * If @uuid_str is followed by a "/PARTNROFF=%d", then the number will be
@@ -70,7 +70,7 @@ static int __init devt_from_partuuid(const char *uuid_str, dev_t *devt)
 
 	dev = class_find_device(&block_class, NULL, &cmp, &match_dev_by_uuid);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (offset) {
 		/*
@@ -78,7 +78,7 @@ static int __init devt_from_partuuid(const char *uuid_str, dev_t *devt)
 		 * to the partition number found by UUID.
 		 */
 		*devt = part_devt(dev_to_disk(dev),
-				  dev_to_bdev(dev)->bd_partno + offset);
+				  dev_to_bdev(dev)->bd_partanal + offset);
 	} else {
 		*devt = dev->devt;
 	}
@@ -115,13 +115,13 @@ static int __init devt_from_partlabel(const char *label, dev_t *devt)
 
 	dev = class_find_device(&block_class, NULL, label, &match_dev_by_label);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	*devt = dev->devt;
 	put_device(dev);
 	return 0;
 }
 
-static dev_t __init blk_lookup_devt(const char *name, int partno)
+static dev_t __init blk_lookup_devt(const char *name, int partanal)
 {
 	dev_t devt = MKDEV(0, 0);
 	struct class_dev_iter iter;
@@ -134,14 +134,14 @@ static dev_t __init blk_lookup_devt(const char *name, int partno)
 		if (strcmp(dev_name(dev), name))
 			continue;
 
-		if (partno < disk->minors) {
-			/* We need to return the right devno, even
+		if (partanal < disk->mianalrs) {
+			/* We need to return the right devanal, even
 			 * if the partition doesn't exist yet.
 			 */
 			devt = MKDEV(MAJOR(dev->devt),
-				     MINOR(dev->devt) + partno);
+				     MIANALR(dev->devt) + partanal);
 		} else {
-			devt = part_devt(disk, partno);
+			devt = part_devt(disk, partanal);
 			if (devt)
 				break;
 		}
@@ -169,13 +169,13 @@ static int __init devt_from_devname(const char *name, dev_t *devt)
 		return 0;
 
 	/*
-	 * Try non-existent, but valid partition, which may only exist after
+	 * Try analn-existent, but valid partition, which may only exist after
 	 * opening the device, like partitioned md devices.
 	 */
 	while (p > s && isdigit(p[-1]))
 		p--;
 	if (p == s || !*p || *p == '0')
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* try disk name without <part number> */
 	part = simple_strtoul(p, NULL, 10);
@@ -186,12 +186,12 @@ static int __init devt_from_devname(const char *name, dev_t *devt)
 
 	/* try disk name without p<part number> */
 	if (p < s + 2 || !isdigit(p[-2]) || p[-1] != 'p')
-		return -ENODEV;
+		return -EANALDEV;
 	p[-1] = '\0';
 	*devt = blk_lookup_devt(s, part);
 	if (*devt)
 		return 0;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int __init devt_from_devnum(const char *name, dev_t *devt)
@@ -202,7 +202,7 @@ static int __init devt_from_devnum(const char *name, dev_t *devt)
 	if (sscanf(name, "%u:%u%c", &maj, &min, &dummy) == 2 ||
 	    sscanf(name, "%u:%u:%u:%c", &maj, &min, &offset, &dummy) == 3) {
 		*devt = MKDEV(maj, min);
-		if (maj != MAJOR(*devt) || min != MINOR(*devt))
+		if (maj != MAJOR(*devt) || min != MIANALR(*devt))
 			return -EINVAL;
 	} else {
 		*devt = new_decode_dev(simple_strtoul(name, &p, 16));
@@ -216,8 +216,8 @@ static int __init devt_from_devnum(const char *name, dev_t *devt)
 /*
  *	Convert a name into device number.  We accept the following variants:
  *
- *	1) <hex_major><hex_minor> device number in hexadecimal represents itself
- *         no leading 0x, for example b302.
+ *	1) <hex_major><hex_mianalr> device number in hexadecimal represents itself
+ *         anal leading 0x, for example b302.
  *	3) /dev/<disk_name> represents the device number of disk
  *	4) /dev/<disk_name><decimal> represents the device number
  *         of partition - device number of disk plus the partition number
@@ -230,11 +230,11 @@ static int __init devt_from_devnum(const char *name, dev_t *devt)
  *	   filled hex representation of the 32-bit "NT disk signature", and PP
  *	   is a zero-filled hex representation of the 1-based partition number.
  *	7) PARTUUID=<UUID>/PARTNROFF=<int> to select a partition in relation to
- *	   a partition with a known unique id.
- *	8) <major>:<minor> major and minor number of the device separated by
+ *	   a partition with a kanalwn unique id.
+ *	8) <major>:<mianalr> major and mianalr number of the device separated by
  *	   a colon.
  *	9) PARTLABEL=<name> with name being the GPT partition label.
- *	   MSDOS partitions do not support labels!
+ *	   MSDOS partitions do analt support labels!
  *
  *	If name doesn't have fall into the categories above, we return (0,0).
  *	block_class is used to check if something is a disk name. If the disk
@@ -254,12 +254,12 @@ int __init early_lookup_bdev(const char *name, dev_t *devt)
 
 static char __init *bdevt_str(dev_t devt, char *buf)
 {
-	if (MAJOR(devt) <= 0xff && MINOR(devt) <= 0xff) {
+	if (MAJOR(devt) <= 0xff && MIANALR(devt) <= 0xff) {
 		char tbuf[BDEVT_SIZE];
-		snprintf(tbuf, BDEVT_SIZE, "%02x%02x", MAJOR(devt), MINOR(devt));
+		snprintf(tbuf, BDEVT_SIZE, "%02x%02x", MAJOR(devt), MIANALR(devt));
 		snprintf(buf, BDEVT_SIZE, "%-9s", tbuf);
 	} else
-		snprintf(buf, BDEVT_SIZE, "%03x:%05x", MAJOR(devt), MINOR(devt));
+		snprintf(buf, BDEVT_SIZE, "%03x:%05x", MAJOR(devt), MIANALR(devt));
 
 	return buf;
 }
@@ -289,7 +289,7 @@ void __init printk_all_partitions(void)
 			continue;
 
 		/*
-		 * Note, unlike /proc/partitions, I am showing the numbers in
+		 * Analte, unlike /proc/partitions, I am showing the numbers in
 		 * hex - the same format as the root= option takes.
 		 */
 		rcu_read_lock();

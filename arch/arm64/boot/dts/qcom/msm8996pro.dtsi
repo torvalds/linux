@@ -6,8 +6,8 @@
 #include "msm8996.dtsi"
 
 / {
-	/delete-node/ opp-table-cluster0;
-	/delete-node/ opp-table-cluster1;
+	/delete-analde/ opp-table-cluster0;
+	/delete-analde/ opp-table-cluster1;
 
 	/*
 	 * On MSM8996 Pro the cpufreq driver shifts speed bins into the high
@@ -314,7 +314,7 @@
 
 &gpu_opp_table {
 	/*
-	 * Unlike CPU opp tables, the GPU driver does not shift speed bins.
+	 * Unlike CPU opp tables, the GPU driver does analt shift speed bins.
 	 *
 	 * 652.8 Mhz is available on speed bin 0 only.
 	 * 624 Mhz and 560 Mhz are available on speed bins 0 and 1.

@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dvb/dmx.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -51,7 +51,7 @@ static int register_dvb(struct stdemux *demux, struct dvb_adapter *adap,
 
 	result = dvb_dmx_init(&demux->dvb_demux);
 	if (result < 0) {
-		dev_err(fei->dev, "dvb_dmx_init failed (errno = %d)\n",
+		dev_err(fei->dev, "dvb_dmx_init failed (erranal = %d)\n",
 			result);
 		goto err_dmx;
 	}
@@ -62,7 +62,7 @@ static int register_dvb(struct stdemux *demux, struct dvb_adapter *adap,
 
 	result = dvb_dmxdev_init(&demux->dmxdev, adap);
 	if (result < 0) {
-		dev_err(fei->dev, "dvb_dmxdev_init failed (errno = %d)\n",
+		dev_err(fei->dev, "dvb_dmxdev_init failed (erranal = %d)\n",
 			result);
 
 		goto err_dmxdev;
@@ -73,7 +73,7 @@ static int register_dvb(struct stdemux *demux, struct dvb_adapter *adap,
 	result = demux->dvb_demux.dmx.add_frontend(&demux->dvb_demux.dmx,
 						&demux->hw_frontend);
 	if (result < 0) {
-		dev_err(fei->dev, "add_frontend failed (errno = %d)\n", result);
+		dev_err(fei->dev, "add_frontend failed (erranal = %d)\n", result);
 		goto err_fe_hw;
 	}
 
@@ -144,7 +144,7 @@ static struct c8sectpfe *c8sectpfe_create(struct c8sectpfei *fei,
 	result = dvb_register_adapter(&c8sectpfe->adapter, "STi c8sectpfe",
 					THIS_MODULE, fei->dev, ids);
 	if (result < 0) {
-		dev_err(fei->dev, "dvb_register_adapter failed (errno = %d)\n",
+		dev_err(fei->dev, "dvb_register_adapter failed (erranal = %d)\n",
 			result);
 		goto err2;
 	}
@@ -160,10 +160,10 @@ static struct c8sectpfe *c8sectpfe_create(struct c8sectpfei *fei,
 				start_feed, stop_feed, fei);
 		if (result < 0) {
 			dev_err(fei->dev,
-				"register_dvb feed=%d failed (errno = %d)\n",
+				"register_dvb feed=%d failed (erranal = %d)\n",
 				result, i);
 
-			/* we take a all or nothing approach */
+			/* we take a all or analthing approach */
 			for (j = 0; j < i; j++)
 				unregister_dvb(&c8sectpfe->demux[j]);
 			goto err3;
@@ -235,7 +235,7 @@ int c8sectpfe_tuner_register_frontend(struct c8sectpfe **c8sectpfe,
 
 	*c8sectpfe = c8sectpfe_create(fei, start_feed, stop_feed);
 	if (!*c8sectpfe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < fei->tsin_count; n++) {
 		tsin = fei->channel_data[n];

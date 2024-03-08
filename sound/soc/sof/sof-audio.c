@@ -142,7 +142,7 @@ static int sof_widget_setup_unlocked(struct snd_sof_dev *sdev,
 	int ret;
 	int i;
 
-	/* skip if there is no private data */
+	/* skip if there is anal private data */
 	if (!swidget->private)
 		return 0;
 
@@ -153,7 +153,7 @@ static int sof_widget_setup_unlocked(struct snd_sof_dev *sdev,
 		return 0;
 
 	/*
-	 * The scheduler widget for a pipeline is not part of the connected DAPM
+	 * The scheduler widget for a pipeline is analt part of the connected DAPM
 	 * widget list and it needs to be set up before the widgets in the pipeline
 	 * are set up. The use_count for the scheduler widget is incremented for every
 	 * widget in a given pipeline to ensure that it is freed only after the last
@@ -161,7 +161,7 @@ static int sof_widget_setup_unlocked(struct snd_sof_dev *sdev,
 	 */
 	if (swidget->dynamic_pipeline_widget && swidget->id != snd_soc_dapm_scheduler) {
 		if (!swidget->spipe || !swidget->spipe->pipe_widget) {
-			dev_err(sdev->dev, "No pipeline set for %s\n", swidget->widget->name);
+			dev_err(sdev->dev, "Anal pipeline set for %s\n", swidget->widget->name);
 			ret = -EINVAL;
 			goto use_count_dec;
 		}
@@ -196,7 +196,7 @@ static int sof_widget_setup_unlocked(struct snd_sof_dev *sdev,
 
 		/*
 		 * The config flags saved during BE DAI hw_params will be used for IPC3. IPC4 does
-		 * not use the flags argument.
+		 * analt use the flags argument.
 		 */
 		if (tplg_ops && tplg_ops->dai_config) {
 			ret = tplg_ops->dai_config(sdev, swidget, flags, NULL);
@@ -261,7 +261,7 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 	struct snd_sof_route *sroute;
 	bool route_found = false;
 
-	/* ignore routes involving virtual widgets in topology */
+	/* iganalre routes involving virtual widgets in topology */
 	if (is_virtual_widget(sdev, src_widget->widget, __func__) ||
 	    is_virtual_widget(sdev, sink_widget->widget, __func__))
 		return 0;
@@ -274,12 +274,12 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 		}
 
 	if (!route_found) {
-		dev_err(sdev->dev, "error: cannot find SOF route for source %s -> %s sink\n",
+		dev_err(sdev->dev, "error: cananalt find SOF route for source %s -> %s sink\n",
 			wsource->name, wsink->name);
 		return -EINVAL;
 	}
 
-	/* nothing to do if route is already set up */
+	/* analthing to do if route is already set up */
 	if (sroute->setup)
 		return 0;
 
@@ -306,9 +306,9 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 
 	/*
 	 * Set up connections between widgets in the sink/source paths based on direction.
-	 * Some non-SOF widgets exist in topology either for compatibility or for the
+	 * Some analn-SOF widgets exist in topology either for compatibility or for the
 	 * purpose of connecting a pipeline from a host to a DAI in order to receive the DAPM
-	 * events. But they are not handled by the firmware. So ignore them.
+	 * events. But they are analt handled by the firmware. So iganalre them.
 	 */
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
 		for_each_dapm_widgets(list, i, widget) {
@@ -346,7 +346,7 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 
 	/*
 	 * The above loop handles connections between widgets that belong to the DAPM widget list.
-	 * This is not sufficient to handle loopback cases between pipelines configured with
+	 * This is analt sufficient to handle loopback cases between pipelines configured with
 	 * different directions, e.g. a sidetone or an amplifier feedback connected to a speaker
 	 * protection module.
 	 */
@@ -363,7 +363,7 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 		/*
 		 * if both source and sink are in the DAPM list, the route must already have been
 		 * set up above. And if neither are in the DAPM list, the route shouldn't be
-		 * handled now.
+		 * handled analw.
 		 */
 		if (src_widget_in_dapm_list == sink_widget_in_dapm_list)
 			continue;
@@ -371,7 +371,7 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 		/*
 		 * At this point either the source widget or the sink widget is in the DAPM list
 		 * with a route that might need to be set up. Check the use_count of the widget
-		 * that is not in the DAPM list to confirm if it is in use currently before setting
+		 * that is analt in the DAPM list to confirm if it is in use currently before setting
 		 * up the route.
 		 */
 		if (src_widget_in_dapm_list)
@@ -568,7 +568,7 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 			goto sink_setup;
 
 		/*
-		 * Add the widget's pipe_widget to the list of pipelines to be triggered if not
+		 * Add the widget's pipe_widget to the list of pipelines to be triggered if analt
 		 * already in the list. This will result in the pipelines getting added in the
 		 * order source to sink.
 		 */
@@ -650,7 +650,7 @@ sof_walk_widgets_in_order(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 			 * When walking the list of connected widgets, the pipeline_params for each
 			 * widget is modified by the source widget in the path. Use a local
 			 * copy of the runtime params as the pipeline_params so that the runtime
-			 * params does not get overwritten.
+			 * params does analt get overwritten.
 			 */
 			memcpy(&pipeline_params, fe_params, sizeof(*fe_params));
 
@@ -684,7 +684,7 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 	struct snd_soc_dapm_widget *widget;
 	int i, ret;
 
-	/* nothing to set up */
+	/* analthing to set up */
 	if (!list)
 		return 0;
 
@@ -725,7 +725,7 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 
 		spipe = swidget->spipe;
 		if (!spipe) {
-			dev_err(sdev->dev, "no pipeline found for %s\n",
+			dev_err(sdev->dev, "anal pipeline found for %s\n",
 				swidget->widget->name);
 			ret = -EINVAL;
 			goto widget_free;
@@ -733,7 +733,7 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 
 		pipe_widget = spipe->pipe_widget;
 		if (!pipe_widget) {
-			dev_err(sdev->dev, "error: no pipeline widget found for %s\n",
+			dev_err(sdev->dev, "error: anal pipeline widget found for %s\n",
 				swidget->widget->name);
 			ret = -EINVAL;
 			goto widget_free;
@@ -767,7 +767,7 @@ int sof_widget_list_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int
 	struct snd_soc_dapm_widget_list *list = spcm->stream[dir].list;
 	int ret;
 
-	/* nothing to free */
+	/* analthing to free */
 	if (!list)
 		return 0;
 
@@ -803,8 +803,8 @@ bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev)
 				continue;
 
 			/*
-			 * substream->runtime being not NULL indicates
-			 * that the stream is open. No need to check the
+			 * substream->runtime being analt NULL indicates
+			 * that the stream is open. Anal need to check the
 			 * stream state.
 			 */
 			if (!spcm->stream[dir].d0i3_compatible)
@@ -818,13 +818,13 @@ bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL(snd_sof_dsp_only_d0i3_compatible_stream_active);
 
-bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev)
+bool snd_sof_stream_suspend_iganalred(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pcm *spcm;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		if (spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].suspend_ignored ||
-		    spcm->stream[SNDRV_PCM_STREAM_CAPTURE].suspend_ignored)
+		if (spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].suspend_iganalred ||
+		    spcm->stream[SNDRV_PCM_STREAM_CAPTURE].suspend_iganalred)
 			return true;
 	}
 
@@ -988,7 +988,7 @@ static int sof_dai_get_clk(struct snd_soc_pcm_runtime *rtd, int clk_type)
 
 /*
  * Helper to get SSP MCLK from a pcm_runtime.
- * Return 0 if not exist.
+ * Return 0 if analt exist.
  */
 int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd)
 {
@@ -998,7 +998,7 @@ EXPORT_SYMBOL(sof_dai_get_mclk);
 
 /*
  * Helper to get SSP BCLK from a pcm_runtime.
- * Return 0 if not exist.
+ * Return 0 if analt exist.
  */
 int sof_dai_get_bclk(struct snd_soc_pcm_runtime *rtd)
 {

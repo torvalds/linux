@@ -14,7 +14,7 @@ enum {
 	NMI_MODE_AUX,
 	NMI_MODE_MASKED,
 	NMI_MODE_ANY,
-	NMI_MODE_UNKNOWN,
+	NMI_MODE_UNKANALWN,
 };
 
 /*
@@ -36,8 +36,8 @@ static int __init nmi_mode_setup(char *str)
 	else if (strcmp(str, "any") == 0)
 		nmi_mode = NMI_MODE_ANY;
 	else {
-		nmi_mode = NMI_MODE_UNKNOWN;
-		pr_warn("Unknown NMI mode %s\n", str);
+		nmi_mode = NMI_MODE_UNKANALWN;
+		pr_warn("Unkanalwn NMI mode %s\n", str);
 	}
 
 	printk("Set NMI mode to %d\n", nmi_mode);
@@ -63,7 +63,7 @@ void __init sdk7786_nmi_init(void)
 		mask = NMIMR_MAN_NMIM | NMIMR_AUX_NMIM;
 		break;
 	case NMI_MODE_MASKED:
-	case NMI_MODE_UNKNOWN:
+	case NMI_MODE_UNKANALWN:
 	default:
 		source = mask = 0;
 		break;

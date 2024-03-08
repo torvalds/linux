@@ -20,11 +20,11 @@
 #define AV1_REF_SCALE_SHIFT	14
 #define AV1_INVALID_IDX		-1
 #define MAX_FRAME_DISTANCE	31
-#define AV1_PRIMARY_REF_NONE	7
+#define AV1_PRIMARY_REF_ANALNE	7
 #define AV1_TILE_SIZE		ALIGN(32 * 128, 4096)
 /*
  * These 3 values aren't defined enum v4l2_av1_segment_feature because
- * they are not part of the specification
+ * they are analt part of the specification
  */
 #define V4L2_AV1_SEG_LVL_ALT_LF_Y_H	2
 #define V4L2_AV1_SEG_LVL_ALT_LF_U	3
@@ -32,7 +32,7 @@
 
 #define SUPERRES_SCALE_BITS 3
 #define SCALE_NUMERATOR 8
-#define SUPERRES_SCALE_DENOMINATOR_MIN (SCALE_NUMERATOR + 1)
+#define SUPERRES_SCALE_DEANALMINATOR_MIN (SCALE_NUMERATOR + 1)
 
 #define RS_SUBPEL_BITS 6
 #define RS_SUBPEL_MASK ((1 << RS_SUBPEL_BITS) - 1)
@@ -314,7 +314,7 @@ static int rockchip_vpu981_av1_dec_tiles_reallocate(struct hantro_ctx *ctx)
 
 buffer_allocation_error:
 	rockchip_vpu981_av1_dec_tiles_free(ctx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void rockchip_vpu981_av1_dec_exit(struct hantro_ctx *ctx)
@@ -370,14 +370,14 @@ int rockchip_vpu981_av1_dec_init(struct hantro_ctx *ctx)
 						       &av1_dec->global_model.dma,
 						       GFP_KERNEL);
 	if (!av1_dec->global_model.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	av1_dec->global_model.size = GLOBAL_MODEL_SIZE;
 
 	av1_dec->tile_info.cpu = dma_alloc_coherent(vpu->dev, AV1_MAX_TILES,
 						    &av1_dec->tile_info.dma,
 						    GFP_KERNEL);
 	if (!av1_dec->tile_info.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	av1_dec->tile_info.size = AV1_MAX_TILES;
 
 	av1_dec->film_grain.cpu = dma_alloc_coherent(vpu->dev,
@@ -385,7 +385,7 @@ int rockchip_vpu981_av1_dec_init(struct hantro_ctx *ctx)
 						     &av1_dec->film_grain.dma,
 						     GFP_KERNEL);
 	if (!av1_dec->film_grain.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	av1_dec->film_grain.size = ALIGN(sizeof(struct rockchip_av1_film_grain), 2048);
 
 	av1_dec->prob_tbl.cpu = dma_alloc_coherent(vpu->dev,
@@ -393,7 +393,7 @@ int rockchip_vpu981_av1_dec_init(struct hantro_ctx *ctx)
 						   &av1_dec->prob_tbl.dma,
 						   GFP_KERNEL);
 	if (!av1_dec->prob_tbl.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	av1_dec->prob_tbl.size = ALIGN(sizeof(struct av1cdfs), 2048);
 
 	av1_dec->prob_tbl_out.cpu = dma_alloc_coherent(vpu->dev,
@@ -401,7 +401,7 @@ int rockchip_vpu981_av1_dec_init(struct hantro_ctx *ctx)
 						       &av1_dec->prob_tbl_out.dma,
 						       GFP_KERNEL);
 	if (!av1_dec->prob_tbl_out.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	av1_dec->prob_tbl_out.size = ALIGN(sizeof(struct av1cdfs), 2048);
 	av1_dec->cdfs = &av1_dec->default_cdfs;
 	av1_dec->cdfs_ndvc = &av1_dec->default_cdfs_ndvc;
@@ -413,7 +413,7 @@ int rockchip_vpu981_av1_dec_init(struct hantro_ctx *ctx)
 						   &av1_dec->tile_buf.dma,
 						   GFP_KERNEL);
 	if (!av1_dec->tile_buf.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	av1_dec->tile_buf.size = AV1_TILE_SIZE;
 
 	return 0;
@@ -1169,7 +1169,7 @@ static void rockchip_vpu981_av1_dec_set_prob(struct hantro_ctx *ctx)
 	bool frame_is_intra = IS_INTRA(frame->frame_type);
 
 	if (error_resilient_mode || frame_is_intra ||
-	    frame->primary_ref_frame == AV1_PRIMARY_REF_NONE) {
+	    frame->primary_ref_frame == AV1_PRIMARY_REF_ANALNE) {
 		av1_dec->cdfs = &av1_dec->default_cdfs;
 		av1_dec->cdfs_ndvc = &av1_dec->default_cdfs_ndvc;
 		rockchip_av1_default_coeff_probs(quantization->base_q_idx,
@@ -1466,7 +1466,7 @@ static void rockchip_vpu981_av1_dec_set_superres_params(struct hantro_ctx *ctx)
 	struct hantro_av1_dec_ctrls *ctrls = &av1_dec->ctrls;
 	const struct v4l2_ctrl_av1_frame *frame = ctrls->frame;
 	struct hantro_dev *vpu = ctx->dev;
-	u8 superres_scale_denominator = SCALE_NUMERATOR;
+	u8 superres_scale_deanalminator = SCALE_NUMERATOR;
 	int superres_luma_step = RS_SCALE_SUBPEL_BITS;
 	int superres_chroma_step = RS_SCALE_SUBPEL_BITS;
 	int superres_luma_step_invra = RS_SCALE_SUBPEL_BITS;
@@ -1483,13 +1483,13 @@ static void rockchip_vpu981_av1_dec_set_superres_params(struct hantro_ctx *ctx)
 	int width = 0;
 
 	if (frame->flags & V4L2_AV1_FRAME_FLAG_USE_SUPERRES)
-		superres_scale_denominator = frame->superres_denom;
+		superres_scale_deanalminator = frame->superres_deanalm;
 
-	if (superres_scale_denominator <= SCALE_NUMERATOR)
+	if (superres_scale_deanalminator <= SCALE_NUMERATOR)
 		goto set_regs;
 
 	width = (frame->upscaled_width * SCALE_NUMERATOR +
-		(superres_scale_denominator / 2)) / superres_scale_denominator;
+		(superres_scale_deanalminator / 2)) / superres_scale_deanalminator;
 
 	if (width < min_w)
 		width = min_w;
@@ -1539,10 +1539,10 @@ set_regs:
 	hantro_reg_write(vpu, &av1_superres_pic_width, frame->upscaled_width);
 
 	if (frame->flags & V4L2_AV1_FRAME_FLAG_USE_SUPERRES)
-		hantro_reg_write(vpu, &av1_scale_denom_minus9,
-				 frame->superres_denom - SUPERRES_SCALE_DENOMINATOR_MIN);
+		hantro_reg_write(vpu, &av1_scale_deanalm_minus9,
+				 frame->superres_deanalm - SUPERRES_SCALE_DEANALMINATOR_MIN);
 	else
-		hantro_reg_write(vpu, &av1_scale_denom_minus9, frame->superres_denom);
+		hantro_reg_write(vpu, &av1_scale_deanalm_minus9, frame->superres_deanalm);
 
 	hantro_reg_write(vpu, &av1_superres_luma_step, superres_luma_step);
 	hantro_reg_write(vpu, &av1_superres_chroma_step, superres_chroma_step);

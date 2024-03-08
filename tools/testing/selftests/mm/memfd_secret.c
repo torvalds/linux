@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 
 #include "../kselftest.h"
@@ -90,7 +90,7 @@ static void try_process_vm_read(int fd, int pipefd[2])
 	char *mem;
 
 	if (read(pipefd[0], &mem, sizeof(mem)) < 0) {
-		fail("pipe write: %s\n", strerror(errno));
+		fail("pipe write: %s\n", strerror(erranal));
 		exit(KSFT_FAIL);
 	}
 
@@ -99,7 +99,7 @@ static void try_process_vm_read(int fd, int pipefd[2])
 	riov.iov_base = mem;
 
 	if (process_vm_readv(getppid(), &liov, 1, &riov, 1, 0) < 0) {
-		if (errno == ENOSYS)
+		if (erranal == EANALSYS)
 			exit(KSFT_SKIP);
 		exit(KSFT_PASS);
 	}
@@ -145,7 +145,7 @@ static void check_child_status(pid_t pid, const char *name)
 	waitpid(pid, &status, 0);
 
 	if (WIFEXITED(status) && WEXITSTATUS(status) == KSFT_SKIP) {
-		skip("%s is not supported\n", name);
+		skip("%s is analt supported\n", name);
 		return;
 	}
 
@@ -166,13 +166,13 @@ static void test_remote_access(int fd, const char *name,
 	char *mem;
 
 	if (pipe(pipefd)) {
-		fail("pipe failed: %s\n", strerror(errno));
+		fail("pipe failed: %s\n", strerror(erranal));
 		return;
 	}
 
 	pid = fork();
 	if (pid < 0) {
-		fail("fork failed: %s\n", strerror(errno));
+		fail("fork failed: %s\n", strerror(erranal));
 		return;
 	}
 
@@ -191,7 +191,7 @@ static void test_remote_access(int fd, const char *name,
 	memset(mem, PATTERN, page_size);
 
 	if (write(pipefd[1], &mem, sizeof(mem)) < 0) {
-		fail("pipe write: %s\n", strerror(errno));
+		fail("pipe write: %s\n", strerror(erranal));
 		return;
 	}
 
@@ -236,11 +236,11 @@ static void prepare(void)
 	page_size = sysconf(_SC_PAGE_SIZE);
 	if (!page_size)
 		ksft_exit_fail_msg("Failed to get page size %s\n",
-				   strerror(errno));
+				   strerror(erranal));
 
 	if (getrlimit(RLIMIT_MEMLOCK, &rlim))
 		ksft_exit_fail_msg("Unable to detect mlock limit: %s\n",
-				   strerror(errno));
+				   strerror(erranal));
 
 	mlock_limit_cur = rlim.rlim_cur;
 	mlock_limit_max = rlim.rlim_max;
@@ -255,7 +255,7 @@ static void prepare(void)
 
 	if (set_cap_limits(mlock_limit_max))
 		ksft_exit_fail_msg("Unable to set mlock limit: %s\n",
-				   strerror(errno));
+				   strerror(erranal));
 }
 
 #define NUM_TESTS 4
@@ -271,11 +271,11 @@ int main(int argc, char *argv[])
 
 	fd = memfd_secret(0);
 	if (fd < 0) {
-		if (errno == ENOSYS)
-			ksft_exit_skip("memfd_secret is not supported\n");
+		if (erranal == EANALSYS)
+			ksft_exit_skip("memfd_secret is analt supported\n");
 		else
 			ksft_exit_fail_msg("memfd_secret failed: %s\n",
-					   strerror(errno));
+					   strerror(erranal));
 	}
 
 	test_mlock_limit(fd);

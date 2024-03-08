@@ -13,7 +13,7 @@
 #include "sleep.h"
 
 struct acpi_wakeup_handler {
-	struct list_head list_node;
+	struct list_head list_analde;
 	bool (*wakeup)(void *context);
 	void *context;
 };
@@ -24,7 +24,7 @@ static DEFINE_MUTEX(acpi_wakeup_handler_mutex);
 /*
  * We didn't lock acpi_device_lock in the file, because it invokes oops in
  * suspend/resume and isn't really required as this is called in S-state. At
- * that time, there is no device hotplug
+ * that time, there is anal device hotplug
  **/
 
 /**
@@ -114,7 +114,7 @@ int acpi_register_wakeup_handler(int wake_irq, bool (*wakeup)(void *context),
 	struct acpi_wakeup_handler *handler;
 
 	/*
-	 * If the device is not sharing its IRQ with the SCI, there is no
+	 * If the device is analt sharing its IRQ with the SCI, there is anal
 	 * need to register the handler.
 	 */
 	if (!acpi_sci_irq_valid() || wake_irq != acpi_sci_irq)
@@ -122,13 +122,13 @@ int acpi_register_wakeup_handler(int wake_irq, bool (*wakeup)(void *context),
 
 	handler = kmalloc(sizeof(*handler), GFP_KERNEL);
 	if (!handler)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	handler->wakeup = wakeup;
 	handler->context = context;
 
 	mutex_lock(&acpi_wakeup_handler_mutex);
-	list_add(&handler->list_node, &acpi_wakeup_handler_head);
+	list_add(&handler->list_analde, &acpi_wakeup_handler_head);
 	mutex_unlock(&acpi_wakeup_handler_mutex);
 
 	return 0;
@@ -146,9 +146,9 @@ void acpi_unregister_wakeup_handler(bool (*wakeup)(void *context),
 	struct acpi_wakeup_handler *handler;
 
 	mutex_lock(&acpi_wakeup_handler_mutex);
-	list_for_each_entry(handler, &acpi_wakeup_handler_head, list_node) {
+	list_for_each_entry(handler, &acpi_wakeup_handler_head, list_analde) {
 		if (handler->wakeup == wakeup && handler->context == context) {
-			list_del(&handler->list_node);
+			list_del(&handler->list_analde);
 			kfree(handler);
 			break;
 		}
@@ -161,8 +161,8 @@ bool acpi_check_wakeup_handlers(void)
 {
 	struct acpi_wakeup_handler *handler;
 
-	/* No need to lock, nothing else is running when we're called. */
-	list_for_each_entry(handler, &acpi_wakeup_handler_head, list_node) {
+	/* Anal need to lock, analthing else is running when we're called. */
+	list_for_each_entry(handler, &acpi_wakeup_handler_head, list_analde) {
 		if (handler->wakeup(handler->context))
 			return true;
 	}

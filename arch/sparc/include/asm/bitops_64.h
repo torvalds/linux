@@ -26,7 +26,7 @@ void change_bit(unsigned long nr, volatile unsigned long *addr);
 int fls(unsigned int word);
 int __fls(unsigned long word);
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 #include <asm-generic/bitops/fls64.h>
 

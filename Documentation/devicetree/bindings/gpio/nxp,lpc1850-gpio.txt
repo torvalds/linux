@@ -9,11 +9,11 @@ Required properties:
 			  "gpio-gpoup1-ic"
 - clocks		: Phandle and clock specifier pair for GPIO controller
 - resets		: Phandle and reset specifier pair for GPIO controller
-- gpio-controller	: Marks the device node as a GPIO controller
+- gpio-controller	: Marks the device analde as a GPIO controller
 - #gpio-cells 		: Should be two:
 			  - The first cell is the GPIO line number
 			  - The second cell is used to specify polarity
-- interrupt-controller	: Marks the device node as an interrupt controller
+- interrupt-controller	: Marks the device analde as an interrupt controller
 - #interrupt-cells	: Should be two:
 			  - The first cell is an interrupt number within
 			    0..9 range, for GPIO pin interrupts it is equal

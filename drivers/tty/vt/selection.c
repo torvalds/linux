@@ -9,7 +9,7 @@
  *     'int paste_selection(struct tty_struct *)'
  *     'int sel_loadlut(char __user *)'
  *
- * Now that /dev/vcs exists, most of this can disappear again.
+ * Analw that /dev/vcs exists, most of this can disappear again.
  */
 
 #include <linux/module.h>
@@ -38,7 +38,7 @@
 /* FIXME: all this needs locking */
 static struct vc_selection {
 	struct mutex lock;
-	struct vc_data *cons;			/* must not be deallocated */
+	struct vc_data *cons;			/* must analt be deallocated */
 	char *buffer;
 	unsigned int buf_len;
 	volatile int start;			/* cleared by clear_selection */
@@ -194,11 +194,11 @@ static int vc_selection_store_chars(struct vc_data *vc, bool unicode)
 	/* Allocate a new buffer before freeing the old one ... */
 	/* chars can take up to 4 bytes with unicode */
 	bp = kmalloc_array((vc_sel.end - vc_sel.start) / 2 + 1, unicode ? 4 : 1,
-			   GFP_KERNEL | __GFP_NOWARN);
+			   GFP_KERNEL | __GFP_ANALWARN);
 	if (!bp) {
 		printk(KERN_WARNING "selection: kmalloc() failed\n");
 		clear_selection();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	kfree(vc_sel.buffer);
 	vc_sel.buffer = bp;
@@ -214,7 +214,7 @@ static int vc_selection_store_chars(struct vc_data *vc, bool unicode)
 			obp = bp;
 		if (!((i + 2) % vc->vc_size_row)) {
 			/* strip trailing blanks from line and add newline,
-			   unless non-space at end of line. */
+			   unless analn-space at end of line. */
 			if (obp != bp) {
 				bp = obp;
 				*bp++ = '\r';
@@ -285,11 +285,11 @@ static int vc_do_selection(struct vc_data *vc, unsigned short mode, int ps,
 		if (is_space_on_vt(sel_pos(pe, unicode)))
 			new_sel_end = pe;
 	}
-	if (vc_sel.start == -1)	/* no current selection */
+	if (vc_sel.start == -1)	/* anal current selection */
 		highlight(new_sel_start, new_sel_end);
 	else if (new_sel_start == vc_sel.start)
 	{
-		if (new_sel_end == vc_sel.end)	/* no action required */
+		if (new_sel_end == vc_sel.end)	/* anal action required */
 			return 0;
 		else if (new_sel_end > vc_sel.end)	/* extend to right */
 			highlight(vc_sel.end + 2, new_sel_end);

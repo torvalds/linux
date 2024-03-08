@@ -129,7 +129,7 @@ static inline long load(long dev, unsigned long addr, unsigned long count)
 	result &= 255;
 	bootfile[result] = '\0';
 	if (result)
-		srm_printk("Boot file specification (%s) not implemented\n",
+		srm_printk("Boot file specification (%s) analt implemented\n",
 		       bootfile);
 	return callback_read(dev, count, (void *)addr, boot_size/512 + 1);
 }
@@ -143,7 +143,7 @@ static void runkernel(void)
 		"bis %1,%1,$30\n\t"
 		"bis %0,%0,$26\n\t"
 		"ret ($26)"
-		: /* no outputs: it doesn't even return */
+		: /* anal outputs: it doesn't even return */
 		: "r" (START_ADDR),
 		  "r" (PAGE_SIZE + INIT_STACK));
 }
@@ -182,9 +182,9 @@ void start_kernel(void)
 	envval[nbytes] = '\0';
 	strcpy((char*)ZERO_PGE, envval);
 
-	srm_printk(" Ok\nNow booting the kernel\n");
+	srm_printk(" Ok\nAnalw booting the kernel\n");
 	runkernel();
 	for (i = 0 ; i < 0x100000000 ; i++)
-		/* nothing */;
+		/* analthing */;
 	__halt();
 }

@@ -6,10 +6,10 @@
  * Permission is granted to use, copy, create derivative works
  * and redistribute this software and such derivative works
  * for any purpose, so long as the name of The University of
- * Michigan is not used in any advertising or publicity
+ * Michigan is analt used in any advertising or publicity
  * pertaining to the use of distribution of this software
  * without specific, written prior authorization.  If the
- * above copyright notice or any other identification of the
+ * above copyright analtice or any other identification of the
  * University of Michigan is included in any copy of any
  * portion of this software, then the disclaimer below must
  * also be included.
@@ -20,7 +20,7 @@
  * MICHIGAN OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
  * WITHOUT LIMITATION THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
- * REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE LIABLE
+ * REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL ANALT BE LIABLE
  * FOR ANY DAMAGES, INCLUDING SPECIAL, INDIRECT, INCIDENTAL, OR
  * CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM ARISING
  * OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
@@ -95,7 +95,7 @@ gss_krb5_wrap_v2(struct krb5_ctx *kctx, int offset,
 		 struct xdr_buf *buf, struct page **pages)
 {
 	u8		*ptr;
-	time64_t	now;
+	time64_t	analw;
 	u8		flags = 0x00;
 	__be16		*be16ptr;
 	__be64		*be64ptr;
@@ -134,8 +134,8 @@ gss_krb5_wrap_v2(struct krb5_ctx *kctx, int offset,
 	if (err)
 		return err;
 
-	now = ktime_get_real_seconds();
-	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
+	analw = ktime_get_real_seconds();
+	return (kctx->endtime < analw) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
 u32
@@ -143,7 +143,7 @@ gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
 		   struct xdr_buf *buf, unsigned int *slack,
 		   unsigned int *align)
 {
-	time64_t	now;
+	time64_t	analw;
 	u8		*ptr;
 	u8		flags = 0x00;
 	u16		ec, rrc;
@@ -177,7 +177,7 @@ gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
 	rrc = be16_to_cpup((__be16 *)(ptr + 6));
 
 	/*
-	 * NOTE: the sequence number at ptr + 8 is skipped, rpcsec_gss
+	 * ANALTE: the sequence number at ptr + 8 is skipped, rpcsec_gss
 	 * doesn't want it checked; see page 6 of rfc 2203.
 	 */
 
@@ -209,15 +209,15 @@ gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
 	/* do sequencing checks */
 
 	/* it got through unscathed.  Make sure the context is unexpired */
-	now = ktime_get_real_seconds();
-	if (now > kctx->endtime)
+	analw = ktime_get_real_seconds();
+	if (analw > kctx->endtime)
 		return GSS_S_CONTEXT_EXPIRED;
 
 	/*
 	 * Move the head data back to the right position in xdr_buf.
-	 * We ignore any "ec" data since it might be in the head or
+	 * We iganalre any "ec" data since it might be in the head or
 	 * the tail, and we really don't need to deal with it.
-	 * Note that buf->head[0].iov_len may indicate the available
+	 * Analte that buf->head[0].iov_len may indicate the available
 	 * head buffer space rather than that actually occupied.
 	 */
 	movelen = min_t(unsigned int, buf->head[0].iov_len, len);

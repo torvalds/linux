@@ -11,7 +11,7 @@ struct packed_trailing_space {
 	short b;
 } __attribute__((packed));
 
-struct non_packed_trailing_space {
+struct analn_packed_trailing_space {
 	int a;
 	short b;
 };
@@ -21,7 +21,7 @@ struct packed_fields {
 	int b;
 } __attribute__((packed));
 
-struct non_packed_fields {
+struct analn_packed_fields {
 	short a;
 	int b;
 };
@@ -42,7 +42,7 @@ union union_is_never_packed {
 	char c: 1;
 };
 
-union union_does_not_need_packing {
+union union_does_analt_need_packing {
 	struct {
 		long a;
 		int b;
@@ -122,7 +122,7 @@ struct nested_packed_struct {
 	char b;
 } __attribute__((packed));
 
-struct outer_nonpacked_struct {
+struct outer_analnpacked_struct {
 	short a;
 	struct nested_packed_struct b;
 };
@@ -136,16 +136,16 @@ struct outer_packed_struct {
 
 int f(struct {
 	struct packed_trailing_space _1;
-	struct non_packed_trailing_space _2;
+	struct analn_packed_trailing_space _2;
 	struct packed_fields _3;
-	struct non_packed_fields _4;
+	struct analn_packed_fields _4;
 	struct nested_packed _5;
 	union union_is_never_packed _6;
-	union union_does_not_need_packing _7;
+	union union_does_analt_need_packing _7;
 	union jump_code_union _8;
 	struct outer_implicitly_packed_struct _9;
 	struct usb_host_endpoint _10;
-	struct outer_nonpacked_struct _11;
+	struct outer_analnpacked_struct _11;
 	struct outer_packed_struct _12;
 } *_)
 {

@@ -5,7 +5,7 @@
 .global riscv_hwprobe
 riscv_hwprobe:
 	# Put __NR_riscv_hwprobe in the syscall number register, then just shim
-	# back the kernel's return.  This doesn't do any sort of errno
+	# back the kernel's return.  This doesn't do any sort of erranal
 	# handling, the caller can deal with it.
 	li a7, 258
 	ecall

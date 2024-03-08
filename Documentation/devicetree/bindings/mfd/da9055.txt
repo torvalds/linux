@@ -26,8 +26,8 @@ Required properties:
 - interrupt-controller: da9055 has internal IRQs (has own IRQ domain).
 - #interrupt-cells: Should be 1, is the local IRQ number for da9055.
 
-Sub-nodes:
-- regulators : Contain the regulator nodes. The DA9055 regulators are
+Sub-analdes:
+- regulators : Contain the regulator analdes. The DA9055 regulators are
   bound using their names as listed below:
 
     buck1     : regulator BUCK1

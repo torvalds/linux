@@ -22,7 +22,7 @@
  * ---------------------------------------------------------------
  * Anybus Profinet mailbox messages - definitions
  * ---------------------------------------------------------------
- * note that we're depending on the layout of these structures being
+ * analte that we're depending on the layout of these structures being
  * exactly as advertised.
  */
 
@@ -167,7 +167,7 @@ static int profinet_probe(struct anybuss_client *client)
 	client->on_online_changed = profi_on_online_changed;
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&priv->enable_lock);
 	priv->client = client;
 	priv->fbdev.read_area_sz = PROFI_DPRAM_SIZE;

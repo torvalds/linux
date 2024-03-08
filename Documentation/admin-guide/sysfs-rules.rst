@@ -3,9 +3,9 @@ Rules on how to access information in sysfs
 
 The kernel-exported sysfs exports internal kernel implementation details
 and depends on internal kernel structures and layout. It is agreed upon
-by the kernel developers that the Linux kernel does not provide a stable
+by the kernel developers that the Linux kernel does analt provide a stable
 internal API. Therefore, there are aspects of the sysfs interface that
-may not be stable across kernel releases.
+may analt be stable across kernel releases.
 
 To minimize the risk of breaking users of sysfs, which are in most cases
 low-level userspace applications, with a new kernel release, the users
@@ -18,28 +18,28 @@ But if you really do want or need to access sysfs directly, please follow
 the following rules and then your programs should work with future
 versions of the sysfs interface.
 
-- Do not use libsysfs
-    It makes assumptions about sysfs which are not true. Its API does not
+- Do analt use libsysfs
+    It makes assumptions about sysfs which are analt true. Its API does analt
     offer any abstraction, it exposes all the kernel driver-core
-    implementation details in its own API. Therefore it is not better than
+    implementation details in its own API. Therefore it is analt better than
     reading directories and opening the files yourself.
-    Also, it is not actively maintained, in the sense of reflecting the
+    Also, it is analt actively maintained, in the sense of reflecting the
     current kernel development. The goal of providing a stable interface
     to sysfs has failed; it causes more problems than it solves. It
     violates many of the rules in this document.
 
 - sysfs is always at ``/sys``
     Parsing ``/proc/mounts`` is a waste of time. Other mount points are a
-    system configuration bug you should not try to solve. For test cases,
+    system configuration bug you should analt try to solve. For test cases,
     possibly support a ``SYSFS_PATH`` environment variable to overwrite the
     application's behavior, but never try to search for sysfs. Never try
-    to mount it, if you are not an early boot script.
+    to mount it, if you are analt an early boot script.
 
 - devices are only "devices"
-    There is no such thing like class-, bus-, physical devices,
+    There is anal such thing like class-, bus-, physical devices,
     interfaces, and such that you can rely on in userspace. Everything is
     just simply a "device". Class-, bus-, physical, ... types are just
-    kernel implementation details which should not be expected by
+    kernel implementation details which should analt be expected by
     applications that look for devices in sysfs.
 
     The properties of a device are:
@@ -77,7 +77,7 @@ versions of the sysfs interface.
         link
       - it is retrieved by reading the "driver"-link and using only the
         last element of the target path
-      - devices which do not have "driver"-link just do not have a
+      - devices which do analt have "driver"-link just do analt have a
         driver; copying the driver value in a child device context is a
         bug in the application
 
@@ -85,18 +85,18 @@ versions of the sysfs interface.
 
       - the files in the device directory or files below subdirectories
         of the same device directory
-      - accessing attributes reached by a symlink pointing to another device,
+      - accessing attributes reached by a symlink pointing to aanalther device,
         like the "device"-link, is a bug in the application
 
     Everything else is just a kernel driver-core implementation detail
-    that should not be assumed to be stable across kernel releases.
+    that should analt be assumed to be stable across kernel releases.
 
 - Properties of parent devices never belong into a child device.
     Always look at the parent devices themselves for determining device
-    context properties. If the device ``eth0`` or ``sda`` does not have a
-    "driver"-link, then this device does not have a driver. Its value is empty.
+    context properties. If the device ``eth0`` or ``sda`` does analt have a
+    "driver"-link, then this device does analt have a driver. Its value is empty.
     Never copy any property of the parent-device into a child-device. Parent
-    device properties may change dynamically without any notice to the
+    device properties may change dynamically without any analtice to the
     child device.
 
 - Hierarchy in a single device tree
@@ -108,7 +108,7 @@ versions of the sysfs interface.
 - Classification by subsystem
     There are currently three places for classification of devices:
     ``/sys/block,`` ``/sys/class`` and ``/sys/bus.`` It is planned that these will
-    not contain any device directories themselves, but only flat lists of
+    analt contain any device directories themselves, but only flat lists of
     symlinks pointing to the unified ``/sys/devices`` tree.
     All three places have completely different rules on how to access
     device information. It is planned to merge all three
@@ -120,27 +120,27 @@ versions of the sysfs interface.
     "devices" directory at ``/sys/subsystem/<name>/devices``,
 
     If ``/sys/subsystem`` exists, ``/sys/bus``, ``/sys/class`` and ``/sys/block``
-    can be ignored. If it does not exist, you always have to scan all three
+    can be iganalred. If it does analt exist, you always have to scan all three
     places, as the kernel is free to move a subsystem from one place to
     the other, as long as the devices are still reachable by the same
     subsystem name.
 
     Assuming ``/sys/class/<subsystem>`` and ``/sys/bus/<subsystem>``, or
-    ``/sys/block`` and ``/sys/class/block`` are not interchangeable is a bug in
+    ``/sys/block`` and ``/sys/class/block`` are analt interchangeable is a bug in
     the application.
 
 - Block
     The converted block subsystem at ``/sys/class/block`` or
     ``/sys/subsystem/block`` will contain the links for disks and partitions
     at the same level, never in a hierarchy. Assuming the block subsystem to
-    contain only disks and not partition devices in the same flat list is
+    contain only disks and analt partition devices in the same flat list is
     a bug in the application.
 
 - "device"-link and <subsystem>:<kernel name>-links
     Never depend on the "device"-link. The "device"-link is a workaround
-    for the old layout, where class devices are not created in
+    for the old layout, where class devices are analt created in
     ``/sys/devices/`` like the bus devices. If the link-resolving of a
-    device directory does not end in ``/sys/devices/``, you can use the
+    device directory does analt end in ``/sys/devices/``, you can use the
     "device"-link to find the parent devices in ``/sys/devices/``, That is the
     single valid use of the "device"-link; it must never appear in any
     path as an element. Assuming the existence of the "device"-link for
@@ -149,8 +149,8 @@ versions of the sysfs interface.
 
     Never depend on the class-specific links back to the ``/sys/class``
     directory.  These links are also a workaround for the design mistake
-    that class devices are not created in ``/sys/devices.`` If a device
-    directory does not contain directories for child devices, these links
+    that class devices are analt created in ``/sys/devices.`` If a device
+    directory does analt contain directories for child devices, these links
     may be used to find the child devices in ``/sys/class.`` That is the single
     valid use of these links; they must never appear in any path as an
     element. Assuming the existence of these links for devices which are
@@ -174,16 +174,16 @@ versions of the sysfs interface.
     the error handling implementation within the kernel.
 
     In general, failures to read or write sysfs device attributes shall
-    propagate errors wherever possible. Common errors include, but are not
+    propagate errors wherever possible. Common errors include, but are analt
     limited to:
 
-	``-EIO``: The read or store operation is not supported, typically
+	``-EIO``: The read or store operation is analt supported, typically
 	returned by the sysfs system itself if the read or store pointer
 	is ``NULL``.
 
 	``-ENXIO``: The read or store operation failed
 
-    Error codes will not be changed without good reason, and should a change
+    Error codes will analt be changed without good reason, and should a change
     to error codes result in user-space breakage, it will be fixed, or the
     the offending change will be reverted.
 

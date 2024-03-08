@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0+
 
 ifneq ($(shell $(CC) --version 2>&1 | head -n 1 | grep clang),)
-CLANG_FLAGS += -no-integrated-as
+CLANG_FLAGS += -anal-integrated-as
 endif
 
 CFLAGS += -O2 -Wall -g -I./ $(KHDR_INCLUDES) -Wl,-rpath=./ \

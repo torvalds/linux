@@ -10,18 +10,18 @@
 #define TTB_RGN_OC_WBWA	(1 << 3)
 #define TTB_RGN_OC_WT	(2 << 3)
 #define TTB_RGN_OC_WB	(3 << 3)
-#define TTB_NOS		(1 << 5)
+#define TTB_ANALS		(1 << 5)
 #define TTB_IRGN_NC	((0 << 0) | (0 << 6))
 #define TTB_IRGN_WBWA	((0 << 0) | (1 << 6))
 #define TTB_IRGN_WT	((1 << 0) | (0 << 6))
 #define TTB_IRGN_WB	((1 << 0) | (1 << 6))
 
-/* PTWs cacheable, inner WB not shareable, outer WB not shareable */
+/* PTWs cacheable, inner WB analt shareable, outer WB analt shareable */
 #define TTB_FLAGS_UP	TTB_IRGN_WB|TTB_RGN_OC_WB
 #define PMD_FLAGS_UP	PMD_SECT_WB
 
-/* PTWs cacheable, inner WBWA shareable, outer WBWA not shareable */
-#define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
+/* PTWs cacheable, inner WBWA shareable, outer WBWA analt shareable */
+#define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_ANALS|TTB_RGN_OC_WBWA
 #define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
 
 .arch armv7-a
@@ -34,11 +34,11 @@
  *	- pgd_phys - physical address of new TTB
  *
  *	It is assumed that:
- *	- we are not using split page tables
+ *	- we are analt using split page tables
  *
- *	Note that we always need to flush BTAC/BTB if IBE is set
- *	even on Cortex-A8 revisions not affected by 430973.
- *	If IBE is not set, the flush BTAC/BTB won't do anything.
+ *	Analte that we always need to flush BTAC/BTB if IBE is set
+ *	even on Cortex-A8 revisions analt affected by 430973.
+ *	If IBE is analt set, the flush BTAC/BTB won't do anything.
  */
 ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
@@ -95,14 +95,14 @@ ENTRY(cpu_v7_set_pte_ext)
 
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_VALID
-	eorne	r1, r1, #L_PTE_NONE
-	tstne	r1, #L_PTE_NONE
+	eorne	r1, r1, #L_PTE_ANALNE
+	tstne	r1, #L_PTE_ANALNE
 	moveq	r3, #0
 
  ARM(	str	r3, [r0, #2048]! )
  THUMB(	add	r0, r0, #2048 )
  THUMB(	str	r3, [r0] )
-	ALT_SMP(W(nop))
+	ALT_SMP(W(analp))
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
 	bx	lr
@@ -124,7 +124,7 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 *   reserved		110
 	 *   WRITEALLOC		111	10	01	01
 	 *   DEV_SHARED		100	01
-	 *   DEV_NONSHARED	100	01
+	 *   DEV_ANALNSHARED	100	01
 	 *   DEV_WC		001	10
 	 *   DEV_CACHED		011	10
 	 *
@@ -132,9 +132,9 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 *
 	 *   DS0 = PRRR[16] = 0		- device shareable property
 	 *   DS1 = PRRR[17] = 1		- device shareable property
-	 *   NS0 = PRRR[18] = 0		- normal shareable property
-	 *   NS1 = PRRR[19] = 1		- normal shareable property
-	 *   NOS = PRRR[24+n] = 1	- not outer shareable
+	 *   NS0 = PRRR[18] = 0		- analrmal shareable property
+	 *   NS1 = PRRR[19] = 1		- analrmal shareable property
+	 *   ANALS = PRRR[24+n] = 1	- analt outer shareable
 	 */
 .equ	PRRR,	0xff0a81a8
 .equ	NMRR,	0x40e040e0

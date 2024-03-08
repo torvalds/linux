@@ -39,7 +39,7 @@ static int udplite_err(struct sk_buff *skb, u32 info)
 static const struct net_protocol udplite_protocol = {
 	.handler	= udplite_rcv,
 	.err_handler	= udplite_err,
-	.no_policy	= 1,
+	.anal_policy	= 1,
 };
 
 struct proto 	udplite_prot = {
@@ -89,7 +89,7 @@ static int __net_init udplite4_proc_init_net(struct net *net)
 {
 	if (!proc_create_net_data("udplite", 0444, net->proc_net, &udp_seq_ops,
 			sizeof(struct udp_iter_state), &udplite4_seq_afinfo))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -126,11 +126,11 @@ void __init udplite4_register(void)
 	inet_register_protosw(&udplite4_protosw);
 
 	if (udplite4_proc_init())
-		pr_err("%s: Cannot register /proc!\n", __func__);
+		pr_err("%s: Cananalt register /proc!\n", __func__);
 	return;
 
 out_unregister_proto:
 	proto_unregister(&udplite_prot);
 out_register_err:
-	pr_crit("%s: Cannot add UDP-Lite protocol\n", __func__);
+	pr_crit("%s: Cananalt add UDP-Lite protocol\n", __func__);
 }

@@ -1,13 +1,13 @@
 Specifying wakeup capability for devices
 ============================================
 
-Any device nodes
+Any device analdes
 ----------------
-Nodes that describe devices which have wakeup capability may contain a
+Analdes that describe devices which have wakeup capability may contain a
 "wakeup-source" boolean property.
 
 If the device is marked as a wakeup-source, interrupt wake capability depends
-on the device specific "interrupt-names" property. If no interrupts are labeled
+on the device specific "interrupt-names" property. If anal interrupts are labeled
 as wake capable, then it is up to the device to determine which interrupts can
 wake the system.
 
@@ -16,7 +16,7 @@ needs to specify/identify it using a device specific interrupt name. In such
 cases only that interrupt can be used as a wakeup interrupt.
 
 While various legacy interrupt names exist, new devices should use "wakeup" as
-the canonical interrupt name.
+the caanalnical interrupt name.
 
 List of legacy properties and respective binding document
 ---------------------------------------------------------

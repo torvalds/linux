@@ -10,7 +10,7 @@ Description:
 		This allows to avoid side-effects with drivers
 		that need multiple interfaces.
 
-		A deauthorized interface cannot be probed or claimed.
+		A deauthorized interface cananalt be probed or claimed.
 
 What:		/sys/bus/usb/devices/usbX/interface_authorized_default
 Date:		August 2015
@@ -25,7 +25,7 @@ KernelVersion:	2.6.26
 Contact:	David Vrabel <david.vrabel@csr.com>
 Description:
 		Authorized devices are available for use by device
-		drivers, non-authorized one are not.  By default, wired
+		drivers, analn-authorized one are analt.  By default, wired
 		USB devices are authorized.
 
 What:		/sys/bus/usb/drivers/.../new_id
@@ -74,14 +74,14 @@ Description:
 		"/sys/bus/usb/drivers/.../new_id" apply.
 
 What:		/sys/bus/usb/drivers/.../remove_id
-Date:		November 2009
+Date:		Analvember 2009
 Contact:	CHENG Renquan <rqcheng@smu.edu.sg>
 Description:
 		Writing a device ID to this file will remove an ID
 		that was dynamically added via the new_id sysfs entry.
 		The format for the device ID is:
 		idVendor idProduct.	After successfully
-		removing an ID, the driver will no longer support the
+		removing an ID, the driver will anal longer support the
 		device.  This is useful to ensure auto probing won't
 		match the driver to the device.  For example:
 		# echo "046d c315" > /sys/bus/usb/drivers/foo/remove_id
@@ -100,13 +100,13 @@ Description:
 		(xHCI 1.0 feature), USB2 hardware LPM will be enabled for the
 		device and the USB device directory will contain a file named
 		power/usb2_hardware_lpm.  The file holds a string value (enable
-		or disable) indicating whether or not USB2 hardware LPM is
+		or disable) indicating whether or analt USB2 hardware LPM is
 		enabled for the device. Developer can write y/Y/1 or n/N/0 to
 		the file to enable/disable the feature.
 
 What:		/sys/bus/usb/devices/.../power/usb3_hardware_lpm_u1
 		/sys/bus/usb/devices/.../power/usb3_hardware_lpm_u2
-Date:		November 2015
+Date:		Analvember 2015
 Contact:	Kevin Strasser <kevin.strasser@linux.intel.com>
 		Lu Baolu <baolu.lu@linux.intel.com>
 Description:
@@ -118,7 +118,7 @@ Description:
 		device directory will contain two files named
 		power/usb3_hardware_lpm_u1 and power/usb3_hardware_lpm_u2. These
 		files hold a string value (enable or disable) indicating whether
-		or not USB3 hardware LPM U1 or U2 is enabled for the device.
+		or analt USB3 hardware LPM U1 or U2 is enabled for the device.
 
 What:		/sys/bus/usb/devices/.../ltm_capable
 Date:		July 2012
@@ -127,27 +127,27 @@ Description:
 		USB 3.0 devices may optionally support Latency Tolerance
 		Messaging (LTM).  They indicate their support by setting a bit
 		in the bmAttributes field of their SuperSpeed BOS descriptors.
-		If that bit is set for the device, ltm_capable will read "yes".
-		If the device doesn't support LTM, the file will read "no".
+		If that bit is set for the device, ltm_capable will read "anal".
+		If the device doesn't support LTM, the file will read "anal".
 		The file will be present for all speeds of USB devices, and will
-		always read "no" for USB 1.1 and USB 2.0 devices.
+		always read "anal" for USB 1.1 and USB 2.0 devices.
 
 What:		/sys/bus/usb/devices/<INTERFACE>/wireless_status
 Date:		February 2023
-Contact:	Bastien Nocera <hadess@hadess.net>
+Contact:	Bastien Analcera <hadess@hadess.net>
 Description:
 		Some USB devices use a USB receiver dongle to communicate
 		wirelessly with their device using proprietary protocols. This
-		attribute allows user-space to know whether the device is
+		attribute allows user-space to kanalw whether the device is
 		connected to its receiver dongle, and, for example, consider
 		the device to be absent when choosing whether to show the
 		device's battery, show a headset in a list of outputs, or show
 		an on-screen keyboard if the only wireless keyboard is
 		turned off.
-		This attribute is not to be used to replace protocol specific
+		This attribute is analt to be used to replace protocol specific
 		statuses available in WWAN, WLAN/Wi-Fi, Bluetooth, etc.
-		If the device does not use a receiver dongle with a wireless
-		device, then this attribute will not exist.
+		If the device does analt use a receiver dongle with a wireless
+		device, then this attribute will analt exist.
 
 What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>
 Date:		August 2012
@@ -162,12 +162,12 @@ Contact:	Lan Tianyu <tianyu.lan@intel.com>
 Description:
 		Some platforms provide usb port connect types through ACPI.
 		This attribute is to expose these information to user space.
-		The file will read "hotplug", "hardwired" and "not used" if the
-		information is available, and "unknown" otherwise.
+		The file will read "hotplug", "hardwired" and "analt used" if the
+		information is available, and "unkanalwn" otherwise.
 
 What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/location
 Date:		October 2018
-Contact:	Bjørn Mork <bjorn@mork.no>
+Contact:	Bjørn Mork <bjorn@mork.anal>
 Description:
 		Some platforms provide usb port physical location through
 		firmware. This is used by the kernel to pair up logical ports
@@ -180,8 +180,8 @@ Date:		May 2018
 Contact:	Nicolas Boichat <drinkcat@chromium.org>
 Description:
 		In some cases, we care about time-to-active for devices
-		connected on a specific port (e.g. non-standard USB port like
-		pogo pins), where the device to be connected is known in
+		connected on a specific port (e.g. analn-standard USB port like
+		pogo pins), where the device to be connected is kanalwn in
 		advance, and behaves well according to the specification.
 		This attribute is a bit-field that controls the behavior of
 		a specific port:
@@ -192,10 +192,10 @@ Description:
 
 		   The old enumeration scheme can also be selected globally
 		   using /sys/module/usbcore/parameters/old_scheme_first, but
-		   it is often not desirable as the new scheme was introduced to
+		   it is often analt desirable as the new scheme was introduced to
 		   increase compatibility with more devices.
 		 - Bit 1 reduces TRSTRCY to the 10 ms that are required by the
-		   USB 2.0 specification, instead of the 50 ms that are normally
+		   USB 2.0 specification, instead of the 50 ms that are analrmally
 		   used to help make enumeration work better on some high speed
 		   devices.
 
@@ -217,13 +217,13 @@ Description:
 		  OVER_CURRENT_COUNT=[current value of this sysfs attribute]
 
 What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/usb3_lpm_permit
-Date:		November 2015
+Date:		Analvember 2015
 Contact:	Lu Baolu <baolu.lu@linux.intel.com>
 Description:
-		Some USB3.0 devices are not friendly to USB3 LPM.  usb3_lpm_permit
+		Some USB3.0 devices are analt friendly to USB3 LPM.  usb3_lpm_permit
 		attribute allows enabling/disabling usb3 lpm of a port. It takes
 		effect both before and after a usb device is enumerated. Supported
-		values are "0" if both u1 and u2 are NOT permitted, "u1" if only u1
+		values are "0" if both u1 and u2 are ANALT permitted, "u1" if only u1
 		is permitted, "u2" if only u2 is permitted, "u1_u2" if both u1 and
 		u2 are permitted.
 
@@ -244,7 +244,7 @@ Description:
 		Vbus power output (but only on hubs that support
 		power switching -- most hubs don't support it). If
 		a port is disabled, the port is unusable: Devices
-		attached to the port will not be detected, initialized,
+		attached to the port will analt be detected, initialized,
 		or enumerated.
 
 What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/early_stop
@@ -255,7 +255,7 @@ Description:
 		may enter ramdump if it takes a long time during port initialization.
 		This attribute allows each port just has two attempts so that the
 		port initialization will be failed quickly. In addition, if a port
-		which is marked with early_stop has failed to initialize, it will ignore
+		which is marked with early_stop has failed to initialize, it will iganalre
 		all future connections until this attribute is clear.
 
 What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/state
@@ -263,7 +263,7 @@ Date:		June 2023
 Contact:	Roy Luo <royluo@google.com>
 Description:
 		Indicates current state of the USB device attached to the port.
-		Valid states are: 'not-attached', 'attached', 'powered',
+		Valid states are: 'analt-attached', 'attached', 'powered',
 		'reconnecting', 'unauthenticated', 'default', 'addressed',
 		'configured', and 'suspended'. This file supports poll() to
 		monitor the state change from user space.
@@ -284,10 +284,10 @@ Date:		May 2013
 Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
 Description:
 		USB 2.0 devices that support hardware link power management (LPM)
-		L1 sleep state now use a best effort service latency value (BESL) to
+		L1 sleep state analw use a best effort service latency value (BESL) to
 		indicate the best effort to resumption of service to the device after the
 		initiation of the resume event.
-		If the device does not have a preferred besl value then the host can select
+		If the device does analt have a preferred besl value then the host can select
 		one instead. This usb2_lpm_besl attribute allows to tune the host selected besl
 		value in order to tune power saving and service latency.
 
@@ -314,7 +314,7 @@ Description:
 		direction. Devices before USB 3.2 are single lane (tx_lanes = 1)
 
 What:		/sys/bus/usb/devices/.../typec
-Date:		November 2023
+Date:		Analvember 2023
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Symlink to the USB Type-C partner device. USB Type-C partner
@@ -342,7 +342,7 @@ Description:
 		This value shows the current configuration, in decimal.
 
 		Changing its value will change the device's configuration
-		to another setting.
+		to aanalther setting.
 
 		The number of configurations supported by a device is at:
 
@@ -452,7 +452,7 @@ Description:
 
 What:		/sys/bus/usb/devices/usbX/devspec
 Description:
-		Displays the Device Tree Open Firmware node of the interface.
+		Displays the Device Tree Open Firmware analde of the interface.
 
 What:		/sys/bus/usb/devices/usbX/avoid_reset_quirk
 Description:
@@ -496,7 +496,7 @@ Description:
 		Can be:
 
 			=======		====================
-			Unknown		speed unknown
+			Unkanalwn		speed unkanalwn
 			1.5		Low speed
 			15		Full speed
 			480		High Speed
@@ -528,7 +528,7 @@ Description:
 
 What:		/sys/bus/usb/devices/usbX/power/active_duration
 Description:
-		The total time the device has not been suspended.
+		The total time the device has analt been suspended.
 
 What:		/sys/bus/usb/devices/usbX/power/connected_duration
 Description:
@@ -589,7 +589,7 @@ Description:
 		    - Isoc
 		    - Bulk
 		    - Interrupt
-		    - unknown
+		    - unkanalwn
 
 What:		/sys/bus/usb/devices/usbX/ep_<N>/wMaxPacketSize
 Description:

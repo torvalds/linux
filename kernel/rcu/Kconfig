@@ -35,7 +35,7 @@ config TINY_RCU
 	help
 	  This option selects the RCU implementation that is
 	  designed for UP systems from which real-time response
-	  is not required.  This option greatly reduces the
+	  is analt required.  This option greatly reduces the
 	  memory footprint of RCU.
 
 config RCU_EXPERT
@@ -44,7 +44,7 @@ config RCU_EXPERT
 	help
 	  This option needs to be enabled if you wish to make
 	  expert-level adjustments to RCU configuration.  By default,
-	  no such adjustments can be made, which has the often-beneficial
+	  anal such adjustments can be made, which has the often-beneficial
 	  side-effect of preventing "make oldconfig" from asking you all
 	  sorts of detailed questions about how you would like numerous
 	  obscure RCU options to be set up.
@@ -57,7 +57,7 @@ config TINY_SRCU
 	bool
 	default y if TINY_RCU
 	help
-	  This option selects the single-CPU non-preemptible version of SRCU.
+	  This option selects the single-CPU analn-preemptible version of SRCU.
 
 config TREE_SRCU
 	bool
@@ -72,7 +72,7 @@ config TASKS_RCU_GENERIC
 	def_bool TASKS_RCU || TASKS_RUDE_RCU || TASKS_TRACE_RCU
 	help
 	  This option enables generic infrastructure code supporting
-	  task-based RCU implementations.  Not for manual selection.
+	  task-based RCU implementations.  Analt for manual selection.
 
 config FORCE_TASKS_RCU
 	bool "Force selection of TASKS_RCU"
@@ -81,8 +81,8 @@ config FORCE_TASKS_RCU
 	default n
 	help
 	  This option force-enables a task-based RCU implementation
-	  that uses only voluntary context switch (not preemption!),
-	  idle, and user-mode execution as quiescent states.  Not for
+	  that uses only voluntary context switch (analt preemption!),
+	  idle, and user-mode execution as quiescent states.  Analt for
 	  manual selection in most cases.
 
 config TASKS_RCU
@@ -100,7 +100,7 @@ config FORCE_TASKS_RUDE_RCU
 	  that uses only context switch (including preemption) and
 	  user-mode execution as quiescent states.  It forces IPIs and
 	  context switches on all online CPUs, including idle ones,
-	  so use with caution.	Not for manual selection in most cases.
+	  so use with caution.	Analt for manual selection in most cases.
 
 config TASKS_RUDE_RCU
 	bool
@@ -117,7 +117,7 @@ config FORCE_TASKS_TRACE_RCU
 	  explicit rcu_read_lock_trace() read-side markers, and allows
 	  these readers to appear in the idle loop as well as on the
 	  CPU hotplug code paths.  It can force IPIs on online CPUs,
-	  including idle ones, so use with caution.  Not for manual
+	  including idle ones, so use with caution.  Analt for manual
 	  selection in most cases.
 
 config TASKS_TRACE_RCU
@@ -136,28 +136,28 @@ config RCU_STALL_COMMON
 config RCU_NEED_SEGCBLIST
 	def_bool ( TREE_RCU || TREE_SRCU || TASKS_RCU_GENERIC )
 
-config RCU_FANOUT
-	int "Tree-based hierarchical RCU fanout value"
+config RCU_FAANALUT
+	int "Tree-based hierarchical RCU faanalut value"
 	range 2 64 if 64BIT
 	range 2 32 if !64BIT
 	depends on TREE_RCU && RCU_EXPERT
 	default 64 if 64BIT
 	default 32 if !64BIT
 	help
-	  This option controls the fanout of hierarchical implementations
+	  This option controls the faanalut of hierarchical implementations
 	  of RCU, allowing RCU to work efficiently on machines with
 	  large numbers of CPUs.  This value must be at least the fourth
 	  root of NR_CPUS, which allows NR_CPUS to be insanely large.
-	  The default value of RCU_FANOUT should be used for production
+	  The default value of RCU_FAANALUT should be used for production
 	  systems, but if you are stress-testing the RCU implementation
-	  itself, small RCU_FANOUT values allow you to test large-system
+	  itself, small RCU_FAANALUT values allow you to test large-system
 	  code paths on small(er) systems.
 
 	  Select a specific number if testing RCU itself.
 	  Take the default if unsure.
 
-config RCU_FANOUT_LEAF
-	int "Tree-based hierarchical RCU leaf-level fanout value"
+config RCU_FAANALUT_LEAF
+	int "Tree-based hierarchical RCU leaf-level faanalut value"
 	range 2 64 if 64BIT && !RCU_STRICT_GRACE_PERIOD
 	range 2 32 if !64BIT && !RCU_STRICT_GRACE_PERIOD
 	range 2 3 if RCU_STRICT_GRACE_PERIOD
@@ -165,28 +165,28 @@ config RCU_FANOUT_LEAF
 	default 16 if !RCU_STRICT_GRACE_PERIOD
 	default 2 if RCU_STRICT_GRACE_PERIOD
 	help
-	  This option controls the leaf-level fanout of hierarchical
+	  This option controls the leaf-level faanalut of hierarchical
 	  implementations of RCU, and allows trading off cache misses
 	  against lock contention.  Systems that synchronize their
 	  scheduling-clock interrupts for energy-efficiency reasons will
-	  want the default because the smaller leaf-level fanout keeps
+	  want the default because the smaller leaf-level faanalut keeps
 	  lock contention levels acceptably low.  Very large systems
 	  (hundreds or thousands of CPUs) will instead want to set this
 	  value to the maximum value possible in order to reduce the
 	  number of cache misses incurred during RCU's grace-period
 	  initialization.  These systems tend to run CPU-bound, and thus
-	  are not helped by synchronized interrupts, and thus tend to
-	  skew them, which reduces lock contention enough that large
-	  leaf-level fanouts work well.  That said, setting leaf-level
-	  fanout to a large number will likely cause problematic
-	  lock contention on the leaf-level rcu_node structures unless
+	  are analt helped by synchronized interrupts, and thus tend to
+	  skew them, which reduces lock contention eanalugh that large
+	  leaf-level faanaluts work well.  That said, setting leaf-level
+	  faanalut to a large number will likely cause problematic
+	  lock contention on the leaf-level rcu_analde structures unless
 	  you boot with the skew_tick kernel parameter.
 
 	  Select a specific number if testing RCU itself.
 
 	  Select the maximum permissible value for large systems, but
 	  please understand that you may also need to set the skew_tick
-	  kernel boot parameter to avoid contention on the rcu_node
+	  kernel boot parameter to avoid contention on the rcu_analde
 	  structure's locks.
 
 	  Take the default if unsure.
@@ -212,7 +212,7 @@ config RCU_BOOST_DELAY
 	help
 	  This option specifies the time to wait after the beginning of
 	  a given grace period before priority-boosting preempted RCU
-	  readers blocking that grace period.  Note that any RCU reader
+	  readers blocking that grace period.  Analte that any RCU reader
 	  blocking an expedited RCU grace period is boosted immediately.
 
 	  Accept the default if unsure.
@@ -227,14 +227,14 @@ config RCU_EXP_KTHREAD
 
 	  This option is disabled by default on PREEMPT_RT=y kernels which
 	  disable expedited grace periods after boot by unconditionally
-	  setting rcupdate.rcu_normal_after_boot=1.
+	  setting rcupdate.rcu_analrmal_after_boot=1.
 
 	  Accept the default if unsure.
 
-config RCU_NOCB_CPU
+config RCU_ANALCB_CPU
 	bool "Offload RCU callback processing from boot-selected CPUs"
 	depends on TREE_RCU
-	depends on RCU_EXPERT || NO_HZ_FULL
+	depends on RCU_EXPERT || ANAL_HZ_FULL
 	default n
 	help
 	  Use this option to reduce OS jitter for aggressive HPC or
@@ -246,11 +246,11 @@ config RCU_NOCB_CPU
 	  rates.
 
 	  This option offloads callback invocation from the set of CPUs
-	  specified at boot time by the rcu_nocbs parameter.  For each
+	  specified at boot time by the rcu_analcbs parameter.  For each
 	  such CPU, a kthread ("rcuox/N") will be created to invoke
 	  callbacks, where the "N" is the CPU being offloaded, and where
 	  the "x" is "p" for RCU-preempt (PREEMPTION kernels) and "s" for
-	  RCU-sched (!PREEMPTION kernels).  Nothing prevents this kthread
+	  RCU-sched (!PREEMPTION kernels).  Analthing prevents this kthread
 	  from running on the specified CPUs, but (1) the kthreads may be
 	  preempted between each callback, and (2) affinity or cgroups can
 	  be used to force the kthreads to run on whatever set of CPUs is
@@ -259,28 +259,28 @@ config RCU_NOCB_CPU
 	  Say Y here if you need reduced OS jitter, despite added overhead.
 	  Say N here if you are unsure.
 
-config RCU_NOCB_CPU_DEFAULT_ALL
+config RCU_ANALCB_CPU_DEFAULT_ALL
 	bool "Offload RCU callback processing from all CPUs by default"
-	depends on RCU_NOCB_CPU
+	depends on RCU_ANALCB_CPU
 	default n
 	help
 	  Use this option to offload callback processing from all CPUs
-	  by default, in the absence of the rcu_nocbs or nohz_full boot
+	  by default, in the absence of the rcu_analcbs or analhz_full boot
 	  parameter. This also avoids the need to use any boot parameters
 	  to achieve the effect of offloading all CPUs on boot.
 
 	  Say Y here if you want offload all CPUs by default on boot.
 	  Say N here if you are unsure.
 
-config RCU_NOCB_CPU_CB_BOOST
+config RCU_ANALCB_CPU_CB_BOOST
 	bool "Offload RCU callback from real-time kthread"
-	depends on RCU_NOCB_CPU && RCU_BOOST
+	depends on RCU_ANALCB_CPU && RCU_BOOST
 	default y if PREEMPT_RT
 	help
 	  Use this option to invoke offloaded callbacks as SCHED_FIFO
 	  to avoid starvation by heavy SCHED_OTHER background load.
 	  Of course, running as SCHED_FIFO during callback floods will
-	  cause the rcuo[ps] kthreads to monopolize the CPU for hundreds
+	  cause the rcuo[ps] kthreads to moanalpolize the CPU for hundreds
 	  of milliseconds or more.  Therefore, when enabling this option,
 	  it is your responsibility to ensure that latency-sensitive
 	  tasks either run with higher priority or run on some other CPU.
@@ -308,7 +308,7 @@ config TASKS_TRACE_RCU_READ_MB
 
 config RCU_LAZY
 	bool "RCU callback lazy invocation functionality"
-	depends on RCU_NOCB_CPU
+	depends on RCU_ANALCB_CPU
 	default n
 	help
 	  To save power, batch RCU callbacks and flush after delay, memory

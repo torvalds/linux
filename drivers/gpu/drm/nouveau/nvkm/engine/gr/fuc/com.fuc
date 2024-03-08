@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -255,7 +255,7 @@ strand_wait:
 	pop $r10
 	ret
 
-// unknown - call before issuing strand commands
+// unkanalwn - call before issuing strand commands
 //
 strand_pre:
 	mov $r9 NV_PGRAPH_FECS_STRAND_CMD_ENABLE
@@ -263,7 +263,7 @@ strand_pre:
 	call(strand_wait)
 	ret
 
-// unknown - call after issuing strand commands
+// unkanalwn - call after issuing strand commands
 //
 strand_post:
 	mov $r9 NV_PGRAPH_FECS_STRAND_CMD_DISABLE
@@ -312,7 +312,7 @@ strand_ctx_init:
 	call(strand_post)
 
 	// read the size of each strand, poke the context offset of
-	// each into STRAND_{SAVE,LOAD}_SWBASE now, no need to worry
+	// each into STRAND_{SAVE,LOAD}_SWBASE analw, anal need to worry
 	// about it later then.
 	nv_mkio($r8, NV_PGRAPH_FECS_STRAND_SAVE_SWBASE, 0x00)
 	nv_iord($r9, NV_PGRAPH_FECS_STRANDS_CNT, 0x00)

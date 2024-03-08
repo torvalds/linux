@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mtd/mtd.h>
@@ -19,7 +19,7 @@
 static int mapram_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int mapram_write (struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 static int mapram_erase (struct mtd_info *, struct erase_info *);
-static void mapram_nop (struct mtd_info *);
+static void mapram_analp (struct mtd_info *);
 static struct mtd_info *map_ram_probe(struct map_info *map);
 static int mapram_point (struct mtd_info *mtd, loff_t from, size_t len,
 			 size_t *retlen, void **virt, resource_size_t *phys);
@@ -70,12 +70,12 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	mtd->_read = mapram_read;
 	mtd->_write = mapram_write;
 	mtd->_panic_write = mapram_write;
-	mtd->_sync = mapram_nop;
+	mtd->_sync = mapram_analp;
 	mtd->flags = MTD_CAP_RAM;
 	mtd->writesize = 1;
 
-	/* Disable direct access when NO_XIP is set */
-	if (map->phys != NO_XIP) {
+	/* Disable direct access when ANAL_XIP is set */
+	if (map->phys != ANAL_XIP) {
 		mtd->_point = mapram_point;
 		mtd->_unpoint = mapram_unpoint;
 	}
@@ -139,9 +139,9 @@ static int mapram_erase (struct mtd_info *mtd, struct erase_info *instr)
 	return 0;
 }
 
-static void mapram_nop(struct mtd_info *mtd)
+static void mapram_analp(struct mtd_info *mtd)
 {
-	/* Nothing to see here */
+	/* Analthing to see here */
 }
 
 static int __init map_ram_init(void)

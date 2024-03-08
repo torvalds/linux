@@ -16,7 +16,7 @@
 static int brcmf_of_get_country_codes(struct device *dev,
 				      struct brcmf_mp_device *settings)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct brcmfmac_pd_cc_entry *cce;
 	struct brcmfmac_pd_cc *cc;
 	int count;
@@ -24,7 +24,7 @@ static int brcmf_of_get_country_codes(struct device *dev,
 
 	count = of_property_count_strings(np, "brcm,ccode-map");
 	if (count < 0) {
-		/* If no explicit country code map is specified, check whether
+		/* If anal explicit country code map is specified, check whether
 		 * the trivial map should be used.
 		 */
 		settings->trivial_ccode_map =
@@ -38,7 +38,7 @@ static int brcmf_of_get_country_codes(struct device *dev,
 
 	cc = devm_kzalloc(dev, struct_size(cc, table, count), GFP_KERNEL);
 	if (!cc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cc->table_size = count;
 
@@ -69,7 +69,7 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 		    struct brcmf_mp_device *settings)
 {
 	struct brcmfmac_sdio_pd *sdio = &settings->bus.sdio;
-	struct device_node *root, *np = dev->of_node;
+	struct device_analde *root, *np = dev->of_analde;
 	const char *prop;
 	int irq;
 	int err;
@@ -86,7 +86,7 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 	if (!of_property_read_string(np, "apple,antenna-sku", &prop))
 		settings->antenna_sku = prop;
 
-	/* The WLAN calibration blob is normally stored in SROM, but Apple
+	/* The WLAN calibration blob is analrmally stored in SROM, but Apple
 	 * ARM64 platforms pass it via the DT instead.
 	 */
 	prop = of_get_property(np, "brcm,cal-blob", &settings->cal_size);
@@ -94,7 +94,7 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 		settings->cal_blob = prop;
 
 	/* Set board-type to the first string of the machine compatible prop */
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (root && err) {
 		char *board_type;
 		const char *tmp;
@@ -104,13 +104,13 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 		/* get rid of '/' in the compatible string to be able to find the FW */
 		board_type = devm_kstrdup(dev, tmp, GFP_KERNEL);
 		if (!board_type) {
-			of_node_put(root);
+			of_analde_put(root);
 			return;
 		}
 		strreplace(board_type, '/', '-');
 		settings->board_type = board_type;
 
-		of_node_put(root);
+		of_analde_put(root);
 	}
 
 	if (!np || !of_device_is_compatible(np, "brcm,bcm4329-fmac"))
@@ -128,13 +128,13 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 	if (of_property_read_u32(np, "brcm,drive-strength", &val) == 0)
 		sdio->drive_strength = val;
 
-	/* make sure there are interrupts defined in the node */
+	/* make sure there are interrupts defined in the analde */
 	if (!of_property_present(np, "interrupts"))
 		return;
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
-		brcmf_err("interrupt could not be mapped\n");
+		brcmf_err("interrupt could analt be mapped\n");
 		return;
 	}
 	irqf = irqd_get_trigger_type(irq_get_irq_data(irq));

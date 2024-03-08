@@ -39,7 +39,7 @@ static const char *mtk_foe_pkt_type_str(int type)
 	};
 
 	if (type >= ARRAY_SIZE(type_str) || !type_str[type])
-		return "UNKNOWN";
+		return "UNKANALWN";
 
 	return type_str[type];
 }

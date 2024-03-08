@@ -15,7 +15,7 @@ handling to ensure a uniform behaviour for Linux systems.
 Ping on resume
 --------------
 On resume, a watchdog timer shall be reset to its selected value to give
-userspace enough time to resume. [1] [2]
+userspace eanalugh time to resume. [1] [2]
 
 [1] https://patchwork.kernel.org/patch/10252209/
 

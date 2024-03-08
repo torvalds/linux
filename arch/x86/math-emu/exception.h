@@ -31,7 +31,7 @@
 #define EX_Underflow	Const_(0x0010)	/* underflow */
 #define EX_Overflow	Const_(0x0008)	/* overflow */
 #define EX_ZeroDiv	Const_(0x0004)	/* divide by zero */
-#define EX_Denormal	Const_(0x0002)	/* denormalized operand */
+#define EX_Deanalrmal	Const_(0x0002)	/* deanalrmalized operand */
 #define EX_Invalid	Const_(0x0001)	/* invalid operation */
 
 #define PRECISION_LOST_UP    Const_((EX_Precision | SW_C1))

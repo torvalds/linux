@@ -120,12 +120,12 @@ static int cc_render_buff_to_mlli(struct device *dev, dma_addr_t buff_dma,
 	u32 *mlli_entry_p = *mlli_entry_pp;
 	u32 new_nents;
 
-	/* Verify there is no memory overflow*/
+	/* Verify there is anal memory overflow*/
 	new_nents = (*curr_nents + buff_size / CC_MAX_MLLI_ENTRY_SIZE + 1);
 	if (new_nents > MAX_NUM_OF_TOTAL_MLLI_ENTRIES) {
 		dev_err(dev, "Too many mlli entries. current %d max %d\n",
 			new_nents, MAX_NUM_OF_TOTAL_MLLI_ENTRIES);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*handle buffer longer than 64 kbytes */
@@ -194,7 +194,7 @@ static int cc_generate_mlli(struct device *dev, struct buffer_array *sg_data,
 			       &mlli_params->mlli_dma_addr);
 	if (!mlli_params->mlli_virt_addr) {
 		dev_err(dev, "dma_pool_alloc() failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto build_mlli_exit;
 	}
 	/* Point to start of MLLI */
@@ -270,14 +270,14 @@ static int cc_map_sg(struct device *dev, struct scatterlist *sg,
 		*nents = 0;
 		dev_err(dev, "Too many fragments. current %d max %d\n",
 			*nents, max_sg_nents);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = dma_map_sg(dev, sg, *nents, direction);
 	if (!ret) {
 		*nents = 0;
 		dev_err(dev, "dma_map_sg() sg buffer failed %d\n", ret);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*mapped_nents = ret;
@@ -296,7 +296,7 @@ cc_set_aead_conf_buf(struct device *dev, struct aead_req_ctx *areq_ctx,
 		    AES_BLOCK_SIZE + areq_ctx->ccm_hdr_size);
 	if (dma_map_sg(dev, &areq_ctx->ccm_adata_sg, 1, DMA_TO_DEVICE) != 1) {
 		dev_err(dev, "dma_map_sg() config buffer failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev_dbg(dev, "Mapped curr_buff: dma_address=%pad page=%p addr=%pK offset=%u length=%u\n",
 		&sg_dma_address(&areq_ctx->ccm_adata_sg),
@@ -321,7 +321,7 @@ static int cc_set_hash_buf(struct device *dev, struct ahash_req_ctx *areq_ctx,
 	sg_init_one(areq_ctx->buff_sg, curr_buff, curr_buff_cnt);
 	if (dma_map_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE) != 1) {
 		dev_err(dev, "dma_map_sg() src buffer failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev_dbg(dev, "Mapped curr_buff: dma_address=%pad page=%p addr=%pK offset=%u length=%u\n",
 		&sg_dma_address(areq_ctx->buff_sg), sg_page(areq_ctx->buff_sg),
@@ -393,7 +393,7 @@ int cc_map_cipher_request(struct cc_drvdata *drvdata, void *ctx,
 		if (dma_mapping_error(dev, req_ctx->gen_ctx.iv_dma_addr)) {
 			dev_err(dev, "Mapping iv %u B at va=%pK for DMA failed\n",
 				ivsize, info);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dev_dbg(dev, "Mapped iv %u B at va=%pK to dma=%pad\n",
 			ivsize, info, &req_ctx->gen_ctx.iv_dma_addr);
@@ -560,7 +560,7 @@ static int cc_aead_chain_iv(struct cc_drvdata *drvdata,
 
 	areq_ctx->gen_ctx.iv = kmemdup(req->iv, hw_iv_size, flags);
 	if (!areq_ctx->gen_ctx.iv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	areq_ctx->gen_ctx.iv_dma_addr =
 		dma_map_single(dev, areq_ctx->gen_ctx.iv, hw_iv_size,
@@ -570,7 +570,7 @@ static int cc_aead_chain_iv(struct cc_drvdata *drvdata,
 			hw_iv_size, req->iv);
 		kfree_sensitive(areq_ctx->gen_ctx.iv);
 		areq_ctx->gen_ctx.iv = NULL;
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto chain_iv_exit;
 	}
 
@@ -613,7 +613,7 @@ static int cc_aead_chain_assoc(struct cc_drvdata *drvdata,
 	if (mapped_nents > LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES) {
 		dev_err(dev, "Too many fragments. current %d max %d\n",
 			mapped_nents, LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	areq_ctx->assoc.nents = mapped_nents;
 
@@ -625,7 +625,7 @@ static int cc_aead_chain_assoc(struct cc_drvdata *drvdata,
 			dev_err(dev, "CCM case.Too many fragments. Current %d max %d\n",
 				(areq_ctx->assoc.nents + 1),
 				LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto chain_assoc_exit;
 		}
 	}
@@ -717,7 +717,7 @@ static void cc_prepare_aead_data_mlli(struct cc_drvdata *drvdata,
 			}
 		} else { /* Contig. ICV */
 			sg = &areq_ctx->src_sgl[areq_ctx->src.nents - 1];
-			/*Should hanlde if the sg is not contig.*/
+			/*Should hanlde if the sg is analt contig.*/
 			areq_ctx->icv_dma_addr = sg_dma_address(sg) +
 				(*src_last_bytes - authsize);
 			areq_ctx->icv_virt_addr = sg_virt(sg) +
@@ -725,7 +725,7 @@ static void cc_prepare_aead_data_mlli(struct cc_drvdata *drvdata,
 		}
 
 	} else if (direct == DRV_CRYPTO_DIRECTION_DECRYPT) {
-		/*NON-INPLACE and DECRYPT*/
+		/*ANALN-INPLACE and DECRYPT*/
 		cc_add_sg_entry(dev, sg_data, areq_ctx->src.nents,
 				areq_ctx->src_sgl, areq_ctx->cryptlen,
 				areq_ctx->src_offset, is_last_table,
@@ -749,7 +749,7 @@ static void cc_prepare_aead_data_mlli(struct cc_drvdata *drvdata,
 
 		} else { /* Contig. ICV */
 			sg = &areq_ctx->src_sgl[areq_ctx->src.nents - 1];
-			/*Should hanlde if the sg is not contig.*/
+			/*Should hanlde if the sg is analt contig.*/
 			areq_ctx->icv_dma_addr = sg_dma_address(sg) +
 				(*src_last_bytes - authsize);
 			areq_ctx->icv_virt_addr = sg_virt(sg) +
@@ -757,7 +757,7 @@ static void cc_prepare_aead_data_mlli(struct cc_drvdata *drvdata,
 		}
 
 	} else {
-		/*NON-INPLACE and ENCRYPT*/
+		/*ANALN-INPLACE and ENCRYPT*/
 		cc_add_sg_entry(dev, sg_data, areq_ctx->dst.nents,
 				areq_ctx->dst_sgl, areq_ctx->cryptlen,
 				areq_ctx->dst_offset, is_last_table,
@@ -798,7 +798,7 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	int rc = 0;
 	u32 src_mapped_nents = 0, dst_mapped_nents = 0;
 	u32 offset = 0;
-	/* non-inplace mode */
+	/* analn-inplace mode */
 	unsigned int size_for_map = req->assoclen + req->cryptlen;
 	u32 sg_index = 0;
 	u32 size_to_skip = req->assoclen;
@@ -830,7 +830,7 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	if (src_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES) {
 		dev_err(dev, "Too many fragments. current %d max %d\n",
 			src_mapped_nents, LLI_MAX_NUM_OF_DATA_ENTRIES);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	areq_ctx->src.nents = src_mapped_nents;
@@ -871,7 +871,7 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	if (dst_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES) {
 		dev_err(dev, "Too many fragments. current %d max %d\n",
 			dst_mapped_nents, LLI_MAX_NUM_OF_DATA_ENTRIES);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	areq_ctx->dst.nents = dst_mapped_nents;
 	areq_ctx->dst_offset = offset;
@@ -979,7 +979,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 	if (dma_mapping_error(dev, dma_addr)) {
 		dev_err(dev, "Mapping mac_buf %u B at va=%pK for DMA failed\n",
 			MAX_MAC_SIZE, areq_ctx->mac_buf);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto aead_map_failure;
 	}
 	areq_ctx->mac_buf_dma_addr = dma_addr;
@@ -994,7 +994,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 			dev_err(dev, "Mapping mac_buf %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, addr);
 			areq_ctx->ccm_iv0_dma_addr = 0;
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto aead_map_failure;
 		}
 		areq_ctx->ccm_iv0_dma_addr = dma_addr;
@@ -1011,7 +1011,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		if (dma_mapping_error(dev, dma_addr)) {
 			dev_err(dev, "Mapping hkey %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, areq_ctx->hkey);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto aead_map_failure;
 		}
 		areq_ctx->hkey_dma_addr = dma_addr;
@@ -1021,7 +1021,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		if (dma_mapping_error(dev, dma_addr)) {
 			dev_err(dev, "Mapping gcm_len_block %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, &areq_ctx->gcm_len_block);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto aead_map_failure;
 		}
 		areq_ctx->gcm_block_len_dma_addr = dma_addr;
@@ -1033,7 +1033,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 			dev_err(dev, "Mapping gcm_iv_inc1 %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, (areq_ctx->gcm_iv_inc1));
 			areq_ctx->gcm_iv_inc1_dma_addr = 0;
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto aead_map_failure;
 		}
 		areq_ctx->gcm_iv_inc1_dma_addr = dma_addr;
@@ -1045,7 +1045,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 			dev_err(dev, "Mapping gcm_iv_inc2 %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, (areq_ctx->gcm_iv_inc2));
 			areq_ctx->gcm_iv_inc2_dma_addr = 0;
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto aead_map_failure;
 		}
 		areq_ctx->gcm_iv_inc2_dma_addr = dma_addr;
@@ -1072,7 +1072,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		 * Create MLLI table for:
 		 *   (1) Assoc. data
 		 *   (2) Src/Dst SGLs
-		 *   Note: IV is contg. buffer (not an SGL)
+		 *   Analte: IV is contg. buffer (analt an SGL)
 		 */
 		rc = cc_aead_chain_assoc(drvdata, req, &sg_data, true, false);
 		if (rc)
@@ -1092,13 +1092,13 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		 *   (2) IV entry (chained right after end of assoc)
 		 *   (3) MLLI for src/dst (inplace operation)
 		 *
-		 * If ENCRYPT (non-inplace)
+		 * If ENCRYPT (analn-inplace)
 		 *   (1) MLLI table for assoc
 		 *   (2) IV entry (chained right after end of assoc)
 		 *   (3) MLLI for dst
 		 *   (4) MLLI for src
 		 *
-		 * If DECRYPT (non-inplace)
+		 * If DECRYPT (analn-inplace)
 		 *   (1) MLLI table for assoc
 		 *   (2) IV entry (chained right after end of assoc)
 		 *   (3) MLLI for src
@@ -1161,7 +1161,7 @@ int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 	areq_ctx->in_nents = 0;
 
 	if (nbytes == 0 && *curr_buff_cnt == 0) {
-		/* nothing to do */
+		/* analthing to do */
 		return 0;
 	}
 
@@ -1293,7 +1293,7 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 			goto unmap_curr_buff;
 		if (mapped_nents == 1 &&
 		    areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
-			/* only one entry in the SG and no previous data */
+			/* only one entry in the SG and anal previous data */
 			memcpy(areq_ctx->buff_sg, src,
 			       sizeof(struct scatterlist));
 			areq_ctx->buff_sg->length = update_data_len;
@@ -1381,7 +1381,7 @@ int cc_buffer_mgr_init(struct cc_drvdata *drvdata)
 				MLLI_TABLE_MIN_ALIGNMENT, 0);
 
 	if (!drvdata->mlli_buffs_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

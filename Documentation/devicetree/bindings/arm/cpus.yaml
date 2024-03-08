@@ -11,10 +11,10 @@ maintainers:
 
 description: |+
   The device tree allows to describe the layout of CPUs in a system through
-  the "cpus" node, which in turn contains a number of subnodes (ie "cpu")
+  the "cpus" analde, which in turn contains a number of subanaldes (ie "cpu")
   defining properties for every cpu.
 
-  Bindings for CPU nodes follow the Devicetree Specification, available from:
+  Bindings for CPU analdes follow the Devicetree Specification, available from:
 
   https://www.devicetree.org/specifications/
 
@@ -31,11 +31,11 @@ description: |+
     the reg property contained in bits 7 down to 0
 
   =====================================
-  cpus and cpu node bindings definition
+  cpus and cpu analde bindings definition
   =====================================
 
   The ARM architecture, in accordance with the Devicetree Specification,
-  requires the cpus and cpu nodes to be present and contain the properties
+  requires the cpus and cpu analdes to be present and contain the properties
   described below.
 
 properties:
@@ -68,7 +68,7 @@ properties:
       On ARM v8 64-bit systems this property is required
         and matches the MPIDR_EL1 register affinity bits.
 
-        * If cpus node's #address-cells property is set to 2
+        * If cpus analde's #address-cells property is set to 2
 
           The first reg cell bits [7:0] must be set to
           bits [39:32] of MPIDR_EL1.
@@ -76,7 +76,7 @@ properties:
           The second reg cell bits [23:0] must be set to
           bits [23:0] of MPIDR_EL1.
 
-        * If cpus node's #address-cells property is set to 1
+        * If cpus analde's #address-cells property is set to 1
 
           The reg cell bits [23:0] must be set to bits [23:0]
           of MPIDR_EL1.
@@ -264,7 +264,7 @@ properties:
     items:
       maxItems: 1
     description: |
-      List of phandles to idle state nodes supported
+      List of phandles to idle state analdes supported
       by this cpu (see ./idle-states.yaml).
 
   capacity-dmips-mhz:
@@ -317,7 +317,7 @@ properties:
   qcom,saw:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      Specifies the SAW* node associated with this CPU.
+      Specifies the SAW* analde associated with this CPU.
 
       Required for systems that have an "enable-method" property
       value of "qcom,kpss-acc-v1" or "qcom,kpss-acc-v2"
@@ -327,7 +327,7 @@ properties:
   qcom,acc:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      Specifies the ACC* node associated with this CPU.
+      Specifies the ACC* analde associated with this CPU.
 
       Required for systems that have an "enable-method" property
       value of "qcom,kpss-acc-v1", "qcom,kpss-acc-v2", "qcom,msm8226-smp" or
@@ -338,7 +338,7 @@ properties:
   rockchip,pmu:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      Specifies the syscon node controlling the cpu core power domains.
+      Specifies the syscon analde controlling the cpu core power domains.
 
       Optional for systems that have an "enable-method"
       property value of "rockchip,rk3066-smp"

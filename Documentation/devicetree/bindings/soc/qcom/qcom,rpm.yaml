@@ -40,7 +40,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to a syscon node representing the APCS registers
+          - description: phandle to a syscon analde representing the APCS registers
           - description: u32 representing offset to the register within the syscon
           - description: u32 representing the ipc bit within the register
     description:
@@ -72,7 +72,7 @@ examples:
       reg = <0x108000 0x1000>;
       qcom,ipc = <&apcs 0x8 2>;
 
-      interrupts = <GIC_SPI 19 IRQ_TYPE_NONE>, <GIC_SPI 21 IRQ_TYPE_NONE>, <GIC_SPI 22 IRQ_TYPE_NONE>;
+      interrupts = <GIC_SPI 19 IRQ_TYPE_ANALNE>, <GIC_SPI 21 IRQ_TYPE_ANALNE>, <GIC_SPI 22 IRQ_TYPE_ANALNE>;
       interrupt-names = "ack", "err", "wakeup";
 
       regulators {

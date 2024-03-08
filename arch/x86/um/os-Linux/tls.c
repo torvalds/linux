@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <linux/unistd.h>
 
 #include <sys/ptrace.h>
@@ -34,9 +34,9 @@ void check_host_supports_tls(int *supports_tls, int *tls_min)
 			*supports_tls = 1;
 			return;
 		} else {
-			if (errno == EINVAL)
+			if (erranal == EINVAL)
 				continue;
-			else if (errno == ENOSYS)
+			else if (erranal == EANALSYS)
 				*supports_tls = 0;
 			return;
 		}
@@ -52,7 +52,7 @@ int os_set_thread_area(user_desc_t *info, int pid)
 	ret = ptrace(PTRACE_SET_THREAD_AREA, pid, info->entry_number,
 		     (unsigned long) info);
 	if (ret < 0)
-		ret = -errno;
+		ret = -erranal;
 	return ret;
 }
 
@@ -63,6 +63,6 @@ int os_get_thread_area(user_desc_t *info, int pid)
 	ret = ptrace(PTRACE_GET_THREAD_AREA, pid, info->entry_number,
 		     (unsigned long) info);
 	if (ret < 0)
-		ret = -errno;
+		ret = -erranal;
 	return ret;
 }

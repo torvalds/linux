@@ -11,8 +11,8 @@ maintainers:
 
 description: |
   This binding describes an FSI CFAM engine called the FSI2SPI. Therefore this
-  node will always be a child of an FSI CFAM node; see fsi.txt for details on
-  FSI slave and CFAM nodes. This FSI2SPI engine provides access to a number of
+  analde will always be a child of an FSI CFAM analde; see fsi.txt for details on
+  FSI slave and CFAM analdes. This FSI2SPI engine provides access to a number of
   SPI controllers.
 
 properties:

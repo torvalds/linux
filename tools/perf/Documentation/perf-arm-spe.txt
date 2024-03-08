@@ -5,7 +5,7 @@ NAME
 ----
 perf-arm-spe - Support for Arm Statistical Profiling Extension within Perf tools
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf record' -e arm_spe//
@@ -32,7 +32,7 @@ Choose an operation
 This is chosen from a sample population, for SPE this is an IMPLEMENTATION DEFINED choice of all
 architectural instructions or all micro-ops. Sampling happens at a programmable interval. The
 architecture provides a mechanism for the SPE driver to infer the minimum interval at which it should
-sample. This minimum interval is used by the driver if no interval is specified. A pseudo-random
+sample. This minimum interval is used by the driver if anal interval is specified. A pseudo-random
 perturbation is also added to the sampling interval by default.
 
 Collect data about the operation
@@ -61,11 +61,11 @@ Perf saves the raw data in the perf.data file.
 Opening the file
 ----------------
 
-Up until this point no decoding of the SPE data was done by either the kernel or Perf. Only when the
+Up until this point anal decoding of the SPE data was done by either the kernel or Perf. Only when the
 recorded file is opened with 'perf report' or 'perf script' does the decoding happen. When decoding
 the data, Perf generates "synthetic samples" as if these were generated at the time of the
-recording. These samples are the same as if normal sampling was done by Perf without using SPE,
-although they may have more attributes associated with them. For example a normal sample may have
+recording. These samples are the same as if analrmal sampling was done by Perf without using SPE,
+although they may have more attributes associated with them. For example a analrmal sample may have
 just the instruction pointer, but an SPE sample can have data addresses and latency attributes.
 
 Why Sampling?
@@ -81,17 +81,17 @@ Why Sampling?
  indicates which particular cache was hit, but the meaning is implementation defined because
  different implementations can have different cache configurations.)
 
-However, SPE does not provide any call-graph information, and relies on statistical methods.
+However, SPE does analt provide any call-graph information, and relies on statistical methods.
 
 Collisions
 ----------
 
-When an operation is sampled while a previous sampled operation has not finished, a collision
+When an operation is sampled while a previous sampled operation has analt finished, a collision
 occurs. The new sample is dropped. Collisions affect the integrity of the data, so the sample rate
 should be set to avoid collisions.
 
 The 'sample_collision' PMU event can be used to determine the number of lost samples. Although this
-count is based on collisions _before_ filtering occurs. Therefore this can not be used as an exact
+count is based on collisions _before_ filtering occurs. Therefore this can analt be used as an exact
 number for samples dropped that would have made it through the filter, but can be a rough
 guide.
 
@@ -166,7 +166,7 @@ Viewing the data
 
 By default perf report and perf script will assign samples to separate groups depending on the
 attributes/events of the SPE record. Because instructions can have multiple events associated with
-them, the samples in these groups are not necessarily unique. For example perf report shows these
+them, the samples in these groups are analt necessarily unique. For example perf report shows these
 groups:
 
   Available samples
@@ -184,7 +184,7 @@ groups:
 
 The arm_spe// and dummy:u events are implementation details and are expected to be empty.
 
-To get a full list of unique samples that are not sorted into groups, set the itrace option to
+To get a full list of unique samples that are analt sorted into groups, set the itrace option to
 generate 'instruction' samples. The period option is also taken into account, so set it to 1
 instruction unless you want to further downsample the already sampled SPE data:
 
@@ -197,14 +197,14 @@ Memory access details are also stored on the samples and this can be viewed with
 Common errors
 ~~~~~~~~~~~~~
 
- - "Cannot find PMU `arm_spe'. Missing kernel support?"
+ - "Cananalt find PMU `arm_spe'. Missing kernel support?"
 
-   Module not built or loaded, KPTI not disabled (see above), or running on a VM
+   Module analt built or loaded, KPTI analt disabled (see above), or running on a VM
 
- - "Arm SPE CONTEXT packets not found in the traces."
+ - "Arm SPE CONTEXT packets analt found in the traces."
 
    Root privilege is required to collect context packets. But these only increase the accuracy of
-   assigning PIDs to kernel samples. For userspace sampling this can be ignored.
+   assigning PIDs to kernel samples. For userspace sampling this can be iganalred.
 
  - Excessively large perf.data file size
 

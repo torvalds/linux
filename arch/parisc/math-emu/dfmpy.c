@@ -60,7 +60,7 @@ dbl_fmpy(
 	 */
 	if (Dbl_isinfinity_exponent(opnd1p1)) {
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
-			if (Dbl_isnotnan(opnd2p1,opnd2p2)) {
+			if (Dbl_isanaltnan(opnd2p1,opnd2p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd2p1,opnd2p2)) {
 					/* 
 					 * invalid since operands are infinity 
@@ -71,14 +71,14 @@ dbl_fmpy(
                                 	Set_invalidflag();
                                 	Dbl_makequietnan(resultp1,resultp2);
 					Dbl_copytoptr(resultp1,resultp2,dstptr);
-					return(NOEXCEPTION);
+					return(ANALEXCEPTION);
 				}
 				/*
 			 	 * return infinity
 			 	 */
 				Dbl_setinfinity_exponentmantissa(resultp1,resultp2);
 				Dbl_copytoptr(resultp1,resultp2,dstptr);
-				return(NOEXCEPTION);
+				return(ANALEXCEPTION);
 			}
 		}
 		else {
@@ -104,13 +104,13 @@ dbl_fmpy(
                         	Set_invalidflag();
                         	Dbl_set_quiet(opnd2p1);
 				Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
-                		return(NOEXCEPTION);
+                		return(ANALEXCEPTION);
 			}
                 	/*
                  	 * return quiet NaN
                  	 */
 			Dbl_copytoptr(opnd1p1,opnd1p2,dstptr);
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
 		}
 	}
 	/*
@@ -125,14 +125,14 @@ dbl_fmpy(
                                 Set_invalidflag();
                                 Dbl_makequietnan(opnd2p1,opnd2p2);
 				Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
-				return(NOEXCEPTION);
+				return(ANALEXCEPTION);
 			}
 			/*
 			 * return infinity
 			 */
 			Dbl_setinfinity_exponentmantissa(resultp1,resultp2);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
                 /*
                  * is NaN; signaling or quiet?
@@ -148,7 +148,7 @@ dbl_fmpy(
                  * return quiet NaN
                  */
 		Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
-                return(NOEXCEPTION);
+                return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate exponent 
@@ -158,7 +158,7 @@ dbl_fmpy(
 	/*
 	 * Generate mantissa
 	 */
-	if (Dbl_isnotzero_exponent(opnd1p1)) {
+	if (Dbl_isanaltzero_exponent(opnd1p1)) {
 		/* set hidden bit */
 		Dbl_clear_signexponent_set_hidden(opnd1p1);
 	}
@@ -167,15 +167,15 @@ dbl_fmpy(
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
 			Dbl_setzero_exponentmantissa(resultp1,resultp2);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
-                /* is denormalized, adjust exponent */
+                /* is deanalrmalized, adjust exponent */
                 Dbl_clear_signexponent(opnd1p1);
                 Dbl_leftshiftby1(opnd1p1,opnd1p2);
-		Dbl_normalize(opnd1p1,opnd1p2,dest_exponent);
+		Dbl_analrmalize(opnd1p1,opnd1p2,dest_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Dbl_isnotzero_exponent(opnd2p1)) {
+	if (Dbl_isanaltzero_exponent(opnd2p1)) {
 		Dbl_clear_signexponent_set_hidden(opnd2p1);
 	}
 	else {
@@ -183,12 +183,12 @@ dbl_fmpy(
 		if (Dbl_iszero_mantissa(opnd2p1,opnd2p2)) {
 			Dbl_setzero_exponentmantissa(resultp1,resultp2);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
-                /* is denormalized; want to normalize */
+                /* is deanalrmalized; want to analrmalize */
                 Dbl_clear_signexponent(opnd2p1);
                 Dbl_leftshiftby1(opnd2p1,opnd2p2);
-		Dbl_normalize(opnd2p1,opnd2p2,dest_exponent);
+		Dbl_analrmalize(opnd2p1,opnd2p2,dest_exponent);
 	}
 
 	/* Multiply two source mantissas together */
@@ -228,7 +228,7 @@ dbl_fmpy(
 		/* result mantissa >= 2. */
 		dest_exponent++;
 	}
-	/* check for denormalized result */
+	/* check for deanalrmalized result */
 	while (Dbit3p1(opnd3p1)==0) {
 		Dbl_leftshiftby1(opnd3p1,opnd3p2);
 		dest_exponent--;
@@ -314,7 +314,7 @@ dbl_fmpy(
 			case ROUNDPLUS: 
 				if (Dbl_iszero_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeanalverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -322,7 +322,7 @@ dbl_fmpy(
 			case ROUNDMINUS: 
 				if (Dbl_isone_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeanalverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -331,7 +331,7 @@ dbl_fmpy(
 				if (guardbit && (stickybit || 
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 				      	Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeanalverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -340,10 +340,10 @@ dbl_fmpy(
 		}
 
 		/*
-		 * denormalize result or set to signed zero
+		 * deanalrmalize result or set to signed zero
 		 */
 		stickybit = inexact;
-		Dbl_denormalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
+		Dbl_deanalrmalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
 		 stickybit,inexact);
 
 		/* return zero or smallest number */
@@ -377,5 +377,5 @@ dbl_fmpy(
 		if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 		else Set_inexactflag();
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }

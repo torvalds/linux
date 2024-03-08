@@ -7,14 +7,14 @@
  * Portions copied from existing rtl8xxxu code:
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, analtably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  */
 
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -338,14 +338,14 @@ static int rtl8188fu_identify_chip(struct rtl8xxxu_priv *priv)
 	priv->chip_cut = u32_get_bits(sys_cfg, SYS_CFG_CHIP_VERSION_MASK);
 	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
 	vendor = sys_cfg & SYS_CFG_VENDOR_EXT_MASK;
 	rtl8xxxu_identify_vendor_2bits(priv, vendor);
 
-	ret = rtl8xxxu_config_endpoints_no_sie(priv);
+	ret = rtl8xxxu_config_endpoints_anal_sie(priv);
 
 out:
 	return ret;
@@ -400,7 +400,7 @@ rtl8188f_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 
 	mcsbase = priv->ht40_1s_tx_power_index_A[group];
 	if (ht40)
-		/* This diff is always 0 - not used in 8188FU. */
+		/* This diff is always 0 - analt used in 8188FU. */
 		mcsbase += priv->ht40_tx_power_diff[0].a;
 	else
 		mcsbase += priv->ht20_tx_power_diff[0].a;
@@ -442,14 +442,14 @@ static void rtl8188f_spur_calibration(struct rtl8xxxu_priv *priv, u8 channel)
 	};
 
 	const u8 threshold = 0x16;
-	bool do_notch, hw_ctrl, sw_ctrl, hw_ctrl_s1 = 0, sw_ctrl_s1 = 0;
+	bool do_analtch, hw_ctrl, sw_ctrl, hw_ctrl_s1 = 0, sw_ctrl_s1 = 0;
 	u32 val32, initial_gain, reg948;
 
 	val32 = rtl8xxxu_read32(priv, REG_OFDM0_RX_D_SYNC_PATH);
 	val32 |= GENMASK(28, 24);
 	rtl8xxxu_write32(priv, REG_OFDM0_RX_D_SYNC_PATH, val32);
 
-	/* enable notch filter */
+	/* enable analtch filter */
 	val32 = rtl8xxxu_read32(priv, REG_OFDM0_RX_D_SYNC_PATH);
 	val32 |= BIT(9);
 	rtl8xxxu_write32(priv, REG_OFDM0_RX_D_SYNC_PATH, val32);
@@ -490,7 +490,7 @@ static void rtl8188f_spur_calibration(struct rtl8xxxu_priv *priv, u8 channel)
 
 			msleep(30);
 
-			do_notch = rtl8xxxu_read32(priv, REG_FPGA0_PSD_REPORT) >= threshold;
+			do_analtch = rtl8xxxu_read32(priv, REG_FPGA0_PSD_REPORT) >= threshold;
 
 			/* turn off PSD */
 			rtl8xxxu_write32(priv, REG_FPGA0_PSD_FUNC, frequencies[channel]);
@@ -505,7 +505,7 @@ static void rtl8188f_spur_calibration(struct rtl8xxxu_priv *priv, u8 channel)
 
 			rtl8xxxu_write32(priv, REG_OFDM0_XA_AGC_CORE1, initial_gain);
 
-			if (do_notch) {
+			if (do_analtch) {
 				rtl8xxxu_write32(priv, REG_OFDM1_CSI_FIX_MASK1, reg_d40[channel]);
 				rtl8xxxu_write32(priv, REG_OFDM1_CSI_FIX_MASK2, reg_d44[channel]);
 				rtl8xxxu_write32(priv, 0xd48, 0x0);
@@ -568,15 +568,15 @@ static void rtl8188fu_config_channel(struct ieee80211_hw *hw)
 	rtl8xxxu_write32(priv, REG_FPGA0_RF_MODE, val32);
 
 	/* small BW */
-	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT);
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT);
 	val32 &= ~GENMASK(31, 30);
-	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT, val32);
+	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT, val32);
 
 	/* adc buffer clk */
-	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT);
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT);
 	val32 &= ~BIT(29);
 	val32 |= BIT(28);
-	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT, val32);
+	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT, val32);
 
 	/* adc buffer clk */
 	val32 = rtl8xxxu_read32(priv, REG_OFDM0_XA_RX_AFE);
@@ -592,7 +592,7 @@ static void rtl8188fu_config_channel(struct ieee80211_hw *hw)
 	val32 &= ~GENMASK(23, 20);
 	val32 |= BIT(21);
 	if (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20 ||
-	    hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	    hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_ANALHT)
 		val32 |= BIT(20);
 	else if (hw->conf.chandef.width == NL80211_CHAN_WIDTH_40)
 		val32 |= BIT(22);
@@ -632,7 +632,7 @@ static void rtl8188fu_config_channel(struct ieee80211_hw *hw)
 	/* RF TRX_BW */
 	val32 = channel;
 	if (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20 ||
-	    hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	    hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_ANALHT)
 		val32 |= MODE_AG_BW_20MHZ_8723B;
 	else if (hw->conf.chandef.width == NL80211_CHAN_WIDTH_40)
 		val32 |= MODE_AG_BW_40MHZ_8723B;
@@ -640,14 +640,14 @@ static void rtl8188fu_config_channel(struct ieee80211_hw *hw)
 
 	/* FILTER BW&RC Corner (ACPR) */
 	if (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20 ||
-	    hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	    hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_ANALHT)
 		val32 = 0x00065;
 	else if (hw->conf.chandef.width == NL80211_CHAN_WIDTH_40)
 		val32 = 0x00025;
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_RXG_MIX_SWBW, val32);
 
 	if (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20 ||
-	    hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	    hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_ANALHT)
 		val32 = 0x0;
 	else if (hw->conf.chandef.width == NL80211_CHAN_WIDTH_40)
 		val32 = 0x01000;
@@ -978,7 +978,7 @@ static int rtl8188fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	    ((reg_e94 & 0x03ff0000) != 0x01420000) &&
 	    ((reg_e9c & 0x03ff0000) != 0x00420000))
 		result |= 0x01;
-	else /* If TX not OK, ignore RX */
+	else /* If TX analt OK, iganalre RX */
 		goto out;
 
 	val32 = 0x80007c00 | (reg_e94 & 0x3ff0000) |
@@ -1089,7 +1089,7 @@ static void rtl8188fu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	};
 
 	/*
-	 * Note: IQ calibration must be performed after loading
+	 * Analte: IQ calibration must be performed after loading
 	 *       PHY_REG.txt , and radio_a, radio_b.txt
 	 */
 
@@ -1385,7 +1385,7 @@ static int rtl8188f_emu_to_active(struct rtl8xxxu_priv *priv)
 		goto exit;
 	}
 
-	/* 0x27<=35 to reduce RF noise */
+	/* 0x27<=35 to reduce RF analise */
 	val8 = rtl8xxxu_write8(priv, 0x27, 0x35);
 exit:
 	return ret;
@@ -1469,7 +1469,7 @@ static int rtl8188fu_active_to_lps(struct rtl8xxxu_priv *priv)
 	retval = -EBUSY;
 
 	/*
-	 * Poll 32 bit wide REG_SCH_TX_CMD for 0x00000000 to ensure no TX is pending.
+	 * Poll 32 bit wide REG_SCH_TX_CMD for 0x00000000 to ensure anal TX is pending.
 	 */
 	do {
 		val32 = rtl8xxxu_read32(priv, REG_SCH_TX_CMD);
@@ -1586,7 +1586,7 @@ static void rtl8188f_enable_rf(struct rtl8xxxu_priv *priv)
 	u8 pg_pwrtrim = 0xff, val8;
 	s8 bb_gain;
 
-	/* Somehow this is not found in the efuse we read earlier. */
+	/* Somehow this is analt found in the efuse we read earlier. */
 	rtl8xxxu_read_efuse8(priv, PPG_BB_GAIN_2G_TXA_OFFSET_8188F, &pg_pwrtrim);
 
 	if (pg_pwrtrim != 0xff) {
@@ -1603,10 +1603,10 @@ static void rtl8188f_enable_rf(struct rtl8xxxu_priv *priv)
 		if (bb_gain > 0)
 			val8 |= BIT(5);
 
-		val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_55);
+		val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKANALWN_55);
 		val32 &= ~0xfc000;
 		val32 |= val8 << 14;
-		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_55, val32);
+		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKANALWN_55, val32);
 	}
 
 	rtl8xxxu_write8(priv, REG_RF_CTRL, RF_ENABLE | RF_RSTB | RF_SDMRSTB);
@@ -1760,5 +1760,5 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM_8188F,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8188F,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ_8188F,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8188F,
+	.page_num_analrm = TX_PAGE_NUM_ANALRM_PQ_8188F,
 };

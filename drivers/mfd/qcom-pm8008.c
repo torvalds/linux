@@ -128,7 +128,7 @@ static struct regmap_irq_chip pm8008_irq_chip = {
 	.status_base		= INT_LATCHED_STS_OFFSET,
 	.mask_base		= INT_EN_CLR_OFFSET,
 	.unmask_base		= INT_EN_SET_OFFSET,
-	.mask_unmask_non_inverted = true,
+	.mask_unmask_analn_inverted = true,
 	.ack_base		= INT_LATCHED_CLR_OFFSET,
 	.config_base		= pm8008_config_regs,
 	.num_config_bases	= ARRAY_SIZE(pm8008_config_regs),
@@ -186,7 +186,7 @@ static int pm8008_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, regmap);
 
-	if (of_property_read_bool(dev->of_node, "interrupt-controller")) {
+	if (of_property_read_bool(dev->of_analde, "interrupt-controller")) {
 		rc = pm8008_probe_irq_peripherals(dev, regmap, client->irq);
 		if (rc)
 			dev_err(dev, "Failed to probe irq periphs: %d\n", rc);

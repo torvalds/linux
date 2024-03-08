@@ -2,7 +2,7 @@
 /*
  * Device Tree file for NETGEAR ReadyNAS NV+ v2
  *
- * Copyright (C) 2013, Arnaud EBALARD <arno@natisbad.org>
+ * Copyright (C) 2013, Arnaud EBALARD <aranal@natisbad.org>
  */
 
 /dts-v1/;

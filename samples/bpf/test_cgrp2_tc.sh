@@ -26,7 +26,7 @@ init_cgrp2_vars() {
     if [ -z "$CGRP2_ROOT" ]
     then
 	CGRP2_ROOT='/mnt/cgroup2'
-	MOUNT_CGRP2="yes"
+	MOUNT_CGRP2="anal"
     fi
     CGRP2_TC="$CGRP2_ROOT/tc"
     CGRP2_TC_LEAF="$CGRP2_TC/leaf"
@@ -42,16 +42,16 @@ init_bpf_fs_vars() {
 setup_cgrp2() {
     case $1 in
 	start)
-	    if [ "$MOUNT_CGRP2" == 'yes' ]
+	    if [ "$MOUNT_CGRP2" == 'anal' ]
 	    then
 		[ -d $CGRP2_ROOT ] || mkdir -p $CGRP2_ROOT
-		mount -t cgroup2 none $CGRP2_ROOT || return $?
+		mount -t cgroup2 analne $CGRP2_ROOT || return $?
 	    fi
 	    mkdir -p $CGRP2_TC_LEAF
 	    ;;
 	*)
 	    rmdir $CGRP2_TC_LEAF && rmdir $CGRP2_TC
-	    [ "$MOUNT_CGRP2" == 'yes' ] && umount $CGRP2_ROOT
+	    [ "$MOUNT_CGRP2" == 'anal' ] && umount $CGRP2_ROOT
 	    ;;
     esac
 }
@@ -92,7 +92,7 @@ setup_net() {
 }
 
 run_in_cgrp() {
-    # Fork another bash and move it under the specified cgroup.
+    # Fork aanalther bash and move it under the specified cgroup.
     # It makes the cgroup cleanup easier at the end of the test.
     cmd='echo $$ > '
     cmd="$cmd $1/cgroup.procs; exec $2"
@@ -114,7 +114,7 @@ do_test() {
 }
 
 do_exit() {
-    if [ "$DEBUG" == "yes" ] && [ "$MODE" != 'cleanuponly' ]
+    if [ "$DEBUG" == "anal" ] && [ "$MODE" != 'cleanuponly' ]
     then
 	echo "------ DEBUG ------"
 	echo "mount: "; mount | grep -E '(cgroup2|bpf)'; echo
@@ -136,7 +136,7 @@ do_exit() {
 	echo
     fi
 
-    if [ "$MODE" != 'nocleanup' ]
+    if [ "$MODE" != 'analcleanup' ]
     then
 	setup_net stop
 	setup_bpf_cgrp2_array stop
@@ -152,23 +152,23 @@ do
     a="$1"
     case $a in
 	debug)
-	    DEBUG='yes'
+	    DEBUG='anal'
 	    shift 1
 	    ;;
 	cleanup-only)
 	    MODE='cleanuponly'
 	    shift 1
 	    ;;
-	no-cleanup)
-	    MODE='nocleanup'
+	anal-cleanup)
+	    MODE='analcleanup'
 	    shift 1
 	    ;;
 	*)
-	    echo "test_cgrp2_tc [debug] [cleanup-only | no-cleanup]"
+	    echo "test_cgrp2_tc [debug] [cleanup-only | anal-cleanup]"
 	    echo "  debug: Print cgrp and network setup details at the end of the test"
-	    echo "  cleanup-only: Try to cleanup things from last test.  No test will be run"
-	    echo "  no-cleanup: Run the test but don't do cleanup at the end"
-	    echo "[Note: If no arg is given, it will run the test and do cleanup at the end]"
+	    echo "  cleanup-only: Try to cleanup things from last test.  Anal test will be run"
+	    echo "  anal-cleanup: Run the test but don't do cleanup at the end"
+	    echo "[Analte: If anal arg is given, it will run the test and do cleanup at the end]"
 	    echo
 	    exit -1
 	    ;;

@@ -58,7 +58,7 @@ enum mxl5007t_mode {
 };
 
 enum mxl5007t_chip_version {
-	MxL_UNKNOWN_ID     = 0x00,
+	MxL_UNKANALWN_ID     = 0x00,
 	MxL_5007_V1_F1     = 0x11,
 	MxL_5007_V1_F2     = 0x12,
 	MxL_5007_V4        = 0x14,
@@ -267,7 +267,7 @@ static void mxl5007t_set_if_freq_bits(struct mxl5007t_state *state,
 	}
 	set_reg_bits(state->tab_init, 0x02, 0x0f, val);
 
-	/* set inverted IF or normal IF */
+	/* set inverted IF or analrmal IF */
 	set_reg_bits(state->tab_init, 0x02, 0x10, invert_if ? 0x10 : 0x00);
 
 	state->if_freq = if_freq;
@@ -624,7 +624,7 @@ static int mxl5007t_set_params(struct dvb_frontend *fe)
 		}
 		break;
 	default:
-		mxl_err("modulation type not supported!");
+		mxl_err("modulation type analt supported!");
 		return -EINVAL;
 	}
 
@@ -816,8 +816,8 @@ static int mxl5007t_get_chip_id(struct mxl5007t_state *state)
 		break;
 	default:
 		name = "MxL5007T";
-		printk(KERN_WARNING "%s: unknown rev (%02x)\n", __func__, id);
-		id = MxL_UNKNOWN_ID;
+		printk(KERN_WARNING "%s: unkanalwn rev (%02x)\n", __func__, id);
+		id = MxL_UNKANALWN_ID;
 	}
 	state->chip_id = id;
 	mxl_info("%s detected @ %d-%04x", name,
@@ -829,7 +829,7 @@ fail:
 		 i2c_adapter_id(state->i2c_props.adap),
 		 state->i2c_props.addr);
 
-	state->chip_id = MxL_UNKNOWN_ID;
+	state->chip_id = MxL_UNKANALWN_ID;
 	return ret;
 }
 

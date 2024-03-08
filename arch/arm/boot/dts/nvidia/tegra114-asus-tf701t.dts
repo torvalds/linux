@@ -29,7 +29,7 @@
 		trusted-foundations {
 			compatible = "tlm,trusted-foundations";
 			tlm,version-major = <2>;
-			tlm,version-minor = <8>;
+			tlm,version-mianalr = <8>;
 		};
 	};
 
@@ -52,7 +52,7 @@
 
 		trustzone@bfe00000 {
 			reg = <0xbfe00000 0x200000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -100,7 +100,7 @@
 			ec-request {
 				nvidia,pins = "kb_col2_pq2";
 				nvidia,function = "kbc";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -110,7 +110,7 @@
 			backlight-enable {
 				nvidia,pins = "gmi_ad10_ph2";
 				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -129,7 +129,7 @@
 			ldo1-en {
 				nvidia,pins = "sdmmc1_wp_n_pv3";
 				nvidia,function = "sdmmc1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -188,7 +188,7 @@
 			gmi_ad9_ph1 {
 				nvidia,pins = "gmi_ad9_ph1";
 				nvidia,function = "pwm1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -199,7 +199,7 @@
 			gmi_ad9_ph1 {
 				nvidia,pins = "gmi_ad9_ph1";
 				nvidia,function = "pwm1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -219,7 +219,7 @@
 			sdmmc3_clk_pa6 {
 				nvidia,pins = "sdmmc3_clk_pa6";
 				nvidia,function = "sdmmc3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -245,7 +245,7 @@
 			gmi_clk_pk1 {
 				nvidia,pins = "gmi_clk_pk1";
 				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -255,7 +255,7 @@
 			sdmmc4_clk_pcc4 {
 				nvidia,pins = "sdmmc4_clk_pcc4";
 				nvidia,function = "sdmmc4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};

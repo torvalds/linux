@@ -25,7 +25,7 @@
  * @field: HID field to parse
  * @usage: HID usage to parse
  *
- * Note: this function assumes that driver data attached to @hdev contains an
+ * Analte: this function assumes that driver data attached to @hdev contains an
  * instance of &struct vivaldi_data at the very beginning.
  */
 void vivaldi_feature_mapping(struct hid_device *hdev,
@@ -60,7 +60,7 @@ void vivaldi_feature_mapping(struct hid_device *hdev,
 		 * into the first byte of the buffer even for unnumbered
 		 * reports, so we need to account for this to avoid getting
 		 * -EOVERFLOW in return.
-		 * Note that hid_alloc_report_buf() adds 7 bytes to the size
+		 * Analte that hid_alloc_report_buf() adds 7 bytes to the size
 		 * so we can safely say that we have space for an extra byte.
 		 */
 		report_len++;

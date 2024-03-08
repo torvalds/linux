@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef NO_BCACHEFS_FS
+#ifndef ANAL_BCACHEFS_FS
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
@@ -48,7 +48,7 @@ static void bch2_direct_IO_read_endio(struct bio *bio)
 	struct dio_read *dio = bio->bi_private;
 
 	if (bio->bi_status)
-		dio->ret = blk_status_to_errno(bio->bi_status);
+		dio->ret = blk_status_to_erranal(bio->bi_status);
 
 	closure_put(&dio->cl);
 }
@@ -65,8 +65,8 @@ static void bch2_direct_IO_read_split_endio(struct bio *bio)
 static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 {
 	struct file *file = req->ki_filp;
-	struct bch_inode_info *inode = file_bch_inode(file);
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_ianalde_info *ianalde = file_bch_ianalde(file);
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch_io_opts opts;
 	struct dio_read *dio;
 	struct bio *bio;
@@ -75,14 +75,14 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	size_t shorten;
 	ssize_t ret;
 
-	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
+	bch2_ianalde_opts_get(&opts, c, &ianalde->ei_ianalde);
 
 	/* bios must be 512 byte aligned: */
 	if ((offset|iter->count) & (SECTOR_SIZE - 1))
 		return -EINVAL;
 
 	ret = min_t(loff_t, iter->count,
-		    max_t(loff_t, 0, i_size_read(&inode->v) - offset));
+		    max_t(loff_t, 0, i_size_read(&ianalde->v) - offset));
 
 	if (!ret)
 		return ret;
@@ -157,7 +157,7 @@ start:
 		if (iter->count)
 			closure_get(&dio->cl);
 
-		bch2_read(c, rbio_init(bio, opts), inode_inum(inode));
+		bch2_read(c, rbio_init(bio, opts), ianalde_inum(ianalde));
 	}
 
 	iter->count += shorten;
@@ -176,7 +176,7 @@ start:
 ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
-	struct bch_inode_info *inode = file_bch_inode(file);
+	struct bch_ianalde_info *ianalde = file_bch_ianalde(file);
 	struct address_space *mapping = file->f_mapping;
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
@@ -204,9 +204,9 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		if (ret >= 0)
 			iocb->ki_pos += ret;
 	} else {
-		bch2_pagecache_add_get(inode);
+		bch2_pagecache_add_get(ianalde);
 		ret = generic_file_read_iter(iocb, iter);
-		bch2_pagecache_add_put(inode);
+		bch2_pagecache_add_put(ianalde);
 	}
 out:
 	return bch2_err_class(ret);
@@ -217,7 +217,7 @@ out:
 struct dio_write {
 	struct kiocb			*req;
 	struct address_space		*mapping;
-	struct bch_inode_info		*inode;
+	struct bch_ianalde_info		*ianalde;
 	struct mm_struct		*mm;
 	const struct iovec		*iov;
 	unsigned			loop:1,
@@ -252,7 +252,7 @@ retry:
 	if (err)
 		goto err;
 
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
+	for_each_btree_key_analrestart(trans, iter, BTREE_ID_extents,
 			   SPOS(inum.inum, offset, snapshot),
 			   BTREE_ITER_SLOTS, k, err) {
 		if (bkey_ge(bkey_start_pos(k.k), POS(inum.inum, end)))
@@ -276,13 +276,13 @@ err:
 	return err ? false : ret;
 }
 
-static noinline bool bch2_dio_write_check_allocated(struct dio_write *dio)
+static analinline bool bch2_dio_write_check_allocated(struct dio_write *dio)
 {
 	struct bch_fs *c = dio->op.c;
-	struct bch_inode_info *inode = dio->inode;
+	struct bch_ianalde_info *ianalde = dio->ianalde;
 	struct bio *bio = &dio->op.wbio.bio;
 
-	return bch2_check_range_allocated(c, inode_inum(inode),
+	return bch2_check_range_allocated(c, ianalde_inum(ianalde),
 				dio->op.pos.offset, bio_sectors(bio),
 				dio->op.opts.data_replicas,
 				dio->op.opts.compression != 0);
@@ -294,22 +294,22 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio);
 /*
  * We're going to return -EIOCBQUEUED, but we haven't finished consuming the
  * iov_iter yet, so we need to stash a copy of the iovec: it might be on the
- * caller's stack, we're not guaranteed that it will live for the duration of
+ * caller's stack, we're analt guaranteed that it will live for the duration of
  * the IO:
  */
-static noinline int bch2_dio_write_copy_iov(struct dio_write *dio)
+static analinline int bch2_dio_write_copy_iov(struct dio_write *dio)
 {
 	struct iovec *iov = dio->inline_vecs;
 
 	/*
-	 * iov_iter has a single embedded iovec - nothing to do:
+	 * iov_iter has a single embedded iovec - analthing to do:
 	 */
 	if (iter_is_ubuf(&dio->iter))
 		return 0;
 
 	/*
-	 * We don't currently handle non-iovec iov_iters here - return an error,
-	 * and we'll fall back to doing the IO synchronously:
+	 * We don't currently handle analn-iovec iov_iters here - return an error,
+	 * and we'll fall back to doing the IO synchroanalusly:
 	 */
 	if (!iter_is_iovec(&dio->iter))
 		return -1;
@@ -318,7 +318,7 @@ static noinline int bch2_dio_write_copy_iov(struct dio_write *dio)
 		dio->iov = iov = kmalloc_array(dio->iter.nr_segs, sizeof(*iov),
 				    GFP_KERNEL);
 		if (unlikely(!iov))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	memcpy(iov, dio->iter.__iov, dio->iter.nr_segs * sizeof(*iov));
@@ -338,10 +338,10 @@ static CLOSURE_CALLBACK(bch2_dio_write_flush_done)
 	bch2_dio_write_done(dio);
 }
 
-static noinline void bch2_dio_write_flush(struct dio_write *dio)
+static analinline void bch2_dio_write_flush(struct dio_write *dio)
 {
 	struct bch_fs *c = dio->op.c;
-	struct bch_inode_unpacked inode;
+	struct bch_ianalde_unpacked ianalde;
 	int ret;
 
 	dio->flush = 0;
@@ -349,13 +349,13 @@ static noinline void bch2_dio_write_flush(struct dio_write *dio)
 	closure_init(&dio->op.cl, NULL);
 
 	if (!dio->op.error) {
-		ret = bch2_inode_find_by_inum(c, inode_inum(dio->inode), &inode);
+		ret = bch2_ianalde_find_by_inum(c, ianalde_inum(dio->ianalde), &ianalde);
 		if (ret) {
 			dio->op.error = ret;
 		} else {
-			bch2_journal_flush_seq_async(&c->journal, inode.bi_journal_seq,
+			bch2_journal_flush_seq_async(&c->journal, ianalde.bi_journal_seq,
 						     &dio->op.cl);
-			bch2_inode_flush_nocow_writes_async(c, dio->inode, &dio->op.cl);
+			bch2_ianalde_flush_analcow_writes_async(c, dio->ianalde, &dio->op.cl);
 		}
 	}
 
@@ -370,7 +370,7 @@ static noinline void bch2_dio_write_flush(struct dio_write *dio)
 static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 {
 	struct kiocb *req = dio->req;
-	struct bch_inode_info *inode = dio->inode;
+	struct bch_ianalde_info *ianalde = dio->ianalde;
 	bool sync = dio->sync;
 	long ret;
 
@@ -380,15 +380,15 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 			return -EIOCBQUEUED;
 	}
 
-	bch2_pagecache_block_put(inode);
+	bch2_pagecache_block_put(ianalde);
 
 	kfree(dio->iov);
 
 	ret = dio->op.error ?: ((long) dio->written << 9);
 	bio_put(&dio->op.wbio.bio);
 
-	/* inode->i_dio_count is our ref on inode and thus bch_fs */
-	inode_dio_end(&inode->v);
+	/* ianalde->i_dio_count is our ref on ianalde and thus bch_fs */
+	ianalde_dio_end(&ianalde->v);
 
 	if (ret < 0)
 		ret = bch2_err_class(ret);
@@ -404,30 +404,30 @@ static __always_inline void bch2_dio_write_end(struct dio_write *dio)
 {
 	struct bch_fs *c = dio->op.c;
 	struct kiocb *req = dio->req;
-	struct bch_inode_info *inode = dio->inode;
+	struct bch_ianalde_info *ianalde = dio->ianalde;
 	struct bio *bio = &dio->op.wbio.bio;
 
 	req->ki_pos	+= (u64) dio->op.written << 9;
 	dio->written	+= dio->op.written;
 
 	if (dio->extending) {
-		spin_lock(&inode->v.i_lock);
-		if (req->ki_pos > inode->v.i_size)
-			i_size_write(&inode->v, req->ki_pos);
-		spin_unlock(&inode->v.i_lock);
+		spin_lock(&ianalde->v.i_lock);
+		if (req->ki_pos > ianalde->v.i_size)
+			i_size_write(&ianalde->v, req->ki_pos);
+		spin_unlock(&ianalde->v.i_lock);
 	}
 
 	if (dio->op.i_sectors_delta || dio->quota_res.sectors) {
-		mutex_lock(&inode->ei_quota_lock);
-		__bch2_i_sectors_acct(c, inode, &dio->quota_res, dio->op.i_sectors_delta);
-		__bch2_quota_reservation_put(c, inode, &dio->quota_res);
-		mutex_unlock(&inode->ei_quota_lock);
+		mutex_lock(&ianalde->ei_quota_lock);
+		__bch2_i_sectors_acct(c, ianalde, &dio->quota_res, dio->op.i_sectors_delta);
+		__bch2_quota_reservation_put(c, ianalde, &dio->quota_res);
+		mutex_unlock(&ianalde->ei_quota_lock);
 	}
 
 	bio_release_pages(bio, false);
 
 	if (unlikely(dio->op.error))
-		set_bit(EI_INODE_ERROR, &inode->ei_flags);
+		set_bit(EI_IANALDE_ERROR, &ianalde->ei_flags);
 }
 
 static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
@@ -435,14 +435,14 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 	struct bch_fs *c = dio->op.c;
 	struct kiocb *req = dio->req;
 	struct address_space *mapping = dio->mapping;
-	struct bch_inode_info *inode = dio->inode;
+	struct bch_ianalde_info *ianalde = dio->ianalde;
 	struct bch_io_opts opts;
 	struct bio *bio = &dio->op.wbio.bio;
 	unsigned unaligned, iter_count;
 	bool sync = dio->sync, dropped_locks;
 	long ret;
 
-	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
+	bch2_ianalde_opts_get(&opts, c, &ianalde->ei_ianalde);
 
 	while (1) {
 		iter_count = dio->iter.count;
@@ -468,7 +468,7 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 			goto err;
 
 		if (unlikely(dropped_locks)) {
-			ret = bch2_write_invalidate_inode_pages_range(mapping,
+			ret = bch2_write_invalidate_ianalde_pages_range(mapping,
 					req->ki_pos,
 					req->ki_pos + iter_count - 1);
 			if (unlikely(ret))
@@ -498,15 +498,15 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 		dio->op.target		= dio->op.opts.foreground_target;
 		dio->op.write_point	= writepoint_hashed((unsigned long) current);
 		dio->op.nr_replicas	= dio->op.opts.data_replicas;
-		dio->op.subvol		= inode->ei_subvol;
-		dio->op.pos		= POS(inode->v.i_ino, (u64) req->ki_pos >> 9);
-		dio->op.devs_need_flush	= &inode->ei_devs_need_flush;
+		dio->op.subvol		= ianalde->ei_subvol;
+		dio->op.pos		= POS(ianalde->v.i_ianal, (u64) req->ki_pos >> 9);
+		dio->op.devs_need_flush	= &ianalde->ei_devs_need_flush;
 
 		if (sync)
 			dio->op.flags |= BCH_WRITE_SYNC;
-		dio->op.flags |= BCH_WRITE_CHECK_ENOSPC;
+		dio->op.flags |= BCH_WRITE_CHECK_EANALSPC;
 
-		ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
+		ret = bch2_quota_reservation_add(c, ianalde, &dio->quota_res,
 						 bio_sectors(bio), true);
 		if (unlikely(ret))
 			goto err;
@@ -545,11 +545,11 @@ err:
 
 	bio_release_pages(bio, false);
 
-	bch2_quota_reservation_put(c, inode, &dio->quota_res);
+	bch2_quota_reservation_put(c, ianalde, &dio->quota_res);
 	goto out;
 }
 
-static noinline __cold void bch2_dio_write_continue(struct dio_write *dio)
+static analinline __cold void bch2_dio_write_continue(struct dio_write *dio)
 {
 	struct mm_struct *mm = dio->mm;
 
@@ -578,8 +578,8 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 {
 	struct file *file = req->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct bch_inode_info *inode = file_bch_inode(file);
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_ianalde_info *ianalde = file_bch_ianalde(file);
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct dio_write *dio;
 	struct bio *bio;
 	bool locked = true, extending;
@@ -587,10 +587,10 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 
 	prefetch(&c->opts);
 	prefetch((void *) &c->opts + 64);
-	prefetch(&inode->ei_inode);
-	prefetch((void *) &inode->ei_inode + 64);
+	prefetch(&ianalde->ei_ianalde);
+	prefetch((void *) &ianalde->ei_ianalde + 64);
 
-	inode_lock(&inode->v);
+	ianalde_lock(&ianalde->v);
 
 	ret = generic_write_checks(req, iter);
 	if (unlikely(ret <= 0))
@@ -607,12 +607,12 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1)))
 		goto err;
 
-	inode_dio_begin(&inode->v);
-	bch2_pagecache_block_get(inode);
+	ianalde_dio_begin(&ianalde->v);
+	bch2_pagecache_block_get(ianalde);
 
-	extending = req->ki_pos + iter->count > inode->v.i_size;
+	extending = req->ki_pos + iter->count > ianalde->v.i_size;
 	if (!extending) {
-		inode_unlock(&inode->v);
+		ianalde_unlock(&ianalde->v);
 		locked = false;
 	}
 
@@ -624,7 +624,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio = container_of(bio, struct dio_write, op.wbio.bio);
 	dio->req		= req;
 	dio->mapping		= mapping;
-	dio->inode		= inode;
+	dio->ianalde		= ianalde;
 	dio->mm			= current->mm;
 	dio->iov		= NULL;
 	dio->loop		= false;
@@ -637,7 +637,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->op.c		= c;
 
 	if (unlikely(mapping->nrpages)) {
-		ret = bch2_write_invalidate_inode_pages_range(mapping,
+		ret = bch2_write_invalidate_ianalde_pages_range(mapping,
 						req->ki_pos,
 						req->ki_pos + iter->count - 1);
 		if (unlikely(ret))
@@ -647,12 +647,12 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	ret = bch2_dio_write_loop(dio);
 err:
 	if (locked)
-		inode_unlock(&inode->v);
+		ianalde_unlock(&ianalde->v);
 	return ret;
 err_put_bio:
-	bch2_pagecache_block_put(inode);
+	bch2_pagecache_block_put(ianalde);
 	bio_put(bio);
-	inode_dio_end(&inode->v);
+	ianalde_dio_end(&ianalde->v);
 	goto err;
 }
 
@@ -667,14 +667,14 @@ int bch2_fs_fs_io_direct_init(struct bch_fs *c)
 	if (bioset_init(&c->dio_read_bioset,
 			4, offsetof(struct dio_read, rbio.bio),
 			BIOSET_NEED_BVECS))
-		return -BCH_ERR_ENOMEM_dio_read_bioset_init;
+		return -BCH_ERR_EANALMEM_dio_read_bioset_init;
 
 	if (bioset_init(&c->dio_write_bioset,
 			4, offsetof(struct dio_write, op.wbio.bio),
 			BIOSET_NEED_BVECS))
-		return -BCH_ERR_ENOMEM_dio_write_bioset_init;
+		return -BCH_ERR_EANALMEM_dio_write_bioset_init;
 
 	return 0;
 }
 
-#endif /* NO_BCACHEFS_FS */
+#endif /* ANAL_BCACHEFS_FS */

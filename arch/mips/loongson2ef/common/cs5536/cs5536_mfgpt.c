@@ -2,7 +2,7 @@
 /*
  * CS5536 General timer functions
  *
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techanallogy
  * Author: Yanhua, yanh@lemote.com
  *
  * Copyright (C) 2009 Lemote Inc.
@@ -87,7 +87,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	/*
 	 * get MFGPT base address
 	 *
-	 * NOTE: do not remove me, it's need for the value of mfgpt_base is
+	 * ANALTE: do analt remove me, it's need for the value of mfgpt_base is
 	 * variable
 	 */
 	_rdmsr(DIVIL_MSR_REG(DIVIL_LBAR_MFGPT), &basehi, &mfgpt_base);
@@ -129,12 +129,12 @@ void __init setup_mfgpt0_timer(void)
 	clockevents_register_device(cd);
 
 	if (request_irq(CS5536_MFGPT_INTR, timer_interrupt,
-			IRQF_NOBALANCING | IRQF_TIMER, "timer", NULL))
+			IRQF_ANALBALANCING | IRQF_TIMER, "timer", NULL))
 		pr_err("Failed to register timer interrupt\n");
 }
 
 /*
- * Since the MFGPT overflows every tick, its not very useful
+ * Since the MFGPT overflows every tick, its analt very useful
  * to just read by itself. So use jiffies to emulate a free
  * running counter:
  */
@@ -149,8 +149,8 @@ static u64 mfgpt_read(struct clocksource *cs)
 	raw_spin_lock_irqsave(&mfgpt_lock, flags);
 	/*
 	 * Although our caller may have the read side of xtime_lock,
-	 * this is now a seqlock, and we are cheating in this routine
-	 * by having side effects on state that we cannot undo if
+	 * this is analw a seqlock, and we are cheating in this routine
+	 * by having side effects on state that we cananalt undo if
 	 * there is a collision on the seqlock and our caller has to
 	 * retry.  (Namely, old_jifs and old_count.)  So we must treat
 	 * jiffies as volatile despite the lock.  We read jiffies
@@ -158,7 +158,7 @@ static u64 mfgpt_read(struct clocksource *cs)
 	 * the jiffies value might be older than the count (that is,
 	 * the counter may underflow between the last point where
 	 * jiffies was incremented and the point where we latch the
-	 * count), it cannot be newer.
+	 * count), it cananalt be newer.
 	 */
 	jifs = jiffies;
 	/* read the count */
@@ -172,7 +172,7 @@ static u64 mfgpt_read(struct clocksource *cs)
 	 *  interrupt and incremented jiffies yet.
 	 *
 	 * Previous attempts to handle these cases intelligently were buggy, so
-	 * we just do the simple thing now.
+	 * we just do the simple thing analw.
 	 */
 	if (count < old_count && jifs == old_jifs)
 		count = old_count;
@@ -187,14 +187,14 @@ static u64 mfgpt_read(struct clocksource *cs)
 
 static struct clocksource clocksource_mfgpt = {
 	.name = "mfgpt",
-	.rating = 120, /* Functional for real use, but not desired */
+	.rating = 120, /* Functional for real use, but analt desired */
 	.read = mfgpt_read,
 	.mask = CLOCKSOURCE_MASK(32),
 };
 
 int __init init_mfgpt_clocksource(void)
 {
-	if (num_possible_cpus() > 1)	/* MFGPT does not scale! */
+	if (num_possible_cpus() > 1)	/* MFGPT does analt scale! */
 		return 0;
 
 	return clocksource_register_hz(&clocksource_mfgpt, MFGPT_TICK_RATE);

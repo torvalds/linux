@@ -115,7 +115,7 @@ void wildfiremod_halt(void)
 	/* Make portE.5 an output */
 	writeb(readb(MCFGPIO_PDDR_E) | (1 << 5), MCFGPIO_PDDR_E);
 
-	/* Now toggle portE.5 from low to high */
+	/* Analw toggle portE.5 from low to high */
 	writeb(readb(MCFGPIO_PODR_E) & ~(1 << 5), MCFGPIO_PODR_E);
 	writeb(readb(MCFGPIO_PODR_E) | (1 << 5), MCFGPIO_PODR_E);
 

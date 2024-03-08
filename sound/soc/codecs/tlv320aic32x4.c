@@ -60,7 +60,7 @@ static int aic32x4_reset_adc(struct snd_soc_dapm_widget *w,
 	u32 adc_reg;
 
 	/*
-	 * Workaround: the datasheet does not mention a required programming
+	 * Workaround: the datasheet does analt mention a required programming
 	 * sequence but experiments show the ADC needs to be reset after each
 	 * capture to avoid audible artifacts.
 	 */
@@ -124,7 +124,7 @@ static int aic32x4_set_mfp2_gpio(struct snd_kcontrol *kcontrol,
 	val = snd_soc_component_read(component, AIC32X4_DOUTCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
-		printk(KERN_ERR "%s: MFP2 is not configure as a GPIO output\n",
+		printk(KERN_ERR "%s: MFP2 is analt configure as a GPIO output\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -165,7 +165,7 @@ static int aic32x4_set_mfp4_gpio(struct snd_kcontrol *kcontrol,
 	val = snd_soc_component_read(component, AIC32X4_MISOCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
-		printk(KERN_ERR "%s: MFP4 is not configure as a GPIO output\n",
+		printk(KERN_ERR "%s: MFP4 is analt configure as a GPIO output\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -205,7 +205,7 @@ static int aic32x4_set_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	val = snd_soc_component_read(component, AIC32X4_GPIOCTL);
 	gpio_check = (val & AIC32X4_MFP5_GPIO_OUTPUT);
 	if (gpio_check != AIC32X4_MFP5_GPIO_OUTPUT) {
-		printk(KERN_ERR "%s: MFP5 is not configure as a GPIO output\n",
+		printk(KERN_ERR "%s: MFP5 is analt configure as a GPIO output\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -306,7 +306,7 @@ static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 			0, 0x03, 0),
 	SOC_DOUBLE_R("AGC Hysteresis", AIC32X4_LAGC2, AIC32X4_RAGC2,
 			6, 0x03, 0),
-	SOC_DOUBLE_R("AGC Noise Threshold", AIC32X4_LAGC2, AIC32X4_RAGC2,
+	SOC_DOUBLE_R("AGC Analise Threshold", AIC32X4_LAGC2, AIC32X4_RAGC2,
 			1, 0x1F, 0),
 	SOC_DOUBLE_R("AGC Max PGA", AIC32X4_LAGC3, AIC32X4_RAGC3,
 			0, 0x7F, 0),
@@ -314,7 +314,7 @@ static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 			3, 0x1F, 0),
 	SOC_DOUBLE_R("AGC Decay Time", AIC32X4_LAGC5, AIC32X4_RAGC5,
 			3, 0x1F, 0),
-	SOC_DOUBLE_R("AGC Noise Debounce", AIC32X4_LAGC6, AIC32X4_RAGC6,
+	SOC_DOUBLE_R("AGC Analise Debounce", AIC32X4_LAGC6, AIC32X4_RAGC6,
 			0, 0x1F, 0),
 	SOC_DOUBLE_R("AGC Signal Debounce", AIC32X4_LAGC7, AIC32X4_RAGC7,
 			0, 0x0F, 0),
@@ -407,56 +407,56 @@ static const struct snd_kcontrol_new in3l_to_rmixer_controls[] = {
 
 static const struct snd_soc_dapm_widget aic32x4_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", AIC32X4_DACSETUP, 7, 0),
-	SND_SOC_DAPM_MIXER("HPL Output Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HPL Output Mixer", SND_SOC_ANALPM, 0, 0,
 			   &hpl_output_mixer_controls[0],
 			   ARRAY_SIZE(hpl_output_mixer_controls)),
 	SND_SOC_DAPM_PGA("HPL Power", AIC32X4_OUTPWRCTL, 5, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("LOL Output Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("LOL Output Mixer", SND_SOC_ANALPM, 0, 0,
 			   &lol_output_mixer_controls[0],
 			   ARRAY_SIZE(lol_output_mixer_controls)),
 	SND_SOC_DAPM_PGA("LOL Power", AIC32X4_OUTPWRCTL, 3, 0, NULL, 0),
 
 	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", AIC32X4_DACSETUP, 6, 0),
-	SND_SOC_DAPM_MIXER("HPR Output Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HPR Output Mixer", SND_SOC_ANALPM, 0, 0,
 			   &hpr_output_mixer_controls[0],
 			   ARRAY_SIZE(hpr_output_mixer_controls)),
 	SND_SOC_DAPM_PGA("HPR Power", AIC32X4_OUTPWRCTL, 4, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("LOR Output Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("LOR Output Mixer", SND_SOC_ANALPM, 0, 0,
 			   &lor_output_mixer_controls[0],
 			   ARRAY_SIZE(lor_output_mixer_controls)),
 	SND_SOC_DAPM_PGA("LOR Power", AIC32X4_OUTPWRCTL, 2, 0, NULL, 0),
 
 	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", AIC32X4_ADCSETUP, 6, 0),
-	SND_SOC_DAPM_MUX("IN1_R to Right Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN1_R to Right Mixer Positive Resistor", SND_SOC_ANALPM, 0, 0,
 			in1r_to_rmixer_controls),
-	SND_SOC_DAPM_MUX("IN2_R to Right Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN2_R to Right Mixer Positive Resistor", SND_SOC_ANALPM, 0, 0,
 			in2r_to_rmixer_controls),
-	SND_SOC_DAPM_MUX("IN3_R to Right Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN3_R to Right Mixer Positive Resistor", SND_SOC_ANALPM, 0, 0,
 			in3r_to_rmixer_controls),
-	SND_SOC_DAPM_MUX("IN2_L to Right Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN2_L to Right Mixer Positive Resistor", SND_SOC_ANALPM, 0, 0,
 			in2l_to_rmixer_controls),
-	SND_SOC_DAPM_MUX("CM_R to Right Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("CM_R to Right Mixer Negative Resistor", SND_SOC_ANALPM, 0, 0,
 			cmr_to_rmixer_controls),
-	SND_SOC_DAPM_MUX("IN1_L to Right Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN1_L to Right Mixer Negative Resistor", SND_SOC_ANALPM, 0, 0,
 			in1l_to_rmixer_controls),
-	SND_SOC_DAPM_MUX("IN3_L to Right Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN3_L to Right Mixer Negative Resistor", SND_SOC_ANALPM, 0, 0,
 			in3l_to_rmixer_controls),
 
 	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", AIC32X4_ADCSETUP, 7, 0),
-	SND_SOC_DAPM_MUX("IN1_L to Left Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN1_L to Left Mixer Positive Resistor", SND_SOC_ANALPM, 0, 0,
 			in1l_to_lmixer_controls),
-	SND_SOC_DAPM_MUX("IN2_L to Left Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN2_L to Left Mixer Positive Resistor", SND_SOC_ANALPM, 0, 0,
 			in2l_to_lmixer_controls),
-	SND_SOC_DAPM_MUX("IN3_L to Left Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN3_L to Left Mixer Positive Resistor", SND_SOC_ANALPM, 0, 0,
 			in3l_to_lmixer_controls),
-	SND_SOC_DAPM_MUX("IN1_R to Left Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN1_R to Left Mixer Positive Resistor", SND_SOC_ANALPM, 0, 0,
 			in1r_to_lmixer_controls),
-	SND_SOC_DAPM_MUX("CM_L to Left Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("CM_L to Left Mixer Negative Resistor", SND_SOC_ANALPM, 0, 0,
 			cml_to_lmixer_controls),
-	SND_SOC_DAPM_MUX("IN2_R to Left Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN2_R to Left Mixer Negative Resistor", SND_SOC_ANALPM, 0, 0,
 			in2r_to_lmixer_controls),
-	SND_SOC_DAPM_MUX("IN3_R to Left Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN3_R to Left Mixer Negative Resistor", SND_SOC_ANALPM, 0, 0,
 			in3r_to_lmixer_controls),
 
 	SND_SOC_DAPM_SUPPLY("Mic Bias", AIC32X4_MICBIAS, 6, 0, mic_bias_event,
@@ -758,7 +758,7 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 		else
 			aic32x4_set_processing_blocks(component, 13, 19);
 	} else {
-		dev_err(component->dev, "Sampling rate not supported\n");
+		dev_err(component->dev, "Sampling rate analt supported\n");
 		return -EINVAL;
 	}
 
@@ -819,7 +819,7 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 	}
 
 	dev_err(component->dev,
-		"Could not set clocks to support sample rate.\n");
+		"Could analt set clocks to support sample rate.\n");
 	return -EINVAL;
 }
 
@@ -929,7 +929,7 @@ static const struct snd_soc_dai_ops aic32x4_ops = {
 	.mute_stream = aic32x4_mute,
 	.set_fmt = aic32x4_set_dai_fmt,
 	.set_sysclk = aic32x4_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver aic32x4_dai = {
@@ -1053,9 +1053,9 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 				AIC32X4_RMICPGANIN_CM1R_10K);
 
 	/*
-	 * Workaround: for an unknown reason, the ADC needs to be powered up
+	 * Workaround: for an unkanalwn reason, the ADC needs to be powered up
 	 * and down for the first capture to work properly. It seems related to
-	 * a HW BUG or some kind of behavior not documented in the datasheet.
+	 * a HW BUG or some kind of behavior analt documented in the datasheet.
 	 */
 	tmp_reg = snd_soc_component_read(component, AIC32X4_ADCSETUP);
 	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg |
@@ -1111,7 +1111,7 @@ static const struct snd_kcontrol_new hp_output_mixer_controls[] = {
 
 static const struct snd_soc_dapm_widget aic32x4_tas2505_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", "Playback", AIC32X4_DACSETUP, 7, 0),
-	SND_SOC_DAPM_MIXER("HP Output Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HP Output Mixer", SND_SOC_ANALPM, 0, 0,
 			   &hp_output_mixer_controls[0],
 			   ARRAY_SIZE(hp_output_mixer_controls)),
 	SND_SOC_DAPM_PGA("HP Power", AIC32X4_OUTPWRCTL, 5, 0, NULL, 0),
@@ -1210,7 +1210,7 @@ static const struct snd_soc_component_driver soc_component_dev_aic32x4_tas2505 =
 };
 
 static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
-		struct device_node *np)
+		struct device_analde *np)
 {
 	struct aic32x4_setup_data *aic32x4_setup;
 	int ret;
@@ -1218,7 +1218,7 @@ static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
 	aic32x4_setup = devm_kzalloc(aic32x4->dev, sizeof(*aic32x4_setup),
 							GFP_KERNEL);
 	if (!aic32x4_setup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_match_string(np, "clock-names", "mclk");
 	if (ret < 0)
@@ -1338,7 +1338,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 {
 	struct aic32x4_priv *aic32x4;
 	struct aic32x4_pdata *pdata = dev->platform_data;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	if (IS_ERR(regmap))
@@ -1347,7 +1347,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 	aic32x4 = devm_kzalloc(dev, sizeof(struct aic32x4_priv),
 				   GFP_KERNEL);
 	if (aic32x4 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aic32x4->dev = dev;
 	aic32x4->type = type;
@@ -1363,7 +1363,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 	} else if (np) {
 		ret = aic32x4_parse_dt(aic32x4, np);
 		if (ret) {
-			dev_err(dev, "Failed to parse DT node\n");
+			dev_err(dev, "Failed to parse DT analde\n");
 			return ret;
 		}
 	} else {

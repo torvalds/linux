@@ -29,10 +29,10 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 
 	___P(IRQ_LEVEL);
 	___P(IRQ_PER_CPU);
-	___P(IRQ_NOPROBE);
-	___P(IRQ_NOREQUEST);
-	___P(IRQ_NOTHREAD);
-	___P(IRQ_NOAUTOEN);
+	___P(IRQ_ANALPROBE);
+	___P(IRQ_ANALREQUEST);
+	___P(IRQ_ANALTHREAD);
+	___P(IRQ_ANALAUTOEN);
 
 	___PS(IRQS_AUTODETECT);
 	___PS(IRQS_REPLAY);

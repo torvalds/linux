@@ -55,7 +55,7 @@ struct iss_v4l2_subdevs_group {
 	enum iss_interface_type interface;
 	union {
 		struct iss_csi2_platform_data csi2;
-	} bus; /* gcc < 4.6.0 chokes on anonymous union initializers */
+	} bus; /* gcc < 4.6.0 chokes on aanalnymous union initializers */
 };
 
 struct iss_platform_data {

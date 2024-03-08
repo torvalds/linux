@@ -6,14 +6,14 @@ Required properties:
   - "qca,ar7100-gpio"
   - "qca,ar9340-gpio"
 - reg: Base address and size of the controllers memory area
-- gpio-controller : Marks the device node as a GPIO controller.
+- gpio-controller : Marks the device analde as a GPIO controller.
 - #gpio-cells : Should be two. The first cell is the pin number and the
   second cell is used to specify optional parameters.
 - ngpios: Should be set to the number of GPIOs available on the SoC.
 
 Optional properties:
 - interrupts: Interrupt specifier for the controllers interrupt.
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the analde as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode interrupt
 		     source, should be 2
 

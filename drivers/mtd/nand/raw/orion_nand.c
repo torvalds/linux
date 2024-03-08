@@ -33,7 +33,7 @@ static void orion_nand_cmd_ctrl(struct nand_chip *nc, int cmd,
 	struct orion_nand_data *board = nand_get_controller_data(nc);
 	u32 offs;
 
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (ctrl & NAND_CLE)
@@ -65,7 +65,7 @@ static void orion_nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 	buf64 = (uint64_t *)buf;
 	while (i < len/8) {
 		/*
-		 * Since GCC has no proper constraint (PR 43518)
+		 * Since GCC has anal proper constraint (PR 43518)
 		 * force x variable to r2/r3 registers as ldrd instruction
 		 * requires first register to be even.
 		 */
@@ -86,7 +86,7 @@ static void orion_nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 static int orion_nand_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -110,7 +110,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 			sizeof(struct orion_nand_info),
 			GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	nc = &info->chip;
 	mtd = nand_to_mtd(nc);
 
@@ -123,25 +123,25 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		board = devm_kzalloc(&pdev->dev, sizeof(struct orion_nand_data),
 					GFP_KERNEL);
 		if (!board)
-			return -ENOMEM;
-		if (!of_property_read_u32(pdev->dev.of_node, "cle", &val))
+			return -EANALMEM;
+		if (!of_property_read_u32(pdev->dev.of_analde, "cle", &val))
 			board->cle = (u8)val;
 		else
 			board->cle = 0;
-		if (!of_property_read_u32(pdev->dev.of_node, "ale", &val))
+		if (!of_property_read_u32(pdev->dev.of_analde, "ale", &val))
 			board->ale = (u8)val;
 		else
 			board->ale = 1;
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_analde,
 						"bank-width", &val))
 			board->width = (u8)val * 8;
 		else
 			board->width = 8;
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_analde,
 						"chip-delay", &val))
 			board->chip_delay = (u8)val;
 	} else {
@@ -151,7 +151,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	mtd->dev.parent = &pdev->dev;
 
 	nand_set_controller_data(nc, board);
-	nand_set_flash_node(nc, pdev->dev.of_node);
+	nand_set_flash_analde(nc, pdev->dev.of_analde);
 	nc->legacy.IO_ADDR_R = nc->legacy.IO_ADDR_W = io_base;
 	nc->legacy.cmd_ctrl = orion_nand_cmd_ctrl;
 	nc->legacy.read_buf = orion_nand_read_buf;
@@ -168,7 +168,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	/* Not all platforms can gate the clock, so it is optional. */
+	/* Analt all platforms can gate the clock, so it is optional. */
 	info->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
 	if (IS_ERR(info->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(info->clk),

@@ -37,7 +37,7 @@
 #define DAUGHTER_VER_MASK      0xF0 
 #define DAUGHTER_TYPEVER_MASK  (DAUGHTER_TYPE_MASK|DAUGHTER_VER_MASK)
  
-#define MIXART_DAUGHTER_TYPE_NONE     0x00 
+#define MIXART_DAUGHTER_TYPE_ANALNE     0x00 
 #define MIXART_DAUGHTER_TYPE_COBRANET 0x08 
 #define MIXART_DAUGHTER_TYPE_AES      0x0E
 
@@ -70,7 +70,7 @@
 /* 
 *  after the elf code is loaded, and the flowtable info was passed to it,
 *  the driver polls on this address, until it shows 1 (presence) or 2 (absence)
-*  once it is non-zero, the daughter board type may be read
+*  once it is analn-zero, the daughter board type may be read
 */
 #define  MIXART_PSEUDOREG_DBRD_PRESENCE_OFFSET     MIXART_PSEUDOREG+0x990   
 

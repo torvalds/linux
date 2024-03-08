@@ -131,7 +131,7 @@ void update_supported_bands(struct wil6210_priv *wil)
 
 /* Vendor id to be used in vendor specific command and events
  * to user space.
- * NOTE: The authoritative place for definition of QCA_NL80211_VENDOR_ID,
+ * ANALTE: The authoritative place for definition of QCA_NL80211_VENDOR_ID,
  * vendor subcmd definitions prefixed with QCA_NL80211_VENDOR_SUBCMD, and
  * qca_wlan_vendor_attr is open source file src/common/qca-vendor.h in
  * git://w1.fi/srv/git/hostap.git; the values here are just a copy of that
@@ -344,7 +344,7 @@ int wil_iftype_nl2wmi(enum nl80211_iftype type)
 			return __nl2wmi[i].wmi;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int wil_spec2wmi_ch(u8 spec_ch, u8 *wmi_ch)
@@ -431,13 +431,13 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 		       struct station_info *sinfo)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	struct wmi_notify_req_cmd cmd = {
+	struct wmi_analtify_req_cmd cmd = {
 		.cid = cid,
 		.interval_usec = 0,
 	};
 	struct {
 		struct wmi_cmd_hdr wmi;
-		struct wmi_notify_req_done_event evt;
+		struct wmi_analtify_req_done_event evt;
 	} __packed reply;
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
 	int rc;
@@ -447,8 +447,8 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 
 	memset(&reply, 0, sizeof(reply));
 
-	rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, vif->mid, &cmd, sizeof(cmd),
-		      WMI_NOTIFY_REQ_DONE_EVENTID, &reply, sizeof(reply),
+	rc = wmi_call(wil, WMI_ANALTIFY_REQ_CMDID, vif->mid, &cmd, sizeof(cmd),
+		      WMI_ANALTIFY_REQ_DONE_EVENTID, &reply, sizeof(reply),
 		      WIL_WMI_CALL_GENERAL_TO_MS);
 	if (rc)
 		return rc;
@@ -545,7 +545,7 @@ static int wil_cfg80211_get_station(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "get_station: %pM CID %d MID %d\n", mac, cid,
 		     vif->mid);
 	if (!wil_cid_valid(wil, cid))
-		return -ENOENT;
+		return -EANALENT;
 
 	rc = wil_cid_fill_sinfo(vif, cid, sinfo);
 
@@ -569,7 +569,7 @@ int wil_find_cid_by_idx(struct wil6210_priv *wil, u8 mid, int idx)
 		idx--;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int wil_cfg80211_dump_station(struct wiphy *wiphy,
@@ -582,7 +582,7 @@ static int wil_cfg80211_dump_station(struct wiphy *wiphy,
 	int cid = wil_find_cid_by_idx(wil, vif->mid, idx);
 
 	if (!wil_cid_valid(wil, cid))
-		return -ENOENT;
+		return -EANALENT;
 
 	ether_addr_copy(mac, wil->sta[cid].addr);
 	wil_dbg_misc(wil, "dump_station: %pM CID %d MID %d\n", mac, cid,
@@ -681,7 +681,7 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 
 	wil_dbg_misc(wil, "add_iface, type %d\n", type);
 
-	/* P2P device is not a real virtual interface, it is a management-only
+	/* P2P device is analt a real virtual interface, it is a management-only
 	 * interface that shares the main interface.
 	 * Skip concurrency checks here.
 	 */
@@ -693,7 +693,7 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 
 		p2p_wdev = kzalloc(sizeof(*p2p_wdev), GFP_KERNEL);
 		if (!p2p_wdev)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		p2p_wdev->iftype = type;
 		p2p_wdev->wiphy = wiphy;
@@ -706,7 +706,7 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 	}
 
 	if (!wil->wiphy->n_iface_combinations) {
-		wil_err(wil, "virtual interfaces not supported\n");
+		wil_err(wil, "virtual interfaces analt supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -793,7 +793,7 @@ static int wil_cfg80211_del_iface(struct wiphy *wiphy,
 	}
 
 	if (vif->mid == 0) {
-		wil_err(wil, "cannot remove the main interface\n");
+		wil_err(wil, "cananalt remove the main interface\n");
 		return -EINVAL;
 	}
 
@@ -840,7 +840,7 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 		}
 	}
 
-	/* do not reset FW when there are active VIFs,
+	/* do analt reset FW when there are active VIFs,
 	 * because it can cause significant disruption
 	 */
 	if (!wil_has_other_active_ifaces(wil, ndev, true, false) &&
@@ -868,7 +868,7 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 			wil->monitor_flags = params->flags;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (vif->mid != 0 && wil_has_active_ifaces(wil, true, false)) {
@@ -909,12 +909,12 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	case NL80211_IFTYPE_AP:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* FW don't support scan after connection attempt */
 	if (test_bit(wil_status_dontscan, wil->status)) {
-		wil_err(wil, "Can't scan now\n");
+		wil_err(wil, "Can't scan analw\n");
 		return -EBUSY;
 	}
 
@@ -986,7 +986,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 		if (ch == 0) {
 			wil_err(wil,
-				"Scan requested for unknown frequency %dMhz\n",
+				"Scan requested for unkanalwn frequency %dMhz\n",
 				request->channels[i]->center_freq);
 			continue;
 		}
@@ -1000,7 +1000,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		wil_hex_dump_misc("Scan IE ", DUMP_PREFIX_OFFSET, 16, 1,
 				  request->ie, request->ie_len, true);
 	else
-		wil_dbg_misc(wil, "Scan has no IE's\n");
+		wil_dbg_misc(wil, "Scan has anal IE's\n");
 
 	rc = wmi_set_ie(vif, WMI_FRAME_PROBE_REQ,
 			request->ie_len, request->ie);
@@ -1078,9 +1078,9 @@ static void wil_print_crypto(struct wil6210_priv *wil,
 		wil_dbg_misc(wil, "  [%d] = 0x%08x\n", i,
 			     c->akm_suites[i]);
 	wil_dbg_misc(wil, "}\n");
-	wil_dbg_misc(wil, "Control port : %d, eth_type 0x%04x no_encrypt %d\n",
+	wil_dbg_misc(wil, "Control port : %d, eth_type 0x%04x anal_encrypt %d\n",
 		     c->control_port, be16_to_cpu(c->control_port_ethertype),
-		     c->control_port_no_encrypt);
+		     c->control_port_anal_encrypt);
 }
 
 static const char *
@@ -1100,7 +1100,7 @@ wil_get_auth_type_name(enum nl80211_auth_type auth_type)
 	case NL80211_AUTHTYPE_AUTOMATIC:
 		return "AUTOMATIC";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 static void wil_print_connect_params(struct wil6210_priv *wil,
@@ -1135,22 +1135,22 @@ static int wil_ft_connect(struct wiphy *wiphy,
 	int rc;
 
 	if (!test_bit(WMI_FW_CAPABILITY_FT_ROAMING, wil->fw_capabilities)) {
-		wil_err(wil, "FT: FW does not support FT roaming\n");
-		return -EOPNOTSUPP;
+		wil_err(wil, "FT: FW does analt support FT roaming\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (!sme->prev_bssid) {
-		wil_err(wil, "FT: prev_bssid was not set\n");
+		wil_err(wil, "FT: prev_bssid was analt set\n");
 		return -EINVAL;
 	}
 
 	if (ether_addr_equal(sme->prev_bssid, sme->bssid)) {
-		wil_err(wil, "FT: can not roam to same AP\n");
+		wil_err(wil, "FT: can analt roam to same AP\n");
 		return -EINVAL;
 	}
 
 	if (!test_bit(wil_vif_fwconnected, vif->status)) {
-		wil_err(wil, "FT: roam while not connected\n");
+		wil_err(wil, "FT: roam while analt connected\n");
 		return -EINVAL;
 	}
 
@@ -1161,7 +1161,7 @@ static int wil_ft_connect(struct wiphy *wiphy,
 	}
 
 	if (sme->pbss) {
-		wil_err(wil, "FT: roam is not valid for PBSS\n");
+		wil_err(wil, "FT: roam is analt valid for PBSS\n");
 		return -EINVAL;
 	}
 
@@ -1251,7 +1251,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	if (sme->privacy && !rsn_eid) {
 		wil_info(wil, "WSC connection\n");
 		if (is_ft_roam) {
-			wil_err(wil, "No WSC with FT roam\n");
+			wil_err(wil, "Anal WSC with FT roam\n");
 			return -EINVAL;
 		}
 	}
@@ -1264,13 +1264,13 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 			       bss_type, IEEE80211_PRIVACY_ANY);
 	if (!bss) {
 		wil_err(wil, "Unable to find BSS\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ssid_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
 	if (!ssid_eid) {
-		wil_err(wil, "No SSID\n");
-		rc = -ENOENT;
+		wil_err(wil, "Anal SSID\n");
+		rc = -EANALENT;
 		goto out;
 	}
 	vif->privacy = sme->privacy;
@@ -1296,9 +1296,9 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 
 	ch = bss->channel->hw_value;
 	if (ch == 0) {
-		wil_err(wil, "BSS at unknown frequency %dMhz\n",
+		wil_err(wil, "BSS at unkanalwn frequency %dMhz\n",
 			bss->channel->center_freq);
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -1344,11 +1344,11 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 			conn.group_crypto_len = 16;
 		} else { /* WSC */
 			conn.dot11_auth_mode = WMI_AUTH11_WSC;
-			conn.auth_mode = WMI_AUTH_NONE;
+			conn.auth_mode = WMI_AUTH_ANALNE;
 		}
 	} else { /* insecure connection */
 		conn.dot11_auth_mode = WMI_AUTH11_OPEN;
-		conn.auth_mode = WMI_AUTH_NONE;
+		conn.auth_mode = WMI_AUTH_ANALNE;
 	}
 
 	conn.ssid_len = min_t(u8, ssid_eid[1], 32);
@@ -1416,11 +1416,11 @@ static int wil_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int rc;
 
-	/* these parameters are explicitly not supported */
+	/* these parameters are explicitly analt supported */
 	if (changed & (WIPHY_PARAM_RETRY_LONG |
 		       WIPHY_PARAM_FRAG_THRESHOLD |
 		       WIPHY_PARAM_RTS_THRESHOLD))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (changed & WIPHY_PARAM_RETRY_SHORT) {
 		rc = wmi_set_mgmt_retry(wil, wiphy->retry_short);
@@ -1447,7 +1447,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		     params->offchan,
 		     params->wait);
 
-	/* Note, currently we support the "wait" parameter only on AP mode.
+	/* Analte, currently we support the "wait" parameter only on AP mode.
 	 * In other modes, user-space must call remain_on_channel before
 	 * mgmt_tx or listen on a channel other than active one.
 	 */
@@ -1459,7 +1459,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	if (wdev->iftype != NL80211_IFTYPE_AP) {
 		wil_dbg_misc(wil,
-			     "send WMI_SW_TX_REQ_CMDID on non-AP interfaces\n");
+			     "send WMI_SW_TX_REQ_CMDID on analn-AP interfaces\n");
 		rc = wmi_mgmt_tx(vif, buf, len);
 		goto out;
 	}
@@ -1473,7 +1473,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	if (params->offchan == 0) {
 		wil_err(wil,
-			"invalid channel params: current %d requested %d, off-channel not allowed\n",
+			"invalid channel params: current %d requested %d, off-channel analt allowed\n",
 			vif->channel, params->chan->hw_value);
 		return -EBUSY;
 	}
@@ -1483,7 +1483,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     params->wait);
 
 out:
-	/* when the sent packet was not acked by receiver(ACK=0), rc will
+	/* when the sent packet was analt acked by receiver(ACK=0), rc will
 	 * be -EAGAIN. In this case this function needs to return success,
 	 * the ACK=0 will be reflected in tx_status.
 	 */
@@ -1542,7 +1542,7 @@ wil_find_sta_by_key_usage(struct wil6210_priv *wil, u8 mid,
 	int cid = -EINVAL;
 
 	if (key_usage == WMI_KEY_USE_TX_GROUP)
-		return NULL; /* not needed */
+		return NULL; /* analt needed */
 
 	/* supplicant provides Rx group key in STA mode with NULL MAC address */
 	if (mac_addr)
@@ -1550,7 +1550,7 @@ wil_find_sta_by_key_usage(struct wil6210_priv *wil, u8 mid,
 	else if (key_usage == WMI_KEY_USE_RX_GROUP)
 		cid = wil_find_cid_by_idx(wil, mid, 0);
 	if (cid < 0) {
-		wil_err(wil, "No CID for %pM %s\n", mac_addr,
+		wil_err(wil, "Anal CID for %pM %s\n", mac_addr,
 			key_usage_str[key_usage]);
 		return ERR_PTR(cid);
 	}
@@ -1644,11 +1644,11 @@ static int wil_cfg80211_add_key(struct wiphy *wiphy,
 		     params->seq_len, params->seq);
 
 	if (IS_ERR(cs)) {
-		/* in FT, sta info may not be available as add_key may be
+		/* in FT, sta info may analt be available as add_key may be
 		 * sent by host before FW sends WMI_CONNECT_EVENT
 		 */
 		if (!test_bit(wil_vif_ft_roam, vif->status)) {
-			wil_err(wil, "Not connected, %pM %s[%d] PN %*phN\n",
+			wil_err(wil, "Analt connected, %pM %s[%d] PN %*phN\n",
 				mac_addr, key_usage_str[key_usage], key_index,
 				params->seq_len, params->seq);
 			return -EINVAL;
@@ -1712,7 +1712,7 @@ static int wil_cfg80211_del_key(struct wiphy *wiphy,
 		     key_usage_str[key_usage], key_index);
 
 	if (IS_ERR(cs))
-		wil_info(wil, "Not connected, %pM %s[%d]\n",
+		wil_info(wil, "Analt connected, %pM %s[%d]\n",
 			 mac_addr, key_usage_str[key_usage], key_index);
 
 	if (!IS_ERR_OR_NULL(cs))
@@ -1765,7 +1765,7 @@ static int wil_cancel_remain_on_channel(struct wiphy *wiphy,
 /*
  * find a specific IE in a list of IEs
  * return a pointer to the beginning of IE in the list
- * or NULL if not found
+ * or NULL if analt found
  */
 static const u8 *_wil_cfg80211_find_ie(const u8 *ies, u16 ies_len, const u8 *ie,
 				       u16 ie_len)
@@ -1791,7 +1791,7 @@ static const u8 *_wil_cfg80211_find_ie(const u8 *ies, u16 ies_len, const u8 *ie,
 
 /*
  * merge the IEs in two lists into a single list.
- * do not include IEs from the second list which exist in the first list.
+ * do analt include IEs from the second list which exist in the first list.
  * add only vendor specific IEs from second list to keep
  * the merged list sorted (since vendor-specific IE has the
  * highest tag number)
@@ -1818,7 +1818,7 @@ static int _wil_cfg80211_merge_extra_ies(const u8 *ies1, u16 ies1_len,
 
 	buf = kmalloc(ies1_len + ies2_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (ies1)
 		memcpy(buf, ies1, ies1_len);
 	dpos = buf + ies1_len;
@@ -1951,7 +1951,7 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "start_ap: mid=%d, is_go=%d\n", vif->mid, is_go);
 	if (is_go && !pbss) {
 		wil_err(wil, "P2P GO must be in PBSS\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	wil_set_recovery_state(wil, fw_recovery_idle);
@@ -1969,8 +1969,8 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (ft) {
 		if (!test_bit(WMI_FW_CAPABILITY_FT_ROAMING,
 			      wil->fw_capabilities)) {
-			wil_err(wil, "FW does not support FT roaming\n");
-			return -ENOTSUPP;
+			wil_err(wil, "FW does analt support FT roaming\n");
+			return -EANALTSUPP;
 		}
 		set_bit(wil_vif_ft_roam, vif->status);
 	}
@@ -2142,12 +2142,12 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		return rc;
 
 	if (!channel) {
-		wil_err(wil, "AP: No channel???\n");
+		wil_err(wil, "AP: Anal channel???\n");
 		return -EINVAL;
 	}
 
 	switch (info->hidden_ssid) {
-	case NL80211_HIDDEN_SSID_NOT_IN_USE:
+	case NL80211_HIDDEN_SSID_ANALT_IN_USE:
 		hidden_ssid = WMI_HIDDEN_SSID_DISABLED;
 		break;
 
@@ -2161,7 +2161,7 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	default:
 		wil_err(wil, "AP: Invalid hidden SSID %d\n", info->hidden_ssid);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	wil_dbg_misc(wil, "AP on Channel %d %d MHz, %s\n", channel->hw_value,
 		     channel->center_freq, info->privacy ? "secure" : "open");
@@ -2238,8 +2238,8 @@ static int wil_cfg80211_add_station(struct wiphy *wiphy,
 		     params->sta_flags_mask, params->sta_flags_set);
 
 	if (!disable_ap_sme) {
-		wil_err(wil, "not supported with AP SME enabled\n");
-		return -EOPNOTSUPP;
+		wil_err(wil, "analt supported with AP SME enabled\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (params->aid > WIL_MAX_DMG_AID) {
@@ -2283,8 +2283,8 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 		     vif->mid);
 
 	if (!disable_ap_sme) {
-		wil_dbg_misc(wil, "not supported with AP SME enabled\n");
-		return -EOPNOTSUPP;
+		wil_dbg_misc(wil, "analt supported with AP SME enabled\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (!(params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)))
@@ -2292,8 +2292,8 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 
 	cid = wil_find_cid(wil, vif->mid, mac);
 	if (cid < 0) {
-		wil_err(wil, "station not found\n");
-		return -ENOLINK;
+		wil_err(wil, "station analt found\n");
+		return -EANALLINK;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wil->ring2cid_tid); i++)
@@ -2303,8 +2303,8 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 		}
 
 	if (!txdata) {
-		wil_err(wil, "ring data not found\n");
-		return -ENOLINK;
+		wil_err(wil, "ring data analt found\n");
+		return -EANALLINK;
 	}
 
 	authorize = params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED);
@@ -2393,11 +2393,11 @@ static int wil_cfg80211_probe_client(struct wiphy *wiphy,
 		     peer, cid, vif->mid);
 
 	if (cid < 0)
-		return -ENOLINK;
+		return -EANALLINK;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->cid = cid;
 	req->cookie = cid;
@@ -2494,7 +2494,7 @@ wil_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	int i, rc;
 
 	if (vif->mid != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	wil_dbg_misc(wil,
 		     "sched scan start: n_ssids %d, ie_len %zu, flags 0x%x\n",
@@ -2545,11 +2545,11 @@ wil_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev,
 	int rc;
 
 	if (vif->mid != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = wmi_stop_sched_scan(wil);
-	/* device would return error if it thinks PNO is already stopped.
-	 * ignore the return code so user space and driver gets back in-sync
+	/* device would return error if it thinks PANAL is already stopped.
+	 * iganalre the return code so user space and driver gets back in-sync
 	 */
 	wil_dbg_misc(wil, "sched scan stopped (%d)\n", rc);
 
@@ -2571,8 +2571,8 @@ wil_cfg80211_update_ft_ies(struct wiphy *wiphy, struct net_device *dev,
 			  ftie->ie, ftie->ie_len, true);
 
 	if (!test_bit(WMI_FW_CAPABILITY_FT_ROAMING, wil->fw_capabilities)) {
-		wil_err(wil, "FW does not support FT roaming\n");
-		return -EOPNOTSUPP;
+		wil_err(wil, "FW does analt support FT roaming\n");
+		return -EOPANALTSUPP;
 	}
 
 	rc = wmi_update_ft_ies(vif, ftie->ie_len, ftie->ie);
@@ -2580,7 +2580,7 @@ wil_cfg80211_update_ft_ies(struct wiphy *wiphy, struct net_device *dev,
 		return rc;
 
 	if (!test_bit(wil_vif_ft_roam, vif->status))
-		/* vif is not roaming */
+		/* vif is analt roaming */
 		return 0;
 
 	/* wil_vif_ft_roam is set. wil_cfg80211_update_ft_ies is used as
@@ -2748,7 +2748,7 @@ int wil_cfg80211_iface_combinations_from_fw(
 			total_limits * sizeof(struct ieee80211_iface_limit),
 			GFP_KERNEL);
 	if (!iface_combinations)
-		return -ENOMEM;
+		return -EANALMEM;
 	iface_limit = (struct ieee80211_iface_limit *)(iface_combinations +
 						       n_combos);
 	combo = conc->combos;
@@ -2798,13 +2798,13 @@ struct wil6210_priv *wil_cfg80211_init(struct device *dev)
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	/* Note: the wireless_dev structure is no longer allocated here.
+	/* Analte: the wireless_dev structure is anal longer allocated here.
 	 * Instead, it is allocated as part of the net_device structure
 	 * for main interface and each VIF.
 	 */
 	wiphy = wiphy_new(&wil_cfg80211_ops, sizeof(struct wil6210_priv));
 	if (!wiphy)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	set_wiphy_dev(wiphy, dev);
 	wil_wiphy_init(wiphy);
@@ -2814,7 +2814,7 @@ struct wil6210_priv *wil_cfg80211_init(struct device *dev)
 
 	/* default monitor channel */
 	ch = wiphy->bands[NL80211_BAND_60GHZ]->channels;
-	cfg80211_chandef_create(&wil->monitor_chandef, ch, NL80211_CHAN_NO_HT);
+	cfg80211_chandef_create(&wil->monitor_chandef, ch, NL80211_CHAN_ANAL_HT);
 
 	return wil;
 }
@@ -2832,7 +2832,7 @@ void wil_cfg80211_deinit(struct wil6210_priv *wil)
 	wiphy->iface_combinations = NULL;
 
 	wiphy_free(wiphy);
-	/* do not access wil6210_priv after returning from here */
+	/* do analt access wil6210_priv after returning from here */
 }
 
 void wil_p2p_wdev_free(struct wil6210_priv *wil)
@@ -2859,8 +2859,8 @@ static int wil_rf_sector_status_to_rc(u8 status)
 		return -EINVAL;
 	case WMI_RF_SECTOR_STATUS_BUSY_ERROR:
 		return -EAGAIN;
-	case WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR:
-		return -EOPNOTSUPP;
+	case WMI_RF_SECTOR_STATUS_ANALT_SUPPORTED_ERROR:
+		return -EOPANALTSUPP;
 	default:
 		return -EINVAL;
 	}
@@ -2882,7 +2882,7 @@ static int wil_rf_sector_get_cfg(struct wiphy *wiphy,
 		struct wmi_cmd_hdr wmi;
 		struct wmi_get_rf_sector_params_done_event evt;
 	} __packed reply = {
-		.evt = {.status = WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR},
+		.evt = {.status = WMI_RF_SECTOR_STATUS_ANALT_SUPPORTED_ERROR},
 	};
 	struct sk_buff *msg;
 	struct nlattr *nl_cfgs, *nl_cfg;
@@ -2890,7 +2890,7 @@ static int wil_rf_sector_get_cfg(struct wiphy *wiphy,
 	struct wmi_rf_sector_info *si;
 
 	if (!test_bit(WMI_FW_CAPABILITY_RF_SECTORS, wil->fw_capabilities))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = nla_parse_deprecated(tb, QCA_ATTR_DMG_RF_SECTOR_MAX, data,
 				  data_len, wil_rf_sector_policy, NULL);
@@ -2944,20 +2944,20 @@ static int wil_rf_sector_get_cfg(struct wiphy *wiphy,
 	msg = cfg80211_vendor_cmd_alloc_reply_skb(
 		wiphy, 64 * WMI_MAX_RF_MODULES_NUM);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (nla_put_u64_64bit(msg, QCA_ATTR_TSF,
 			      le64_to_cpu(reply.evt.tsf),
 			      QCA_ATTR_PAD))
 		goto nla_put_failure;
 
-	nl_cfgs = nla_nest_start_noflag(msg, QCA_ATTR_DMG_RF_SECTOR_CFG);
+	nl_cfgs = nla_nest_start_analflag(msg, QCA_ATTR_DMG_RF_SECTOR_CFG);
 	if (!nl_cfgs)
 		goto nla_put_failure;
 	for (i = 0; i < WMI_MAX_RF_MODULES_NUM; i++) {
 		if (!(rf_modules_vec & BIT(i)))
 			continue;
-		nl_cfg = nla_nest_start_noflag(msg, i);
+		nl_cfg = nla_nest_start_analflag(msg, i);
 		if (!nl_cfg)
 			goto nla_put_failure;
 		si = &reply.evt.sectors_info[i];
@@ -2984,7 +2984,7 @@ static int wil_rf_sector_get_cfg(struct wiphy *wiphy,
 	return rc;
 nla_put_failure:
 	kfree_skb(msg);
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static int wil_rf_sector_set_cfg(struct wiphy *wiphy,
@@ -3004,13 +3004,13 @@ static int wil_rf_sector_set_cfg(struct wiphy *wiphy,
 		struct wmi_cmd_hdr wmi;
 		struct wmi_set_rf_sector_params_done_event evt;
 	} __packed reply = {
-		.evt = {.status = WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR},
+		.evt = {.status = WMI_RF_SECTOR_STATUS_ANALT_SUPPORTED_ERROR},
 	};
 	struct nlattr *nl_cfg;
 	struct wmi_rf_sector_info *si;
 
 	if (!test_bit(WMI_FW_CAPABILITY_RF_SECTORS, wil->fw_capabilities))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = nla_parse_deprecated(tb, QCA_ATTR_DMG_RF_SECTOR_MAX, data,
 				  data_len, wil_rf_sector_policy, NULL);
@@ -3114,12 +3114,12 @@ static int wil_rf_sector_get_selected(struct wiphy *wiphy,
 		struct wmi_cmd_hdr wmi;
 		struct wmi_get_selected_rf_sector_index_done_event evt;
 	} __packed reply = {
-		.evt = {.status = WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR},
+		.evt = {.status = WMI_RF_SECTOR_STATUS_ANALT_SUPPORTED_ERROR},
 	};
 	struct sk_buff *msg;
 
 	if (!test_bit(WMI_FW_CAPABILITY_RF_SECTORS, wil->fw_capabilities))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = nla_parse_deprecated(tb, QCA_ATTR_DMG_RF_SECTOR_MAX, data,
 				  data_len, wil_rf_sector_policy, NULL);
@@ -3143,7 +3143,7 @@ static int wil_rf_sector_get_selected(struct wiphy *wiphy,
 		cid = wil_find_cid(wil, vif->mid, mac_addr);
 		if (cid < 0) {
 			wil_err(wil, "invalid MAC address %pM\n", mac_addr);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	} else {
 		if (test_bit(wil_vif_fwconnected, vif->status)) {
@@ -3171,7 +3171,7 @@ static int wil_rf_sector_get_selected(struct wiphy *wiphy,
 	msg = cfg80211_vendor_cmd_alloc_reply_skb(
 		wiphy, 64 * WMI_MAX_RF_MODULES_NUM);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (nla_put_u64_64bit(msg, QCA_ATTR_TSF,
 			      le64_to_cpu(reply.evt.tsf),
@@ -3184,7 +3184,7 @@ static int wil_rf_sector_get_selected(struct wiphy *wiphy,
 	return rc;
 nla_put_failure:
 	kfree_skb(msg);
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static int wil_rf_sector_wmi_set_selected(struct wil6210_priv *wil,
@@ -3196,7 +3196,7 @@ static int wil_rf_sector_wmi_set_selected(struct wil6210_priv *wil,
 		struct wmi_cmd_hdr wmi;
 		struct wmi_set_selected_rf_sector_index_done_event evt;
 	} __packed reply = {
-		.evt = {.status = WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR},
+		.evt = {.status = WMI_RF_SECTOR_STATUS_ANALT_SUPPORTED_ERROR},
 	};
 	int rc;
 
@@ -3227,7 +3227,7 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 	int cid = 0;
 
 	if (!test_bit(WMI_FW_CAPABILITY_RF_SECTORS, wil->fw_capabilities))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = nla_parse_deprecated(tb, QCA_ATTR_DMG_RF_SECTOR_MAX, data,
 				  data_len, wil_rf_sector_policy, NULL);
@@ -3263,7 +3263,7 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 			if (cid < 0) {
 				wil_err(wil, "invalid MAC address %pM\n",
 					mac_addr);
-				return -ENOENT;
+				return -EANALENT;
 			}
 		} else {
 			if (sector_index != WMI_INVALID_RF_SECTOR_INDEX) {
@@ -3296,7 +3296,7 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 					wil, vif->mid,
 					WMI_INVALID_RF_SECTOR_INDEX,
 					sector_type, i);
-				/* the FW will silently ignore and return
+				/* the FW will silently iganalre and return
 				 * success for unused cid, so abort the loop
 				 * on any other error
 				 */

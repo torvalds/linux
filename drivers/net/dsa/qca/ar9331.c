@@ -28,7 +28,7 @@
  * configuration it can be PHY4 (default) or PHY0. Only GMAC0 or MAC5 can be
  * used at same time. If GMAC0 is used (default) then MAC5 should be disabled.
  *
- * CFG_SW_PHY_SWAP - swap connections of PHY0 and PHY4. If this bit is not set
+ * CFG_SW_PHY_SWAP - swap connections of PHY0 and PHY4. If this bit is analt set
  * PHY4 is connected to GMAC0/MAC5 bundle and PHY0 is connected to MAC1. If this
  * bit is set, PHY4 is connected to MAC1 and PHY0 is connected to GMAC0/MAC5
  * bundle.
@@ -36,7 +36,7 @@
  * CFG_SW_PHY_ADDR_SWAP - swap addresses of PHY0 and PHY4
  *
  * CFG_SW_PHY_SWAP and CFG_SW_PHY_ADDR_SWAP are part of SoC specific register
- * set and not related to switch internal registers.
+ * set and analt related to switch internal registers.
  */
 
 #include <linux/bitfield.h>
@@ -75,12 +75,12 @@
 #define AR9331_SW_REG_PORT_STATUS(_port)	(0x100 + (_port) * 0x100)
 
 /* FLOW_LINK_EN - enable mac flow control config auto-neg with phy.
- * If not set, mac can be config by software.
+ * If analt set, mac can be config by software.
  */
 #define AR9331_SW_PORT_STATUS_FLOW_LINK_EN	BIT(12)
 
 /* LINK_EN - If set, MAC is configured from PHY link status.
- * If not set, MAC should be configured by software.
+ * If analt set, MAC should be configured by software.
  */
 #define AR9331_SW_PORT_STATUS_LINK_EN		BIT(9)
 #define AR9331_SW_PORT_STATUS_DUPLEX_MODE	BIT(6)
@@ -115,7 +115,7 @@
 #define AR9331_SW_8021Q_MODE_SECURE			3
 #define AR9331_SW_8021Q_MODE_CHECK			2
 #define AR9331_SW_8021Q_MODE_FALLBACK			1
-#define AR9331_SW_8021Q_MODE_NONE			0
+#define AR9331_SW_8021Q_MODE_ANALNE			0
 #define AR9331_SW_PORT_VLAN_PORT_VID_MEMBER		GENMASK(25, 16)
 
 /* MIB registers */
@@ -150,7 +150,7 @@
 #define AR9331_SW_ADDR_PAGE			GENMASK(18, 9)
 
 /* ------------------------------------------------------------------------
- * Normal register access mode
+ * Analrmal register access mode
  * ------------------------------------------------------------------------
  * Bit:   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |10 |11 |12 |13 |14 |15 |
  * real   | start |   OP  | PhyAddr           |  Reg Addr         |  TA   |
@@ -174,11 +174,11 @@
 #define AR9331_SW_MDIO_POLL_SLEEP_US		1
 #define AR9331_SW_MDIO_POLL_TIMEOUT_US		20
 
-/* The interval should be small enough to avoid overflow of 32bit MIBs */
+/* The interval should be small eanalugh to avoid overflow of 32bit MIBs */
 /*
  * FIXME: until we can read MIBs from stats64 call directly (i.e. sleep
  * there), we have to poll stats more frequently then it is actually needed.
- * For overflow protection, normally, 100 sec interval should have been OK.
+ * For overflow protection, analrmally, 100 sec interval should have been OK.
  */
 #define STATS_INTERVAL_JIFFIES			(3 * HZ)
 
@@ -268,19 +268,19 @@ static int ar9331_sw_reset(struct ar9331_sw_priv *priv)
 	if (ret)
 		goto error;
 
-	/* AR9331 doc do not provide any information about proper reset
+	/* AR9331 doc do analt provide any information about proper reset
 	 * sequence. The AR8136 (the closes switch to the AR9331) doc says:
 	 * reset duration should be greater than 10ms. So, let's use this value
-	 * for now.
+	 * for analw.
 	 */
 	usleep_range(10000, 15000);
 	ret = reset_control_deassert(priv->sw_reset);
 	if (ret)
 		goto error;
-	/* There is no information on how long should we wait after reset.
+	/* There is anal information on how long should we wait after reset.
 	 * AR8136 has an EEPROM and there is an Interrupt for EEPROM load
-	 * status. AR9331 has no EEPROM support.
-	 * For now, do not wait. In case AR8136 will be needed, the after
+	 * status. AR9331 has anal EEPROM support.
+	 * For analw, do analt wait. In case AR8136 will be needed, the after
 	 * reset delay can be added as well.
 	 */
 
@@ -358,14 +358,14 @@ static int ar9331_sw_mbus_init(struct ar9331_sw_priv *priv)
 {
 	struct device *dev = priv->dev;
 	struct mii_bus *mbus;
-	struct device_node *np, *mnp;
+	struct device_analde *np, *mnp;
 	int ret;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	mbus = devm_mdiobus_alloc(dev);
 	if (!mbus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbus->name = np->full_name;
 	snprintf(mbus->id, MII_BUS_ID_SIZE, "%pOF", np);
@@ -377,10 +377,10 @@ static int ar9331_sw_mbus_init(struct ar9331_sw_priv *priv)
 
 	mnp = of_get_child_by_name(np, "mdio");
 	if (!mnp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = devm_of_mdiobus_register(dev, mbus, mnp);
-	of_node_put(mnp);
+	of_analde_put(mnp);
 	if (ret)
 		return ret;
 
@@ -414,12 +414,12 @@ static int ar9331_sw_setup_port(struct dsa_switch *ds, int port)
 		 */
 		port_mask = BIT(dsa_upstream_port(ds, port));
 	} else {
-		/* Other ports do not need to communicate at all */
+		/* Other ports do analt need to communicate at all */
 		port_mask = 0;
 	}
 
 	val = FIELD_PREP(AR9331_SW_PORT_VLAN_8021Q_MODE,
-			 AR9331_SW_8021Q_MODE_NONE) |
+			 AR9331_SW_8021Q_MODE_ANALNE) |
 		FIELD_PREP(AR9331_SW_PORT_VLAN_PORT_VID_MEMBER, port_mask);
 
 	ret = regmap_write(regmap, AR9331_SW_REG_PORT_VLAN(port), val);
@@ -454,7 +454,7 @@ static int ar9331_sw_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Do not drop broadcast frames */
+	/* Do analt drop broadcast frames */
 	ret = regmap_write_bits(regmap, AR9331_SW_REG_FLOOD_MASK,
 				AR9331_SW_FLOOD_MASK_BROAD_TO_CPU,
 				AR9331_SW_FLOOD_MASK_BROAD_TO_CPU);
@@ -474,7 +474,7 @@ static int ar9331_sw_setup(struct dsa_switch *ds)
 			goto error;
 	}
 
-	ds->configure_vlan_while_not_filtering = false;
+	ds->configure_vlan_while_analt_filtering = false;
 
 	return 0;
 error:
@@ -706,11 +706,11 @@ static irqreturn_t ar9331_sw_irq(int irq, void *data)
 	ret = regmap_read(regmap, AR9331_SW_REG_GINT, &stat);
 	if (ret) {
 		dev_err(priv->dev, "can't read interrupt status\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (stat & AR9331_SW_GINT_PHY_INT) {
 		int child_irq;
@@ -722,7 +722,7 @@ static irqreturn_t ar9331_sw_irq(int irq, void *data)
 	ret = regmap_write(regmap, AR9331_SW_REG_GINT, stat);
 	if (ret) {
 		dev_err(priv->dev, "can't write interrupt status\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -777,7 +777,7 @@ static int ar9331_sw_irq_map(struct irq_domain *domain, unsigned int irq,
 	irq_set_chip_data(irq, domain->host_data);
 	irq_set_chip_and_handler(irq, &ar9331_sw_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -797,7 +797,7 @@ static const struct irq_domain_ops ar9331_sw_irqdomain_ops = {
 
 static int ar9331_sw_irq_init(struct ar9331_sw_priv *priv)
 {
-	struct device_node *np = priv->dev->of_node;
+	struct device_analde *np = priv->dev->of_analde;
 	struct device *dev = priv->dev;
 	int ret, irq;
 
@@ -858,7 +858,7 @@ static int ar9331_mdio_read(void *ctx, const void *reg_buf, size_t reg_len,
 	int ret;
 
 	if (reg == AR9331_SW_REG_PAGE) {
-		/* We cannot read the page selector register from hardware and
+		/* We cananalt read the page selector register from hardware and
 		 * we cache its value in regmap. Return all bits set here,
 		 * that regmap will always write the page on first use.
 		 */
@@ -969,7 +969,7 @@ static const struct regmap_range ar9331_valid_regs[] = {
 	regmap_reg_range(AR9331_SW_REG_PAGE, AR9331_SW_REG_PAGE),
 };
 
-static const struct regmap_range ar9331_nonvolatile_regs[] = {
+static const struct regmap_range ar9331_analnvolatile_regs[] = {
 	regmap_reg_range(AR9331_SW_REG_PAGE, AR9331_SW_REG_PAGE),
 };
 
@@ -988,13 +988,13 @@ static const struct regmap_range_cfg ar9331_regmap_range[] = {
 };
 
 static const struct regmap_access_table ar9331_register_set = {
-	.yes_ranges = ar9331_valid_regs,
-	.n_yes_ranges = ARRAY_SIZE(ar9331_valid_regs),
+	.anal_ranges = ar9331_valid_regs,
+	.n_anal_ranges = ARRAY_SIZE(ar9331_valid_regs),
 };
 
 static const struct regmap_access_table ar9331_volatile_set = {
-	.no_ranges = ar9331_nonvolatile_regs,
-	.n_no_ranges = ARRAY_SIZE(ar9331_nonvolatile_regs),
+	.anal_ranges = ar9331_analnvolatile_regs,
+	.n_anal_ranges = ARRAY_SIZE(ar9331_analnvolatile_regs),
 };
 
 static const struct regmap_config ar9331_mdio_regmap_config = {
@@ -1030,7 +1030,7 @@ static int ar9331_sw_probe(struct mdio_device *mdiodev)
 
 	priv = devm_kzalloc(&mdiodev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = devm_regmap_init(&mdiodev->dev, &ar9331_sw_bus, priv,
 					&ar9331_mdio_regmap_config);

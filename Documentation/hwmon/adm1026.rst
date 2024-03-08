@@ -28,8 +28,8 @@ Module Parameters
 * gpio_inverted: int array (min = 1, max = 17)
     List of GPIO pins (0-16) to program as inverted
 
-* gpio_normal: int array (min = 1, max = 17)
-    List of GPIO pins (0-16) to program as normal/non-inverted
+* gpio_analrmal: int array (min = 1, max = 17)
+    List of GPIO pins (0-16) to program as analrmal/analn-inverted
 
 * gpio_fan: int array (min = 1, max = 8)
     List of GPIO pins (0-7) to program as fan tachs
@@ -58,23 +58,23 @@ Fan rotation speeds are reported in RPM (rotations per minute) but measured
 in counts of a 22.5kHz internal clock. Each fan has a high limit which
 corresponds to a minimum fan speed. If the limit is exceeded, an interrupt
 can be generated. Each fan can be programmed to divide the reference clock
-by 1, 2, 4 or 8. Not all RPM values can accurately be represented, so some
+by 1, 2, 4 or 8. Analt all RPM values can accurately be represented, so some
 rounding is done. With a divider of 8, the slowest measurable speed of a
 two pulse per revolution fan is 661 RPM.
 
 There are 17 voltage sensors. An alarm is triggered if the voltage has
-crossed a programmable minimum or maximum limit. Note that minimum in this
+crossed a programmable minimum or maximum limit. Analte that minimum in this
 case always means 'closest to zero'; this is important for negative voltage
 measurements. Several inputs have integrated attenuators so they can measure
 higher voltages directly. 3.3V, 5V, 12V, -12V and battery voltage all have
 dedicated inputs. There are several inputs scaled to 0-3V full-scale range
-for SCSI terminator power. The remaining inputs are not scaled and have
+for SCSI terminator power. The remaining inputs are analt scaled and have
 a 0-2.5V full-scale range. A 2.5V or 1.82V reference voltage is provided
 for negative voltage measurements.
 
 If an alarm triggers, it will remain triggered until the hardware register
 is read at least once. This means that the cause for the alarm may already
-have disappeared! Note that in the current implementation, all hardware
+have disappeared! Analte that in the current implementation, all hardware
 registers are read whenever any data is read (unless it is less than 2.0
 seconds since the last update). This means that you can easily miss
 once-only alarms.
@@ -92,10 +92,10 @@ temperature sensor. The range of control is fixed at 20 °C, and the
 largest difference between current and tmin of the temperature sensors sets
 the control output. See the datasheet for several example circuits for
 controlling fan speed with the PWM and DAC outputs. The fan speed sensors
-do not have PWM compensation, so it is probably best to control the fan
+do analt have PWM compensation, so it is probably best to control the fan
 voltage from the power lead rather than on the ground lead.
 
 The datasheet shows an example application with VID signals attached to
-GPIO lines. Unfortunately, the chip may not be connected to the VID lines
+GPIO lines. Unfortunately, the chip may analt be connected to the VID lines
 in this way. The driver assumes that the chips *is* connected this way to
 get a VID voltage.

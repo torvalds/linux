@@ -9,7 +9,7 @@
 #include <linux/acpi.h>
 #include <sound/core.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <sound/jack.h>
 #include <linux/kernel.h>
@@ -79,7 +79,7 @@ static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* dai_link id is 1:1 mapped to the PCM device */
 	pcm->device = rtd->dai_link->id;
@@ -96,7 +96,7 @@ static int card_late_probe(struct snd_soc_card *card)
 	struct sof_hdmi_pcm *pcm;
 
 	if (list_empty(&ctx->hdmi_pcm_list))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!ctx->idisp_codec)
 		return 0;
@@ -177,7 +177,7 @@ static struct snd_soc_dai_link ehl_rt5660_dailink[] = {
 	{
 		.name = "SSP0-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &rt5660_ops,
@@ -186,17 +186,17 @@ static struct snd_soc_dai_link ehl_rt5660_dailink[] = {
 	{
 		.name = "dmic48k",
 		.id = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic_pin, dmic_codec, platform),
 	},
 	{
 		.name = "dmic16k",
 		.id = 2,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic16k, dmic_codec, platform),
 	},
 	{
@@ -204,7 +204,7 @@ static struct snd_soc_dai_link ehl_rt5660_dailink[] = {
 		.id = 5,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
@@ -212,7 +212,7 @@ static struct snd_soc_dai_link ehl_rt5660_dailink[] = {
 		.id = 6,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 	{
@@ -220,7 +220,7 @@ static struct snd_soc_dai_link ehl_rt5660_dailink[] = {
 		.id = 7,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 	{
@@ -228,7 +228,7 @@ static struct snd_soc_dai_link ehl_rt5660_dailink[] = {
 		.id = 8,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp4_pin, idisp4_codec, platform),
 	},
 };
@@ -249,7 +249,7 @@ static struct snd_soc_card snd_soc_card_ehl_rt5660 = {
 	.late_probe = card_late_probe,
 };
 
-/* If hdmi codec is not supported, switch to use dummy codec */
+/* If hdmi codec is analt supported, switch to use dummy codec */
 static void hdmi_link_init(struct snd_soc_card *card,
 			   struct sof_card_private *ctx,
 			   struct snd_soc_acpi_mach *mach)
@@ -263,8 +263,8 @@ static void hdmi_link_init(struct snd_soc_card *card,
 	}
 
 	/*
-	 * if HDMI is not enabled in kernel config, or
-	 * hdmi codec is not supported
+	 * if HDMI is analt enabled in kernel config, or
+	 * hdmi codec is analt supported
 	 */
 	for (i = HDMI_LINK_START; i <= HDMI_LINE_END; i++)
 		card->dai_link[i].codecs[0] = snd_soc_dummy_dlc;
@@ -281,7 +281,7 @@ static int snd_ehl_rt5660_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 	snd_soc_card_set_drvdata(card, ctx);
 

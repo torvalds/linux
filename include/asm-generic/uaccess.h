@@ -5,7 +5,7 @@
 /*
  * User space memory access functions, these should work
  * on any machine that has kernel and user data in the same
- * address space, e.g. all NOMMU machines.
+ * address space, e.g. all ANALMMU machines.
  */
 #include <linux/string.h>
 #include <asm-generic/access_ok.h>
@@ -64,14 +64,14 @@ __put_user_fn(size_t size, void __user *to, void *from)
 }
 #define __put_user_fn(sz, u, k)	__put_user_fn(sz, u, k)
 
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	*((type *)dst) = get_unaligned((type *)(src));			\
 	if (0) /* make sure the label looks used to the compiler */	\
 		goto err_label;						\
 } while (0)
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	put_unaligned(*((type *)src), (type *)(dst));			\
 	if (0) /* make sure the label looks used to the compiler */	\
@@ -141,7 +141,7 @@ static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
 
 #endif
 
-extern int __put_user_bad(void) __attribute__((noreturn));
+extern int __put_user_bad(void) __attribute__((analreturn));
 
 #define __get_user(x, ptr)					\
 ({								\
@@ -202,7 +202,7 @@ static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
 
 #endif
 
-extern int __get_user_bad(void) __attribute__((noreturn));
+extern int __get_user_bad(void) __attribute__((analreturn));
 
 /*
  * Zero Userspace

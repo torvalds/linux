@@ -78,7 +78,7 @@ struct pci_dev;
 
 
 /* PCIcore specific boardflags */
-#define SSB_PCICORE_BFL_NOPCI		0x00000400 /* Board leaves PCI floating */
+#define SSB_PCICORE_BFL_ANALPCI		0x00000400 /* Board leaves PCI floating */
 
 
 struct ssb_pcicore {
@@ -119,12 +119,12 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 static inline
 int ssb_pcicore_plat_dev_init(struct pci_dev *d)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline
 int ssb_pcicore_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif /* CONFIG_SSB_DRIVER_PCICORE */

@@ -16,7 +16,7 @@
    {
            "BriefDescription": "Counts total cache misses in first lookup result (high priority)",
            "EventidCode": "0x1",
-           "NodeType": "0x5",
+           "AnaldeType": "0x5",
            "EventName": "sys_cmn_pmu.hnf_cache_miss",
            "Unit": "sys_cmn_pmu",
            "Compat": "(434|436|43c|43a).*"

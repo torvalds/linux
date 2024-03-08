@@ -141,13 +141,13 @@ static int catpt_register_board(struct catpt_dev *cdev)
 
 	mach = snd_soc_acpi_find_machine(spec->machines);
 	if (!mach) {
-		dev_info(cdev->dev, "no machines present\n");
+		dev_info(cdev->dev, "anal machines present\n");
 		return 0;
 	}
 
 	mach->mach_params.platform = "catpt-platform";
 	board = platform_device_register_data(NULL, mach->drv_name,
-					PLATFORM_DEVID_NONE,
+					PLATFORM_DEVID_ANALNE,
 					(const void *)mach, sizeof(*mach));
 	if (IS_ERR(board)) {
 		dev_err(cdev->dev, "board register failed\n");
@@ -245,17 +245,17 @@ static int catpt_acpi_probe(struct platform_device *pdev)
 
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
 	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SST) {
-		dev_dbg(dev, "CATPT ACPI driver not selected, aborting probe\n");
-		return -ENODEV;
+		dev_dbg(dev, "CATPT ACPI driver analt selected, aborting probe\n");
+		return -EANALDEV;
 	}
 
 	cdev = devm_kzalloc(dev, sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec = (const struct catpt_spec *)id->driver_data;
 	catpt_dev_init(cdev, dev, spec);
@@ -275,7 +275,7 @@ static int catpt_acpi_probe(struct platform_device *pdev)
 	cdev->dxbuf_vaddr = dmam_alloc_coherent(dev, catpt_dram_size(cdev),
 						&cdev->dxbuf_paddr, GFP_KERNEL);
 	if (!cdev->dxbuf_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)

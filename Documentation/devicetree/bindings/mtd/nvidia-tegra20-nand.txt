@@ -14,14 +14,14 @@ Required properties:
 - reset-names: Must include the following entries:
   - nand
 
-Optional children nodes:
-Individual NAND chips are children of the NAND controller node. Currently
+Optional children analdes:
+Individual NAND chips are children of the NAND controller analde. Currently
 only one NAND chip supported.
 
-Required children node properties:
+Required children analde properties:
 - reg: An integer ranging from 1 to 6 representing the CS line to use.
 
-Optional children node properties:
+Optional children analde properties:
 - nand-ecc-mode: String, operation mode of the NAND ecc mode. Currently only
 		 "hw" is supported.
 - nand-ecc-algo: string, algorithm of NAND ECC.
@@ -38,7 +38,7 @@ Optional children node properties:
 		       are chosen.
 - wp-gpios: GPIO specifier for the write protect pin.
 
-Optional child node of NAND chip nodes:
+Optional child analde of NAND chip analdes:
 Partitions: see partition.txt
 
   Example:

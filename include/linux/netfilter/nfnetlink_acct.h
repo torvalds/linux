@@ -6,7 +6,7 @@
 #include <net/net_namespace.h>
 
 enum {
-	NFACCT_NO_QUOTA		= -1,
+	NFACCT_ANAL_QUOTA		= -1,
 	NFACCT_UNDERQUOTA,
 	NFACCT_OVERQUOTA,
 };

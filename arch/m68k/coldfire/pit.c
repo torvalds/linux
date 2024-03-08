@@ -4,7 +4,7 @@
 /*
  *	pit.c -- Freescale ColdFire PIT timer. Currently this type of
  *	         hardware timer only exists in the Freescale ColdFire
- *		 5270/5271, 5282 and 5208 CPUs. No doubt newer ColdFire
+ *		 5270/5271, 5282 and 5208 CPUs. Anal doubt newer ColdFire
  *		 family members will probably use it too.
  *
  *	Copyright (C) 1999-2008, Greg Ungerer (gerg@snapgear.com)

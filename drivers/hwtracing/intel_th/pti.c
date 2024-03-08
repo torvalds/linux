@@ -207,15 +207,15 @@ static int intel_th_pti_probe(struct intel_th_device *thdev)
 
 	res = intel_th_device_get_resource(thdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pti = devm_kzalloc(dev, sizeof(*pti), GFP_KERNEL);
 	if (!pti)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pti->thdev = thdev;
 	pti->base = base;

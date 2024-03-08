@@ -59,7 +59,7 @@ struct stm32_rng_data {
  * struct stm32_rng_config - RNG configuration data
  *
  * @cr:			RNG configuration. 0 means default hardware RNG configuration
- * @nscr:		Noise sources control configuration.
+ * @nscr:		Analise sources control configuration.
  * @htcr:		Health tests configuration.
  */
 struct stm32_rng_config {
@@ -82,7 +82,7 @@ struct stm32_rng_private {
 /*
  * Extracts from the STM32 RNG specification when RNG supports CONDRST.
  *
- * When a noise source (or seed) error occurs, the RNG stops generating
+ * When a analise source (or seed) error occurs, the RNG stops generating
  * random numbers and sets to “1” both SEIS and SECS bits to indicate
  * that a seed error occurred. (...)
  *
@@ -90,12 +90,12 @@ struct stm32_rng_private {
  * description for details). This step is needed only if SECS is set.
  * Indeed, when SEIS is set and SECS is cleared it means RNG performed
  * the reset automatically (auto-reset).
- * 2. If SECS was set in step 1 (no auto-reset) wait for CONDRST
+ * 2. If SECS was set in step 1 (anal auto-reset) wait for CONDRST
  * to be cleared in the RNG_CR register, then confirm that SEIS is
  * cleared in the RNG_SR register. Otherwise just clear SEIS bit in
  * the RNG_SR register.
- * 3. If SECS was set in step 1 (no auto-reset) wait for SECS to be
- * cleared by RNG. The random number generation is now back to normal.
+ * 3. If SECS was set in step 1 (anal auto-reset) wait for SECS to be
+ * cleared by RNG. The random number generation is analw back to analrmal.
  */
 static int stm32_rng_conceal_seed_error_cond_reset(struct stm32_rng_private *priv)
 {
@@ -137,9 +137,9 @@ end:
 }
 
 /*
- * Extracts from the STM32 RNG specification, when CONDRST is not supported
+ * Extracts from the STM32 RNG specification, when CONDRST is analt supported
  *
- * When a noise source (or seed) error occurs, the RNG stops generating
+ * When a analise source (or seed) error occurs, the RNG stops generating
  * random numbers and sets to “1” both SEIS and SECS bits to indicate
  * that a seed error occurred. (...)
  *
@@ -149,7 +149,7 @@ end:
  * 2. Read out 12 words from the RNG_DR register, and discard each of
  * them in order to clean the pipeline.
  * 3. Confirm that SEIS is still cleared. Random number generation is
- * back to normal.
+ * back to analrmal.
  */
 static int stm32_rng_conceal_seed_error_sw_reset(struct stm32_rng_private *priv)
 {
@@ -220,7 +220,7 @@ static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 				if (err && i > RNG_NB_RECOVER_TRIES) {
 					dev_err((struct device *)priv->rng.priv,
 						"Couldn't recover from seed error\n");
-					return -ENOTRECOVERABLE;
+					return -EANALTRECOVERABLE;
 				}
 
 				continue;
@@ -238,7 +238,7 @@ static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 			if (err && i > RNG_NB_RECOVER_TRIES) {
 				dev_err((struct device *)priv->rng.priv,
 					"Couldn't recover from seed error");
-				return -ENOTRECOVERABLE;
+				return -EANALTRECOVERABLE;
 			}
 
 			continue;
@@ -267,7 +267,7 @@ static uint stm32_rng_clock_freq_restrain(struct hwrng *rng)
 
 	/*
 	 * Get the exponent to apply on the CLKDIV field in RNG_CR register
-	 * No need to handle the case when clock-div > 0xF as it is physically
+	 * Anal need to handle the case when clock-div > 0xF as it is physically
 	 * impossible
 	 */
 	while ((clock_rate >> clock_div) > priv->data->max_clock_rate)
@@ -295,7 +295,7 @@ static int stm32_rng_init(struct hwrng *rng)
 	reg = readl_relaxed(priv->base + RNG_CR);
 
 	/*
-	 * Keep default RNG configuration if none was specified.
+	 * Keep default RNG configuration if analne was specified.
 	 * 0 is an invalid value as it disables all entropy sources.
 	 */
 	if (priv->data->has_cond_reset && priv->data->cr) {
@@ -310,7 +310,7 @@ static int stm32_rng_init(struct hwrng *rng)
 			reg |= RNG_CR_CED;
 		writel_relaxed(reg, priv->base + RNG_CR);
 
-		/* Health tests and noise control registers */
+		/* Health tests and analise control registers */
 		writel_relaxed(priv->data->htcr, priv->base + RNG_HTCR);
 		writel_relaxed(priv->data->nscr & RNG_NSCR_MASK, priv->base + RNG_NSCR);
 
@@ -390,7 +390,7 @@ static int __maybe_unused stm32_rng_suspend(struct device *dev)
 		priv->pm_conf.htcr = readl_relaxed(priv->base + RNG_HTCR);
 	}
 
-	/* Do not save that RNG is enabled as it will be handled at resume */
+	/* Do analt save that RNG is enabled as it will be handled at resume */
 	priv->pm_conf.cr = readl_relaxed(priv->base + RNG_CR) & ~RNG_CR_RNGEN;
 
 	writel_relaxed(priv->pm_conf.cr, priv->base + RNG_CR);
@@ -437,8 +437,8 @@ static int __maybe_unused stm32_rng_resume(struct device *dev)
 		/*
 		 * Correct configuration in bits [29:4] must be set in the same
 		 * access that set RNG_CR_CONDRST bit. Else config setting is
-		 * not taken into account. CONFIGLOCK bit must also be unset but
-		 * it is not handled at the moment.
+		 * analt taken into account. CONFIGLOCK bit must also be unset but
+		 * it is analt handled at the moment.
 		 */
 		writel_relaxed(priv->pm_conf.cr | RNG_CR_CONDRST, priv->base + RNG_CR);
 
@@ -504,13 +504,13 @@ MODULE_DEVICE_TABLE(of, stm32_rng_match);
 static int stm32_rng_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct stm32_rng_private *priv;
 	struct resource *res;
 
 	priv = devm_kzalloc(dev, sizeof(struct stm32_rng_private), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_get_and_ioremap_resource(ofdev, 0, &res);
 	if (IS_ERR(priv->base))
@@ -532,7 +532,7 @@ static int stm32_rng_probe(struct platform_device *ofdev)
 
 	priv->data = of_device_get_match_data(dev);
 	if (!priv->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_set_drvdata(dev, priv);
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  *
- * Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries
  */
 #include <linux/clk-provider.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -167,7 +167,7 @@ static int mpfs_ccc_register_outputs(struct device *dev, struct mpfs_ccc_out_hw_
 		char *name = devm_kasprintf(dev, GFP_KERNEL, "%s_out%u", parent->name, i);
 
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		out_hw->divider.hw.init = CLK_HW_INIT_HW(name, &parent->hw, &clk_divider_ops, 0);
 		out_hw->divider.reg = data->pll_base[i / MPFS_CCC_OUTPUTS_PER_PLL] +
@@ -202,9 +202,9 @@ static int mpfs_ccc_register_plls(struct device *dev, struct mpfs_ccc_pll_hw_clo
 		struct mpfs_ccc_pll_hw_clock *pll_hw = &pll_hws[i];
 
 		pll_hw->name = devm_kasprintf(dev, GFP_KERNEL, "ccc%s_pll%u",
-					      strchrnul(dev->of_node->full_name, '@'), i);
+					      strchrnul(dev->of_analde->full_name, '@'), i);
 		if (!pll_hw->name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pll_hw->base = data->pll_base[i];
 		pll_hw->hw.init = CLK_HW_INIT_PARENTS_DATA_FIXED_SIZE(pll_hw->name,
@@ -240,7 +240,7 @@ static int mpfs_ccc_probe(struct platform_device *pdev)
 	clk_data = devm_kzalloc(&pdev->dev, struct_size(clk_data, hw_data.hws, num_clks),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pll_base[0] = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pll_base[0]))
@@ -290,4 +290,4 @@ static void __exit clk_ccc_exit(void)
 module_exit(clk_ccc_exit);
 
 MODULE_DESCRIPTION("Microchip PolarFire SoC Clock Conditioning Circuitry Driver");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");

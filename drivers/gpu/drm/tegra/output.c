@@ -15,7 +15,7 @@
 #include "drm.h"
 #include "dc.h"
 
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 int tegra_output_connector_get_modes(struct drm_connector *connector)
 {
@@ -25,7 +25,7 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 
 	/*
 	 * If the panel provides one or more modes, use them exclusively and
-	 * ignore any other means of obtaining a mode.
+	 * iganalre any other means of obtaining a mode.
 	 */
 	if (output->panel) {
 		err = drm_panel_get_modes(output->panel, connector);
@@ -38,7 +38,7 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 	else if (output->ddc)
 		edid = drm_get_edid(connector, output->ddc);
 
-	cec_notifier_set_phys_addr_from_edid(output->cec, edid);
+	cec_analtifier_set_phys_addr_from_edid(output->cec, edid);
 	drm_connector_update_edid_property(connector, edid);
 
 	if (edid) {
@@ -53,7 +53,7 @@ enum drm_connector_status
 tegra_output_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	enum drm_connector_status status = connector_status_unknown;
+	enum drm_connector_status status = connector_status_unkanalwn;
 
 	if (output->hpd_gpio) {
 		if (gpiod_get_value(output->hpd_gpio) == 0)
@@ -68,7 +68,7 @@ tegra_output_connector_detect(struct drm_connector *connector, bool force)
 	}
 
 	if (status != connector_status_connected)
-		cec_notifier_phys_addr_invalidate(output->cec);
+		cec_analtifier_phys_addr_invalidate(output->cec);
 
 	return status;
 }
@@ -78,7 +78,7 @@ void tegra_output_connector_destroy(struct drm_connector *connector)
 	struct tegra_output *output = connector_to_output(connector);
 
 	if (output->cec)
-		cec_notifier_conn_unregister(output->cec);
+		cec_analtifier_conn_unregister(output->cec);
 
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -96,19 +96,19 @@ static irqreturn_t hpd_irq(int irq, void *data)
 
 int tegra_output_probe(struct tegra_output *output)
 {
-	struct device_node *ddc, *panel;
+	struct device_analde *ddc, *panel;
 	unsigned long flags;
 	int err, size;
 
-	if (!output->of_node)
-		output->of_node = output->dev->of_node;
+	if (!output->of_analde)
+		output->of_analde = output->dev->of_analde;
 
-	err = drm_of_find_panel_or_bridge(output->of_node, -1, -1,
+	err = drm_of_find_panel_or_bridge(output->of_analde, -1, -1,
 					  &output->panel, &output->bridge);
-	if (err && err != -ENODEV)
+	if (err && err != -EANALDEV)
 		return err;
 
-	panel = of_parse_phandle(output->of_node, "nvidia,panel", 0);
+	panel = of_parse_phandle(output->of_analde, "nvidia,panel", 0);
 	if (panel) {
 		/*
 		 * Don't mix nvidia,panel phandle with the graph in a
@@ -117,18 +117,18 @@ int tegra_output_probe(struct tegra_output *output)
 		WARN_ON(output->panel || output->bridge);
 
 		output->panel = of_drm_find_panel(panel);
-		of_node_put(panel);
+		of_analde_put(panel);
 
 		if (IS_ERR(output->panel))
 			return PTR_ERR(output->panel);
 	}
 
-	output->edid = of_get_property(output->of_node, "nvidia,edid", &size);
+	output->edid = of_get_property(output->of_analde, "nvidia,edid", &size);
 
-	ddc = of_parse_phandle(output->of_node, "nvidia,ddc-i2c-bus", 0);
+	ddc = of_parse_phandle(output->of_analde, "nvidia,ddc-i2c-bus", 0);
 	if (ddc) {
-		output->ddc = of_get_i2c_adapter_by_node(ddc);
-		of_node_put(ddc);
+		output->ddc = of_get_i2c_adapter_by_analde(ddc);
+		of_analde_put(ddc);
 
 		if (!output->ddc) {
 			err = -EPROBE_DEFER;
@@ -136,13 +136,13 @@ int tegra_output_probe(struct tegra_output *output)
 		}
 	}
 
-	output->hpd_gpio = devm_fwnode_gpiod_get(output->dev,
-					of_fwnode_handle(output->of_node),
+	output->hpd_gpio = devm_fwanalde_gpiod_get(output->dev,
+					of_fwanalde_handle(output->of_analde),
 					"nvidia,hpd",
 					GPIOD_IN,
 					"HDMI hotplug detect");
 	if (IS_ERR(output->hpd_gpio)) {
-		if (PTR_ERR(output->hpd_gpio) != -ENOENT)
+		if (PTR_ERR(output->hpd_gpio) != -EANALENT)
 			return PTR_ERR(output->hpd_gpio);
 
 		output->hpd_gpio = NULL;
@@ -195,7 +195,7 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	int connector_type;
 
 	/*
-	 * The connector is now registered and ready to receive hotplug events
+	 * The connector is analw registered and ready to receive hotplug events
 	 * so the hotplug interrupt can be enabled.
 	 */
 	if (output->hpd_gpio)
@@ -203,17 +203,17 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 
 	connector_type = output->connector.connector_type;
 	/*
-	 * Create a CEC notifier for HDMI connector.
+	 * Create a CEC analtifier for HDMI connector.
 	 */
 	if (connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 	    connector_type == DRM_MODE_CONNECTOR_HDMIB) {
 		struct cec_connector_info conn_info;
 
 		cec_fill_conn_info_from_drm(&conn_info, &output->connector);
-		output->cec = cec_notifier_conn_register(output->dev, NULL,
+		output->cec = cec_analtifier_conn_register(output->dev, NULL,
 							 &conn_info);
 		if (!output->cec)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;

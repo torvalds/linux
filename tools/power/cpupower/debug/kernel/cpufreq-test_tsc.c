@@ -17,7 +17,7 @@
  * 3.) change CPU frequency
  * 4.) modprobe this module again
  * 5.) if the third value, "diff_pmtmr", changes between 2. and 4., the
- *     TSC-based delay routine on the Linux kernel does not correctly
+ *     TSC-based delay routine on the Linux kernel does analt correctly
  *     handle the cpufreq transition. Please report this to
  *     linux-pm@vger.kernel.org
  */
@@ -37,7 +37,7 @@ static u32 read_pmtmr(void)
 	u32 v1=0,v2=0,v3=0;
 	/* It has been reported that because of various broken
 	 * chipsets (ICH4, PIIX4 and PIIX4E) where the ACPI PM time
-	 * source is not latched, so you must read it multiple
+	 * source is analt latched, so you must read it multiple
 	 * times to insure a safe value is read.
 	 */
 	do {
@@ -53,8 +53,8 @@ static u32 read_pmtmr(void)
 
 static int __init cpufreq_test_tsc(void)
 {
-	u32 now, then, diff;
-	u64 now_tsc, then_tsc, diff_tsc;
+	u32 analw, then, diff;
+	u64 analw_tsc, then_tsc, diff_tsc;
 	int i;
 
 	/* the following code snipped is copied from arch/x86/kernel/acpi/boot.c
@@ -85,27 +85,27 @@ static int __init cpufreq_test_tsc(void)
 	then_tsc = rdtsc();
 	for (i=0;i<20;i++) {
 		mdelay(100);
-		now = read_pmtmr();
-		now_tsc = rdtsc();
-		diff = (now - then) & 0xFFFFFF;
-		diff_tsc = now_tsc - then_tsc;
-		printk(KERN_DEBUG "t1: %08u t2: %08u diff_pmtmr: %08u diff_tsc: %016llu\n", then, now, diff, diff_tsc);
-		then = now;
-		then_tsc = now_tsc;
+		analw = read_pmtmr();
+		analw_tsc = rdtsc();
+		diff = (analw - then) & 0xFFFFFF;
+		diff_tsc = analw_tsc - then_tsc;
+		printk(KERN_DEBUG "t1: %08u t2: %08u diff_pmtmr: %08u diff_tsc: %016llu\n", then, analw, diff, diff_tsc);
+		then = analw;
+		then_tsc = analw_tsc;
 	}
 	printk(KERN_DEBUG "<-- end \n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static void __exit cpufreq_none(void)
+static void __exit cpufreq_analne(void)
 {
 	return;
 }
 
 module_init(cpufreq_test_tsc)
-module_exit(cpufreq_none)
+module_exit(cpufreq_analne)
 
 
 MODULE_AUTHOR("Dominik Brodowski");
-MODULE_DESCRIPTION("Verify the TSC cpufreq notifier working correctly -- needs ACPI-enabled system");
+MODULE_DESCRIPTION("Verify the TSC cpufreq analtifier working correctly -- needs ACPI-enabled system");
 MODULE_LICENSE ("GPL");

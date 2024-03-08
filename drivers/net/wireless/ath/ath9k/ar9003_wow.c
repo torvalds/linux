@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -127,7 +127,7 @@ int ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
 	u32 set, clr;
 
 	if (pattern_count >= ah->wow.max_patterns)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (pattern_count < MAX_NUM_PATTERN_LEGACY)
 		REG_SET_BIT(ah, AR_WOW_PATTERN, BIT(pattern_count));
@@ -186,7 +186,7 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 	u32 val = 0, rval;
 
 	/*
-	 * Read the WoW status register to know
+	 * Read the WoW status register to kanalw
 	 * the wakeup reason.
 	 */
 	rval = REG_READ(ah, AR_WOW_PATTERN);
@@ -247,7 +247,7 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 	 * PCIE_POR_SHORT pins are tied to its original value.
 	 * Previously just before WoW sleep, we untie the PCI-E
 	 * reset to our Chip's Power On Reset so that any PCI-E
-	 * reset from the bus will not reset our chip
+	 * reset from the bus will analt reset our chip
 	 */
 	if (ah->is_pciexpress)
 		ath9k_hw_configpcipowersave(ah, false);
@@ -377,7 +377,7 @@ void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 
 	/*
 	 * We are relying on a bmiss failure, ensure we have
-	 * enough threshold to prevent false positives.
+	 * eanalugh threshold to prevent false positives.
 	 */
 	REG_RMW_FIELD(ah, AR_RSSI_THR, AR_RSSI_THR_BM_THR,
 		      AR_WOW_BMISSTHRESHOLD);

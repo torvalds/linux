@@ -24,7 +24,7 @@ typedef signed long long Elf64_Sxword;
 #define PT_LOAD    1
 #define PT_DYNAMIC 2
 #define PT_INTERP  3
-#define PT_NOTE    4
+#define PT_ANALTE    4
 #define PT_SHLIB   5
 #define PT_PHDR    6
 #define PT_TLS     7		/* Thread local storage segment */
@@ -37,7 +37,7 @@ typedef signed long long Elf64_Sxword;
 #define PT_GNU_STACK	(PT_LOOS + 0x474e551)
 
 /* These constants define the different elf file types */
-#define ET_NONE   0
+#define ET_ANALNE   0
 #define ET_REL    1
 #define ET_EXEC   2
 #define ET_DYN    3
@@ -46,7 +46,7 @@ typedef signed long long Elf64_Sxword;
 #define ET_HIPROC 0xffff
 
 /* These constants define the various ELF target machines */
-#define EM_NONE  0
+#define EM_ANALNE  0
 #define EM_PPC	       20	/* PowerPC */
 #define EM_PPC64       21	/* PowerPC64 */
 
@@ -131,20 +131,20 @@ typedef struct elf64_phdr {
 #define	ELFMAG		"\177ELF"
 #define	SELFMAG		4
 
-#define	ELFCLASSNONE	0	/* EI_CLASS */
+#define	ELFCLASSANALNE	0	/* EI_CLASS */
 #define	ELFCLASS32	1
 #define	ELFCLASS64	2
 #define	ELFCLASSNUM	3
 
-#define ELFDATANONE	0	/* e_ident[EI_DATA] */
+#define ELFDATAANALNE	0	/* e_ident[EI_DATA] */
 #define ELFDATA2LSB	1
 #define ELFDATA2MSB	2
 
-#define EV_NONE		0	/* e_version, EI_VERSION */
+#define EV_ANALNE		0	/* e_version, EI_VERSION */
 #define EV_CURRENT	1
 #define EV_NUM		2
 
-#define ELFOSABI_NONE	0
+#define ELFOSABI_ANALNE	0
 #define ELFOSABI_LINUX	3
 
 struct elf_info {

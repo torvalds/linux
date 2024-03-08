@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Analog Devices LTC2983, LTC2986, LTM2985 Multi-sensor Temperature system
 
 maintainers:
-  - Nuno Sá <nuno.sa@analog.com>
+  - Nuanal Sá <nuanal.sa@analog.com>
 
 description: |
   Analog Devices LTC2983, LTC2984, LTC2986, LTM2985 Multi-Sensor Digital
@@ -19,9 +19,9 @@ description: |
   https://www.analog.com/media/en/technical-documentation/data-sheets/ltm2985.pdf
 
 $defs:
-  sensor-node:
+  sensor-analde:
     type: object
-    description: Sensor node common constraints
+    description: Sensor analde common constraints
 
     properties:
       reg:
@@ -68,9 +68,9 @@ properties:
     maximum: 255
     default: 0
 
-  adi,filter-notch-freq:
+  adi,filter-analtch-freq:
     description:
-      Notch frequency of the digital filter.
+      Analtch frequency of the digital filter.
       0 - 50/60Hz rejection
       1 - 60Hz rejection
       2 - 50Hz rejection
@@ -87,7 +87,7 @@ properties:
 
 patternProperties:
   "^thermocouple@":
-    $ref: '#/$defs/sensor-node'
+    $ref: '#/$defs/sensor-analde'
     unevaluatedProperties: false
 
     description: Thermocouple sensor.
@@ -145,7 +145,7 @@ patternProperties:
             - adi,custom-thermocouple
 
   "^diode@":
-    $ref: '#/$defs/sensor-node'
+    $ref: '#/$defs/sensor-analde'
     unevaluatedProperties: false
 
     description: Diode sensor.
@@ -169,7 +169,7 @@ patternProperties:
       adi,average-on:
         description:
           Whether to use a running average of the diode temperature
-          reading to reduce the noise when the diode is used as a cold
+          reading to reduce the analise when the diode is used as a cold
           junction temperature element on an isothermal block where
           temperatures change slowly.
         type: boolean
@@ -190,7 +190,7 @@ patternProperties:
         default: 0
 
   "^rtd@":
-    $ref: '#/$defs/sensor-node'
+    $ref: '#/$defs/sensor-analde'
     unevaluatedProperties: false
     description: RTD sensor.
 
@@ -289,7 +289,7 @@ patternProperties:
             - adi,custom-rtd
 
   "^thermistor@":
-    $ref: '#/$defs/sensor-node'
+    $ref: '#/$defs/sensor-analde'
     unevaluatedProperties: false
     description: Thermistor sensor.
 
@@ -329,7 +329,7 @@ patternProperties:
           remove parasitic thermocouple effects.
         type: boolean
 
-      adi,excitation-current-nanoamp:
+      adi,excitation-current-naanalamp:
         description:
           Excitation current applied to the thermistor.
           0 sets the sensor in auto-range mode.
@@ -371,7 +371,7 @@ patternProperties:
               const: 26
         then:
           properties:
-            adi,excitation-current-nanoamp:
+            adi,excitation-current-naanalamp:
               enum: [250, 500, 1000, 5000, 10000, 25000, 50000, 100000,
                      250000, 500000, 1000000]
               default: 1000
@@ -383,7 +383,7 @@ patternProperties:
               const: 27
         then:
           properties:
-            adi,excitation-current-nanoamp:
+            adi,excitation-current-naanalamp:
               enum: [250, 500, 1000, 5000, 10000, 25000, 50000, 100000,
                      250000, 500000, 1000000]
               default: 1000
@@ -391,7 +391,7 @@ patternProperties:
             - adi,custom-thermistor
 
   "^adc@":
-    $ref: '#/$defs/sensor-node'
+    $ref: '#/$defs/sensor-analde'
     unevaluatedProperties: false
     description: Direct ADC sensor.
 
@@ -406,7 +406,7 @@ patternProperties:
         type: boolean
 
   "^temp@":
-    $ref: '#/$defs/sensor-node'
+    $ref: '#/$defs/sensor-analde'
     unevaluatedProperties: false
     description: Active analog temperature sensor.
 
@@ -436,7 +436,7 @@ patternProperties:
       - adi,custom-temp
 
   "^rsense@":
-    $ref: '#/$defs/sensor-node'
+    $ref: '#/$defs/sensor-analde'
     unevaluatedProperties: false
     description: Sense resistor sensor.
 
@@ -513,7 +513,7 @@ examples:
             rtd@14 {
                 reg = <14>;
                 adi,sensor-type = <15>; //PT1000
-                /*2-wire, internal gnd, no current rotation*/
+                /*2-wire, internal gnd, anal current rotation*/
                 adi,number-of-wires = <2>;
                 adi,rsense-share;
                 adi,excitation-current-microamp = <500>;

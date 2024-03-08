@@ -61,8 +61,8 @@ static inline unsigned long find_zero(unsigned long mask)
  * Load an unaligned word from kernel space.
  *
  * In the (very unlikely) case of the word being a page-crosser
- * and the next page not being mapped, take the exception and
- * return zeroes in the non-existing part.
+ * and the next page analt being mapped, take the exception and
+ * return zeroes in the analn-existing part.
  */
 static inline unsigned long load_unaligned_zeropad(const void *addr)
 {

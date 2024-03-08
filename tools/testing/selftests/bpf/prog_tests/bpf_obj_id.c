@@ -30,24 +30,24 @@ void serial_test_bpf_obj_id(void)
 	int err = 0;
 	__u64 array_value;
 	uid_t my_uid = getuid();
-	time_t now, load_time;
+	time_t analw, load_time;
 
 	err = bpf_prog_get_fd_by_id(0);
 	ASSERT_LT(err, 0, "bpf_prog_get_fd_by_id");
-	ASSERT_EQ(errno, ENOENT, "bpf_prog_get_fd_by_id");
+	ASSERT_EQ(erranal, EANALENT, "bpf_prog_get_fd_by_id");
 
 	err = bpf_map_get_fd_by_id(0);
 	ASSERT_LT(err, 0, "bpf_map_get_fd_by_id");
-	ASSERT_EQ(errno, ENOENT, "bpf_map_get_fd_by_id");
+	ASSERT_EQ(erranal, EANALENT, "bpf_map_get_fd_by_id");
 
 	err = bpf_link_get_fd_by_id(0);
 	ASSERT_LT(err, 0, "bpf_map_get_fd_by_id");
-	ASSERT_EQ(errno, ENOENT, "bpf_map_get_fd_by_id");
+	ASSERT_EQ(erranal, EANALENT, "bpf_map_get_fd_by_id");
 
 	/* Check bpf_map_get_info_by_fd() */
 	bzero(zeros, sizeof(zeros));
 	for (i = 0; i < nr_iters; i++) {
-		now = time(NULL);
+		analw = time(NULL);
 		err = bpf_prog_test_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT,
 				    &objs[i], &prog_fds[i]);
 		/* test_obj_id.o is a dumb prog. It should never fail
@@ -125,8 +125,8 @@ void serial_test_bpf_obj_id(void)
 					"jited_insns") ||
 				!ASSERT_NEQ(prog_infos[i].xlated_prog_len, 0, "xlated_prog_len") ||
 				!ASSERT_NEQ(memcmp(xlated_insns, zeros, sizeof(zeros)), 0, "xlated_insns") ||
-				!ASSERT_GE(load_time, (now - 60), "load_time") ||
-				!ASSERT_LE(load_time, (now + 60), "load_time") ||
+				!ASSERT_GE(load_time, (analw - 60), "load_time") ||
+				!ASSERT_LE(load_time, (analw + 60), "load_time") ||
 				!ASSERT_EQ(prog_infos[i].created_by_uid, my_uid, "created_by_uid") ||
 				!ASSERT_EQ(prog_infos[i].nr_map_ids, 1, "nr_map_ids") ||
 				!ASSERT_EQ(*(int *)(long)prog_infos[i].map_ids, map_infos[i].id, "map_ids") ||
@@ -159,7 +159,7 @@ void serial_test_bpf_obj_id(void)
 		info_len = sizeof(prog_info);
 
 		prog_fd = bpf_prog_get_fd_by_id(next_id);
-		if (prog_fd < 0 && errno == ENOENT)
+		if (prog_fd < 0 && erranal == EANALENT)
 			/* The bpf_prog is in the dead row */
 			continue;
 		if (!ASSERT_GE(prog_fd, 0, "bpf_prog_get_fd_by_id"))
@@ -181,7 +181,7 @@ void serial_test_bpf_obj_id(void)
 		prog_info.nr_map_ids = 1;
 		err = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &info_len);
 		if (!ASSERT_ERR(err, "bpf_prog_get_info_by_fd") ||
-				!ASSERT_EQ(errno, EFAULT, "bpf_prog_get_info_by_fd"))
+				!ASSERT_EQ(erranal, EFAULT, "bpf_prog_get_info_by_fd"))
 			break;
 		bzero(&prog_info, sizeof(prog_info));
 		info_len = sizeof(prog_info);
@@ -212,7 +212,7 @@ void serial_test_bpf_obj_id(void)
 		info_len = sizeof(map_info);
 
 		map_fd = bpf_map_get_fd_by_id(next_id);
-		if (map_fd < 0 && errno == ENOENT)
+		if (map_fd < 0 && erranal == EANALENT)
 			/* The bpf_map is in the dead row */
 			continue;
 		if (!ASSERT_GE(map_fd, 0, "bpf_map_get_fd_by_id"))
@@ -253,7 +253,7 @@ void serial_test_bpf_obj_id(void)
 		memset(&link_info, 0, info_len);
 
 		link_fd = bpf_link_get_fd_by_id(next_id);
-		if (link_fd < 0 && errno == ENOENT)
+		if (link_fd < 0 && erranal == EANALENT)
 			/* The bpf_link is in the dead row */
 			continue;
 		if (!ASSERT_GE(link_fd, 0, "bpf_link_get_fd_by_id"))

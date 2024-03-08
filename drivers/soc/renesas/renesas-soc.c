@@ -14,7 +14,7 @@
 
 struct renesas_family {
 	const char name[16];
-	u32 reg;			/* CCCR or PRR, if not in DT */
+	u32 reg;			/* CCCR or PRR, if analt in DT */
 };
 
 static const struct renesas_family fam_rcar_gen1 __initconst __maybe_unused = {
@@ -415,7 +415,7 @@ static const struct renesas_id id_bsid __initconst = {
 	.mask = 0xff0000,
 	/*
 	 * TODO: Upper 4 bits of BSID are for chip version, but the format is
-	 * not known at this time so we don't know how to specify eshi and eslo
+	 * analt kanalwn at this time so we don't kanalw how to specify eshi and eslo
 	 */
 };
 
@@ -456,23 +456,23 @@ static int __init renesas_soc_init(void)
 	void __iomem *chipid = NULL;
 	const char *rev_prefix = "";
 	struct soc_device *soc_dev;
-	struct device_node *np;
+	struct device_analde *np;
 	const char *soc_id;
 	int ret;
 
-	match = of_match_node(renesas_socs, of_root);
+	match = of_match_analde(renesas_socs, of_root);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	soc_id = strchr(match->compatible, ',') + 1;
 	soc = match->data;
 	family = soc->family;
 
-	np = of_find_matching_node_and_match(NULL, renesas_ids, &match);
+	np = of_find_matching_analde_and_match(NULL, renesas_ids, &match);
 	if (np) {
 		id = match->data;
 		chipid = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 	} else if (soc->id && family->reg) {
 		/* Try hardcoded CCCR/PRR fallback */
 		id = &id_prr;
@@ -483,7 +483,7 @@ static int __init renesas_soc_init(void)
 	if (!soc_dev_attr) {
 		if (chipid)
 			iounmap(chipid);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	soc_dev_attr->family = kstrdup_const(family->name, GFP_KERNEL);
@@ -520,7 +520,7 @@ static int __init renesas_soc_init(void)
 		if (soc->id &&
 		    ((product & id->mask) >> __ffs(id->mask)) != soc->id) {
 			pr_warn("SoC mismatch (product = 0x%x)\n", product);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto free_soc_dev_attr;
 		}
 	}

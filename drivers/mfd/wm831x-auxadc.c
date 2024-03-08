@@ -37,7 +37,7 @@ static int wm831x_auxadc_read_irq(struct wm831x *wm831x,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&req->done);
 	req->input = input;
@@ -60,7 +60,7 @@ static int wm831x_auxadc_read_irq(struct wm831x *wm831x,
 		}
 	}
 
-	/* Enable the conversion if not already running */
+	/* Enable the conversion if analt already running */
 	if (!(wm831x->auxadc_active & (1 << input))) {
 		ret = wm831x_set_bits(wm831x, WM831X_AUXADC_SOURCE,
 				      1 << input, 1 << input);
@@ -114,7 +114,7 @@ static irqreturn_t wm831x_auxadc_irq(int irq, void *irq_data)
 	if (ret < 0) {
 		dev_err(wm831x->dev,
 			"Failed to read AUXADC data: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	input = ((ret & WM831X_AUX_DATA_SRC_MASK)
@@ -179,7 +179,7 @@ static int wm831x_auxadc_read_polled(struct wm831x *wm831x,
 		goto disable;
 	}
 
-	/* If we're not using interrupts then poll the
+	/* If we're analt using interrupts then poll the
 	 * interrupt status register */
 	timeout = 5;
 	while (timeout) {
@@ -221,7 +221,7 @@ static int wm831x_auxadc_read_polled(struct wm831x *wm831x,
 		src = WM831X_AUX_CAL;
 
 	if (src != input) {
-		dev_err(wm831x->dev, "Data from source %d not %d\n",
+		dev_err(wm831x->dev, "Data from source %d analt %d\n",
 			src, input);
 		ret = -EINVAL;
 	} else {

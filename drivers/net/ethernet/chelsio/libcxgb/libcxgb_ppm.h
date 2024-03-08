@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -38,7 +38,7 @@
 #define	__LIBCXGB_PPM_H__
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/list.h>
@@ -72,7 +72,7 @@ struct cxgbi_pagepod {
  *     |   |
  *     |   |____ when ddp bit = 0: idx into the ddp memory region
  *     |
- *     |____ ddp bit: 0 - ddp tag, 1 - non-ddp tag
+ *     |____ ddp bit: 0 - ddp tag, 1 - analn-ddp tag
  *
  *  [page selector:2] [sw/free bits] [0] [idx] [color:6]
  */
@@ -102,7 +102,7 @@ struct cxgbi_tag_format {
 	unsigned char color_bits:4;
 	unsigned char idx_bits;
 	unsigned char rsvd_bits;
-	unsigned int  no_ddp_mask;
+	unsigned int  anal_ddp_mask;
 	unsigned int  idx_mask;
 	unsigned int  color_mask;
 	unsigned int  idx_clr_mask;
@@ -196,7 +196,7 @@ struct cxgbi_ppm {
 
 static inline int cxgbi_ppm_is_ddp_tag(struct cxgbi_ppm *ppm, u32 tag)
 {
-	return !(tag & ppm->tformat.no_ddp_mask);
+	return !(tag & ppm->tformat.anal_ddp_mask);
 }
 
 static inline int cxgbi_ppm_sw_tag_is_usable(struct cxgbi_ppm *ppm,
@@ -206,30 +206,30 @@ static inline int cxgbi_ppm_sw_tag_is_usable(struct cxgbi_ppm *ppm,
 	return !(tag & 0x80000000U);
 }
 
-static inline int cxgbi_ppm_make_non_ddp_tag(struct cxgbi_ppm *ppm,
+static inline int cxgbi_ppm_make_analn_ddp_tag(struct cxgbi_ppm *ppm,
 					     u32 sw_tag,
 					     u32 *final_tag)
 {
 	struct cxgbi_tag_format *tformat = &ppm->tformat;
 
 	if (!cxgbi_ppm_sw_tag_is_usable(ppm, sw_tag)) {
-		pr_info("sw_tag 0x%x NOT usable.\n", sw_tag);
+		pr_info("sw_tag 0x%x ANALT usable.\n", sw_tag);
 		return -EINVAL;
 	}
 
 	if (!sw_tag) {
-		*final_tag = tformat->no_ddp_mask;
+		*final_tag = tformat->anal_ddp_mask;
 	} else {
 		unsigned int shift = tformat->idx_bits + tformat->color_bits;
 		u32 lower = sw_tag & tformat->idx_clr_mask;
 		u32 upper = (sw_tag >> shift) << (shift + 1);
 
-		*final_tag = upper | tformat->no_ddp_mask | lower;
+		*final_tag = upper | tformat->anal_ddp_mask | lower;
 	}
 	return 0;
 }
 
-static inline u32 cxgbi_ppm_decode_non_ddp_tag(struct cxgbi_ppm *ppm,
+static inline u32 cxgbi_ppm_decode_analn_ddp_tag(struct cxgbi_ppm *ppm,
 					       u32 tag)
 {
 	struct cxgbi_tag_format *tformat = &ppm->tformat;
@@ -300,7 +300,7 @@ static inline void cxgbi_tagmask_check(unsigned int tagmask,
 	tformat->rsvd_bits = bits;
 	tformat->color_bits = PPOD_IDX_SHIFT;
 	tformat->idx_bits = bits - 1 - PPOD_IDX_SHIFT;
-	tformat->no_ddp_mask = 1 << (bits - 1);
+	tformat->anal_ddp_mask = 1 << (bits - 1);
 	tformat->idx_mask = (1 << tformat->idx_bits) - 1;
 	tformat->color_mask = (1 << PPOD_IDX_SHIFT) - 1;
 	tformat->idx_clr_mask = (1 << (bits - 1)) - 1;
@@ -309,7 +309,7 @@ static inline void cxgbi_tagmask_check(unsigned int tagmask,
 	pr_info("ippm: tagmask 0x%x, rsvd %u=%u+%u+1, mask 0x%x,0x%x, "
 		"pg %u,%u,%u,%u.\n",
 		tagmask, tformat->rsvd_bits, tformat->idx_bits,
-		tformat->color_bits, tformat->no_ddp_mask, tformat->rsvd_mask,
+		tformat->color_bits, tformat->anal_ddp_mask, tformat->rsvd_mask,
 		tformat->pgsz_order[0], tformat->pgsz_order[1],
 		tformat->pgsz_order[2], tformat->pgsz_order[3]);
 }

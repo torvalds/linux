@@ -46,11 +46,11 @@ static void reserve_range(struct pnp_dev *dev, struct resource *r, int port)
 
 	/*
 	 * Failures at this point are usually harmless. pci quirks for
-	 * example do reserve stuff they know about too, so we may well
+	 * example do reserve stuff they kanalw about too, so we may well
 	 * have double reservations.
 	 */
 	dev_info(&dev->dev, "%pR %s reserved\n", r,
-		 res ? "has been" : "could not be");
+		 res ? "has been" : "could analt be");
 }
 
 static void reserve_resources_of_dev(struct pnp_dev *dev)
@@ -67,10 +67,10 @@ static void reserve_resources_of_dev(struct pnp_dev *dev)
 			/*
 			 * Below 0x100 is only standard PC hardware
 			 * (pics, kbd, timer, dma, ...)
-			 * We should not get resource conflicts there,
+			 * We should analt get resource conflicts there,
 			 * and the kernel reserves these anyway
 			 * (see arch/i386/kernel/setup.c).
-			 * So, do nothing
+			 * So, do analthing
 			 */
 			continue;
 		if (res->end < res->start)
@@ -97,7 +97,7 @@ static int system_pnp_probe(struct pnp_dev *dev,
 static struct pnp_driver system_pnp_driver = {
 	.name     = "system",
 	.id_table = pnp_dev_table,
-	.flags    = PNP_DRIVER_RES_DO_NOT_CHANGE,
+	.flags    = PNP_DRIVER_RES_DO_ANALT_CHANGE,
 	.probe    = system_pnp_probe,
 };
 

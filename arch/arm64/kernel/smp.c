@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/cache.h>
 #include <linux/profile.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/cpu.h>
@@ -59,7 +59,7 @@ DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 
 /*
- * as from 2.5, kernels no longer have an init_tasks structure
+ * as from 2.5, kernels anal longer have an init_tasks structure
  * so we need some other way of telling a new secondary core
  * where to place its SVC stack
  */
@@ -76,7 +76,7 @@ enum ipi_msg_type {
 	IPI_IRQ_WORK,
 	NR_IPI,
 	/*
-	 * Any enum >= NR_IPI and < MAX_IPI is special and not tracable
+	 * Any enum >= NR_IPI and < MAX_IPI is special and analt tracable
 	 * with trace_ipi_*
 	 */
 	IPI_CPU_BACKTRACE = NR_IPI,
@@ -96,7 +96,7 @@ static int op_cpu_kill(unsigned int cpu);
 #else
 static inline int op_cpu_kill(unsigned int cpu)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif
 
@@ -112,7 +112,7 @@ static int boot_secondary(unsigned int cpu, struct task_struct *idle)
 	if (ops->cpu_boot)
 		return ops->cpu_boot(cpu);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static DECLARE_COMPLETION(cpu_running);
@@ -129,7 +129,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	secondary_data.task = idle;
 	update_cpu_boot_status(CPU_MMU_OFF);
 
-	/* Now bring the CPU into our world */
+	/* Analw bring the CPU into our world */
 	ret = boot_secondary(cpu, idle);
 	if (ret) {
 		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
@@ -153,7 +153,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 
 	switch (status & CPU_BOOT_STATUS_MASK) {
 	default:
-		pr_err("CPU%u: failed in unknown state : 0x%lx\n",
+		pr_err("CPU%u: failed in unkanalwn state : 0x%lx\n",
 		       cpu, status);
 		cpus_stuck_in_kernel++;
 		break;
@@ -162,14 +162,14 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 			pr_crit("CPU%u: died during early boot\n", cpu);
 			break;
 		}
-		pr_crit("CPU%u: may not have shut down cleanly\n", cpu);
+		pr_crit("CPU%u: may analt have shut down cleanly\n", cpu);
 		fallthrough;
 	case CPU_STUCK_IN_KERNEL:
 		pr_crit("CPU%u: is stuck in kernel\n", cpu);
 		if (status & CPU_STUCK_REASON_52_BIT_VA)
-			pr_crit("CPU%u: does not support 52-bit VAs\n", cpu);
-		if (status & CPU_STUCK_REASON_NO_GRAN) {
-			pr_crit("CPU%u: does not support %luK granule\n",
+			pr_crit("CPU%u: does analt support 52-bit VAs\n", cpu);
+		if (status & CPU_STUCK_REASON_ANAL_GRAN) {
+			pr_crit("CPU%u: does analt support %luK granule\n",
 				cpu, PAGE_SIZE / SZ_1K);
 		}
 		cpus_stuck_in_kernel++;
@@ -200,7 +200,7 @@ static void init_gic_priority_masking(void)
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
  */
-asmlinkage notrace void secondary_start_kernel(void)
+asmlinkage analtrace void secondary_start_kernel(void)
 {
 	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
 	struct mm_struct *mm = &init_mm;
@@ -246,15 +246,15 @@ asmlinkage notrace void secondary_start_kernel(void)
 	/*
 	 * Enable GIC and timers.
 	 */
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 
 	ipi_setup(cpu);
 
 	numa_add_cpu(cpu);
 
 	/*
-	 * OK, now it's safe to let the boot CPU continue.  Wait for
-	 * the CPU migration code to notice that the CPU is online
+	 * OK, analw it's safe to let the boot CPU continue.  Wait for
+	 * the CPU migration code to analtice that the CPU is online
 	 * before we continue.
 	 */
 	pr_info("CPU%u: Booted secondary processor 0x%010lx [0x%08x]\n",
@@ -279,10 +279,10 @@ static int op_cpu_disable(unsigned int cpu)
 
 	/*
 	 * If we don't have a cpu_die method, abort before we reach the point
-	 * of no return. CPU0 may not have an cpu_ops, so test for it.
+	 * of anal return. CPU0 may analt have an cpu_ops, so test for it.
 	 */
 	if (!ops || !ops->cpu_die)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * We may need to abort a hot unplug for some other mechanism-specific
@@ -311,7 +311,7 @@ int __cpu_disable(void)
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
-	 * and we must not schedule until we're ready to give up the cpu.
+	 * and we must analt schedule until we're ready to give up the cpu.
 	 */
 	set_cpu_online(cpu, false);
 	ipi_teardown(cpu);
@@ -329,7 +329,7 @@ static int op_cpu_kill(unsigned int cpu)
 	const struct cpu_operations *ops = get_cpu_ops(cpu);
 
 	/*
-	 * If we have no means of synchronising with the dying CPU, then assume
+	 * If we have anal means of synchronising with the dying CPU, then assume
 	 * that it is really dead. We can only wait for an arbitrary length of
 	 * time and hope that it's dead, so let's skip the wait and just hope.
 	 */
@@ -350,21 +350,21 @@ void arch_cpuhp_cleanup_dead_cpu(unsigned int cpu)
 	pr_debug("CPU%u: shutdown\n", cpu);
 
 	/*
-	 * Now that the dying CPU is beyond the point of no return w.r.t.
+	 * Analw that the dying CPU is beyond the point of anal return w.r.t.
 	 * in-kernel synchronisation, try to get the firwmare to help us to
 	 * verify that it has really left the kernel before we consider
 	 * clobbering anything it might still be using.
 	 */
 	err = op_cpu_kill(cpu);
 	if (err)
-		pr_warn("CPU%d may not have shut down cleanly: %d\n", cpu, err);
+		pr_warn("CPU%d may analt have shut down cleanly: %d\n", cpu, err);
 }
 
 /*
  * Called from the idle thread for the CPU which has been shutdown.
  *
  */
-void __noreturn cpu_die(void)
+void __analreturn cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
 	const struct cpu_operations *ops = get_cpu_ops(cpu);
@@ -373,13 +373,13 @@ void __noreturn cpu_die(void)
 
 	local_daif_mask();
 
-	/* Tell cpuhp_bp_sync_dead() that this CPU is now safe to dispose of */
+	/* Tell cpuhp_bp_sync_dead() that this CPU is analw safe to dispose of */
 	cpuhp_ap_report_dead();
 
 	/*
 	 * Actually shutdown the CPU. This must never fail. The specific hotplug
 	 * mechanism must perform all required cache maintenance to ensure that
-	 * no dirty lines are lost in the process of shutting down the CPU.
+	 * anal dirty lines are lost in the process of shutting down the CPU.
 	 */
 	ops->cpu_die(cpu);
 
@@ -401,11 +401,11 @@ static void __cpu_try_die(int cpu)
  * Kill the calling secondary CPU, early in bringup before it is turned
  * online.
  */
-void __noreturn cpu_die_early(void)
+void __analreturn cpu_die_early(void)
 {
 	int cpu = smp_processor_id();
 
-	pr_crit("CPU%d: will not boot\n", cpu);
+	pr_crit("CPU%d: will analt boot\n", cpu);
 
 	/* Mark this CPU absent */
 	set_cpu_present(cpu, 0);
@@ -466,7 +466,7 @@ void __init smp_prepare_boot_cpu(void)
 
 /*
  * Duplicate MPIDRs are a recipe for disaster. Scan all initialized
- * entries and check for duplicates. If any is found just ignore the
+ * entries and check for duplicates. If any is found just iganalre the
  * cpu. cpu_logical_map was initialized to INVALID_HWID to avoid
  * matching valid MPIDR values.
  */
@@ -489,11 +489,11 @@ static int __init smp_cpu_setup(int cpu)
 	const struct cpu_operations *ops;
 
 	if (init_cpu_ops(cpu))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ops = get_cpu_ops(cpu);
 	if (ops->cpu_init(cpu))
-		return -ENODEV;
+		return -EANALDEV;
 
 	set_cpu_possible(cpu, true);
 
@@ -562,7 +562,7 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 	 * Set-up the ACPI parking protocol cpu entries
 	 * while initializing the cpu_logical_map to
 	 * avoid parsing MADT entries multiple times for
-	 * nothing (ie a valid cpu_logical_map entry should
+	 * analthing (ie a valid cpu_logical_map entry should
 	 * contain a valid parking protocol data set to
 	 * initialize the cpu if the parking protocol is
 	 * the only available enable method).
@@ -606,13 +606,13 @@ static void __init acpi_parse_and_init_cpus(void)
 	 * static tables, namely the MADT and the SRAT.
 	 *
 	 * Thus, it is simpler to first create the cpu logical map through
-	 * an MADT walk and then map the logical cpus to their node ids
+	 * an MADT walk and then map the logical cpus to their analde ids
 	 * as separate steps.
 	 */
-	acpi_map_cpus_to_nodes();
+	acpi_map_cpus_to_analdes();
 
 	for (i = 0; i < nr_cpu_ids; i++)
-		early_map_cpu_to_node(i, acpi_numa_get_nid(i));
+		early_map_cpu_to_analde(i, acpi_numa_get_nid(i));
 }
 #else
 #define acpi_parse_and_init_cpus(...)	do { } while (0)
@@ -625,9 +625,9 @@ static void __init acpi_parse_and_init_cpus(void)
  */
 static void __init of_parse_and_init_cpus(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 
-	for_each_of_cpu_node(dn) {
+	for_each_of_cpu_analde(dn) {
 		u64 hwid = of_get_cpu_hwid(dn, 0);
 
 		if (hwid & ~MPIDR_HWID_BITMASK)
@@ -653,7 +653,7 @@ static void __init of_parse_and_init_cpus(void)
 			}
 
 			bootcpu_valid = true;
-			early_map_cpu_to_node(0, of_node_to_nid(dn));
+			early_map_cpu_to_analde(0, of_analde_to_nid(dn));
 
 			/*
 			 * cpu_logical_map has already been
@@ -670,7 +670,7 @@ static void __init of_parse_and_init_cpus(void)
 		pr_debug("cpu logical map 0x%llx\n", hwid);
 		set_cpu_logical_map(cpu_count, hwid);
 
-		early_map_cpu_to_node(cpu_count, of_node_to_nid(dn));
+		early_map_cpu_to_analde(cpu_count, of_analde_to_nid(dn));
 next:
 		cpu_count++;
 	}
@@ -695,13 +695,13 @@ void __init smp_init_cpus(void)
 			cpu_count, nr_cpu_ids);
 
 	if (!bootcpu_valid) {
-		pr_err("missing boot CPU MPIDR, not enabling secondaries\n");
+		pr_err("missing boot CPU MPIDR, analt enabling secondaries\n");
 		return;
 	}
 
 	/*
 	 * We need to set the cpu_logical_map entries before enabling
-	 * the cpus so that cpu processor description entries (DT cpu nodes
+	 * the cpus so that cpu processor description entries (DT cpu analdes
 	 * and ACPI MADT entries) can be retrieved by matching the cpu hwid
 	 * with entries in cpu_logical_map while initializing the cpus.
 	 * If the cpu set-up fails, invalidate the cpu_logical_map entry.
@@ -729,7 +729,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	numa_add_cpu(this_cpu);
 
 	/*
-	 * If UP is mandated by "nosmp" (which implies "maxcpus=0"), don't set
+	 * If UP is mandated by "analsmp" (which implies "maxcpus=0"), don't set
 	 * secondary CPUs present.
 	 */
 	if (max_cpus == 0)
@@ -806,7 +806,7 @@ void arch_irq_work_raise(void)
 }
 #endif
 
-static void __noreturn local_cpu_stop(void)
+static void __analreturn local_cpu_stop(void)
 {
 	set_cpu_online(smp_processor_id(), false);
 
@@ -820,7 +820,7 @@ static void __noreturn local_cpu_stop(void)
  * that cpu_online_mask gets correctly updated and smp_send_stop() can skip
  * CPUs that have already stopped themselves.
  */
-void __noreturn panic_smp_self_stop(void)
+void __analreturn panic_smp_self_stop(void)
 {
 	local_cpu_stop();
 }
@@ -829,7 +829,7 @@ void __noreturn panic_smp_self_stop(void)
 static atomic_t waiting_for_crash_ipi = ATOMIC_INIT(0);
 #endif
 
-static void __noreturn ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
+static void __analreturn ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
 {
 #ifdef CONFIG_KEXEC_CORE
 	crash_save_cpu(regs, cpu);
@@ -857,8 +857,8 @@ static void arm64_backtrace_ipi(cpumask_t *mask)
 void arch_trigger_cpumask_backtrace(const cpumask_t *mask, int exclude_cpu)
 {
 	/*
-	 * NOTE: though nmi_trigger_cpumask_backtrace() has "nmi_" in the name,
-	 * nothing about it truly needs to be implemented using an NMI, it's
+	 * ANALTE: though nmi_trigger_cpumask_backtrace() has "nmi_" in the name,
+	 * analthing about it truly needs to be implemented using an NMI, it's
 	 * just that it's _allowed_ to work with NMIs. If ipi_should_be_nmi()
 	 * returned false our backtrace attempt will just use a regular IPI.
 	 */
@@ -872,7 +872,7 @@ void kgdb_roundup_cpus(void)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		/* No need to roundup ourselves */
+		/* Anal need to roundup ourselves */
 		if (cpu == this_cpu)
 			continue;
 
@@ -926,7 +926,7 @@ static void do_handle_IPI(int ipinr)
 
 	case IPI_CPU_BACKTRACE:
 		/*
-		 * NOTE: in some cases this _won't_ be NMI context. See the
+		 * ANALTE: in some cases this _won't_ be NMI context. See the
 		 * comment in arch_trigger_cpumask_backtrace().
 		 */
 		nmi_cpu_backtrace(get_irq_regs());
@@ -937,7 +937,7 @@ static void do_handle_IPI(int ipinr)
 		break;
 
 	default:
-		pr_crit("CPU%u: Unknown IPI message 0x%x\n", cpu, ipinr);
+		pr_crit("CPU%u: Unkanalwn IPI message 0x%x\n", cpu, ipinr);
 		break;
 	}
 
@@ -1022,12 +1022,12 @@ void __init set_smp_ipi_range(int ipi_base, int n)
 		if (ipi_should_be_nmi(i)) {
 			err = request_percpu_nmi(ipi_base + i, ipi_handler,
 						 "IPI", &cpu_number);
-			WARN(err, "Could not request IPI %d as NMI, err=%d\n",
+			WARN(err, "Could analt request IPI %d as NMI, err=%d\n",
 			     i, err);
 		} else {
 			err = request_percpu_irq(ipi_base + i, ipi_handler,
 						 "IPI", &cpu_number);
-			WARN(err, "Could not request IPI %d as IRQ, err=%d\n",
+			WARN(err, "Could analt request IPI %d as IRQ, err=%d\n",
 			     i, err);
 		}
 
@@ -1065,8 +1065,8 @@ void tick_broadcast(const struct cpumask *mask)
 #endif
 
 /*
- * The number of CPUs online, not counting this CPU (which may not be
- * fully online and so not counted in num_online_cpus()).
+ * The number of CPUs online, analt counting this CPU (which may analt be
+ * fully online and so analt counted in num_online_cpus()).
  */
 static inline unsigned int num_other_online_cpus(void)
 {
@@ -1120,7 +1120,7 @@ void crash_smp_send_stop(void)
 
 	/*
 	 * If this cpu is the only one alive at this point in time, online or
-	 * not, there are no stop messages to be sent around, so just back out.
+	 * analt, there are anal stop messages to be sent around, so just back out.
 	 */
 	if (num_other_online_cpus() == 0)
 		goto skip_ipi;

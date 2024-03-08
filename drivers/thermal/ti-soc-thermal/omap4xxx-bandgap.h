@@ -54,13 +54,13 @@
  */
 
 /*
- * ADC conversion table limits. Ignore values outside the TRM listed
+ * ADC conversion table limits. Iganalre values outside the TRM listed
  * range to avoid bogus thermal shutdowns. See omap4430 TRM chapter
  * "18.4.10.2.3 ADC Codes Versus Temperature".
  */
 #define OMAP4430_ADC_START_VALUE			13
 #define OMAP4430_ADC_END_VALUE				107
-/* bandgap clock limits (no control on 4430) */
+/* bandgap clock limits (anal control on 4430) */
 #define OMAP4430_MAX_FREQ				32768
 #define OMAP4430_MIN_FREQ				32768
 

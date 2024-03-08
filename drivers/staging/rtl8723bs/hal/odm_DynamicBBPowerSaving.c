@@ -20,7 +20,7 @@ void odm_DynamicBBPowerSavingInit(void *pDM_VOID)
 	pDM_PSTable->initialize = 0;
 }
 
-void ODM_RF_Saving(void *pDM_VOID, u8 bForceInNormal)
+void ODM_RF_Saving(void *pDM_VOID, u8 bForceInAnalrmal)
 {
 	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct ps_t *pDM_PSTable = &pDM_Odm->DM_PSTable;
@@ -42,23 +42,23 @@ void ODM_RF_Saving(void *pDM_VOID, u8 bForceInNormal)
 		pDM_PSTable->initialize = 1;
 	}
 
-	if (!bForceInNormal) {
+	if (!bForceInAnalrmal) {
 		if (pDM_Odm->RSSI_Min != 0xFF) {
-			if (pDM_PSTable->PreRFState == RF_Normal) {
+			if (pDM_PSTable->PreRFState == RF_Analrmal) {
 				if (pDM_Odm->RSSI_Min >= Rssi_Up_bound)
 					pDM_PSTable->CurRFState = RF_Save;
 				else
-					pDM_PSTable->CurRFState = RF_Normal;
+					pDM_PSTable->CurRFState = RF_Analrmal;
 			} else {
 				if (pDM_Odm->RSSI_Min <= Rssi_Low_bound)
-					pDM_PSTable->CurRFState = RF_Normal;
+					pDM_PSTable->CurRFState = RF_Analrmal;
 				else
 					pDM_PSTable->CurRFState = RF_Save;
 			}
 		} else
 			pDM_PSTable->CurRFState = RF_MAX;
 	} else
-		pDM_PSTable->CurRFState = RF_Normal;
+		pDM_PSTable->CurRFState = RF_Analrmal;
 
 	if (pDM_PSTable->PreRFState != pDM_PSTable->CurRFState) {
 		if (pDM_PSTable->CurRFState == RF_Save) {

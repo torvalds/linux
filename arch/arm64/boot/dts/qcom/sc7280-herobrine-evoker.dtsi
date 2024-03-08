@@ -18,7 +18,7 @@
 	status = "okay";
 };
 
-/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+/* ADDITIONS TO ANALDES DEFINED IN PARENT DEVICE TREE FILES */
 
 ap_tp_i2c: &i2c0 {
 	status = "okay";
@@ -98,7 +98,7 @@ ts_i2c: &i2c13 {
 	status = "okay";
 };
 
-/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
+/* PINCTRL - ADDITIONS TO ANALDES IN PARENT DEVICE TREE FILES */
 
 &ts_rst_conn {
 	bias-disable;
@@ -109,9 +109,9 @@ ts_i2c: &i2c13 {
 /*
  * Methodology for gpio-line-names:
  * - If a pin goes to herobrine board and is named it gets that name.
- * - If a pin goes to herobrine board and is not named, it gets no name.
+ * - If a pin goes to herobrine board and is analt named, it gets anal name.
  * - If a pin is totally internal to Qcard then it gets Qcard name.
- * - If a pin is not hooked up on Qcard, it gets no name.
+ * - If a pin is analt hooked up on Qcard, it gets anal name.
  */
 
 &pm8350c_gpios {

@@ -25,8 +25,8 @@
 #define MII_ECTRL			17
 #define MII_ECTRL_LINK_CONTROL		BIT(15)
 #define MII_ECTRL_POWER_MODE_MASK	GENMASK(14, 11)
-#define MII_ECTRL_POWER_MODE_NO_CHANGE	(0x0 << 11)
-#define MII_ECTRL_POWER_MODE_NORMAL	(0x3 << 11)
+#define MII_ECTRL_POWER_MODE_ANAL_CHANGE	(0x0 << 11)
+#define MII_ECTRL_POWER_MODE_ANALRMAL	(0x3 << 11)
 #define MII_ECTRL_POWER_MODE_STANDBY	(0xc << 11)
 #define MII_ECTRL_CABLE_TEST		BIT(5)
 #define MII_ECTRL_CONFIG_EN		BIT(2)
@@ -149,9 +149,9 @@ static int tja11xx_wakeup(struct phy_device *phydev)
 		return ret;
 
 	switch (ret & MII_ECTRL_POWER_MODE_MASK) {
-	case MII_ECTRL_POWER_MODE_NO_CHANGE:
+	case MII_ECTRL_POWER_MODE_ANAL_CHANGE:
 		break;
-	case MII_ECTRL_POWER_MODE_NORMAL:
+	case MII_ECTRL_POWER_MODE_ANALRMAL:
 		ret = phy_set_bits(phydev, MII_ECTRL, MII_ECTRL_WAKE_REQUEST);
 		if (ret)
 			return ret;
@@ -168,7 +168,7 @@ static int tja11xx_wakeup(struct phy_device *phydev)
 			return ret;
 
 		ret = phy_modify(phydev, MII_ECTRL, MII_ECTRL_POWER_MODE_MASK,
-				 MII_ECTRL_POWER_MODE_NORMAL);
+				 MII_ECTRL_POWER_MODE_ANALRMAL);
 		if (ret)
 			return ret;
 
@@ -241,12 +241,12 @@ static int tja11xx_config_aneg(struct phy_device *phydev)
 		break;
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 		break;
-	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNKANALWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
 		goto do_test;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	changed = phy_modify_changed(phydev, MII_CFG1, MII_CFG1_MASTER_SLAVE, ctl);
@@ -361,7 +361,7 @@ static int tja11xx_read_status(struct phy_device *phydev)
 {
 	int ret;
 
-	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKANALWN;
 	phydev->master_slave_state = MASTER_SLAVE_STATE_UNSUPPORTED;
 
 	ret = genphy_update_link(phydev);
@@ -459,7 +459,7 @@ static int tja11xx_hwmon_read(struct device *dev,
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static umode_t tja11xx_hwmon_is_visible(const void *data,
@@ -511,13 +511,13 @@ static int tja11xx_hwmon_register(struct phy_device *phydev,
 
 static int tja11xx_parse_dt(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	struct tja11xx_priv *priv = phydev->priv;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return 0;
 
-	if (of_property_read_bool(node, "nxp,rmii-refclk-in"))
+	if (of_property_read_bool(analde, "nxp,rmii-refclk-in"))
 		priv->flags |= TJA110X_RMII_MODE_REFCLK_IN;
 
 	return 0;
@@ -531,7 +531,7 @@ static int tja11xx_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->phydev = phydev;
 	phydev->priv = priv;
@@ -550,11 +550,11 @@ static void tja1102_p1_register(struct work_struct *work)
 	struct phy_device *phydev_phy0 = priv->phydev;
 	struct mii_bus *bus = phydev_phy0->mdio.bus;
 	struct device *dev = &phydev_phy0->mdio.dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	int ret;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		struct phy_device *phy;
 		int addr;
 
@@ -586,7 +586,7 @@ static void tja1102_p1_register(struct work_struct *work)
 		}
 
 		/* Overwrite parent device. phy_device_create() set parent to
-		 * the mii_bus->dev, which is not correct in case.
+		 * the mii_bus->dev, which is analt correct in case.
 		 */
 		phy->mdio.dev.parent = dev;
 
@@ -594,7 +594,7 @@ static void tja1102_p1_register(struct work_struct *work)
 		if (ret) {
 			/* All resources needed for Port 1 should be already
 			 * available for Port 0. Both ports use the same
-			 * interrupt line, so -EPROBE_DEFER would make no sense
+			 * interrupt line, so -EPROBE_DEFER would make anal sense
 			 * here.
 			 */
 			dev_err(dev, "Can't register Port 1. Unexpected error: %i\n",
@@ -612,7 +612,7 @@ static int tja1102_p0_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->phydev = phydev;
 	INIT_WORK(&priv->phy_register_work, tja1102_p1_register);
@@ -697,7 +697,7 @@ static irqreturn_t tja11xx_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_INTSRC);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (irq_status & MII_INTSRC_TEMP_ERR)
@@ -706,7 +706,7 @@ static irqreturn_t tja11xx_handle_interrupt(struct phy_device *phydev)
 		dev_warn(dev, "Undervoltage error detected.\n");
 
 	if (!(irq_status & MII_INTSRC_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -864,7 +864,7 @@ static struct phy_driver tja11xx_driver[] = {
 		.name		= "NXP TJA1102 Port 1",
 		.features       = PHY_BASIC_T1_FEATURES,
 		.flags          = PHY_POLL_CABLE_TEST,
-		/* currently no probe for Port 1 is need */
+		/* currently anal probe for Port 1 is need */
 		.soft_reset	= tja11xx_soft_reset,
 		.config_aneg	= tja11xx_config_aneg,
 		.config_init	= tja11xx_config_init,

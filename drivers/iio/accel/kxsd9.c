@@ -44,7 +44,7 @@
 #define KXSD9_CTRL_C_MOT_LAT	BIT(3)
 #define KXSD9_CTRL_C_MOT_LEV	BIT(4)
 #define KXSD9_CTRL_C_LP_MASK	0xe0
-#define KXSD9_CTRL_C_LP_NONE	0x00
+#define KXSD9_CTRL_C_LP_ANALNE	0x00
 #define KXSD9_CTRL_C_LP_2000HZC	BIT(5)
 #define KXSD9_CTRL_C_LP_2000HZB	BIT(6)
 #define KXSD9_CTRL_C_LP_2000HZA	(BIT(5)|BIT(6))
@@ -144,7 +144,7 @@ static int kxsd9_write_raw(struct iio_dev *indio_dev,
 	pm_runtime_get_sync(st->dev);
 
 	if (mask == IIO_CHAN_INFO_SCALE) {
-		/* Check no integer component */
+		/* Check anal integer component */
 		if (val)
 			return -EINVAL;
 		ret = kxsd9_write_scale(indio_dev, val2);
@@ -211,7 +211,7 @@ static irqreturn_t kxsd9_trigger_handler(int irq, void *p)
 	struct kxsd9_state *st = iio_priv(indio_dev);
 	/*
 	 * Ensure correct positioning and alignment of timestamp.
-	 * No need to zero initialize as all elements written.
+	 * Anal need to zero initialize as all elements written.
 	 */
 	struct {
 		__be16 chan[4];
@@ -232,7 +232,7 @@ static irqreturn_t kxsd9_trigger_handler(int irq, void *p)
 					   &hw_values,
 					   iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -327,7 +327,7 @@ static int kxsd9_power_up(struct kxsd9_state *st)
 	/* Enable the regulators */
 	ret = regulator_bulk_enable(ARRAY_SIZE(st->regs), st->regs);
 	if (ret) {
-		dev_err(st->dev, "Cannot enable regulators\n");
+		dev_err(st->dev, "Cananalt enable regulators\n");
 		return ret;
 	}
 
@@ -380,7 +380,7 @@ static int kxsd9_power_down(struct kxsd9_state *st)
 	/* Disable the regulators */
 	ret = regulator_bulk_disable(ARRAY_SIZE(st->regs), st->regs);
 	if (ret) {
-		dev_err(st->dev, "Cannot disable regulators\n");
+		dev_err(st->dev, "Cananalt disable regulators\n");
 		return ret;
 	}
 
@@ -406,7 +406,7 @@ int kxsd9_common_probe(struct device *dev,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->dev = dev;
@@ -431,7 +431,7 @@ int kxsd9_common_probe(struct device *dev,
 				      ARRAY_SIZE(st->regs),
 				      st->regs);
 	if (ret) {
-		dev_err(dev, "Cannot get regulators\n");
+		dev_err(dev, "Cananalt get regulators\n");
 		return ret;
 	}
 	/* Default scaling */
@@ -455,7 +455,7 @@ int kxsd9_common_probe(struct device *dev,
 	dev_set_drvdata(dev, indio_dev);
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	/*
@@ -486,7 +486,7 @@ void kxsd9_common_remove(struct device *dev)
 	iio_triggered_buffer_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	kxsd9_power_down(st);
 }

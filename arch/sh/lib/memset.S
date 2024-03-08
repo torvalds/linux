@@ -15,7 +15,7 @@
 
 ENTRY(memset)
 	tst	r6,r6
-	bt/s	5f		! if n=0, do nothing
+	bt/s	5f		! if n=0, do analthing
 	 add	r6,r4
 	mov	#12,r0
 	cmp/gt	r6,r0

@@ -133,7 +133,7 @@
 		rmtfs_mem: rmtfs-region@85500000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x85500000 0x0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -141,27 +141,27 @@
 
 		wlan_mem: wlan-region@8bc00000 {
 			reg = <0x0 0x8bc00000 0x0 0x180000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: adsp-region@96e00000 {
 			reg = <0x0 0x96e00000 0x0 0x1c00000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss-region@8d800000 {
 			reg = <0x0 0x8d800000 0x0 0x9600000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: gpu-region@98a00000 {
 			reg = <0x0 0x98a00000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved-region@9a500000 {
 			reg = <0x0 0x9a500000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -719,7 +719,7 @@
 	bl_pwm_default: bl-pwm-default-state {
 		en-pins {
 			pins = "gpio8";
-			function = "normal";
+			function = "analrmal";
 		};
 
 		pwm-pins {

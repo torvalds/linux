@@ -21,7 +21,7 @@ komeda_pipeline_add(struct komeda_dev *mdev, size_t size,
 	if (mdev->n_pipelines + 1 > KOMEDA_MAX_PIPELINES) {
 		DRM_ERROR("Exceed max support %d pipelines.\n",
 			  KOMEDA_MAX_PIPELINES);
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 	}
 
 	if (size < sizeof(*pipe)) {
@@ -31,7 +31,7 @@ komeda_pipeline_add(struct komeda_dev *mdev, size_t size,
 
 	pipe = devm_kzalloc(mdev->dev, size, GFP_KERNEL);
 	if (!pipe)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pipe->mdev = mdev;
 	pipe->id   = mdev->n_pipelines;
@@ -57,10 +57,10 @@ void komeda_pipeline_destroy(struct komeda_dev *mdev,
 
 	clk_put(pipe->pxlclk);
 
-	of_node_put(pipe->of_output_links[0]);
-	of_node_put(pipe->of_output_links[1]);
-	of_node_put(pipe->of_output_port);
-	of_node_put(pipe->of_node);
+	of_analde_put(pipe->of_output_links[0]);
+	of_analde_put(pipe->of_output_links[1]);
+	of_analde_put(pipe->of_output_port);
+	of_analde_put(pipe->of_analde);
 
 	devm_kfree(mdev->dev, pipe);
 }
@@ -115,7 +115,7 @@ komeda_pipeline_get_component_pos(struct komeda_pipeline *pipe, int id)
 		break;
 	default:
 		pos = NULL;
-		DRM_ERROR("Unknown pipeline resource ID: %d.\n", id);
+		DRM_ERROR("Unkanalwn pipeline resource ID: %d.\n", id);
 		break;
 	}
 
@@ -174,7 +174,7 @@ komeda_component_add(struct komeda_pipeline *pipe,
 	if (max_active_inputs > KOMEDA_COMPONENT_N_INPUTS) {
 		WARN(1, "please large KOMEDA_COMPONENT_N_INPUTS to %d.\n",
 		     max_active_inputs);
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 	}
 
 	pos = komeda_pipeline_get_component_pos(pipe, id);
@@ -199,7 +199,7 @@ komeda_component_add(struct komeda_pipeline *pipe,
 
 	c = devm_kzalloc(pipe->mdev->dev, comp_sz, GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->id = id;
 	c->hw_id = hw_id;
@@ -257,10 +257,10 @@ static void komeda_pipeline_dump(struct komeda_pipeline *pipe)
 		 pipe->dual_link ? "dual-link" : "single-link");
 	DRM_INFO("	output_link[0]: %s.\n",
 		 pipe->of_output_links[0] ?
-		 pipe->of_output_links[0]->full_name : "none");
+		 pipe->of_output_links[0]->full_name : "analne");
 	DRM_INFO("	output_link[1]: %s.\n",
 		 pipe->of_output_links[1] ?
-		 pipe->of_output_links[1]->full_name : "none");
+		 pipe->of_output_links[1]->full_name : "analne");
 
 	for_each_set_bit(id, &avail_comps, 32) {
 		c = komeda_pipeline_get_component(pipe, id);
@@ -280,7 +280,7 @@ static void komeda_component_verify_inputs(struct komeda_component *c)
 		input = komeda_pipeline_get_component(pipe, id);
 		if (!input) {
 			c->supported_inputs &= ~(BIT(id));
-			DRM_WARN("Can not find input(ID-%d) for component: %s.\n",
+			DRM_WARN("Can analt find input(ID-%d) for component: %s.\n",
 				 id, c->name);
 			continue;
 		}
@@ -322,12 +322,12 @@ static void komeda_pipeline_assemble(struct komeda_pipeline *pipe)
 
 	if (pipe->dual_link && !pipe->ctrlr->supports_dual_link) {
 		pipe->dual_link = false;
-		DRM_WARN("PIPE-%d doesn't support dual-link, ignore DT dual-link configuration.\n",
+		DRM_WARN("PIPE-%d doesn't support dual-link, iganalre DT dual-link configuration.\n",
 			 pipe->id);
 	}
 }
 
-/* if pipeline_A accept another pipeline_B's component as input, treat
+/* if pipeline_A accept aanalther pipeline_B's component as input, treat
  * pipeline_B as slave of pipeline_A.
  */
 struct komeda_pipeline *

@@ -49,9 +49,9 @@ static int get_boolean(const char *buf, size_t count)
 			return 1;
 		if (count >= 5 && memcmp(buf, "false", 5) == 0)
 			return 0;
-		if (count >= 3 && memcmp(buf, "yes", 3) == 0)
+		if (count >= 3 && memcmp(buf, "anal", 3) == 0)
 			return 1;
-		if (count >= 2 && memcmp(buf, "no", 2) == 0)
+		if (count >= 2 && memcmp(buf, "anal", 2) == 0)
 			return 0;
 		if (count >= 2 && memcmp(buf, "on", 2) == 0)
 			return 1;
@@ -74,12 +74,12 @@ static ssize_t b43legacy_attr_interfmode_show(struct device *dev,
 	mutex_lock(&wldev->wl->mutex);
 
 	switch (wldev->phy.interfmode) {
-	case B43legacy_INTERFMODE_NONE:
-		count = snprintf(buf, PAGE_SIZE, "0 (No Interference"
+	case B43legacy_INTERFMODE_ANALNE:
+		count = snprintf(buf, PAGE_SIZE, "0 (Anal Interference"
 				 " Mitigation)\n");
 		break;
-	case B43legacy_INTERFMODE_NONWLAN:
-		count = snprintf(buf, PAGE_SIZE, "1 (Non-WLAN Interference"
+	case B43legacy_INTERFMODE_ANALNWLAN:
+		count = snprintf(buf, PAGE_SIZE, "1 (Analn-WLAN Interference"
 				 " Mitigation)\n");
 		break;
 	case B43legacy_INTERFMODE_MANUALWLAN:
@@ -110,10 +110,10 @@ static ssize_t b43legacy_attr_interfmode_store(struct device *dev,
 	mode = get_integer(buf, count);
 	switch (mode) {
 	case 0:
-		mode = B43legacy_INTERFMODE_NONE;
+		mode = B43legacy_INTERFMODE_ANALNE;
 		break;
 	case 1:
-		mode = B43legacy_INTERFMODE_NONWLAN;
+		mode = B43legacy_INTERFMODE_ANALNWLAN;
 		break;
 	case 2:
 		mode = B43legacy_INTERFMODE_MANUALWLAN;
@@ -130,7 +130,7 @@ static ssize_t b43legacy_attr_interfmode_store(struct device *dev,
 
 	err = b43legacy_radio_set_interference_mitigation(wldev, mode);
 	if (err)
-		b43legacyerr(wldev->wl, "Interference Mitigation not "
+		b43legacyerr(wldev->wl, "Interference Mitigation analt "
 		       "supported by device\n");
 	spin_unlock_irqrestore(&wldev->wl->irq_lock, flags);
 	mutex_unlock(&wldev->wl->mutex);

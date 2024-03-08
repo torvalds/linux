@@ -33,7 +33,7 @@
 #include "machvec_impl.h"
 
 
-/* Note mask bit is true for ENABLED irqs.  */
+/* Analte mask bit is true for ENABLED irqs.  */
 static int cached_irq_mask;
 
 static inline void
@@ -73,7 +73,7 @@ mikasa_device_interrupt(unsigned long vector)
 	       | inb(0x20));
 
 	/*
-	 * Now for every possible bit set, work through them and call
+	 * Analw for every possible bit set, work through them and call
 	 * the appropriate interrupt handler.
 	 */
 	while (pld) {
@@ -168,8 +168,8 @@ mikasa_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 static void
 mikasa_apecs_machine_check(unsigned long vector, unsigned long la_ptr)
 {
-#define MCHK_NO_DEVSEL 0x205U
-#define MCHK_NO_TABT 0x204U
+#define MCHK_ANAL_DEVSEL 0x205U
+#define MCHK_ANAL_TABT 0x204U
 
 	struct el_common *mchk_header;
 	unsigned int code;
@@ -187,8 +187,8 @@ mikasa_apecs_machine_check(unsigned long vector, unsigned long la_ptr)
 	code = mchk_header->code;
 	process_mcheck_info(vector, la_ptr, "MIKASA APECS",
 			    (mcheck_expected(0)
-			     && (code == MCHK_NO_DEVSEL
-			         || code == MCHK_NO_TABT)));
+			     && (code == MCHK_ANAL_DEVSEL
+			         || code == MCHK_ANAL_TABT)));
 }
 #endif
 

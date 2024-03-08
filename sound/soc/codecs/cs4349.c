@@ -145,10 +145,10 @@ static int cs4349_mute(struct snd_soc_dai *dai, int mute, int direction)
 static DECLARE_TLV_DB_SCALE(dig_tlv, -12750, 50, 0);
 
 static const char * const chan_mix_texts[] = {
-	"Mute", "MuteA", "MuteA SwapB", "MuteA MonoB", "SwapA MuteB",
-	"BothR", "Swap", "SwapA MonoB", "MuteB", "Normal", "BothL",
-	"MonoB", "MonoA MuteB", "MonoA", "MonoA SwapB", "Mono",
-	/*Normal == Channel A = Left, Channel B = Right*/
+	"Mute", "MuteA", "MuteA SwapB", "MuteA MoanalB", "SwapA MuteB",
+	"BothR", "Swap", "SwapA MoanalB", "MuteB", "Analrmal", "BothL",
+	"MoanalB", "MoanalA MuteB", "MoanalA", "MoanalA SwapB", "Moanal",
+	/*Analrmal == Channel A = Left, Channel B = Right*/
 };
 
 static const char * const fm_texts[] = {
@@ -156,7 +156,7 @@ static const char * const fm_texts[] = {
 };
 
 static const char * const deemph_texts[] = {
-	"None", "44.1k", "48k", "32k",
+	"Analne", "44.1k", "48k", "32k",
 };
 
 static const char * const softr_zeroc_texts[] = {
@@ -208,7 +208,7 @@ static const struct snd_kcontrol_new cs4349_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget cs4349_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC("HiFi DAC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("HiFi DAC", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_OUTPUT("OutputA"),
 	SND_SOC_DAPM_OUTPUT("OutputB"),
@@ -233,7 +233,7 @@ static const struct snd_soc_dai_ops cs4349_dai_ops = {
 	.hw_params	= cs4349_pcm_hw_params,
 	.set_fmt	= cs4349_set_dai_fmt,
 	.mute_stream	= cs4349_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4349_dai = {
@@ -280,7 +280,7 @@ static int cs4349_i2c_probe(struct i2c_client *client)
 
 	cs4349 = devm_kzalloc(&client->dev, sizeof(*cs4349), GFP_KERNEL);
 	if (!cs4349)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs4349->regmap = devm_regmap_init_i2c(client, &cs4349_regmap);
 	if (IS_ERR(cs4349->regmap)) {

@@ -19,7 +19,7 @@
 #include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
 
-#define KVM_HOST_S2_FLAGS (KVM_PGTABLE_S2_NOFWB | KVM_PGTABLE_S2_IDMAP)
+#define KVM_HOST_S2_FLAGS (KVM_PGTABLE_S2_ANALFWB | KVM_PGTABLE_S2_IDMAP)
 
 struct host_mmu host_mmu;
 
@@ -68,7 +68,7 @@ static void *host_s2_zalloc_pages_exact(size_t size)
 
 	/*
 	 * The size of concatenated PGDs is always a power of two of PAGE_SIZE,
-	 * so there should be no need to free any of the tail pages to make the
+	 * so there should be anal need to free any of the tail pages to make the
 	 * allocation exact.
 	 */
 	WARN_ON(size != (PAGE_SIZE << get_order(size)));
@@ -299,7 +299,7 @@ int __pkvm_prot_finalize(void)
 	params->hcr_el2 |= HCR_VM;
 
 	/*
-	 * The CMO below not only cleans the updated params to the
+	 * The CMO below analt only cleans the updated params to the
 	 * PoC, but also provides the DSB that ensures ongoing
 	 * page-table walks that have started before we trapped to EL2
 	 * have completed.
@@ -313,7 +313,7 @@ int __pkvm_prot_finalize(void)
 	 * Make sure to have an ISB before the TLB maintenance below but only
 	 * when __load_stage2() doesn't include one already.
 	 */
-	asm(ALTERNATIVE("isb", "nop", ARM64_WORKAROUND_SPECULATIVE_AT));
+	asm(ALTERNATIVE("isb", "analp", ARM64_WORKAROUND_SPECULATIVE_AT));
 
 	/* Invalidate stale HCR bits that may be cached in TLBs */
 	__tlbi(vmalls12e1);
@@ -330,7 +330,7 @@ static int host_stage2_unmap_dev_all(void)
 	u64 addr = 0;
 	int i, ret;
 
-	/* Unmap all non-memory regions to recycle the pages */
+	/* Unmap all analn-memory regions to recycle the pages */
 	for (i = 0; i < hyp_memblock_nr; i++, addr = reg->base + reg->size) {
 		reg = &hyp_memory[i];
 		ret = kvm_pgtable_stage2_unmap(pgt, addr, reg->base - addr);
@@ -389,7 +389,7 @@ static bool addr_is_allowed_memory(phys_addr_t phys)
 
 	reg = find_mem_range(phys, &range);
 
-	return reg && !(reg->flags & MEMBLOCK_NOMAP);
+	return reg && !(reg->flags & MEMBLOCK_ANALMAP);
 }
 
 static bool is_in_mem_range(u64 addr, struct kvm_mem_range *range)
@@ -415,8 +415,8 @@ static inline int __host_stage2_idmap(u64 start, u64 end,
 }
 
 /*
- * The pool has been provided with enough pages to cover all of memory with
- * page granularity, but it is difficult to know how much of the MMIO range
+ * The pool has been provided with eanalugh pages to cover all of memory with
+ * page granularity, but it is difficult to kanalw how much of the MMIO range
  * we will need to cover upfront, so we may need to 'recycle' the pages if we
  * run out.
  */
@@ -425,7 +425,7 @@ static inline int __host_stage2_idmap(u64 start, u64 end,
 		int __ret;						\
 		hyp_assert_lock_held(&host_mmu.lock);			\
 		__ret = fn(__VA_ARGS__);				\
-		if (__ret == -ENOMEM) {					\
+		if (__ret == -EANALMEM) {					\
 			__ret = host_stage2_unmap_dev_all();		\
 			if (!__ret)					\
 				__ret = fn(__VA_ARGS__);		\
@@ -493,7 +493,7 @@ static bool host_stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot pr
 	 * That assumption is correct for the host stage-2 with RWX mappings
 	 * targeting memory or RW mappings targeting MMIO ranges (see
 	 * host_stage2_idmap() below which implements some of the host memory
-	 * abort logic). However, this is not safe for any other mappings where
+	 * abort logic). However, this is analt safe for any other mappings where
 	 * the host stage-2 page-table is in fact the only place where this
 	 * state is stored. In all those cases, it is safer to use page-level
 	 * mappings, hence avoiding to lose the state because of side-effects in
@@ -601,10 +601,10 @@ static int check_page_state_range(struct kvm_pgtable *pgt, u64 addr, u64 size,
 static enum pkvm_page_state host_get_page_state(kvm_pte_t pte, u64 addr)
 {
 	if (!addr_is_allowed_memory(addr))
-		return PKVM_NOPAGE;
+		return PKVM_ANALPAGE;
 
 	if (!kvm_pte_valid(pte) && pte)
-		return PKVM_NOPAGE;
+		return PKVM_ANALPAGE;
 
 	return pkvm_getstate(kvm_pgtable_stage2_pte_prot(pte));
 }
@@ -698,7 +698,7 @@ static int __host_ack_transition(u64 addr, const struct pkvm_mem_transition *tx,
 
 static int host_ack_donation(u64 addr, const struct pkvm_mem_transition *tx)
 {
-	return __host_ack_transition(addr, tx, PKVM_NOPAGE);
+	return __host_ack_transition(addr, tx, PKVM_ANALPAGE);
 }
 
 static int host_complete_donation(u64 addr, const struct pkvm_mem_transition *tx)
@@ -712,7 +712,7 @@ static int host_complete_donation(u64 addr, const struct pkvm_mem_transition *tx
 static enum pkvm_page_state hyp_get_page_state(kvm_pte_t pte, u64 addr)
 {
 	if (!kvm_pte_valid(pte))
-		return PKVM_NOPAGE;
+		return PKVM_ANALPAGE;
 
 	return pkvm_getstate(kvm_pgtable_hyp_pte_prot(pte));
 }
@@ -767,7 +767,7 @@ static int hyp_ack_share(u64 addr, const struct pkvm_mem_transition *tx,
 	if (__hyp_ack_skip_pgtable_check(tx))
 		return 0;
 
-	return __hyp_check_page_state_range(addr, size, PKVM_NOPAGE);
+	return __hyp_check_page_state_range(addr, size, PKVM_ANALPAGE);
 }
 
 static int hyp_ack_unshare(u64 addr, const struct pkvm_mem_transition *tx)
@@ -791,7 +791,7 @@ static int hyp_ack_donation(u64 addr, const struct pkvm_mem_transition *tx)
 	if (__hyp_ack_skip_pgtable_check(tx))
 		return 0;
 
-	return __hyp_check_page_state_range(addr, size, PKVM_NOPAGE);
+	return __hyp_check_page_state_range(addr, size, PKVM_ANALPAGE);
 }
 
 static int hyp_complete_share(u64 addr, const struct pkvm_mem_transition *tx,
@@ -879,8 +879,8 @@ static int __do_share(struct pkvm_mem_share *share)
 		break;
 	case PKVM_ID_FFA:
 		/*
-		 * We're not responsible for any secure page-tables, so there's
-		 * nothing to do here.
+		 * We're analt responsible for any secure page-tables, so there's
+		 * analthing to do here.
 		 */
 		ret = 0;
 		break;
@@ -894,11 +894,11 @@ static int __do_share(struct pkvm_mem_share *share)
 /*
  * do_share():
  *
- * The page owner grants access to another component with a given set
+ * The page owner grants access to aanalther component with a given set
  * of permissions.
  *
  * Initiator: OWNED	=> SHARED_OWNED
- * Completer: NOPAGE	=> SHARED_BORROWED
+ * Completer: ANALPAGE	=> SHARED_BORROWED
  */
 static int do_share(struct pkvm_mem_share *share)
 {
@@ -978,11 +978,11 @@ static int __do_unshare(struct pkvm_mem_share *share)
 /*
  * do_unshare():
  *
- * The page owner revokes access from another component for a range of
+ * The page owner revokes access from aanalther component for a range of
  * pages which were previously shared using do_share().
  *
  * Initiator: SHARED_OWNED	=> OWNED
- * Completer: SHARED_BORROWED	=> NOPAGE
+ * Completer: SHARED_BORROWED	=> ANALPAGE
  */
 static int do_unshare(struct pkvm_mem_share *share)
 {
@@ -1066,11 +1066,11 @@ static int __do_donate(struct pkvm_mem_donation *donation)
 /*
  * do_donate():
  *
- * The page owner transfers ownership to another component, losing access
+ * The page owner transfers ownership to aanalther component, losing access
  * as a consequence.
  *
- * Initiator: OWNED	=> NOPAGE
- * Completer: NOPAGE	=> OWNED
+ * Initiator: OWNED	=> ANALPAGE
+ * Completer: ANALPAGE	=> OWNED
  */
 static int do_donate(struct pkvm_mem_donation *donation)
 {

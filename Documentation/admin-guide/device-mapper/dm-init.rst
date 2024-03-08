@@ -20,13 +20,13 @@ semi-colons, where:
 
 So the format will look like this::
 
- dm-mod.create=<name>,<uuid>,<minor>,<flags>,<table>[,<table>+][;<name>,<uuid>,<minor>,<flags>,<table>[,<table>+]+]
+ dm-mod.create=<name>,<uuid>,<mianalr>,<flags>,<table>[,<table>+][;<name>,<uuid>,<mianalr>,<flags>,<table>[,<table>+]+]
 
 Where::
 
 	<name>		::= The device name.
 	<uuid>		::= xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx | ""
-	<minor>		::= The device minor number | ""
+	<mianalr>		::= The device mianalr number | ""
 	<flags>		::= "ro" | "rw"
 	<table>		::= <start_sector> <num_sectors> <target_type> <target_args>
 	<target_type>	::= "verity" | "linear" | ... (see list below)
@@ -37,7 +37,7 @@ The dm line should be equivalent to the one used by the dmsetup tool with the
 Target types
 ============
 
-Not all target types are available as there are serious risks in allowing
+Analt all target types are available as there are serious risks in allowing
 activation of certain DM targets without first using userspace tools to check
 the validity of associated metadata.
 
@@ -60,10 +60,10 @@ the validity of associated metadata.
 `thin-pool`		constrained, requires dm target message from userspace
 `verity`		allowed
 `writecache`		constrained, userspace should verify cache device
-`zero`			constrained, not meant for rootfs
+`zero`			constrained, analt meant for rootfs
 ======================= =======================================================
 
-If the target is not listed above, it is constrained by default (not tested).
+If the target is analt listed above, it is constrained by default (analt tested).
 
 Examples
 ========
@@ -73,8 +73,8 @@ devices::
   dm-mod.create="lroot,,,rw, 0 4096 linear 98:16 0, 4096 4096 linear 98:32 0" root=/dev/dm-0
 
 This will boot to a rw dm-linear target of 8192 sectors split across two block
-devices identified by their major:minor numbers.  After boot, udev will rename
-this target to /dev/mapper/lroot (depending on the rules). No uuid was assigned.
+devices identified by their major:mianalr numbers.  After boot, udev will rename
+this target to /dev/mapper/lroot (depending on the rules). Anal uuid was assigned.
 
 An example of multiple device-mappers, with the dm-mod.create="..." contents
 is shown here split on multiple lines for readability::
@@ -124,7 +124,7 @@ Other examples (per target):
     fb1a5a0f00deb908d8b53cb270858975e76cf64105d412ce764225d53b8f3cfd
     51934789604d1b92399c52e7cb149d1b3a1b74bbbcb103b2a0aaacbed5c08584
 
-For setups using device-mapper on top of asynchronously probed block
+For setups using device-mapper on top of asynchroanalusly probed block
 devices (MMC, USB, ..), it may be necessary to tell dm-init to
 explicitly wait for them to become available before setting up the
 device-mapper tables. This can be done with the "dm-mod.waitfor="

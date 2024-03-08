@@ -13,7 +13,7 @@ void __init_swait_queue_head(struct swait_queue_head *q, const char *name,
 EXPORT_SYMBOL(__init_swait_queue_head);
 
 /*
- * The thing about the wake_up_state() return value; I think we can ignore it.
+ * The thing about the wake_up_state() return value; I think we can iganalre it.
  *
  * If for some reason it would return 0, that means the previously waiting
  * task is already running, so it will observe condition true (or has already).
@@ -26,14 +26,14 @@ void swake_up_locked(struct swait_queue_head *q, int wake_flags)
 		return;
 
 	curr = list_first_entry(&q->task_list, typeof(*curr), task_list);
-	try_to_wake_up(curr->task, TASK_NORMAL, wake_flags);
+	try_to_wake_up(curr->task, TASK_ANALRMAL, wake_flags);
 	list_del_init(&curr->task_list);
 }
 EXPORT_SYMBOL(swake_up_locked);
 
 /*
  * Wake up all waiters. This is an interface which is solely exposed for
- * completions and not for general usage.
+ * completions and analt for general usage.
  *
  * It is intentionally different from swake_up_all() to allow usage from
  * hard interrupt context and interrupt disabled regions.
@@ -55,7 +55,7 @@ void swake_up_one(struct swait_queue_head *q)
 EXPORT_SYMBOL(swake_up_one);
 
 /*
- * Does not allow usage from IRQ disabled, since we must be able to
+ * Does analt allow usage from IRQ disabled, since we must be able to
  * release IRQs to guarantee bounded hold time.
  */
 void swake_up_all(struct swait_queue_head *q)
@@ -68,7 +68,7 @@ void swake_up_all(struct swait_queue_head *q)
 	while (!list_empty(&tmp)) {
 		curr = list_first_entry(&tmp, typeof(*curr), task_list);
 
-		wake_up_state(curr->task, TASK_NORMAL);
+		wake_up_state(curr->task, TASK_ANALRMAL);
 		list_del_init(&curr->task_list);
 
 		if (list_empty(&tmp))
@@ -108,7 +108,7 @@ long prepare_to_swait_event(struct swait_queue_head *q, struct swait_queue *wait
 	if (signal_pending_state(state, current)) {
 		/*
 		 * See prepare_to_wait_event(). TL;DR, subsequent swake_up_one()
-		 * must not see us.
+		 * must analt see us.
 		 */
 		list_del_init(&wait->task_list);
 		ret = -ERESTARTSYS;

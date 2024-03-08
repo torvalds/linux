@@ -3,7 +3,7 @@
  * io_uring opcode handling table
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/io_uring.h>
@@ -18,7 +18,7 @@
 #include "rsrc.h"
 
 #include "xattr.h"
-#include "nop.h"
+#include "analp.h"
 #include "fs.h"
 #include "splice.h"
 #include "sync.h"
@@ -36,28 +36,28 @@
 #include "waitid.h"
 #include "futex.h"
 
-static int io_no_issue(struct io_kiocb *req, unsigned int issue_flags)
+static int io_anal_issue(struct io_kiocb *req, unsigned int issue_flags)
 {
 	WARN_ON_ONCE(1);
 	return -ECANCELED;
 }
 
-static __maybe_unused int io_eopnotsupp_prep(struct io_kiocb *kiocb,
+static __maybe_unused int io_eopanaltsupp_prep(struct io_kiocb *kiocb,
 					     const struct io_uring_sqe *sqe)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 const struct io_issue_def io_issue_defs[] = {
-	[IORING_OP_NOP] = {
+	[IORING_OP_ANALP] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
-		.prep			= io_nop_prep,
-		.issue			= io_nop,
+		.prep			= io_analp_prep,
+		.issue			= io_analp,
 	},
 	[IORING_OP_READV] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.plug			= 1,
@@ -72,7 +72,7 @@ const struct io_issue_def io_issue_defs[] = {
 	[IORING_OP_WRITEV] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollout		= 1,
 		.plug			= 1,
 		.audit_skip		= 1,
@@ -91,7 +91,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_READ_FIXED] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollin			= 1,
 		.plug			= 1,
 		.audit_skip		= 1,
@@ -104,7 +104,7 @@ const struct io_issue_def io_issue_defs[] = {
 	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollout		= 1,
 		.plug			= 1,
 		.audit_skip		= 1,
@@ -116,7 +116,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.audit_skip		= 1,
 		.prep			= io_poll_add_prep,
 		.issue			= io_poll_add,
@@ -134,7 +134,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_SENDMSG] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollout		= 1,
 		.ioprio			= 1,
 		.manual_alloc		= 1,
@@ -142,12 +142,12 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_sendmsg_prep,
 		.issue			= io_sendmsg,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_RECVMSG] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.ioprio			= 1,
@@ -156,7 +156,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_recvmsg_prep,
 		.issue			= io_recvmsg,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_TIMEOUT] = {
@@ -172,7 +172,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_ACCEPT] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollin			= 1,
 		.poll_exclusive		= 1,
 		.ioprio			= 1,	/* used for flags */
@@ -180,7 +180,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_accept_prep,
 		.issue			= io_accept,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_ASYNC_CANCEL] = {
@@ -191,17 +191,17 @@ const struct io_issue_def io_issue_defs[] = {
 	[IORING_OP_LINK_TIMEOUT] = {
 		.audit_skip		= 1,
 		.prep			= io_link_timeout_prep,
-		.issue			= io_no_issue,
+		.issue			= io_anal_issue,
 	},
 	[IORING_OP_CONNECT] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollout		= 1,
 #if defined(CONFIG_NET)
 		.prep			= io_connect_prep,
 		.issue			= io_connect,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_FALLOCATE] = {
@@ -230,7 +230,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_READ] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.plug			= 1,
@@ -244,7 +244,7 @@ const struct io_issue_def io_issue_defs[] = {
 	[IORING_OP_WRITE] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollout		= 1,
 		.plug			= 1,
 		.audit_skip		= 1,
@@ -267,7 +267,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_SEND] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollout		= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
@@ -276,12 +276,12 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_sendmsg_prep,
 		.issue			= io_send,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_RECV] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.audit_skip		= 1,
@@ -290,7 +290,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_recvmsg_prep,
 		.issue			= io_recv,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_OPENAT2] = {
@@ -298,19 +298,19 @@ const struct io_issue_def io_issue_defs[] = {
 		.issue			= io_openat2,
 	},
 	[IORING_OP_EPOLL_CTL] = {
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.audit_skip		= 1,
 #if defined(CONFIG_EPOLL)
 		.prep			= io_epoll_ctl_prep,
 		.issue			= io_epoll_ctl,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_SPLICE] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.audit_skip		= 1,
 		.prep			= io_splice_prep,
 		.issue			= io_splice,
@@ -330,7 +330,7 @@ const struct io_issue_def io_issue_defs[] = {
 	[IORING_OP_TEE] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.audit_skip		= 1,
 		.prep			= io_tee_prep,
 		.issue			= io_tee,
@@ -341,7 +341,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_shutdown_prep,
 		.issue			= io_shutdown,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_RENAMEAT] = {
@@ -394,7 +394,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_socket_prep,
 		.issue			= io_socket,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_URING_CMD] = {
@@ -407,7 +407,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_SEND_ZC] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollout		= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
@@ -416,12 +416,12 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_send_zc_prep,
 		.issue			= io_send_zc,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_SENDMSG_ZC] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollout		= 1,
 		.ioprio			= 1,
 		.manual_alloc		= 1,
@@ -429,12 +429,12 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_send_zc_prep,
 		.issue			= io_sendmsg_zc,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_READ_MULTISHOT] = {
 		.needs_file		= 1,
-		.unbound_nonreg_file	= 1,
+		.unbound_analnreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.audit_skip		= 1,
@@ -450,7 +450,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_futex_prep,
 		.issue			= io_futex_wait,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_FUTEX_WAKE] = {
@@ -458,7 +458,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_futex_prep,
 		.issue			= io_futex_wake,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_FUTEX_WAITV] = {
@@ -466,7 +466,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_futexv_prep,
 		.issue			= io_futexv_wait,
 #else
-		.prep			= io_eopnotsupp_prep,
+		.prep			= io_eopanaltsupp_prep,
 #endif
 	},
 	[IORING_OP_FIXED_FD_INSTALL] = {
@@ -477,8 +477,8 @@ const struct io_issue_def io_issue_defs[] = {
 };
 
 const struct io_cold_def io_cold_defs[] = {
-	[IORING_OP_NOP] = {
-		.name			= "NOP",
+	[IORING_OP_ANALP] = {
+		.name			= "ANALP",
 	},
 	[IORING_OP_READV] = {
 		.async_size		= sizeof(struct io_async_rw),
@@ -730,7 +730,7 @@ void __init io_uring_optable_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(io_issue_defs); i++) {
 		BUG_ON(!io_issue_defs[i].prep);
-		if (io_issue_defs[i].prep != io_eopnotsupp_prep)
+		if (io_issue_defs[i].prep != io_eopanaltsupp_prep)
 			BUG_ON(!io_issue_defs[i].issue);
 		WARN_ON_ONCE(!io_cold_defs[i].name);
 	}

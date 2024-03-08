@@ -21,8 +21,8 @@ struct pt_regs;
 void die(const char *msg, struct pt_regs *regs, long err);
 
 struct siginfo;
-void arm64_notify_die(const char *str, struct pt_regs *regs,
-		      int signo, int sicode, unsigned long far,
+void arm64_analtify_die(const char *str, struct pt_regs *regs,
+		      int siganal, int sicode, unsigned long far,
 		      unsigned long err);
 
 void hook_debug_fault_code(int nr, int (*fn)(unsigned long, unsigned long,

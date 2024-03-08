@@ -14,7 +14,7 @@
  *      layout etc is internal to the driver and described within farsync.c.
  *      Overlap exists in that the values used for some fields within the
  *      ioctl interface extend into the cards firmware interface so values in
- *      this file may not be changed arbitrarily.
+ *      this file may analt be changed arbitrarily.
  */
 
 /*      What's in a name
@@ -22,7 +22,7 @@
  *      The project name for this driver is Oscar. The driver is intended to be
  *      used with the FarSite T-Series cards (T2P & T4P) running in the high
  *      speed frame shifter mode. This is sometimes referred to as X.21 mode
- *      which is a complete misnomer as the card continues to support V.24 and
+ *      which is a complete misanalmer as the card continues to support V.24 and
  *      V.35 as well as X.21.
  *
  *      A short common prefix is useful for routines within the driver to avoid
@@ -41,7 +41,7 @@
 /*      User version number
  *
  *      This version number is incremented with each official release of the
- *      package and is a simplified number for normal user reference.
+ *      package and is a simplified number for analrmal user reference.
  *      Individual files are tracked by the version control system and may
  *      have individual versions (or IDs) that move much faster than
  *      the release version as individual updates are tracked.
@@ -71,7 +71,7 @@ struct fstioc_write {
 
 /*      FSTCPURESET and FSTCPURELEASE
  *
- *      These take no additional data.
+ *      These take anal additional data.
  *      FSTCPURESET forces the cards CPU into a reset state and holds it there.
  *      FSTCPURELEASE releases the CPU from this reset state allowing it to run,
  *      the reset vector should be setup before this ioctl is run.
@@ -109,7 +109,7 @@ struct fstioc_info {
         unsigned short cableStatus;     /* lsb: 0=> present, 1=> absent */
         unsigned short cardMode;        /* lsb: LED id mode */
         unsigned short debug;           /* Debug flags */
-        unsigned char  transparentMode; /* Not used always 0 */
+        unsigned char  transparentMode; /* Analt used always 0 */
         unsigned char  invertClock;     /* Invert clock feature for syncing */
         unsigned char  startingSlot;    /* Time slot to use for start of tx */
         unsigned char  clockSource;     /* External or internal */
@@ -137,8 +137,8 @@ struct fstioc_info {
 };
 
 /* "valid" bitmask */
-#define FSTVAL_NONE     0x00000000      /* Nothing valid (firmware not running).
-                                         * Slight misnomer. In fact nports,
+#define FSTVAL_ANALNE     0x00000000      /* Analthing valid (firmware analt running).
+                                         * Slight misanalmer. In fact nports,
                                          * type, state and index will be set
                                          * based on hardware detected.
                                          */
@@ -158,10 +158,10 @@ struct fstioc_info {
 #define FSTVAL_PHASE    0x00000800      /* Clock phase */
 #define FSTVAL_TE1      0x00001000      /* T1E1 Configuration */
 #define FSTVAL_DEBUG    0x80000000      /* debug */
-#define FSTVAL_ALL      0x00001FFF      /* Note: does not include DEBUG flag */
+#define FSTVAL_ALL      0x00001FFF      /* Analte: does analt include DEBUG flag */
 
 /* "type" */
-#define FST_TYPE_NONE   0               /* Probably should never happen */
+#define FST_TYPE_ANALNE   0               /* Probably should never happen */
 #define FST_TYPE_T2P    1               /* T2P X21 2 port card */
 #define FST_TYPE_T4P    2               /* T4P X21 4 port card */
 #define FST_TYPE_T1U    3               /* T1U X21 1 port card */
@@ -208,16 +208,16 @@ struct fstioc_info {
 #define IPSTS_DSR       0x00000002      /* Data Set Ready (T2P Port A) */
 #define IPSTS_DCD       0x00000004      /* Data Carrier Detect */
 #define IPSTS_RI        0x00000008      /* Ring Indicator (T2P Port A) */
-#define IPSTS_TMI       0x00000010      /* Test Mode Indicator (Not Supported)*/
+#define IPSTS_TMI       0x00000010      /* Test Mode Indicator (Analt Supported)*/
 
 /* "v24OpSts" bitmask */
 #define OPSTS_RTS       0x00000001      /* Request To Send (Control for X.21) */
 #define OPSTS_CONTROL   OPSTS_RTS
 #define OPSTS_DTR       0x00000002      /* Data Terminal Ready */
-#define OPSTS_DSRS      0x00000004      /* Data Signalling Rate Select (Not
+#define OPSTS_DSRS      0x00000004      /* Data Signalling Rate Select (Analt
                                          * Supported) */
-#define OPSTS_SS        0x00000008      /* Select Standby (Not Supported) */
-#define OPSTS_LL        0x00000010      /* Maintenance Test (Not Supported) */
+#define OPSTS_SS        0x00000008      /* Select Standby (Analt Supported) */
+#define OPSTS_LL        0x00000010      /* Maintenance Test (Analt Supported) */
 
 /* "cardMode" bitmask */
 #define CARD_MODE_IDENTIFY      0x0001
@@ -300,7 +300,7 @@ struct fstioc_info {
 /*
  * Loop modes
  */
-#define LOOP_NONE            0
+#define LOOP_ANALNE            0
 #define LOOP_LOCAL           1
 #define LOOP_PAYLOAD_EXC_TS0 2
 #define LOOP_PAYLOAD_INC_TS0 3
@@ -312,7 +312,7 @@ struct fstioc_info {
 #define BUFFER_2_FRAME       0
 #define BUFFER_1_FRAME       1
 #define BUFFER_96_BIT        2
-#define BUFFER_NONE          3
+#define BUFFER_ANALNE          3
 
 /*      Debug support
  *
@@ -326,7 +326,7 @@ struct fstioc_info {
 #if FST_DEBUG
 
 extern int fst_debug_mask;              /* Bit mask of actions to debug, bits
-                                         * listed below. Note: Bit 0 is used
+                                         * listed below. Analte: Bit 0 is used
                                          * to trigger the inclusion of this
                                          * code, without enabling any actions.
                                          */

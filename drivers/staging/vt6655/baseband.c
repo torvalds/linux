@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Implement functions to access baseband
@@ -1753,7 +1753,7 @@ unsigned int bb_get_frame_time(unsigned char preamble_type,
  *		- pointer to Phy Service field
  *		- pointer to Phy Signal field
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
@@ -1939,7 +1939,7 @@ bool bb_read_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
  *      by_bb_addr  - address of register in Baseband
  *      by_data     - data to write
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -1981,7 +1981,7 @@ bool bb_write_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
  *      byRevId     - Revision ID
  *      rf_type     - RF type
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -2086,7 +2086,7 @@ bool bb_vt3253_init(struct vnt_private *priv)
 		vt6655_mac_word_reg_bits_on(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT);
 		/* {{ RobertYu: 20050104 */
 	} else {
-		/* No VGA Table now */
+		/* Anal VGA Table analw */
 		priv->update_bbvga = false;
 		priv->bbvga[0] = 0x1C;
 	}
@@ -2106,9 +2106,9 @@ bool bb_vt3253_init(struct vnt_private *priv)
  *  In:
  *      priv     - Device Structure
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void
@@ -2157,9 +2157,9 @@ void bb_set_vga_gain_offset(struct vnt_private *priv, unsigned char by_data)
  *  In:
  *      iobase      - I/O base address
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void
@@ -2179,9 +2179,9 @@ bb_software_reset(struct vnt_private *priv)
  *      priv          - Device Structure
  *      by_antenna_mode    - Antenna Mode
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 
@@ -2212,9 +2212,9 @@ bb_set_tx_antenna_mode(struct vnt_private *priv, unsigned char by_antenna_mode)
  *      priv          - Device Structure
  *      by_antenna_mode   - Antenna Mode
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 
@@ -2243,9 +2243,9 @@ bb_set_rx_antenna_mode(struct vnt_private *priv, unsigned char by_antenna_mode)
  *  In:
  *      priv          - Device Structure
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void

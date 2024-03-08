@@ -13,7 +13,7 @@
 #include "../common/smb2pdu.h"
 #include "smb2pdu.h"
 
-/* ksmbd's Specific ERRNO */
+/* ksmbd's Specific ERRANAL */
 #define ESHARE			50000
 
 #define SMB1_PROT		0
@@ -36,7 +36,7 @@
 #define SMB_ECHO_INTERVAL	(60 * HZ)
 
 #define CIFS_DEFAULT_IOSIZE	(64 * 1024)
-#define MAX_CIFS_SMALL_BUFFER_SIZE 448 /* big enough for most */
+#define MAX_CIFS_SMALL_BUFFER_SIZE 448 /* big eanalugh for most */
 
 #define MAX_STREAM_PROT_LEN	0x00FFFFFF
 
@@ -54,11 +54,11 @@
 #define ATTR_DELETE_ON_CLOSE		0x04000000
 #define ATTR_SEQUENTIAL_SCAN		0x08000000
 #define ATTR_RANDOM_ACCESS		0x10000000
-#define ATTR_NO_BUFFERING		0x20000000
+#define ATTR_ANAL_BUFFERING		0x20000000
 #define ATTR_WRITE_THROUGH		0x80000000
 
 /* List of FileSystemAttributes - see 2.5.1 of MS-FSCC */
-#define FILE_SUPPORTS_SPARSE_VDL	0x10000000 /* faster nonsparse extend */
+#define FILE_SUPPORTS_SPARSE_VDL	0x10000000 /* faster analnsparse extend */
 #define FILE_SUPPORTS_BLOCK_REFCOUNTING	0x08000000 /* allow ioctl dup extents */
 #define FILE_SUPPORT_INTEGRITY_STREAMS	0x04000000
 #define FILE_SUPPORTS_USN_JOURNAL	0x02000000
@@ -180,7 +180,7 @@ struct smb_hdr {
 		__le32 CifsError;
 	} __packed Status;
 	__u8 Flags;
-	__le16 Flags2;          /* note: le */
+	__le16 Flags2;          /* analte: le */
 	__le16 PidHigh;
 	union {
 		struct {
@@ -205,7 +205,7 @@ struct smb_negotiate_req {
 
 struct smb_negotiate_rsp {
 	struct smb_hdr hdr;     /* wct = 17 */
-	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
+	__le16 DialectIndex; /* 0xFFFF = anal dialect acceptable */
 	__le16 ByteCount;
 } __packed;
 
@@ -213,7 +213,7 @@ struct filesystem_attribute_info {
 	__le32 Attributes;
 	__le32 MaxPathNameComponentLength;
 	__le32 FileSystemNameLen;
-	__le16 FileSystemName[1]; /* do not have to save this - get subset? */
+	__le16 FileSystemName[1]; /* do analt have to save this - get subset? */
 } __packed;
 
 struct filesystem_device_info {
@@ -339,7 +339,7 @@ struct file_id_full_dir_info {
 	__le32 FileNameLength;
 	__le32 EaSize; /* EA size */
 	__le32 Reserved;
-	__le64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit*/
+	__le64 UniqueId; /* ianalde num - le since Samba puts ianal in low 32 bit*/
 	char FileName[];
 } __packed; /* level 0x105 FF rsp data */
 
@@ -377,19 +377,19 @@ struct filesystem_posix_info {
 	__le32 OptimalTransferSize;  /* bsize on some os, iosize on other os */
 	__le32 BlockSize;
 	/* The next three fields are in terms of the block size.
-	 * (above). If block size is unknown, 4096 would be a
+	 * (above). If block size is unkanalwn, 4096 would be a
 	 * reasonable block size for a server to report.
-	 * Note that returning the blocks/blocksavail removes need
+	 * Analte that returning the blocks/blocksavail removes need
 	 * to make a second call (to QFSInfo level 0x103 to get this info.
 	 * UserBlockAvail is typically less than or equal to BlocksAvail,
-	 * if no distinction is made return the same value in each
+	 * if anal distinction is made return the same value in each
 	 */
 	__le64 TotalBlocks;
 	__le64 BlocksAvail;       /* bfree */
 	__le64 UserBlocksAvail;   /* bavail */
-	/* For undefined Node fields or FSID return -1 */
-	__le64 TotalFileNodes;
-	__le64 FreeFileNodes;
+	/* For undefined Analde fields or FSID return -1 */
+	__le64 TotalFileAnaldes;
+	__le64 FreeFileAnaldes;
 	__le64 FileSysIdentifier;   /* fsid */
 	/* NB Namelen comes from FILE_SYSTEM_ATTRIBUTE_INFO call */
 	/* NB flags can come from FILE_SYSTEM_DEVICE_INFO call   */

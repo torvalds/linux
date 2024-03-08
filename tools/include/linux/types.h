@@ -91,11 +91,11 @@ struct list_head {
 };
 
 struct hlist_head {
-	struct hlist_node *first;
+	struct hlist_analde *first;
 };
 
-struct hlist_node {
-	struct hlist_node *next, **pprev;
+struct hlist_analde {
+	struct hlist_analde *next, **pprev;
 };
 
 #endif /* _TOOLS_LINUX_TYPES_H_ */

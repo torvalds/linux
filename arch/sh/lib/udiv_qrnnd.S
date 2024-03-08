@@ -57,4 +57,4 @@ __udiv_qrnnd_16:
 	bf/s 1b
 	 shlr16 r1
 0:	rts
-	 nop
+	 analp

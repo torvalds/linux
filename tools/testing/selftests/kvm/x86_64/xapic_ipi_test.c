@@ -7,17 +7,17 @@
  * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Test that when the APIC is in xAPIC mode, a vCPU can send an IPI to wake
- * another vCPU that is halted when KVM's backing page for the APIC access
+ * aanalther vCPU that is halted when KVM's backing page for the APIC access
  * address has been moved by mm.
  *
  * The test starts two vCPUs: one that sends IPIs and one that continually
  * executes HLT. The sender checks that the halter has woken from the HLT and
  * has reentered HLT before sending the next IPI. While the vCPUs are running,
  * the host continually calls migrate_pages to move all of the process' pages
- * amongst the available numa nodes on the machine.
+ * amongst the available numa analdes on the machine.
  *
- * Migration is a command line option. When used on non-numa machines will 
- * exit with error. Test is still usefull on non-numa for testing IPIs.
+ * Migration is a command line option. When used on analn-numa machines will 
+ * exit with error. Test is still usefull on analn-numa for testing IPIs.
  */
 
 #define _GNU_SOURCE /* for program_invocation_short_name */
@@ -99,10 +99,10 @@ static void halter_guest_code(struct test_data_page *data)
 	/*
 	 * Loop forever HLTing and recording halts & wakes. Disable interrupts
 	 * each time around to minimize window between signaling the pending
-	 * halt to the sender vCPU and executing the halt. No need to disable on
+	 * halt to the sender vCPU and executing the halt. Anal need to disable on
 	 * first run as this vCPU executes first and the host waits for it to
 	 * signal going into first halt before starting the sender vCPU. Record
-	 * TPR and PPR for diagnostic purposes in case the test fails.
+	 * TPR and PPR for diaganalstic purposes in case the test fails.
 	 */
 	for (;;) {
 		data->halter_tpr = xapic_read_reg(APIC_TASKPRI);
@@ -114,8 +114,8 @@ static void halter_guest_code(struct test_data_page *data)
 }
 
 /*
- * Runs on halter vCPU when IPI arrives. Write an arbitrary non-zero value to
- * enable diagnosing errant writes to the APIC access address backing page in
+ * Runs on halter vCPU when IPI arrives. Write an arbitrary analn-zero value to
+ * enable diaganalsing errant writes to the APIC access address backing page in
  * case of test failure.
  */
 static void guest_ipi_handler(struct ex_regs *regs)
@@ -199,9 +199,9 @@ static void *vcpu_thread(void *arg)
 	int old;
 	int r;
 
-	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
+	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHROANALUS, &old);
 	TEST_ASSERT(r == 0,
-		    "pthread_setcanceltype failed on vcpu_id=%u with errno=%d",
+		    "pthread_setcanceltype failed on vcpu_id=%u with erranal=%d",
 		    vcpu->id, r);
 
 	fprintf(stderr, "vCPU thread running vCPU %u\n", vcpu->id);
@@ -236,12 +236,12 @@ static void cancel_join_vcpu_thread(pthread_t thread, struct kvm_vcpu *vcpu)
 
 	r = pthread_cancel(thread);
 	TEST_ASSERT(r == 0,
-		    "pthread_cancel on vcpu_id=%d failed with errno=%d",
+		    "pthread_cancel on vcpu_id=%d failed with erranal=%d",
 		    vcpu->id, r);
 
 	r = pthread_join(thread, &retval);
 	TEST_ASSERT(r == 0,
-		    "pthread_join on vcpu_id=%d failed with errno=%d",
+		    "pthread_join on vcpu_id=%d failed with erranal=%d",
 		    vcpu->id, r);
 	TEST_ASSERT(retval == PTHREAD_CANCELED,
 		    "expected retval=%p, got %p", PTHREAD_CANCELED,
@@ -251,11 +251,11 @@ static void cancel_join_vcpu_thread(pthread_t thread, struct kvm_vcpu *vcpu)
 void do_migrations(struct test_data_page *data, int run_secs, int delay_usecs,
 		   uint64_t *pipis_rcvd)
 {
-	long pages_not_moved;
-	unsigned long nodemask = 0;
-	unsigned long nodemasks[sizeof(nodemask) * 8];
-	int nodes = 0;
-	time_t start_time, last_update, now;
+	long pages_analt_moved;
+	unsigned long analdemask = 0;
+	unsigned long analdemasks[sizeof(analdemask) * 8];
+	int analdes = 0;
+	time_t start_time, last_update, analw;
 	time_t interval_secs = 1;
 	int i, r;
 	int from, to;
@@ -267,30 +267,30 @@ void do_migrations(struct test_data_page *data, int run_secs, int delay_usecs,
 	fprintf(stderr, "Calling migrate_pages every %d microseconds\n",
 		delay_usecs);
 
-	/* Get set of first 64 numa nodes available */
-	r = get_mempolicy(NULL, &nodemask, sizeof(nodemask) * 8,
+	/* Get set of first 64 numa analdes available */
+	r = get_mempolicy(NULL, &analdemask, sizeof(analdemask) * 8,
 			  0, MPOL_F_MEMS_ALLOWED);
-	TEST_ASSERT(r == 0, "get_mempolicy failed errno=%d", errno);
+	TEST_ASSERT(r == 0, "get_mempolicy failed erranal=%d", erranal);
 
-	fprintf(stderr, "Numa nodes found amongst first %lu possible nodes "
-		"(each 1-bit indicates node is present): %#lx\n",
-		sizeof(nodemask) * 8, nodemask);
+	fprintf(stderr, "Numa analdes found amongst first %lu possible analdes "
+		"(each 1-bit indicates analde is present): %#lx\n",
+		sizeof(analdemask) * 8, analdemask);
 
 	/* Init array of masks containing a single-bit in each, one for each
-	 * available node. migrate_pages called below requires specifying nodes
+	 * available analde. migrate_pages called below requires specifying analdes
 	 * as bit masks.
 	 */
-	for (i = 0, bit = 1; i < sizeof(nodemask) * 8; i++, bit <<= 1) {
-		if (nodemask & bit) {
-			nodemasks[nodes] = nodemask & bit;
-			nodes++;
+	for (i = 0, bit = 1; i < sizeof(analdemask) * 8; i++, bit <<= 1) {
+		if (analdemask & bit) {
+			analdemasks[analdes] = analdemask & bit;
+			analdes++;
 		}
 	}
 
-	TEST_ASSERT(nodes > 1,
-		    "Did not find at least 2 numa nodes. Can't do migration");
+	TEST_ASSERT(analdes > 1,
+		    "Did analt find at least 2 numa analdes. Can't do migration");
 
-	fprintf(stderr, "Migrating amongst %d nodes found\n", nodes);
+	fprintf(stderr, "Migrating amongst %d analdes found\n", analdes);
 
 	from = 0;
 	to = 1;
@@ -306,38 +306,38 @@ void do_migrations(struct test_data_page *data, int run_secs, int delay_usecs,
 
 		/*
 		 * migrate_pages with PID=0 will migrate all pages of this
-		 * process between the nodes specified as bitmasks. The page
+		 * process between the analdes specified as bitmasks. The page
 		 * backing the APIC access address belongs to this process
 		 * because it is allocated by KVM in the context of the
 		 * KVM_CREATE_VCPU ioctl. If that assumption ever changes this
 		 * test may break or give a false positive signal.
 		 */
-		pages_not_moved = migrate_pages(0, sizeof(nodemasks[from]),
-						&nodemasks[from],
-						&nodemasks[to]);
-		if (pages_not_moved < 0)
+		pages_analt_moved = migrate_pages(0, sizeof(analdemasks[from]),
+						&analdemasks[from],
+						&analdemasks[to]);
+		if (pages_analt_moved < 0)
 			fprintf(stderr,
-				"migrate_pages failed, errno=%d\n", errno);
-		else if (pages_not_moved > 0)
+				"migrate_pages failed, erranal=%d\n", erranal);
+		else if (pages_analt_moved > 0)
 			fprintf(stderr,
-				"migrate_pages could not move %ld pages\n",
-				pages_not_moved);
+				"migrate_pages could analt move %ld pages\n",
+				pages_analt_moved);
 		else
 			data->migrations_completed++;
 
 		from = to;
 		to++;
-		if (to == nodes)
+		if (to == analdes)
 			to = 0;
 
-		now = time(NULL);
-		if (((now - start_time) % interval_secs == 0) &&
-		    (now != last_update)) {
-			last_update = now;
+		analw = time(NULL);
+		if (((analw - start_time) % interval_secs == 0) &&
+		    (analw != last_update)) {
+			last_update = analw;
 			fprintf(stderr,
 				"%lu seconds: Migrations attempted=%lu completed=%lu, "
 				"IPIs sent=%lu received=%lu, HLTs=%lu wakes=%lu\n",
-				now - start_time, data->migrations_attempted,
+				analw - start_time, data->migrations_attempted,
 				data->migrations_completed,
 				data->ipis_sent, *pipis_rcvd,
 				data->hlt_count, data->wake_count);
@@ -345,7 +345,7 @@ void do_migrations(struct test_data_page *data, int run_secs, int delay_usecs,
 			TEST_ASSERT(ipis_sent != data->ipis_sent &&
 				    hlt_count != data->hlt_count &&
 				    wake_count != data->wake_count,
-				    "IPI, HLT and wake count have not increased "
+				    "IPI, HLT and wake count have analt increased "
 				    "in the last %lu seconds. "
 				    "HLTer is likely hung.", interval_secs);
 
@@ -379,7 +379,7 @@ void get_cmdline_args(int argc, char *argv[], int *run_secs,
 			TEST_ASSERT(false,
 				    "Usage: -s <runtime seconds>. Default is %d seconds.\n"
 				    "-m adds calls to migrate_pages while vCPUs are running."
-				    " Default is no migrations.\n"
+				    " Default is anal migrations.\n"
 				    "-d <delay microseconds> - delay between migrate_pages() calls."
 				    " Default is %d microseconds.",
 				    DEFAULT_RUN_SECS, DEFAULT_DELAY_USECS);
@@ -434,7 +434,7 @@ int main(int argc, char *argv[])
 	/* Start halter vCPU thread and wait for it to execute first HLT. */
 	r = pthread_create(&threads[0], NULL, vcpu_thread, &params[0]);
 	TEST_ASSERT(r == 0,
-		    "pthread_create halter failed errno=%d", errno);
+		    "pthread_create halter failed erranal=%d", erranal);
 	fprintf(stderr, "Halter vCPU thread started\n");
 
 	wait_secs = 0;
@@ -444,7 +444,7 @@ int main(int argc, char *argv[])
 	}
 
 	TEST_ASSERT(data->hlt_count,
-		    "Halter vCPU did not execute first HLT within %d seconds",
+		    "Halter vCPU did analt execute first HLT within %d seconds",
 		    max_halter_wait);
 
 	fprintf(stderr,
@@ -452,7 +452,7 @@ int main(int argc, char *argv[])
 		data->halter_apic_id, wait_secs);
 
 	r = pthread_create(&threads[1], NULL, vcpu_thread, &params[1]);
-	TEST_ASSERT(r == 0, "pthread_create sender failed errno=%d", errno);
+	TEST_ASSERT(r == 0, "pthread_create sender failed erranal=%d", erranal);
 
 	fprintf(stderr,
 		"IPI sender vCPU thread started. Letting vCPUs run for %d seconds.\n",

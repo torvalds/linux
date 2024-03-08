@@ -13,7 +13,7 @@ struct stackframe {
 	unsigned long ra;
 };
 
-void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
+void analtrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 			     bool (*fn)(unsigned long, void *), void *arg)
 {
 	unsigned long fp, sp, pc;
@@ -57,7 +57,7 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 
 #else /* !CONFIG_FRAME_POINTER */
 
-static void notrace walk_stackframe(struct task_struct *task,
+static void analtrace walk_stackframe(struct task_struct *task,
 	struct pt_regs *regs, bool (*fn)(unsigned long, void *), void *arg)
 {
 	unsigned long sp, pc;
@@ -118,11 +118,11 @@ unsigned long __get_wchan(struct task_struct *task)
 }
 
 #ifdef CONFIG_STACKTRACE
-static bool __save_trace(unsigned long pc, void *arg, bool nosched)
+static bool __save_trace(unsigned long pc, void *arg, bool analsched)
 {
 	struct stack_trace *trace = arg;
 
-	if (unlikely(nosched && in_sched_functions(pc)))
+	if (unlikely(analsched && in_sched_functions(pc)))
 		return false;
 	if (unlikely(trace->skip > 0)) {
 		trace->skip--;

@@ -16,16 +16,16 @@ read-write-erases) before erasing the commit record. Should the system
 crash during the second slow write, the journal can be replayed all the
 way to the latest commit record, guaranteeing the atomicity of whatever
 gets written through the journal to the disk. The effect of this is to
-guarantee that the filesystem does not become stuck midway through a
+guarantee that the filesystem does analt become stuck midway through a
 metadata update.
 
 For performance reasons, ext4 by default only writes filesystem metadata
-through the journal. This means that file data blocks are /not/
+through the journal. This means that file data blocks are /analt/
 guaranteed to be in any consistent state after a crash. If this default
-guarantee level (``data=ordered``) is not satisfactory, there is a mount
+guarantee level (``data=ordered``) is analt satisfactory, there is a mount
 option to control journal behavior. If ``data=journal``, all data and
 metadata are written to disk through the journal. This is slower but
-safest. If ``data=writeback``, dirty data blocks are not flushed to the
+safest. If ``data=writeback``, dirty data blocks are analt flushed to the
 disk before the metadata are written to disk through the journal.
 
 In case of ``data=ordered`` mode, Ext4 also supports fast commits which
@@ -33,25 +33,25 @@ help reduce commit latency significantly. The default ``data=ordered``
 mode works by logging metadata blocks to the journal. In fast commit
 mode, Ext4 only stores the minimal delta needed to recreate the
 affected metadata in fast commit space that is shared with JBD2.
-Once the fast commit area fills in or if fast commit is not possible
+Once the fast commit area fills in or if fast commit is analt possible
 or if JBD2 commit timer goes off, Ext4 performs a traditional full commit.
 A full commit invalidates all the fast commits that happened before
 it and thus it makes the fast commit area empty for further fast
 commits. This feature needs to be enabled at mkfs time.
 
-The journal inode is typically inode 8. The first 68 bytes of the
-journal inode are replicated in the ext4 superblock. The journal itself
-is normal (but hidden) file within the filesystem. The file usually
+The journal ianalde is typically ianalde 8. The first 68 bytes of the
+journal ianalde are replicated in the ext4 superblock. The journal itself
+is analrmal (but hidden) file within the filesystem. The file usually
 consumes an entire block group, though mke2fs tries to put it in the
 middle of the disk.
 
 All fields in jbd2 are written to disk in big-endian order. This is the
 opposite of ext4.
 
-NOTE: Both ext4 and ocfs2 use jbd2.
+ANALTE: Both ext4 and ocfs2 use jbd2.
 
 The maximum size of a journal embedded in an ext4 filesystem is 2^32
-blocks. jbd2 itself does not seem to care.
+blocks. jbd2 itself does analt seem to care.
 
 Layout
 ~~~~~~
@@ -70,16 +70,16 @@ Generally speaking, the journal has this format:
      - One transaction
      -
 
-Notice that a transaction begins with either a descriptor and some data,
+Analtice that a transaction begins with either a descriptor and some data,
 or a block revocation list. A finished transaction always ends with a
-commit. If there is no commit record (or the checksums don't match), the
+commit. If there is anal commit record (or the checksums don't match), the
 transaction will be discarded during replay.
 
 External Journal
 ~~~~~~~~~~~~~~~~
 
 Optionally, an ext4 filesystem can be created with an external journal
-device (as opposed to an internal journal, which uses a reserved inode).
+device (as opposed to an internal journal, which uses a reserved ianalde).
 In this case, on the filesystem device, ``s_journal_inum`` should be
 zero and ``s_journal_uuid`` should be set. On the journal device there
 will be an ext4 super block in the usual place, with a matching UUID.
@@ -204,10 +204,10 @@ which is 1024 bytes long:
      - __be32
      - s_start
      - Block number of the start of log. Contrary to the comments, this field
-       being zero does not imply that the journal is clean!
+       being zero does analt imply that the journal is clean!
    * - 0x20
      - __be32
-     - s_errno
+     - s_erranal
      - Error value, as set by jbd2_journal_abort().
    * -
      -
@@ -237,15 +237,15 @@ which is 1024 bytes long:
    * - 0x44
      - __be32
      - s_dynsuper
-     - Location of dynamic super block copy. (Not used?)
+     - Location of dynamic super block copy. (Analt used?)
    * - 0x48
      - __be32
      - s_max_transaction
-     - Limit of journal blocks per transaction. (Not used?)
+     - Limit of journal blocks per transaction. (Analt used?)
    * - 0x4C
      - __be32
      - s_max_trans_data
-     - Limit of data blocks per transaction. (Not used?)
+     - Limit of data blocks per transaction. (Analt used?)
    * - 0x50
      - __u8
      - s_checksum_type
@@ -309,7 +309,7 @@ The journal incompat features are any combination of the following:
      - Journal can deal with 64-bit block numbers.
        (JBD2_FEATURE_INCOMPAT_64BIT)
    * - 0x4
-     - Journal commits asynchronously. (JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)
+     - Journal commits asynchroanalusly. (JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)
    * - 0x8
      - This journal uses v2 of the checksum on-disk format. Each journal
        metadata block gets its own checksum, and the block tags in the
@@ -366,7 +366,7 @@ Descriptor blocks consume at least 36 bytes, but use a full block:
    * - 0xC
      - struct journal_block_tag_s
      - open coded array[]
-     - Enough tags either to fill up the block or to describe all the data
+     - Eanalugh tags either to fill up the block or to describe all the data
        blocks that follow this descriptor block.
 
 Journal block tags have any of the following formats, depending on which
@@ -399,7 +399,7 @@ following. The size is 16 or 32 bytes.
      - t_blocknr_high
      - Upper 32-bits of the location of where the corresponding data block
        should end up on disk. This is zero if JBD2_FEATURE_INCOMPAT_64BIT is
-       not enabled.
+       analt enabled.
    * - 0xC
      - __be32
      - t_checksum
@@ -408,7 +408,7 @@ following. The size is 16 or 32 bytes.
      -
      -
      - This field appears to be open coded. It always comes at the end of the
-       tag, after t_checksum. This field is not present if the "same UUID" flag
+       tag, after t_checksum. This field is analt present if the "same UUID" flag
        is set.
    * - 0x8 or 0xC
      - char
@@ -434,11 +434,11 @@ The journal tag flags are any combination of the following:
      - This block has the same UUID as previous, therefore the UUID field is
        omitted.
    * - 0x4
-     - The data block was deleted by the transaction. (Not used?)
+     - The data block was deleted by the transaction. (Analt used?)
    * - 0x8
      - This is the last tag in this descriptor block.
 
-If JBD2_FEATURE_INCOMPAT_CSUM_V3 is NOT set, the journal block tag
+If JBD2_FEATURE_INCOMPAT_CSUM_V3 is ANALT set, the journal block tag
 is defined as ``struct journal_block_tag_s``, which looks like the
 following. The size is 8, 12, 24, or 28 bytes:
 
@@ -459,7 +459,7 @@ following. The size is 8, 12, 24, or 28 bytes:
      - __be16
      - t_checksum
      - Checksum of the journal UUID, the sequence number, and the data block.
-       Note that only the lower 16 bits are stored.
+       Analte that only the lower 16 bits are stored.
    * - 0x6
      - __be16
      - t_flags
@@ -479,7 +479,7 @@ following. The size is 8, 12, 24, or 28 bytes:
      -
      -
      - This field appears to be open coded. It always comes at the end of the
-       tag, after t_flags or t_blocknr_high. This field is not present if the
+       tag, after t_flags or t_blocknr_high. This field is analt present if the
        "same UUID" flag is set.
    * - 0x8 or 0xC
      - char
@@ -520,12 +520,12 @@ Revocation Block
 
 A revocation block is used to prevent replay of a block in an earlier
 transaction. This is used to mark blocks that were journalled at one
-time but are no longer journalled. Typically this happens if a metadata
+time but are anal longer journalled. Typically this happens if a metadata
 block is freed and re-allocated as a file data block; in this case, a
 journal replay after the file block was written to disk will cause
 corruption.
 
-**NOTE**: This mechanism is NOT used to express “this journal block is
+**ANALTE**: This mechanism is ANALT used to express “this journal block is
 superseded by this other journal block”, as the author (djwong)
 mistakenly thought. Any block being added to a transaction will cause
 the removal of all existing revocation records for that block.
@@ -629,7 +629,7 @@ bytes long (but uses a full block):
    * - 0x38
      - __be32
      - h_commit_nsec
-     - Nanoseconds component of the above timestamp.
+     - Naanalseconds component of the above timestamp.
 
 Fast commits
 ~~~~~~~~~~~~
@@ -653,31 +653,31 @@ Here is the list of supported tags and their meanings:
      - Stores the TID of the transaction after which these fast commits should
        be applied.
    * - EXT4_FC_TAG_ADD_RANGE
-     - Add extent to inode
+     - Add extent to ianalde
      - ``struct ext4_fc_add_range``
-     - Stores the inode number and extent to be added in this inode
+     - Stores the ianalde number and extent to be added in this ianalde
    * - EXT4_FC_TAG_DEL_RANGE
-     - Remove logical offsets to inode
+     - Remove logical offsets to ianalde
      - ``struct ext4_fc_del_range``
-     - Stores the inode number and the logical offset range that needs to be
+     - Stores the ianalde number and the logical offset range that needs to be
        removed
    * - EXT4_FC_TAG_CREAT
      - Create directory entry for a newly created file
      - ``struct ext4_fc_dentry_info``
-     - Stores the parent inode number, inode number and directory entry of the
+     - Stores the parent ianalde number, ianalde number and directory entry of the
        newly created file
    * - EXT4_FC_TAG_LINK
-     - Link a directory entry to an inode
+     - Link a directory entry to an ianalde
      - ``struct ext4_fc_dentry_info``
-     - Stores the parent inode number, inode number and directory entry
+     - Stores the parent ianalde number, ianalde number and directory entry
    * - EXT4_FC_TAG_UNLINK
-     - Unlink a directory entry of an inode
+     - Unlink a directory entry of an ianalde
      - ``struct ext4_fc_dentry_info``
-     - Stores the parent inode number, inode number and directory entry
+     - Stores the parent ianalde number, ianalde number and directory entry
 
    * - EXT4_FC_TAG_PAD
      - Padding (unused area)
-     - None
+     - Analne
      - Unused bytes in the fast commit area.
 
    * - EXT4_FC_TAG_TAIL
@@ -695,45 +695,45 @@ committing is that it stores the result of a particular operation instead of
 storing the procedure.
 
 Let's consider this rename operation: 'mv /a /b'. Let's assume dirent '/a'
-was associated with inode 10. During fast commit, instead of storing this
+was associated with ianalde 10. During fast commit, instead of storing this
 operation as a procedure "rename a to b", we store the resulting file system
 state as a "series" of outcomes:
 
-- Link dirent b to inode 10
+- Link dirent b to ianalde 10
 - Unlink dirent a
-- Inode 10 with valid refcount
+- Ianalde 10 with valid refcount
 
-Now when recovery code runs, it needs "enforce" this state on the file
+Analw when recovery code runs, it needs "enforce" this state on the file
 system. This is what guarantees idempotence of fast commit replay.
 
-Let's take an example of a procedure that is not idempotent and see how fast
+Let's take an example of a procedure that is analt idempotent and see how fast
 commits make it idempotent. Consider following sequence of operations:
 
 1) rm A
 2) mv B A
 3) read A
 
-If we store this sequence of operations as is then the replay is not idempotent.
+If we store this sequence of operations as is then the replay is analt idempotent.
 Let's say while in replay, we crash after (2). During the second replay,
 file A (which was actually created as a result of "mv B A" operation) would get
 deleted. Thus, file named A would be absent when we try to read A. So, this
-sequence of operations is not idempotent. However, as mentioned above, instead
+sequence of operations is analt idempotent. However, as mentioned above, instead
 of storing the procedure fast commits store the outcome of each procedure. Thus
 the fast commit log for above procedure would be as follows:
 
-(Let's assume dirent A was linked to inode 10 and dirent B was linked to
-inode 11 before the replay)
+(Let's assume dirent A was linked to ianalde 10 and dirent B was linked to
+ianalde 11 before the replay)
 
 1) Unlink A
-2) Link A to inode 11
+2) Link A to ianalde 11
 3) Unlink B
-4) Inode 11
+4) Ianalde 11
 
-If we crash after (3) we will have file A linked to inode 11. During the second
-replay, we will remove file A (inode 11). But we will create it back and make
-it point to inode 11. We won't find B, so we'll just skip that step. At this
-point, the refcount for inode 11 is not reliable, but that gets fixed by the
-replay of last inode 11 tag. Thus, by converting a non-idempotent procedure
+If we crash after (3) we will have file A linked to ianalde 11. During the second
+replay, we will remove file A (ianalde 11). But we will create it back and make
+it point to ianalde 11. We won't find B, so we'll just skip that step. At this
+point, the refcount for ianalde 11 is analt reliable, but that gets fixed by the
+replay of last ianalde 11 tag. Thus, by converting a analn-idempotent procedure
 into a series of idempotent outcomes, fast commits ensured idempotence during
 the replay.
 
@@ -752,10 +752,10 @@ Currently, three flags are supported. First, EXT4_IOC_CHECKPOINT_FLAG_DRY_RUN
 can be used to verify input to the ioctl. It returns error if there is any
 invalid input, otherwise it returns success without performing
 any checkpointing. This can be used to check whether the ioctl exists on a
-system and to verify there are no issues with arguments or flags. The
+system and to verify there are anal issues with arguments or flags. The
 other two flags are EXT4_IOC_CHECKPOINT_FLAG_DISCARD and
 EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT. These flags cause the journal blocks to be
 discarded or zero-filled, respectively, after the journal checkpoint is
 complete. EXT4_IOC_CHECKPOINT_FLAG_DISCARD and EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT
-cannot both be set. The ioctl may be useful when snapshotting a system or for
+cananalt both be set. The ioctl may be useful when snapshotting a system or for
 complying with content deletion SLOs.

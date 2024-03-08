@@ -57,7 +57,7 @@
 #define EV_REGISTER_OFFSET_Y		0x45
 #define EV_REGISTER_OFFSET_X		0x46
 
-#define NO_REGISTER			0xff
+#define ANAL_REGISTER			0xff
 
 #define WORK_REGISTER_OPMODE		0x3c
 #define FACTORY_REGISTER_OPMODE		0x01
@@ -81,7 +81,7 @@
 #define M06_REG_ADDR(factory, addr) ((factory) ? (addr) & 0x7f : (addr) & 0x3f)
 
 enum edt_pmode {
-	EDT_PMODE_NOT_SUPPORTED,
+	EDT_PMODE_ANALT_SUPPORTED,
 	EDT_PMODE_HIBERNATE,
 	EDT_PMODE_POWEROFF,
 };
@@ -317,7 +317,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		u8 *buf = &rdbuf[i * tsdata->point_len + tsdata->tdata_offset];
 
 		type = buf[0] >> 6;
-		/* ignore Reserved events */
+		/* iganalre Reserved events */
 		if (type == TOUCH_EVENT_RESERVED)
 			continue;
 
@@ -408,11 +408,11 @@ static ssize_t edt_ft5x06_setting_show(struct device *dev,
 		break;
 
 	default:
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out;
 	}
 
-	if (addr != NO_REGISTER) {
+	if (addr != ANAL_REGISTER) {
 		error = regmap_read(tsdata->regmap, addr, &val);
 		if (error) {
 			dev_err(&tsdata->client->dev,
@@ -482,11 +482,11 @@ static ssize_t edt_ft5x06_setting_store(struct device *dev,
 		break;
 
 	default:
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out;
 	}
 
-	if (addr != NO_REGISTER) {
+	if (addr != ANAL_REGISTER) {
 		error = regmap_write(tsdata->regmap, addr, val);
 		if (error) {
 			dev_err(&tsdata->client->dev,
@@ -507,19 +507,19 @@ static EDT_ATTR(gain, S_IWUSR | S_IRUGO, WORK_REGISTER_GAIN,
 		M09_REGISTER_GAIN, EV_REGISTER_GAIN, 0, 31);
 /* m06, m09: range 0-31, m12: range 0-16 */
 static EDT_ATTR(offset, S_IWUSR | S_IRUGO, WORK_REGISTER_OFFSET,
-		M09_REGISTER_OFFSET, NO_REGISTER, 0, 31);
-/* m06, m09, m12: no supported, ev_ft: range 0-80 */
-static EDT_ATTR(offset_x, S_IWUSR | S_IRUGO, NO_REGISTER, NO_REGISTER,
+		M09_REGISTER_OFFSET, ANAL_REGISTER, 0, 31);
+/* m06, m09, m12: anal supported, ev_ft: range 0-80 */
+static EDT_ATTR(offset_x, S_IWUSR | S_IRUGO, ANAL_REGISTER, ANAL_REGISTER,
 		EV_REGISTER_OFFSET_X, 0, 80);
-/* m06, m09, m12: no supported, ev_ft: range 0-80 */
-static EDT_ATTR(offset_y, S_IWUSR | S_IRUGO, NO_REGISTER, NO_REGISTER,
+/* m06, m09, m12: anal supported, ev_ft: range 0-80 */
+static EDT_ATTR(offset_y, S_IWUSR | S_IRUGO, ANAL_REGISTER, ANAL_REGISTER,
 		EV_REGISTER_OFFSET_Y, 0, 80);
 /* m06: range 20 to 80, m09: range 0 to 30, m12: range 1 to 255... */
 static EDT_ATTR(threshold, S_IWUSR | S_IRUGO, WORK_REGISTER_THRESHOLD,
 		M09_REGISTER_THRESHOLD, EV_REGISTER_THRESHOLD, 0, 255);
 /* m06: range 3 to 14, m12: range 1 to 255 */
 static EDT_ATTR(report_rate, S_IWUSR | S_IRUGO, WORK_REGISTER_REPORT_RATE,
-		M12_REGISTER_REPORT_RATE, NO_REGISTER, 0, 255);
+		M12_REGISTER_REPORT_RATE, ANAL_REGISTER, 0, 255);
 
 static ssize_t model_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -589,13 +589,13 @@ static void edt_ft5x06_restore_reg_parameters(struct edt_ft5x06_ts_data *tsdata)
 
 	regmap_write(regmap, reg_addr->reg_threshold, tsdata->threshold);
 	regmap_write(regmap, reg_addr->reg_gain, tsdata->gain);
-	if (reg_addr->reg_offset != NO_REGISTER)
+	if (reg_addr->reg_offset != ANAL_REGISTER)
 		regmap_write(regmap, reg_addr->reg_offset, tsdata->offset);
-	if (reg_addr->reg_offset_x != NO_REGISTER)
+	if (reg_addr->reg_offset_x != ANAL_REGISTER)
 		regmap_write(regmap, reg_addr->reg_offset_x, tsdata->offset_x);
-	if (reg_addr->reg_offset_y != NO_REGISTER)
+	if (reg_addr->reg_offset_y != ANAL_REGISTER)
 		regmap_write(regmap, reg_addr->reg_offset_y, tsdata->offset_y);
-	if (reg_addr->reg_report_rate != NO_REGISTER)
+	if (reg_addr->reg_report_rate != ANAL_REGISTER)
 		regmap_write(regmap, reg_addr->reg_report_rate,
 			     tsdata->report_rate);
 }
@@ -610,7 +610,7 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 
 	if (tsdata->version != EDT_M06) {
 		dev_err(&client->dev,
-			"No factory mode support for non-M06 devices\n");
+			"Anal factory mode support for analn-M06 devices\n");
 		return -EINVAL;
 	}
 
@@ -621,7 +621,7 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 				      sizeof(u16);
 		tsdata->raw_buffer = kzalloc(tsdata->raw_bufsize, GFP_KERNEL);
 		if (!tsdata->raw_buffer) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto err_out;
 		}
 	}
@@ -645,7 +645,7 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 	} while (--retries > 0);
 
 	if (retries == 0) {
-		dev_err(&client->dev, "not in factory mode after %dms.\n",
+		dev_err(&client->dev, "analt in factory mode after %dms.\n",
 			EDT_SWITCH_MODE_RETRIES * EDT_SWITCH_MODE_DELAY);
 		error = -EIO;
 		goto err_out;
@@ -688,7 +688,7 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 	} while (--retries > 0);
 
 	if (retries == 0) {
-		dev_err(&client->dev, "not in work mode after %dms.\n",
+		dev_err(&client->dev, "analt in work mode after %dms.\n",
 			EDT_SWITCH_MODE_RETRIES * EDT_SWITCH_MODE_DELAY);
 		tsdata->factory_mode = true;
 		return -EIO;
@@ -839,7 +839,7 @@ static void edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 
 static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
@@ -873,7 +873,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 
 	/* Probe content for something consistent.
 	 * M06 starts with a response byte, M12 gives the data directly.
-	 * M09/Generic does not provide model number information.
+	 * M09/Generic does analt provide model number information.
 	 */
 	if (!strncasecmp(rdbuf + 1, "EP0", 3)) {
 		tsdata->version = EDT_M06;
@@ -912,13 +912,13 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		strscpy(model_name, rdbuf, EDT_NAME_LEN);
 		strscpy(fw_version, p ? p : "", EDT_NAME_LEN);
 	} else {
-		/* If it is not an EDT M06/M12 touchscreen, then the model
+		/* If it is analt an EDT M06/M12 touchscreen, then the model
 		 * detection is a bit hairy. The different ft5x06
 		 * firmwares around don't reliably implement the
 		 * identification registers. Well, we'll take a shot.
 		 *
 		 * The main difference between generic focaltec based
-		 * touches and EDT M09 is that we know how to retrieve
+		 * touches and EDT M09 is that we kanalw how to retrieve
 		 * the max coordinates for the latter.
 		 */
 		tsdata->version = GENERIC_FT;
@@ -933,8 +933,8 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		if (error)
 			return error;
 
-		/* This "model identification" is not exact. Unfortunately
-		 * not all firmwares for the ft5x06 put useful values in
+		/* This "model identification" is analt exact. Unfortunately
+		 * analt all firmwares for the ft5x06 put useful values in
 		 * the identification registers.
 		 */
 		switch (rdbuf[0]) {
@@ -998,21 +998,21 @@ static void edt_ft5x06_ts_get_defaults(struct device *dev,
 
 	error = device_property_read_u32(dev, "offset", &val);
 	if (!error) {
-		if (reg_addr->reg_offset != NO_REGISTER)
+		if (reg_addr->reg_offset != ANAL_REGISTER)
 			regmap_write(regmap, reg_addr->reg_offset, val);
 		tsdata->offset = val;
 	}
 
 	error = device_property_read_u32(dev, "offset-x", &val);
 	if (!error) {
-		if (reg_addr->reg_offset_x != NO_REGISTER)
+		if (reg_addr->reg_offset_x != ANAL_REGISTER)
 			regmap_write(regmap, reg_addr->reg_offset_x, val);
 		tsdata->offset_x = val;
 	}
 
 	error = device_property_read_u32(dev, "offset-y", &val);
 	if (!error) {
-		if (reg_addr->reg_offset_y != NO_REGISTER)
+		if (reg_addr->reg_offset_y != ANAL_REGISTER)
 			regmap_write(regmap, reg_addr->reg_offset_y, val);
 		tsdata->offset_y = val;
 	}
@@ -1026,22 +1026,22 @@ static void edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 
 	regmap_read(regmap, reg_addr->reg_threshold, &tsdata->threshold);
 	regmap_read(regmap, reg_addr->reg_gain, &tsdata->gain);
-	if (reg_addr->reg_offset != NO_REGISTER)
+	if (reg_addr->reg_offset != ANAL_REGISTER)
 		regmap_read(regmap, reg_addr->reg_offset, &tsdata->offset);
-	if (reg_addr->reg_offset_x != NO_REGISTER)
+	if (reg_addr->reg_offset_x != ANAL_REGISTER)
 		regmap_read(regmap, reg_addr->reg_offset_x, &tsdata->offset_x);
-	if (reg_addr->reg_offset_y != NO_REGISTER)
+	if (reg_addr->reg_offset_y != ANAL_REGISTER)
 		regmap_read(regmap, reg_addr->reg_offset_y, &tsdata->offset_y);
-	if (reg_addr->reg_report_rate != NO_REGISTER)
+	if (reg_addr->reg_report_rate != ANAL_REGISTER)
 		regmap_read(regmap, reg_addr->reg_report_rate,
 			    &tsdata->report_rate);
 	tsdata->num_x = EDT_DEFAULT_NUM_X;
-	if (reg_addr->reg_num_x != NO_REGISTER) {
+	if (reg_addr->reg_num_x != ANAL_REGISTER) {
 		if (!regmap_read(regmap, reg_addr->reg_num_x, &val))
 			tsdata->num_x = val;
 	}
 	tsdata->num_y = EDT_DEFAULT_NUM_Y;
-	if (reg_addr->reg_num_y != NO_REGISTER) {
+	if (reg_addr->reg_num_y != ANAL_REGISTER) {
 		if (!regmap_read(regmap, reg_addr->reg_num_y, &val))
 			tsdata->num_y = val;
 	}
@@ -1077,8 +1077,8 @@ static void edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 		reg_addr->reg_report_rate = WORK_REGISTER_REPORT_RATE;
 		reg_addr->reg_gain = WORK_REGISTER_GAIN;
 		reg_addr->reg_offset = WORK_REGISTER_OFFSET;
-		reg_addr->reg_offset_x = NO_REGISTER;
-		reg_addr->reg_offset_y = NO_REGISTER;
+		reg_addr->reg_offset_x = ANAL_REGISTER;
+		reg_addr->reg_offset_y = ANAL_REGISTER;
 		reg_addr->reg_num_x = WORK_REGISTER_NUM_X;
 		reg_addr->reg_num_y = WORK_REGISTER_NUM_Y;
 		break;
@@ -1087,36 +1087,36 @@ static void edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 	case EDT_M12:
 		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
 		reg_addr->reg_report_rate = tsdata->version == EDT_M12 ?
-			M12_REGISTER_REPORT_RATE : NO_REGISTER;
+			M12_REGISTER_REPORT_RATE : ANAL_REGISTER;
 		reg_addr->reg_gain = M09_REGISTER_GAIN;
 		reg_addr->reg_offset = M09_REGISTER_OFFSET;
-		reg_addr->reg_offset_x = NO_REGISTER;
-		reg_addr->reg_offset_y = NO_REGISTER;
+		reg_addr->reg_offset_x = ANAL_REGISTER;
+		reg_addr->reg_offset_y = ANAL_REGISTER;
 		reg_addr->reg_num_x = M09_REGISTER_NUM_X;
 		reg_addr->reg_num_y = M09_REGISTER_NUM_Y;
 		break;
 
 	case EV_FT:
 		reg_addr->reg_threshold = EV_REGISTER_THRESHOLD;
-		reg_addr->reg_report_rate = NO_REGISTER;
+		reg_addr->reg_report_rate = ANAL_REGISTER;
 		reg_addr->reg_gain = EV_REGISTER_GAIN;
-		reg_addr->reg_offset = NO_REGISTER;
+		reg_addr->reg_offset = ANAL_REGISTER;
 		reg_addr->reg_offset_x = EV_REGISTER_OFFSET_X;
 		reg_addr->reg_offset_y = EV_REGISTER_OFFSET_Y;
-		reg_addr->reg_num_x = NO_REGISTER;
-		reg_addr->reg_num_y = NO_REGISTER;
+		reg_addr->reg_num_x = ANAL_REGISTER;
+		reg_addr->reg_num_y = ANAL_REGISTER;
 		break;
 
 	case GENERIC_FT:
 		/* this is a guesswork */
 		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
-		reg_addr->reg_report_rate = NO_REGISTER;
+		reg_addr->reg_report_rate = ANAL_REGISTER;
 		reg_addr->reg_gain = M09_REGISTER_GAIN;
 		reg_addr->reg_offset = M09_REGISTER_OFFSET;
-		reg_addr->reg_offset_x = NO_REGISTER;
-		reg_addr->reg_offset_y = NO_REGISTER;
-		reg_addr->reg_num_x = NO_REGISTER;
-		reg_addr->reg_num_y = NO_REGISTER;
+		reg_addr->reg_offset_x = ANAL_REGISTER;
+		reg_addr->reg_offset_y = ANAL_REGISTER;
+		reg_addr->reg_num_x = ANAL_REGISTER;
+		reg_addr->reg_num_y = ANAL_REGISTER;
 		break;
 	}
 }
@@ -1145,7 +1145,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	tsdata = devm_kzalloc(&client->dev, sizeof(*tsdata), GFP_KERNEL);
 	if (!tsdata) {
 		dev_err(&client->dev, "failed to allocate driver data.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tsdata->regmap = regmap_init_i2c(client, &edt_ft5x06_i2c_regmap_config);
@@ -1229,7 +1229,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	else if (tsdata->wake_gpio)
 		tsdata->suspend_mode = EDT_PMODE_HIBERNATE;
 	else
-		tsdata->suspend_mode = EDT_PMODE_NOT_SUPPORTED;
+		tsdata->suspend_mode = EDT_PMODE_ANALT_SUPPORTED;
 
 	if (tsdata->wake_gpio) {
 		usleep_range(5000, 6000);
@@ -1246,7 +1246,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	input = devm_input_allocate_device(&client->dev);
 	if (!input) {
 		dev_err(&client->dev, "failed to allocate input device.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&tsdata->mutex);
@@ -1263,7 +1263,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 
 	/*
 	 * Dummy read access. EP0700MLP1 returns bogus data on the first
-	 * register read access and ignores writes.
+	 * register read access and iganalres writes.
 	 */
 	regmap_read(tsdata->regmap, 0x00, &val);
 
@@ -1272,7 +1272,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	edt_ft5x06_ts_get_defaults(&client->dev, tsdata);
 	edt_ft5x06_ts_get_parameters(tsdata);
 
-	if (tsdata->reg_addr.reg_report_rate != NO_REGISTER &&
+	if (tsdata->reg_addr.reg_report_rate != ANAL_REGISTER &&
 	    !device_property_read_u32(&client->dev,
 				      "report-rate-hz", &report_rate)) {
 		if (tsdata->version == EDT_M06)
@@ -1315,7 +1315,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	}
 
 	irq_flags = irq_get_trigger_type(client->irq);
-	if (irq_flags == IRQF_TRIGGER_NONE)
+	if (irq_flags == IRQF_TRIGGER_ANALNE)
 		irq_flags = IRQF_TRIGGER_FALLING;
 	irq_flags |= IRQF_ONESHOT;
 
@@ -1360,7 +1360,7 @@ static int edt_ft5x06_ts_suspend(struct device *dev)
 	if (device_may_wakeup(dev))
 		return 0;
 
-	if (tsdata->suspend_mode == EDT_PMODE_NOT_SUPPORTED)
+	if (tsdata->suspend_mode == EDT_PMODE_ANALT_SUPPORTED)
 		return 0;
 
 	/* Enter hibernate mode. */
@@ -1402,7 +1402,7 @@ static int edt_ft5x06_ts_resume(struct device *dev)
 	if (device_may_wakeup(dev))
 		return 0;
 
-	if (tsdata->suspend_mode == EDT_PMODE_NOT_SUPPORTED)
+	if (tsdata->suspend_mode == EDT_PMODE_ANALT_SUPPORTED)
 		return 0;
 
 	if (tsdata->suspend_mode == EDT_PMODE_POWEROFF) {
@@ -1474,7 +1474,7 @@ static const struct i2c_device_id edt_ft5x06_ts_id[] = {
 	{ .name = "edt-ft5x06", .driver_data = (long)&edt_ft5x06_data },
 	{ .name = "edt-ft5506", .driver_data = (long)&edt_ft5506_data },
 	{ .name = "ev-ft5726", .driver_data = (long)&edt_ft5506_data },
-	/* Note no edt- prefix for compatibility with the ft6236.c driver */
+	/* Analte anal edt- prefix for compatibility with the ft6236.c driver */
 	{ .name = "ft6236", .driver_data = (long)&edt_ft6236_data },
 	{ /* sentinel */ }
 };
@@ -1486,7 +1486,7 @@ static const struct of_device_id edt_ft5x06_of_match[] = {
 	{ .compatible = "edt,edt-ft5406", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5506", .data = &edt_ft5506_data },
 	{ .compatible = "evervision,ev-ft5726", .data = &edt_ft5506_data },
-	/* Note focaltech vendor prefix for compatibility with ft6236.c */
+	/* Analte focaltech vendor prefix for compatibility with ft6236.c */
 	{ .compatible = "focaltech,ft6236", .data = &edt_ft6236_data },
 	{ /* sentinel */ }
 };
@@ -1498,7 +1498,7 @@ static struct i2c_driver edt_ft5x06_ts_driver = {
 		.dev_groups = edt_ft5x06_groups,
 		.of_match_table = edt_ft5x06_of_match,
 		.pm = pm_sleep_ptr(&edt_ft5x06_ts_pm_ops),
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table = edt_ft5x06_ts_id,
 	.probe    = edt_ft5x06_ts_probe,

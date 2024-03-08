@@ -77,7 +77,7 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
 {
 	struct xfrm6_tunnel __rcu **pprev;
 	struct xfrm6_tunnel *t;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	mutex_lock(&tunnel6_mutex);
 
@@ -209,7 +209,7 @@ static int tunnel6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int tunnel46_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -221,7 +221,7 @@ static int tunnel46_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int tunnelmpls6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -233,25 +233,25 @@ static int tunnelmpls6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static const struct inet6_protocol tunnel6_protocol = {
 	.handler	= tunnel6_rcv,
 	.err_handler	= tunnel6_err,
-	.flags          = INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
+	.flags          = INET6_PROTO_ANALPOLICY|INET6_PROTO_FINAL,
 };
 
 static const struct inet6_protocol tunnel46_protocol = {
 	.handler	= tunnel46_rcv,
 	.err_handler	= tunnel46_err,
-	.flags          = INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
+	.flags          = INET6_PROTO_ANALPOLICY|INET6_PROTO_FINAL,
 };
 
 static const struct inet6_protocol tunnelmpls6_protocol = {
 	.handler	= tunnelmpls6_rcv,
 	.err_handler	= tunnelmpls6_err,
-	.flags          = INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
+	.flags          = INET6_PROTO_ANALPOLICY|INET6_PROTO_FINAL,
 };
 
 static int __init tunnel6_init(void)

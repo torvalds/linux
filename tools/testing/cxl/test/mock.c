@@ -41,10 +41,10 @@ void put_cxl_mock_ops(int index)
 }
 EXPORT_SYMBOL_GPL(put_cxl_mock_ops);
 
-bool __wrap_is_acpi_device_node(const struct fwnode_handle *fwnode)
+bool __wrap_is_acpi_device_analde(const struct fwanalde_handle *fwanalde)
 {
 	struct acpi_device *adev =
-		container_of(fwnode, struct acpi_device, fwnode);
+		container_of(fwanalde, struct acpi_device, fwanalde);
 	int index;
 	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
 	bool retval = false;
@@ -53,12 +53,12 @@ bool __wrap_is_acpi_device_node(const struct fwnode_handle *fwnode)
 		retval = ops->is_mock_adev(adev);
 
 	if (!retval)
-		retval = is_acpi_device_node(fwnode);
+		retval = is_acpi_device_analde(fwanalde);
 
 	put_cxl_mock_ops(index);
 	return retval;
 }
-EXPORT_SYMBOL(__wrap_is_acpi_device_node);
+EXPORT_SYMBOL(__wrap_is_acpi_device_analde);
 
 int __wrap_acpi_table_parse_cedt(enum acpi_cedt_type id,
 				 acpi_tbl_entry_handler_arg handler_arg,
@@ -255,7 +255,7 @@ struct cxl_dport *__wrap_devm_cxl_add_rch_dport(struct cxl_port *port,
 
 	if (ops && ops->is_mock_port(dport_dev)) {
 		dport = devm_cxl_add_dport(port, dport_dev, port_id,
-					   CXL_RESOURCE_NONE);
+					   CXL_RESOURCE_ANALNE);
 		if (!IS_ERR(dport)) {
 			dport->rcrb.base = rcrb;
 			dport->rch = true;
@@ -276,7 +276,7 @@ resource_size_t __wrap_cxl_rcd_component_reg_phys(struct device *dev,
 	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
 
 	if (ops && ops->is_mock_port(dev))
-		component_reg_phys = CXL_RESOURCE_NONE;
+		component_reg_phys = CXL_RESOURCE_ANALNE;
 	else
 		component_reg_phys = cxl_rcd_component_reg_phys(dev, dport);
 	put_cxl_mock_ops(index);

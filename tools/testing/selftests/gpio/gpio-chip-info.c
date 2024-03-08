@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 	} else if (strcmp(argv[2], "num-lines") == 0) {
 		printf("%u\n", info.lines);
 	} else {
-		fprintf(stderr, "unknown command: %s\n", argv[2]);
+		fprintf(stderr, "unkanalwn command: %s\n", argv[2]);
 		return EXIT_FAILURE;
 	}
 

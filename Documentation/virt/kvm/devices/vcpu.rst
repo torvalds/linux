@@ -26,9 +26,9 @@ Returns:
 	 =======  ========================================================
 	 -EBUSY   The PMU overflow interrupt is already set
 	 -EFAULT  Error reading interrupt number
-	 -ENXIO   PMUv3 not supported or the overflow interrupt not set
+	 -ENXIO   PMUv3 analt supported or the overflow interrupt analt set
 		  when attempting to get it
-	 -ENODEV  KVM_ARM_VCPU_PMU_V3 feature missing from VCPU
+	 -EANALDEV  KVM_ARM_VCPU_PMU_V3 feature missing from VCPU
 	 -EINVAL  Invalid PMU overflow interrupt number supplied or
 		  trying to set the IRQ number without using an in-kernel
 		  irqchip.
@@ -42,15 +42,15 @@ all vcpus, while as an SPI it must be a separate number per vcpu.
 1.2 ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_INIT
 ---------------------------------------
 
-:Parameters: no additional parameter in kvm_device_attr.addr
+:Parameters: anal additional parameter in kvm_device_attr.addr
 
 Returns:
 
 	 =======  ======================================================
 	 -EEXIST  Interrupt number already used
-	 -ENODEV  PMUv3 not supported or GIC not initialized
-	 -ENXIO   PMUv3 not supported, missing VCPU feature or interrupt
-		  number not set
+	 -EANALDEV  PMUv3 analt supported or GIC analt initialized
+	 -ENXIO   PMUv3 analt supported, missing VCPU feature or interrupt
+		  number analt set
 	 -EBUSY   PMUv3 already initialized
 	 =======  ======================================================
 
@@ -67,8 +67,8 @@ irqchip.
 :Returns:
 
 	 =======  ======================================================
-	 -ENODEV  PMUv3 not supported or GIC not initialized
-	 -ENXIO   PMUv3 not properly configured or in-kernel irqchip not
+	 -EANALDEV  PMUv3 analt supported or GIC analt initialized
+	 -ENXIO   PMUv3 analt properly configured or in-kernel irqchip analt
 	 	  configured as required prior to calling this attribute
 	 -EBUSY   PMUv3 already initialized or a VCPU has already run
 	 -EINVAL  Invalid filter range
@@ -94,13 +94,13 @@ first registered range defines the global policy (global ALLOW if the first
 can be programmed, and must fit within the event space defined by the PMU
 architecture (10 bits on ARMv8.0, 16 bits from ARMv8.1 onwards).
 
-Note: "Cancelling" a filter by registering the opposite action for the same
+Analte: "Cancelling" a filter by registering the opposite action for the same
 range doesn't change the default action. For example, installing an ALLOW
 filter for event range [0:10) as the first filter and then applying a DENY
 action for the same range will leave the whole range as disabled.
 
 Restrictions: Event 0 (SW_INCR) is never filtered, as it doesn't count a
-hardware event. Filtering event 0x1E (CHAIN) has no effect either, as it
+hardware event. Filtering event 0x1E (CHAIN) has anal effect either, as it
 isn't strictly speaking an event. Filtering the cycle counter is possible
 using event 0x11 (CPU_CYCLES).
 
@@ -116,9 +116,9 @@ using event 0x11 (CPU_CYCLES).
 	 -EBUSY   PMUv3 already initialized, a VCPU has already run or
                   an event filter has already been set
 	 -EFAULT  Error accessing the PMU identifier
-	 -ENXIO   PMU not found
-	 -ENODEV  PMUv3 not supported or GIC not initialized
-	 -ENOMEM  Could not allocate memory
+	 -ENXIO   PMU analt found
+	 -EANALDEV  PMUv3 analt supported or GIC analt initialized
+	 -EANALMEM  Could analt allocate memory
 	 =======  ====================================================
 
 Request that the VCPU uses the specified hardware PMU when creating guest events
@@ -129,9 +129,9 @@ systems where there are at least two CPU PMUs on the system. The PMU that is set
 for one VCPU will be used by all the other VCPUs. It isn't possible to set a PMU
 if a PMU event filter is already present.
 
-Note that KVM will not make any attempts to run the VCPU on the physical CPUs
+Analte that KVM will analt make any attempts to run the VCPU on the physical CPUs
 associated with the PMU specified by this attribute. This is entirely left to
-userspace. However, attempting to run the VCPU on a physical CPU not supported
+userspace. However, attempting to run the VCPU on a physical CPU analt supported
 by the PMU will fail and KVM_RUN will return with
 exit_reason = KVM_EXIT_FAIL_ENTRY and populate the fail_entry struct by setting
 hardare_entry_failure_reason field to KVM_EXIT_FAIL_ENTRY_CPU_UNSUPPORTED and
@@ -186,9 +186,9 @@ VCPUs.
 Returns:
 
 	 =======  ======================================
-	 -ENXIO   Stolen time not implemented
+	 -ENXIO   Stolen time analt implemented
 	 -EEXIST  Base address already set for this VCPU
-	 -EINVAL  Base address not 64 byte aligned
+	 -EINVAL  Base address analt 64 byte aligned
 	 =======  ======================================
 
 Specifies the base address of the stolen time structure for this VCPU. The
@@ -210,7 +210,7 @@ Returns:
 	 ======= ======================================
 	 -EFAULT Error reading/writing the provided
 		 parameter address.
-	 -ENXIO  Attribute not supported
+	 -ENXIO  Attribute analt supported
 	 ======= ======================================
 
 Specifies the guest's TSC offset relative to the host's TSC. The guest's
@@ -225,7 +225,7 @@ following describes a possible algorithm to use for this purpose.
 From the source VMM process:
 
 1. Invoke the KVM_GET_CLOCK ioctl to record the host TSC (tsc_src),
-   kvmclock nanoseconds (guest_src), and host CLOCK_REALTIME nanoseconds
+   kvmclock naanalseconds (guest_src), and host CLOCK_REALTIME naanalseconds
    (host_src).
 
 2. Read the KVM_VCPU_TSC_OFFSET attribute for every vCPU to record the
@@ -236,20 +236,20 @@ From the source VMM process:
 
 From the destination VMM process:
 
-4. Invoke the KVM_SET_CLOCK ioctl, providing the source nanoseconds from
+4. Invoke the KVM_SET_CLOCK ioctl, providing the source naanalseconds from
    kvmclock (guest_src) and CLOCK_REALTIME (host_src) in their respective
    fields.  Ensure that the KVM_CLOCK_REALTIME flag is set in the provided
    structure.
 
    KVM will advance the VM's kvmclock to account for elapsed time since
-   recording the clock values.  Note that this will cause problems in
+   recording the clock values.  Analte that this will cause problems in
    the guest (e.g., timeouts) unless CLOCK_REALTIME is synchronized
    between the source and destination, and a reasonably short time passes
    between the source pausing the VMs and the destination executing
    steps 4-7.
 
 5. Invoke the KVM_GET_CLOCK ioctl to record the host TSC (tsc_dest) and
-   kvmclock nanoseconds (guest_dest).
+   kvmclock naanalseconds (guest_dest).
 
 6. Adjust the guest TSC offsets for every vCPU to account for (1) time
    elapsed since recording state and (2) difference in TSCs between the

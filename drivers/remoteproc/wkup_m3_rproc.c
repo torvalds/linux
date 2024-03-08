@@ -65,7 +65,7 @@ static int wkup_m3_rproc_start(struct rproc *rproc)
 
 	if (!wkupm3->rsts && pdata->deassert_reset(pdev, pdata->reset_name)) {
 		dev_err(dev, "Unable to reset wkup_m3!\n");
-		error = -ENODEV;
+		error = -EANALDEV;
 	}
 
 	return error;
@@ -83,7 +83,7 @@ static int wkup_m3_rproc_stop(struct rproc *rproc)
 
 	if (!wkupm3->rsts && pdata->assert_reset(pdev, pdata->reset_name)) {
 		dev_err(dev, "Unable to assert reset of wkup_m3!\n");
-		error = -ENODEV;
+		error = -EANALDEV;
 	}
 
 	return error;
@@ -141,11 +141,11 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	ret = of_property_read_string(dev->of_node, "ti,pm-firmware",
+	ret = of_property_read_string(dev->of_analde, "ti,pm-firmware",
 				      &fw_name);
 	if (ret) {
-		dev_err(dev, "No firmware filename given\n");
-		return -ENODEV;
+		dev_err(dev, "Anal firmware filename given\n");
+		return -EANALDEV;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -158,7 +158,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	rproc = rproc_alloc(dev, "wkup_m3", &wkup_m3_rproc_ops,
 			    fw_name, sizeof(*wkupm3));
 	if (!rproc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -176,7 +176,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		if (!(pdata && pdata->deassert_reset && pdata->assert_reset &&
 		      pdata->reset_name)) {
 			dev_err(dev, "Platform data missing!\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_put_rproc;
 		}
 	}
@@ -193,7 +193,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		}
 		wkupm3->mem[i].bus_addr = res->start;
 		wkupm3->mem[i].size = resource_size(res);
-		addrp = of_get_address(dev->of_node, i, &size, NULL);
+		addrp = of_get_address(dev->of_analde, i, &size, NULL);
 		/*
 		 * The wkupm3 has umem at address 0 in its view, so the device
 		 * addresses for each memory region is computed as a relative
@@ -218,7 +218,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 err_put_rproc:
 	rproc_free(rproc);
 err:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	return ret;
 }

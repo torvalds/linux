@@ -50,7 +50,7 @@ void sb1250_smp_init(void)
  */
 
 /*
- * Simple enough; everything is set up, so just poke the appropriate mailbox
+ * Simple eanalugh; everything is set up, so just poke the appropriate mailbox
  * register, and we should be set
  */
 static void sb1250_send_ipi_single(int cpu, unsigned int action)
@@ -108,7 +108,7 @@ static int sb1250_boot_secondary(int cpu, struct task_struct *idle)
 /*
  * Use CFE to find out how many CPUs are available, setting up
  * cpu_possible_mask and the logical/physical mappings.
- * XXXKW will the boot CPU ever not be physical 0?
+ * XXXKW will the boot CPU ever analt be physical 0?
  *
  * Common setup before any secondaries are started
  */

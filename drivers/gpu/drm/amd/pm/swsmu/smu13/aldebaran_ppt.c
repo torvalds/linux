@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,7 +48,7 @@
 #include "mp/mp_13_0_2_offset.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -246,21 +246,21 @@ static int aldebaran_tables_init(struct smu_context *smu)
 
 	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
-		return -ENOMEM;
+		return -EANALMEM;
 	smu_table->metrics_time = 0;
 
 	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_3);
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table) {
 		kfree(smu_table->metrics_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	smu_table->ecc_table = kzalloc(tables[SMU_TABLE_ECCINFO].size, GFP_KERNEL);
 	if (!smu_table->ecc_table) {
 		kfree(smu_table->metrics_table);
 		kfree(smu_table->gpu_metrics_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -273,7 +273,7 @@ static int aldebaran_allocate_dpm_context(struct smu_context *smu)
 	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_13_0_dpm_context),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_13_0_dpm_context);
 
 	return 0;
@@ -332,7 +332,7 @@ static int aldebaran_set_default_dpm_table(struct smu_context *smu)
 	/* gfxclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.gfx_table;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
-		/* in the case of gfxclk, only fine-grained dpm is honored */
+		/* in the case of gfxclk, only fine-grained dpm is hoanalred */
 		dpm_table->count = 2;
 		dpm_table->dpm_levels[0].value = pptable->GfxclkFmin;
 		dpm_table->dpm_levels[0].enabled = true;
@@ -624,7 +624,7 @@ static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 		if (aldebaran_is_primary(smu))
 			*value = metrics->AverageSocketPower << 8;
 		else
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->TemperatureEdge *
@@ -984,7 +984,7 @@ static int aldebaran_force_clk_levels(struct smu_context *smu,
 	case SMU_SOCCLK:
 	case SMU_FCLK:
 		/*
-		 * Should not arrive here since aldebaran does not
+		 * Should analt arrive here since aldebaran does analt
 		 * support mclk/socclk/fclk softmin/softmax settings
 		 */
 		ret = -EINVAL;
@@ -1134,7 +1134,7 @@ static int aldebaran_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1161,7 +1161,7 @@ static int aldebaran_get_power_limit(struct smu_context *smu,
 		if (min_power_limit)
 			*min_power_limit = 0;
 		dev_warn(smu->adev->dev,
-			"PPT feature is not enabled, power values can't be fetched.");
+			"PPT feature is analt enabled, power values can't be fetched.");
 
 		return 0;
 	}
@@ -1177,7 +1177,7 @@ static int aldebaran_get_power_limit(struct smu_context *smu,
 			/* the last hope to figure out the ppt limit */
 			if (!pptable) {
 				dev_err(smu->adev->dev,
-					"Cannot get PPT limit due to pptable missing!");
+					"Cananalt get PPT limit due to pptable missing!");
 				return -EINVAL;
 			}
 			power_limit = pptable->PptLimit;
@@ -1231,7 +1231,7 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 		&dpm_context->dpm_tables.gfx_table;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 
-	/* Disable determinism if switching to another mode */
+	/* Disable determinism if switching to aanalther mode */
 	if ((smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) &&
 	    (level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)) {
 		smu_cmn_send_smc_msg(smu, SMU_MSG_DisableDeterminism, NULL);
@@ -1345,7 +1345,7 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (size != 2) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 
@@ -1375,7 +1375,7 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 		break;
 	case PP_OD_RESTORE_DEFAULT_TABLE:
 		if (size != 0) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		} else {
 			/* Use the default frequencies for manual and determinism mode */
@@ -1387,7 +1387,7 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
 		if (size != 0) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		} else {
 			if (!pstate_table->gfxclk_pstate.custom.min)
@@ -1405,7 +1405,7 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 		}
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return ret;
@@ -1439,7 +1439,7 @@ static int aldebaran_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->I2CcontrollerPort = smu_i2c->port;
 	req->I2CSpeed = I2C_SPEED_FAST_400K;
@@ -1512,7 +1512,7 @@ static const struct i2c_algorithm aldebaran_i2c_algo = {
 };
 
 static const struct i2c_adapter_quirks aldebaran_i2c_control_quirks = {
-	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_ANAL_ZERO_LEN,
 	.max_read_len  = MAX_SW_I2C_COMMANDS,
 	.max_write_len = MAX_SW_I2C_COMMANDS,
 	.max_comb_1st_msg_len = 2,
@@ -1583,7 +1583,7 @@ out:
 
 static bool aldebaran_is_baco_supported(struct smu_context *smu)
 {
-	/* aldebaran is not support baco */
+	/* aldebaran is analt support baco */
 
 	return false;
 }
@@ -1594,7 +1594,7 @@ static int aldebaran_set_df_cstate(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 
 	/*
-	 * Aldebaran does not need the cstate disablement
+	 * Aldebaran does analt need the cstate disablement
 	 * prerequisite for gpu reset.
 	 */
 	if (amdgpu_in_reset(adev) || adev->in_suspend)
@@ -1771,7 +1771,7 @@ static int aldebaran_check_ecc_table_support(struct smu_context *smu,
 		int *ecctable_version)
 {
 	if (smu->smc_fw_version < SUPPORT_ECCTABLE_SMU_VERSION)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	else if (smu->smc_fw_version >= SUPPORT_ECCTABLE_SMU_VERSION &&
 			smu->smc_fw_version < SUPPORT_ECCTABLE_V2_SMU_VERSION)
 		*ecctable_version = 1;
@@ -1908,7 +1908,7 @@ static int aldebaran_mode2_reset(struct smu_context *smu)
 		}
 
 	} else {
-		dev_err(adev->dev, "smu fw 0x%x does not support MSG_GfxDeviceDriverReset MSG\n",
+		dev_err(adev->dev, "smu fw 0x%x does analt support MSG_GfxDeviceDriverReset MSG\n",
 				smu->smc_fw_version);
 	}
 
@@ -1990,7 +1990,7 @@ static int aldebaran_smu_send_hbm_bad_page_num(struct smu_context *smu,
 static int aldebaran_check_bad_channel_info_support(struct smu_context *smu)
 {
 	if (smu->smc_fw_version < SUPPORT_BAD_CHANNEL_INFO_MSG_VERSION)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -2042,7 +2042,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v13_0_set_driver_table_location,
 	.set_tool_table_location = smu_v13_0_set_tool_table_location,
-	.notify_memory_pool_location = smu_v13_0_notify_memory_pool_location,
+	.analtify_memory_pool_location = smu_v13_0_analtify_memory_pool_location,
 	.system_features_control = aldebaran_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,

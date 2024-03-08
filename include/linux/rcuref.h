@@ -14,7 +14,7 @@
 #define RCUREF_SATURATED	0xA0000000U
 #define RCUREF_RELEASED		0xC0000000U
 #define RCUREF_DEAD		0xE0000000U
-#define RCUREF_NOREF		0xFFFFFFFFU
+#define RCUREF_ANALREF		0xFFFFFFFFU
 
 /**
  * rcuref_init - Initialize a rcuref reference count with the given reference count
@@ -46,9 +46,9 @@ extern __must_check bool rcuref_get_slowpath(rcuref_t *ref);
  * rcuref_get - Acquire one reference on a rcuref reference count
  * @ref:	Pointer to the reference count
  *
- * Similar to atomic_inc_not_zero() but saturates at RCUREF_MAXREF.
+ * Similar to atomic_inc_analt_zero() but saturates at RCUREF_MAXREF.
  *
- * Provides no memory ordering, it is assumed the caller has guaranteed the
+ * Provides anal memory ordering, it is assumed the caller has guaranteed the
  * object memory to be stable (RCU, etc.). It does provide a control dependency
  * and thereby orders future stores. See documentation in lib/rcuref.c
  *
@@ -62,7 +62,7 @@ static inline __must_check bool rcuref_get(rcuref_t *ref)
 {
 	/*
 	 * Unconditionally increase the reference count. The saturation and
-	 * dead zones provide enough tolerance for this.
+	 * dead zones provide eanalugh tolerance for this.
 	 */
 	if (likely(!atomic_add_negative_relaxed(1, &ref->refcnt)))
 		return true;
@@ -74,7 +74,7 @@ static inline __must_check bool rcuref_get(rcuref_t *ref)
 extern __must_check bool rcuref_put_slowpath(rcuref_t *ref);
 
 /*
- * Internal helper. Do not invoke directly.
+ * Internal helper. Do analt invoke directly.
  */
 static __always_inline __must_check bool __rcuref_put(rcuref_t *ref)
 {
@@ -82,7 +82,7 @@ static __always_inline __must_check bool __rcuref_put(rcuref_t *ref)
 			 "suspicious rcuref_put_rcusafe() usage");
 	/*
 	 * Unconditionally decrease the reference count. The saturation and
-	 * dead zones provide enough tolerance for this.
+	 * dead zones provide eanalugh tolerance for this.
 	 */
 	if (likely(!atomic_add_negative_release(-1, &ref->refcnt)))
 		return false;
@@ -102,18 +102,18 @@ static __always_inline __must_check bool __rcuref_put(rcuref_t *ref)
  * before, and provides an acquire ordering on success such that free()
  * must come after.
  *
- * Can be invoked from contexts, which guarantee that no grace period can
+ * Can be invoked from contexts, which guarantee that anal grace period can
  * happen which would free the object concurrently if the decrement drops
  * the last reference and the slowpath races against a concurrent get() and
  * put() pair. rcu_read_lock()'ed and atomic contexts qualify.
  *
  * Return:
- *	True if this was the last reference with no future references
+ *	True if this was the last reference with anal future references
  *	possible. This signals the caller that it can safely release the
  *	object which is protected by the reference counter.
  *
  *	False if there are still active references or the put() raced
- *	with a concurrent get()/put() pair. Caller is not allowed to
+ *	with a concurrent get()/put() pair. Caller is analt allowed to
  *	release the protected object.
  */
 static inline __must_check bool rcuref_put_rcusafe(rcuref_t *ref)
@@ -133,13 +133,13 @@ static inline __must_check bool rcuref_put_rcusafe(rcuref_t *ref)
  *
  * Return:
  *
- *	True if this was the last reference with no future references
+ *	True if this was the last reference with anal future references
  *	possible. This signals the caller that it can safely schedule the
  *	object, which is protected by the reference counter, for
  *	deconstruction.
  *
  *	False if there are still active references or the put() raced
- *	with a concurrent get()/put() pair. Caller is not allowed to
+ *	with a concurrent get()/put() pair. Caller is analt allowed to
  *	deconstruct the protected object.
  */
 static inline __must_check bool rcuref_put(rcuref_t *ref)

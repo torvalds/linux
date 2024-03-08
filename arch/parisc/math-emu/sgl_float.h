@@ -6,8 +6,8 @@
  *  Copyright (C) 2001 Hewlett-Packard (Paul Bame) <bame@debian.org>
  */
 
-#ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+#ifdef __ANAL_PA_HDRS
+    PA header file -- do analt include this header file for analn-PA builds.
 #endif
 
 /* 32-bit word grabbing functions */
@@ -65,24 +65,24 @@
 #define Sgl_decrement(sgl_value) Sall(sgl_value) -= 1
 
 #define Sgl_isone_sign(sgl_value) (Is_ssign(sgl_value)!=0)
-#define Sgl_isone_hiddenoverflow(sgl_value) \
-    (Is_shiddenoverflow(sgl_value)!=0)
+#define Sgl_isone_hiddeanalverflow(sgl_value) \
+    (Is_shiddeanalverflow(sgl_value)!=0)
 #define Sgl_isone_lowmantissa(sgl_value) (Is_slow(sgl_value)!=0)
 #define Sgl_isone_signaling(sgl_value) (Is_ssignaling(sgl_value)!=0)
 #define Sgl_is_signalingnan(sgl_value) (Ssignalingnan(sgl_value)==0x1ff)
-#define Sgl_isnotzero(sgl_value) (Sall(sgl_value)!=0)
-#define Sgl_isnotzero_hiddenhigh7mantissa(sgl_value) \
+#define Sgl_isanaltzero(sgl_value) (Sall(sgl_value)!=0)
+#define Sgl_isanaltzero_hiddenhigh7mantissa(sgl_value) \
     (Shiddenhigh7mantissa(sgl_value)!=0)
-#define Sgl_isnotzero_low4(sgl_value) (Slow4(sgl_value)!=0)
-#define Sgl_isnotzero_exponent(sgl_value) (Sexponent(sgl_value)!=0)
-#define Sgl_isnotzero_mantissa(sgl_value) (Smantissa(sgl_value)!=0)
-#define Sgl_isnotzero_exponentmantissa(sgl_value) \
+#define Sgl_isanaltzero_low4(sgl_value) (Slow4(sgl_value)!=0)
+#define Sgl_isanaltzero_exponent(sgl_value) (Sexponent(sgl_value)!=0)
+#define Sgl_isanaltzero_mantissa(sgl_value) (Smantissa(sgl_value)!=0)
+#define Sgl_isanaltzero_exponentmantissa(sgl_value) \
     (Sexponentmantissa(sgl_value)!=0)
 #define Sgl_iszero(sgl_value) (Sall(sgl_value)==0)
 #define Sgl_iszero_signaling(sgl_value) (Is_ssignaling(sgl_value)==0)
 #define Sgl_iszero_hidden(sgl_value) (Is_shidden(sgl_value)==0)
-#define Sgl_iszero_hiddenoverflow(sgl_value) \
-    (Is_shiddenoverflow(sgl_value)==0)
+#define Sgl_iszero_hiddeanalverflow(sgl_value) \
+    (Is_shiddeanalverflow(sgl_value)==0)
 #define Sgl_iszero_hiddenhigh3mantissa(sgl_value) \
     (Shiddenhigh3mantissa(sgl_value)==0)
 #define Sgl_iszero_hiddenhigh7mantissa(sgl_value) \
@@ -94,7 +94,7 @@
     (Sexponentmantissa(sgl_value)==0)
 #define Sgl_isinfinity_exponent(sgl_value) 		\
     (Sgl_exponent(sgl_value)==SGL_INFINITY_EXPONENT)
-#define Sgl_isnotinfinity_exponent(sgl_value) 		\
+#define Sgl_isanaltinfinity_exponent(sgl_value) 		\
     (Sgl_exponent(sgl_value)!=SGL_INFINITY_EXPONENT)
 #define Sgl_isinfinity(sgl_value)			\
     (Sgl_exponent(sgl_value)==SGL_INFINITY_EXPONENT &&	\
@@ -102,14 +102,14 @@
 #define Sgl_isnan(sgl_value)				\
     (Sgl_exponent(sgl_value)==SGL_INFINITY_EXPONENT &&	\
     Sgl_mantissa(sgl_value)!=0)
-#define Sgl_isnotnan(sgl_value)				\
+#define Sgl_isanaltnan(sgl_value)				\
     (Sgl_exponent(sgl_value)!=SGL_INFINITY_EXPONENT ||	\
     Sgl_mantissa(sgl_value)==0)
 #define Sgl_islessthan(sgl_op1,sgl_op2)			\
     (Sall(sgl_op1) < Sall(sgl_op2))
 #define Sgl_isgreaterthan(sgl_op1,sgl_op2)		\
     (Sall(sgl_op1) > Sall(sgl_op2))
-#define Sgl_isnotlessthan(sgl_op1,sgl_op2)		\
+#define Sgl_isanaltlessthan(sgl_op1,sgl_op2)		\
     (Sall(sgl_op1) >= Sall(sgl_op2))
 #define Sgl_isequal(sgl_op1,sgl_op2)			\
     (Sall(sgl_op1) == Sall(sgl_op2))
@@ -246,7 +246,7 @@
     Sall(dest) = ((SGL_EMAX+SGL_BIAS)+1)<< (32-(1+SGL_EXP_LENGTH))	\
                  | (1<<(32-(1+SGL_EXP_LENGTH+1)))
 
-#define Sgl_normalize(sgl_opnd,exponent)			\
+#define Sgl_analrmalize(sgl_opnd,exponent)			\
 	while(Sgl_iszero_hiddenhigh7mantissa(sgl_opnd)) {	\
 		Sgl_leftshiftby8(sgl_opnd);			\
 		exponent -= 8;					\
@@ -286,7 +286,7 @@
 			Sgl_setlargest_exponentmantissa(sgl_opnd); \
 	}
 
-#define Sgl_denormalize(opnd,exponent,guard,sticky,inexact)		\
+#define Sgl_deanalrmalize(opnd,exponent,guard,sticky,inexact)		\
 	Sgl_clear_signexponent_set_hidden(opnd);			\
 	if (exponent >= (1 - SGL_P)) {					\
 		guard = (Sall(opnd) >> -exponent) & 1;			\
@@ -310,10 +310,10 @@
 #define Sglext_setzero(valA,valB)	\
     Sextallp1(valA) = 0; Sextallp2(valB) = 0
 
-#define Sglext_isnotzero_mantissap2(valB) (Sextallp2(valB)!=0)
+#define Sglext_isanaltzero_mantissap2(valB) (Sextallp2(valB)!=0)
 #define Sglext_isone_lowp1(val) (Sextlowp1(val)!=0)
 #define Sglext_isone_highp2(val) (Sexthighp2(val)!=0)
-#define Sglext_isnotzero_low31p2(val) (Sextlow31p2(val)!=0)
+#define Sglext_isanaltzero_low31p2(val) (Sextlow31p2(val)!=0)
 #define Sglext_iszero(valA,valB) (Sextallp1(valA)==0 && Sextallp2(valB)==0)
 
 #define Sgl_copytoptr(src,destptr) *destptr = src
@@ -418,27 +418,27 @@
 #define Sglext_clear_sign(srcdst) Sgl_clear_sign(srcdst) 
 #define Sglext_isone_hidden(dbl_value) Sgl_isone_hidden(dbl_value) 
 
-#define Sglext_denormalize(opndp1,opndp2,exponent,is_tiny)		\
+#define Sglext_deanalrmalize(opndp1,opndp2,exponent,is_tiny)		\
   {int sticky;								\
     is_tiny = TRUE;							\
     if (exponent == 0 && Sextallp2(opndp2)) {				\
 	switch (Rounding_mode()) {					\
 	case ROUNDPLUS:							\
 		if (Sgl_iszero_sign(opndp1))				\
-			if (Sgl_isone_hiddenoverflow(opndp1 + 1))	\
+			if (Sgl_isone_hiddeanalverflow(opndp1 + 1))	\
 				is_tiny = FALSE;			\
 		break;							\
 	case ROUNDMINUS:						\
 		if (Sgl_isone_sign(opndp1)) {				\
-			if (Sgl_isone_hiddenoverflow(opndp1 + 1))	\
+			if (Sgl_isone_hiddeanalverflow(opndp1 + 1))	\
 				is_tiny = FALSE;			\
 		}							\
 		break;							\
 	case ROUNDNEAREST:						\
 		if (Sglext_isone_highp2(opndp2) &&			\
 		    (Sglext_isone_lowp1(opndp1) || 			\
-		     Sglext_isnotzero_low31p2(opndp2)))			\
-			if (Sgl_isone_hiddenoverflow(opndp1 + 1))	\
+		     Sglext_isanaltzero_low31p2(opndp2)))			\
+			if (Sgl_isone_hiddeanalverflow(opndp1 + 1))	\
 				is_tiny = FALSE;			\
 		break;							\
 	}								\

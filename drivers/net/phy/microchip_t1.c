@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2018 Microchip Technology
+// Copyright (C) 2018 Microchip Techanallogy
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -528,17 +528,17 @@ static irqreturn_t lan87xx_handle_interrupt(struct phy_device *phydev)
 				  LAN87XX_INTERRUPT_SOURCE_2, 0);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	irq_status = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (irq_status == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -556,7 +556,7 @@ static int microchip_cable_test_start_common(struct phy_device *phydev)
 {
 	int bmcr, bmsr, ret;
 
-	/* If auto-negotiation is enabled, but not complete, the cable
+	/* If auto-negotiation is enabled, but analt complete, the cable
 	 * test never completes. So disable auto-neg.
 	 */
 	bmcr = phy_read(phydev, MII_BMCR);
@@ -619,7 +619,7 @@ static int lan87xx_cable_test_start(struct phy_device *phydev)
 		return rc;
 
 	/* start cable diag */
-	/* check if part is alive - if not, return diagnostic error */
+	/* check if part is alive - if analt, return diaganalstic error */
 	rc = access_ereg(phydev, PHYACC_ATTR_MODE_READ, PHYACC_ATTR_BANK_SMI,
 			 0x00, 0);
 	if (rc < 0)
@@ -682,7 +682,7 @@ static int lan87xx_cable_test_report_trans(u32 result)
 	case LAN87XX_CABLE_TEST_SAME_SHORT:
 		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
 	default:
-		/* DIAGNOSTIC_ERROR */
+		/* DIAGANALSTIC_ERROR */
 		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
 	}
 }
@@ -691,7 +691,7 @@ static int lan87xx_cable_test_report(struct phy_device *phydev)
 {
 	int pos_peak_cycle = 0, pos_peak_in_phases = 0, pos_peak_phase = 0;
 	int neg_peak_cycle = 0, neg_peak_in_phases = 0, neg_peak_phase = 0;
-	int noise_margin = 20, time_margin = 89, jitter_var = 30;
+	int analise_margin = 20, time_margin = 89, jitter_var = 30;
 	int min_time_diff = 96, max_time_diff = 96 + time_margin;
 	bool fault = false, check_a = false, check_b = false;
 	int gain_idx = 0, pos_peak = 0, neg_peak = 0;
@@ -701,7 +701,7 @@ static int lan87xx_cable_test_report(struct phy_device *phydev)
 
 	gain_idx = access_ereg(phydev, PHYACC_ATTR_MODE_READ,
 			       PHYACC_ATTR_BANK_DSP, 151, 0);
-	/* read non-hybrid results */
+	/* read analn-hybrid results */
 	pos_peak = access_ereg(phydev, PHYACC_ATTR_MODE_READ,
 			       PHYACC_ATTR_BANK_DSP, 153, 0);
 	neg_peak = access_ereg(phydev, PHYACC_ATTR_MODE_READ,
@@ -712,7 +712,7 @@ static int lan87xx_cable_test_report(struct phy_device *phydev)
 				    PHYACC_ATTR_BANK_DSP, 157, 0);
 
 	pos_peak_cycle = (pos_peak_time >> 7) & 0x7F;
-	/* calculate non-hybrid values */
+	/* calculate analn-hybrid values */
 	pos_peak_phase = pos_peak_time & 0x7F;
 	pos_peak_in_phases = (pos_peak_cycle * 96) + pos_peak_phase;
 	neg_peak_cycle = (neg_peak_time >> 7) & 0x7F;
@@ -736,7 +736,7 @@ static int lan87xx_cable_test_report(struct phy_device *phydev)
 	else if ((neg_peak_in_phases > pos_peak_in_phases) && check_b)
 		detect = 1;
 
-	if (pos_peak > noise_margin && neg_peak > noise_margin &&
+	if (pos_peak > analise_margin && neg_peak > analise_margin &&
 	    gain_idx >= 0) {
 		if (detect == 1 || detect == 2)
 			fault = true;
@@ -793,8 +793,8 @@ static int lan87xx_read_status(struct phy_device *phydev)
 	else
 		phydev->link = 0;
 
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -820,12 +820,12 @@ static int lan87xx_config_aneg(struct phy_device *phydev)
 		break;
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 		break;
-	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNKANALWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
 		return 0;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = phy_modify_changed(phydev, MII_CTRL1000, CTL1000_AS_MASTER, ctl);

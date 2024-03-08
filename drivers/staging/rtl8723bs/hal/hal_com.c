@@ -41,7 +41,7 @@ void dump_chip_info(struct hal_version	ChipVersion)
 	size_t cnt = 0;
 
 	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "Chip Version Info: CHIP_8723B_%s_",
-			IS_NORMAL_CHIP(ChipVersion) ? "Normal_Chip" : "Test_Chip");
+			IS_ANALRMAL_CHIP(ChipVersion) ? "Analrmal_Chip" : "Test_Chip");
 
 	if (IS_CHIP_VENDOR_TSMC(ChipVersion))
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "TSMC_");
@@ -68,7 +68,7 @@ void dump_chip_info(struct hal_version	ChipVersion)
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "K_CUT_");
 	else
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
-				"UNKNOWN_CUT(%d)_", ChipVersion.CUTVersion);
+				"UNKANALWN_CUT(%d)_", ChipVersion.CUTVersion);
 
 	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T1R_");
 
@@ -90,7 +90,7 @@ void dump_chip_info(struct hal_version	ChipVersion)
  *					BIT[6:0] Channel Plan
  *sw_channel_plan		channel plan from SW (registry/module param)
  *def_channel_plan	channel plan used when HW/SW both invalid
- *AutoLoadFail		efuse autoload fail or not
+ *AutoLoadFail		efuse autoload fail or analt
  *
  * Return:
  *Final channel plan decision
@@ -510,27 +510,27 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 	trigger = rtw_read8(adapter, REG_C2HEVT_CLEAR);
 
 	if (trigger == C2H_EVT_HOST_CLOSE)
-		goto exit; /* Not ready */
+		goto exit; /* Analt ready */
 	else if (trigger != C2H_EVT_FW_CLOSE)
-		goto clear_evt; /* Not a valid value */
+		goto clear_evt; /* Analt a valid value */
 
 	c2h_evt = (struct c2h_evt_hdr_88xx *)buf;
 
 	memset(c2h_evt, 0, 16);
 
-	c2h_evt->id = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL);
+	c2h_evt->id = rtw_read8(adapter, REG_C2HEVT_MSG_ANALRMAL);
 	c2h_evt->seq = rtw_read8(adapter, REG_C2HEVT_CMD_SEQ_88XX);
 	c2h_evt->plen = rtw_read8(adapter, REG_C2HEVT_CMD_LEN_88XX);
 
 	/* Read the content */
 	for (i = 0; i < c2h_evt->plen; i++)
-		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 2 + i);
+		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_ANALRMAL + 2 + i);
 
 	ret = _SUCCESS;
 
 clear_evt:
 	/*
-	* Clear event to notify FW we have read the command.
+	* Clear event to analtify FW we have read the command.
 	* If this field isn't clear, the FW won't update the next command message.
 	*/
 	c2h_evt_clear(adapter);
@@ -648,7 +648,7 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 		break;
 	default:
 		netdev_dbg(adapter->pnetdev,
-			   FUNC_ADPT_FMT " variable(%d) not defined!\n",
+			   FUNC_ADPT_FMT " variable(%d) analt defined!\n",
 			   FUNC_ADPT_ARG(adapter), variable);
 		break;
 	}
@@ -668,7 +668,7 @@ void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 		break;
 	default:
 		netdev_dbg(adapter->pnetdev,
-			   FUNC_ADPT_FMT " variable(%d) not defined!\n",
+			   FUNC_ADPT_FMT " variable(%d) analt defined!\n",
 			   FUNC_ADPT_ARG(adapter), variable);
 		break;
 	}
@@ -738,7 +738,7 @@ u8 SetHalDefVar(
 		break;
 	default:
 		netdev_dbg(adapter->pnetdev,
-			   "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n",
+			   "%s: [WARNING] HAL_DEF_VARIABLE(%d) analt defined!\n",
 			   __func__, variable);
 		bResult = _FAIL;
 		break;
@@ -788,7 +788,7 @@ u8 GetHalDefVar(
 		break;
 	default:
 		netdev_dbg(adapter->pnetdev,
-			   "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n",
+			   "%s: [WARNING] HAL_DEF_VARIABLE(%d) analt defined!\n",
 			   __func__, variable);
 		bResult = _FAIL;
 		break;

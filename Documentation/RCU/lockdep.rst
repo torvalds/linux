@@ -6,23 +6,23 @@ RCU and lockdep checking
 
 All flavors of RCU have lockdep checking available, so that lockdep is
 aware of when each task enters and leaves any flavor of RCU read-side
-critical section.  Each flavor of RCU is tracked separately (but note
-that this is not the case in 2.6.32 and earlier).  This allows lockdep's
+critical section.  Each flavor of RCU is tracked separately (but analte
+that this is analt the case in 2.6.32 and earlier).  This allows lockdep's
 tracking to include RCU state, which can sometimes help when debugging
 deadlocks and the like.
 
 In addition, RCU provides the following primitives that check lockdep's
 state::
 
-	rcu_read_lock_held() for normal RCU.
+	rcu_read_lock_held() for analrmal RCU.
 	rcu_read_lock_bh_held() for RCU-bh.
 	rcu_read_lock_sched_held() for RCU-sched.
-	rcu_read_lock_any_held() for any of normal RCU, RCU-bh, and RCU-sched.
+	rcu_read_lock_any_held() for any of analrmal RCU, RCU-bh, and RCU-sched.
 	srcu_read_lock_held() for SRCU.
 	rcu_read_lock_trace_held() for RCU Tasks Trace.
 
 These functions are conservative, and will therefore return 1 if they
-aren't certain (for example, if CONFIG_DEBUG_LOCK_ALLOC is not set).
+aren't certain (for example, if CONFIG_DEBUG_LOCK_ALLOC is analt set).
 This prevents things like WARN_ON(!rcu_read_lock_held()) from giving false
 positives when lockdep is disabled.
 
@@ -60,7 +60,7 @@ checking of rcu_dereference() primitives:
 	rcu_dereference_protected(p, c):
 		Use explicit check expression "c", and omit all barriers
 		and compiler constraints.  This is useful when the data
-		structure cannot change, for example, in code that is
+		structure cananalt change, for example, in code that is
 		invoked only by updaters.
 	rcu_access_pointer(p):
 		Return the value of the pointer and omit all barriers,
@@ -69,7 +69,7 @@ checking of rcu_dereference() primitives:
 		value of the pointer itself, for example, against NULL.
 
 The rcu_dereference_check() check expression can be any boolean
-expression, but would normally include a lockdep expression.  For a
+expression, but would analrmally include a lockdep expression.  For a
 moderately ornate example, consider the following::
 
 	file = rcu_dereference_check(fdt->fd[fd],
@@ -115,5 +115,5 @@ either within an RCU read-side critical section or with wq->mutex held.
 It is thus implemented as follows::
 
 	#define for_each_pwq(pwq, wq)
-		list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_node,
+		list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_analde,
 					lock_is_held(&(wq->mutex).dep_map))

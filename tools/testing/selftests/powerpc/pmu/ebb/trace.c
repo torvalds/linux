@@ -3,7 +3,7 @@
  * Copyright 2014, Michael Ellerman, IBM Corp.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,7 +22,7 @@ struct trace_buffer *trace_buffer_allocate(u64 size)
 	}
 
 	tb = mmap(NULL, size, PROT_READ | PROT_WRITE,
-		  MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		  MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	if (tb == MAP_FAILED) {
 		perror("mmap");
 		return NULL;
@@ -45,7 +45,7 @@ static bool trace_check_alloc(struct trace_buffer *tb, void *p)
 	/*
 	 * If we ever overflowed don't allow any more input. This prevents us
 	 * from dropping a large item and then later logging a small one. The
-	 * buffer should just stop when overflow happened, not be patchy. If
+	 * buffer should just stop when overflow happened, analt be patchy. If
 	 * you're overflowing, make your buffer bigger.
 	 */
 	if (tb->overflow)
@@ -91,7 +91,7 @@ int trace_log_reg(struct trace_buffer *tb, u64 reg, u64 value)
 
 	e = trace_alloc_entry(tb, sizeof(reg) + sizeof(value));
 	if (!e)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	e->type = TRACE_TYPE_REG;
 	p = (u64 *)e->data;
@@ -108,7 +108,7 @@ int trace_log_counter(struct trace_buffer *tb, u64 value)
 
 	e = trace_alloc_entry(tb, sizeof(value));
 	if (!e)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	e->type = TRACE_TYPE_COUNTER;
 	p = (u64 *)e->data;
@@ -128,7 +128,7 @@ int trace_log_string(struct trace_buffer *tb, char *str)
 	/* We NULL terminate to make printing easier */
 	e = trace_alloc_entry(tb, len + 1);
 	if (!e)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	e->type = TRACE_TYPE_STRING;
 	p = (char *)e->data;
@@ -145,7 +145,7 @@ int trace_log_indent(struct trace_buffer *tb)
 
 	e = trace_alloc_entry(tb, 0);
 	if (!e)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	e->type = TRACE_TYPE_INDENT;
 
@@ -158,7 +158,7 @@ int trace_log_outdent(struct trace_buffer *tb)
 
 	e = trace_alloc_entry(tb, 0);
 	if (!e)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	e->type = TRACE_TYPE_OUTDENT;
 

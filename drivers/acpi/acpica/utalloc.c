@@ -51,7 +51,7 @@ void *acpi_os_allocate_zeroed(acpi_size size)
  *
  * FUNCTION:    acpi_ut_create_caches
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -67,7 +67,7 @@ acpi_status acpi_ut_create_caches(void)
 
 	status =
 	    acpi_os_create_cache("Acpi-Namespace",
-				 sizeof(struct acpi_namespace_node),
+				 sizeof(struct acpi_namespace_analde),
 				 ACPI_MAX_NAMESPACE_CACHE_DEPTH,
 				 &acpi_gbl_namespace_cache);
 	if (ACPI_FAILURE(status)) {
@@ -86,7 +86,7 @@ acpi_status acpi_ut_create_caches(void)
 	    acpi_os_create_cache("Acpi-Parse",
 				 sizeof(struct acpi_parse_obj_common),
 				 ACPI_MAX_PARSE_CACHE_DEPTH,
-				 &acpi_gbl_ps_node_cache);
+				 &acpi_gbl_ps_analde_cache);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -95,7 +95,7 @@ acpi_status acpi_ut_create_caches(void)
 	    acpi_os_create_cache("Acpi-ParseExt",
 				 sizeof(struct acpi_parse_obj_named),
 				 ACPI_MAX_EXTPARSE_CACHE_DEPTH,
-				 &acpi_gbl_ps_node_ext_cache);
+				 &acpi_gbl_ps_analde_ext_cache);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -115,7 +115,7 @@ acpi_status acpi_ut_create_caches(void)
 	 */
 	status =
 	    acpi_os_create_cache("Acpi-Comment",
-				 sizeof(struct acpi_comment_node),
+				 sizeof(struct acpi_comment_analde),
 				 ACPI_MAX_COMMENT_CACHE_DEPTH,
 				 &acpi_gbl_reg_comment_cache);
 	if (ACPI_FAILURE(status)) {
@@ -128,7 +128,7 @@ acpi_status acpi_ut_create_caches(void)
 	 */
 	status =
 	    acpi_os_create_cache("Acpi-Comment-Addr",
-				 sizeof(struct acpi_comment_addr_node),
+				 sizeof(struct acpi_comment_addr_analde),
 				 ACPI_MAX_COMMENT_CACHE_DEPTH,
 				 &acpi_gbl_comment_addr_cache);
 	if (ACPI_FAILURE(status)) {
@@ -136,10 +136,10 @@ acpi_status acpi_ut_create_caches(void)
 	}
 
 	/*
-	 * This cache will be used for nodes that represent files.
+	 * This cache will be used for analdes that represent files.
 	 */
 	status =
-	    acpi_os_create_cache("Acpi-File", sizeof(struct acpi_file_node),
+	    acpi_os_create_cache("Acpi-File", sizeof(struct acpi_file_analde),
 				 ACPI_MAX_COMMENT_CACHE_DEPTH,
 				 &acpi_gbl_file_cache);
 	if (ACPI_FAILURE(status)) {
@@ -158,8 +158,8 @@ acpi_status acpi_ut_create_caches(void)
 
 	status =
 	    acpi_ut_create_list("Acpi-Namespace",
-				sizeof(struct acpi_namespace_node),
-				&acpi_gbl_ns_node_list);
+				sizeof(struct acpi_namespace_analde),
+				&acpi_gbl_ns_analde_list);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -172,7 +172,7 @@ acpi_status acpi_ut_create_caches(void)
  *
  * FUNCTION:    acpi_ut_delete_caches
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -200,11 +200,11 @@ acpi_status acpi_ut_delete_caches(void)
 	(void)acpi_os_delete_cache(acpi_gbl_operand_cache);
 	acpi_gbl_operand_cache = NULL;
 
-	(void)acpi_os_delete_cache(acpi_gbl_ps_node_cache);
-	acpi_gbl_ps_node_cache = NULL;
+	(void)acpi_os_delete_cache(acpi_gbl_ps_analde_cache);
+	acpi_gbl_ps_analde_cache = NULL;
 
-	(void)acpi_os_delete_cache(acpi_gbl_ps_node_ext_cache);
-	acpi_gbl_ps_node_ext_cache = NULL;
+	(void)acpi_os_delete_cache(acpi_gbl_ps_analde_ext_cache);
+	acpi_gbl_ps_analde_ext_cache = NULL;
 
 #ifdef ACPI_ASL_COMPILER
 	(void)acpi_os_delete_cache(acpi_gbl_reg_comment_cache);
@@ -228,8 +228,8 @@ acpi_status acpi_ut_delete_caches(void)
 	acpi_os_free(acpi_gbl_global_list);
 	acpi_gbl_global_list = NULL;
 
-	acpi_os_free(acpi_gbl_ns_node_list);
-	acpi_gbl_ns_node_list = NULL;
+	acpi_os_free(acpi_gbl_ns_analde_list);
+	acpi_gbl_ns_analde_list = NULL;
 #endif
 
 	return (AE_OK);
@@ -258,7 +258,7 @@ acpi_status acpi_ut_validate_buffer(struct acpi_buffer *buffer)
 
 	/* Special semantics for the length */
 
-	if ((buffer->length == ACPI_NO_BUFFER) ||
+	if ((buffer->length == ACPI_ANAL_BUFFER) ||
 	    (buffer->length == ACPI_ALLOCATE_BUFFER) ||
 	    (buffer->length == ACPI_ALLOCATE_LOCAL_BUFFER)) {
 		return (AE_OK);
@@ -310,7 +310,7 @@ acpi_ut_initialize_buffer(struct acpi_buffer *buffer, acpi_size required_length)
 	 * of buffer to be allocated by this routine.
 	 */
 	switch (input_buffer_length) {
-	case ACPI_NO_BUFFER:
+	case ACPI_ANAL_BUFFER:
 
 		/* Return the exception (and the required buffer length) */
 
@@ -321,7 +321,7 @@ acpi_ut_initialize_buffer(struct acpi_buffer *buffer, acpi_size required_length)
 		 * Allocate a new buffer. We directectly call acpi_os_allocate here to
 		 * purposefully bypass the (optionally enabled) internal allocation
 		 * tracking mechanism since we only want to track internal
-		 * allocations. Note: The caller should use acpi_os_free to free this
+		 * allocations. Analte: The caller should use acpi_os_free to free this
 		 * buffer created via ACPI_ALLOCATE_BUFFER.
 		 */
 		buffer->pointer = acpi_os_allocate(required_length);
@@ -347,7 +347,7 @@ acpi_ut_initialize_buffer(struct acpi_buffer *buffer, acpi_size required_length)
 	/* Validate allocation from above or input buffer pointer */
 
 	if (!buffer->pointer) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Have a valid buffer, clear it */

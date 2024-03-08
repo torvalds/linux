@@ -5,9 +5,9 @@
  *
  * Copyright (C) 1995, 96, 97, 98, 99, 2000, 01, 02 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/irqflags.h>
@@ -20,7 +20,7 @@
 #include <asm/unistd.h>
 
 #ifndef CONFIG_MIPS32_COMPAT
-/* Neither O32 nor N32, so define handle_sys here */
+/* Neither O32 analr N32, so define handle_sys here */
 #define handle_sys64 handle_sys
 #endif
 
@@ -31,7 +31,7 @@ NESTED(handle_sys64, PT_SIZE, sp)
 	 * When 32-bit compatibility is configured scall_o32.S
 	 * already did this.
 	 */
-	.set	noat
+	.set	analat
 	SAVE_SOME
 	TRACE_IRQS_ON_RELOAD
 	STI
@@ -64,7 +64,7 @@ syscall_common:
 
 	jalr	t2			# Do The Real Thing (TM)
 
-	li	t0, -EMAXERRNO - 1	# error?
+	li	t0, -EMAXERRANAL - 1	# error?
 	sltu	t0, t0, v0
 	sd	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
@@ -101,7 +101,7 @@ syscall_trace_entry:
 
 illegal_syscall:
 	/* This also isn't a 64-bit syscall, throw an error.  */
-	li	v0, ENOSYS			# error
+	li	v0, EANALSYS			# error
 	sd	v0, PT_R2(sp)
 	li	t0, 1				# set error flag
 	sd	t0, PT_R7(sp)

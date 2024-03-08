@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/of.h>
@@ -23,7 +23,7 @@
 /* Debug
  *
  * #define PMC_DEBUG_LED
- * #define PMC_NO_IDLE
+ * #define PMC_ANAL_IDLE
  */
 
 #define PMC_OBPNAME	"SUNW,pmc"
@@ -60,10 +60,10 @@ static int pmc_probe(struct platform_device *op)
 			  resource_size(&op->resource[0]), PMC_OBPNAME);
 	if (!regs) {
 		printk(KERN_ERR "%s: unable to map registers\n", PMC_DEVNAME);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-#ifndef PMC_NO_IDLE
+#ifndef PMC_ANAL_IDLE
 	/* Assign power management IDLE handler */
 	sparc_idle = pmc_swift_idle;
 #endif
@@ -93,7 +93,7 @@ static int __init pmc_init(void)
 	return platform_driver_register(&pmc_driver);
 }
 
-/* This driver is not critical to the boot process
+/* This driver is analt critical to the boot process
  * and is easiest to ioremap when SBus is already
  * initialized, so we install ourselves thusly:
  */

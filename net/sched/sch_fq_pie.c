@@ -24,7 +24,7 @@
  *   - Each flow has a PIE managed queue.
  *   - Flows are linked onto two (Round Robin) lists,
  *     so that new flows have priority on old ones.
- *   - For a given flow, packets are not reordered.
+ *   - For a given flow, packets are analt reordered.
  *   - Drops during enqueue only.
  *   - ECN capability is off by default.
  *   - ECN threshold (if ECN is enabled) is at 10% by default.
@@ -304,7 +304,7 @@ static int fq_pie_change(struct Qdisc *sch, struct nlattr *opt,
 	if (tb[TCA_FQ_PIE_FLOWS]) {
 		if (q->flows) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Number of flows cannot be changed");
+					   "Number of flows cananalt be changed");
 			goto flow_error;
 		}
 		q->flows_cnt = nla_get_u32(tb[TCA_FQ_PIE_FLOWS]);
@@ -440,7 +440,7 @@ static int fq_pie_init(struct Qdisc *sch, struct nlattr *opt,
 	q->flows = kvcalloc(q->flows_cnt, sizeof(struct fq_pie_flow),
 			    GFP_KERNEL);
 	if (!q->flows) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto init_failure;
 	}
 	for (idx = 0; idx < q->flows_cnt; idx++) {

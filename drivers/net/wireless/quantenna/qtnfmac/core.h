@@ -43,7 +43,7 @@ extern const struct net_device_ops qtnf_netdev_ops;
 struct qtnf_bus;
 struct qtnf_vif;
 
-struct qtnf_sta_node {
+struct qtnf_sta_analde {
 	struct list_head list;
 	u8 mac_addr[ETH_ALEN];
 };

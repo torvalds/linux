@@ -202,7 +202,7 @@ struct atmel_hlcdc_dma_channel_dscr {
  * Atmel HLCDC layer types
  */
 enum atmel_hlcdc_layer_type {
-	ATMEL_HLCDC_NO_LAYER,
+	ATMEL_HLCDC_ANAL_LAYER,
 	ATMEL_HLCDC_BASE_LAYER,
 	ATMEL_HLCDC_OVERLAY_LAYER,
 	ATMEL_HLCDC_CURSOR_LAYER,

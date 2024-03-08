@@ -2,7 +2,7 @@
 /*
  * FOTG210 UDC Driver supports Bulk transfer so far
  *
- * Copyright (C) 2013 Faraday Technology Corporation
+ * Copyright (C) 2013 Faraday Techanallogy Corporation
  *
  * Author : Yuan-Hsin Chen <yhchen@faraday-tech.com>
  */
@@ -73,7 +73,7 @@ static void fotg210_done(struct fotg210_ep *ep, struct fotg210_request *req,
 	list_del_init(&req->queue);
 
 	/* don't modify queue heads during completion callback */
-	if (ep->fotg210->gadget.speed == USB_SPEED_UNKNOWN)
+	if (ep->fotg210->gadget.speed == USB_SPEED_UNKANALWN)
 		req->req.status = -ESHUTDOWN;
 	else
 		req->req.status = status;
@@ -102,14 +102,14 @@ static void fotg210_fifo_ep_mapping(struct fotg210_ep *ep, u32 epnum,
 
 	/* map a fifo to an ep */
 	val = ioread32(fotg210->reg + FOTG210_EPMAP);
-	val &= ~EPMAP_FIFONOMSK(epnum, dir_in);
-	val |= EPMAP_FIFONO(epnum, dir_in);
+	val &= ~EPMAP_FIFOANALMSK(epnum, dir_in);
+	val |= EPMAP_FIFOANAL(epnum, dir_in);
 	iowrite32(val, fotg210->reg + FOTG210_EPMAP);
 
 	/* map the ep to the fifo */
 	val = ioread32(fotg210->reg + FOTG210_FIFOMAP);
-	val &= ~FIFOMAP_EPNOMSK(epnum);
-	val |= FIFOMAP_EPNO(epnum);
+	val &= ~FIFOMAP_EPANALMSK(epnum);
+	val |= FIFOMAP_EPANAL(epnum);
 	iowrite32(val, fotg210->reg + FOTG210_FIFOMAP);
 
 	/* enable fifo */
@@ -147,7 +147,7 @@ static void fotg210_set_mps(struct fotg210_ep *ep, u32 epnum, u32 mps,
 				FOTG210_OUTEPMPSR(epnum);
 
 	val = ioread32(fotg210->reg + offset);
-	val |= INOUTEPMPSR_MPS(mps);
+	val |= IANALUTEPMPSR_MPS(mps);
 	iowrite32(val, fotg210->reg + offset);
 }
 
@@ -192,16 +192,16 @@ static void fotg210_reset_tseq(struct fotg210_udc *fotg210, u8 epnum)
 		fotg210->reg + FOTG210_INEPMPSR(epnum) :
 		fotg210->reg + FOTG210_OUTEPMPSR(epnum);
 
-	/* Note: Driver needs to set and clear INOUTEPMPSR_RESET_TSEQ
+	/* Analte: Driver needs to set and clear IANALUTEPMPSR_RESET_TSEQ
 	 *	 bit. Controller wouldn't clear this bit. WTF!!!
 	 */
 
 	value = ioread32(reg);
-	value |= INOUTEPMPSR_RESET_TSEQ;
+	value |= IANALUTEPMPSR_RESET_TSEQ;
 	iowrite32(value, reg);
 
 	value = ioread32(reg);
-	value &= ~INOUTEPMPSR_RESET_TSEQ;
+	value &= ~IANALUTEPMPSR_RESET_TSEQ;
 	iowrite32(value, reg);
 }
 
@@ -412,7 +412,7 @@ static int fotg210_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	ep = container_of(_ep, struct fotg210_ep, ep);
 	req = container_of(_req, struct fotg210_request, req);
 
-	if (ep->fotg210->gadget.speed == USB_SPEED_UNKNOWN)
+	if (ep->fotg210->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	spin_lock_irqsave(&ep->fotg210->lock, flags);
@@ -469,7 +469,7 @@ static void fotg210_set_epnstall(struct fotg210_ep *ep)
 		fotg210->reg + FOTG210_INEPMPSR(ep->epnum) :
 		fotg210->reg + FOTG210_OUTEPMPSR(ep->epnum);
 	value = ioread32(reg);
-	value |= INOUTEPMPSR_STL_EP;
+	value |= IANALUTEPMPSR_STL_EP;
 	iowrite32(value, reg);
 }
 
@@ -483,7 +483,7 @@ static void fotg210_clear_epnstall(struct fotg210_ep *ep)
 		fotg210->reg + FOTG210_INEPMPSR(ep->epnum) :
 		fotg210->reg + FOTG210_OUTEPMPSR(ep->epnum);
 	value = ioread32(reg);
-	value &= ~INOUTEPMPSR_STL_EP;
+	value &= ~IANALUTEPMPSR_STL_EP;
 	iowrite32(value, reg);
 }
 
@@ -714,7 +714,7 @@ static int fotg210_is_epnstall(struct fotg210_ep *ep)
 		fotg210->reg + FOTG210_INEPMPSR(ep->epnum) :
 		fotg210->reg + FOTG210_OUTEPMPSR(ep->epnum);
 	value = ioread32(reg);
-	return value & INOUTEPMPSR_STL_EP ? 1 : 0;
+	return value & IANALUTEPMPSR_STL_EP ? 1 : 0;
 }
 
 /* For EP0 requests triggered by this driver (currently GET_STATUS response) */
@@ -776,7 +776,7 @@ static int fotg210_setup_packet(struct fotg210_udc *fotg210,
 
 	fotg210->ep[0]->dir_in = ctrl->bRequestType & USB_DIR_IN;
 
-	if (fotg210->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (fotg210->gadget.speed == USB_SPEED_UNKANALWN) {
 		u32 value = ioread32(fotg210->reg + FOTG210_DMCR);
 		fotg210->gadget.speed = value & DMCR_HS_EN ?
 				USB_SPEED_HIGH : USB_SPEED_FULL;
@@ -871,7 +871,7 @@ static void fotg210_out_fifo_handler(struct fotg210_ep *ep)
 	fotg210_start_dma(ep, req);
 
 	/* Complete the request when it's full or a short packet arrived.
-	 * Like other drivers, short_not_ok isn't handled.
+	 * Like other drivers, short_analt_ok isn't handled.
 	 */
 
 	if (req->req.length == req->req.actual ||
@@ -1011,8 +1011,8 @@ static int fotg210_udc_start(struct usb_gadget *g,
 
 	/* hook up the driver */
 	fotg210->driver = driver;
-	fotg210->gadget.dev.of_node = fotg210->dev->of_node;
-	fotg210->gadget.speed = USB_SPEED_UNKNOWN;
+	fotg210->gadget.dev.of_analde = fotg210->dev->of_analde;
+	fotg210->gadget.speed = USB_SPEED_UNKANALWN;
 
 	dev_info(fotg210->dev, "bound driver %s\n", driver->driver.name);
 
@@ -1050,7 +1050,7 @@ static void fotg210_init(struct fotg210_udc *fotg210)
 
 	/* udc software reset */
 	iowrite32(DMCR_SFRST, fotg210->reg + FOTG210_DMCR);
-	/* Better wait a bit, but without a datasheet, no idea how long. */
+	/* Better wait a bit, but without a datasheet, anal idea how long. */
 	usleep_range(100, 200);
 
 	/* disable device global interrupt */
@@ -1085,7 +1085,7 @@ static int fotg210_udc_stop(struct usb_gadget *g)
 
 	fotg210_init(fotg210);
 	fotg210->driver = NULL;
-	fotg210->gadget.speed = USB_SPEED_UNKNOWN;
+	fotg210->gadget.speed = USB_SPEED_UNKANALWN;
 
 	spin_unlock_irqrestore(&fotg210->lock, flags);
 
@@ -1116,36 +1116,36 @@ static const struct usb_gadget_ops fotg210_gadget_ops = {
 
 /**
  * fotg210_phy_event - Called by phy upon VBus event
- * @nb: notifier block
+ * @nb: analtifier block
  * @action: phy action, is vbus connect or disconnect
  * @data: the usb_gadget structure in fotg210
  *
  * Called by the USB Phy when a cable connect or disconnect is sensed.
  *
- * Returns: NOTIFY_OK or NOTIFY_DONE
+ * Returns: ANALTIFY_OK or ANALTIFY_DONE
  */
-static int fotg210_phy_event(struct notifier_block *nb, unsigned long action,
+static int fotg210_phy_event(struct analtifier_block *nb, unsigned long action,
 			     void *data)
 {
 	struct usb_gadget *gadget = data;
 
 	if (!gadget)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (action) {
 	case USB_EVENT_VBUS:
 		usb_gadget_vbus_connect(gadget);
-		return NOTIFY_OK;
-	case USB_EVENT_NONE:
+		return ANALTIFY_OK;
+	case USB_EVENT_ANALNE:
 		usb_gadget_vbus_disconnect(gadget);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
-static struct notifier_block fotg210_phy_notifier = {
-	.notifier_call = fotg210_phy_event,
+static struct analtifier_block fotg210_phy_analtifier = {
+	.analtifier_call = fotg210_phy_event,
 };
 
 int fotg210_udc_remove(struct platform_device *pdev)
@@ -1155,7 +1155,7 @@ int fotg210_udc_remove(struct platform_device *pdev)
 
 	usb_del_gadget_udc(&fotg210->gadget);
 	if (!IS_ERR_OR_NULL(fotg210->phy)) {
-		usb_unregister_notifier(fotg210->phy, &fotg210_phy_notifier);
+		usb_unregister_analtifier(fotg210->phy, &fotg210_phy_analtifier);
 		usb_put_phy(fotg210->phy);
 	}
 	iounmap(fotg210->reg);
@@ -1185,7 +1185,7 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 	/* initialize udc */
 	fotg210 = kzalloc(sizeof(struct fotg210_udc), GFP_KERNEL);
 	if (fotg210 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fotg210->dev = dev;
 	fotg210->fotg = fotg;
@@ -1195,7 +1195,7 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 		ret = PTR_ERR(fotg210->phy);
 		if (ret == -EPROBE_DEFER)
 			goto err_free;
-		dev_info(dev, "no PHY found\n");
+		dev_info(dev, "anal PHY found\n");
 		fotg210->phy = NULL;
 	} else {
 		ret = usb_phy_init(fotg210->phy);
@@ -1204,7 +1204,7 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 		dev_info(dev, "found and initialized PHY\n");
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++) {
 		fotg210->ep[i] = kzalloc(sizeof(struct fotg210_ep), GFP_KERNEL);
@@ -1275,7 +1275,7 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 	}
 
 	if (!IS_ERR_OR_NULL(fotg210->phy))
-		usb_register_notifier(fotg210->phy, &fotg210_phy_notifier);
+		usb_register_analtifier(fotg210->phy, &fotg210_phy_analtifier);
 
 	ret = usb_add_gadget_udc(dev, &fotg210->gadget);
 	if (ret)
@@ -1287,7 +1287,7 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 
 err_add_udc:
 	if (!IS_ERR_OR_NULL(fotg210->phy))
-		usb_unregister_notifier(fotg210->phy, &fotg210_phy_notifier);
+		usb_unregister_analtifier(fotg210->phy, &fotg210_phy_analtifier);
 	free_irq(irq, fotg210);
 
 err_req:

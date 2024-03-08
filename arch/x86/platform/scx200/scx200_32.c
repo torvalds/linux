@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+ *  Copyright (c) 2001,2002 Christer Weinigel <wingel@naanal-system.com>
  *
  *  National Semiconductor SCx200 support.
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
@@ -18,7 +18,7 @@
 /* Verify that the configuration block really is there */
 #define scx200_cb_probe(base) (inw((base) + SCx200_CBA) == (base))
 
-MODULE_AUTHOR("Christer Weinigel <wingel@nano-system.com>");
+MODULE_AUTHOR("Christer Weinigel <wingel@naanal-system.com>");
 MODULE_DESCRIPTION("NatSemi SCx200 Driver");
 MODULE_LICENSE("GPL");
 
@@ -82,8 +82,8 @@ static int scx200_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			if (scx200_cb_probe(base)) {
 				scx200_cb_base = base;
 			} else {
-				pr_warn("Configuration Block not found\n");
-				return -ENODEV;
+				pr_warn("Configuration Block analt found\n");
+				return -EANALDEV;
 			}
 		}
 		pr_info("Configuration Block base 0x%x\n", scx200_cb_base);

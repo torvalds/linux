@@ -10,7 +10,7 @@
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/printk.h>
@@ -32,8 +32,8 @@ struct vidtv_tuner_cnr_to_qual_s {
 
 static const struct vidtv_tuner_cnr_to_qual_s vidtv_tuner_c_cnr_2_qual[] = {
 	/* from libdvbv5 source code, in milli db */
-	{ QAM_256, FEC_NONE,  34000, 38000},
-	{ QAM_64,  FEC_NONE,  30000, 34000},
+	{ QAM_256, FEC_ANALNE,  34000, 38000},
+	{ QAM_64,  FEC_ANALNE,  30000, 34000},
 };
 
 static const struct vidtv_tuner_cnr_to_qual_s vidtv_tuner_s_cnr_2_qual[] = {
@@ -235,7 +235,7 @@ vidtv_tuner_get_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		}
 		/*
 		 * Channel tuned at wrong frequency. Simulate that the
-		 * Carrier S/N ratio is not too good.
+		 * Carrier S/N ratio is analt too good.
 		 */
 
 		*strength = cnr2qual[i].cnr_ok -
@@ -398,7 +398,7 @@ static int vidtv_tuner_i2c_probe(struct i2c_client *client)
 
 	tuner_dev = kzalloc(sizeof(*tuner_dev), GFP_KERNEL);
 	if (!tuner_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tuner_dev->fe = config->fe;
 	i2c_set_clientdata(client, tuner_dev);

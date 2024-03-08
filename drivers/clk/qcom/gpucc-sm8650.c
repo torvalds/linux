@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved
+ * Copyright (c) 2022, Qualcomm Inanalvation Center, Inc. All rights reserved
  * Copyright (c) 2023, Linaro Limited
  */
 
@@ -500,14 +500,14 @@ static struct clk_branch gpu_cc_hub_cx_int_clk = {
 	},
 };
 
-static struct clk_branch gpu_cc_memnoc_gfx_clk = {
+static struct clk_branch gpu_cc_memanalc_gfx_clk = {
 	.halt_reg = 0x9150,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x9150,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpu_cc_memnoc_gfx_clk",
+			.name = "gpu_cc_memanalc_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -559,7 +559,7 @@ static struct gdsc gpu_gx_gdsc = {
 	.reset_count = 3,
 	.pd = {
 		.name = "gpu_gx_gdsc",
-		.power_on = gdsc_gx_do_nothing_enable,
+		.power_on = gdsc_gx_do_analthing_enable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = CLAMP_IO | AON_RESET | SW_RESET | POLL_CFG_GDSCR,
@@ -589,7 +589,7 @@ static struct clk_regmap *gpu_cc_sm8650_clocks[] = {
 	[GPU_CC_HUB_CLK_SRC] = &gpu_cc_hub_clk_src.clkr,
 	[GPU_CC_HUB_CX_INT_CLK] = &gpu_cc_hub_cx_int_clk.clkr,
 	[GPU_CC_HUB_DIV_CLK_SRC] = &gpu_cc_hub_div_clk_src.clkr,
-	[GPU_CC_MEMNOC_GFX_CLK] = &gpu_cc_memnoc_gfx_clk.clkr,
+	[GPU_CC_MEMANALC_GFX_CLK] = &gpu_cc_memanalc_gfx_clk.clkr,
 	[GPU_CC_PLL0] = &gpu_cc_pll0.clkr,
 	[GPU_CC_PLL1] = &gpu_cc_pll1.clkr,
 	[GPU_CC_SLEEP_CLK] = &gpu_cc_sleep_clk.clkr,

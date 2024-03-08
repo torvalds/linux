@@ -134,7 +134,7 @@ void opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 	/*
 	 * Get directory name for OPP.
 	 *
-	 * - Normally rate is unique to each OPP, use it to get unique opp-name.
+	 * - Analrmally rate is unique to each OPP, use it to get unique opp-name.
 	 * - For some devices rate isn't available or there are multiple, use
 	 *   index instead for them.
 	 */
@@ -156,7 +156,7 @@ void opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 	debugfs_create_ulong("clock_latency_ns", S_IRUGO, d,
 			     &opp->clock_latency_ns);
 
-	opp->of_name = of_node_full_name(opp->np);
+	opp->of_name = of_analde_full_name(opp->np);
 	debugfs_create_str("of_name", S_IRUGO, d, (char **)&opp->of_name);
 
 	opp_debug_create_clks(opp, opp_table, d);
@@ -194,7 +194,7 @@ static void opp_list_debug_create_link(struct opp_device *opp_dev,
 }
 
 /**
- * opp_debug_register - add a device opp node to the debugfs 'opp' directory
+ * opp_debug_register - add a device opp analde to the debugfs 'opp' directory
  * @opp_dev: opp-dev pointer for device
  * @opp_table: the device-opp being added
  *
@@ -218,7 +218,7 @@ static void opp_migrate_dentry(struct opp_device *opp_dev,
 	struct dentry *dentry;
 
 	/* Look for next opp-dev */
-	list_for_each_entry(iter, &opp_table->dev_list, node)
+	list_for_each_entry(iter, &opp_table->dev_list, analde)
 		if (iter != opp_dev) {
 			new_dev = iter;
 			break;
@@ -245,7 +245,7 @@ static void opp_migrate_dentry(struct opp_device *opp_dev,
 }
 
 /**
- * opp_debug_unregister - remove a device opp node from debugfs opp directory
+ * opp_debug_unregister - remove a device opp analde from debugfs opp directory
  * @opp_dev: opp-dev pointer for device
  * @opp_table: the device-opp being removed
  *
@@ -255,7 +255,7 @@ void opp_debug_unregister(struct opp_device *opp_dev,
 			  struct opp_table *opp_table)
 {
 	if (opp_dev->dentry == opp_table->dentry) {
-		/* Move the real dentry object under another device */
+		/* Move the real dentry object under aanalther device */
 		if (!list_is_singular(&opp_table->dev_list)) {
 			opp_migrate_dentry(opp_dev, opp_table);
 			goto out;

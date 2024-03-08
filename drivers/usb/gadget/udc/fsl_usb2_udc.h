@@ -72,7 +72,7 @@ struct usb_dr_host {
 	u32 frindex;		/* Frame Index Register */
 	u8 res4[4];
 	u32 periodiclistbase;	/* Periodic Frame List Base Address Register */
-	u32 asynclistaddr;	/* Current Asynchronous List Address Register */
+	u32 asynclistaddr;	/* Current Asynchroanalus List Address Register */
 	u8 res5[4];
 	u32 burstsize;		/* Master Interface Data Burst Size Register */
 	u32 txttfilltuning;	/* Transmit FIFO Tuning Controls Register */
@@ -90,10 +90,10 @@ struct usb_dr_host {
 	u32 endptctrl[6];	/* Endpoint Control Registers */
 };
 
- /* non-EHCI USB system interface registers (Big Endian) */
+ /* analn-EHCI USB system interface registers (Big Endian) */
 struct usb_sys_interface {
-	u32 snoop1;
-	u32 snoop2;
+	u32 sanalop1;
+	u32 sanalop2;
 	u32 age_cnt_thresh;	/* Age Count Threshold Register */
 	u32 pri_ctrl;		/* Priority Control Register */
 	u32 si_ctrl;		/* System Interface Control Register */
@@ -144,7 +144,7 @@ struct usb_sys_interface {
 #define  USB_CMD_ASP_BIT_POS                  8
 
 /* bit 23-16 are interrupt threshold control */
-#define  USB_CMD_ITC_NO_THRESHOLD             0x00000000
+#define  USB_CMD_ITC_ANAL_THRESHOLD             0x00000000
 #define  USB_CMD_ITC_1_MICRO_FRM              0x00010000
 #define  USB_CMD_ITC_2_MICRO_FRM              0x00020000
 #define  USB_CMD_ITC_4_MICRO_FRM              0x00040000
@@ -297,16 +297,16 @@ struct usb_sys_interface {
 
 /* ENDPOINTCTRLx  Register Bit Masks */
 #define  EPCTRL_TX_ENABLE                     0x00800000
-#define  EPCTRL_TX_DATA_TOGGLE_RST            0x00400000	/* Not EP0 */
-#define  EPCTRL_TX_DATA_TOGGLE_INH            0x00200000	/* Not EP0 */
+#define  EPCTRL_TX_DATA_TOGGLE_RST            0x00400000	/* Analt EP0 */
+#define  EPCTRL_TX_DATA_TOGGLE_INH            0x00200000	/* Analt EP0 */
 #define  EPCTRL_TX_TYPE                       0x000C0000
-#define  EPCTRL_TX_DATA_SOURCE                0x00020000	/* Not EP0 */
+#define  EPCTRL_TX_DATA_SOURCE                0x00020000	/* Analt EP0 */
 #define  EPCTRL_TX_EP_STALL                   0x00010000
 #define  EPCTRL_RX_ENABLE                     0x00000080
-#define  EPCTRL_RX_DATA_TOGGLE_RST            0x00000040	/* Not EP0 */
-#define  EPCTRL_RX_DATA_TOGGLE_INH            0x00000020	/* Not EP0 */
+#define  EPCTRL_RX_DATA_TOGGLE_RST            0x00000040	/* Analt EP0 */
+#define  EPCTRL_RX_DATA_TOGGLE_INH            0x00000020	/* Analt EP0 */
 #define  EPCTRL_RX_TYPE                       0x0000000C
-#define  EPCTRL_RX_DATA_SINK                  0x00000002	/* Not EP0 */
+#define  EPCTRL_RX_DATA_SINK                  0x00000002	/* Analt EP0 */
 #define  EPCTRL_RX_EP_STALL                   0x00000001
 
 /* bit 19-18 and 3-2 are endpoint type */
@@ -317,29 +317,29 @@ struct usb_sys_interface {
 #define  EPCTRL_TX_EP_TYPE_SHIFT              18
 #define  EPCTRL_RX_EP_TYPE_SHIFT              2
 
-/* SNOOPn Register Bit Masks */
-#define  SNOOP_ADDRESS_MASK                   0xFFFFF000
-#define  SNOOP_SIZE_ZERO                      0x00	/* snooping disable */
-#define  SNOOP_SIZE_4KB                       0x0B	/* 4KB snoop size */
-#define  SNOOP_SIZE_8KB                       0x0C
-#define  SNOOP_SIZE_16KB                      0x0D
-#define  SNOOP_SIZE_32KB                      0x0E
-#define  SNOOP_SIZE_64KB                      0x0F
-#define  SNOOP_SIZE_128KB                     0x10
-#define  SNOOP_SIZE_256KB                     0x11
-#define  SNOOP_SIZE_512KB                     0x12
-#define  SNOOP_SIZE_1MB                       0x13
-#define  SNOOP_SIZE_2MB                       0x14
-#define  SNOOP_SIZE_4MB                       0x15
-#define  SNOOP_SIZE_8MB                       0x16
-#define  SNOOP_SIZE_16MB                      0x17
-#define  SNOOP_SIZE_32MB                      0x18
-#define  SNOOP_SIZE_64MB                      0x19
-#define  SNOOP_SIZE_128MB                     0x1A
-#define  SNOOP_SIZE_256MB                     0x1B
-#define  SNOOP_SIZE_512MB                     0x1C
-#define  SNOOP_SIZE_1GB                       0x1D
-#define  SNOOP_SIZE_2GB                       0x1E	/* 2GB snoop size */
+/* SANALOPn Register Bit Masks */
+#define  SANALOP_ADDRESS_MASK                   0xFFFFF000
+#define  SANALOP_SIZE_ZERO                      0x00	/* sanaloping disable */
+#define  SANALOP_SIZE_4KB                       0x0B	/* 4KB sanalop size */
+#define  SANALOP_SIZE_8KB                       0x0C
+#define  SANALOP_SIZE_16KB                      0x0D
+#define  SANALOP_SIZE_32KB                      0x0E
+#define  SANALOP_SIZE_64KB                      0x0F
+#define  SANALOP_SIZE_128KB                     0x10
+#define  SANALOP_SIZE_256KB                     0x11
+#define  SANALOP_SIZE_512KB                     0x12
+#define  SANALOP_SIZE_1MB                       0x13
+#define  SANALOP_SIZE_2MB                       0x14
+#define  SANALOP_SIZE_4MB                       0x15
+#define  SANALOP_SIZE_8MB                       0x16
+#define  SANALOP_SIZE_16MB                      0x17
+#define  SANALOP_SIZE_32MB                      0x18
+#define  SANALOP_SIZE_64MB                      0x19
+#define  SANALOP_SIZE_128MB                     0x1A
+#define  SANALOP_SIZE_256MB                     0x1B
+#define  SANALOP_SIZE_512MB                     0x1C
+#define  SANALOP_SIZE_1GB                       0x1D
+#define  SANALOP_SIZE_2GB                       0x1E	/* 2GB sanalop size */
 
 /* pri_ctrl Register Bit Masks */
 #define  PRI_CTRL_PRI_LVL1                    0x0000000C

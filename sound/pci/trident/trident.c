@@ -56,10 +56,10 @@ static int snd_trident_probe(struct pci_dev *pci,
 	int err, pcm_dev = 0;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
@@ -86,7 +86,7 @@ static int snd_trident_probe(struct pci_dev *pci,
 		str = "SI7018";
 		break;
 	default:
-		str = "Unknown";
+		str = "Unkanalwn";
 	}
 	strcpy(card->driver, str);
 	if (trident->device == TRIDENT_DEVICE_ID_SI7018) {

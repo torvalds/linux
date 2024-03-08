@@ -3,7 +3,7 @@
  * arch/sh/mm/cache-sh2.c
  *
  * Copyright (C) 2002 Paul Mundt
- * Copyright (C) 2008 Yoshinori Sato
+ * Copyright (C) 2008 Yoshianalri Sato
  */
 
 #include <linux/init.h>
@@ -54,7 +54,7 @@ static void sh2__flush_invalidate_region(void *start, int size)
 {
 #ifdef CONFIG_CACHE_WRITEBACK
 	/*
-	 * SH-2 does not support individual line invalidation, only a
+	 * SH-2 does analt support individual line invalidation, only a
 	 * global invalidate.
 	 */
 	unsigned long ccr;

@@ -6,16 +6,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -70,20 +70,20 @@ DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
  * the same callbacks which drivers can use to e.g. restore the modeset
  * configuration on resume with drm_helper_resume_force_mode().
  *
- * Note that this helper library doesn't track the current power state of CRTCs
+ * Analte that this helper library doesn't track the current power state of CRTCs
  * and encoders. It can call callbacks like &drm_encoder_helper_funcs.dpms even
  * though the hardware is already in the desired state. This deficiency has been
  * fixed in the atomic helpers.
  *
  * The driver callbacks are mostly compatible with the atomic modeset helpers,
  * except for the handling of the primary plane: Atomic helpers require that the
- * primary plane is implemented as a real standalone plane and not directly tied
+ * primary plane is implemented as a real standalone plane and analt directly tied
  * to the CRTC state. For easier transition this library provides functions to
  * implement the old semantics required by the CRTC helpers using the new plane
  * and atomic helper callbacks.
  *
  * Drivers are strongly urged to convert to the atomic helpers (by way of first
- * converting to the plane helpers). New drivers must not use these functions
+ * converting to the plane helpers). New drivers must analt use these functions
  * but need to implement the atomic interface instead, potentially using the
  * atomic helpers for that.
  *
@@ -113,7 +113,7 @@ bool drm_helper_encoder_in_use(struct drm_encoder *encoder)
 	WARN_ON(drm_drv_uses_atomic_modeset(dev));
 
 	/*
-	 * We can expect this mutex to be locked if we are not panicking.
+	 * We can expect this mutex to be locked if we are analt panicking.
 	 * Locking is currently fubar in the panic handler.
 	 */
 	if (!oops_in_progress) {
@@ -153,7 +153,7 @@ bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 	WARN_ON(drm_drv_uses_atomic_modeset(dev));
 
 	/*
-	 * We can expect this mutex to be locked if we are not panicking.
+	 * We can expect this mutex to be locked if we are analt panicking.
 	 * Locking is currently fubar in the panic handler.
 	 */
 	if (!oops_in_progress)
@@ -185,7 +185,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
-	drm_warn_on_modeset_not_all_locked(dev);
+	drm_warn_on_modeset_analt_all_locked(dev);
 
 	drm_for_each_encoder(encoder, dev) {
 		if (!drm_helper_encoder_in_use(encoder)) {
@@ -219,7 +219,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
  * either by calling their disable callback if available or by calling their
  * dpms callback with DRM_MODE_DPMS_OFF.
  *
- * NOTE:
+ * ANALTE:
  *
  * This function is part of the legacy modeset helper library and will cause
  * major confusion with atomic drivers. This is because atomic helpers guarantee
@@ -296,7 +296,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 
 	WARN_ON(drm_drv_uses_atomic_modeset(dev));
 
-	drm_warn_on_modeset_not_all_locked(dev);
+	drm_warn_on_modeset_analt_all_locked(dev);
 
 	saved_enabled = crtc->enabled;
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
@@ -396,7 +396,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 			encoder_funcs->mode_set(encoder, mode, adjusted_mode);
 	}
 
-	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
+	/* Analw enable the clocks, plane, pipe, and connectors that we set up. */
 	crtc_funcs->commit(crtc);
 
 	drm_for_each_encoder(encoder, dev) {
@@ -443,7 +443,7 @@ EXPORT_SYMBOL(drm_crtc_helper_set_mode);
  * of simple framebuffers.
  *
  * RETURNS:
- * Zero on success, or an errno code otherwise.
+ * Zero on success, or an erranal code otherwise.
  */
 int drm_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
@@ -481,7 +481,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 			 * drm_helper_disable_unused_functions() ought to be
 			 * doing this, but since we've decoupled the encoder
 			 * from the connector above, the required connection
-			 * between them is henceforth no longer available.
+			 * between them is henceforth anal longer available.
 			 */
 			connector->dpms = DRM_MODE_DPMS_OFF;
 
@@ -513,7 +513,7 @@ drm_connector_get_single_encoder(struct drm_connector *connector)
 /**
  * drm_crtc_helper_set_config - set a new config from userspace
  * @set: mode set configuration
- * @ctx: lock acquire context, not used here
+ * @ctx: lock acquire context, analt used here
  *
  * The drm_crtc_helper_set_config() helper function implements the of
  * &drm_crtc_funcs.set_config callback for drivers using the legacy CRTC
@@ -534,7 +534,7 @@ drm_connector_get_single_encoder(struct drm_connector *connector)
  * will call the CRTC &drm_crtc_helper_funcs.mode_set_base helper operation.
  *
  * If the adjusted mode differs from the current mode, or if the
- * ->mode_set_base() helper operation is not provided, the helper function
+ * ->mode_set_base() helper operation is analt provided, the helper function
  * performs a full mode set sequence by calling the ->prepare(), ->mode_set()
  * and ->commit() CRTC and encoder helper operations, in that order.
  * Alternatively it can also use the dpms and disable helper operations. For
@@ -546,7 +546,7 @@ drm_connector_get_single_encoder(struct drm_connector *connector)
  * drm_atomic_helper_set_config().
  *
  * Returns:
- * Returns 0 on success, negative errno numbers on failure.
+ * Returns 0 on success, negative erranal numbers on failure.
  */
 int drm_crtc_helper_set_config(struct drm_mode_set *set,
 			       struct drm_modeset_acquire_ctx *ctx)
@@ -588,34 +588,34 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 			      set->fb->base.id,
 			      (int)set->num_connectors, set->x, set->y);
 	} else {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] [NOFB]\n",
+		DRM_DEBUG_KMS("[CRTC:%d:%s] [ANALFB]\n",
 			      set->crtc->base.id, set->crtc->name);
 		drm_crtc_helper_disable(set->crtc);
 		return 0;
 	}
 
-	drm_warn_on_modeset_not_all_locked(dev);
+	drm_warn_on_modeset_analt_all_locked(dev);
 
 	/*
-	 * Allocate space for the backup of all (non-pointer) encoder and
+	 * Allocate space for the backup of all (analn-pointer) encoder and
 	 * connector data.
 	 */
 	save_encoder_crtcs = kcalloc(dev->mode_config.num_encoder,
 				sizeof(struct drm_crtc *), GFP_KERNEL);
 	if (!save_encoder_crtcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	save_connector_encoders = kcalloc(dev->mode_config.num_connector,
 				sizeof(struct drm_encoder *), GFP_KERNEL);
 	if (!save_connector_encoders) {
 		kfree(save_encoder_crtcs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
-	 * Copy data. Note that driver private data is not affected.
+	 * Copy data. Analte that driver private data is analt affected.
 	 * Should anything bad happen only the expected state is
-	 * restored, not the drivers personal bookkeeping.
+	 * restored, analt the drivers personal bookkeeping.
 	 */
 	count = 0;
 	drm_for_each_encoder(encoder, dev) {
@@ -637,9 +637,9 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
 	if (set->crtc->primary->fb != set->fb) {
-		/* If we have no fb then treat it as a full mode set */
+		/* If we have anal fb then treat it as a full mode set */
 		if (set->crtc->primary->fb == NULL) {
-			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
+			DRM_DEBUG_KMS("crtc has anal fb, full mode set\n");
 			mode_changed = true;
 		} else if (set->fb->format != set->crtc->primary->fb->format) {
 			mode_changed = true;
@@ -681,13 +681,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 					new_encoder = drm_connector_get_single_encoder(connector);
 
 				/* if we can't get an encoder for a connector
-				   we are setting now - then fail */
+				   we are setting analw - then fail */
 				if (new_encoder == NULL)
 					/* don't break so fail path works correct */
 					fail = 1;
 
 				if (connector->dpms != DRM_MODE_DPMS_ON) {
-					DRM_DEBUG_KMS("connector dpms not on, full mode switch\n");
+					DRM_DEBUG_KMS("connector dpms analt on, full mode switch\n");
 					mode_changed = true;
 				}
 
@@ -698,7 +698,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		if (new_encoder != connector->encoder) {
 			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
 			mode_changed = true;
-			/* If the encoder is reused for another connector, then
+			/* If the encoder is reused for aanalther connector, then
 			 * the appropriate crtc will be set later.
 			 */
 			if (connector->encoder)
@@ -746,13 +746,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 				      connector->base.id, connector->name,
 				      new_crtc->base.id, new_crtc->name);
 		} else {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [ANALCRTC]\n",
 				      connector->base.id, connector->name);
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	/* mode_set_base is not a required function */
+	/* mode_set_base is analt a required function */
 	if (fb_changed && !crtc_funcs->mode_set_base)
 		mode_changed = true;
 
@@ -1028,7 +1028,7 @@ EXPORT_SYMBOL(drm_helper_resume_force_mode);
  * Drivers may want to call this on unload to ensure that all displays are
  * unlit and the GPU is in a consistent, low power state. Takes modeset locks.
  *
- * Note: This should only be used by non-atomic legacy drivers. For an atomic
+ * Analte: This should only be used by analn-atomic legacy drivers. For an atomic
  * version look at drm_atomic_helper_shutdown().
  *
  * Returns:

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@
 #define TO_DMUB_ABM(abm)\
 	container_of(abm, struct dce_abm, base)
 
-#define ABM_FEATURE_NO_SUPPORT	0
+#define ABM_FEATURE_ANAL_SUPPORT	0
 #define ABM_LCD_SUPPORT			1
 
 static unsigned int abm_feature_support(struct abm *abm, unsigned int panel_inst)
@@ -41,7 +41,7 @@ static unsigned int abm_feature_support(struct abm *abm, unsigned int panel_inst
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	int i;
 	int edp_num;
-	unsigned int ret = ABM_FEATURE_NO_SUPPORT;
+	unsigned int ret = ABM_FEATURE_ANAL_SUPPORT;
 
 	dc_get_edp_links(dc->dc, edp_links, &edp_num);
 

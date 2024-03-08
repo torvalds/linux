@@ -28,7 +28,7 @@
 EVENT_DEFINE_RANGE_FORMAT(request, config, 0, 31);
 /* u32 */
 /*
- * Note that starting_index, phys_processor_idx, sibling_part_id,
+ * Analte that starting_index, phys_processor_idx, sibling_part_id,
  * hw_chip_id, partition_id all refer to the same bit range. They
  * are basically aliases for the starting_index. The specific alias
  * used depends on the event. See REQUEST_IDX_KIND in hv-gpci-requests.h
@@ -140,16 +140,16 @@ static unsigned long systeminfo_gpci_request(u32 req, u32 starting_index,
 	arg->params.starting_index = cpu_to_be32(starting_index);
 	arg->params.secondary_index = cpu_to_be16(secondary_index);
 
-	ret = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
+	ret = plpar_hcall_analrets(H_GET_PERF_COUNTER_INFO,
 			virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
 
 	/*
 	 * ret value as 'H_PARAMETER' corresponds to 'GEN_BUF_TOO_SMALL',
-	 * which means that the current buffer size cannot accommodate
+	 * which means that the current buffer size cananalt accommodate
 	 * all the information and a partial buffer returned.
 	 * hcall fails incase of ret value other than H_SUCCESS or H_PARAMETER.
 	 *
-	 * ret value as H_AUTHORITY implies that partition is not permitted to retrieve
+	 * ret value as H_AUTHORITY implies that partition is analt permitted to retrieve
 	 * performance information, and required to set
 	 * "Enable Performance Information Collection" option.
 	 */
@@ -476,7 +476,7 @@ static void affinity_domain_via_partition_result_parse(int returned_values,
 	 * Unlike other request types, the data structure returned by this
 	 * request is variable-size. For this counter request type,
 	 * hcall populates 'cv_element_size' corresponds to minimum size of
-	 * the structure returned i.e; the size of the structure with no domain
+	 * the structure returned i.e; the size of the structure with anal domain
 	 * information. Below loop go through all counter_value array
 	 * to determine the number and size of each domain array element and
 	 * add it to the output buffer.
@@ -528,7 +528,7 @@ static ssize_t affinity_domain_via_partition_show(struct device *dev, struct dev
 	arg->params.counter_request = cpu_to_be32(sysinfo_counter_request[AFFINITY_DOMAIN_VIA_PAR]);
 	arg->params.starting_index = cpu_to_be32(0);
 
-	ret = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
+	ret = plpar_hcall_analrets(H_GET_PERF_COUNTER_INFO,
 			virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
 
 	if (!ret)
@@ -570,7 +570,7 @@ static ssize_t affinity_domain_via_partition_show(struct device *dev, struct dev
 				sysinfo_counter_request[AFFINITY_DOMAIN_VIA_PAR]);
 		arg->params.starting_index = cpu_to_be32(starting_index);
 
-		ret = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
+		ret = plpar_hcall_analrets(H_GET_PERF_COUNTER_INFO,
 				virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
 
 		if (ret && (ret != H_PARAMETER))
@@ -591,11 +591,11 @@ out:
 
 	/*
 	 * ret value as 'H_PARAMETER' corresponds to 'GEN_BUF_TOO_SMALL',
-	 * which means that the current buffer size cannot accommodate
+	 * which means that the current buffer size cananalt accommodate
 	 * all the information and a partial buffer returned.
 	 * hcall fails incase of ret value other than H_SUCCESS or H_PARAMETER.
 	 *
-	 * ret value as H_AUTHORITY implies that partition is not permitted to retrieve
+	 * ret value as H_AUTHORITY implies that partition is analt permitted to retrieve
 	 * performance information, and required to set
 	 * "Enable Performance Information Collection" option.
 	 */
@@ -693,7 +693,7 @@ static unsigned long single_gpci_request(u32 req, u32 starting_index,
 	arg->params.secondary_index = cpu_to_be16(secondary_index);
 	arg->params.counter_info_version_in = version_in;
 
-	ret = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
+	ret = plpar_hcall_analrets(H_GET_PERF_COUNTER_INFO,
 			virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
 	if (ret) {
 		pr_devel("hcall failed: 0x%lx\n", ret);
@@ -732,9 +732,9 @@ static u64 h_gpci_get_value(struct perf_event *event)
 static void h_gpci_event_update(struct perf_event *event)
 {
 	s64 prev;
-	u64 now = h_gpci_get_value(event);
-	prev = local64_xchg(&event->hw.prev_count, now);
-	local64_add(now - prev, &event->count);
+	u64 analw = h_gpci_get_value(event);
+	prev = local64_xchg(&event->hw.prev_count, analw);
+	local64_add(analw - prev, &event->count);
 }
 
 static void h_gpci_event_start(struct perf_event *event, int flags)
@@ -760,9 +760,9 @@ static int h_gpci_event_init(struct perf_event *event)
 	u64 count;
 	u8 length;
 
-	/* Not our event */
+	/* Analt our event */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* config2 is unused */
 	if (event->attr.config2) {
@@ -770,9 +770,9 @@ static int h_gpci_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	/* no branch sampling */
+	/* anal branch sampling */
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	length = event_get_length(event);
 	if (length < 1 || length > 8) {
@@ -814,7 +814,7 @@ static struct pmu h_gpci_pmu = {
 	.start       = h_gpci_event_start,
 	.stop        = h_gpci_event_stop,
 	.read        = h_gpci_event_update,
-	.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities = PERF_PMU_CAP_ANAL_EXCLUDE,
 };
 
 static int ppc_hv_gpci_cpu_online(unsigned int cpu)
@@ -875,7 +875,7 @@ static struct device_attribute *sysinfo_device_attr_create(int
 
 	arg->params.counter_request = cpu_to_be32(req);
 
-	ret = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
+	ret = plpar_hcall_analrets(H_GET_PERF_COUNTER_INFO,
 			virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
 
 	put_cpu_var(hv_gpci_reqb);
@@ -967,15 +967,15 @@ static int hv_gpci_init(void)
 	hv_gpci_assert_offsets_correct();
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		pr_debug("not a virtualized system, not enabling\n");
-		return -ENODEV;
+		pr_debug("analt a virtualized system, analt enabling\n");
+		return -EANALDEV;
 	}
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_debug("could not obtain capabilities, not enabling, rc=%ld\n",
+		pr_debug("could analt obtain capabilities, analt enabling, rc=%ld\n",
 				hret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* init cpuhotplug */
@@ -983,8 +983,8 @@ static int hv_gpci_init(void)
 	if (r)
 		return r;
 
-	/* sampling not supported */
-	h_gpci_pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
+	/* sampling analt supported */
+	h_gpci_pmu.capabilities |= PERF_PMU_CAP_ANAL_INTERRUPT;
 
 	arg = (void *)get_cpu_var(hv_gpci_reqb);
 	memset(arg, 0, HGPCI_REQ_BUFFER_SIZE);
@@ -998,7 +998,7 @@ static int hv_gpci_init(void)
 	 */
 	arg->params.counter_request = cpu_to_be32(0x10);
 
-	r = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
+	r = plpar_hcall_analrets(H_GET_PERF_COUNTER_INFO,
 			virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
 	if (r) {
 		pr_devel("hcall failed, can't get supported counter_info_version: 0x%x\n", r);

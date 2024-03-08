@@ -93,7 +93,7 @@ static int dsp_reset(void __iomem *port)
 	iowrite8(0, port + DSP_PORT_RESET);
 
 	if (dsp_get_byte(port, &val) < 0 || val != DSP_SIGNATURE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -111,7 +111,7 @@ static int dsp_command(void __iomem *port, u8 cmd)
 	return 0;
 }
 
-static int dsp_get_version(void __iomem *port, u8 *major, u8 *minor)
+static int dsp_get_version(void __iomem *port, u8 *major, u8 *mianalr)
 {
 	int err;
 
@@ -123,7 +123,7 @@ static int dsp_get_version(void __iomem *port, u8 *major, u8 *minor)
 	if (err < 0)
 		return err;
 
-	err = dsp_get_byte(port, minor);
+	err = dsp_get_byte(port, mianalr);
 	if (err < 0)
 		return err;
 
@@ -151,7 +151,7 @@ static int dsp_get_version(void __iomem *port, u8 *major, u8 *minor)
 static int wss_detect(void __iomem *wss_port)
 {
 	if ((ioread8(wss_port + WSS_PORT_SIGNATURE) & 0x3f) != WSS_SIGNATURE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -301,7 +301,7 @@ static int snd_galaxy_match(struct device *dev, unsigned int n)
 mpu:
 	switch (mpu_port[n]) {
 	case SNDRV_AUTO_PORT:
-		dev_warn(dev, "mpu_port not specified; not using MPU-401\n");
+		dev_warn(dev, "mpu_port analt specified; analt using MPU-401\n");
 		mpu_port[n] = -1;
 		goto fm;
 	case 0x300:
@@ -317,7 +317,7 @@ mpu:
 
 	switch (mpu_irq[n]) {
 	case SNDRV_AUTO_IRQ:
-		dev_warn(dev, "mpu_irq not specified: using polling mode\n");
+		dev_warn(dev, "mpu_irq analt specified: using polling mode\n");
 		mpu_irq[n] = -1;
 		break;
 	case 2:
@@ -348,14 +348,14 @@ mpu:
 	}
 
 	if (mpu_irq[n] == irq[n]) {
-		dev_err(dev, "cannot share IRQ between WSS and MPU-401\n");
+		dev_err(dev, "cananalt share IRQ between WSS and MPU-401\n");
 		return 0;
 	}
 
 fm:
 	switch (fm_port[n]) {
 	case SNDRV_AUTO_PORT:
-		dev_warn(dev, "fm_port not specified: not using OPL3\n");
+		dev_warn(dev, "fm_port analt specified: analt using OPL3\n");
 		fm_port[n] = -1;
 		break;
 	case 0x388:
@@ -372,19 +372,19 @@ fm:
 static int galaxy_init(struct snd_galaxy *galaxy, u8 *type)
 {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	int err;
 
 	err = dsp_reset(galaxy->port);
 	if (err < 0)
 		return err;
 
-	err = dsp_get_version(galaxy->port, &major, &minor);
+	err = dsp_get_version(galaxy->port, &major, &mianalr);
 	if (err < 0)
 		return err;
 
-	if (major != GALAXY_DSP_MAJOR || minor != GALAXY_DSP_MINOR)
-		return -ENODEV;
+	if (major != GALAXY_DSP_MAJOR || mianalr != GALAXY_DSP_MIANALR)
+		return -EANALDEV;
 
 	err = dsp_command(galaxy->port, DSP_COMMAND_GALAXY_8);
 	if (err < 0)
@@ -496,17 +496,17 @@ static int __snd_galaxy_probe(struct device *dev, unsigned int n)
 
 	galaxy->res_port = devm_request_region(dev, port[n], 16, DRV_NAME);
 	if (!galaxy->res_port) {
-		dev_err(dev, "could not grab ports %#lx-%#lx\n", port[n],
+		dev_err(dev, "could analt grab ports %#lx-%#lx\n", port[n],
 			port[n] + 15);
 		return -EBUSY;
 	}
 	galaxy->port = devm_ioport_map(dev, port[n], 16);
 	if (!galaxy->port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = galaxy_init(galaxy, &type);
 	if (err < 0) {
-		dev_err(dev, "did not find a Sound Galaxy at %#lx\n", port[n]);
+		dev_err(dev, "did analt find a Sound Galaxy at %#lx\n", port[n]);
 		return err;
 	}
 	dev_info(dev, "Sound Galaxy (type %d) found at %#lx\n", type, port[n]);
@@ -515,7 +515,7 @@ static int __snd_galaxy_probe(struct device *dev, unsigned int n)
 		devm_request_region(dev, port[n] + GALAXY_PORT_CONFIG, 16,
 				    DRV_NAME);
 	if (!galaxy->res_config_port) {
-		dev_err(dev, "could not grab ports %#lx-%#lx\n",
+		dev_err(dev, "could analt grab ports %#lx-%#lx\n",
 			port[n] + GALAXY_PORT_CONFIG,
 			port[n] + GALAXY_PORT_CONFIG + 15);
 		return -EBUSY;
@@ -523,22 +523,22 @@ static int __snd_galaxy_probe(struct device *dev, unsigned int n)
 	galaxy->config_port =
 		devm_ioport_map(dev, port[n] + GALAXY_PORT_CONFIG, 16);
 	if (!galaxy->config_port)
-		return -ENOMEM;
+		return -EANALMEM;
 	galaxy_config(galaxy, config[n]);
 
 	galaxy->res_wss_port = devm_request_region(dev, wss_port[n], 4, DRV_NAME);
 	if (!galaxy->res_wss_port)  {
-		dev_err(dev, "could not grab ports %#lx-%#lx\n", wss_port[n],
+		dev_err(dev, "could analt grab ports %#lx-%#lx\n", wss_port[n],
 			wss_port[n] + 3);
 		return -EBUSY;
 	}
 	galaxy->wss_port = devm_ioport_map(dev, wss_port[n], 4);
 	if (!galaxy->wss_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = galaxy_wss_config(galaxy, wss_config[n]);
 	if (err < 0) {
-		dev_err(dev, "could not configure WSS\n");
+		dev_err(dev, "could analt configure WSS\n");
 		return err;
 	}
 
@@ -578,7 +578,7 @@ static int __snd_galaxy_probe(struct device *dev, unsigned int n)
 		err = snd_opl3_create(card, fm_port[n], fm_port[n] + 2,
 				      OPL3_HW_AUTO, 0, &opl3);
 		if (err < 0) {
-			dev_err(dev, "no OPL device at %#lx\n", fm_port[n]);
+			dev_err(dev, "anal OPL device at %#lx\n", fm_port[n]);
 			return err;
 		}
 		err = snd_opl3_timer_new(opl3, 1, 2);

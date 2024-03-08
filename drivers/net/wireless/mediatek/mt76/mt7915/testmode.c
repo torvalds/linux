@@ -158,7 +158,7 @@ mt7915_tm_set_tam_arb(struct mt7915_phy *phy, bool enable, bool mu)
 	u32 op_mode;
 
 	if (!enable)
-		op_mode = TAM_ARB_OP_MODE_NORMAL;
+		op_mode = TAM_ARB_OP_MODE_ANALRMAL;
 	else if (mu)
 		op_mode = TAM_ARB_OP_MODE_TEST;
 	else
@@ -235,7 +235,7 @@ mt7915_tm_set_ipg_params(struct mt7915_phy *phy, u32 ipg, u8 mode)
 done:
 	txv_time = mt76_get_field(dev, MT_TMAC_ATCR(band),
 				  MT_TMAC_ATCR_TXV_TOUT);
-	txv_time *= 50;	/* normal clock time */
+	txv_time *= 50;	/* analrmal clock time */
 
 	i2t_time = (slot_time * 1000 - txv_time - BBP_PROC_TIME) / 50;
 	tr2t_time = (sifs * 1000 - txv_time - BBP_PROC_TIME) / 50;
@@ -456,7 +456,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 	mt7915_tm_set_tam_arb(phy, en,
 			      td->tx_rate_mode == MT76_TM_TX_MODE_HE_MU);
 
-	/* if all three params are set, duty_cycle will be ignored */
+	/* if all three params are set, duty_cycle will be iganalred */
 	if (duty_cycle && tx_time && !ipg) {
 		ipg = tx_time * 100 / duty_cycle - tx_time;
 	} else if (duty_cycle && !tx_time && ipg) {
@@ -553,7 +553,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
 	case NL80211_CHAN_WIDTH_20:
 		tx_cont->bw = CMD_CBW_20MHZ;
 		break;
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 		tx_cont->bw = CMD_CBW_20MHZ;
 		break;
 	default:
@@ -622,7 +622,7 @@ out:
 		if (ret)
 			return ret;
 
-		return mt7915_tm_rf_switch_mode(dev, RF_OPER_NORMAL);
+		return mt7915_tm_rf_switch_mode(dev, RF_OPER_ANALRMAL);
 	}
 
 	mt7915_tm_rf_switch_mode(dev, RF_OPER_RF_TEST);
@@ -730,43 +730,43 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 
 	rx = nla_nest_start(msg, MT76_TM_STATS_ATTR_LAST_RX);
 	if (!rx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (nla_put_s32(msg, MT76_TM_RX_ATTR_FREQ_OFFSET, phy->test.last_freq_offset))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_RCPI);
 	if (!rssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(phy->test.last_rcpi); i++)
 		if (nla_put_u8(msg, i, phy->test.last_rcpi[i]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	nla_nest_end(msg, rssi);
 
 	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_IB_RSSI);
 	if (!rssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(phy->test.last_ib_rssi); i++)
 		if (nla_put_s8(msg, i, phy->test.last_ib_rssi[i]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	nla_nest_end(msg, rssi);
 
 	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_WB_RSSI);
 	if (!rssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(phy->test.last_wb_rssi); i++)
 		if (nla_put_s8(msg, i, phy->test.last_wb_rssi[i]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	nla_nest_end(msg, rssi);
 
 	if (nla_put_u8(msg, MT76_TM_RX_ATTR_SNR, phy->test.last_snr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nla_nest_end(msg, rx);
 

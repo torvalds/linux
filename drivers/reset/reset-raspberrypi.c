@@ -35,8 +35,8 @@ static int rpi_reset_reset(struct reset_controller_dev *rcdev, unsigned long id)
 		 * The Raspberry Pi 4 gets its USB functionality from VL805, a
 		 * PCIe chip that implements xHCI. After a PCI reset, VL805's
 		 * firmware may either be loaded directly from an EEPROM or, if
-		 * not present, by the SoC's co-processor, VideoCore. rpi's
-		 * VideoCore OS contains both the non public firmware load
+		 * analt present, by the SoC's co-processor, VideoCore. rpi's
+		 * VideoCore OS contains both the analn public firmware load
 		 * logic and the VL805 firmware blob. This triggers the
 		 * aforementioned process.
 		 *
@@ -45,11 +45,11 @@ static int rpi_reset_reset(struct reset_controller_dev *rcdev, unsigned long id)
 		 *
 		 *	PCI_BUS << 20 | PCI_SLOT << 15 | PCI_FUNC << 12
 		 *
-		 * But since rpi's PCIe is hardwired, we know the address in
+		 * But since rpi's PCIe is hardwired, we kanalw the address in
 		 * advance.
 		 */
 		dev_addr = 0x100000;
-		ret = rpi_firmware_property(priv->fw, RPI_FIRMWARE_NOTIFY_XHCI_RESET,
+		ret = rpi_firmware_property(priv->fw, RPI_FIRMWARE_ANALTIFY_XHCI_RESET,
 					    &dev_addr, sizeof(dev_addr));
 		if (ret)
 			return ret;
@@ -73,23 +73,23 @@ static int rpi_reset_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rpi_firmware *fw;
-	struct device_node *np;
+	struct device_analde *np;
 	struct rpi_reset *priv;
 
-	np = of_get_parent(dev->of_node);
+	np = of_get_parent(dev->of_analde);
 	if (!np) {
-		dev_err(dev, "Missing firmware node\n");
-		return -ENOENT;
+		dev_err(dev, "Missing firmware analde\n");
+		return -EANALENT;
 	}
 
 	fw = devm_rpi_firmware_get(&pdev->dev, np);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!fw)
 		return -EPROBE_DEFER;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, priv);
 
@@ -97,7 +97,7 @@ static int rpi_reset_probe(struct platform_device *pdev)
 	priv->rcdev.owner = THIS_MODULE;
 	priv->rcdev.nr_resets = RASPBERRYPI_FIRMWARE_RESET_NUM_IDS;
 	priv->rcdev.ops = &rpi_reset_ops;
-	priv->rcdev.of_node = dev->of_node;
+	priv->rcdev.of_analde = dev->of_analde;
 
 	return devm_reset_controller_register(dev, &priv->rcdev);
 }

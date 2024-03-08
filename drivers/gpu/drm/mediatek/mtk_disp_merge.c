@@ -20,7 +20,7 @@
 #define DISP_REG_MERGE_CFG_1		0x014
 #define DISP_REG_MERGE_CFG_4		0x020
 #define DISP_REG_MERGE_CFG_10		0x038
-/* no swap */
+/* anal swap */
 #define SWAP_MODE				0
 #define FLD_SWAP_MODE				GENMASK(4, 0)
 #define DISP_REG_MERGE_CFG_12		0x040
@@ -247,7 +247,7 @@ static int mtk_disp_merge_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->regs = devm_ioremap_resource(dev, res);
@@ -280,10 +280,10 @@ static int mtk_disp_merge_probe(struct platform_device *pdev)
 		dev_dbg(dev, "get mediatek,gce-client-reg fail!\n");
 #endif
 
-	priv->fifo_en = of_property_read_bool(dev->of_node,
+	priv->fifo_en = of_property_read_bool(dev->of_analde,
 					      "mediatek,merge-fifo-en");
 
-	priv->mute_support = of_property_read_bool(dev->of_node,
+	priv->mute_support = of_property_read_bool(dev->of_analde,
 						   "mediatek,merge-mute");
 	platform_set_drvdata(pdev, priv);
 

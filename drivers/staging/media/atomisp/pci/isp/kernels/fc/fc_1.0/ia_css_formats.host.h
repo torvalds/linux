@@ -26,7 +26,7 @@ ia_css_formats_encode(
     struct sh_css_isp_formats_params *to,
     const struct ia_css_formats_config *from,
     unsigned int size);
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 /* FIXME: See BZ 4427 */
 void
 ia_css_formats_dump(
@@ -34,12 +34,12 @@ ia_css_formats_dump(
     unsigned int level);
 #endif
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 /* FIXME: See BZ 4427 */
 void
 ia_css_formats_debug_dtrace(
     const struct ia_css_formats_config *formats,
     unsigned int level);
-#endif /*IA_CSS_NO_DEBUG*/
+#endif /*IA_CSS_ANAL_DEBUG*/
 
 #endif /* __IA_CSS_FORMATS_HOST_H */

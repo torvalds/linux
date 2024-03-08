@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -29,7 +29,7 @@
 #include <nvfw/sec2.h>
 
 int
-gp102_sec2_nofw(struct nvkm_sec2 *sec2, int ver,
+gp102_sec2_analfw(struct nvkm_sec2 *sec2, int ver,
 		const struct nvkm_sec2_fwif *fwif)
 {
 	nvkm_warn(&sec2->engine.subdev, "firmware unavailable\n");
@@ -64,7 +64,7 @@ gp102_sec2_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
 		.cmd.hdr.unit_id = sec2->func->unit_acr,
 		.cmd.hdr.size = sizeof(cmd),
 		.cmd.cmd_type = NV_SEC2_ACR_CMD_BOOTSTRAP_FALCON,
-		.flags = NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_YES,
+		.flags = NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL,
 		.falcon_id = id,
 	};
 
@@ -255,8 +255,8 @@ gp102_sec2_acr_bld_write_1(struct nvkm_acr *acr, u32 bld,
 	const struct flcn_bl_dmem_desc_v2 hdr = {
 		.ctx_dma = FALCON_SEC2_DMAIDX_UCODE,
 		.code_dma_base = lsfw->offset.img + lsfw->app_start_offset,
-		.non_sec_code_off = lsfw->app_resident_code_offset,
-		.non_sec_code_size = lsfw->app_resident_code_size,
+		.analn_sec_code_off = lsfw->app_resident_code_offset,
+		.analn_sec_code_size = lsfw->app_resident_code_size,
 		.code_entry_point = lsfw->app_imem_entry,
 		.data_dma_base = lsfw->offset.img + lsfw->app_start_offset +
 				 lsfw->app_resident_data_offset,
@@ -306,7 +306,7 @@ static const struct nvkm_sec2_fwif
 gp102_sec2_fwif[] = {
 	{  1, gp102_sec2_load, &gp102_sec2, &gp102_sec2_acr_1 },
 	{  0, gp102_sec2_load, &gp102_sec2, &gp102_sec2_acr_0 },
-	{ -1, gp102_sec2_nofw, &gp102_sec2 },
+	{ -1, gp102_sec2_analfw, &gp102_sec2 },
 	{}
 };
 

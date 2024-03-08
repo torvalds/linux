@@ -155,15 +155,15 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 	case HPI_SUBSYS_GET_VERSION:
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM,
 			HPI_SUBSYS_GET_VERSION, 0);
-		phr->u.s.version = HPI_VER >> 8;	/* return major.minor */
-		phr->u.s.data = HPI_VER;	/* return major.minor.release */
+		phr->u.s.version = HPI_VER >> 8;	/* return major.mianalr */
+		phr->u.s.data = HPI_VER;	/* return major.mianalr.release */
 		break;
 	case HPI_SUBSYS_OPEN:
-		/*do not propagate the message down the chain */
+		/*do analt propagate the message down the chain */
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM, HPI_SUBSYS_OPEN, 0);
 		break;
 	case HPI_SUBSYS_CLOSE:
-		/*do not propagate the message down the chain */
+		/*do analt propagate the message down the chain */
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM, HPI_SUBSYS_CLOSE,
 			0);
 		HPIMSGX__cleanup(HPIMSGX_ALLADAPTERS, h_owner);
@@ -172,7 +172,7 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 		/* Initialize this module's internal state */
 		hpios_msgxlock_init(&msgx_lock);
 		memset(&hpi_entry_points, 0, sizeof(hpi_entry_points));
-		/* Init subsys_findadapters response to no-adapters */
+		/* Init subsys_findadapters response to anal-adapters */
 		HPIMSGX__reset(HPIMSGX_ALLADAPTERS);
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM,
 			HPI_SUBSYS_DRIVER_LOAD, 0);
@@ -291,7 +291,7 @@ static void instream_message(struct hpi_message *phm,
 	}
 }
 
-/* NOTE: HPI_Message() must be defined in the driver as a wrapper for
+/* ANALTE: HPI_Message() must be defined in the driver as a wrapper for
  * HPI_MessageEx so that functions in hpifunc.c compile.
  */
 void hpi_send_recv_ex(struct hpi_message *phm, struct hpi_response *phr,
@@ -465,7 +465,7 @@ static void instream_close(struct hpi_message *phm, struct hpi_response *phr,
 			h_owner, phm->adapter_index, phm->obj_index,
 			instream_user_open[phm->adapter_index][phm->
 				obj_index].h_owner);
-		phr->error = HPI_ERROR_OBJ_NOT_OPEN;
+		phr->error = HPI_ERROR_OBJ_ANALT_OPEN;
 	}
 	hpios_msgxlock_unlock(&msgx_lock);
 }
@@ -563,7 +563,7 @@ static void outstream_close(struct hpi_message *phm, struct hpi_response *phr,
 			h_owner, phm->adapter_index, phm->obj_index,
 			outstream_user_open[phm->adapter_index][phm->
 				obj_index].h_owner);
-		phr->error = HPI_ERROR_OBJ_NOT_OPEN;
+		phr->error = HPI_ERROR_OBJ_ANALT_OPEN;
 	}
 	hpios_msgxlock_unlock(&msgx_lock);
 }

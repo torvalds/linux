@@ -48,7 +48,7 @@ enum {
 	BATTERY_CHARGE_COUNTER	= 0x24,
 	BATTERY_VOLTAGE_MAX	= 0x28,
 	BATTERY_CURRENT_MAX	= 0x2C,
-	BATTERY_CURRENT_NOW	= 0x30,
+	BATTERY_CURRENT_ANALW	= 0x30,
 	BATTERY_CURRENT_AVG	= 0x34,
 	BATTERY_CHARGE_FULL_UAH	= 0x38,
 	BATTERY_CYCLE_COUNT	= 0x40,
@@ -100,13 +100,13 @@ static int goldfish_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = GOLDFISH_BATTERY_READ(data, BATTERY_PRESENT);
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = GOLDFISH_BATTERY_READ(data, BATTERY_CAPACITY);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = GOLDFISH_BATTERY_READ(data, BATTERY_VOLTAGE);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
@@ -116,8 +116,8 @@ static int goldfish_battery_get_property(struct power_supply *psy,
 		val->intval = GOLDFISH_BATTERY_READ(data,
 						    BATTERY_CHARGE_COUNTER);
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = GOLDFISH_BATTERY_READ(data, BATTERY_CURRENT_NOW);
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+		val->intval = GOLDFISH_BATTERY_READ(data, BATTERY_CURRENT_ANALW);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		val->intval = GOLDFISH_BATTERY_READ(data, BATTERY_CURRENT_AVG);
@@ -141,12 +141,12 @@ static enum power_supply_property goldfish_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
@@ -176,7 +176,7 @@ static irqreturn_t goldfish_battery_interrupt(int irq, void *dev_id)
 		power_supply_changed(data->ac);
 
 	spin_unlock_irqrestore(&data->lock, irq_flags);
-	return status ? IRQ_HANDLED : IRQ_NONE;
+	return status ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static const struct power_supply_desc battery_desc = {
@@ -204,25 +204,25 @@ static int goldfish_battery_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&data->lock);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
 		dev_err(&pdev->dev, "platform_get_resource failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->reg_base = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (data->reg_base == NULL) {
 		dev_err(&pdev->dev, "unable to remap MMIO\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->irq = platform_get_irq(pdev, 0);
 	if (data->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = devm_request_irq(&pdev->dev, data->irq,
 			       goldfish_battery_interrupt,

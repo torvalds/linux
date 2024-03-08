@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
 	struct mod_hdcp_link_adjustment *adjust = &hdcp->connection.link.adjust;
 
 	switch (current_state(hdcp)) {
-	case H2_A0_KNOWN_HDCP2_CAPABLE_RX:
+	case H2_A0_KANALWN_HDCP2_CAPABLE_RX:
 		if (input->hdcp2version_read != PASS ||
 				input->hdcp2_capable_check != PASS) {
 			adjust->hdcp2.disable = 1;
@@ -66,7 +66,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
 			if (event_ctx->event ==
 					MOD_HDCP_EVENT_WATCHDOG_TIMEOUT) {
 				/* 1A-08: consider ake timeout a failure */
-				/* some hdmi receivers are not ready for HDCP
+				/* some hdmi receivers are analt ready for HDCP
 				 * immediately after video becomes active,
 				 * delay 1s before retry on first HDCP message
 				 * timeout.
@@ -88,16 +88,16 @@ enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
 			break;
 		}
 		if (conn->is_km_stored &&
-				!adjust->hdcp2.force_no_stored_km) {
+				!adjust->hdcp2.force_anal_stored_km) {
 			callback_in_ms(0, output);
 			set_state_id(hdcp, output, H2_A1_SEND_STORED_KM);
 		} else {
 			callback_in_ms(0, output);
-			set_state_id(hdcp, output, H2_A1_SEND_NO_STORED_KM);
+			set_state_id(hdcp, output, H2_A1_SEND_ANAL_STORED_KM);
 		}
 		break;
-	case H2_A1_SEND_NO_STORED_KM:
-		if (input->no_stored_km_write != PASS) {
+	case H2_A1_SEND_ANAL_STORED_KM:
+		if (input->anal_stored_km_write != PASS) {
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}
@@ -177,7 +177,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
 			break;
 		} else if (input->h_prime_validation != PASS) {
 			/* 1A-11-1: consider invalid h' a failure */
-			adjust->hdcp2.force_no_stored_km = 1;
+			adjust->hdcp2.force_anal_stored_km = 1;
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}
@@ -395,7 +395,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		} else if (input->ake_init_write != PASS) {
-			/* possibly display not ready */
+			/* possibly display analt ready */
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}
@@ -413,16 +413,16 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 			break;
 		}
 		if (conn->is_km_stored &&
-				!adjust->hdcp2.force_no_stored_km) {
+				!adjust->hdcp2.force_anal_stored_km) {
 			callback_in_ms(0, output);
 			set_state_id(hdcp, output, D2_A1_SEND_STORED_KM);
 		} else {
 			callback_in_ms(0, output);
-			set_state_id(hdcp, output, D2_A1_SEND_NO_STORED_KM);
+			set_state_id(hdcp, output, D2_A1_SEND_ANAL_STORED_KM);
 		}
 		break;
-	case D2_A1_SEND_NO_STORED_KM:
-		if (input->no_stored_km_write != PASS) {
+	case D2_A1_SEND_ANAL_STORED_KM:
+		if (input->anal_stored_km_write != PASS) {
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}
@@ -491,7 +491,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 			break;
 		} else if (input->h_prime_validation != PASS) {
 			/* 1A-10-1: consider invalid h' a failure */
-			adjust->hdcp2.force_no_stored_km = 1;
+			adjust->hdcp2.force_anal_stored_km = 1;
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}

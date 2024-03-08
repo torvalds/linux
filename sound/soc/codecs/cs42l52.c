@@ -94,7 +94,7 @@ static const struct reg_default cs42l52_reg_defaults[] = {
 	{ CS42L52_ALC_CTL, 0x00 },	/* r2A ALC Ctl 1 Attack Rate */
 	{ CS42L52_ALC_RATE, 0x3F },	/* r2B ALC Release Rate */
 	{ CS42L52_ALC_THRESHOLD, 0x3f },	/* r2C ALC Thresholds */
-	{ CS42L52_NOISE_GATE_CTL, 0x00 },	/* r2D Noise Gate Ctl */
+	{ CS42L52_ANALISE_GATE_CTL, 0x00 },	/* r2D Analise Gate Ctl */
 	{ CS42L52_CLK_STATUS, 0x00 },	/* r2E Overflow and Clock Status */
 	{ CS42L52_BATT_COMPEN, 0x00 },	/* r2F battery Compensation */
 	{ CS42L52_BATT_LEVEL, 0x00 },	/* r30 VP Battery Level */
@@ -258,14 +258,14 @@ static const char * const ng_threshold_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(ng_threshold_enum,
-			    CS42L52_NOISE_GATE_CTL, 2,
+			    CS42L52_ANALISE_GATE_CTL, 2,
 			    ng_threshold_text);
 
 static const char * const cs42l52_ng_delay_text[] = {
 	"50ms", "100ms", "150ms", "200ms"};
 
 static SOC_ENUM_SINGLE_DECL(ng_delay_enum,
-			    CS42L52_NOISE_GATE_CTL, 0,
+			    CS42L52_ANALISE_GATE_CTL, 0,
 			    cs42l52_ng_delay_text);
 
 static const char * const cs42l52_ng_type_text[] = {
@@ -273,7 +273,7 @@ static const char * const cs42l52_ng_type_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(ng_type_enum,
-			    CS42L52_NOISE_GATE_CTL, 6,
+			    CS42L52_ANALISE_GATE_CTL, 6,
 			    cs42l52_ng_type_text);
 
 static const char * const left_swap_text[] = {
@@ -428,10 +428,10 @@ static const struct snd_kcontrol_new cs42l52_snd_controls[] = {
 		     CS42L52_PGAB_CTL, 6, 1, 1),
 	SOC_DOUBLE("ALC Capture Switch", CS42L52_ALC_CTL, 6, 7, 1, 0),
 
-	/* Noise gate */
+	/* Analise gate */
 	SOC_ENUM("NG Type Switch", ng_type_enum),
-	SOC_SINGLE("NG Enable Switch", CS42L52_NOISE_GATE_CTL, 6, 1, 0),
-	SOC_SINGLE("NG Boost Switch", CS42L52_NOISE_GATE_CTL, 5, 1, 1),
+	SOC_SINGLE("NG Enable Switch", CS42L52_ANALISE_GATE_CTL, 6, 1, 0),
+	SOC_SINGLE("NG Boost Switch", CS42L52_ANALISE_GATE_CTL, 5, 1, 1),
 	SOC_ENUM("NG Threshold", ng_threshold_enum),
 	SOC_ENUM("NG Delay", ng_delay_enum),
 
@@ -502,24 +502,24 @@ static const struct snd_soc_dapm_widget cs42l52_dapm_widgets[] = {
 	SND_SOC_DAPM_SIGGEN("Beep"),
 
 	SND_SOC_DAPM_AIF_OUT("AIFOUTL", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AIFOUTR", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_ADC("ADC Left", NULL, CS42L52_PWRCTL1, 1, 1),
 	SND_SOC_DAPM_ADC("ADC Right", NULL, CS42L52_PWRCTL1, 2, 1),
 	SND_SOC_DAPM_PGA("PGA Left", CS42L52_PWRCTL1, 3, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("PGA Right", CS42L52_PWRCTL1, 4, 1, NULL, 0),
 
-	SND_SOC_DAPM_MUX("ADC Left Mux", SND_SOC_NOPM, 0, 0, &adca_mux),
-	SND_SOC_DAPM_MUX("ADC Right Mux", SND_SOC_NOPM, 0, 0, &adcb_mux),
+	SND_SOC_DAPM_MUX("ADC Left Mux", SND_SOC_ANALPM, 0, 0, &adca_mux),
+	SND_SOC_DAPM_MUX("ADC Right Mux", SND_SOC_ANALPM, 0, 0, &adcb_mux),
 
-	SND_SOC_DAPM_MUX("ADC Left Swap", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("ADC Left Swap", SND_SOC_ANALPM,
 			 0, 0, &adca_mixer),
-	SND_SOC_DAPM_MUX("ADC Right Swap", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("ADC Right Swap", SND_SOC_ANALPM,
 			 0, 0, &adcb_mixer),
 
-	SND_SOC_DAPM_MUX("Output Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("Output Mux", SND_SOC_ANALPM,
 			 0, 0, &digital_output_mux),
 
 	SND_SOC_DAPM_PGA("PGA MICA", CS42L52_PWRCTL2, 1, 1, NULL, 0),
@@ -529,28 +529,28 @@ static const struct snd_soc_dapm_widget cs42l52_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Charge Pump", CS42L52_PWRCTL1, 7, 1, NULL, 0),
 
 	SND_SOC_DAPM_AIF_IN("AIFINL", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("AIFINR", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_DAC("DAC Left", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Right", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Left", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Right", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_SWITCH("Bypass Left", CS42L52_MISC_CTL,
 			    6, 0, &passthrul_ctl),
 	SND_SOC_DAPM_SWITCH("Bypass Right", CS42L52_MISC_CTL,
 			    7, 0, &passthrur_ctl),
 
-	SND_SOC_DAPM_MUX("PCM Left Swap", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("PCM Left Swap", SND_SOC_ANALPM,
 			 0, 0, &pcma_mixer),
-	SND_SOC_DAPM_MUX("PCM Right Swap", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("PCM Right Swap", SND_SOC_ANALPM,
 			 0, 0, &pcmb_mixer),
 
-	SND_SOC_DAPM_SWITCH("HP Left Amp", SND_SOC_NOPM, 0, 0, &hpl_ctl),
-	SND_SOC_DAPM_SWITCH("HP Right Amp", SND_SOC_NOPM, 0, 0, &hpr_ctl),
+	SND_SOC_DAPM_SWITCH("HP Left Amp", SND_SOC_ANALPM, 0, 0, &hpl_ctl),
+	SND_SOC_DAPM_SWITCH("HP Right Amp", SND_SOC_ANALPM, 0, 0, &hpr_ctl),
 
-	SND_SOC_DAPM_SWITCH("SPK Left Amp", SND_SOC_NOPM, 0, 0, &spkl_ctl),
-	SND_SOC_DAPM_SWITCH("SPK Right Amp", SND_SOC_NOPM, 0, 0, &spkr_ctl),
+	SND_SOC_DAPM_SWITCH("SPK Left Amp", SND_SOC_ANALPM, 0, 0, &spkl_ctl),
+	SND_SOC_DAPM_SWITCH("SPK Right Amp", SND_SOC_ANALPM, 0, 0, &spkr_ctl),
 
 	SND_SOC_DAPM_OUTPUT("HPOUTA"),
 	SND_SOC_DAPM_OUTPUT("HPOUTB"),
@@ -644,54 +644,54 @@ struct cs42l52_clk_para {
 
 static const struct cs42l52_clk_para clk_map_table[] = {
 	/*8k*/
-	{12288000, 8000, CLK_QS_MODE, CLK_32K, CLK_NO_27M, CLK_R_128, 0},
-	{18432000, 8000, CLK_QS_MODE, CLK_32K, CLK_NO_27M, CLK_R_128, 0},
-	{12000000, 8000, CLK_QS_MODE, CLK_32K, CLK_NO_27M, CLK_R_125, 0},
-	{24000000, 8000, CLK_QS_MODE, CLK_32K, CLK_NO_27M, CLK_R_125, 1},
+	{12288000, 8000, CLK_QS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{18432000, 8000, CLK_QS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{12000000, 8000, CLK_QS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_125, 0},
+	{24000000, 8000, CLK_QS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_125, 1},
 	{27000000, 8000, CLK_QS_MODE, CLK_32K, CLK_27M_MCLK, CLK_R_125, 0},
 
 	/*11.025k*/
-	{11289600, 11025, CLK_QS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
-	{16934400, 11025, CLK_QS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
+	{11289600, 11025, CLK_QS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{16934400, 11025, CLK_QS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
 
 	/*16k*/
-	{12288000, 16000, CLK_HS_MODE, CLK_32K, CLK_NO_27M, CLK_R_128, 0},
-	{18432000, 16000, CLK_HS_MODE, CLK_32K, CLK_NO_27M, CLK_R_128, 0},
-	{12000000, 16000, CLK_HS_MODE, CLK_32K, CLK_NO_27M, CLK_R_125, 0},
-	{24000000, 16000, CLK_HS_MODE, CLK_32K, CLK_NO_27M, CLK_R_125, 1},
+	{12288000, 16000, CLK_HS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{18432000, 16000, CLK_HS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{12000000, 16000, CLK_HS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_125, 0},
+	{24000000, 16000, CLK_HS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_125, 1},
 	{27000000, 16000, CLK_HS_MODE, CLK_32K, CLK_27M_MCLK, CLK_R_125, 1},
 
 	/*22.05k*/
-	{11289600, 22050, CLK_HS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
-	{16934400, 22050, CLK_HS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
+	{11289600, 22050, CLK_HS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{16934400, 22050, CLK_HS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
 
 	/* 32k */
-	{12288000, 32000, CLK_SS_MODE, CLK_32K, CLK_NO_27M, CLK_R_128, 0},
-	{18432000, 32000, CLK_SS_MODE, CLK_32K, CLK_NO_27M, CLK_R_128, 0},
-	{12000000, 32000, CLK_SS_MODE, CLK_32K, CLK_NO_27M, CLK_R_125, 0},
-	{24000000, 32000, CLK_SS_MODE, CLK_32K, CLK_NO_27M, CLK_R_125, 1},
+	{12288000, 32000, CLK_SS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{18432000, 32000, CLK_SS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{12000000, 32000, CLK_SS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_125, 0},
+	{24000000, 32000, CLK_SS_MODE, CLK_32K, CLK_ANAL_27M, CLK_R_125, 1},
 	{27000000, 32000, CLK_SS_MODE, CLK_32K, CLK_27M_MCLK, CLK_R_125, 0},
 
 	/* 44.1k */
-	{11289600, 44100, CLK_SS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
-	{16934400, 44100, CLK_SS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
+	{11289600, 44100, CLK_SS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{16934400, 44100, CLK_SS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
 
 	/* 48k */
-	{12288000, 48000, CLK_SS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
-	{18432000, 48000, CLK_SS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
-	{12000000, 48000, CLK_SS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_125, 0},
-	{24000000, 48000, CLK_SS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_125, 1},
-	{27000000, 48000, CLK_SS_MODE, CLK_NO_32K, CLK_27M_MCLK, CLK_R_125, 1},
+	{12288000, 48000, CLK_SS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{18432000, 48000, CLK_SS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{12000000, 48000, CLK_SS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_125, 0},
+	{24000000, 48000, CLK_SS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_125, 1},
+	{27000000, 48000, CLK_SS_MODE, CLK_ANAL_32K, CLK_27M_MCLK, CLK_R_125, 1},
 
 	/* 88.2k */
-	{11289600, 88200, CLK_DS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
-	{16934400, 88200, CLK_DS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
+	{11289600, 88200, CLK_DS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{16934400, 88200, CLK_DS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
 
 	/* 96k */
-	{12288000, 96000, CLK_DS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
-	{18432000, 96000, CLK_DS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_128, 0},
-	{12000000, 96000, CLK_DS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_125, 0},
-	{24000000, 96000, CLK_DS_MODE, CLK_NO_32K, CLK_NO_27M, CLK_R_125, 1},
+	{12288000, 96000, CLK_DS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{18432000, 96000, CLK_DS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_128, 0},
+	{12000000, 96000, CLK_DS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_125, 0},
+	{24000000, 96000, CLK_DS_MODE, CLK_ANAL_32K, CLK_ANAL_27M, CLK_R_125, 1},
 };
 
 static int cs42l52_get_clk(int mclk, int rate)
@@ -870,7 +870,7 @@ static const struct snd_soc_dai_ops cs42l52_ops = {
 	.mute_stream	= cs42l52_mute,
 	.set_fmt	= cs42l52_set_fmt,
 	.set_sysclk	= cs42l52_set_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42l52_dai = {
@@ -932,7 +932,7 @@ static void cs42l52_beep_work(struct work_struct *work)
 }
 
 /* For usability define a way of injecting beep events for the device -
- * many systems will not have a keyboard.
+ * many systems will analt have a keyboard.
  */
 static int cs42l52_beep_event(struct input_dev *dev, unsigned int type,
 			     unsigned int code, int hz)
@@ -1098,7 +1098,7 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
 
 	cs42l52 = devm_kzalloc(&i2c_client->dev, sizeof(*cs42l52), GFP_KERNEL);
 	if (cs42l52 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	cs42l52->dev = &i2c_client->dev;
 
 	cs42l52->regmap = devm_regmap_init_i2c(i2c_client, &cs42l52_regmap);
@@ -1113,27 +1113,27 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
 		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
 				     GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		if (i2c_client->dev.of_node) {
-			if (of_property_read_bool(i2c_client->dev.of_node,
+		if (i2c_client->dev.of_analde) {
+			if (of_property_read_bool(i2c_client->dev.of_analde,
 				"cirrus,mica-differential-cfg"))
 				pdata->mica_diff_cfg = true;
 
-			if (of_property_read_bool(i2c_client->dev.of_node,
+			if (of_property_read_bool(i2c_client->dev.of_analde,
 				"cirrus,micb-differential-cfg"))
 				pdata->micb_diff_cfg = true;
 
-			if (of_property_read_u32(i2c_client->dev.of_node,
+			if (of_property_read_u32(i2c_client->dev.of_analde,
 				"cirrus,micbias-lvl", &val32) >= 0)
 				pdata->micbias_lvl = val32;
 
-			if (of_property_read_u32(i2c_client->dev.of_node,
+			if (of_property_read_u32(i2c_client->dev.of_analde,
 				"cirrus,chgfreq-divisor", &val32) >= 0)
 				pdata->chgfreq = val32;
 
 			pdata->reset_gpio =
-				of_get_named_gpio(i2c_client->dev.of_node,
+				of_get_named_gpio(i2c_client->dev.of_analde,
 						"cirrus,reset-gpio", 0);
 		}
 		cs42l52->pdata = *pdata;
@@ -1169,7 +1169,7 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
 
 	devid = reg & CS42L52_CHIP_ID_MASK;
 	if (devid != CS42L52_CHIP_ID) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&i2c_client->dev,
 			"CS42L52 Device ID (%X). Expected %X\n",
 			devid, CS42L52_CHIP_ID);

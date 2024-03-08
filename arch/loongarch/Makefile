@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Author: Huacai Chen <chenhuacai@loongson.cn>
-# Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+# Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
 
 boot	:= arch/loongarch/boot
 
@@ -38,7 +38,7 @@ endif
 
 ifneq ($(SUBARCH),$(ARCH))
   ifeq ($(CROSS_COMPILE),)
-    CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unknown-linux-gnu-)
+    CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unkanalwn-linux-gnu-)
   endif
 endif
 
@@ -48,34 +48,34 @@ cflags-y		+= -mabi=lp64s
 endif
 
 cflags-y			+= -pipe -msoft-float
-LDFLAGS_vmlinux			+= -static -n -nostdlib
+LDFLAGS_vmlinux			+= -static -n -analstdlib
 
 # When the assembler supports explicit relocation hint, we must use it.
 # GCC may have -mexplicit-relocs off by default if it was built with an old
 # assembler, so we force it via an option.
 #
-# When the assembler does not supports explicit relocation hint, we can't use
+# When the assembler does analt supports explicit relocation hint, we can't use
 # it.  Disable it if the compiler supports it.
 #
-# The combination of a "new" assembler and "old" GCC is not supported, given
+# The combination of a "new" assembler and "old" GCC is analt supported, given
 # the rarity of this combo and the extra complexity needed to make it work.
 # Either upgrade the compiler or downgrade the assembler; the build will error
 # out if it is the case (by probing for the model attribute; all supported
 # compilers in this case would have support).
 #
 # Also, -mdirect-extern-access is useful in case of building with explicit
-# relocs, for avoiding unnecessary GOT accesses. It is harmless to not have
+# relocs, for avoiding unnecessary GOT accesses. It is harmless to analt have
 # support though.
 ifdef CONFIG_AS_HAS_EXPLICIT_RELOCS
 cflags-y			+= $(call cc-option,-mexplicit-relocs)
 KBUILD_CFLAGS_KERNEL		+= $(call cc-option,-mdirect-extern-access)
 KBUILD_CFLAGS_KERNEL		+= $(call cc-option,-fdirect-access-external-data)
-KBUILD_AFLAGS_MODULE		+= $(call cc-option,-fno-direct-access-external-data)
-KBUILD_CFLAGS_MODULE		+= $(call cc-option,-fno-direct-access-external-data)
-KBUILD_AFLAGS_MODULE		+= $(call cc-option,-mno-relax) $(call cc-option,-Wa$(comma)-mno-relax)
-KBUILD_CFLAGS_MODULE		+= $(call cc-option,-mno-relax) $(call cc-option,-Wa$(comma)-mno-relax)
+KBUILD_AFLAGS_MODULE		+= $(call cc-option,-fanal-direct-access-external-data)
+KBUILD_CFLAGS_MODULE		+= $(call cc-option,-fanal-direct-access-external-data)
+KBUILD_AFLAGS_MODULE		+= $(call cc-option,-manal-relax) $(call cc-option,-Wa$(comma)-manal-relax)
+KBUILD_CFLAGS_MODULE		+= $(call cc-option,-manal-relax) $(call cc-option,-Wa$(comma)-manal-relax)
 else
-cflags-y			+= $(call cc-option,-mno-explicit-relocs)
+cflags-y			+= $(call cc-option,-manal-explicit-relocs)
 KBUILD_AFLAGS_KERNEL		+= -Wa,-mla-global-with-pcrel
 KBUILD_CFLAGS_KERNEL		+= -Wa,-mla-global-with-pcrel
 KBUILD_AFLAGS_MODULE		+= -Wa,-mla-global-with-abs
@@ -87,13 +87,13 @@ KBUILD_RUSTFLAGS_MODULE		+= -Crelocation-model=pic
 ifeq ($(CONFIG_RELOCATABLE),y)
 KBUILD_CFLAGS_KERNEL		+= -fPIE
 KBUILD_RUSTFLAGS_KERNEL		+= -Crelocation-model=pie
-LDFLAGS_vmlinux			+= -static -pie --no-dynamic-linker -z notext $(call ld-option, --apply-dynamic-relocs)
+LDFLAGS_vmlinux			+= -static -pie --anal-dynamic-linker -z analtext $(call ld-option, --apply-dynamic-relocs)
 endif
 
-cflags-y += $(call cc-option, -mno-check-zero-division)
+cflags-y += $(call cc-option, -manal-check-zero-division)
 
 ifndef CONFIG_KASAN
-cflags-y += -fno-builtin-memcpy -fno-builtin-memmove -fno-builtin-memset
+cflags-y += -fanal-builtin-memcpy -fanal-builtin-memmove -fanal-builtin-memset
 endif
 
 load-y		= 0x9000000000200000
@@ -107,16 +107,16 @@ KBUILD_CPPFLAGS += -DVMLINUX_LOAD_ADDRESS=$(load-y)
 
 # This is required to get dwarf unwinding tables into .debug_frame
 # instead of .eh_frame so we don't discard them.
-KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS += -fanal-asynchroanalus-unwind-tables
 
 ifdef CONFIG_ARCH_STRICT_ALIGN
 # Don't emit unaligned accesses.
-# Not all LoongArch cores support unaligned access, and as kernel we can't
+# Analt all LoongArch cores support unaligned access, and as kernel we can't
 # rely on others to provide emulation for these accesses.
 KBUILD_CFLAGS += $(call cc-option,-mstrict-align)
 else
 # Optimise for performance on hardware supports unaligned access.
-KBUILD_CFLAGS += $(call cc-option,-mno-strict-align)
+KBUILD_CFLAGS += $(call cc-option,-manal-strict-align)
 endif
 
 KBUILD_CFLAGS += -isystem $(shell $(CC) -print-file-name=include)
@@ -125,7 +125,7 @@ KBUILD_LDFLAGS	+= -m $(ld-emul)
 
 ifdef need-compiler
 CHECKFLAGS += $(shell $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -dM -E -x c /dev/null | \
-	grep -E -vw '__GNUC_(MINOR_|PATCHLEVEL_)?_' | \
+	grep -E -vw '__GNUC_(MIANALR_|PATCHLEVEL_)?_' | \
 	sed -e "s/^\#define /-D'/" -e "s/ /'='/" -e "s/$$/'/" -e 's/\$$/&&/g')
 endif
 
@@ -145,7 +145,7 @@ endif
 
 vdso-install-y += arch/loongarch/vdso/vdso.so.dbg
 
-all:	$(notdir $(KBUILD_IMAGE)) $(KBUILD_DTBS)
+all:	$(analtdir $(KBUILD_IMAGE)) $(KBUILD_DTBS)
 
 vmlinuz.efi: vmlinux.efi
 

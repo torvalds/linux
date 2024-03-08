@@ -23,12 +23,12 @@ DEFINE_SPINLOCK(mq_lock);
 /*
  * The next 2 defines are here bc this is the only file
  * compiled when either CONFIG_SYSVIPC and CONFIG_POSIX_MQUEUE
- * and not CONFIG_IPC_NS.
+ * and analt CONFIG_IPC_NS.
  */
 struct ipc_namespace init_ipc_ns = {
 	.ns.count = REFCOUNT_INIT(1),
 	.user_ns = &init_user_ns,
-	.ns.inum = PROC_IPC_INIT_INO,
+	.ns.inum = PROC_IPC_INIT_IANAL,
 #ifdef CONFIG_IPC_NS
 	.ns.ops = &ipcns_operations,
 #endif
@@ -90,7 +90,7 @@ struct msg_msg *load_msg(const void __user *src, size_t len)
 
 	msg = alloc_msg(len);
 	if (msg == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	alen = min(len, DATALEN_MSG);
 	if (copy_from_user(msg + 1, src, alen))
@@ -144,7 +144,7 @@ struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 #else
 struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 #endif
 int store_msg(void __user *dest, struct msg_msg *msg, size_t len)

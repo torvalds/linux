@@ -14,7 +14,7 @@ human readable WMI interface description, which is useful for developing
 new WMI drivers.
 
 The Binary MOF data can be retrieved from the ``bmof`` sysfs attribute of the
-associated WMI device. Please note that multiple WMI devices containing Binary
+associated WMI device. Please analte that multiple WMI devices containing Binary
 MOF data can exist on a given system.
 
 WMI interface

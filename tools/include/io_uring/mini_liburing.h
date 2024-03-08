@@ -76,7 +76,7 @@ static inline int io_uring_mmap(int fd, struct io_uring_params *p,
 	ptr = mmap(0, sq->ring_sz, PROT_READ | PROT_WRITE,
 		   MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_SQ_RING);
 	if (ptr == MAP_FAILED)
-		return -errno;
+		return -erranal;
 	sq->khead = ptr + p->sq_off.head;
 	sq->ktail = ptr + p->sq_off.tail;
 	sq->kring_mask = ptr + p->sq_off.ring_mask;
@@ -89,7 +89,7 @@ static inline int io_uring_mmap(int fd, struct io_uring_params *p,
 	sq->sqes = mmap(0, size, PROT_READ | PROT_WRITE,
 			MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_SQES);
 	if (sq->sqes == MAP_FAILED) {
-		ret = -errno;
+		ret = -erranal;
 err:
 		munmap(sq->khead, sq->ring_sz);
 		return ret;
@@ -99,7 +99,7 @@ err:
 	ptr = mmap(0, cq->ring_sz, PROT_READ | PROT_WRITE,
 		   MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_CQ_RING);
 	if (ptr == MAP_FAILED) {
-		ret = -errno;
+		ret = -erranal;
 		munmap(sq->sqes, p->sq_entries * sizeof(struct io_uring_sqe));
 		goto err;
 	}
@@ -176,7 +176,7 @@ static inline int io_uring_wait_cqe(struct io_uring *ring,
 		ret = io_uring_enter(ring->ring_fd, 0, 1,
 				     IORING_ENTER_GETEVENTS, NULL);
 		if (ret < 0)
-			return -errno;
+			return -erranal;
 	} while (1);
 
 	return 0;
@@ -214,7 +214,7 @@ static inline int io_uring_submit(struct io_uring *ring)
 submit:
 	ret = io_uring_enter(ring->ring_fd, submitted, 0,
 			     IORING_ENTER_GETEVENTS, NULL);
-	return ret < 0 ? -errno : ret;
+	return ret < 0 ? -erranal : ret;
 }
 
 static inline void io_uring_queue_exit(struct io_uring *ring)
@@ -252,7 +252,7 @@ static inline int io_uring_register_buffers(struct io_uring *ring,
 
 	ret = syscall(__NR_io_uring_register, ring->ring_fd,
 		      IORING_REGISTER_BUFFERS, iovecs, nr_iovecs);
-	return (ret < 0) ? -errno : ret;
+	return (ret < 0) ? -erranal : ret;
 }
 
 static inline void io_uring_prep_send(struct io_uring_sqe *sqe, int sockfd,

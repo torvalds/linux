@@ -1,10 +1,10 @@
-HP300 notes
+HP300 analtes
 -----------
 
 The Linux/HP web page is at <http://www.tazenda.demon.co.uk/phil/linux-hp/>
 
 Currently only 9000/340 machines have been tested.  Any amount of RAM should
-work now but I've only tried 16MB and 12MB.
+work analw but I've only tried 16MB and 12MB.
 
 The serial console is probably broken at the moment but the Topcat/HIL keyboard
 combination seems to work for me.  Your mileage may vary.

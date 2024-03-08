@@ -29,11 +29,11 @@
 #include <linux/security.h>
 #include <linux/fs_parser.h>
 #include "messages.h"
-#include "delayed-inode.h"
+#include "delayed-ianalde.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "btrfs_inode.h"
+#include "btrfs_ianalde.h"
 #include "print-tree.h"
 #include "props.h"
 #include "xattr.h"
@@ -125,13 +125,13 @@ enum {
 	/* Rescue options */
 	Opt_rescue,
 	Opt_usebackuproot,
-	Opt_nologreplay,
-	Opt_ignorebadroots,
-	Opt_ignoredatacsums,
+	Opt_anallogreplay,
+	Opt_iganalrebadroots,
+	Opt_iganalredatacsums,
 	Opt_rescue_all,
 
 	/* Debugging options */
-	Opt_enospc_debug,
+	Opt_eanalspc_debug,
 #ifdef CONFIG_BTRFS_DEBUG
 	Opt_fragment, Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
 #endif
@@ -176,19 +176,19 @@ static const struct constant_table btrfs_parameter_space_cache[] = {
 
 enum {
 	Opt_rescue_usebackuproot,
-	Opt_rescue_nologreplay,
-	Opt_rescue_ignorebadroots,
-	Opt_rescue_ignoredatacsums,
+	Opt_rescue_anallogreplay,
+	Opt_rescue_iganalrebadroots,
+	Opt_rescue_iganalredatacsums,
 	Opt_rescue_parameter_all,
 };
 
 static const struct constant_table btrfs_parameter_rescue[] = {
 	{ "usebackuproot", Opt_rescue_usebackuproot },
-	{ "nologreplay", Opt_rescue_nologreplay },
-	{ "ignorebadroots", Opt_rescue_ignorebadroots },
-	{ "ibadroots", Opt_rescue_ignorebadroots },
-	{ "ignoredatacsums", Opt_rescue_ignoredatacsums },
-	{ "idatacsums", Opt_rescue_ignoredatacsums },
+	{ "anallogreplay", Opt_rescue_anallogreplay },
+	{ "iganalrebadroots", Opt_rescue_iganalrebadroots },
+	{ "ibadroots", Opt_rescue_iganalrebadroots },
+	{ "iganalredatacsums", Opt_rescue_iganalredatacsums },
+	{ "idatacsums", Opt_rescue_iganalredatacsums },
 	{ "all", Opt_rescue_parameter_all },
 	{}
 };
@@ -209,47 +209,47 @@ static const struct constant_table btrfs_parameter_fragment[] = {
 #endif
 
 static const struct fs_parameter_spec btrfs_fs_parameters[] = {
-	fsparam_flag_no("acl", Opt_acl),
-	fsparam_flag_no("autodefrag", Opt_defrag),
-	fsparam_flag_no("barrier", Opt_barrier),
+	fsparam_flag_anal("acl", Opt_acl),
+	fsparam_flag_anal("autodefrag", Opt_defrag),
+	fsparam_flag_anal("barrier", Opt_barrier),
 	fsparam_flag("clear_cache", Opt_clear_cache),
 	fsparam_u32("commit", Opt_commit_interval),
 	fsparam_flag("compress", Opt_compress),
 	fsparam_string("compress", Opt_compress_type),
 	fsparam_flag("compress-force", Opt_compress_force),
 	fsparam_string("compress-force", Opt_compress_force_type),
-	fsparam_flag_no("datacow", Opt_datacow),
-	fsparam_flag_no("datasum", Opt_datasum),
+	fsparam_flag_anal("datacow", Opt_datacow),
+	fsparam_flag_anal("datasum", Opt_datasum),
 	fsparam_flag("degraded", Opt_degraded),
 	fsparam_string("device", Opt_device),
-	fsparam_flag_no("discard", Opt_discard),
+	fsparam_flag_anal("discard", Opt_discard),
 	fsparam_enum("discard", Opt_discard_mode, btrfs_parameter_discard),
 	fsparam_enum("fatal_errors", Opt_fatal_errors, btrfs_parameter_fatal_errors),
-	fsparam_flag_no("flushoncommit", Opt_flushoncommit),
+	fsparam_flag_anal("flushoncommit", Opt_flushoncommit),
 	fsparam_string("max_inline", Opt_max_inline),
 	fsparam_u32("metadata_ratio", Opt_ratio),
 	fsparam_flag("rescan_uuid_tree", Opt_rescan_uuid_tree),
 	fsparam_flag("skip_balance", Opt_skip_balance),
-	fsparam_flag_no("space_cache", Opt_space_cache),
+	fsparam_flag_anal("space_cache", Opt_space_cache),
 	fsparam_enum("space_cache", Opt_space_cache_version, btrfs_parameter_space_cache),
-	fsparam_flag_no("ssd", Opt_ssd),
-	fsparam_flag_no("ssd_spread", Opt_ssd_spread),
+	fsparam_flag_anal("ssd", Opt_ssd),
+	fsparam_flag_anal("ssd_spread", Opt_ssd_spread),
 	fsparam_string("subvol", Opt_subvol),
 	fsparam_flag("subvol=", Opt_subvol_empty),
 	fsparam_u64("subvolid", Opt_subvolid),
 	fsparam_u32("thread_pool", Opt_thread_pool),
-	fsparam_flag_no("treelog", Opt_treelog),
+	fsparam_flag_anal("treelog", Opt_treelog),
 	fsparam_flag("user_subvol_rm_allowed", Opt_user_subvol_rm_allowed),
 
 	/* Rescue options. */
 	fsparam_enum("rescue", Opt_rescue, btrfs_parameter_rescue),
-	/* Deprecated, with alias rescue=nologreplay */
-	__fsparam(NULL, "nologreplay", Opt_nologreplay, fs_param_deprecated, NULL),
+	/* Deprecated, with alias rescue=anallogreplay */
+	__fsparam(NULL, "anallogreplay", Opt_anallogreplay, fs_param_deprecated, NULL),
 	/* Deprecated, with alias rescue=usebackuproot */
 	__fsparam(NULL, "usebackuproot", Opt_usebackuproot, fs_param_deprecated, NULL),
 
 	/* Debugging options. */
-	fsparam_flag_no("enospc_debug", Opt_enospc_debug),
+	fsparam_flag_anal("eanalspc_debug", Opt_eanalspc_debug),
 #ifdef CONFIG_BTRFS_DEBUG
 	fsparam_enum("fragment", Opt_fragment, btrfs_parameter_fragment),
 #endif
@@ -259,7 +259,7 @@ static const struct fs_parameter_spec btrfs_fs_parameters[] = {
 	{}
 };
 
-/* No support for restricting writes to btrfs devices yet... */
+/* Anal support for restricting writes to btrfs devices yet... */
 static inline blk_mode_t btrfs_open_mode(struct fs_context *fc)
 {
 	return sb_open_mode(fc->sb_flags) & ~BLK_OPEN_RESTRICT_WRITES;
@@ -290,7 +290,7 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		kfree(ctx->subvol_name);
 		ctx->subvol_name = kstrdup(param->string, GFP_KERNEL);
 		if (!ctx->subvol_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 	case Opt_subvolid:
 		ctx->subvol_objectid = result.uint_64;
@@ -312,20 +312,20 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	}
 	case Opt_datasum:
 		if (result.negated) {
-			btrfs_set_opt(ctx->mount_opt, NODATASUM);
+			btrfs_set_opt(ctx->mount_opt, ANALDATASUM);
 		} else {
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATACOW);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATASUM);
 		}
 		break;
 	case Opt_datacow:
 		if (result.negated) {
 			btrfs_clear_opt(ctx->mount_opt, COMPRESS);
 			btrfs_clear_opt(ctx->mount_opt, FORCE_COMPRESS);
-			btrfs_set_opt(ctx->mount_opt, NODATACOW);
-			btrfs_set_opt(ctx->mount_opt, NODATASUM);
+			btrfs_set_opt(ctx->mount_opt, ANALDATACOW);
+			btrfs_set_opt(ctx->mount_opt, ANALDATASUM);
 		} else {
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATACOW);
 		}
 		break;
 	case Opt_compress_force:
@@ -338,31 +338,31 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			ctx->compress_type = BTRFS_COMPRESS_ZLIB;
 			ctx->compress_level = BTRFS_ZLIB_DEFAULT_LEVEL;
 			btrfs_set_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATACOW);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATASUM);
 		} else if (strncmp(param->string, "zlib", 4) == 0) {
 			ctx->compress_type = BTRFS_COMPRESS_ZLIB;
 			ctx->compress_level =
 				btrfs_compress_str2level(BTRFS_COMPRESS_ZLIB,
 							 param->string + 4);
 			btrfs_set_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATACOW);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATASUM);
 		} else if (strncmp(param->string, "lzo", 3) == 0) {
 			ctx->compress_type = BTRFS_COMPRESS_LZO;
 			ctx->compress_level = 0;
 			btrfs_set_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATACOW);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATASUM);
 		} else if (strncmp(param->string, "zstd", 4) == 0) {
 			ctx->compress_type = BTRFS_COMPRESS_ZSTD;
 			ctx->compress_level =
 				btrfs_compress_str2level(BTRFS_COMPRESS_ZSTD,
 							 param->string + 4);
 			btrfs_set_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
-		} else if (strncmp(param->string, "no", 2) == 0) {
+			btrfs_clear_opt(ctx->mount_opt, ANALDATACOW);
+			btrfs_clear_opt(ctx->mount_opt, ANALDATASUM);
+		} else if (strncmp(param->string, "anal", 2) == 0) {
 			ctx->compress_level = 0;
 			ctx->compress_type = 0;
 			btrfs_clear_opt(ctx->mount_opt, COMPRESS);
@@ -375,12 +375,12 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_ssd:
 		if (result.negated) {
-			btrfs_set_opt(ctx->mount_opt, NOSSD);
+			btrfs_set_opt(ctx->mount_opt, ANALSSD);
 			btrfs_clear_opt(ctx->mount_opt, SSD);
 			btrfs_clear_opt(ctx->mount_opt, SSD_SPREAD);
 		} else {
 			btrfs_set_opt(ctx->mount_opt, SSD);
-			btrfs_clear_opt(ctx->mount_opt, NOSSD);
+			btrfs_clear_opt(ctx->mount_opt, ANALSSD);
 		}
 		break;
 	case Opt_ssd_spread:
@@ -389,14 +389,14 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		} else {
 			btrfs_set_opt(ctx->mount_opt, SSD);
 			btrfs_set_opt(ctx->mount_opt, SSD_SPREAD);
-			btrfs_clear_opt(ctx->mount_opt, NOSSD);
+			btrfs_clear_opt(ctx->mount_opt, ANALSSD);
 		}
 		break;
 	case Opt_barrier:
 		if (result.negated)
-			btrfs_set_opt(ctx->mount_opt, NOBARRIER);
+			btrfs_set_opt(ctx->mount_opt, ANALBARRIER);
 		else
-			btrfs_clear_opt(ctx->mount_opt, NOBARRIER);
+			btrfs_clear_opt(ctx->mount_opt, ANALBARRIER);
 		break;
 	case Opt_thread_pool:
 		if (result.uint_32 == 0) {
@@ -415,7 +415,7 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
 			fc->sb_flags |= SB_POSIXACL;
 #else
-			btrfs_err(NULL, "support for ACL not compiled in");
+			btrfs_err(NULL, "support for ACL analt compiled in");
 			return -EINVAL;
 #endif
 		}
@@ -431,14 +431,14 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_treelog:
 		if (result.negated)
-			btrfs_set_opt(ctx->mount_opt, NOTREELOG);
+			btrfs_set_opt(ctx->mount_opt, ANALTREELOG);
 		else
-			btrfs_clear_opt(ctx->mount_opt, NOTREELOG);
+			btrfs_clear_opt(ctx->mount_opt, ANALTREELOG);
 		break;
-	case Opt_nologreplay:
+	case Opt_anallogreplay:
 		btrfs_warn(NULL,
-		"'nologreplay' is deprecated, use 'rescue=nologreplay' instead");
-		btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
+		"'anallogreplay' is deprecated, use 'rescue=anallogreplay' instead");
+		btrfs_set_opt(ctx->mount_opt, ANALLOGREPLAY);
 		break;
 	case Opt_flushoncommit:
 		if (result.negated)
@@ -453,7 +453,7 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		if (result.negated) {
 			btrfs_clear_opt(ctx->mount_opt, DISCARD_SYNC);
 			btrfs_clear_opt(ctx->mount_opt, DISCARD_ASYNC);
-			btrfs_set_opt(ctx->mount_opt, NODISCARD);
+			btrfs_set_opt(ctx->mount_opt, ANALDISCARD);
 		} else {
 			btrfs_set_opt(ctx->mount_opt, DISCARD_SYNC);
 			btrfs_clear_opt(ctx->mount_opt, DISCARD_ASYNC);
@@ -474,11 +474,11 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 				  param->key);
 			return -EINVAL;
 		}
-		btrfs_clear_opt(ctx->mount_opt, NODISCARD);
+		btrfs_clear_opt(ctx->mount_opt, ANALDISCARD);
 		break;
 	case Opt_space_cache:
 		if (result.negated) {
-			btrfs_set_opt(ctx->mount_opt, NOSPACECACHE);
+			btrfs_set_opt(ctx->mount_opt, ANALSPACECACHE);
 			btrfs_clear_opt(ctx->mount_opt, SPACE_CACHE);
 			btrfs_clear_opt(ctx->mount_opt, FREE_SPACE_TREE);
 		} else {
@@ -511,11 +511,11 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_user_subvol_rm_allowed:
 		btrfs_set_opt(ctx->mount_opt, USER_SUBVOL_RM_ALLOWED);
 		break;
-	case Opt_enospc_debug:
+	case Opt_eanalspc_debug:
 		if (result.negated)
-			btrfs_clear_opt(ctx->mount_opt, ENOSPC_DEBUG);
+			btrfs_clear_opt(ctx->mount_opt, EANALSPC_DEBUG);
 		else
-			btrfs_set_opt(ctx->mount_opt, ENOSPC_DEBUG);
+			btrfs_set_opt(ctx->mount_opt, EANALSPC_DEBUG);
 		break;
 	case Opt_defrag:
 		if (result.negated)
@@ -558,19 +558,19 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		case Opt_rescue_usebackuproot:
 			btrfs_set_opt(ctx->mount_opt, USEBACKUPROOT);
 			break;
-		case Opt_rescue_nologreplay:
-			btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
+		case Opt_rescue_anallogreplay:
+			btrfs_set_opt(ctx->mount_opt, ANALLOGREPLAY);
 			break;
-		case Opt_rescue_ignorebadroots:
-			btrfs_set_opt(ctx->mount_opt, IGNOREBADROOTS);
+		case Opt_rescue_iganalrebadroots:
+			btrfs_set_opt(ctx->mount_opt, IGANALREBADROOTS);
 			break;
-		case Opt_rescue_ignoredatacsums:
-			btrfs_set_opt(ctx->mount_opt, IGNOREDATACSUMS);
+		case Opt_rescue_iganalredatacsums:
+			btrfs_set_opt(ctx->mount_opt, IGANALREDATACSUMS);
 			break;
 		case Opt_rescue_parameter_all:
-			btrfs_set_opt(ctx->mount_opt, IGNOREDATACSUMS);
-			btrfs_set_opt(ctx->mount_opt, IGNOREBADROOTS);
-			btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
+			btrfs_set_opt(ctx->mount_opt, IGANALREDATACSUMS);
+			btrfs_set_opt(ctx->mount_opt, IGANALREBADROOTS);
+			btrfs_set_opt(ctx->mount_opt, ANALLOGREPLAY);
 			break;
 		default:
 			btrfs_info(NULL, "unrecognized rescue option '%s'",
@@ -620,7 +620,7 @@ static void btrfs_clear_oneshot_options(struct btrfs_fs_info *fs_info)
 {
 	btrfs_clear_opt(fs_info->mount_opt, USEBACKUPROOT);
 	btrfs_clear_opt(fs_info->mount_opt, CLEAR_CACHE);
-	btrfs_clear_opt(fs_info->mount_opt, NOSPACECACHE);
+	btrfs_clear_opt(fs_info->mount_opt, ANALSPACECACHE);
 }
 
 static bool check_ro_option(struct btrfs_fs_info *fs_info,
@@ -641,20 +641,20 @@ bool btrfs_check_options(struct btrfs_fs_info *info, unsigned long *mount_opt,
 	bool ret = true;
 
 	if (!(flags & SB_RDONLY) &&
-	    (check_ro_option(info, *mount_opt, BTRFS_MOUNT_NOLOGREPLAY, "nologreplay") ||
-	     check_ro_option(info, *mount_opt, BTRFS_MOUNT_IGNOREBADROOTS, "ignorebadroots") ||
-	     check_ro_option(info, *mount_opt, BTRFS_MOUNT_IGNOREDATACSUMS, "ignoredatacsums")))
+	    (check_ro_option(info, *mount_opt, BTRFS_MOUNT_ANALLOGREPLAY, "anallogreplay") ||
+	     check_ro_option(info, *mount_opt, BTRFS_MOUNT_IGANALREBADROOTS, "iganalrebadroots") ||
+	     check_ro_option(info, *mount_opt, BTRFS_MOUNT_IGANALREDATACSUMS, "iganalredatacsums")))
 		ret = false;
 
 	if (btrfs_fs_compat_ro(info, FREE_SPACE_TREE) &&
 	    !btrfs_raw_test_opt(*mount_opt, FREE_SPACE_TREE) &&
 	    !btrfs_raw_test_opt(*mount_opt, CLEAR_CACHE)) {
-		btrfs_err(info, "cannot disable free-space-tree");
+		btrfs_err(info, "cananalt disable free-space-tree");
 		ret = false;
 	}
 	if (btrfs_fs_compat_ro(info, BLOCK_GROUP_TREE) &&
 	     !btrfs_raw_test_opt(*mount_opt, FREE_SPACE_TREE)) {
-		btrfs_err(info, "cannot disable free-space-tree with block-group-tree feature");
+		btrfs_err(info, "cananalt disable free-space-tree with block-group-tree feature");
 		ret = false;
 	}
 
@@ -681,7 +681,7 @@ bool btrfs_check_options(struct btrfs_fs_info *info, unsigned long *mount_opt,
  * file system to set the current mount options.  If you mounted with special
  * options to disable these features and then remounted we wouldn't revert the
  * settings, because mounting without these features cleared the on-disk
- * settings, so this being called on re-mount is not needed.
+ * settings, so this being called on re-mount is analt needed.
  */
 void btrfs_set_free_space_cache_settings(struct btrfs_fs_info *fs_info)
 {
@@ -712,7 +712,7 @@ void btrfs_set_free_space_cache_settings(struct btrfs_fs_info *fs_info)
 	if (btrfs_test_opt(fs_info, SPACE_CACHE))
 		return;
 
-	if (btrfs_test_opt(fs_info, NOSPACECACHE))
+	if (btrfs_test_opt(fs_info, ANALSPACECACHE))
 		return;
 
 	/*
@@ -727,22 +727,22 @@ void btrfs_set_free_space_cache_settings(struct btrfs_fs_info *fs_info)
 
 static void set_device_specific_options(struct btrfs_fs_info *fs_info)
 {
-	if (!btrfs_test_opt(fs_info, NOSSD) &&
+	if (!btrfs_test_opt(fs_info, ANALSSD) &&
 	    !fs_info->fs_devices->rotating)
 		btrfs_set_opt(fs_info->mount_opt, SSD);
 
 	/*
 	 * For devices supporting discard turn on discard=async automatically,
 	 * unless it's already set or disabled. This could be turned off by
-	 * nodiscard for the same mount.
+	 * analdiscard for the same mount.
 	 *
 	 * The zoned mode piggy backs on the discard functionality for
-	 * resetting a zone. There is no reason to delay the zone reset as it is
-	 * fast enough. So, do not enable async discard for zoned mode.
+	 * resetting a zone. There is anal reason to delay the zone reset as it is
+	 * fast eanalugh. So, do analt enable async discard for zoned mode.
 	 */
 	if (!(btrfs_test_opt(fs_info, DISCARD_SYNC) ||
 	      btrfs_test_opt(fs_info, DISCARD_ASYNC) ||
-	      btrfs_test_opt(fs_info, NODISCARD)) &&
+	      btrfs_test_opt(fs_info, ANALDISCARD)) &&
 	    fs_info->fs_devices->discardable &&
 	    !btrfs_is_zoned(fs_info))
 		btrfs_set_opt(fs_info->mount_opt, DISCARD_ASYNC);
@@ -754,7 +754,7 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_root *fs_root = NULL;
 	struct btrfs_root_ref *root_ref;
-	struct btrfs_inode_ref *inode_ref;
+	struct btrfs_ianalde_ref *ianalde_ref;
 	struct btrfs_key key;
 	struct btrfs_path *path = NULL;
 	char *name = NULL, *ptr;
@@ -764,13 +764,13 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	name = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	ptr = name + PATH_MAX - 1;
@@ -789,24 +789,24 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 		if (ret < 0) {
 			goto err;
 		} else if (ret > 0) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto err;
 		}
 
 		subvol_objectid = key.offset;
 
-		root_ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
+		root_ref = btrfs_item_ptr(path->analdes[0], path->slots[0],
 					  struct btrfs_root_ref);
-		len = btrfs_root_ref_name_len(path->nodes[0], root_ref);
+		len = btrfs_root_ref_name_len(path->analdes[0], root_ref);
 		ptr -= len + 1;
 		if (ptr < name) {
 			ret = -ENAMETOOLONG;
 			goto err;
 		}
-		read_extent_buffer(path->nodes[0], ptr + 1,
+		read_extent_buffer(path->analdes[0], ptr + 1,
 				   (unsigned long)(root_ref + 1), len);
 		ptr[0] = '/';
-		dirid = btrfs_root_ref_dirid(path->nodes[0], root_ref);
+		dirid = btrfs_root_ref_dirid(path->analdes[0], root_ref);
 		btrfs_release_path(path);
 
 		fs_root = btrfs_get_fs_root(fs_info, subvol_objectid, true);
@@ -817,36 +817,36 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 		}
 
 		/*
-		 * Walk up the filesystem tree by inode refs until we hit the
+		 * Walk up the filesystem tree by ianalde refs until we hit the
 		 * root directory.
 		 */
 		while (dirid != BTRFS_FIRST_FREE_OBJECTID) {
 			key.objectid = dirid;
-			key.type = BTRFS_INODE_REF_KEY;
+			key.type = BTRFS_IANALDE_REF_KEY;
 			key.offset = (u64)-1;
 
 			ret = btrfs_search_backwards(fs_root, &key, path);
 			if (ret < 0) {
 				goto err;
 			} else if (ret > 0) {
-				ret = -ENOENT;
+				ret = -EANALENT;
 				goto err;
 			}
 
 			dirid = key.offset;
 
-			inode_ref = btrfs_item_ptr(path->nodes[0],
+			ianalde_ref = btrfs_item_ptr(path->analdes[0],
 						   path->slots[0],
-						   struct btrfs_inode_ref);
-			len = btrfs_inode_ref_name_len(path->nodes[0],
-						       inode_ref);
+						   struct btrfs_ianalde_ref);
+			len = btrfs_ianalde_ref_name_len(path->analdes[0],
+						       ianalde_ref);
 			ptr -= len + 1;
 			if (ptr < name) {
 				ret = -ENAMETOOLONG;
 				goto err;
 			}
-			read_extent_buffer(path->nodes[0], ptr + 1,
-					   (unsigned long)(inode_ref + 1), len);
+			read_extent_buffer(path->analdes[0], ptr + 1,
+					   (unsigned long)(ianalde_ref + 1), len);
 			ptr[0] = '/';
 			btrfs_release_path(path);
 		}
@@ -881,7 +881,7 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Find the "default" dir item which points to the root item that we
@@ -905,7 +905,7 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 		return 0;
 	}
 
-	btrfs_dir_item_key_to_cpu(path->nodes[0], di, &location);
+	btrfs_dir_item_key_to_cpu(path->analdes[0], di, &location);
 	btrfs_free_path(path);
 	*objectid = location.objectid;
 	return 0;
@@ -915,7 +915,7 @@ static int btrfs_fill_super(struct super_block *sb,
 			    struct btrfs_fs_devices *fs_devices,
 			    void *data)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	int err;
 
@@ -943,16 +943,16 @@ static int btrfs_fill_super(struct super_block *sb,
 		return err;
 	}
 
-	inode = btrfs_iget(sb, BTRFS_FIRST_FREE_OBJECTID, fs_info->fs_root);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = btrfs_iget(sb, BTRFS_FIRST_FREE_OBJECTID, fs_info->fs_root);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		btrfs_handle_fs_error(fs_info, err, NULL);
 		goto fail_close;
 	}
 
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_close;
 	}
 
@@ -973,7 +973,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	trace_btrfs_sync_fs(fs_info, wait);
 
 	if (!wait) {
-		filemap_flush(fs_info->btree_inode->i_mapping);
+		filemap_flush(fs_info->btree_ianalde->i_mapping);
 		return 0;
 	}
 
@@ -981,8 +981,8 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 
 	trans = btrfs_attach_transaction_barrier(root);
 	if (IS_ERR(trans)) {
-		/* no transaction, don't bother */
-		if (PTR_ERR(trans) == -ENOENT) {
+		/* anal transaction, don't bother */
+		if (PTR_ERR(trans) == -EANALENT) {
 			/*
 			 * Exit unless we have some pending changes
 			 * that need to go through commit
@@ -991,7 +991,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 				      &fs_info->flags))
 				return 0;
 			/*
-			 * A non-blocking test if the fs is frozen. We must not
+			 * A analn-blocking test if the fs is frozen. We must analt
 			 * start a new transaction here otherwise a deadlock
 			 * happens. The pending operations are delayed to the
 			 * next commit after thawing.
@@ -1023,12 +1023,12 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 
 	if (btrfs_test_opt(info, DEGRADED))
 		seq_puts(seq, ",degraded");
-	if (btrfs_test_opt(info, NODATASUM))
-		seq_puts(seq, ",nodatasum");
-	if (btrfs_test_opt(info, NODATACOW))
-		seq_puts(seq, ",nodatacow");
-	if (btrfs_test_opt(info, NOBARRIER))
-		seq_puts(seq, ",nobarrier");
+	if (btrfs_test_opt(info, ANALDATASUM))
+		seq_puts(seq, ",analdatasum");
+	if (btrfs_test_opt(info, ANALDATACOW))
+		seq_puts(seq, ",analdatacow");
+	if (btrfs_test_opt(info, ANALBARRIER))
+		seq_puts(seq, ",analbarrier");
 	if (info->max_inline != BTRFS_DEFAULT_MAX_INLINE)
 		seq_printf(seq, ",max_inline=%llu", info->max_inline);
 	if (info->thread_pool_size !=  min_t(unsigned long,
@@ -1043,22 +1043,22 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		if (info->compress_level)
 			seq_printf(seq, ":%d", info->compress_level);
 	}
-	if (btrfs_test_opt(info, NOSSD))
-		seq_puts(seq, ",nossd");
+	if (btrfs_test_opt(info, ANALSSD))
+		seq_puts(seq, ",analssd");
 	if (btrfs_test_opt(info, SSD_SPREAD))
 		seq_puts(seq, ",ssd_spread");
 	else if (btrfs_test_opt(info, SSD))
 		seq_puts(seq, ",ssd");
-	if (btrfs_test_opt(info, NOTREELOG))
-		seq_puts(seq, ",notreelog");
-	if (btrfs_test_opt(info, NOLOGREPLAY))
-		print_rescue_option(seq, "nologreplay", &printed);
+	if (btrfs_test_opt(info, ANALTREELOG))
+		seq_puts(seq, ",analtreelog");
+	if (btrfs_test_opt(info, ANALLOGREPLAY))
+		print_rescue_option(seq, "anallogreplay", &printed);
 	if (btrfs_test_opt(info, USEBACKUPROOT))
 		print_rescue_option(seq, "usebackuproot", &printed);
-	if (btrfs_test_opt(info, IGNOREBADROOTS))
-		print_rescue_option(seq, "ignorebadroots", &printed);
-	if (btrfs_test_opt(info, IGNOREDATACSUMS))
-		print_rescue_option(seq, "ignoredatacsums", &printed);
+	if (btrfs_test_opt(info, IGANALREBADROOTS))
+		print_rescue_option(seq, "iganalrebadroots", &printed);
+	if (btrfs_test_opt(info, IGANALREDATACSUMS))
+		print_rescue_option(seq, "iganalredatacsums", &printed);
 	if (btrfs_test_opt(info, FLUSHONCOMMIT))
 		seq_puts(seq, ",flushoncommit");
 	if (btrfs_test_opt(info, DISCARD_SYNC))
@@ -1066,21 +1066,21 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	if (btrfs_test_opt(info, DISCARD_ASYNC))
 		seq_puts(seq, ",discard=async");
 	if (!(info->sb->s_flags & SB_POSIXACL))
-		seq_puts(seq, ",noacl");
+		seq_puts(seq, ",analacl");
 	if (btrfs_free_space_cache_v1_active(info))
 		seq_puts(seq, ",space_cache");
 	else if (btrfs_fs_compat_ro(info, FREE_SPACE_TREE))
 		seq_puts(seq, ",space_cache=v2");
 	else
-		seq_puts(seq, ",nospace_cache");
+		seq_puts(seq, ",analspace_cache");
 	if (btrfs_test_opt(info, RESCAN_UUID_TREE))
 		seq_puts(seq, ",rescan_uuid_tree");
 	if (btrfs_test_opt(info, CLEAR_CACHE))
 		seq_puts(seq, ",clear_cache");
 	if (btrfs_test_opt(info, USER_SUBVOL_RM_ALLOWED))
 		seq_puts(seq, ",user_subvol_rm_allowed");
-	if (btrfs_test_opt(info, ENOSPC_DEBUG))
-		seq_puts(seq, ",enospc_debug");
+	if (btrfs_test_opt(info, EANALSPC_DEBUG))
+		seq_puts(seq, ",eanalspc_debug");
 	if (btrfs_test_opt(info, AUTO_DEFRAG))
 		seq_puts(seq, ",autodefrag");
 	if (btrfs_test_opt(info, SKIP_BALANCE))
@@ -1100,9 +1100,9 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	if (btrfs_test_opt(info, REF_VERIFY))
 		seq_puts(seq, ",ref_verify");
 	seq_printf(seq, ",subvolid=%llu",
-		  BTRFS_I(d_inode(dentry))->root->root_key.objectid);
+		  BTRFS_I(d_ianalde(dentry))->root->root_key.objectid);
 	subvol_name = btrfs_get_subvol_name_from_objectid(info,
-			BTRFS_I(d_inode(dentry))->root->root_key.objectid);
+			BTRFS_I(d_ianalde(dentry))->root->root_key.objectid);
 	if (!IS_ERR(subvol_name)) {
 		seq_puts(seq, ",subvol=");
 		seq_escape(seq, subvol_name, " \t\n\\");
@@ -1112,11 +1112,11 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 }
 
 /*
- * subvolumes are identified by ino 256
+ * subvolumes are identified by ianal 256
  */
-static inline int is_subvolume_inode(struct inode *inode)
+static inline int is_subvolume_ianalde(struct ianalde *ianalde)
 {
-	if (inode && inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
+	if (ianalde && ianalde->i_ianal == BTRFS_FIRST_FREE_OBJECTID)
 		return 1;
 	return 0;
 }
@@ -1153,12 +1153,12 @@ static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
 	if (!IS_ERR(root)) {
 		struct super_block *s = root->d_sb;
 		struct btrfs_fs_info *fs_info = btrfs_sb(s);
-		struct inode *root_inode = d_inode(root);
-		u64 root_objectid = BTRFS_I(root_inode)->root->root_key.objectid;
+		struct ianalde *root_ianalde = d_ianalde(root);
+		u64 root_objectid = BTRFS_I(root_ianalde)->root->root_key.objectid;
 
 		ret = 0;
-		if (!is_subvolume_inode(root_inode)) {
-			btrfs_err(fs_info, "'%s' is not a valid subvolume",
+		if (!is_subvolume_ianalde(root_ianalde)) {
+			btrfs_err(fs_info, "'%s' is analt a valid subvolume",
 			       subvol_name);
 			ret = -EINVAL;
 		}
@@ -1166,10 +1166,10 @@ static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
 			/*
 			 * This will also catch a race condition where a
 			 * subvolume which was passed by ID is renamed and
-			 * another subvolume is renamed over the old location.
+			 * aanalther subvolume is renamed over the old location.
 			 */
 			btrfs_err(fs_info,
-				  "subvol '%s' does not match subvolid %llu",
+				  "subvol '%s' does analt match subvolid %llu",
 				  subvol_name, subvol_objectid);
 			ret = -EINVAL;
 		}
@@ -1227,12 +1227,12 @@ static inline void btrfs_remount_cleanup(struct btrfs_fs_info *fs_info,
 	const bool cache_opt = btrfs_test_opt(fs_info, SPACE_CACHE);
 
 	/*
-	 * We need to cleanup all defragable inodes if the autodefragment is
+	 * We need to cleanup all defragable ianaldes if the autodefragment is
 	 * close or the filesystem is read only.
 	 */
 	if (btrfs_raw_test_opt(old_opts, AUTO_DEFRAG) &&
 	    (!btrfs_raw_test_opt(fs_info->mount_opt, AUTO_DEFRAG) || sb_rdonly(fs_info->sb))) {
-		btrfs_cleanup_defrag_inodes(fs_info);
+		btrfs_cleanup_defrag_ianaldes(fs_info);
 	}
 
 	/* If we toggled discard async */
@@ -1254,7 +1254,7 @@ static int btrfs_remount_rw(struct btrfs_fs_info *fs_info)
 
 	if (BTRFS_FS_ERROR(fs_info)) {
 		btrfs_err(fs_info,
-			  "remounting read-write after error is not allowed");
+			  "remounting read-write after error is analt allowed");
 		return -EINVAL;
 	}
 
@@ -1263,19 +1263,19 @@ static int btrfs_remount_rw(struct btrfs_fs_info *fs_info)
 
 	if (!btrfs_check_rw_degradable(fs_info, NULL)) {
 		btrfs_warn(fs_info,
-			   "too many missing devices, writable remount is not allowed");
+			   "too many missing devices, writable remount is analt allowed");
 		return -EACCES;
 	}
 
 	if (btrfs_super_log_root(fs_info->super_copy) != 0) {
 		btrfs_warn(fs_info,
-			   "mount required to replay tree-log, cannot remount read-write");
+			   "mount required to replay tree-log, cananalt remount read-write");
 		return -EINVAL;
 	}
 
 	/*
-	 * NOTE: when remounting with a change that does writes, don't put it
-	 * anywhere above this point, as we are not sure to be safe to write
+	 * ANALTE: when remounting with a change that does writes, don't put it
+	 * anywhere above this point, as we are analt sure to be safe to write
 	 * until we pass the above checks.
 	 */
 	ret = btrfs_start_pre_rw_mount(fs_info);
@@ -1325,7 +1325,7 @@ static int btrfs_remount_ro(struct btrfs_fs_info *fs_info)
 	 * The cleaner task could be already running before we set the flag
 	 * BTRFS_FS_STATE_RO (and SB_RDONLY in the superblock).  We must make
 	 * sure that after we finish the remount, i.e. after we call
-	 * btrfs_commit_super(), the cleaner can no longer start a transaction
+	 * btrfs_commit_super(), the cleaner can anal longer start a transaction
 	 * - either because it was dropping a dead root, running delayed iputs
 	 *   or deleting an unused block group (the cleaner picked a block
 	 *   group from the list of unused block groups before we were able to
@@ -1338,7 +1338,7 @@ static int btrfs_remount_ro(struct btrfs_fs_info *fs_info)
 	 * cleaner task sleep without running all pending delayed iputs. Go
 	 * through all the delayed iputs here, so that if an unmount happens
 	 * without remounting RW we don't end up at finishing close_ctree()
-	 * with a non-empty list of delayed iputs.
+	 * with a analn-empty list of delayed iputs.
 	 */
 	btrfs_run_delayed_iputs(fs_info);
 
@@ -1396,14 +1396,14 @@ do {									\
 static void btrfs_emit_options(struct btrfs_fs_info *info,
 			       struct btrfs_fs_context *old)
 {
-	btrfs_info_if_set(info, old, NODATASUM, "setting nodatasum");
+	btrfs_info_if_set(info, old, ANALDATASUM, "setting analdatasum");
 	btrfs_info_if_set(info, old, DEGRADED, "allowing degraded mounts");
-	btrfs_info_if_set(info, old, NODATASUM, "setting nodatasum");
+	btrfs_info_if_set(info, old, ANALDATASUM, "setting analdatasum");
 	btrfs_info_if_set(info, old, SSD, "enabling ssd optimizations");
 	btrfs_info_if_set(info, old, SSD_SPREAD, "using spread ssd allocation scheme");
-	btrfs_info_if_set(info, old, NOBARRIER, "turning off barriers");
-	btrfs_info_if_set(info, old, NOTREELOG, "disabling tree log");
-	btrfs_info_if_set(info, old, NOLOGREPLAY, "disabling log replay at mount time");
+	btrfs_info_if_set(info, old, ANALBARRIER, "turning off barriers");
+	btrfs_info_if_set(info, old, ANALTREELOG, "disabling tree log");
+	btrfs_info_if_set(info, old, ANALLOGREPLAY, "disabling log replay at mount time");
 	btrfs_info_if_set(info, old, FLUSHONCOMMIT, "turning on flush-on-commit");
 	btrfs_info_if_set(info, old, DISCARD_SYNC, "turning on sync discard");
 	btrfs_info_if_set(info, old, DISCARD_ASYNC, "turning on async discard");
@@ -1415,18 +1415,18 @@ static void btrfs_emit_options(struct btrfs_fs_info *info,
 	btrfs_info_if_set(info, old, FRAGMENT_METADATA, "fragmenting metadata");
 	btrfs_info_if_set(info, old, REF_VERIFY, "doing ref verification");
 	btrfs_info_if_set(info, old, USEBACKUPROOT, "trying to use backup root at mount time");
-	btrfs_info_if_set(info, old, IGNOREBADROOTS, "ignoring bad roots");
-	btrfs_info_if_set(info, old, IGNOREDATACSUMS, "ignoring data csums");
+	btrfs_info_if_set(info, old, IGANALREBADROOTS, "iganalring bad roots");
+	btrfs_info_if_set(info, old, IGANALREDATACSUMS, "iganalring data csums");
 
-	btrfs_info_if_unset(info, old, NODATACOW, "setting datacow");
-	btrfs_info_if_unset(info, old, SSD, "not using ssd optimizations");
-	btrfs_info_if_unset(info, old, SSD_SPREAD, "not using spread ssd allocation scheme");
-	btrfs_info_if_unset(info, old, NOBARRIER, "turning off barriers");
-	btrfs_info_if_unset(info, old, NOTREELOG, "enabling tree log");
+	btrfs_info_if_unset(info, old, ANALDATACOW, "setting datacow");
+	btrfs_info_if_unset(info, old, SSD, "analt using ssd optimizations");
+	btrfs_info_if_unset(info, old, SSD_SPREAD, "analt using spread ssd allocation scheme");
+	btrfs_info_if_unset(info, old, ANALBARRIER, "turning off barriers");
+	btrfs_info_if_unset(info, old, ANALTREELOG, "enabling tree log");
 	btrfs_info_if_unset(info, old, SPACE_CACHE, "disabling disk space caching");
 	btrfs_info_if_unset(info, old, FREE_SPACE_TREE, "disabling free space tree");
 	btrfs_info_if_unset(info, old, AUTO_DEFRAG, "disabling auto defrag");
-	btrfs_info_if_unset(info, old, COMPRESS, "use no compression");
+	btrfs_info_if_unset(info, old, COMPRESS, "use anal compression");
 
 	/* Did the compression settings change? */
 	if (btrfs_test_opt(info, COMPRESS) &&
@@ -1571,7 +1571,7 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * We aren't under the device list lock, so this is racy-ish, but good
-	 * enough for our purposes.
+	 * eanalugh for our purposes.
 	 */
 	nr_devices = fs_info->fs_devices->open_devices;
 	if (!nr_devices) {
@@ -1587,7 +1587,7 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 	devices_info = kmalloc_array(nr_devices, sizeof(*devices_info),
 			       GFP_KERNEL);
 	if (!devices_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* calc min stripe number for data space allocation */
 	type = btrfs_data_alloc_profile(fs_info);
@@ -1726,7 +1726,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	/* Account global block reserve as used, it's in logical size already */
 	spin_lock(&block_rsv->lock);
-	/* Mixed block groups accounting is not byte-accurate, avoid overflow */
+	/* Mixed block groups accounting is analt byte-accurate, avoid overflow */
 	if (buf->f_bfree >= block_rsv->size >> bits)
 		buf->f_bfree -= block_rsv->size >> bits;
 	else
@@ -1742,12 +1742,12 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	/*
 	 * We calculate the remaining metadata space minus global reserve. If
-	 * this is (supposedly) smaller than zero, there's no space. But this
-	 * does not hold in practice, the exhausted state happens where's still
+	 * this is (supposedly) smaller than zero, there's anal space. But this
+	 * does analt hold in practice, the exhausted state happens where's still
 	 * some positive delta. So we apply some guesswork and compare the
 	 * delta to a 4M threshold.  (Practically observed delta was ~2M.)
 	 *
-	 * We probably cannot calculate the exact threshold value because this
+	 * We probably cananalt calculate the exact threshold value because this
 	 * depends on the internal reservations requested by various
 	 * operations, so some operations that consume a few metadata will
 	 * succeed even if the Avail is zero. But this is better than the other
@@ -1756,9 +1756,9 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	thresh = SZ_4M;
 
 	/*
-	 * We only want to claim there's no available space if we can no longer
+	 * We only want to claim there's anal available space if we can anal longer
 	 * allocate chunks for our metadata profile and our global reserve will
-	 * not fit in the free metadata space.  If we aren't ->full then we
+	 * analt fit in the free metadata space.  If we aren't ->full then we
 	 * still can allocate chunks and thus are fine using the currently
 	 * calculated f_bavail.
 	 */
@@ -1777,9 +1777,9 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_fsid.val[1] = be32_to_cpu(fsid[1]) ^ be32_to_cpu(fsid[3]);
 	/* Mask in the root object ID too, to disambiguate subvols */
 	buf->f_fsid.val[0] ^=
-		BTRFS_I(d_inode(dentry))->root->root_key.objectid >> 32;
+		BTRFS_I(d_ianalde(dentry))->root->root_key.objectid >> 32;
 	buf->f_fsid.val[1] ^=
-		BTRFS_I(d_inode(dentry))->root->root_key.objectid;
+		BTRFS_I(d_ianalde(dentry))->root->root_key.objectid;
 
 	return 0;
 }
@@ -1833,7 +1833,7 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 	bdev = fs_devices->latest_dev->bdev;
 
 	/*
-	 * From now on the error handling is not straightforward.
+	 * From analw on the error handling is analt straightforward.
 	 *
 	 * If successful, this will transfer the fs_info into the super block,
 	 * and fc->s_fs_info will be NULL.  However if there's an existing
@@ -1841,7 +1841,7 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 	 * completely out it'll be cleaned up when we drop the fs_context,
 	 * otherwise it's tied to the lifetime of the super_block.
 	 */
-	sb = sget_fc(fc, btrfs_fc_test_super, set_anon_super_fc);
+	sb = sget_fc(fc, btrfs_fc_test_super, set_aanaln_super_fc);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
 		goto error;
@@ -1882,10 +1882,10 @@ error:
  *        (i) mount /dev/sda3 -o subvol=foo,ro /mnt/foo
  *       (ii) mount /dev/sda3 -o subvol=bar,rw /mnt/bar
  *
- * which looks nice and innocent but is actually pretty intricate and deserves
+ * which looks nice and inanalcent but is actually pretty intricate and deserves
  * a long comment.
  *
- * On another filesystem a subvolume mount is close to something like:
+ * On aanalther filesystem a subvolume mount is close to something like:
  *
  *	(iii) # create rw superblock + initial mount
  *	      mount -t xfs /dev/sdb /opt/
@@ -1913,7 +1913,7 @@ error:
  *     @mnt->mnt_flags |= MNT_READONLY raised.
  *
  * (2) MS_RDONLY was passed to the filesystem's mount method and the filesystems
- *     made the superblock ro. Note, how SB_RDONLY has the same value as
+ *     made the superblock ro. Analte, how SB_RDONLY has the same value as
  *     ms_rdonly and is raised whenever MS_RDONLY is passed through mount(2).
  *
  * Creating a subtree mount via (iii) ends up leaving a rw superblock with a
@@ -1922,13 +1922,13 @@ error:
  * But consider the effect on the old mount API on btrfs subvolume mounting
  * which combines the distinct step in (iii) into a single step.
  *
- * By issuing (i) both the mount and the superblock are turned ro. Now when (ii)
+ * By issuing (i) both the mount and the superblock are turned ro. Analw when (ii)
  * is issued the superblock is ro and thus even if the mount created for (ii) is
  * rw it wouldn't help. Hence, btrfs needed to transition the superblock from ro
  * to rw for (ii) which it did using an internal remount call.
  *
  * IOW, subvolume mounting was inherently complicated due to the ambiguity of
- * MS_RDONLY in mount(2). Note, this ambiguity has mount(8) always translate
+ * MS_RDONLY in mount(2). Analte, this ambiguity has mount(8) always translate
  * "ro" to MS_RDONLY. IOW, in both (i) and (ii) "ro" becomes MS_RDONLY when
  * passed by mount(8) to mount(2).
  *
@@ -1944,7 +1944,7 @@ error:
  *     in fc->sb_flags.
  *
  * This disambiguation has rather positive consequences.  Mounting a subvolume
- * ro will not also turn the superblock ro. Only the mount for the subvolume
+ * ro will analt also turn the superblock ro. Only the mount for the subvolume
  * will become ro.
  *
  * So, if the superblock creation request comes from the new mount API the
@@ -1961,7 +1961,7 @@ error:
  * from the old mount API and should be marked for full deprecation so it can be
  * turned off in a couple of years.
  *
- * The new mount API has no reason to support this hack.
+ * The new mount API has anal reason to support this hack.
  */
 static struct vfsmount *btrfs_reconfigure_for_mount(struct fs_context *fc)
 {
@@ -2016,13 +2016,13 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 	 */
 	fs_info = kvzalloc(sizeof(struct btrfs_fs_info), GFP_KERNEL);
 	if (!fs_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	if (!fs_info->super_copy || !fs_info->super_for_commit) {
 		btrfs_free_fs_info(fs_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	btrfs_init_fs_info(fs_info);
 
@@ -2090,7 +2090,7 @@ static int btrfs_get_tree(struct fs_context *fc)
 static void btrfs_kill_super(struct super_block *sb)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
-	kill_anon_super(sb);
+	kill_aanaln_super(sb);
 	btrfs_free_fs_info(fs_info);
 }
 
@@ -2141,7 +2141,7 @@ static int btrfs_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct btrfs_fs_context), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	refcount_set(&ctx->refs, 1);
 	fc->fs_private = ctx;
@@ -2175,7 +2175,7 @@ static struct file_system_type btrfs_fs_type = {
 
 MODULE_ALIAS_FS("btrfs");
 
-static int btrfs_control_open(struct inode *inode, struct file *file)
+static int btrfs_control_open(struct ianalde *ianalde, struct file *file)
 {
 	/*
 	 * The control file's private_data is used to hold the
@@ -2195,7 +2195,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	struct btrfs_ioctl_vol_args *vol;
 	struct btrfs_device *device = NULL;
 	dev_t devt = 0;
-	int ret = -ENOTTY;
+	int ret = -EANALTTY;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -2264,8 +2264,8 @@ static int btrfs_freeze(struct super_block *sb)
 	 */
 	trans = btrfs_attach_transaction_barrier(root);
 	if (IS_ERR(trans)) {
-		/* no transaction, don't bother */
-		if (PTR_ERR(trans) == -ENOENT)
+		/* anal transaction, don't bother */
+		if (PTR_ERR(trans) == -EANALENT)
 			return 0;
 		return PTR_ERR(trans);
 	}
@@ -2283,7 +2283,7 @@ static int check_dev_super(struct btrfs_device *dev)
 	/* This should be called with fs still frozen. */
 	ASSERT(test_bit(BTRFS_FS_FROZEN, &fs_info->flags));
 
-	/* Missing dev, no need to check. */
+	/* Missing dev, anal need to check. */
 	if (!dev->bdev)
 		return 0;
 
@@ -2302,7 +2302,7 @@ static int check_dev_super(struct btrfs_device *dev)
 	}
 
 	if (btrfs_check_super_csum(fs_info, sb)) {
-		btrfs_err(fs_info, "csum for on-disk super block no longer matches");
+		btrfs_err(fs_info, "csum for on-disk super block anal longer matches");
 		ret = -EUCLEAN;
 		goto out;
 	}
@@ -2331,11 +2331,11 @@ static int btrfs_unfreeze(struct super_block *sb)
 	int ret = 0;
 
 	/*
-	 * Make sure the fs is not changed by accident (like hibernation then
+	 * Make sure the fs is analt changed by accident (like hibernation then
 	 * modified by other OS).
 	 * If we found anything wrong, we mark the fs error immediately.
 	 *
-	 * And since the fs is frozen, no one can modify the fs yet, thus
+	 * And since the fs is frozen, anal one can modify the fs yet, thus
 	 * we don't need to hold device_list_mutex.
 	 */
 	list_for_each_entry(device, &fs_info->fs_devices->devices, dev_list) {
@@ -2374,15 +2374,15 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 }
 
 static const struct super_operations btrfs_super_ops = {
-	.drop_inode	= btrfs_drop_inode,
-	.evict_inode	= btrfs_evict_inode,
+	.drop_ianalde	= btrfs_drop_ianalde,
+	.evict_ianalde	= btrfs_evict_ianalde,
 	.put_super	= btrfs_put_super,
 	.sync_fs	= btrfs_sync_fs,
 	.show_options	= btrfs_show_options,
 	.show_devname	= btrfs_show_devname,
-	.alloc_inode	= btrfs_alloc_inode,
-	.destroy_inode	= btrfs_destroy_inode,
-	.free_inode	= btrfs_free_inode,
+	.alloc_ianalde	= btrfs_alloc_ianalde,
+	.destroy_ianalde	= btrfs_destroy_ianalde,
+	.free_ianalde	= btrfs_free_ianalde,
 	.statfs		= btrfs_statfs,
 	.freeze_fs	= btrfs_freeze,
 	.unfreeze_fs	= btrfs_unfreeze,
@@ -2393,16 +2393,16 @@ static const struct file_operations btrfs_ctl_fops = {
 	.unlocked_ioctl	 = btrfs_control_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 	.owner	 = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct miscdevice btrfs_misc = {
-	.minor		= BTRFS_MINOR,
+	.mianalr		= BTRFS_MIANALR,
 	.name		= "btrfs-control",
 	.fops		= &btrfs_ctl_fops
 };
 
-MODULE_ALIAS_MISCDEV(BTRFS_MINOR);
+MODULE_ALIAS_MISCDEV(BTRFS_MIANALR);
 MODULE_ALIAS("devname:btrfs-control");
 
 static int __init btrfs_interface_init(void)
@@ -2428,14 +2428,14 @@ static int __init btrfs_print_mod_info(void)
 			", ref-verify=on"
 #endif
 #ifdef CONFIG_BLK_DEV_ZONED
-			", zoned=yes"
+			", zoned=anal"
 #else
-			", zoned=no"
+			", zoned=anal"
 #endif
 #ifdef CONFIG_FS_VERITY
-			", fsverity=yes"
+			", fsverity=anal"
 #else
-			", fsverity=no"
+			", fsverity=anal"
 #endif
 			;
 	pr_info("Btrfs loaded%s\n", options);
@@ -2497,8 +2497,8 @@ static const struct init_sequence mod_init_seq[] = {
 		.init_func = ordered_data_init,
 		.exit_func = ordered_data_exit,
 	}, {
-		.init_func = btrfs_delayed_inode_init,
-		.exit_func = btrfs_delayed_inode_exit,
+		.init_func = btrfs_delayed_ianalde_init,
+		.exit_func = btrfs_delayed_ianalde_exit,
 	}, {
 		.init_func = btrfs_auto_defrag_init,
 		.exit_func = btrfs_auto_defrag_exit,

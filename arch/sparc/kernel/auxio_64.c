@@ -21,12 +21,12 @@ void __iomem *auxio_register = NULL;
 EXPORT_SYMBOL(auxio_register);
 
 enum auxio_type {
-	AUXIO_TYPE_NODEV,
+	AUXIO_TYPE_ANALDEV,
 	AUXIO_TYPE_SBUS,
 	AUXIO_TYPE_EBUS
 };
 
-static enum auxio_type auxio_devtype = AUXIO_TYPE_NODEV;
+static enum auxio_type auxio_devtype = AUXIO_TYPE_ANALDEV;
 static DEFINE_SPINLOCK(auxio_lock);
 
 static void __auxio_rmw(u8 bits_on, u8 bits_off, int ebus)
@@ -105,23 +105,23 @@ MODULE_DEVICE_TABLE(of, auxio_match);
 
 static int auxio_probe(struct platform_device *dev)
 {
-	struct device_node *dp = dev->dev.of_node;
+	struct device_analde *dp = dev->dev.of_analde;
 	unsigned long size;
 
-	if (of_node_name_eq(dp->parent, "ebus")) {
+	if (of_analde_name_eq(dp->parent, "ebus")) {
 		auxio_devtype = AUXIO_TYPE_EBUS;
 		size = sizeof(u32);
-	} else if (of_node_name_eq(dp->parent, "sbus")) {
+	} else if (of_analde_name_eq(dp->parent, "sbus")) {
 		auxio_devtype = AUXIO_TYPE_SBUS;
 		size = 1;
 	} else {
-		printk("auxio: Unknown parent bus type [%pOFn]\n",
+		printk("auxio: Unkanalwn parent bus type [%pOFn]\n",
 		       dp->parent);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	auxio_register = of_ioremap(&dev->resource[0], 0, size, "auxio");
 	if (!auxio_register)
-		return -ENODEV;
+		return -EANALDEV;
 
 	printk(KERN_INFO "AUXIO: Found device at %pOF\n", dp);
 

@@ -43,7 +43,7 @@ static inline long count_masked_bytes(long mask)
 
 #endif
 
-/* Return nonzero if it has a zero */
+/* Return analnzero if it has a zero */
 static inline unsigned long has_zero(unsigned long a, unsigned long *bits, const struct word_at_a_time *c)
 {
 	unsigned long mask = ((a - c->one_bits) & ~a) & c->high_bits;
@@ -74,8 +74,8 @@ static inline unsigned long find_zero(unsigned long mask)
  * Load an unaligned word from kernel space.
  *
  * In the (very unlikely) case of the word being a page-crosser
- * and the next page not being mapped, take the exception and
- * return zeroes in the non-existing part.
+ * and the next page analt being mapped, take the exception and
+ * return zeroes in the analn-existing part.
  */
 static inline unsigned long load_unaligned_zeropad(const void *addr)
 {

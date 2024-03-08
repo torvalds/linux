@@ -151,7 +151,7 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		hpd->hpd = hpd_bxt;
 	else if (DISPLAY_VER(dev_priv) == 9)
-		hpd->hpd = NULL; /* no north HPD on SKL */
+		hpd->hpd = NULL; /* anal analrth HPD on SKL */
 	else if (DISPLAY_VER(dev_priv) >= 8)
 		hpd->hpd = hpd_bdw;
 	else if (DISPLAY_VER(dev_priv) >= 7)
@@ -160,7 +160,7 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 		hpd->hpd = hpd_ilk;
 
 	if ((INTEL_PCH_TYPE(dev_priv) < PCH_DG1) &&
-	    (!HAS_PCH_SPLIT(dev_priv) || HAS_PCH_NOP(dev_priv)))
+	    (!HAS_PCH_SPLIT(dev_priv) || HAS_PCH_ANALP(dev_priv)))
 		return;
 
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_LNL)
@@ -196,11 +196,11 @@ void i915_hotplug_interrupt_update_locked(struct drm_i915_private *dev_priv,
  * @dev_priv: driver private
  * @mask: bits to update
  * @bits: bits to enable
- * NOTE: the HPD enable bits are modified both inside and outside
+ * ANALTE: the HPD enable bits are modified both inside and outside
  * of an interrupt context. To avoid that read-modify-write cycles
  * interfer, these bits are protected by a spinlock. Since this
- * function is usually not called from a context where the lock is
- * held already, this function acquires the lock itself. A non-locking
+ * function is usually analt called from a context where the lock is
+ * held already, this function acquires the lock itself. A analn-locking
  * version is also available.
  */
 void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
@@ -338,7 +338,7 @@ static bool i9xx_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
  * This can be called multiple times with the same masks to accumulate
  * hotplug detection results from several registers.
  *
- * Note that the caller is expected to zero out the masks initially.
+ * Analte that the caller is expected to zero out the masks initially.
  */
 static void intel_get_hpd_pins(struct drm_i915_private *dev_priv,
 			       u32 *pin_mask, u32 *long_mask,
@@ -430,7 +430,7 @@ u32 i9xx_hpd_irq_ack(struct drm_i915_private *dev_priv)
 	 * We absolutely have to clear all the pending interrupt
 	 * bits in PORT_HOTPLUG_STAT. Otherwise the ISR port
 	 * interrupt bit won't have an edge, and the i965/g4x
-	 * edge triggered IIR will not notice that an interrupt
+	 * edge triggered IIR will analt analtice that an interrupt
 	 * is still pending. We can't use PORT_HOTPLUG_EN to
 	 * guarantee the edge as the act of toggling the enable
 	 * bits can itself generate a new hotplug interrupt :(
@@ -446,7 +446,7 @@ u32 i9xx_hpd_irq_ack(struct drm_i915_private *dev_priv)
 	}
 
 	drm_WARN_ONCE(&dev_priv->drm, 1,
-		      "PORT_HOTPLUG_STAT did not clear (0x%08x)\n",
+		      "PORT_HOTPLUG_STAT did analt clear (0x%08x)\n",
 		      intel_uncore_read(&dev_priv->uncore, PORT_HOTPLUG_STAT));
 
 	return hotplug_status;
@@ -485,7 +485,7 @@ void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 	/*
 	 * Somehow the PCH doesn't seem to really ack the interrupt to the CPU
 	 * unless we touch the hotplug register, even if hotplug_trigger is
-	 * zero. Not acking leads to "The master control interrupt lied (SDE)!"
+	 * zero. Analt acking leads to "The master control interrupt lied (SDE)!"
 	 * errors.
 	 */
 	dig_hotplug_reg = intel_uncore_read(&dev_priv->uncore, PCH_PORT_HOTPLUG);
@@ -711,7 +711,7 @@ static u32 ibx_hotplug_enables(struct intel_encoder *encoder)
 	case HPD_PORT_A:
 		/*
 		 * When CPU and PCH are on the same package, port A
-		 * HPD must be enabled in both north and south.
+		 * HPD must be enabled in both analrth and south.
 		 */
 		return HAS_PCH_LPT_LP(i915) ?
 			PORTA_HOTPLUG_ENABLE : 0;
@@ -1366,7 +1366,7 @@ static void g45_hpd_peg_band_gap_wa(struct drm_i915_private *i915)
 	/*
 	 * For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
 	 * 0xd.  Failure to do so will result in spurious interrupts being
-	 * generated on the port when a cable is not attached.
+	 * generated on the port when a cable is analt attached.
 	 */
 	intel_de_rmw(i915, PEG_BAND_GAP_DATA, 0xf, 0xd);
 }
@@ -1390,7 +1390,7 @@ static void i915_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev_priv->irq_lock);
 
 	/*
-	 * Note HDMI and DP share hotplug bits. Enable bits are the same for all
+	 * Analte HDMI and DP share hotplug bits. Enable bits are the same for all
 	 * generations.
 	 */
 	hotplug_en = intel_hpd_enabled_irqs(dev_priv, hpd_mask_i915);
@@ -1405,7 +1405,7 @@ static void i915_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	if (IS_G45(dev_priv))
 		g45_hpd_peg_band_gap_wa(dev_priv);
 
-	/* Ignore TV since it's buggy */
+	/* Iganalre TV since it's buggy */
 	i915_hotplug_interrupt_update_locked(dev_priv,
 					     HOTPLUG_INT_EN_MASK |
 					     CRT_HOTPLUG_VOLTAGE_COMPARE_MASK |

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_32_PGTABLE_H
-#define _ASM_POWERPC_NOHASH_32_PGTABLE_H
+#ifndef _ASM_POWERPC_ANALHASH_32_PGTABLE_H
+#define _ASM_POWERPC_ANALHASH_32_PGTABLE_H
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
@@ -32,7 +32,7 @@
 #define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
 
 /*
- * The normal case is that PTEs are 32-bits and we have a 1-page
+ * The analrmal case is that PTEs are 32-bits and we have a 1-page
  * 1024-entry pgdir pointing to 1-page 1024-entry PTE pages.  -- paulus
  *
  * For any >32-bit physical address platform, we can use the following
@@ -56,7 +56,7 @@
 
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
- * value (for now) on others, from where we can start layout kernel
+ * value (for analw) on others, from where we can start layout kernel
  * virtual space that goes below PKMAP and FIXMAP
  */
 
@@ -91,7 +91,7 @@
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  *
- * We no longer map larger than phys RAM with the BATs so we don't have
+ * We anal longer map larger than phys RAM with the BATs so we don't have
  * to worry about the VMALLOC_OFFSET causing problems.  We do have to worry
  * about clashes between our early calls to ioremap() that start growing down
  * from IOREMAP_TOP being run into the VM area allocations (growing upwards
@@ -119,15 +119,15 @@
  */
 
 #if defined(CONFIG_40x)
-#include <asm/nohash/32/pte-40x.h>
+#include <asm/analhash/32/pte-40x.h>
 #elif defined(CONFIG_44x)
-#include <asm/nohash/32/pte-44x.h>
+#include <asm/analhash/32/pte-44x.h>
 #elif defined(CONFIG_PPC_85xx) && defined(CONFIG_PTE_64BIT)
-#include <asm/nohash/pte-e500.h>
+#include <asm/analhash/pte-e500.h>
 #elif defined(CONFIG_PPC_85xx)
-#include <asm/nohash/32/pte-85xx.h>
+#include <asm/analhash/32/pte-85xx.h>
 #elif defined(CONFIG_PPC_8xx)
-#include <asm/nohash/32/pte-8xx.h>
+#include <asm/analhash/32/pte-8xx.h>
 #endif
 
 /*
@@ -153,7 +153,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_analne(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
 #define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
 static inline void pmd_clear(pmd_t *pmdp)
@@ -162,7 +162,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 }
 
 /*
- * Note that on Book E processors, the pmd contains the kernel virtual
+ * Analte that on Book E processors, the pmd contains the kernel virtual
  * (lowmem) address of the pte page.  The physical address is less useful
  * because everything runs with translation enabled (even the TLB miss
  * handler).  On everything else the pmd contains the physical address
@@ -180,7 +180,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs (32bit PTEs):
  *
@@ -188,7 +188,7 @@ static inline void pmd_clear(pmd_t *pmdp)
  *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *   <------------------ offset -------------------> < type -> E 0 0
  *
- * E is the exclusive marker that is not stored in swap entries.
+ * E is the exclusive marker that is analt stored in swap entries.
  *
  * For 64bit PTEs, the offset is extended by 32bit.
  */
@@ -203,4 +203,4 @@ static inline void pmd_clear(pmd_t *pmdp)
 
 #endif /* !__ASSEMBLY__ */
 
-#endif /* __ASM_POWERPC_NOHASH_32_PGTABLE_H */
+#endif /* __ASM_POWERPC_ANALHASH_32_PGTABLE_H */

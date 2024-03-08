@@ -16,7 +16,7 @@ enum ice_sbq_opc {
 };
 
 /* Sideband Queue descriptor. Indirect command
- * and non posted
+ * and analn posted
  */
 struct ice_sbq_cmd_desc {
 	__le16 flags;

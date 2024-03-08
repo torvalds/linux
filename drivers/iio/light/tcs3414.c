@@ -118,7 +118,7 @@ static int tcs3414_req_data(struct tcs3414_data *data)
 		return ret;
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data analt ready\n");
 		return -EIO;
 	}
 
@@ -220,7 +220,7 @@ static irqreturn_t tcs3414_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -287,7 +287,7 @@ static int tcs3414_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -311,7 +311,7 @@ static int tcs3414_probe(struct i2c_client *client)
 		dev_info(&client->dev, "TCS3413/14/15/16 found\n");
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->control = TCS3414_CONTROL_POWER;

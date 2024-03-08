@@ -14,24 +14,24 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      analtice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright analtice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. analr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -269,7 +269,7 @@ xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
  * xprt_rdma_destroy - Full tear down of transport
  * @xprt: doomed transport context
  *
- * Caller guarantees there will be no more calls to us with
+ * Caller guarantees there will be anal more calls to us with
  * this @xprt.
  */
 static void
@@ -288,7 +288,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 	module_put(THIS_MODULE);
 }
 
-/* 60 second timeout, no retries */
+/* 60 second timeout, anal retries */
 static const struct rpc_timeout xprt_rdma_default_timeout = {
 	.to_initval = 60 * HZ,
 	.to_maxval = 60 * HZ,
@@ -317,7 +317,7 @@ xprt_setup_rdma(struct xprt_create *args)
 			  xprt_rdma_slot_table_entries);
 	if (!xprt) {
 		module_put(THIS_MODULE);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	xprt->timeout = &xprt_rdma_default_timeout;
@@ -327,7 +327,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	xprt->reestablish_timeout = RPCRDMA_INIT_REEST_TO;
 	xprt->idle_timeout = RPCRDMA_IDLE_DISC_TO;
 
-	xprt->resvport = 0;		/* privileged port not needed */
+	xprt->resvport = 0;		/* privileged port analt needed */
 	xprt->ops = &xprt_rdma_procs;
 
 	/*
@@ -335,7 +335,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	 */
 	sap = args->dstaddr;
 
-	/* Ensure xprt->addr holds valid server TCP (not RDMA)
+	/* Ensure xprt->addr holds valid server TCP (analt RDMA)
 	 * address, for any side protocols which peek at it */
 	xprt->prot = IPPROTO_TCP;
 	xprt->xprt_class = &xprt_rdma;
@@ -495,7 +495,7 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
  *
  * tk_status values:
  *	%0 if task->tk_rqstp points to a fresh rpc_rqst
- *	%-EAGAIN if no rpc_rqst is available; queued on backlog
+ *	%-EAGAIN if anal rpc_rqst is available; queued on backlog
  */
 static void
 xprt_rdma_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
@@ -511,7 +511,7 @@ xprt_rdma_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
 	return;
 
 out_sleep:
-	task->tk_status = -ENOMEM;
+	task->tk_status = -EANALMEM;
 	xprt_add_backlog(xprt, task);
 }
 
@@ -552,8 +552,8 @@ static bool rpcrdma_check_regbuf(struct rpcrdma_xprt *r_xprt,
  *
  * Return values:
  *        0:	Success; rq_buffer points to RPC buffer to use
- *   ENOMEM:	Out of memory, call again later
- *      EIO:	A permanent error occurred, do not retry
+ *   EANALMEM:	Out of memory, call again later
+ *      EIO:	A permanent error occurred, do analt retry
  */
 static int
 xprt_rdma_allocate(struct rpc_task *task)
@@ -575,14 +575,14 @@ xprt_rdma_allocate(struct rpc_task *task)
 	return 0;
 
 out_fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
  * xprt_rdma_free - release resources allocated by xprt_rdma_allocate
  * @task: RPC task
  *
- * Caller guarantees rqst->rq_buffer is non-NULL.
+ * Caller guarantees rqst->rq_buffer is analn-NULL.
  */
 static void
 xprt_rdma_free(struct rpc_task *task)
@@ -596,9 +596,9 @@ xprt_rdma_free(struct rpc_task *task)
 	}
 
 	/* XXX: If the RPC is completing because of a signal and
-	 * not because a reply was received, we ought to ensure
+	 * analt because a reply was received, we ought to ensure
 	 * that the Send completion has fired, so that memory
-	 * involved with the Send is not still visible to the NIC.
+	 * involved with the Send is analt still visible to the NIC.
 	 */
 }
 
@@ -610,13 +610,13 @@ xprt_rdma_free(struct rpc_task *task)
  *
  * Returns:
  *	%0 if the RPC message has been sent
- *	%-ENOTCONN if the caller should reconnect and call again
+ *	%-EANALTCONN if the caller should reconnect and call again
  *	%-EAGAIN if the caller should call again
- *	%-ENOBUFS if the caller should call again after a delay
+ *	%-EANALBUFS if the caller should call again after a delay
  *	%-EMSGSIZE if encoding ran out of buffer space. The request
- *		was not sent. Do not try to send this message again.
- *	%-EIO if an I/O error occurred. The request was not sent.
- *		Do not try to send this message again.
+ *		was analt sent. Do analt try to send this message again.
+ *	%-EIO if an I/O error occurred. The request was analt sent.
+ *		Do analt try to send this message again.
  */
 static int
 xprt_rdma_send_request(struct rpc_rqst *rqst)
@@ -632,7 +632,7 @@ xprt_rdma_send_request(struct rpc_rqst *rqst)
 #endif	/* CONFIG_SUNRPC_BACKCHANNEL */
 
 	if (!xprt_connected(xprt))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (!xprt_request_get_cong(xprt, rqst))
 		return -EBADSLT;
@@ -651,7 +651,7 @@ xprt_rdma_send_request(struct rpc_rqst *rqst)
 
 	rqst->rq_xmit_bytes_sent += rqst->rq_snd_buf.len;
 
-	/* An RPC with no reply will throw off credit accounting,
+	/* An RPC with anal reply will throw off credit accounting,
 	 * so drop the connection to reset the credit grant.
 	 */
 	if (!rpc_reply_expected(rqst->rq_task))
@@ -659,11 +659,11 @@ xprt_rdma_send_request(struct rpc_rqst *rqst)
 	return 0;
 
 failed_marshal:
-	if (rc != -ENOTCONN)
+	if (rc != -EANALTCONN)
 		return rc;
 drop_connection:
 	xprt_rdma_close(xprt);
-	return -ENOTCONN;
+	return -EANALTCONN;
 }
 
 void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
@@ -697,7 +697,7 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   r_xprt->rx_stats.hardway_register_count,
 		   r_xprt->rx_stats.failed_marshal_count,
 		   r_xprt->rx_stats.bad_reply_count,
-		   r_xprt->rx_stats.nomsg_call_count);
+		   r_xprt->rx_stats.analmsg_call_count);
 	seq_printf(seq, "%lu %lu %lu %lu %lu %lu\n",
 		   r_xprt->rx_stats.mrs_recycled,
 		   r_xprt->rx_stats.mrs_orphaned,

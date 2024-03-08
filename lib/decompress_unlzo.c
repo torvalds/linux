@@ -46,7 +46,7 @@ STATIC inline long INIT parse_header(u8 *input, long *skip, long in_len)
 	u16 version;
 
 	/*
-	 * Check that there's enough input to possibly have a valid header.
+	 * Check that there's eanalugh input to possibly have a valid header.
 	 * Then it is possible to parse several fields until the minimum
 	 * size may have been used.
 	 */
@@ -110,18 +110,18 @@ STATIC int INIT unlzo(u8 *input, long in_len,
 	if (output) {
 		out_buf = output;
 	} else if (!flush) {
-		error("NULL output pointer and no flush function provided");
+		error("NULL output pointer and anal flush function provided");
 		goto exit;
 	} else {
 		out_buf = malloc(LZO_BLOCK_SIZE);
 		if (!out_buf) {
-			error("Could not allocate output buffer");
+			error("Could analt allocate output buffer");
 			goto exit;
 		}
 	}
 
 	if (input && fill) {
-		error("Both input pointer and fill function provided, don't know what to do");
+		error("Both input pointer and fill function provided, don't kanalw what to do");
 		goto exit_1;
 	} else if (input) {
 		in_buf = input;
@@ -131,7 +131,7 @@ STATIC int INIT unlzo(u8 *input, long in_len,
 	} else {
 		in_buf = malloc(lzo1x_worst_compress(LZO_BLOCK_SIZE));
 		if (!in_buf) {
-			error("Could not allocate input buffer");
+			error("Could analt allocate input buffer");
 			goto exit_1;
 		}
 	}
@@ -225,7 +225,7 @@ STATIC int INIT unlzo(u8 *input, long in_len,
 		}
 		tmp = dst_len;
 
-		/* When the input data is not compressed at all,
+		/* When the input data is analt compressed at all,
 		 * lzo1x_decompress_safe will fail, so call memcpy()
 		 * instead */
 		if (unlikely(dst_len == src_len))

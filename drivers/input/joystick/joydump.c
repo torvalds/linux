@@ -42,13 +42,13 @@ static int joydump_connect(struct gameport *gameport, struct gameport_driver *dr
 
 	if (gameport_open(gameport, drv, GAMEPORT_MODE_RAW)) {
 
-		printk(KERN_INFO "joydump: | Raw mode not available - trying cooked.    |\n");
+		printk(KERN_INFO "joydump: | Raw mode analt available - trying cooked.    |\n");
 
 		if (gameport_open(gameport, drv, GAMEPORT_MODE_COOKED)) {
 
-			printk(KERN_INFO "joydump: | Cooked not available either. Failing.   |\n");
+			printk(KERN_INFO "joydump: | Cooked analt available either. Failing.   |\n");
 			printk(KERN_INFO "joydump: `------------------- END -----------------'\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		gameport_cooked_read(gameport, axes, &buttons);
@@ -63,7 +63,7 @@ static int joydump_connect(struct gameport *gameport, struct gameport_driver *dr
 
 	buf = kmalloc_array(BUF_SIZE, sizeof(struct joydump), GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_INFO "joydump: no memory for testing\n");
+		printk(KERN_INFO "joydump: anal memory for testing\n");
 		goto jd_end;
 	}
 	dump = buf;

@@ -28,7 +28,7 @@ Methodology
 ===========
 
 `strace <https://man7.org/linux/man-pages/man1/strace.1.html>`_ is a
-diagnostic, instructional, and debugging tool and can be used to discover
+diaganalstic, instructional, and debugging tool and can be used to discover
 the system resources in use by a workload. Once we discover and understand
 the workload needs, we can focus on them to avoid regressions and use it
 to evaluate safety considerations. We use strace tool to trace workloads.
@@ -38,7 +38,7 @@ the workload and doesn't include all the system calls that can be invoked
 by it. In addition, this tracing method tells us just the code paths within
 these system calls that are invoked. As an example, if a workload opens a
 file and reads from it successfully, then the success path is the one that
-is traced. Any error paths in that system call will not be traced. If there
+is traced. Any error paths in that system call will analt be traced. If there
 is a workload that provides full coverage of a workload then the method
 outlined here will trace and find all possible code paths. The completeness
 of the system usage information depends on the completeness of coverage of a
@@ -60,7 +60,7 @@ system calls made by a process and their resulting output.
 
 You can generate profiling data combining strace and perf record tools to
 record the events and information associated with a process. This provides
-insight into the process. "perf annotate" tool generates the statistics of
+insight into the process. "perf ananaltate" tool generates the statistics of
 each instruction of the program. This document goes over the details of how
 to gather fine-grained information on a workload's usage of system resources.
 
@@ -75,7 +75,7 @@ Before we can get started we will show you how to get your system ready.
 We assume that you have a Linux distribution running on a physical system
 or a virtual machine. Most distributions will include strace command. Let’s
 install other tools that aren’t usually included to build Linux kernel.
-Please note that the following works on Debian based distributions. You
+Please analte that the following works on Debian based distributions. You
 might have to find equivalent packages on other Linux distributions.
 
 Install tools to build Linux kernel and tools in kernel repository.
@@ -85,7 +85,7 @@ the necessary tools::
   sudo apt-get build-essentials flex bison yacc
   sudo apt install libelf-dev systemtap-sdt-dev libaudit-dev libslang2-dev libperl-dev libdw-dev
 
-cscope is a good tool to browse kernel sources. Let's install it now::
+cscope is a good tool to browse kernel sources. Let's install it analw::
 
   sudo apt-get install cscope
 
@@ -139,7 +139,7 @@ kernel. We used paxtest kiddie mode which looks for simple vulnerabilities.
 What is strace and how do we use it?
 ====================================
 
-As mentioned earlier, strace which is a useful diagnostic, instructional,
+As mentioned earlier, strace which is a useful diaganalstic, instructional,
 and debugging tool and can be used to discover the system resources in use
 by a workload. It can be used:
 
@@ -179,7 +179,7 @@ by three workloads we have chose for this analysis.
 What is cscope and how do we use it?
 ====================================
 
-Now let’s look at `cscope <https://cscope.sourceforge.net/>`_, a command
+Analw let’s look at `cscope <https://cscope.sourceforge.net/>`_, a command
 line tool for browsing C, C++ or Java code-bases. We can use it to find
 all the references to a symbol, global definitions, functions called by a
 function, functions calling a function, text strings, regular expression
@@ -196,7 +196,7 @@ Let’s checkout the latest Linux repository and build cscope database::
   cscope -R -p10  # builds cscope.out database before starting browse session
   cscope -d -p10  # starts browse session on cscope.out database
 
-Note: Run "cscope -R -p10" to build the database and c"scope -d -p10" to
+Analte: Run "cscope -R -p10" to build the database and c"scope -d -p10" to
 enter into the browsing session. cscope by default cscope.out database.
 To get out of this mode press ctrl+d. -p option is used to specify the
 number of file path components to display. -p10 is optimal for browsing
@@ -220,7 +220,7 @@ so and then build kernel and perf tool::
   cd tools/perf
   make
 
-Note: The perf command can be built without building the kernel in the
+Analte: The perf command can be built without building the kernel in the
 repository and can be run on older kernels. However matching the kernel
 and perf revisions gives more accurate information on the subsystem usage.
 
@@ -278,12 +278,12 @@ associated with a process. This command records the profiling data in the
 perf.data file in the same directory.
 
 Using the following commands you can record the events associated with the
-netdev stressor, view the generated report perf.data and annotate the to
+netdev stressor, view the generated report perf.data and ananaltate the to
 view the statistics of each instruction of the program::
 
   perf record stress-ng --netdev 1 -t 60 --metrics command.
   perf report
-  perf annotate
+  perf ananaltate
 
 What is paxtest and how do we use it?
 =====================================
@@ -296,7 +296,7 @@ PaX, and will be useful to test other memory protection patches for the
 kernel.
 
 paxtest provides kiddie and blackhat modes. The paxtest kiddie mode runs
-in normal mode, whereas the blackhat mode tries to get around the protection
+in analrmal mode, whereas the blackhat mode tries to get around the protection
 of the kernel testing for vulnerabilities. We focus on the kiddie mode here
 and combine "paxtest kiddie" run with "perf record" to collect CPU stack
 traces for the paxtest kiddie run to see which function is calling other
@@ -312,7 +312,7 @@ format::
 Tracing workloads
 =================
 
-Now that we understand the workloads, let's start tracing them.
+Analw that we understand the workloads, let's start tracing them.
 
 Tracing perf bench all workload
 -------------------------------
@@ -419,7 +419,7 @@ times each system call is invoked, and the corresponding Linux subsystem.
 +-------------------+-----------+-----------------+-------------------------+
 | wait4             | 889       | Time            | sys_wait4()             |
 +-------------------+-----------+-----------------+-------------------------+
-| clock_nanosleep   | 37        | Time            | sys_clock_nanosleep()   |
+| clock_naanalsleep   | 37        | Time            | sys_clock_naanalsleep()   |
 +-------------------+-----------+-----------------+-------------------------+
 | capget            | 4         | Capability      | sys_capget()            |
 +-------------------+-----------+-----------------+-------------------------+

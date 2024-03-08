@@ -33,9 +33,9 @@ providing information about power lines voltages and currents, board
 temperature and power usage. Some of them also calculate consumed energy
 and provide a cumulative use counter.
 
-The configuration devices are _not_ memory mapped and must be accessed
+The configuration devices are _analt_ memory mapped and must be accessed
 via a custom interface, abstracted by the "vexpress_config" API.
 
-As these devices are non-discoverable, they must be described in a Device
+As these devices are analn-discoverable, they must be described in a Device
 Tree passed to the kernel. Details of the DT binding for them can be found
 in Documentation/devicetree/bindings/hwmon/vexpress.txt.

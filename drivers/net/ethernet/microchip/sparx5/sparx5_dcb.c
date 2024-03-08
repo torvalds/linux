@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <net/dcbnl.h>
@@ -108,20 +108,20 @@ static int sparx5_dcb_apptrust_validate(struct net_device *dev, u8 *selectors,
 			break;
 	}
 
-	/* Requested trust configuration is not supported */
+	/* Requested trust configuration is analt supported */
 	if (!match) {
 		netdev_err(dev, "Valid apptrust configurations are:\n");
 		for (i = 0; i < ARRAY_SIZE(sparx5_dcb_apptrust_names); i++)
 			pr_info("order: %s\n", sparx5_dcb_apptrust_names[i]);
-		*err = -EOPNOTSUPP;
+		*err = -EOPANALTSUPP;
 	}
 
 	return i;
 }
 
-static bool sparx5_dcb_apptrust_contains(int portno, u8 selector)
+static bool sparx5_dcb_apptrust_contains(int portanal, u8 selector)
 {
-	const struct sparx5_dcb_apptrust *conf = sparx5_port_apptrust[portno];
+	const struct sparx5_dcb_apptrust *conf = sparx5_port_apptrust[portanal];
 	int i;
 
 	for (i = 0; i < conf->nselectors; i++)
@@ -140,7 +140,7 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 	struct sparx5_port_qos_pcp_map *pcp_map;
 	struct sparx5_port_qos qos = {0};
 	struct dcb_app app_itr = {0};
-	int portno = port->portno;
+	int portanal = port->portanal;
 	bool dscp_rewr = false;
 	bool pcp_rewr = false;
 	u16 dscp;
@@ -185,7 +185,7 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 
 		/* The rewrite table of the switch has 32 entries; one for each
 		 * priority for each DP level. Currently, the rewrite map does
-		 * not indicate DP level, so we map classified QoS class to
+		 * analt indicate DP level, so we map classified QoS class to
 		 * classified DSCP, for each classified DP level. Rewrite of
 		 * DSCP is only enabled, if we have active mappings.
 		 */
@@ -198,22 +198,22 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 	}
 
 	/* Enable use of pcp for queue classification ? */
-	if (sparx5_dcb_apptrust_contains(portno, DCB_APP_SEL_PCP)) {
+	if (sparx5_dcb_apptrust_contains(portanal, DCB_APP_SEL_PCP)) {
 		qos.pcp.qos_enable = true;
 		qos.pcp.dp_enable = qos.pcp.qos_enable;
 		/* Enable rewrite of PCP and DEI if PCP is trusted *and* rewrite
-		 * table is not empty.
+		 * table is analt empty.
 		 */
 		if (pcp_rewr)
 			qos.pcp_rewr.enable = true;
 	}
 
 	/* Enable use of dscp for queue classification ? */
-	if (sparx5_dcb_apptrust_contains(portno, IEEE_8021QAZ_APP_SEL_DSCP)) {
+	if (sparx5_dcb_apptrust_contains(portanal, IEEE_8021QAZ_APP_SEL_DSCP)) {
 		qos.dscp.qos_enable = true;
 		qos.dscp.dp_enable = qos.dscp.qos_enable;
 		if (dscp_rewr)
-			/* Do not enable rewrite if no mappings are active, as
+			/* Do analt enable rewrite if anal mappings are active, as
 			 * classified DSCP will then be zero for all classified
 			 * QoS class and DP combinations.
 			 */
@@ -306,7 +306,7 @@ static int sparx5_dcb_setapptrust(struct net_device *dev, u8 *selectors,
 	if (err < 0)
 		return err;
 
-	sparx5_port_apptrust[port->portno] = &sparx5_dcb_apptrust_policies[idx];
+	sparx5_port_apptrust[port->portanal] = &sparx5_dcb_apptrust_policies[idx];
 
 	return sparx5_dcb_app_update(dev);
 }
@@ -317,7 +317,7 @@ static int sparx5_dcb_getapptrust(struct net_device *dev, u8 *selectors,
 	struct sparx5_port *port = netdev_priv(dev);
 	const struct sparx5_dcb_apptrust *trust;
 
-	trust = sparx5_port_apptrust[port->portno];
+	trust = sparx5_port_apptrust[port->portanal];
 
 	memcpy(selectors, trust->selectors, trust->nselectors);
 	*nselectors = trust->nselectors;
@@ -392,7 +392,7 @@ int sparx5_dcb_init(struct sparx5 *sparx5)
 			continue;
 		port->ndev->dcbnl_ops = &sparx5_dcbnl_ops;
 		/* Initialize [dscp, pcp] default trust */
-		sparx5_port_apptrust[port->portno] =
+		sparx5_port_apptrust[port->portanal] =
 			&sparx5_dcb_apptrust_policies
 				[SPARX5_DCB_APPTRUST_DSCP_PCP];
 

@@ -132,7 +132,7 @@ static ssize_t txstat_read_file(struct b43legacy_wldev *dev, char *buf, size_t b
 
 	spin_lock_irqsave(&log->lock, flags);
 	if (log->end < 0) {
-		fappend("Nothing transmitted, yet\n");
+		fappend("Analthing transmitted, yet\n");
 		goto out_unlock;
 	}
 	fappend("b43legacy TX status reports:\n\n"
@@ -200,18 +200,18 @@ static ssize_t b43legacy_debugfs_read(struct file *file, char __user *userbuf,
 		return 0;
 	dev = file->private_data;
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->wl->mutex);
 	if (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unlock;
 	}
 
 	dfops = container_of(debugfs_real_fops(file),
 			     struct b43legacy_debugfs_fops, fops);
 	if (!dfops->read) {
-		err = -ENOSYS;
+		err = -EANALSYS;
 		goto out_unlock;
 	}
 	dfile = fops_to_dfs_file(dev, dfops);
@@ -219,7 +219,7 @@ static ssize_t b43legacy_debugfs_read(struct file *file, char __user *userbuf,
 	if (!dfile->buffer) {
 		buf = (char *)__get_free_pages(GFP_KERNEL, buforder);
 		if (!buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_unlock;
 		}
 		memset(buf, 0, bufsize);
@@ -267,24 +267,24 @@ static ssize_t b43legacy_debugfs_write(struct file *file,
 		return -E2BIG;
 	dev = file->private_data;
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->wl->mutex);
 	if (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unlock;
 	}
 
 	dfops = container_of(debugfs_real_fops(file),
 			     struct b43legacy_debugfs_fops, fops);
 	if (!dfops->write) {
-		err = -ENOSYS;
+		err = -EANALSYS;
 		goto out_unlock;
 	}
 
 	buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 	if (copy_from_user(buf, userbuf, count)) {

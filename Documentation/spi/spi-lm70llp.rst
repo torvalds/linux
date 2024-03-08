@@ -48,7 +48,7 @@ The hardware interfacing on the LM70 LLP eval board is as follows:
     Select  13     <--      SI/O 1
    ======== == =========   ==========
 
-Note that since the LM70 uses a "3-wire" variant of SPI, the SI/SO pin
+Analte that since the LM70 uses a "3-wire" variant of SPI, the SI/SO pin
 is connected to both pin D7 (as Master Out) and Select (as Master In)
 using an arrangement that lets either the parport or the LM70 pull the
 pin low.  This can't be shared with true SPI devices, but other 3-wire
@@ -66,7 +66,7 @@ transistor Q1 (and also a pullup, and a zener diode to D7); while the
 collector is tied to VCC.
 
 Interpreting this circuit, when the LM70 SI/O line is High (or tristate
-and not grounded by the host via D7), the transistor conducts and switches
+and analt grounded by the host via D7), the transistor conducts and switches
 the collector to zero, which is reflected on pin 13 of the DB25 parport
 connector.  When SI/O is Low (driven by the LM70 or the host) on the other
 hand, the transistor is cut off and the voltage tied to its collector is

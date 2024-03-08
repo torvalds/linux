@@ -77,13 +77,13 @@ struct intel_context_ops {
 
 struct intel_context {
 	/*
-	 * Note: Some fields may be accessed under RCU.
+	 * Analte: Some fields may be accessed under RCU.
 	 *
-	 * Unless otherwise noted a field can safely be assumed to be protected
+	 * Unless otherwise analted a field can safely be assumed to be protected
 	 * by strong reference counting.
 	 */
 	union {
-		struct kref ref; /* no kref_get_unless_zero()! */
+		struct kref ref; /* anal kref_get_unless_zero()! */
 		struct rcu_head rcu;
 	};
 
@@ -124,7 +124,7 @@ struct intel_context {
 #define CONTEXT_USE_SEMAPHORES		5
 #define CONTEXT_BANNED			6
 #define CONTEXT_FORCE_SINGLE_SUBMISSION	7
-#define CONTEXT_NOPREEMPT		8
+#define CONTEXT_ANALPREEMPT		8
 #define CONTEXT_LRCA_DIRTY		9
 #define CONTEXT_GUC_INIT		10
 #define CONTEXT_PERMA_PIN		11
@@ -179,7 +179,7 @@ struct intel_context {
 	 * pinned_contexts_link: List link for the engine's pinned contexts.
 	 * This is only used if this is a perma-pinned kernel context and
 	 * the list is assumed to only be manipulated during driver load
-	 * or unload time so no mutex protection currently.
+	 * or unload time so anal mutex protection currently.
 	 */
 	struct list_head pinned_contexts_link;
 
@@ -232,7 +232,7 @@ struct intel_context {
 		 */
 		atomic_t ref;
 		/**
-		 * @link: in guc->guc_id_list when the guc_id has no refs but is
+		 * @link: in guc->guc_id_list when the guc_id has anal refs but is
 		 * still valid, protected by guc->submission_state.lock
 		 */
 		struct list_head link;
@@ -250,7 +250,7 @@ struct intel_context {
 		union {
 			/**
 			 * @child_list: parent's list of children
-			 * contexts, no protection as immutable after context
+			 * contexts, anal protection as immutable after context
 			 * creation
 			 */
 			struct list_head child_list;
@@ -274,10 +274,10 @@ struct intel_context {
 		 */
 		u64 fence_context;
 		/**
-		 * @seqno: seqno for composite fence when doing parallel
+		 * @seqanal: seqanal for composite fence when doing parallel
 		 * submission
 		 */
-		u32 seqno;
+		u32 seqanal;
 		/** @number_children: number of children if parent */
 		u8 number_children;
 		/** @child_index: index into child_list if child */

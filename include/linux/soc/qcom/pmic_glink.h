@@ -13,7 +13,7 @@ struct pmic_glink_client;
 #define PMIC_GLINK_OWNER_USBC_PAN	32780
 
 #define PMIC_GLINK_REQ_RESP		1
-#define PMIC_GLINK_NOTIFY		2
+#define PMIC_GLINK_ANALTIFY		2
 
 struct pmic_glink_hdr {
 	__le32 owner;

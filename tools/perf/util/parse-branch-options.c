@@ -26,12 +26,12 @@ static const struct branch_mode branch_modes[] = {
 	BRANCH_OPT("ind_call", PERF_SAMPLE_BRANCH_IND_CALL),
 	BRANCH_OPT("abort_tx", PERF_SAMPLE_BRANCH_ABORT_TX),
 	BRANCH_OPT("in_tx", PERF_SAMPLE_BRANCH_IN_TX),
-	BRANCH_OPT("no_tx", PERF_SAMPLE_BRANCH_NO_TX),
+	BRANCH_OPT("anal_tx", PERF_SAMPLE_BRANCH_ANAL_TX),
 	BRANCH_OPT("cond", PERF_SAMPLE_BRANCH_COND),
 	BRANCH_OPT("ind_jmp", PERF_SAMPLE_BRANCH_IND_JUMP),
 	BRANCH_OPT("call", PERF_SAMPLE_BRANCH_CALL),
-	BRANCH_OPT("no_flags", PERF_SAMPLE_BRANCH_NO_FLAGS),
-	BRANCH_OPT("no_cycles", PERF_SAMPLE_BRANCH_NO_CYCLES),
+	BRANCH_OPT("anal_flags", PERF_SAMPLE_BRANCH_ANAL_FLAGS),
+	BRANCH_OPT("anal_cycles", PERF_SAMPLE_BRANCH_ANAL_CYCLES),
 	BRANCH_OPT("save_type", PERF_SAMPLE_BRANCH_TYPE_SAVE),
 	BRANCH_OPT("stack", PERF_SAMPLE_BRANCH_CALL_STACK),
 	BRANCH_OPT("hw_index", PERF_SAMPLE_BRANCH_HW_INDEX),
@@ -73,7 +73,7 @@ int parse_branch_str(const char *str, __u64 *mode)
 		}
 		if (!br->name) {
 			ret = -1;
-			pr_warning("unknown branch filter %s,"
+			pr_warning("unkanalwn branch filter %s,"
 				    " check man page\n", s);
 			goto error;
 		}
@@ -104,7 +104,7 @@ parse_branch_stack(const struct option *opt, const char *str, int unset)
 		return 0;
 
 	/*
-	 * cannot set it twice, -b + --branch-filter for instance
+	 * cananalt set it twice, -b + --branch-filter for instance
 	 */
 	if (*mode) {
 		pr_err("Error: Can't use --branch-any (-b) with --branch-filter (-j).\n");

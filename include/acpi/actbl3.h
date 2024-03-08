@@ -14,7 +14,7 @@
  *
  * Additional ACPI Tables
  *
- * These tables are not consumed directly by the ACPICA subsystem, but are
+ * These tables are analt consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
  ******************************************************************************/
@@ -50,14 +50,14 @@
 #pragma pack(1)
 
 /*
- * Note: C bitfields are not used for this reason:
+ * Analte: C bitfields are analt used for this reason:
  *
  * "Bitfields are great and easy to read, but unfortunately the C language
- * does not specify the layout of bitfields in memory, which means they are
+ * does analt specify the layout of bitfields in memory, which means they are
  * essentially useless for dealing with packed data in on-disk formats or
  * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
  * this decision was a design error in C. Ritchie could have picked an order
- * and stuck with it." Norman Ramsey.
+ * and stuck with it." Analrman Ramsey.
  * See http://stackoverflow.com/a/1053662/41661
  */
 
@@ -66,7 +66,7 @@
  * SLIC - Software Licensing Description Table
  *
  * Conforms to "Microsoft Software Licensing Tables (SLIC and MSDM)",
- * November 29, 2011. Copyright 2011 Microsoft
+ * Analvember 29, 2011. Copyright 2011 Microsoft
  *
  ******************************************************************************/
 
@@ -125,7 +125,7 @@ struct acpi_table_spcr {
 
 /* Masks for pci_flags field above */
 
-#define ACPI_SPCR_DO_NOT_DISABLE    (1)
+#define ACPI_SPCR_DO_ANALT_DISABLE    (1)
 
 /* Values for Interface Type: See the definition of the DBG2 table */
 
@@ -161,7 +161,7 @@ struct acpi_table_spmi {
 /* Values for interface_type above */
 
 enum acpi_spmi_interface_types {
-	ACPI_SPMI_NOT_USED = 0,
+	ACPI_SPMI_ANALT_USED = 0,
 	ACPI_SPMI_KEYBOARD = 1,
 	ACPI_SPMI_SMI = 2,
 	ACPI_SPMI_BLOCK_TRANSFER = 3,
@@ -232,7 +232,7 @@ struct acpi_srat_mem_affinity {
 
 #define ACPI_SRAT_MEM_ENABLED       (1)	/* 00: Use affinity structure */
 #define ACPI_SRAT_MEM_HOT_PLUGGABLE (1<<1)	/* 01: Memory region is hot pluggable */
-#define ACPI_SRAT_MEM_NON_VOLATILE  (1<<2)	/* 02: Memory region is non-volatile */
+#define ACPI_SRAT_MEM_ANALN_VOLATILE  (1<<2)	/* 02: Memory region is analn-volatile */
 
 /* 2: Processor Local X2_APIC Affinity (ACPI 4.0) */
 
@@ -308,7 +308,7 @@ struct acpi_srat_generic_affinity {
 
 struct acpi_table_stao {
 	struct acpi_table_header header;	/* Common ACPI table header */
-	u8 ignore_uart;
+	u8 iganalre_uart;
 };
 
 /*******************************************************************************
@@ -322,7 +322,7 @@ struct acpi_table_stao {
  * Version 1.2, Revision 8
  * February 27, 2017
  *
- * NOTE: There are two versions of the table with the same signature --
+ * ANALTE: There are two versions of the table with the same signature --
  * the client version and the server version. The common platform_class
  * field is used to differentiate the two types of tables.
  *
@@ -432,7 +432,7 @@ struct acpi_tpm2_phy {
 
 /* Values for start_method above */
 
-#define ACPI_TPM2_NOT_ALLOWED                       0
+#define ACPI_TPM2_ANALT_ALLOWED                       0
 #define ACPI_TPM2_RESERVED1                         1
 #define ACPI_TPM2_START_METHOD                      2
 #define ACPI_TPM2_RESERVED3                         3
@@ -502,8 +502,8 @@ struct acpi_table_uefi {
 
 struct acpi_table_viot {
 	struct acpi_table_header header;	/* Common ACPI table header */
-	u16 node_count;
-	u16 node_offset;
+	u16 analde_count;
+	u16 analde_offset;
 	u8 reserved[8];
 };
 
@@ -517,11 +517,11 @@ struct acpi_viot_header {
 
 /* Values for Type field above */
 
-enum acpi_viot_node_type {
-	ACPI_VIOT_NODE_PCI_RANGE = 0x01,
-	ACPI_VIOT_NODE_MMIO = 0x02,
-	ACPI_VIOT_NODE_VIRTIO_IOMMU_PCI = 0x03,
-	ACPI_VIOT_NODE_VIRTIO_IOMMU_MMIO = 0x04,
+enum acpi_viot_analde_type {
+	ACPI_VIOT_ANALDE_PCI_RANGE = 0x01,
+	ACPI_VIOT_ANALDE_MMIO = 0x02,
+	ACPI_VIOT_ANALDE_VIRTIO_IOMMU_PCI = 0x03,
+	ACPI_VIOT_ANALDE_VIRTIO_IOMMU_MMIO = 0x04,
 	ACPI_VIOT_RESERVED = 0x05
 };
 
@@ -534,7 +534,7 @@ struct acpi_viot_pci_range {
 	u16 segment_end;
 	u16 bdf_start;
 	u16 bdf_end;
-	u16 output_node;
+	u16 output_analde;
 	u8 reserved[6];
 };
 
@@ -542,7 +542,7 @@ struct acpi_viot_mmio {
 	struct acpi_viot_header header;
 	u32 endpoint;
 	u64 base_address;
-	u16 output_node;
+	u16 output_analde;
 	u8 reserved[6];
 };
 
@@ -575,7 +575,7 @@ struct acpi_table_waet {
 
 /* Masks for Flags field above */
 
-#define ACPI_WAET_RTC_NO_ACK        (1)	/* RTC requires no int acknowledge */
+#define ACPI_WAET_RTC_ANAL_ACK        (1)	/* RTC requires anal int ackanalwledge */
 #define ACPI_WAET_TIMER_ONE_READ    (1<<1)	/* PM timer requires only one read */
 
 /*******************************************************************************
@@ -682,7 +682,7 @@ struct acpi_table_wddt {
 #define ACPI_WDDT_USER_RESET    (1<<11)
 #define ACPI_WDDT_WDT_RESET     (1<<12)
 #define ACPI_WDDT_POWER_FAIL    (1<<13)
-#define ACPI_WDDT_UNKNOWN_RESET (1<<14)
+#define ACPI_WDDT_UNKANALWN_RESET (1<<14)
 
 /* Flags for Capability field above */
 
@@ -718,7 +718,7 @@ struct acpi_table_wdrt {
  * WPBT - Windows Platform Environment Table (ACPI 6.0)
  *        Version 1
  *
- * Conforms to "Windows Platform Binary Table (WPBT)" 29 November 2011
+ * Conforms to "Windows Platform Binary Table (WPBT)" 29 Analvember 2011
  *
  ******************************************************************************/
 

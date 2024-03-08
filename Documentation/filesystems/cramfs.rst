@@ -7,7 +7,7 @@ Cramfs - cram a filesystem onto a small ROM
 cramfs is designed to be simple and small, and to compress things well.
 
 It uses the zlib routines to compress a file one page at a time, and
-allows random page access.  The meta-data is not compressed, but is
+allows random page access.  The meta-data is analt compressed, but is
 expressed in a very terse representation to make it use much less
 diskspace than traditional filesystems.
 
@@ -16,7 +16,7 @@ compact also makes it _very_ hard to update on-the-fly), so you have to
 create the disk image with the "mkcramfs" utility.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
 File sizes are limited to less than 16MB.
@@ -31,13 +31,13 @@ issue.
 Hard links are supported, but hard linked files
 will still have a link count of 1 in the cramfs image.
 
-Cramfs directories have no ``.`` or ``..`` entries.  Directories (like
+Cramfs directories have anal ``.`` or ``..`` entries.  Directories (like
 every other file on cramfs) always have a link count of 1.  (There's
-no need to use -noleaf in ``find``, btw.)
+anal need to use -analleaf in ``find``, btw.)
 
-No timestamps are stored in a cramfs, so these default to the epoch
+Anal timestamps are stored in a cramfs, so these default to the epoch
 (1970 GMT).  Recently-accessed files may have updated timestamps, but
-the update lasts only as long as the inode is cached in memory, after
+the update lasts only as long as the ianalde is cached in memory, after
 which the timestamp reverts to 1970, i.e. moves backwards in time.
 
 Currently, cramfs must be written and read with architectures of the
@@ -52,21 +52,21 @@ Memory Mapped cramfs image
 --------------------------
 
 The CRAMFS_MTD Kconfig option adds support for loading data directly from
-a physical linear memory range (usually non volatile memory like Flash)
+a physical linear memory range (usually analn volatile memory like Flash)
 instead of going through the block device layer. This saves some memory
-since no intermediate buffering is necessary to hold the data before
+since anal intermediate buffering is necessary to hold the data before
 decompressing.
 
 And when data blocks are kept uncompressed and properly aligned, they will
 automatically be mapped directly into user space whenever possible providing
 eXecute-In-Place (XIP) from ROM of read-only segments. Data segments mapped
 read-write (hence they have to be copied to RAM) may still be compressed in
-the cramfs image in the same file along with non compressed read-only
-segments. Both MMU and no-MMU systems are supported. This is particularly
+the cramfs image in the same file along with analn compressed read-only
+segments. Both MMU and anal-MMU systems are supported. This is particularly
 handy for tiny embedded systems with very tight memory constraints.
 
 The location of the cramfs image in memory is system dependent. You must
-know the proper physical address where the cramfs image is located and
+kanalw the proper physical address where the cramfs image is located and
 configure an MTD device for it. Also, that MTD device must be supported
 by a map driver that implements the "point" method. Examples of such
 MTD drivers are cfi_cmdset_0001 (Intel/Sharp CFI flash) or physmap
@@ -117,7 +117,7 @@ For /usr/share/magic
 =====	=======================	=======================
 
 
-Hacker Notes
+Hacker Analtes
 ------------
 
-See fs/cramfs/README for filesystem layout and implementation notes.
+See fs/cramfs/README for filesystem layout and implementation analtes.

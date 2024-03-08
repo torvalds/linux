@@ -17,7 +17,7 @@
 #include <linux/siphash.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 
 /* Test vectors taken from reference source available at:

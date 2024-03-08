@@ -17,7 +17,7 @@
 #define MAP_ERR_SHIFT 30
 #define MAP_ERR_MASK (1 << MAP_ERR_SHIFT)
 #define MAP_LBA_MASK (~((1 << MAP_TRIM_SHIFT) | (1 << MAP_ERR_SHIFT)))
-#define MAP_ENT_NORMAL 0xC0000000
+#define MAP_ENT_ANALRMAL 0xC0000000
 #define LOG_GRP_SIZE sizeof(struct log_group)
 #define LOG_ENT_SIZE sizeof(struct log_entry)
 #define ARENA_MIN_SIZE (1UL << 24)	/* 16 MB */
@@ -35,12 +35,12 @@
 #define ent_e_flag(ent) (!!(ent & MAP_ERR_MASK))
 #define ent_z_flag(ent) (!!(ent & MAP_TRIM_MASK))
 #define set_e_flag(ent) (ent |= MAP_ERR_MASK)
-/* 'normal' is both e and z flags set */
-#define ent_normal(ent) (ent_e_flag(ent) && ent_z_flag(ent))
+/* 'analrmal' is both e and z flags set */
+#define ent_analrmal(ent) (ent_e_flag(ent) && ent_z_flag(ent))
 
 enum btt_init_state {
 	INIT_UNCHECKED = 0,
-	INIT_NOTFOUND,
+	INIT_ANALTFOUND,
 	INIT_READY
 };
 
@@ -98,7 +98,7 @@ struct btt_sb {
 	u8 parent_uuid[16];
 	__le32 flags;
 	__le16 version_major;
-	__le16 version_minor;
+	__le16 version_mianalr;
 	__le32 external_lbasize;
 	__le32 external_nlba;
 	__le32 internal_lbasize;
@@ -144,7 +144,7 @@ struct aligned_lock {
  * @nfree:		A reserve number of 'free' blocks that is used to
  *			handle incoming writes.
  * @version_major:	Metadata layout version major.
- * @version_minor:	Metadata layout version minor.
+ * @version_mianalr:	Metadata layout version mianalr.
  * @sector_size:	The Linux sector size - 512 or 4096
  * @nextoff:		Offset in bytes to the start of the next arena.
  * @infooff:		Offset in bytes to the info block of this arena.
@@ -174,7 +174,7 @@ struct arena_info {
 	u32 external_lbasize;
 	u32 nfree;
 	u16 version_major;
-	u16 version_minor;
+	u16 version_mianalr;
 	u32 sector_size;
 	/* Byte offsets to the different on-media structures */
 	u64 nextoff;

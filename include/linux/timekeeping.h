@@ -2,7 +2,7 @@
 #ifndef _LINUX_TIMEKEEPING_H
 #define _LINUX_TIMEKEEPING_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/clocksource_ids.h>
 #include <linux/ktime.h>
 
@@ -24,8 +24,8 @@ extern int do_sys_settimeofday64(const struct timespec64 *tv,
 /*
  * ktime_get() family: read the current time in a multitude of ways,
  *
- * The default time reference is CLOCK_MONOTONIC, starting at
- * boot time but not counting the time spent in suspend.
+ * The default time reference is CLOCK_MOANALTONIC, starting at
+ * boot time but analt counting the time spent in suspend.
  * For other references, use the functions with "real", "clocktai",
  * "boottime" and "raw" suffixes.
  *
@@ -68,7 +68,7 @@ enum tk_offsets {
 extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
 extern ktime_t ktime_get_coarse_with_offset(enum tk_offsets offs);
-extern ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs);
+extern ktime_t ktime_moanal_to_any(ktime_t tmoanal, enum tk_offsets offs);
 extern ktime_t ktime_get_raw(void);
 extern u32 ktime_get_resolution_ns(void);
 
@@ -86,7 +86,7 @@ static inline ktime_t ktime_get_coarse_real(void)
 }
 
 /**
- * ktime_get_boottime - Returns monotonic time since boot in ktime_t format
+ * ktime_get_boottime - Returns moanaltonic time since boot in ktime_t format
  *
  * This is similar to CLOCK_MONTONIC/ktime_get, but also includes the
  * time spent in suspend.
@@ -143,11 +143,11 @@ static inline u64 ktime_get_coarse_clocktai_ns(void)
 }
 
 /**
- * ktime_mono_to_real - Convert monotonic time to clock realtime
+ * ktime_moanal_to_real - Convert moanaltonic time to clock realtime
  */
-static inline ktime_t ktime_mono_to_real(ktime_t mono)
+static inline ktime_t ktime_moanal_to_real(ktime_t moanal)
 {
-	return ktime_mono_to_any(mono, TK_OFFS_REAL);
+	return ktime_moanal_to_any(moanal, TK_OFFS_REAL);
 }
 
 static inline u64 ktime_get_ns(void)
@@ -175,7 +175,7 @@ static inline u64 ktime_get_raw_ns(void)
 	return ktime_to_ns(ktime_get_raw());
 }
 
-extern u64 ktime_get_mono_fast_ns(void);
+extern u64 ktime_get_moanal_fast_ns(void);
 extern u64 ktime_get_raw_fast_ns(void);
 extern u64 ktime_get_boot_fast_ns(void);
 extern u64 ktime_get_tai_fast_ns(void);
@@ -225,13 +225,13 @@ extern bool timekeeping_rtc_skipresume(void);
 extern void timekeeping_inject_sleeptime64(const struct timespec64 *delta);
 
 /*
- * struct ktime_timestanps - Simultaneous mono/boot/real timestamps
- * @mono:	Monotonic timestamp
+ * struct ktime_timestanps - Simultaneous moanal/boot/real timestamps
+ * @moanal:	Moanaltonic timestamp
  * @boot:	Boottime timestamp
  * @real:	Realtime timestamp
  */
 struct ktime_timestamps {
-	u64		mono;
+	u64		moanal;
 	u64		boot;
 	u64		real;
 };
@@ -241,7 +241,7 @@ struct ktime_timestamps {
  *				 counter value
  * @cycles:	Clocksource counter value to produce the system times
  * @real:	Realtime system time
- * @raw:	Monotonic raw system time
+ * @raw:	Moanaltonic raw system time
  * @clock_was_set_seq:	The sequence number of clock was set events
  * @cs_was_changed_seq:	The sequence number of clocksource change events
  */
@@ -259,12 +259,12 @@ struct system_time_snapshot {
  *				      (synchronized capture)
  * @device:		Device time
  * @sys_realtime:	Realtime simultaneous with device time
- * @sys_monoraw:	Monotonic raw simultaneous with device time
+ * @sys_moanalraw:	Moanaltonic raw simultaneous with device time
  */
 struct system_device_crosststamp {
 	ktime_t device;
 	ktime_t sys_realtime;
-	ktime_t sys_monoraw;
+	ktime_t sys_moanalraw;
 };
 
 /**
@@ -291,11 +291,11 @@ extern int get_device_system_crosststamp(
 			struct system_device_crosststamp *xtstamp);
 
 /*
- * Simultaneously snapshot realtime and monotonic raw clocks
+ * Simultaneously snapshot realtime and moanaltonic raw clocks
  */
 extern void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot);
 
-/* NMI safe mono/boot/realtime timestamps */
+/* NMI safe moanal/boot/realtime timestamps */
 extern void ktime_get_fast_timestamps(struct ktime_timestamps *snap);
 
 /*
@@ -307,7 +307,7 @@ extern void read_persistent_clock64(struct timespec64 *ts);
 void read_persistent_wall_and_boot_offset(struct timespec64 *wall_clock,
 					  struct timespec64 *boot_offset);
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
-extern int update_persistent_clock64(struct timespec64 now);
+extern int update_persistent_clock64(struct timespec64 analw);
 #endif
 
 #endif

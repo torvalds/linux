@@ -185,7 +185,7 @@ static irqreturn_t tiadc_irq_h(int irq, void *private)
 		return IRQ_WAKE_THREAD;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t tiadc_worker_h(int irq, void *private)
@@ -239,7 +239,7 @@ static int tiadc_start_dma(struct iio_dev *indio_dev)
 	 * Make the fifo thresh as the multiple of total number of
 	 * channels enabled, so make sure that cyclic DMA period
 	 * length is also a multiple of total number of channels
-	 * enabled. This ensures that no invalid data is reported
+	 * enabled. This ensures that anal invalid data is reported
 	 * to the stack via iio_push_to_buffers().
 	 */
 	dma->fifo_thresh = rounddown(FIFO1_THRESHOLD + 1,
@@ -406,7 +406,7 @@ static int tiadc_channel_init(struct device *dev, struct iio_dev *indio_dev,
 	chan_array = devm_kcalloc(dev, channels, sizeof(*chan_array),
 				  GFP_KERNEL);
 	if (!chan_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chan = chan_array;
 	for (i = 0; i < channels; i++, chan++) {
@@ -557,20 +557,20 @@ static int tiadc_request_dma(struct platform_device *pdev,
 
 err:
 	dma_release_channel(dma->chan);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int tiadc_parse_dt(struct platform_device *pdev,
 			  struct tiadc_device *adc_dev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct property *prop;
 	const __be32 *cur;
 	int channels = 0;
 	u32 val;
 	int i;
 
-	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+	of_property_for_each_u32(analde, "ti,adc-channels", prop, cur, val) {
 		adc_dev->channel_line[channels] = val;
 
 		/* Set Default values for optional DT parameters */
@@ -583,11 +583,11 @@ static int tiadc_parse_dt(struct platform_device *pdev,
 
 	adc_dev->channels = channels;
 
-	of_property_read_u32_array(node, "ti,chan-step-avg",
+	of_property_read_u32_array(analde, "ti,chan-step-avg",
 				   adc_dev->step_avg, channels);
-	of_property_read_u32_array(node, "ti,chan-step-opendelay",
+	of_property_read_u32_array(analde, "ti,chan-step-opendelay",
 				   adc_dev->open_delay, channels);
-	of_property_read_u32_array(node, "ti,chan-step-sampledelay",
+	of_property_read_u32_array(analde, "ti,chan-step-sampledelay",
 				   adc_dev->sample_delay, channels);
 
 	for (i = 0; i < adc_dev->channels; i++) {
@@ -624,18 +624,18 @@ static int tiadc_probe(struct platform_device *pdev)
 {
 	struct iio_dev		*indio_dev;
 	struct tiadc_device	*adc_dev;
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_analde	*analde = pdev->dev.of_analde;
 	int			err;
 
-	if (!node) {
-		dev_err(&pdev->dev, "Could not find valid DT data.\n");
+	if (!analde) {
+		dev_err(&pdev->dev, "Could analt find valid DT data.\n");
 		return -EINVAL;
 	}
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc_dev));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed to allocate iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	adc_dev = iio_priv(indio_dev);
 
@@ -670,7 +670,7 @@ static int tiadc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	err = tiadc_request_dma(pdev, adc_dev);
-	if (err && err != -ENODEV) {
+	if (err && err != -EANALDEV) {
 		dev_err_probe(&pdev->dev, err, "DMA request failed\n");
 		goto err_dma;
 	}

@@ -79,14 +79,14 @@ static int __init tcc_cooling_init(void)
 
 	id = x86_match_cpu(tcc_ids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = rdmsrl_safe(MSR_PLATFORM_INFO, &val);
 	if (err)
 		return err;
 
 	if (!(val & TCC_PROGRAMMABLE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
 	if (err)
@@ -94,7 +94,7 @@ static int __init tcc_cooling_init(void)
 
 	if (val & TCC_LOCKED) {
 		pr_info("TCC Offset locked\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pr_info("Programmable TCC Offset detected\n");

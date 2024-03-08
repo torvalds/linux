@@ -12,7 +12,7 @@
  * This is the software implementation of compression and decompression using
  * the 842 format.  This uses the software 842 library at lib/842/ which is
  * only a reference implementation, and is very, very slow as compared to other
- * software compressors.  You probably do not want to use this software
+ * software compressors.  You probably do analt want to use this software
  * compression.  If you have access to the PowerPC 842 compression hardware, you
  * want to use the 842 hardware compression interface, which is at:
  * drivers/crypto/nx/nx-842-crypto.c
@@ -34,7 +34,7 @@ static void *crypto842_alloc_ctx(struct crypto_scomp *tfm)
 
 	ctx = kmalloc(SW842_MEM_COMPRESS, GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return ctx;
 }
@@ -45,7 +45,7 @@ static int crypto842_init(struct crypto_tfm *tfm)
 
 	ctx->wmem = crypto842_alloc_ctx(NULL);
 	if (IS_ERR(ctx->wmem))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

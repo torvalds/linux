@@ -506,7 +506,7 @@ static int mxs_dcp_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	}
 
 	/*
-	 * If the requested AES key size is not supported by the hardware,
+	 * If the requested AES key size is analt supported by the hardware,
 	 * but is supported by in-kernel software implementation, we use
 	 * software fallback.
 	 */
@@ -729,7 +729,7 @@ static int dcp_sha_init(struct ahash_request *req)
 
 	/*
 	 * Start hashing session. The code below only inits the
-	 * hashing session context, nothing more.
+	 * hashing session context, analthing more.
 	 */
 	memset(actx, 0, sizeof(*actx));
 
@@ -758,7 +758,7 @@ static int dcp_sha_update_fx(struct ahash_request *req, int fini)
 	int ret;
 
 	/*
-	 * Ignore requests that have no data in them and are not
+	 * Iganalre requests that have anal data in them and are analt
 	 * the trailing requests in the stream of requests.
 	 */
 	if (!req->nbytes && !fini)
@@ -953,7 +953,7 @@ static irqreturn_t mxs_dcp_irq(int irq, void *context)
 	stat = readl(sdcp->base + MXS_DCP_STAT);
 	stat &= MXS_DCP_STAT_IRQ_MASK;
 	if (!stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear the interrupts. */
 	writel(stat, sdcp->base + MXS_DCP_STAT_CLR);
@@ -975,7 +975,7 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 
 	if (global_sdcp) {
 		dev_err(dev, "Only one DCP instance allowed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dcp_vmi_irq = platform_get_irq(pdev, 0);
@@ -988,7 +988,7 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 
 	sdcp = devm_kzalloc(dev, sizeof(*sdcp), GFP_KERNEL);
 	if (!sdcp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdcp->dev = dev;
 	sdcp->base = devm_platform_ioremap_resource(pdev, 0);
@@ -1014,7 +1014,7 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	sdcp->coh = devm_kzalloc(dev, sizeof(*sdcp->coh) + DCP_ALIGNMENT,
 				   GFP_KERNEL);
 	if (!sdcp->coh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Re-align the structure so it fits the DCP constraints. */
 	sdcp->coh = PTR_ALIGN(sdcp->coh, DCP_ALIGNMENT);
@@ -1041,10 +1041,10 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	       sdcp->base + MXS_DCP_CHANNELCTRL);
 
 	/*
-	 * We do not enable context switching. Give the context buffer a
+	 * We do analt enable context switching. Give the context buffer a
 	 * pointer to an illegal address so if context switching is
 	 * inadvertantly enabled, the DCP will return an error instead of
-	 * trashing good memory. The DCP DMA cannot access ROM, so any ROM
+	 * trashing good memory. The DCP DMA cananalt access ROM, so any ROM
 	 * address will do.
 	 */
 	writel(0xffff0000, sdcp->base + MXS_DCP_CONTEXT);

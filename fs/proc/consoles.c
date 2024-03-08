@@ -44,7 +44,7 @@ static int show_console_dev(struct seq_file *m, void *v)
 		console_unlock();
 
 		if (driver) {
-			dev = MKDEV(driver->major, driver->minor_start);
+			dev = MKDEV(driver->major, driver->mianalr_start);
 			dev += index;
 		}
 	}
@@ -61,7 +61,7 @@ static int show_console_dev(struct seq_file *m, void *v)
 			con->write ? 'W' : '-', con->unblank ? 'U' : '-',
 			flags);
 	if (dev)
-		seq_printf(m, " %4d:%d", MAJOR(dev), MINOR(dev));
+		seq_printf(m, " %4d:%d", MAJOR(dev), MIANALR(dev));
 
 	seq_putc(m, '\n');
 	return 0;
@@ -74,7 +74,7 @@ static void *c_start(struct seq_file *m, loff_t *pos)
 
 	/*
 	 * Hold the console_list_lock to guarantee safe traversal of the
-	 * console list. SRCU cannot be used because there is no
+	 * console list. SRCU cananalt be used because there is anal
 	 * place to store the SRCU cookie.
 	 */
 	console_list_lock();
@@ -90,7 +90,7 @@ static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 	struct console *con = v;
 
 	++*pos;
-	return hlist_entry_safe(con->node.next, struct console, node);
+	return hlist_entry_safe(con->analde.next, struct console, analde);
 }
 
 static void c_stop(struct seq_file *m, void *v)

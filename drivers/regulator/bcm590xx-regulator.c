@@ -283,7 +283,7 @@ static int bcm590xx_probe(struct platform_device *pdev)
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmu->mfd = bcm590xx;
 
@@ -294,7 +294,7 @@ static int bcm590xx_probe(struct platform_device *pdev)
 				 sizeof(struct regulator_desc),
 				 GFP_KERNEL);
 	if (!pmu->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = bcm590xx_regs;
 
@@ -302,7 +302,7 @@ static int bcm590xx_probe(struct platform_device *pdev)
 		/* Register the regulators */
 		pmu->desc[i].name = info->name;
 		pmu->desc[i].of_match = of_match_ptr(info->name);
-		pmu->desc[i].regulators_node = of_match_ptr("regulators");
+		pmu->desc[i].regulators_analde = of_match_ptr("regulators");
 		pmu->desc[i].supply_name = info->vin_name;
 		pmu->desc[i].id = i;
 		pmu->desc[i].volt_table = info->volt_table;
@@ -354,7 +354,7 @@ static int bcm590xx_probe(struct platform_device *pdev)
 static struct platform_driver bcm590xx_regulator_driver = {
 	.driver = {
 		.name = "bcm590xx-vregs",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = bcm590xx_probe,
 };

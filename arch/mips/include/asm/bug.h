@@ -9,7 +9,7 @@
 
 #include <asm/break.h>
 
-static inline void __noreturn BUG(void)
+static inline void __analreturn BUG(void)
 {
 	__asm__ __volatile__("break %0" : : "i" (BRK_BUG));
 	unreachable();

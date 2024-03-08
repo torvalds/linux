@@ -10,7 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -53,7 +53,7 @@ enum {
 
 static int epollfd;
 static int *epollfdp;
-static bool noaffinity;
+static bool analaffinity;
 static unsigned int nested = 0;
 
 /* amount of fds to monitor, per thread */
@@ -75,8 +75,8 @@ static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('r', "runtime", &nsecs,    "Specify runtime (in seconds)"),
 	OPT_UINTEGER('f', "nfds", &nfds, "Specify amount of file descriptors to monitor for each thread"),
-	OPT_BOOLEAN( 'n', "noaffinity",  &noaffinity,   "Disables CPU affinity"),
-	OPT_UINTEGER( 'N', "nested",  &nested,   "Nesting level epoll hierarchy (default is 0, no nesting)"),
+	OPT_BOOLEAN( 'n', "analaffinity",  &analaffinity,   "Disables CPU affinity"),
+	OPT_UINTEGER( 'N', "nested",  &nested,   "Nesting level epoll hierarchy (default is 0, anal nesting)"),
 	OPT_BOOLEAN( 'R', "randomize", &randomize,   "Perform random operations on random fds"),
 	OPT_BOOLEAN( 'v', "verbose",  &__verbose,   "Verbose mode"),
 	OPT_END()
@@ -195,7 +195,7 @@ static void *workerfn(void *arg)
 			}
 		}
 
-		nanosleep(&ts, NULL);
+		naanalsleep(&ts, NULL);
 	}  while (!done);
 
 	return NULL;
@@ -229,7 +229,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 	int nrcpus;
 	size_t size;
 
-	if (!noaffinity)
+	if (!analaffinity)
 		pthread_attr_init(&thread_attr);
 
 	nrcpus = perf_cpu_map__nr(cpu);
@@ -246,7 +246,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 			return 1;
 
 		for (j = 0; j < nfds; j++) {
-			w->fdmap[j] = eventfd(0, EFD_NONBLOCK);
+			w->fdmap[j] = eventfd(0, EFD_ANALNBLOCK);
 			if (w->fdmap[j] < 0)
 				err(EXIT_FAILURE, "eventfd");
 		}
@@ -259,7 +259,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 		if (randomize)
 			init_fdmaps(w, 50);
 
-		if (!noaffinity) {
+		if (!analaffinity) {
 			CPU_ZERO_S(size, cpuset);
 			CPU_SET_S(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu,
 					size, cpuset);
@@ -282,7 +282,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 	}
 
 	CPU_FREE(cpuset);
-	if (!noaffinity)
+	if (!analaffinity)
 		pthread_attr_destroy(&thread_attr);
 
 	return ret;
@@ -353,12 +353,12 @@ int bench_epoll_ctl(int argc, const char **argv)
 	if (!worker)
 		goto errmem;
 
-	if (getrlimit(RLIMIT_NOFILE, &prevrl))
+	if (getrlimit(RLIMIT_ANALFILE, &prevrl))
 	    err(EXIT_FAILURE, "getrlimit");
 	rl.rlim_cur = rl.rlim_max = nfds * nthreads * 2 + 50;
-	printinfo("Setting RLIMIT_NOFILE rlimit from %" PRIu64 " to: %" PRIu64 "\n",
+	printinfo("Setting RLIMIT_ANALFILE rlimit from %" PRIu64 " to: %" PRIu64 "\n",
 		  (uint64_t)prevrl.rlim_max, (uint64_t)rl.rlim_max);
-	if (setrlimit(RLIMIT_NOFILE, &rl) < 0)
+	if (setrlimit(RLIMIT_ANALFILE, &rl) < 0)
 		err(EXIT_FAILURE, "setrlimit");
 
 	printf("Run summary [PID %d]: %d threads doing epoll_ctl ops "

@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
- * Refactored from builtin-top.c, see that files for further copyright notes.
+ * Refactored from builtin-top.c, see that files for further copyright analtes.
  */
 
 #include "event.h"

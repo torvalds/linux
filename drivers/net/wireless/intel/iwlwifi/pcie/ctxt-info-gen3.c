@@ -113,7 +113,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 					  &trans_pcie->prph_scratch_dma_addr,
 					  GFP_KERNEL);
 	if (!prph_scratch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prph_sc_ctrl = &prph_scratch->ctrl_cfg;
 
@@ -160,7 +160,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 				       &trans_pcie->prph_info_dma_addr,
 				       GFP_KERNEL);
 	if (!prph_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_prph_scratch;
 	}
 
@@ -170,7 +170,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 					    &trans_pcie->ctxt_info_dma_addr,
 					    GFP_KERNEL);
 	if (!ctxt_info_gen3) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_prph_info;
 	}
 
@@ -204,7 +204,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 					     &trans_pcie->iml_dma_addr,
 					     GFP_KERNEL);
 	if (!trans_pcie->iml) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ctxt_info;
 	}
 
@@ -305,7 +305,7 @@ static int iwl_pcie_load_payloads_continuously(struct iwl_trans *trans,
 							    &dram->physical);
 	if (!dram->block) {
 		IWL_DEBUG_FW(trans, "Failed to allocate PNVM DMA.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dram->size = len;
@@ -335,7 +335,7 @@ static int iwl_pcie_load_payloads_segments
 						 &desc_dram->physical);
 	if (!desc_dram->block) {
 		IWL_DEBUG_FW(trans, "Failed to allocate PNVM DMA.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	desc_dram->size = len;
 	memset(desc_dram->block, 0, len);
@@ -352,7 +352,7 @@ static int iwl_pcie_load_payloads_segments
 						 cur_payload_dram)) {
 			iwl_trans_pcie_free_pnvm_dram_regions(dram_regions,
 							      trans->dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dram_regions->n_regions++;
@@ -380,7 +380,7 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 	struct iwl_dram_regions *dram_regions = &trans_pcie->pnvm_data;
 	int ret = 0;
 
-	/* only allocate the DRAM if not allocated yet */
+	/* only allocate the DRAM if analt allocated yet */
 	if (trans->pnvm_loaded)
 		return 0;
 
@@ -391,7 +391,7 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 		return 0;
 
 	if (!pnvm_payloads->n_chunks) {
-		IWL_DEBUG_FW(trans, "no payloads\n");
+		IWL_DEBUG_FW(trans, "anal payloads\n");
 		return -EINVAL;
 	}
 
@@ -476,7 +476,7 @@ int iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
 	struct iwl_dram_regions *dram_regions = &trans_pcie->reduced_tables_data;
 	int ret = 0;
 
-	/* only allocate the DRAM if not allocated yet */
+	/* only allocate the DRAM if analt allocated yet */
 	if (trans->reduce_power_loaded)
 		return 0;
 
@@ -487,7 +487,7 @@ int iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
 		return -EBUSY;
 
 	if (!payloads->n_chunks) {
-		IWL_DEBUG_FW(trans, "no payloads\n");
+		IWL_DEBUG_FW(trans, "anal payloads\n");
 		return -EINVAL;
 	}
 

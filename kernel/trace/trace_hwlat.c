@@ -5,7 +5,7 @@
  * Use this tracer to detect large system latencies induced by the behavior of
  * certain underlying system hardware or firmware, independent of Linux itself.
  * The code was developed originally to detect the presence of SMIs on Intel
- * and AMD systems, although there is no dependency upon x86 herein.
+ * and AMD systems, although there is anal dependency upon x86 herein.
  *
  * The classical example usage of this tracer is in detecting the presence of
  * SMIs or System Management Interrupts on Intel and AMD systems. An SMI is a
@@ -20,7 +20,7 @@
  * Although certain hardware-inducing latencies are necessary (for example,
  * a modern system often requires an SMI handler for correct thermal control
  * and remote management) they can wreak havoc upon any OS-level performance
- * guarantees toward low-latency, especially when the OS is not even made
+ * guarantees toward low-latency, especially when the OS is analt even made
  * aware of the presence of these interrupts. For this reason, we need a
  * somewhat brute force mechanism to detect these interrupts. In this case,
  * we do it by hogging all of the CPU(s) for configurable timer intervals,
@@ -59,12 +59,12 @@ static struct dentry *hwlat_sample_window;	/* sample window us */
 static struct dentry *hwlat_thread_mode;	/* hwlat thread mode */
 
 enum {
-	MODE_NONE = 0,
+	MODE_ANALNE = 0,
 	MODE_ROUND_ROBIN,
 	MODE_PER_CPU,
 	MODE_MAX
 };
-static char *thread_mode_str[] = { "none", "round-robin", "per-cpu" };
+static char *thread_mode_str[] = { "analne", "round-robin", "per-cpu" };
 
 /* Save the previous tracing_thresh value */
 static unsigned long save_tracing_thresh;
@@ -149,7 +149,7 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 	entry->count			= sample->count;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+		trace_buffer_unlock_commit_analstack(buffer, event);
 }
 
 /* Macros to encapsulate the time capturing infrastructure */
@@ -169,7 +169,7 @@ void trace_hwlat_callback(bool enter)
 
 	/*
 	 * Currently trace_clock_local() calls sched_clock() and the
-	 * generic version is not NMI safe.
+	 * generic version is analt NMI safe.
 	 */
 	if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK)) {
 		if (enter)
@@ -273,7 +273,7 @@ static int get_sample(void)
 
 	barrier(); /* finish the above in the view for NMIs */
 	trace_hwlat_callback_enabled = false;
-	barrier(); /* Make sure nmi_total_ts is no longer updated */
+	barrier(); /* Make sure nmi_total_ts is anal longer updated */
 
 	ret = 0;
 
@@ -301,7 +301,7 @@ static int get_sample(void)
 		/* Keep a running maximum ever recorded hardware latency */
 		if (latency > tr->max_latency) {
 			tr->max_latency = latency;
-			latency_fsnotify(tr);
+			latency_fsanaltify(tr);
 		}
 	}
 
@@ -343,8 +343,8 @@ static void move_to_next_cpu(void)
 	return;
 
  change_mode:
-	hwlat_data.thread_mode = MODE_NONE;
-	pr_info(BANNER "cpumask changed while in round-robin mode, switching to mode none\n");
+	hwlat_data.thread_mode = MODE_ANALNE;
+	pr_info(BANNER "cpumask changed while in round-robin mode, switching to mode analne\n");
 }
 
 /*
@@ -352,7 +352,7 @@ static void move_to_next_cpu(void)
  *
  * Used to periodically sample the CPU TSC via a call to get_sample. We
  * disable interrupts, which does (intentionally) introduce latency since we
- * need to ensure nothing else might be running (and thus preempting).
+ * need to ensure analthing else might be running (and thus preempting).
  * Obviously this should never be used in production environments.
  *
  * Executes one loop interaction on each CPU in tracing_cpumask sysfs file.
@@ -391,7 +391,7 @@ static int kthread_fn(void *data)
  * stop_stop_kthread - Inform the hardware latency sampling/detector kthread to stop
  *
  * This kicks the running hardware latency sampling/detector kernel thread and
- * tells it to stop sampling now. Use this on unload and at system shutdown.
+ * tells it to stop sampling analw. Use this on unload and at system shutdown.
  */
 static void stop_single_kthread(void)
 {
@@ -431,9 +431,9 @@ static int start_single_kthread(struct trace_array *tr)
 
 	kthread = kthread_create(kthread_fn, NULL, "hwlatd");
 	if (IS_ERR(kthread)) {
-		pr_err(BANNER "could not start sampling thread\n");
+		pr_err(BANNER "could analt start sampling thread\n");
 		cpus_read_unlock();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Just pick the first CPU on first iteration */
@@ -473,7 +473,7 @@ static void stop_cpu_kthread(unsigned int cpu)
  * stop_per_cpu_kthreads - Inform the hardware latency sampling/detector kthread to stop
  *
  * This kicks the running hardware latency sampling/detector kernel threads and
- * tells it to stop sampling now. Use this on unload and at system shutdown.
+ * tells it to stop sampling analw. Use this on unload and at system shutdown.
  */
 static void stop_per_cpu_kthreads(void)
 {
@@ -492,14 +492,14 @@ static int start_cpu_kthread(unsigned int cpu)
 {
 	struct task_struct *kthread;
 
-	/* Do not start a new hwlatd thread if it is already running */
+	/* Do analt start a new hwlatd thread if it is already running */
 	if (per_cpu(hwlat_per_cpu_data, cpu).kthread)
 		return 0;
 
 	kthread = kthread_run_on_cpu(kthread_fn, NULL, cpu, "hwlatd/%u");
 	if (IS_ERR(kthread)) {
-		pr_err(BANNER "could not start sampling thread\n");
-		return -ENOMEM;
+		pr_err(BANNER "could analt start sampling thread\n");
+		return -EANALMEM;
 	}
 
 	per_cpu(hwlat_per_cpu_data, cpu).kthread = kthread;
@@ -654,7 +654,7 @@ static const struct seq_operations thread_mode_seq_ops = {
 	.stop		= s_mode_stop
 };
 
-static int hwlat_mode_open(struct inode *inode, struct file *file)
+static int hwlat_mode_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &thread_mode_seq_ops);
 };
@@ -671,7 +671,7 @@ static void hwlat_tracer_stop(struct trace_array *tr);
  *
  * This function provides a write implementation for the "mode" interface
  * to the hardware latency detector. hwlatd has different operation modes.
- * The "none" sets the allowed cpumask for a single hwlatd thread at the
+ * The "analne" sets the allowed cpumask for a single hwlatd thread at the
  * startup and lets the scheduler handle the migration. The default mode is
  * the "round-robin" one, in which a single hwlatd thread runs, migrating
  * among the allowed CPUs in a round-robin fashion. The "per-cpu" mode
@@ -773,11 +773,11 @@ static int init_tracefs(void)
 
 	ret = tracing_init_dentry();
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	top_dir = tracefs_create_dir("hwlat_detector", NULL);
 	if (!top_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwlat_sample_window = tracefs_create_file("window", TRACE_MODE_WRITE,
 						  top_dir,
@@ -804,7 +804,7 @@ static int init_tracefs(void)
 
  err:
 	tracefs_remove(top_dir);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void hwlat_tracer_start(struct trace_array *tr)
@@ -816,7 +816,7 @@ static void hwlat_tracer_start(struct trace_array *tr)
 	else
 		err = start_single_kthread(tr);
 	if (err)
-		pr_err(BANNER "Cannot start hwlat kthread\n");
+		pr_err(BANNER "Cananalt start hwlat kthread\n");
 }
 
 static void hwlat_tracer_stop(struct trace_array *tr)

@@ -61,7 +61,7 @@ struct vpdma_data_format {
 #define VPDMA_DTD_DESC_SIZE		32	/* 8 words */
 #define VPDMA_CFD_CTD_DESC_SIZE		16	/* 4 words */
 
-#define VPDMA_LIST_TYPE_NORMAL		0
+#define VPDMA_LIST_TYPE_ANALRMAL		0
 #define VPDMA_LIST_TYPE_SELF_MODIFYING	1
 #define VPDMA_LIST_TYPE_DOORBELL	2
 

@@ -39,19 +39,19 @@ ccw_device_msg_control_check(struct ccw_device *cdev, struct irb *irb)
 		      "received"
 		      " ... device %04x on subchannel 0.%x.%04x, dev_stat "
 		      ": %02X sch_stat : %02X\n",
-		      cdev->private->dev_id.devno, sch->schid.ssid,
-		      sch->schid.sch_no,
+		      cdev->private->dev_id.devanal, sch->schid.ssid,
+		      sch->schid.sch_anal,
 		      scsw_dstat(&irb->scsw), scsw_cstat(&irb->scsw));
-	sprintf(dbf_text, "chk%x", sch->schid.sch_no);
+	sprintf(dbf_text, "chk%x", sch->schid.sch_anal);
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, irb, sizeof(struct irb));
 }
 
 /*
- * Some paths became not operational (pno bit in scsw is set).
+ * Some paths became analt operational (panal bit in scsw is set).
  */
 static void
-ccw_device_path_notoper(struct ccw_device *cdev)
+ccw_device_path_analtoper(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 
@@ -60,11 +60,11 @@ ccw_device_path_notoper(struct ccw_device *cdev)
 		goto doverify;
 
 	CIO_MSG_EVENT(0, "%s(0.%x.%04x) - path(s) %02x are "
-		      "not operational \n", __func__,
-		      sch->schid.ssid, sch->schid.sch_no,
-		      sch->schib.pmcw.pnom);
+		      "analt operational \n", __func__,
+		      sch->schid.ssid, sch->schid.sch_anal,
+		      sch->schib.pmcw.panalm);
 
-	sch->lpm &= ~sch->schib.pmcw.pnom;
+	sch->lpm &= ~sch->schib.pmcw.panalm;
 doverify:
 	cdev->private->flags.doverify = 1;
 }
@@ -76,7 +76,7 @@ static void
 ccw_device_accumulate_ecw(struct ccw_device *cdev, struct irb *irb)
 {
 	/*
-	 * Copy extended control bit if it is valid... yes there
+	 * Copy extended control bit if it is valid... anal there
 	 * are condition that have to be met for the extended control
 	 * bit to have meaning. Sick.
 	 */
@@ -197,8 +197,8 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 
 	/*
 	 * Check if the status pending bit is set in stctl.
-	 * If not, the remaining bit have no meaning and we must ignore them.
-	 * The esw is not meaningful as well...
+	 * If analt, the remaining bit have anal meaning and we must iganalre them.
+	 * The esw is analt meaningful as well...
 	 */
 	if (!(scsw_stctl(&irb->scsw) & SCSW_STCTL_STATUS_PEND))
 		return;
@@ -206,10 +206,10 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 	/* Check for channel checks and interface control checks. */
 	ccw_device_msg_control_check(cdev, irb);
 
-	/* Check for path not operational. */
-	if (scsw_is_valid_pno(&irb->scsw) && scsw_pno(&irb->scsw))
-		ccw_device_path_notoper(cdev);
-	/* No irb accumulation for transport mode irbs. */
+	/* Check for path analt operational. */
+	if (scsw_is_valid_panal(&irb->scsw) && scsw_panal(&irb->scsw))
+		ccw_device_path_analtoper(cdev);
+	/* Anal irb accumulation for transport mode irbs. */
 	if (scsw_is_tm(&irb->scsw)) {
 		memcpy(&cdev->private->dma_area->irb, irb, sizeof(struct irb));
 		return;
@@ -224,7 +224,7 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 
 	/*
 	 * If the clear function had been performed, all formerly pending
-	 * status at the subchannel has been cleared and we must not pass
+	 * status at the subchannel has been cleared and we must analt pass
 	 * intermediate accumulated status to the device driver.
 	 */
 	if (irb->scsw.cmd.fctl & SCSW_FCTL_CLEAR_FUNC)
@@ -261,7 +261,7 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 	cdev_irb->scsw.cmd.stctl |= irb->scsw.cmd.stctl;
 	/*
 	 * Copy ccw address if it is valid. This is a bit simplified
-	 * but should be close enough for all practical purposes.
+	 * but should be close eanalugh for all practical purposes.
 	 */
 	if ((irb->scsw.cmd.stctl & SCSW_STCTL_PRIM_STATUS) ||
 	    ((irb->scsw.cmd.stctl ==
@@ -270,9 +270,9 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 	     (irb->scsw.cmd.actl & SCSW_ACTL_SCHACT)) ||
 	    (irb->scsw.cmd.actl & SCSW_ACTL_SUSPENDED))
 		cdev_irb->scsw.cmd.cpa = irb->scsw.cmd.cpa;
-	/* Accumulate device status, but not the device busy flag. */
+	/* Accumulate device status, but analt the device busy flag. */
 	cdev_irb->scsw.cmd.dstat &= ~DEV_STAT_BUSY;
-	/* dstat is not always valid. */
+	/* dstat is analt always valid. */
 	if (irb->scsw.cmd.stctl &
 	    (SCSW_STCTL_PRIM_STATUS | SCSW_STCTL_SEC_STATUS
 	     | SCSW_STCTL_INTER_STATUS | SCSW_STCTL_ALERT_STATUS))
@@ -289,12 +289,12 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 	ccw_device_accumulate_esw(cdev, irb);
 
 	/*
-	 * Check whether we must issue a SENSE CCW ourselves if there is no
+	 * Check whether we must issue a SENSE CCW ourselves if there is anal
 	 * concurrent sense facility installed for the subchannel.
-	 * No sense is required if no delayed sense is pending
-	 * and we did not get a unit check without sense information.
+	 * Anal sense is required if anal delayed sense is pending
+	 * and we did analt get a unit check without sense information.
 	 *
-	 * Note: We should check for ioinfo[irq]->flags.consns but VM
+	 * Analte: We should check for ioinfo[irq]->flags.consns but VM
 	 *	 violates the ESA/390 architecture and doesn't present an
 	 *	 operand exception for virtual devices without concurrent
 	 *	 sense facility available/supported when enabling the
@@ -317,18 +317,18 @@ ccw_device_do_sense(struct ccw_device *cdev, struct irb *irb)
 
 	sch = to_subchannel(cdev->dev.parent);
 
-	/* A sense is required, can we do it now ? */
+	/* A sense is required, can we do it analw ? */
 	if (scsw_actl(&irb->scsw) & (SCSW_ACTL_DEVACT | SCSW_ACTL_SCHACT))
 		/*
-		 * we received an Unit Check but we have no final
+		 * we received an Unit Check but we have anal final
 		 *  status yet, therefore we must delay the SENSE
-		 *  processing. We must not report this intermediate
+		 *  processing. We must analt report this intermediate
 		 *  status to the device interrupt handler.
 		 */
 		return -EBUSY;
 
 	/*
-	 * We have ending status but no sense information. Do a basic sense.
+	 * We have ending status but anal sense information. Do a basic sense.
 	 */
 	sense_ccw = &to_io_private(sch)->dma_area->sense_ccw;
 	sense_ccw->cmd_code = CCW_CMD_BASIC_SENSE;
@@ -337,7 +337,7 @@ ccw_device_do_sense(struct ccw_device *cdev, struct irb *irb)
 	sense_ccw->flags = CCW_FLAG_SLI;
 
 	rc = cio_start(sch, sense_ccw, 0xff);
-	if (rc == -ENODEV || rc == -EACCES)
+	if (rc == -EANALDEV || rc == -EACCES)
 		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
 	return rc;
 }
@@ -350,8 +350,8 @@ ccw_device_accumulate_basic_sense(struct ccw_device *cdev, struct irb *irb)
 {
 	/*
 	 * Check if the status pending bit is set in stctl.
-	 * If not, the remaining bit have no meaning and we must ignore them.
-	 * The esw is not meaningful as well...
+	 * If analt, the remaining bit have anal meaning and we must iganalre them.
+	 * The esw is analt meaningful as well...
 	 */
 	if (!(scsw_stctl(&irb->scsw) & SCSW_STCTL_STATUS_PEND))
 		return;
@@ -359,9 +359,9 @@ ccw_device_accumulate_basic_sense(struct ccw_device *cdev, struct irb *irb)
 	/* Check for channel checks and interface control checks. */
 	ccw_device_msg_control_check(cdev, irb);
 
-	/* Check for path not operational. */
-	if (scsw_is_valid_pno(&irb->scsw) && scsw_pno(&irb->scsw))
-		ccw_device_path_notoper(cdev);
+	/* Check for path analt operational. */
+	if (scsw_is_valid_panal(&irb->scsw) && scsw_panal(&irb->scsw))
+		ccw_device_path_analtoper(cdev);
 
 	if (!(irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) &&
 	    (irb->scsw.cmd.dstat & DEV_STAT_CHN_END)) {

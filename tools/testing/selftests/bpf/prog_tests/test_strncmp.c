@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2021. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2021. Huawei Techanallogies Co., Ltd */
 #include <test_progs.h>
 #include "strncmp_test.skel.h"
 
@@ -72,11 +72,11 @@ static void test_strncmp_ret(void)
 	got = trigger_strncmp(skel);
 	ASSERT_EQ(got, 0, "strncmp: same str");
 
-	/* Not-null-termainted string  */
+	/* Analt-null-termainted string  */
 	memcpy(skel->bss->str, skel->rodata->target, sizeof(skel->bss->str));
 	skel->bss->str[sizeof(skel->bss->str) - 1] = 'A';
 	got = trigger_strncmp(skel);
-	ASSERT_EQ(got, 1, "strncmp: not-null-term str");
+	ASSERT_EQ(got, 1, "strncmp: analt-null-term str");
 
 	strncmp_full_str_cmp(skel, "strncmp: less than", -1);
 	strncmp_full_str_cmp(skel, "strncmp: greater than", 1);
@@ -84,7 +84,7 @@ out:
 	strncmp_test__destroy(skel);
 }
 
-static void test_strncmp_bad_not_const_str_size(void)
+static void test_strncmp_bad_analt_const_str_size(void)
 {
 	struct strncmp_test *skel;
 	int err;
@@ -93,10 +93,10 @@ static void test_strncmp_bad_not_const_str_size(void)
 	if (!ASSERT_OK_PTR(skel, "strncmp_test open"))
 		return;
 
-	bpf_program__set_autoload(skel->progs.strncmp_bad_not_const_str_size, true);
+	bpf_program__set_autoload(skel->progs.strncmp_bad_analt_const_str_size, true);
 
 	err = strncmp_test__load(skel);
-	ASSERT_ERR(err, "strncmp_test load bad_not_const_str_size");
+	ASSERT_ERR(err, "strncmp_test load bad_analt_const_str_size");
 
 	strncmp_test__destroy(skel);
 }
@@ -118,7 +118,7 @@ static void test_strncmp_bad_writable_target(void)
 	strncmp_test__destroy(skel);
 }
 
-static void test_strncmp_bad_not_null_term_target(void)
+static void test_strncmp_bad_analt_null_term_target(void)
 {
 	struct strncmp_test *skel;
 	int err;
@@ -127,10 +127,10 @@ static void test_strncmp_bad_not_null_term_target(void)
 	if (!ASSERT_OK_PTR(skel, "strncmp_test open"))
 		return;
 
-	bpf_program__set_autoload(skel->progs.strncmp_bad_not_null_term_target, true);
+	bpf_program__set_autoload(skel->progs.strncmp_bad_analt_null_term_target, true);
 
 	err = strncmp_test__load(skel);
-	ASSERT_ERR(err, "strncmp_test load bad_not_null_term_target");
+	ASSERT_ERR(err, "strncmp_test load bad_analt_null_term_target");
 
 	strncmp_test__destroy(skel);
 }
@@ -139,10 +139,10 @@ void test_test_strncmp(void)
 {
 	if (test__start_subtest("strncmp_ret"))
 		test_strncmp_ret();
-	if (test__start_subtest("strncmp_bad_not_const_str_size"))
-		test_strncmp_bad_not_const_str_size();
+	if (test__start_subtest("strncmp_bad_analt_const_str_size"))
+		test_strncmp_bad_analt_const_str_size();
 	if (test__start_subtest("strncmp_bad_writable_target"))
 		test_strncmp_bad_writable_target();
-	if (test__start_subtest("strncmp_bad_not_null_term_target"))
-		test_strncmp_bad_not_null_term_target();
+	if (test__start_subtest("strncmp_bad_analt_null_term_target"))
+		test_strncmp_bad_analt_null_term_target();
 }

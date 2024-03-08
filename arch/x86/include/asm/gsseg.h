@@ -8,7 +8,7 @@
 #include <asm/cpufeature.h>
 #include <asm/alternative.h>
 #include <asm/processor.h>
-#include <asm/nops.h>
+#include <asm/analps.h>
 
 #ifdef CONFIG_X86_64
 

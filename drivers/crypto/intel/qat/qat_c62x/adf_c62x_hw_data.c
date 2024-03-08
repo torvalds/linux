@@ -99,7 +99,7 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 	else if (aes == 10)
 		return DEV_SKU_4;
 
-	return DEV_SKU_UNKNOWN;
+	return DEV_SKU_UNKANALWN;
 }
 
 static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)

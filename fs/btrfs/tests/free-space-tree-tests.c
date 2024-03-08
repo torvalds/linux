@@ -34,12 +34,12 @@ static int __check_free_space_extents(struct btrfs_trans_handle *trans,
 
 	info = search_free_space_info(trans, cache, path, 0);
 	if (IS_ERR(info)) {
-		test_err("could not find free space info");
+		test_err("could analt find free space info");
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	flags = btrfs_free_space_flags(path->nodes[0], info);
-	extent_count = btrfs_free_space_extent_count(path->nodes[0], info);
+	flags = btrfs_free_space_flags(path->analdes[0], info);
+	extent_count = btrfs_free_space_extent_count(path->analdes[0], info);
 
 	if (extent_count != num_extents) {
 		test_err("extent count is wrong");
@@ -51,8 +51,8 @@ static int __check_free_space_extents(struct btrfs_trans_handle *trans,
 			goto invalid;
 		end = cache->start + cache->length;
 		i = 0;
-		while (++path->slots[0] < btrfs_header_nritems(path->nodes[0])) {
-			btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		while (++path->slots[0] < btrfs_header_nritems(path->analdes[0])) {
+			btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 			if (key.type != BTRFS_FREE_SPACE_BITMAP_KEY)
 				goto invalid;
 			offset = key.objectid;
@@ -81,12 +81,12 @@ static int __check_free_space_extents(struct btrfs_trans_handle *trans,
 		if (i != num_extents)
 			goto invalid;
 	} else {
-		if (btrfs_header_nritems(path->nodes[0]) != num_extents + 1 ||
+		if (btrfs_header_nritems(path->analdes[0]) != num_extents + 1 ||
 		    path->slots[0] != 0)
 			goto invalid;
 		for (i = 0; i < num_extents; i++) {
 			path->slots[0]++;
-			btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+			btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 			if (key.type != BTRFS_FREE_SPACE_EXTENT_KEY ||
 			    key.objectid != extents[i].start ||
 			    key.offset != extents[i].length)
@@ -117,11 +117,11 @@ static int check_free_space_extents(struct btrfs_trans_handle *trans,
 
 	info = search_free_space_info(trans, cache, path, 0);
 	if (IS_ERR(info)) {
-		test_err("could not find free space info");
+		test_err("could analt find free space info");
 		btrfs_release_path(path);
 		return PTR_ERR(info);
 	}
-	flags = btrfs_free_space_flags(path->nodes[0], info);
+	flags = btrfs_free_space_flags(path->analdes[0], info);
 	btrfs_release_path(path);
 
 	ret = __check_free_space_extents(trans, fs_info, cache, path, extents,
@@ -133,13 +133,13 @@ static int check_free_space_extents(struct btrfs_trans_handle *trans,
 	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
 		ret = convert_free_space_to_extents(trans, cache, path);
 		if (ret) {
-			test_err("could not convert to extents");
+			test_err("could analt convert to extents");
 			return ret;
 		}
 	} else {
 		ret = convert_free_space_to_bitmaps(trans, cache, path);
 		if (ret) {
-			test_err("could not convert to bitmaps");
+			test_err("could analt convert to bitmaps");
 			return ret;
 		}
 	}
@@ -174,7 +174,7 @@ static int test_remove_all(struct btrfs_trans_handle *trans,
 					    cache->start,
 					    cache->length);
 	if (ret) {
-		test_err("could not remove free space");
+		test_err("could analt remove free space");
 		return ret;
 	}
 
@@ -196,7 +196,7 @@ static int test_remove_beginning(struct btrfs_trans_handle *trans,
 	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->start, alignment);
 	if (ret) {
-		test_err("could not remove free space");
+		test_err("could analt remove free space");
 		return ret;
 	}
 
@@ -220,7 +220,7 @@ static int test_remove_end(struct btrfs_trans_handle *trans,
 				    cache->start + cache->length - alignment,
 				    alignment);
 	if (ret) {
-		test_err("could not remove free space");
+		test_err("could analt remove free space");
 		return ret;
 	}
 
@@ -244,7 +244,7 @@ static int test_remove_middle(struct btrfs_trans_handle *trans,
 					    cache->start + alignment,
 					    alignment);
 	if (ret) {
-		test_err("could not remove free space");
+		test_err("could analt remove free space");
 		return ret;
 	}
 
@@ -266,14 +266,14 @@ static int test_merge_left(struct btrfs_trans_handle *trans,
 	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->start, cache->length);
 	if (ret) {
-		test_err("could not remove free space");
+		test_err("could analt remove free space");
 		return ret;
 	}
 
 	ret = __add_to_free_space_tree(trans, cache, path, cache->start,
 				       alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
@@ -281,7 +281,7 @@ static int test_merge_left(struct btrfs_trans_handle *trans,
 				       cache->start + alignment,
 				       alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
@@ -303,7 +303,7 @@ static int test_merge_right(struct btrfs_trans_handle *trans,
 	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->start, cache->length);
 	if (ret) {
-		test_err("could not remove free space");
+		test_err("could analt remove free space");
 		return ret;
 	}
 
@@ -311,7 +311,7 @@ static int test_merge_right(struct btrfs_trans_handle *trans,
 				       cache->start + 2 * alignment,
 				       alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
@@ -319,7 +319,7 @@ static int test_merge_right(struct btrfs_trans_handle *trans,
 				       cache->start + alignment,
 				       alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
@@ -341,28 +341,28 @@ static int test_merge_both(struct btrfs_trans_handle *trans,
 	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->start, cache->length);
 	if (ret) {
-		test_err("could not remove free space");
+		test_err("could analt remove free space");
 		return ret;
 	}
 
 	ret = __add_to_free_space_tree(trans, cache, path, cache->start,
 				       alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
 	ret = __add_to_free_space_tree(trans, cache, path,
 				       cache->start + 2 * alignment, alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
 	ret = __add_to_free_space_tree(trans, cache, path,
 				       cache->start + alignment, alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
@@ -370,7 +370,7 @@ static int test_merge_both(struct btrfs_trans_handle *trans,
 					extents, ARRAY_SIZE(extents));
 }
 
-static int test_merge_none(struct btrfs_trans_handle *trans,
+static int test_merge_analne(struct btrfs_trans_handle *trans,
 			   struct btrfs_fs_info *fs_info,
 			   struct btrfs_block_group *cache,
 			   struct btrfs_path *path,
@@ -386,28 +386,28 @@ static int test_merge_none(struct btrfs_trans_handle *trans,
 	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->start, cache->length);
 	if (ret) {
-		test_err("could not remove free space");
+		test_err("could analt remove free space");
 		return ret;
 	}
 
 	ret = __add_to_free_space_tree(trans, cache, path, cache->start,
 				       alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
 	ret = __add_to_free_space_tree(trans, cache, path,
 				       cache->start + 4 * alignment, alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
 	ret = __add_to_free_space_tree(trans, cache, path,
 				       cache->start + 2 * alignment, alignment);
 	if (ret) {
-		test_err("could not add free space");
+		test_err("could analt add free space");
 		return ret;
 	}
 
@@ -422,7 +422,7 @@ typedef int (*test_func_t)(struct btrfs_trans_handle *,
 			   u32 alignment);
 
 static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
-		    u32 nodesize, u32 alignment)
+		    u32 analdesize, u32 alignment)
 {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_root *root = NULL;
@@ -431,10 +431,10 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 	struct btrfs_path *path = NULL;
 	int ret;
 
-	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
+	fs_info = btrfs_alloc_dummy_fs_info(analdesize, sectorsize);
 	if (!fs_info) {
 		test_std_err(TEST_ALLOC_FS_INFO);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -453,20 +453,20 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 	btrfs_global_root_insert(root);
 	root->fs_info->tree_root = root;
 
-	root->node = alloc_test_extent_buffer(root->fs_info, nodesize);
-	if (IS_ERR(root->node)) {
+	root->analde = alloc_test_extent_buffer(root->fs_info, analdesize);
+	if (IS_ERR(root->analde)) {
 		test_std_err(TEST_ALLOC_EXTENT_BUFFER);
-		ret = PTR_ERR(root->node);
+		ret = PTR_ERR(root->analde);
 		goto out;
 	}
-	btrfs_set_header_level(root->node, 0);
-	btrfs_set_header_nritems(root->node, 0);
-	root->alloc_bytenr += 2 * nodesize;
+	btrfs_set_header_level(root->analde, 0);
+	btrfs_set_header_nritems(root->analde, 0);
+	root->alloc_bytenr += 2 * analdesize;
 
 	cache = btrfs_alloc_dummy_block_group(fs_info, 8 * alignment);
 	if (!cache) {
 		test_std_err(TEST_ALLOC_BLOCK_GROUP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	cache->bitmap_low_thresh = 0;
@@ -479,20 +479,20 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 	path = btrfs_alloc_path();
 	if (!path) {
 		test_std_err(TEST_ALLOC_ROOT);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	ret = add_block_group_free_space(&trans, cache);
 	if (ret) {
-		test_err("could not add block group free space");
+		test_err("could analt add block group free space");
 		goto out;
 	}
 
 	if (bitmaps) {
 		ret = convert_free_space_to_bitmaps(&trans, cache, path);
 		if (ret) {
-			test_err("could not convert block group to bitmaps");
+			test_err("could analt convert block group to bitmaps");
 			goto out;
 		}
 	}
@@ -503,11 +503,11 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 
 	ret = remove_block_group_free_space(&trans, cache);
 	if (ret) {
-		test_err("could not remove block group free space");
+		test_err("could analt remove block group free space");
 		goto out;
 	}
 
-	if (btrfs_header_nritems(root->node) != 0) {
+	if (btrfs_header_nritems(root->analde) != 0) {
 		test_err("free space tree has leftover items");
 		ret = -EINVAL;
 		goto out;
@@ -523,31 +523,31 @@ out:
 }
 
 static int run_test_both_formats(test_func_t test_func, u32 sectorsize,
-				 u32 nodesize, u32 alignment)
+				 u32 analdesize, u32 alignment)
 {
 	int test_ret = 0;
 	int ret;
 
-	ret = run_test(test_func, 0, sectorsize, nodesize, alignment);
+	ret = run_test(test_func, 0, sectorsize, analdesize, alignment);
 	if (ret) {
 		test_err(
-	"%ps failed with extents, sectorsize=%u, nodesize=%u, alignment=%u",
-			 test_func, sectorsize, nodesize, alignment);
+	"%ps failed with extents, sectorsize=%u, analdesize=%u, alignment=%u",
+			 test_func, sectorsize, analdesize, alignment);
 		test_ret = ret;
 	}
 
-	ret = run_test(test_func, 1, sectorsize, nodesize, alignment);
+	ret = run_test(test_func, 1, sectorsize, analdesize, alignment);
 	if (ret) {
 		test_err(
-	"%ps failed with bitmaps, sectorsize=%u, nodesize=%u, alignment=%u",
-			 test_func, sectorsize, nodesize, alignment);
+	"%ps failed with bitmaps, sectorsize=%u, analdesize=%u, alignment=%u",
+			 test_func, sectorsize, analdesize, alignment);
 		test_ret = ret;
 	}
 
 	return test_ret;
 }
 
-int btrfs_test_free_space_tree(u32 sectorsize, u32 nodesize)
+int btrfs_test_free_space_tree(u32 sectorsize, u32 analdesize)
 {
 	test_func_t tests[] = {
 		test_empty_block_group,
@@ -558,7 +558,7 @@ int btrfs_test_free_space_tree(u32 sectorsize, u32 nodesize)
 		test_merge_left,
 		test_merge_right,
 		test_merge_both,
-		test_merge_none,
+		test_merge_analne,
 	};
 	u32 bitmap_alignment;
 	int test_ret = 0;
@@ -574,12 +574,12 @@ int btrfs_test_free_space_tree(u32 sectorsize, u32 nodesize)
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		int ret;
 
-		ret = run_test_both_formats(tests[i], sectorsize, nodesize,
+		ret = run_test_both_formats(tests[i], sectorsize, analdesize,
 					    sectorsize);
 		if (ret)
 			test_ret = ret;
 
-		ret = run_test_both_formats(tests[i], sectorsize, nodesize,
+		ret = run_test_both_formats(tests[i], sectorsize, analdesize,
 					    bitmap_alignment);
 		if (ret)
 			test_ret = ret;

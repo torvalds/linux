@@ -24,10 +24,10 @@
 #define CMD_CFG_REG_LOWP_RXETY	0x01000000 /* 07 Rx low power indication */
 #define CMD_CFG_TX_LOWP_ENA	0x00800000 /* 08 Tx Low Power Idle Enable */
 #define CMD_CFG_PFC_MODE	0x00080000 /* 12 Enable PFC */
-#define CMD_CFG_NO_LEN_CHK	0x00020000 /* 14 Payload length check disable */
+#define CMD_CFG_ANAL_LEN_CHK	0x00020000 /* 14 Payload length check disable */
 #define CMD_CFG_SW_RESET	0x00001000 /* 19 S/W Reset, self clearing bit */
 #define CMD_CFG_TX_PAD_EN	0x00000800 /* 20 Enable Tx padding of frames */
-#define CMD_CFG_PAUSE_IGNORE	0x00000100 /* 23 Ignore Pause frame quanta */
+#define CMD_CFG_PAUSE_IGANALRE	0x00000100 /* 23 Iganalre Pause frame quanta */
 #define CMD_CFG_CRC_FWD		0x00000040 /* 25 Terminate/frwd CRC of frames */
 #define CMD_CFG_PAD_EN		0x00000020 /* 26 Frame padding removal */
 #define CMD_CFG_PROMIS_EN	0x00000010 /* 27 Promiscuous operation enable */
@@ -265,7 +265,7 @@ struct memac_regs {
 
 struct memac_cfg {
 	bool reset_on_init;
-	bool pause_ignore;
+	bool pause_iganalre;
 	bool promiscuous_mode_enable;
 	struct fixed_phy_status *fixed_link;
 	u16 max_frame_length;
@@ -295,7 +295,7 @@ struct fman_mac {
 	struct phylink_pcs *qsgmii_pcs;
 	struct phylink_pcs *xfi_pcs;
 	bool allmulti_enabled;
-	bool rgmii_no_half_duplex;
+	bool rgmii_anal_half_duplex;
 };
 
 static void add_addr_in_paddr(struct memac_regs __iomem *regs, const u8 *adr,
@@ -361,11 +361,11 @@ static int init(struct memac_regs __iomem *regs, struct memac_cfg *cfg,
 	tmp = 0;
 	if (cfg->promiscuous_mode_enable)
 		tmp |= CMD_CFG_PROMIS_EN;
-	if (cfg->pause_ignore)
-		tmp |= CMD_CFG_PAUSE_IGNORE;
+	if (cfg->pause_iganalre)
+		tmp |= CMD_CFG_PAUSE_IGANALRE;
 
 	/* Payload length check disable */
-	tmp |= CMD_CFG_NO_LEN_CHK;
+	tmp |= CMD_CFG_ANAL_LEN_CHK;
 	/* Enable padding of frames in transmit direction */
 	tmp |= CMD_CFG_TX_PAD_EN;
 
@@ -391,7 +391,7 @@ static void set_dflts(struct memac_cfg *cfg)
 {
 	cfg->reset_on_init = false;
 	cfg->promiscuous_mode_enable = false;
-	cfg->pause_ignore = false;
+	cfg->pause_iganalre = false;
 	cfg->tx_ipg_length = DEFAULT_TX_IPG_LENGTH;
 	cfg->max_frame_length = DEFAULT_FRAME_LENGTH;
 	cfg->pause_quanta = DEFAULT_PAUSE_QUANTA;
@@ -467,7 +467,7 @@ static void memac_err_exception(void *handle)
 	event = ioread32be(&regs->ievent);
 	imask = ioread32be(&regs->imask);
 
-	/* Imask include both error and notification/event bits.
+	/* Imask include both error and analtification/event bits.
 	 * Leaving only error bits enabled by imask.
 	 * The imask error bits are shifted by 16 bits offset from
 	 * their corresponding location in the ievent - hence the >> 16
@@ -493,7 +493,7 @@ static void memac_exception(void *handle)
 	event = ioread32be(&regs->ievent);
 	imask = ioread32be(&regs->imask);
 
-	/* Imask include both error and notification/event bits.
+	/* Imask include both error and analtification/event bits.
 	 * Leaving only error bits enabled by imask.
 	 * The imask error bits are shifted by 16 bits offset from
 	 * their corresponding location in the ievent - hence the >> 16
@@ -513,7 +513,7 @@ static void free_init_resources(struct fman_mac *memac)
 			     FMAN_INTR_TYPE_ERR);
 
 	fman_unregister_intr(memac->fm, FMAN_MOD_MAC, memac->mac_id,
-			     FMAN_INTR_TYPE_NORMAL);
+			     FMAN_INTR_TYPE_ANALRMAL);
 
 	/* release the driver's group hash table */
 	free_hash_table(memac->multicast_addr_hash);
@@ -531,14 +531,14 @@ static int memac_enable(struct fman_mac *memac)
 	ret = phy_init(memac->serdes);
 	if (ret) {
 		dev_err(memac->dev_id->dev,
-			"could not initialize serdes: %pe\n", ERR_PTR(ret));
+			"could analt initialize serdes: %pe\n", ERR_PTR(ret));
 		return ret;
 	}
 
 	ret = phy_power_on(memac->serdes);
 	if (ret) {
 		dev_err(memac->dev_id->dev,
-			"could not power on serdes: %pe\n", ERR_PTR(ret));
+			"could analt power on serdes: %pe\n", ERR_PTR(ret));
 		phy_exit(memac->serdes);
 	}
 
@@ -609,9 +609,9 @@ static int memac_accept_rx_pause_frames(struct fman_mac *memac, bool en)
 
 	tmp = ioread32be(&regs->command_config);
 	if (en)
-		tmp &= ~CMD_CFG_PAUSE_IGNORE;
+		tmp &= ~CMD_CFG_PAUSE_IGANALRE;
 	else
-		tmp |= CMD_CFG_PAUSE_IGNORE;
+		tmp |= CMD_CFG_PAUSE_IGANALRE;
 
 	iowrite32be(tmp, &regs->command_config);
 
@@ -625,7 +625,7 @@ static unsigned long memac_get_caps(struct phylink_config *config,
 	unsigned long caps = config->mac_capabilities;
 
 	if (phy_interface_mode_is_rgmii(interface) &&
-	    memac->rgmii_no_half_duplex)
+	    memac->rgmii_anal_half_duplex)
 		caps &= ~(MAC_10HD | MAC_100HD);
 
 	return caps;
@@ -743,7 +743,7 @@ static void memac_link_up(struct phylink_config *config, struct phy_device *phy,
 
 	if (speed == SPEED_10000) {
 		if (memac->fm_rev_info.major == 6 &&
-		    memac->fm_rev_info.minor == 4)
+		    memac->fm_rev_info.mianalr == 4)
 			tmp = TX_FIFO_SECTIONS_TX_AVAIL_SLOW_10G;
 		else
 			tmp = TX_FIFO_SECTIONS_TX_AVAIL_10G;
@@ -802,7 +802,7 @@ static int memac_add_hash_mac_address(struct fman_mac *memac,
 	addr = ENET_ADDR_TO_UINT64(*eth_addr);
 
 	if (!(addr & GROUP_ADDRESS)) {
-		/* Unicast addresses not supported in hash */
+		/* Unicast addresses analt supported in hash */
 		pr_err("Unicast Address\n");
 		return -EINVAL;
 	}
@@ -811,11 +811,11 @@ static int memac_add_hash_mac_address(struct fman_mac *memac,
 	/* Create element to be added to the driver hash table */
 	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
 	if (!hash_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	hash_entry->addr = addr;
-	INIT_LIST_HEAD(&hash_entry->node);
+	INIT_LIST_HEAD(&hash_entry->analde);
 
-	list_add_tail(&hash_entry->node,
+	list_add_tail(&hash_entry->analde,
 		      &memac->multicast_addr_hash->lsts[hash]);
 	iowrite32be(hash | HASH_CTRL_MCAST_EN, &regs->hashtable_ctrl);
 
@@ -863,7 +863,7 @@ static int memac_del_hash_mac_address(struct fman_mac *memac,
 	list_for_each(pos, &memac->multicast_addr_hash->lsts[hash]) {
 		hash_entry = ETH_HASH_ENTRY_OBJ(pos);
 		if (hash_entry && hash_entry->addr == addr) {
-			list_del_init(&hash_entry->node);
+			list_del_init(&hash_entry->analde);
 			kfree(hash_entry);
 			break;
 		}
@@ -932,8 +932,8 @@ static int memac_init(struct fman_mac *memac)
 	 * Exists only in FMan 6.0 and 6.3.
 	 */
 	if ((memac->fm_rev_info.major == 6) &&
-	    ((memac->fm_rev_info.minor == 0) ||
-	    (memac->fm_rev_info.minor == 3))) {
+	    ((memac->fm_rev_info.mianalr == 0) ||
+	    (memac->fm_rev_info.mianalr == 3))) {
 		/* MAC strips CRC from received frames - this workaround
 		 * should decrease the likelihood of bug appearance
 		 */
@@ -954,21 +954,21 @@ static int memac_init(struct fman_mac *memac)
 	if (!memac->multicast_addr_hash) {
 		free_init_resources(memac);
 		pr_err("allocation hash table is FAILED\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memac->unicast_addr_hash = alloc_hash_table(HASH_TABLE_SIZE);
 	if (!memac->unicast_addr_hash) {
 		free_init_resources(memac);
 		pr_err("allocation hash table is FAILED\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fman_register_intr(memac->fm, FMAN_MOD_MAC, memac->mac_id,
 			   FMAN_INTR_TYPE_ERR, memac_err_exception, memac);
 
 	fman_register_intr(memac->fm, FMAN_MOD_MAC, memac->mac_id,
-			   FMAN_INTR_TYPE_NORMAL, memac_exception, memac);
+			   FMAN_INTR_TYPE_ANALRMAL, memac_exception, memac);
 
 	return 0;
 }
@@ -1034,25 +1034,25 @@ static struct fman_mac *memac_config(struct mac_device *mac_dev,
 	return memac;
 }
 
-static struct phylink_pcs *memac_pcs_create(struct device_node *mac_node,
+static struct phylink_pcs *memac_pcs_create(struct device_analde *mac_analde,
 					    int index)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct phylink_pcs *pcs;
 
-	node = of_parse_phandle(mac_node, "pcsphy-handle", index);
-	if (!node)
-		return ERR_PTR(-ENODEV);
+	analde = of_parse_phandle(mac_analde, "pcsphy-handle", index);
+	if (!analde)
+		return ERR_PTR(-EANALDEV);
 
-	pcs = lynx_pcs_create_fwnode(of_fwnode_handle(node));
-	of_node_put(node);
+	pcs = lynx_pcs_create_fwanalde(of_fwanalde_handle(analde));
+	of_analde_put(analde);
 
 	return pcs;
 }
 
 static bool memac_supports(struct mac_device *mac_dev, phy_interface_t iface)
 {
-	/* If there's no serdes device, assume that it's been configured for
+	/* If there's anal serdes device, assume that it's been configured for
 	 * whatever the default interface mode is.
 	 */
 	if (!mac_dev->fman_mac->serdes)
@@ -1063,11 +1063,11 @@ static bool memac_supports(struct mac_device *mac_dev, phy_interface_t iface)
 }
 
 int memac_initialization(struct mac_device *mac_dev,
-			 struct device_node *mac_node,
+			 struct device_analde *mac_analde,
 			 struct fman_mac_params *params)
 {
 	int			 err;
-	struct device_node      *fixed;
+	struct device_analde      *fixed;
 	struct phylink_pcs	*pcs;
 	struct fman_mac		*memac;
 	unsigned long		 capabilities;
@@ -1101,41 +1101,41 @@ int memac_initialization(struct mac_device *mac_dev,
 	memac->memac_drv_param->max_frame_length = fman_get_max_frm();
 	memac->memac_drv_param->reset_on_init = true;
 
-	err = of_property_match_string(mac_node, "pcs-handle-names", "xfi");
+	err = of_property_match_string(mac_analde, "pcs-handle-names", "xfi");
 	if (err >= 0) {
-		memac->xfi_pcs = memac_pcs_create(mac_node, err);
+		memac->xfi_pcs = memac_pcs_create(mac_analde, err);
 		if (IS_ERR(memac->xfi_pcs)) {
 			err = PTR_ERR(memac->xfi_pcs);
 			dev_err_probe(mac_dev->dev, err, "missing xfi pcs\n");
 			goto _return_fm_mac_free;
 		}
-	} else if (err != -EINVAL && err != -ENODATA) {
+	} else if (err != -EINVAL && err != -EANALDATA) {
 		goto _return_fm_mac_free;
 	}
 
-	err = of_property_match_string(mac_node, "pcs-handle-names", "qsgmii");
+	err = of_property_match_string(mac_analde, "pcs-handle-names", "qsgmii");
 	if (err >= 0) {
-		memac->qsgmii_pcs = memac_pcs_create(mac_node, err);
+		memac->qsgmii_pcs = memac_pcs_create(mac_analde, err);
 		if (IS_ERR(memac->qsgmii_pcs)) {
 			err = PTR_ERR(memac->qsgmii_pcs);
 			dev_err_probe(mac_dev->dev, err,
 				      "missing qsgmii pcs\n");
 			goto _return_fm_mac_free;
 		}
-	} else if (err != -EINVAL && err != -ENODATA) {
+	} else if (err != -EINVAL && err != -EANALDATA) {
 		goto _return_fm_mac_free;
 	}
 
 	/* For compatibility, if pcs-handle-names is missing, we assume this
 	 * phy is the first one in pcsphy-handle
 	 */
-	err = of_property_match_string(mac_node, "pcs-handle-names", "sgmii");
-	if (err == -EINVAL || err == -ENODATA)
-		pcs = memac_pcs_create(mac_node, 0);
+	err = of_property_match_string(mac_analde, "pcs-handle-names", "sgmii");
+	if (err == -EINVAL || err == -EANALDATA)
+		pcs = memac_pcs_create(mac_analde, 0);
 	else if (err < 0)
 		goto _return_fm_mac_free;
 	else
-		pcs = memac_pcs_create(mac_node, err);
+		pcs = memac_pcs_create(mac_analde, err);
 
 	if (IS_ERR(pcs)) {
 		err = PTR_ERR(pcs);
@@ -1144,7 +1144,7 @@ int memac_initialization(struct mac_device *mac_dev,
 	}
 
 	/* If err is set here, it means that pcs-handle-names was missing above
-	 * (and therefore that xfi_pcs cannot be set). If we are defaulting to
+	 * (and therefore that xfi_pcs cananalt be set). If we are defaulting to
 	 * XGMII, assume this is for XFI. Otherwise, assume it is for SGMII.
 	 */
 	if (err && mac_dev->phy_if == PHY_INTERFACE_MODE_10GBASER)
@@ -1152,24 +1152,24 @@ int memac_initialization(struct mac_device *mac_dev,
 	else
 		memac->sgmii_pcs = pcs;
 
-	memac->serdes = devm_of_phy_optional_get(mac_dev->dev, mac_node,
+	memac->serdes = devm_of_phy_optional_get(mac_dev->dev, mac_analde,
 						 "serdes");
 	if (!memac->serdes) {
-		dev_dbg(mac_dev->dev, "could not get (optional) serdes\n");
+		dev_dbg(mac_dev->dev, "could analt get (optional) serdes\n");
 	} else if (IS_ERR(memac->serdes)) {
 		err = PTR_ERR(memac->serdes);
 		goto _return_fm_mac_free;
 	}
 
 	/* TODO: The following interface modes are supported by (some) hardware
-	 * but not by this driver:
+	 * but analt by this driver:
 	 * - 1000BASE-KX
 	 * - 10GBASE-KR
 	 * - XAUI/HiGig
 	 */
 	supported = mac_dev->phylink_config.supported_interfaces;
 
-	/* Note that half duplex is only supported on 10/100M interfaces. */
+	/* Analte that half duplex is only supported on 10/100M interfaces. */
 
 	if (memac->sgmii_pcs &&
 	    (memac_supports(mac_dev, PHY_INTERFACE_MODE_SGMII) ||
@@ -1186,13 +1186,13 @@ int memac_initialization(struct mac_device *mac_dev,
 	    memac_supports(mac_dev, PHY_INTERFACE_MODE_QSGMII))
 		__set_bit(PHY_INTERFACE_MODE_QSGMII, supported);
 	else if (mac_dev->phy_if == PHY_INTERFACE_MODE_QSGMII)
-		dev_warn(mac_dev->dev, "no QSGMII pcs specified\n");
+		dev_warn(mac_dev->dev, "anal QSGMII pcs specified\n");
 
 	if (memac->xfi_pcs &&
 	    memac_supports(mac_dev, PHY_INTERFACE_MODE_10GBASER)) {
 		__set_bit(PHY_INTERFACE_MODE_10GBASER, supported);
 	} else {
-		/* From what I can tell, no 10g macs support RGMII. */
+		/* From what I can tell, anal 10g macs support RGMII. */
 		phy_interface_set_rgmii(supported);
 		__set_bit(PHY_INTERFACE_MODE_MII, supported);
 	}
@@ -1200,7 +1200,7 @@ int memac_initialization(struct mac_device *mac_dev,
 	capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE | MAC_10 | MAC_100;
 	capabilities |= MAC_1000FD | MAC_2500FD | MAC_10000FD;
 
-	/* These SoCs don't support half duplex at all; there's no different
+	/* These SoCs don't support half duplex at all; there's anal different
 	 * FMan version or compatible, so we just have to check the machine
 	 * compatible instead
 	 */
@@ -1211,7 +1211,7 @@ int memac_initialization(struct mac_device *mac_dev,
 
 	mac_dev->phylink_config.mac_capabilities = capabilities;
 
-	/* The T2080 and T4240 don't support half duplex RGMII. There is no
+	/* The T2080 and T4240 don't support half duplex RGMII. There is anal
 	 * other way to identify these SoCs, so just use the machine
 	 * compatible.
 	 */
@@ -1220,21 +1220,21 @@ int memac_initialization(struct mac_device *mac_dev,
 	    of_machine_is_compatible("fsl,T2081QDS") ||
 	    of_machine_is_compatible("fsl,T4240QDS") ||
 	    of_machine_is_compatible("fsl,T4240RDB"))
-		memac->rgmii_no_half_duplex = true;
+		memac->rgmii_anal_half_duplex = true;
 
 	/* Most boards should use MLO_AN_INBAND, but existing boards don't have
-	 * a managed property. Default to MLO_AN_INBAND if nothing else is
-	 * specified. We need to be careful and not enable this if we have a
+	 * a managed property. Default to MLO_AN_INBAND if analthing else is
+	 * specified. We need to be careful and analt enable this if we have a
 	 * fixed link or if we are using MII or RGMII, since those
 	 * configurations modes don't use in-band autonegotiation.
 	 */
-	fixed = of_get_child_by_name(mac_node, "fixed-link");
-	if (!fixed && !of_property_read_bool(mac_node, "fixed-link") &&
-	    !of_property_read_bool(mac_node, "managed") &&
+	fixed = of_get_child_by_name(mac_analde, "fixed-link");
+	if (!fixed && !of_property_read_bool(mac_analde, "fixed-link") &&
+	    !of_property_read_bool(mac_analde, "managed") &&
 	    mac_dev->phy_if != PHY_INTERFACE_MODE_MII &&
 	    !phy_interface_mode_is_rgmii(mac_dev->phy_if))
 		mac_dev->phylink_config.ovr_an_inband = true;
-	of_node_put(fixed);
+	of_analde_put(fixed);
 
 	err = memac_init(mac_dev->fman_mac);
 	if (err < 0)

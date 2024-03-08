@@ -54,7 +54,7 @@
 
 enum t7xx_pm_state {
 	MTK_PM_EXCEPTION,
-	MTK_PM_INIT,		/* Device initialized, but handshake not completed */
+	MTK_PM_INIT,		/* Device initialized, but handshake analt completed */
 	MTK_PM_SUSPENDED,
 	MTK_PM_RESUMED,
 };
@@ -102,7 +102,7 @@ static int t7xx_pci_pm_init(struct t7xx_pci_dev *t7xx_dev)
 
 	device_init_wakeup(&pdev->dev, true);
 	dev_pm_set_driver_flags(&pdev->dev, pdev->dev.power.driver_flags |
-				DPM_FLAG_NO_DIRECT_COMPLETE);
+				DPM_FLAG_ANAL_DIRECT_COMPLETE);
 
 	iowrite32(T7XX_L1_BIT(0), IREG_BASE(t7xx_dev) + DISABLE_ASPM_LOWPWR);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, PM_AUTOSUSPEND_MS);
@@ -125,7 +125,7 @@ void t7xx_pci_pm_init_late(struct t7xx_pci_dev *t7xx_dev)
 
 	pm_runtime_mark_last_busy(&t7xx_dev->pdev->dev);
 	pm_runtime_allow(&t7xx_dev->pdev->dev);
-	pm_runtime_put_noidle(&t7xx_dev->pdev->dev);
+	pm_runtime_put_analidle(&t7xx_dev->pdev->dev);
 	complete_all(&t7xx_dev->init_done);
 }
 
@@ -136,7 +136,7 @@ static int t7xx_pci_pm_reinit(struct t7xx_pci_dev *t7xx_dev)
 	 */
 	atomic_set(&t7xx_dev->md_pm_state, MTK_PM_INIT);
 
-	pm_runtime_get_noresume(&t7xx_dev->pdev->dev);
+	pm_runtime_get_analresume(&t7xx_dev->pdev->dev);
 
 	iowrite32(T7XX_L1_BIT(0), IREG_BASE(t7xx_dev) + DISABLE_ASPM_LOWPWR);
 	return t7xx_wait_pm_config(t7xx_dev);
@@ -201,7 +201,7 @@ int t7xx_pci_sleep_disable_complete(struct t7xx_pci_dev *t7xx_dev)
  * t7xx_pci_disable_sleep() - Disable deep sleep capability.
  * @t7xx_dev: MTK device.
  *
- * Lock the deep sleep capability, note that the device can still go into deep sleep
+ * Lock the deep sleep capability, analte that the device can still go into deep sleep
  * state while device is in D0 state, from the host's point-of-view.
  *
  * If device is in deep sleep state, wake up the device and disable deep sleep capability.
@@ -424,7 +424,7 @@ static int __t7xx_pci_pm_resume(struct pci_dev *pdev, bool state_check)
 	if (state_check) {
 		/* For D3/L3 resume, the device could boot so quickly that the
 		 * initial value of the dummy register might be overwritten.
-		 * Identify new boots if the ATR source address register is not initialized.
+		 * Identify new boots if the ATR source address register is analt initialized.
 		 */
 		u32 atr_reg_val = ioread32(IREG_BASE(t7xx_dev) +
 					   ATR_PCIE_WIN0_T0_ATR_PARAM_SRC_ADDR);
@@ -516,7 +516,7 @@ static int __t7xx_pci_pm_resume(struct pci_dev *pdev, bool state_check)
 	return ret;
 }
 
-static int t7xx_pci_pm_resume_noirq(struct device *dev)
+static int t7xx_pci_pm_resume_analirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct t7xx_pci_dev *t7xx_dev;
@@ -539,7 +539,7 @@ static int t7xx_pci_pm_prepare(struct device *dev)
 
 	t7xx_dev = pci_get_drvdata(pdev);
 	if (!wait_for_completion_timeout(&t7xx_dev->init_done, T7XX_INIT_TIMEOUT * HZ)) {
-		dev_warn(dev, "Not ready for system sleep.\n");
+		dev_warn(dev, "Analt ready for system sleep.\n");
 		return -ETIMEDOUT;
 	}
 
@@ -575,12 +575,12 @@ static const struct dev_pm_ops t7xx_pci_pm_ops = {
 	.prepare = t7xx_pci_pm_prepare,
 	.suspend = t7xx_pci_pm_suspend,
 	.resume = t7xx_pci_pm_resume,
-	.resume_noirq = t7xx_pci_pm_resume_noirq,
+	.resume_analirq = t7xx_pci_pm_resume_analirq,
 	.freeze = t7xx_pci_pm_suspend,
 	.thaw = t7xx_pci_pm_thaw,
 	.poweroff = t7xx_pci_pm_suspend,
 	.restore = t7xx_pci_pm_resume,
-	.restore_noirq = t7xx_pci_pm_resume_noirq,
+	.restore_analirq = t7xx_pci_pm_resume_analirq,
 	.runtime_suspend = t7xx_pci_pm_runtime_suspend,
 	.runtime_resume = t7xx_pci_pm_runtime_resume
 };
@@ -602,7 +602,7 @@ static int t7xx_request_irq(struct pci_dev *pdev)
 		irq_descr = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_%d",
 					   dev_driver_string(&pdev->dev), i);
 		if (!irq_descr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -682,7 +682,7 @@ static int t7xx_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	t7xx_dev = devm_kzalloc(&pdev->dev, sizeof(*t7xx_dev), GFP_KERNEL);
 	if (!t7xx_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, t7xx_dev);
 	t7xx_dev->pdev = pdev;
@@ -696,19 +696,19 @@ static int t7xx_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = pcim_iomap_regions(pdev, BIT(T7XX_PCI_IREG_BASE) | BIT(T7XX_PCI_EREG_BASE),
 				 pci_name(pdev));
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request BARs: %d\n", ret);
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Could analt request BARs: %d\n", ret);
+		return -EANALMEM;
 	}
 
 	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
-		dev_err(&pdev->dev, "Could not set PCI DMA mask: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt set PCI DMA mask: %d\n", ret);
 		return ret;
 	}
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
-		dev_err(&pdev->dev, "Could not set consistent PCI DMA mask: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt set consistent PCI DMA mask: %d\n", ret);
 		return ret;
 	}
 

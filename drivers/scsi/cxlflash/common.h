@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Maanalj N. Kumar <maanalj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -68,8 +68,8 @@ extern const struct file_operations cxlflash_cxl_fops;
 
 static inline void check_sizes(void)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(CXLFLASH_NUM_FC_PORTS_PER_BANK);
-	BUILD_BUG_ON_NOT_POWER_OF_2(CXLFLASH_MAX_CMDS);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(CXLFLASH_NUM_FC_PORTS_PER_BANK);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(CXLFLASH_MAX_CMDS);
 }
 
 /* AFU defines a fixed size of 4K for command buffers (borrow 4K page define) */
@@ -82,7 +82,7 @@ enum cxlflash_lr_state {
 };
 
 enum cxlflash_init_state {
-	INIT_STATE_NONE,
+	INIT_STATE_ANALNE,
 	INIT_STATE_PCI,
 	INIT_STATE_AFU,
 	INIT_STATE_SCSI,
@@ -92,7 +92,7 @@ enum cxlflash_init_state {
 enum cxlflash_state {
 	STATE_PROBING,	/* Initial state during probe */
 	STATE_PROBED,	/* Temporary state, probe completed but EEH occurred */
-	STATE_NORMAL,	/* Normal running state, everything good */
+	STATE_ANALRMAL,	/* Analrmal running state, everything good */
 	STATE_RESET,	/* Reset state, trying to reset/recover */
 	STATE_FAILTERM	/* Failed/terminating state, error out users/threads */
 };
@@ -174,7 +174,7 @@ struct afu_cmd {
 
 static inline struct afu_cmd *sc_to_afuc(struct scsi_cmnd *sc)
 {
-	return PTR_ALIGN(scsi_cmd_priv(sc), __alignof__(struct afu_cmd));
+	return PTR_ALIGN(scsi_cmd_priv(sc), __aliganalf__(struct afu_cmd));
 }
 
 static inline struct afu_cmd *sc_to_afuci(struct scsi_cmnd *sc)

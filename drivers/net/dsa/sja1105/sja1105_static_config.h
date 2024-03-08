@@ -149,15 +149,15 @@ enum sja1105_blk_idx {
 #define SJA1105QS_DEVICE_ID				0xAE00030Eull
 #define SJA1110_DEVICE_ID				0xB700030Full
 
-#define SJA1105ET_PART_NO				0x9A83
-#define SJA1105P_PART_NO				0x9A84
-#define SJA1105Q_PART_NO				0x9A85
-#define SJA1105R_PART_NO				0x9A86
-#define SJA1105S_PART_NO				0x9A87
-#define SJA1110A_PART_NO				0x1110
-#define SJA1110B_PART_NO				0x1111
-#define SJA1110C_PART_NO				0x1112
-#define SJA1110D_PART_NO				0x1113
+#define SJA1105ET_PART_ANAL				0x9A83
+#define SJA1105P_PART_ANAL				0x9A84
+#define SJA1105Q_PART_ANAL				0x9A85
+#define SJA1105R_PART_ANAL				0x9A86
+#define SJA1105S_PART_ANAL				0x9A87
+#define SJA1110A_PART_ANAL				0x1110
+#define SJA1110B_PART_ANAL				0x1111
+#define SJA1110C_PART_ANAL				0x1112
+#define SJA1110D_PART_ANAL				0x1113
 
 #define SJA1110_ACU			0x1c4400
 #define SJA1110_RGU			0x1c6000
@@ -206,7 +206,7 @@ struct sja1105_general_params_entry {
 	u64 vlmarker;
 	u64 vlmask;
 	u64 tpid;
-	u64 ignore2stf;
+	u64 iganalre2stf;
 	u64 tpid2;
 	/* P/Q/R/S only */
 	u64 queue_ts;
@@ -279,7 +279,7 @@ struct sja1105_l2_lookup_entry {
 struct sja1105_l2_lookup_params_entry {
 	u64 maxaddrp[SJA1105_MAX_NUM_PORTS]; /* P/Q/R/S only */
 	u64 start_dynspc;    /* P/Q/R/S only */
-	u64 drpnolearn;      /* P/Q/R/S only */
+	u64 drpanallearn;      /* P/Q/R/S only */
 	u64 use_static;      /* P/Q/R/S only */
 	u64 owr_dyn;         /* P/Q/R/S only */
 	u64 learn_once;      /* P/Q/R/S only */
@@ -287,8 +287,8 @@ struct sja1105_l2_lookup_params_entry {
 	u64 dyn_tbsz;        /* E/T only */
 	u64 poly;            /* E/T only */
 	u64 shared_learn;    /* Shared */
-	u64 no_enf_hostprt;  /* Shared */
-	u64 no_mgmt_learn;   /* Shared */
+	u64 anal_enf_hostprt;  /* Shared */
+	u64 anal_mgmt_learn;   /* Shared */
 };
 
 struct sja1105_l2_forwarding_entry {
@@ -332,7 +332,7 @@ struct sja1105_mac_config_entry {
 	u64 vlanid;
 	u64 ing_mirr;
 	u64 egr_mirr;
-	u64 drpnona664;
+	u64 drpanalna664;
 	u64 drpdtag;
 	u64 drpuntag;
 	u64 retag;
@@ -346,14 +346,14 @@ struct sja1105_retagging_entry {
 	u64 ing_port;
 	u64 vlan_ing;
 	u64 vlan_egr;
-	u64 do_not_learn;
+	u64 do_analt_learn;
 	u64 use_dest_ports;
 	u64 destports;
 };
 
 struct sja1105_cbs_entry {
-	u64 port; /* Not used for SJA1110 */
-	u64 prio; /* Not used for SJA1110 */
+	u64 port; /* Analt used for SJA1110 */
+	u64 prio; /* Analt used for SJA1110 */
 	u64 credit_hi;
 	u64 credit_lo;
 	u64 send_slope;
@@ -363,11 +363,11 @@ struct sja1105_cbs_entry {
 struct sja1105_xmii_params_entry {
 	u64 phy_mac[SJA1105_MAX_NUM_PORTS];
 	u64 xmii_mode[SJA1105_MAX_NUM_PORTS];
-	/* The SJA1110 insists being a snowflake, and requires SGMII,
+	/* The SJA1110 insists being a sanalwflake, and requires SGMII,
 	 * 2500base-x and internal MII ports connected to the 100base-TX PHY to
 	 * set this bit. We set it unconditionally from the high-level logic,
 	 * and only sja1110_xmii_params_entry_packing writes it to the static
-	 * config. I have no better name for it than "special".
+	 * config. I have anal better name for it than "special".
 	 */
 	u64 special[SJA1105_MAX_NUM_PORTS];
 };
@@ -400,7 +400,7 @@ struct sja1105_vl_lookup_entry {
 			u64 vlid;
 		};
 	};
-	/* Not part of hardware structure */
+	/* Analt part of hardware structure */
 	unsigned long flow_cookie;
 };
 
@@ -464,7 +464,7 @@ sja1105_static_config_get_length(const struct sja1105_static_config *config);
 
 typedef enum {
 	SJA1105_CONFIG_OK = 0,
-	SJA1105_TTETHERNET_NOT_SUPPORTED,
+	SJA1105_TTETHERNET_ANALT_SUPPORTED,
 	SJA1105_INCORRECT_TTETHERNET_CONFIGURATION,
 	SJA1105_INCORRECT_VIRTUAL_LINK_CONFIGURATION,
 	SJA1105_MISSING_L2_POLICING_TABLE,

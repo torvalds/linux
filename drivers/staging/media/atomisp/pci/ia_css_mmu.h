@@ -21,7 +21,7 @@
  */
 
 /* @brief Invalidate the MMU internal cache.
- * @return	None
+ * @return	Analne
  *
  * This function triggers an invalidation of the translate-look-aside
  * buffer (TLB) that's inside the CSS MMU. This function should be called

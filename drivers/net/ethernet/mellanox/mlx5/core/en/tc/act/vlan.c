@@ -41,12 +41,12 @@ parse_tc_vlan_action(struct mlx5e_priv *priv,
 
 	if (vlan_idx >= MLX5_FS_VLAN_DEPTH) {
 		NL_SET_ERR_MSG_MOD(extack, "Total vlans used is greater than supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!mlx5_eswitch_vlan_actions_supported(priv->mdev, vlan_idx)) {
-		NL_SET_ERR_MSG_MOD(extack, "firmware vlan actions is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "firmware vlan actions is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	switch (act->id) {
@@ -73,7 +73,7 @@ parse_tc_vlan_action(struct mlx5e_priv *priv,
 		break;
 	case FLOW_ACTION_VLAN_PUSH_ETH:
 		if (!flow_flag_test(parse_state->flow, L3_TO_L2_DECAP))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		parse_state->eth_push = true;
 		memcpy(attr->eth.h_dest, act->vlan_push_eth.dst, ETH_ALEN);
 		memcpy(attr->eth.h_source, act->vlan_push_eth.src, ETH_ALEN);
@@ -111,7 +111,7 @@ mlx5e_tc_act_vlan_add_push_action(struct mlx5e_priv *priv,
 	*out_dev = dev_get_by_index_rcu(dev_net(vlan_dev), dev_get_iflink(vlan_dev));
 	rcu_read_unlock();
 	if (!*out_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (is_vlan_dev(*out_dev))
 		err = mlx5e_tc_act_vlan_add_push_action(priv, attr, out_dev, extack);

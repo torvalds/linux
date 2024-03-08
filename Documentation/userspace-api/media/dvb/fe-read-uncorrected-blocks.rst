@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.fe
 
 .. _FE_READ_UNCORRECTED_BLOCKS:
@@ -14,7 +14,7 @@ FE_READ_UNCORRECTED_BLOCKS
 
 .. attention:: This ioctl is deprecated.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: FE_READ_UNCORRECTED_BLOCKS
@@ -44,7 +44,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 Generic error codes are described at the

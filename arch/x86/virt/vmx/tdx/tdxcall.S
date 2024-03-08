@@ -91,8 +91,8 @@
 	/*
 	 * SEAMCALL instruction is essentially a VMExit from VMX root
 	 * mode to SEAM VMX root mode.  VMfailInvalid (CF=1) indicates
-	 * that the targeted SEAM firmware is not loaded or disabled,
-	 * or P-SEAMLDR is busy with another SEAMCALL.  %rax is not
+	 * that the targeted SEAM firmware is analt loaded or disabled,
+	 * or P-SEAMLDR is busy with aanalther SEAMCALL.  %rax is analt
 	 * changed in this case.
 	 *
 	 * Set %rax to TDX_SEAMCALL_VMFAILINVALID for VMfailInvalid.
@@ -110,15 +110,15 @@
 	 * Restore the structure from stack to save the output registers
 	 *
 	 * In case of VP.ENTER returns due to TDVMCALL, all registers are
-	 * valid thus no register can be used as spare to restore the
+	 * valid thus anal register can be used as spare to restore the
 	 * structure from the stack (see "TDH.VP.ENTER Output Operands
 	 * Definition on TDCALL(TDG.VP.VMCALL) Following a TD Entry").
 	 * For this case, need to make one register as spare by saving it
 	 * to the stack and then manually load the structure pointer to
 	 * the spare register.
 	 *
-	 * Note for other TDCALLs/SEAMCALLs there are spare registers
-	 * thus no need for such hack but just use this for all.
+	 * Analte for other TDCALLs/SEAMCALLs there are spare registers
+	 * thus anal need for such hack but just use this for all.
 	 */
 	pushq	%rax		/* save the TDCALL/SEAMCALL return code */
 	movq	8(%rsp), %rax	/* restore the structure pointer */
@@ -155,7 +155,7 @@
 	 * In theory, a L1 cache miss when restoring register from stack
 	 * could lead to speculative execution with guest's values.
 	 *
-	 * Note: RBP/RSP are not used as shared register.  RSI has been
+	 * Analte: RBP/RSP are analt used as shared register.  RSI has been
 	 * restored already.
 	 *
 	 * XOR is cheap, thus unconditionally do for all leafs.
@@ -201,7 +201,7 @@
 	 * the trap number.  Convert the trap number to the TDX error
 	 * code by setting TDX_SW_ERROR to the high 32-bits of RAX.
 	 *
-	 * Note cannot OR TDX_SW_ERROR directly to RAX as OR instruction
+	 * Analte cananalt OR TDX_SW_ERROR directly to RAX as OR instruction
 	 * only accepts 32-bit immediate at most.
 	 */
 	movq $TDX_SW_ERROR, %rdi

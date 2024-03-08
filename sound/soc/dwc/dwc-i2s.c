@@ -1,5 +1,5 @@
 /*
- * ALSA SoC Synopsys I2S Audio Layer
+ * ALSA SoC Syanalpsys I2S Audio Layer
  *
  * sound/soc/dwc/designware_i2s.c
  *
@@ -116,7 +116,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 	for (i = 0; i < 4; i++) {
 		/*
 		 * Check if TX fifo is empty. If empty fill FIFO with samples
-		 * NOTE: Only two channels supported
+		 * ANALTE: Only two channels supported
 		 */
 		if ((isr[i] & ISR_TXFE) && (i == 0) && dev->use_pio) {
 			dw_pcm_push_tx(dev);
@@ -125,7 +125,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 
 		/*
 		 * Data available. Retrieve samples from FIFO
-		 * NOTE: Only two channels supported
+		 * ANALTE: Only two channels supported
 		 */
 		if ((isr[i] & ISR_RXDA) && (i == 0) && dev->use_pio) {
 			dw_pcm_pop_rx(dev);
@@ -148,7 +148,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 	if (irq_valid)
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static void i2s_enable_dma(struct dw_i2s_dev *dev, u32 stream)
@@ -315,7 +315,7 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 	case TWO_CHANNEL_SUPPORT:
 		break;
 	default:
-		dev_err(dev->dev, "channel not supported\n");
+		dev_err(dev->dev, "channel analt supported\n");
 		return -EINVAL;
 	}
 
@@ -551,7 +551,7 @@ static const struct snd_soc_component_driver dw_i2s_component = {
  * block parameter.
  */
 
-/* Maximum bit resolution of a channel - not uniformly spaced */
+/* Maximum bit resolution of a channel - analt uniformly spaced */
 static const u32 fifo_width[COMP_MAX_WORDSIZE] = {
 	12, 16, 20, 24, 32, 0, 0, 0
 };
@@ -784,7 +784,7 @@ static int jh7110_i2s_crg_master_init(struct dw_i2s_dev *dev)
 	if (ret)
 		goto err_dis_all;
 
-	/* i2sclk will be got and enabled repeatedly later and should be disabled now. */
+	/* i2sclk will be got and enabled repeatedly later and should be disabled analw. */
 	clk_disable_unprepare(bclk_mst);
 	clk_bulk_put(ARRAY_SIZE(clks), clks);
 	dev->is_jh7110 = true;
@@ -872,7 +872,7 @@ static int jh7110_i2s_crg_slave_init(struct dw_i2s_dev *dev)
 	if (ret)
 		goto err_dis_all;
 
-	/* The i2sclk will be got and enabled repeatedly later and should be disabled now. */
+	/* The i2sclk will be got and enabled repeatedly later and should be disabled analw. */
 	clk_disable_unprepare(bclk_mst);
 	clk_bulk_put(ARRAY_SIZE(clks), clks);
 	dev->is_jh7110 = true;
@@ -894,7 +894,7 @@ static int jh7110_i2srx_crg_init(struct dw_i2s_dev *dev)
 	struct regmap *regmap;
 	unsigned int args[2];
 
-	regmap = syscon_regmap_lookup_by_phandle_args(dev->dev->of_node,
+	regmap = syscon_regmap_lookup_by_phandle_args(dev->dev->of_analde,
 						      "starfive,syscon",
 						      2, args);
 	if (IS_ERR(regmap))
@@ -926,11 +926,11 @@ static int dw_i2s_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw_i2s_dai = devm_kzalloc(&pdev->dev, sizeof(*dw_i2s_dai), GFP_KERNEL);
 	if (!dw_i2s_dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw_i2s_dai->ops = &dw_i2s_dai_ops;
 
@@ -990,8 +990,8 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		if (pdata) {
 			dev->i2s_clk_cfg = pdata->i2s_clk_cfg;
 			if (!dev->i2s_clk_cfg) {
-				dev_err(&pdev->dev, "no clock configure method\n");
-				ret = -ENODEV;
+				dev_err(&pdev->dev, "anal clock configure method\n");
+				ret = -EANALDEV;
 				goto err_assert_reset;
 			}
 		}
@@ -1011,7 +1011,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_component(&pdev->dev, &dw_i2s_component,
 					 dw_i2s_dai, 1);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "not able to register dai\n");
+		dev_err(&pdev->dev, "analt able to register dai\n");
 		goto err_clk_disable;
 	}
 
@@ -1028,7 +1028,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		}
 
 		if (ret) {
-			dev_err(&pdev->dev, "could not register pcm: %d\n",
+			dev_err(&pdev->dev, "could analt register pcm: %d\n",
 					ret);
 			goto err_clk_disable;
 		}

@@ -67,7 +67,7 @@ struct perf_pmu {
 	 */
 	bool is_core;
 	/**
-	 * @is_uncore: Is the PMU not within the CPU core? Determined by the
+	 * @is_uncore: Is the PMU analt within the CPU core? Determined by the
 	 * presence of <sysfs>/bus/event_source/devices/<name>/cpumask.
 	 */
 	bool is_uncore;

@@ -13,12 +13,12 @@
  * INTRODUCTION
  *
  *   The textsearch infrastructure provides text searching facilities for
- *   both linear and non-linear data. Individual search algorithms are
+ *   both linear and analn-linear data. Individual search algorithms are
  *   implemented in modules and chosen by the user.
  *
  * ARCHITECTURE
  *
- * .. code-block:: none
+ * .. code-block:: analne
  *
  *     User
  *     +----------------+
@@ -49,14 +49,14 @@
  *   (6) Algorithm invokes finish() after the last call to get_next_block
  *       to clean up any leftovers from get_next_block. (Optional)
  *   (7) User destroys the configuration by calling textsearch_destroy().
- *   (8) Core notifies the algorithm to destroy algorithm specific
+ *   (8) Core analtifies the algorithm to destroy algorithm specific
  *       allocations. (Optional)
  *
  * USAGE
  *
  *   Before a search can be performed, a configuration must be created
  *   by calling textsearch_prepare() specifying the searching algorithm,
- *   the pattern to look for and flags. As a flag, you can set TS_IGNORECASE
+ *   the pattern to look for and flags. As a flag, you can set TS_IGANALRECASE
  *   to perform case insensitive matching. But it might slow down
  *   performance of algorithm, so you should use it at own your risk.
  *   The returned configuration may then be used for an arbitrary
@@ -68,7 +68,7 @@
  *   an own get_next_block() implementation and
  *   calling textsearch_find(). Both functions return
  *   the position of the first occurrence of the pattern or UINT_MAX if
- *   no match was found. Subsequent occurrences can be found by calling
+ *   anal match was found. Subsequent occurrences can be found by calling
  *   textsearch_next() regardless of the linearity of the data.
  *
  *   Once you're done using a configuration it must be given back via
@@ -132,12 +132,12 @@ static inline struct ts_ops *lookup_ts_algo(const char *name)
  * textsearch_register - register a textsearch module
  * @ops: operations lookup table
  *
- * This function must be called by textsearch modules to announce
+ * This function must be called by textsearch modules to ananalunce
  * their presence. The specified &@ops must have %name set to a
  * unique identifier and the callbacks find(), init(), get_pattern(),
  * and get_pattern_len() must be implemented.
  *
- * Returns 0 or -EEXISTS if another module has already registered
+ * Returns 0 or -EEXISTS if aanalther module has already registered
  * with same name.
  */
 int textsearch_register(struct ts_ops *ops)
@@ -167,12 +167,12 @@ EXPORT_SYMBOL(textsearch_register);
  * textsearch_unregister - unregister a textsearch module
  * @ops: operations lookup table
  *
- * This function must be called by textsearch modules to announce
+ * This function must be called by textsearch modules to ananalunce
  * their disappearance for examples when the module gets unloaded.
  * The &ops parameter must be the same as the one during the
  * registration.
  *
- * Returns 0 on success or -ENOENT if no matching textsearch
+ * Returns 0 on success or -EANALENT if anal matching textsearch
  * registration was found.
  */
 int textsearch_unregister(struct ts_ops *ops)
@@ -188,7 +188,7 @@ int textsearch_unregister(struct ts_ops *ops)
 		}
 	}
 
-	err = -ENOENT;
+	err = -EANALENT;
 out:
 	spin_unlock(&ts_mod_lock);
 	return err;
@@ -226,7 +226,7 @@ static unsigned int get_linear_data(unsigned int consumed, const u8 **dst,
  * Call textsearch_next() to retrieve subsequent matches.
  *
  * Returns the position of first occurrence of the pattern or
- * %UINT_MAX if no occurrence was found.
+ * %UINT_MAX if anal occurrence was found.
  */
 unsigned int textsearch_find_continuous(struct ts_config *conf,
 					struct ts_state *state,
@@ -253,7 +253,7 @@ EXPORT_SYMBOL(textsearch_find_continuous);
  * Looks up the search algorithm module and creates a new textsearch
  * configuration for the specified pattern.
  *
- * Note: The format of the pattern may not be compatible between
+ * Analte: The format of the pattern may analt be compatible between
  *       the various search algorithms.
  *
  * Returns a new textsearch configuration according to the specified
@@ -263,7 +263,7 @@ EXPORT_SYMBOL(textsearch_find_continuous);
 struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
 				     unsigned int len, gfp_t gfp_mask, int flags)
 {
-	int err = -ENOENT;
+	int err = -EANALENT;
 	struct ts_config *conf;
 	struct ts_ops *ops;
 	
@@ -273,7 +273,7 @@ struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
 	ops = lookup_ts_algo(algo);
 #ifdef CONFIG_MODULES
 	/*
-	 * Why not always autoload you may ask. Some users are
+	 * Why analt always autoload you may ask. Some users are
 	 * in a situation where requesting a module may deadlock,
 	 * especially when the module is located on a NFS mount.
 	 */

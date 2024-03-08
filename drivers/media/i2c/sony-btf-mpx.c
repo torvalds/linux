@@ -23,7 +23,7 @@ MODULE_PARM_DESC(debug, "debug level 0=off(default) 1=on");
 /* #define MPX_DEBUG */
 
 /*
- * Note:
+ * Analte:
  *
  * AS(IF/MPX) pin:      LOW      HIGH/OPEN
  * IF/MPX address:   0x42/0x40   0x43/0x44
@@ -72,27 +72,27 @@ static int mpx_write(struct i2c_client *client, int dev, int addr, int val)
  * Auto     1003    0020    0100    2603    5000    XXXX    0001    7500
  *
  * B/G
- *  Mono    1003    0020    0100    2603    5000    XXXX    0003    7500
+ *  Moanal    1003    0020    0100    2603    5000    XXXX    0003    7500
  *  A2      1003    0020    0100    2601    5000    XXXX    0003    7500
  *  NICAM   1003    0120    0100    2603    5000    XXXX    0008    7500
  *
  * I
- *  Mono    1003    0020    0100    2603    7900    XXXX    000A    7500
+ *  Moanal    1003    0020    0100    2603    7900    XXXX    000A    7500
  *  NICAM   1003    0120    0100    2603    7900    XXXX    000A    7500
  *
  * D/K
- *  Mono    1003    0020    0100    2603    5000    XXXX    0004    7500
+ *  Moanal    1003    0020    0100    2603    5000    XXXX    0004    7500
  *  A2-1    1003    0020    0100    2601    5000    XXXX    0004    7500
  *  A2-2    1003    0020    0100    2601    5000    XXXX    0005    7500
  *  A2-3    1003    0020    0100    2601    5000    XXXX    0007    7500
  *  NICAM   1003    0120    0100    2603    5000    XXXX    000B    7500
  *
  * L/L'
- *  Mono    0003    0200    0100    7C03    5000    2200    0009    7500
+ *  Moanal    0003    0200    0100    7C03    5000    2200    0009    7500
  *  NICAM   0003    0120    0100    7C03    5000    XXXX    0009    7500
  *
  * M
- *  Mono    1003    0200    0100    2B03    5000    2B00    0002    7500
+ *  Moanal    1003    0200    0100    2B03    5000    2B00    0002    7500
  *
  * For Asia, replace the 0x26XX in FM_PRESCALE with 0x14XX.
  *
@@ -103,18 +103,18 @@ static int mpx_write(struct i2c_client *client, int dev, int addr, int val)
  *                 0x03              MAIN         MAIN
  *                 0x04              SUB          SUB
  *
- * Force mono in NICAM by setting the high byte of SOURCE to 0x02 (L/L') or
- * 0x00 (all other bands).  Force mono in A2 with FMONO_A2:
+ * Force moanal in NICAM by setting the high byte of SOURCE to 0x02 (L/L') or
+ * 0x00 (all other bands).  Force moanal in A2 with FMOANAL_A2:
  *
- *                      FMONO_A2
+ *                      FMOANAL_A2
  *                      10/0022
  *                      --------
- *     Forced mono ON     07F0
- *     Forced mono OFF    0190
+ *     Forced moanal ON     07F0
+ *     Forced moanal OFF    0190
  */
 
 static const struct {
-	enum { AUD_MONO, AUD_A2, AUD_NICAM, AUD_NICAM_L } audio_mode;
+	enum { AUD_MOANAL, AUD_A2, AUD_NICAM, AUD_NICAM_L } audio_mode;
 	u16 modus;
 	u16 source;
 	u16 acb;
@@ -124,19 +124,19 @@ static const struct {
 	u16 system;
 	u16 volume;
 } mpx_audio_modes[] = {
-	/* Auto */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
+	/* Auto */	{ AUD_MOANAL,	0x1003, 0x0020, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x0001, 0x7500 },
-	/* B/G Mono */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
+	/* B/G Moanal */	{ AUD_MOANAL,	0x1003, 0x0020, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x0003, 0x7500 },
 	/* B/G A2 */	{ AUD_A2,	0x1003, 0x0020, 0x0100, 0x2601,
 					0x5000, 0x0000, 0x0003, 0x7500 },
 	/* B/G NICAM */ { AUD_NICAM,	0x1003, 0x0120, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x0008, 0x7500 },
-	/* I Mono */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
+	/* I Moanal */	{ AUD_MOANAL,	0x1003, 0x0020, 0x0100, 0x2603,
 					0x7900, 0x0000, 0x000A, 0x7500 },
 	/* I NICAM */	{ AUD_NICAM,	0x1003, 0x0120, 0x0100, 0x2603,
 					0x7900, 0x0000, 0x000A, 0x7500 },
-	/* D/K Mono */	{ AUD_MONO,	0x1003, 0x0020, 0x0100, 0x2603,
+	/* D/K Moanal */	{ AUD_MOANAL,	0x1003, 0x0020, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x0004, 0x7500 },
 	/* D/K A2-1 */	{ AUD_A2,	0x1003, 0x0020, 0x0100, 0x2601,
 					0x5000, 0x0000, 0x0004, 0x7500 },
@@ -146,7 +146,7 @@ static const struct {
 					0x5000, 0x0000, 0x0007, 0x7500 },
 	/* D/K NICAM */	{ AUD_NICAM,	0x1003, 0x0120, 0x0100, 0x2603,
 					0x5000, 0x0000, 0x000B, 0x7500 },
-	/* L/L' Mono */	{ AUD_MONO,	0x0003, 0x0200, 0x0100, 0x7C03,
+	/* L/L' Moanal */	{ AUD_MOANAL,	0x0003, 0x0200, 0x0100, 0x7C03,
 					0x5000, 0x2200, 0x0009, 0x7500 },
 	/* L/L' NICAM */{ AUD_NICAM_L,	0x0003, 0x0120, 0x0100, 0x7C03,
 					0x5000, 0x0000, 0x0009, 0x7500 },
@@ -174,12 +174,12 @@ static int mpx_setup(struct sony_btf_mpx *t)
 	buffer[1] = 0x00;
 	i2c_transfer(client->adapter, &msg, 1);
 
-	if (t->audmode != V4L2_TUNER_MODE_MONO)
+	if (t->audmode != V4L2_TUNER_MODE_MOANAL)
 		mode++;
 
-	if (mpx_audio_modes[mode].audio_mode != AUD_MONO) {
+	if (mpx_audio_modes[mode].audio_mode != AUD_MOANAL) {
 		switch (t->audmode) {
-		case V4L2_TUNER_MODE_MONO:
+		case V4L2_TUNER_MODE_MOANAL:
 			switch (mpx_audio_modes[mode].audio_mode) {
 			case AUD_A2:
 				source = mpx_audio_modes[mode].source;
@@ -221,7 +221,7 @@ static int mpx_setup(struct sony_btf_mpx *t)
 	mpx_write(client, 0x12, 0x0000, mpx_audio_modes[mode].volume);
 	if (mpx_audio_modes[mode].audio_mode == AUD_A2)
 		mpx_write(client, 0x10, 0x0022,
-			t->audmode == V4L2_TUNER_MODE_MONO ? 0x07f0 : 0x0190);
+			t->audmode == V4L2_TUNER_MODE_MOANAL ? 0x07f0 : 0x0190);
 
 #ifdef MPX_DEBUG
 	{
@@ -289,10 +289,10 @@ static int sony_btf_mpx_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	struct sony_btf_mpx *t = to_state(sd);
 
-	vt->capability = V4L2_TUNER_CAP_NORM |
+	vt->capability = V4L2_TUNER_CAP_ANALRM |
 		V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LANG1 |
 		V4L2_TUNER_CAP_LANG2;
-	vt->rxsubchans = V4L2_TUNER_SUB_MONO |
+	vt->rxsubchans = V4L2_TUNER_SUB_MOANAL |
 		V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_LANG1 |
 		V4L2_TUNER_SUB_LANG2;
 	vt->audmode = t->audmode;
@@ -337,14 +337,14 @@ static int sony_btf_mpx_probe(struct i2c_client *client)
 	struct v4l2_subdev *sd;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -ENODEV;
+		return -EANALDEV;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
 	t = devm_kzalloc(&client->dev, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sd = &t->sd;
 	v4l2_i2c_subdev_init(sd, client, &sony_btf_mpx_ops);

@@ -42,7 +42,7 @@ struct snic_internal_io_state {
 
 /* IO state machine */
 enum snic_ioreq_state {
-	SNIC_IOREQ_NOT_INITED = 0,
+	SNIC_IOREQ_ANALT_INITED = 0,
 	SNIC_IOREQ_PENDING,
 	SNIC_IOREQ_ABTS_PENDING,
 	SNIC_IOREQ_ABTS_COMPLETE,
@@ -56,14 +56,14 @@ struct snic_host_req;
 
 /*
  * snic_req_info : Contains info about IO, one per scsi command.
- * Notes: Make sure that the structure is aligned to 16 B
+ * Analtes: Make sure that the structure is aligned to 16 B
  * this helps in easy access to snic_req_info from snic_host_req
  */
 struct snic_req_info {
 	struct list_head list;
 	struct snic_host_req *req;
 	u64	start_time;		/* start time in jiffies */
-	u16	rq_pool_type;		/* noticion of request pool type */
+	u16	rq_pool_type;		/* analticion of request pool type */
 	u16	req_len;		/* buf len passing to fw (req + sgl)*/
 	u32	tgt_id;
 

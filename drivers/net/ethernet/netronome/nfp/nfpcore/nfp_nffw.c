@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_nffw.c
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Francois H. Theron <francois.theron@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Francois H. Theron <francois.theron@netroanalme.com>
  */
 
 #include <linux/kernel.h>
@@ -37,7 +37,7 @@
  */
 #define NFFW_INFO_VERSION_CURRENT 2
 
-/* Enough for all current chip families */
+/* Eanalugh for all current chip families */
 #define NFFW_MEINFO_CNT_V1 120
 #define NFFW_FWINFO_CNT_V1 120
 #define NFFW_MEINFO_CNT_V2 200
@@ -52,7 +52,7 @@ struct nffw_meinfo {
 
 struct nffw_fwinfo {
 	__le32 loaded__mu_da__mip_off_hi;
-	__le32 mip_cppid; /* 0 means no MIP */
+	__le32 mip_cppid; /* 0 means anal MIP */
 	__le32 mip_offset_lo;
 };
 
@@ -131,7 +131,7 @@ nffw_res_fwinfos(struct nfp_nffw_info_data *fwinf, struct nffw_fwinfo **arr)
 {
 	/* For the this code, version 0 is most likely to be
 	 * version 1 in this case. Since the kernel driver
-	 * does not take responsibility for initialising the
+	 * does analt take responsibility for initialising the
 	 * nfp.nffw resource, any previous code (CA firmware or
 	 * userspace) that left the version 0 and did set
 	 * the init flag is going to be version 1.
@@ -165,7 +165,7 @@ struct nfp_nffw_info *nfp_nffw_info_open(struct nfp_cpp *cpp)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	state->res = nfp_resource_acquire(cpp, NFP_RESOURCE_NFP_NFFW);
 	if (IS_ERR(state->res))
@@ -237,7 +237,7 @@ static struct nffw_fwinfo *nfp_nffw_info_fwid_first(struct nfp_nffw_info *state)
  * @cpp_id:	Pointer to the CPP ID of the MIP
  * @off:	Pointer to the CPP Address of the MIP
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_nffw_info_mip_first(struct nfp_nffw_info *state, u32 *cpp_id, u64 *off)
 {

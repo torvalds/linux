@@ -87,7 +87,7 @@ static inline bool sev_version_greater_or_equal(u8 maj, u8 min)
 	if (sev->api_major > maj)
 		return true;
 
-	if (sev->api_major == maj && sev->api_minor >= min)
+	if (sev->api_major == maj && sev->api_mianalr >= min)
 		return true;
 
 	return false;
@@ -188,7 +188,7 @@ static struct file *open_file_as_root(const char *filename, int flags, umode_t m
 
 	cred = prepare_creds();
 	if (!cred)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cred->fsuid = GLOBAL_ROOT_UID;
 	old_cred = override_creds(cred);
 
@@ -209,20 +209,20 @@ static int sev_read_init_ex_file(void)
 	lockdep_assert_held(&sev_cmd_mutex);
 
 	if (!sev_init_ex_buffer)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	fp = open_file_as_root(init_ex_path, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
 		int ret = PTR_ERR(fp);
 
-		if (ret == -ENOENT) {
+		if (ret == -EANALENT) {
 			dev_info(sev->dev,
-				"SEV: %s does not exist and will be created later.\n",
+				"SEV: %s does analt exist and will be created later.\n",
 				init_ex_path);
 			ret = 0;
 		} else {
 			dev_err(sev->dev,
-				"SEV: could not open %s for read, error %d\n",
+				"SEV: could analt open %s for read, error %d\n",
 				init_ex_path, ret);
 		}
 		return ret;
@@ -231,7 +231,7 @@ static int sev_read_init_ex_file(void)
 	nread = kernel_read(fp, sev_init_ex_buffer, NV_LENGTH, NULL);
 	if (nread != NV_LENGTH) {
 		dev_info(sev->dev,
-			"SEV: could not read %u bytes to non volatile memory area, ret %ld\n",
+			"SEV: could analt read %u bytes to analn volatile memory area, ret %ld\n",
 			NV_LENGTH, nread);
 	}
 
@@ -258,7 +258,7 @@ static int sev_write_init_ex_file(void)
 		int ret = PTR_ERR(fp);
 
 		dev_err(sev->dev,
-			"SEV: could not open file for write, error %d\n",
+			"SEV: could analt open file for write, error %d\n",
 			ret);
 		return ret;
 	}
@@ -269,7 +269,7 @@ static int sev_write_init_ex_file(void)
 
 	if (nwrite != NV_LENGTH) {
 		dev_err(sev->dev,
-			"SEV: failed to write %u bytes to non volatile memory area, ret %ld\n",
+			"SEV: failed to write %u bytes to analn volatile memory area, ret %ld\n",
 			NV_LENGTH, nwrite);
 		return -EIO;
 	}
@@ -287,8 +287,8 @@ static int sev_write_init_ex_file_if_required(int cmd_id)
 		return 0;
 
 	/*
-	 * Only a few platform commands modify the SPI/NV area, but none of the
-	 * non-platform commands do. Only INIT(_EX), PLATFORM_RESET, PEK_GEN,
+	 * Only a few platform commands modify the SPI/NV area, but analne of the
+	 * analn-platform commands do. Only INIT(_EX), PLATFORM_RESET, PEK_GEN,
 	 * PEK_CERT_IMPORT, and PDH_GEN do.
 	 */
 	switch (cmd_id) {
@@ -315,7 +315,7 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 	int buf_len;
 
 	if (!psp || !psp->sev_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (psp_dead)
 		return -EBUSY;
@@ -327,8 +327,8 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 		return -EINVAL;
 
 	/*
-	 * Copy the incoming data to driver's scratch buffer as __pa() will not
-	 * work for some memory, e.g. vmalloc'd addresses, and @data may not be
+	 * Copy the incoming data to driver's scratch buffer as __pa() will analt
+	 * work for some memory, e.g. vmalloc'd addresses, and @data may analt be
 	 * physically contiguous.
 	 */
 	if (data)
@@ -421,7 +421,7 @@ static int __sev_init_locked(int *error)
 	memset(&data, 0, sizeof(data));
 	if (sev_es_tmr) {
 		/*
-		 * Do not include the encryption mask on the physical
+		 * Do analt include the encryption mask on the physical
 		 * address of the TMR (firmware should clear it anyway).
 		 */
 		data.tmr_address = __pa(sev_es_tmr);
@@ -444,7 +444,7 @@ static int __sev_init_ex_locked(int *error)
 
 	if (sev_es_tmr) {
 		/*
-		 * Do not include the encryption mask on the physical
+		 * Do analt include the encryption mask on the physical
 		 * address of the TMR (firmware should clear it anyway).
 		 */
 		data.tmr_address = __pa(sev_es_tmr);
@@ -466,12 +466,12 @@ static inline int __sev_do_init_locked(int *psp_ret)
 
 static int __sev_platform_init_locked(int *error)
 {
-	int rc = 0, psp_ret = SEV_RET_NO_FW_CALL;
+	int rc = 0, psp_ret = SEV_RET_ANAL_FW_CALL;
 	struct psp_device *psp = psp_master;
 	struct sev_device *sev;
 
 	if (!psp || !psp->sev_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sev = psp->sev_data;
 
@@ -515,7 +515,7 @@ static int __sev_platform_init_locked(int *error)
 	dev_dbg(sev->dev, "SEV firmware initialized\n");
 
 	dev_info(sev->dev, "SEV API:%d.%d build:%d\n", sev->api_major,
-		 sev->api_minor, sev->build);
+		 sev->api_mianalr, sev->build);
 
 	return 0;
 }
@@ -674,7 +674,7 @@ static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp, bool writable)
 
 	blob = kzalloc(input.length, GFP_KERNEL);
 	if (!blob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data.address = __psp_pa(blob);
 	data.len = input.length;
@@ -711,7 +711,7 @@ void *psp_copy_user_blob(u64 uaddr, u32 len)
 	if (!uaddr || !len)
 		return ERR_PTR(-EINVAL);
 
-	/* verify that blob length does not exceed our limit */
+	/* verify that blob length does analt exceed our limit */
 	if (len > SEV_FW_BLOB_MAX_SIZE)
 		return ERR_PTR(-EINVAL);
 
@@ -733,7 +733,7 @@ static int sev_get_api_version(void)
 	}
 
 	sev->api_major = status.api_major;
-	sev->api_minor = status.api_minor;
+	sev->api_mianalr = status.api_mianalr;
 	sev->build = status.build;
 	sev->state = status.state;
 
@@ -767,12 +767,12 @@ static int sev_get_firmware(struct device *dev,
 	 *
 	 * Fall-back to using generic name: sev.fw
 	 */
-	if ((firmware_request_nowarn(firmware, fw_name_specific, dev) >= 0) ||
-	    (firmware_request_nowarn(firmware, fw_name_subset, dev) >= 0) ||
-	    (firmware_request_nowarn(firmware, SEV_FW_FILE, dev) >= 0))
+	if ((firmware_request_analwarn(firmware, fw_name_specific, dev) >= 0) ||
+	    (firmware_request_analwarn(firmware, fw_name_subset, dev) >= 0) ||
+	    (firmware_request_analwarn(firmware, SEV_FW_FILE, dev) >= 0))
 		return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* Don't fail if SEV FW couldn't be updated. Continue with existing SEV FW */
@@ -785,12 +785,12 @@ static int sev_update_firmware(struct device *dev)
 	u64 data_size;
 
 	if (!sev_version_greater_or_equal(0, 15)) {
-		dev_dbg(dev, "DOWNLOAD_FIRMWARE not supported\n");
+		dev_dbg(dev, "DOWNLOAD_FIRMWARE analt supported\n");
 		return -1;
 	}
 
-	if (sev_get_firmware(dev, &firmware) == -ENOENT) {
-		dev_dbg(dev, "No SEV firmware file present\n");
+	if (sev_get_firmware(dev, &firmware) == -EANALENT) {
+		dev_dbg(dev, "Anal SEV firmware file present\n");
 		return -1;
 	}
 
@@ -798,7 +798,7 @@ static int sev_update_firmware(struct device *dev)
 	 * SEV FW expects the physical address given to it to be 32
 	 * byte aligned. Memory allocated has structure placed at the
 	 * beginning followed by the firmware being passed to the SEV
-	 * FW. Allocate enough memory for data structure + alignment
+	 * FW. Allocate eanalugh memory for data structure + alignment
 	 * padding + SEV FW.
 	 */
 	data_size = ALIGN(sizeof(struct sev_data_download_firmware), 32);
@@ -875,7 +875,7 @@ static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp, bool writable)
 	data.oca_cert_address = __psp_pa(oca_blob);
 	data.oca_cert_len = input.oca_cert_len;
 
-	/* If platform is not in INIT state then transition it to INIT */
+	/* If platform is analt in INIT state then transition it to INIT */
 	if (sev->state != SEV_STATE_INIT) {
 		ret = __sev_platform_init_locked(&argp->error);
 		if (ret)
@@ -901,7 +901,7 @@ static int sev_ioctl_do_get_id2(struct sev_issue_cmd *argp)
 
 	/* SEV GET_ID is available from SEV API v0.16 and up */
 	if (!sev_version_greater_or_equal(0, 16))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
 		return -EFAULT;
@@ -913,12 +913,12 @@ static int sev_ioctl_do_get_id2(struct sev_issue_cmd *argp)
 		 * The length of the ID shouldn't be assumed by software since
 		 * it may change in the future.  The allocation size is limited
 		 * to 1 << (PAGE_SHIFT + MAX_PAGE_ORDER) by the page allocator.
-		 * If the allocation fails, simply return ENOMEM rather than
+		 * If the allocation fails, simply return EANALMEM rather than
 		 * warning in the kernel log.
 		 */
-		id_blob = kzalloc(input.length, GFP_KERNEL | __GFP_NOWARN);
+		id_blob = kzalloc(input.length, GFP_KERNEL | __GFP_ANALWARN);
 		if (!id_blob)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data.address = __psp_pa(id_blob);
 		data.len = input.length;
@@ -962,10 +962,10 @@ static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
 
 	/* SEV GET_ID available from SEV API v0.16 and up */
 	if (!sev_version_greater_or_equal(0, 16))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* SEV FW expects the buffer it fills with the ID to be
-	 * 8-byte aligned. Memory allocated should be enough to
+	 * 8-byte aligned. Memory allocated should be eanalugh to
 	 * hold data structure + alignment padding + memory
 	 * where SEV FW writes the ID.
 	 */
@@ -974,7 +974,7 @@ static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
 
 	mem = kzalloc(data_size + user_size, GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = mem;
 	id_blob = mem + data_size;
@@ -1003,7 +1003,7 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp, bool writable)
 	void __user *input_pdh_cert_address;
 	int ret;
 
-	/* If platform is not in INIT state then transition it to INIT. */
+	/* If platform is analt in INIT state then transition it to INIT. */
 	if (sev->state != SEV_STATE_INIT) {
 		if (!writable)
 			return -EPERM;
@@ -1037,14 +1037,14 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp, bool writable)
 
 	pdh_blob = kzalloc(input.pdh_cert_len, GFP_KERNEL);
 	if (!pdh_blob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data.pdh_cert_address = __psp_pa(pdh_blob);
 	data.pdh_cert_len = input.pdh_cert_len;
 
 	cert_blob = kzalloc(input.cert_chain_len, GFP_KERNEL);
 	if (!cert_blob) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_free_pdh;
 	}
 
@@ -1092,7 +1092,7 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 	bool writable = file->f_mode & FMODE_WRITE;
 
 	if (!psp_master || !psp_master->sev_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ioctl != SEV_ISSUE_CMD)
 		return -EINVAL;
@@ -1197,8 +1197,8 @@ static int sev_misc_init(struct sev_device *sev)
 
 	/*
 	 * SEV feature support can be detected on multiple devices but the SEV
-	 * FW commands must be issued on the master. During probe, we do not
-	 * know the master hence we create /dev/sev on the first device probe.
+	 * FW commands must be issued on the master. During probe, we do analt
+	 * kanalw the master hence we create /dev/sev on the first device probe.
 	 * sev_do_cmd() finds the right master device to which to issue the
 	 * command to the firmware.
 	 */
@@ -1207,10 +1207,10 @@ static int sev_misc_init(struct sev_device *sev)
 
 		misc_dev = kzalloc(sizeof(*misc_dev), GFP_KERNEL);
 		if (!misc_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		misc = &misc_dev->misc;
-		misc->minor = MISC_DYNAMIC_MINOR;
+		misc->mianalr = MISC_DYNAMIC_MIANALR;
 		misc->name = DEVICE_NAME;
 		misc->fops = &sev_fops;
 
@@ -1234,10 +1234,10 @@ int sev_dev_init(struct psp_device *psp)
 {
 	struct device *dev = psp->dev;
 	struct sev_device *sev;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (!boot_cpu_has(X86_FEATURE_SEV)) {
-		dev_info_once(dev, "SEV: memory encryption not enabled by BIOS\n");
+		dev_info_once(dev, "SEV: memory encryption analt enabled by BIOS\n");
 		return 0;
 	}
 
@@ -1258,7 +1258,7 @@ int sev_dev_init(struct psp_device *psp)
 
 	sev->vdata = (struct sev_vdata *)psp->vdata->sev;
 	if (!sev->vdata) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "sev: missing driver data\n");
 		goto e_buf;
 	}
@@ -1269,7 +1269,7 @@ int sev_dev_init(struct psp_device *psp)
 	if (ret)
 		goto e_irq;
 
-	dev_notice(dev, "sev enabled\n");
+	dev_analtice(dev, "sev enabled\n");
 
 	return 0;
 
@@ -1282,7 +1282,7 @@ e_sev:
 e_err:
 	psp->sev_data = NULL;
 
-	dev_notice(dev, "sev initialization failed\n");
+	dev_analtice(dev, "sev initialization failed\n");
 
 	return ret;
 }

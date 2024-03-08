@@ -15,13 +15,13 @@
 
 extern void restore_current(void);
 
-/* Start cpu with prom-tree node 'cpunode' using context described
+/* Start cpu with prom-tree analde 'cpuanalde' using context described
  * by 'ctable_reg' in context 'ctx' at program counter 'pc'.
  *
  * XXX Have to look into what the return values mean. XXX
  */
 int
-prom_startcpu(int cpunode, struct linux_prom_registers *ctable_reg, int ctx, char *pc)
+prom_startcpu(int cpuanalde, struct linux_prom_registers *ctable_reg, int ctx, char *pc)
 {
 	int ret;
 	unsigned long flags;
@@ -34,7 +34,7 @@ prom_startcpu(int cpunode, struct linux_prom_registers *ctable_reg, int ctx, cha
 		ret = -1;
 		break;
 	case PROM_V3:
-		ret = (*(romvec->v3_cpustart))(cpunode, (int) ctable_reg, ctx, pc);
+		ret = (*(romvec->v3_cpustart))(cpuanalde, (int) ctable_reg, ctx, pc);
 		break;
 	}
 	restore_current();

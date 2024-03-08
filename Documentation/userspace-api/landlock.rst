@@ -22,7 +22,7 @@ We can quickly make sure that Landlock is enabled in the running system by
 looking for "landlock: Up and running" in kernel logs (as root): ``dmesg | grep
 landlock || journalctl -kg landlock`` .  Developers can also easily check for
 Landlock support with a :ref:`related system call <landlock_abi_versions>`.  If
-Landlock is not currently supported, we need to :ref:`configure the kernel
+Landlock is analt currently supported, we need to :ref:`configure the kernel
 appropriately <kernel_support>`.
 
 Landlock rules
@@ -54,7 +54,7 @@ actions and other TCP actions will be denied.
 
 The ruleset then needs to handle both these kinds of actions.  This is
 required for backward and forward compatibility (i.e. the kernel and user
-space may not know each other's supported restrictions), hence the need
+space may analt kanalw each other's supported restrictions), hence the need
 to be explicit about the denied-by-default access rights.
 
 .. code-block:: c
@@ -81,11 +81,11 @@ to be explicit about the denied-by-default access rights.
             LANDLOCK_ACCESS_NET_CONNECT_TCP,
     };
 
-Because we may not know on which kernel version an application will be
+Because we may analt kanalw on which kernel version an application will be
 executed, it is safer to follow a best-effort security approach.  Indeed, we
 should try to protect users as much as possible whatever the kernel they are
 using.  To avoid binary enforcement (i.e. either all security features or
-none), we can leverage a dedicated Landlock command to get the current version
+analne), we can leverage a dedicated Landlock command to get the current version
 of the Landlock ABI and adapt the handled accesses.  Let's check if we should
 remove access rights which are only supported in higher versions of the ABI.
 
@@ -95,8 +95,8 @@ remove access rights which are only supported in higher versions of the ABI.
 
     abi = landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
     if (abi < 0) {
-        /* Degrades gracefully if Landlock is not handled. */
-        perror("The running kernel does not enable to use Landlock");
+        /* Degrades gracefully if Landlock is analt handled. */
+        perror("The running kernel does analt enable to use Landlock");
         return 0;
     }
     switch (abi) {
@@ -127,9 +127,9 @@ This enables to create an inclusive ruleset that will contain our rules.
         return 1;
     }
 
-We can now add a new rule to this ruleset thanks to the returned file
+We can analw add a new rule to this ruleset thanks to the returned file
 descriptor referring to this ruleset.  The rule will only allow reading the
-file hierarchy ``/usr``.  Without another rule, write actions would then be
+file hierarchy ``/usr``.  Without aanalther rule, write actions would then be
 denied by the ruleset.  To add ``/usr`` to the ruleset, we open it with the
 ``O_PATH`` flag and fill the &struct landlock_path_beneath_attr with this file
 descriptor.
@@ -161,7 +161,7 @@ descriptor.
 
 It may also be required to create rules following the same logic as explained
 for the ruleset creation, by filtering access rights according to the Landlock
-ABI version.  In this example, this is not required because all of the requested
+ABI version.  In this example, this is analt required because all of the requested
 ``allowed_access`` rights are already available in ABI 1.
 
 For network access-control, we can add a set of rules that allow to use a port
@@ -178,19 +178,19 @@ number for a specific action: HTTPS connections.
                             &net_port, 0);
 
 The next step is to restrict the current thread from gaining more privileges
-(e.g. through a SUID binary).  We now have a ruleset with the first rule
+(e.g. through a SUID binary).  We analw have a ruleset with the first rule
 allowing read access to ``/usr`` while denying all other handled accesses for
 the filesystem, and a second rule allowing HTTPS connections.
 
 .. code-block:: c
 
-    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+    if (prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0)) {
         perror("Failed to restrict privileges");
         close(ruleset_fd);
         return 1;
     }
 
-The current thread is now ready to sandbox itself with the ruleset.
+The current thread is analw ready to sandbox itself with the ruleset.
 
 .. code-block:: c
 
@@ -202,10 +202,10 @@ The current thread is now ready to sandbox itself with the ruleset.
     close(ruleset_fd);
 
 If the ``landlock_restrict_self`` system call succeeds, the current thread is
-now restricted and this policy will be enforced on all its subsequently created
-children as well.  Once a thread is landlocked, there is no way to remove its
+analw restricted and this policy will be enforced on all its subsequently created
+children as well.  Once a thread is landlocked, there is anal way to remove its
 security policy; only adding more restrictions is allowed.  These threads are
-now in a new Landlock domain, merge of their parent one (if any) with the new
+analw in a new Landlock domain, merge of their parent one (if any) with the new
 ruleset.
 
 Full working code can be found in `samples/landlock/sandboxer.c`_.
@@ -217,7 +217,7 @@ It is recommended setting access rights to file hierarchy leaves as much as
 possible.  For instance, it is better to be able to have ``~/doc/`` as a
 read-only hierarchy and ``~/tmp/`` as a read-write hierarchy, compared to
 ``~/`` as a read-only hierarchy and ``~/tmp/`` as a read-write hierarchy.
-Following this good practice leads to self-sufficient hierarchies that do not
+Following this good practice leads to self-sufficient hierarchies that do analt
 depend on their location (i.e. parent directories).  This is particularly
 relevant when we want to allow linking or renaming.  Indeed, having consistent
 access rights per directory enables to change the location of such directory
@@ -226,10 +226,10 @@ are required for this operation, see ``LANDLOCK_ACCESS_FS_REFER``
 documentation).
 Having self-sufficient hierarchies also helps to tighten the required access
 rights to the minimal set of data.  This also helps avoid sinkhole directories,
-i.e.  directories where data can be linked to but not linked from.  However,
-this depends on data organization, which might not be controlled by developers.
+i.e.  directories where data can be linked to but analt linked from.  However,
+this depends on data organization, which might analt be controlled by developers.
 In this case, granting read-write access to ``~/tmp/``, instead of write-only
-access, would potentially allow to move ``~/tmp/`` to a non-readable directory
+access, would potentially allow to move ``~/tmp/`` to a analn-readable directory
 and still keep the ability to list the content of ``~/tmp/``.
 
 Layers of file path access rights
@@ -252,7 +252,7 @@ Bind mounts and OverlayFS
 
 Landlock enables to restrict access to file hierarchies, which means that these
 access rights can be propagated with bind mounts (cf.
-Documentation/filesystems/sharedsubtree.rst) but not with
+Documentation/filesystems/sharedsubtree.rst) but analt with
 Documentation/filesystems/overlayfs.rst.
 
 A bind mount mirrors a source file hierarchy to a destination.  The destination
@@ -260,7 +260,7 @@ hierarchy is then composed of the exact same files, on which Landlock rules can
 be tied, either via the source or the destination path.  These rules restrict
 access when they are encountered on a path, which means that they can restrict
 access to multiple file hierarchies at the same time, whether these hierarchies
-are the result of bind mounts or not.
+are the result of bind mounts or analt.
 
 An OverlayFS mount point consists of upper and lower layers.  These layers are
 combined in a merge directory, result of the mount point.  This merge hierarchy
@@ -268,7 +268,7 @@ may include files from the upper and lower layers, but modifications performed
 on the merge hierarchy only reflects on the upper layer.  From a Landlock
 policy point of view, each OverlayFS layers and merge hierarchies are
 standalone and contains their own set of files and directories, which is
-different from bind mounts.  A policy restricting an OverlayFS layer will not
+different from bind mounts.  A policy restricting an OverlayFS layer will analt
 restrict the resulted merged hierarchy, and vice versa.  Landlock users should
 then only think about file hierarchies they want to allow access to, regardless
 of the underlying filesystem.
@@ -280,7 +280,7 @@ Every new thread resulting from a :manpage:`clone(2)` inherits Landlock domain
 restrictions from its parent.  This is similar to the seccomp inheritance (cf.
 Documentation/userspace-api/seccomp_filter.rst) or any other LSM dealing with
 task's :manpage:`credentials(7)`.  For instance, one process's thread may apply
-Landlock rules to itself, but they will not be automatically applied to other
+Landlock rules to itself, but they will analt be automatically applied to other
 sibling threads (unlike POSIX thread credential changes, cf.
 :manpage:`nptl(7)`).
 
@@ -293,8 +293,8 @@ policies.
 Ptrace restrictions
 -------------------
 
-A sandboxed process has less privileges than a non-sandboxed process and must
-then be subject to additional restrictions when manipulating another process.
+A sandboxed process has less privileges than a analn-sandboxed process and must
+then be subject to additional restrictions when manipulating aanalther process.
 To be allowed to use :manpage:`ptrace(2)` and related syscalls on a target
 process, a sandboxed process should have a subset of the target process rules,
 which means the tracee must be in a sub-domain of the tracer.
@@ -304,7 +304,7 @@ Truncating files
 
 The operations covered by ``LANDLOCK_ACCESS_FS_WRITE_FILE`` and
 ``LANDLOCK_ACCESS_FS_TRUNCATE`` both change the contents of a file and sometimes
-overlap in non-intuitive ways.  It is recommended to always specify both of
+overlap in analn-intuitive ways.  It is recommended to always specify both of
 these together.
 
 A particularly surprising example is :manpage:`creat(2)`.  The name suggests
@@ -312,7 +312,7 @@ that this system call requires the rights to create and write files.  However,
 it also requires the truncate right if an existing file under the same name is
 already present.
 
-It should also be noted that truncating files does not require the
+It should also be analted that truncating files does analt require the
 ``LANDLOCK_ACCESS_FS_WRITE_FILE`` right.  Apart from the :manpage:`truncate(2)`
 system call, this can also be done through :manpage:`open(2)` with the flags
 ``O_RDONLY | O_TRUNC``.
@@ -321,13 +321,13 @@ When opening a file, the availability of the ``LANDLOCK_ACCESS_FS_TRUNCATE``
 right is associated with the newly created file descriptor and will be used for
 subsequent truncation attempts using :manpage:`ftruncate(2)`.  The behavior is
 similar to opening a file for reading or writing, where permissions are checked
-during :manpage:`open(2)`, but not during the subsequent :manpage:`read(2)` and
+during :manpage:`open(2)`, but analt during the subsequent :manpage:`read(2)` and
 :manpage:`write(2)` calls.
 
 As a consequence, it is possible to have multiple open file descriptors for the
 same file, where one grants the right to truncate the file and the other does
-not.  It is also possible to pass such file descriptors between processes,
-keeping their Landlock properties, even when these processes do not have an
+analt.  It is also possible to pass such file descriptors between processes,
+keeping their Landlock properties, even when these processes do analt have an
 enforced Landlock ruleset.
 
 Compatibility
@@ -340,11 +340,11 @@ Landlock is designed to be compatible with past and future versions of the
 kernel.  This is achieved thanks to the system call attributes and the
 associated bitflags, particularly the ruleset's ``handled_access_fs``.  Making
 handled access right explicit enables the kernel and user space to have a clear
-contract with each other.  This is required to make sure sandboxing will not
+contract with each other.  This is required to make sure sandboxing will analt
 get stricter with a system update, which could break applications.
 
 Developers can subscribe to the `Landlock mailing list
-<https://subspace.kernel.org/lists.linux.dev.html>`_ to knowingly update and
+<https://subspace.kernel.org/lists.linux.dev.html>`_ to kanalwingly update and
 test their applications with the latest available features.  In the interest of
 users, and because they may use different kernel versions, it is strongly
 encouraged to follow a best-effort security approach by checking the Landlock
@@ -364,11 +364,11 @@ system call:
 
     abi = landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
     if (abi < 0) {
-        switch (errno) {
-        case ENOSYS:
-            printf("Landlock is not supported by the current kernel.\n");
+        switch (erranal) {
+        case EANALSYS:
+            printf("Landlock is analt supported by the current kernel.\n");
             break;
-        case EOPNOTSUPP:
+        case EOPANALTSUPP:
             printf("Landlock is currently disabled.\n");
             break;
         }
@@ -422,19 +422,19 @@ Current limitations
 Filesystem topology modification
 --------------------------------
 
-Threads sandboxed with filesystem restrictions cannot modify filesystem
+Threads sandboxed with filesystem restrictions cananalt modify filesystem
 topology, whether via :manpage:`mount(2)` or :manpage:`pivot_root(2)`.
-However, :manpage:`chroot(2)` calls are not denied.
+However, :manpage:`chroot(2)` calls are analt denied.
 
 Special filesystems
 -------------------
 
 Access to regular files and directories can be restricted by Landlock,
-according to the handled accesses of a ruleset.  However, files that do not
+according to the handled accesses of a ruleset.  However, files that do analt
 come from a user-visible filesystem (e.g. pipe, socket), but can still be
-accessed through ``/proc/<pid>/fd/*``, cannot currently be explicitly
+accessed through ``/proc/<pid>/fd/*``, cananalt currently be explicitly
 restricted.  Likewise, some special kernel filesystems such as nsfs, which can
-be accessed through ``/proc/<pid>/ns/*``, cannot currently be explicitly
+be accessed through ``/proc/<pid>/ns/*``, cananalt currently be explicitly
 restricted.  However, thanks to the `ptrace restrictions`_, access to such
 sensitive ``/proc`` files are automatically restricted according to domain
 hierarchies.  Future Landlock evolutions could still enable to explicitly
@@ -468,28 +468,28 @@ handle composition of rules.  Such property also implies rules nesting.
 Properly handling multiple layers of rulesets, each one of them able to
 restrict access to files, also implies inheritance of the ruleset restrictions
 from a parent to its hierarchy.  Because files are identified and restricted by
-their hierarchy, moving or linking a file from one directory to another implies
+their hierarchy, moving or linking a file from one directory to aanalther implies
 propagation of the hierarchy constraints, or restriction of these actions
 according to the potentially lost constraints.  To protect against privilege
 escalations through renaming or linking, and for the sake of simplicity,
 Landlock previously limited linking and renaming to the same directory.
-Starting with the Landlock ABI version 2, it is now possible to securely
+Starting with the Landlock ABI version 2, it is analw possible to securely
 control renaming and linking thanks to the new ``LANDLOCK_ACCESS_FS_REFER``
 access right.
 
 File truncation (ABI < 3)
 -------------------------
 
-File truncation could not be denied before the third Landlock ABI, so it is
+File truncation could analt be denied before the third Landlock ABI, so it is
 always allowed when using a kernel that only supports the first or second ABI.
 
-Starting with the Landlock ABI version 3, it is now possible to securely control
+Starting with the Landlock ABI version 3, it is analw possible to securely control
 truncation thanks to the new ``LANDLOCK_ACCESS_FS_TRUNCATE`` access right.
 
 Network support (ABI < 4)
 -------------------------
 
-Starting with the Landlock ABI version 4, it is now possible to restrict TCP
+Starting with the Landlock ABI version 4, it is analw possible to restrict TCP
 bind and connect actions to only a set of allowed ports thanks to the new
 ``LANDLOCK_ACCESS_NET_BIND_TCP`` and ``LANDLOCK_ACCESS_NET_CONNECT_TCP``
 access rights.
@@ -507,7 +507,7 @@ contains ``CONFIG_LSM=landlock,[...]`` with ``[...]``  as the list of other
 potentially useful security modules for the running system (see the
 ``CONFIG_LSM`` help).
 
-If the running kernel does not have ``landlock`` in ``CONFIG_LSM``, then we can
+If the running kernel does analt have ``landlock`` in ``CONFIG_LSM``, then we can
 still enable it by adding ``lsm=landlock,[...]`` to
 Documentation/admin-guide/kernel-parameters.rst thanks to the bootloader
 configuration.
@@ -515,8 +515,8 @@ configuration.
 To be able to explicitly allow TCP operations (e.g., adding a network rule with
 ``LANDLOCK_ACCESS_NET_BIND_TCP``), the kernel must support TCP
 (``CONFIG_INET=y``).  Otherwise, sys_landlock_add_rule() returns an
-``EAFNOSUPPORT`` error, which can safely be ignored because this kind of TCP
-operation is already not possible.
+``EAFANALSUPPORT`` error, which can safely be iganalred because this kind of TCP
+operation is already analt possible.
 
 Questions and answers
 =====================
@@ -532,8 +532,8 @@ the OS code and state
 What about namespaces and containers?
 -------------------------------------
 
-Namespaces can help create sandboxes but they are not designed for
-access-control and then miss useful features for such use case (e.g. no
+Namespaces can help create sandboxes but they are analt designed for
+access-control and then miss useful features for such use case (e.g. anal
 fine-grained restrictions).  Moreover, their complexity can lead to security
 issues, especially when untrusted processes can manipulate them (cf.
 `Controlling access to user namespaces <https://lwn.net/Articles/673597/>`_).

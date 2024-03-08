@@ -179,7 +179,7 @@ static int max8907_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, rtc);
 
 	rtc->max8907 = max8907;

@@ -42,7 +42,7 @@ static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 	u16 val;
 
 	if (go->status == STATUS_SHUTDOWN)
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifdef GO7007_I2C_DEBUG
 	if (read)

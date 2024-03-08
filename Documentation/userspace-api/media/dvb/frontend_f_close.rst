@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.fe
 
 .. _frontend_f_close:
@@ -12,7 +12,7 @@ Name
 
 fe-close - Close a frontend device
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -39,7 +39,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 Generic error codes are described at the

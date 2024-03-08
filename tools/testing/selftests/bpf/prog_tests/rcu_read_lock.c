@@ -26,9 +26,9 @@ static void test_success(void)
 	bpf_program__set_autoload(skel->progs.get_cgroup_id, true);
 	bpf_program__set_autoload(skel->progs.task_succ, true);
 	bpf_program__set_autoload(skel->progs.two_regions, true);
-	bpf_program__set_autoload(skel->progs.non_sleepable_1, true);
-	bpf_program__set_autoload(skel->progs.non_sleepable_2, true);
-	bpf_program__set_autoload(skel->progs.task_trusted_non_rcuptr, true);
+	bpf_program__set_autoload(skel->progs.analn_sleepable_1, true);
+	bpf_program__set_autoload(skel->progs.analn_sleepable_2, true);
+	bpf_program__set_autoload(skel->progs.task_trusted_analn_rcuptr, true);
 	err = rcu_read_lock__load(skel);
 	if (!ASSERT_OK(err, "skel_load"))
 		goto out;
@@ -69,9 +69,9 @@ out:
 
 static const char * const inproper_region_tests[] = {
 	"miss_lock",
-	"no_lock",
+	"anal_lock",
 	"miss_unlock",
-	"non_sleepable_rcu_mismatch",
+	"analn_sleepable_rcu_mismatch",
 	"inproper_sleepable_helper",
 	"inproper_sleepable_kfunc",
 	"nested_rcu_region",

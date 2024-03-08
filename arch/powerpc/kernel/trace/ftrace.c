@@ -55,7 +55,7 @@ static ppc_inst_t ftrace_create_branch_inst(unsigned long ip, unsigned long addr
 
 static inline int ftrace_read_inst(unsigned long ip, ppc_inst_t *op)
 {
-	if (copy_inst_from_kernel_nofault(op, (void *)ip)) {
+	if (copy_inst_from_kernel_analfault(op, (void *)ip)) {
 		pr_err("0x%lx: fetching instruction failed\n", ip);
 		return -EFAULT;
 	}
@@ -124,7 +124,7 @@ static int ftrace_get_call_inst(struct dyn_ftrace *rec, unsigned long addr, ppc_
 		/* We would be branching to one of our ftrace stubs */
 		stub = find_ftrace_tramp(ip);
 		if (!stub) {
-			pr_err("0x%lx: No ftrace stubs reachable\n", ip);
+			pr_err("0x%lx: Anal ftrace stubs reachable\n", ip);
 			return -EINVAL;
 		}
 	} else {
@@ -153,7 +153,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (WARN_ON(!IS_ENABLED(CONFIG_MODULES) || core_kernel_text(rec->ip)))
 		return -EINVAL;
 
-	old = ppc_inst(PPC_RAW_NOP());
+	old = ppc_inst(PPC_RAW_ANALP());
 	ret = ftrace_get_call_inst(rec, addr, &new);
 	if (ret)
 		return ret;
@@ -161,11 +161,11 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return ftrace_modify_code(rec->ip, old, new);
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
+int ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
 {
 	/*
 	 * This should never be called since we override ftrace_replace_code(),
-	 * as well as ftrace_init_nop()
+	 * as well as ftrace_init_analp()
 	 */
 	WARN_ON(1);
 	return -EINVAL;
@@ -174,7 +174,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long ad
 void ftrace_replace_code(int enable)
 {
 	ppc_inst_t old, new, call_inst, new_call_inst;
-	ppc_inst_t nop_inst = ppc_inst(PPC_RAW_NOP());
+	ppc_inst_t analp_inst = ppc_inst(PPC_RAW_ANALP());
 	unsigned long ip, new_addr, addr;
 	struct ftrace_rec_iter *iter;
 	struct dyn_ftrace *rec;
@@ -192,7 +192,7 @@ void ftrace_replace_code(int enable)
 		update = ftrace_update_record(rec, enable);
 
 		switch (update) {
-		case FTRACE_UPDATE_IGNORE:
+		case FTRACE_UPDATE_IGANALRE:
 		default:
 			continue;
 		case FTRACE_UPDATE_MODIFY_CALL:
@@ -201,14 +201,14 @@ void ftrace_replace_code(int enable)
 			old = call_inst;
 			new = new_call_inst;
 			break;
-		case FTRACE_UPDATE_MAKE_NOP:
+		case FTRACE_UPDATE_MAKE_ANALP:
 			ret = ftrace_get_call_inst(rec, addr, &call_inst);
 			old = call_inst;
-			new = nop_inst;
+			new = analp_inst;
 			break;
 		case FTRACE_UPDATE_MAKE_CALL:
 			ret = ftrace_get_call_inst(rec, new_addr, &call_inst);
-			old = nop_inst;
+			old = analp_inst;
 			new = call_inst;
 			break;
 		}
@@ -225,7 +225,7 @@ out:
 	return;
 }
 
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec)
 {
 	unsigned long addr, ip = rec->ip;
 	ppc_inst_t old, new;
@@ -233,10 +233,10 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 
 	/* Verify instructions surrounding the ftrace location */
 	if (IS_ENABLED(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY)) {
-		/* Expect nops */
-		ret = ftrace_validate_inst(ip - 4, ppc_inst(PPC_RAW_NOP()));
+		/* Expect analps */
+		ret = ftrace_validate_inst(ip - 4, ppc_inst(PPC_RAW_ANALP()));
 		if (!ret)
-			ret = ftrace_validate_inst(ip, ppc_inst(PPC_RAW_NOP()));
+			ret = ftrace_validate_inst(ip, ppc_inst(PPC_RAW_ANALP()));
 	} else if (IS_ENABLED(CONFIG_PPC32)) {
 		/* Expected sequence: 'mflr r0', 'stw r0,4(r1)', 'bl _mcount' */
 		ret = ftrace_validate_inst(ip - 8, ppc_inst(PPC_RAW_MFLR(_R0)));
@@ -258,18 +258,18 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 
 	if (!core_kernel_text(ip)) {
 		if (!mod) {
-			pr_err("0x%lx: No module provided for non-kernel address\n", ip);
+			pr_err("0x%lx: Anal module provided for analn-kernel address\n", ip);
 			return -EFAULT;
 		}
 		rec->arch.mod = mod;
 	}
 
-	/* Nop-out the ftrace location */
-	new = ppc_inst(PPC_RAW_NOP());
+	/* Analp-out the ftrace location */
+	new = ppc_inst(PPC_RAW_ANALP());
 	addr = MCOUNT_ADDR;
 	if (IS_ENABLED(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY)) {
 		/* we instead patch-in the 'mflr r0' */
-		old = ppc_inst(PPC_RAW_NOP());
+		old = ppc_inst(PPC_RAW_ANALP());
 		new = ppc_inst(PPC_RAW_MFLR(_R0));
 		ret = ftrace_modify_code(ip - 4, old, new);
 	} else if (is_offset_in_branch_range(addr - ip)) {

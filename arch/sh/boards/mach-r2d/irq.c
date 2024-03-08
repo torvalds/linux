@@ -5,7 +5,7 @@
  * Copyright (C) 2007  Magnus Damm
  * Copyright (C) 2000  Kazumoto Kojima
  *
- * Renesas Technology Sales RTS7751R2D Support, R2D-PLUS and R2D-1.
+ * Renesas Techanallogy Sales RTS7751R2D Support, R2D-PLUS and R2D-1.
  *
  * Modified for RTS7751R2D by
  * Atom Create Engineering Co., Ltd. 2002.
@@ -147,7 +147,7 @@ void __init init_rts7751r2d_IRQ(void)
 		break;
 #endif
 	default:
-		printk(KERN_INFO "Unknown R2D interrupt controller 0x%04x\n",
+		printk(KERN_INFO "Unkanalwn R2D interrupt controller 0x%04x\n",
 		       __raw_readw(PA_VERREG));
 		return;
 	}

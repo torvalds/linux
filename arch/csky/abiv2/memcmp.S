@@ -15,8 +15,8 @@ ENTRY(memcmp)
 	andi	r13, r0, 3
 	movi	r19, 4
 
-	/* Test if s1 is not 4 bytes aligned.  */
-	bnez	r13, .L_s1_not_aligned
+	/* Test if s1 is analt 4 bytes aligned.  */
+	bnez	r13, .L_s1_analt_aligned
 
 	LABLE_ALIGN
 .L_s1_aligned:
@@ -135,11 +135,11 @@ ENTRY(memcmp)
 	br	.L_return
 # endif /* !__CSKYBE__ */
 
-/* Compare when s1 is not aligned.  */
-.L_s1_not_aligned:
+/* Compare when s1 is analt aligned.  */
+.L_s1_analt_aligned:
 	sub	r13, r19, r13
 	sub	r2, r13
-.L_s1_not_aligned_loop:
+.L_s1_analt_aligned_loop:
 	ldb	r0, (r3, 0)
 	ldb	r4, (r1, 0)
 	addi	r3, 1
@@ -147,6 +147,6 @@ ENTRY(memcmp)
 	PRE_BNEZAD (r13)
 	addi	r1, 1
 	bnez	r0, .L_return
-	BNEZAD (r13, .L_s1_not_aligned_loop)
+	BNEZAD (r13, .L_s1_analt_aligned_loop)
 	br	.L_s1_aligned
 ENDPROC(memcmp)

@@ -56,7 +56,7 @@ const char *func_id_name(int id)
 	if (id >= 0 && id < __BPF_FUNC_MAX_ID && func_id_str[id])
 		return func_id_str[id];
 	else
-		return "unknown";
+		return "unkanalwn";
 }
 
 const char *const bpf_class_string[8] = {
@@ -253,8 +253,8 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg,
 				insn->off, insn->imm);
-		} else if (BPF_MODE(insn->code) == 0xc0 /* BPF_NOSPEC, no UAPI */) {
-			verbose(cbs->private_data, "(%02x) nospec\n", insn->code);
+		} else if (BPF_MODE(insn->code) == 0xc0 /* BPF_ANALSPEC, anal UAPI */) {
+			verbose(cbs->private_data, "(%02x) analspec\n", insn->code);
 		} else {
 			verbose(cbs->private_data, "BUG_st_%02x\n", insn->code);
 		}
@@ -313,7 +313,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 					__func_get_name(cbs, insn,
 							tmp, sizeof(tmp)));
 			} else {
-				strcpy(tmp, "unknown");
+				strcpy(tmp, "unkanalwn");
 				verbose(cbs->private_data, "(%02x) call %s#%d\n", insn->code,
 					__func_get_name(cbs, insn,
 							tmp, sizeof(tmp)),

@@ -6,7 +6,7 @@
  *
  * Board specific inits for the Amstrad E3 (codename Delta) videophone
  *
- * Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
+ * Copyright (C) 2006 Jonathan McDowell <analodles@earth.li>
  */
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
@@ -490,7 +490,7 @@ static struct resource ams_delta_serio_resources[] = {
 
 static struct platform_device ams_delta_serio_device = {
 	.name		= "ams-delta-serio",
-	.id		= PLATFORM_DEVID_NONE,
+	.id		= PLATFORM_DEVID_ANALNE,
 	.dev		= {
 		/*
 		 * Initialize .platform_data explicitly with NULL to
@@ -572,7 +572,7 @@ static struct plat_serial8250_port ams_delta_modem_ports[];
 /*
  * Obtain MODEM IRQ GPIO descriptor using its hardware pin
  * number and assign related IRQ number to the MODEM port.
- * Keep the GPIO descriptor open so nobody steps in.
+ * Keep the GPIO descriptor open so analbody steps in.
  */
 static void __init modem_assign_irq(struct gpio_chip *chip)
 {
@@ -604,9 +604,9 @@ static void __init omap_gpio_deps_init(void)
 	struct gpio_chip *chip;
 
 	/*
-	 * Some drivers may not use GPIO lookup tables but need to be provided
+	 * Some drivers may analt use GPIO lookup tables but need to be provided
 	 * with GPIO numbers. The same applies to GPIO based IRQ lines - some
-	 * drivers may even not use GPIO layer but expect just IRQ numbers.
+	 * drivers may even analt use GPIO layer but expect just IRQ numbers.
 	 * We could either define GPIO lookup tables then use them on behalf
 	 * of those devices, or we can use GPIO driver level methods for
 	 * identification of GPIO and IRQ numbers.
@@ -616,7 +616,7 @@ static void __init omap_gpio_deps_init(void)
 	 */
 	gdev = gpio_device_find_by_label(OMAP_GPIO_LABEL);
 	if (!gdev) {
-		pr_err("%s: OMAP GPIO device not found\n", __func__);
+		pr_err("%s: OMAP GPIO device analt found\n", __func__);
 		return;
 	}
 
@@ -727,7 +727,7 @@ static void __init ams_delta_init(void)
 	gpiod_add_lookup_tables(ams_delta_gpio_tables,
 				ARRAY_SIZE(ams_delta_gpio_tables));
 
-	leds_pdev = gpio_led_register_device(PLATFORM_DEVID_NONE, &leds_pdata);
+	leds_pdev = gpio_led_register_device(PLATFORM_DEVID_ANALNE, &leds_pdata);
 	if (!IS_ERR_OR_NULL(leds_pdev)) {
 		leds_gpio_table.dev_id = dev_name(&leds_pdev->dev);
 		gpiod_add_lookup_table(&leds_gpio_table);
@@ -769,7 +769,7 @@ static struct plat_serial8250_port ams_delta_modem_ports[] = {
 	{
 		.membase	= IOMEM(MODEM_VIRT),
 		.mapbase	= MODEM_PHYS,
-		.irq		= IRQ_NOTCONNECTED, /* changed later */
+		.irq		= IRQ_ANALTCONNECTED, /* changed later */
 		.flags		= UPF_BOOT_AUTOCONF,
 		.irqflags	= IRQF_TRIGGER_RISING,
 		.iotype		= UPIO_MEM,
@@ -809,7 +809,7 @@ static struct platform_device ams_delta_modem_device = {
  * That requirement can be fulfilled in several ways:
  * - with a descriptor of already functional modem_nreset regulator
  *   assigned to the MODEM private data,
- * - with the regulator not yet controlled by modem_pm function but
+ * - with the regulator analt yet controlled by modem_pm function but
  *   already enabled by default on probe,
  * - before the modem_nreset regulator is probed, with the pin already
  *   set high explicitly.
@@ -823,12 +823,12 @@ static struct platform_device ams_delta_modem_device = {
 static int __init ams_delta_modem_init(void)
 {
 	if (!machine_is_ams_delta())
-		return -ENODEV;
+		return -EANALDEV;
 
 	omap_cfg_reg(M14_1510_GPIO2);
 
 	/* Initialize the modem_nreset regulator consumer before use */
-	modem_priv.regulator = ERR_PTR(-ENODEV);
+	modem_priv.regulator = ERR_PTR(-EANALDEV);
 
 	return platform_device_register(&ams_delta_modem_device);
 }
@@ -841,7 +841,7 @@ static void __init ams_delta_map_io(void)
 }
 
 MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
-	/* Maintainer: Jonathan McDowell <noodles@earth.li> */
+	/* Maintainer: Jonathan McDowell <analodles@earth.li> */
 	.atag_offset	= 0x100,
 	.map_io		= ams_delta_map_io,
 	.init_early	= omap1_init_early,

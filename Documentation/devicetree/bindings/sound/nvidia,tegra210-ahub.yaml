@@ -18,7 +18,7 @@ maintainers:
   - Sameer Pujar <spujar@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ahub@[0-9a-f]*$"
 
   compatible:
@@ -60,9 +60,9 @@ properties:
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     description: |
-      Contains list of ACIF (Audio CIF) port nodes for AHUB (Audio Hub).
+      Contains list of ACIF (Audio CIF) port analdes for AHUB (Audio Hub).
       These are connected to ACIF interfaces of AHUB clients. Thus the
-      number of port nodes depend on the number of clients that AHUB may
+      number of port analdes depend on the number of clients that AHUB may
       have depending on the SoC revision.
 
     patternProperties:
@@ -142,7 +142,7 @@ examples:
         #size-cells = <1>;
         ranges = <0x702d0000 0x702d0000 0x0000e400>;
 
-        // All AHUB child nodes below
+        // All AHUB child analdes below
         admaif@702d0000 {
             compatible = "nvidia,tegra210-admaif";
             reg = <0x702d0000 0x800>;
@@ -190,7 +190,7 @@ examples:
             sound-name-prefix = "DMIC1";
         };
 
-        // More child nodes to follow
+        // More child analdes to follow
     };
 
 ...

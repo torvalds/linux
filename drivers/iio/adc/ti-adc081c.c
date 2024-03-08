@@ -143,7 +143,7 @@ static irqreturn_t adc081c_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -160,13 +160,13 @@ static int adc081c_probe(struct i2c_client *client)
 	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	model = i2c_get_match_data(client);
 
 	iio = devm_iio_device_alloc(&client->dev, sizeof(*adc));
 	if (!iio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(iio);
 	adc->i2c = client;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /*
@@ -23,14 +23,14 @@
 #define _PAGE_ACCESSED		(1 << 4)  /* Accessed      (s) */
 #define _PAGE_DIRTY		(1 << 5)  /* Modified      (s) */
 #define _PAGE_SPECIAL		(1 << 6)
-#define _PAGE_GLOBAL		(1 << 8)  /* ASID agnostic (H) */
+#define _PAGE_GLOBAL		(1 << 8)  /* ASID aganalstic (H) */
 #define _PAGE_PRESENT		(1 << 9)  /* PTE/TLB Valid (H) */
 
 /* We borrow bit 5 to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	_PAGE_DIRTY
 
 #ifdef CONFIG_ARC_MMU_V4
-#define _PAGE_HW_SZ		(1 << 10)  /* Normal/super (H) */
+#define _PAGE_HW_SZ		(1 << 10)  /* Analrmal/super (H) */
 #else
 #define _PAGE_HW_SZ		0
 #endif
@@ -38,12 +38,12 @@
 /* Defaults for every user page */
 #define ___DEF		(_PAGE_PRESENT | _PAGE_CACHEABLE)
 
-/* Set of bits not changed in pte_modify */
+/* Set of bits analt changed in pte_modify */
 #define _PAGE_CHG_MASK	(PAGE_MASK_PHYS | _PAGE_ACCESSED | _PAGE_DIRTY | \
 							   _PAGE_SPECIAL)
 
 /* More Abbrevaited helpers */
-#define PAGE_U_NONE     __pgprot(___DEF)
+#define PAGE_U_ANALNE     __pgprot(___DEF)
 #define PAGE_U_R        __pgprot(___DEF | _PAGE_READ)
 #define PAGE_U_W_R      __pgprot(___DEF | _PAGE_READ | _PAGE_WRITE)
 #define PAGE_U_X_R      __pgprot(___DEF | _PAGE_READ | _PAGE_EXECUTE)
@@ -54,7 +54,7 @@
 
 #define PAGE_SHARED	PAGE_U_W_R
 
-#define pgprot_noncached(prot)	(__pgprot(pgprot_val(prot) & ~_PAGE_CACHEABLE))
+#define pgprot_analncached(prot)	(__pgprot(pgprot_val(prot) & ~_PAGE_CACHEABLE))
 
 /*
  * Mapping of vm_flags (Generic VM) to PTE flags (arch specific)
@@ -85,9 +85,9 @@
 #define PTE_BIT_FUNC(fn, op) \
 	static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
 
-PTE_BIT_FUNC(mknotpresent,     &= ~(_PAGE_PRESENT));
+PTE_BIT_FUNC(mkanaltpresent,     &= ~(_PAGE_PRESENT));
 PTE_BIT_FUNC(wrprotect,	&= ~(_PAGE_WRITE));
-PTE_BIT_FUNC(mkwrite_novma,	|= (_PAGE_WRITE));
+PTE_BIT_FUNC(mkwrite_analvma,	|= (_PAGE_WRITE));
 PTE_BIT_FUNC(mkclean,	&= ~(_PAGE_DIRTY));
 PTE_BIT_FUNC(mkdirty,	|= (_PAGE_DIRTY));
 PTE_BIT_FUNC(mkold,	&= ~(_PAGE_ACCESSED));
@@ -109,7 +109,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -117,7 +117,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   <-------------- offset -------------> <--- zero --> E < type ->
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  *   The zero'ed bits include _PAGE_PRESENT.
  */
 #define __swp_entry(type, off)		((swp_entry_t) \

@@ -10,7 +10,7 @@
 
 static struct rc_map_table streamzap[] = {
 /*
- * The Streamzap remote is almost, but not quite, RC-5, as it has an extra
+ * The Streamzap remote is almost, but analt quite, RC-5, as it has an extra
  * bit in it.
  */
 	{ 0x28c0, KEY_NUMERIC_0 },

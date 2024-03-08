@@ -35,6 +35,6 @@ ENTRY(__ashrdi3)
 	or	%g0, %o5, %o1
 3:
 	jmpl	%o7 + 8, %g0
-	 nop
+	 analp
 ENDPROC(__ashrdi3)
 EXPORT_SYMBOL(__ashrdi3)

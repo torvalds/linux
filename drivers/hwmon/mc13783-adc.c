@@ -233,7 +233,7 @@ static int __init mc13783_adc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mc13xxx = dev_get_drvdata(pdev->dev.parent);
 	snprintf(priv->name, ARRAY_SIZE(priv->name), "%s", id->name);

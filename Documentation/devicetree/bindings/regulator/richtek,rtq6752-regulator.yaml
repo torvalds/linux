@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The RTQ6752 is an I2C interface pgorammable power management IC. It includes
-  two synchronous boost converter for PAVDD, and one synchronous NAVDD
+  two synchroanalus boost converter for PAVDD, and one synchroanalus NAVDD
   buck-boost. The device is suitable for automotive TFT-LCD panel.
 
 properties:
@@ -24,7 +24,7 @@ properties:
 
   enable-gpios:
     description: |
-      A connection of the chip 'enable' gpio line. If not provided, treat it as
+      A connection of the chip 'enable' gpio line. If analt provided, treat it as
       external pull up.
     maxItems: 1
 

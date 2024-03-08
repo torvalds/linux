@@ -2,11 +2,11 @@
 /*
  * OMAP1/OMAP7xx - specific DMA driver
  *
- * Copyright (C) 2003 - 2008 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
- * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@nokia.com>
+ * Copyright (C) 2003 - 2008 Analkia Corporation
+ * Author: Juha Yrjölä <juha.yrjola@analkia.com>
+ * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@analkia.com>
  * Graphics DMA and LCD DMA graphics tranformations
- * by Imre Deak <imre.deak@nokia.com>
+ * by Imre Deak <imre.deak@analkia.com>
  * OMAP2/3 support Copyright (C) 2004-2007 Texas Instruments, Inc.
  * Some functions based on earlier dma-omap.c Copyright (C) 2001 RidgeRun, Inc.
  *
@@ -302,13 +302,13 @@ static int __init omap1_system_dma_init(void)
 	if (!pdev) {
 		pr_err("%s: Unable to device alloc for dma\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dma_base = ioremap(res[0].start, resource_size(&res[0]));
 	if (!dma_base) {
 		pr_err("%s: Unable to ioremap\n", __func__);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto exit_device_put;
 	}
 
@@ -321,7 +321,7 @@ static int __init omap1_system_dma_init(void)
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_iounmap;
 	}
 

@@ -50,7 +50,7 @@
 
 /* Definitions of the predefined namespace names  */
 
-#define ACPI_UNKNOWN_NAME       (u32) 0x3F3F3F3F	/* Unknown name is "????" */
+#define ACPI_UNKANALWN_NAME       (u32) 0x3F3F3F3F	/* Unkanalwn name is "????" */
 #define ACPI_PREFIX_MIXED       (u32) 0x69706341	/* "Acpi" */
 #define ACPI_PREFIX_LOWER       (u32) 0x69706361	/* "acpi" */
 

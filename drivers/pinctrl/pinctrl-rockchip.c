@@ -318,25 +318,25 @@ static int rockchip_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np,
+static int rockchip_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_analde *np,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const struct rockchip_pin_group *grp;
 	struct device *dev = info->dev;
 	struct pinctrl_map *new_map;
-	struct device_node *parent;
+	struct device_analde *parent;
 	int map_num = 1;
 	int i;
 
 	/*
-	 * first find the group of this node and check if we need to create
+	 * first find the group of this analde and check if we need to create
 	 * config maps for pins
 	 */
 	grp = pinctrl_name_to_group(info, np->name);
 	if (!grp) {
-		dev_err(dev, "unable to find group for node %pOFn\n", np);
+		dev_err(dev, "unable to find group for analde %pOFn\n", np);
 		return -EINVAL;
 	}
 
@@ -344,7 +344,7 @@ static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	new_map = kcalloc(map_num, sizeof(*new_map), GFP_KERNEL);
 	if (!new_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*map = new_map;
 	*num_maps = map_num;
@@ -358,7 +358,7 @@ static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
-	of_node_put(parent);
+	of_analde_put(parent);
 
 	/* create config map */
 	new_map++;
@@ -386,7 +386,7 @@ static const struct pinctrl_ops rockchip_pctrl_ops = {
 	.get_groups_count	= rockchip_get_groups_count,
 	.get_group_name		= rockchip_get_group_name,
 	.get_group_pins		= rockchip_get_group_pins,
-	.dt_node_to_map		= rockchip_dt_node_to_map,
+	.dt_analde_to_map		= rockchip_dt_analde_to_map,
 	.dt_free_map		= rockchip_dt_free_map,
 };
 
@@ -836,8 +836,8 @@ static struct rockchip_mux_route_data rk3128_mux_route_data[] = {
 };
 
 static struct rockchip_mux_route_data rk3188_mux_route_data[] = {
-	RK_MUXROUTE_SAME(0, RK_PD0, 1, 0xa0, BIT(16 + 11)), /* non-iomuxed emmc/flash pins on flash-dqs */
-	RK_MUXROUTE_SAME(0, RK_PD0, 2, 0xa0, BIT(16 + 11) | BIT(11)), /* non-iomuxed emmc/flash pins on emmc-clk */
+	RK_MUXROUTE_SAME(0, RK_PD0, 1, 0xa0, BIT(16 + 11)), /* analn-iomuxed emmc/flash pins on flash-dqs */
+	RK_MUXROUTE_SAME(0, RK_PD0, 2, 0xa0, BIT(16 + 11) | BIT(11)), /* analn-iomuxed emmc/flash pins on emmc-clk */
 };
 
 static struct rockchip_mux_route_data rk3228_mux_route_data[] = {
@@ -862,8 +862,8 @@ static struct rockchip_mux_route_data rk3228_mux_route_data[] = {
 };
 
 static struct rockchip_mux_route_data rk3288_mux_route_data[] = {
-	RK_MUXROUTE_SAME(7, RK_PC0, 2, 0x264, BIT(16 + 12) | BIT(12)), /* edphdmi_cecinoutt1 */
-	RK_MUXROUTE_SAME(7, RK_PC7, 4, 0x264, BIT(16 + 12)), /* edphdmi_cecinout */
+	RK_MUXROUTE_SAME(7, RK_PC0, 2, 0x264, BIT(16 + 12) | BIT(12)), /* edphdmi_cecianalutt1 */
+	RK_MUXROUTE_SAME(7, RK_PC7, 4, 0x264, BIT(16 + 12)), /* edphdmi_cecianalut */
 };
 
 static struct rockchip_mux_route_data rk3308_mux_route_data[] = {
@@ -1134,7 +1134,7 @@ static int rockchip_verify_mux(struct rockchip_pin_bank *bank,
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY) {
 		if (mux != RK_FUNC_GPIO) {
 			dev_err(dev, "pin %d only supports a gpio mux\n", pin);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -1145,7 +1145,7 @@ static int rockchip_verify_mux(struct rockchip_pin_bank *bank,
  * Set a new mux function for a pin.
  *
  * The register is divided into the upper and lower 16 bit. When changing
- * a value, the previous register value is not read and changed. Instead
+ * a value, the previous register value is analt read and changed. Instead
  * it seems the changed bits are marked in the upper 16 bit, while the
  * changed value gets set in the same offset in the lower 16 bit.
  * All pin settings seem to be 2 bit wide in both the upper and lower
@@ -2217,7 +2217,7 @@ static int rockchip_get_drive_perpin(struct rockchip_pin_bank *bank,
 		rmask_bits = RK3399_DRV_3BITS_PER_PIN;
 		switch (bit) {
 		case 0 ... 12:
-			/* regular case, nothing to do */
+			/* regular case, analthing to do */
 			break;
 		case 15:
 			/*
@@ -2330,7 +2330,7 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		rmask_bits = RK3399_DRV_3BITS_PER_PIN;
 		switch (bit) {
 		case 0 ... 12:
-			/* regular case, nothing to do */
+			/* regular case, analthing to do */
 			break;
 		case 15:
 			/*
@@ -2770,7 +2770,7 @@ static int rockchip_pinconf_defer_pin(struct rockchip_pin_bank *bank,
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg->pin = pin;
 	cfg->param = param;
@@ -2799,7 +2799,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 		if (param == PIN_CONFIG_OUTPUT || param == PIN_CONFIG_INPUT_ENABLE) {
 			/*
-			 * Check for gpio driver not being probed yet.
+			 * Check for gpio driver analt being probed yet.
 			 * The lock makes sure that either gpio-probe has completed
 			 * or the gpio driver hasn't probed yet.
 			 */
@@ -2828,7 +2828,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
 		case PIN_CONFIG_BIAS_BUS_HOLD:
 			if (!rockchip_pinconf_pull_valid(info->ctrl, param))
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			if (!arg)
 				return -EINVAL;
@@ -2862,7 +2862,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			/* rk3288 is the first with per-pin drive-strength */
 			if (!info->ctrl->drv_calc_reg)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			rc = rockchip_set_drive_perpin(bank,
 						pin - bank->pin_base, arg);
@@ -2871,7 +2871,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 		case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
 			if (!info->ctrl->schmitt_calc_reg)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			rc = rockchip_set_schmitt(bank,
 						  pin - bank->pin_base, arg);
@@ -2879,7 +2879,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return rc;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 			break;
 		}
 	} /* for each config */
@@ -2910,7 +2910,7 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
 	case PIN_CONFIG_BIAS_BUS_HOLD:
 		if (!rockchip_pinconf_pull_valid(info->ctrl, param))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		if (rockchip_get_pull(bank, pin - bank->pin_base) != param)
 			return -EINVAL;
@@ -2936,7 +2936,7 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		/* rk3288 is the first with per-pin drive-strength */
 		if (!info->ctrl->drv_calc_reg)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		rc = rockchip_get_drive_perpin(bank, pin - bank->pin_base);
 		if (rc < 0)
@@ -2946,7 +2946,7 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
 		if (!info->ctrl->schmitt_calc_reg)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		rc = rockchip_get_schmitt(bank, pin - bank->pin_base);
 		if (rc < 0)
@@ -2955,7 +2955,7 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		arg = rc;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 		break;
 	}
 
@@ -2977,12 +2977,12 @@ static const struct of_device_id rockchip_bank_match[] = {
 };
 
 static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
-						struct device_node *np)
+						struct device_analde *np)
 {
-	struct device_node *child;
+	struct device_analde *child;
 
-	for_each_child_of_node(np, child) {
-		if (of_match_node(rockchip_bank_match, child))
+	for_each_child_of_analde(np, child) {
+		if (of_match_analde(rockchip_bank_match, child))
 			continue;
 
 		info->nfunctions++;
@@ -2990,7 +2990,7 @@ static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
 	}
 }
 
-static int rockchip_pinctrl_parse_groups(struct device_node *np,
+static int rockchip_pinctrl_parse_groups(struct device_analde *np,
 					      struct rockchip_pin_group *grp,
 					      struct rockchip_pinctrl *info,
 					      u32 index)
@@ -3013,7 +3013,7 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	 * do sanity check and calculate pins number
 	 */
 	list = of_get_property(np, "rockchip,pins", &size);
-	/* we do not check return since it's safe node passed down */
+	/* we do analt check return since it's safe analde passed down */
 	size /= sizeof(*list);
 	if (!size || size % 4)
 		return dev_err_probe(dev, -EINVAL, "wrong pins number or pins and configs should be by 4\n");
@@ -3023,11 +3023,11 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	grp->pins = devm_kcalloc(dev, grp->npins, sizeof(*grp->pins), GFP_KERNEL);
 	grp->data = devm_kcalloc(dev, grp->npins, sizeof(*grp->data), GFP_KERNEL);
 	if (!grp->pins || !grp->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, j = 0; i < size; i += 4, j++) {
 		const __be32 *phandle;
-		struct device_node *np_config;
+		struct device_analde *np_config;
 
 		num = be32_to_cpu(*list++);
 		bank = bank_num_to_bank(info, num);
@@ -3041,10 +3041,10 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 		if (!phandle)
 			return -EINVAL;
 
-		np_config = of_find_node_by_phandle(be32_to_cpup(phandle));
+		np_config = of_find_analde_by_phandle(be32_to_cpup(phandle));
 		ret = pinconf_generic_parse_dt_config(np_config, NULL,
 				&grp->data[j].configs, &grp->data[j].nconfigs);
-		of_node_put(np_config);
+		of_analde_put(np_config);
 		if (ret)
 			return ret;
 	}
@@ -3052,12 +3052,12 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static int rockchip_pinctrl_parse_functions(struct device_node *np,
+static int rockchip_pinctrl_parse_functions(struct device_analde *np,
 						struct rockchip_pinctrl *info,
 						u32 index)
 {
 	struct device *dev = info->dev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct rockchip_pmx_func *func;
 	struct rockchip_pin_group *grp;
 	int ret;
@@ -3076,14 +3076,14 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
 
 	func->groups = devm_kcalloc(dev, func->ngroups, sizeof(*func->groups), GFP_KERNEL);
 	if (!func->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		func->groups[i] = child->name;
 		grp = &info->groups[grp_index++];
 		ret = rockchip_pinctrl_parse_groups(child, grp, info, i++);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}
@@ -3095,8 +3095,8 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
 					      struct rockchip_pinctrl *info)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	int ret;
 	int i;
 
@@ -3107,22 +3107,22 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
 
 	info->functions = devm_kcalloc(dev, info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
 	if (!info->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->groups = devm_kcalloc(dev, info->ngroups, sizeof(*info->groups), GFP_KERNEL);
 	if (!info->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 
-	for_each_child_of_node(np, child) {
-		if (of_match_node(rockchip_bank_match, child))
+	for_each_child_of_analde(np, child) {
+		if (of_match_analde(rockchip_bank_match, child))
 			continue;
 
 		ret = rockchip_pinctrl_parse_functions(child, info, i++);
 		if (ret) {
 			dev_err(dev, "failed to parse function\n");
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}
@@ -3149,7 +3149,7 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 
 	pindesc = devm_kcalloc(dev, info->ctrl->nr_pins, sizeof(*pindesc), GFP_KERNEL);
 	if (!pindesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrldesc->pins = pindesc;
 	ctrldesc->npins = info->ctrl->nr_pins;
@@ -3178,7 +3178,7 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 
 	info->pctl_dev = devm_pinctrl_register(dev, ctrldesc, info);
 	if (IS_ERR(info->pctl_dev))
-		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could not register pinctrl driver\n");
+		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could analt register pinctrl driver\n");
 
 	return 0;
 }
@@ -3191,13 +3191,13 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 						struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	const struct of_device_id *match;
 	struct rockchip_pin_ctrl *ctrl;
 	struct rockchip_pin_bank *bank;
 	int grf_offs, pmu_offs, drv_grf_offs, drv_pmu_offs, i, j;
 
-	match = of_match_node(rockchip_pinctrl_dt_match, node);
+	match = of_match_analde(rockchip_pinctrl_dt_match, analde);
 	ctrl = (struct rockchip_pin_ctrl *)match->data;
 
 	grf_offs = ctrl->grf_mux_offset;
@@ -3355,30 +3355,30 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rockchip_pinctrl *info;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node, *node;
+	struct device_analde *np = dev->of_analde, *analde;
 	struct rockchip_pin_ctrl *ctrl;
 	struct resource *res;
 	void __iomem *base;
 	int ret;
 
-	if (!dev->of_node)
-		return dev_err_probe(dev, -ENODEV, "device tree node not found\n");
+	if (!dev->of_analde)
+		return dev_err_probe(dev, -EANALDEV, "device tree analde analt found\n");
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 
 	ctrl = rockchip_pinctrl_get_soc_data(info, pdev);
 	if (!ctrl)
-		return dev_err_probe(dev, -EINVAL, "driver data not available\n");
+		return dev_err_probe(dev, -EINVAL, "driver data analt available\n");
 	info->ctrl = ctrl;
 
-	node = of_parse_phandle(np, "rockchip,grf", 0);
-	if (node) {
-		info->regmap_base = syscon_node_to_regmap(node);
-		of_node_put(node);
+	analde = of_parse_phandle(np, "rockchip,grf", 0);
+	if (analde) {
+		info->regmap_base = syscon_analde_to_regmap(analde);
+		of_analde_put(analde);
 		if (IS_ERR(info->regmap_base))
 			return PTR_ERR(info->regmap_base);
 	} else {
@@ -3394,7 +3394,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 		/* to check for the old dt-bindings */
 		info->reg_size = resource_size(res);
 
-		/* Honor the old binding, with pull registers as 2nd resource */
+		/* Hoanalr the old binding, with pull registers as 2nd resource */
 		if (ctrl->type == RK3188 && info->reg_size < 0x200) {
 			base = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
 			if (IS_ERR(base))
@@ -3408,10 +3408,10 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	/* try to find the optional reference to the pmu syscon */
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
-	if (node) {
-		info->regmap_pmu = syscon_node_to_regmap(node);
-		of_node_put(node);
+	analde = of_parse_phandle(np, "rockchip,pmu", 0);
+	if (analde) {
+		info->regmap_pmu = syscon_analde_to_regmap(analde);
+		of_analde_put(analde);
 		if (IS_ERR(info->regmap_pmu))
 			return PTR_ERR(info->regmap_pmu);
 	}

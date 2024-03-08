@@ -13,7 +13,7 @@
 /*
  * Driver for the Texas Instruments TMP401 SMBUS temperature sensor IC.
  *
- * Note this IC is in some aspect similar to the LM90, but it has quite a
+ * Analte this IC is in some aspect similar to the LM90, but it has quite a
  * few differences too, for example the local temp has a higher resolution
  * and thus has 16 bits registers for its value and limit instead of 8 bits.
  */
@@ -29,13 +29,13 @@
 #include <linux/slab.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c, 0x4d,
+static const unsigned short analrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c, 0x4d,
 	0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { tmp401, tmp411, tmp431, tmp432, tmp435 };
 
 /*
- * The TMP401 registers, note some registers have different addresses for
+ * The TMP401 registers, analte some registers have different addresses for
  * reading and writing
  */
 #define TMP401_STATUS				0x02
@@ -351,7 +351,7 @@ unlock:
 		*val = !!(regval & BIT(channel));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -390,7 +390,7 @@ static int tmp401_temp_write(struct device *dev, u32 attr, int channel,
 		ret = regmap_write(regmap, TMP401_TEMP_CRIT_HYST, regval);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	mutex_unlock(&data->update_lock);
@@ -414,7 +414,7 @@ static int tmp401_chip_read(struct device *dev, u32 attr, int channel, long *val
 		*val = 0;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -460,7 +460,7 @@ static int tmp401_chip_write(struct device *dev, u32 attr, int channel, long val
 		err = regmap_write(regmap, 0x30, 0);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 	mutex_unlock(&data->update_lock);
@@ -477,7 +477,7 @@ static int tmp401_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return tmp401_temp_read(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -490,7 +490,7 @@ static int tmp401_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return tmp401_temp_write(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -561,7 +561,7 @@ static int tmp401_init_client(struct tmp401_data *data)
 	config_orig = config;
 	config &= ~TMP401_CONFIG_SHUTDOWN;
 
-	if (of_property_read_bool(data->client->dev.of_node, "ti,extended-range-enable")) {
+	if (of_property_read_bool(data->client->dev.of_analde, "ti,extended-range-enable")) {
 		/* Enable measurement over extended temperature range */
 		config |= TMP401_CONFIG_RANGE;
 	}
@@ -574,10 +574,10 @@ static int tmp401_init_client(struct tmp401_data *data)
 			return ret;
 	}
 
-	ret = of_property_read_u32(data->client->dev.of_node, "ti,n-factor", &nfactor);
+	ret = of_property_read_u32(data->client->dev.of_analde, "ti,n-factor", &nfactor);
 	if (!ret) {
 		if (data->kind == tmp401) {
-			dev_err(&data->client->dev, "ti,tmp401 does not support n-factor correction\n");
+			dev_err(&data->client->dev, "ti,tmp401 does analt support n-factor correction\n");
 			return -EINVAL;
 		}
 		if (nfactor < -128 || nfactor > 127) {
@@ -589,10 +589,10 @@ static int tmp401_init_client(struct tmp401_data *data)
 			return ret;
 	}
 
-	ret = of_property_read_u32(data->client->dev.of_node, "ti,beta-compensation", &val);
+	ret = of_property_read_u32(data->client->dev.of_analde, "ti,beta-compensation", &val);
 	if (!ret) {
 		if (data->kind == tmp401 || data->kind == tmp411) {
-			dev_err(&data->client->dev, "ti,tmp401 or ti,tmp411 does not support beta compensation\n");
+			dev_err(&data->client->dev, "ti,tmp401 or ti,tmp411 does analt support beta compensation\n");
 			return -EINVAL;
 		}
 		if (val > 15) {
@@ -615,61 +615,61 @@ static int tmp401_detect(struct i2c_client *client,
 	u8 reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Detect and identify the chip */
 	reg = i2c_smbus_read_byte_data(client, TMP401_MANUFACTURER_ID_REG);
 	if (reg != TMP401_MANUFACTURER_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, TMP401_DEVICE_ID_REG);
 
 	switch (reg) {
 	case TMP401_DEVICE_ID:
 		if (client->addr != 0x4c)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp401;
 		break;
 	case TMP411A_DEVICE_ID:
 		if (client->addr != 0x4c)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp411;
 		break;
 	case TMP411B_DEVICE_ID:
 		if (client->addr != 0x4d)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp411;
 		break;
 	case TMP411C_DEVICE_ID:
 		if (client->addr != 0x4e)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp411;
 		break;
 	case TMP431_DEVICE_ID:
 		if (client->addr != 0x4c && client->addr != 0x4d)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp431;
 		break;
 	case TMP432_DEVICE_ID:
 		if (client->addr != 0x4c && client->addr != 0x4d)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp432;
 		break;
 	case TMP435_DEVICE_ID:
 		kind = tmp435;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	reg = i2c_smbus_read_byte_data(client, TMP401_CONFIG);
 	if (reg & 0x1b)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, TMP401_CONVERSION_RATE);
 	/* Datasheet says: 0x1-0x6 */
 	if (reg > 15)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, tmp401_id[kind].name, I2C_NAME_SIZE);
 
@@ -689,7 +689,7 @@ static int tmp401_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct tmp401_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -769,7 +769,7 @@ static struct i2c_driver tmp401_driver = {
 	.probe		= tmp401_probe,
 	.id_table	= tmp401_id,
 	.detect		= tmp401_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(tmp401_driver);

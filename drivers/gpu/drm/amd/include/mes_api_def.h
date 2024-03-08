@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@
 enum { API_FRAME_SIZE_IN_DWORDS = 64 };
 
 /* To avoid command in scheduler context to be overwritten whenever multiple
- * interrupts come in, this creates another queue.
+ * interrupts come in, this creates aanalther queue.
  */
 enum { API_NUMBER_OF_COMMAND_MAX = 32 };
 
@@ -77,7 +77,7 @@ union MES_API_HEADER {
 
 enum MES_AMD_PRIORITY_LEVEL {
 	AMD_PRIORITY_LEVEL_LOW		= 0,
-	AMD_PRIORITY_LEVEL_NORMAL	= 1,
+	AMD_PRIORITY_LEVEL_ANALRMAL	= 1,
 	AMD_PRIORITY_LEVEL_MEDIUM	= 2,
 	AMD_PRIORITY_LEVEL_HIGH		= 3,
 	AMD_PRIORITY_LEVEL_REALTIME	= 4,
@@ -121,7 +121,7 @@ enum MES_LOG_OPERATION {
 	MES_LOG_OPERATION_CONTEXT_STATE_CHANGE = 0,
 	MES_LOG_OPERATION_QUEUE_NEW_WORK = 1,
 	MES_LOG_OPERATION_QUEUE_UNWAIT_SYNC_OBJECT = 2,
-	MES_LOG_OPERATION_QUEUE_NO_MORE_WORK = 3,
+	MES_LOG_OPERATION_QUEUE_ANAL_MORE_WORK = 3,
 	MES_LOG_OPERATION_QUEUE_WAIT_SYNC_OBJECT = 4,
 	MES_LOG_OPERATION_QUEUE_INVALID = 0xF,
 };
@@ -149,7 +149,7 @@ struct MES_LOG_QUEUE_UNWAIT_SYNC_OBJECT {
 	uint64_t                   h_sync_object;
 };
 
-struct MES_LOG_QUEUE_NO_MORE_WORK {
+struct MES_LOG_QUEUE_ANAL_MORE_WORK {
 	uint64_t                   h_queue;
 	uint64_t                   reserved;
 };
@@ -174,7 +174,7 @@ struct MES_LOG_ENTRY_DATA {
 		struct MES_LOG_CONTEXT_STATE_CHANGE     context_state_change;
 		struct MES_LOG_QUEUE_NEW_WORK           queue_new_work;
 		struct MES_LOG_QUEUE_UNWAIT_SYNC_OBJECT queue_unwait_sync_object;
-		struct MES_LOG_QUEUE_NO_MORE_WORK       queue_no_more_work;
+		struct MES_LOG_QUEUE_ANAL_MORE_WORK       queue_anal_more_work;
 		struct MES_LOG_QUEUE_WAIT_SYNC_OBJECT   queue_wait_sync_object;
 		uint64_t                                all[2];
 	};
@@ -296,8 +296,8 @@ union MESAPI__REMOVE_QUEUE {
 union MESAPI__SET_SCHEDULING_CONFIG {
 	struct {
 		union MES_API_HEADER	header;
-		/* Grace period when preempting another priority band for this
-		 * priority band. The value for idle priority band is ignored,
+		/* Grace period when preempting aanalther priority band for this
+		 * priority band. The value for idle priority band is iganalred,
 		 * as it never preempts other bands.
 		 */
 		uint64_t		grace_period_other_levels[AMD_PRIORITY_NUM_LEVELS];
@@ -309,11 +309,11 @@ union MESAPI__SET_SCHEDULING_CONFIG {
 		 * within a priority band.
 		 */
 		uint64_t		process_grace_period_same_level[AMD_PRIORITY_NUM_LEVELS];
-		/* For normal level this field specifies the target GPU
+		/* For analrmal level this field specifies the target GPU
 		 * percentage in situations when it's starved by the high level.
 		 * Valid values are between 0 and 50, with the default being 10.
 		 */
-		uint32_t		normal_yield_percent;
+		uint32_t		analrmal_yield_percent;
 		struct MES_API_STATUS	api_status;
 	};
 
@@ -385,13 +385,13 @@ union MESAPI__RESET {
 		union MES_API_HEADER		header;
 
 		struct {
-			/* Only reset the queue given by doorbell_offset (not entire gang) */
+			/* Only reset the queue given by doorbell_offset (analt entire gang) */
 			uint32_t                reset_queue_only : 1;
 			/* Hang detection first then reset any queues that are hung */
 			uint32_t                hang_detect_then_reset : 1;
-			/* Only do hang detection (no reset) */
+			/* Only do hang detection (anal reset) */
 			uint32_t                hang_detect_only : 1;
-			/* Rest HP and LP kernel queues not managed by MES */
+			/* Rest HP and LP kernel queues analt managed by MES */
 			uint32_t                reset_legacy_gfx : 1;
 			uint32_t                reserved : 28;
 		};
@@ -447,7 +447,7 @@ union MESAPI__SET_LOGGING_BUFFER {
 union MESAPI__QUERY_MES_STATUS {
 	struct {
 		union MES_API_HEADER	header;
-		bool			mes_healthy; /* 0 - not healthy, 1 - healthy */
+		bool			mes_healthy; /* 0 - analt healthy, 1 - healthy */
 		struct MES_API_STATUS	api_status;
 	};
 

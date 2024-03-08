@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Asynchronous Compression operations
+ * Asynchroanalus Compression operations
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Weigang Li <weigang.li@intel.com>
@@ -9,7 +9,7 @@
 
 #include <crypto/internal/acompress.h>
 #include <linux/cryptouser.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
@@ -144,13 +144,13 @@ struct crypto_acomp *crypto_alloc_acomp(const char *alg_name, u32 type,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_acomp);
 
-struct crypto_acomp *crypto_alloc_acomp_node(const char *alg_name, u32 type,
-					u32 mask, int node)
+struct crypto_acomp *crypto_alloc_acomp_analde(const char *alg_name, u32 type,
+					u32 mask, int analde)
 {
-	return crypto_alloc_tfm_node(alg_name, &crypto_acomp_type, type, mask,
-				node);
+	return crypto_alloc_tfm_analde(alg_name, &crypto_acomp_type, type, mask,
+				analde);
 }
-EXPORT_SYMBOL_GPL(crypto_alloc_acomp_node);
+EXPORT_SYMBOL_GPL(crypto_alloc_acomp_analde);
 
 struct acomp_req *acomp_request_alloc(struct crypto_acomp *acomp)
 {
@@ -242,4 +242,4 @@ void crypto_unregister_acomps(struct acomp_alg *algs, int count)
 EXPORT_SYMBOL_GPL(crypto_unregister_acomps);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Asynchronous compression type");
+MODULE_DESCRIPTION("Asynchroanalus compression type");

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruanal Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -29,9 +29,9 @@ static int picolcd_debug_reset_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int picolcd_debug_reset_open(struct inode *inode, struct file *f)
+static int picolcd_debug_reset_open(struct ianalde *ianalde, struct file *f)
 {
-	return single_open(f, picolcd_debug_reset_show, inode->i_private);
+	return single_open(f, picolcd_debug_reset_show, ianalde->i_private);
 }
 
 static ssize_t picolcd_debug_reset_write(struct file *f, const char __user *user_buf,
@@ -119,7 +119,7 @@ static ssize_t picolcd_debug_eeprom_write(struct file *f, const char __user *u,
 	if (s == 0)
 		return -EINVAL;
 	if (*off > 0x0ff)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(raw_data, 0, sizeof(raw_data));
 	raw_data[0] = *off & 0xff;
@@ -148,7 +148,7 @@ static ssize_t picolcd_debug_eeprom_write(struct file *f, const char __user *u,
 }
 
 /*
- * Notes:
+ * Analtes:
  * - read/write happens in chunks of at most 20 bytes, it's up to userspace
  *   to loop in order to get more data.
  * - on write errors on otherwise correct write request the bytes
@@ -305,7 +305,7 @@ static ssize_t picolcd_debug_flash_write(struct file *f, const char __user *u,
 	if (s == 0)
 		return -EINVAL;
 	if (*off > 0x5fff)
-		return -ENOSPC;
+		return -EANALSPC;
 	if (s & 0x3f)
 		return -EINVAL;
 	if (*off & 0x3f)
@@ -337,7 +337,7 @@ static ssize_t picolcd_debug_flash_write(struct file *f, const char __user *u,
 }
 
 /*
- * Notes:
+ * Analtes:
  * - concurrent writing is prevented by mutex and all writes must be
  *   n*64 bytes and 64-byte aligned, each write being preceded by an
  *   ERASE which erases a 64byte block.
@@ -361,7 +361,7 @@ static const struct file_operations picolcd_debug_flash_fops = {
  */
 static const char * const error_codes[] = {
 	"success", "parameter missing", "data_missing", "block readonly",
-	"block not erasable", "block too big", "section overflow",
+	"block analt erasable", "block too big", "section overflow",
 	"invalid command length", "invalid data length",
 };
 
@@ -403,7 +403,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 		return;
 	}
 
-	snprintf(buff, BUFF_SZ, "\nout report %d (size %d) =  ",
+	snprintf(buff, BUFF_SZ, "\analut report %d (size %d) =  ",
 			report->id, raw_size);
 	hid_debug_event(hdev, buff);
 	raw_data[0] = report->id;
@@ -488,7 +488,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 		snprintf(buff, BUFF_SZ, "\tData length: %d\n", raw_data[3]);
 		hid_debug_event(hdev, buff);
 		if (raw_data[3] == 0) {
-			snprintf(buff, BUFF_SZ, "\tNo data\n");
+			snprintf(buff, BUFF_SZ, "\tAnal data\n");
 		} else if (raw_data[3] + 4 <= raw_size) {
 			snprintf(buff, BUFF_SZ, "\tData: ");
 			hid_debug_event(hdev, buff);
@@ -514,7 +514,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 					raw_data[3], raw_data[2], raw_data[1]);
 			break;
 		default:
-			snprintf(buff, BUFF_SZ, "\tNot supported\n");
+			snprintf(buff, BUFF_SZ, "\tAnalt supported\n");
 		}
 		hid_debug_event(hdev, buff);
 		break;
@@ -538,7 +538,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 			snprintf(buff, BUFF_SZ, "\tData length: %d\n", raw_data[4]);
 			break;
 		default:
-			snprintf(buff, BUFF_SZ, "\tNot supported\n");
+			snprintf(buff, BUFF_SZ, "\tAnalt supported\n");
 		}
 		hid_debug_event(hdev, buff);
 		break;
@@ -556,7 +556,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 			snprintf(buff, BUFF_SZ, "\tData length: %d\n", raw_data[3]);
 			hid_debug_event(hdev, buff);
 			if (raw_data[3] == 0) {
-				snprintf(buff, BUFF_SZ, "\tNo data\n");
+				snprintf(buff, BUFF_SZ, "\tAnal data\n");
 			} else if (raw_data[3] + 4 <= raw_size) {
 				snprintf(buff, BUFF_SZ, "\tData: ");
 				hid_debug_event(hdev, buff);
@@ -572,7 +572,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 			snprintf(buff, BUFF_SZ, "\tData length: %d\n", raw_data[4]);
 			hid_debug_event(hdev, buff);
 			if (raw_data[4] == 0) {
-				snprintf(buff, BUFF_SZ, "\tNo data\n");
+				snprintf(buff, BUFF_SZ, "\tAnal data\n");
 			} else if (raw_data[4] + 5 <= raw_size) {
 				snprintf(buff, BUFF_SZ, "\tData: ");
 				hid_debug_event(hdev, buff);
@@ -582,7 +582,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 			}
 			break;
 		default:
-			snprintf(buff, BUFF_SZ, "\tNot supported\n");
+			snprintf(buff, BUFF_SZ, "\tAnalt supported\n");
 		}
 		hid_debug_event(hdev, buff);
 		break;
@@ -629,7 +629,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 		break;
 	default:
 		snprintf(buff, BUFF_SZ, "out report %s (%d, size=%d)\n",
-			"<unknown>", report->id, raw_size-1);
+			"<unkanalwn>", report->id, raw_size-1);
 		hid_debug_event(hdev, buff);
 		break;
 	}
@@ -673,7 +673,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 			"REPORT_KEY_STATE", report->id, size-1);
 		hid_debug_event(hdev, buff);
 		if (raw_data[1] == 0)
-			snprintf(buff, BUFF_SZ, "\tNo key pressed\n");
+			snprintf(buff, BUFF_SZ, "\tAnal key pressed\n");
 		else if (raw_data[2] == 0)
 			snprintf(buff, BUFF_SZ, "\tOne key pressed: 0x%02x (%d)\n",
 					raw_data[1], raw_data[1]);
@@ -683,7 +683,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 		hid_debug_event(hdev, buff);
 		break;
 	case REPORT_IR_DATA:
-		/* Up to 20 byes of IR scancode data */
+		/* Up to 20 banal of IR scancode data */
 		snprintf(buff, BUFF_SZ, "report %s (%d, size=%d)\n",
 			"REPORT_IR_DATA", report->id, size-1);
 		hid_debug_event(hdev, buff);
@@ -713,7 +713,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 		snprintf(buff, BUFF_SZ, "\tData length: %d\n", raw_data[3]);
 		hid_debug_event(hdev, buff);
 		if (raw_data[3] == 0) {
-			snprintf(buff, BUFF_SZ, "\tNo data\n");
+			snprintf(buff, BUFF_SZ, "\tAnal data\n");
 			hid_debug_event(hdev, buff);
 		} else if (raw_data[3] + 4 <= size) {
 			snprintf(buff, BUFF_SZ, "\tData: ");
@@ -738,7 +738,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 			snprintf(buff, BUFF_SZ, "\tData length: %d\n", raw_data[3]);
 			hid_debug_event(hdev, buff);
 			if (raw_data[3] == 0) {
-				snprintf(buff, BUFF_SZ, "\tNo data\n");
+				snprintf(buff, BUFF_SZ, "\tAnal data\n");
 			} else if (raw_data[3] + 4 <= size) {
 				snprintf(buff, BUFF_SZ, "\tData: ");
 				hid_debug_event(hdev, buff);
@@ -754,7 +754,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 			snprintf(buff, BUFF_SZ, "\tData length: %d\n", raw_data[4]);
 			hid_debug_event(hdev, buff);
 			if (raw_data[4] == 0) {
-				snprintf(buff, BUFF_SZ, "\tNo data\n");
+				snprintf(buff, BUFF_SZ, "\tAnal data\n");
 			} else if (raw_data[4] + 5 <= size) {
 				snprintf(buff, BUFF_SZ, "\tData: ");
 				hid_debug_event(hdev, buff);
@@ -764,7 +764,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 			}
 			break;
 		default:
-			snprintf(buff, BUFF_SZ, "\tNot supported\n");
+			snprintf(buff, BUFF_SZ, "\tAnalt supported\n");
 		}
 		hid_debug_event(hdev, buff);
 		break;
@@ -826,7 +826,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 		break;
 	default:
 		snprintf(buff, BUFF_SZ, "report %s (%d, size=%d)\n",
-			"<unknown>", report->id, size-1);
+			"<unkanalwn>", report->id, size-1);
 		hid_debug_event(hdev, buff);
 		break;
 	}

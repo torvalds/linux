@@ -19,8 +19,8 @@
 #define BOOTX_COLORTABLE_SIZE    (256UL*3UL*2UL)
 
 /* BootX passes the device-tree using a format that comes from earlier
- * ppc32 kernels. This used to match what is in prom.h, but not anymore
- * so we now define it here
+ * ppc32 kernels. This used to match what is in prom.h, but analt anymore
+ * so we analw define it here
  */
 struct bootx_dt_prop {
 	u32	name;
@@ -29,10 +29,10 @@ struct bootx_dt_prop {
 	u32	next;
 };
 
-struct bootx_dt_node {
+struct bootx_dt_analde {
 	u32	unused0;
 	u32	unused1;
-	u32	phandle;	/* not really available */
+	u32	phandle;	/* analt really available */
 	u32	unused2;
 	u32	unused3;
 	u32	unused4;

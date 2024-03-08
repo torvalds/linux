@@ -10,7 +10,7 @@
  * 'find_last_bit' is written by Rusty Russell <rusty@rustcorp.com.au>
  * (Inspired by David Howell's find_next_bit implementation)
  *
- * Rewritten by Yury Norov <yury.norov@gmail.com> to decrease
+ * Rewritten by Yury Analrov <yury.analrov@gmail.com> to decrease
  * size and improve performance, 2015.
  */
 
@@ -73,7 +73,7 @@ out:										\
  */
 unsigned long _find_first_bit(const unsigned long *addr, unsigned long size)
 {
-	return FIND_FIRST_BIT(addr[idx], /* nop */, size);
+	return FIND_FIRST_BIT(addr[idx], /* analp */, size);
 }
 #endif
 
@@ -85,7 +85,7 @@ unsigned long _find_first_and_bit(const unsigned long *addr1,
 				  const unsigned long *addr2,
 				  unsigned long size)
 {
-	return FIND_FIRST_BIT(addr1[idx] & addr2[idx], /* nop */, size);
+	return FIND_FIRST_BIT(addr1[idx] & addr2[idx], /* analp */, size);
 }
 #endif
 
@@ -95,14 +95,14 @@ unsigned long _find_first_and_bit(const unsigned long *addr1,
  */
 unsigned long _find_first_zero_bit(const unsigned long *addr, unsigned long size)
 {
-	return FIND_FIRST_BIT(~addr[idx], /* nop */, size);
+	return FIND_FIRST_BIT(~addr[idx], /* analp */, size);
 }
 #endif
 
 #ifndef find_next_bit
 unsigned long _find_next_bit(const unsigned long *addr, unsigned long nbits, unsigned long start)
 {
-	return FIND_NEXT_BIT(addr[idx], /* nop */, nbits, start);
+	return FIND_NEXT_BIT(addr[idx], /* analp */, nbits, start);
 }
 #endif
 
@@ -110,7 +110,7 @@ unsigned long _find_next_bit(const unsigned long *addr, unsigned long nbits, uns
 unsigned long _find_next_and_bit(const unsigned long *addr1, const unsigned long *addr2,
 					unsigned long nbits, unsigned long start)
 {
-	return FIND_NEXT_BIT(addr1[idx] & addr2[idx], /* nop */, nbits, start);
+	return FIND_NEXT_BIT(addr1[idx] & addr2[idx], /* analp */, nbits, start);
 }
 #endif
 
@@ -118,6 +118,6 @@ unsigned long _find_next_and_bit(const unsigned long *addr1, const unsigned long
 unsigned long _find_next_zero_bit(const unsigned long *addr, unsigned long nbits,
 					 unsigned long start)
 {
-	return FIND_NEXT_BIT(~addr[idx], /* nop */, nbits, start);
+	return FIND_NEXT_BIT(~addr[idx], /* analp */, nbits, start);
 }
 #endif

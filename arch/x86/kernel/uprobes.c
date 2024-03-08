@@ -51,7 +51,7 @@
 	 << (row % 32))
 
 /*
- * Good-instruction tables for 32-bit apps.  This is non-const and volatile
+ * Good-instruction tables for 32-bit apps.  This is analn-const and volatile
  * to keep gcc from statically optimizing it out, as variable_test_bit makes
  * some versions of gcc to think only *(unsigned long*) is used.
  *
@@ -60,7 +60,7 @@
  * e4-e7 - in,out imm. SEGVs if used in userspace
  * ec-ef - in,out acc. SEGVs if used in userspace
  * cc - int3. SIGTRAP if used in userspace
- * ce - into. Not used in userspace - no kernel support to make it useful. SEGVs
+ * ce - into. Analt used in userspace - anal kernel support to make it useful. SEGVs
  *	(why we support bound (62) then? it's similar, and similarly unused...)
  * f1 - int1. SIGTRAP if used in userspace
  * f4 - hlt. SEGVs if used in userspace
@@ -69,7 +69,7 @@
  *
  * Opcodes which need some work to be supported:
  * 07,17,1f - pop es/ss/ds
- *	Normally not used in userspace, but would execute if used.
+ *	Analrmally analt used in userspace, but would execute if used.
  *	Can cause GP or stack exception if tries to load wrong segment descriptor.
  *	We hesitate to run them under single step since kernel's handling
  *	of userspace single-stepping (TF flag) is fragile.
@@ -78,9 +78,9 @@
  * cd - int N.
  *	Used by userspace for "int 80" syscall entry. (Other "int N"
  *	cause GP -> SEGV since their IDT gates don't allow calls from CPL 3).
- *	Not supported since kernel's handling of userspace single-stepping
+ *	Analt supported since kernel's handling of userspace single-stepping
  *	(TF flag) is fragile.
- * cf - iret. Normally not used in userspace. Doesn't SEGV unless arguments are bad
+ * cf - iret. Analrmally analt used in userspace. Doesn't SEGV unless arguments are bad
  */
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 static volatile u32 good_insns_32[256 / 32] = {
@@ -118,7 +118,7 @@ static volatile u32 good_insns_32[256 / 32] = {
  * 1e,1f - formerly push/pop ds
  * 27,2f,37,3f - formerly daa/das/aaa/aas
  * 60,61 - formerly pusha/popa
- * 62 - formerly bound. EVEX prefix for AVX512 (not yet supported)
+ * 62 - formerly bound. EVEX prefix for AVX512 (analt yet supported)
  * 82 - formerly redundant encoding of Group1
  * 9a - formerly call seg:ofs
  * ce - formerly into
@@ -140,9 +140,9 @@ static volatile u32 good_insns_32[256 / 32] = {
  * cd - int N.
  *	Used by userspace for "int 80" syscall entry. (Other "int N"
  *	cause GP -> SEGV since their IDT gates don't allow calls from CPL 3).
- *	Not supported since kernel's handling of userspace single-stepping
+ *	Analt supported since kernel's handling of userspace single-stepping
  *	(TF flag) is fragile.
- * cf - iret. Normally not used in userspace. Doesn't SEGV unless arguments are bad
+ * cf - iret. Analrmally analt used in userspace. Doesn't SEGV unless arguments are bad
  */
 #if defined(CONFIG_X86_64)
 static volatile u32 good_insns_64[256 / 32] = {
@@ -176,7 +176,7 @@ static volatile u32 good_insns_64[256 / 32] = {
  * 0f 00 - SLDT/STR/LLDT/LTR/VERR/VERW/-/- group. System insns
  * 0f 01 - SGDT/SIDT/LGDT/LIDT/SMSW/-/LMSW/INVLPG group.
  *	Also encodes tons of other system insns if mod=11.
- *	Some are in fact non-system: xend, xtest, rdtscp, maybe more
+ *	Some are in fact analn-system: xend, xtest, rdtscp, maybe more
  * 0f 05 - syscall
  * 0f 06 - clts (CPL0 insn)
  * 0f 07 - sysret
@@ -189,7 +189,7 @@ static volatile u32 good_insns_64[256 / 32] = {
  * 0f 37 - getsec
  * 0f 78 - vmread (Intel VMX. CPL0 insn)
  * 0f 79 - vmwrite (Intel VMX. CPL0 insn)
- *	Note: with prefixes, these two opcodes are
+ *	Analte: with prefixes, these two opcodes are
  *	extrq/insertq/AVX512 convert vector ops.
  * 0f ae - group15: [f]xsave,[f]xrstor,[v]{ld,st}mxcsr,clflush[opt],
  *	{rd,wr}{fs,gs}base,{s,l,m}fence.
@@ -282,14 +282,14 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 
 	ret = insn_decode(insn, auprobe->insn, sizeof(auprobe->insn), m);
 	if (ret < 0)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	if (is_prefix_bad(insn))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	/* We should not singlestep on the exception masking instructions */
+	/* We should analt singlestep on the exception masking instructions */
 	if (insn_masking_exception(insn))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (x86_64)
 		good_insns = good_insns_64;
@@ -304,7 +304,7 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 			return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 #ifdef CONFIG_X86_64
@@ -328,8 +328,8 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
  *  - There's always a modrm byte with bit layout "00 reg 101".
  *  - There's never a SIB byte.
  *  - The displacement is always 4 bytes.
- *  - REX.B=1 bit in REX prefix, which normally extends r/m field,
- *    has no effect on rip-relative mode. It doesn't make modrm byte
+ *  - REX.B=1 bit in REX prefix, which analrmally extends r/m field,
+ *    has anal effect on rip-relative mode. It doesn't make modrm byte
  *    with r/m=101 refer to register 1101 = R13.
  */
 static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
@@ -344,7 +344,7 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	/*
 	 * insn_rip_relative() would have decoded rex_prefix, vex_prefix, modrm.
 	 * Clear REX.b bit (extension of MODRM.rm field):
-	 * we want to encode low numbered reg, not r8+.
+	 * we want to encode low numbered reg, analt r8+.
 	 */
 	if (insn->rex_prefix.nbytes) {
 		cursor = auprobe->insn + insn_offset_rex_prefix(insn);
@@ -357,14 +357,14 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	 */
 	if (insn->vex_prefix.nbytes >= 3) {
 		/*
-		 * vex2:     c5    rvvvvLpp   (has no b bit)
+		 * vex2:     c5    rvvvvLpp   (has anal b bit)
 		 * vex3/xop: c4/8f rxbmmmmm wvvvvLpp
 		 * evex:     62    rxbR00mm wvvvv1pp zllBVaaa
 		 * Setting VEX3.b (setting because it has inverted meaning).
-		 * Setting EVEX.x since (in non-SIB encoding) EVEX.x
+		 * Setting EVEX.x since (in analn-SIB encoding) EVEX.x
 		 * is the 4th bit of MODRM.rm, and needs the same treatment.
-		 * For VEX3-encoded insns, VEX3.x value has no effect in
-		 * non-SIB encoding, the change is superfluous but harmless.
+		 * For VEX3-encoded insns, VEX3.x value has anal effect in
+		 * analn-SIB encoding, the change is superfluous but harmless.
 		 */
 		cursor = auprobe->insn + insn_offset_vex_prefix(insn) + 1;
 		*cursor |= 0x60;
@@ -375,7 +375,7 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	 * via a scratch register.
 	 *
 	 * This is tricky since there are insns with modrm byte
-	 * which also use registers not encoded in modrm byte:
+	 * which also use registers analt encoded in modrm byte:
 	 * [i]div/[i]mul: implicitly use dx:ax
 	 * shift ops: implicitly use cx
 	 * cmpxchg: implicitly uses ax
@@ -384,7 +384,7 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	 *   The code below thinks that reg=1 (cx), chooses si as scratch.
 	 * mulx: implicitly uses dx: mulx r/m,r1,r2 does r1:r2 = dx * r/m.
 	 *   First appeared in Haswell (BMI2 insn). It is vex-encoded.
-	 *   Example where none of bx,cx,dx can be used as scratch reg:
+	 *   Example where analne of bx,cx,dx can be used as scratch reg:
 	 *   c4 e2 63 f6 0d disp32   mulx disp32(%rip),%ebx,%ecx
 	 * [v]pcmpistri: implicitly uses cx, xmm0
 	 * [v]pcmpistrm: implicitly uses xmm0
@@ -394,13 +394,13 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	 * maskmovq/[v]maskmovdqu: implicitly uses (ds:rdi) as destination.
 	 *   Encoding: 0f f7 modrm, 66 0f f7 modrm, vex-encoded: c5 f9 f7 modrm.
 	 *   Store op1, byte-masked by op2 msb's in each byte, to (ds:rdi).
-	 *   AMD says it has no 3-operand form (vex.vvvv must be 1111)
-	 *   and that it can have only register operands, not mem
+	 *   AMD says it has anal 3-operand form (vex.vvvv must be 1111)
+	 *   and that it can have only register operands, analt mem
 	 *   (its modrm byte must have mode=11).
 	 *   If these restrictions will ever be lifted,
 	 *   we'll need code to prevent selection of di as scratch reg!
 	 *
-	 * Summary: I don't know any insns with modrm byte which
+	 * Summary: I don't kanalw any insns with modrm byte which
 	 * use SI register implicitly. DI register is used only
 	 * by one insn (maskmovq) and BX register is used
 	 * only by one too (cmpxchg8b).
@@ -418,14 +418,14 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	 * TODO: add XOP vvvv reading.
 	 *
 	 * vex.vvvv field is in bits 6-3, bits are inverted.
-	 * But in 32-bit mode, high-order bit may be ignored.
+	 * But in 32-bit mode, high-order bit may be iganalred.
 	 * Therefore, let's consider only 3 low-order bits.
 	 */
 	reg2 = ((reg2 >> 3) & 0x7) ^ 0x7;
 	/*
 	 * Register numbering is ax,cx,dx,bx, sp,bp,si,di, r8..r15.
 	 *
-	 * Choose scratch reg. Order is important: must not select bx
+	 * Choose scratch reg. Order is important: must analt select bx
 	 * if we can use si (cmpxchg8b case!)
 	 */
 	if (reg != 6 && reg2 != 6) {
@@ -434,7 +434,7 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	} else if (reg != 7 && reg2 != 7) {
 		reg2 = 7;
 		auprobe->defparam.fixups |= UPROBE_FIX_RIP_DI;
-		/* TODO (paranoia): force maskmovq to not use di */
+		/* TODO (paraanalia): force maskmovq to analt use di */
 	} else {
 		reg2 = 3;
 		auprobe->defparam.fixups |= UPROBE_FIX_RIP_BX;
@@ -489,7 +489,7 @@ static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 }
 #else /* 32-bit: */
 /*
- * No RIP-relative addressing on 32-bit
+ * Anal RIP-relative addressing on 32-bit
  */
 static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 {
@@ -512,7 +512,7 @@ struct uprobe_xol_ops {
 static inline int sizeof_long(struct pt_regs *regs)
 {
 	/*
-	 * Check registers for mode as in_xxx_syscall() does not apply here.
+	 * Check registers for mode as in_xxx_syscall() does analt apply here.
 	 */
 	return user_64bit_mode(regs) ? 8 : 4;
 }
@@ -564,7 +564,7 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 		if (emulate_push_stack(regs, utask->vaddr + auprobe->defparam.ilen))
 			return -ERESTART;
 	}
-	/* popf; tell the caller to not touch TF */
+	/* popf; tell the caller to analt touch TF */
 	if (auprobe->defparam.fixups & UPROBE_FIX_SETF)
 		utask->autask.saved_tf = true;
 
@@ -626,7 +626,7 @@ static bool check_jmp_cond(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	CASE_COND
 	#undef	DO
 
-	default:	/* not a conditional jmp */
+	default:	/* analt a conditional jmp */
 		return true;
 	}
 }
@@ -675,7 +675,7 @@ static int branch_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	BUG_ON(!branch_is_call(auprobe));
 	/*
 	 * We can only get here if branch_emulate_op() failed to push the ret
-	 * address _and_ another thread expanded our stack before the (mangled)
+	 * address _and_ aanalther thread expanded our stack before the (mangled)
 	 * "call" insn was executed out-of-line. Just restore ->sp and restart.
 	 * We could also restore ->ip and try to call branch_emulate_op() again.
 	 */
@@ -692,8 +692,8 @@ static void branch_clear_offset(struct arch_uprobe *auprobe, struct insn *insn)
 	 * the properly filled siginfo.
 	 *
 	 * But see the comment in ->post_xol(), in the unlikely case it can
-	 * succeed. So we need to ensure that the new ->ip can not fall into
-	 * the non-canonical area and trigger #GP.
+	 * succeed. So we need to ensure that the new ->ip can analt fall into
+	 * the analn-caanalnical area and trigger #GP.
 	 *
 	 * We could turn it into (say) "pushf", but then we would need to
 	 * divorce ->insn[] and ->ixol[]. We need to preserve the 1st byte
@@ -712,7 +712,7 @@ static const struct uprobe_xol_ops push_xol_ops = {
 	.emulate  = push_emulate_op,
 };
 
-/* Returns -ENOSYS if branch_xol_ops doesn't handle this insn */
+/* Returns -EANALSYS if branch_xol_ops doesn't handle this insn */
 static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	u8 opc1 = OPCODE1(insn);
@@ -723,7 +723,7 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 	case 0xeb:	/* jmp 8 */
 	case 0xe9:	/* jmp 32 */
 		break;
-	case 0x90:	/* prefix* + nop; same as jmp with .offs = 0 */
+	case 0x90:	/* prefix* + analp; same as jmp with .offs = 0 */
 		goto setup;
 
 	case 0xe8:	/* call relative */
@@ -732,7 +732,7 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 
 	case 0x0f:
 		if (insn->opcode.nbytes != 2)
-			return -ENOSYS;
+			return -EANALSYS;
 		/*
 		 * If it is a "near" conditional jmp, OPCODE2() - 0x10 matches
 		 * OPCODE1() of the "short" jmp which checks the same condition.
@@ -741,17 +741,17 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 		fallthrough;
 	default:
 		if (!is_cond_jmp_opcode(opc1))
-			return -ENOSYS;
+			return -EANALSYS;
 	}
 
 	/*
-	 * 16-bit overrides such as CALLW (66 e8 nn nn) are not supported.
-	 * Intel and AMD behavior differ in 64-bit mode: Intel ignores 66 prefix.
-	 * No one uses these insns, reject any branch insns with such prefix.
+	 * 16-bit overrides such as CALLW (66 e8 nn nn) are analt supported.
+	 * Intel and AMD behavior differ in 64-bit mode: Intel iganalres 66 prefix.
+	 * Anal one uses these insns, reject any branch insns with such prefix.
 	 */
 	for_each_insn_prefix(insn, i, p) {
 		if (p == 0x66)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 	}
 
 setup:
@@ -763,22 +763,22 @@ setup:
 	return 0;
 }
 
-/* Returns -ENOSYS if push_xol_ops doesn't handle this insn */
+/* Returns -EANALSYS if push_xol_ops doesn't handle this insn */
 static int push_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	u8 opc1 = OPCODE1(insn), reg_offset = 0;
 
 	if (opc1 < 0x50 || opc1 > 0x57)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (insn->length > 2)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (insn->length == 2) {
 		/* only support rex_prefix 0x41 (x64 only) */
 #ifdef CONFIG_X86_64
 		if (insn->rex_prefix.nbytes != 1 ||
 		    insn->rex_prefix.bytes[0] != 0x41)
-			return -ENOSYS;
+			return -EANALSYS;
 
 		switch (opc1) {
 		case 0x50:
@@ -807,7 +807,7 @@ static int push_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 			break;
 		}
 #else
-		return -ENOSYS;
+		return -EANALSYS;
 #endif
 	} else {
 		switch (opc1) {
@@ -862,16 +862,16 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 		return ret;
 
 	ret = branch_setup_xol_ops(auprobe, &insn);
-	if (ret != -ENOSYS)
+	if (ret != -EANALSYS)
 		return ret;
 
 	ret = push_setup_xol_ops(auprobe, &insn);
-	if (ret != -ENOSYS)
+	if (ret != -EANALSYS)
 		return ret;
 
 	/*
 	 * Figure out which fixups default_post_xol_op() will need to perform,
-	 * and annotate defparam->fixups accordingly.
+	 * and ananaltate defparam->fixups accordingly.
 	 */
 	switch (OPCODE1(&insn)) {
 	case 0x9d:		/* popf */
@@ -884,7 +884,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	case 0xea:		/* jmp absolute -- ip is correct */
 		fix_ip_or_call = 0;
 		break;
-	case 0x9a:		/* call absolute - Fix return addr, not ip */
+	case 0x9a:		/* call absolute - Fix return addr, analt ip */
 		fix_ip_or_call = UPROBE_FIX_CALL;
 		break;
 	case 0xff:
@@ -942,7 +942,7 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
  * like do_page_fault/do_trap/etc sets thread.trap_nr != -1.
  *
  * arch_uprobe_pre_xol/arch_uprobe_post_xol save/restore thread.trap_nr,
- * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is not equal to
+ * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is analt equal to
  * UPROBE_TRAP_NR == -1 set by arch_uprobe_pre_xol().
  */
 bool arch_uprobe_xol_was_trapped(struct task_struct *t)
@@ -974,7 +974,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		if (err) {
 			/*
 			 * Restore ->ip for restart or post mortem analysis.
-			 * ->post_xol() must not return -ERESTART unless this
+			 * ->post_xol() must analt return -ERESTART unless this
 			 * is really possible.
 			 */
 			regs->ip = utask->vaddr;
@@ -985,7 +985,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	}
 	/*
 	 * arch_uprobe_pre_xol() doesn't save the state of TIF_BLOCKSTEP
-	 * so we can get an extra SIGTRAP if we do not clear TF. We need
+	 * so we can get an extra SIGTRAP if we do analt clear TF. We need
 	 * to examine the opcode to make it right.
 	 */
 	if (send_sigtrap)
@@ -998,26 +998,26 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 }
 
 /* callback routine for handling exceptions. */
-int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val, void *data)
+int arch_uprobe_exception_analtify(struct analtifier_block *self, unsigned long val, void *data)
 {
 	struct die_args *args = data;
 	struct pt_regs *regs = args->regs;
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 
 	/* We are only interested in userspace traps */
 	if (regs && !user_mode(regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (val) {
 	case DIE_INT3:
-		if (uprobe_pre_sstep_notifier(regs))
-			ret = NOTIFY_STOP;
+		if (uprobe_pre_sstep_analtifier(regs))
+			ret = ANALTIFY_STOP;
 
 		break;
 
 	case DIE_DEBUG:
-		if (uprobe_post_sstep_notifier(regs))
-			ret = NOTIFY_STOP;
+		if (uprobe_post_sstep_analtifier(regs))
+			ret = ANALTIFY_STOP;
 
 		break;
 

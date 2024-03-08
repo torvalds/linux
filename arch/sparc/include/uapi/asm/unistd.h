@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * System calls under the Sparc.
  *
  * Don't be scared by the ugly clobbers, it is the only way I can
- * think of right now to force the arguments into fixed registers
+ * think of right analw to force the arguments into fixed registers
  * before the trap into the system call with gcc 'asm' statements.
  *
  * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)

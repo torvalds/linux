@@ -52,7 +52,7 @@ extern void cfag12864b_disable(void);
 /*
  * Is enabled refreshing? (is anyone using the module?)
  *
- * Returns 0 if refreshing is not enabled (anyone is using it),
+ * Returns 0 if refreshing is analt enabled (anyone is using it),
  * or != 0 if refreshing is enabled (someone is using it).
  *
  * Useful for buffer read-only modules.

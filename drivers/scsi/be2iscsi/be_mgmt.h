@@ -29,12 +29,12 @@
 int mgmt_open_connection(struct beiscsi_hba *phba,
 			 struct sockaddr *dst_addr,
 			 struct beiscsi_endpoint *beiscsi_ep,
-			 struct be_dma_mem *nonemb_cmd);
+			 struct be_dma_mem *analnemb_cmd);
 
 unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct beiscsi_hba *phba,
 					 struct bsg_job *job,
-					 struct be_dma_mem *nonemb_cmd);
+					 struct be_dma_mem *analnemb_cmd);
 
 #define BE_INVLDT_CMD_TBL_SZ	128
 struct invldt_cmd_tbl {

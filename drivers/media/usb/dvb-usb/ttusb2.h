@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* DVB USB compliant linux driver for Technotrend DVB USB boxes and clones
+/* DVB USB compliant linux driver for Techanaltrend DVB USB boxes and clones
  * (e.g. Pinnacle 400e DVB-S USB2.0).
  *
  * Copyright (c) 2002 Holger Waechtler <holger@convergence.de>
@@ -28,7 +28,7 @@
  * last block must be empty */
 
 #define CMD_DSP_BOOT        0x14
-/* out data: nothing */
+/* out data: analthing */
 
 #define CMD_POWER           0x15
 /* out data: <on=1/off=0> */

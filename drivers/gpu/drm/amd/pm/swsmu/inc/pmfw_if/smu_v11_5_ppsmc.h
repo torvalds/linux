@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,7 +27,7 @@
 // SMU Response Codes:
 #define PPSMC_Result_OK 0x1
 #define PPSMC_Result_Failed 0xFF
-#define PPSMC_Result_UnknownCmd 0xFE
+#define PPSMC_Result_UnkanalwnCmd 0xFE
 #define PPSMC_Result_CmdRejectedPrereq 0xFD
 #define PPSMC_Result_CmdRejectedBusy 0xFC
 
@@ -41,10 +41,10 @@
 #define PPSMC_MSG_PowerUpIspByTile                     0x7
 #define PPSMC_MSG_PowerDownVcn                         0x8 // VCN is power gated by default
 #define PPSMC_MSG_PowerUpVcn                           0x9
-#define PPSMC_MSG_RlcPowerNotify                       0xA
+#define PPSMC_MSG_RlcPowerAnaltify                       0xA
 #define PPSMC_MSG_SetHardMinVcn                        0xB // For wireless display
 #define PPSMC_MSG_SetSoftMinGfxclk                     0xC //Sets SoftMin for GFXCLK. Arg is in MHz
-#define PPSMC_MSG_ActiveProcessNotify                  0xD
+#define PPSMC_MSG_ActiveProcessAnaltify                  0xD
 #define PPSMC_MSG_SetHardMinIspiclkByFreq              0xE
 #define PPSMC_MSG_SetHardMinIspxclkByFreq              0xF
 #define PPSMC_MSG_SetDriverDramAddrHigh                0x10

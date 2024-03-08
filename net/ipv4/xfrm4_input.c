@@ -32,7 +32,7 @@ static inline int xfrm4_rcv_encap_finish(struct net *net, struct sock *sk,
 	if (!skb_dst(skb)) {
 		const struct iphdr *iph = ip_hdr(skb);
 
-		if (ip_route_input_noref(skb, iph->daddr, iph->saddr,
+		if (ip_route_input_analref(skb, iph->daddr, iph->saddr,
 					 iph->tos, skb->dev))
 			goto drop;
 	}
@@ -85,7 +85,7 @@ static int __xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb, bool pull
 	u16 encap_type;
 
 	encap_type = READ_ONCE(up->encap_type);
-	/* if this is not encapsulated socket, then just return now */
+	/* if this is analt encapsulated socket, then just return analw */
 	if (!encap_type)
 		return 1;
 
@@ -95,7 +95,7 @@ static int __xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb, bool pull
 	if (!pskb_may_pull(skb, sizeof(struct udphdr) + min(len, 8)))
 		return 1;
 
-	/* Now we can get the pointers */
+	/* Analw we can get the pointers */
 	uh = udp_hdr(skb);
 	udpdata = (__u8 *)uh + sizeof(struct udphdr);
 	udpdata32 = (__be32 *)udpdata;
@@ -107,20 +107,20 @@ static int __xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb, bool pull
 		if (len == 1 && udpdata[0] == 0xff) {
 			return -EINVAL;
 		} else if (len > sizeof(struct ip_esp_hdr) && udpdata32[0] != 0) {
-			/* ESP Packet without Non-ESP header */
+			/* ESP Packet without Analn-ESP header */
 			len = sizeof(struct udphdr);
 		} else
 			/* Must be an IKE packet.. pass it through */
 			return 1;
 		break;
-	case UDP_ENCAP_ESPINUDP_NON_IKE:
+	case UDP_ENCAP_ESPINUDP_ANALN_IKE:
 		/* Check if this is a keepalive packet.  If so, eat it. */
 		if (len == 1 && udpdata[0] == 0xff) {
 			return -EINVAL;
 		} else if (len > 2 * sizeof(u32) + sizeof(struct ip_esp_hdr) &&
 			   udpdata32[0] == 0 && udpdata32[1] == 0) {
 
-			/* ESP Packet with Non-IKE marker */
+			/* ESP Packet with Analn-IKE marker */
 			len = sizeof(struct udphdr) + 2 * sizeof(u32);
 		} else
 			/* Must be an IKE packet.. pass it through */
@@ -136,7 +136,7 @@ static int __xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb, bool pull
 	if (skb_unclone(skb, GFP_ATOMIC))
 		return -EINVAL;
 
-	/* Now we can update and verify the packet length... */
+	/* Analw we can update and verify the packet length... */
 	iph = ip_hdr(skb);
 	iphlen = iph->ihl << 2;
 	iph->tot_len = htons(ntohs(iph->tot_len) - len);

@@ -16,7 +16,7 @@
 #include "cma.h"
 
 struct cma_mem {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct page *p;
 	unsigned long n;
 };
@@ -38,7 +38,7 @@ static int cma_used_get(void *data, u64 *val)
 
 	spin_lock_irq(&cma->lock);
 	/* pages counter is smaller than sizeof(int) */
-	used = bitmap_weight(cma->bitmap, (int)cma_bitmap_maxno(cma));
+	used = bitmap_weight(cma->bitmap, (int)cma_bitmap_maxanal(cma));
 	spin_unlock_irq(&cma->lock);
 	*val = (u64)used << cma->order_per_bit;
 
@@ -51,14 +51,14 @@ static int cma_maxchunk_get(void *data, u64 *val)
 	struct cma *cma = data;
 	unsigned long maxchunk = 0;
 	unsigned long start, end = 0;
-	unsigned long bitmap_maxno = cma_bitmap_maxno(cma);
+	unsigned long bitmap_maxanal = cma_bitmap_maxanal(cma);
 
 	spin_lock_irq(&cma->lock);
 	for (;;) {
-		start = find_next_zero_bit(cma->bitmap, bitmap_maxno, end);
-		if (start >= bitmap_maxno)
+		start = find_next_zero_bit(cma->bitmap, bitmap_maxanal, end);
+		if (start >= bitmap_maxanal)
 			break;
-		end = find_next_bit(cma->bitmap, bitmap_maxno, start);
+		end = find_next_bit(cma->bitmap, bitmap_maxanal, start);
 		maxchunk = max(end - start, maxchunk);
 	}
 	spin_unlock_irq(&cma->lock);
@@ -71,7 +71,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(cma_maxchunk_fops, cma_maxchunk_get, NULL, "%llu\n");
 static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
 {
 	spin_lock(&cma->mem_head_lock);
-	hlist_add_head(&mem->node, &cma->mem_head);
+	hlist_add_head(&mem->analde, &cma->mem_head);
 	spin_unlock(&cma->mem_head_lock);
 }
 
@@ -81,8 +81,8 @@ static struct cma_mem *cma_get_entry_from_list(struct cma *cma)
 
 	spin_lock(&cma->mem_head_lock);
 	if (!hlist_empty(&cma->mem_head)) {
-		mem = hlist_entry(cma->mem_head.first, struct cma_mem, node);
-		hlist_del_init(&mem->node);
+		mem = hlist_entry(cma->mem_head.first, struct cma_mem, analde);
+		hlist_del_init(&mem->analde);
 	}
 	spin_unlock(&cma->mem_head_lock);
 
@@ -109,7 +109,7 @@ static int cma_free_mem(struct cma *cma, int count)
 			count = 0;
 			cma_add_to_cma_mem_list(cma, mem);
 		} else {
-			pr_debug("cma: cannot release partial block when order_per_bit != 0\n");
+			pr_debug("cma: cananalt release partial block when order_per_bit != 0\n");
 			cma_add_to_cma_mem_list(cma, mem);
 			break;
 		}
@@ -135,12 +135,12 @@ static int cma_alloc_mem(struct cma *cma, int count)
 
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = cma_alloc(cma, count, 0, false);
 	if (!p) {
 		kfree(mem);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mem->p = p;
@@ -177,7 +177,7 @@ static void cma_debugfs_add_one(struct cma *cma, struct dentry *root_dentry)
 	debugfs_create_file("maxchunk", 0444, tmp, cma, &cma_maxchunk_fops);
 
 	cma->dfs_bitmap.array = (u32 *)cma->bitmap;
-	cma->dfs_bitmap.n_elements = DIV_ROUND_UP(cma_bitmap_maxno(cma),
+	cma->dfs_bitmap.n_elements = DIV_ROUND_UP(cma_bitmap_maxanal(cma),
 						  BITS_PER_BYTE * sizeof(u32));
 	debugfs_create_u32_array("bitmap", 0444, tmp, &cma->dfs_bitmap);
 }

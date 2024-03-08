@@ -9,18 +9,18 @@
 #include <linux/bitfield.h>
 
 #define TPMI_VERSION_INVALID	0xff
-#define TPMI_MINOR_VERSION(val)	FIELD_GET(GENMASK(4, 0), val)
+#define TPMI_MIANALR_VERSION(val)	FIELD_GET(GENMASK(4, 0), val)
 #define TPMI_MAJOR_VERSION(val)	FIELD_GET(GENMASK(7, 5), val)
 
 /*
  * List of supported TMPI IDs.
- * Some TMPI IDs are not used by Linux, so the numbers are not consecutive.
+ * Some TMPI IDs are analt used by Linux, so the numbers are analt consecutive.
  */
 enum intel_tpmi_id {
 	TPMI_ID_RAPL = 0,	/* Running Average Power Limit */
 	TPMI_ID_PEM = 1,	/* Power and Perf excursion Monitor */
 	TPMI_ID_UNCORE = 2,	/* Uncore Frequency Scaling */
-	TPMI_ID_SST = 5,	/* Speed Select Technology */
+	TPMI_ID_SST = 5,	/* Speed Select Techanallogy */
 	TPMI_CONTROL_ID = 0x80,	/* Special ID for getting feature status */
 	TPMI_INFO_ID = 0x81,	/* Special ID for PCI BDF and Package ID information */
 };

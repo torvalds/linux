@@ -69,7 +69,7 @@ void test__fail(void) { /* for network_helpers.c */ }
 
 static int open_xsk(int ifindex, struct xsk *xsk, __u32 queue_id)
 {
-	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+	int mmap_flags = MAP_PRIVATE | MAP_AANALNYMOUS | MAP_ANALRESERVE;
 	const struct xsk_socket_config socket_config = {
 		.rx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
 		.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
@@ -89,7 +89,7 @@ static int open_xsk(int ifindex, struct xsk *xsk, __u32 queue_id)
 
 	xsk->umem_area = mmap(NULL, UMEM_SIZE, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
 	if (xsk->umem_area == MAP_FAILED)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = xsk_umem__create(&xsk->umem,
 			       xsk->umem_area, UMEM_SIZE,
@@ -159,7 +159,7 @@ static int kick_rx(struct xsk *xsk)
 	return recvfrom(xsk_socket__fd(xsk->socket), NULL, 0, MSG_DONTWAIT, NULL, NULL);
 }
 
-#define NANOSEC_PER_SEC 1000000000 /* 10^9 */
+#define NAANALSEC_PER_SEC 1000000000 /* 10^9 */
 static __u64 gettime(clockid_t clock_id)
 {
 	struct timespec t;
@@ -169,9 +169,9 @@ static __u64 gettime(clockid_t clock_id)
 	res = clock_gettime(clock_id, &t);
 
 	if (res < 0)
-		error(res, errno, "Error with clock_gettime()");
+		error(res, erranal, "Error with clock_gettime()");
 
-	return (__u64) t.tv_sec * NANOSEC_PER_SEC + t.tv_nsec;
+	return (__u64) t.tv_sec * NAANALSEC_PER_SEC + t.tv_nsec;
 }
 
 static void print_tstamp_delta(const char *name, const char *refname,
@@ -180,8 +180,8 @@ static void print_tstamp_delta(const char *name, const char *refname,
 	__s64 delta = (__s64)reference - (__s64)tstamp;
 
 	printf("%s:   %llu (sec:%0.4f) delta to %s sec:%0.4f (%0.3f usec)\n",
-	       name, tstamp, (double)tstamp / NANOSEC_PER_SEC, refname,
-	       (double)delta / NANOSEC_PER_SEC,
+	       name, tstamp, (double)tstamp / NAANALSEC_PER_SEC, refname,
+	       (double)delta / NAANALSEC_PER_SEC,
 	       (double)delta / 1000);
 }
 
@@ -207,7 +207,7 @@ static void verify_xdp_metadata(void *data, clockid_t clock_id)
 		printf("rx_hash: 0x%X with RSS type:0x%X\n",
 		       meta->rx_hash, meta->rx_hash_type);
 	else
-		printf("No rx_hash, err=%d\n", meta->rx_hash_err);
+		printf("Anal rx_hash, err=%d\n", meta->rx_hash_err);
 
 	if (meta->hint_valid & XDP_META_FIELD_TS) {
 		__u64 ref_tstamp = gettime(clock_id);
@@ -221,7 +221,7 @@ static void verify_xdp_metadata(void *data, clockid_t clock_id)
 		print_tstamp_delta("XDP RX-time", "User RX-time",
 				   meta->xdp_timestamp, ref_tstamp);
 	} else {
-		printf("No rx_timestamp, err=%d\n", meta->rx_timestamp_err);
+		printf("Anal rx_timestamp, err=%d\n", meta->rx_timestamp_err);
 	}
 
 	if (meta->hint_valid & XDP_META_FIELD_VLAN_TAG) {
@@ -229,7 +229,7 @@ static void verify_xdp_metadata(void *data, clockid_t clock_id)
 		printf("rx_vlan_tci: ");
 		print_vlan_tci(meta->rx_vlan_tci);
 	} else {
-		printf("No rx_vlan_tci or rx_vlan_proto, err=%d\n",
+		printf("Anal rx_vlan_tci or rx_vlan_proto, err=%d\n",
 		       meta->rx_vlan_tag_err);
 	}
 }
@@ -254,7 +254,7 @@ static void verify_skb_metadata(int fd)
 	hdr.msg_controllen = sizeof(cmsg_buf);
 
 	if (recvmsg(fd, &hdr, 0) < 0)
-		error(1, errno, "recvmsg");
+		error(1, erranal, "recvmsg");
 
 	for (cmsg = CMSG_FIRSTHDR(&hdr); cmsg != NULL;
 	     cmsg = CMSG_NXTHDR(&hdr, cmsg)) {
@@ -276,7 +276,7 @@ static void verify_skb_metadata(int fd)
 		}
 	}
 
-	printf("skb hwtstamp is not found!\n");
+	printf("skb hwtstamp is analt found!\n");
 }
 
 static bool complete_tx(struct xsk *xsk, clockid_t clock_id)
@@ -305,7 +305,7 @@ static bool complete_tx(struct xsk *xsk, clockid_t clock_id)
 		print_tstamp_delta("HW RX-time", "HW TX-complete-time",
 				   last_hw_rx_timestamp, meta->completion.tx_timestamp);
 	} else {
-		printf("No tx_timestamp\n");
+		printf("Anal tx_timestamp\n");
 	}
 
 	xsk_ring_cons__release(&xsk->comp, 1);
@@ -423,7 +423,7 @@ static int verify_metadata(struct xsk *rx_xsk, int rxq, int server_fd, clockid_t
 	fds[rxq].revents = 0;
 
 	while (true) {
-		errno = 0;
+		erranal = 0;
 
 		for (i = 0; i < rxq; i++) {
 			ret = kick_rx(&rx_xsk[i]);
@@ -433,7 +433,7 @@ static int verify_metadata(struct xsk *rx_xsk, int rxq, int server_fd, clockid_t
 
 		ret = poll(fds, rxq + 1, 1000);
 		printf("poll: %d (%d) skip=%llu fail=%llu redir=%llu\n",
-		       ret, errno, bpf_obj->bss->pkts_skip,
+		       ret, erranal, bpf_obj->bss->pkts_skip,
 		       bpf_obj->bss->pkts_fail, bpf_obj->bss->pkts_redir);
 		if (ret < 0)
 			break;
@@ -507,7 +507,7 @@ struct ethtool_channels {
 	__u32	combined_count;
 };
 
-#define ETHTOOL_GCHANNELS	0x0000003c /* Get no of channels */
+#define ETHTOOL_GCHANNELS	0x0000003c /* Get anal of channels */
 
 static int rxq_num(const char *ifname)
 {
@@ -523,11 +523,11 @@ static int rxq_num(const char *ifname)
 
 	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (fd < 0)
-		error(1, errno, "socket");
+		error(1, erranal, "socket");
 
 	ret = ioctl(fd, SIOCETHTOOL, &ifr);
 	if (ret < 0)
-		error(1, errno, "ioctl(SIOCETHTOOL)");
+		error(1, erranal, "ioctl(SIOCETHTOOL)");
 
 	close(fd);
 
@@ -544,11 +544,11 @@ static void hwtstamp_ioctl(int op, const char *ifname, struct hwtstamp_config *c
 
 	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (fd < 0)
-		error(1, errno, "socket");
+		error(1, erranal, "socket");
 
 	ret = ioctl(fd, op, &ifr);
 	if (ret < 0)
-		error(1, errno, "ioctl(%d)", op);
+		error(1, erranal, "ioctl(%d)", op);
 
 	close(fd);
 }
@@ -608,7 +608,7 @@ static void timestamping_enable(int fd, int val)
 
 	ret = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(val));
 	if (ret < 0)
-		error(1, errno, "setsockopt(SO_TIMESTAMPING)");
+		error(1, erranal, "setsockopt(SO_TIMESTAMPING)");
 }
 
 static void print_usage(void)
@@ -647,7 +647,7 @@ static void read_args(int argc, char *argv[])
 			break;
 		case '?':
 			if (isprint(optopt))
-				fprintf(stderr, "Unknown option: -%c\n", optopt);
+				fprintf(stderr, "Unkanalwn option: -%c\n", optopt);
 			fallthrough;
 		default:
 			print_usage();
@@ -656,7 +656,7 @@ static void read_args(int argc, char *argv[])
 	}
 
 	if (optind >= argc) {
-		fprintf(stderr, "No device name provided\n");
+		fprintf(stderr, "Anal device name provided\n");
 		print_usage();
 		exit(-1);
 	}
@@ -665,7 +665,7 @@ static void read_args(int argc, char *argv[])
 	ifindex = if_nametoindex(ifname);
 
 	if (!ifname)
-		error(-1, errno, "Invalid interface name");
+		error(-1, erranal, "Invalid interface name");
 }
 
 int main(int argc, char *argv[])
@@ -687,7 +687,7 @@ int main(int argc, char *argv[])
 
 	rx_xsk = malloc(sizeof(struct xsk) * rxq);
 	if (!rx_xsk)
-		error(1, ENOMEM, "malloc");
+		error(1, EANALMEM, "malloc");
 
 	for (i = 0; i < rxq; i++) {
 		printf("open_xsk(%s, %p, %d)\n", ifname, &rx_xsk[i], i);
@@ -715,7 +715,7 @@ int main(int argc, char *argv[])
 	printf("prepare skb endpoint...\n");
 	server_fd = start_server(AF_INET6, SOCK_DGRAM, NULL, 9092, 1000);
 	if (server_fd < 0)
-		error(1, errno, "start_server");
+		error(1, erranal, "start_server");
 	timestamping_enable(server_fd,
 			    SOF_TIMESTAMPING_SOFTWARE |
 			    SOF_TIMESTAMPING_RAW_HARDWARE);

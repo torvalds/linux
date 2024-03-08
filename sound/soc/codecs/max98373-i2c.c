@@ -56,8 +56,8 @@ static struct reg_default max98373_reg[] = {
 	{MAX98373_R2026_PCM_CLOCK_RATIO, 0x04},
 	{MAX98373_R2027_PCM_SR_SETUP_1, 0x08},
 	{MAX98373_R2028_PCM_SR_SETUP_2, 0x88},
-	{MAX98373_R2029_PCM_TO_SPK_MONO_MIX_1, 0x00},
-	{MAX98373_R202A_PCM_TO_SPK_MONO_MIX_2, 0x00},
+	{MAX98373_R2029_PCM_TO_SPK_MOANAL_MIX_1, 0x00},
+	{MAX98373_R202A_PCM_TO_SPK_MOANAL_MIX_2, 0x00},
 	{MAX98373_R202B_PCM_RX_EN, 0x00},
 	{MAX98373_R202C_PCM_TX_EN, 0x00},
 	{MAX98373_R202E_ICC_RX_CH_EN_1, 0x00},
@@ -281,7 +281,7 @@ static int max98373_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98373_PCM_SR_SET1_SR_96000;
 		break;
 	default:
-		dev_err(component->dev, "rate %d not supported\n",
+		dev_err(component->dev, "rate %d analt supported\n",
 			params_rate(params));
 		goto err;
 	}
@@ -333,7 +333,7 @@ static int max98373_dai_tdm_slot(struct snd_soc_dai *dai,
 	/* BCLK configuration */
 	bsel = max98373_get_bclk_sel(slots * slot_width);
 	if (bsel == 0) {
-		dev_err(component->dev, "BCLK %d not supported\n",
+		dev_err(component->dev, "BCLK %d analt supported\n",
 			slots * slot_width);
 		return -EINVAL;
 	}
@@ -371,11 +371,11 @@ static int max98373_dai_tdm_slot(struct snd_soc_dai *dai,
 		if (mask & 0x1) {
 			if (slot_found == 0)
 				regmap_update_bits(max98373->regmap,
-						   MAX98373_R2029_PCM_TO_SPK_MONO_MIX_1,
+						   MAX98373_R2029_PCM_TO_SPK_MOANAL_MIX_1,
 						   MAX98373_PCM_TO_SPK_CH0_SRC_MASK, x);
 			else
 				regmap_write(max98373->regmap,
-					     MAX98373_R202A_PCM_TO_SPK_MONO_MIX_2,
+					     MAX98373_R202A_PCM_TO_SPK_MOANAL_MIX_2,
 					     x);
 			slot_found++;
 			if (slot_found > 1)
@@ -523,7 +523,7 @@ static int max98373_i2c_probe(struct i2c_client *i2c)
 	max98373 = devm_kzalloc(&i2c->dev, sizeof(*max98373), GFP_KERNEL);
 
 	if (!max98373) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 	i2c_set_clientdata(i2c, max98373);
@@ -548,7 +548,7 @@ static int max98373_i2c_probe(struct i2c_client *i2c)
 				       sizeof(*max98373->cache),
 				       GFP_KERNEL);
 	if (!max98373->cache) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 

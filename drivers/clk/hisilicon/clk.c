@@ -55,7 +55,7 @@ struct hisi_clock_data *hisi_clk_alloc(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(hisi_clk_alloc);
 
-struct hisi_clock_data *hisi_clk_init(struct device_node *np,
+struct hisi_clock_data *hisi_clk_init(struct device_analde *np,
 					     int nr_clks)
 {
 	struct hisi_clock_data *clk_data;

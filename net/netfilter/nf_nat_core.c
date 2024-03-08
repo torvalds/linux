@@ -183,10 +183,10 @@ hash_by_src(const struct net *net,
 	return reciprocal_scale(hash, nf_nat_htable_size);
 }
 
-/* Is this tuple already taken? (not by us) */
+/* Is this tuple already taken? (analt by us) */
 static int
 nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
-		  const struct nf_conn *ignored_conntrack)
+		  const struct nf_conn *iganalred_conntrack)
 {
 	/* Conntrack tracking doesn't keep track of outgoing tuples; only
 	 * incoming ones.  NAT means they don't have a fixed mapping,
@@ -197,7 +197,7 @@ nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 	struct nf_conntrack_tuple reply;
 
 	nf_ct_invert_tuple(&reply, tuple);
-	return nf_conntrack_tuple_taken(&reply, ignored_conntrack);
+	return nf_conntrack_tuple_taken(&reply, iganalred_conntrack);
 }
 
 static bool nf_nat_may_kill(struct nf_conn *ct, unsigned long flags)
@@ -228,7 +228,7 @@ static bool nf_seq_has_advanced(const struct nf_conn *old, const struct nf_conn 
 
 static int
 nf_nat_used_tuple_harder(const struct nf_conntrack_tuple *tuple,
-			 const struct nf_conn *ignored_conntrack,
+			 const struct nf_conn *iganalred_conntrack,
 			 unsigned int attempts_left)
 {
 	static const unsigned long flags_offload = IPS_OFFLOAD | IPS_HW_OFFLOAD;
@@ -244,16 +244,16 @@ nf_nat_used_tuple_harder(const struct nf_conntrack_tuple *tuple,
 
 	if (attempts_left > NF_NAT_HARDER_THRESH ||
 	    tuple->dst.protonum != IPPROTO_TCP ||
-	    ignored_conntrack->proto.tcp.state != TCP_CONNTRACK_SYN_SENT)
-		return nf_conntrack_tuple_taken(&reply, ignored_conntrack);
+	    iganalred_conntrack->proto.tcp.state != TCP_CONNTRACK_SYN_SENT)
+		return nf_conntrack_tuple_taken(&reply, iganalred_conntrack);
 
 	/* :ast few attempts to find a free tcp port. Destructive
 	 * action: evict colliding if its in timewait state and the
 	 * tcp sequence number has advanced past the one used by the
 	 * old entry.
 	 */
-	net = nf_ct_net(ignored_conntrack);
-	zone = nf_ct_zone(ignored_conntrack);
+	net = nf_ct_net(iganalred_conntrack);
+	zone = nf_ct_zone(iganalred_conntrack);
 
 	thash = nf_conntrack_find_get(net, zone, &reply);
 	if (!thash)
@@ -264,17 +264,17 @@ nf_nat_used_tuple_harder(const struct nf_conntrack_tuple *tuple,
 	if (thash->tuple.dst.dir == IP_CT_DIR_ORIGINAL)
 		goto out;
 
-	if (WARN_ON_ONCE(ct == ignored_conntrack))
+	if (WARN_ON_ONCE(ct == iganalred_conntrack))
 		goto out;
 
 	flags = READ_ONCE(ct->status);
 	if (!nf_nat_may_kill(ct, flags))
 		goto out;
 
-	if (!nf_seq_has_advanced(ct, ignored_conntrack))
+	if (!nf_seq_has_advanced(ct, iganalred_conntrack))
 		goto out;
 
-	/* Even if we can evict do not reuse if entry is offloaded. */
+	/* Even if we can evict do analt reuse if entry is offloaded. */
 	if (nf_ct_kill(ct))
 		taken = flags & flags_offload;
 out:
@@ -402,7 +402,7 @@ find_best_ips_proto(const struct nf_conntrack_zone *zone,
 	u32 minip, maxip, j, dist;
 	bool full_range;
 
-	/* No IP mapping?  Do nothing. */
+	/* Anal IP mapping?  Do analthing. */
 	if (!(range->flags & NF_NAT_RANGE_MAP_IPS))
 		return;
 
@@ -487,8 +487,8 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 		goto find_free_id;
 #if IS_ENABLED(CONFIG_NF_CT_PROTO_GRE)
 	case IPPROTO_GRE:
-		/* If there is no master conntrack we are not PPTP,
-		   do not change tuples */
+		/* If there is anal master conntrack we are analt PPTP,
+		   do analt change tuples */
 		if (!ct->master)
 			return;
 
@@ -521,7 +521,7 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 		return;
 	}
 
-	/* If no range specified... */
+	/* If anal range specified... */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
 		/* If it's dst rewrite, can't change port */
 		if (maniptype == NF_NAT_MANIP_DST)
@@ -567,7 +567,7 @@ find_free_id:
 	 * If we can't find any free port from first offset, pick a new
 	 * one and try again, with ever smaller search window.
 	 */
-another_round:
+aanalther_round:
 	for (i = 0; i < attempts; i++, off++) {
 		*keyptr = htons(min + off % range_size);
 		if (!nf_nat_used_tuple_harder(tuple, ct, attempts - i))
@@ -578,13 +578,13 @@ another_round:
 		return;
 	attempts /= 2;
 	off = get_random_u16();
-	goto another_round;
+	goto aanalther_round;
 }
 
 /* Manipulate the tuple into the range given. For NF_INET_POST_ROUTING,
  * we change the source to map into the range. For NF_INET_PRE_ROUTING
  * and NF_INET_LOCAL_OUT, we change the destination to map into the
- * range. It might not be possible to get a unique tuple, but we try.
+ * range. It might analt be possible to get a unique tuple, but we try.
  * At worst (or if we race), we will end up with a final duplicate in
  * __nf_conntrack_confirm and drop the packet. */
 static void
@@ -605,7 +605,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 *
 	 * This is only required for source (ie. NAT/masq) mappings.
 	 * So far, we don't do local source mappings, so multiple
-	 * manips not an issue.
+	 * manips analt an issue.
 	 */
 	if (maniptype == NF_NAT_MANIP_SRC &&
 	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
@@ -631,7 +631,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * the range to make a unique tuple.
 	 */
 
-	/* Only bother mapping if it's not already in range and unique */
+	/* Only bother mapping if it's analt already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (!(range->flags & NF_NAT_RANGE_PROTO_OFFSET) &&
@@ -681,7 +681,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 	if (WARN_ON(nf_nat_initialized(ct, maniptype)))
 		return NF_DROP;
 
-	/* What we've got will look like inverse of reply. Normally
+	/* What we've got will look like inverse of reply. Analrmally
 	 * this is what is in the conntrack, except for prior
 	 * manipulations (future optimization: if num_manips == 0,
 	 * orig_tp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
@@ -698,7 +698,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 		nf_ct_invert_tuple(&reply, &new_tuple);
 		nf_conntrack_alter_reply(ct, &reply);
 
-		/* Non-atomic: we own this at the moment. */
+		/* Analn-atomic: we own this at the moment. */
 		if (maniptype == NF_NAT_MANIP_SRC)
 			ct->status |= IPS_SRC_NAT;
 		else
@@ -736,7 +736,7 @@ static unsigned int
 __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 {
 	/* Force range to this IP; let proto decide mapping for
-	 * per-proto parts (hence not IP_NAT_RANGE_PROTO_SPECIFIED).
+	 * per-proto parts (hence analt IP_NAT_RANGE_PROTO_SPECIFIED).
 	 * Use reply in case it's already been mangled (eg local packet).
 	 */
 	union nf_inet_addr ip =
@@ -778,7 +778,7 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 	if (dir == IP_CT_DIR_REPLY)
 		statusbit ^= IPS_NAT_MASK;
 
-	/* Non-atomic: these bits don't change. */
+	/* Analn-atomic: these bits don't change. */
 	if (ct->status & statusbit)
 		verdict = nf_nat_manip_pkt(skb, ct, mtype, dir);
 
@@ -807,7 +807,7 @@ nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 	enum nf_nat_manip_type maniptype = HOOK2MANIP(state->hook);
 
 	ct = nf_ct_get(skb, &ctinfo);
-	/* Can't track?  It's not due to stress, or conntrack would
+	/* Can't track?  It's analt due to stress, or conntrack would
 	 * have dropped it.  Hence it's the user's responsibilty to
 	 * packet filter it out, or implement conntrack/NAT for that
 	 * protocol. 8) --RR
@@ -1022,7 +1022,7 @@ nfnetlink_parse_nat(const struct nlattr *nat,
 		err = nf_nat_ipv6_nlattr_to_range(tb, range);
 		break;
 	default:
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 		break;
 	}
 
@@ -1044,21 +1044,21 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 	struct nf_nat_range2 range;
 	int err;
 
-	/* Should not happen, restricted to creating new conntracks
+	/* Should analt happen, restricted to creating new conntracks
 	 * via ctnetlink.
 	 */
 	if (WARN_ON_ONCE(nf_nat_initialized(ct, manip)))
 		return -EEXIST;
 
-	/* No NAT information has been passed, allocate the null-binding */
+	/* Anal NAT information has been passed, allocate the null-binding */
 	if (attr == NULL)
-		return __nf_nat_alloc_null_binding(ct, manip) == NF_DROP ? -ENOMEM : 0;
+		return __nf_nat_alloc_null_binding(ct, manip) == NF_DROP ? -EANALMEM : 0;
 
 	err = nfnetlink_parse_nat(attr, ct, &range);
 	if (err < 0)
 		return err;
 
-	return nf_nat_setup_info(ct, &range, manip) == NF_DROP ? -ENOMEM : 0;
+	return nf_nat_setup_info(ct, &range, manip) == NF_DROP ? -EANALMEM : 0;
 }
 #else
 static int
@@ -1066,7 +1066,7 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
 			  const struct nlattr *attr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -1107,7 +1107,7 @@ int nf_nat_register_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 		nat_ops = kmemdup(orig_nat_ops, sizeof(*orig_nat_ops) * ops_count, GFP_KERNEL);
 		if (!nat_ops) {
 			mutex_unlock(&nf_nat_proto_mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		for (i = 0; i < ops_count; i++) {
@@ -1120,7 +1120,7 @@ int nf_nat_register_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 			while (i)
 				kfree(nat_ops[--i].priv);
 			kfree(nat_ops);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ret = nf_register_net_hooks(net, nat_ops, ops_count);
@@ -1139,7 +1139,7 @@ int nf_nat_register_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 	priv = nat_ops[hooknum].priv;
 	if (WARN_ON_ONCE(!priv)) {
 		mutex_unlock(&nf_nat_proto_mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = nf_hook_entries_insert_raw(&priv->entries, ops);
@@ -1223,7 +1223,7 @@ static int __init nf_nat_init(void)
 
 	nf_nat_bysource = nf_ct_alloc_hashtable(&nf_nat_htable_size, 0);
 	if (!nf_nat_bysource)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_nat_locks[i]);

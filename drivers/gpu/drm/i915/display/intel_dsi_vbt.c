@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -84,7 +84,7 @@ static enum port intel_dsi_seq_port_to_port(struct intel_dsi *intel_dsi,
 	/*
 	 * If single link DSI is being used on any port, the VBT sequence block
 	 * send packet apparently always has 0 for the port. Just use the port
-	 * we have configured, and ignore the sequence block port.
+	 * we have configured, and iganalre the sequence block port.
 	 */
 	if (hweight8(intel_dsi->ports) == 1)
 		return ffs(intel_dsi->ports) - 1;
@@ -125,7 +125,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 
 	dsi_device = intel_dsi->dsi_hosts[port]->device;
 	if (!dsi_device) {
-		drm_dbg_kms(&dev_priv->drm, "no dsi device for port %c\n",
+		drm_dbg_kms(&dev_priv->drm, "anal dsi device for port %c\n",
 			    port_name(port));
 		goto out;
 	}
@@ -151,7 +151,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
 		drm_dbg(&dev_priv->drm,
-			"Generic Read not yet implemented or used\n");
+			"Generic Read analt yet implemented or used\n");
 		break;
 	case MIPI_DSI_GENERIC_LONG_WRITE:
 		mipi_dsi_generic_write(dsi_device, data, len);
@@ -164,7 +164,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		break;
 	case MIPI_DSI_DCS_READ:
 		drm_dbg(&dev_priv->drm,
-			"DCS Read not yet implemented or used\n");
+			"DCS Read analt yet implemented or used\n");
 		break;
 	case MIPI_DSI_DCS_LONG_WRITE:
 		mipi_dsi_dcs_write_buffer(dsi_device, data, len);
@@ -247,12 +247,12 @@ static void vlv_gpio_set_value(struct intel_connector *connector,
 	/* XXX: this assumes vlv_gpio_table only has NC GPIOs. */
 	if (connector->panel.vbt.dsi.seq_version < 3) {
 		if (gpio_source == 1) {
-			drm_dbg_kms(&dev_priv->drm, "SC gpio not supported\n");
+			drm_dbg_kms(&dev_priv->drm, "SC gpio analt supported\n");
 			return;
 		}
 		if (gpio_source > 1) {
 			drm_dbg_kms(&dev_priv->drm,
-				    "unknown gpio source %u\n", gpio_source);
+				    "unkanalwn gpio source %u\n", gpio_source);
 			return;
 		}
 	}
@@ -285,7 +285,7 @@ static void chv_gpio_set_value(struct intel_connector *connector,
 		/* XXX: The spec is unclear about CHV GPIO on seq v2 */
 		if (gpio_source != 0) {
 			drm_dbg_kms(&dev_priv->drm,
-				    "unknown gpio source %u\n", gpio_source);
+				    "unkanalwn gpio source %u\n", gpio_source);
 			return;
 		}
 
@@ -335,9 +335,9 @@ static void icl_native_gpio_set_value(struct drm_i915_private *dev_priv,
 
 		/*
 		 * Disable HPD to set the pin to output, and set output
-		 * value. The HPD pin should not be enabled for DSI anyway,
+		 * value. The HPD pin should analt be enabled for DSI anyway,
 		 * assuming the board design and VBT are sane, and the pin isn't
-		 * used by a non-DSI encoder.
+		 * used by a analn-DSI encoder.
 		 *
 		 * The locking protects against concurrent SHOTPLUG_CTL_DDI
 		 * modifications in irq setup and handling.
@@ -416,7 +416,7 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	}
 
 	drm_dbg_kms(&i915->drm, "GPIO index %u, number %u, source %u, native %s, set to %s\n",
-		    gpio_index, gpio_number, gpio_source, str_yes_no(native), str_on_off(value));
+		    gpio_index, gpio_number, gpio_source, str_anal_anal(native), str_on_off(value));
 
 	if (native)
 		icl_native_gpio_set_value(i915, gpio_number, value);
@@ -503,7 +503,7 @@ static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 
 	adapter = i2c_get_adapter(intel_dsi->i2c_bus_num);
 	if (!adapter) {
-		drm_err(&i915->drm, "Cannot find a valid i2c bus for xfer\n");
+		drm_err(&i915->drm, "Cananalt find a valid i2c bus for xfer\n");
 		goto err_bus;
 	}
 
@@ -562,7 +562,7 @@ static const u8 *mipi_exec_pmic(struct intel_dsi *intel_dsi, const u8 *data)
 		drm_err(&i915->drm, "%s failed, error: %d\n", __func__, ret);
 #else
 	drm_err(&i915->drm,
-		"Your hardware requires CONFIG_PMIC_OPREGION and it is not set\n");
+		"Your hardware requires CONFIG_PMIC_OPREGION and it is analt set\n");
 #endif
 
 	return data + 15;
@@ -605,7 +605,7 @@ static const char *sequence_name(enum mipi_seq seq_id)
 	if (seq_id < ARRAY_SIZE(seq_name))
 		return seq_name[seq_id];
 
-	return "(unknown)";
+	return "(unkanalwn)";
 }
 
 static void intel_dsi_vbt_exec(struct intel_dsi *intel_dsi,
@@ -667,7 +667,7 @@ static void intel_dsi_vbt_exec(struct intel_dsi *intel_dsi,
 				    operation_byte);
 			data += operation_size;
 		} else {
-			/* No size, can't skip without parsing. */
+			/* Anal size, can't skip without parsing. */
 			drm_err(&dev_priv->drm,
 				"Unsupported MIPI operation byte %u\n",
 				operation_byte);
@@ -702,12 +702,12 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 	drm_dbg_kms(&i915->drm, "Lane count %d\n", intel_dsi->lane_count);
 	drm_dbg_kms(&i915->drm, "DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
 	drm_dbg_kms(&i915->drm, "Video mode format %s\n",
-		    intel_dsi->video_mode == NON_BURST_SYNC_PULSE ?
-		    "non-burst with sync pulse" :
-		    intel_dsi->video_mode == NON_BURST_SYNC_EVENTS ?
-		    "non-burst with sync events" :
+		    intel_dsi->video_mode == ANALN_BURST_SYNC_PULSE ?
+		    "analn-burst with sync pulse" :
+		    intel_dsi->video_mode == ANALN_BURST_SYNC_EVENTS ?
+		    "analn-burst with sync events" :
 		    intel_dsi->video_mode == BURST_MODE ?
-		    "burst" : "<unknown>");
+		    "burst" : "<unkanalwn>");
 	drm_dbg_kms(&i915->drm, "Burst mode ratio %d\n",
 		    intel_dsi->burst_mode_ratio);
 	drm_dbg_kms(&i915->drm, "Reset timer %d\n", intel_dsi->rst_timer_val);
@@ -724,7 +724,7 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 		drm_dbg_kms(&i915->drm,
 			    "Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
 	else
-		drm_dbg_kms(&i915->drm, "Dual link: NONE\n");
+		drm_dbg_kms(&i915->drm, "Dual link: ANALNE\n");
 	drm_dbg_kms(&i915->drm, "Pixel Format %d\n", intel_dsi->pixel_format);
 	drm_dbg_kms(&i915->drm, "TLPX %d\n", intel_dsi->escape_clk_div);
 	drm_dbg_kms(&i915->drm, "LP RX Timeout 0x%x\n",
@@ -795,14 +795,14 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	}
 
 	/* Burst Mode Ratio
-	 * Target ddr frequency from VBT / non burst ddr freq
+	 * Target ddr frequency from VBT / analn burst ddr freq
 	 * multiply by 100 to preserve remainder
 	 */
 	if (intel_dsi->video_mode == BURST_MODE) {
 		u32 bitrate;
 
 		if (mipi_config->target_burst_mode_freq == 0) {
-			drm_err(&dev_priv->drm, "Burst mode target is not set\n");
+			drm_err(&dev_priv->drm, "Burst mode target is analt set\n");
 			return false;
 		}
 
@@ -854,7 +854,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 /*
  * On some BYT/CHT devs some sequences are incomplete and we need to manually
  * control some GPIOs. We need to add a GPIO lookup table before we get these.
- * If the GOP did not initialize the panel (HDMI inserted) we may need to also
+ * If the GOP did analt initialize the panel (HDMI inserted) we may need to also
  * change the pinmux for the SoC's PWM0 pin from GPIO to PWM.
  */
 static struct gpiod_lookup_table pmic_panel_gpio_table = {

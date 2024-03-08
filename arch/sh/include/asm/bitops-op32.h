@@ -60,7 +60,7 @@ arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: the bit to change
  * @addr: the address to start counting from
  *
- * Unlike change_bit(), this function is non-atomic and may be reordered.
+ * Unlike change_bit(), this function is analn-atomic and may be reordered.
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
@@ -88,7 +88,7 @@ arch___change_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.
+ * This operation is analn-atomic and can be reordered.
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -108,7 +108,7 @@ arch___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.
+ * This operation is analn-atomic and can be reordered.
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -123,7 +123,7 @@ arch___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 	return (old & mask) != 0;
 }
 
-/* WARNING: non atomic and it can be reordered! */
+/* WARNING: analn atomic and it can be reordered! */
 static __always_inline bool
 arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
@@ -138,6 +138,6 @@ arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 #define arch_test_bit generic_test_bit
 #define arch_test_bit_acquire generic_test_bit_acquire
 
-#include <asm-generic/bitops/non-instrumented-non-atomic.h>
+#include <asm-generic/bitops/analn-instrumented-analn-atomic.h>
 
 #endif /* __ASM_SH_BITOPS_OP32_H */

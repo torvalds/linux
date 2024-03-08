@@ -76,8 +76,8 @@ static inline int check_default(struct bpf_map *indirect,
 	return 1;
 }
 
-static __noinline int
-check_default_noinline(struct bpf_map *indirect, struct bpf_map *direct)
+static __analinline int
+check_default_analinline(struct bpf_map *indirect, struct bpf_map *direct)
 {
 	VERIFY(check(indirect, direct, sizeof(__u32), sizeof(__u32),
 		     MAX_ENTRIES));
@@ -97,7 +97,7 @@ struct bpf_htab {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(map_flags, BPF_F_NO_PREALLOC); /* to test bpf_htab.count */
+	__uint(map_flags, BPF_F_ANAL_PREALLOC); /* to test bpf_htab.count */
 	__uint(max_entries, MAX_ENTRIES);
 	__type(key, __u32);
 	__type(value, __u32);
@@ -111,7 +111,7 @@ static inline int check_hash(void)
 	struct bpf_map *map = (struct bpf_map *)&m_hash;
 	int i;
 
-	VERIFY(check_default_noinline(&hash->map, map));
+	VERIFY(check_default_analinline(&hash->map, map));
 
 	VERIFY(hash->n_buckets == MAX_ENTRIES);
 	VERIFY(hash->elem_size == 64);
@@ -322,7 +322,7 @@ struct lpm_key {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_LPM_TRIE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__uint(max_entries, MAX_ENTRIES);
 	__type(key, struct lpm_key);
 	__type(value, __u32);
@@ -614,7 +614,7 @@ struct bpf_local_storage_map {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, __u32);
 	__type(value, __u32);
 } m_sk_storage SEC(".maps");

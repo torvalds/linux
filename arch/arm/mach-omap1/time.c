@@ -3,14 +3,14 @@
  *
  * OMAP Timers
  *
- * Copyright (C) 2004 Nokia Corporation
+ * Copyright (C) 2004 Analkia Corporation
  * Partial timer rewrite and additional dynamic tick timer support by
  * Tony Lindgen <tony@atomide.com> and
  * Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *
  * MPU timer code based on the older MPU timer code for OMAP
  * Copyright (C) 2000 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonanaln <glonanaln@ridgerun.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,18 +18,18 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -71,7 +71,7 @@ typedef struct {
 ((omap_mpu_timer_regs_t __iomem *)OMAP1_IO_ADDRESS(OMAP_MPU_TIMER_BASE +	\
 				 (n)*OMAP_MPU_TIMER_OFFSET))
 
-static inline unsigned long notrace omap_mpu_timer_read(int nr)
+static inline unsigned long analtrace omap_mpu_timer_read(int nr)
 {
 	omap_mpu_timer_regs_t __iomem *timer = omap_mpu_timer_base(nr);
 	return readl(&timer->read_tim);
@@ -176,7 +176,7 @@ static __init void omap_init_mpu_timer(unsigned long rate)
  * ---------------------------------------------------------------------------
  */
 
-static u64 notrace omap_mpu_read_sched_clock(void)
+static u64 analtrace omap_mpu_read_sched_clock(void)
 {
 	return ~omap_mpu_timer_read(1);
 }
@@ -215,7 +215,7 @@ static void __init omap_mpu_timer_init(void)
 #else
 static inline void omap_mpu_timer_init(void)
 {
-	pr_err("Bogus timer, should not happen\n");
+	pr_err("Bogus timer, should analt happen\n");
 }
 #endif	/* CONFIG_OMAP_MPU_TIMER */
 

@@ -41,7 +41,7 @@ static bool cio_dac_precious_reg(struct device *dev, unsigned int reg)
 {
 	/*
 	 * All registers are considered precious; if the XFER jumper is set on
-	 * the device, then no update occurs until a DAC register is read.
+	 * the device, then anal update occurs until a DAC register is read.
 	 */
 	return true;
 }
@@ -119,7 +119,7 @@ static int cio_dac_probe(struct device *dev, unsigned int id)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!devm_request_region(dev, base[id], CIO_DAC_EXTENT,
 		dev_name(dev))) {
@@ -130,7 +130,7 @@ static int cio_dac_probe(struct device *dev, unsigned int id)
 
 	regs = devm_ioport_map(dev, base[id], CIO_DAC_EXTENT);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = iio_priv(indio_dev);
 	priv->map = devm_regmap_init_mmio(dev, regs, &cio_dac_regmap_config);

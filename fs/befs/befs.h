@@ -36,7 +36,7 @@ struct befs_sb_info {
 	int byte_order;
 	befs_off_t num_blocks;
 	befs_off_t used_blocks;
-	u32 inode_size;
+	u32 ianalde_size;
 	u32 magic2;
 
 	/* Allocation group information */
@@ -52,39 +52,39 @@ struct befs_sb_info {
 	befs_off_t log_start;
 	befs_off_t log_end;
 
-	befs_inode_addr root_dir;
-	befs_inode_addr indices;
+	befs_ianalde_addr root_dir;
+	befs_ianalde_addr indices;
 	u32 magic3;
 
 	struct befs_mount_options mount_opts;
 	struct nls_table *nls;
 };
 
-struct befs_inode_info {
+struct befs_ianalde_info {
 	u32 i_flags;
 	u32 i_type;
 
-	befs_inode_addr i_inode_num;
-	befs_inode_addr i_parent;
-	befs_inode_addr i_attribute;
+	befs_ianalde_addr i_ianalde_num;
+	befs_ianalde_addr i_parent;
+	befs_ianalde_addr i_attribute;
 
 	union {
 		befs_data_stream ds;
 		char symlink[BEFS_SYMLINK_LEN];
 	} i_data;
 
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
 enum befs_err {
 	BEFS_OK,
 	BEFS_ERR,
-	BEFS_BAD_INODE,
+	BEFS_BAD_IANALDE,
 	BEFS_BT_END,
 	BEFS_BT_EMPTY,
 	BEFS_BT_MATCH,
 	BEFS_BT_OVERFLOW,
-	BEFS_BT_NOT_FOUND
+	BEFS_BT_ANALT_FOUND
 };
 
 
@@ -98,9 +98,9 @@ __printf(2, 3)
 void befs_debug(const struct super_block *sb, const char *fmt, ...);
 
 void befs_dump_super_block(const struct super_block *sb, befs_super_block *);
-void befs_dump_inode(const struct super_block *sb, befs_inode *);
+void befs_dump_ianalde(const struct super_block *sb, befs_ianalde *);
 void befs_dump_index_entry(const struct super_block *sb, befs_disk_btree_super *);
-void befs_dump_index_node(const struct super_block *sb, befs_btree_nodehead *);
+void befs_dump_index_analde(const struct super_block *sb, befs_btree_analdehead *);
 /****************************/
 
 
@@ -113,27 +113,27 @@ BEFS_SB(const struct super_block *super)
 	return (struct befs_sb_info *) super->s_fs_info;
 }
 
-static inline struct befs_inode_info *
-BEFS_I(const struct inode *inode)
+static inline struct befs_ianalde_info *
+BEFS_I(const struct ianalde *ianalde)
 {
-	return container_of(inode, struct befs_inode_info, vfs_inode);
+	return container_of(ianalde, struct befs_ianalde_info, vfs_ianalde);
 }
 
 static inline befs_blocknr_t
-iaddr2blockno(struct super_block *sb, const befs_inode_addr *iaddr)
+iaddr2blockanal(struct super_block *sb, const befs_ianalde_addr *iaddr)
 {
 	return ((iaddr->allocation_group << BEFS_SB(sb)->ag_shift) +
 		iaddr->start);
 }
 
-static inline befs_inode_addr
-blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
+static inline befs_ianalde_addr
+blockanal2iaddr(struct super_block *sb, befs_blocknr_t blockanal)
 {
-	befs_inode_addr iaddr;
+	befs_ianalde_addr iaddr;
 
-	iaddr.allocation_group = blockno >> BEFS_SB(sb)->ag_shift;
+	iaddr.allocation_group = blockanal >> BEFS_SB(sb)->ag_shift;
 	iaddr.start =
-	    blockno - (iaddr.allocation_group << BEFS_SB(sb)->ag_shift);
+	    blockanal - (iaddr.allocation_group << BEFS_SB(sb)->ag_shift);
 	iaddr.len = 1;
 
 	return iaddr;
@@ -142,7 +142,7 @@ blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
 static inline unsigned int
 befs_iaddrs_per_block(struct super_block *sb)
 {
-	return BEFS_SB(sb)->block_size / sizeof(befs_disk_inode_addr);
+	return BEFS_SB(sb)->block_size / sizeof(befs_disk_ianalde_addr);
 }
 
 #include "endian.h"

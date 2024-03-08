@@ -50,8 +50,8 @@
  *	bpf_task_acquire(task);			// Allowed
  *	bpf_task_acquire(acquired->last_wakee); // Rejected, walked task
  *
- * Programs may _not_, however, pass a task from an arbitrary fentry/fexit, or
- * kprobe/kretprobe to the kfunc, as BPF cannot guarantee that all of these
+ * Programs may _analt_, however, pass a task from an arbitrary fentry/fexit, or
+ * kprobe/kretprobe to the kfunc, as BPF cananalt guarantee that all of these
  * pointers are guaranteed to be safe. For example, the following BPF program
  * would be rejected:
  *
@@ -60,7 +60,7 @@
  * {
  *	struct task_struct *acquired;
  *
- *	acquired = bpf_task_acquire(acquired); // Rejected, not a trusted pointer
+ *	acquired = bpf_task_acquire(acquired); // Rejected, analt a trusted pointer
  *	bpf_task_release(acquired);
  *
  *	return 0;
@@ -82,13 +82,13 @@
  * as to avoid issues such as the compiler inlining or eliding either a static
  * kfunc, or a global kfunc in an LTO build.
  */
-#define __bpf_kfunc __used noinline
+#define __bpf_kfunc __used analinline
 
 #define __bpf_kfunc_start_defs()					       \
 	__diag_push();							       \
-	__diag_ignore_all("-Wmissing-declarations",			       \
+	__diag_iganalre_all("-Wmissing-declarations",			       \
 			  "Global kfuncs as their definitions will be in BTF");\
-	__diag_ignore_all("-Wmissing-prototypes",			       \
+	__diag_iganalre_all("-Wmissing-prototypes",			       \
 			  "Global kfuncs as their definitions will be in BTF")
 
 #define __bpf_kfunc_end_defs() __diag_pop()
@@ -156,13 +156,13 @@ int btf_get_info_by_fd(const struct btf *btf,
  * @btf: struct btf object
  * @type_id: Find out the size of type_id. The type_id of the return
  *           type is set to *type_id.
- * @ret_size: It can be NULL.  If not NULL, the size of the return
+ * @ret_size: It can be NULL.  If analt NULL, the size of the return
  *            type is set to *ret_size.
- * Return: The btf_type (resolved to another type with size info if needed).
- *         NULL is returned if type_id itself does not have size info
- *         (e.g. void) or it cannot be resolved to another type that
+ * Return: The btf_type (resolved to aanalther type with size info if needed).
+ *         NULL is returned if type_id itself does analt have size info
+ *         (e.g. void) or it cananalt be resolved to aanalther type that
  *         has size info.
- *         *type_id and *ret_size will not be changed in the
+ *         *type_id and *ret_size will analt be changed in the
  *         NULL return case.
  */
 const struct btf_type *btf_type_id_size(const struct btf *btf,
@@ -171,17 +171,17 @@ const struct btf_type *btf_type_id_size(const struct btf *btf,
 
 /*
  * Options to control show behaviour.
- *	- BTF_SHOW_COMPACT: no formatting around type information
- *	- BTF_SHOW_NONAME: no struct/union member names/types
- *	- BTF_SHOW_PTR_RAW: show raw (unobfuscated) pointer values;
+ *	- BTF_SHOW_COMPACT: anal formatting around type information
+ *	- BTF_SHOW_ANALNAME: anal struct/union member names/types
+ *	- BTF_SHOW_PTR_RAW: show raw (uanalbfuscated) pointer values;
  *	  equivalent to %px.
  *	- BTF_SHOW_ZERO: show zero-valued struct/union members; they
- *	  are not displayed by default
+ *	  are analt displayed by default
  *	- BTF_SHOW_UNSAFE: skip use of bpf_probe_read() to safely read
  *	  data before displaying it.
  */
 #define BTF_SHOW_COMPACT	BTF_F_COMPACT
-#define BTF_SHOW_NONAME		BTF_F_NONAME
+#define BTF_SHOW_ANALNAME		BTF_F_ANALNAME
 #define BTF_SHOW_PTR_RAW	BTF_F_PTR_RAW
 #define BTF_SHOW_ZERO		BTF_F_ZERO
 #define BTF_SHOW_UNSAFE		(1ULL << 4)
@@ -544,7 +544,7 @@ static inline int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 }
 static inline s32 btf_find_dtor_kfunc(struct btf *btf, u32 btf_id)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 static inline int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dtors,
 					      u32 add_cnt, struct module *owner)

@@ -5,15 +5,15 @@
  *
  * Copyright (C) 1995 - 2000, 2001 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  * Copyright (C) 2004 Thiemo Seufer
  *
  * Hairy, the userspace application uses a different argument passing
  * convention than the kernel, so we have to translate things from o32
  * to ABI64 calling convention.	 64-bit syscalls are also processed
- * here for now.
+ * here for analw.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/irqflags.h>
@@ -26,7 +26,7 @@
 
 	.align	5
 NESTED(handle_sys, PT_SIZE, sp)
-	.set	noat
+	.set	analat
 	SAVE_SOME
 	TRACE_IRQS_ON_RELOAD
 	STI
@@ -37,7 +37,7 @@ NESTED(handle_sys, PT_SIZE, sp)
 	sltiu	t0, t0, __NR_O32_Linux_syscalls
 	daddiu	t1, 4			# skip to next instruction
 	sd	t1, PT_EPC(sp)
-	beqz	t0, not_o32_scall
+	beqz	t0, analt_o32_scall
 #if 0
  SAVE_ALL
  move a1, v0
@@ -90,7 +90,7 @@ syscall_common:
 
 	jalr	t2			# Do The Real Thing (TM)
 
-	li	t0, -EMAXERRNO - 1	# error?
+	li	t0, -EMAXERRANAL - 1	# error?
 	sltu	t0, t0, v0
 	sd	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
@@ -116,7 +116,7 @@ trace_a_syscall:
 	/*
 	 * absolute syscall number is in v0 unless we called syscall(__NR_###)
 	 * where the real syscall number is in a0
-	 * note: NR_syscall is the first O32 syscall but the macro is
+	 * analte: NR_syscall is the first O32 syscall but the macro is
 	 * only defined when compiling with -mabi=32 (CONFIG_32BIT)
 	 * therefore __NR_O32_Linux is used (4000)
 	 */
@@ -145,7 +145,7 @@ trace_a_syscall:
 
 	dsubu	t0, v0, __NR_O32_Linux	# check (new) syscall number
 	sltiu	t0, t0, __NR_O32_Linux_syscalls
-	beqz	t0, not_o32_scall
+	beqz	t0, analt_o32_scall
 
 	j	syscall_common
 
@@ -179,9 +179,9 @@ bad_stack_a7:
 	li	a7, 0
 	b	loads_done
 
-not_o32_scall:
+analt_o32_scall:
 	/*
-	 * This is not an o32 compatibility syscall, pass it on
+	 * This is analt an o32 compatibility syscall, pass it on
 	 * to the 64-bit syscall handlers.
 	 */
 #ifdef CONFIG_MIPS32_N32
@@ -194,7 +194,7 @@ not_o32_scall:
 LEAF(sys32_syscall)
 	subu	t0, a0, __NR_O32_Linux	# check syscall number
 	sltiu	v0, t0, __NR_O32_Linux_syscalls
-	beqz	t0, einval		# do not recurse
+	beqz	t0, einval		# do analt recurse
 	dsll	t1, t0, 3
 	beqz	v0, einval
 	ld	t2, sys32_call_table(t1)		# syscall routine
@@ -209,7 +209,7 @@ LEAF(sys32_syscall)
 	jr	t2
 	/* Unreached */
 
-einval: li	v0, -ENOSYS
+einval: li	v0, -EANALSYS
 	jr	ra
 	END(sys32_syscall)
 

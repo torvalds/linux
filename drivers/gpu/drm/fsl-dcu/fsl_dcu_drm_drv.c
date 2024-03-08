@@ -68,7 +68,7 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 	ret = regmap_read(fsl_dev->regmap, DCU_INT_STATUS, &int_status);
 	if (ret) {
 		dev_err(dev->dev, "read DCU_INT_STATUS failed\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (int_status & DCU_INT_STATUS_VBLANK)
@@ -81,8 +81,8 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 
 static int fsl_dcu_irq_install(struct drm_device *dev, unsigned int irq)
 {
-	if (irq == IRQ_NOTCONNECTED)
-		return -ENOTCONN;
+	if (irq == IRQ_ANALTCONNECTED)
+		return -EANALTCONN;
 
 	fsl_dcu_irq_reset(dev);
 
@@ -161,7 +161,7 @@ static const struct drm_driver fsl_dcu_drm_driver = {
 	.desc			= "Freescale DCU DRM",
 	.date			= "20160425",
 	.major			= 1,
-	.minor			= 1,
+	.mianalr			= 1,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -257,11 +257,11 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 	fsl_dev = devm_kzalloc(dev, sizeof(*fsl_dev), GFP_KERNEL);
 	if (!fsl_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	id = of_match_node(fsl_dcu_of_match, pdev->dev.of_node);
+	id = of_match_analde(fsl_dcu_of_match, pdev->dev.of_analde);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 	fsl_dev->soc = id->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -301,7 +301,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		pix_clk_in = fsl_dev->clk;
 	}
 
-	if (of_property_read_bool(dev->of_node, "big-endian"))
+	if (of_property_read_bool(dev->of_analde, "big-endian"))
 		div_ratio_shift = 24;
 
 	pix_clk_in_name = __clk_get_name(pix_clk_in);
@@ -325,7 +325,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 	fsl_dev->dev = dev;
 	fsl_dev->drm = drm;
-	fsl_dev->np = dev->of_node;
+	fsl_dev->np = dev->of_analde;
 	drm->dev_private = fsl_dev;
 	dev_set_drvdata(dev, fsl_dev);
 

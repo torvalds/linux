@@ -12,7 +12,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/ntxec.h>
@@ -56,19 +56,19 @@ static void ntxec_poweroff(void)
 
 	/*
 	 * The time from the register write until the host CPU is powered off
-	 * has been observed to be about 2.5 to 3 seconds. Sleep long enough to
+	 * has been observed to be about 2.5 to 3 seconds. Sleep long eanalugh to
 	 * safely avoid returning from the poweroff handler.
 	 */
 	msleep(5000);
 }
 
-static int ntxec_restart(struct notifier_block *nb,
+static int ntxec_restart(struct analtifier_block *nb,
 			 unsigned long action, void *data)
 {
 	int res;
 	u8 buf[3] = { NTXEC_REG_RESET };
 	/*
-	 * NOTE: The lower half of the reset value is not sent, because sending
+	 * ANALTE: The lower half of the reset value is analt sent, because sending
 	 * it causes an I2C error. (The reset handler in the downstream driver
 	 * does send the full two-byte value, but doesn't check the result).
 	 */
@@ -88,15 +88,15 @@ static int ntxec_restart(struct notifier_block *nb,
 		dev_warn(&poweroff_restart_client->dev,
 			 "Failed to restart (err = %d)\n", res);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block ntxec_restart_handler = {
-	.notifier_call = ntxec_restart,
+static struct analtifier_block ntxec_restart_handler = {
+	.analtifier_call = ntxec_restart,
 	.priority = 128,
 };
 
-static int regmap_ignore_write(void *context,
+static int regmap_iganalre_write(void *context,
 			       unsigned int reg, unsigned int val)
 
 {
@@ -116,15 +116,15 @@ static int regmap_wrap_read(void *context, unsigned int reg,
 }
 
 /*
- * Some firmware versions do not ack written data, add a wrapper. It
- * is used to stack another regmap on top.
+ * Some firmware versions do analt ack written data, add a wrapper. It
+ * is used to stack aanalther regmap on top.
  */
-static const struct regmap_config regmap_config_noack = {
-	.name = "ntxec_noack",
+static const struct regmap_config regmap_config_analack = {
+	.name = "ntxec_analack",
 	.reg_bits = 8,
 	.val_bits = 16,
-	.cache_type = REGCACHE_NONE,
-	.reg_write = regmap_ignore_write,
+	.cache_type = REGCACHE_ANALNE,
+	.reg_write = regmap_iganalre_write,
 	.reg_read = regmap_wrap_read
 };
 
@@ -132,7 +132,7 @@ static const struct regmap_config regmap_config = {
 	.name = "ntxec",
 	.reg_bits = 8,
 	.val_bits = 16,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 };
 
@@ -155,7 +155,7 @@ static int ntxec_probe(struct i2c_client *client)
 
 	ec = devm_kmalloc(&client->dev, sizeof(*ec), GFP_KERNEL);
 	if (!ec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ec->dev = &client->dev;
 
@@ -172,34 +172,34 @@ static int ntxec_probe(struct i2c_client *client)
 		return res;
 	}
 
-	/* Bail out if we encounter an unknown firmware version */
+	/* Bail out if we encounter an unkanalwn firmware version */
 	switch (version) {
 	case NTXEC_VERSION_KOBO_AURA:
-	case NTXEC_VERSION_TOLINO_VISION:
+	case NTXEC_VERSION_TOLIANAL_VISION:
 		subdevs = ntxec_subdev;
 		n_subdevs = ARRAY_SIZE(ntxec_subdev);
 		break;
-	case NTXEC_VERSION_TOLINO_SHINE2:
+	case NTXEC_VERSION_TOLIANAL_SHINE2:
 		subdevs = ntxec_subdev_pwm;
 		n_subdevs = ARRAY_SIZE(ntxec_subdev_pwm);
-		/* Another regmap stacked on top of the other */
+		/* Aanalther regmap stacked on top of the other */
 		ec->regmap = devm_regmap_init(ec->dev, NULL,
 					      ec->regmap,
-					      &regmap_config_noack);
+					      &regmap_config_analack);
 		if (IS_ERR(ec->regmap))
 			return PTR_ERR(ec->regmap);
 		break;
 	default:
 		dev_err(ec->dev,
-			"Netronix embedded controller version %04x is not supported.\n",
+			"Netronix embedded controller version %04x is analt supported.\n",
 			version);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(ec->dev,
 		 "Netronix embedded controller version %04x detected.\n", version);
 
-	if (of_device_is_system_power_controller(ec->dev->of_node)) {
+	if (of_device_is_system_power_controller(ec->dev->of_analde)) {
 		/*
 		 * Set the 'powerkeep' bit. This is necessary on some boards
 		 * in order to keep the system running.
@@ -211,7 +211,7 @@ static int ntxec_probe(struct i2c_client *client)
 
 		if (poweroff_restart_client)
 			/*
-			 * Another instance of the driver already took
+			 * Aanalther instance of the driver already took
 			 * poweroff/restart duties.
 			 */
 			dev_err(ec->dev, "poweroff_restart_client already assigned\n");
@@ -219,7 +219,7 @@ static int ntxec_probe(struct i2c_client *client)
 			poweroff_restart_client = client;
 
 		if (pm_power_off)
-			/* Another driver already registered a poweroff handler. */
+			/* Aanalther driver already registered a poweroff handler. */
 			dev_err(ec->dev, "pm_power_off already assigned\n");
 		else
 			pm_power_off = ntxec_poweroff;
@@ -232,7 +232,7 @@ static int ntxec_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, ec);
 
-	res = devm_mfd_add_devices(ec->dev, PLATFORM_DEVID_NONE,
+	res = devm_mfd_add_devices(ec->dev, PLATFORM_DEVID_ANALNE,
 				   subdevs, n_subdevs, NULL, 0, NULL);
 	if (res)
 		dev_err(ec->dev, "Failed to add subdevices: %d\n", res);

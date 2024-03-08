@@ -4,17 +4,17 @@
 //
 // There can be false positives in cases where the positional
 // information is used (as with lockdep) or where the identity
-// is a placeholder for not yet handled cases.
+// is a placeholder for analt yet handled cases.
 // Unfortunately there also seems to be a tendency to use
 // the last if else/else as a "default behavior" - which some
 // might consider a legitimate coding pattern. From discussion
-// on kernelnewbies though it seems that this is not really an
+// on kernelnewbies though it seems that this is analt really an
 // accepted pattern and if at all it would need to be commented
 //
-// In the Linux kernel it does not seem to actually report
+// In the Linux kernel it does analt seem to actually report
 // false positives except for those that were documented as
 // being intentional.
-// the two known cases are:
+// the two kanalwn cases are:
 //   arch/sh/kernel/traps_64.c:read_opcode()
 //        } else if ((pc & 1) == 0) {
 //              /* SHcompact */
@@ -40,7 +40,7 @@
 // Confidence: Moderate
 // Copyright: (C) 2016 Nicholas Mc Guire, OSADL.
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual org
 virtual report
@@ -56,10 +56,10 @@ position p;
 p << cond.p;
 @@
 
-cocci.print_main("WARNING: possible condition with no effect (if == else)",p)
+cocci.print_main("WARNING: possible condition with anal effect (if == else)",p)
 
 @script:python depends on report@
 p << cond.p;
 @@
 
-coccilib.report.print_report(p[0],"WARNING: possible condition with no effect (if == else)")
+coccilib.report.print_report(p[0],"WARNING: possible condition with anal effect (if == else)")

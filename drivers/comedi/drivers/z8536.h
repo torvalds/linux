@@ -10,7 +10,7 @@
 #define Z8536_INT_CTRL_REG		0x00
 #define Z8536_INT_CTRL_MIE		BIT(7)	/* Master Interrupt Enable */
 #define Z8536_INT_CTRL_DLC		BIT(6)	/* Disable Lower Chain */
-#define Z8536_INT_CTRL_NV		BIT(5)	/* No Vector */
+#define Z8536_INT_CTRL_NV		BIT(5)	/* Anal Vector */
 #define Z8536_INT_CTRL_PA_VIS		BIT(4)	/* Port A Vect Inc Status */
 #define Z8536_INT_CTRL_PB_VIS		BIT(3)	/* Port B Vect Inc Status */
 #define Z8536_INT_CTRL_VT_VIS		BIT(2)	/* C/T Vect Inc Status */
@@ -112,7 +112,7 @@
 #define Z8536_CT_MODE_DCS_PULSE		Z8536_CT_MODE_DCS(0) /* Pulse */
 #define Z8536_CT_MODE_DCS_ONESHOT	Z8536_CT_MODE_DCS(1) /* One-Shot */
 #define Z8536_CT_MODE_DCS_SQRWAVE	Z8536_CT_MODE_DCS(2) /* Square Wave */
-#define Z8536_CT_MODE_DCS_DO_NOT_USE	Z8536_CT_MODE_DCS(3) /* Do Not Use */
+#define Z8536_CT_MODE_DCS_DO_ANALT_USE	Z8536_CT_MODE_DCS(3) /* Do Analt Use */
 #define Z8536_CT_MODE_DCS_MASK		Z8536_CT_MODE_DCS(3)
 
 /* Port A/B Mode Specification registers */
@@ -159,7 +159,7 @@
 /*
  * Port A/B/C Data Path Polarity registers
  *
- *	0 = Non-Inverting
+ *	0 = Analn-Inverting
  *	1 = Inverting
  */
 #define Z8536_PA_DPP_REG		0x22
@@ -179,7 +179,7 @@
 /*
  * Port A/B/C Special I/O Control registers
  *
- *	0 = Normal Input or Output
+ *	0 = Analrmal Input or Output
  *	1 = Output with open drain or Input with 1's catcher
  */
 #define Z8536_PA_SIO_REG		0x24

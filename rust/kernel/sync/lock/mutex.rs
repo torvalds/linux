@@ -22,7 +22,7 @@ macro_rules! new_mutex {
 ///
 /// Exposes the kernel's [`struct mutex`]. When multiple threads attempt to lock the same mutex,
 /// only one at a time is allowed to progress, the others will block (sleep) until the mutex is
-/// unlocked, at which point another thread will be allowed to wake up and make progress.
+/// unlocked, at which point aanalther thread will be allowed to wake up and make progress.
 ///
 /// Since it may block, [`Mutex`] needs to be used with care in atomic contexts.
 ///

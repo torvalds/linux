@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Driver for the Synopsys DesignWare DMA Controller
+ * Driver for the Syanalpsys DesignWare DMA Controller
  *
  * Copyright (C) 2007 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics

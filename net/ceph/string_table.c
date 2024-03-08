@@ -11,14 +11,14 @@ static struct rb_root string_tree = RB_ROOT;
 struct ceph_string *ceph_find_or_create_string(const char* str, size_t len)
 {
 	struct ceph_string *cs, *exist;
-	struct rb_node **p, *parent;
+	struct rb_analde **p, *parent;
 	int ret;
 
 	exist = NULL;
 	spin_lock(&string_tree_lock);
-	p = &string_tree.rb_node;
+	p = &string_tree.rb_analde;
 	while (*p) {
-		exist = rb_entry(*p, struct ceph_string, node);
+		exist = rb_entry(*p, struct ceph_string, analde);
 		ret = ceph_compare_string(exist, str, len);
 		if (ret > 0)
 			p = &(*p)->rb_left;
@@ -29,15 +29,15 @@ struct ceph_string *ceph_find_or_create_string(const char* str, size_t len)
 		exist = NULL;
 	}
 	if (exist && !kref_get_unless_zero(&exist->kref)) {
-		rb_erase(&exist->node, &string_tree);
-		RB_CLEAR_NODE(&exist->node);
+		rb_erase(&exist->analde, &string_tree);
+		RB_CLEAR_ANALDE(&exist->analde);
 		exist = NULL;
 	}
 	spin_unlock(&string_tree_lock);
 	if (exist)
 		return exist;
 
-	cs = kmalloc(sizeof(*cs) + len + 1, GFP_NOFS);
+	cs = kmalloc(sizeof(*cs) + len + 1, GFP_ANALFS);
 	if (!cs)
 		return NULL;
 
@@ -49,11 +49,11 @@ struct ceph_string *ceph_find_or_create_string(const char* str, size_t len)
 retry:
 	exist = NULL;
 	parent = NULL;
-	p = &string_tree.rb_node;
+	p = &string_tree.rb_analde;
 	spin_lock(&string_tree_lock);
 	while (*p) {
 		parent = *p;
-		exist = rb_entry(*p, struct ceph_string, node);
+		exist = rb_entry(*p, struct ceph_string, analde);
 		ret = ceph_compare_string(exist, str, len);
 		if (ret > 0)
 			p = &(*p)->rb_left;
@@ -65,11 +65,11 @@ retry:
 	}
 	ret = 0;
 	if (!exist) {
-		rb_link_node(&cs->node, parent, p);
-		rb_insert_color(&cs->node, &string_tree);
+		rb_link_analde(&cs->analde, parent, p);
+		rb_insert_color(&cs->analde, &string_tree);
 	} else if (!kref_get_unless_zero(&exist->kref)) {
-		rb_erase(&exist->node, &string_tree);
-		RB_CLEAR_NODE(&exist->node);
+		rb_erase(&exist->analde, &string_tree);
+		RB_CLEAR_ANALDE(&exist->analde);
 		ret = -EAGAIN;
 	}
 	spin_unlock(&string_tree_lock);
@@ -90,9 +90,9 @@ void ceph_release_string(struct kref *ref)
 	struct ceph_string *cs = container_of(ref, struct ceph_string, kref);
 
 	spin_lock(&string_tree_lock);
-	if (!RB_EMPTY_NODE(&cs->node)) {
-		rb_erase(&cs->node, &string_tree);
-		RB_CLEAR_NODE(&cs->node);
+	if (!RB_EMPTY_ANALDE(&cs->analde)) {
+		rb_erase(&cs->analde, &string_tree);
+		RB_CLEAR_ANALDE(&cs->analde);
 	}
 	spin_unlock(&string_tree_lock);
 

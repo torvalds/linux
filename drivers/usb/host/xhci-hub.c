@@ -59,8 +59,8 @@ static int xhci_create_usb3x_bos_desc(struct xhci_hcd *xhci, char *buf,
 	/* Create the descriptor for port with the highest revision */
 	for (i = 0; i < xhci->num_port_caps; i++) {
 		u8 major = xhci->port_caps[i].maj_rev;
-		u8 minor = xhci->port_caps[i].min_rev;
-		u16 rev = (major << 8) | minor;
+		u8 mianalr = xhci->port_caps[i].min_rev;
+		u16 rev = (major << 8) | mianalr;
 
 		if (i == 0 || bcdUSB < rev) {
 			bcdUSB = rev;
@@ -265,12 +265,12 @@ static void xhci_common_hub_descriptor(struct xhci_hcd *xhci,
 	if (HCC_PPC(xhci->hcc_params))
 		temp |= HUB_CHAR_INDV_PORT_LPSM;
 	else
-		temp |= HUB_CHAR_NO_LPSM;
-	/* Bit  2 - root hubs are not part of a compound device */
+		temp |= HUB_CHAR_ANAL_LPSM;
+	/* Bit  2 - root hubs are analt part of a compound device */
 	/* Bits 4:3 - individual port over current protection */
 	temp |= HUB_CHAR_INDV_PORT_OCPM;
-	/* Bits 6:5 - no TTs in root ports */
-	/* Bit  7 - no port indicators */
+	/* Bits 6:5 - anal TTs in root ports */
+	/* Bit  7 - anal port indicators */
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
 
@@ -290,7 +290,7 @@ static void xhci_usb2_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 	xhci_common_hub_descriptor(xhci, desc, ports);
 	desc->bDescriptorType = USB_DT_HUB;
 	temp = 1 + (ports / 8);
-	desc->bDescLength = USB_DT_HUB_NONVAR_SIZE + 2 * temp;
+	desc->bDescLength = USB_DT_HUB_ANALNVAR_SIZE + 2 * temp;
 	desc->bPwrOn2PwrGood = 10;	/* xhci section 5.4.8 says 20ms */
 
 	/* The Device Removable bits are reported on a byte granularity.
@@ -381,7 +381,7 @@ static unsigned int xhci_port_speed(unsigned int port_status)
 	if (DEV_HIGHSPEED(port_status))
 		return USB_PORT_STAT_HIGH_SPEED;
 	/*
-	 * FIXME: Yes, we should check for full speed, but the core uses that as
+	 * FIXME: Anal, we should check for full speed, but the core uses that as
 	 * a default in portspeed() in usb/core/hub.c (which is the only place
 	 * USB_PORT_STAT_*_SPEED is used).
 	 */
@@ -403,12 +403,12 @@ static unsigned int xhci_port_speed(unsigned int port_status)
  */
 #define XHCI_PORT_RWS	((0xf<<5) | (1<<9) | (0x3<<14) | (0x7<<25))
 /*
- * These bits are RW; writing a 1 sets the bit, writing a 0 has no effect:
+ * These bits are RW; writing a 1 sets the bit, writing a 0 has anal effect:
  * bit 4 (port reset)
  */
 #define	XHCI_PORT_RW1S	((1<<4))
 /*
- * These bits are RW; writing a 1 clears the bit, writing a 0 has no effect:
+ * These bits are RW; writing a 1 clears the bit, writing a 0 has anal effect:
  * bits 1, 17, 18, 19, 20, 21, 22, 23
  * port enable/disable, and
  * change bits: connect, PED, warm port reset changed (reserved zero for USB 2.0 ports),
@@ -435,7 +435,7 @@ static unsigned int xhci_port_speed(unsigned int port_status)
  * control register.
  * Save Read Only (RO) bits and save read/write bits where
  * writing a 0 clears the bit and writing a 1 sets the bit (RWS).
- * For all other types (RW1S, RW1CS, RW, and RZ), writing a '0' has no effect.
+ * For all other types (RW1S, RW1CS, RW, and RZ), writing a '0' has anal effect.
  *
  * Return: u32 value that can be written back to portsc register without
  * changing port state.
@@ -454,7 +454,7 @@ EXPORT_SYMBOL_GPL(xhci_port_state_to_neutral);
  * @xhci: pointer to xhci structure
  * @port: one-based port number of the port in this roothub.
  *
- * Return: Slot id of the usb device connected to the root port, 0 if not found
+ * Return: Slot id of the usb device connected to the root port, 0 if analt found
  */
 
 int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
@@ -497,13 +497,13 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	ret = 0;
 	virt_dev = xhci->devs[slot_id];
 	if (!virt_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	trace_xhci_stop_device(virt_dev);
 
-	cmd = xhci_alloc_command(xhci, true, GFP_NOIO);
+	cmd = xhci_alloc_command(xhci, true, GFP_ANALIO);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	for (i = LAST_EP_INDEX; i > 0; i--) {
@@ -517,10 +517,10 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 			if (GET_EP_CTX_STATE(ep_ctx) != EP_STATE_RUNNING)
 				continue;
 
-			command = xhci_alloc_command(xhci, false, GFP_NOWAIT);
+			command = xhci_alloc_command(xhci, false, GFP_ANALWAIT);
 			if (!command) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto cmd_cleanup;
 			}
 
@@ -587,13 +587,13 @@ static void xhci_disable_port(struct xhci_hcd *xhci, struct xhci_port *port)
 
 	/* Don't allow the USB core to disable SuperSpeed ports. */
 	if (hcd->speed >= HCD_USB3) {
-		xhci_dbg(xhci, "Ignoring request to disable SuperSpeed port.\n");
+		xhci_dbg(xhci, "Iganalring request to disable SuperSpeed port.\n");
 		return;
 	}
 
 	if (xhci->quirks & XHCI_BROKEN_PORT_PED) {
 		xhci_dbg(xhci,
-			 "Broken Port Enabled/Disabled, ignoring port disable request.\n");
+			 "Broken Port Enabled/Disabled, iganalring port disable request.\n");
 		return;
 	}
 
@@ -770,7 +770,7 @@ static int xhci_exit_test_mode(struct xhci_hcd *xhci)
 	int retval;
 
 	if (!xhci->test_mode) {
-		xhci_err(xhci, "Not in test mode, do nothing.\n");
+		xhci_err(xhci, "Analt in test mode, do analthing.\n");
 		return 0;
 	}
 	if (xhci->test_mode == USB_TEST_FORCE_ENABLE &&
@@ -869,9 +869,9 @@ static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
 		pls |= USB_PORT_STAT_CONNECTION;
 	} else {
 		/*
-		 * Resume state is an xHCI internal state.  Do not report it to
-		 * usb core, instead, pretend to be U3, thus usb core knows
-		 * it's not ready for transfer.
+		 * Resume state is an xHCI internal state.  Do analt report it to
+		 * usb core, instead, pretend to be U3, thus usb core kanalws
+		 * it's analt ready for transfer.
 		 */
 		if (pls == XDEV_RESUME) {
 			*status |= USB_SS_PORT_LS_U3;
@@ -881,7 +881,7 @@ static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
 		/*
 		 * If CAS bit isn't set but the Port is already at
 		 * Compliance Mode, fake a connection so the USB core
-		 * notices the Compliance state and resets the port.
+		 * analtices the Compliance state and resets the port.
 		 * This resolves an issue generated by the SN65LVPE502CP
 		 * in which sometimes the port enters compliance mode
 		 * caused by a delay on the host-device negotiation.
@@ -943,16 +943,16 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 	}
 	/* did port event handler already start resume timing? */
 	if (!port->resume_timestamp) {
-		/* If not, maybe we are in a host initated resume? */
+		/* If analt, maybe we are in a host initated resume? */
 		if (test_bit(wIndex, &bus_state->resuming_ports)) {
 			/* Host initated resume doesn't time the resume
 			 * signalling using resume_done[].
 			 * It manually sets RESUME state, sleeps 20ms
 			 * and sets U0 state. This should probably be
-			 * changed, but not right now.
+			 * changed, but analt right analw.
 			 */
 		} else {
-			/* port resume was discovered now and here,
+			/* port resume was discovered analw and here,
 			 * start resume timing
 			 */
 			unsigned long timeout = jiffies +
@@ -990,7 +990,7 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 							    wIndex + 1);
 			if (!slot_id) {
 				xhci_dbg(xhci, "slot_id is zero\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			xhci_ring_device(xhci, slot_id);
 		} else {
@@ -1000,7 +1000,7 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 				  hcd->self.busnum, wIndex + 1, port_status);
 			/*
 			 * keep rexit_active set if U0 transition failed so we
-			 * know to report PORT_STAT_SUSPEND status back to
+			 * kanalw to report PORT_STAT_SUSPEND status back to
 			 * usbcore. It will be cleared later once the port is
 			 * out of RESUME/U3 state
 			 */
@@ -1047,7 +1047,7 @@ static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
 
 	/* USB3 specific wPortChange bits
 	 *
-	 * Port link change with port in resume state should not be
+	 * Port link change with port in resume state should analt be
 	 * reported to usbcore, as this is an internal state to be
 	 * handled by xhci driver. Reporting PLC to usbcore may
 	 * cause usbcore clearing PLC first and port change event
@@ -1065,7 +1065,7 @@ static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
 	if (portsc & PORT_POWER)
 		*status |= USB_SS_PORT_STAT_POWER;
 
-	/* no longer suspended or resuming */
+	/* anal longer suspended or resuming */
 	if (link_state != XDEV_U3 &&
 	    link_state != XDEV_RESUME &&
 	    link_state != XDEV_RECOVERY) {
@@ -1119,7 +1119,7 @@ static void xhci_get_usb2_port_status(struct xhci_port *port, u32 *status,
 	}
 
 	/*
-	 * Clear usb2 resume signalling variables if port is no longer suspended
+	 * Clear usb2 resume signalling variables if port is anal longer suspended
 	 * or resuming. Port either resumed to U0/U1/U2, disconnected, or in a
 	 * error state. Resume related variables should be cleared in all those cases.
 	 */
@@ -1142,7 +1142,7 @@ static void xhci_get_usb2_port_status(struct xhci_port *port, u32 *status,
  * Possible side effects:
  *  - Mark a port as being done with device resume,
  *    and ring the endpoint doorbells.
- *  - Stop the Synopsys redriver Compliance Mode polling.
+ *  - Stop the Syanalpsys redriver Compliance Mode polling.
  *  - Drop and reacquire the xHCI lock, in order to wait for port resume.
  */
 static u32 xhci_get_port_status(struct usb_hcd *hcd,
@@ -1222,12 +1222,12 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	spin_lock_irqsave(&xhci->lock, flags);
 	switch (typeReq) {
 	case GetHubStatus:
-		/* No power source, over-current reported per port */
+		/* Anal power source, over-current reported per port */
 		memset(buf, 0, 4);
 		break;
 	case GetHubDescriptor:
 		/* Check to make sure userspace is asking for the USB 3.0 hub
-		 * descriptor for the USB 3.0 roothub.  If not, we stall the
+		 * descriptor for the USB 3.0 roothub.  If analt, we stall the
 		 * endpoint, like external hubs do.
 		 */
 		if (hcd->speed >= HCD_USB3 &&
@@ -1259,7 +1259,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = readl(port->addr);
 		if (temp == ~(u32)0) {
 			xhci_hc_died(xhci);
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			break;
 		}
 		trace_xhci_get_port_status(port, temp);
@@ -1305,7 +1305,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = readl(port->addr);
 		if (temp == ~(u32)0) {
 			xhci_hc_died(xhci);
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			break;
 		}
 		temp = xhci_port_state_to_neutral(temp);
@@ -1320,14 +1320,14 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				msleep(10);
 				spin_lock_irqsave(&xhci->lock, flags);
 			}
-			/* In spec software should not attempt to suspend
+			/* In spec software should analt attempt to suspend
 			 * a port unless the port reports that it is in the
 			 * enabled (PED = ‘1’,PLS < ‘3’) state.
 			 */
 			temp = readl(port->addr);
 			if ((temp & PORT_PE) == 0 || (temp & PORT_RESET)
 				|| (temp & PORT_PLS_MASK) >= XDEV_U3) {
-				xhci_warn(xhci, "USB core suspending port %d-%d not in U0/U1/U2\n",
+				xhci_warn(xhci, "USB core suspending port %d-%d analt in U0/U1/U2\n",
 					  hcd->self.busnum, portnum1);
 				goto error;
 			}
@@ -1384,7 +1384,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			 * For xHCI 1.1 according to section 4.19.1.2.4.1 a
 			 * root hub port's transition to compliance mode upon
 			 * detecting LFPS timeout may be controlled by an
-			 * Compliance Transition Enabled (CTE) flag (not
+			 * Compliance Transition Enabled (CTE) flag (analt
 			 * software visible). This flag is set by writing 0xA
 			 * to PORTSC PLS field which will allow transition to
 			 * compliance mode the next time LFPS timeout is
@@ -1414,12 +1414,12 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			/* Port must be enabled */
 			if (!(temp & PORT_PE)) {
-				retval = -ENODEV;
+				retval = -EANALDEV;
 				break;
 			}
 			/* Can't set port link state above '3' (U3) */
 			if (link_state > USB_SS_PORT_LS_U3) {
-				xhci_warn(xhci, "Cannot set port %d-%d link state %d\n",
+				xhci_warn(xhci, "Cananalt set port %d-%d link state %d\n",
 					  hcd->self.busnum, portnum1, link_state);
 				goto error;
 			}
@@ -1427,7 +1427,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			/*
 			 * set link to U0, steps depend on current link state.
 			 * U3: set link to U0 and wait for u3exit completion.
-			 * U1/U2:  no PLC complete event, only set link to U0.
+			 * U1/U2:  anal PLC complete event, only set link to U0.
 			 * Resume/Recovery: device initiated U0, only wait for
 			 * completion
 			 */
@@ -1490,7 +1490,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			/*
 			 * Turn on ports, even if there isn't per-port switching.
 			 * HC will report connect events even before this is set.
-			 * However, hub_wq will ignore the roothub events until
+			 * However, hub_wq will iganalre the roothub events until
 			 * the roothub is registered.
 			 */
 			xhci_set_port_power(xhci, port, true, &flags);
@@ -1556,7 +1556,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = readl(port->addr);
 		if (temp == ~(u32)0) {
 			xhci_hc_died(xhci);
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			break;
 		}
 		/* FIXME: What new port features do we need to support? */
@@ -1633,7 +1633,7 @@ EXPORT_SYMBOL_GPL(xhci_hub_control);
  * Ports are 0-indexed from the HCD point of view,
  * and 1-indexed from the USB core pointer of view.
  *
- * Note that the status change bits will be cleared as soon as a port status
+ * Analte that the status change bits will be cleared as soon as a port status
  * change event is generated, so we use the saved status from that event.
  */
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
@@ -1654,13 +1654,13 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	max_ports = rhub->num_ports;
 	bus_state = &rhub->bus_state;
 
-	/* Initial status is no changes */
+	/* Initial status is anal changes */
 	retval = (max_ports + 8) / 8;
 	memset(buf, 0, retval);
 
 	/*
 	 * Inform the usbcore about resume-in-progress by returning
-	 * a non-zero value even if there are no status changes.
+	 * a analn-zero value even if there are anal status changes.
 	 */
 	spin_lock_irqsave(&xhci->lock, flags);
 
@@ -1684,7 +1684,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 		temp = readl(ports[i]->addr);
 		if (temp == ~(u32)0) {
 			xhci_hc_died(xhci);
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			break;
 		}
 		trace_xhci_hub_status_data(ports[i], temp);
@@ -1742,7 +1742,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	}
 	/*
 	 * Prepare ports for suspend, but don't write anything before all ports
-	 * are checked and we know bus suspend can proceed
+	 * are checked and we kanalw bus suspend can proceed
 	 */
 	bus_state->bus_suspended = 0;
 	port_index = max_ports;
@@ -1782,7 +1782,7 @@ retry:
 				xhci_dbg(xhci, "Bus suspend bailout, port connect change\n");
 				return -EBUSY;
 			}
-			xhci_dbg(xhci, "port %d-%d not suspended\n",
+			xhci_dbg(xhci, "port %d-%d analt suspended\n",
 				 hcd->self.busnum, port_index + 1);
 			t2 &= ~PORT_PLS_MASK;
 			t2 |= PORT_LINK_STROBE | XDEV_U3;
@@ -1854,7 +1854,7 @@ static bool xhci_port_missing_cas_quirk(struct xhci_port *port)
 
 	portsc = readl(port->addr);
 
-	/* if any of these are set we are not stuck */
+	/* if any of these are set we are analt stuck */
 	if (portsc & (PORT_CONNECT | PORT_CAS))
 		return false;
 
@@ -1934,7 +1934,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 				/* resume already initiated */
 				break;
 			default:
-				/* not in a resumeable state, ignore it */
+				/* analt in a resumeable state, iganalre it */
 				clear_bit(port_index,
 					  &bus_state->bus_suspended);
 				break;
@@ -1991,7 +1991,7 @@ unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd)
 {
 	struct xhci_hub *rhub = xhci_get_rhub(hcd);
 
-	/* USB3 port wakeups are reported via usb_wakeup_notification() */
+	/* USB3 port wakeups are reported via usb_wakeup_analtification() */
 	return rhub->bus_state.resuming_ports;	/* USB2 ports only */
 }
 

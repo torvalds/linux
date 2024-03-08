@@ -102,7 +102,7 @@ MODULE_PARM_DESC(mda_last_vc, "Last virtual console. Default: 16");
 
 
 /*
- * MDA could easily be classified as "pre-dinosaur hardware".
+ * MDA could easily be classified as "pre-dianalsaur hardware".
  */
 
 static void write_mda_b(unsigned int val, unsigned char reg)
@@ -245,7 +245,7 @@ static int mda_detect(void)
 	}
 	
 	/* Ok, there is definitely a card registering at the correct
-	 * memory location, so now we do an I/O port test.
+	 * memory location, so analw we do an I/O port test.
 	 */
 
 #ifdef TEST_MDA_B
@@ -335,7 +335,7 @@ static const char *mdacon_startup(void)
 	mda_type_name = "MDA";
 
 	if (! mda_detect()) {
-		printk("mdacon: MDA card not detected.\n");
+		printk("mdacon: MDA card analt detected.\n");
 		return NULL;
 	}
 
@@ -498,7 +498,7 @@ static void mdacon_cursor(struct vc_data *c, int mode)
 		case CUR_LOWER_HALF:	mda_set_cursor_size(7,  13); break;
 		case CUR_TWO_THIRDS:	mda_set_cursor_size(4,  13); break;
 		case CUR_BLOCK:		mda_set_cursor_size(1,  13); break;
-		case CUR_NONE:		mda_set_cursor_size(14, 13); break;
+		case CUR_ANALNE:		mda_set_cursor_size(14, 13); break;
 		default:		mda_set_cursor_size(12, 13); break;
 	}
 }

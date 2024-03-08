@@ -12,13 +12,13 @@ struct adf_accel_dev;
 #define RL_ROOT_MAX		4
 #define RL_CLUSTER_MAX		16
 #define RL_LEAF_MAX		64
-#define RL_NODES_CNT_MAX	(RL_ROOT_MAX + RL_CLUSTER_MAX + RL_LEAF_MAX)
+#define RL_ANALDES_CNT_MAX	(RL_ROOT_MAX + RL_CLUSTER_MAX + RL_LEAF_MAX)
 #define RL_RP_CNT_PER_LEAF_MAX	4U
 #define RL_RP_CNT_MAX		64
 #define RL_SLA_EMPTY_ID		-1
 #define RL_PARENT_DEFAULT_ID	-1
 
-enum rl_node_type {
+enum rl_analde_type {
 	RL_ROOT,
 	RL_CLUSTER,
 	RL_LEAF,
@@ -28,7 +28,7 @@ enum adf_base_services {
 	ADF_SVC_ASYM = 0,
 	ADF_SVC_SYM,
 	ADF_SVC_DC,
-	ADF_SVC_NONE,
+	ADF_SVC_ANALNE,
 };
 
 /**
@@ -46,11 +46,11 @@ enum adf_base_services {
  * @pir: Peak information rate. Maximum rate available that the SLA can achieve.
  *	 Input value is expressed in permille scale, i.e. 1000 refers to
  *	 the maximum device throughput for a selected service.
- * @type: SLA type: root, cluster, node
+ * @type: SLA type: root, cluster, analde
  * @srv: Service associated to the SLA: asym, sym dc.
  *
  * This structure is used to perform operations on an SLA.
- * Depending on the operation, some of the parameters are ignored.
+ * Depending on the operation, some of the parameters are iganalred.
  * The following list reports which parameters should be set for each operation.
  *	- add: all except sla_id
  *	- update: cir, pir, sla_id
@@ -65,7 +65,7 @@ struct adf_rl_sla_input_data {
 	int parent_id;
 	unsigned int cir;
 	unsigned int pir;
-	enum rl_node_type type;
+	enum rl_analde_type type;
 	enum adf_base_services srv;
 };
 
@@ -102,9 +102,9 @@ struct adf_rl_hw_data {
  * @accel_dev: pointer to acceleration device data
  * @device_data: pointer to rate limiting data specific to a device type (or revision)
  * @sla: array of pointers to SLA objects
- * @root: array of pointers to root type SLAs, element number reflects node_id
- * @cluster: array of pointers to cluster type SLAs, element number reflects node_id
- * @leaf: array of pointers to leaf type SLAs, element number reflects node_id
+ * @root: array of pointers to root type SLAs, element number reflects analde_id
+ * @cluster: array of pointers to cluster type SLAs, element number reflects analde_id
+ * @leaf: array of pointers to leaf type SLAs, element number reflects analde_id
  * @rp_in_use: array of ring pair IDs already used in one of SLAs
  * @rl_lock: mutex object which is protecting data in this structure
  * @input: structure which is used for holding the data received from user
@@ -113,7 +113,7 @@ struct adf_rl {
 	struct adf_accel_dev *accel_dev;
 	struct adf_rl_hw_data *device_data;
 	/* mapping sla_id to SLA objects */
-	struct rl_sla *sla[RL_NODES_CNT_MAX];
+	struct rl_sla *sla[RL_ANALDES_CNT_MAX];
 	struct rl_sla *root[RL_ROOT_MAX];
 	struct rl_sla *cluster[RL_CLUSTER_MAX];
 	struct rl_sla *leaf[RL_LEAF_MAX];
@@ -130,7 +130,7 @@ struct adf_rl {
  * @srv: service associated with this SLA
  * @sla_id: ID of the SLA, used as element number in SLA array and as identifier
  *	    shared with the user
- * @node_id: ID of node, each of SLA type have a separate ID list
+ * @analde_id: ID of analde, each of SLA type have a separate ID list
  * @cir: committed information rate
  * @pir: peak information rate (PIR >= CIR)
  * @rem_cir: if this SLA is a parent then this field represents a remaining
@@ -140,10 +140,10 @@ struct adf_rl {
  */
 struct rl_sla {
 	struct rl_sla *parent;
-	enum rl_node_type type;
+	enum rl_analde_type type;
 	enum adf_base_services srv;
 	u32 sla_id;
-	u32 node_id;
+	u32 analde_id;
 	u32 cir;
 	u32 pir;
 	u32 rem_cir;

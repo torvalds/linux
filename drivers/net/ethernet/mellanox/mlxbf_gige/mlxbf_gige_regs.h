@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause */
 
-/* Header file for Mellanox BlueField GigE register defines
+/* Header file for Mellaanalx BlueField GigE register defines
  *
  * Copyright (C) 2020-2021 NVIDIA CORPORATION & AFFILIATES
  */
@@ -75,7 +75,7 @@
 #define MLXBF_GIGE_RX_CQE_PACKET_CI                   0x05b0
 #define MLXBF_GIGE_MAC_CFG                            0x05e8
 
-/* NOTE: MLXBF_GIGE_MAC_CFG is the last defined register offset,
+/* ANALTE: MLXBF_GIGE_MAC_CFG is the last defined register offset,
  * so use that plus size of single register to derive total size
  */
 #define MLXBF_GIGE_MMIO_REG_SZ                        (MLXBF_GIGE_MAC_CFG + 8)

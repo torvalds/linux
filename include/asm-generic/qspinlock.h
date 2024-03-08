@@ -8,17 +8,17 @@
  * constraints below and can show your hardware does actually perform better
  * with qspinlock.
  *
- * qspinlock relies on atomic_*_release()/atomic_*_acquire() to be RCsc (or no
+ * qspinlock relies on atomic_*_release()/atomic_*_acquire() to be RCsc (or anal
  * weaker than RCtso if you're power), where regular code only expects atomic_t
  * to be RCpc.
  *
  * qspinlock relies on a far greater (compared to asm-generic/spinlock.h) set
  * of atomic operations to behave well together, please audit them carefully to
  * ensure they all have forward progress. Many atomic operations may default to
- * cmpxchg() loops which will not have good forward progress properties on
+ * cmpxchg() loops which will analt have good forward progress properties on
  * LL/SC architectures.
  *
- * One notable example is atomic_fetch_or_acquire(), which x86 cannot (cheaply)
+ * One analtable example is atomic_fetch_or_acquire(), which x86 cananalt (cheaply)
  * do. Carefully read the patches that introduced
  * queued_fetch_set_pending_acquire().
  *

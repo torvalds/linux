@@ -31,7 +31,7 @@
 #define cpu_has_vtag_icache		0
 #define cpu_has_ic_fills_f_dc		0
 #define cpu_has_pindexed_dcache		0
-#define cpu_icache_snoops_remote_store	1
+#define cpu_icache_sanalops_remote_store	1
 #define cpu_has_mips_4			0
 #define cpu_has_mips_5			0
 #define cpu_has_mips32r1		0
@@ -63,7 +63,7 @@
 #define cpu_has_dc_aliases		0
 #define cpu_has_mips_2			0
 #define cpu_has_mips_3			0
-#define cpu_has_nofpuex			1
+#define cpu_has_analfpuex			1
 #define cpu_has_inclusive_pcaches	0
 #define cpu_dcache_line_size()		4
 #define cpu_icache_line_size()		4
@@ -86,7 +86,7 @@
 #define cpu_has_dc_aliases		(PAGE_SIZE < 0x4000)
 #define cpu_has_mips_2			1
 #define cpu_has_mips_3			1
-#define cpu_has_nofpuex			0
+#define cpu_has_analfpuex			0
 #define cpu_has_inclusive_pcaches	1
 #define cpu_dcache_line_size()		16
 #define cpu_icache_line_size()		16

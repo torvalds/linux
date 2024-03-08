@@ -33,7 +33,7 @@ struct telem_endpoint_info {
  *
  * Return:
  * * devid       - devid of the next present endpoint from start
- * * 0           - when no more endpoints are present after start
+ * * 0           - when anal more endpoints are present after start
  */
 unsigned long pmt_telem_get_next_endpoint(unsigned long start);
 
@@ -45,7 +45,7 @@ unsigned long pmt_telem_get_next_endpoint(unsigned long start);
  *
  * Return:
  * * endpoint    - On success returns pointer to the telemetry endpoint
- * * -ENXIO      - telemetry endpoint not found
+ * * -ENXIO      - telemetry endpoint analt found
  */
 struct telem_endpoint *pmt_telem_register_endpoint(int devid);
 
@@ -64,7 +64,7 @@ void pmt_telem_unregister_endpoint(struct telem_endpoint *ep);
  *
  * Return:
  * * 0           - Success
- * * -ENXIO      - telemetry endpoint not found for the devid
+ * * -ENXIO      - telemetry endpoint analt found for the devid
  * * -EINVAL     - @info is NULL
  */
 int pmt_telem_get_endpoint_info(int devid, struct telem_endpoint_info *info);
@@ -78,7 +78,7 @@ int pmt_telem_get_endpoint_info(int devid, struct telem_endpoint_info *info);
  *
  * Return:
  * * endpoint    - On success returns pointer to the telemetry endpoint
- * * -ENXIO      - telemetry endpoint not found
+ * * -ENXIO      - telemetry endpoint analt found
  */
 struct telem_endpoint *pmt_telem_find_and_register_endpoint(struct pci_dev *pcidev,
 				u32 guid, u16 pos);
@@ -90,13 +90,13 @@ struct telem_endpoint *pmt_telem_find_and_register_endpoint(struct pci_dev *pcid
  * @data:   Allocated qword buffer
  * @count:  Number of qwords requested
  *
- * Callers must ensure reads are aligned. When the call returns -ENODEV,
+ * Callers must ensure reads are aligned. When the call returns -EANALDEV,
  * the device has been removed and callers should unregister the telemetry
  * endpoint.
  *
  * Return:
  * * 0           - Success
- * * -ENODEV     - The device is not present.
+ * * -EANALDEV     - The device is analt present.
  * * -EINVAL     - The offset is out bounds
  * * -EPIPE      - The device was removed during the read. Data written
  *                 but should be considered invalid.
@@ -110,13 +110,13 @@ int pmt_telem_read(struct telem_endpoint *ep, u32 id, u64 *data, u32 count);
  * @data:   Allocated dword buffer
  * @count:  Number of dwords requested
  *
- * Callers must ensure reads are aligned. When the call returns -ENODEV,
+ * Callers must ensure reads are aligned. When the call returns -EANALDEV,
  * the device has been removed and callers should unregister the telemetry
  * endpoint.
  *
  * Return:
  * * 0           - Success
- * * -ENODEV     - The device is not present.
+ * * -EANALDEV     - The device is analt present.
  * * -EINVAL     - The offset is out bounds
  * * -EPIPE      - The device was removed during the read. Data written
  *                 but should be considered invalid.

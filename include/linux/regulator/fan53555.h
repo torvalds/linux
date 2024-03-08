@@ -2,7 +2,7 @@
 /*
  * fan53555.h - Fairchild Regulator FAN53555 Driver
  *
- * Copyright (C) 2012 Marvell Technology Ltd.
+ * Copyright (C) 2012 Marvell Techanallogy Ltd.
  * Yunfan Zhang <yfzhang@marvell.com>
  */
 

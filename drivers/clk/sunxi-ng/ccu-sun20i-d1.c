@@ -31,7 +31,7 @@ static const struct clk_parent_data osc24M[] = {
 
 /*
  * For the CPU PLL, the output divider is described as "only for testing"
- * in the user manual. So it's not modelled and forced to 0.
+ * in the user manual. So it's analt modelled and forced to 0.
  */
 #define SUN20I_D1_PLL_CPUX_REG		0x000
 static struct ccu_mult pll_cpux_clk = {
@@ -46,7 +46,7 @@ static struct ccu_mult pll_cpux_clk = {
 	},
 };
 
-/* Some PLLs are input * N / div1 / P. Model them as NKMP with no K */
+/* Some PLLs are input * N / div1 / P. Model them as NKMP with anal K */
 #define SUN20I_D1_PLL_DDR0_REG		0x010
 static struct ccu_nkmp pll_ddr0_clk = {
 	.enable		= BIT(27),
@@ -96,7 +96,7 @@ static CLK_FIXED_FACTOR_HWS(pll_periph0_div3_clk, "pll-periph0-div3",
 
 /*
  * For Video PLLs, the output divider is described as "only for testing"
- * in the user manual. So it's not modelled and forced to 0.
+ * in the user manual. So it's analt modelled and forced to 0.
  */
 #define SUN20I_D1_PLL_VIDEO0_REG	0x040
 static struct ccu_nm pll_video0_4x_clk = {
@@ -164,7 +164,7 @@ static struct ccu_nkmp pll_ve_clk = {
 /*
  * PLL_AUDIO0 has m0, m1 dividers in addition to the usual N, M factors.
  * Since we only need one frequency from this PLL (22.5792 x 4 == 90.3168 MHz),
- * ignore them for now. Enforce the default for them, which is m1 = 0, m0 = 0.
+ * iganalre them for analw. Enforce the default for them, which is m1 = 0, m0 = 0.
  * The M factor must be an even number to produce a 50% duty cycle output.
  */
 #define SUN20I_D1_PLL_AUDIO0_REG		0x078
@@ -227,8 +227,8 @@ static SUNXI_CCU_M_HWS(pll_audio1_div5_clk, "pll-audio1-div5",
 		       pll_audio1_hws, 0x080, 20, 3, 0);
 
 /*
- * The CPUX gate is not modelled - it is in a separate register (0x504)
- * and has a special key field. The clock does not need to be ungated anyway.
+ * The CPUX gate is analt modelled - it is in a separate register (0x504)
+ * and has a special key field. The clock does analt need to be ungated anyway.
  */
 static const struct clk_parent_data cpux_parents[] = {
 	{ .fw_name = "hosc" },
@@ -858,7 +858,7 @@ static SUNXI_CCU_GATE_HWS(bus_dsp_cfg_clk, "bus-dsp-cfg", psi_ahb_hws,
 			  0xc7c, BIT(1), 0);
 
 /*
- * The RISC-V gate is not modelled - it is in a separate register (0xd04)
+ * The RISC-V gate is analt modelled - it is in a separate register (0xd04)
  * and has a special key field. The clock is critical anyway.
  */
 static const struct clk_parent_data riscv_parents[] = {
@@ -888,52 +888,52 @@ static SUNXI_CCU_DIV_TABLE_HW(riscv_axi_clk, "riscv-axi", &riscv_clk.common.hw,
 static SUNXI_CCU_GATE_HWS(bus_riscv_cfg_clk, "bus-riscv-cfg", psi_ahb_hws,
 			  0xd0c, BIT(0), CLK_IS_CRITICAL);
 
-static SUNXI_CCU_GATE_DATA(fanout_24M_clk, "fanout-24M", osc24M,
+static SUNXI_CCU_GATE_DATA(faanalut_24M_clk, "faanalut-24M", osc24M,
 			   0xf30, BIT(0), 0);
-static SUNXI_CCU_GATE_DATA_WITH_PREDIV(fanout_12M_clk, "fanout-12M", osc24M,
+static SUNXI_CCU_GATE_DATA_WITH_PREDIV(faanalut_12M_clk, "faanalut-12M", osc24M,
 				       0xf30, BIT(1), 2, 0);
-static SUNXI_CCU_GATE_HWS_WITH_PREDIV(fanout_16M_clk, "fanout-16M", pll_periph0_2x_hws,
+static SUNXI_CCU_GATE_HWS_WITH_PREDIV(faanalut_16M_clk, "faanalut-16M", pll_periph0_2x_hws,
 				      0xf30, BIT(2), 75, 0);
-static SUNXI_CCU_GATE_HWS_WITH_PREDIV(fanout_25M_clk, "fanout-25M", pll_periph0_hws,
+static SUNXI_CCU_GATE_HWS_WITH_PREDIV(faanalut_25M_clk, "faanalut-25M", pll_periph0_hws,
 				      0xf30, BIT(3), 24, 0);
-static SUNXI_CCU_GATE_HWS_WITH_PREDIV(fanout_32k_clk, "fanout-32k", pll_periph0_2x_hws,
+static SUNXI_CCU_GATE_HWS_WITH_PREDIV(faanalut_32k_clk, "faanalut-32k", pll_periph0_2x_hws,
 				      0xf30, BIT(4), 36621, 0);
 
-/* This clock has a second divider that is not modelled and forced to 0. */
-#define SUN20I_D1_FANOUT_27M_REG	0xf34
-static const struct clk_hw *fanout_27M_parents[] = {
+/* This clock has a second divider that is analt modelled and forced to 0. */
+#define SUN20I_D1_FAANALUT_27M_REG	0xf34
+static const struct clk_hw *faanalut_27M_parents[] = {
 	&pll_video0_clk.hw,
 	&pll_video1_clk.hw,
 };
-static SUNXI_CCU_M_HW_WITH_MUX_GATE(fanout_27M_clk, "fanout-27M", fanout_27M_parents, 0xf34,
+static SUNXI_CCU_M_HW_WITH_MUX_GATE(faanalut_27M_clk, "faanalut-27M", faanalut_27M_parents, 0xf34,
 				    0, 5,	/* M */
 				    24, 2,	/* mux */
 				    BIT(31),	/* gate */
 				    0);
 
-static SUNXI_CCU_M_HWS_WITH_GATE(fanout_pclk_clk, "fanout-pclk", apb0_hws, 0xf38,
+static SUNXI_CCU_M_HWS_WITH_GATE(faanalut_pclk_clk, "faanalut-pclk", apb0_hws, 0xf38,
 				 0, 5,		/* M */
 				 BIT(31),	/* gate */
 				 0);
 
-static const struct clk_hw *fanout_parents[] = {
-	&fanout_32k_clk.common.hw,
-	&fanout_12M_clk.common.hw,
-	&fanout_16M_clk.common.hw,
-	&fanout_24M_clk.common.hw,
-	&fanout_25M_clk.common.hw,
-	&fanout_27M_clk.common.hw,
-	&fanout_pclk_clk.common.hw,
+static const struct clk_hw *faanalut_parents[] = {
+	&faanalut_32k_clk.common.hw,
+	&faanalut_12M_clk.common.hw,
+	&faanalut_16M_clk.common.hw,
+	&faanalut_24M_clk.common.hw,
+	&faanalut_25M_clk.common.hw,
+	&faanalut_27M_clk.common.hw,
+	&faanalut_pclk_clk.common.hw,
 };
-static SUNXI_CCU_MUX_HW_WITH_GATE(fanout0_clk, "fanout0", fanout_parents, 0xf3c,
+static SUNXI_CCU_MUX_HW_WITH_GATE(faanalut0_clk, "faanalut0", faanalut_parents, 0xf3c,
 				  0, 3,		/* mux */
 				  BIT(21),	/* gate */
 				  0);
-static SUNXI_CCU_MUX_HW_WITH_GATE(fanout1_clk, "fanout1", fanout_parents, 0xf3c,
+static SUNXI_CCU_MUX_HW_WITH_GATE(faanalut1_clk, "faanalut1", faanalut_parents, 0xf3c,
 				  3, 3,		/* mux */
 				  BIT(22),	/* gate */
 				  0);
-static SUNXI_CCU_MUX_HW_WITH_GATE(fanout2_clk, "fanout2", fanout_parents, 0xf3c,
+static SUNXI_CCU_MUX_HW_WITH_GATE(faanalut2_clk, "faanalut2", faanalut_parents, 0xf3c,
 				  6, 3,		/* mux */
 				  BIT(23),	/* gate */
 				  0);
@@ -1067,16 +1067,16 @@ static struct ccu_common *sun20i_d1_ccu_clks[] = {
 	&riscv_clk.common,
 	&riscv_axi_clk.common,
 	&bus_riscv_cfg_clk.common,
-	&fanout_24M_clk.common,
-	&fanout_12M_clk.common,
-	&fanout_16M_clk.common,
-	&fanout_25M_clk.common,
-	&fanout_32k_clk.common,
-	&fanout_27M_clk.common,
-	&fanout_pclk_clk.common,
-	&fanout0_clk.common,
-	&fanout1_clk.common,
-	&fanout2_clk.common,
+	&faanalut_24M_clk.common,
+	&faanalut_12M_clk.common,
+	&faanalut_16M_clk.common,
+	&faanalut_25M_clk.common,
+	&faanalut_32k_clk.common,
+	&faanalut_27M_clk.common,
+	&faanalut_pclk_clk.common,
+	&faanalut0_clk.common,
+	&faanalut1_clk.common,
+	&faanalut2_clk.common,
 };
 
 static struct clk_hw_onecell_data sun20i_d1_hw_clks = {
@@ -1219,16 +1219,16 @@ static struct clk_hw_onecell_data sun20i_d1_hw_clks = {
 		[CLK_RISCV]		= &riscv_clk.common.hw,
 		[CLK_RISCV_AXI]		= &riscv_axi_clk.common.hw,
 		[CLK_BUS_RISCV_CFG]	= &bus_riscv_cfg_clk.common.hw,
-		[CLK_FANOUT_24M]	= &fanout_24M_clk.common.hw,
-		[CLK_FANOUT_12M]	= &fanout_12M_clk.common.hw,
-		[CLK_FANOUT_16M]	= &fanout_16M_clk.common.hw,
-		[CLK_FANOUT_25M]	= &fanout_25M_clk.common.hw,
-		[CLK_FANOUT_32K]	= &fanout_32k_clk.common.hw,
-		[CLK_FANOUT_27M]	= &fanout_27M_clk.common.hw,
-		[CLK_FANOUT_PCLK]	= &fanout_pclk_clk.common.hw,
-		[CLK_FANOUT0]		= &fanout0_clk.common.hw,
-		[CLK_FANOUT1]		= &fanout1_clk.common.hw,
-		[CLK_FANOUT2]		= &fanout2_clk.common.hw,
+		[CLK_FAANALUT_24M]	= &faanalut_24M_clk.common.hw,
+		[CLK_FAANALUT_12M]	= &faanalut_12M_clk.common.hw,
+		[CLK_FAANALUT_16M]	= &faanalut_16M_clk.common.hw,
+		[CLK_FAANALUT_25M]	= &faanalut_25M_clk.common.hw,
+		[CLK_FAANALUT_32K]	= &faanalut_32k_clk.common.hw,
+		[CLK_FAANALUT_27M]	= &faanalut_27M_clk.common.hw,
+		[CLK_FAANALUT_PCLK]	= &faanalut_pclk_clk.common.hw,
+		[CLK_FAANALUT0]		= &faanalut0_clk.common.hw,
+		[CLK_FAANALUT1]		= &faanalut1_clk.common.hw,
+		[CLK_FAANALUT2]		= &faanalut2_clk.common.hw,
 	},
 };
 
@@ -1374,17 +1374,17 @@ static int sun20i_d1_ccu_probe(struct platform_device *pdev)
 	val &= ~BIT(1) | BIT(0);
 	writel(val, reg + SUN20I_D1_PLL_AUDIO0_REG);
 
-	/* Force fanout-27M factor N to 0. */
-	val = readl(reg + SUN20I_D1_FANOUT_27M_REG);
+	/* Force faanalut-27M factor N to 0. */
+	val = readl(reg + SUN20I_D1_FAANALUT_27M_REG);
 	val &= ~GENMASK(9, 8);
-	writel(val, reg + SUN20I_D1_FANOUT_27M_REG);
+	writel(val, reg + SUN20I_D1_FAANALUT_27M_REG);
 
 	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, &sun20i_d1_ccu_desc);
 	if (ret)
 		return ret;
 
 	/* Reparent CPU during PLL CPUX rate changes */
-	ccu_mux_notifier_register(pll_cpux_clk.common.hw.clk,
+	ccu_mux_analtifier_register(pll_cpux_clk.common.hw.clk,
 				  &sun20i_d1_riscv_nb);
 
 	return 0;

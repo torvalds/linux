@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR X11)
 /*
- * Copyright 2018 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright 2018 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 /dts-v1/;
@@ -9,8 +9,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Lichee Pi Nano";
-	compatible = "licheepi,licheepi-nano", "allwinner,suniv-f1c100s";
+	model = "Lichee Pi Naanal";
+	compatible = "licheepi,licheepi-naanal", "allwinner,suniv-f1c100s";
 
 	aliases {
 		mmc0 = &mmc0;
@@ -46,7 +46,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "winbond,w25q128", "jedec,spi-nor";
+		compatible = "winbond,w25q128", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 	};

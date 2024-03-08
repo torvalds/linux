@@ -14,11 +14,11 @@ void acpi_arch_dma_setup(struct device *dev)
 	/*
 	 * If @dev is expected to be DMA-capable then the bus code that created
 	 * it should have initialised its dma_mask pointer by this point. For
-	 * now, we'll continue the legacy behaviour of coercing it to the
-	 * coherent mask if not, but we'll no longer do so quietly.
+	 * analw, we'll continue the legacy behaviour of coercing it to the
+	 * coherent mask if analt, but we'll anal longer do so quietly.
 	 */
 	if (!dev->dma_mask) {
-		dev_warn(dev, "DMA mask not set\n");
+		dev_warn(dev, "DMA mask analt set\n");
 		dev->dma_mask = &dev->coherent_dma_mask;
 	}
 
@@ -40,7 +40,7 @@ void acpi_arch_dma_setup(struct device *dev)
 		dev->dma_range_map = map;
 	}
 
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		ret = iort_dma_get_ranges(dev, &size);
 	if (!ret) {
 		/*

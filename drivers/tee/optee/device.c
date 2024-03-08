@@ -76,13 +76,13 @@ static int optee_register_device(const uuid_t *device_uuid, u32 func)
 
 	optee_device = kzalloc(sizeof(*optee_device), GFP_KERNEL);
 	if (!optee_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	optee_device->dev.bus = &tee_bus_type;
 	optee_device->dev.release = optee_release_device;
 	if (dev_set_name(&optee_device->dev, "optee-ta-%pUb", device_uuid)) {
 		kfree(optee_device);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	uuid_copy(&optee_device->id.uuid, device_uuid);
 
@@ -117,7 +117,7 @@ static int __optee_enumerate_devices(u32 func)
 	/* Open context with OP-TEE driver */
 	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
 	if (IS_ERR(ctx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Open session with device enumeration pseudo TA */
 	export_uuid(sess_arg.uuid, &pta_uuid);
@@ -126,7 +126,7 @@ static int __optee_enumerate_devices(u32 func)
 
 	rc = tee_client_open_session(ctx, &sess_arg, NULL);
 	if ((rc < 0) || (sess_arg.ret != TEEC_SUCCESS)) {
-		/* Device enumeration pseudo TA not found */
+		/* Device enumeration pseudo TA analt found */
 		rc = 0;
 		goto out_ctx;
 	}

@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -69,7 +69,7 @@ struct mthca_cq_context {
 	__be32 comp_eqn;
 	__be32 pd;
 	__be32 lkey;
-	__be32 last_notified_index;
+	__be32 last_analtified_index;
 	__be32 solicit_producer_index;
 	__be32 consumer_index;
 	__be32 producer_index;
@@ -147,14 +147,14 @@ struct mthca_err_cqe {
 #define MTHCA_CQ_ENTRY_OWNER_HW      (1 << 7)
 
 #define MTHCA_TAVOR_CQ_DB_INC_CI       (1 << 24)
-#define MTHCA_TAVOR_CQ_DB_REQ_NOT      (2 << 24)
-#define MTHCA_TAVOR_CQ_DB_REQ_NOT_SOL  (3 << 24)
+#define MTHCA_TAVOR_CQ_DB_REQ_ANALT      (2 << 24)
+#define MTHCA_TAVOR_CQ_DB_REQ_ANALT_SOL  (3 << 24)
 #define MTHCA_TAVOR_CQ_DB_SET_CI       (4 << 24)
-#define MTHCA_TAVOR_CQ_DB_REQ_NOT_MULT (5 << 24)
+#define MTHCA_TAVOR_CQ_DB_REQ_ANALT_MULT (5 << 24)
 
-#define MTHCA_ARBEL_CQ_DB_REQ_NOT_SOL  (1 << 24)
-#define MTHCA_ARBEL_CQ_DB_REQ_NOT      (2 << 24)
-#define MTHCA_ARBEL_CQ_DB_REQ_NOT_MULT (3 << 24)
+#define MTHCA_ARBEL_CQ_DB_REQ_ANALT_SOL  (1 << 24)
+#define MTHCA_ARBEL_CQ_DB_REQ_ANALT      (2 << 24)
+#define MTHCA_ARBEL_CQ_DB_REQ_ANALT_MULT (3 << 24)
 
 static inline struct mthca_cqe *get_cqe_from_buf(struct mthca_cq_buf *buf,
 						 int entry)
@@ -198,7 +198,7 @@ static void dump_cqe(struct mthca_dev *dev, void *cqe_ptr)
 }
 
 /*
- * incr is ignored in native Arbel (mem-free) mode, so cq->cons_index
+ * incr is iganalred in native Arbel (mem-free) mode, so cq->cons_index
  * should be correct before calling update_cons_index().
  */
 static inline void update_cons_index(struct mthca_dev *dev, struct mthca_cq *cq,
@@ -281,7 +281,7 @@ void mthca_cq_clean(struct mthca_dev *dev, struct mthca_cq *cq, u32 qpn,
 
 	/*
 	 * First we need to find the current producer index, so we
-	 * know where to start cleaning from.  It doesn't matter if HW
+	 * kanalw where to start cleaning from.  It doesn't matter if HW
 	 * adds new entries after this loop -- the QP we're worried
 	 * about is already in RESET, so the new entries won't come
 	 * from our QP and therefore don't need to be checked.
@@ -297,7 +297,7 @@ void mthca_cq_clean(struct mthca_dev *dev, struct mthca_cq *cq, u32 qpn,
 			  qpn, cq->cqn, cq->cons_index, prod_index);
 
 	/*
-	 * Now sweep backwards through the CQ, removing CQ entries
+	 * Analw sweep backwards through the CQ, removing CQ entries
 	 * that match our QP by copying older entries on top of them.
 	 */
 	while ((int) --prod_index - (int) cq->cons_index >= 0) {
@@ -513,7 +513,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 
 	if (!*cur_qp || be32_to_cpu(cqe->my_qpn) != (*cur_qp)->qpn) {
 		/*
-		 * We do not have to take the QP table lock here,
+		 * We do analt have to take the QP table lock here,
 		 * because CQs will be locked while QPs are removed
 		 * from the table.
 		 */
@@ -521,7 +521,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 					  be32_to_cpu(cqe->my_qpn) &
 					  (dev->limits.num_qps - 1));
 		if (!*cur_qp) {
-			mthca_warn(dev, "CQ entry for unknown QP %06x\n",
+			mthca_warn(dev, "CQ entry for unkanalwn QP %06x\n",
 				   be32_to_cpu(cqe->my_qpn) & 0xffffff);
 			err = -EINVAL;
 			goto out;
@@ -682,7 +682,7 @@ repoll:
 	/*
 	 * If a CQ resize is in progress and we discovered that the
 	 * old buffer is empty, then peek in the new buffer, and if
-	 * it's not empty, switch to the new buffer and continue
+	 * it's analt empty, switch to the new buffer and continue
 	 * polling there.
 	 */
 	if (unlikely(err == -EAGAIN && cq->resize_buf &&
@@ -720,11 +720,11 @@ repoll:
 	return err == 0 || err == -EAGAIN ? npolled : err;
 }
 
-int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags)
+int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_analtify_flags flags)
 {
 	u32 dbhi = ((flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
-		    MTHCA_TAVOR_CQ_DB_REQ_NOT_SOL :
-		    MTHCA_TAVOR_CQ_DB_REQ_NOT) |
+		    MTHCA_TAVOR_CQ_DB_REQ_ANALT_SOL :
+		    MTHCA_TAVOR_CQ_DB_REQ_ANALT) |
 		to_mcq(cq)->cqn;
 
 	mthca_write64(dbhi, 0xffffffff, to_mdev(cq->device)->kar + MTHCA_CQ_DOORBELL,
@@ -733,7 +733,7 @@ int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags)
 	return 0;
 }
 
-int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags flags)
 {
 	struct mthca_cq *cq = to_mcq(ibcq);
 	__be32 db_rec[2];
@@ -755,8 +755,8 @@ int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 
 	dbhi = (sn << 28) |
 		((flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
-		 MTHCA_ARBEL_CQ_DB_REQ_NOT_SOL :
-		 MTHCA_ARBEL_CQ_DB_REQ_NOT) | cq->cqn;
+		 MTHCA_ARBEL_CQ_DB_REQ_ANALT_SOL :
+		 MTHCA_ARBEL_CQ_DB_REQ_ANALT) | cq->cqn;
 
 	mthca_write64(dbhi, cq->cons_index,
 		      to_mdev(ibcq->device)->kar + MTHCA_CQ_DOORBELL,
@@ -771,14 +771,14 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 {
 	struct mthca_mailbox *mailbox;
 	struct mthca_cq_context *cq_context;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	cq->ibcq.cqe  = nent - 1;
 	cq->is_kernel = !ctx;
 
 	cq->cqn = mthca_alloc(&dev->cq_table.alloc);
 	if (cq->cqn == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mthca_is_memfree(dev)) {
 		err = mthca_table_get(dev, dev->cq_table.table, cq->cqn);
@@ -788,7 +788,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 		if (cq->is_kernel) {
 			cq->arm_sn = 1;
 
-			err = -ENOMEM;
+			err = -EANALMEM;
 
 			cq->set_ci_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_SET_CI,
 							     cq->cqn, &cq->set_ci_db);
@@ -905,7 +905,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox)) {
-		mthca_warn(dev, "No memory for mailbox to free CQ.\n");
+		mthca_warn(dev, "Anal memory for mailbox to free CQ.\n");
 		return;
 	}
 

@@ -20,7 +20,7 @@
  * Analog input works
  * Analog output works
  * PWM output works
- * Commands are not supported yet.
+ * Commands are analt supported yet.
  *
  * Configuration Options:
  *   [0] - I/O port base address
@@ -80,11 +80,11 @@
 #define S526_GPCT_MODE_COUT_SRC_RTGL	S526_GPCT_MODE_COUT_SRC(1)
 #define S526_GPCT_MODE_COUT_POL(x)	((x) << 1)
 #define S526_GPCT_MODE_COUT_POL_MASK	S526_GPCT_MODE_COUT_POL(0x1)
-#define S526_GPCT_MODE_COUT_POL_NORM	S526_GPCT_MODE_COUT_POL(0)
+#define S526_GPCT_MODE_COUT_POL_ANALRM	S526_GPCT_MODE_COUT_POL(0)
 #define S526_GPCT_MODE_COUT_POL_INV	S526_GPCT_MODE_COUT_POL(1)
 #define S526_GPCT_MODE_AUTOLOAD(x)	((x) << 2)
 #define S526_GPCT_MODE_AUTOLOAD_MASK	S526_GPCT_MODE_AUTOLOAD(0x7)
-#define S526_GPCT_MODE_AUTOLOAD_NONE	S526_GPCT_MODE_AUTOLOAD(0)
+#define S526_GPCT_MODE_AUTOLOAD_ANALNE	S526_GPCT_MODE_AUTOLOAD(0)
 /* these 3 bits can be OR'ed */
 #define S526_GPCT_MODE_AUTOLOAD_RO	S526_GPCT_MODE_AUTOLOAD(0x1)
 #define S526_GPCT_MODE_AUTOLOAD_IXFALL	S526_GPCT_MODE_AUTOLOAD(0x2)
@@ -134,7 +134,7 @@
 #define S526_GPCT_CTRL_REG(x)	(0x18 + ((x) * 8))
 #define S526_GPCT_CTRL_EV_STATUS(x)	((x) << 0)		/* RC */
 #define S526_GPCT_CTRL_EV_STATUS_MASK	S526_GPCT_EV_STATUS(0xf)
-#define S526_GPCT_CTRL_EV_STATUS_NONE	S526_GPCT_EV_STATUS(0)
+#define S526_GPCT_CTRL_EV_STATUS_ANALNE	S526_GPCT_EV_STATUS(0)
 /* these 4 bits can be OR'ed */
 #define S526_GPCT_CTRL_EV_STATUS_ECAP	S526_GPCT_EV_STATUS(0x1)
 #define S526_GPCT_CTRL_EV_STATUS_ICAPN	S526_GPCT_EV_STATUS(0x2)
@@ -144,7 +144,7 @@
 #define S526_GPCT_CTRL_INDEX_STATUS	BIT(5)			/* R */
 #define S525_GPCT_CTRL_INTEN(x)		((x) << 6)		/* W */
 #define S525_GPCT_CTRL_INTEN_MASK	S526_GPCT_CTRL_INTEN(0xf)
-#define S525_GPCT_CTRL_INTEN_NONE	S526_GPCT_CTRL_INTEN(0)
+#define S525_GPCT_CTRL_INTEN_ANALNE	S526_GPCT_CTRL_INTEN(0)
 /* these 4 bits can be OR'ed */
 #define S525_GPCT_CTRL_INTEN_ERROR	S526_GPCT_CTRL_INTEN(0x1)
 #define S525_GPCT_CTRL_INTEN_IXFALL	S526_GPCT_CTRL_INTEN(0x2)
@@ -152,7 +152,7 @@
 #define S525_GPCT_CTRL_INTEN_RO		S526_GPCT_CTRL_INTEN(0x8)
 #define S525_GPCT_CTRL_LATCH_SEL(x)	((x) << 10)		/* W */
 #define S525_GPCT_CTRL_LATCH_SEL_MASK	S526_GPCT_CTRL_LATCH_SEL(0x7)
-#define S525_GPCT_CTRL_LATCH_SEL_NONE	S526_GPCT_CTRL_LATCH_SEL(0)
+#define S525_GPCT_CTRL_LATCH_SEL_ANALNE	S526_GPCT_CTRL_LATCH_SEL(0)
 /* these 3 bits can be OR'ed */
 #define S525_GPCT_CTRL_LATCH_SEL_IXFALL	S526_GPCT_CTRL_LATCH_SEL(0x1)
 #define S525_GPCT_CTRL_LATCH_SEL_IXRISE	S526_GPCT_CTRL_LATCH_SEL(0x2)
@@ -236,7 +236,7 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 
 		/*  Reset the counter if it is software preload */
 		if ((val & S526_GPCT_MODE_AUTOLOAD_MASK) ==
-		    S526_GPCT_MODE_AUTOLOAD_NONE) {
+		    S526_GPCT_MODE_AUTOLOAD_ANALNE) {
 			/*  Reset the counter */
 			outw(S526_GPCT_CTRL_CT_RESET,
 			     dev->iobase + S526_GPCT_CTRL_REG(chan));
@@ -285,7 +285,7 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 
 		/*  Reset the counter if it is software preload */
 		if ((val & S526_GPCT_MODE_AUTOLOAD_MASK) ==
-		    S526_GPCT_MODE_AUTOLOAD_NONE) {
+		    S526_GPCT_MODE_AUTOLOAD_ANALNE) {
 			/*  Reset the counter */
 			outw(S526_GPCT_CTRL_CT_RESET,
 			     dev->iobase + S526_GPCT_CTRL_REG(chan));
@@ -559,7 +559,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

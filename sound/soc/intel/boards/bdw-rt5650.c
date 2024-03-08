@@ -176,11 +176,11 @@ static int bdw_rt5650_init(struct snd_soc_pcm_runtime *rtd)
 	 */
 	rt5645_sel_asrc_clk_src(component,
 				RT5645_DA_STEREO_FILTER |
-				RT5645_DA_MONO_L_FILTER |
-				RT5645_DA_MONO_R_FILTER |
+				RT5645_DA_MOANAL_L_FILTER |
+				RT5645_DA_MOANAL_R_FILTER |
 				RT5645_AD_STEREO_FILTER |
-				RT5645_AD_MONO_L_FILTER |
-				RT5645_AD_MONO_R_FILTER,
+				RT5645_AD_MOANAL_L_FILTER |
+				RT5645_AD_MOANAL_R_FILTER,
 				RT5645_CLK_SEL_I2S1_ASRC);
 
 	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
@@ -232,7 +232,7 @@ static struct snd_soc_dai_link bdw_rt5650_dais[] = {
 	{
 		.name = "System PCM",
 		.stream_name = "System Playback",
-		.nonatomic = 1,
+		.analnatomic = 1,
 		.dynamic = 1,
 		.ops = &bdw_rt5650_fe_ops,
 		.trigger = {
@@ -249,11 +249,11 @@ static struct snd_soc_dai_link bdw_rt5650_dais[] = {
 		/* SSP0 - Codec */
 		.name = "Codec",
 		.id = 0,
-		.nonatomic = 1,
-		.no_pcm = 1,
+		.analnatomic = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBC_CFC,
-		.ignore_pmdown_time = 1,
+		.iganalre_pmdown_time = 1,
 		.be_hw_params_fixup = broadwell_ssp0_fixup,
 		.ops = &bdw_rt5650_ops,
 		.dpcm_playback = 1,
@@ -298,7 +298,7 @@ static int bdw_rt5650_probe(struct platform_device *pdev)
 	bdw_rt5650 = devm_kzalloc(&pdev->dev, sizeof(struct bdw_rt5650_priv),
 		GFP_KERNEL);
 	if (!bdw_rt5650)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* override platform name, if required */
 	mach = pdev->dev.platform_data;

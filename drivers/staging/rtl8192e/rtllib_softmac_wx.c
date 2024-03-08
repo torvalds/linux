@@ -38,7 +38,7 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 	}
 
 	if (fwrq->e > 0 || fwrq->m > 14 || fwrq->m < 1) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 
 	} else { /* Set the channel */
@@ -136,11 +136,11 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 		rtllib_stop_protocol(ieee);
 
 	/* just to avoid to give inconsistent infos in the
-	 * get wx method. not really needed otherwise
+	 * get wx method. analt really needed otherwise
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	ieee->cannot_notify = false;
+	ieee->cananalt_analtify = false;
 	ether_addr_copy(ieee->current_network.bssid, temp->sa_data);
 	ieee->wap_set = !is_zero_ether_addr(temp->sa_data);
 
@@ -236,7 +236,7 @@ int rtllib_wx_get_rts(struct rtllib_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	wrqu->rts.value = ieee->rts;
-	wrqu->rts.fixed = 0;	/* no auto select */
+	wrqu->rts.fixed = 0;	/* anal auto select */
 	wrqu->rts.disabled = (wrqu->rts.value == DEFAULT_RTS_THRESHOLD);
 	return 0;
 }
@@ -304,7 +304,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 	chan = ieee->current_network.channel;
 
 	ieee->leisure_ps_leave(ieee->dev);
-	/* notify AP to be in PS mode */
+	/* analtify AP to be in PS mode */
 	rtllib_sta_ps_send_null_frame(ieee, 1);
 	rtllib_sta_ps_send_null_frame(ieee, 1);
 
@@ -322,7 +322,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 		chan_offset = ieee->ht_info->CurSTAExtChnlOffset;
 		bandwidth = (enum ht_channel_width)ieee->ht_info->cur_bw_40mhz;
 		ieee->set_bw_mode_handler(ieee->dev, HT_CHANNEL_WIDTH_20,
-				       HT_EXTCHNL_OFFSET_NO_EXT);
+				       HT_EXTCHNL_OFFSET_ANAL_EXT);
 	}
 
 	rtllib_start_scan_syncro(ieee);
@@ -344,7 +344,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 	ieee->link_state = MAC80211_LINKED;
 	ieee->link_change(ieee->dev);
 
-	/* Notify AP that I wake up again */
+	/* Analtify AP that I wake up again */
 	rtllib_sta_ps_send_null_frame(ieee, 0);
 
 	if (ieee->link_detect_info.NumRecvBcnInPeriod == 0 ||
@@ -403,14 +403,14 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 		rtllib_stop_protocol(ieee);
 
 	/* this is just to be sure that the GET wx callback
-	 * has consistent infos. not needed otherwise
+	 * has consistent infos. analt needed otherwise
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	if (wrqu->essid.flags && wrqu->essid.length) {
 		strncpy(ieee->current_network.ssid, extra, len);
 		ieee->current_network.ssid_len = len;
-		ieee->cannot_notify = false;
+		ieee->cananalt_analtify = false;
 		ieee->ssid_set = 1;
 	} else {
 		ieee->ssid_set = 0;

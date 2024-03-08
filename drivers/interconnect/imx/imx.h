@@ -34,55 +34,55 @@ struct platform_device;
 
 #define PRIORITY_COMP_MARK	BIT(31)	/* Must set */
 
-#define IMX_NOC_MODE_FIXED		0
-#define IMX_NOC_MODE_LIMITER		1
-#define IMX_NOC_MODE_BYPASS		2
-#define IMX_NOC_MODE_REGULATOR		3
-#define IMX_NOC_MODE_UNCONFIGURED	0xFF
+#define IMX_ANALC_MODE_FIXED		0
+#define IMX_ANALC_MODE_LIMITER		1
+#define IMX_ANALC_MODE_BYPASS		2
+#define IMX_ANALC_MODE_REGULATOR		3
+#define IMX_ANALC_MODE_UNCONFIGURED	0xFF
 
-#define IMX_NOC_PRIO_REG	0x8
-#define IMX_NOC_MODE_REG	0xC
-#define IMX_NOC_BANDWIDTH_REG	0x10
-#define IMX_NOC_SATURATION	0x14
-#define IMX_NOC_EXT_CTL_REG	0x18
+#define IMX_ANALC_PRIO_REG	0x8
+#define IMX_ANALC_MODE_REG	0xC
+#define IMX_ANALC_BANDWIDTH_REG	0x10
+#define IMX_ANALC_SATURATION	0x14
+#define IMX_ANALC_EXT_CTL_REG	0x18
 
 struct imx_icc_provider {
-	void __iomem *noc_base;
+	void __iomem *analc_base;
 	struct icc_provider provider;
 };
 
 /*
- * struct imx_icc_node_adj - Describe a dynamic adjustable node
+ * struct imx_icc_analde_adj - Describe a dynamic adjustable analde
  */
-struct imx_icc_node_adj_desc {
+struct imx_icc_analde_adj_desc {
 	unsigned int bw_mul, bw_div;
 	const char *phandle_name;
-	bool main_noc;
+	bool main_analc;
 };
 
 /*
- * struct imx_icc_node - Describe an interconnect node
- * @name: name of the node
- * @id: an unique id to identify the node
- * @links: an array of slaves' node id
+ * struct imx_icc_analde - Describe an interconnect analde
+ * @name: name of the analde
+ * @id: an unique id to identify the analde
+ * @links: an array of slaves' analde id
  * @num_links: number of id defined in links
  */
-struct imx_icc_node_desc {
+struct imx_icc_analde_desc {
 	const char *name;
 	u16 id;
 	u16 links[IMX_ICC_MAX_LINKS];
 	u16 num_links;
-	const struct imx_icc_node_adj_desc *adj;
+	const struct imx_icc_analde_adj_desc *adj;
 };
 
 /*
- * struct imx_icc_noc_setting - Describe an interconnect node setting
- * @reg: register offset inside the NoC
+ * struct imx_icc_analc_setting - Describe an interconnect analde setting
+ * @reg: register offset inside the AnalC
  * @prio_level: priority level
  * @mode: functional mode
  * @ext_control: external input control
  */
-struct imx_icc_noc_setting {
+struct imx_icc_analc_setting {
 	u32 reg;
 	u32 prio_level;
 	u32 mode;
@@ -105,9 +105,9 @@ struct imx_icc_noc_setting {
 	DEFINE_BUS_INTERCONNECT(_name, _id, _adj)
 
 int imx_icc_register(struct platform_device *pdev,
-		     struct imx_icc_node_desc *nodes,
-		     int nodes_count,
-		     struct imx_icc_noc_setting *noc_settings);
+		     struct imx_icc_analde_desc *analdes,
+		     int analdes_count,
+		     struct imx_icc_analc_setting *analc_settings);
 void imx_icc_unregister(struct platform_device *pdev);
 
 #endif /* __DRIVERS_INTERCONNECT_IMX_H */

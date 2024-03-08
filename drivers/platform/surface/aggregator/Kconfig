@@ -14,7 +14,7 @@ menuconfig SURFACE_AGGREGATOR
 
 	  Depending on the device in question, this EC provides varying
 	  functionality, including:
-	  - EC access from ACPI via Surface ACPI Notify (5th- and 6th-generation)
+	  - EC access from ACPI via Surface ACPI Analtify (5th- and 6th-generation)
 	  - battery status information (all devices)
 	  - thermal sensor access (all devices)
 	  - performance mode / cooling mode control (all devices)
@@ -26,16 +26,16 @@ menuconfig SURFACE_AGGREGATOR
 	  is the device responsible for the communication with the EC, and a
 	  basic kernel interface exposing the EC functionality to other client
 	  drivers, i.e. allowing them to make requests to the EC and receive
-	  events from it. Selecting this option alone will not provide any
-	  client drivers and therefore no functionality beyond the in-kernel
+	  events from it. Selecting this option alone will analt provide any
+	  client drivers and therefore anal functionality beyond the in-kernel
 	  interface. Said functionality is the responsibility of the respective
 	  client drivers.
 
-	  Note: While 4th-generation Surface devices also make use of a SAM EC,
+	  Analte: While 4th-generation Surface devices also make use of a SAM EC,
 	  due to a difference in the communication interface of the controller,
 	  only 5th and later generations are currently supported. Specifically,
 	  devices using SAM-over-SSH are supported, whereas devices using
-	  SAM-over-HID, which is used on the 4th generation, are currently not
+	  SAM-over-HID, which is used on the 4th generation, are currently analt
 	  supported.
 
 	  Choose m if you want to build the SAM subsystem core and SSH driver as
@@ -51,8 +51,8 @@ config SURFACE_AGGREGATOR_BUS
 	  providing a dedicated bus and client-device type.
 
 	  This bus and device type are intended to provide and simplify support
-	  for non-platform and non-ACPI SSAM devices, i.e. SSAM devices that are
-	  not auto-detectable via the conventional means (e.g. ACPI).
+	  for analn-platform and analn-ACPI SSAM devices, i.e. SSAM devices that are
+	  analt auto-detectable via the conventional means (e.g. ACPI).
 
 config SURFACE_AGGREGATOR_ERROR_INJECTION
 	bool "Surface System Aggregator Module Error Injection Capabilities"

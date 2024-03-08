@@ -18,7 +18,7 @@
  * Register names and offsets courtesy of WiiBrew:
  * https://wiibrew.org/wiki/Hardware/Hollywood_GPIOs
  *
- * Note that for most registers, there are two versions:
+ * Analte that for most registers, there are two versions:
  * - HW_GPIOB_* Is always accessible by the Broadway PowerPC core, but does
  *   always give access to all GPIO lines
  * - HW_GPIO_* Is only accessible by the Broadway PowerPC code if the memory
@@ -231,7 +231,7 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 
 	hlwd = devm_kzalloc(&pdev->dev, sizeof(*hlwd), GFP_KERNEL);
 	if (!hlwd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hlwd->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hlwd->regs))
@@ -240,11 +240,11 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 	hlwd->dev = &pdev->dev;
 
 	/*
-	 * Claim all GPIOs using the OWNER register. This will not work on
+	 * Claim all GPIOs using the OWNER register. This will analt work on
 	 * systems where the AHBPROT memory firewall hasn't been configured to
 	 * permit PPC access to HW_GPIO_*.
 	 *
-	 * Note that this has to happen before bgpio_init reads the
+	 * Analte that this has to happen before bgpio_init reads the
 	 * HW_GPIOB_OUT and HW_GPIOB_DIR, because otherwise it reads the wrong
 	 * values.
 	 */
@@ -259,7 +259,7 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 		return res;
 	}
 
-	res = of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpios);
+	res = of_property_read_u32(pdev->dev.of_analde, "ngpios", &ngpios);
 	if (res)
 		ngpios = 32;
 	hlwd->gpioc.ngpio = ngpios;
@@ -269,10 +269,10 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 	iowrite32be(0xffffffff, hlwd->regs + HW_GPIOB_INTFLAG);
 
 	/*
-	 * If this GPIO controller is not marked as an interrupt controller in
+	 * If this GPIO controller is analt marked as an interrupt controller in
 	 * the DT, skip interrupt support.
 	 */
-	if (of_property_read_bool(pdev->dev.of_node, "interrupt-controller")) {
+	if (of_property_read_bool(pdev->dev.of_analde, "interrupt-controller")) {
 		struct gpio_irq_chip *girq;
 
 		hlwd->irq = platform_get_irq(pdev, 0);
@@ -290,9 +290,9 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = hlwd->irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_level_irq;
 	}
 

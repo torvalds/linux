@@ -40,7 +40,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock controller node:
+  # Clock controller analde:
   - |
     m10v-clk-ctrl@1d021000 {
         compatible = "socionext,milbeaut-m10v-ccu";
@@ -49,7 +49,7 @@ examples:
         clocks = <&clki40mhz>;
     };
 
-  # Required an external clock for Clock controller node:
+  # Required an external clock for Clock controller analde:
   - |
     clocks {
         clki40mhz: clki40mhz {

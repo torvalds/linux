@@ -207,9 +207,9 @@
 	aspeed,lpc-io-reg = <0xca2>;
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>, <0x81>;
+	sanalop-ports = <0x80>, <0x81>;
 };
 
 &lpc_ctrl {

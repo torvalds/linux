@@ -34,10 +34,10 @@
  * fused off or currently powered down due to power gating, the MMIO operation
  * is "terminated" by the hardware.  Terminated read operations will return a
  * value of zero and terminated unicast write operations will be silently
- * ignored. During device initialization, the goal of the various
+ * iganalred. During device initialization, the goal of the various
  * ``init_steering_*()`` functions is to apply the platform-specific rules for
  * each MCR register type to identify a steering target that will select a
- * non-terminated instance.
+ * analn-terminated instance.
  */
 
 #define STEER_SEMAPHORE		XE_REG(0xFD0)
@@ -82,7 +82,7 @@ static const struct xe_mmio_range xehp_lncf_steering_table[] = {
 
 /*
  * We have several types of MCR registers where steering to (0,0) will always
- * provide us with a non-terminated value.  We'll stick them all in the same
+ * provide us with a analn-terminated value.  We'll stick them all in the same
  * table for simplicity.
  */
 static const struct xe_mmio_range xehpc_instance0_steering_table[] = {
@@ -106,9 +106,9 @@ static const struct xe_mmio_range xelpg_instance0_steering_table[] = {
 	{ 0x001000, 0x001FFF },         /* SQIDI */
 	{ 0x004000, 0x0048FF },         /* GAM */
 	{ 0x008700, 0x0087FF },         /* SQIDI */
-	{ 0x00B000, 0x00B0FF },         /* NODE */
+	{ 0x00B000, 0x00B0FF },         /* ANALDE */
 	{ 0x00C800, 0x00CFFF },         /* GAM */
-	{ 0x00D880, 0x00D8FF },         /* NODE */
+	{ 0x00D880, 0x00D8FF },         /* ANALDE */
 	{ 0x00DD00, 0x00DDFF },         /* OAAL2 */
 	{},
 };
@@ -204,9 +204,9 @@ static const struct xe_mmio_range xe2lpg_sqidi_psmi_steering_table[] = {
 static const struct xe_mmio_range xe2lpg_instance0_steering_table[] = {
 	{ 0x004000, 0x004AFF },         /* GAM, rsvd, GAMWKR */
 	{ 0x008700, 0x00887F },         /* SQIDI, MEMPIPE */
-	{ 0x00B000, 0x00B3FF },         /* NODE, L3BANK */
+	{ 0x00B000, 0x00B3FF },         /* ANALDE, L3BANK */
 	{ 0x00C800, 0x00CFFF },         /* GAM */
-	{ 0x00D880, 0x00D8FF },         /* NODE */
+	{ 0x00D880, 0x00D8FF },         /* ANALDE */
 	{ 0x00DD00, 0x00DDFF },         /* MEMPIPE */
 	{ 0x00E900, 0x00E97F },         /* MEMPIPE */
 	{ 0x00F000, 0x00FFFF },         /* GAM, GAMWKR */
@@ -273,10 +273,10 @@ static void init_steering_mslice(struct xe_gt *gt)
 				 xe_mmio_read32(gt, MIRROR_FUSE3));
 
 	/*
-	 * mslice registers are valid (not terminated) if either the meml3
+	 * mslice registers are valid (analt terminated) if either the meml3
 	 * associated with the mslice is present, or at least one DSS associated
 	 * with the mslice is present.  There will always be at least one meml3
-	 * so we can just use that to find a non-terminated mslice and ignore
+	 * so we can just use that to find a analn-terminated mslice and iganalre
 	 * the DSS fusing.
 	 */
 	gt->steering[MSLICE].group_target = __ffs(mask);
@@ -284,7 +284,7 @@ static void init_steering_mslice(struct xe_gt *gt)
 
 	/*
 	 * LNCF termination is also based on mslice presence, so we'll set
-	 * it up here.  Either LNCF within a non-terminated mslice will work,
+	 * it up here.  Either LNCF within a analn-terminated mslice will work,
 	 * so we just always pick LNCF 0 here.
 	 */
 	gt->steering[LNCF].group_target = __ffs(mask) << 1;
@@ -305,7 +305,7 @@ static void init_steering_oaddrm(struct xe_gt *gt)
 {
 	/*
 	 * First instance is only terminated if the entire first media slice
-	 * is absent (i.e., no VCS0 or VECS0).
+	 * is absent (i.e., anal VCS0 or VECS0).
 	 */
 	if (gt->info.engine_mask & (XE_HW_ENGINE_VCS0 | XE_HW_ENGINE_VECS0))
 		gt->steering[OADDRM].group_target = 0;
@@ -317,7 +317,7 @@ static void init_steering_oaddrm(struct xe_gt *gt)
 
 static void init_steering_sqidi_psmi(struct xe_gt *gt)
 {
-	u32 mask = REG_FIELD_GET(XE2_NODE_ENABLE_MASK,
+	u32 mask = REG_FIELD_GET(XE2_ANALDE_ENABLE_MASK,
 				 xe_mmio_read32(gt, MIRROR_FUSE3));
 	u32 select = __ffs(mask);
 
@@ -387,7 +387,7 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 		}
 	}
 
-	/* Select non-terminated steering target for each type */
+	/* Select analn-terminated steering target for each type */
 	for (int i = 0; i < NUM_STEERING_TYPES; i++)
 		if (gt->steering[i].ranges && xe_steering_types[i].init)
 			xe_steering_types[i].init(gt);
@@ -413,7 +413,7 @@ void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
 		xe_mmio_write32(gt, SF_MCR_SELECTOR, steer_val);
 		/*
 		 * For GAM registers, all reads should be directed to instance 1
-		 * (unicast reads against other instances are not allowed),
+		 * (unicast reads against other instances are analt allowed),
 		 * and instance 1 is already the hardware's default steering
 		 * target, which we never change
 		 */
@@ -421,22 +421,22 @@ void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
 }
 
 /*
- * xe_gt_mcr_get_nonterminated_steering - find group/instance values that
- *    will steer a register to a non-terminated instance
+ * xe_gt_mcr_get_analnterminated_steering - find group/instance values that
+ *    will steer a register to a analn-terminated instance
  * @gt: GT structure
  * @reg: register for which the steering is required
  * @group: return variable for group steering
  * @instance: return variable for instance steering
  *
  * This function returns a group/instance pair that is guaranteed to work for
- * read steering of the given register. Note that a value will be returned even
- * if the register is not replicated and therefore does not actually require
+ * read steering of the given register. Analte that a value will be returned even
+ * if the register is analt replicated and therefore does analt actually require
  * steering.
  *
  * Returns true if the caller should steer to the @group/@instance values
- * returned.  Returns false if the caller need not perform any steering
+ * returned.  Returns false if the caller need analt perform any steering
  */
-static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
+static bool xe_gt_mcr_get_analnterminated_steering(struct xe_gt *gt,
 						 struct xe_reg_mcr reg_mcr,
 						 u8 *group, u8 *instance)
 {
@@ -463,11 +463,11 @@ static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 				return false;
 
 	/*
-	 * Not found in a steering table and not a register with implicit
+	 * Analt found in a steering table and analt a register with implicit
 	 * steering. Just steer to 0/0 as a guess and raise a warning.
 	 */
 	drm_WARN(&gt_to_xe(gt)->drm, true,
-		 "Did not find MCR register %#x in any MCR steering table\n",
+		 "Did analt find MCR register %#x in any MCR steering table\n",
 		 reg.addr);
 	*group = 0;
 	*instance = 0;
@@ -489,7 +489,7 @@ static void mcr_lock(struct xe_gt *gt) __acquires(&gt->mcr_lock)
 
 	/*
 	 * Starting with MTL we also need to grab a semaphore register
-	 * to synchronize with external agents (e.g., firmware) that now
+	 * to synchronize with external agents (e.g., firmware) that analw
 	 * shares the same steering control register. The semaphore is obtained
 	 * when a read to the relevant register returns 1.
 	 */
@@ -541,11 +541,11 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 	 * read operations (which always return the value from a single register
 	 * instance regardless of how that bit is set), but some platforms may
 	 * have workarounds requiring us to remain in multicast mode for reads,
-	 * e.g. Wa_22013088509 on PVC.  There's no real downside to this, so
+	 * e.g. Wa_22013088509 on PVC.  There's anal real downside to this, so
 	 * we'll just go ahead and do so on all platforms; we'll only clear the
 	 * multicast bit from the mask when explicitly doing a write operation.
 	 *
-	 * No need to save old steering reg value.
+	 * Anal need to save old steering reg value.
 	 */
 	if (rw_flag == MCR_OP_READ)
 		steer_val |= MCR_MULTICAST;
@@ -570,16 +570,16 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 }
 
 /**
- * xe_gt_mcr_unicast_read_any - reads a non-terminated instance of an MCR register
+ * xe_gt_mcr_unicast_read_any - reads a analn-terminated instance of an MCR register
  * @gt: GT structure
  * @reg_mcr: register to read
  *
- * Reads a GT MCR register.  The read will be steered to a non-terminated
+ * Reads a GT MCR register.  The read will be steered to a analn-terminated
  * instance (i.e., one that isn't fused off or powered down by power gating).
  * This function assumes the caller is already holding any necessary forcewake
  * domains.
  *
- * Returns the value from a non-terminated instance of @reg.
+ * Returns the value from a analn-terminated instance of @reg.
  */
 u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, struct xe_reg_mcr reg_mcr)
 {
@@ -588,7 +588,7 @@ u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, struct xe_reg_mcr reg_mcr)
 	u32 val;
 	bool steer;
 
-	steer = xe_gt_mcr_get_nonterminated_steering(gt, reg_mcr,
+	steer = xe_gt_mcr_get_analnterminated_steering(gt, reg_mcr,
 						     &group, &instance);
 
 	if (steer) {
@@ -660,7 +660,7 @@ void xe_gt_mcr_multicast_write(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 
 	/*
 	 * Synchronize with any unicast operations.  Once we have exclusive
-	 * access, the MULTICAST bit should already be set, so there's no need
+	 * access, the MULTICAST bit should already be set, so there's anal need
 	 * to touch the steering register.
 	 */
 	mcr_lock(gt);

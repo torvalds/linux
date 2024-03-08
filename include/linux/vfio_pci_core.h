@@ -14,7 +14,7 @@
 #include <linux/irqbypass.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #ifndef VFIO_PCI_CORE_H
 #define VFIO_PCI_CORE_H
@@ -76,7 +76,7 @@ struct vfio_pci_core_device {
 	bool			bardirty:1;
 	bool			has_vga:1;
 	bool			needs_reset:1;
-	bool			nointx:1;
+	bool			analintx:1;
 	bool			needs_pm_restore:1;
 	bool			pm_intx_masked:1;
 	bool			pm_runtime_engaged:1;
@@ -92,7 +92,7 @@ struct vfio_pci_core_device {
 	struct vfio_pci_vf_token	*vf_token;
 	struct list_head		sriov_pfs_item;
 	struct vfio_pci_core_device	*sriov_pf_core_dev;
-	struct notifier_block	nb;
+	struct analtifier_block	nb;
 	struct mutex		vma_lock;
 	struct list_head	vma_list;
 	struct rw_semaphore	memory_lock;
@@ -103,7 +103,7 @@ int vfio_pci_core_register_dev_region(struct vfio_pci_core_device *vdev,
 				      unsigned int type, unsigned int subtype,
 				      const struct vfio_pci_regops *ops,
 				      size_t size, u32 flags, void *data);
-void vfio_pci_core_set_params(bool nointxmask, bool is_disable_vga,
+void vfio_pci_core_set_params(bool analintxmask, bool is_disable_vga,
 			      bool is_disable_idle_d3);
 void vfio_pci_core_close_device(struct vfio_device *core_vdev);
 int vfio_pci_core_init_dev(struct vfio_device *core_vdev);

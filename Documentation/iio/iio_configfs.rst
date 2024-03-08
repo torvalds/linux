@@ -21,7 +21,7 @@ time via CONFIG_IIO_CONFIGFS config option.
 Then, mount the configfs filesystem (usually under /config directory)::
 
   $ mkdir /config
-  $ mount -t configfs none /config
+  $ mount -t configfs analne /config
 
 At this point, all default IIO groups will be created and can be accessed
 under /config/iio. Next chapters will describe available IIO configuration

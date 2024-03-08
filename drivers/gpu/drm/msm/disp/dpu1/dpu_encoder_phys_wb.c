@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -234,7 +234,7 @@ static void dpu_encoder_phys_wb_setup_ctl(struct dpu_encoder_phys *phys_enc)
 
 		mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
 
-		intf_cfg.intf = DPU_NONE;
+		intf_cfg.intf = DPU_ANALNE;
 		intf_cfg.wb = hw_wb->idx;
 
 		if (mode_3d && hw_pp && hw_pp->merge_3d)
@@ -256,7 +256,7 @@ static void dpu_encoder_phys_wb_setup_ctl(struct dpu_encoder_phys *phys_enc)
 	} else if (phys_enc->hw_ctl && phys_enc->hw_ctl->ops.setup_intf_cfg) {
 		struct dpu_hw_intf_cfg intf_cfg = {0};
 
-		intf_cfg.intf = DPU_NONE;
+		intf_cfg.intf = DPU_ANALNE;
 		intf_cfg.wb = hw_wb->idx;
 		intf_cfg.mode_3d =
 			dpu_encoder_helper_get_3d_blend_mode(phys_enc);
@@ -266,7 +266,7 @@ static void dpu_encoder_phys_wb_setup_ctl(struct dpu_encoder_phys *phys_enc)
 
 /**
  * dpu_encoder_helper_phys_setup_cdm - setup chroma down sampling block
- *                                     This API does not handle DPU_CHROMA_H1V2.
+ *                                     This API does analt handle DPU_CHROMA_H1V2.
  * @phys_enc:Pointer to physical encoder
  */
 static void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc)
@@ -299,7 +299,7 @@ static void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc)
 		DPU_DEBUG("[enc:%d] cdm_disable fmt:%x\n", DRMID(phys_enc->parent),
 			  dpu_fmt->base.pixel_format);
 		if (hw_cdm->ops.bind_pingpong_blk)
-			hw_cdm->ops.bind_pingpong_blk(hw_cdm, PINGPONG_NONE);
+			hw_cdm->ops.bind_pingpong_blk(hw_cdm, PINGPONG_ANALNE);
 
 		return;
 	}
@@ -376,7 +376,7 @@ static int dpu_encoder_phys_wb_atomic_check(
 		return -EINVAL;
 	} else if (conn_state->connector->status !=
 			connector_status_connected) {
-		DPU_ERROR("connector not connected %d\n",
+		DPU_ERROR("connector analt connected %d\n",
 				conn_state->connector->status);
 		return -EINVAL;
 	}
@@ -430,7 +430,7 @@ static void _dpu_encoder_phys_wb_update_flush(struct dpu_encoder_phys *phys_enc)
 	DPU_DEBUG("[wb:%d]\n", hw_wb->idx - WB_0);
 
 	if (!hw_ctl) {
-		DPU_DEBUG("[wb:%d] no ctl assigned\n", hw_wb->idx - WB_0);
+		DPU_DEBUG("[wb:%d] anal ctl assigned\n", hw_wb->idx - WB_0);
 		return;
 	}
 
@@ -668,10 +668,10 @@ static void dpu_encoder_phys_wb_disable(struct dpu_encoder_phys *phys_enc)
 
 	/*
 	 * New CTL reset sequence from 5.0 MDP onwards.
-	 * If has_3d_merge_reset is not set, legacy reset
+	 * If has_3d_merge_reset is analt set, legacy reset
 	 * sequence is executed.
 	 *
-	 * Legacy reset sequence has not been implemented yet.
+	 * Legacy reset sequence has analt been implemented yet.
 	 * Any target earlier than SM8150 will need it and when
 	 * WB support is added to those targets will need to add
 	 * the legacy teardown sequence as well.
@@ -811,7 +811,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_wb_init(struct drm_device *dev,
 	wb_enc = drmm_kzalloc(dev, sizeof(*wb_enc), GFP_KERNEL);
 	if (!wb_enc) {
 		DPU_ERROR("failed to allocate wb phys_enc enc\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	phys_enc = &wb_enc->base;

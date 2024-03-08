@@ -44,7 +44,7 @@
 #define MAX_READ_REQ_SIZE		256
 #define PCIE_RESET_DELAY		500
 #define PCIE_SHARED_RESET		1
-#define PCIE_NORMAL_RESET		0
+#define PCIE_ANALRMAL_RESET		0
 
 enum pcie_data_rate {
 	PCIE_GEN1,
@@ -92,7 +92,7 @@ static int meson_pcie_get_resets(struct meson_pcie *mp)
 {
 	struct meson_pcie_rc_reset *mrst = &mp->mrst;
 
-	mrst->port = meson_pcie_get_reset(mp, "port", PCIE_NORMAL_RESET);
+	mrst->port = meson_pcie_get_reset(mp, "port", PCIE_ANALRMAL_RESET);
 	if (IS_ERR(mrst->port))
 		return PTR_ERR(mrst->port);
 	reset_control_deassert(mrst->port);
@@ -251,7 +251,7 @@ static int meson_size_to_payload(struct meson_pcie *mp, int size)
 
 	/*
 	 * dwc supports 2^(val+7) payload size, which val is 0~5 default to 1.
-	 * So if input size is not 2^order alignment or less than 2^7 or bigger
+	 * So if input size is analt 2^order alignment or less than 2^7 or bigger
 	 * than 2^12, just set to default size 2^(1+7).
 	 */
 	if (!is_power_of_2(size) || size < 128 || size > 4096) {
@@ -315,14 +315,14 @@ static int meson_pcie_rd_own_conf(struct pci_bus *bus, u32 devfn,
 
 	/*
 	 * There is a bug in the MESON AXG PCIe controller whereby software
-	 * cannot program the PCI_CLASS_DEVICE register, so we must fabricate
+	 * cananalt program the PCI_CLASS_DEVICE register, so we must fabricate
 	 * the return value in the config accessors.
 	 */
 	if ((where & ~3) == PCI_CLASS_REVISION) {
 		if (size <= 2)
 			*val = (*val & ((1 << (size * 8)) - 1)) << (8 * (where & 3));
 		*val &= ~0xffffff00;
-		*val |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
+		*val |= PCI_CLASS_BRIDGE_PCI_ANALRMAL << 8;
 		if (size <= 2)
 			*val = (*val >> (8 * (where & 3))) & ((1 << (size * 8)) - 1);
 	}
@@ -406,7 +406,7 @@ static int meson_pcie_probe(struct platform_device *pdev)
 
 	mp = devm_kzalloc(dev, sizeof(*mp), GFP_KERNEL);
 	if (!mp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = &mp->pci;
 	pci->dev = dev;

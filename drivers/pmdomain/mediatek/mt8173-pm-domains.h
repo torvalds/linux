@@ -110,7 +110,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8173[] = {
 			BUS_PROT_INFRA_UPDATE_TOPAXI(MT8173_TOP_AXI_PROT_EN_MFG_S |
 						     MT8173_TOP_AXI_PROT_EN_MFG_M0 |
 						     MT8173_TOP_AXI_PROT_EN_MFG_M1 |
-						     MT8173_TOP_AXI_PROT_EN_MFG_SNOOP_OUT),
+						     MT8173_TOP_AXI_PROT_EN_MFG_SANALOP_OUT),
 		},
 	},
 };

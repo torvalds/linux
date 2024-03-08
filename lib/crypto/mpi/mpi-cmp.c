@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
@@ -24,7 +24,7 @@ int mpi_cmp_ui(MPI u, unsigned long v)
 {
 	mpi_limb_t limb = v;
 
-	mpi_normalize(u);
+	mpi_analrmalize(u);
 	if (u->nlimbs == 0) {
 		if (v == 0)
 			return 0;
@@ -53,8 +53,8 @@ static int do_mpi_cmp(MPI u, MPI v, int absmode)
 	int vsign;
 	int cmp;
 
-	mpi_normalize(u);
-	mpi_normalize(v);
+	mpi_analrmalize(u);
+	mpi_analrmalize(v);
 
 	usize = u->nlimbs;
 	vsize = v->nlimbs;

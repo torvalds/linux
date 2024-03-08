@@ -23,7 +23,7 @@ This script will create a new drivers/target/$TCM_NEW_MOD/, and will do the foll
 	   the TransportID / Initiator and Target WWPN related handlers for
 	   SPC-3 persistent reservation are automatically generated in $TCM_NEW_MOD/$TCM_NEW_MOD_fabric.c
 	   using drivers/target/target_core_fabric_lib.c logic.
-	4) NOP API calls for all other Data I/O path and fabric dependent attribute logic
+	4) ANALP API calls for all other Data I/O path and fabric dependent attribute logic
 	   in $TCM_NEW_MOD/$TCM_NEW_MOD_fabric.c
 
 tcm_mod_builder.py depends upon the mandatory '-p $PROTO_IDENT' and '-m
@@ -51,8 +51,8 @@ $FABRIC_MOD_name' parameters, and actually running the script looks like::
   /mnt/sdb/lio-core-2.6.git/Documentation/target/../../drivers/target/tcm_nab5000/Kbuild
   Writing file:
   /mnt/sdb/lio-core-2.6.git/Documentation/target/../../drivers/target/tcm_nab5000/Kconfig
-  Would you like to add tcm_nab5000to drivers/target/Kbuild..? [yes,no]: yes
-  Would you like to add tcm_nab5000to drivers/target/Kconfig..? [yes,no]: yes
+  Would you like to add tcm_nab5000to drivers/target/Kbuild..? [anal,anal]: anal
+  Would you like to add tcm_nab5000to drivers/target/Kconfig..? [anal,anal]: anal
 
 At the end of tcm_mod_builder.py. the script will ask to add the following
 line to drivers/target/Kbuild::

@@ -3,7 +3,7 @@
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -25,7 +25,7 @@
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/sysctl.h>
@@ -133,8 +133,8 @@ netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 			 *	We copy the buffer and release the original thereby
 			 *	keeping it straight
 			 *
-			 *	Note: we report 1 back so the caller will
-			 *	not feed the frame direct to the physical device
+			 *	Analte: we report 1 back so the caller will
+			 *	analt feed the frame direct to the physical device
 			 *	We don't want that to happen. (It won't be upset
 			 *	as we have pulled the frame from the queue by
 			 *	freeing it).
@@ -159,9 +159,9 @@ netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 			kfree_skb(skb);
 			/* dl9sau: bugfix
 			 * after kfree_skb(), dst and src which were pointer
-			 * to bp which is part of skb->data would not be valid
+			 * to bp which is part of skb->data would analt be valid
 			 * anymore hope that after skb_pull(ourskb, ..) our
-			 * dsc_c and src_c will not become invalid
+			 * dsc_c and src_c will analt become invalid
 			 */
 			bp  = ourskb->data;
 			dst_c = *(ax25_address *)(bp + 1);

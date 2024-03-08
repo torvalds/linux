@@ -69,7 +69,7 @@ file:
     .platform_name = "samsung-i2s.0",
     .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
             | SND_SOC_DAIFMT_CBM_CFM,
-    .ignore_suspend = 1,
+    .iganalre_suspend = 1,
     .c2c_params = &dsp_codec_params,
     .num_c2c_params = 1,
  },
@@ -81,14 +81,14 @@ file:
     .codec_dai_name = "codec-3-dai_name",
     .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
             | SND_SOC_DAIFMT_CBM_CFM,
-    .ignore_suspend = 1,
+    .iganalre_suspend = 1,
     .c2c_params = &dsp_codec_params,
     .num_c2c_params = 1,
  },
 
 Above code snippet is motivated from sound/soc/samsung/speyside.c.
 
-Note the "c2c_params" callback which lets the dapm know that this
+Analte the "c2c_params" callback which lets the dapm kanalw that this
 dai_link is a codec to codec connection.
 
 In dapm core a route is created between cpu_dai playback widget
@@ -100,7 +100,7 @@ respectively.
 
 In order to trigger this dai_link widget, a thin codec driver for
 the speaker amp can be created as demonstrated in wm8727.c file, it
-sets appropriate constraints for the device even if it needs no control.
+sets appropriate constraints for the device even if it needs anal control.
 
 Make sure to name your corresponding cpu and codec playback and capture
 dai names ending with "Playback" and "Capture" respectively as dapm core
@@ -110,6 +110,6 @@ A dai_link in a "simple-audio-card" will automatically be detected as
 codec to codec when all DAIs on the link belong to codec components.
 The dai_link will be initialized with the subset of stream parameters
 (channels, format, sample rate) supported by all DAIs on the link. Since
-there is no way to provide these parameters in the device tree, this is
+there is anal way to provide these parameters in the device tree, this is
 mostly useful for communication with simple fixed-function codecs, such
 as a Bluetooth controller or cellular modem.

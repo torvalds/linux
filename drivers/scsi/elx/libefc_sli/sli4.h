@@ -415,10 +415,10 @@ enum sli4_diseed_sge_flags {
 
 /* Opcode values */
 enum sli4_diseed_sge_opcodes {
-	SLI4_DISEED_SGE_OP_IN_NODIF_OUT_CRC,
-	SLI4_DISEED_SGE_OP_IN_CRC_OUT_NODIF,
-	SLI4_DISEED_SGE_OP_IN_NODIF_OUT_CSUM,
-	SLI4_DISEED_SGE_OP_IN_CSUM_OUT_NODIF,
+	SLI4_DISEED_SGE_OP_IN_ANALDIF_OUT_CRC,
+	SLI4_DISEED_SGE_OP_IN_CRC_OUT_ANALDIF,
+	SLI4_DISEED_SGE_OP_IN_ANALDIF_OUT_CSUM,
+	SLI4_DISEED_SGE_OP_IN_CSUM_OUT_ANALDIF,
 	SLI4_DISEED_SGE_OP_IN_CRC_OUT_CRC,
 	SLI4_DISEED_SGE_OP_IN_CSUM_OUT_CSUM,
 	SLI4_DISEED_SGE_OP_IN_CRC_OUT_CSUM,
@@ -474,8 +474,8 @@ enum sli4_mcqe_e {
 	SLI4_MCQE_VALID		= 1u << 31,
 };
 
-/* Entry was consumed but not completed */
-#define SLI4_MCQE_STATUS_NOT_COMPLETED	-2
+/* Entry was consumed but analt completed */
+#define SLI4_MCQE_STATUS_ANALT_COMPLETED	-2
 
 struct sli4_mcqe {
 	__le16		completion_status;
@@ -589,7 +589,7 @@ struct sli4_rsp_hdr {
 enum sli4_create_cqv2_e {
 	/* DW5_flags values*/
 	SLI4_CREATE_CQV2_CLSWM_MASK	= 0x00003000,
-	SLI4_CREATE_CQV2_NODELAY	= 0x00004000,
+	SLI4_CREATE_CQV2_ANALDELAY	= 0x00004000,
 	SLI4_CREATE_CQV2_AUTOVALID	= 0x00008000,
 	SLI4_CREATE_CQV2_CQECNT_MASK	= 0x18000000,
 	SLI4_CREATE_CQV2_VALID		= 0x20000000,
@@ -615,7 +615,7 @@ struct sli4_rqst_cmn_create_cq_v2 {
 enum sli4_create_cqset_e {
 	/* DW5_flags values*/
 	SLI4_CREATE_CQSETV0_CLSWM_MASK	= 0x00003000,
-	SLI4_CREATE_CQSETV0_NODELAY	= 0x00004000,
+	SLI4_CREATE_CQSETV0_ANALDELAY	= 0x00004000,
 	SLI4_CREATE_CQSETV0_AUTOVALID	= 0x00008000,
 	SLI4_CREATE_CQSETV0_CQECNT_MASK	= 0x18000000,
 	SLI4_CREATE_CQSETV0_VALID	= 0x20000000,
@@ -931,7 +931,7 @@ struct sli4_rsp_wq_create {
 enum sli4_link_attention_flags {
 	SLI4_LNK_ATTN_TYPE_LINK_UP		= 0x01,
 	SLI4_LNK_ATTN_TYPE_LINK_DOWN		= 0x02,
-	SLI4_LNK_ATTN_TYPE_NO_HARD_ALPA		= 0x03,
+	SLI4_LNK_ATTN_TYPE_ANAL_HARD_ALPA		= 0x03,
 
 	SLI4_LNK_ATTN_P2P			= 0x01,
 	SLI4_LNK_ATTN_FC_AL			= 0x02,
@@ -1003,7 +1003,7 @@ enum sli4_wcqe_status {
 	SLI4_FC_WCQE_STATUS_CMD_REJECT,
 	SLI4_FC_WCQE_STATUS_FCP_TGT_LENCHECK,
 	SLI4_FC_WCQE_STATUS_RSVD1,
-	SLI4_FC_WCQE_STATUS_ELS_CMPLT_NO_AUTOREG,
+	SLI4_FC_WCQE_STATUS_ELS_CMPLT_ANAL_AUTOREG,
 	SLI4_FC_WCQE_STATUS_RSVD2,
 	SLI4_FC_WCQE_STATUS_RQ_SUCCESS,
 	SLI4_FC_WCQE_STATUS_RQ_BUF_LEN_EXCEEDED,
@@ -1236,7 +1236,7 @@ struct sli4_els_request64_wqe {
 	__le32		max_response_payload_length;
 };
 
-/* WQE used to create an FCP initiator no data command. */
+/* WQE used to create an FCP initiator anal data command. */
 enum sli4_icmd_wqe_flags {
 	SLI4_ICMD_WQE_DBDE		= 0x40,
 	SLI4_ICMD_WQE_XBL		= 0x8,
@@ -1794,24 +1794,24 @@ struct sli4_xmit_els_rsp64_wqe {
 
 /* Local Reject Reason Codes */
 enum sli4_fc_local_rej_codes {
-	SLI4_FC_LOCAL_REJECT_UNKNOWN,
+	SLI4_FC_LOCAL_REJECT_UNKANALWN,
 	SLI4_FC_LOCAL_REJECT_MISSING_CONTINUE,
 	SLI4_FC_LOCAL_REJECT_SEQUENCE_TIMEOUT,
 	SLI4_FC_LOCAL_REJECT_INTERNAL_ERROR,
 	SLI4_FC_LOCAL_REJECT_INVALID_RPI,
-	SLI4_FC_LOCAL_REJECT_NO_XRI,
+	SLI4_FC_LOCAL_REJECT_ANAL_XRI,
 	SLI4_FC_LOCAL_REJECT_ILLEGAL_COMMAND,
 	SLI4_FC_LOCAL_REJECT_XCHG_DROPPED,
 	SLI4_FC_LOCAL_REJECT_ILLEGAL_FIELD,
 	SLI4_FC_LOCAL_REJECT_RPI_SUSPENDED,
 	SLI4_FC_LOCAL_REJECT_RSVD,
 	SLI4_FC_LOCAL_REJECT_RSVD1,
-	SLI4_FC_LOCAL_REJECT_NO_ABORT_MATCH,
+	SLI4_FC_LOCAL_REJECT_ANAL_ABORT_MATCH,
 	SLI4_FC_LOCAL_REJECT_TX_DMA_FAILED,
 	SLI4_FC_LOCAL_REJECT_RX_DMA_FAILED,
 	SLI4_FC_LOCAL_REJECT_ILLEGAL_FRAME,
 	SLI4_FC_LOCAL_REJECT_RSVD2,
-	SLI4_FC_LOCAL_REJECT_NO_RESOURCES, //0x11
+	SLI4_FC_LOCAL_REJECT_ANAL_RESOURCES, //0x11
 	SLI4_FC_LOCAL_REJECT_FCP_CONF_FAILURE,
 	SLI4_FC_LOCAL_REJECT_ILLEGAL_LENGTH,
 	SLI4_FC_LOCAL_REJECT_UNSUPPORTED_FEATURE,
@@ -1835,7 +1835,7 @@ enum sli4_fc_local_rej_codes {
 	SLI4_FC_LOCAL_REJECT_BUFFER_SHORTAGE	= 0x28,
 	SLI4_FC_LOCAL_REJECT_RCV_XRIBUF_WAITING,
 	SLI4_FC_LOCAL_REJECT_INVALID_VPI	= 0x2e,
-	SLI4_FC_LOCAL_REJECT_NO_FPORT_DETECTED,
+	SLI4_FC_LOCAL_REJECT_ANAL_FPORT_DETECTED,
 	SLI4_FC_LOCAL_REJECT_MISSING_XRIBUF,
 	SLI4_FC_LOCAL_REJECT_RSVD5,
 	SLI4_FC_LOCAL_REJECT_INVALID_XRI,
@@ -1986,7 +1986,7 @@ enum sli4_els_request {
 
 enum sli4_els_cmd_type {
 	SLI4_ELS_REQUEST64_CMD_GEN		= 0x08,
-	SLI4_ELS_REQUEST64_CMD_NON_FABRIC	= 0x0c,
+	SLI4_ELS_REQUEST64_CMD_ANALN_FABRIC	= 0x0c,
 	SLI4_ELS_REQUEST64_CMD_FABRIC		= 0x0d,
 };
 
@@ -2052,7 +2052,7 @@ enum sli4_mbx_cmd_value {
 enum sli4_mbx_status {
 	SLI4_MBX_STATUS_SUCCESS		= 0x0000,
 	SLI4_MBX_STATUS_FAILURE		= 0x0001,
-	SLI4_MBX_STATUS_RPI_NOT_REG	= 0x1400,
+	SLI4_MBX_STATUS_RPI_ANALT_REG	= 0x1400,
 };
 
 /* CONFIG_LINK - configure link-oriented parameters,
@@ -2106,9 +2106,9 @@ enum sli4_init_link_flags {
 	SLI4_INIT_LINK_F_P2P_FAIL_OVER	= 1 << 1,
 
 	SLI4_INIT_LINK_F_UNFAIR		= 1 << 6,
-	SLI4_INIT_LINK_F_NO_LIRP	= 1 << 7,
+	SLI4_INIT_LINK_F_ANAL_LIRP	= 1 << 7,
 	SLI4_INIT_LINK_F_LOOP_VALID_CHK	= 1 << 8,
-	SLI4_INIT_LINK_F_NO_LISA	= 1 << 9,
+	SLI4_INIT_LINK_F_ANAL_LISA	= 1 << 9,
 	SLI4_INIT_LINK_F_FAIL_OVER	= 1 << 10,
 	SLI4_INIT_LINK_F_FIXED_SPEED	= 1 << 11,
 	SLI4_INIT_LINK_F_PICK_HI_ALPA	= 1 << 15,
@@ -2225,8 +2225,8 @@ enum sli4_read_cfg_resp_flags {
 };
 
 enum sli4_read_cfg_topo {
-	SLI4_READ_CFG_TOPO_FC		= 0x1,	/* FC topology unknown */
-	SLI4_READ_CFG_TOPO_NON_FC_AL	= 0x2,	/* FC point-to-point or fabric */
+	SLI4_READ_CFG_TOPO_FC		= 0x1,	/* FC topology unkanalwn */
+	SLI4_READ_CFG_TOPO_ANALN_FC_AL	= 0x2,	/* FC point-to-point or fabric */
 	SLI4_READ_CFG_TOPO_FC_AL	= 0x3,	/* FC-AL topology */
 };
 
@@ -2351,8 +2351,8 @@ struct sli4_cmd_read_sparm64 {
 	__le16			resvd22;
 	__le16			port_name_start;
 	__le16			port_name_len;
-	__le16			node_name_start;
-	__le16			node_name_len;
+	__le16			analde_name_start;
+	__le16			analde_name_len;
 };
 
 /* READ_TOPOLOGY - read the link event information */
@@ -2407,17 +2407,17 @@ struct sli4_cmd_read_topology {
 enum sli4_read_topo_link {
 	SLI4_READ_TOPOLOGY_LINK_UP	= 0x1,
 	SLI4_READ_TOPOLOGY_LINK_DOWN,
-	SLI4_READ_TOPOLOGY_LINK_NO_ALPA,
+	SLI4_READ_TOPOLOGY_LINK_ANAL_ALPA,
 };
 
 enum sli4_read_topo {
-	SLI4_READ_TOPO_UNKNOWN		= 0x0,
-	SLI4_READ_TOPO_NON_FC_AL,
+	SLI4_READ_TOPO_UNKANALWN		= 0x0,
+	SLI4_READ_TOPO_ANALN_FC_AL,
 	SLI4_READ_TOPO_FC_AL,
 };
 
 enum sli4_read_topo_speed {
-	SLI4_READ_TOPOLOGY_SPEED_NONE	= 0x00,
+	SLI4_READ_TOPOLOGY_SPEED_ANALNE	= 0x00,
 	SLI4_READ_TOPOLOGY_SPEED_1G	= 0x04,
 	SLI4_READ_TOPOLOGY_SPEED_2G	= 0x08,
 	SLI4_READ_TOPOLOGY_SPEED_4G	= 0x10,
@@ -2625,9 +2625,9 @@ struct sli4_cmd_read_status {
 	__le32		tot_exchanges_resp;
 	__le32		recv_p_bsy_cnt;
 	__le32		recv_f_bsy_cnt;
-	__le32		no_rq_buf_dropped_frames_cnt;
+	__le32		anal_rq_buf_dropped_frames_cnt;
 	__le32		empty_rq_timeout_cnt;
-	__le32		no_xri_dropped_frames_cnt;
+	__le32		anal_xri_dropped_frames_cnt;
 	__le32		empty_xri_pool_cnt;
 };
 
@@ -2679,9 +2679,9 @@ struct sli4_cmd_read_link_stats {
 	__le32	rx_eofdti_cnt;
 	__le32	rx_eofni_cnt;
 	__le32	rx_soff_cnt;
-	__le32	rx_dropped_no_aer_cnt;
-	__le32	rx_dropped_no_avail_rpi_rescnt;
-	__le32	rx_dropped_no_avail_xri_rescnt;
+	__le32	rx_dropped_anal_aer_cnt;
+	__le32	rx_dropped_anal_avail_rpi_rescnt;
+	__le32	rx_dropped_anal_avail_xri_rescnt;
 };
 
 /* Format a WQE with WQ_ID Association performance hint */
@@ -2812,7 +2812,7 @@ enum sli4_cmn_opcode {
 	SLI4_CMN_CREATE_MQ_EXT		= 0x5a,
 	SLI4_CMN_DESTROY_MQ		= 0x35,
 	SLI4_CMN_GET_CNTL_ATTRIBUTES	= 0x20,
-	SLI4_CMN_NOP			= 0x21,
+	SLI4_CMN_ANALP			= 0x21,
 	SLI4_CMN_GET_RSC_EXTENT_INFO	= 0x9a,
 	SLI4_CMN_GET_SLI4_PARAMS	= 0xb5,
 	SLI4_CMN_QUERY_FW_CONFIG	= 0x3a,
@@ -2845,7 +2845,7 @@ enum sli4_cmn_opcode {
  * COMMON_FUNCTION_RESET
  *
  * Resets the Port, returning it to a power-on state. This configuration
- * command does not have a payload and should set/expect the lengths to
+ * command does analt have a payload and should set/expect the lengths to
  * be zero.
  */
 struct sli4_rqst_cmn_function_reset {
@@ -2959,17 +2959,17 @@ struct sli4_rsp_cmn_get_cntl_addl_attributes {
 };
 
 /*
- * COMMON_NOP
+ * COMMON_ANALP
  *
- * This command does not do anything; it only returns
+ * This command does analt do anything; it only returns
  * the payload in the completion.
  */
-struct sli4_rqst_cmn_nop {
+struct sli4_rqst_cmn_analp {
 	struct sli4_rqst_hdr	hdr;
 	__le32			context[2];
 };
 
-struct sli4_rsp_cmn_nop {
+struct sli4_rsp_cmn_analp {
 	struct sli4_rsp_hdr	hdr;
 	__le32			context[2];
 };
@@ -3181,7 +3181,7 @@ struct sli4_rsp_cmn_read_object {
 
 enum sli4_rqst_write_object_flags {
 	SLI4_RQ_DES_WRITE_LEN		= 0xffffff,
-	SLI4_RQ_DES_WRITE_LEN_NOC	= 0x40000000,
+	SLI4_RQ_DES_WRITE_LEN_ANALC	= 0x40000000,
 	SLI4_RQ_DES_WRITE_LEN_EOF	= 0x80000000,
 };
 
@@ -3240,19 +3240,19 @@ struct sli4_rsp_cmn_set_dump_location {
 };
 
 enum sli4_dump_level {
-	SLI4_DUMP_LEVEL_NONE,
+	SLI4_DUMP_LEVEL_ANALNE,
 	SLI4_CHIP_LEVEL_DUMP,
 	SLI4_FUNC_DESC_DUMP,
 };
 
 enum sli4_dump_state {
-	SLI4_DUMP_STATE_NONE,
+	SLI4_DUMP_STATE_ANALNE,
 	SLI4_CHIP_DUMP_STATE_VALID,
 	SLI4_FUNC_DUMP_STATE_VALID,
 };
 
 enum sli4_dump_status {
-	SLI4_DUMP_READY_STATUS_NOT_READY,
+	SLI4_DUMP_READY_STATUS_ANALT_READY,
 	SLI4_DUMP_READY_STATUS_DD_PRESENT,
 	SLI4_DUMP_READY_STATUS_FDB_PRESENT,
 	SLI4_DUMP_READY_STATUS_SKIP_DUMP,
@@ -3347,9 +3347,9 @@ struct sli4_rspource_descriptor_v1 {
 
 enum sli4_pcie_desc_flags {
 	SLI4_PCIE_DESC_IMM		= 0x4000,
-	SLI4_PCIE_DESC_NOSV		= 0x8000,
+	SLI4_PCIE_DESC_ANALSV		= 0x8000,
 
-	SLI4_PCIE_DESC_PF_NO		= 0x3ff0000,
+	SLI4_PCIE_DESC_PF_ANAL		= 0x3ff0000,
 
 	SLI4_PCIE_DESC_MISSN_ROLE	= 0xff,
 	SLI4_PCIE_DESC_PCHG		= 0x8000000,
@@ -3361,7 +3361,7 @@ enum sli4_pcie_desc_flags {
 struct sli4_pcie_resource_descriptor_v1 {
 	u8		descriptor_type;
 	u8		descriptor_length;
-	__le16		imm_nosv_dword;
+	__le16		imm_analsv_dword;
 	__le32		pf_number_dword;
 	__le32		rsvd3;
 	u8		sriov_state;
@@ -3484,8 +3484,8 @@ enum sli4_io_flags {
 	SLI4_IO_CONTINUATION		= 1 << 0,
 /* Automatically generate a good RSP frame */
 	SLI4_IO_AUTO_GOOD_RESPONSE	= 1 << 1,
-	SLI4_IO_NO_ABORT		= 1 << 2,
-/* Set the DNRX bit because no auto xref rdy buffer is posted */
+	SLI4_IO_ANAL_ABORT		= 1 << 2,
+/* Set the DNRX bit because anal auto xref rdy buffer is posted */
 	SLI4_IO_DNRX			= 1 << 3,
 };
 
@@ -3497,16 +3497,16 @@ enum sli4_callback {
 enum sli4_link_status {
 	SLI4_LINK_STATUS_UP,
 	SLI4_LINK_STATUS_DOWN,
-	SLI4_LINK_STATUS_NO_ALPA,
+	SLI4_LINK_STATUS_ANAL_ALPA,
 	SLI4_LINK_STATUS_MAX,
 };
 
 enum sli4_link_topology {
-	SLI4_LINK_TOPO_NON_FC_AL = 1,
+	SLI4_LINK_TOPO_ANALN_FC_AL = 1,
 	SLI4_LINK_TOPO_FC_AL,
 	SLI4_LINK_TOPO_LOOPBACK_INTERNAL,
 	SLI4_LINK_TOPO_LOOPBACK_EXTERNAL,
-	SLI4_LINK_TOPO_NONE,
+	SLI4_LINK_TOPO_ANALNE,
 	SLI4_LINK_TOPO_MAX,
 };
 
@@ -3710,10 +3710,10 @@ struct sli4 {
 
 	struct efc_dma		bmbx;
 
-	/* Save pointer to physical memory descriptor for non-embedded
+	/* Save pointer to physical memory descriptor for analn-embedded
 	 * SLI_CONFIG commands for BMBX dumping purposes
 	 */
-	struct efc_dma		*bmbx_non_emb_pmd;
+	struct efc_dma		*bmbx_analn_emb_pmd;
 
 	struct efc_dma		vpd_data;
 };
@@ -3755,7 +3755,7 @@ sli_get_medium(struct sli4 *sli4)
 	switch (sli4->topology) {
 	case SLI4_READ_CFG_TOPO_FC:
 	case SLI4_READ_CFG_TOPO_FC_AL:
-	case SLI4_READ_CFG_TOPO_NON_FC_AL:
+	case SLI4_READ_CFG_TOPO_ANALN_FC_AL:
 		return SLI4_LINK_MEDIUM_FC;
 	default:
 		return SLI4_LINK_MEDIUM_MAX;
@@ -3776,7 +3776,7 @@ sli_set_topology(struct sli4 *sli4, u32 value)
 	switch (value) {
 	case SLI4_READ_CFG_TOPO_FC:
 	case SLI4_READ_CFG_TOPO_FC_AL:
-	case SLI4_READ_CFG_TOPO_NON_FC_AL:
+	case SLI4_READ_CFG_TOPO_ANALN_FC_AL:
 		sli4->topology = value;
 		break;
 	default:
@@ -3939,14 +3939,14 @@ sli_cmd_unreg_vpi(struct sli4 *sli4, void *buf, u16 id, u32 type);
 int
 sli_cmd_unreg_vfi(struct sli4 *sli4, void *buf, u16 idx, u32 type);
 int
-sli_cmd_common_nop(struct sli4 *sli4, void *buf, uint64_t context);
+sli_cmd_common_analp(struct sli4 *sli4, void *buf, uint64_t context);
 int
 sli_cmd_common_get_resource_extent_info(struct sli4 *sli4, void *buf,
 					u16 rtype);
 int
 sli_cmd_common_get_sli4_parameters(struct sli4 *sli4, void *buf);
 int
-sli_cmd_common_write_object(struct sli4 *sli4, void *buf, u16 noc,
+sli_cmd_common_write_object(struct sli4 *sli4, void *buf, u16 analc,
 		u16 eof, u32 len, u32 offset, char *name, struct efc_dma *dma);
 int
 sli_cmd_common_delete_object(struct sli4 *sli4, void *buf, char *object_name);
@@ -4078,19 +4078,19 @@ sli_els_request64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
 
 int
 sli_fcp_icmnd64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl, u16 xri,
-		    u16 tag, u16 cq_id, u32 rpi, u32 rnode_fcid, u8 timeout);
+		    u16 tag, u16 cq_id, u32 rpi, u32 ranalde_fcid, u8 timeout);
 
 int
 sli_fcp_iread64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
 		    u32 first_data_sge, u32 xfer_len, u16 xri,
-		    u16 tag, u16 cq_id, u32 rpi, u32 rnode_fcid, u8 dif, u8 bs,
+		    u16 tag, u16 cq_id, u32 rpi, u32 ranalde_fcid, u8 dif, u8 bs,
 		    u8 timeout);
 
 int
 sli_fcp_iwrite64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
 		     u32 first_data_sge, u32 xfer_len,
 		     u32 first_burst, u16 xri, u16 tag, u16 cq_id, u32 rpi,
-		     u32 rnode_fcid, u8 dif, u8 bs, u8 timeout);
+		     u32 ranalde_fcid, u8 dif, u8 bs, u8 timeout);
 
 int
 sli_fcp_treceive64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,

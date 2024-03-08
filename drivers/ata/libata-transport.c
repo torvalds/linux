@@ -134,7 +134,7 @@ static struct {
 	u32		value;
 	char		*name;
 } ata_class_names[] = {
-	{ ATA_DEV_UNKNOWN,		"unknown" },
+	{ ATA_DEV_UNKANALWN,		"unkanalwn" },
 	{ ATA_DEV_ATA,			"ata" },
 	{ ATA_DEV_ATA_UNSUP,		"ata" },
 	{ ATA_DEV_ATAPI,		"atapi" },
@@ -144,7 +144,7 @@ static struct {
 	{ ATA_DEV_SEMB,			"semb" },
 	{ ATA_DEV_SEMB_UNSUP,		"semb" },
 	{ ATA_DEV_ZAC,			"zac" },
-	{ ATA_DEV_NONE,			"none" }
+	{ ATA_DEV_ANALNE,			"analne" }
 };
 ata_bitfield_name_search(class, ata_class_names)
 
@@ -161,8 +161,8 @@ static struct {
 	{ AC_ERR_HOST_BUS,		"HostBusError" },
 	{ AC_ERR_SYSTEM,		"SystemError" },
 	{ AC_ERR_INVALID,		"InvalidArg" },
-	{ AC_ERR_OTHER,			"Unknown" },
-	{ AC_ERR_NODEV_HINT,		"NoDeviceHint" },
+	{ AC_ERR_OTHER,			"Unkanalwn" },
+	{ AC_ERR_ANALDEV_HINT,		"AnalDeviceHint" },
 	{ AC_ERR_NCQ,			"NCQError" }
 };
 ata_bitfield_name_match(err, ata_err_names)
@@ -217,7 +217,7 @@ static DEVICE_ATTR(name, S_IRUGO, show_ata_port_##name, NULL)
 
 ata_port_simple_attr(nr_pmp_links, nr_pmp_links, "%d\n", int);
 ata_port_simple_attr(stats.idle_irq, idle_irq, "%ld\n", unsigned long);
-ata_port_simple_attr(local_port_no, port_no, "%u\n", unsigned int);
+ata_port_simple_attr(local_port_anal, port_anal, "%u\n", unsigned int);
 
 static DECLARE_TRANSPORT_CLASS(ata_port_class,
 			       "ata_port", NULL, NULL, NULL);
@@ -339,7 +339,7 @@ int ata_tport_add(struct device *parent,
  *
  *     RETURNS:
  *     Device type, %ATA_DEV_ATA, %ATA_DEV_ATAPI, %ATA_DEV_PMP,
- *     %ATA_DEV_ZAC, or %ATA_DEV_UNKNOWN the event of failure.
+ *     %ATA_DEV_ZAC, or %ATA_DEV_UNKANALWN the event of failure.
  */
 unsigned int ata_port_classify(struct ata_port *ap,
 			       const struct ata_taskfile *tf)
@@ -347,7 +347,7 @@ unsigned int ata_port_classify(struct ata_port *ap,
 	int i;
 	unsigned int class = ata_dev_classify(tf);
 
-	/* Start with index '1' to skip the 'unknown' entry */
+	/* Start with index '1' to skip the 'unkanalwn' entry */
 	for (i = 1; i < ARRAY_SIZE(ata_class_names); i++) {
 		if (ata_class_names[i].value == class) {
 			ata_port_dbg(ap, "found %s device by sig\n",
@@ -356,7 +356,7 @@ unsigned int ata_port_classify(struct ata_port *ap,
 		}
 	}
 
-	ata_port_info(ap, "found unknown device (class %u)\n", class);
+	ata_port_info(ap, "found unkanalwn device (class %u)\n", class);
 	return class;
 }
 EXPORT_SYMBOL_GPL(ata_port_classify);
@@ -364,7 +364,7 @@ EXPORT_SYMBOL_GPL(ata_port_classify);
 /*
  * ATA link attributes
  */
-static int noop(int x) { return x; }
+static int analop(int x) { return x; }
 
 #define ata_link_show_linkspeed(field, format)				\
 static ssize_t								\
@@ -382,7 +382,7 @@ static DEVICE_ATTR(field, S_IRUGO, show_ata_link_##field, NULL)
 
 ata_link_linkspeed_attr(hw_sata_spd_limit, fls);
 ata_link_linkspeed_attr(sata_spd_limit, fls);
-ata_link_linkspeed_attr(sata_spd, noop);
+ata_link_linkspeed_attr(sata_spd, analop);
 
 
 static DECLARE_TRANSPORT_CLASS(ata_link_class,
@@ -614,9 +614,9 @@ show_ata_dev_trim(struct device *dev,
 
 	if (!ata_id_has_trim(ata_dev->id))
 		mode = "unsupported";
-	else if (ata_dev->horkage & ATA_HORKAGE_NOTRIM)
+	else if (ata_dev->horkage & ATA_HORKAGE_ANALTRIM)
 		mode = "forced_unsupported";
-	else if (ata_dev->horkage & ATA_HORKAGE_NO_NCQ_TRIM)
+	else if (ata_dev->horkage & ATA_HORKAGE_ANAL_NCQ_TRIM)
 			mode = "forced_unqueued";
 	else if (ata_fpdma_dsm_supported(ata_dev))
 		mode = "queued";
@@ -662,8 +662,8 @@ static int ata_tdev_match(struct attribute_container *cont,
  *
  * Frees the specified ATA PHY.
  *
- * Note:
- *   This function must only be called on a PHY that has not
+ * Analte:
+ *   This function must only be called on a PHY that has analt
  *   successfully been added using ata_tdev_add().
  */
 static void ata_tdev_free(struct ata_device *dev)
@@ -708,7 +708,7 @@ static int ata_tdev_add(struct ata_device *ata_dev)
 	dev->parent = &link->tdev;
 	dev->release = ata_tdev_release;
 	if (ata_is_host_link(link))
-		dev_set_name(dev, "dev%d.%d", ap->print_id,ata_dev->devno);
+		dev_set_name(dev, "dev%d.%d", ap->print_id,ata_dev->devanal);
 	else
 		dev_set_name(dev, "dev%d.%d.0", ap->print_id, link->pmp);
 
@@ -785,7 +785,7 @@ struct scsi_transport_template *ata_attach_transport(void)
 	count = 0;
 	SETUP_PORT_ATTRIBUTE(nr_pmp_links);
 	SETUP_PORT_ATTRIBUTE(idle_irq);
-	SETUP_PORT_ATTRIBUTE(port_no);
+	SETUP_PORT_ATTRIBUTE(port_anal);
 	BUG_ON(count > ATA_PORT_ATTRS);
 	i->port_attrs[count] = NULL;
 

@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
@@ -62,7 +62,7 @@
 #include "util/sample.h"
 
 /*
- * Make a group from 'leader' to 'last', requiring that the events were not
+ * Make a group from 'leader' to 'last', requiring that the events were analt
  * already grouped to a different leader.
  */
 static int evlist__regroup(struct evlist *evlist, struct evsel *leader, struct evsel *last)
@@ -223,7 +223,7 @@ int auxtrace_queues__init(struct auxtrace_queues *queues)
 	queues->nr_queues = AUXTRACE_INIT_NR_QUEUES;
 	queues->queue_array = auxtrace_alloc_queue_array(queues->nr_queues);
 	if (!queues->queue_array)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -245,7 +245,7 @@ static int auxtrace_queues__grow(struct auxtrace_queues *queues,
 
 	queue_array = auxtrace_alloc_queue_array(nr_queues);
 	if (!queue_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < queues->nr_queues; i++) {
 		list_splice_tail(&queues->queue_array[i].head,
@@ -330,7 +330,7 @@ static int auxtrace_queues__split_buffer(struct auxtrace_queues *queues,
 	while (sz > BUFFER_LIMIT_FOR_32_BIT) {
 		b = memdup(buffer, sizeof(struct auxtrace_buffer));
 		if (!b)
-			return -ENOMEM;
+			return -EANALMEM;
 		b->size = BUFFER_LIMIT_FOR_32_BIT;
 		b->consecutive = consecutive;
 		err = auxtrace_queues__queue_buffer(queues, idx, b);
@@ -362,14 +362,14 @@ static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
 				       struct auxtrace_buffer *buffer,
 				       struct auxtrace_buffer **buffer_ptr)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (filter_cpu(session, buffer->cpu))
 		return 0;
 
 	buffer = memdup(buffer, sizeof(*buffer));
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (session->one_mmap) {
 		buffer->data = buffer->data_offset - session->one_mmap_offset +
@@ -497,7 +497,7 @@ int auxtrace_heap__add(struct auxtrace_heap *heap, unsigned int queue_nr,
 		heap_array = realloc(heap->heap_array,
 				     heap_sz * sizeof(struct auxtrace_heap_item));
 		if (!heap_array)
-			return -ENOMEM;
+			return -EANALMEM;
 		heap->heap_array = heap_array;
 		heap->heap_sz = heap_sz;
 	}
@@ -560,9 +560,9 @@ size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr,
 	return 0;
 }
 
-static int auxtrace_not_supported(void)
+static int auxtrace_analt_supported(void)
 {
-	pr_err("AUX area tracing is not supported on this architecture\n");
+	pr_err("AUX area tracing is analt supported on this architecture\n");
 	return -EINVAL;
 }
 
@@ -573,7 +573,7 @@ int auxtrace_record__info_fill(struct auxtrace_record *itr,
 {
 	if (itr)
 		return itr->info_fill(itr, session, auxtrace_info, priv_size);
-	return auxtrace_not_supported();
+	return auxtrace_analt_supported();
 }
 
 void auxtrace_record__free(struct auxtrace_record *itr)
@@ -629,7 +629,7 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 	if (!str)
 		return 0;
 
-	/* PMU-agnostic options */
+	/* PMU-aganalstic options */
 	switch (*str) {
 	case 'e':
 		opts->auxtrace_snapshot_on_exit = true;
@@ -642,7 +642,7 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 	if (itr && itr->parse_snapshot_options)
 		return itr->parse_snapshot_options(itr, opts, str);
 
-	pr_err("No AUX area tracing to snapshot\n");
+	pr_err("Anal AUX area tracing to snapshot\n");
 	return -EINVAL;
 }
 
@@ -686,7 +686,7 @@ int auxtrace_record__read_finish(struct auxtrace_record *itr, int idx)
  */
 #define MAX_AUX_SAMPLE_SIZE (60 * 1024)
 
-/* Arbitrary default size if no other default provided */
+/* Arbitrary default size if anal other default provided */
 #define DEFAULT_AUX_SAMPLE_SIZE (4 * 1024)
 
 static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
@@ -702,9 +702,9 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 			has_aux_leader = evsel__is_aux_event(evsel);
 			if (sz) {
 				if (has_aux_leader)
-					pr_err("Cannot add AUX area sampling to an AUX area event\n");
+					pr_err("Cananalt add AUX area sampling to an AUX area event\n");
 				else
-					pr_err("Cannot add AUX area sampling to a group leader\n");
+					pr_err("Cananalt add AUX area sampling to a group leader\n");
 				return -EINVAL;
 			}
 		}
@@ -715,7 +715,7 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 		}
 		if (sz) {
 			if (!has_aux_leader) {
-				pr_err("Cannot add AUX area sampling because group leader is not an AUX area event\n");
+				pr_err("Cananalt add AUX area sampling because group leader is analt an AUX area event\n");
 				return -EINVAL;
 			}
 			evsel__set_sample_bit(evsel, AUX);
@@ -731,7 +731,7 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 	}
 
 	if (!perf_can_aux_sample()) {
-		pr_err("AUX area sampling is not supported by kernel\n");
+		pr_err("AUX area sampling is analt supported by kernel\n");
 		return -EINVAL;
 	}
 
@@ -751,10 +751,10 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 	unsigned long sz;
 
 	if (!str)
-		goto no_opt;
+		goto anal_opt;
 
 	if (!itr) {
-		pr_err("No AUX area event to sample\n");
+		pr_err("Anal AUX area event to sample\n");
 		return -EINVAL;
 	}
 
@@ -778,7 +778,7 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 			evsel->core.attr.aux_sample_size = sz;
 		}
 	}
-no_opt:
+anal_opt:
 	aux_evsel = NULL;
 	/* Override with aux_sample_size from config term */
 	evlist__for_each_entry(evlist, evsel) {
@@ -798,7 +798,7 @@ no_opt:
 		return 0;
 
 	if (!itr) {
-		pr_err("No AUX area event to sample\n");
+		pr_err("Anal AUX area event to sample\n");
 		return -EINVAL;
 	}
 
@@ -833,7 +833,7 @@ static int auxtrace_index__alloc(struct list_head *head)
 
 	auxtrace_index = malloc(sizeof(struct auxtrace_index));
 	if (!auxtrace_index)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	auxtrace_index->nr = 0;
 	INIT_LIST_HEAD(&auxtrace_index->list);
@@ -885,7 +885,7 @@ int auxtrace_index__auxtrace_event(struct list_head *head,
 
 	auxtrace_index = auxtrace_index__last(head);
 	if (!auxtrace_index)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nr = auxtrace_index->nr;
 	auxtrace_index->entries[nr].file_offset = file_offset;
@@ -905,7 +905,7 @@ static int auxtrace_index__do_write(int fd,
 		ent.file_offset = auxtrace_index->entries[i].file_offset;
 		ent.sz = auxtrace_index->entries[i].sz;
 		if (writen(fd, &ent, sizeof(ent)) != sizeof(ent))
-			return -errno;
+			return -erranal;
 	}
 	return 0;
 }
@@ -920,7 +920,7 @@ int auxtrace_index__write(int fd, struct list_head *head)
 		total += auxtrace_index->nr;
 
 	if (writen(fd, &total, sizeof(total)) != sizeof(total))
-		return -errno;
+		return -erranal;
 
 	list_for_each_entry(auxtrace_index, head, list) {
 		err = auxtrace_index__do_write(fd, auxtrace_index);
@@ -1078,7 +1078,7 @@ int auxtrace_queues__add_sample(struct auxtrace_queues *queues,
 
 	sid = evlist__id2sid(session->evlist, id);
 	if (!sid)
-		return -ENOENT;
+		return -EANALENT;
 
 	idx = sid->idx;
 	buffer.tid = sid->tid;
@@ -1247,7 +1247,7 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 	priv_size = auxtrace_record__info_priv_size(itr, session->evlist);
 	ev = zalloc(sizeof(struct perf_record_auxtrace_info) + priv_size);
 	if (!ev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev->auxtrace_info.header.type = PERF_RECORD_AUXTRACE_INFO;
 	ev->auxtrace_info.header.size = sizeof(struct perf_record_auxtrace_info) +
@@ -1328,7 +1328,7 @@ int perf_event__process_auxtrace_info(struct perf_session *session,
 	case PERF_AUXTRACE_HISI_PTT:
 		err = hisi_ptt_process_auxtrace_info(event, session);
 		break;
-	case PERF_AUXTRACE_UNKNOWN:
+	case PERF_AUXTRACE_UNKANALWN:
 	default:
 		return -EINVAL;
 	}
@@ -1365,7 +1365,7 @@ s64 perf_event__process_auxtrace(struct perf_session *session,
 	return event->auxtrace.size;
 }
 
-#define PERF_ITRACE_DEFAULT_PERIOD_TYPE		PERF_ITRACE_PERIOD_NANOSECS
+#define PERF_ITRACE_DEFAULT_PERIOD_TYPE		PERF_ITRACE_PERIOD_NAANALSECS
 #define PERF_ITRACE_DEFAULT_PERIOD		100000
 #define PERF_ITRACE_DEFAULT_CALLCHAIN_SZ	16
 #define PERF_ITRACE_MAX_CALLCHAIN_SZ		1024
@@ -1373,7 +1373,7 @@ s64 perf_event__process_auxtrace(struct perf_session *session,
 #define PERF_ITRACE_MAX_LAST_BRANCH_SZ		1024
 
 void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
-				    bool no_sample)
+				    bool anal_sample)
 {
 	synth_opts->branches = true;
 	synth_opts->transactions = true;
@@ -1388,7 +1388,7 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
 	synth_opts->mem = true;
 	synth_opts->remote_access = true;
 
-	if (no_sample) {
+	if (anal_sample) {
 		synth_opts->period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
 		synth_opts->period = 1;
 		synth_opts->calls = true;
@@ -1476,7 +1476,7 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 
 	if (!str) {
 		itrace_synth_opts__set_default(synth_opts,
-					       synth_opts->default_no_sample);
+					       synth_opts->default_anal_sample);
 		return 0;
 	}
 
@@ -1517,7 +1517,7 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 					if (*p++ != 's')
 						goto out_err;
 					synth_opts->period_type =
-						PERF_ITRACE_PERIOD_NANOSECS;
+						PERF_ITRACE_PERIOD_NAANALSECS;
 					period_type_set = true;
 					break;
 				case '\0':
@@ -1680,7 +1680,7 @@ static const char *auxtrace_error_name(int type)
 	if (type < PERF_AUXTRACE_ERROR_MAX)
 		error_type_name = auxtrace_error_type_name[type];
 	if (!error_type_name)
-		error_type_name = "unknown AUX";
+		error_type_name = "unkanalwn AUX";
 	return error_type_name;
 }
 
@@ -1748,11 +1748,11 @@ int perf_event__process_auxtrace_error(struct perf_session *session,
 
 /*
  * In the compat mode kernel runs in 64-bit and perf tool runs in 32-bit mode,
- * 32-bit perf tool cannot access 64-bit value atomically, which might lead to
+ * 32-bit perf tool cananalt access 64-bit value atomically, which might lead to
  * the issues caused by the below sequence on multiple CPUs: when perf tool
  * accesses either the load operation or the store operation for 64-bit value,
  * on some architectures the operation is divided into two instructions, one
- * is for accessing the low 32-bit value and another is for the high 32-bit;
+ * is for accessing the low 32-bit value and aanalther is for the high 32-bit;
  * thus these two user operations can give the kernel chances to access the
  * 64-bit value, and thus leads to the unexpected load values.
  *
@@ -1770,22 +1770,22 @@ int perf_event__process_auxtrace_error(struct perf_session *session,
  *
  * For this reason, it's impossible for the perf tool to work correctly when
  * the AUX head or tail is bigger than 4GB (more than 32 bits length); and we
- * can not simply limit the AUX ring buffer to less than 4GB, the reason is
- * the pointers can be increased monotonically, whatever the buffer size it is,
+ * can analt simply limit the AUX ring buffer to less than 4GB, the reason is
+ * the pointers can be increased moanaltonically, whatever the buffer size it is,
  * at the end the head and tail can be bigger than 4GB and carry out to the
  * high 32-bit.
  *
  * To mitigate the issues and improve the user experience, we can allow the
  * perf tool working in certain conditions and bail out with error if detect
- * any overflow cannot be handled.
+ * any overflow cananalt be handled.
  *
  * For reading the AUX head, it reads out the values for three times, and
  * compares the high 4 bytes of the values between the first time and the last
- * time, if there has no change for high 4 bytes injected by the kernel during
+ * time, if there has anal change for high 4 bytes injected by the kernel during
  * the user reading sequence, it's safe for use the second value.
  *
  * When compat_auxtrace_mmap__write_tail() detects any carrying in the high
- * 32 bits, it means there have two store operations in user space and it cannot
+ * 32 bits, it means there have two store operations in user space and it cananalt
  * promise the atomicity for 64-bit write, so return '-1' in this case to tell
  * the caller an overflow error has happened.
  */
@@ -1869,7 +1869,7 @@ static int __auxtrace_mmap__read(struct mmap *map,
 		offset = head - size;
 	} else {
 		/*
-		 * When the buffer size is not a power of 2, 'head' wraps at the
+		 * When the buffer size is analt a power of 2, 'head' wraps at the
 		 * highest multiple of the buffer size, so we have to subtract
 		 * the remainder here.
 		 */
@@ -2003,7 +2003,7 @@ out_free:
 static void auxtrace_cache__drop(struct auxtrace_cache *c)
 {
 	struct auxtrace_cache_entry *entry;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	size_t i;
 
 	if (!c)
@@ -2057,7 +2057,7 @@ static struct auxtrace_cache_entry *auxtrace_cache__rm(struct auxtrace_cache *c,
 {
 	struct auxtrace_cache_entry *entry;
 	struct hlist_head *hlist;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	if (!c)
 		return NULL;
@@ -2163,10 +2163,10 @@ static int parse_num_or_str(char **inp, u64 *num, const char **str,
 
 		if (!num)
 			return -EINVAL;
-		errno = 0;
+		erranal = 0;
 		*num = strtoull(*inp, &endptr, 0);
-		if (errno)
-			return -errno;
+		if (erranal)
+			return -erranal;
 		if (endptr == *inp)
 			return -EINVAL;
 		*inp = endptr;
@@ -2226,10 +2226,10 @@ static int parse_sym_idx(char **inp, int *idx)
 		unsigned long num;
 		char *endptr;
 
-		errno = 0;
+		erranal = 0;
 		num = strtoul(*inp, &endptr, 0);
-		if (errno)
-			return -errno;
+		if (erranal)
+			return -erranal;
 		if (endptr == *inp || num > INT_MAX)
 			return -EINVAL;
 		*inp = endptr;
@@ -2256,7 +2256,7 @@ static int parse_one_filter(struct addr_filter *filt, const char **filter_inp)
 
 	filt->str = fstr = strdup(*filter_inp);
 	if (!fstr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = parse_num_or_str(&fstr, NULL, &filt->action, " ");
 	if (err)
@@ -2393,17 +2393,17 @@ static int print_kern_sym_cb(void *arg, const char *name, char type, u64 start)
 	return 0;
 }
 
-static int sym_not_found_error(const char *sym_name, int idx)
+static int sym_analt_found_error(const char *sym_name, int idx)
 {
 	if (idx > 0) {
-		pr_err("N'th occurrence (N=%d) of symbol '%s' not found.\n",
+		pr_err("N'th occurrence (N=%d) of symbol '%s' analt found.\n",
 		       idx, sym_name);
 	} else if (!idx) {
-		pr_err("Global symbol '%s' not found.\n", sym_name);
+		pr_err("Global symbol '%s' analt found.\n", sym_name);
 	} else {
-		pr_err("Symbol '%s' not found.\n", sym_name);
+		pr_err("Symbol '%s' analt found.\n", sym_name);
 	}
-	pr_err("Note that symbols must be functions.\n");
+	pr_err("Analte that symbols must be functions.\n");
 
 	return -EINVAL;
 }
@@ -2439,7 +2439,7 @@ static int find_kern_sym(const char *sym_name, u64 *start, u64 *size, int idx)
 
 	if (!args.started) {
 		pr_err("Kernel symbol lookup: ");
-		return sym_not_found_error(sym_name, idx);
+		return sym_analt_found_error(sym_name, idx);
 	}
 
 	*start = args.start;
@@ -2461,7 +2461,7 @@ static int find_entire_kern_cb(void *arg, const char *name __maybe_unused,
 		args->started = true;
 		args->start = start;
 	}
-	/* Don't know exactly where the kernel ends, so we add a page */
+	/* Don't kanalw exactly where the kernel ends, so we add a page */
 	size = round_up(start, page_size) + page_size - args->start;
 	if (size > args->size)
 		args->size = size;
@@ -2504,7 +2504,7 @@ static int check_end_after_start(struct addr_filter *filt, u64 start, u64 size)
 
 static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 {
-	bool no_size = false;
+	bool anal_size = false;
 	u64 start, size;
 	int err;
 
@@ -2524,7 +2524,7 @@ static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 		filt->addr = start;
 		if (filt->range && !filt->size && !filt->sym_to) {
 			filt->size = size;
-			no_size = !size;
+			anal_size = !size;
 		}
 	}
 
@@ -2538,12 +2538,12 @@ static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 		if (err)
 			return err;
 		filt->size = start + size - filt->addr;
-		no_size = !size;
+		anal_size = !size;
 	}
 
-	/* The very last symbol in kallsyms does not imply a particular size */
-	if (no_size) {
-		pr_err("Cannot determine size of symbol '%s'\n",
+	/* The very last symbol in kallsyms does analt imply a particular size */
+	if (anal_size) {
+		pr_err("Cananalt determine size of symbol '%s'\n",
 		       filt->sym_to ? filt->sym_to : filt->sym_from);
 		return -EINVAL;
 	}
@@ -2561,7 +2561,7 @@ static struct dso *load_dso(const char *name)
 		return NULL;
 
 	if (map__load(map) < 0)
-		pr_err("File '%s' not found or has no symbols.\n", name);
+		pr_err("File '%s' analt found or has anal symbols.\n", name);
 
 	dso = dso__get(map__dso(map));
 
@@ -2638,7 +2638,7 @@ static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
 	}
 
 	if (!*start)
-		return sym_not_found_error(sym_name, idx);
+		return sym_analt_found_error(sym_name, idx);
 
 	return 0;
 }
@@ -2646,7 +2646,7 @@ static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
 static int addr_filter__entire_dso(struct addr_filter *filt, struct dso *dso)
 {
 	if (dso__data_file_size(dso, NULL)) {
-		pr_err("Failed to determine filter for %s\nCannot determine file size.\n",
+		pr_err("Failed to determine filter for %s\nCananalt determine file size.\n",
 		       filt->filename);
 		return -EINVAL;
 	}
@@ -2764,12 +2764,12 @@ static int parse_addr_filter(struct evsel *evsel, const char *filter,
 
 		new_filter = addr_filter__to_str(filt);
 		if (!new_filter) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_exit;
 		}
 
 		if (evsel__append_addr_filter(evsel, new_filter)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_exit;
 		}
 	}

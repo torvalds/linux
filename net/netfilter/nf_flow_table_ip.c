@@ -268,7 +268,7 @@ static unsigned int nf_flow_xmit_xfrm(struct sk_buff *skb,
 				      struct dst_entry *dst)
 {
 	skb_orphan(skb);
-	skb_dst_set_noref(skb, dst);
+	skb_dst_set_analref(skb, dst);
 	dst_output(state->net, state->sk, skb);
 	return NF_STOLEN;
 }
@@ -448,7 +448,7 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 		outdev = rt->dst.dev;
 		skb->dev = outdev;
 		nexthop = rt_nexthop(rt, flow->tuplehash[!dir].tuple.src_v4.s_addr);
-		skb_dst_set_noref(skb, &rt->dst);
+		skb_dst_set_analref(skb, &rt->dst);
 		neigh_xmit(NEIGH_ARP_TABLE, outdev, &nexthop, skb);
 		ret = NF_STOLEN;
 		break;
@@ -743,7 +743,7 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 		outdev = rt->dst.dev;
 		skb->dev = outdev;
 		nexthop = rt6_nexthop(rt, &flow->tuplehash[!dir].tuple.src_v6);
-		skb_dst_set_noref(skb, &rt->dst);
+		skb_dst_set_analref(skb, &rt->dst);
 		neigh_xmit(NEIGH_ND_TABLE, outdev, nexthop, skb);
 		ret = NF_STOLEN;
 		break;

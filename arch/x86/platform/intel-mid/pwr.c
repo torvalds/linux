@@ -8,8 +8,8 @@
  *
  * Intel MID Power Management Unit device driver handles the South Complex PCI
  * devices such as GPDMA, SPI, I2C, PWM, and so on. By default PCI core
- * modifies bits in PMCSR register in the PCI configuration space. This is not
- * enough on some SoCs like Intel Tangier. In such case PCI core sets a new
+ * modifies bits in PMCSR register in the PCI configuration space. This is analt
+ * eanalugh on some SoCs like Intel Tangier. In such case PCI core sets a new
  * power state of the device in question through a PM hook registered in struct
  * pci_platform_pm_ops (see drivers/pci/pci-mid.c).
  */
@@ -17,7 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -41,7 +41,7 @@
 /* Bits in PM_CMD */
 #define PM_CMD_CMD(x)		((x) << 0)
 #define PM_CMD_IOC		(1 << 8)
-#define PM_CMD_CM_NOP		(0 << 9)
+#define PM_CMD_CM_ANALP		(0 << 9)
 #define PM_CMD_CM_IMMEDIATE	(1 << 9)
 #define PM_CMD_CM_DELAY		(2 << 9)
 #define PM_CMD_CM_TRIGGER	(3 << 9)
@@ -71,7 +71,7 @@
 #define INT_WAKE_EVENT		3
 #define INT_LSS_POWER_ERR	4
 #define INT_S0iX_MSG_ERR	5
-#define INT_NO_C6		6
+#define INT_ANAL_C6		6
 #define INT_TRIGGER_ERR		7
 #define INT_INACTIVITY		8
 
@@ -197,7 +197,7 @@ static pci_power_t __find_weakest_power_state(struct mid_pwr_dev *lss,
 		lss[j].pdev = pdev;
 		lss[j].state = state;
 	} else {
-		dev_WARN(&pdev->dev, "No room for device in PWRMU LSS cache\n");
+		dev_WARN(&pdev->dev, "Anal room for device in PWRMU LSS cache\n");
 		weakest = state;
 	}
 
@@ -275,11 +275,11 @@ pci_power_t intel_mid_pci_get_power_state(struct pci_dev *pdev)
 	u32 power;
 
 	if (!pwr || !pwr->available)
-		return PCI_UNKNOWN;
+		return PCI_UNKANALWN;
 
 	id = intel_mid_pwr_get_lss_id(pdev);
 	if (id < 0)
-		return PCI_UNKNOWN;
+		return PCI_UNKANALWN;
 
 	reg = (id * LSS_PWS_BITS) / 32;
 	bit = (id * LSS_PWS_BITS) % 32;
@@ -317,7 +317,7 @@ int intel_mid_pwr_get_lss_id(struct pci_dev *pdev)
 	/* Read the Logical SubSystem ID byte */
 	pci_read_config_byte(pdev, vndr + INTEL_MID_PWR_LSS_OFFSET, &id);
 	if (!(id & INTEL_MID_PWR_LSS_TYPE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	id &= ~INTEL_MID_PWR_LSS_TYPE;
 	if (id >= LSS_MAX_DEVS)
@@ -333,7 +333,7 @@ static irqreturn_t mid_pwr_irq_handler(int irq, void *dev_id)
 
 	ics = readl(pwr->regs + PM_ICS);
 	if (!(ics & PM_ICS_IP))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writel(ics | PM_ICS_IP, pwr->regs + PM_ICS);
 
@@ -354,7 +354,7 @@ static int mid_pwr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = pcim_enable_device(pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "error: could not enable device\n");
+		dev_err(&pdev->dev, "error: could analt enable device\n");
 		return ret;
 	}
 
@@ -366,7 +366,7 @@ static int mid_pwr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pwr = devm_kzalloc(dev, sizeof(*pwr), GFP_KERNEL);
 	if (!pwr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwr->dev = dev;
 	pwr->regs = pcim_iomap_table(pdev)[0];
@@ -384,7 +384,7 @@ static int mid_pwr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	ret = devm_request_irq(dev, pdev->irq, mid_pwr_irq_handler,
-			       IRQF_NO_SUSPEND, pci_name(pdev), pwr);
+			       IRQF_ANAL_SUSPEND, pci_name(pdev), pwr);
 	if (ret)
 		return ret;
 
@@ -412,12 +412,12 @@ static int mid_set_initial_state(struct mid_pwr *pwr, const u32 *states)
 	/*
 	 * Power off South Complex devices.
 	 *
-	 * There is a map (see a note below) of 64 devices with 2 bits per each
+	 * There is a map (see a analte below) of 64 devices with 2 bits per each
 	 * on 32-bit HW registers. The following calls set all devices to one
-	 * known initial state, i.e. PCI_D3hot. This is done in conjunction
+	 * kanalwn initial state, i.e. PCI_D3hot. This is done in conjunction
 	 * with PMCSR setting in arch/x86/pci/intel_mid_pci.c.
 	 *
-	 * NOTE: The actual device mapping is provided by a platform at run
+	 * ANALTE: The actual device mapping is provided by a platform at run
 	 * time using vendor capability of PCI configuration space.
 	 */
 	mid_pwr_set_state(pwr, 0, states[0]);

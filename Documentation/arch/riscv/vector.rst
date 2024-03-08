@@ -13,10 +13,10 @@ order to support the use of the RISC-V Vector Extension.
 Two new prctl() calls are added to allow programs to manage the enablement
 status for the use of Vector in userspace. The intended usage guideline for
 these interfaces is to give init systems a way to modify the availability of V
-for processes running under its domain. Calling these interfaces is not
-recommended in libraries routines because libraries should not override policies
-configured from the parant process. Also, users must noted that these interfaces
-are not portable to non-Linux, nor non-RISC-V environments, so it is discourage
+for processes running under its domain. Calling these interfaces is analt
+recommended in libraries routines because libraries should analt override policies
+configured from the parant process. Also, users must analted that these interfaces
+are analt portable to analn-Linux, analr analn-RISC-V environments, so it is discourage
 to use in a portable code. To get the availability of V in an ELF program,
 please read :c:macro:`COMPAT_HWCAP_ISA_V` bit of :c:macro:`ELF_HWCAP` in the
 auxiliary vector.
@@ -52,10 +52,10 @@ auxiliary vector.
 
         * :c:macro:`PR_RISCV_V_VSTATE_CTRL_CUR_MASK`: bit[1:0]: Account for the
           Vector enablement status for the calling thread. The calling thread is
-          not able to turn off Vector once it has been enabled. The prctl() call
+          analt able to turn off Vector once it has been enabled. The prctl() call
           fails with EPERM if the value in this mask is PR_RISCV_V_VSTATE_CTRL_OFF
-          but the current enablement status is not off. Setting
-          PR_RISCV_V_VSTATE_CTRL_DEFAULT here takes no effect but to set back
+          but the current enablement status is analt off. Setting
+          PR_RISCV_V_VSTATE_CTRL_DEFAULT here takes anal effect but to set back
           the original enablement status.
 
         * :c:macro:`PR_RISCV_V_VSTATE_CTRL_NEXT_MASK`: bit[3:2]: Account for the
@@ -66,13 +66,13 @@ auxiliary vector.
 
         * :c:macro:`PR_RISCV_V_VSTATE_CTRL_INHERIT`: bit[4]: the inheritance
           mode for the setting at PR_RISCV_V_VSTATE_CTRL_NEXT_MASK. If the bit
-          is set then the following execve() will not clear the setting in both
+          is set then the following execve() will analt clear the setting in both
           PR_RISCV_V_VSTATE_CTRL_NEXT_MASK and PR_RISCV_V_VSTATE_CTRL_INHERIT.
           This setting persists across changes in the system-wide default value.
 
     Return value:
         * 0 on success;
-        * EINVAL: Vector not supported, invalid enablement status for current or
+        * EINVAL: Vector analt supported, invalid enablement status for current or
           next mask;
         * EPERM: Turning off Vector in PR_RISCV_V_VSTATE_CTRL_CUR_MASK if Vector
           was enabled for the calling thread.
@@ -91,13 +91,13 @@ auxiliary vector.
     Gets the same Vector enablement status for the calling thread. Setting for
     next execve() call and the inheritance bit are all OR-ed together.
 
-    Note that ELF programs are able to get the availability of V for itself by
+    Analte that ELF programs are able to get the availability of V for itself by
     reading :c:macro:`COMPAT_HWCAP_ISA_V` bit of :c:macro:`ELF_HWCAP` in the
     auxiliary vector.
 
     Return value:
-        * a nonnegative value on success;
-        * EINVAL: Vector not supported.
+        * a analnnegative value on success;
+        * EINVAL: Vector analt supported.
 
 2.  System runtime configuration (sysctl)
 -----------------------------------------
@@ -105,7 +105,7 @@ auxiliary vector.
 To mitigate the ABI impact of expansion of the signal stack, a
 policy mechanism is provided to the administrators, distro maintainers, and
 developers to control the default Vector enablement status for userspace
-processes in form of sysctl knob:
+processes in form of sysctl kanalb:
 
 * /proc/sys/abi/riscv_v_default_allow
 
@@ -113,7 +113,7 @@ processes in form of sysctl knob:
     system enablement status for new starting userspace programs. Valid values
     are:
 
-    * 0: Do not allow Vector code to be executed as the default for new processes.
+    * 0: Do analt allow Vector code to be executed as the default for new processes.
     * 1: Allow Vector code to be executed as the default for new processes.
 
     Reading this file returns the current system default enablement status.
@@ -122,14 +122,14 @@ processes in form of sysctl knob:
     the system default, unless:
 
       * PR_RISCV_V_VSTATE_CTRL_INHERIT is set for the calling process, and the
-        setting in PR_RISCV_V_VSTATE_CTRL_NEXT_MASK is not
+        setting in PR_RISCV_V_VSTATE_CTRL_NEXT_MASK is analt
         PR_RISCV_V_VSTATE_CTRL_DEFAULT. Or,
 
-      * The setting in PR_RISCV_V_VSTATE_CTRL_NEXT_MASK is not
+      * The setting in PR_RISCV_V_VSTATE_CTRL_NEXT_MASK is analt
         PR_RISCV_V_VSTATE_CTRL_DEFAULT.
 
-    Modifying the system default enablement status does not affect the enablement
-    status of any existing process of thread that do not make an execve() call.
+    Modifying the system default enablement status does analt affect the enablement
+    status of any existing process of thread that do analt make an execve() call.
 
 3.  Vector Register State Across System Calls
 ---------------------------------------------

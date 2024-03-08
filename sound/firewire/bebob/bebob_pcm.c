@@ -78,7 +78,7 @@ limit_channels_and_rates(struct snd_pcm_hardware *hw,
 	hw->rates = 0;
 
 	for (i = 0; i < SND_BEBOB_STRM_FMT_ENTRIES; i++) {
-		/* entry has no PCM channels */
+		/* entry has anal PCM channels */
 		if (formations[i].pcm == 0)
 			continue;
 
@@ -151,7 +151,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 
 	mutex_lock(&bebob->mutex);
 
-	// When source of clock is not internal or any stream is reserved for
+	// When source of clock is analt internal or any stream is reserved for
 	// transmission of PCM frames, the available sampling rate is limited
 	// at current one.
 	if (src == SND_BEBOB_CLOCK_TYPE_EXTERNAL ||

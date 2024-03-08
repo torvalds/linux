@@ -5,7 +5,7 @@
   LED control
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005 Stefaanal Brivio <stefaanal.brivio@polimi.it>
   Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -191,7 +191,7 @@ static void b43_map_led(struct b43_wldev *dev,
 				 led_index, activelow);
 		break;
 	default:
-		b43warn(dev->wl, "LEDs: Unknown behaviour 0x%02X\n",
+		b43warn(dev->wl, "LEDs: Unkanalwn behaviour 0x%02X\n",
 			behaviour);
 		break;
 	}
@@ -210,7 +210,7 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 	sprom[3] = dev->dev->bus_sprom->gpio3;
 
 	if ((sprom[0] & sprom[1] & sprom[2] & sprom[3]) == 0xff) {
-		/* There is no LED information in the SPROM
+		/* There is anal LED information in the SPROM
 		 * for this LED. Hardcode it here. */
 		*activelow = false;
 		switch (led_index) {
@@ -237,7 +237,7 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 			return;
 		}
 	} else {
-		/* keep LED disabled if no mapping is defined */
+		/* keep LED disabled if anal mapping is defined */
 		if (sprom[led_index] == 0xff)
 			*behaviour = B43_LED_OFF;
 		else

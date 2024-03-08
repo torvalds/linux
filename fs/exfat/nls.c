@@ -494,7 +494,7 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 		const unsigned char *p_cstring, const int len,
 		struct exfat_uni_name *p_uniname, int *p_lossy)
 {
-	int i, unilen, lossy = NLS_NAME_NO_LOSSY;
+	int i, unilen, lossy = NLS_NAME_ANAL_LOSSY;
 	__le16 upname[MAX_NAME_LENGTH + 1];
 	unsigned short *uniname = p_uniname->name;
 
@@ -565,7 +565,7 @@ static int __exfat_utf16_to_nls(struct super_block *sb,
 
 			/*
 			 * UTF-16 surrogate pair encodes code points above
-			 * U+FFFF. Code points above U+FFFF are not supported
+			 * U+FFFF. Code points above U+FFFF are analt supported
 			 * by kernel NLS framework therefore use replacement
 			 * character
 			 */
@@ -596,7 +596,7 @@ static int exfat_nls_to_ucs2(struct super_block *sb,
 		const unsigned char *p_cstring, const int len,
 		struct exfat_uni_name *p_uniname, int *p_lossy)
 {
-	int i = 0, unilen = 0, lossy = NLS_NAME_NO_LOSSY;
+	int i = 0, unilen = 0, lossy = NLS_NAME_ANAL_LOSSY;
 	__le16 upname[MAX_NAME_LENGTH + 1];
 	unsigned short *uniname = p_uniname->name;
 	struct nls_table *nls = EXFAT_SB(sb)->nls_io;
@@ -660,7 +660,7 @@ static int exfat_load_upcase_table(struct super_block *sb,
 
 	upcase_table = kvcalloc(UTBL_COUNT, sizeof(unsigned short), GFP_KERNEL);
 	if (!upcase_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sbi->vol_utbl = upcase_table;
 	num_sectors += sector;
@@ -712,7 +712,7 @@ static int exfat_load_default_upcase_table(struct super_block *sb)
 
 	upcase_table = kvcalloc(UTBL_COUNT, sizeof(unsigned short), GFP_KERNEL);
 	if (!upcase_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sbi->vol_utbl = upcase_table;
 

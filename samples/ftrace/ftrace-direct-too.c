@@ -50,7 +50,7 @@ asm (
 #ifdef CONFIG_X86_64
 
 #include <asm/ibt.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 asm (
 "	.pushsection    .text, \"ax\", @progbits\n"
@@ -171,5 +171,5 @@ module_init(ftrace_direct_init);
 module_exit(ftrace_direct_exit);
 
 MODULE_AUTHOR("Steven Rostedt");
-MODULE_DESCRIPTION("Another example use case of using register_ftrace_direct()");
+MODULE_DESCRIPTION("Aanalther example use case of using register_ftrace_direct()");
 MODULE_LICENSE("GPL");

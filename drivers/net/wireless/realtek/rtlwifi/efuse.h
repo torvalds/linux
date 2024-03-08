@@ -65,7 +65,7 @@ struct efuse_priv {
 	u8 cis0[17];
 	u8 cis1[48];
 	u8 mac_addr[6];
-	u8 eeprom_verno;
+	u8 eeprom_veranal;
 	u8 channel_plan;
 	u8 tx_power_b[14];
 	u8 tx_power_g[14];

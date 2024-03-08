@@ -297,7 +297,7 @@
 			opp-level = <14>;
 			clock-latency-ns = <46000>;
 		};
-		/* Not available until CPU deep sleep is implemented */
+		/* Analt available until CPU deep sleep is implemented */
 #if 0
 		opp15 {
 			opp-hz = /bits/ 64 <3324000000>;
@@ -351,7 +351,7 @@
 
 	/*
 	 * This is a fabulated representation of the input clock
-	 * to NCO since we don't know the true clock tree.
+	 * to NCO since we don't kanalw the true clock tree.
 	 */
 	nco_clkref: clock-ref-nco {
 		compatible = "fixed-clock";
@@ -365,7 +365,7 @@
 		#size-cells = <2>;
 
 		ranges;
-		nonposted-mmio;
+		analnposted-mmio;
 
 		cpufreq_e: cpufreq@210e20000 {
 			compatible = "apple,t8112-cluster-cpufreq", "apple,cluster-cpufreq";
@@ -577,7 +577,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x2 0x3b700000 0 0x14000>;
-			/* child nodes are added in t8103-pmgr.dtsi */
+			/* child analdes are added in t8103-pmgr.dtsi */
 		};
 
 		pinctrl_ap: pinctrl@23c100000 {
@@ -668,7 +668,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x2 0x3d280000 0 0x4000>;
-			/* child nodes are added in t8103-pmgr.dtsi */
+			/* child analdes are added in t8103-pmgr.dtsi */
 		};
 
 		wdt: watchdog@23d2b0000 {
@@ -729,8 +729,8 @@
 				<AIC_IRQ 718 IRQ_TYPE_LEVEL_HIGH>,
 				<AIC_IRQ 719 IRQ_TYPE_LEVEL_HIGH>,
 				<AIC_IRQ 720 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "send-empty", "send-not-empty",
-				"recv-empty", "recv-not-empty";
+			interrupt-names = "send-empty", "send-analt-empty",
+				"recv-empty", "recv-analt-empty";
 			#mbox-cells = <0>;
 			power-domains = <&ps_ans>;
 		};
@@ -893,7 +893,7 @@
 				status = "disabled";
 			};
 
-			/* TODO: GPIO unknown */
+			/* TODO: GPIO unkanalwn */
 			port03: pci@3,0 {
 				device_type = "pci";
 				reg = <0x1800 0x0 0x0 0x0 0x0>;

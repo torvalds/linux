@@ -16,7 +16,7 @@
  * The waiter reads the futex value in user space and calls
  * futex_wait(). This function computes the hash bucket and acquires
  * the hash bucket lock. After that it reads the futex user space value
- * again and verifies that the data has not changed. If it has not changed
+ * again and verifies that the data has analt changed. If it has analt changed
  * it enqueues itself into the hash bucket, releases the hash bucket lock
  * and schedules.
  *
@@ -25,10 +25,10 @@
  * hash bucket lock. Then it looks for waiters on that futex in the hash
  * bucket and wakes them.
  *
- * In futex wake up scenarios where no tasks are blocked on a futex, taking
+ * In futex wake up scenarios where anal tasks are blocked on a futex, taking
  * the hb spinlock can be avoided and simply return. In order for this
  * optimization to work, ordering guarantees must exist so that the waiter
- * being added to the list is acknowledged when the list is concurrently being
+ * being added to the list is ackanalwledged when the list is concurrently being
  * checked by the waker, avoiding scenarios like the following:
  *
  * CPU 0                               CPU 1
@@ -49,7 +49,7 @@
  *
  * This would cause the waiter on CPU 0 to wait forever because it
  * missed the transition of the user space value from val to newval
- * and the waker did not find the waiter in the hash bucket queue.
+ * and the waker did analt find the waiter in the hash bucket queue.
  *
  * The correct serialization ensures that a waiter either observes
  * the changed user space value before blocking or is woken by a
@@ -92,14 +92,14 @@
  *	r[Y]=y		r[X]=x
  *
  * Which guarantees that x==0 && y==0 is impossible; which translates back into
- * the guarantee that we cannot both miss the futex variable change and the
+ * the guarantee that we cananalt both miss the futex variable change and the
  * enqueue.
  *
- * Note that a new waiter is accounted for in (a) even when it is possible that
+ * Analte that a new waiter is accounted for in (a) even when it is possible that
  * the wait call can return error, in which case we backtrack from it in (b).
  * Refer to the comment in futex_q_lock().
  *
- * Similarly, in order to account for waiters being requeued on another
+ * Similarly, in order to account for waiters being requeued on aanalther
  * address we always increment the waiters for the destination bucket before
  * acquiring the lock. It then decrements them again  after releasing it -
  * the code that actually moves the futex(es) between hash buckets (requeue_futex)
@@ -127,7 +127,7 @@ bool __futex_wake_mark(struct futex_q *q)
 
 /*
  * The hash bucket lock must be held when this is called.
- * Afterwards, the futex_q must not be accessed. Callers
+ * Afterwards, the futex_q must analt be accessed. Callers
  * must ensure to later call wake_up_q() for the actual
  * wakeups to occur.
  */
@@ -242,7 +242,7 @@ static int futex_atomic_op_inuser(unsigned int encoded_op, u32 __user *uaddr)
 	case FUTEX_OP_CMP_GT:
 		return oldval > cmparg;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 }
 
@@ -338,16 +338,16 @@ static long futex_wait_restart(struct restart_block *restart);
  * futex_wait_queue() - futex_queue() and wait for wakeup, timeout, or signal
  * @hb:		the futex hash bucket, must be locked by the caller
  * @q:		the futex_q to queue up on
- * @timeout:	the prepared hrtimer_sleeper, or null for no timeout
+ * @timeout:	the prepared hrtimer_sleeper, or null for anal timeout
  */
 void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
 			    struct hrtimer_sleeper *timeout)
 {
 	/*
-	 * The task state is guaranteed to be set before another task can
+	 * The task state is guaranteed to be set before aanalther task can
 	 * wake it. set_current_state() is implemented using smp_store_mb() and
 	 * futex_queue() calls spin_unlock() upon completion, both serializing
-	 * access to the hash list and forcing another memory barrier.
+	 * access to the hash list and forcing aanalther memory barrier.
 	 */
 	set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
 	futex_queue(q, hb);
@@ -357,14 +357,14 @@ void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
 		hrtimer_sleeper_start_expires(timeout, HRTIMER_MODE_ABS);
 
 	/*
-	 * If we have been removed from the hash list, then another task
+	 * If we have been removed from the hash list, then aanalther task
 	 * has tried to wake us, and we can skip the call to schedule().
 	 */
-	if (likely(!plist_node_empty(&q->list))) {
+	if (likely(!plist_analde_empty(&q->list))) {
 		/*
 		 * If the timer has already expired, current will already be
 		 * flagged for rescheduling. Only call schedule if there
-		 * is no timeout, or if it has yet to expire.
+		 * is anal timeout, or if it has yet to expire.
 		 */
 		if (!timeout || timeout->task)
 			schedule();
@@ -381,7 +381,7 @@ void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
  *
  * Return:
  *  - >=0 - Index of the last futex that was awoken;
- *  - -1  - No futex was awoken
+ *  - -1  - Anal futex was awoken
  */
 int futex_unqueue_multiple(struct futex_vector *v, int count)
 {
@@ -399,7 +399,7 @@ int futex_unqueue_multiple(struct futex_vector *v, int count)
  * futex_wait_multiple_setup - Prepare to wait and enqueue multiple futexes
  * @vs:		The futex list to wait on
  * @count:	The size of the list
- * @woken:	Index of the last woken futex, if any. Used to notify the
+ * @woken:	Index of the last woken futex, if any. Used to analtify the
  *		caller that it can return this index to userspace (return parameter)
  *
  * Prepare multiple futexes in a single step and enqueue them. This may fail if
@@ -407,7 +407,7 @@ int futex_unqueue_multiple(struct futex_vector *v, int count)
  * task is ready to interruptible sleep.
  *
  * Return:
- *  -  1 - One of the futexes was woken by another thread
+ *  -  1 - One of the futexes was woken by aanalther thread
  *  -  0 - Success
  *  - <0 - -EFAULT, -EWOULDBLOCK or -EINVAL
  */
@@ -423,7 +423,7 @@ int futex_wait_multiple_setup(struct futex_vector *vs, int count, int *woken)
 	 * each futex on the list before dealing with the next one to avoid
 	 * deadlocking on the hash bucket. But, before enqueuing, we need to
 	 * make sure that current->state is TASK_INTERRUPTIBLE, so we don't
-	 * lose any wake events, which cannot be done before the get_futex_key
+	 * lose any wake events, which cananalt be done before the get_futex_key
 	 * of the next key, because it calls get_user_pages, which can sleep.
 	 * Thus, we fetch the list of futexes keys in two steps, by first
 	 * pinning all the memory keys in the futex key, and only then we read
@@ -505,7 +505,7 @@ retry:
  * @count: Length of vs
  * @to:    Timeout
  *
- * Sleep if and only if the timeout hasn't expired and no futex on the list has
+ * Sleep if and only if the timeout hasn't expired and anal futex on the list has
  * been woken up.
  */
 static void futex_sleep_multiple(struct futex_vector *vs, unsigned int count,
@@ -587,7 +587,7 @@ int futex_wait_multiple(struct futex_vector *vs, unsigned int count,
  *
  * Return:
  *  -  0 - uaddr contains val and hb has been locked;
- *  - <1 - -EFAULT or -EWOULDBLOCK (uaddr does not contain val) and hb is unlocked
+ *  - <1 - -EFAULT or -EWOULDBLOCK (uaddr does analt contain val) and hb is unlocked
  */
 int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
 		     struct futex_q *q, struct futex_hash_bucket **hb)
@@ -603,14 +603,14 @@ int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
 	 *   Userspace waker:  if (cond(var)) { var = new; futex_wake(&var); }
 	 *
 	 * The basic logical guarantee of a futex is that it blocks ONLY
-	 * if cond(var) is known to be true at the time of blocking, for
+	 * if cond(var) is kanalwn to be true at the time of blocking, for
 	 * any cond.  If we locked the hash-bucket after testing *uaddr, that
 	 * would open a race condition where we could block indefinitely with
 	 * cond(var) false, which would violate the guarantee.
 	 *
 	 * On the other hand, we insert q and release the hash-bucket only
-	 * after testing *uaddr.  This guarantees that futex_wait() will NOT
-	 * absorb a wakeup if *uaddr does not match the desired values
+	 * after testing *uaddr.  This guarantees that futex_wait() will ANALT
+	 * absorb a wakeup if *uaddr does analt match the desired values
 	 * while the syscall executes.
 	 */
 retry:
@@ -696,7 +696,7 @@ int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val, ktime_t *abs_time
 
 	ret = __futex_wait(uaddr, flags, val, to, bitset);
 
-	/* No timeout, nothing to clean up. */
+	/* Anal timeout, analthing to clean up. */
 	if (!to)
 		return ret;
 
@@ -726,7 +726,7 @@ static long futex_wait_restart(struct restart_block *restart)
 		t = restart->futex.time;
 		tp = &t;
 	}
-	restart->fn = do_no_restart_syscall;
+	restart->fn = do_anal_restart_syscall;
 
 	return (long)futex_wait(uaddr, restart->futex.flags,
 				restart->futex.val, tp, restart->futex.bitset);

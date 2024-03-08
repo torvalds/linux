@@ -99,7 +99,7 @@ config ATH9K_DFS_CERTIFIED
 	default n
 	help
 	  This option enables DFS support for initiating radiation on
-	  ath9k. There is no way to dynamically detect if a card was DFS
+	  ath9k. There is anal way to dynamically detect if a card was DFS
 	  certified and as such this is left as a build time option. This
 	  option should only be enabled by system integrators that can
 	  guarantee that all the platforms that their kernel will run on
@@ -153,7 +153,7 @@ config ATH9K_PCOEM
 	depends on ATH9K
 	default y
 
-config ATH9K_PCI_NO_EEPROM
+config ATH9K_PCI_ANAL_EEPROM
 	tristate "Atheros ath9k pci loader for EEPROM-less chips"
 	depends on ATH9K_PCI
 	default n

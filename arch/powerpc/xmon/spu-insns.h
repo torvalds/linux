@@ -66,7 +66,7 @@ RI16 category						RI18 category
 RR category						LBT category                                    
 	ASM_MFSPR	mnemonic RT, SA			        ASM_LBT         mnemonic brinst, brtarg 
 	ASM_MTSPR	mnemonic SA, RT			                                                
-	ASM_NOOP	mnemonic			LBTI category                                   
+	ASM_ANALOP	mnemonic			LBTI category                                   
 	ASM_RA		mnemonic RA			        ASM_LBTI        mnemonic brinst, RA     
 	ASM_RAB		mnemonic RA, RB
 	ASM_RDCH	mnemonic RT, CA
@@ -75,7 +75,7 @@ RR category						LBT category
 	ASM_RTA		mnemonic RT, RA
 	ASM_WRCH	mnemonic CA, RT
 
-Note that RRR instructions have the names for RC and RT reversed from
+Analte that RRR instructions have the names for RC and RT reversed from
 what's in the ISA, in order to put RT in the same position it appears
 for other formats.
 
@@ -83,11 +83,11 @@ for other formats.
 
 DEPENDENCY filed consists of 5 digits. This represents which register is used as source and which register is used as target.
 The first(most significant) digit is always 0. Then it is followd by RC, RB, RA and RT digits.
-If the digit is 0, this means the corresponding register is not used in the instruction.
+If the digit is 0, this means the corresponding register is analt used in the instruction.
 If the digit is 1, this means the corresponding register is used as a source in the instruction.
 If the digit is 2, this means the corresponding register is used as a target in the instruction.
 If the digit is 3, this means the corresponding register is used as both source and target in the instruction.
-For example, fms instruction has 00113 as the DEPENDENCY field. This means RC is not used in this operation, RB and RA are
+For example, fms instruction has 00113 as the DEPENDENCY field. This means RC is analt used in this operation, RB and RA are
 used as sources and RT is the target.
 
 -=-=-= PIPE =-=-=-
@@ -101,11 +101,11 @@ pipe0 execution pipelines:
 	FX2	FXU pipeline
 	FX3	Rotate/Shift pipeline
 	FXB	Byte pipeline
-	NOP	No pipeline
+	ANALP	Anal pipeline
 
 pipe1 execution pipelines:
 	BR	Branch pipeline
-	LNOP	No pipeline
+	LANALP	Anal pipeline
 	LS	Load/Store pipeline
 	SHUF	Shuffle pipeline
 	SPR	SPR/CH pipeline
@@ -132,7 +132,7 @@ APUOP(M_LQR,		RI16,	0x19C,	"lqr",		_A2(A_T,A_R18),	00002,	LS)	/* LoadQRel      R
 APUOP(M_STOP,		RR,	0x000,	"stop",		_A0(),		00000,	BR)	/* STOP          stop */
 APUOP(M_STOP2,		RR,	0x000,	"stop",		_A1(A_U14),	00000,	BR)	/* STOP          stop */
 APUOP(M_STOPD,		RR,	0x140,	"stopd",	_A3(A_T,A_A,A_B),         00111,	BR)	/* STOPD         stop (with register dependencies) */
-APUOP(M_LNOP,		RR,	0x001,	"lnop",		_A0(),		00000,	LNOP)	/* LNOP          no_operation */
+APUOP(M_LANALP,		RR,	0x001,	"lanalp",		_A0(),		00000,	LANALP)	/* LANALP          anal_operation */
 APUOP(M_SYNC,		RR,	0x002,	"sync",		_A0(),		00000,	BR)	/* SYNC          flush_pipe */
 APUOP(M_DSYNC,		RR,	0x003,	"dsync",	_A0(),		00000,	BR)	/* DSYNC         flush_store_queue */
 APUOP(M_MFSPR,		RR,	0x00c,	"mfspr",	_A2(A_T,A_S),	00002,	SPR)	/* MFSPR         RT<-SA */
@@ -198,8 +198,8 @@ APUOP(M_IL,		RI16,	0x204,	"il",		_A2(A_T,A_S16),	00002,	FX2)	/* ImmLoad       RT
 APUOP(M_ILH,		RI16,	0x20c,	"ilh",		_A2(A_T,A_X16),	00002,	FX2)	/* ImmLoadH      RT<-I16 */
 APUOP(M_ILHU,		RI16,	0x208,	"ilhu",		_A2(A_T,A_X16),	00002,	FX2)	/* ImmLoadHUpper RT<-I16<<16 */
 APUOP(M_ILA,		RI18,	0x210,	"ila",		_A2(A_T,A_U18),	00002,	FX2)	/* ImmLoadAddr   RT<-zxt(I18) */
-APUOP(M_NOP,		RR,	0x201,	"nop",		_A1(A_T),		00000,	NOP)	/* XNOP          no_operation */
-APUOP(M_NOP2,		RR,	0x201,	"nop",		_A0(),		00000,	NOP)	/* XNOP          no_operation */
+APUOP(M_ANALP,		RR,	0x201,	"analp",		_A1(A_T),		00000,	ANALP)	/* XANALP          anal_operation */
+APUOP(M_ANALP2,		RR,	0x201,	"analp",		_A0(),		00000,	ANALP)	/* XANALP          anal_operation */
 APUOP(M_IOHL,		RI16,	0x304,	"iohl",		_A2(A_T,A_X16),	00003,	FX2)	/* AddImmeXt     RT<-RT+sxt(I16) */
 APUOP(M_ANDBI,		RI10,	0x0b0,	"andbi",	_A3(A_T,A_A,A_S10B),	00012,	FX2)	/* AND%I         RT<-RA&I10 */
 APUOP(M_ANDHI,		RI10,	0x0a8,	"andhi",	_A3(A_T,A_A,A_S10),	00012,	FX2)	/* AND%I         RT<-RA&I10 */
@@ -280,7 +280,7 @@ APUOP(M_FCMGT,		RR,	0x2ca,	"fcmgt",	_A3(A_T,A_A,A_B),		00112,	FX2)	/* FCMGT     
 APUOP(M_AND,		RR,	0x0c1,	"and",		_A3(A_T,A_A,A_B),		00112,	FX2)	/* AND           RT<-RA&RB */
 APUOP(M_NAND,		RR,	0x0c9,	"nand",		_A3(A_T,A_A,A_B),		00112,	FX2)	/* NAND          RT<-!(RA&RB) */
 APUOP(M_OR,		RR,	0x041,	"or",		_A3(A_T,A_A,A_B),		00112,	FX2)	/* OR            RT<-RA|RB */
-APUOP(M_NOR,		RR,	0x049,	"nor",		_A3(A_T,A_A,A_B),		00112,	FX2)	/* NOR           RT<-!(RA&RB) */
+APUOP(M_ANALR,		RR,	0x049,	"analr",		_A3(A_T,A_A,A_B),		00112,	FX2)	/* ANALR           RT<-!(RA&RB) */
 APUOP(M_XOR,		RR,	0x241,	"xor",		_A3(A_T,A_A,A_B),		00112,	FX2)	/* XOR           RT<-RA^RB */
 APUOP(M_EQV,		RR,	0x249,	"eqv",		_A3(A_T,A_A,A_B),		00112,	FX2)	/* EQuiValent    RT<-!(RA^RB) */
 APUOP(M_ANDC,		RR,	0x2c1,	"andc",		_A3(A_T,A_A,A_B),		00112,	FX2)	/* ANDComplement RT<-RA&!RB */
@@ -377,7 +377,7 @@ APUOPFB(M_BIZE,		RR,	0x128,	0x10,	"bize",		_A2(A_T,A_A),	00011,	BR)	/* BIZ      
 APUOPFB(M_SYNCC,	RR,	0x002,	0x40,	"syncc",	_A0(),		00000,	BR)	/* SYNCC          flush_pipe */
 APUOPFB(M_HBRP,		LBTI,	0x1ac,	0x40,	"hbrp",		_A0(),	        00010,	LS)	/* HBR           BTB[B9]<-M[Ra] */
 
-/* Synonyms required by the AS manual. */
+/* Syanalnyms required by the AS manual. */
 APUOP(M_LR,		RI10,	0x020,	"lr",		_A2(A_T,A_A),	00012,	FX2)	/* OR%I          RT<-RA|I10 */
 APUOP(M_BIHT,		RR,	0x12b,	"biht", 	_A2(A_T,A_A),	00011,	BR)	/* BIHNZ         IP<-RA_if(RT) */
 APUOP(M_BIHF,		RR,	0x12a,	"bihf",		_A2(A_T,A_A),	00011,	BR)	/* BIHZ          IP<-RA_if(RT) */

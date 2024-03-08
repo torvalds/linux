@@ -22,8 +22,8 @@
 #define KEYPAD_DATA		0x10
 #define KEYPAD_GPIO		0x30
 
-#define KEYPAD_UNKNOWN_INT	0x40
-#define KEYPAD_UNKNOWN_INT_STS	0x44
+#define KEYPAD_UNKANALWN_INT	0x40
+#define KEYPAD_UNKANALWN_INT_STS	0x44
 
 #define KEYPAD_BITMASK_COLS	11
 #define KEYPAD_BITMASK_ROWS	8
@@ -60,7 +60,7 @@ static irqreturn_t nspire_keypad_irq(int irq, void *dev_id)
 
 	int_sts = readl(keypad->reg_base + KEYPAD_INT) & keypad->int_mask;
 	if (!int_sts)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	memcpy_fromio(state, keypad->reg_base + KEYPAD_DATA, sizeof(state));
 
@@ -136,7 +136,7 @@ static void nspire_keypad_close(struct input_dev *input)
 
 	/* Disable interrupts */
 	writel(0, keypad->reg_base + KEYPAD_INTMSK);
-	/* Acknowledge existing interrupts */
+	/* Ackanalwledge existing interrupts */
 	writel(~0, keypad->reg_base + KEYPAD_INT);
 
 	clk_disable_unprepare(keypad->clk);
@@ -144,7 +144,7 @@ static void nspire_keypad_close(struct input_dev *input)
 
 static int nspire_keypad_probe(struct platform_device *pdev)
 {
-	const struct device_node *of_node = pdev->dev.of_node;
+	const struct device_analde *of_analde = pdev->dev.of_analde;
 	struct nspire_keypad *keypad;
 	struct input_dev *input;
 	struct resource *res;
@@ -159,26 +159,26 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 			      GFP_KERNEL);
 	if (!keypad) {
 		dev_err(&pdev->dev, "failed to allocate keypad memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	keypad->row_shift = get_count_order(KEYPAD_BITMASK_COLS);
 
-	error = of_property_read_u32(of_node, "scan-interval",
+	error = of_property_read_u32(of_analde, "scan-interval",
 				     &keypad->scan_interval);
 	if (error) {
 		dev_err(&pdev->dev, "failed to get scan-interval\n");
 		return error;
 	}
 
-	error = of_property_read_u32(of_node, "row-delay",
+	error = of_property_read_u32(of_analde, "row-delay",
 				     &keypad->row_delay);
 	if (error) {
 		dev_err(&pdev->dev, "failed to get row-delay\n");
 		return error;
 	}
 
-	keypad->active_low = of_property_read_bool(of_node, "active-low");
+	keypad->active_low = of_property_read_bool(of_analde, "active-low");
 
 	keypad->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(keypad->clk)) {
@@ -193,7 +193,7 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 	keypad->input = input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	error = clk_prepare_enable(keypad->clk);
@@ -204,14 +204,14 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 
 	/* Disable interrupts */
 	writel(0, keypad->reg_base + KEYPAD_INTMSK);
-	/* Acknowledge existing interrupts */
+	/* Ackanalwledge existing interrupts */
 	writel(~0, keypad->reg_base + KEYPAD_INT);
 
 	/* Disable GPIO interrupts to prevent hanging on touchpad */
 	/* Possibly used to detect touchpad events */
-	writel(0, keypad->reg_base + KEYPAD_UNKNOWN_INT);
-	/* Acknowledge existing GPIO interrupts */
-	writel(~0, keypad->reg_base + KEYPAD_UNKNOWN_INT_STS);
+	writel(0, keypad->reg_base + KEYPAD_UNKANALWN_INT);
+	/* Ackanalwledge existing GPIO interrupts */
+	writel(~0, keypad->reg_base + KEYPAD_UNKANALWN_INT_STS);
 
 	clk_disable_unprepare(keypad->clk);
 

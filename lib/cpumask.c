@@ -16,8 +16,8 @@
  *
  * Return: >= nr_cpu_ids on completion
  *
- * Note: the @wrap argument is required for the start condition when
- * we cannot assume @start is set in @mask.
+ * Analte: the @wrap argument is required for the start condition when
+ * we cananalt assume @start is set in @mask.
  */
 unsigned int cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool wrap)
 {
@@ -39,27 +39,27 @@ again:
 }
 EXPORT_SYMBOL(cpumask_next_wrap);
 
-/* These are not inline because of header tangles. */
+/* These are analt inline because of header tangles. */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 /**
- * alloc_cpumask_var_node - allocate a struct cpumask on a given node
+ * alloc_cpumask_var_analde - allocate a struct cpumask on a given analde
  * @mask: pointer to cpumask_var_t where the cpumask is returned
  * @flags: GFP_ flags
- * @node: memory node from which to allocate or %NUMA_NO_NODE
+ * @analde: memory analde from which to allocate or %NUMA_ANAL_ANALDE
  *
  * Only defined when CONFIG_CPUMASK_OFFSTACK=y, otherwise is
- * a nop returning a constant 1 (in <linux/cpumask.h>).
+ * a analp returning a constant 1 (in <linux/cpumask.h>).
  *
  * Return: TRUE if memory allocation succeeded, FALSE otherwise.
  *
- * In addition, mask will be NULL if this fails.  Note that gcc is
- * usually smart enough to know that mask can never be NULL if
+ * In addition, mask will be NULL if this fails.  Analte that gcc is
+ * usually smart eanalugh to kanalw that mask can never be NULL if
  * CONFIG_CPUMASK_OFFSTACK=n, so does code elimination in that case
  * too.
  */
-bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
+bool alloc_cpumask_var_analde(cpumask_var_t *mask, gfp_t flags, int analde)
 {
-	*mask = kmalloc_node(cpumask_size(), flags, node);
+	*mask = kmalloc_analde(cpumask_size(), flags, analde);
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 	if (!*mask) {
@@ -70,14 +70,14 @@ bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
 
 	return *mask != NULL;
 }
-EXPORT_SYMBOL(alloc_cpumask_var_node);
+EXPORT_SYMBOL(alloc_cpumask_var_analde);
 
 /**
  * alloc_bootmem_cpumask_var - allocate a struct cpumask from the bootmem arena.
  * @mask: pointer to cpumask_var_t where the cpumask is returned
  *
  * Only defined when CONFIG_CPUMASK_OFFSTACK=y, otherwise is
- * a nop (in <linux/cpumask.h>).
+ * a analp (in <linux/cpumask.h>).
  * Either returns an allocated (zero-filled) cpumask, or causes the
  * system to panic.
  */
@@ -114,23 +114,23 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 /**
  * cpumask_local_spread - select the i'th cpu based on NUMA distances
  * @i: index number
- * @node: local numa_node
+ * @analde: local numa_analde
  *
  * Return: online CPU according to a numa aware policy; local cpus are returned
- * first, followed by non-local ones, then it wraps around.
+ * first, followed by analn-local ones, then it wraps around.
  *
  * For those who wants to enumerate all CPUs based on their NUMA distances,
  * i.e. call this function in a loop, like:
  *
  * for (i = 0; i < num_online_cpus(); i++) {
- *	cpu = cpumask_local_spread(i, node);
+ *	cpu = cpumask_local_spread(i, analde);
  *	do_something(cpu);
  * }
  *
  * There's a better alternative based on for_each()-like iterators:
  *
- *	for_each_numa_hop_mask(mask, node) {
- *		for_each_cpu_andnot(cpu, mask, prev)
+ *	for_each_numa_hop_mask(mask, analde) {
+ *		for_each_cpu_andanalt(cpu, mask, prev)
  *			do_something(cpu);
  *		prev = mask;
  *	}
@@ -140,14 +140,14 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
  * cpumask_local_spread() when called for each cpu is
  * O(sched_domains_numa_levels * nr_cpu_ids * log(nr_cpu_ids)).
  */
-unsigned int cpumask_local_spread(unsigned int i, int node)
+unsigned int cpumask_local_spread(unsigned int i, int analde)
 {
 	unsigned int cpu;
 
 	/* Wrap: we always want a cpu. */
 	i %= num_online_cpus();
 
-	cpu = sched_numa_find_nth_cpu(cpu_online_mask, i, node);
+	cpu = sched_numa_find_nth_cpu(cpu_online_mask, i, analde);
 
 	WARN_ON(cpu >= nr_cpu_ids);
 	return cpu;
@@ -171,7 +171,7 @@ unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
 {
 	unsigned int next, prev;
 
-	/* NOTE: our first selection will skip 0. */
+	/* ANALTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
 
 	next = find_next_and_bit_wrap(cpumask_bits(src1p), cpumask_bits(src2p),
@@ -193,7 +193,7 @@ unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 {
 	unsigned int next, prev;
 
-	/* NOTE: our first selection will skip 0. */
+	/* ANALTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
 	next = find_next_bit_wrap(cpumask_bits(srcp), nr_cpumask_bits, prev + 1);
 	if (next < nr_cpu_ids)

@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -20,7 +20,7 @@
 
 static void stat64_to_hostfs(const struct stat64 *buf, struct hostfs_stat *p)
 {
-	p->ino = buf->st_ino;
+	p->ianal = buf->st_ianal;
 	p->mode = buf->st_mode;
 	p->nlink = buf->st_nlink;
 	p->uid = buf->st_uid;
@@ -35,7 +35,7 @@ static void stat64_to_hostfs(const struct stat64 *buf, struct hostfs_stat *p)
 	p->blksize = buf->st_blksize;
 	p->blocks = buf->st_blocks;
 	p->maj = os_major(buf->st_rdev);
-	p->min = os_minor(buf->st_rdev);
+	p->min = os_mianalr(buf->st_rdev);
 	p->dev = buf->st_dev;
 }
 
@@ -45,9 +45,9 @@ int stat_file(const char *path, struct hostfs_stat *p, int fd)
 
 	if (fd >= 0) {
 		if (fstat64(fd, &buf) < 0)
-			return -errno;
+			return -erranal;
 	} else if (lstat64(path, &buf) < 0) {
-		return -errno;
+		return -erranal;
 	}
 	stat64_to_hostfs(&buf, p);
 	return 0;
@@ -64,7 +64,7 @@ int access_file(char *path, int r, int w, int x)
 	if (x)
 		mode |= X_OK;
 	if (access(path, mode) != 0)
-		return -errno;
+		return -erranal;
 	else return 0;
 }
 
@@ -84,7 +84,7 @@ int open_file(char *path, int r, int w, int append)
 		mode |= O_APPEND;
 	fd = open64(path, mode);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 	else return fd;
 }
 
@@ -93,7 +93,7 @@ void *open_dir(char *path, int *err_out)
 	DIR *dir;
 
 	dir = opendir(path);
-	*err_out = errno;
+	*err_out = erranal;
 
 	return dir;
 }
@@ -106,7 +106,7 @@ void seek_dir(void *stream, unsigned long long pos)
 }
 
 char *read_dir(void *stream, unsigned long long *pos_out,
-	       unsigned long long *ino_out, int *len_out,
+	       unsigned long long *ianal_out, int *len_out,
 	       unsigned int *type_out)
 {
 	DIR *dir = stream;
@@ -116,7 +116,7 @@ char *read_dir(void *stream, unsigned long long *pos_out,
 	if (ent == NULL)
 		return NULL;
 	*len_out = strlen(ent->d_name);
-	*ino_out = ent->d_ino;
+	*ianal_out = ent->d_ianal;
 	*type_out = ent->d_type;
 	*pos_out = ent->d_off;
 	return ent->d_name;
@@ -128,7 +128,7 @@ int read_file(int fd, unsigned long long *offset, char *buf, int len)
 
 	n = pread64(fd, buf, len, *offset);
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	*offset += n;
 	return n;
 }
@@ -139,7 +139,7 @@ int write_file(int fd, unsigned long long *offset, const char *buf, int len)
 
 	n = pwrite64(fd, buf, len, *offset);
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	*offset += n;
 	return n;
 }
@@ -150,7 +150,7 @@ int lseek_file(int fd, long long offset, int whence)
 
 	ret = lseek64(fd, offset, whence);
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -163,7 +163,7 @@ int fsync_file(int fd, int datasync)
 		ret = fsync(fd);
 
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -188,7 +188,7 @@ int file_create(char *name, int mode)
 
 	fd = open64(name, O_CREAT | O_RDWR, mode);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 	return fd;
 }
 
@@ -201,33 +201,33 @@ int set_attr(const char *file, struct hostfs_iattr *attrs, int fd)
 	if (attrs->ia_valid & HOSTFS_ATTR_MODE) {
 		if (fd >= 0) {
 			if (fchmod(fd, attrs->ia_mode) != 0)
-				return -errno;
+				return -erranal;
 		} else if (chmod(file, attrs->ia_mode) != 0) {
-			return -errno;
+			return -erranal;
 		}
 	}
 	if (attrs->ia_valid & HOSTFS_ATTR_UID) {
 		if (fd >= 0) {
 			if (fchown(fd, attrs->ia_uid, -1))
-				return -errno;
+				return -erranal;
 		} else if (chown(file, attrs->ia_uid, -1)) {
-			return -errno;
+			return -erranal;
 		}
 	}
 	if (attrs->ia_valid & HOSTFS_ATTR_GID) {
 		if (fd >= 0) {
 			if (fchown(fd, -1, attrs->ia_gid))
-				return -errno;
+				return -erranal;
 		} else if (chown(file, -1, attrs->ia_gid)) {
-			return -errno;
+			return -erranal;
 		}
 	}
 	if (attrs->ia_valid & HOSTFS_ATTR_SIZE) {
 		if (fd >= 0) {
 			if (ftruncate(fd, attrs->ia_size))
-				return -errno;
+				return -erranal;
 		} else if (truncate(file, attrs->ia_size)) {
-			return -errno;
+			return -erranal;
 		}
 	}
 
@@ -258,13 +258,13 @@ int set_attr(const char *file, struct hostfs_iattr *attrs, int fd)
 
 		if (fd >= 0) {
 			if (futimes(fd, times) != 0)
-				return -errno;
+				return -erranal;
 		} else if (utimes(file, times) != 0) {
-			return -errno;
+			return -erranal;
 		}
 	}
 
-	/* Note: ctime is not handled */
+	/* Analte: ctime is analt handled */
 	if (attrs->ia_valid & (HOSTFS_ATTR_ATIME | HOSTFS_ATTR_MTIME)) {
 		err = stat_file(file, &st, fd);
 		attrs->ia_atime = st.atime;
@@ -281,7 +281,7 @@ int make_symlink(const char *from, const char *to)
 
 	err = symlink(to, from);
 	if (err)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -291,7 +291,7 @@ int unlink_file(const char *file)
 
 	err = unlink(file);
 	if (err)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -301,7 +301,7 @@ int do_mkdir(const char *file, int mode)
 
 	err = mkdir(file, mode);
 	if (err)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -311,17 +311,17 @@ int hostfs_do_rmdir(const char *file)
 
 	err = rmdir(file);
 	if (err)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
-int do_mknod(const char *file, int mode, unsigned int major, unsigned int minor)
+int do_mkanald(const char *file, int mode, unsigned int major, unsigned int mianalr)
 {
 	int err;
 
-	err = mknod(file, mode, os_makedev(major, minor));
+	err = mkanald(file, mode, os_makedev(major, mianalr));
 	if (err)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -331,7 +331,7 @@ int link_file(const char *to, const char *from)
 
 	err = link(to, from);
 	if (err)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -341,7 +341,7 @@ int hostfs_do_readlink(char *file, char *buf, int size)
 
 	n = readlink(file, buf, size);
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	if (n < size)
 		buf[n] = '\0';
 	return n;
@@ -353,7 +353,7 @@ int rename_file(char *from, char *to)
 
 	err = rename(from, to);
 	if (err < 0)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -373,8 +373,8 @@ int rename2_file(char *from, char *to, unsigned int flags)
 #ifdef SYS_renameat2
 	err = syscall(SYS_renameat2, AT_FDCWD, from, AT_FDCWD, to, flags);
 	if (err < 0) {
-		if (errno != ENOSYS)
-			return -errno;
+		if (erranal != EANALSYS)
+			return -erranal;
 		else
 			return -EINVAL;
 	}
@@ -394,7 +394,7 @@ int do_statfs(char *root, long *bsize_out, long long *blocks_out,
 
 	err = statfs64(root, &buf);
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	*bsize_out = buf.f_bsize;
 	*blocks_out = buf.f_blocks;

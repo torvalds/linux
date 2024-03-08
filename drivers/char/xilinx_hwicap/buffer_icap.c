@@ -11,12 +11,12 @@
  *     AS A COURTESY TO YOU, SOLELY FOR USE IN DEVELOPING PROGRAMS AND
  *     SOLUTIONS FOR XILINX DEVICES.  BY PROVIDING THIS DESIGN, CODE,
  *     OR INFORMATION AS ONE POSSIBLE IMPLEMENTATION OF THIS FEATURE,
- *     APPLICATION OR STANDARD, XILINX IS MAKING NO REPRESENTATION
+ *     APPLICATION OR STANDARD, XILINX IS MAKING ANAL REPRESENTATION
  *     THAT THIS IMPLEMENTATION IS FREE FROM ANY CLAIMS OF INFRINGEMENT,
  *     AND YOU ARE RESPONSIBLE FOR OBTAINING ANY RIGHTS YOU MAY REQUIRE
  *     FOR YOUR IMPLEMENTATION.  XILINX EXPRESSLY DISCLAIMS ANY
  *     WARRANTY WHATSOEVER WITH RESPECT TO THE ADEQUACY OF THE
- *     IMPLEMENTATION, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OR
+ *     IMPLEMENTATION, INCLUDING BUT ANALT LIMITED TO ANY WARRANTIES OR
  *     REPRESENTATIONS THAT THIS IMPLEMENTATION IS FREE FROM CLAIMS OF
  *     INFRINGEMENT, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  *     FOR A PARTICULAR PURPOSE.
@@ -25,7 +25,7 @@
  *     All rights reserved.
  *
  *     You should have received a copy of the GNU General Public License along
- *     with this program; if not, write to the Free Software Foundation, Inc.,
+ *     with this program; if analt, write to the Free Software Foundation, Inc.,
  *     675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *****************************************************************************/
@@ -54,7 +54,7 @@
 #define XHI_SIZE_REG_OFFSET        0x800L
 /* offset into bram, read & write */
 #define XHI_BRAM_OFFSET_REG_OFFSET 0x804L
-/* Read not Configure, direction of transfer.  Write only */
+/* Read analt Configure, direction of transfer.  Write only */
 #define XHI_RNC_REG_OFFSET         0x808L
 /* Indicates transfer complete. Read only */
 #define XHI_STATUS_REG_OFFSET      0x80CL
@@ -64,7 +64,7 @@
 #define XHI_READBACK               0x1UL
 
 /* Constants for the Done register */
-#define XHI_NOT_FINISHED           0x0UL
+#define XHI_ANALT_FINISHED           0x0UL
 #define XHI_FINISHED               0x1UL
 
 #define XHI_BUFFER_START 0
@@ -115,7 +115,7 @@ static inline u32 buffer_icap_get_bram(void __iomem *base_address,
 static inline bool buffer_icap_busy(void __iomem *base_address)
 {
 	u32 status = in_be32(base_address + XHI_STATUS_REG_OFFSET);
-	return (status & 1) == XHI_NOT_FINISHED;
+	return (status & 1) == XHI_ANALT_FINISHED;
 }
 
 /**
@@ -147,7 +147,7 @@ static inline void buffer_icap_set_offset(void __iomem *base_address,
 }
 
 /**
- * buffer_icap_set_rnc - Set the RNC (Readback not Configure) register.
+ * buffer_icap_set_rnc - Set the RNC (Readback analt Configure) register.
  * @base_address: contains the base address of the device.
  * @data: is the value to be written to the data register.
  *
@@ -251,7 +251,7 @@ static int buffer_icap_device_write(struct hwicap_drvdata *drvdata,
  *
  * Writing to the status register resets the ICAP logic in an internal
  * version of the core.  For the version of the core published in EDK,
- * this is a noop.
+ * this is a analop.
  **/
 void buffer_icap_reset(struct hwicap_drvdata *drvdata)
 {

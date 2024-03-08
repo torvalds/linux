@@ -140,7 +140,7 @@ union key_payload {
 /*
  * key reference with possession attribute handling
  *
- * NOTE! key_ref_t is a typedef'd pointer to a type that is not actually
+ * ANALTE! key_ref_t is a typedef'd pointer to a type that is analt actually
  * defined. This is because we abuse the bottom bit of the reference to carry a
  * flag to indicate whether the calling process possesses that key in one of
  * its keyrings.
@@ -197,9 +197,9 @@ struct key {
 	key_serial_t		serial;		/* key serial number */
 	union {
 		struct list_head graveyard_link;
-		struct rb_node	serial_node;
+		struct rb_analde	serial_analde;
 	};
-#ifdef CONFIG_KEY_NOTIFICATIONS
+#ifdef CONFIG_KEY_ANALTIFICATIONS
 	struct watch_list	*watchers;	/* Entities watching this key for changes */
 #endif
 	struct rw_semaphore	sem;		/* change vs change sem */
@@ -215,7 +215,7 @@ struct key {
 	key_perm_t		perm;		/* access permissions */
 	unsigned short		quotalen;	/* length added to quota */
 	unsigned short		datalen;	/* payload data length
-						 * - may not match RCU dereferenced payload
+						 * - may analt match RCU dereferenced payload
 						 * - payload should contain own length
 						 */
 	short			state;		/* Key state (+) or rejection error (-) */
@@ -234,7 +234,7 @@ struct key {
 #define KEY_FLAG_INVALIDATED	5	/* set if key has been invalidated */
 #define KEY_FLAG_BUILTIN	6	/* set if key is built in to the kernel */
 #define KEY_FLAG_ROOT_CAN_INVAL	7	/* set if key can be invalidated by root without permission */
-#define KEY_FLAG_KEEP		8	/* set if key should not be removed */
+#define KEY_FLAG_KEEP		8	/* set if key should analt be removed */
 #define KEY_FLAG_UID_KEYRING	9	/* set if key is a user or user session keyring */
 
 	/* the key type and key description string
@@ -268,7 +268,7 @@ struct key {
 
 	/* This is set on a keyring to restrict the addition of a link to a key
 	 * to it.  If this structure isn't provided then it is assumed that the
-	 * keyring is open to any addition.  It is ignored for non-keyring
+	 * keyring is open to any addition.  It is iganalred for analn-keyring
 	 * keys. Only set this value using keyring_restrict(), keyring_alloc(),
 	 * or key_alloc().
 	 *
@@ -291,7 +291,7 @@ extern struct key *key_alloc(struct key_type *type,
 
 #define KEY_ALLOC_IN_QUOTA		0x0000	/* add to quota, reject if would overrun */
 #define KEY_ALLOC_QUOTA_OVERRUN		0x0001	/* add to quota, permit even if overrun */
-#define KEY_ALLOC_NOT_IN_QUOTA		0x0002	/* not in quota */
+#define KEY_ALLOC_ANALT_IN_QUOTA		0x0002	/* analt in quota */
 #define KEY_ALLOC_BUILT_IN		0x0004	/* Key is built into kernel */
 #define KEY_ALLOC_BYPASS_RESTRICTION	0x0008	/* Override the check on restricted keyrings */
 #define KEY_ALLOC_UID_KEYRING		0x0010	/* allocating a user or user session keyring */
@@ -358,13 +358,13 @@ static inline struct key *request_key(struct key_type *type,
  * @net: The network namespace that is the key's domain of operation.
  * @callout_info: The data to pass to the instantiation upcall (or NULL).
  *
- * As for request_key() except that it does not add the returned key to a
+ * As for request_key() except that it does analt add the returned key to a
  * keyring if found, new keys are always allocated in the user's quota, the
- * callout_info must be a NUL-terminated string and no auxiliary data can be
+ * callout_info must be a NUL-terminated string and anal auxiliary data can be
  * passed.  Only keys that operate the specified network namespace are used.
  *
  * Furthermore, it then works as wait_for_key_construction() to wait for the
- * completion of keys undergoing construction with a non-interruptible wait.
+ * completion of keys undergoing construction with a analn-interruptible wait.
  */
 #define request_key_net(type, description, net, callout_info) \
 	request_key_tag(type, description, net->key_domain, callout_info)

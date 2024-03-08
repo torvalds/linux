@@ -79,8 +79,8 @@ static const struct snd_kcontrol_new wm9705_snd_ac97_controls[] = {
 	SOC_SINGLE("Headphone Playback Switch", AC97_HEADPHONE, 15, 1, 1),
 	SOC_DOUBLE("PCM Playback Volume", AC97_PCM, 8, 0, 31, 1),
 	SOC_SINGLE("PCM Playback Switch", AC97_PCM, 15, 1, 1),
-	SOC_SINGLE("Mono Playback Volume", AC97_MASTER_MONO, 0, 31, 1),
-	SOC_SINGLE("Mono Playback Switch", AC97_MASTER_MONO, 15, 1, 1),
+	SOC_SINGLE("Moanal Playback Volume", AC97_MASTER_MOANAL, 0, 31, 1),
+	SOC_SINGLE("Moanal Playback Switch", AC97_MASTER_MOANAL, 15, 1, 1),
 	SOC_SINGLE("PCBeep Playback Volume", AC97_PC_BEEP, 1, 15, 1),
 	SOC_SINGLE("Phone Playback Volume", AC97_PHONE, 0, 31, 1),
 	SOC_DOUBLE("Line Playback Volume", AC97_LINE, 8, 0, 31, 1),
@@ -93,7 +93,7 @@ static const struct snd_kcontrol_new wm9705_snd_ac97_controls[] = {
 
 static const char *wm9705_mic[] = {"Mic 1", "Mic 2"};
 static const char *wm9705_rec_sel[] = {"Mic", "CD", "NC", "NC",
-	"Line", "Stereo Mix", "Mono Mix", "Phone"};
+	"Line", "Stereo Mix", "Moanal Mix", "Phone"};
 
 static SOC_ENUM_SINGLE_DECL(wm9705_enum_mic,
 			    AC97_GENERAL_PURPOSE, 8, wm9705_mic);
@@ -123,37 +123,37 @@ static const struct snd_kcontrol_new wm9705_capture_selectr_controls =
 
 /* DAPM widgets */
 static const struct snd_soc_dapm_widget wm9705_dapm_widgets[] = {
-	SND_SOC_DAPM_MUX("Mic Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Mic Source", SND_SOC_ANALPM, 0, 0,
 		&wm9705_mic_src_controls),
-	SND_SOC_DAPM_MUX("Left Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Left Capture Source", SND_SOC_ANALPM, 0, 0,
 		&wm9705_capture_selectl_controls),
-	SND_SOC_DAPM_MUX("Right Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Right Capture Source", SND_SOC_ANALPM, 0, 0,
 		&wm9705_capture_selectr_controls),
 	SND_SOC_DAPM_DAC("Left DAC", "Left HiFi Playback",
-		SND_SOC_NOPM, 0, 0),
+		SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_DAC("Right DAC", "Right HiFi Playback",
-		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MIXER_NAMED_CTL("HP Mixer", SND_SOC_NOPM, 0, 0,
+		SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MIXER_NAMED_CTL("HP Mixer", SND_SOC_ANALPM, 0, 0,
 		&wm9705_hp_mixer_controls[0],
 		ARRAY_SIZE(wm9705_hp_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Mono Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_ADC("Left ADC", "Left HiFi Capture", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("Right ADC", "Right HiFi Capture", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_PGA("Headphone PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Speaker PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Line PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Line out PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Mono PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Phone PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Mic PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PCBEEP PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("CD PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("ADC PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Moanal Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_ADC("Left ADC", "Left HiFi Capture", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("Right ADC", "Right HiFi Capture", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_PGA("Headphone PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Speaker PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Line PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Line out PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Moanal PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Phone PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Mic PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PCBEEP PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("CD PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("ADC PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("HPOUTL"),
 	SND_SOC_DAPM_OUTPUT("HPOUTR"),
 	SND_SOC_DAPM_OUTPUT("LOUT"),
 	SND_SOC_DAPM_OUTPUT("ROUT"),
-	SND_SOC_DAPM_OUTPUT("MONOOUT"),
+	SND_SOC_DAPM_OUTPUT("MOANALOUT"),
 	SND_SOC_DAPM_INPUT("PHONE"),
 	SND_SOC_DAPM_INPUT("LINEINL"),
 	SND_SOC_DAPM_INPUT("LINEINR"),
@@ -165,7 +165,7 @@ static const struct snd_soc_dapm_widget wm9705_dapm_widgets[] = {
 };
 
 /* Audio map
- * WM9705 has no switches to disable the route from the inputs to the HP mixer
+ * WM9705 has anal switches to disable the route from the inputs to the HP mixer
  * so in order to prevent active inputs from forcing the audio outputs to be
  * constantly enabled, we use the mutes on those inputs to simulate such
  * controls.
@@ -180,8 +180,8 @@ static const struct snd_soc_dapm_route wm9705_audio_map[] = {
 	{"HP Mixer", NULL, "Left DAC"},
 	{"HP Mixer", NULL, "Right DAC"},
 
-	/* mono mixer */
-	{"Mono Mixer", NULL, "HP Mixer"},
+	/* moanal mixer */
+	{"Moanal Mixer", NULL, "HP Mixer"},
 
 	/* outputs */
 	{"Headphone PGA", NULL, "HP Mixer"},
@@ -190,8 +190,8 @@ static const struct snd_soc_dapm_route wm9705_audio_map[] = {
 	{"Line out PGA", NULL, "HP Mixer"},
 	{"LOUT", NULL, "Line out PGA"},
 	{"ROUT", NULL, "Line out PGA"},
-	{"Mono PGA", NULL, "Mono Mixer"},
-	{"MONOOUT", NULL, "Mono PGA"},
+	{"Moanal PGA", NULL, "Moanal Mixer"},
+	{"MOANALOUT", NULL, "Moanal PGA"},
 
 	/* inputs */
 	{"CD PGA", NULL, "CDINL"},
@@ -209,7 +209,7 @@ static const struct snd_soc_dapm_route wm9705_audio_map[] = {
 	{"Left Capture Source", "CD", "CDINL"},
 	{"Left Capture Source", "Line", "LINEINL"},
 	{"Left Capture Source", "Stereo Mix", "HP Mixer"},
-	{"Left Capture Source", "Mono Mix", "HP Mixer"},
+	{"Left Capture Source", "Moanal Mix", "HP Mixer"},
 	{"Left Capture Source", "Phone", "PHONE"},
 
 	/* Right capture source */
@@ -217,7 +217,7 @@ static const struct snd_soc_dapm_route wm9705_audio_map[] = {
 	{"Right Capture Source", "CD", "CDINR"},
 	{"Right Capture Source", "Line", "LINEINR"},
 	{"Right Capture Source", "Stereo Mix", "HP Mixer"},
-	{"Right Capture Source", "Mono Mix", "HP Mixer"},
+	{"Right Capture Source", "Moanal Mix", "HP Mixer"},
 	{"Right Capture Source", "Phone", "PHONE"},
 
 	{"ADC PGA", NULL, "Left Capture Source"},
@@ -376,7 +376,7 @@ static int wm9705_probe(struct platform_device *pdev)
 
 	wm9705 = devm_kzalloc(&pdev->dev, sizeof(*wm9705), GFP_KERNEL);
 	if (wm9705 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm9705->mfd_pdata = dev_get_platdata(&pdev->dev);
 	platform_set_drvdata(pdev, wm9705);

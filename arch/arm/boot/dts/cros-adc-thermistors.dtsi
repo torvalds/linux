@@ -3,8 +3,8 @@
  * Thermistor dts fragment for devices that use Thermistors as
  * children of the IIO based ADC.
  *
- * Currently, used by Exynos5420 based Peach PIT and
- * Exynos5800 based Peach PI.
+ * Currently, used by Exyanals5420 based Peach PIT and
+ * Exyanals5800 based Peach PI.
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
 */

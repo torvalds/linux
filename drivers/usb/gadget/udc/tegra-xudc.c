@@ -123,12 +123,12 @@
 #define EP_PAUSE 0x054
 #define EP_RELOAD 0x058
 #define EP_STCHG 0x05c
-#define DEVNOTIF_LO 0x064
-#define  DEVNOTIF_LO_TRIG BIT(0)
-#define  DEVNOTIF_LO_TYPE_MASK GENMASK(7, 4)
-#define  DEVNOTIF_LO_TYPE(x) (((x) << 4)  & DEVNOTIF_LO_TYPE_MASK)
-#define  DEVNOTIF_LO_TYPE_FUNCTION_WAKE 0x1
-#define DEVNOTIF_HI 0x068
+#define DEVANALTIF_LO 0x064
+#define  DEVANALTIF_LO_TRIG BIT(0)
+#define  DEVANALTIF_LO_TYPE_MASK GENMASK(7, 4)
+#define  DEVANALTIF_LO_TYPE(x) (((x) << 4)  & DEVANALTIF_LO_TYPE_MASK)
+#define  DEVANALTIF_LO_TYPE_FUNCTION_WAKE 0x1
+#define DEVANALTIF_HI 0x068
 #define PORTHALT 0x06c
 #define  PORTHALT_HALT_LTSSM BIT(0)
 #define  PORTHALT_HALT_REJECT BIT(1)
@@ -301,7 +301,7 @@ struct tegra_xudc_trb {
 };
 
 #define TRB_TYPE_RSVD 0
-#define TRB_TYPE_NORMAL 1
+#define TRB_TYPE_ANALRMAL 1
 #define TRB_TYPE_SETUP_STAGE 2
 #define TRB_TYPE_DATA_STAGE 3
 #define TRB_TYPE_STATUS_STAGE 4
@@ -515,7 +515,7 @@ struct tegra_xudc {
 
 	struct usb_phy **usbphy;
 	struct usb_phy *curr_usbphy;
-	struct notifier_block vbus_nb;
+	struct analtifier_block vbus_nb;
 
 	struct completion disconnect_complete;
 
@@ -732,7 +732,7 @@ static void tegra_xudc_device_mode_off(struct tegra_xudc *xudc)
 	if (xudc->soc->port_speed_quirk)
 		tegra_xudc_restore_port_speed(xudc);
 
-	phy_set_mode_ext(xudc->curr_utmi_phy, PHY_MODE_USB_OTG, USB_ROLE_NONE);
+	phy_set_mode_ext(xudc->curr_utmi_phy, PHY_MODE_USB_OTG, USB_ROLE_ANALNE);
 
 	pls = (xudc_readl(xudc, PORTSC) & PORTSC_PLS_MASK) >>
 		PORTSC_PLS_SHIFT;
@@ -791,7 +791,7 @@ static int tegra_xudc_get_phy_index(struct tegra_xudc *xudc,
 			return i;
 	}
 
-	dev_info(xudc->dev, "phy index could not be found for shared USB PHY");
+	dev_info(xudc->dev, "phy index could analt be found for shared USB PHY");
 	return -1;
 }
 
@@ -802,7 +802,7 @@ static void tegra_xudc_update_data_role(struct tegra_xudc *xudc,
 
 	if ((xudc->device_mode && usbphy->last_event == USB_EVENT_VBUS) ||
 	    (!xudc->device_mode && usbphy->last_event != USB_EVENT_VBUS)) {
-		dev_dbg(xudc->dev, "Same role(%d) received. Ignore",
+		dev_dbg(xudc->dev, "Same role(%d) received. Iganalre",
 			xudc->device_mode);
 		return;
 	}
@@ -822,7 +822,7 @@ static void tegra_xudc_update_data_role(struct tegra_xudc *xudc,
 	}
 }
 
-static int tegra_xudc_vbus_notify(struct notifier_block *nb,
+static int tegra_xudc_vbus_analtify(struct analtifier_block *nb,
 					 unsigned long action, void *data)
 {
 	struct tegra_xudc *xudc = container_of(nb, struct tegra_xudc,
@@ -833,7 +833,7 @@ static int tegra_xudc_vbus_notify(struct notifier_block *nb,
 
 	tegra_xudc_update_data_role(xudc, usbphy);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void tegra_xudc_plc_reset_work(struct work_struct *work)
@@ -852,7 +852,7 @@ static void tegra_xudc_plc_reset_work(struct work_struct *work)
 		if (pls == PORTSC_PLS_INACTIVE) {
 			dev_info(xudc->dev, "PLS = Inactive. Toggle VBUS\n");
 			phy_set_mode_ext(xudc->curr_utmi_phy, PHY_MODE_USB_OTG,
-					 USB_ROLE_NONE);
+					 USB_ROLE_ANALNE);
 			phy_set_mode_ext(xudc->curr_utmi_phy, PHY_MODE_USB_OTG,
 					 USB_ROLE_DEVICE);
 
@@ -1133,7 +1133,7 @@ static void tegra_xudc_queue_one_trb(struct tegra_xudc_ep *ep,
 		trb_write_type(trb, TRB_TYPE_STREAM);
 		trb_write_stream_id(trb, req->usb_req.stream_id);
 	} else {
-		trb_write_type(trb, TRB_TYPE_NORMAL);
+		trb_write_type(trb, TRB_TYPE_ANALRMAL);
 		trb_write_stream_id(trb, 0);
 	}
 
@@ -1170,8 +1170,8 @@ static unsigned int tegra_xudc_queue_trbs(struct tegra_xudc_ep *ep,
 	 * - Ring doorbell
 	 *
 	 * For bulk and interrupt endpoints:
-	 * - Normal transfer TD (IOC = 0, CH = 0)
-	 * - Normal transfer TD for ZLP (IOC = 1, CH = 0)
+	 * - Analrmal transfer TD (IOC = 0, CH = 0)
+	 * - Analrmal transfer TD for ZLP (IOC = 1, CH = 0)
 	 * - Ring doorbell
 	 */
 
@@ -1550,13 +1550,13 @@ static int __tegra_xudc_ep_set_halt(struct tegra_xudc_ep *ep, bool halt)
 		return -EINVAL;
 
 	if (usb_endpoint_xfer_isoc(ep->desc)) {
-		dev_err(xudc->dev, "can't halt isochronous EP\n");
-		return -ENOTSUPP;
+		dev_err(xudc->dev, "can't halt isochroanalus EP\n");
+		return -EANALTSUPP;
 	}
 
 	if (!!(xudc_readl(xudc, EP_HALT) & BIT(ep->index)) == halt) {
 		dev_dbg(xudc->dev, "EP %u already %s\n", ep->index,
-			halt ? "halted" : "not halted");
+			halt ? "halted" : "analt halted");
 		return 0;
 	}
 
@@ -1793,7 +1793,7 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 		!usb_endpoint_xfer_control(desc) && !ep->usb_ep.comp_desc)
 		return -EINVAL;
 
-	/* Disable the EP if it is not disabled */
+	/* Disable the EP if it is analt disabled */
 	if (ep_ctx_read_state(ep->context) != EP_STATE_DISABLED)
 		__tegra_xudc_ep_disable(ep);
 
@@ -1802,7 +1802,7 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 
 	if (usb_endpoint_xfer_isoc(desc)) {
 		if (xudc->nr_isoch_eps > XUDC_MAX_ISOCH_EPS) {
-			dev_err(xudc->dev, "too many isochronous endpoints\n");
+			dev_err(xudc->dev, "too many isochroanalus endpoints\n");
 			return -EBUSY;
 		}
 		xudc->nr_isoch_eps++;
@@ -1821,14 +1821,14 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 	tegra_xudc_ep_context_setup(ep);
 
 	/*
-	 * No need to reload and un-halt EP0.  This will be done automatically
+	 * Anal need to reload and un-halt EP0.  This will be done automatically
 	 * once a valid SETUP packet is received.
 	 */
 	if (usb_endpoint_xfer_control(desc))
 		goto out;
 
 	/*
-	 * Transition to configured state once the first non-control
+	 * Transition to configured state once the first analn-control
 	 * endpoint is enabled.
 	 */
 	if (xudc->device_state == USB_STATE_ADDRESS) {
@@ -1843,7 +1843,7 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 	if (usb_endpoint_xfer_isoc(desc)) {
 		/*
 		 * Pause all bulk endpoints when enabling an isoch endpoint
-		 * to ensure the isoch endpoint is allocated enough bandwidth.
+		 * to ensure the isoch endpoint is allocated eanalugh bandwidth.
 		 */
 		for (i = 0; i < ARRAY_SIZE(xudc->ep); i++) {
 			if (xudc->ep[i].desc &&
@@ -2025,12 +2025,12 @@ static int tegra_xudc_gadget_wakeup(struct usb_gadget *gadget)
 	     (val & PORTPM_FRWE))) {
 		tegra_xudc_resume_device_state(xudc);
 
-		/* Send Device Notification packet. */
+		/* Send Device Analtification packet. */
 		if (xudc->gadget.speed == USB_SPEED_SUPER) {
-			val = DEVNOTIF_LO_TYPE(DEVNOTIF_LO_TYPE_FUNCTION_WAKE)
-					     | DEVNOTIF_LO_TRIG;
-			xudc_writel(xudc, 0, DEVNOTIF_HI);
-			xudc_writel(xudc, val, DEVNOTIF_LO);
+			val = DEVANALTIF_LO_TYPE(DEVANALTIF_LO_TYPE_FUNCTION_WAKE)
+					     | DEVANALTIF_LO_TRIG;
+			xudc_writel(xudc, 0, DEVANALTIF_HI);
+			xudc_writel(xudc, val, DEVANALTIF_LO);
 		}
 	}
 
@@ -2191,7 +2191,7 @@ static const struct usb_gadget_ops tegra_xudc_gadget_ops = {
 	.set_selfpowered = tegra_xudc_set_selfpowered,
 };
 
-static void no_op_complete(struct usb_ep *ep, struct usb_request *req)
+static void anal_op_complete(struct usb_ep *ep, struct usb_request *req)
 {
 }
 
@@ -2225,11 +2225,11 @@ static void tegra_xudc_ep0_req_done(struct tegra_xudc *xudc)
 	switch (xudc->setup_state) {
 	case DATA_STAGE_XFER:
 		xudc->setup_state = STATUS_STAGE_RECV;
-		tegra_xudc_ep0_queue_status(xudc, no_op_complete);
+		tegra_xudc_ep0_queue_status(xudc, anal_op_complete);
 		break;
 	case DATA_STAGE_RECV:
 		xudc->setup_state = STATUS_STAGE_XFER;
-		tegra_xudc_ep0_queue_status(xudc, no_op_complete);
+		tegra_xudc_ep0_queue_status(xudc, anal_op_complete);
 		break;
 	default:
 		xudc->setup_state = WAIT_FOR_SETUP;
@@ -2431,12 +2431,12 @@ static int tegra_xudc_ep0_get_status(struct tegra_xudc *xudc,
 	xudc->status_buf = cpu_to_le16(status);
 	return tegra_xudc_ep0_queue_data(xudc, &xudc->status_buf,
 					 sizeof(xudc->status_buf),
-					 no_op_complete);
+					 anal_op_complete);
 }
 
 static void set_sel_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	/* Nothing to do with SEL values */
+	/* Analthing to do with SEL values */
 }
 
 static int tegra_xudc_ep0_set_sel(struct tegra_xudc *xudc,
@@ -2461,7 +2461,7 @@ static int tegra_xudc_ep0_set_sel(struct tegra_xudc *xudc,
 
 static void set_isoch_delay_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	/* Nothing to do with isoch delay */
+	/* Analthing to do with isoch delay */
 }
 
 static int tegra_xudc_ep0_set_isoch_delay(struct tegra_xudc *xudc,
@@ -2618,7 +2618,7 @@ static void tegra_xudc_handle_ep0_event(struct tegra_xudc *xudc,
 
 	if (xudc->setup_state != WAIT_FOR_SETUP) {
 		/*
-		 * The controller is in the process of handling another
+		 * The controller is in the process of handling aanalther
 		 * setup request.  Queue subsequent requests and handle
 		 * the last one once the controller reports a sequence
 		 * number error.
@@ -2863,7 +2863,7 @@ static void tegra_xudc_port_connect(struct tegra_xudc *xudc)
 		xudc->gadget.speed = USB_SPEED_SUPER;
 		break;
 	default:
-		xudc->gadget.speed = USB_SPEED_UNKNOWN;
+		xudc->gadget.speed = USB_SPEED_UNKANALWN;
 		break;
 	}
 
@@ -2918,7 +2918,7 @@ static void tegra_xudc_port_disconnect(struct tegra_xudc *xudc)
 		spin_lock(&xudc->lock);
 	}
 
-	xudc->device_state = USB_STATE_NOTATTACHED;
+	xudc->device_state = USB_STATE_ANALTATTACHED;
 	usb_gadget_set_state(&xudc->gadget, xudc->device_state);
 
 	complete(&xudc->disconnect_complete);
@@ -3000,7 +3000,7 @@ static void __tegra_xudc_handle_port_status(struct tegra_xudc *xudc)
 	}
 
 	if ((portsc & PORTSC_PRC) && !(portsc & PORTSC_PR)) {
-		dev_dbg(xudc->dev, "PRC, Not PR, PORTSC = %#x\n", portsc);
+		dev_dbg(xudc->dev, "PRC, Analt PR, PORTSC = %#x\n", portsc);
 		clear_port_change(xudc, PORTSC_PRC | PORTSC_PED);
 		tegra_xudc_port_reset(xudc);
 		cancel_delayed_work(&xudc->port_reset_war_work);
@@ -3138,7 +3138,7 @@ static irqreturn_t tegra_xudc_irq(int irq, void *data)
 
 	val = xudc_readl(xudc, ST);
 	if (!(val & ST_IP))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	xudc_writel(xudc, ST_IP, ST);
 
 	spin_lock_irqsave(&xudc->lock, flags);
@@ -3168,7 +3168,7 @@ static int tegra_xudc_alloc_ep(struct tegra_xudc *xudc, unsigned int index)
 					   GFP_KERNEL,
 					   &ep->transfer_ring_phys);
 	if (!ep->transfer_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (index) {
 		snprintf(ep->name, sizeof(ep->name), "ep%u%s", index / 2,
@@ -3223,7 +3223,7 @@ static int tegra_xudc_alloc_eps(struct tegra_xudc *xudc)
 				    sizeof(*xudc->ep_context),
 				    &xudc->ep_context_phys, GFP_KERNEL);
 	if (!xudc->ep_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xudc->transfer_ring_pool =
 		dmam_pool_create(dev_name(xudc->dev), xudc->dev,
@@ -3231,7 +3231,7 @@ static int tegra_xudc_alloc_eps(struct tegra_xudc *xudc)
 				 sizeof(struct tegra_xudc_trb),
 				 sizeof(struct tegra_xudc_trb), 0);
 	if (!xudc->transfer_ring_pool) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_ep_context;
 	}
 
@@ -3244,7 +3244,7 @@ static int tegra_xudc_alloc_eps(struct tegra_xudc *xudc)
 
 	req = tegra_xudc_ep_alloc_request(&xudc->ep[0].usb_ep, GFP_KERNEL);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_eps;
 	}
 	xudc->ep0_req = to_xudc_req(req);
@@ -3303,7 +3303,7 @@ free_dma:
 				  xudc->event_ring[i - 1],
 				  xudc->event_ring_phys[i - 1]);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void tegra_xudc_init_event_ring(struct tegra_xudc *xudc)
@@ -3497,19 +3497,19 @@ static int tegra_xudc_phy_get(struct tegra_xudc *xudc)
 	xudc->utmi_phy = devm_kcalloc(xudc->dev, xudc->soc->num_phys,
 					   sizeof(*xudc->utmi_phy), GFP_KERNEL);
 	if (!xudc->utmi_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xudc->usb3_phy = devm_kcalloc(xudc->dev, xudc->soc->num_phys,
 					   sizeof(*xudc->usb3_phy), GFP_KERNEL);
 	if (!xudc->usb3_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xudc->usbphy = devm_kcalloc(xudc->dev, xudc->soc->num_phys,
 					   sizeof(*xudc->usbphy), GFP_KERNEL);
 	if (!xudc->usbphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	xudc->vbus_nb.notifier_call = tegra_xudc_vbus_notify;
+	xudc->vbus_nb.analtifier_call = tegra_xudc_vbus_analtify;
 
 	for (i = 0; i < xudc->soc->num_phys; i++) {
 		char phy_name[] = "usb.-.";
@@ -3524,8 +3524,8 @@ static int tegra_xudc_phy_get(struct tegra_xudc *xudc)
 			goto clean_up;
 		} else if (xudc->utmi_phy[i]) {
 			/* Get usb-phy, if utmi phy is available */
-			xudc->usbphy[i] = devm_usb_get_phy_by_node(xudc->dev,
-						xudc->utmi_phy[i]->dev.of_node,
+			xudc->usbphy[i] = devm_usb_get_phy_by_analde(xudc->dev,
+						xudc->utmi_phy[i]->dev.of_analde,
 						NULL);
 			if (IS_ERR(xudc->usbphy[i])) {
 				err = PTR_ERR(xudc->usbphy[i]);
@@ -3534,7 +3534,7 @@ static int tegra_xudc_phy_get(struct tegra_xudc *xudc)
 				goto clean_up;
 			}
 		} else if (!xudc->utmi_phy[i]) {
-			/* if utmi phy is not available, ignore USB3 phy get */
+			/* if utmi phy is analt available, iganalre USB3 phy get */
 			continue;
 		}
 
@@ -3735,7 +3735,7 @@ static int tegra_xudc_powerdomain_init(struct tegra_xudc *xudc)
 						DL_FLAG_STATELESS);
 	if (!xudc->genpd_dl_device) {
 		dev_err(dev, "failed to add USB device link\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	xudc->genpd_dl_ss = device_link_add(dev, xudc->genpd_dev_ss,
@@ -3743,7 +3743,7 @@ static int tegra_xudc_powerdomain_init(struct tegra_xudc *xudc)
 					    DL_FLAG_STATELESS);
 	if (!xudc->genpd_dl_ss) {
 		dev_err(dev, "failed to add SuperSpeed device link\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -3758,14 +3758,14 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 
 	xudc = devm_kzalloc(&pdev->dev, sizeof(*xudc), GFP_KERNEL);
 	if (!xudc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xudc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, xudc);
 
 	xudc->soc = of_device_get_match_data(&pdev->dev);
 	if (!xudc->soc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "base");
 	xudc->base = devm_ioremap_resource(&pdev->dev, res);
@@ -3798,7 +3798,7 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	xudc->clks = devm_kcalloc(&pdev->dev, xudc->soc->num_clks, sizeof(*xudc->clks),
 				  GFP_KERNEL);
 	if (!xudc->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < xudc->soc->num_clks; i++)
 		xudc->clks[i].id = xudc->soc->clock_names[i];
@@ -3812,7 +3812,7 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	xudc->supplies = devm_kcalloc(&pdev->dev, xudc->soc->num_supplies,
 				      sizeof(*xudc->supplies), GFP_KERNEL);
 	if (!xudc->supplies)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < xudc->soc->num_supplies; i++)
 		xudc->supplies[i].supply = xudc->soc->supply_names[i];
@@ -3882,7 +3882,7 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 		if (!xudc->usbphy[i])
 			continue;
 
-		usb_register_notifier(xudc->usbphy[i], &xudc->vbus_nb);
+		usb_register_analtifier(xudc->usbphy[i], &xudc->vbus_nb);
 		tegra_xudc_update_data_role(xudc, xudc->usbphy[i]);
 	}
 

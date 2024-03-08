@@ -34,16 +34,16 @@ static inline void free_partition(struct mtd_info *mtd)
 
 void release_mtd_partition(struct mtd_info *mtd)
 {
-	WARN_ON(!list_empty(&mtd->part.node));
+	WARN_ON(!list_empty(&mtd->part.analde));
 	free_partition(mtd);
 }
 
 static struct mtd_info *allocate_partition(struct mtd_info *parent,
 					   const struct mtd_partition *part,
-					   int partno, uint64_t cur_offset)
+					   int partanal, uint64_t cur_offset)
 {
 	struct mtd_info *master = mtd_get_master(parent);
-	int wr_alignment = (parent->flags & MTD_NO_ERASE) ?
+	int wr_alignment = (parent->flags & MTD_ANAL_ERASE) ?
 			   master->writesize : master->erasesize;
 	u64 parent_size = mtd_is_partition(parent) ?
 			  parent->part.size : parent->size;
@@ -60,7 +60,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 		       parent->name);
 		kfree(name);
 		kfree(child);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* set up the MTD object for this partition */
@@ -78,17 +78,17 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	child->name = name;
 	child->owner = parent->owner;
 
-	/* NOTE: Historically, we didn't arrange MTDs as a tree out of
+	/* ANALTE: Historically, we didn't arrange MTDs as a tree out of
 	 * concern for showing the same data in multiple partitions.
-	 * However, it is very useful to have the master node present,
+	 * However, it is very useful to have the master analde present,
 	 * so the MTD_PARTITIONED_MASTER option allows that. The master
-	 * will have device nodes etc only if this is set, so make the
-	 * parent conditional on that option. Note, this is a way to
+	 * will have device analdes etc only if this is set, so make the
+	 * parent conditional on that option. Analte, this is a way to
 	 * distinguish between the parent and its partitions in sysfs.
 	 */
 	child->dev.parent = IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER) || mtd_is_partition(parent) ?
 			    &parent->dev : parent->dev.parent;
-	child->dev.of_node = part->of_node;
+	child->dev.of_analde = part->of_analde;
 	child->parent = parent;
 	child->part.offset = part->offset;
 	INIT_LIST_HEAD(&child->partitions);
@@ -101,8 +101,8 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 		remainder = do_div(tmp, wr_alignment);
 		if (remainder) {
 			child->part.offset += wr_alignment - remainder;
-			printk(KERN_NOTICE "Moving partition %d: "
-			       "0x%012llx -> 0x%012llx\n", partno,
+			printk(KERN_ANALTICE "Moving partition %d: "
+			       "0x%012llx -> 0x%012llx\n", partanal,
 			       (unsigned long long)cur_offset,
 			       child->part.offset);
 		}
@@ -113,7 +113,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 			child->part.size = parent_size - child->part.offset -
 					   child->part.size;
 		} else {
-			printk(KERN_ERR "mtd partition \"%s\" doesn't have enough space: %#llx < %#llx, disabled\n",
+			printk(KERN_ERR "mtd partition \"%s\" doesn't have eanalugh space: %#llx < %#llx, disabled\n",
 				part->name, parent_size - child->part.offset,
 				child->part.size);
 			/* register to preserve ordering */
@@ -123,7 +123,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	if (child->part.size == MTDPART_SIZ_FULL)
 		child->part.size = parent_size - child->part.offset;
 
-	printk(KERN_NOTICE "0x%012llx-0x%012llx : \"%s\"\n",
+	printk(KERN_ANALTICE "0x%012llx-0x%012llx : \"%s\"\n",
 	       child->part.offset, child->part.offset + child->part.size,
 	       child->name);
 
@@ -176,7 +176,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	 * exposes several regions with different erasesize. Adjust
 	 * wr_alignment accordingly.
 	 */
-	if (!(child->flags & MTD_NO_ERASE))
+	if (!(child->flags & MTD_ANAL_ERASE))
 		wr_alignment = child->erasesize;
 
 	tmp = mtd_get_master_ofs(child, 0);
@@ -184,7 +184,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	if ((child->flags & MTD_WRITEABLE) && remainder) {
 		/* Doesn't start on a boundary of major erase size */
 		/* FIXME: Let it be writable if it is on a boundary of
-		 * _minor_ erase size though */
+		 * _mianalr_ erase size though */
 		child->flags &= ~MTD_WRITEABLE;
 		printk(KERN_WARNING"mtd: partition \"%s\" doesn't start on an erase/write block boundary -- force read-only\n",
 			part->name);
@@ -273,7 +273,7 @@ int mtd_add_partition(struct mtd_info *parent, const char *name,
 		return PTR_ERR(child);
 
 	mutex_lock(&master->master.partitions_lock);
-	list_add_tail(&child->part.node, &parent->partitions);
+	list_add_tail(&child->part.analde, &parent->partitions);
 	mutex_unlock(&master->master.partitions_lock);
 
 	ret = add_mtd_device(child);
@@ -286,7 +286,7 @@ int mtd_add_partition(struct mtd_info *parent, const char *name,
 
 err_remove_part:
 	mutex_lock(&master->master.partitions_lock);
-	list_del(&child->part.node);
+	list_del(&child->part.analde);
 	mutex_unlock(&master->master.partitions_lock);
 
 	free_partition(child);
@@ -307,7 +307,7 @@ static int __mtd_del_partition(struct mtd_info *mtd)
 	struct mtd_info *child, *next;
 	int err;
 
-	list_for_each_entry_safe(child, next, &mtd->partitions, part.node) {
+	list_for_each_entry_safe(child, next, &mtd->partitions, part.analde) {
 		err = __mtd_del_partition(child);
 		if (err)
 			return err;
@@ -315,7 +315,7 @@ static int __mtd_del_partition(struct mtd_info *mtd)
 
 	sysfs_remove_files(&mtd->dev.kobj, mtd_partition_attrs);
 
-	list_del_init(&mtd->part.node);
+	list_del_init(&mtd->part.analde);
 	err = del_mtd_device(mtd);
 	if (err)
 		return err;
@@ -332,12 +332,12 @@ static int __del_mtd_partitions(struct mtd_info *mtd)
 	struct mtd_info *child, *next;
 	int ret, err = 0;
 
-	list_for_each_entry_safe(child, next, &mtd->partitions, part.node) {
+	list_for_each_entry_safe(child, next, &mtd->partitions, part.analde) {
 		if (mtd_has_partitions(child))
 			__del_mtd_partitions(child);
 
 		pr_info("Deleting %s MTD partition\n", child->name);
-		list_del_init(&child->part.node);
+		list_del_init(&child->part.analde);
 		ret = del_mtd_device(child);
 		if (ret < 0) {
 			pr_err("Error when deleting partition \"%s\" (%d)\n",
@@ -364,14 +364,14 @@ int del_mtd_partitions(struct mtd_info *mtd)
 	return ret;
 }
 
-int mtd_del_partition(struct mtd_info *mtd, int partno)
+int mtd_del_partition(struct mtd_info *mtd, int partanal)
 {
 	struct mtd_info *child, *master = mtd_get_master(mtd);
 	int ret = -EINVAL;
 
 	mutex_lock(&master->master.partitions_lock);
-	list_for_each_entry(child, &mtd->partitions, part.node) {
-		if (child->index == partno) {
+	list_for_each_entry(child, &mtd->partitions, part.analde) {
+		if (child->index == partanal) {
 			ret = __mtd_del_partition(child);
 			break;
 		}
@@ -399,7 +399,7 @@ int add_mtd_partitions(struct mtd_info *parent,
 	uint64_t cur_offset = 0;
 	int i, ret;
 
-	printk(KERN_NOTICE "Creating %d MTD partitions on \"%s\":\n",
+	printk(KERN_ANALTICE "Creating %d MTD partitions on \"%s\":\n",
 	       nbparts, parent->name);
 
 	for (i = 0; i < nbparts; i++) {
@@ -410,13 +410,13 @@ int add_mtd_partitions(struct mtd_info *parent,
 		}
 
 		mutex_lock(&master->master.partitions_lock);
-		list_add_tail(&child->part.node, &parent->partitions);
+		list_add_tail(&child->part.analde, &parent->partitions);
 		mutex_unlock(&master->master.partitions_lock);
 
 		ret = add_mtd_device(child);
 		if (ret) {
 			mutex_lock(&master->master.partitions_lock);
-			list_del(&child->part.node);
+			list_del(&child->part.analde);
 			mutex_unlock(&master->master.partitions_lock);
 
 			free_partition(child);
@@ -502,7 +502,7 @@ void deregister_mtd_parser(struct mtd_part_parser *p)
 EXPORT_SYMBOL_GPL(deregister_mtd_parser);
 
 /*
- * Do not forget to update 'parse_mtd_partitions()' kerneldoc comment if you
+ * Do analt forget to update 'parse_mtd_partitions()' kerneldoc comment if you
  * are changing this array!
  */
 static const char * const default_mtd_part_types[] = {
@@ -529,7 +529,7 @@ static int mtd_part_do_parse(struct mtd_part_parser *parser,
 	if (ret <= 0)
 		return ret;
 
-	pr_notice("%d %s partitions found on MTD device %s\n", ret,
+	pr_analtice("%d %s partitions found on MTD device %s\n", ret,
 		  parser->name, master->name);
 
 	pparts->nr_parts = ret;
@@ -581,8 +581,8 @@ static int mtd_part_of_parse(struct mtd_info *master,
 			     struct mtd_partitions *pparts)
 {
 	struct mtd_part_parser *parser;
-	struct device_node *np;
-	struct device_node *child;
+	struct device_analde *np;
+	struct device_analde *child;
 	struct property *prop;
 	struct device *dev;
 	const char *compat;
@@ -590,13 +590,13 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	int ret, err = 0;
 
 	dev = &master->dev;
-	/* Use parent device (controller) if the top level MTD is not registered */
+	/* Use parent device (controller) if the top level MTD is analt registered */
 	if (!IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER) && !mtd_is_partition(master))
 		dev = master->dev.parent;
 
-	np = mtd_get_of_node(master);
+	np = mtd_get_of_analde(master);
 	if (mtd_is_partition(master))
-		of_node_get(np);
+		of_analde_get(np);
 	else
 		np = of_get_child_by_name(np, "partitions");
 
@@ -605,9 +605,9 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	 * probed. That'll cause fw_devlink to block probing of consumers of
 	 * this partition until the partition device is probed.
 	 */
-	for_each_child_of_node(np, child)
+	for_each_child_of_analde(np, child)
 		if (of_device_is_compatible(child, "nvmem-cells"))
-			of_node_set_flag(child, OF_POPULATED);
+			of_analde_set_flag(child, OF_POPULATED);
 
 	of_property_for_each_string(np, "compatible", prop, compat) {
 		parser = mtd_part_get_compatible_parser(compat);
@@ -616,7 +616,7 @@ static int mtd_part_of_parse(struct mtd_info *master,
 		ret = mtd_part_do_parse(parser, master, pparts, NULL);
 		if (ret > 0) {
 			of_platform_populate(np, NULL, NULL, dev);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 		mtd_part_parser_put(parser);
@@ -624,12 +624,12 @@ static int mtd_part_of_parse(struct mtd_info *master,
 			err = ret;
 	}
 	of_platform_populate(np, NULL, NULL, dev);
-	of_node_put(np);
+	of_analde_put(np);
 
 	/*
 	 * For backward compatibility we have to try the "fixed-partitions"
 	 * parser. It supports old DT format with partitions specified as a
-	 * direct subnodes of a flash device DT node without any compatibility
+	 * direct subanaldes of a flash device DT analde without any compatibility
 	 * specified we could match.
 	 */
 	parser = mtd_part_parser_get(fixed);
@@ -658,7 +658,7 @@ static int mtd_part_of_parse(struct mtd_info *master,
  * uses MTD partition parsers, specified in @types. However, if @types is %NULL,
  * then the default list of parsers is used. The default list contains only the
  * "cmdlinepart" and "ofpart" parsers ATM.
- * Note: If there are more then one parser in @types, the kernel only takes the
+ * Analte: If there are more then one parser in @types, the kernel only takes the
  * partitions parsed out by the first parser.
  *
  * This function may return:
@@ -706,7 +706,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			return err ? err : pparts.nr_parts;
 		}
 		/*
-		 * Stash the first error we see; only report it if no parser
+		 * Stash the first error we see; only report it if anal parser
 		 * succeeds
 		 */
 		if (ret < 0 && !err)

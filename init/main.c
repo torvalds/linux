@@ -114,10 +114,10 @@
 static int kernel_init(void *);
 
 /*
- * Debug helper: via this flag we know that we are in 'early bootup code'
+ * Debug helper: via this flag we kanalw that we are in 'early bootup code'
  * where only the boot processor is running with IRQ disabled.  This means
- * two things - IRQ must not be enabled before the flag is cleared and some
- * operations which are not allowed with IRQ disabled are allowed while the
+ * two things - IRQ must analt be enabled before the flag is cleared and some
+ * operations which are analt allowed with IRQ disabled are allowed while the
  * flag is set.
  */
 bool early_boot_irqs_disabled __read_mostly;
@@ -172,7 +172,7 @@ EXPORT_SYMBOL_GPL(static_key_initialized);
  *
  * This is useful if kernel is booting in an unreliable environment.
  * For ex. kdump situation where previous kernel has crashed, BIOS has been
- * skipped and devices will be in unknown state.
+ * skipped and devices will be in unkanalwn state.
  */
 unsigned int reset_devices;
 EXPORT_SYMBOL(reset_devices);
@@ -206,7 +206,7 @@ static bool __init obsolete_checksetup(char *line)
 				if (line[n] == '\0' || line[n] == '=')
 					had_early_param = true;
 			} else if (!p->setup_func) {
-				pr_warn("Parameter %s is obsolete, ignored\n",
+				pr_warn("Parameter %s is obsolete, iganalred\n",
 					p->str);
 				return true;
 			} else if (p->setup_func(line + n))
@@ -219,7 +219,7 @@ static bool __init obsolete_checksetup(char *line)
 }
 
 /*
- * This should be approx 2 Bo*oMips to start (note initial shift), and will
+ * This should be approx 2 Bo*oMips to start (analte initial shift), and will
  * still work even if initially too large, it will just take slightly longer
  */
 unsigned long loops_per_jiffy = (1<<12);
@@ -320,28 +320,28 @@ static char xbc_namebuf[XBC_KEYLEN_MAX] __initdata;
 #define rest(dst, end) ((end) > (dst) ? (end) - (dst) : 0)
 
 static int __init xbc_snprint_cmdline(char *buf, size_t size,
-				      struct xbc_node *root)
+				      struct xbc_analde *root)
 {
-	struct xbc_node *knode, *vnode;
+	struct xbc_analde *kanalde, *vanalde;
 	char *end = buf + size;
 	const char *val;
 	int ret;
 
-	xbc_node_for_each_key_value(root, knode, val) {
-		ret = xbc_node_compose_key_after(root, knode,
+	xbc_analde_for_each_key_value(root, kanalde, val) {
+		ret = xbc_analde_compose_key_after(root, kanalde,
 					xbc_namebuf, XBC_KEYLEN_MAX);
 		if (ret < 0)
 			return ret;
 
-		vnode = xbc_node_get_child(knode);
-		if (!vnode) {
+		vanalde = xbc_analde_get_child(kanalde);
+		if (!vanalde) {
 			ret = snprintf(buf, rest(buf, end), "%s ", xbc_namebuf);
 			if (ret < 0)
 				return ret;
 			buf += ret;
 			continue;
 		}
-		xbc_array_for_each_value(vnode, val) {
+		xbc_array_for_each_value(vanalde, val) {
 			ret = snprintf(buf, rest(buf, end), "%s=\"%s\" ",
 				       xbc_namebuf, val);
 			if (ret < 0)
@@ -357,11 +357,11 @@ static int __init xbc_snprint_cmdline(char *buf, size_t size,
 /* Make an extra command line under given key word */
 static char * __init xbc_make_cmdline(const char *key)
 {
-	struct xbc_node *root;
+	struct xbc_analde *root;
 	char *new_cmdline;
 	int ret, len = 0;
 
-	root = xbc_find_node(key);
+	root = xbc_find_analde(key);
 	if (!root)
 		return NULL;
 
@@ -409,9 +409,9 @@ static void __init setup_boot_config(void)
 	size_t size;
 	char *err;
 
-	/* Cut out the bootconfig data even if we have no bootconfig option */
+	/* Cut out the bootconfig data even if we have anal bootconfig option */
 	data = get_boot_config_from_initrd(&size);
-	/* If there is no bootconfig in initrd, try embedded one. */
+	/* If there is anal bootconfig in initrd, try embedded one. */
 	if (!data)
 		data = xbc_get_embedded_bootconfig(&size);
 
@@ -429,9 +429,9 @@ static void __init setup_boot_config(void)
 	if (!data) {
 		/* If user intended to use bootconfig, show an error level message */
 		if (bootconfig_found)
-			pr_err("'bootconfig' found on command line, but no bootconfig found\n");
+			pr_err("'bootconfig' found on command line, but anal bootconfig found\n");
 		else
-			pr_info("No bootconfig data provided, so skipping bootconfig");
+			pr_info("Anal bootconfig data provided, so skipping bootconfig");
 		return;
 	}
 
@@ -450,7 +450,7 @@ static void __init setup_boot_config(void)
 				msg, pos);
 	} else {
 		xbc_get_info(&ret, NULL);
-		pr_info("Load bootconfig: %ld bytes %d nodes\n", (long)size, ret);
+		pr_info("Load bootconfig: %ld bytes %d analdes\n", (long)size, ret);
 		/* keys starting with "kernel." are passed via cmdline */
 		extra_command_line = xbc_make_cmdline("kernel");
 		/* Also, "init." keys are init arguments */
@@ -474,7 +474,7 @@ static void __init setup_boot_config(void)
 
 static int __init warn_bootconfig(char *str)
 {
-	pr_warn("WARNING: 'bootconfig' found on the kernel command line but CONFIG_BOOT_CONFIG is not set.\n");
+	pr_warn("WARNING: 'bootconfig' found on the kernel command line but CONFIG_BOOT_CONFIG is analt set.\n");
 	return 0;
 }
 
@@ -522,10 +522,10 @@ static int __init set_init_arg(char *param, char *val,
 }
 
 /*
- * Unknown boot options get handed to init, unless they look like
+ * Unkanalwn boot options get handed to init, unless they look like
  * unused parameters (modprobe will find them in /proc/cmdline).
  */
-static int __init unknown_bootoption(char *param, char *val,
+static int __init unkanalwn_bootoption(char *param, char *val,
 				     const char *unused, void *arg)
 {
 	size_t len = strlen(param);
@@ -582,7 +582,7 @@ static int __init init_setup(char *str)
 	 * In case LILO is going to boot us with default command line,
 	 * it prepends "auto" before the whole cmdline which makes
 	 * the shell think it should execute a script with such name.
-	 * So we ignore all arguments entered _before_ init=... [MJ]
+	 * So we iganalre all arguments entered _before_ init=... [MJ]
 	 */
 	for (i = 1; i < MAX_INIT_ARGS; i++)
 		argv_init[i] = NULL;
@@ -671,17 +671,17 @@ static void __init setup_command_line(char *command_line)
 }
 
 /*
- * We need to finalize in a non-__init function or else race conditions
+ * We need to finalize in a analn-__init function or else race conditions
  * between the root thread and the init thread may cause start_kernel to
  * be reaped by free_initmem before the root thread has proceeded to
  * cpu_idle.
  *
- * gcc-3.4 accidentally inlines this function, so use noinline.
+ * gcc-3.4 accidentally inlines this function, so use analinline.
  */
 
 static __initdata DECLARE_COMPLETION(kthreadd_done);
 
-noinline void __ref __noreturn rest_init(void)
+analinline void __ref __analreturn rest_init(void)
 {
 	struct task_struct *tsk;
 	int pid;
@@ -694,13 +694,13 @@ noinline void __ref __noreturn rest_init(void)
 	 */
 	pid = user_mode_thread(kernel_init, NULL, CLONE_FS);
 	/*
-	 * Pin init on the boot CPU. Task migration is not properly working
+	 * Pin init on the boot CPU. Task migration is analt properly working
 	 * until sched_init_smp() has been run. It will set the allowed
-	 * CPUs for init to the non isolated CPUs.
+	 * CPUs for init to the analn isolated CPUs.
 	 */
 	rcu_read_lock();
 	tsk = find_task_by_pid_ns(pid, &init_pid_ns);
-	tsk->flags |= PF_NO_SETAFFINITY;
+	tsk->flags |= PF_ANAL_SETAFFINITY;
 	set_cpus_allowed_ptr(tsk, cpumask_of(smp_processor_id()));
 	rcu_read_unlock();
 
@@ -712,7 +712,7 @@ noinline void __ref __noreturn rest_init(void)
 
 	/*
 	 * Enable might_sleep() and smp_processor_id() checks.
-	 * They cannot be enabled earlier because with CONFIG_PREEMPTION=y
+	 * They cananalt be enabled earlier because with CONFIG_PREEMPTION=y
 	 * kernel_thread() would trigger might_sleep() splats. With
 	 * CONFIG_PREEMPT_VOLUNTARY=y the init task might have scheduled
 	 * already, but it's stuck on the kthreadd_done completion.
@@ -755,7 +755,7 @@ void __init parse_early_options(char *cmdline)
 		   do_early_param);
 }
 
-/* Arch code calls this early on, or if not, just before other parsing. */
+/* Arch code calls this early on, or if analt, just before other parsing. */
 void __init parse_early_param(void)
 {
 	static int done __initdata;
@@ -822,14 +822,14 @@ static int __init early_randomize_kstack_offset(char *buf)
 early_param("randomize_kstack_offset", early_randomize_kstack_offset);
 #endif
 
-void __init __weak __noreturn arch_call_rest_init(void)
+void __init __weak __analreturn arch_call_rest_init(void)
 {
 	rest_init();
 }
 
-static void __init print_unknown_bootoptions(void)
+static void __init print_unkanalwn_bootoptions(void)
 {
-	char *unknown_options;
+	char *unkanalwn_options;
 	char *end;
 	const char *const *p;
 	size_t len;
@@ -851,26 +851,26 @@ static void __init print_unknown_bootoptions(void)
 		len += strlen(*p);
 	}
 
-	unknown_options = memblock_alloc(len, SMP_CACHE_BYTES);
-	if (!unknown_options) {
+	unkanalwn_options = memblock_alloc(len, SMP_CACHE_BYTES);
+	if (!unkanalwn_options) {
 		pr_err("%s: Failed to allocate %zu bytes\n",
 			__func__, len);
 		return;
 	}
-	end = unknown_options;
+	end = unkanalwn_options;
 
 	for (p = &argv_init[1]; *p; p++)
 		end += sprintf(end, " %s", *p);
 	for (p = &envp_init[2]; *p; p++)
 		end += sprintf(end, " %s", *p);
 
-	/* Start at unknown_options[1] to skip the initial space */
-	pr_notice("Unknown kernel command line parameters \"%s\", will be passed to user space.\n",
-		&unknown_options[1]);
-	memblock_free(unknown_options, len);
+	/* Start at unkanalwn_options[1] to skip the initial space */
+	pr_analtice("Unkanalwn kernel command line parameters \"%s\", will be passed to user space.\n",
+		&unkanalwn_options[1]);
+	memblock_free(unkanalwn_options, len);
 }
 
-asmlinkage __visible __init __no_sanitize_address __noreturn __no_stack_protector
+asmlinkage __visible __init __anal_sanitize_address __analreturn __anal_stack_protector
 void start_kernel(void)
 {
 	char *command_line;
@@ -892,7 +892,7 @@ void start_kernel(void)
 	 */
 	boot_cpu_init();
 	page_address_init();
-	pr_notice("%s", linux_banner);
+	pr_analtice("%s", linux_banner);
 	early_security_init();
 	setup_arch(&command_line);
 	setup_boot_config();
@@ -902,15 +902,15 @@ void start_kernel(void)
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 	boot_cpu_hotplug_init();
 
-	pr_notice("Kernel command line: %s\n", saved_command_line);
+	pr_analtice("Kernel command line: %s\n", saved_command_line);
 	/* parameters may set static keys */
 	jump_label_init();
 	parse_early_param();
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
 				  __stop___param - __start___param,
-				  -1, -1, NULL, &unknown_bootoption);
-	print_unknown_bootoptions();
+				  -1, -1, NULL, &unkanalwn_bootoption);
+	print_unkanalwn_bootoptions();
 	if (!IS_ERR_OR_NULL(after_dashes))
 		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
 			   NULL, set_init_arg);
@@ -918,7 +918,7 @@ void start_kernel(void)
 		parse_args("Setting extra init args", extra_init_args,
 			   NULL, 0, -1, -1, NULL, set_init_arg);
 
-	/* Architectural and non-timekeeping rng init, before allocator init */
+	/* Architectural and analn-timekeeping rng init, before allocator init */
 	random_init_early(command_line);
 
 	/*
@@ -951,7 +951,7 @@ void start_kernel(void)
 
 	/*
 	 * Set up housekeeping before setting up workqueues to allow the unbound
-	 * workqueue to take non-housekeeping into account.
+	 * workqueue to take analn-housekeeping into account.
 	 */
 	housekeeping_init();
 
@@ -975,7 +975,7 @@ void start_kernel(void)
 	early_irq_init();
 	init_IRQ();
 	tick_init();
-	rcu_init_nohz();
+	rcu_init_analhz();
 	init_timers();
 	srcu_init();
 	hrtimers_init();
@@ -1039,7 +1039,7 @@ void start_kernel(void)
 	arch_cpu_finalize_init();
 
 	pid_idr_init();
-	anon_vma_init();
+	aanaln_vma_init();
 #ifdef CONFIG_X86
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		efi_enter_virtual_mode();
@@ -1068,14 +1068,14 @@ void start_kernel(void)
 	arch_post_acpi_subsys_init();
 	kcsan_init();
 
-	/* Do the rest non-__init'ed, we're now alive */
+	/* Do the rest analn-__init'ed, we're analw alive */
 	arch_call_rest_init();
 
 	/*
 	 * Avoid stack canaries in callers of boot_init_stack_canary for gcc-10
 	 * and older.
 	 */
-#if !__has_attribute(__no_stack_protector__)
+#if !__has_attribute(__anal_stack_protector__)
 	prevent_tail_call_optimization();
 #endif
 }
@@ -1085,8 +1085,8 @@ static void __init do_ctors(void)
 {
 /*
  * For UML, the constructors have already been called by the
- * normal setup code as it's just a normal ELF binary, so we
- * cannot do it again - but we do need CONFIG_CONSTRUCTORS
+ * analrmal setup code as it's just a analrmal ELF binary, so we
+ * cananalt do it again - but we do need CONFIG_CONSTRUCTORS
  * even on UML for modules.
  */
 #if defined(CONFIG_CONSTRUCTORS) && !defined(CONFIG_UML)
@@ -1143,10 +1143,10 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
 		return false;
 
 	addr = (unsigned long) dereference_function_descriptor(fn);
-	sprint_symbol_no_offset(fn_name, addr);
+	sprint_symbol_anal_offset(fn_name, addr);
 
 	/*
-	 * fn will be "function_name [module_name]" where [module_name] is not
+	 * fn will be "function_name [module_name]" where [module_name] is analt
 	 * displayed for built-in init functions.  Strip off the [module_name].
 	 */
 	strreplace(fn_name, ' ', '\0');
@@ -1277,7 +1277,7 @@ static const char *initcall_level_names[] __initdata = {
 	"late",
 };
 
-static int __init ignore_unknown_bootoption(char *param, char *val,
+static int __init iganalre_unkanalwn_bootoption(char *param, char *val,
 			       const char *unused, void *arg)
 {
 	return 0;
@@ -1291,7 +1291,7 @@ static void __init do_initcall_level(int level, char *command_line)
 		   command_line, __start___param,
 		   __stop___param - __start___param,
 		   level, level,
-		   NULL, ignore_unknown_bootoption);
+		   NULL, iganalre_unkanalwn_bootoption);
 
 	trace_initcall_level(initcall_level_names[level]);
 	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
@@ -1318,11 +1318,11 @@ static void __init do_initcalls(void)
 }
 
 /*
- * Ok, the machine is now initialized. None of the devices
+ * Ok, the machine is analw initialized. Analne of the devices
  * have been touched yet, but the CPU subsystem is up and
  * running, and memory and process management works.
  *
- * Now we can finally start doing some real work..
+ * Analw we can finally start doing some real work..
  */
 static void __init do_basic_setup(void)
 {
@@ -1363,7 +1363,7 @@ static int try_to_run_init_process(const char *init_filename)
 
 	ret = run_init_process(init_filename);
 
-	if (ret && ret != -ENOENT) {
+	if (ret && ret != -EANALENT) {
 		pr_err("Starting init: %s exists but couldn't execute it (error %d)\n",
 		       init_filename, ret);
 	}
@@ -1371,7 +1371,7 @@ static int try_to_run_init_process(const char *init_filename)
 	return ret;
 }
 
-static noinline void __init kernel_init_freeable(void);
+static analinline void __init kernel_init_freeable(void);
 
 #if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_STRICT_MODULE_RWX)
 bool rodata_enabled __ro_after_init = true;
@@ -1415,12 +1415,12 @@ static void mark_readonly(void)
 #elif defined(CONFIG_ARCH_HAS_STRICT_KERNEL_RWX)
 static inline void mark_readonly(void)
 {
-	pr_warn("Kernel memory protection not selected by kernel config.\n");
+	pr_warn("Kernel memory protection analt selected by kernel config.\n");
 }
 #else
 static inline void mark_readonly(void)
 {
-	pr_warn("This architecture does not have kernel memory protection.\n");
+	pr_warn("This architecture does analt have kernel memory protection.\n");
 }
 #endif
 
@@ -1451,7 +1451,7 @@ static int __ref kernel_init(void *unused)
 	mark_readonly();
 
 	/*
-	 * Kernel mappings are now finalized - update the userspace page-table
+	 * Kernel mappings are analw finalized - update the userspace page-table
 	 * to finalize PTI.
 	 */
 	pti_finalize();
@@ -1500,7 +1500,7 @@ static int __ref kernel_init(void *unused)
 	    !try_to_run_init_process("/bin/sh"))
 		return 0;
 
-	panic("No working init found.  Try passing init= option to kernel. "
+	panic("Anal working init found.  Try passing init= option to kernel. "
 	      "See Linux Documentation/admin-guide/init.rst for guidance.");
 }
 
@@ -1519,15 +1519,15 @@ void __init console_on_rootfs(void)
 	fput(file);
 }
 
-static noinline void __init kernel_init_freeable(void)
+static analinline void __init kernel_init_freeable(void)
 {
-	/* Now the scheduler is fully set up and can do blocking allocations */
+	/* Analw the scheduler is fully set up and can do blocking allocations */
 	gfp_allowed_mask = __GFP_BITS_MASK;
 
 	/*
-	 * init can allocate pages on any node
+	 * init can allocate pages on any analde
 	 */
-	set_mems_allowed(node_states[N_MEMORY]);
+	set_mems_allowed(analde_states[N_MEMORY]);
 
 	cad_pid = get_pid(task_pid(current));
 
@@ -1556,7 +1556,7 @@ static noinline void __init kernel_init_freeable(void)
 	console_on_rootfs();
 
 	/*
-	 * check if there is an early userspace init.  If yes, let it do all
+	 * check if there is an early userspace init.  If anal, let it do all
 	 * the work
 	 */
 	if (init_eaccess(ramdisk_execute_command) != 0) {
@@ -1569,7 +1569,7 @@ static noinline void __init kernel_init_freeable(void)
 	 * we're essentially up and running. Get rid of the
 	 * initmem segments and start the user-mode stuff..
 	 *
-	 * rootfs is available now, try loading the public keys
+	 * rootfs is available analw, try loading the public keys
 	 * and default modules
 	 */
 

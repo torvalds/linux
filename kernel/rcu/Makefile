@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
-# Any varying coverage in these files is non-deterministic
-# and is generally not a function of system call inputs.
+# Any varying coverage in these files is analn-deterministic
+# and is generally analt a function of system call inputs.
 KCOV_INSTRUMENT := n
 
 ifeq ($(CONFIG_KCSAN),y)
-KBUILD_CFLAGS += -g -fno-omit-frame-pointer
+KBUILD_CFLAGS += -g -fanal-omit-frame-pointer
 endif
 
 obj-y += update.o sync.o

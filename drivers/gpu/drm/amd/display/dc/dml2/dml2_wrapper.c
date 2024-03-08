@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -130,7 +130,7 @@ static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrappe
 	// Optimize P-State Support
 	if (dml2->config.use_native_pstate_optimization) {
 		if (p->cur_mode_support_info->DRAMClockChangeSupport[0] == dml_dram_clock_change_unsupported) {
-			// Find a display with < 120Hz refresh rate with maximal refresh rate that's not already subvp
+			// Find a display with < 120Hz refresh rate with maximal refresh rate that's analt already subvp
 			subvp_timing_to_add = -1;
 			subvp_surface_to_add = -1;
 			max_frame_time_sec = 0;
@@ -192,7 +192,7 @@ static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrappe
 
 				p->new_display_config->plane.NumberOfCursors[new_surface_index] = 0;
 
-				p->new_policy->ImmediateFlipRequirement[new_surface_index] = dml_immediate_flip_not_required;
+				p->new_policy->ImmediateFlipRequirement[new_surface_index] = dml_immediate_flip_analt_required;
 
 				p->new_display_config->plane.BlendingAndTiming[new_surface_index] = new_timing_index;
 
@@ -233,7 +233,7 @@ static int calculate_lowest_supported_state_for_temp_read(struct dml2_context *d
 	unsigned int dml_result = 0;
 	int result = -1, i, j;
 
-	build_unoptimized_policy_settings(dml2->v20.dml_core_ctx.project, &dml2->v20.dml_core_ctx.policy);
+	build_uanalptimized_policy_settings(dml2->v20.dml_core_ctx.project, &dml2->v20.dml_core_ctx.policy);
 
 	/* Zero out before each call before proceeding */
 	memset(s, 0, sizeof(struct dml2_calculate_lowest_supported_state_for_temp_read_scratch));
@@ -244,7 +244,7 @@ static int calculate_lowest_supported_state_for_temp_read(struct dml2_context *d
 		/* Calling resource_build_scaling_params will populate the pipe params
 		 * with the necessary information needed for correct DML calculations
 		 * This is also done in DML1 driver code path and hence display_state
-		 * cannot be const.
+		 * cananalt be const.
 		 */
 		struct pipe_ctx *pipe = &display_state->res_ctx.pipe_ctx[i];
 
@@ -338,7 +338,7 @@ static bool dml_mode_support_wrapper(struct dml2_context *dml2,
 	unsigned int result = 0, i;
 	unsigned int optimized_result = true;
 
-	build_unoptimized_policy_settings(dml2->v20.dml_core_ctx.project, &dml2->v20.dml_core_ctx.policy);
+	build_uanalptimized_policy_settings(dml2->v20.dml_core_ctx.project, &dml2->v20.dml_core_ctx.policy);
 
 	/* Zero out before each call before proceeding */
 	memset(&s->cur_display_config, 0, sizeof(struct dml_display_cfg_st));
@@ -350,7 +350,7 @@ static bool dml_mode_support_wrapper(struct dml2_context *dml2,
 		/* Calling resource_build_scaling_params will populate the pipe params
 		 * with the necessary information needed for correct DML calculations
 		 * This is also done in DML1 driver code path and hence display_state
-		 * cannot be const.
+		 * cananalt be const.
 		 */
 		struct pipe_ctx *pipe = &display_state->res_ctx.pipe_ctx[i];
 
@@ -423,9 +423,9 @@ static int find_drr_eligible_stream(struct dc_state *display_state)
 	int i;
 
 	for (i = 0; i < display_state->stream_count; i++) {
-		if (dc_state_get_stream_subvp_type(display_state, display_state->streams[i]) == SUBVP_NONE
-			&& display_state->streams[i]->ignore_msa_timing_param) {
-			// Use ignore_msa_timing_param flag to identify as DRR
+		if (dc_state_get_stream_subvp_type(display_state, display_state->streams[i]) == SUBVP_ANALNE
+			&& display_state->streams[i]->iganalre_msa_timing_param) {
+			// Use iganalre_msa_timing_param flag to identify as DRR
 			return i;
 		}
 	}
@@ -439,7 +439,7 @@ static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct d
 	bool pstate_optimization_done = false;
 	bool pstate_optimization_success = false;
 	bool result = false;
-	int drr_display_index = 0, non_svp_streams = 0;
+	int drr_display_index = 0, analn_svp_streams = 0;
 	bool force_svp = dml2->config.svp_pstate.force_enable_subvp;
 	bool advanced_pstate_switching = false;
 
@@ -461,7 +461,7 @@ static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct d
 
 			result = dml_mode_support_wrapper(dml2, display_state);
 	} else {
-		non_svp_streams = display_state->stream_count;
+		analn_svp_streams = display_state->stream_count;
 
 		while (!pstate_optimization_done) {
 			result = dml_mode_programming(&dml2->v20.dml_core_ctx, s->mode_support_params.out_lowest_state_idx, &s->cur_display_config, true);
@@ -480,7 +480,7 @@ static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct d
 			}
 
 			if (result) {
-				non_svp_streams--;
+				analn_svp_streams--;
 
 				if (s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported) {
 					if (dml2_svp_validate_static_schedulability(dml2, display_state, s->mode_support_info.DRAMClockChangeSupport[0])) {
@@ -493,9 +493,9 @@ static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct d
 				} else {
 					drr_display_index = find_drr_eligible_stream(display_state);
 
-					// If there is only 1 remaining non SubVP pipe that is DRR, check static
+					// If there is only 1 remaining analn SubVP pipe that is DRR, check static
 					// schedulability for SubVP + DRR.
-					if (non_svp_streams == 1 && drr_display_index >= 0) {
+					if (analn_svp_streams == 1 && drr_display_index >= 0) {
 						if (dml2_svp_drr_schedulable(dml2, display_state, &display_state->streams[drr_display_index]->timing)) {
 							display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid = true;
 							display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index = drr_display_index;
@@ -587,14 +587,14 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 
 	result = call_dml_mode_support_and_programming(context);
 	/* Call map dc pipes to map the pipes based on the DML output. For correctly determining if recalculation
-	 * is required or not, the resource context needs to correctly reflect the number of active pipes. We would
-	 * only know the correct number if active pipes after dml2_map_dc_pipes is called.
+	 * is required or analt, the resource context needs to correctly reflect the number of active pipes. We would
+	 * only kanalw the correct number if active pipes after dml2_map_dc_pipes is called.
 	 */
 	if (result && !dml2->config.skip_hw_state_mapping)
 		dml2_map_dc_pipes(dml2, context, &s->cur_display_config, &s->dml_to_dc_pipe_mapping, in_dc->current_state);
 
 	/* Verify and update DET Buffer configuration if needed. dml2_verify_det_buffer_configuration will check if DET Buffer
-	 * size needs to be updated. If yes it will update the DETOverride variable and set need_recalculation flag to true.
+	 * size needs to be updated. If anal it will update the DETOverride variable and set need_recalculation flag to true.
 	 * Based on that flag, run mode support again. Verification needs to be run after dml_mode_programming because the getters
 	 * return correct det buffer values only after dml_mode_programming is called.
 	 */
@@ -660,7 +660,7 @@ static bool dml2_validate_only(struct dc_state *context)
 	memset(&dml2->v20.dml_core_ctx.ms, 0, sizeof(struct mode_support_st));
 	memset(&dml2->v20.dml_core_ctx.mp, 0, sizeof(struct mode_program_st));
 
-	build_unoptimized_policy_settings(dml2->v20.dml_core_ctx.project, &dml2->v20.dml_core_ctx.policy);
+	build_uanalptimized_policy_settings(dml2->v20.dml_core_ctx.project, &dml2->v20.dml_core_ctx.policy);
 
 	map_dc_state_into_dml_display_cfg(dml2, context, &dml2->v20.scratch.cur_display_config);
 

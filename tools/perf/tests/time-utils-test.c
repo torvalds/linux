@@ -64,7 +64,7 @@ struct test_data {
 	struct perf_time_interval ptime[TEST_MAX];
 	int num;
 	u64 skip[TEST_MAX];
-	u64 noskip[TEST_MAX];
+	u64 analskip[TEST_MAX];
 };
 
 static bool test__perf_time__parse_for_ranges(struct test_data *d)
@@ -118,9 +118,9 @@ static bool test__perf_time__parse_for_ranges(struct test_data *d)
 			pr_debug("failed to skip %" PRIu64 "\n", d->skip[i]);
 			goto out;
 		}
-		if (d->noskip[i] &&
-		    perf_time__ranges_skip_sample(ptime, d->num, d->noskip[i])) {
-			pr_debug("failed to keep %" PRIu64 "\n", d->noskip[i]);
+		if (d->analskip[i] &&
+		    perf_time__ranges_skip_sample(ptime, d->num, d->analskip[i])) {
+			pr_debug("failed to keep %" PRIu64 "\n", d->analskip[i]);
 			goto out;
 		}
 	}
@@ -162,7 +162,7 @@ static int test__time_utils(struct test_suite *t __maybe_unused, int subtest __m
 			.ptime = { {b, b + 1}, },
 			.num = 1,
 			.skip = { b - 1, b + 2, },
-			.noskip = { b, b + 1, },
+			.analskip = { b, b + 1, },
 		};
 
 		pass &= test__perf_time__parse_for_ranges(&d);
@@ -179,7 +179,7 @@ static int test__time_utils(struct test_suite *t __maybe_unused, int subtest __m
 			.ptime = { {b, b + 1}, {c, c + 123}, {e, e + 5}, },
 			.num = 3,
 			.skip = { b - 1, b + 2, c - 1, c + 124, e - 1, e + 6 },
-			.noskip = { b, b + 1, c, c + 123, e, e + 5 },
+			.analskip = { b, b + 1, c, c + 123, e, e + 5 },
 		};
 
 		pass &= test__perf_time__parse_for_ranges(&d);
@@ -194,7 +194,7 @@ static int test__time_utils(struct test_suite *t __maybe_unused, int subtest __m
 			.ptime  = { {b, b + 9}, },
 			.num    = 1,
 			.skip   = { b - 1, b + 10, },
-			.noskip = { b, b + 9, },
+			.analskip = { b, b + 9, },
 		};
 
 		pass &= test__perf_time__parse_for_ranges(&d);
@@ -209,7 +209,7 @@ static int test__time_utils(struct test_suite *t __maybe_unused, int subtest __m
 			.ptime  = { {b + 10, b + 19}, },
 			.num    = 1,
 			.skip   = { b + 9, b + 20, },
-			.noskip = { b + 10, b + 19, },
+			.analskip = { b + 10, b + 19, },
 		};
 
 		pass &= test__perf_time__parse_for_ranges(&d);
@@ -224,7 +224,7 @@ static int test__time_utils(struct test_suite *t __maybe_unused, int subtest __m
 			.ptime  = { {b, b + 9}, {b + 10, b + 19}, },
 			.num    = 2,
 			.skip   = { b - 1, b + 20, },
-			.noskip = { b, b + 8, b + 9, b + 10, b + 11, b + 12, b + 19, },
+			.analskip = { b, b + 8, b + 9, b + 10, b + 11, b + 12, b + 19, },
 		};
 
 		pass &= test__perf_time__parse_for_ranges(&d);
@@ -239,7 +239,7 @@ static int test__time_utils(struct test_suite *t __maybe_unused, int subtest __m
 			.ptime  = { {b, b + 9}, {b + 20, b + 29}, { b + 90, b + 100}, },
 			.num    = 3,
 			.skip   = { b - 1, b + 10, b + 19, b + 30, b + 89, b + 101 },
-			.noskip = { b, b + 9, b + 20, b + 29, b + 90, b + 100},
+			.analskip = { b, b + 9, b + 20, b + 29, b + 90, b + 100},
 		};
 
 		pass &= test__perf_time__parse_for_ranges(&d);

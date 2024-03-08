@@ -62,7 +62,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"jset32: ignores upper bits",
+	"jset32: iganalres upper bits",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_LD_IMM64(BPF_REG_7, 0x8000000000000000),
@@ -817,7 +817,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"jgt32: range bound deduction, reg1 op reg2, reg1 unknown",
+	"jgt32: range bound deduction, reg1 op reg2, reg1 unkanalwn",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_8, BPF_REG_1),
@@ -845,7 +845,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"jle32: range bound deduction, reg1 op reg2, reg2 unknown",
+	"jle32: range bound deduction, reg1 op reg2, reg2 unkanalwn",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_8, BPF_REG_1),

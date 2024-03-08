@@ -83,11 +83,11 @@ static void p80211req_handle_action(struct wlandevice *wlandev, u32 *data,
  *	msgbuf		Buffer containing a request message
  *
  * Returns:
- *	0 on success, an errno otherwise
+ *	0 on success, an erranal otherwise
  *
  * Call context:
  *	Potentially blocks the caller, so it's a good idea to
- *	not call this function from an interrupt context.
+ *	analt call this function from an interrupt context.
  *----------------------------------------------------------------
  */
 int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
@@ -99,14 +99,14 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 	       msg->msgcode == DIDMSG_LNXREQ_IFSTATE) ||
 	      wlandev->msdstate == WLAN_MSD_RUNNING ||
 	      wlandev->msdstate == WLAN_MSD_FWLOAD)) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Check Permissions */
 	if (!capable(CAP_NET_ADMIN) &&
 	    (msg->msgcode != DIDMSG_DOT11REQ_MIBGET)) {
 		netdev_err(wlandev->netdev,
-			   "%s: only dot11req_mibget allowed for non-root.\n",
+			   "%s: only dot11req_mibget allowed for analn-root.\n",
 			   wlandev->name);
 		return -EPERM;
 	}
@@ -116,7 +116,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 		return -EBUSY;
 
 	/* Allow p80211 to look at msg and handle if desired. */
-	/* So far, all p80211 msgs are immediate, no waitq/timer necessary */
+	/* So far, all p80211 msgs are immediate, anal waitq/timer necessary */
 	/* This may change. */
 	p80211req_handlemsg(wlandev, msg);
 
@@ -141,7 +141,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
  *	msg		message structure
  *
  * Returns:
- *	nothing (any results are set in the status field of the msg)
+ *	analthing (any results are set in the status field of the msg)
  *
  * Call context:
  *	Process thread

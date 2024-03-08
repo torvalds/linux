@@ -45,7 +45,7 @@ struct clocksource bcm1250_clocksource = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace sb1250_read_sched_clock(void)
+static u64 analtrace sb1250_read_sched_clock(void)
 {
 	return sb1250_hpt_get_cycles();
 }
@@ -54,7 +54,7 @@ void __init sb1250_clocksource_init(void)
 {
 	struct clocksource *cs = &bcm1250_clocksource;
 
-	/* Setup hpt using timer #3 but do not enable irq for it */
+	/* Setup hpt using timer #3 but do analt enable irq for it */
 	__raw_writeq(0,
 		     IOADDR(A_SCD_TIMER_REGISTER(SB1250_HPT_NUM,
 						 R_SCD_TIMER_CFG)));

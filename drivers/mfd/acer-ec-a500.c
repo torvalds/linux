@@ -25,7 +25,7 @@
 #define CMD_COLD_REBOOT			0x1
 
 enum {
-	REG_CURRENT_NOW = 0x03,
+	REG_CURRENT_ANALW = 0x03,
 	REG_SHUTDOWN = 0x52,
 	REG_WARM_REBOOT = 0x54,
 	REG_COLD_REBOOT = 0x55,
@@ -58,7 +58,7 @@ static int a500_ec_read(void *context, const void *reg_buf, size_t reg_size,
 
 	*ret_val = ret;
 
-	if (reg == REG_CURRENT_NOW)
+	if (reg == REG_CURRENT_ANALW)
 		fsleep(10000);
 
 	return 0;
@@ -112,7 +112,7 @@ static void a500_ec_poweroff(void)
 	mdelay(A500_EC_POWER_CMD_TIMEOUT);
 }
 
-static int a500_ec_restart_notify(struct notifier_block *this,
+static int a500_ec_restart_analtify(struct analtifier_block *this,
 				  unsigned long reboot_mode, void *data)
 {
 	if (reboot_mode == REBOOT_WARM)
@@ -124,11 +124,11 @@ static int a500_ec_restart_notify(struct notifier_block *this,
 
 	mdelay(A500_EC_POWER_CMD_TIMEOUT);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block a500_ec_restart_handler = {
-	.notifier_call = a500_ec_restart_notify,
+static struct analtifier_block a500_ec_restart_handler = {
+	.analtifier_call = a500_ec_restart_analtify,
 	.priority = 200,
 };
 
@@ -155,7 +155,7 @@ static int a500_ec_probe(struct i2c_client *client)
 		return err;
 	}
 
-	if (of_device_is_system_power_controller(client->dev.of_node)) {
+	if (of_device_is_system_power_controller(client->dev.of_analde)) {
 		a500_ec_client_pm_off = client;
 
 		err = register_restart_handler(&a500_ec_restart_handler);
@@ -171,7 +171,7 @@ static int a500_ec_probe(struct i2c_client *client)
 
 static void a500_ec_remove(struct i2c_client *client)
 {
-	if (of_device_is_system_power_controller(client->dev.of_node)) {
+	if (of_device_is_system_power_controller(client->dev.of_analde)) {
 		if (pm_power_off == a500_ec_poweroff)
 			pm_power_off = NULL;
 

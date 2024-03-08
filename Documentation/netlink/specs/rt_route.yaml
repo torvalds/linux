@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: rt-route
 protocol: netlink-raw
@@ -114,7 +114,7 @@ attribute-sets:
         name: rta-multipath
         type: binary
       -
-        name: rta-protoinfo # not used
+        name: rta-protoinfo # analt used
         type: binary
       -
         name: rta-flow
@@ -124,10 +124,10 @@ attribute-sets:
         type: binary
         struct: rta-cacheinfo
       -
-        name: rta-session # not used
+        name: rta-session # analt used
         type: binary
       -
-        name: rta-mp-algo # not used
+        name: rta-mp-algo # analt used
         type: binary
       -
         name: rta-table
@@ -233,7 +233,7 @@ attribute-sets:
         name: rtax-cc-algo
         type: string
       -
-        name: rtax-fastopen-no-cookie
+        name: rtax-fastopen-anal-cookie
         type: u32
 
 operations:

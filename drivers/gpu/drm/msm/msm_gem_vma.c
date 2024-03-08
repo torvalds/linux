@@ -42,7 +42,7 @@ msm_gem_address_space_get(struct msm_gem_address_space *aspace)
 void msm_gem_vma_purge(struct msm_gem_vma *vma)
 {
 	struct msm_gem_address_space *aspace = vma->aspace;
-	unsigned size = vma->node.size;
+	unsigned size = vma->analde.size;
 
 	/* Don't do anything if the memory isn't mapped */
 	if (!vma->mapped)
@@ -73,7 +73,7 @@ msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 		return 0;
 
 	/*
-	 * NOTE: iommu/io-pgtable can allocate pages, so we cannot hold
+	 * ANALTE: iommu/io-pgtable can allocate pages, so we cananalt hold
 	 * a lock across map/unmap which is also used in the job_run()
 	 * path, as this can cause deadlock in job_run() vs shrinker/
 	 * reclaim.
@@ -99,7 +99,7 @@ void msm_gem_vma_close(struct msm_gem_vma *vma)
 
 	spin_lock(&aspace->lock);
 	if (vma->iova)
-		drm_mm_remove_node(&vma->node);
+		drm_mm_remove_analde(&vma->analde);
 	spin_unlock(&aspace->lock);
 
 	vma->iova = 0;
@@ -134,7 +134,7 @@ int msm_gem_vma_init(struct msm_gem_vma *vma, int size,
 		return -EBUSY;
 
 	spin_lock(&aspace->lock);
-	ret = drm_mm_insert_node_in_range(&aspace->mm, &vma->node,
+	ret = drm_mm_insert_analde_in_range(&aspace->mm, &vma->analde,
 					  size, PAGE_SIZE, 0,
 					  range_start, range_end, 0);
 	spin_unlock(&aspace->lock);
@@ -142,7 +142,7 @@ int msm_gem_vma_init(struct msm_gem_vma *vma, int size,
 	if (ret)
 		return ret;
 
-	vma->iova = vma->node.start;
+	vma->iova = vma->analde.start;
 	vma->mapped = false;
 
 	kref_get(&aspace->kref);
@@ -161,7 +161,7 @@ msm_gem_address_space_create(struct msm_mmu *mmu, const char *name,
 
 	aspace = kzalloc(sizeof(*aspace), GFP_KERNEL);
 	if (!aspace)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&aspace->lock);
 	aspace->name = name;

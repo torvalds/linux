@@ -25,10 +25,10 @@ static void test_xattr(void)
 	fd = -1;
 
 	err = setxattr(testfile, "user.kfuncs", "hello", sizeof("hello"), 0);
-	if (err && errno == EOPNOTSUPP) {
+	if (err && erranal == EOPANALTSUPP) {
 		printf("%s:SKIP:local fs doesn't support xattr (%d)\n"
 		       "To run this test, make sure /tmp filesystem supports xattr.\n",
-		       __func__, errno);
+		       __func__, erranal);
 		test__skip();
 		goto out;
 	}
@@ -74,7 +74,7 @@ static void test_fsverity(void)
 	if (!ASSERT_GE(fd, 0, "create_file"))
 		return;
 
-	/* Write random buffer, so the file is not empty */
+	/* Write random buffer, so the file is analt empty */
 	err = write(fd, buffer, 4096);
 	if (!ASSERT_EQ(err, 4096, "write_file"))
 		goto out;
@@ -96,7 +96,7 @@ static void test_fsverity(void)
 	if (err) {
 		printf("%s:SKIP:local fs doesn't support fsverity (%d)\n"
 		       "To run this test, try enable CONFIG_FS_VERITY and enable FSVerity for the filesystem.\n",
-		       __func__, errno);
+		       __func__, erranal);
 		test__skip();
 		goto out;
 	}

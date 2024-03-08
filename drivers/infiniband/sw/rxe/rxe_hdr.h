@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -40,7 +40,7 @@ static inline struct sk_buff *PKT_TO_SKB(struct rxe_pkt_info *pkt)
  * IBA header types and methods
  *
  * Some of these are for reference and completeness only since
- * rxe does not currently support RD transport
+ * rxe does analt currently support RD transport
  * most of this could be moved into IB core. ib_pack.h has
  * part of this but is incomplete
  *

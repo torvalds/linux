@@ -320,7 +320,7 @@ void rtl92ee_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_DMESG,
-			"switch case %#x not processed\n", variable);
+			"switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -346,7 +346,7 @@ static void _rtl92ee_download_rsvd_page(struct ieee80211_hw *hw)
 	_rtl92ee_set_bcn_ctrl_reg(hw, BIT(4), 0);
 
 	/* Set FWHW_TXQ_CTRL 0x422[6]=0 to
-	 * tell Hw the packet is not a real beacon frame.
+	 * tell Hw the packet is analt a real beacon frame.
 	 */
 	tmp_reg422 = rtl_read_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 2);
 	rtl_write_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 2, tmp_reg422 & (~BIT(6)));
@@ -472,12 +472,12 @@ void rtl92ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtl_write_byte(rtlpriv, REG_SECCFG, *((u8 *)val));
 		break;
 	case HW_VAR_AMPDU_FACTOR:{
-		u8 regtoset_normal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
+		u8 regtoset_analrmal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
 		u8 fac;
 		u8 *reg = NULL;
 		u8 i = 0;
 
-		reg = regtoset_normal;
+		reg = regtoset_analrmal;
 
 		fac = *((u8 *)val);
 		if (fac <= 3) {
@@ -546,7 +546,7 @@ void rtl92ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				break;
 			default:
 				rtl_dbg(rtlpriv, COMP_ERR, DBG_DMESG,
-					"switch case %#x not processed\n",
+					"switch case %#x analt processed\n",
 					e_aci);
 				break;
 			}
@@ -666,7 +666,7 @@ void rtl92ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_DMESG,
-			"switch case %#x not processed\n", variable);
+			"switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -875,7 +875,7 @@ dma64_end:
 			DMA_BIT_MASK(32));
 
 	/* if we want to support 64 bit DMA, we should set it here,
-	 * but now we do not support 64 bit DMA
+	 * but analw we do analt support 64 bit DMA
 	 */
 
 	rtl_write_dword(rtlpriv, REG_TSFTIMER_HCI, 0x3fffffff);
@@ -972,7 +972,7 @@ static void _rtl92ee_hw_configure(struct ieee80211_hw *hw)
 	/* Marked out by Bruce, 2010-09-09.
 	 * This register is configured for the 2nd Beacon (multiple BSSID).
 	 * We shall disable this register if we only support 1 BSSID.
-	 * vivi guess 92d also need this, also 92d now doesnot set this reg
+	 * vivi guess 92d also need this, also 92d analw doesanalt set this reg
 	 */
 	rtl_write_byte(rtlpriv, REG_BCN_CTRL_1, 0);
 
@@ -1001,7 +1001,7 @@ static void _rtl92ee_hw_configure(struct ieee80211_hw *hw)
 	/* Set SIFS for OFDM */
 	rtl_write_word(rtlpriv, REG_SIFS_TRX, 0x100a);
 
-	/* Note Data sheet don't define */
+	/* Analte Data sheet don't define */
 	rtl_write_byte(rtlpriv, 0x4C7, 0x80);
 
 	rtl_write_byte(rtlpriv, REG_RX_PKT_LIMIT, 0x20);
@@ -1114,7 +1114,7 @@ void rtl92ee_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
-			"not open hw encryption\n");
+			"analt open hw encryption\n");
 		return;
 	}
 
@@ -1170,7 +1170,7 @@ static void _rtl8192ee_reset_pcie_interface_dma(struct rtl_priv *rtlpriv,
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 		"ResetPcieInterfaceDMA8192EE()\n");
 
-	/* Revise Note: Follow the document "PCIe RX DMA Hang Reset Flow_v03"
+	/* Revise Analte: Follow the document "PCIe RX DMA Hang Reset Flow_v03"
 	 * released by SD1 Alan.
 	 */
 
@@ -1191,7 +1191,7 @@ static void _rtl8192ee_reset_pcie_interface_dma(struct rtl_priv *rtlpriv,
 	 */
 	tmp = rtl_read_byte(rtlpriv, REG_RXDMA_CONTROL);
 	if (tmp & BIT(2)) {
-		/* Already pause before the function for another reason. */
+		/* Already pause before the function for aanalther reason. */
 		release_mac_rx_pause = false;
 	} else {
 		rtl_write_byte(rtlpriv, REG_RXDMA_CONTROL, (tmp | BIT(2)));
@@ -1238,9 +1238,9 @@ static void _rtl8192ee_reset_pcie_interface_dma(struct rtl_priv *rtlpriv,
 	/* 7. Restore PCIe autoload down bit
 	 *	write 0xF8 bit[17] = 1'b1
 	 */
-	tmp = rtl_read_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2);
+	tmp = rtl_read_byte(rtlpriv, REG_MAC_PHY_CTRL_ANALRMAL + 2);
 	tmp |= BIT(1);
-	rtl_write_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2, tmp);
+	rtl_write_byte(rtlpriv, REG_MAC_PHY_CTRL_ANALRMAL + 2, tmp);
 
 	/* In MAC power on state, BB and RF maybe in ON state,
 	 * if we release TRx DMA here
@@ -1324,7 +1324,7 @@ int rtl92ee_hw_init(struct ieee80211_hw *hw)
 	err = rtl92ee_download_fw(hw, false);
 	if (err) {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Failed to download FW. Init HW without FW now..\n");
+			"Failed to download FW. Init HW without FW analw..\n");
 		err = 1;
 		rtlhal->fw_ready = false;
 		return err;
@@ -1438,7 +1438,7 @@ static enum version_8192e _rtl92ee_read_chip_version(struct ieee80211_hw *hw)
 	if (value32 & TRP_VAUX_EN)
 		version = (enum version_8192e)VERSION_TEST_CHIP_2T2R_8192E;
 	else
-		version = (enum version_8192e)VERSION_NORMAL_CHIP_2T2R_8192E;
+		version = (enum version_8192e)VERSION_ANALRMAL_CHIP_2T2R_8192E;
 
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 		"Chip RF Type: %s\n", (rtlphy->rf_type == RF_2T2R) ?
@@ -1452,14 +1452,14 @@ static int _rtl92ee_set_media_status(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR) & 0xfc;
-	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
-	u8 mode = MSR_NOLINK;
+	enum led_ctl_mode ledaction = LED_CTL_ANAL_LINK;
+	u8 mode = MSR_ANALLINK;
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		mode = MSR_NOLINK;
+		mode = MSR_ANALLINK;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
-			"Set Network type to NO LINK!\n");
+			"Set Network type to ANAL LINK!\n");
 		break;
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
@@ -1480,7 +1480,7 @@ static int _rtl92ee_set_media_status(struct ieee80211_hw *hw,
 			"Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not support!\n", type);
+		pr_err("Network type %d analt support!\n", type);
 		return 1;
 	}
 
@@ -1488,14 +1488,14 @@ static int _rtl92ee_set_media_status(struct ieee80211_hw *hw,
 	 * MSR_ADHOC == Link in ad hoc network;
 	 * Therefore, check link state is necessary.
 	 *
-	 * MSR_AP == AP mode; link state is not cared here.
+	 * MSR_AP == AP mode; link state is analt cared here.
 	 */
 	if (mode != MSR_AP && rtlpriv->mac80211.link_state < MAC80211_LINKED) {
-		mode = MSR_NOLINK;
-		ledaction = LED_CTL_NO_LINK;
+		mode = MSR_ANALLINK;
+		ledaction = LED_CTL_ANAL_LINK;
 	}
 
-	if (mode == MSR_NOLINK || mode == MSR_INFRA) {
+	if (mode == MSR_ANALLINK || mode == MSR_INFRA) {
 		_rtl92ee_stop_tx_beacon(hw);
 		_rtl92ee_enable_bcn_sub_func(hw);
 	} else if (mode == MSR_ADHOC || mode == MSR_AP) {
@@ -1503,7 +1503,7 @@ static int _rtl92ee_set_media_status(struct ieee80211_hw *hw,
 		_rtl92ee_disable_bcn_sub_func(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Set HW_VAR_MEDIA_STATUS: No such media status(%x).\n",
+			"Set HW_VAR_MEDIA_STATUS: Anal such media status(%x).\n",
 			mode);
 	}
 
@@ -1543,7 +1543,7 @@ int rtl92ee_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (_rtl92ee_set_media_status(hw, type))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rtlpriv->mac80211.link_state == MAC80211_LINKED) {
 		if (type != NL80211_IFTYPE_AP &&
@@ -1654,7 +1654,7 @@ void rtl92ee_card_disable(struct ieee80211_hw *hw)
 
 	RT_SET_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
 
-	mac->link_state = MAC80211_NOLINK;
+	mac->link_state = MAC80211_ANALLINK;
 	opmode = NL80211_IFTYPE_UNSPECIFIED;
 
 	_rtl92ee_set_media_status(hw, opmode);
@@ -2071,7 +2071,7 @@ static void _rtl92ee_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		efu->eeprom_thermalmeter = EEPROM_DEFAULT_THERMALMETER;
 
 	if (efu->eeprom_thermalmeter == 0xff || autoload_fail) {
-		efu->apk_thermalmeterignore = true;
+		efu->apk_thermalmeteriganalre = true;
 		efu->eeprom_thermalmeter = EEPROM_DEFAULT_THERMALMETER;
 	}
 
@@ -2141,7 +2141,7 @@ static void _rtl92ee_read_adapter_info(struct ieee80211_hw *hw)
 		rtlefuse->crystalcap = 0x20;
 
 	/*antenna diversity*/
-	rtlefuse->antenna_div_type = NO_ANTDIV;
+	rtlefuse->antenna_div_type = ANAL_ANTDIV;
 	rtlefuse->antenna_div_cfg = 0;
 
 	if (rtlhal->oem_id == RT_CID_DEFAULT) {
@@ -2150,7 +2150,7 @@ static void _rtl92ee_read_adapter_info(struct ieee80211_hw *hw)
 			if (rtlefuse->eeprom_did == 0x818B) {
 				if ((rtlefuse->eeprom_svid == 0x10EC) &&
 				    (rtlefuse->eeprom_smid == 0x001B))
-					rtlhal->oem_id = RT_CID_819X_LENOVO;
+					rtlhal->oem_id = RT_CID_819X_LEANALVO;
 			} else {
 				rtlhal->oem_id = RT_CID_DEFAULT;
 			}
@@ -2466,7 +2466,7 @@ void rtl92ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_DMESG,
-				"switch case %#x not processed\n", enc_algo);
+				"switch case %#x analt processed\n", enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -2484,7 +2484,7 @@ void rtl92ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								     p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can analt find free hw security cam entry\n");
 						return;
 					}
 				} else {
@@ -2513,7 +2513,7 @@ void rtl92ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 					       entry_id, enc_algo,
-					       CAM_CONFIG_NO_USEDK,
+					       CAM_CONFIG_ANAL_USEDK,
 					       rtlpriv->sec.key_buf[key_index]);
 			} else {
 				rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
@@ -2524,13 +2524,13 @@ void rtl92ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 						rtlefuse->dev_addr,
 						PAIRWISE_KEYIDX,
 						CAM_PAIRWISE_KEY_POSITION,
-						enc_algo, CAM_CONFIG_NO_USEDK,
+						enc_algo, CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf[entry_id]);
 				}
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						entry_id, enc_algo,
-						CAM_CONFIG_NO_USEDK,
+						CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf[entry_id]);
 			}
 		}
@@ -2565,7 +2565,7 @@ void rtl92ee_bt_reg_init(struct ieee80211_hw *hw)
 
 	/* 0:Low, 1:High, 2:From Efuse. */
 	rtlpriv->btcoexist.reg_bt_iso = 2;
-	/* 0:Idle, 1:None-SCO, 2:SCO, 3:From Counter. */
+	/* 0:Idle, 1:Analne-SCO, 2:SCO, 3:From Counter. */
 	rtlpriv->btcoexist.reg_bt_sco = 3;
 	/* 0:Disable BT control A-MPDU, 1:Enable BT control A-MPDU. */
 	rtlpriv->btcoexist.reg_bt_sco = 0;

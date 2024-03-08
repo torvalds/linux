@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_DRV_H
 #define PVR_DRV_H
@@ -16,7 +16,7 @@
  *  - 1.0: Initial interface
  */
 #define PVR_DRIVER_MAJOR 1
-#define PVR_DRIVER_MINOR 0
+#define PVR_DRIVER_MIANALR 0
 #define PVR_DRIVER_PATCHLEVEL 0
 
 int pvr_get_uobj(u64 usr_ptr, u32 usr_size, u32 min_size, u32 obj_size, void *out);
@@ -30,10 +30,10 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
 	(offsetof(_typename, _last_mandatory_field) + \
 	 sizeof(((_typename *)NULL)->_last_mandatory_field))
 
-/* NOLINTBEGIN(bugprone-macro-parentheses) */
+/* ANALLINTBEGIN(bugprone-macro-parentheses) */
 #define PVR_UOBJ_DECL(_typename, _last_mandatory_field) \
 	, _typename : PVR_UOBJ_MIN_SIZE_INTERNAL(_typename, _last_mandatory_field)
-/* NOLINTEND(bugprone-macro-parentheses) */
+/* ANALLINTEND(bugprone-macro-parentheses) */
 
 /**
  * DOC: PVR user objects.
@@ -47,9 +47,9 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
 
 /**
  * PVR_UOBJ_MIN_SIZE() - Fetch the minimum copy size of a compatible type object.
- * @_obj_name: The name of the object. Cannot be a typename - this is deduced.
+ * @_obj_name: The name of the object. Cananalt be a typename - this is deduced.
  *
- * This cannot fail. Using the macro with an incompatible type will result in a
+ * This cananalt fail. Using the macro with an incompatible type will result in a
  * compiler error.
  *
  * To add compatibility for a type, list it within the macro in an orderly

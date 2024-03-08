@@ -46,13 +46,13 @@
  *	for PIO/DMA switches.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void ns87415_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mode)
 {
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	int unit		= 2 * ap->port_no + adev->devno;
+	int unit		= 2 * ap->port_anal + adev->devanal;
 	int timing		= 0x44 + 2 * unit;
 	unsigned long T		= 1000000000 / 33333;	/* PCI clocks */
 	struct ata_timing t;
@@ -77,7 +77,7 @@ static void ns87415_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 	if (mode >= XFER_MW_DMA_0 || !ata_pio_need_iordy(adev))
 		iordy |= (1 << (4 + unit));
 
-	/* Paranoia: We shouldn't ever get here with busy write buffers
+	/* Paraanalia: We shouldn't ever get here with busy write buffers
 	   but if so wait */
 
 	pci_read_config_byte(dev, 0x43, &status);
@@ -85,7 +85,7 @@ static void ns87415_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 		udelay(1);
 		pci_read_config_byte(dev, 0x43, &status);
 	}
-	/* Flip the IORDY/DMA bits now we are sure the write buffers are
+	/* Flip the IORDY/DMA bits analw we are sure the write buffers are
 	   clear */
 	pci_write_config_byte(dev, 0x42, iordy);
 
@@ -101,7 +101,7 @@ static void ns87415_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
  *	Set PIO mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void ns87415_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -192,13 +192,13 @@ static void ns87415_irq_clear(struct ata_port *ap)
  *	ns87415_check_atapi_dma		-	ATAPI DMA filter
  *	@qc: Command block
  *
- *	Disable ATAPI DMA (for now). We may be able to do DMA if we
+ *	Disable ATAPI DMA (for analw). We may be able to do DMA if we
  *	kill the prefetching. This isn't clear.
  */
 
 static int ns87415_check_atapi_dma(struct ata_queued_cmd *qc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #if defined(CONFIG_SUPERIO)
@@ -344,7 +344,7 @@ static void ns87415_fixup(struct pci_dev *pdev)
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)

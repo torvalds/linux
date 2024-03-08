@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -44,7 +44,7 @@ int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk)
 	/* Let S := SKB_DATA_ALIGN(sizeof(struct skb_shared_info)).
 	 * The condition checked in mlx5e_rx_is_linear_skb is:
 	 *   SKB_DATA_ALIGN(sw_mtu + hard_mtu + hr) + S <= PAGE_SIZE         (1)
-	 *   (Note that hw_mtu == sw_mtu + hard_mtu.)
+	 *   (Analte that hw_mtu == sw_mtu + hard_mtu.)
 	 * What is returned from this function is:
 	 *   max_mtu = PAGE_SIZE - S - hr - hard_mtu                         (2)
 	 * After assigning sw_mtu := max_mtu, the left side of (1) turns to
@@ -88,7 +88,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		 * function returns false, the xdp_buff shouldn't be recycled,
 		 * as it was already done in xdp_convert_zc_to_xdp_frame.
 		 */
-		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
+		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* analn-atomic */
 
 		if (unlikely(xdptxd->has_frags))
 			return false;
@@ -180,7 +180,7 @@ static int mlx5e_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 	const struct mlx5e_xdp_buff *_ctx = (void *)ctx;
 
 	if (unlikely(!mlx5e_rx_hw_stamp(_ctx->rq->tstamp)))
-		return -ENODATA;
+		return -EANALDATA;
 
 	*timestamp =  mlx5e_cqe_ts_to_ns(_ctx->rq->ptp_cyc2time,
 					 _ctx->rq->clock, get_cqe_ts(_ctx->cqe));
@@ -194,10 +194,10 @@ static int mlx5e_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 
 /* Valid combinations of CQE_RSS_HTYPE_IP + CQE_RSS_HTYPE_L4 sorted numerical */
 enum mlx5_rss_hash_type {
-	RSS_TYPE_NO_HASH	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IP_NONE) |
-				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_NONE)),
+	RSS_TYPE_ANAL_HASH	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IP_ANALNE) |
+				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_ANALNE)),
 	RSS_TYPE_L3_IPV4	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IPV4) |
-				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_NONE)),
+				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_ANALNE)),
 	RSS_TYPE_L4_IPV4_TCP	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IPV4) |
 				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_TCP)),
 	RSS_TYPE_L4_IPV4_UDP	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IPV4) |
@@ -205,7 +205,7 @@ enum mlx5_rss_hash_type {
 	RSS_TYPE_L4_IPV4_IPSEC	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IPV4) |
 				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_IPSEC)),
 	RSS_TYPE_L3_IPV6	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IPV6) |
-				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_NONE)),
+				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_ANALNE)),
 	RSS_TYPE_L4_IPV6_TCP	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IPV6) |
 				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_TCP)),
 	RSS_TYPE_L4_IPV6_UDP	= (FIELD_PREP_CONST(RSS_L3, CQE_RSS_IPV6) |
@@ -214,12 +214,12 @@ enum mlx5_rss_hash_type {
 				   FIELD_PREP_CONST(RSS_L4, CQE_RSS_L4_IPSEC)),
 };
 
-/* Invalid combinations will simply return zero, allows no boundary checks */
+/* Invalid combinations will simply return zero, allows anal boundary checks */
 static const enum xdp_rss_hash_type mlx5_xdp_rss_type[RSS_TYPE_MAX_TABLE] = {
-	[RSS_TYPE_NO_HASH]	 = XDP_RSS_TYPE_NONE,
-	[1]			 = XDP_RSS_TYPE_NONE, /* Implicit zero */
-	[2]			 = XDP_RSS_TYPE_NONE, /* Implicit zero */
-	[3]			 = XDP_RSS_TYPE_NONE, /* Implicit zero */
+	[RSS_TYPE_ANAL_HASH]	 = XDP_RSS_TYPE_ANALNE,
+	[1]			 = XDP_RSS_TYPE_ANALNE, /* Implicit zero */
+	[2]			 = XDP_RSS_TYPE_ANALNE, /* Implicit zero */
+	[3]			 = XDP_RSS_TYPE_ANALNE, /* Implicit zero */
 	[RSS_TYPE_L3_IPV4]	 = XDP_RSS_TYPE_L3_IPV4,
 	[RSS_TYPE_L4_IPV4_TCP]	 = XDP_RSS_TYPE_L4_IPV4_TCP,
 	[RSS_TYPE_L4_IPV4_UDP]	 = XDP_RSS_TYPE_L4_IPV4_UDP,
@@ -228,10 +228,10 @@ static const enum xdp_rss_hash_type mlx5_xdp_rss_type[RSS_TYPE_MAX_TABLE] = {
 	[RSS_TYPE_L4_IPV6_TCP]	 = XDP_RSS_TYPE_L4_IPV6_TCP,
 	[RSS_TYPE_L4_IPV6_UDP]   = XDP_RSS_TYPE_L4_IPV6_UDP,
 	[RSS_TYPE_L4_IPV6_IPSEC] = XDP_RSS_TYPE_L4_IPV6_IPSEC,
-	[12]			 = XDP_RSS_TYPE_NONE, /* Implicit zero */
-	[13]			 = XDP_RSS_TYPE_NONE, /* Implicit zero */
-	[14]			 = XDP_RSS_TYPE_NONE, /* Implicit zero */
-	[15]			 = XDP_RSS_TYPE_NONE, /* Implicit zero */
+	[12]			 = XDP_RSS_TYPE_ANALNE, /* Implicit zero */
+	[13]			 = XDP_RSS_TYPE_ANALNE, /* Implicit zero */
+	[14]			 = XDP_RSS_TYPE_ANALNE, /* Implicit zero */
+	[15]			 = XDP_RSS_TYPE_ANALNE, /* Implicit zero */
 };
 
 static int mlx5e_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash,
@@ -242,7 +242,7 @@ static int mlx5e_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash,
 	u32 hash_type, l4_type, ip_type, lookup;
 
 	if (unlikely(!(_ctx->xdp.rxq->dev->features & NETIF_F_RXHASH)))
-		return -ENODATA;
+		return -EANALDATA;
 
 	*hash = be32_to_cpu(cqe->rss_hash_result);
 
@@ -263,7 +263,7 @@ static int mlx5e_xdp_rx_vlan_tag(const struct xdp_md *ctx, __be16 *vlan_proto,
 	const struct mlx5_cqe64 *cqe = _ctx->cqe;
 
 	if (!cqe_has_vlan(cqe))
-		return -ENODATA;
+		return -EANALDATA;
 
 	*vlan_proto = htons(ETH_P_8021Q);
 	*vlan_tci = be16_to_cpu(cqe->vlan_info);
@@ -298,7 +298,7 @@ static void mlx5e_xsk_request_checksum(u16 csum_start, u16 csum_offset, void *pr
 {
 	struct mlx5_wqe_eth_seg *eseg = priv;
 
-	/* HW/FW is doing parsing, so offsets are largely ignored. */
+	/* HW/FW is doing parsing, so offsets are largely iganalred. */
 	eseg->cs_flags |= MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
 }
 
@@ -322,7 +322,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq,
 	case XDP_TX:
 		if (unlikely(!mlx5e_xmit_xdp_buff(rq->xdpsq, rq, xdp)))
 			goto xdp_abort;
-		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
+		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* analn-atomic */
 		return true;
 	case XDP_REDIRECT:
 		/* When XDP enabled then page-refcnt==1 here */
@@ -359,15 +359,15 @@ static u16 mlx5e_xdpsq_get_next_pi(struct mlx5e_xdpsq *sq, u16 size)
 		wi = &sq->db.wqe_info[pi];
 		edge_wi = wi + contig_wqebbs;
 
-		/* Fill SQ frag edge with NOPs to avoid WQE wrapping two pages. */
+		/* Fill SQ frag edge with ANALPs to avoid WQE wrapping two pages. */
 		for (; wi < edge_wi; wi++) {
 			*wi = (struct mlx5e_xdp_wqe_info) {
 				.num_wqebbs = 1,
 				.num_pkts = 0,
 			};
-			mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+			mlx5e_post_analp(wq, sq->sqn, &sq->pc);
 		}
-		sq->stats->nops += contig_wqebbs;
+		sq->stats->analps += contig_wqebbs;
 
 		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	}
@@ -491,7 +491,7 @@ mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptx
 		return false;
 
 	if (check_result == MLX5E_XDP_CHECK_START_MPWQE) {
-		/* Start the session when nothing can fail, so it's guaranteed
+		/* Start the session when analthing can fail, so it's guaranteed
 		 * that if there is an active session, it has at least one dseg,
 		 * and it's safe to complete it at any time.
 		 */
@@ -549,7 +549,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
 
-	inline_ok = sq->min_inline_mode == MLX5_INLINE_MODE_NONE ||
+	inline_ok = sq->min_inline_mode == MLX5_INLINE_MODE_ANALNE ||
 		dma_len >= MLX5E_XDP_MIN_INLINE;
 	frags_size = xdptxd->has_frags ? xdptxdf->sinfo->xdp_frags_size : 0;
 
@@ -559,7 +559,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	}
 
 	inline_hdr_sz = 0;
-	if (sq->min_inline_mode != MLX5_INLINE_MODE_NONE)
+	if (sq->min_inline_mode != MLX5_INLINE_MODE_ANALNE)
 		inline_hdr_sz = MLX5E_XDP_MIN_INLINE;
 
 	linear = !!(dma_len - inline_hdr_sz);
@@ -574,7 +574,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 			num_frags = xdptxdf->sinfo->nr_frags;
 			num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 			/* Assuming MLX5_CAP_GEN(mdev, max_wqe_sz_sq) is big
-			 * enough to hold all fragments.
+			 * eanalugh to hold all fragments.
 			 */
 			stop_room = MLX5E_STOP_ROOM(num_wqebbs);
 		}
@@ -713,8 +713,8 @@ static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 				xdpi = mlx5e_xdpi_fifo_pop(xdpi_fifo);
 				page = xdpi.page.page;
 
-				/* No need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
-				 * as we know this is a page_pool page.
+				/* Anal need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
+				 * as we kanalw this is a page_pool page.
 				 */
 				page_pool_recycle_direct(page->pp, page);
 			} while (++n < num);
@@ -853,7 +853,7 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	int sq_num;
 	int i;
 
-	/* this flag is sufficient, no need to test internal sq state */
+	/* this flag is sufficient, anal need to test internal sq state */
 	if (unlikely(!mlx5e_xdp_tx_is_enabled(priv)))
 		return -ENETDOWN;
 

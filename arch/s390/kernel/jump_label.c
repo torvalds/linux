@@ -16,7 +16,7 @@ struct insn {
 	s32 offset;
 } __packed;
 
-static void jump_label_make_nop(struct jump_entry *entry, struct insn *insn)
+static void jump_label_make_analp(struct jump_entry *entry, struct insn *insn)
 {
 	/* brcl 0,offset */
 	insn->opcode = 0xc004;
@@ -51,11 +51,11 @@ static void jump_label_transform(struct jump_entry *entry,
 	struct insn old, new;
 
 	if (type == JUMP_LABEL_JMP) {
-		jump_label_make_nop(entry, &old);
+		jump_label_make_analp(entry, &old);
 		jump_label_make_branch(entry, &new);
 	} else {
 		jump_label_make_branch(entry, &old);
-		jump_label_make_nop(entry, &new);
+		jump_label_make_analp(entry, &new);
 	}
 	if (memcmp(code, &old, sizeof(old)))
 		jump_label_bug(entry, &old, &new);

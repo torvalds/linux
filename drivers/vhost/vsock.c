@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013-2015 Red Hat, Inc.
  * Author: Asias He <asias@redhat.com>
- *         Stefan Hajnoczi <stefanha@redhat.com>
+ *         Stefan Hajanalczi <stefanha@redhat.com>
  */
 #include <linux/miscdevice.h>
 #include <linux/atomic.h>
@@ -48,7 +48,7 @@ struct vhost_vsock {
 	struct vhost_virtqueue vqs[2];
 
 	/* Link to global vhost_vsock_hash, writes use vhost_vsock_mutex */
-	struct hlist_node hash;
+	struct hlist_analde hash;
 
 	struct vhost_work send_pkt_work;
 	struct sk_buff_head send_pkt_queue; /* host->guest pending packets */
@@ -74,7 +74,7 @@ static struct vhost_vsock *vhost_vsock_get(u32 guest_cid)
 	hash_for_each_possible_rcu(vhost_vsock_hash, vsock, hash, guest_cid) {
 		u32 other_cid = vsock->guest_cid;
 
-		/* Skip instances that have no CID yet */
+		/* Skip instances that have anal CID yet */
 		if (other_cid == 0)
 			continue;
 
@@ -104,7 +104,7 @@ vhost_transport_do_send_pkt(struct vhost_vsock *vsock,
 		goto out;
 
 	/* Avoid further vmexits, we're already processing the virtqueue */
-	vhost_disable_notify(&vsock->dev, vq);
+	vhost_disable_analtify(&vsock->dev, vq);
 
 	do {
 		struct virtio_vsock_hdr *hdr;
@@ -120,7 +120,7 @@ vhost_transport_do_send_pkt(struct vhost_vsock *vsock,
 		skb = virtio_vsock_skb_dequeue(&vsock->send_pkt_queue);
 
 		if (!skb) {
-			vhost_enable_notify(&vsock->dev, vq);
+			vhost_enable_analtify(&vsock->dev, vq);
 			break;
 		}
 
@@ -133,11 +133,11 @@ vhost_transport_do_send_pkt(struct vhost_vsock *vsock,
 
 		if (head == vq->num) {
 			virtio_vsock_skb_queue_head(&vsock->send_pkt_queue, skb);
-			/* We cannot finish yet if more buffers snuck in while
-			 * re-enabling notify.
+			/* We cananalt finish yet if more buffers snuck in while
+			 * re-enabling analtify.
 			 */
-			if (unlikely(vhost_enable_notify(&vsock->dev, vq))) {
-				vhost_disable_notify(&vsock->dev, vq);
+			if (unlikely(vhost_enable_analtify(&vsock->dev, vq))) {
+				vhost_disable_analtify(&vsock->dev, vq);
 				continue;
 			}
 			break;
@@ -282,7 +282,7 @@ vhost_transport_send_pkt(struct sk_buff *skb)
 	if (!vsock) {
 		rcu_read_unlock();
 		kfree_skb(skb);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (virtio_vsock_skb_reply(skb))
@@ -300,7 +300,7 @@ vhost_transport_cancel_pkt(struct vsock_sock *vsk)
 {
 	struct vhost_vsock *vsock;
 	int cnt = 0;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	rcu_read_lock();
 
@@ -362,7 +362,7 @@ vhost_vsock_alloc_skb(struct vhost_virtqueue *vq,
 
 	payload_len = le32_to_cpu(hdr->len);
 
-	/* No payload */
+	/* Anal payload */
 	if (!payload_len)
 		return skb;
 
@@ -438,18 +438,18 @@ static struct virtio_transport vhost_transport = {
 
 		.msgzerocopy_allow        = vhost_transport_msgzerocopy_allow,
 
-		.notify_poll_in           = virtio_transport_notify_poll_in,
-		.notify_poll_out          = virtio_transport_notify_poll_out,
-		.notify_recv_init         = virtio_transport_notify_recv_init,
-		.notify_recv_pre_block    = virtio_transport_notify_recv_pre_block,
-		.notify_recv_pre_dequeue  = virtio_transport_notify_recv_pre_dequeue,
-		.notify_recv_post_dequeue = virtio_transport_notify_recv_post_dequeue,
-		.notify_send_init         = virtio_transport_notify_send_init,
-		.notify_send_pre_block    = virtio_transport_notify_send_pre_block,
-		.notify_send_pre_enqueue  = virtio_transport_notify_send_pre_enqueue,
-		.notify_send_post_enqueue = virtio_transport_notify_send_post_enqueue,
-		.notify_buffer_size       = virtio_transport_notify_buffer_size,
-		.notify_set_rcvlowat      = virtio_transport_notify_set_rcvlowat,
+		.analtify_poll_in           = virtio_transport_analtify_poll_in,
+		.analtify_poll_out          = virtio_transport_analtify_poll_out,
+		.analtify_recv_init         = virtio_transport_analtify_recv_init,
+		.analtify_recv_pre_block    = virtio_transport_analtify_recv_pre_block,
+		.analtify_recv_pre_dequeue  = virtio_transport_analtify_recv_pre_dequeue,
+		.analtify_recv_post_dequeue = virtio_transport_analtify_recv_post_dequeue,
+		.analtify_send_init         = virtio_transport_analtify_send_init,
+		.analtify_send_pre_block    = virtio_transport_analtify_send_pre_block,
+		.analtify_send_pre_enqueue  = virtio_transport_analtify_send_pre_enqueue,
+		.analtify_send_post_enqueue = virtio_transport_analtify_send_post_enqueue,
+		.analtify_buffer_size       = virtio_transport_analtify_buffer_size,
+		.analtify_set_rcvlowat      = virtio_transport_analtify_set_rcvlowat,
 
 		.read_skb = virtio_transport_read_skb,
 	},
@@ -492,7 +492,7 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 	if (!vq_meta_prefetch(vq))
 		goto out;
 
-	vhost_disable_notify(&vsock->dev, vq);
+	vhost_disable_analtify(&vsock->dev, vq);
 	do {
 		struct virtio_vsock_hdr *hdr;
 
@@ -501,7 +501,7 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 			 * pending replies.  Leave tx virtqueue
 			 * callbacks disabled.
 			 */
-			goto no_more_replies;
+			goto anal_more_replies;
 		}
 
 		head = vhost_get_vq_desc(vq, vq->iov, ARRAY_SIZE(vq->iov),
@@ -510,8 +510,8 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 			break;
 
 		if (head == vq->num) {
-			if (unlikely(vhost_enable_notify(&vsock->dev, vq))) {
-				vhost_disable_notify(&vsock->dev, vq);
+			if (unlikely(vhost_enable_analtify(&vsock->dev, vq))) {
+				vhost_disable_analtify(&vsock->dev, vq);
 				continue;
 			}
 			break;
@@ -542,7 +542,7 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 		added = true;
 	} while(likely(!vhost_exceeds_weight(vq, ++pkts, total_len)));
 
-no_more_replies:
+anal_more_replies:
 	if (added)
 		vhost_signal(&vsock->dev, vq);
 
@@ -647,26 +647,26 @@ static void vhost_vsock_free(struct vhost_vsock *vsock)
 	kvfree(vsock);
 }
 
-static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
+static int vhost_vsock_dev_open(struct ianalde *ianalde, struct file *file)
 {
 	struct vhost_virtqueue **vqs;
 	struct vhost_vsock *vsock;
 	int ret;
 
 	/* This struct is large and allocation could fail, fall back to vmalloc
-	 * if there is no other way.
+	 * if there is anal other way.
 	 */
 	vsock = kvmalloc(sizeof(*vsock), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!vsock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vqs = kmalloc_array(ARRAY_SIZE(vsock->vqs), sizeof(*vqs), GFP_KERNEL);
 	if (!vqs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	vsock->guest_cid = 0; /* no CID assigned yet */
+	vsock->guest_cid = 0; /* anal CID assigned yet */
 
 	atomic_set(&vsock->queued_replies, 0);
 
@@ -699,11 +699,11 @@ static void vhost_vsock_reset_orphans(struct sock *sk)
 	struct vsock_sock *vsk = vsock_sk(sk);
 
 	/* vmci_transport.c doesn't take sk_lock here either.  At least we're
-	 * under vsock_table_lock so the sock cannot disappear while we're
+	 * under vsock_table_lock so the sock cananalt disappear while we're
 	 * executing.
 	 */
 
-	/* If the peer is still valid, no need to reset connection */
+	/* If the peer is still valid, anal need to reset connection */
 	if (vhost_vsock_get(vsk->remote_addr.svm_cid))
 		return;
 
@@ -720,7 +720,7 @@ static void vhost_vsock_reset_orphans(struct sock *sk)
 	sk_error_report(sk);
 }
 
-static int vhost_vsock_dev_release(struct inode *inode, struct file *file)
+static int vhost_vsock_dev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct vhost_vsock *vsock = file->private_data;
 
@@ -739,7 +739,7 @@ static int vhost_vsock_dev_release(struct inode *inode, struct file *file)
 
 	/* Don't check the owner, because we are in the release path, so we
 	 * need to stop the vsock device in any case.
-	 * vhost_vsock_stop() can not fail in this case, so we don't need to
+	 * vhost_vsock_stop() can analt fail in this case, so we don't need to
 	 * check the return code.
 	 */
 	vhost_vsock_stop(vsock, false);
@@ -763,7 +763,7 @@ static int vhost_vsock_set_cid(struct vhost_vsock *vsock, u64 guest_cid)
 	    guest_cid == U32_MAX)
 		return -EINVAL;
 
-	/* 64-bit CIDs are not yet supported */
+	/* 64-bit CIDs are analt yet supported */
 	if (guest_cid > U32_MAX)
 		return -EINVAL;
 
@@ -797,7 +797,7 @@ static int vhost_vsock_set_features(struct vhost_vsock *vsock, u64 features)
 	int i;
 
 	if (features & ~VHOST_VSOCK_FEATURES)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&vsock->dev.mutex);
 	if ((features & (1 << VHOST_F_LOG_ALL)) &&
@@ -867,13 +867,13 @@ static long vhost_vsock_dev_ioctl(struct file *f, unsigned int ioctl,
 		if (copy_from_user(&features, argp, sizeof(features)))
 			return -EFAULT;
 		if (features & ~VHOST_VSOCK_BACKEND_FEATURES)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		vhost_set_backend_features(&vsock->dev, features);
 		return 0;
 	default:
 		mutex_lock(&vsock->dev.mutex);
 		r = vhost_dev_ioctl(&vsock->dev, ioctl, argp);
-		if (r == -ENOIOCTLCMD)
+		if (r == -EANALIOCTLCMD)
 			r = vhost_vring_ioctl(&vsock->dev, ioctl, argp);
 		else
 			vhost_vsock_flush(vsock);
@@ -887,9 +887,9 @@ static ssize_t vhost_vsock_chr_read_iter(struct kiocb *iocb, struct iov_iter *to
 	struct file *file = iocb->ki_filp;
 	struct vhost_vsock *vsock = file->private_data;
 	struct vhost_dev *dev = &vsock->dev;
-	int noblock = file->f_flags & O_NONBLOCK;
+	int analblock = file->f_flags & O_ANALNBLOCK;
 
-	return vhost_chr_read_iter(dev, to, noblock);
+	return vhost_chr_read_iter(dev, to, analblock);
 }
 
 static ssize_t vhost_vsock_chr_write_iter(struct kiocb *iocb,
@@ -914,7 +914,7 @@ static const struct file_operations vhost_vsock_fops = {
 	.owner          = THIS_MODULE,
 	.open           = vhost_vsock_dev_open,
 	.release        = vhost_vsock_dev_release,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 	.unlocked_ioctl = vhost_vsock_dev_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 	.read_iter      = vhost_vsock_chr_read_iter,
@@ -923,7 +923,7 @@ static const struct file_operations vhost_vsock_fops = {
 };
 
 static struct miscdevice vhost_vsock_misc = {
-	.minor = VHOST_VSOCK_MINOR,
+	.mianalr = VHOST_VSOCK_MIANALR,
 	.name = "vhost-vsock",
 	.fops = &vhost_vsock_fops,
 };
@@ -957,5 +957,5 @@ module_exit(vhost_vsock_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Asias He");
 MODULE_DESCRIPTION("vhost transport for vsock ");
-MODULE_ALIAS_MISCDEV(VHOST_VSOCK_MINOR);
+MODULE_ALIAS_MISCDEV(VHOST_VSOCK_MIANALR);
 MODULE_ALIAS("devname:vhost-vsock");

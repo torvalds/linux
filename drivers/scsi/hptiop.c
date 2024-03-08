@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * HighPoint RR3xxx/4xxx controller driver for Linux
- * Copyright (C) 2006-2015 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2006-2015 HighPoint Techanallogies, Inc. All Rights Reserved.
  *
  * Please report bugs/comments/suggestions to linux@highpoint-tech.com
  *
@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
@@ -29,7 +29,7 @@
 
 #include "hptiop.h"
 
-MODULE_AUTHOR("HighPoint Technologies, Inc.");
+MODULE_AUTHOR("HighPoint Techanallogies, Inc.");
 MODULE_DESCRIPTION("HighPoint RocketRAID 3xxx/4xxx Controller Driver");
 
 static char driver_name[] = "hptiop";
@@ -66,12 +66,12 @@ static int iop_wait_ready_itl(struct hptiop_hba *hba, u32 millisec)
 
 static int iop_wait_ready_mv(struct hptiop_hba *hba, u32 millisec)
 {
-	return iop_send_sync_msg(hba, IOPMU_INBOUND_MSG0_NOP, millisec);
+	return iop_send_sync_msg(hba, IOPMU_INBOUND_MSG0_ANALP, millisec);
 }
 
 static int iop_wait_ready_mvfrey(struct hptiop_hba *hba, u32 millisec)
 {
-	return iop_send_sync_msg(hba, IOPMU_INBOUND_MSG0_NOP, millisec);
+	return iop_send_sync_msg(hba, IOPMU_INBOUND_MSG0_ANALP, millisec);
 }
 
 static void hptiop_request_callback_itl(struct hptiop_hba *hba, u32 tag)
@@ -576,7 +576,7 @@ static int hptiop_initialize_iop(struct hptiop_hba *hba)
 	if (iop_send_sync_msg(hba,
 			IOPMU_INBOUND_MSG0_START_BACKGROUND_TASK, 5000)) {
 		printk(KERN_ERR "scsi%d: fail to start background task\n",
-			hba->host->host_no);
+			hba->host->host_anal);
 		return -1;
 	}
 	return 0;
@@ -592,7 +592,7 @@ static void __iomem *hptiop_map_pci_bar(struct hptiop_hba *hba, int index)
 
 	if (!(pci_resource_flags(pcidev, index) & IORESOURCE_MEM)) {
 		printk(KERN_ERR "scsi%d: pci resource invalid\n",
-				hba->host->host_no);
+				hba->host->host_anal);
 		return NULL;
 	}
 
@@ -602,7 +602,7 @@ static void __iomem *hptiop_map_pci_bar(struct hptiop_hba *hba, int index)
 
 	if (!mem_base_virt) {
 		printk(KERN_ERR "scsi%d: Fail to ioremap memory space\n",
-				hba->host->host_no);
+				hba->host->host_anal);
 		return NULL;
 	}
 	return mem_base_virt;
@@ -678,7 +678,7 @@ static void hptiop_message_callback(struct hptiop_hba *hba, u32 msg)
 {
 	dprintk("iop message 0x%x\n", msg);
 
-	if (msg == IOPMU_INBOUND_MSG0_NOP ||
+	if (msg == IOPMU_INBOUND_MSG0_ANALP ||
 		msg == IOPMU_INBOUND_MSG0_RESET_COMM)
 		hba->msg_done = 1;
 
@@ -1003,7 +1003,7 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp)
 
 	_req = get_req(hba);
 	if (_req == NULL) {
-		dprintk("hptiop_queuecmd : no free req\n");
+		dprintk("hptiop_queuecmd : anal free req\n");
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -1012,7 +1012,7 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp)
 	dprintk("hptiop_queuecmd(scp=%p) %d/%d/%d/%llu cdb=(%08x-%08x-%08x-%08x) "
 			"req_index=%d, req=%p\n",
 			scp,
-			host->host_no, scp->device->channel,
+			host->host_anal, scp->device->channel,
 			scp->device->id, scp->device->lun,
 			cpu_to_be32(((u32 *)scp->cmnd)[0]),
 			cpu_to_be32(((u32 *)scp->cmnd)[1]),
@@ -1074,15 +1074,15 @@ static int hptiop_reset_hba(struct hptiop_hba *hba)
 			atomic_read(&hba->resetting) == 0, 60 * HZ);
 
 	if (atomic_read(&hba->resetting)) {
-		/* IOP is in unknown state, abort reset */
-		printk(KERN_ERR "scsi%d: reset failed\n", hba->host->host_no);
+		/* IOP is in unkanalwn state, abort reset */
+		printk(KERN_ERR "scsi%d: reset failed\n", hba->host->host_anal);
 		return -1;
 	}
 
 	if (iop_send_sync_msg(hba,
 		IOPMU_INBOUND_MSG0_START_BACKGROUND_TASK, 5000)) {
 		dprintk("scsi%d: fail to start background task\n",
-				hba->host->host_no);
+				hba->host->host_anal);
 	}
 
 	return 0;
@@ -1093,7 +1093,7 @@ static int hptiop_reset(struct scsi_cmnd *scp)
 	struct hptiop_hba * hba = (struct hptiop_hba *)scp->device->host->hostdata;
 
 	printk(KERN_WARNING "hptiop_reset(%d/%d/%d)\n",
-	       scp->device->host->host_no, -1, -1);
+	       scp->device->host->host_anal, -1, -1);
 
 	return hptiop_reset_hba(hba)? FAILED : SUCCESS;
 }
@@ -1285,7 +1285,7 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 
 	if (pci_enable_device(pcidev)) {
 		printk(KERN_ERR "hptiop: fail to enable pci device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	printk(KERN_INFO "adapter at PCI %d:%d:%d, IRQ %d\n",
@@ -1342,22 +1342,22 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 		goto free_scsi_host;
 
 	if (hba->ops->iop_wait_ready(hba, 20000)) {
-		printk(KERN_ERR "scsi%d: firmware not ready\n",
-				hba->host->host_no);
+		printk(KERN_ERR "scsi%d: firmware analt ready\n",
+				hba->host->host_anal);
 		goto unmap_pci_bar;
 	}
 
 	if (hba->ops->family == MV_BASED_IOP) {
 		if (hba->ops->internal_memalloc(hba)) {
 			printk(KERN_ERR "scsi%d: internal_memalloc failed\n",
-				hba->host->host_no);
+				hba->host->host_anal);
 			goto unmap_pci_bar;
 		}
 	}
 
 	if (hba->ops->get_config(hba, &iop_config)) {
 		printk(KERN_ERR "scsi%d: get config failed\n",
-				hba->host->host_no);
+				hba->host->host_anal);
 		goto unmap_pci_bar;
 	}
 
@@ -1373,12 +1373,12 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 	if (hba->ops->family == MVFREY_BASED_IOP) {
 		if (hba->ops->internal_memalloc(hba)) {
 			printk(KERN_ERR "scsi%d: internal_memalloc failed\n",
-				hba->host->host_no);
+				hba->host->host_anal);
 			goto unmap_pci_bar;
 		}
 		if (hba->ops->reset_comm(hba)) {
 			printk(KERN_ERR "scsi%d: reset comm failed\n",
-					hba->host->host_no);
+					hba->host->host_anal);
 			goto unmap_pci_bar;
 		}
 	}
@@ -1400,13 +1400,13 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 		req_size = (req_size + 0x1f) & ~0x1f;
 
 	memset(&set_config, 0, sizeof(struct hpt_iop_request_set_config));
-	set_config.iop_id = cpu_to_le32(host->host_no);
-	set_config.vbus_id = cpu_to_le16(host->host_no);
+	set_config.iop_id = cpu_to_le32(host->host_anal);
+	set_config.vbus_id = cpu_to_le16(host->host_anal);
 	set_config.max_host_request_size = cpu_to_le16(req_size);
 
 	if (hba->ops->set_config(hba, &set_config)) {
 		printk(KERN_ERR "scsi%d: set config failed\n",
-				hba->host->host_no);
+				hba->host->host_anal);
 		goto unmap_pci_bar;
 	}
 
@@ -1415,7 +1415,7 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 	if (request_irq(pcidev->irq, hptiop_intr, IRQF_SHARED,
 					driver_name, hba)) {
 		printk(KERN_ERR "scsi%d: request irq %d failed\n",
-					hba->host->host_no, pcidev->irq);
+					hba->host->host_anal, pcidev->irq);
 		goto unmap_pci_bar;
 	}
 
@@ -1433,7 +1433,7 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 
 		if (!start_virt) {
 			printk(KERN_ERR "scsi%d: fail to alloc request mem\n",
-						hba->host->host_no);
+						hba->host->host_anal);
 			goto free_request_mem;
 		}
 
@@ -1459,13 +1459,13 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 
 	if (scsi_add_host(host, &pcidev->dev)) {
 		printk(KERN_ERR "scsi%d: scsi_add_host failed\n",
-					hba->host->host_no);
+					hba->host->host_anal);
 		goto free_request_mem;
 	}
 
 	scsi_scan_host(host);
 
-	dprintk("scsi%d: hptiop_probe successfully\n", hba->host->host_no);
+	dprintk("scsi%d: hptiop_probe successfully\n", hba->host->host_anal);
 	return 0;
 
 free_request_mem:
@@ -1495,8 +1495,8 @@ free_pci_regions:
 disable_pci_device:
 	pci_disable_device(pcidev);
 
-	dprintk("scsi%d: hptiop_probe fail\n", host ? host->host_no : 0);
-	return -ENODEV;
+	dprintk("scsi%d: hptiop_probe fail\n", host ? host->host_anal : 0);
+	return -EANALDEV;
 }
 
 static void hptiop_shutdown(struct pci_dev *pcidev)
@@ -1509,7 +1509,7 @@ static void hptiop_shutdown(struct pci_dev *pcidev)
 	/* stop the iop */
 	if (iop_send_sync_msg(hba, IOPMU_INBOUND_MSG0_SHUTDOWN, 60000))
 		printk(KERN_ERR "scsi%d: shutdown the iop timeout\n",
-					hba->host->host_no);
+					hba->host->host_anal);
 
 	/* disable all outbound interrupts */
 	hba->ops->disable_intr(hba);
@@ -1548,7 +1548,7 @@ static void hptiop_remove(struct pci_dev *pcidev)
 	struct hptiop_hba *hba = (struct hptiop_hba *)host->hostdata;
 	u32 i;
 
-	dprintk("scsi%d: hptiop_remove\n", hba->host->host_no);
+	dprintk("scsi%d: hptiop_remove\n", hba->host->host_anal);
 
 	scsi_remove_host(host);
 

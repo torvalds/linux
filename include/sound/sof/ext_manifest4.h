@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -7,10 +7,10 @@
  */
 
 /*
- * Extended manifest is a place to store metadata about firmware, known during
+ * Extended manifest is a place to store metadata about firmware, kanalwn during
  * compilation time - for example firmware version or used compiler.
  * Given information are read on host side before firmware startup.
- * This part of output binary is not signed.
+ * This part of output binary is analt signed.
  */
 
 #ifndef __SOF_FIRMWARE_EXT_MANIFEST4_H__
@@ -60,7 +60,7 @@ struct sof_ext_manifest4_hdr {
 	uint32_t id;
 	uint32_t len; /* length of extension manifest */
 	uint16_t version_major; /* header version */
-	uint16_t version_minor;
+	uint16_t version_mianalr;
 	uint32_t num_module_entries;
 } __packed;
 
@@ -73,7 +73,7 @@ struct sof_man4_fw_binary_header {
 	uint32_t fw_image_flags;
 	uint32_t feature_mask;
 	uint16_t major_version; /* Firmware version */
-	uint16_t minor_version;
+	uint16_t mianalr_version;
 	uint16_t hotfix_version;
 	uint16_t build_version;
 	uint32_t num_module_entries;

@@ -90,7 +90,7 @@ wait_addr_mark_byte:
 
 amark0:	tstb	%a2@
 	dbmi	%d2, amark0
-	bpl	signal_nonyb
+	bpl	signal_analnyb
 
 	moveb	%a3@, %a4@(o_track)
 
@@ -98,7 +98,7 @@ amark0:	tstb	%a2@
 
 amark1:	tstb	%a2@
 	dbmi	%d2, amark1
-	bpl	signal_nonyb
+	bpl	signal_analnyb
 
 	moveb	%a3@, %a4@(o_side)
 
@@ -106,7 +106,7 @@ amark1:	tstb	%a2@
 
 amark2:	tstb	%a2@
 	dbmi	%d2, amark2
-	bpl	signal_nonyb
+	bpl	signal_analnyb
 
 	moveb	%a3@, %a4@(o_sector)
 
@@ -114,7 +114,7 @@ amark2:	tstb	%a2@
 
 amark3:	tstb	%a2@
 	dbmi	%d2, amark3
-	bpl	signal_nonyb
+	bpl	signal_analnyb
 
 	moveb	%a3@, %a4@(o_size)
 
@@ -122,7 +122,7 @@ amark3:	tstb	%a2@
 
 crc0:	tstb	%a2@
 	dbmi	%d2, crc0
-	bpl	signal_nonyb
+	bpl	signal_analnyb
 
 	moveb	%a3@, %a4@(o_crc0)
 
@@ -130,7 +130,7 @@ crc0:	tstb	%a2@
 
 crc1:	tstb	%a2@
 	dbmi	%d2, crc1
-	bpl	signal_nonyb
+	bpl	signal_analnyb
 
 	moveb	%a3@, %a4@(o_crc1)
 
@@ -140,7 +140,7 @@ header_exit:
 	moveq	#0, %d0
 	moveb	#0x18, %a3@(write_mode0 - read_mark)
 	rts
-signal_nonyb:
+signal_analnyb:
 	moveq	#-1, %d0
 	moveb	#0x18, %a3@(write_mode0 - read_mark)
 	rts

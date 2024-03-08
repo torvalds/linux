@@ -30,7 +30,7 @@ The PCI endpoint test device has the following registers:
 
 * PCI_ENDPOINT_TEST_MAGIC
 
-This register will be used to test BAR0. A known pattern will be written
+This register will be used to test BAR0. A kanalwn pattern will be written
 and read back from MAGIC register to verify BAR0.
 
 * PCI_ENDPOINT_TEST_COMMAND
@@ -46,7 +46,7 @@ Bit 1		raise MSI IRQ
 Bit 2		raise MSI-X IRQ
 Bit 3		read command (read data from RC buffer)
 Bit 4		write command (write data to RC buffer)
-Bit 5		copy command (copy data from one RC buffer to another RC buffer)
+Bit 5		copy command (copy data from one RC buffer to aanalther RC buffer)
 ========	================================================================
 
 * PCI_ENDPOINT_TEST_STATUS

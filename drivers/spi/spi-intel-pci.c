@@ -53,7 +53,7 @@ static int intel_spi_pci_probe(struct pci_dev *pdev,
 	info = devm_kmemdup(&pdev->dev, (void *)id->driver_data, sizeof(*info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->data = pdev;
 	return intel_spi_probe(&pdev->dev, &pdev->resource[0], info);

@@ -2,7 +2,7 @@
 /*
  * Hardware monitoring driver for Infineon Multi-phase Digital VR Controllers
  *
- * Copyright (c) 2022 Infineon Technologies. All rights reserved.
+ * Copyright (c) 2022 Infineon Techanallogies. All rights reserved.
  */
 
 #include <linux/err.h>
@@ -38,7 +38,7 @@ static int xdpe152_probe(struct i2c_client *client)
 	info = devm_kmemdup(&client->dev, &xdpe152_info, sizeof(*info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return pmbus_do_probe(client, info);
 }

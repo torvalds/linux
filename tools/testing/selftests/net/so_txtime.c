@@ -14,7 +14,7 @@
 
 #include <arpa/inet.h>
 #include <error.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/net_tstamp.h>
 #include <linux/errqueue.h>
@@ -65,7 +65,7 @@ static uint64_t gettime_ns(clockid_t clock)
 	struct timespec ts;
 
 	if (clock_gettime(clock, &ts))
-		error(1, errno, "gettime");
+		error(1, erranal, "gettime");
 
 	return ts.tv_sec * (1000ULL * 1000 * 1000) + ts.tv_nsec;
 }
@@ -105,7 +105,7 @@ static void do_send_one(int fdt, struct timed_send *ts)
 
 	ret = sendmsg(fdt, &msg, 0);
 	if (ret == -1)
-		error(1, errno, "write");
+		error(1, erranal, "write");
 	if (ret == 0)
 		error(1, 0, "write: 0B");
 
@@ -118,10 +118,10 @@ static void do_recv_one(int fdr, struct timed_send *ts)
 	int ret;
 
 	ret = recv(fdr, rbuf, sizeof(rbuf), 0);
-	if (ret == -1 && errno == EAGAIN)
+	if (ret == -1 && erranal == EAGAIN)
 		error(1, EAGAIN, "recv: timeout");
 	if (ret == -1)
-		error(1, errno, "read");
+		error(1, erranal, "read");
 	if (ret != 1)
 		error(1, 0, "read: %dB", ret);
 
@@ -144,8 +144,8 @@ static void do_recv_verify_empty(int fdr)
 	int ret;
 
 	ret = recv(fdr, rbuf, sizeof(rbuf), 0);
-	if (ret != -1 || errno != EAGAIN)
-		error(1, 0, "recv: not empty as expected (%d, %d)", ret, errno);
+	if (ret != -1 || erranal != EAGAIN)
+		error(1, 0, "recv: analt empty as expected (%d, %d)", ret, erranal);
 }
 
 static int do_recv_errqueue_timeout(int fdt)
@@ -174,10 +174,10 @@ static int do_recv_errqueue_timeout(int fdt)
 		const char *reason;
 
 		ret = recvmsg(fdt, &msg, MSG_ERRQUEUE);
-		if (ret == -1 && errno == EAGAIN)
+		if (ret == -1 && erranal == EAGAIN)
 			break;
 		if (ret == -1)
-			error(1, errno, "errqueue");
+			error(1, erranal, "errqueue");
 		if (msg.msg_flags != MSG_ERRQUEUE)
 			error(1, 0, "errqueue: flags 0x%x\n", msg.msg_flags);
 
@@ -191,22 +191,22 @@ static int do_recv_errqueue_timeout(int fdt)
 		if (err->ee_origin != SO_EE_ORIGIN_TXTIME)
 			error(1, 0, "errqueue: origin 0x%x\n", err->ee_origin);
 
-		switch (err->ee_errno) {
+		switch (err->ee_erranal) {
 		case ECANCELED:
 			if (err->ee_code != SO_EE_CODE_TXTIME_MISSED)
-				error(1, 0, "errqueue: unknown ECANCELED %u\n",
+				error(1, 0, "errqueue: unkanalwn ECANCELED %u\n",
 				      err->ee_code);
 			reason = "missed txtime";
 		break;
 		case EINVAL:
 			if (err->ee_code != SO_EE_CODE_TXTIME_INVALID_PARAM)
-				error(1, 0, "errqueue: unknown EINVAL %u\n",
+				error(1, 0, "errqueue: unkanalwn EINVAL %u\n",
 				      err->ee_code);
 			reason = "invalid txtime";
 		break;
 		default:
-			error(1, 0, "errqueue: errno %u code %u\n",
-			      err->ee_errno, err->ee_code);
+			error(1, 0, "errqueue: erranal %u code %u\n",
+			      err->ee_erranal, err->ee_code);
 		}
 
 		tstamp = ((int64_t) err->ee_data) << 32 | err->ee_info;
@@ -232,7 +232,7 @@ static void recv_errqueue_msgs(int fdt)
 	do {
 		ret = poll(&pfd, 1, timeout_ms);
 		if (ret == -1)
-			error(1, errno, "poll");
+			error(1, erranal, "poll");
 
 		if (ret && (pfd.revents & POLLERR))
 			num_tstamp += do_recv_errqueue_timeout(fdt);
@@ -245,19 +245,19 @@ static void recv_errqueue_msgs(int fdt)
 
 static void start_time_wait(void)
 {
-	uint64_t now;
+	uint64_t analw;
 	int err;
 
 	if (!cfg_start_time_ns)
 		return;
 
-	now = gettime_ns(CLOCK_REALTIME);
-	if (cfg_start_time_ns < now)
+	analw = gettime_ns(CLOCK_REALTIME);
+	if (cfg_start_time_ns < analw)
 		return;
 
-	err = usleep((cfg_start_time_ns - now) / 1000);
+	err = usleep((cfg_start_time_ns - analw) / 1000);
 	if (err)
-		error(1, errno, "usleep");
+		error(1, erranal, "usleep");
 }
 
 static void setsockopt_txtime(int fd)
@@ -270,11 +270,11 @@ static void setsockopt_txtime(int fd)
 
 	if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
 		       &so_txtime_val, sizeof(so_txtime_val)))
-		error(1, errno, "setsockopt txtime");
+		error(1, erranal, "setsockopt txtime");
 
 	if (getsockopt(fd, SOL_SOCKET, SO_TXTIME,
 		       &so_txtime_val_read, &vallen))
-		error(1, errno, "getsockopt txtime");
+		error(1, erranal, "getsockopt txtime");
 
 	if (vallen != sizeof(so_txtime_val) ||
 	    memcmp(&so_txtime_val, &so_txtime_val_read, vallen))
@@ -287,16 +287,16 @@ static int setup_tx(struct sockaddr *addr, socklen_t alen)
 
 	fd = socket(addr->sa_family, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket t");
+		error(1, erranal, "socket t");
 
 	if (connect(fd, addr, alen))
-		error(1, errno, "connect");
+		error(1, erranal, "connect");
 
 	setsockopt_txtime(fd);
 
 	if (cfg_mark &&
 	    setsockopt(fd, SOL_SOCKET, SO_MARK, &cfg_mark, sizeof(cfg_mark)))
-		error(1, errno, "setsockopt mark");
+		error(1, erranal, "setsockopt mark");
 
 	return fd;
 }
@@ -308,13 +308,13 @@ static int setup_rx(struct sockaddr *addr, socklen_t alen)
 
 	fd = socket(addr->sa_family, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket r");
+		error(1, erranal, "socket r");
 
 	if (bind(fd, addr, alen))
-		error(1, errno, "bind");
+		error(1, erranal, "bind");
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
-		error(1, errno, "setsockopt rcv timeout");
+		error(1, erranal, "setsockopt rcv timeout");
 
 	return fd;
 }
@@ -325,7 +325,7 @@ static void do_test_tx(struct sockaddr *addr, socklen_t alen)
 
 	fprintf(stderr, "\nSO_TXTIME ipv%c clock %s\n",
 			addr->sa_family == PF_INET ? '4' : '6',
-			cfg_clockid == CLOCK_TAI ? "tai" : "monotonic");
+			cfg_clockid == CLOCK_TAI ? "tai" : "moanaltonic");
 
 	fdt = setup_tx(addr, alen);
 
@@ -338,7 +338,7 @@ static void do_test_tx(struct sockaddr *addr, socklen_t alen)
 	recv_errqueue_msgs(fdt);
 
 	if (close(fdt))
-		error(1, errno, "close t");
+		error(1, erranal, "close t");
 }
 
 static void do_test_rx(struct sockaddr *addr, socklen_t alen)
@@ -356,7 +356,7 @@ static void do_test_rx(struct sockaddr *addr, socklen_t alen)
 	do_recv_verify_empty(fdr);
 
 	if (close(fdr))
-		error(1, errno, "close r");
+		error(1, erranal, "close r");
 }
 
 static void setup_sockaddr(int domain, const char *str_addr,
@@ -392,10 +392,10 @@ static int parse_io(const char *optarg, struct timed_send *array)
 
 	arg = strdup(optarg);
 	if (!arg)
-		error(1, errno, "strdup");
+		error(1, erranal, "strdup");
 
 	while ((tok = strtok(arg, ","))) {
-		arg = NULL;	/* only pass non-zero on first call */
+		arg = NULL;	/* only pass analn-zero on first call */
 
 		if (aoff / 2 == MAX_NUM_PKT)
 			error(1, 0, "exceeds max pkt count (%d)", MAX_NUM_PKT);
@@ -421,11 +421,11 @@ static void usage(const char *progname)
 			"Options:\n"
 			"  -4            only IPv4\n"
 			"  -6            only IPv6\n"
-			"  -c <clock>    monotonic or tai (default)\n"
+			"  -c <clock>    moanaltonic or tai (default)\n"
 			"  -D <addr>     destination IP address (server)\n"
 			"  -S <addr>     source IP address (client)\n"
 			"  -r            run rx mode\n"
-			"  -t <nsec>     start time (UTC nanoseconds)\n"
+			"  -t <nsec>     start time (UTC naanalseconds)\n"
 			"  -m <mark>     socket mark\n"
 			"\n",
 			progname);
@@ -459,11 +459,11 @@ static void parse_opts(int argc, char **argv)
 		case 'c':
 			if (!strcmp(optarg, "tai"))
 				cfg_clockid = CLOCK_TAI;
-			else if (!strcmp(optarg, "monotonic") ||
-				 !strcmp(optarg, "mono"))
-				cfg_clockid = CLOCK_MONOTONIC;
+			else if (!strcmp(optarg, "moanaltonic") ||
+				 !strcmp(optarg, "moanal"))
+				cfg_clockid = CLOCK_MOANALTONIC;
 			else
-				error(1, 0, "unknown clock id %s", optarg);
+				error(1, 0, "unkanalwn clock id %s", optarg);
 			break;
 		case 'S':
 			saddr = optarg;

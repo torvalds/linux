@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Hitachi (now Renesas) SCA-II HD64572 driver for Linux
+ * Hitachi (analw Renesas) SCA-II HD64572 driver for Linux
  *
  * Copyright (C) 1998-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *
@@ -22,7 +22,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/hdlc.h>
 #include <linux/in.h>
@@ -242,7 +242,7 @@ static inline int sca_rx_done(port_t *port, int budget)
 		u32 cda = sca_inl(dmac + CDAL, card);
 
 		if ((cda >= desc_off) && (cda < desc_off + sizeof(pkt_desc)))
-			break;	/* No frame received */
+			break;	/* Anal frame received */
 
 		desc = desc_address(port, port->rxin, 0);
 		stat = readb(&desc->stat);
@@ -295,7 +295,7 @@ static inline void sca_tx_done(port_t *port)
 		u8 stat = readb(&desc->stat);
 
 		if (!(stat & ST_TX_OWNRSHP))
-			break; /* not yet transmitted */
+			break; /* analt yet transmitted */
 		if (stat & ST_TX_UNDRRUN) {
 			dev->stats.tx_errors++;
 			dev->stats.tx_fifo_errors++;
@@ -447,12 +447,12 @@ static void sca_open(struct net_device *dev)
 		md0 = MD0_HDLC | MD0_CRC_ITU;
 		break;
 	default:
-		md0 = MD0_HDLC | MD0_CRC_NONE;
+		md0 = MD0_HDLC | MD0_CRC_ANALNE;
 	}
 
 	sca_out(CMD_RESET, msci + CMD, card);
 	sca_out(md0, msci + MD0, card);
-	sca_out(0x00, msci + MD1, card); /* no address field check */
+	sca_out(0x00, msci + MD1, card); /* anal address field check */
 	sca_out(md2, msci + MD2, card);
 	sca_out(0x7E, msci + IDL, card); /* flag character 0x7E */
 	/* Skip the rest of underrun frame */
@@ -503,7 +503,7 @@ static int sca_attach(struct net_device *dev, unsigned short encoding,
 	    encoding != ENCODING_MANCHESTER)
 		return -EINVAL;
 
-	if (parity != PARITY_NONE &&
+	if (parity != PARITY_ANALNE &&
 	    parity != PARITY_CRC16_PR0 &&
 	    parity != PARITY_CRC16_PR1 &&
 	    parity != PARITY_CRC32_PR1_CCITT &&

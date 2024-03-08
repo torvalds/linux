@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 
 static const struct nvkm_enum
 gk104_ce_launcherr_report[] = {
-	{ 0x0, "NO_ERR" },
+	{ 0x0, "ANAL_ERR" },
 	{ 0x1, "2D_LAYER_EXCEEDS_DEPTH" },
 	{ 0x2, "INVALID_ARGUMENT" },
 	{ 0x3, "MEM2MEM_RECT_OUT_OF_BOUNDS" },
@@ -69,7 +69,7 @@ gk104_ce_intr(struct nvkm_engine *ce)
 		intr &= ~0x00000001;
 	}
 	if (intr & 0x00000002) {
-		nvkm_warn(subdev, "NONBLOCKPIPE\n");
+		nvkm_warn(subdev, "ANALNBLOCKPIPE\n");
 		nvkm_wr32(device, 0x104908 + base, 0x00000002);
 		intr &= ~0x00000002;
 	}

@@ -41,7 +41,7 @@ properties:
   port:
     type: object
     description:
-      A port node with endpoint definitions as defined in
+      A port analde with endpoint definitions as defined in
       Documentation/devicetree/bindings/media/video-interfaces.txt.
       That port should be the output endpoint, usually output to
       the associated DSI.

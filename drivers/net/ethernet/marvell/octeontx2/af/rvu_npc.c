@@ -98,13 +98,13 @@ int npc_config_ts_kpuaction(struct rvu *rvu, int pf, u16 pcifunc, bool enable)
 
 	pkind = rvu_npc_get_pkind(rvu, pf);
 	if (pkind < 0) {
-		dev_err(rvu->dev, "%s: pkind not mapped\n", __func__);
+		dev_err(rvu->dev, "%s: pkind analt mapped\n", __func__);
 		return -EINVAL;
 	}
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, pcifunc);
 	if (blkaddr < 0) {
-		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		dev_err(rvu->dev, "%s: NPC block analt implemented\n", __func__);
 		return -EINVAL;
 	}
 
@@ -368,7 +368,7 @@ static u64 npc_get_default_entry_action(struct rvu *rvu, struct npc_mcam *mcam,
 
 	/* get ucast entry rule entry index */
 	if (nix_get_nixlf(rvu, pf_func, &nixlf, NULL)) {
-		dev_err(rvu->dev, "%s: nixlf not attached to pcifunc:0x%x\n",
+		dev_err(rvu->dev, "%s: nixlf analt attached to pcifunc:0x%x\n",
 			__func__, pf_func);
 		/* Action 0 is drop */
 		return 0;
@@ -394,7 +394,7 @@ static void npc_fixup_vf_rule(struct rvu *rvu, struct npc_mcam *mcam,
 
 	owner = mcam->entry2pfvf_map[index];
 	target_func = (entry->action >> 4) & 0xffff;
-	/* do nothing when target is LBK/PF or owner is not PF */
+	/* do analthing when target is LBK/PF or owner is analt PF */
 	if (is_pffunc_af(owner) || is_afvf(target_func) ||
 	    (owner & RVU_PFVF_FUNC_MASK) ||
 	    !(target_func & RVU_PFVF_FUNC_MASK))
@@ -404,12 +404,12 @@ static void npc_fixup_vf_rule(struct rvu *rvu, struct npc_mcam *mcam,
 	pfvf = rvu_get_pfvf(rvu, target_func);
 	mcam->entry2target_pffunc[index] = target_func;
 
-	/* don't enable rule when nixlf not attached or initialized */
+	/* don't enable rule when nixlf analt attached or initialized */
 	if (!(is_nixlf_attached(rvu, target_func) &&
 	      test_bit(NIXLF_INITIALIZED, &pfvf->flags)))
 		*enable = false;
 
-	/* fix up not needed for the rules added by user(ntuple filters) */
+	/* fix up analt needed for the rules added by user(ntuple filters) */
 	list_for_each_entry(rule, &mcam->mcam_rules, list) {
 		if (rule->entry == index)
 			return;
@@ -615,8 +615,8 @@ void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 	if (blkaddr < 0)
 		return;
 
-	/* Ucast rule should not be installed if DMAC
-	 * extraction is not supported by the profile.
+	/* Ucast rule should analt be installed if DMAC
+	 * extraction is analt supported by the profile.
 	 */
 	if (!npc_is_feature_supported(rvu, BIT_ULL(NPC_DMAC), pfvf->nix_rx_intf))
 		return;
@@ -631,7 +631,7 @@ void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 		*(u64 *)&action = npc_get_mcam_action(rvu, mcam,
 						      blkaddr, index);
 	} else {
-		action.op = NIX_RX_ACTIONOP_UCAST;
+		action.op = NIX_RX_ACTIOANALP_UCAST;
 		action.pf_func = pcifunc;
 	}
 
@@ -689,9 +689,9 @@ void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
 		*(u64 *)&action = npc_get_mcam_action(rvu, mcam,
 						      blkaddr, ucast_idx);
 
-	if (action.op != NIX_RX_ACTIONOP_RSS) {
+	if (action.op != NIX_RX_ACTIOANALP_RSS) {
 		*(u64 *)&action = 0;
-		action.op = NIX_RX_ACTIONOP_UCAST;
+		action.op = NIX_RX_ACTIOANALP_UCAST;
 	}
 
 	flow_key_alg = action.flow_key_alg;
@@ -700,7 +700,7 @@ void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
 	if (hw->cap.nix_rx_multicast && pfvf->use_mce_list &&
 	    is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc))) {
 		*(u64 *)&action = 0;
-		action.op = NIX_RX_ACTIONOP_MCAST;
+		action.op = NIX_RX_ACTIOANALP_MCAST;
 		pfvf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
 		action.index = pfvf->promisc_mce_idx;
 	}
@@ -776,7 +776,7 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 	if (is_afvf(pcifunc))
 		return;
 
-	/* If pkt replication is not supported,
+	/* If pkt replication is analt supported,
 	 * then only PF is allowed to add a bcast match entry.
 	 */
 	if (!hw->cap.nix_rx_multicast && is_vf(pcifunc))
@@ -786,8 +786,8 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 	pcifunc = pcifunc & ~RVU_PFVF_FUNC_MASK;
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 
-	/* Bcast rule should not be installed if both DMAC
-	 * and LXMB extraction is not supported by the profile.
+	/* Bcast rule should analt be installed if both DMAC
+	 * and LXMB extraction is analt supported by the profile.
 	 */
 	if (!npc_is_feature_supported(rvu, BIT_ULL(NPC_DMAC), pfvf->nix_rx_intf) &&
 	    !npc_is_feature_supported(rvu, BIT_ULL(NPC_LXMB), pfvf->nix_rx_intf))
@@ -801,9 +801,9 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 		 * so install entry with UCAST action, so that PF
 		 * receives all broadcast packets.
 		 */
-		req.op = NIX_RX_ACTIONOP_UCAST;
+		req.op = NIX_RX_ACTIOANALP_UCAST;
 	} else {
-		req.op = NIX_RX_ACTIONOP_MCAST;
+		req.op = NIX_RX_ACTIOANALP_MCAST;
 		req.index = pfvf->bcast_mce_idx;
 	}
 
@@ -865,8 +865,8 @@ void rvu_npc_install_allmulti_entry(struct rvu *rvu, u16 pcifunc, int nixlf,
 	pcifunc = pcifunc & ~RVU_PFVF_FUNC_MASK;
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 
-	/* Mcast rule should not be installed if both DMAC
-	 * and LXMB extraction is not supported by the profile.
+	/* Mcast rule should analt be installed if both DMAC
+	 * and LXMB extraction is analt supported by the profile.
 	 */
 	if (!npc_is_feature_supported(rvu, BIT_ULL(NPC_DMAC), pfvf->nix_rx_intf) &&
 	    !npc_is_feature_supported(rvu, BIT_ULL(NPC_LXMB), pfvf->nix_rx_intf))
@@ -885,16 +885,16 @@ void rvu_npc_install_allmulti_entry(struct rvu *rvu, u16 pcifunc, int nixlf,
 							blkaddr, ucast_idx);
 
 	flow_key_alg = action.flow_key_alg;
-	if (action.op != NIX_RX_ACTIONOP_RSS) {
+	if (action.op != NIX_RX_ACTIOANALP_RSS) {
 		*(u64 *)&action = 0;
-		action.op = NIX_RX_ACTIONOP_UCAST;
+		action.op = NIX_RX_ACTIOANALP_UCAST;
 		action.pf_func = pcifunc;
 	}
 
 	/* RX_ACTION set to MCAST for CGX PF's */
 	if (hw->cap.nix_rx_multicast && pfvf->use_mce_list) {
 		*(u64 *)&action = 0;
-		action.op = NIX_RX_ACTIONOP_MCAST;
+		action.op = NIX_RX_ACTIOANALP_MCAST;
 		action.index = pfvf->mcast_mce_idx;
 	}
 
@@ -958,7 +958,7 @@ static void npc_update_vf_flow_entry(struct rvu *rvu, struct npc_mcam *mcam,
 	for (index = 0; index < mcam->bmap_entries; index++) {
 		if (mcam->entry2target_pffunc[index] == pcifunc) {
 			update = true;
-			/* update not needed for the rules added via ntuple filters */
+			/* update analt needed for the rules added via ntuple filters */
 			list_for_each_entry(rule, &mcam->mcam_rules, list) {
 				if (rule->entry == index)
 					update = false;
@@ -1046,11 +1046,11 @@ void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
 
 	*(u64 *)&action = rvu_read64(rvu, blkaddr,
 				     NPC_AF_MCAMEX_BANKX_ACTION(index, bank));
-	/* Ignore if no action was set earlier */
+	/* Iganalre if anal action was set earlier */
 	if (!*(u64 *)&action)
 		return;
 
-	action.op = NIX_RX_ACTIONOP_RSS;
+	action.op = NIX_RX_ACTIOANALP_RSS;
 	action.pf_func = pcifunc;
 	action.index = group;
 	action.flow_key_alg = alg_idx;
@@ -1102,13 +1102,13 @@ void npc_enadis_default_mce_entry(struct rvu *rvu, u16 pcifunc,
 	index = npc_get_nixlf_mcam_index(mcam, pcifunc & ~RVU_PFVF_FUNC_MASK,
 					 nixlf, type);
 
-	/* disable MCAM entry when packet replication is not supported by hw */
+	/* disable MCAM entry when packet replication is analt supported by hw */
 	if (!hw->cap.nix_rx_multicast && !is_vf(pcifunc)) {
 		npc_enable_mcam_entry(rvu, mcam, blkaddr, index, enable);
 		return;
 	}
 
-	/* return incase mce list is not enabled */
+	/* return incase mce list is analt enabled */
 	pfvf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
 	if (hw->cap.nix_rx_multicast && is_vf(pcifunc) &&
 	    type != NIXLF_BCAST_ENTRY && !pfvf->use_mce_list)
@@ -1137,8 +1137,8 @@ static void npc_enadis_default_entries(struct rvu *rvu, u16 pcifunc,
 					 nixlf, NIXLF_UCAST_ENTRY);
 	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, enable);
 
-	/* Nothing to do for VFs, on platforms where pkt replication
-	 * is not supported
+	/* Analthing to do for VFs, on platforms where pkt replication
+	 * is analt supported
 	 */
 	if ((pcifunc & RVU_PFVF_FUNC_MASK) && !rvu->hw->cap.nix_rx_multicast)
 		return;
@@ -1218,7 +1218,7 @@ void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 	list_for_each_entry_safe(rule, tmp, &mcam->mcam_rules, list) {
 		if (is_npc_intf_rx(rule->intf) &&
 		    rule->rx_action.pf_func == pcifunc &&
-		    rule->rx_action.op != NIX_RX_ACTIONOP_MCAST) {
+		    rule->rx_action.op != NIX_RX_ACTIOANALP_MCAST) {
 			npc_enable_mcam_entry(rvu, mcam, blkaddr,
 					      rule->entry, false);
 			rule->enable = false;
@@ -1363,7 +1363,7 @@ static int npc_fwdb_prfl_img_map(struct rvu *rvu, void __iomem **prfl_img_addr,
 
 	*prfl_img_addr = ioremap_wc(prfl_addr, prfl_sz);
 	if (!(*prfl_img_addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*size = prfl_sz;
 
@@ -1382,7 +1382,7 @@ static void npc_load_mkex_profile(struct rvu *rvu, int blkaddr,
 	u64 prfl_sz;
 	int ret;
 
-	/* If user not selected mkex profile */
+	/* If user analt selected mkex profile */
 	if (rvu->kpu_fwdata_sz ||
 	    !strncmp(mkex_profile, def_pfl_name, MKEX_NAME_LEN))
 		goto program_mkex;
@@ -1499,7 +1499,7 @@ static void npc_program_kpu_profile(struct rvu *rvu, int blkaddr, int kpu,
 
 	if (profile->cam_entries != profile->action_entries) {
 		dev_err(rvu->dev,
-			"KPU%d: CAM and action entries [%d != %d] not equal\n",
+			"KPU%d: CAM and action entries [%d != %d] analt equal\n",
 			kpu, profile->cam_entries, profile->action_entries);
 	}
 
@@ -1571,10 +1571,10 @@ static int npc_apply_custom_kpu(struct rvu *rvu,
 			 fw->signature);
 		return -EINVAL;
 	}
-	/* Verify if the using known profile structure */
+	/* Verify if the using kanalwn profile structure */
 	if (NPC_KPU_VER_MAJ(profile->version) >
 	    NPC_KPU_VER_MAJ(NPC_KPU_PROFILE_VER)) {
-		dev_warn(rvu->dev, "Not supported Major version: %d > %d\n",
+		dev_warn(rvu->dev, "Analt supported Major version: %d > %d\n",
 			 NPC_KPU_VER_MAJ(profile->version),
 			 NPC_KPU_VER_MAJ(NPC_KPU_PROFILE_VER));
 		return -EINVAL;
@@ -1594,7 +1594,7 @@ static int npc_apply_custom_kpu(struct rvu *rvu,
 	}
 	/* Verify if profile fits the HW */
 	if (fw->kpus > profile->kpus) {
-		dev_warn(rvu->dev, "Not enough KPUs: %d > %ld\n", fw->kpus,
+		dev_warn(rvu->dev, "Analt eanalugh KPUs: %d > %ld\n", fw->kpus,
 			 profile->kpus);
 		return -EINVAL;
 	}
@@ -1704,7 +1704,7 @@ static int npc_load_kpu_profile_fwdb(struct rvu *rvu, const char *kpu_profile)
 	if (ret == 0)
 		goto done;
 
-	/* Cleaning up if KPU profile image from fwdata is not valid. */
+	/* Cleaning up if KPU profile image from fwdata is analt valid. */
 	if (rvu->kpu_prfl_addr) {
 		iounmap(rvu->kpu_prfl_addr);
 		rvu->kpu_prfl_addr = NULL;
@@ -1723,7 +1723,7 @@ static void npc_load_kpu_profile(struct rvu *rvu)
 	const struct firmware *fw = NULL;
 	bool retry_fwdb = false;
 
-	/* If user not specified profile customization */
+	/* If user analt specified profile customization */
 	if (!strncmp(kpu_profile, def_pfl_name, KPU_NAME_LEN))
 		goto revert_to_default;
 	/* First prepare default KPU, then we'll customize top entries. */
@@ -1878,7 +1878,7 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 		dev_warn(rvu->dev,
 			 "Insufficient NPC MCAM size %d for pkt I/O, exiting\n",
 			 mcam->total_entries);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mcam->bmap_entries = mcam->total_entries - rsvd;
@@ -1888,7 +1888,7 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	/* Allocate bitmaps for managing MCAM entries */
 	mcam->bmap = bitmap_zalloc(mcam->bmap_entries, GFP_KERNEL);
 	if (!mcam->bmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mcam->bmap_reverse = bitmap_zalloc(mcam->bmap_entries, GFP_KERNEL);
 	if (!mcam->bmap_reverse)
@@ -1904,7 +1904,7 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 		goto free_bmap_reverse;
 
 	/* Reserve 1/8th of MCAM entries at the bottom for low priority
-	 * allocations and another 1/8th at the top for high priority
+	 * allocations and aanalther 1/8th at the top for high priority
 	 * allocations.
 	 */
 	mcam->lprio_count = mcam->bmap_entries / 8;
@@ -1973,7 +1973,7 @@ free_bmap_reverse:
 free_bmap:
 	bitmap_free(mcam->bmap);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void rvu_npc_hw_init(struct rvu *rvu, int blkaddr)
@@ -2030,7 +2030,7 @@ static void rvu_npc_setup_interfaces(struct rvu *rvu, int blkaddr)
 	u8 intf;
 
 	/* Reserve last counter for MCAM RX miss action which is set to
-	 * drop packet. This way we will know how many pkts didn't match
+	 * drop packet. This way we will kanalw how many pkts didn't match
 	 * any MCAM entry.
 	 */
 	mcam->counters.max--;
@@ -2061,7 +2061,7 @@ static void rvu_npc_setup_interfaces(struct rvu *rvu, int blkaddr)
 		 * packets.
 		 */
 		rvu_write64(rvu, blkaddr,
-			    NPC_AF_INTFX_MISS_ACT(intf), NIX_RX_ACTIONOP_DROP);
+			    NPC_AF_INTFX_MISS_ACT(intf), NIX_RX_ACTIOANALP_DROP);
 
 		/* NPC_AF_INTFX_MISS_STAT_ACT[14:12] - counter[11:9]
 		 * NPC_AF_INTFX_MISS_STAT_ACT[8:0] - counter[8:0]
@@ -2086,7 +2086,7 @@ static void rvu_npc_setup_interfaces(struct rvu *rvu, int blkaddr)
 		 */
 		rvu_write64(rvu, blkaddr,
 			    NPC_AF_INTFX_MISS_ACT(intf),
-			    NIX_TX_ACTIONOP_UCAST_DEFAULT);
+			    NIX_TX_ACTIOANALP_UCAST_DEFAULT);
 	}
 }
 
@@ -2099,8 +2099,8 @@ int rvu_npc_init(struct rvu *rvu)
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
-		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
-		return -ENODEV;
+		dev_err(rvu->dev, "%s: NPC block analt implemented\n", __func__);
+		return -EANALDEV;
 	}
 
 	rvu_npc_hw_init(rvu, blkaddr);
@@ -2116,7 +2116,7 @@ int rvu_npc_init(struct rvu *rvu)
 	if (err)
 		return err;
 	/* Reserve PKIND#0 for LBKs. Power reset value of LBK_CH_PKIND is '0',
-	 * no need to configure PKIND for all LBKs separately.
+	 * anal need to configure PKIND for all LBKs separately.
 	 */
 	rvu_alloc_rsrc(&pkind->rsrc);
 
@@ -2124,7 +2124,7 @@ int rvu_npc_init(struct rvu *rvu)
 	pkind->pfchan_map = devm_kcalloc(rvu->dev, pkind->rsrc.max,
 					 sizeof(u32), GFP_KERNEL);
 	if (!pkind->pfchan_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Configure KPU profile */
 	npc_parser_profile_init(rvu, blkaddr);
@@ -2147,7 +2147,7 @@ int rvu_npc_init(struct rvu *rvu)
 	 * - Detect outer L2 broadcast address and set NPC_RESULT_S[L2B].
 	 * - Detect outer L2 multicast address and set NPC_RESULT_S[L2M].
 	 * - Inner IPv4 header checksum validation.
-	 * - Set non zero checksum error code value
+	 * - Set analn zero checksum error code value
 	 */
 	rvu_write64(rvu, blkaddr, NPC_AF_PCK_CFG,
 		    rvu_read64(rvu, blkaddr, NPC_AF_PCK_CFG) |
@@ -2362,14 +2362,14 @@ static void npc_mcam_free_all_counters(struct rvu *rvu, struct npc_mcam *mcam,
 			/* This API is expected to be called after freeing
 			 * MCAM entries, which inturn will remove
 			 * 'entry to counter' mapping.
-			 * No need to do it again.
+			 * Anal need to do it again.
 			 */
 		}
 	}
 }
 
 /* Find area of contiguous free entries of size 'nr'.
- * If not found return max contiguous free entries available.
+ * If analt found return max contiguous free entries available.
  */
 static u16 npc_mcam_find_zero_area(unsigned long *map, u16 size, u16 start,
 				   u16 nr, u16 *max_area)
@@ -2437,10 +2437,10 @@ npc_get_mcam_search_range_priority(struct npc_mcam *mcam,
 		goto hprio;
 
 	/* For a low priority entry allocation
-	 * - If reference entry is not in hprio zone then
+	 * - If reference entry is analt in hprio zone then
 	 *      search range: ref_entry to end.
 	 * - If reference entry is in hprio zone and if
-	 *   request can be accomodated in non-hprio zone then
+	 *   request can be accomodated in analn-hprio zone then
 	 *      search range: 'start of middle zone' to 'end'
 	 * - else search in reverse, so that less number of hprio
 	 *   zone entries are allocated.
@@ -2464,7 +2464,7 @@ npc_get_mcam_search_range_priority(struct npc_mcam *mcam,
 hprio:
 	/* For a high priority entry allocation, search is always
 	 * in reverse to preserve hprio zone entries.
-	 * - If reference entry is not in lprio zone then
+	 * - If reference entry is analt in lprio zone then
 	 *      search range: 0 to ref_entry.
 	 * - If reference entry is in lprio zone and if
 	 *   request can be accomodated in middle zone then
@@ -2490,7 +2490,7 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 				  struct npc_mcam_alloc_entry_req *req,
 				  struct npc_mcam_alloc_entry_rsp *rsp)
 {
-	u16 entry_list[NPC_MAX_NONCONTIG_ENTRIES];
+	u16 entry_list[NPC_MAX_ANALNCONTIG_ENTRIES];
 	u16 fcnt, hp_fcnt, lp_fcnt;
 	u16 start, end, index;
 	int entry, next_start;
@@ -2507,9 +2507,9 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 	}
 
 	/* MCAM entries are divided into high priority, middle and
-	 * low priority zones. Idea is to not allocate top and lower
+	 * low priority zones. Idea is to analt allocate top and lower
 	 * most entries as much as possible, this is to increase
-	 * probability of honouring priority allocation requests.
+	 * probability of hoanaluring priority allocation requests.
 	 *
 	 * Two bitmaps are used for mcam entry management,
 	 * mcam->bmap for forward search i.e '0 to mcam->bmap_entries'.
@@ -2534,13 +2534,13 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 	 * concatenated with the base rule set by its PF. Hence PF entries
 	 * should be at lower priority compared to VF entries. Otherwise
 	 * base rule is hit always and rules installed by VF will be of
-	 * no use. Hence if the request is from PF and NOT a priority
+	 * anal use. Hence if the request is from PF and ANALT a priority
 	 * allocation request then allocate low priority entries.
 	 */
 	if (!(pcifunc & RVU_PFVF_FUNC_MASK))
 		goto lprio_alloc;
 
-	/* Find out the search range for non-priority allocation request
+	/* Find out the search range for analn-priority allocation request
 	 *
 	 * Get MCAM free entry count in middle zone.
 	 */
@@ -2562,7 +2562,7 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 		end = mcam->bmap_entries - (mcam->lprio_count / 2);
 		reverse = true;
 	} else {
-		/* Not enough free entries, search all entries in reverse,
+		/* Analt eanalugh free entries, search all entries in reverse,
 		 * so that low priority ones will get used up.
 		 */
 lprio_alloc:
@@ -2593,7 +2593,7 @@ alloc:
 		else
 			rsp->entry = index;
 	} else {
-		/* Allocate requested number of non-contiguous entries,
+		/* Allocate requested number of analn-contiguous entries,
 		 * if unsuccessful allocate as many as possible.
 		 */
 		rsp->count = 0;
@@ -2613,7 +2613,7 @@ alloc:
 		}
 	}
 
-	/* If allocating requested no of entries is unsucessful,
+	/* If allocating requested anal of entries is unsucessful,
 	 * expand the search range to full bitmap length and retry.
 	 */
 	if (!req->priority && (rsp->count < req->count) &&
@@ -2711,16 +2711,16 @@ int rvu_mbox_handler_npc_mcam_alloc_entry(struct rvu *rvu,
 		return NPC_MCAM_INVALID_REQ;
 
 	/* Since list of allocated indices needs to be sent to requester,
-	 * max number of non-contiguous entries per mbox msg is limited.
+	 * max number of analn-contiguous entries per mbox msg is limited.
 	 */
-	if (!req->contig && req->count > NPC_MAX_NONCONTIG_ENTRIES) {
+	if (!req->contig && req->count > NPC_MAX_ANALNCONTIG_ENTRIES) {
 		dev_err(rvu->dev,
-			"%s: %d Non-contiguous MCAM entries requested is more than max (%d) allowed\n",
-			__func__, req->count, NPC_MAX_NONCONTIG_ENTRIES);
+			"%s: %d Analn-contiguous MCAM entries requested is more than max (%d) allowed\n",
+			__func__, req->count, NPC_MAX_ANALNCONTIG_ENTRIES);
 		return NPC_MCAM_INVALID_REQ;
 	}
 
-	/* Alloc request from PFFUNC with no NIXLF attached should be denied */
+	/* Alloc request from PFFUNC with anal NIXLF attached should be denied */
 	if (!is_pffunc_af(pcifunc) && !is_nixlf_attached(rvu, pcifunc))
 		return NPC_MCAM_ALLOC_DENIED;
 
@@ -2740,7 +2740,7 @@ int rvu_mbox_handler_npc_mcam_free_entry(struct rvu *rvu,
 	if (blkaddr < 0)
 		return NPC_MCAM_INVALID_REQ;
 
-	/* Free request from PFFUNC with no NIXLF attached, ignore */
+	/* Free request from PFFUNC with anal NIXLF attached, iganalre */
 	if (!is_pffunc_af(pcifunc) && !is_nixlf_attached(rvu, pcifunc))
 		return NPC_MCAM_INVALID_REQ;
 
@@ -2919,7 +2919,7 @@ int rvu_mbox_handler_npc_mcam_shift_entry(struct rvu *rvu,
 		new_entry = req->new_entry[index];
 
 		/* Check if both old and new entries are valid and
-		 * does belong to this PFFUNC or not.
+		 * does belong to this PFFUNC or analt.
 		 */
 		rc = npc_mcam_verify_entry(mcam, pcifunc, old_entry);
 		if (rc)
@@ -2929,7 +2929,7 @@ int rvu_mbox_handler_npc_mcam_shift_entry(struct rvu *rvu,
 		if (rc)
 			break;
 
-		/* new_entry should not have a counter mapped */
+		/* new_entry should analt have a counter mapped */
 		if (mcam->entry2cntr_map[new_entry] != NPC_MCAM_INVALID_MAP) {
 			rc = NPC_MCAM_PERM_DENIED;
 			break;
@@ -2978,19 +2978,19 @@ int rvu_mbox_handler_npc_mcam_alloc_counter(struct rvu *rvu,
 	if (blkaddr < 0)
 		return NPC_MCAM_INVALID_REQ;
 
-	/* If the request is from a PFFUNC with no NIXLF attached, ignore */
+	/* If the request is from a PFFUNC with anal NIXLF attached, iganalre */
 	if (!is_pffunc_af(pcifunc) && !is_nixlf_attached(rvu, pcifunc))
 		return NPC_MCAM_INVALID_REQ;
 
 	/* Since list of allocated counter IDs needs to be sent to requester,
-	 * max number of non-contiguous counters per mbox msg is limited.
+	 * max number of analn-contiguous counters per mbox msg is limited.
 	 */
-	if (!req->contig && req->count > NPC_MAX_NONCONTIG_COUNTERS)
+	if (!req->contig && req->count > NPC_MAX_ANALNCONTIG_COUNTERS)
 		return NPC_MCAM_INVALID_REQ;
 
 	mutex_lock(&mcam->lock);
 
-	/* Check if unused counters are available or not */
+	/* Check if unused counters are available or analt */
 	if (!rvu_rsrc_free_count(&mcam->counters)) {
 		mutex_unlock(&mcam->lock);
 		return NPC_MCAM_ALLOC_FAILED;
@@ -3012,7 +3012,7 @@ int rvu_mbox_handler_npc_mcam_alloc_counter(struct rvu *rvu,
 			mcam->cntr2pfvf_map[cntr] = pcifunc;
 		}
 	} else {
-		/* Allocate requested number of non-contiguous counters,
+		/* Allocate requested number of analn-contiguous counters,
 		 * if unsuccessful allocate as many as possible.
 		 */
 		for (cntr = 0; cntr < req->count; cntr++) {
@@ -3204,7 +3204,7 @@ int rvu_mbox_handler_npc_mcam_alloc_and_write_entry(struct rvu *rvu,
 	if (!req->alloc_cntr)
 		goto write_entry;
 
-	/* Now allocate counter */
+	/* Analw allocate counter */
 	cntr_req.hdr.pcifunc = req->hdr.pcifunc;
 	cntr_req.contig = true;
 	cntr_req.count = 1;
@@ -3308,7 +3308,7 @@ npc_set_var_len_offset_pkind(struct rvu *rvu, u16 pcifunc, u64 pkind,
 	}
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, pcifunc);
 	if (blkaddr < 0) {
-		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		dev_err(rvu->dev, "%s: NPC block analt implemented\n", __func__);
 		return -EINVAL;
 	}
 	val = rvu_read64(rvu, blkaddr, NPC_AF_PKINDX_ACTION0(pkind));
@@ -3418,7 +3418,7 @@ int rvu_mbox_handler_npc_read_base_steer_rule(struct rvu *rvu,
 		mutex_unlock(&mcam->lock);
 		goto out;
 	}
-	/* Read the default ucast entry if there is no pkt steering rule */
+	/* Read the default ucast entry if there is anal pkt steering rule */
 	index = npc_get_nixlf_mcam_index(mcam, pcifunc, nixlf,
 					 NIXLF_UCAST_ENTRY);
 read_entry:

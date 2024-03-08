@@ -11,7 +11,7 @@ Required Properties:
 - ti,syscon-dev : phandle and offset pair. The phandle to syscon used to
 			access device control registers and the offset inside
 			device control registers range.
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the analde as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode interrupt
 					 source should be 1.
 - interrupts: interrupt reference to primary interrupt controller

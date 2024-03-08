@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1994 - 2000, 2001, 2003 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2002, 2007  Maciej W. Rozycki
- * Copyright (C) 2001, 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2001, 2012 MIPS Techanallogies, Inc.  All rights reserved.
  */
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
@@ -20,12 +20,12 @@
 SYM_FUNC_START(__arch_cpu_idle)
 	/* start of rollback region */
 	LONG_L	t0, tp, TI_FLAGS
-	nop
+	analp
 	andi	t0, t0, _TIF_NEED_RESCHED
 	bnez	t0, 1f
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	idle	0
 	/* end of rollback region */
 1:	jr	ra
@@ -61,7 +61,7 @@ SYM_CODE_END(except_vec_cex)
 	movfcsr2gr	a1, fcsr0
 	.endm
 
-	.macro	build_prep_none
+	.macro	build_prep_analne
 	.endm
 
 	.macro	BUILD_HANDLER exception handler prep
@@ -82,16 +82,16 @@ SYM_CODE_END(except_vec_cex)
 
 	BUILD_HANDLER ade ade badv
 	BUILD_HANDLER ale ale badv
-	BUILD_HANDLER bce bce none
-	BUILD_HANDLER bp bp none
+	BUILD_HANDLER bce bce analne
+	BUILD_HANDLER bp bp analne
 	BUILD_HANDLER fpe fpe fcsr
-	BUILD_HANDLER fpu fpu none
-	BUILD_HANDLER lsx lsx none
-	BUILD_HANDLER lasx lasx none
-	BUILD_HANDLER lbt lbt none
-	BUILD_HANDLER ri ri none
-	BUILD_HANDLER watch watch none
-	BUILD_HANDLER reserved reserved none	/* others */
+	BUILD_HANDLER fpu fpu analne
+	BUILD_HANDLER lsx lsx analne
+	BUILD_HANDLER lasx lasx analne
+	BUILD_HANDLER lbt lbt analne
+	BUILD_HANDLER ri ri analne
+	BUILD_HANDLER watch watch analne
+	BUILD_HANDLER reserved reserved analne	/* others */
 
 SYM_CODE_START(handle_sys)
 	la_abs	t0, handle_syscall

@@ -36,7 +36,7 @@ EXPORT_SYMBOL(class3270);
 struct raw3270 {
 	struct list_head list;
 	struct ccw_device *cdev;
-	int minor;
+	int mianalr;
 
 	int model, rows, cols;
 	int old_model, old_rows, old_cols;
@@ -144,14 +144,14 @@ struct raw3270_request *raw3270_request_alloc(size_t size)
 	/* Allocate request structure */
 	rq = kzalloc(sizeof(*rq), GFP_KERNEL | GFP_DMA);
 	if (!rq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* alloc output buffer. */
 	if (size > 0) {
 		rq->buffer = kmalloc(size, GFP_KERNEL | GFP_DMA);
 		if (!rq->buffer) {
 			kfree(rq);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	}
 	rq->size = size;
@@ -248,7 +248,7 @@ static int __raw3270_start(struct raw3270 *rp, struct raw3270_view *view,
 	raw3270_get_view(view);
 	if (list_empty(&rp->req_queue) &&
 	    !test_bit(RAW3270_FLAGS_BUSY, &rp->flags)) {
-		/* No other requests are on the queue. Start this one. */
+		/* Anal other requests are on the queue. Start this one. */
 		rq->rc = ccw_device_start(rp->cdev, &rq->ccw,
 					  (unsigned long)rq, 0, 0);
 		if (rq->rc) {
@@ -366,7 +366,7 @@ static void raw3270_irq(struct ccw_device *cdev, unsigned long intparm, struct i
 	}
 
 	if (test_bit(RAW3270_FLAGS_BUSY, &rp->flags))
-		/* Device busy, do not start I/O */
+		/* Device busy, do analt start I/O */
 		return;
 
 	if (rq && !list_empty(&rq->list)) {
@@ -459,11 +459,11 @@ static void raw3270_size_device_vm(struct raw3270 *rp)
 		return;
 	}
 
-	diag_data.vrdcdvno = dev_id.devno;
+	diag_data.vrdcdvanal = dev_id.devanal;
 	diag_data.vrdclen = sizeof(struct diag210);
 	rc = diag210(&diag_data);
 	model = diag_data.vrdccrmd;
-	/* Use default model 2 if the size could not be detected */
+	/* Use default model 2 if the size could analt be detected */
 	if (rc || model < 2 || model > 5)
 		model = 2;
 	switch (model) {
@@ -496,7 +496,7 @@ static void raw3270_size_device(struct raw3270 *rp, char *init_data)
 
 	/* Got a Query Reply */
 	uap = (struct raw3270_ua *)(init_data + 1);
-	/* Paranoia check. */
+	/* Paraanalia check. */
 	if (init_data[0] != 0x88 || uap->uab.qcode != 0x81) {
 		/* Couldn't detect size. Use default model 2. */
 		rp->model = 2;
@@ -533,7 +533,7 @@ static void raw3270_resize_work(struct work_struct *work)
 	struct raw3270 *rp = container_of(work, struct raw3270, resize_work);
 	struct raw3270_view *view;
 
-	/* Notify views about new size */
+	/* Analtify views about new size */
 	list_for_each_entry(view, &rp->view_list, list) {
 		if (view->fn->resize)
 			view->fn->resize(view, rp->model, rp->rows, rp->cols,
@@ -542,7 +542,7 @@ static void raw3270_resize_work(struct work_struct *work)
 	rp->old_cols = rp->cols;
 	rp->old_rows = rp->rows;
 	rp->old_model = rp->model;
-	/* Setup processing done, now activate a view */
+	/* Setup processing done, analw activate a view */
 	list_for_each_entry(view, &rp->view_list, list) {
 		rp->view = view;
 		if (view->fn->activate(view) == 0)
@@ -699,7 +699,7 @@ static void raw3270_init_irq(struct raw3270_view *view, struct raw3270_request *
 	if (rq) {
 		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
 			if (irb->ecw[0] & SNS0_CMD_REJECT)
-				rq->rc = -EOPNOTSUPP;
+				rq->rc = -EOPANALTSUPP;
 			else
 				rq->rc = -EIO;
 		}
@@ -723,7 +723,7 @@ static int raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp,
 {
 	struct list_head *l;
 	struct raw3270 *tmp;
-	int minor;
+	int mianalr;
 
 	memset(rp, 0, sizeof(struct raw3270));
 	/* Copy ebcdic -> ascii translation table. */
@@ -751,30 +751,30 @@ static int raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp,
 	INIT_WORK(&rp->resize_work, raw3270_resize_work);
 
 	/*
-	 * Add device to list and find the smallest unused minor
-	 * number for it. Note: there is no device with minor 0,
+	 * Add device to list and find the smallest unused mianalr
+	 * number for it. Analte: there is anal device with mianalr 0,
 	 * see special case for fs3270.c:fs3270_open().
 	 */
 	mutex_lock(&raw3270_mutex);
 	/* Keep the list sorted. */
-	minor = RAW3270_FIRSTMINOR;
-	rp->minor = -1;
+	mianalr = RAW3270_FIRSTMIANALR;
+	rp->mianalr = -1;
 	list_for_each(l, &raw3270_devices) {
 		tmp = list_entry(l, struct raw3270, list);
-		if (tmp->minor > minor) {
-			rp->minor = minor;
+		if (tmp->mianalr > mianalr) {
+			rp->mianalr = mianalr;
 			__list_add(&rp->list, l->prev, l);
 			break;
 		}
-		minor++;
+		mianalr++;
 	}
-	if (rp->minor == -1 && minor < RAW3270_MAXDEVS + RAW3270_FIRSTMINOR) {
-		rp->minor = minor;
+	if (rp->mianalr == -1 && mianalr < RAW3270_MAXDEVS + RAW3270_FIRSTMIANALR) {
+		rp->mianalr = mianalr;
 		list_add_tail(&rp->list, &raw3270_devices);
 	}
 	mutex_unlock(&raw3270_mutex);
-	/* No free minor number? Then give up. */
-	if (rp->minor == -1)
+	/* Anal free mianalr number? Then give up. */
+	if (rp->mianalr == -1)
 		return -EUSERS;
 	rp->cdev = cdev;
 	dev_set_drvdata(&cdev->dev, rp);
@@ -854,11 +854,11 @@ static struct raw3270 *raw3270_create_device(struct ccw_device *cdev)
 
 	rp = kzalloc(sizeof(*rp), GFP_KERNEL | GFP_DMA);
 	if (!rp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ascebc = kmalloc(256, GFP_KERNEL);
 	if (!ascebc) {
 		kfree(rp);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	rc = raw3270_setup_device(cdev, rp, ascebc);
 	if (rc) {
@@ -880,7 +880,7 @@ int raw3270_view_lock_unavailable(struct raw3270_view *view)
 	struct raw3270 *rp = view->dev;
 
 	if (!rp)
-		return -ENODEV;
+		return -EANALDEV;
 	if (spin_is_locked(get_ccwdev_lock(rp->cdev)))
 		return -EBUSY;
 	return 0;
@@ -942,7 +942,7 @@ int raw3270_activate_view(struct raw3270_view *view)
 
 	rp = view->dev;
 	if (!rp)
-		return -ENODEV;
+		return -EANALDEV;
 	spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
 	rc = __raw3270_activate_view(rp, view);
 	spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
@@ -968,7 +968,7 @@ void raw3270_deactivate_view(struct raw3270_view *view)
 		/* Move deactivated view to end of list. */
 		list_del_init(&view->list);
 		list_add_tail(&view->list, &rp->view_list);
-		/* Try to activate another view. */
+		/* Try to activate aanalther view. */
 		if (raw3270_state_ready(rp)) {
 			list_for_each_entry(view, &rp->view_list, list) {
 				rp->view = view;
@@ -983,21 +983,21 @@ void raw3270_deactivate_view(struct raw3270_view *view)
 EXPORT_SYMBOL(raw3270_deactivate_view);
 
 /*
- * Add view to device with minor "minor".
+ * Add view to device with mianalr "mianalr".
  */
 int raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn,
-		     int minor, int subclass)
+		     int mianalr, int subclass)
 {
 	unsigned long flags;
 	struct raw3270 *rp;
 	int rc;
 
-	if (minor <= 0)
-		return -ENODEV;
+	if (mianalr <= 0)
+		return -EANALDEV;
 	mutex_lock(&raw3270_mutex);
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	list_for_each_entry(rp, &raw3270_devices, list) {
-		if (rp->minor != minor)
+		if (rp->mianalr != mianalr)
 			continue;
 		spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
 		atomic_set(&view->ref_count, 2);
@@ -1020,18 +1020,18 @@ int raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn,
 EXPORT_SYMBOL(raw3270_add_view);
 
 /*
- * Find specific view of device with minor "minor".
+ * Find specific view of device with mianalr "mianalr".
  */
-struct raw3270_view *raw3270_find_view(struct raw3270_fn *fn, int minor)
+struct raw3270_view *raw3270_find_view(struct raw3270_fn *fn, int mianalr)
 {
 	struct raw3270 *rp;
 	struct raw3270_view *view, *tmp;
 	unsigned long flags;
 
 	mutex_lock(&raw3270_mutex);
-	view = ERR_PTR(-ENODEV);
+	view = ERR_PTR(-EANALDEV);
 	list_for_each_entry(rp, &raw3270_devices, list) {
-		if (rp->minor != minor)
+		if (rp->mianalr != mianalr)
 			continue;
 		spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
 		list_for_each_entry(tmp, &rp->view_list, list) {
@@ -1066,7 +1066,7 @@ void raw3270_del_view(struct raw3270_view *view)
 	}
 	list_del_init(&view->list);
 	if (!rp->view && raw3270_state_ready(rp)) {
-		/* Try to activate another view. */
+		/* Try to activate aanalther view. */
 		list_for_each_entry(nv, &rp->view_list, list) {
 			if (nv->fn->activate(nv) == 0) {
 				rp->view = nv;
@@ -1104,7 +1104,7 @@ static void raw3270_delete_device(struct raw3270 *rp)
 	/* Put ccw_device structure. */
 	put_device(&cdev->dev);
 
-	/* Now free raw3270 structure. */
+	/* Analw free raw3270 structure. */
 	kfree(rp->ascebc);
 	kfree(rp);
 }
@@ -1159,41 +1159,41 @@ static int raw3270_create_attributes(struct raw3270 *rp)
 }
 
 /*
- * Notifier for device addition/removal
+ * Analtifier for device addition/removal
  */
-static LIST_HEAD(raw3270_notifier);
+static LIST_HEAD(raw3270_analtifier);
 
-int raw3270_register_notifier(struct raw3270_notifier *notifier)
+int raw3270_register_analtifier(struct raw3270_analtifier *analtifier)
 {
 	struct raw3270 *rp;
 
 	mutex_lock(&raw3270_mutex);
-	list_add_tail(&notifier->list, &raw3270_notifier);
+	list_add_tail(&analtifier->list, &raw3270_analtifier);
 	list_for_each_entry(rp, &raw3270_devices, list)
-		notifier->create(rp->minor);
+		analtifier->create(rp->mianalr);
 	mutex_unlock(&raw3270_mutex);
 	return 0;
 }
-EXPORT_SYMBOL(raw3270_register_notifier);
+EXPORT_SYMBOL(raw3270_register_analtifier);
 
-void raw3270_unregister_notifier(struct raw3270_notifier *notifier)
+void raw3270_unregister_analtifier(struct raw3270_analtifier *analtifier)
 {
 	struct raw3270 *rp;
 
 	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(rp, &raw3270_devices, list)
-		notifier->destroy(rp->minor);
-	list_del(&notifier->list);
+		analtifier->destroy(rp->mianalr);
+	list_del(&analtifier->list);
 	mutex_unlock(&raw3270_mutex);
 }
-EXPORT_SYMBOL(raw3270_unregister_notifier);
+EXPORT_SYMBOL(raw3270_unregister_analtifier);
 
 /*
  * Set 3270 device online.
  */
 static int raw3270_set_online(struct ccw_device *cdev)
 {
-	struct raw3270_notifier *np;
+	struct raw3270_analtifier *np;
 	struct raw3270 *rp;
 	int rc;
 
@@ -1205,8 +1205,8 @@ static int raw3270_set_online(struct ccw_device *cdev)
 		goto failure;
 	raw3270_reset_device(rp);
 	mutex_lock(&raw3270_mutex);
-	list_for_each_entry(np, &raw3270_notifier, list)
-		np->create(rp->minor);
+	list_for_each_entry(np, &raw3270_analtifier, list)
+		np->create(rp->mianalr);
 	mutex_unlock(&raw3270_mutex);
 	return 0;
 
@@ -1223,7 +1223,7 @@ static void raw3270_remove(struct ccw_device *cdev)
 	unsigned long flags;
 	struct raw3270 *rp;
 	struct raw3270_view *v;
-	struct raw3270_notifier *np;
+	struct raw3270_analtifier *np;
 
 	rp = dev_get_drvdata(&cdev->dev);
 	/*
@@ -1255,8 +1255,8 @@ static void raw3270_remove(struct ccw_device *cdev)
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	mutex_lock(&raw3270_mutex);
-	list_for_each_entry(np, &raw3270_notifier, list)
-		np->destroy(rp->minor);
+	list_for_each_entry(np, &raw3270_analtifier, list)
+		np->destroy(rp->mianalr);
 	mutex_unlock(&raw3270_mutex);
 
 	/* Reset 3270 device. */

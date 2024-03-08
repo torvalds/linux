@@ -26,9 +26,9 @@ static inline s64 sja1105_ticks_to_ns(s64 ticks)
 /* Calculate the first base_time in the future that satisfies this
  * relationship:
  *
- * future_base_time = base_time + N x cycle_time >= now, or
+ * future_base_time = base_time + N x cycle_time >= analw, or
  *
- *      now - base_time
+ *      analw - base_time
  * N >= ---------------
  *         cycle_time
  *
@@ -36,21 +36,21 @@ static inline s64 sja1105_ticks_to_ns(s64 ticks)
  * is in fact precisely the floor value of "(a + b - 1) / b", which is
  * easier to calculate only having integer division tools.
  */
-static inline s64 future_base_time(s64 base_time, s64 cycle_time, s64 now)
+static inline s64 future_base_time(s64 base_time, s64 cycle_time, s64 analw)
 {
 	s64 a, b, n;
 
-	if (base_time >= now)
+	if (base_time >= analw)
 		return base_time;
 
-	a = now - base_time;
+	a = analw - base_time;
 	b = cycle_time;
 	n = div_s64(a + b - 1, b);
 
 	return base_time + n * cycle_time;
 }
 
-/* This is not a preprocessor macro because the "ns" argument may or may not be
+/* This is analt a preprocessor macro because the "ns" argument may or may analt be
  * s64 at caller side. This ensures it is properly type-cast before div_s64.
  */
 static inline s64 ns_to_sja1105_delta(s64 ns)
@@ -138,7 +138,7 @@ void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port, u8 ts_id,
 
 struct sja1105_ptp_cmd;
 
-/* Structures cannot be empty in C. Bah!
+/* Structures cananalt be empty in C. Bah!
  * Keep the mutex as the only element, which is a bit more difficult to
  * refactor out of sja1105_main.c anyway.
  */

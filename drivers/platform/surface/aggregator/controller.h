@@ -44,12 +44,12 @@ struct ssh_rqid_counter {
 };
 
 
-/* -- Event/notification system. -------------------------------------------- */
+/* -- Event/analtification system. -------------------------------------------- */
 
 /**
- * struct ssam_nf_head - Notifier head for SSAM events.
+ * struct ssam_nf_head - Analtifier head for SSAM events.
  * @srcu: The SRCU struct for synchronization.
- * @head: List-head for notifier blocks registered under this head.
+ * @head: List-head for analtifier blocks registered under this head.
  */
 struct ssam_nf_head {
 	struct srcu_struct srcu;
@@ -57,13 +57,13 @@ struct ssam_nf_head {
 };
 
 /**
- * struct ssam_nf - Notifier callback- and activation-registry for SSAM events.
- * @lock:     Lock guarding (de-)registration of notifier blocks. Note: This
- *            lock does not need to be held for notifier calls, only
+ * struct ssam_nf - Analtifier callback- and activation-registry for SSAM events.
+ * @lock:     Lock guarding (de-)registration of analtifier blocks. Analte: This
+ *            lock does analt need to be held for analtifier calls, only
  *            registration and deregistration.
  * @refcount: The root of the RB-tree used for reference-counting enabled
- *            events/notifications.
- * @head:     The list of notifier heads for event/notification callbacks.
+ *            events/analtifications.
+ * @head:     The list of analtifier heads for event/analtification callbacks.
  */
 struct ssam_nf {
 	struct mutex lock;
@@ -78,14 +78,14 @@ struct ssam_cplt;
 
 /**
  * struct ssam_event_item - Struct for event queuing and completion.
- * @node:     The node in the queue.
+ * @analde:     The analde in the queue.
  * @rqid:     The request ID of the event.
  * @ops:      Instance specific functions.
  * @ops.free: Callback for freeing this event item.
  * @event:    Actual event data.
  */
 struct ssam_event_item {
-	struct list_head node;
+	struct list_head analde;
 	u16 rqid;
 
 	struct {
@@ -126,7 +126,7 @@ struct ssam_event_target {
  *                items are queued.
  * @event:        Event completion management.
  * @event.target: Array of &struct ssam_event_target, one for each target.
- * @event.notif:  Notifier callbacks and event activation reference counting.
+ * @event.analtif:  Analtifier callbacks and event activation reference counting.
  */
 struct ssam_cplt {
 	struct device *dev;
@@ -134,7 +134,7 @@ struct ssam_cplt {
 
 	struct {
 		struct ssam_event_target target[SSH_NUM_TARGETS];
-		struct ssam_nf notif;
+		struct ssam_nf analtif;
 	} event;
 };
 
@@ -144,9 +144,9 @@ struct ssam_cplt {
 /**
  * enum ssam_controller_state - State values for &struct ssam_controller.
  * @SSAM_CONTROLLER_UNINITIALIZED:
- *	The controller has not been initialized yet or has been deinitialized.
+ *	The controller has analt been initialized yet or has been deinitialized.
  * @SSAM_CONTROLLER_INITIALIZED:
- *	The controller is initialized, but has not been started yet.
+ *	The controller is initialized, but has analt been started yet.
  * @SSAM_CONTROLLER_STARTED:
  *	The controller has been started and is ready to use.
  * @SSAM_CONTROLLER_STOPPED:
@@ -186,7 +186,7 @@ struct ssam_controller_caps {
  * @lock:  Main lock for the controller, used to guard state changes.
  * @state: Controller state.
  * @rtl:   Request transport layer for SSH I/O.
- * @cplt:  Completion system for SSH/SSAM events and asynchronous requests.
+ * @cplt:  Completion system for SSH/SSAM events and asynchroanalus requests.
  * @counter:      Safe SSH message ID counters.
  * @counter.seq:  Sequence ID counter.
  * @counter.rqid: Request ID counter.
@@ -245,7 +245,7 @@ ssize_t ssam_controller_receive_buf(struct ssam_controller *ctrl, const u8 *buf,
 }
 
 /**
- * ssam_controller_write_wakeup() - Notify the controller that the underlying
+ * ssam_controller_write_wakeup() - Analtify the controller that the underlying
  * device has space available for data to be written.
  * @ctrl: The controller.
  */
@@ -259,8 +259,8 @@ int ssam_controller_start(struct ssam_controller *ctrl);
 void ssam_controller_shutdown(struct ssam_controller *ctrl);
 void ssam_controller_destroy(struct ssam_controller *ctrl);
 
-int ssam_notifier_disable_registered(struct ssam_controller *ctrl);
-void ssam_notifier_restore_registered(struct ssam_controller *ctrl);
+int ssam_analtifier_disable_registered(struct ssam_controller *ctrl);
+void ssam_analtifier_restore_registered(struct ssam_controller *ctrl);
 
 int ssam_irq_setup(struct ssam_controller *ctrl);
 void ssam_irq_free(struct ssam_controller *ctrl);
@@ -271,10 +271,10 @@ void ssam_controller_lock(struct ssam_controller *c);
 void ssam_controller_unlock(struct ssam_controller *c);
 
 int ssam_get_firmware_version(struct ssam_controller *ctrl, u32 *version);
-int ssam_ctrl_notif_display_off(struct ssam_controller *ctrl);
-int ssam_ctrl_notif_display_on(struct ssam_controller *ctrl);
-int ssam_ctrl_notif_d0_exit(struct ssam_controller *ctrl);
-int ssam_ctrl_notif_d0_entry(struct ssam_controller *ctrl);
+int ssam_ctrl_analtif_display_off(struct ssam_controller *ctrl);
+int ssam_ctrl_analtif_display_on(struct ssam_controller *ctrl);
+int ssam_ctrl_analtif_d0_exit(struct ssam_controller *ctrl);
+int ssam_ctrl_analtif_d0_entry(struct ssam_controller *ctrl);
 
 int ssam_controller_suspend(struct ssam_controller *ctrl);
 int ssam_controller_resume(struct ssam_controller *ctrl);

@@ -255,13 +255,13 @@ sst_load_base_firmware_failed:
  *
  * Decision Matrix:  (X= dont care; state = target state)
  *
- * DSP state != SKL_DSP_RUNNING ; state = no d0i3
+ * DSP state != SKL_DSP_RUNNING ; state = anal d0i3
  *
  * DSP state == SKL_DSP_RUNNING , the following matrix applies
- * non_d0i3 >0; streaming =X; non_streaming =X; state = no d0i3
- * non_d0i3 =X; streaming =0; non_streaming =0; state = no d0i3
- * non_d0i3 =0; streaming >0; non_streaming =X; state = streaming d0i3
- * non_d0i3 =0; streaming =0; non_streaming =X; state = non-streaming d0i3
+ * analn_d0i3 >0; streaming =X; analn_streaming =X; state = anal d0i3
+ * analn_d0i3 =X; streaming =0; analn_streaming =0; state = anal d0i3
+ * analn_d0i3 =0; streaming >0; analn_streaming =X; state = streaming d0i3
+ * analn_d0i3 =0; streaming =0; analn_streaming =X; state = analn-streaming d0i3
  */
 static int bxt_d0i3_target_state(struct sst_dsp *ctx)
 {
@@ -269,16 +269,16 @@ static int bxt_d0i3_target_state(struct sst_dsp *ctx)
 	struct skl_d0i3_data *d0i3 = &skl->d0i3;
 
 	if (skl->cores.state[SKL_DSP_CORE0_ID] != SKL_DSP_RUNNING)
-		return SKL_DSP_D0I3_NONE;
+		return SKL_DSP_D0I3_ANALNE;
 
-	if (d0i3->non_d0i3)
-		return SKL_DSP_D0I3_NONE;
+	if (d0i3->analn_d0i3)
+		return SKL_DSP_D0I3_ANALNE;
 	else if (d0i3->streaming)
 		return SKL_DSP_D0I3_STREAMING;
-	else if (d0i3->non_streaming)
-		return SKL_DSP_D0I3_NON_STREAMING;
+	else if (d0i3->analn_streaming)
+		return SKL_DSP_D0I3_ANALN_STREAMING;
 	else
-		return SKL_DSP_D0I3_NONE;
+		return SKL_DSP_D0I3_ANALNE;
 }
 
 static void bxt_set_dsp_D0i3(struct work_struct *work)
@@ -301,7 +301,7 @@ static void bxt_set_dsp_D0i3(struct work_struct *work)
 	}
 
 	target_state = bxt_d0i3_target_state(ctx);
-	if (target_state == SKL_DSP_D0I3_NONE)
+	if (target_state == SKL_DSP_D0I3_ANALNE)
 		return;
 
 	msg.instance_id = 0;
@@ -332,7 +332,7 @@ static int bxt_schedule_dsp_D0i3(struct sst_dsp *ctx)
 	struct skl_d0i3_data *d0i3 = &skl->d0i3;
 
 	/* Schedule D0i3 only if the usecase ref counts are appropriate */
-	if (bxt_d0i3_target_state(ctx) != SKL_DSP_D0I3_NONE) {
+	if (bxt_d0i3_target_state(ctx) != SKL_DSP_D0I3_ANALNE) {
 
 		dev_dbg(ctx->dev, "%s: Schedule D0i3\n", __func__);
 
@@ -379,7 +379,7 @@ static int bxt_set_dsp_D0i0(struct sst_dsp *ctx)
 	}
 
 	skl->cores.state[SKL_DSP_CORE0_ID] = SKL_DSP_RUNNING;
-	skl->d0i3.state = SKL_DSP_D0I3_NONE;
+	skl->d0i3.state = SKL_DSP_D0I3_ANALNE;
 
 	return 0;
 }
@@ -454,7 +454,7 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 		}
 	}
 
-	/* Tell FW if additional core in now On */
+	/* Tell FW if additional core in analw On */
 
 	if (core_id != SKL_DSP_CORE0_ID) {
 		dx.core_mask = core_mask;
@@ -551,7 +551,7 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	ret = skl_sst_ctx_init(dev, irq, fw_name, dsp_ops, dsp, &skl_dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: no device\n", __func__);
+		dev_err(dev, "%s: anal device\n", __func__);
 		return ret;
 	}
 
@@ -580,7 +580,7 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	skl->boot_complete = false;
 	init_waitqueue_head(&skl->boot_wait);
 	INIT_DELAYED_WORK(&skl->d0i3.work, bxt_set_dsp_D0i3);
-	skl->d0i3.state = SKL_DSP_D0I3_NONE;
+	skl->d0i3.state = SKL_DSP_D0I3_ANALNE;
 
 	return skl_dsp_acquire_irq(sst);
 }

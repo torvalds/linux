@@ -59,7 +59,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
  * rdma_resolve_ip - Resolve source and destination IP addresses to
  *   RDMA hardware addresses.
  * @src_addr: An optional source address to use in the resolution.  If a
- *   source address is not provided, a usable address will be returned via
+ *   source address is analt provided, a usable address will be returned via
  *   the callback.
  * @dst_addr: The destination address to resolve.
  * @addr: A reference to a data location that will receive the resolved
@@ -147,7 +147,7 @@ static inline void rdma_gid2ip(struct sockaddr *out, const union ib_gid *gid)
 
 /*
  * rdma_get/set_sgid/dgid() APIs are applicable to IB, and iWarp.
- * They are not applicable to RoCE.
+ * They are analt applicable to RoCE.
  * RoCE GIDs are derived from the IP addresses.
  */
 static inline void rdma_addr_get_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)

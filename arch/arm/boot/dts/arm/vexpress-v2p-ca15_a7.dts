@@ -119,7 +119,7 @@
 			/* 8 MB of designated video RAM */
 			compatible = "shared-dma-pool";
 			reg = <0 0x18000000 0 0x00800000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -437,8 +437,8 @@
 	};
 
 	replicator {
-		/* non-configurable replicators don't show up on the
-		 * AMBA bus.  As such no need to add "arm,primecell".
+		/* analn-configurable replicators don't show up on the
+		 * AMBA bus.  As such anal need to add "arm,primecell".
 		 */
 		compatible = "arm,coresight-static-replicator";
 
@@ -510,7 +510,7 @@
 				};
 			};
 
-			/* Input port #3 is for ITM, not supported here */
+			/* Input port #3 is for ITM, analt supported here */
 
 			port@4 {
 				reg = <4>;
@@ -626,7 +626,7 @@
 	};
 };
 
-&nor_flash {
+&analr_flash {
 	/*
 	 * Unfortunately, accessing the flash disturbs the CPU idle states
 	 * (suspend) and CPU hotplug of this platform. For this reason, flash

@@ -148,7 +148,7 @@ struct anfc_op {
 
 /**
  * struct anand - Defines the NAND chip related information
- * @node:		Used to store NAND chips into a list
+ * @analde:		Used to store NAND chips into a list
  * @chip:		NAND chip information structure
  * @rb:			Ready-busy line
  * @page_sz:		Register value of the page_sz field to use
@@ -169,7 +169,7 @@ struct anfc_op {
  * @ncs_idx:		Size of the @cs_idx array
  */
 struct anand {
-	struct list_head node;
+	struct list_head analde;
 	struct nand_chip chip;
 	unsigned int rb;
 	unsigned int page_sz;
@@ -203,7 +203,7 @@ struct anand {
  * @ncs:		Size of @cs_array
  * @cur_cs:		Index in @cs_array of the currently in use CS
  * @native_cs:		Currently selected native CS
- * @spare_cs:		Native CS that is not wired (may be selected when a GPIO
+ * @spare_cs:		Native CS that is analt wired (may be selected when a GPIO
  *			CS is in use)
  */
 struct arasan_nfc {
@@ -256,7 +256,7 @@ static int anfc_wait_for_rb(struct arasan_nfc *nfc, struct nand_chip *chip,
 	u32 val;
 	int ret;
 
-	/* There is no R/B interrupt, we must poll a register */
+	/* There is anal R/B interrupt, we must poll a register */
 	ret = readl_relaxed_poll_timeout(nfc->base + READY_STS_REG, val,
 					 val & BIT(anand->rb),
 					 1, timeout_ms * 1000);
@@ -290,7 +290,7 @@ static int anfc_pkt_len_config(unsigned int len, unsigned int *steps,
 	}
 
 	if (sz * nb != len)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (steps)
 		*steps = nb;
@@ -313,7 +313,7 @@ static int anfc_relative_to_absolute_cs(struct anand *anand, int num)
 
 static void anfc_assert_cs(struct arasan_nfc *nfc, unsigned int nfc_cs_idx)
 {
-	/* CS did not change: do nothing */
+	/* CS did analt change: do analthing */
 	if (nfc->cur_cs == nfc_cs_idx)
 		return;
 
@@ -385,7 +385,7 @@ static int anfc_select_target(struct nand_chip *chip, int target)
  * 5/ The corrected data is then available for reading from the data port
  *    register.
  *
- * The hardware BCH ECC engine is known to be inconstent in BCH mode and never
+ * The hardware BCH ECC engine is kanalwn to be inconstent in BCH mode and never
  * reports uncorrectable errors. Because of this bug, we have to use the
  * software BCH implementation in the read path.
  */
@@ -454,7 +454,7 @@ static int anfc_read_page_hw_ecc(struct nand_chip *chip, u8 *buf,
 		unsigned int bit, byte;
 		int bf, i;
 
-		/* Extract the syndrome, it is not necessarily aligned */
+		/* Extract the syndrome, it is analt necessarily aligned */
 		memset(anand->hw_ecc, 0, chip->ecc.bytes);
 		nand_extract_bits(anand->hw_ecc, 0,
 				  &chip->oob_poi[mtd->oobsize - anand->ecc_total],
@@ -466,7 +466,7 @@ static int anfc_read_page_hw_ecc(struct nand_chip *chip, u8 *buf,
 			continue;
 		} else if (bf > 0) {
 			for (i = 0; i < bf; i++) {
-				/* Only correct the data, not the syndrome */
+				/* Only correct the data, analt the syndrome */
 				if (anand->errloc[i] < (chip->ecc.size * 8)) {
 					bit = BIT(anand->errloc[i] & 7);
 					byte = anand->errloc[i] >> 3;
@@ -561,7 +561,7 @@ static int anfc_write_page_hw_ecc(struct nand_chip *chip, const u8 *buf,
 		return ret;
 	}
 
-	/* Spare data is not protected */
+	/* Spare data is analt protected */
 	if (oob_required) {
 		ret = nand_write_oob_std(chip, page);
 		if (ret)
@@ -661,7 +661,7 @@ static int anfc_parse_instructions(struct nand_chip *chip,
 			 * FIXME: The core should mark operations where
 			 * reading/writing more is allowed so the exec_op()
 			 * implementation can take the right decision when the
-			 * alignment constraint is not met: adjust the number of
+			 * alignment constraint is analt met: adjust the number of
 			 * DATA cycles when it's allowed, reject the operation
 			 * otherwise.
 			 */
@@ -689,7 +689,7 @@ static int anfc_rw_pio_op(struct arasan_nfc *nfc, struct anfc_op *nfc_op)
 		dir = nfc_op->read ? READ_READY : WRITE_READY;
 		ret = anfc_wait_for_event(nfc, dir);
 		if (ret) {
-			dev_err(nfc->dev, "PIO %s ready signal not received\n",
+			dev_err(nfc->dev, "PIO %s ready signal analt received\n",
 				nfc_op->read ? "Read" : "Write");
 			return ret;
 		}
@@ -818,7 +818,7 @@ static int anfc_status_type_exec(struct nand_chip *chip,
 
 	/* See anfc_check_op() for details about this constraint */
 	if (subop->instrs[0].ctx.cmd.opcode != NAND_CMD_STATUS)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = anfc_misc_zerolen_type_exec(chip, subop, PROG_STATUS);
 	if (ret)
@@ -907,7 +907,7 @@ static int anfc_check_op(struct nand_chip *chip,
 	int op_id;
 
 	/*
-	 * The controller abstracts all the NAND operations and do not support
+	 * The controller abstracts all the NAND operations and do analt support
 	 * data only operations.
 	 *
 	 * TODO: The nand_op_parser framework should be extended to
@@ -919,16 +919,16 @@ static int anfc_check_op(struct nand_chip *chip,
 		switch (instr->type) {
 		case NAND_OP_ADDR_INSTR:
 			if (instr->ctx.addr.naddrs > ANFC_MAX_ADDR_CYC)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			break;
 		case NAND_OP_DATA_IN_INSTR:
 		case NAND_OP_DATA_OUT_INSTR:
 			if (instr->ctx.data.len > ANFC_MAX_CHUNK_SIZE)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			if (anfc_pkt_len_config(instr->ctx.data.len, NULL, NULL))
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			break;
 		default:
@@ -937,10 +937,10 @@ static int anfc_check_op(struct nand_chip *chip,
 	}
 
 	/*
-	 * The controller does not allow to proceed with a CMD+DATA_IN cycle
+	 * The controller does analt allow to proceed with a CMD+DATA_IN cycle
 	 * manually on the bus by reading data from the data register. Instead,
 	 * the controller abstract a status read operation with its own status
-	 * register after ordering a read status operation. Hence, we cannot
+	 * register after ordering a read status operation. Hence, we cananalt
 	 * support any CMD+DATA_IN operation other than a READ STATUS.
 	 *
 	 * TODO: The nand_op_parser() framework should be extended to describe
@@ -950,7 +950,7 @@ static int anfc_check_op(struct nand_chip *chip,
 	    op->instrs[0].type == NAND_OP_CMD_INSTR &&
 	    op->instrs[0].ctx.cmd.opcode != NAND_CMD_STATUS &&
 	    op->instrs[1].type == NAND_OP_DATA_IN_INSTR)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return nand_op_parser_exec_op(chip, &anfc_op_parser, op, true);
 }
@@ -976,7 +976,7 @@ static int anfc_setup_interface(struct nand_chip *chip, int target,
 {
 	struct anand *anand = to_anand(chip);
 	struct arasan_nfc *nfc = to_anfc(chip->controller);
-	struct device_node *np = nfc->dev->of_node;
+	struct device_analde *np = nfc->dev->of_analde;
 	const struct nand_sdr_timings *sdr;
 	const struct nand_nvddr_timings *nvddr;
 	unsigned int tccs_min, dqs_mode, fast_tcad;
@@ -1176,11 +1176,11 @@ static int anfc_init_hw_ecc_controller(struct arasan_nfc *nfc,
 	anand->errloc = devm_kmalloc_array(nfc->dev, ecc->strength,
 					   sizeof(*anand->errloc), GFP_KERNEL);
 	if (!anand->errloc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	anand->hw_ecc = devm_kmalloc(nfc->dev, ecc->bytes, GFP_KERNEL);
 	if (!anand->hw_ecc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enforce bit swapping to fit the hardware */
 	anand->bch = bch_init(bch_gf_mag, ecc->strength, bch_prim_poly, true);
@@ -1234,11 +1234,11 @@ static int anfc_attach_chip(struct nand_chip *chip)
 	}
 
 	/* These hooks are valid for all ECC providers */
-	chip->ecc.read_page_raw = nand_monolithic_read_page_raw;
-	chip->ecc.write_page_raw = nand_monolithic_write_page_raw;
+	chip->ecc.read_page_raw = nand_moanallithic_read_page_raw;
+	chip->ecc.write_page_raw = nand_moanallithic_write_page_raw;
 
 	switch (chip->ecc.engine_type) {
-	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_ANALNE:
 	case NAND_ECC_ENGINE_TYPE_SOFT:
 	case NAND_ECC_ENGINE_TYPE_ON_DIE:
 		break;
@@ -1269,7 +1269,7 @@ static const struct nand_controller_ops anfc_ops = {
 	.detach_chip = anfc_detach_chip,
 };
 
-static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
+static int anfc_chip_init(struct arasan_nfc *nfc, struct device_analde *np)
 {
 	struct anand *anand;
 	struct nand_chip *chip;
@@ -1278,7 +1278,7 @@ static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
 
 	anand = devm_kzalloc(nfc->dev, sizeof(*anand), GFP_KERNEL);
 	if (!anand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Chip-select init */
 	anand->ncs_idx = of_property_count_elems_of_size(np, "reg", sizeof(u32));
@@ -1290,7 +1290,7 @@ static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
 	anand->cs_idx = devm_kcalloc(nfc->dev, anand->ncs_idx,
 				     sizeof(*anand->cs_idx), GFP_KERNEL);
 	if (!anand->cs_idx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < anand->ncs_idx; i++) {
 		ret = of_property_read_u32_index(np, "reg", i,
@@ -1317,10 +1317,10 @@ static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = nfc->dev;
 	chip->controller = &nfc->controller;
-	chip->options = NAND_BUSWIDTH_AUTO | NAND_NO_SUBPAGE_WRITE |
+	chip->options = NAND_BUSWIDTH_AUTO | NAND_ANAL_SUBPAGE_WRITE |
 			NAND_USES_DMA;
 
-	nand_set_flash_node(chip, np);
+	nand_set_flash_analde(chip, np);
 	if (!mtd->name) {
 		dev_err(nfc->dev, "NAND label property is mandatory\n");
 		return -EINVAL;
@@ -1338,7 +1338,7 @@ static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
 		return ret;
 	}
 
-	list_add_tail(&anand->node, &nfc->chips);
+	list_add_tail(&anand->analde, &nfc->chips);
 
 	return 0;
 }
@@ -1349,18 +1349,18 @@ static void anfc_chips_cleanup(struct arasan_nfc *nfc)
 	struct nand_chip *chip;
 	int ret;
 
-	list_for_each_entry_safe(anand, tmp, &nfc->chips, node) {
+	list_for_each_entry_safe(anand, tmp, &nfc->chips, analde) {
 		chip = &anand->chip;
 		ret = mtd_device_unregister(nand_to_mtd(chip));
 		WARN_ON(ret);
 		nand_cleanup(chip);
-		list_del(&anand->node);
+		list_del(&anand->analde);
 	}
 }
 
 static int anfc_chips_init(struct arasan_nfc *nfc)
 {
-	struct device_node *np = nfc->dev->of_node, *nand_np;
+	struct device_analde *np = nfc->dev->of_analde, *nand_np;
 	int nchips = of_get_child_count(np);
 	int ret;
 
@@ -1370,10 +1370,10 @@ static int anfc_chips_init(struct arasan_nfc *nfc)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_analde(np, nand_np) {
 		ret = anfc_chip_init(nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
+			of_analde_put(nand_np);
 			anfc_chips_cleanup(nfc);
 			break;
 		}
@@ -1403,11 +1403,11 @@ static int anfc_parse_cs(struct arasan_nfc *nfc)
 		return ret;
 
 	/*
-	 * The controller native CS cannot be both disabled at the same time.
+	 * The controller native CS cananalt be both disabled at the same time.
 	 * Hence, only one native CS can be used if GPIO CS are needed, so that
-	 * the other is selected when a non-native CS must be asserted (not
+	 * the other is selected when a analn-native CS must be asserted (analt
 	 * wired physically or configured as GPIO instead of NAND CS). In this
-	 * case, the "not" chosen CS is assigned to nfc->spare_cs and selected
+	 * case, the "analt" chosen CS is assigned to nfc->spare_cs and selected
 	 * whenever a GPIO CS must be asserted.
 	 */
 	if (nfc->cs_array && nfc->ncs > 2) {
@@ -1439,7 +1439,7 @@ static int anfc_probe(struct platform_device *pdev)
 
 	nfc = devm_kzalloc(&pdev->dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfc->dev = &pdev->dev;
 	nand_controller_init(&nfc->controller);

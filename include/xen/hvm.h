@@ -29,7 +29,7 @@ static const char *param_name(int op)
 #undef PARAM
 
 	if (op >= ARRAY_SIZE(names))
-		return "unknown";
+		return "unkanalwn";
 
 	if (!names[op])
 		return "reserved";
@@ -45,7 +45,7 @@ static inline int hvm_get_parameter(int idx, uint64_t *value)
 	xhv.index = idx;
 	r = HYPERVISOR_hvm_op(HVMOP_get_param, &xhv);
 	if (r < 0) {
-		pr_err("Cannot get hvm parameter %s (%d): %d!\n",
+		pr_err("Cananalt get hvm parameter %s (%d): %d!\n",
 		       param_name(idx), idx, r);
 		return r;
 	}

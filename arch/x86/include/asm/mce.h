@@ -48,14 +48,14 @@
 #define MCI_STATUS_TCC		BIT_ULL(55)  /* Task context corrupt */
 #define MCI_STATUS_SYNDV	BIT_ULL(53)  /* synd reg. valid */
 #define MCI_STATUS_DEFERRED	BIT_ULL(44)  /* uncorrected error, deferred exception */
-#define MCI_STATUS_POISON	BIT_ULL(43)  /* access poisonous data */
+#define MCI_STATUS_POISON	BIT_ULL(43)  /* access poisoanalus data */
 #define MCI_STATUS_SCRUB	BIT_ULL(40)  /* Error detected during scrub operation */
 
 /*
  * McaX field if set indicates a given bank supports MCA extensions:
  *  - Deferred error interrupt type is specifiable by bank.
  *  - MCx_MISC0[BlkPtr] field indicates presence of extended MISC registers,
- *    But should not be used to determine MSR numbers.
+ *    But should analt be used to determine MSR numbers.
  *  - TCC bit is present in MCx_STATUS.
  */
 #define MCI_CONFIG_MCAX		0x1
@@ -63,7 +63,7 @@
 #define MCI_IPID_HWID		0xFFF
 
 /*
- * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
+ * Analte that the full MCACOD field of IA32_MCi_STATUS MSR is
  * bits 15:0.  But bit 12 is the 'F' bit, defined for corrected
  * errors to indicate that errors are being filtered by hardware.
  * We should mask out bit 12 when looking for specific signatures
@@ -173,7 +173,7 @@ struct mce_log_buffer {
 };
 
 /* Highest last */
-enum mce_notifier_prios {
+enum mce_analtifier_prios {
 	MCE_PRIO_LOWEST,
 	MCE_PRIO_MCELOG,
 	MCE_PRIO_EDAC,
@@ -185,9 +185,9 @@ enum mce_notifier_prios {
 	MCE_PRIO_HIGHEST = MCE_PRIO_CEC
 };
 
-struct notifier_block;
-extern void mce_register_decode_chain(struct notifier_block *nb);
-extern void mce_unregister_decode_chain(struct notifier_block *nb);
+struct analtifier_block;
+extern void mce_register_decode_chain(struct analtifier_block *nb);
+extern void mce_unregister_decode_chain(struct analtifier_block *nb);
 
 #include <linux/percpu.h>
 #include <linux/atomic.h>
@@ -261,7 +261,7 @@ enum mcp_flags {
 };
 bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
-int mce_notify_irq(void);
+int mce_analtify_irq(void);
 
 DECLARE_PER_CPU(struct mce, injectm);
 
@@ -319,7 +319,7 @@ enum smca_bank_types {
 	SMCA_SMU_V2,
 	SMCA_MP5,	/* Microprocessor 5 Unit */
 	SMCA_MPDMA,	/* MPDMA Unit */
-	SMCA_NBIO,	/* Northbridge IO Unit */
+	SMCA_NBIO,	/* Analrthbridge IO Unit */
 	SMCA_PCIE,	/* PCI Express Unit */
 	SMCA_PCIE_V2,
 	SMCA_XGMI_PCS,	/* xGMI PCS Unit */

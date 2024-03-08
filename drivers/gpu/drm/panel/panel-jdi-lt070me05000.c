@@ -307,7 +307,7 @@ static int jdi_panel_get_modes(struct drm_panel *panel,
 		dev_err(dev, "failed to add mode %ux%ux@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -407,18 +407,18 @@ static int jdi_panel_add(struct jdi_panel *jdi)
 	jdi->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(jdi->enable_gpio)) {
 		return dev_err_probe(dev, PTR_ERR(jdi->enable_gpio),
-				     "cannot get enable-gpio %d\n", ret);
+				     "cananalt get enable-gpio %d\n", ret);
 	}
 
 	jdi->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(jdi->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(jdi->reset_gpio),
-				     "cannot get reset-gpios %d\n", ret);
+				     "cananalt get reset-gpios %d\n", ret);
 
 	jdi->dcdc_en_gpio = devm_gpiod_get(dev, "dcdc-en", GPIOD_OUT_LOW);
 	if (IS_ERR(jdi->dcdc_en_gpio))
 		return dev_err_probe(dev, PTR_ERR(jdi->dcdc_en_gpio),
-				     "cannot get dcdc-en-gpio %d\n", ret);
+				     "cananalt get dcdc-en-gpio %d\n", ret);
 
 	jdi->backlight = drm_panel_create_dsi_backlight(jdi->dsi);
 	if (IS_ERR(jdi->backlight))
@@ -447,11 +447,11 @@ static int jdi_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags =  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO |
-			   MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			   MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	jdi = devm_kzalloc(&dsi->dev, sizeof(*jdi), GFP_KERNEL);
 	if (!jdi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, jdi);
 

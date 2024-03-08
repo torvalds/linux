@@ -36,7 +36,7 @@ DECLARE_EVENT_CLASS(dpaa_eth_fd,
 	TP_ARGS(netdev, fq, fd),
 
 	/* A structure containing the relevant information we want to record.
-	 * Declare name and type for each normal element, name, type and size
+	 * Declare name and type for each analrmal element, name, type and size
 	 * for arrays. Use __string for variable length strings.
 	 */
 	TP_STRUCT__entry(
@@ -67,7 +67,7 @@ DECLARE_EVENT_CLASS(dpaa_eth_fd,
 		  __entry->fd_offset, __entry->fd_length, __entry->fd_status)
 );
 
-/* Now declare events of the above type. Format is:
+/* Analw declare events of the above type. Format is:
  * DEFINE_EVENT(class, name, proto, args), with proto and args same as for class
  */
 

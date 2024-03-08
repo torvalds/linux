@@ -12,7 +12,7 @@ Required properties:
 
 
 Required properties for devices compatible with "atmel,at91sam9g45-ssc":
-- dmas: DMA specifier, consisting of a phandle to DMA controller node,
+- dmas: DMA specifier, consisting of a phandle to DMA controller analde,
   the memory interface and SSC DMA channel ID (for tx and rx).
   See Documentation/devicetree/bindings/dma/atmel-dma.txt for details.
 - dma-names: Must be "tx", "rx".

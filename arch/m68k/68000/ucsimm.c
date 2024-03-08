@@ -16,7 +16,7 @@
 
 #include "m68328.h"
 
-static int errno;
+static int erranal;
 
 static _bsc0(char *, getserialnum)
 static _bsc1(unsigned char *, gethwaddr, int, a)

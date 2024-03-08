@@ -47,7 +47,7 @@ static int map_irq_stack(unsigned int cpu)
 
 	va = vmap(pages, IRQ_STACK_SIZE / PAGE_SIZE, VM_MAP, PAGE_KERNEL);
 	if (!va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Store actual TOS to avoid adjustment in the hotpath */
 	per_cpu(pcpu_hot.hardirq_stack_ptr, cpu) = va + IRQ_STACK_SIZE - 8;

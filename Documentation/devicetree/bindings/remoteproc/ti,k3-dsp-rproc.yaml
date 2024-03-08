@@ -20,7 +20,7 @@ description: |
   cores in the K3 SoCs are usually either a TMS320C66x CorePac processor or a
   TMS320C71x CorePac processor.
 
-  Each DSP Core sub-system is represented as a single DT node. Each node has a
+  Each DSP Core sub-system is represented as a single DT analde. Each analde has a
   number of required or optional properties that enable the OS running on the
   host processor (Arm CorePac) to perform the device management of the remote
   processor and to communicate with the remote processor.
@@ -43,7 +43,7 @@ properties:
 
   resets:
     description: |
-      Should contain the phandle to the reset controller node managing the
+      Should contain the phandle to the reset controller analde managing the
       local resets for this device, and a reset specifier.
     maxItems: 1
 
@@ -54,18 +54,18 @@ properties:
 
   mboxes:
     description: |
-      OMAP Mailbox specifier denoting the sub-mailbox, to be used for
+      OMAP Mailbox specifier deanalting the sub-mailbox, to be used for
       communication with the remote processor. This property should match
-      with the sub-mailbox node used in the firmware image.
+      with the sub-mailbox analde used in the firmware image.
     maxItems: 1
 
   memory-region:
     minItems: 2
     maxItems: 8
     description: |
-      phandle to the reserved memory nodes to be associated with the remoteproc
-      device. There should be at least two reserved memory nodes defined. The
-      reserved memory nodes should be carveout nodes, and should be defined as
+      phandle to the reserved memory analdes to be associated with the remoteproc
+      device. There should be at least two reserved memory analdes defined. The
+      reserved memory analdes should be carveout analdes, and should be defined as
       per the bindings in
       Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
     items:
@@ -85,7 +85,7 @@ properties:
       maxItems: 1
     description: |
       phandles to one or more reserved on-chip SRAM regions. The regions
-      should be defined as child nodes of the respective SRAM node, and
+      should be defined as child analdes of the respective SRAM analde, and
       should be defined as per the generic bindings in,
       Documentation/devicetree/bindings/sram/sram.yaml
 
@@ -162,7 +162,7 @@ examples:
                      <0x4d 0x80800000 0x4d 0x80800000 0x00 0x00800000>, /* C66_0 */
                      <0x4d 0x81800000 0x4d 0x81800000 0x00 0x00800000>; /* C66_1 */
 
-            /* J721E C66_0 DSP node */
+            /* J721E C66_0 DSP analde */
             dsp@4d80800000 {
                 compatible = "ti,j721e-c66-dsp";
                 reg = <0x4d 0x80800000 0x00 0x00048000>,
@@ -179,7 +179,7 @@ examples:
                 mboxes = <&mailbox0_cluster3 &mbox_c66_0>;
             };
 
-            /* J721E C71_0 DSP node */
+            /* J721E C71_0 DSP analde */
             c71_0: dsp@64800000 {
                 compatible = "ti,j721e-c71-dsp";
                 reg = <0x00 0x64800000 0x00 0x00080000>,

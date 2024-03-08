@@ -27,7 +27,7 @@
 #include <net/sock.h>
 #include <net/af_vsock.h>
 
-#include "vmci_transport_notify.h"
+#include "vmci_transport_analtify.h"
 
 static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg);
 static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg);
@@ -55,7 +55,7 @@ static int vmci_transport_recv_connected(struct sock *sk,
 					 struct vmci_transport_packet *pkt);
 static bool vmci_transport_old_proto_override(bool *old_pkt_proto);
 static u16 vmci_transport_new_proto_supported_versions(void);
-static bool vmci_transport_proto_to_notify_struct(struct sock *sk, u16 *proto,
+static bool vmci_transport_proto_to_analtify_struct(struct sock *sk, u16 *proto,
 						  bool old_pkt_proto);
 static bool vmci_check_transport(struct vsock_sock *vsk);
 
@@ -82,15 +82,15 @@ static struct vsock_transport vmci_transport; /* forward declaration */
 static s32 vmci_transport_error_to_vsock_error(s32 vmci_error)
 {
 	switch (vmci_error) {
-	case VMCI_ERROR_NO_MEM:
-		return -ENOMEM;
+	case VMCI_ERROR_ANAL_MEM:
+		return -EANALMEM;
 	case VMCI_ERROR_DUPLICATE_ENTRY:
 	case VMCI_ERROR_ALREADY_EXISTS:
 		return -EADDRINUSE;
-	case VMCI_ERROR_NO_ACCESS:
+	case VMCI_ERROR_ANAL_ACCESS:
 		return -EPERM;
-	case VMCI_ERROR_NO_RESOURCES:
-		return -ENOBUFS;
+	case VMCI_ERROR_ANAL_RESOURCES:
+		return -EANALBUFS;
 	case VMCI_ERROR_INVALID_RESOURCE:
 		return -EHOSTUNREACH;
 	case VMCI_ERROR_INVALID_ARGS:
@@ -236,8 +236,8 @@ vmci_transport_send_control_pkt_bh(struct sockaddr_vm *src,
 				   struct vmci_transport_waiting_info *wait,
 				   struct vmci_handle handle)
 {
-	/* Note that it is safe to use a single packet across all CPUs since
-	 * two tasklets of the same type are guaranteed to not ever run
+	/* Analte that it is safe to use a single packet across all CPUs since
+	 * two tasklets of the same type are guaranteed to analt ever run
 	 * simultaneously. If that ever changes, or VMCI stops using tasklets,
 	 * we can use per-cpu packets.
 	 */
@@ -264,7 +264,7 @@ vmci_transport_alloc_send_control_pkt(struct sockaddr_vm *src,
 
 	pkt = kmalloc(sizeof(*pkt), GFP_KERNEL);
 	if (!pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = __vmci_transport_send_control_pkt(pkt, src, dst, type, size,
 						mode, wait, proto, handle,
@@ -561,16 +561,16 @@ vmci_transport_queue_pair_alloc(struct vmci_qp **qpair,
 				       consume_size,
 				       peer, flags,
 				       VMCI_PRIVILEGE_FLAG_TRUSTED);
-		if (err != VMCI_ERROR_NO_ACCESS)
+		if (err != VMCI_ERROR_ANAL_ACCESS)
 			goto out;
 
 	}
 
 	err = vmci_qpair_alloc(qpair, handle, produce_size, consume_size,
-			       peer, flags, VMCI_NO_PRIVILEGE_FLAGS);
+			       peer, flags, VMCI_ANAL_PRIVILEGE_FLAGS);
 out:
 	if (err < 0) {
-		pr_err_once("Could not attach to queue pair with %d\n", err);
+		pr_err_once("Could analt attach to queue pair with %d\n", err);
 		err = vmci_transport_error_to_vsock_error(err);
 	}
 
@@ -595,7 +595,7 @@ vmci_transport_datagram_create_hnd(u32 resource_id,
 					       recv_cb,
 					       client_data, out_handle);
 
-	if (err == VMCI_ERROR_NO_ACCESS)
+	if (err == VMCI_ERROR_ANAL_ACCESS)
 		err = vmci_datagram_create_handle(resource_id, flags,
 						  recv_cb, client_data,
 						  out_handle);
@@ -622,20 +622,20 @@ static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg)
 	 * restricted context). If we get one from a restricted context then
 	 * the destination socket must be trusted.
 	 *
-	 * NOTE: We access the socket struct without holding the lock here.
+	 * ANALTE: We access the socket struct without holding the lock here.
 	 * This is ok because the field we are interested is never modified
 	 * outside of the create and destruct socket functions.
 	 */
 	vsk = vsock_sk(sk);
 	if (!vmci_transport_allow_dgram(vsk, dg->src.context))
-		return VMCI_ERROR_NO_ACCESS;
+		return VMCI_ERROR_ANAL_ACCESS;
 
 	size = VMCI_DG_SIZE(dg);
 
 	/* Attach the packet to the socket's receive queue as an sk_buff. */
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb)
-		return VMCI_ERROR_NO_MEM;
+		return VMCI_ERROR_ANAL_MEM;
 
 	/* sk_receive_skb() will do a sock_put(), so hold here. */
 	sock_hold(sk);
@@ -648,15 +648,15 @@ static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg)
 
 static bool vmci_transport_stream_allow(u32 cid, u32 port)
 {
-	static const u32 non_socket_contexts[] = {
+	static const u32 analn_socket_contexts[] = {
 		VMADDR_CID_LOCAL,
 	};
 	int i;
 
-	BUILD_BUG_ON(sizeof(cid) != sizeof(*non_socket_contexts));
+	BUILD_BUG_ON(sizeof(cid) != sizeof(*analn_socket_contexts));
 
-	for (i = 0; i < ARRAY_SIZE(non_socket_contexts); i++) {
-		if (cid == non_socket_contexts[i])
+	for (i = 0; i < ARRAY_SIZE(analn_socket_contexts); i++) {
+		if (cid == analn_socket_contexts[i])
 			return false;
 	}
 
@@ -682,22 +682,22 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 	err = VMCI_SUCCESS;
 	bh_process_pkt = false;
 
-	/* Ignore incoming packets from contexts without sockets, or resources
+	/* Iganalre incoming packets from contexts without sockets, or resources
 	 * that aren't vsock implementations.
 	 */
 
 	if (!vmci_transport_stream_allow(dg->src.context, -1)
 	    || vmci_transport_peer_rid(dg->src.context) != dg->src.resource)
-		return VMCI_ERROR_NO_ACCESS;
+		return VMCI_ERROR_ANAL_ACCESS;
 
 	if (VMCI_DG_SIZE(dg) < sizeof(*pkt))
-		/* Drop datagrams that do not contain full VSock packets. */
+		/* Drop datagrams that do analt contain full VSock packets. */
 		return VMCI_ERROR_INVALID_ARGS;
 
 	pkt = (struct vmci_transport_packet *)dg;
 
 	/* Find the socket that should handle this packet.  First we look for a
-	 * connected socket and if there is none we look for a socket bound to
+	 * connected socket and if there is analne we look for a socket bound to
 	 * the destintation address.
 	 */
 	vsock_addr_init(&src, pkt->dg.src.context, pkt->src_port);
@@ -707,24 +707,24 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 	if (!sk) {
 		sk = vsock_find_bound_socket(&dst);
 		if (!sk) {
-			/* We could not find a socket for this specified
+			/* We could analt find a socket for this specified
 			 * address.  If this packet is a RST, we just drop it.
-			 * If it is another packet, we send a RST.  Note that
-			 * we do not send a RST reply to RSTs so that we do not
+			 * If it is aanalther packet, we send a RST.  Analte that
+			 * we do analt send a RST reply to RSTs so that we do analt
 			 * continually send RSTs between two endpoints.
 			 *
-			 * Note that since this is a reply, dst is src and src
+			 * Analte that since this is a reply, dst is src and src
 			 * is dst.
 			 */
 			if (vmci_transport_send_reset_bh(&dst, &src, pkt) < 0)
 				pr_err("unable to send reset\n");
 
-			err = VMCI_ERROR_NOT_FOUND;
+			err = VMCI_ERROR_ANALT_FOUND;
 			goto out;
 		}
 	}
 
-	/* If the received packet type is beyond all types known to this
+	/* If the received packet type is beyond all types kanalwn to this
 	 * implementation, reply with an invalid message.  Hopefully this will
 	 * help when implementing backwards compatibility in the future.
 	 */
@@ -739,19 +739,19 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 	 * that are in a restricted context). If we get one from a restricted
 	 * context then the destination socket must be trusted.
 	 *
-	 * NOTE: We access the socket struct without holding the lock here.
+	 * ANALTE: We access the socket struct without holding the lock here.
 	 * This is ok because the field we are interested is never modified
 	 * outside of the create and destruct socket functions.
 	 */
 	vsk = vsock_sk(sk);
 	if (!vmci_transport_allow_dgram(vsk, pkt->dg.src.context)) {
-		err = VMCI_ERROR_NO_ACCESS;
+		err = VMCI_ERROR_ANAL_ACCESS;
 		goto out;
 	}
 
 	/* We do most everything in a work queue, but let's fast path the
-	 * notification of reads and writes to help data transfer performance.
-	 * We can only do this if there is no process context code executing
+	 * analtification of reads and writes to help data transfer performance.
+	 * We can only do this if there is anal process context code executing
 	 * for this socket since that may change the state.
 	 */
 	bh_lock_sock(sk);
@@ -761,7 +761,7 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 		vsk->local_addr.svm_cid = dst.svm_cid;
 
 		if (sk->sk_state == TCP_ESTABLISHED)
-			vmci_trans(vsk)->notify_ops->handle_notify_pkt(
+			vmci_trans(vsk)->analtify_ops->handle_analtify_pkt(
 					sk, pkt, true, &dst, &src,
 					&bh_process_pkt);
 	}
@@ -776,7 +776,7 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 			if (vmci_transport_send_reset_bh(&dst, &src, pkt) < 0)
 				pr_err("unable to send reset\n");
 
-			err = VMCI_ERROR_NO_MEM;
+			err = VMCI_ERROR_ANAL_MEM;
 			goto out;
 		}
 
@@ -786,7 +786,7 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 
 		schedule_work(&recv_pkt_info->work);
 		/* Clear sk so that the reference count incremented by one of
-		 * the Find functions above is not decremented below.  We need
+		 * the Find functions above is analt decremented below.  We need
 		 * that reference count for the packet handler we've scheduled
 		 * to run.
 		 */
@@ -808,17 +808,17 @@ static void vmci_transport_handle_detach(struct sock *sk)
 	if (!vmci_handle_is_invalid(vmci_trans(vsk)->qp_handle)) {
 		sock_set_flag(sk, SOCK_DONE);
 
-		/* On a detach the peer will not be sending or receiving
+		/* On a detach the peer will analt be sending or receiving
 		 * anymore.
 		 */
 		vsk->peer_shutdown = SHUTDOWN_MASK;
 
-		/* We should not be sending anymore since the peer won't be
+		/* We should analt be sending anymore since the peer won't be
 		 * there to receive, but we can still receive if there is data
 		 * left in our consume queue. If the local endpoint is a host,
 		 * we can't call vsock_stream_has_data, since that may block,
 		 * but a host endpoint can't read data once the VM has
-		 * detached, so there is no available data in that case.
+		 * detached, so there is anal available data in that case.
 		 */
 		if (vsk->local_addr.svm_cid == VMADDR_CID_HOST ||
 		    vsock_stream_has_data(vsk) <= 0) {
@@ -859,9 +859,9 @@ static void vmci_transport_peer_detach_cb(u32 sub_id,
 		return;
 
 	/* We don't ask for delayed CBs when we subscribe to this event (we
-	 * pass 0 as flags to vmci_event_subscribe()).  VMCI makes no
+	 * pass 0 as flags to vmci_event_subscribe()).  VMCI makes anal
 	 * guarantees in that case about what context we might be running in,
-	 * so it could be BH or process, blockable or non-blockable.  So we
+	 * so it could be BH or process, blockable or analn-blockable.  So we
 	 * need to account for all possible contexts here.
 	 */
 	spin_lock_bh(&trans->lock);
@@ -919,9 +919,9 @@ static void vmci_transport_recv_pkt_work(struct work_struct *work)
 		vmci_transport_recv_connected(sk, pkt);
 		break;
 	default:
-		/* Because this function does not run in the same context as
+		/* Because this function does analt run in the same context as
 		 * vmci_transport_recv_stream_cb it is possible that the
-		 * socket has closed. We need to let the other side know or it
+		 * socket has closed. We need to let the other side kanalw or it
 		 * could be sitting in a connect and hang forever. Send a
 		 * reset to prevent that.
 		 */
@@ -1008,7 +1008,7 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	pending = vsock_create_connected(sk);
 	if (!pending) {
 		vmci_transport_send_reset(sk, pkt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vpending = vsock_sk(pending);
@@ -1054,7 +1054,7 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	if (old_request) {
 		/* Handle a REQUEST (or override) */
 		u16 version = VSOCK_PROTO_INVALID;
-		if (vmci_transport_proto_to_notify_struct(
+		if (vmci_transport_proto_to_analtify_struct(
 			pending, &version, true))
 			err = vmci_transport_send_negotiate(pending, qp_size);
 		else
@@ -1078,7 +1078,7 @@ static int vmci_transport_recv_listen(struct sock *sk,
 		pos = fls(proto_int);
 		if (pos) {
 			active_proto_version = (1 << (pos - 1));
-			if (vmci_transport_proto_to_notify_struct(
+			if (vmci_transport_proto_to_analtify_struct(
 				pending, &active_proto_version, false))
 				err = vmci_transport_send_negotiate2(pending,
 							qp_size,
@@ -1106,15 +1106,15 @@ static int vmci_transport_recv_listen(struct sock *sk,
 		vmci_trans(vpending)->consume_size = qp_size;
 	vpending->buffer_size = qp_size;
 
-	vmci_trans(vpending)->notify_ops->process_request(pending);
+	vmci_trans(vpending)->analtify_ops->process_request(pending);
 
-	/* We might never receive another message for this socket and it's not
+	/* We might never receive aanalther message for this socket and it's analt
 	 * connected to any process, so we have to ensure it gets cleaned up
-	 * ourself.  Our delayed work function will take care of that.  Note
-	 * that we do not ever cancel this function since we have few
+	 * ourself.  Our delayed work function will take care of that.  Analte
+	 * that we do analt ever cancel this function since we have few
 	 * guarantees about its state when calling cancel_delayed_work().
 	 * Instead we hold a reference on the socket for that function and make
-	 * it capable of handling cases where it needs to do nothing but
+	 * it capable of handling cases where it needs to do analthing but
 	 * release that reference.
 	 */
 	vpending->listener = sk;
@@ -1161,8 +1161,8 @@ vmci_transport_recv_connecting_server(struct sock *listener,
 	}
 
 	/* In order to complete the connection we need to attach to the offered
-	 * queue pair and send an attach notification.  We also subscribe to the
-	 * detach event so we know when our peer goes away, and we do that
+	 * queue pair and send an attach analtification.  We also subscribe to the
+	 * detach event so we kanalw when our peer goes away, and we do that
 	 * before attaching so we don't miss an event.  If all this succeeds,
 	 * we update our state and wakeup anything waiting in accept() for a
 	 * connection.
@@ -1183,10 +1183,10 @@ vmci_transport_recv_connecting_server(struct sock *listener,
 
 	vmci_trans(vpending)->detach_sub_id = detach_sub_id;
 
-	/* Now attach to the queue pair the client created. */
+	/* Analw attach to the queue pair the client created. */
 	handle = pkt->u.handle;
 
-	/* vpending->local_addr always has a context id so we do not need to
+	/* vpending->local_addr always has a context id so we do analt need to
 	 * worry about VMADDR_CID_ANY in this case.
 	 */
 	is_local =
@@ -1220,38 +1220,38 @@ vmci_transport_recv_connecting_server(struct sock *listener,
 	 * received by the peer may be processed concurrently with what happens
 	 * below after sending the attach message, and that incoming packet
 	 * will find the listening socket instead of the (currently) pending
-	 * socket. Note that enqueueing the socket increments the reference
+	 * socket. Analte that enqueueing the socket increments the reference
 	 * count, so even if a reset comes before the connection is accepted,
 	 * the socket will be valid until it is removed from the queue.
 	 *
 	 * If we fail sending the attach below, we remove the socket from the
 	 * connected list and move the socket to TCP_CLOSE before
 	 * releasing the lock, so a pending slow path processing of an incoming
-	 * packet will not see the socket in the connected state in that case.
+	 * packet will analt see the socket in the connected state in that case.
 	 */
 	pending->sk_state = TCP_ESTABLISHED;
 
 	vsock_insert_connected(vpending);
 
-	/* Notify our peer of our attach. */
+	/* Analtify our peer of our attach. */
 	err = vmci_transport_send_attach(pending, handle);
 	if (err < 0) {
 		vsock_remove_connected(vpending);
-		pr_err("Could not send attach\n");
+		pr_err("Could analt send attach\n");
 		vmci_transport_send_reset(pending, pkt);
 		err = vmci_transport_error_to_vsock_error(err);
 		skerr = -err;
 		goto destroy;
 	}
 
-	/* We have a connection. Move the now connected socket from the
+	/* We have a connection. Move the analw connected socket from the
 	 * listener's pending list to the accept queue so callers of accept()
 	 * can find it.
 	 */
 	vsock_remove_pending(listener, pending);
 	vsock_enqueue_accept(listener, pending);
 
-	/* Callers of accept() will be waiting on the listening socket, not
+	/* Callers of accept() will be waiting on the listening socket, analt
 	 * the pending socket.
 	 */
 	listener->sk_data_ready(listener);
@@ -1263,7 +1263,7 @@ destroy:
 	pending->sk_state = TCP_CLOSE;
 	/* As long as we drop our reference, all necessary cleanup will handle
 	 * when the cleanup function drops its reference and our destruct
-	 * implementation is called.  Note that since the listen handler will
+	 * implementation is called.  Analte that since the listen handler will
 	 * remove pending from the pending list upon our failure, the cleanup
 	 * function won't drop the additional reference, which is why we do it
 	 * here.
@@ -1338,15 +1338,15 @@ vmci_transport_recv_connecting_client(struct sock *sk,
 	case VMCI_TRANSPORT_PACKET_TYPE_RST:
 		/* Older versions of the linux code (WS 6.5 / ESX 4.0) used to
 		 * continue processing here after they sent an INVALID packet.
-		 * This meant that we got a RST after the INVALID. We ignore a
+		 * This meant that we got a RST after the INVALID. We iganalre a
 		 * RST after an INVALID. The common code doesn't send the RST
 		 * ... so we can hang if an old version of the common code
 		 * fails between getting a REQUEST and sending an OFFER back.
-		 * Not much we can do about it... except hope that it doesn't
+		 * Analt much we can do about it... except hope that it doesn't
 		 * happen.
 		 */
-		if (vsk->ignore_connecting_rst) {
-			vsk->ignore_connecting_rst = false;
+		if (vsk->iganalre_connecting_rst) {
+			vsk->iganalre_connecting_rst = false;
 		} else {
 			skerr = ECONNRESET;
 			err = 0;
@@ -1395,7 +1395,7 @@ static int vmci_transport_recv_connecting_client_negotiate(
 	 * linux vsock could have sent the bogus rst.
 	 */
 	vsk->sent_request = false;
-	vsk->ignore_connecting_rst = false;
+	vsk->iganalre_connecting_rst = false;
 
 	/* Verify that we're OK with the proposed queue pair size */
 	if (pkt->u.size < vsk->buffer_min_size ||
@@ -1404,12 +1404,12 @@ static int vmci_transport_recv_connecting_client_negotiate(
 		goto destroy;
 	}
 
-	/* At this point we know the CID the peer is using to talk to us. */
+	/* At this point we kanalw the CID the peer is using to talk to us. */
 
 	if (vsk->local_addr.svm_cid == VMADDR_CID_ANY)
 		vsk->local_addr.svm_cid = pkt->dg.dst.context;
 
-	/* Setup the notify ops to be the highest supported version that both
+	/* Setup the analtify ops to be the highest supported version that both
 	 * the server and the client support.
 	 */
 
@@ -1428,14 +1428,14 @@ static int vmci_transport_recv_connecting_client_negotiate(
 	else
 		version = pkt->proto;
 
-	if (!vmci_transport_proto_to_notify_struct(sk, &version, old_proto)) {
+	if (!vmci_transport_proto_to_analtify_struct(sk, &version, old_proto)) {
 		err = -EINVAL;
 		goto destroy;
 	}
 
 	/* Subscribe to detach events first.
 	 *
-	 * XXX We attach once for each queue pair created for now so it is easy
+	 * XXX We attach once for each queue pair created for analw so it is easy
 	 * to find the socket (it's provided), but later we should only
 	 * subscribe once and add a way to lookup sockets by queue pair handle.
 	 */
@@ -1479,7 +1479,7 @@ static int vmci_transport_recv_connecting_client_negotiate(
 
 	vmci_trans(vsk)->detach_sub_id = detach_sub_id;
 
-	vmci_trans(vsk)->notify_ops->process_negotiate(sk);
+	vmci_trans(vsk)->analtify_ops->process_negotiate(sk);
 
 	return 0;
 
@@ -1502,7 +1502,7 @@ vmci_transport_recv_connecting_client_invalid(struct sock *sk,
 
 	if (vsk->sent_request) {
 		vsk->sent_request = false;
-		vsk->ignore_connecting_rst = true;
+		vsk->iganalre_connecting_rst = true;
 
 		err = vmci_transport_send_conn_request(sk, vsk->buffer_size);
 		if (err < 0)
@@ -1542,7 +1542,7 @@ static int vmci_transport_recv_connected(struct sock *sk,
 	case VMCI_TRANSPORT_PACKET_TYPE_RST:
 		vsk = vsock_sk(sk);
 		/* It is possible that we sent our peer a message (e.g a
-		 * WAITING_READ) right before we got notified that the peer had
+		 * WAITING_READ) right before we got analtified that the peer had
 		 * detached. If that happens then we can get a RST pkt back
 		 * from our peer even though there is data available for us to
 		 * read. In that case, don't shutdown the socket completely but
@@ -1560,7 +1560,7 @@ static int vmci_transport_recv_connected(struct sock *sk,
 
 	default:
 		vsk = vsock_sk(sk);
-		vmci_trans(vsk)->notify_ops->handle_notify_pkt(
+		vmci_trans(vsk)->analtify_ops->handle_analtify_pkt(
 				sk, pkt, false, NULL, NULL,
 				&pkt_processed);
 		if (!pkt_processed)
@@ -1577,14 +1577,14 @@ static int vmci_transport_socket_init(struct vsock_sock *vsk,
 {
 	vsk->trans = kmalloc(sizeof(struct vmci_transport), GFP_KERNEL);
 	if (!vsk->trans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vmci_trans(vsk)->dg_handle = VMCI_INVALID_HANDLE;
 	vmci_trans(vsk)->qp_handle = VMCI_INVALID_HANDLE;
 	vmci_trans(vsk)->qpair = NULL;
 	vmci_trans(vsk)->produce_size = vmci_trans(vsk)->consume_size = 0;
 	vmci_trans(vsk)->detach_sub_id = VMCI_INVALID_ID;
-	vmci_trans(vsk)->notify_ops = NULL;
+	vmci_trans(vsk)->analtify_ops = NULL;
 	INIT_LIST_HEAD(&vmci_trans(vsk)->elem);
 	vmci_trans(vsk)->sk = &vsk->sk;
 	spin_lock_init(&vmci_trans(vsk)->lock);
@@ -1639,8 +1639,8 @@ static void vmci_transport_destruct(struct vsock_sock *vsk)
 	vmci_trans(vsk)->sk = NULL;
 	spin_unlock_bh(&vmci_trans(vsk)->lock);
 
-	if (vmci_trans(vsk)->notify_ops)
-		vmci_trans(vsk)->notify_ops->socket_destruct(vsk);
+	if (vmci_trans(vsk)->analtify_ops)
+		vmci_trans(vsk)->analtify_ops->socket_destruct(vsk);
 
 	spin_lock_bh(&vmci_transport_cleanup_lock);
 	list_add(&vmci_trans(vsk)->elem, &vmci_transport_cleanup_list);
@@ -1709,7 +1709,7 @@ static int vmci_transport_dgram_enqueue(
 	/* Allocate a buffer for the user's message and our packet header. */
 	dg = kmalloc(len + sizeof(*dg), GFP_KERNEL);
 	if (!dg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = memcpy_from_msg(VMCI_DG_PAYLOAD(dg), msg, len);
 	if (err) {
@@ -1741,7 +1741,7 @@ static int vmci_transport_dgram_dequeue(struct vsock_sock *vsk,
 	struct sk_buff *skb;
 
 	if (flags & MSG_OOB || flags & MSG_ERRQUEUE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Retrieve the head sk_buff from the socket's receive queue. */
 	err = 0;
@@ -1787,7 +1787,7 @@ out:
 static bool vmci_transport_dgram_allow(u32 cid, u32 port)
 {
 	if (cid == VMADDR_CID_HYPERVISOR) {
-		/* Registrations of PBRPC Servers do not modify VMX/Hypervisor
+		/* Registrations of PBRPC Servers do analt modify VMX/Hypervisor
 		 * state and are allowed.
 		 */
 		return port == VMCI_UNITY_PBRPC_REGISTER;
@@ -1839,7 +1839,7 @@ static ssize_t vmci_transport_stream_dequeue(
 		err = vmci_qpair_dequev(vmci_trans(vsk)->qpair, msg, len, 0);
 
 	if (err < 0)
-		err = -ENOMEM;
+		err = -EANALMEM;
 
 	return err;
 }
@@ -1853,7 +1853,7 @@ static ssize_t vmci_transport_stream_enqueue(
 
 	err = vmci_qpair_enquev(vmci_trans(vsk)->qpair, msg, len, 0);
 	if (err < 0)
-		err = -ENOMEM;
+		err = -EANALMEM;
 
 	return err;
 }
@@ -1878,101 +1878,101 @@ static bool vmci_transport_stream_is_active(struct vsock_sock *vsk)
 	return !vmci_handle_is_invalid(vmci_trans(vsk)->qp_handle);
 }
 
-static int vmci_transport_notify_poll_in(
+static int vmci_transport_analtify_poll_in(
 	struct vsock_sock *vsk,
 	size_t target,
-	bool *data_ready_now)
+	bool *data_ready_analw)
 {
-	return vmci_trans(vsk)->notify_ops->poll_in(
-			&vsk->sk, target, data_ready_now);
+	return vmci_trans(vsk)->analtify_ops->poll_in(
+			&vsk->sk, target, data_ready_analw);
 }
 
-static int vmci_transport_notify_poll_out(
+static int vmci_transport_analtify_poll_out(
 	struct vsock_sock *vsk,
 	size_t target,
-	bool *space_available_now)
+	bool *space_available_analw)
 {
-	return vmci_trans(vsk)->notify_ops->poll_out(
-			&vsk->sk, target, space_available_now);
+	return vmci_trans(vsk)->analtify_ops->poll_out(
+			&vsk->sk, target, space_available_analw);
 }
 
-static int vmci_transport_notify_recv_init(
+static int vmci_transport_analtify_recv_init(
 	struct vsock_sock *vsk,
 	size_t target,
-	struct vsock_transport_recv_notify_data *data)
+	struct vsock_transport_recv_analtify_data *data)
 {
-	return vmci_trans(vsk)->notify_ops->recv_init(
+	return vmci_trans(vsk)->analtify_ops->recv_init(
 			&vsk->sk, target,
-			(struct vmci_transport_recv_notify_data *)data);
+			(struct vmci_transport_recv_analtify_data *)data);
 }
 
-static int vmci_transport_notify_recv_pre_block(
+static int vmci_transport_analtify_recv_pre_block(
 	struct vsock_sock *vsk,
 	size_t target,
-	struct vsock_transport_recv_notify_data *data)
+	struct vsock_transport_recv_analtify_data *data)
 {
-	return vmci_trans(vsk)->notify_ops->recv_pre_block(
+	return vmci_trans(vsk)->analtify_ops->recv_pre_block(
 			&vsk->sk, target,
-			(struct vmci_transport_recv_notify_data *)data);
+			(struct vmci_transport_recv_analtify_data *)data);
 }
 
-static int vmci_transport_notify_recv_pre_dequeue(
+static int vmci_transport_analtify_recv_pre_dequeue(
 	struct vsock_sock *vsk,
 	size_t target,
-	struct vsock_transport_recv_notify_data *data)
+	struct vsock_transport_recv_analtify_data *data)
 {
-	return vmci_trans(vsk)->notify_ops->recv_pre_dequeue(
+	return vmci_trans(vsk)->analtify_ops->recv_pre_dequeue(
 			&vsk->sk, target,
-			(struct vmci_transport_recv_notify_data *)data);
+			(struct vmci_transport_recv_analtify_data *)data);
 }
 
-static int vmci_transport_notify_recv_post_dequeue(
+static int vmci_transport_analtify_recv_post_dequeue(
 	struct vsock_sock *vsk,
 	size_t target,
 	ssize_t copied,
 	bool data_read,
-	struct vsock_transport_recv_notify_data *data)
+	struct vsock_transport_recv_analtify_data *data)
 {
-	return vmci_trans(vsk)->notify_ops->recv_post_dequeue(
+	return vmci_trans(vsk)->analtify_ops->recv_post_dequeue(
 			&vsk->sk, target, copied, data_read,
-			(struct vmci_transport_recv_notify_data *)data);
+			(struct vmci_transport_recv_analtify_data *)data);
 }
 
-static int vmci_transport_notify_send_init(
+static int vmci_transport_analtify_send_init(
 	struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data)
+	struct vsock_transport_send_analtify_data *data)
 {
-	return vmci_trans(vsk)->notify_ops->send_init(
+	return vmci_trans(vsk)->analtify_ops->send_init(
 			&vsk->sk,
-			(struct vmci_transport_send_notify_data *)data);
+			(struct vmci_transport_send_analtify_data *)data);
 }
 
-static int vmci_transport_notify_send_pre_block(
+static int vmci_transport_analtify_send_pre_block(
 	struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data)
+	struct vsock_transport_send_analtify_data *data)
 {
-	return vmci_trans(vsk)->notify_ops->send_pre_block(
+	return vmci_trans(vsk)->analtify_ops->send_pre_block(
 			&vsk->sk,
-			(struct vmci_transport_send_notify_data *)data);
+			(struct vmci_transport_send_analtify_data *)data);
 }
 
-static int vmci_transport_notify_send_pre_enqueue(
+static int vmci_transport_analtify_send_pre_enqueue(
 	struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data)
+	struct vsock_transport_send_analtify_data *data)
 {
-	return vmci_trans(vsk)->notify_ops->send_pre_enqueue(
+	return vmci_trans(vsk)->analtify_ops->send_pre_enqueue(
 			&vsk->sk,
-			(struct vmci_transport_send_notify_data *)data);
+			(struct vmci_transport_send_analtify_data *)data);
 }
 
-static int vmci_transport_notify_send_post_enqueue(
+static int vmci_transport_analtify_send_post_enqueue(
 	struct vsock_sock *vsk,
 	ssize_t written,
-	struct vsock_transport_send_notify_data *data)
+	struct vsock_transport_send_analtify_data *data)
 {
-	return vmci_trans(vsk)->notify_ops->send_post_enqueue(
+	return vmci_trans(vsk)->analtify_ops->send_post_enqueue(
 			&vsk->sk, written,
-			(struct vmci_transport_send_notify_data *)data);
+			(struct vmci_transport_send_analtify_data *)data);
 }
 
 static bool vmci_transport_old_proto_override(bool *old_pkt_proto)
@@ -1990,7 +1990,7 @@ static bool vmci_transport_old_proto_override(bool *old_pkt_proto)
 	return false;
 }
 
-static bool vmci_transport_proto_to_notify_struct(struct sock *sk,
+static bool vmci_transport_proto_to_analtify_struct(struct sock *sk,
 						  u16 *proto,
 						  bool old_pkt_proto)
 {
@@ -2001,22 +2001,22 @@ static bool vmci_transport_proto_to_notify_struct(struct sock *sk,
 			pr_err("Can't set both an old and new protocol\n");
 			return false;
 		}
-		vmci_trans(vsk)->notify_ops = &vmci_transport_notify_pkt_ops;
+		vmci_trans(vsk)->analtify_ops = &vmci_transport_analtify_pkt_ops;
 		goto exit;
 	}
 
 	switch (*proto) {
-	case VSOCK_PROTO_PKT_ON_NOTIFY:
-		vmci_trans(vsk)->notify_ops =
-			&vmci_transport_notify_pkt_q_state_ops;
+	case VSOCK_PROTO_PKT_ON_ANALTIFY:
+		vmci_trans(vsk)->analtify_ops =
+			&vmci_transport_analtify_pkt_q_state_ops;
 		break;
 	default:
-		pr_err("Unknown notify protocol version\n");
+		pr_err("Unkanalwn analtify protocol version\n");
 		return false;
 	}
 
 exit:
-	vmci_trans(vsk)->notify_ops->socket_init(sk);
+	vmci_trans(vsk)->analtify_ops->socket_init(sk);
 	return true;
 }
 
@@ -2050,16 +2050,16 @@ static struct vsock_transport vmci_transport = {
 	.stream_rcvhiwat = vmci_transport_stream_rcvhiwat,
 	.stream_is_active = vmci_transport_stream_is_active,
 	.stream_allow = vmci_transport_stream_allow,
-	.notify_poll_in = vmci_transport_notify_poll_in,
-	.notify_poll_out = vmci_transport_notify_poll_out,
-	.notify_recv_init = vmci_transport_notify_recv_init,
-	.notify_recv_pre_block = vmci_transport_notify_recv_pre_block,
-	.notify_recv_pre_dequeue = vmci_transport_notify_recv_pre_dequeue,
-	.notify_recv_post_dequeue = vmci_transport_notify_recv_post_dequeue,
-	.notify_send_init = vmci_transport_notify_send_init,
-	.notify_send_pre_block = vmci_transport_notify_send_pre_block,
-	.notify_send_pre_enqueue = vmci_transport_notify_send_pre_enqueue,
-	.notify_send_post_enqueue = vmci_transport_notify_send_post_enqueue,
+	.analtify_poll_in = vmci_transport_analtify_poll_in,
+	.analtify_poll_out = vmci_transport_analtify_poll_out,
+	.analtify_recv_init = vmci_transport_analtify_recv_init,
+	.analtify_recv_pre_block = vmci_transport_analtify_recv_pre_block,
+	.analtify_recv_pre_dequeue = vmci_transport_analtify_recv_pre_dequeue,
+	.analtify_recv_post_dequeue = vmci_transport_analtify_recv_post_dequeue,
+	.analtify_send_init = vmci_transport_analtify_send_init,
+	.analtify_send_pre_block = vmci_transport_analtify_send_pre_block,
+	.analtify_send_pre_enqueue = vmci_transport_analtify_send_pre_enqueue,
+	.analtify_send_post_enqueue = vmci_transport_analtify_send_post_enqueue,
 	.shutdown = vmci_transport_shutdown,
 	.get_local_cid = vmci_transport_get_local_cid,
 };

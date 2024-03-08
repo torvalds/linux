@@ -694,19 +694,19 @@ static const struct hisi_gate_clock hi3670_iomcu_gate_sep_clks[] = {
 
 /* clk_media1 */
 static const struct hisi_gate_clock hi3670_media1_gate_sep_clks[] = {
-	{ HI3670_ACLK_GATE_NOC_DSS, "aclk_gate_noc_dss", "aclk_gate_disp_noc_subsys",
+	{ HI3670_ACLK_GATE_ANALC_DSS, "aclk_gate_analc_dss", "aclk_gate_disp_analc_subsys",
 	  CLK_SET_RATE_PARENT, 0x10, 21, 0, },
-	{ HI3670_PCLK_GATE_NOC_DSS_CFG, "pclk_gate_noc_dss_cfg", "pclk_gate_disp_noc_subsys",
+	{ HI3670_PCLK_GATE_ANALC_DSS_CFG, "pclk_gate_analc_dss_cfg", "pclk_gate_disp_analc_subsys",
 	  CLK_SET_RATE_PARENT, 0x10, 22, 0, },
-	{ HI3670_PCLK_GATE_MMBUF_CFG, "pclk_gate_mmbuf_cfg", "pclk_gate_disp_noc_subsys",
+	{ HI3670_PCLK_GATE_MMBUF_CFG, "pclk_gate_mmbuf_cfg", "pclk_gate_disp_analc_subsys",
 	  CLK_SET_RATE_PARENT, 0x20, 5, 0, },
-	{ HI3670_PCLK_GATE_DISP_NOC_SUBSYS, "pclk_gate_disp_noc_subsys", "clk_div_sysbus",
+	{ HI3670_PCLK_GATE_DISP_ANALC_SUBSYS, "pclk_gate_disp_analc_subsys", "clk_div_sysbus",
 	  CLK_SET_RATE_PARENT, 0x10, 18, 0, },
-	{ HI3670_ACLK_GATE_DISP_NOC_SUBSYS, "aclk_gate_disp_noc_subsys", "clk_gate_vivobusfreq",
+	{ HI3670_ACLK_GATE_DISP_ANALC_SUBSYS, "aclk_gate_disp_analc_subsys", "clk_gate_vivobusfreq",
 	  CLK_SET_RATE_PARENT, 0x10, 17, 0, },
-	{ HI3670_PCLK_GATE_DSS, "pclk_gate_dss", "pclk_gate_disp_noc_subsys",
+	{ HI3670_PCLK_GATE_DSS, "pclk_gate_dss", "pclk_gate_disp_analc_subsys",
 	  CLK_SET_RATE_PARENT, 0x00, 14, 0, },
-	{ HI3670_ACLK_GATE_DSS, "aclk_gate_dss", "aclk_gate_disp_noc_subsys",
+	{ HI3670_ACLK_GATE_DSS, "aclk_gate_dss", "aclk_gate_disp_analc_subsys",
 	  CLK_SET_RATE_PARENT, 0x00, 19, 0, },
 	{ HI3670_CLK_GATE_VIVOBUSFREQ, "clk_gate_vivobusfreq", "clk_div_vivobus",
 	  CLK_SET_RATE_PARENT, 0x00, 18, 0, },
@@ -822,7 +822,7 @@ static const struct hisi_gate_clock hi3670_media2_gate_sep_clks[] = {
 	  CLK_SET_RATE_PARENT, 0x00, 2, 0, },
 };
 
-static void hi3670_clk_crgctrl_init(struct device_node *np)
+static void hi3670_clk_crgctrl_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 
@@ -857,7 +857,7 @@ static void hi3670_clk_crgctrl_init(struct device_node *np)
 				  clk_data);
 }
 
-static void hi3670_clk_pctrl_init(struct device_node *np)
+static void hi3670_clk_pctrl_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3670_pctrl_gate_clks);
@@ -869,7 +869,7 @@ static void hi3670_clk_pctrl_init(struct device_node *np)
 			       ARRAY_SIZE(hi3670_pctrl_gate_clks), clk_data);
 }
 
-static void hi3670_clk_pmuctrl_init(struct device_node *np)
+static void hi3670_clk_pmuctrl_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3670_pmu_gate_clks);
@@ -882,7 +882,7 @@ static void hi3670_clk_pmuctrl_init(struct device_node *np)
 			       ARRAY_SIZE(hi3670_pmu_gate_clks), clk_data);
 }
 
-static void hi3670_clk_sctrl_init(struct device_node *np)
+static void hi3670_clk_sctrl_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3670_sctrl_gate_sep_clks) +
@@ -908,7 +908,7 @@ static void hi3670_clk_sctrl_init(struct device_node *np)
 				  clk_data);
 }
 
-static void hi3670_clk_iomcu_init(struct device_node *np)
+static void hi3670_clk_iomcu_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3670_iomcu_gate_sep_clks) +
@@ -926,7 +926,7 @@ static void hi3670_clk_iomcu_init(struct device_node *np)
 				       clk_data);
 }
 
-static void hi3670_clk_media1_init(struct device_node *np)
+static void hi3670_clk_media1_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 
@@ -953,7 +953,7 @@ static void hi3670_clk_media1_init(struct device_node *np)
 				  clk_data);
 }
 
-static void hi3670_clk_media2_init(struct device_node *np)
+static void hi3670_clk_media2_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 
@@ -989,12 +989,12 @@ static const struct of_device_id hi3670_clk_match_table[] = {
 static int hi3670_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
-	void (*init_func)(struct device_node *np);
+	struct device_analde *np = pdev->dev.of_analde;
+	void (*init_func)(struct device_analde *np);
 
 	init_func = of_device_get_match_data(dev);
 	if (!init_func)
-		return -ENODEV;
+		return -EANALDEV;
 
 	init_func(np);
 

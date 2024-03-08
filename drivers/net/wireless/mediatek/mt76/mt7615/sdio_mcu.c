@@ -67,7 +67,7 @@ static int __mt7663s_mcu_drv_pmctrl(struct mt7615_dev *dev)
 	ret = readx_poll_timeout(mt76s_read_pcr, &dev->mt76, status,
 				 status & WHLPCR_IS_DRIVER_OWN, 2000, 1000000);
 	if (ret < 0) {
-		dev_err(dev->mt76.dev, "Cannot get ownership from device");
+		dev_err(dev->mt76.dev, "Cananalt get ownership from device");
 	} else {
 		clear_bit(MT76_STATE_PM, &mphy->state);
 
@@ -115,7 +115,7 @@ static int mt7663s_mcu_fw_pmctrl(struct mt7615_dev *dev)
 	ret = readx_poll_timeout(mt76s_read_pcr, &dev->mt76, status,
 				 !(status & WHLPCR_IS_DRIVER_OWN), 2000, 1000000);
 	if (ret < 0) {
-		dev_err(dev->mt76.dev, "Cannot set ownership to device");
+		dev_err(dev->mt76.dev, "Cananalt set ownership to device");
 		clear_bit(MT76_STATE_PM, &mphy->state);
 	} else {
 		pm->stats.last_doze_event = jiffies;
@@ -164,7 +164,7 @@ int mt7663s_mcu_init(struct mt7615_dev *dev)
 	mcu_ops = devm_kmemdup(dev->mt76.dev, dev->mcu_ops, sizeof(*mcu_ops),
 			       GFP_KERNEL);
 	if (!mcu_ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mcu_ops->set_drv_ctrl = mt7663s_mcu_drv_pmctrl;
 	mcu_ops->set_fw_ctrl = mt7663s_mcu_fw_pmctrl;

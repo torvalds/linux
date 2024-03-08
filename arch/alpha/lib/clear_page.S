@@ -13,9 +13,9 @@ clear_page:
 	.prologue 0
 
 	lda	$0,128
-	nop
-	unop
-	nop
+	analp
+	uanalp
+	analp
 
 1:	stq	$31,0($16)
 	stq	$31,8($16)
@@ -29,13 +29,13 @@ clear_page:
 
 	stq	$31,56($16)
 	addq	$16,64,$16
-	unop
+	uanalp
 	bne	$0,1b
 
 	ret
-	nop
-	unop
-	nop
+	analp
+	uanalp
+	analp
 
 	.end clear_page
 	EXPORT_SYMBOL(clear_page)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -31,7 +31,7 @@
 #define EXTENDED_SAP 0xAA
 #define UI_CMD       0x03
 
-/* This is NOT the Fibre Channel frame header. The FC frame header is
+/* This is ANALT the Fibre Channel frame header. The FC frame header is
  *  constructed in the driver as the Tachyon needs certain fields in
  *  certains positions. So, it can't be generalized here.*/
 

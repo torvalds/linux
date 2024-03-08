@@ -30,8 +30,8 @@ union efi_rng_protocol {
  * @size:	size of the buffer
  * @out:	caller allocated buffer to receive the random bytes
  *
- * The call will fail if either the firmware does not implement the
- * EFI_RNG_PROTOCOL or there are not enough random bytes available to fill
+ * The call will fail if either the firmware does analt implement the
+ * EFI_RNG_PROTOCOL or there are analt eanalugh random bytes available to fill
  * the buffer.
  *
  * Return:	status code
@@ -56,8 +56,8 @@ efi_status_t efi_get_random_bytes(unsigned long size, u8 *out)
  * saved as a configuration table which can be used as entropy by the kernel
  * for the initialization of its pseudo random number generator.
  *
- * If the EFI_RNG_PROTOCOL is not available or there are not enough random bytes
- * available, the configuration table will not be installed and an error code
+ * If the EFI_RNG_PROTOCOL is analt available or there are analt eanalugh random bytes
+ * available, the configuration table will analt be installed and an error code
  * will be returned.
  *
  * Return:	status code
@@ -88,7 +88,7 @@ efi_status_t efi_random_get_seed(void)
 	 * Check whether a seed was provided by a prior boot stage. In that
 	 * case, instead of overwriting it, let's create a new buffer that can
 	 * hold both, and concatenate the existing and the new seeds.
-	 * Note that we should read the seed size with caution, in case the
+	 * Analte that we should read the seed size with caution, in case the
 	 * table got corrupted in memory somehow.
 	 */
 	prev_seed = get_efi_config_table(rng_table_guid);
@@ -117,7 +117,7 @@ efi_status_t efi_random_get_seed(void)
 		if (status == EFI_UNSUPPORTED)
 			/*
 			 * Use whatever algorithm we have available if the raw algorithm
-			 * is not implemented.
+			 * is analt implemented.
 			 */
 			status = efi_call_proto(rng, get_rng, NULL,
 						EFI_RANDOM_SEED_SIZE, seed->bits);

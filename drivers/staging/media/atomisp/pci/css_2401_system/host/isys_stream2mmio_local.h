@@ -28,7 +28,7 @@ struct stream2mmio_sid_state_s {
 	hrt_data end_addr;
 	hrt_data strides;
 	hrt_data num_items;
-	hrt_data block_when_no_cmd;
+	hrt_data block_when_anal_cmd;
 };
 
 struct stream2mmio_state_s {

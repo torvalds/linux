@@ -12,7 +12,7 @@
 #include <asm/vendorid_list.h>
 
 #ifdef CONFIG_ERRATA_ANDES
-#define ERRATA_ANDESTECH_NO_IOCP	0
+#define ERRATA_ANDESTECH_ANAL_IOCP	0
 #define ERRATA_ANDESTECH_NUMBER		1
 #endif
 
@@ -55,7 +55,7 @@ asm(ALTERNATIVE("sfence.vma %0", "sfence.vma", SIFIVE_VENDOR_ID,	\
 #define ALT_SVPBMT_SHIFT 61
 #define ALT_THEAD_PBMT_SHIFT 59
 #define ALT_SVPBMT(_val, prot)						\
-asm(ALTERNATIVE_2("li %0, 0\t\nnop",					\
+asm(ALTERNATIVE_2("li %0, 0\t\nanalp",					\
 		  "li %0, %1\t\nslli %0,%0,%3", 0,			\
 			RISCV_ISA_EXT_SVPBMT, CONFIG_RISCV_ISA_SVPBMT,	\
 		  "li %0, %2\t\nslli %0,%0,%4", THEAD_VENDOR_ID,	\
@@ -68,13 +68,13 @@ asm(ALTERNATIVE_2("li %0, 0\t\nnop",					\
 
 #ifdef CONFIG_ERRATA_THEAD_PBMT
 /*
- * IO/NOCACHE memory types are handled together with svpbmt,
- * so on T-Head chips, check if no other memory type is set,
- * and set the non-0 PMA type if applicable.
+ * IO/ANALCACHE memory types are handled together with svpbmt,
+ * so on T-Head chips, check if anal other memory type is set,
+ * and set the analn-0 PMA type if applicable.
  */
 #define ALT_THEAD_PMA(_val)						\
 asm volatile(ALTERNATIVE(						\
-	__nops(7),							\
+	__analps(7),							\
 	"li      t3, %1\n\t"						\
 	"slli    t3, t3, %3\n\t"					\
 	"and     t3, %0, t3\n\t"					\
@@ -95,7 +95,7 @@ asm volatile(ALTERNATIVE(						\
 
 #define ALT_CMO_OP(_op, _start, _size, _cachesize)			\
 asm volatile(ALTERNATIVE(						\
-	__nops(5),							\
+	__analps(5),							\
 	"mv a0, %1\n\t"							\
 	"j 2f\n\t"							\
 	"3:\n\t"							\

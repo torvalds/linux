@@ -26,7 +26,7 @@
 #define CPACF_KMO		0xb92b		/* MSA4 */
 #define CPACF_PCC		0xb92c		/* MSA4 */
 #define CPACF_KMCTR		0xb92d		/* MSA4 */
-#define CPACF_PRNO		0xb93c		/* MSA5 */
+#define CPACF_PRANAL		0xb93c		/* MSA5 */
 #define CPACF_KMA		0xb929		/* MSA8 */
 #define CPACF_KDSA		0xb93a		/* MSA9 */
 
@@ -139,14 +139,14 @@
 #define CPACF_PCKMO_ENC_ECC_ED448_KEY	0x29
 
 /*
- * Function codes for the PRNO (PERFORM RANDOM NUMBER OPERATION)
+ * Function codes for the PRANAL (PERFORM RANDOM NUMBER OPERATION)
  * instruction
  */
-#define CPACF_PRNO_QUERY		0x00
-#define CPACF_PRNO_SHA512_DRNG_GEN	0x03
-#define CPACF_PRNO_SHA512_DRNG_SEED	0x83
-#define CPACF_PRNO_TRNG_Q_R2C_RATIO	0x70
-#define CPACF_PRNO_TRNG			0x72
+#define CPACF_PRANAL_QUERY		0x00
+#define CPACF_PRANAL_SHA512_DRNG_GEN	0x03
+#define CPACF_PRANAL_SHA512_DRNG_SEED	0x83
+#define CPACF_PRANAL_TRNG_Q_R2C_RATIO	0x70
+#define CPACF_PRANAL_TRNG			0x72
 
 /*
  * Function codes for the KMA (CIPHER MESSAGE WITH AUTHENTICATION)
@@ -182,7 +182,7 @@ static __always_inline void __cpacf_query(unsigned int opcode, cpacf_mask_t *mas
 		"	lghi	0,0\n" /* query function */
 		"	lgr	1,%[mask]\n"
 		"	spm	0\n" /* pckmo doesn't change the cc */
-		/* Parameter regs are ignored, but must be nonzero and unique */
+		/* Parameter regs are iganalred, but must be analnzero and unique */
 		"0:	.insn	rrf,%[opc] << 16,2,4,6,0\n"
 		"	brc	1,0b\n"	/* handle partial completion */
 		: "=m" (*mask)
@@ -206,7 +206,7 @@ static __always_inline int __cpacf_check_opcode(unsigned int opcode)
 	case CPACF_PCC:
 	case CPACF_KMCTR:
 		return test_facility(77);	/* check for MSA4 */
-	case CPACF_PRNO:
+	case CPACF_PRANAL:
 		return test_facility(57);	/* check for MSA5 */
 	case CPACF_KMA:
 		return test_facility(146);	/* check for MSA8 */
@@ -420,16 +420,16 @@ static inline int cpacf_kmctr(unsigned long func, void *param, u8 *dest,
 }
 
 /**
- * cpacf_prno() - executes the PRNO (PERFORM RANDOM NUMBER OPERATION)
+ * cpacf_pranal() - executes the PRANAL (PERFORM RANDOM NUMBER OPERATION)
  *		  instruction
- * @func: the function code passed to PRNO; see CPACF_PRNO_xxx defines
+ * @func: the function code passed to PRANAL; see CPACF_PRANAL_xxx defines
  * @param: address of parameter block; see POP for details on each func
  * @dest: address of destination memory area
  * @dest_len: size of destination memory area in bytes
  * @seed: address of seed data
  * @seed_len: size of seed data in bytes
  */
-static inline void cpacf_prno(unsigned long func, void *param,
+static inline void cpacf_pranal(unsigned long func, void *param,
 			      u8 *dest, unsigned long dest_len,
 			      const u8 *seed, unsigned long seed_len)
 {
@@ -446,12 +446,12 @@ static inline void cpacf_prno(unsigned long func, void *param,
 		"	brc	1,0b\n"	  /* handle partial completion */
 		: [dst] "+&d" (d.pair)
 		: [fc] "d" (func), [pba] "d" ((unsigned long)param),
-		  [seed] "d" (s.pair), [opc] "i" (CPACF_PRNO)
+		  [seed] "d" (s.pair), [opc] "i" (CPACF_PRANAL)
 		: "cc", "memory", "0", "1");
 }
 
 /**
- * cpacf_trng() - executes the TRNG subfunction of the PRNO instruction
+ * cpacf_trng() - executes the TRNG subfunction of the PRANAL instruction
  * @ucbuf: buffer for unconditioned data
  * @ucbuf_len: amount of unconditioned data to fetch in bytes
  * @cbuf: buffer for conditioned data
@@ -471,7 +471,7 @@ static inline void cpacf_trng(u8 *ucbuf, unsigned long ucbuf_len,
 		"0:	.insn	rre,%[opc] << 16,%[ucbuf],%[cbuf]\n"
 		"	brc	1,0b\n"	  /* handle partial completion */
 		: [ucbuf] "+&d" (u.pair), [cbuf] "+&d" (c.pair)
-		: [fc] "K" (CPACF_PRNO_TRNG), [opc] "i" (CPACF_PRNO)
+		: [fc] "K" (CPACF_PRANAL_TRNG), [opc] "i" (CPACF_PRANAL)
 		: "cc", "memory", "0");
 }
 

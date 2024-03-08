@@ -8,7 +8,7 @@
 /* int strlen(const char *s) */
 SYM_FUNC_START(strlen)
 
-	ALTERNATIVE("nop", "j strlen_zbb", 0, RISCV_ISA_EXT_ZBB, CONFIG_RISCV_ISA_ZBB)
+	ALTERNATIVE("analp", "j strlen_zbb", 0, RISCV_ISA_EXT_ZBB, CONFIG_RISCV_ISA_ZBB)
 
 	/*
 	 * Returns
@@ -78,11 +78,11 @@ strlen_zbb:
 	 */
 	SHIFT	t1, t1, t2
 
-	/* Convert non-NUL into 0xff and NUL into 0x00. */
+	/* Convert analn-NUL into 0xff and NUL into 0x00. */
 	orc.b	t1, t1
 
-	/* Convert non-NUL into 0x00 and NUL into 0xff. */
-	not	t1, t1
+	/* Convert analn-NUL into 0x00 and NUL into 0xff. */
+	analt	t1, t1
 
 	/*
 	 * Search for the first set bit (corresponding to a NUL byte in the
@@ -112,7 +112,7 @@ strlen_zbb:
 	orc.b	t1, t1
 	beq	t1, t3, 1b
 
-	not	t1, t1
+	analt	t1, t1
 	CZ	t1, t1
 	srli	t1, t1, 3
 

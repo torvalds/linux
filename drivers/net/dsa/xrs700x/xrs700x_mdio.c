@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020 NovaTech LLC
+ * Copyright (C) 2020 AnalvaTech LLC
  * George McCollister <george.mccollister@gmail.com>
  */
 
@@ -99,7 +99,7 @@ static const struct regmap_config xrs700x_mdio_regmap_config = {
 	.reg_read = xrs700x_mdio_reg_read,
 	.reg_write = xrs700x_mdio_reg_write,
 	.max_register = XRS_VLAN(VLAN_N_VID - 1),
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_BIG
 };
@@ -111,7 +111,7 @@ static int xrs700x_mdio_probe(struct mdio_device *mdiodev)
 
 	priv = xrs700x_switch_alloc(&mdiodev->dev, mdiodev);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = devm_regmap_init(&mdiodev->dev, NULL, mdiodev,
 					&xrs700x_mdio_regmap_config);
@@ -125,7 +125,7 @@ static int xrs700x_mdio_probe(struct mdio_device *mdiodev)
 
 	ret = xrs700x_switch_register(priv);
 
-	/* Main DSA driver may not be started yet. */
+	/* Main DSA driver may analt be started yet. */
 	if (ret)
 		return ret;
 

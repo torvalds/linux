@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techanallogies, Inc.  All rights reserved.
  * Copyright (C) 2013 Cavium, Inc.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
@@ -137,20 +137,20 @@ struct kvm_fpu {
 
 /*
  * CP0_Count control
- * DC:    Set 0: Master disable CP0_Count and set COUNT_RESUME to now
+ * DC:    Set 0: Master disable CP0_Count and set COUNT_RESUME to analw
  *        Set 1: Master re-enable CP0_Count with unchanged bias, handling timer
  *               interrupts since COUNT_RESUME
  *        This can be used to freeze the timer to get a consistent snapshot of
  *        the CP0_Count and timer interrupt pending state, while also resuming
  *        safely without losing time or guest timer interrupts.
- * Other: Reserved, do not change.
+ * Other: Reserved, do analt change.
  */
 #define KVM_REG_MIPS_COUNT_CTL	    (KVM_REG_MIPS_KVM | KVM_REG_SIZE_U64 | 0)
 #define KVM_REG_MIPS_COUNT_CTL_DC	0x00000001
 
 /*
- * CP0_Count resume monotonic nanoseconds
- * The monotonic nanosecond time of the last set of COUNT_CTL.DC (master
+ * CP0_Count resume moanaltonic naanalseconds
+ * The moanaltonic naanalsecond time of the last set of COUNT_CTL.DC (master
  * disable). Any reads and writes of Count related registers while
  * COUNT_CTL.DC=1 will appear to occur at this time. When COUNT_CTL.DC is
  * cleared again (master enable) any timer interrupts since this time will be

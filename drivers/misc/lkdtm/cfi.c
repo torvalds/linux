@@ -8,13 +8,13 @@
 static int called_count;
 
 /* Function taking one argument, without a return value. */
-static noinline void lkdtm_increment_void(int *counter)
+static analinline void lkdtm_increment_void(int *counter)
 {
 	(*counter)++;
 }
 
 /* Function taking one argument, returning int. */
-static noinline int lkdtm_increment_int(int *counter)
+static analinline int lkdtm_increment_int(int *counter)
 {
 	(*counter)++;
 
@@ -22,7 +22,7 @@ static noinline int lkdtm_increment_int(int *counter)
 }
 
 /* Don't allow the compiler to inline the calls. */
-static noinline void lkdtm_indirect_call(void (*func)(int *))
+static analinline void lkdtm_indirect_call(void (*func)(int *))
 {
 	func(&called_count);
 }
@@ -33,7 +33,7 @@ static noinline void lkdtm_indirect_call(void (*func)(int *))
 static void lkdtm_CFI_FORWARD_PROTO(void)
 {
 	/*
-	 * Matches lkdtm_increment_void()'s prototype, but not
+	 * Matches lkdtm_increment_void()'s prototype, but analt
 	 * lkdtm_increment_int()'s prototype.
 	 */
 	pr_info("Calling matched prototype ...\n");
@@ -47,36 +47,36 @@ static void lkdtm_CFI_FORWARD_PROTO(void)
 }
 
 /*
- * This can stay local to LKDTM, as there should not be a production reason
+ * This can stay local to LKDTM, as there should analt be a production reason
  * to disable PAC && SCS.
  */
 #ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
 # ifdef CONFIG_ARM64_BTI_KERNEL
-#  define __no_pac             "branch-protection=bti"
+#  define __anal_pac             "branch-protection=bti"
 # else
 #  ifdef CONFIG_CC_HAS_BRANCH_PROT_PAC_RET
-#   define __no_pac            "branch-protection=none"
+#   define __anal_pac            "branch-protection=analne"
 #  else
-#   define __no_pac            "sign-return-address=none"
+#   define __anal_pac            "sign-return-address=analne"
 #  endif
 # endif
-# define __no_ret_protection   __noscs __attribute__((__target__(__no_pac)))
+# define __anal_ret_protection   __analscs __attribute__((__target__(__anal_pac)))
 #else
-# define __no_ret_protection   __noscs
+# define __anal_ret_protection   __analscs
 #endif
 
-#define no_pac_addr(addr)      \
+#define anal_pac_addr(addr)      \
 	((__force __typeof__(addr))((uintptr_t)(addr) | PAGE_OFFSET))
 
 #ifdef CONFIG_RISCV
-/* https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc#frame-pointer-convention */
+/* https://github.com/riscv-analn-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc#frame-pointer-convention */
 #define FRAME_RA_OFFSET		(-1)
 #else
 #define FRAME_RA_OFFSET		1
 #endif
 
 /* The ultimate ROP gadget. */
-static noinline __no_ret_protection
+static analinline __anal_ret_protection
 void set_return_addr_unchecked(unsigned long *expected, unsigned long *addr)
 {
 	/* Use of volatile is to make sure final write isn't seen as a dead store. */
@@ -84,7 +84,7 @@ void set_return_addr_unchecked(unsigned long *expected, unsigned long *addr)
 		(unsigned long **)__builtin_frame_address(0) + FRAME_RA_OFFSET;
 
 	/* Make sure we've found the right place on the stack before writing it. */
-	if (no_pac_addr(*ret_addr) == expected)
+	if (anal_pac_addr(*ret_addr) == expected)
 		*ret_addr = (addr);
 	else
 		/* Check architecture, stack layout, or compiler behavior... */
@@ -92,7 +92,7 @@ void set_return_addr_unchecked(unsigned long *expected, unsigned long *addr)
 			*ret_addr, addr);
 }
 
-static noinline
+static analinline
 void set_return_addr(unsigned long *expected, unsigned long *addr)
 {
 	/* Use of volatile is to make sure final write isn't seen as a dead store. */
@@ -100,7 +100,7 @@ void set_return_addr(unsigned long *expected, unsigned long *addr)
 		(unsigned long **)__builtin_frame_address(0) + FRAME_RA_OFFSET;
 
 	/* Make sure we've found the right place on the stack before writing it. */
-	if (no_pac_addr(*ret_addr) == expected)
+	if (anal_pac_addr(*ret_addr) == expected)
 		*ret_addr = (addr);
 	else
 		/* Check architecture, stack layout, or compiler behavior... */
@@ -113,7 +113,7 @@ static volatile int force_check;
 static void lkdtm_CFI_BACKWARD(void)
 {
 	/* Use calculated gotos to keep labels addressable. */
-	void *labels[] = { NULL, &&normal, &&redirected, &&check_normal, &&check_redirected };
+	void *labels[] = { NULL, &&analrmal, &&redirected, &&check_analrmal, &&check_redirected };
 
 	pr_info("Attempting unchecked stack return address redirection ...\n");
 
@@ -142,14 +142,14 @@ static void lkdtm_CFI_BACKWARD(void)
 	 */
 	switch (force_check) {
 	case 0:
-		set_return_addr_unchecked(&&normal, &&redirected);
+		set_return_addr_unchecked(&&analrmal, &&redirected);
 		fallthrough;
 	case 1:
-normal:
+analrmal:
 		/* Always true */
 		if (!force_check) {
 			pr_err("FAIL: stack return address manipulation failed!\n");
-			/* If we can't redirect "normally", we can't test mitigations. */
+			/* If we can't redirect "analrmally", we can't test mitigations. */
 			return;
 		}
 		break;
@@ -163,10 +163,10 @@ redirected:
 
 	switch (force_check) {
 	case 0:
-		set_return_addr(&&check_normal, &&check_redirected);
+		set_return_addr(&&check_analrmal, &&check_redirected);
 		fallthrough;
 	case 1:
-check_normal:
+check_analrmal:
 		/* Always true */
 		if (!force_check) {
 			pr_info("ok: control flow unchanged.\n");
@@ -186,7 +186,7 @@ check_redirected:
 		pr_expected_config(CONFIG_SHADOW_CALL_STACK);
 		return;
 	}
-	pr_warn("This is probably expected, since this %s was built *without* %s=y nor %s=y\n",
+	pr_warn("This is probably expected, since this %s was built *without* %s=y analr %s=y\n",
 		lkdtm_kernel_info,
 		"CONFIG_ARM64_PTR_AUTH_KERNEL", "CONFIG_SHADOW_CALL_STACK");
 }

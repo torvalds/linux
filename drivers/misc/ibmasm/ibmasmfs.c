@@ -73,7 +73,7 @@
 
 static LIST_HEAD(service_processors);
 
-static struct inode *ibmasmfs_make_inode(struct super_block *sb, int mode);
+static struct ianalde *ibmasmfs_make_ianalde(struct super_block *sb, int mode);
 static void ibmasmfs_create_files (struct super_block *sb);
 static int ibmasmfs_fill_super(struct super_block *sb, struct fs_context *fc);
 
@@ -94,7 +94,7 @@ static int ibmasmfs_init_fs_context(struct fs_context *fc)
 
 static const struct super_operations ibmasmfs_s_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_ianalde	= generic_delete_ianalde,
 };
 
 static const struct file_operations *ibmasmfs_dir_ops = &simple_dir_operations;
@@ -109,7 +109,7 @@ MODULE_ALIAS_FS("ibmasmfs");
 
 static int ibmasmfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct inode *root;
+	struct ianalde *root;
 
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
@@ -117,29 +117,29 @@ static int ibmasmfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &ibmasmfs_s_ops;
 	sb->s_time_gran = 1;
 
-	root = ibmasmfs_make_inode (sb, S_IFDIR | 0500);
+	root = ibmasmfs_make_ianalde (sb, S_IFDIR | 0500);
 	if (!root)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	root->i_op = &simple_dir_inode_operations;
+	root->i_op = &simple_dir_ianalde_operations;
 	root->i_fop = ibmasmfs_dir_ops;
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ibmasmfs_create_files(sb);
 	return 0;
 }
 
-static struct inode *ibmasmfs_make_inode(struct super_block *sb, int mode)
+static struct ianalde *ibmasmfs_make_ianalde(struct super_block *sb, int mode)
 {
-	struct inode *ret = new_inode(sb);
+	struct ianalde *ret = new_ianalde(sb);
 
 	if (ret) {
-		ret->i_ino = get_next_ino();
+		ret->i_ianal = get_next_ianal();
 		ret->i_mode = mode;
-		simple_inode_init_ts(ret);
+		simple_ianalde_init_ts(ret);
 	}
 	return ret;
 }
@@ -151,22 +151,22 @@ static struct dentry *ibmasmfs_create_file(struct dentry *parent,
 			int mode)
 {
 	struct dentry *dentry;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	dentry = d_alloc_name(parent, name);
 	if (!dentry)
 		return NULL;
 
-	inode = ibmasmfs_make_inode(parent->d_sb, S_IFREG | mode);
-	if (!inode) {
+	ianalde = ibmasmfs_make_ianalde(parent->d_sb, S_IFREG | mode);
+	if (!ianalde) {
 		dput(dentry);
 		return NULL;
 	}
 
-	inode->i_fop = fops;
-	inode->i_private = data;
+	ianalde->i_fop = fops;
+	ianalde->i_private = data;
 
-	d_add(dentry, inode);
+	d_add(dentry, ianalde);
 	return dentry;
 }
 
@@ -174,22 +174,22 @@ static struct dentry *ibmasmfs_create_dir(struct dentry *parent,
 				const char *name)
 {
 	struct dentry *dentry;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	dentry = d_alloc_name(parent, name);
 	if (!dentry)
 		return NULL;
 
-	inode = ibmasmfs_make_inode(parent->d_sb, S_IFDIR | 0500);
-	if (!inode) {
+	ianalde = ibmasmfs_make_ianalde(parent->d_sb, S_IFDIR | 0500);
+	if (!ianalde) {
 		dput(dentry);
 		return NULL;
 	}
 
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = ibmasmfs_dir_ops;
+	ianalde->i_op = &simple_dir_ianalde_operations;
+	ianalde->i_fop = ibmasmfs_dir_ops;
 
-	d_add(dentry, inode);
+	d_add(dentry, ianalde);
 	return dentry;
 }
 
@@ -205,7 +205,7 @@ void ibmasmfs_unregister(void)
 
 void ibmasmfs_add_sp(struct service_processor *sp)
 {
-	list_add(&sp->node, &service_processors);
+	list_add(&sp->analde, &service_processors);
 }
 
 /* struct to save state between command file operations */
@@ -228,24 +228,24 @@ struct ibmasmfs_heartbeat_data {
 	int				active;
 };
 
-static int command_file_open(struct inode *inode, struct file *file)
+static int command_file_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ibmasmfs_command_data *command_data;
 
-	if (!inode->i_private)
-		return -ENODEV;
+	if (!ianalde->i_private)
+		return -EANALDEV;
 
 	command_data = kmalloc(sizeof(struct ibmasmfs_command_data), GFP_KERNEL);
 	if (!command_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	command_data->command = NULL;
-	command_data->sp = inode->i_private;
+	command_data->sp = ianalde->i_private;
 	file->private_data = command_data;
 	return 0;
 }
 
-static int command_file_close(struct inode *inode, struct file *file)
+static int command_file_close(struct ianalde *ianalde, struct file *file)
 {
 	struct ibmasmfs_command_data *command_data = file->private_data;
 
@@ -312,7 +312,7 @@ static ssize_t command_file_write(struct file *file, const char __user *ubuff, s
 
 	cmd = ibmasm_new_command(command_data->sp, count);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(cmd->buffer, ubuff, count)) {
 		command_put(cmd);
@@ -334,19 +334,19 @@ static ssize_t command_file_write(struct file *file, const char __user *ubuff, s
 	return count;
 }
 
-static int event_file_open(struct inode *inode, struct file *file)
+static int event_file_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ibmasmfs_event_data *event_data;
 	struct service_processor *sp;
 
-	if (!inode->i_private)
-		return -ENODEV;
+	if (!ianalde->i_private)
+		return -EANALDEV;
 
-	sp = inode->i_private;
+	sp = ianalde->i_private;
 
 	event_data = kmalloc(sizeof(struct ibmasmfs_event_data), GFP_KERNEL);
 	if (!event_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ibmasm_event_reader_register(sp, &event_data->reader);
 
@@ -356,7 +356,7 @@ static int event_file_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int event_file_close(struct inode *inode, struct file *file)
+static int event_file_close(struct ianalde *ianalde, struct file *file)
 {
 	struct ibmasmfs_event_data *event_data = file->private_data;
 
@@ -423,25 +423,25 @@ static ssize_t event_file_write(struct file *file, const char __user *buf, size_
 	return 0;
 }
 
-static int r_heartbeat_file_open(struct inode *inode, struct file *file)
+static int r_heartbeat_file_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ibmasmfs_heartbeat_data *rhbeat;
 
-	if (!inode->i_private)
-		return -ENODEV;
+	if (!ianalde->i_private)
+		return -EANALDEV;
 
 	rhbeat = kmalloc(sizeof(struct ibmasmfs_heartbeat_data), GFP_KERNEL);
 	if (!rhbeat)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	rhbeat->sp = inode->i_private;
+	rhbeat->sp = ianalde->i_private;
 	rhbeat->active = 0;
 	ibmasm_init_reverse_heartbeat(rhbeat->sp, &rhbeat->heartbeat);
 	file->private_data = rhbeat;
 	return 0;
 }
 
-static int r_heartbeat_file_close(struct inode *inode, struct file *file)
+static int r_heartbeat_file_close(struct ianalde *ianalde, struct file *file)
 {
 	struct ibmasmfs_heartbeat_data *rhbeat = file->private_data;
 
@@ -494,7 +494,7 @@ static ssize_t r_heartbeat_file_write(struct file *file, const char __user *buf,
 	return 1;
 }
 
-static int remote_settings_file_close(struct inode *inode, struct file *file)
+static int remote_settings_file_close(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -527,7 +527,7 @@ static ssize_t remote_settings_file_write(struct file *file, const char __user *
 
 	buff = kzalloc (count + 1, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	if (copy_from_user(buff, ubuff, count)) {
@@ -583,7 +583,7 @@ static void ibmasmfs_create_files (struct super_block *sb)
 	list_for_each(entry, &service_processors) {
 		struct dentry *dir;
 		struct dentry *remote_dir;
-		sp = list_entry(entry, struct service_processor, node);
+		sp = list_entry(entry, struct service_processor, analde);
 		dir = ibmasmfs_create_dir(sb->s_root, sp->dirname);
 		if (!dir)
 			continue;

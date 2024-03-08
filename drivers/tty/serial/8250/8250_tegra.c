@@ -50,7 +50,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 
 	uart = devm_kzalloc(&pdev->dev, sizeof(*uart), GFP_KERNEL);
 	if (!uart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&port8250, 0, sizeof(port8250));
 
@@ -66,7 +66,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	port->dev = &pdev->dev;
 	port->handle_break = tegra_uart_handle_break;
 
-	ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	ret = of_alias_get_id(pdev->dev.of_analde, "serial");
 	if (ret >= 0)
 		port->line = ret;
 
@@ -78,12 +78,12 @@ static int tegra_uart_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->membase = devm_ioremap(&pdev->dev, res->start,
 				     resource_size(res));
 	if (!port->membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->mapbase = res->start;
 	port->mapsize = resource_size(res);
@@ -97,7 +97,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 		uart->clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(uart->clk)) {
 			dev_err(&pdev->dev, "failed to get clock!\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		ret = clk_prepare_enable(uart->clk);

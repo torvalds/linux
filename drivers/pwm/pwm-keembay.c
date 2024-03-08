@@ -8,7 +8,7 @@
  *
  * Limitations:
  * - Upon disabling a channel, the currently running
- *   period will not be completed. However, upon
+ *   period will analt be completed. However, upon
  *   reconfiguration of the duty cycle/period, the
  *   currently running period will be completed first.
  */
@@ -65,7 +65,7 @@ static int keembay_clk_enable(struct device *dev, struct clk *clk)
 
 /*
  * With gcc 10, CONFIG_CC_OPTIMIZE_FOR_SIZE and only "inline" instead of
- * "__always_inline" this fails to compile because the compiler doesn't notice
+ * "__always_inline" this fails to compile because the compiler doesn't analtice
  * for all valid masks (e.g. KMB_PWM_LEADIN_MASK) that they are ok.
  */
 static __always_inline void keembay_pwm_update_bits(struct keembay_pwm *priv, u32 mask,
@@ -112,7 +112,7 @@ static int keembay_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	high = FIELD_GET(KMB_PWM_HIGH_MASK, highlow) * NSEC_PER_SEC;
 	state->duty_cycle = DIV_ROUND_UP_ULL(high, clk_rate);
 	state->period = DIV_ROUND_UP_ULL(high + low, clk_rate);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	return 0;
 }
@@ -127,7 +127,7 @@ static int keembay_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u32 pwm_count = 0;
 	u16 high, low;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	/*
@@ -190,7 +190,7 @@ static int keembay_pwm_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk))

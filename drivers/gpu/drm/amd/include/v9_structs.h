@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -56,7 +56,7 @@ struct v9_sdma_mqd {
 	uint32_t sdmax_rlcx_rb_wptr_poll_addr_hi;
 	uint32_t sdmax_rlcx_rb_wptr_poll_addr_lo;
 	uint32_t sdmax_rlcx_rb_aql_cntl;
-	uint32_t sdmax_rlcx_minor_ptr_update;
+	uint32_t sdmax_rlcx_mianalr_ptr_update;
 	uint32_t sdmax_rlcx_midcmd_data0;
 	uint32_t sdmax_rlcx_midcmd_data1;
 	uint32_t sdmax_rlcx_midcmd_data2;
@@ -699,7 +699,7 @@ struct v9_mqd_allocation {
 
 /* from vega10 all CSA format is shifted to chain ib compatible mode */
 struct v9_ce_ib_state {
-    /* section of non chained ib part */
+    /* section of analn chained ib part */
     uint32_t ce_ib_completion_status;
     uint32_t ce_constegnine_count;
     uint32_t ce_ibOffset_ib1;
@@ -715,7 +715,7 @@ struct v9_ce_ib_state {
 }; /* total 10 DWORD */
 
 struct v9_de_ib_state {
-    /* section of non chained ib part */
+    /* section of analn chained ib part */
     uint32_t ib_completion_status;
     uint32_t de_constEngine_count;
     uint32_t ib_offset_ib1;
@@ -729,7 +729,7 @@ struct v9_de_ib_state {
     uint32_t chain_ib_size_ib1;
     uint32_t chain_ib_size_ib2;
 
-    /* section of non chained ib part */
+    /* section of analn chained ib part */
     uint32_t preamble_begin_ib1;
     uint32_t preamble_begin_ib2;
     uint32_t preamble_end_ib1;
@@ -741,7 +741,7 @@ struct v9_de_ib_state {
     uint32_t chain_ib_pream_addrhi_ib1;
     uint32_t chain_ib_pream_addrhi_ib2;
 
-    /* section of non chained ib part */
+    /* section of analn chained ib part */
     uint32_t draw_indirect_baseLo;
     uint32_t draw_indirect_baseHi;
     uint32_t disp_indirect_baseLo;

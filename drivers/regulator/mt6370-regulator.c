@@ -146,7 +146,7 @@ static const struct regulator_ops mt6370_ldo_ops = {
 	.get_error_flags = mt6370_get_error_flags,
 };
 
-static int mt6370_of_parse_cb(struct device_node *np,
+static int mt6370_of_parse_cb(struct device_analde *np,
 			      const struct regulator_desc *desc,
 			      struct regulator_config *config)
 {
@@ -154,9 +154,9 @@ static int mt6370_of_parse_cb(struct device_node *np,
 	struct gpio_desc *enable_gpio;
 	int ret;
 
-	enable_gpio = fwnode_gpiod_get_index(of_fwnode_handle(np), "enable", 0,
+	enable_gpio = fwanalde_gpiod_get_index(of_fwanalde_handle(np), "enable", 0,
 					     GPIOD_OUT_HIGH |
-					     GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+					     GPIOD_FLAGS_BIT_ANALNEXCLUSIVE,
 					     desc->name);
 	if (IS_ERR(enable_gpio)) {
 		config->ena_gpiod = NULL;
@@ -184,7 +184,7 @@ static const struct regulator_desc mt6370_regulator_descs[] = {
 	{
 		.name = "mt6370-dsv-vbst",
 		.of_match = of_match_ptr("dsvbst"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = MT6370_IDX_DSVBOOST,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
@@ -201,7 +201,7 @@ static const struct regulator_desc mt6370_regulator_descs[] = {
 	{
 		.name = "mt6370-dsv-vpos",
 		.of_match = of_match_ptr("dsvpos"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = MT6370_IDX_DSVPOS,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
@@ -225,7 +225,7 @@ static const struct regulator_desc mt6370_regulator_descs[] = {
 	{
 		.name = "mt6370-dsv-vneg",
 		.of_match = of_match_ptr("dsvneg"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = MT6370_IDX_DSVNEG,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
@@ -249,7 +249,7 @@ static const struct regulator_desc mt6370_regulator_descs[] = {
 	{
 		.name = "mt6370-vib-ldo",
 		.of_match = of_match_ptr("vibldo"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = MT6370_IDX_VIBLDO,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
@@ -271,7 +271,7 @@ static irqreturn_t mt6370_scp_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = data;
 
-	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE,
+	regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE,
 				      NULL);
 	return IRQ_HANDLED;
 }
@@ -280,7 +280,7 @@ static irqreturn_t mt6370_ocp_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = data;
 
-	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_OVER_CURRENT, NULL);
+	regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_OVER_CURRENT, NULL);
 	return IRQ_HANDLED;
 }
 
@@ -353,14 +353,14 @@ static int mt6370_regulator_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 
 	priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!priv->regmap) {
 		dev_err(&pdev->dev, "Failed to init regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = mt6370_regualtor_register(priv);
@@ -379,7 +379,7 @@ MODULE_DEVICE_TABLE(platform, mt6370_devid_table);
 static struct platform_driver mt6370_regulator_driver = {
 	.driver = {
 		.name = "mt6370-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table = mt6370_devid_table,
 	.probe = mt6370_regulator_probe,

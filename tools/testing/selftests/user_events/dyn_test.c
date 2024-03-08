@@ -5,7 +5,7 @@
  * Copyright (c) 2021 Beau Belgrave <beaub@linux.microsoft.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/user_events.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -154,7 +154,7 @@ static int check_match(int *check, const char *first, const char *second, bool *
 		goto cleanup;
 
 	if (reg_event(fd, check, 30, second) == -1) {
-		if (errno == EADDRINUSE) {
+		if (erranal == EADDRINUSE) {
 			/* Name is in use, with different fields */
 			*match = false;
 			ret = 0;
@@ -244,9 +244,9 @@ TEST_F(user, loc_types) {
 TEST_F(user, size_types) {
 	/* Should work */
 	TEST_PARSE("u:__test_event struct custom a 20");
-	/* Size not specified on struct should fail */
+	/* Size analt specified on struct should fail */
 	TEST_NPARSE("u:__test_event struct custom a");
-	/* Size specified on non-struct should fail */
+	/* Size specified on analn-struct should fail */
 	TEST_NPARSE("u:__test_event char a 20");
 }
 

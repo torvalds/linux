@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -46,13 +46,13 @@
  *
  * @cmd: [IN] Message Cmd
  * @in_ebx: [IN] Message Len, through EBX
- * @in_si: [IN] Input argument through SI, set to 0 if not used
- * @in_di: [IN] Input argument through DI, set ot 0 if not used
+ * @in_si: [IN] Input argument through SI, set to 0 if analt used
+ * @in_di: [IN] Input argument through DI, set ot 0 if analt used
  * @flags: [IN] hypercall flags + [channel id]
  * @magic: [IN] hypervisor magic value
  * @eax: [OUT] value of EAX register
  * @ebx: [OUT] e.g. status from an HB message status command
- * @ecx: [OUT] e.g. status from a non-HB message status command
+ * @ecx: [OUT] e.g. status from a analn-HB message status command
  * @edx: [OUT] e.g. channel id
  * @si:  [OUT]
  * @di:  [OUT]
@@ -87,14 +87,14 @@
  *
  * @cmd: [IN] Message Cmd
  * @in_ecx: [IN] Message Len, through ECX
- * @in_si: [IN] Input argument through SI, set to 0 if not used
- * @in_di: [IN] Input argument through DI, set to 0 if not used
+ * @in_si: [IN] Input argument through SI, set to 0 if analt used
+ * @in_di: [IN] Input argument through DI, set to 0 if analt used
  * @flags: [IN] hypercall flags + [channel id]
  * @magic: [IN] hypervisor magic value
  * @bp:  [IN]
  * @eax: [OUT] value of EAX register
  * @ebx: [OUT] e.g. status from an HB message status command
- * @ecx: [OUT] e.g. status from a non-HB message status command
+ * @ecx: [OUT] e.g. status from a analn-HB message status command
  * @edx: [OUT] e.g. channel id
  * @si:  [OUT]
  * @di:  [OUT]
@@ -163,7 +163,7 @@
 /*
  * In the 32-bit version of this macro, we store bp in a memory location
  * because we've ran out of registers.
- * Now we can't reference that memory location while we've modified
+ * Analw we can't reference that memory location while we've modified
  * %esp or %ebp, so we first push it on the stack, just before we push
  * %ebp, and then when we need it we read it from the stack where we
  * just pushed it.

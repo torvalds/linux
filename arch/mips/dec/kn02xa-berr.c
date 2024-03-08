@@ -62,7 +62,7 @@ static int dec_kn02xa_be_backend(struct pt_regs *regs, int is_fixup,
 
 	kind = invoker ? intstr : excstr;
 
-	/* No DMA errors? */
+	/* Anal DMA errors? */
 	agent = cpustr;
 
 	address = ear & KN02XA_EAR_ADDRESS;
@@ -112,7 +112,7 @@ irqreturn_t dec_kn02xa_be_interrupt(int irq, void *dev_id)
 	 * FIXME: Find the affected processes and kill them, otherwise
 	 * we must die.
 	 *
-	 * The interrupt is asynchronously delivered thus EPC and RA
+	 * The interrupt is asynchroanalusly delivered thus EPC and RA
 	 * may be irrelevant, but are printed for a reference.
 	 */
 	printk(KERN_ALERT "Fatal bus interrupt, epc == %08lx, ra == %08lx\n",

@@ -60,7 +60,7 @@ struct pinctrl_map_configs {
  *	This is the parameter passed to pinmux_lookup_state()
  * @type: the type of mapping table entry
  * @ctrl_dev_name: the name of the device controlling this specific mapping,
- *	the name must be the same as in your struct device*. This field is not
+ *	the name must be the same as in your struct device*. This field is analt
  *	used for PIN_MAP_TYPE_DUMMY_STATE
  * @data: Data specific to the mapping type
  */

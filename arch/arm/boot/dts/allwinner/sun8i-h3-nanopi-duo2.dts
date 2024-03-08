@@ -11,8 +11,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "FriendlyARM NanoPi Duo2";
-	compatible = "friendlyarm,nanopi-duo2", "allwinner,sun8i-h3";
+	model = "FriendlyARM NaanalPi Duo2";
+	compatible = "friendlyarm,naanalpi-duo2", "allwinner,sun8i-h3";
 
 	aliases {
 		serial0 = &uart0;
@@ -26,13 +26,13 @@
 		compatible = "gpio-leds";
 
 		led-0 {
-			label = "nanopi:red:pwr";
+			label = "naanalpi:red:pwr";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
 			default-state = "on";
 		};
 
 		led-1 {
-			label = "nanopi:green:status";
+			label = "naanalpi:green:status";
 			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>; /* PA10 */
 		};
 	};
@@ -90,7 +90,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "ext_clock";
 	};
 
@@ -116,7 +116,7 @@
 	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	sdio_wifi: sdio_wifi@1 {
@@ -151,7 +151,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_vcc3v3>;
 		vddio-supply = <&reg_vcc3v3>;

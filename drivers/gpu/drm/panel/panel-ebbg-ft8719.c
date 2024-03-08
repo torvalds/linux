@@ -174,7 +174,7 @@ static int ebbg_ft8719_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &ebbg_ft8719_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -200,7 +200,7 @@ static int ebbg_ft8719_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(ctx->supplies); i++)
 		ctx->supplies[i].supply = regulator_names[i];
@@ -229,7 +229,7 @@ static int ebbg_ft8719_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	drm_panel_init(&ctx->panel, dev, &ebbg_ft8719_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

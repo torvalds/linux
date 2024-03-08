@@ -67,7 +67,7 @@ int stp_proto_register(const struct stp_proto *proto)
 	if (sap_registered++ == 0) {
 		sap = llc_sap_open(LLC_SAP_BSPAN, stp_pdu_rcv);
 		if (!sap) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	}

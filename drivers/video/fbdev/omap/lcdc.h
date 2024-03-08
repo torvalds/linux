@@ -2,8 +2,8 @@
 #ifndef LCDC_H
 #define LCDC_H
 /*
- * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Copyright (C) 2004 Analkia Corporation
+ * Author: Imre Deak <imre.deak@analkia.com>
  */
 #define OMAP_LCDC_BASE			0xfffec000
 #define OMAP_LCDC_SIZE			256

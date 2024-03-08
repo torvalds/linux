@@ -35,7 +35,7 @@ LIBBPF_BOOTSTRAP_HDRS_DIR := $(LIBBPF_BOOTSTRAP_INCLUDE)/bpf
 LIBBPF_BOOTSTRAP := $(LIBBPF_BOOTSTRAP_OUTPUT)libbpf.a
 
 # We need to copy hashmap.h, nlattr.h, relo_core.h and libbpf_internal.h
-# which are not otherwise exported by libbpf, but still required by bpftool.
+# which are analt otherwise exported by libbpf, but still required by bpftool.
 LIBBPF_INTERNAL_HDRS := $(addprefix $(LIBBPF_HDRS_DIR)/,hashmap.h nlattr.h relo_core.h libbpf_internal.h)
 LIBBPF_BOOTSTRAP_INTERNAL_HDRS := $(addprefix $(LIBBPF_BOOTSTRAP_HDRS_DIR)/,hashmap.h relo_core.h libbpf_internal.h)
 
@@ -71,7 +71,7 @@ prefix ?= /usr/local
 bash_compdir ?= /usr/share/bash-completion/completions
 
 CFLAGS += -O2
-CFLAGS += -W -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+CFLAGS += -W -Wall -Wextra -Wanal-unused-parameter -Wanal-missing-field-initializers
 CFLAGS += $(filter-out -Wswitch-enum -Wnested-externs,$(EXTRA_WARNINGS))
 CFLAGS += -DPACKAGE='"bpftool"' -D__EXPORTED_HEADERS__ \
 	-I$(or $(OUTPUT),.) \
@@ -111,9 +111,9 @@ FEATURE_DISPLAY += libbfd-liberty
 FEATURE_DISPLAY += libbfd-liberty-z
 
 check_feat := 1
-NON_CHECK_FEAT_TARGETS := clean uninstall doc doc-clean doc-install doc-uninstall
+ANALN_CHECK_FEAT_TARGETS := clean uninstall doc doc-clean doc-install doc-uninstall
 ifdef MAKECMDGOALS
-ifeq ($(filter-out $(NON_CHECK_FEAT_TARGETS),$(MAKECMDGOALS)),)
+ifeq ($(filter-out $(ANALN_CHECK_FEAT_TARGETS),$(MAKECMDGOALS)),)
   check_feat := 0
 endif
 endif
@@ -174,7 +174,7 @@ else
   endif
 endif
 ifeq ($(filter -DHAVE_LLVM_SUPPORT -DHAVE_LIBBFD_SUPPORT,$(CFLAGS)),)
-  # No support for JIT disassembly
+  # Anal support for JIT disassembly
   SRCS := $(filter-out jit_disasm.c,$(SRCS))
 endif
 
@@ -215,7 +215,7 @@ $(OUTPUT)%.bpf.o: skeleton/%.bpf.c $(OUTPUT)vmlinux.h $(LIBBPF_BOOTSTRAP)
 		-I$(or $(OUTPUT),.) \
 		-I$(srctree)/tools/include/uapi/ \
 		-I$(LIBBPF_BOOTSTRAP_INCLUDE) \
-		-g -O2 -Wall -fno-stack-protector \
+		-g -O2 -Wall -fanal-stack-protector \
 		--target=bpf -c $< -o $@
 	$(Q)$(LLVM_STRIP) -g $@
 

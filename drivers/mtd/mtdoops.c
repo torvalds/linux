@@ -2,7 +2,7 @@
 /*
  * MTD Oops/Panic logger
  *
- * Copyright © 2007 Nokia Corporation. All rights reserved.
+ * Copyright © 2007 Analkia Corporation. All rights reserved.
  *
  * Author: Richard Purdie <rpurdie@openedhand.com>
  */
@@ -154,7 +154,7 @@ badblock:
 
 	if (ret == -EIO) {
 		ret = mtd_block_markbad(mtd, cxt->nextpage * record_size);
-		if (ret < 0 && ret != -EOPNOTSUPP) {
+		if (ret < 0 && ret != -EOPANALTSUPP) {
 			pr_err("block_markbad failed, aborting\n");
 			return;
 		}
@@ -180,7 +180,7 @@ static void mtdoops_inc_counter(struct mtdoops_context *cxt, int panic)
 		cxt->nextcount = 0;
 
 	if (page_is_used(cxt, cxt->nextpage)) {
-		pr_debug("not ready %d, %d (erase %s)\n",
+		pr_debug("analt ready %d, %d (erase %s)\n",
 			 cxt->nextpage, cxt->nextcount,
 			 panic ? "immediately" : "scheduled");
 		if (panic) {
@@ -191,7 +191,7 @@ static void mtdoops_inc_counter(struct mtdoops_context *cxt, int panic)
 			schedule_work(&cxt->work_erase);
 		}
 	} else {
-		pr_debug("ready %d, %d (no erase)\n",
+		pr_debug("ready %d, %d (anal erase)\n",
 			 cxt->nextpage, cxt->nextcount);
 	}
 }
@@ -215,8 +215,8 @@ static void mtdoops_write(struct mtdoops_context *cxt, int panic)
 	if (panic) {
 		ret = mtd_panic_write(mtd, cxt->nextpage * record_size,
 				      record_size, &retlen, cxt->oops_buf);
-		if (ret == -EOPNOTSUPP) {
-			pr_err("Cannot write from panic without panic_write\n");
+		if (ret == -EOPANALTSUPP) {
+			pr_err("Cananalt write from panic without panic_write\n");
 			goto out;
 		}
 	} else
@@ -326,7 +326,7 @@ static void mtdoops_do_dump(struct kmsg_dumper *dumper,
 	}
 }
 
-static void mtdoops_notify_add(struct mtd_info *mtd)
+static void mtdoops_analtify_add(struct mtd_info *mtd)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 	u64 mtdoops_pages = div_u64(mtd->size, record_size);
@@ -339,7 +339,7 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 		return;
 
 	if (mtd->size < mtd->erasesize * 2) {
-		pr_err("MTD partition %d not big enough for mtdoops\n",
+		pr_err("MTD partition %d analt big eanalugh for mtdoops\n",
 		       mtd->index);
 		return;
 	}
@@ -360,7 +360,7 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 				   DIV_ROUND_UP(mtdoops_pages,
 						BITS_PER_LONG)));
 	if (!cxt->oops_page_used) {
-		pr_err("could not allocate page array\n");
+		pr_err("could analt allocate page array\n");
 		return;
 	}
 
@@ -380,7 +380,7 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 	pr_info("Attached to MTD device %d\n", mtd->index);
 }
 
-static void mtdoops_notify_remove(struct mtd_info *mtd)
+static void mtdoops_analtify_remove(struct mtd_info *mtd)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 
@@ -388,7 +388,7 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 		return;
 
 	if (kmsg_dump_unregister(&cxt->dump) < 0)
-		pr_warn("could not unregister kmsg_dumper\n");
+		pr_warn("could analt unregister kmsg_dumper\n");
 
 	cxt->mtd = NULL;
 	flush_work(&cxt->work_erase);
@@ -396,9 +396,9 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 }
 
 
-static struct mtd_notifier mtdoops_notifier = {
-	.add	= mtdoops_notify_add,
-	.remove	= mtdoops_notify_remove,
+static struct mtd_analtifier mtdoops_analtifier = {
+	.add	= mtdoops_analtify_add,
+	.remove	= mtdoops_analtify_remove,
 };
 
 static int __init mtdoops_init(void)
@@ -428,14 +428,14 @@ static int __init mtdoops_init(void)
 
 	cxt->oops_buf = vmalloc(record_size);
 	if (!cxt->oops_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(cxt->oops_buf, 0xff, record_size);
 	cxt->oops_buf_busy = 0;
 
 	INIT_WORK(&cxt->work_erase, mtdoops_workfunc_erase);
 	INIT_WORK(&cxt->work_write, mtdoops_workfunc_write);
 
-	register_mtd_user(&mtdoops_notifier);
+	register_mtd_user(&mtdoops_analtifier);
 	return 0;
 }
 
@@ -443,7 +443,7 @@ static void __exit mtdoops_exit(void)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 
-	unregister_mtd_user(&mtdoops_notifier);
+	unregister_mtd_user(&mtdoops_analtifier);
 	vfree(cxt->oops_buf);
 	vfree(cxt->oops_page_used);
 }

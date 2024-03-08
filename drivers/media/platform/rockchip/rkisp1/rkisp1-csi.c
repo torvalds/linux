@@ -16,7 +16,7 @@
 #include <linux/phy/phy-mipi-dphy.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "rkisp1-common.h"
 #include "rkisp1-csi.h"
@@ -40,7 +40,7 @@ int rkisp1_csi_link_sensor(struct rkisp1_device *rkisp1, struct v4l2_subdev *sd,
 	s_asd->pixel_rate_ctrl = v4l2_ctrl_find(sd->ctrl_handler,
 						V4L2_CID_PIXEL_RATE);
 	if (!s_asd->pixel_rate_ctrl) {
-		dev_err(rkisp1->dev, "No pixel rate control in subdev %s\n",
+		dev_err(rkisp1->dev, "Anal pixel rate control in subdev %s\n",
 			sd->name);
 		return -EINVAL;
 	}
@@ -197,11 +197,11 @@ irqreturn_t rkisp1_csi_isr(int irq, void *ctx)
 	u32 val, status;
 
 	if (!rkisp1->irqs_enabled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = rkisp1_read(rkisp1, RKISP1_CIF_MIPI_MIS);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_ICR, status);
 
@@ -295,7 +295,7 @@ static int rkisp1_csi_init_state(struct v4l2_subdev *sd,
 
 	sink_fmt->width = RKISP1_DEFAULT_WIDTH;
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
-	sink_fmt->field = V4L2_FIELD_NONE;
+	sink_fmt->field = V4L2_FIELD_ANALNE;
 	sink_fmt->code = RKISP1_CSI_DEF_FMT;
 
 	*src_fmt = *sink_fmt;
@@ -374,7 +374,7 @@ static int rkisp1_csi_s_stream(struct v4l2_subdev *sd, int enable)
 
 	source = media_entity_to_v4l2_subdev(source_pad->entity);
 	if (!source) {
-		/* This should really not happen, so is not worth a message. */
+		/* This should really analt happen, so is analt worth a message. */
 		return -EPIPE;
 	}
 
@@ -445,7 +445,7 @@ int rkisp1_csi_register(struct rkisp1_device *rkisp1)
 	sd = &csi->sd;
 	v4l2_subdev_init(sd, &rkisp1_csi_ops);
 	sd->internal_ops = &rkisp1_csi_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sd->entity.ops = &rkisp1_csi_media_ops;
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->owner = THIS_MODULE;

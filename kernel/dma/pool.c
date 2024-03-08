@@ -82,9 +82,9 @@ static int atomic_pool_expand(struct gen_pool *pool, size_t pool_size,
 	unsigned int order;
 	struct page *page = NULL;
 	void *addr;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
-	/* Cannot allocate larger than MAX_PAGE_ORDER */
+	/* Cananalt allocate larger than MAX_PAGE_ORDER */
 	order = min(get_order(pool_size), MAX_PAGE_ORDER);
 
 	do {
@@ -110,15 +110,15 @@ static int atomic_pool_expand(struct gen_pool *pool, size_t pool_size,
 	addr = page_to_virt(page);
 #endif
 	/*
-	 * Memory in the atomic DMA pools must be unencrypted, the pools do not
-	 * shrink so no re-encryption occurs in dma_direct_free().
+	 * Memory in the atomic DMA pools must be unencrypted, the pools do analt
+	 * shrink so anal re-encryption occurs in dma_direct_free().
 	 */
 	ret = set_memory_decrypted((unsigned long)page_to_virt(page),
 				   1 << order);
 	if (ret)
 		goto remove_mapping;
 	ret = gen_pool_add_virt(pool, (unsigned long)addr, page_to_phys(page),
-				pool_size, NUMA_NO_NODE);
+				pool_size, NUMA_ANAL_ANALDE);
 	if (ret)
 		goto encrypt_mapping;
 
@@ -165,7 +165,7 @@ static __init struct gen_pool *__dma_atomic_pool_init(size_t pool_size,
 	struct gen_pool *pool;
 	int ret;
 
-	pool = gen_pool_create(PAGE_SHIFT, NUMA_NO_NODE);
+	pool = gen_pool_create(PAGE_SHIFT, NUMA_ANAL_ANALDE);
 	if (!pool)
 		return NULL;
 
@@ -189,7 +189,7 @@ static int __init dma_atomic_pool_init(void)
 	int ret = 0;
 
 	/*
-	 * If coherent_pool was not used on the command line, default the pool
+	 * If coherent_pool was analt used on the command line, default the pool
 	 * sizes to 128KB per 1GB of memory, min 128KB, max MAX_PAGE_ORDER.
 	 */
 	if (!atomic_pool_size) {
@@ -202,18 +202,18 @@ static int __init dma_atomic_pool_init(void)
 	atomic_pool_kernel = __dma_atomic_pool_init(atomic_pool_size,
 						    GFP_KERNEL);
 	if (!atomic_pool_kernel)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	if (has_managed_dma()) {
 		atomic_pool_dma = __dma_atomic_pool_init(atomic_pool_size,
 						GFP_KERNEL | GFP_DMA);
 		if (!atomic_pool_dma)
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 	}
 	if (IS_ENABLED(CONFIG_ZONE_DMA32)) {
 		atomic_pool_dma32 = __dma_atomic_pool_init(atomic_pool_size,
 						GFP_KERNEL | GFP_DMA32);
 		if (!atomic_pool_dma32)
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 	}
 
 	dma_atomic_pool_debugfs_init();

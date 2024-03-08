@@ -17,7 +17,7 @@ static int bmc150_accel_probe(struct spi_device *spi)
 {
 	struct regmap *regmap;
 	const char *name = NULL;
-	enum bmc150_type type = BOSCH_UNKNOWN;
+	enum bmc150_type type = BOSCH_UNKANALWN;
 	const struct spi_device_id *id = spi_get_device_id(spi);
 
 	regmap = devm_regmap_init_spi(spi, &bmc150_regmap_conf);

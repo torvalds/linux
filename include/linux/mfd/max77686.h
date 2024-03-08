@@ -2,7 +2,7 @@
 /*
  * max77686.h - Driver for the Maxim 77686/802
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electranalics
  *  Chiwoong Byun <woong.byun@samsung.com>
  *
  * This driver is based on max8997.h
@@ -107,7 +107,7 @@ enum max77802_regulators {
 };
 
 enum max77686_opmode {
-	MAX77686_OPMODE_NORMAL,
+	MAX77686_OPMODE_ANALRMAL,
 	MAX77686_OPMODE_LP,
 	MAX77686_OPMODE_STANDBY,
 };

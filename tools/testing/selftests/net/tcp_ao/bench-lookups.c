@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Author: Dmitry Safonov <dima@arista.com> */
+/* Author: Dmitry Safoanalv <dima@arista.com> */
 #include <arpa/inet.h>
 #include <inttypes.h>
 #include <math.h>
@@ -95,12 +95,12 @@ static void measure_call(struct bench_stats *st,
 	double delta;
 	uint64_t nsec;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &start))
+	if (clock_gettime(CLOCK_MOANALTONIC, &start))
 		test_error("clock_gettime()");
 
 	f(sk, arg);
 
-	if (clock_gettime(CLOCK_MONOTONIC, &end))
+	if (clock_gettime(CLOCK_MOANALTONIC, &end))
 		test_error("clock_gettime()");
 
 	nsec = (end.tv_sec - start.tv_sec) * NSEC_PER_SEC;

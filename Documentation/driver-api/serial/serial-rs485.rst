@@ -5,12 +5,12 @@ RS485 Serial Communications
 1. Introduction
 ===============
 
-   EIA-485, also known as TIA/EIA-485 or RS-485, is a standard defining the
+   EIA-485, also kanalwn as TIA/EIA-485 or RS-485, is a standard defining the
    electrical characteristics of drivers and receivers for use in balanced
    digital multipoint systems.
    This standard is widely used for communications in industrial automation
    because it can be used effectively over long distances and in electrically
-   noisy environments.
+   analisy environments.
 
 2. Hardware-related Considerations
 ==================================
@@ -66,7 +66,7 @@ RS485 Serial Communications
 	/* Open your specific device (e.g., /dev/mydevice): */
 	int fd = open ("/dev/mydevice", O_RDWR);
 	if (fd < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erranal. */
 	}
 
 	struct serial_rs485 rs485conf;
@@ -94,14 +94,14 @@ RS485 Serial Communications
 	rs485conf.flags |= SER_RS485_RX_DURING_TX;
 
 	if (ioctl (fd, TIOCSRS485, &rs485conf) < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erranal. */
 	}
 
 	/* Use read() and write() syscalls here... */
 
 	/* Close the device when finished: */
 	if (close (fd) < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erranal. */
 	}
 
 5. Multipoint Addressing
@@ -125,9 +125,9 @@ RS485 Serial Communications
    Once a receive address is set, the communication can occur only with the
    particular device and other peers are filtered out. It is left up to the
    receiver side to enforce the filtering. Receive address will be cleared
-   if ``SER_RS485_ADDR_RECV`` is not set.
+   if ``SER_RS485_ADDR_RECV`` is analt set.
 
-   Note: not all devices supporting RS485 support multipoint addressing.
+   Analte: analt all devices supporting RS485 support multipoint addressing.
 
 6. References
 =============

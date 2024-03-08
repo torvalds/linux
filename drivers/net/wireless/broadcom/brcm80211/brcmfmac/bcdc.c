@@ -298,12 +298,12 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 
 	tmp_if = brcmf_get_ifp(drvr, BCDC_GET_IF_IDX(h));
 	if (!tmp_if) {
-		brcmf_dbg(INFO, "no matching ifp found\n");
+		brcmf_dbg(INFO, "anal matching ifp found\n");
 		return -EBADE;
 	}
 	if (((h->flags & BCDC_FLAG_VER_MASK) >> BCDC_FLAG_VER_SHIFT) !=
 	    BCDC_PROTO_VER) {
-		bphy_err(drvr, "%s: non-BCDC packet received, flags 0x%x\n",
+		bphy_err(drvr, "%s: analn-BCDC packet received, flags 0x%x\n",
 			 brcmf_ifname(tmp_if), h->flags);
 		return -EBADE;
 	}
@@ -323,7 +323,7 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 		skb_pull(pktbuf, h->data_offset << 2);
 
 	if (pktbuf->len == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (ifp != NULL)
 		*ifp = tmp_if;
@@ -450,7 +450,7 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
 	if ((unsigned long)(&bcdc->msg + 1) != (unsigned long)bcdc->buf) {
-		bphy_err(drvr, "struct brcmf_proto_bcdc is not correctly defined\n");
+		bphy_err(drvr, "struct brcmf_proto_bcdc is analt correctly defined\n");
 		goto fail;
 	}
 
@@ -477,7 +477,7 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 
 fail:
 	kfree(bcdc);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr)

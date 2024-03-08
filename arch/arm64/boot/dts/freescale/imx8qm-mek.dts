@@ -17,13 +17,13 @@
 	};
 
 	cpus {
-		/delete-node/ cpu-map;
-		/delete-node/ cpu@100;
-		/delete-node/ cpu@101;
+		/delete-analde/ cpu-map;
+		/delete-analde/ cpu@100;
+		/delete-analde/ cpu@101;
 	};
 
 	thermal-zones {
-		/delete-node/ cpu1-thermal;
+		/delete-analde/ cpu1-thermal;
 	};
 
 	memory@80000000 {
@@ -87,9 +87,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 };
 

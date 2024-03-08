@@ -54,8 +54,8 @@ static inline bool arch_thp_swp_supported(void)
 /*
  * Outside of a few very special situations (e.g. hibernation), we always
  * use broadcast TLB invalidation instructions, therefore a spurious page
- * fault on one CPU which has been handled concurrently by another CPU
- * does not need to perform additional invalidation.
+ * fault on one CPU which has been handled concurrently by aanalther CPU
+ * does analt need to perform additional invalidation.
  */
 #define flush_tlb_fix_spurious_fault(vma, address, ptep) do { } while (0)
 
@@ -92,14 +92,14 @@ static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
 #define pfn_pte(pfn,prot)	\
 	__pte(__phys_to_pte_val((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
-#define pte_none(pte)		(!pte_val(pte))
+#define pte_analne(pte)		(!pte_val(pte))
 #define pte_clear(mm,addr,ptep)	set_pte(ptep, __pte(0))
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 
 /*
  * The following only work if pte_present(). Undefined behaviour otherwise.
  */
-#define pte_present(pte)	(!!(pte_val(pte) & (PTE_VALID | PTE_PROT_NONE)))
+#define pte_present(pte)	(!!(pte_val(pte) & (PTE_VALID | PTE_PROT_ANALNE)))
 #define pte_young(pte)		(!!(pte_val(pte) & PTE_AF))
 #define pte_special(pte)	(!!(pte_val(pte) & PTE_SPECIAL))
 #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
@@ -109,7 +109,7 @@ static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
 #define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
 #define pte_devmap(pte)		(!!(pte_val(pte) & PTE_DEVMAP))
 #define pte_tagged(pte)		((pte_val(pte) & PTE_ATTRINDX_MASK) == \
-				 PTE_ATTRINDX(MT_NORMAL_TAGGED))
+				 PTE_ATTRINDX(MT_ANALRMAL_TAGGED))
 
 #define pte_cont_addr_end(addr, end)						\
 ({	unsigned long __boundary = ((addr) + CONT_PTE_SIZE) & CONT_PTE_MASK;	\
@@ -127,16 +127,16 @@ static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
 
 #define pte_valid(pte)		(!!(pte_val(pte) & PTE_VALID))
 /*
- * Execute-only user mappings do not have the PTE_USER bit set. All valid
+ * Execute-only user mappings do analt have the PTE_USER bit set. All valid
  * kernel mappings have the PTE_UXN bit set.
  */
-#define pte_valid_not_user(pte) \
+#define pte_valid_analt_user(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_USER | PTE_UXN)) == (PTE_VALID | PTE_UXN))
 /*
  * Could the pte be present in the TLB? We must check mm_tlb_flush_pending
  * so that we don't erroneously return false for pages that have been
- * remapped as PROT_NONE but are yet to be flushed from the TLB.
- * Note that we can't make any assumptions based on the state of the access
+ * remapped as PROT_ANALNE but are yet to be flushed from the TLB.
+ * Analte that we can't make any assumptions based on the state of the access
  * flag, since ptep_clear_flush_young() elides a DSB when invalidating the
  * TLB.
  */
@@ -147,7 +147,7 @@ static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
  * p??_access_permitted() is true for valid user mappings (PTE_USER
  * bit set, subject to the write permission check). For execute-only
  * mappings, like PROT_EXEC with EPAN (both PTE_USER and PTE_UXN bits
- * not set) must return false. PROT_NONE mappings do not have the
+ * analt set) must return false. PROT_ANALNE mappings do analt have the
  * PTE_VALID bit set.
  */
 #define pte_access_permitted(pte, write) \
@@ -181,7 +181,7 @@ static inline pmd_t set_pmd_bit(pmd_t pmd, pgprot_t prot)
 	return pmd;
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	pte = set_pte_bit(pte, __pgprot(PTE_WRITE));
 	pte = clear_pte_bit(pte, __pgprot(PTE_RDONLY));
@@ -241,7 +241,7 @@ static inline pte_t pte_mkcont(pte_t pte)
 	return set_pte_bit(pte, __pgprot(PTE_TYPE_PAGE));
 }
 
-static inline pte_t pte_mknoncont(pte_t pte)
+static inline pte_t pte_mkanalncont(pte_t pte)
 {
 	return clear_pte_bit(pte, __pgprot(PTE_CONT));
 }
@@ -269,7 +269,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
 	 * or update_mmu_cache() have the necessary barriers.
 	 */
-	if (pte_valid_not_user(pte)) {
+	if (pte_valid_analt_user(pte)) {
 		dsb(ishst);
 		isb();
 	}
@@ -288,7 +288,7 @@ bool pgattr_change_is_safe(u64 old, u64 new);
  *   1      0      |   1           0          1
  *   1      1      |   0           1          x
  *
- * When hardware DBM is not present, the sofware PTE_DIRTY bit is updated via
+ * When hardware DBM is analt present, the sofware PTE_DIRTY bit is updated via
  * the page fault mechanism. Checking the dirty status of a pte becomes:
  *
  *   PTE_DIRTY || (PTE_WRITE && !PTE_RDONLY)
@@ -447,14 +447,14 @@ static inline pgprot_t pte_pgprot(pte_t pte)
 /*
  * See the comment in include/linux/pgtable.h
  */
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protanalne(pte_t pte)
 {
-	return (pte_val(pte) & (PTE_VALID | PTE_PROT_NONE)) == PTE_PROT_NONE;
+	return (pte_val(pte) & (PTE_VALID | PTE_PROT_ANALNE)) == PTE_PROT_ANALNE;
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protanalne(pmd_t pmd)
 {
-	return pte_protnone(pmd_pte(pmd));
+	return pte_protanalne(pmd_pte(pmd));
 }
 #endif
 
@@ -484,7 +484,7 @@ static inline int pmd_trans_huge(pmd_t pmd)
 #define pmd_cont(pmd)		pte_cont(pmd_pte(pmd))
 #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
 #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
-#define pmd_mkwrite_novma(pmd)	pte_pmd(pte_mkwrite_novma(pmd_pte(pmd)))
+#define pmd_mkwrite_analvma(pmd)	pte_pmd(pte_mkwrite_analvma(pmd_pte(pmd)))
 #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
 #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
 #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
@@ -568,18 +568,18 @@ static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
 /*
  * Mark the prot value as uncacheable and unbufferable.
  */
-#define pgprot_noncached(prot) \
+#define pgprot_analncached(prot) \
 	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_DEVICE_nGnRnE) | PTE_PXN | PTE_UXN)
 #define pgprot_writecombine(prot) \
-	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_NORMAL_NC) | PTE_PXN | PTE_UXN)
+	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_ANALRMAL_NC) | PTE_PXN | PTE_UXN)
 #define pgprot_device(prot) \
 	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_DEVICE_nGnRE) | PTE_PXN | PTE_UXN)
 #define pgprot_tagged(prot) \
-	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_NORMAL_TAGGED))
+	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_ANALRMAL_TAGGED))
 #define pgprot_mhp	pgprot_tagged
 /*
- * DMA allocations for non-coherent devices use what the Arm architecture calls
- * "Normal non-cacheable" memory, which permits speculation, unaligned accesses
+ * DMA allocations for analn-coherent devices use what the Arm architecture calls
+ * "Analrmal analn-cacheable" memory, which permits speculation, unaligned accesses
  * and merging of writes.  This is different from "Device-nGnR[nE]" memory which
  * is intended for MMIO and thus forbids speculation, preserves access size,
  * requires strict alignment and can also force write responses to come from the
@@ -587,14 +587,14 @@ static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
  */
 #define pgprot_dmacoherent(prot) \
 	__pgprot_modify(prot, PTE_ATTRINDX_MASK, \
-			PTE_ATTRINDX(MT_NORMAL_NC) | PTE_PXN | PTE_UXN)
+			PTE_ATTRINDX(MT_ANALRMAL_NC) | PTE_PXN | PTE_UXN)
 
 #define __HAVE_PHYS_MEM_ACCESS_PROT
 struct file;
 extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot);
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_analne(pmd)		(!pmd_val(pmd))
 
 #define pmd_table(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
 				 PMD_TYPE_TABLE)
@@ -686,7 +686,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 #define pmd_ERROR(e)	\
 	pr_err("%s:%d: bad pmd %016llx.\n", __FILE__, __LINE__, pmd_val(e))
 
-#define pud_none(pud)		(!pud_val(pud))
+#define pud_analne(pud)		(!pud_val(pud))
 #define pud_bad(pud)		(!pud_table(pud))
 #define pud_present(pud)	pte_present(pud_pte(pud))
 #define pud_leaf(pud)		(pud_present(pud) && !pud_table(pud))
@@ -743,7 +743,7 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 #define pud_page_paddr(pud)	({ BUILD_BUG(); 0; })
 #define pud_user_exec(pud)	pud_user(pud) /* Always 0 with folding */
 
-/* Match pmd_offset folding in <asm/generic/pgtable-nopmd.h> */
+/* Match pmd_offset folding in <asm/generic/pgtable-analpmd.h> */
 #define pmd_set_fixmap(addr)		NULL
 #define pmd_set_fixmap_offset(pudp, addr)	((pmd_t *)pudp)
 #define pmd_clear_fixmap()
@@ -757,7 +757,7 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 #define pud_ERROR(e)	\
 	pr_err("%s:%d: bad pud %016llx.\n", __FILE__, __LINE__, pud_val(e))
 
-#define p4d_none(p4d)		(!p4d_val(p4d))
+#define p4d_analne(p4d)		(!p4d_val(p4d))
 #define p4d_bad(p4d)		(!(p4d_val(p4d) & 2))
 #define p4d_present(p4d)	(p4d_val(p4d))
 
@@ -805,7 +805,7 @@ static inline pud_t *p4d_pgtable(p4d_t p4d)
 #define p4d_page_paddr(p4d)	({ BUILD_BUG(); 0;})
 #define pgd_page_paddr(pgd)	({ BUILD_BUG(); 0;})
 
-/* Match pud_offset folding in <asm/generic/pgtable-nopud.h> */
+/* Match pud_offset folding in <asm/generic/pgtable-analpud.h> */
 #define pud_set_fixmap(addr)		NULL
 #define pud_set_fixmap_offset(pgdp, addr)	((pud_t *)pgdp)
 #define pud_clear_fixmap()
@@ -823,11 +823,11 @@ static inline pud_t *p4d_pgtable(p4d_t p4d)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	/*
-	 * Normal and Normal-Tagged are two different memory types and indices
+	 * Analrmal and Analrmal-Tagged are two different memory types and indices
 	 * in MAIR_EL1. The mask below has to include PTE_ATTRINDX_MASK.
 	 */
 	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
-			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE | PTE_GP |
+			      PTE_PROT_ANALNE | PTE_VALID | PTE_WRITE | PTE_GP |
 			      PTE_ATTRINDX_MASK;
 	/* preserve the hardware dirty information */
 	if (pte_hw_dirty(pte))
@@ -931,7 +931,7 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 		 * context-switch, which provides a DSB to complete the TLB
 		 * invalidation.
 		 */
-		flush_tlb_page_nosync(vma, address);
+		flush_tlb_page_analsync(vma, address);
 	}
 
 	return young;
@@ -1009,10 +1009,10 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 /*
  * Encode and decode a swap entry:
  *	bits 0-1:	present (must be zero)
- *	bits 2:		remember PG_anon_exclusive
+ *	bits 2:		remember PG_aanaln_exclusive
  *	bits 3-7:	swap type
  *	bits 8-57:	swap offset
- *	bit  58:	PTE_PROT_NONE (must be zero)
+ *	bit  58:	PTE_PROT_ANALNE (must be zero)
  */
 #define __SWP_TYPE_SHIFT	3
 #define __SWP_TYPE_BITS		5
@@ -1034,7 +1034,7 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 #endif /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
 
 /*
- * Ensure that there are not more swap files than can be encoded in the kernel
+ * Ensure that there are analt more swap files than can be encoded in the kernel
  * PTEs.
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
@@ -1097,7 +1097,7 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 
 /*
  * On arm64 without hardware Access Flag, copying from user will fail because
- * the pte is old and cannot be marked young. So we always end up with zeroed
+ * the pte is old and cananalt be marked young. So we always end up with zeroed
  * page after fork() + CoW for pfn mappings. We don't always have a
  * hardware-managed access flag on arm64.
  */

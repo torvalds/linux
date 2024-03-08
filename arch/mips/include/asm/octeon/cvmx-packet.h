@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -54,7 +54,7 @@ union cvmx_buf_ptr {
 		uint64_t pool:3;
 		/* The size of the segment pointed to by addr (in bytes) */
 		uint64_t size:16;
-		/* Pointer to the first byte of the data, NOT buffer */
+		/* Pointer to the first byte of the data, ANALT buffer */
 		uint64_t addr:40;
 #else
 	        uint64_t addr:40;

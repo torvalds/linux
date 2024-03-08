@@ -162,7 +162,7 @@ static int iio_kfifo_remove_from(struct iio_buffer *r, void *data)
 	if (ret != 1)
 		return -EBUSY;
 
-	wake_up_interruptible_poll(&r->pollq, EPOLLOUT | EPOLLWRNORM);
+	wake_up_interruptible_poll(&r->pollq, EPOLLOUT | EPOLLWRANALRM);
 
 	return 0;
 }
@@ -276,7 +276,7 @@ int devm_iio_kfifo_buffer_setup_ext(struct device *dev,
 
 	buffer = devm_iio_kfifo_allocate(dev);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
 	indio_dev->setup_ops = setup_ops;

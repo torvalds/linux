@@ -69,7 +69,7 @@
  * A simple record-walker for __reserved area: it walks through assuming
  * only to find a proper struct __aarch64_ctx header descriptor.
  *
- * Instead it makes no assumptions on the content and ordering of the
+ * Instead it makes anal assumptions on the content and ordering of the
  * records, any needed bounds checking must be enforced by the caller
  * if wanted: this way can be used by caller on any maliciously built bad
  * contexts.

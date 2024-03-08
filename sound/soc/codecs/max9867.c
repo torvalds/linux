@@ -26,10 +26,10 @@ struct max9867_priv {
 };
 
 static const char *const max9867_spmode[] = {
-	"Stereo Diff", "Mono Diff",
-	"Stereo Cap", "Mono Cap",
-	"Stereo Single", "Mono Single",
-	"Stereo Single Fast", "Mono Single Fast"
+	"Stereo Diff", "Moanal Diff",
+	"Stereo Cap", "Moanal Cap",
+	"Stereo Single", "Moanal Single",
+	"Stereo Single Fast", "Moanal Single Fast"
 };
 static const char *const max9867_filter_text[] = {"IIR", "FIR"};
 
@@ -130,7 +130,7 @@ static int max9867_filter_set(struct snd_kcontrol *kcontrol,
 	regmap_update_bits(max9867->regmap, MAX9867_CODECFLTR,
 		MAX9867_CODECFLTR_MODE, mode);
 
-	/* out of shutdown now */
+	/* out of shutdown analw */
 	regmap_update_bits(max9867->regmap, MAX9867_PWRMAN,
 		MAX9867_PWRMAN_SHDN, MAX9867_PWRMAN_SHDN);
 
@@ -183,7 +183,7 @@ static const struct snd_kcontrol_new max9867_snd_controls[] = {
 	SOC_ENUM_EXT("DSP Filter", max9867_filter, max9867_filter_get, max9867_filter_set),
 	SOC_ENUM("ADC Filter", max9867_adc_filter),
 	SOC_ENUM("DAC Filter", max9867_dac_filter),
-	SOC_SINGLE("Mono Playback Switch", MAX9867_IFC1B, 3, 1, 0),
+	SOC_SINGLE("Moanal Playback Switch", MAX9867_IFC1B, 3, 1, 0),
 };
 
 /* Input mixer */
@@ -229,35 +229,35 @@ static const struct snd_soc_dapm_widget max9867_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINL"),
 	SND_SOC_DAPM_INPUT("LINR"),
 
-	SND_SOC_DAPM_PGA("Left Line Input", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Line Input", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA("Left Line Input", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Right Line Input", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Mixer", SND_SOC_ANALPM, 0, 0,
 				     max9867_input_mixer_controls,
 				     ARRAY_SIZE(max9867_input_mixer_controls)),
-	SND_SOC_DAPM_MUX("DMICL Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DMICL Mux", SND_SOC_ANALPM, 0, 0,
 			 &max9867_left_dmic_mux),
-	SND_SOC_DAPM_MUX("DMICR Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DMICR Mux", SND_SOC_ANALPM, 0, 0,
 			 &max9867_right_dmic_mux),
-	SND_SOC_DAPM_ADC_E("ADCL", "HiFi Capture", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("ADCL", "HiFi Capture", SND_SOC_ANALPM, 0, 0,
 			   max9867_adc_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_ADC_E("ADCR", "HiFi Capture", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("ADCR", "HiFi Capture", SND_SOC_ANALPM, 0, 0,
 			   max9867_adc_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER("Digital", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Digital", SND_SOC_ANALPM, 0, 0,
 			   max9867_sidetone_mixer_controls,
 			   ARRAY_SIZE(max9867_sidetone_mixer_controls)),
-	SND_SOC_DAPM_MIXER_NAMED_CTL("Output Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER_NAMED_CTL("Output Mixer", SND_SOC_ANALPM, 0, 0,
 				     max9867_output_mixer_controls,
 				     ARRAY_SIZE(max9867_output_mixer_controls)),
-	SND_SOC_DAPM_DAC_E("DACL", "HiFi Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("DACL", "HiFi Playback", SND_SOC_ANALPM, 0, 0,
 			   max9867_adc_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("DACR", "HiFi Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("DACR", "HiFi Playback", SND_SOC_ANALPM, 0, 0,
 			   max9867_adc_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SWITCH("Master Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Master Playback", SND_SOC_ANALPM, 0, 0,
 			    &max9867_line_out_control),
 	SND_SOC_DAPM_OUTPUT("LOUT"),
 	SND_SOC_DAPM_OUTPUT("ROUT"),
@@ -399,8 +399,8 @@ static int max9867_dai_hw_params(struct snd_pcm_substream *substream,
 		if (freq && params_rate(params) == 16000)
 			freq++;
 
-		/* If exact integer mode not available, the freq value
-		 * remains zero, i.e. normal mode is used.
+		/* If exact integer mode analt available, the freq value
+		 * remains zero, i.e. analrmal mode is used.
 		 */
 		regmap_update_bits(max9867->regmap, MAX9867_SYSCLK,
 				   MAX9867_FREQ_MASK, freq);
@@ -528,7 +528,7 @@ static const struct snd_soc_dai_ops max9867_dai_ops = {
 	.mute_stream	= max9867_mute,
 	.startup	= max9867_startup,
 	.hw_params	= max9867_dai_hw_params,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver max9867_dai[] = {
@@ -654,7 +654,7 @@ static int max9867_i2c_probe(struct i2c_client *i2c)
 
 	max9867 = devm_kzalloc(&i2c->dev, sizeof(*max9867), GFP_KERNEL);
 	if (!max9867)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max9867);
 	max9867->regmap = devm_regmap_init_i2c(i2c, &max9867_regmap);

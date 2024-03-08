@@ -57,9 +57,9 @@
 
 /**
  * struct samsung_pwm_channel - private data of PWM channel
- * @period_ns:	current period in nanoseconds programmed to the hardware
- * @duty_ns:	current duty time in nanoseconds programmed to the hardware
- * @tin_ns:	time of one timer tick in nanoseconds with current timer rate
+ * @period_ns:	current period in naanalseconds programmed to the hardware
+ * @duty_ns:	current duty time in naanalseconds programmed to the hardware
+ * @tin_ns:	time of one timer tick in naanalseconds with current timer rate
  */
 struct samsung_pwm_channel {
 	u32 period_ns;
@@ -75,8 +75,8 @@ struct samsung_pwm_channel {
  * @disabled_mask:	disabled status for all channels - one bit per channel
  * @base:		base address of mapped PWM registers
  * @base_clk:		base clock used to drive the timers
- * @tclk0:		external clock 0 (can be ERR_PTR if not present)
- * @tclk1:		external clock 1 (can be ERR_PTR if not present)
+ * @tclk0:		external clock 0 (can be ERR_PTR if analt present)
+ * @tclk1:		external clock 1 (can be ERR_PTR if analt present)
  * @channel:		per channel driver data
  */
 struct samsung_pwm_chip {
@@ -99,7 +99,7 @@ struct samsung_pwm_chip {
  * compiled in, the spinlock is defined in the clocksource driver,
  * otherwise following definition is used.
  *
- * Currently we do not need any more complex synchronization method
+ * Currently we do analt need any more complex synchronization method
  * because all the supported SoCs contain only one instance of the PWM
  * IP. Should this change, both drivers will need to be modified to
  * properly synchronize accesses to particular instances.
@@ -198,7 +198,7 @@ static unsigned long pwm_samsung_calc_tin(struct samsung_pwm_chip *our_chip,
 		}
 
 		dev_warn(our_chip->chip.dev,
-			"tclk of PWM %d is inoperational, using tdiv\n", chan);
+			"tclk of PWM %d is ianalperational, using tdiv\n", chan);
 	}
 
 	rate = pwm_samsung_get_tin_rate(our_chip, chan);
@@ -216,8 +216,8 @@ static unsigned long pwm_samsung_calc_tin(struct samsung_pwm_chip *our_chip,
 				break;
 	} else {
 		/*
-		 * Other variants have enough counter bits to generate any
-		 * requested rate, so no need to check higher divisors.
+		 * Other variants have eanalugh counter bits to generate any
+		 * requested rate, so anal need to check higher divisors.
 		 */
 		div = variant->div_base;
 	}
@@ -316,7 +316,7 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	tcnt = readl(our_chip->base + REG_TCNTB(pwm->hwpwm));
 	oldtcmp = readl(our_chip->base + REG_TCMPB(pwm->hwpwm));
 
-	/* We need tick count for calculation, not last tick. */
+	/* We need tick count for calculation, analt last tick. */
 	++tcnt;
 
 	/* Check to see if we are changing the clock rate of the PWM. */
@@ -341,10 +341,10 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (tcnt <= 1)
 		return -ERANGE;
 
-	/* Note that counters count down. */
+	/* Analte that counters count down. */
 	tcmp = duty_ns / tin_ns;
 
-	/* 0% duty is not available */
+	/* 0% duty is analt available */
 	if (!tcmp)
 		++tcmp;
 
@@ -414,9 +414,9 @@ static int pwm_samsung_set_polarity(struct pwm_chip *chip,
 				    enum pwm_polarity polarity)
 {
 	struct samsung_pwm_chip *our_chip = to_samsung_pwm_chip(chip);
-	bool invert = (polarity == PWM_POLARITY_NORMAL);
+	bool invert = (polarity == PWM_POLARITY_ANALRMAL);
 
-	/* Inverted means normal in the hardware. */
+	/* Inverted means analrmal in the hardware. */
 	pwm_samsung_set_invert(our_chip, pwm->hwpwm, invert);
 
 	return 0;
@@ -502,22 +502,22 @@ static const struct of_device_id samsung_pwm_matches[] = {
 	{ .compatible = "samsung,s3c6400-pwm", .data = &s3c64xx_variant },
 	{ .compatible = "samsung,s5p6440-pwm", .data = &s5p64x0_variant },
 	{ .compatible = "samsung,s5pc100-pwm", .data = &s5pc100_variant },
-	{ .compatible = "samsung,exynos4210-pwm", .data = &s5p64x0_variant },
+	{ .compatible = "samsung,exyanals4210-pwm", .data = &s5p64x0_variant },
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_pwm_matches);
 
 static int pwm_samsung_parse_dt(struct samsung_pwm_chip *our_chip)
 {
-	struct device_node *np = our_chip->chip.dev->of_node;
+	struct device_analde *np = our_chip->chip.dev->of_analde;
 	const struct of_device_id *match;
 	struct property *prop;
 	const __be32 *cur;
 	u32 val;
 
-	match = of_match_node(samsung_pwm_matches, np);
+	match = of_match_analde(samsung_pwm_matches, np);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memcpy(&our_chip->variant, match->data, sizeof(our_chip->variant));
 
@@ -536,7 +536,7 @@ static int pwm_samsung_parse_dt(struct samsung_pwm_chip *our_chip)
 #else
 static int pwm_samsung_parse_dt(struct samsung_pwm_chip *our_chip)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -549,20 +549,20 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 
 	our_chip = devm_kzalloc(&pdev->dev, sizeof(*our_chip), GFP_KERNEL);
 	if (our_chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	our_chip->chip.dev = &pdev->dev;
 	our_chip->chip.ops = &pwm_samsung_ops;
 	our_chip->chip.npwm = SAMSUNG_PWM_NUM;
 	our_chip->inverter_mask = BIT(SAMSUNG_PWM_NUM) - 1;
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_analde) {
 		ret = pwm_samsung_parse_dt(our_chip);
 		if (ret)
 			return ret;
 	} else {
 		if (!pdev->dev.platform_data) {
-			dev_err(&pdev->dev, "no platform data specified\n");
+			dev_err(&pdev->dev, "anal platform data specified\n");
 			return -EINVAL;
 		}
 

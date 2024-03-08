@@ -45,7 +45,7 @@ static int dp_panel_read_dpcd(struct dp_panel *dp_panel)
 	int rc;
 	struct dp_panel_private *panel;
 	struct dp_link_info *link_info;
-	u8 *dpcd, major, minor;
+	u8 *dpcd, major, mianalr;
 
 	panel = container_of(dp_panel, struct dp_panel_private, dp_panel);
 	dpcd = dp_panel->dpcd;
@@ -56,7 +56,7 @@ static int dp_panel_read_dpcd(struct dp_panel *dp_panel)
 	link_info = &dp_panel->link_info;
 	link_info->revision = dpcd[DP_DPCD_REV];
 	major = (link_info->revision >> 4) & 0x0f;
-	minor = link_info->revision & 0x0f;
+	mianalr = link_info->revision & 0x0f;
 
 	link_info->rate = drm_dp_max_link_rate(dpcd);
 	link_info->num_lanes = drm_dp_max_lane_count(dpcd);
@@ -69,7 +69,7 @@ static int dp_panel_read_dpcd(struct dp_panel *dp_panel)
 	if (link_info->rate > dp_panel->max_dp_link_rate)
 		link_info->rate = dp_panel->max_dp_link_rate;
 
-	drm_dbg_dp(panel->drm_dev, "version: %d.%d\n", major, minor);
+	drm_dbg_dp(panel->drm_dev, "version: %d.%d\n", major, mianalr);
 	drm_dbg_dp(panel->drm_dev, "link_rate=%d\n", link_info->rate);
 	drm_dbg_dp(panel->drm_dev, "lane_count=%d\n", link_info->num_lanes);
 
@@ -157,7 +157,7 @@ int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 		count = drm_dp_read_sink_count(panel->aux);
 		if (!count) {
 			panel->link->sink_count = 0;
-			return -ENOTCONN;
+			return -EANALTCONN;
 		}
 	}
 
@@ -267,7 +267,7 @@ void dp_panel_tpg_config(struct dp_panel *dp_panel, bool enable)
 
 	if (!panel->panel_on) {
 		drm_dbg_dp(panel->drm_dev,
-				"DP panel not enabled, handle TPG on next on\n");
+				"DP panel analt enabled, handle TPG on next on\n");
 		return;
 	}
 
@@ -398,7 +398,7 @@ struct dp_panel *dp_panel_get(struct dp_panel_in *in)
 
 	panel = devm_kzalloc(in->dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	panel->dev = in->dev;
 	panel->aux = in->aux;

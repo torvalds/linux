@@ -106,7 +106,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Counts demand data reads that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts demand data reads that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -115,7 +115,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -143,7 +143,7 @@
         "BriefDescription": "Number of times an RTM execution started.",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an RTM region. Does analt count nested transactions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mfd/rn5t618.h>
@@ -357,7 +357,7 @@ static int rc5t619_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->rn5t618 = rn5t618;
 

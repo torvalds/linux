@@ -50,7 +50,7 @@ static const struct rtw_hw_reg rtw8723d_txagc[] = {
 				 (BIT_MASK_TBTT_SETUP << BIT_SHIFT_TBTT_SETUP))
 #define TBTT_TIME(s, h)((((s) & BIT_MASK_TBTT_SETUP) << BIT_SHIFT_TBTT_SETUP) |\
 			(((h) & BIT_MASK_TBTT_HOLD) << BIT_SHIFT_TBTT_HOLD))
-#define WLAN_TBTT_TIME_NORMAL	TBTT_TIME(0x04, 0x80)
+#define WLAN_TBTT_TIME_ANALRMAL	TBTT_TIME(0x04, 0x80)
 #define WLAN_TBTT_TIME_STOP_BCN	TBTT_TIME(0x04, 0x64)
 #define WLAN_PIFS_VAL		0
 #define WLAN_AGG_BRK_TIME	0x16
@@ -149,7 +149,7 @@ static void rtw8723d_phy_set_param(struct rtw_dev *rtwdev)
 
 	/* post init after header files config */
 	rtw_write32_clr(rtwdev, REG_RCR, BIT_RCR_ADF);
-	rtw_write8_set(rtwdev, REG_HIQ_NO_LMT_EN, BIT_HIQ_NO_LMT_EN_ROOT);
+	rtw_write8_set(rtwdev, REG_HIQ_ANAL_LMT_EN, BIT_HIQ_ANAL_LMT_EN_ROOT);
 	rtw_write16_set(rtwdev, REG_AFE_CTRL_4, BIT_CK320M_AFE_EN | BIT_EN_SYN);
 
 	xtal_cap = rtwdev->efuse.crystal_cap & 0x3F;
@@ -258,8 +258,8 @@ static int rtw8723d_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 		rtw8723ds_efuse_parsing(efuse, map);
 		break;
 	default:
-		/* unsupported now */
-		return -ENOTSUPP;
+		/* unsupported analw */
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -353,7 +353,7 @@ static void rtw8723d_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	pkt_stat->icv_err = GET_RX_DESC_ICV_ERR(rx_desc);
 	pkt_stat->crc_err = GET_RX_DESC_CRC32(rx_desc);
 	pkt_stat->decrypted = !GET_RX_DESC_SWDEC(rx_desc) &&
-			      GET_RX_DESC_ENC_TYPE(rx_desc) != RX_DESC_ENC_NONE;
+			      GET_RX_DESC_ENC_TYPE(rx_desc) != RX_DESC_ENC_ANALNE;
 	pkt_stat->is_c2h = GET_RX_DESC_C2H(rx_desc);
 	pkt_stat->pkt_len = GET_RX_DESC_PKT_LEN(rx_desc);
 	pkt_stat->drv_info_sz = GET_RX_DESC_DRV_INFO_SIZE(rx_desc);
@@ -366,7 +366,7 @@ static void rtw8723d_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	/* drv_info_sz is in unit of 8-bytes */
 	pkt_stat->drv_info_sz *= 8;
 
-	/* c2h cmd pkt's rx/phy status is not interested */
+	/* c2h cmd pkt's rx/phy status is analt interested */
 	if (pkt_stat->is_c2h)
 		return;
 
@@ -407,9 +407,9 @@ static bool rtw8723d_check_spur_ov_thres(struct rtw_dev *rtwdev,
 	return ret;
 }
 
-static void rtw8723d_cfg_notch(struct rtw_dev *rtwdev, u8 channel, bool notch)
+static void rtw8723d_cfg_analtch(struct rtw_dev *rtwdev, u8 channel, bool analtch)
 {
-	if (!notch) {
+	if (!analtch) {
 		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_MASK_RXDSP, 0x1f);
 		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_EN_RXDSP, 0x0);
 		rtw_write32(rtwdev, REG_OFDM1_CSI1, 0x00000000);
@@ -448,15 +448,15 @@ static void rtw8723d_cfg_notch(struct rtw_dev *rtwdev, u8 channel, bool notch)
 
 static void rtw8723d_spur_cal(struct rtw_dev *rtwdev, u8 channel)
 {
-	bool notch;
+	bool analtch;
 
 	if (channel < 13) {
-		rtw8723d_cfg_notch(rtwdev, channel, false);
+		rtw8723d_cfg_analtch(rtwdev, channel, false);
 		return;
 	}
 
-	notch = rtw8723d_check_spur_ov_thres(rtwdev, channel, SPUR_THRES);
-	rtw8723d_cfg_notch(rtwdev, channel, notch);
+	analtch = rtw8723d_check_spur_ov_thres(rtwdev, channel, SPUR_THRES);
+	rtw8723d_cfg_analtch(rtwdev, channel, analtch);
 }
 
 static void rtw8723d_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
@@ -2051,7 +2051,7 @@ static const struct coex_table_para table_sant_8723d[] = {
 	{0x56555555, 0x5a5a5aaa},
 };
 
-/* Non-Shared-Antenna Coex Table */
+/* Analn-Shared-Antenna Coex Table */
 static const struct coex_table_para table_nsant_8723d[] = {
 	{0xffffffff, 0xffffffff}, /* case-100 */
 	{0x55555555, 0x55555555},
@@ -2111,7 +2111,7 @@ static const struct coex_tdma_para tdma_sant_8723d[] = {
 	{ {0x61, 0x08, 0x03, 0x11, 0x11} }
 };
 
-/* Non-Shared-Antenna TDMA */
+/* Analn-Shared-Antenna TDMA */
 static const struct coex_tdma_para tdma_nsant_8723d[] = {
 	{ {0x00, 0x00, 0x00, 0x00, 0x01} }, /* case-100 */
 	{ {0x61, 0x45, 0x03, 0x11, 0x11} }, /* case-101 */
@@ -2148,7 +2148,7 @@ static const struct rtw_hw_reg btg_reg_8723d = {
 
 /* wl_tx_dec_power, bt_tx_dec_power, wl_rx_gain, bt_rx_lna_constrain */
 static const struct coex_rf_para rf_para_tx_8723d[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for analrmal */
 	{0, 10, false, 7}, /* for WL-CPT */
 	{1, 0, true, 4},
 	{1, 2, true, 4},
@@ -2157,7 +2157,7 @@ static const struct coex_rf_para rf_para_tx_8723d[] = {
 };
 
 static const struct coex_rf_para rf_para_rx_8723d[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for analrmal */
 	{0, 10, false, 7}, /* for WL-CPT */
 	{1, 0, true, 5},
 	{1, 2, true, 5},
@@ -2575,19 +2575,19 @@ static const struct rtw_page_table page_table_8723d[] = {
 };
 
 static const struct rtw_rqpn rqpn_table_8723d[] = {
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
-	 RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_HIGH,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
+	 RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_HIGH,
 	 RTW_DMA_MAPPING_HIGH, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_HIGH, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
 };
@@ -2599,7 +2599,7 @@ static const struct rtw_prioq_addrs prioq_addrs_8723d = {
 	.prio[RTW_DMA_MAPPING_LOW] = {
 		.rsvd = REG_RQPN + 1, .avail = REG_FIFOPAGE_CTRL_2 + 1,
 	},
-	.prio[RTW_DMA_MAPPING_NORMAL] = {
+	.prio[RTW_DMA_MAPPING_ANALRMAL] = {
 		.rsvd = REG_RQPN_NPQ, .avail = REG_RQPN_NPQ + 1,
 	},
 	.prio[RTW_DMA_MAPPING_HIGH] = {

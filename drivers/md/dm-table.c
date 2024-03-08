@@ -27,9 +27,9 @@
 
 #define DM_MSG_PREFIX "table"
 
-#define NODE_SIZE L1_CACHE_BYTES
-#define KEYS_PER_NODE (NODE_SIZE / sizeof(sector_t))
-#define CHILDREN_PER_NODE (KEYS_PER_NODE + 1)
+#define ANALDE_SIZE L1_CACHE_BYTES
+#define KEYS_PER_ANALDE (ANALDE_SIZE / sizeof(sector_t))
+#define CHILDREN_PER_ANALDE (KEYS_PER_ANALDE + 1)
 
 /*
  * Similar to ceiling(log_size(n))
@@ -47,35 +47,35 @@ static unsigned int int_log(unsigned int n, unsigned int base)
 }
 
 /*
- * Calculate the index of the child node of the n'th node k'th key.
+ * Calculate the index of the child analde of the n'th analde k'th key.
  */
 static inline unsigned int get_child(unsigned int n, unsigned int k)
 {
-	return (n * CHILDREN_PER_NODE) + k;
+	return (n * CHILDREN_PER_ANALDE) + k;
 }
 
 /*
- * Return the n'th node of level l from table t.
+ * Return the n'th analde of level l from table t.
  */
-static inline sector_t *get_node(struct dm_table *t,
+static inline sector_t *get_analde(struct dm_table *t,
 				 unsigned int l, unsigned int n)
 {
-	return t->index[l] + (n * KEYS_PER_NODE);
+	return t->index[l] + (n * KEYS_PER_ANALDE);
 }
 
 /*
  * Return the highest key that you could lookup from the n'th
- * node on level l of the btree.
+ * analde on level l of the btree.
  */
 static sector_t high(struct dm_table *t, unsigned int l, unsigned int n)
 {
 	for (; l < t->depth - 1; l++)
-		n = get_child(n, CHILDREN_PER_NODE - 1);
+		n = get_child(n, CHILDREN_PER_ANALDE - 1);
 
 	if (n >= t->counts[l])
 		return (sector_t) -1;
 
-	return get_node(t, l, n)[KEYS_PER_NODE - 1];
+	return get_analde(t, l, n)[KEYS_PER_ANALDE - 1];
 }
 
 /*
@@ -85,13 +85,13 @@ static sector_t high(struct dm_table *t, unsigned int l, unsigned int n)
 static int setup_btree_index(unsigned int l, struct dm_table *t)
 {
 	unsigned int n, k;
-	sector_t *node;
+	sector_t *analde;
 
 	for (n = 0U; n < t->counts[l]; n++) {
-		node = get_node(t, l, n);
+		analde = get_analde(t, l, n);
 
-		for (k = 0U; k < KEYS_PER_NODE; k++)
-			node[k] = high(t, l + 1, get_child(n, k));
+		for (k = 0U; k < KEYS_PER_ANALDE; k++)
+			analde[k] = high(t, l + 1, get_child(n, k));
 	}
 
 	return 0;
@@ -112,7 +112,7 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 	n_highs = kvcalloc(num, sizeof(struct dm_target) + sizeof(sector_t),
 			   GFP_KERNEL);
 	if (!n_highs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n_targets = (struct dm_target *) (n_highs + num);
 
@@ -137,15 +137,15 @@ int dm_table_create(struct dm_table **result, blk_mode_t mode,
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&t->devices);
 	init_rwsem(&t->devices_lock);
 
 	if (!num_targets)
-		num_targets = KEYS_PER_NODE;
+		num_targets = KEYS_PER_ANALDE;
 
-	num_targets = dm_round_up(num_targets, KEYS_PER_NODE);
+	num_targets = dm_round_up(num_targets, KEYS_PER_ANALDE);
 
 	if (!num_targets) {
 		kfree(t);
@@ -154,10 +154,10 @@ int dm_table_create(struct dm_table **result, blk_mode_t mode,
 
 	if (alloc_targets(t, num_targets)) {
 		kfree(t);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	t->type = DM_TYPE_NONE;
+	t->type = DM_TYPE_ANALNE;
 	t->mode = mode;
 	t->md = md;
 	*result = t;
@@ -251,13 +251,13 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 
 	/*
 	 * If the target is mapped to zoned block device(s), check
-	 * that the zones are not partially mapped.
+	 * that the zones are analt partially mapped.
 	 */
 	if (bdev_is_zoned(bdev)) {
 		unsigned int zone_sectors = bdev_zone_sectors(bdev);
 
 		if (start & (zone_sectors - 1)) {
-			DMERR("%s: start=%llu not aligned to h/w zone size %u of %pg",
+			DMERR("%s: start=%llu analt aligned to h/w zone size %u of %pg",
 			      dm_device_name(ti->table->md),
 			      (unsigned long long)start,
 			      zone_sectors, bdev);
@@ -265,16 +265,16 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 		}
 
 		/*
-		 * Note: The last zone of a zoned block device may be smaller
+		 * Analte: The last zone of a zoned block device may be smaller
 		 * than other zones. So for a target mapping the end of a
-		 * zoned block device with such a zone, len would not be zone
-		 * aligned. We do not allow such last smaller zone to be part
+		 * zoned block device with such a zone, len would analt be zone
+		 * aligned. We do analt allow such last smaller zone to be part
 		 * of the mapping here to ensure that mappings with multiple
-		 * devices do not end up with a smaller zone in the middle of
+		 * devices do analt end up with a smaller zone in the middle of
 		 * the sector range.
 		 */
 		if (len & (zone_sectors - 1)) {
-			DMERR("%s: len=%llu not aligned to h/w zone size %u of %pg",
+			DMERR("%s: len=%llu analt aligned to h/w zone size %u of %pg",
 			      dm_device_name(ti->table->md),
 			      (unsigned long long)len,
 			      zone_sectors, bdev);
@@ -286,7 +286,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 		return 0;
 
 	if (start & (logical_block_size_sectors - 1)) {
-		DMERR("%s: start=%llu not aligned to h/w logical block size %u of %pg",
+		DMERR("%s: start=%llu analt aligned to h/w logical block size %u of %pg",
 		      dm_device_name(ti->table->md),
 		      (unsigned long long)start,
 		      limits->logical_block_size, bdev);
@@ -294,7 +294,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 	}
 
 	if (len & (logical_block_size_sectors - 1)) {
-		DMERR("%s: len=%llu not aligned to h/w logical block size %u of %pg",
+		DMERR("%s: len=%llu analt aligned to h/w logical block size %u of %pg",
 		      dm_device_name(ti->table->md),
 		      (unsigned long long)len,
 		      limits->logical_block_size, bdev);
@@ -307,7 +307,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 /*
  * This upgrades the mode on an already open dm_dev, being
  * careful to leave things as they were if we fail to reopen the
- * device and not to touch the existing bdev field in case
+ * device and analt to touch the existing bdev field in case
  * it is accessed concurrently.
  */
 static int upgrade_mode(struct dm_dev_internal *dd, blk_mode_t new_mode,
@@ -333,7 +333,7 @@ static int upgrade_mode(struct dm_dev_internal *dd, blk_mode_t new_mode,
  * Add a device to the list, or just increment the usage count if
  * it's already present.
  *
- * Note: the __ref annotation is because this function can call the __init
+ * Analte: the __ref ananaltation is because this function can call the __init
  * marked early_lookup_bdev when called during early boot code from dm-init.c.
  */
 int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
@@ -341,17 +341,17 @@ int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 {
 	int r;
 	dev_t dev;
-	unsigned int major, minor;
+	unsigned int major, mianalr;
 	char dummy;
 	struct dm_dev_internal *dd;
 	struct dm_table *t = ti->table;
 
 	BUG_ON(!t);
 
-	if (sscanf(path, "%u:%u%c", &major, &minor, &dummy) == 2) {
-		/* Extract the major/minor numbers */
-		dev = MKDEV(major, minor);
-		if (MAJOR(dev) != major || MINOR(dev) != minor)
+	if (sscanf(path, "%u:%u%c", &major, &mianalr, &dummy) == 2) {
+		/* Extract the major/mianalr numbers */
+		dev = MKDEV(major, mianalr);
+		if (MAJOR(dev) != major || MIANALR(dev) != mianalr)
 			return -EOVERFLOW;
 	} else {
 		r = lookup_bdev(path, &dev);
@@ -371,7 +371,7 @@ int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 	if (!dd) {
 		dd = kmalloc(sizeof(*dd), GFP_KERNEL);
 		if (!dd) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto unlock_ret_r;
 		}
 
@@ -410,7 +410,7 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 	struct request_queue *q = bdev_get_queue(bdev);
 
 	if (unlikely(!q)) {
-		DMWARN("%s: Cannot set limits for nonexistent device %pg",
+		DMWARN("%s: Cananalt set limits for analnexistent device %pg",
 		       dm_device_name(ti->table->md), bdev);
 		return 0;
 	}
@@ -447,7 +447,7 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d)
 		}
 	}
 	if (!found) {
-		DMERR("%s: device %s not in table devices list",
+		DMERR("%s: device %s analt in table devices list",
 		      dm_device_name(t->md), d->name);
 		goto unlock_ret;
 	}
@@ -479,12 +479,12 @@ static int adjoin(struct dm_table *t, struct dm_target *ti)
 /*
  * Used to dynamically allocate the arg array.
  *
- * We do first allocation with GFP_NOIO because dm-mpath and dm-thin must
+ * We do first allocation with GFP_ANALIO because dm-mpath and dm-thin must
  * process messages even if some device is suspended. These messages have a
  * small fixed number of arguments.
  *
  * On the other hand, dm-switch needs to process bulk data using messages and
- * excessive use of GFP_NOIO could cause trouble.
+ * excessive use of GFP_ANALIO could cause trouble.
  */
 static char **realloc_argv(unsigned int *size, char **old_argv)
 {
@@ -497,7 +497,7 @@ static char **realloc_argv(unsigned int *size, char **old_argv)
 		gfp = GFP_KERNEL;
 	} else {
 		new_size = 8;
-		gfp = GFP_NOIO;
+		gfp = GFP_ANALIO;
 	}
 	argv = kmalloc_array(new_size, sizeof(*argv), gfp);
 	if (argv && old_argv) {
@@ -526,7 +526,7 @@ int dm_split_args(int *argc, char ***argvp, char *input)
 
 	argv = realloc_argv(&array_size, argv);
 	if (!argv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (1) {
 		/* Skip whitespace */
@@ -555,10 +555,10 @@ int dm_split_args(int *argc, char ***argvp, char *input)
 		if ((*argc + 1) > array_size) {
 			argv = realloc_argv(&array_size, argv);
 			if (!argv)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
-		/* we know this is whitespace */
+		/* we kanalw this is whitespace */
 		if (*end)
 			end++;
 
@@ -635,7 +635,7 @@ static int validate_hardware_logical_block_alignment(struct dm_table *t,
 
 	if (remaining) {
 		DMERR("%s: table line %u (start sect %llu len %llu) "
-		      "not aligned to h/w logical block size %u",
+		      "analt aligned to h/w logical block size %u",
 		      dm_device_name(t->md), i,
 		      (unsigned long long) ti->begin,
 		      (unsigned long long) ti->len,
@@ -671,7 +671,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	ti->type = dm_get_target_type(type);
 	if (!ti->type) {
-		DMERR("%s: %s: unknown target type", dm_device_name(t->md), type);
+		DMERR("%s: %s: unkanalwn target type", dm_device_name(t->md), type);
 		return -EINVAL;
 	}
 
@@ -685,18 +685,18 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	if (dm_target_always_writeable(ti->type) &&
 	    !(t->mode & BLK_OPEN_WRITE)) {
-		ti->error = "target type may not be included in a read-only table";
+		ti->error = "target type may analt be included in a read-only table";
 		goto bad;
 	}
 
 	if (t->immutable_target_type) {
 		if (t->immutable_target_type != ti->type) {
-			ti->error = "immutable target type cannot be mixed with other target types";
+			ti->error = "immutable target type cananalt be mixed with other target types";
 			goto bad;
 		}
 	} else if (dm_target_is_immutable(ti->type)) {
 		if (t->num_targets) {
-			ti->error = "immutable target type cannot be mixed with other target types";
+			ti->error = "immutable target type cananalt be mixed with other target types";
 			goto bad;
 		}
 		t->immutable_target_type = ti->type;
@@ -708,7 +708,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	ti->table = t;
 	ti->begin = start;
 	ti->len = len;
-	ti->error = "Unknown error";
+	ti->error = "Unkanalwn error";
 
 	/*
 	 * Does this target adjoin the previous one ?
@@ -732,7 +732,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	t->highs[t->num_targets++] = ti->begin + ti->len - 1;
 
 	if (!ti->num_discard_bios && ti->discards_supported)
-		DMWARN("%s: %s: ignoring discards_supported because num_discard_bios is zero.",
+		DMWARN("%s: %s: iganalring discards_supported because num_discard_bios is zero.",
 		       dm_device_name(t->md), type);
 
 	if (ti->limit_swap_bios && !static_key_enabled(&swap_bios_enabled.key))
@@ -822,7 +822,7 @@ void dm_table_set_type(struct dm_table *t, enum dm_queue_mode type)
 EXPORT_SYMBOL_GPL(dm_table_set_type);
 
 /* validate the dax capability of the target device span */
-static int device_not_dax_capable(struct dm_target *ti, struct dm_dev *dev,
+static int device_analt_dax_capable(struct dm_target *ti, struct dm_dev *dev,
 			sector_t start, sector_t len, void *data)
 {
 	if (dev->dax_dev)
@@ -832,11 +832,11 @@ static int device_not_dax_capable(struct dm_target *ti, struct dm_dev *dev,
 	return true;
 }
 
-/* Check devices support synchronous DAX */
-static int device_not_dax_synchronous_capable(struct dm_target *ti, struct dm_dev *dev,
+/* Check devices support synchroanalus DAX */
+static int device_analt_dax_synchroanalus_capable(struct dm_target *ti, struct dm_dev *dev,
 					      sector_t start, sector_t len, void *data)
 {
-	return !dev->dax_dev || !dax_synchronous(dev->dax_dev);
+	return !dev->dax_dev || !dax_synchroanalus(dev->dax_dev);
 }
 
 static bool dm_table_supports_dax(struct dm_table *t,
@@ -864,7 +864,7 @@ static int device_is_rq_stackable(struct dm_target *ti, struct dm_dev *dev,
 	struct block_device *bdev = dev->bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
 
-	/* request-based cannot stack on partitions! */
+	/* request-based cananalt stack on partitions! */
 	if (bdev_is_partition(bdev))
 		return false;
 
@@ -878,7 +878,7 @@ static int dm_table_determine_type(struct dm_table *t)
 	struct list_head *devices = dm_table_get_devices(t);
 	enum dm_queue_mode live_md_type = dm_get_md_type(t->md);
 
-	if (t->type != DM_TYPE_NONE) {
+	if (t->type != DM_TYPE_ANALNE) {
 		/* target already set the table's type */
 		if (t->type == DM_TYPE_BIO_BASED) {
 			/* possibly upgrade to a variant of bio-based */
@@ -919,20 +919,20 @@ static int dm_table_determine_type(struct dm_table *t)
 verify_bio_based:
 		/* We must use this table as bio-based */
 		t->type = DM_TYPE_BIO_BASED;
-		if (dm_table_supports_dax(t, device_not_dax_capable) ||
+		if (dm_table_supports_dax(t, device_analt_dax_capable) ||
 		    (list_empty(devices) && live_md_type == DM_TYPE_DAX_BIO_BASED)) {
 			t->type = DM_TYPE_DAX_BIO_BASED;
 		}
 		return 0;
 	}
 
-	BUG_ON(!request_based); /* No targets in this table */
+	BUG_ON(!request_based); /* Anal targets in this table */
 
 	t->type = DM_TYPE_REQUEST_BASED;
 
 verify_rq_based:
 	/*
-	 * Request-based dm supports only tables that have a single target now.
+	 * Request-based dm supports only tables that have a single target analw.
 	 * To support multiple targets, request splitting support is needed,
 	 * and that needs lots of changes in the block-layer.
 	 * (e.g. request completion process for partial completion.)
@@ -958,14 +958,14 @@ verify_rq_based:
 		DMERR("table load rejected: immutable target is required");
 		return -EINVAL;
 	} else if (ti->max_io_len) {
-		DMERR("table load rejected: immutable target that splits IO is not supported");
+		DMERR("table load rejected: immutable target that splits IO is analt supported");
 		return -EINVAL;
 	}
 
-	/* Non-request-stackable devices can't be used for request-based dm */
+	/* Analn-request-stackable devices can't be used for request-based dm */
 	if (!ti->type->iterate_devices ||
 	    !ti->type->iterate_devices(ti, device_is_rq_stackable, NULL)) {
-		DMERR("table load rejected: including non-request-stackable devices");
+		DMERR("table load rejected: including analn-request-stackable devices");
 		return -EINVAL;
 	}
 
@@ -1023,14 +1023,14 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 	unsigned int min_pool_size = 0, pool_size;
 	struct dm_md_mempools *pools;
 
-	if (unlikely(type == DM_TYPE_NONE)) {
-		DMERR("no table type is set, can't allocate mempools");
+	if (unlikely(type == DM_TYPE_ANALNE)) {
+		DMERR("anal table type is set, can't allocate mempools");
 		return -EINVAL;
 	}
 
-	pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);
+	pools = kzalloc_analde(sizeof(*pools), GFP_KERNEL, md->numa_analde_id);
 	if (!pools)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (type == DM_TYPE_REQUEST_BASED) {
 		pool_size = dm_get_reserved_rq_based_ios();
@@ -1046,10 +1046,10 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 	}
 	pool_size = max(dm_get_reserved_bio_based_ios(), min_pool_size);
 	front_pad = roundup(per_io_data_size,
-		__alignof__(struct dm_target_io)) + DM_TARGET_IO_BIO_OFFSET;
+		__aliganalf__(struct dm_target_io)) + DM_TARGET_IO_BIO_OFFSET;
 
 	io_front_pad = roundup(per_io_data_size,
-		__alignof__(struct dm_io)) + DM_IO_BIO_OFFSET;
+		__aliganalf__(struct dm_io)) + DM_IO_BIO_OFFSET;
 	if (bioset_init(&pools->io_bs, pool_size, io_front_pad,
 			dm_table_supports_poll(t) ? BIOSET_PERCPU_CACHE : 0))
 		goto out_free_pools;
@@ -1068,7 +1068,7 @@ init_bs:
 
 out_free_pools:
 	dm_free_md_mempools(pools);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int setup_indexes(struct dm_table *t)
@@ -1079,18 +1079,18 @@ static int setup_indexes(struct dm_table *t)
 
 	/* allocate the space for *all* the indexes */
 	for (i = t->depth - 2; i >= 0; i--) {
-		t->counts[i] = dm_div_up(t->counts[i + 1], CHILDREN_PER_NODE);
+		t->counts[i] = dm_div_up(t->counts[i + 1], CHILDREN_PER_ANALDE);
 		total += t->counts[i];
 	}
 
-	indexes = kvcalloc(total, NODE_SIZE, GFP_KERNEL);
+	indexes = kvcalloc(total, ANALDE_SIZE, GFP_KERNEL);
 	if (!indexes)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* set up internal nodes, bottom-up */
+	/* set up internal analdes, bottom-up */
 	for (i = t->depth - 2; i >= 0; i--) {
 		t->index[i] = indexes;
-		indexes += (KEYS_PER_NODE * t->counts[i]);
+		indexes += (KEYS_PER_ANALDE * t->counts[i]);
 		setup_btree_index(i, t);
 	}
 
@@ -1103,14 +1103,14 @@ static int setup_indexes(struct dm_table *t)
 static int dm_table_build_index(struct dm_table *t)
 {
 	int r = 0;
-	unsigned int leaf_nodes;
+	unsigned int leaf_analdes;
 
 	/* how many indexes will the btree have ? */
-	leaf_nodes = dm_div_up(t->num_targets, KEYS_PER_NODE);
-	t->depth = 1 + int_log(leaf_nodes, CHILDREN_PER_NODE);
+	leaf_analdes = dm_div_up(t->num_targets, KEYS_PER_ANALDE);
+	t->depth = 1 + int_log(leaf_analdes, CHILDREN_PER_ANALDE);
 
 	/* leaf layer has already been set up */
-	t->counts[t->depth - 1] = leaf_nodes;
+	t->counts[t->depth - 1] = leaf_analdes;
 	t->index[t->depth - 1] = t->highs;
 
 	if (t->depth >= 2)
@@ -1138,24 +1138,24 @@ static struct gendisk *dm_table_get_integrity_disk(struct dm_table *t)
 		struct dm_target *ti = dm_table_get_target(t, i);
 
 		if (!dm_target_passes_integrity(ti->type))
-			goto no_integrity;
+			goto anal_integrity;
 	}
 
 	list_for_each_entry(dd, devices, list) {
 		template_disk = dd->dm_dev->bdev->bd_disk;
 		if (!integrity_profile_exists(template_disk))
-			goto no_integrity;
+			goto anal_integrity;
 		else if (prev_disk &&
 			 blk_integrity_compare(prev_disk, template_disk) < 0)
-			goto no_integrity;
+			goto anal_integrity;
 		prev_disk = template_disk;
 	}
 
 	return template_disk;
 
-no_integrity:
+anal_integrity:
 	if (prev_disk)
-		DMWARN("%s: integrity not set: %s and %s profile mismatch",
+		DMWARN("%s: integrity analt set: %s and %s profile mismatch",
 		       dm_device_name(t->md),
 		       prev_disk->disk_name,
 		       template_disk->disk_name);
@@ -1165,7 +1165,7 @@ no_integrity:
 /*
  * Register the mapped device for blk_integrity support if the
  * underlying devices have an integrity profile.  But all devices may
- * not have matching profiles (checking all devices isn't reliable
+ * analt have matching profiles (checking all devices isn't reliable
  * during table load because this table may use other DM device(s) which
  * must be resumed before they will have an initialized integity
  * profile).  Consequently, stacked DM devices force a 2 stage integrity
@@ -1177,7 +1177,7 @@ static int dm_table_register_integrity(struct dm_table *t)
 	struct mapped_device *md = t->md;
 	struct gendisk *template_disk = NULL;
 
-	/* If target handles integrity itself do not register it here. */
+	/* If target handles integrity itself do analt register it here. */
 	if (t->integrity_added)
 		return 0;
 
@@ -1198,7 +1198,7 @@ static int dm_table_register_integrity(struct dm_table *t)
 
 	/*
 	 * If DM device already has an initialized integrity
-	 * profile the new profile should not conflict.
+	 * profile the new profile should analt conflict.
 	 */
 	if (blk_integrity_compare(dm_disk(md), template_disk) < 0) {
 		DMERR("%s: conflict with existing integrity profile: %s profile mismatch",
@@ -1295,7 +1295,7 @@ static void dm_table_destroy_crypto_profile(struct dm_table *t)
  * crypto capabilities that are supported by the current mapped_device, it
  * returns an error instead, since we don't support removing crypto capabilities
  * on table changes.  Finally, if the constructed crypto profile is "empty" (has
- * no crypto capabilities at all), it just sets t->crypto_profile to NULL.
+ * anal crypto capabilities at all), it just sets t->crypto_profile to NULL.
  */
 static int dm_table_construct_crypto_profile(struct dm_table *t)
 {
@@ -1306,7 +1306,7 @@ static int dm_table_construct_crypto_profile(struct dm_table *t)
 
 	dmcp = kmalloc(sizeof(*dmcp), GFP_KERNEL);
 	if (!dmcp)
-		return -ENOMEM;
+		return -EANALMEM;
 	dmcp->md = t->md;
 
 	profile = &dmcp->profile;
@@ -1333,7 +1333,7 @@ static int dm_table_construct_crypto_profile(struct dm_table *t)
 	if (t->md->queue &&
 	    !blk_crypto_has_capabilities(profile,
 					 t->md->queue->crypto_profile)) {
-		DMERR("Inline encryption capabilities of new DM table were more restrictive than the old table's. This is not supported!");
+		DMERR("Inline encryption capabilities of new DM table were more restrictive than the old table's. This is analt supported!");
 		dm_destroy_crypto_profile(profile);
 		return -EINVAL;
 	}
@@ -1425,13 +1425,13 @@ int dm_table_complete(struct dm_table *t)
 
 	r = dm_table_register_integrity(t);
 	if (r) {
-		DMERR("could not register integrity profile.");
+		DMERR("could analt register integrity profile.");
 		return r;
 	}
 
 	r = dm_table_construct_crypto_profile(t);
 	if (r) {
-		DMERR("could not construct crypto profile.");
+		DMERR("could analt construct crypto profile.");
 		return r;
 	}
 
@@ -1476,24 +1476,24 @@ EXPORT_SYMBOL(dm_table_get_size);
 struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector)
 {
 	unsigned int l, n = 0, k = 0;
-	sector_t *node;
+	sector_t *analde;
 
 	if (unlikely(sector >= dm_table_get_size(t)))
 		return NULL;
 
 	for (l = 0; l < t->depth; l++) {
 		n = get_child(n, k);
-		node = get_node(t, l, n);
+		analde = get_analde(t, l, n);
 
-		for (k = 0; k < KEYS_PER_NODE; k++)
-			if (node[k] >= sector)
+		for (k = 0; k < KEYS_PER_ANALDE; k++)
+			if (analde[k] >= sector)
 				break;
 	}
 
-	return &t->targets[(KEYS_PER_NODE * n) + k];
+	return &t->targets[(KEYS_PER_ANALDE * n) + k];
 }
 
-static int device_not_poll_capable(struct dm_target *ti, struct dm_dev *dev,
+static int device_analt_poll_capable(struct dm_target *ti, struct dm_dev *dev,
 				   sector_t start, sector_t len, void *data)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
@@ -1504,12 +1504,12 @@ static int device_not_poll_capable(struct dm_target *ti, struct dm_dev *dev,
 /*
  * type->iterate_devices() should be called when the sanity check needs to
  * iterate and check all underlying data devices. iterate_devices() will
- * iterate all underlying data devices until it encounters a non-zero return
+ * iterate all underlying data devices until it encounters a analn-zero return
  * code, returned by whether the input iterate_devices_callout_fn, or
  * iterate_devices() itself internally.
  *
  * For some target type (e.g. dm-stripe), one call of iterate_devices() may
- * iterate multiple underlying devices internally, in which case a non-zero
+ * iterate multiple underlying devices internally, in which case a analn-zero
  * return code returned by iterate_devices_callout_fn will stop the iteration
  * in advance.
  *
@@ -1519,9 +1519,9 @@ static int device_not_poll_capable(struct dm_target *ti, struct dm_dev *dev,
  * capable of something.
  *
  * Cases requiring _all_ underlying devices supporting some kind of attribute,
- * should use the iteration structure like dm_table_supports_nowait() or
+ * should use the iteration structure like dm_table_supports_analwait() or
  * dm_table_supports_discards(). Or introduce dm_table_all_devs_attr() that
- * uses an @anti_func that handle semantics of counter examples, e.g. not
+ * uses an @anti_func that handle semantics of counter examples, e.g. analt
  * capable of something. So: return !dm_table_any_dev_attr(t, anti_func, data);
  */
 static bool dm_table_any_dev_attr(struct dm_table *t,
@@ -1554,7 +1554,7 @@ static bool dm_table_supports_poll(struct dm_table *t)
 		struct dm_target *ti = dm_table_get_target(t, i);
 
 		if (!ti->type->iterate_devices ||
-		    ti->type->iterate_devices(ti, device_not_poll_capable, NULL))
+		    ti->type->iterate_devices(ti, device_analt_poll_capable, NULL))
 			return false;
 	}
 
@@ -1562,12 +1562,12 @@ static bool dm_table_supports_poll(struct dm_table *t)
 }
 
 /*
- * Check whether a table has no data devices attached using each
+ * Check whether a table has anal data devices attached using each
  * target's iterate_devices method.
- * Returns false if the result is unknown because a target doesn't
+ * Returns false if the result is unkanalwn because a target doesn't
  * support iterate_devices.
  */
-bool dm_table_has_no_data_devices(struct dm_table *t)
+bool dm_table_has_anal_data_devices(struct dm_table *t)
 {
 	for (unsigned int i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(t, i);
@@ -1584,7 +1584,7 @@ bool dm_table_has_no_data_devices(struct dm_table *t)
 	return true;
 }
 
-static int device_not_zoned(struct dm_target *ti, struct dm_dev *dev,
+static int device_analt_zoned(struct dm_target *ti, struct dm_dev *dev,
 			    sector_t start, sector_t len, void *data)
 {
 	bool *zoned = data;
@@ -1611,7 +1611,7 @@ static bool dm_table_supports_zoned(struct dm_table *t, bool zoned)
 		struct dm_target *ti = dm_table_get_target(t, i);
 
 		/*
-		 * For the wildcard target (dm-error), if we do not have a
+		 * For the wildcard target (dm-error), if we do analt have a
 		 * backing device, we must always return false. If we have a
 		 * backing device, the result must depend on checking zoned
 		 * model, like for any other target. So for this, check directly
@@ -1624,7 +1624,7 @@ static bool dm_table_supports_zoned(struct dm_table *t, bool zoned)
 
 		if (dm_target_supports_zoned_hm(ti->type)) {
 			if (!ti->type->iterate_devices ||
-			    ti->type->iterate_devices(ti, device_not_zoned,
+			    ti->type->iterate_devices(ti, device_analt_zoned,
 						      &zoned))
 				return false;
 		} else if (!dm_target_supports_mixed_zoned_model(ti->type)) {
@@ -1636,7 +1636,7 @@ static bool dm_table_supports_zoned(struct dm_table *t, bool zoned)
 	return true;
 }
 
-static int device_not_matches_zone_sectors(struct dm_target *ti, struct dm_dev *dev,
+static int device_analt_matches_zone_sectors(struct dm_target *ti, struct dm_dev *dev,
 					   sector_t start, sector_t len, void *data)
 {
 	unsigned int *zone_sectors = data;
@@ -1658,7 +1658,7 @@ static int validate_hardware_zoned(struct dm_table *t, bool zoned,
 		return 0;
 
 	if (!dm_table_supports_zoned(t, zoned)) {
-		DMERR("%s: zoned model is not consistent across all devices",
+		DMERR("%s: zoned model is analt consistent across all devices",
 		      dm_device_name(t->md));
 		return -EINVAL;
 	}
@@ -1667,8 +1667,8 @@ static int validate_hardware_zoned(struct dm_table *t, bool zoned,
 	if (!zone_sectors || !is_power_of_2(zone_sectors))
 		return -EINVAL;
 
-	if (dm_table_any_dev_attr(t, device_not_matches_zone_sectors, &zone_sectors)) {
-		DMERR("%s: zone sectors is not consistent across all zoned devices",
+	if (dm_table_any_dev_attr(t, device_analt_matches_zone_sectors, &zone_sectors)) {
+		DMERR("%s: zone sectors is analt consistent across all zoned devices",
 		      dm_device_name(t->md));
 		return -EINVAL;
 	}
@@ -1842,10 +1842,10 @@ static int device_dax_write_cache_enabled(struct dm_target *ti,
 static int device_is_rotational(struct dm_target *ti, struct dm_dev *dev,
 				sector_t start, sector_t len, void *data)
 {
-	return !bdev_nonrot(dev->bdev);
+	return !bdev_analnrot(dev->bdev);
 }
 
-static int device_is_not_random(struct dm_target *ti, struct dm_dev *dev,
+static int device_is_analt_random(struct dm_target *ti, struct dm_dev *dev,
 			     sector_t start, sector_t len, void *data)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
@@ -1853,7 +1853,7 @@ static int device_is_not_random(struct dm_target *ti, struct dm_dev *dev,
 	return !blk_queue_add_random(q);
 }
 
-static int device_not_write_zeroes_capable(struct dm_target *ti, struct dm_dev *dev,
+static int device_analt_write_zeroes_capable(struct dm_target *ti, struct dm_dev *dev,
 					   sector_t start, sector_t len, void *data)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
@@ -1870,36 +1870,36 @@ static bool dm_table_supports_write_zeroes(struct dm_table *t)
 			return false;
 
 		if (!ti->type->iterate_devices ||
-		    ti->type->iterate_devices(ti, device_not_write_zeroes_capable, NULL))
+		    ti->type->iterate_devices(ti, device_analt_write_zeroes_capable, NULL))
 			return false;
 	}
 
 	return true;
 }
 
-static int device_not_nowait_capable(struct dm_target *ti, struct dm_dev *dev,
+static int device_analt_analwait_capable(struct dm_target *ti, struct dm_dev *dev,
 				     sector_t start, sector_t len, void *data)
 {
-	return !bdev_nowait(dev->bdev);
+	return !bdev_analwait(dev->bdev);
 }
 
-static bool dm_table_supports_nowait(struct dm_table *t)
+static bool dm_table_supports_analwait(struct dm_table *t)
 {
 	for (unsigned int i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(t, i);
 
-		if (!dm_target_supports_nowait(ti->type))
+		if (!dm_target_supports_analwait(ti->type))
 			return false;
 
 		if (!ti->type->iterate_devices ||
-		    ti->type->iterate_devices(ti, device_not_nowait_capable, NULL))
+		    ti->type->iterate_devices(ti, device_analt_analwait_capable, NULL))
 			return false;
 	}
 
 	return true;
 }
 
-static int device_not_discard_capable(struct dm_target *ti, struct dm_dev *dev,
+static int device_analt_discard_capable(struct dm_target *ti, struct dm_dev *dev,
 				      sector_t start, sector_t len, void *data)
 {
 	return !bdev_max_discard_sectors(dev->bdev);
@@ -1920,14 +1920,14 @@ static bool dm_table_supports_discards(struct dm_table *t)
 		 */
 		if (!ti->discards_supported &&
 		    (!ti->type->iterate_devices ||
-		     ti->type->iterate_devices(ti, device_not_discard_capable, NULL)))
+		     ti->type->iterate_devices(ti, device_analt_discard_capable, NULL)))
 			return false;
 	}
 
 	return true;
 }
 
-static int device_not_secure_erase_capable(struct dm_target *ti,
+static int device_analt_secure_erase_capable(struct dm_target *ti,
 					   struct dm_dev *dev, sector_t start,
 					   sector_t len, void *data)
 {
@@ -1943,7 +1943,7 @@ static bool dm_table_supports_secure_erase(struct dm_table *t)
 			return false;
 
 		if (!ti->type->iterate_devices ||
-		    ti->type->iterate_devices(ti, device_not_secure_erase_capable, NULL))
+		    ti->type->iterate_devices(ti, device_analt_secure_erase_capable, NULL))
 			return false;
 	}
 
@@ -1968,10 +1968,10 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 */
 	q->limits = *limits;
 
-	if (dm_table_supports_nowait(t))
-		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, q);
+	if (dm_table_supports_analwait(t))
+		blk_queue_flag_set(QUEUE_FLAG_ANALWAIT, q);
 	else
-		blk_queue_flag_clear(QUEUE_FLAG_NOWAIT, q);
+		blk_queue_flag_clear(QUEUE_FLAG_ANALWAIT, q);
 
 	if (!dm_table_supports_discards(t)) {
 		q->limits.max_discard_sectors = 0;
@@ -1991,21 +1991,21 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	}
 	blk_queue_write_cache(q, wc, fua);
 
-	if (dm_table_supports_dax(t, device_not_dax_capable)) {
+	if (dm_table_supports_dax(t, device_analt_dax_capable)) {
 		blk_queue_flag_set(QUEUE_FLAG_DAX, q);
-		if (dm_table_supports_dax(t, device_not_dax_synchronous_capable))
-			set_dax_synchronous(t->md->dax_dev);
+		if (dm_table_supports_dax(t, device_analt_dax_synchroanalus_capable))
+			set_dax_synchroanalus(t->md->dax_dev);
 	} else
 		blk_queue_flag_clear(QUEUE_FLAG_DAX, q);
 
 	if (dm_table_any_dev_attr(t, device_dax_write_cache_enabled, NULL))
 		dax_write_cache(t->md->dax_dev, true);
 
-	/* Ensure that all underlying devices are non-rotational. */
+	/* Ensure that all underlying devices are analn-rotational. */
 	if (dm_table_any_dev_attr(t, device_is_rotational, NULL))
-		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
+		blk_queue_flag_clear(QUEUE_FLAG_ANALNROT, q);
 	else
-		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+		blk_queue_flag_set(QUEUE_FLAG_ANALNROT, q);
 
 	if (!dm_table_supports_write_zeroes(t))
 		q->limits.max_write_zeroes_sectors = 0;
@@ -2025,13 +2025,13 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		blk_queue_flag_clear(QUEUE_FLAG_STABLE_WRITES, q);
 
 	/*
-	 * Determine whether or not this queue's I/O timings contribute
+	 * Determine whether or analt this queue's I/O timings contribute
 	 * to the entropy pool, Only request-based targets use this.
-	 * Clear QUEUE_FLAG_ADD_RANDOM if any underlying device does not
+	 * Clear QUEUE_FLAG_ADD_RANDOM if any underlying device does analt
 	 * have it set.
 	 */
 	if (blk_queue_add_random(q) &&
-	    dm_table_any_dev_attr(t, device_is_not_random, NULL))
+	    dm_table_any_dev_attr(t, device_is_analt_random, NULL))
 		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
 
 	/*

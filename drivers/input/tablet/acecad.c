@@ -47,14 +47,14 @@ static void usb_acecad_irq(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&intf->dev, "%s - urb shutting down with status: %d\n",
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&intf->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&intf->dev, "%s - analnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto resubmit;
 	}
@@ -119,12 +119,12 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	int err;
 
 	if (interface->desc.bNumEndpoints != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint = &interface->endpoint[0].desc;
 
 	if (!usb_endpoint_is_int_in(endpoint))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe);
@@ -132,19 +132,19 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	acecad = kzalloc(sizeof(struct usb_acecad), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!acecad || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 
 	acecad->data = usb_alloc_coherent(dev, 8, GFP_KERNEL, &acecad->data_dma);
 	if (!acecad->data) {
-		err= -ENOMEM;
+		err= -EANALMEM;
 		goto fail1;
 	}
 
 	acecad->irq = usb_alloc_urb(0, GFP_KERNEL);
 	if (!acecad->irq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail2;
 	}
 
@@ -206,7 +206,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 			acecad->data, maxp > 8 ? 8 : maxp,
 			usb_acecad_irq, acecad, endpoint->bInterval);
 	acecad->irq->transfer_dma = acecad->data_dma;
-	acecad->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	acecad->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	err = input_register_device(acecad->input);
 	if (err)

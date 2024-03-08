@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
@@ -37,8 +37,8 @@
 
    1. Slave devices MUST be active devices, i.e., they must raise the tbusy
       signal and generate EOI events. If you want to equalize virtual devices
-      like tunnels, use a normal eql device.
-   2. This device puts no limitations on physical slave characteristics
+      like tunnels, use a analrmal eql device.
+   2. This device puts anal limitations on physical slave characteristics
       f.e. it will equalize 9600baud line and 100Mb ethernet perfectly :-)
       Certainly, large difference in link speeds will make the resulting
       eqalized link unusable, because of huge packet reordering.
@@ -46,7 +46,7 @@
    3. If the slave requires address resolution, only protocols using
       neighbour cache (IPv4/IPv6) will work over the equalized link.
       Other protocols are still allowed to use the slave device directly,
-      which will not break load balancing, though native slave
+      which will analt break load balancing, though native slave
       traffic will have the highest priority.  */
 
 struct teql_master {
@@ -224,12 +224,12 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res,
 
 	n = dst_neigh_lookup_skb(dst, skb);
 	if (!n)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (dst->dev != dev) {
 		struct neighbour *mn;
 
-		mn = __neigh_lookup_errno(n->tbl, n->primary_key, dev);
+		mn = __neigh_lookup_erranal(n->tbl, n->primary_key, dev);
 		neigh_release(n);
 		if (IS_ERR(mn))
 			return PTR_ERR(mn);
@@ -261,8 +261,8 @@ static inline int teql_resolve(struct sk_buff *skb,
 	struct dst_entry *dst = skb_dst(skb);
 	int res;
 
-	if (rcu_access_pointer(txq->qdisc) == &noop_qdisc)
-		return -ENODEV;
+	if (rcu_access_pointer(txq->qdisc) == &analop_qdisc)
+		return -EANALDEV;
 
 	if (!dev->header_ops || !dst)
 		return 0;
@@ -279,14 +279,14 @@ static netdev_tx_t teql_master_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct teql_master *master = netdev_priv(dev);
 	struct Qdisc *start, *q;
 	int busy;
-	int nores;
+	int analres;
 	int subq = skb_get_queue_mapping(skb);
 	struct sk_buff *skb_res = NULL;
 
 	start = master->slaves;
 
 restart:
-	nores = 0;
+	analres = 0;
 	busy = 0;
 
 	q = start;
@@ -329,13 +329,13 @@ restart:
 			master->slaves = NEXT_SLAVE(q);
 			return NETDEV_TX_OK;
 		default:
-			nores = 1;
+			analres = 1;
 			break;
 		}
 		__skb_pull(skb, skb_network_offset(skb));
 	} while ((q = NEXT_SLAVE(q)) != start);
 
-	if (nores && skb_res == NULL) {
+	if (analres && skb_res == NULL) {
 		skb_res = skb;
 		goto restart;
 	}
@@ -357,7 +357,7 @@ static int teql_master_open(struct net_device *dev)
 	struct Qdisc *q;
 	struct teql_master *m = netdev_priv(dev);
 	int mtu = 0xFFFE;
-	unsigned int flags = IFF_NOARP | IFF_MULTICAST;
+	unsigned int flags = IFF_ANALARP | IFF_MULTICAST;
 
 	if (m->slaves == NULL)
 		return -EUNATCH;
@@ -458,7 +458,7 @@ static __init void teql_master_setup(struct net_device *dev)
 	dev->min_mtu		= 68;
 	dev->max_mtu		= 65535;
 	dev->tx_queue_len	= 100;
-	dev->flags		= IFF_NOARP;
+	dev->flags		= IFF_ANALARP;
 	dev->hard_header_len	= LL_MAX_HEADER;
 	netif_keep_dst(dev);
 }
@@ -471,16 +471,16 @@ MODULE_PARM_DESC(max_equalizers, "Max number of link equalizers");
 static int __init teql_init(void)
 {
 	int i;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	for (i = 0; i < max_equalizers; i++) {
 		struct net_device *dev;
 		struct teql_master *master;
 
 		dev = alloc_netdev(sizeof(struct teql_master), "teql%d",
-				   NET_NAME_UNKNOWN, teql_master_setup);
+				   NET_NAME_UNKANALWN, teql_master_setup);
 		if (!dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 

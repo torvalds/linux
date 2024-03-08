@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include <linux/types.h>
 #include "dr_types.h"
@@ -104,7 +104,7 @@ int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 			    bool reformat_req,
 			    u32 *tbl_id,
 			    u32 *group_id,
-			    bool ignore_flow_level,
+			    bool iganalre_flow_level,
 			    u32 flow_source)
 {
 	struct mlx5dr_cmd_create_flow_table_attr ft_attr = {};
@@ -139,7 +139,7 @@ int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 	fte_info.dests_size = num_dest;
 	fte_info.val = val;
 	fte_info.dest_arr = dest;
-	fte_info.ignore_flow_level = ignore_flow_level;
+	fte_info.iganalre_flow_level = iganalre_flow_level;
 	fte_info.flow_context.flow_source = flow_source;
 
 	ret = mlx5dr_cmd_set_fte(dmn->mdev, 0, 0, &ft_info, *group_id, &fte_info);

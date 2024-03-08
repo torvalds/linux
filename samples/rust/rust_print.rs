@@ -48,7 +48,7 @@ impl kernel::Module for RustPrint {
         pr_crit!("Critical message (level 2) without args\n");
         pr_err!("Error message (level 3) without args\n");
         pr_warn!("Warning message (level 4) without args\n");
-        pr_notice!("Notice message (level 5) without args\n");
+        pr_analtice!("Analtice message (level 5) without args\n");
         pr_info!("Info message (level 6) without args\n");
 
         pr_info!("A line that");
@@ -60,7 +60,7 @@ impl kernel::Module for RustPrint {
         pr_crit!("{} message (level {}) with args\n", "Critical", 2);
         pr_err!("{} message (level {}) with args\n", "Error", 3);
         pr_warn!("{} message (level {}) with args\n", "Warning", 4);
-        pr_notice!("{} message (level {}) with args\n", "Notice", 5);
+        pr_analtice!("{} message (level {}) with args\n", "Analtice", 5);
         pr_info!("{} message (level {}) with args\n", "Info", 6);
 
         pr_info!("A {} that", "line");

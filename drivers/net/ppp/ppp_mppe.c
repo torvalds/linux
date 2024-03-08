@@ -9,10 +9,10 @@
  * License:
  * Permission to use, copy, modify, and distribute this software and its
  * documentation is hereby granted, provided that the above copyright
- * notice appears in all copies.  This software is provided without any
+ * analtice appears in all copies.  This software is provided without any
  * warranty, express or implied.
  *
- * ALTERNATIVELY, provided that this notice is retained in full, this product
+ * ALTERNATIVELY, provided that this analtice is retained in full, this product
  * may be distributed under the terms of the GNU General Public License (GPL),
  * in which case the provisions of the GPL apply INSTEAD OF those given above.
  *
@@ -27,12 +27,12 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *   along with this program; if analt, see <http://www.gnu.org/licenses/>.
  *
  *
  * Changelog:
  *      08/12/05 - Matt Domsch <Matt_Domsch@dell.com>
- *                 Only need extra skb padding on transmit, not receive.
+ *                 Only need extra skb padding on transmit, analt receive.
  *      06/18/04 - Matt Domsch <Matt_Domsch@dell.com>, Oleg Makarenko <mole@quadra.ru>
  *                 Use Linux kernel 2.6 arc4 and sha1 routines rather than
  *                 providing our own.
@@ -69,7 +69,7 @@ MODULE_VERSION("1.0.2");
 #define SHA1_PAD_SIZE 40
 
 /*
- * kernel crypto API needs its arguments to be in kmalloc'd memory, not in the module
+ * kernel crypto API needs its arguments to be in kmalloc'd memory, analt in the module
  * static data area.  That means sha_pad needs to be kmalloc'd.
  */
 
@@ -99,7 +99,7 @@ struct ppp_mppe_state {
 	/* If we want to support 56-bit,   */
 	/* the unit has to change to bits  */
 	unsigned char bits;	/* MPPE control bits */
-	unsigned ccount;	/* 12-bit coherency count (seqno)  */
+	unsigned ccount;	/* 12-bit coherency count (seqanal)  */
 	unsigned stateful;	/* stateful mode flag */
 	int discard;		/* stateful mode packet loss flag */
 	int sanity_errors;	/* take down LCP if too many */
@@ -110,8 +110,8 @@ struct ppp_mppe_state {
 
 /* struct ppp_mppe_state.bits definitions */
 #define MPPE_BIT_A	0x80	/* Encryption table were (re)inititalized */
-#define MPPE_BIT_B	0x40	/* MPPC only (not implemented) */
-#define MPPE_BIT_C	0x20	/* MPPC only (not implemented) */
+#define MPPE_BIT_B	0x40	/* MPPC only (analt implemented) */
+#define MPPE_BIT_C	0x20	/* MPPC only (analt implemented) */
 #define MPPE_BIT_D	0x10	/* This is an encrypted frame */
 
 #define MPPE_BIT_FLUSHED	MPPE_BIT_A
@@ -144,7 +144,7 @@ static void get_new_key_from_sha(struct ppp_mppe_state * state)
 
 /*
  * Perform the MPPE rekey algorithm, from RFC 3078, sec. 7.3.
- * Well, not what's written there, but rather what they meant.
+ * Well, analt what's written there, but rather what they meant.
  */
 static void mppe_rekey(struct ppp_mppe_state * state, int initial_key)
 {
@@ -263,7 +263,7 @@ mppe_init(void *arg, unsigned char *options, int optlen, int unit, int debug,
 	else if (mppe_opts & MPPE_OPT_40)
 		state->keylen = 8;
 	else {
-		printk(KERN_WARNING "%s[%d]: unknown key length\n", debugstr,
+		printk(KERN_WARNING "%s[%d]: unkanalwn key length\n", debugstr,
 		       unit);
 		return 0;
 	}
@@ -285,7 +285,7 @@ mppe_init(void *arg, unsigned char *options, int optlen, int unit, int debug,
 	}
 
 	/*
-	 * Initialize the coherency count.  The initial value is not specified
+	 * Initialize the coherency count.  The initial value is analt specified
 	 * in RFC 3078, but we can make a reasonable assumption that it will
 	 * start at 0.  Setting it to the max here makes the comp/decomp code
 	 * do the right thing (determined through experiment).
@@ -293,7 +293,7 @@ mppe_init(void *arg, unsigned char *options, int optlen, int unit, int debug,
 	state->ccount = MPPE_CCOUNT_SPACE - 1;
 
 	/*
-	 * Note that even though we have initialized the key table, we don't
+	 * Analte that even though we have initialized the key table, we don't
 	 * set the FLUSHED bit.  This is contrary to RFC 3078, sec. 3.1.
 	 */
 	state->bits = MPPE_BIT_ENCRYPTED;
@@ -314,11 +314,11 @@ mppe_comp_init(void *arg, unsigned char *options, int optlen, int unit,
 
 /*
  * We received a CCP Reset-Request (actually, we are sending a Reset-Ack),
- * tell the compressor to rekey.  Note that we MUST NOT rekey for
+ * tell the compressor to rekey.  Analte that we MUST ANALT rekey for
  * every CCP Reset-Request; we only rekey on the next xmit packet.
  * We might get multiple CCP Reset-Requests if our CCP Reset-Ack is lost.
- * So, rekeying for every CCP Reset-Request is broken as the peer will not
- * know how many times we've rekeyed.  (If we rekey and THEN get another
+ * So, rekeying for every CCP Reset-Request is broken as the peer will analt
+ * kanalw how many times we've rekeyed.  (If we rekey and THEN get aanalther
  * CCP Reset-Request, we must rekey again.)
  */
 static void mppe_comp_reset(void *arg)
@@ -347,7 +347,7 @@ mppe_compress(void *arg, unsigned char *ibuf, unsigned char *obuf,
 	if (proto < 0x0021 || proto > 0x00fa)
 		return 0;
 
-	/* Make sure we have enough room to generate an encrypted packet. */
+	/* Make sure we have eanalugh room to generate an encrypted packet. */
 	if (osize < isize + MPPE_OVHD + 2) {
 		/* Drop the packet if we should encrypt it, but can't. */
 		printk(KERN_DEBUG "mppe_compress[%d]: osize too small! "
@@ -419,7 +419,7 @@ mppe_decomp_init(void *arg, unsigned char *options, int optlen, int unit,
 }
 
 /*
- * We received a CCP Reset-Ack.  Just ignore it.
+ * We received a CCP Reset-Ack.  Just iganalre it.
  */
 static void mppe_decomp_reset(void *arg)
 {
@@ -447,8 +447,8 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 	}
 
 	/*
-	 * Make sure we have enough room to decrypt the packet.
-	 * Note that for our test we only subtract 1 byte whereas in
+	 * Make sure we have eanalugh room to decrypt the packet.
+	 * Analte that for our test we only subtract 1 byte whereas in
 	 * mppe_compress() we added 2 bytes (+MPPE_OVHD);
 	 * this is to account for possible PFC.
 	 */
@@ -458,7 +458,7 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 		       osize, isize - MPPE_OVHD - 1);
 		return DECOMP_ERROR;
 	}
-	osize = isize - MPPE_OVHD - 2;	/* assume no PFC */
+	osize = isize - MPPE_OVHD - 2;	/* assume anal PFC */
 
 	ccount = MPPE_CCOUNT(ibuf);
 	if (state->debug >= 7)
@@ -468,19 +468,19 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 	/* sanity checks -- terminate with extreme prejudice */
 	if (!(MPPE_BITS(ibuf) & MPPE_BIT_ENCRYPTED)) {
 		printk(KERN_DEBUG
-		       "mppe_decompress[%d]: ENCRYPTED bit not set!\n",
+		       "mppe_decompress[%d]: ENCRYPTED bit analt set!\n",
 		       state->unit);
 		state->sanity_errors += 100;
 		goto sanity_error;
 	}
 	if (!state->stateful && !flushed) {
-		printk(KERN_DEBUG "mppe_decompress[%d]: FLUSHED bit not set in "
+		printk(KERN_DEBUG "mppe_decompress[%d]: FLUSHED bit analt set in "
 		       "stateless mode!\n", state->unit);
 		state->sanity_errors += 100;
 		goto sanity_error;
 	}
 	if (state->stateful && ((ccount & 0xff) == 0xff) && !flushed) {
-		printk(KERN_DEBUG "mppe_decompress[%d]: FLUSHED bit not set on "
+		printk(KERN_DEBUG "mppe_decompress[%d]: FLUSHED bit analt set on "
 		       "flag packet!\n", state->unit);
 		state->sanity_errors += 100;
 		goto sanity_error;
@@ -506,7 +506,7 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 	} else {
 		/* RFC 3078, sec 8.2. */
 		if (!state->discard) {
-			/* normal state */
+			/* analrmal state */
 			state->ccount = (state->ccount + 1) % MPPE_CCOUNT_SPACE;
 			if (ccount != state->ccount) {
 				/*
@@ -520,7 +520,7 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 		} else {
 			/* discard state */
 			if (!flushed) {
-				/* ccp.c will be silent (no additional CCP Reset-Requests). */
+				/* ccp.c will be silent (anal additional CCP Reset-Requests). */
 				return DECOMP_ERROR;
 			} else {
 				/* Rekey for every missed "flag" packet. */
@@ -536,8 +536,8 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 				state->discard = 0;
 				state->ccount = ccount;
 				/*
-				 * Another problem with RFC 3078 here.  It implies that the
-				 * peer need not send a Reset-Ack packet.  But RFC 1962
+				 * Aanalther problem with RFC 3078 here.  It implies that the
+				 * peer need analt send a Reset-Ack packet.  But RFC 1962
 				 * requires it.  Hopefully, M$ does send a Reset-Ack; even
 				 * though it isn't required for MPPE synchronization, it is
 				 * required to reset CCP state.
@@ -661,11 +661,11 @@ static int __init ppp_mppe_init(void)
 {
 	int answer;
 	if (fips_enabled || !crypto_has_ahash("sha1", 0, CRYPTO_ALG_ASYNC))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sha_pad = kmalloc(sizeof(struct sha_pad), GFP_KERNEL);
 	if (!sha_pad)
-		return -ENOMEM;
+		return -EANALMEM;
 	sha_pad_init(sha_pad);
 
 	answer = ppp_register_compressor(&ppp_mppe);

@@ -63,13 +63,13 @@ static void ti_emif_free_sram(struct ti_emif_data *emif_data)
 static int ti_emif_alloc_sram(struct device *dev,
 			      struct ti_emif_data *emif_data)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	emif_data->sram_pool_code = of_gen_pool_get(np, "sram", 0);
 	if (!emif_data->sram_pool_code) {
 		dev_err(dev, "Unable to get sram pool for ocmcram code\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	emif_data->ti_emif_sram_virt =
@@ -77,7 +77,7 @@ static int ti_emif_alloc_sram(struct device *dev,
 				       ti_emif_sram_sz);
 	if (!emif_data->ti_emif_sram_virt) {
 		dev_err(dev, "Unable to allocate code memory from ocmcram\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Save physical address to calculate resume offset during pm init */
@@ -89,7 +89,7 @@ static int ti_emif_alloc_sram(struct device *dev,
 	emif_data->sram_pool_data = of_gen_pool_get(np, "sram", 1);
 	if (!emif_data->sram_pool_data) {
 		dev_err(dev, "Unable to get sram pool for ocmcram data\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_sram_code;
 	}
 
@@ -98,7 +98,7 @@ static int ti_emif_alloc_sram(struct device *dev,
 					       sizeof(struct emif_regs_amx3));
 	if (!emif_data->ti_emif_sram_data_virt) {
 		dev_err(dev, "Unable to allocate data memory from ocmcram\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_sram_code;
 	}
 
@@ -121,7 +121,7 @@ static int ti_emif_alloc_sram(struct device *dev,
 				     (unsigned long)ti_emif_abort_sr);
 
 	/*
-	 * These are called during resume path when MMU is not enabled
+	 * These are called during resume path when MMU is analt enabled
 	 * so physical address is used instead
 	 */
 	emif_data->pm_functions.restore_context =
@@ -155,8 +155,8 @@ static int ti_emif_push_sram(struct device *dev, struct ti_emif_data *emif_data)
 				   (void *)emif_data->ti_emif_sram_virt,
 				   &ti_emif_sram, ti_emif_sram_sz);
 	if (!copy_addr) {
-		dev_err(dev, "Cannot copy emif code to sram\n");
-		return -ENODEV;
+		dev_err(dev, "Cananalt copy emif code to sram\n");
+		return -EANALDEV;
 	}
 
 	data_addr = sram_suspend_address(emif_data,
@@ -166,17 +166,17 @@ static int ti_emif_push_sram(struct device *dev, struct ti_emif_data *emif_data)
 				   &emif_data->pm_data,
 				   sizeof(emif_data->pm_data));
 	if (!copy_addr) {
-		dev_err(dev, "Cannot copy emif data to code sram\n");
-		return -ENODEV;
+		dev_err(dev, "Cananalt copy emif data to code sram\n");
+		return -EANALDEV;
 	}
 
 	return 0;
 }
 
 /*
- * Due to Usage Note 3.1.2 "DDR3: JEDEC Compliance for Maximum
+ * Due to Usage Analte 3.1.2 "DDR3: JEDEC Compliance for Maximum
  * Self-Refresh Command Limit" found in AM335x Silicon Errata
- * (Document SPRZ360F Revised November 2013) we must configure
+ * (Document SPRZ360F Revised Analvember 2013) we must configure
  * the self refresh delay timer to 0xA (8192 cycles) to avoid
  * generating too many refresh command from the EMIF.
  */
@@ -196,20 +196,20 @@ static void ti_emif_configure_sr_delay(struct ti_emif_data *emif_data)
  * @sram_pool: pointer to struct gen_pool where dst resides
  * @dst: void * to address that table should be copied
  *
- * Returns 0 if success other error code if table is not available
+ * Returns 0 if success other error code if table is analt available
  */
 int ti_emif_copy_pm_function_table(struct gen_pool *sram_pool, void *dst)
 {
 	void *copy_addr;
 
 	if (!emif_instance)
-		return -ENODEV;
+		return -EANALDEV;
 
 	copy_addr = sram_exec_copy(sram_pool, dst,
 				   &emif_instance->pm_functions,
 				   sizeof(emif_instance->pm_functions));
 	if (!copy_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -225,7 +225,7 @@ int ti_emif_get_mem_type(void)
 	unsigned long temp;
 
 	if (!emif_instance)
-		return -ENODEV;
+		return -EANALDEV;
 
 	temp = readl(emif_instance->pm_data.ti_emif_base_addr_virt +
 		     EMIF_SDRAM_CONFIG);
@@ -252,8 +252,8 @@ static int ti_emif_resume(struct device *dev)
 
 	/*
 	 * Check to see if what we are copying is already present in the
-	 * first byte at the destination, only copy if it is not which
-	 * indicates we have lost context and sram no longer contains
+	 * first byte at the destination, only copy if it is analt which
+	 * indicates we have lost context and sram anal longer contains
 	 * the PM code
 	 */
 	if (tmp != ti_emif_sram)
@@ -265,7 +265,7 @@ static int ti_emif_resume(struct device *dev)
 static int ti_emif_suspend(struct device *dev)
 {
 	/*
-	 * The contents will be present in DDR hence no need to
+	 * The contents will be present in DDR hence anal need to
 	 * explicitly save
 	 */
 	return 0;
@@ -281,7 +281,7 @@ static int ti_emif_probe(struct platform_device *pdev)
 
 	emif_data = devm_kzalloc(dev, sizeof(*emif_data), GFP_KERNEL);
 	if (!emif_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	emif_data->pm_data.ti_emif_sram_config = (unsigned long) device_get_match_data(&pdev->dev);
 

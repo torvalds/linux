@@ -28,7 +28,7 @@ struct dram_channel_info {
 static const char *intel_dram_type_str(enum intel_dram_type type)
 {
 	static const char * const str[] = {
-		DRAM_TYPE_STR(UNKNOWN),
+		DRAM_TYPE_STR(UNKANALWN),
 		DRAM_TYPE_STR(DDR3),
 		DRAM_TYPE_STR(DDR4),
 		DRAM_TYPE_STR(LPDDR3),
@@ -36,7 +36,7 @@ static const char *intel_dram_type_str(enum intel_dram_type type)
 	};
 
 	if (type >= ARRAY_SIZE(str))
-		type = INTEL_DRAM_UNKNOWN;
+		type = INTEL_DRAM_UNKANALWN;
 
 	return str[type];
 }
@@ -100,7 +100,7 @@ static void ilk_detect_mem_freq(struct drm_i915_private *dev_priv)
 		dev_priv->mem_freq = 1600;
 		break;
 	default:
-		drm_dbg(&dev_priv->drm, "unknown memory frequency 0x%02x\n",
+		drm_dbg(&dev_priv->drm, "unkanalwn memory frequency 0x%02x\n",
 			ddrpll & 0xff);
 		dev_priv->mem_freq = 0;
 		break;
@@ -130,7 +130,7 @@ static void ilk_detect_mem_freq(struct drm_i915_private *dev_priv)
 		dev_priv->fsb_freq = 6400;
 		break;
 	default:
-		drm_dbg(&dev_priv->drm, "unknown fsb frequency 0x%04x\n",
+		drm_dbg(&dev_priv->drm, "unkanalwn fsb frequency 0x%04x\n",
 			csipll & 0x3ff);
 		dev_priv->fsb_freq = 0;
 		break;
@@ -288,7 +288,7 @@ skl_dram_get_dimm_info(struct drm_i915_private *i915,
 	drm_dbg_kms(&i915->drm,
 		    "CH%u DIMM %c size: %u Gb, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
 		    channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
-		    str_yes_no(skl_is_16gb_dimm(dimm)));
+		    str_anal_anal(skl_is_16gb_dimm(dimm)));
 }
 
 static int
@@ -302,7 +302,7 @@ skl_dram_get_channel_info(struct drm_i915_private *i915,
 			       channel, 'S', val >> 16);
 
 	if (ch->dimm_l.size == 0 && ch->dimm_s.size == 0) {
-		drm_dbg_kms(&i915->drm, "CH%u not populated\n", channel);
+		drm_dbg_kms(&i915->drm, "CH%u analt populated\n", channel);
 		return -EINVAL;
 	}
 
@@ -317,7 +317,7 @@ skl_dram_get_channel_info(struct drm_i915_private *i915,
 		skl_is_16gb_dimm(&ch->dimm_s);
 
 	drm_dbg_kms(&i915->drm, "CH%u ranks: %u, 16Gb DIMMs: %s\n",
-		    channel, ch->ranks, str_yes_no(ch->is_16gb_dimm));
+		    channel, ch->ranks, str_anal_anal(ch->is_16gb_dimm));
 
 	return 0;
 }
@@ -366,7 +366,7 @@ skl_dram_get_channels_info(struct drm_i915_private *i915)
 	dram_info->symmetric_memory = intel_is_dram_symmetric(&ch0, &ch1);
 
 	drm_dbg_kms(&i915->drm, "Memory configuration is symmetric? %s\n",
-		    str_yes_no(dram_info->symmetric_memory));
+		    str_anal_anal(dram_info->symmetric_memory));
 
 	return 0;
 }
@@ -390,7 +390,7 @@ skl_get_dram_type(struct drm_i915_private *i915)
 		return INTEL_DRAM_LPDDR4;
 	default:
 		MISSING_CASE(val);
-		return INTEL_DRAM_UNKNOWN;
+		return INTEL_DRAM_UNKANALWN;
 	}
 }
 
@@ -460,7 +460,7 @@ static int bxt_get_dimm_ranks(u32 val)
 static enum intel_dram_type bxt_get_dimm_type(u32 val)
 {
 	if (!bxt_get_dimm_size(val))
-		return INTEL_DRAM_UNKNOWN;
+		return INTEL_DRAM_UNKANALWN;
 
 	switch (val & BXT_DRAM_TYPE_MASK) {
 	case BXT_DRAM_TYPE_DDR3:
@@ -473,7 +473,7 @@ static enum intel_dram_type bxt_get_dimm_type(u32 val)
 		return INTEL_DRAM_LPDDR4;
 	default:
 		MISSING_CASE(val);
-		return INTEL_DRAM_UNKNOWN;
+		return INTEL_DRAM_UNKANALWN;
 	}
 }
 
@@ -484,7 +484,7 @@ static void bxt_get_dimm_info(struct dram_dimm_info *dimm, u32 val)
 
 	/*
 	 * Size in register is Gb per DRAM device. Convert to total
-	 * Gb to match the way we report this for non-LP platforms.
+	 * Gb to match the way we report this for analn-LP platforms.
 	 */
 	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm);
 }
@@ -497,7 +497,7 @@ static int bxt_get_dram_info(struct drm_i915_private *i915)
 	int i;
 
 	/*
-	 * Now read each DUNIT8/9/10/11 to check the rank of each dimms.
+	 * Analw read each DUNIT8/9/10/11 to check the rank of each dimms.
 	 */
 	for (i = BXT_D_CR_DRP0_DUNIT_START; i <= BXT_D_CR_DRP0_DUNIT_END; i++) {
 		struct dram_dimm_info dimm;
@@ -512,8 +512,8 @@ static int bxt_get_dram_info(struct drm_i915_private *i915)
 		bxt_get_dimm_info(&dimm, val);
 		type = bxt_get_dimm_type(val);
 
-		drm_WARN_ON(&i915->drm, type != INTEL_DRAM_UNKNOWN &&
-			    dram_info->type != INTEL_DRAM_UNKNOWN &&
+		drm_WARN_ON(&i915->drm, type != INTEL_DRAM_UNKANALWN &&
+			    dram_info->type != INTEL_DRAM_UNKANALWN &&
 			    dram_info->type != type);
 
 		drm_dbg_kms(&i915->drm,
@@ -525,11 +525,11 @@ static int bxt_get_dram_info(struct drm_i915_private *i915)
 		if (valid_ranks == 0)
 			valid_ranks = dimm.ranks;
 
-		if (type != INTEL_DRAM_UNKNOWN)
+		if (type != INTEL_DRAM_UNKANALWN)
 			dram_info->type = type;
 	}
 
-	if (dram_info->type == INTEL_DRAM_UNKNOWN || valid_ranks == 0) {
+	if (dram_info->type == INTEL_DRAM_UNKANALWN || valid_ranks == 0) {
 		drm_info(&i915->drm, "couldn't get memory information\n");
 		return -EINVAL;
 	}
@@ -647,7 +647,7 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915)
 
 	dram_info->num_channels = REG_FIELD_GET(MTL_N_OF_POPULATED_CH_MASK, val);
 	dram_info->num_qgv_points = REG_FIELD_GET(MTL_N_OF_ENABLED_QGV_POINTS_MASK, val);
-	/* PSF GV points not supported in D14+ */
+	/* PSF GV points analt supported in D14+ */
 
 	return 0;
 }
@@ -664,7 +664,7 @@ void intel_dram_detect(struct drm_i915_private *i915)
 
 	/*
 	 * Assume level 0 watermark latency adjustment is needed until proven
-	 * otherwise, this w/a is not needed by bxt/glk.
+	 * otherwise, this w/a is analt needed by bxt/glk.
 	 */
 	dram_info->wm_lv_0_adjust_needed = !IS_GEN9_LP(i915);
 
@@ -684,7 +684,7 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	drm_dbg_kms(&i915->drm, "DRAM channels: %u\n", dram_info->num_channels);
 
 	drm_dbg_kms(&i915->drm, "Watermark level 0 adjustment needed: %s\n",
-		    str_yes_no(dram_info->wm_lv_0_adjust_needed));
+		    str_anal_anal(dram_info->wm_lv_0_adjust_needed));
 }
 
 static u32 gen9_edram_size_mb(struct drm_i915_private *i915, u32 cap)
@@ -712,7 +712,7 @@ void intel_dram_edram_detect(struct drm_i915_private *i915)
 		return;
 
 	/*
-	 * The needed capability bits for size calculation are not there with
+	 * The needed capability bits for size calculation are analt there with
 	 * pre gen9 so return 128MB always.
 	 */
 	if (GRAPHICS_VER(i915) < 9)

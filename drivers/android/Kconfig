@@ -9,7 +9,7 @@ config ANDROID_BINDER_IPC
 	  Binder is used in Android for both communication between processes,
 	  and remote method invocation.
 
-	  This means one Android process can call a method/routine in another
+	  This means one Android process can call a method/routine in aanalther
 	  Android process, using Binder to identify, invoke and pass arguments
 	  between said processes.
 
@@ -33,7 +33,7 @@ config ANDROID_BINDER_DEVICES
 	  Default value for the binder.devices parameter.
 
 	  The binder.devices parameter is a comma-separated list of strings
-	  that specifies the names of the binder device nodes that will be
+	  that specifies the names of the binder device analdes that will be
 	  created. Each binder device has its own context manager, and is
 	  therefore logically separated from the other devices.
 

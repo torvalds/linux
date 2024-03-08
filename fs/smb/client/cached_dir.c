@@ -28,7 +28,7 @@ static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 	list_for_each_entry(cfid, &cfids->entries, entry) {
 		if (!strcmp(cfid->path, path)) {
 			/*
-			 * If it doesn't have a lease it is either not yet
+			 * If it doesn't have a lease it is either analt yet
 			 * fully cached or it may be in the process of
 			 * being deleted due to a lease break.
 			 */
@@ -75,12 +75,12 @@ path_to_dentry(struct cifs_sb_info *cifs_sb, const char *path)
 	s = path;
 
 	do {
-		struct inode *dir = d_inode(dentry);
+		struct ianalde *dir = d_ianalde(dentry);
 		struct dentry *child;
 
 		if (!S_ISDIR(dir->i_mode)) {
 			dput(dentry);
-			dentry = ERR_PTR(-ENOTDIR);
+			dentry = ERR_PTR(-EANALTDIR);
 			break;
 		}
 
@@ -101,7 +101,7 @@ path_to_dentry(struct cifs_sb_info *cifs_sb, const char *path)
 	return dentry;
 }
 
-static const char *path_no_prefix(struct cifs_sb_info *cifs_sb,
+static const char *path_anal_prefix(struct cifs_sb_info *cifs_sb,
 				  const char *path)
 {
 	size_t len = 0;
@@ -120,7 +120,7 @@ static const char *path_no_prefix(struct cifs_sb_info *cifs_sb,
 
 /*
  * Open the and cache a directory handle.
- * If error then *cfid is not initialized.
+ * If error then *cfid is analt initialized.
  */
 int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		    const char *path,
@@ -147,15 +147,15 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	const char *npath;
 	int retries = 0, cur_sleep = 1;
 
-	if (tcon == NULL || tcon->cfids == NULL || tcon->nohandlecache ||
+	if (tcon == NULL || tcon->cfids == NULL || tcon->analhandlecache ||
 	    is_smb1_server(tcon->ses->server) || (dir_cache_timeout == 0))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ses = tcon->ses;
 	cfids = tcon->cfids;
 
 	if (cifs_sb->root == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 replay_again:
 	/* reinitialize for possible replay */
@@ -168,12 +168,12 @@ replay_again:
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfid = find_or_create_cached_dir(cfids, path, lookup_only, tcon->max_cached_dirs);
 	if (cfid == NULL) {
 		kfree(utf16_path);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	/*
 	 * Return cached fid if it has a lease.  Otherwise, it is either a new
@@ -196,7 +196,7 @@ replay_again:
 	 * below when trying to send compounded request and then potentially
 	 * having a different prefix path (e.g. after DFS failover).
 	 */
-	npath = path_no_prefix(cifs_sb, path);
+	npath = path_anal_prefix(cifs_sb, path);
 	if (IS_ERR(npath)) {
 		rc = PTR_ERR(npath);
 		goto out;
@@ -207,16 +207,16 @@ replay_again:
 	} else {
 		dentry = path_to_dentry(cifs_sb, npath);
 		if (IS_ERR(dentry)) {
-			rc = -ENOENT;
+			rc = -EANALENT;
 			goto out;
 		}
 	}
 	cfid->dentry = dentry;
 
 	/*
-	 * We do not hold the lock for the open because in case
+	 * We do analt hold the lock for the open because in case
 	 * SMB2_open needs to reconnect.
-	 * This is safe because no other thread will be able to get a ref
+	 * This is safe because anal other thread will be able to get a ref
 	 * to the cfid until we have finished opening the file and (possibly)
 	 * acquired a lease.
 	 */
@@ -227,7 +227,7 @@ replay_again:
 	server->ops->new_lease_key(pfid);
 
 	memset(rqst, 0, sizeof(rqst));
-	resp_buftype[0] = resp_buftype[1] = CIFS_NO_BUFFER;
+	resp_buftype[0] = resp_buftype[1] = CIFS_ANAL_BUFFER;
 	memset(rsp_iov, 0, sizeof(rsp_iov));
 
 	/* Open */
@@ -238,7 +238,7 @@ replay_again:
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
 		.path = path,
-		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_FILE),
+		.create_options = cifs_create_options(cifs_sb, CREATE_ANALT_FILE),
 		.desired_access =  FILE_READ_DATA | FILE_READ_ATTRIBUTES,
 		.disposition = FILE_OPEN,
 		.fid = pfid,
@@ -395,7 +395,7 @@ int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 	struct cached_fids *cfids = tcon->cfids;
 
 	if (cfids == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry(cfid, &cfids->entries, entry) {
@@ -408,7 +408,7 @@ int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 		}
 	}
 	spin_unlock(&cfids->cfid_list_lock);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void
@@ -445,7 +445,7 @@ void drop_cached_dir_by_name(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = open_cached_dir(xid, tcon, name, cifs_sb, true, &cfid);
 	if (rc) {
-		cifs_dbg(FYI, "no cached dir found for rmdir(%s)\n", name);
+		cifs_dbg(FYI, "anal cached dir found for rmdir(%s)\n", name);
 		return;
 	}
 	spin_lock(&cfid->cfids->cfid_list_lock);
@@ -469,14 +469,14 @@ void close_cached_dir(struct cached_fid *cfid)
 void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
 {
 	struct rb_root *root = &cifs_sb->tlink_tree;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct cached_fid *cfid;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
 	struct cached_fids *cfids;
 
-	for (node = rb_first(root); node; node = rb_next(node)) {
-		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
+	for (analde = rb_first(root); analde; analde = rb_next(analde)) {
+		tlink = rb_entry(analde, struct tcon_link, tl_rbanalde);
 		tcon = tlink_tcon(tlink);
 		if (IS_ERR(tcon))
 			continue;
@@ -561,7 +561,7 @@ int cached_dir_lease_break(struct cifs_tcon *tcon, __u8 lease_key[16])
 			cfid->time = 0;
 			/*
 			 * We found a lease remove it from the list
-			 * so no threads can access it.
+			 * so anal threads can access it.
 			 */
 			list_del(&cfid->entry);
 			cfid->on_list = false;
@@ -650,7 +650,7 @@ static void cfids_laundromat_worker(struct work_struct *work)
 		cancel_work_sync(&cfid->lease_break);
 		if (cfid->has_lease) {
 			/*
-			 * Our lease has not yet been cancelled from the server
+			 * Our lease has analt yet been cancelled from the server
 			 * so we need to drop the reference.
 			 */
 			spin_lock(&cfids->cfid_list_lock);
@@ -684,7 +684,7 @@ struct cached_fids *init_cached_dirs(void)
 
 /*
  * Called from tconInfoFree when we are tearing down the tcon.
- * There are no active users or open files/directories at this point.
+ * There are anal active users or open files/directories at this point.
  */
 void free_cached_dirs(struct cached_fids *cfids)
 {

@@ -21,7 +21,7 @@
 #		(default ./arch/powerpc/boot)
 # -W dir	specify working directory for temporary files (default .)
 # -z		use gzip (legacy)
-# -Z zsuffix    compression to use (gz, xz or none)
+# -Z zsuffix    compression to use (gz, xz or analne)
 
 # Stop execution if any command fails
 set -e
@@ -48,7 +48,7 @@ compression=.gz
 uboot_comp=gzip
 pie=
 format=
-notext=
+analtext=
 rodynamic=
 
 # cross-compilation prefix
@@ -69,7 +69,7 @@ usage() {
     echo 'Usage: wrapper [-o output] [-p platform] [-i initrd]' >&2
     echo '       [-d devtree] [-s tree.dts] [-e esm_blob]' >&2
     echo '       [-c] [-C cross-prefix] [-D datadir] [-W workingdir]' >&2
-    echo '       [-Z (gz|xz|none)] [--no-compression] [vmlinux]' >&2
+    echo '       [-Z (gz|xz|analne)] [--anal-compression] [vmlinux]' >&2
     exit 1
 }
 
@@ -148,24 +148,24 @@ while [ "$#" -gt 0 ]; do
     -Z)
 	shift
 	[ "$#" -gt 0 ] || usage
-        [ "$1" != "gz" -o "$1" != "xz" -o "$1" != "lzma" -o "$1" != "lzo" -o "$1" != "none" ] || usage
+        [ "$1" != "gz" -o "$1" != "xz" -o "$1" != "lzma" -o "$1" != "lzo" -o "$1" != "analne" ] || usage
 
 	compression=".$1"
 	uboot_comp=$1
 
-        if [ $compression = ".none" ]; then
+        if [ $compression = ".analne" ]; then
                 compression=
-		uboot_comp=none
+		uboot_comp=analne
         fi
 	if [ $uboot_comp = "gz" ]; then
 		uboot_comp=gzip
 	fi
 	;;
-    --no-gzip)
+    --anal-gzip)
         # a "feature" of the wrapper script is that it can be used outside
         # the kernel tree. So keeping this around for backwards compatibility.
         compression=
-	uboot_comp=none
+	uboot_comp=analne
         ;;
     -?)
 	usage
@@ -212,7 +212,7 @@ ld_version()
 	split($1,a, ".");
 	if( length(a[3]) == "8" )
 		# a[3] is probably a date of format yyyymmdd used for release snapshots. We
-		# can assume it to be zero as it does not signify a new version as such.
+		# can assume it to be zero as it does analt signify a new version as such.
 		a[3] = 0;
 	print a[1]*100000000 + a[2]*1000000 + a[3]*10000;
 	exit
@@ -224,19 +224,19 @@ ld_is_lld()
 	${CROSS}ld -V 2>&1 | grep -q LLD
 }
 
-# Do not include PT_INTERP segment when linking pie. Non-pie linking
-# just ignores this option.
+# Do analt include PT_INTERP segment when linking pie. Analn-pie linking
+# just iganalres this option.
 LD_VERSION=$(${CROSS}ld --version | ld_version)
-LD_NO_DL_MIN_VERSION=$(echo 2.26 | ld_version)
-if [ "$LD_VERSION" -ge "$LD_NO_DL_MIN_VERSION" ] ; then
-	nodl="--no-dynamic-linker"
+LD_ANAL_DL_MIN_VERSION=$(echo 2.26 | ld_version)
+if [ "$LD_VERSION" -ge "$LD_ANAL_DL_MIN_VERSION" ] ; then
+	analdl="--anal-dynamic-linker"
 fi
 
 # suppress some warnings in recent ld versions
-nowarn="-z noexecstack"
+analwarn="-z analexecstack"
 if ! ld_is_lld; then
 	if [ "$LD_VERSION" -ge "$(echo 2.39 | ld_version)" ]; then
-		nowarn="$nowarn --no-warn-rwx-segments"
+		analwarn="$analwarn --anal-warn-rwx-segments"
 	fi
 fi
 
@@ -253,7 +253,7 @@ make_space=y
 
 
 if [ -n "$esm_blob" -a "$platform" != "pseries" ]; then
-    echo "ESM blob not support on non-pseries platforms" >&2
+    echo "ESM blob analt support on analn-pseries platforms" >&2
     exit 1
 fi
 
@@ -288,7 +288,7 @@ coff)
     pie=
     ;;
 miboot|uboot*)
-    # miboot and U-boot want just the bare bits, not an ELF binary
+    # miboot and U-boot want just the bare bits, analt an ELF binary
     ext=bin
     objflags="-O binary"
     tmp="$ofile"
@@ -369,7 +369,7 @@ microwatt)
 treeboot-currituck)
     link_address='0x1000000'
     ;;
-treeboot-akebono)
+treeboot-akeboanal)
     link_address='0x1000000'
     ;;
 treeboot-iss4xx-mpic)
@@ -379,7 +379,7 @@ epapr)
     platformo="$object/pseries-head.o $object/epapr.o $object/epapr-wrapper.o"
     link_address='0x20000000'
     pie=-pie
-    notext='-z notext'
+    analtext='-z analtext'
     rodynamic=$(if ${CROSS}ld -V 2>&1 | grep -q LLD ; then echo "-z rodynamic"; fi)
     ;;
 mvme5100)
@@ -417,7 +417,7 @@ if [ -z "$cacheit" -o ! -f "$vmz$compression" -o "$vmz$compression" -ot "$kernel
     *)
         # drop the compression suffix so the stripped vmlinux is used
         compression=
-	uboot_comp=none
+	uboot_comp=analne
 	;;
     esac
 
@@ -471,7 +471,7 @@ uboot)
 uboot-obs600)
     rm -f "$ofile"
     # obs600 wants a multi image with an initrd, so we need to put a fake
-    # one in even when building a "normal" image.
+    # one in even when building a "analrmal" image.
     if [ -n "$initrd" ]; then
 	real_rd="$initrd"
     else
@@ -521,7 +521,7 @@ if [ "$platform" != "miboot" ]; then
         text_start="-Ttext $link_address"
     fi
 #link everything
-    ${CROSS}ld -m $format -T $lds $text_start $pie $nodl $nowarn $rodynamic $notext -o "$ofile" $map \
+    ${CROSS}ld -m $format -T $lds $text_start $pie $analdl $analwarn $rodynamic $analtext -o "$ofile" $map \
 	$platformo $tmp $object/wrapper.a
     rm $tmp
 fi
@@ -538,7 +538,7 @@ fi
 # post-processing needed for some platforms
 case "$platform" in
 pseries|chrp|maple)
-    $objbin/addnote "$ofile"
+    $objbin/addanalte "$ofile"
     ;;
 coff)
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
@@ -582,11 +582,11 @@ ps3)
 
     ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
 
-    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=analtrunc   \
         skip=$overlay_dest seek=$system_reset_kernel          \
         count=$overlay_size bs=1
 
-    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=analtrunc   \
         skip=$system_reset_overlay seek=$overlay_dest         \
         count=$overlay_size bs=1
 
@@ -596,9 +596,9 @@ ps3)
     # image.  If a compressed image that exceeded this limit is written to
     # flash the loader will decompress that image until the 16 MiB limit is
     # reached, then enter the system reset vector of the partially decompressed
-    # image.  No warning is issued.
+    # image.  Anal warning is issued.
     rm -f "$odir"/{otheros,otheros-too-big}.bld
-    size=$(${CROSS}nm --no-sort --radix=d "$ofile" | grep -E ' _end$' | cut -d' ' -f1)
+    size=$(${CROSS}nm --anal-sort --radix=d "$ofile" | grep -E ' _end$' | cut -d' ' -f1)
     bld="otheros.bld"
     if [ $size -gt $((0x1000000)) ]; then
         bld="otheros-too-big.bld"

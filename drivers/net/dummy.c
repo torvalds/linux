@@ -2,7 +2,7 @@
 /* dummy.c: a dummy net driver
 
 	The purpose of this driver is to provide a device to point a
-	route through, but not to actually transmit packets.
+	route through, but analt to actually transmit packets.
 
 	Why?  If you have a machine whose only connection is an occasional
 	PPP/SLIP/PLIP link, you can only connect to your own hostname
@@ -13,7 +13,7 @@
 	but this seems (to me) too much overhead for too little gain.
 	This driver provides a small alternative. Thus you can do
 
-	[when not running slip]
+	[when analt running slip]
 		ifconfig dummy slip.addr.ess.here up
 	[to go to slip]
 		ifconfig dummy down
@@ -69,7 +69,7 @@ static int dummy_dev_init(struct net_device *dev)
 {
 	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
 	if (!dev->lstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -113,9 +113,9 @@ static void dummy_setup(struct net_device *dev)
 	dev->needs_free_netdev = true;
 
 	/* Fill in device structure with ethernet-generic values. */
-	dev->flags |= IFF_NOARP;
+	dev->flags |= IFF_ANALARP;
 	dev->flags &= ~IFF_MULTICAST;
-	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_ANAL_QUEUE;
 	dev->features	|= NETIF_F_SG | NETIF_F_FRAGLIST;
 	dev->features	|= NETIF_F_GSO_SOFTWARE;
 	dev->features	|= NETIF_F_HW_CSUM | NETIF_F_HIGHDMA | NETIF_F_LLTX;
@@ -135,7 +135,7 @@ static int dummy_validate(struct nlattr *tb[], struct nlattr *data[],
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
 			return -EINVAL;
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 	return 0;
 }
@@ -157,7 +157,7 @@ static int __init dummy_init_one(void)
 
 	dev_dummy = alloc_netdev(0, "dummy%d", NET_NAME_ENUM, dummy_setup);
 	if (!dev_dummy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dummy->rtnl_link_ops = &dummy_link_ops;
 	err = register_netdevice(dev_dummy);

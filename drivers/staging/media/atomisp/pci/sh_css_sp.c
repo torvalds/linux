@@ -172,7 +172,7 @@ sh_css_store_sp_per_frame_data(enum ia_css_pipe_id pipe_id,
 	store_sp_per_frame_data(sp_fw);
 }
 
-#if SP_DEBUG != SP_DEBUG_NONE
+#if SP_DEBUG != SP_DEBUG_ANALNE
 
 void
 sh_css_sp_get_debug_state(struct sh_css_sp_debug_state *state)
@@ -212,19 +212,19 @@ sh_css_sp_start_binary_copy(unsigned int pipe_num,
 	pipe->pipe_id = pipe_id;
 	pipe->pipe_num = pipe_num;
 	pipe->thread_id = thread_id;
-	pipe->pipe_config = 0x0; /* No parameters */
+	pipe->pipe_config = 0x0; /* Anal parameters */
 	pipe->pipe_qos_config = QOS_INVALID;
 
-	if (pipe->inout_port_config == 0) {
-		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->inout_port_config,
+	if (pipe->ianalut_port_config == 0) {
+		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_INPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
-		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_OUTPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 	}
 	IA_CSS_LOG("pipe_id %d port_config %08x",
-		   pipe->pipe_id, pipe->inout_port_config);
+		   pipe->pipe_id, pipe->ianalut_port_config);
 
 	if (!IS_ISP2401)
 		sh_css_sp_group.config.input_formatter.isp_2ppc = (uint8_t)two_ppc;
@@ -236,8 +236,8 @@ sh_css_sp_start_binary_copy(unsigned int pipe_num,
 
 	set_output_frame_buffer(out_frame, 0);
 
-	/* sp_bin_copy_init on the SP does not deal with dynamica/static yet */
-	/* For now always update the dynamic data from out frames. */
+	/* sp_bin_copy_init on the SP does analt deal with dynamica/static yet */
+	/* For analw always update the dynamic data from out frames. */
 	sh_css_store_sp_per_frame_data(pipe_id, pipe_num, &sh_css_sp_fw);
 }
 
@@ -282,7 +282,7 @@ sh_css_sp_start_raw_copy(struct ia_css_frame *out_frame,
 	pipe->pipe_id = pipe_id;
 	/* TODO: next indicates from which queues parameters need to be
 		 sampled, needs checking/improvement */
-	if (pipe_conf_override == SH_CSS_PIPE_CONFIG_OVRD_NO_OVRD)
+	if (pipe_conf_override == SH_CSS_PIPE_CONFIG_OVRD_ANAL_OVRD)
 		pipe->pipe_config =
 		    (SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS << thread_id);
 	else
@@ -290,16 +290,16 @@ sh_css_sp_start_raw_copy(struct ia_css_frame *out_frame,
 
 	pipe->pipe_qos_config = QOS_INVALID;
 
-	if (pipe->inout_port_config == 0) {
-		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->inout_port_config,
+	if (pipe->ianalut_port_config == 0) {
+		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_INPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
-		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_OUTPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 	}
 	IA_CSS_LOG("pipe_id %d port_config %08x",
-		   pipe->pipe_id, pipe->inout_port_config);
+		   pipe->pipe_id, pipe->ianalut_port_config);
 
 	if (!IS_ISP2401)
 		sh_css_sp_group.config.input_formatter.isp_2ppc = (uint8_t)two_ppc;
@@ -351,7 +351,7 @@ sh_css_sp_start_isys_copy(struct ia_css_frame *out_frame,
 	pipe->copy.raw.max_input_width	= max_input_width;
 	pipe->num_stages		= 1;
 	pipe->pipe_id			= pipe_id;
-	pipe->pipe_config		= 0x0;	/* No parameters */
+	pipe->pipe_config		= 0x0;	/* Anal parameters */
 	pipe->pipe_qos_config		= QOS_INVALID;
 
 	initialize_stage_frames(&sh_css_sp_stage.frames);
@@ -412,8 +412,8 @@ sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 		assert(queue_id < SH_CSS_MAX_NUM_QUEUES);
 
 		/* Klocwork assumes assert can be disabled;
-		   Since we can get there with any type, and it does not
-		   know that frame_in->dynamic_data_index can only be set
+		   Since we can get there with any type, and it does analt
+		   kanalw that frame_in->dynamic_data_index can only be set
 		   for one of the types in the assert) it has to assume we
 		   can get here for any type. however this could lead to an
 		   out of bounds reference when indexing buf_type about 10
@@ -515,7 +515,7 @@ sh_css_copy_frame_to_spframe(struct ia_css_frame_sp *sp_frame_out,
 		    frame_in->planes.binary.data.offset;
 		break;
 	default:
-		/* This should not happen, but in case it does,
+		/* This should analt happen, but in case it does,
 		 * nullify the planes
 		 */
 		memset(&sp_frame_out->planes, 0, sizeof(sp_frame_out->planes));
@@ -652,7 +652,7 @@ sh_css_sp_program_input_circuit(int fmt_type,
 				int ch_id,
 				enum ia_css_input_mode input_mode)
 {
-	sh_css_sp_group.config.input_circuit.no_side_band = false;
+	sh_css_sp_group.config.input_circuit.anal_side_band = false;
 	sh_css_sp_group.config.input_circuit.fmt_type     = fmt_type;
 	sh_css_sp_group.config.input_circuit.ch_id	      = ch_id;
 	sh_css_sp_group.config.input_circuit.input_mode   = input_mode;
@@ -740,15 +740,15 @@ sh_css_sp_write_frame_pointers(const struct sh_css_binary_args *args)
 static void
 sh_css_sp_init_group(bool two_ppc,
 		     enum atomisp_input_format input_format,
-		     bool no_isp_sync,
+		     bool anal_isp_sync,
 		     uint8_t if_config_index)
 {
 	if (!IS_ISP2401)
 		sh_css_sp_group.config.input_formatter.isp_2ppc = two_ppc;
 
-	sh_css_sp_group.config.no_isp_sync = (uint8_t)no_isp_sync;
+	sh_css_sp_group.config.anal_isp_sync = (uint8_t)anal_isp_sync;
 	/* decide whether the frame is processed online or offline */
-	if (if_config_index == SH_CSS_IF_CONFIG_NOT_NEEDED) return;
+	if (if_config_index == SH_CSS_IF_CONFIG_ANALT_NEEDED) return;
 
 	if (!IS_ISP2401) {
 		assert(if_config_index < SH_CSS_MAX_IF_CONFIGS);
@@ -788,7 +788,7 @@ static bool
 is_sp_stage(struct ia_css_pipeline_stage *stage)
 {
 	assert(stage);
-	return stage->sp_func != IA_CSS_PIPELINE_NO_FUNC;
+	return stage->sp_func != IA_CSS_PIPELINE_ANAL_FUNC;
 }
 
 static int configure_isp_from_args(const struct sh_css_sp_pipeline *pipeline,
@@ -840,7 +840,7 @@ static int configure_isp_from_args(const struct sh_css_sp_pipeline *pipeline,
 	 * Somehow, the driver at the Intel Atom Yocto tree doesn't seem to
 	 * suffer from the same issue.
 	 *
-	 * Anyway, the function below should now handle a NULL delay_frames
+	 * Anyway, the function below should analw handle a NULL delay_frames
 	 * without crashing, but the pipeline should likely be built without
 	 * adding it at the first place (or there are a hidden bug somewhere)
 	 */
@@ -986,9 +986,9 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	sh_css_isp_stage.mem_initializers = *isp_mem_if;
 
 	/*
-	 * Even when a stage does not need uds and does not params,
+	 * Even when a stage does analt need uds and does analt params,
 	 * ia_css_uds_sp_scale_params() seems to be called (needs
-	 * further investigation). This function can not deal with
+	 * further investigation). This function can analt deal with
 	 * dx, dy = {0, 0}
 	 */
 
@@ -1070,15 +1070,15 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 	 */
 	const char *binary_name = "";
 	const struct ia_css_binary_xinfo *info = NULL;
-	/* note: the var below is made static as it is quite large;
-	   if it is not static it ends up on the stack which could
+	/* analte: the var below is made static as it is quite large;
+	   if it is analt static it ends up on the stack which could
 	   cause issues for drivers
 	*/
 	static struct ia_css_binary tmp_binary;
 	const struct ia_css_blob_info *blob_info = NULL;
 	struct ia_css_isp_param_css_segments isp_mem_if;
-	/* LA: should be ia_css_data, should not contain host pointer.
-	   However, CSS/DDR pointer is not available yet.
+	/* LA: should be ia_css_data, should analt contain host pointer.
+	   However, CSS/DDR pointer is analt available yet.
 	   Hack is to store it in params->ddr_ptrs and then copy it late in the SP just before vmem init.
 	   TODO: Call this after CSS/DDR allocation and store that pointer.
 	   Best is to allocate it at stage creation time together with host pointer.
@@ -1122,11 +1122,11 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 		mem_if = (struct ia_css_isp_param_css_segments *)&firmware->mem_initializers;
 	} else {
 		/* SP stage */
-		assert(stage->sp_func != IA_CSS_PIPELINE_NO_FUNC);
-		/* binary and blob_info are now NULL.
+		assert(stage->sp_func != IA_CSS_PIPELINE_ANAL_FUNC);
+		/* binary and blob_info are analw NULL.
 		   These will be passed to sh_css_sp_init_stage
 		   and dereferenced there, so passing a NULL
-		   pointer is no good. return an error */
+		   pointer is anal good. return an error */
 		return -EINVAL;
 	}
 
@@ -1167,7 +1167,7 @@ sp_init_sp_stage(struct ia_css_pipeline_stage *stage,
 		sh_css_sp_start_isys_copy(args->out_frame[0],
 					  pipe_num, stage->max_input_width, if_config_index);
 		break;
-	case IA_CSS_PIPELINE_NO_FUNC:
+	case IA_CSS_PIPELINE_ANAL_FUNC:
 		assert(false);
 		break;
 	}
@@ -1208,11 +1208,11 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	if (input_mode == IA_CSS_INPUT_MODE_SENSOR ||
 	    input_mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
 		assert(port_id < N_MIPI_PORT_ID);
-		if (port_id >= N_MIPI_PORT_ID) /* should not happen but KW does not know */
+		if (port_id >= N_MIPI_PORT_ID) /* should analt happen but KW does analt kanalw */
 			return; /* we should be able to return an error */
 		if_config_index  = (uint8_t)(port_id - MIPI_PORT0_ID);
 	} else if (input_mode == IA_CSS_INPUT_MODE_MEMORY) {
-		if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
+		if_config_index = SH_CSS_IF_CONFIG_ANALT_NEEDED;
 	} else {
 		if_config_index = 0x0;
 	}
@@ -1236,7 +1236,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	/* Signal the host immediately after start for SP_ISYS_COPY only */
 	if (me->num_stages == 1 &&
 	    me->stages->sp_func == IA_CSS_PIPELINE_ISYS_COPY)
-		sh_css_sp_group.config.no_isp_sync = true;
+		sh_css_sp_group.config.anal_isp_sync = true;
 
 	/* Init stage data */
 	sh_css_init_host2sp_frame_data();
@@ -1265,7 +1265,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	if (continuous)
 		sh_css_sp_group.pipe[thread_id].pipe_config = 0;
 
-	sh_css_sp_group.pipe[thread_id].inout_port_config = me->inout_port_config;
+	sh_css_sp_group.pipe[thread_id].ianalut_port_config = me->ianalut_port_config;
 
 	pipe = find_pipe_by_num(pipe_num);
 	assert(pipe);
@@ -1280,7 +1280,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 		sh_css_sp_group.pipe[thread_id].metadata.stride = md_info->stride;
 		sh_css_sp_group.pipe[thread_id].metadata.size   = md_info->size;
 		ia_css_isys_convert_stream_format_to_mipi_format(
-		    md_config->data_type, MIPI_PREDICTOR_NONE,
+		    md_config->data_type, MIPI_PREDICTOR_ANALNE,
 		    &sh_css_sp_group.pipe[thread_id].metadata.format);
 	}
 
@@ -1292,7 +1292,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	}
 
 	IA_CSS_LOG("pipe_id %d port_config %08x",
-		   pipe_id, sh_css_sp_group.pipe[thread_id].inout_port_config);
+		   pipe_id, sh_css_sp_group.pipe[thread_id].ianalut_port_config);
 
 	for (stage = me->stages, num = 0; stage; stage = stage->next, num++) {
 		sh_css_sp_group.pipe[thread_id].num_stages++;
@@ -1301,8 +1301,8 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 					 copy_ovrd, if_config_index);
 		} else {
 			if ((stage->stage_num != 0) ||
-			    SH_CSS_PIPE_PORT_CONFIG_IS_CONTINUOUS(me->inout_port_config))
-				tmp_if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
+			    SH_CSS_PIPE_PORT_CONFIG_IS_CONTINUOUS(me->ianalut_port_config))
+				tmp_if_config_index = SH_CSS_IF_CONFIG_ANALT_NEEDED;
 			else
 				tmp_if_config_index = if_config_index;
 			sp_init_stage(stage, pipe_num,
@@ -1338,7 +1338,7 @@ bool sh_css_write_host2sp_command(enum host2sp_commands host2sp_command)
 	/* Previous command must be handled by SP (by design) */
 	last_cmd = load_sp_array_uint(host_sp_com, offset);
 	if (last_cmd != host2sp_cmd_ready)
-		IA_CSS_ERROR("last host command not handled by SP(%d)", last_cmd);
+		IA_CSS_ERROR("last host command analt handled by SP(%d)", last_cmd);
 
 	store_sp_array_uint(host_sp_com, offset, host2sp_command);
 
@@ -1356,7 +1356,7 @@ sh_css_read_host2sp_command(void)
 }
 
 /*
- * Frame data is no longer part of the sp_stage structure but part of a
+ * Frame data is anal longer part of the sp_stage structure but part of a
  * separate structure. The aim is to make the sp_data struct static
  * (it defines a pipeline) and that the dynamic (per frame) data is stored
  * separetly.
@@ -1377,7 +1377,7 @@ sh_css_init_host2sp_frame_data(void)
 	 * rvanimme: don't clean it to save static frame info line ref_in
 	 * ref_out, and tnr_frames. Once this static data is in a
 	 * separate data struct, this may be enable (but still, there is
-	 * no need for it)
+	 * anal need for it)
 	 */
 }
 
@@ -1424,7 +1424,7 @@ sh_css_update_host2sp_mipi_frame(
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int offset;
 
-	/* MIPI buffers are dedicated to port, so now there are more of them. */
+	/* MIPI buffers are dedicated to port, so analw there are more of them. */
 	assert(frame_num < (N_CSI_PORTS * NUM_MIPI_FRAMES_PER_STREAM));
 
 	/* Write new frame data into SP DMEM */
@@ -1450,7 +1450,7 @@ sh_css_update_host2sp_mipi_metadata(
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int o;
 
-	/* MIPI buffers are dedicated to port, so now there are more of them. */
+	/* MIPI buffers are dedicated to port, so analw there are more of them. */
 	assert(frame_num < (N_CSI_PORTS * NUM_MIPI_FRAMES_PER_STREAM));
 
 	/* Write new frame data into SP DMEM */
@@ -1516,7 +1516,7 @@ sh_css_event_init_irq_mask(void)
 	struct sh_css_event_irq_mask event_irq_mask_init;
 
 	event_irq_mask_init.or_mask  = IA_CSS_EVENT_TYPE_ALL;
-	event_irq_mask_init.and_mask = IA_CSS_EVENT_TYPE_NONE;
+	event_irq_mask_init.and_mask = IA_CSS_EVENT_TYPE_ANALNE;
 	(void)HIVE_ADDR_host_sp_com; /* Suppress warnings in CRUN */
 
 	assert(sizeof(event_irq_mask_init) % HRT_BUS_BYTES == 0);
@@ -1543,9 +1543,9 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 	assert(pipe);
 
 	assert(IA_CSS_PIPE_ID_NUM == NR_OF_PIPELINES);
-	/* Linux kernel does not have UINT16_MAX
+	/* Linux kernel does analt have UINT16_MAX
 	 * Therefore decided to comment out these 2 asserts for Linux
-	 * Alternatives that were not chosen:
+	 * Alternatives that were analt chosen:
 	 * - add a conditional #define for UINT16_MAX
 	 * - compare with (uint16_t)~0 or 0xffff
 	 * - different assert for Linux and Windows
@@ -1632,7 +1632,7 @@ sh_css_sp_start_isp(void)
 
 	(void)HIVE_ADDR_sp_sw_state; /* Suppres warnings in CRUN */
 
-	/* no longer here, sp started immediately */
+	/* anal longer here, sp started immediately */
 	/*ia_css_debug_pipe_graph_dump_epilogue();*/
 
 	store_sp_group_data();
@@ -1642,19 +1642,19 @@ sh_css_sp_start_isp(void)
 			     (unsigned int)sp_address_of(sp_sw_state),
 			     (uint32_t)(IA_CSS_SP_SW_TERMINATED));
 
-	/* Note 1: The sp_start_isp function contains a wait till
+	/* Analte 1: The sp_start_isp function contains a wait till
 	 * the input network is configured by the SP.
-	 * Note 2: Not all SP binaries supports host2sp_commands.
+	 * Analte 2: Analt all SP binaries supports host2sp_commands.
 	 * In case a binary does support it, the host2sp_command
 	 * will have status cmd_ready after return of the function
-	 * sh_css_hrt_sp_start_isp. There is no race-condition here
+	 * sh_css_hrt_sp_start_isp. There is anal race-condition here
 	 * because only after the process_frame command has been
 	 * received, the SP starts configuring the input network.
 	 */
 
 	/* we need to set sp_running before we call ia_css_mmu_invalidate_cache
 	 * as ia_css_mmu_invalidate_cache checks on sp_running to
-	 * avoid that it accesses dmem while the SP is not powered
+	 * avoid that it accesses dmem while the SP is analt powered
 	 */
 	sp_running = true;
 	ia_css_mmu_invalidate_cache();

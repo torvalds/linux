@@ -25,7 +25,7 @@
  * Phew, lots of fields there ;-)
  *
  * CWR: Cache Wrapping Enabled, if one cache wrapping is on.
- * SE: Snoop Enable, turns on bus snooping for cache activity if one.
+ * SE: Sanalop Enable, turns on bus sanaloping for cache activity if one.
  * WBE: Write Buffer Enable, one turns it on.
  * MID: The ModuleID of the chip for MBus transactions.
  * BM: Boot-Mode. One indicates the MMU is in boot mode.
@@ -35,9 +35,9 @@
  * MR: Memory Reflection, one indicates that the memory bus connected
  *     to the MBus supports memory reflection.
  * CM: Cache Mode -- 0 = write-through, 1 = copy-back
- * CE: Cache Enable -- 0 = no caching, 1 = cache is on
- * NF: No Fault -- 0 = faults trap the CPU from supervisor mode
- *                 1 = faults from supervisor mode do not generate traps
+ * CE: Cache Enable -- 0 = anal caching, 1 = cache is on
+ * NF: Anal Fault -- 0 = faults trap the CPU from supervisor mode
+ *                 1 = faults from supervisor mode do analt generate traps
  * ME: MMU Enable -- 0 = MMU is off, 1 = MMU is on
  */
 
@@ -63,7 +63,7 @@
  *  31                                  1     0
  *
  * This register is accessed using the V8 'wrasr' and 'rdasr'
- * opcodes, since not all assemblers understand them and those
+ * opcodes, since analt all assemblers understand them and those
  * that do use different semantics I will just hard code the
  * instruction with a '.word' statement.
  *
@@ -74,12 +74,12 @@
  *       flush is executed by the processor.
  *
  * ICE:  If set to one, the instruction cache is enabled.  If
- *       zero, the cache will not be used for instruction fetches.
+ *       zero, the cache will analt be used for instruction fetches.
  *
- * All other bits are read as zeros, and writes to them have no
+ * All other bits are read as zeros, and writes to them have anal
  * effect.
  *
- * Wheee, not many assemblers understand the %iccr register nor
+ * Wheee, analt many assemblers understand the %iccr register analr
  * the generic asr r/w instructions.
  *
  *  1000 0011 0100 0111 1100 0000 0000 0000   ! rd %iccr, %g1
@@ -104,7 +104,7 @@ static inline unsigned int get_ross_icr(void)
 	__asm__ __volatile__(".word 0x8347c000\n\t" /* rd %iccr, %g1 */
 			     "mov %%g1, %0\n\t"
 			     : "=r" (icreg)
-			     : /* no inputs */
+			     : /* anal inputs */
 			     : "g1", "memory");
 
 	return icreg;
@@ -114,10 +114,10 @@ static inline void put_ross_icr(unsigned int icreg)
 {
 	__asm__ __volatile__("or %%g0, %0, %%g1\n\t"
 			     ".word 0xbf806000\n\t" /* wr %g1, 0x0, %iccr */
-			     "nop\n\t"
-			     "nop\n\t"
-			     "nop\n\t"
-			     : /* no outputs */
+			     "analp\n\t"
+			     "analp\n\t"
+			     "analp\n\t"
+			     : /* anal outputs */
 			     : "r" (icreg)
 			     : "g1", "memory");
 
@@ -130,7 +130,7 @@ static inline void put_ross_icr(unsigned int icreg)
 static inline void hyper_flush_whole_icache(void)
 {
 	__asm__ __volatile__("sta %%g0, [%%g0] %0\n\t"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "i" (ASI_M_FLUSH_IWHOLE)
 			     : "memory");
 	return;
@@ -145,7 +145,7 @@ static inline void hyper_clear_all_tags(void)
 
 	for(addr = 0; addr < vac_cache_size; addr += vac_line_size)
 		__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "r" (addr), "i" (ASI_M_DATAC_TAG)
 				     : "memory");
 }
@@ -156,7 +156,7 @@ static inline void hyper_flush_unconditional_combined(void)
 
 	for (addr = 0; addr < vac_cache_size; addr += vac_line_size)
 		__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "r" (addr), "i" (ASI_M_FLUSH_CTX)
 				     : "memory");
 }
@@ -167,7 +167,7 @@ static inline void hyper_flush_cache_user(void)
 
 	for (addr = 0; addr < vac_cache_size; addr += vac_line_size)
 		__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "r" (addr), "i" (ASI_M_FLUSH_USER)
 				     : "memory");
 }
@@ -180,7 +180,7 @@ static inline void hyper_flush_cache_page(unsigned long page)
 	end = page + PAGE_SIZE;
 	while (page < end) {
 		__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "r" (page), "i" (ASI_M_FLUSH_PAGE)
 				     : "memory");
 		page += vac_line_size;

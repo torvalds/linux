@@ -10,7 +10,7 @@
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -83,7 +83,7 @@ struct dentry;
 static inline struct file *files_lookup_fd_raw(struct files_struct *files, unsigned int fd)
 {
 	struct fdtable *fdt = rcu_dereference_raw(files->fdt);
-	unsigned long mask = array_index_mask_nospec(fd, fdt->max_fds);
+	unsigned long mask = array_index_mask_analspec(fd, fdt->max_fds);
 	struct file *needs_masking;
 
 	/*

@@ -23,22 +23,22 @@ extern void die_if_kernel(char *, struct pt_regs *, long);
 
 int send_fault_sig(struct pt_regs *regs)
 {
-	int signo, si_code;
+	int siganal, si_code;
 	void __user *addr;
 
-	signo = current->thread.signo;
+	siganal = current->thread.siganal;
 	si_code = current->thread.code;
 	addr = (void __user *)current->thread.faddr;
-	pr_debug("send_fault_sig: %p,%d,%d\n", addr, signo, si_code);
+	pr_debug("send_fault_sig: %p,%d,%d\n", addr, siganal, si_code);
 
 	if (user_mode(regs)) {
-		force_sig_fault(signo, si_code, addr);
+		force_sig_fault(siganal, si_code, addr);
 	} else {
 		if (fixup_exception(regs))
 			return -1;
 
-		//if (signo == SIGBUS)
-		//	force_sig_fault(si_signo, si_code, addr);
+		//if (siganal == SIGBUS)
+		//	force_sig_fault(si_siganal, si_code, addr);
 
 		/*
 		 * Oops. The kernel tried to access some bad page. We'll have to
@@ -61,7 +61,7 @@ int send_fault_sig(struct pt_regs *regs)
  * then passes it off to one of the appropriate routines.
  *
  * error_code:
- *	bit 0 == 0 means no page found, 1 means protection fault
+ *	bit 0 == 0 means anal page found, 1 means protection fault
  *	bit 1 == 0 means read, 1 means write
  *
  * If this routine detects a bad access, it returns 1, otherwise it
@@ -79,11 +79,11 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 		regs->sr, regs->pc, address, error_code, mm ? mm->pgd : NULL);
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have anal user
+	 * context, we must analt take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto anal_context;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -109,7 +109,7 @@ retry:
 	}
 	vma = expand_stack(mm, address);
 	if (!vma)
-		goto map_err_nosemaphore;
+		goto map_err_analsemaphore;
 
 /*
  * Ok, we have a good vm_area for this memory access, so
@@ -120,14 +120,14 @@ good_area:
 	switch (error_code & 3) {
 		default:	/* 3: write, present */
 			fallthrough;
-		case 2:		/* write, not present */
+		case 2:		/* write, analt present */
 			if (!(vma->vm_flags & VM_WRITE))
 				goto acc_err;
 			flags |= FAULT_FLAG_WRITE;
 			break;
 		case 1:		/* read, present */
 			goto acc_err;
-		case 0:		/* read, not present */
+		case 0:		/* read, analt present */
 			if (unlikely(!vma_is_accessible(vma)))
 				goto acc_err;
 	}
@@ -143,7 +143,7 @@ good_area:
 
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			goto no_context;
+			goto anal_context;
 		return 0;
 	}
 
@@ -165,7 +165,7 @@ good_area:
 		flags |= FAULT_FLAG_TRIED;
 
 		/*
-		 * No need to mmap_read_unlock(mm) as we would
+		 * Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */
@@ -183,31 +183,31 @@ good_area:
 out_of_memory:
 	mmap_read_unlock(mm);
 	if (!user_mode(regs))
-		goto no_context;
+		goto anal_context;
 	pagefault_out_of_memory();
 	return 0;
 
-no_context:
-	current->thread.signo = SIGBUS;
+anal_context:
+	current->thread.siganal = SIGBUS;
 	current->thread.faddr = address;
 	return send_fault_sig(regs);
 
 bus_err:
-	current->thread.signo = SIGBUS;
+	current->thread.siganal = SIGBUS;
 	current->thread.code = BUS_ADRERR;
 	current->thread.faddr = address;
 	goto send_sig;
 
 map_err:
 	mmap_read_unlock(mm);
-map_err_nosemaphore:
-	current->thread.signo = SIGSEGV;
+map_err_analsemaphore:
+	current->thread.siganal = SIGSEGV;
 	current->thread.code = SEGV_MAPERR;
 	current->thread.faddr = address;
 	return send_fault_sig(regs);
 
 acc_err:
-	current->thread.signo = SIGSEGV;
+	current->thread.siganal = SIGSEGV;
 	current->thread.code = SEGV_ACCERR;
 	current->thread.faddr = address;
 

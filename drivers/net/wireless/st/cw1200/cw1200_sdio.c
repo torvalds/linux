@@ -3,7 +3,7 @@
  * Mac80211 SDIO driver for ST-Ericsson CW1200 device
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #include <linux/module.h>
@@ -22,7 +22,7 @@
 #include <linux/platform_data/net-cw1200.h>
 #include "hwio.h"
 
-MODULE_AUTHOR("Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>");
+MODULE_AUTHOR("Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>");
 MODULE_DESCRIPTION("mac80211 ST-Ericsson CW1200 SDIO driver");
 MODULE_LICENSE("GPL");
 
@@ -85,7 +85,7 @@ static void cw1200_sdio_irq_handler(struct sdio_func *func)
 {
 	struct hwbus_priv *self = sdio_get_drvdata(func);
 
-	/* note:  sdio_host already claimed here. */
+	/* analte:  sdio_host already claimed here. */
 	if (self->core)
 		cw1200_irq_handler(self->core);
 }
@@ -105,7 +105,7 @@ static irqreturn_t cw1200_gpio_irq(int irq, void *dev_id)
 		cw1200_sdio_unlock(self);
 		return IRQ_HANDLED;
 	} else {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 }
 
@@ -240,7 +240,7 @@ static int cw1200_sdio_on(const struct cw1200_platform_data_sdio *pdata)
 
 static size_t cw1200_sdio_align_size(struct hwbus_priv *self, size_t size)
 {
-	if (self->pdata->no_nptb)
+	if (self->pdata->anal_nptb)
 		size = round_up(size, SDIO_BLOCK_SIZE);
 	else
 		size = sdio_align_size(self->func, size);
@@ -277,12 +277,12 @@ static int cw1200_sdio_probe(struct sdio_func *func,
 
 	/* We are only able to handle the wlan function */
 	if (func->num != 0x01)
-		return -ENODEV;
+		return -EANALDEV;
 
 	self = kzalloc(sizeof(*self), GFP_KERNEL);
 	if (!self) {
 		pr_err("Can't allocate SDIO hwbus_priv.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
@@ -345,7 +345,7 @@ static int cw1200_sdio_suspend(struct device *dev)
 	if (!cw1200_can_suspend(self->core))
 		return -EAGAIN;
 
-	/* Notify SDIO that CW1200 will remain powered during suspend */
+	/* Analtify SDIO that CW1200 will remain powered during suspend */
 	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 	if (ret)
 		pr_err("Error setting SDIO pm flags: %i\n", ret);

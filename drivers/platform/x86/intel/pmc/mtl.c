@@ -22,8 +22,8 @@ static const u8 MTL_LPM_REG_INDEX[] = {0, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15,
 /*
  * Die Mapping to Product.
  * Product SOCDie IOEDie PCHDie
- * MTL-M   SOC-M  IOE-M  None
- * MTL-P   SOC-M  IOE-P  None
+ * MTL-M   SOC-M  IOE-M  Analne
+ * MTL-P   SOC-M  IOE-P  Analne
  * MTL-S   SOC-S  IOE-P  PCH-S
  */
 
@@ -135,7 +135,7 @@ const struct pmc_bit_map mtl_socm_ltr_show_map[] = {
 	{"ESE",                 MTL_PMC_LTR_ESE},
 	{"IOE_PMC",		MTL_PMC_LTR_IOE_PMC},
 
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two cananalt be used for LTR_IGANALRE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
 	{}
@@ -456,14 +456,14 @@ const struct pmc_reg_map mtl_socm_reg_map = {
 	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.ltr_show_sts = mtl_socm_ltr_show_map,
 	.msr_sts = msr_map,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.ltr_iganalre_offset = CNP_PMC_LTR_IGANALRE_OFFSET,
 	.regmap_length = MTL_SOC_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
 	.ppfear_buckets = MTL_SOCM_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.lpm_num_maps = ADL_LPM_NUM_MAPS,
-	.ltr_ignore_max = MTL_SOCM_NUM_IP_IGN_ALLOWED,
+	.ltr_iganalre_max = MTL_SOCM_NUM_IP_IGN_ALLOWED,
 	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,
 	.etr3_offset = ETR3_OFFSET,
 	.lpm_sts_latch_en_offset = MTL_LPM_STATUS_LATCH_EN_OFFSET,
@@ -594,7 +594,7 @@ const struct pmc_bit_map mtl_ioep_ltr_show_map[] = {
 	{"THC1",		TGL_PMC_LTR_THC1},
 	{"SOUTHPORT_G",		MTL_PMC_LTR_SPG},
 
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two cananalt be used for LTR_IGANALRE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
 	{}
@@ -789,8 +789,8 @@ const struct pmc_reg_map mtl_ioep_reg_map = {
 	.lpm_live_status_offset = MTL_LPM_LIVE_STATUS_OFFSET,
 	.lpm_sts = mtl_ioep_lpm_maps,
 	.ltr_show_sts = mtl_ioep_ltr_show_map,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
-	.ltr_ignore_max = ADL_NUM_IP_IGN_ALLOWED,
+	.ltr_iganalre_offset = CNP_PMC_LTR_IGANALRE_OFFSET,
+	.ltr_iganalre_max = ADL_NUM_IP_IGN_ALLOWED,
 	.lpm_num_maps = ADL_LPM_NUM_MAPS,
 	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,
 	.lpm_residency_offset = MTL_LPM_RESIDENCY_OFFSET,
@@ -936,8 +936,8 @@ const struct pmc_reg_map mtl_ioem_reg_map = {
 	.lpm_live_status_offset = MTL_LPM_LIVE_STATUS_OFFSET,
 	.lpm_sts = mtl_ioem_lpm_maps,
 	.ltr_show_sts = mtl_ioep_ltr_show_map,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
-	.ltr_ignore_max = ADL_NUM_IP_IGN_ALLOWED,
+	.ltr_iganalre_offset = CNP_PMC_LTR_IGANALRE_OFFSET,
+	.ltr_iganalre_max = ADL_NUM_IP_IGN_ALLOWED,
 	.lpm_sts_latch_en_offset = MTL_LPM_STATUS_LATCH_EN_OFFSET,
 	.lpm_num_maps = ADL_LPM_NUM_MAPS,
 	.lpm_priority_offset = MTL_LPM_PRI_OFFSET,
@@ -973,8 +973,8 @@ static struct pmc_info mtl_pmc_info_list[] = {
 #define MTL_IPU_PCI_DEV	0x7d19
 #define MTL_VPU_PCI_DEV	0x7d1d
 /*
- * Set power state of select devices that do not have drivers to D3
- * so that they do not block Package C entry.
+ * Set power state of select devices that do analt have drivers to D3
+ * so that they do analt block Package C entry.
  */
 static void mtl_d3_fixup(void)
 {
@@ -986,7 +986,7 @@ static void mtl_d3_fixup(void)
 static int mtl_resume(struct pmc_dev *pmcdev)
 {
 	mtl_d3_fixup();
-	pmc_core_send_ltr_ignore(pmcdev, 3, 0);
+	pmc_core_send_ltr_iganalre(pmcdev, 3, 0);
 
 	return pmc_core_resume_common(pmcdev);
 }

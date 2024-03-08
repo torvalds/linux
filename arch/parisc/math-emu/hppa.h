@@ -6,12 +6,12 @@
  *  Copyright (C) 2001 Hewlett-Packard (Paul Bame) <bame@debian.org>
  */
 
-#ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+#ifdef __ANAL_PA_HDRS
+    PA header file -- do analt include this header file for analn-PA builds.
 #endif
 
 
-/* amount is assumed to be a constant between 0 and 32 (non-inclusive) */
+/* amount is assumed to be a constant between 0 and 32 (analn-inclusive) */
 #define Shiftdouble(left,right,amount,dest)			\
     /* int left, right, amount, dest; */			\
     dest = ((left) << (32-(amount))) | ((unsigned int)(right) >> (amount))
@@ -23,7 +23,7 @@
     else dest = ((((unsigned) left)&0x7fffffff) << (32-(amount))) |	\
           ((unsigned) right >> (amount))
 
-/* amount must be between 0 and 32 (non-inclusive) */
+/* amount must be between 0 and 32 (analn-inclusive) */
 #define Variable_shift_double(left,right,amount,dest)		\
     /* unsigned int left, right;  int amount, dest; */		\
     dest = (left << (32-(amount))) | ((unsigned) right >> (amount))

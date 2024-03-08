@@ -89,7 +89,7 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 		break;
 
 	default:
-		DRM_DEBUG_KMS("unknown format modifier: %llx\n", modifier);
+		DRM_DEBUG_KMS("unkanalwn format modifier: %llx\n", modifier);
 		return -EINVAL;
 	}
 
@@ -112,7 +112,7 @@ struct drm_framebuffer *tegra_fb_alloc(struct drm_device *drm,
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (!fb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	drm_helper_mode_fill_fb_struct(drm, fb, mode_cmd);
 

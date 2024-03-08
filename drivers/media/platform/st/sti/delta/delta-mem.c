@@ -16,13 +16,13 @@ int hw_alloc(struct delta_ctx *ctx, u32 size, const char *name,
 	unsigned long attrs = DMA_ATTR_WRITE_COMBINE;
 
 	addr = dma_alloc_attrs(delta->dev, size, &dma_addr,
-			       GFP_KERNEL | __GFP_NOWARN, attrs);
+			       GFP_KERNEL | __GFP_ANALWARN, attrs);
 	if (!addr) {
 		dev_err(delta->dev,
 			"%s hw_alloc:dma_alloc_coherent failed for %s (size=%d)\n",
 			ctx->name, name, size);
 		ctx->sys_errors++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buf->size = size;

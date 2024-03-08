@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2018 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches for ISP support:
+ * Based on various analn upstream patches for ISP support:
  * Copyright (C) 2010-2017 Intel Corporation. All rights reserved.
  * Copyright (c) 2010 Silicon Hive www.siliconhive.com.
  */
@@ -43,7 +43,7 @@ static int isp_set_power(struct pci_dev *dev, bool enable)
 			val, ISPSSPM0_ISPSSC_MASK);
 
 	/*
-	 * There should be no IUNIT access while power-down is
+	 * There should be anal IUNIT access while power-down is
 	 * in progress. HW sighting: 4567865.
 	 * Wait up to 50 ms for the IUNIT to shut down.
 	 * And we do the same for power on.

@@ -2,7 +2,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <errno.h>
+#include <erranal.h>
 
 char _license[] SEC("license") = "GPL";
 
@@ -25,17 +25,17 @@ int BPF_PROG(test1)
 	 *
 	 *   mov %edi,-0x8(%rbp)
 	 *
-	 * so the upper 4 bytes are not zeroed.
+	 * so the upper 4 bytes are analt zeroed.
 	 */
 	test1_result &= err == 0 && ((int) a == 1);
 
-	/* not valid argument */
+	/* analt valid argument */
 	err = bpf_get_func_arg(ctx, 1, &z);
 	test1_result &= err == -EINVAL;
 
 	/* return value fails in fentry */
 	err = bpf_get_func_ret(ctx, &ret);
-	test1_result &= err == -EOPNOTSUPP;
+	test1_result &= err == -EOPANALTSUPP;
 	return 0;
 }
 
@@ -56,7 +56,7 @@ int BPF_PROG(test2)
 	err = bpf_get_func_arg(ctx, 1, &b);
 	test2_result &= err == 0 && b == 3;
 
-	/* not valid argument */
+	/* analt valid argument */
 	err = bpf_get_func_arg(ctx, 2, &z);
 	test2_result &= err == -EINVAL;
 
@@ -83,7 +83,7 @@ int BPF_PROG(fmod_ret_test, int _a, int *_b, int _ret)
 	err = bpf_get_func_arg(ctx, 1, &b);
 	test3_result &= err == 0 && ((int *) b == _b);
 
-	/* not valid argument */
+	/* analt valid argument */
 	err = bpf_get_func_arg(ctx, 2, &z);
 	test3_result &= err == -EINVAL;
 
@@ -112,7 +112,7 @@ int BPF_PROG(fexit_test, int _a, int *_b, int _ret)
 	err = bpf_get_func_arg(ctx, 1, &b);
 	test4_result &= err == 0 && ((int *) b == _b);
 
-	/* not valid argument */
+	/* analt valid argument */
 	err = bpf_get_func_arg(ctx, 2, &z);
 	test4_result &= err == -EINVAL;
 

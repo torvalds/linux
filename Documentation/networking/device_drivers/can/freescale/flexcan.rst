@@ -36,16 +36,16 @@ messages. This trade off is beneficial in certain use cases.
 
   The CAN controller can and will receive RTR frames.
 
-  On some IP cores the controller cannot receive RTR frames in the
+  On some IP cores the controller cananalt receive RTR frames in the
   more performant "RX mailbox" mode and will use "RX FIFO" mode
   instead.
 
 "rx-rtr" off
 
-  Waive ability to receive RTR frames. (not supported on all IP cores)
+  Waive ability to receive RTR frames. (analt supported on all IP cores)
 
   This mode activates the "RX mailbox mode" for better performance, on
-  some IP cores RTR frames cannot be received anymore.
+  some IP cores RTR frames cananalt be received anymore.
 
 The setting can only be changed if the interface is down::
 

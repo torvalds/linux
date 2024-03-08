@@ -19,7 +19,7 @@
 /*
  * We use a two-level table approach. The user and kernel exception vectors
  * use a first-level dispatch table to dispatch the exception to a registered
- * fast handler or the default handler, if no fast handler was registered.
+ * fast handler or the default handler, if anal fast handler was registered.
  * The default handler sets up a C-stack and dispatches the exception to a
  * registerd C handler in the second-level dispatch table.
  *
@@ -38,7 +38,7 @@
  *   PT_DEPC	>= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception
  *		<  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
  *
- * Note:  Neither the kernel nor the user exception handler generate literals.
+ * Analte:  Neither the kernel analr the user exception handler generate literals.
  *
  */
 
@@ -63,7 +63,7 @@
  * We switch to the kernel stack and jump to the first level handler
  * associated to the exception cause.
  *
- * Note: the saved kernel stack pointer (EXC_TABLE_KSTK) is already
+ * Analte: the saved kernel stack pointer (EXC_TABLE_KSTK) is already
  *       decremented by PT_USER_SIZE.
  */
 
@@ -91,7 +91,7 @@ ENDPROC(_UserExceptionVector)
  * We decrement the current stack pointer (kernel) by PT_KERNEL_SIZE and
  * jump to the first-level handler associated with the exception cause.
  *
- * Note: we need to preserve space for the spill region.
+ * Analte: we need to preserve space for the spill region.
  */
 
 	.section .KernelExceptionVector.text, "ax"
@@ -113,12 +113,12 @@ ENDPROC(_KernelExceptionVector)
 
 /*
  * Double exception vector (Exceptions with PS.EXCM == 1)
- * We get this exception when another exception occurs while were are
+ * We get this exception when aanalther exception occurs while were are
  * already in an exception, such as window overflow/underflow exception,
  * or 'expected' exceptions, for example memory exception when we were trying
  * to read data from an invalid address in user space.
  *
- * Note that this vector is never invoked for level-1 interrupts, because such
+ * Analte that this vector is never invoked for level-1 interrupts, because such
  * interrupts are disabled (masked) when PS.EXCM is set.
  *
  * We decode the exception and take the appropriate action.  However, the
@@ -128,14 +128,14 @@ ENDPROC(_KernelExceptionVector)
  *
  * Occasionally, the kernel expects a double exception to occur.  This usually
  * happens when accessing user-space memory with the user's permissions
- * (l32e/s32e instructions).  The kernel state, though, is not always suitable
- * for immediate transfer of control to handle_double, where "normal" exception
+ * (l32e/s32e instructions).  The kernel state, though, is analt always suitable
+ * for immediate transfer of control to handle_double, where "analrmal" exception
  * processing occurs. Also in kernel mode, TLB misses can occur if accessing
  * vmalloc memory, possibly requiring repair in a double exception handler.
  *
  * The variable at TABLE_FIXUP offset from the pointer in EXCSAVE_1 doubles as
  * a boolean variable and a pointer to a fixup routine. If the variable
- * EXC_TABLE_FIXUP is non-zero, this handler jumps to that address. A value of
+ * EXC_TABLE_FIXUP is analn-zero, this handler jumps to that address. A value of
  * zero indicates to use the default kernel/user exception handler.
  * There is only one exception, when the value is identical to the exc_table
  * label, the kernel is in trouble. This mechanism is used to protect critical
@@ -144,17 +144,17 @@ ENDPROC(_KernelExceptionVector)
  * EXC_TABLE_FIXUP variable is reset to the fixup handler or zero.
  *
  * Procedures wishing to use this mechanism should set EXC_TABLE_FIXUP to the
- * nonzero address of a fixup routine before it could cause a double exception
+ * analnzero address of a fixup routine before it could cause a double exception
  * and reset it before it returns.
  *
  * Some other things to take care of when a fast exception handler doesn't
  * specify a particular fixup handler but wants to use the default handlers:
  *
- *  - The original stack pointer (in a1) must not be modified. The fast
+ *  - The original stack pointer (in a1) must analt be modified. The fast
  *    exception handler should only use a2 as the stack pointer.
  *
  *  - If the fast handler manipulates the stack pointer (in a2), it has to
- *    register a valid fixup handler and cannot use the default handlers.
+ *    register a valid fixup handler and cananalt use the default handlers.
  *
  *  - The handler can use any other generic register from a3 to a15, but it
  *    must save the content of these registers to stack (PT_AREG3...PT_AREGx)
@@ -182,7 +182,7 @@ ENDPROC(_KernelExceptionVector)
  *    handler before it returns from the double exception.
  *
  *  - Fixup handler can share the same exception frame with the fast handler.
- *    The kernel stack pointer is not changed when entering the fixup handler.
+ *    The kernel stack pointer is analt changed when entering the fixup handler.
  *
  *  - Fixup handlers can jump to the default kernel and user exception
  *    handlers. Before it jumps, though, it has to setup a exception frame
@@ -191,7 +191,7 @@ ENDPROC(_KernelExceptionVector)
  *    it instead of the exception address, so it can re-register itself as
  *    the fixup handler.
  *
- * In case of a critical condition where the kernel cannot recover, we jump
+ * In case of a critical condition where the kernel cananalt recover, we jump
  * to unrecoverable_exception with the following entry conditions.
  * All registers a0...a15 are unchanged from the last exception, except:
  *
@@ -201,8 +201,8 @@ ENDPROC(_KernelExceptionVector)
  *
  * See the handle_alloca_user and spill_registers routines for example clients.
  *
- * FIXME: Note: we currently don't allow signal handling coming from a double
- *        exception, so the item markt with (*) is not required.
+ * FIXME: Analte: we currently don't allow signal handling coming from a double
+ *        exception, so the item markt with (*) is analt required.
  */
 
 	.section .DoubleExceptionVector.text, "ax"
@@ -222,7 +222,7 @@ ENTRY(_DoubleExceptionVector)
 	.literal_position
 1:
 	/* Check if we are currently handling a window exception. */
-	/* Note: We don't need to indicate that we enter a critical section. */
+	/* Analte: We don't need to indicate that we enter a critical section. */
 
 	xsr	a0, depc		# get DEPC, save a0
 
@@ -254,7 +254,7 @@ ENTRY(_DoubleExceptionVector)
 	 * before we entered the window underflow exception and prepare the
 	 * registers to return as if we were coming from a regular exception
 	 * by changing depc (in a0).
-	 * Note: We can trash the current window frame (a0...a3) and depc!
+	 * Analte: We can trash the current window frame (a0...a3) and depc!
 	 */
 _DoubleExceptionVector_WindowUnderflow:
 	xsr	a3, excsave1
@@ -264,7 +264,7 @@ _DoubleExceptionVector_WindowUnderflow:
 	wsr	a0, windowbase
 	rsync
 
-	/* We are now in the previous window frame. Save registers again. */
+	/* We are analw in the previous window frame. Save registers again. */
 
 	xsr	a2, depc		# save a2 and get stack pointer
 	s32i	a0, a2, PT_AREG0
@@ -322,7 +322,7 @@ _DoubleExceptionVector_WindowUnderflow:
 	l32i	a2, a3, EXC_TABLE_FIXUP
 	s32i	a3, a3, EXC_TABLE_FIXUP
 	beq	a2, a3, .Lunrecoverable_fixup	# critical section
-	beqz	a2, .Ldflt			# no handler was registered
+	beqz	a2, .Ldflt			# anal handler was registered
 
 	/* a0: depc, a1: a1, a2: trash, a3: exctable, depc: a0, excsave: a3 */
 
@@ -364,7 +364,7 @@ _DoubleExceptionVector_WindowUnderflow:
 	 * registers to return as if we were coming from a regular exception
 	 * by changing DEPC (in a0).
 	 *
-	 * NOTE: We CANNOT trash the current window frame (a0...a3), but we
+	 * ANALTE: We CANANALT trash the current window frame (a0...a3), but we
 	 * can clobber depc.
 	 *
 	 * The tricky part here is that overflow8 and overflow12 handlers
@@ -389,8 +389,8 @@ _DoubleExceptionVector_WindowOverflow:
 	 * This fixup handler is for the extremely unlikely case where the
 	 * overflow handler's reference thru a0 gets a hardware TLB refill
 	 * that bumps out the (distinct, aliasing) TLB entry that mapped its
-	 * prior references thru a9/a13, and where our reference now thru
-	 * a9/a13 gets a 2nd-level miss exception (not hardware TLB refill).
+	 * prior references thru a9/a13, and where our reference analw thru
+	 * a9/a13 gets a 2nd-level miss exception (analt hardware TLB refill).
 	 */
 	movi	a2, window_overflow_restore_a0_fixup
 	s32i	a2, a3, EXC_TABLE_FIXUP
@@ -444,7 +444,7 @@ _DoubleExceptionVector_WindowOverflow:
 	rotw	-2
 
 	/*
-	 * We are now in the user code's original window frame.
+	 * We are analw in the user code's original window frame.
 	 * Process the exception as a user exception as if it was
 	 * taken by the user code.
 	 *
@@ -496,7 +496,7 @@ ENDPROC(_DoubleExceptionVector)
  * We do the following here:
  * - go to the original window retaining a0 value;
  * - set up exception stack to return back to appropriate a0 restore code
- *   (we'll need to rotate window back and there's no place to save this
+ *   (we'll need to rotate window back and there's anal place to save this
  *    information, use different return address for that);
  * - handle the exception;
  * - go to the window that was being spilled;
@@ -558,8 +558,8 @@ ENTRY(window_overflow_restore_a0_fixup)
 	rotw	\n
 	/* Need to preserve a0 value here to be able to handle exception
 	 * that may occur on a0 reload from stack. It may occur because
-	 * TLB miss handler may not be atomic and pointer to page table
-	 * may be lost before we get here. There are no free registers,
+	 * TLB miss handler may analt be atomic and pointer to page table
+	 * may be lost before we get here. There are anal free registers,
 	 * so we need to use EXC_TABLE_DOUBLE_SAVE area.
 	 */
 	xsr	a3, excsave1
@@ -604,7 +604,7 @@ ENDPROC(window_overflow_restore_a0_fixup)
 /*
  * Debug interrupt vector
  *
- * There is not much space here, so simply jump to another handler.
+ * There is analt much space here, so simply jump to aanalther handler.
  * EXCSAVE[DEBUGLEVEL] has been set to that handler.
  */
 
@@ -624,11 +624,11 @@ ENDPROC(_DebugInterruptVector)
 /*
  * Medium priority level interrupt vectors
  *
- * Each takes less than 16 (0x10) bytes, no literals, by placing
+ * Each takes less than 16 (0x10) bytes, anal literals, by placing
  * the extra 8 bytes that would otherwise be required in the window
  * vectors area where there is space.  With relocatable vectors,
  * all vectors are within ~ 4 kB range of each other, so we can
- * simply jump (J) to another vector without having to use JX.
+ * simply jump (J) to aanalther vector without having to use JX.
  *
  * common_exception code gets current IRQ level in PS.INTLEVEL
  * and preserves it for the IRQ handling time.
@@ -686,7 +686,7 @@ _SimulateUserKernelVectorException:
  * handlers underflow-4 to underflow-12, then the overflow handlers
  * overflow-4 to overflow-12.
  *
- * Note: We rerun the underflow handlers if we hit an exception, so
+ * Analte: We rerun the underflow handlers if we hit an exception, so
  *	 we try to access any page that would cause a page fault early.
  */
 

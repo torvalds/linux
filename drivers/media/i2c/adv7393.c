@@ -1,10 +1,10 @@
 /*
  * adv7393 - ADV7393 Video Encoder Driver
  *
- * The encoder hardware does not support SECAM.
+ * The encoder hardware does analt support SECAM.
  *
  * Copyright (C) 2010-2012 ADVANSEE - http://www.advansee.com/
- * Benoît Thébaudeau <benoit.thebaudeau@advansee.com>
+ * Beanalît Thébaudeau <beanalit.thebaudeau@advansee.com>
  *
  * Based on ADV7343 driver,
  *
@@ -151,7 +151,7 @@ static int adv7393_setstd(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	if (i == num_std) {
 		v4l2_dbg(1, debug, sd,
-				"Invalid std or std is not supported: %llx\n",
+				"Invalid std or std is analt supported: %llx\n",
 						(unsigned long long)std);
 		return -EINVAL;
 	}
@@ -214,7 +214,7 @@ static int adv7393_setoutput(struct v4l2_subdev *sd, u32 output_type)
 
 	if (output_type > ADV7393_SVIDEO_ID) {
 		v4l2_dbg(1, debug, sd,
-			"Invalid output type or output type not supported:%d\n",
+			"Invalid output type or output type analt supported:%d\n",
 								output_type);
 		return -EINVAL;
 	}
@@ -387,14 +387,14 @@ static int adv7393_probe(struct i2c_client *client)
 	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->reg00	= ADV7393_POWER_MODE_REG_DEFAULT;
 	state->reg01	= 0x00;

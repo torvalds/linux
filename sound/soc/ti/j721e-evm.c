@@ -195,7 +195,7 @@ static int j721e_configure_refclk(struct j721e_priv *priv,
 	}
 
 	if (ret) {
-		dev_err(priv->dev, "No valid clock configuration for %u Hz\n",
+		dev_err(priv->dev, "Anal valid clock configuration for %u Hz\n",
 			rate);
 		return ret;
 	}
@@ -287,16 +287,16 @@ static int j721e_audio_startup(struct snd_pcm_substream *substream)
 
 	/* Reset TDM slots to 32 */
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 2, 32);
-	if (ret && ret != -ENOTSUPP)
+	if (ret && ret != -EANALTSUPP)
 		goto out;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 0x3, 2, 32);
-		if (ret && ret != -ENOTSUPP)
+		if (ret && ret != -EANALTSUPP)
 			goto out;
 	}
 
-	if (ret == -ENOTSUPP)
+	if (ret == -EANALTSUPP)
 		ret = 0;
 out:
 	if (ret)
@@ -332,13 +332,13 @@ static int j721e_audio_hw_params(struct snd_pcm_substream *substream,
 		slot_width = 16;
 
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 2, slot_width);
-	if (ret && ret != -ENOTSUPP)
+	if (ret && ret != -EANALTSUPP)
 		goto out;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 0x3, 2,
 					       slot_width);
-		if (ret && ret != -ENOTSUPP)
+		if (ret && ret != -EANALTSUPP)
 			goto out;
 	}
 
@@ -350,7 +350,7 @@ static int j721e_audio_hw_params(struct snd_pcm_substream *substream,
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, sysclk_rate,
 					     SND_SOC_CLOCK_IN);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(priv->dev,
 				"codec set_sysclk failed for %u Hz\n",
 				sysclk_rate);
@@ -361,7 +361,7 @@ static int j721e_audio_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(cpu_dai, MCASP_CLK_HCLK_AUXCLK,
 				     sysclk_rate, SND_SOC_CLOCK_IN);
 
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(priv->dev, "mcasp set_sysclk failed for %u Hz\n",
 			sysclk_rate);
 	} else {
@@ -417,23 +417,23 @@ static int j721e_audio_init(struct snd_soc_pcm_runtime *rtd)
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, sysclk_rate,
 					     SND_SOC_CLOCK_IN);
-		if (ret && ret != -ENOTSUPP)
+		if (ret && ret != -EANALTSUPP)
 			return ret;
 	}
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, MCASP_CLK_HCLK_AUXCLK,
 				     sysclk_rate, SND_SOC_CLOCK_IN);
-	if (ret && ret != -ENOTSUPP)
+	if (ret && ret != -EANALTSUPP)
 		return ret;
 
 	/* Set initial tdm slots */
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 2, 32);
-	if (ret && ret != -ENOTSUPP)
+	if (ret && ret != -EANALTSUPP)
 		return ret;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 0x3, 2, 32);
-		if (ret && ret != -ENOTSUPP)
+		if (ret && ret != -EANALTSUPP)
 			return ret;
 	}
 
@@ -477,12 +477,12 @@ static int j721e_get_clocks(struct device *dev,
 			if (ret == -EPROBE_DEFER)
 				return ret;
 
-			dev_dbg(dev, "no 48KHz parent for %s: %d\n", prefix, ret);
+			dev_dbg(dev, "anal 48KHz parent for %s: %d\n", prefix, ret);
 			parent = NULL;
 		}
 		clocks->parent[J721E_CLK_PARENT_48000] = parent;
 	} else {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	clk_name = kasprintf(GFP_KERNEL, "%s-44100", prefix);
@@ -494,12 +494,12 @@ static int j721e_get_clocks(struct device *dev,
 			if (ret == -EPROBE_DEFER)
 				return ret;
 
-			dev_dbg(dev, "no 44.1KHz parent for %s: %d\n", prefix, ret);
+			dev_dbg(dev, "anal 44.1KHz parent for %s: %d\n", prefix, ret);
 			parent = NULL;
 		}
 		clocks->parent[J721E_CLK_PARENT_44100] = parent;
 	} else {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!clocks->parent[J721E_CLK_PARENT_44100] &&
@@ -614,34 +614,34 @@ static int j721e_calculate_rate_range(struct j721e_priv *priv)
 static int j721e_soc_probe_cpb(struct j721e_priv *priv, int *link_idx,
 			       int *conf_idx)
 {
-	struct device_node *node = priv->dev->of_node;
+	struct device_analde *analde = priv->dev->of_analde;
 	struct snd_soc_dai_link_component *compnent;
-	struct device_node *dai_node, *codec_node;
+	struct device_analde *dai_analde, *codec_analde;
 	struct j721e_audio_domain *domain;
 	int comp_count, comp_idx;
 	int ret;
 
-	dai_node = of_parse_phandle(node, "ti,cpb-mcasp", 0);
-	if (!dai_node) {
-		dev_err(priv->dev, "CPB McASP node is not provided\n");
+	dai_analde = of_parse_phandle(analde, "ti,cpb-mcasp", 0);
+	if (!dai_analde) {
+		dev_err(priv->dev, "CPB McASP analde is analt provided\n");
 		return -EINVAL;
 	}
 
-	codec_node = of_parse_phandle(node, "ti,cpb-codec", 0);
-	if (!codec_node) {
-		dev_err(priv->dev, "CPB codec node is not provided\n");
+	codec_analde = of_parse_phandle(analde, "ti,cpb-codec", 0);
+	if (!codec_analde) {
+		dev_err(priv->dev, "CPB codec analde is analt provided\n");
 		ret = -EINVAL;
-		goto put_dai_node;
+		goto put_dai_analde;
 	}
 
 	domain = &priv->audio_domains[J721E_AUDIO_DOMAIN_CPB];
 	ret = j721e_get_clocks(priv->dev, &domain->codec, "cpb-codec-scki");
 	if (ret)
-		goto put_codec_node;
+		goto put_codec_analde;
 
 	ret = j721e_get_clocks(priv->dev, &domain->mcasp, "cpb-mcasp-auxclk");
 	if (ret)
-		goto put_codec_node;
+		goto put_codec_analde;
 
 	/*
 	 * Common Processor Board, two links
@@ -652,8 +652,8 @@ static int j721e_soc_probe_cpb(struct j721e_priv *priv, int *link_idx,
 	compnent = devm_kzalloc(priv->dev, comp_count * sizeof(*compnent),
 				GFP_KERNEL);
 	if (!compnent) {
-		ret = -ENOMEM;
-		goto put_codec_node;
+		ret = -EANALMEM;
+		goto put_codec_analde;
 	}
 
 	comp_idx = 0;
@@ -666,9 +666,9 @@ static int j721e_soc_probe_cpb(struct j721e_priv *priv, int *link_idx,
 
 	priv->dai_links[*link_idx].name = "CPB PCM3168A Playback";
 	priv->dai_links[*link_idx].stream_name = "CPB PCM3168A Analog";
-	priv->dai_links[*link_idx].cpus->of_node = dai_node;
-	priv->dai_links[*link_idx].platforms->of_node = dai_node;
-	priv->dai_links[*link_idx].codecs->of_node = codec_node;
+	priv->dai_links[*link_idx].cpus->of_analde = dai_analde;
+	priv->dai_links[*link_idx].platforms->of_analde = dai_analde;
+	priv->dai_links[*link_idx].codecs->of_analde = codec_analde;
 	priv->dai_links[*link_idx].codecs->dai_name = "pcm3168a-dac";
 	priv->dai_links[*link_idx].playback_only = 1;
 	priv->dai_links[*link_idx].id = J721E_AUDIO_DOMAIN_CPB;
@@ -686,9 +686,9 @@ static int j721e_soc_probe_cpb(struct j721e_priv *priv, int *link_idx,
 
 	priv->dai_links[*link_idx].name = "CPB PCM3168A Capture";
 	priv->dai_links[*link_idx].stream_name = "CPB PCM3168A Analog";
-	priv->dai_links[*link_idx].cpus->of_node = dai_node;
-	priv->dai_links[*link_idx].platforms->of_node = dai_node;
-	priv->dai_links[*link_idx].codecs->of_node = codec_node;
+	priv->dai_links[*link_idx].cpus->of_analde = dai_analde;
+	priv->dai_links[*link_idx].platforms->of_analde = dai_analde;
+	priv->dai_links[*link_idx].codecs->of_analde = codec_analde;
 	priv->dai_links[*link_idx].codecs->dai_name = "pcm3168a-adc";
 	priv->dai_links[*link_idx].capture_only = 1;
 	priv->dai_links[*link_idx].id = J721E_AUDIO_DOMAIN_CPB;
@@ -697,28 +697,28 @@ static int j721e_soc_probe_cpb(struct j721e_priv *priv, int *link_idx,
 	priv->dai_links[*link_idx].ops = &j721e_audio_ops;
 	(*link_idx)++;
 
-	priv->codec_conf[*conf_idx].dlc.of_node = codec_node;
+	priv->codec_conf[*conf_idx].dlc.of_analde = codec_analde;
 	priv->codec_conf[*conf_idx].name_prefix = "codec-1";
 	(*conf_idx)++;
-	priv->codec_conf[*conf_idx].dlc.of_node = dai_node;
+	priv->codec_conf[*conf_idx].dlc.of_analde = dai_analde;
 	priv->codec_conf[*conf_idx].name_prefix = "McASP10";
 	(*conf_idx)++;
 
 	return 0;
 
-put_codec_node:
-	of_node_put(codec_node);
-put_dai_node:
-	of_node_put(dai_node);
+put_codec_analde:
+	of_analde_put(codec_analde);
+put_dai_analde:
+	of_analde_put(dai_analde);
 	return ret;
 }
 
 static int j721e_soc_probe_ivi(struct j721e_priv *priv, int *link_idx,
 			       int *conf_idx)
 {
-	struct device_node *node = priv->dev->of_node;
+	struct device_analde *analde = priv->dev->of_analde;
 	struct snd_soc_dai_link_component *compnent;
-	struct device_node *dai_node, *codeca_node, *codecb_node;
+	struct device_analde *dai_analde, *codeca_analde, *codecb_analde;
 	struct j721e_audio_domain *domain;
 	int comp_count, comp_idx;
 	int ret;
@@ -726,34 +726,34 @@ static int j721e_soc_probe_ivi(struct j721e_priv *priv, int *link_idx,
 	if (priv->match_data->board_type != J721E_BOARD_CPB_IVI)
 		return 0;
 
-	dai_node = of_parse_phandle(node, "ti,ivi-mcasp", 0);
-	if (!dai_node) {
-		dev_err(priv->dev, "IVI McASP node is not provided\n");
+	dai_analde = of_parse_phandle(analde, "ti,ivi-mcasp", 0);
+	if (!dai_analde) {
+		dev_err(priv->dev, "IVI McASP analde is analt provided\n");
 		return -EINVAL;
 	}
 
-	codeca_node = of_parse_phandle(node, "ti,ivi-codec-a", 0);
-	if (!codeca_node) {
-		dev_err(priv->dev, "IVI codec-a node is not provided\n");
+	codeca_analde = of_parse_phandle(analde, "ti,ivi-codec-a", 0);
+	if (!codeca_analde) {
+		dev_err(priv->dev, "IVI codec-a analde is analt provided\n");
 		ret = -EINVAL;
-		goto put_dai_node;
+		goto put_dai_analde;
 	}
 
-	codecb_node = of_parse_phandle(node, "ti,ivi-codec-b", 0);
-	if (!codecb_node) {
-		dev_warn(priv->dev, "IVI codec-b node is not provided\n");
+	codecb_analde = of_parse_phandle(analde, "ti,ivi-codec-b", 0);
+	if (!codecb_analde) {
+		dev_warn(priv->dev, "IVI codec-b analde is analt provided\n");
 		ret = 0;
-		goto put_codeca_node;
+		goto put_codeca_analde;
 	}
 
 	domain = &priv->audio_domains[J721E_AUDIO_DOMAIN_IVI];
 	ret = j721e_get_clocks(priv->dev, &domain->codec, "ivi-codec-scki");
 	if (ret)
-		goto put_codecb_node;
+		goto put_codecb_analde;
 
 	ret = j721e_get_clocks(priv->dev, &domain->mcasp, "ivi-mcasp-auxclk");
 	if (ret)
-		goto put_codecb_node;
+		goto put_codecb_analde;
 
 	/*
 	 * IVI extension, two links
@@ -766,8 +766,8 @@ static int j721e_soc_probe_ivi(struct j721e_priv *priv, int *link_idx,
 	compnent = devm_kzalloc(priv->dev, comp_count * sizeof(*compnent),
 				GFP_KERNEL);
 	if (!compnent) {
-		ret = -ENOMEM;
-		goto put_codecb_node;
+		ret = -EANALMEM;
+		goto put_codecb_analde;
 	}
 
 	comp_idx = 0;
@@ -781,11 +781,11 @@ static int j721e_soc_probe_ivi(struct j721e_priv *priv, int *link_idx,
 
 	priv->dai_links[*link_idx].name = "IVI 2xPCM3168A Playback";
 	priv->dai_links[*link_idx].stream_name = "IVI 2xPCM3168A Analog";
-	priv->dai_links[*link_idx].cpus->of_node = dai_node;
-	priv->dai_links[*link_idx].platforms->of_node = dai_node;
-	priv->dai_links[*link_idx].codecs[0].of_node = codeca_node;
+	priv->dai_links[*link_idx].cpus->of_analde = dai_analde;
+	priv->dai_links[*link_idx].platforms->of_analde = dai_analde;
+	priv->dai_links[*link_idx].codecs[0].of_analde = codeca_analde;
 	priv->dai_links[*link_idx].codecs[0].dai_name = "pcm3168a-dac";
-	priv->dai_links[*link_idx].codecs[1].of_node = codecb_node;
+	priv->dai_links[*link_idx].codecs[1].of_analde = codecb_analde;
 	priv->dai_links[*link_idx].codecs[1].dai_name = "pcm3168a-dac";
 	priv->dai_links[*link_idx].playback_only = 1;
 	priv->dai_links[*link_idx].id = J721E_AUDIO_DOMAIN_IVI;
@@ -803,11 +803,11 @@ static int j721e_soc_probe_ivi(struct j721e_priv *priv, int *link_idx,
 
 	priv->dai_links[*link_idx].name = "IVI 2xPCM3168A Capture";
 	priv->dai_links[*link_idx].stream_name = "IVI 2xPCM3168A Analog";
-	priv->dai_links[*link_idx].cpus->of_node = dai_node;
-	priv->dai_links[*link_idx].platforms->of_node = dai_node;
-	priv->dai_links[*link_idx].codecs[0].of_node = codeca_node;
+	priv->dai_links[*link_idx].cpus->of_analde = dai_analde;
+	priv->dai_links[*link_idx].platforms->of_analde = dai_analde;
+	priv->dai_links[*link_idx].codecs[0].of_analde = codeca_analde;
 	priv->dai_links[*link_idx].codecs[0].dai_name = "pcm3168a-adc";
-	priv->dai_links[*link_idx].codecs[1].of_node = codecb_node;
+	priv->dai_links[*link_idx].codecs[1].of_analde = codecb_analde;
 	priv->dai_links[*link_idx].codecs[1].dai_name = "pcm3168a-adc";
 	priv->dai_links[*link_idx].capture_only = 1;
 	priv->dai_links[*link_idx].id = J721E_AUDIO_DOMAIN_IVI;
@@ -816,59 +816,59 @@ static int j721e_soc_probe_ivi(struct j721e_priv *priv, int *link_idx,
 	priv->dai_links[*link_idx].ops = &j721e_audio_ops;
 	(*link_idx)++;
 
-	priv->codec_conf[*conf_idx].dlc.of_node = codeca_node;
+	priv->codec_conf[*conf_idx].dlc.of_analde = codeca_analde;
 	priv->codec_conf[*conf_idx].name_prefix = "codec-a";
 	(*conf_idx)++;
 
-	priv->codec_conf[*conf_idx].dlc.of_node = codecb_node;
+	priv->codec_conf[*conf_idx].dlc.of_analde = codecb_analde;
 	priv->codec_conf[*conf_idx].name_prefix = "codec-b";
 	(*conf_idx)++;
 
-	priv->codec_conf[*conf_idx].dlc.of_node = dai_node;
+	priv->codec_conf[*conf_idx].dlc.of_analde = dai_analde;
 	priv->codec_conf[*conf_idx].name_prefix = "McASP0";
 	(*conf_idx)++;
 
 	return 0;
 
 
-put_codecb_node:
-	of_node_put(codecb_node);
-put_codeca_node:
-	of_node_put(codeca_node);
-put_dai_node:
-	of_node_put(dai_node);
+put_codecb_analde:
+	of_analde_put(codecb_analde);
+put_codeca_analde:
+	of_analde_put(codeca_analde);
+put_dai_analde:
+	of_analde_put(dai_analde);
 	return ret;
 }
 
 static int j721e_soc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct snd_soc_card *card;
 	const struct of_device_id *match;
 	struct j721e_priv *priv;
 	int link_cnt, conf_cnt, ret, i;
 
-	if (!node) {
-		dev_err(&pdev->dev, "of node is missing.\n");
-		return -ENODEV;
+	if (!analde) {
+		dev_err(&pdev->dev, "of analde is missing.\n");
+		return -EANALDEV;
 	}
 
-	match = of_match_node(j721e_audio_of_match, node);
+	match = of_match_analde(j721e_audio_of_match, analde);
 	if (!match) {
-		dev_err(&pdev->dev, "No compatible match found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal compatible match found\n");
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->match_data = match->data;
 
 	priv->dai_links = devm_kcalloc(&pdev->dev, priv->match_data->num_links,
 				       sizeof(*priv->dai_links), GFP_KERNEL);
 	if (!priv->dai_links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < J721E_AUDIO_DOMAIN_LAST; i++)
 		priv->audio_domains[i].parent_clk_id = -1;
@@ -884,8 +884,8 @@ static int j721e_soc_probe(struct platform_device *pdev)
 	card->fully_routed = 1;
 
 	if (snd_soc_of_parse_card_name(card, "model")) {
-		dev_err(&pdev->dev, "Card name is not provided\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Card name is analt provided\n");
+		return -EANALDEV;
 	}
 
 	link_cnt = 0;

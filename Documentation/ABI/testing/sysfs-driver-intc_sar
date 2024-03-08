@@ -9,8 +9,8 @@ Description:
 		mnc (Mobile Network Code) that is available for the currently
 		attached LTE network. A userspace application is required to set
 		the current SAR regulatory mode on the Dynamic SAR driver using
-		this sysfs node. Such an application can also read back using
-		this sysfs node, the currently configured regulatory mode value
+		this sysfs analde. Such an application can also read back using
+		this sysfs analde, the currently configured regulatory mode value
 		from the Dynamic SAR driver.
 
 		Acceptable regulatory modes are:
@@ -51,4 +51,4 @@ Description:
 		The userspace applications can poll for changes to this file
 		using POLLPRI event on file-descriptor (fd) obtained by opening
 		this sysfs entry. Application can then read this information from
-		the sysfs node and consume the given information.
+		the sysfs analde and consume the given information.

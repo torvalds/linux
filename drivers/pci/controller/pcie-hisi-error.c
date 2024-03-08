@@ -58,7 +58,7 @@ struct hisi_pcie_error_data {
 };
 
 struct hisi_pcie_error_private {
-	struct notifier_block	nb;
+	struct analtifier_block	nb;
 	struct device *dev;
 };
 
@@ -82,14 +82,14 @@ enum hisi_pcie_err_severity {
 	HISI_PCIE_ERR_SEV_RECOVERABLE,
 	HISI_PCIE_ERR_SEV_FATAL,
 	HISI_PCIE_ERR_SEV_CORRECTED,
-	HISI_PCIE_ERR_SEV_NONE,
+	HISI_PCIE_ERR_SEV_ANALNE,
 };
 
 static const char * const hisi_pcie_error_sev[] = {
 	[HISI_PCIE_ERR_SEV_RECOVERABLE]	= "recoverable",
 	[HISI_PCIE_ERR_SEV_FATAL]	= "fatal",
 	[HISI_PCIE_ERR_SEV_CORRECTED]	= "corrected",
-	[HISI_PCIE_ERR_SEV_NONE]	= "none",
+	[HISI_PCIE_ERR_SEV_ANALNE]	= "analne",
 };
 
 static const char *hisi_pcie_get_string(const char * const *array,
@@ -102,7 +102,7 @@ static const char *hisi_pcie_get_string(const char * const *array,
 			return array[index];
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static int hisi_pcie_port_reset(struct platform_device *pdev,
@@ -127,7 +127,7 @@ static int hisi_pcie_port_reset(struct platform_device *pdev,
 
 	s = acpi_evaluate_integer(handle, "RST", &arg_list, &data);
 	if (ACPI_FAILURE(s)) {
-		dev_err(dev, "No RST method\n");
+		dev_err(dev, "Anal RST method\n");
 		return -EIO;
 	}
 
@@ -152,10 +152,10 @@ static int hisi_pcie_port_do_recovery(struct platform_device *dev,
 
 	s = acpi_get_parent(root_handle, &root_handle);
 	if (ACPI_FAILURE(s))
-		return -ENODEV;
+		return -EANALDEV;
 	pci_root = acpi_pci_find_root(root_handle);
 	if (!pci_root)
-		return -ENODEV;
+		return -EANALDEV;
 	root_bus = pci_root->bus;
 	domain = pci_root->segment;
 
@@ -165,7 +165,7 @@ static int hisi_pcie_port_do_recovery(struct platform_device *dev,
 	if (!pdev) {
 		dev_info(device, "Fail to get root port %04x:%02x:%02x.%d device\n",
 			 domain, busnr, PCI_SLOT(devfn), PCI_FUNC(devfn));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_stop_and_remove_bus_device_locked(pdev);
@@ -176,9 +176,9 @@ static int hisi_pcie_port_do_recovery(struct platform_device *dev,
 
 	/*
 	 * The initialization time of subordinate devices after
-	 * hot reset is no more than 1s, which is required by
+	 * hot reset is anal more than 1s, which is required by
 	 * the PCI spec v5.0 sec 6.6.1. The time will shorten
-	 * if Readiness Notifications mechanisms are used. But
+	 * if Readiness Analtifications mechanisms are used. But
 	 * wait 1s here to adapt any conditions.
 	 */
 	ssleep(1UL);
@@ -199,7 +199,7 @@ static void hisi_pcie_handle_error(struct platform_device *pdev,
 	const unsigned long valid_bits[] = {BITMAP_FROM_U64(edata->val_bits)};
 
 	if (edata->val_bits == 0) {
-		dev_warn(dev, "%s: no valid error information\n", __func__);
+		dev_warn(dev, "%s: anal valid error information\n", __func__);
 		return;
 	}
 
@@ -246,7 +246,7 @@ static void hisi_pcie_handle_error(struct platform_device *pdev,
 		dev_info(dev, "fail to do hisi pcie port reset\n");
 }
 
-static int hisi_pcie_notify_error(struct notifier_block *nb,
+static int hisi_pcie_analtify_error(struct analtifier_block *nb,
 				  unsigned long event, void *data)
 {
 	struct acpi_hest_generic_data *gdata = data;
@@ -259,21 +259,21 @@ static int hisi_pcie_notify_error(struct notifier_block *nb,
 
 	import_guid(&err_sec_guid, gdata->section_type);
 	if (!guid_equal(&err_sec_guid, &hisi_pcie_sec_guid))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	priv = container_of(nb, struct hisi_pcie_error_private, nb);
 	dev = priv->dev;
 
 	if (device_property_read_u8(dev, "socket", &socket))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (error_data->socket_id != socket)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	pdev = container_of(dev, struct platform_device, dev);
 	hisi_pcie_handle_error(pdev, error_data);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int hisi_pcie_error_handler_probe(struct platform_device *pdev)
@@ -283,11 +283,11 @@ static int hisi_pcie_error_handler_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->nb.notifier_call = hisi_pcie_notify_error;
+	priv->nb.analtifier_call = hisi_pcie_analtify_error;
 	priv->dev = &pdev->dev;
-	ret = ghes_register_vendor_record_notifier(&priv->nb);
+	ret = ghes_register_vendor_record_analtifier(&priv->nb);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Failed to register hisi pcie controller error handler with apei\n");
@@ -303,7 +303,7 @@ static void hisi_pcie_error_handler_remove(struct platform_device *pdev)
 {
 	struct hisi_pcie_error_private *priv = platform_get_drvdata(pdev);
 
-	ghes_unregister_vendor_record_notifier(&priv->nb);
+	ghes_unregister_vendor_record_analtifier(&priv->nb);
 }
 
 static const struct acpi_device_id hisi_pcie_acpi_match[] = {

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * x86_64 specific definitions for NOLIBC
+ * x86_64 specific definitions for ANALLIBC
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_ARCH_X86_64_H
-#define _NOLIBC_ARCH_X86_64_H
+#ifndef _ANALLIBC_ARCH_X86_64_H
+#define _ANALLIBC_ARCH_X86_64_H
 
 #include "compiler.h"
 #include "crt.h"
@@ -161,29 +161,29 @@
  * 2) The deepest stack frame should be zero (the %rbp).
  *
  */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, analreturn, optimize("Os", "omit-frame-pointer"))) __anal_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"xor  %ebp, %ebp\n"       /* zero the stack frame                            */
 		"mov  %rsp, %rdi\n"       /* save stack pointer to %rdi, as arg1 of _start_c */
 		"and  $-16, %rsp\n"       /* %rsp must be 16-byte aligned before call        */
 		"call _start_c\n"         /* transfer to c runtime                           */
-		"hlt\n"                   /* ensure it does not return                       */
+		"hlt\n"                   /* ensure it does analt return                       */
 	);
 	__builtin_unreachable();
 }
 
-#define NOLIBC_ARCH_HAS_MEMMOVE
+#define ANALLIBC_ARCH_HAS_MEMMOVE
 void *memmove(void *dst, const void *src, size_t len);
 
-#define NOLIBC_ARCH_HAS_MEMCPY
+#define ANALLIBC_ARCH_HAS_MEMCPY
 void *memcpy(void *dst, const void *src, size_t len);
 
-#define NOLIBC_ARCH_HAS_MEMSET
+#define ANALLIBC_ARCH_HAS_MEMSET
 void *memset(void *dst, int c, size_t len);
 
 __asm__ (
-".section .text.nolibc_memmove_memcpy\n"
+".section .text.anallibc_memmove_memcpy\n"
 ".weak memmove\n"
 ".weak memcpy\n"
 "memmove:\n"
@@ -204,7 +204,7 @@ __asm__ (
 	"cld\n\t"
 	"retq\n"
 
-".section .text.nolibc_memset\n"
+".section .text.anallibc_memset\n"
 ".weak memset\n"
 "memset:\n"
 	"xchgl %eax, %esi\n\t"
@@ -215,4 +215,4 @@ __asm__ (
 	"retq\n"
 );
 
-#endif /* _NOLIBC_ARCH_X86_64_H */
+#endif /* _ANALLIBC_ARCH_X86_64_H */

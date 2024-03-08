@@ -41,7 +41,7 @@ struct command *ibmasm_new_command(struct service_processor *sp, size_t buffer_s
 
 	cmd->status = IBMASM_CMD_PENDING;
 	init_waitqueue_head(&cmd->wait);
-	INIT_LIST_HEAD(&cmd->queue_node);
+	INIT_LIST_HEAD(&cmd->queue_analde);
 
 	atomic_inc(&command_count);
 	dbg("command count: %d\n", atomic_read(&command_count));
@@ -53,7 +53,7 @@ void ibmasm_free_command(struct kref *kref)
 {
 	struct command *cmd = to_command(kref);
 
-	list_del(&cmd->queue_node);
+	list_del(&cmd->queue_analde);
 	atomic_dec(&command_count);
 	dbg("command count: %d\n", atomic_read(&command_count));
 	kfree(cmd->buffer);
@@ -62,7 +62,7 @@ void ibmasm_free_command(struct kref *kref)
 
 static void enqueue_command(struct service_processor *sp, struct command *cmd)
 {
-	list_add_tail(&cmd->queue_node, &sp->command_queue);
+	list_add_tail(&cmd->queue_analde, &sp->command_queue);
 }
 
 static struct command *dequeue_command(struct service_processor *sp)
@@ -75,7 +75,7 @@ static struct command *dequeue_command(struct service_processor *sp)
 
 	next = sp->command_queue.next;
 	list_del_init(next);
-	cmd = list_entry(next, struct command, queue_node);
+	cmd = list_entry(next, struct command, queue_analde);
 
 	return cmd;
 }

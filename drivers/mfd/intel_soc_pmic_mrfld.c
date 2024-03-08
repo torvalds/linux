@@ -112,11 +112,11 @@ static int bcove_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic->scu = devm_intel_scu_ipc_dev_get(dev);
 	if (!pmic->scu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pmic);
 	pmic->dev = &pdev->dev;
@@ -134,7 +134,7 @@ static int bcove_probe(struct platform_device *pdev)
 		irq_level2_resources[i].end = ret;
 	}
 
-	return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	return devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				    bcove_dev, ARRAY_SIZE(bcove_dev),
 				    NULL, 0, NULL);
 }

@@ -118,17 +118,17 @@ static void ef4_tx_maybe_stop_queue(struct ef4_tx_queue *txq1)
 
 	/* We used the stale old_read_count above, which gives us a
 	 * pessimistic estimate of the fill level (which may even
-	 * validly be >= efx->txq_entries).  Now try again using
+	 * validly be >= efx->txq_entries).  Analw try again using
 	 * read_count (more likely to be a cache miss).
 	 *
 	 * If we read read_count and then conditionally stop the
 	 * queue, it is possible for the completion path to race with
 	 * us and complete all outstanding descriptors in the middle,
-	 * after which there will be no more completions to wake it.
+	 * after which there will be anal more completions to wake it.
 	 * Therefore we stop the queue first, then read read_count
 	 * (with a memory barrier to ensure the ordering), then
 	 * restart the queue if the fill level turns out to be low
-	 * enough.
+	 * eanalugh.
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
@@ -137,7 +137,7 @@ static void ef4_tx_maybe_stop_queue(struct ef4_tx_queue *txq1)
 
 	fill_level = max(txq1->insert_count - txq1->old_read_count,
 			 txq2->insert_count - txq2->old_read_count);
-	EF4_BUG_ON_PARANOID(fill_level >= efx->txq_entries);
+	EF4_BUG_ON_PARAANALID(fill_level >= efx->txq_entries);
 	if (likely(fill_level < efx->txq_stop_thresh)) {
 		smp_mb();
 		if (likely(!efx->loopback_selftest))
@@ -154,16 +154,16 @@ static int ef4_enqueue_skb_copy(struct ef4_tx_queue *tx_queue,
 	u8 *copy_buffer;
 	int rc;
 
-	EF4_BUG_ON_PARANOID(copy_len > EF4_TX_CB_SIZE);
+	EF4_BUG_ON_PARAANALID(copy_len > EF4_TX_CB_SIZE);
 
 	buffer = ef4_tx_queue_get_insert_buffer(tx_queue);
 
 	copy_buffer = ef4_tx_get_copy_buffer(tx_queue, buffer);
 	if (unlikely(!copy_buffer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = skb_copy_bits(skb, 0, copy_buffer, copy_len);
-	EF4_WARN_ON_PARANOID(rc);
+	EF4_WARN_ON_PARAANALID(rc);
 	if (unlikely(copy_len < min_len)) {
 		memset(copy_buffer + copy_len, 0, min_len - copy_len);
 		buffer->len = min_len;
@@ -263,7 +263,7 @@ static int ef4_tx_map_data(struct ef4_tx_queue *tx_queue, struct sk_buff *skb)
 	} while (1);
 }
 
-/* Remove buffers put into a tx_queue.  None of the buffers must have
+/* Remove buffers put into a tx_queue.  Analne of the buffers must have
  * an skb attached.
  */
 static void ef4_enqueue_unwind(struct ef4_tx_queue *tx_queue)
@@ -300,7 +300,7 @@ netdev_tx_t ef4_enqueue_skb(struct ef4_tx_queue *tx_queue, struct sk_buff *skb)
 	unsigned int skb_len;
 
 	skb_len = skb->len;
-	EF4_WARN_ON_PARANOID(skb_is_gso(skb));
+	EF4_WARN_ON_PARAANALID(skb_is_gso(skb));
 
 	if (skb_len < tx_queue->tx_min_size ||
 			(skb->data_len && skb_len <= EF4_TX_CB_SIZE)) {
@@ -323,7 +323,7 @@ netdev_tx_t ef4_enqueue_skb(struct ef4_tx_queue *tx_queue, struct sk_buff *skb)
 		struct ef4_tx_queue *txq2 = ef4_tx_queue_partner(tx_queue);
 
 		/* There could be packets left on the partner queue if those
-		 * SKBs had skb->xmit_more set. If we do not push those they
+		 * SKBs had skb->xmit_more set. If we do analt push those they
 		 * could be left for a long time and cause a netdev watchdog.
 		 */
 		if (txq2->xmit_more_available)
@@ -387,8 +387,8 @@ static void ef4_dequeue_buffers(struct ef4_tx_queue *tx_queue,
  * completion events will be directed back to the CPU that transmitted
  * the packet, which should be cache-efficient.
  *
- * Context: non-blocking.
- * Note that returning anything other than NETDEV_TX_OK will cause the
+ * Context: analn-blocking.
+ * Analte that returning anything other than NETDEV_TX_OK will cause the
  * OS to free the skb.
  */
 netdev_tx_t ef4_hard_start_xmit(struct sk_buff *skb,
@@ -398,7 +398,7 @@ netdev_tx_t ef4_hard_start_xmit(struct sk_buff *skb,
 	struct ef4_tx_queue *tx_queue;
 	unsigned index, type;
 
-	EF4_WARN_ON_PARANOID(!netif_device_present(net_dev));
+	EF4_WARN_ON_PARAANALID(!netif_device_present(net_dev));
 
 	index = skb_get_queue_mapping(skb);
 	type = skb->ip_summed == CHECKSUM_PARTIAL ? EF4_TXQ_TYPE_OFFLOAD : 0;
@@ -434,7 +434,7 @@ int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	int rc;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	num_tc = mqprio->num_tc;
 
@@ -479,7 +479,7 @@ int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	if (rc)
 		return rc;
 
-	/* Do not destroy high-priority queues when they become
+	/* Do analt destroy high-priority queues when they become
 	 * unused.  We would have to flush them first, and it is
 	 * fairly difficult to flush a subset of TX queues.  Leave
 	 * it to ef4_fini_channels().
@@ -496,7 +496,7 @@ void ef4_xmit_done(struct ef4_tx_queue *tx_queue, unsigned int index)
 	struct ef4_tx_queue *txq2;
 	unsigned int pkts_compl = 0, bytes_compl = 0;
 
-	EF4_BUG_ON_PARANOID(index > tx_queue->ptr_mask);
+	EF4_BUG_ON_PARAANALID(index > tx_queue->ptr_mask);
 
 	ef4_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
 	tx_queue->pkts_compl += pkts_compl;
@@ -520,7 +520,7 @@ void ef4_xmit_done(struct ef4_tx_queue *tx_queue, unsigned int index)
 			netif_tx_wake_queue(tx_queue->core_txq);
 	}
 
-	/* Check whether the hardware queue is now empty */
+	/* Check whether the hardware queue is analw empty */
 	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
 		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
 		if (tx_queue->read_count == tx_queue->old_write_count) {
@@ -544,7 +544,7 @@ int ef4_probe_tx_queue(struct ef4_tx_queue *tx_queue)
 
 	/* Create the smallest power-of-two aligned ring */
 	entries = max(roundup_pow_of_two(efx->txq_entries), EF4_MIN_DMAQ_SIZE);
-	EF4_BUG_ON_PARANOID(entries > EF4_MAX_DMAQ_SIZE);
+	EF4_BUG_ON_PARAANALID(entries > EF4_MAX_DMAQ_SIZE);
 	tx_queue->ptr_mask = entries - 1;
 
 	netif_dbg(efx, probe, efx->net_dev,
@@ -555,12 +555,12 @@ int ef4_probe_tx_queue(struct ef4_tx_queue *tx_queue)
 	tx_queue->buffer = kcalloc(entries, sizeof(*tx_queue->buffer),
 				   GFP_KERNEL);
 	if (!tx_queue->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_queue->cb_page = kcalloc(ef4_tx_cb_page_count(tx_queue),
 				    sizeof(tx_queue->cb_page[0]), GFP_KERNEL);
 	if (!tx_queue->cb_page) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail1;
 	}
 

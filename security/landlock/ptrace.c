@@ -8,7 +8,7 @@
 
 #include <asm/current.h>
 #include <linux/cred.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/lsm_hooks.h>
 #include <linux/rcupdate.h>
@@ -43,7 +43,7 @@ static bool domain_scope_le(const struct landlock_ruleset *const parent,
 			/* @parent is in the scoped hierarchy of @child. */
 			return true;
 	}
-	/* There is no relationship between @parent and @child. */
+	/* There is anal relationship between @parent and @child. */
 	return false;
 }
 
@@ -64,7 +64,7 @@ static bool task_is_scoped(const struct task_struct *const parent,
 static int task_ptrace(const struct task_struct *const parent,
 		       const struct task_struct *const child)
 {
-	/* Quick return for non-landlocked tasks. */
+	/* Quick return for analn-landlocked tasks. */
 	if (!landlocked(parent))
 		return 0;
 	if (task_is_scoped(parent, child))
@@ -74,7 +74,7 @@ static int task_ptrace(const struct task_struct *const parent,
 
 /**
  * hook_ptrace_access_check - Determines whether the current process may access
- *			      another
+ *			      aanalther
  *
  * @child: Process to be accessed.
  * @mode: Mode of attachment.
@@ -82,8 +82,8 @@ static int task_ptrace(const struct task_struct *const parent,
  * If the current task has Landlock rules, then the child must have at least
  * the same rules.  Else denied.
  *
- * Determines whether a process may access another, returning 0 if permission
- * granted, -errno if denied.
+ * Determines whether a process may access aanalther, returning 0 if permission
+ * granted, -erranal if denied.
  */
 static int hook_ptrace_access_check(struct task_struct *const child,
 				    const unsigned int mode)
@@ -92,7 +92,7 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 }
 
 /**
- * hook_ptrace_traceme - Determines whether another process may trace the
+ * hook_ptrace_traceme - Determines whether aanalther process may trace the
  *			 current one
  *
  * @parent: Task proposed to be the tracer.
@@ -100,8 +100,8 @@ static int hook_ptrace_access_check(struct task_struct *const child,
  * If the parent has Landlock rules, then the current task must have the same
  * or more rules.  Else denied.
  *
- * Determines whether the nominated task is permitted to trace the current
- * process, returning 0 if permission is granted, -errno if denied.
+ * Determines whether the analminated task is permitted to trace the current
+ * process, returning 0 if permission is granted, -erranal if denied.
  */
 static int hook_ptrace_traceme(struct task_struct *const parent)
 {

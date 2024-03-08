@@ -178,7 +178,7 @@ struct Am79C960 {
 
 #define ERR		0x0080	/* Error */
 #define BABL		0x0040	/* Babble: Transmitted too many bits */
-#define CERR		0x0020	/* No Heartbeat (10BASE-T) */
+#define CERR		0x0020	/* Anal Heartbeat (10BASE-T) */
 #define MISS		0x0010	/* Missed Frame */
 #define MERR		0x0008	/* Memory Error */
 #define RINT		0x0004	/* Receive Interrupt */

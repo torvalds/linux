@@ -24,13 +24,13 @@
  *
  * Status:
  * There are many reports of the driver being used with most of the
- * supported cards. Despite no detailed log is maintained, it can
+ * supported cards. Despite anal detailed log is maintained, it can
  * be said that the driver is quite tested and stable.
  *
  * The boards may be autocalibrated using the comedi_calibrate
  * utility.
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  *
  * For commands, the scanned channels must be consecutive
  * (i.e. 4-5-6-7, 2-3-4,...), and must all have the same
@@ -68,10 +68,10 @@
  */
 #define PCIDAS_CTRL_REG		0x00	/* INTERRUPT / ADC FIFO register */
 #define PCIDAS_CTRL_INT(x)	(((x) & 0x3) << 0)
-#define PCIDAS_CTRL_INT_NONE	PCIDAS_CTRL_INT(0) /* no int selected */
+#define PCIDAS_CTRL_INT_ANALNE	PCIDAS_CTRL_INT(0) /* anal int selected */
 #define PCIDAS_CTRL_INT_EOS	PCIDAS_CTRL_INT(1) /* int on end of scan */
 #define PCIDAS_CTRL_INT_FHF	PCIDAS_CTRL_INT(2) /* int on fifo half full */
-#define PCIDAS_CTRL_INT_FNE	PCIDAS_CTRL_INT(3) /* int on fifo not empty */
+#define PCIDAS_CTRL_INT_FNE	PCIDAS_CTRL_INT(3) /* int on fifo analt empty */
 #define PCIDAS_CTRL_INT_MASK	PCIDAS_CTRL_INT(3) /* mask of int select bits */
 #define PCIDAS_CTRL_INTE	BIT(2)	/* int enable */
 #define PCIDAS_CTRL_DAHFIE	BIT(3)	/* dac half full int enable */
@@ -81,8 +81,8 @@
 #define PCIDAS_CTRL_INT_CLR	BIT(7)	/* int status / clear */
 #define PCIDAS_CTRL_EOBI	BIT(9)	/* end of burst int status */
 #define PCIDAS_CTRL_ADHFI	BIT(10)	/* half-full int status */
-#define PCIDAS_CTRL_ADNEI	BIT(11)	/* fifo not empty int status (latch) */
-#define PCIDAS_CTRL_ADNE	BIT(12)	/* fifo not empty status (realtime) */
+#define PCIDAS_CTRL_ADNEI	BIT(11)	/* fifo analt empty int status (latch) */
+#define PCIDAS_CTRL_ADNE	BIT(12)	/* fifo analt empty status (realtime) */
 #define PCIDAS_CTRL_DAEMIE	BIT(12)	/* dac empty int enable */
 #define PCIDAS_CTRL_LADFUL	BIT(13)	/* fifo overflow / clear */
 #define PCIDAS_CTRL_DAEMI	BIT(14)	/* dac fifo empty int status / clear */
@@ -105,11 +105,11 @@
 #define PCIDAS_AI_PACER_EXTN	PCIDAS_AI_PACER(2) /* ext. falling edge */
 #define PCIDAS_AI_PACER_EXTP	PCIDAS_AI_PACER(3) /* ext. rising edge */
 #define PCIDAS_AI_PACER_MASK	PCIDAS_AI_PACER(3) /* pacer source bits */
-#define PCIDAS_AI_EOC		BIT(14)	/* adc not busy */
+#define PCIDAS_AI_EOC		BIT(14)	/* adc analt busy */
 
 #define PCIDAS_TRIG_REG		0x04	/* TRIGGER CONTROL/STATUS register */
 #define PCIDAS_TRIG_SEL(x)	(((x) & 0x3) << 0)
-#define PCIDAS_TRIG_SEL_NONE	PCIDAS_TRIG_SEL(0) /* no start trigger */
+#define PCIDAS_TRIG_SEL_ANALNE	PCIDAS_TRIG_SEL(0) /* anal start trigger */
 #define PCIDAS_TRIG_SEL_SW	PCIDAS_TRIG_SEL(1) /* software start trigger */
 #define PCIDAS_TRIG_SEL_EXT	PCIDAS_TRIG_SEL(2) /* ext. start trigger */
 #define PCIDAS_TRIG_SEL_ANALOG	PCIDAS_TRIG_SEL(3) /* ext. analog trigger */
@@ -399,7 +399,7 @@ static int cb_pcidas_ai_insn_config(struct comedi_device *dev,
 }
 
 /* analog output insn for pcidas-1000 and 1200 series */
-static int cb_pcidas_ao_nofifo_insn_write(struct comedi_device *dev,
+static int cb_pcidas_ao_analfifo_insn_write(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
 					  struct comedi_insn *insn,
 					  unsigned int *data)
@@ -681,13 +681,13 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
-					TRIG_TIMER | TRIG_NOW | TRIG_EXT);
+					TRIG_TIMER | TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -701,9 +701,9 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
+	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_ANALW)
 		err |= -EINVAL;
-	if (cmd->scan_begin_src != TRIG_FOLLOW && cmd->convert_src != TRIG_NOW)
+	if (cmd->scan_begin_src != TRIG_FOLLOW && cmd->convert_src != TRIG_ANALW)
 		err |= -EINVAL;
 	if (cmd->start_src == TRIG_EXT &&
 	    (cmd->convert_src == TRIG_EXT || cmd->scan_begin_src == TRIG_EXT))
@@ -715,7 +715,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	/* Step 3: check if arguments are trivially valid */
 
 	switch (cmd->start_src) {
-	case TRIG_NOW:
+	case TRIG_ANALW:
 		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
@@ -749,7 +749,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -795,7 +795,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	/*  make sure PCIDAS_CALIB_EN is disabled */
 	outw(0, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	/*  initialize before settings pacer source and count values */
-	outw(PCIDAS_TRIG_SEL_NONE, devpriv->pcibar1 + PCIDAS_TRIG_REG);
+	outw(PCIDAS_TRIG_SEL_ANALNE, devpriv->pcibar1 + PCIDAS_TRIG_REG);
 	/*  clear fifo */
 	outw(0, devpriv->pcibar2 + PCIDAS_AI_FIFO_CLR_REG);
 
@@ -828,11 +828,11 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	devpriv->ctrl |= PCIDAS_CTRL_INTE;
 	devpriv->ctrl &= ~PCIDAS_CTRL_INT_MASK;
 	if (cmd->flags & CMDF_WAKE_EOS) {
-		if (cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1) {
+		if (cmd->convert_src == TRIG_ANALW && cmd->chanlist_len > 1) {
 			/* interrupt end of burst */
 			devpriv->ctrl |= PCIDAS_CTRL_INT_EOS;
 		} else {
-			/* interrupt fifo not empty */
+			/* interrupt fifo analt empty */
 			devpriv->ctrl |= PCIDAS_CTRL_INT_FNE;
 		}
 	} else {
@@ -848,7 +848,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 
 	/*  set start trigger and burst mode */
 	bits = 0;
-	if (cmd->start_src == TRIG_NOW) {
+	if (cmd->start_src == TRIG_ANALW) {
 		bits |= PCIDAS_TRIG_SEL_SW;
 	} else {	/* TRIG_EXT */
 		bits |= PCIDAS_TRIG_SEL_EXT | PCIDAS_TRIG_EN | PCIDAS_TRIG_CLR;
@@ -859,7 +859,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 				bits |= PCIDAS_TRIG_MODE;
 		}
 	}
-	if (cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
+	if (cmd->convert_src == TRIG_ANALW && cmd->chanlist_len > 1)
 		bits |= PCIDAS_TRIG_BURSTE;
 	outw(bits, devpriv->pcibar1 + PCIDAS_TRIG_REG);
 
@@ -898,9 +898,9 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_EXT);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -929,7 +929,7 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -971,7 +971,7 @@ static int cb_pcidas_ai_cancel(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  disable start trigger source and burst mode */
-	outw(PCIDAS_TRIG_SEL_NONE, devpriv->pcibar1 + PCIDAS_TRIG_REG);
+	outw(PCIDAS_TRIG_SEL_ANALNE, devpriv->pcibar1 + PCIDAS_TRIG_REG);
 	outw(PCIDAS_AI_PACER_SW, devpriv->pcibar1 + PCIDAS_AI_REG);
 
 	return 0;
@@ -1162,7 +1162,7 @@ static unsigned int cb_pcidas_ai_interrupt(struct comedi_device *dev,
 
 		irq_clr |= PCIDAS_CTRL_INT_CLR;
 
-		/* FIFO is not empty - read data until empty or timeoout */
+		/* FIFO is analt empty - read data until empty or timeoout */
 		for (i = 0; i < 10000; i++) {
 			unsigned short val;
 
@@ -1208,12 +1208,12 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	unsigned int status;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	amcc_status = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	if ((INTCSR_INTR_ASSERTED & amcc_status) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*  make sure mailbox 4 is empty */
 	inl_p(devpriv->amcc + AMCC_OP_REG_IMB4);
@@ -1256,13 +1256,13 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(cb_pcidas_boards))
 		board = &cb_pcidas_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr  = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -1332,7 +1332,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->range_table	= &cb_pcidas_ao_ranges;
 		s->insn_write	= (board->has_ao_fifo)
 					? cb_pcidas_ao_fifo_insn_write
-					: cb_pcidas_ao_nofifo_insn_write;
+					: cb_pcidas_ao_analfifo_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

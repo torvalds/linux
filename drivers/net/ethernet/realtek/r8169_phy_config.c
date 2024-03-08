@@ -419,7 +419,7 @@ static const struct phy_reg rtl8168d_1_phy_reg_init_0[] = {
 	{ 0x06, 0x5561 },
 
 	/*
-	 * Can not link to 1Gbps with bad cable
+	 * Can analt link to 1Gbps with bad cable
 	 * Decrease SNR threshold form 21.07dB to 19.04dB
 	 */
 	{ 0x1f, 0x0001 },
@@ -441,7 +441,7 @@ static void rtl8168d_apply_firmware_cond(struct rtl8169_private *tp,
 	phy_write(phydev, 0x1f, 0x0000);
 
 	if (reg_val != val)
-		phydev_warn(phydev, "chipset not ready for firmware\n");
+		phydev_warn(phydev, "chipset analt ready for firmware\n");
 	else
 		r8169_apply_firmware(tp);
 }

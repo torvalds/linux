@@ -65,18 +65,18 @@ extern int ptrace_set_thread_area(struct task_struct *child, int idx,
 #define PT_REGS_R14(r) UPT_R14(&(r)->regs)
 #define PT_REGS_R15(r) UPT_R15(&(r)->regs)
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 static inline int ptrace_get_thread_area(struct task_struct *child, int idx,
                                          struct user_desc __user *user_desc)
 {
-        return -ENOSYS;
+        return -EANALSYS;
 }
 
 static inline int ptrace_set_thread_area(struct task_struct *child, int idx,
                                          struct user_desc __user *user_desc)
 {
-        return -ENOSYS;
+        return -EANALSYS;
 }
 
 extern long arch_prctl(struct task_struct *task, int option,

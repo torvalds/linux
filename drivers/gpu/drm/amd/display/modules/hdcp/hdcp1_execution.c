@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,17 +47,17 @@ static inline enum mod_hdcp_status check_ksv_ready(struct mod_hdcp *hdcp)
 	if (is_dp_hdcp(hdcp))
 		return (hdcp->auth.msg.hdcp1.bstatus & DP_BSTATUS_READY) ?
 				MOD_HDCP_STATUS_SUCCESS :
-				MOD_HDCP_STATUS_HDCP1_KSV_LIST_NOT_READY;
+				MOD_HDCP_STATUS_HDCP1_KSV_LIST_ANALT_READY;
 	return (hdcp->auth.msg.hdcp1.bcaps & DRM_HDCP_DDC_BCAPS_KSV_FIFO_READY) ?
 			MOD_HDCP_STATUS_SUCCESS :
-			MOD_HDCP_STATUS_HDCP1_KSV_LIST_NOT_READY;
+			MOD_HDCP_STATUS_HDCP1_KSV_LIST_ANALT_READY;
 }
 
 static inline enum mod_hdcp_status check_hdcp_capable_dp(struct mod_hdcp *hdcp)
 {
 	return (hdcp->auth.msg.hdcp1.bcaps & DP_BCAPS_HDCP_CAPABLE) ?
 			MOD_HDCP_STATUS_SUCCESS :
-			MOD_HDCP_STATUS_HDCP1_NOT_CAPABLE;
+			MOD_HDCP_STATUS_HDCP1_ANALT_CAPABLE;
 }
 
 static inline enum mod_hdcp_status check_r0p_available_dp(struct mod_hdcp *hdcp)
@@ -84,7 +84,7 @@ static inline enum mod_hdcp_status check_link_integrity_dp(
 			MOD_HDCP_STATUS_SUCCESS;
 }
 
-static inline enum mod_hdcp_status check_no_reauthentication_request_dp(
+static inline enum mod_hdcp_status check_anal_reauthentication_request_dp(
 		struct mod_hdcp *hdcp)
 {
 	return (hdcp->auth.msg.hdcp1.bstatus & DP_BSTATUS_REAUTH_REQ) ?
@@ -92,7 +92,7 @@ static inline enum mod_hdcp_status check_no_reauthentication_request_dp(
 			MOD_HDCP_STATUS_SUCCESS;
 }
 
-static inline enum mod_hdcp_status check_no_max_cascade(struct mod_hdcp *hdcp)
+static inline enum mod_hdcp_status check_anal_max_cascade(struct mod_hdcp *hdcp)
 {
 	enum mod_hdcp_status status;
 
@@ -107,7 +107,7 @@ static inline enum mod_hdcp_status check_no_max_cascade(struct mod_hdcp *hdcp)
 	return status;
 }
 
-static inline enum mod_hdcp_status check_no_max_devs(struct mod_hdcp *hdcp)
+static inline enum mod_hdcp_status check_anal_max_devs(struct mod_hdcp *hdcp)
 {
 	enum mod_hdcp_status status;
 
@@ -137,7 +137,7 @@ static inline enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
 
 	/* Some MST display may choose to report the internal panel as an HDCP RX.
 	 * To update this condition with 1(because the immediate repeater's internal
-	 * panel is possibly not included in DEVICE_COUNT) + get_device_count(hdcp).
+	 * panel is possibly analt included in DEVICE_COUNT) + get_device_count(hdcp).
 	 * Device count must be greater than or equal to tracked hdcp displays.
 	 */
 	return ((1 + get_device_count(hdcp)) < get_active_display_count(hdcp)) ?
@@ -292,7 +292,7 @@ static enum mod_hdcp_status wait_for_ready(struct mod_hdcp *hdcp,
 				&input->link_integrity_check, &status,
 				hdcp, "link_integrity_check"))
 			goto out;
-		if (!mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
+		if (!mod_hdcp_execute_and_set(check_anal_reauthentication_request_dp,
 				&input->reauth_request_check, &status,
 				hdcp, "reauth_request_check"))
 			goto out;
@@ -333,11 +333,11 @@ static enum mod_hdcp_status read_ksv_list(struct mod_hdcp *hdcp,
 				hdcp, "bstatus_read"))
 			goto out;
 	}
-	if (!mod_hdcp_execute_and_set(check_no_max_cascade,
+	if (!mod_hdcp_execute_and_set(check_anal_max_cascade,
 			&input->max_cascade_check, &status,
 			hdcp, "max_cascade_check"))
 		goto out;
-	if (!mod_hdcp_execute_and_set(check_no_max_devs,
+	if (!mod_hdcp_execute_and_set(check_anal_max_devs,
 			&input->max_devs_check, &status,
 			hdcp, "max_devs_check"))
 		goto out;
@@ -441,7 +441,7 @@ static enum mod_hdcp_status authenticated_dp(struct mod_hdcp *hdcp,
 				&input->link_integrity_check, &status,
 				hdcp, "link_integrity_check");
 	if (status == MOD_HDCP_STATUS_SUCCESS)
-		mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
+		mod_hdcp_execute_and_set(check_anal_reauthentication_request_dp,
 				&input->reauth_request_check, &status,
 				hdcp, "reauth_request_check");
 out:

@@ -17,7 +17,7 @@
  *
  * Do any intilization needed when a driver registers with rdmavt.
  *
- * Return: 0 on success or errno on failure
+ * Return: 0 on success or erranal on failure
  */
 int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 {
@@ -46,9 +46,9 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 	rdi->lkey_table.shift = 32 - lkey_table_size;
 	lk_tab_size = rdi->lkey_table.max * sizeof(*rdi->lkey_table.table);
 	rdi->lkey_table.table = (struct rvt_mregion __rcu **)
-			       vmalloc_node(lk_tab_size, rdi->dparms.node);
+			       vmalloc_analde(lk_tab_size, rdi->dparms.analde);
 	if (!rdi->lkey_table.table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	RCU_INIT_POINTER(rdi->dma_mr, NULL);
 	for (i = 0; i < rdi->lkey_table.max; i++)
@@ -67,7 +67,7 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 void rvt_mr_exit(struct rvt_dev_info *rdi)
 {
 	if (rdi->dma_mr)
-		rvt_pr_err(rdi, "DMA MR not null!\n");
+		rvt_pr_err(rdi, "DMA MR analt null!\n");
 
 	vfree(rdi->lkey_table.table);
 }
@@ -99,8 +99,8 @@ static int rvt_init_mregion(struct rvt_mregion *mr, struct ib_pd *pd,
 	mr->mapsz = 0;
 	m = (count + RVT_SEGSZ - 1) / RVT_SEGSZ;
 	for (; i < m; i++) {
-		mr->map[i] = kzalloc_node(sizeof(*mr->map[0]), GFP_KERNEL,
-					  dev->dparms.node);
+		mr->map[i] = kzalloc_analde(sizeof(*mr->map[0]), GFP_KERNEL,
+					  dev->dparms.analde);
 		if (!mr->map[i])
 			goto bail;
 		mr->mapsz++;
@@ -117,19 +117,19 @@ static int rvt_init_mregion(struct rvt_mregion *mr, struct ib_pd *pd,
 	return 0;
 bail:
 	rvt_deinit_mregion(mr);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
  * rvt_alloc_lkey - allocate an lkey
  * @mr: memory region that this lkey protects
- * @dma_region: 0->normal key, 1->restricted DMA key
+ * @dma_region: 0->analrmal key, 1->restricted DMA key
  *
- * Returns 0 if successful, otherwise returns -errno.
+ * Returns 0 if successful, otherwise returns -erranal.
  *
  * Increments mr reference count as required.
  *
- * Sets the lkey field mr for non-dma regions.
+ * Sets the lkey field mr for analn-dma regions.
  *
  */
 static int rvt_alloc_lkey(struct rvt_mregion *mr, int dma_region)
@@ -175,7 +175,7 @@ static int rvt_alloc_lkey(struct rvt_mregion *mr, int dma_region)
 	 */
 	rkt->gen++;
 	/*
-	 * bits are capped to ensure enough bits for generation number
+	 * bits are capped to ensure eanalugh bits for generation number
 	 */
 	mr->lkey = (r << (32 - dev->dparms.lkey_table_size)) |
 		((((1 << (24 - dev->dparms.lkey_table_size)) - 1) & rkt->gen)
@@ -194,7 +194,7 @@ out:
 bail:
 	rvt_put_mr(mr);
 	spin_unlock_irqrestore(&rkt->lock, flags);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	goto out;
 }
 
@@ -237,7 +237,7 @@ out:
 static struct rvt_mr *__rvt_alloc_mr(int count, struct ib_pd *pd)
 {
 	struct rvt_mr *mr;
-	int rval = -ENOMEM;
+	int rval = -EANALMEM;
 	int m;
 
 	/* Allocate struct plus pointers to first level page tables. */
@@ -281,7 +281,7 @@ static void __rvt_free_mr(struct rvt_mr *mr)
  * @pd: protection domain for this memory region
  * @acc: access flags
  *
- * Return: the memory region on success, otherwise returns an errno.
+ * Return: the memory region on success, otherwise returns an erranal.
  */
 struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc)
 {
@@ -294,7 +294,7 @@ struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc)
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto bail;
 	}
 
@@ -331,7 +331,7 @@ bail:
  * @mr_access_flags: access flags for this memory region
  * @udata: unused by the driver
  *
- * Return: the memory region on success, otherwise returns an errno.
+ * Return: the memory region on success, otherwise returns an erranal.
  */
 struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			      u64 virt_addr, int mr_access_flags,
@@ -408,7 +408,7 @@ static void rvt_dereg_clean_qp_cb(struct rvt_qp *qp, u64 v)
 {
 	struct rvt_mregion *mr = (struct rvt_mregion *)v;
 
-	/* skip PDs that are not ours */
+	/* skip PDs that are analt ours */
 	if (mr->pd != qp->ibqp.pd)
 		return;
 	rvt_qp_mr_clean(qp, mr->lkey);
@@ -419,7 +419,7 @@ static void rvt_dereg_clean_qp_cb(struct rvt_qp *qp, u64 v)
  * @mr: the MR that is being deregistered
  *
  * This routine iterates RC QPs looking for references
- * to the lkey noted in mr.
+ * to the lkey analted in mr.
  */
 static void rvt_dereg_clean_qps(struct rvt_mregion *mr)
 {
@@ -436,7 +436,7 @@ static void rvt_dereg_clean_qps(struct rvt_mregion *mr)
  * This routine checks MRs holding a reference during
  * when being de-registered.
  *
- * If the count is non-zero, the code calls a clean routine then
+ * If the count is analn-zero, the code calls a clean routine then
  * waits for the timeout for the count to zero.
  */
 static int rvt_check_refs(struct rvt_mregion *mr, const char *t)
@@ -501,7 +501,7 @@ bool rvt_ss_has_lkey(struct rvt_sge_state *ss, u32 lkey)
  * @ibmr: the memory region to free
  * @udata: unused by the driver
  *
- * Note that this is called to free MRs created by rvt_get_dma_mr()
+ * Analte that this is called to free MRs created by rvt_get_dma_mr()
  * or rvt_reg_user_mr().
  *
  * Returns 0 on success.
@@ -530,7 +530,7 @@ out:
  * @mr_type: mem region type
  * @max_num_sg: Max number of segments allowed
  *
- * Return: the memory region on success, otherwise return an errno.
+ * Return: the memory region on success, otherwise return an erranal.
  */
 struct ib_mr *rvt_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			   u32 max_num_sg)
@@ -562,7 +562,7 @@ static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
 	int m, n;
 
 	if (unlikely(mapped_segs == mr->mr.max_segs))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	m = mapped_segs / RVT_SEGSZ;
 	n = mapped_segs % RVT_SEGSZ;
@@ -619,7 +619,7 @@ int rvt_fast_reg_mr(struct rvt_qp *qp, struct ib_mr *ibmr, u32 key,
 	if (qp->ibqp.pd != mr->mr.pd)
 		return -EACCES;
 
-	/* not applicable to dma MR or user MR */
+	/* analt applicable to dma MR or user MR */
 	if (!mr->mr.lkey || mr->umem)
 		return -EINVAL;
 
@@ -711,7 +711,7 @@ static inline bool rvt_sge_adjacent(struct rvt_sge *last_sge,
  *
  * Increments the reference count when a new sge is stored.
  *
- * Return: 0 if compressed, 1 if added , otherwise returns -errno.
+ * Return: 0 if compressed, 1 if added , otherwise returns -erranal.
  */
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		struct rvt_sge *isge, struct rvt_sge *last_sge,
@@ -771,7 +771,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 	off += mr->offset;
 	if (mr->page_shift) {
 		/*
-		 * page sizes are uniform power of 2 so no loop is necessary
+		 * page sizes are uniform power of 2 so anal loop is necessary
 		 * entries_spanned_by_off is the number of times the loop below
 		 * would have executed.
 		*/
@@ -878,7 +878,7 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 	off += mr->offset;
 	if (mr->page_shift) {
 		/*
-		 * page sizes are uniform power of 2 so no loop is necessary
+		 * page sizes are uniform power of 2 so anal loop is necessary
 		 * entries_spanned_by_off is the number of times the loop below
 		 * would have executed.
 		*/

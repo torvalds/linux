@@ -8,7 +8,7 @@ title: Partitions
 
 description: |
   This binding is generic and describes the content of the partitions container
-  node. All partition parsers must be referenced here.
+  analde. All partition parsers must be referenced here.
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>

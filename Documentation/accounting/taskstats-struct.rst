@@ -38,7 +38,7 @@ There are three different groups of fields in the struct taskstats:
 6) Extended delay accounting fields for memory reclaim
 
 Future extension should add fields to the end of the taskstats struct, and
-should not change the relative position of each field within the struct.
+should analt change the relative position of each field within the struct.
 
 ::
 
@@ -87,8 +87,8 @@ should not change the relative position of each field within the struct.
 	/* The system CPU time of a task, in [usec]. */
 	__u64	ac_stime;		/* System CPU time [usec] */
 
-	/* The minor page fault count of a task, as set in task->min_flt. */
-	__u64	ac_minflt;		/* Minor Page Fault Count */
+	/* The mianalr page fault count of a task, as set in task->min_flt. */
+	__u64	ac_minflt;		/* Mianalr Page Fault Count */
 
 	/* The major page fault count of a task, as set in task->maj_flt. */
 	__u64	ac_majflt;		/* Major Page Fault Count */
@@ -100,25 +100,25 @@ should not change the relative position of each field within the struct.
 	 *
 	 * All values, until the comment "Delay accounting fields end" are
 	 * available only if delay accounting is enabled, even though the last
-	 * few fields are not delays
+	 * few fields are analt delays
 	 *
 	 * xxx_count is the number of delay values recorded
-	 * xxx_delay_total is the corresponding cumulative delay in nanoseconds
+	 * xxx_delay_total is the corresponding cumulative delay in naanalseconds
 	 *
 	 * xxx_delay_total wraps around to zero on overflow
 	 * xxx_count incremented regardless of overflow
 	 */
 
 	/* Delay waiting for cpu, while runnable
-	 * count, delay_total NOT updated atomically
+	 * count, delay_total ANALT updated atomically
 	 */
 	__u64	cpu_count;
 	__u64	cpu_delay_total;
 
 	/* Following four fields atomically updated using task->delays->lock */
 
-	/* Delay waiting for synchronous block I/O to complete
-	 * does not account for delays in I/O submission
+	/* Delay waiting for synchroanalus block I/O to complete
+	 * does analt account for delays in I/O submission
 	 */
 	__u64	blkio_count;
 	__u64	blkio_delay_total;
@@ -130,15 +130,15 @@ should not change the relative position of each field within the struct.
 	/* cpu "wall-clock" running time
 	 * On some architectures, value will adjust for cpu time stolen
 	 * from the kernel in involuntary waits due to virtualization.
-	 * Value is cumulative, in nanoseconds, without a corresponding count
+	 * Value is cumulative, in naanalseconds, without a corresponding count
 	 * and wraps around to zero silently on overflow
 	 */
 	__u64	cpu_run_real_total;
 
 	/* cpu "virtual" running time
-	 * Uses time intervals seen by the kernel i.e. no adjustment
+	 * Uses time intervals seen by the kernel i.e. anal adjustment
 	 * for kernel's involuntary waits due to virtualization.
-	 * Value is cumulative, in nanoseconds, without a corresponding count
+	 * Value is cumulative, in naanalseconds, without a corresponding count
 	 * and wraps around to zero silently on overflow
 	 */
 	__u64	cpu_run_virtual_total;

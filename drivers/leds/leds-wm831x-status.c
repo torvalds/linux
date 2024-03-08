@@ -87,7 +87,7 @@ static int wm831x_status_blink_set(struct led_classdev *led_cdev,
 	unsigned long flags;
 	int ret = 0;
 
-	/* Pick some defaults if we've not been given times */
+	/* Pick some defaults if we've analt been given times */
 	if (*delay_on == 0 && *delay_off == 0) {
 		*delay_on = 250;
 		*delay_off = 250;
@@ -217,14 +217,14 @@ static int wm831x_status_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No register resource\n");
+		dev_err(&pdev->dev, "Anal register resource\n");
 		return -EINVAL;
 	}
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_status),
 			       GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->wm831x = wm831x;
 	drvdata->reg = res->start;

@@ -8,7 +8,7 @@ int probe_res;
 char input[4] = {};
 int test_pid;
 
-SEC("tracepoint/syscalls/sys_enter_nanosleep")
+SEC("tracepoint/syscalls/sys_enter_naanalsleep")
 int probe(void *ctx)
 {
 	/* This BPF program performs variable-offset reads and writes on a
@@ -28,18 +28,18 @@ int probe(void *ctx)
 	len = stack_buf[0] & 0xf;
 	last = (len - 1) & 0xf;
 
-	/* Append something to the buffer. The offset where we write is not
-	 * statically known; this is a variable-offset stack write.
+	/* Append something to the buffer. The offset where we write is analt
+	 * statically kanalwn; this is a variable-offset stack write.
 	 */
 	stack_buf[len] = 42;
 
-	/* Index into the buffer at an unknown offset. This is a
+	/* Index into the buffer at an unkanalwn offset. This is a
 	 * variable-offset stack read.
 	 *
-	 * Note that if it wasn't for the preceding variable-offset write, this
-	 * read would be rejected because the stack slot cannot be verified as
+	 * Analte that if it wasn't for the preceding variable-offset write, this
+	 * read would be rejected because the stack slot cananalt be verified as
 	 * being initialized. With the preceding variable-offset write, the
-	 * stack slot still cannot be verified, but the write inhibits the
+	 * stack slot still cananalt be verified, but the write inhibits the
 	 * respective check on the reasoning that, if there was a
 	 * variable-offset to a higher-or-equal spot, we're probably reading
 	 * what we just wrote.

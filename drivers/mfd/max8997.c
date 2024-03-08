@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(max8997_update_reg);
  * to parse their own platform data elements from device tree.
  *
  * The max8997 platform data structure is instantiated here and the drivers for
- * the sub-modules need not instantiate another instance while parsing their
+ * the sub-modules need analt instantiate aanalther instance while parsing their
  * platform data.
  */
 static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
@@ -135,9 +135,9 @@ static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
 
 	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	pd->ono = irq_of_parse_and_map(dev->of_node, 1);
+	pd->oanal = irq_of_parse_and_map(dev->of_analde, 1);
 
 	return pd;
 }
@@ -151,7 +151,7 @@ static int max8997_i2c_probe(struct i2c_client *i2c)
 	max8997 = devm_kzalloc(&i2c->dev, sizeof(struct max8997_dev),
 				GFP_KERNEL);
 	if (max8997 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max8997);
 	max8997->dev = &i2c->dev;
@@ -159,7 +159,7 @@ static int max8997_i2c_probe(struct i2c_client *i2c)
 	max8997->type = (uintptr_t)i2c_get_match_data(i2c);
 	max8997->irq = i2c->irq;
 
-	if (IS_ENABLED(CONFIG_OF) && max8997->dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && max8997->dev->of_analde) {
 		pdata = max8997_i2c_parse_dt_pdata(max8997->dev);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
@@ -169,7 +169,7 @@ static int max8997_i2c_probe(struct i2c_client *i2c)
 		return ret;
 
 	max8997->pdata = pdata;
-	max8997->ono = pdata->ono;
+	max8997->oanal = pdata->oanal;
 
 	mutex_init(&max8997->iolock);
 

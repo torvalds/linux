@@ -6,7 +6,7 @@
 .text
 /*
  * Corrupting a single bit of the PAC ensures the authentication will fail.  It
- * also guarantees no possible collision. TCR_EL1.TBI0 is set by default so no
+ * also guarantees anal possible collision. TCR_EL1.TBI0 is set by default so anal
  * top byte PAC is tested
  */
  pac_corruptor:

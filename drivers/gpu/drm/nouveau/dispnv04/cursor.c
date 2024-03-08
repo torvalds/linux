@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 #include <drm/drm_mode.h>
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
-#include "nouveau_crtc.h"
+#include "analuveau_drv.h"
+#include "analuveau_reg.h"
+#include "analuveau_crtc.h"
 #include "hw.h"
 
 static void
-nv04_cursor_show(struct nouveau_crtc *nv_crtc, bool update)
+nv04_cursor_show(struct analuveau_crtc *nv_crtc, bool update)
 {
 	nv_show_cursor(nv_crtc->base.dev, nv_crtc->index, true);
 }
 
 static void
-nv04_cursor_hide(struct nouveau_crtc *nv_crtc, bool update)
+nv04_cursor_hide(struct analuveau_crtc *nv_crtc, bool update)
 {
 	nv_show_cursor(nv_crtc->base.dev, nv_crtc->index, false);
 }
 
 static void
-nv04_cursor_set_pos(struct nouveau_crtc *nv_crtc, int x, int y)
+nv04_cursor_set_pos(struct analuveau_crtc *nv_crtc, int x, int y)
 {
 	nv_crtc->cursor_saved_x = x; nv_crtc->cursor_saved_y = y;
 	NVWriteRAMDAC(nv_crtc->base.dev, nv_crtc->index,
@@ -30,15 +30,15 @@ nv04_cursor_set_pos(struct nouveau_crtc *nv_crtc, int x, int y)
 static void
 crtc_wr_cio_state(struct drm_crtc *crtc, struct nv04_crtc_reg *crtcstate, int index)
 {
-	NVWriteVgaCrtc(crtc->dev, nouveau_crtc(crtc)->index, index,
+	NVWriteVgaCrtc(crtc->dev, analuveau_crtc(crtc)->index, index,
 		       crtcstate->CRTC[index]);
 }
 
 static void
-nv04_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
+nv04_cursor_set_offset(struct analuveau_crtc *nv_crtc, uint32_t offset)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 	struct drm_crtc *crtc = &nv_crtc->base;
 
@@ -60,7 +60,7 @@ nv04_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
 }
 
 int
-nv04_cursor_init(struct nouveau_crtc *crtc)
+nv04_cursor_init(struct analuveau_crtc *crtc)
 {
 	crtc->cursor.set_offset = nv04_cursor_set_offset;
 	crtc->cursor.set_pos = nv04_cursor_set_pos;

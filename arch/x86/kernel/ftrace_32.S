@@ -8,7 +8,7 @@
 #include <asm/page_types.h>
 #include <asm/segment.h>
 #include <asm/ftrace.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/frame.h>
 #include <asm/asm-offsets.h>
 
@@ -50,7 +50,7 @@ SYM_CODE_START(ftrace_caller)
 	/* Load parent ebp into edx */
 	movl	4*4(%esp), %edx
 #else
-	/* There's no frame pointer, load the appropriate stack addr instead */
+	/* There's anal frame pointer, load the appropriate stack addr instead */
 	lea	4*4(%esp), %edx
 #endif
 
@@ -104,7 +104,7 @@ SYM_CODE_START(ftrace_regs_caller)
 	 *  gap
 	 *  pt_regs
 	 *
-	 * We do _NOT_ restore: ss, flags, cs, gs, fs, es, ds
+	 * We do _ANALT_ restore: ss, flags, cs, gs, fs, es, ds
 	 */
 	subl	$3*4, %esp	# RET-IP + 3 gaps
 	pushl	%ss		# ss
@@ -196,5 +196,5 @@ return_to_handler:
 	popl	%eax
 	popl	%edx
 	addl	$4, %esp		# skip ebp
-	JMP_NOSPEC ecx
+	JMP_ANALSPEC ecx
 #endif

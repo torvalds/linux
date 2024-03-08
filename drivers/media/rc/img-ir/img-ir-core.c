@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder found in PowerDown Controller.
  *
- * Copyright 2010-2014 Imagination Technologies Ltd.
+ * Copyright 2010-2014 Imagination Techanallogies Ltd.
  *
  * This contains core img-ir code for setting up the driver. The two interfaces
  * (raw and hardware decode) are handled separately.
@@ -66,7 +66,7 @@ static void img_ir_ident(struct img_ir_priv *priv)
 		 "IMG IR Decoder (%d.%d.%d.%d) probed successfully\n",
 		 (core_rev & IMG_IR_DESIGNER) >> IMG_IR_DESIGNER_SHIFT,
 		 (core_rev & IMG_IR_MAJOR_REV) >> IMG_IR_MAJOR_REV_SHIFT,
-		 (core_rev & IMG_IR_MINOR_REV) >> IMG_IR_MINOR_REV_SHIFT,
+		 (core_rev & IMG_IR_MIANALR_REV) >> IMG_IR_MIANALR_REV_SHIFT,
 		 (core_rev & IMG_IR_MAINT_REV) >> IMG_IR_MAINT_REV_SHIFT);
 	dev_info(priv->dev, "Modes:%s%s\n",
 		 img_ir_hw_enabled(&priv->hw) ? " hardware" : "",
@@ -86,7 +86,7 @@ static int img_ir_probe(struct platform_device *pdev)
 	/* Private driver data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 	priv->dev = &pdev->dev;
@@ -100,12 +100,12 @@ static int img_ir_probe(struct platform_device *pdev)
 	/* Get core clock */
 	priv->clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(priv->clk))
-		dev_warn(&pdev->dev, "cannot get core clock resource\n");
+		dev_warn(&pdev->dev, "cananalt get core clock resource\n");
 
 	/* Get sys clock */
 	priv->sys_clk = devm_clk_get(&pdev->dev, "sys");
 	if (IS_ERR(priv->sys_clk))
-		dev_warn(&pdev->dev, "cannot get sys clock resource\n");
+		dev_warn(&pdev->dev, "cananalt get sys clock resource\n");
 	/*
 	 * Enabling the system clock before the register interface is
 	 * accessed. ISR shouldn't get called with Sys Clock disabled,
@@ -114,7 +114,7 @@ static int img_ir_probe(struct platform_device *pdev)
 	if (!IS_ERR(priv->sys_clk)) {
 		error = clk_prepare_enable(priv->sys_clk);
 		if (error) {
-			dev_err(&pdev->dev, "cannot enable sys clock\n");
+			dev_err(&pdev->dev, "cananalt enable sys clock\n");
 			return error;
 		}
 	}
@@ -123,7 +123,7 @@ static int img_ir_probe(struct platform_device *pdev)
 	error = img_ir_probe_raw(priv);
 	error2 = img_ir_probe_hw(priv);
 	if (error && error2) {
-		if (error == -ENODEV)
+		if (error == -EANALDEV)
 			error = error2;
 		goto err_probe;
 	}
@@ -132,7 +132,7 @@ static int img_ir_probe(struct platform_device *pdev)
 	priv->irq = irq;
 	error = request_irq(priv->irq, img_ir_isr, 0, "img-ir", priv);
 	if (error) {
-		dev_err(&pdev->dev, "cannot register IRQ %u\n",
+		dev_err(&pdev->dev, "cananalt register IRQ %u\n",
 			priv->irq);
 		error = -EIO;
 		goto err_irq;
@@ -186,6 +186,6 @@ static struct platform_driver img_ir_driver = {
 
 module_platform_driver(img_ir_driver);
 
-MODULE_AUTHOR("Imagination Technologies Ltd.");
+MODULE_AUTHOR("Imagination Techanallogies Ltd.");
 MODULE_DESCRIPTION("ImgTec IR");
 MODULE_LICENSE("GPL");

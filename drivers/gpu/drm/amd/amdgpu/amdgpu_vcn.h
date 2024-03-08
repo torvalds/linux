@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,7 +46,7 @@
 #define VCN_DEC_CMD_PACKET_START	0x0000000a
 #define VCN_DEC_CMD_PACKET_END		0x0000000b
 
-#define VCN_DEC_SW_CMD_NO_OP		0x00000000
+#define VCN_DEC_SW_CMD_ANAL_OP		0x00000000
 #define VCN_DEC_SW_CMD_END		0x00000001
 #define VCN_DEC_SW_CMD_IB		0x00000002
 #define VCN_DEC_SW_CMD_FENCE		0x00000003
@@ -57,7 +57,7 @@
 #define VCN_DEC_SW_CMD_REG_WRITE	0x0000000b
 #define VCN_DEC_SW_CMD_REG_WAIT		0x0000000c
 
-#define VCN_ENC_CMD_NO_OP		0x00000000
+#define VCN_ENC_CMD_ANAL_OP		0x00000000
 #define VCN_ENC_CMD_END 		0x00000001
 #define VCN_ENC_CMD_IB			0x00000002
 #define VCN_ENC_CMD_FENCE		0x00000003
@@ -219,7 +219,7 @@ struct amdgpu_vcn_reg{
 	unsigned	data0;
 	unsigned	data1;
 	unsigned	cmd;
-	unsigned	nop;
+	unsigned	analp;
 	unsigned	context_id;
 	unsigned	ib_vmid;
 	unsigned	ib_bar_low;

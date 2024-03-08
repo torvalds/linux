@@ -1,7 +1,7 @@
 /*-*- linux-c -*-
  *  linux/drivers/video/i810_regs.h -- Intel 810/815 Register List
  *
- *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2001 Antonianal Daplas<adaplas@pol.net>
  *      All Rights Reserved      
  *
  *
@@ -18,7 +18,7 @@
  * Based on:
  * Intel (R) 810 Chipset Family 
  * Programmer s Reference Manual 
- * November 1999 
+ * Analvember 1999 
  * Revision 1.0 
  * Order Number: 298026-001 R
  *
@@ -39,7 +39,7 @@
 #define IPEIR                 0x02088
 #define IPEHR                 0x0208C 
 #define INSTDONE              0x02090 
-#define NOPID                 0x02094
+#define ANALPID                 0x02094
 #define HWSTAM                0x02098 
 #define IER                   0x020A0
 #define IIR                   0x020A4

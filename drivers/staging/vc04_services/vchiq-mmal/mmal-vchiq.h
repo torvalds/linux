@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(analw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  *
@@ -27,7 +27,7 @@
 struct vchiq_mmal_instance;
 
 enum vchiq_mmal_es_type {
-	MMAL_ES_TYPE_UNKNOWN,     /**< Unknown elementary stream type */
+	MMAL_ES_TYPE_UNKANALWN,     /**< Unkanalwn elementary stream type */
 	MMAL_ES_TYPE_CONTROL,     /**< Elementary stream of control commands */
 	MMAL_ES_TYPE_AUDIO,       /**< Audio elementary stream */
 	MMAL_ES_TYPE_VIDEO,       /**< Video elementary stream */
@@ -156,7 +156,7 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 
 int vchiq_mmal_version(struct vchiq_mmal_instance *instance,
 		       u32 *major_out,
-		       u32 *minor_out);
+		       u32 *mianalr_out);
 
 int vchiq_mmal_submit_buffer(struct vchiq_mmal_instance *instance,
 			     struct vchiq_mmal_port *port,

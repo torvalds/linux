@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -83,7 +83,7 @@
 #define SCU_COMPLETION_TYPE_SDMA       SCU_COMPLETION_TYPE(1)
 #define SCU_COMPLETION_TYPE_UFI        SCU_COMPLETION_TYPE(2)
 #define SCU_COMPLETION_TYPE_EVENT      SCU_COMPLETION_TYPE(3)
-#define SCU_COMPLETION_TYPE_NOTIFY     SCU_COMPLETION_TYPE(4)
+#define SCU_COMPLETION_TYPE_ANALTIFY     SCU_COMPLETION_TYPE(4)
 
 /**
  *
@@ -136,12 +136,12 @@
 	((u32)(completion_code) << SCU_COMPLETION_TL_STATUS_SHIFT)
 
 /**
- * SCU_NORMALIZE_COMPLETION_STATUS() -
+ * SCU_ANALRMALIZE_COMPLETION_STATUS() -
  *
- * This macro takes a SCU_GET_COMPLETION_TL_STATUS and normalizes it for a
+ * This macro takes a SCU_GET_COMPLETION_TL_STATUS and analrmalizes it for a
  * return code.
  */
-#define SCU_NORMALIZE_COMPLETION_STATUS(completion_code) \
+#define SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code) \
 	(\
 		((completion_code) & SCU_COMPLETION_TL_STATUS_MASK) \
 		>> SCU_COMPLETION_TL_STATUS_SHIFT \
@@ -194,7 +194,7 @@
 /**
  * SCU_GET_FRAME_INDEX() -
  *
- * This macro returns a normalized frame index from an unsolicited frame
+ * This macro returns a analrmalized frame index from an unsolicited frame
  * completion.
  */
 #define SCU_GET_FRAME_INDEX(completion_code) \
@@ -208,8 +208,8 @@
 /**
  * SCU_GET_FRAME_ERROR() -
  *
- * This macro returns a zero (0) value if there is no frame error otherwise it
- * returns non-zero (!0).
+ * This macro returns a zero (0) value if there is anal frame error otherwise it
+ * returns analn-zero (!0).
  */
 #define SCU_GET_FRAME_ERROR(completion_code) \
 	((completion_code) & SCU_UNSOLICITED_FRAME_ERROR_MASK)
@@ -217,7 +217,7 @@
 /**
  *
  *
- * These constants represent normalized completion codes which must be shifted
+ * These constants represent analrmalized completion codes which must be shifted
  * 18 bits to match it with the hardware completion code. In a 16-bit compiler,
  * immediate constants are 16-bit values (the size of an int). If we shift
  * those by 18 bits, we completely lose the value. To ensure the value is a
@@ -279,7 +279,7 @@
 #define SCU_TASK_DONE_IIT_ENTRY_NV                          ((u32)0x3B)
 #define SCU_TASK_DONE_RNCNV_OUTBOUND                        ((u32)0x3C)
 #define SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY             ((u32)0x3D)
-#define SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED         ((u32)0x3E)
-#define SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED  ((u32)0x3F)
+#define SCU_TASK_OPEN_REJECT_PROTOCOL_ANALT_SUPPORTED         ((u32)0x3E)
+#define SCU_TASK_OPEN_REJECT_CONNECTION_RATE_ANALT_SUPPORTED  ((u32)0x3F)
 
 #endif /* _SCU_COMPLETION_CODES_HEADER_ */

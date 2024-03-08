@@ -5,6 +5,6 @@
 
 obj-y += ramfs.o
 
-file-mmu-y := file-nommu.o
+file-mmu-y := file-analmmu.o
 file-mmu-$(CONFIG_MMU) := file-mmu.o
-ramfs-objs += inode.o $(file-mmu-y)
+ramfs-objs += ianalde.o $(file-mmu-y)

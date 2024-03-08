@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_GENERIC_SHMBUF_H
 #define __ASM_GENERIC_SHMBUF_H
 
@@ -8,7 +8,7 @@
 
 /*
  * The shmid64_ds structure for x86 architecture.
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * shmid64_ds was originally meant to be architecture specific, but
@@ -41,7 +41,7 @@ struct shmid64_ds {
 #endif
 	__kernel_pid_t		shm_cpid;	/* pid of creator */
 	__kernel_pid_t		shm_lpid;	/* pid of last operator */
-	unsigned long		shm_nattch;	/* no. of current attaches */
+	unsigned long		shm_nattch;	/* anal. of current attaches */
 	unsigned long		__unused4;
 	unsigned long		__unused5;
 };

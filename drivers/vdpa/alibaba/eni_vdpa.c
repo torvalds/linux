@@ -29,7 +29,7 @@
 	dev_info(&pdev->dev, "%s"fmt, "eni_vdpa: ", ##__VA_ARGS__)
 
 struct eni_vring {
-	void __iomem *notify;
+	void __iomem *analtify;
 	char msix_name[ENI_MSIX_NAME_SIZE];
 	struct vdpa_callback cb;
 	int irq;
@@ -75,7 +75,7 @@ static int eni_vdpa_set_driver_features(struct vdpa_device *vdpa, u64 features)
 
 	if (!(features & BIT_ULL(VIRTIO_NET_F_MRG_RXBUF)) && features) {
 		ENI_ERR(ldev->pci_dev,
-			"VIRTIO_NET_F_MRG_RXBUF is not negotiated\n");
+			"VIRTIO_NET_F_MRG_RXBUF is analt negotiated\n");
 		return -EINVAL;
 	}
 
@@ -103,7 +103,7 @@ static int eni_vdpa_get_vq_irq(struct vdpa_device *vdpa, u16 idx)
 	struct eni_vdpa *eni_vdpa = vdpa_to_eni(vdpa);
 	int irq = eni_vdpa->vring[idx].irq;
 
-	if (irq == VIRTIO_MSI_NO_VECTOR)
+	if (irq == VIRTIO_MSI_ANAL_VECTOR)
 		return -EINVAL;
 
 	return irq;
@@ -116,18 +116,18 @@ static void eni_vdpa_free_irq(struct eni_vdpa *eni_vdpa)
 	int i;
 
 	for (i = 0; i < eni_vdpa->queues; i++) {
-		if (eni_vdpa->vring[i].irq != VIRTIO_MSI_NO_VECTOR) {
-			vp_legacy_queue_vector(ldev, i, VIRTIO_MSI_NO_VECTOR);
+		if (eni_vdpa->vring[i].irq != VIRTIO_MSI_ANAL_VECTOR) {
+			vp_legacy_queue_vector(ldev, i, VIRTIO_MSI_ANAL_VECTOR);
 			devm_free_irq(&pdev->dev, eni_vdpa->vring[i].irq,
 				      &eni_vdpa->vring[i]);
-			eni_vdpa->vring[i].irq = VIRTIO_MSI_NO_VECTOR;
+			eni_vdpa->vring[i].irq = VIRTIO_MSI_ANAL_VECTOR;
 		}
 	}
 
-	if (eni_vdpa->config_irq != VIRTIO_MSI_NO_VECTOR) {
-		vp_legacy_config_vector(ldev, VIRTIO_MSI_NO_VECTOR);
+	if (eni_vdpa->config_irq != VIRTIO_MSI_ANAL_VECTOR) {
+		vp_legacy_config_vector(ldev, VIRTIO_MSI_ANAL_VECTOR);
 		devm_free_irq(&pdev->dev, eni_vdpa->config_irq, eni_vdpa);
-		eni_vdpa->config_irq = VIRTIO_MSI_NO_VECTOR;
+		eni_vdpa->config_irq = VIRTIO_MSI_ANAL_VECTOR;
 	}
 
 	if (eni_vdpa->vectors) {
@@ -257,7 +257,7 @@ static u16 eni_vdpa_get_vq_num_min(struct vdpa_device *vdpa)
 static int eni_vdpa_get_vq_state(struct vdpa_device *vdpa, u16 qid,
 				struct vdpa_vq_state *state)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int eni_vdpa_set_vq_state(struct vdpa_device *vdpa, u16 qid,
@@ -266,7 +266,7 @@ static int eni_vdpa_set_vq_state(struct vdpa_device *vdpa, u16 qid,
 	struct virtio_pci_legacy_device *ldev = vdpa_to_ldev(vdpa);
 	const struct vdpa_vq_state_split *split = &state->split;
 
-	/* ENI is build upon virtio-pci specfication which not support
+	/* ENI is build upon virtio-pci specfication which analt support
 	 * to set state of virtqueue. But if the state is equal to the
 	 * device initial state by chance, we can let it go.
 	 */
@@ -274,7 +274,7 @@ static int eni_vdpa_set_vq_state(struct vdpa_device *vdpa, u16 qid,
 	    && split->avail_index == 0)
 		return 0;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 
@@ -291,7 +291,7 @@ static void eni_vdpa_set_vq_ready(struct vdpa_device *vdpa, u16 qid,
 {
 	struct virtio_pci_legacy_device *ldev = vdpa_to_ldev(vdpa);
 
-	/* ENI is a legacy virtio-pci device. This is not supported
+	/* ENI is a legacy virtio-pci device. This is analt supported
 	 * by specification. But we can disable virtqueue by setting
 	 * address to 0.
 	 */
@@ -313,13 +313,13 @@ static void eni_vdpa_set_vq_num(struct vdpa_device *vdpa, u16 qid,
 	struct pci_dev *pdev = ldev->pci_dev;
 	u16 n = vp_legacy_get_queue_size(ldev, qid);
 
-	/* ENI is a legacy virtio-pci device which not allow to change
+	/* ENI is a legacy virtio-pci device which analt allow to change
 	 * virtqueue size. Just report a error if someone tries to
 	 * change it.
 	 */
 	if (num != n)
 		ENI_ERR(pdev,
-			"not support to set vq %u fixed num %u to %u\n",
+			"analt support to set vq %u fixed num %u to %u\n",
 			qid, n, num);
 }
 
@@ -339,7 +339,7 @@ static void eni_vdpa_kick_vq(struct vdpa_device *vdpa, u16 qid)
 {
 	struct eni_vdpa *eni_vdpa = vdpa_to_eni(vdpa);
 
-	iowrite16(qid, eni_vdpa->vring[qid].notify);
+	iowrite16(qid, eni_vdpa->vring[qid].analtify);
 }
 
 static u32 eni_vdpa_get_device_id(struct vdpa_device *vdpa)
@@ -495,16 +495,16 @@ static int eni_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				      sizeof(*eni_vdpa->vring),
 				      GFP_KERNEL);
 	if (!eni_vdpa->vring) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		ENI_ERR(pdev, "failed to allocate virtqueues\n");
 		goto err_remove_vp_legacy;
 	}
 
 	for (i = 0; i < eni_vdpa->queues; i++) {
-		eni_vdpa->vring[i].irq = VIRTIO_MSI_NO_VECTOR;
-		eni_vdpa->vring[i].notify = ldev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY;
+		eni_vdpa->vring[i].irq = VIRTIO_MSI_ANAL_VECTOR;
+		eni_vdpa->vring[i].analtify = ldev->ioaddr + VIRTIO_PCI_QUEUE_ANALTIFY;
 	}
-	eni_vdpa->config_irq = VIRTIO_MSI_NO_VECTOR;
+	eni_vdpa->config_irq = VIRTIO_MSI_ANAL_VECTOR;
 
 	ret = vdpa_register_device(&eni_vdpa->vdpa, eni_vdpa->queues);
 	if (ret) {

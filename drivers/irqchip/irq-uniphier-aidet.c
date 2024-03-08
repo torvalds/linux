@@ -144,7 +144,7 @@ static int uniphier_aidet_domain_alloc(struct irq_domain *domain,
 		return ret;
 
 	/* parent is GIC */
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0] = 0;		/* SPI */
 	parent_fwspec.param[1] = hwirq;
@@ -162,22 +162,22 @@ static const struct irq_domain_ops uniphier_aidet_domain_ops = {
 static int uniphier_aidet_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 	struct irq_domain *parent_domain;
 	struct uniphier_aidet_priv *priv;
 
-	parent_np = of_irq_find_parent(dev->of_node);
+	parent_np = of_irq_find_parent(dev->of_analde);
 	if (!parent_np)
 		return -ENXIO;
 
 	parent_domain = irq_find_host(parent_np);
-	of_node_put(parent_np);
+	of_analde_put(parent_np);
 	if (!parent_domain)
 		return -EPROBE_DEFER;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->reg_base))
@@ -188,10 +188,10 @@ static int uniphier_aidet_probe(struct platform_device *pdev)
 	priv->domain = irq_domain_create_hierarchy(
 					parent_domain, 0,
 					UNIPHIER_AIDET_NR_IRQS,
-					of_node_to_fwnode(dev->of_node),
+					of_analde_to_fwanalde(dev->of_analde),
 					&uniphier_aidet_domain_ops, priv);
 	if (!priv->domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -223,7 +223,7 @@ static int __maybe_unused uniphier_aidet_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops uniphier_aidet_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(uniphier_aidet_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(uniphier_aidet_suspend,
 				      uniphier_aidet_resume)
 };
 

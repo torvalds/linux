@@ -16,7 +16,7 @@ typedef struct um_dup_user_desc {
 	unsigned int  contents:2;
 	unsigned int  read_exec_only:1;
 	unsigned int  limit_in_pages:1;
-	unsigned int  seg_not_present:1;
+	unsigned int  seg_analt_present:1;
 	unsigned int  useable:1;
 #ifdef __x86_64__
 	unsigned int  lm:1;

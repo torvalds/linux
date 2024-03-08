@@ -17,7 +17,7 @@
  * Architecture
  *
  * OPFN involves the communication between two QPs on the HFI
- * level on an Omni-Path fabric, and ULPs have no knowledge of
+ * level on an Omni-Path fabric, and ULPs have anal kanalwledge of
  * OPFN at all.
  *
  * Implementation
@@ -56,7 +56,7 @@
 #define HFI1_VERBS_E_ATOMIC_VADDR U64_MAX
 
 enum hfi1_opfn_codes {
-	STL_VERBS_EXTD_NONE = 0,
+	STL_VERBS_EXTD_ANALNE = 0,
 	STL_VERBS_EXTD_TID_RDMA,
 	STL_VERBS_EXTD_MAX
 };

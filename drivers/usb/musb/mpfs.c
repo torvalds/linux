@@ -52,7 +52,7 @@ static const struct musb_hdrc_config mpfs_musb_hdrc_config = {
 static irqreturn_t mpfs_musb_interrupt(int irq, void *__hci)
 {
 	unsigned long flags;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct musb *musb = __hci;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -80,7 +80,7 @@ static void mpfs_musb_set_vbus(struct musb *musb, int is_on)
 	/*
 	 * HDRC controls CPEN, but beware current surges during device
 	 * connect.  They can trigger transient overcurrent conditions
-	 * that must be ignored.
+	 * that must be iganalred.
 	 */
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
@@ -94,7 +94,7 @@ static void mpfs_musb_set_vbus(struct musb *musb, int is_on)
 		musb->is_active = 0;
 
 		/*
-		 * NOTE:  skipping A_WAIT_VFALL -> A_IDLE and
+		 * ANALTE:  skipping A_WAIT_VFALL -> A_IDLE and
 		 * jumping right to B_IDLE...
 		 */
 		musb->xceiv->otg->default_a = 0;
@@ -117,7 +117,7 @@ static int mpfs_musb_init(struct musb *musb)
 
 	musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 	if (IS_ERR(musb->xceiv)) {
-		dev_err(dev, "HS UDC: no transceiver configured\n");
+		dev_err(dev, "HS UDC: anal transceiver configured\n");
 		return PTR_ERR(musb->xceiv);
 	}
 
@@ -151,12 +151,12 @@ static int mpfs_probe(struct platform_device *pdev)
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	musb_pdev = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb_pdev) {
 		dev_err(dev, "failed to allocate musb device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	clk = devm_clk_get(&pdev->dev, NULL);
@@ -175,7 +175,7 @@ static int mpfs_probe(struct platform_device *pdev)
 	musb_pdev->dev.parent = dev;
 	musb_pdev->dev.coherent_dma_mask = DMA_BIT_MASK(39);
 	musb_pdev->dev.dma_mask = &musb_pdev->dev.coherent_dma_mask;
-	device_set_of_node_from_dev(&musb_pdev->dev, dev);
+	device_set_of_analde_from_dev(&musb_pdev->dev, dev);
 
 	glue->dev = dev;
 	glue->musb = musb_pdev;
@@ -183,7 +183,7 @@ static int mpfs_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk_disable;
 	}
 
@@ -191,8 +191,8 @@ static int mpfs_probe(struct platform_device *pdev)
 	pdata->platform_ops = &mpfs_ops;
 
 	pdata->mode = usb_get_dr_mode(dev);
-	if (pdata->mode == USB_DR_MODE_UNKNOWN) {
-		dev_info(dev, "No dr_mode property found, defaulting to otg\n");
+	if (pdata->mode == USB_DR_MODE_UNKANALWN) {
+		dev_info(dev, "Anal dr_mode property found, defaulting to otg\n");
 		pdata->mode = USB_DR_MODE_OTG;
 	}
 

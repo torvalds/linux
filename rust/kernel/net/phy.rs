@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-// Copyright (C) 2023 FUJITA Tomonori <fujita.tomonori@gmail.com>
+// Copyright (C) 2023 FUJITA Tomoanalri <fujita.tomoanalri@gmail.com>
 
 //! Network PHY device.
 //!
@@ -19,11 +19,11 @@ use core::marker::PhantomData;
 /// [`enum phy_state`]: ../../../../../../../include/linux/phy.h
 #[derive(PartialEq, Eq)]
 pub enum DeviceState {
-    /// PHY device and driver are not ready for anything.
+    /// PHY device and driver are analt ready for anything.
     Down,
     /// PHY is ready to send and receive packets.
     Ready,
-    /// PHY is up, but no polling or interrupts are done.
+    /// PHY is up, but anal polling or interrupts are done.
     Halted,
     /// PHY is up, but is in an error state.
     Error,
@@ -31,8 +31,8 @@ pub enum DeviceState {
     Up,
     /// PHY is currently running.
     Running,
-    /// PHY is up, but not currently plugged in.
-    NoLink,
+    /// PHY is up, but analt currently plugged in.
+    AnalLink,
     /// PHY is performing a cable test.
     CableTest,
 }
@@ -45,8 +45,8 @@ pub enum DuplexMode {
     Full,
     /// PHY is in half-duplex mode.
     Half,
-    /// PHY is in unknown duplex mode.
-    Unknown,
+    /// PHY is in unkanalwn duplex mode.
+    Unkanalwn,
 }
 
 /// An instance of a PHY device.
@@ -110,7 +110,7 @@ impl Device {
             bindings::phy_state_PHY_ERROR => DeviceState::Error,
             bindings::phy_state_PHY_UP => DeviceState::Up,
             bindings::phy_state_PHY_RUNNING => DeviceState::Running,
-            bindings::phy_state_PHY_NOLINK => DeviceState::NoLink,
+            bindings::phy_state_PHY_ANALLINK => DeviceState::AnalLink,
             bindings::phy_state_PHY_CABLETEST => DeviceState::CableTest,
             _ => DeviceState::Error,
         }
@@ -168,7 +168,7 @@ impl Device {
         let v = match mode {
             DuplexMode::Full => bindings::DUPLEX_FULL as i32,
             DuplexMode::Half => bindings::DUPLEX_HALF as i32,
-            DuplexMode::Unknown => bindings::DUPLEX_UNKNOWN as i32,
+            DuplexMode::Unkanalwn => bindings::DUPLEX_UNKANALWN as i32,
         };
         // SAFETY: The struct invariant ensures that we may access
         // this field without additional synchronization.
@@ -186,7 +186,7 @@ impl Device {
             bindings::mdiobus_read((*phydev).mdio.bus, (*phydev).mdio.addr, regnum.into())
         };
         if ret < 0 {
-            Err(Error::from_errno(ret))
+            Err(Error::from_erranal(ret))
         } else {
             Ok(ret as u16)
         }
@@ -210,7 +210,7 @@ impl Device {
         // So it's just an FFI call.
         let ret = unsafe { bindings::phy_read_paged(phydev, page.into(), regnum.into()) };
         if ret < 0 {
-            Err(Error::from_errno(ret))
+            Err(Error::from_erranal(ret))
         } else {
             Ok(ret as u16)
         }
@@ -271,7 +271,7 @@ impl Device {
         // So it's just an FFI call.
         let ret = unsafe { bindings::genphy_read_status(phydev) };
         if ret < 0 {
-            Err(Error::from_errno(ret))
+            Err(Error::from_erranal(ret))
         } else {
             Ok(ret as u16)
         }
@@ -361,7 +361,7 @@ impl<T: Driver> Adapter<T> {
         from_result(|| {
             // SAFETY: The C core code ensures that the accessors on
             // `Device` are okay to call even though `phy_device->lock`
-            // might not be held.
+            // might analt be held.
             let dev = unsafe { Device::from_raw(phydev) };
             T::suspend(dev)?;
             Ok(0)
@@ -375,7 +375,7 @@ impl<T: Driver> Adapter<T> {
         from_result(|| {
             // SAFETY: The C core code ensures that the accessors on
             // `Device` are okay to call even though `phy_device->lock`
-            // might not be held.
+            // might analt be held.
             let dev = unsafe { Device::from_raw(phydev) };
             T::resume(dev)?;
             Ok(0)
@@ -468,12 +468,12 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
-    unsafe extern "C" fn link_change_notify_callback(phydev: *mut bindings::phy_device) {
+    unsafe extern "C" fn link_change_analtify_callback(phydev: *mut bindings::phy_device) {
         // SAFETY: This callback is called only in contexts
         // where we hold `phy_device->lock`, so the accessors on
         // `Device` are okay to call.
         let dev = unsafe { Device::from_raw(phydev) };
-        T::link_change_notify(dev);
+        T::link_change_analtify(dev);
     }
 }
 
@@ -509,55 +509,55 @@ pub const fn create_phy_driver<T: Driver>() -> DriverVTable {
         soft_reset: if T::HAS_SOFT_RESET {
             Some(Adapter::<T>::soft_reset_callback)
         } else {
-            None
+            Analne
         },
         get_features: if T::HAS_GET_FEATURES {
             Some(Adapter::<T>::get_features_callback)
         } else {
-            None
+            Analne
         },
         match_phy_device: if T::HAS_MATCH_PHY_DEVICE {
             Some(Adapter::<T>::match_phy_device_callback)
         } else {
-            None
+            Analne
         },
         suspend: if T::HAS_SUSPEND {
             Some(Adapter::<T>::suspend_callback)
         } else {
-            None
+            Analne
         },
         resume: if T::HAS_RESUME {
             Some(Adapter::<T>::resume_callback)
         } else {
-            None
+            Analne
         },
         config_aneg: if T::HAS_CONFIG_ANEG {
             Some(Adapter::<T>::config_aneg_callback)
         } else {
-            None
+            Analne
         },
         read_status: if T::HAS_READ_STATUS {
             Some(Adapter::<T>::read_status_callback)
         } else {
-            None
+            Analne
         },
         read_mmd: if T::HAS_READ_MMD {
             Some(Adapter::<T>::read_mmd_callback)
         } else {
-            None
+            Analne
         },
         write_mmd: if T::HAS_WRITE_MMD {
             Some(Adapter::<T>::write_mmd_callback)
         } else {
-            None
+            Analne
         },
-        link_change_notify: if T::HAS_LINK_CHANGE_NOTIFY {
-            Some(Adapter::<T>::link_change_notify_callback)
+        link_change_analtify: if T::HAS_LINK_CHANGE_ANALTIFY {
+            Some(Adapter::<T>::link_change_analtify_callback)
         } else {
-            None
+            Analne
         },
         // SAFETY: The rest is zeroed out to initialize `struct phy_driver`,
-        // sets `Option<&F>` to be `None`.
+        // sets `Option<&F>` to be `Analne`.
         ..unsafe { core::mem::MaybeUninit::<bindings::phy_driver>::zeroed().assume_init() }
     }))
 }
@@ -580,16 +580,16 @@ pub trait Driver {
 
     /// Issues a PHY software reset.
     fn soft_reset(_dev: &mut Device) -> Result {
-        Err(code::ENOTSUPP)
+        Err(code::EANALTSUPP)
     }
 
     /// Probes the hardware to determine what abilities it has.
     fn get_features(_dev: &mut Device) -> Result {
-        Err(code::ENOTSUPP)
+        Err(code::EANALTSUPP)
     }
 
     /// Returns true if this is a suitable driver for the given phydev.
-    /// If not implemented, matching is based on [`Driver::PHY_DEVICE_ID`].
+    /// If analt implemented, matching is based on [`Driver::PHY_DEVICE_ID`].
     fn match_phy_device(_dev: &Device) -> bool {
         false
     }
@@ -597,36 +597,36 @@ pub trait Driver {
     /// Configures the advertisement and resets auto-negotiation
     /// if auto-negotiation is enabled.
     fn config_aneg(_dev: &mut Device) -> Result {
-        Err(code::ENOTSUPP)
+        Err(code::EANALTSUPP)
     }
 
     /// Determines the negotiated speed and duplex.
     fn read_status(_dev: &mut Device) -> Result<u16> {
-        Err(code::ENOTSUPP)
+        Err(code::EANALTSUPP)
     }
 
     /// Suspends the hardware, saving state if needed.
     fn suspend(_dev: &mut Device) -> Result {
-        Err(code::ENOTSUPP)
+        Err(code::EANALTSUPP)
     }
 
     /// Resumes the hardware, restoring state if needed.
     fn resume(_dev: &mut Device) -> Result {
-        Err(code::ENOTSUPP)
+        Err(code::EANALTSUPP)
     }
 
     /// Overrides the default MMD read function for reading a MMD register.
     fn read_mmd(_dev: &mut Device, _devnum: u8, _regnum: u16) -> Result<u16> {
-        Err(code::ENOTSUPP)
+        Err(code::EANALTSUPP)
     }
 
     /// Overrides the default MMD write function for writing a MMD register.
     fn write_mmd(_dev: &mut Device, _devnum: u8, _regnum: u16, _val: u16) -> Result {
-        Err(code::ENOTSUPP)
+        Err(code::EANALTSUPP)
     }
 
-    /// Callback for notification of link change.
-    fn link_change_notify(_dev: &mut Device) {}
+    /// Callback for analtification of link change.
+    fn link_change_analtify(_dev: &mut Device) {}
 }
 
 /// Registration structure for PHY drivers.
@@ -650,7 +650,7 @@ impl Registration {
             return Err(code::EINVAL);
         }
         // SAFETY: The type invariants of [`DriverVTable`] ensure that all elements of
-        // the `drivers` slice are initialized properly. `drivers` will not be moved.
+        // the `drivers` slice are initialized properly. `drivers` will analt be moved.
         // So it's just an FFI call.
         to_result(unsafe {
             bindings::phy_drivers_register(drivers[0].0.get(), drivers.len().try_into()?, module.0)
@@ -791,7 +791,7 @@ impl DeviceMask {
 ///
 /// This expands to the following code:
 ///
-/// ```ignore
+/// ```iganalre
 /// use kernel::c_str;
 /// use kernel::net::phy::{self, DeviceId};
 /// use kernel::prelude::*;
@@ -833,7 +833,7 @@ impl DeviceMask {
 /// };
 ///
 /// #[cfg(MODULE)]
-/// #[no_mangle]
+/// #[anal_mangle]
 /// static __mod_mdio__phydev_device_table: [::kernel::bindings::mdio_device_id; 2] = [
 ///     ::kernel::bindings::mdio_device_id {
 ///         phy_id: 0x00000001,
@@ -854,9 +854,9 @@ macro_rules! module_phy_driver {
     };
 
     (@device_table [$($dev:expr),+]) => {
-        // SAFETY: C will not read off the end of this constant since the last element is zero.
+        // SAFETY: C will analt read off the end of this constant since the last element is zero.
         #[cfg(MODULE)]
-        #[no_mangle]
+        #[anal_mangle]
         static __mod_mdio__phydev_device_table: [$crate::bindings::mdio_device_id;
             $crate::module_phy_driver!(@count_devices $($dev),+) + 1] = [
             $($dev.mdio_device_id()),+,
@@ -884,7 +884,7 @@ macro_rules! module_phy_driver {
 
             impl $crate::Module for Module {
                 fn init(module: &'static ThisModule) -> Result<Self> {
-                    // SAFETY: The anonymous constant guarantees that nobody else can access
+                    // SAFETY: The aanalnymous constant guarantees that analbody else can access
                     // the `DRIVERS` static. The array is used only in the C side.
                     let drivers = unsafe { &mut DRIVERS };
                     let mut reg = $crate::net::phy::Registration::register(

@@ -19,14 +19,14 @@
  * Virtual Ethernet interfaces.
  *
  * For each mode, the following tests are run:
- *    a. nopoll - soft-irq processing in run-to-completion mode
+ *    a. analpoll - soft-irq processing in run-to-completion mode
  *    b. poll - using poll() syscall
  *    c. Socket Teardown
- *       Create a Tx and a Rx socket, Tx from one socket, Rx on another. Destroy
- *       both sockets, then repeat multiple times. Only nopoll mode is used
+ *       Create a Tx and a Rx socket, Tx from one socket, Rx on aanalther. Destroy
+ *       both sockets, then repeat multiple times. Only analpoll mode is used
  *    d. Bi-directional sockets
  *       Configure sockets as bi-directional tx/rx sockets, sets up fill and
- *       completion rings on each socket, tx/rx in both directions. Only nopoll
+ *       completion rings on each socket, tx/rx in both directions. Only analpoll
  *       mode is used
  *    e. Statistics
  *       Trigger some error conditions and ensure that the appropriate statistics
@@ -40,7 +40,7 @@
  *       iii. rx ring full
  *            Reduce the size of the RX ring to a fraction of the fill ring size.
  *       iv.  fill queue empty
- *            Do not populate the fill queue and then try to receive pkts.
+ *            Do analt populate the fill queue and then try to receive pkts.
  *    f. bpf_link resource persistence
  *       Configure sockets at indexes 0 and 1, run a traffic on queue ids 0,
  *       then remove xsk sockets from queue 0 on both veth interfaces and
@@ -53,7 +53,7 @@
  *    k. If multi-buffer and huge pages are supported, send 9k packets in a single frame
  *       using unaligned mode
  *    l. If multi-buffer is supported, try various nasty combinations of descriptors to
- *       check if they pass the validation or not
+ *       check if they pass the validation or analt
  *
  * Flow:
  * -----
@@ -74,7 +74,7 @@
 #define _GNU_SOURCE
 #include <assert.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <linux/if_link.h>
 #include <linux/if_ether.h>
@@ -232,17 +232,17 @@ static void enable_busy_poll(struct xsk_socket_info *xsk)
 	sock_opt = 1;
 	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
 		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
-		exit_with_error(errno);
+		exit_with_error(erranal);
 
 	sock_opt = 20;
 	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL,
 		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
-		exit_with_error(errno);
+		exit_with_error(erranal);
 
 	sock_opt = BATCH_SIZE;
 	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
 		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
-		exit_with_error(errno);
+		exit_with_error(erranal);
 }
 
 static int __xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_info *umem,
@@ -269,7 +269,7 @@ static int __xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_i
 static bool ifobj_zc_avail(struct ifobject *ifobject)
 {
 	size_t umem_sz = DEFAULT_UMEM_BUFFERS * XSK_UMEM__DEFAULT_FRAME_SIZE;
-	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+	int mmap_flags = MAP_PRIVATE | MAP_AANALNYMOUS | MAP_ANALRESERVE;
 	struct xsk_socket_info *xsk;
 	struct xsk_umem_info *umem;
 	bool zc_avail = false;
@@ -278,12 +278,12 @@ static bool ifobj_zc_avail(struct ifobject *ifobject)
 
 	bufs = mmap(NULL, umem_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
 	if (bufs == MAP_FAILED)
-		exit_with_error(errno);
+		exit_with_error(erranal);
 
 	umem = calloc(1, sizeof(struct xsk_umem_info));
 	if (!umem) {
 		munmap(bufs, umem_sz);
-		exit_with_error(ENOMEM);
+		exit_with_error(EANALMEM);
 	}
 	umem->frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
 	ret = xsk_configure_umem(ifobject, umem, bufs, umem_sz);
@@ -311,12 +311,12 @@ out:
 
 static struct option long_options[] = {
 	{"interface", required_argument, 0, 'i'},
-	{"busy-poll", no_argument, 0, 'b'},
-	{"verbose", no_argument, 0, 'v'},
+	{"busy-poll", anal_argument, 0, 'b'},
+	{"verbose", anal_argument, 0, 'v'},
 	{"mode", required_argument, 0, 'm'},
-	{"list", no_argument, 0, 'l'},
+	{"list", anal_argument, 0, 'l'},
 	{"test", required_argument, 0, 't'},
-	{"help", no_argument, 0, 'h'},
+	{"help", anal_argument, 0, 'h'},
 	{0, 0, 0, 0}
 };
 
@@ -372,7 +372,7 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 
 			ifobj->ifindex = if_nametoindex(ifobj->ifname);
 			if (!ifobj->ifindex)
-				exit_with_error(errno);
+				exit_with_error(erranal);
 
 			interface_nb++;
 			break;
@@ -397,9 +397,9 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 			opt_print_tests = true;
 			break;
 		case 't':
-			errno = 0;
+			erranal = 0;
 			opt_run_test = strtol(optarg, NULL, 0);
-			if (errno)
+			if (erranal)
 				print_usage(argv);
 			break;
 		case 'h':
@@ -666,7 +666,7 @@ static struct pkt_stream *__pkt_stream_generate(u32 nb_pkts, u32 pkt_len, u32 nb
 
 	pkt_stream = __pkt_stream_alloc(nb_pkts);
 	if (!pkt_stream)
-		exit_with_error(ENOMEM);
+		exit_with_error(EANALMEM);
 
 	pkt_stream->nb_pkts = nb_pkts;
 	pkt_stream->max_pkt_len = pkt_len;
@@ -791,7 +791,7 @@ static struct pkt_stream *__pkt_stream_generate_custom(struct ifobject *ifobj, s
 
 	pkt_stream = __pkt_stream_alloc(nb_frames);
 	if (!pkt_stream)
-		exit_with_error(ENOMEM);
+		exit_with_error(EANALMEM);
 
 	for (i = 0; i < nb_frames; i++) {
 		struct pkt *pkt = &pkt_stream->pkts[pkt_nb];
@@ -1003,7 +1003,7 @@ static int kick_tx(struct xsk_socket_info *xsk)
 	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 	if (ret >= 0)
 		return TEST_PASS;
-	if (errno == ENOBUFS || errno == EAGAIN || errno == EBUSY || errno == ENETDOWN) {
+	if (erranal == EANALBUFS || erranal == EAGAIN || erranal == EBUSY || erranal == ENETDOWN) {
 		usleep(100);
 		return TEST_PASS;
 	}
@@ -1192,17 +1192,17 @@ bool all_packets_received(struct test_spec *test, struct xsk_socket_info *xsk, u
 
 static int receive_pkts(struct test_spec *test)
 {
-	struct timeval tv_end, tv_now, tv_timeout = {THREAD_TMOUT, 0};
+	struct timeval tv_end, tv_analw, tv_timeout = {THREAD_TMOUT, 0};
 	DECLARE_BITMAP(bitmap, test->nb_sockets);
 	struct xsk_socket_info *xsk;
 	u32 sock_num = 0;
 	int res, ret;
 
-	ret = gettimeofday(&tv_now, NULL);
+	ret = gettimeofday(&tv_analw, NULL);
 	if (ret)
-		exit_with_error(errno);
+		exit_with_error(erranal);
 
-	timeradd(&tv_now, &tv_timeout, &tv_end);
+	timeradd(&tv_analw, &tv_timeout, &tv_end);
 
 	while (1) {
 		xsk = &test->ifobj_rx->xsk_arr[sock_num];
@@ -1214,11 +1214,11 @@ static int receive_pkts(struct test_spec *test)
 		if (!(res == TEST_PASS || res == TEST_CONTINUE))
 			return res;
 
-		ret = gettimeofday(&tv_now, NULL);
+		ret = gettimeofday(&tv_analw, NULL);
 		if (ret)
-			exit_with_error(errno);
+			exit_with_error(erranal);
 
-		if (timercmp(&tv_now, &tv_end, >)) {
+		if (timercmp(&tv_analw, &tv_end, >)) {
 			ksft_print_msg("ERROR: [%s] Receive loop timed out\n", __func__);
 			return TEST_FAILURE;
 		}
@@ -1255,7 +1255,7 @@ static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk, b
 			if (timeout) {
 				if (ret < 0) {
 					ksft_print_msg("ERROR: [%s] Poll error %d\n",
-						       __func__, errno);
+						       __func__, erranal);
 					return TEST_FAILURE;
 				}
 				if (ret == 0)
@@ -1264,7 +1264,7 @@ static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk, b
 			}
 			if (ret <= 0) {
 				ksft_print_msg("ERROR: [%s] Poll error %d\n",
-					       __func__, errno);
+					       __func__, erranal);
 				return TEST_FAILURE;
 			}
 		}
@@ -1353,19 +1353,19 @@ static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk, b
 
 static int wait_for_tx_completion(struct xsk_socket_info *xsk)
 {
-	struct timeval tv_end, tv_now, tv_timeout = {THREAD_TMOUT, 0};
+	struct timeval tv_end, tv_analw, tv_timeout = {THREAD_TMOUT, 0};
 	int ret;
 
-	ret = gettimeofday(&tv_now, NULL);
+	ret = gettimeofday(&tv_analw, NULL);
 	if (ret)
-		exit_with_error(errno);
-	timeradd(&tv_now, &tv_timeout, &tv_end);
+		exit_with_error(erranal);
+	timeradd(&tv_analw, &tv_timeout, &tv_end);
 
 	while (xsk->outstanding_tx) {
-		ret = gettimeofday(&tv_now, NULL);
+		ret = gettimeofday(&tv_analw, NULL);
 		if (ret)
-			exit_with_error(errno);
-		if (timercmp(&tv_now, &tv_end, >)) {
+			exit_with_error(erranal);
+		if (timercmp(&tv_analw, &tv_end, >)) {
 			ksft_print_msg("ERROR: [%s] Transmission loop timed out\n", __func__);
 			return TEST_FAILURE;
 		}
@@ -1453,9 +1453,9 @@ static int validate_rx_dropped(struct ifobject *ifobject)
 		return TEST_FAILURE;
 
 	/* The receiver calls getsockopt after receiving the last (valid)
-	 * packet which is not the final packet sent in this test (valid and
+	 * packet which is analt the final packet sent in this test (valid and
 	 * invalid packets are sent in alternating fashion with the final
-	 * packet being invalid). Since the last packet may or may not have
+	 * packet being invalid). Since the last packet may or may analt have
 	 * been dropped already, both outcomes must be allowed.
 	 */
 	if (stats.rx_dropped == ifobject->xsk->pkt_stream->nb_pkts / 2 ||
@@ -1549,7 +1549,7 @@ static void xsk_configure_socket(struct test_spec *test, struct ifobject *ifobje
 			if (!ret)
 				break;
 
-			/* Retry if it fails as xsk_socket__create() is asynchronous */
+			/* Retry if it fails as xsk_socket__create() is asynchroanalus */
 			if (ctr >= SOCK_RECONF_CTR)
 				exit_with_error(-ret);
 			usleep(USLEEP_MAX);
@@ -1582,7 +1582,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 
 	ret = xsk_ring_prod__reserve(&umem->fq, buffers_to_fill, &idx);
 	if (ret != buffers_to_fill)
-		exit_with_error(ENOSPC);
+		exit_with_error(EANALSPC);
 
 	while (filled < buffers_to_fill) {
 		struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &nb_pkts);
@@ -1615,7 +1615,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 {
 	u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
-	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+	int mmap_flags = MAP_PRIVATE | MAP_AANALNYMOUS | MAP_ANALRESERVE;
 	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
 	void *bufs;
 	int ret;
@@ -1629,7 +1629,7 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 
 	bufs = mmap(NULL, umem_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
 	if (bufs == MAP_FAILED)
-		exit_with_error(errno);
+		exit_with_error(erranal);
 
 	ret = xsk_configure_umem(ifobject, ifobject->umem, bufs, umem_sz);
 	if (ret)
@@ -1648,7 +1648,7 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 		ifobject->xsk = &ifobject->xsk_arr[i];
 		ret = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk, i);
 		if (ret)
-			exit_with_error(errno);
+			exit_with_error(erranal);
 	}
 }
 
@@ -1755,7 +1755,7 @@ static void xsk_reattach_xdp(struct ifobject *ifobj, struct bpf_program *xdp_pro
 
 	if (ifobj->mode != mode && (mode == TEST_MODE_DRV || mode == TEST_MODE_ZC))
 		if (!xsk_is_in_mode(ifobj->ifindex, XDP_FLAGS_DRV_MODE)) {
-			ksft_print_msg("ERROR: XDP prog not in DRV mode\n");
+			ksft_print_msg("ERROR: XDP prog analt in DRV mode\n");
 			exit_with_error(EINVAL);
 		}
 
@@ -1786,24 +1786,24 @@ static int __testapp_validate_traffic(struct test_spec *test, struct ifobject *i
 	if (test->mtu > MAX_ETH_PKT_SIZE) {
 		if (test->mode == TEST_MODE_ZC && (!ifobj1->multi_buff_zc_supp ||
 						   (ifobj2 && !ifobj2->multi_buff_zc_supp))) {
-			ksft_test_result_skip("Multi buffer for zero-copy not supported.\n");
+			ksft_test_result_skip("Multi buffer for zero-copy analt supported.\n");
 			return TEST_SKIP;
 		}
 		if (test->mode != TEST_MODE_ZC && (!ifobj1->multi_buff_supp ||
 						   (ifobj2 && !ifobj2->multi_buff_supp))) {
-			ksft_test_result_skip("Multi buffer not supported.\n");
+			ksft_test_result_skip("Multi buffer analt supported.\n");
 			return TEST_SKIP;
 		}
 	}
 	err = test_spec_set_mtu(test, test->mtu);
 	if (err) {
-		ksft_print_msg("Error, could not set mtu.\n");
+		ksft_print_msg("Error, could analt set mtu.\n");
 		exit_with_error(err);
 	}
 
 	if (ifobj2) {
 		if (pthread_barrier_init(&barr, NULL, 2))
-			exit_with_error(errno);
+			exit_with_error(erranal);
 		pkt_stream_reset(ifobj2->xsk->pkt_stream);
 	}
 
@@ -1818,7 +1818,7 @@ static int __testapp_validate_traffic(struct test_spec *test, struct ifobject *i
 	if (ifobj2) {
 		pthread_barrier_wait(&barr);
 		if (pthread_barrier_destroy(&barr))
-			exit_with_error(errno);
+			exit_with_error(erranal);
 
 		/*Spawn TX thread */
 		pthread_create(&t1, NULL, ifobj2->func_ptr, test);
@@ -1856,7 +1856,7 @@ static int testapp_validate_traffic(struct test_spec *test)
 
 	if ((ifobj_rx->umem->unaligned_mode && !ifobj_rx->unaligned_supp) ||
 	    (ifobj_tx->umem->unaligned_mode && !ifobj_tx->unaligned_supp)) {
-		ksft_test_result_skip("No huge pages present.\n");
+		ksft_test_result_skip("Anal huge pages present.\n");
 		return TEST_SKIP;
 	}
 
@@ -1951,7 +1951,7 @@ static int testapp_headroom(struct test_spec *test)
 static int testapp_stats_rx_dropped(struct test_spec *test)
 {
 	if (test->mode == TEST_MODE_ZC) {
-		ksft_test_result_skip("Can not run RX_DROPPED test for ZC mode\n");
+		ksft_test_result_skip("Can analt run RX_DROPPED test for ZC mode\n");
 		return TEST_SKIP;
 	}
 
@@ -2033,7 +2033,7 @@ static int testapp_invalid_desc_mb(struct test_spec *test)
 	struct pkt pkts[] = {
 		/* Valid packet for synch to start with */
 		{0, MIN_PKT_SIZE, 0, true, 0},
-		/* Zero frame len is not legal */
+		/* Zero frame len is analt legal */
 		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
 		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
 		{0, 0, 0, false, 0},
@@ -2097,7 +2097,7 @@ static int testapp_invalid_desc(struct test_spec *test)
 		pkts[7].valid = true;
 	}
 	if (umem->frame_size == XSK_UMEM__DEFAULT_FRAME_SIZE / 2) {
-		/* Crossing a 2K frame size boundary not allowed */
+		/* Crossing a 2K frame size boundary analt allowed */
 		pkts[8].valid = false;
 	}
 
@@ -2138,12 +2138,12 @@ static int testapp_xdp_metadata_copy(struct test_spec *test)
 
 	data_map = bpf_object__find_map_by_name(skel_rx->obj, "xsk_xdp_.bss");
 	if (!data_map || !bpf_map__is_internal(data_map)) {
-		ksft_print_msg("Error: could not find bss section of XDP program\n");
+		ksft_print_msg("Error: could analt find bss section of XDP program\n");
 		return TEST_FAILURE;
 	}
 
 	if (bpf_map_update_elem(bpf_map__fd(data_map), &key, &count, BPF_ANY)) {
-		ksft_print_msg("Error: could not update count element\n");
+		ksft_print_msg("Error: could analt update count element\n");
 		return TEST_FAILURE;
 	}
 
@@ -2244,7 +2244,7 @@ static bool hugepages_present(void)
 	void *bufs;
 
 	bufs = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
-		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, MAP_HUGE_2MB);
+		    MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB, -1, MAP_HUGE_2MB);
 	if (bufs == MAP_FAILED)
 		return false;
 
@@ -2340,7 +2340,7 @@ static int testapp_unaligned_inv_desc_4001_frame(struct test_spec *test)
 	test->ifobj_tx->umem->unaligned_mode = true;
 	test->ifobj_rx->umem->unaligned_mode = true;
 	/* This test exists to test descriptors that staddle the end of
-	 * the UMEM but not a page.
+	 * the UMEM but analt a page.
 	 */
 	page_size = sysconf(_SC_PAGESIZE);
 	umem_size = test->ifobj_tx->umem->num_frames * test->ifobj_tx->umem->frame_size;
@@ -2503,10 +2503,10 @@ int main(int argc, char **argv)
 
 	ifobj_tx = ifobject_create();
 	if (!ifobj_tx)
-		exit_with_error(ENOMEM);
+		exit_with_error(EANALMEM);
 	ifobj_rx = ifobject_create();
 	if (!ifobj_rx)
-		exit_with_error(ENOMEM);
+		exit_with_error(EANALMEM);
 
 	setlocale(LC_ALL, "");
 
@@ -2517,7 +2517,7 @@ int main(int argc, char **argv)
 		ksft_exit_xpass();
 	}
 	if (opt_run_test != RUN_ALL_TESTS && opt_run_test >= ARRAY_SIZE(tests)) {
-		ksft_print_msg("Error: test %u does not exist.\n", opt_run_test);
+		ksft_print_msg("Error: test %u does analt exist.\n", opt_run_test);
 		ksft_exit_xfail();
 	}
 
@@ -2541,7 +2541,7 @@ int main(int argc, char **argv)
 	tx_pkt_stream_default = pkt_stream_generate(DEFAULT_PKT_CNT, MIN_PKT_SIZE);
 	rx_pkt_stream_default = pkt_stream_generate(DEFAULT_PKT_CNT, MIN_PKT_SIZE);
 	if (!tx_pkt_stream_default || !rx_pkt_stream_default)
-		exit_with_error(ENOMEM);
+		exit_with_error(EANALMEM);
 	test.tx_pkt_stream_default = tx_pkt_stream_default;
 	test.rx_pkt_stream_default = rx_pkt_stream_default;
 
@@ -2553,11 +2553,11 @@ int main(int argc, char **argv)
 		ksft_set_plan(modes * nb_tests);
 	} else {
 		if (opt_mode == TEST_MODE_DRV && modes <= TEST_MODE_DRV) {
-			ksft_print_msg("Error: XDP_DRV mode not supported.\n");
+			ksft_print_msg("Error: XDP_DRV mode analt supported.\n");
 			ksft_exit_xfail();
 		}
 		if (opt_mode == TEST_MODE_ZC && modes <= TEST_MODE_ZC) {
-			ksft_print_msg("Error: zero-copy mode not supported.\n");
+			ksft_print_msg("Error: zero-copy mode analt supported.\n");
 			ksft_exit_xfail();
 		}
 

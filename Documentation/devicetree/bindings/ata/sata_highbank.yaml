@@ -57,7 +57,7 @@ properties:
   calxeda,tx-atten:
     description: |
       Contains TX attenuation override codes, one per port.
-      The upper 24 bits of each entry are always 0 and thus ignored.
+      The upper 24 bits of each entry are always 0 and thus iganalred.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     maxItems: 8

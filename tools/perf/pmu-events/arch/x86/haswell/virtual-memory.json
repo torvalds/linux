@@ -16,10 +16,10 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do not cause page walks",
+        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do analt cause page walks",
         "EventCode": "0x08",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
-        "PublicDescription": "Number of cache load STLB hits. No page walk.",
+        "PublicDescription": "Number of cache load STLB hits. Anal page walk.",
         "SampleAfterValue": "2000003",
         "UMask": "0x60"
     },
@@ -27,7 +27,7 @@
         "BriefDescription": "Load misses that miss the  DTLB and hit the STLB (2M)",
         "EventCode": "0x08",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT_2M",
-        "PublicDescription": "This event counts load operations from a 2M page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts load operations from a 2M page that miss the first DTLB level but hit the second and do analt cause page walks.",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     },
@@ -35,7 +35,7 @@
         "BriefDescription": "Load misses that miss the  DTLB and hit the STLB (4K)",
         "EventCode": "0x08",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT_4K",
-        "PublicDescription": "This event counts load operations from a 4K page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts load operations from a 4K page that miss the first DTLB level but hit the second and do analt cause page walks.",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
@@ -95,10 +95,10 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks",
+        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do analt cause page walks",
         "EventCode": "0x49",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT",
-        "PublicDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "Store operations that miss the first TLB level but hit the second and do analt cause page walks.",
         "SampleAfterValue": "100003",
         "UMask": "0x60"
     },
@@ -106,7 +106,7 @@
         "BriefDescription": "Store misses that miss the  DTLB and hit the STLB (2M)",
         "EventCode": "0x49",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT_2M",
-        "PublicDescription": "This event counts store operations from a 2M page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts store operations from a 2M page that miss the first DTLB level but hit the second and do analt cause page walks.",
         "SampleAfterValue": "100003",
         "UMask": "0x40"
     },
@@ -114,7 +114,7 @@
         "BriefDescription": "Store misses that miss the  DTLB and hit the STLB (4K)",
         "EventCode": "0x49",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT_4K",
-        "PublicDescription": "This event counts store operations from a 4K page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts store operations from a 4K page that miss the first DTLB level but hit the second and do analt cause page walks.",
         "SampleAfterValue": "100003",
         "UMask": "0x20"
     },
@@ -181,10 +181,10 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks",
+        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do analt cause any page walks",
         "EventCode": "0x85",
         "EventName": "ITLB_MISSES.STLB_HIT",
-        "PublicDescription": "ITLB misses that hit STLB. No page walk.",
+        "PublicDescription": "ITLB misses that hit STLB. Anal page walk.",
         "SampleAfterValue": "100003",
         "UMask": "0x60"
     },

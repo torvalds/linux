@@ -129,7 +129,7 @@ SND_SOC_DAPM_MIXER("Input Mixer", WM8776_PWRDOWN, 6, 1,
 SND_SOC_DAPM_ADC("ADC", "Capture", WM8776_PWRDOWN, 1, 1),
 SND_SOC_DAPM_DAC("DAC", "Playback", WM8776_PWRDOWN, 2, 1),
 
-SND_SOC_DAPM_MIXER("Output Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("Output Mixer", SND_SOC_ANALPM, 0, 0,
 		   outmix_controls, ARRAY_SIZE(outmix_controls)),
 
 SND_SOC_DAPM_PGA("Headphone PGA", WM8776_PWRDOWN, 3, 1, NULL, 0),
@@ -365,7 +365,7 @@ static const struct snd_soc_dai_ops wm8776_dac_ops = {
 	.hw_params      = wm8776_hw_params,
 	.set_fmt        = wm8776_set_fmt,
 	.set_sysclk     = wm8776_set_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8776_adc_ops = {
@@ -465,7 +465,7 @@ static int wm8776_spi_probe(struct spi_device *spi)
 	wm8776 = devm_kzalloc(&spi->dev, sizeof(struct wm8776_priv),
 			      GFP_KERNEL);
 	if (wm8776 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8776->regmap = devm_regmap_init_spi(spi, &wm8776_regmap);
 	if (IS_ERR(wm8776->regmap))
@@ -497,7 +497,7 @@ static int wm8776_i2c_probe(struct i2c_client *i2c)
 	wm8776 = devm_kzalloc(&i2c->dev, sizeof(struct wm8776_priv),
 			      GFP_KERNEL);
 	if (wm8776 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8776->regmap = devm_regmap_init_i2c(i2c, &wm8776_regmap);
 	if (IS_ERR(wm8776->regmap))

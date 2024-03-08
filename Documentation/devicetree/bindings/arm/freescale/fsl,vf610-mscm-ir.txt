@@ -10,9 +10,9 @@ which comes with a Cortex-A5/Cortex-M4 combination).
 Required properties:
 - compatible:		"fsl,vf610-mscm-ir"
 - reg:			the register range of the MSCM Interrupt Router
-- fsl,cpucfg:		The handle to the MSCM CPU configuration node, required
+- fsl,cpucfg:		The handle to the MSCM CPU configuration analde, required
 			to get the current CPU ID
-- interrupt-controller:	Identifies the node as an interrupt controller
+- interrupt-controller:	Identifies the analde as an interrupt controller
 - #interrupt-cells:	Two cells, interrupt number and cells.
 			The hardware interrupt number according to interrupt
 			assignment of the interrupt router is required.

@@ -2,7 +2,7 @@ Aardvark PCIe controller
 
 This PCIe controller is used on the Marvell Armada 3700 ARM64 SoC.
 
-The Device Tree node describing an Aardvark PCIe controller must
+The Device Tree analde describing an Aardvark PCIe controller must
 contain the following properties:
 
  - compatible: Should be "marvell,armada-3700-pcie"
@@ -24,8 +24,8 @@ contain the following properties:
  - reset-gpios: see pci.txt
 
 In addition, the Device Tree describing an Aardvark PCIe controller
-must include a sub-node that describes the legacy interrupt controller
-built into the PCIe controller. This sub-node must have the following
+must include a sub-analde that describes the legacy interrupt controller
+built into the PCIe controller. This sub-analde must have the following
 properties:
 
  - interrupt-controller

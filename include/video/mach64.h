@@ -14,7 +14,7 @@
 #ifndef REGMACH64_H
 #define REGMACH64_H
 
-/* NON-GUI MEMORY MAPPED Registers - expressed in BYTE offsets */
+/* ANALN-GUI MEMORY MAPPED Registers - expressed in BYTE offsets */
 
 /* Accelerator CRTC */
 #define CRTC_H_TOTAL_DISP	0x0000	/* Dword offset 0_00 */
@@ -711,7 +711,7 @@
 #define DAC_CMP_DISABLE         0x00000008
 #define DAC1_CLK_SEL            0x00000010
 #define PALETTE_ACCESS_CNTL     0x00000020
-#define PALETTE2_SNOOP_EN       0x00000040
+#define PALETTE2_SANALOP_EN       0x00000040
 #define DAC_CMP_OUTPUT          0x00000080 /* read only */
 /* #define DAC_8BIT_EN is ok */
 #define CRT_SENSE               0x00000800 /* read only */
@@ -725,22 +725,22 @@
 
 /* Mix control values */
 
-#define MIX_NOT_DST		0x0000
+#define MIX_ANALT_DST		0x0000
 #define MIX_0			0x0001
 #define MIX_1			0x0002
 #define MIX_DST			0x0003
-#define MIX_NOT_SRC		0x0004
+#define MIX_ANALT_SRC		0x0004
 #define MIX_XOR			0x0005
-#define MIX_XNOR		0x0006
+#define MIX_XANALR		0x0006
 #define MIX_SRC			0x0007
 #define MIX_NAND		0x0008
-#define MIX_NOT_SRC_OR_DST	0x0009
-#define MIX_SRC_OR_NOT_DST	0x000a
+#define MIX_ANALT_SRC_OR_DST	0x0009
+#define MIX_SRC_OR_ANALT_DST	0x000a
 #define MIX_OR			0x000b
 #define MIX_AND			0x000c
-#define MIX_SRC_AND_NOT_DST	0x000d
-#define MIX_NOT_SRC_AND_DST	0x000e
-#define MIX_NOR			0x000f
+#define MIX_SRC_AND_ANALT_DST	0x000d
+#define MIX_ANALT_SRC_AND_DST	0x000e
+#define MIX_ANALR			0x000f
 
 /* Maximum engine dimensions */
 #define ENGINE_MIN_X		0
@@ -944,7 +944,7 @@
 #define CFG_CHIP_REV		0xFF000000
 #define CFG_CHIP_MAJOR		0x07000000
 #define CFG_CHIP_FND_ID		0x38000000
-#define CFG_CHIP_MINOR		0xC0000000
+#define CFG_CHIP_MIANALR		0xC0000000
 
 
 /* Chip IDs read from CNFG_CHIP_ID */
@@ -1025,7 +1025,7 @@
 #define MACH64_FND_UMC		3
 
 /* Mach64 chip types */
-#define MACH64_UNKNOWN		0
+#define MACH64_UNKANALWN		0
 #define MACH64_GX		1
 #define MACH64_CX		2
 #define MACH64_CT		3Restore
@@ -1058,7 +1058,7 @@
 #define HOST_BYTE_ALIGN		1
 
 /* GUI_TRAJ_CNTL register constants */
-#define PAT_MONO_8x8_ENABLE	0x01000000
+#define PAT_MOANAL_8x8_ENABLE	0x01000000
 #define PAT_CLR_4x2_ENABLE	0x02000000
 #define PAT_CLR_8x1_ENABLE	0x04000000
 
@@ -1103,39 +1103,39 @@
 #define BYTE_ORDER_MASK		0x1000000
 
 /* DP_MIX register constants */
-#define BKGD_MIX_NOT_D			0
+#define BKGD_MIX_ANALT_D			0
 #define BKGD_MIX_ZERO			1
 #define BKGD_MIX_ONE			2
 #define BKGD_MIX_D			3
-#define BKGD_MIX_NOT_S			4
+#define BKGD_MIX_ANALT_S			4
 #define BKGD_MIX_D_XOR_S		5
-#define BKGD_MIX_NOT_D_XOR_S		6
+#define BKGD_MIX_ANALT_D_XOR_S		6
 #define BKGD_MIX_S			7
-#define BKGD_MIX_NOT_D_OR_NOT_S		8
-#define BKGD_MIX_D_OR_NOT_S		9
-#define BKGD_MIX_NOT_D_OR_S		10
+#define BKGD_MIX_ANALT_D_OR_ANALT_S		8
+#define BKGD_MIX_D_OR_ANALT_S		9
+#define BKGD_MIX_ANALT_D_OR_S		10
 #define BKGD_MIX_D_OR_S			11
 #define BKGD_MIX_D_AND_S		12
-#define BKGD_MIX_NOT_D_AND_S		13
-#define BKGD_MIX_D_AND_NOT_S		14
-#define BKGD_MIX_NOT_D_AND_NOT_S	15
+#define BKGD_MIX_ANALT_D_AND_S		13
+#define BKGD_MIX_D_AND_ANALT_S		14
+#define BKGD_MIX_ANALT_D_AND_ANALT_S	15
 #define BKGD_MIX_D_PLUS_S_DIV2		0x17
-#define FRGD_MIX_NOT_D			0
+#define FRGD_MIX_ANALT_D			0
 #define FRGD_MIX_ZERO			0x10000
 #define FRGD_MIX_ONE			0x20000
 #define FRGD_MIX_D			0x30000
-#define FRGD_MIX_NOT_S			0x40000
+#define FRGD_MIX_ANALT_S			0x40000
 #define FRGD_MIX_D_XOR_S		0x50000
-#define FRGD_MIX_NOT_D_XOR_S		0x60000
+#define FRGD_MIX_ANALT_D_XOR_S		0x60000
 #define FRGD_MIX_S			0x70000
-#define FRGD_MIX_NOT_D_OR_NOT_S		0x80000
-#define FRGD_MIX_D_OR_NOT_S		0x90000
-#define FRGD_MIX_NOT_D_OR_S		0xa0000
+#define FRGD_MIX_ANALT_D_OR_ANALT_S		0x80000
+#define FRGD_MIX_D_OR_ANALT_S		0x90000
+#define FRGD_MIX_ANALT_D_OR_S		0xa0000
 #define FRGD_MIX_D_OR_S			0xb0000
 #define FRGD_MIX_D_AND_S		0xc0000
-#define FRGD_MIX_NOT_D_AND_S		0xd0000
-#define FRGD_MIX_D_AND_NOT_S		0xe0000
-#define FRGD_MIX_NOT_D_AND_NOT_S	0xf0000
+#define FRGD_MIX_ANALT_D_AND_S		0xd0000
+#define FRGD_MIX_D_AND_ANALT_S		0xe0000
+#define FRGD_MIX_ANALT_D_AND_ANALT_S	0xf0000
 #define FRGD_MIX_D_PLUS_S_DIV2		0x170000
 
 /* DP_SRC register constants */
@@ -1149,15 +1149,15 @@
 #define FRGD_SRC_HOST		0x200
 #define FRGD_SRC_BLIT		0x300
 #define FRGD_SRC_PATTERN	0x400
-#define MONO_SRC_ONE		0
-#define MONO_SRC_PATTERN	0x10000
-#define MONO_SRC_HOST		0x20000
-#define MONO_SRC_BLIT		0x30000
+#define MOANAL_SRC_ONE		0
+#define MOANAL_SRC_PATTERN	0x10000
+#define MOANAL_SRC_HOST		0x20000
+#define MOANAL_SRC_BLIT		0x30000
 
 /* CLR_CMP_CNTL register constants */
 #define COMPARE_FALSE		0
 #define COMPARE_TRUE		1
-#define COMPARE_NOT_EQUAL	4
+#define COMPARE_ANALT_EQUAL	4
 #define COMPARE_EQUAL		5
 #define COMPARE_DESTINATION	0
 #define COMPARE_SOURCE		0x1000000
@@ -1166,7 +1166,7 @@
 #define FIFO_ERR		0x80000000
 
 /* CONTEXT_LOAD_CNTL constants */
-#define CONTEXT_NO_LOAD			0
+#define CONTEXT_ANAL_LOAD			0
 #define CONTEXT_LOAD			0x10000
 #define CONTEXT_LOAD_AND_DO_FILL	0x20000
 #define CONTEXT_LOAD_AND_DO_LINE	0x30000
@@ -1230,8 +1230,8 @@
 #define TRISTATE_MEM_EN		0x00000800
 #define SELF_REFRESH		0x00000080
 #define PWR_BLON		0x02000000
-#define STANDBY_NOW		0x10000000
-#define SUSPEND_NOW		0x20000000
+#define STANDBY_ANALW		0x10000000
+#define SUSPEND_ANALW		0x20000000
 #define PWR_MGT_STATUS_MASK	0xC0000000
 #define PWR_MGT_STATUS_SUSPEND	0x80000000
 

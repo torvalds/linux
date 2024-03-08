@@ -111,7 +111,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 	/* Check for null Op, can happen if AML code is corrupt */
 
 	if (!op) {
-		return_ACPI_STATUS(AE_OK);	/* OK for now */
+		return_ACPI_STATUS(AE_OK);	/* OK for analw */
 	}
 
 	acpi_ex_stop_trace_opcode(op, walk_state);
@@ -130,7 +130,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 		prev = op->common.parent->common.value.arg;
 		if (!prev) {
 
-			/* Nothing more to do */
+			/* Analthing more to do */
 
 			goto cleanup;
 		}
@@ -157,7 +157,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 			    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP,
 					     op->common.aml);
 			if (!replacement_op) {
-				status = AE_NO_MEMORY;
+				status = AE_ANAL_MEMORY;
 			}
 			break;
 
@@ -182,7 +182,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 				    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP,
 						     op->common.aml);
 				if (!replacement_op) {
-					status = AE_NO_MEMORY;
+					status = AE_ANAL_MEMORY;
 				}
 			} else
 			    if ((op->common.parent->common.aml_opcode ==
@@ -198,7 +198,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 							     aml_opcode,
 							     op->common.aml);
 					if (!replacement_op) {
-						status = AE_NO_MEMORY;
+						status = AE_ANAL_MEMORY;
 					} else {
 						replacement_op->named.data =
 						    op->named.data;
@@ -215,7 +215,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 			    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP,
 					     op->common.aml);
 			if (!replacement_op) {
-				status = AE_NO_MEMORY;
+				status = AE_ANAL_MEMORY;
 			}
 		}
 
@@ -229,7 +229,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 				replacement_op->common.parent =
 				    op->common.parent;
 				replacement_op->common.value.arg = NULL;
-				replacement_op->common.node = op->common.node;
+				replacement_op->common.analde = op->common.analde;
 				op->common.parent->common.value.arg =
 				    replacement_op;
 				replacement_op->common.next = op->common.next;
@@ -253,8 +253,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 						    op->common.parent;
 						replacement_op->common.value.
 						    arg = NULL;
-						replacement_op->common.node =
-						    op->common.node;
+						replacement_op->common.analde =
+						    op->common.analde;
 						prev->common.next =
 						    replacement_op;
 						replacement_op->common.next =
@@ -272,7 +272,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 
 cleanup:
 
-	/* Now we can actually delete the subtree rooted at Op */
+	/* Analw we can actually delete the subtree rooted at Op */
 
 	acpi_ps_delete_parse_tree(op);
 	return_ACPI_STATUS(status);
@@ -351,7 +351,7 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 	case AE_CTRL_FALSE:
 		/*
 		 * Either an IF/WHILE Predicate was false or we encountered a BREAK
-		 * opcode. In both cases, we do not execute the rest of the
+		 * opcode. In both cases, we do analt execute the rest of the
 		 * package;  We simply close out the parent (finishing the walk of
 		 * this branch of the tree) and continue execution at the parent
 		 * level.
@@ -371,8 +371,8 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 		status = AE_CTRL_TRANSFER;
 		walk_state->prev_op = op;
 		walk_state->method_call_op = op;
-		walk_state->method_call_node =
-		    (op->common.value.arg)->common.node;
+		walk_state->method_call_analde =
+		    (op->common.value.arg)->common.analde;
 
 		/* Will return value (if any) be used by the caller? */
 
@@ -437,7 +437,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		}
 
 		acpi_ds_delete_walk_state(walk_state);
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	walk_state->thread = thread;
@@ -470,7 +470,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		if (ACPI_SUCCESS(status)) {
 			/*
 			 * The parse_loop executes AML until the method terminates
-			 * or calls another method.
+			 * or calls aanalther method.
 			 */
 			status = acpi_ps_parse_loop(walk_state);
 		}
@@ -521,13 +521,13 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 			acpi_ex_exit_interpreter();
 			if (status == AE_ABORT_METHOD) {
-				acpi_ns_print_node_pathname(walk_state->
-							    method_node,
+				acpi_ns_print_analde_pathname(walk_state->
+							    method_analde,
 							    "Aborting method");
 				acpi_os_printf("\n");
 			} else {
 				ACPI_ERROR_METHOD("Aborting method",
-						  walk_state->method_node, NULL,
+						  walk_state->method_analde, NULL,
 						  status);
 			}
 			acpi_ex_enter_interpreter();
@@ -538,9 +538,9 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			    (!(walk_state->method_desc->method.info_flags &
 			       ACPI_METHOD_SERIALIZED))) {
 				/*
-				 * Method is not serialized and tried to create an object
-				 * twice. The probable cause is that the method cannot
-				 * handle reentrancy. Mark as "pending serialized" now, and
+				 * Method is analt serialized and tried to create an object
+				 * twice. The probable cause is that the method cananalt
+				 * handle reentrancy. Mark as "pending serialized" analw, and
 				 * then mark "serialized" when the last thread exits.
 				 */
 				walk_state->method_desc->method.info_flags |=
@@ -586,13 +586,13 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		if (walk_state) {
 			if (ACPI_SUCCESS(status)) {
 				/*
-				 * There is another walk state, restart it.
-				 * If the method return value is not used by the parent,
+				 * There is aanalther walk state, restart it.
+				 * If the method return value is analt used by the parent,
 				 * The object is deleted
 				 */
 				if (!previous_walk_state->return_desc) {
 					/*
-					 * In slack mode execution, if there is no return value
+					 * In slack mode execution, if there is anal return value
 					 * we should implicitly return zero (0) as a default value.
 					 */
 					if (acpi_gbl_enable_interpreter_slack &&
@@ -605,7 +605,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 						if (!previous_walk_state->
 						    implicit_return_obj) {
 							return_ACPI_STATUS
-							    (AE_NO_MEMORY);
+							    (AE_ANAL_MEMORY);
 						}
 					}
 
@@ -652,7 +652,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 				*(previous_walk_state->caller_return_desc) =
 				    previous_walk_state->implicit_return_obj;
 			} else {
-				/* NULL if no return value */
+				/* NULL if anal return value */
 
 				*(previous_walk_state->caller_return_desc) =
 				    previous_walk_state->return_desc;
@@ -677,7 +677,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		acpi_ds_delete_walk_state(previous_walk_state);
 	}
 
-	/* Normal exit */
+	/* Analrmal exit */
 
 	acpi_ex_release_all_mutexes(thread);
 	acpi_ut_delete_generic_state(ACPI_CAST_PTR

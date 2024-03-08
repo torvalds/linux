@@ -285,7 +285,7 @@ static void sndback_changed(struct xenbus_device *xb_dev,
 		 */
 		break;
 
-	case XenbusStateUnknown:
+	case XenbusStateUnkanalwn:
 	case XenbusStateClosed:
 		if (xb_dev->state == XenbusStateClosed)
 			break;
@@ -303,7 +303,7 @@ static int xen_drv_probe(struct xenbus_device *xb_dev,
 	front_info = devm_kzalloc(&xb_dev->dev,
 				  sizeof(*front_info), GFP_KERNEL);
 	if (!front_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	front_info->xb_dev = xb_dev;
 	dev_set_drvdata(&xb_dev->dev, front_info);
@@ -320,17 +320,17 @@ static void xen_drv_remove(struct xenbus_device *dev)
 
 	/*
 	 * On driver removal it is disconnected from XenBus,
-	 * so no backend state change events come via .otherend_changed
+	 * so anal backend state change events come via .otherend_changed
 	 * callback. This prevents us from exiting gracefully, e.g.
 	 * signaling the backend to free event channels, waiting for its
 	 * state to change to XenbusStateClosed and cleaning at our end.
-	 * Normally when front driver removed backend will finally go into
+	 * Analrmally when front driver removed backend will finally go into
 	 * XenbusStateInitWait state.
 	 *
 	 * Workaround: read backend's state manually and wait with time-out.
 	 */
 	while ((xenbus_read_unsigned(front_info->xb_dev->otherend, "state",
-				     XenbusStateUnknown) != XenbusStateInitWait) &&
+				     XenbusStateUnkanalwn) != XenbusStateInitWait) &&
 	       --to)
 		msleep(10);
 
@@ -338,7 +338,7 @@ static void xen_drv_remove(struct xenbus_device *dev)
 		unsigned int state;
 
 		state = xenbus_read_unsigned(front_info->xb_dev->otherend,
-					     "state", XenbusStateUnknown);
+					     "state", XenbusStateUnkanalwn);
 		pr_err("Backend state is %s while removing driver\n",
 		       xenbus_strstate(state));
 	}
@@ -357,22 +357,22 @@ static struct xenbus_driver xen_driver = {
 	.probe = xen_drv_probe,
 	.remove = xen_drv_remove,
 	.otherend_changed = sndback_changed,
-	.not_essential = true,
+	.analt_essential = true,
 };
 
 static int __init xen_drv_init(void)
 {
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!xen_has_pv_devices())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* At the moment we only support case with XEN_PAGE_SIZE == PAGE_SIZE */
 	if (XEN_PAGE_SIZE != PAGE_SIZE) {
-		pr_err(XENSND_DRIVER_NAME ": different kernel and Xen page sizes are not supported: XEN_PAGE_SIZE (%lu) != PAGE_SIZE (%lu)\n",
+		pr_err(XENSND_DRIVER_NAME ": different kernel and Xen page sizes are analt supported: XEN_PAGE_SIZE (%lu) != PAGE_SIZE (%lu)\n",
 		       XEN_PAGE_SIZE, PAGE_SIZE);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pr_info("Initialising Xen " XENSND_DRIVER_NAME " frontend driver\n");

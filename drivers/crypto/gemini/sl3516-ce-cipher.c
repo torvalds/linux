@@ -37,14 +37,14 @@ static bool sl3516_ce_need_fallback(struct skcipher_request *areq)
 	}
 
 	/*
-	 * check if we have enough descriptors for TX
-	 * Note: TX need one control desc for each SG
+	 * check if we have eanalugh descriptors for TX
+	 * Analte: TX need one control desc for each SG
 	 */
 	if (sg_nents(areq->src) > MAXDESC / 2) {
 		ce->fallback_sg_count_tx++;
 		return true;
 	}
-	/* check if we have enough descriptors for RX */
+	/* check if we have eanalugh descriptors for RX */
 	if (sg_nents(areq->dst) > MAXDESC) {
 		ce->fallback_sg_count_rx++;
 		return true;
@@ -88,7 +88,7 @@ static bool sl3516_ce_need_fallback(struct skcipher_request *areq)
 	out_sg = areq->dst;
 	while (in_sg && out_sg) {
 		if (in_sg->length != out_sg->length) {
-			ce->fallback_not_same_len++;
+			ce->fallback_analt_same_len++;
 			return true;
 		}
 		in_sg = sg_next(in_sg);
@@ -327,7 +327,7 @@ int sl3516_ce_cipher_init(struct crypto_tfm *tfm)
 
 	op->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(op->ce->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(op->ce->dev, "ERROR: Cananalt allocate fallback for %s %ld\n",
 			name, PTR_ERR(op->fallback_tfm));
 		return PTR_ERR(op->fallback_tfm);
 	}
@@ -345,7 +345,7 @@ int sl3516_ce_cipher_init(struct crypto_tfm *tfm)
 
 	return 0;
 error_pm:
-	pm_runtime_put_noidle(op->ce->dev);
+	pm_runtime_put_analidle(op->ce->dev);
 	crypto_free_skcipher(op->fallback_tfm);
 	return err;
 }
@@ -380,7 +380,7 @@ int sl3516_ce_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	op->keylen = keylen;
 	op->key = kmemdup(key, keylen, GFP_KERNEL | GFP_DMA);
 	if (!op->key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);

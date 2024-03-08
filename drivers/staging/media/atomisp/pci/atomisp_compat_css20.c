@@ -43,7 +43,7 @@
 #define MAX_ACC_STAGES	20
 
 /* Ideally, this should come from CSS headers */
-#define NO_LINK -1
+#define ANAL_LINK -1
 
 /*
  * to serialize MMIO access , this is due to ISP2400 silicon issue Sighting
@@ -61,7 +61,7 @@ enum frame_info_type {
 
 struct bayer_ds_factor {
 	unsigned int numerator;
-	unsigned int denominator;
+	unsigned int deanalminator;
 };
 
 static void atomisp_css2_hw_store_8(hrt_address addr, uint8_t data)
@@ -516,7 +516,7 @@ static int __destroy_stream_pipes(struct atomisp_sub_device *asd,
 		if (ia_css_pipe_destroy(stream_env->pipes[i])
 		    != 0) {
 			dev_err(isp->dev,
-				"destroy pipe[%d]failed.cannot recover.\n", i);
+				"destroy pipe[%d]failed.cananalt recover.\n", i);
 			ret = -EINVAL;
 		}
 		stream_env->pipes[i] = NULL;
@@ -534,7 +534,7 @@ static int __destroy_pipes(struct atomisp_sub_device *asd)
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
 		if (asd->stream_env[i].stream) {
 			dev_err(isp->dev,
-				"cannot destroy css pipes for stream[%d].\n",
+				"cananalt destroy css pipes for stream[%d].\n",
 				i);
 			continue;
 		}
@@ -986,7 +986,7 @@ int atomisp_css_start(struct atomisp_sub_device *asd)
 	int ret = 0, i = 0;
 
 	if (!sh_css_hrt_system_is_idle())
-		dev_err(isp->dev, "CSS HW not idle before starting SP\n");
+		dev_err(isp->dev, "CSS HW analt idle before starting SP\n");
 
 	if (ia_css_start_sp()) {
 		dev_err(isp->dev, "start sp error.\n");
@@ -1039,7 +1039,7 @@ void atomisp_css_update_isp_params(struct atomisp_sub_device *asd)
 	 */
 	if (asd->copy_mode) {
 		dev_warn(asd->isp->dev,
-			 "%s: ia_css_stream_set_isp_config() not supported in copy mode!.\n",
+			 "%s: ia_css_stream_set_isp_config() analt supported in copy mode!.\n",
 			 __func__);
 		return;
 	}
@@ -1319,9 +1319,9 @@ int atomisp_css_get_grid_info(struct atomisp_sub_device *asd,
 		asd->params.s3a_enabled_pipe = pipe_id;
 	}
 
-	/* If the grid info has not changed and the buffers for 3A and
+	/* If the grid info has analt changed and the buffers for 3A and
 	 * DIS statistics buffers are allocated or buffer size would be zero
-	 * then no need to do anything. */
+	 * then anal need to do anything. */
 	if (((!memcmp(&old_info, &asd->params.curr_grid_info, sizeof(old_info))
 	      && asd->params.s3a_user_stat && asd->params.dvs_stat)
 	     || asd->params.curr_grid_info.s3a_grid.width == 0
@@ -1351,7 +1351,7 @@ int atomisp_alloc_3a_output_buf(struct atomisp_sub_device *asd)
 	asd->params.s3a_user_stat = ia_css_3a_statistics_allocate(
 					&asd->params.curr_grid_info.s3a_grid);
 	if (!asd->params.s3a_user_stat)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* 3A statistics. These can be big, so we use vmalloc. */
 	asd->params.s3a_output_bytes =
 	    asd->params.curr_grid_info.s3a_grid.width *
@@ -1370,7 +1370,7 @@ int atomisp_alloc_dis_coef_buf(struct atomisp_sub_device *asd)
 		return 0;
 
 	if (!dvs_grid->enable) {
-		dev_dbg(asd->isp->dev, "%s: dvs_grid not enabled.\n", __func__);
+		dev_dbg(asd->isp->dev, "%s: dvs_grid analt enabled.\n", __func__);
 		return 0;
 	}
 
@@ -1378,7 +1378,7 @@ int atomisp_alloc_dis_coef_buf(struct atomisp_sub_device *asd)
 	asd->params.css_param.dvs2_coeff = ia_css_dvs2_coefficients_allocate(
 					       dvs_grid);
 	if (!asd->params.css_param.dvs2_coeff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asd->params.dvs_hor_coef_bytes = dvs_grid->num_hor_coefs *
 					 sizeof(*asd->params.css_param.dvs2_coeff->hor_coefs.odd_real);
@@ -1390,7 +1390,7 @@ int atomisp_alloc_dis_coef_buf(struct atomisp_sub_device *asd)
 	asd->params.dis_proj_data_valid = false;
 	asd->params.dvs_stat = ia_css_dvs2_statistics_allocate(dvs_grid);
 	if (!asd->params.dvs_stat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asd->params.dvs_hor_proj_bytes =
 	    dvs_grid->aligned_height * dvs_grid->aligned_width *
@@ -1418,7 +1418,7 @@ int atomisp_alloc_metadata_output_buf(struct atomisp_sub_device *asd)
 				kvfree(asd->params.metadata_user[i]);
 				asd->params.metadata_user[i] = NULL;
 			}
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1442,7 +1442,7 @@ void atomisp_css_temp_pipe_to_pipe_id(struct atomisp_sub_device *asd,
 {
 	/*
 	 * FIXME!
-	 * Pipe ID reported in CSS event is not correct for new system's
+	 * Pipe ID reported in CSS event is analt correct for new system's
 	 * copy pipe.
 	 * VIED BZ: 1463
 	 */
@@ -1549,7 +1549,7 @@ int atomisp_css_set_default_isys_config(struct atomisp_sub_device *asd,
 	struct ia_css_stream_config *s_config =
 		    &asd->stream_env[stream_id].stream_config;
 	/*
-	 * Set all isys configs to not valid.
+	 * Set all isys configs to analt valid.
 	 * Currently we support only one stream per channel
 	 */
 	for (i = IA_CSS_STREAM_ISYS_STREAM_0;
@@ -1561,7 +1561,7 @@ int atomisp_css_set_default_isys_config(struct atomisp_sub_device *asd,
 	atomisp_css_isys_set_format(asd, stream_id,
 				    s_config->input_config.format,
 				    IA_CSS_STREAM_DEFAULT_ISYS_STREAM_IDX);
-	atomisp_css_isys_set_link(asd, stream_id, NO_LINK,
+	atomisp_css_isys_set_link(asd, stream_id, ANAL_LINK,
 				  IA_CSS_STREAM_DEFAULT_ISYS_STREAM_IDX);
 	atomisp_css_isys_set_valid(asd, stream_id, true,
 				   IA_CSS_STREAM_DEFAULT_ISYS_STREAM_IDX);
@@ -1723,7 +1723,7 @@ void atomisp_css_input_set_mode(struct atomisp_sub_device *asd,
 				 size_mem_words);
 		}
 		s_config->mipi_buffer_config.size_mem_words = size_mem_words;
-		s_config->mipi_buffer_config.nof_mipi_buffers = 2;
+		s_config->mipi_buffer_config.analf_mipi_buffers = 2;
 	}
 }
 
@@ -2050,12 +2050,12 @@ static void __configure_preview_pp_input(struct atomisp_sub_device *asd,
 	 * Rule for YUV Downscaling: arbitrary value below 2
 	 *
 	 * General rule of factor distribution among these stages:
-	 * 1: try to do Bayer downscaling first if not in online mode.
+	 * 1: try to do Bayer downscaling first if analt in online mode.
 	 * 2: try to do maximum of 2 for YUV downscaling
 	 * 3: the remainling for YUV decimation
 	 *
-	 * Note:
-	 * Do not configure bayer_ds_out_res if:
+	 * Analte:
+	 * Do analt configure bayer_ds_out_res if:
 	 * online == 1 or continuous == 0 or raw_binning = 0
 	 */
 	if (stream_config->online || !stream_config->continuous ||
@@ -2068,16 +2068,16 @@ static void __configure_preview_pp_input(struct atomisp_sub_device *asd,
 
 		for (i = 0; i < ARRAY_SIZE(bds_fct); i++) {
 			if (effective_res->width >= out_width *
-			    bds_fct[i].numerator / bds_fct[i].denominator &&
+			    bds_fct[i].numerator / bds_fct[i].deanalminator &&
 			    effective_res->height >= out_height *
-			    bds_fct[i].numerator / bds_fct[i].denominator) {
+			    bds_fct[i].numerator / bds_fct[i].deanalminator) {
 				bayer_ds_out_res->width =
 				    effective_res->width *
-				    bds_fct[i].denominator /
+				    bds_fct[i].deanalminator /
 				    bds_fct[i].numerator;
 				bayer_ds_out_res->height =
 				    effective_res->height *
-				    bds_fct[i].denominator /
+				    bds_fct[i].deanalminator /
 				    bds_fct[i].numerator;
 				break;
 			}
@@ -2085,7 +2085,7 @@ static void __configure_preview_pp_input(struct atomisp_sub_device *asd,
 	}
 	/*
 	 * calculate YUV Decimation, YUV downscaling facor:
-	 * YUV Downscaling factor must not exceed 2.
+	 * YUV Downscaling factor must analt exceed 2.
 	 * YUV Decimation factor could be 2, 4.
 	 */
 	/* first decide the yuv_ds input resolution */
@@ -2163,7 +2163,7 @@ static void __configure_video_pp_input(struct atomisp_sub_device *asd,
 	 * and usually the bayer_ds_out_res should be larger than 120% of
 	 * destination resolution, the extra 20% will be cropped as DVS
 	 * envelope. But,  if the bayer_ds_out_res is less than 120% of the
-	 * destination. The ISP can still work,  but DVS quality is not good.
+	 * destination. The ISP can still work,  but DVS quality is analt good.
 	 */
 	/* taking at least 10% as envelope */
 	if (asd->params.video_dis_en) {
@@ -2177,7 +2177,7 @@ static void __configure_video_pp_input(struct atomisp_sub_device *asd,
 	/*
 	 * calculate bayer decimate factor:
 	 * 1: only 1.5, 2, 4 and 8 get supported
-	 * 2: Do not configure bayer_ds_out_res if:
+	 * 2: Do analt configure bayer_ds_out_res if:
 	 *    online == 1 or continuous == 0 or raw_binning = 0
 	 */
 	if (stream_config->online || !stream_config->continuous) {
@@ -2193,21 +2193,21 @@ static void __configure_video_pp_input(struct atomisp_sub_device *asd,
 	for (i = 0; i < sizeof(bds_factors) / sizeof(struct bayer_ds_factor);
 	     i++) {
 		if (effective_res->width >= out_width *
-		    bds_factors[i].numerator / bds_factors[i].denominator &&
+		    bds_factors[i].numerator / bds_factors[i].deanalminator &&
 		    effective_res->height >= out_height *
-		    bds_factors[i].numerator / bds_factors[i].denominator) {
+		    bds_factors[i].numerator / bds_factors[i].deanalminator) {
 			bayer_ds_out_res->width = effective_res->width *
-						  bds_factors[i].denominator /
+						  bds_factors[i].deanalminator /
 						  bds_factors[i].numerator;
 			bayer_ds_out_res->height = effective_res->height *
-						   bds_factors[i].denominator /
+						   bds_factors[i].deanalminator /
 						   bds_factors[i].numerator;
 			break;
 		}
 	}
 
 	/*
-	 * DVS is cropped from BDS output, so we do not really need to set the
+	 * DVS is cropped from BDS output, so we do analt really need to set the
 	 * envelope to 20% of output resolution here. always set it to 12x12
 	 * per firmware requirement.
 	 */
@@ -2256,7 +2256,7 @@ static int __get_frame_info(struct atomisp_sub_device *asd,
 	int ret;
 	struct ia_css_pipe_info p_info;
 
-	/* FIXME! No need to destroy/recreate all streams */
+	/* FIXME! Anal need to destroy/recreate all streams */
 	ret = atomisp_css_update_stream(asd);
 	if (ret)
 		return ret;
@@ -2315,7 +2315,7 @@ static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd)
 		return IA_CSS_PIPE_ID_PREVIEW;
 	}
 
-	dev_warn(asd->isp->dev, "cannot determine pipe-index return default preview pipe\n");
+	dev_warn(asd->isp->dev, "cananalt determine pipe-index return default preview pipe\n");
 	return IA_CSS_PIPE_ID_PREVIEW;
 }
 
@@ -2519,7 +2519,7 @@ int atomisp_css_exp_id_capture(struct atomisp_sub_device *asd, int exp_id)
 	ret = ia_css_stream_capture_frame(
 		  asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream,
 		  exp_id);
-	if (ret == -ENOBUFS) {
+	if (ret == -EANALBUFS) {
 		/* capture cmd queue is full */
 		return -EBUSY;
 	} else if (ret) {
@@ -2536,7 +2536,7 @@ int atomisp_css_exp_id_unlock(struct atomisp_sub_device *asd, int exp_id)
 	ret = ia_css_unlock_raw_frame(
 		  asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream,
 		  exp_id);
-	if (ret == -ENOBUFS)
+	if (ret == -EANALBUFS)
 		return -EAGAIN;
 	else if (ret)
 		return -EIO;
@@ -2565,7 +2565,7 @@ void atomisp_css_set_ctc_table(struct atomisp_sub_device *asd,
 	int data_size = IA_CSS_VAMEM_1_CTC_TABLE_SIZE;
 	bool valid = false;
 
-	/* workaround: if ctc_table is all 0, do not apply it */
+	/* workaround: if ctc_table is all 0, do analt apply it */
 	if (ctc_table->vamem_type == IA_CSS_VAMEM_TYPE_2) {
 		vamem_ptr = ctc_table->data.vamem_2;
 		data_size = IA_CSS_VAMEM_2_CTC_TABLE_SIZE;
@@ -2615,7 +2615,7 @@ static int atomisp_compare_dvs_grid(struct atomisp_sub_device *asd,
 	    atomisp_css_get_dvs_grid_info(&asd->params.curr_grid_info);
 
 	if (!cur) {
-		dev_err(asd->isp->dev, "dvs grid not available!\n");
+		dev_err(asd->isp->dev, "dvs grid analt available!\n");
 		return -EINVAL;
 	}
 
@@ -2625,7 +2625,7 @@ static int atomisp_compare_dvs_grid(struct atomisp_sub_device *asd,
 	}
 
 	if (!cur->enable) {
-		dev_err(asd->isp->dev, "dvs not enabled!\n");
+		dev_err(asd->isp->dev, "dvs analt enabled!\n");
 		return -EINVAL;
 	}
 
@@ -2905,7 +2905,7 @@ int atomisp_css_get_ctc_table(struct atomisp_sub_device *asd,
 
 	tab = vzalloc(sizeof(struct ia_css_ctc_table));
 	if (!tab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&isp_config, 0, sizeof(struct ia_css_isp_config));
 	isp_config.ctc_table = tab;
@@ -2933,7 +2933,7 @@ int atomisp_css_get_gamma_table(struct atomisp_sub_device *asd,
 
 	tab = vzalloc(sizeof(struct ia_css_gamma_table));
 	if (!tab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&isp_config, 0, sizeof(struct ia_css_isp_config));
 	isp_config.gamma_table = tab;
@@ -3076,7 +3076,7 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 	spin_lock_irqsave(&asd->dis_stats_lock, flags);
 	if (!asd->params.dis_proj_data_valid || list_empty(&asd->dis_stats)) {
 		spin_unlock_irqrestore(&asd->dis_stats_lock, flags);
-		dev_err(isp->dev, "dis statistics is not valid.\n");
+		dev_err(isp->dev, "dis statistics is analt valid.\n");
 		return -EAGAIN;
 	}
 
@@ -3224,10 +3224,10 @@ int atomisp_css_isr_thread(struct atomisp_device *isp)
 			 * trigger WDT to recover
 			 */
 			dev_err(isp->dev,
-				"%s: ISP reports FW_ASSERT event! fw_assert_module_id %d fw_assert_line_no %d\n",
+				"%s: ISP reports FW_ASSERT event! fw_assert_module_id %d fw_assert_line_anal %d\n",
 				__func__,
 				current_event.event.fw_assert_module_id,
-				current_event.event.fw_assert_line_no);
+				current_event.event.fw_assert_line_anal);
 
 			queue_work(system_long_wq, &isp->assert_recovery_work);
 			return -EINVAL;
@@ -3243,7 +3243,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp)
 				dev_dbg(isp->dev,
 					"event: Timer event.");
 			else
-				dev_warn(isp->dev, "%s:no subdev.event:%d",
+				dev_warn(isp->dev, "%s:anal subdev.event:%d",
 					 __func__,
 					 current_event.event.type);
 			continue;
@@ -3348,7 +3348,7 @@ static const char * const fw_type_name[] = {
 };
 
 static const char * const fw_acc_type_name[] = {
-	[IA_CSS_ACC_NONE] =		"Normal",
+	[IA_CSS_ACC_ANALNE] =		"Analrmal",
 	[IA_CSS_ACC_OUTPUT] =		"Accel stage on output",
 	[IA_CSS_ACC_VIEWFINDER] =	"Accel stage on viewfinder",
 	[IA_CSS_ACC_STANDALONE] =	"Stand-alone acceleration",

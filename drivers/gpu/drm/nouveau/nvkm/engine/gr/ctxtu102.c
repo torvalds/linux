@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,14 +35,14 @@ tu102_grctx_generate_sm_id(struct gf100_gr *gr, int gpc, int tpc, int sm)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 
-	tpc = gv100_gr_nonpes_aware_tpc(gr, gpc, tpc);
+	tpc = gv100_gr_analnpes_aware_tpc(gr, gpc, tpc);
 
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x608), sm);
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), sm);
 }
 
 static const struct gf100_gr_init
-tu102_grctx_init_unknown_bundle_init_0[] = {
+tu102_grctx_init_unkanalwn_bundle_init_0[] = {
 	{ 0x00001000,  1, 0x00000001, 0x00000004 },
 	{ 0x00002020, 64, 0x00000001, 0x00000000 },
 	{ 0x0001e100,  1, 0x00000001, 0x00000001 },
@@ -51,12 +51,12 @@ tu102_grctx_init_unknown_bundle_init_0[] = {
 
 static const struct gf100_gr_pack
 tu102_grctx_pack_sw_bundle64_init[] = {
-	{ tu102_grctx_init_unknown_bundle_init_0, .type = 64 },
+	{ tu102_grctx_init_unkanalwn_bundle_init_0, .type = 64 },
 	{}
 };
 
 void
-tu102_grctx_generate_unknown(struct gf100_gr_chan *chan, u64 addr, u32 size)
+tu102_grctx_generate_unkanalwn(struct gf100_gr_chan *chan, u64 addr, u32 size)
 {
 	gf100_grctx_patch_wr32(chan, 0x408070, addr >> 8);
 	gf100_grctx_patch_wr32(chan, 0x408074, size >> 8); /*XXX: guess */
@@ -80,8 +80,8 @@ tu102_grctx = {
 	.attrib = gv100_grctx_generate_attrib,
 	.attrib_nr_max = 0x800,
 	.attrib_nr = 0x700,
-	.unknown_size = 0x80000,
-	.unknown = tu102_grctx_generate_unknown,
+	.unkanalwn_size = 0x80000,
+	.unkanalwn = tu102_grctx_generate_unkanalwn,
 	.alpha_nr_max = 0xc00,
 	.alpha_nr = 0x800,
 	.gfxp_nr = 0xfa8,

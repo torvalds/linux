@@ -6,7 +6,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK07.1";
+	model = "Qualcomm Techanallogies, Inc. IPQ4019/AP-DK07.1";
 
 	memory {
 		device_type = "memory";

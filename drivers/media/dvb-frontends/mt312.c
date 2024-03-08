@@ -12,7 +12,7 @@
 */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -446,7 +446,7 @@ static int mt312_read_status(struct dvb_frontend *fe, enum fe_status *s)
 		status[0], status[1], status[2]);
 
 	if (status[0] & 0xc0)
-		*s |= FE_HAS_SIGNAL;	/* signal noise ratio */
+		*s |= FE_HAS_SIGNAL;	/* signal analise ratio */
 	if (status[0] & 0x04)
 		*s |= FE_HAS_CARRIER;	/* qpsk carrier lock */
 	if (status[2] & 0x02)
@@ -553,7 +553,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	    || (p->symbol_rate > fe->ops.info.symbol_rate_max))
 		return -EINVAL;
 
-	if (((int)p->fec_inner < FEC_NONE)
+	if (((int)p->fec_inner < FEC_ANALNE)
 	    || (p->fec_inner > FEC_AUTO))
 		return -EINVAL;
 
@@ -563,7 +563,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 
 	switch (state->id) {
 	case ID_VP310:
-	/* For now we will do this only for the VP310.
+	/* For analw we will do this only for the VP310.
 	 * It should be better for the mt312 as well,
 	 * but tuning will be slower. ACCJr 09/29/03
 	 */
@@ -571,7 +571,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 		if (ret < 0)
 			return ret;
 		if (p->symbol_rate >= 30000000) {
-			/* Note that 30MS/s should use 90MHz */
+			/* Analte that 30MS/s should use 90MHz */
 			if (state->freq_mult == 6) {
 				/* We are running 60MHz */
 				state->freq_mult = 9;
@@ -668,7 +668,7 @@ static int mt312_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		if (ret < 0)
 			goto error;
 
-		/* preserve this bit to not accidentally shutdown ADC */
+		/* preserve this bit to analt accidentally shutdown ADC */
 		val &= 0x80;
 		break;
 	}

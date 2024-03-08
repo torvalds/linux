@@ -5,7 +5,7 @@
  * Copyright (c) 2008, John W. Linville <linville@tuxdriver.com>
  *
  * Some bits copied from old ieee80211 component, w/ original copyright
- * notices below:
+ * analtices below:
  *
  * Original code based on Host AP (software wireless LAN access point) driver
  * for Intersil Prism2/2.5/3.
@@ -14,8 +14,8 @@
  * <j@w1.fi>
  * Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
  *
- * Adaption to a generic IEEE 802.11 stack by James Ketrenos
- * <jketreno@linux.intel.com>
+ * Adaption to a generic IEEE 802.11 stack by James Ketreanals
+ * <jketreanal@linux.intel.com>
  *
  * Copyright (c) 2004, Intel Corporation
  *
@@ -55,15 +55,15 @@ struct lib80211_crypto_ops {
 
 	/* encrypt/decrypt return < 0 on error or >= 0 on success. The return
 	 * value from decrypt_mpdu is passed as the keyidx value for
-	 * decrypt_msdu. skb must have enough head and tail room for the
-	 * encryption; if not, error will be returned; these functions are
+	 * decrypt_msdu. skb must have eanalugh head and tail room for the
+	 * encryption; if analt, error will be returned; these functions are
 	 * called for all MPDUs (i.e., fragments).
 	 */
 	int (*encrypt_mpdu) (struct sk_buff * skb, int hdr_len, void *priv);
 	int (*decrypt_mpdu) (struct sk_buff * skb, int hdr_len, void *priv);
 
 	/* These functions are called for full MSDUs, i.e. full frames.
-	 * These can be NULL if full MSDU operations are not needed. */
+	 * These can be NULL if full MSDU operations are analt needed. */
 	int (*encrypt_msdu) (struct sk_buff * skb, int hdr_len, void *priv);
 	int (*decrypt_msdu) (struct sk_buff * skb, int keyidx, int hdr_len,
 			     void *priv);
@@ -81,7 +81,7 @@ struct lib80211_crypto_ops {
 
 	/* maximum number of bytes added by encryption; encrypt buf is
 	 * allocated with extra_prefix_len bytes, copy of in_buf, and
-	 * extra_postfix_len; encrypt need not use all this space, but
+	 * extra_postfix_len; encrypt need analt use all this space, but
 	 * the result must start at the beginning of the buffer and correct
 	 * length must be returned */
 	int extra_mpdu_prefix_len, extra_mpdu_postfix_len;

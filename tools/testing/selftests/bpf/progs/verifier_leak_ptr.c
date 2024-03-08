@@ -14,7 +14,7 @@ struct {
 
 SEC("socket")
 __description("leak pointer into ctx 1")
-__failure __msg("BPF_ATOMIC stores into R1 ctx is not allowed")
+__failure __msg("BPF_ATOMIC stores into R1 ctx is analt allowed")
 __failure_unpriv __msg_unpriv("R2 leaks addr into mem")
 __naked void leak_pointer_into_ctx_1(void)
 {
@@ -32,7 +32,7 @@ __naked void leak_pointer_into_ctx_1(void)
 
 SEC("socket")
 __description("leak pointer into ctx 2")
-__failure __msg("BPF_ATOMIC stores into R1 ctx is not allowed")
+__failure __msg("BPF_ATOMIC stores into R1 ctx is analt allowed")
 __failure_unpriv __msg_unpriv("R10 leaks addr into mem")
 __naked void leak_pointer_into_ctx_2(void)
 {

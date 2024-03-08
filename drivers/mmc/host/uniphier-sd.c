@@ -111,11 +111,11 @@ static void uniphier_sd_external_dma_callback(void *param,
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	if (result->result == DMA_TRANS_NOERROR) {
+	if (result->result == DMA_TRANS_ANALERROR) {
 		/*
-		 * When the external DMA engine is enabled, strangely enough,
+		 * When the external DMA engine is enabled, strangely eanalugh,
 		 * the DATAEND flag can be asserted even if the DMA engine has
-		 * not been kicked yet.  Enable the TMIO_STAT_DATAEND irq only
+		 * analt been kicked yet.  Enable the TMIO_STAT_DATAEND irq only
 		 * after we make sure the DMA engine finishes the transfer,
 		 * hence, in this callback.
 		 */
@@ -309,7 +309,7 @@ static void uniphier_sd_internal_dma_request(struct tmio_mmc_host *host,
 	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
 
 	/*
-	 * Due to a hardware bug, Pro5 cannot use DMA for RX.
+	 * Due to a hardware bug, Pro5 cananalt use DMA for RX.
 	 * We can still use DMA for TX, but PIO for RX.
 	 */
 	if (!(priv->caps & UNIPHIER_SD_CAP_BROKEN_DMA_RX))
@@ -493,7 +493,7 @@ static void uniphier_sd_set_clock(struct tmio_mmc_host *host,
 	 * In the original IP, bit[7:0] represents the divisor.
 	 * bit7 set: 1/512, ... bit0 set:1/4, all bits clear: 1/2
 	 *
-	 * The IP does not define a way to achieve 1/1.  For UniPhier variants,
+	 * The IP does analt define a way to achieve 1/1.  For UniPhier variants,
 	 * bit10 is used for 1/1.  Newer versions of UniPhier variants use
 	 * bit16 for 1/1024.
 	 */
@@ -560,7 +560,7 @@ static int uniphier_sd_start_signal_voltage_switch(struct mmc_host *mmc,
 		uhs_en = true;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	tmp = readl(host->ctl + UNIPHIER_SD_VOLT);
@@ -582,7 +582,7 @@ static int uniphier_sd_uhs_init(struct tmio_mmc_host *host)
 {
 	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
 	struct device *dev = &host->pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_args args;
 	int ret;
 
@@ -601,8 +601,8 @@ static int uniphier_sd_uhs_init(struct tmio_mmc_host *host)
 		dev_err(dev, "Can't get syscon-uhs-mode property\n");
 		return ret;
 	}
-	priv->sdctrl_regmap = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	priv->sdctrl_regmap = syscon_analde_to_regmap(args.np);
+	of_analde_put(args.np);
 	if (IS_ERR(priv->sdctrl_regmap)) {
 		dev_err(dev, "Can't map syscon-uhs-mode\n");
 		return PTR_ERR(priv->sdctrl_regmap);
@@ -626,7 +626,7 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->caps = (unsigned long)of_device_get_match_data(dev);
 
@@ -757,7 +757,7 @@ static struct platform_driver uniphier_sd_driver = {
 	.remove_new = uniphier_sd_remove,
 	.driver = {
 		.name = "uniphier-sd",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = uniphier_sd_match,
 	},
 };

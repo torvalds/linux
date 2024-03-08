@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * CPU-agnostic AMD IO page table v2 allocator.
+ * CPU-aganalstic AMD IO page table v2 allocator.
  *
  * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  * Author: Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
@@ -27,7 +27,7 @@
 #define IOMMU_PAGE_ACCESS	BIT_ULL(5)	/* Was accessed (updated by IOMMU) */
 #define IOMMU_PAGE_DIRTY	BIT_ULL(6)	/* Was written to (updated by IOMMU) */
 #define IOMMU_PAGE_PSE		BIT_ULL(7)	/* Page Size Extensions */
-#define IOMMU_PAGE_NX		BIT_ULL(63)	/* No execute */
+#define IOMMU_PAGE_NX		BIT_ULL(63)	/* Anal execute */
 
 #define MAX_PTRS_PER_PAGE	512
 
@@ -118,7 +118,7 @@ static void free_pgtable(u64 *pt, int level)
 			continue;
 
 		/*
-		 * Free the next level. No need to look at l1 tables here since
+		 * Free the next level. Anal need to look at l1 tables here since
 		 * they can only contain leaf PTEs; just free them directly.
 		 */
 		p = get_pgtable_pte(pt[i]);
@@ -207,7 +207,7 @@ static u64 *fetch_pte(struct amd_io_pgtable *pgtable,
 	*page_size = PAGE_SIZE;
 
 	while (level) {
-		/* Not present */
+		/* Analt present */
 		if (!IOMMU_PTE_PRESENT(*pte))
 			return NULL;
 

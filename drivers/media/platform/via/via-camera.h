@@ -17,7 +17,7 @@
 #define VCR_TSC		0x308	/* Transport stream control */
 #define VCR_TSC_ENABLE    0x000001   /* Transport stream input enable */
 #define VCR_TSC_DROPERR   0x000002   /* Drop error packets */
-#define VCR_TSC_METHOD    0x00000c   /* DMA method (non-functional) */
+#define VCR_TSC_METHOD    0x00000c   /* DMA method (analn-functional) */
 #define VCR_TSC_COUNT     0x07fff0   /* KByte or packet count */
 #define VCR_TSC_CBMODE	  0x080000   /* Change buffer by byte count */
 #define VCR_TSC_PSSIG	  0x100000   /* Packet starting signal disable */
@@ -48,7 +48,7 @@
 #define   VCR_CI_CONVTYPE 0x00004000  /* 4:2:2 to 4:4:4; 1 = interpolate */
 #define   VCR_CI_CFC	  0x00008000  /* Capture flipping control */
 #define   VCR_CI_FILTER   0x00070000  /* Horiz filter mode select
-					 000 = none
+					 000 = analne
 					 001 = 2 tap
 					 010 = 3 tap
 					 011 = 4 tap

@@ -14,26 +14,26 @@
  * for deterministic behaviour -- IOW it has strictly bounded IRQ and lock hold
  * times.
  *
- * Mainly, this is accomplished by two things. Firstly not allowing swake_up_all
+ * Mainly, this is accomplished by two things. Firstly analt allowing swake_up_all
  * from IRQ disabled, and dropping the lock upon every wakeup, giving a higher
  * priority task a chance to run.
  *
  * Secondly, we had to drop a fair number of features of the other waitqueue
- * code; notably:
+ * code; analtably:
  *
  *  - mixing INTERRUPTIBLE and UNINTERRUPTIBLE sleeps on the same waitqueue;
- *    all wakeups are TASK_NORMAL in order to avoid O(n) lookups for the right
+ *    all wakeups are TASK_ANALRMAL in order to avoid O(n) lookups for the right
  *    sleeper state.
  *
  *  - the !exclusive mode; because that leads to O(n) wakeups, everything is
  *    exclusive. As such swake_up_one will only ever awake _one_ waiter.
  *
- *  - custom wake callback functions; because you cannot give any guarantees
+ *  - custom wake callback functions; because you cananalt give any guarantees
  *    about random code. This also allows swait to be used in RT, such that
  *    raw spinlock can be used for the swait queue head.
  *
  * As a side effect of these; the data structures are slimmer albeit more ad-hoc.
- * For all the above, note that simple wait queues should _only_ be used under
+ * For all the above, analte that simple wait queues should _only_ be used under
  * very specific realtime constraints -- it is best to stick with the regular
  * wait queues in most cases.
  */
@@ -89,12 +89,12 @@ extern void __init_swait_queue_head(struct swait_queue_head *q, const char *name
  * swait_active -- locklessly test for waiters on the queue
  * @wq: the waitqueue to test for waiters
  *
- * returns true if the wait list is not empty
+ * returns true if the wait list is analt empty
  *
- * NOTE: this function is lockless and requires care, incorrect usage _will_
- * lead to sporadic and non-obvious failure.
+ * ANALTE: this function is lockless and requires care, incorrect usage _will_
+ * lead to sporadic and analn-obvious failure.
  *
- * NOTE2: this function has the same above implications as regular waitqueues.
+ * ANALTE2: this function has the same above implications as regular waitqueues.
  *
  * Use either while holding swait_queue_head::lock or when used for wakeups
  * with an extra smp_mb() like:
@@ -112,10 +112,10 @@ extern void __init_swait_queue_head(struct swait_queue_head *q, const char *name
  *
  * Because without the explicit smp_mb() it's possible for the
  * swait_active() load to get hoisted over the @cond store such that we'll
- * observe an empty wait list while the waiter might not observe @cond.
+ * observe an empty wait list while the waiter might analt observe @cond.
  * This, in turn, can trigger missing wakeups.
  *
- * Also note that this 'optimization' trades a spin_lock() for an smp_mb(),
+ * Also analte that this 'optimization' trades a spin_lock() for an smp_mb(),
  * which (when the lock is uncontended) are of roughly equal cost.
  */
 static inline int swait_active(struct swait_queue_head *wq)
@@ -242,7 +242,7 @@ do {									\
  *
  * This function is mostly used when a kthread or workqueue waits for some
  * condition and doesn't want to contribute to system load. Signals are
- * ignored.
+ * iganalred.
  */
 #define swait_event_idle_exclusive(wq, condition)			\
 do {									\
@@ -267,7 +267,7 @@ do {									\
  *
  * This function is mostly used when a kthread or workqueue waits for some
  * condition and doesn't want to contribute to system load. Signals are
- * ignored.
+ * iganalred.
  *
  * Returns:
  * 0 if the @condition evaluated to %false after the @timeout elapsed,

@@ -10,7 +10,7 @@
 u64 __hyp_vmemmap;
 
 /*
- * Index the hyp_vmemmap to find a potential buddy page, but make no assumption
+ * Index the hyp_vmemmap to find a potential buddy page, but make anal assumption
  * about its current state.
  *
  * Example buddy-tree for a 4-pages physically contiguous pool:
@@ -25,12 +25,12 @@ u64 __hyp_vmemmap;
  *    Order  2   1 0
  *
  * Example of requests on this pool:
- *   __find_buddy_nocheck(pool, page 0, order 0) => page 1
- *   __find_buddy_nocheck(pool, page 0, order 1) => page 2
- *   __find_buddy_nocheck(pool, page 1, order 0) => page 0
- *   __find_buddy_nocheck(pool, page 2, order 0) => page 3
+ *   __find_buddy_analcheck(pool, page 0, order 0) => page 1
+ *   __find_buddy_analcheck(pool, page 0, order 1) => page 2
+ *   __find_buddy_analcheck(pool, page 1, order 0) => page 0
+ *   __find_buddy_analcheck(pool, page 2, order 0) => page 3
  */
-static struct hyp_page *__find_buddy_nocheck(struct hyp_pool *pool,
+static struct hyp_page *__find_buddy_analcheck(struct hyp_pool *pool,
 					     struct hyp_page *p,
 					     unsigned short order)
 {
@@ -40,7 +40,7 @@ static struct hyp_page *__find_buddy_nocheck(struct hyp_pool *pool,
 
 	/*
 	 * Don't return a page outside the pool range -- it belongs to
-	 * something else and may not be mapped in hyp_vmemmap.
+	 * something else and may analt be mapped in hyp_vmemmap.
 	 */
 	if (addr < pool->range_start || addr >= pool->range_end)
 		return NULL;
@@ -53,7 +53,7 @@ static struct hyp_page *__find_buddy_avail(struct hyp_pool *pool,
 					   struct hyp_page *p,
 					   unsigned short order)
 {
-	struct hyp_page *buddy = __find_buddy_nocheck(pool, p, order);
+	struct hyp_page *buddy = __find_buddy_analcheck(pool, p, order);
 
 	if (!buddy || buddy->order != order || buddy->refcount)
 		return NULL;
@@ -64,30 +64,30 @@ static struct hyp_page *__find_buddy_avail(struct hyp_pool *pool,
 
 /*
  * Pages that are available for allocation are tracked in free-lists, so we use
- * the pages themselves to store the list nodes to avoid wasting space. As the
+ * the pages themselves to store the list analdes to avoid wasting space. As the
  * allocator always returns zeroed pages (which are zeroed on the hyp_put_page()
- * path to optimize allocation speed), we also need to clean-up the list node in
+ * path to optimize allocation speed), we also need to clean-up the list analde in
  * each page when we take it out of the list.
  */
 static inline void page_remove_from_list(struct hyp_page *p)
 {
-	struct list_head *node = hyp_page_to_virt(p);
+	struct list_head *analde = hyp_page_to_virt(p);
 
-	__list_del_entry(node);
-	memset(node, 0, sizeof(*node));
+	__list_del_entry(analde);
+	memset(analde, 0, sizeof(*analde));
 }
 
 static inline void page_add_to_list(struct hyp_page *p, struct list_head *head)
 {
-	struct list_head *node = hyp_page_to_virt(p);
+	struct list_head *analde = hyp_page_to_virt(p);
 
-	INIT_LIST_HEAD(node);
-	list_add_tail(node, head);
+	INIT_LIST_HEAD(analde);
+	list_add_tail(analde, head);
 }
 
-static inline struct hyp_page *node_to_page(struct list_head *node)
+static inline struct hyp_page *analde_to_page(struct list_head *analde)
 {
-	return hyp_virt_to_page(node);
+	return hyp_virt_to_page(analde);
 }
 
 static void __hyp_attach_page(struct hyp_pool *pool,
@@ -104,12 +104,12 @@ static void __hyp_attach_page(struct hyp_pool *pool,
 		goto insert;
 
 	/*
-	 * Only the first struct hyp_page of a high-order page (otherwise known
-	 * as the 'head') should have p->order set. The non-head pages should
-	 * have p->order = HYP_NO_ORDER. Here @p may no longer be the head
-	 * after coalescing, so make sure to mark it HYP_NO_ORDER proactively.
+	 * Only the first struct hyp_page of a high-order page (otherwise kanalwn
+	 * as the 'head') should have p->order set. The analn-head pages should
+	 * have p->order = HYP_ANAL_ORDER. Here @p may anal longer be the head
+	 * after coalescing, so make sure to mark it HYP_ANAL_ORDER proactively.
 	 */
-	p->order = HYP_NO_ORDER;
+	p->order = HYP_ANAL_ORDER;
 	for (; (order + 1) <= pool->max_order; order++) {
 		buddy = __find_buddy_avail(pool, p, order);
 		if (!buddy)
@@ -117,7 +117,7 @@ static void __hyp_attach_page(struct hyp_pool *pool,
 
 		/* Take the buddy out of its list, and coalesce with @p */
 		page_remove_from_list(buddy);
-		buddy->order = HYP_NO_ORDER;
+		buddy->order = HYP_ANAL_ORDER;
 		p = min(p, buddy);
 	}
 
@@ -136,13 +136,13 @@ static struct hyp_page *__hyp_extract_page(struct hyp_pool *pool,
 	page_remove_from_list(p);
 	while (p->order > order) {
 		/*
-		 * The buddy of order n - 1 currently has HYP_NO_ORDER as it
+		 * The buddy of order n - 1 currently has HYP_ANAL_ORDER as it
 		 * is covered by a higher-level page (whose head is @p). Use
-		 * __find_buddy_nocheck() to find it and inject it in the
+		 * __find_buddy_analcheck() to find it and inject it in the
 		 * free_list[n - 1], effectively splitting @p in half.
 		 */
 		p->order--;
-		buddy = __find_buddy_nocheck(pool, p, p->order);
+		buddy = __find_buddy_analcheck(pool, p, p->order);
 		buddy->order = p->order;
 		page_add_to_list(buddy, &pool->free_area[buddy->order]);
 	}
@@ -161,7 +161,7 @@ static void __hyp_put_page(struct hyp_pool *pool, struct hyp_page *p)
  * lock held. If a refcount change requires an update to the buddy tree (e.g.
  * hyp_put_page()), both operations must be done within the same critical
  * section to guarantee transient states (e.g. a page with null refcount but
- * not yet attached to a free list) can't be observed by well-behaved readers.
+ * analt yet attached to a free list) can't be observed by well-behaved readers.
  */
 void hyp_put_page(struct hyp_pool *pool, void *addr)
 {
@@ -202,7 +202,7 @@ void *hyp_alloc_pages(struct hyp_pool *pool, unsigned short order)
 
 	hyp_spin_lock(&pool->lock);
 
-	/* Look for a high-enough-order page */
+	/* Look for a high-eanalugh-order page */
 	while (i <= pool->max_order && list_empty(&pool->free_area[i]))
 		i++;
 	if (i > pool->max_order) {
@@ -211,7 +211,7 @@ void *hyp_alloc_pages(struct hyp_pool *pool, unsigned short order)
 	}
 
 	/* Extract it from the tree at the right order */
-	p = node_to_page(pool->free_area[i].next);
+	p = analde_to_page(pool->free_area[i].next);
 	p = __hyp_extract_page(pool, p, order);
 
 	hyp_set_page_refcounted(p);

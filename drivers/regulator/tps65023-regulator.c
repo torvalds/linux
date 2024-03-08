@@ -82,7 +82,7 @@
 	{							\
 		.name		= "VDCDC"#_num,			\
 		.of_match	= of_match_ptr("VDCDC"#_num),	\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.id		= TPS65023_DCDC_##_num,		\
 		.n_voltages     = ARRAY_SIZE(_t),		\
 		.ops		= &tps65023_dcdc_ops,		\
@@ -101,7 +101,7 @@
 	{							\
 		.name		= "LDO"#_num,			\
 		.of_match	= of_match_ptr("LDO"#_num),	\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.id		= TPS65023_LDO_##_num,		\
 		.n_voltages     = ARRAY_SIZE(_t),		\
 		.ops		= &tps65023_ldo_ops,		\
@@ -268,7 +268,7 @@ static int tps_65023_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps->driver_data = (struct tps_driver_data *)id->driver_data;
 
@@ -334,7 +334,7 @@ MODULE_DEVICE_TABLE(i2c, tps_65023_id);
 static struct i2c_driver tps_65023_i2c_driver = {
 	.driver = {
 		.name = "tps65023",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(tps65023_of_match),
 	},
 	.probe = tps_65023_probe,

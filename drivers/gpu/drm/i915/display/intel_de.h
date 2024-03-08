@@ -112,15 +112,15 @@ intel_de_write_fw(struct drm_i915_private *i915, i915_reg_t reg, u32 val)
 }
 
 static inline u32
-intel_de_read_notrace(struct drm_i915_private *i915, i915_reg_t reg)
+intel_de_read_analtrace(struct drm_i915_private *i915, i915_reg_t reg)
 {
-	return intel_uncore_read_notrace(&i915->uncore, reg);
+	return intel_uncore_read_analtrace(&i915->uncore, reg);
 }
 
 static inline void
-intel_de_write_notrace(struct drm_i915_private *i915, i915_reg_t reg, u32 val)
+intel_de_write_analtrace(struct drm_i915_private *i915, i915_reg_t reg, u32 val)
 {
-	intel_uncore_write_notrace(&i915->uncore, reg, val);
+	intel_uncore_write_analtrace(&i915->uncore, reg, val);
 }
 
 #endif /* __INTEL_DE_H__ */

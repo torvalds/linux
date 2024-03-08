@@ -62,7 +62,7 @@ static struct rc_map_list tevii_nec_map = {
 	.map = {
 		.scan     = tevii_nec,
 		.size     = ARRAY_SIZE(tevii_nec),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_TEVII_NEC,
 	}
 };

@@ -181,8 +181,8 @@
 
 		button-x {
 			gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
-			label = "NORTH";
-			linux,code = <BTN_NORTH>;
+			label = "ANALRTH";
+			linux,code = <BTN_ANALRTH>;
 		};
 
 		button-y {
@@ -688,7 +688,7 @@
 	audio-amplifier {
 		spk_amp_enable_h: spk-amp-enable-h {
 			rockchip,pins =
-				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -723,16 +723,16 @@
 	gpio-lcd {
 		lcd_rst: lcd-rst {
 			rockchip,pins =
-				<0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	gpio-leds {
 		led_pins: led-pins {
 			rockchip,pins =
-				<4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_analne>,
+				<4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>,
+				<4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -753,7 +753,7 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -772,14 +772,14 @@
 	vcc-lcd {
 		vcc_lcd_en: vcc-lcd-en {
 			rockchip,pins =
-				<0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	vcc-wifi {
 		vcc_wifi_h: vcc-wifi-h {
 			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -808,9 +808,9 @@
 &sdhci {
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&emmc_bus8>, <&emmc_clk>, <&emmc_cmd>,
-		    <&emmc_datastrobe>, <&emmc_rstnout>;
+		    <&emmc_datastrobe>, <&emmc_rstanalut>;
 	pinctrl-names = "default";
 	status = "okay";
 };
@@ -834,7 +834,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&sdmmc1_bus4>, <&sdmmc1_cmd>, <&sdmmc1_clk>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vcc_wifi>;

@@ -91,12 +91,12 @@ static ssize_t srpd_store(struct device *dev, struct device_attribute *attr,
 	int ret;
 
 	/*
-	 * Cannot change the inactivity timeout on LPDDR4 chips because the
+	 * Cananalt change the inactivity timeout on LPDDR4 chips because the
 	 * dynamic tuning process will also get affected by the inactivity
-	 * timeout, thus making it non functional.
+	 * timeout, thus making it analn functional.
 	 */
 	if (brcmstb_memc_uses_lpddr4(memc))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = kstrtouint(buf, 10, &val);
 	if (ret < 0)
@@ -131,7 +131,7 @@ static int brcmstb_memc_probe(struct platform_device *pdev)
 
 	memc = devm_kzalloc(dev, sizeof(*memc), GFP_KERNEL);
 	if (!memc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, memc);
 
@@ -142,7 +142,7 @@ static int brcmstb_memc_probe(struct platform_device *pdev)
 	if (IS_ERR(memc->ddr_ctrl))
 		return PTR_ERR(memc->ddr_ctrl);
 
-	of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 			     &memc->frequency);
 
 	ret = sysfs_create_group(&dev->kobj, &dev_attr_group);

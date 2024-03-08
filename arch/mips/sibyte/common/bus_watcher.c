@@ -61,7 +61,7 @@ static void print_summary(uint32_t status, uint32_t l2_err,
  * to see the most recent status of the bus watcher, which might have
  * already been destructively read out of the registers.
  *
- * notes: this is currently used by the cache error handler
+ * analtes: this is currently used by the cache error handler
  *	  should provide locking against the interrupt handler
  */
 void check_bus_watcher(void)
@@ -69,14 +69,14 @@ void check_bus_watcher(void)
 	u32 status, l2_err, memio_err;
 
 #if defined(CONFIG_SIBYTE_BCM112X) || defined(CONFIG_SIBYTE_SB1250)
-	/* Use non-destructive register */
+	/* Use analn-destructive register */
 	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS_DEBUG));
 #elif defined(CONFIG_SIBYTE_BCM1x80)
-	/* Use non-destructive register */
+	/* Use analn-destructive register */
 	/* Same as 1250 except BUS_ERR_STATUS_DEBUG is in a different place. */
 	status = csr_in32(IOADDR(A_BCM1480_BUS_ERR_STATUS_DEBUG));
 #else
-#error bus watcher being built for unknown Sibyte SOC!
+#error bus watcher being built for unkanalwn Sibyte SOC!
 #endif
 	if (!(status & 0x7fffffff)) {
 		printk("Using last values reaped by bus watcher driver\n");
@@ -90,7 +90,7 @@ void check_bus_watcher(void)
 	if (status & ~(1UL << 31))
 		print_summary(status, l2_err, memio_err);
 	else
-		printk("Bus watcher indicates no error\n");
+		printk("Bus watcher indicates anal error\n");
 }
 
 #ifdef CONFIG_PROC_FS
@@ -121,7 +121,7 @@ static int bw_proc_show(struct seq_file *m, void *v)
 	if (stats->status & M_SCD_BERR_MULTERRS)
 		seq_puts(m, "Multiple errors observed since last check.\n");
 	if (stats->status_printed) {
-		seq_puts(m, "(no change since last printing)\n");
+		seq_puts(m, "(anal change since last printing)\n");
 	} else {
 		stats->status_printed = 1;
 	}
@@ -146,7 +146,7 @@ static void create_proc_decoder(struct bw_stats_struct *stats)
 /*
  * sibyte_bw_int - handle bus watcher interrupts and accumulate counts
  *
- * notes: possible re-entry due to multiple sources
+ * analtes: possible re-entry due to multiple sources
  *	  should check/indicate saturation
  */
 static irqreturn_t sibyte_bw_int(int irq, void *data)

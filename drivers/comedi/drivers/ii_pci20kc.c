@@ -25,7 +25,7 @@
  *
  * Options:
  *   0   Board base address
- *   1   IRQ (not-used)
+ *   1   IRQ (analt-used)
  */
 
 #include <linux/module.h>
@@ -42,7 +42,7 @@
 #define II20K_ID_MOD2_EMPTY		BIT(6)
 #define II20K_ID_MOD3_EMPTY		BIT(5)
 #define II20K_ID_MASK			0x1f
-#define II20K_ID_PCI20001C_1A		0x1b	/* no on-board DIO */
+#define II20K_ID_PCI20001C_1A		0x1b	/* anal on-board DIO */
 #define II20K_ID_PCI20001C_2A		0x1d	/* on-board DIO */
 #define II20K_MOD_STATUS_REG		0x40
 #define II20K_MOD_STATUS_IRQ_MOD1	BIT(7)
@@ -438,7 +438,7 @@ static int ii20k_attach(struct comedi_device *dev,
 
 	dev->mmio = ioremap(membase, II20K_SIZE);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = readb(dev->mmio + II20K_ID_REG);
 	switch (id & II20K_ID_MASK) {
@@ -449,7 +449,7 @@ static int ii20k_attach(struct comedi_device *dev,
 		has_dio = true;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = comedi_alloc_subdevices(dev, 4);

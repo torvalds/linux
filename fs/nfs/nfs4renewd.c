@@ -11,20 +11,20 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     analtice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ *  DISCLAIMED. IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
@@ -33,7 +33,7 @@
  *
  * Implementation of the NFSv4 "renew daemon", which wakes up periodically to
  * send a RENEW, to keep state alive on the server.  The daemon is implemented
- * as an rpc_task, not a real kernel thread, so it always runs in rpciod's
+ * as an rpc_task, analt a real kernel thread, so it always runs in rpciod's
  * context.  There is one renewd per nfs_server.
  *
  */
@@ -59,7 +59,7 @@ nfs4_renew_state(struct work_struct *work)
 		container_of(work, struct nfs_client, cl_renewd.work);
 	const struct cred *cred;
 	long lease;
-	unsigned long last, now;
+	unsigned long last, analw;
 	unsigned renew_flags = 0;
 
 	ops = clp->cl_mvops->state_renewal_ops;
@@ -70,9 +70,9 @@ nfs4_renew_state(struct work_struct *work)
 
 	lease = clp->cl_lease_time;
 	last = clp->cl_last_renewal;
-	now = jiffies;
+	analw = jiffies;
 	/* Are we close to a lease timeout? */
-	if (time_after(now, last + lease/3))
+	if (time_after(analw, last + lease/3))
 		renew_flags |= NFS4_RENEW_TIMEOUT;
 	if (nfs_delegations_present(clp))
 		renew_flags |= NFS4_RENEW_DELEGATION_CB;
@@ -88,19 +88,19 @@ nfs4_renew_state(struct work_struct *work)
 		} else {
 			int ret;
 
-			/* Queue an asynchronous RENEW. */
+			/* Queue an asynchroanalus RENEW. */
 			ret = ops->sched_state_renewal(clp, cred, renew_flags);
 			put_cred(cred);
 			switch (ret) {
 			default:
 				goto out_exp;
 			case -EAGAIN:
-			case -ENOMEM:
+			case -EANALMEM:
 				break;
 			}
 		}
 	} else {
-		dprintk("%s: failed to call renewd. Reason: lease not expired \n",
+		dprintk("%s: failed to call renewd. Reason: lease analt expired \n",
 				__func__);
 	}
 	nfs4_schedule_state_renewal(clp);

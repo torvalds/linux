@@ -9,7 +9,7 @@ obj-y += b2c2/
 obj-y += dvb-usb/
 obj-y += dvb-usb-v2/
 obj-y += s2255/
-obj-y += siano/
+obj-y += siaanal/
 obj-y += ttusb-budget/
 obj-y += ttusb-dec/
 

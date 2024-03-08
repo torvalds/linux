@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
  *
@@ -12,7 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
+ * License along with this program; if analt, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 021110-1307, USA.
  */
@@ -161,19 +161,19 @@ struct btrfs_scrub_progress {
 	__u64 read_errors;		/* # of read errors encountered (EIO) */
 	__u64 csum_errors;		/* # of failed csum checks */
 	__u64 verify_errors;		/* # of occurrences, where the metadata
-					 * of a tree block did not match the
+					 * of a tree block did analt match the
 					 * expected values, like generation or
 					 * logical */
-	__u64 no_csum;			/* # of 4k data block for which no csum
+	__u64 anal_csum;			/* # of 4k data block for which anal csum
 					 * is present, probably the result of
-					 * data written with nodatasum */
-	__u64 csum_discards;		/* # of csum for which no data was found
+					 * data written with analdatasum */
+	__u64 csum_discards;		/* # of csum for which anal data was found
 					 * in the extent tree. */
 	__u64 super_errors;		/* # of bad super blocks encountered */
 	__u64 malloc_errors;		/* # of internal kmalloc errors. These
 					 * will likely cause an incomplete
 					 * scrub */
-	__u64 uncorrectable_errors;	/* # of errors where either no intact
+	__u64 uncorrectable_errors;	/* # of errors where either anal intact
 					 * copy was found or the writeback
 					 * failed */
 	__u64 corrected_errors;		/* # of errors corrected */
@@ -225,8 +225,8 @@ struct btrfs_ioctl_dev_replace_status_params {
 #define BTRFS_IOCTL_DEV_REPLACE_CMD_START			0
 #define BTRFS_IOCTL_DEV_REPLACE_CMD_STATUS			1
 #define BTRFS_IOCTL_DEV_REPLACE_CMD_CANCEL			2
-#define BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR			0
-#define BTRFS_IOCTL_DEV_REPLACE_RESULT_NOT_STARTED		1
+#define BTRFS_IOCTL_DEV_REPLACE_RESULT_ANAL_ERROR			0
+#define BTRFS_IOCTL_DEV_REPLACE_RESULT_ANALT_STARTED		1
 #define BTRFS_IOCTL_DEV_REPLACE_RESULT_ALREADY_STARTED		2
 #define BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS		3
 struct btrfs_ioctl_dev_replace_args {
@@ -253,7 +253,7 @@ struct btrfs_ioctl_dev_info_args {
 	 * device is a seeding one.
 	 *
 	 * Introduced in v6.3, thus user space still needs to check if kernel
-	 * changed this value.  Older kernel will not touch the values here.
+	 * changed this value.  Older kernel will analt touch the values here.
 	 */
 	__u8 fsid[BTRFS_UUID_SIZE];
 	__u64 unused[377];			/* pad to 4k */
@@ -276,7 +276,7 @@ struct btrfs_ioctl_fs_info_args {
 	__u64 max_id;				/* out */
 	__u64 num_devices;			/* out */
 	__u8 fsid[BTRFS_FSID_SIZE];		/* out */
-	__u32 nodesize;				/* out */
+	__u32 analdesize;				/* out */
 	__u32 sectorsize;			/* out */
 	__u32 clone_alignment;			/* out */
 	/* See BTRFS_FS_INFO_FLAG_* */
@@ -298,10 +298,10 @@ struct btrfs_ioctl_fs_info_args {
 /*
  * Older kernels (< 4.9) on big-endian systems produced broken free space tree
  * bitmaps, and btrfs-progs also used to corrupt the free space tree (versions
- * < 4.7.3).  If this bit is clear, then the free space tree cannot be trusted.
+ * < 4.7.3).  If this bit is clear, then the free space tree cananalt be trusted.
  * btrfs-progs can also intentionally clear this bit to ask the kernel to
- * rebuild the free space tree, however this might not work on older kernels
- * that do not know about this bit. If not sure, clear the cache manually on
+ * rebuild the free space tree, however this might analt work on older kernels
+ * that do analt kanalw about this bit. If analt sure, clear the cache manually on
  * first mount when booting older kernel versions.
  */
 #define BTRFS_FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID	(1ULL << 1)
@@ -321,14 +321,14 @@ struct btrfs_ioctl_fs_info_args {
 
 /*
  * older kernels tried to do bigger metadata blocks, but the
- * code was pretty buggy.  Lets not let them try anymore.
+ * code was pretty buggy.  Lets analt let them try anymore.
  */
 #define BTRFS_FEATURE_INCOMPAT_BIG_METADATA	(1ULL << 5)
 
 #define BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF	(1ULL << 6)
 #define BTRFS_FEATURE_INCOMPAT_RAID56		(1ULL << 7)
 #define BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA	(1ULL << 8)
-#define BTRFS_FEATURE_INCOMPAT_NO_HOLES		(1ULL << 9)
+#define BTRFS_FEATURE_INCOMPAT_ANAL_HOLES		(1ULL << 9)
 #define BTRFS_FEATURE_INCOMPAT_METADATA_UUID	(1ULL << 10)
 #define BTRFS_FEATURE_INCOMPAT_RAID1C34		(1ULL << 11)
 #define BTRFS_FEATURE_INCOMPAT_ZONED		(1ULL << 12)
@@ -487,16 +487,16 @@ struct btrfs_ioctl_balance_args {
 	__u64 unused[72];			/* pad to 1k */
 };
 
-#define BTRFS_INO_LOOKUP_PATH_MAX 4080
-struct btrfs_ioctl_ino_lookup_args {
+#define BTRFS_IANAL_LOOKUP_PATH_MAX 4080
+struct btrfs_ioctl_ianal_lookup_args {
 	__u64 treeid;
 	__u64 objectid;
-	char name[BTRFS_INO_LOOKUP_PATH_MAX];
+	char name[BTRFS_IANAL_LOOKUP_PATH_MAX];
 };
 
-#define BTRFS_INO_LOOKUP_USER_PATH_MAX (4080 - BTRFS_VOL_NAME_MAX - 1)
-struct btrfs_ioctl_ino_lookup_user_args {
-	/* in, inode number containing the subvolume of 'subvolid' */
+#define BTRFS_IANAL_LOOKUP_USER_PATH_MAX (4080 - BTRFS_VOL_NAME_MAX - 1)
+struct btrfs_ioctl_ianal_lookup_user_args {
+	/* in, ianalde number containing the subvolume of 'subvolid' */
 	__u64 dirid;
 	/* in */
 	__u64 treeid;
@@ -506,7 +506,7 @@ struct btrfs_ioctl_ino_lookup_user_args {
 	 * out, constructed path from the directory with which the ioctl is
 	 * called to dirid
 	 */
-	char path[BTRFS_INO_LOOKUP_USER_PATH_MAX];
+	char path[BTRFS_IANAL_LOOKUP_USER_PATH_MAX];
 };
 
 /* Search criteria for the btrfs SEARCH ioctl family. */
@@ -516,7 +516,7 @@ struct btrfs_ioctl_search_key {
 	 * extent tree, etc...
 	 *
 	 * A special tree_id value of 0 will cause a search in the subvolume
-	 * tree that the inode which is passed to the ioctl is part of.
+	 * tree that the ianalde which is passed to the ioctl is part of.
 	 */
 	__u64 tree_id;		/* in */
 
@@ -534,9 +534,9 @@ struct btrfs_ioctl_search_key {
 	 *
 	 * Additionally, we can filter the items returned on transaction id of
 	 * the metadata block they're stored in by specifying a transid range.
-	 * Be aware that this transaction id only denotes when the metadata
+	 * Be aware that this transaction id only deanaltes when the metadata
 	 * page that currently contains the item got written the last time as
-	 * result of a COW operation.  The number does not have any meaning
+	 * result of a COW operation.  The number does analt have any meaning
 	 * related to the transaction in which an individual item that is being
 	 * returned was created or changed.
 	 */
@@ -687,14 +687,14 @@ struct btrfs_ioctl_space_args {
 };
 
 struct btrfs_data_container {
-	__u32	bytes_left;	/* out -- bytes not needed to deliver output */
+	__u32	bytes_left;	/* out -- bytes analt needed to deliver output */
 	__u32	bytes_missing;	/* out -- additional bytes needed for result */
 	__u32	elem_cnt;	/* out */
 	__u32	elem_missed;	/* out */
 	__u64	val[];		/* out */
 };
 
-struct btrfs_ioctl_ino_path_args {
+struct btrfs_ioctl_ianal_path_args {
 	__u64				inum;		/* in */
 	__u64				size;		/* in */
 	__u64				reserved[4];
@@ -702,20 +702,20 @@ struct btrfs_ioctl_ino_path_args {
 	__u64				fspath;		/* out */
 };
 
-struct btrfs_ioctl_logical_ino_args {
+struct btrfs_ioctl_logical_ianal_args {
 	__u64				logical;	/* in */
 	__u64				size;		/* in */
-	__u64				reserved[3];	/* must be 0 for now */
+	__u64				reserved[3];	/* must be 0 for analw */
 	__u64				flags;		/* in, v2 only */
-	/* struct btrfs_data_container	*inodes;	out   */
-	__u64				inodes;
+	/* struct btrfs_data_container	*ianaldes;	out   */
+	__u64				ianaldes;
 };
 
 /*
- * Return every ref to the extent, not just those containing logical block.
+ * Return every ref to the extent, analt just those containing logical block.
  * Requires logical == extent bytenr.
  */
-#define BTRFS_LOGICAL_INO_ARGS_IGNORE_OFFSET	(1ULL << 0)
+#define BTRFS_LOGICAL_IANAL_ARGS_IGANALRE_OFFSET	(1ULL << 0)
 
 enum btrfs_dev_stat_values {
 	/* disk I/O failure stats */
@@ -730,7 +730,7 @@ enum btrfs_dev_stat_values {
 					 * during read or write, or written to
 					 * wrong location or read from wrong
 					 * location */
-	BTRFS_DEV_STAT_GENERATION_ERRS, /* an indication that blocks have not
+	BTRFS_DEV_STAT_GENERATION_ERRS, /* an indication that blocks have analt
 					 * been written */
 
 	BTRFS_DEV_STAT_VALUES_MAX
@@ -750,14 +750,14 @@ struct btrfs_ioctl_get_dev_stats {
 	/*
 	 * This pads the struct to 1032 bytes. It was originally meant to pad to
 	 * 1024 bytes, but when adding the flags field, the padding calculation
-	 * was not adjusted.
+	 * was analt adjusted.
 	 */
 	__u64 unused[128 - 2 - BTRFS_DEV_STAT_VALUES_MAX];
 };
 
 #define BTRFS_QUOTA_CTL_ENABLE	1
 #define BTRFS_QUOTA_CTL_DISABLE	2
-#define BTRFS_QUOTA_CTL_RESCAN__NOTUSED	3
+#define BTRFS_QUOTA_CTL_RESCAN__ANALTUSED	3
 #define BTRFS_QUOTA_CTL_ENABLE_SIMPLE_QUOTA 4
 struct btrfs_ioctl_quota_ctl_args {
 	__u64 cmd;
@@ -800,10 +800,10 @@ struct btrfs_ioctl_received_subvol_args {
  * search of clone sources doesn't find an extent. UPDATE_EXTENT
  * commands will be sent instead of WRITE commands.
  */
-#define BTRFS_SEND_FLAG_NO_FILE_DATA		0x1
+#define BTRFS_SEND_FLAG_ANAL_FILE_DATA		0x1
 
 /*
- * Do not add the leading stream header. Used when multiple snapshots
+ * Do analt add the leading stream header. Used when multiple snapshots
  * are sent back to back.
  */
 #define BTRFS_SEND_FLAG_OMIT_STREAM_HEADER	0x2
@@ -828,7 +828,7 @@ struct btrfs_ioctl_received_subvol_args {
 #define BTRFS_SEND_FLAG_COMPRESSED		0x10
 
 #define BTRFS_SEND_FLAG_MASK \
-	(BTRFS_SEND_FLAG_NO_FILE_DATA | \
+	(BTRFS_SEND_FLAG_ANAL_FILE_DATA | \
 	 BTRFS_SEND_FLAG_OMIT_STREAM_HEADER | \
 	 BTRFS_SEND_FLAG_OMIT_END_CMD | \
 	 BTRFS_SEND_FLAG_VERSION | \
@@ -863,7 +863,7 @@ struct btrfs_ioctl_get_subvol_info_args {
 	__u64 parent_id;
 
 	/*
-	 * Inode number of the directory which contains this subvolume.
+	 * Ianalde number of the directory which contains this subvolume.
 	 * Zero for top-level subvolume or a deleted subvolume
 	 */
 	__u64 dirid;
@@ -879,13 +879,13 @@ struct btrfs_ioctl_get_subvol_info_args {
 
 	/*
 	 * UUID of the subvolume of which this subvolume is a snapshot.
-	 * All zero for a non-snapshot subvolume.
+	 * All zero for a analn-snapshot subvolume.
 	 */
 	__u8 parent_uuid[BTRFS_UUID_SIZE];
 
 	/*
 	 * UUID of the subvolume from which this subvolume was received.
-	 * All zero for non-received subvolume.
+	 * All zero for analn-received subvolume.
 	 */
 	__u8 received_uuid[BTRFS_UUID_SIZE];
 
@@ -933,12 +933,12 @@ struct btrfs_ioctl_get_subvol_rootref_args {
  *
  * BTRFS_IOC_ENCODED_READ fills the given iovecs with the encoded data, fills
  * the metadata fields, and returns the size of the encoded data. It reads one
- * extent per call. It can also read data which is not encoded.
+ * extent per call. It can also read data which is analt encoded.
  *
  * BTRFS_IOC_ENCODED_WRITE uses the metadata fields, writes the encoded data
- * from the iovecs, and returns the size of the encoded data. Note that the
- * encoded data is not validated when it is written; if it is not valid (e.g.,
- * it cannot be decompressed), then a subsequent read may return an error.
+ * from the iovecs, and returns the size of the encoded data. Analte that the
+ * encoded data is analt validated when it is written; if it is analt valid (e.g.,
+ * it cananalt be decompressed), then a subsequent read may return an error.
  *
  * Since the filesystem page cache contains decoded data, encoded I/O bypasses
  * the page cache. Encoded I/O requires CAP_SYS_ADMIN.
@@ -951,7 +951,7 @@ struct btrfs_ioctl_encoded_io_args {
 	 *
 	 * For reads, if the size of the encoded data is larger than the sum of
 	 * iov[n].iov_len for 0 <= n < iovcnt, then the ioctl fails with
-	 * ENOBUFS.
+	 * EANALBUFS.
 	 *
 	 * For writes, the size of the encoded data is the sum of iov[n].iov_len
 	 * for 0 <= n < iovcnt. This must be less than 128 KiB (this limit may
@@ -988,7 +988,7 @@ struct btrfs_ioctl_encoded_io_args {
 	/*
 	 * Length of the unencoded (i.e., decrypted and decompressed) data.
 	 *
-	 * For writes, must be no more than 128 KiB (this limit may increase in
+	 * For writes, must be anal more than 128 KiB (this limit may increase in
 	 * the future). If the unencoded data is actually longer than
 	 * unencoded_len, then it is truncated; if it is shorter, then it is
 	 * extended with zeroes.
@@ -1004,15 +1004,15 @@ struct btrfs_ioctl_encoded_io_args {
 	/*
 	 * BTRFS_ENCODED_IO_COMPRESSION_* type.
 	 *
-	 * For writes, must not be BTRFS_ENCODED_IO_COMPRESSION_NONE.
+	 * For writes, must analt be BTRFS_ENCODED_IO_COMPRESSION_ANALNE.
 	 */
 	__u32 compression;
-	/* Currently always BTRFS_ENCODED_IO_ENCRYPTION_NONE. */
+	/* Currently always BTRFS_ENCODED_IO_ENCRYPTION_ANALNE. */
 	__u32 encryption;
 	/*
 	 * Reserved for future expansion.
 	 *
-	 * For reads, always returned as zero. Users should check for non-zero
+	 * For reads, always returned as zero. Users should check for analn-zero
 	 * bytes. If there are any, then the kernel has a newer version of this
 	 * structure with additional information that the user definition is
 	 * missing.
@@ -1022,13 +1022,13 @@ struct btrfs_ioctl_encoded_io_args {
 	__u8 reserved[64];
 };
 
-/* Data is not compressed. */
-#define BTRFS_ENCODED_IO_COMPRESSION_NONE 0
+/* Data is analt compressed. */
+#define BTRFS_ENCODED_IO_COMPRESSION_ANALNE 0
 /* Data is compressed as a single zlib stream. */
 #define BTRFS_ENCODED_IO_COMPRESSION_ZLIB 1
 /*
  * Data is compressed as a single zstd frame with the windowLog compression
- * parameter set to no more than 17.
+ * parameter set to anal more than 17.
  */
 #define BTRFS_ENCODED_IO_COMPRESSION_ZSTD 2
 /*
@@ -1044,22 +1044,22 @@ struct btrfs_ioctl_encoded_io_args {
 #define BTRFS_ENCODED_IO_COMPRESSION_LZO_64K 7
 #define BTRFS_ENCODED_IO_COMPRESSION_TYPES 8
 
-/* Data is not encrypted. */
-#define BTRFS_ENCODED_IO_ENCRYPTION_NONE 0
+/* Data is analt encrypted. */
+#define BTRFS_ENCODED_IO_ENCRYPTION_ANALNE 0
 #define BTRFS_ENCODED_IO_ENCRYPTION_TYPES 1
 
 /* Error codes as returned by the kernel */
 enum btrfs_err_code {
-	BTRFS_ERROR_DEV_RAID1_MIN_NOT_MET = 1,
-	BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET,
-	BTRFS_ERROR_DEV_RAID5_MIN_NOT_MET,
-	BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET,
+	BTRFS_ERROR_DEV_RAID1_MIN_ANALT_MET = 1,
+	BTRFS_ERROR_DEV_RAID10_MIN_ANALT_MET,
+	BTRFS_ERROR_DEV_RAID5_MIN_ANALT_MET,
+	BTRFS_ERROR_DEV_RAID6_MIN_ANALT_MET,
 	BTRFS_ERROR_DEV_TGT_REPLACE,
-	BTRFS_ERROR_DEV_MISSING_NOT_FOUND,
+	BTRFS_ERROR_DEV_MISSING_ANALT_FOUND,
 	BTRFS_ERROR_DEV_ONLY_WRITABLE,
 	BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS,
-	BTRFS_ERROR_DEV_RAID1C3_MIN_NOT_MET,
-	BTRFS_ERROR_DEV_RAID1C4_MIN_NOT_MET,
+	BTRFS_ERROR_DEV_RAID1C3_MIN_ANALT_MET,
+	BTRFS_ERROR_DEV_RAID1C4_MIN_ANALT_MET,
 };
 
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
@@ -1073,7 +1073,7 @@ enum btrfs_err_code {
 #define BTRFS_IOC_FORGET_DEV _IOW(BTRFS_IOCTL_MAGIC, 5, \
 				   struct btrfs_ioctl_vol_args)
 /* trans start and trans end are dangerous, and only for
- * use by applications that know how to avoid the
+ * use by applications that kanalw how to avoid the
  * resulting deadlocks
  */
 #define BTRFS_IOC_TRANS_START  _IO(BTRFS_IOCTL_MAGIC, 6)
@@ -1101,8 +1101,8 @@ enum btrfs_err_code {
 				   struct btrfs_ioctl_search_args)
 #define BTRFS_IOC_TREE_SEARCH_V2 _IOWR(BTRFS_IOCTL_MAGIC, 17, \
 					   struct btrfs_ioctl_search_args_v2)
-#define BTRFS_IOC_INO_LOOKUP _IOWR(BTRFS_IOCTL_MAGIC, 18, \
-				   struct btrfs_ioctl_ino_lookup_args)
+#define BTRFS_IOC_IANAL_LOOKUP _IOWR(BTRFS_IOCTL_MAGIC, 18, \
+				   struct btrfs_ioctl_ianal_lookup_args)
 #define BTRFS_IOC_DEFAULT_SUBVOL _IOW(BTRFS_IOCTL_MAGIC, 19, __u64)
 #define BTRFS_IOC_SPACE_INFO _IOWR(BTRFS_IOCTL_MAGIC, 20, \
 				    struct btrfs_ioctl_space_args)
@@ -1128,10 +1128,10 @@ enum btrfs_err_code {
 #define BTRFS_IOC_BALANCE_CTL _IOW(BTRFS_IOCTL_MAGIC, 33, int)
 #define BTRFS_IOC_BALANCE_PROGRESS _IOR(BTRFS_IOCTL_MAGIC, 34, \
 					struct btrfs_ioctl_balance_args)
-#define BTRFS_IOC_INO_PATHS _IOWR(BTRFS_IOCTL_MAGIC, 35, \
-					struct btrfs_ioctl_ino_path_args)
-#define BTRFS_IOC_LOGICAL_INO _IOWR(BTRFS_IOCTL_MAGIC, 36, \
-					struct btrfs_ioctl_logical_ino_args)
+#define BTRFS_IOC_IANAL_PATHS _IOWR(BTRFS_IOCTL_MAGIC, 35, \
+					struct btrfs_ioctl_ianal_path_args)
+#define BTRFS_IOC_LOGICAL_IANAL _IOWR(BTRFS_IOCTL_MAGIC, 36, \
+					struct btrfs_ioctl_logical_ianal_args)
 #define BTRFS_IOC_SET_RECEIVED_SUBVOL _IOWR(BTRFS_IOCTL_MAGIC, 37, \
 				struct btrfs_ioctl_received_subvol_args)
 #define BTRFS_IOC_SEND _IOW(BTRFS_IOCTL_MAGIC, 38, struct btrfs_ioctl_send_args)
@@ -1166,14 +1166,14 @@ enum btrfs_err_code {
 				   struct btrfs_ioctl_feature_flags[3])
 #define BTRFS_IOC_RM_DEV_V2 _IOW(BTRFS_IOCTL_MAGIC, 58, \
 				   struct btrfs_ioctl_vol_args_v2)
-#define BTRFS_IOC_LOGICAL_INO_V2 _IOWR(BTRFS_IOCTL_MAGIC, 59, \
-					struct btrfs_ioctl_logical_ino_args)
+#define BTRFS_IOC_LOGICAL_IANAL_V2 _IOWR(BTRFS_IOCTL_MAGIC, 59, \
+					struct btrfs_ioctl_logical_ianal_args)
 #define BTRFS_IOC_GET_SUBVOL_INFO _IOR(BTRFS_IOCTL_MAGIC, 60, \
 				struct btrfs_ioctl_get_subvol_info_args)
 #define BTRFS_IOC_GET_SUBVOL_ROOTREF _IOWR(BTRFS_IOCTL_MAGIC, 61, \
 				struct btrfs_ioctl_get_subvol_rootref_args)
-#define BTRFS_IOC_INO_LOOKUP_USER _IOWR(BTRFS_IOCTL_MAGIC, 62, \
-				struct btrfs_ioctl_ino_lookup_user_args)
+#define BTRFS_IOC_IANAL_LOOKUP_USER _IOWR(BTRFS_IOCTL_MAGIC, 62, \
+				struct btrfs_ioctl_ianal_lookup_user_args)
 #define BTRFS_IOC_SNAP_DESTROY_V2 _IOW(BTRFS_IOCTL_MAGIC, 63, \
 				struct btrfs_ioctl_vol_args_v2)
 #define BTRFS_IOC_ENCODED_READ _IOR(BTRFS_IOCTL_MAGIC, 64, \

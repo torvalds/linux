@@ -277,7 +277,7 @@ static int bq2515x_wake_up(struct bq2515x_device *bq2515x)
 	int val;
 
 	/* Read the STAT register if we can read it then the device is out
-	 * of ship mode.  If the register cannot be read then attempt to wake
+	 * of ship mode.  If the register cananalt be read then attempt to wake
 	 * it up and enable the ADC.
 	 */
 	ret = regmap_read(bq2515x->regmap, BQ2515X_STAT0, &val);
@@ -334,7 +334,7 @@ static int bq2515x_disable_watchdog_timers(struct bq2515x_device *bq2515x)
 						BQ2515X_HWRESET_14S_WD, 0);
 }
 
-static int bq2515x_get_battery_voltage_now(struct bq2515x_device *bq2515x)
+static int bq2515x_get_battery_voltage_analw(struct bq2515x_device *bq2515x)
 {
 	int ret;
 	int vbat_msb;
@@ -358,7 +358,7 @@ static int bq2515x_get_battery_voltage_now(struct bq2515x_device *bq2515x)
 						BQ2515X_VBAT_MULTIPLIER;
 }
 
-static int bq2515x_get_battery_current_now(struct bq2515x_device *bq2515x)
+static int bq2515x_get_battery_current_analw(struct bq2515x_device *bq2515x)
 {
 	int ret;
 	int ichg_msb;
@@ -370,7 +370,7 @@ static int bq2515x_get_battery_current_now(struct bq2515x_device *bq2515x)
 	unsigned int buvlo, vlowv_sel, vlowv = BQ2515X_VLOWV_SEL_1B0_UV;
 
 	if (!bq2515x->mains_online)
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = regmap_read(bq2515x->regmap, BQ2515X_ADC_ICHG_M, &ichg_msb);
 	if (ret)
@@ -391,7 +391,7 @@ static int bq2515x_get_battery_current_now(struct bq2515x_device *bq2515x)
 	if (vlowv_sel)
 		vlowv = BQ2515X_VLOWV_SEL_1B1_UV;
 
-	if (bq2515x_get_battery_voltage_now(bq2515x) < vlowv) {
+	if (bq2515x_get_battery_voltage_analw(bq2515x) < vlowv) {
 		ret = regmap_read(bq2515x->regmap, BQ2515X_PCHRGCTRL,
 								&pchrgctrl);
 		if (ret)
@@ -570,8 +570,8 @@ static int bq2515x_set_precharge_current(struct bq2515x_device *bq2515x,
 static int bq2515x_charging_status(struct bq2515x_device *bq2515x,
 				   union power_supply_propval *val)
 {
-	bool status0_no_fault;
-	bool status1_no_fault;
+	bool status0_anal_fault;
+	bool status1_anal_fault;
 	bool ce_status;
 	bool charge_done;
 	unsigned int status;
@@ -593,13 +593,13 @@ static int bq2515x_charging_status(struct bq2515x_device *bq2515x,
 	 */
 	if (((status & BQ2515X_STAT0_MASK) == true) &
 			((status & BQ2515X_CHRG_DONE) == false)) {
-		status0_no_fault = true;
+		status0_anal_fault = true;
 		charge_done = false;
 	} else if (status & BQ2515X_CHRG_DONE) {
 		charge_done = true;
-		status0_no_fault = false;
+		status0_anal_fault = false;
 	} else {
-		status0_no_fault = false;
+		status0_anal_fault = false;
 		charge_done = false;
 	}
 
@@ -611,24 +611,24 @@ static int bq2515x_charging_status(struct bq2515x_device *bq2515x,
 	 * STAT1 register are disbaling charging
 	 */
 	if ((status & BQ2515X_STAT1_MASK) == false)
-		status1_no_fault = true;
+		status1_anal_fault = true;
 	else
-		status1_no_fault = false;
+		status1_anal_fault = false;
 
 	ce_status = (!bq2515x_get_charge_disable(bq2515x));
 
 	/*
-	 * If there are no faults and charging is enabled, then status is
+	 * If there are anal faults and charging is enabled, then status is
 	 * charging. Otherwise, if charging is complete, then status is full.
 	 * Otherwise, if a fault exists or charging is disabled, then status is
-	 * not charging
+	 * analt charging
 	 */
-	if (status0_no_fault & status1_no_fault & ce_status)
+	if (status0_anal_fault & status1_anal_fault & ce_status)
 		val->intval = POWER_SUPPLY_STATUS_CHARGING;
 	else if (charge_done)
 		val->intval = POWER_SUPPLY_STATUS_FULL;
-	else if (!(status0_no_fault & status1_no_fault & ce_status))
-		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+	else if (!(status0_anal_fault & status1_anal_fault & ce_status))
+		val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 
 	return 0;
 }
@@ -729,7 +729,7 @@ static int bq2515x_charger_get_health(struct bq2515x_device *bq2515x,
 			health = POWER_SUPPLY_HEALTH_COLD;
 			break;
 		default:
-			health = POWER_SUPPLY_HEALTH_UNKNOWN;
+			health = POWER_SUPPLY_HEALTH_UNKANALWN;
 			break;
 		}
 	}
@@ -813,7 +813,7 @@ static int bq2515x_mains_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = bq2515x_charger_get_health(bq2515x, val);
 		if (ret)
-			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+			val->intval = POWER_SUPPLY_HEALTH_UNKANALWN;
 		break;
 
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
@@ -871,15 +871,15 @@ static int bq2515x_battery_get_property(struct power_supply *psy,
 		val->intval = ret;
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = bq2515x_get_battery_voltage_now(bq2515x);
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		ret = bq2515x_get_battery_voltage_analw(bq2515x);
 		if (ret < 0)
 			return ret;
 		val->intval = ret;
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		ret = bq2515x_get_battery_current_now(bq2515x);
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+		ret = bq2515x_get_battery_current_analw(bq2515x);
 		if (ret < 0)
 			return ret;
 		val->intval = ret;
@@ -892,8 +892,8 @@ static int bq2515x_battery_get_property(struct power_supply *psy,
 }
 
 static const enum power_supply_property bq2515x_battery_properties[] = {
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 };
@@ -1085,7 +1085,7 @@ static int bq2515x_probe(struct i2c_client *client)
 
 	bq2515x = devm_kzalloc(dev, sizeof(*bq2515x), GFP_KERNEL);
 	if (!bq2515x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bq2515x->dev = dev;
 
@@ -1102,7 +1102,7 @@ static int bq2515x_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, bq2515x);
 
 	charger_cfg.drv_data = bq2515x;
-	charger_cfg.of_node = dev->of_node;
+	charger_cfg.of_analde = dev->of_analde;
 
 	ret = bq2515x_read_properties(bq2515x);
 	if (ret) {
@@ -1119,7 +1119,7 @@ static int bq2515x_probe(struct i2c_client *client)
 
 	ret = bq2515x_hw_init(bq2515x);
 	if (ret) {
-		dev_err(dev, "Cannot initialize the chip\n");
+		dev_err(dev, "Cananalt initialize the chip\n");
 		return ret;
 	}
 

@@ -15,7 +15,7 @@ MODULE_LICENSE("GPL");
 
 fsm_instance *
 init_fsm(char *name, const char **state_names, const char **event_names, int nr_states,
-		int nr_events, const fsm_node *tmpl, int tmpl_len, gfp_t order)
+		int nr_events, const fsm_analde *tmpl, int tmpl_len, gfp_t order)
 {
 	int i;
 	fsm_instance *this;

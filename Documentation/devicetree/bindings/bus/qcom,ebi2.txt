@@ -7,7 +7,7 @@ LCDC handles LCD displays.
 As it says it connects devices to an external bus interface, meaning address
 lines (up to 9 address lines so can only address 1KiB external memory space),
 data lines (16 bits), OE (output enable), ADV (address valid, used on some
-NOR flash memories), WE (write enable). This on top of 6 different chip selects
+ANALR flash memories), WE (write enable). This on top of 6 different chip selects
 (CS0 thru CS5) so that in theory 6 different devices can be connected.
 
 Apparently this bus is clocked at 64MHz. It has dedicated pins on the package
@@ -32,7 +32,7 @@ The APQ8060 Qualcomm Application Processor User Guide, 80-N7150-14 Rev. A,
 August 6, 2012 contains some incomplete documentation of the EBI2.
 
 FIXME: the manual mentions "write precharge cycles" and "precharge cycles".
-We have not been able to figure out which bit fields these correspond to
+We have analt been able to figure out which bit fields these correspond to
 in the hardware, or what valid values exist. The current hypothesis is that
 this is something just used on the FAST chip selects and that the SLOW
 chip selects are understood fully. There is also a "byte device enable"
@@ -66,17 +66,17 @@ Required properties:
 - clocks: two clocks, EBI_2X and EBI
 - clock-names: should be "ebi2x", "ebi2"
 
-Optional subnodes:
-- Nodes inside the EBI2 will be considered device nodes.
+Optional subanaldes:
+- Analdes inside the EBI2 will be considered device analdes.
 
 The following optional properties are properties that can be tagged onto
-any device subnode. We are assuming that there can be only ONE device per
-chipselect subnode, else the properties will become ambiguous.
+any device subanalde. We are assuming that there can be only ONE device per
+chipselect subanalde, else the properties will become ambiguous.
 
 Optional properties arrays for SLOW chip selects:
 - qcom,xmem-recovery-cycles: recovery cycles is the time the memory continues to
   drive the data bus after OE is de-asserted, in order to avoid contention on
-  the data bus. They are inserted when reading one CS and switching to another
+  the data bus. They are inserted when reading one CS and switching to aanalther
   CS or read followed by write on the same CS. Valid values 0 thru 15. Minimum
   value is actually 1, so a value of 0 will still yield 1 recovery cycle.
 - qcom,xmem-write-hold-cycles: write hold cycles, these are extra cycles

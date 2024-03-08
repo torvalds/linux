@@ -2,7 +2,7 @@ Marvell Armada 8KPlus Platforms Device Tree Bindings
 ----------------------------------------------------
 
 Boards using a SoC of the Marvell Armada 8KP families must carry
-the following root node property:
+the following root analde property:
 
  - compatible, with one of the following values:
 

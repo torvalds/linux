@@ -78,7 +78,7 @@
  * @queue: Queue number
  * @pd_addr_start: Packet descriptor queue reserved memory
  * @flags: Flags
- * @special: Indicates whether this queue is a special queue or not
+ * @special: Indicates whether this queue is a special queue or analt
  */
 struct map {
 	int queue;
@@ -179,8 +179,8 @@ static void icssg_miig_queues_init(struct prueth *prueth, int slice)
 			pd_size = ICSSG_SPECIAL_PD_SIZE;
 			num_pds = ICSSG_NUM_SPECIAL_PDS;
 		} else	{
-			pd_size = ICSSG_NORMAL_PD_SIZE;
-			num_pds = ICSSG_NUM_NORMAL_PDS;
+			pd_size = ICSSG_ANALRMAL_PD_SIZE;
+			num_pds = ICSSG_NUM_ANALRMAL_PDS;
 		}
 
 		for (i = 0; i < num_pds; i++) {
@@ -215,7 +215,7 @@ void icssg_config_ipg(struct prueth_emac *emac)
 		icssg_mii_update_ipg(prueth->mii_rt, slice, MII_RT_TX_IPG_100M);
 		break;
 	default:
-		/* Other links speeds not supported */
+		/* Other links speeds analt supported */
 		netdev_err(emac->ndev, "Unsupported link speed\n");
 		return;
 	}
@@ -229,7 +229,7 @@ static void emac_r30_cmd_init(struct prueth_emac *emac)
 	p = emac->dram.va + MGR_R30_CMD_OFFSET;
 
 	for (i = 0; i < 4; i++)
-		writel(EMAC_NONE, &p->cmd[i]);
+		writel(EMAC_ANALNE, &p->cmd[i]);
 }
 
 static int emac_r30_is_done(struct prueth_emac *emac)
@@ -242,7 +242,7 @@ static int emac_r30_is_done(struct prueth_emac *emac)
 
 	for (i = 0; i < 4; i++) {
 		cmd = readl(&p->cmd[i]);
-		if (cmd != EMAC_NONE)
+		if (cmd != EMAC_ANALNE)
 			return 0;
 	}
 
@@ -379,25 +379,25 @@ int icssg_config(struct prueth *prueth, struct prueth_emac *emac, int slice)
 
 /* Bitmask for ICSSG r30 commands */
 static const struct icssg_r30_cmd emac_r32_bitmask[] = {
-	{{0xffff0004, 0xffff0100, 0xffff0004, EMAC_NONE}},	/* EMAC_PORT_DISABLE */
-	{{0xfffb0040, 0xfeff0200, 0xfeff0200, EMAC_NONE}},	/* EMAC_PORT_BLOCK */
-	{{0xffbb0000, 0xfcff0000, 0xdcfb0000, EMAC_NONE}},	/* EMAC_PORT_FORWARD */
-	{{0xffbb0000, 0xfcff0000, 0xfcff2000, EMAC_NONE}},	/* EMAC_PORT_FORWARD_WO_LEARNING */
-	{{0xffff0001, EMAC_NONE,  EMAC_NONE, EMAC_NONE}},	/* ACCEPT ALL */
-	{{0xfffe0002, EMAC_NONE,  EMAC_NONE, EMAC_NONE}},	/* ACCEPT TAGGED */
-	{{0xfffc0000, EMAC_NONE,  EMAC_NONE, EMAC_NONE}},	/* ACCEPT UNTAGGED and PRIO */
-	{{EMAC_NONE,  0xffff0020, EMAC_NONE, EMAC_NONE}},	/* TAS Trigger List change */
-	{{EMAC_NONE,  0xdfff1000, EMAC_NONE, EMAC_NONE}},	/* TAS set state ENABLE*/
-	{{EMAC_NONE,  0xefff2000, EMAC_NONE, EMAC_NONE}},	/* TAS set state RESET*/
-	{{EMAC_NONE,  0xcfff0000, EMAC_NONE, EMAC_NONE}},	/* TAS set state DISABLE*/
-	{{EMAC_NONE,  EMAC_NONE,  0xffff0400, EMAC_NONE}},	/* UC flooding ENABLE*/
-	{{EMAC_NONE,  EMAC_NONE,  0xfbff0000, EMAC_NONE}},	/* UC flooding DISABLE*/
-	{{EMAC_NONE,  EMAC_NONE,  0xffff0800, EMAC_NONE}},	/* MC flooding ENABLE*/
-	{{EMAC_NONE,  EMAC_NONE,  0xf7ff0000, EMAC_NONE}},	/* MC flooding DISABLE*/
-	{{EMAC_NONE,  0xffff4000, EMAC_NONE, EMAC_NONE}},	/* Preemption on Tx ENABLE*/
-	{{EMAC_NONE,  0xbfff0000, EMAC_NONE, EMAC_NONE}},	/* Preemption on Tx DISABLE*/
-	{{0xffff0010,  EMAC_NONE, 0xffff0010, EMAC_NONE}},	/* VLAN AWARE*/
-	{{0xffef0000,  EMAC_NONE, 0xffef0000, EMAC_NONE}}	/* VLAN UNWARE*/
+	{{0xffff0004, 0xffff0100, 0xffff0004, EMAC_ANALNE}},	/* EMAC_PORT_DISABLE */
+	{{0xfffb0040, 0xfeff0200, 0xfeff0200, EMAC_ANALNE}},	/* EMAC_PORT_BLOCK */
+	{{0xffbb0000, 0xfcff0000, 0xdcfb0000, EMAC_ANALNE}},	/* EMAC_PORT_FORWARD */
+	{{0xffbb0000, 0xfcff0000, 0xfcff2000, EMAC_ANALNE}},	/* EMAC_PORT_FORWARD_WO_LEARNING */
+	{{0xffff0001, EMAC_ANALNE,  EMAC_ANALNE, EMAC_ANALNE}},	/* ACCEPT ALL */
+	{{0xfffe0002, EMAC_ANALNE,  EMAC_ANALNE, EMAC_ANALNE}},	/* ACCEPT TAGGED */
+	{{0xfffc0000, EMAC_ANALNE,  EMAC_ANALNE, EMAC_ANALNE}},	/* ACCEPT UNTAGGED and PRIO */
+	{{EMAC_ANALNE,  0xffff0020, EMAC_ANALNE, EMAC_ANALNE}},	/* TAS Trigger List change */
+	{{EMAC_ANALNE,  0xdfff1000, EMAC_ANALNE, EMAC_ANALNE}},	/* TAS set state ENABLE*/
+	{{EMAC_ANALNE,  0xefff2000, EMAC_ANALNE, EMAC_ANALNE}},	/* TAS set state RESET*/
+	{{EMAC_ANALNE,  0xcfff0000, EMAC_ANALNE, EMAC_ANALNE}},	/* TAS set state DISABLE*/
+	{{EMAC_ANALNE,  EMAC_ANALNE,  0xffff0400, EMAC_ANALNE}},	/* UC flooding ENABLE*/
+	{{EMAC_ANALNE,  EMAC_ANALNE,  0xfbff0000, EMAC_ANALNE}},	/* UC flooding DISABLE*/
+	{{EMAC_ANALNE,  EMAC_ANALNE,  0xffff0800, EMAC_ANALNE}},	/* MC flooding ENABLE*/
+	{{EMAC_ANALNE,  EMAC_ANALNE,  0xf7ff0000, EMAC_ANALNE}},	/* MC flooding DISABLE*/
+	{{EMAC_ANALNE,  0xffff4000, EMAC_ANALNE, EMAC_ANALNE}},	/* Preemption on Tx ENABLE*/
+	{{EMAC_ANALNE,  0xbfff0000, EMAC_ANALNE, EMAC_ANALNE}},	/* Preemption on Tx DISABLE*/
+	{{0xffff0010,  EMAC_ANALNE, 0xffff0010, EMAC_ANALNE}},	/* VLAN AWARE*/
+	{{0xffef0000,  EMAC_ANALNE, 0xffef0000, EMAC_ANALNE}}	/* VLAN UNWARE*/
 };
 
 int emac_set_port_state(struct prueth_emac *emac,
@@ -459,7 +459,7 @@ void icssg_config_set_speed(struct prueth_emac *emac)
 		fw_speed = FW_LINK_SPEED_10M;
 		break;
 	default:
-		/* Other links speeds not supported */
+		/* Other links speeds analt supported */
 		netdev_err(emac->ndev, "Unsupported link speed\n");
 		return;
 	}

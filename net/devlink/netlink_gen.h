@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
-/* Do not edit directly, auto-generated from: */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/devlink.yaml */
 /* YNL-GEN kernel header */
 
@@ -105,7 +105,7 @@ int devlink_nl_health_reporter_set_doit(struct sk_buff *skb,
 					struct genl_info *info);
 int devlink_nl_health_reporter_recover_doit(struct sk_buff *skb,
 					    struct genl_info *info);
-int devlink_nl_health_reporter_diagnose_doit(struct sk_buff *skb,
+int devlink_nl_health_reporter_diaganalse_doit(struct sk_buff *skb,
 					     struct genl_info *info);
 int devlink_nl_health_reporter_dump_get_dumpit(struct sk_buff *skb,
 					       struct netlink_callback *cb);
@@ -142,7 +142,7 @@ int devlink_nl_selftests_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_selftests_get_dumpit(struct sk_buff *skb,
 				    struct netlink_callback *cb);
 int devlink_nl_selftests_run_doit(struct sk_buff *skb, struct genl_info *info);
-int devlink_nl_notify_filter_set_doit(struct sk_buff *skb,
+int devlink_nl_analtify_filter_set_doit(struct sk_buff *skb,
 				      struct genl_info *info);
 
 #endif /* _LINUX_DEVLINK_GEN_H */

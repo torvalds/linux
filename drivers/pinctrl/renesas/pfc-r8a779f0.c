@@ -7,7 +7,7 @@
  * This file is based on the drivers/pinctrl/renesas/pfc-r8a779a0.c
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 
@@ -21,9 +21,9 @@
 	PORT_GP_CFG_17(2, fn, sfx, CFG_FLAGS),	\
 	PORT_GP_CFG_19(3, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE_18_33)
 
-#define CPU_ALL_NOGP(fn)								\
-	PIN_NOGP_CFG(PRESETOUT0_N, "PRESETOUT0#", fn, SH_PFC_PIN_CFG_PULL_DOWN),	\
-	PIN_NOGP_CFG(EXTALR, "EXTALR", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN)
+#define CPU_ALL_ANALGP(fn)								\
+	PIN_ANALGP_CFG(PRESETOUT0_N, "PRESETOUT0#", fn, SH_PFC_PIN_CFG_PULL_DOWN),	\
+	PIN_ANALGP_CFG(EXTALR, "EXTALR", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN)
 
 /*
  * F_() : just information
@@ -478,28 +478,28 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_PHYS(IP0SR1_31_28,	SDA3,		SEL_I2C3_3),
 
 	/* GP1_08 = SCL4 */
-	PINMUX_IPSR_NOGM(0,		GP1_08,		SEL_I2C4_0),
-	PINMUX_IPSR_NOFN(GP1_08,	SCL4,		SEL_I2C4_3),
+	PINMUX_IPSR_ANALGM(0,		GP1_08,		SEL_I2C4_0),
+	PINMUX_IPSR_ANALFN(GP1_08,	SCL4,		SEL_I2C4_3),
 
 	/* GP1_09 = SDA4 */
-	PINMUX_IPSR_NOGM(0,		GP1_09,		SEL_I2C4_0),
-	PINMUX_IPSR_NOFN(GP1_09,	SDA4,		SEL_I2C4_3),
+	PINMUX_IPSR_ANALGM(0,		GP1_09,		SEL_I2C4_0),
+	PINMUX_IPSR_ANALFN(GP1_09,	SDA4,		SEL_I2C4_3),
 
 	/* GP1_10 = SCL5 */
-	PINMUX_IPSR_NOGM(0,		GP1_10,		SEL_I2C5_0),
-	PINMUX_IPSR_NOFN(GP1_10,	SCL5,		SEL_I2C5_3),
+	PINMUX_IPSR_ANALGM(0,		GP1_10,		SEL_I2C5_0),
+	PINMUX_IPSR_ANALFN(GP1_10,	SCL5,		SEL_I2C5_3),
 
 	/* GP1_11 = SDA5 */
-	PINMUX_IPSR_NOGM(0,		GP1_11,		SEL_I2C5_0),
-	PINMUX_IPSR_NOFN(GP1_11,	SDA5,		SEL_I2C5_3),
+	PINMUX_IPSR_ANALGM(0,		GP1_11,		SEL_I2C5_0),
+	PINMUX_IPSR_ANALFN(GP1_11,	SDA5,		SEL_I2C5_3),
 };
 
 /*
- * Pins not associated with a GPIO port.
+ * Pins analt associated with a GPIO port.
  */
 enum {
 	GP_ASSIGN_LAST(),
-	NOGP_ALL(),
+	ANALGP_ALL(),
 };
 
 static const struct sh_pfc_pin pinmux_pins[] = {
@@ -1956,17 +1956,17 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[18] = RCAR_GP_PIN(0, 18),	/* IRQ1 */
 		[19] = RCAR_GP_PIN(0, 19),	/* IRQ2 */
 		[20] = RCAR_GP_PIN(0, 20),	/* IRQ3 */
-		[21] = SH_PFC_PIN_NONE,
-		[22] = SH_PFC_PIN_NONE,
-		[23] = SH_PFC_PIN_NONE,
-		[24] = SH_PFC_PIN_NONE,
-		[25] = SH_PFC_PIN_NONE,
-		[26] = SH_PFC_PIN_NONE,
-		[27] = SH_PFC_PIN_NONE,
-		[28] = SH_PFC_PIN_NONE,
-		[29] = SH_PFC_PIN_NONE,
-		[30] = SH_PFC_PIN_NONE,
-		[31] = SH_PFC_PIN_NONE,
+		[21] = SH_PFC_PIN_ANALNE,
+		[22] = SH_PFC_PIN_ANALNE,
+		[23] = SH_PFC_PIN_ANALNE,
+		[24] = SH_PFC_PIN_ANALNE,
+		[25] = SH_PFC_PIN_ANALNE,
+		[26] = SH_PFC_PIN_ANALNE,
+		[27] = SH_PFC_PIN_ANALNE,
+		[28] = SH_PFC_PIN_ANALNE,
+		[29] = SH_PFC_PIN_ANALNE,
+		[30] = SH_PFC_PIN_ANALNE,
+		[31] = SH_PFC_PIN_ANALNE,
 	} },
 	{ PINMUX_BIAS_REG("PUEN1", 0xe60508c0, "PUD1", 0xe60508e0) {
 		[ 0] = RCAR_GP_PIN(1,  0),	/* GP1_00 */
@@ -1994,13 +1994,13 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[22] = RCAR_GP_PIN(1, 22),	/* MMC_SD_CMD */
 		[23] = RCAR_GP_PIN(1, 23),	/* SD_CD */
 		[24] = RCAR_GP_PIN(1, 24),	/* SD_WP */
-		[25] = SH_PFC_PIN_NONE,
-		[26] = SH_PFC_PIN_NONE,
-		[27] = SH_PFC_PIN_NONE,
-		[28] = SH_PFC_PIN_NONE,
-		[29] = SH_PFC_PIN_NONE,
-		[30] = SH_PFC_PIN_NONE,
-		[31] = SH_PFC_PIN_NONE,
+		[25] = SH_PFC_PIN_ANALNE,
+		[26] = SH_PFC_PIN_ANALNE,
+		[27] = SH_PFC_PIN_ANALNE,
+		[28] = SH_PFC_PIN_ANALNE,
+		[29] = SH_PFC_PIN_ANALNE,
+		[30] = SH_PFC_PIN_ANALNE,
+		[31] = SH_PFC_PIN_ANALNE,
 	} },
 	{ PINMUX_BIAS_REG("PUEN2", 0xe60510c0, "PUD2", 0xe60510e0) {
 		[ 0] = RCAR_GP_PIN(2,  0),	/* RPC_INT_N */
@@ -2020,21 +2020,21 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[14] = RCAR_GP_PIN(2, 14),	/* QSPI0_IO3 */
 		[15] = RCAR_GP_PIN(2, 15),	/* PCIE0_CLKREQ_N */
 		[16] = RCAR_GP_PIN(2, 16),	/* PCIE1_CLKREQ_N */
-		[17] = SH_PFC_PIN_NONE,
-		[18] = SH_PFC_PIN_NONE,
-		[19] = SH_PFC_PIN_NONE,
-		[20] = SH_PFC_PIN_NONE,
-		[21] = SH_PFC_PIN_NONE,
-		[22] = SH_PFC_PIN_NONE,
-		[23] = SH_PFC_PIN_NONE,
-		[24] = SH_PFC_PIN_NONE,
-		[25] = SH_PFC_PIN_NONE,
-		[26] = SH_PFC_PIN_NONE,
-		[27] = SH_PFC_PIN_NONE,
-		[28] = SH_PFC_PIN_NONE,
-		[29] = SH_PFC_PIN_NONE,
-		[30] = SH_PFC_PIN_NONE,
-		[31] = SH_PFC_PIN_NONE,
+		[17] = SH_PFC_PIN_ANALNE,
+		[18] = SH_PFC_PIN_ANALNE,
+		[19] = SH_PFC_PIN_ANALNE,
+		[20] = SH_PFC_PIN_ANALNE,
+		[21] = SH_PFC_PIN_ANALNE,
+		[22] = SH_PFC_PIN_ANALNE,
+		[23] = SH_PFC_PIN_ANALNE,
+		[24] = SH_PFC_PIN_ANALNE,
+		[25] = SH_PFC_PIN_ANALNE,
+		[26] = SH_PFC_PIN_ANALNE,
+		[27] = SH_PFC_PIN_ANALNE,
+		[28] = SH_PFC_PIN_ANALNE,
+		[29] = SH_PFC_PIN_ANALNE,
+		[30] = SH_PFC_PIN_ANALNE,
+		[31] = SH_PFC_PIN_ANALNE,
 	} },
 	{ PINMUX_BIAS_REG("PUEN3", 0xe60518c0, "PUD3", 0xe60518e0) {
 		[ 0] = RCAR_GP_PIN(3,  0),	/* TSN1_MDIO_B */
@@ -2056,19 +2056,19 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[16] = RCAR_GP_PIN(3, 16),	/* TSN0_AVTP_PPS */
 		[17] = RCAR_GP_PIN(3, 17),	/* TSN0_AVTP_MATCH_B */
 		[18] = RCAR_GP_PIN(3, 18),	/* TSN0_AVTP_CAPTURE_B */
-		[19] = SH_PFC_PIN_NONE,
-		[20] = SH_PFC_PIN_NONE,
-		[21] = SH_PFC_PIN_NONE,
-		[22] = SH_PFC_PIN_NONE,
-		[23] = SH_PFC_PIN_NONE,
-		[24] = SH_PFC_PIN_NONE,
-		[25] = SH_PFC_PIN_NONE,
-		[26] = SH_PFC_PIN_NONE,
-		[27] = SH_PFC_PIN_NONE,
-		[28] = SH_PFC_PIN_NONE,
-		[29] = SH_PFC_PIN_NONE,
-		[30] = SH_PFC_PIN_NONE,
-		[31] = SH_PFC_PIN_NONE,
+		[19] = SH_PFC_PIN_ANALNE,
+		[20] = SH_PFC_PIN_ANALNE,
+		[21] = SH_PFC_PIN_ANALNE,
+		[22] = SH_PFC_PIN_ANALNE,
+		[23] = SH_PFC_PIN_ANALNE,
+		[24] = SH_PFC_PIN_ANALNE,
+		[25] = SH_PFC_PIN_ANALNE,
+		[26] = SH_PFC_PIN_ANALNE,
+		[27] = SH_PFC_PIN_ANALNE,
+		[28] = SH_PFC_PIN_ANALNE,
+		[29] = SH_PFC_PIN_ANALNE,
+		[30] = SH_PFC_PIN_ANALNE,
+		[31] = SH_PFC_PIN_ANALNE,
 	} },
 	{ /* sentinel */ }
 };

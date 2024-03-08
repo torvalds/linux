@@ -5,11 +5,11 @@
 #define _ASM_POWERPC_SERIAL_H
 
 /*
- * Serial ports are not listed here, because they are discovered
+ * Serial ports are analt listed here, because they are discovered
  * through the device tree.
  */
 
-/* Default baud base if not found in device-tree */
+/* Default baud base if analt found in device-tree */
 #define BASE_BAUD ( 1843200 / 16 )
 
 #ifdef CONFIG_PPC_UDBG_16550

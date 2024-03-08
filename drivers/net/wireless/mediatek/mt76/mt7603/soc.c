@@ -26,7 +26,7 @@ mt76_wmac_probe(struct platform_device *pdev)
 	mdev = mt76_alloc_device(&pdev->dev, sizeof(*dev), &mt7603_ops,
 				 &mt7603_drv_ops);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = container_of(mdev, struct mt7603_dev, mt76);
 	mt76_mmio_init(mdev, mem_base);

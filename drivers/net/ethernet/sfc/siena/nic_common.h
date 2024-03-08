@@ -16,7 +16,7 @@
 
 enum {
 	/* Revisions 0-2 were Falcon A0, A1 and B0 respectively.
-	 * They are not supported by this driver but these revision numbers
+	 * They are analt supported by this driver but these revision numbers
 	 * form part of the ethtool API for register dumping.
 	 */
 	EFX_REV_SIENA_A0 = 3,
@@ -40,12 +40,12 @@ static inline efx_qword_t *efx_event(struct efx_channel *channel,
 /* See if an event is present
  *
  * We check both the high and low dword of the event for all ones.  We
- * wrote all ones when we cleared the event, and no valid event can
+ * wrote all ones when we cleared the event, and anal valid event can
  * have all ones in either its high or low dwords.  This approach is
  * robust against reordering.
  *
- * Note that using a single 64-bit comparison is incorrect; even
- * though the CPU read will be atomic, the DMA write may not be.
+ * Analte that using a single 64-bit comparison is incorrect; even
+ * though the CPU read will be atomic, the DMA write may analt be.
  */
 static inline int efx_event_present(efx_qword_t *event)
 {
@@ -106,8 +106,8 @@ efx_rx_desc(struct efx_rx_queue *rx_queue, unsigned int index)
 
 /* NIC-generic software stats */
 enum {
-	GENERIC_STAT_rx_noskb_drops,
-	GENERIC_STAT_rx_nodesc_trunc,
+	GENERIC_STAT_rx_analskb_drops,
+	GENERIC_STAT_rx_analdesc_trunc,
 	GENERIC_STAT_COUNT
 };
 
@@ -146,7 +146,7 @@ static inline void efx_nic_remove_rx(struct efx_rx_queue *rx_queue)
 {
 	rx_queue->efx->type->rx_remove(rx_queue);
 }
-static inline void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue)
+static inline void efx_nic_analtify_rx_desc(struct efx_rx_queue *rx_queue)
 {
 	rx_queue->efx->type->rx_write(rx_queue);
 }
@@ -199,7 +199,7 @@ static inline unsigned int efx_rx_recycle_ring_size(const struct efx_nic *efx)
 
 /* Some statistics are computed as A - B where A and B each increase
  * linearly with some hardware counter(s) and the counters are read
- * asynchronously.  If the counters contributing to B are always read
+ * asynchroanalusly.  If the counters contributing to B are always read
  * after those contributing to A, the computed value may be lower than
  * the true value by some variable amount, and may decrease between
  * subsequent computations.
@@ -244,7 +244,7 @@ size_t efx_siena_describe_stats(const struct efx_hw_stat_desc *desc, size_t coun
 void efx_siena_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			    const unsigned long *mask, u64 *stats,
 			    const void *dma_buf, bool accumulate);
-void efx_siena_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *stat);
+void efx_siena_fix_analdesc_drop_stat(struct efx_nic *efx, u64 *stat);
 
 #define EFX_MAX_FLUSH_TIME 5000
 

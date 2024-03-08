@@ -101,7 +101,7 @@
 		nvidia,sample-rate = <25000>;
 
 		nvidia,pwm-min-microvolts = <708000>;
-		nvidia,pwm-period-nanoseconds = <2500>; /* 2.5us */
+		nvidia,pwm-period-naanalseconds = <2500>; /* 2.5us */
 		nvidia,pwm-to-pmic;
 		nvidia,pwm-tristate-microvolts = <1000000>;
 		nvidia,pwm-voltage-step-microvolts = <19200>;

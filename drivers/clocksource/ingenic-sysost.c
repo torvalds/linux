@@ -211,7 +211,7 @@ static const struct ingenic_ost_clk_info x1000_ost_clk_info[] = {
 	},
 };
 
-static u64 notrace ingenic_ost_global_timer_read_cntl(void)
+static u64 analtrace ingenic_ost_global_timer_read_cntl(void)
 {
 	struct ingenic_ost *ost = ingenic_ost;
 	unsigned int count;
@@ -221,7 +221,7 @@ static u64 notrace ingenic_ost_global_timer_read_cntl(void)
 	return count;
 }
 
-static u64 notrace ingenic_ost_clocksource_read(struct clocksource *cs)
+static u64 analtrace ingenic_ost_clocksource_read(struct clocksource *cs)
 {
 	return ingenic_ost_global_timer_read_cntl();
 }
@@ -276,7 +276,7 @@ static int __init ingenic_ost_register_clock(struct ingenic_ost *ost,
 
 	ost_clk = kzalloc(sizeof(*ost_clk), GFP_KERNEL);
 	if (!ost_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ost_clk->hw.init = &info->init_data;
 	ost_clk->idx = idx;
@@ -299,7 +299,7 @@ static int __init ingenic_ost_register_clock(struct ingenic_ost *ost,
 	return 0;
 }
 
-static struct clk * __init ingenic_ost_get_clock(struct device_node *np, int id)
+static struct clk * __init ingenic_ost_get_clock(struct device_analde *np, int id)
 {
 	struct of_phandle_args args;
 
@@ -310,7 +310,7 @@ static struct clk * __init ingenic_ost_get_clock(struct device_node *np, int id)
 	return of_clk_get_from_provider(&args);
 }
 
-static int __init ingenic_ost_percpu_timer_init(struct device_node *np,
+static int __init ingenic_ost_percpu_timer_init(struct device_analde *np,
 					 struct ingenic_ost *ost)
 {
 	unsigned int timer_virq, channel = OST_CLK_PERCPU_TIMER;
@@ -364,7 +364,7 @@ err_clk_put:
 	return err;
 }
 
-static int __init ingenic_ost_global_timer_init(struct device_node *np,
+static int __init ingenic_ost_global_timer_init(struct device_analde *np,
 					       struct ingenic_ost *ost)
 {
 	unsigned int channel = OST_CLK_GLOBAL_TIMER;
@@ -420,18 +420,18 @@ static const struct of_device_id __maybe_unused ingenic_ost_of_matches[] __initc
 	{ /* sentinel */ }
 };
 
-static int __init ingenic_ost_probe(struct device_node *np)
+static int __init ingenic_ost_probe(struct device_analde *np)
 {
-	const struct of_device_id *id = of_match_node(ingenic_ost_of_matches, np);
+	const struct of_device_id *id = of_match_analde(ingenic_ost_of_matches, np);
 	struct ingenic_ost *ost;
 	unsigned int i;
 	int ret;
 
 	ost = kzalloc(sizeof(*ost), GFP_KERNEL);
 	if (!ost)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ost->base = of_io_request_and_map(np, 0, of_node_full_name(np));
+	ost->base = of_io_request_and_map(np, 0, of_analde_full_name(np));
 	if (IS_ERR(ost->base)) {
 		pr_err("%s: Failed to map OST registers\n", __func__);
 		ret = PTR_ERR(ost->base);
@@ -441,7 +441,7 @@ static int __init ingenic_ost_probe(struct device_node *np)
 	ost->clk = of_clk_get_by_name(np, "ost");
 	if (IS_ERR(ost->clk)) {
 		ret = PTR_ERR(ost->clk);
-		pr_crit("%s: Cannot get OST clock\n", __func__);
+		pr_crit("%s: Cananalt get OST clock\n", __func__);
 		goto err_free_ost;
 	}
 
@@ -456,7 +456,7 @@ static int __init ingenic_ost_probe(struct device_node *np)
 	ost->clocks = kzalloc(struct_size(ost->clocks, hws, ost->soc_info->num_channels),
 			      GFP_KERNEL);
 	if (!ost->clocks) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk_disable;
 	}
 
@@ -465,14 +465,14 @@ static int __init ingenic_ost_probe(struct device_node *np)
 	for (i = 0; i < ost->clocks->num; i++) {
 		ret = ingenic_ost_register_clock(ost, i, &x1000_ost_clk_info[i], ost->clocks);
 		if (ret) {
-			pr_crit("%s: Cannot register clock %d\n", __func__, i);
+			pr_crit("%s: Cananalt register clock %d\n", __func__, i);
 			goto err_unregister_ost_clocks;
 		}
 	}
 
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, ost->clocks);
 	if (ret) {
-		pr_crit("%s: Cannot add OF clock provider\n", __func__);
+		pr_crit("%s: Cananalt add OF clock provider\n", __func__);
 		goto err_unregister_ost_clocks;
 	}
 
@@ -494,7 +494,7 @@ err_free_ost:
 	return ret;
 }
 
-static int __init ingenic_ost_init(struct device_node *np)
+static int __init ingenic_ost_init(struct device_analde *np)
 {
 	struct ingenic_ost *ost;
 	unsigned long rate;
@@ -506,7 +506,7 @@ static int __init ingenic_ost_init(struct device_node *np)
 		return ret;
 	}
 
-	of_node_clear_flag(np, OF_POPULATED);
+	of_analde_clear_flag(np, OF_POPULATED);
 
 	ost = ingenic_ost;
 	if (IS_ERR(ost))
@@ -522,7 +522,7 @@ static int __init ingenic_ost_init(struct device_node *np)
 	if (ret)
 		goto err_ost_global_timer_cleanup;
 
-	/* Register the sched_clock at the end as there's no way to undo it */
+	/* Register the sched_clock at the end as there's anal way to undo it */
 	rate = clk_get_rate(ost->global_timer_clk);
 	sched_clock_register(ingenic_ost_global_timer_read_cntl, 32, rate);
 

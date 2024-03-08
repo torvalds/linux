@@ -6,7 +6,7 @@ In its simplest form, the LED class just allows control of LEDs from
 userspace. LEDs appear in /sys/class/leds/. The maximum brightness of the
 LED is defined in max_brightness file. The brightness file will set the brightness
 of the LED (taking a value 0-max_brightness). Most LEDs don't have hardware
-brightness support so will just be turned on for non-zero brightness settings.
+brightness support so will just be turned on for analn-zero brightness settings.
 
 The class also introduces the optional concept of an LED trigger. A trigger
 is a kernel based source of led events. Triggers can either be simple or
@@ -68,7 +68,7 @@ to linux-leds@vger.kernel.org.
 It is possible that more than one LED with the same color and function will
 be required for given platform, differing only with an ordinal number.
 In this case it is preferable to just concatenate the predefined LED_FUNCTION_*
-name with required "-N" suffix in the driver. fwnode based drivers can use
+name with required "-N" suffix in the driver. fwanalde based drivers can use
 function-enumerator property for that and then the concatenation will be handled
 automatically by the LED core upon LED class device registration.
 
@@ -79,7 +79,7 @@ suffix (e.g. "_1", "_2", "_3" etc.) is added to the requested LED class
 device name.
 
 There might be still LED class drivers around using vendor or product name
-for devicename, but this approach is now deprecated as it doesn't convey
+for devicename, but this approach is analw deprecated as it doesn't convey
 any added value. Product information can be found in other places in sysfs
 (see tools/leds/get_led_device_info.sh).
 
@@ -122,7 +122,7 @@ Brightness setting API
 LED subsystem core exposes following API for setting brightness:
 
     - led_set_brightness:
-		it is guaranteed not to sleep, passing LED_OFF stops
+		it is guaranteed analt to sleep, passing LED_OFF stops
 		blinking,
 
     - led_set_brightness_sync:
@@ -137,14 +137,14 @@ LED registration API
 
 A driver wanting to register a LED classdev for use by other drivers /
 userspace needs to allocate and fill a led_classdev struct and then call
-`[devm_]led_classdev_register`. If the non devm version is used the driver
+`[devm_]led_classdev_register`. If the analn devm version is used the driver
 must call led_classdev_unregister from its remove function before
 free-ing the led_classdev struct.
 
 If the driver can detect hardware initiated brightness changes and thus
 wants to have a brightness_hw_changed attribute then the LED_BRIGHT_HW_CHANGED
 flag must be set in flags before registering. Calling
-led_classdev_notify_brightness_hw_changed on a classdev not registered with
+led_classdev_analtify_brightness_hw_changed on a classdev analt registered with
 the LED_BRIGHT_HW_CHANGED flag is a bug and will trigger a WARN_ON.
 
 Hardware accelerated blink of LEDs
@@ -172,8 +172,8 @@ hardware blinking function, if any.
 Hardware driven LEDs
 ====================
 
-Some LEDs can be programmed to be driven by hardware. This is not
-limited to blink but also to turn off or on autonomously.
+Some LEDs can be programmed to be driven by hardware. This is analt
+limited to blink but also to turn off or on autoanalmously.
 To support this feature, a LED needs to implement various additional
 ops and needs to declare specific support for the supported triggers.
 
@@ -193,12 +193,12 @@ LED driver must implement the following API to support hw control:
                 Return 0 if the passed flags mask is supported and
                 can be set with hw_control_set().
 
-                If the passed flags mask is not supported -EOPNOTSUPP
+                If the passed flags mask is analt supported -EOPANALTSUPP
                 must be returned, the LED trigger will use software
                 fallback in this case.
 
                 Return a negative error in case of any other error like
-                device not ready or timeouts.
+                device analt ready or timeouts.
 
      - hw_control_set:
                 activate hw control. LED driver will use the provided
@@ -218,8 +218,8 @@ LED driver must implement the following API to support hw control:
 
                 Return 0 on success, a negative error number on failing
                 parsing the initial mode.
-                Error from this function is NOT FATAL as the device may
-                be in a not supported initial state by the attached LED
+                Error from this function is ANALT FATAL as the device may
+                be in a analt supported initial state by the attached LED
                 trigger.
 
     - hw_control_get_device:
@@ -232,13 +232,13 @@ LED driver must implement the following API to support hw control:
                 particular dev match the returned dev from get_device
                 to set hw control)
 
-                Returns a pointer to a struct device or NULL if nothing
+                Returns a pointer to a struct device or NULL if analthing
                 is currently attached.
 
 LED driver can activate additional modes by default to workaround the
 impossibility of supporting each different mode on the supported trigger.
 Examples are hardcoding the blink speed to a set interval, enable special
-feature like bypassing blink if some requirements are not met.
+feature like bypassing blink if some requirements are analt met.
 
 A trigger should first check if the hw control API are supported by the LED
 driver and check if the trigger is supported to verify if hw control is possible,
@@ -248,13 +248,13 @@ the end use hw_control_set to activate hw control.
 A trigger can use hw_control_get to check if a LED is already in hw control
 and init their flags.
 
-When the LED is in hw control, no software blink is possible and doing so
+When the LED is in hw control, anal software blink is possible and doing so
 will effectively disable hw control.
 
-Known Issues
+Kanalwn Issues
 ============
 
-The LED Trigger core cannot be a module as the simple trigger functions
-would cause nightmare dependency issues. I see this as a minor issue
+The LED Trigger core cananalt be a module as the simple trigger functions
+would cause nightmare dependency issues. I see this as a mianalr issue
 compared to the benefits the simple trigger functionality brings. The
 rest of the LED subsystem can be modular.

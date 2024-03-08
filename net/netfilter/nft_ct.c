@@ -421,7 +421,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 
 	case NFT_CT_L3PROTOCOL:
 	case NFT_CT_PROTOCOL:
-		/* For compatibility, do not report error if NFTA_CT_DIRECTION
+		/* For compatibility, do analt report error if NFTA_CT_DIRECTION
 		 * attribute is specified.
 		 */
 		len = sizeof(u8);
@@ -442,7 +442,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 					   src.u3.ip6);
 			break;
 		default:
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 		}
 		break;
 	case NFT_CT_SRC_IP:
@@ -482,7 +482,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 		len = sizeof(u32);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[NFTA_CT_DIRECTION] != NULL) {
@@ -568,7 +568,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		mutex_lock(&nft_ct_pcpu_mutex);
 		if (!nft_ct_tmpl_alloc_pcpu()) {
 			mutex_unlock(&nft_ct_pcpu_mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		nft_ct_pcpu_template_refcnt++;
 		mutex_unlock(&nft_ct_pcpu_mutex);
@@ -590,7 +590,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		break;
 #endif
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[NFTA_CT_DIRECTION]) {
@@ -833,7 +833,7 @@ static struct nft_expr_type nft_ct_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static void nft_notrack_eval(const struct nft_expr *expr,
+static void nft_analtrack_eval(const struct nft_expr *expr,
 			     struct nft_regs *regs,
 			     const struct nft_pktinfo *pkt)
 {
@@ -842,24 +842,24 @@ static void nft_notrack_eval(const struct nft_expr *expr,
 	struct nf_conn *ct;
 
 	ct = nf_ct_get(pkt->skb, &ctinfo);
-	/* Previously seen (loopback or untracked)?  Ignore. */
+	/* Previously seen (loopback or untracked)?  Iganalre. */
 	if (ct || ctinfo == IP_CT_UNTRACKED)
 		return;
 
 	nf_ct_set(skb, ct, IP_CT_UNTRACKED);
 }
 
-static struct nft_expr_type nft_notrack_type;
-static const struct nft_expr_ops nft_notrack_ops = {
-	.type		= &nft_notrack_type,
+static struct nft_expr_type nft_analtrack_type;
+static const struct nft_expr_ops nft_analtrack_ops = {
+	.type		= &nft_analtrack_type,
 	.size		= NFT_EXPR_SIZE(0),
-	.eval		= nft_notrack_eval,
+	.eval		= nft_analtrack_eval,
 	.reduce		= NFT_REDUCE_READONLY,
 };
 
-static struct nft_expr_type nft_notrack_type __read_mostly = {
-	.name		= "notrack",
-	.ops		= &nft_notrack_ops,
+static struct nft_expr_type nft_analtrack_type __read_mostly = {
+	.name		= "analtrack",
+	.ops		= &nft_analtrack_ops,
 	.owner		= THIS_MODULE,
 };
 
@@ -876,7 +876,7 @@ nft_ct_timeout_parse_policy(void *timeouts,
 		     GFP_KERNEL);
 
 	if (!tb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nla_parse_nested_deprecated(tb,
 					  l4proto->ctnl_timeout.nlattr_max,
@@ -925,7 +925,7 @@ static void nft_ct_timeout_obj_eval(struct nft_object *obj,
 	rcu_assign_pointer(timeout->timeout, priv->timeout);
 
 	/* adjust the timeout as per 'new' state. ct is unconfirmed,
-	 * so the current timestamp must not be added.
+	 * so the current timestamp must analt be added.
 	 */
 	values = nf_ct_timeout_data(timeout);
 	if (values)
@@ -956,14 +956,14 @@ static int nft_ct_timeout_obj_init(const struct nft_ctx *ctx,
 	l4proto = nf_ct_l4proto_find(l4num);
 
 	if (l4proto->l4proto != l4num) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_proto_put;
 	}
 
 	timeout = kzalloc(sizeof(struct nf_ct_timeout) +
 			  l4proto->ctnl_timeout.obj_size, GFP_KERNEL);
 	if (timeout == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_proto_put;
 	}
 
@@ -1063,7 +1063,7 @@ static int nft_ct_helper_obj_init(const struct nft_ctx *ctx,
 
 	priv->l4proto = nla_get_u8(tb[NFTA_CT_HELPER_L4PROTO]);
 	if (!priv->l4proto)
-		return -ENOENT;
+		return -EANALENT;
 
 	nla_strscpy(name, tb[NFTA_CT_HELPER_NAME], sizeof(name));
 
@@ -1097,12 +1097,12 @@ static int nft_ct_helper_obj_init(const struct nft_ctx *ctx,
 							   priv->l4proto);
 		break;
 	default:
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 
 	/* && is intentional; only error if INET found neither ipv4 or ipv6 */
 	if (!help4 && !help6)
-		return -ENOENT;
+		return -EANALENT;
 
 	priv->helper4 = help4;
 	priv->helper6 = help6;
@@ -1262,7 +1262,7 @@ static int nft_ct_expect_obj_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 	case NFPROTO_INET: /* tuple.src.l3num supports NFPROTO_IPV4/6 only */
 	default:
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 
 	priv->l4proto = nla_get_u8(tb[NFTA_CT_EXPECT_L4PROTO]);
@@ -1274,7 +1274,7 @@ static int nft_ct_expect_obj_init(const struct nft_ctx *ctx,
 	case IPPROTO_SCTP:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->dport = nla_get_be16(tb[NFTA_CT_EXPECT_DPORT]);
@@ -1391,7 +1391,7 @@ static int __init nft_ct_module_init(void)
 	if (err < 0)
 		return err;
 
-	err = nft_register_expr(&nft_notrack_type);
+	err = nft_register_expr(&nft_analtrack_type);
 	if (err < 0)
 		goto err1;
 
@@ -1416,7 +1416,7 @@ err4:
 err3:
 	nft_unregister_obj(&nft_ct_helper_obj_type);
 err2:
-	nft_unregister_expr(&nft_notrack_type);
+	nft_unregister_expr(&nft_analtrack_type);
 err1:
 	nft_unregister_expr(&nft_ct_type);
 	return err;
@@ -1429,7 +1429,7 @@ static void __exit nft_ct_module_exit(void)
 #endif
 	nft_unregister_obj(&nft_ct_expect_obj_type);
 	nft_unregister_obj(&nft_ct_helper_obj_type);
-	nft_unregister_expr(&nft_notrack_type);
+	nft_unregister_expr(&nft_analtrack_type);
 	nft_unregister_expr(&nft_ct_type);
 }
 
@@ -1439,7 +1439,7 @@ module_exit(nft_ct_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("ct");
-MODULE_ALIAS_NFT_EXPR("notrack");
+MODULE_ALIAS_NFT_EXPR("analtrack");
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_HELPER);
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_TIMEOUT);
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_EXPECT);

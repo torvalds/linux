@@ -36,11 +36,11 @@ MODULE_PARM_DESC(timeout,
 		 "Watchdog timeout in seconds. (default="
 		 __MODULE_STRING(WDT_DEFAULT_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started. (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started. (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct nic7018_wdt {
 	u16 io_base;
@@ -175,7 +175,7 @@ static int nic7018_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -201,7 +201,7 @@ static int nic7018_probe(struct platform_device *pdev)
 	wdd->parent = dev;
 
 	watchdog_set_drvdata(wdd, wdt);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 	watchdog_init_timeout(wdd, timeout, dev);
 
 	/* Unlock WDT register */
@@ -213,8 +213,8 @@ static int nic7018_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev_dbg(dev, "io_base=0x%04X, timeout=%d, nowayout=%d\n",
-		wdt->io_base, timeout, nowayout);
+	dev_dbg(dev, "io_base=0x%04X, timeout=%d, analwayout=%d\n",
+		wdt->io_base, timeout, analwayout);
 	return 0;
 }
 

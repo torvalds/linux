@@ -33,7 +33,7 @@ static void _be_roce_dev_add(struct be_adapter *adapter)
 		return;
 
 	if (ocrdma_drv->be_abi_version != BE_ROCE_ABI_VERSION) {
-		dev_warn(&pdev->dev, "Cannot initialize RoCE due to ocrdma ABI mismatch\n");
+		dev_warn(&pdev->dev, "Cananalt initialize RoCE due to ocrdma ABI mismatch\n");
 		return;
 	}
 
@@ -87,7 +87,7 @@ void be_roce_dev_add(struct be_adapter *adapter)
 		list_add_tail(&adapter->entry, &be_adapter_list);
 
 		/* invoke add() routine of roce driver only if
-		 * valid driver registered with add method and add() is not yet
+		 * valid driver registered with add method and add() is analt yet
 		 * invoked on a given adapter.
 		 */
 		_be_roce_dev_add(adapter);

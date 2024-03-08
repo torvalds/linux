@@ -49,7 +49,7 @@ int psp_mailbox_command(struct psp_device *psp, enum psp_cmd cmd, void *cmdbuff,
 
 	if (!psp || !psp->vdata || !psp->vdata->cmdresp_reg ||
 	    !psp->vdata->cmdbuff_addr_lo_reg || !psp->vdata->cmdbuff_addr_hi_reg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cmdresp_reg    = psp->io_regs + psp->vdata->cmdresp_reg;
 	cmdbuff_lo_reg = psp->io_regs + psp->vdata->cmdbuff_addr_lo_reg;
@@ -147,12 +147,12 @@ static unsigned int psp_get_capability(struct psp_device *psp)
 	 * Check for a access to the registers.  If this read returns
 	 * 0xffffffff, it's likely that the system is running a broken
 	 * BIOS which disallows access to the device. Stop here and
-	 * fail the PSP initialization (but not the load, as the CCP
+	 * fail the PSP initialization (but analt the load, as the CCP
 	 * could get properly initialized).
 	 */
 	if (val == 0xffffffff) {
-		dev_notice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
-		return -ENODEV;
+		dev_analtice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
+		return -EANALDEV;
 	}
 	psp->capability = val;
 
@@ -160,7 +160,7 @@ static unsigned int psp_get_capability(struct psp_device *psp)
 	if (PSP_CAPABILITY(psp, PSP_SECURITY_REPORTING) &&
 	    psp->capability & (PSP_SECURITY_TSME_STATUS << PSP_CAPABILITY_PSP_SECURITY_OFFSET) &&
 	    cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
-		dev_notice(psp->dev, "psp: Both TSME and SME are active, SME is unnecessary when TSME is active.\n");
+		dev_analtice(psp->dev, "psp: Both TSME and SME are active, SME is unnecessary when TSME is active.\n");
 
 	return 0;
 }
@@ -169,8 +169,8 @@ static int psp_check_sev_support(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
 	if (!PSP_CAPABILITY(psp, SEV)) {
-		dev_dbg(psp->dev, "psp does not support SEV\n");
-		return -ENODEV;
+		dev_dbg(psp->dev, "psp does analt support SEV\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -180,8 +180,8 @@ static int psp_check_tee_support(struct psp_device *psp)
 {
 	/* Check if device supports TEE feature */
 	if (!PSP_CAPABILITY(psp, TEE)) {
-		dev_dbg(psp->dev, "psp does not support TEE\n");
-		return -ENODEV;
+		dev_dbg(psp->dev, "psp does analt support TEE\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -226,7 +226,7 @@ int psp_dev_init(struct sp_device *sp)
 	struct psp_device *psp;
 	int ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	psp = psp_alloc_struct(sp);
 	if (!psp)
 		goto e_err;
@@ -235,7 +235,7 @@ int psp_dev_init(struct sp_device *sp)
 
 	psp->vdata = (struct psp_vdata *)sp->dev_vdata->psp_vdata;
 	if (!psp->vdata) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "missing driver data\n");
 		goto e_err;
 	}
@@ -269,7 +269,7 @@ int psp_dev_init(struct sp_device *sp)
 	/* Enable interrupt */
 	iowrite32(-1, psp->io_regs + psp->vdata->inten_reg);
 
-	dev_notice(dev, "psp enabled\n");
+	dev_analtice(dev, "psp enabled\n");
 
 	return 0;
 
@@ -281,7 +281,7 @@ e_irq:
 e_err:
 	sp->psp_data = NULL;
 
-	dev_notice(dev, "psp initialization failed\n");
+	dev_analtice(dev, "psp initialization failed\n");
 
 	return ret;
 

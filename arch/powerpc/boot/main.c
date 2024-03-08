@@ -36,11 +36,11 @@ static struct addr_range prep_kernel(void)
 	if (len == -1) {
 		uncompressed_image = 1;
 		memcpy(elfheader, vmlinuz_addr, sizeof(elfheader));
-		printf("No valid compressed data found, assume uncompressed data\n\r");
+		printf("Anal valid compressed data found, assume uncompressed data\n\r");
 	}
 
 	if (!parse_elf64(elfheader, &ei) && !parse_elf32(elfheader, &ei))
-		fatal("Error: not a valid PPC32 or PPC64 ELF file!\n\r");
+		fatal("Error: analt a valid PPC32 or PPC64 ELF file!\n\r");
 
 	if (platform_ops.image_hdr)
 		platform_ops.image_hdr(elfheader);
@@ -114,7 +114,7 @@ static struct addr_range prep_initrd(struct addr_range vmlinux, void *chosen,
 		       initrd_addr, initrd_addr + initrd_size);
 	}
 
-	/* If there's no initrd at all, we're done */
+	/* If there's anal initrd at all, we're done */
 	if (! initrd_size)
 		return (struct addr_range){0, 0};
 
@@ -246,10 +246,10 @@ void start(void)
 	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r",
 	       _start, get_sp());
 
-	/* Ensure that the device tree has a /chosen node */
+	/* Ensure that the device tree has a /chosen analde */
 	chosen = finddevice("/chosen");
 	if (!chosen)
-		chosen = create_node(NULL, "chosen");
+		chosen = create_analde(NULL, "chosen");
 
 	vmlinux = prep_kernel();
 	initrd = prep_initrd(vmlinux, chosen,
@@ -279,6 +279,6 @@ void start(void)
 		kentry((unsigned long)initrd.addr, initrd.size,
 		       loader_info.promptr);
 
-	/* console closed so printf in fatal below may not work */
+	/* console closed so printf in fatal below may analt work */
 	fatal("Error: Linux kernel returned to zImage boot wrapper!\n\r");
 }

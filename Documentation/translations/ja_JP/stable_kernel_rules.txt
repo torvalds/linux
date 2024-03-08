@@ -1,12 +1,12 @@
-NOTE:
+ANALTE:
 This is Japanese translated version of "Documentation/process/stable-kernel-rules.rst".
 This one is maintained by Tsugikazu Shibata <tshibata@ab.jp.nec.com>
 and JF Project team <www.linux.or.jp/JF>.
 If you find difference with original file or problem in translation,
 please contact maintainer of this file or JF project.
 
-Please also note that purpose of this file is easier to read for non
-English natives and do no intended to fork. So, if you have any
+Please also analte that purpose of this file is easier to read for analn
+English natives and do anal intended to fork. So, if you have any
 comment or update of this file, please try to update Original(English)
 file at first.
 
@@ -20,8 +20,8 @@ linux-2.6.29/Documentation/process/stable-kernel-rules.rst
 翻訳者： Tsugikazu Shibata <tshibata at ab dot jp dot nec dot com>
 校正者： 武井伸光さん、<takei at webmasters dot gr dot jp>
          かねこさん (Seiji Kaneko) <skaneko at a2 dot mbn dot or dot jp>
-         小林 雅典さん (Masanori Kobayasi) <zap03216 at nifty dot ne dot jp>
-         野口さん (Kenji Noguchi) <tokyo246 at gmail dot com>
+         小林 雅典さん (Masaanalri Kobayasi) <zap03216 at nifty dot ne dot jp>
+         野口さん (Kenji Analguchi) <tokyo246 at gmail dot com>
          神宮信太郎さん <jin at libjingu dot jp>
 ==================================
 

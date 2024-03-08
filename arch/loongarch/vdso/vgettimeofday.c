@@ -2,7 +2,7 @@
 /*
  * LoongArch userspace implementations of gettimeofday() and similar.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/types.h>
 #include <vdso/gettime.h>

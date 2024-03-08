@@ -45,12 +45,12 @@ static inline void cachefiles_put_kiocb(struct cachefiles_kiocb *ki)
 static void cachefiles_read_complete(struct kiocb *iocb, long ret)
 {
 	struct cachefiles_kiocb *ki = container_of(iocb, struct cachefiles_kiocb, iocb);
-	struct inode *inode = file_inode(ki->iocb.ki_filp);
+	struct ianalde *ianalde = file_ianalde(ki->iocb.ki_filp);
 
 	_enter("%ld", ret);
 
 	if (ret < 0)
-		trace_cachefiles_io_error(ki->object, inode, ret,
+		trace_cachefiles_io_error(ki->object, ianalde, ret,
 					  cachefiles_trace_read_error);
 
 	if (ki->term_func) {
@@ -80,8 +80,8 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 	struct cachefiles_object *object;
 	struct cachefiles_kiocb *ki;
 	struct file *file;
-	unsigned int old_nofs;
-	ssize_t ret = -ENOBUFS;
+	unsigned int old_analfs;
+	ssize_t ret = -EANALBUFS;
 	size_t len = iov_iter_count(iter), skipped = 0;
 
 	if (!fscache_wait_for_operation(cres, FSCACHE_WANT_READ))
@@ -92,30 +92,30 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 	file = cachefiles_cres_file(cres);
 
 	_enter("%pD,%li,%llx,%zx/%llx",
-	       file, file_inode(file)->i_ino, start_pos, len,
-	       i_size_read(file_inode(file)));
+	       file, file_ianalde(file)->i_ianal, start_pos, len,
+	       i_size_read(file_ianalde(file)));
 
 	/* If the caller asked us to seek for data before doing the read, then
-	 * we should do that now.  If we find a gap, we fill it with zeros.
+	 * we should do that analw.  If we find a gap, we fill it with zeros.
 	 */
-	if (read_hole != NETFS_READ_HOLE_IGNORE) {
+	if (read_hole != NETFS_READ_HOLE_IGANALRE) {
 		loff_t off = start_pos, off2;
 
 		off2 = cachefiles_inject_read_error();
 		if (off2 == 0)
 			off2 = vfs_llseek(file, off, SEEK_DATA);
-		if (off2 < 0 && off2 >= (loff_t)-MAX_ERRNO && off2 != -ENXIO) {
+		if (off2 < 0 && off2 >= (loff_t)-MAX_ERRANAL && off2 != -ENXIO) {
 			skipped = 0;
 			ret = off2;
 			goto presubmission_error;
 		}
 
 		if (off2 == -ENXIO || off2 >= start_pos + len) {
-			/* The region is beyond the EOF or there's no more data
+			/* The region is beyond the EOF or there's anal more data
 			 * in the region, so clear the rest of the buffer and
 			 * return success.
 			 */
-			ret = -ENODATA;
+			ret = -EANALDATA;
 			if (read_hole == NETFS_READ_HOLE_FAIL)
 				goto presubmission_error;
 
@@ -129,7 +129,7 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 		iov_iter_zero(skipped, iter);
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ki = kzalloc(sizeof(struct cachefiles_kiocb), GFP_KERNEL);
 	if (!ki)
 		goto presubmission_error;
@@ -152,21 +152,21 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 	get_file(ki->iocb.ki_filp);
 	cachefiles_grab_object(object, cachefiles_obj_get_ioreq);
 
-	trace_cachefiles_read(object, file_inode(file), ki->iocb.ki_pos, len - skipped);
-	old_nofs = memalloc_nofs_save();
+	trace_cachefiles_read(object, file_ianalde(file), ki->iocb.ki_pos, len - skipped);
+	old_analfs = memalloc_analfs_save();
 	ret = cachefiles_inject_read_error();
 	if (ret == 0)
 		ret = vfs_iocb_iter_read(file, &ki->iocb, iter);
-	memalloc_nofs_restore(old_nofs);
+	memalloc_analfs_restore(old_analfs);
 	switch (ret) {
 	case -EIOCBQUEUED:
 		goto in_progress;
 
 	case -ERESTARTSYS:
-	case -ERESTARTNOINTR:
-	case -ERESTARTNOHAND:
+	case -ERESTARTANALINTR:
+	case -ERESTARTANALHAND:
 	case -ERESTART_RESTARTBLOCK:
-		/* There's no easy way to restart the syscall since other AIO's
+		/* There's anal easy way to restart the syscall since other AIO's
 		 * may be already running. Just fail this IO with EINTR.
 		 */
 		ret = -EINTR;
@@ -206,39 +206,39 @@ static int cachefiles_query_occupancy(struct netfs_cache_resources *cres,
 	*_data_len = 0;
 
 	if (!fscache_wait_for_operation(cres, FSCACHE_WANT_READ))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	object = cachefiles_cres_object(cres);
 	file = cachefiles_cres_file(cres);
 	granularity = max_t(size_t, object->volume->cache->bsize, granularity);
 
 	_enter("%pD,%li,%llx,%zx/%llx",
-	       file, file_inode(file)->i_ino, start, len,
-	       i_size_read(file_inode(file)));
+	       file, file_ianalde(file)->i_ianal, start, len,
+	       i_size_read(file_ianalde(file)));
 
 	off = cachefiles_inject_read_error();
 	if (off == 0)
 		off = vfs_llseek(file, start, SEEK_DATA);
 	if (off == -ENXIO)
-		return -ENODATA; /* Beyond EOF */
-	if (off < 0 && off >= (loff_t)-MAX_ERRNO)
-		return -ENOBUFS; /* Error. */
+		return -EANALDATA; /* Beyond EOF */
+	if (off < 0 && off >= (loff_t)-MAX_ERRANAL)
+		return -EANALBUFS; /* Error. */
 	if (round_up(off, granularity) >= start + len)
-		return -ENODATA; /* No data in range */
+		return -EANALDATA; /* Anal data in range */
 
 	off2 = cachefiles_inject_read_error();
 	if (off2 == 0)
 		off2 = vfs_llseek(file, off, SEEK_HOLE);
 	if (off2 == -ENXIO)
-		return -ENODATA; /* Beyond EOF */
-	if (off2 < 0 && off2 >= (loff_t)-MAX_ERRNO)
-		return -ENOBUFS; /* Error. */
+		return -EANALDATA; /* Beyond EOF */
+	if (off2 < 0 && off2 >= (loff_t)-MAX_ERRANAL)
+		return -EANALBUFS; /* Error. */
 
 	/* Round away partial blocks */
 	off = round_up(off, granularity);
 	off2 = round_down(off2, granularity);
 	if (off2 <= off)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*_data_start = off;
 	if (off2 > start + len)
@@ -255,7 +255,7 @@ static void cachefiles_write_complete(struct kiocb *iocb, long ret)
 {
 	struct cachefiles_kiocb *ki = container_of(iocb, struct cachefiles_kiocb, iocb);
 	struct cachefiles_object *object = ki->object;
-	struct inode *inode = file_inode(ki->iocb.ki_filp);
+	struct ianalde *ianalde = file_ianalde(ki->iocb.ki_filp);
 
 	_enter("%ld", ret);
 
@@ -263,7 +263,7 @@ static void cachefiles_write_complete(struct kiocb *iocb, long ret)
 		kiocb_end_write(iocb);
 
 	if (ret < 0)
-		trace_cachefiles_io_error(object, inode, ret,
+		trace_cachefiles_io_error(object, ianalde, ret,
 					  cachefiles_trace_write_error);
 
 	atomic_long_sub(ki->b_writing, &object->volume->cache->b_writing);
@@ -285,7 +285,7 @@ int __cachefiles_write(struct cachefiles_object *object,
 {
 	struct cachefiles_cache *cache;
 	struct cachefiles_kiocb *ki;
-	unsigned int old_nofs;
+	unsigned int old_analfs;
 	ssize_t ret;
 	size_t len = iov_iter_count(iter);
 
@@ -293,14 +293,14 @@ int __cachefiles_write(struct cachefiles_object *object,
 	cache = object->volume->cache;
 
 	_enter("%pD,%li,%llx,%zx/%llx",
-	       file, file_inode(file)->i_ino, start_pos, len,
-	       i_size_read(file_inode(file)));
+	       file, file_ianalde(file)->i_ianal, start_pos, len,
+	       i_size_read(file_ianalde(file)));
 
 	ki = kzalloc(sizeof(struct cachefiles_kiocb), GFP_KERNEL);
 	if (!ki) {
 		if (term_func)
-			term_func(term_func_priv, -ENOMEM, false);
-		return -ENOMEM;
+			term_func(term_func_priv, -EANALMEM, false);
+		return -EANALMEM;
 	}
 
 	refcount_set(&ki->ki_refcnt, 2);
@@ -323,21 +323,21 @@ int __cachefiles_write(struct cachefiles_object *object,
 	get_file(ki->iocb.ki_filp);
 	cachefiles_grab_object(object, cachefiles_obj_get_ioreq);
 
-	trace_cachefiles_write(object, file_inode(file), ki->iocb.ki_pos, len);
-	old_nofs = memalloc_nofs_save();
+	trace_cachefiles_write(object, file_ianalde(file), ki->iocb.ki_pos, len);
+	old_analfs = memalloc_analfs_save();
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)
 		ret = vfs_iocb_iter_write(file, &ki->iocb, iter);
-	memalloc_nofs_restore(old_nofs);
+	memalloc_analfs_restore(old_analfs);
 	switch (ret) {
 	case -EIOCBQUEUED:
 		goto in_progress;
 
 	case -ERESTARTSYS:
-	case -ERESTARTNOINTR:
-	case -ERESTARTNOHAND:
+	case -ERESTARTANALINTR:
+	case -ERESTARTANALHAND:
 	case -ERESTART_RESTARTBLOCK:
-		/* There's no easy way to restart the syscall since other AIO's
+		/* There's anal easy way to restart the syscall since other AIO's
 		 * may be already running. Just fail this IO with EINTR.
 		 */
 		ret = -EINTR;
@@ -364,8 +364,8 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 {
 	if (!fscache_wait_for_operation(cres, FSCACHE_WANT_WRITE)) {
 		if (term_func)
-			term_func(term_func_priv, -ENOBUFS, false);
-		return -ENOBUFS;
+			term_func(term_func_priv, -EANALBUFS, false);
+		return -EANALBUFS;
 	}
 
 	return __cachefiles_write(cachefiles_cres_object(cres),
@@ -377,7 +377,7 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 static inline enum netfs_io_source
 cachefiles_do_prepare_read(struct netfs_cache_resources *cres,
 			   loff_t start, size_t *_len, loff_t i_size,
-			   unsigned long *_flags, ino_t netfs_ino)
+			   unsigned long *_flags, ianal_t netfs_ianal)
 {
 	enum cachefiles_prepare_read_trace why;
 	struct cachefiles_object *object = NULL;
@@ -388,7 +388,7 @@ cachefiles_do_prepare_read(struct netfs_cache_resources *cres,
 	enum netfs_io_source ret = NETFS_DOWNLOAD_FROM_SERVER;
 	size_t len = *_len;
 	loff_t off, to;
-	ino_t ino = file ? file_inode(file)->i_ino : 0;
+	ianal_t ianal = file ? file_ianalde(file)->i_ianal : 0;
 	int rc;
 
 	_enter("%zx @%llx/%llx", len, start, i_size);
@@ -396,25 +396,25 @@ cachefiles_do_prepare_read(struct netfs_cache_resources *cres,
 	if (start >= i_size) {
 		ret = NETFS_FILL_WITH_ZEROES;
 		why = cachefiles_trace_read_after_eof;
-		goto out_no_object;
+		goto out_anal_object;
 	}
 
-	if (test_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags)) {
+	if (test_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags)) {
 		__set_bit(NETFS_SREQ_COPY_TO_CACHE, _flags);
-		why = cachefiles_trace_read_no_data;
+		why = cachefiles_trace_read_anal_data;
 		if (!test_bit(NETFS_SREQ_ONDEMAND, _flags))
-			goto out_no_object;
+			goto out_anal_object;
 	}
 
 	/* The object and the file may be being created in the background. */
 	if (!file) {
-		why = cachefiles_trace_read_no_file;
+		why = cachefiles_trace_read_anal_file;
 		if (!fscache_wait_for_operation(cres, FSCACHE_WANT_READ))
-			goto out_no_object;
+			goto out_anal_object;
 		file = cachefiles_cres_file(cres);
 		if (!file)
-			goto out_no_object;
-		ino = file_inode(file)->i_ino;
+			goto out_anal_object;
+		ianal = file_ianalde(file)->i_ianal;
 	}
 
 	object = cachefiles_cres_object(cres);
@@ -424,12 +424,12 @@ retry:
 	off = cachefiles_inject_read_error();
 	if (off == 0)
 		off = vfs_llseek(file, start, SEEK_DATA);
-	if (off < 0 && off >= (loff_t)-MAX_ERRNO) {
+	if (off < 0 && off >= (loff_t)-MAX_ERRANAL) {
 		if (off == (loff_t)-ENXIO) {
 			why = cachefiles_trace_read_seek_nxio;
 			goto download_and_store;
 		}
-		trace_cachefiles_io_error(object, file_inode(file), off,
+		trace_cachefiles_io_error(object, file_ianalde(file), off,
 					  cachefiles_trace_seek_error);
 		why = cachefiles_trace_read_seek_error;
 		goto out;
@@ -451,8 +451,8 @@ retry:
 	to = cachefiles_inject_read_error();
 	if (to == 0)
 		to = vfs_llseek(file, start, SEEK_HOLE);
-	if (to < 0 && to >= (loff_t)-MAX_ERRNO) {
-		trace_cachefiles_io_error(object, file_inode(file), to,
+	if (to < 0 && to >= (loff_t)-MAX_ERRANAL) {
+		trace_cachefiles_io_error(object, file_ianalde(file), to,
 					  cachefiles_trace_seek_error);
 		why = cachefiles_trace_read_seek_error;
 		goto out;
@@ -483,8 +483,8 @@ download_and_store:
 	}
 out:
 	cachefiles_end_secure(cache, saved_cred);
-out_no_object:
-	trace_cachefiles_prep_read(object, start, len, *_flags, ret, why, ino, netfs_ino);
+out_anal_object:
+	trace_cachefiles_prep_read(object, start, len, *_flags, ret, why, ianal, netfs_ianal);
 	return ret;
 }
 
@@ -497,7 +497,7 @@ static enum netfs_io_source cachefiles_prepare_read(struct netfs_io_subrequest *
 {
 	return cachefiles_do_prepare_read(&subreq->rreq->cache_resources,
 					  subreq->start, &subreq->len, i_size,
-					  &subreq->flags, subreq->rreq->inode->i_ino);
+					  &subreq->flags, subreq->rreq->ianalde->i_ianal);
 }
 
 /*
@@ -507,9 +507,9 @@ static enum netfs_io_source cachefiles_prepare_read(struct netfs_io_subrequest *
 static enum netfs_io_source
 cachefiles_prepare_ondemand_read(struct netfs_cache_resources *cres,
 				 loff_t start, size_t *_len, loff_t i_size,
-				 unsigned long *_flags, ino_t ino)
+				 unsigned long *_flags, ianal_t ianal)
 {
-	return cachefiles_do_prepare_read(cres, start, _len, i_size, _flags, ino);
+	return cachefiles_do_prepare_read(cres, start, _len, i_size, _flags, ianal);
 }
 
 /*
@@ -518,7 +518,7 @@ cachefiles_prepare_ondemand_read(struct netfs_cache_resources *cres,
 int __cachefiles_prepare_write(struct cachefiles_object *object,
 			       struct file *file,
 			       loff_t *_start, size_t *_len, size_t upper_len,
-			       bool no_space_allocated_yet)
+			       bool anal_space_allocated_yet)
 {
 	struct cachefiles_cache *cache = object->volume->cache;
 	loff_t start = *_start, pos;
@@ -533,7 +533,7 @@ int __cachefiles_prepare_write(struct cachefiles_object *object,
 		 * culling.
 		 */
 		fscache_count_dio_misfit();
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	*_len = round_up(len, PAGE_SIZE);
@@ -542,16 +542,16 @@ int __cachefiles_prepare_write(struct cachefiles_object *object,
 	 * the write - but we can skip that check if we have space already
 	 * allocated.
 	 */
-	if (no_space_allocated_yet)
+	if (anal_space_allocated_yet)
 		goto check_space;
 
 	pos = cachefiles_inject_read_error();
 	if (pos == 0)
 		pos = vfs_llseek(file, start, SEEK_DATA);
-	if (pos < 0 && pos >= (loff_t)-MAX_ERRNO) {
+	if (pos < 0 && pos >= (loff_t)-MAX_ERRANAL) {
 		if (pos == -ENXIO)
 			goto check_space; /* Unallocated tail */
-		trace_cachefiles_io_error(object, file_inode(file), pos,
+		trace_cachefiles_io_error(object, file_ianalde(file), pos,
 					  cachefiles_trace_seek_error);
 		return pos;
 	}
@@ -559,18 +559,18 @@ int __cachefiles_prepare_write(struct cachefiles_object *object,
 		goto check_space; /* Unallocated region */
 
 	/* We have a block that's at least partially filled - if we're low on
-	 * space, we need to see if it's fully allocated.  If it's not, we may
+	 * space, we need to see if it's fully allocated.  If it's analt, we may
 	 * want to cull it.
 	 */
 	if (cachefiles_has_space(cache, 0, *_len / PAGE_SIZE,
 				 cachefiles_has_space_check) == 0)
-		return 0; /* Enough space to simply overwrite the whole block */
+		return 0; /* Eanalugh space to simply overwrite the whole block */
 
 	pos = cachefiles_inject_read_error();
 	if (pos == 0)
 		pos = vfs_llseek(file, start, SEEK_HOLE);
-	if (pos < 0 && pos >= (loff_t)-MAX_ERRNO) {
-		trace_cachefiles_io_error(object, file_inode(file), pos,
+	if (pos < 0 && pos >= (loff_t)-MAX_ERRANAL) {
+		trace_cachefiles_io_error(object, file_ianalde(file), pos,
 					  cachefiles_trace_seek_error);
 		return pos;
 	}
@@ -578,13 +578,13 @@ int __cachefiles_prepare_write(struct cachefiles_object *object,
 		return 0; /* Fully allocated */
 
 	/* Partially allocated, but insufficient space: cull. */
-	fscache_count_no_write_space();
+	fscache_count_anal_write_space();
 	ret = cachefiles_inject_remove_error();
 	if (ret == 0)
 		ret = vfs_fallocate(file, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				    start, *_len);
 	if (ret < 0) {
-		trace_cachefiles_io_error(object, file_inode(file), ret,
+		trace_cachefiles_io_error(object, file_ianalde(file), ret,
 					  cachefiles_trace_fallocate_error);
 		cachefiles_io_error_obj(object,
 					"CacheFiles: fallocate failed (%d)\n", ret);
@@ -600,7 +600,7 @@ check_space:
 
 static int cachefiles_prepare_write(struct netfs_cache_resources *cres,
 				    loff_t *_start, size_t *_len, size_t upper_len,
-				    loff_t i_size, bool no_space_allocated_yet)
+				    loff_t i_size, bool anal_space_allocated_yet)
 {
 	struct cachefiles_object *object = cachefiles_cres_object(cres);
 	struct cachefiles_cache *cache = object->volume->cache;
@@ -609,15 +609,15 @@ static int cachefiles_prepare_write(struct netfs_cache_resources *cres,
 
 	if (!cachefiles_cres_file(cres)) {
 		if (!fscache_wait_for_operation(cres, FSCACHE_WANT_WRITE))
-			return -ENOBUFS;
+			return -EANALBUFS;
 		if (!cachefiles_cres_file(cres))
-			return -ENOBUFS;
+			return -EANALBUFS;
 	}
 
 	cachefiles_begin_secure(cache, &saved_cred);
 	ret = __cachefiles_prepare_write(object, cachefiles_cres_file(cres),
 					 _start, _len, upper_len,
-					 no_space_allocated_yet);
+					 anal_space_allocated_yet);
 	cachefiles_end_secure(cache, saved_cred);
 	return ret;
 }

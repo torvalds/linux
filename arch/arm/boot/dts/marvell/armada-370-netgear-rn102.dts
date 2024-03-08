@@ -2,7 +2,7 @@
 /*
  * Device Tree file for NETGEAR ReadyNAS 102
  *
- * Copyright (C) 2013, Arnaud EBALARD <arno@natisbad.org>
+ * Copyright (C) 2013, Arnaud EBALARD <aranal@natisbad.org>
  */
 
 /dts-v1/;
@@ -266,7 +266,7 @@
 				reg = <0x0800000 0x400000>;    /* 4MB */
 			};
 
-			/* Last MB is for the BBT, i.e. not writable */
+			/* Last MB is for the BBT, i.e. analt writable */
 			partition@c00000 {
 				label = "ubifs";
 				reg = <0x0c00000 0x7400000>; /* 116MB */

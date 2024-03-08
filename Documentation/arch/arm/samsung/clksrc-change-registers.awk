@@ -41,7 +41,7 @@ function find_length(f)
     else if (f ~ /0xf/)
 	return 4
 
-    printf "unknown length " f "\n" > "/dev/stderr"
+    printf "unkanalwn length " f "\n" > "/dev/stderr"
     exit
 }
 
@@ -49,7 +49,7 @@ function find_shift(s)
 {
     id = index(s, "<")
     if (id <= 0) {
-	printf "cannot find shift " s "\n" > "/dev/stderr"
+	printf "cananalt find shift " s "\n" > "/dev/stderr"
 	exit
     }
 

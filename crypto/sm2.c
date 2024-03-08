@@ -84,7 +84,7 @@ static int sm2_ec_ctx_init(struct mpi_ec_ctx *ec)
 	if (!x || !y)
 		goto free;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 
 	ec->Q = mpi_point_new(0);
 	if (!ec->Q)
@@ -146,7 +146,7 @@ static int sm2_ecc_os2ec(MPI_POINT result, MPI value)
 	n = MPI_NBYTES(value);
 	buf = kmalloc(n, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = mpi_print(GCRYMPI_FMT_USG, buf, n, &n, value);
 	if (rc)
@@ -155,11 +155,11 @@ static int sm2_ecc_os2ec(MPI_POINT result, MPI value)
 	rc = -EINVAL;
 	if (n < 1 || ((n - 1) % 2))
 		goto err_freebuf;
-	/* No support for point compression */
+	/* Anal support for point compression */
 	if (*buf != 0x4)
 		goto err_freebuf;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	n = (n - 1) / 2;
 	x = mpi_read_raw_data(buf + 1, n);
 	if (!x)
@@ -168,8 +168,8 @@ static int sm2_ecc_os2ec(MPI_POINT result, MPI value)
 	if (!y)
 		goto err_freex;
 
-	mpi_normalize(x);
-	mpi_normalize(y);
+	mpi_analrmalize(x);
+	mpi_analrmalize(y);
 	mpi_set(result->x, x);
 	mpi_set(result->y, y);
 	mpi_set_ui(result->z, 1);
@@ -199,7 +199,7 @@ int sm2_get_signature_r(void *context, size_t hdrlen, unsigned char tag,
 
 	sig->sig_r = mpi_read_raw_data(value, vlen);
 	if (!sig->sig_r)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -214,7 +214,7 @@ int sm2_get_signature_s(void *context, size_t hdrlen, unsigned char tag,
 
 	sig->sig_s = mpi_read_raw_data(value, vlen);
 	if (!sig->sig_s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -276,7 +276,7 @@ int sm2_compute_z_digest(struct shash_desc *desc,
 
 	ec = kmalloc(sizeof(*ec), GFP_KERNEL);
 	if (!ec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = sm2_ec_ctx_init(ec);
 	if (err)
@@ -389,7 +389,7 @@ static int sm2_verify(struct akcipher_request *req)
 
 	buffer = kmalloc(req->src_len + req->dst_len, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_pcopy_to_buffer(req->src,
 		sg_nents_for_len(req->src, req->src_len + req->dst_len),
@@ -402,7 +402,7 @@ static int sm2_verify(struct akcipher_request *req)
 	if (ret)
 		goto error;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	hash = mpi_read_raw_data(buffer + req->src_len, req->dst_len);
 	if (!hash)
 		goto error;
@@ -435,9 +435,9 @@ static int __sm2_set_pub_key(struct mpi_ec_ctx *ec,
 	/* include the uncompressed flag '0x04' */
 	a = mpi_read_raw_data(key, keylen);
 	if (!a)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mpi_normalize(a);
+	mpi_analrmalize(a);
 	rc = sm2_ecc_os2ec(ec->Q, a);
 	mpi_free(a);
 

@@ -49,8 +49,8 @@
 /* PDM CTRL1 */
 #define PDM_FD_NUMERATOR_SFT	16
 #define PDM_FD_NUMERATOR_MSK	GENMASK(31, 16)
-#define PDM_FD_DENOMINATOR_SFT	0
-#define PDM_FD_DENOMINATOR_MSK	GENMASK(15, 0)
+#define PDM_FD_DEANALMINATOR_SFT	0
+#define PDM_FD_DEANALMINATOR_MSK	GENMASK(15, 0)
 
 /* PDM CLK CTRL */
 #define PDM_PATH_SHIFT(x)	(8 + (x) * 2)
@@ -63,7 +63,7 @@
 #define PDM_CLK_EN		BIT(5)
 #define PDM_CLK_DIS		(0x0 << 5)
 #define PDM_CKP_MSK		BIT(3)
-#define PDM_CKP_NORMAL		(0x0 << 3)
+#define PDM_CKP_ANALRMAL		(0x0 << 3)
 #define PDM_CKP_INVERTED	BIT(3)
 #define PDM_DS_RATIO_MSK	(0x7 << 0)
 #define PDM_CLK_320FS		(0x0 << 0)

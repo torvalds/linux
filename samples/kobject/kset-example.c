@@ -3,7 +3,7 @@
  * Sample kset and ktype implementation
  *
  * Copyright (C) 2004-2007 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2007 Novell Inc.
+ * Copyright (C) 2007 Analvell Inc.
  */
 #include <linux/kobject.h>
 #include <linux/string.h>
@@ -96,7 +96,7 @@ static const struct sysfs_ops foo_sysfs_ops = {
  * have.  We free the memory held in our object here.
  *
  * NEVER try to get away with just a "blank" release function to try to be
- * smarter than the kernel.  Turns out, no one ever is...
+ * smarter than the kernel.  Turns out, anal one ever is...
  */
 static void foo_release(struct kobject *kobj)
 {
@@ -127,7 +127,7 @@ static ssize_t foo_store(struct foo_obj *foo_obj, struct foo_attribute *attr,
 	return count;
 }
 
-/* Sysfs attributes cannot be world-writable. */
+/* Sysfs attributes cananalt be world-writable. */
 static struct foo_attribute foo_attribute =
 	__ATTR(foo, 0664, foo_show, foo_store);
 
@@ -246,7 +246,7 @@ static int __init example_init(void)
 	 */
 	example_kset = kset_create_and_add("kset_example", NULL, kernel_kobj);
 	if (!example_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Create three objects and register them with our kset

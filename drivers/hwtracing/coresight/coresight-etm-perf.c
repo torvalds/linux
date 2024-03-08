@@ -34,11 +34,11 @@ static bool etm_perf_up;
  * the trace path and the sink configuration. The event data is accessible
  * via perf_get_aux(handle). However, a sink could "end" a perf output
  * handle via the IRQ handler. And if the "sink" encounters a failure
- * to "begin" another session (e.g due to lack of space in the buffer),
- * the handle will be cleared. Thus, the event_data may not be accessible
+ * to "begin" aanalther session (e.g due to lack of space in the buffer),
+ * the handle will be cleared. Thus, the event_data may analt be accessible
  * from the handle when we get to the etm_event_stop(), which is required
  * for stopping the trace path. The event_data is guaranteed to stay alive
- * until "free_aux()", which cannot happen as long as the event is active on
+ * until "free_aux()", which cananalt happen as long as the event is active on
  * the ETM. Thus the event_data for the session must be part of the ETM context
  * to make sure we can disable the trace path.
  */
@@ -52,7 +52,7 @@ static DEFINE_PER_CPU(struct coresight_device *, csdev_src);
 
 /*
  * The PMU formats were orignally for ETMv3.5/PTM's ETMCR 'config';
- * now take them as general formats and apply on all ETMs.
+ * analw take them as general formats and apply on all ETMs.
  */
 PMU_FORMAT_ATTR(branch_broadcast, "config:"__stringify(ETM_OPT_BRANCH_BROADCAST));
 PMU_FORMAT_ATTR(cycacc,		"config:" __stringify(ETM_OPT_CYCACC));
@@ -153,11 +153,11 @@ static void etm_event_read(struct perf_event *event) {}
 static int etm_addr_filters_alloc(struct perf_event *event)
 {
 	struct etm_filters *filters;
-	int node = event->cpu == -1 ? -1 : cpu_to_node(event->cpu);
+	int analde = event->cpu == -1 ? -1 : cpu_to_analde(event->cpu);
 
-	filters = kzalloc_node(sizeof(struct etm_filters), GFP_KERNEL, node);
+	filters = kzalloc_analde(sizeof(struct etm_filters), GFP_KERNEL, analde);
 	if (!filters)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (event->parent)
 		memcpy(filters, event->parent->hw.addr_filters,
@@ -179,7 +179,7 @@ static int etm_event_init(struct perf_event *event)
 	int ret = 0;
 
 	if (event->attr.type != etm_pmu.type) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -351,7 +351,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 
 		csdev = per_cpu(csdev_src, cpu);
 		/*
-		 * If there is no ETM associated with this CPU clear it from
+		 * If there is anal ETM associated with this CPU clear it from
 		 * the mask and continue with the rest. If ever we try to trace
 		 * on this CPU, we handle it accordingly.
 		 */
@@ -361,7 +361,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		}
 
 		/*
-		 * No sink provided - look for a default sink for all the ETMs,
+		 * Anal sink provided - look for a default sink for all the ETMs,
 		 * where this event can be scheduled.
 		 * We allocate the sink specific buffers only once for this
 		 * event. If the ETMs have different default sink devices, we
@@ -371,7 +371,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		 * driver, as the one we allocate the buffer for. As such
 		 * we choose the first sink and check if the remaining ETMs
 		 * have a compatible default sink. We don't trace on a CPU
-		 * if the sink is not compatible.
+		 * if the sink is analt compatible.
 		 */
 		if (!user_sink) {
 			/* Find the default sink for this ETM */
@@ -411,7 +411,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		*etm_event_cpu_path_ptr(event_data, cpu) = path;
 	}
 
-	/* no sink found for any CPU - cannot trace */
+	/* anal sink found for any CPU - cananalt trace */
 	if (!sink)
 		goto err;
 
@@ -474,7 +474,7 @@ static void etm_event_start(struct perf_event *event, int flags)
 	 * at etm_setup_aux(). This could be due to an unreachable
 	 * sink from this ETM. We can't do much in this case if
 	 * the sink was specified or hinted to the driver. For
-	 * now, simply don't record anything on this ETM.
+	 * analw, simply don't record anything on this ETM.
 	 *
 	 * As such we pretend that everything is fine, and let
 	 * it continue without actually tracing. The event could
@@ -485,12 +485,12 @@ static void etm_event_start(struct perf_event *event, int flags)
 		goto out;
 
 	path = etm_event_cpu_path(event_data, cpu);
-	/* We need a sink, no need to continue without one */
+	/* We need a sink, anal need to continue without one */
 	sink = coresight_get_sink(path);
 	if (WARN_ON_ONCE(!sink))
 		goto fail_end_stop;
 
-	/* Nothing will happen without a path */
+	/* Analthing will happen without a path */
 	if (coresight_enable_path(path, CS_MODE_PERF, handle))
 		goto fail_end_stop;
 
@@ -567,7 +567,7 @@ static void etm_event_stop(struct perf_event *event, int mode)
 	/*
 	 * Check if this ETM was allowed to trace, as decided at
 	 * etm_setup_aux(). If it wasn't allowed to trace, then
-	 * nothing needs to be torn down other than outputting a
+	 * analthing needs to be torn down other than outputting a
 	 * zero sized record.
 	 */
 	if (handle->event && (mode & PERF_EF_UPDATE) &&
@@ -595,7 +595,7 @@ static void etm_event_stop(struct perf_event *event, int mode)
 	event->hw.state = PERF_HES_STOPPED;
 
 	/*
-	 * If the handle is not bound to an event anymore
+	 * If the handle is analt bound to an event anymore
 	 * (e.g, the sink driver was unable to restart the
 	 * handle due to lack of buffer space), we don't
 	 * have to do anything here.
@@ -618,7 +618,7 @@ static void etm_event_stop(struct perf_event *event, int mode)
 		 * should get a valid handle and valid size
 		 * (which may be 0).
 		 *
-		 * But we should never get a non-zero size with
+		 * But we should never get a analn-zero size with
 		 * an invalid handle.
 		 */
 		if (READ_ONCE(handle->event))
@@ -660,11 +660,11 @@ static int etm_addr_filters_validate(struct list_head *filters)
 
 	list_for_each_entry(filter, filters, entry) {
 		/*
-		 * No need to go further if there's no more
+		 * Anal need to go further if there's anal more
 		 * room for filters.
 		 */
 		if (++index > ETM_ADDR_CMP_MAX)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* filter::size==0 means single address trigger */
 		if (filter->size) {
@@ -674,7 +674,7 @@ static int etm_addr_filters_validate(struct list_head *filters)
 			 */
 			if (filter->action == PERF_ADDR_FILTER_ACTION_START ||
 			    filter->action == PERF_ADDR_FILTER_ACTION_STOP)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			range = true;
 		} else
@@ -685,7 +685,7 @@ static int etm_addr_filters_validate(struct list_head *filters)
 		 * to cohabitate, they have to be mutually exclusive.
 		 */
 		if (range && address)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -776,7 +776,7 @@ etm_perf_add_symlink_group(struct device *dev, const char *name, const char *gro
 
 	ea = devm_kzalloc(dev, sizeof(*ea), GFP_KERNEL);
 	if (!ea)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * If this function is called adding a sink then the hash is used for
@@ -789,7 +789,7 @@ etm_perf_add_symlink_group(struct device *dev, const char *name, const char *gro
 	sysfs_attr_init(&ea->attr.attr);
 	ea->attr.attr.name = devm_kstrdup(dev, name, GFP_KERNEL);
 	if (!ea->attr.attr.name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ea->attr.attr.mode = 0444;
 	ea->var = (unsigned long *)hash;

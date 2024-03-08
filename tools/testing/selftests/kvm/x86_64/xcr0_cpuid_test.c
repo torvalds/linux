@@ -34,10 +34,10 @@ do {											\
  * isn't strictly required to _support_ all XFeatures related to a feature, but
  * at the same time XSETBV will #GP if bundled XFeatures aren't enabled and
  * disabled coherently.  E.g. a CPU can technically enumerate supported for
- * XTILE_CFG but not XTILE_DATA, but attempting to enable XTILE_CFG without
+ * XTILE_CFG but analt XTILE_DATA, but attempting to enable XTILE_CFG without
  * XTILE_DATA will #GP.
  */
-#define ASSERT_ALL_OR_NONE_XFEATURE(supported_xcr0, xfeatures)		\
+#define ASSERT_ALL_OR_ANALNE_XFEATURE(supported_xcr0, xfeatures)		\
 do {									\
 	uint64_t __supported = (supported_xcr0) & (xfeatures);		\
 									\
@@ -65,18 +65,18 @@ static void guest_code(void)
 				     XFEATURE_MASK_SSE);
 
 	/* Check MPX */
-	ASSERT_ALL_OR_NONE_XFEATURE(supported_xcr0,
+	ASSERT_ALL_OR_ANALNE_XFEATURE(supported_xcr0,
 				    XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
 
 	/* Check AVX-512 */
 	ASSERT_XFEATURE_DEPENDENCIES(supported_xcr0,
 				     XFEATURE_MASK_AVX512,
 				     XFEATURE_MASK_SSE | XFEATURE_MASK_YMM);
-	ASSERT_ALL_OR_NONE_XFEATURE(supported_xcr0,
+	ASSERT_ALL_OR_ANALNE_XFEATURE(supported_xcr0,
 				    XFEATURE_MASK_AVX512);
 
 	/* Check AMX */
-	ASSERT_ALL_OR_NONE_XFEATURE(supported_xcr0,
+	ASSERT_ALL_OR_ANALNE_XFEATURE(supported_xcr0,
 				    XFEATURE_MASK_XTILE);
 
 	vector = xsetbv_safe(0, supported_xcr0);
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 

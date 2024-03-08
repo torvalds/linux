@@ -55,8 +55,8 @@ void kvmhv_save_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 	hr->dawrx1 = vcpu->arch.dawrx1;
 }
 
-/* Use noinline_for_stack due to https://bugs.llvm.org/show_bug.cgi?id=49610 */
-static noinline_for_stack void byteswap_pt_regs(struct pt_regs *regs)
+/* Use analinline_for_stack due to https://bugs.llvm.org/show_bug.cgi?id=49610 */
+static analinline_for_stack void byteswap_pt_regs(struct pt_regs *regs)
 {
 	unsigned long *addr = (unsigned long *) regs;
 
@@ -193,7 +193,7 @@ void kvmhv_restore_hv_return_state(struct kvm_vcpu *vcpu,
 
 static void kvmhv_nested_mmio_needed(struct kvm_vcpu *vcpu, u64 regs_ptr)
 {
-	/* No need to reflect the page fault to L1, we've handled it */
+	/* Anal need to reflect the page fault to L1, we've handled it */
 	vcpu->arch.trap = 0;
 
 	/*
@@ -298,7 +298,7 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 	s64 delta_purr, delta_spurr, delta_ic, delta_vtb;
 
 	if (vcpu->kvm->arch.l1_ptcr == 0)
-		return H_NOT_AVAILABLE;
+		return H_ANALT_AVAILABLE;
 
 	if (MSR_TM_TRANSACTIONAL(vcpu->arch.shregs.msr))
 		return H_BAD_MODE;
@@ -439,7 +439,7 @@ long kvmhv_nested_init(void)
 	if (!kvmhv_on_pseries())
 		return 0;
 	if (!radix_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = plpar_guest_get_capabilities(0, &host_capabilities);
 	if (rc == H_SUCCESS) {
@@ -453,9 +453,9 @@ long kvmhv_nested_init(void)
 		nested_capabilities = capabilities & host_capabilities;
 		rc = plpar_guest_set_capabilities(0, nested_capabilities);
 		if (rc != H_SUCCESS) {
-			pr_err("kvm-hv: Could not configure parent hypervisor capabilities (rc=%ld)",
+			pr_err("kvm-hv: Could analt configure parent hypervisor capabilities (rc=%ld)",
 			       rc);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		static_branch_enable(&__kvmhv_is_nestedv2);
@@ -473,17 +473,17 @@ long kvmhv_nested_init(void)
 				       GFP_KERNEL);
 	if (!pseries_partition_tb) {
 		pr_err("kvm-hv: failed to allocated nested partition table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ptcr = __pa(pseries_partition_tb) | (ptb_order - 12);
-	rc = plpar_hcall_norets(H_SET_PARTITION_TABLE, ptcr);
+	rc = plpar_hcall_analrets(H_SET_PARTITION_TABLE, ptcr);
 	if (rc != H_SUCCESS) {
-		pr_err("kvm-hv: Parent hypervisor does not support nesting (rc=%ld)\n",
+		pr_err("kvm-hv: Parent hypervisor does analt support nesting (rc=%ld)\n",
 		       rc);
 		kfree(pseries_partition_tb);
 		pseries_partition_tb = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -493,11 +493,11 @@ void kvmhv_nested_exit(void)
 {
 	/*
 	 * N.B. the kvmhv_on_pseries() test is there because it enables
-	 * the compiler to remove the call to plpar_hcall_norets()
+	 * the compiler to remove the call to plpar_hcall_analrets()
 	 * when CONFIG_PPC_PSERIES=n.
 	 */
 	if (kvmhv_on_pseries() && pseries_partition_tb) {
-		plpar_hcall_norets(H_SET_PARTITION_TABLE, 0);
+		plpar_hcall_analrets(H_SET_PARTITION_TABLE, 0);
 		kfree(pseries_partition_tb);
 		pseries_partition_tb = NULL;
 	}
@@ -513,7 +513,7 @@ void kvmhv_flush_lpid(u64 lpid)
 	}
 
 	if (!firmware_has_feature(FW_FEATURE_RPT_INVALIDATE))
-		rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(2, 0, 1),
+		rc = plpar_hcall_analrets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(2, 0, 1),
 					lpid, TLBIEL_INVAL_SET_LPID);
 	else
 		rc = pseries_rpt_invalidate(lpid, H_RPTI_TARGET_CMMU,
@@ -604,9 +604,9 @@ long kvmhv_copy_tofrom_guest_nested(struct kvm_vcpu *vcpu)
 	if (eaddr & (0xFFFUL << 52))
 		return H_PARAMETER;
 
-	buf = kzalloc(n, GFP_KERNEL | __GFP_NOWARN);
+	buf = kzalloc(n, GFP_KERNEL | __GFP_ANALWARN);
 	if (!buf)
-		return H_NO_MEM;
+		return H_ANAL_MEM;
 
 	gp = kvmhv_get_nested(vcpu->kvm, l1_lpid, false);
 	if (!gp) {
@@ -621,27 +621,27 @@ long kvmhv_copy_tofrom_guest_nested(struct kvm_vcpu *vcpu)
 		rc = __kvmhv_copy_tofrom_guest_radix(gp->shadow_lpid, pid,
 						     eaddr, buf, NULL, n);
 		if (rc)
-			goto not_found;
+			goto analt_found;
 
 		/* Write what was loaded into our buffer back to the L1 guest */
 		kvm_vcpu_srcu_read_lock(vcpu);
 		rc = kvm_vcpu_write_guest(vcpu, gp_to, buf, n);
 		kvm_vcpu_srcu_read_unlock(vcpu);
 		if (rc)
-			goto not_found;
+			goto analt_found;
 	} else {
 		/* Load the data to be stored from the L1 guest into our buf */
 		kvm_vcpu_srcu_read_lock(vcpu);
 		rc = kvm_vcpu_read_guest(vcpu, gp_from, buf, n);
 		kvm_vcpu_srcu_read_unlock(vcpu);
 		if (rc)
-			goto not_found;
+			goto analt_found;
 
 		/* Store from our buffer into the nested guest */
 		rc = __kvmhv_copy_tofrom_guest_radix(gp->shadow_lpid, pid,
 						     eaddr, NULL, buf, n);
 		if (rc)
-			goto not_found;
+			goto analt_found;
 	}
 
 out_unlock:
@@ -650,8 +650,8 @@ out_unlock:
 out_free:
 	kfree(buf);
 	return rc;
-not_found:
-	rc = H_NOT_FOUND;
+analt_found:
+	rc = H_ANALT_FOUND;
 	goto out_unlock;
 }
 
@@ -753,7 +753,7 @@ static void kvmhv_release_nested(struct kvm_nested_guest *gp)
 
 	if (gp->shadow_pgtable) {
 		/*
-		 * No vcpu is using this struct and no call to
+		 * Anal vcpu is using this struct and anal call to
 		 * kvmhv_get_nested can find this struct,
 		 * so we don't need to hold kvm->mmu_lock.
 		 */
@@ -785,7 +785,7 @@ static void kvmhv_remove_nested(struct kvm_nested_guest *gp)
 
 /*
  * Free up all nested resources allocated for this guest.
- * This is called with no vcpus of the guest running, when
+ * This is called with anal vcpus of the guest running, when
  * switching the guest to HPT mode or when destroying the
  * guest.
  */
@@ -899,7 +899,7 @@ pte_t *find_kvm_nested_guest_pte(struct kvm *kvm, unsigned long lpid,
 		return NULL;
 
 	VM_WARN(!spin_is_locked(&kvm->mmu_lock),
-		"%s called with kvm mmu_lock not held \n", __func__);
+		"%s called with kvm mmu_lock analt held \n", __func__);
 	pte = __find_linux_pte(gp->shadow_pgtable, ea, NULL, hshift);
 
 	return pte;
@@ -914,13 +914,13 @@ static inline bool kvmhv_n_rmap_is_equal(u64 rmap_1, u64 rmap_2)
 void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
 			    struct rmap_nested **n_rmap)
 {
-	struct llist_node *entry = ((struct llist_head *) rmapp)->first;
+	struct llist_analde *entry = ((struct llist_head *) rmapp)->first;
 	struct rmap_nested *cursor;
 	u64 rmap, new_rmap = (*n_rmap)->rmap;
 
 	/* Are there any existing entries? */
 	if (!(*rmapp)) {
-		/* No -> use the rmap as a single entry */
+		/* Anal -> use the rmap as a single entry */
 		*rmapp = new_rmap | RMAP_NESTED_IS_SINGLE_ENTRY;
 		return;
 	}
@@ -933,13 +933,13 @@ void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
 
 	/* Do we need to create a list or just add the new entry? */
 	rmap = *rmapp;
-	if (rmap & RMAP_NESTED_IS_SINGLE_ENTRY) /* Not previously a list */
+	if (rmap & RMAP_NESTED_IS_SINGLE_ENTRY) /* Analt previously a list */
 		*rmapp = 0UL;
 	llist_add(&((*n_rmap)->list), (struct llist_head *) rmapp);
-	if (rmap & RMAP_NESTED_IS_SINGLE_ENTRY) /* Not previously a list */
-		(*n_rmap)->list.next = (struct llist_node *) rmap;
+	if (rmap & RMAP_NESTED_IS_SINGLE_ENTRY) /* Analt previously a list */
+		(*n_rmap)->list.next = (struct llist_analde *) rmap;
 
-	/* Set NULL so not freed by caller */
+	/* Set NULL so analt freed by caller */
 	*n_rmap = NULL;
 }
 
@@ -959,7 +959,7 @@ static void kvmhv_update_nest_rmap_rc(struct kvm *kvm, u64 n_rmap,
 	/*
 	 * If the pte is present and the pfn is still the same, update the pte.
 	 * If the pfn has changed then this is a stale rmap entry, the nested
-	 * gpa actually points somewhere else now, and there is nothing to do.
+	 * gpa actually points somewhere else analw, and there is analthing to do.
 	 * XXX A future optimisation would be to remove the rmap entry here.
 	 */
 	if (ptep && pte_present(*ptep) && ((pte_val(*ptep) & mask) == hpa)) {
@@ -976,7 +976,7 @@ void kvmhv_update_nest_rmap_rc_list(struct kvm *kvm, unsigned long *rmapp,
 				    unsigned long clr, unsigned long set,
 				    unsigned long hpa, unsigned long nbytes)
 {
-	struct llist_node *entry = ((struct llist_head *) rmapp)->first;
+	struct llist_analde *entry = ((struct llist_head *) rmapp)->first;
 	struct rmap_nested *cursor;
 	unsigned long rmap, mask;
 
@@ -1014,7 +1014,7 @@ static void kvmhv_remove_nest_rmap(struct kvm *kvm, u64 n_rmap,
 static void kvmhv_remove_nest_rmap_list(struct kvm *kvm, unsigned long *rmapp,
 					unsigned long hpa, unsigned long mask)
 {
-	struct llist_node *entry = llist_del_all((struct llist_head *) rmapp);
+	struct llist_analde *entry = llist_del_all((struct llist_head *) rmapp);
 	struct rmap_nested *cursor;
 	unsigned long rmap;
 
@@ -1054,7 +1054,7 @@ static void kvmhv_free_memslot_nest_rmap(struct kvm_memory_slot *free)
 	for (page = 0; page < free->npages; page++) {
 		unsigned long rmap, *rmapp = &free->arch.rmap[page];
 		struct rmap_nested *cursor;
-		struct llist_node *entry;
+		struct llist_analde *entry;
 
 		entry = llist_del_all((struct llist_head *) rmapp);
 		for_each_nest_rmap_safe(cursor, entry, &rmap)
@@ -1140,7 +1140,7 @@ static int kvmhv_emulate_tlbie_tlb_addr(struct kvm_vcpu *vcpu, int lpid,
 	npages = 1UL << (shift - PAGE_SHIFT);
 
 	gp = kvmhv_get_nested(kvm, lpid, false);
-	if (!gp) /* No such guest -> nothing to do */
+	if (!gp) /* Anal such guest -> analthing to do */
 		return 0;
 	mutex_lock(&gp->tlb_lock);
 
@@ -1175,7 +1175,7 @@ static void kvmhv_emulate_tlbie_lpid(struct kvm_vcpu *vcpu,
 	case 1:
 		/*
 		 * Invalidate PWC
-		 * We don't cache this -> nothing to do
+		 * We don't cache this -> analthing to do
 		 */
 		break;
 	case 2:
@@ -1220,12 +1220,12 @@ static int kvmhv_emulate_priv_tlbie(struct kvm_vcpu *vcpu, unsigned int instr,
 	is = get_is(rbval);
 
 	/*
-	 * These cases are invalid and are not handled:
+	 * These cases are invalid and are analt handled:
 	 * r   != 1 -> Only radix supported
-	 * prs == 1 -> Not HV privileged
-	 * ric == 3 -> No cluster bombs for radix
-	 * is  == 1 -> Partition scoped translations not associated with pid
-	 * (!is) && (ric == 1 || ric == 2) -> Not supported by ISA
+	 * prs == 1 -> Analt HV privileged
+	 * ric == 3 -> Anal cluster bombs for radix
+	 * is  == 1 -> Partition scoped translations analt associated with pid
+	 * (!is) && (ric == 1 || ric == 2) -> Analt supported by ISA
 	 */
 	if ((!r) || (prs) || (ric == 3) || (is == 1) ||
 	    ((!is) && (ric == 1 || ric == 2)))
@@ -1234,7 +1234,7 @@ static int kvmhv_emulate_priv_tlbie(struct kvm_vcpu *vcpu, unsigned int instr,
 	switch (is) {
 	case 0:
 		/*
-		 * We know ric == 0
+		 * We kanalw ric == 0
 		 * Invalidate TLB for a given target address
 		 */
 		epn = get_epn(rbval);
@@ -1348,7 +1348,7 @@ long do_h_rpt_invalidate_pat(struct kvm_vcpu *vcpu, unsigned long lpid,
 	 * partition table entries for L2. This happens even before the
 	 * corresponding shadow lpid is created in HV which happens in
 	 * H_ENTER_NESTED call. Since we can't differentiate this case from
-	 * the invalid case, we ignore such flush requests and return success.
+	 * the invalid case, we iganalre such flush requests and return success.
 	 */
 	if (!__find_nested(vcpu->kvm, lpid))
 		return H_SUCCESS;
@@ -1365,8 +1365,8 @@ long do_h_rpt_invalidate_pat(struct kvm_vcpu *vcpu, unsigned long lpid,
 	 * really have PWC. Only level we have PWC is in L0 and for nested
 	 * invalidate at L0 we always do kvm_flush_lpid() which does
 	 * radix__flush_all_lpid(). For range invalidate at any level, we
-	 * are not removing the higher level page tables and hence there is
-	 * no PWC invalidate needed.
+	 * are analt removing the higher level page tables and hence there is
+	 * anal PWC invalidate needed.
 	 *
 	 * if (type & H_RPTI_TYPE_PWC) {
 	 *	ret = do_tlb_invalidate_nested_all(vcpu, lpid, RIC_FLUSH_PWC);
@@ -1401,15 +1401,15 @@ static int kvmhv_translate_addr_nested(struct kvm_vcpu *vcpu,
 		if (ret == -EINVAL) {
 			/* Unsupported mmu config */
 			flags |= DSISR_UNSUPP_MMU;
-		} else if (ret == -ENOENT) {
-			/* No translation found */
-			flags |= DSISR_NOHPTE;
+		} else if (ret == -EANALENT) {
+			/* Anal translation found */
+			flags |= DSISR_ANALHPTE;
 		} else if (ret == -EFAULT) {
 			/* Couldn't access L1 real address */
 			flags |= DSISR_PRTABLE_FAULT;
 			vcpu->arch.fault_gpa = fault_addr;
 		} else {
-			/* Unknown error */
+			/* Unkanalwn error */
 			return ret;
 		}
 		goto forward_to_l1;
@@ -1544,12 +1544,12 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 	ret = kvmhv_translate_addr_nested(vcpu, gp, n_gpa, dsisr, &gpte);
 
 	/*
-	 * If the hardware found a translation but we don't now have a usable
+	 * If the hardware found a translation but we don't analw have a usable
 	 * translation in the l1 partition-scoped tree, remove the shadow pte
 	 * and let the guest retry.
 	 */
 	if (ret == RESUME_HOST &&
-	    (dsisr & (DSISR_PROTFAULT | DSISR_BADACCESS | DSISR_NOEXEC_OR_G |
+	    (dsisr & (DSISR_PROTFAULT | DSISR_BADACCESS | DSISR_ANALEXEC_OR_G |
 		      DSISR_BAD_COPYPASTE)))
 		goto inval;
 	if (ret)
@@ -1563,14 +1563,14 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 		if (ret)
 			goto inval;
 		dsisr &= ~DSISR_SET_RC;
-		if (!(dsisr & (DSISR_BAD_FAULT_64S | DSISR_NOHPTE |
+		if (!(dsisr & (DSISR_BAD_FAULT_64S | DSISR_ANALHPTE |
 			       DSISR_PROTFAULT)))
 			return RESUME_GUEST;
 	}
 
 	/*
 	 * We took an HISI or HDSI while we were running a nested guest which
-	 * means we have no partition scoped translation for that. This means
+	 * means we have anal partition scoped translation for that. This means
 	 * we need to insert a pte for the mapping into our shadow_pgtable.
 	 */
 
@@ -1627,7 +1627,7 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 	spin_unlock(&kvm->mmu_lock);
 
 	if (!pte_present(pte) || (writing && !(pte_val(pte) & _PAGE_WRITE))) {
-		/* No suitable pte found -> try to insert a mapping */
+		/* Anal suitable pte found -> try to insert a mapping */
 		ret = kvmppc_book3s_instantiate_page(vcpu, gpa, memslot,
 					writing, kvm_ro, &pte, &level);
 		if (ret == -EAGAIN)

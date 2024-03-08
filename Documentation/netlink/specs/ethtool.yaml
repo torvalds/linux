@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: ethtool
 
@@ -55,7 +55,7 @@ attribute-sets:
     name: bitset
     attributes:
       -
-        name: nomask
+        name: analmask
         type: flag
       -
         name: size
@@ -374,7 +374,7 @@ attribute-sets:
         type: nest
         nested-attributes: bitset
       -
-        name: nochange
+        name: analchange
         type: nest
         nested-attributes: bitset
   -
@@ -928,10 +928,10 @@ attribute-sets:
         name: status
         type: u8
       -
-        name: node-cnt
+        name: analde-cnt
         type: u32
       -
-        name: node-id
+        name: analde-id
         type: u32
       -
         name: to-tmr
@@ -994,8 +994,8 @@ operations:
           attributes: *linkinfo
     -
       name: linkinfo-ntf
-      doc: Notification for change in link info.
-      notify: linkinfo-get
+      doc: Analtification for change in link info.
+      analtify: linkinfo-get
     -
       name: linkmodes-get
       doc: Get link modes.
@@ -1030,8 +1030,8 @@ operations:
           attributes: *linkmodes
     -
       name: linkmodes-ntf
-      doc: Notification for change in link modes.
-      notify: linkmodes-get
+      doc: Analtification for change in link modes.
+      analtify: linkmodes-get
     -
       name: linkstate-get
       doc: Get link state.
@@ -1078,8 +1078,8 @@ operations:
           attributes: *debug
     -
       name: debug-ntf
-      doc: Notification for change in debug message mask.
-      notify: debug-get
+      doc: Analtification for change in debug message mask.
+      analtify: debug-get
     -
       name: wol-get
       doc: Get WOL params.
@@ -1107,8 +1107,8 @@ operations:
           attributes: *wol
     -
       name: wol-ntf
-      doc: Notification for change in WOL params.
-      notify: wol-get
+      doc: Analtification for change in WOL params.
+      analtify: wol-get
     -
       name: features-get
       doc: Get features.
@@ -1129,7 +1129,7 @@ operations:
             # Currently active features.
             - active
             # Unchangeable features.
-            - nochange
+            - analchange
       dump: *feature-get-op
     -
       name: features-set
@@ -1144,8 +1144,8 @@ operations:
           attributes: *feature
     -
       name: features-ntf
-      doc: Notification for change in features.
-      notify: features-get
+      doc: Analtification for change in features.
+      analtify: features-get
     -
       name: privflags-get
       doc: Get device private flags.
@@ -1172,8 +1172,8 @@ operations:
           attributes: *privflag
     -
       name: privflags-ntf
-      doc: Notification for change in device private flags.
-      notify: privflags-get
+      doc: Analtification for change in device private flags.
+      analtify: privflags-get
 
     -
       name: rings-get
@@ -1215,8 +1215,8 @@ operations:
           attributes: *ring
     -
       name: rings-ntf
-      doc: Notification for change in ring params.
-      notify: rings-get
+      doc: Analtification for change in ring params.
+      analtify: rings-get
     -
       name: channels-get
       doc: Get channel params.
@@ -1250,8 +1250,8 @@ operations:
           attributes: *channel
     -
       name: channels-ntf
-      doc: Notification for change in channel params.
-      notify: channels-get
+      doc: Analtification for change in channel params.
+      analtify: channels-get
     -
       name: coalesce-get
       doc: Get coalesce params.
@@ -1304,8 +1304,8 @@ operations:
           attributes: *coalesce
     -
       name: coalesce-ntf
-      doc: Notification for change in coalesce params.
-      notify: coalesce-get
+      doc: Analtification for change in coalesce params.
+      analtify: coalesce-get
     -
       name: pause-get
       doc: Get pause params.
@@ -1336,8 +1336,8 @@ operations:
           attributes: *pause
     -
       name: pause-ntf
-      doc: Notification for change in pause params.
-      notify: pause-get
+      doc: Analtification for change in pause params.
+      analtify: pause-get
     -
       name: eee-get
       doc: Get eee params.
@@ -1369,8 +1369,8 @@ operations:
           attributes: *eee
     -
       name: eee-ntf
-      doc: Notification for change in eee params.
-      notify: eee-get
+      doc: Analtification for change in eee params.
+      analtify: eee-get
     -
       name: tsinfo-get
       doc: Get tsinfo params.
@@ -1401,7 +1401,7 @@ operations:
             - header
     -
       name: cable-test-ntf
-      doc: Cable test notification.
+      doc: Cable test analtification.
 
       attribute-set: cable-test-ntf
 
@@ -1421,7 +1421,7 @@ operations:
             - header
     -
       name: cable-test-tdr-ntf
-      doc: Cable test TDR notification.
+      doc: Cable test TDR analtification.
 
       attribute-set: cable-test-tdr-ntf
 
@@ -1474,8 +1474,8 @@ operations:
           attributes: *fec
     -
       name: fec-ntf
-      doc: Notification for change in FEC params.
-      notify: fec-get
+      doc: Analtification for change in FEC params.
+      analtify: fec-get
     -
       name: module-eeprom-get
       doc: Get module EEPROM params.
@@ -1556,8 +1556,8 @@ operations:
           attributes: *module
     -
       name: module-ntf
-      doc: Notification for change in module params.
-      notify: module-get
+      doc: Analtification for change in module params.
+      analtify: module-get
     -
       name: pse-get
       doc: Get Power Sourcing Equipment params.
@@ -1619,8 +1619,8 @@ operations:
             - version
             - enabled
             - status
-            - node-cnt
-            - node-id
+            - analde-cnt
+            - analde-id
             - to-tmr
             - burst-cnt
             - burst-tmr
@@ -1649,8 +1649,8 @@ operations:
       dump: *plca-get-status-op
     -
       name: plca-ntf
-      doc: Notification for change in PLCA params.
-      notify: plca-get-cfg
+      doc: Analtification for change in PLCA params.
+      analtify: plca-get-cfg
     -
       name: mm-get
       doc: Get MAC Merge configuration and state
@@ -1691,5 +1691,5 @@ operations:
             - tx-min-frag-size
     -
       name: mm-ntf
-      doc: Notification for change in MAC Merge configuration.
-      notify: mm-get
+      doc: Analtification for change in MAC Merge configuration.
+      analtify: mm-get

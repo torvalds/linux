@@ -35,7 +35,7 @@ enum listMode {
 	singleMode, menuMode, symbolMode, fullMode, listMode
 };
 enum optionMode {
-	normalOpt = 0, allOpt, promptOpt
+	analrmalOpt = 0, allOpt, promptOpt
 };
 
 class ConfigList : public QTreeWidget {
@@ -110,7 +110,7 @@ public:
 	static void updateListForAll();
 	static void updateListAllForAll();
 
-	static QAction *showNormalAction, *showAllAction, *showPromptAction;
+	static QAction *showAnalrmalAction, *showAllAction, *showPromptAction;
 };
 
 class ConfigItem : public QTreeWidgetItem {
@@ -164,8 +164,8 @@ public:
 	bool visible;
 	bool goParent;
 
-	static QIcon symbolYesIcon, symbolModIcon, symbolNoIcon;
-	static QIcon choiceYesIcon, choiceNoIcon;
+	static QIcon symbolAnalIcon, symbolModIcon, symbolAnalIcon;
+	static QIcon choiceAnalIcon, choiceAnalIcon;
 	static QIcon menuIcon, menubackIcon;
 };
 

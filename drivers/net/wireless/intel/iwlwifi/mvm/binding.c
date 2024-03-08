@@ -9,7 +9,7 @@
 #include "mvm.h"
 
 struct iwl_mvm_iface_iterator_data {
-	struct ieee80211_vif *ignore_vif;
+	struct ieee80211_vif *iganalre_vif;
 	int idx;
 
 	struct iwl_mvm_phy_ctxt *phyctxt;
@@ -73,7 +73,7 @@ static void iwl_mvm_iface_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif == data->ignore_vif)
+	if (vif == data->iganalre_vif)
 		return;
 
 	if (mvmvif->deflink.phy_ctxt != data->phyctxt)
@@ -94,7 +94,7 @@ static int iwl_mvm_binding_update(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_iface_iterator_data data = {
-		.ignore_vif = vif,
+		.iganalre_vif = vif,
 		.phyctxt = phyctxt,
 	};
 	u32 action = FW_CTXT_ACTION_MODIFY;
@@ -102,12 +102,12 @@ static int iwl_mvm_binding_update(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   iwl_mvm_iface_iterator,
 						   &data);
 
 	/*
-	 * If there are no other interfaces yet we
+	 * If there are anal other interfaces yet we
 	 * need to create a new binding.
 	 */
 	if (data.idx == 0) {

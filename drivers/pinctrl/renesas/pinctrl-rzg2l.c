@@ -52,7 +52,7 @@
 #define PIN_CFG_IO_VMC_QSPI		BIT(7)
 #define PIN_CFG_IO_VMC_ETH0		BIT(8)
 #define PIN_CFG_IO_VMC_ETH1		BIT(9)
-#define PIN_CFG_FILONOFF		BIT(10)
+#define PIN_CFG_FILOANALFF		BIT(10)
 #define PIN_CFG_FILNUM			BIT(11)
 #define PIN_CFG_FILCLKSEL		BIT(12)
 #define PIN_CFG_IOLH_C			BIT(13)
@@ -62,7 +62,7 @@
 #define RZG2L_MPXED_COMMON_PIN_FUNCS(group) \
 					(PIN_CFG_IOLH_##group | \
 					 PIN_CFG_PUPD | \
-					 PIN_CFG_FILONOFF | \
+					 PIN_CFG_FILOANALFF | \
 					 PIN_CFG_FILNUM | \
 					 PIN_CFG_FILCLKSEL)
 
@@ -73,7 +73,7 @@
 					 PIN_CFG_SOFT_PS)
 
 #define RZG2L_MPXED_ETH_PIN_FUNCS(x)	((x) | \
-					 PIN_CFG_FILONOFF | \
+					 PIN_CFG_FILOANALFF | \
 					 PIN_CFG_FILNUM | \
 					 PIN_CFG_FILCLKSEL)
 
@@ -244,7 +244,7 @@ static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
-	/* Set pin to 'Non-use (Hi-Z input protection)'  */
+	/* Set pin to 'Analn-use (Hi-Z input protection)'  */
 	reg = readw(pctrl->base + PM(off));
 	reg &= ~(PM_MASK << (pin * 2));
 	writew(reg, pctrl->base + PM(off));
@@ -319,7 +319,7 @@ static int rzg2l_map_add_config(struct pinctrl_map *map,
 	cfgs = kmemdup(configs, num_configs * sizeof(*cfgs),
 		       GFP_KERNEL);
 	if (!cfgs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map->type = type;
 	map->data.configs.group_or_pin = group_or_pin;
@@ -329,9 +329,9 @@ static int rzg2l_map_add_config(struct pinctrl_map *map,
 	return 0;
 }
 
-static int rzg2l_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-				   struct device_node *np,
-				   struct device_node *parent,
+static int rzg2l_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+				   struct device_analde *np,
+				   struct device_analde *parent,
 				   struct pinctrl_map **map,
 				   unsigned int *num_maps,
 				   unsigned int *index)
@@ -371,7 +371,7 @@ static int rzg2l_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	if (num_pinmux && num_pins) {
 		dev_err(pctrl->dev,
-			"DT node must contain either a pinmux or pins and not both\n");
+			"DT analde must contain either a pinmux or pins and analt both\n");
 		return -EINVAL;
 	}
 
@@ -380,8 +380,8 @@ static int rzg2l_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		return ret;
 
 	if (num_pins && !num_configs) {
-		dev_err(pctrl->dev, "DT node must contain a config\n");
-		ret = -ENODEV;
+		dev_err(pctrl->dev, "DT analde must contain a config\n");
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -396,7 +396,7 @@ static int rzg2l_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	maps = krealloc_array(maps, nmaps, sizeof(*maps), GFP_KERNEL);
 	if (!maps) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -421,7 +421,7 @@ static int rzg2l_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 				GFP_KERNEL);
 	pin_fn = devm_kzalloc(pctrl->dev, sizeof(*pin_fn), GFP_KERNEL);
 	if (!pins || !psel_val || !pin_fn) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -440,7 +440,7 @@ static int rzg2l_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		name = devm_kasprintf(pctrl->dev, GFP_KERNEL, "%pOFn.%pOFn",
 				      parent, np);
 		if (!name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 	} else {
@@ -515,13 +515,13 @@ static void rzg2l_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static int rzg2l_dt_node_to_map(struct pinctrl_dev *pctldev,
-				struct device_node *np,
+static int rzg2l_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				struct device_analde *np,
 				struct pinctrl_map **map,
 				unsigned int *num_maps)
 {
 	struct rzg2l_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct device_node *child;
+	struct device_analde *child;
 	unsigned int index;
 	int ret;
 
@@ -529,17 +529,17 @@ static int rzg2l_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	index = 0;
 
-	for_each_child_of_node(np, child) {
-		ret = rzg2l_dt_subnode_to_map(pctldev, child, np, map,
+	for_each_child_of_analde(np, child) {
+		ret = rzg2l_dt_subanalde_to_map(pctldev, child, np, map,
 					      num_maps, &index);
 		if (ret < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			goto done;
 		}
 	}
 
 	if (*num_maps == 0) {
-		ret = rzg2l_dt_subnode_to_map(pctldev, np, NULL, map,
+		ret = rzg2l_dt_subanalde_to_map(pctldev, np, NULL, map,
 					      num_maps, &index);
 		if (ret < 0)
 			goto done;
@@ -548,7 +548,7 @@ static int rzg2l_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (*num_maps)
 		return 0;
 
-	dev_err(pctrl->dev, "no mapping found in node %pOF\n", np);
+	dev_err(pctrl->dev, "anal mapping found in analde %pOF\n", np);
 	ret = -EINVAL;
 
 done:
@@ -646,7 +646,7 @@ static int rzg2l_get_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 	case PVDD_3300:
 		return 3300;
 	default:
-		/* Should not happen. */
+		/* Should analt happen. */
 		return -EINVAL;
 	}
 }
@@ -726,7 +726,7 @@ static u16 rzg2l_iolh_val_to_ua(const struct rzg2l_hwcfg *hwcfg, u32 caps, u8 va
 	if (caps & PIN_CFG_IOLH_C)
 		return hwcfg->iolh_groupc_ua[val];
 
-	/* Should not happen. */
+	/* Should analt happen. */
 	return 0;
 }
 
@@ -773,7 +773,7 @@ static bool rzg2l_ds_is_supported(struct rzg2l_pinctrl *pctrl, u32 caps,
 	if (caps & PIN_CFG_IOLH_C)
 		array = hwcfg->iolh_groupc_ua;
 
-	/* Should not happen. */
+	/* Should analt happen. */
 	if (!array)
 		return false;
 
@@ -942,7 +942,7 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	}
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -1045,7 +1045,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -1127,7 +1127,7 @@ static int rzg2l_pinctrl_pinconf_group_get(struct pinctrl_dev *pctldev,
 
 		/* Check config matching between to pin  */
 		if (i && prev_config != *config)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		prev_config = *config;
 	}
@@ -1139,7 +1139,7 @@ static const struct pinctrl_ops rzg2l_pinctrl_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-	.dt_node_to_map = rzg2l_dt_node_to_map,
+	.dt_analde_to_map = rzg2l_dt_analde_to_map,
 	.dt_free_map = rzg2l_dt_free_map,
 };
 
@@ -1478,7 +1478,7 @@ static const struct {
 } rzg2l_dedicated_pins = {
 	.common = {
 		{ "NMI", RZG2L_SINGLE_PIN_PACK(0x1, 0,
-		 (PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL)) },
+		 (PIN_CFG_FILOANALFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL)) },
 		{ "TMS/SWDIO", RZG2L_SINGLE_PIN_PACK(0x2, 0,
 		 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN)) },
 		{ "TDO", RZG2L_SINGLE_PIN_PACK(0x3, 0,
@@ -1559,7 +1559,7 @@ static const struct {
 };
 
 static const struct rzg2l_dedicated_configs rzg3s_dedicated_pins[] = {
-	{ "NMI", RZG2L_SINGLE_PIN_PACK(0x0, 0, (PIN_CFG_FILONOFF | PIN_CFG_FILNUM |
+	{ "NMI", RZG2L_SINGLE_PIN_PACK(0x0, 0, (PIN_CFG_FILOANALFF | PIN_CFG_FILNUM |
 						PIN_CFG_FILCLKSEL)) },
 	{ "TMS/SWDIO", RZG2L_SINGLE_PIN_PACK(0x1, 0, (PIN_CFG_IOLH_A | PIN_CFG_IEN |
 						      PIN_CFG_SOFT_PS)) },
@@ -1721,7 +1721,7 @@ static int rzg2l_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 	irq = bitmap_find_free_region(pctrl->tint_slot, RZG2L_TINT_MAX_INTERRUPT, get_order(1));
 	spin_unlock_irqrestore(&pctrl->bitmap_lock, flags);
 	if (irq < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 	pctrl->hwirq[irq] = child;
 	irq += RZG2L_TINT_IRQ_START_INDEX;
 
@@ -1738,7 +1738,7 @@ static int rzg2l_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 {
 	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
-	fwspec->fwnode = chip->irq.parent_domain->fwnode;
+	fwspec->fwanalde = chip->irq.parent_domain->fwanalde;
 	fwspec->param_count = 2;
 	fwspec->param[0] = parent_hwirq;
 	fwspec->param[1] = parent_type;
@@ -1795,12 +1795,12 @@ static void rzg2l_init_irq_valid_mask(struct gpio_chip *gc,
 
 static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 {
-	struct device_node *np = pctrl->dev->of_node;
+	struct device_analde *np = pctrl->dev->of_analde;
 	struct gpio_chip *chip = &pctrl->gpio_chip;
 	const char *name = dev_name(pctrl->dev);
 	struct irq_domain *parent_domain;
 	struct of_phandle_args of_args;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 	struct gpio_irq_chip *girq;
 	int ret;
 
@@ -1809,7 +1809,7 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 		return -ENXIO;
 
 	parent_domain = irq_find_host(parent_np);
-	of_node_put(parent_np);
+	of_analde_put(parent_np);
 	if (!parent_domain)
 		return -EPROBE_DEFER;
 
@@ -1821,7 +1821,7 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 
 	if (of_args.args[0] != 0 || of_args.args[1] != 0 ||
 	    of_args.args[2] != pctrl->data->n_port_pins) {
-		dev_err(pctrl->dev, "gpio-ranges does not match selected SOC\n");
+		dev_err(pctrl->dev, "gpio-ranges does analt match selected SOC\n");
 		return -EINVAL;
 	}
 
@@ -1841,7 +1841,7 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 
 	girq = &chip->irq;
 	gpio_irq_chip_set_chip(girq, &rzg2l_gpio_irqchip);
-	girq->fwnode = of_node_to_fwnode(np);
+	girq->fwanalde = of_analde_to_fwanalde(np);
 	girq->parent_domain = parent_domain;
 	girq->child_to_parent_hwirq = rzg2l_gpio_child_to_parent_hwirq;
 	girq->populate_parent_alloc_arg = rzg2l_gpio_populate_parent_fwspec;
@@ -1882,12 +1882,12 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 
 	pins = devm_kcalloc(pctrl->dev, pctrl->desc.npins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pin_data = devm_kcalloc(pctrl->dev, pctrl->desc.npins,
 				sizeof(*pin_data), GFP_KERNEL);
 	if (!pin_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->pins = pins;
 	pctrl->desc.pins = pins;
@@ -1913,7 +1913,7 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 	pctrl->settings = devm_kcalloc(pctrl->dev, pctrl->desc.npins, sizeof(*pctrl->settings),
 				       GFP_KERNEL);
 	if (!pctrl->settings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; hwcfg->drive_strength_ua && i < pctrl->desc.npins; i++) {
 		if (pin_data[i] & PIN_CFG_SOFT_PS) {
@@ -1965,7 +1965,7 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->dev = &pdev->dev;
 

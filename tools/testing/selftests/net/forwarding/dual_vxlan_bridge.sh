@@ -131,16 +131,16 @@ switch_create()
 {
 	#### BR1 ####
 	ip link add name br1 type bridge vlan_filtering 1 \
-		vlan_protocol 802.1ad vlan_default_pvid 0 mcast_snooping 0
-	ip link set dev br1 addrgenmode none
-	# Make sure the bridge uses the MAC address of the local port and not
+		vlan_protocol 802.1ad vlan_default_pvid 0 mcast_sanaloping 0
+	ip link set dev br1 addrgenmode analne
+	# Make sure the bridge uses the MAC address of the local port and analt
 	# that of the VxLAN's device.
 	ip link set dev br1 address $(mac_get $swp1)
 	ip link set dev br1 up
 
 	#### BR2 ####
-	ip link add name br2 type bridge vlan_filtering 0 mcast_snooping 0
-	# Make sure the bridge uses the MAC address of the local port and not
+	ip link add name br2 type bridge vlan_filtering 0 mcast_sanaloping 0
+	# Make sure the bridge uses the MAC address of the local port and analt
 	# that of the VxLAN's device.
 	ip link set dev br2 address $(mac_get $swp2)
 	ip link set dev br2 up
@@ -150,7 +150,7 @@ switch_create()
 
 	#### VX100 ####
 	ip link add name vx100 type vxlan id 1000 local 192.0.2.17 \
-		dstport "$VXPORT" nolearning noudpcsum tos inherit ttl 100
+		dstport "$VXPORT" anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx100 up
 
 	ip link set dev vx100 master br1
@@ -162,7 +162,7 @@ switch_create()
 
 	#### VX200 ####
 	ip link add name vx200 type vxlan id 2000 local 192.0.2.17 \
-		dstport "$VXPORT" nolearning noudpcsum tos inherit ttl 100
+		dstport "$VXPORT" anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx200 up
 
 	ip link set dev vx200 master br2
@@ -181,19 +181,19 @@ switch_destroy()
 	bridge fdb del dev vx200 00:00:00:00:00:00 dst 192.0.2.50 self
 	bridge fdb del dev vx100 00:00:00:00:00:00 dst 192.0.2.34 self
 
-	ip link set dev vx200 nomaster
+	ip link set dev vx200 analmaster
 	ip link set dev vx200 down
 	ip link del dev vx200
 
 	ip link del dev $swp2.20
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 
 	bridge vlan del vid 100 dev $swp1
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
-	ip link set dev vx100 nomaster
+	ip link set dev vx100 analmaster
 	ip link set dev vx100 down
 	ip link del dev vx100
 

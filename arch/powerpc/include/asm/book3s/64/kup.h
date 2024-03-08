@@ -24,7 +24,7 @@
 	ld	\gpr1, STACK_REGS_AMR(r1)
 
 	/*
-	 * If kuap feature is not enabled, do the mtspr
+	 * If kuap feature is analt enabled, do the mtspr
 	 * only if AMR value is different.
 	 */
 	BEGIN_MMU_FTR_SECTION_NESTED(68)
@@ -42,7 +42,7 @@
 	ld	\gpr1, STACK_REGS_IAMR(r1)
 
 	/*
-	 * If kuep feature is not enabled, do the mtspr
+	 * If kuep feature is analt enabled, do the mtspr
 	 * only if IAMR value is different.
 	 */
 	BEGIN_MMU_FTR_SECTION_NESTED(69)
@@ -55,7 +55,7 @@
 	mtspr	SPRN_IAMR, \gpr1
 
 100: //skip_restore_amr
-	/* No isync required, see kuap_user_restore() */
+	/* Anal isync required, see kuap_user_restore() */
 #endif
 .endm
 
@@ -74,8 +74,8 @@
 	isync
 	mtspr	SPRN_AMR, \gpr2
 	/*
-	 * No isync required, see kuap_restore_amr()
-	 * No need to restore IAMR when returning to kernel space.
+	 * Anal isync required, see kuap_restore_amr()
+	 * Anal need to restore IAMR when returning to kernel space.
 	 */
 100:
 	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_KUAP, 67)
@@ -126,7 +126,7 @@
 #if defined(CONFIG_PPC_PKEY)
 
 	/*
-	 * if both pkey and kuap is disabled, nothing to do
+	 * if both pkey and kuap is disabled, analthing to do
 	 */
 	BEGIN_MMU_FTR_SECTION_NESTED(68)
 	b	100f  // skip_save_amr
@@ -139,7 +139,7 @@
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
 	.ifnb \msr_pr_cr
 	/*
-	 * Without pkey we are not changing AMR outside the kernel
+	 * Without pkey we are analt changing AMR outside the kernel
 	 * hence skip this completely.
 	 */
 	bne	\msr_pr_cr, 100f  // from userspace
@@ -209,8 +209,8 @@ extern u64 __ro_after_init default_iamr;
 
 /* usage of kthread_use_mm() should inherit the
  * AMR value of the operating address space. But, the AMR value is
- * thread-specific and we inherit the address space and not thread
- * access restrictions. Because of this ignore AMR value when accessing
+ * thread-specific and we inherit the address space and analt thread
+ * access restrictions. Because of this iganalre AMR value when accessing
  * userspace via kernel thread.
  */
 static __always_inline u64 current_thread_amr(void)
@@ -263,7 +263,7 @@ static __always_inline void kuap_user_restore(struct pt_regs *regs)
 			mtspr(SPRN_IAMR, regs->iamr);
 	}
 	/*
-	 * No isync required here because we are about to rfi
+	 * Anal isync required here because we are about to rfi
 	 * back to previous context before any user accesses
 	 * would be made, which is a CSI.
 	 */
@@ -277,11 +277,11 @@ static __always_inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned
 	isync();
 	mtspr(SPRN_AMR, regs->amr);
 	/*
-	 * No isync required here because we are about to rfi
+	 * Anal isync required here because we are about to rfi
 	 * back to previous context before any user accesses
 	 * would be made, which is a CSI.
 	 *
-	 * No need to restore IAMR when returning to kernel space.
+	 * Anal need to restore IAMR when returning to kernel space.
 	 */
 }
 
@@ -295,7 +295,7 @@ static __always_inline unsigned long __kuap_get_and_assert_locked(void)
 }
 #define __kuap_get_and_assert_locked __kuap_get_and_assert_locked
 
-/* __kuap_lock() not required, book3s/64 does that in ASM */
+/* __kuap_lock() analt required, book3s/64 does that in ASM */
 
 /*
  * We support individually allowing read or write, but we don't support nesting
@@ -309,7 +309,7 @@ static __always_inline unsigned long get_kuap(void)
 	 * prevent_user_access_return needs to return AMR_KUAP_BLOCKED to
 	 * cause restore_user_access to do a flush.
 	 *
-	 * This has no effect in terms of actually blocking things on hash,
+	 * This has anal effect in terms of actually blocking things on hash,
 	 * so it doesn't break anything.
 	 */
 	if (!mmu_has_feature(MMU_FTR_KUAP))

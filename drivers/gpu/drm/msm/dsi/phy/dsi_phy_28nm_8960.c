@@ -15,7 +15,7 @@
  *
  *
  *                        +------+
- *  dsi1vco_clk ----o-----| DIV1 |---dsi1pllbit (not exposed as clock)
+ *  dsi1vco_clk ----o-----| DIV1 |---dsi1pllbit (analt exposed as clock)
  *  F * byte_clk    |     +------+
  *                  | bit clock divider (F / 8)
  *                  |
@@ -82,7 +82,7 @@ static bool pll_28nm_poll_for_ready(struct dsi_pll_28nm *pll_28nm,
 
 		udelay(timeout_us);
 	}
-	DBG("DSI PLL is %slocked", pll_locked ? "" : "*not* ");
+	DBG("DSI PLL is %slocked", pll_locked ? "" : "*analt* ");
 
 	return pll_locked;
 }
@@ -389,7 +389,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 			.fw_name = "ref",
 		},
 		.num_parents = 1,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 		.ops = &clk_ops_dsi_pll_28nm_vco,
 	};
 	struct device *dev = &pll_28nm->phy->pdev->dev;
@@ -402,7 +402,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 
 	bytediv = devm_kzalloc(dev, sizeof(*bytediv), GFP_KERNEL);
 	if (!bytediv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(clk_name, sizeof(clk_name), "dsi%dvco_clk", pll_28nm->phy->id);
 	vco_init.name = clk_name;
@@ -453,11 +453,11 @@ static int dsi_pll_28nm_8960_init(struct msm_dsi_phy *phy)
 	int ret;
 
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pll_28nm = devm_kzalloc(&pdev->dev, sizeof(*pll_28nm), GFP_KERNEL);
 	if (!pll_28nm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pll_28nm->phy = phy;
 

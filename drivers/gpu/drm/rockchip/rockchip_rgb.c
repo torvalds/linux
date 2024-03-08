@@ -76,7 +76,7 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 {
 	struct rockchip_rgb *rgb;
 	struct drm_encoder *encoder;
-	struct device_node *port, *endpoint;
+	struct device_analde *port, *endpoint;
 	u32 endpoint_id;
 	int ret = 0, child_count = 0;
 	struct drm_panel *panel;
@@ -85,35 +85,35 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 
 	rgb = devm_kzalloc(dev, sizeof(*rgb), GFP_KERNEL);
 	if (!rgb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rgb->dev = dev;
 	rgb->drm_dev = drm_dev;
 
-	port = of_graph_get_port_by_id(dev->of_node, video_port);
+	port = of_graph_get_port_by_id(dev->of_analde, video_port);
 	if (!port)
 		return ERR_PTR(-EINVAL);
 
-	for_each_child_of_node(port, endpoint) {
+	for_each_child_of_analde(port, endpoint) {
 		if (of_property_read_u32(endpoint, "reg", &endpoint_id))
 			endpoint_id = 0;
 
-		/* if subdriver (> 0) or error case (< 0), ignore entry */
+		/* if subdriver (> 0) or error case (< 0), iganalre entry */
 		if (rockchip_drm_endpoint_is_subdriver(endpoint) != 0)
 			continue;
 
 		child_count++;
-		ret = drm_of_find_panel_or_bridge(dev->of_node, video_port,
+		ret = drm_of_find_panel_or_bridge(dev->of_analde, video_port,
 						  endpoint_id, &panel, &bridge);
 		if (!ret) {
-			of_node_put(endpoint);
+			of_analde_put(endpoint);
 			break;
 		}
 	}
 
-	of_node_put(port);
+	of_analde_put(port);
 
-	/* if the rgb output is not connected to anything, just return */
+	/* if the rgb output is analt connected to anything, just return */
 	if (!child_count)
 		return NULL;
 
@@ -126,7 +126,7 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 	encoder = &rgb->encoder.encoder;
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
-	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_NONE);
+	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_ANALNE);
 	if (ret < 0) {
 		DRM_DEV_ERROR(drm_dev->dev,
 			      "failed to initialize encoder: %d\n", ret);
@@ -145,7 +145,7 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 	rgb->bridge = bridge;
 
 	ret = drm_bridge_attach(encoder, rgb->bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret)
 		goto err_free_encoder;
 

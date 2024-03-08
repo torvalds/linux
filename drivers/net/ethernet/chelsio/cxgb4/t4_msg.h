@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -122,7 +122,7 @@ enum {
 };
 
 enum CPL_error {
-	CPL_ERR_NONE               = 0,
+	CPL_ERR_ANALNE               = 0,
 	CPL_ERR_TCAM_PARITY        = 1,
 	CPL_ERR_TCAM_MISS          = 2,
 	CPL_ERR_TCAM_FULL          = 3,
@@ -155,7 +155,7 @@ enum {
 };
 
 enum {
-	ULP_MODE_NONE          = 0,
+	ULP_MODE_ANALNE          = 0,
 	ULP_MODE_ISCSI         = 2,
 	ULP_MODE_RDMA          = 4,
 	ULP_MODE_TCPDDP	       = 5,
@@ -170,7 +170,7 @@ enum {
 
 enum {
 	CPL_ABORT_SEND_RST = 0,
-	CPL_ABORT_NO_RST,
+	CPL_ABORT_ANAL_RST,
 };
 
 enum {                     /* TX_PKT_XT checksum types */
@@ -320,17 +320,17 @@ struct cpl_pass_open_req {
 };
 
 /* option 0 fields */
-#define NO_CONG_S    4
-#define NO_CONG_V(x) ((x) << NO_CONG_S)
-#define NO_CONG_F    NO_CONG_V(1U)
+#define ANAL_CONG_S    4
+#define ANAL_CONG_V(x) ((x) << ANAL_CONG_S)
+#define ANAL_CONG_F    ANAL_CONG_V(1U)
 
 #define DELACK_S    5
 #define DELACK_V(x) ((x) << DELACK_S)
 #define DELACK_F    DELACK_V(1U)
 
-#define NON_OFFLOAD_S		7
-#define NON_OFFLOAD_V(x)	((x) << NON_OFFLOAD_S)
-#define NON_OFFLOAD_F		NON_OFFLOAD_V(1U)
+#define ANALN_OFFLOAD_S		7
+#define ANALN_OFFLOAD_V(x)	((x) << ANALN_OFFLOAD_S)
+#define ANALN_OFFLOAD_F		ANALN_OFFLOAD_V(1U)
 
 #define DSCP_S    22
 #define DSCP_M    0x3F
@@ -380,7 +380,7 @@ struct tcp_options {
 	__u8 wsf;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8:4;
-	__u8 unknown:1;
+	__u8 unkanalwn:1;
 	__u8:1;
 	__u8 sack:1;
 	__u8 tstamp:1;
@@ -388,7 +388,7 @@ struct tcp_options {
 	__u8 tstamp:1;
 	__u8 sack:1;
 	__u8:1;
-	__u8 unknown:1;
+	__u8 unkanalwn:1;
 	__u8:4;
 #endif
 };
@@ -441,9 +441,9 @@ struct cpl_pass_accept_req {
 #define SYN_INTF_G(x) (((x) >> SYN_INTF_S) & SYN_INTF_M)
 
 enum {                     /* TCP congestion control algorithms */
-	CONG_ALG_RENO,
+	CONG_ALG_REANAL,
 	CONG_ALG_TAHOE,
-	CONG_ALG_NEWRENO,
+	CONG_ALG_NEWREANAL,
 	CONG_ALG_HIGHSPEED
 };
 
@@ -679,16 +679,16 @@ struct cpl_get_tcb {
 };
 
 /* cpl_get_tcb.reply_ctrl fields */
-#define QUEUENO_S    0
-#define QUEUENO_V(x) ((x) << QUEUENO_S)
+#define QUEUEANAL_S    0
+#define QUEUEANAL_V(x) ((x) << QUEUEANAL_S)
 
 #define REPLY_CHAN_S    14
 #define REPLY_CHAN_V(x) ((x) << REPLY_CHAN_S)
 #define REPLY_CHAN_F    REPLY_CHAN_V(1U)
 
-#define NO_REPLY_S    15
-#define NO_REPLY_V(x) ((x) << NO_REPLY_S)
-#define NO_REPLY_F    NO_REPLY_V(1U)
+#define ANAL_REPLY_S    15
+#define ANAL_REPLY_V(x) ((x) << ANAL_REPLY_S)
+#define ANAL_REPLY_F    ANAL_REPLY_V(1U)
 
 struct cpl_get_tcb_rpl {
 	union opcode_tid ot;
@@ -910,7 +910,7 @@ struct cpl_tx_pkt_lso_core {
 	__be32 lso_ctrl;
 	__be16 ipid_ofst;
 	__be16 mss;
-	__be32 seqno_offset;
+	__be32 seqanal_offset;
 	__be32 len;
 	/* encapsulated CPL (TX_PKT, TX_PKT_XT or TX_DATA) follows here */
 };
@@ -1313,11 +1313,11 @@ struct cpl_l2t_write_req {
 #define L2T_W_PORT_S    8
 #define L2T_W_PORT_V(x) ((x) << L2T_W_PORT_S)
 
-#define L2T_W_NOREPLY_S    15
-#define L2T_W_NOREPLY_V(x) ((x) << L2T_W_NOREPLY_S)
-#define L2T_W_NOREPLY_F    L2T_W_NOREPLY_V(1U)
+#define L2T_W_ANALREPLY_S    15
+#define L2T_W_ANALREPLY_V(x) ((x) << L2T_W_ANALREPLY_S)
+#define L2T_W_ANALREPLY_F    L2T_W_ANALREPLY_V(1U)
 
-#define CPL_L2T_VLAN_NONE 0xfff
+#define CPL_L2T_VLAN_ANALNE 0xfff
 
 struct cpl_l2t_write_rpl {
 	union opcode_tid ot;
@@ -1359,9 +1359,9 @@ struct cpl_smt_write_rpl {
 #define SMTW_IDX_S	20
 #define SMTW_IDX_V(x)	((x) << SMTW_IDX_S)
 
-#define SMTW_NORPL_S	31
-#define SMTW_NORPL_V(x)	((x) << SMTW_NORPL_S)
-#define SMTW_NORPL_F	SMTW_NORPL_V(1U)
+#define SMTW_ANALRPL_S	31
+#define SMTW_ANALRPL_V(x)	((x) << SMTW_ANALRPL_S)
+#define SMTW_ANALRPL_F	SMTW_ANALRPL_V(1U)
 
 struct cpl_rdma_terminate {
 	union opcode_tid ot;
@@ -1512,7 +1512,7 @@ enum {
 };
 
 enum {
-	ULP_TX_SC_NOOP = 0x80,
+	ULP_TX_SC_ANALOP = 0x80,
 	ULP_TX_SC_IMM  = 0x81,
 	ULP_TX_SC_DSGL = 0x82,
 	ULP_TX_SC_ISGL = 0x83,
@@ -1661,18 +1661,18 @@ struct cpl_tx_tnl_lso {
 #define CPL_TX_TNL_LSO_SIZE_G(x)	\
 	(((x) >> CPL_TX_TNL_LSO_SIZE_S) & CPL_TX_TNL_LSO_SIZE_M)
 
-#define CPL_TX_TNL_LSO_ETHHDRLENOUT_S   16
-#define CPL_TX_TNL_LSO_ETHHDRLENOUT_M   0xf
-#define CPL_TX_TNL_LSO_ETHHDRLENOUT_V(x) \
-	((x) << CPL_TX_TNL_LSO_ETHHDRLENOUT_S)
-#define CPL_TX_TNL_LSO_ETHHDRLENOUT_G(x) \
-	(((x) >> CPL_TX_TNL_LSO_ETHHDRLENOUT_S) & CPL_TX_TNL_LSO_ETHHDRLENOUT_M)
+#define CPL_TX_TNL_LSO_ETHHDRLEANALUT_S   16
+#define CPL_TX_TNL_LSO_ETHHDRLEANALUT_M   0xf
+#define CPL_TX_TNL_LSO_ETHHDRLEANALUT_V(x) \
+	((x) << CPL_TX_TNL_LSO_ETHHDRLEANALUT_S)
+#define CPL_TX_TNL_LSO_ETHHDRLEANALUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_ETHHDRLEANALUT_S) & CPL_TX_TNL_LSO_ETHHDRLEANALUT_M)
 
-#define CPL_TX_TNL_LSO_IPHDRLENOUT_S    4
-#define CPL_TX_TNL_LSO_IPHDRLENOUT_M    0xfff
-#define CPL_TX_TNL_LSO_IPHDRLENOUT_V(x) ((x) << CPL_TX_TNL_LSO_IPHDRLENOUT_S)
-#define CPL_TX_TNL_LSO_IPHDRLENOUT_G(x) \
-	(((x) >> CPL_TX_TNL_LSO_IPHDRLENOUT_S) & CPL_TX_TNL_LSO_IPHDRLENOUT_M)
+#define CPL_TX_TNL_LSO_IPHDRLEANALUT_S    4
+#define CPL_TX_TNL_LSO_IPHDRLEANALUT_M    0xfff
+#define CPL_TX_TNL_LSO_IPHDRLEANALUT_V(x) ((x) << CPL_TX_TNL_LSO_IPHDRLEANALUT_S)
+#define CPL_TX_TNL_LSO_IPHDRLEANALUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_IPHDRLEANALUT_S) & CPL_TX_TNL_LSO_IPHDRLEANALUT_M)
 
 #define CPL_TX_TNL_LSO_IPHDRCHKOUT_S    3
 #define CPL_TX_TNL_LSO_IPHDRCHKOUT_M    0x1
@@ -1803,11 +1803,11 @@ struct ulptx_sc_memrd {
 	(((x) >> ULP_TXPKT_CHANNELID_S) & ULP_TXPKT_CHANNELID_M)
 #define ULP_TXPKT_CHANNELID_F        ULP_TXPKT_CHANNELID_V(1U)
 
-#define SCMD_SEQ_NO_CTRL_S      29
-#define SCMD_SEQ_NO_CTRL_M      0x3
-#define SCMD_SEQ_NO_CTRL_V(x)   ((x) << SCMD_SEQ_NO_CTRL_S)
-#define SCMD_SEQ_NO_CTRL_G(x)   \
-	(((x) >> SCMD_SEQ_NO_CTRL_S) & SCMD_SEQ_NO_CTRL_M)
+#define SCMD_SEQ_ANAL_CTRL_S      29
+#define SCMD_SEQ_ANAL_CTRL_M      0x3
+#define SCMD_SEQ_ANAL_CTRL_V(x)   ((x) << SCMD_SEQ_ANAL_CTRL_S)
+#define SCMD_SEQ_ANAL_CTRL_G(x)   \
+	(((x) >> SCMD_SEQ_ANAL_CTRL_S) & SCMD_SEQ_ANAL_CTRL_M)
 
 /* StsFieldPrsnt- Status field at the end of the TLS PDU */
 #define SCMD_STATUS_PRESENT_S   28
@@ -1843,7 +1843,7 @@ struct ulptx_sc_memrd {
 	(((x) >> SCMD_CIPH_AUTH_SEQ_CTRL_S) & SCMD_CIPH_AUTH_SEQ_CTRL_M)
 #define SCMD_CIPH_AUTH_SEQ_CTRL_F   SCMD_CIPH_AUTH_SEQ_CTRL_V(1U)
 
-/* CiphMode -  Cipher Mode. 0: NOP, 1:AES-CBC, 2:AES-GCM, 3:AES-CTR,
+/* CiphMode -  Cipher Mode. 0: ANALP, 1:AES-CBC, 2:AES-GCM, 3:AES-CTR,
  * 4:Generic-AES, 5-15: Reserved.
  */
 #define SCMD_CIPH_MODE_S    18
@@ -1852,7 +1852,7 @@ struct ulptx_sc_memrd {
 #define SCMD_CIPH_MODE_G(x) \
 	(((x) >> SCMD_CIPH_MODE_S) & SCMD_CIPH_MODE_M)
 
-/* AuthMode - Auth Mode. 0: NOP, 1:SHA1, 2:SHA2-224, 3:SHA2-256
+/* AuthMode - Auth Mode. 0: ANALP, 1:SHA1, 2:SHA2-224, 3:SHA2-256
  * 4-15: Reserved
  */
 #define SCMD_AUTH_MODE_S    14
@@ -1861,7 +1861,7 @@ struct ulptx_sc_memrd {
 #define SCMD_AUTH_MODE_G(x) \
 	(((x) >> SCMD_AUTH_MODE_S) & SCMD_AUTH_MODE_M)
 
-/* HmacCtrl - HMAC Control. 0:NOP, 1:No truncation, 2:Support HMAC Truncation
+/* HmacCtrl - HMAC Control. 0:ANALP, 1:Anal truncation, 2:Support HMAC Truncation
  * per RFC 4366, 3:IPSec 96 bits, 4-7:Reserved
  */
 #define SCMD_HMAC_CTRL_S    11
@@ -1972,7 +1972,7 @@ struct cpl_tx_sec_pdu {
 	__be32 pldlen;
 	__be32 aadstart_cipherstop_hi;
 	__be32 cipherstop_lo_authinsert;
-	__be32 seqno_numivs;
+	__be32 seqanal_numivs;
 	__be32 ivgen_hdrlen;
 	__be64 scmd1;
 };
@@ -2110,7 +2110,7 @@ struct cpl_tx_sec_pdu {
 
 struct cpl_rx_phys_dsgl {
 	__be32 op_to_tid;
-	__be32 pcirlxorder_to_noofsgentr;
+	__be32 pcirlxorder_to_analofsgentr;
 	struct rss_header rss_hdr_int;
 };
 
@@ -2143,15 +2143,15 @@ struct cpl_rx_phys_dsgl {
 	 CPL_RX_PHYS_DSGL_PCIRLXORDER_M)
 #define CPL_RX_PHYS_DSGL_PCIRLXORDER_F  CPL_RX_PHYS_DSGL_PCIRLXORDER_V(1U)
 
-#define CPL_RX_PHYS_DSGL_PCINOSNOOP_S           30
-#define CPL_RX_PHYS_DSGL_PCINOSNOOP_M           0x1
-#define CPL_RX_PHYS_DSGL_PCINOSNOOP_V(x)        \
-	((x) << CPL_RX_PHYS_DSGL_PCINOSNOOP_S)
-#define CPL_RX_PHYS_DSGL_PCINOSNOOP_G(x)        \
-	(((x) >> CPL_RX_PHYS_DSGL_PCINOSNOOP_S) & \
-	 CPL_RX_PHYS_DSGL_PCINOSNOOP_M)
+#define CPL_RX_PHYS_DSGL_PCIANALSANALOP_S           30
+#define CPL_RX_PHYS_DSGL_PCIANALSANALOP_M           0x1
+#define CPL_RX_PHYS_DSGL_PCIANALSANALOP_V(x)        \
+	((x) << CPL_RX_PHYS_DSGL_PCIANALSANALOP_S)
+#define CPL_RX_PHYS_DSGL_PCIANALSANALOP_G(x)        \
+	(((x) >> CPL_RX_PHYS_DSGL_PCIANALSANALOP_S) & \
+	 CPL_RX_PHYS_DSGL_PCIANALSANALOP_M)
 
-#define CPL_RX_PHYS_DSGL_PCINOSNOOP_F   CPL_RX_PHYS_DSGL_PCINOSNOOP_V(1U)
+#define CPL_RX_PHYS_DSGL_PCIANALSANALOP_F   CPL_RX_PHYS_DSGL_PCIANALSANALOP_V(1U)
 
 #define CPL_RX_PHYS_DSGL_PCITPHNTENB_S          29
 #define CPL_RX_PHYS_DSGL_PCITPHNTENB_M          0x1
@@ -2176,13 +2176,13 @@ struct cpl_rx_phys_dsgl {
 	(((x) >> CPL_RX_PHYS_DSGL_DCAID_S) & \
 	 CPL_RX_PHYS_DSGL_DCAID_M)
 
-#define CPL_RX_PHYS_DSGL_NOOFSGENTR_S           0
-#define CPL_RX_PHYS_DSGL_NOOFSGENTR_M           0xffff
-#define CPL_RX_PHYS_DSGL_NOOFSGENTR_V(x)        \
-	((x) << CPL_RX_PHYS_DSGL_NOOFSGENTR_S)
-#define CPL_RX_PHYS_DSGL_NOOFSGENTR_G(x)        \
-	(((x) >> CPL_RX_PHYS_DSGL_NOOFSGENTR_S) & \
-	 CPL_RX_PHYS_DSGL_NOOFSGENTR_M)
+#define CPL_RX_PHYS_DSGL_ANALOFSGENTR_S           0
+#define CPL_RX_PHYS_DSGL_ANALOFSGENTR_M           0xffff
+#define CPL_RX_PHYS_DSGL_ANALOFSGENTR_V(x)        \
+	((x) << CPL_RX_PHYS_DSGL_ANALOFSGENTR_S)
+#define CPL_RX_PHYS_DSGL_ANALOFSGENTR_G(x)        \
+	(((x) >> CPL_RX_PHYS_DSGL_ANALOFSGENTR_S) & \
+	 CPL_RX_PHYS_DSGL_ANALOFSGENTR_M)
 
 struct cpl_rx_mps_pkt {
 	__be32 op_to_r1_hi;
@@ -2257,7 +2257,7 @@ struct cpl_tx_tls_sfo {
 	__be32 pld_len;
 	__be32 type_protover;
 	__be32 r1_lo;
-	__be32 seqno_numivs;
+	__be32 seqanal_numivs;
 	__be32 ivgen_hdrlen;
 	__be64 scmd1;
 };

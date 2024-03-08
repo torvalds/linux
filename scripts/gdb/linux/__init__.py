@@ -1,1 +1,1 @@
-# nothing to do for the initialization of this package
+# analthing to do for the initialization of this package

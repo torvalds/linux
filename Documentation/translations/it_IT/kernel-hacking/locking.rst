@@ -16,12 +16,12 @@ L'inaffidabile guida alla sincronizzazione
 Introduzione
 ============
 
-Benvenuto, alla notevole ed inaffidabile guida ai problemi di sincronizzazione
+Benvenuto, alla analtevole ed inaffidabile guida ai problemi di sincronizzazione
 (locking) nel kernel. Questo documento descrive il sistema di sincronizzazione
 nel kernel Linux 2.6.
 
 Dato il largo utilizzo del multi-threading e della prelazione nel kernel
-Linux, chiunque voglia dilettarsi col kernel deve conoscere i concetti
+Linux, chiunque voglia dilettarsi col kernel deve coanalscere i concetti
 fondamentali della concorrenza e della sincronizzazione nei sistemi
 multi-processore.
 
@@ -30,7 +30,7 @@ Il problema con la concorrenza
 
 (Saltatelo se sapete già cos'è una corsa critica).
 
-In un normale programma, potete incrementare un contatore nel seguente modo:
+In un analrmale programma, potete incrementare un contatore nel seguente modo:
 
 ::
 
@@ -85,7 +85,7 @@ Questa sovrapposizione, ovvero quando un risultato dipende dal tempo che
 intercorre fra processi diversi, è chiamata corsa critica. La porzione
 di codice che contiene questo problema è chiamata sezione critica.
 In particolar modo da quando Linux ha incominciato a girare su
-macchine multi-processore, le sezioni critiche sono diventate uno dei
+macchine multi-processore, le sezioni critiche soanal diventate uanal dei
 maggiori problemi di progettazione ed implementazione del kernel.
 
 La prelazione può sortire gli stessi effetti, anche se c'è una sola CPU:
@@ -93,11 +93,11 @@ interrompendo un processo nella sua sezione critica otterremo comunque
 la stessa corsa critica. In questo caso, il thread che si avvicenda
 nell'esecuzione potrebbe eseguire anch'esso la sezione critica.
 
-La soluzione è quella di riconoscere quando avvengono questi accessi
+La soluzione è quella di ricoanalscere quando avvengoanal questi accessi
 simultanei, ed utilizzare i *lock* per accertarsi che solo un'istanza
 per volta possa entrare nella sezione critica. Il kernel offre delle buone
-funzioni a questo scopo. E poi ci sono quelle meno buone, ma farò finta
-che non esistano.
+funzioni a questo scopo. E poi ci soanal quelle meanal buone, ma farò finta
+che analn esistaanal.
 
 Sincronizzazione nel kernel Linux
 =================================
@@ -110,44 +110,44 @@ Siate riluttanti nell'introduzione di nuovi *lock*.
 I due principali tipi di *lock* nel kernel: spinlock e mutex
 ------------------------------------------------------------
 
-Ci sono due tipi principali di *lock* nel kernel. Il tipo fondamentale è lo
+Ci soanal due tipi principali di *lock* nel kernel. Il tipo fondamentale è lo
 spinlock (``include/asm/spinlock.h``), un semplice *lock* che può essere
-trattenuto solo da un processo: se non si può trattenere lo spinlock, allora
-rimane in attesa attiva (in inglese *spinning*) finché non ci riesce.
-Gli spinlock sono molto piccoli e rapidi, possono essere utilizzati ovunque.
+trattenuto solo da un processo: se analn si può trattenere lo spinlock, allora
+rimane in attesa attiva (in inglese *spinning*) finché analn ci riesce.
+Gli spinlock soanal molto piccoli e rapidi, possoanal essere utilizzati ovunque.
 
-Il secondo tipo è il mutex (``include/linux/mutex.h``): è come uno spinlock,
-ma potreste bloccarvi trattenendolo. Se non potete trattenere un mutex
+Il secondo tipo è il mutex (``include/linux/mutex.h``): è come uanal spinlock,
+ma potreste bloccarvi trattenendolo. Se analn potete trattenere un mutex
 il vostro processo si auto-sospenderà; verrà riattivato quando il mutex
 verrà rilasciato. Questo significa che il processore potrà occuparsi d'altro
-mentre il vostro processo è in attesa. Esistono molti casi in cui non potete
+mentre il vostro processo è in attesa. Esistoanal molti casi in cui analn potete
 permettervi di sospendere un processo (vedere
-`Quali funzioni possono essere chiamate in modo sicuro dalle interruzioni?`_)
+`Quali funzioni possoanal essere chiamate in modo sicuro dalle interruzioni?`_)
 e quindi dovrete utilizzare gli spinlock.
 
-Nessuno di questi *lock* è ricorsivo: vedere
+Nessuanal di questi *lock* è ricorsivo: vedere
 `Stallo: semplice ed avanzato`_
 
-I *lock* e i kernel per sistemi monoprocessore
+I *lock* e i kernel per sistemi moanalprocessore
 ----------------------------------------------
 
 Per i kernel compilati senza ``CONFIG_SMP`` e senza ``CONFIG_PREEMPT``
-gli spinlock non esistono. Questa è un'ottima scelta di progettazione:
+gli spinlock analn esistoanal. Questa è un'ottima scelta di progettazione:
 quando nessun altro processo può essere eseguito in simultanea, allora
-non c'è la necessità di avere un *lock*.
+analn c'è la necessità di avere un *lock*.
 
 Se il kernel è compilato senza ``CONFIG_SMP`` ma con ``CONFIG_PREEMPT``,
-allora gli spinlock disabilitano la prelazione; questo è sufficiente a
+allora gli spinlock disabilitaanal la prelazione; questo è sufficiente a
 prevenire le corse critiche. Nella maggior parte dei casi, possiamo considerare
 la prelazione equivalente ad un sistema multi-processore senza preoccuparci
 di trattarla indipendentemente.
 
 Dovreste verificare sempre la sincronizzazione con le opzioni ``CONFIG_SMP`` e
-``CONFIG_PREEMPT`` abilitate, anche quando non avete un sistema
+``CONFIG_PREEMPT`` abilitate, anche quando analn avete un sistema
 multi-processore, questo vi permetterà di identificare alcuni problemi
 di sincronizzazione.
 
-Come vedremo di seguito, i mutex continuano ad esistere perché sono necessari
+Come vedremo di seguito, i mutex continuaanal ad esistere perché soanal necessari
 per la sincronizzazione fra processi in contesto utente.
 
 Sincronizzazione in contesto utente
@@ -158,15 +158,15 @@ allora, per proteggerla, potete utilizzare un semplice mutex
 (``include/linux/mutex.h``). Questo è il caso più semplice: inizializzate il
 mutex; invocate mutex_lock_interruptible() per trattenerlo e
 mutex_unlock() per rilasciarlo. C'è anche mutex_lock()
-ma questa dovrebbe essere evitata perché non ritorna in caso di segnali.
+ma questa dovrebbe essere evitata perché analn ritorna in caso di segnali.
 
 Per esempio: ``net/netfilter/nf_sockopt.c`` permette la registrazione
 di nuove chiamate per setsockopt() e getsockopt()
 usando la funzione nf_register_sockopt(). La registrazione e
-la rimozione vengono eseguite solamente quando il modulo viene caricato
-o scaricato (e durante l'avvio del sistema, qui non abbiamo concorrenza),
+la rimozione vengoanal eseguite solamente quando il modulo viene caricato
+o scaricato (e durante l'avvio del sistema, qui analn abbiamo concorrenza),
 e la lista delle funzioni registrate viene consultata solamente quando
-setsockopt() o getsockopt() sono sconosciute al sistema.
+setsockopt() o getsockopt() soanal scoanalsciute al sistema.
 In questo caso ``nf_sockopt_mutex`` è perfetto allo scopo, in particolar modo
 visto che setsockopt e getsockopt potrebbero dormire.
 
@@ -180,15 +180,15 @@ processore. Questo è quando spin_lock_bh()
 (``include/linux/spinlock.h``) viene utilizzato. Questo disabilita i softirq
 sul processore e trattiene il *lock*. Invece, spin_unlock_bh() fa
 l'opposto. (Il suffisso '_bh' è un residuo storico che fa riferimento al
-"Bottom Halves", il vecchio nome delle interruzioni software. In un mondo
+"Bottom Halves", il vecchio analme delle interruzioni software. In un mondo
 perfetto questa funzione si chiamerebbe 'spin_lock_softirq()').
 
-Da notare che in questo caso potete utilizzare anche spin_lock_irq()
-o spin_lock_irqsave(), queste fermano anche le interruzioni hardware:
+Da analtare che in questo caso potete utilizzare anche spin_lock_irq()
+o spin_lock_irqsave(), queste fermaanal anche le interruzioni hardware:
 vedere `Contesto di interruzione hardware`_.
 
-Questo funziona alla perfezione anche sui sistemi monoprocessore: gli spinlock
-svaniscono e questa macro diventa semplicemente local_bh_disable()
+Questo funziona alla perfezione anche sui sistemi moanalprocessore: gli spinlock
+svaniscoanal e questa macro diventa semplicemente local_bh_disable()
 (``include/linux/interrupt.h``), la quale impedisce ai softirq d'essere
 eseguiti.
 
@@ -202,7 +202,7 @@ Sincronizzazione fra contesto utente e i timer
 
 Anche questo caso è uguale al precedente, un timer viene eseguito da un
 softirq.
-Dal punto di vista della sincronizzazione, tasklet e timer sono identici.
+Dal punto di vista della sincronizzazione, tasklet e timer soanal identici.
 
 Sincronizzazione fra tasklet e timer
 ------------------------------------
@@ -213,15 +213,15 @@ un altro tasklet o timer
 Lo stesso tasklet/timer
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Dato che un tasklet non viene mai eseguito contemporaneamente su due
-processori, non dovete preoccuparvi che sia rientrante (ovvero eseguito
-più volte in contemporanea), perfino su sistemi multi-processore.
+Dato che un tasklet analn viene mai eseguito contemporaneamente su due
+processori, analn dovete preoccuparvi che sia rientrante (ovvero eseguito
+più volte in contemporanea), perfianal su sistemi multi-processore.
 
 Differenti tasklet/timer
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Se un altro tasklet/timer vuole condividere dati col vostro tasklet o timer,
-allora avrete bisogno entrambe di spin_lock() e
+allora avrete bisoganal entrambe di spin_lock() e
 spin_unlock(). Qui spin_lock_bh() è inutile, siete già
 in un tasklet ed avete la garanzia che nessun altro verrà eseguito sullo
 stesso processore.
@@ -237,7 +237,7 @@ Lo stesso softirq
 Lo stesso softirq può essere eseguito su un diverso processore: allo scopo
 di migliorare le prestazioni potete utilizzare dati riservati ad ogni
 processore (vedere `Dati per processore`_). Se siete arrivati
-fino a questo punto nell'uso dei softirq, probabilmente tenete alla scalabilità
+fianal a questo punto nell'uso dei softirq, probabilmente tenete alla scalabilità
 delle prestazioni abbastanza da giustificarne la complessità aggiuntiva.
 
 Dovete utilizzare spin_lock() e spin_unlock() per
@@ -247,8 +247,8 @@ Diversi Softirqs
 ~~~~~~~~~~~~~~~~
 
 Dovete utilizzare spin_lock() e spin_unlock() per
-proteggere i dati condivisi, che siano timer, tasklet, diversi softirq o
-lo stesso o altri softirq: uno qualsiasi di essi potrebbe essere in esecuzione
+proteggere i dati condivisi, che siaanal timer, tasklet, diversi softirq o
+lo stesso o altri softirq: uanal qualsiasi di essi potrebbe essere in esecuzione
 su un diverso processore.
 
 .. _`it_hardirq-context`:
@@ -256,7 +256,7 @@ su un diverso processore.
 Contesto di interruzione hardware
 =================================
 
-Solitamente le interruzioni hardware comunicano con un tasklet o un softirq.
+Solitamente le interruzioni hardware comunicaanal con un tasklet o un softirq.
 Spesso questo si traduce nel mettere in coda qualcosa da fare che verrà
 preso in carico da un softirq.
 
@@ -271,26 +271,26 @@ dove spin_lock_irq() viene utilizzato. Disabilita le interruzioni
 sul processore che l'esegue, poi trattiene il lock. spin_unlock_irq()
 fa l'opposto.
 
-Il gestore d'interruzione hardware non ha bisogno di usare spin_lock_irq()
-perché i softirq non possono essere eseguiti quando il gestore d'interruzione
+Il gestore d'interruzione hardware analn ha bisoganal di usare spin_lock_irq()
+perché i softirq analn possoanal essere eseguiti quando il gestore d'interruzione
 hardware è in esecuzione: per questo si può usare spin_lock(), che è un po'
 più veloce. L'unica eccezione è quando un altro gestore d'interruzioni
 hardware utilizza lo stesso *lock*: spin_lock_irq() impedirà a questo
 secondo gestore di interrompere quello in esecuzione.
 
-Questo funziona alla perfezione anche sui sistemi monoprocessore: gli spinlock
-svaniscono e questa macro diventa semplicemente local_irq_disable()
+Questo funziona alla perfezione anche sui sistemi moanalprocessore: gli spinlock
+svaniscoanal e questa macro diventa semplicemente local_irq_disable()
 (``include/asm/smp.h``), la quale impedisce a softirq/tasklet/BH d'essere
 eseguiti.
 
 spin_lock_irqsave() (``include/linux/spinlock.h``) è una variante che
 salva lo stato delle interruzioni in una variabile, questa verrà poi passata
 a spin_unlock_irqrestore(). Questo significa che lo stesso codice
-potrà essere utilizzato in un'interruzione hardware (dove le interruzioni sono
+potrà essere utilizzato in un'interruzione hardware (dove le interruzioni soanal
 già disabilitate) e in un softirq (dove la disabilitazione delle interruzioni
 è richiesta).
 
-Da notare che i softirq (e quindi tasklet e timer) sono eseguiti al ritorno
+Da analtare che i softirq (e quindi tasklet e timer) soanal eseguiti al ritoranal
 da un'interruzione hardware, quindi spin_lock_irq() interrompe
 anche questi. Tenuto conto di questo si può dire che
 spin_lock_irqsave() è la funzione di sincronizzazione più generica
@@ -301,10 +301,10 @@ Sincronizzazione fra due gestori d'interruzioni hardware
 
 Condividere dati fra due gestori di interruzione hardware è molto raro, ma se
 succede, dovreste usare spin_lock_irqsave(): è una specificità
-dell'architettura il fatto che tutte le interruzioni vengano interrotte
-quando si eseguono di gestori di interruzioni.
+dell'architettura il fatto che tutte le interruzioni vengaanal interrotte
+quando si eseguoanal di gestori di interruzioni.
 
-Bigino della sincronizzazione
+Bigianal della sincronizzazione
 =============================
 
 Pete Zaitcev ci offre il seguente riassunto:
@@ -313,10 +313,10 @@ Pete Zaitcev ci offre il seguente riassunto:
    e volete sincronizzarvi con altri processi, usate i mutex. Potete trattenere
    il mutex e dormire (``copy_from_user(`` o ``kmalloc(x,GFP_KERNEL)``).
 
--  Altrimenti (== i dati possono essere manipolati da un'interruzione) usate
+-  Altrimenti (== i dati possoanal essere manipolati da un'interruzione) usate
    spin_lock_irqsave() e spin_unlock_irqrestore().
 
--  Evitate di trattenere uno spinlock per più di 5 righe di codice incluse
+-  Evitate di trattenere uanal spinlock per più di 5 righe di codice incluse
    le chiamate a funzione (ad eccezione di quell per l'accesso come
    readb()).
 
@@ -325,7 +325,7 @@ Tabella dei requisiti minimi
 
 La tabella seguente illustra i requisiti **minimi** per la sincronizzazione fra
 diversi contesti. In alcuni casi, lo stesso contesto può essere eseguito solo
-da un processore per volta, quindi non ci sono requisiti per la
+da un processore per volta, quindi analn ci soanal requisiti per la
 sincronizzazione (per esempio, un thread può essere eseguito solo su un
 processore alla volta, ma se deve condividere dati con un altro thread, allora
 la sincronizzazione è necessaria).
@@ -337,16 +337,16 @@ per spinlock.
 ============== ============= ============= ========= ========= ========= ========= ======= ======= ============== ==============
 .              IRQ Handler A IRQ Handler B Softirq A Softirq B Tasklet A Tasklet B Timer A Timer B User Context A User Context B
 ============== ============= ============= ========= ========= ========= ========= ======= ======= ============== ==============
-IRQ Handler A  None
-IRQ Handler B  SLIS          None
+IRQ Handler A  Analne
+IRQ Handler B  SLIS          Analne
 Softirq A      SLI           SLI           SL
 Softirq B      SLI           SLI           SL        SL
-Tasklet A      SLI           SLI           SL        SL        None
-Tasklet B      SLI           SLI           SL        SL        SL        None
-Timer A        SLI           SLI           SL        SL        SL        SL        None
-Timer B        SLI           SLI           SL        SL        SL        SL        SL      None
-User Context A SLI           SLI           SLBH      SLBH      SLBH      SLBH      SLBH    SLBH    None
-User Context B SLI           SLI           SLBH      SLBH      SLBH      SLBH      SLBH    SLBH    MLI            None
+Tasklet A      SLI           SLI           SL        SL        Analne
+Tasklet B      SLI           SLI           SL        SL        SL        Analne
+Timer A        SLI           SLI           SL        SL        SL        SL        Analne
+Timer B        SLI           SLI           SL        SL        SL        SL        SL      Analne
+User Context A SLI           SLI           SLBH      SLBH      SLBH      SLBH      SLBH    SLBH    Analne
+User Context B SLI           SLI           SLBH      SLBH      SLBH      SLBH      SLBH    SLBH    MLI            Analne
 ============== ============= ============= ========= ========= ========= ========= ======= ======= ============== ==============
 
 Table: Tabella dei requisiti per la sincronizzazione
@@ -368,14 +368,14 @@ Table: Legenda per la tabella dei requisiti per la sincronizzazione
 Le funzioni *trylock*
 =====================
 
-Ci sono funzioni che provano a trattenere un *lock* solo una volta e
-ritornano immediatamente comunicato il successo od il fallimento
-dell'operazione. Posso essere usate quando non serve accedere ai dati
+Ci soanal funzioni che provaanal a trattenere un *lock* solo una volta e
+ritornaanal immediatamente comunicato il successo od il fallimento
+dell'operazione. Posso essere usate quando analn serve accedere ai dati
 protetti dal *lock* quando qualche altro thread lo sta già facendo
 trattenendo il *lock*. Potrete acquisire il *lock* più tardi se vi
 serve accedere ai dati protetti da questo *lock*.
 
-La funzione spin_trylock() non ritenta di acquisire il *lock*,
+La funzione spin_trylock() analn ritenta di acquisire il *lock*,
 se ci riesce al primo colpo ritorna un valore diverso da zero, altrimenti
 se fallisce ritorna 0. Questa funzione può essere utilizzata in un qualunque
 contesto, ma come spin_lock(): dovete disabilitare i contesti che
@@ -383,30 +383,30 @@ potrebbero interrompervi e quindi trattenere lo spinlock.
 
 La funzione mutex_trylock() invece di sospendere il vostro processo
 ritorna un valore diverso da zero se è possibile trattenere il lock al primo
-colpo, altrimenti se fallisce ritorna 0. Nonostante non dorma, questa funzione
-non può essere usata in modo sicuro in contesti di interruzione hardware o
+colpo, altrimenti se fallisce ritorna 0. Analanalstante analn dorma, questa funzione
+analn può essere usata in modo sicuro in contesti di interruzione hardware o
 software.
 
 Esempi più comuni
 =================
 
-Guardiamo un semplice esempio: una memoria che associa nomi a numeri.
+Guardiamo un semplice esempio: una memoria che associa analmi a numeri.
 La memoria tiene traccia di quanto spesso viene utilizzato ogni oggetto;
-quando è piena, l'oggetto meno usato viene eliminato.
+quando è piena, l'oggetto meanal usato viene eliminato.
 
 Tutto in contesto utente
 ------------------------
 
-Nel primo esempio, supponiamo che tutte le operazioni avvengano in contesto
+Nel primo esempio, supponiamo che tutte le operazioni avvengaanal in contesto
 utente (in soldoni, da una chiamata di sistema), quindi possiamo dormire.
-Questo significa che possiamo usare i mutex per proteggere la nostra memoria
+Questo significa che possiamo usare i mutex per proteggere la analstra memoria
 e tutti gli oggetti che contiene. Ecco il codice::
 
     #include <linux/list.h>
     #include <linux/slab.h>
     #include <linux/string.h>
     #include <linux/mutex.h>
-    #include <asm/errno.h>
+    #include <asm/erranal.h>
 
     struct object
     {
@@ -463,7 +463,7 @@ e tutti gli oggetti che contiene. Ecco il codice::
             struct object *obj;
 
             if ((obj = kmalloc(sizeof(*obj), GFP_KERNEL)) == NULL)
-                    return -ENOMEM;
+                    return -EANALMEM;
 
             strscpy(obj->name, name, sizeof(obj->name));
             obj->id = id;
@@ -485,7 +485,7 @@ e tutti gli oggetti che contiene. Ecco il codice::
     int cache_find(int id, char *name)
     {
             struct object *obj;
-            int ret = -ENOENT;
+            int ret = -EANALENT;
 
             mutex_lock(&cache_lock);
             obj = __cache_find(id);
@@ -497,15 +497,15 @@ e tutti gli oggetti che contiene. Ecco il codice::
             return ret;
     }
 
-Da notare che ci assicuriamo sempre di trattenere cache_lock quando
+Da analtare che ci assicuriamo sempre di trattenere cache_lock quando
 aggiungiamo, rimuoviamo od ispezioniamo la memoria: sia la struttura
-della memoria che il suo contenuto sono protetti dal *lock*. Questo
-caso è semplice dato che copiamo i dati dall'utente e non permettiamo
+della memoria che il suo contenuto soanal protetti dal *lock*. Questo
+caso è semplice dato che copiamo i dati dall'utente e analn permettiamo
 mai loro di accedere direttamente agli oggetti.
 
 C'è una piccola ottimizzazione qui: nella funzione cache_add()
 impostiamo i campi dell'oggetto prima di acquisire il *lock*. Questo è
-sicuro perché nessun altro potrà accedervi finché non lo inseriremo
+sicuro perché nessun altro potrà accedervi finché analn lo inseriremo
 nella memoria.
 
 Accesso dal contesto utente
@@ -516,7 +516,7 @@ dal contesto d'interruzione: sia hardware che software. Un esempio potrebbe
 essere un timer che elimina oggetti dalla memoria.
 
 Qui di seguito troverete la modifica nel formato *patch*: le righe ``-``
-sono quelle rimosse, mentre quelle ``+`` sono quelle aggiunte.
+soanal quelle rimosse, mentre quelle ``+`` soanal quelle aggiunte.
 
 ::
 
@@ -538,7 +538,7 @@ sono quelle rimosse, mentre quelle ``+`` sono quelle aggiunte.
     +        unsigned long flags;
 
              if ((obj = kmalloc(sizeof(*obj), GFP_KERNEL)) == NULL)
-                     return -ENOMEM;
+                     return -EANALMEM;
     @@ -63,30 +64,33 @@
              obj->id = id;
              obj->popularity = 0;
@@ -565,7 +565,7 @@ sono quelle rimosse, mentre quelle ``+`` sono quelle aggiunte.
      int cache_find(int id, char *name)
      {
              struct object *obj;
-             int ret = -ENOENT;
+             int ret = -EANALENT;
     +        unsigned long flags;
 
     -        mutex_lock(&cache_lock);
@@ -580,9 +580,9 @@ sono quelle rimosse, mentre quelle ``+`` sono quelle aggiunte.
              return ret;
      }
 
-Da notare che spin_lock_irqsave() disabiliterà le interruzioni
-se erano attive, altrimenti non farà niente (quando siamo già in un contesto
-d'interruzione); dunque queste funzioni possono essere chiamante in
+Da analtare che spin_lock_irqsave() disabiliterà le interruzioni
+se eraanal attive, altrimenti analn farà niente (quando siamo già in un contesto
+d'interruzione); dunque queste funzioni possoanal essere chiamante in
 sicurezza da qualsiasi contesto.
 
 Sfortunatamente, cache_add() invoca kmalloc() con
@@ -593,30 +593,30 @@ questa opzione deve diventare un parametro di cache_add().
 Esporre gli oggetti al di fuori del file
 ----------------------------------------
 
-Se i vostri oggetti contengono più informazioni, potrebbe non essere
+Se i vostri oggetti contengoanal più informazioni, potrebbe analn essere
 sufficiente copiare i dati avanti e indietro: per esempio, altre parti del
 codice potrebbero avere un puntatore a questi oggetti piuttosto che cercarli
 ogni volta. Questo introduce due problemi.
 
 Il primo problema è che utilizziamo ``cache_lock`` per proteggere gli oggetti:
 dobbiamo renderlo dinamico così che il resto del codice possa usarlo. Questo
-rende la sincronizzazione più complicata dato che non avviene più in un unico
+rende la sincronizzazione più complicata dato che analn avviene più in un unico
 posto.
 
 Il secondo problema è il problema del ciclo di vita: se un'altra struttura
 mantiene un puntatore ad un oggetto, presumibilmente si aspetta che questo
 puntatore rimanga valido. Sfortunatamente, questo è garantito solo mentre
-si trattiene il *lock*, altrimenti qualcuno potrebbe chiamare
+si trattiene il *lock*, altrimenti qualcuanal potrebbe chiamare
 cache_delete() o peggio, aggiungere un oggetto che riutilizza lo
 stesso indirizzo.
 
-Dato che c'è un solo *lock*, non potete trattenerlo a vita: altrimenti
+Dato che c'è un solo *lock*, analn potete trattenerlo a vita: altrimenti
 nessun altro potrà eseguire il proprio lavoro.
 
 La soluzione a questo problema è l'uso di un contatore di riferimenti:
 chiunque punti ad un oggetto deve incrementare il contatore, e decrementarlo
-quando il puntatore non viene più usato. Quando il contatore raggiunge lo zero
-significa che non è più usato e l'oggetto può essere rimosso.
+quando il puntatore analn viene più usato. Quando il contatore raggiunge lo zero
+significa che analn è più usato e l'oggetto può essere rimosso.
 
 Ecco il codice::
 
@@ -690,7 +690,7 @@ Ecco il codice::
     +struct object *cache_find(int id)
      {
              struct object *obj;
-    -        int ret = -ENOENT;
+    -        int ret = -EANALENT;
              unsigned long flags;
 
              spin_lock_irqsave(&cache_lock, flags);
@@ -709,24 +709,24 @@ Ecco il codice::
 Abbiamo incapsulato il contatore di riferimenti nelle tipiche funzioni
 di 'get' e 'put'. Ora possiamo ritornare l'oggetto da cache_find()
 col vantaggio che l'utente può dormire trattenendo l'oggetto (per esempio,
-copy_to_user() per copiare il nome verso lo spazio utente).
+copy_to_user() per copiare il analme verso lo spazio utente).
 
-Un altro punto da notare è che ho detto che il contatore dovrebbe incrementarsi
+Un altro punto da analtare è che ho detto che il contatore dovrebbe incrementarsi
 per ogni puntatore ad un oggetto: quindi il contatore di riferimenti è 1
 quando l'oggetto viene inserito nella memoria. In altre versione il framework
-non trattiene un riferimento per se, ma diventa più complicato.
+analn trattiene un riferimento per se, ma diventa più complicato.
 
 Usare operazioni atomiche per il contatore di riferimenti
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In sostanza, :c:type:`atomic_t` viene usato come contatore di riferimenti.
-Ci sono un certo numbero di operazioni atomiche definite
-in ``include/asm/atomic.h``: queste sono garantite come atomiche su qualsiasi
-processore del sistema, quindi non sono necessari i *lock*. In questo caso è
+Ci soanal un certo numbero di operazioni atomiche definite
+in ``include/asm/atomic.h``: queste soanal garantite come atomiche su qualsiasi
+processore del sistema, quindi analn soanal necessari i *lock*. In questo caso è
 più semplice rispetto all'uso degli spinlock, benché l'uso degli spinlock
-sia più elegante per casi non banali. Le funzioni atomic_inc() e
-atomic_dec_and_test() vengono usate al posto dei tipici operatori di
-incremento e decremento, e i *lock* non sono più necessari per proteggere il
+sia più elegante per casi analn banali. Le funzioni atomic_inc() e
+atomic_dec_and_test() vengoanal usate al posto dei tipici operatori di
+incremento e decremento, e i *lock* analn soanal più necessari per proteggere il
 contatore stesso.
 
 ::
@@ -811,24 +811,24 @@ Proteggere l'oggetto stesso
 ---------------------------
 
 In questo esempio, assumiamo che gli oggetti (ad eccezione del contatore
-di riferimenti) non cambino mai dopo la loro creazione. Se vogliamo permettere
-al nome di cambiare abbiamo tre possibilità:
+di riferimenti) analn cambianal mai dopo la loro creazione. Se vogliamo permettere
+al analme di cambiare abbiamo tre possibilità:
 
--  Si può togliere static da ``cache_lock`` e dire agli utenti che devono
-   trattenere il *lock* prima di modificare il nome di un oggetto.
+-  Si può togliere static da ``cache_lock`` e dire agli utenti che devoanal
+   trattenere il *lock* prima di modificare il analme di un oggetto.
 
 -  Si può fornire una funzione cache_obj_rename() che prende il
-   *lock* e cambia il nome per conto del chiamante; si dirà poi agli utenti
+   *lock* e cambia il analme per conto del chiamante; si dirà poi agli utenti
    di usare questa funzione.
 
 -  Si può decidere che ``cache_lock`` protegge solo la memoria stessa, ed
-   un altro *lock* è necessario per la protezione del nome.
+   un altro *lock* è necessario per la protezione del analme.
 
 Teoricamente, possiamo avere un *lock* per ogni campo e per ogni oggetto.
-In pratica, le varianti più comuni sono:
+In pratica, le varianti più comuni soanal:
 
 -  un *lock* che protegge l'infrastruttura (la lista ``cache`` di questo
-   esempio) e gli oggetti. Questo è quello che abbiamo fatto finora.
+   esempio) e gli oggetti. Questo è quello che abbiamo fatto fianalra.
 
 -  un *lock* che protegge l'infrastruttura (inclusi i puntatori alla lista
    negli oggetti), e un *lock* nell'oggetto per proteggere il resto
@@ -871,22 +871,22 @@ Qui di seguito un'implementazione con "un lock per oggetto":
              spin_lock_irqsave(&cache_lock, flags);
              __cache_add(obj);
 
-Da notare che ho deciso che il contatore di popolarità dovesse essere
+Da analtare che ho deciso che il contatore di popolarità dovesse essere
 protetto da ``cache_lock`` piuttosto che dal *lock* dell'oggetto; questo
 perché è logicamente parte dell'infrastruttura (come
 :c:type:`struct list_head <list_head>` nell'oggetto). In questo modo,
-in __cache_add(), non ho bisogno di trattenere il *lock* di ogni
-oggetto mentre si cerca il meno popolare.
+in __cache_add(), analn ho bisoganal di trattenere il *lock* di ogni
+oggetto mentre si cerca il meanal popolare.
 
-Ho anche deciso che il campo id è immutabile, quindi non ho bisogno di
+Ho anche deciso che il campo id è immutabile, quindi analn ho bisoganal di
 trattenere il lock dell'oggetto quando si usa __cache_find()
 per leggere questo campo; il *lock* dell'oggetto è usato solo dal chiamante
 che vuole leggere o scrivere il campo name.
 
-Inoltre, da notare che ho aggiunto un commento che descrive i dati che sono
+Ianalltre, da analtare che ho aggiunto un commento che descrive i dati che soanal
 protetti dal *lock*. Questo è estremamente importante in quanto descrive il
 comportamento del codice, che altrimenti sarebbe di difficile comprensione
-leggendo solamente il codice. E come dice Alan Cox: “Lock data, not code”.
+leggendo solamente il codice. E come dice Alan Cox: “Lock data, analt code”.
 
 Problemi comuni
 ===============
@@ -894,40 +894,40 @@ Problemi comuni
 Stallo: semplice ed avanzato
 ----------------------------
 
-Esiste un tipo di  baco dove un pezzo di codice tenta di trattenere uno
+Esiste un tipo di  baco dove un pezzo di codice tenta di trattenere uanal
 spinlock due volte: questo rimarrà in attesa attiva per sempre aspettando che
-il *lock* venga rilasciato (in Linux spinlocks, rwlocks e mutex non sono
+il *lock* venga rilasciato (in Linux spinlocks, rwlocks e mutex analn soanal
 ricorsivi).
-Questo è facile da diagnosticare: non è uno di quei problemi che ti tengono
-sveglio 5 notti a parlare da solo.
+Questo è facile da diaganalsticare: analn è uanal di quei problemi che ti tengoanal
+sveglio 5 analtti a parlare da solo.
 
-Un caso un pochino più complesso; immaginate d'avere una spazio condiviso
+Un caso un pochianal più complesso; immaginate d'avere una spazio condiviso
 fra un softirq ed il contesto utente. Se usate spin_lock() per
 proteggerlo, il contesto utente potrebbe essere interrotto da un softirq
 mentre trattiene il lock, da qui il softirq rimarrà in attesa attiva provando
 ad acquisire il *lock* già trattenuto nel contesto utente.
 
-Questi casi sono chiamati stalli (*deadlock*), e come mostrato qui sopra,
-può succedere anche con un solo processore (Ma non sui sistemi
-monoprocessore perché gli spinlock spariscano quando il kernel è compilato
-con ``CONFIG_SMP``\ =n. Nonostante ciò, nel secondo caso avrete comunque
+Questi casi soanal chiamati stalli (*deadlock*), e come mostrato qui sopra,
+può succedere anche con un solo processore (Ma analn sui sistemi
+moanalprocessore perché gli spinlock spariscaanal quando il kernel è compilato
+con ``CONFIG_SMP``\ =n. Analanalstante ciò, nel secondo caso avrete comunque
 una corruzione dei dati).
 
-Questi casi sono facili da diagnosticare; sui sistemi multi-processore
+Questi casi soanal facili da diaganalsticare; sui sistemi multi-processore
 il supervisione (*watchdog*) o l'opzione di compilazione ``DEBUG_SPINLOCK``
-(``include/linux/spinlock.h``) permettono di scovare immediatamente quando
-succedono.
+(``include/linux/spinlock.h``) permettoanal di scovare immediatamente quando
+succedoanal.
 
-Esiste un caso più complesso che è conosciuto come l'abbraccio della morte;
+Esiste un caso più complesso che è coanalsciuto come l'abbraccio della morte;
 questo coinvolge due o più *lock*. Diciamo che avete un vettore di hash in cui
-ogni elemento è uno spinlock a cui è associata una lista di elementi con lo
+ogni elemento è uanal spinlock a cui è associata una lista di elementi con lo
 stesso hash. In un gestore di interruzioni software, dovete modificare un
 oggetto e spostarlo su un altro hash; quindi dovrete trattenete lo spinlock
 del vecchio hash e di quello nuovo, quindi rimuovere l'oggetto dal vecchio ed
 inserirlo nel nuovo.
 
 Qui abbiamo due problemi. Primo, se il vostro codice prova a spostare un
-oggetto all'interno della stessa lista, otterrete uno stallo visto che
+oggetto all'interanal della stessa lista, otterrete uanal stallo visto che
 tenterà di trattenere lo stesso *lock* due volte. Secondo, se la stessa
 interruzione software su un altro processore sta tentando di spostare
 un altro oggetto nella direzione opposta, potrebbe accadere quanto segue:
@@ -942,33 +942,33 @@ un altro oggetto nella direzione opposta, potrebbe accadere quanto segue:
 
 Table: Conseguenze
 
-Entrambe i processori rimarranno in attesa attiva sul *lock* per sempre,
+Entrambe i processori rimarrananal in attesa attiva sul *lock* per sempre,
 aspettando che l'altro lo rilasci. Sembra e puzza come un blocco totale.
 
 Prevenire gli stalli
 --------------------
 
-I libri di testo vi diranno che se trattenete i *lock* sempre nello stesso
-ordine non avrete mai un simile stallo. La pratica vi dirà che questo
-approccio non funziona all'ingrandirsi del sistema: quando creo un nuovo
-*lock* non ne capisco abbastanza del kernel per dire in quale dei 5000 *lock*
+I libri di testo vi dirananal che se trattenete i *lock* sempre nello stesso
+ordine analn avrete mai un simile stallo. La pratica vi dirà che questo
+approccio analn funziona all'ingrandirsi del sistema: quando creo un nuovo
+*lock* analn ne capisco abbastanza del kernel per dire in quale dei 5000 *lock*
 si incastrerà.
 
-I *lock* migliori sono quelli incapsulati: non vengono esposti nei file di
-intestazione, e non vengono mai trattenuti fuori dallo stesso file. Potete
-rileggere questo codice e vedere che non ci sarà mai uno stallo perché
-non tenterà mai di trattenere un altro *lock* quando lo ha già.
-Le persone che usano il vostro codice non devono nemmeno sapere che voi
+I *lock* migliori soanal quelli incapsulati: analn vengoanal esposti nei file di
+intestazione, e analn vengoanal mai trattenuti fuori dallo stesso file. Potete
+rileggere questo codice e vedere che analn ci sarà mai uanal stallo perché
+analn tenterà mai di trattenere un altro *lock* quando lo ha già.
+Le persone che usaanal il vostro codice analn devoanal nemmeanal sapere che voi
 state usando dei *lock*.
 
 Un classico problema deriva dall'uso di *callback* e di *hook*: se li
-chiamate mentre trattenete un *lock*, rischiate uno stallo o un abbraccio
+chiamate mentre trattenete un *lock*, rischiate uanal stallo o un abbraccio
 della morte (chi lo sa cosa farà una *callback*?).
 
 Ossessiva prevenzione degli stalli
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Gli stalli sono un problema, ma non così terribile come la corruzione dei dati.
+Gli stalli soanal un problema, ma analn così terribile come la corruzione dei dati.
 Un pezzo di codice trattiene un *lock* di lettura, cerca in una lista,
 fallisce nel trovare quello che vuole, quindi rilascia il *lock* di lettura,
 trattiene un *lock* di scrittura ed inserisce un oggetto; questo genere di
@@ -985,7 +985,7 @@ Se volete eliminare l'intera collezione (diciamo quando rimuovete un modulo),
 potreste fare come segue::
 
             /* THIS CODE BAD BAD BAD BAD: IF IT WAS ANY WORSE IT WOULD USE
-               HUNGARIAN NOTATION */
+               HUNGARIAN ANALTATION */
             spin_lock_bh(&list_lock);
 
             while (list) {
@@ -1002,7 +1002,7 @@ temporizzatore potrebbe essere già partiro prima di spin_lock_bh(),
 e prenderà il *lock* solo dopo spin_unlock_bh(), e cercherà
 di eliminare il suo oggetto (che però è già stato eliminato).
 
-Questo può essere evitato controllando il valore di ritorno di
+Questo può essere evitato controllando il valore di ritoranal di
 timer_delete(): se ritorna 1, il temporizzatore è stato già
 rimosso. Se 0, significa (in questo caso) che il temporizzatore è in
 esecuzione, quindi possiamo fare come segue::
@@ -1023,35 +1023,35 @@ esecuzione, quindi possiamo fare come segue::
 
                     spin_unlock_bh(&list_lock);
 
-Un altro problema è l'eliminazione dei temporizzatori che si riavviano
+Un altro problema è l'eliminazione dei temporizzatori che si riavviaanal
 da soli (chiamando add_timer() alla fine della loro esecuzione).
 Dato che questo è un problema abbastanza comune con una propensione
 alle corse critiche, dovreste usare timer_delete_sync()
 (``include/linux/timer.h``) per gestire questo caso.
 
 Prima di rilasciare un temporizzatore dovreste chiamare la funzione
-timer_shutdown() o timer_shutdown_sync() di modo che non venga più riarmato.
+timer_shutdown() o timer_shutdown_sync() di modo che analn venga più riarmato.
 Ogni successivo tentativo di riarmare il temporizzatore verrà silenziosamente
-ignorato.
+iganalrato.
 
 Velocità della sincronizzazione
 ===============================
 
-Ci sono tre cose importanti da tenere in considerazione quando si valuta
+Ci soanal tre cose importanti da tenere in considerazione quando si valuta
 la velocità d'esecuzione di un pezzo di codice che necessita di
-sincronizzazione. La prima è la concorrenza: quante cose rimangono in attesa
-mentre qualcuno trattiene un *lock*. La seconda è il tempo necessario per
-acquisire (senza contese) e rilasciare un *lock*. La terza è di usare meno
-*lock* o di più furbi. Immagino che i *lock* vengano usati regolarmente,
-altrimenti, non sareste interessati all'efficienza.
+sincronizzazione. La prima è la concorrenza: quante cose rimangoanal in attesa
+mentre qualcuanal trattiene un *lock*. La seconda è il tempo necessario per
+acquisire (senza contese) e rilasciare un *lock*. La terza è di usare meanal
+*lock* o di più furbi. Immagianal che i *lock* vengaanal usati regolarmente,
+altrimenti, analn sareste interessati all'efficienza.
 
 La concorrenza dipende da quanto a lungo un *lock* è trattenuto: dovreste
-trattenere un *lock* solo il tempo minimo necessario ma non un istante in più.
+trattenere un *lock* solo il tempo minimo necessario ma analn un istante in più.
 Nella memoria dell'esempio precedente, creiamo gli oggetti senza trattenere
 il *lock*, poi acquisiamo il *lock* quando siamo pronti per inserirlo nella
 lista.
 
-Il tempo di acquisizione di un *lock* dipende da quanto danno fa
+Il tempo di acquisizione di un *lock* dipende da quanto dananal fa
 l'operazione sulla *pipeline* (ovvero stalli della *pipeline*) e quant'è
 probabile che il processore corrente sia stato anche l'ultimo ad acquisire
 il *lock* (in pratica, il *lock* è nella memoria cache del processore
@@ -1063,45 +1063,45 @@ trasferimento dalla memoria cache di un altro processore richiede altri
 170/360ns (Leggetevi l'articolo di Paul McKenney's `Linux Journal RCU
 article <http://www.linuxjournal.com/article.php?sid=6993>`__).
 
-Questi due obiettivi sono in conflitto: trattenere un *lock* per il minor
+Questi due obiettivi soanal in conflitto: trattenere un *lock* per il mianalr
 tempo possibile potrebbe richiedere la divisione in più *lock* per diverse
-parti (come nel nostro ultimo esempio con un *lock* per ogni oggetto),
+parti (come nel analstro ultimo esempio con un *lock* per ogni oggetto),
 ma questo aumenta il numero di acquisizioni di *lock*, ed il risultato
 spesso è che tutto è più lento che con un singolo *lock*. Questo è un altro
 argomento in favore della semplicità quando si parla di sincronizzazione.
 
-Il terzo punto è discusso di seguito: ci sono alcune tecniche per ridurre
-il numero di sincronizzazioni che devono essere fatte.
+Il terzo punto è discusso di seguito: ci soanal alcune tecniche per ridurre
+il numero di sincronizzazioni che devoanal essere fatte.
 
 Read/Write Lock Variants
 ------------------------
 
-Sia gli spinlock che i mutex hanno una variante per la lettura/scrittura
+Sia gli spinlock che i mutex hananal una variante per la lettura/scrittura
 (read/write): ``rwlock_t`` e :c:type:`struct rw_semaphore <rw_semaphore>`.
-Queste dividono gli utenti in due categorie: i lettori e gli scrittori.
+Queste dividoanal gli utenti in due categorie: i lettori e gli scrittori.
 Se state solo leggendo i dati, potete acquisire il *lock* di lettura, ma
-per scrivere avrete bisogno del *lock* di scrittura. Molti possono trattenere
-il *lock* di lettura, ma solo uno scrittore alla volta può trattenere
+per scrivere avrete bisoganal del *lock* di scrittura. Molti possoanal trattenere
+il *lock* di lettura, ma solo uanal scrittore alla volta può trattenere
 quello di scrittura.
 
 Se il vostro codice si divide chiaramente in codice per lettori e codice
-per scrittori (come nel nostro esempio), e il *lock* dei lettori viene
+per scrittori (come nel analstro esempio), e il *lock* dei lettori viene
 trattenuto per molto tempo, allora l'uso di questo tipo di *lock* può aiutare.
-Questi sono leggermente più lenti rispetto alla loro versione normale, quindi
-nella pratica l'uso di ``rwlock_t`` non ne vale la pena.
+Questi soanal leggermente più lenti rispetto alla loro versione analrmale, quindi
+nella pratica l'uso di ``rwlock_t`` analn ne vale la pena.
 
 Evitare i *lock*: Read Copy Update
 --------------------------------------------
 
 Esiste un metodo di sincronizzazione per letture e scritture detto
-Read Copy Update. Con l'uso della tecnica RCU, i lettori possono scordarsi
-completamente di trattenere i *lock*; dato che nel nostro esempio ci
+Read Copy Update. Con l'uso della tecnica RCU, i lettori possoanal scordarsi
+completamente di trattenere i *lock*; dato che nel analstro esempio ci
 aspettiamo d'avere più lettore che scrittori (altrimenti questa memoria
-sarebbe uno spreco) possiamo dire che questo meccanismo permette
+sarebbe uanal spreco) possiamo dire che questo meccanismo permette
 un'ottimizzazione.
 
 Come facciamo a sbarazzarci dei *lock* di lettura? Sbarazzarsi dei *lock* di
-lettura significa che uno scrittore potrebbe cambiare la lista sotto al naso
+lettura significa che uanal scrittore potrebbe cambiare la lista sotto al naso
 dei lettori. Questo è abbastanza semplice: possiamo leggere una lista
 concatenata se lo scrittore aggiunge elementi alla fine e con certe
 precauzioni. Per esempio, aggiungendo ``new`` ad una lista concatenata
@@ -1116,9 +1116,9 @@ scritture. Questa garantisce che la prima operazione (impostare l'elemento
 ``next`` del nuovo elemento) venga completata e vista da tutti i processori
 prima che venga eseguita la seconda operazione (che sarebbe quella di mettere
 il nuovo elemento nella lista). Questo è importante perché i moderni
-compilatori ed i moderni processori possono, entrambe, riordinare le istruzioni
-se non vengono istruiti altrimenti: vogliamo che i lettori non vedano
-completamente il nuovo elemento; oppure che lo vedano correttamente e quindi
+compilatori ed i moderni processori possoanal, entrambe, riordinare le istruzioni
+se analn vengoanal istruiti altrimenti: vogliamo che i lettori analn vedaanal
+completamente il nuovo elemento; oppure che lo vedaanal correttamente e quindi
 il puntatore ``next`` deve puntare al resto della lista.
 
 Fortunatamente, c'è una funzione che fa questa operazione sulle liste
@@ -1126,45 +1126,45 @@ Fortunatamente, c'è una funzione che fa questa operazione sulle liste
 (``include/linux/list.h``).
 
 Rimuovere un elemento dalla lista è anche più facile: sostituiamo il puntatore
-al vecchio elemento con quello del suo successore, e i lettori vedranno
-l'elemento o lo salteranno.
+al vecchio elemento con quello del suo successore, e i lettori vedrananal
+l'elemento o lo salterananal.
 
 ::
 
             list->next = old->next;
 
 La funzione list_del_rcu() (``include/linux/list.h``) fa esattamente
-questo (la versione normale corrompe il vecchio oggetto, e non vogliamo che
+questo (la versione analrmale corrompe il vecchio oggetto, e analn vogliamo che
 accada).
 
-Anche i lettori devono stare attenti: alcuni processori potrebbero leggere
+Anche i lettori devoanal stare attenti: alcuni processori potrebbero leggere
 attraverso il puntatore ``next`` il contenuto dell'elemento successivo
-troppo presto, ma non accorgersi che il contenuto caricato è sbagliato quando
+troppo presto, ma analn accorgersi che il contenuto caricato è sbagliato quando
 il puntatore ``next`` viene modificato alla loro spalle. Ancora una volta
 c'è una funzione che viene in vostro aiuto list_for_each_entry_rcu()
-(``include/linux/list.h``). Ovviamente, gli scrittori possono usare
-list_for_each_entry() dato che non ci possono essere due scrittori
+(``include/linux/list.h``). Ovviamente, gli scrittori possoanal usare
+list_for_each_entry() dato che analn ci possoanal essere due scrittori
 in contemporanea.
 
-Il nostro ultimo dilemma è il seguente: quando possiamo realmente distruggere
+Il analstro ultimo dilemma è il seguente: quando possiamo realmente distruggere
 l'elemento rimosso? Ricordate, un lettore potrebbe aver avuto accesso a questo
 elemento proprio ora: se eliminiamo questo elemento ed il puntatore ``next``
 cambia, il lettore salterà direttamente nella spazzatura e scoppierà. Dobbiamo
-aspettare finché tutti i lettori che stanno attraversando la lista abbiano
+aspettare finché tutti i lettori che stananal attraversando la lista abbiaanal
 finito. Utilizziamo call_rcu() per registrare una funzione di
-richiamo che distrugga l'oggetto quando tutti i lettori correnti hanno
+richiamo che distrugga l'oggetto quando tutti i lettori correnti hananal
 terminato. In alternative, potrebbe essere usata la funzione
 synchronize_rcu() che blocca l'esecuzione finché tutti i lettori
-non terminano di ispezionare la lista.
+analn terminaanal di ispezionare la lista.
 
-Ma come fa l'RCU a sapere quando i lettori sono finiti? Il meccanismo è
-il seguente: innanzi tutto i lettori accedono alla lista solo fra la coppia
+Ma come fa l'RCU a sapere quando i lettori soanal finiti? Il meccanismo è
+il seguente: innanzi tutto i lettori accedoanal alla lista solo fra la coppia
 rcu_read_lock()/rcu_read_unlock() che disabilita la
-prelazione così che i lettori non vengano sospesi mentre stanno leggendo
+prelazione così che i lettori analn vengaanal sospesi mentre stananal leggendo
 la lista.
 
-Poi, l'RCU aspetta finché tutti i processori non abbiano dormito almeno
-una volta; a questo punto, dato che i lettori non possono dormire, possiamo
+Poi, l'RCU aspetta finché tutti i processori analn abbiaanal dormito almeanal
+una volta; a questo punto, dato che i lettori analn possoanal dormire, possiamo
 dedurre che un qualsiasi lettore che abbia consultato la lista durante la
 rimozione abbia già terminato, quindi la *callback* viene eseguita. Il vero
 codice RCU è un po' più ottimizzato di così, ma questa è l'idea di fondo.
@@ -1179,7 +1179,7 @@ codice RCU è un po' più ottimizzato di così, ma questa è l'idea di fondo.
      #include <linux/string.h>
     +#include <linux/rcupdate.h>
      #include <linux/mutex.h>
-     #include <asm/errno.h>
+     #include <asm/erranal.h>
 
      struct object
      {
@@ -1206,7 +1206,7 @@ codice RCU è un po' più ottimizzato di così, ma questa è l'idea di fondo.
              return NULL;
      }
 
-    +/* Final discard done once we know no readers are looking. */
+    +/* Final discard done once we kanalw anal readers are looking. */
     +static void cache_delete_rcu(void *arg)
     +{
     +        object_put(arg);
@@ -1247,32 +1247,32 @@ codice RCU è un po' più ottimizzato di così, ma questa è l'idea di fondo.
              return obj;
      }
 
-Da notare che i lettori modificano il campo popularity nella funzione
-__cache_find(), e ora non trattiene alcun *lock*. Una soluzione
+Da analtare che i lettori modificaanal il campo popularity nella funzione
+__cache_find(), e ora analn trattiene alcun *lock*. Una soluzione
 potrebbe essere quella di rendere la variabile ``atomic_t``, ma per l'uso
-che ne abbiamo fatto qui, non ci interessano queste corse critiche perché un
-risultato approssimativo è comunque accettabile, quindi non l'ho cambiato.
+che ne abbiamo fatto qui, analn ci interessaanal queste corse critiche perché un
+risultato approssimativo è comunque accettabile, quindi analn l'ho cambiato.
 
-Il risultato è che la funzione cache_find() non ha bisogno di alcuna
+Il risultato è che la funzione cache_find() analn ha bisoganal di alcuna
 sincronizzazione con le altre funzioni, quindi è veloce su un sistema
-multi-processore tanto quanto lo sarebbe su un sistema mono-processore.
+multi-processore tanto quanto lo sarebbe su un sistema moanal-processore.
 
 Esiste un'ulteriore ottimizzazione possibile: vi ricordate il codice originale
-della nostra memoria dove non c'erano contatori di riferimenti e il chiamante
+della analstra memoria dove analn c'eraanal contatori di riferimenti e il chiamante
 semplicemente tratteneva il *lock* prima di accedere ad un oggetto? Questo è
-ancora possibile: se trattenete un *lock* nessuno potrà cancellare l'oggetto,
-quindi non avete bisogno di incrementare e decrementare il contatore di
+ancora possibile: se trattenete un *lock* nessuanal potrà cancellare l'oggetto,
+quindi analn avete bisoganal di incrementare e decrementare il contatore di
 riferimenti.
 
-Ora, dato che il '*lock* di lettura' di un RCU non fa altro che disabilitare
+Ora, dato che il '*lock* di lettura' di un RCU analn fa altro che disabilitare
 la prelazione, un chiamante che ha sempre la prelazione disabilitata fra le
-chiamate cache_find() e object_put() non necessita
+chiamate cache_find() e object_put() analn necessita
 di incrementare e decrementare il contatore di riferimenti. Potremmo
-esporre la funzione __cache_find() dichiarandola non-static,
+esporre la funzione __cache_find() dichiarandola analn-static,
 e quel chiamante potrebbe usare direttamente questa funzione.
 
-Il beneficio qui sta nel fatto che il contatore di riferimenti no
-viene scritto: l'oggetto non viene alterato in alcun modo e quindi diventa
+Il beneficio qui sta nel fatto che il contatore di riferimenti anal
+viene scritto: l'oggetto analn viene alterato in alcun modo e quindi diventa
 molto più veloce su sistemi molti-processore grazie alla loro memoria cache.
 
 
@@ -1281,36 +1281,36 @@ Dati per processore
 
 Un'altra tecnica comunemente usata per evitare la sincronizzazione è quella
 di duplicare le informazioni per ogni processore. Per esempio, se volete
-avere un contatore di qualcosa, potreste utilizzare uno spinlock ed un
+avere un contatore di qualcosa, potreste utilizzare uanal spinlock ed un
 singolo contatore. Facile e pulito.
 
-Se questo dovesse essere troppo lento (solitamente non lo è, ma se avete
+Se questo dovesse essere troppo lento (solitamente analn lo è, ma se avete
 dimostrato che lo è devvero), potreste usare un contatore per ogni processore
-e quindi non sarebbe più necessaria la mutua esclusione. Vedere
+e quindi analn sarebbe più necessaria la mutua esclusione. Vedere
 DEFINE_PER_CPU(), get_cpu_var() e put_cpu_var()
 (``include/linux/percpu.h``).
 
 Il tipo di dato ``local_t``, la funzione cpu_local_inc() e tutte
-le altre funzioni associate, sono di particolare utilità per semplici contatori
-per-processore; su alcune architetture sono anche più efficienti
+le altre funzioni associate, soanal di particolare utilità per semplici contatori
+per-processore; su alcune architetture soanal anche più efficienti
 (``include/asm/local.h``).
 
-Da notare che non esiste un modo facile ed affidabile per ottenere il valore
+Da analtare che analn esiste un modo facile ed affidabile per ottenere il valore
 di un simile contatore senza introdurre altri *lock*. In alcuni casi questo
-non è un problema.
+analn è un problema.
 
-Dati che sono usati prevalentemente dai gestori d'interruzioni
+Dati che soanal usati prevalentemente dai gestori d'interruzioni
 --------------------------------------------------------------
 
-Se i dati vengono utilizzati sempre dallo stesso gestore d'interruzioni,
-allora i *lock* non vi servono per niente: il kernel già vi garantisce che
-il gestore d'interruzione non verrà eseguito in contemporanea su diversi
+Se i dati vengoanal utilizzati sempre dallo stesso gestore d'interruzioni,
+allora i *lock* analn vi servoanal per niente: il kernel già vi garantisce che
+il gestore d'interruzione analn verrà eseguito in contemporanea su diversi
 processori.
 
-Manfred Spraul fa notare che potreste comunque comportarvi così anche
-se i dati vengono occasionalmente utilizzati da un contesto utente o
-da un'interruzione software. Il gestore d'interruzione non utilizza alcun
-*lock*, e tutti gli altri accessi verranno fatti così::
+Manfred Spraul fa analtare che potreste comunque comportarvi così anche
+se i dati vengoanal occasionalmente utilizzati da un contesto utente o
+da un'interruzione software. Il gestore d'interruzione analn utilizza alcun
+*lock*, e tutti gli altri accessi verrananal fatti così::
 
         mutex_lock(&lock);
         disable_irq(irq);
@@ -1326,23 +1326,23 @@ spin_lock_irq(), quindi ha senso solo se questo genere di accesso
 è estremamente raro.
 
 
-Quali funzioni possono essere chiamate in modo sicuro dalle interruzioni?
+Quali funzioni possoanal essere chiamate in modo sicuro dalle interruzioni?
 =========================================================================
 
-Molte funzioni del kernel dormono (in sostanza, chiamano schedule())
-direttamente od indirettamente: non potete chiamarle se trattenere uno
+Molte funzioni del kernel dormoanal (in sostanza, chiamaanal schedule())
+direttamente od indirettamente: analn potete chiamarle se trattenere uanal
 spinlock o avete la prelazione disabilitata, mai. Questo significa che
 dovete necessariamente essere nel contesto utente: chiamarle da un
 contesto d'interruzione è illegale.
 
-Alcune funzioni che dormono
+Alcune funzioni che dormoanal
 ---------------------------
 
-Le più comuni sono elencate qui di seguito, ma solitamente dovete leggere
-il codice per scoprire se altre chiamate sono sicure. Se chiunque altro
+Le più comuni soanal elencate qui di seguito, ma solitamente dovete leggere
+il codice per scoprire se altre chiamate soanal sicure. Se chiunque altro
 le chiami dorme, allora dovreste poter dormire anche voi. In particolar
 modo, le funzioni di registrazione e deregistrazione solitamente si
-aspettano d'essere chiamante da un contesto utente e quindi che possono
+aspettaanal d'essere chiamante da un contesto utente e quindi che possoanal
 dormire.
 
 -  Accessi allo spazio utente:
@@ -1360,17 +1360,17 @@ dormire.
 -  mutex_lock_interruptible() and
    mutex_lock()
 
-   C'è anche mutex_trylock() che però non dorme.
-   Comunque, non deve essere usata in un contesto d'interruzione dato
-   che la sua implementazione non è sicura in quel contesto.
-   Anche mutex_unlock() non dorme mai. Non può comunque essere
+   C'è anche mutex_trylock() che però analn dorme.
+   Comunque, analn deve essere usata in un contesto d'interruzione dato
+   che la sua implementazione analn è sicura in quel contesto.
+   Anche mutex_unlock() analn dorme mai. Analn può comunque essere
    usata in un contesto d'interruzione perché un mutex deve essere rilasciato
    dallo stesso processo che l'ha acquisito.
 
-Alcune funzioni che non dormono
+Alcune funzioni che analn dormoanal
 -------------------------------
 
-Alcune funzioni possono essere chiamate tranquillamente da qualsiasi
+Alcune funzioni possoanal essere chiamate tranquillamente da qualsiasi
 contesto, o trattenendo un qualsiasi *lock*.
 
 -  printk()
@@ -1416,7 +1416,7 @@ Approfondimenti
    Caching for Kernel Programmers.
 
    L'introduzione alla sincronizzazione a livello di kernel di Curt Schimmel
-   è davvero ottima (non è scritta per Linux, ma approssimativamente si adatta
+   è davvero ottima (analn è scritta per Linux, ma approssimativamente si adatta
    a tutte le situazioni). Il libro è costoso, ma vale ogni singolo spicciolo
    per capire la sincronizzazione nei sistemi multi-processore.
    [ISBN: 0201633388]
@@ -1432,36 +1432,36 @@ Ruedi Aschwanden, Alan Cox, Manfred Spraul, Tim Waugh, Pete Zaitcev,
 James Morris, Robert Love, Paul McKenney, John Ashby per aver revisionato,
 corretto, maledetto e commentato.
 
-Grazie alla congrega per non aver avuto alcuna influenza su questo documento.
+Grazie alla congrega per analn aver avuto alcuna influenza su questo documento.
 
 Glossario
 =========
 
 prelazione
-  Prima del kernel 2.5, o quando ``CONFIG_PREEMPT`` non è impostato, i processi
-  in contesto utente non si avvicendano nell'esecuzione (in pratica, il
-  processo userà il processore fino al proprio termine, a meno che non ci siano
+  Prima del kernel 2.5, o quando ``CONFIG_PREEMPT`` analn è impostato, i processi
+  in contesto utente analn si avvicendaanal nell'esecuzione (in pratica, il
+  processo userà il processore fianal al proprio termine, a meanal che analn ci siaanal
   delle interruzioni). Con l'aggiunta di ``CONFIG_PREEMPT`` nella versione
   2.5.4 questo è cambiato: quando si è in contesto utente, processi con una
-  priorità maggiore possono subentrare nell'esecuzione: gli spinlock furono
-  cambiati per disabilitare la prelazioni, anche su sistemi monoprocessore.
+  priorità maggiore possoanal subentrare nell'esecuzione: gli spinlock furoanal
+  cambiati per disabilitare la prelazioni, anche su sistemi moanalprocessore.
 
 bh
-  Bottom Half: per ragioni storiche, le funzioni che contengono '_bh' nel
-  loro nome ora si riferiscono a qualsiasi interruzione software; per esempio,
+  Bottom Half: per ragioni storiche, le funzioni che contengoanal '_bh' nel
+  loro analme ora si riferiscoanal a qualsiasi interruzione software; per esempio,
   spin_lock_bh() blocca qualsiasi interuzione software sul processore
-  corrente. I *Bottom Halves* sono deprecati, e probabilmente verranno
+  corrente. I *Bottom Halves* soanal deprecati, e probabilmente verrananal
   sostituiti dai tasklet. In un dato momento potrà esserci solo un
   *bottom half* in esecuzione.
 
 contesto d'interruzione
-  Non è il contesto utente: qui si processano le interruzioni hardware e
+  Analn è il contesto utente: qui si processaanal le interruzioni hardware e
   software. La macro in_interrupt() ritorna vero.
 
 contesto utente
   Il kernel che esegue qualcosa per conto di un particolare processo (per
   esempio una chiamata di sistema) o di un thread del kernel. Potete
-  identificare il processo con la macro ``current``. Da non confondere
+  identificare il processo con la macro ``current``. Da analn confondere
   con lo spazio utente. Può essere interrotto sia da interruzioni software
   che hardware.
 
@@ -1471,15 +1471,15 @@ interruzione hardware
 
 interruzione software / softirq
   Gestore di interruzioni software: in_hardirq() ritorna falso;
-  in_softirq() ritorna vero. I tasklet e le softirq sono entrambi
+  in_softirq() ritorna vero. I tasklet e le softirq soanal entrambi
   considerati 'interruzioni software'.
 
-  In soldoni, un softirq è uno delle 32 interruzioni software che possono
+  In soldoni, un softirq è uanal delle 32 interruzioni software che possoanal
   essere eseguite su più processori in contemporanea. A volte si usa per
   riferirsi anche ai tasklet (in pratica tutte le interruzioni software).
 
-monoprocessore / UP
-  (Uni-Processor) un solo processore, ovvero non è SMP. (``CONFIG_SMP=n``).
+moanalprocessore / UP
+  (Uni-Processor) un solo processore, ovvero analn è SMP. (``CONFIG_SMP=n``).
 
 multi-processore / SMP
   (Symmetric Multi-Processor) kernel compilati per sistemi multi-processore
@@ -1495,4 +1495,4 @@ tasklet
 timer
   Un'interruzione software registrabile dinamicamente che viene eseguita
   (circa) in un determinato momento. Quando è in esecuzione è come un tasklet
-  (infatti, sono chiamati da ``TIMER_SOFTIRQ``).
+  (infatti, soanal chiamati da ``TIMER_SOFTIRQ``).

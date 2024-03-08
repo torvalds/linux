@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -35,7 +35,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <net/neighbour.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/atomic.h>
 #include <linux/proc_fs.h>
 #include <linux/if_vlan.h>
@@ -161,7 +161,7 @@ void cxgb3_remove_clients(struct t3cdev *tdev)
 	mutex_unlock(&cxgb3_db_lock);
 }
 
-void cxgb3_event_notify(struct t3cdev *tdev, u32 event, u32 port)
+void cxgb3_event_analtify(struct t3cdev *tdev, u32 event, u32 port)
 {
 	struct cxgb3_client *client;
 
@@ -264,13 +264,13 @@ static int cxgb_ulp_iscsi_ctl(struct adapter *adapter, unsigned int req,
 		}
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 	return ret;
 }
 
 /* Response queue used for RDMA events. */
-#define ASYNC_NOTIF_RSPQ 0
+#define ASYNC_ANALTIF_RSPQ 0
 
 static int cxgb_rdma_ctl(struct adapter *adapter, unsigned int req, void *data)
 {
@@ -335,7 +335,7 @@ static int cxgb_rdma_ctl(struct adapter *adapter, unsigned int req, void *data)
 		ret =
 			t3_sge_init_cqcntxt(adapter, rdma->id,
 					rdma->base_addr, rdma->size,
-					ASYNC_NOTIF_RSPQ,
+					ASYNC_ANALTIF_RSPQ,
 					rdma->ovfl_mode, rdma->credits,
 					rdma->credit_thres);
 		spin_unlock_irq(&adapter->sge.reg_lock);
@@ -352,7 +352,7 @@ static int cxgb_rdma_ctl(struct adapter *adapter, unsigned int req, void *data)
 		spin_lock_irq(&adapter->sge.reg_lock);
 		ret = t3_sge_init_ecntxt(adapter, FW_RI_SGEEC_START, 0,
 						SGE_CNTXT_RDMA,
-						ASYNC_NOTIF_RSPQ,
+						ASYNC_ANALTIF_RSPQ,
 						rdma->base_addr, rdma->size,
 						FW_RI_TID_START, 1, 0);
 		spin_unlock_irq(&adapter->sge.reg_lock);
@@ -365,7 +365,7 @@ static int cxgb_rdma_ctl(struct adapter *adapter, unsigned int req, void *data)
 		break;
 	}
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 	return ret;
 }
@@ -467,7 +467,7 @@ static int cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 		break;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -475,7 +475,7 @@ static int cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 /*
  * Dummy handler for Rx offload packets in case we get an offload packet before
  * proper processing is setup.  This complains and drops the packet as it isn't
- * normal to get offload packets at this stage.
+ * analrmal to get offload packets at this stage.
  */
 static int rx_offload_blackhole(struct t3cdev *dev, struct sk_buff **skbs,
 				int n)
@@ -575,7 +575,7 @@ static void t3_process_tid_release_list(struct work_struct *work)
 		skb = alloc_skb(sizeof(struct cpl_tid_release),
 				GFP_KERNEL);
 		if (!skb)
-			skb = td->nofail_skb;
+			skb = td->analfail_skb;
 		if (!skb) {
 			spin_lock_bh(&td->tid_release_lock);
 			p->ctx = (void *)td->tid_release_list;
@@ -585,8 +585,8 @@ static void t3_process_tid_release_list(struct work_struct *work)
 		mk_tid_release(skb, p - td->tid_maps.tid_tab);
 		cxgb3_ofld_send(tdev, skb);
 		p->ctx = NULL;
-		if (skb == td->nofail_skb)
-			td->nofail_skb =
+		if (skb == td->analfail_skb)
+			td->analfail_skb =
 				alloc_skb(sizeof(struct cpl_tid_release),
 					GFP_KERNEL);
 		spin_lock_bh(&td->tid_release_lock);
@@ -594,8 +594,8 @@ static void t3_process_tid_release_list(struct work_struct *work)
 	td->release_list_incomplete = (td->tid_release_list == NULL) ? 0 : 1;
 	spin_unlock_bh(&td->tid_release_lock);
 
-	if (!td->nofail_skb)
-		td->nofail_skb =
+	if (!td->analfail_skb)
+		td->analfail_skb =
 			alloc_skb(sizeof(struct cpl_tid_release),
 				GFP_KERNEL);
 }
@@ -620,7 +620,7 @@ EXPORT_SYMBOL(cxgb3_queue_tid_release);
 /*
  * Remove a tid from the TID table.  A client may defer processing its last
  * CPL message if it is locked at the time it arrives, and while the message
- * sits in the client's backlog the TID may be reused for another connection.
+ * sits in the client's backlog the TID may be reused for aanalther connection.
  * To handle this we atomically switch the TID association if it still points
  * to the original client context.
  */
@@ -707,7 +707,7 @@ static int do_smt_write_rpl(struct t3cdev *dev, struct sk_buff *skb)
 {
 	struct cpl_smt_write_rpl *rpl = cplhdr(skb);
 
-	if (rpl->status != CPL_ERR_NONE)
+	if (rpl->status != CPL_ERR_ANALNE)
 		pr_err("Unexpected SMT_WRITE_RPL status %u for entry %u\n",
 		       rpl->status, GET_TID(rpl));
 
@@ -718,7 +718,7 @@ static int do_l2t_write_rpl(struct t3cdev *dev, struct sk_buff *skb)
 {
 	struct cpl_l2t_write_rpl *rpl = cplhdr(skb);
 
-	if (rpl->status != CPL_ERR_NONE)
+	if (rpl->status != CPL_ERR_ANALNE)
 		pr_err("Unexpected L2T_WRITE_RPL status %u for entry %u\n",
 		       rpl->status, GET_TID(rpl));
 
@@ -729,7 +729,7 @@ static int do_rte_write_rpl(struct t3cdev *dev, struct sk_buff *skb)
 {
 	struct cpl_rte_write_rpl *rpl = cplhdr(skb);
 
-	if (rpl->status != CPL_ERR_NONE)
+	if (rpl->status != CPL_ERR_ANALNE)
 		pr_err("Unexpected RTE_WRITE_RPL status %u for entry %u\n",
 		       rpl->status, GET_TID(rpl));
 
@@ -821,9 +821,9 @@ static int do_cr(struct t3cdev *dev, struct sk_buff *skb)
 
 /*
  * Returns an sk_buff for a reply CPL message of size len.  If the input
- * sk_buff has no other users it is trimmed and reused, otherwise a new buffer
- * is allocated.  The input skb must be of size at least len.  Note that this
- * operation does not destroy the original skb data even if it decides to reuse
+ * sk_buff has anal other users it is trimmed and reused, otherwise a new buffer
+ * is allocated.  The input skb must be of size at least len.  Analte that this
+ * operation does analt destroy the original skb data even if it decides to reuse
  * the buffer.
  */
 static struct sk_buff *cxgb3_get_cpl_reply_skb(struct sk_buff *skb, size_t len,
@@ -959,7 +959,7 @@ static int do_term(struct t3cdev *dev, struct sk_buff *skb)
 	}
 }
 
-static int nb_callback(struct notifier_block *self, unsigned long event,
+static int nb_callback(struct analtifier_block *self, unsigned long event,
 		       void *ctx)
 {
 	switch (event) {
@@ -980,12 +980,12 @@ static int nb_callback(struct notifier_block *self, unsigned long event,
 	return 0;
 }
 
-static struct notifier_block nb = {
-	.notifier_call = nb_callback
+static struct analtifier_block nb = {
+	.analtifier_call = nb_callback
 };
 
 /*
- * Process a received packet with an unknown/unexpected CPL opcode.
+ * Process a received packet with an unkanalwn/unexpected CPL opcode.
  */
 static int do_bad_cpl(struct t3cdev *dev, struct sk_buff *skb)
 {
@@ -1024,10 +1024,10 @@ static int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n)
 		int ret = cpl_handlers[opcode] (dev, skb);
 
 #if VALIDATE_TID
-		if (ret & CPL_RET_UNKNOWN_TID) {
+		if (ret & CPL_RET_UNKANALWN_TID) {
 			union opcode_tid *p = cplhdr(skb);
 
-			pr_err("%s: CPL message (opcode %u) had unknown TID %u\n",
+			pr_err("%s: CPL message (opcode %u) had unkanalwn TID %u\n",
 			       dev->name, opcode, G_TID(ntohl(p->opcode_tid)));
 		}
 #endif
@@ -1092,7 +1092,7 @@ static void set_l2t_ix(struct t3cdev *tdev, u32 tid, struct l2t_entry *e)
 
 	skb = alloc_skb(sizeof(*req), GFP_ATOMIC);
 	if (!skb) {
-		pr_err("%s: cannot allocate skb!\n", __func__);
+		pr_err("%s: cananalt allocate skb!\n", __func__);
 		return;
 	}
 	skb->priority = CPL_PRIORITY_CONTROL;
@@ -1133,7 +1133,7 @@ static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new,
 		return;
 	}
 
-	/* Walk tid table and notify clients of dst change. */
+	/* Walk tid table and analtify clients of dst change. */
 	ti = &(T3C_DATA(tdev))->tid_maps;
 	for (tid = 0; tid < ti->ntids; tid++) {
 		te = lookup_tid(ti, tid);
@@ -1163,7 +1163,7 @@ static int init_tid_tabs(struct tid_info *t, unsigned int ntids,
 
 	t->tid_tab = kvzalloc(size, GFP_KERNEL);
 	if (!t->tid_tab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t->stid_tab = (union listen_entry *)&t->tid_tab[ntids];
 	t->atid_tab = (union active_open_entry *)&t->stid_tab[nstids];
@@ -1226,9 +1226,9 @@ int cxgb3_offload_activate(struct adapter *adapter)
 
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (dev->ctl(dev, GET_TX_MAX_CHUNK, &t->tx_max_chunk) < 0 ||
 	    dev->ctl(dev, GET_MAX_OUTSTANDING_WR, &t->max_wrs) < 0 ||
 	    dev->ctl(dev, GET_L2T_CAPACITY, &l2t_capacity) < 0 ||
@@ -1237,7 +1237,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	    dev->ctl(dev, GET_STID_RANGE, &stid_range) < 0)
 		goto out_free;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	l2td = t3_init_l2t(l2t_capacity);
 	if (!l2td)
 		goto out_free;
@@ -1253,7 +1253,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 
 	INIT_WORK(&t->tid_release_task, t3_process_tid_release_list);
 	spin_lock_init(&t->tid_release_lock);
-	INIT_LIST_HEAD(&t->list_node);
+	INIT_LIST_HEAD(&t->list_analde);
 	t->dev = dev;
 
 	RCU_INIT_POINTER(dev->l2opt, l2td);
@@ -1263,9 +1263,9 @@ int cxgb3_offload_activate(struct adapter *adapter)
 
 	/* Register netevent handler once */
 	if (list_empty(&adapter_list))
-		register_netevent_notifier(&nb);
+		register_netevent_analtifier(&nb);
 
-	t->nofail_skb = alloc_skb(sizeof(struct cpl_tid_release), GFP_KERNEL);
+	t->analfail_skb = alloc_skb(sizeof(struct cpl_tid_release), GFP_KERNEL);
 	t->release_list_incomplete = 0;
 
 	add_adapter(adapter);
@@ -1293,7 +1293,7 @@ void cxgb3_offload_deactivate(struct adapter *adapter)
 
 	remove_adapter(adapter);
 	if (list_empty(&adapter_list))
-		unregister_netevent_notifier(&nb);
+		unregister_netevent_analtifier(&nb);
 
 	free_tid_maps(&t->tid_maps);
 	T3C_DATA(tdev) = NULL;
@@ -1302,7 +1302,7 @@ void cxgb3_offload_deactivate(struct adapter *adapter)
 	rcu_read_unlock();
 	RCU_INIT_POINTER(tdev->l2opt, NULL);
 	call_rcu(&d->rcu_head, clean_l2_data);
-	kfree_skb(t->nofail_skb);
+	kfree_skb(t->analfail_skb);
 	kfree(t);
 }
 
@@ -1356,7 +1356,7 @@ void cxgb3_adapter_ofld(struct adapter *adapter)
 	register_tdev(tdev);
 }
 
-void cxgb3_adapter_unofld(struct adapter *adapter)
+void cxgb3_adapter_uanalfld(struct adapter *adapter)
 {
 	struct t3cdev *tdev = &adapter->tdev;
 
@@ -1382,7 +1382,7 @@ void __init cxgb3_offload_init(void)
 	t3_register_cpl_handler(CPL_PASS_ESTABLISH, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_ABORT_RPL_RSS, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_ABORT_RPL, do_hwtid_rpl);
-	t3_register_cpl_handler(CPL_RX_URG_NOTIFY, do_hwtid_rpl);
+	t3_register_cpl_handler(CPL_RX_URG_ANALTIFY, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_RX_DATA, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_TX_DATA_ACK, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_TX_DMA_ACK, do_hwtid_rpl);

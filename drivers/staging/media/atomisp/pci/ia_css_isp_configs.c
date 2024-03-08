@@ -13,7 +13,7 @@
  * more details.
  */
 
-/* Generated code: do not edit or commmit. */
+/* Generated code: do analt edit or commmit. */
 
 #define IA_CSS_INCLUDE_CONFIGURATIONS
 #include "ia_css_pipeline.h"

@@ -213,21 +213,21 @@ static int lp8860_brightness_set(struct led_classdev *led_cdev,
 
 	ret = lp8860_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults\n");
+		dev_err(&led->client->dev, "Cananalt read/clear faults\n");
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LP8860_DISP_CL1_BRT_MSB,
 			(disp_brightness & 0xff00) >> 8);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write CL1 MSB\n");
+		dev_err(&led->client->dev, "Cananalt write CL1 MSB\n");
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LP8860_DISP_CL1_BRT_LSB,
 			disp_brightness & 0xff);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write CL1 LSB\n");
+		dev_err(&led->client->dev, "Cananalt write CL1 LSB\n");
 		goto out;
 	}
 out:
@@ -331,7 +331,7 @@ static const struct regmap_config lp8860_regmap_config = {
 	.max_register = LP8860_EEPROM_UNLOCK,
 	.reg_defaults = lp8860_reg_defs,
 	.num_reg_defaults = ARRAY_SIZE(lp8860_reg_defs),
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct reg_default lp8860_eeprom_defs[] = {
@@ -369,23 +369,23 @@ static const struct regmap_config lp8860_eeprom_regmap_config = {
 	.max_register = LP8860_EEPROM_REG_24,
 	.reg_defaults = lp8860_eeprom_defs,
 	.num_reg_defaults = ARRAY_SIZE(lp8860_eeprom_defs),
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int lp8860_probe(struct i2c_client *client)
 {
 	int ret;
 	struct lp8860_led *led;
-	struct device_node *np = dev_of_node(&client->dev);
-	struct device_node *child_node;
+	struct device_analde *np = dev_of_analde(&client->dev);
+	struct device_analde *child_analde;
 	struct led_init_data init_data = {};
 
 	led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	child_node = of_get_next_available_child(np, NULL);
-	if (!child_node)
+	child_analde = of_get_next_available_child(np, NULL);
+	if (!child_analde)
 		return -EINVAL;
 
 	led->enable_gpio = devm_gpiod_get_optional(&client->dev,
@@ -427,7 +427,7 @@ static int lp8860_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	init_data.fwnode = of_fwnode_handle(child_node);
+	init_data.fwanalde = of_fwanalde_handle(child_analde);
 	init_data.devicename = LP8860_NAME;
 	init_data.default_label = ":display_cluster";
 

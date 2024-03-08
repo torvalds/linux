@@ -159,7 +159,7 @@ static netdev_tx_t liteeth_start_xmit(struct sk_buff *skb,
 
 	if (!litex_read8(priv->base + LITEETH_READER_READY)) {
 		if (net_ratelimit())
-			netdev_err(netdev, "LITEETH_READER_READY not ready\n");
+			netdev_err(netdev, "LITEETH_READER_READY analt ready\n");
 
 		netif_stop_queue(netdev);
 
@@ -208,7 +208,7 @@ static const struct net_device_ops liteeth_netdev_ops = {
 
 static void liteeth_setup_slots(struct liteeth *priv)
 {
-	struct device_node *np = priv->dev->of_node;
+	struct device_analde *np = priv->dev->of_analde;
 	int err;
 
 	err = of_property_read_u32(np, "litex,rx-slots", &priv->num_rx_slots);
@@ -239,7 +239,7 @@ static int liteeth_probe(struct platform_device *pdev)
 
 	netdev = devm_alloc_etherdev(&pdev->dev, sizeof(*priv));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	platform_set_drvdata(pdev, netdev);
@@ -251,7 +251,7 @@ static int liteeth_probe(struct platform_device *pdev)
 	netdev->tstats = devm_netdev_alloc_pcpu_stats(&pdev->dev,
 						      struct pcpu_sw_netstats);
 	if (!netdev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -276,7 +276,7 @@ static int liteeth_probe(struct platform_device *pdev)
 	priv->tx_base = buf_base + priv->num_rx_slots * priv->slot_size;
 	priv->tx_slot = 0;
 
-	err = of_get_ethdev_address(pdev->dev.of_node, netdev);
+	err = of_get_ethdev_address(pdev->dev.of_analde, netdev);
 	if (err)
 		eth_hw_addr_random(netdev);
 

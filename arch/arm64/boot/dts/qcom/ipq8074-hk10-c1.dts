@@ -7,6 +7,6 @@
 #include "ipq8074-hk10.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ8074/AP-HK10-C1";
+	model = "Qualcomm Techanallogies, Inc. IPQ8074/AP-HK10-C1";
 	compatible = "qcom,ipq8074-hk10-c1", "qcom,ipq8074";
 };

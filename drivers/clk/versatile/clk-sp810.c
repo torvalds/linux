@@ -26,7 +26,7 @@ struct clk_sp810_timerclken {
 };
 
 struct clk_sp810 {
-	struct device_node *node;
+	struct device_analde *analde;
 	void __iomem *base;
 	spinlock_t lock;
 	struct clk_sp810_timerclken timerclken[4];
@@ -63,7 +63,7 @@ static int clk_sp810_timerclken_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops clk_sp810_timerclken_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = clk_sp810_timerclken_get_parent,
 	.set_parent = clk_sp810_timerclken_set_parent,
 };
@@ -80,7 +80,7 @@ static struct clk *clk_sp810_timerclken_of_get(struct of_phandle_args *clkspec,
 	return sp810->timerclken[clkspec->args[0]].clk;
 }
 
-static void __init clk_sp810_of_setup(struct device_node *node)
+static void __init clk_sp810_of_setup(struct device_analde *analde)
 {
 	struct clk_sp810 *sp810 = kzalloc(sizeof(*sp810), GFP_KERNEL);
 	const char *parent_names[2];
@@ -94,14 +94,14 @@ static void __init clk_sp810_of_setup(struct device_node *node)
 	if (!sp810)
 		return;
 
-	if (of_clk_parent_fill(node, parent_names, num) != num) {
+	if (of_clk_parent_fill(analde, parent_names, num) != num) {
 		pr_warn("Failed to obtain parent clocks for SP810!\n");
 		kfree(sp810);
 		return;
 	}
 
-	sp810->node = node;
-	sp810->base = of_iomap(node, 0);
+	sp810->analde = analde;
+	sp810->base = of_iomap(analde, 0);
 	spin_lock_init(&sp810->lock);
 
 	init.name = name;
@@ -110,7 +110,7 @@ static void __init clk_sp810_of_setup(struct device_node *node)
 	init.parent_names = parent_names;
 	init.num_parents = num;
 
-	deprecated = !of_find_property(node, "assigned-clock-parents", NULL);
+	deprecated = !of_find_property(analde, "assigned-clock-parents", NULL);
 
 	for (i = 0; i < ARRAY_SIZE(sp810->timerclken); i++) {
 		snprintf(name, sizeof(name), "sp810_%d_%d", instance, i);
@@ -133,7 +133,7 @@ static void __init clk_sp810_of_setup(struct device_node *node)
 		WARN_ON(IS_ERR(sp810->timerclken[i].clk));
 	}
 
-	of_clk_add_provider(node, clk_sp810_timerclken_of_get, sp810);
+	of_clk_add_provider(analde, clk_sp810_timerclken_of_get, sp810);
 	instance++;
 }
 CLK_OF_DECLARE(sp810, "arm,sp810", clk_sp810_of_setup);

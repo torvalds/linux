@@ -37,7 +37,7 @@ void *memmove(void *dest, const void *src, size_t n);
 #define __HAVE_ARCH_STRNLEN	/* inline & arch function */
 #define __HAVE_ARCH_STRSTR	/* arch function */
 
-/* Prototypes for non-inlined arch strings functions. */
+/* Prototypes for analn-inlined arch strings functions. */
 int memcmp(const void *s1, const void *s2, size_t n);
 int strcmp(const char *s1, const char *s2);
 size_t strlcat(char *dest, const char *src, size_t n);
@@ -57,14 +57,14 @@ char *strstr(const char *s1, const char *s2);
 
 #define strlen(s) __strlen(s)
 
-#define __no_sanitize_prefix_strfunc(x) __##x
+#define __anal_sanitize_prefix_strfunc(x) __##x
 
-#ifndef __NO_FORTIFY
-#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
+#ifndef __ANAL_FORTIFY
+#define __ANAL_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
 #endif
 
 #else
-#define __no_sanitize_prefix_strfunc(x) x
+#define __anal_sanitize_prefix_strfunc(x) x
 #endif /* defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__) */
 
 void *__memcpy(void *dest, const void *src, size_t n);
@@ -89,7 +89,7 @@ static inline void *memset64(uint64_t *s, uint64_t v, size_t count)
 	return __memset64(s, v, count * sizeof(v));
 }
 
-#if !defined(IN_ARCH_STRING_C) && (!defined(CONFIG_FORTIFY_SOURCE) || defined(__NO_FORTIFY))
+#if !defined(IN_ARCH_STRING_C) && (!defined(CONFIG_FORTIFY_SOURCE) || defined(__ANAL_FORTIFY))
 
 #ifdef __HAVE_ARCH_MEMCHR
 static inline void *memchr(const void * s, int c, size_t n)
@@ -162,7 +162,7 @@ static inline char *strcpy(char *dst, const char *src)
 #endif
 
 #if defined(__HAVE_ARCH_STRLEN) || (defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__))
-static inline size_t __no_sanitize_prefix_strfunc(strlen)(const char *s)
+static inline size_t __anal_sanitize_prefix_strfunc(strlen)(const char *s)
 {
 	unsigned long end = 0;
 	const char *tmp = s;

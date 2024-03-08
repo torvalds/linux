@@ -14,6 +14,6 @@
 #define POWER_ON_REASON_CPU_CLK_FAIL "CPU clock failure"
 #define POWER_ON_REASON_XTAL_FAIL "crystal oscillator failure"
 #define POWER_ON_REASON_BROWN_OUT "brown-out reset"
-#define POWER_ON_REASON_UNKNOWN "unknown reason"
+#define POWER_ON_REASON_UNKANALWN "unkanalwn reason"
 
 #endif /* POWER_ON_REASON_H */

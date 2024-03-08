@@ -26,7 +26,7 @@
 #define SH_CSS_ISP_CTC_TABLE_SIZE            IA_CSS_VAMEM_2_CTC_TABLE_SIZE
 
 #else
-/* For pipe generation, the size is not relevant */
+/* For pipe generation, the size is analt relevant */
 #define SH_CSS_ISP_CTC_TABLE_SIZE 0
 #endif
 

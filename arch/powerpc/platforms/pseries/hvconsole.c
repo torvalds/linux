@@ -5,33 +5,33 @@
  * Copyright (C) 2004 IBM Corporation
  *
  * Additional Author(s):
- *  Ryan S. Arnold <rsa@us.ibm.com>
+ *  Ryan S. Aranalld <rsa@us.ibm.com>
  *
  * LPAR console support.
  */
 
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
 #include <asm/plpar_wrappers.h>
 
 /**
- * hvc_get_chars - retrieve characters from firmware for denoted vterm adapter
- * @vtermno: The vtermno or unit_address of the adapter from which to fetch the
+ * hvc_get_chars - retrieve characters from firmware for deanalted vterm adapter
+ * @vtermanal: The vtermanal or unit_address of the adapter from which to fetch the
  *	data.
  * @buf: The character buffer into which to put the character data fetched from
  *	firmware.
- * @count: not used?
+ * @count: analt used?
  */
-ssize_t hvc_get_chars(uint32_t vtermno, u8 *buf, size_t count)
+ssize_t hvc_get_chars(uint32_t vtermanal, u8 *buf, size_t count)
 {
 	long ret;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	unsigned long *lbuf = (unsigned long *)buf;
 
-	ret = plpar_hcall(H_GET_TERM_CHAR, retbuf, vtermno);
+	ret = plpar_hcall(H_GET_TERM_CHAR, retbuf, vtermanal);
 	lbuf[0] = be64_to_cpu(retbuf[1]);
 	lbuf[1] = be64_to_cpu(retbuf[2]);
 
@@ -45,14 +45,14 @@ EXPORT_SYMBOL(hvc_get_chars);
 
 
 /**
- * hvc_put_chars: send characters to firmware for denoted vterm adapter
- * @vtermno: The vtermno or unit_address of the adapter from which the data
+ * hvc_put_chars: send characters to firmware for deanalted vterm adapter
+ * @vtermanal: The vtermanal or unit_address of the adapter from which the data
  *	originated.
  * @buf: The character buffer that contains the character data to send to
  *	firmware. Must be at least 16 bytes, even if count is less than 16.
  * @count: Send this number of characters.
  */
-ssize_t hvc_put_chars(uint32_t vtermno, const u8 *buf, size_t count)
+ssize_t hvc_put_chars(uint32_t vtermanal, const u8 *buf, size_t count)
 {
 	unsigned long *lbuf = (unsigned long *) buf;
 	long ret;
@@ -62,7 +62,7 @@ ssize_t hvc_put_chars(uint32_t vtermno, const u8 *buf, size_t count)
 	if (count > MAX_VIO_PUT_CHARS)
 		count = MAX_VIO_PUT_CHARS;
 
-	ret = plpar_hcall_norets(H_PUT_TERM_CHAR, vtermno, count,
+	ret = plpar_hcall_analrets(H_PUT_TERM_CHAR, vtermanal, count,
 				 cpu_to_be64(lbuf[0]),
 				 cpu_to_be64(lbuf[1]));
 	if (ret == H_SUCCESS)

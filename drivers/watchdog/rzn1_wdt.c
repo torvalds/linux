@@ -65,8 +65,8 @@ static int rzn1_wdt_start(struct watchdog_device *w)
 
 	/*
 	 * The hardware allows you to write to this reg only once.
-	 * Since this includes the reload value, there is no way to change the
-	 * timeout once started. Also note that the WDT clock is half the bus
+	 * Since this includes the reload value, there is anal way to change the
+	 * timeout once started. Also analte that the WDT clock is half the bus
 	 * fabric clock rate, so if the bus fabric clock rate is changed after
 	 * the WDT is started, the WDT interval will be wrong.
 	 */
@@ -102,7 +102,7 @@ static int rzn1_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rzn1_watchdog *wdt;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct clk *clk;
 	unsigned long clk_rate;
 	int ret;
@@ -110,7 +110,7 @@ static int rzn1_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
@@ -142,10 +142,10 @@ static int rzn1_wdt_probe(struct platform_device *pdev)
 	wdt->clk_rate_khz = clk_rate / 1000;
 	wdt->wdtdev.info = &rzn1_wdt_info,
 	wdt->wdtdev.ops = &rzn1_wdt_ops,
-	wdt->wdtdev.status = WATCHDOG_NOWAYOUT_INIT_STATUS,
+	wdt->wdtdev.status = WATCHDOG_ANALWAYOUT_INIT_STATUS,
 	wdt->wdtdev.parent = dev;
 	/*
-	 * The period of the watchdog cannot be changed once set
+	 * The period of the watchdog cananalt be changed once set
 	 * and is limited to a very short period.
 	 * Configure it for a 1s period once and for all, and
 	 * rely on the heart-beat provided by the watchdog core

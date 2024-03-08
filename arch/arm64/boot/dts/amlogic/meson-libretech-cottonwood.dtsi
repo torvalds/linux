@@ -260,10 +260,10 @@
 		 *    D3:    18/A5
 		 *    DCLK:  36/A7
 		 *
-		 * TDM C is not usable on the 40 pins connector so it is
+		 * TDM C is analt usable on the 40 pins connector so it is
 		 * setup for the HDMI 4 lanes i2s.
 		 *
-		 * No pinctrl is enabled by default to preserve the
+		 * Anal pinctrl is enabled by default to preserve the
 		 * genericity of the 40 pins header. Many configurations are
 		 * possible based on the desired use case. Please adjust TDM
 		 * masks, clock setups and pinctrl accordingly.
@@ -501,7 +501,7 @@
 };
 
 /*
- * EMMC_D4, EMMC_D5, EMMC_D6 and EMMC_D7 pins are shared between SPI NOR CS
+ * EMMC_D4, EMMC_D5, EMMC_D6 and EMMC_D7 pins are shared between SPI ANALR CS
  * and eMMC Data 4 to 7 pins.
  * Replace emmc_data_8b_pins to emmc_data_4b_pins from sd_emmc_c pinctrl-0,
  * and change bus-width to 4 then spifc can be enabled.
@@ -526,12 +526,12 @@
 
 &spifc {
 	status = "disabled";
-	pinctrl-0 = <&nor_pins>;
+	pinctrl-0 = <&analr_pins>;
 	pinctrl-names = "default";
 	cs-gpios = <&gpio BOOT_14 GPIO_ACTIVE_LOW>;
 
 	w25lq128d: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;

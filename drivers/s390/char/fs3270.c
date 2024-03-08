@@ -78,7 +78,7 @@ static int fs3270_do_io(struct raw3270_view *view, struct raw3270_request *rq)
 		}
 		rc = raw3270_start(view, rq);
 		if (rc == 0) {
-			/* Started successfully. Now wait for completion. */
+			/* Started successfully. Analw wait for completion. */
 			wait_event(fp->wait, raw3270_request_final(rq));
 		}
 	} while (rc == -EACCES);
@@ -128,7 +128,7 @@ static int fs3270_activate(struct raw3270_view *view)
 	fp->init->rescnt = 0;
 	cp = fp->rdbuf->data[0];
 	if (fp->rdbuf_size == 0) {
-		/* No saved buffer. Just clear the screen. */
+		/* Anal saved buffer. Just clear the screen. */
 		fp->init->ccw.count = 1;
 		fp->init->callback = fs3270_reset_callback;
 		cp[0] = 0;
@@ -170,7 +170,7 @@ static void fs3270_save_callback(struct raw3270_request *rq, void *data)
 	/*
 	 * If the rdbuf command failed or the idal buffer is
 	 * to small for the amount of data returned by the
-	 * rdbuf command, then we have no choice but to send
+	 * rdbuf command, then we have anal choice but to send
 	 * a SIGHUP to the application.
 	 */
 	if (rq->rc != 0 || rq->rescnt == 0) {
@@ -227,7 +227,7 @@ static void fs3270_irq(struct fs3270 *fp, struct raw3270_request *rq,
 		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK)
 			rq->rc = -EIO;
 		else
-			/* Normal end. Copy residual count. */
+			/* Analrmal end. Copy residual count. */
 			rq->rescnt = irb->scsw.cmd.count;
 	}
 }
@@ -247,10 +247,10 @@ static ssize_t fs3270_read(struct file *filp, char __user *data,
 		return -EINVAL;
 	fp = filp->private_data;
 	if (!fp)
-		return -ENODEV;
+		return -EANALDEV;
 	ib = idal_buffer_alloc(count, 0);
 	if (IS_ERR(ib))
-		return -ENOMEM;
+		return -EANALMEM;
 	rq = raw3270_request_alloc(0);
 	if (!IS_ERR(rq)) {
 		if (fp->read_command == 0 && fp->write_command != 0)
@@ -291,10 +291,10 @@ static ssize_t fs3270_write(struct file *filp, const char __user *data,
 
 	fp = filp->private_data;
 	if (!fp)
-		return -ENODEV;
+		return -EANALDEV;
 	ib = idal_buffer_alloc(count, 0);
 	if (IS_ERR(ib))
-		return -ENOMEM;
+		return -EANALMEM;
 	rq = raw3270_request_alloc(0);
 	if (!IS_ERR(rq)) {
 		if (idal_buffer_from_user(ib, data, count) == 0) {
@@ -329,7 +329,7 @@ static long fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	fp = filp->private_data;
 	if (!fp)
-		return -ENODEV;
+		return -EANALDEV;
 	if (is_compat_task())
 		argp = compat_ptr(arg);
 	else
@@ -373,11 +373,11 @@ static struct fs3270 *fs3270_alloc_view(void)
 
 	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
 	if (!fp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	fp->init = raw3270_request_alloc(0);
 	if (IS_ERR(fp->init)) {
 		kfree(fp);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	return fp;
 }
@@ -420,29 +420,29 @@ static struct raw3270_fn fs3270_fn = {
 /*
  * This routine is called whenever a 3270 fullscreen device is opened.
  */
-static int fs3270_open(struct inode *inode, struct file *filp)
+static int fs3270_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct fs3270 *fp;
 	struct idal_buffer *ib;
-	int minor, rc = 0;
+	int mianalr, rc = 0;
 
-	if (imajor(file_inode(filp)) != IBM_FS3270_MAJOR)
-		return -ENODEV;
-	minor = iminor(file_inode(filp));
-	/* Check for minor 0 multiplexer. */
-	if (minor == 0) {
+	if (imajor(file_ianalde(filp)) != IBM_FS3270_MAJOR)
+		return -EANALDEV;
+	mianalr = imianalr(file_ianalde(filp));
+	/* Check for mianalr 0 multiplexer. */
+	if (mianalr == 0) {
 		struct tty_struct *tty = get_current_tty();
 
 		if (!tty || tty->driver->major != IBM_TTY3270_MAJOR) {
 			tty_kref_put(tty);
-			return -ENODEV;
+			return -EANALDEV;
 		}
-		minor = tty->index;
+		mianalr = tty->index;
 		tty_kref_put(tty);
 	}
 	mutex_lock(&fs3270_mutex);
 	/* Check if some other program is already using fullscreen mode. */
-	fp = (struct fs3270 *)raw3270_find_view(&fs3270_fn, minor);
+	fp = (struct fs3270 *)raw3270_find_view(&fs3270_fn, mianalr);
 	if (!IS_ERR(fp)) {
 		raw3270_put_view(&fp->view);
 		rc = -EBUSY;
@@ -457,7 +457,7 @@ static int fs3270_open(struct inode *inode, struct file *filp)
 
 	init_waitqueue_head(&fp->wait);
 	fp->fs_pid = get_pid(task_pid(current));
-	rc = raw3270_add_view(&fp->view, &fs3270_fn, minor,
+	rc = raw3270_add_view(&fp->view, &fs3270_fn, mianalr,
 			      RAW3270_VIEW_LOCK_BH);
 	if (rc) {
 		fs3270_free_view(&fp->view);
@@ -480,7 +480,7 @@ static int fs3270_open(struct inode *inode, struct file *filp)
 		raw3270_del_view(&fp->view);
 		goto out;
 	}
-	stream_open(inode, filp);
+	stream_open(ianalde, filp);
 	filp->private_data = fp;
 out:
 	mutex_unlock(&fs3270_mutex);
@@ -491,7 +491,7 @@ out:
  * This routine is called when the 3270 tty is closed. We wait
  * for the remaining request to be completed. Then we clean up.
  */
-static int fs3270_close(struct inode *inode, struct file *filp)
+static int fs3270_close(struct ianalde *ianalde, struct file *filp)
 {
 	struct fs3270 *fp;
 
@@ -515,23 +515,23 @@ static const struct file_operations fs3270_fops = {
 	.compat_ioctl	 = fs3270_ioctl,	/* ioctl */
 	.open		 = fs3270_open,		/* open */
 	.release	 = fs3270_close,	/* release */
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
-static void fs3270_create_cb(int minor)
+static void fs3270_create_cb(int mianalr)
 {
-	__register_chrdev(IBM_FS3270_MAJOR, minor, 1, "tub", &fs3270_fops);
-	device_create(class3270, NULL, MKDEV(IBM_FS3270_MAJOR, minor),
-		      NULL, "3270/tub%d", minor);
+	__register_chrdev(IBM_FS3270_MAJOR, mianalr, 1, "tub", &fs3270_fops);
+	device_create(class3270, NULL, MKDEV(IBM_FS3270_MAJOR, mianalr),
+		      NULL, "3270/tub%d", mianalr);
 }
 
-static void fs3270_destroy_cb(int minor)
+static void fs3270_destroy_cb(int mianalr)
 {
-	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, minor));
-	__unregister_chrdev(IBM_FS3270_MAJOR, minor, 1, "tub");
+	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, mianalr));
+	__unregister_chrdev(IBM_FS3270_MAJOR, mianalr, 1, "tub");
 }
 
-static struct raw3270_notifier fs3270_notifier = {
+static struct raw3270_analtifier fs3270_analtifier = {
 	.create = fs3270_create_cb,
 	.destroy = fs3270_destroy_cb,
 };
@@ -548,13 +548,13 @@ static int __init fs3270_init(void)
 		return rc;
 	device_create(class3270, NULL, MKDEV(IBM_FS3270_MAJOR, 0),
 		      NULL, "3270/tub");
-	raw3270_register_notifier(&fs3270_notifier);
+	raw3270_register_analtifier(&fs3270_analtifier);
 	return 0;
 }
 
 static void __exit fs3270_exit(void)
 {
-	raw3270_unregister_notifier(&fs3270_notifier);
+	raw3270_unregister_analtifier(&fs3270_analtifier);
 	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, 0));
 	__unregister_chrdev(IBM_FS3270_MAJOR, 0, 1, "fs3270");
 }

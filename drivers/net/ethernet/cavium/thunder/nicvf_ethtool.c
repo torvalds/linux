@@ -126,8 +126,8 @@ static int nicvf_get_link_ksettings(struct net_device *netdev,
 	advertising = 0;
 
 	if (!nic->link_up) {
-		cmd->base.duplex = DUPLEX_UNKNOWN;
-		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
+		cmd->base.speed = SPEED_UNKANALWN;
 		return 0;
 	}
 
@@ -489,7 +489,7 @@ static int nicvf_set_ringparam(struct net_device *netdev,
 	struct queue_set *qs = nic->qs;
 	u32 rx_count, tx_count;
 
-	/* Due to HW errata this is not supported on T88 pass 1.x silicon */
+	/* Due to HW errata this is analt supported on T88 pass 1.x silicon */
 	if (pass1_silicon(nic->pdev))
 		return -EINVAL;
 
@@ -545,7 +545,7 @@ static int nicvf_get_rxnfc(struct net_device *dev,
 			   struct ethtool_rxnfc *info, u32 *rules)
 {
 	struct nicvf *nic = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -568,7 +568,7 @@ static int nicvf_set_rss_hash_opts(struct nicvf *nic,
 
 	if (!rss->enable)
 		netdev_err(nic->netdev,
-			   "RSS is disabled, hash cannot be set\n");
+			   "RSS is disabled, hash cananalt be set\n");
 
 	netdev_info(nic->netdev, "Set RSS flow type = %d, data = %lld\n",
 		    info->flow_type, info->data);
@@ -638,7 +638,7 @@ static int nicvf_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static u32 nicvf_get_rxfh_key_size(struct net_device *netdev)
@@ -681,13 +681,13 @@ static int nicvf_set_rxfh(struct net_device *dev,
 	struct nicvf_rss_info *rss = &nic->rss_info;
 	int idx;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rss->enable) {
 		netdev_err(nic->netdev,
-			   "RSS is disabled, cannot change settings\n");
+			   "RSS is disabled, cananalt change settings\n");
 		return -EIO;
 	}
 
@@ -705,7 +705,7 @@ static int nicvf_set_rxfh(struct net_device *dev,
 	return 0;
 }
 
-/* Get no of queues device supports and current queue count */
+/* Get anal of queues device supports and current queue count */
 static void nicvf_get_channels(struct net_device *dev,
 			       struct ethtool_channels *channel)
 {
@@ -720,7 +720,7 @@ static void nicvf_get_channels(struct net_device *dev,
 	channel->tx_count = nic->tx_queues;
 }
 
-/* Set no of Tx, Rx queues to be used */
+/* Set anal of Tx, Rx queues to be used */
 static int nicvf_set_channels(struct net_device *dev,
 			      struct ethtool_channels *channel)
 {
@@ -817,10 +817,10 @@ static int nicvf_set_pauseparam(struct net_device *dev,
 	if ((nic->mac_type == BGX_MODE_SGMII) ||
 	    (nic->mac_type == BGX_MODE_QSGMII) ||
 	    (nic->mac_type == BGX_MODE_RGMII))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (pause->autoneg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mbx.pfc.msg = NIC_MBOX_MSG_PFC;
 	mbx.pfc.get = 0;
@@ -854,7 +854,7 @@ static int nicvf_get_ts_info(struct net_device *netdev,
 
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 
-	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 			   (1 << HWTSTAMP_FILTER_ALL);
 
 	return 0;

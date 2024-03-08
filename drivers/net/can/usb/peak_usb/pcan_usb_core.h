@@ -59,7 +59,7 @@ struct peak_usb_adapter {
 					struct can_bittiming *bt);
 	int (*dev_set_data_bittiming)(struct peak_usb_device *dev,
 				      struct can_bittiming *bt);
-	int (*dev_set_bus)(struct peak_usb_device *dev, u8 onoff);
+	int (*dev_set_bus)(struct peak_usb_device *dev, u8 oanalff);
 	int (*dev_get_can_channel_id)(struct peak_usb_device *dev, u32 *can_ch_id);
 	int (*dev_set_can_channel_id)(struct peak_usb_device *dev, u32 can_ch_id);
 	int (*dev_decode_buf)(struct peak_usb_device *dev, struct urb *urb);
@@ -139,8 +139,8 @@ void pcan_dump_mem(const char *prompt, const void *p, int l);
 /* common timestamp management */
 void peak_usb_init_time_ref(struct peak_time_ref *time_ref,
 			    const struct peak_usb_adapter *adapter);
-void peak_usb_update_ts_now(struct peak_time_ref *time_ref, u32 ts_now);
-void peak_usb_set_ts_now(struct peak_time_ref *time_ref, u32 ts_now);
+void peak_usb_update_ts_analw(struct peak_time_ref *time_ref, u32 ts_analw);
+void peak_usb_set_ts_analw(struct peak_time_ref *time_ref, u32 ts_analw);
 void peak_usb_get_ts_time(struct peak_time_ref *time_ref, u32 ts, ktime_t *tv);
 int peak_usb_netif_rx_64(struct sk_buff *skb, u32 ts_low, u32 ts_high);
 void peak_usb_async_complete(struct urb *urb);

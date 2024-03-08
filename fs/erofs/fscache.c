@@ -30,7 +30,7 @@ static struct erofs_fscache_request *erofs_fscache_req_alloc(struct address_spac
 
 	req = kzalloc(sizeof(struct erofs_fscache_request), GFP_KERNEL);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	req->mapping = mapping;
 	req->start   = start;
@@ -187,8 +187,8 @@ static int erofs_fscache_meta_read_folio(struct file *data, struct folio *folio)
 static int erofs_fscache_data_read_slice(struct erofs_fscache_request *primary)
 {
 	struct address_space *mapping = primary->mapping;
-	struct inode *inode = mapping->host;
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = mapping->host;
+	struct super_block *sb = ianalde->i_sb;
 	struct erofs_fscache_request *req;
 	struct erofs_map_blocks map;
 	struct erofs_map_dev mdev;
@@ -198,7 +198,7 @@ static int erofs_fscache_data_read_slice(struct erofs_fscache_request *primary)
 	int ret;
 
 	map.m_la = pos;
-	ret = erofs_map_blocks(inode, &map);
+	ret = erofs_map_blocks(ianalde, &map);
 	if (ret)
 		return ret;
 
@@ -208,7 +208,7 @@ static int erofs_fscache_data_read_slice(struct erofs_fscache_request *primary)
 		size_t offset, size;
 		void *src;
 
-		/* For tail packing layout, the offset may be non-zero. */
+		/* For tail packing layout, the offset may be analn-zero. */
 		offset = erofs_blkoff(sb, map.m_pa);
 		blknr = erofs_blknr(sb, map.m_pa);
 		size = map.m_llen;
@@ -346,12 +346,12 @@ static int erofs_fscache_register_volume(struct super_block *sb)
 	name = kasprintf(GFP_KERNEL, "erofs,%s",
 			 domain_id ? domain_id : sbi->fsid);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	volume = fscache_acquire_volume(name, NULL, NULL, 0);
 	if (IS_ERR_OR_NULL(volume)) {
 		erofs_err(sb, "failed to register volume for %s", name);
-		ret = volume ? PTR_ERR(volume) : -EOPNOTSUPP;
+		ret = volume ? PTR_ERR(volume) : -EOPANALTSUPP;
 		volume = NULL;
 	}
 
@@ -368,12 +368,12 @@ static int erofs_fscache_init_domain(struct super_block *sb)
 
 	domain = kzalloc(sizeof(struct erofs_domain), GFP_KERNEL);
 	if (!domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	domain->domain_id = kstrdup(sbi->domain_id, GFP_KERNEL);
 	if (!domain->domain_id) {
 		kfree(domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = erofs_fscache_register_volume(sb);
@@ -428,13 +428,13 @@ static struct erofs_fscache *erofs_fscache_acquire_cookie(struct super_block *sb
 	struct erofs_fscache *ctx;
 	struct fscache_cookie *cookie;
 	struct super_block *isb;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
-	INIT_LIST_HEAD(&ctx->node);
+		return ERR_PTR(-EANALMEM);
+	INIT_LIST_HEAD(&ctx->analde);
 	refcount_set(&ctx->ref, 1);
 
 	cookie = fscache_acquire_cookie(volume, FSCACHE_ADV_WANT_CACHE_SIZE,
@@ -447,25 +447,25 @@ static struct erofs_fscache *erofs_fscache_acquire_cookie(struct super_block *sb
 	fscache_use_cookie(cookie, false);
 
 	/*
-	 * Allocate anonymous inode in global pseudo mount for shareable blobs,
+	 * Allocate aanalnymous ianalde in global pseudo mount for shareable blobs,
 	 * so that they are accessible among erofs fs instances.
 	 */
 	isb = flags & EROFS_REG_COOKIE_SHARE ? erofs_pseudo_mnt->mnt_sb : sb;
-	inode = new_inode(isb);
-	if (!inode) {
-		erofs_err(sb, "failed to get anon inode for %s", name);
-		ret = -ENOMEM;
+	ianalde = new_ianalde(isb);
+	if (!ianalde) {
+		erofs_err(sb, "failed to get aanaln ianalde for %s", name);
+		ret = -EANALMEM;
 		goto err_cookie;
 	}
 
-	inode->i_size = OFFSET_MAX;
-	inode->i_mapping->a_ops = &erofs_fscache_meta_aops;
-	mapping_set_gfp_mask(inode->i_mapping, GFP_KERNEL);
-	inode->i_blkbits = EROFS_SB(sb)->blkszbits;
-	inode->i_private = ctx;
+	ianalde->i_size = OFFSET_MAX;
+	ianalde->i_mapping->a_ops = &erofs_fscache_meta_aops;
+	mapping_set_gfp_mask(ianalde->i_mapping, GFP_KERNEL);
+	ianalde->i_blkbits = EROFS_SB(sb)->blkszbits;
+	ianalde->i_private = ctx;
 
 	ctx->cookie = cookie;
-	ctx->inode = inode;
+	ctx->ianalde = ianalde;
 	return ctx;
 
 err_cookie:
@@ -480,7 +480,7 @@ static void erofs_fscache_relinquish_cookie(struct erofs_fscache *ctx)
 {
 	fscache_unuse_cookie(ctx->cookie, NULL, NULL);
 	fscache_relinquish_cookie(ctx->cookie, false);
-	iput(ctx->inode);
+	iput(ctx->ianalde);
 	kfree(ctx->name);
 	kfree(ctx);
 }
@@ -498,12 +498,12 @@ static struct erofs_fscache *erofs_domain_init_cookie(struct super_block *sb,
 	ctx->name = kstrdup(name, GFP_KERNEL);
 	if (!ctx->name) {
 		erofs_fscache_relinquish_cookie(ctx);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	refcount_inc(&domain->ref);
 	ctx->domain = domain;
-	list_add(&ctx->node, &erofs_domain_cookies_list);
+	list_add(&ctx->analde, &erofs_domain_cookies_list);
 	return ctx;
 }
 
@@ -515,10 +515,10 @@ static struct erofs_fscache *erofs_domain_register_cookie(struct super_block *sb
 
 	flags |= EROFS_REG_COOKIE_SHARE;
 	mutex_lock(&erofs_domain_cookies_lock);
-	list_for_each_entry(ctx, &erofs_domain_cookies_list, node) {
+	list_for_each_entry(ctx, &erofs_domain_cookies_list, analde) {
 		if (ctx->domain != domain || strcmp(ctx->name, name))
 			continue;
-		if (!(flags & EROFS_REG_COOKIE_NEED_NOEXIST)) {
+		if (!(flags & EROFS_REG_COOKIE_NEED_ANALEXIST)) {
 			refcount_inc(&ctx->ref);
 		} else {
 			erofs_err(sb, "%s already exists in domain %s", name,
@@ -554,7 +554,7 @@ void erofs_fscache_unregister_cookie(struct erofs_fscache *ctx)
 	mutex_lock(&erofs_domain_cookies_lock);
 	if (refcount_dec_and_test(&ctx->ref)) {
 		domain = ctx->domain;
-		list_del(&ctx->node);
+		list_del(&ctx->analde);
 		erofs_fscache_relinquish_cookie(ctx);
 	}
 	mutex_unlock(&erofs_domain_cookies_lock);
@@ -577,17 +577,17 @@ int erofs_fscache_register_fs(struct super_block *sb)
 		return ret;
 
 	/*
-	 * When shared domain is enabled, using NEED_NOEXIST to guarantee
+	 * When shared domain is enabled, using NEED_ANALEXIST to guarantee
 	 * the primary data blob (aka fsid) is unique in the shared domain.
 	 *
-	 * For non-shared-domain case, fscache_acquire_volume() invoked by
+	 * For analn-shared-domain case, fscache_acquire_volume() invoked by
 	 * erofs_fscache_register_volume() has already guaranteed
 	 * the uniqueness of primary data blob.
 	 *
 	 * Acquired domain/volume will be relinquished in kill_sb() on error.
 	 */
 	if (sbi->domain_id)
-		flags |= EROFS_REG_COOKIE_NEED_NOEXIST;
+		flags |= EROFS_REG_COOKIE_NEED_ANALEXIST;
 	fscache = erofs_fscache_register_cookie(sb, sbi->fsid, flags);
 	if (IS_ERR(fscache))
 		return PTR_ERR(fscache);

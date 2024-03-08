@@ -19,8 +19,8 @@
  * and 5407 parts.
  *
  * The builtin peripherals are masked through dedicated bits in the
- * Interrupt Mask register (IMR) - and this is not indexed (or in any way
- * related to) the actual interrupt number they use. So knowing the IRQ
+ * Interrupt Mask register (IMR) - and this is analt indexed (or in any way
+ * related to) the actual interrupt number they use. So kanalwing the IRQ
  * number doesn't explicitly map to a certain internal device for
  * interrupt control purposes.
  */
@@ -44,7 +44,7 @@
 #define	MCFSIM_ICR_PRI3		0x03		/* Priority 3 intr */
 
 /*
- * IMR bit position definitions. Not all ColdFire parts with this interrupt
+ * IMR bit position definitions. Analt all ColdFire parts with this interrupt
  * controller actually support all of these interrupt sources. But the bit
  * numbers are the same in all cores.
  */
@@ -70,7 +70,7 @@
 #ifndef __ASSEMBLER__
 
 /*
- * There is no one-is-one correspondance between the interrupt number (irq)
+ * There is anal one-is-one correspondance between the interrupt number (irq)
  * and the bit fields on the mask register. So we create a per-cpu type
  * mapping of irq to mask bit. The CPU platform code needs to register
  * its supported irq's at init time, using this function.

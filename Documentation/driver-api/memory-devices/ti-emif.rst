@@ -47,12 +47,12 @@ information can be passed through platform data (struct emif_platform_data)
 
 Interface to the external world
 ===============================
-EMIF driver registers notifiers for voltage and frequency changes
+EMIF driver registers analtifiers for voltage and frequency changes
 affecting EMIF and takes appropriate actions when these are invoked.
 
-- freq_pre_notify_handling()
-- freq_post_notify_handling()
-- volt_notify_handling()
+- freq_pre_analtify_handling()
+- freq_post_analtify_handling()
+- volt_analtify_handling()
 
 Debugfs
 =======

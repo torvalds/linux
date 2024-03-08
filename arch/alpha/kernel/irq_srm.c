@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Handle interrupts from the SRM, assuming no additional weirdness.
+ * Handle interrupts from the SRM, assuming anal additional weirdness.
  */
 
 #include <linux/init.h>
@@ -34,7 +34,7 @@ srm_disable_irq(struct irq_data *d)
 	spin_unlock(&srm_irq_lock);
 }
 
-/* Handle interrupts from the SRM, assuming no additional weirdness.  */
+/* Handle interrupts from the SRM, assuming anal additional weirdness.  */
 static struct irq_chip srm_irq_type = {
 	.name		= "SRM",
 	.irq_unmask	= srm_enable_irq,
@@ -43,14 +43,14 @@ static struct irq_chip srm_irq_type = {
 };
 
 void __init
-init_srm_irqs(long max, unsigned long ignore_mask)
+init_srm_irqs(long max, unsigned long iganalre_mask)
 {
 	long i;
 
 	if (NR_IRQS <= 16)
 		return;
 	for (i = 16; i < max; ++i) {
-		if (i < 64 && ((ignore_mask >> i) & 1))
+		if (i < 64 && ((iganalre_mask >> i) & 1))
 			continue;
 		irq_set_chip_and_handler(i, &srm_irq_type, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);

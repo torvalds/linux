@@ -5,7 +5,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <sys/stat.h>
@@ -78,7 +78,7 @@ const char *flagname(int resolve)
 	case RESOLVE_BENEATH:
 		return "RESOLVE_BENEATH";
 	}
-	return "(unknown)";
+	return "(unkanalwn)";
 }
 
 void test_rename_attack(int resolve)
@@ -119,8 +119,8 @@ void test_rename_attack(int resolve)
 				eagains++;
 			else if (fd == -EXDEV)
 				exdevs++;
-			else if (fd == -ENOENT)
-				escapes++; /* escaped outside and got ENOENT... */
+			else if (fd == -EANALENT)
+				escapes++; /* escaped outside and got EANALENT... */
 			else
 				other_errs++; /* unexpected error */
 		} else {
@@ -134,7 +134,7 @@ void test_rename_attack(int resolve)
 
 	if (escapes > 0)
 		resultfn = ksft_test_result_fail;
-	ksft_print_msg("non-escapes: EAGAIN=%d EXDEV=%d E<other>=%d success=%d\n",
+	ksft_print_msg("analn-escapes: EAGAIN=%d EXDEV=%d E<other>=%d success=%d\n",
 		       eagains, exdevs, other_errs, successes);
 	resultfn("rename attack with %s (%d runs, got %d escapes)\n",
 		 flagname(resolve), ROUNDS, escapes);

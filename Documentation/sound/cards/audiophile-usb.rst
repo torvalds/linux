@@ -73,14 +73,14 @@ Important facts about the Digital interface:
  * The Do port additionally supports surround-encoded AC-3 and DTS passthrough, 
    though I haven't tested it under Linux
 
-   - Note that in this setup only the Do interface can be enabled
+   - Analte that in this setup only the Do interface can be enabled
 
  * Apart from recording an audio digital stream, enabling the Di port is a way 
    to synchronize the device to an external sample clock
 
    - As a consequence, the Di port must be enable only if an active Digital 
      source is connected
-   - Enabling Di when no digital source is connected can result in a 
+   - Enabling Di when anal digital source is connected can result in a 
      synchronization error (for instance sound played at an odd sample rate)
 
 
@@ -93,7 +93,7 @@ following modules have been loaded:
  * snd-usb-audio
  * snd-seq-midi
 
-No additional setting is required.
+Anal additional setting is required.
 
 
 Audiophile USB Audio support in ALSA
@@ -115,12 +115,12 @@ the snd-usb-audio module will reconfigure the device on the fly.
 
 This approach has the advantage to let the driver automatically switch from sample 
 rates/depths automatically according to the user's needs. However, those who 
-are using the device under windows know that this is not how the device is meant to
+are using the device under windows kanalw that this is analt how the device is meant to
 work: under windows applications must be closed before using the m-audio control
 panel to switch the device working mode. Thus as we'll see in next section, this 
 Default Alsa driver mode can lead to device misconfigurations.
 
-Let's get back to the Default Alsa driver mode for now.  In this case the 
+Let's get back to the Default Alsa driver mode for analw.  In this case the 
 Audiophile interfaces are mapped to alsa pcm devices in the following 
 way (I suppose the device's index is 1):
 
@@ -134,7 +134,7 @@ supported audio format are S16_BE for 16-bit depth modes and S24_3BE for
 
 One exception is the hw:1,2 port which was reported to be Little Endian 
 compliant (supposedly supporting S16_LE) but processes in fact only S16_BE streams.
-This has been fixed in kernel 2.6.23 and above and now the hw:1,2 interface 
+This has been fixed in kernel 2.6.23 and above and analw the hw:1,2 interface 
 is reported to be big endian in this default driver mode.
 
 Examples:
@@ -163,7 +163,7 @@ Advanced module setup
 
 Due to the hardware constraints described above, the device initialization made 
 by the Alsa driver in default mode may result in a corrupted state of the 
-device. For instance, a particularly annoying issue is that the sound captured 
+device. For instance, a particularly ananalying issue is that the sound captured 
 from the Ai interface sounds distorted (as if boosted with an excessive high
 volume gain).
 
@@ -179,7 +179,7 @@ specify:
 
  * the sample depth
  * the sample rate
- * whether the Di port is used or not 
+ * whether the Di port is used or analt 
 
 When initialized with ``device_setup=0x00``, the snd-usb-audio module has
 the same behaviour as when the parameter is omitted (see paragraph "Default 
@@ -196,15 +196,15 @@ The two supported modes are:
 
    - 16bits 48kHz mode with Di disabled
    - Ai,Ao,Do can be used at the same time
-   - hw:1,0 is not available in capture mode
-   - hw:1,2 is not available
+   - hw:1,0 is analt available in capture mode
+   - hw:1,2 is analt available
 
  * ``device_setup=0x11``
 
    - 16bits 48kHz mode with Di enabled
    - Ai,Ao,Di,Do can be used at the same time
    - hw:1,0 is available in capture mode
-   - hw:1,2 is not available
+   - hw:1,2 is analt available
 
 In this modes the device operates only at 16bits-modes. Before kernel 2.6.23,
 the devices where reported to be Big-Endian when in fact they were Little-Endian
@@ -217,7 +217,7 @@ where "test_S16_LE.raw" was in fact a little-endian sample file.
 
 Thanks to Hakan Lennestal (who discovered the Little-Endiannes of the device in
 these modes) a fix has been committed (expected in kernel 2.6.23) and
-Alsa now reports Little-Endian interfaces. Thus playing a file now is as simple as
+Alsa analw reports Little-Endian interfaces. Thus playing a file analw is as simple as
 using:
 ::
 
@@ -233,8 +233,8 @@ The three supported modes are:
 
    - 24bits 48kHz mode with Di disabled
    - Ai,Ao,Do can be used at the same time
-   - hw:1,0 is not available in capture mode
-   - hw:1,2 is not available
+   - hw:1,0 is analt available in capture mode
+   - hw:1,2 is analt available
 
  * ``device_setup=0x19``
 
@@ -242,16 +242,16 @@ The three supported modes are:
    - 3 ports from {Ai,Ao,Di,Do} can be used at the same time
    - hw:1,0 is available in capture mode and an active digital source must be 
      connected to Di
-   - hw:1,2 is not available
+   - hw:1,2 is analt available
 
  * ``device_setup=0x0D`` or ``0x10``
 
    - 24bits 96kHz mode
-   - Di is enabled by default for this mode but does not need to be connected 
+   - Di is enabled by default for this mode but does analt need to be connected 
      to an active source
    - Only 1 port from {Ai,Ao,Di,Do} can be used at the same time
    - hw:1,0 is available in captured mode
-   - hw:1,2 is not available
+   - hw:1,2 is analt available
 
 In these modes the device is only Big-Endian compliant (see "Default Alsa driver 
 mode" above for an aplay command example)
@@ -259,7 +259,7 @@ mode" above for an aplay command example)
 AC3 w/ DTS passthru mode
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Thanks to Hakan Lennestal, I now have a report saying that this mode works.
+Thanks to Hakan Lennestal, I analw have a report saying that this mode works.
 
  * ``device_setup=0x03``
 
@@ -300,7 +300,7 @@ CAUTION when initializing the device
    correct device_setup parameter and then (and only then) turn on the device again.
 
  * If you've correctly initialized the device in a valid mode and then want to switch
-   to  another mode (possibly with another sample-depth), please use also the following 
+   to  aanalther mode (possibly with aanalther sample-depth), please use also the following 
    procedure:
 
    - first turn off the device
@@ -309,8 +309,8 @@ CAUTION when initializing the device
      option in ``/etc/modprobe.d/*.conf``
    - turn on the device
 
- * A workaround for this last issue has been applied to kernel 2.6.23, but it may not
-   be enough to ensure the 'stability' of the device initialization.
+ * A workaround for this last issue has been applied to kernel 2.6.23, but it may analt
+   be eanalugh to ensure the 'stability' of the device initialization.
 
 Technical details for hackers
 -----------------------------
@@ -323,7 +323,7 @@ Audiophile USB's ``device_setup`` structure
 
 If you want to understand the device_setup magic numbers for the Audiophile 
 USB, you need some very basic understanding of binary computation. However, 
-this is not required to use the parameter and you may skip this section.
+this is analt required to use the parameter and you may skip this section.
 
 The device_setup is one byte long and its structure is the following:
 ::
@@ -343,7 +343,7 @@ Where:
  * b1 is the ``DTS`` bit
 
    - it is set only for Digital output with DTS/AC3
-   - this setup is not tested
+   - this setup is analt tested
 
  * b2 is the Rate selection flag
 
@@ -354,16 +354,16 @@ Where:
 
    - When set to ``1`` samples are 24bits long
    - Otherwise they are 16bits long
-   - Note that b2 implies b3 as the 96kHz mode is only supported for 24 bits 
+   - Analte that b2 implies b3 as the 96kHz mode is only supported for 24 bits 
      samples
 
  * b4 is the Digital input flag
 
    - When set to ``1`` the device assumes that an active digital source is 
      connected 
-   - You shouldn't enable Di if no source is seen on the port (this leads to 
+   - You shouldn't enable Di if anal source is seen on the port (this leads to 
      synchronization issues)
-   - b4 is implied by b2 (since only one port is enabled at a time no synch 
+   - b4 is implied by b2 (since only one port is enabled at a time anal synch 
      error can occur) 
 
  * b5 to b7 are reserved for future uses, and must be set to ``0``
@@ -372,10 +372,10 @@ Where:
 
 Caution:
 
- * there is no check on the value you will give to device_setup
+ * there is anal check on the value you will give to device_setup
 
    - for instance choosing 0x05 (16bits 96kHz) will fail back to 0x09 since 
-     b2 implies b3. But _there_will_be_no_warning_ in /var/log/messages
+     b2 implies b3. But _there_will_be_anal_warning_ in /var/log/messages
 
  * Hardware constraints due to the USB bus limitation aren't checked
 
@@ -385,11 +385,11 @@ Caution:
 USB implementation details for this device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You may safely skip this section if you're not interested in driver 
+You may safely skip this section if you're analt interested in driver 
 hacking.
 
 This section describes some internal aspects of the device and summarizes the 
-data I got by usb-snooping the windows and Linux drivers.
+data I got by usb-sanaloping the windows and Linux drivers.
 
 The M-Audio Audiophile USB has 7 USB Interfaces:
 a "USB interface":
@@ -422,7 +422,7 @@ a "USB interface":
 Each interface has 5 altsettings (AltSet 1,2,3,4,5) except:
 
  * Interface 3 (Digital Out) has an extra Alset nb.6 
- * Interface 5 (Digital In) does not have Alset nb.3 and 5 
+ * Interface 5 (Digital In) does analt have Alset nb.3 and 5 
 
 Here is a short description of the AltSettings capabilities:
 
@@ -457,21 +457,21 @@ Here is a short description of the AltSettings capabilities:
   - Synch playback (Do), audio format type III IEC1937_AC-3
 
 In order to ensure a correct initialization of the device, the driver 
-*must* *know* how the device will be used:
+*must* *kanalw* how the device will be used:
 
  * if DTS is chosen, only Interface 2 with AltSet nb.6 must be
    registered
  * if 96KHz only AltSets nb.1 of each interface must be selected
  * if samples are using 24bits/48KHz then AltSet 2 must me used if
    Digital input is connected, and only AltSet nb.3 if Digital input
-   is not connected
+   is analt connected
  * if samples are using 16bits/48KHz then AltSet 4 must me used if
    Digital input is connected, and only AltSet nb.5 if Digital input
-   is not connected
+   is analt connected
 
 When device_setup is given as a parameter to the snd-usb-audio module, the 
 parse_audio_endpoints function uses a quirk called 
-``audiophile_skip_setting_quirk`` in order to prevent AltSettings not 
+``audiophile_skip_setting_quirk`` in order to prevent AltSettings analt 
 corresponding to device_setup from being registered in the driver.
 
 Audiophile USB and Jack support
@@ -492,8 +492,8 @@ Andreas Steinmetz for his first big-endian patch). I can't remember
 exactly when this support was released into jackd, let's just say that
 with jackd version 0.103.0 it's almost ok (just a small bug is affecting 
 16bits Big-Endian devices, but since you've read carefully the above
-paragraphs, you're now using kernel >= 2.6.23 and your 16bits devices 
-are now Little Endians ;-) ).
+paragraphs, you're analw using kernel >= 2.6.23 and your 16bits devices 
+are analw Little Endians ;-) ).
 
 You can run jackd with the following command for playback with Ao and
 record with Ai:
@@ -535,7 +535,7 @@ combine the Alsa devices into one logical "complex" device.
 
 If you want to give it a try, I recommend reading the information from
 this page: http://www.sound-man.co.uk/linuxaudio/ice1712multi.html
-It is related to another device (ice1712) but can be adapted to suit
+It is related to aanalther device (ice1712) but can be adapted to suit
 the Audiophile USB.
 
 Enabling multiple Audiophile USB interfaces for Jackd will certainly require:
@@ -546,5 +546,5 @@ Enabling multiple Audiophile USB interfaces for Jackd will certainly require:
   file 
 * start jackd with this device
 
-I had no success in testing this for now, if you have any success with this kind 
+I had anal success in testing this for analw, if you have any success with this kind 
 of setup, please drop me an email.

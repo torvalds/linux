@@ -58,10 +58,10 @@ static struct aa_ext *build_aa_ext_struct(struct policy_unpack_fixture *puf,
 	struct aa_ext *e;
 
 	buf = kunit_kzalloc(test, buf_size, GFP_USER);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, buf);
 
 	e = kunit_kmalloc(test, sizeof(*e), GFP_USER);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, e);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, e);
 
 	e->start = buf;
 	e->end = e->start + buf_size;
@@ -114,7 +114,7 @@ static int policy_unpack_test_init(struct kunit *test)
 	struct policy_unpack_fixture *puf;
 
 	puf = kunit_kmalloc(test, sizeof(*puf), GFP_USER);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, puf);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, puf);
 
 	puf->e_size = e_size;
 	puf->e = build_aa_ext_struct(puf, test, e_size);

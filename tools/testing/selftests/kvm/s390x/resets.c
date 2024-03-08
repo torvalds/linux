@@ -16,9 +16,9 @@
 
 #define LOCAL_IRQS 32
 
-#define ARBITRARY_NON_ZERO_VCPU_ID 3
+#define ARBITRARY_ANALN_ZERO_VCPU_ID 3
 
-struct kvm_s390_irq buf[ARBITRARY_NON_ZERO_VCPU_ID + LOCAL_IRQS];
+struct kvm_s390_irq buf[ARBITRARY_ANALN_ZERO_VCPU_ID + LOCAL_IRQS];
 
 static uint8_t regs_null[512];
 
@@ -39,21 +39,21 @@ static void guest_code_initial(void)
 		"	lctlg	8,8,%1\n"
 		"	lctlg	10,10,%2\n"
 		"	lctlg	11,11,%3\n"
-		/* now clobber some general purpose regs */
+		/* analw clobber some general purpose regs */
 		"	llihh	0,0xffff\n"
 		"	llihl	1,0x5555\n"
 		"	llilh	2,0xaaaa\n"
 		"	llill	3,0x0000\n"
-		/* now clobber a floating point reg */
+		/* analw clobber a floating point reg */
 		"	lghi	4,0x1\n"
 		"	cdgbr	0,4\n"
-		/* now clobber an access reg */
+		/* analw clobber an access reg */
 		"	sar	9,4\n"
 		/* We embed diag 501 here to control register content */
 		"	diag 0,0,0x501\n"
 		:
 		: "m" (cr2_59), "m" (cr8_63), "m" (cr10), "m" (cr11)
-		/* no clobber list as this should not return */
+		/* anal clobber list as this should analt return */
 		);
 }
 
@@ -65,7 +65,7 @@ static void test_one_reg(struct kvm_vcpu *vcpu, uint64_t id, uint64_t value)
 	TEST_ASSERT(eval_reg == value, "value == 0x%lx", value);
 }
 
-static void assert_noirq(struct kvm_vcpu *vcpu)
+static void assert_analirq(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_irq_state irq_state;
 	int irqs;
@@ -75,10 +75,10 @@ static void assert_noirq(struct kvm_vcpu *vcpu)
 	irqs = __vcpu_ioctl(vcpu, KVM_S390_GET_IRQ_STATE, &irq_state);
 	/*
 	 * irqs contains the number of retrieved interrupts. Any interrupt
-	 * (notably, the emergency call interrupt we have injected) should
+	 * (analtably, the emergency call interrupt we have injected) should
 	 * be cleared by the resets, so this should be 0.
 	 */
-	TEST_ASSERT(irqs >= 0, "Could not fetch IRQs: errno %d", errno);
+	TEST_ASSERT(irqs >= 0, "Could analt fetch IRQs: erranal %d", erranal);
 	TEST_ASSERT(!irqs, "IRQ pending");
 }
 
@@ -109,7 +109,7 @@ static void assert_clear(struct kvm_vcpu *vcpu)
 		    "vrs0-15 == 0 (sync_regs)");
 }
 
-static void assert_initial_noclear(struct kvm_vcpu *vcpu)
+static void assert_initial_analclear(struct kvm_vcpu *vcpu)
 {
 	struct kvm_sync_regs *sync_regs = &vcpu->run->s.regs;
 
@@ -169,7 +169,7 @@ static void assert_initial(struct kvm_vcpu *vcpu)
 	test_one_reg(vcpu, KVM_REG_S390_CLOCK_COMP, 0);
 }
 
-static void assert_normal_noclear(struct kvm_vcpu *vcpu)
+static void assert_analrmal_analclear(struct kvm_vcpu *vcpu)
 {
 	struct kvm_sync_regs *sync_regs = &vcpu->run->s.regs;
 
@@ -179,12 +179,12 @@ static void assert_normal_noclear(struct kvm_vcpu *vcpu)
 	TEST_ASSERT(sync_regs->crs[11] == -1, "cr11 == -1 (sync_regs)");
 }
 
-static void assert_normal(struct kvm_vcpu *vcpu)
+static void assert_analrmal(struct kvm_vcpu *vcpu)
 {
 	test_one_reg(vcpu, KVM_REG_S390_PFTOKEN, KVM_S390_PFAULT_TOKEN_INVALID);
 	TEST_ASSERT(vcpu->run->s.regs.pft == KVM_S390_PFAULT_TOKEN_INVALID,
 			"pft == 0xff.....  (sync_regs)");
-	assert_noirq(vcpu);
+	assert_analirq(vcpu);
 }
 
 static void inject_irq(struct kvm_vcpu *vcpu)
@@ -199,7 +199,7 @@ static void inject_irq(struct kvm_vcpu *vcpu)
 	irq->type = KVM_S390_INT_EMERGENCY;
 	irq->u.emerg.code = vcpu->id;
 	irqs = __vcpu_ioctl(vcpu, KVM_S390_SET_IRQ_STATE, &irq_state);
-	TEST_ASSERT(irqs >= 0, "Error injecting EMERGENCY IRQ errno %d", errno);
+	TEST_ASSERT(irqs >= 0, "Error injecting EMERGENCY IRQ erranal %d", erranal);
 }
 
 static struct kvm_vm *create_vm(struct kvm_vcpu **vcpu)
@@ -208,30 +208,30 @@ static struct kvm_vm *create_vm(struct kvm_vcpu **vcpu)
 
 	vm = vm_create(1);
 
-	*vcpu = vm_vcpu_add(vm, ARBITRARY_NON_ZERO_VCPU_ID, guest_code_initial);
+	*vcpu = vm_vcpu_add(vm, ARBITRARY_ANALN_ZERO_VCPU_ID, guest_code_initial);
 
 	return vm;
 }
 
-static void test_normal(void)
+static void test_analrmal(void)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 
-	ksft_print_msg("Testing normal reset\n");
+	ksft_print_msg("Testing analrmal reset\n");
 	vm = create_vm(&vcpu);
 
 	vcpu_run(vcpu);
 
 	inject_irq(vcpu);
 
-	vcpu_ioctl(vcpu, KVM_S390_NORMAL_RESET, NULL);
+	vcpu_ioctl(vcpu, KVM_S390_ANALRMAL_RESET, NULL);
 
 	/* must clears */
-	assert_normal(vcpu);
-	/* must not clears */
-	assert_normal_noclear(vcpu);
-	assert_initial_noclear(vcpu);
+	assert_analrmal(vcpu);
+	/* must analt clears */
+	assert_analrmal_analclear(vcpu);
+	assert_initial_analclear(vcpu);
 
 	kvm_vm_free(vm);
 }
@@ -251,10 +251,10 @@ static void test_initial(void)
 	vcpu_ioctl(vcpu, KVM_S390_INITIAL_RESET, NULL);
 
 	/* must clears */
-	assert_normal(vcpu);
+	assert_analrmal(vcpu);
 	assert_initial(vcpu);
-	/* must not clears */
-	assert_initial_noclear(vcpu);
+	/* must analt clears */
+	assert_initial_analclear(vcpu);
 
 	kvm_vm_free(vm);
 }
@@ -274,7 +274,7 @@ static void test_clear(void)
 	vcpu_ioctl(vcpu, KVM_S390_CLEAR_RESET, NULL);
 
 	/* must clears */
-	assert_normal(vcpu);
+	assert_analrmal(vcpu);
 	assert_initial(vcpu);
 	assert_clear(vcpu);
 
@@ -287,7 +287,7 @@ struct testdef {
 	bool needs_cap;
 } testlist[] = {
 	{ "initial", test_initial, false },
-	{ "normal", test_normal, true },
+	{ "analrmal", test_analrmal, true },
 	{ "clear", test_clear, true },
 };
 
@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
 			testlist[idx].test();
 			ksft_test_result_pass("%s\n", testlist[idx].name);
 		} else {
-			ksft_test_result_skip("%s - no VCPU_RESETS capability\n",
+			ksft_test_result_skip("%s - anal VCPU_RESETS capability\n",
 					      testlist[idx].name);
 		}
 	}

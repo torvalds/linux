@@ -60,7 +60,7 @@ struct f_uvc_opts {
 	 * Control descriptors pointers arrays for full-/high-speed and
 	 * super-speed. The first element is a configurable control header
 	 * descriptor, the other elements point to the fixed default control
-	 * descriptors. Used by configfs only, must not be touched by legacy
+	 * descriptors. Used by configfs only, must analt be touched by legacy
 	 * gadgets.
 	 */
 	struct uvc_descriptor_header			*uvc_fs_control_cls[5];
@@ -68,15 +68,15 @@ struct f_uvc_opts {
 
 	/*
 	 * Control descriptors for extension units. There could be any number
-	 * of these, including none at all.
+	 * of these, including analne at all.
 	 */
 	struct list_head				extension_units;
 
 	/*
 	 * Streaming descriptors for full-speed, high-speed and super-speed.
-	 * Used by configfs only, must not be touched by legacy gadgets. The
+	 * Used by configfs only, must analt be touched by legacy gadgets. The
 	 * arrays are allocated at runtime as the number of descriptors isn't
-	 * known in advance.
+	 * kanalwn in advance.
 	 */
 	struct uvc_descriptor_header			**uvc_fs_streaming_cls;
 	struct uvc_descriptor_header			**uvc_hs_streaming_cls;

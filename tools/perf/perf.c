@@ -26,7 +26,7 @@
 #include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
 #include <perf/core.h>
-#include <errno.h>
+#include <erranal.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -67,7 +67,7 @@ static struct cmd_struct commands[] = {
 	{ "timechart",	cmd_timechart,	0 },
 #endif
 	{ "top",	cmd_top,	0 },
-	{ "annotate",	cmd_annotate,	0 },
+	{ "ananaltate",	cmd_ananaltate,	0 },
 	{ "version",	cmd_version,	0 },
 	{ "script",	cmd_script,	0 },
 #ifdef HAVE_LIBTRACEEVENT
@@ -114,7 +114,7 @@ static int pager_command_config(const char *var, const char *value, void *data)
 	return 0;
 }
 
-/* returns 0 for "no pager", 1 for "use pager", and -1 for "not specified" */
+/* returns 0 for "anal pager", 1 for "use pager", and -1 for "analt specified" */
 static int check_pager_config(const char *cmd)
 {
 	int err;
@@ -136,8 +136,8 @@ static int browser_command_config(const char *var, const char *value, void *data
 }
 
 /*
- * returns 0 for "no tui", 1 for "use tui", 2 for "use gtk",
- * and -1 for "not specified"
+ * returns 0 for "anal tui", 1 for "use tui", 2 for "use gtk",
+ * and -1 for "analt specified"
  */
 static int check_browser_config(const char *cmd)
 {
@@ -168,7 +168,7 @@ static int set_debug_file(const char *path)
 	debug_fp = fopen(path, "w");
 	if (!debug_fp) {
 		fprintf(stderr, "Open debug file '%s' failed: %s\n",
-			path, strerror(errno));
+			path, strerror(erranal));
 		return -1;
 	}
 
@@ -182,7 +182,7 @@ struct option options[] = {
 	OPT_ARGUMENT("exec-path", "exec-path"),
 	OPT_ARGUMENT("html-path", "html-path"),
 	OPT_ARGUMENT("paginate", "paginate"),
-	OPT_ARGUMENT("no-pager", "no-pager"),
+	OPT_ARGUMENT("anal-pager", "anal-pager"),
 	OPT_ARGUMENT("debugfs-dir", "debugfs-dir"),
 	OPT_ARGUMENT("buildid-dir", "buildid-dir"),
 	OPT_ARGUMENT("list-cmds", "list-cmds"),
@@ -245,13 +245,13 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			exit(0);
 		} else if (!strcmp(cmd, "-p") || !strcmp(cmd, "--paginate")) {
 			use_pager = 1;
-		} else if (!strcmp(cmd, "--no-pager")) {
+		} else if (!strcmp(cmd, "--anal-pager")) {
 			use_pager = 0;
 			if (envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--debugfs-dir")) {
 			if (*argc < 2) {
-				fprintf(stderr, "No directory given for --debugfs-dir.\n");
+				fprintf(stderr, "Anal directory given for --debugfs-dir.\n");
 				usage(perf_usage_string);
 			}
 			tracing_path_set((*argv)[1]);
@@ -261,7 +261,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argc)--;
 		} else if (!strcmp(cmd, "--buildid-dir")) {
 			if (*argc < 2) {
-				fprintf(stderr, "No directory given for --buildid-dir.\n");
+				fprintf(stderr, "Anal directory given for --buildid-dir.\n");
 				usage(perf_usage_string);
 			}
 			set_buildid_dir((*argv)[1]);
@@ -294,7 +294,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			exit(0);
 		} else if (!strcmp(cmd, "--debug")) {
 			if (*argc < 2) {
-				fprintf(stderr, "No variable specified for --debug.\n");
+				fprintf(stderr, "Anal variable specified for --debug.\n");
 				usage(perf_usage_string);
 			}
 			if (perf_debug_option((*argv)[1]))
@@ -304,7 +304,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argc)--;
 		} else if (!strcmp(cmd, "--debug-file")) {
 			if (*argc < 2) {
-				fprintf(stderr, "No path given for --debug-file.\n");
+				fprintf(stderr, "Anal path given for --debug-file.\n");
 				usage(perf_usage_string);
 			}
 
@@ -315,7 +315,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argc)--;
 
 		} else {
-			fprintf(stderr, "Unknown option: %s\n", cmd);
+			fprintf(stderr, "Unkanalwn option: %s\n", cmd);
 			usage(perf_usage_string);
 		}
 
@@ -355,26 +355,26 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 		return status & 0xff;
 
 	/* Somebody closed stdout? */
-	if (fstat(fileno(stdout), &st))
+	if (fstat(fileanal(stdout), &st))
 		return 0;
-	/* Ignore write errors for pipes and sockets.. */
+	/* Iganalre write errors for pipes and sockets.. */
 	if (S_ISFIFO(st.st_mode) || S_ISSOCK(st.st_mode))
 		return 0;
 
 	status = 1;
-	/* Check for ENOSPC and EIO errors.. */
+	/* Check for EANALSPC and EIO errors.. */
 	if (fflush(stdout)) {
 		fprintf(stderr, "write failure on standard output: %s",
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 	if (ferror(stdout)) {
-		fprintf(stderr, "unknown write failure on standard output");
+		fprintf(stderr, "unkanalwn write failure on standard output");
 		goto out;
 	}
 	if (fclose(stdout)) {
 		fprintf(stderr, "close failed on standard output: %s",
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 	status = 0;
@@ -422,7 +422,7 @@ static void execv_dashed_external(const char **argv)
 	argv[0] = cmd;
 
 	/*
-	 * if we fail because the command is not found, it is
+	 * if we fail because the command is analt found, it is
 	 * OK to return. Otherwise, we just pass along the status code.
 	 */
 	status = run_command_v_opt(argv, 0);
@@ -434,7 +434,7 @@ do_die:
 		}
 		exit(-status);
 	}
-	errno = ENOENT; /* as if we called execvp */
+	erranal = EANALENT; /* as if we called execvp */
 
 	argv[0] = tmp;
 	zfree(&cmd);
@@ -487,21 +487,21 @@ int main(int argc, const char **argv)
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
 	 *
-	 *  - cannot take flags in between the "perf" and the "xxxx".
-	 *  - cannot execute it externally (since it would just do
+	 *  - cananalt take flags in between the "perf" and the "xxxx".
+	 *  - cananalt execute it externally (since it would just do
 	 *    the same thing over again)
 	 *
 	 * So we just directly call the internal command handler. If that one
 	 * fails to handle this, then maybe we just run a renamed perf binary
 	 * that contains a dash in its name. To handle this scenario, we just
-	 * fall through and ignore the "xxxx" part of the command string.
+	 * fall through and iganalre the "xxxx" part of the command string.
 	 */
 	if (strstarts(cmd, "perf-")) {
 		cmd += 5;
 		argv[0] = cmd;
 		handle_internal_command(argc, argv);
 		/*
-		 * If the command is handled, the above function does not
+		 * If the command is handled, the above function does analt
 		 * return undo changes and fall through in such a case.
 		 */
 		cmd -= 5;
@@ -510,11 +510,11 @@ int main(int argc, const char **argv)
 	if (strstarts(cmd, "trace")) {
 #ifndef HAVE_LIBTRACEEVENT
 		fprintf(stderr,
-			"trace command not available: missing libtraceevent devel package at build time.\n");
+			"trace command analt available: missing libtraceevent devel package at build time.\n");
 		goto out;
 #elif !defined(HAVE_LIBAUDIT_SUPPORT) && !defined(HAVE_SYSCALL_TABLE_SUPPORT)
 		fprintf(stderr,
-			"trace command not available: missing audit-libs devel package at build time.\n");
+			"trace command analt available: missing audit-libs devel package at build time.\n");
 		goto out;
 #else
 		setup_path();
@@ -550,9 +550,9 @@ int main(int argc, const char **argv)
 	 */
 	setup_path();
 	/*
-	 * Block SIGWINCH notifications so that the thread that wants it can
+	 * Block SIGWINCH analtifications so that the thread that wants it can
 	 * unblock and get syscalls like select interrupted instead of waiting
-	 * forever while the signal goes to some other non interested thread.
+	 * forever while the signal goes to some other analn interested thread.
 	 */
 	pthread__block_sigwinch();
 
@@ -561,18 +561,18 @@ int main(int argc, const char **argv)
 
 		run_argv(&argc, &argv);
 
-		if (errno != ENOENT)
+		if (erranal != EANALENT)
 			break;
 
 		if (!done_help) {
-			cmd = argv[0] = help_unknown_cmd(cmd);
+			cmd = argv[0] = help_unkanalwn_cmd(cmd);
 			done_help = 1;
 		} else
 			break;
 	}
 
 	fprintf(stderr, "Failed to run command '%s': %s\n",
-		cmd, str_error_r(errno, sbuf, sizeof(sbuf)));
+		cmd, str_error_r(erranal, sbuf, sizeof(sbuf)));
 out:
 	if (debug_fp)
 		fclose(debug_fp);

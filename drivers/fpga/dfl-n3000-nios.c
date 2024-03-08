@@ -11,9 +11,9 @@
  */
 #include <linux/bitfield.h>
 #include <linux/dfl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -41,7 +41,7 @@
 #define N3000_NS_CTRL_WR_DATA			GENMASK_ULL(31, 0)
 #define N3000_NS_CTRL_ADDR			GENMASK_ULL(44, 32)
 #define N3000_NS_CTRL_CMD_MSK			GENMASK_ULL(63, 62)
-#define N3000_NS_CTRL_CMD_NOP			0
+#define N3000_NS_CTRL_CMD_ANALP			0
 #define N3000_NS_CTRL_CMD_RD			1
 #define N3000_NS_CTRL_CMD_WR			2
 
@@ -62,13 +62,13 @@
 #define N3000_NIOS_INIT_REQ_FEC_MODE_B1_MSK	GENMASK(19, 18)
 #define N3000_NIOS_INIT_REQ_FEC_MODE_B2_MSK	GENMASK(21, 20)
 #define N3000_NIOS_INIT_REQ_FEC_MODE_B3_MSK	GENMASK(23, 22)
-#define N3000_NIOS_INIT_REQ_FEC_MODE_NO		0x0
+#define N3000_NIOS_INIT_REQ_FEC_MODE_ANAL		0x0
 #define N3000_NIOS_INIT_REQ_FEC_MODE_KR		0x1
 #define N3000_NIOS_INIT_REQ_FEC_MODE_RS		0x2
 
 #define N3000_NIOS_FW_VERSION			0x1004
 #define N3000_NIOS_FW_VERSION_PATCH		GENMASK(23, 20)
-#define N3000_NIOS_FW_VERSION_MINOR		GENMASK(27, 24)
+#define N3000_NIOS_FW_VERSION_MIANALR		GENMASK(27, 24)
 #define N3000_NIOS_FW_VERSION_MAJOR		GENMASK(31, 28)
 
 /* The retimers we use on Intel PAC N3000 is Parkvale, abbreviated to PKVL */
@@ -100,23 +100,23 @@
 	 N3000_NIOS_INIT_REQ_FEC_MODE_B2_MSK |	\
 	 N3000_NIOS_INIT_REQ_FEC_MODE_B3_MSK)
 
-#define N3000_NIOS_INIT_REQ_FEC_MODE_NO_ALL			\
+#define N3000_NIOS_INIT_REQ_FEC_MODE_ANAL_ALL			\
 	(FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_A0_MSK,	\
-		    N3000_NIOS_INIT_REQ_FEC_MODE_NO) |		\
+		    N3000_NIOS_INIT_REQ_FEC_MODE_ANAL) |		\
 	 FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_A1_MSK,	\
-		    N3000_NIOS_INIT_REQ_FEC_MODE_NO) |		\
+		    N3000_NIOS_INIT_REQ_FEC_MODE_ANAL) |		\
 	 FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_A2_MSK,	\
-		    N3000_NIOS_INIT_REQ_FEC_MODE_NO) |		\
+		    N3000_NIOS_INIT_REQ_FEC_MODE_ANAL) |		\
 	 FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_A3_MSK,	\
-		    N3000_NIOS_INIT_REQ_FEC_MODE_NO) |		\
+		    N3000_NIOS_INIT_REQ_FEC_MODE_ANAL) |		\
 	 FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_B0_MSK,	\
-		    N3000_NIOS_INIT_REQ_FEC_MODE_NO) |		\
+		    N3000_NIOS_INIT_REQ_FEC_MODE_ANAL) |		\
 	 FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_B1_MSK,	\
-		    N3000_NIOS_INIT_REQ_FEC_MODE_NO) |		\
+		    N3000_NIOS_INIT_REQ_FEC_MODE_ANAL) |		\
 	 FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_B2_MSK,	\
-		    N3000_NIOS_INIT_REQ_FEC_MODE_NO) |		\
+		    N3000_NIOS_INIT_REQ_FEC_MODE_ANAL) |		\
 	 FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_B3_MSK,	\
-		    N3000_NIOS_INIT_REQ_FEC_MODE_NO))
+		    N3000_NIOS_INIT_REQ_FEC_MODE_ANAL))
 
 #define N3000_NIOS_INIT_REQ_FEC_MODE_KR_ALL			\
 	(FIELD_PREP(N3000_NIOS_INIT_REQ_FEC_MODE_A0_MSK,	\
@@ -174,7 +174,7 @@ static ssize_t nios_fw_version_show(struct device *dev,
 
 	return sysfs_emit(buf, "%x.%x.%x\n",
 			  (u8)FIELD_GET(N3000_NIOS_FW_VERSION_MAJOR, val),
-			  (u8)FIELD_GET(N3000_NIOS_FW_VERSION_MINOR, val),
+			  (u8)FIELD_GET(N3000_NIOS_FW_VERSION_MIANALR, val),
 			  (u8)FIELD_GET(N3000_NIOS_FW_VERSION_PATCH, val));
 }
 static DEVICE_ATTR_RO(nios_fw_version);
@@ -242,15 +242,15 @@ static ssize_t fec_mode_show(struct device *dev,
 	struct n3000_nios *nn = dev_get_drvdata(dev);
 	int ret;
 
-	/* FEC mode setting is not supported in early FW versions */
+	/* FEC mode setting is analt supported in early FW versions */
 	ret = regmap_read(nn->regmap, N3000_NIOS_FW_VERSION, &val);
 	if (ret)
 		return ret;
 
 	if (FIELD_GET(N3000_NIOS_FW_VERSION_MAJOR, val) < 3)
-		return sysfs_emit(buf, "not supported\n");
+		return sysfs_emit(buf, "analt supported\n");
 
-	/* If no 25G links, FEC mode setting is not supported either */
+	/* If anal 25G links, FEC mode setting is analt supported either */
 	ret = get_retimer_mode(nn, N3000_NIOS_PKVL_A_MODE_STS, &retimer_a_mode);
 	if (ret)
 		return ret;
@@ -261,7 +261,7 @@ static ssize_t fec_mode_show(struct device *dev,
 
 	if (!IS_RETIMER_FEC_SUPPORTED(retimer_a_mode) &&
 	    !IS_RETIMER_FEC_SUPPORTED(retimer_b_mode))
-		return sysfs_emit(buf, "not supported\n");
+		return sysfs_emit(buf, "analt supported\n");
 
 	/* get the valid FEC mode for 25G links */
 	ret = regmap_read(nn->regmap, N3000_NIOS_INIT, &val);
@@ -273,8 +273,8 @@ static ssize_t fec_mode_show(struct device *dev,
 	 * in this way.
 	 */
 	fec_modes = (val & N3000_NIOS_INIT_REQ_FEC_MODE_MSK_ALL);
-	if (fec_modes == N3000_NIOS_INIT_REQ_FEC_MODE_NO_ALL)
-		return sysfs_emit(buf, "no\n");
+	if (fec_modes == N3000_NIOS_INIT_REQ_FEC_MODE_ANAL_ALL)
+		return sysfs_emit(buf, "anal\n");
 	else if (fec_modes == N3000_NIOS_INIT_REQ_FEC_MODE_KR_ALL)
 		return sysfs_emit(buf, "kr\n");
 	else if (fec_modes == N3000_NIOS_INIT_REQ_FEC_MODE_RS_ALL)
@@ -305,7 +305,7 @@ static int n3000_nios_init_done_check(struct n3000_nios *nn)
 	 * and then release the control to OS. The driver needs to poll on
 	 * INIT_DONE to see when driver could take the control.
 	 *
-	 * Please note that after Nios firmware version 3.0.0, INIT_START is
+	 * Please analte that after Nios firmware version 3.0.0, INIT_START is
 	 * introduced, so driver needs to trigger START firstly and then check
 	 * INIT_DONE.
 	 */
@@ -317,7 +317,7 @@ static int n3000_nios_init_done_check(struct n3000_nios *nn)
 	/*
 	 * If Nios version register is totally uninitialized(== 0x0), then the
 	 * Nios firmware is missing. So host could take control of SPI master
-	 * safely, but initialization work for Nios is not done. To restore the
+	 * safely, but initialization work for Nios is analt done. To restore the
 	 * card, we need to reprogram a new Nios firmware via the BMC chip on
 	 * SPI bus. So the driver doesn't error out, it continues to create the
 	 * spi controller device and spi_board_info for BMC.
@@ -342,13 +342,13 @@ static int n3000_nios_init_done_check(struct n3000_nios *nn)
 		val = N3000_NIOS_INIT_START;
 
 		/*
-		 * When the retimer is to be set to 10G mode, there is no FEC
-		 * mode setting, so the REQ_FEC_MODE field will be ignored by
+		 * When the retimer is to be set to 10G mode, there is anal FEC
+		 * mode setting, so the REQ_FEC_MODE field will be iganalred by
 		 * Nios firmware in this case. But we should still fill the FEC
-		 * mode field cause host could not get the retimer working mode
+		 * mode field cause host could analt get the retimer working mode
 		 * until the Nios init is done.
 		 *
-		 * For now the driver doesn't support the retimer FEC mode
+		 * For analw the driver doesn't support the retimer FEC mode
 		 * switching per user's request. It is always set to Reed
 		 * Solomon FEC.
 		 *
@@ -531,7 +531,7 @@ static int n3000_nios_probe(struct dfl_device *ddev)
 
 	nn = devm_kzalloc(dev, sizeof(*nn), GFP_KERNEL);
 	if (!nn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&ddev->dev, nn);
 

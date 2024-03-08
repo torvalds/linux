@@ -21,7 +21,7 @@
 
 #define MAX8997_LED_FLASH_MAX_BRIGHTNESS	0x1f
 #define MAX8997_LED_MOVIE_MAX_BRIGHTNESS	0xf
-#define MAX8997_LED_NONE_MAX_BRIGHTNESS		0
+#define MAX8997_LED_ANALNE_MAX_BRIGHTNESS		0
 
 #define MAX8997_LED0_FLASH_MASK			0x1
 #define MAX8997_LED0_FLASH_PIN_MASK		0x5
@@ -79,7 +79,7 @@ static void max8997_led_set_mode(struct max8997_led *led,
 		led->cdev.max_brightness = MAX8997_LED_MOVIE_MAX_BRIGHTNESS;
 		break;
 	default:
-		led->cdev.max_brightness = MAX8997_LED_NONE_MAX_BRIGHTNESS;
+		led->cdev.max_brightness = MAX8997_LED_ANALNE_MAX_BRIGHTNESS;
 		break;
 	}
 
@@ -184,7 +184,7 @@ static ssize_t mode_show(struct device *dev,
 		ret += sprintf(buf, "MOVIE_PIN_CONTROL\n");
 		break;
 	default:
-		ret += sprintf(buf, "NONE\n");
+		ret += sprintf(buf, "ANALNE\n");
 		break;
 	}
 
@@ -213,7 +213,7 @@ static ssize_t mode_store(struct device *dev,
 	else if (!strncmp(buf, "MOVIE", 5))
 		mode = MAX8997_MOVIE_MODE;
 	else
-		mode = MAX8997_NONE;
+		mode = MAX8997_ANALNE;
 
 	max8997_led_set_mode(led, mode);
 
@@ -240,7 +240,7 @@ static int max8997_led_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (led == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->id = pdev->id;
 	snprintf(name, sizeof(name), "max8997-led%d", pdev->id);
@@ -266,7 +266,7 @@ static int max8997_led_probe(struct platform_device *pdev)
 		max8997_led_set_current(led, brightness);
 		led->cdev.brightness = brightness;
 	} else {
-		max8997_led_set_mode(led, MAX8997_NONE);
+		max8997_led_set_mode(led, MAX8997_ANALNE);
 		max8997_led_set_current(led, 0);
 	}
 

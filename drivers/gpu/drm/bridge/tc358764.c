@@ -314,11 +314,11 @@ static int tc358764_parse_dt(struct tc358764 *ctx)
 
 	ctx->gpio_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->gpio_reset)) {
-		dev_err(dev, "no reset GPIO pin provided\n");
+		dev_err(dev, "anal reset GPIO pin provided\n");
 		return PTR_ERR(ctx->gpio_reset);
 	}
 
-	ctx->next_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 1, 0);
+	ctx->next_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 1, 0);
 	if (IS_ERR(ctx->next_bridge))
 		return PTR_ERR(ctx->next_bridge);
 
@@ -348,7 +348,7 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(struct tc358764), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 
@@ -368,7 +368,7 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 		return ret;
 
 	ctx->bridge.funcs = &tc358764_bridge_funcs;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_analde = dev->of_analde;
 	ctx->bridge.pre_enable_prev_first = true;
 
 	drm_bridge_add(&ctx->bridge);

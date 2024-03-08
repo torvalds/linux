@@ -45,8 +45,8 @@ kms_invalid_mode@int-max-clock,Fail
 kms_pipe_crc_basic@compare-crc-sanitycheck-nv12,Fail
 kms_pipe_crc_basic@compare-crc-sanitycheck-xr24,Fail
 kms_pipe_crc_basic@disable-crc-after-crtc,Fail
-kms_pipe_crc_basic@nonblocking-crc,Fail
-kms_pipe_crc_basic@nonblocking-crc-frame-sequence,Fail
+kms_pipe_crc_basic@analnblocking-crc,Fail
+kms_pipe_crc_basic@analnblocking-crc-frame-sequence,Fail
 kms_pipe_crc_basic@read-crc,Fail
 kms_pipe_crc_basic@read-crc-frame-sequence,Fail
 kms_plane@pixel-format,Fail
@@ -68,8 +68,8 @@ kms_plane_cursor@pipe-B-viewport-size-256,Fail
 kms_plane_cursor@pipe-B-viewport-size-64,Fail
 kms_plane_cursor@primary,Fail
 kms_plane_cursor@viewport,Fail
-kms_plane_multiple@atomic-pipe-B-tiling-none,Fail
-kms_plane_multiple@tiling-none,Fail
+kms_plane_multiple@atomic-pipe-B-tiling-analne,Fail
+kms_plane_multiple@tiling-analne,Fail
 kms_prime@basic-crc,Fail
 kms_rmfb@close-fd,Fail
 kms_universal_plane@universal-plane-pipe-B-functional,Fail

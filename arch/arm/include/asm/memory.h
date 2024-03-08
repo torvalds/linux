@@ -3,16 +3,16 @@
  *  arch/arm/include/asm/memory.h
  *
  *  Copyright (C) 2000-2002 Russell King
- *  modification for nommu, Hyok S. Choi, 2004
+ *  modification for analmmu, Hyok S. Choi, 2004
  *
- *  Note: this file should not be included explicitly, include <asm/page.h>
+ *  Analte: this file should analt be included explicitly, include <asm/page.h>
  *  to get access to these definitions.
  */
 #ifndef __ASM_ARM_MEMORY_H
 #define __ASM_ARM_MEMORY_H
 
 #ifndef _ASMARM_PAGE_H
-#error "Do not include <asm/memory.h> directly"
+#error "Do analt include <asm/memory.h> directly"
 #endif
 
 #include <linux/compiler.h>
@@ -108,7 +108,7 @@ extern unsigned long vectors_base;
  * The limitation of user task size can grow up to the end of free ram region.
  * It is difficult to define and perhaps will never meet the original meaning
  * of this define that was meant to.
- * Fortunately, there is no reference for this in noMMU mode, for now.
+ * Fortunately, there is anal reference for this in analMMU mode, for analw.
  */
 #define TASK_SIZE		UL(0xffffffff)
 
@@ -121,7 +121,7 @@ extern unsigned long vectors_base;
 #endif
 
 /*
- * The module can be at any place in ram in nommu mode.
+ * The module can be at any place in ram in analmmu mode.
  */
 #define MODULES_END		(END_MEM)
 #define MODULES_VADDR		PAGE_OFFSET
@@ -155,9 +155,9 @@ extern unsigned long vectors_base;
 
 /*
  * PLAT_PHYS_OFFSET is the offset (from zero) of the start of physical
- * memory.  This is used for XIP and NoMMU kernels, and on platforms that don't
+ * memory.  This is used for XIP and AnalMMU kernels, and on platforms that don't
  * have CONFIG_ARM_PATCH_PHYS_VIRT. Assembly code must always use
- * PLAT_PHYS_OFFSET and not PHYS_OFFSET.
+ * PLAT_PHYS_OFFSET and analt PHYS_OFFSET.
  */
 #define PLAT_PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
 
@@ -173,7 +173,7 @@ extern u64 kernel_sec_end;
 
 /*
  * Physical vs virtual RAM address space conversion.  These are
- * private definitions which should NOT be used outside memory.h
+ * private definitions which should ANALT be used outside memory.h
  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
  *
  * PFNs are used to describe any physical page; this means
@@ -250,7 +250,7 @@ extern const void *__pv_table_begin, *__pv_table_end;
 	: "cc")
 #endif
 
-static inline phys_addr_t __virt_to_phys_nodebug(unsigned long x)
+static inline phys_addr_t __virt_to_phys_analdebug(unsigned long x)
 {
 	phys_addr_t t;
 
@@ -281,7 +281,7 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 #define PHYS_OFFSET	PLAT_PHYS_OFFSET
 #define PHYS_PFN_OFFSET	((unsigned long)(PHYS_OFFSET >> PAGE_SHIFT))
 
-static inline phys_addr_t __virt_to_phys_nodebug(unsigned long x)
+static inline phys_addr_t __virt_to_phys_analdebug(unsigned long x)
 {
 	return (phys_addr_t)x - PAGE_OFFSET + PHYS_OFFSET;
 }
@@ -299,19 +299,19 @@ static inline unsigned long virt_to_pfn(const void *p)
 	return (((kaddr - PAGE_OFFSET) >> PAGE_SHIFT) +
 		PHYS_PFN_OFFSET);
 }
-#define __pa_symbol_nodebug(x)	__virt_to_phys_nodebug((x))
+#define __pa_symbol_analdebug(x)	__virt_to_phys_analdebug((x))
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 extern phys_addr_t __virt_to_phys(unsigned long x);
 extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
-#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
+#define __virt_to_phys(x)	__virt_to_phys_analdebug(x)
+#define __phys_addr_symbol(x)	__pa_symbol_analdebug(x)
 #endif
 
 /*
  * These are *only* valid on the kernel direct mapped RAM memory.
- * Note: Drivers should NOT use these.  They are the wrong
+ * Analte: Drivers should ANALT use these.  They are the wrong
  * translation for translating DMA addresses.  Use the driver
  * DMA support - see dma-mapping.h.
  */
@@ -328,7 +328,7 @@ static inline void *phys_to_virt(phys_addr_t x)
 }
 
 /*
- * Drivers should NOT use these either.
+ * Drivers should ANALT use these either.
  */
 #define __pa(x)			__virt_to_phys((unsigned long)(x))
 #define __pa_symbol(x)		__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
@@ -340,7 +340,7 @@ extern long long arch_phys_to_idmap_offset;
 /*
  * These are for systems that have a hardware interconnect supported alias
  * of physical memory for idmap purposes.  Most cases should leave these
- * untouched.  Note: this can only return addresses less than 4GiB.
+ * untouched.  Analte: this can only return addresses less than 4GiB.
  */
 static inline bool arm_has_idmap_alias(void)
 {

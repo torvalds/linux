@@ -30,9 +30,9 @@
 		      <0x5b010 0x4>;
 		reg-names = "rev", "sysc";
 		ti,sysc-midle = <SYSC_IDLE_FORCE>,
-				<SYSC_IDLE_NO>;
+				<SYSC_IDLE_ANAL>;
 		ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-				<SYSC_IDLE_NO>;
+				<SYSC_IDLE_ANAL>;
 		clocks = <&cam_clkctrl DRA7_CAM_VIP2_CLKCTRL 0>;
 		clock-names = "fck";
 		#address-cells = <1>;

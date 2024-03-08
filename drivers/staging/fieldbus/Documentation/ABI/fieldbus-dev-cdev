@@ -21,7 +21,7 @@ Description:
 		poll(2), select(2), epoll_wait(2) etc.
 		When a "Process Memory Read Area Changed" event occurs,
 		POLLERR | POLLPRI will be set on the file descriptor.
-		Note that POLLIN | POLLOUT events are always set, because the
+		Analte that POLLIN | POLLOUT events are always set, because the
 		process memory area is always readable and writable.
 
 		close(2)

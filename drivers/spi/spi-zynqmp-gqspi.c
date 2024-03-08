@@ -88,15 +88,15 @@
 #define GQSPI_FIFO_CTRL_RST_GEN_FIFO_MASK	0x00000001
 #define GQSPI_ISR_RXEMPTY_MASK			0x00000800
 #define GQSPI_ISR_GENFIFOFULL_MASK		0x00000400
-#define GQSPI_ISR_GENFIFONOT_FULL_MASK		0x00000200
+#define GQSPI_ISR_GENFIFOANALT_FULL_MASK		0x00000200
 #define GQSPI_ISR_TXEMPTY_MASK			0x00000100
 #define GQSPI_ISR_GENFIFOEMPTY_MASK		0x00000080
 #define GQSPI_ISR_RXFULL_MASK			0x00000020
 #define GQSPI_ISR_RXNEMPTY_MASK			0x00000010
 #define GQSPI_ISR_TXFULL_MASK			0x00000008
-#define GQSPI_ISR_TXNOT_FULL_MASK		0x00000004
+#define GQSPI_ISR_TXANALT_FULL_MASK		0x00000004
 #define GQSPI_ISR_POLL_TIME_EXPIRE_MASK		0x00000002
-#define GQSPI_IER_TXNOT_FULL_MASK		0x00000004
+#define GQSPI_IER_TXANALT_FULL_MASK		0x00000004
 #define GQSPI_IER_RXEMPTY_MASK			0x00000800
 #define GQSPI_IER_POLL_TIME_EXPIRE_MASK		0x00000002
 #define GQSPI_IER_RXNEMPTY_MASK			0x00000010
@@ -542,8 +542,8 @@ static inline u32 zynqmp_qspi_selectspimode(struct zynqmp_qspi *xqspi,
  *
  * Return:	Always 0
  *
- * Note:
- *	If the requested frequency is not an exact match with what can be
+ * Analte:
+ *	If the requested frequency is analt an exact match with what can be
  *	obtained using the pre-scalar value, the driver sets the clock
  *	frequency which is lower than the requested frequency (maximum lower)
  *	for the transfer.
@@ -794,12 +794,12 @@ static void zynqmp_process_dma_irq(struct zynqmp_qspi *xqspi)
  * and fills the TX FIFO if there is any data remaining to be transferred.
  *
  * Return:	IRQ_HANDLED when interrupt is handled
- *		IRQ_NONE otherwise.
+ *		IRQ_ANALNE otherwise.
  */
 static irqreturn_t zynqmp_qspi_irq(int irq, void *dev_id)
 {
 	struct zynqmp_qspi *xqspi = (struct zynqmp_qspi *)dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 status, mask, dma_status = 0;
 
 	status = zynqmp_gqspi_read(xqspi, GQSPI_ISR_OFST);
@@ -814,7 +814,7 @@ static irqreturn_t zynqmp_qspi_irq(int irq, void *dev_id)
 				   dma_status);
 	}
 
-	if (mask & GQSPI_ISR_TXNOT_FULL_MASK) {
+	if (mask & GQSPI_ISR_TXANALT_FULL_MASK) {
 		zynqmp_qspi_filltxfifo(xqspi, GQSPI_TX_FIFO_FILL);
 		ret = IRQ_HANDLED;
 	}
@@ -866,8 +866,8 @@ static int zynqmp_qspi_setuprxdma(struct zynqmp_qspi *xqspi)
 	addr = dma_map_single(xqspi->dev, (void *)xqspi->rxbuf,
 			      rx_bytes, DMA_FROM_DEVICE);
 	if (dma_mapping_error(xqspi->dev, addr)) {
-		dev_err(xqspi->dev, "ERR:rxdma:memory not mapped\n");
-		return -ENOMEM;
+		dev_err(xqspi->dev, "ERR:rxdma:memory analt mapped\n");
+		return -EANALMEM;
 	}
 
 	xqspi->dma_rx_bytes = rx_bytes;
@@ -1019,13 +1019,13 @@ static int __maybe_unused zynqmp_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(xqspi->pclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable APB clock.\n");
+		dev_err(dev, "Cananalt enable APB clock.\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(xqspi->refclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable device clock.\n");
+		dev_err(dev, "Cananalt enable device clock.\n");
 		clk_disable_unprepare(xqspi->pclk);
 		return ret;
 	}
@@ -1076,7 +1076,7 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 				   GQSPI_CFG_START_GEN_FIFO_MASK);
 		zynqmp_gqspi_write(xqspi, GQSPI_IER_OFST,
 				   GQSPI_IER_GENFIFOEMPTY_MASK |
-				   GQSPI_IER_TXNOT_FULL_MASK);
+				   GQSPI_IER_TXANALT_FULL_MASK);
 		if (!wait_for_completion_timeout
 		    (&xqspi->data_completion, msecs_to_jiffies(1000))) {
 			err = -ETIMEDOUT;
@@ -1103,7 +1103,7 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 		zynqmp_gqspi_write(xqspi, GQSPI_IER_OFST,
 				   GQSPI_IER_TXEMPTY_MASK |
 				   GQSPI_IER_GENFIFOEMPTY_MASK |
-				   GQSPI_IER_TXNOT_FULL_MASK);
+				   GQSPI_IER_TXANALT_FULL_MASK);
 		if (!wait_for_completion_timeout
 		    (&xqspi->data_completion, msecs_to_jiffies(1000))) {
 			err = -ETIMEDOUT;
@@ -1147,7 +1147,7 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 			zynqmp_gqspi_write(xqspi, GQSPI_IER_OFST,
 					   GQSPI_IER_TXEMPTY_MASK |
 					   GQSPI_IER_GENFIFOEMPTY_MASK |
-					   GQSPI_IER_TXNOT_FULL_MASK);
+					   GQSPI_IER_TXANALT_FULL_MASK);
 		} else {
 			xqspi->txbuf = NULL;
 			xqspi->rxbuf = (u8 *)op->data.buf.in;
@@ -1220,13 +1220,13 @@ static int zynqmp_qspi_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct zynqmp_qspi *xqspi;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 num_cs;
 	const struct qspi_platform_data *p_data;
 
 	ctlr = spi_alloc_host(&pdev->dev, sizeof(*xqspi));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xqspi = spi_controller_get_devdata(ctlr);
 	xqspi->dev = dev;
@@ -1245,14 +1245,14 @@ static int zynqmp_qspi_probe(struct platform_device *pdev)
 
 	xqspi->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(xqspi->pclk)) {
-		dev_err(dev, "pclk clock not found.\n");
+		dev_err(dev, "pclk clock analt found.\n");
 		ret = PTR_ERR(xqspi->pclk);
 		goto remove_ctlr;
 	}
 
 	xqspi->refclk = devm_clk_get(&pdev->dev, "ref_clk");
 	if (IS_ERR(xqspi->refclk)) {
-		dev_err(dev, "ref_clk clock not found.\n");
+		dev_err(dev, "ref_clk clock analt found.\n");
 		ret = PTR_ERR(xqspi->refclk);
 		goto remove_ctlr;
 	}
@@ -1325,7 +1325,7 @@ static int zynqmp_qspi_probe(struct platform_device *pdev)
 	ctlr->mem_ops = &zynqmp_qspi_mem_ops;
 	ctlr->setup = zynqmp_qspi_setup_op;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
-	ctlr->dev.of_node = np;
+	ctlr->dev.of_analde = np;
 	ctlr->auto_runtime_pm = true;
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
@@ -1341,7 +1341,7 @@ static int zynqmp_qspi_probe(struct platform_device *pdev)
 
 clk_dis_all:
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	clk_disable_unprepare(xqspi->refclk);
 clk_dis_pclk:
@@ -1371,7 +1371,7 @@ static void zynqmp_qspi_remove(struct platform_device *pdev)
 	zynqmp_gqspi_write(xqspi, GQSPI_EN_OFST, 0x0);
 
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	clk_disable_unprepare(xqspi->refclk);
 	clk_disable_unprepare(xqspi->pclk);

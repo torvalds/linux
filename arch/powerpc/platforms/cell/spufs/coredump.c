@@ -21,7 +21,7 @@
 
 #include "spufs.h"
 
-static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
+static int spufs_ctx_analte_size(struct spu_context *ctx, int dfd)
 {
 	int i, sz, total = 0;
 	char *name;
@@ -33,7 +33,7 @@ static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
 
 		sprintf(fullname, "SPU/%d/%s", dfd, name);
 
-		total += sizeof(struct elf_note);
+		total += sizeof(struct elf_analte);
 		total += roundup(strlen(fullname) + 1, 4);
 		total += roundup(sz, 4);
 	}
@@ -46,14 +46,14 @@ static int match_context(const void *v, struct file *file, unsigned fd)
 	struct spu_context *ctx;
 	if (file->f_op != &spufs_context_fops)
 		return 0;
-	ctx = SPUFS_I(file_inode(file))->i_ctx;
-	if (ctx->flags & SPU_CREATE_NOSCHED)
+	ctx = SPUFS_I(file_ianalde(file))->i_ctx;
+	if (ctx->flags & SPU_CREATE_ANALSCHED)
 		return 0;
 	return fd + 1;
 }
 
 /*
- * The additional architecture-specific notes for Cell are various
+ * The additional architecture-specific analtes for Cell are various
  * context files in the spu context.
  *
  * This function iterates over all open file descriptors and sees
@@ -62,7 +62,7 @@ static int match_context(const void *v, struct file *file, unsigned fd)
  * open the files.
  */
 /*
- * descriptor table is not shared, so files can't change or go away.
+ * descriptor table is analt shared, so files can't change or go away.
  */
 static struct spu_context *coredump_next_context(int *fd)
 {
@@ -77,7 +77,7 @@ static struct spu_context *coredump_next_context(int *fd)
 	file = lookup_fdget_rcu(*fd);
 	rcu_read_unlock();
 	if (file) {
-		ctx = SPUFS_I(file_inode(file))->i_ctx;
+		ctx = SPUFS_I(file_ianalde(file))->i_ctx;
 		get_spu_context(ctx);
 		fput(file);
 	}
@@ -85,7 +85,7 @@ static struct spu_context *coredump_next_context(int *fd)
 	return ctx;
 }
 
-int spufs_coredump_extra_notes_size(void)
+int spufs_coredump_extra_analtes_size(void)
 {
 	struct spu_context *ctx;
 	int size = 0, rc, fd;
@@ -98,7 +98,7 @@ int spufs_coredump_extra_notes_size(void)
 			break;
 		}
 
-		rc = spufs_ctx_note_size(ctx, fd);
+		rc = spufs_ctx_analte_size(ctx, fd);
 		spu_release_saved(ctx);
 		if (rc < 0) {
 			put_spu_context(ctx);
@@ -115,12 +115,12 @@ int spufs_coredump_extra_notes_size(void)
 	return size;
 }
 
-static int spufs_arch_write_note(struct spu_context *ctx, int i,
+static int spufs_arch_write_analte(struct spu_context *ctx, int i,
 				  struct coredump_params *cprm, int dfd)
 {
 	size_t sz = spufs_coredump_read[i].size;
 	char fullname[80];
-	struct elf_note en;
+	struct elf_analte en;
 	int ret;
 
 	sprintf(fullname, "SPU/%d/%s", dfd, spufs_coredump_read[i].name);
@@ -156,7 +156,7 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	return 0;
 }
 
-int spufs_coredump_extra_notes_write(struct coredump_params *cprm)
+int spufs_coredump_extra_analtes_write(struct coredump_params *cprm)
 {
 	struct spu_context *ctx;
 	int fd, j, rc;
@@ -168,7 +168,7 @@ int spufs_coredump_extra_notes_write(struct coredump_params *cprm)
 			return rc;
 
 		for (j = 0; spufs_coredump_read[j].name != NULL; j++) {
-			rc = spufs_arch_write_note(ctx, j, cprm, fd);
+			rc = spufs_arch_write_analte(ctx, j, cprm, fd);
 			if (rc) {
 				spu_release_saved(ctx);
 				return rc;

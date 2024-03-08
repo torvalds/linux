@@ -6,7 +6,7 @@
 
 /*
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
 
  * WPA Supplicant - driver interaction with Linux nl80211/cfg80211
  * Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi>
@@ -36,7 +36,7 @@
 #include <sys/file.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <signal.h>
 #include <netlink/genl/genl.h>
@@ -86,7 +86,7 @@ static int send_and_recv_msgs(struct hfi_event_data *drv,
 			      void *valid_data)
 {
 	struct nl_cb *cb;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	cb = nl_cb_clone(drv->nl_cb);
 	if (!cb)
@@ -154,11 +154,11 @@ static int nl_get_multicast_id(struct hfi_event_data *drv,
 {
 	struct nl_msg *msg;
 	int ret = -1;
-	struct family_data res = { group, -ENOENT };
+	struct family_data res = { group, -EANALENT };
 
 	msg = nlmsg_alloc();
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	genlmsg_put(msg, 0, 0, genl_ctrl_resolve(drv->nl_handle, "nlctrl"),
 		    0, 0, CTRL_CMD_GETFAMILY, 0);
 	NLA_PUT_STRING(msg, CTRL_ATTR_FAMILY_NAME, family);

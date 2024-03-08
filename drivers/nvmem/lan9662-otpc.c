@@ -187,7 +187,7 @@ static int lan9662_otp_probe(struct platform_device *pdev)
 
 	otp = devm_kzalloc(&pdev->dev, sizeof(*otp), GFP_KERNEL);
 	if (!otp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otp->dev = dev;
 	otp->base = devm_platform_ioremap_resource(pdev, 0);

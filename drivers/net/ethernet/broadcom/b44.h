@@ -85,7 +85,7 @@
 #define  DMATX_STAT_SSTOPPED	0x00003000 /* State Stopped */
 #define  DMATX_STAT_SSUSP	0x00004000 /* State Suspend Pending */
 #define  DMATX_STAT_EMASK	0x000f0000 /* Error Mask */
-#define  DMATX_STAT_ENONE	0x00000000 /* Error None */
+#define  DMATX_STAT_EANALNE	0x00000000 /* Error Analne */
 #define  DMATX_STAT_EDPE	0x00010000 /* Error Desc. Protocol Error */
 #define  DMATX_STAT_EDFU	0x00020000 /* Error Data FIFO Underrun */
 #define  DMATX_STAT_EBEBR	0x00030000 /* Error Bus Error on Buffer Read */
@@ -105,7 +105,7 @@
 #define  DMARX_STAT_SIDLE	0x00002000 /* State Idle Wait */
 #define  DMARX_STAT_SSTOPPED	0x00003000 /* State Stopped */
 #define  DMARX_STAT_EMASK	0x000f0000 /* Error Mask */
-#define  DMARX_STAT_ENONE	0x00000000 /* Error None */
+#define  DMARX_STAT_EANALNE	0x00000000 /* Error Analne */
 #define  DMARX_STAT_EDPE	0x00010000 /* Error Desc. Protocol Error */
 #define  DMARX_STAT_EDFO	0x00020000 /* Error Data FIFO Overflow */
 #define  DMARX_STAT_EBEBW	0x00030000 /* Error Bus Error on Buffer Write */
@@ -126,7 +126,7 @@
 #define B44_RXCONFIG	0x0400UL /* EMAC RX Config */
 #define  RXCONFIG_DBCAST	0x00000001 /* Disable Broadcast */
 #define  RXCONFIG_ALLMULTI	0x00000002 /* Accept All Multicast */
-#define  RXCONFIG_NORX_WHILE_TX	0x00000004 /* Receive Disable While Transmitting */
+#define  RXCONFIG_ANALRX_WHILE_TX	0x00000004 /* Receive Disable While Transmitting */
 #define  RXCONFIG_PROMISC	0x00000008 /* Promiscuous Enable */
 #define  RXCONFIG_LPBACK	0x00000010 /* Loopback Enable */
 #define  RXCONFIG_FLOW		0x00000020 /* Flow Control Enable */
@@ -229,7 +229,7 @@
 #define B44_RX_ALIGN	0x05CCUL /* MIB RX Align Errors */
 #define B44_RX_SYM	0x05D0UL /* MIB RX Symbol Errors */
 #define B44_RX_PAUSE	0x05D4UL /* MIB RX Pause Packets */
-#define B44_RX_NPAUSE	0x05D8UL /* MIB RX Non-Pause Packets */
+#define B44_RX_NPAUSE	0x05D8UL /* MIB RX Analn-Pause Packets */
 
 /* 4400 PHY registers */
 #define B44_MII_AUXCTRL		24	/* Auxiliary Control */
@@ -284,10 +284,10 @@ struct ring_info {
 };
 
 #define B44_MCAST_TABLE_SIZE		32
-/* no local phy regs, e.g: Broadcom switches pseudo-PHY */
-#define B44_PHY_ADDR_NO_LOCAL_PHY	BRCM_PSEUDO_PHY_ADDR
-/* no phy present at all */
-#define B44_PHY_ADDR_NO_PHY		31
+/* anal local phy regs, e.g: Broadcom switches pseudo-PHY */
+#define B44_PHY_ADDR_ANAL_LOCAL_PHY	BRCM_PSEUDO_PHY_ADDR
+/* anal phy present at all */
+#define B44_PHY_ADDR_ANAL_PHY		31
 #define B44_MDC_RATIO			5000000
 
 #define	B44_STAT_REG_DECLARE		\
@@ -337,7 +337,7 @@ struct ring_info {
 	_B44(rx_align_errs)		\
 	_B44(rx_symbol_errs)		\
 	_B44(rx_pause_pkts)		\
-	_B44(rx_nonpause_pkts)
+	_B44(rx_analnpause_pkts)
 
 /* SW copy of device statistics, kept up to date by periodic timer
  * which probes HW values. Check b44_stats_update if you mess with

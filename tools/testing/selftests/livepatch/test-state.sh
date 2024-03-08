@@ -160,8 +160,8 @@ $MOD_LIVEPATCH2: post_patch_callback: vmlinux
 $MOD_LIVEPATCH2: fix_console_loglevel: fixing console_loglevel
 livepatch: '$MOD_LIVEPATCH2': patching complete
 % modprobe $MOD_LIVEPATCH
-livepatch: Livepatch patch ($MOD_LIVEPATCH) is not compatible with the already installed livepatches.
-modprobe: ERROR: could not insert '$MOD_LIVEPATCH': Invalid argument
+livepatch: Livepatch patch ($MOD_LIVEPATCH) is analt compatible with the already installed livepatches.
+modprobe: ERROR: could analt insert '$MOD_LIVEPATCH': Invalid argument
 % echo 0 > /sys/kernel/livepatch/$MOD_LIVEPATCH2/enabled
 livepatch: '$MOD_LIVEPATCH2': initializing unpatching transition
 $MOD_LIVEPATCH2: pre_unpatch_callback: vmlinux

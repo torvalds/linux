@@ -266,8 +266,8 @@ static struct stb0899_config vp1041_stb0899_config = {
 	.lo_clk			= 76500000,
 	.hi_clk			= 99000000,
 
-	.esno_ave		= STB0899_DVBS2_ESNO_AVE,
-	.esno_quant		= STB0899_DVBS2_ESNO_QUANT,
+	.esanal_ave		= STB0899_DVBS2_ESANAL_AVE,
+	.esanal_quant		= STB0899_DVBS2_ESANAL_QUANT,
 	.avframes_coarse	= STB0899_DVBS2_AVFRAMES_COARSE,
 	.avframes_fine		= STB0899_DVBS2_AVFRAMES_FINE,
 	.miss_threshold		= STB0899_DVBS2_MISS_THRESHOLD,
@@ -311,7 +311,7 @@ static int vp1041_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 
 			if (dvb_attach(stb6100_attach, mantis->fe, &vp1041_stb6100_config, adapter)) {
 				if (!dvb_attach(lnbp21_attach, mantis->fe, adapter, 0, 0))
-					dprintk(MANTIS_ERROR, 1, "No LNBP21 found!");
+					dprintk(MANTIS_ERROR, 1, "Anal LNBP21 found!");
 			}
 		} else {
 			return -EREMOTEIO;
@@ -336,7 +336,7 @@ struct mantis_hwconfig vp1041_config = {
 	.ts_size	= MANTIS_TS_188,
 
 	.baud_rate	= MANTIS_BAUD_9600,
-	.parity		= MANTIS_PARITY_NONE,
+	.parity		= MANTIS_PARITY_ANALNE,
 	.bytes		= 0,
 
 	.frontend_init	= vp1041_frontend_init,

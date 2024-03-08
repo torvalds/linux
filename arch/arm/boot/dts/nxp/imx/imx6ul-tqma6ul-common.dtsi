@@ -38,7 +38,7 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
 				regulator-ramp-delay = <6250>;
-				/* not used */
+				/* analt used */
 			};
 
 			reg_sw1b_core: sw1b {
@@ -64,7 +64,7 @@
 			reg_swbst: swbst {
 				regulator-min-microvolt = <5000000>;
 				regulator-max-microvolt = <5150000>;
-				/* not used */
+				/* analt used */
 			};
 
 			reg_snvs_3v0: vsnvs {
@@ -93,19 +93,19 @@
 			reg_vldo1_3v3: vldo1 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
-				/* not used */
+				/* analt used */
 			};
 
 			reg_vldo2: vldo2 {
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1550000>;
-				/* not used */
+				/* analt used */
 			};
 
 			reg_vldo3: vldo3 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
-				/* not used */
+				/* analt used */
 			};
 
 			reg_vldo4: vldo4 {
@@ -146,7 +146,7 @@
 
 	/*
 	 * PMIC & temperature sensor IRQ
-	 * Both do currently not use IRQ
+	 * Both do currently analt use IRQ
 	 * potentially dangerous if used on baseboard
 	 */
 	pmic-int-hog {
@@ -164,7 +164,7 @@
 	flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <33000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;
@@ -181,9 +181,9 @@
 
 	bus-width = <8>;
 	disable-wp;
-	non-removable;
-	no-sdio;
-	no-sd;
+	analn-removable;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 

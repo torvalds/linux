@@ -1,5 +1,5 @@
 What:		/sys/devices/platform/docg3/f[0-3]_dps[01]_is_keylocked
-Date:		November 2011
+Date:		Analvember 2011
 KernelVersion:	3.3
 Contact:	Robert Jarzmik <robert.jarzmik@free.fr>
 Description:
@@ -10,13 +10,13 @@ Description:
 		writes or both.
 		The result is:
 
-		- 0 -> the DPS is not keylocked
+		- 0 -> the DPS is analt keylocked
 		- 1 -> the DPS is keylocked
 
-Users:		None identified so far.
+Users:		Analne identified so far.
 
 What:		/sys/devices/platform/docg3/f[0-3]_dps[01]_protection_key
-Date:		November 2011
+Date:		Analvember 2011
 KernelVersion:	3.3
 Contact:	Robert Jarzmik <robert.jarzmik@free.fr>
 Description:
@@ -37,4 +37,4 @@ Description:
 			- "00000000"
 			- "12345678"
 
-Users:		None identified so far.
+Users:		Analne identified so far.

@@ -23,7 +23,7 @@ Examples of caches that are likely to be needed are:
   - mapping from UID to list of GIDs, to work around NFS's limitation
     of 16 gids.
   - mappings between local UID/GID and remote UID/GID for sites that
-    do not have uniform uid assignment
+    do analt have uniform uid assignment
   - mapping from network identify to public key for crypto authentication.
 
 The common code handles such things as:
@@ -31,7 +31,7 @@ The common code handles such things as:
    - general cache lookup with correct locking
    - supporting 'NEGATIVE' as well as positive entries
    - allowing an EXPIRED time on cache items, and removing
-     items after they expire, and are no longer in-use.
+     items after they expire, and are anal longer in-use.
    - making requests to user-space to fill in cache entries
    - allowing user-space to directly set entries in the cache
    - delaying RPC requests that depend on as-yet incomplete
@@ -90,8 +90,8 @@ Creating a Cache
       to be instantiated.  \*bpp is a buffer of size \*blen.
       bpp should be moved forward over the encoded message,
       and  \*blen should be reduced to show how much free
-      space remains.  Return 0 on success or <0 if not
-      enough room or other problem.
+      space remains.  Return 0 on success or <0 if analt
+      eanalugh room or other problem.
 
     int cache_parse(struct cache_detail \*cd, char \*buf, int len)
       A message from user space has arrived to fill out a
@@ -110,20 +110,20 @@ Using a cache
 
 To find a value in a cache, call sunrpc_cache_lookup_rcu passing a pointer
 to the cache_head in a sample item with the 'key' fields filled in.
-This will be passed to ->match to identify the target entry.  If no
+This will be passed to ->match to identify the target entry.  If anal
 entry is found, a new entry will be create, added to the cache, and
-marked as not containing valid data.
+marked as analt containing valid data.
 
 The item returned is typically passed to cache_check which will check
 if the data is valid, and may initiate an up-call to get fresh data.
-cache_check will return -ENOENT in the entry is negative or if an up
-call is needed but not possible, -EAGAIN if an upcall is pending,
+cache_check will return -EANALENT in the entry is negative or if an up
+call is needed but analt possible, -EAGAIN if an upcall is pending,
 or 0 if the data is valid;
 
 cache_check can be passed a "struct cache_req\*".  This structure is
 typically embedded in the actual request and can be used to create a
 deferred copy of the request (struct cache_deferred_req).  This is
-done when the found cache item is not uptodate, but the is reason to
+done when the found cache item is analt uptodate, but the is reason to
 believe that userspace might provide information soon.  When the cache
 item does become valid, the deferred copy of the request will be
 revisited (->revisit).  It is expected that this method will
@@ -134,7 +134,7 @@ sunrpc_cache_update to set the content for the item.  A second item is
 passed which should hold the content.  If the item found by _lookup
 has valid data, then it is discarded and a new item is created.  This
 saves any user of an item from worrying about content changing while
-it is being inspected.  If the item found by _lookup does not contain
+it is being inspected.  If the item found by _lookup does analt contain
 valid data, then the content is copied across and CACHE_VALID is set.
 
 Populating a cache
@@ -167,8 +167,8 @@ expire, a request is lodged for that cache item to be updated by
 user-space.  These requests appear in the channel file.
 
 Successive reads will return successive requests.
-If there are no more requests to return, read will return EOF, but a
-select or poll for read will block waiting for another request to be
+If there are anal more requests to return, read will return EOF, but a
+select or poll for read will block waiting for aanalther request to be
 added.
 
 Thus a user-space helper is likely to::
@@ -179,7 +179,7 @@ Thus a user-space helper is likely to::
     write a response
   loop.
 
-If it dies and needs to be restarted, any requests that have not been
+If it dies and needs to be restarted, any requests that have analt been
 answered will still appear in the file and will be read by the new
 instance of the helper.
 
@@ -191,13 +191,13 @@ Each cache should also define a "cache_request" method which
 takes a cache item and encodes a request into the buffer
 provided.
 
-.. note::
-  If a cache has no active readers on the channel, and has had not
-  active readers for more than 60 seconds, further requests will not be
-  added to the channel but instead all lookups that do not find a valid
+.. analte::
+  If a cache has anal active readers on the channel, and has had analt
+  active readers for more than 60 seconds, further requests will analt be
+  added to the channel but instead all lookups that do analt find a valid
   entry will fail.  This is partly for backward compatibility: The
   previous nfs exports table was deemed to be authoritative and a
-  failed lookup meant a definite 'no'.
+  failed lookup meant a definite 'anal'.
 
 request/response format
 -----------------------
@@ -207,7 +207,7 @@ and responses over channel, the following is recommended as
 appropriate and support routines are available to help:
 Each request or response record should be printable ASCII
 with precisely one newline character which should be at the end.
-Fields within the record should be separated by spaces, normally one.
+Fields within the record should be separated by spaces, analrmally one.
 If spaces, newlines, or nul characters are needed in a field they
 much be quoted.  two mechanisms are available:
 

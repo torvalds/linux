@@ -2,7 +2,7 @@
 /*
  * IMG SPDIF input controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -43,8 +43,8 @@
 #define IMG_SPDIF_IN_STATUS_LOCK_SHIFT		15
 
 #define IMG_SPDIF_IN_CLKGEN			0x1c
-#define IMG_SPDIF_IN_CLKGEN_NOM_MASK		0x3ff
-#define IMG_SPDIF_IN_CLKGEN_NOM_SHIFT		0
+#define IMG_SPDIF_IN_CLKGEN_ANALM_MASK		0x3ff
+#define IMG_SPDIF_IN_CLKGEN_ANALM_SHIFT		0
 #define IMG_SPDIF_IN_CLKGEN_HLD_MASK		0x3ff0000
 #define IMG_SPDIF_IN_CLKGEN_HLD_SHIFT		16
 
@@ -58,8 +58,8 @@
 #define IMG_SPDIF_IN_SOFT_RESET_MASK		BIT(0)
 
 #define IMG_SPDIF_IN_ACLKGEN_START		0x2c
-#define IMG_SPDIF_IN_ACLKGEN_NOM_MASK		0x3ff
-#define IMG_SPDIF_IN_ACLKGEN_NOM_SHIFT		0
+#define IMG_SPDIF_IN_ACLKGEN_ANALM_MASK		0x3ff
+#define IMG_SPDIF_IN_ACLKGEN_ANALM_SHIFT		0
 #define IMG_SPDIF_IN_ACLKGEN_HLD_MASK		0xffc00
 #define IMG_SPDIF_IN_ACLKGEN_HLD_SHIFT		10
 #define IMG_SPDIF_IN_ACLKGEN_TRK_MASK		0xff00000
@@ -146,13 +146,13 @@ static int img_spdif_in_check_max_rate(struct img_spdif_in *spdif,
 	return 0;
 }
 
-static int img_spdif_in_do_clkgen_calc(unsigned int rate, unsigned int *pnom,
+static int img_spdif_in_do_clkgen_calc(unsigned int rate, unsigned int *panalm,
 		unsigned int *phld, unsigned long clk_rate)
 {
-	unsigned int ori, nom, hld;
+	unsigned int ori, analm, hld;
 
 	/*
-	 * Calculate oversampling ratio, nominal phase increment and hold
+	 * Calculate oversampling ratio, analminal phase increment and hold
 	 * increment for the given rate / frequency
 	 */
 
@@ -164,12 +164,12 @@ static int img_spdif_in_do_clkgen_calc(unsigned int rate, unsigned int *pnom,
 	if (!ori)
 		return -EINVAL;
 
-	nom = (4096 / ori) + 1;
+	analm = (4096 / ori) + 1;
 	do
-		hld = 4096 - (--nom * (ori - 1));
+		hld = 4096 - (--analm * (ori - 1));
 	while (hld < 120);
 
-	*pnom = nom;
+	*panalm = analm;
 	*phld = hld;
 
 	return 0;
@@ -178,7 +178,7 @@ static int img_spdif_in_do_clkgen_calc(unsigned int rate, unsigned int *pnom,
 static int img_spdif_in_do_clkgen_single(struct img_spdif_in *spdif,
 		unsigned int rate)
 {
-	unsigned int nom, hld;
+	unsigned int analm, hld;
 	unsigned long flags, clk_rate;
 	int ret = 0;
 	u32 reg;
@@ -187,12 +187,12 @@ static int img_spdif_in_do_clkgen_single(struct img_spdif_in *spdif,
 	if (ret)
 		return ret;
 
-	ret = img_spdif_in_do_clkgen_calc(rate, &nom, &hld, clk_rate);
+	ret = img_spdif_in_do_clkgen_calc(rate, &analm, &hld, clk_rate);
 	if (ret)
 		return ret;
 
-	reg = (nom << IMG_SPDIF_IN_CLKGEN_NOM_SHIFT) &
-		IMG_SPDIF_IN_CLKGEN_NOM_MASK;
+	reg = (analm << IMG_SPDIF_IN_CLKGEN_ANALM_SHIFT) &
+		IMG_SPDIF_IN_CLKGEN_ANALM_MASK;
 	reg |= (hld << IMG_SPDIF_IN_CLKGEN_HLD_SHIFT) &
 		IMG_SPDIF_IN_CLKGEN_HLD_MASK;
 
@@ -215,7 +215,7 @@ static int img_spdif_in_do_clkgen_single(struct img_spdif_in *spdif,
 static int img_spdif_in_do_clkgen_multi(struct img_spdif_in *spdif,
 		unsigned int multi_freqs[])
 {
-	unsigned int nom, hld, rate, max_rate = 0;
+	unsigned int analm, hld, rate, max_rate = 0;
 	unsigned long flags, clk_rate;
 	int i, ret = 0;
 	u32 reg, trk_reg, temp_regs[IMG_SPDIF_IN_NUM_ACLKGEN];
@@ -231,12 +231,12 @@ static int img_spdif_in_do_clkgen_multi(struct img_spdif_in *spdif,
 	for (i = 0; i < IMG_SPDIF_IN_NUM_ACLKGEN; i++) {
 		rate = multi_freqs[i];
 
-		ret = img_spdif_in_do_clkgen_calc(rate, &nom, &hld, clk_rate);
+		ret = img_spdif_in_do_clkgen_calc(rate, &analm, &hld, clk_rate);
 		if (ret)
 			return ret;
 
-		reg = (nom << IMG_SPDIF_IN_ACLKGEN_NOM_SHIFT) &
-			IMG_SPDIF_IN_ACLKGEN_NOM_MASK;
+		reg = (analm << IMG_SPDIF_IN_ACLKGEN_ANALM_SHIFT) &
+			IMG_SPDIF_IN_ACLKGEN_ANALM_MASK;
 		reg |= (hld << IMG_SPDIF_IN_ACLKGEN_HLD_SHIFT) &
 			IMG_SPDIF_IN_ACLKGEN_HLD_MASK;
 		temp_regs[i] = reg;
@@ -727,7 +727,7 @@ static int img_spdif_in_probe(struct platform_device *pdev)
 
 	spdif = devm_kzalloc(&pdev->dev, sizeof(*spdif), GFP_KERNEL);
 	if (!spdif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, spdif);
 
@@ -760,7 +760,7 @@ static int img_spdif_in_probe(struct platform_device *pdev)
 			ret = -EPROBE_DEFER;
 			goto err_pm_put;
 		}
-		dev_dbg(dev, "No top level reset found\n");
+		dev_dbg(dev, "Anal top level reset found\n");
 		img_spdif_in_writel(spdif, IMG_SPDIF_IN_SOFT_RESET_MASK,
 				IMG_SPDIF_IN_SOFT_RESET);
 		img_spdif_in_writel(spdif, 0, IMG_SPDIF_IN_SOFT_RESET);

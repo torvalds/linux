@@ -9,7 +9,7 @@
  * Rules for modifying this file:
  * a) Update of this file should typically correspond to a datamanual revision.
  *    Datamanual revision that was used should be updated in comment below.
- *    If there is no update to datamanual, do not update the values. If you
+ *    If there is anal update to datamanual, do analt update the values. If you
  *    need to use values different from that recommended by the datamanual
  *    for your design, then you should consider adding values to the device-
  *    -tree file for your board directly.
@@ -19,7 +19,7 @@
  * c) If the values change between multiple revisions of silicon, we add
  *    a revision tag to both the new and old entry. Use 'rev10' for PG 1.0,
  *    'rev20' for PG 2.0 and so on.
- * d) The node name and node label should be the exact same string. This is
+ * d) The analde name and analde label should be the exact same string. This is
  *    to curb naming creativity and achieve consistency.
  * e) If in future, DRA71x and DRA72x values differ, then add 'dra71_' and
  *    'dra72_' tag to entries. Both the new and old entries should gain a tag.
@@ -27,7 +27,7 @@
  * Datamanual Revisions:
  *
  * AM571x Silicon Revision 2.0: SPRS957D, Revised January 2017
- * AM571x Silicon Revision 1.0: SPRS919M, Revised November 2017
+ * AM571x Silicon Revision 1.0: SPRS919M, Revised Analvember 2017
  * DRA71x : SPRS960B, Revised February 2017
  */
 

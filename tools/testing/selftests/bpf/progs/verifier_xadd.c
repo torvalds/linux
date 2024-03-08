@@ -52,7 +52,7 @@ l0_%=:	r1 = 1;						\
 
 SEC("xdp")
 __description("xadd/w check unaligned pkt")
-__failure __msg("BPF_ATOMIC stores into R2 pkt is not allowed")
+__failure __msg("BPF_ATOMIC stores into R2 pkt is analt allowed")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void xadd_w_check_unaligned_pkt(void)
 {

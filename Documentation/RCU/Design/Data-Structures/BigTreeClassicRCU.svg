@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8" standalone="anal"?>
 <!-- Creator: fig2dev Version 3.2 Patchlevel 5e -->
 
 <!-- CreationDate: Wed Dec  9 17:28:20 2015 -->
@@ -44,7 +44,7 @@
       <path
          id="path3864"
          d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
-         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;"
+         style="fill-rule:eveanaldd;stroke:#000000;stroke-width:1.0pt;"
          transform="scale(0.4) rotate(180) translate(10,0)" />
     </marker>
   </defs>
@@ -69,7 +69,7 @@
      inkscape:window-maximized="0"
      inkscape:current-layer="g4" />
   <g
-     style="stroke-width:.025in; fill:none"
+     style="stroke-width:.025in; fill:analne"
      id="g4">
     <!-- Line: box -->
     <rect
@@ -110,7 +110,7 @@
     <!-- Line -->
     <polyline
        points="3375,6525 3375,5046 "
-       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline14" />
     <!-- Arrowhead on XXXpoint 3375 6525 - 3375 4860-->
     <!-- Circle -->
@@ -188,31 +188,31 @@
     <!-- Line -->
     <polyline
        points="2475,3600 3975,2310 "
-       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline38" />
     <!-- Arrowhead on XXXpoint 2475 3600 - 4116 2190-->
     <!-- Line -->
     <polyline
        points="7875,3600 6372,2310 "
-       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline42" />
     <!-- Arrowhead on XXXpoint 7875 3600 - 6231 2190-->
     <!-- Line -->
     <polyline
        points="6975,8775 6975,5046 "
-       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline46" />
     <!-- Arrowhead on XXXpoint 6975 8775 - 6975 4860-->
     <!-- Line -->
     <polyline
        points="1575,8775 1575,5046 "
-       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline50" />
     <!-- Arrowhead on XXXpoint 1575 8775 - 1575 4860-->
     <!-- Line -->
     <polyline
        points="8775,6525 8775,5046 "
-       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:44.9934641;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline54" />
     <!-- Arrowhead on XXXpoint 8775 6525 - 8775 4860-->
     <!-- Text -->
@@ -222,7 +222,7 @@
        y="9225"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -234,7 +234,7 @@
        y="9675"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -246,8 +246,8 @@
        y="10350"
        fill="#000000"
        font-family="Helvetica"
-       font-style="normal"
-       font-weight="normal"
+       font-style="analrmal"
+       font-weight="analrmal"
        font-size="324"
        text-anchor="middle"
        id="text62">CPU 0</text>
@@ -258,7 +258,7 @@
        y="6975"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -270,7 +270,7 @@
        y="7425"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -282,8 +282,8 @@
        y="8100"
        fill="#000000"
        font-family="Helvetica"
-       font-style="normal"
-       font-weight="normal"
+       font-style="analrmal"
+       font-weight="analrmal"
        font-size="324"
        text-anchor="middle"
        id="text68">CPU 15</text>
@@ -294,7 +294,7 @@
        y="9225"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -306,7 +306,7 @@
        y="9675"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -318,8 +318,8 @@
        y="10350"
        fill="#000000"
        font-family="Helvetica"
-       font-style="normal"
-       font-weight="normal"
+       font-style="analrmal"
+       font-weight="analrmal"
        font-size="324"
        text-anchor="middle"
        id="text74">CPU 1007</text>
@@ -330,7 +330,7 @@
        y="6930"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -342,7 +342,7 @@
        y="7380"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -354,8 +354,8 @@
        y="8055"
        fill="#000000"
        font-family="Helvetica"
-       font-style="normal"
-       font-weight="normal"
+       font-style="analrmal"
+       font-weight="analrmal"
        font-size="324"
        text-anchor="middle"
        id="text80">CPU 1023</text>
@@ -366,7 +366,7 @@
        y="450"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="start"
@@ -378,7 +378,7 @@
        y="4050"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -390,11 +390,11 @@
        y="4500"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
-       id="text86">rcu_node</text>
+       id="text86">rcu_analde</text>
     <!-- Text -->
     <text
        xml:space="preserve"
@@ -402,11 +402,11 @@
        y="4500"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
-       id="text88">rcu_node</text>
+       id="text88">rcu_analde</text>
     <!-- Text -->
     <text
        xml:space="preserve"
@@ -414,7 +414,7 @@
        y="4050"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -426,7 +426,7 @@
        y="1350"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
@@ -438,11 +438,11 @@
        y="1800"
        fill="#000000"
        font-family="Courier"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="288"
        text-anchor="middle"
-       id="text94">rcu_node</text>
+       id="text94">rcu_analde</text>
     <!-- Line: box -->
     <rect
        x="225"

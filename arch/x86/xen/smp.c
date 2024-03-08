@@ -71,7 +71,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	rc = bind_ipi_to_irqhandler(XEN_RESCHEDULE_VECTOR,
 				    cpu,
 				    xen_reschedule_interrupt,
-				    IRQF_PERCPU|IRQF_NOBALANCING,
+				    IRQF_PERCPU|IRQF_ANALBALANCING,
 				    resched_name,
 				    NULL);
 	if (rc < 0)
@@ -85,7 +85,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_VECTOR,
 				    cpu,
 				    xen_call_function_interrupt,
-				    IRQF_PERCPU|IRQF_NOBALANCING,
+				    IRQF_PERCPU|IRQF_ANALBALANCING,
 				    callfunc_name,
 				    NULL);
 	if (rc < 0)
@@ -100,7 +100,7 @@ int xen_smp_intr_init(unsigned int cpu)
 		per_cpu(xen_debug_irq, cpu).name = debug_name;
 		rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu,
 					     xen_debug_interrupt,
-					     IRQF_PERCPU | IRQF_NOBALANCING,
+					     IRQF_PERCPU | IRQF_ANALBALANCING,
 					     debug_name, NULL);
 		if (rc < 0)
 			goto fail;
@@ -115,7 +115,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_SINGLE_VECTOR,
 				    cpu,
 				    xen_call_function_single_interrupt,
-				    IRQF_PERCPU|IRQF_NOBALANCING,
+				    IRQF_PERCPU|IRQF_ANALBALANCING,
 				    callfunc_name,
 				    NULL);
 	if (rc < 0)
@@ -125,7 +125,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	return 0;
 
  fail_mem:
-	rc = -ENOMEM;
+	rc = -EANALMEM;
  fail:
 	xen_smp_intr_free(cpu);
 	return rc;
@@ -199,7 +199,7 @@ static inline int xen_map_vector(int vector)
 #endif
 	default:
 		xen_vector = -1;
-		printk(KERN_ERR "xen: vector 0x%x is not implemented\n",
+		printk(KERN_ERR "xen: vector 0x%x is analt implemented\n",
 			vector);
 	}
 

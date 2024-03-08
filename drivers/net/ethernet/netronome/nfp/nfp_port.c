@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
@@ -25,7 +25,7 @@ struct nfp_port *nfp_port_from_netdev(struct net_device *netdev)
 		return repr->port;
 	}
 
-	WARN(1, "Unknown netdev type for nfp_port\n");
+	WARN(1, "Unkanalwn netdev type for nfp_port\n");
 
 	return NULL;
 }
@@ -38,7 +38,7 @@ int nfp_port_get_port_parent_id(struct net_device *netdev,
 
 	port = nfp_port_from_netdev(netdev);
 	if (!port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ppid->id_len = nfp_cpp_serial(port->app->cpp, &serial);
 	memcpy(&ppid->id, serial, ppid->id_len);
@@ -53,7 +53,7 @@ int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 
 	port = nfp_port_from_netdev(netdev);
 	if (!port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return nfp_app_setup_tc(port->app, netdev, type, type_data);
 }
@@ -68,7 +68,7 @@ int nfp_port_set_features(struct net_device *netdev, netdev_features_t features)
 
 	if ((netdev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
 	    port->tc_offload_cnt) {
-		netdev_err(netdev, "Cannot disable HW TC offload while offloads active\n");
+		netdev_err(netdev, "Cananalt disable HW TC offload while offloads active\n");
 		return -EBUSY;
 	}
 
@@ -106,13 +106,13 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 
 	port = nfp_port_from_netdev(netdev);
 	if (!port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (port->type) {
 	case NFP_PORT_PHYS_PORT:
 		eth_port = __nfp_port_get_eth_port(port);
 		if (!eth_port)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (!eth_port->is_split)
 			n = snprintf(name, len, "p%d", eth_port->label_port);
@@ -131,7 +131,7 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 		n = snprintf(name, len, "pf%dvf%d", port->pf_id, port->vf_id);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (n >= len)
@@ -149,8 +149,8 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
  * interface associated with the netdev.
  *
  * Return:
- * 0 - configuration successful (or no change);
- * -ERRNO - configuration failed.
+ * 0 - configuration successful (or anal change);
+ * -ERRANAL - configuration failed.
  */
 int nfp_port_configure(struct net_device *netdev, bool configed)
 {
@@ -166,7 +166,7 @@ int nfp_port_configure(struct net_device *netdev, bool configed)
 		return 0;
 
 	err = nfp_eth_set_configured(port->app->cpp, eth_port->index, configed);
-	return err < 0 && err != -EOPNOTSUPP ? err : 0;
+	return err < 0 && err != -EOPANALTSUPP ? err : 0;
 }
 
 int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
@@ -175,7 +175,7 @@ int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 	/* Check if vNIC has external port associated and cfg is OK */
 	if (!pf->eth_tbl || id >= pf->eth_tbl->count) {
 		nfp_err(app->cpp,
-			"NSP port entries don't match vNICs (no entry %d)\n",
+			"NSP port entries don't match vNICs (anal entry %d)\n",
 			id);
 		return -EINVAL;
 	}
@@ -205,7 +205,7 @@ nfp_port_alloc(struct nfp_app *app, enum nfp_port_type type,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	port->netdev = netdev;
 	port->type = type;

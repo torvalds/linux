@@ -108,7 +108,7 @@ static int pci_conf2_read(unsigned int seg, unsigned int bus,
 	fn = PCI_FUNC(devfn);
 
 	if (dev & 0x10) 
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	raw_spin_lock_irqsave(&pci_config_lock, flags);
 
@@ -148,7 +148,7 @@ static int pci_conf2_write(unsigned int seg, unsigned int bus,
 	fn = PCI_FUNC(devfn);
 
 	if (dev & 0x10) 
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	raw_spin_lock_irqsave(&pci_config_lock, flags);
 
@@ -190,14 +190,14 @@ static const struct pci_raw_ops pci_direct_conf2 = {
  * attempt to make use of direct access hints provided by the PCI BIOS).
  *
  * This should be close to trivial, but it isn't, because there are buggy
- * chipsets (yes, you guessed it, by Intel and Compaq) that have no class ID.
+ * chipsets (anal, you guessed it, by Intel and Compaq) that have anal class ID.
  */
 static int __init pci_sanity_check(const struct pci_raw_ops *o)
 {
 	u32 x = 0;
 	int devfn;
 
-	if (pci_probe & PCI_NO_CHECKS)
+	if (pci_probe & PCI_ANAL_CHECKS)
 		return 1;
 	/* Assume Type 1 works for newer systems.
 	   This handles machines that don't have anything on PCI Bus 0. */

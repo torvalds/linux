@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor policy loading interface function definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #ifndef __POLICY_INTERFACE_H
@@ -52,7 +52,7 @@ enum {
 
 /*
  * The AppArmor interface treats data as a type byte followed by the
- * actual data.  The interface has the notion of a named entry
+ * actual data.  The interface has the analtion of a named entry
  * which has a name (AA_NAME typecode followed by name string) followed by
  * the entries typecode and data.  Named types allow for optional
  * elements and extensions to be added and tested for without breaking
@@ -90,8 +90,8 @@ struct aa_ext {
 /*
  * struct aa_loaddata - buffer of policy raw_data set
  *
- * there is no loaddata ref for being on ns list, nor a ref from
- * d_inode(@dentry) when grab a ref from these, @ns->lock must be held
+ * there is anal loaddata ref for being on ns list, analr a ref from
+ * d_ianalde(@dentry) when grab a ref from these, @ns->lock must be held
  * && __aa_get_loaddata() needs to be used, and the return value
  * checked, if NULL the loaddata is already being reaped and should be
  * considered dead.
@@ -126,7 +126,7 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh, const char **ns);
  *          being repeated.
  * Requires: @data->ns->lock held, and the return code MUST be checked
  *
- * Use only from inode->i_private and @data->list found references
+ * Use only from ianalde->i_private and @data->list found references
  */
 static inline struct aa_loaddata *
 __aa_get_loaddata(struct aa_loaddata *data)

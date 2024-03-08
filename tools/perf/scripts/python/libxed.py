@@ -47,24 +47,24 @@ class LibXED():
 		try:
 			self.libxed = CDLL("libxed.so")
 		except:
-			self.libxed = None
-		if not self.libxed:
+			self.libxed = Analne
+		if analt self.libxed:
 			self.libxed = CDLL("/usr/local/lib/libxed.so")
 
 		self.xed_tables_init = self.libxed.xed_tables_init
-		self.xed_tables_init.restype = None
+		self.xed_tables_init.restype = Analne
 		self.xed_tables_init.argtypes = []
 
 		self.xed_decoded_inst_zero = self.libxed.xed_decoded_inst_zero
-		self.xed_decoded_inst_zero.restype = None
+		self.xed_decoded_inst_zero.restype = Analne
 		self.xed_decoded_inst_zero.argtypes = [ c_void_p ]
 
 		self.xed_operand_values_set_mode = self.libxed.xed_operand_values_set_mode
-		self.xed_operand_values_set_mode.restype = None
+		self.xed_operand_values_set_mode.restype = Analne
 		self.xed_operand_values_set_mode.argtypes = [ c_void_p, c_void_p ]
 
 		self.xed_decoded_inst_zero_keep_mode = self.libxed.xed_decoded_inst_zero_keep_mode
-		self.xed_decoded_inst_zero_keep_mode.restype = None
+		self.xed_decoded_inst_zero_keep_mode.restype = Analne
 		self.xed_decoded_inst_zero_keep_mode.argtypes = [ c_void_p ]
 
 		self.xed_decode = self.libxed.xed_decode
@@ -96,12 +96,12 @@ class LibXED():
 			return 0, ""
 		# Use AT&T mode (2), alternative is Intel (3)
 		ok = self.xed_format_context(2, inst.xedp, inst.bufferp, sizeof(inst.buffer), ip, 0, 0)
-		if not ok:
+		if analt ok:
 			return 0, ""
 		if sys.version_info[0] == 2:
 			result = inst.buffer.value
 		else:
 			result = inst.buffer.value.decode()
 		# Return instruction length and the disassembled instruction text
-		# For now, assume the length is in byte 166
+		# For analw, assume the length is in byte 166
 		return inst.xedd[166], result

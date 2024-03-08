@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /*
- * Copyright 2020 Noralf Trønnes
+ * Copyright 2020 Analralf Trønnes
  */
 
 #include <linux/backlight.h>
@@ -36,7 +36,7 @@ struct gud_connector {
 
 	/*
 	 * Initial gadget backlight brightness if applicable, applied on state reset.
-	 * The value -ENODEV is used to signal no backlight.
+	 * The value -EANALDEV is used to signal anal backlight.
 	 */
 	int initial_brightness;
 };
@@ -71,7 +71,7 @@ static void gud_connector_backlight_update_status_work(struct work_struct *work)
 
 	state = drm_atomic_state_alloc(drm);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -128,7 +128,7 @@ static int gud_connector_backlight_register(struct gud_connector *gconn)
 	const char *name;
 	const struct backlight_properties props = {
 		.type = BACKLIGHT_RAW,
-		.scale = BACKLIGHT_SCALE_NON_LINEAR,
+		.scale = BACKLIGHT_SCALE_ANALN_LINEAR,
 		.max_brightness = 100,
 		.brightness = gconn->initial_brightness,
 	};
@@ -136,7 +136,7 @@ static int gud_connector_backlight_register(struct gud_connector *gconn)
 	name = kasprintf(GFP_KERNEL, "card%d-%s-backlight",
 			 connector->dev->primary->index, connector->name);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bd = backlight_device_register(name, connector->kdev, connector,
 				       &gud_connector_backlight_ops, &props);
@@ -163,14 +163,14 @@ static int gud_connector_detect(struct drm_connector *connector,
 		ret = gud_usb_set(gdrm, GUD_REQ_SET_CONNECTOR_FORCE_DETECT,
 				  connector->index, NULL, 0);
 		if (ret) {
-			ret = connector_status_unknown;
+			ret = connector_status_unkanalwn;
 			goto exit;
 		}
 	}
 
 	ret = gud_usb_get_u8(gdrm, GUD_REQ_GET_CONNECTOR_STATUS, connector->index, &status);
 	if (ret) {
-		ret = connector_status_unknown;
+		ret = connector_status_unkanalwn;
 		goto exit;
 	}
 
@@ -182,7 +182,7 @@ static int gud_connector_detect(struct drm_connector *connector,
 		ret = connector_status_connected;
 		break;
 	default:
-		ret = connector_status_unknown;
+		ret = connector_status_unkanalwn;
 		break;
 	}
 
@@ -385,7 +385,7 @@ static int gud_connector_add_tv_mode(struct gud_device *gdrm, struct drm_connect
 
 	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gud_usb_get(gdrm, GUD_REQ_GET_CONNECTOR_TV_MODE_VALUES,
 			  connector->index, buf, buf_len);
@@ -482,7 +482,7 @@ static int gud_connector_add_properties(struct gud_device *gdrm, struct gud_conn
 
 	properties = kcalloc(GUD_CONNECTOR_PROPERTIES_MAX_NUM, sizeof(*properties), GFP_KERNEL);
 	if (!properties)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gud_usb_get(gdrm, GUD_REQ_GET_CONNECTOR_PROPERTIES, connector->index,
 			  properties, GUD_CONNECTOR_PROPERTIES_MAX_NUM * sizeof(*properties));
@@ -498,7 +498,7 @@ static int gud_connector_add_properties(struct gud_device *gdrm, struct gud_conn
 
 	gconn->properties = kcalloc(num_properties, sizeof(*gconn->properties), GFP_KERNEL);
 	if (!gconn->properties) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -538,7 +538,7 @@ static int gud_connector_add_properties(struct gud_device *gdrm, struct gud_conn
 		case GUD_PROPERTY_TV_SATURATION:
 			fallthrough;
 		case GUD_PROPERTY_TV_HUE:
-			/* This is a no-op if already added. */
+			/* This is a anal-op if already added. */
 			ret = drm_mode_create_tv_properties_legacy(drm, 0, NULL);
 			if (ret)
 				goto out;
@@ -551,15 +551,15 @@ static int gud_connector_add_properties(struct gud_device *gdrm, struct gud_conn
 			gconn->initial_brightness = val;
 			break;
 		default:
-			/* New ones might show up in future devices, skip those we don't know. */
-			drm_dbg(drm, "Ignoring unknown property: %u\n", prop);
+			/* New ones might show up in future devices, skip those we don't kanalw. */
+			drm_dbg(drm, "Iganalring unkanalwn property: %u\n", prop);
 			continue;
 		}
 
 		gconn->properties[gconn->num_properties++] = prop;
 
 		if (prop == GUD_PROPERTY_BACKLIGHT_BRIGHTNESS)
-			continue; /* not a DRM property */
+			continue; /* analt a DRM property */
 
 		property = gud_connector_property_lookup(connector, prop);
 		if (WARN_ON(IS_ERR(property)))
@@ -619,10 +619,10 @@ static int gud_connector_create(struct gud_device *gdrm, unsigned int index,
 
 	gconn = kzalloc(sizeof(*gconn), GFP_KERNEL);
 	if (!gconn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&gconn->backlight_work, gud_connector_backlight_update_status_work);
-	gconn->initial_brightness = -ENODEV;
+	gconn->initial_brightness = -EANALDEV;
 	flags = le32_to_cpu(desc->flags);
 	connector = &gconn->connector;
 
@@ -687,7 +687,7 @@ static int gud_connector_create(struct gud_device *gdrm, unsigned int index,
 	} else {
 		encoder = &gconn->encoder;
 
-		ret = drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_NONE);
+		ret = drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_ANALNE);
 		if (ret)
 			return ret;
 
@@ -705,7 +705,7 @@ int gud_get_connectors(struct gud_device *gdrm)
 
 	descs = kmalloc_array(GUD_CONNECTORS_MAX_NUM, sizeof(*descs), GFP_KERNEL);
 	if (!descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gud_usb_get(gdrm, GUD_REQ_GET_CONNECTORS, 0,
 			  descs, GUD_CONNECTORS_MAX_NUM * sizeof(*descs));

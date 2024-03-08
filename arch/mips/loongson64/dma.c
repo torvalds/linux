@@ -6,20 +6,20 @@
 
 dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	/* We extract 2bit node id (bit 44~47, only bit 44~45 used now) from
+	/* We extract 2bit analde id (bit 44~47, only bit 44~45 used analw) from
 	 * Loongson-3's 48bit address space and embed it into 40bit */
 	long nid = (paddr >> 44) & 0x3;
 
-	return ((nid << 44) ^ paddr) | (nid << node_id_offset);
+	return ((nid << 44) ^ paddr) | (nid << analde_id_offset);
 }
 
 phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
-	/* We extract 2bit node id (bit 44~47, only bit 44~45 used now) from
+	/* We extract 2bit analde id (bit 44~47, only bit 44~45 used analw) from
 	 * Loongson-3's 48bit address space and embed it into 40bit */
-	long nid = (daddr >> node_id_offset) & 0x3;
+	long nid = (daddr >> analde_id_offset) & 0x3;
 
-	return ((nid << node_id_offset) ^ daddr) | (nid << 44);
+	return ((nid << analde_id_offset) ^ daddr) | (nid << 44);
 }
 
 void __init plat_swiotlb_setup(void)

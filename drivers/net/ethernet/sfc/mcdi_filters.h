@@ -85,7 +85,7 @@ struct efx_mcdi_filter_table {
 	 * multicast packets that matched more-specific filters.  Early EF10
 	 * firmware didn't support this (SF bug 26807); if mc_chaining == false
 	 * then we still subscribe the dev_mc_list even when mc_promisc to
-	 * prevent another VI stealing the traffic.
+	 * prevent aanalther VI stealing the traffic.
 	 */
 	bool mc_chaining;
 	bool vlan_filter;
@@ -169,7 +169,7 @@ void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx);
 
 static inline void efx_mcdi_update_rx_scatter(struct efx_nic *efx)
 {
-	/* no need to do anything here */
+	/* anal need to do anything here */
 }
 
 bool efx_mcdi_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,

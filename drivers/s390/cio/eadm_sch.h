@@ -10,7 +10,7 @@
 
 struct eadm_private {
 	union orb orb;
-	enum {EADM_IDLE, EADM_BUSY, EADM_NOT_OPER} state;
+	enum {EADM_IDLE, EADM_BUSY, EADM_ANALT_OPER} state;
 	struct completion *completion;
 	struct subchannel *sch;
 	struct timer_list timer;

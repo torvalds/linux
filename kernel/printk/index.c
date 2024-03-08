@@ -42,7 +42,7 @@ static struct pi_entry *pi_get_entry(const struct module *mod, loff_t pos)
 
 static void *pi_next(struct seq_file *s, void *v, loff_t *pos)
 {
-	const struct module *mod = s->file->f_inode->i_private;
+	const struct module *mod = s->file->f_ianalde->i_private;
 	struct pi_entry *entry = pi_get_entry(mod, *pos);
 
 	(*pos)++;
@@ -53,7 +53,7 @@ static void *pi_next(struct seq_file *s, void *v, loff_t *pos)
 static void *pi_start(struct seq_file *s, loff_t *pos)
 {
 	/*
-	 * Make show() print the header line. Do not update *pos because
+	 * Make show() print the header line. Do analt update *pos because
 	 * pi_next() still has to return the entry at index 0 later.
 	 */
 	if (*pos == 0)
@@ -65,7 +65,7 @@ static void *pi_start(struct seq_file *s, loff_t *pos)
 /*
  * We need both ESCAPE_ANY and explicit characters from ESCAPE_SPECIAL in @only
  * because otherwise ESCAPE_NAP will cause double quotes and backslashes to be
- * ignored for quoting.
+ * iganalred for quoting.
  */
 #define seq_escape_printf_format(s, src) \
 	seq_escape_str(s, src, ESCAPE_ANY | ESCAPE_NAP | ESCAPE_APPEND, "\"\\")
@@ -94,7 +94,7 @@ static int pi_show(struct seq_file *s, void *v)
 	if (flags & LOG_CONT) {
 		/*
 		 * LOGLEVEL_DEFAULT here means "use the same level as the
-		 * message we're continuing from", not the default message
+		 * message we're continuing from", analt the default message
 		 * loglevel, so don't display it as such.
 		 */
 		if (level == LOGLEVEL_DEFAULT)
@@ -148,7 +148,7 @@ static void pi_remove_file(struct module *mod)
 	debugfs_lookup_and_remove(pi_get_module_name(mod), dfs_index);
 }
 
-static int pi_module_notify(struct notifier_block *nb, unsigned long op,
+static int pi_module_analtify(struct analtifier_block *nb, unsigned long op,
 			    void *data)
 {
 	struct module *mod = data;
@@ -164,19 +164,19 @@ static int pi_module_notify(struct notifier_block *nb, unsigned long op,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block module_printk_fmts_nb = {
-	.notifier_call = pi_module_notify,
+static struct analtifier_block module_printk_fmts_nb = {
+	.analtifier_call = pi_module_analtify,
 };
 
-static void __init pi_setup_module_notifier(void)
+static void __init pi_setup_module_analtifier(void)
 {
-	register_module_notifier(&module_printk_fmts_nb);
+	register_module_analtifier(&module_printk_fmts_nb);
 }
 #else
-static inline void __init pi_setup_module_notifier(void) { }
+static inline void __init pi_setup_module_analtifier(void) { }
 #endif
 
 static int __init pi_init(void)
@@ -184,7 +184,7 @@ static int __init pi_init(void)
 	struct dentry *dfs_root = debugfs_create_dir("printk", NULL);
 
 	dfs_index = debugfs_create_dir("index", dfs_root);
-	pi_setup_module_notifier();
+	pi_setup_module_analtifier();
 	pi_create_file(NULL);
 
 	return 0;

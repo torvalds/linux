@@ -187,7 +187,7 @@ enum yfs_cm_operation {
 	EM(afs_cell_trace_unuse_fc,		"UNU fc    ") \
 	EM(afs_cell_trace_unuse_lookup,		"UNU lookup") \
 	EM(afs_cell_trace_unuse_mntpt,		"UNU mntpt ") \
-	EM(afs_cell_trace_unuse_no_pin,		"UNU no-pin") \
+	EM(afs_cell_trace_unuse_anal_pin,		"UNU anal-pin") \
 	EM(afs_cell_trace_unuse_parse,		"UNU parse ") \
 	EM(afs_cell_trace_unuse_pin,		"UNU pin   ") \
 	EM(afs_cell_trace_unuse_probe,		"UNU probe ") \
@@ -327,11 +327,11 @@ enum yfs_cm_operation {
 	EM(afs_edit_dir_create,			"create") \
 	EM(afs_edit_dir_create_error,		"c_fail") \
 	EM(afs_edit_dir_create_inval,		"c_invl") \
-	EM(afs_edit_dir_create_nospc,		"c_nspc") \
+	EM(afs_edit_dir_create_analspc,		"c_nspc") \
 	EM(afs_edit_dir_delete,			"delete") \
 	EM(afs_edit_dir_delete_error,		"d_err ") \
 	EM(afs_edit_dir_delete_inval,		"d_invl") \
-	E_(afs_edit_dir_delete_noent,		"d_nent")
+	E_(afs_edit_dir_delete_analent,		"d_nent")
 
 #define afs_edit_dir_reasons				  \
 	EM(afs_edit_dir_for_create,		"Create") \
@@ -389,14 +389,14 @@ enum yfs_cm_operation {
 	E_(F_UNLCK,				"UNLCK")
 
 #define afs_flock_states						\
-	EM(AFS_VNODE_LOCK_NONE,			"NONE")			\
-	EM(AFS_VNODE_LOCK_WAITING_FOR_CB,	"WAIT_FOR_CB")		\
-	EM(AFS_VNODE_LOCK_SETTING,		"SETTING")		\
-	EM(AFS_VNODE_LOCK_GRANTED,		"GRANTED")		\
-	EM(AFS_VNODE_LOCK_EXTENDING,		"EXTENDING")		\
-	EM(AFS_VNODE_LOCK_NEED_UNLOCK,		"NEED_UNLOCK")		\
-	EM(AFS_VNODE_LOCK_UNLOCKING,		"UNLOCKING")		\
-	E_(AFS_VNODE_LOCK_DELETED,		"DELETED")
+	EM(AFS_VANALDE_LOCK_ANALNE,			"ANALNE")			\
+	EM(AFS_VANALDE_LOCK_WAITING_FOR_CB,	"WAIT_FOR_CB")		\
+	EM(AFS_VANALDE_LOCK_SETTING,		"SETTING")		\
+	EM(AFS_VANALDE_LOCK_GRANTED,		"GRANTED")		\
+	EM(AFS_VANALDE_LOCK_EXTENDING,		"EXTENDING")		\
+	EM(AFS_VANALDE_LOCK_NEED_UNLOCK,		"NEED_UNLOCK")		\
+	EM(AFS_VANALDE_LOCK_UNLOCKING,		"UNLOCKING")		\
+	E_(AFS_VANALDE_LOCK_DELETED,		"DELETED")
 
 #define afs_flock_events						\
 	EM(afs_flock_acquired,			"Acquired")		\
@@ -405,7 +405,7 @@ enum yfs_cm_operation {
 	EM(afs_flock_extend_fail,		"Ext_Fail")		\
 	EM(afs_flock_fail_other,		"ErrOther")		\
 	EM(afs_flock_fail_perm,			"ErrPerm ")		\
-	EM(afs_flock_no_lockers,		"NoLocker")		\
+	EM(afs_flock_anal_lockers,		"AnalLocker")		\
 	EM(afs_flock_release_fail,		"Rel_Fail")		\
 	EM(afs_flock_silly_delete,		"SillyDel")		\
 	EM(afs_flock_timestamp,			"Timestmp")		\
@@ -434,7 +434,7 @@ enum yfs_cm_operation {
 	E_(afs_flock_op_wake,			"WAKE    ")
 
 #define afs_cb_break_reasons						\
-	EM(afs_cb_break_no_break,		"no-break")		\
+	EM(afs_cb_break_anal_break,		"anal-break")		\
 	EM(afs_cb_break_for_callback,		"break-cb")		\
 	EM(afs_cb_break_for_creation_regress,	"creation-regress")	\
 	EM(afs_cb_break_for_deleted,		"break-del")		\
@@ -453,11 +453,11 @@ enum yfs_cm_operation {
 	EM(afs_rotate_trace_iter,		"Iter  ")		\
 	EM(afs_rotate_trace_iterate_addr,	"ItAddr")		\
 	EM(afs_rotate_trace_next_server,	"NextSv")		\
-	EM(afs_rotate_trace_no_more_servers,	"NoMore")		\
-	EM(afs_rotate_trace_nomem,		"Nomem ")		\
+	EM(afs_rotate_trace_anal_more_servers,	"AnalMore")		\
+	EM(afs_rotate_trace_analmem,		"Analmem ")		\
 	EM(afs_rotate_trace_probe_error,	"PrbErr")		\
 	EM(afs_rotate_trace_probe_fileserver,	"PrbFsv")		\
-	EM(afs_rotate_trace_probe_none,		"PrbNon")		\
+	EM(afs_rotate_trace_probe_analne,		"PrbAnaln")		\
 	EM(afs_rotate_trace_probe_response,	"PrbRsp")		\
 	EM(afs_rotate_trace_probe_superseded,	"PrbSup")		\
 	EM(afs_rotate_trace_restart,		"Rstart")		\
@@ -525,7 +525,7 @@ afs_vl_operations;
 yfs_cm_operations;
 
 /*
- * Now redefine the EM() and E_() macros to map the enums to the strings that
+ * Analw redefine the EM() and E_() macros to map the enums to the strings that
  * will be printed in the output.
  */
 #undef EM
@@ -566,7 +566,7 @@ TRACE_EVENT(afs_receive_data,
 		      __entry->ret)
 	    );
 
-TRACE_EVENT(afs_notify_call,
+TRACE_EVENT(afs_analtify_call,
 	    TP_PROTO(struct rxrpc_call *rxcall, struct afs_call *call),
 
 	    TP_ARGS(rxcall, call),
@@ -660,7 +660,7 @@ TRACE_EVENT(afs_make_fs_call,
 			    __entry->fid = *fid;
 		    } else {
 			    __entry->fid.vid = 0;
-			    __entry->fid.vnode = 0;
+			    __entry->fid.vanalde = 0;
 			    __entry->fid.unique = 0;
 		    }
 			   ),
@@ -668,7 +668,7 @@ TRACE_EVENT(afs_make_fs_call,
 	    TP_printk("c=%08x %06llx:%06llx:%06x %s",
 		      __entry->call,
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vanalde,
 		      __entry->fid.unique,
 		      __print_symbolic(__entry->op, afs_fs_operations))
 	    );
@@ -694,7 +694,7 @@ TRACE_EVENT(afs_make_fs_calli,
 			    __entry->fid = *fid;
 		    } else {
 			    __entry->fid.vid = 0;
-			    __entry->fid.vnode = 0;
+			    __entry->fid.vanalde = 0;
 			    __entry->fid.unique = 0;
 		    }
 			   ),
@@ -702,7 +702,7 @@ TRACE_EVENT(afs_make_fs_calli,
 	    TP_printk("c=%08x %06llx:%06llx:%06x %s i=%u",
 		      __entry->call,
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vanalde,
 		      __entry->fid.unique,
 		      __print_symbolic(__entry->op, afs_fs_operations),
 		      __entry->i)
@@ -729,7 +729,7 @@ TRACE_EVENT(afs_make_fs_call1,
 			    __entry->fid = *fid;
 		    } else {
 			    __entry->fid.vid = 0;
-			    __entry->fid.vnode = 0;
+			    __entry->fid.vanalde = 0;
 			    __entry->fid.unique = 0;
 		    }
 		    memcpy(__entry->name, name->name, __len);
@@ -739,7 +739,7 @@ TRACE_EVENT(afs_make_fs_call1,
 	    TP_printk("c=%08x %06llx:%06llx:%06x %s \"%s\"",
 		      __entry->call,
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vanalde,
 		      __entry->fid.unique,
 		      __print_symbolic(__entry->op, afs_fs_operations),
 		      __entry->name)
@@ -768,7 +768,7 @@ TRACE_EVENT(afs_make_fs_call2,
 			    __entry->fid = *fid;
 		    } else {
 			    __entry->fid.vid = 0;
-			    __entry->fid.vnode = 0;
+			    __entry->fid.vanalde = 0;
 			    __entry->fid.unique = 0;
 		    }
 		    memcpy(__entry->name, name->name, __len);
@@ -780,7 +780,7 @@ TRACE_EVENT(afs_make_fs_call2,
 	    TP_printk("c=%08x %06llx:%06llx:%06x %s \"%s\" \"%s\"",
 		      __entry->call,
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vanalde,
 		      __entry->fid.unique,
 		      __print_symbolic(__entry->op, afs_fs_operations),
 		      __entry->name,
@@ -882,24 +882,24 @@ TRACE_EVENT(afs_sent_data,
 	    );
 
 TRACE_EVENT(afs_dir_check_failed,
-	    TP_PROTO(struct afs_vnode *vnode, loff_t off, loff_t i_size),
+	    TP_PROTO(struct afs_vanalde *vanalde, loff_t off, loff_t i_size),
 
-	    TP_ARGS(vnode, off, i_size),
+	    TP_ARGS(vanalde, off, i_size),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_vnode *,		vnode)
+		    __field(struct afs_vanalde *,		vanalde)
 		    __field(loff_t,			off)
 		    __field(loff_t,			i_size)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->vnode = vnode;
+		    __entry->vanalde = vanalde;
 		    __entry->off = off;
 		    __entry->i_size = i_size;
 			   ),
 
 	    TP_printk("vn=%p %llx/%llx",
-		      __entry->vnode, __entry->off, __entry->i_size)
+		      __entry->vanalde, __entry->off, __entry->i_size)
 	    );
 
 TRACE_EVENT(afs_call_state,
@@ -933,10 +933,10 @@ TRACE_EVENT(afs_call_state,
 	    );
 
 TRACE_EVENT(afs_lookup,
-	    TP_PROTO(struct afs_vnode *dvnode, const struct qstr *name,
+	    TP_PROTO(struct afs_vanalde *dvanalde, const struct qstr *name,
 		     struct afs_fid *fid),
 
-	    TP_ARGS(dvnode, name, fid),
+	    TP_ARGS(dvanalde, name, fid),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	dfid)
@@ -946,38 +946,38 @@ TRACE_EVENT(afs_lookup,
 
 	    TP_fast_assign(
 		    int __len = min_t(int, name->len, 23);
-		    __entry->dfid = dvnode->fid;
+		    __entry->dfid = dvanalde->fid;
 		    __entry->fid = *fid;
 		    memcpy(__entry->name, name->name, __len);
 		    __entry->name[__len] = 0;
 			   ),
 
 	    TP_printk("d=%llx:%llx:%x \"%s\" f=%llx:%x",
-		      __entry->dfid.vid, __entry->dfid.vnode, __entry->dfid.unique,
+		      __entry->dfid.vid, __entry->dfid.vanalde, __entry->dfid.unique,
 		      __entry->name,
-		      __entry->fid.vnode, __entry->fid.unique)
+		      __entry->fid.vanalde, __entry->fid.unique)
 	    );
 
 TRACE_EVENT(afs_edit_dir,
-	    TP_PROTO(struct afs_vnode *dvnode,
+	    TP_PROTO(struct afs_vanalde *dvanalde,
 		     enum afs_edit_dir_reason why,
 		     enum afs_edit_dir_op op,
 		     unsigned int block,
 		     unsigned int slot,
-		     unsigned int f_vnode,
+		     unsigned int f_vanalde,
 		     unsigned int f_unique,
 		     const char *name),
 
-	    TP_ARGS(dvnode, why, op, block, slot, f_vnode, f_unique, name),
+	    TP_ARGS(dvanalde, why, op, block, slot, f_vanalde, f_unique, name),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		vnode)
+		    __field(unsigned int,		vanalde)
 		    __field(unsigned int,		unique)
 		    __field(enum afs_edit_dir_reason,	why)
 		    __field(enum afs_edit_dir_op,	op)
 		    __field(unsigned int,		block)
 		    __field(unsigned short,		slot)
-		    __field(unsigned int,		f_vnode)
+		    __field(unsigned int,		f_vanalde)
 		    __field(unsigned int,		f_unique)
 		    __array(char,			name, 24)
 			     ),
@@ -985,24 +985,24 @@ TRACE_EVENT(afs_edit_dir,
 	    TP_fast_assign(
 		    int __len = strlen(name);
 		    __len = min(__len, 23);
-		    __entry->vnode	= dvnode->fid.vnode;
-		    __entry->unique	= dvnode->fid.unique;
+		    __entry->vanalde	= dvanalde->fid.vanalde;
+		    __entry->unique	= dvanalde->fid.unique;
 		    __entry->why	= why;
 		    __entry->op		= op;
 		    __entry->block	= block;
 		    __entry->slot	= slot;
-		    __entry->f_vnode	= f_vnode;
+		    __entry->f_vanalde	= f_vanalde;
 		    __entry->f_unique	= f_unique;
 		    memcpy(__entry->name, name, __len);
 		    __entry->name[__len] = 0;
 			   ),
 
 	    TP_printk("d=%x:%x %s %s %u[%u] f=%x:%x \"%s\"",
-		      __entry->vnode, __entry->unique,
+		      __entry->vanalde, __entry->unique,
 		      __print_symbolic(__entry->why, afs_edit_dir_reasons),
 		      __print_symbolic(__entry->op, afs_edit_dir_ops),
 		      __entry->block, __entry->slot,
-		      __entry->f_vnode, __entry->f_unique,
+		      __entry->f_vanalde, __entry->f_unique,
 		      __entry->name)
 	    );
 
@@ -1049,9 +1049,9 @@ TRACE_EVENT(afs_io_error,
 	    );
 
 TRACE_EVENT(afs_file_error,
-	    TP_PROTO(struct afs_vnode *vnode, int error, enum afs_file_error where),
+	    TP_PROTO(struct afs_vanalde *vanalde, int error, enum afs_file_error where),
 
-	    TP_ARGS(vnode, error, where),
+	    TP_ARGS(vanalde, error, where),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid)
@@ -1060,13 +1060,13 @@ TRACE_EVENT(afs_file_error,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vanalde->fid;
 		    __entry->error = error;
 		    __entry->where = where;
 			   ),
 
 	    TP_printk("%llx:%llx:%x r=%d %s",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vanalde, __entry->fid.unique,
 		      __entry->error,
 		      __print_symbolic(__entry->where, afs_file_errors))
 	    );
@@ -1092,11 +1092,11 @@ TRACE_EVENT(afs_bulkstat_error,
 
 	    TP_printk("OP=%08x[%02x] %llx:%llx:%x a=%d",
 		      __entry->op, __entry->index,
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vanalde, __entry->fid.unique,
 		      __entry->abort)
 	    );
 
-TRACE_EVENT(afs_cm_no_server,
+TRACE_EVENT(afs_cm_anal_server,
 	    TP_PROTO(struct afs_call *call, struct sockaddr_rxrpc *srx),
 
 	    TP_ARGS(call, srx),
@@ -1117,7 +1117,7 @@ TRACE_EVENT(afs_cm_no_server,
 		      __entry->call, __entry->op_id, &__entry->srx.transport)
 	    );
 
-TRACE_EVENT(afs_cm_no_server_u,
+TRACE_EVENT(afs_cm_anal_server_u,
 	    TP_PROTO(struct afs_call *call, const uuid_t *uuid),
 
 	    TP_ARGS(call, uuid),
@@ -1139,10 +1139,10 @@ TRACE_EVENT(afs_cm_no_server_u,
 	    );
 
 TRACE_EVENT(afs_flock_ev,
-	    TP_PROTO(struct afs_vnode *vnode, struct file_lock *fl,
+	    TP_PROTO(struct afs_vanalde *vanalde, struct file_lock *fl,
 		     enum afs_flock_event event, int error),
 
-	    TP_ARGS(vnode, fl, event, error),
+	    TP_ARGS(vanalde, fl, event, error),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid)
@@ -1153,15 +1153,15 @@ TRACE_EVENT(afs_flock_ev,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vanalde->fid;
 		    __entry->event = event;
-		    __entry->state = vnode->lock_state;
+		    __entry->state = vanalde->lock_state;
 		    __entry->error = error;
 		    __entry->debug_id = fl ? fl->fl_u.afs.debug_id : 0;
 			   ),
 
 	    TP_printk("%llx:%llx:%x %04x %s s=%s e=%d",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vanalde, __entry->fid.unique,
 		      __entry->debug_id,
 		      __print_symbolic(__entry->event, afs_flock_events),
 		      __print_symbolic(__entry->state, afs_flock_states),
@@ -1169,10 +1169,10 @@ TRACE_EVENT(afs_flock_ev,
 	    );
 
 TRACE_EVENT(afs_flock_op,
-	    TP_PROTO(struct afs_vnode *vnode, struct file_lock *fl,
+	    TP_PROTO(struct afs_vanalde *vanalde, struct file_lock *fl,
 		     enum afs_flock_operation op),
 
-	    TP_ARGS(vnode, fl, op),
+	    TP_ARGS(vanalde, fl, op),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid)
@@ -1185,7 +1185,7 @@ TRACE_EVENT(afs_flock_op,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vanalde->fid;
 		    __entry->from = fl->fl_start;
 		    __entry->len = fl->fl_end - fl->fl_start + 1;
 		    __entry->op = op;
@@ -1195,7 +1195,7 @@ TRACE_EVENT(afs_flock_op,
 			   ),
 
 	    TP_printk("%llx:%llx:%x %04x %s t=%s R=%llx/%llx f=%x",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vanalde, __entry->fid.unique,
 		      __entry->debug_id,
 		      __print_symbolic(__entry->op, afs_flock_operations),
 		      __print_symbolic(__entry->type, afs_flock_types),
@@ -1203,26 +1203,26 @@ TRACE_EVENT(afs_flock_op,
 	    );
 
 TRACE_EVENT(afs_reload_dir,
-	    TP_PROTO(struct afs_vnode *vnode),
+	    TP_PROTO(struct afs_vanalde *vanalde),
 
-	    TP_ARGS(vnode),
+	    TP_ARGS(vanalde),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vanalde->fid;
 			   ),
 
 	    TP_printk("%llx:%llx:%x",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique)
+		      __entry->fid.vid, __entry->fid.vanalde, __entry->fid.unique)
 	    );
 
 TRACE_EVENT(afs_silly_rename,
-	    TP_PROTO(struct afs_vnode *vnode, bool done),
+	    TP_PROTO(struct afs_vanalde *vanalde, bool done),
 
-	    TP_ARGS(vnode, done),
+	    TP_ARGS(vanalde, done),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid)
@@ -1230,12 +1230,12 @@ TRACE_EVENT(afs_silly_rename,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vanalde->fid;
 		    __entry->done = done;
 			   ),
 
 	    TP_printk("%llx:%llx:%x done=%u",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vanalde, __entry->fid.unique,
 		      __entry->done)
 	    );
 
@@ -1310,7 +1310,7 @@ TRACE_EVENT(afs_cb_break,
 			   ),
 
 	    TP_printk("%llx:%llx:%x b=%x s=%u %s",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vanalde, __entry->fid.unique,
 		      __entry->cb_break,
 		      __entry->skipped,
 		      __print_symbolic(__entry->reason, afs_cb_break_reasons))
@@ -1332,7 +1332,7 @@ TRACE_EVENT(afs_cb_miss,
 			   ),
 
 	    TP_printk(" %llx:%llx:%x %s",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vanalde, __entry->fid.unique,
 		      __print_symbolic(__entry->reason, afs_cb_break_reasons))
 	    );
 
@@ -1602,7 +1602,7 @@ TRACE_EVENT(afs_make_call,
 		      __print_symbolic(__entry->op, afs_vl_operations) :
 		      __print_symbolic(__entry->op, afs_fs_operations),
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vanalde,
 		      __entry->fid.unique)
 	    );
 

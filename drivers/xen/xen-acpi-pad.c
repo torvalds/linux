@@ -18,7 +18,7 @@
 
 #define ACPI_PROCESSOR_AGGREGATOR_CLASS	"acpi_pad"
 #define ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME "Processor Aggregator"
-#define ACPI_PROCESSOR_AGGREGATOR_NOTIFY 0x80
+#define ACPI_PROCESSOR_AGGREGATOR_ANALTIFY 0x80
 static DEFINE_MUTEX(xen_cpu_lock);
 
 static int xen_acpi_pad_idle_cpus(unsigned int idle_nums)
@@ -70,7 +70,7 @@ static int acpi_pad_pur(acpi_handle handle)
 	return num;
 }
 
-static void acpi_pad_handle_notify(acpi_handle handle)
+static void acpi_pad_handle_analtify(acpi_handle handle)
 {
 	int idle_nums;
 	struct acpi_buffer param = {
@@ -89,17 +89,17 @@ static void acpi_pad_handle_notify(acpi_handle handle)
 	idle_nums = xen_acpi_pad_idle_cpus(idle_nums)
 		    ?: xen_acpi_pad_idle_cpus_num();
 	if (idle_nums >= 0)
-		acpi_evaluate_ost(handle, ACPI_PROCESSOR_AGGREGATOR_NOTIFY,
+		acpi_evaluate_ost(handle, ACPI_PROCESSOR_AGGREGATOR_ANALTIFY,
 				  0, &param);
 	mutex_unlock(&xen_cpu_lock);
 }
 
-static void acpi_pad_notify(acpi_handle handle, u32 event,
+static void acpi_pad_analtify(acpi_handle handle, u32 event,
 	void *data)
 {
 	switch (event) {
-	case ACPI_PROCESSOR_AGGREGATOR_NOTIFY:
-		acpi_pad_handle_notify(handle);
+	case ACPI_PROCESSOR_AGGREGATOR_ANALTIFY:
+		acpi_pad_handle_analtify(handle);
 		break;
 	default:
 		pr_warn("Unsupported event [0x%x]\n", event);
@@ -114,10 +114,10 @@ static int acpi_pad_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
-	status = acpi_install_notify_handler(device->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify, device);
+	status = acpi_install_analtify_handler(device->handle,
+		ACPI_DEVICE_ANALTIFY, acpi_pad_analtify, device);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -128,8 +128,8 @@ static void acpi_pad_remove(struct acpi_device *device)
 	xen_acpi_pad_idle_cpus(0);
 	mutex_unlock(&xen_cpu_lock);
 
-	acpi_remove_notify_handler(device->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify);
+	acpi_remove_analtify_handler(device->handle,
+		ACPI_DEVICE_ANALTIFY, acpi_pad_analtify);
 }
 
 static const struct acpi_device_id pad_device_ids[] = {
@@ -151,11 +151,11 @@ static int __init xen_acpi_pad_init(void)
 {
 	/* Only DOM0 is responsible for Xen acpi pad */
 	if (!xen_initial_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Only Xen4.2 or later support Xen acpi pad */
 	if (!xen_running_on_version_or_later(4, 2))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return acpi_bus_register_driver(&acpi_pad_driver);
 }

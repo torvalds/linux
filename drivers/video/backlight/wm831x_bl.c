@@ -124,7 +124,7 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 		pdata = NULL;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data supplied\n");
+		dev_err(&pdev->dev, "Anal platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -142,7 +142,7 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 
 	if (pdata->max_uA != wm831x_isinkv_values[max_isel])
 		dev_warn(&pdev->dev,
-			 "Maximum current is %duA not %duA as requested\n",
+			 "Maximum current is %duA analt %duA as requested\n",
 			 wm831x_isinkv_values[max_isel], pdata->max_uA);
 
 	switch (pdata->isink) {
@@ -173,7 +173,7 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->wm831x = wm831x;
 	data->current_brightness = 0;

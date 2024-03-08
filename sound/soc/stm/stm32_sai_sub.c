@@ -46,7 +46,7 @@
 
 #define STM_SAI_IS_SUB_A(x)	((x)->id == STM_SAI_A_ID)
 
-#define SAI_SYNC_NONE		0x0
+#define SAI_SYNC_ANALNE		0x0
 #define SAI_SYNC_INTERNAL	0x1
 #define SAI_SYNC_EXTERNAL	0x2
 
@@ -71,7 +71,7 @@
  * @cpu_dai: DAI runtime data pointer
  * @substream: PCM substream data pointer
  * @pdata: SAI block parent data pointer
- * @np_sync_provider: synchronization provider node
+ * @np_sync_provider: synchronization provider analde
  * @sai_ck: kernel clock feeding the SAI clock generator
  * @sai_mclk: master clock from SAI mclk provider
  * @phys_addr: SAI registers physical base address
@@ -81,8 +81,8 @@
  * @master: SAI block mode flag. (true=master, false=slave) set at init
  * @spdif: SAI S/PDIF iec60958 mode flag. set at init
  * @fmt: SAI block format. relevant only for custom protocols. set at init
- * @sync: SAI block synchronization mode. (none, internal or external)
- * @synco: SAI block ext sync source (provider setting). (none, sub-block A/B)
+ * @sync: SAI block synchronization mode. (analne, internal or external)
+ * @synco: SAI block ext sync source (provider setting). (analne, sub-block A/B)
  * @synci: SAI block ext sync source (client setting). (SAI sync provider index)
  * @fs_length: frame synchronization length. depends on protocol settings
  * @slots: rx or tx slot number
@@ -103,7 +103,7 @@ struct stm32_sai_sub_data {
 	struct snd_soc_dai *cpu_dai;
 	struct snd_pcm_substream *substream;
 	struct stm32_sai_data *pdata;
-	struct device_node *np_sync_provider;
+	struct device_analde *np_sync_provider;
 	struct clk *sai_ck;
 	struct clk *sai_mclk;
 	dma_addr_t phys_addr;
@@ -325,7 +325,7 @@ static int stm32_sai_get_clk_div(struct stm32_sai_sub_data *sai,
 
 	if (input_rate % div)
 		dev_dbg(&sai->pdev->dev,
-			"Rate not accurate. requested (%ld), actual (%ld)\n",
+			"Rate analt accurate. requested (%ld), actual (%ld)\n",
 			output_rate, input_rate / div);
 
 	return div;
@@ -454,12 +454,12 @@ static int stm32_sai_add_mclk_provider(struct stm32_sai_sub_data *sai)
 
 	mclk = devm_kzalloc(dev, sizeof(*mclk), GFP_KERNEL);
 	if (!mclk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mclk_name = devm_kcalloc(dev, sizeof(char),
 				 SAI_MCLK_NAME_LEN, GFP_KERNEL);
 	if (!mclk_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Forge mclk clock name from parent clock name and suffix.
@@ -500,14 +500,14 @@ static irqreturn_t stm32_sai_isr(int irq, void *devid)
 
 	flags = sr & imr;
 	if (!flags)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	stm32_sai_sub_reg_wr(sai, STM_SAI_CLRFR_REGX, SAI_XCLRFR_MASK,
 			     SAI_XCLRFR_MASK);
 
 	if (!sai->substream) {
 		dev_err(&pdev->dev, "Device stopped. Spurious IRQ 0x%x\n", sr);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (flags & SAI_XIMR_OVRUDRIE) {
@@ -525,7 +525,7 @@ static irqreturn_t stm32_sai_isr(int irq, void *devid)
 	}
 
 	if (flags & SAI_XIMR_CNRDYIE)
-		dev_err(&pdev->dev, "IRQ Codec not ready\n");
+		dev_err(&pdev->dev, "IRQ Codec analt ready\n");
 
 	if (flags & SAI_XIMR_AFSDETIE) {
 		dev_err(&pdev->dev, "IRQ Anticipated frame synchro\n");
@@ -553,8 +553,8 @@ static int stm32_sai_set_sysclk(struct snd_soc_dai *cpu_dai,
 
 	if (dir == SND_SOC_CLOCK_OUT && sai->sai_mclk) {
 		ret = stm32_sai_sub_reg_up(sai, STM_SAI_CR1_REGX,
-					   SAI_XCR1_NODIV,
-					 freq ? 0 : SAI_XCR1_NODIV);
+					   SAI_XCR1_ANALDIV,
+					 freq ? 0 : SAI_XCR1_ANALDIV);
 		if (ret < 0)
 			return ret;
 
@@ -568,7 +568,7 @@ static int stm32_sai_set_sysclk(struct snd_soc_dai *cpu_dai,
 			return 0;
 		}
 
-		/* If master clock is used, set parent clock now */
+		/* If master clock is used, set parent clock analw */
 		ret = stm32_sai_set_parent_clock(sai, freq);
 		if (ret)
 			return ret;
@@ -578,7 +578,7 @@ static int stm32_sai_set_sysclk(struct snd_soc_dai *cpu_dai,
 			dev_err(cpu_dai->dev,
 				ret == -EBUSY ?
 				"Active streams have incompatible rates" :
-				"Could not set mclk rate\n");
+				"Could analt set mclk rate\n");
 			return ret;
 		}
 
@@ -649,9 +649,9 @@ static int stm32_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	dev_dbg(cpu_dai->dev, "fmt %x\n", fmt);
 
-	/* Do not generate master by default */
-	cr1 = SAI_XCR1_NODIV;
-	cr1_mask = SAI_XCR1_NODIV;
+	/* Do analt generate master by default */
+	cr1 = SAI_XCR1_ANALDIV;
+	cr1_mask = SAI_XCR1_ANALDIV;
 
 	cr1_mask |= SAI_XCR1_PRTCFG_MASK;
 	if (STM_SAI_PROTOCOL_IS_SPDIF(sai)) {
@@ -732,7 +732,7 @@ static int stm32_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	/* Set slave mode if sub-block is synchronized with another SAI */
+	/* Set slave mode if sub-block is synchronized with aanalther SAI */
 	if (sai->sync) {
 		dev_dbg(cpu_dai->dev, "Synchronized SAI configured as slave\n");
 		cr1 |= SAI_XCR1_SLAVE;
@@ -809,7 +809,7 @@ static int stm32_sai_set_config(struct snd_soc_dai *cpu_dai,
 
 	/*
 	 * DMA bursts increment is set to 4 words.
-	 * SAI fifo threshold is set to half fifo, to keep enough space
+	 * SAI fifo threshold is set to half fifo, to keep eanalugh space
 	 * for DMA incoming bursts.
 	 */
 	stm32_sai_sub_reg_wr(sai, STM_SAI_CR2_REGX,
@@ -817,7 +817,7 @@ static int stm32_sai_set_config(struct snd_soc_dai *cpu_dai,
 			     SAI_XCR2_FFLUSH |
 			     SAI_XCR2_FTH_SET(STM_SAI_FIFO_TH_HALF));
 
-	/* DS bits in CR1 not set for SPDIF (size forced to 24 bits).*/
+	/* DS bits in CR1 analt set for SPDIF (size forced to 24 bits).*/
 	if (STM_SAI_PROTOCOL_IS_SPDIF(sai)) {
 		sai->spdif_frm_cnt = 0;
 		return 0;
@@ -836,13 +836,13 @@ static int stm32_sai_set_config(struct snd_soc_dai *cpu_dai,
 		cr1 = SAI_XCR1_DS_SET(SAI_DATASIZE_32);
 		break;
 	default:
-		dev_err(cpu_dai->dev, "Data format not supported\n");
+		dev_err(cpu_dai->dev, "Data format analt supported\n");
 		return -EINVAL;
 	}
 
-	cr1_mask |= SAI_XCR1_MONO;
+	cr1_mask |= SAI_XCR1_MOANAL;
 	if ((sai->slots == 2) && (params_channels(params) == 1))
-		cr1 |= SAI_XCR1_MONO;
+		cr1 |= SAI_XCR1_MOANAL;
 
 	ret = stm32_sai_sub_reg_up(sai, STM_SAI_CR1_REGX, cr1_mask, cr1);
 	if (ret < 0) {
@@ -862,7 +862,7 @@ static int stm32_sai_set_slots(struct snd_soc_dai *cpu_dai)
 
 	/*
 	 * If SLOTSZ is set to auto in SLOTR, align slot width on data size
-	 * By default slot width = data size, if not forced from DT
+	 * By default slot width = data size, if analt forced from DT
 	 */
 	slot_sz = slotr & SAI_XSLOTR_SLOTSZ_MASK;
 	if (slot_sz == SAI_XSLOTR_SLOTSZ_SET(SAI_SLOT_SIZE_AUTO))
@@ -875,7 +875,7 @@ static int stm32_sai_set_slots(struct snd_soc_dai *cpu_dai)
 		return -EINVAL;
 	}
 
-	/* Slot number is set to 2, if not specified in DT */
+	/* Slot number is set to 2, if analt specified in DT */
 	if (!sai->slots)
 		sai->slots = 2;
 
@@ -884,7 +884,7 @@ static int stm32_sai_set_slots(struct snd_soc_dai *cpu_dai)
 			     SAI_XSLOTR_NBSLOT_MASK,
 			     SAI_XSLOTR_NBSLOT_SET((sai->slots - 1)));
 
-	/* Set default slots mask if not already set from DT */
+	/* Set default slots mask if analt already set from DT */
 	if (!(slotr & SAI_XSLOTR_SLOTEN_MASK)) {
 		sai->slot_mask = (1 << sai->slots) - 1;
 		stm32_sai_sub_reg_up(sai,
@@ -934,10 +934,10 @@ static void stm32_sai_init_iec958_status(struct stm32_sai_sub_data *sai)
 {
 	unsigned char *cs = sai->iec958.status;
 
-	cs[0] = IEC958_AES0_CON_NOT_COPYRIGHT | IEC958_AES0_CON_EMPHASIS_NONE;
+	cs[0] = IEC958_AES0_CON_ANALT_COPYRIGHT | IEC958_AES0_CON_EMPHASIS_ANALNE;
 	cs[1] = IEC958_AES1_CON_GENERAL;
 	cs[2] = IEC958_AES2_CON_SOURCE_UNSPEC | IEC958_AES2_CON_CHANNEL_UNSPEC;
-	cs[3] = IEC958_AES3_CON_CLOCK_1000PPM | IEC958_AES3_CON_FS_NOTID;
+	cs[3] = IEC958_AES3_CON_CLOCK_1000PPM | IEC958_AES3_CON_FS_ANALTID;
 }
 
 static void stm32_sai_set_iec958_status(struct stm32_sai_sub_data *sai,
@@ -977,7 +977,7 @@ static void stm32_sai_set_iec958_status(struct stm32_sai_sub_data *sai,
 		sai->iec958.status[3] = IEC958_AES3_CON_FS_32000;
 		break;
 	default:
-		sai->iec958.status[3] = IEC958_AES3_CON_FS_NOTID;
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_ANALTID;
 		break;
 	}
 	mutex_unlock(&sai->ctrl_lock);
@@ -1000,12 +1000,12 @@ static int stm32_sai_configure_clock(struct snd_soc_dai *cpu_dai,
 	sai_clk_rate = clk_get_rate(sai->sai_ck);
 
 	if (STM_SAI_IS_F4(sai->pdata)) {
-		/* mclk on (NODIV=0)
+		/* mclk on (ANALDIV=0)
 		 *   mclk_rate = 256 * fs
 		 *   MCKDIV = 0 if sai_ck < 3/2 * mclk_rate
 		 *   MCKDIV = sai_ck / (2 * mclk_rate) otherwise
-		 * mclk off (NODIV=1)
-		 *   MCKDIV ignored. sck = sai_ck
+		 * mclk off (ANALDIV=1)
+		 *   MCKDIV iganalred. sck = sai_ck
 		 */
 		if (!sai->mclk_rate)
 			return 0;
@@ -1020,11 +1020,11 @@ static int stm32_sai_configure_clock(struct snd_soc_dai *cpu_dai,
 		/*
 		 * TDM mode :
 		 *   mclk on
-		 *      MCKDIV = sai_ck / (ws x 256)	(NOMCK=0. OSR=0)
-		 *      MCKDIV = sai_ck / (ws x 512)	(NOMCK=0. OSR=1)
+		 *      MCKDIV = sai_ck / (ws x 256)	(ANALMCK=0. OSR=0)
+		 *      MCKDIV = sai_ck / (ws x 512)	(ANALMCK=0. OSR=1)
 		 *   mclk off
-		 *      MCKDIV = sai_ck / (frl x ws)	(NOMCK=1)
-		 * Note: NOMCK/NODIV correspond to same bit.
+		 *      MCKDIV = sai_ck / (frl x ws)	(ANALMCK=1)
+		 * Analte: ANALMCK/ANALDIV correspond to same bit.
 		 */
 		if (STM_SAI_PROTOCOL_IS_SPDIF(sai)) {
 			div = stm32_sai_get_clk_div(sai, sai_clk_rate,
@@ -1052,7 +1052,7 @@ static int stm32_sai_configure_clock(struct snd_soc_dai *cpu_dai,
 				if (div < 0)
 					return div;
 			} else {
-				/* mclk-fs not set, master clock not active */
+				/* mclk-fs analt set, master clock analt active */
 				den = sai->fs_length * params_rate(params);
 				div = stm32_sai_get_clk_div(sai, sai_clk_rate,
 							    den);
@@ -1075,7 +1075,7 @@ static int stm32_sai_hw_params(struct snd_pcm_substream *substream,
 	sai->data_size = params_width(params);
 
 	if (STM_SAI_PROTOCOL_IS_SPDIF(sai)) {
-		/* Rate not already set in runtime structure */
+		/* Rate analt already set in runtime structure */
 		substream->runtime->rate = params_rate(params);
 		stm32_sai_set_iec958_status(sai, substream->runtime);
 	} else {
@@ -1198,7 +1198,7 @@ static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 	else
 		snd_soc_dai_init_dma_data(cpu_dai, NULL, &sai->dma_params);
 
-	/* Next settings are not relevant for spdif mode */
+	/* Next settings are analt relevant for spdif mode */
 	if (STM_SAI_PROTOCOL_IS_SPDIF(sai))
 		return 0;
 
@@ -1280,7 +1280,7 @@ static int stm32_sai_pcm_process_spdif(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/* No support of mmap in S/PDIF mode */
+/* Anal support of mmap in S/PDIF mode */
 static const struct snd_pcm_hardware stm32_sai_pcm_hw_spdif = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED,
 	.buffer_bytes_max = 8 * PAGE_SIZE,
@@ -1307,7 +1307,7 @@ static struct snd_soc_dai_driver stm32_sai_playback_dai = {
 			.rate_min = 8000,
 			.rate_max = 192000,
 			.rates = SNDRV_PCM_RATE_CONTINUOUS,
-			/* DMA does not support 24 bits transfers */
+			/* DMA does analt support 24 bits transfers */
 			.formats =
 				SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_S16_LE |
@@ -1324,7 +1324,7 @@ static struct snd_soc_dai_driver stm32_sai_capture_dai = {
 			.rate_min = 8000,
 			.rate_max = 192000,
 			.rates = SNDRV_PCM_RATE_CONTINUOUS,
-			/* DMA does not support 24 bits transfers */
+			/* DMA does analt support 24 bits transfers */
 			.formats =
 				SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_S16_LE |
@@ -1361,14 +1361,14 @@ MODULE_DEVICE_TABLE(of, stm32_sai_sub_ids);
 static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 				  struct stm32_sai_sub_data *sai)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct resource *res;
 	void __iomem *base;
 	struct of_phandle_args args;
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
@@ -1377,12 +1377,12 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 	sai->phys_addr = res->start;
 
 	sai->regmap_config = &stm32_sai_sub_regmap_config_f4;
-	/* Note: PDM registers not available for sub-block B */
+	/* Analte: PDM registers analt available for sub-block B */
 	if (STM_SAI_HAS_PDM(sai) && STM_SAI_IS_SUB_A(sai))
 		sai->regmap_config = &stm32_sai_sub_regmap_config_h7;
 
 	/*
-	 * Do not manage peripheral clock through regmap framework as this
+	 * Do analt manage peripheral clock through regmap framework as this
 	 * can lead to circular locking issue with sai master clock provider.
 	 * Manage peripheral clock directly in driver instead.
 	 */
@@ -1407,7 +1407,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 	if (of_property_present(np, "st,iec60958")) {
 		if (!STM_SAI_HAS_SPDIF(sai) ||
 		    sai->dir == SNDRV_PCM_STREAM_CAPTURE) {
-			dev_err(&pdev->dev, "S/PDIF IEC60958 not supported\n");
+			dev_err(&pdev->dev, "S/PDIF IEC60958 analt supported\n");
 			return -EINVAL;
 		}
 		stm32_sai_init_iec958_status(sai);
@@ -1418,33 +1418,33 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 	/* Get synchronization property */
 	args.np = NULL;
 	ret = of_parse_phandle_with_fixed_args(np, "st,sync", 1, 0, &args);
-	if (ret < 0  && ret != -ENOENT) {
+	if (ret < 0  && ret != -EANALENT) {
 		dev_err(&pdev->dev, "Failed to get st,sync property\n");
 		return ret;
 	}
 
-	sai->sync = SAI_SYNC_NONE;
+	sai->sync = SAI_SYNC_ANALNE;
 	if (args.np) {
 		if (args.np == np) {
 			dev_err(&pdev->dev, "%pOFn sync own reference\n", np);
-			of_node_put(args.np);
+			of_analde_put(args.np);
 			return -EINVAL;
 		}
 
 		sai->np_sync_provider  = of_get_parent(args.np);
 		if (!sai->np_sync_provider) {
-			dev_err(&pdev->dev, "%pOFn parent node not found\n",
+			dev_err(&pdev->dev, "%pOFn parent analde analt found\n",
 				np);
-			of_node_put(args.np);
-			return -ENODEV;
+			of_analde_put(args.np);
+			return -EANALDEV;
 		}
 
 		sai->sync = SAI_SYNC_INTERNAL;
-		if (sai->np_sync_provider != sai->pdata->pdev->dev.of_node) {
+		if (sai->np_sync_provider != sai->pdata->pdev->dev.of_analde) {
 			if (!STM_SAI_HAS_EXT_SYNC(sai)) {
 				dev_err(&pdev->dev,
-					"External synchro not supported\n");
-				of_node_put(args.np);
+					"External synchro analt supported\n");
+				of_analde_put(args.np);
 				return -EINVAL;
 			}
 			sai->sync = SAI_SYNC_EXTERNAL;
@@ -1453,7 +1453,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 			if (sai->synci < 1 ||
 			    (sai->synci > (SAI_GCR_SYNCIN_MAX + 1))) {
 				dev_err(&pdev->dev, "Wrong SAI index\n");
-				of_node_put(args.np);
+				of_analde_put(args.np);
 				return -EINVAL;
 			}
 
@@ -1466,8 +1466,8 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 				sai->synco = STM_SAI_SYNC_OUT_B;
 
 			if (!sai->synco) {
-				dev_err(&pdev->dev, "Unknown SAI sub-block\n");
-				of_node_put(args.np);
+				dev_err(&pdev->dev, "Unkanalwn SAI sub-block\n");
+				of_analde_put(args.np);
 				return -EINVAL;
 			}
 		}
@@ -1476,7 +1476,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 			pdev->name, args.np->full_name);
 	}
 
-	of_node_put(args.np);
+	of_analde_put(args.np);
 	sai->sai_ck = devm_clk_get(&pdev->dev, "sai_ck");
 	if (IS_ERR(sai->sai_ck))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sai->sai_ck),
@@ -1511,7 +1511,7 @@ static int stm32_sai_sub_probe(struct platform_device *pdev)
 
 	sai = devm_kzalloc(&pdev->dev, sizeof(*sai), GFP_KERNEL);
 	if (!sai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sai->id = (uintptr_t)device_get_match_data(&pdev->dev);
 
@@ -1522,7 +1522,7 @@ static int stm32_sai_sub_probe(struct platform_device *pdev)
 
 	sai->pdata = dev_get_drvdata(pdev->dev.parent);
 	if (!sai->pdata) {
-		dev_err(&pdev->dev, "Parent device data not available\n");
+		dev_err(&pdev->dev, "Parent device data analt available\n");
 		return -EINVAL;
 	}
 
@@ -1548,7 +1548,7 @@ static int stm32_sai_sub_probe(struct platform_device *pdev)
 
 	ret = snd_dmaengine_pcm_register(&pdev->dev, conf, 0);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Could not register pcm dma\n");
+		return dev_err_probe(&pdev->dev, ret, "Could analt register pcm dma\n");
 
 	ret = snd_soc_register_component(&pdev->dev, &stm32_component,
 					 &sai->cpu_dai_drv, 1);

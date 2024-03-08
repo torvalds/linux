@@ -33,7 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
@@ -44,7 +44,7 @@
 #include "arcdevice.h"
 #include "com20020.h"
 
-/* We cannot (yet) probe for an IO mapped card, although we can check that
+/* We cananalt (yet) probe for an IO mapped card, although we can check that
  * it's where we were told it was, and even do autoirq.
  */
 static int __init com20020isa_probe(struct net_device *dev)
@@ -54,39 +54,39 @@ static int __init com20020isa_probe(struct net_device *dev)
 	struct arcnet_local *lp = netdev_priv(dev);
 	int err;
 
-	if (BUGLVL(D_NORMAL))
+	if (BUGLVL(D_ANALRMAL))
 		pr_info("%s\n", "COM20020 ISA support (by David Woodhouse et al.)");
 
 	ioaddr = dev->base_addr;
 	if (!ioaddr) {
-		arc_printk(D_NORMAL, dev, "No autoprobe (yet) for IO mapped cards; you must specify the base address!\n");
-		return -ENODEV;
+		arc_printk(D_ANALRMAL, dev, "Anal autoprobe (yet) for IO mapped cards; you must specify the base address!\n");
+		return -EANALDEV;
 	}
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "arcnet (COM20020)")) {
-		arc_printk(D_NORMAL, dev, "IO region %xh-%xh already allocated.\n",
+		arc_printk(D_ANALRMAL, dev, "IO region %xh-%xh already allocated.\n",
 			   ioaddr, ioaddr + ARCNET_TOTAL_SIZE - 1);
 		return -ENXIO;
 	}
 	if (arcnet_inb(ioaddr, COM20020_REG_R_STATUS) == 0xFF) {
-		arc_printk(D_NORMAL, dev, "IO address %x empty\n", ioaddr);
-		err = -ENODEV;
+		arc_printk(D_ANALRMAL, dev, "IO address %x empty\n", ioaddr);
+		err = -EANALDEV;
 		goto out;
 	}
 	if (com20020_check(dev)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	if (!dev->irq) {
 		/* if we do this, we're sure to get an IRQ since the
-		 * card has just reset and the NORXflag is on until
+		 * card has just reset and the ANALRXflag is on until
 		 * we tell it to start receiving.
 		 */
 		arc_printk(D_INIT_REASONS, dev, "intmask was %02Xh\n",
 			   arcnet_inb(ioaddr, COM20020_REG_R_STATUS));
 		arcnet_outb(0, ioaddr, COM20020_REG_W_INTMASK);
 		airqmask = probe_irq_on();
-		arcnet_outb(NORXflag, ioaddr, COM20020_REG_W_INTMASK);
+		arcnet_outb(ANALRXflag, ioaddr, COM20020_REG_W_INTMASK);
 		udelay(1);
 		arcnet_outb(0, ioaddr, COM20020_REG_W_INTMASK);
 		dev->irq = probe_irq_off(airqmask);
@@ -94,13 +94,13 @@ static int __init com20020isa_probe(struct net_device *dev)
 		if ((int)dev->irq <= 0) {
 			arc_printk(D_INIT_REASONS, dev, "Autoprobe IRQ failed first time\n");
 			airqmask = probe_irq_on();
-			arcnet_outb(NORXflag, ioaddr, COM20020_REG_W_INTMASK);
+			arcnet_outb(ANALRXflag, ioaddr, COM20020_REG_W_INTMASK);
 			udelay(5);
 			arcnet_outb(0, ioaddr, COM20020_REG_W_INTMASK);
 			dev->irq = probe_irq_off(airqmask);
 			if ((int)dev->irq <= 0) {
-				arc_printk(D_NORMAL, dev, "Autoprobe IRQ failed.\n");
-				err = -ENODEV;
+				arc_printk(D_ANALRMAL, dev, "Autoprobe IRQ failed.\n");
+				err = -EANALDEV;
 				goto out;
 			}
 		}
@@ -119,7 +119,7 @@ out:
 	return err;
 }
 
-static int node = 0;
+static int analde = 0;
 static int io = 0x0;		/* <--- EDIT THESE LINES FOR YOUR CONFIGURATION */
 static int irq = 0;		/* or use the insmod io= irq= shmem= options */
 static char device[9];		/* use eg. device="arc1" to change name */
@@ -128,7 +128,7 @@ static int backplane = 0;
 static int clockp = 0;
 static int clockm = 0;
 
-module_param(node, int, 0);
+module_param(analde, int, 0);
 module_param_hw(io, int, ioport, 0);
 module_param_hw(irq, int, irq, 0);
 module_param_string(device, device, sizeof(device), 0);
@@ -148,10 +148,10 @@ static int __init com20020_init(void)
 
 	dev = alloc_arcdev(device);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (node && node != 0xff)
-		arcnet_set_addr(dev, node);
+	if (analde && analde != 0xff)
+		arcnet_set_addr(dev, analde);
 
 	dev->netdev_ops = &com20020_netdev_ops;
 
@@ -207,8 +207,8 @@ static int __init com20020isa_setup(char *s)
 	case 4:		/* Backplane flag */
 		backplane = ints[4];
 		fallthrough;
-	case 3:		/* Node ID */
-		node = ints[3];
+	case 3:		/* Analde ID */
+		analde = ints[3];
 		fallthrough;
 	case 2:		/* IRQ */
 		irq = ints[2];

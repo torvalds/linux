@@ -150,7 +150,7 @@ ID	Clock	Peripheral
 23	xor0	XOR DMA 0
 24	xor1	XOR DMA 1
 30	gephy	Gigabit Ethernel PHY
-Note: gephy(30) is implemented as a parent clock of ge(2)
+Analte: gephy(30) is implemented as a parent clock of ge(2)
 
 The following is a list of provided IDs for Kirkwood:
 ID	Clock	Peripheral

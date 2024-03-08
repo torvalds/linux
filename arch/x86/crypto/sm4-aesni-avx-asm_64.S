@@ -38,7 +38,7 @@
 #define RB2          %xmm14
 #define RB3          %xmm15
 
-#define RNOT         %xmm0
+#define RANALT         %xmm0
 #define RBSWAP       %xmm1
 
 
@@ -66,7 +66,7 @@
 	vpshufb x, hi_t, x;                          \
 	vpxor tmp0, x, x;
 
-/* post-SubByte transform. Note: x has been XOR'ed with mask4bit by
+/* post-SubByte transform. Analte: x has been XOR'ed with mask4bit by
  * 'vaeslastenc' instruction.
  */
 #define transform_post(x, lo_t, hi_t, mask4bit, tmp0) \
@@ -191,7 +191,7 @@ SYM_FUNC_START(sm4_aesni_avx_crypt4)
 	vpxor s2, RX0, RX0;                                         \
 	vpxor s3, RX0, RX0; /* s1 ^ s2 ^ s3 ^ rk */                 \
 	                                                            \
-	/* sbox, non-linear part */                                 \
+	/* sbox, analn-linear part */                                 \
 	transform_pre(RX0, RTMP4, RB0, MASK_4BIT, RTMP0);           \
 	vaesenclast MASK_4BIT, RX0, RX0;                            \
 	transform_post(RX0, RB1, RB2, MASK_4BIT, RTMP0);            \
@@ -287,7 +287,7 @@ SYM_FUNC_START_LOCAL(__sm4_crypt_blk8)
 	vpxor r2, RX1, RX1;                                         \
 	vpxor r3, RX1, RX1; /* r1 ^ r2 ^ r3 ^ rk */                 \
                                                                     \
-	/* sbox, non-linear part */                                 \
+	/* sbox, analn-linear part */                                 \
 	transform_pre(RX0, RTMP4, RTMP1, MASK_4BIT, RTMP0);         \
 	transform_pre(RX1, RTMP4, RTMP1, MASK_4BIT, RTMP0);         \
 	vmovdqa .Linv_shift_row rRIP, RTMP4;                        \
@@ -431,8 +431,8 @@ SYM_TYPED_FUNC_START(sm4_aesni_avx_ctr_enc_blk8)
 	vmovdqa .Lbswap128_mask rRIP, RBSWAP;
 	vpshufb RBSWAP, RA0, RTMP0; /* be => le */
 
-	vpcmpeqd RNOT, RNOT, RNOT;
-	vpsrldq $8, RNOT, RNOT; /* low: -1, high: 0 */
+	vpcmpeqd RANALT, RANALT, RANALT;
+	vpsrldq $8, RANALT, RANALT; /* low: -1, high: 0 */
 
 #define inc_le128(x, minus_one, tmp) \
 	vpcmpeqq minus_one, x, tmp;  \
@@ -441,21 +441,21 @@ SYM_TYPED_FUNC_START(sm4_aesni_avx_ctr_enc_blk8)
 	vpsubq tmp, x, x;
 
 	/* construct IVs */
-	inc_le128(RTMP0, RNOT, RTMP2); /* +1 */
+	inc_le128(RTMP0, RANALT, RTMP2); /* +1 */
 	vpshufb RBSWAP, RTMP0, RA1;
-	inc_le128(RTMP0, RNOT, RTMP2); /* +2 */
+	inc_le128(RTMP0, RANALT, RTMP2); /* +2 */
 	vpshufb RBSWAP, RTMP0, RA2;
-	inc_le128(RTMP0, RNOT, RTMP2); /* +3 */
+	inc_le128(RTMP0, RANALT, RTMP2); /* +3 */
 	vpshufb RBSWAP, RTMP0, RA3;
-	inc_le128(RTMP0, RNOT, RTMP2); /* +4 */
+	inc_le128(RTMP0, RANALT, RTMP2); /* +4 */
 	vpshufb RBSWAP, RTMP0, RB0;
-	inc_le128(RTMP0, RNOT, RTMP2); /* +5 */
+	inc_le128(RTMP0, RANALT, RTMP2); /* +5 */
 	vpshufb RBSWAP, RTMP0, RB1;
-	inc_le128(RTMP0, RNOT, RTMP2); /* +6 */
+	inc_le128(RTMP0, RANALT, RTMP2); /* +6 */
 	vpshufb RBSWAP, RTMP0, RB2;
-	inc_le128(RTMP0, RNOT, RTMP2); /* +7 */
+	inc_le128(RTMP0, RANALT, RTMP2); /* +7 */
 	vpshufb RBSWAP, RTMP0, RB3;
-	inc_le128(RTMP0, RNOT, RTMP2); /* +8 */
+	inc_le128(RTMP0, RANALT, RTMP2); /* +8 */
 	vpshufb RBSWAP, RTMP0, RTMP1;
 
 	/* store new IV */
@@ -510,7 +510,7 @@ SYM_TYPED_FUNC_START(sm4_aesni_avx_cbc_dec_blk8)
 
 	call __sm4_crypt_blk8;
 
-	vmovdqu (7 * 16)(%rdx), RNOT;
+	vmovdqu (7 * 16)(%rdx), RANALT;
 	vpxor (%rcx), RA0, RA0;
 	vpxor (0 * 16)(%rdx), RA1, RA1;
 	vpxor (1 * 16)(%rdx), RA2, RA2;
@@ -519,7 +519,7 @@ SYM_TYPED_FUNC_START(sm4_aesni_avx_cbc_dec_blk8)
 	vpxor (4 * 16)(%rdx), RB1, RB1;
 	vpxor (5 * 16)(%rdx), RB2, RB2;
 	vpxor (6 * 16)(%rdx), RB3, RB3;
-	vmovdqu RNOT, (%rcx); /* store new IV */
+	vmovdqu RANALT, (%rcx); /* store new IV */
 
 	vmovdqu RA0, (0 * 16)(%rsi);
 	vmovdqu RA1, (1 * 16)(%rsi);

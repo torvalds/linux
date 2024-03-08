@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor policy manipulation functions
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  *
  * AppArmor policy is based around profiles, which contain the rules a
  * task is confined by.  Every task in the system has a profile attached
@@ -21,14 +21,14 @@
  *	:namespace:profile - used by kernel interfaces for easy detection
  *	namespace://profile - used by policy
  *
- * Profile names can not start with : or @ or ^ and may not contain \0
+ * Profile names can analt start with : or @ or ^ and may analt contain \0
  *
  * Reserved profile names
  *	unconfined - special automatically generated unconfined profile
  *	inherit - special name to indicate profile inheritance
  *	null-XXXX-YYYY - special automatically generated learning profiles
  *
- * Namespace names may not start with / or @ and may not contain \0 or :
+ * Namespace names may analt start with / or @ and may analt contain \0 or :
  * Reserved namespace names
  *	user-XXXX - user defined profiles
  *
@@ -43,14 +43,14 @@
  * The profile hierarchy severs two distinct purposes,
  * -  it allows for sub profiles or hats, which allows an application to run
  *    subprograms under its own profile with different restriction than it
- *    self, and not have it use the system profile.
+ *    self, and analt have it use the system profile.
  *    eg. if a mail program starts an editor, the policy might make the
  *        restrictions tighter on the editor tighter than the mail program,
  *        and definitely different than general editor restrictions
  * - it allows for binary hierarchy of profiles, so that execution history
  *   is preserved.  This feature isn't exploited by AppArmor reference policy
- *   but is allowed.  NOTE: this is currently suboptimal because profile
- *   aliasing is not currently implemented so that a profile for each
+ *   but is allowed.  ANALTE: this is currently suboptimal because profile
+ *   aliasing is analt currently implemented so that a profile for each
  *   level must be defined.
  *   eg. /bin/bash///bin/ls as a name would indicate /bin/ls was started
  *       from /bin/bash
@@ -62,7 +62,7 @@
  *   An fqname is a name that may contain both namespace and profile hnames.
  *   eg. :ns:/bin/bash//bin/ls
  *
- * NOTES:
+ * ANALTES:
  *   - locking of profile lists is currently fairly coarse.  All profile
  *     lists within a namespace use the namespace lock.
  * FIXME: move profile lists to using rcu_lists
@@ -112,7 +112,7 @@ static void aa_free_pdb(struct aa_policydb *pdb)
 
 /**
  * aa_pdb_free_kref - free aa_policydb by kref (called by aa_put_pdb)
- * @kref: kref callback for freeing of a dfa  (NOT NULL)
+ * @kref: kref callback for freeing of a dfa  (ANALT NULL)
  */
 void aa_pdb_free_kref(struct kref *kref)
 {
@@ -137,12 +137,12 @@ struct aa_policydb *aa_alloc_pdb(gfp_t gfp)
 
 /**
  * __add_profile - add a profiles to list and label tree
- * @list: list to add it to  (NOT NULL)
- * @profile: the profile to add  (NOT NULL)
+ * @list: list to add it to  (ANALT NULL)
+ * @profile: the profile to add  (ANALT NULL)
  *
  * refcount @profile, should be put by __list_remove_profile
  *
- * Requires: namespace lock be held, or list not be shared
+ * Requires: namespace lock be held, or list analt be shared
  */
 static void __add_profile(struct list_head *list, struct aa_profile *profile)
 {
@@ -163,7 +163,7 @@ static void __add_profile(struct list_head *list, struct aa_profile *profile)
 
 /**
  * __list_remove_profile - remove a profile from the list it is on
- * @profile: the profile to remove  (NOT NULL)
+ * @profile: the profile to remove  (ANALT NULL)
  *
  * remove a profile from the list, warning generally removal should
  * be done with __replace_profile as most profile removals are
@@ -171,7 +171,7 @@ static void __add_profile(struct list_head *list, struct aa_profile *profile)
  *
  * put @profile list refcount
  *
- * Requires: namespace lock be held, or list not have been live
+ * Requires: namespace lock be held, or list analt have been live
  */
 static void __list_remove_profile(struct aa_profile *profile)
 {
@@ -185,9 +185,9 @@ static void __list_remove_profile(struct aa_profile *profile)
 
 /**
  * __remove_profile - remove old profile, and children
- * @profile: profile to be replaced  (NOT NULL)
+ * @profile: profile to be replaced  (ANALT NULL)
  *
- * Requires: namespace list lock be held, or list not be shared
+ * Requires: namespace list lock be held, or list analt be shared
  */
 static void __remove_profile(struct aa_profile *profile)
 {
@@ -205,7 +205,7 @@ static void __remove_profile(struct aa_profile *profile)
 
 /**
  * __aa_profile_list_release - remove all profiles on the list and put refs
- * @head: list of profiles  (NOT NULL)
+ * @head: list of profiles  (ANALT NULL)
  *
  * Requires: namespace lock be held
  */
@@ -274,7 +274,7 @@ struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp)
  * its hats and null_profile must have been put.
  *
  * If the profile was referenced from a task context, free_profile() will
- * be called from an rcu callback routine, so we must not sleep here.
+ * be called from an rcu callback routine, so we must analt sleep here.
  */
 void aa_free_profile(struct aa_profile *profile)
 {
@@ -297,7 +297,7 @@ void aa_free_profile(struct aa_profile *profile)
 	free_attachment(&profile->attach);
 
 	/*
-	 * at this point there are no tasks that can have a reference
+	 * at this point there are anal tasks that can have a reference
 	 * to rules
 	 */
 	list_for_each_entry_safe(rule, tmp, &profile->rules, list) {
@@ -322,7 +322,7 @@ void aa_free_profile(struct aa_profile *profile)
 
 /**
  * aa_alloc_profile - allocate, initialize and return a new profile
- * @hname: name of the profile  (NOT NULL)
+ * @hname: name of the profile  (ANALT NULL)
  * @proxy: proxy to use OR null if to allocate a new one
  * @gfp: allocation type
  *
@@ -378,13 +378,13 @@ fail:
 
 /**
  * __strn_find_child - find a profile on @head list using substring of @name
- * @head: list to search  (NOT NULL)
- * @name: name of profile (NOT NULL)
+ * @head: list to search  (ANALT NULL)
+ * @name: name of profile (ANALT NULL)
  * @len: length of @name substring to match
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted profile ptr, or NULL if not found
+ * Returns: unrefcounted profile ptr, or NULL if analt found
  */
 static struct aa_profile *__strn_find_child(struct list_head *head,
 					    const char *name, int len)
@@ -394,12 +394,12 @@ static struct aa_profile *__strn_find_child(struct list_head *head,
 
 /**
  * __find_child - find a profile on @head list with a name matching @name
- * @head: list to search  (NOT NULL)
- * @name: name of profile (NOT NULL)
+ * @head: list to search  (ANALT NULL)
+ * @name: name of profile (ANALT NULL)
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted profile ptr, or NULL if not found
+ * Returns: unrefcounted profile ptr, or NULL if analt found
  */
 static struct aa_profile *__find_child(struct list_head *head, const char *name)
 {
@@ -408,10 +408,10 @@ static struct aa_profile *__find_child(struct list_head *head, const char *name)
 
 /**
  * aa_find_child - find a profile by @name in @parent
- * @parent: profile to search  (NOT NULL)
- * @name: profile name to search for  (NOT NULL)
+ * @parent: profile to search  (ANALT NULL)
+ * @name: profile name to search for  (ANALT NULL)
  *
- * Returns: a refcounted profile or NULL if not found
+ * Returns: a refcounted profile or NULL if analt found
  */
 struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name)
 {
@@ -420,7 +420,7 @@ struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name)
 	rcu_read_lock();
 	do {
 		profile = __find_child(&parent->base.profiles, name);
-	} while (profile && !aa_get_profile_not0(profile));
+	} while (profile && !aa_get_profile_analt0(profile));
 	rcu_read_unlock();
 
 	/* refcount released by caller */
@@ -429,16 +429,16 @@ struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name)
 
 /**
  * __lookup_parent - lookup the parent of a profile of name @hname
- * @ns: namespace to lookup profile in  (NOT NULL)
- * @hname: hierarchical profile name to find parent of  (NOT NULL)
+ * @ns: namespace to lookup profile in  (ANALT NULL)
+ * @hname: hierarchical profile name to find parent of  (ANALT NULL)
  *
  * Lookups up the parent of a fully qualified profile name, the profile
- * that matches hname does not need to exist, in general this
+ * that matches hname does analt need to exist, in general this
  * is used to load a new profile.
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted policy or NULL if not found
+ * Returns: unrefcounted policy or NULL if analt found
  */
 static struct aa_policy *__lookup_parent(struct aa_ns *ns,
 					 const char *hname)
@@ -465,8 +465,8 @@ static struct aa_policy *__lookup_parent(struct aa_ns *ns,
 
 /**
  * __create_missing_ancestors - create place holders for missing ancestores
- * @ns: namespace to lookup profile in (NOT NULL)
- * @hname: hierarchical profile name to find parent of (NOT NULL)
+ * @ns: namespace to lookup profile in (ANALT NULL)
+ * @hname: hierarchical profile name to find parent of (ANALT NULL)
  * @gfp: type of allocation.
  *
  * Requires: ns mutex lock held
@@ -514,13 +514,13 @@ static struct aa_policy *__create_missing_ancestors(struct aa_ns *ns,
 
 /**
  * __lookupn_profile - lookup the profile matching @hname
- * @base: base list to start looking up profile name from  (NOT NULL)
- * @hname: hierarchical profile name  (NOT NULL)
+ * @base: base list to start looking up profile name from  (ANALT NULL)
+ * @hname: hierarchical profile name  (ANALT NULL)
  * @n: length of @hname
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted profile pointer or NULL if not found
+ * Returns: unrefcounted profile pointer or NULL if analt found
  *
  * Do a relative name lookup, recursing through profile tree.
  */
@@ -555,11 +555,11 @@ static struct aa_profile *__lookup_profile(struct aa_policy *base,
 
 /**
  * aa_lookupn_profile - find a profile by its full or partial name
- * @ns: the namespace to start from (NOT NULL)
- * @hname: name to do lookup on.  Does not contain namespace prefix (NOT NULL)
+ * @ns: the namespace to start from (ANALT NULL)
+ * @hname: name to do lookup on.  Does analt contain namespace prefix (ANALT NULL)
  * @n: size of @hname
  *
- * Returns: refcounted profile or NULL if not found
+ * Returns: refcounted profile or NULL if analt found
  */
 struct aa_profile *aa_lookupn_profile(struct aa_ns *ns, const char *hname,
 				      size_t n)
@@ -569,10 +569,10 @@ struct aa_profile *aa_lookupn_profile(struct aa_ns *ns, const char *hname,
 	rcu_read_lock();
 	do {
 		profile = __lookupn_profile(&ns->base, hname, n);
-	} while (profile && !aa_get_profile_not0(profile));
+	} while (profile && !aa_get_profile_analt0(profile));
 	rcu_read_unlock();
 
-	/* the unconfined profile is not in the regular profile list */
+	/* the unconfined profile is analt in the regular profile list */
 	if (!profile && strncmp(hname, "unconfined", n) == 0)
 		profile = aa_get_newest_profile(ns->unconfined);
 
@@ -643,19 +643,19 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 
 /**
  * aa_new_learning_profile - create or find a null-X learning profile
- * @parent: profile that caused this profile to be created (NOT NULL)
+ * @parent: profile that caused this profile to be created (ANALT NULL)
  * @hat: true if the null- learning profile is a hat
  * @base: name to base the null profile off of
  * @gfp: type of allocation
  *
  * Find/Create a null- complain mode profile used in learning mode.  The
  * name of the profile is unique and follows the format of parent//null-XXX.
- * where XXX is based on the @name or if that fails or is not supplied
+ * where XXX is based on the @name or if that fails or is analt supplied
  * a unique number
  *
- * null profiles are added to the profile list but the list does not
+ * null profiles are added to the profile list but the list does analt
  * hold a count on them so that they are automatically released when
- * not in use.
+ * analt in use.
  *
  * Returns: new refcounted profile else NULL on failure
  */
@@ -723,19 +723,19 @@ fail:
 /**
  * replacement_allowed - test to see if replacement is allowed
  * @profile: profile to test if it can be replaced  (MAYBE NULL)
- * @noreplace: true if replacement shouldn't be allowed but addition is okay
- * @info: Returns - info about why replacement failed (NOT NULL)
+ * @analreplace: true if replacement shouldn't be allowed but addition is okay
+ * @info: Returns - info about why replacement failed (ANALT NULL)
  *
  * Returns: %0 if replacement allowed else error code
  */
-static int replacement_allowed(struct aa_profile *profile, int noreplace,
+static int replacement_allowed(struct aa_profile *profile, int analreplace,
 			       const char **info)
 {
 	if (profile) {
 		if (profile->label.flags & FLAG_IMMUTIBLE) {
-			*info = "cannot replace immutable profile";
+			*info = "cananalt replace immutable profile";
 			return -EPERM;
-		} else if (noreplace) {
+		} else if (analreplace) {
 			*info = "profile already exists";
 			return -EEXIST;
 		}
@@ -760,7 +760,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * @subj_label: label to check if it can manage policy
  * @op: policy operation being performed
  * @ns_name: name of namespace being manipulated
- * @name: name of profile being manipulated (NOT NULL)
+ * @name: name of profile being manipulated (ANALT NULL)
  * @info: any extra information to be audited (MAYBE NULL)
  * @error: error code
  *
@@ -770,7 +770,7 @@ static int audit_policy(struct aa_label *subj_label, const char *op,
 			const char *ns_name, const char *name,
 			const char *info, int error)
 {
-	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, op);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_ANALNE, AA_CLASS_ANALNE, op);
 
 	ad.iface.ns = ns_name;
 	ad.name = name;
@@ -793,9 +793,9 @@ static int policy_ns_capable(const struct cred *subj_cred,
 	int err;
 
 	/* check for MAC_ADMIN cap in cred */
-	err = cap_capable(subj_cred, userns, cap, CAP_OPT_NONE);
+	err = cap_capable(subj_cred, userns, cap, CAP_OPT_ANALNE);
 	if (!err)
-		err = aa_capable(subj_cred, label, cap, CAP_OPT_NONE);
+		err = aa_capable(subj_cred, label, cap, CAP_OPT_ANALNE);
 
 	return err;
 }
@@ -896,7 +896,7 @@ int aa_may_manage_policy(const struct cred *subj_cred, struct aa_label *label,
 				    -EACCES);
 
 	if (!aa_policy_admin_capable(subj_cred, label, ns))
-		return audit_policy(label, op, NULL, NULL, "not policy admin",
+		return audit_policy(label, op, NULL, NULL, "analt policy admin",
 				    -EACCES);
 
 	/* TODO: add fine grained mediation of policy loads */
@@ -928,15 +928,15 @@ static struct aa_profile *__list_lookup_parent(struct list_head *lh,
 
 /**
  * __replace_profile - replace @old with @new on a list
- * @old: profile to be replaced  (NOT NULL)
- * @new: profile to replace @old with  (NOT NULL)
+ * @old: profile to be replaced  (ANALT NULL)
+ * @new: profile to replace @old with  (ANALT NULL)
  *
  * Will duplicate and refcount elements that @new inherits from @old
  * and will inherit @old children.
  *
  * refcount @new for list, put @old list refcount
  *
- * Requires: namespace list lock be held, or list not be shared
+ * Requires: namespace list lock be held, or list analt be shared
  */
 static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
 {
@@ -976,7 +976,7 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
 	__aafs_profile_migrate_dents(old, new);
 
 	if (list_empty(&new->base.list)) {
-		/* new is not on a list already */
+		/* new is analt on a list already */
 		list_replace_rcu(&old->base.list, &new->base.list);
 		aa_get_profile(new);
 		aa_put_profile(old);
@@ -988,21 +988,21 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
  * __lookup_replace - lookup replacement information for a profile
  * @ns: namespace the lookup occurs in
  * @hname: name of profile to lookup
- * @noreplace: true if not replacing an existing profile
+ * @analreplace: true if analt replacing an existing profile
  * @p: Returns - profile to be replaced
  * @info: Returns - info string on why lookup failed
  *
- * Returns: profile to replace (no ref) on success else ptr error
+ * Returns: profile to replace (anal ref) on success else ptr error
  */
 static int __lookup_replace(struct aa_ns *ns, const char *hname,
-			    bool noreplace, struct aa_profile **p,
+			    bool analreplace, struct aa_profile **p,
 			    const char **info)
 {
 	*p = aa_get_profile(__lookup_profile(&ns->base, hname));
 	if (*p) {
-		int error = replacement_allowed(*p, noreplace, info);
+		int error = replacement_allowed(*p, analreplace, info);
 		if (error) {
-			*info = "profile can not be replaced";
+			*info = "profile can analt be replaced";
 			return error;
 		}
 	}
@@ -1045,11 +1045,11 @@ static struct aa_profile *update_to_newest_parent(struct aa_profile *new)
  * @policy_ns: namespace load is occurring on
  * @label: label that is attempting to load/replace policy
  * @mask: permission mask
- * @udata: serialized data stream  (NOT NULL)
+ * @udata: serialized data stream  (ANALT NULL)
  *
  * unpack and replace a profile on the profile list and uses of that profile
  * by any task creds via invalidating the old version of the profile, which
- * tasks will notice to update their own cred.  If the profile does not exist
+ * tasks will analtice to update their own cred.  If the profile does analt exist
  * on the profile list it is added.
  *
  * Returns: size of data consumed else error code on failure.
@@ -1154,7 +1154,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 		if (ent->old || ent->rename)
 			continue;
 
-		/* no ref on policy only use inside lock */
+		/* anal ref on policy only use inside lock */
 		p = NULL;
 		policy = __lookup_parent(ns, ent->new->base.hname);
 		if (!policy) {
@@ -1177,8 +1177,8 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 							ent->new->base.hname,
 							GFP_KERNEL);
 				if (!policy) {
-					error = -ENOENT;
-					info = "parent does not exist";
+					error = -EANALENT;
+					info = "parent does analt exist";
 					goto fail_lock;
 				}
 			}
@@ -1305,13 +1305,13 @@ fail:
  * aa_remove_profiles - remove profile(s) from the system
  * @policy_ns: namespace the remove is being done from
  * @subj: label attempting to remove policy
- * @fqname: name of the profile or namespace to remove  (NOT NULL)
+ * @fqname: name of the profile or namespace to remove  (ANALT NULL)
  * @size: size of the name
  *
  * Remove a profile or sub namespace from the current namespace, so that
- * they can not be found anymore and mark them as replaced by unconfined
+ * they can analt be found anymore and mark them as replaced by unconfined
  *
- * NOTE: removing confinement does not restore rlimits to preconfinement values
+ * ANALTE: removing confinement does analt restore rlimits to preconfinement values
  *
  * Returns: size of data consume else error code if fails
  */
@@ -1325,8 +1325,8 @@ ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_label *subj,
 	ssize_t error = 0;
 
 	if (*fqname == 0) {
-		info = "no profile specified";
-		error = -ENOENT;
+		info = "anal profile specified";
+		error = -EANALENT;
 		goto fail;
 	}
 
@@ -1338,8 +1338,8 @@ ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_label *subj,
 		ns = aa_lookupn_ns(policy_ns ? policy_ns : labels_ns(subj),
 				   ns_name, ns_len);
 		if (!ns) {
-			info = "namespace does not exist";
-			error = -ENOENT;
+			info = "namespace does analt exist";
+			error = -EANALENT;
 			goto fail;
 		}
 	} else
@@ -1357,8 +1357,8 @@ ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_label *subj,
 		mutex_lock_nested(&ns->lock, ns->level);
 		profile = aa_get_profile(__lookup_profile(&ns->base, name));
 		if (!profile) {
-			error = -ENOENT;
-			info = "profile does not exist";
+			error = -EANALENT;
+			info = "profile does analt exist";
 			goto fail_ns_lock;
 		}
 		name = profile->base.hname;

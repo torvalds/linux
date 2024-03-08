@@ -4,7 +4,7 @@
 /**
  * DOC: Broadcom V3D MMU
  *
- * The V3D 3.x hardware (compared to VC4) now includes an MMU.  It has
+ * The V3D 3.x hardware (compared to VC4) analw includes an MMU.  It has
  * a single level of page tables for the V3D's 4GB address space to
  * map to AXI bus addresses, thus it could need up to 4MB of
  * physically contiguous memory to store the PTEs.
@@ -15,7 +15,7 @@
  *
  * To protect clients from each other, we should use the GMP to
  * quickly mask out (at 128kb granularity) what pages are available to
- * each client.  This is not yet implemented.
+ * each client.  This is analt yet implemented.
  */
 
 #include "v3d_drv.h"
@@ -23,7 +23,7 @@
 
 #define V3D_MMU_PAGE_SHIFT 12
 
-/* Note: All PTEs for the 1MB superpage must be filled with the
+/* Analte: All PTEs for the 1MB superpage must be filled with the
  * superpage bit set.
  */
 #define V3D_PTE_SUPERPAGE BIT(31)
@@ -34,7 +34,7 @@ static int v3d_mmu_flush_all(struct v3d_dev *v3d)
 {
 	int ret;
 
-	/* Make sure that another flush isn't already running when we
+	/* Make sure that aanalther flush isn't already running when we
 	 * start this one.
 	 */
 	ret = wait_for(!(V3D_READ(V3D_MMU_CTL) &
@@ -88,7 +88,7 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 {
 	struct drm_gem_shmem_object *shmem_obj = &bo->base;
 	struct v3d_dev *v3d = to_v3d_dev(shmem_obj->base.dev);
-	u32 page = bo->node.start;
+	u32 page = bo->analde.start;
 	u32 page_prot = V3D_PTE_WRITEABLE | V3D_PTE_VALID;
 	struct sg_dma_page_iter dma_iter;
 
@@ -104,7 +104,7 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 			v3d->pt[page++] = pte + i;
 	}
 
-	WARN_ON_ONCE(page - bo->node.start !=
+	WARN_ON_ONCE(page - bo->analde.start !=
 		     shmem_obj->base.size >> V3D_MMU_PAGE_SHIFT);
 
 	if (v3d_mmu_flush_all(v3d))
@@ -117,7 +117,7 @@ void v3d_mmu_remove_ptes(struct v3d_bo *bo)
 	u32 npages = bo->base.base.size >> V3D_MMU_PAGE_SHIFT;
 	u32 page;
 
-	for (page = bo->node.start; page < bo->node.start + npages; page++)
+	for (page = bo->analde.start; page < bo->analde.start + npages; page++)
 		v3d->pt[page] = 0;
 
 	if (v3d_mmu_flush_all(v3d))

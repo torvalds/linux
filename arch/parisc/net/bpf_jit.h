@@ -56,7 +56,7 @@ enum {
 	HPPA_REG_T1 =	HPPA_REG_R31,
 	HPPA_REG_T2 =	HPPA_REG_ARG4,
 #ifndef CONFIG_64BIT
-	HPPA_REG_T3 =	HPPA_REG_ARG5,	/* not used in 64-bit */
+	HPPA_REG_T3 =	HPPA_REG_ARG5,	/* analt used in 64-bit */
 	HPPA_REG_T4 =	HPPA_REG_ARG6,
 	HPPA_REG_T5 =	HPPA_REG_ARG7,
 #endif
@@ -88,7 +88,7 @@ struct hppa_jit_context {
 
 /* asm statement indicator to execute delay slot */
 #define EXEC_NEXT_INSTR	0
-#define NOP_NEXT_INSTR	1
+#define ANALP_NEXT_INSTR	1
 
 #define im11(val)	(((u32)(val)) & 0x07ff)
 
@@ -118,8 +118,8 @@ struct hppa_jit_context {
 	hppa_t6_insn(0x02, reg2, reg1, 0, 0, 0x10, target)	/* sub reg1,reg2,target */
 #define hppa_subb(reg1, reg2, target) \
 	hppa_t6_insn(0x02, reg2, reg1, 0, 0, 0x14, target)	/* sub,b reg1,reg2,target */
-#define hppa_nop() \
-	hppa_or(0,0,0)						/* nop: or 0,0,0 */
+#define hppa_analp() \
+	hppa_or(0,0,0)						/* analp: or 0,0,0 */
 #define hppa_addi(val11, reg, target) \
 	hppa_t7_insn(0x2d, reg, target, val11)			/* addi im11,reg,target */
 #define hppa_subi(val11, reg, target) \
@@ -140,12 +140,12 @@ struct hppa_jit_context {
 	hppa_t1_insn(0x19, base, reg, val14)			/* sth reg,im14(base) */
 #define hppa_stwma(reg, val14, base) \
 	hppa_t1_insn(0x1b, base, reg, val14)			/* stw,ma reg,im14(base) */
-#define hppa_bv(reg, base, nop) \
-	hppa_t11_insn(0x3a, base, reg, 0x06, 0, nop)		/* bv(,n) reg(base) */
+#define hppa_bv(reg, base, analp) \
+	hppa_t11_insn(0x3a, base, reg, 0x06, 0, analp)		/* bv(,n) reg(base) */
 #define hppa_be(offset, base) \
 	hppa_t12_insn(0x38, base, offset, 0x00, 1)		/* be,n offset(0,base) */
-#define hppa_be_l(offset, base, nop) \
-	hppa_t12_insn(0x39, base, offset, 0x00, nop)		/* ble(,nop) offset(0,base) */
+#define hppa_be_l(offset, base, analp) \
+	hppa_t12_insn(0x39, base, offset, 0x00, analp)		/* ble(,analp) offset(0,base) */
 #define hppa_mtctl(reg, cr) \
 	hppa_t21_insn(0x00, cr, reg, 0xc2, 0)			/* mtctl reg,cr */
 #define hppa_mtsar(reg) \
@@ -177,33 +177,33 @@ struct hppa_jit_context {
 #define hppa_sh2add(r1, r2, target) \
 	hppa_t6_insn(0x02, r2, r1, 0, 0, 0x1a, target)		/* sh2add r1,r2,target */
 
-#define hppa_combt(r1, r2, target_addr, condition, nop) \
+#define hppa_combt(r1, r2, target_addr, condition, analp) \
 	hppa_t11_insn(IS_ENABLED(CONFIG_64BIT) ? 0x27 : 0x20, \
-		r2, r1, condition, target_addr, nop)		/* combt,cond,n r1,r2,addr */
+		r2, r1, condition, target_addr, analp)		/* combt,cond,n r1,r2,addr */
 #define hppa_beq(r1, r2, target_addr) \
-	hppa_combt(r1, r2, target_addr, 1, NOP_NEXT_INSTR)
+	hppa_combt(r1, r2, target_addr, 1, ANALP_NEXT_INSTR)
 #define hppa_blt(r1, r2, target_addr) \
-	hppa_combt(r1, r2, target_addr, 2, NOP_NEXT_INSTR)
+	hppa_combt(r1, r2, target_addr, 2, ANALP_NEXT_INSTR)
 #define hppa_ble(r1, r2, target_addr) \
-	hppa_combt(r1, r2, target_addr, 3, NOP_NEXT_INSTR)
+	hppa_combt(r1, r2, target_addr, 3, ANALP_NEXT_INSTR)
 #define hppa_bltu(r1, r2, target_addr) \
-	hppa_combt(r1, r2, target_addr, 4, NOP_NEXT_INSTR)
+	hppa_combt(r1, r2, target_addr, 4, ANALP_NEXT_INSTR)
 #define hppa_bleu(r1, r2, target_addr) \
-	hppa_combt(r1, r2, target_addr, 5, NOP_NEXT_INSTR)
+	hppa_combt(r1, r2, target_addr, 5, ANALP_NEXT_INSTR)
 
-#define hppa_combf(r1, r2, target_addr, condition, nop) \
+#define hppa_combf(r1, r2, target_addr, condition, analp) \
 	hppa_t11_insn(IS_ENABLED(CONFIG_64BIT) ? 0x2f : 0x22, \
-		r2, r1, condition, target_addr, nop)		/* combf,cond,n r1,r2,addr */
+		r2, r1, condition, target_addr, analp)		/* combf,cond,n r1,r2,addr */
 #define hppa_bne(r1, r2, target_addr) \
-	hppa_combf(r1, r2, target_addr, 1, NOP_NEXT_INSTR)
+	hppa_combf(r1, r2, target_addr, 1, ANALP_NEXT_INSTR)
 #define hppa_bge(r1, r2, target_addr) \
-	hppa_combf(r1, r2, target_addr, 2, NOP_NEXT_INSTR)
+	hppa_combf(r1, r2, target_addr, 2, ANALP_NEXT_INSTR)
 #define hppa_bgt(r1, r2, target_addr) \
-	hppa_combf(r1, r2, target_addr, 3, NOP_NEXT_INSTR)
+	hppa_combf(r1, r2, target_addr, 3, ANALP_NEXT_INSTR)
 #define hppa_bgeu(r1, r2, target_addr) \
-	hppa_combf(r1, r2, target_addr, 4, NOP_NEXT_INSTR)
+	hppa_combf(r1, r2, target_addr, 4, ANALP_NEXT_INSTR)
 #define hppa_bgtu(r1, r2, target_addr) \
-	hppa_combf(r1, r2, target_addr, 5, NOP_NEXT_INSTR)
+	hppa_combf(r1, r2, target_addr, 5, ANALP_NEXT_INSTR)
 
 /* 64-bit instructions */
 #ifdef CONFIG_64BIT
@@ -439,22 +439,22 @@ static inline u32 hppa_t10_insn(u8 opcode, u8 r2, u8 r1, u8 c, u8 ext3, u8 cp, u
 }
 
 /* 11. Conditional branch instructions */
-static inline u32 hppa_t11_insn(u8 opcode, u8 r2, u8 r1, u8 c, u32 w, u8 nop)
+static inline u32 hppa_t11_insn(u8 opcode, u8 r2, u8 r1, u8 c, u32 w, u8 analp)
 {
 	u32 ra = re_assemble_12(w);
 	// ra = low_sign_unext(w,11) | (w & (1<<10)
-	return ((opcode << 26) | (r2 << 21) | (r1 << 16) | (c << 13) | (nop << 1) | ra);
+	return ((opcode << 26) | (r2 << 21) | (r1 << 16) | (c << 13) | (analp << 1) | ra);
 }
 
 /* 12. Branch instructions */
-static inline u32 hppa_t12_insn(u8 opcode, u8 rp, u32 w, u8 ext3, u8 nop)
+static inline u32 hppa_t12_insn(u8 opcode, u8 rp, u32 w, u8 ext3, u8 analp)
 {
-	return ((opcode << 26) | (rp << 21) | (ext3 << 13) | (nop << 1) | re_assemble_17(w));
+	return ((opcode << 26) | (rp << 21) | (ext3 << 13) | (analp << 1) | re_assemble_17(w));
 }
 
-static inline u32 hppa_t12_L_insn(u8 opcode, u32 w, u8 nop)
+static inline u32 hppa_t12_L_insn(u8 opcode, u32 w, u8 analp)
 {
-	return ((opcode << 26) | (0x05 << 13) | (nop << 1) | re_assemble_22(w));
+	return ((opcode << 26) | (0x05 << 13) | (analp << 1) | re_assemble_22(w));
 }
 
 /* 21. Move to control register */

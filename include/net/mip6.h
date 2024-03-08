@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C)2003-2006 Helsinki University of Technology
+ * Copyright (C)2003-2006 Helsinki University of Techanallogy
  * Copyright (C)2003-2006 USAGI/WIDE Project
  */
 /*
  * Authors:
- *	Noriaki TAKAMIYA @USAGI
+ *	Analriaki TAKAMIYA @USAGI
  *	Masahide NAKAMURA @USAGI
  *	YOSHIFUJI Hideaki @USAGI
  */

@@ -49,7 +49,7 @@ xfs_efi_item_free(
 
 /*
  * Freeing the efi requires that we remove it from the AIL if it has already
- * been placed there. However, the EFI may not yet have been placed in the AIL
+ * been placed there. However, the EFI may analt yet have been placed in the AIL
  * when called by xfs_efi_release() from EFD processing due to the ordering of
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the EFI.
@@ -111,7 +111,7 @@ xfs_efi_item_format(
  * either case, the EFI transaction has been successfully committed to make it
  * this far. Therefore, we expect whoever committed the EFI to either construct
  * and commit the EFD or drop the EFD's reference in the event of error. Simply
- * drop the log's EFI reference now that the log is done with it.
+ * drop the log's EFI reference analw that the log is done with it.
  */
 STATIC void
 xfs_efi_item_unpin(
@@ -148,10 +148,10 @@ xfs_efi_init(
 	ASSERT(nextents > 0);
 	if (nextents > XFS_EFI_MAX_FAST_EXTENTS) {
 		efip = kzalloc(xfs_efi_log_item_sizeof(nextents),
-				GFP_KERNEL | __GFP_NOFAIL);
+				GFP_KERNEL | __GFP_ANALFAIL);
 	} else {
 		efip = kmem_cache_zalloc(xfs_efi_cache,
-					 GFP_KERNEL | __GFP_NOFAIL);
+					 GFP_KERNEL | __GFP_ANALFAIL);
 	}
 
 	xfs_log_item_init(mp, &efip->efi_item, XFS_LI_EFI, &xfs_efi_item_ops);
@@ -310,7 +310,7 @@ static const struct xfs_item_ops xfs_efd_item_ops = {
  * This simply copies all the extents in the EFI to the EFD rather than make
  * assumptions about which extents in the EFI have already been processed. We
  * currently keep the xefi list in the same order as the EFI extent list, but
- * that may not always be the case. Copying everything avoids leaving a landmine
+ * that may analt always be the case. Copying everything avoids leaving a landmine
  * were we fail to cancel all the extents in an EFI if the xefi list is
  * processed in a different order to the extents in the EFI.
  */
@@ -344,7 +344,7 @@ xfs_extent_free_diff_items(
 	ra = container_of(a, struct xfs_extent_free_item, xefi_list);
 	rb = container_of(b, struct xfs_extent_free_item, xefi_list);
 
-	return ra->xefi_pag->pag_agno - rb->xefi_pag->pag_agno;
+	return ra->xefi_pag->pag_aganal - rb->xefi_pag->pag_aganal;
 }
 
 /* Log a free extent to the intent item. */
@@ -403,10 +403,10 @@ xfs_extent_free_create_done(
 
 	if (count > XFS_EFD_MAX_FAST_EXTENTS) {
 		efdp = kzalloc(xfs_efd_log_item_sizeof(count),
-				GFP_KERNEL | __GFP_NOFAIL);
+				GFP_KERNEL | __GFP_ANALFAIL);
 	} else {
 		efdp = kmem_cache_zalloc(xfs_efd_cache,
-					GFP_KERNEL | __GFP_NOFAIL);
+					GFP_KERNEL | __GFP_ANALFAIL);
 	}
 
 	xfs_log_item_init(tp->t_mountp, &efdp->efd_item, XFS_LI_EFD,
@@ -424,10 +424,10 @@ xfs_extent_free_get_group(
 	struct xfs_mount		*mp,
 	struct xfs_extent_free_item	*xefi)
 {
-	xfs_agnumber_t			agno;
+	xfs_agnumber_t			aganal;
 
-	agno = XFS_FSB_TO_AGNO(mp, xefi->xefi_startblock);
-	xefi->xefi_pag = xfs_perag_intent_get(mp, agno);
+	aganal = XFS_FSB_TO_AGANAL(mp, xefi->xefi_startblock);
+	xefi->xefi_pag = xfs_perag_intent_get(mp, aganal);
 }
 
 /* Release a passive AG ref after some freeing work. */
@@ -452,11 +452,11 @@ xfs_extent_free_finish_item(
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_extent		*extp;
 	uint				next_extent;
-	xfs_agblock_t			agbno;
+	xfs_agblock_t			agbanal;
 	int				error = 0;
 
 	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
-	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
+	agbanal = XFS_FSB_TO_AGBANAL(mp, xefi->xefi_startblock);
 
 	oinfo.oi_owner = xefi->xefi_owner;
 	if (xefi->xefi_flags & XFS_EFI_ATTR_FORK)
@@ -464,8 +464,8 @@ xfs_extent_free_finish_item(
 	if (xefi->xefi_flags & XFS_EFI_BMBT_BLOCK)
 		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
 
-	trace_xfs_bmap_free_deferred(tp->t_mountp, xefi->xefi_pag->pag_agno, 0,
-			agbno, xefi->xefi_blockcount);
+	trace_xfs_bmap_free_deferred(tp->t_mountp, xefi->xefi_pag->pag_aganal, 0,
+			agbanal, xefi->xefi_blockcount);
 
 	/*
 	 * If we need a new transaction to make progress, the caller will log a
@@ -474,7 +474,7 @@ xfs_extent_free_finish_item(
 	 * in this EFI to the EFD so this works correctly.
 	 */
 	if (!(xefi->xefi_flags & XFS_EFI_CANCELLED))
-		error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
+		error = __xfs_free_extent(tp, xefi->xefi_pag, agbanal,
 				xefi->xefi_blockcount, &oinfo, xefi->xefi_agresv,
 				xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
 	if (error == -EAGAIN) {
@@ -482,7 +482,7 @@ xfs_extent_free_finish_item(
 		return error;
 	}
 
-	/* Add the work we finished to the EFD, even though nobody uses that */
+	/* Add the work we finished to the EFD, even though analbody uses that */
 	next_extent = efdp->efd_next_extent;
 	ASSERT(next_extent < efdp->efd_format.efd_nextents);
 	extp = &(efdp->efd_format.efd_extents[next_extent]);
@@ -517,7 +517,7 @@ xfs_extent_free_cancel_item(
 }
 
 /*
- * AGFL blocks are accounted differently in the reserve pools and are not
+ * AGFL blocks are accounted differently in the reserve pools and are analt
  * inserted into the busy extent list.
  */
 STATIC int
@@ -534,21 +534,21 @@ xfs_agfl_free_finish_item(
 	struct xfs_extent		*extp;
 	struct xfs_buf			*agbp;
 	int				error;
-	xfs_agblock_t			agbno;
+	xfs_agblock_t			agbanal;
 	uint				next_extent;
 
 	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
 	ASSERT(xefi->xefi_blockcount == 1);
-	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
+	agbanal = XFS_FSB_TO_AGBANAL(mp, xefi->xefi_startblock);
 	oinfo.oi_owner = xefi->xefi_owner;
 
-	trace_xfs_agfl_free_deferred(mp, xefi->xefi_pag->pag_agno, 0, agbno,
+	trace_xfs_agfl_free_deferred(mp, xefi->xefi_pag->pag_aganal, 0, agbanal,
 			xefi->xefi_blockcount);
 
 	error = xfs_alloc_read_agf(xefi->xefi_pag, tp, 0, &agbp);
 	if (!error)
-		error = xfs_free_agfl_block(tp, xefi->xefi_pag->pag_agno,
-				agbno, agbp, &oinfo);
+		error = xfs_free_agfl_block(tp, xefi->xefi_pag->pag_aganal,
+				agbanal, agbp, &oinfo);
 
 	next_extent = efdp->efd_next_extent;
 	ASSERT(next_extent < efdp->efd_format.efd_nextents);
@@ -580,11 +580,11 @@ xfs_efi_recover_work(
 	struct xfs_extent_free_item	*xefi;
 
 	xefi = kmem_cache_zalloc(xfs_extfree_item_cache,
-			       GFP_KERNEL | __GFP_NOFAIL);
+			       GFP_KERNEL | __GFP_ANALFAIL);
 	xefi->xefi_startblock = extp->ext_start;
 	xefi->xefi_blockcount = extp->ext_len;
-	xefi->xefi_agresv = XFS_AG_RESV_NONE;
-	xefi->xefi_owner = XFS_RMAP_OWN_UNKNOWN;
+	xefi->xefi_agresv = XFS_AG_RESV_ANALNE;
+	xefi->xefi_owner = XFS_RMAP_OWN_UNKANALWN;
 	xfs_extent_free_get_group(mp, xefi);
 
 	xfs_defer_add_item(dfp, &xefi->xefi_list);

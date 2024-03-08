@@ -59,7 +59,7 @@ struct pci_dev;
 
 /* base register: CIO2_REG_PIPE_BASE(pipe) * CIO2_REG_CSIRX_BASE */
 #define CIO2_REG_CSIRX_ENABLE			(CIO2_REG_CSIRX_BASE + 0x0)
-#define CIO2_REG_CSIRX_NOF_ENABLED_LANES	(CIO2_REG_CSIRX_BASE + 0x4)
+#define CIO2_REG_CSIRX_ANALF_ENABLED_LANES	(CIO2_REG_CSIRX_BASE + 0x4)
 #define CIO2_REG_CSIRX_SP_IF_CONFIG		(CIO2_REG_CSIRX_BASE + 0x10)
 #define CIO2_REG_CSIRX_LP_IF_CONFIG		(CIO2_REG_CSIRX_BASE + 0x14)
 #define CIO2_CSIRX_IF_CONFIG_FILTEROUT			0x00
@@ -109,7 +109,7 @@ struct pci_dev;
 #define CIO2_REG_IRQCTRL_STATUS		(CIO2_REG_IRQCTRL_BASE + 0x08)
 #define CIO2_REG_IRQCTRL_CLEAR		(CIO2_REG_IRQCTRL_BASE + 0x0c)
 #define CIO2_REG_IRQCTRL_ENABLE		(CIO2_REG_IRQCTRL_BASE + 0x10)
-#define CIO2_REG_IRQCTRL_LEVEL_NOT_PULSE	(CIO2_REG_IRQCTRL_BASE + 0x14)
+#define CIO2_REG_IRQCTRL_LEVEL_ANALT_PULSE	(CIO2_REG_IRQCTRL_BASE + 0x14)
 
 #define CIO2_REG_GPREG_SRST		(CIO2_REG_GPREG_BASE + 0x0)
 #define CIO2_GPREG_SRST_ALL				0xffff	/* Reset all */
@@ -192,7 +192,7 @@ struct pci_dev;
 #define CIO2_PBM_WMCTRL2_DYNWMEN			BIT(28)
 #define CIO2_PBM_WMCTRL2_OBFF_MEM_EN			BIT(29)
 #define CIO2_PBM_WMCTRL2_OBFF_CPU_EN			BIT(30)
-#define CIO2_PBM_WMCTRL2_DRAINNOW			BIT(31)
+#define CIO2_PBM_WMCTRL2_DRAINANALW			BIT(31)
 #define CIO2_REG_PBM_TS_COUNT				0x146c
 #define CIO2_REG_PBM_FOPN_ABORT				0x1474
 /* below n = 0..3 */
@@ -385,7 +385,7 @@ struct cio2_device {
 	struct mutex lock;
 
 	bool streaming;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct media_device media_dev;
 
 	/*
@@ -401,12 +401,12 @@ struct cio2_device {
 	dma_addr_t dummy_lop_bus_addr;
 };
 
-#define to_cio2_device(n)	container_of(n, struct cio2_device, notifier)
+#define to_cio2_device(n)	container_of(n, struct cio2_device, analtifier)
 
 /**************** Virtual channel ****************/
 /*
- * This should come from sensor driver. No
- * driver interface nor requirement yet.
+ * This should come from sensor driver. Anal
+ * driver interface analr requirement yet.
  */
 #define SENSOR_VIR_CH_DFLT		0
 

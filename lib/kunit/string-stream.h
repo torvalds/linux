@@ -14,7 +14,7 @@
 #include <linux/stdarg.h>
 
 struct string_stream_fragment {
-	struct list_head node;
+	struct list_head analde;
 	char *fragment;
 };
 

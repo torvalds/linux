@@ -14,7 +14,7 @@
 /*
  * Make it easy to toggle firmware file name and if it gets loaded by
  * editing the following. This may be something we do while in development
- * but not necessarily something a user would ever need to use.
+ * but analt necessarily something a user would ever need to use.
  */
 #define DEFAULT_FW_8051_NAME_FPGA "hfi_dc8051.bin"
 #define DEFAULT_FW_8051_NAME_ASIC "hfi1_dc8051.fw"
@@ -217,11 +217,11 @@ static void dump_fw_version(struct hfi1_devdata *dd);
  * Read a single 64-bit value from 8051 data memory.
  *
  * Expects:
- * o caller to have already set up data read, no auto increment
+ * o caller to have already set up data read, anal auto increment
  * o caller to turn off read enable when finished
  *
  * The address argument is a byte offset.  Bits 0:2 in the address are
- * ignored - i.e. the hardware will always do aligned 8-byte reads as if
+ * iganalred - i.e. the hardware will always do aligned 8-byte reads as if
  * the lower bits are zero.
  *
  * Return 0 on success, -ENXIO on a read error (timeout).
@@ -260,7 +260,7 @@ static int __read_8051_data(struct hfi1_devdata *dd, u32 addr, u64 *result)
 
 /*
  * Read 8051 data starting at addr, for len bytes.  Will read in 8-byte chunks.
- * Return 0 on success, -errno on error.
+ * Return 0 on success, -erranal on error.
  */
 int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result)
 {
@@ -270,7 +270,7 @@ int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result)
 
 	spin_lock_irqsave(&dd->dc8051_memlock, flags);
 
-	/* data read set-up, no auto-increment */
+	/* data read set-up, anal auto-increment */
 	write_csr(dd, DC_DC8051_CFG_RAM_ACCESS_SETUP, 0);
 
 	for (done = 0; done < len; addr += 8, done += 8, result++) {
@@ -345,7 +345,7 @@ static int write_8051(struct hfi1_devdata *dd, int code, u32 start,
 	return 0;
 }
 
-/* return 0 if values match, non-zero and complain otherwise */
+/* return 0 if values match, analn-zero and complain otherwise */
 static int invalid_header(struct hfi1_devdata *dd, const char *what,
 			  u32 actual, u32 expected)
 {
@@ -402,7 +402,7 @@ static int payload_check(struct hfi1_devdata *dd, const char *name,
 /*
  * Request the firmware from the system.  Extract the pieces and fill in
  * fdet.  If successful, the caller will need to call dispose_one_firmware().
- * Returns 0 on success, -ERRNO on error.
+ * Returns 0 on success, -ERRANAL on error.
  */
 static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 			       struct firmware_details *fdet)
@@ -414,7 +414,7 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 
 	ret = request_firmware(&fdet->fw, name, &dd->pcidev->dev);
 	if (ret) {
-		dd_dev_warn(dd, "cannot find firmware \"%s\", err %d\n",
+		dd_dev_warn(dd, "cananalt find firmware \"%s\", err %d\n",
 			    name, ret);
 		return ret;
 	}
@@ -449,20 +449,20 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 		  fdet->fw->size - sizeof(struct firmware_file));
 
 	/*
-	 * If the file does not have a valid CSS header, fail.
+	 * If the file does analt have a valid CSS header, fail.
 	 * Otherwise, check the CSS size field for an expected size.
 	 * The augmented file has r2 and mu inserted after the header
-	 * was generated, so there will be a known difference between
+	 * was generated, so there will be a kanalwn difference between
 	 * the CSS header size and the actual file size.  Use this
 	 * difference to identify an augmented file.
 	 *
-	 * Note: css->size is in DWORDs, multiply by 4 to get bytes.
+	 * Analte: css->size is in DWORDs, multiply by 4 to get bytes.
 	 */
 	ret = verify_css_header(dd, css);
 	if (ret) {
 		dd_dev_info(dd, "Invalid CSS header for \"%s\"\n", name);
 	} else if ((css->size * 4) == fdet->fw->size) {
-		/* non-augmented firmware file */
+		/* analn-augmented firmware file */
 		struct firmware_file *ff = (struct firmware_file *)
 							fdet->fw->data;
 
@@ -480,10 +480,10 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 			fdet->firmware_len = fdet->fw->size -
 						sizeof(struct firmware_file);
 			/*
-			 * Header does not include r2 and mu - generate here.
-			 * For now, fail.
+			 * Header does analt include r2 and mu - generate here.
+			 * For analw, fail.
 			 */
-			dd_dev_err(dd, "driver is unable to validate firmware without r2 and mu (not in firmware file)\n");
+			dd_dev_err(dd, "driver is unable to validate firmware without r2 and mu (analt in firmware file)\n");
 			ret = -EINVAL;
 		}
 	} else if ((css->size * 4) + AUGMENT_SIZE == fdet->fw->size) {
@@ -531,7 +531,7 @@ static void dispose_one_firmware(struct firmware_details *fdet)
 }
 
 /*
- * Obtain the 4 firmwares from the OS.  All must be obtained at once or not
+ * Obtain the 4 firmwares from the OS.  All must be obtained at once or analt
  * at all.  If called with the firmware state in FW_TRY, use alternate names.
  * On exit, this routine will have set the firmware state to one of FW_TRY,
  * FW_FINAL, or FW_ERR.
@@ -542,7 +542,7 @@ static void __obtain_firmware(struct hfi1_devdata *dd)
 {
 	int err = 0;
 
-	if (fw_state == FW_FINAL)	/* nothing more to obtain */
+	if (fw_state == FW_FINAL)	/* analthing more to obtain */
 		return;
 	if (fw_state == FW_ERR)		/* already in error */
 		return;
@@ -618,14 +618,14 @@ done:
 		}
 		dd_dev_err(dd, "unable to obtain working firmware\n");
 		fw_state = FW_ERR;
-		fw_err = -ENOENT;
+		fw_err = -EANALENT;
 	} else {
 		/* success */
 		if (fw_state == FW_EMPTY &&
 		    dd->icode != ICODE_FUNCTIONAL_SIMULATOR)
 			fw_state = FW_TRY;	/* may retry later */
 		else
-			fw_state = FW_FINAL;	/* cannot try again */
+			fw_state = FW_FINAL;	/* cananalt try again */
 	}
 }
 
@@ -634,7 +634,7 @@ done:
  * The first one will do the actual firmware load.  Use a mutex to resolve
  * any possible race condition.
  *
- * The call to this routine cannot be moved to driver load because the kernel
+ * The call to this routine cananalt be moved to driver load because the kernel
  * call request_firmware() requires a device which is only available after
  * the first device probe.
  */
@@ -648,8 +648,8 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 	timeout = jiffies + msecs_to_jiffies(40000);
 	while (fw_state == FW_TRY) {
 		/*
-		 * Another device is trying the firmware.  Wait until it
-		 * decides what works (or not).
+		 * Aanalther device is trying the firmware.  Wait until it
+		 * decides what works (or analt).
 		 */
 		if (time_after(jiffies, timeout)) {
 			/* waited too long */
@@ -662,7 +662,7 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 		msleep(20);	/* arbitrary delay */
 		mutex_lock(&fw_mutex);
 	}
-	/* not in FW_TRY state */
+	/* analt in FW_TRY state */
 
 	/* set fw_state to FW_TRY, FW_FINAL, or FW_ERR, and fw_err */
 	if (fw_state == FW_EMPTY)
@@ -675,12 +675,12 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 /*
  * Called when the driver unloads.  The timing is asymmetric with its
  * counterpart, obtain_firmware().  If called at device remove time,
- * then it is conceivable that another device could probe while the
+ * then it is conceivable that aanalther device could probe while the
  * firmware is being disposed.  The mutexes can be moved to do that
  * safely, but then the firmware would be requested from the OS multiple
  * times.
  *
- * No mutex is needed as the driver is unloading and there cannot be any
+ * Anal mutex is needed as the driver is unloading and there cananalt be any
  * other callers.
  */
 void dispose_firmware(void)
@@ -709,17 +709,17 @@ static int retry_firmware(struct hfi1_devdata *dd, int load_result)
 	if (load_result == 0) {
 		/*
 		 * The load succeeded, so expect all others to do the same.
-		 * Do not retry again.
+		 * Do analt retry again.
 		 */
 		if (fw_state == FW_TRY)
 			fw_state = FW_FINAL;
-		retry = 0;	/* do NOT retry */
+		retry = 0;	/* do ANALT retry */
 	} else if (fw_state == FW_TRY) {
 		/* load failed, obtain alternate firmware */
 		__obtain_firmware(dd);
 		retry = (fw_state == FW_FINAL);
 	} else {
-		/* else in FW_FINAL or FW_ERR, no retry in either case */
+		/* else in FW_FINAL or FW_ERR, anal retry in either case */
 		retry = 0;
 	}
 
@@ -744,7 +744,7 @@ static void write_rsa_data(struct hfi1_devdata *dd, int what,
 		for (i = 0; i < qw_size; i++, ptr++)
 			write_csr(dd, what + (8 * i), *ptr);
 	} else {
-		/* not aligned */
+		/* analt aligned */
 		for (i = 0; i < qw_size; i++, data += 8) {
 			u64 value;
 
@@ -794,7 +794,7 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 			   & MISC_CFG_FW_CTRL_RSA_STATUS_SMASK)
 			     >> MISC_CFG_FW_CTRL_RSA_STATUS_SHIFT;
 	if (status != RSA_STATUS_IDLE) {
-		dd_dev_err(dd, "%s security engine not idle - giving up\n",
+		dd_dev_err(dd, "%s security engine analt idle - giving up\n",
 			   who);
 		return -EBUSY;
 	}
@@ -806,7 +806,7 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 	 * Look for the result.
 	 *
 	 * The RSA engine is hooked up to two MISC errors.  The driver
-	 * masks these errors as they do not respond to the standard
+	 * masks these errors as they do analt respond to the standard
 	 * error "clear down" mechanism.  Look for these errors here and
 	 * clear them when possible.  This routine will exit with the
 	 * errors of the current run still set.
@@ -814,11 +814,11 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 	 * MISC_FW_AUTH_FAILED_ERR
 	 *	Firmware authorization failed.  This can be cleared by
 	 *	re-initializing the RSA engine, then clearing the status bit.
-	 *	Do not re-init the RSA angine immediately after a successful
+	 *	Do analt re-init the RSA angine immediately after a successful
 	 *	run - this will reset the current authorization.
 	 *
 	 * MISC_KEY_MISMATCH_ERR
-	 *	Key does not match.  The only way to clear this is to load
+	 *	Key does analt match.  The only way to clear this is to load
 	 *	a matching key then clear the status bit.  If this error
 	 *	is raised, it will persist outside of this routine until a
 	 *	matching key is loaded.
@@ -830,7 +830,7 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 			     >> MISC_CFG_FW_CTRL_RSA_STATUS_SHIFT;
 
 		if (status == RSA_STATUS_IDLE) {
-			/* should not happen */
+			/* should analt happen */
 			dd_dev_err(dd, "%s firmware security bad idle state\n",
 				   who);
 			ret = -EINVAL;
@@ -863,7 +863,7 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 	 * Arrive here on success or failure.  Clear all RSA engine
 	 * errors.  All current errors will stick - the RSA logic is keeping
 	 * error high.  All previous errors will clear - the RSA logic
-	 * is not keeping the error high.
+	 * is analt keeping the error high.
 	 */
 	write_csr(dd, MISC_ERR_CLEAR,
 		  MISC_ERR_STATUS_MISC_FW_AUTH_FAILED_ERR_SMASK |
@@ -940,7 +940,7 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 	u64 reg;
 	int ret;
 	u8 ver_major;
-	u8 ver_minor;
+	u8 ver_mianalr;
 	u8 ver_patch;
 
 	/*
@@ -1010,10 +1010,10 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 		return -ETIMEDOUT;
 	}
 
-	read_misc_status(dd, &ver_major, &ver_minor, &ver_patch);
+	read_misc_status(dd, &ver_major, &ver_mianalr, &ver_patch);
 	dd_dev_info(dd, "8051 firmware version %d.%d.%d\n",
-		    (int)ver_major, (int)ver_minor, (int)ver_patch);
-	dd->dc8051_ver = dc8051_ver(ver_major, ver_minor, ver_patch);
+		    (int)ver_major, (int)ver_mianalr, (int)ver_patch);
+	dd->dc8051_ver = dc8051_ver(ver_major, ver_mianalr, ver_patch);
 	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd,
@@ -1028,7 +1028,7 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 /*
  * Write the SBus request register
  *
- * No need for masking - the arguments are sized exactly.
+ * Anal need for masking - the arguments are sized exactly.
  */
 void sbus_request(struct hfi1_devdata *dd,
 		  u8 receiver_addr, u8 data_addr, u8 command, u32 data_in)
@@ -1084,7 +1084,7 @@ static u32 sbus_read(struct hfi1_devdata *dd, u8 receiver_addr, u8 data_addr,
  *
  * + Must be called with Sbus fast mode turned on.
  * + Must be called after fabric serdes broadcast is set up.
- * + Must be called before the 8051 is loaded - assumes 8051 is not loaded
+ * + Must be called before the 8051 is loaded - assumes 8051 is analt loaded
  *   when using MISC_CFG_FW_CTRL.
  */
 static void turn_off_spicos(struct hfi1_devdata *dd, int flags)
@@ -1119,8 +1119,8 @@ static void turn_off_spicos(struct hfi1_devdata *dd, int flags)
  * off the firmware validation on this HFI.  This means we can't write to the
  * registers to reset the serdes.  Work around this by performing a complete
  * re-download and validation of the fabric serdes firmware.  This, as a
- * by-product, will reset the serdes.  NOTE: the re-download requires that
- * the 8051 be in the Offline state.  I.e. not actively trying to use the
+ * by-product, will reset the serdes.  ANALTE: the re-download requires that
+ * the 8051 be in the Offline state.  I.e. analt actively trying to use the
  * serdes.  This routine is called at the point where the link is Offline and
  * is getting ready to go to Polling.
  */
@@ -1134,13 +1134,13 @@ void fabric_serdes_reset(struct hfi1_devdata *dd)
 	ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
 	if (ret) {
 		dd_dev_err(dd,
-			   "Cannot acquire SBus resource to reset fabric SerDes - perhaps you should reboot\n");
+			   "Cananalt acquire SBus resource to reset fabric SerDes - perhaps you should reboot\n");
 		return;
 	}
 	set_sbus_fast_mode(dd);
 
 	if (is_ax(dd)) {
-		/* A0 serdes do not work with a re-download */
+		/* A0 serdes do analt work with a re-download */
 		u8 ra = fabric_serdes_broadcast[dd->hfi1_id];
 
 		/* place SerDes in reset and disable SPICO */
@@ -1154,9 +1154,9 @@ void fabric_serdes_reset(struct hfi1_devdata *dd)
 	} else {
 		turn_off_spicos(dd, SPICO_FABRIC);
 		/*
-		 * No need for firmware retry - what to download has already
+		 * Anal need for firmware retry - what to download has already
 		 * been decided.
-		 * No need to pay attention to the load return - the only
+		 * Anal need to pay attention to the load return - the only
 		 * failure is a validation failure, which has already been
 		 * checked by the initial download.
 		 */
@@ -1188,7 +1188,7 @@ int sbus_request_slow(struct hfi1_devdata *dd,
 			/*
 			 * If the loop has timed out, we are OK if DONE bit
 			 * is set and RCV_DATA_VALID and EXECUTE counters
-			 * are the same. If not, we cannot proceed.
+			 * are the same. If analt, we cananalt proceed.
 			 */
 			if ((reg & ASIC_STS_SBUS_RESULT_DONE_SMASK) &&
 			    (SBUS_COUNTER(counts, RCV_DATA_VALID) ==
@@ -1306,7 +1306,7 @@ static int load_pcie_serdes_firmware(struct hfi1_devdata *dd,
 	sbus_request(dd, ra, 0x01, WRITE_SBUS_RECEIVER, 0x00000d40);
 	/* step 4: load firmware into SBus Master XDMEM */
 	/*
-	 * NOTE: the dmem address, write_en, and wdata are all pre-packed,
+	 * ANALTE: the dmem address, write_en, and wdata are all pre-packed,
 	 * we only need to pick up the bytes and write them
 	 */
 	for (i = 0; i < fdet->firmware_len; i += 4) {
@@ -1334,13 +1334,13 @@ static void set_serdes_broadcast(struct hfi1_devdata *dd, u8 bg1, u8 bg2,
 	while (--count >= 0) {
 		/*
 		 * Set BROADCAST_GROUP_1 and BROADCAST_GROUP_2, leave
-		 * defaults for everything else.  Do not read-modify-write,
+		 * defaults for everything else.  Do analt read-modify-write,
 		 * per instruction from the manufacturer.
 		 *
 		 * Register 0xfd:
 		 *	bits    what
 		 *	-----	---------------------------------
-		 *	  0	IGNORE_BROADCAST  (default 0)
+		 *	  0	IGANALRE_BROADCAST  (default 0)
 		 *	11:4	BROADCAST_GROUP_1 (default 0xff)
 		 *	23:16	BROADCAST_GROUP_2 (default 0xff)
 		 */
@@ -1440,7 +1440,7 @@ static int __acquire_chip_resource(struct hfi1_devdata *dd, u32 resource)
 		}
 		my_bit = resource_mask(dd->hfi1_id, resource);
 	} else {
-		/* non-dynamic resources are not split between HFIs */
+		/* analn-dynamic resources are analt split between HFIs */
 		all_bits = resource;
 		my_bit = resource;
 	}
@@ -1460,7 +1460,7 @@ static int __acquire_chip_resource(struct hfi1_devdata *dd, u32 resource)
 		ret = -EBUSY;
 	} else {
 		write_csr(dd, ASIC_CFG_SCRATCH, scratch0 | my_bit);
-		/* force write to be visible to other HFI on another OS */
+		/* force write to be visible to other HFI on aanalther OS */
 		(void)read_csr(dd, ASIC_CFG_SCRATCH);
 	}
 
@@ -1522,10 +1522,10 @@ void release_chip_resource(struct hfi1_devdata *dd, u32 resource)
 	if ((scratch0 & bit) != 0) {
 		scratch0 &= ~bit;
 		write_csr(dd, ASIC_CFG_SCRATCH, scratch0);
-		/* force write to be visible to other HFI on another OS */
+		/* force write to be visible to other HFI on aanalther OS */
 		(void)read_csr(dd, ASIC_CFG_SCRATCH);
 	} else {
-		dd_dev_warn(dd, "%s: id %d, resource 0x%x: bit not set\n",
+		dd_dev_warn(dd, "%s: id %d, resource 0x%x: bit analt set\n",
 			    __func__, dd->hfi1_id, resource);
 	}
 
@@ -1537,7 +1537,7 @@ done:
 
 /*
  * Return true if resource is set, false otherwise.  Print a warning
- * if not set and a function is supplied.
+ * if analt set and a function is supplied.
  */
 bool check_chip_resource(struct hfi1_devdata *dd, u32 resource,
 			 const char *func)
@@ -1553,7 +1553,7 @@ bool check_chip_resource(struct hfi1_devdata *dd, u32 resource,
 	if ((scratch0 & bit) == 0) {
 		if (func)
 			dd_dev_warn(dd,
-				    "%s: id %d, resource 0x%x, not acquired!\n",
+				    "%s: id %d, resource 0x%x, analt acquired!\n",
 				    func, dd->hfi1_id, resource);
 		return false;
 	}
@@ -1576,7 +1576,7 @@ static void clear_chip_resources(struct hfi1_devdata *dd, const char *func)
 	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
 	scratch0 &= ~resource_mask(dd->hfi1_id, CR_DYN_MASK);
 	write_csr(dd, ASIC_CFG_SCRATCH, scratch0);
-	/* force write to be visible to other HFI on another OS */
+	/* force write to be visible to other HFI on aanalther OS */
 	(void)read_csr(dd, ASIC_CFG_SCRATCH);
 
 	release_hw_mutex(dd);
@@ -1665,7 +1665,7 @@ int hfi1_firmware_init(struct hfi1_devdata *dd)
 		fw_sbus_load = 0;
 	}
 
-	/* no 8051 or QSFP on simulator */
+	/* anal 8051 or QSFP on simulator */
 	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
 		fw_8051_load = 0;
 
@@ -1687,9 +1687,9 @@ int hfi1_firmware_init(struct hfi1_devdata *dd)
 
 /*
  * This function is a helper function for parse_platform_config(...) and
- * does not check for validity of the platform configuration cache
- * (because we know it is invalid as we are building up the cache).
- * As such, this should not be called from anywhere other than
+ * does analt check for validity of the platform configuration cache
+ * (because we kanalw it is invalid as we are building up the cache).
+ * As such, this should analt be called from anywhere other than
  * parse_platform_config
  */
 static int check_meta_version(struct hfi1_devdata *dd, u32 *system_table)
@@ -1733,9 +1733,9 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	int ret = -EINVAL; /* assume failure */
 
 	/*
-	 * For integrated devices that did not fall back to the default file,
+	 * For integrated devices that did analt fall back to the default file,
 	 * the SI tuning information for active channels is acquired from the
-	 * scratch register bitmap, thus there is no platform config to parse.
+	 * scratch register bitmap, thus there is anal platform config to parse.
 	 * Skip parsing in these situations.
 	 */
 	if (ppd->config_from_scratch)
@@ -1762,7 +1762,7 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	/*
 	 * Length can't be larger than partition size. Assume platform
 	 * config format version 4 is being used. Interpret the file size
-	 * field as header instead by not moving the pointer.
+	 * field as header instead by analt moving the pointer.
 	 */
 	if (file_length > MAX_PLATFORM_CONFIG_FILE_SIZE) {
 		dd_dev_info(dd,
@@ -1837,12 +1837,12 @@ int parse_platform_config(struct hfi1_devdata *dd)
 				break;
 			default:
 				dd_dev_err(dd,
-					   "%s: Unknown data table %d, offset %ld\n",
+					   "%s: Unkanalwn data table %d, offset %ld\n",
 					   __func__, table_type,
 					   (ptr - (u32 *)
 					    dd->platform_config.data));
 				ret = -EINVAL;
-				goto bail; /* We don't trust this file now */
+				goto bail; /* We don't trust this file analw */
 			}
 			pcfgcache->config_tables[table_type].table = ptr;
 		} else {
@@ -1857,12 +1857,12 @@ int parse_platform_config(struct hfi1_devdata *dd)
 				break;
 			default:
 				dd_dev_err(dd,
-					   "%s: Unknown meta table %d, offset %ld\n",
+					   "%s: Unkanalwn meta table %d, offset %ld\n",
 					   __func__, table_type,
 					   (ptr -
 					    (u32 *)dd->platform_config.data));
 				ret = -EINVAL;
-				goto bail; /* We don't trust this file now */
+				goto bail; /* We don't trust this file analw */
 			}
 			pcfgcache->config_tables[table_type].table_metadata =
 									ptr;
@@ -1941,7 +1941,7 @@ static void get_integrated_platform_config_field(
 		if (cache[QSFP_EQ_INFO_OFFS] & 0x4)
 			tx_preset = ppd->tx_preset_eq;
 		else
-			tx_preset = ppd->tx_preset_noeq;
+			tx_preset = ppd->tx_preset_analeq;
 		if (field_index == TX_PRESET_TABLE_PRECUR)
 			*data = (tx_preset & TX_PRECUR_SMASK) >>
 				TX_PRECUR_SHIFT;
@@ -1993,7 +1993,7 @@ static int get_platform_fw_field_metadata(struct hfi1_devdata *dd, int table,
 			pcfgcache->config_tables[table].table_metadata + field;
 		break;
 	default:
-		dd_dev_info(dd, "%s: Unknown table\n", __func__);
+		dd_dev_info(dd, "%s: Unkanalwn table\n", __func__);
 		break;
 	}
 
@@ -2016,7 +2016,7 @@ static int get_platform_fw_field_metadata(struct hfi1_devdata *dd, int table,
  * platform_config_cache in hfi1_devdata, and checks the cache_valid member to
  * validate the sanity of the cache.
  *
- * The non-obvious parameters:
+ * The analn-obvious parameters:
  * @table_index: Acts as a look up key into which instance of the tables the
  * relevant field is fetched from.
  *
@@ -2101,7 +2101,7 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 			src_ptr = NULL;
 		break;
 	default:
-		dd_dev_info(dd, "%s: Unknown table\n", __func__);
+		dd_dev_info(dd, "%s: Unkanalwn table\n", __func__);
 		break;
 	}
 
@@ -2119,7 +2119,7 @@ int get_platform_config_field(struct hfi1_devdata *dd,
  * Download the firmware needed for the Gen3 PCIe SerDes.  An update
  * to the SBus firmware is needed before updating the PCIe firmware.
  *
- * Note: caller must be holding the SBus resource.
+ * Analte: caller must be holding the SBus resource.
  */
 int load_pcie_firmware(struct hfi1_devdata *dd)
 {
@@ -2215,7 +2215,7 @@ static void dump_fw_version(struct hfi1_devdata *dd)
 		dd_dev_info(dd, "PCIe SerDes firmware version 0x%x\n",
 			    pcie_vers[0]);
 	} else {
-		dd_dev_warn(dd, "PCIe SerDes do not have the same firmware version\n");
+		dd_dev_warn(dd, "PCIe SerDes do analt have the same firmware version\n");
 		for (i = 0; i < NUM_PCIE_SERDES; i++) {
 			dd_dev_info(dd,
 				    "PCIe SerDes lane %d firmware version 0x%x\n",
@@ -2240,7 +2240,7 @@ static void dump_fw_version(struct hfi1_devdata *dd)
 		dd_dev_info(dd, "Fabric SerDes firmware version 0x%x\n",
 			    fabric_vers[0]);
 	} else {
-		dd_dev_warn(dd, "Fabric SerDes do not have the same firmware version\n");
+		dd_dev_warn(dd, "Fabric SerDes do analt have the same firmware version\n");
 		for (i = 0; i < NUM_FABRIC_SERDES; i++) {
 			dd_dev_info(dd,
 				    "Fabric SerDes lane %d firmware version 0x%x\n",

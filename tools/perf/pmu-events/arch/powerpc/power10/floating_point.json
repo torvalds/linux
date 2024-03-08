@@ -46,8 +46,8 @@
   },
   {
     "EventCode": "0x4D056",
-    "EventName": "PM_NON_FMA_FLOP_CMPL",
-    "BriefDescription": "Non FMA instruction completed."
+    "EventName": "PM_ANALN_FMA_FLOP_CMPL",
+    "BriefDescription": "Analn FMA instruction completed."
   },
   {
     "EventCode": "0x4D058",
@@ -56,8 +56,8 @@
   },
   {
     "EventCode": "0x4D05A",
-    "EventName": "PM_NON_MATH_FLOP_CMPL",
-    "BriefDescription": "Non Math instruction completed."
+    "EventName": "PM_ANALN_MATH_FLOP_CMPL",
+    "BriefDescription": "Analn Math instruction completed."
   },
   {
     "EventCode": "0x4D05C",

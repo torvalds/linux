@@ -5,7 +5,7 @@
  * Copyright (C) 2015, Google, Inc.,
  * Paul Turner <pjt@google.com> and Andrew Hunter <ahh@google.com>
  * Copyright (C) 2015-2018, EfficiOS Inc.,
- * Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  */
 
 #include <linux/sched.h>
@@ -21,9 +21,9 @@
 /* The original rseq structure size (including padding) is 32 bytes. */
 #define ORIG_RSEQ_SIZE		32
 
-#define RSEQ_CS_NO_RESTART_FLAGS (RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT | \
-				  RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL | \
-				  RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE)
+#define RSEQ_CS_ANAL_RESTART_FLAGS (RSEQ_CS_FLAG_ANAL_RESTART_ON_PREEMPT | \
+				  RSEQ_CS_FLAG_ANAL_RESTART_ON_SIGNAL | \
+				  RSEQ_CS_FLAG_ANAL_RESTART_ON_MIGRATE)
 
 /*
  *
@@ -85,11 +85,11 @@
  *   F1. <failure>
  */
 
-static int rseq_update_cpu_node_id(struct task_struct *t)
+static int rseq_update_cpu_analde_id(struct task_struct *t)
 {
 	struct rseq __user *rseq = t->rseq;
 	u32 cpu_id = raw_smp_processor_id();
-	u32 node_id = cpu_to_node(cpu_id);
+	u32 analde_id = cpu_to_analde(cpu_id);
 	u32 mm_cid = task_mm_cid(t);
 
 	WARN_ON_ONCE((int) mm_cid < 0);
@@ -97,7 +97,7 @@ static int rseq_update_cpu_node_id(struct task_struct *t)
 		goto efault;
 	unsafe_put_user(cpu_id, &rseq->cpu_id_start, efault_end);
 	unsafe_put_user(cpu_id, &rseq->cpu_id, efault_end);
-	unsafe_put_user(node_id, &rseq->node_id, efault_end);
+	unsafe_put_user(analde_id, &rseq->analde_id, efault_end);
 	unsafe_put_user(mm_cid, &rseq->mm_cid, efault_end);
 	/*
 	 * Additional feature fields added after ORIG_RSEQ_SIZE
@@ -114,9 +114,9 @@ efault:
 	return -EFAULT;
 }
 
-static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
+static int rseq_reset_rseq_cpu_analde_id(struct task_struct *t)
 {
-	u32 cpu_id_start = 0, cpu_id = RSEQ_CPU_ID_UNINITIALIZED, node_id = 0,
+	u32 cpu_id_start = 0, cpu_id = RSEQ_CPU_ID_UNINITIALIZED, analde_id = 0,
 	    mm_cid = 0;
 
 	/*
@@ -132,9 +132,9 @@ static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
 	if (put_user(cpu_id, &t->rseq->cpu_id))
 		return -EFAULT;
 	/*
-	 * Reset node_id to its initial state (0).
+	 * Reset analde_id to its initial state (0).
 	 */
-	if (put_user(node_id, &t->rseq->node_id))
+	if (put_user(analde_id, &t->rseq->analde_id))
 		return -EFAULT;
 	/*
 	 * Reset mm_cid to its initial state (0).
@@ -182,7 +182,7 @@ static int rseq_get_rseq_cs(struct task_struct *t, struct rseq_cs *rseq_cs)
 	/* Check for overflow. */
 	if (rseq_cs->start_ip + rseq_cs->post_commit_offset < rseq_cs->start_ip)
 		return -EINVAL;
-	/* Ensure that abort_ip is not in the critical section. */
+	/* Ensure that abort_ip is analt in the critical section. */
 	if (rseq_cs->abort_ip - rseq_cs->start_ip < rseq_cs->post_commit_offset)
 		return -EINVAL;
 
@@ -206,12 +206,12 @@ static bool rseq_warn_flags(const char *str, u32 flags)
 
 	if (!flags)
 		return false;
-	test_flags = flags & RSEQ_CS_NO_RESTART_FLAGS;
+	test_flags = flags & RSEQ_CS_ANAL_RESTART_FLAGS;
 	if (test_flags)
 		pr_warn_once("Deprecated flags (%u) in %s ABI structure", test_flags, str);
-	test_flags = flags & ~RSEQ_CS_NO_RESTART_FLAGS;
+	test_flags = flags & ~RSEQ_CS_ANAL_RESTART_FLAGS;
 	if (test_flags)
-		pr_warn_once("Unknown flags (%u) in %s ABI structure", test_flags, str);
+		pr_warn_once("Unkanalwn flags (%u) in %s ABI structure", test_flags, str);
 	return true;
 }
 
@@ -283,8 +283,8 @@ static int rseq_ip_fixup(struct pt_regs *regs)
 		return ret;
 
 	/*
-	 * Handle potentially not being within a critical section.
-	 * If not nested over a rseq critical section, restart is useless.
+	 * Handle potentially analt being within a critical section.
+	 * If analt nested over a rseq critical section, restart is useless.
 	 * Clear the rseq_cs pointer and return.
 	 */
 	if (!in_rseq_cs(ip, &rseq_cs))
@@ -312,7 +312,7 @@ static int rseq_ip_fixup(struct pt_regs *regs)
  * respect to other threads scheduled on the same CPU, and with respect
  * to signal handlers.
  */
-void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
+void __rseq_handle_analtify_resume(struct ksignal *ksig, struct pt_regs *regs)
 {
 	struct task_struct *t = current;
 	int ret, sig;
@@ -330,7 +330,7 @@ void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
 		if (unlikely(ret < 0))
 			goto error;
 	}
-	if (unlikely(rseq_update_cpu_node_id(t)))
+	if (unlikely(rseq_update_cpu_analde_id(t)))
 		goto error;
 	return;
 
@@ -377,7 +377,7 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len,
 			return -EINVAL;
 		if (current->rseq_sig != sig)
 			return -EPERM;
-		ret = rseq_reset_rseq_cpu_node_id(current);
+		ret = rseq_reset_rseq_cpu_analde_id(current);
 		if (ret)
 			return ret;
 		current->rseq = NULL;
@@ -404,18 +404,18 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len,
 	}
 
 	/*
-	 * If there was no rseq previously registered, ensure the provided rseq
+	 * If there was anal rseq previously registered, ensure the provided rseq
 	 * is properly aligned, as communcated to user-space through the ELF
 	 * auxiliary vector AT_RSEQ_ALIGN. If rseq_len is the original rseq
 	 * size, the required alignment is the original struct rseq alignment.
 	 *
 	 * In order to be valid, rseq_len is either the original rseq size, or
-	 * large enough to contain all supported fields, as communicated to
+	 * large eanalugh to contain all supported fields, as communicated to
 	 * user-space through the ELF auxiliary vector AT_RSEQ_FEATURE_SIZE.
 	 */
 	if (rseq_len < ORIG_RSEQ_SIZE ||
 	    (rseq_len == ORIG_RSEQ_SIZE && !IS_ALIGNED((unsigned long)rseq, ORIG_RSEQ_SIZE)) ||
-	    (rseq_len != ORIG_RSEQ_SIZE && (!IS_ALIGNED((unsigned long)rseq, __alignof__(*rseq)) ||
+	    (rseq_len != ORIG_RSEQ_SIZE && (!IS_ALIGNED((unsigned long)rseq, __aliganalf__(*rseq)) ||
 					    rseq_len < offsetof(struct rseq, end))))
 		return -EINVAL;
 	if (!access_ok(rseq, rseq_len))
@@ -428,7 +428,7 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len,
 	 * registered, ensure the cpu_id_start and cpu_id fields
 	 * are updated before returning to user-space.
 	 */
-	rseq_set_notify_resume(current);
+	rseq_set_analtify_resume(current);
 
 	return 0;
 }

@@ -21,14 +21,14 @@ MODULE_DEVICE_TABLE(of, pwmss_of_match);
 static int pwmss_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
 	pm_runtime_enable(&pdev->dev);
 
-	/* Populate all the child nodes here... */
-	ret = of_platform_populate(node, NULL, NULL, &pdev->dev);
+	/* Populate all the child analdes here... */
+	ret = of_platform_populate(analde, NULL, NULL, &pdev->dev);
 	if (ret)
-		dev_err(&pdev->dev, "no child node found\n");
+		dev_err(&pdev->dev, "anal child analde found\n");
 
 	return ret;
 }

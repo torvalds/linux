@@ -98,7 +98,7 @@ static struct class k3_udma_glue_devclass = {
 
 #define K3_UDMAX_TDOWN_TIMEOUT_US 1000
 
-static int of_k3_udma_glue_parse(struct device_node *udmax_np,
+static int of_k3_udma_glue_parse(struct device_analde *udmax_np,
 				 struct k3_udma_glue_common *common)
 {
 	common->udmax = of_xudma_dev_get(udmax_np, NULL);
@@ -111,7 +111,7 @@ static int of_k3_udma_glue_parse(struct device_node *udmax_np,
 	return 0;
 }
 
-static int of_k3_udma_glue_parse_chn(struct device_node *chn_np,
+static int of_k3_udma_glue_parse_chn(struct device_analde *chn_np,
 		const char *name, struct k3_udma_glue_common *common,
 		bool tx_chn)
 {
@@ -129,7 +129,7 @@ static int of_k3_udma_glue_parse_chn(struct device_node *chn_np,
 
 	if (of_parse_phandle_with_args(chn_np, "dmas", "#dma-cells", index,
 				       &dma_spec))
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = of_k3_udma_glue_parse(dma_spec.np, common);
 	if (ret)
@@ -167,7 +167,7 @@ static int of_k3_udma_glue_parse_chn(struct device_node *chn_np,
 	common->ep_config = psil_get_ep_config(thread_id);
 	if (IS_ERR(common->ep_config)) {
 		dev_err(common->dev,
-			"No configuration for psi-l thread 0x%04x\n",
+			"Anal configuration for psi-l thread 0x%04x\n",
 			thread_id);
 		ret = PTR_ERR(common->ep_config);
 		goto out_put_spec;
@@ -182,7 +182,7 @@ static int of_k3_udma_glue_parse_chn(struct device_node *chn_np,
 		common->src_thread = thread_id;
 
 out_put_spec:
-	of_node_put(dma_spec.np);
+	of_analde_put(dma_spec.np);
 	return ret;
 };
 
@@ -259,7 +259,7 @@ struct k3_udma_glue_tx_channel *k3_udma_glue_request_tx_chn(struct device *dev,
 
 	tx_chn = devm_kzalloc(dev, sizeof(*tx_chn), GFP_KERNEL);
 	if (!tx_chn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tx_chn->common.dev = dev;
 	tx_chn->common.swdata_size = cfg->swdata_size;
@@ -269,7 +269,7 @@ struct k3_udma_glue_tx_channel *k3_udma_glue_request_tx_chn(struct device *dev,
 	tx_chn->tx_supr_tdpkt = cfg->tx_supr_tdpkt;
 
 	/* parse of udmap channel */
-	ret = of_k3_udma_glue_parse_chn(dev->of_node, name,
+	ret = of_k3_udma_glue_parse_chn(dev->of_analde, name,
 					&tx_chn->common, true);
 	if (ret)
 		goto err;
@@ -405,7 +405,7 @@ int k3_udma_glue_push_tx_chn(struct k3_udma_glue_tx_channel *tx_chn,
 	u32 ringtxcq_id;
 
 	if (!atomic_add_unless(&tx_chn->free_pkts, -1, 0))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ringtxcq_id = k3_ringacc_get_ring_id(tx_chn->ringtxcq);
 	cppi5_desc_set_retpolicy(&desc_tx->hdr, 0, ringtxcq_id);
@@ -498,7 +498,7 @@ void k3_udma_glue_tdown_tx_chn(struct k3_udma_glue_tx_channel *tx_chn,
 	val = xudma_tchanrt_read(tx_chn->udma_tchanx,
 				 UDMA_CHAN_RT_PEER_RT_EN_REG);
 	if (sync && (val & UDMA_PEER_RT_EN_ENABLE))
-		dev_err(tx_chn->common.dev, "TX tdown peer not stopped\n");
+		dev_err(tx_chn->common.dev, "TX tdown peer analt stopped\n");
 	k3_udma_glue_dump_tx_rt_chn(tx_chn, "txchn tdown2");
 }
 EXPORT_SYMBOL_GPL(k3_udma_glue_tdown_tx_chn);
@@ -524,14 +524,14 @@ void k3_udma_glue_reset_tx_chn(struct k3_udma_glue_tx_channel *tx_chn,
 	for (i = 0; i < occ_tx; i++) {
 		ret = k3_ringacc_ring_pop(tx_chn->ringtx, &desc_dma);
 		if (ret) {
-			if (ret != -ENODATA)
+			if (ret != -EANALDATA)
 				dev_err(dev, "TX reset pop %d\n", ret);
 			break;
 		}
 		cleanup(data, desc_dma);
 	}
 
-	/* reset TXCQ as it is not input for udma - expected to be empty */
+	/* reset TXCQ as it is analt input for udma - expected to be empty */
 	k3_ringacc_ring_reset(tx_chn->ringtxcq);
 	k3_ringacc_ring_reset_dma(tx_chn->ringtx, occ_tx);
 }
@@ -679,7 +679,7 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 	}
 
 	if (flow->udma_rflow_id != xudma_rflow_get_id(flow->udma_rflow)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_rflow_put;
 	}
 
@@ -846,7 +846,7 @@ k3_udma_glue_allocate_rx_flows(struct k3_udma_glue_rx_channel *rx_chn,
 	if (cfg->flow_id_use_rxchan_id)
 		return 0;
 
-	/* not a GP rflows */
+	/* analt a GP rflows */
 	if (rx_chn->flow_id_base != -1 &&
 	    !xudma_rflow_is_gp(rx_chn->common.udmax, rx_chn->flow_id_base))
 		return 0;
@@ -882,14 +882,14 @@ k3_udma_glue_request_rx_chn_priv(struct device *dev, const char *name,
 
 	rx_chn = devm_kzalloc(dev, sizeof(*rx_chn), GFP_KERNEL);
 	if (!rx_chn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rx_chn->common.dev = dev;
 	rx_chn->common.swdata_size = cfg->swdata_size;
 	rx_chn->remote = false;
 
 	/* parse of udmap channel */
-	ret = of_k3_udma_glue_parse_chn(dev->of_node, name,
+	ret = of_k3_udma_glue_parse_chn(dev->of_analde, name,
 					&rx_chn->common, false);
 	if (ret)
 		goto err;
@@ -962,7 +962,7 @@ k3_udma_glue_request_rx_chn_priv(struct device *dev, const char *name,
 	rx_chn->flows = devm_kcalloc(dev, rx_chn->flow_num,
 				     sizeof(*rx_chn->flows), GFP_KERNEL);
 	if (!rx_chn->flows) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1020,7 +1020,7 @@ k3_udma_glue_request_remote_rx_chn(struct device *dev, const char *name,
 
 	rx_chn = devm_kzalloc(dev, sizeof(*rx_chn), GFP_KERNEL);
 	if (!rx_chn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rx_chn->common.dev = dev;
 	rx_chn->common.swdata_size = cfg->swdata_size;
@@ -1031,7 +1031,7 @@ k3_udma_glue_request_remote_rx_chn(struct device *dev, const char *name,
 	rx_chn->psil_paired = false;
 
 	/* parse of udmap channel */
-	ret = of_k3_udma_glue_parse_chn(dev->of_node, name,
+	ret = of_k3_udma_glue_parse_chn(dev->of_analde, name,
 					&rx_chn->common, false);
 	if (ret)
 		goto err;
@@ -1043,7 +1043,7 @@ k3_udma_glue_request_remote_rx_chn(struct device *dev, const char *name,
 	rx_chn->flows = devm_kcalloc(dev, rx_chn->flow_num,
 				     sizeof(*rx_chn->flows), GFP_KERNEL);
 	if (!rx_chn->flows) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1317,7 +1317,7 @@ void k3_udma_glue_tdown_rx_chn(struct k3_udma_glue_rx_channel *rx_chn,
 	val = xudma_rchanrt_read(rx_chn->udma_rchanx,
 				 UDMA_CHAN_RT_PEER_RT_EN_REG);
 	if (sync && (val & UDMA_PEER_RT_EN_ENABLE))
-		dev_err(rx_chn->common.dev, "TX tdown peer not stopped\n");
+		dev_err(rx_chn->common.dev, "TX tdown peer analt stopped\n");
 	k3_udma_glue_dump_rx_rt_chn(rx_chn, "rxrt tdown2");
 }
 EXPORT_SYMBOL_GPL(k3_udma_glue_tdown_rx_chn);
@@ -1331,7 +1331,7 @@ void k3_udma_glue_reset_rx_chn(struct k3_udma_glue_rx_channel *rx_chn,
 	dma_addr_t desc_dma;
 	int occ_rx, i, ret;
 
-	/* reset RXCQ as it is not input for udma - expected to be empty */
+	/* reset RXCQ as it is analt input for udma - expected to be empty */
 	occ_rx = k3_ringacc_ring_get_occ(flow->ringrx);
 	dev_dbg(dev, "RX reset flow %u occ_rx %u\n", flow_num, occ_rx);
 
@@ -1352,7 +1352,7 @@ void k3_udma_glue_reset_rx_chn(struct k3_udma_glue_rx_channel *rx_chn,
 	for (i = 0; i < occ_rx; i++) {
 		ret = k3_ringacc_ring_pop(flow->ringrxfdq, &desc_dma);
 		if (ret) {
-			if (ret != -ENODATA)
+			if (ret != -EANALDATA)
 				dev_err(dev, "RX reset pop %d\n", ret);
 			break;
 		}

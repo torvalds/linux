@@ -138,7 +138,7 @@
 		/* 192 KiB reserved for ARM Trusted Firmware (BL31) */
 		secmon_reserved: secmon@43000000 {
 			reg = <0 0x43000000 0 0x30000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -178,20 +178,20 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_passive>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 
 				map1 {
 					trip = <&cpu_active>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 
 				map2 {
 					trip = <&cpu_hot>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -574,9 +574,9 @@
 		status = "disabled";
 	};
 
-	nor_flash: spi@11014000 {
-		compatible = "mediatek,mt7622-nor",
-			     "mediatek,mt8173-nor";
+	analr_flash: spi@11014000 {
+		compatible = "mediatek,mt7622-analr",
+			     "mediatek,mt8173-analr";
 		reg = <0 0x11014000 0 0xe0>;
 		clocks = <&pericfg CLK_PERI_FLASH_PD>,
 			 <&topckgen CLK_TOP_FLASH_SEL>;

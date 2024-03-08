@@ -39,9 +39,9 @@
  * HKDF-Extract can be skipped if the input is already a pseudorandom key of
  * length HKDF_HASHLEN bytes.  However, cipher modes other than AES-256-XTS take
  * shorter keys, and we don't want to force users of those modes to provide
- * unnecessarily long master keys.  Thus fscrypt still does HKDF-Extract.  No
+ * unnecessarily long master keys.  Thus fscrypt still does HKDF-Extract.  Anal
  * salt is used, since fscrypt master keys should already be pseudorandom and
- * there's no way to persist a random salt per master key from kernel mode.
+ * there's anal way to persist a random salt per master key from kernel mode.
  */
 
 /* HKDF-Extract (RFC 5869 section 2.2), unsalted */

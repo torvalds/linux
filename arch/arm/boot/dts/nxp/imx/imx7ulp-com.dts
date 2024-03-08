@@ -41,9 +41,9 @@
 	assigned-clock-parents = <&scg1 IMX7ULP_CLK_APLL_PFD1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc0>;
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 

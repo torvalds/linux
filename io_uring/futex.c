@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/io_uring.h>
@@ -36,7 +36,7 @@ struct io_futex_data {
 
 void io_futex_cache_init(struct io_ring_ctx *ctx)
 {
-	io_alloc_cache_init(&ctx->futex_cache, IO_NODE_ALLOC_CACHE_MAX,
+	io_alloc_cache_init(&ctx->futex_cache, IO_ANALDE_ALLOC_CACHE_MAX,
 				sizeof(struct io_futex_data));
 }
 
@@ -53,7 +53,7 @@ void io_futex_cache_free(struct io_ring_ctx *ctx)
 static void __io_futex_complete(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	req->async_data = NULL;
-	hlist_del_init(&req->hash_node);
+	hlist_del_init(&req->hash_analde);
 	io_req_task_complete(req, ts);
 }
 
@@ -113,7 +113,7 @@ static bool __io_futex_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
 		req->io_task_work.func = io_futexv_complete;
 	}
 
-	hlist_del_init(&req->hash_node);
+	hlist_del_init(&req->hash_analde);
 	io_req_set_res(req, -ECANCELED, 0);
 	io_req_task_work_add(req);
 	return true;
@@ -122,15 +122,15 @@ static bool __io_futex_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
 int io_futex_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		    unsigned int issue_flags)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct io_kiocb *req;
 	int nr = 0;
 
 	if (cd->flags & (IORING_ASYNC_CANCEL_FD|IORING_ASYNC_CANCEL_FD_FIXED))
-		return -ENOENT;
+		return -EANALENT;
 
 	io_ring_submit_lock(ctx, issue_flags);
-	hlist_for_each_entry_safe(req, tmp, &ctx->futex_list, hash_node) {
+	hlist_for_each_entry_safe(req, tmp, &ctx->futex_list, hash_analde) {
 		if (req->cqe.user_data != cd->data &&
 		    !(cd->flags & IORING_ASYNC_CANCEL_ANY))
 			continue;
@@ -144,19 +144,19 @@ int io_futex_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 	if (nr)
 		return nr;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 bool io_futex_remove_all(struct io_ring_ctx *ctx, struct task_struct *task,
 			 bool cancel_all)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct io_kiocb *req;
 	bool found = false;
 
 	lockdep_assert_held(&ctx->uring_lock);
 
-	hlist_for_each_entry_safe(req, tmp, &ctx->futex_list, hash_node) {
+	hlist_for_each_entry_safe(req, tmp, &ctx->futex_list, hash_analde) {
 		if (!io_match_task_safe(req, task, cancel_all))
 			continue;
 		__io_futex_cancel(ctx, req);
@@ -215,7 +215,7 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct futex_vector *futexv;
 	int ret;
 
-	/* No flags or mask supported for waitv */
+	/* Anal flags or mask supported for waitv */
 	if (unlikely(sqe->fd || sqe->buf_index || sqe->file_index ||
 		     sqe->addr2 || sqe->futex_flags || sqe->addr3))
 		return -EINVAL;
@@ -227,7 +227,7 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	futexv = kcalloc(iof->futex_nr, sizeof(*futexv), GFP_KERNEL);
 	if (!futexv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = futex_parse_waitv(futexv, iof->uwaitv, iof->futex_nr,
 				io_futex_wakev_fn, req);
@@ -264,7 +264,7 @@ static struct io_futex_data *io_alloc_ifd(struct io_ring_ctx *ctx)
 	if (entry)
 		return container_of(entry, struct io_futex_data, cache);
 
-	return kmalloc(sizeof(struct io_futex_data), GFP_NOWAIT);
+	return kmalloc(sizeof(struct io_futex_data), GFP_ANALWAIT);
 }
 
 int io_futexv_wait(struct io_kiocb *req, unsigned int issue_flags)
@@ -293,25 +293,25 @@ int io_futexv_wait(struct io_kiocb *req, unsigned int issue_flags)
 
 	/*
 	 * 0 return means that we successfully setup the waiters, and that
-	 * nobody triggered a wakeup while we were doing so. If the wakeup
+	 * analbody triggered a wakeup while we were doing so. If the wakeup
 	 * happened post setup, the task_work will be run post this issue and
 	 * under the submission lock. 1 means We got woken while setting up,
-	 * let that side do the completion. Note that
+	 * let that side do the completion. Analte that
 	 * futex_wait_multiple_setup() will have unqueued all the futexes in
 	 * this case. Mark us as having done that already, since this is
-	 * different from normal wakeup.
+	 * different from analrmal wakeup.
 	 */
 	if (!ret) {
 		/*
 		 * If futex_wait_multiple_setup() returns 0 for a
-		 * successful setup, then the task state will not be
+		 * successful setup, then the task state will analt be
 		 * runnable. This is fine for the sync syscall, as
 		 * it'll be blocking unless we already got one of the
 		 * futexes woken, but it obviously won't work for an
 		 * async invocation. Mark us runnable again.
 		 */
 		__set_current_state(TASK_RUNNING);
-		hlist_add_head(&req->hash_node, &ctx->futex_list);
+		hlist_add_head(&req->hash_analde, &ctx->futex_list);
 	} else {
 		iof->futexv_unqueued = 1;
 		if (woken != -1)
@@ -338,7 +338,7 @@ int io_futex_wait(struct io_kiocb *req, unsigned int issue_flags)
 	io_ring_submit_lock(ctx, issue_flags);
 	ifd = io_alloc_ifd(ctx);
 	if (!ifd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done_unlock;
 	}
 
@@ -351,7 +351,7 @@ int io_futex_wait(struct io_kiocb *req, unsigned int issue_flags)
 	ret = futex_wait_setup(iof->uaddr, iof->futex_val, iof->futex_flags,
 			       &ifd->q, &hb);
 	if (!ret) {
-		hlist_add_head(&req->hash_node, &ctx->futex_list);
+		hlist_add_head(&req->hash_analde, &ctx->futex_list);
 		io_ring_submit_unlock(ctx, issue_flags);
 
 		futex_queue(&ifd->q, hb);

@@ -16,7 +16,7 @@ description:
 properties:
   compatible:
     description:
-      Append "qcom,pronto" if the device is actually pronto, and not riva
+      Append "qcom,pronto" if the device is actually pronto, and analt riva
     oneOf:
       - items:
           - enum:
@@ -95,13 +95,13 @@ properties:
   smd-edge:
     $ref: /schemas/remoteproc/qcom,smd-edge.yaml#
     description:
-      Qualcomm Shared Memory subnode which represents communication edge,
+      Qualcomm Shared Memory subanalde which represents communication edge,
       channels and devices related to the ADSP.
 
   iris:
     type: object
     description:
-      The iris subnode of the WCNSS PIL is used to describe the attached RF module
+      The iris subanalde of the WCNSS PIL is used to describe the attached RF module
       and its resource dependencies.
 
     properties:

@@ -59,7 +59,7 @@ struct ptp_system_timestamp {
  * @owner:     The clock driver should set to THIS_MODULE.
  * @name:      A short "friendly name" to identify the clock and to
  *             help distinguish PHY based devices from MAC based ones.
- *             The string is not meant to be a unique id.
+ *             The string is analt meant to be a unique id.
  * @max_adj:   The maximum possible frequency adjustment, in parts per billon.
  * @n_alarm:   The number of programmable alarms.
  * @n_ext_ts:  The number of external time stamp channels.
@@ -67,27 +67,27 @@ struct ptp_system_timestamp {
  * @n_pins:    The number of programmable pins.
  * @pps:       Indicates whether the clock supports a PPS callback.
  * @pin_config: Array of length 'n_pins'. If the number of
- *              programmable pins is nonzero, then drivers must
+ *              programmable pins is analnzero, then drivers must
  *              allocate and initialize this array.
  *
  * clock operations
  *
  * @adjfine:  Adjusts the frequency of the hardware clock.
  *            parameter scaled_ppm: Desired frequency offset from
- *            nominal frequency in parts per million, but with a
+ *            analminal frequency in parts per million, but with a
  *            16 bit binary fractional field.
  *
  * @adjphase:  Indicates that the PHC should use an internal servo
  *             algorithm to correct the provided phase offset.
  *             parameter delta: PHC servo phase adjustment target
- *                              in nanoseconds.
+ *                              in naanalseconds.
  *
  * @getmaxphase:  Advertises maximum offset that can be provided
  *                to the hardware clock's phase control functionality
  *                through adjphase.
  *
  * @adjtime:  Shifts the time of the hardware clock.
- *            parameter delta: Desired change in nanoseconds.
+ *            parameter delta: Desired change in naanalseconds.
  *
  * @gettime64:  Reads the current time from the hardware clock.
  *              This method is deprecated.  New drivers should implement
@@ -97,7 +97,7 @@ struct ptp_system_timestamp {
  * @gettimex64:  Reads the current time from the hardware clock and optionally
  *               also the system clock.
  *               parameter ts: Holds the PHC timestamp.
- *               parameter sts: If not NULL, it holds a pair of timestamps from
+ *               parameter sts: If analt NULL, it holds a pair of timestamps from
  *               the system clock. The first reading is made right before
  *               reading the lowest bits of the PHC timestamp and the second
  *               reading immediately follows that.
@@ -105,36 +105,36 @@ struct ptp_system_timestamp {
  * @getcrosststamp:  Reads the current time from the hardware clock and
  *                   system clock simultaneously.
  *                   parameter cts: Contains timestamp (device,system) pair,
- *                   where system time is realtime and monotonic.
+ *                   where system time is realtime and moanaltonic.
  *
  * @settime64:  Set the current time on the hardware clock.
  *              parameter ts: Time value to set.
  *
  * @getcycles64:  Reads the current free running cycle counter from the hardware
  *                clock.
- *                If @getcycles64 and @getcyclesx64 are not supported, then
+ *                If @getcycles64 and @getcyclesx64 are analt supported, then
  *                @gettime64 or @gettimex64 will be used as default
  *                implementation.
  *                parameter ts: Holds the result.
  *
  * @getcyclesx64:  Reads the current free running cycle counter from the
  *                 hardware clock and optionally also the system clock.
- *                 If @getcycles64 and @getcyclesx64 are not supported, then
+ *                 If @getcycles64 and @getcyclesx64 are analt supported, then
  *                 @gettimex64 will be used as default implementation if
  *                 available.
  *                 parameter ts: Holds the PHC timestamp.
- *                 parameter sts: If not NULL, it holds a pair of timestamps
+ *                 parameter sts: If analt NULL, it holds a pair of timestamps
  *                 from the system clock. The first reading is made right before
  *                 reading the lowest bits of the PHC timestamp and the second
  *                 reading immediately follows that.
  *
  * @getcrosscycles:  Reads the current free running cycle counter from the
  *                   hardware clock and system clock simultaneously.
- *                   If @getcycles64 and @getcyclesx64 are not supported, then
+ *                   If @getcycles64 and @getcyclesx64 are analt supported, then
  *                   @getcrosststamp will be used as default implementation if
  *                   available.
  *                   parameter cts: Contains timestamp (device,system) pair,
- *                   where system time is realtime and monotonic.
+ *                   where system time is realtime and moanaltonic.
  *
  * @enable:   Request driver to enable or disable an ancillary feature.
  *            parameter request: Desired resource to enable or disable.
@@ -147,7 +147,7 @@ struct ptp_system_timestamp {
  *            hook gives drivers a way of telling the core about
  *            limitations on specific pins. This function must return
  *            zero if the function can be assigned to this pin, and
- *            nonzero otherwise.
+ *            analnzero otherwise.
  *            parameter pin: index of the pin in question.
  *            parameter func: the desired function to use.
  *            parameter chan: the function channel index to use.
@@ -155,12 +155,12 @@ struct ptp_system_timestamp {
  * @do_aux_work:  Request driver to perform auxiliary (periodic) operations
  *                Driver should return delay of the next auxiliary work
  *                scheduling time (>=0) or negative value in case further
- *                scheduling is not required.
+ *                scheduling is analt required.
  *
  * Drivers should embed their ptp_clock_info within a private
  * structure, obtaining a reference to it using container_of().
  *
- * The callbacks must all return zero on success, non-zero otherwise.
+ * The callbacks must all return zero on success, analn-zero otherwise.
  */
 
 struct ptp_clock_info {
@@ -320,7 +320,7 @@ extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 extern int ptp_clock_unregister(struct ptp_clock *ptp);
 
 /**
- * ptp_clock_event() - notify the PTP layer about an event
+ * ptp_clock_event() - analtify the PTP layer about an event
  *
  * @ptp:    The clock obtained from ptp_clock_register().
  * @event:  Message structure describing the event.
@@ -340,7 +340,7 @@ extern int ptp_clock_index(struct ptp_clock *ptp);
 /**
  * ptp_find_pin() - obtain the pin index of a given auxiliary function
  *
- * The caller must hold ptp_clock::pincfg_mux.  Drivers do not have
+ * The caller must hold ptp_clock::pincfg_mux.  Drivers do analt have
  * access to that mutex as ptp_clock is an opaque type.  However, the
  * core code acquires the mutex before invoking the driver's
  * ptp_clock_info::enable() callback, and so drivers may call this
@@ -350,7 +350,7 @@ extern int ptp_clock_index(struct ptp_clock *ptp);
  * @func:   One of the ptp_pin_function enumerated values.
  * @chan:   The particular functional channel to find.
  * Return:  Pin index in the range of zero to ptp_clock_caps.n_pins - 1,
- *          or -1 if the auxiliary function cannot be found.
+ *          or -1 if the auxiliary function cananalt be found.
  */
 
 int ptp_find_pin(struct ptp_clock *ptp,
@@ -368,7 +368,7 @@ int ptp_find_pin(struct ptp_clock *ptp,
 * @func:   One of the ptp_pin_function enumerated values.
 * @chan:   The particular functional channel to find.
 * Return:  Pin index in the range of zero to ptp_clock_caps.n_pins - 1,
-*          or -1 if the auxiliary function cannot be found.
+*          or -1 if the auxiliary function cananalt be found.
  */
 
 int ptp_find_pin_unlocked(struct ptp_clock *ptp,
@@ -411,7 +411,7 @@ static inline int ptp_find_pin_unlocked(struct ptp_clock *ptp,
 { return -1; }
 static inline int ptp_schedule_worker(struct ptp_clock *ptp,
 				      unsigned long delay)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 static inline void ptp_cancel_worker_sync(struct ptp_clock *ptp)
 { }
 #endif

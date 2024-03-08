@@ -2,7 +2,7 @@
 /*
  * OTP Memory controller
  *
- * Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Claudiu Beznea <claudiu.beznea@microchip.com>
  */
@@ -136,7 +136,7 @@ static int mchp_otpc_prepare_read(struct mchp_otpc *otpc,
  * the range [offset1, offset2) the data registers are updated by controller
  * with packet 1. Header data is accessible though MCHP_OTPC_HR register.
  * Payload data is accessible though MCHP_OTPC_DR and MCHP_OTPC_AR registers.
- * There is no direct mapping b/w the offset requested by software and the
+ * There is anal direct mapping b/w the offset requested by software and the
  * offset returned by hardware.
  *
  * For this, the read function will return the first requested bytes in the
@@ -211,7 +211,7 @@ static int mchp_otpc_init_packets_list(struct mchp_otpc *otpc, u32 *size)
 
 		packet = devm_kzalloc(otpc->dev, sizeof(*packet), GFP_KERNEL);
 		if (!packet)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		packet->id = id++;
 		packet->offset = word_pos;
@@ -249,7 +249,7 @@ static int mchp_otpc_probe(struct platform_device *pdev)
 
 	otpc = devm_kzalloc(&pdev->dev, sizeof(*otpc), GFP_KERNEL);
 	if (!otpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otpc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(otpc->base))

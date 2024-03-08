@@ -36,7 +36,7 @@ void snd_dma_program(unsigned long dma,
 	set_dma_mode(dma, mode);
 	set_dma_addr(dma, addr);
 	set_dma_count(dma, size);
-	if (!(mode & DMA_MODE_NO_ENABLE))
+	if (!(mode & DMA_MODE_ANAL_ENABLE))
 		enable_dma(dma);
 	release_dma_lock(flags);
 }
@@ -129,7 +129,7 @@ int snd_devm_request_dma(struct device *dev, int dma, const char *name)
 	p = devres_alloc(__snd_release_dma, sizeof(*p), GFP_KERNEL);
 	if (!p) {
 		free_dma(dma);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	p->dma = dma;
 	devres_add(dev, p);

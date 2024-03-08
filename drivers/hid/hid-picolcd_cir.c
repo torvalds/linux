@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruanal Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -37,7 +37,7 @@ int picolcd_raw_cir(struct picolcd_data *data,
 	int i, w, sz;
 	struct ir_raw_event rawir = {};
 
-	/* ignore if rc_dev is NULL or status is shunned */
+	/* iganalre if rc_dev is NULL or status is shunned */
 	spin_lock_irqsave(&data->lock, flags);
 	if (!data->rc_dev || (data->status & PICOLCD_CIR_SHUN)) {
 		spin_unlock_irqrestore(&data->lock, flags);
@@ -48,11 +48,11 @@ int picolcd_raw_cir(struct picolcd_data *data,
 	/* PicoLCD USB packets contain 16-bit intervals in network order,
 	 * with value negated for pulse. Intervals are in microseconds.
 	 *
-	 * Note: some userspace LIRC code for PicoLCD says negated values
+	 * Analte: some userspace LIRC code for PicoLCD says negated values
 	 * for space - is it a matter of IR chip? (pulse for my TSOP2236)
 	 *
 	 * In addition, the first interval seems to be around 15000 + base
-	 * interval for non-first report of IR data - thus the quirk below
+	 * interval for analn-first report of IR data - thus the quirk below
 	 * to get RC_CODE to understand Sony and JVC remotes I have at hand
 	 */
 	sz = size > 0 ? min((int)raw_data[0], size-1) : 0;
@@ -99,7 +99,7 @@ int picolcd_init_cir(struct picolcd_data *data, struct hid_report *report)
 
 	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdev->priv             = data;
 	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;

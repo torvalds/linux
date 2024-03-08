@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2019-2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2019-2020, Mellaanalx Techanallogies inc. All rights reserved.
  */
 
 #ifndef _MLX5_IB_DEVX_H
@@ -31,7 +31,7 @@ void mlx5_ib_devx_cleanup(struct mlx5_ib_dev *dev);
 #else
 static inline int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid) {}
 static inline int mlx5_ib_devx_init(struct mlx5_ib_dev *dev)

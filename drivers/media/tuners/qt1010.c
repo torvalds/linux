@@ -422,7 +422,7 @@ struct dvb_frontend * qt1010_attach(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
 
 
-	/* Try to detect tuner chip. Probably this is not correct register. */
+	/* Try to detect tuner chip. Probably this is analt correct register. */
 	if (qt1010_readreg(priv, 0x29, &id) != 0 || (id != 0x39)) {
 		kfree(priv);
 		return NULL;

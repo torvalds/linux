@@ -62,7 +62,7 @@ struct ipc_msg_table_entry {
 	unsigned int		handle;
 	unsigned int		type;
 	wait_queue_head_t	wait;
-	struct hlist_node	ipc_table_hlist;
+	struct hlist_analde	ipc_table_hlist;
 
 	void			*response;
 };
@@ -264,13 +264,13 @@ static int handle_response(int type, void *payload, size_t sz)
 		 * request message type + 1.
 		 */
 		if (entry->type + 1 != type) {
-			pr_err("Waiting for IPC type %d, got %d. Ignore.\n",
+			pr_err("Waiting for IPC type %d, got %d. Iganalre.\n",
 			       entry->type + 1, type);
 		}
 
 		entry->response = kvzalloc(sz, GFP_KERNEL);
 		if (!entry->response) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -388,7 +388,7 @@ out:
 
 static int handle_unsupported_event(struct sk_buff *skb, struct genl_info *info)
 {
-	pr_err("Unknown IPC event: %d, ignore.\n", info->genlhdr->cmd);
+	pr_err("Unkanalwn IPC event: %d, iganalre.\n", info->genlhdr->cmd);
 	return -EINVAL;
 }
 
@@ -430,7 +430,7 @@ static int ipc_msg_send(struct ksmbd_ipc_msg *msg)
 
 	skb = genlmsg_new(msg->sz, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nlh = genlmsg_put(skb, 0, 0, &ksmbd_genl_family, 0, msg->type);
 	if (!nlh)
@@ -598,7 +598,7 @@ int ksmbd_ipc_tree_disconnect_request(unsigned long long session_id,
 
 	msg = ipc_msg_alloc(sizeof(struct ksmbd_tree_disconnect_request));
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->type = KSMBD_EVENT_TREE_DISCONNECT_REQUEST;
 	req = (struct ksmbd_tree_disconnect_request *)msg->payload;
@@ -621,7 +621,7 @@ int ksmbd_ipc_logout_request(const char *account, int flags)
 
 	msg = ipc_msg_alloc(sizeof(struct ksmbd_logout_request));
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->type = KSMBD_EVENT_LOGOUT_REQUEST;
 	req = (struct ksmbd_logout_request *)msg->payload;
@@ -832,7 +832,7 @@ static int __ipc_heartbeat(void)
 	WRITE_ONCE(server_conf.state, SERVER_STATE_RESETTING);
 	server_conf.ipc_last_active = 0;
 	ksmbd_tools_pid = 0;
-	pr_err("No IPC daemon response for %lus\n", delta / HZ);
+	pr_err("Anal IPC daemon response for %lus\n", delta / HZ);
 	mutex_unlock(&startup_lock);
 	return -EINVAL;
 }

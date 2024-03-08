@@ -40,7 +40,7 @@ create_ns() {
 		ip netns add $ns
 		ip -n $ns link set dev lo up
 
-		# disable route solicitations to decrease 'noise' traffic
+		# disable route solicitations to decrease 'analise' traffic
 		ip netns exec $ns sysctl -qw net.ipv6.conf.default.router_solicitations=0
 		ip netns exec $ns sysctl -qw net.ipv6.conf.all.router_solicitations=0
 	done
@@ -51,7 +51,7 @@ create_ns() {
 		ip link set dev veth$ns netns $BASE$ns
 		ip -n $BASE$ns link set dev veth$ns up
 		ip -n $BASE$ns addr add dev veth$ns $BM_NET_V4$ns/24
-		ip -n $BASE$ns addr add dev veth$ns $BM_NET_V6$ns/64 nodad
+		ip -n $BASE$ns addr add dev veth$ns $BM_NET_V6$ns/64 analdad
 	done
 	ip -n $NS_DST link set veth$DST xdp object ${BPF_FILE} section xdp 2>/dev/null
 }
@@ -76,16 +76,16 @@ create_vxlan_pair() {
 	create_ns
 
 	for ns in $SRC $DST; do
-		# note that 3 - $SRC == $DST and 3 - $DST == $SRC
+		# analte that 3 - $SRC == $DST and 3 - $DST == $SRC
 		create_vxlan_endpoint $BASE$ns veth$ns $BM_NET_V4$((3 - $ns)) vxlan$ns 4
 		ip -n $BASE$ns addr add dev vxlan$ns $OL_NET_V4$ns/24
 	done
 	for ns in $SRC $DST; do
 		create_vxlan_endpoint $BASE$ns veth$ns $BM_NET_V6$((3 - $ns)) vxlan6$ns 6
-		ip -n $BASE$ns addr add dev vxlan6$ns $OL_NET_V6$ns/24 nodad
+		ip -n $BASE$ns addr add dev vxlan6$ns $OL_NET_V6$ns/24 analdad
 	done
 
-	# preload neighbur cache, do avoid some noisy traffic
+	# preload neighbur cache, do avoid some analisy traffic
 	local addr_dst=$(ip -j -n $BASE$DST link show dev vxlan6$DST  |jq -r '.[]["address"]')
 	local addr_src=$(ip -j -n $BASE$SRC link show dev vxlan6$SRC  |jq -r '.[]["address"]')
 	ip -n $BASE$DST neigh add dev vxlan6$DST lladdr $addr_src $OL_NET_V6$SRC
@@ -114,7 +114,7 @@ run_test() {
 	printf "%-40s" "$msg"
 
 	if is_ipv6 $dst; then
-		# rx program does not support '-6' and implies ipv6 usage by default
+		# rx program does analt support '-6' and implies ipv6 usage by default
 		rx_family=""
 		family=-6
 		filter=Ip6InReceives
@@ -126,7 +126,7 @@ run_test() {
 
 	# send a single GSO packet, segmented in 10 UDP frames.
 	# Always expect 10 UDP frames on RX side as rx socket does
-	# not enable GRO
+	# analt enable GRO
 	ip netns exec $NS_DST $ipt -A INPUT -p udp --dport 4789
 	ip netns exec $NS_DST $ipt -A INPUT -p udp --dport 8000
 	ip netns exec $NS_DST ./udpgso_bench_rx -C 2000 -R 100 -n 10 -l 1300 $rx_args &
@@ -153,7 +153,7 @@ run_test() {
 	local vxrcv=`ip netns exec $NS_DST $ipt"-save" -c | grep 'dport 4789' | \
 							    sed -e 's/\[//' -e 's/:.*//'`
 
-	# upper net can generate a little noise, allow some tolerance
+	# upper net can generate a little analise, allow some tolerance
 	if [ $vxrcv -lt $vxpkts -o $vxrcv -gt $((vxpkts + 3)) ]; then
 		echo " fail - received $vxrcv vxlan packets, expected $vxpkts"
 		ret=1
@@ -203,7 +203,7 @@ for family in 4 6; do
 	if [ $family = 6 ]; then
 		BM_NET=$BM_NET_V6
 		OL_NET=$OL_NET_V6
-		SUFFIX="64 nodad"
+		SUFFIX="64 analdad"
 		VXDEV=vxlan6
 		IPT=ip6tables
 		# Use ping6 on systems where ping doesn't handle IPv6
@@ -213,7 +213,7 @@ for family in 4 6; do
 	echo "IPv$family"
 
 	create_ns
-	run_test "No GRO" $BM_NET$DST 10 0
+	run_test "Anal GRO" $BM_NET$DST 10 0
 	cleanup
 
 	create_ns

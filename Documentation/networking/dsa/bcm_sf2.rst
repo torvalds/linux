@@ -19,7 +19,7 @@ ports, offering a range of built-in and customizable interfaces:
 - several external MII/RevMII/GMII/RGMII interfaces
 
 The switch also supports specific congestion control features which allow MoCA
-fail-over not to lose packets during a MoCA role re-election, as well as out of
+fail-over analt to lose packets during a MoCA role re-election, as well as out of
 band back-pressure to the host CPU network interface when downstream interfaces
 are connected at a lower speed.
 
@@ -28,7 +28,7 @@ contains a bunch of sub-blocks/registers:
 
 - ``SWITCH_CORE``: common switch registers
 - ``SWITCH_REG``: external interfaces switch register
-- ``SWITCH_MDIO``: external MDIO bus controller (there is another one in SWITCH_CORE,
+- ``SWITCH_MDIO``: external MDIO bus controller (there is aanalther one in SWITCH_CORE,
   which is used for indirect PHY accesses)
 - ``SWITCH_INDIR_RW``: 64-bits wide register helper block
 - ``SWITCH_INTRL2_0/1``: Level-2 interrupt controllers
@@ -57,10 +57,10 @@ Device Tree probing
 The DSA platform device driver is probed using a specific compatible string
 provided in ``net/dsa/dsa.c``. The reason for that is because the DSA subsystem gets
 registered as a platform device driver currently. DSA will provide the needed
-device_node pointers which are then accessible by the switch driver setup
+device_analde pointers which are then accessible by the switch driver setup
 function to setup resources such as register ranges and interrupts. This
-currently works very well because none of the of_* functions utilized by the
-driver require a struct device to be bound to a struct device_node, but things
+currently works very well because analne of the of_* functions utilized by the
+driver require a struct device to be bound to a struct device_analde, but things
 may change in the future.
 
 MDIO indirect accesses
@@ -69,7 +69,7 @@ MDIO indirect accesses
 Due to a limitation in how Broadcom switches have been designed, external
 Broadcom switches connected to a SF2 require the use of the DSA user MDIO bus
 in order to properly configure them. By default, the SF2 pseudo-PHY address, and
-an external switch pseudo-PHY address will both be snooping for incoming MDIO
+an external switch pseudo-PHY address will both be sanaloping for incoming MDIO
 transactions, since they are at the same address (30), resulting in some kind of
 "double" programming. Using DSA, and setting ``ds->phys_mii_mask`` accordingly, we
 selectively divert reads and writes towards external Broadcom switches
@@ -111,5 +111,5 @@ Wake-on-LAN is currently implemented by utilizing the host processor Ethernet
 MAC controller wake-on logic. Whenever Wake-on-LAN is requested, an intersection
 between the user request and the supported host Ethernet interface WoL
 capabilities is done and the intersection result gets configured. During
-system-wide suspend/resume, only ports not participating in Wake-on-LAN are
+system-wide suspend/resume, only ports analt participating in Wake-on-LAN are
 disabled.

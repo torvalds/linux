@@ -6,10 +6,10 @@ generates and supplies clocks to all modules within the BMC.
 External clocks:
 
 There are six fixed clocks that are generated outside the BMC. All clocks are of
-a known fixed value that cannot be changed. clk_refclk, clk_mcbypck and
+a kanalwn fixed value that cananalt be changed. clk_refclk, clk_mcbypck and
 clk_sysbypck are inputs to the clock controller.
 clk_rg1refck, clk_rg2refck and clk_xin are external clocks suppling the
-network. They are set on the device tree, but not used by the clock module. The
+network. They are set on the device tree, but analt used by the clock module. The
 network devices use them directly.
 Example can be found below.
 
@@ -27,7 +27,7 @@ Required Properties of clock controller:
 
 	- #clock-cells: should be 1.
 
-Example: Clock controller node:
+Example: Clock controller analde:
 
 	clk: clock-controller@f0801000 {
 		compatible = "nuvoton,npcm750-clk";
@@ -47,7 +47,7 @@ Example: Required external clocks for network:
 		clock-output-names = "refclk";
 	};
 
-	/* external reference clock for cpu. float in normal operation */
+	/* external reference clock for cpu. float in analrmal operation */
 	clk_sysbypck: clk-sysbypck {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -55,7 +55,7 @@ Example: Required external clocks for network:
 		clock-output-names = "sysbypck";
 	};
 
-	/* external reference clock for MC. float in normal operation */
+	/* external reference clock for MC. float in analrmal operation */
 	clk_mcbypck: clk-mcbypck {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -87,7 +87,7 @@ Example: Required external clocks for network:
 	};
 
 
-Example: GMAC controller node that consumes two clocks: a generated clk by the
+Example: GMAC controller analde that consumes two clocks: a generated clk by the
 clock controller and a fixed clock from DT (clk_rg1refck).
 
 	ethernet0: ethernet@f0802000 {

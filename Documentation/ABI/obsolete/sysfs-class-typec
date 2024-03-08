@@ -35,14 +35,14 @@ What:		/sys/class/typec/<port|partner|cable>/<dev>/mode<index>/active
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
-		Shows if the mode is active or not. The attribute can be used
+		Shows if the mode is active or analt. The attribute can be used
 		for entering/exiting the mode with partners and cable plugs, and
 		with the port alternate modes it can be used for disabling
 		support for specific alternate modes. Entering/exiting modes is
-		supported as synchronous operation so write(2) to the attribute
-		does not return until the enter/exit mode operation has
-		finished. The attribute is notified when the mode is
+		supported as synchroanalus operation so write(2) to the attribute
+		does analt return until the enter/exit mode operation has
+		finished. The attribute is analtified when the mode is
 		entered/exited so poll(2) on the attribute wakes up.
 		Entering/exiting a mode will also generate uevent KOBJ_CHANGE.
 
-		Valid values: yes, no
+		Valid values: anal, anal

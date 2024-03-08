@@ -17,12 +17,12 @@ Required SoC Specific Properties:
       controller.
 
 Optional Properties specific to linux:
-- linux,keypad-no-autorepeat: do no enable autorepeat feature.
+- linux,keypad-anal-autorepeat: do anal enable autorepeat feature.
 
 Example:
 	keypad@4ae1c000{
 		compatible = "ti,omap4-keypad";
 		keypad,num-rows = <2>;
 		keypad,num-columns = <8>;
-		linux,keypad-no-autorepeat;
+		linux,keypad-anal-autorepeat;
 	};

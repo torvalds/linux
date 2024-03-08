@@ -23,7 +23,7 @@ extern int atm_init_aal5(struct atm_vcc *vcc); /* "raw" AAL5 transport */
 
 struct atmtcp_dev_data {
 	struct atm_vcc *vcc;	/* control VCC; NULL if detached */
-	int persist;		/* non-zero if persistent */
+	int persist;		/* analn-zero if persistent */
 };
 
 
@@ -53,7 +53,7 @@ static int atmtcp_send_control(struct atm_vcc *vcc,int type,
 	out_vcc = PRIV(vcc->dev) ? PRIV(vcc->dev)->vcc : NULL;
 	if (!out_vcc) return -EUNATCH;
 	skb = alloc_skb(sizeof(*msg),GFP_KERNEL);
-	if (!skb) return -ENOMEM;
+	if (!skb) return -EANALMEM;
 	mb();
 	out_vcc = PRIV(vcc->dev) ? PRIV(vcc->dev)->vcc : NULL;
 	if (!out_vcc) {
@@ -102,7 +102,7 @@ static int atmtcp_recv_control(const struct atmtcp_control *msg)
 		change_bit(ATM_VF_ADDR,&vcc->flags);
 		break;
 	    default:
-		printk(KERN_ERR "atmtcp_recv_control: unknown type %d\n",
+		printk(KERN_ERR "atmtcp_recv_control: unkanalwn type %d\n",
 		    msg->type);
 		return -EINVAL;
 	}
@@ -113,7 +113,7 @@ static int atmtcp_recv_control(const struct atmtcp_control *msg)
 
 static void atmtcp_v_dev_close(struct atm_dev *dev)
 {
-	/* Nothing.... Isn't this simple :-)  -- REW */
+	/* Analthing.... Isn't this simple :-)  -- REW */
 }
 
 
@@ -161,7 +161,7 @@ static int atmtcp_v_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 	struct sock *s;
 	int i;
 
-	if (cmd != ATM_SETCIRANGE) return -ENOIOCTLCMD;
+	if (cmd != ATM_SETCIRANGE) return -EANALIOCTLCMD;
 	if (copy_from_user(&ci, arg,sizeof(ci))) return -EFAULT;
 	if (ci.vpi_bits == ATM_CI_MAX) ci.vpi_bits = MAX_VPI_BITS;
 	if (ci.vci_bits == ATM_CI_MAX) ci.vci_bits = MAX_VCI_BITS;
@@ -196,7 +196,7 @@ static int atmtcp_v_send(struct atm_vcc *vcc,struct sk_buff *skb)
 	struct atmtcp_hdr *hdr;
 	int size;
 
-	if (vcc->qos.txtp.traffic_class == ATM_NONE) {
+	if (vcc->qos.txtp.traffic_class == ATM_ANALNE) {
 		if (vcc->pop) vcc->pop(vcc,skb);
 		else dev_kfree_skb(skb);
 		return -EINVAL;
@@ -208,7 +208,7 @@ static int atmtcp_v_send(struct atm_vcc *vcc,struct sk_buff *skb)
 		else dev_kfree_skb(skb);
 		if (dev_data) return 0;
 		atomic_inc(&vcc->stats->tx_err);
-		return -ENOLINK;
+		return -EANALLINK;
 	}
 	size = skb->len+sizeof(struct atmtcp_hdr);
 	new_skb = atm_alloc_charge(out_vcc,size,GFP_ATOMIC);
@@ -216,7 +216,7 @@ static int atmtcp_v_send(struct atm_vcc *vcc,struct sk_buff *skb)
 		if (vcc->pop) vcc->pop(vcc,skb);
 		else dev_kfree_skb(skb);
 		atomic_inc(&vcc->stats->tx_err);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 	hdr = skb_put(new_skb, sizeof(struct atmtcp_hdr));
 	hdr->vpi = htons(vcc->vpi);
@@ -272,7 +272,7 @@ static struct atm_vcc *find_vcc(struct atm_dev *dev, short vpi, int vci)
                 vcc = atm_sk(s);
                 if (vcc->dev == dev &&
                     vcc->vci == vci && vcc->vpi == vpi &&
-                    vcc->qos.rxtp.traffic_class != ATM_NONE) {
+                    vcc->qos.rxtp.traffic_class != ATM_ANALNE) {
                                 return vcc;
                 }
         }
@@ -307,7 +307,7 @@ static int atmtcp_c_send(struct atm_vcc *vcc,struct sk_buff *skb)
 	skb_pull(skb,sizeof(struct atmtcp_hdr));
 	new_skb = atm_alloc_charge(out_vcc,skb->len,GFP_KERNEL);
 	if (!new_skb) {
-		result = -ENOBUFS;
+		result = -EANALBUFS;
 		goto done;
 	}
 	__net_timestamp(new_skb);
@@ -364,12 +364,12 @@ static int atmtcp_create(int itf,int persist,struct atm_dev **result)
 
 	dev_data = kmalloc(sizeof(*dev_data),GFP_KERNEL);
 	if (!dev_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = atm_dev_register(DEV_LABEL,NULL,&atmtcp_v_dev_ops,itf,NULL);
 	if (!dev) {
 		kfree(dev_data);
-		return itf == -1 ? -ENOMEM : -EBUSY;
+		return itf == -1 ? -EANALMEM : -EBUSY;
 	}
 	dev->ci_range.vpi_bits = MAX_VPI_BITS;
 	dev->ci_range.vci_bits = MAX_VCI_BITS;
@@ -427,7 +427,7 @@ static int atmtcp_remove_persistent(int itf)
 	struct atmtcp_dev_data *dev_data;
 
 	dev = atm_dev_lookup(itf);
-	if (!dev) return -ENODEV;
+	if (!dev) return -EANALDEV;
 	if (dev->ops != &atmtcp_v_dev_ops) {
 		atm_dev_put(dev);
 		return -EMEDIUMTYPE;
@@ -454,7 +454,7 @@ static int atmtcp_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 	struct atm_vcc *vcc = ATM_SD(sock);
 
 	if (cmd != SIOCSIFATMTCP && cmd != ATMTCP_CREATE && cmd != ATMTCP_REMOVE)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;

@@ -25,7 +25,7 @@
 /* Number of symbols for a packet with (bps) bits per symbol */
 #define MCS_NSYMS(bps) DIV_ROUND_UP(MCS_NBITS, (bps))
 
-/* Transmission time (nanoseconds) for a packet containing (syms) symbols */
+/* Transmission time (naanalseconds) for a packet containing (syms) symbols */
 #define MCS_SYMBOL_TIME(sgi, syms)					\
 	(sgi ?								\
 	  ((syms) * 18000 + 4000) / 5 :	/* syms * 3.6 us */		\
@@ -278,7 +278,7 @@ static void
 minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi);
 
 /*
- * Some VHT MCSes are invalid (when Ndbps / Nes is not an integer)
+ * Some VHT MCSes are invalid (when Ndbps / Nes is analt an integer)
  * e.g for MCS9@20MHzx1Nss: Ndbps=8x52*(5/6) Nes=1
  *
  * Returns the valid mcs map for struct minstrel_mcs_group_data.supported
@@ -503,7 +503,7 @@ minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
 	unsigned int nsecs = 0, overhead = mi->overhead;
 	unsigned int ampdu_len = 1;
 
-	/* do not account throughput if success prob is below 10% */
+	/* do analt account throughput if success prob is below 10% */
 	if (prob_avg < MINSTREL_FRAC(10, 100))
 		return 0;
 
@@ -532,7 +532,7 @@ minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
  *
  * If multiple rates provide equal throughput the sorting is based on their
  * current success probability. Higher success probability is preferred among
- * MCS groups, CCK rates do not provide aggregation and are therefore at last.
+ * MCS groups, CCK rates do analt provide aggregation and are therefore at last.
  */
 static void
 minstrel_ht_sort_best_tp_rates(struct minstrel_ht_sta *mi, u16 index,
@@ -592,7 +592,7 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 *dest, u16 index)
 	tmp_tp_avg = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
 	/* if max_tp_rate[0] is from MCS_GROUP max_prob_rate get selected from
-	 * MCS_GROUP as well as CCK_GROUP rates do not allow aggregation */
+	 * MCS_GROUP as well as CCK_GROUP rates do analt allow aggregation */
 	max_tp_group = MI_RATE_GROUP(mi->max_tp_rate[0]);
 	max_tp_idx = MI_RATE_IDX(mi->max_tp_rate[0]);
 	max_tp_prob = mi->groups[max_tp_group].rates[max_tp_idx].prob_avg;
@@ -634,7 +634,7 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 *dest, u16 index)
  * Assign new rate set per sta and use CCK rates only if the fastest
  * rate (max_tp_rate[0]) is from CCK group. This prohibits such sorted
  * rate sets where MCS and CCK rates are mixed, because CCK rates can
- * not use aggregation.
+ * analt use aggregation.
  */
 static void
 minstrel_ht_assign_best_tp_rates(struct minstrel_ht_sta *mi,
@@ -1067,7 +1067,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	bool ht_supported = mi->sta->deflink.ht_cap.ht_supported;
 
 	if (mi->ampdu_packets > 0) {
-		if (!ieee80211_hw_check(mp->hw, TX_STATUS_NO_AMPDU_LEN))
+		if (!ieee80211_hw_check(mp->hw, TX_STATUS_ANAL_AMPDU_LEN))
 			mi->avg_ampdu_len = minstrel_ewma(mi->avg_ampdu_len,
 				MINSTREL_FRAC(mi->ampdu_len, mi->ampdu_packets),
 					      EWMA_LEVEL);
@@ -1291,8 +1291,8 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	bool last, update = false;
 	int i;
 
-	/* Ignore packet that was sent with noAck flag */
-	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+	/* Iganalre packet that was sent with analAck flag */
+	if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
 		return;
 
 	/* This packet was aggregated but doesn't carry status info */
@@ -1609,7 +1609,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 		return;
 #endif
 
-	/* Don't use EAPOL frames for sampling on non-mrr hw */
+	/* Don't use EAPOL frames for sampling on analn-mrr hw */
 	if (mp->hw->max_rates == 1 &&
 	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		return;
@@ -1953,7 +1953,7 @@ minstrel_ht_alloc(struct ieee80211_hw *hw)
 	if (hw->max_rate_tries > 0)
 		mp->max_retry = hw->max_rate_tries;
 	else
-		/* safe default, does not necessarily have to match hw properties */
+		/* safe default, does analt necessarily have to match hw properties */
 		mp->max_retry = 7;
 
 	mp->hw = hw;

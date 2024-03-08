@@ -62,7 +62,7 @@
 #define V_BCM1480_L2C_TAG_INDEX(x)	    _SB_MAKEVALUE(x, S_BCM1480_L2C_TAG_INDEX)
 #define G_BCM1480_L2C_TAG_INDEX(x)	    _SB_GETVALUE(x, S_BCM1480_L2C_TAG_INDEX, M_BCM1480_L2C_TAG_INDEX)
 
-/* Note that index bit 16 is also tag bit 40 */
+/* Analte that index bit 16 is also tag bit 40 */
 #define S_BCM1480_L2C_TAG_TAG		    17
 #define M_BCM1480_L2C_TAG_TAG		    _SB_MAKEMASK(23, S_BCM1480_L2C_TAG_TAG)
 #define V_BCM1480_L2C_TAG_TAG(x)	    _SB_MAKEVALUE(x, S_BCM1480_L2C_TAG_TAG)

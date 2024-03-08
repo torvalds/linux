@@ -33,22 +33,22 @@
 #include "gen8_ppgtt.h"
 #include "intel_engine_pm.h"
 
-static void i915_ggtt_color_adjust(const struct drm_mm_node *node,
+static void i915_ggtt_color_adjust(const struct drm_mm_analde *analde,
 				   unsigned long color,
 				   u64 *start,
 				   u64 *end)
 {
-	if (i915_node_color_differs(node, color))
+	if (i915_analde_color_differs(analde, color))
 		*start += I915_GTT_PAGE_SIZE;
 
 	/*
-	 * Also leave a space between the unallocated reserved node after the
+	 * Also leave a space between the unallocated reserved analde after the
 	 * GTT and any objects within the GTT, i.e. we use the color adjustment
 	 * to insert a guard page to prevent prefetches crossing over the
 	 * GTT boundary.
 	 */
-	node = list_next_entry(node, node_list);
-	if (node->color != color)
+	analde = list_next_entry(analde, analde_list);
+	if (analde->color != color)
 		*end -= I915_GTT_PAGE_SIZE;
 }
 
@@ -92,10 +92,10 @@ int i915_ggtt_init_hw(struct drm_i915_private *i915)
 	int ret;
 
 	/*
-	 * Note that we use page colouring to enforce a guard page at the
+	 * Analte that we use page colouring to enforce a guard page at the
 	 * end of the address space. This is required as the CS may prefetch
 	 * beyond the end of the batch buffer, across the page boundary,
-	 * and beyond the end of the GTT if we do not provide a guard.
+	 * and beyond the end of the GTT if we do analt provide a guard.
 	 */
 	ret = ggtt_init_hw(to_gt(i915)->ggtt);
 	if (ret)
@@ -133,15 +133,15 @@ retry:
 	list_for_each_entry_safe(vma, vn, &vm->bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
 
 		if (i915_vma_is_pinned(vma) || !i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
 			continue;
 
-		/* unlikely to race when GPU is idle, so no worry about slowpath.. */
+		/* unlikely to race when GPU is idle, so anal worry about slowpath.. */
 		if (WARN_ON(!i915_gem_object_trylock(obj, NULL))) {
 			/*
-			 * No dead objects should appear here, GPU should be
+			 * Anal dead objects should appear here, GPU should be
 			 * completely idle, and userspace suspended
 			 */
 			i915_gem_object_get(obj);
@@ -161,7 +161,7 @@ retry:
 			i915_vma_wait_for_bind(vma);
 
 			__i915_vma_evict(vma, false);
-			drm_mm_remove_node(&vma->node);
+			drm_mm_remove_analde(&vma->analde);
 		}
 
 		i915_gem_object_unlock(obj);
@@ -215,7 +215,7 @@ static void gen8_ggtt_invalidate(struct i915_ggtt *ggtt)
 	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
 
 	/*
-	 * Note that as an uncached mmio write, this will flush the
+	 * Analte that as an uncached mmio write, this will flush the
 	 * WCB of the writes into the GGTT before it triggers the invalidate.
 	 *
 	 * Only perform this when GGTT is mapped as WC, see ggtt_probe_common().
@@ -308,7 +308,7 @@ static struct intel_context *gen8_ggtt_bind_get_ce(struct i915_ggtt *ggtt, intel
 	GEM_BUG_ON(!ce);
 
 	/*
-	 * If the GT is not awake already at this stage then fallback
+	 * If the GT is analt awake already at this stage then fallback
 	 * to pci based GGTT update otherwise __intel_wakeref_get_first()
 	 * would conflict with fs_reclaim trying to allocate memory while
 	 * doing rpm_resume().
@@ -364,7 +364,7 @@ static bool gen8_ggtt_bind_ptes(struct i915_ggtt *ggtt, u32 offset,
 			goto put_ce;
 
 		intel_context_enter(ce);
-		rq = __i915_request_create(ce, GFP_NOWAIT | GFP_ATOMIC);
+		rq = __i915_request_create(ce, GFP_ANALWAIT | GFP_ATOMIC);
 		intel_context_exit(ce);
 		if (IS_ERR(rq)) {
 			GT_TRACE(gt, "Failed to get bind request\n");
@@ -478,8 +478,8 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	dma_addr_t addr;
 
 	/*
-	 * Note that we ignore PTE_READ_ONLY here. The caller must be careful
-	 * not to allow the user to override access to a read only page.
+	 * Analte that we iganalre PTE_READ_ONLY here. The caller must be careful
+	 * analt to allow the user to override access to a read only page.
 	 */
 
 	gte = (gen8_pte_t __iomem *)ggtt->gsm;
@@ -487,7 +487,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	end = gte + vma_res->guard / I915_GTT_PAGE_SIZE;
 	while (gte < end)
 		gen8_set_pte(gte++, vm->scratch[0]->encode);
-	end += (vma_res->node_size + vma_res->guard) / I915_GTT_PAGE_SIZE;
+	end += (vma_res->analde_size + vma_res->guard) / I915_GTT_PAGE_SIZE;
 
 	for_each_sgt_daddr(addr, iter, vma_res->bi.pages)
 		gen8_set_pte(gte++, pte_encode | addr);
@@ -520,12 +520,12 @@ static bool __gen8_ggtt_insert_entries_bind(struct i915_address_space *vm,
 		goto err;
 
 	start = end;
-	end += (vma_res->node_size + vma_res->guard) / I915_GTT_PAGE_SIZE;
+	end += (vma_res->analde_size + vma_res->guard) / I915_GTT_PAGE_SIZE;
 	if (!gen8_ggtt_bind_ptes(ggtt, start, vma_res->bi.pages,
-	      vma_res->node_size / I915_GTT_PAGE_SIZE, pte_encode))
+	      vma_res->analde_size / I915_GTT_PAGE_SIZE, pte_encode))
 		goto err;
 
-	start += vma_res->node_size / I915_GTT_PAGE_SIZE;
+	start += vma_res->analde_size / I915_GTT_PAGE_SIZE;
 	if (!gen8_ggtt_bind_ptes(ggtt, start, NULL, end - start, scratch_pte))
 		goto err;
 
@@ -628,7 +628,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	end = gte + vma_res->guard / I915_GTT_PAGE_SIZE;
 	while (gte < end)
 		iowrite32(vm->scratch[0]->encode, gte++);
-	end += (vma_res->node_size + vma_res->guard) / I915_GTT_PAGE_SIZE;
+	end += (vma_res->analde_size + vma_res->guard) / I915_GTT_PAGE_SIZE;
 	for_each_sgt_daddr(addr, iter, vma_res->bi.pages)
 		iowrite32(vm->pte_encode(addr, pat_index, flags), gte++);
 	GEM_BUG_ON(gte > end);
@@ -644,7 +644,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	ggtt->invalidate(ggtt);
 }
 
-static void nop_clear_range(struct i915_address_space *vm,
+static void analp_clear_range(struct i915_address_space *vm,
 			    u64 start, u64 length)
 {
 }
@@ -654,8 +654,8 @@ static void bxt_vtd_ggtt_wa(struct i915_address_space *vm)
 	/*
 	 * Make sure the internal GAM fifo has been cleared of all GTT
 	 * writes before exiting stop_machine(). This guarantees that
-	 * any aperture accesses waiting to start in another process
-	 * cannot back up behind the GTT writes causing a hang.
+	 * any aperture accesses waiting to start in aanalther process
+	 * cananalt back up behind the GTT writes causing a hang.
 	 * The register can be any arbitrary GAM register.
 	 */
 	intel_uncore_posting_read_fw(vm->gt->uncore, GFX_FLSH_CNTL_GEN6);
@@ -752,7 +752,7 @@ void intel_ggtt_bind_vma(struct i915_address_space *vm,
 
 	vma_res->bound_flags |= flags;
 
-	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
+	/* Applicable to VLV (gen8+ do analt support RO in the GGTT) */
 	pte_flags = 0;
 	if (vma_res->bi.readonly)
 		pte_flags |= PTE_READ_ONLY;
@@ -793,7 +793,7 @@ static int ggtt_reserve_guc_top(struct i915_ggtt *ggtt)
 
 	ret = i915_gem_gtt_reserve(&ggtt->vm, NULL, &ggtt->uc_fw,
 				   GUC_TOP_RESERVE_SIZE, offset,
-				   I915_COLOR_UNEVICTABLE, PIN_NOEVICT);
+				   I915_COLOR_UNEVICTABLE, PIN_ANALEVICT);
 	if (ret)
 		drm_dbg(&ggtt->vm.i915->drm,
 			"Failed to reserve top of GGTT for GuC\n");
@@ -803,15 +803,15 @@ static int ggtt_reserve_guc_top(struct i915_ggtt *ggtt)
 
 static void ggtt_release_guc_top(struct i915_ggtt *ggtt)
 {
-	if (drm_mm_node_allocated(&ggtt->uc_fw))
-		drm_mm_remove_node(&ggtt->uc_fw);
+	if (drm_mm_analde_allocated(&ggtt->uc_fw))
+		drm_mm_remove_analde(&ggtt->uc_fw);
 }
 
 static void cleanup_init_ggtt(struct i915_ggtt *ggtt)
 {
 	ggtt_release_guc_top(ggtt);
-	if (drm_mm_node_allocated(&ggtt->error_capture))
-		drm_mm_remove_node(&ggtt->error_capture);
+	if (drm_mm_analde_allocated(&ggtt->error_capture))
+		drm_mm_remove_analde(&ggtt->error_capture);
 	mutex_destroy(&ggtt->error_mutex);
 }
 
@@ -824,17 +824,17 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 	 * There are a number of places where the hardware apparently prefetches
 	 * past the end of the object, and we've seen multiple hangs with the
 	 * GPU head pointer stuck in a batchbuffer bound at the last page of the
-	 * aperture.  One page should be enough to keep any prefetching inside
+	 * aperture.  One page should be eanalugh to keep any prefetching inside
 	 * of the aperture.
 	 */
 	unsigned long hole_start, hole_end;
-	struct drm_mm_node *entry;
+	struct drm_mm_analde *entry;
 	int ret;
 
 	/*
 	 * GuC requires all resources that we're sharing with it to be placed in
-	 * non-WOPCM memory. If GuC is not present or not in use we still need a
-	 * small bias as ring wraparound at offset 0 sometimes hangs. No idea
+	 * analn-WOPCM memory. If GuC is analt present or analt in use we still need a
+	 * small bias as ring wraparound at offset 0 sometimes hangs. Anal idea
 	 * why.
 	 */
 	ggtt->pin_bias = max_t(u32, I915_GTT_PAGE_SIZE,
@@ -858,8 +858,8 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 		 * 0 remains reserved always.
 		 *
 		 * If we fail to reserve 0, and then fail to find any space
-		 * for an error-capture, remain silent. We can afford not
-		 * to reserve an error_capture node as we have fallback
+		 * for an error-capture, remain silent. We can afford analt
+		 * to reserve an error_capture analde as we have fallback
 		 * paths, and we trust that 0 will remain reserved. However,
 		 * the only likely reason for failure to insert is a driver
 		 * bug, which we expect to cause other failures...
@@ -870,15 +870,15 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 		 */
 		ggtt->error_capture.size = 2 * I915_GTT_PAGE_SIZE;
 		ggtt->error_capture.color = I915_COLOR_UNEVICTABLE;
-		if (drm_mm_reserve_node(&ggtt->vm.mm, &ggtt->error_capture))
-			drm_mm_insert_node_in_range(&ggtt->vm.mm,
+		if (drm_mm_reserve_analde(&ggtt->vm.mm, &ggtt->error_capture))
+			drm_mm_insert_analde_in_range(&ggtt->vm.mm,
 						    &ggtt->error_capture,
 						    ggtt->error_capture.size, 0,
 						    ggtt->error_capture.color,
 						    0, ggtt->mappable_end,
 						    DRM_MM_INSERT_LOW);
 	}
-	if (drm_mm_node_allocated(&ggtt->error_capture)) {
+	if (drm_mm_analde_allocated(&ggtt->error_capture)) {
 		u64 start = ggtt->error_capture.start;
 		u64 size = ggtt->error_capture.size;
 
@@ -897,7 +897,7 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 	if (ret)
 		goto err;
 
-	/* Clear any non-preallocated blocks */
+	/* Clear any analn-preallocated blocks */
 	drm_mm_for_each_hole(entry, &ggtt->vm.mm, hole_start, hole_end) {
 		drm_dbg(&ggtt->vm.i915->drm,
 			"clearing unused GTT space: [%lx, %lx]\n",
@@ -960,7 +960,7 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 		return PTR_ERR(ppgtt);
 
 	if (GEM_WARN_ON(ppgtt->vm.total < ggtt->vm.total)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_ppgtt;
 	}
 
@@ -975,10 +975,10 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 		goto err_stash;
 
 	/*
-	 * Note we only pre-allocate as far as the end of the global
+	 * Analte we only pre-allocate as far as the end of the global
 	 * GTT. On 48b / 4-level page-tables, the difference is very,
 	 * very significant! We have to preallocate as GVT/vgpu does
-	 * not like the page directory disappearing.
+	 * analt like the page directory disappearing.
 	 */
 	ppgtt->vm.allocate_va_range(&ppgtt->vm, &stash, 0, ggtt->vm.total);
 
@@ -1055,8 +1055,8 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 			i915_gem_object_unlock(obj);
 	}
 
-	if (drm_mm_node_allocated(&ggtt->error_capture))
-		drm_mm_remove_node(&ggtt->error_capture);
+	if (drm_mm_analde_allocated(&ggtt->error_capture))
+		drm_mm_remove_analde(&ggtt->error_capture);
 	mutex_destroy(&ggtt->error_mutex);
 
 	ggtt_release_guc_top(ggtt);
@@ -1167,7 +1167,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 
 	if (!ggtt->gsm) {
 		drm_err(&i915->drm, "Failed to map the ggtt page table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kref_init(&ggtt->vm.resv_ref);
@@ -1186,7 +1186,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	ggtt->vm.scratch[0]->encode =
 		ggtt->vm.pte_encode(px_dma(ggtt->vm.scratch[0]),
 				    i915_gem_get_pat_index(i915,
-							   I915_CACHE_NONE),
+							   I915_CACHE_ANALNE),
 				    pte_flags);
 
 	return 0;
@@ -1234,7 +1234,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.total = (size / sizeof(gen8_pte_t)) * I915_GTT_PAGE_SIZE;
 	ggtt->vm.cleanup = gen6_gmch_remove;
 	ggtt->vm.insert_page = gen8_ggtt_insert_page;
-	ggtt->vm.clear_range = nop_clear_range;
+	ggtt->vm.clear_range = analp_clear_range;
 	ggtt->vm.scratch_range = gen8_ggtt_clear_range;
 
 	ggtt->vm.insert_entries = gen8_ggtt_insert_entries;
@@ -1243,7 +1243,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	 * Serialize GTT updates with aperture access on BXT if VT-d is on,
 	 * and always on CHV.
 	 */
-	if (intel_vm_no_concurrent_access_wa(i915)) {
+	if (intel_vm_anal_concurrent_access_wa(i915)) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
 
@@ -1303,7 +1303,7 @@ static u64 snb_pte_encode(dma_addr_t addr,
 	case I915_CACHE_LLC:
 		pte |= GEN6_PTE_CACHE_LLC;
 		break;
-	case I915_CACHE_NONE:
+	case I915_CACHE_ANALNE:
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
@@ -1326,7 +1326,7 @@ static u64 ivb_pte_encode(dma_addr_t addr,
 	case I915_CACHE_LLC:
 		pte |= GEN6_PTE_CACHE_LLC;
 		break;
-	case I915_CACHE_NONE:
+	case I915_CACHE_ANALNE:
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
@@ -1345,8 +1345,8 @@ static u64 byt_pte_encode(dma_addr_t addr,
 	if (!(flags & PTE_READ_ONLY))
 		pte |= BYT_PTE_WRITEABLE;
 
-	if (pat_index != I915_CACHE_NONE)
-		pte |= BYT_PTE_SNOOPED_BY_CPU_CACHES;
+	if (pat_index != I915_CACHE_ANALNE)
+		pte |= BYT_PTE_SANALOPED_BY_CPU_CACHES;
 
 	return pte;
 }
@@ -1357,7 +1357,7 @@ static u64 hsw_pte_encode(dma_addr_t addr,
 {
 	gen6_pte_t pte = HSW_PTE_ADDR_ENCODE(addr) | GEN6_PTE_VALID;
 
-	if (pat_index != I915_CACHE_NONE)
+	if (pat_index != I915_CACHE_ANALNE)
 		pte |= HSW_WB_LLC_AGE3;
 
 	return pte;
@@ -1370,7 +1370,7 @@ static u64 iris_pte_encode(dma_addr_t addr,
 	gen6_pte_t pte = HSW_PTE_ADDR_ENCODE(addr) | GEN6_PTE_VALID;
 
 	switch (pat_index) {
-	case I915_CACHE_NONE:
+	case I915_CACHE_ANALNE:
 		break;
 	case I915_CACHE_WT:
 		pte |= HSW_WT_ELLC_LLC_AGE3;
@@ -1397,12 +1397,12 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->mappable_end = resource_size(&ggtt->gmadr);
 
 	/*
-	 * 64/512MB is the current min/max we actually know of, but this is
+	 * 64/512MB is the current min/max we actually kanalw of, but this is
 	 * just a coarse sanity check.
 	 */
 	if (ggtt->mappable_end < (64 << 20) ||
 	    ggtt->mappable_end > (512 << 20)) {
-		drm_err(&i915->drm, "Unknown GMADR size (%pa)\n",
+		drm_err(&i915->drm, "Unkanalwn GMADR size (%pa)\n",
 			&ggtt->mappable_end);
 		return -ENXIO;
 	}
@@ -1415,7 +1415,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.alloc_pt_dma = alloc_pt_dma;
 	ggtt->vm.alloc_scratch_dma = alloc_pt_dma;
 
-	ggtt->vm.clear_range = nop_clear_range;
+	ggtt->vm.clear_range = analp_clear_range;
 	if (!HAS_FULL_PPGTT(i915))
 		ggtt->vm.clear_range = gen6_ggtt_clear_range;
 	ggtt->vm.scratch_range = gen6_ggtt_clear_range;
@@ -1523,7 +1523,7 @@ struct i915_ggtt *i915_ggtt_create(struct drm_i915_private *i915)
 
 	ggtt = drmm_kzalloc(&i915->drm, sizeof(*ggtt), GFP_KERNEL);
 	if (!ggtt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&ggtt->gt_list);
 
@@ -1574,7 +1574,7 @@ bool i915_ggtt_resume_vm(struct i915_address_space *vm)
 		vma->ops->bind_vma(vm, NULL, vma->resource,
 				   obj ? obj->pat_index :
 					 i915_gem_get_pat_index(vm->i915,
-								I915_CACHE_NONE),
+								I915_CACHE_ANALNE),
 				   was_bound);
 
 		if (obj) { /* only used during resume => exclusive access */
@@ -1596,7 +1596,7 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 
 	flush = i915_ggtt_resume_vm(&ggtt->vm);
 
-	if (drm_mm_node_allocated(&ggtt->error_capture))
+	if (drm_mm_analde_allocated(&ggtt->error_capture))
 		ggtt->vm.scratch_range(&ggtt->vm, ggtt->error_capture.start,
 				       ggtt->error_capture.size);
 

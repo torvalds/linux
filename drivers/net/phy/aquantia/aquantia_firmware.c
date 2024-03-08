@@ -49,7 +49,7 @@ static const char * const aqr_fw_src_string[] = {
  * and parsing the firmware.
  *
  * AQR firmware can't be trusted and each offset is validated to be
- * not negative and be in the size of the firmware itself.
+ * analt negative and be in the size of the firmware itself.
  */
 static bool aqr_fw_validate_get(size_t size, size_t offset, size_t get_size)
 {
@@ -104,7 +104,7 @@ static int aqr_fw_load_memory(struct phy_device *phydev, u32 addr,
 		      VEND1_GLOBAL_MAILBOX_INTERFACE4_LSW_ADDR(addr));
 
 	/* We assume and enforce the size to be word aligned.
-	 * If a firmware that is not word aligned is found, please report upstream.
+	 * If a firmware that is analt word aligned is found, please report upstream.
 	 */
 	for (pos = 0; pos < len; pos += sizeof(u32)) {
 		u8 crc_data[4];
@@ -223,7 +223,7 @@ static int aqr_fw_boot(struct phy_device *phydev, const u8 *data, size_t size,
 	 */
 	iram_offset += primary_offset;
 	if (iram_size % sizeof(u32)) {
-		phydev_err(phydev, "iram size if not aligned to word size. Please report this upstream!\n");
+		phydev_err(phydev, "iram size if analt aligned to word size. Please report this upstream!\n");
 		return -EINVAL;
 	}
 	if (!aqr_fw_validate_get(size, iram_offset, iram_size)) {
@@ -233,7 +233,7 @@ static int aqr_fw_boot(struct phy_device *phydev, const u8 *data, size_t size,
 
 	dram_offset += primary_offset;
 	if (dram_size % sizeof(u32)) {
-		phydev_err(phydev, "dram size if not aligned to word size. Please report this upstream!\n");
+		phydev_err(phydev, "dram size if analt aligned to word size. Please report this upstream!\n");
 		return -EINVAL;
 	}
 	if (!aqr_fw_validate_get(size, dram_offset, dram_size)) {
@@ -328,7 +328,7 @@ static int aqr_firmware_load_fs(struct phy_device *phydev)
 	const char *fw_name;
 	int ret;
 
-	ret = of_property_read_string(dev->of_node, "firmware-name",
+	ret = of_property_read_string(dev->of_analde, "firmware-name",
 				      &fw_name);
 	if (ret)
 		return ret;
@@ -353,9 +353,9 @@ int aqr_firmware_load(struct phy_device *phydev)
 {
 	int ret;
 
-	/* Check if the firmware is not already loaded by pooling
+	/* Check if the firmware is analt already loaded by pooling
 	 * the current version returned by the PHY. If 0 is returned,
-	 * no firmware is loaded.
+	 * anal firmware is loaded.
 	 */
 	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
 	if (ret > 0)

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung Exynos5 SoC series USB DRD PHY driver
+ * Samsung Exyanals5 SoC series USB DRD PHY driver
  *
- * Phy provider for USB 3.0 DRD controller on Exynos5 SoC series
+ * Phy provider for USB 3.0 DRD controller on Exyanals5 SoC series
  *
  * Copyright (C) 2014 Samsung Electronics Co., Ltd.
  * Author: Vivek Gautam <gautam.vivek@samsung.com>
@@ -21,34 +21,34 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
-#include <linux/soc/samsung/exynos-regs-pmu.h>
+#include <linux/soc/samsung/exyanals-regs-pmu.h>
 
-/* Exynos USB PHY registers */
-#define EXYNOS5_FSEL_9MHZ6		0x0
-#define EXYNOS5_FSEL_10MHZ		0x1
-#define EXYNOS5_FSEL_12MHZ		0x2
-#define EXYNOS5_FSEL_19MHZ2		0x3
-#define EXYNOS5_FSEL_20MHZ		0x4
-#define EXYNOS5_FSEL_24MHZ		0x5
-#define EXYNOS5_FSEL_26MHZ		0x82
-#define EXYNOS5_FSEL_50MHZ		0x7
+/* Exyanals USB PHY registers */
+#define EXYANALS5_FSEL_9MHZ6		0x0
+#define EXYANALS5_FSEL_10MHZ		0x1
+#define EXYANALS5_FSEL_12MHZ		0x2
+#define EXYANALS5_FSEL_19MHZ2		0x3
+#define EXYANALS5_FSEL_20MHZ		0x4
+#define EXYANALS5_FSEL_24MHZ		0x5
+#define EXYANALS5_FSEL_26MHZ		0x82
+#define EXYANALS5_FSEL_50MHZ		0x7
 
-/* Exynos5: USB 3.0 DRD PHY registers */
-#define EXYNOS5_DRD_LINKSYSTEM			0x04
+/* Exyanals5: USB 3.0 DRD PHY registers */
+#define EXYANALS5_DRD_LINKSYSTEM			0x04
 
 #define LINKSYSTEM_FLADJ_MASK			(0x3f << 1)
 #define LINKSYSTEM_FLADJ(_x)			((_x) << 1)
 #define LINKSYSTEM_XHCI_VERSION_CONTROL		BIT(27)
 
-#define EXYNOS5_DRD_PHYUTMI			0x08
+#define EXYANALS5_DRD_PHYUTMI			0x08
 
 #define PHYUTMI_OTGDISABLE			BIT(6)
 #define PHYUTMI_FORCESUSPEND			BIT(1)
 #define PHYUTMI_FORCESLEEP			BIT(0)
 
-#define EXYNOS5_DRD_PHYPIPE			0x0c
+#define EXYANALS5_DRD_PHYPIPE			0x0c
 
-#define EXYNOS5_DRD_PHYCLKRST			0x10
+#define EXYANALS5_DRD_PHYCLKRST			0x10
 
 #define PHYCLKRST_EN_UTMISUSPEND		BIT(31)
 
@@ -84,9 +84,9 @@
 #define PHYCLKRST_REFCLKSEL_EXT_REFCLK		(0x3 << 2)
 
 #define PHYCLKRST_PORTRESET			BIT(1)
-#define PHYCLKRST_COMMONONN			BIT(0)
+#define PHYCLKRST_COMMOANALNN			BIT(0)
 
-#define EXYNOS5_DRD_PHYREG0			0x14
+#define EXYANALS5_DRD_PHYREG0			0x14
 #define PHYREG0_SSC_REF_CLK_SEL			BIT(21)
 #define PHYREG0_SSC_RANGE			BIT(20)
 #define PHYREG0_CR_WRITE			BIT(19)
@@ -95,49 +95,49 @@
 #define PHYREG0_CR_CAP_DATA			BIT(1)
 #define PHYREG0_CR_CAP_ADDR			BIT(0)
 
-#define EXYNOS5_DRD_PHYREG1			0x18
+#define EXYANALS5_DRD_PHYREG1			0x18
 #define PHYREG1_CR_DATA_OUT(_x)			((_x) << 1)
 #define PHYREG1_CR_ACK				BIT(0)
 
-#define EXYNOS5_DRD_PHYPARAM0			0x1c
+#define EXYANALS5_DRD_PHYPARAM0			0x1c
 
 #define PHYPARAM0_REF_USE_PAD			BIT(31)
 #define PHYPARAM0_REF_LOSLEVEL_MASK		(0x1f << 26)
 #define PHYPARAM0_REF_LOSLEVEL			(0x9 << 26)
 
-#define EXYNOS5_DRD_PHYPARAM1			0x20
+#define EXYANALS5_DRD_PHYPARAM1			0x20
 
 #define PHYPARAM1_PCS_TXDEEMPH_MASK		(0x1f << 0)
 #define PHYPARAM1_PCS_TXDEEMPH			(0x1c)
 
-#define EXYNOS5_DRD_PHYTERM			0x24
+#define EXYANALS5_DRD_PHYTERM			0x24
 
-#define EXYNOS5_DRD_PHYTEST			0x28
+#define EXYANALS5_DRD_PHYTEST			0x28
 
 #define PHYTEST_POWERDOWN_SSP			BIT(3)
 #define PHYTEST_POWERDOWN_HSP			BIT(2)
 
-#define EXYNOS5_DRD_PHYADP			0x2c
+#define EXYANALS5_DRD_PHYADP			0x2c
 
-#define EXYNOS5_DRD_PHYUTMICLKSEL		0x30
+#define EXYANALS5_DRD_PHYUTMICLKSEL		0x30
 
 #define PHYUTMICLKSEL_UTMI_CLKSEL		BIT(2)
 
-#define EXYNOS5_DRD_PHYRESUME			0x34
-#define EXYNOS5_DRD_LINKPORT			0x44
+#define EXYANALS5_DRD_PHYRESUME			0x34
+#define EXYANALS5_DRD_LINKPORT			0x44
 
 /* USB 3.0 DRD PHY SS Function Control Reg; accessed by CR_PORT */
-#define EXYNOS5_DRD_PHYSS_LOSLEVEL_OVRD_IN		(0x15)
+#define EXYANALS5_DRD_PHYSS_LOSLEVEL_OVRD_IN		(0x15)
 #define LOSLEVEL_OVRD_IN_LOS_BIAS_5420			(0x5 << 13)
 #define LOSLEVEL_OVRD_IN_LOS_BIAS_DEFAULT		(0x0 << 13)
 #define LOSLEVEL_OVRD_IN_EN				(0x1 << 10)
 #define LOSLEVEL_OVRD_IN_LOS_LEVEL_DEFAULT		(0x9 << 0)
 
-#define EXYNOS5_DRD_PHYSS_TX_VBOOSTLEVEL_OVRD_IN	(0x12)
+#define EXYANALS5_DRD_PHYSS_TX_VBOOSTLEVEL_OVRD_IN	(0x12)
 #define TX_VBOOSTLEVEL_OVRD_IN_VBOOST_5420		(0x5 << 13)
 #define TX_VBOOSTLEVEL_OVRD_IN_VBOOST_DEFAULT		(0x4 << 13)
 
-#define EXYNOS5_DRD_PHYSS_LANE0_TX_DEBUG		(0x1010)
+#define EXYANALS5_DRD_PHYSS_LANE0_TX_DEBUG		(0x1010)
 #define LANE0_TX_DEBUG_RXDET_MEAS_TIME_19M2_20M		(0x4 << 4)
 #define LANE0_TX_DEBUG_RXDET_MEAS_TIME_24M		(0x8 << 4)
 #define LANE0_TX_DEBUG_RXDET_MEAS_TIME_25M_26M		(0x8 << 4)
@@ -145,17 +145,17 @@
 #define LANE0_TX_DEBUG_RXDET_MEAS_TIME_62M5		(0x20 << 4)
 #define LANE0_TX_DEBUG_RXDET_MEAS_TIME_96M_100M		(0x40 << 4)
 
-/* Exynos850: USB DRD PHY registers */
-#define EXYNOS850_DRD_LINKCTRL			0x04
+/* Exyanals850: USB DRD PHY registers */
+#define EXYANALS850_DRD_LINKCTRL			0x04
 #define LINKCTRL_BUS_FILTER_BYPASS(_x)		((_x) << 4)
 #define LINKCTRL_FORCE_QACT			BIT(8)
 
-#define EXYNOS850_DRD_CLKRST			0x20
+#define EXYANALS850_DRD_CLKRST			0x20
 #define CLKRST_LINK_SW_RST			BIT(0)
 #define CLKRST_PORT_RST				BIT(1)
 #define CLKRST_PHY_SW_RST			BIT(3)
 
-#define EXYNOS850_DRD_UTMI			0x50
+#define EXYANALS850_DRD_UTMI			0x50
 #define UTMI_FORCE_SLEEP			BIT(0)
 #define UTMI_FORCE_SUSPEND			BIT(1)
 #define UTMI_DM_PULLDOWN			BIT(2)
@@ -163,37 +163,37 @@
 #define UTMI_FORCE_BVALID			BIT(4)
 #define UTMI_FORCE_VBUSVALID			BIT(5)
 
-#define EXYNOS850_DRD_HSP			0x54
-#define HSP_COMMONONN				BIT(8)
+#define EXYANALS850_DRD_HSP			0x54
+#define HSP_COMMOANALNN				BIT(8)
 #define HSP_EN_UTMISUSPEND			BIT(9)
 #define HSP_VBUSVLDEXT				BIT(12)
 #define HSP_VBUSVLDEXTSEL			BIT(13)
 #define HSP_FSV_OUT_EN				BIT(24)
 
-#define EXYNOS850_DRD_HSP_TEST			0x5c
+#define EXYANALS850_DRD_HSP_TEST			0x5c
 #define HSP_TEST_SIDDQ				BIT(24)
 
 #define KHZ	1000
 #define MHZ	(KHZ * KHZ)
 
-enum exynos5_usbdrd_phy_id {
-	EXYNOS5_DRDPHY_UTMI,
-	EXYNOS5_DRDPHY_PIPE3,
-	EXYNOS5_DRDPHYS_NUM,
+enum exyanals5_usbdrd_phy_id {
+	EXYANALS5_DRDPHY_UTMI,
+	EXYANALS5_DRDPHY_PIPE3,
+	EXYANALS5_DRDPHYS_NUM,
 };
 
 struct phy_usb_instance;
-struct exynos5_usbdrd_phy;
+struct exyanals5_usbdrd_phy;
 
-struct exynos5_usbdrd_phy_config {
+struct exyanals5_usbdrd_phy_config {
 	u32 id;
 	void (*phy_isol)(struct phy_usb_instance *inst, u32 on);
-	void (*phy_init)(struct exynos5_usbdrd_phy *phy_drd);
+	void (*phy_init)(struct exyanals5_usbdrd_phy *phy_drd);
 	unsigned int (*set_refclk)(struct phy_usb_instance *inst);
 };
 
-struct exynos5_usbdrd_phy_drvdata {
-	const struct exynos5_usbdrd_phy_config *phy_cfg;
+struct exyanals5_usbdrd_phy_drvdata {
+	const struct exyanals5_usbdrd_phy_config *phy_cfg;
 	const struct phy_ops *phy_ops;
 	u32 pmu_offset_usbdrd0_phy;
 	u32 pmu_offset_usbdrd1_phy;
@@ -201,7 +201,7 @@ struct exynos5_usbdrd_phy_drvdata {
 };
 
 /**
- * struct exynos5_usbdrd_phy - driver data for USB 3.0 PHY
+ * struct exyanals5_usbdrd_phy - driver data for USB 3.0 PHY
  * @dev: pointer to device instance of this platform device
  * @reg_phy: usb phy controller register memory base
  * @clk: phy clock for register access
@@ -209,30 +209,30 @@ struct exynos5_usbdrd_phy_drvdata {
  * @utmiclk: clock for utmi+ phy
  * @itpclk: clock for ITP generation
  * @drv_data: pointer to SoC level driver data structure
- * @phys: array for 'EXYNOS5_DRDPHYS_NUM' number of PHY
+ * @phys: array for 'EXYANALS5_DRDPHYS_NUM' number of PHY
  *	    instances each with its 'phy' and 'phy_cfg'.
  * @extrefclk: frequency select settings when using 'separate
  *	       reference clocks' for SS and HS operations
  * @ref_clk: reference clock to PHY block from which PHY's
  *	     operational clocks are derived
  * @vbus: VBUS regulator for phy
- * @vbus_boost: Boost regulator for VBUS present on few Exynos boards
+ * @vbus_boost: Boost regulator for VBUS present on few Exyanals boards
  */
-struct exynos5_usbdrd_phy {
+struct exyanals5_usbdrd_phy {
 	struct device *dev;
 	void __iomem *reg_phy;
 	struct clk *clk;
 	struct clk *pipeclk;
 	struct clk *utmiclk;
 	struct clk *itpclk;
-	const struct exynos5_usbdrd_phy_drvdata *drv_data;
+	const struct exyanals5_usbdrd_phy_drvdata *drv_data;
 	struct phy_usb_instance {
 		struct phy *phy;
 		u32 index;
 		struct regmap *reg_pmu;
 		u32 pmu_offset;
-		const struct exynos5_usbdrd_phy_config *phy_cfg;
-	} phys[EXYNOS5_DRDPHYS_NUM];
+		const struct exyanals5_usbdrd_phy_config *phy_cfg;
+	} phys[EXYANALS5_DRDPHYS_NUM];
 	u32 extrefclk;
 	struct clk *ref_clk;
 	struct regulator *vbus;
@@ -240,44 +240,44 @@ struct exynos5_usbdrd_phy {
 };
 
 static inline
-struct exynos5_usbdrd_phy *to_usbdrd_phy(struct phy_usb_instance *inst)
+struct exyanals5_usbdrd_phy *to_usbdrd_phy(struct phy_usb_instance *inst)
 {
-	return container_of((inst), struct exynos5_usbdrd_phy,
+	return container_of((inst), struct exyanals5_usbdrd_phy,
 			    phys[(inst)->index]);
 }
 
 /*
- * exynos5_rate_to_clk() converts the supplied clock rate to the value that
+ * exyanals5_rate_to_clk() converts the supplied clock rate to the value that
  * can be written to the phy register.
  */
-static unsigned int exynos5_rate_to_clk(unsigned long rate, u32 *reg)
+static unsigned int exyanals5_rate_to_clk(unsigned long rate, u32 *reg)
 {
-	/* EXYNOS5_FSEL_MASK */
+	/* EXYANALS5_FSEL_MASK */
 
 	switch (rate) {
 	case 9600 * KHZ:
-		*reg = EXYNOS5_FSEL_9MHZ6;
+		*reg = EXYANALS5_FSEL_9MHZ6;
 		break;
 	case 10 * MHZ:
-		*reg = EXYNOS5_FSEL_10MHZ;
+		*reg = EXYANALS5_FSEL_10MHZ;
 		break;
 	case 12 * MHZ:
-		*reg = EXYNOS5_FSEL_12MHZ;
+		*reg = EXYANALS5_FSEL_12MHZ;
 		break;
 	case 19200 * KHZ:
-		*reg = EXYNOS5_FSEL_19MHZ2;
+		*reg = EXYANALS5_FSEL_19MHZ2;
 		break;
 	case 20 * MHZ:
-		*reg = EXYNOS5_FSEL_20MHZ;
+		*reg = EXYANALS5_FSEL_20MHZ;
 		break;
 	case 24 * MHZ:
-		*reg = EXYNOS5_FSEL_24MHZ;
+		*reg = EXYANALS5_FSEL_24MHZ;
 		break;
 	case 26 * MHZ:
-		*reg = EXYNOS5_FSEL_26MHZ;
+		*reg = EXYANALS5_FSEL_26MHZ;
 		break;
 	case 50 * MHZ:
-		*reg = EXYNOS5_FSEL_50MHZ;
+		*reg = EXYANALS5_FSEL_50MHZ;
 		break;
 	default:
 		return -EINVAL;
@@ -286,7 +286,7 @@ static unsigned int exynos5_rate_to_clk(unsigned long rate, u32 *reg)
 	return 0;
 }
 
-static void exynos5_usbdrd_phy_isol(struct phy_usb_instance *inst,
+static void exyanals5_usbdrd_phy_isol(struct phy_usb_instance *inst,
 						unsigned int on)
 {
 	unsigned int val;
@@ -294,10 +294,10 @@ static void exynos5_usbdrd_phy_isol(struct phy_usb_instance *inst,
 	if (!inst->reg_pmu)
 		return;
 
-	val = on ? 0 : EXYNOS4_PHY_ENABLE;
+	val = on ? 0 : EXYANALS4_PHY_ENABLE;
 
 	regmap_update_bits(inst->reg_pmu, inst->pmu_offset,
-			   EXYNOS4_PHY_ENABLE, val);
+			   EXYANALS4_PHY_ENABLE, val);
 }
 
 /*
@@ -306,13 +306,13 @@ static void exynos5_usbdrd_phy_isol(struct phy_usb_instance *inst,
  * clock settings for SuperSpeed operations.
  */
 static unsigned int
-exynos5_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
+exyanals5_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
 {
 	u32 reg;
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	/* restore any previous reference clock settings */
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYCLKRST);
 
 	/* Use EXTREFCLK as ref clock */
 	reg &= ~PHYCLKRST_REFCLKSEL_MASK;
@@ -323,19 +323,19 @@ exynos5_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
 		PHYCLKRST_MPLL_MULTIPLIER_MASK |
 		PHYCLKRST_SSC_REFCLKSEL_MASK;
 	switch (phy_drd->extrefclk) {
-	case EXYNOS5_FSEL_50MHZ:
+	case EXYANALS5_FSEL_50MHZ:
 		reg |= (PHYCLKRST_MPLL_MULTIPLIER_50M_REF |
 			PHYCLKRST_SSC_REFCLKSEL(0x00));
 		break;
-	case EXYNOS5_FSEL_24MHZ:
+	case EXYANALS5_FSEL_24MHZ:
 		reg |= (PHYCLKRST_MPLL_MULTIPLIER_24MHZ_REF |
 			PHYCLKRST_SSC_REFCLKSEL(0x88));
 		break;
-	case EXYNOS5_FSEL_20MHZ:
+	case EXYANALS5_FSEL_20MHZ:
 		reg |= (PHYCLKRST_MPLL_MULTIPLIER_20MHZ_REF |
 			PHYCLKRST_SSC_REFCLKSEL(0x00));
 		break;
-	case EXYNOS5_FSEL_19MHZ2:
+	case EXYANALS5_FSEL_19MHZ2:
 		reg |= (PHYCLKRST_MPLL_MULTIPLIER_19200KHZ_REF |
 			PHYCLKRST_SSC_REFCLKSEL(0x88));
 		break;
@@ -352,13 +352,13 @@ exynos5_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
  * from clock core. Further sets the FSEL values for HighSpeed operations.
  */
 static unsigned int
-exynos5_usbdrd_utmi_set_refclk(struct phy_usb_instance *inst)
+exyanals5_usbdrd_utmi_set_refclk(struct phy_usb_instance *inst)
 {
 	u32 reg;
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	/* restore any previous reference clock settings */
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYCLKRST);
 
 	reg &= ~PHYCLKRST_REFCLKSEL_MASK;
 	reg |=	PHYCLKRST_REFCLKSEL_EXT_REFCLK;
@@ -371,59 +371,59 @@ exynos5_usbdrd_utmi_set_refclk(struct phy_usb_instance *inst)
 	return reg;
 }
 
-static void exynos5_usbdrd_pipe3_init(struct exynos5_usbdrd_phy *phy_drd)
+static void exyanals5_usbdrd_pipe3_init(struct exyanals5_usbdrd_phy *phy_drd)
 {
 	u32 reg;
 
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM1);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYPARAM1);
 	/* Set Tx De-Emphasis level */
 	reg &= ~PHYPARAM1_PCS_TXDEEMPH_MASK;
 	reg |=	PHYPARAM1_PCS_TXDEEMPH;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM1);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYPARAM1);
 
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYTEST);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYTEST);
 	reg &= ~PHYTEST_POWERDOWN_SSP;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYTEST);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYTEST);
 }
 
-static void exynos5_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
+static void exyanals5_usbdrd_utmi_init(struct exyanals5_usbdrd_phy *phy_drd)
 {
 	u32 reg;
 
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM0);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYPARAM0);
 	/* Set Loss-of-Signal Detector sensitivity */
 	reg &= ~PHYPARAM0_REF_LOSLEVEL_MASK;
 	reg |=	PHYPARAM0_REF_LOSLEVEL;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM0);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYPARAM0);
 
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM1);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYPARAM1);
 	/* Set Tx De-Emphasis level */
 	reg &= ~PHYPARAM1_PCS_TXDEEMPH_MASK;
 	reg |=	PHYPARAM1_PCS_TXDEEMPH;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM1);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYPARAM1);
 
 	/* UTMI Power Control */
-	writel(PHYUTMI_OTGDISABLE, phy_drd->reg_phy + EXYNOS5_DRD_PHYUTMI);
+	writel(PHYUTMI_OTGDISABLE, phy_drd->reg_phy + EXYANALS5_DRD_PHYUTMI);
 
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYTEST);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYTEST);
 	reg &= ~PHYTEST_POWERDOWN_HSP;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYTEST);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYTEST);
 }
 
-static int exynos5_usbdrd_phy_init(struct phy *phy)
+static int exyanals5_usbdrd_phy_init(struct phy *phy)
 {
 	int ret;
 	u32 reg;
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	ret = clk_prepare_enable(phy_drd->clk);
 	if (ret)
 		return ret;
 
 	/* Reset USB 3.0 PHY */
-	writel(0x0, phy_drd->reg_phy + EXYNOS5_DRD_PHYREG0);
-	writel(0x0, phy_drd->reg_phy + EXYNOS5_DRD_PHYRESUME);
+	writel(0x0, phy_drd->reg_phy + EXYANALS5_DRD_PHYREG0);
+	writel(0x0, phy_drd->reg_phy + EXYANALS5_DRD_PHYRESUME);
 
 	/*
 	 * Setting the Frame length Adj value[6:1] to default 0x20
@@ -431,17 +431,17 @@ static int exynos5_usbdrd_phy_init(struct phy *phy)
 	 */
 	reg =	LINKSYSTEM_XHCI_VERSION_CONTROL |
 		LINKSYSTEM_FLADJ(0x20);
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_LINKSYSTEM);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_LINKSYSTEM);
 
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM0);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYPARAM0);
 	/* Select PHY CLK source */
 	reg &= ~PHYPARAM0_REF_USE_PAD;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM0);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYPARAM0);
 
 	/* This bit must be set for both HS and SS operations */
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYUTMICLKSEL);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYUTMICLKSEL);
 	reg |= PHYUTMICLKSEL_UTMI_CLKSEL;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYUTMICLKSEL);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYUTMICLKSEL);
 
 	/* UTMI or PIPE3 specific init */
 	inst->phy_cfg->phy_init(phy_drd);
@@ -449,35 +449,35 @@ static int exynos5_usbdrd_phy_init(struct phy *phy)
 	/* reference clock settings */
 	reg = inst->phy_cfg->set_refclk(inst);
 
-		/* Digital power supply in normal operating mode */
+		/* Digital power supply in analrmal operating mode */
 	reg |=	PHYCLKRST_RETENABLEN |
 		/* Enable ref clock for SS function */
 		PHYCLKRST_REF_SSP_EN |
 		/* Enable spread spectrum */
 		PHYCLKRST_SSC_EN |
 		/* Power down HS Bias and PLL blocks in suspend mode */
-		PHYCLKRST_COMMONONN |
+		PHYCLKRST_COMMOANALNN |
 		/* Reset the port */
 		PHYCLKRST_PORTRESET;
 
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYCLKRST);
 
 	udelay(10);
 
 	reg &= ~PHYCLKRST_PORTRESET;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYCLKRST);
 
 	clk_disable_unprepare(phy_drd->clk);
 
 	return 0;
 }
 
-static int exynos5_usbdrd_phy_exit(struct phy *phy)
+static int exyanals5_usbdrd_phy_exit(struct phy *phy)
 {
 	int ret;
 	u32 reg;
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	ret = clk_prepare_enable(phy_drd->clk);
 	if (ret)
@@ -486,31 +486,31 @@ static int exynos5_usbdrd_phy_exit(struct phy *phy)
 	reg =	PHYUTMI_OTGDISABLE |
 		PHYUTMI_FORCESUSPEND |
 		PHYUTMI_FORCESLEEP;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYUTMI);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYUTMI);
 
 	/* Resetting the PHYCLKRST enable bits to reduce leakage current */
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYCLKRST);
 	reg &= ~(PHYCLKRST_REF_SSP_EN |
 		 PHYCLKRST_SSC_EN |
-		 PHYCLKRST_COMMONONN);
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
+		 PHYCLKRST_COMMOANALNN);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYCLKRST);
 
 	/* Control PHYTEST to remove leakage current */
-	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYTEST);
+	reg = readl(phy_drd->reg_phy + EXYANALS5_DRD_PHYTEST);
 	reg |=	PHYTEST_POWERDOWN_SSP |
 		PHYTEST_POWERDOWN_HSP;
-	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYTEST);
+	writel(reg, phy_drd->reg_phy + EXYANALS5_DRD_PHYTEST);
 
 	clk_disable_unprepare(phy_drd->clk);
 
 	return 0;
 }
 
-static int exynos5_usbdrd_phy_power_on(struct phy *phy)
+static int exyanals5_usbdrd_phy_power_on(struct phy *phy)
 {
 	int ret;
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	dev_dbg(phy_drd->dev, "Request to power_on usbdrd_phy phy\n");
 
@@ -559,10 +559,10 @@ fail_vbus:
 	return ret;
 }
 
-static int exynos5_usbdrd_phy_power_off(struct phy *phy)
+static int exyanals5_usbdrd_phy_power_off(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	dev_dbg(phy_drd->dev, "Request to power_off usbdrd_phy phy\n");
 
@@ -585,24 +585,24 @@ static int exynos5_usbdrd_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static int crport_handshake(struct exynos5_usbdrd_phy *phy_drd,
+static int crport_handshake(struct exyanals5_usbdrd_phy *phy_drd,
 			    u32 val, u32 cmd)
 {
 	unsigned int result;
 	int err;
 
-	writel(val | cmd, phy_drd->reg_phy + EXYNOS5_DRD_PHYREG0);
+	writel(val | cmd, phy_drd->reg_phy + EXYANALS5_DRD_PHYREG0);
 
-	err = readl_poll_timeout(phy_drd->reg_phy + EXYNOS5_DRD_PHYREG1,
+	err = readl_poll_timeout(phy_drd->reg_phy + EXYANALS5_DRD_PHYREG1,
 				 result, (result & PHYREG1_CR_ACK), 1, 100);
 	if (err == -ETIMEDOUT) {
 		dev_err(phy_drd->dev, "CRPORT handshake timeout1 (0x%08x)\n", val);
 		return err;
 	}
 
-	writel(val, phy_drd->reg_phy + EXYNOS5_DRD_PHYREG0);
+	writel(val, phy_drd->reg_phy + EXYANALS5_DRD_PHYREG0);
 
-	err = readl_poll_timeout(phy_drd->reg_phy + EXYNOS5_DRD_PHYREG1,
+	err = readl_poll_timeout(phy_drd->reg_phy + EXYANALS5_DRD_PHYREG1,
 				 result, !(result & PHYREG1_CR_ACK), 1, 100);
 	if (err == -ETIMEDOUT) {
 		dev_err(phy_drd->dev, "CRPORT handshake timeout2 (0x%08x)\n", val);
@@ -612,14 +612,14 @@ static int crport_handshake(struct exynos5_usbdrd_phy *phy_drd,
 	return 0;
 }
 
-static int crport_ctrl_write(struct exynos5_usbdrd_phy *phy_drd,
+static int crport_ctrl_write(struct exyanals5_usbdrd_phy *phy_drd,
 			     u32 addr, u32 data)
 {
 	int ret;
 
 	/* Write Address */
 	writel(PHYREG0_CR_DATA_IN(addr),
-	       phy_drd->reg_phy + EXYNOS5_DRD_PHYREG0);
+	       phy_drd->reg_phy + EXYANALS5_DRD_PHYREG0);
 	ret = crport_handshake(phy_drd, PHYREG0_CR_DATA_IN(addr),
 			       PHYREG0_CR_CAP_ADDR);
 	if (ret)
@@ -627,7 +627,7 @@ static int crport_ctrl_write(struct exynos5_usbdrd_phy *phy_drd,
 
 	/* Write Data */
 	writel(PHYREG0_CR_DATA_IN(data),
-	       phy_drd->reg_phy + EXYNOS5_DRD_PHYREG0);
+	       phy_drd->reg_phy + EXYANALS5_DRD_PHYREG0);
 	ret = crport_handshake(phy_drd, PHYREG0_CR_DATA_IN(data),
 			       PHYREG0_CR_CAP_DATA);
 	if (ret)
@@ -641,10 +641,10 @@ static int crport_ctrl_write(struct exynos5_usbdrd_phy *phy_drd,
 
 /*
  * Calibrate few PHY parameters using CR_PORT register to meet
- * SuperSpeed requirements on Exynos5420 and Exynos5800 systems,
+ * SuperSpeed requirements on Exyanals5420 and Exyanals5800 systems,
  * which have 28nm USB 3.0 DRD PHY.
  */
-static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
+static int exyanals5420_usbdrd_phy_calibrate(struct exyanals5_usbdrd_phy *phy_drd)
 {
 	unsigned int temp;
 	int ret = 0;
@@ -659,7 +659,7 @@ static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
 		LOSLEVEL_OVRD_IN_EN |
 		LOSLEVEL_OVRD_IN_LOS_LEVEL_DEFAULT;
 	ret = crport_ctrl_write(phy_drd,
-				EXYNOS5_DRD_PHYSS_LOSLEVEL_OVRD_IN,
+				EXYANALS5_DRD_PHYSS_LOSLEVEL_OVRD_IN,
 				temp);
 	if (ret) {
 		dev_err(phy_drd->dev,
@@ -673,7 +673,7 @@ static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
 	 */
 	temp = TX_VBOOSTLEVEL_OVRD_IN_VBOOST_5420;
 	ret = crport_ctrl_write(phy_drd,
-				EXYNOS5_DRD_PHYSS_TX_VBOOSTLEVEL_OVRD_IN,
+				EXYANALS5_DRD_PHYSS_TX_VBOOSTLEVEL_OVRD_IN,
 				temp);
 	if (ret) {
 		dev_err(phy_drd->dev,
@@ -686,26 +686,26 @@ static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
 	 * desired reference clock of PHY, by tuning the CR_PORT
 	 * register LANE0.TX_DEBUG which is internal to PHY.
 	 * This fixes issue with few USB 3.0 devices, which are
-	 * not detected (not even generate interrupts on the bus
+	 * analt detected (analt even generate interrupts on the bus
 	 * on insertion) without this change.
 	 * e.g. Samsung SUM-TSB16S 3.0 USB drive.
 	 */
 	switch (phy_drd->extrefclk) {
-	case EXYNOS5_FSEL_50MHZ:
+	case EXYANALS5_FSEL_50MHZ:
 		temp = LANE0_TX_DEBUG_RXDET_MEAS_TIME_48M_50M_52M;
 		break;
-	case EXYNOS5_FSEL_20MHZ:
-	case EXYNOS5_FSEL_19MHZ2:
+	case EXYANALS5_FSEL_20MHZ:
+	case EXYANALS5_FSEL_19MHZ2:
 		temp = LANE0_TX_DEBUG_RXDET_MEAS_TIME_19M2_20M;
 		break;
-	case EXYNOS5_FSEL_24MHZ:
+	case EXYANALS5_FSEL_24MHZ:
 	default:
 		temp = LANE0_TX_DEBUG_RXDET_MEAS_TIME_24M;
 		break;
 	}
 
 	ret = crport_ctrl_write(phy_drd,
-				EXYNOS5_DRD_PHYSS_LANE0_TX_DEBUG,
+				EXYANALS5_DRD_PHYSS_LANE0_TX_DEBUG,
 				temp);
 	if (ret)
 		dev_err(phy_drd->dev,
@@ -714,37 +714,37 @@ static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
 	return ret;
 }
 
-static struct phy *exynos5_usbdrd_phy_xlate(struct device *dev,
+static struct phy *exyanals5_usbdrd_phy_xlate(struct device *dev,
 					struct of_phandle_args *args)
 {
-	struct exynos5_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
+	struct exyanals5_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 
-	if (WARN_ON(args->args[0] >= EXYNOS5_DRDPHYS_NUM))
-		return ERR_PTR(-ENODEV);
+	if (WARN_ON(args->args[0] >= EXYANALS5_DRDPHYS_NUM))
+		return ERR_PTR(-EANALDEV);
 
 	return phy_drd->phys[args->args[0]].phy;
 }
 
-static int exynos5_usbdrd_phy_calibrate(struct phy *phy)
+static int exyanals5_usbdrd_phy_calibrate(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
-	if (inst->phy_cfg->id == EXYNOS5_DRDPHY_UTMI)
-		return exynos5420_usbdrd_phy_calibrate(phy_drd);
+	if (inst->phy_cfg->id == EXYANALS5_DRDPHY_UTMI)
+		return exyanals5420_usbdrd_phy_calibrate(phy_drd);
 	return 0;
 }
 
-static const struct phy_ops exynos5_usbdrd_phy_ops = {
-	.init		= exynos5_usbdrd_phy_init,
-	.exit		= exynos5_usbdrd_phy_exit,
-	.power_on	= exynos5_usbdrd_phy_power_on,
-	.power_off	= exynos5_usbdrd_phy_power_off,
-	.calibrate	= exynos5_usbdrd_phy_calibrate,
+static const struct phy_ops exyanals5_usbdrd_phy_ops = {
+	.init		= exyanals5_usbdrd_phy_init,
+	.exit		= exyanals5_usbdrd_phy_exit,
+	.power_on	= exyanals5_usbdrd_phy_power_on,
+	.power_off	= exyanals5_usbdrd_phy_power_off,
+	.calibrate	= exyanals5_usbdrd_phy_calibrate,
 	.owner		= THIS_MODULE,
 };
 
-static void exynos850_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
+static void exyanals850_usbdrd_utmi_init(struct exyanals5_usbdrd_phy *phy_drd)
 {
 	void __iomem *regs_base = phy_drd->reg_phy;
 	u32 reg;
@@ -752,63 +752,63 @@ static void exynos850_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
 	/*
 	 * Disable HWACG (hardware auto clock gating control). This will force
 	 * QACTIVE signal in Q-Channel interface to HIGH level, to make sure
-	 * the PHY clock is not gated by the hardware.
+	 * the PHY clock is analt gated by the hardware.
 	 */
-	reg = readl(regs_base + EXYNOS850_DRD_LINKCTRL);
+	reg = readl(regs_base + EXYANALS850_DRD_LINKCTRL);
 	reg |= LINKCTRL_FORCE_QACT;
-	writel(reg, regs_base + EXYNOS850_DRD_LINKCTRL);
+	writel(reg, regs_base + EXYANALS850_DRD_LINKCTRL);
 
 	/* Start PHY Reset (POR=high) */
-	reg = readl(regs_base + EXYNOS850_DRD_CLKRST);
+	reg = readl(regs_base + EXYANALS850_DRD_CLKRST);
 	reg |= CLKRST_PHY_SW_RST;
-	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
+	writel(reg, regs_base + EXYANALS850_DRD_CLKRST);
 
 	/* Enable UTMI+ */
-	reg = readl(regs_base + EXYNOS850_DRD_UTMI);
+	reg = readl(regs_base + EXYANALS850_DRD_UTMI);
 	reg &= ~(UTMI_FORCE_SUSPEND | UTMI_FORCE_SLEEP | UTMI_DP_PULLDOWN |
 		 UTMI_DM_PULLDOWN);
-	writel(reg, regs_base + EXYNOS850_DRD_UTMI);
+	writel(reg, regs_base + EXYANALS850_DRD_UTMI);
 
 	/* Set PHY clock and control HS PHY */
-	reg = readl(regs_base + EXYNOS850_DRD_HSP);
-	reg |= HSP_EN_UTMISUSPEND | HSP_COMMONONN;
-	writel(reg, regs_base + EXYNOS850_DRD_HSP);
+	reg = readl(regs_base + EXYANALS850_DRD_HSP);
+	reg |= HSP_EN_UTMISUSPEND | HSP_COMMOANALNN;
+	writel(reg, regs_base + EXYANALS850_DRD_HSP);
 
 	/* Set VBUS Valid and D+ pull-up control by VBUS pad usage */
-	reg = readl(regs_base + EXYNOS850_DRD_LINKCTRL);
+	reg = readl(regs_base + EXYANALS850_DRD_LINKCTRL);
 	reg |= LINKCTRL_BUS_FILTER_BYPASS(0xf);
-	writel(reg, regs_base + EXYNOS850_DRD_LINKCTRL);
+	writel(reg, regs_base + EXYANALS850_DRD_LINKCTRL);
 
-	reg = readl(regs_base + EXYNOS850_DRD_UTMI);
+	reg = readl(regs_base + EXYANALS850_DRD_UTMI);
 	reg |= UTMI_FORCE_BVALID | UTMI_FORCE_VBUSVALID;
-	writel(reg, regs_base + EXYNOS850_DRD_UTMI);
+	writel(reg, regs_base + EXYANALS850_DRD_UTMI);
 
-	reg = readl(regs_base + EXYNOS850_DRD_HSP);
+	reg = readl(regs_base + EXYANALS850_DRD_HSP);
 	reg |= HSP_VBUSVLDEXT | HSP_VBUSVLDEXTSEL;
-	writel(reg, regs_base + EXYNOS850_DRD_HSP);
+	writel(reg, regs_base + EXYANALS850_DRD_HSP);
 
 	/* Power up PHY analog blocks */
-	reg = readl(regs_base + EXYNOS850_DRD_HSP_TEST);
+	reg = readl(regs_base + EXYANALS850_DRD_HSP_TEST);
 	reg &= ~HSP_TEST_SIDDQ;
-	writel(reg, regs_base + EXYNOS850_DRD_HSP_TEST);
+	writel(reg, regs_base + EXYANALS850_DRD_HSP_TEST);
 
 	/* Finish PHY reset (POR=low) */
 	udelay(10); /* required before doing POR=low */
-	reg = readl(regs_base + EXYNOS850_DRD_CLKRST);
+	reg = readl(regs_base + EXYANALS850_DRD_CLKRST);
 	reg &= ~(CLKRST_PHY_SW_RST | CLKRST_PORT_RST);
-	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
+	writel(reg, regs_base + EXYANALS850_DRD_CLKRST);
 	udelay(75); /* required after POR=low for guaranteed PHY clock */
 
 	/* Disable single ended signal out */
-	reg = readl(regs_base + EXYNOS850_DRD_HSP);
+	reg = readl(regs_base + EXYANALS850_DRD_HSP);
 	reg &= ~HSP_FSV_OUT_EN;
-	writel(reg, regs_base + EXYNOS850_DRD_HSP);
+	writel(reg, regs_base + EXYANALS850_DRD_HSP);
 }
 
-static int exynos850_usbdrd_phy_init(struct phy *phy)
+static int exyanals850_usbdrd_phy_init(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 	int ret;
 
 	ret = clk_prepare_enable(phy_drd->clk);
@@ -823,10 +823,10 @@ static int exynos850_usbdrd_phy_init(struct phy *phy)
 	return 0;
 }
 
-static int exynos850_usbdrd_phy_exit(struct phy *phy)
+static int exyanals850_usbdrd_phy_exit(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
-	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	struct exyanals5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 	void __iomem *regs_base = phy_drd->reg_phy;
 	u32 reg;
 	int ret;
@@ -836,38 +836,38 @@ static int exynos850_usbdrd_phy_exit(struct phy *phy)
 		return ret;
 
 	/* Set PHY clock and control HS PHY */
-	reg = readl(regs_base + EXYNOS850_DRD_UTMI);
+	reg = readl(regs_base + EXYANALS850_DRD_UTMI);
 	reg &= ~(UTMI_DP_PULLDOWN | UTMI_DM_PULLDOWN);
 	reg |= UTMI_FORCE_SUSPEND | UTMI_FORCE_SLEEP;
-	writel(reg, regs_base + EXYNOS850_DRD_UTMI);
+	writel(reg, regs_base + EXYANALS850_DRD_UTMI);
 
 	/* Power down PHY analog blocks */
-	reg = readl(regs_base + EXYNOS850_DRD_HSP_TEST);
+	reg = readl(regs_base + EXYANALS850_DRD_HSP_TEST);
 	reg |= HSP_TEST_SIDDQ;
-	writel(reg, regs_base + EXYNOS850_DRD_HSP_TEST);
+	writel(reg, regs_base + EXYANALS850_DRD_HSP_TEST);
 
 	/* Link reset */
-	reg = readl(regs_base + EXYNOS850_DRD_CLKRST);
+	reg = readl(regs_base + EXYANALS850_DRD_CLKRST);
 	reg |= CLKRST_LINK_SW_RST;
-	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
+	writel(reg, regs_base + EXYANALS850_DRD_CLKRST);
 	udelay(10); /* required before doing POR=low */
 	reg &= ~CLKRST_LINK_SW_RST;
-	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
+	writel(reg, regs_base + EXYANALS850_DRD_CLKRST);
 
 	clk_disable_unprepare(phy_drd->clk);
 
 	return 0;
 }
 
-static const struct phy_ops exynos850_usbdrd_phy_ops = {
-	.init		= exynos850_usbdrd_phy_init,
-	.exit		= exynos850_usbdrd_phy_exit,
-	.power_on	= exynos5_usbdrd_phy_power_on,
-	.power_off	= exynos5_usbdrd_phy_power_off,
+static const struct phy_ops exyanals850_usbdrd_phy_ops = {
+	.init		= exyanals850_usbdrd_phy_init,
+	.exit		= exyanals850_usbdrd_phy_exit,
+	.power_on	= exyanals5_usbdrd_phy_power_on,
+	.power_off	= exyanals5_usbdrd_phy_power_off,
 	.owner		= THIS_MODULE,
 };
 
-static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
+static int exyanals5_usbdrd_phy_clk_handle(struct exyanals5_usbdrd_phy *phy_drd)
 {
 	unsigned long ref_rate;
 	int ret;
@@ -885,9 +885,9 @@ static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
 	}
 	ref_rate = clk_get_rate(phy_drd->ref_clk);
 
-	ret = exynos5_rate_to_clk(ref_rate, &phy_drd->extrefclk);
+	ret = exyanals5_rate_to_clk(ref_rate, &phy_drd->extrefclk);
 	if (ret) {
-		dev_err(phy_drd->dev, "Clock rate (%ld) not supported\n",
+		dev_err(phy_drd->dev, "Clock rate (%ld) analt supported\n",
 			ref_rate);
 		return ret;
 	}
@@ -896,21 +896,21 @@ static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
 		phy_drd->pipeclk = devm_clk_get(phy_drd->dev, "phy_pipe");
 		if (IS_ERR(phy_drd->pipeclk)) {
 			dev_info(phy_drd->dev,
-				 "PIPE3 phy operational clock not specified\n");
+				 "PIPE3 phy operational clock analt specified\n");
 			phy_drd->pipeclk = NULL;
 		}
 
 		phy_drd->utmiclk = devm_clk_get(phy_drd->dev, "phy_utmi");
 		if (IS_ERR(phy_drd->utmiclk)) {
 			dev_info(phy_drd->dev,
-				 "UTMI phy operational clock not specified\n");
+				 "UTMI phy operational clock analt specified\n");
 			phy_drd->utmiclk = NULL;
 		}
 
 		phy_drd->itpclk = devm_clk_get(phy_drd->dev, "itp");
 		if (IS_ERR(phy_drd->itpclk)) {
 			dev_info(phy_drd->dev,
-				 "ITP clock from main OSC not specified\n");
+				 "ITP clock from main OSC analt specified\n");
 			phy_drd->itpclk = NULL;
 		}
 	}
@@ -918,94 +918,94 @@ static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
 	return 0;
 }
 
-static const struct exynos5_usbdrd_phy_config phy_cfg_exynos5[] = {
+static const struct exyanals5_usbdrd_phy_config phy_cfg_exyanals5[] = {
 	{
-		.id		= EXYNOS5_DRDPHY_UTMI,
-		.phy_isol	= exynos5_usbdrd_phy_isol,
-		.phy_init	= exynos5_usbdrd_utmi_init,
-		.set_refclk	= exynos5_usbdrd_utmi_set_refclk,
+		.id		= EXYANALS5_DRDPHY_UTMI,
+		.phy_isol	= exyanals5_usbdrd_phy_isol,
+		.phy_init	= exyanals5_usbdrd_utmi_init,
+		.set_refclk	= exyanals5_usbdrd_utmi_set_refclk,
 	},
 	{
-		.id		= EXYNOS5_DRDPHY_PIPE3,
-		.phy_isol	= exynos5_usbdrd_phy_isol,
-		.phy_init	= exynos5_usbdrd_pipe3_init,
-		.set_refclk	= exynos5_usbdrd_pipe3_set_refclk,
-	},
-};
-
-static const struct exynos5_usbdrd_phy_config phy_cfg_exynos850[] = {
-	{
-		.id		= EXYNOS5_DRDPHY_UTMI,
-		.phy_isol	= exynos5_usbdrd_phy_isol,
-		.phy_init	= exynos850_usbdrd_utmi_init,
+		.id		= EXYANALS5_DRDPHY_PIPE3,
+		.phy_isol	= exyanals5_usbdrd_phy_isol,
+		.phy_init	= exyanals5_usbdrd_pipe3_init,
+		.set_refclk	= exyanals5_usbdrd_pipe3_set_refclk,
 	},
 };
 
-static const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
-	.phy_cfg		= phy_cfg_exynos5,
-	.phy_ops		= &exynos5_usbdrd_phy_ops,
-	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
-	.pmu_offset_usbdrd1_phy	= EXYNOS5420_USBDRD1_PHY_CONTROL,
+static const struct exyanals5_usbdrd_phy_config phy_cfg_exyanals850[] = {
+	{
+		.id		= EXYANALS5_DRDPHY_UTMI,
+		.phy_isol	= exyanals5_usbdrd_phy_isol,
+		.phy_init	= exyanals850_usbdrd_utmi_init,
+	},
+};
+
+static const struct exyanals5_usbdrd_phy_drvdata exyanals5420_usbdrd_phy = {
+	.phy_cfg		= phy_cfg_exyanals5,
+	.phy_ops		= &exyanals5_usbdrd_phy_ops,
+	.pmu_offset_usbdrd0_phy	= EXYANALS5_USBDRD_PHY_CONTROL,
+	.pmu_offset_usbdrd1_phy	= EXYANALS5420_USBDRD1_PHY_CONTROL,
 	.has_common_clk_gate	= true,
 };
 
-static const struct exynos5_usbdrd_phy_drvdata exynos5250_usbdrd_phy = {
-	.phy_cfg		= phy_cfg_exynos5,
-	.phy_ops		= &exynos5_usbdrd_phy_ops,
-	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
+static const struct exyanals5_usbdrd_phy_drvdata exyanals5250_usbdrd_phy = {
+	.phy_cfg		= phy_cfg_exyanals5,
+	.phy_ops		= &exyanals5_usbdrd_phy_ops,
+	.pmu_offset_usbdrd0_phy	= EXYANALS5_USBDRD_PHY_CONTROL,
 	.has_common_clk_gate	= true,
 };
 
-static const struct exynos5_usbdrd_phy_drvdata exynos5433_usbdrd_phy = {
-	.phy_cfg		= phy_cfg_exynos5,
-	.phy_ops		= &exynos5_usbdrd_phy_ops,
-	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
-	.pmu_offset_usbdrd1_phy	= EXYNOS5433_USBHOST30_PHY_CONTROL,
+static const struct exyanals5_usbdrd_phy_drvdata exyanals5433_usbdrd_phy = {
+	.phy_cfg		= phy_cfg_exyanals5,
+	.phy_ops		= &exyanals5_usbdrd_phy_ops,
+	.pmu_offset_usbdrd0_phy	= EXYANALS5_USBDRD_PHY_CONTROL,
+	.pmu_offset_usbdrd1_phy	= EXYANALS5433_USBHOST30_PHY_CONTROL,
 	.has_common_clk_gate	= false,
 };
 
-static const struct exynos5_usbdrd_phy_drvdata exynos7_usbdrd_phy = {
-	.phy_cfg		= phy_cfg_exynos5,
-	.phy_ops		= &exynos5_usbdrd_phy_ops,
-	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
+static const struct exyanals5_usbdrd_phy_drvdata exyanals7_usbdrd_phy = {
+	.phy_cfg		= phy_cfg_exyanals5,
+	.phy_ops		= &exyanals5_usbdrd_phy_ops,
+	.pmu_offset_usbdrd0_phy	= EXYANALS5_USBDRD_PHY_CONTROL,
 	.has_common_clk_gate	= false,
 };
 
-static const struct exynos5_usbdrd_phy_drvdata exynos850_usbdrd_phy = {
-	.phy_cfg		= phy_cfg_exynos850,
-	.phy_ops		= &exynos850_usbdrd_phy_ops,
-	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
+static const struct exyanals5_usbdrd_phy_drvdata exyanals850_usbdrd_phy = {
+	.phy_cfg		= phy_cfg_exyanals850,
+	.phy_ops		= &exyanals850_usbdrd_phy_ops,
+	.pmu_offset_usbdrd0_phy	= EXYANALS5_USBDRD_PHY_CONTROL,
 	.has_common_clk_gate	= true,
 };
 
-static const struct of_device_id exynos5_usbdrd_phy_of_match[] = {
+static const struct of_device_id exyanals5_usbdrd_phy_of_match[] = {
 	{
-		.compatible = "samsung,exynos5250-usbdrd-phy",
-		.data = &exynos5250_usbdrd_phy
+		.compatible = "samsung,exyanals5250-usbdrd-phy",
+		.data = &exyanals5250_usbdrd_phy
 	}, {
-		.compatible = "samsung,exynos5420-usbdrd-phy",
-		.data = &exynos5420_usbdrd_phy
+		.compatible = "samsung,exyanals5420-usbdrd-phy",
+		.data = &exyanals5420_usbdrd_phy
 	}, {
-		.compatible = "samsung,exynos5433-usbdrd-phy",
-		.data = &exynos5433_usbdrd_phy
+		.compatible = "samsung,exyanals5433-usbdrd-phy",
+		.data = &exyanals5433_usbdrd_phy
 	}, {
-		.compatible = "samsung,exynos7-usbdrd-phy",
-		.data = &exynos7_usbdrd_phy
+		.compatible = "samsung,exyanals7-usbdrd-phy",
+		.data = &exyanals7_usbdrd_phy
 	}, {
-		.compatible = "samsung,exynos850-usbdrd-phy",
-		.data = &exynos850_usbdrd_phy
+		.compatible = "samsung,exyanals850-usbdrd-phy",
+		.data = &exyanals850_usbdrd_phy
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos5_usbdrd_phy_of_match);
+MODULE_DEVICE_TABLE(of, exyanals5_usbdrd_phy_of_match);
 
-static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
+static int exyanals5_usbdrd_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct exynos5_usbdrd_phy *phy_drd;
+	struct device_analde *analde = dev->of_analde;
+	struct exyanals5_usbdrd_phy *phy_drd;
 	struct phy_provider *phy_provider;
-	const struct exynos5_usbdrd_phy_drvdata *drv_data;
+	const struct exyanals5_usbdrd_phy_drvdata *drv_data;
 	struct regmap *reg_pmu;
 	u32 pmu_offset;
 	int i, ret;
@@ -1013,7 +1013,7 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 
 	phy_drd = devm_kzalloc(dev, sizeof(*phy_drd), GFP_KERNEL);
 	if (!phy_drd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, phy_drd);
 	phy_drd->dev = dev;
@@ -1028,13 +1028,13 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 
 	phy_drd->drv_data = drv_data;
 
-	ret = exynos5_usbdrd_phy_clk_handle(phy_drd);
+	ret = exyanals5_usbdrd_phy_clk_handle(phy_drd);
 	if (ret) {
 		dev_err(dev, "Failed to initialize clocks\n");
 		return ret;
 	}
 
-	reg_pmu = syscon_regmap_lookup_by_phandle(dev->of_node,
+	reg_pmu = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						   "samsung,pmu-syscon");
 	if (IS_ERR(reg_pmu)) {
 		dev_err(dev, "Failed to lookup PMU regmap\n");
@@ -1042,13 +1042,13 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Exynos5420 SoC has multiple channels for USB 3.0 PHY, with
+	 * Exyanals5420 SoC has multiple channels for USB 3.0 PHY, with
 	 * each having separate power control registers.
 	 * 'channel' facilitates to set such registers.
 	 */
-	channel = of_alias_get_id(node, "usbdrdphy");
+	channel = of_alias_get_id(analde, "usbdrdphy");
 	if (channel < 0)
-		dev_dbg(dev, "Not a multi-controller usbdrd phy\n");
+		dev_dbg(dev, "Analt a multi-controller usbdrd phy\n");
 
 	switch (channel) {
 	case 1:
@@ -1083,7 +1083,7 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 
 	dev_vdbg(dev, "Creating usbdrd_phy phy\n");
 
-	for (i = 0; i < EXYNOS5_DRDPHYS_NUM; i++) {
+	for (i = 0; i < EXYANALS5_DRDPHYS_NUM; i++) {
 		struct phy *phy = devm_phy_create(dev, NULL, drv_data->phy_ops);
 
 		if (IS_ERR(phy)) {
@@ -1100,7 +1100,7 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	}
 
 	phy_provider = devm_of_phy_provider_register(dev,
-						     exynos5_usbdrd_phy_xlate);
+						     exyanals5_usbdrd_phy_xlate);
 	if (IS_ERR(phy_provider)) {
 		dev_err(phy_drd->dev, "Failed to register phy provider\n");
 		return PTR_ERR(phy_provider);
@@ -1109,17 +1109,17 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver exynos5_usb3drd_phy = {
-	.probe	= exynos5_usbdrd_phy_probe,
+static struct platform_driver exyanals5_usb3drd_phy = {
+	.probe	= exyanals5_usbdrd_phy_probe,
 	.driver = {
-		.of_match_table	= exynos5_usbdrd_phy_of_match,
-		.name		= "exynos5_usb3drd_phy",
+		.of_match_table	= exyanals5_usbdrd_phy_of_match,
+		.name		= "exyanals5_usb3drd_phy",
 		.suppress_bind_attrs = true,
 	}
 };
 
-module_platform_driver(exynos5_usb3drd_phy);
-MODULE_DESCRIPTION("Samsung Exynos5 SoCs USB 3.0 DRD controller PHY driver");
+module_platform_driver(exyanals5_usb3drd_phy);
+MODULE_DESCRIPTION("Samsung Exyanals5 SoCs USB 3.0 DRD controller PHY driver");
 MODULE_AUTHOR("Vivek Gautam <gautam.vivek@samsung.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:exynos5_usb3drd_phy");
+MODULE_ALIAS("platform:exyanals5_usb3drd_phy");
